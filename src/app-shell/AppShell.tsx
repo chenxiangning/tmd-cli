@@ -1,14 +1,14 @@
 /**
- * 客户端主页外壳 —— 三栏可拖布局 + composer 高度可拖 + 顶栏 macOS 融合。
+ * 客户端主页外壳 —— 横向多栏可拖布局(文件预览为条件通栏) + composer 高度可拖 + 顶栏 macOS 融合。
  *
- * 布局(横向 3 栏,全部可拖):
+ * 布局(横向最多 4 栏,全部可拖):
  * ┌────────────────────────────────────────────────────────┐
  * │ 头部(macOS 红黄绿 + 面包屑 + 挂点)                       │
- * ├──────────┬──────────────────────────────┬──────────────┤
- * │ session  │  幕布(terminal)             │  files       │
- * │ (可拖)   │  + 文件 tab(有打开时)      │  (可拖)      │
- * │          │  + composer(高度可拖)      │              │
- * ├──────────┴──────────────────────────────┴──────────────┤
+ * ├──────────┬───────────────────┬───────────┬─────────────┤
+ * │ session  │  幕布(terminal)  │           │  files      │
+ * │ (可拖)   │  ─────────────  │  文件预览  │  (可拖)     │
+ * │          │  composer       │ (占满竖屏) │             │
+ * ├──────────┴───────────────────┴───────────┴─────────────┤
  * │ 底部状态栏                                              │
  * └────────────────────────────────────────────────────────┘
  *
@@ -167,46 +167,23 @@ function EditorCenter() {
 }
 
 /**
- * 中央幕布 —— 文件 tab 与会话独立:
- * - 无 session + 有 tab → 中央直接是 EditorCenter
- * - 无 session + 无 tab → "新建会话"占位
- * - 有 session + 无 tab → 纯 TerminalView
- * - 有 session + 有 tab → terminal | editor 双栏
- *
- * 底部 composer 与主区之间可拖。
+ * 中央幕布 —— 上下结构:terminal(无 session 时占位) + composer,高度可拖。
+ * 文件预览不在此层:提升为外层水平 group 的独立通栏面板(见 AppShell),
+ * 打开文件时 terminal 不再被横向压缩。
  */
 function MainPanel() {
   const activeId = host.getActiveSessionId();
-  const { tabs } = useEditorTabs();
-  const showEditor = tabs.length > 0;
 
   return (
     <PanelGroup orientation="vertical" id="tmd.main.vertical">
       <Panel defaultSize={70} minSize={30} id="canvas">
-        <div className="flex h-full w-full">
-          {!activeId && showEditor && <EditorCenter />}
-          {!activeId && !showEditor && (
-            <div className="flex h-full items-center justify-center text-(--tmd-fg-subtle)">
-              左侧新建一个会话开始
-            </div>
-          )}
-          {activeId && !showEditor && (
-            <TerminalView key={activeId} sessionId={activeId} />
-          )}
-          {activeId && showEditor && (
-            <PanelGroup orientation="horizontal" id="tmd.main.horizontal">
-              <Panel defaultSize={70} minSize={30} id="terminal">
-                <div className="h-full w-full">
-                  <TerminalView key={activeId} sessionId={activeId} />
-                </div>
-              </Panel>
-              <PanelResizeHandle className="panel-handle panel-handle-v" />
-              <Panel defaultSize={30} minSize={15} id="editor">
-                <EditorCenter />
-              </Panel>
-            </PanelGroup>
-          )}
-        </div>
+        {activeId ? (
+          <TerminalView key={activeId} sessionId={activeId} />
+        ) : (
+          <div className="flex h-full items-center justify-center text-(--tmd-fg-subtle)">
+            左侧新建一个会话开始
+          </div>
+        )}
       </Panel>
       <PanelResizeHandle className="panel-handle panel-handle-h" />
       <Panel defaultSize={30} minSize={10} id="composer">
@@ -315,6 +292,7 @@ export function AppShell() {
   const { mode: filePanelMode } = useFilePanel();
   const [leftOpen, toggleLeft] = usePersistedToggle("shell.left", true);
   const [rightOpen, toggleRight] = usePersistedToggle("shell.right", true);
+  const { tabs } = useEditorTabs();
   const [leftAsideRef, leftAsideWidth] = useElementWidth();
   const [rightAsideRef, rightAsideWidth] = useElementWidth();
   /* 经典滚动条会吃掉滚动容器的内容宽度:实测一次,供顶栏折叠按钮让位对齐。 */
@@ -362,6 +340,16 @@ export function AppShell() {
         <Panel defaultSize={60} minSize={30} id="center">
           <MainPanel />
         </Panel>
+
+        {/* 文件预览:有打开 tab 时出现,占满竖屏,位于中栏与右栏之间(可拖) */}
+        {tabs.length > 0 && (
+          <>
+            <PanelResizeHandle className="panel-handle panel-handle-v panel-handle-line-l" />
+            <Panel defaultSize={60} minSize={15} id="editor">
+              <EditorCenter />
+            </Panel>
+          </>
+        )}
 
         {rightOpen && (
           <>
