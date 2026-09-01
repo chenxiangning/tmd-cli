@@ -1,79 +1,107 @@
 /**
- * workspace 插件 —— 左侧"工作区"区块,管理多工作区并行。
- *
- * 设计:
- * - 工作区 = 顶层容器,存 root cwd + name;持久化在 ~/.tmd-cli/workspaces.json
- * - 全部工作区并列展开,点击选中(作为新建会话默认 cwd)
- * - 删除工作区只影响列表,不影响其下历史会话(session 通过 workspaceId 关联,
- *   无 workspace 时归到 default)
+ * workspace 插件 —— 左侧面板唯一区块:工作区即会话容器。
+ * 外观与交互完全复刻 codemoss(WorkspaceCard/ThreadList/WorkspaceMenuOverlay):
+ * - 工作区行:双态文件夹图标(hover 换 chevrons)+ 名称 + Default badge
+ *   + hover 显形动作组(切到主区/刷新会话/新建会话菜单),右键同「+」
+ * - 会话树:贯穿竖线 + ╰ 弯钩;行 = CLI EngineIcon + 名称 + meta
+ *   (活会话 meta 显示呼吸灯,磁盘会话显示相对时间),固定在 CLI 分组内
+ * - 磁盘历史分页:初始 10 条,"更多..."翻倍递增(10 → 20 → 40 → 80)
+ * - 新建会话菜单:portal + fixed 定位(点击点夹取),CLI 行 + 行右侧刷新
+ * - 数据源:活会话 = 内核 PTY 注册表;历史 = 各 CLI 插件 listSessions
+ * 组件实现见同目录:WorkspaceCard / SessionList / SessionMenu / utils。
  */
 
+import { useState } from "react";
+import { host, useHost } from "@kernel/host";
 import type { Plugin } from "@kernel/plugin";
-import { useHost } from "@kernel/host";
 import {
   addWorkspace,
-  removeWorkspace,
-  setActiveWorkspace,
   useWorkspaces,
+  type Workspace,
 } from "@kernel/workspace";
-import { open } from "@tauri-apps/plugin-dialog";
+import { pickDirectory } from "@kernel/ipc";
+import { FolderPlus } from "lucide-react";
+import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
+import { WorkspaceCard } from "./WorkspaceCard";
 
 function WorkspaceSection() {
   useHost();
   const { list, activeId } = useWorkspaces();
-    async function handleAdd() {
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: "选择工作区目录",
-    });
-    if (typeof selected === "string" && selected) {
-      addWorkspace(selected);
+  const [menu, setMenu] = useState<{
+    workspace: Workspace;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [refreshTicks, setRefreshTicks] = useState<Record<string, number>>({});
+  const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
+
+  async function handleAdd() {
+    try {
+      const selected = await pickDirectory("选择工作区目录");
+      if (typeof selected === "string" && selected) {
+        addWorkspace(selected);
+      }
+    } catch (err) {
+      // 权限被拒/插件未注册等不再静默,方便定位
+      console.warn("workspace: 选择目录失败", err);
     }
   }
 
+  /** 刷新键 = 工作区:CLI —— tick 触发重扫,scanDone 清 spin。 */
+  const bumpTick = (workspaceId: string, profileId: string) => {
+    const key = `${workspaceId}:${profileId}`;
+    setRefreshing((prev) => ({ ...prev, [key]: true }));
+    setRefreshTicks((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
+  };
+
+  const scanDone = (workspaceId: string, profileId: string) => {
+    const key = `${workspaceId}:${profileId}`;
+    setRefreshing((prev) => ({ ...prev, [key]: false }));
+  };
+
   return (
-    <div className="flex flex-col gap-1 p-2">
-      <div className="flex items-center justify-between px-1 text-xs text-neutral-500">
+    <div className="ws-sidebar">
+      <div className="ws-caption">
         <span>工作区</span>
         <button
+          className="ws-caption-btn"
           title="添加工作区"
-          className="rounded px-1 hover:bg-neutral-800"
-                    onClick={() => void handleAdd()}
+          onClick={() => void handleAdd()}
         >
-          +
+          <FolderPlus size={13} aria-hidden />
         </button>
       </div>
 
-      {list.map((ws) => {
-        const isActive = ws.id === activeId;
-        return (
-          <div
-            key={ws.id}
-            className={`group flex items-center gap-1 rounded px-2 py-1 text-sm ${
-              isActive ? "bg-neutral-800" : "hover:bg-neutral-800/60"
-            }`}
-          >
-            <button
-              className="flex flex-1 items-center gap-1 text-left"
-              onClick={() => setActiveWorkspace(ws.id)}
-              title={ws.root}
-            >
-              <span className="text-sky-400">▸</span>
-              <span className="truncate">{ws.name}</span>
-            </button>
-            {list.length > 1 && (
-              <button
-                title="删除工作区"
-                className="invisible rounded px-1 text-neutral-500 hover:bg-neutral-700 hover:text-red-400 group-hover:visible"
-                onClick={() => removeWorkspace(ws.id)}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        );
-      })}
+      {list.map((ws) => (
+        <WorkspaceCard
+          key={ws.id}
+          workspace={ws}
+          isActive={ws.id === activeId}
+          refreshTicks={refreshTicks}
+          onRefreshWorkspace={(wsId) =>
+            host.getCliProfiles().forEach((p) => bumpTick(wsId, p.id))
+          }
+          onScanDone={scanDone}
+          onShowMenu={(workspace, x, y) =>
+            setMenu({ workspace, ...clampMenuPosition(x, y) })
+          }
+        />
+      ))}
+
+      {menu && (
+        <SessionMenuOverlay
+          workspace={menu.workspace}
+          canRemove={list.length > 1}
+          position={{ x: menu.x, y: menu.y }}
+          refreshing={Object.fromEntries(
+            host
+              .getCliProfiles()
+              .map((p) => [p.id, refreshing[`${menu.workspace.id}:${p.id}`] ?? false]),
+          )}
+          onRefresh={(profileId) => bumpTick(menu.workspace.id, profileId)}
+          onClose={() => setMenu(null)}
+        />
+      )}
     </div>
   );
 }
