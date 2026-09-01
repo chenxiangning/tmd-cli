@@ -1,21 +1,33 @@
 /**
- * 五区外壳 + 左右工具条（rail）+ 中间分屏（终端 | 文件 tab）
+ * 外壳骨架 + 中央幕布 + composer + 文件编辑器 tab + 会话列表 + 折叠工具条。
  *
- * 布局：头部 / [左 rail + 左栏 | 幕布主体(终端 | 文件 tab, 拖拽条)  | 右栏 + 右 rail] / composer / 底部
- * - 中间主体用 react-resizable-panels 左右分屏，可拖拽,可"最大化右侧"折叠左半
- * - 文件 tab 全局共享(跨会话),由 plugins/files 点文件时 openTab()
- * - rail 是 VS Code activity bar 式窄条，插件可挂 leftRail/rightRail 图标
- * - 底部左右角的折叠钮控制对应侧整区（rail + 面板）显隐，状态持久化
- * - 外壳是内核的一部分；头/底/rail/侧栏/中间主体都暴露挂载点给插件
+ * 布局(对齐 mossx 外壳骨架):
+ * ┌─────────────────────────────────────────────────┐
+ * │ 头部工具栏(默认融合 macOS 原生标题栏,data-tauri-drag-region) │
+ * ├────┬─────────┬──────────────────────┬─────────┬───┤
+ * │rail│ 左栏    │ 终端幕布(占主体)  │ 文件 tab│rail│
+ * │    │ session │                       │ (有文件) │   │
+ * │    │         │                       │ 才显示   │   │
+ * │    │         ├──────────────────────┤         │   │
+ * │    │         │ composer             │         │   │
+ * ├────┴─────────┴──────────────────────┴─────────┴───┤
+ * │ 底部状态栏                                        │
+ * └─────────────────────────────────────────────────┘
+ *
+ * 关键设计:
+ * - 文件 tab 区仅在打开过文件时显示(用户诉求 #1)
+ * - composer 始终在幕布正下方,高度可拖拽
+ * - 左侧会话持久化走 ~/.tmd-cli/sessions.json(本轮计划接入)
+ * - 头部用 data-tauri-drag-region 融合 macOS 原生窗口栏(诉求 #7)
+ * - 工具条对齐 mossx 紧凑尺寸:头部 h-8,底部 h-6,rail w-8(诉求 #6)
  */
 
 import { useEffect, useState } from "react";
-import { closeTab, setActiveTab, useEditorTabs } from "@kernel/tabs";
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { host, useHost } from "@kernel/host";
 import type { MountPoint } from "@kernel/plugin";
 import { TerminalView } from "@kernel/TerminalView";
-
+import { closeTab, setActiveTab, useEditorTabs } from "@kernel/tabs";
 
 function Mounts({ point }: { point: MountPoint }) {
   useHost();
@@ -39,43 +51,24 @@ function usePersistedToggle(key: string, initial: boolean) {
   return [open, () => setOpen((v) => !v)] as const;
 }
 
-/**
- * 文件编辑器 tab 区：标签栏 + 当前 tab 内容 + 关闭按钮。
- * tab 全局共享(mossx 习惯)。
- */
 function EditorCenter() {
   const { tabs, activeId } = useEditorTabs();
   const active = tabs.find((t) => t.id === activeId) ?? null;
 
-  if (tabs.length === 0) {
-    return (
-      <div className="flex h-full flex-col bg-neutral-950 text-xs text-neutral-600">
-        <div className="flex h-8 shrink-0 items-center border-b border-neutral-800 px-3 text-neutral-500">
-          无打开的文件
-        </div>
-        <div className="flex flex-1 items-center justify-center">
-          点击右侧文件树即可在此打开
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-full flex-col bg-neutral-950">
-      <div className="flex h-8 shrink-0 items-center gap-1 overflow-x-auto border-b border-neutral-800 px-1 text-xs">
+      <div className="flex h-7 shrink-0 items-center gap-1 overflow-x-auto border-b border-neutral-800 px-1 text-xs">
         {tabs.map((t) => {
           const isActive = t.id === activeId;
           return (
             <button
               key={t.id}
-              className={`flex shrink-0 items-center gap-1 rounded px-2 py-1 ${
+              className={`flex shrink-0 items-center gap-1 rounded px-2 py-0.5 ${
                 isActive
                   ? "bg-neutral-800 text-neutral-100"
                   : "text-neutral-400 hover:bg-neutral-800/60"
               }`}
-              onClick={() => {
-                setActiveTab(t.id);
-              }}
+              onClick={() => setActiveTab(t.id)}
               title={t.path}
             >
               <span className="truncate">{t.title}</span>
@@ -106,52 +99,58 @@ function EditorCenter() {
 }
 
 /**
- * 中间主体：左 terminal / 右 editor tabs,可拖拽。
- * "最大化右侧" 按钮把左半收缩到 0%。
+ * 中间主体 —— 根据 tabs 是否存在,在单栏(纯幕布)与双栏(幕布 + 文件 tab)间切换。
+ * 双栏使用 react-resizable-panels 可拖拽;单栏隐藏文件 tab Panel。
  */
 function MainPanel() {
   const activeId = host.getActiveSessionId();
   const [rightMaximized, setRightMaximized] = useState(false);
+  const { tabs } = useEditorTabs();
+  const showEditor = tabs.length > 0;
 
   return (
     <main className="flex min-w-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1">
-        <PanelGroup orientation="horizontal" id="tmd.main" autoSave="tmd.main">
-          <Panel
-            defaultSize={rightMaximized ? 0 : 70}
-            minSize={0}
-            id="terminal"
-          >
-            <div className="h-full w-full">
-              {activeId ? (
-                <TerminalView key={activeId} sessionId={activeId} />
-              ) : (
-                <div className="flex h-full items-center justify-center text-neutral-500">
-                  左侧新建一个会话开始
-                </div>
-              )}
-            </div>
-          </Panel>
-          <PanelResizeHandle className="w-1 shrink-0 bg-neutral-800 hover:bg-neutral-600" />
-          <Panel
-            defaultSize={rightMaximized ? 100 : 30}
-            minSize={15}
-            id="editor"
-          >
-            <div className="relative h-full w-full">
-              <button
-                onClick={() => setRightMaximized((v) => !v)}
-                title={rightMaximized ? "恢复左侧" : "最大化右侧"}
-                className="absolute right-1 top-1 z-10 rounded bg-neutral-800/80 px-1.5 py-0.5 text-xs text-neutral-400 hover:bg-neutral-700 hover:text-neutral-100"
-              >
-                {rightMaximized ? "⤇" : "⤆"}
-              </button>
-              <EditorCenter />
-            </div>
-          </Panel>
-        </PanelGroup>
+        {showEditor ? (
+          <PanelGroup orientation="horizontal" id="tmd.main" autoSave="tmd.main">
+            <Panel defaultSize={rightMaximized ? 0 : 70} minSize={0} id="terminal">
+              <div className="h-full w-full">
+                {activeId ? (
+                  <TerminalView key={activeId} sessionId={activeId} />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-neutral-500">
+                    左侧新建一个会话开始
+                  </div>
+                )}
+              </div>
+            </Panel>
+            <PanelResizeHandle className="w-1 shrink-0 bg-neutral-800 hover:bg-neutral-600" />
+            <Panel defaultSize={rightMaximized ? 100 : 30} minSize={15} id="editor">
+              <div className="relative h-full w-full">
+                <button
+                  onClick={() => setRightMaximized((v) => !v)}
+                  title={rightMaximized ? "恢复左侧" : "最大化右侧"}
+                  className="absolute right-1 top-1 z-10 rounded bg-neutral-800/80 px-1.5 py-0.5 text-xs text-neutral-400 hover:bg-neutral-700 hover:text-neutral-100"
+                >
+                  {rightMaximized ? "⤇" : "⤆"}
+                </button>
+                <EditorCenter />
+              </div>
+            </Panel>
+          </PanelGroup>
+        ) : (
+          <div className="h-full w-full">
+            {activeId ? (
+              <TerminalView key={activeId} sessionId={activeId} />
+            ) : (
+              <div className="flex h-full items-center justify-center text-neutral-500">
+                左侧新建一个会话开始
+              </div>
+            )}
+          </div>
+        )}
       </div>
-      <div className="h-56 shrink-0 border-t border-neutral-800">
+      <div className="h-40 shrink-0 border-t border-neutral-800">
         <Mounts point="editorCenter.composer" />
       </div>
     </main>
@@ -165,10 +164,15 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen w-screen flex-col bg-neutral-950 text-neutral-200">
-      {/* 头部工具栏 */}
-      <header className="flex h-10 shrink-0 items-center justify-between border-b border-neutral-800 px-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold">tmd-cli</span>
+      {/* 头部工具栏(融合 macOS 原生窗口栏,data-tauri-drag-region 允许拖拽) */}
+      <header
+        data-tauri-drag-region
+        className="flex h-8 shrink-0 items-center justify-between border-b border-neutral-800 bg-neutral-950 px-3"
+      >
+        <div className="flex items-center gap-2" data-tauri-drag-region>
+          <span className="text-sm font-semibold" data-tauri-drag-region>
+            tmd-cli
+          </span>
           <Mounts point="header.left" />
         </div>
         <div className="flex items-center gap-2">
@@ -180,42 +184,41 @@ export function AppShell() {
         {/* 左侧工具条 + 面板 */}
         {leftOpen && (
           <>
-            <nav className="flex w-10 shrink-0 flex-col items-center gap-1 border-r border-neutral-800 py-2">
+            <nav className="flex w-8 shrink-0 flex-col items-center gap-1 border-r border-neutral-800 py-1">
               <Mounts point="leftRail" />
             </nav>
-            <aside className="flex w-56 shrink-0 flex-col border-r border-neutral-800">
+            <aside className="flex w-52 shrink-0 flex-col border-r border-neutral-800">
               <SessionList />
               <Mounts point="leftSidebar.section" />
             </aside>
           </>
         )}
 
-        {/* 中间主体(终端 + 文件 tab + composer) */}
         <MainPanel />
 
         {/* 右侧面板 + 工具条 */}
         {rightOpen && (
           <>
-            <aside className="flex w-64 shrink-0 flex-col border-l border-neutral-800">
-              <div className="flex h-9 shrink-0 items-center border-b border-neutral-800 px-3 text-xs text-neutral-500">
+            <aside className="flex w-56 shrink-0 flex-col border-l border-neutral-800">
+              <div className="flex h-8 shrink-0 items-center border-b border-neutral-800 px-3 text-xs text-neutral-500">
                 文件
               </div>
               <div className="min-h-0 flex-1 overflow-auto">
                 <Mounts point="rightSidebar.tab" />
               </div>
             </aside>
-            <nav className="flex w-10 shrink-0 flex-col items-center gap-1 border-l border-neutral-800 py-2">
+            <nav className="flex w-8 shrink-0 flex-col items-center gap-1 border-l border-neutral-800 py-1">
               <Mounts point="rightRail" />
             </nav>
           </>
         )}
       </div>
 
-      {/* 底部状态栏：角落折叠钮 + 插件挂载点 */}
-      <footer className="flex h-7 shrink-0 items-center justify-between border-t border-neutral-800 px-1 text-xs text-neutral-500">
+      {/* 底部状态栏 */}
+      <footer className="flex h-6 shrink-0 items-center justify-between border-t border-neutral-800 px-1 text-xs text-neutral-500">
         <div className="flex items-center gap-1">
           <button
-            className="rounded px-2 py-0.5 hover:bg-neutral-800"
+            className="rounded px-1.5 py-0.5 hover:bg-neutral-800"
             title={leftOpen ? "折叠左栏" : "展开左栏"}
             onClick={toggleLeft}
           >
@@ -226,7 +229,7 @@ export function AppShell() {
         <div className="flex items-center gap-1">
           <Mounts point="footer.right" />
           <button
-            className="rounded px-2 py-0.5 hover:bg-neutral-800"
+            className="rounded px-1.5 py-0.5 hover:bg-neutral-800"
             title={rightOpen ? "折叠右栏" : "展开右栏"}
             onClick={toggleRight}
           >
@@ -235,7 +238,7 @@ export function AppShell() {
         </div>
       </footer>
 
-      {/* 浮层挂载点（兜底） */}
+      {/* 浮层挂载点(兜底) */}
       <Mounts point="overlay" />
     </div>
   );

@@ -54,8 +54,21 @@ class Host implements PluginContext {
   activateAll(plugins: Plugin[]): Promise<void> {
     if (!this.activation) {
       this.activation = this.doActivateAll(plugins);
+      // 同步拉一次历史会话(从 Rust 持久化目录),让前端恢复显示。
+      void this.restoreSessions();
     }
     return this.activation;
+  }
+
+  /** 从 Rust 端拉历史 sessions;不再重新 spawn PTY(用户点开才重连)。 */
+  private async restoreSessions(): Promise<void> {
+    try {
+      const list = await ipc.sessionList();
+      this.sessions = list;
+      this.notify();
+    } catch {
+      // 非 Tauri 环境(浏览器)静默,保持空表
+    }
   }
 
   private async doActivateAll(plugins: Plugin[]): Promise<void> {

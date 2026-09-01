@@ -76,10 +76,13 @@ fn git_status(cwd: String) -> Result<git::GitStatus, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    session::ensure_config_dir().ok();
+    let sessions = session::SessionRegistry::default();
+    sessions.restore_from_disk();
     tauri::Builder::default()
         .manage(AppState {
             pty: PtyRegistry::default(),
-            sessions: SessionRegistry::default(),
+                        sessions,
         })
         .invoke_handler(tauri::generate_handler![
             session_spawn,

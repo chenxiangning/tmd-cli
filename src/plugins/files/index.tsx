@@ -47,7 +47,7 @@ function openFileInTab(path: string) {
     title: path.split("/").pop() ?? path,
     path,
     kind: "file",
-    payload: loadFile(path),
+    payload: { path },
   });
 }
 
@@ -56,22 +56,23 @@ function FileTabContent() {
   const active = tabs.find((t) => t.id === activeId);
   const [, setTick] = useState(0);
 
-  // 加载异步结果后,缓存变了 — 强制重渲拿最新 content
+  // 读 fileCache 拿活跃 payload;点开异步结果会更新 cache,触发 setTick 重渲。
+  const path = active?.kind === "file" ? active.path : null;
+  const payload = path ? loadFile(path) : null;
+
   useEffect(() => {
-    if (!active || active.kind !== "file") return;
-    const payload = active.payload as FilePayload;
-    if (payload.loaded) return;
+    if (!path) return;
+    if (fileCache.get(path)?.loaded) return;
     const timer = setInterval(() => {
-      const cur = fileCache.get(payload.path);
-      if (cur?.loaded) {
+      if (fileCache.get(path)?.loaded) {
         setTick((n) => n + 1);
         clearInterval(timer);
       }
     }, 100);
     return () => clearInterval(timer);
-  }, [active]);
+  }, [path]);
 
-  if (!active || active.kind !== "file") {
+  if (!active || active.kind !== "file" || !payload) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-neutral-600">
         选中一个文件查看
@@ -79,10 +80,9 @@ function FileTabContent() {
     );
   }
 
-  const p = active.payload as FilePayload;
   return (
     <pre className="h-full w-full overflow-auto p-3 text-xs leading-5 text-neutral-300">
-      {p.error ? `⚠ ${p.error}` : p.loaded ? p.content : "加载中…"}
+      {payload.error ? `⚠ ${payload.error}` : payload.loaded ? payload.content : "加载中…"}
     </pre>
   );
 }
