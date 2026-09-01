@@ -9,7 +9,6 @@ import type { ComponentType } from "react";
 import type { EventBus } from "./events";
 import type { CliProfile } from "./cli";
 
-/** 外壳暴露的挂载点（第五轮决策：头/底工具栏为扩展预留）。 */
 export type MountPoint =
   | "header.left"
   | "header.right"
@@ -19,7 +18,13 @@ export type MountPoint =
   | "rightSidebar.tab"
   | "leftRail"
   | "rightRail"
-  | "overlay";
+  | "overlay"
+  /** 中央编辑区标签页栏 —— 文件预览/编辑器等在此开 tab,不弹窗。 */
+  | "editorCenter.tabBar"
+  /** 中央编辑区标签内容 —— 每个 tab 一个组件,按 tabId 取对应内容。 */
+  | "editorCenter.tabContent"
+  /** 幕布下方富 composer 输入区。 */
+  | "editorCenter.composer";
 
 export interface MountContribution {
   /** 同挂载点内排序，小的在前。 */
