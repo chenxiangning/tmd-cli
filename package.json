@@ -9,6 +9,7 @@
     "build": "tsc && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "check:file-size": "node scripts/check-file-size.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
