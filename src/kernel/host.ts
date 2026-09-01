@@ -9,8 +9,12 @@ import { useSyncExternalStore } from "react";
 import { EventBus, KernelTopics } from "./events";
 
 import { ipc, onPtyExit, onPtyOutput, type SessionMeta, type SpawnSpec } from "./ipc";
-import type { CliProfile } from "./cli";
+import type { CliProfile, CliSessionStatus } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";
+import {
+  registerSettingsSection,
+  type SettingsSectionContribution,
+} from "./settingsRegistry";
 
 class Host implements PluginContext {
   readonly events = new EventBus();
@@ -20,11 +24,24 @@ class Host implements PluginContext {
   private mounts = new Map<MountPoint, MountContribution[]>();
   private sessions: SessionMeta[] = [];
   private activeSessionId: string | null = null;
+  /** 活会话对应的 CLI 当前模型/思考强度,由 profile 只读读取。 */
+  private sessionStatuses = new Map<string, CliSessionStatus>();
+  private statusTimer: number | null = null;
   private listeners = new Set<() => void>();
-  /** 本会话周期内 createSession 出来的活 session id。其他都是历史快照。 */
-  private liveSessionIds = new Set<string>();
   /** 每会话 PTY 输出环形缓冲：会话切换后 xterm 重挂载靠它回放，这是"切回不黑屏"的核心。 */
   private outputBuffers = new Map<string, string>();
+  /**
+   * 活会话 → CLI 磁盘身份绑定(omp/pi 的 jsonl uuid、codex 的 rollout id)。
+   * 纯前端内存,随 PTY 消亡 —— 这是活会话的身份属性,不是持久化映射。
+   * 用途:UI 按身份去重(同一会话在活区/磁盘区只出现一次)。
+   */
+  private cliSessionIds = new Map<string, string>();
+
+  /** 活会话绑定的 CLI 磁盘身份;未绑定(探测前)为 undefined。 */
+  getCliSessionId(sessionId: string): string | undefined {
+    return this.cliSessionIds.get(sessionId);
+  }
+
   /** 每会话最近输出时间：驱动会话列表呼吸灯。 */
   private lastActivityAt = new Map<string, number>();
   /** 呼吸灯 notify 节流记录。 */
@@ -47,6 +64,10 @@ class Host implements PluginContext {
     this.mounts.set(point, list);
     this.notify();
   }
+  /** 委托给设置注册表(kernel/settingsRegistry);注册表自驱动通知,无需 host.notify。 */
+  registerSettingsSection(section: SettingsSectionContribution): void {
+    registerSettingsSection(section);
+  }
 
   // ---- 插件生命周期 -------------------------------------------------------
 
@@ -56,21 +77,8 @@ class Host implements PluginContext {
   activateAll(plugins: Plugin[]): Promise<void> {
     if (!this.activation) {
       this.activation = this.doActivateAll(plugins);
-      // 同步拉一次历史会话(从 Rust 持久化目录),让前端恢复显示。
-      void this.restoreSessions();
     }
     return this.activation;
-  }
-
-  /** 从 Rust 端拉历史 sessions;不再重新 spawn PTY(用户点开才重连)。 */
-  private async restoreSessions(): Promise<void> {
-    try {
-      const list = await ipc.sessionList();
-      this.sessions = list;
-      this.notify();
-    } catch {
-      // 非 Tauri 环境(浏览器)静默,保持空表
-    }
   }
 
   private async doActivateAll(plugins: Plugin[]): Promise<void> {
@@ -119,9 +127,13 @@ class Host implements PluginContext {
     return this.activeSessionId;
   }
 
+  getSessionStatus(sessionId: string): CliSessionStatus | undefined {
+    return this.sessionStatuses.get(sessionId);
+  }
+
   // ---- 会话服务（kernel 固有职责：PTY 生命周期） ---------------------------
 
-    async createSession(
+  async createSession(
     profileId: string,
     cwd: string,
     workspaceId?: string,
@@ -134,23 +146,97 @@ class Host implements PluginContext {
       cwd,
       env: profile.env,
     };
-        const spawned = await ipc.sessionSpawn(profileId, spec, workspaceId);
+    // 快照既有磁盘会话:spawn 后 CLI 会新落盘一个文件,据此把磁盘身份绑到活会话
+    const before = profile.listSessions
+      ? new Set(
+          (await profile.listSessions(cwd).catch(() => [])).map((s) => s.id),
+        )
+      : null;
+    const spawned = await ipc.sessionSpawn(profileId, spec, workspaceId);
+    if (before) void this.detectDiskIdentity(spawned.id, profile, cwd, before);
+    return this.adoptSpawned(spawned.id);
+  }
+
+  /**
+   * 打开 CLI 磁盘历史会话:按 profile.resumeArgs 带 cliSessionId 重连。
+   * 数据源是各 CLI 插件的 listSessions 扫描结果,tmd-cli 不持有任何映射。
+   */
+  async openDiskSession(
+    profileId: string,
+    cwd: string,
+    workspaceId: string | undefined,
+    cliSessionId: string,
+  ): Promise<SessionMeta> {
+    const profile = this.cliProfiles.get(profileId);
+    if (!profile) throw new Error(`未知 CLI profile: ${profileId}`);
+    // 身份去重:该磁盘会话已有活 PTY → 聚焦既有会话,同一会话绝不出两条
+    const existing = this.sessions.find(
+      (s) =>
+        s.profileId === profileId &&
+        this.cliSessionIds.get(s.id) === cliSessionId,
+    );
+    if (existing) {
+      this.setActiveSession(existing.id);
+      return existing;
+    }
+    const args = profile.resumeArgs?.(cliSessionId) ?? profile.args;
+    const spec: SpawnSpec = {
+      command: profile.command,
+      args,
+      cwd,
+      env: profile.env,
+    };
+    const spawned = await ipc.sessionSpawn(profileId, spec, workspaceId);
+    return this.adoptSpawned(spawned.id, cliSessionId);
+  }
+
+  /** spawn 后的统一装配:绑定磁盘身份、刷新活表、置为 active、常驻订阅输出与退出。 */
+  private async adoptSpawned(
+    sessionId: string,
+    cliSessionId?: string,
+  ): Promise<SessionMeta> {
+    if (cliSessionId) this.cliSessionIds.set(sessionId, cliSessionId);
     this.sessions = await ipc.sessionList();
-    this.activeSessionId = spawned.id;
-    this.liveSessionIds.add(spawned.id);
-    // 后台探测 CLI 自身 session id(omp/pi 把 session 落盘后才能拿到),抓到了写回 Rust 持久化
-    void this.detectAndStoreCliSessionId(spawned.id, profile, cwd);
+    this.activeSessionId = sessionId;
     // 常驻订阅：从会话诞生起就持续缓冲输出，与幕布是否挂载无关。
-    void onPtyOutput(spawned.id, (text) => this.appendOutput(spawned.id, text));
-    onPtyExit(spawned.id, () => {
-      void this.removeSession(spawned.id);
-      this.events.emit(KernelTopics.sessionExited, spawned.id);
+    void onPtyOutput(sessionId, (text) => this.appendOutput(sessionId, text));
+    onPtyExit(sessionId, () => {
+      void this.removeSession(sessionId);
+      this.events.emit(KernelTopics.sessionExited, sessionId);
     });
     this.events.emit(KernelTopics.sessionsChanged, this.sessions);
-    this.events.emit(KernelTopics.activeSessionChanged, spawned.id);
+    this.events.emit(KernelTopics.activeSessionChanged, sessionId);
     this.notify();
-    return this.sessions.find((s) => s.id === spawned.id)!;
+    this.ensureStatusPolling();
+    void this.refreshSessionStatus(sessionId);
+    return this.sessions.find((s) => s.id === sessionId)!;
   }
+
+  /**
+   * spawn 后轮询磁盘,把 CLI 新落盘的会话身份绑到活会话上。最多 30 次 × 500ms。
+   * 判定:出现 before 快照里不存在的会话 id。
+   */
+  private async detectDiskIdentity(
+    sessionId: string,
+    profile: CliProfile,
+    cwd: string,
+    before: ReadonlySet<string>,
+  ): Promise<void> {
+    if (!profile.listSessions) return;
+    for (let i = 0; i < 30; i++) {
+      const { promise, resolve } = Promise.withResolvers<void>();
+      setTimeout(resolve, 500);
+      await promise;
+      if (!this.sessions.some((s) => s.id === sessionId)) return; // PTY 已死
+      const list = await profile.listSessions(cwd).catch(() => []);
+      const fresh = list.find((s) => !before.has(s.id));
+      if (!fresh) continue;
+      this.cliSessionIds.set(sessionId, fresh.id);
+      void this.refreshSessionStatus(sessionId);
+      this.notify();
+    }
+  }
+
   /** 单会话输出缓冲上限。全屏 TUI 靠重绘恢复，保留尾部足够。 */
   private static readonly OUTPUT_BUFFER_LIMIT = 500_000;
 
@@ -182,91 +268,50 @@ class Host implements PluginContext {
     return this.lastActivityAt.get(sessionId) ?? 0;
   }
 
-  setActiveSession(id: string | null): void {
-    if (this.activeSessionId === id) return;
-    // 历史快照:点开时如果该 session 不在 liveSessionIds,说明 PTY 已死
-    // → 按 profile.resumeArgs 重新 spawn(有 cliSessionId 时)或直接 spawn
-    if (id && !this.liveSessionIds.has(id)) {
-      const meta = this.sessions.find((s) => s.id === id);
-      if (meta) {
-        void this.resumeHistoricalSession(meta).then((newId) => {
-          if (newId) {
-            this.activeSessionId = newId;
-            this.events.emit(KernelTopics.activeSessionChanged, newId);
-            this.notify();
-          }
-        });
-        return;
-      }
+ 
+  private ensureStatusPolling(): void {
+    if (this.statusTimer) return;
+    this.statusTimer = setInterval(() => {
+      const sessionId = this.activeSessionId;
+      if (sessionId) void this.refreshSessionStatus(sessionId);
+    }, 2_000);
+  }
+
+  private async refreshSessionStatus(sessionId: string): Promise<void> {
+    const session = this.sessions.find((item) => item.id === sessionId);
+    const cliSessionId = this.cliSessionIds.get(sessionId);
+    if (!session || !cliSessionId) return;
+    const profile = this.cliProfiles.get(session.profileId);
+    if (!profile?.readSessionStatus) return;
+    const status = await profile.readSessionStatus(session.cwd, cliSessionId).catch(() => null);
+    if (!status) return;
+    const previous = this.sessionStatuses.get(sessionId);
+    if (
+      previous?.model === status.model &&
+      previous?.thinkingLevel === status.thinkingLevel
+    ) {
+      return;
     }
-    this.activeSessionId = id;
-    this.events.emit(KernelTopics.activeSessionChanged, id);
+    this.sessionStatuses.set(sessionId, status);
     this.notify();
   }
 
-  /** 历史 session 重开:用 profile 的 resumeArgs(有 cliSessionId 时)或全新 spawn。 */
-  private async resumeHistoricalSession(meta: SessionMeta): Promise<string | null> {
-    try {
-      const profile = this.cliProfiles.get(meta.profileId);
-      if (!profile) return null;
-      const args = meta.cliSessionId && profile.resumeArgs
-        ? profile.resumeArgs(meta.cliSessionId)
-        : profile.args;
-      const spec: SpawnSpec = {
-        command: profile.command,
-        args,
-        cwd: meta.cwd,
-        env: profile.env,
-      };
-      // 先删老记录(Rust 注册表 + 前端 sessions 同步),避免列表无限累积
-      await ipc.sessionKill(meta.id).catch(() => undefined);
-      this.sessions = this.sessions.filter((s) => s.id !== meta.id);
-
-      const spawned = await ipc.sessionSpawn(meta.profileId, spec, meta.workspaceId);
-      this.sessions = await ipc.sessionList();
-      this.liveSessionIds.add(spawned.id);
-      void this.detectAndStoreCliSessionId(spawned.id, profile, meta.cwd);
-      void onPtyOutput(spawned.id, (text) => this.appendOutput(spawned.id, text));
-      onPtyExit(spawned.id, () => {
-        void this.removeSession(spawned.id);
-        this.events.emit(KernelTopics.sessionExited, spawned.id);
-      });
-      return spawned.id;
-    } catch (err) {
-      console.warn("resume historical session failed", err);
-      return null;
+  setActiveSession(id: string | null): void {
+    if (this.activeSessionId === id) return;
+    this.activeSessionId = id;
+    this.events.emit(KernelTopics.activeSessionChanged, id);
+    if (id) {
+      this.ensureStatusPolling();
+      void this.refreshSessionStatus(id);
     }
-  }
-
-  /**
-   * 后台轮询 profile.detectCliSessionId,拿到后写回 Rust(让 session 持久化带 cliSessionId)。
-   * 最多试 30 次,每次间隔 500ms。
-   */
-  private async detectAndStoreCliSessionId(
-    sessionId: string,
-    profile: CliProfile,
-    cwd: string,
-  ): Promise<void> {
-    if (!profile.detectCliSessionId) return;
-    for (let i = 0; i < 30; i++) {
-      try {
-        const cliId = await profile.detectCliSessionId(cwd);
-        if (cliId) {
-          await ipc.sessionSetCliSessionId(sessionId, cliId);
-          this.sessions = await ipc.sessionList();
-          this.notify();
-          return;
-        }
-      } catch {
-        // 文件还没生成,继续试
-      }
-      await new Promise((r) => setTimeout(r, 500));
-    }
+    this.notify();
   }
 
   async removeSession(id: string): Promise<void> {
     await ipc.sessionKill(id).catch(() => undefined);
     this.sessions = this.sessions.filter((s) => s.id !== id);
+    this.cliSessionIds.delete(id);
+    this.sessionStatuses.delete(id);
     this.outputBuffers.delete(id);
     this.lastActivityAt.delete(id);
     this.lastActivityNotify.delete(id);

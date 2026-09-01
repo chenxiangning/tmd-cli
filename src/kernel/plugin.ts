@@ -8,6 +8,7 @@
 import type { ComponentType } from "react";
 import type { EventBus } from "./events";
 import type { CliProfile } from "./cli";
+import type { SettingsSectionContribution } from "./settingsRegistry";
 
 /** 外壳暴露的挂载点（第五轮决策：头/底工具栏为扩展预留）。 */
 export type MountPoint =
@@ -18,14 +19,10 @@ export type MountPoint =
   | "footer.left"
   | "footer.right"
   | "leftSidebar.section"
-  /** 左侧会话列表(默认会话面板在此贡献,可被替换)。 */
-  | "leftSidebar.sessionList"
   | "rightSidebar.tab"
   | "leftRail"
   | "rightRail"
   | "overlay"
-  /** 中央编辑区标签页栏 —— 文件预览/编辑器等在此开 tab,不弹窗。 */
-  | "editorCenter.tabBar"
   /** 中央编辑区标签内容 —— 每个 tab 一个组件,按 tabId 取对应内容。 */
   | "editorCenter.tabContent"
   /** 幕布下方富 composer 输入区。 */
@@ -45,6 +42,8 @@ export interface PluginContext {
   registerCliProfile(profile: CliProfile): void;
   /** 向外壳挂载点贡献 UI。 */
   contribute(point: MountPoint, contribution: MountContribution): void;
+  /** 注册一个设置 section(设置面板左侧导航项 + 右侧 tab 内容)。 */
+  registerSettingsSection(section: SettingsSectionContribution): void;
   /** 内核事件总线（跨插件通信唯一通道）。 */
   events: EventBus;
 }

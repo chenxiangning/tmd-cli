@@ -5,7 +5,24 @@
  * `translate` 是唯一的例外钩子（如 omp 的 $skill → /skill:skill）。
  */
 
+import type { ReactNode } from "react";
+
 export type TriggerKind = "skill" | "command" | "file";
+
+/**
+ * CLI 磁盘会话 —— 从该 CLI 自己的会话存储扫描出的历史会话。
+ * tmd-cli 不做会话映射:列表数据源的真相在各 CLI 的磁盘目录。
+ */
+export interface CliDiskSession {
+  /** CLI 自身的会话 id(omp/pi 的 jsonl uuid、codex 的 rollout id),直接喂 resumeArgs。 */
+  id: string;
+  /** 展示标题;缺省由 UI 回退到短 id。 */
+  title?: string;
+  /** 最近修改时间 ms epoch,排序/相对时间展示用。 */
+  modifiedAt: number;
+  /** 磁盘文件路径(调试用)。 */
+  path: string;
+}
 
 export interface CliTriggerSpec {
   /** 触发字符，如 `$` `/` `@`。 */
@@ -16,6 +33,15 @@ export interface CliTriggerSpec {
    * 例：omp 插件声明 `(token) => "/skill:" + token.slice(1)`。
    */
   translate?: (token: string) => string;
+}
+
+/**
+ * CLI 会话当前的只读运行状态。
+ * 字段缺失表示对应 CLI 尚未刷盘或格式暂未识别。
+ */
+export interface CliSessionStatus {
+  model?: string;
+  thinkingLevel?: string;
 }
 
 /**
@@ -34,6 +60,8 @@ export interface CliProfile {
   id: string;
   /** 显示名。 */
   name: string;
+  /** CLI 品牌图标(侧栏会话行/新建会话菜单用),尺寸由调用方给。缺省 = 无图标。 */
+  renderIcon?: (size: number) => ReactNode;
   /** 可执行命令（PATH 解析）。 */
   command: string;
   /** 固定参数。 */
@@ -50,9 +78,15 @@ export interface CliProfile {
   /** 恢复 CLI 自身会话的参数模板；缺省 = 不支持恢复。 */
   resumeArgs?: (cliSessionId: string) => string[];
   /**
-   * 探测 CLI 自身 session id。在 spawn 后周期性调用,直到返回非空。
-   * 例:omp 的 session 在 ~/.omp/agent/sessions/<cwd-slug>/<ts>_<uuid>.jsonl,
-   * 文件创建后从文件名解析 uuid。
+   * 扫描该 CLI 在 cwd 下的磁盘历史会话。
+   * 每个 cli-* 插件声明自己的存储约定(目录布局/slug 规则/文件格式),
+   * 内核只提供 fsCollectFiles/fsReadHead/fsReadTail 通用原语,不理解任何 CLI 的格式。
+   * 缺省 = 该 CLI 不提供历史列表。
    */
-  detectCliSessionId?: (cwd: string) => Promise<string | null>;
+  listSessions?: (cwd: string) => Promise<CliDiskSession[]>;
+  /** 读取当前 CLI session 的模型与思考强度,只读且可缺省。 */
+  readSessionStatus?: (
+    cwd: string,
+    cliSessionId: string,
+  ) => Promise<CliSessionStatus | null>;
 }
