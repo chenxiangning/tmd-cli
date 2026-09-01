@@ -1,62 +1,89 @@
 /**
- * files 插件：右栏文件树 + 文件预览（中央 tab 化中，overlay 仅兜底）。
- * 目录点击懒展开；文件点击经 fs_read_file 拉内容。
+ * files 插件：右栏文件树 + 中央 tab 文件预览。
+ *
+ * 设计：
+ * - 文件点击 → 调 openTab() 走 kernel 全局 tabs store
+ * - 中央 tab 渲染由 files 自己提供 tabContent 组件，读 active tab 的 payload
+ * - overlay 不再挂；保留兜底组件但不在插件里激活
  */
 
 import { useEffect, useState } from "react";
 import { ipc, type DirEntry } from "@kernel/ipc";
 import type { Plugin } from "@kernel/plugin";
+import { openTab, useEditorTabs } from "@kernel/tabs";
 
-// ---- 预览状态（插件内部 store） --------------------------------------
+// ---- 文件 tab 内容载体 --------------------------------------------------
 
-interface PreviewState {
+interface FilePayload {
   path: string;
   content: string | null;
   error: string | null;
+  loaded: boolean;
 }
 
-let preview: PreviewState | null = null;
-const previewListeners = new Set<() => void>();
+const fileCache = new Map<string, FilePayload>();
 
-function setPreview(next: PreviewState | null) {
-  preview = next;
-  previewListeners.forEach((fn) => fn());
-}
-
-function openFile(path: string) {
-  setPreview({ path, content: null, error: null });
+function loadFile(path: string): FilePayload {
+  const cached = fileCache.get(path);
+  if (cached) return cached;
+  const fresh: FilePayload = { path, content: null, error: null, loaded: false };
+  fileCache.set(path, fresh);
   ipc.fsReadFile(path).then(
-    (content) => setPreview({ path, content, error: null }),
-    (e) => setPreview({ path, content: null, error: String(e) }),
+    (content) => {
+      const cur = fileCache.get(path);
+      if (cur) fileCache.set(path, { ...cur, content, loaded: true });
+    },
+    (e) => {
+      const cur = fileCache.get(path);
+      if (cur) fileCache.set(path, { ...cur, error: String(e), loaded: true });
+    },
   );
+  return fresh;
 }
 
-function FilePreviewOverlay() {
-  // 注：本轮改造预期迁移到中央 tab 渲染；overlay 临时保留，最小可用兜底。
-  if (!preview) return null;
-  return (
-    <div
-      className="absolute inset-0 z-50 flex items-center justify-center bg-black/60"
-      onClick={() => setPreview(null)}
-    >
-      <div
-        className="flex h-4/5 w-3/4 flex-col rounded border border-neutral-700 bg-neutral-900"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex h-9 shrink-0 items-center justify-between border-b border-neutral-800 px-3">
-          <span className="truncate text-xs text-neutral-400">{preview.path}</span>
-          <button
-            className="rounded px-2 py-0.5 text-xs hover:bg-neutral-800"
-            onClick={() => setPreview(null)}
-          >
-            关闭
-          </button>
-        </div>
-        <pre className="min-h-0 flex-1 overflow-auto p-3 text-xs leading-5 text-neutral-300">
-          {preview.error ? `⚠ ${preview.error}` : (preview.content ?? "加载中…")}
-        </pre>
+function openFileInTab(path: string) {
+  openTab({
+    id: `file:${path}`,
+    title: path.split("/").pop() ?? path,
+    path,
+    kind: "file",
+    payload: loadFile(path),
+  });
+}
+
+function FileTabContent() {
+  const { activeId, tabs } = useEditorTabs();
+  const active = tabs.find((t) => t.id === activeId);
+  const [, setTick] = useState(0);
+
+  // 加载异步结果后,缓存变了 — 强制重渲拿最新 content
+  useEffect(() => {
+    if (!active || active.kind !== "file") return;
+    const payload = active.payload as FilePayload;
+    if (payload.loaded) return;
+    const timer = setInterval(() => {
+      const cur = fileCache.get(payload.path);
+      if (cur?.loaded) {
+        setTick((n) => n + 1);
+        clearInterval(timer);
+      }
+    }, 100);
+    return () => clearInterval(timer);
+  }, [active]);
+
+  if (!active || active.kind !== "file") {
+    return (
+      <div className="flex h-full items-center justify-center text-xs text-neutral-600">
+        选中一个文件查看
       </div>
-    </div>
+    );
+  }
+
+  const p = active.payload as FilePayload;
+  return (
+    <pre className="h-full w-full overflow-auto p-3 text-xs leading-5 text-neutral-300">
+      {p.error ? `⚠ ${p.error}` : p.loaded ? p.content : "加载中…"}
+    </pre>
   );
 }
 
@@ -83,7 +110,7 @@ function FileTree({ root }: { root: string }) {
 
   const toggle = (entry: DirEntry) => {
     if (!entry.isDir) {
-      openFile(entry.path);
+      openFileInTab(entry.path);
       return;
     }
     if (expanded[entry.path]) {
@@ -125,6 +152,9 @@ export const filesPlugin: Plugin = {
       ),
     });
     ctx.contribute("rightRail", { order: 0, component: FilesRailButton });
-    ctx.contribute("overlay", { order: 0, component: FilePreviewOverlay });
+    ctx.contribute("editorCenter.tabContent", {
+      order: 0,
+      component: FileTabContent,
+    });
   },
 };
