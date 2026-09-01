@@ -5,6 +5,7 @@
 
 import type { Plugin } from "@kernel/plugin";
 import { cliCodexPlugin } from "./cli-codex";
+import { cliClaudePlugin } from "./cli-claude";
 import { cliOmpPlugin } from "./cli-omp";
 import { cliPiPlugin } from "./cli-pi";
 import { composerPlugin } from "./composer";
@@ -17,6 +18,7 @@ export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
   cliCodexPlugin,
+  cliClaudePlugin,
   workspacePlugin,
   filesPlugin,
   gitPlugin,
