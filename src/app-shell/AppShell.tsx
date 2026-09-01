@@ -337,7 +337,7 @@ export function AppShell() {
         )}
 
         {/* 中央幕布 */}
-        <Panel defaultSize={60} minSize={30} id="center">
+        <Panel defaultSize={tabs.length > 0 ? 24 : 60} minSize={15} id="center">
           <MainPanel />
         </Panel>
 
@@ -345,7 +345,7 @@ export function AppShell() {
         {tabs.length > 0 && (
           <>
             <PanelResizeHandle className="panel-handle panel-handle-v panel-handle-line-l" />
-            <Panel defaultSize={60} minSize={15} id="editor">
+            <Panel defaultSize={36} minSize={15} id="editor">
               <EditorCenter />
             </Panel>
           </>
