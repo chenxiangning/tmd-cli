@@ -21,3 +21,4 @@
 | 2026-09-01 | [mossx Git 能力盘点](research/mossx-git-capabilities.md) | 已完成 |
 | 2026-09-01 | [omp/pi/codex CLI 能力矩阵](research/cli-trigger-and-session-matrix.md) | 已完成 |
 | 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 骨架已落地 |
+| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码 |

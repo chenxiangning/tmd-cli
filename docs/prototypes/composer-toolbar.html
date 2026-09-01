@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<!--
+  Composer 对话框重设计原型 —— 间隙清零 + 工具栏/输入框拆分。
+  配色取自现有代码(mossx 外壳 tokens):
+  外壳 #1e1e1e / 卡片 #252526 / 边框 #3e3e42 / 聚焦 #007fd4 / 正文 #cccccc。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>Composer 原型 — 工具栏拆分 + 间隙清零</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #161617;
+    color: #cccccc;
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  h2 { font-size: 12px; font-weight: 500; color: #8a8a8a; }
+
+  /* ===== 改动后:外层容器间隙清零(原 px-3 py-2 → 0) ===== */
+  .composer-outer {
+    display: flex;
+    flex-direction: column;
+    height: 220px;
+    background: #1e1e1e;   /* 贴满,无内边距 */
+  }
+  .composer-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border-radius: 12px;
+    border: 1px solid #3e3e42;
+    background: #252526;
+    overflow: hidden;       /* 圆角裁切工具栏/输入区,内部零间隙 */
+  }
+  .composer-card:focus-within { border-color: #007fd4; }
+  .composer-card:hover { border-color: #5c5c60; }
+
+  /* ===== 工具栏:只读状态行,与输入区仅 1px 分隔线,无空白 ===== */
+  .composer-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 26px;
+    flex-shrink: 0;
+    padding: 0 8px;          /* 控件自身可读性所需,非区域间隙 */
+    border-bottom: 1px solid #3e3e42;
+    font-size: 11px;
+    line-height: 1;
+    color: #8a8a8a;
+    user-select: none;
+  }
+  .composer-toolbar svg { width: 11px; height: 11px; flex-shrink: 0; }
+  .toolbar-chip { display: flex; align-items: center; gap: 4px; }
+  .toolbar-chip .value { color: #c4c4c4; font-family: Menlo, Monaco, monospace; }
+  .toolbar-divider { color: #3e3e42; }
+  .toolbar-hint { margin-left: auto; color: #5a5a5a; font-size: 10px; }
+  /* ===== 额度 chip:内嵌工具栏,迷你进度条,橙色沿用 quota.css #ff8c3c ===== */
+  .quota-chip { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  .quota-chip-label { color: #8a8a8a; margin-left: 2px; }
+  .quota-chip:hover .value { color: #e5e7eb; }
+  .quota-mini-bar {
+    width: 44px; height: 4px; border-radius: 2px;
+    background: #3e3e42; overflow: hidden; flex-shrink: 0;
+  }
+  .quota-mini-fill { display: block; height: 100%; background: #ff8c3c; border-radius: 2px; }
+  .quota-chip .value { color: #c4c4c4; font-family: Menlo, Monaco, monospace; font-variant-numeric: tabular-nums; }
+  .quota-chip.is-error .value { color: #8a8a8a; }
+
+  /* ===== 输入区:间隙清零(原 px-3 py-3 → 0) ===== */
+  .composer-textarea {
+    flex: 1;
+    min-height: 0;
+    resize: none;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0;              /* 全部清零,文本贴工具栏分隔线与左缘 */
+    font-size: 13px;
+    line-height: 1.58;
+    color: #cccccc;
+    font-family: inherit;
+  }
+  .composer-textarea::placeholder { color: #666666; }
+
+  /* 对照组:改动前 */
+  .legacy-outer { display: flex; flex-direction: column; height: 220px; background: #1e1e1e; padding: 8px 12px; }
+  .legacy-textarea { padding: 12px; }
+</style>
+</head>
+<body>
+
+<h2>① 改动后 — 已识别 session(OMP):工具栏 + 输入框拆分,内部零间隙</h2>
+<div class="composer-outer">
+  <div class="composer-card">
+    <div class="composer-toolbar">
+      <span class="toolbar-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></svg>
+        模型 <span class="value">MiniMax-M3</span>
+      </span>
+      <span class="toolbar-divider">|</span>
+      <span class="toolbar-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M12 5v13"/></svg>
+        思考 <span class="value">high</span>
+      </span>
+      <span class="toolbar-divider">|</span>
+      <span class="quota-chip" title="KIMI 套餐额度&#10;5小时: 已使用 42% · 重置于 2 小时后&#10;7天: 已使用 18% · 重置于 4 天后&#10;点击刷新">
+        额度
+        <span class="quota-chip-label">5h</span>
+        <span class="quota-mini-bar"><span class="quota-mini-fill" style="width:42%"></span></span>
+        <span class="value">42%</span>
+        <span class="quota-chip-label">7d</span>
+        <span class="quota-mini-bar"><span class="quota-mini-fill" style="width:18%"></span></span>
+        <span class="value">18%</span>
+      </span>
+      <span class="toolbar-hint">只读 · 在 CLI 内 /model 切换</span>
+    </div>
+    <textarea class="composer-textarea" placeholder="输入消息，回车发送，Shift+回车换行。可用 / 命令 / $ skill / @ 文件引用。">@/var/folders/p5/p1zcw2850g14z345bf7sc2200000gn/T/tmd-cli/upload-1788271365653.png</textarea>
+  </div>
+</div>
+
+<h2>② 改动后 — 未识别(新 session 首刷前):模型/思考显示 —,额度 chip 不渲染(无 session 不猜供应商)</h2>
+<div class="composer-outer">
+  <div class="composer-card">
+    <div class="composer-toolbar">
+      <span class="toolbar-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></svg>
+        模型 <span class="value">—</span>
+      </span>
+      <span class="toolbar-divider">|</span>
+      <span class="toolbar-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M12 5v13"/></svg>
+        思考 <span class="value">—</span>
+      </span>
+      <span class="toolbar-hint">只读 · 在 CLI 内 /model 切换</span>
+    </div>
+    <textarea class="composer-textarea" placeholder="输入消息，回车发送，Shift+回车换行。可用 / 命令 / $ skill / @ 文件引用。"></textarea>
+  </div>
+</div>
+<h2>③ 额度 chip 状态 — 高用量 / 余额型供应商(deepseek 无窗口,显示余额) / 加载中 / 失败</h2>
+<div class="composer-outer">
+  <div class="composer-card">
+    <div class="composer-toolbar">
+      <span class="toolbar-chip">模型 <span class="value">kimi-code/k3</span></span>
+      <span class="toolbar-divider">|</span>
+      <span class="toolbar-chip">思考 <span class="value">high</span></span>
+      <span class="toolbar-divider">|</span>
+      <span class="quota-chip" title="KIMI 套餐额度 · 5小时: 已使用 87% · 重置于 40 分钟后">
+        额度
+                <span class="quota-chip-label">5h</span>
+        <span class="quota-mini-bar"><span class="quota-mini-fill" style="width:87%"></span></span>
+        <span class="value">87%</span>
+        <span class="quota-chip-label">7d</span>
+        <span class="quota-mini-bar"><span class="quota-mini-fill" style="width:64%"></span></span>
+        <span class="value">64%</span>
+      </span>
+      <span class="toolbar-hint">只读</span>
+    </div>
+        <textarea class="composer-textarea" placeholder="双窗口:5h + 7d 两条都展示;只有单窗口的供应商展示单条"></textarea>
+  </div>
+</div>
+<div class="composer-outer" style="margin-top:8px">
+  <div class="composer-card">
+    <div class="composer-toolbar">
+      <span class="toolbar-chip">模型 <span class="value">deepseek/deepseek-v4</span></span>
+      <span class="toolbar-divider">|</span>
+      <span class="quota-chip" title="DeepSeek 账户余额 · 点击刷新">
+        余额
+        <span class="value">¥12.50</span>
+      </span>
+      <span class="toolbar-hint">只读</span>
+    </div>
+    <textarea class="composer-textarea" placeholder="余额型供应商(deepseek / 中转站):无进度条,直接显示余额"></textarea>
+  </div>
+</div>
+<div class="composer-outer" style="margin-top:8px">
+  <div class="composer-card">
+    <div class="composer-toolbar">
+      <span class="toolbar-chip">模型 <span class="value">kimi-code/k3</span></span>
+      <span class="toolbar-divider">|</span>
+      <span class="quota-chip" title="额度查询中…">额度 <span class="value">…</span></span>
+      <span class="quota-chip is-error" title="鉴权失败 (HTTP 401) · 点击重试" style="margin-left:16px">额度 <span class="value">!</span></span>
+      <span class="toolbar-hint">只读</span>
+    </div>
+    <textarea class="composer-textarea" placeholder="加载中 / 失败状态(失败给 tooltip 原因,点击重试)"></textarea>
+  </div>
+</div>
+
+<h2>④ 对照 — 改动前:外层 px-3 py-2 + 输入框 px-3 py-3,整片空白</h2>
+<div class="legacy-outer">
+  <div class="composer-card">
+    <textarea class="composer-textarea legacy-textarea" placeholder="输入消息，回车发送，Shift+回车换行。">@/var/folders/p5/p1zcw2850g14z345bf7sc2200000gn/T/tmd-cli/upload-1788271365653.png</textarea>
+  </div>
+</div>
+
+</body>
+</html>
