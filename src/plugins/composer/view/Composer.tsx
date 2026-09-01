@@ -89,9 +89,62 @@ export function Composer() {
     setValue("");
     setMatches(null);
   }
+  async function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const items = Array.from(e.clipboardData.items);
+    const imgItem = items.find((it) => it.type.startsWith("image/"));
+    if (!imgItem) return;
+    e.preventDefault();
+    const file = imgItem.getAsFile();
+    if (!file) return;
+    const buf = new Uint8Array(await file.arrayBuffer());
+    try {
+      const path = await ipc.fsWriteTemp(file.name || "pasted.png", buf);
+      const ta = ref.current;
+      if (!ta) return;
+      insertAtCursor(ta, `@${path} `);
+    } catch (err) {
+      console.warn("composer: 写临时图片失败", err);
+    }
+  }
 
+  async function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+    const refs: string[] = [];
+    for (const f of files) {
+      const buf = new Uint8Array(await f.arrayBuffer());
+      try {
+        const path = await ipc.fsWriteTemp(f.name, buf);
+        refs.push(`@${path}`);
+      } catch (err) {
+        console.warn("composer: 写临时文件失败", err);
+      }
+    }
+    if (refs.length === 0) return;
+    const ta = ref.current;
+    if (!ta) return;
+    insertAtCursor(ta, refs.join(" ") + " ");
+  }
+
+  function insertAtCursor(ta: HTMLTextAreaElement, insert: string) {
+    const start = ta.selectionStart ?? value.length;
+    const end = ta.selectionEnd ?? value.length;
+    const next = value.slice(0, start) + insert + value.slice(end);
+    setValue(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      const caret = start + insert.length;
+      ta.setSelectionRange(caret, caret);
+      setCursor(caret);
+    });
+  }
   return (
-    <div className="relative flex h-full flex-col bg-neutral-900">
+    <div
+      onDrop={handleDrop}
+      onDragOver={(e) => e.preventDefault()}
+      className="relative flex h-full flex-col bg-neutral-900"
+    >
       {matches && activeRange && (
         <SuggestionList
           matches={matches}
@@ -109,8 +162,7 @@ export function Composer() {
         onChange={(e) => {
           setValue(e.target.value);
           setCursor(e.target.selectionStart);
-        }}
-        onSelect={(e) => {
+
           const t = e.currentTarget;
           setCursor(t.selectionStart);
         }}
@@ -143,6 +195,8 @@ export function Composer() {
             sendCurrent();
           }
         }}
+        onPaste={handlePaste}
+        onDragOver={(e) => e.preventDefault()}
       />
     </div>
   );

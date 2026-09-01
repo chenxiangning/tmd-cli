@@ -2,6 +2,8 @@
 //!
 //! 骨架阶段：单层目录列举。递归/监听/忽略规则随 files 插件实装时补。
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use serde::Serialize;
 use std::fs;
 
@@ -48,3 +50,23 @@ pub fn read_file(path: &str) -> Result<String, String> {
     }
     String::from_utf8(bytes).map_err(|_| "非 UTF-8 文本，暂不支持预览".to_string())
 }
+
+/// 把字节写入临时目录(用户上传的图片/截图)。返回绝对路径。
+pub fn write_temp_file(name: &str, bytes: &[u8]) -> Result<String, String> {
+    let base = std::env::temp_dir().join("tmd-cli");
+    fs::create_dir_all(&base).map_err(|e| format!("创建临时目录失败: {e}"))?;
+    // 从 name 抽扩展名(空则 bin)
+    let ext = name
+        .rsplit_once('.')
+        .map(|(_, e)| if e.len() <= 5 && !e.is_empty() { e } else { "bin" })
+        .unwrap_or("bin");
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let path = base.join(format!("upload-{stamp}.{ext}"));
+    fs::write(&path, bytes).map_err(|e| format!("写入临时文件失败: {e}"))?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+

@@ -64,6 +64,10 @@ fn fs_list_dir(path: String) -> Result<Vec<fs::DirEntry>, String> {
 fn fs_read_file(path: String) -> Result<String, String> {
     fs::read_file(&path)
 }
+#[tauri::command]
+fn fs_write_temp(name: String, data: Vec<u8>) -> Result<String, String> {
+    fs::write_temp_file(&name, &data)
+}
 
 #[tauri::command]
 fn git_status(cwd: String) -> Result<git::GitStatus, String> {
@@ -83,6 +87,7 @@ pub fn run() {
             session_write,
             session_resize,
             session_kill,
+            fs_write_temp,
             fs_list_dir,
             fs_read_file,
             git_status,

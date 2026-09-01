@@ -49,6 +49,8 @@ export const ipc = {
     invoke<void>("session_resize", { id, cols, rows }),
   sessionKill: (id: string) => invoke<void>("session_kill", { id }),
   fsListDir: (path: string) => invoke<DirEntry[]>("fs_list_dir", { path }),
+  fsWriteTemp: (name: string, data: Uint8Array) =>
+    invoke<string>("fs_write_temp", { name, data: Array.from(data) }),
   fsReadFile: (path: string) => invoke<string>("fs_read_file", { path }),
   gitStatus: (cwd: string) => invoke<GitStatus>("git_status", { cwd }),
 };
