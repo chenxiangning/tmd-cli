@@ -214,7 +214,12 @@ class Host implements PluginContext {
 
   /**
    * spawn 后轮询磁盘,把 CLI 新落盘的会话身份绑到活会话上。最多 30 次 × 500ms。
-   * 判定:出现 before 快照里不存在的会话 id。
+   * 判定:出现 before 快照里不存在、且未被其他活会话认领的会话 id。
+   *
+   * 竞态防线(实证:多会话 15s 探测窗口重叠时状态条模型/思考永久丢失):
+   * 1. 绑定成功即终 —— 继续轮询会把后续新会话的身份抢绑到本会话;
+   * 2. 认领集排除 —— 并发 spawn 同 cwd 时,晚到的探测不得抢绑已认领身份;
+   * 3. 取最旧的未认领 fresh —— 文件按落盘顺序对应 spawn 顺序,先 spawn 先认领。
    */
   private async detectDiskIdentity(
     sessionId: string,
@@ -228,12 +233,16 @@ class Host implements PluginContext {
       setTimeout(resolve, 500);
       await promise;
       if (!this.sessions.some((s) => s.id === sessionId)) return; // PTY 已死
+      if (this.cliSessionIds.has(sessionId)) return; // 已绑定(防御:身份一经确认不再改)
       const list = await profile.listSessions(cwd).catch(() => []);
-      const fresh = list.find((s) => !before.has(s.id));
+      const claimed = new Set(this.cliSessionIds.values());
+      /* listSessions 按 mtime 倒序 → 倒着找 = 最旧的未认领 fresh */
+      const fresh = list.findLast((s) => !before.has(s.id) && !claimed.has(s.id));
       if (!fresh) continue;
       this.cliSessionIds.set(sessionId, fresh.id);
       void this.refreshSessionStatus(sessionId);
       this.notify();
+      return;
     }
   }
 
