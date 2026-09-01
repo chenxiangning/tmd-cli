@@ -1,4 +1,5 @@
 import { readJsonlSessionStatus } from "../cli-shared/sessionStatus";
+import { registerOmpQuotaProvider } from "./quota";
 import { ipc } from "@kernel/ipc";
 import { scanJsonlSessions } from "@kernel/diskSessions";
 import type { CliDiskSession } from "@kernel/cli";
@@ -49,7 +50,9 @@ function OmpGlyph({ size }: { size: number }) {
 async function ompSessionsDir(cwd: string): Promise<string | null> {
   const home = await ipc.configHomeDir().catch(() => null);
   if (!home) return null;
-  const slug = cwd.startsWith(home)
+  /* 路径边界:/Users/foo2/x 不得误判在 home /Users/foo 之下。 */
+  const inHome = cwd === home || cwd.startsWith(home + "/");
+  const slug = inHome
     ? cwd.slice(home.length).replace(/\//g, "-")
     : `-${cwd.replace(/\//g, "-")}-`;
   return `${home}/.omp/agent/sessions/${slug}`;
@@ -76,6 +79,8 @@ async function readOmpSessionStatus(cwd: string, cliSessionId: string) {
 export const cliOmpPlugin: Plugin = {
   id: "cli-omp",
   activate(ctx) {
+    // 注册 omp quota provider(按当前模型前缀路由供应商,凭据走 Rust 只读 sqlite)。
+    registerOmpQuotaProvider();
     ctx.registerCliProfile({
       id: "omp",
       name: "omp",

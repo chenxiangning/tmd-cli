@@ -1,10 +1,13 @@
 mod fs;
 mod git;
 mod pty;
+mod quota;
 mod session;
+mod settings;
 
 use pty::{PtyRegistry, SpawnSpec, SpawnedSession};
 use session::{SessionMeta, SessionRegistry};
+use tauri::webview::WebviewWindowBuilder;
 use tauri::{AppHandle, State};
 
 struct AppState {
@@ -34,9 +37,7 @@ fn session_spawn(
         cwd: spec.cwd,
                 workspace_id,
         created_at: now_millis(),
-        display_label: None,
         pid: spawned.pid,
-        cli_session_id: None,
     });
     Ok(spawned)
 }
@@ -68,16 +69,6 @@ fn session_kill(state: State<'_, AppState>, id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn session_set_cli_session_id(
-    state: State<'_, AppState>,
-    id: String,
-    cli_session_id: String,
-) -> Result<(), String> {
-    state.sessions.update_cli_session_id(&id, &cli_session_id);
-    Ok(())
-}
-
-#[tauri::command]
 fn fs_list_dir(path: String) -> Result<Vec<fs::DirEntry>, String> {
     fs::list_dir(&path)
 }
@@ -98,13 +89,34 @@ fn git_status(cwd: String) -> Result<git::GitStatus, String> {
 }
 
 #[tauri::command]
-fn fs_latest_file(dir: String, suffix: String) -> Result<Option<String>, String> {
-    fs::latest_file_in_dir(&dir, &suffix)
+fn fs_collect_files(dir: String, suffix: String) -> Result<Vec<fs::FileStamp>, String> {
+    fs::collect_files(&dir, &suffix)
+}
+
+#[tauri::command]
+fn fs_read_head(path: String, max_bytes: usize) -> Result<String, String> {
+    fs::read_head(&path, max_bytes)
+}
+ 
+#[tauri::command]
+fn fs_read_tail(path: String, max_bytes: usize) -> Result<String, String> {
+    fs::read_tail(&path, max_bytes)
+}
+
+/// 平台标识兜底:UA 探测失败时前端经此取真实 OS("macos"/"windows"/"linux")。
+#[tauri::command]
+fn platform_kind() -> &'static str {
+    std::env::consts::OS
 }
 
 #[tauri::command]
 fn config_home_dir() -> String {
-    std::env::var("HOME").unwrap_or_else(|_| "/tmp".into())
+    session::home_dir().to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn config_default_workspace_root() -> String {
+    session::default_workspace_root().to_string_lossy().to_string()
 }
 
 #[tauri::command]
@@ -117,32 +129,74 @@ fn config_write_workspaces(data: session::WorkspacesFile) -> Result<(), String> 
     session::save_workspaces(&data).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn config_read_settings() -> serde_json::Value {
+    settings::load_settings()
+}
+
+#[tauri::command]
+fn config_write_settings(data: serde_json::Value) -> Result<(), String> {
+    settings::save_settings(&data).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     session::ensure_config_dir().ok();
     let sessions = session::SessionRegistry::default();
-    sessions.restore_from_disk();
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             pty: PtyRegistry::default(),
             sessions,
         })
-        .invoke_handler(tauri::generate_handler![
+        .setup(|app| {
+            let mut window = WebviewWindowBuilder::new(
+                app,
+                "main",
+                tauri::WebviewUrl::App("index.html".into()),
+            )
+            .title("tmd-cli")
+            .inner_size(1440.0, 900.0)
+            .min_inner_size(960.0, 600.0);
+
+            #[cfg(target_os = "windows")]
+            {
+                window = window.decorations(false);
+            }
+
+            #[cfg(target_os = "macos")]
+            {
+                window = window
+                    .title_bar_style(tauri::TitleBarStyle::Overlay)
+                    .hidden_title(true);
+            }
+
+            window.build()?;
+            Ok(())
+        });
+    builder        .invoke_handler(tauri::generate_handler![
+            platform_kind,
             session_spawn,
             session_list,
             session_write,
             session_resize,
             session_kill,
-            session_set_cli_session_id,
             fs_write_temp,
+            quota::quota_fetch,
+            quota::omp_auth_credential,
+            quota::quota_env_value,
             fs_list_dir,
             fs_read_file,
             git_status,
-            fs_latest_file,
+            fs_collect_files,
+            fs_read_head,
+            fs_read_tail,
             config_home_dir,
+            config_default_workspace_root,
             config_read_workspaces,
             config_write_workspaces,
+            config_read_settings,
+            config_write_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

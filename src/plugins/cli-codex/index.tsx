@@ -1,6 +1,12 @@
 import { ipc } from "@kernel/ipc";
+import { pathsEqual } from "@kernel/pathUtils";
+import { getPlatformKind } from "@kernel/platform";
+import { registerCodexQuotaProvider } from "./quota";
 import type { CliDiskSession, CliSessionStatus } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
+
+/* macOS APFS / Windows NTFS 默认大小写不敏感,cwd 严格相等会在大小写/分隔符差异时漏配。 */
+const CASE_INSENSITIVE_FS = getPlatformKind() !== "linux";
 
 /** codex 用 OpenAI 六边形 glyph(codemoss EngineIcon 同源),currentColor 随主题。 */
 function CodexGlyph({ size }: { size: number }) {
@@ -60,7 +66,7 @@ async function listCodexSessions(cwd: string): Promise<CliDiskSession[]> {
     if (sessions.length >= RESULT_LIMIT) break;
     const head = await ipc.fsReadHead(f.path, HEAD_BYTES).catch(() => "");
     const meta = head ? extractMeta(head) : null;
-    if (!meta || meta.cwd !== cwd) continue;
+    if (!meta || !pathsEqual(meta.cwd, cwd, CASE_INSENSITIVE_FS)) continue;
     // codex resume/fork 会在新日期目录写同 id 的新 rollout 文件:
     // 按 id 去重,保留最新 mtime(rollouts 已按 mtime 倒序,先见即最新)
     if (sessions.some((s) => s.id === meta.id)) continue;
@@ -83,7 +89,7 @@ async function readCodexSessionStatus(
 
   const head = await ipc.fsReadHead(file.path, HEAD_BYTES).catch(() => "");
   const meta = head ? extractMeta(head) : null;
-  if (meta && meta.cwd !== cwd) return null;
+  if (meta && !pathsEqual(meta.cwd, cwd, CASE_INSENSITIVE_FS)) return null;
   const tail = await ipc.fsReadTail(file.path, 256 * 1024).catch(() => "");
   const model =
     extractLastJsonString(`${head}\n${tail}`, ["model"]) ??
@@ -115,6 +121,8 @@ function extractLastJsonString(text: string, keys: readonly string[]) {
 export const cliCodexPlugin: Plugin = {
   id: "cli-codex",
   activate(ctx) {
+    // 注册 codex quota provider(本地 rollout 快照,零 HTTP)。
+    registerCodexQuotaProvider();
     ctx.registerCliProfile({
       id: "codex",
       name: "codex",

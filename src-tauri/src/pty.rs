@@ -69,6 +69,10 @@ impl PtyRegistry {
         let mut cmd = CommandBuilder::new(&spec.command);
         cmd.args(&spec.args);
         cmd.cwd(&spec.cwd);
+        // 全屏 TUI 依赖 TERM;Finder/Dock 启动的 .app(launchd 环境)与 Windows ConPTY 默认无 TERM,
+        // 缺失时 omp/pi/codex 退化为 dumb terminal 渲染。先给默认值,spec.env 可覆盖。
+        cmd.env("TERM", "xterm-256color");
+        cmd.env("COLORTERM", "truecolor");
         for (k, v) in &spec.env {
             cmd.env(k, v);
         }
@@ -152,7 +156,9 @@ impl PtyRegistry {
     }
 }
 
-/// 无 uuid 依赖的极简 id 生成（进程内唯一即可）。
+/// 无 uuid 依赖的 id 生成：时间戳 + 计数器 + 随机段。
+/// 随机段必须存在：纳秒时间戳的 hex 高 6 位约 3 天才变一次,
+/// 前端列表取 id 前/后 6 位展示,纯时间戳会显示碰撞(一堆"一样的 id")。
 fn uuid_v4() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -160,5 +166,26 @@ fn uuid_v4() -> String {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    format!("{:x}-{:x}", nanos, COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+    format!(
+        "{:x}-{:x}-{:016x}",
+        nanos,
+        COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+        random_u64()
+    )
+}
+
+/// 零依赖随机源：读 /dev/urandom(macOS/Linux);失败退回 pid ^ 纳秒兜底。
+fn random_u64() -> u64 {
+    use std::io::Read;
+    let mut buf = [0u8; 8];
+    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
+        if f.read_exact(&mut buf).is_ok() {
+            return u64::from_le_bytes(buf);
+        }
+    }
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0);
+    nanos ^ ((std::process::id() as u64) << 32)
 }

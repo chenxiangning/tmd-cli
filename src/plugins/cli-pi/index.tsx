@@ -1,6 +1,5 @@
 import { readJsonlSessionStatus } from "../cli-shared/sessionStatus";
-import { registerKimiQuotaProvider } from "./kimiQuota";
-import { ipc } from "@kernel/ipc";
+import { piAgentDir, registerPiQuotaProvider } from "./quota";
 import { scanJsonlSessions } from "@kernel/diskSessions";
 import type { CliDiskSession } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
@@ -34,10 +33,10 @@ function PiGlyph({ size }: { size: number }) {
  *   例 /Users/x/code/AI/github/tmd-cli → --Users-chenxiangning-...-tmd-cli--
  */
 async function piSessionsDir(cwd: string): Promise<string | null> {
-  const home = await ipc.configHomeDir().catch(() => null);
-  if (!home) return null;
+  const agentDir = await piAgentDir().catch(() => null);
+  if (!agentDir) return null;
   const slug = `--${cwd.replace(/^\/+/, "").replace(/\//g, "-")}--`;
-  return `${home}/.pi/agent/sessions/${slug}`;
+  return `${agentDir}/sessions/${slug}`;
 }
 
 async function listPiSessions(cwd: string): Promise<CliDiskSession[]> {
@@ -49,7 +48,12 @@ async function listPiSessions(cwd: string): Promise<CliDiskSession[]> {
 async function readPiSessionStatus(cwd: string, cliSessionId: string) {
   const dir = await piSessionsDir(cwd);
   if (!dir) return null;
-  return readJsonlSessionStatus(dir, cliSessionId, ["modelId", "model"]);
+  return readJsonlSessionStatus(
+    dir,
+    cliSessionId,
+    ["modelId", "model"],
+    ["provider", "providerId"],
+  );
 }
 
 /**
@@ -61,8 +65,8 @@ async function readPiSessionStatus(cwd: string, cliSessionId: string) {
 export const cliPiPlugin: Plugin = {
   id: "cli-pi",
   activate(ctx) {
-    // 注册 kimi quota provider(pi CLI 默认走 kimi-coding key 查询额度)。
-    registerKimiQuotaProvider();
+    // 注册 pi quota provider(按当前模型前缀路由供应商,HTTP 走共享 vendors)。
+    registerPiQuotaProvider();
     ctx.registerCliProfile({
       id: "pi",
       name: "pi",
