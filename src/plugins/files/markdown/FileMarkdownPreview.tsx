@@ -24,7 +24,6 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Element } from "hast";
 import {
@@ -47,6 +46,9 @@ import {
   LazyMarkdownHeavyBlock,
 } from "./markdownBlocks";
 import { FileMarkdownMermaidBlock } from "./MermaidBlock";
+import { PreviewOutlineSidebar } from "./PreviewOutlineSidebar";
+import { useMarkdownOutline } from "./useMarkdownOutline";
+import { resolveImageRenderSource } from "./markdownImages";
 
 type PreviewPreNode = {
   children?: Array<{
@@ -62,103 +64,6 @@ const PROGRESSIVE_INITIAL_LINES = 360;
 const PROGRESSIVE_CHUNK_LINES = 720;
 const HEAVY_CODE_BLOCK_LINE_THRESHOLD = 80;
 const HEAVY_CODE_BLOCK_BYTE_THRESHOLD = 12_000;
-const FILE_MARKDOWN_IMAGE_EXTENSION_REGEX =
-  /\.(?:apng|avif|bmp|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
-const BROWSER_LOADABLE_IMAGE_SRC_REGEX = /^(?:https?:|data:|blob:|asset:)/i;
-
-function safeDecodeMarkdownImageSrc(value: string) {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-}
-
-function stripMarkdownImageDecorators(value: string) {
-  return safeDecodeMarkdownImageSrc(
-    value
-      .trim()
-      .replace(/^<(.+)>$/, "$1")
-      .replace(/^['"](.+)['"]$/, "$1")
-      .trim(),
-  );
-}
-
-function removeUrlSuffix(value: string) {
-  const suffixIndex = value.search(/[?#]/);
-  return suffixIndex >= 0 ? value.slice(0, suffixIndex) : value;
-}
-
-function dirname(path: string) {
-  const normalized = path.replace(/\\/g, "/");
-  const slashIndex = normalized.lastIndexOf("/");
-  return slashIndex >= 0 ? normalized.slice(0, slashIndex) : "";
-}
-
-function normalizePathSegments(path: string) {
-  const isAbsolute = path.startsWith("/");
-  const segments = path.replace(/\\/g, "/").split("/");
-  const resolvedSegments: string[] = [];
-  for (const segment of segments) {
-    if (!segment || segment === ".") {
-      continue;
-    }
-    if (segment === "..") {
-      if (resolvedSegments.length > 0 && resolvedSegments[resolvedSegments.length - 1] !== "..") {
-        resolvedSegments.pop();
-      } else if (!isAbsolute) {
-        resolvedSegments.push(segment);
-      }
-      continue;
-    }
-    resolvedSegments.push(segment);
-  }
-  return `${isAbsolute ? "/" : ""}${resolvedSegments.join("/")}`;
-}
-
-function resolveLocalImagePath(src: string, sourceFilePath?: string | null) {
-  const cleaned = stripMarkdownImageDecorators(src);
-  if (!cleaned || BROWSER_LOADABLE_IMAGE_SRC_REGEX.test(cleaned)) {
-    return null;
-  }
-
-  const pathOnly = removeUrlSuffix(cleaned);
-  if (!pathOnly || !FILE_MARKDOWN_IMAGE_EXTENSION_REGEX.test(pathOnly)) {
-    return null;
-  }
-
-  if (pathOnly.startsWith("file://")) {
-    const withoutScheme = pathOnly.slice("file://".length);
-    const withoutHost = withoutScheme.startsWith("localhost/")
-      ? withoutScheme.slice("localhost/".length)
-      : withoutScheme;
-    return withoutHost.startsWith("/") ? withoutHost : `/${withoutHost}`;
-  }
-
-  if (
-    pathOnly.startsWith("/") ||
-    /^[A-Za-z]:[\\/]/.test(pathOnly) ||
-    /^\\\\[^\\]/.test(pathOnly)
-  ) {
-    return pathOnly;
-  }
-
-  const sourceDir = sourceFilePath ? dirname(sourceFilePath) : "";
-  return normalizePathSegments(sourceDir ? `${sourceDir}/${pathOnly}` : pathOnly);
-}
-
-function resolveImageRenderSource(src: string, sourceFilePath?: string | null) {
-  const cleaned = stripMarkdownImageDecorators(src);
-  const localPath = resolveLocalImagePath(cleaned, sourceFilePath);
-  if (!localPath) {
-    return { src: cleaned, localPath: null };
-  }
-  try {
-    return { src: convertFileSrc(localPath), localPath };
-  } catch {
-    return { src: cleaned, localPath };
-  }
-}
 
 function extractCodeFromPre(node?: PreviewPreNode) {
   const codeNode = node?.children?.find((child) => child.tagName === "code");
@@ -250,6 +155,23 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
     }, 16);
     return () => window.clearTimeout(timeoutId);
   }, [progressive, visibleLineLimit, bodyLineCount]);
+
+  /* ── 章节大纲浮窗(状态机照抄 codemoss Router,实现在 useMarkdownOutline) ── */
+  const {
+    outline,
+    previewRootRef,
+    activeOutlineItemId,
+    isOutlinePinned,
+    isOutlineCollapsed,
+    handleSelectOutlineItem,
+    handleToggleOutlinePinned,
+    handleToggleOutlineCollapsed,
+    handleOutlineMouseLeave,
+  } = useMarkdownOutline({
+    body: compiledDocument.body,
+    cacheKey: compiledDocument.cacheKey,
+    visibleLineLimit,
+  });
 
   const shouldRenderSingleMarkdownDocument = useMemo(
     () => !progressive && hasDocumentScopedMarkdownFeatures(compiledDocument.body),
@@ -433,40 +355,58 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
   }), [documentKey, handleAnchorClick, progressive, sourceFilePath]);
 
   return (
-    <div
-      className={className}
-      data-markdown-render-strategy={compiledDocument.renderStrategy}
-      data-testid="file-markdown-preview"
-    >
-      <ImageFullscreenViewer
-        open={!!imageFullscreen}
-        src={imageFullscreen?.src ?? ""}
-        alt={imageFullscreen?.alt}
-        onClose={() => setImageFullscreen(null)}
-      />
-      {compiledDocument.frontmatterFields.length > 0 ? (
-        <section className="fvp-file-markdown-frontmatter" data-testid="file-markdown-frontmatter">
-          <div className="fvp-file-markdown-frontmatter-label">Frontmatter</div>
-          <dl className="fvp-file-markdown-frontmatter-grid">
-            {compiledDocument.frontmatterFields.map((field) => (
-              <div key={field.key} className="fvp-file-markdown-frontmatter-row">
-                <dt>{field.key}</dt>
-                <dd>{field.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      ) : null}
-      {visibleMarkdownBlocks.map((block) => (
-        <ReactMarkdown
-          key={block.key}
-          remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={rehypePlugins}
-          components={createMarkdownComponents(block.startLine, block.key)}
+    <div className="fvp-markdown-preview-frame">
+      {outline.length > 0 && (
+        <div className="fvp-markdown-outline-layer">
+          <PreviewOutlineSidebar
+            items={outline}
+            activeItemId={activeOutlineItemId}
+            onSelectItem={handleSelectOutlineItem}
+            collapsed={isOutlineCollapsed}
+            pinned={isOutlinePinned}
+            onToggleCollapsed={handleToggleOutlineCollapsed}
+            onTogglePinned={handleToggleOutlinePinned}
+            onMouseLeave={handleOutlineMouseLeave}
+          />
+        </div>
+      )}
+      <div ref={previewRootRef} className="fvp-markdown-preview-scroll">
+        <div
+          className={className}
+          data-markdown-render-strategy={compiledDocument.renderStrategy}
+          data-testid="file-markdown-preview"
         >
-          {block.markdown}
-        </ReactMarkdown>
-      ))}
+          <ImageFullscreenViewer
+            open={!!imageFullscreen}
+            src={imageFullscreen?.src ?? ""}
+            alt={imageFullscreen?.alt}
+            onClose={() => setImageFullscreen(null)}
+          />
+          {compiledDocument.frontmatterFields.length > 0 ? (
+            <section className="fvp-file-markdown-frontmatter" data-testid="file-markdown-frontmatter">
+              <div className="fvp-file-markdown-frontmatter-label">Frontmatter</div>
+              <dl className="fvp-file-markdown-frontmatter-grid">
+                {compiledDocument.frontmatterFields.map((field) => (
+                  <div key={field.key} className="fvp-file-markdown-frontmatter-row">
+                    <dt>{field.key}</dt>
+                    <dd>{field.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ) : null}
+          {visibleMarkdownBlocks.map((block) => (
+            <ReactMarkdown
+              key={block.key}
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={rehypePlugins}
+              components={createMarkdownComponents(block.startLine, block.key)}
+            >
+              {block.markdown}
+            </ReactMarkdown>
+          ))}
+        </div>
+      </div>
     </div>
   );
 });

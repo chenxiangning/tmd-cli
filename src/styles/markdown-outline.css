@@ -1,0 +1,296 @@
+/* ═══════════════════════════════════════════════════════════════
+   markdown 章节大纲浮窗 —— 照抄 codemoss file-view-panel.css 1117-1470
+   的 fvp-preview-outline/fvp-markdown-outline-layer 段。
+   变量桥接 --tmd-*(浮窗挂在预览 frame 内,--fvp-* 桥接变量不在作用域,
+   故本文件直接用 --tmd-* 重写 var 引用)。
+   ═══════════════════════════════════════════════════════════════ */
+
+.fvp-markdown-preview-frame {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.fvp-markdown-preview-scroll {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+}
+
+.fvp-markdown-outline-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.fvp-markdown-outline-layer .fvp-preview-outline {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: min(320px, calc(100% - 40px));
+  max-height: min(520px, calc(100% - 40px));
+  min-width: 260px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--tmd-border) 72%, transparent);
+  border-radius: 12px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--tmd-bg-elevated) 94%, transparent),
+      color-mix(in srgb, var(--tmd-bg-hover) 90%, transparent)
+    );
+  box-shadow:
+    0 16px 38px color-mix(in srgb, #000 16%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--tmd-bg-elevated) 76%, transparent);
+  color: var(--tmd-fg);
+  overflow: auto;
+  backdrop-filter: blur(12px) saturate(1.04);
+  pointer-events: auto;
+}
+
+.fvp-markdown-outline-layer .fvp-preview-outline-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.fvp-preview-outline-float {
+  display: inline-flex;
+  pointer-events: none;
+}
+
+.fvp-markdown-outline-layer .fvp-preview-outline-float {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 4;
+}
+
+.fvp-preview-outline-float-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--tmd-border) 84%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tmd-bg-elevated) 78%, transparent);
+  box-shadow:
+    0 10px 24px color-mix(in srgb, #000 12%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--tmd-bg-base) 68%, transparent);
+  color: var(--tmd-fg-muted);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.fvp-preview-outline-float-button:hover {
+  border-color: var(--tmd-border);
+  background: color-mix(in srgb, var(--tmd-bg-hover) 82%, transparent);
+  color: var(--tmd-fg);
+  transform: translateY(-1px);
+}
+
+.fvp-preview-outline-float-button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--tmd-fg-faint) 12%, transparent),
+    0 10px 24px color-mix(in srgb, #000 12%, transparent);
+}
+
+.fvp-preview-outline-menu-icon {
+  display: grid;
+  gap: 3px;
+  width: 15px;
+}
+
+.fvp-preview-outline-menu-icon span {
+  display: block;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.fvp-preview-outline .fvp-preview-section-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  padding: 12px 12px 10px;
+  margin-bottom: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: color-mix(in srgb, var(--tmd-bg-elevated) 88%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--tmd-border) 58%, transparent);
+}
+
+.fvp-preview-outline .fvp-preview-section-header strong {
+  color: var(--tmd-fg);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.fvp-preview-outline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fvp-preview-outline-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.fvp-preview-outline-pin-button {
+  opacity: 1;
+  color: var(--tmd-fg-muted);
+}
+
+.fvp-preview-outline-pin-button:hover,
+.fvp-preview-outline-pin-button.is-active {
+  background: color-mix(in srgb, var(--tmd-bg-hover) 58%, transparent);
+  color: var(--tmd-fg);
+}
+
+.fvp-preview-outline-pin-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  pointer-events: none;
+  transform: rotate(90deg);
+  transform-origin: 50% 50%;
+  transition: transform 140ms ease;
+}
+
+.fvp-preview-outline-pin-button.is-active .fvp-preview-outline-pin-icon {
+  transform: rotate(0deg);
+}
+
+.fvp-preview-outline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fvp-preview-outline-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fvp-preview-outline-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: center;
+  gap: 0;
+}
+
+.fvp-preview-outline-disclosure,
+.fvp-preview-outline-disclosure-spacer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 32px;
+}
+
+.fvp-preview-outline-disclosure {
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.fvp-preview-outline-disclosure:hover {
+  background: color-mix(in srgb, var(--tmd-bg-hover) 58%, transparent);
+  color: var(--tmd-fg);
+}
+
+.fvp-preview-outline-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--tmd-fg);
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 6px 9px;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.fvp-preview-outline-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.fvp-preview-outline-level {
+  margin-left: 8px;
+  color: var(--tmd-fg-muted);
+  font-size: 12px;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.fvp-preview-outline-button:hover {
+  background: color-mix(in srgb, var(--tmd-bg-hover) 64%, transparent);
+  color: var(--tmd-fg);
+}
+
+.fvp-preview-outline-button.is-active {
+  background: color-mix(in srgb, var(--tmd-bg-active) 80%, transparent);
+  color: var(--tmd-fg);
+}
+
+.fvp-preview-outline-empty {
+  margin: 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tmd-bg-hover) 56%, transparent);
+  color: var(--tmd-fg-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 10px 12px;
+}

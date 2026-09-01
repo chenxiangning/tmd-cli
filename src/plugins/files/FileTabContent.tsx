@@ -105,11 +105,11 @@ export function FileTabContent() {
   }
 
   if (path && MARKDOWN_FILE_RE.test(path)) {
+    /* md 预览自带滚动容器(fvp-markdown-preview-frame/scroll,章节浮窗锚点依赖它),
+       外层不再包 overflow-auto,避免双滚动条。 */
     return (
       <div className="flex h-full flex-col">
-        <div className="min-h-0 flex-1 overflow-auto">
-          <FileMarkdownPreview value={payload.content ?? ""} sourceFilePath={path} />
-        </div>
+        <FileMarkdownPreview value={payload.content ?? ""} sourceFilePath={path} />
       </div>
     );
   }

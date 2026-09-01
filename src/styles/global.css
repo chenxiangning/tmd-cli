@@ -9,12 +9,13 @@
 @import "./workspace-menu.css";
 @import "./titlebar.css";
 @import "./panel-handle.css";
-@import "./settings-cluster.css";
 @import "./settings-panel.css";
+@import "./discovery.css";
 @import "./composer-attachments.css";
 @import "./markdown-preview.css";
 @import "./markdown-codeblock.css";
 @import "./markdown-fullscreen.css";
+@import "./markdown-outline.css";
 
 /* ──────────────────────────────────────────────────────────
  * 全局细滚动条 —— 平时完全隐藏,悬停滚动区时浮现 4px 细条。
