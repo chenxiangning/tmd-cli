@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* 骨架期极简全局样式；mossx 外观复刻在独立阶段提取 tokens 后进行。 */
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 会话呼吸灯 */
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+
+.animate-breathe {
+  animation: breathe 1.2s ease-in-out infinite;
+}
