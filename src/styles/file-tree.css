@@ -1,0 +1,262 @@
+/* ──────────────────────────────────────────────────────────
+ * 文件树视觉规范 —— 复刻 codemoss file-tree 视觉。
+ *
+ * 设计原则:
+ * - 顶部 toolbar:workspace 根标签(uppercase)+ 右侧 3 个 ghost 图标按钮
+ *   (新文件/新文件夹/刷新)。
+ * - 行高 28px,左右内边距 8px,圆角 6px,hover/selected 用 surface-hover
+ *   灰色填充。
+ * - 文件夹行 hover 时让位给 chevron(右旋箭头),常态显示文件夹 icon。
+ * - 文件行:固定 icon(按扩展名)+ 名字。
+ * - 行右侧 actions(hover 显现):此处仅 + 一个"在新窗口打开"占位。
+ * ────────────────────────────────────────────────────────── */
+
+.file-tree-panel {
+  --file-tree-caption-font-size: 10px;
+  --file-tree-meta-font-size: 11px;
+  --file-tree-content-font-size: 12px;
+  --file-tree-title-font-size: 14px;
+
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  background: transparent;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+  color: var(--tmd-fg); /* neutral-200 */
+}
+
+/* 加载 spinner 使用(见 .file-tree-loading-spinner);保留。 */
+@keyframes file-tree-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* 行列表容器 ─ 紧贴 toolbar,可滚动 */
+.file-tree-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 4px 12px;
+}
+
+/* 滚动条收编到 global.css 全局细滚动条规则(4px、平时隐藏、悬停浮现)。 */
+
+/* ── 行 ── */
+.file-tree-row-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.file-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  min-height: 28px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--tmd-fg);
+  font-family: inherit;
+  font-size: var(--file-tree-content-font-size);
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+}
+
+.file-tree-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: var(--tmd-fg-muted);
+  transition: opacity 120ms ease;
+}
+
+/* codemoss 风格图标容器:16x16 SVG 区域,SVG 内部固定色 */
+.file-tree-icon-svg {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-tree-icon-svg > svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.file-tree-row:focus-visible {
+  border-color: var(--tmd-accent);
+}
+
+.file-tree-row:hover {
+  background: var(--tmd-bg-hover); /* neutral-800 surface-hover */
+  border-color: var(--tmd-border-strong); /* neutral-700 */
+}
+
+.file-tree-row.is-selected {
+  background: var(--tmd-bg-hover);
+  border-color: var(--tmd-fg-faint);
+}
+
+.file-tree-row:focus-visible {
+  border-color: var(--tmd-accent);
+}
+
+/* chevron ─ 文件夹行 hover 时让位给箭头(覆盖 folder icon) */
+.file-tree-icon-cell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+}
+
+.file-tree-chevron {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tmd-fg-muted);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+  transform: rotate(0deg);
+  transition: opacity 120ms ease, transform 140ms ease;
+  pointer-events: none;
+}
+
+.file-tree-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.file-tree-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  color: var(--tmd-fg-muted);
+  transition: opacity 120ms ease;
+}
+
+.file-tree-row-wrap:hover .file-tree-icon-cell.has-chevron .file-tree-icon,
+.file-tree-row:focus-visible .file-tree-icon-cell.has-chevron .file-tree-icon {
+  opacity: 0;
+}
+
+.file-tree-row-wrap:hover .file-tree-chevron,
+.file-tree-row:focus-visible .file-tree-chevron {
+  opacity: 1;
+}
+
+/* 文件夹 icon 在选中态保持可见(只让位给 hover 态的 chevron) */
+.file-tree-row.is-selected .file-tree-icon {
+  opacity: 1;
+}
+
+/* 名称 ─ 主展示区,省略号 */
+.file-tree-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+/* 行右侧 actions ─ hover/selected 时显现的 + 按钮 */
+.file-tree-actions {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.file-tree-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.file-tree-action:hover {
+  background: var(--tmd-border-strong);
+  color: var(--tmd-fg);
+}
+
+.file-tree-action svg {
+  width: 11px;
+  height: 11px;
+  display: block;
+}
+
+.file-tree-row-wrap:hover .file-tree-actions,
+.file-tree-row-wrap:focus-within .file-tree-actions,
+.file-tree-row-wrap.is-selected .file-tree-actions {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* 空态/loading ─ 简洁文案 */
+.file-tree-empty,
+.file-tree-loading-row {
+  padding: 16px 12px;
+  color: var(--tmd-fg-subtle); /* neutral-500 */
+  font-size: var(--file-tree-meta-font-size);
+  text-align: center;
+}
+
+.file-tree-loading-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.file-tree-loading-spinner {
+  width: 12px;
+  height: 12px;
+  animation: file-tree-spin 1s linear infinite;
+}
+
+/* git 状态名 ─ 加粗 + 颜色 */
+.file-tree-name.git-a { color: rgb(74, 222, 128); }
+.file-tree-name.git-m { color: rgb(250, 204, 21); }
+.file-tree-name.git-d { color: rgb(248, 113, 113); }
+.file-tree-name.git-r { color: rgb(167, 139, 250); }
+.file-tree-name.git-u { color: rgb(244, 114, 182); }

@@ -1,0 +1,232 @@
+/**
+ * 左侧工作区面板样式 —— 完全复刻 codemoss src/styles/sidebar.css 的
+ * 工作区行样式,色板变量映射到 tmd-cli 的 neutral 系
+ * (accent 固定经典蓝 #2563eb)。作用域 .ws-sidebar,不污染全局。
+ * 拆分(500 行铁则):会话树 → workspace-sessions.css;新建会话菜单 → workspace-menu.css。
+ *
+ * 源: codemoss sidebar.css(.workspace-row/.thread-row/.workspace-children
+ * 树线/.workspace-actions hover 显形/.sidebar-workspace-menu 菜单)。
+ */
+
+.ws-sidebar {
+  /* 调色板(对照 codemoss 变量 → neutral) */
+  --surface-hover: var(--tmd-bg-hover); /* neutral-800 */
+  --surface-hover-strong: var(--tmd-border-strong); /* neutral-700 */
+  --surface-sidebar-opaque: var(--tmd-bg-elevated); /* neutral-900 */
+  --text-strong: var(--tmd-fg); /* neutral-200 */
+  --text-quiet: var(--tmd-fg); /* neutral-300 */
+  --text-muted: var(--tmd-fg-muted); /* neutral-400 */
+  --text-faint: var(--tmd-fg-subtle); /* neutral-500 */
+  --border-subtle: var(--tmd-border);
+  --border-quiet: var(--tmd-border);
+  --accent-primary: var(--tmd-accent);
+  --danger-strong: #f87171;
+
+  /* 尺寸(照抄 codemoss sidebar-shell.css) */
+  --sidebar-row-radius: 6px;
+  --sidebar-row-height-workspace: 28px;
+  --sidebar-row-height-thread: 30px;
+  --sidebar-caption-font-size: 10px;
+  --sidebar-meta-font-size: 12px;
+  --sidebar-content-font-size: 14px;
+
+  padding: 0 0 12px;
+  font-size: var(--sidebar-content-font-size);
+  color: var(--text-quiet);
+}
+
+/* ===== 分组标题(caption) ===== */
+.ws-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 4px 6px;
+  font-size: var(--sidebar-caption-font-size);
+  color: var(--text-muted);
+}
+
+.ws-caption-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 0 4px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.ws-caption-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+/* ===== 工作区行(codemoss .workspace-card/.workspace-row) ===== */
+.workspace-card {
+  position: relative;
+}
+
+.workspace-row {
+  display: flex;
+  flex-direction: column;
+  width: calc(100% - 4px);
+  margin-left: 4px;
+  margin-right: 0;
+  border-radius: var(--sidebar-row-radius);
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
+  overflow-x: hidden;
+  position: relative;
+  padding: 0;
+}
+
+.workspace-row.active {
+  background: color-mix(in srgb, var(--surface-hover) 72%, transparent);
+  color: var(--text-strong);
+}
+
+.workspace-header-content {
+  display: flex;
+  align-items: center;
+  min-height: var(--sidebar-row-height-workspace);
+  width: 100%;
+  padding: 2px 0 2px 6px;
+  gap: 6px;
+  color: var(--text-muted);
+  border-radius: var(--sidebar-row-radius);
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.workspace-header-content:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.workspace-row.active .workspace-header-content:hover {
+  background: transparent;
+}
+
+.workspace-row.active .workspace-name-text {
+  color: var(--text-strong);
+}
+
+/* 折叠按钮:hover 时文件夹图标淡出、chevrons 淡入(codemoss 双态) */
+.workspace-folder-btn {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.workspace-folder-btn > span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.12s ease;
+}
+
+.workspace-collapse-toggle-affordance-icon {
+  opacity: 0;
+}
+
+.workspace-row:hover .workspace-collapse-toggle-folder-icon {
+  opacity: 0;
+}
+
+.workspace-row:hover .workspace-collapse-toggle-affordance-icon {
+  opacity: 1;
+}
+
+.workspace-name-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--sidebar-content-font-size);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-quiet);
+}
+
+/* Default badge(alias badge 的 neutral 变体,结构照抄 codemoss) */
+.default-workspace-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--text-muted) 35%, transparent);
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  color: var(--text-muted);
+  font-size: var(--sidebar-caption-font-size);
+  font-weight: 650;
+  line-height: 1;
+}
+
+/* 行右侧动作组:hover/focus/active 时展开(codemoss .workspace-actions) */
+.workspace-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-width 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.workspace-row:hover .workspace-actions,
+.workspace-row:focus-within .workspace-actions,
+.workspace-row.active .workspace-actions {
+  max-width: 160px;
+  opacity: 1;
+}
+
+.workspace-action-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.workspace-action-btn svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.85;
+  flex: 0 0 auto;
+}
+
+.workspace-action-btn:hover {
+  background: var(--surface-hover-strong);
+  color: var(--text-strong);
+}
+

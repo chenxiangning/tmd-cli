@@ -1,0 +1,206 @@
+/**
+ * 会话树样式(从 workspace-sidebar.css 拆分) — 会话列表/CLI 分组/呼吸灯。
+ * 复刻 codemoss thread-row 体系,作用域 .ws-sidebar。
+ */
+
+/* ===== 会话树容器(codemoss .workspace-children + 贯穿竖线) ===== */
+.workspace-children {
+  --workspace-tree-rail: color-mix(in srgb, var(--text-muted) 30%, transparent);
+  --workspace-tree-rail-x: 10px;
+  position: relative;
+  display: grid;
+  margin: 2px 0 0;
+  opacity: 1;
+  transform: translateY(0);
+  overflow: hidden;
+  transition:
+    grid-template-rows 0.18s cubic-bezier(0.2, 0, 0, 1),
+    opacity 0.16s ease,
+    transform 0.18s cubic-bezier(0.2, 0, 0, 1),
+    margin-top 0.18s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.workspace-children.is-collapsed {
+  grid-template-rows: 0fr;
+  margin-top: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+}
+
+.workspace-children-inner {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  position: relative;
+  z-index: 1;
+}
+
+/* 容器级贯穿竖线(连续性由它保证,行只画弯钩) */
+.workspace-children::before {
+  content: "";
+  position: absolute;
+  left: var(--workspace-tree-rail-x);
+  top: 0;
+  bottom: 6px;
+  width: 1px;
+  background: var(--workspace-tree-rail);
+  pointer-events: none;
+}
+
+/* ===== CLI 分组标签 ===== */
+.cli-group-label {
+  position: relative;
+  margin-left: 10px;
+  padding: 2px 5px 0 8px;
+  font-size: var(--sidebar-caption-font-size);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  line-height: 18px;
+}
+
+/* ===== 会话行(codemoss .thread-row) ===== */
+.thread-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--sidebar-row-height-thread);
+  padding: 2px 0 2px 8px;
+  border-radius: var(--sidebar-row-radius);
+  color: var(--text-quiet);
+  font-size: var(--sidebar-content-font-size);
+  cursor: pointer;
+  min-width: 0;
+  position: relative;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
+  background: transparent;
+  border: none;
+  width: calc(100% - 10px);
+  margin-left: 10px;
+  text-align: left;
+}
+
+/* ╰ 圆弧弯钩:只画「弧 + 水平短线」叠在贯穿线上(codemoss v4.2 数值) */
+.workspace-children-inner .thread-row::before,
+.workspace-children-inner .cli-group-label::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 7px;
+  top: calc(50% - 4px);
+  height: 4px;
+  border-bottom: 1px solid var(--workspace-tree-rail);
+  border-bottom-left-radius: 4px;
+  pointer-events: none;
+}
+
+.thread-row:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.thread-row.active {
+  background: color-mix(in srgb, var(--surface-hover) 72%, transparent);
+  color: var(--text-strong);
+}
+
+.thread-row.active:hover {
+  background: color-mix(in srgb, var(--surface-hover) 72%, transparent);
+}
+
+/* CLI 引擎 logo(codemoss .thread-engine-badge) */
+.thread-engine-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: var(--text-muted);
+  opacity: 0.8;
+  width: 18px;
+  flex-shrink: 0;
+}
+
+.thread-row:hover .thread-engine-badge,
+.thread-row.active .thread-engine-badge {
+  opacity: 1;
+  color: var(--text-strong);
+}
+
+.thread-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+  font-weight: 400;
+  margin-right: 6px;
+}
+
+.thread-name.is-disk {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--sidebar-meta-font-size);
+  color: var(--text-muted);
+}
+
+.thread-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.thread-time {
+  font-size: var(--sidebar-meta-font-size);
+  color: var(--text-faint);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.72;
+}
+
+/* 活会话呼吸灯(meta 区,替换时间 —— codemoss runtime dot 语义) */
+.thread-runtime-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #34d399;
+}
+
+.thread-runtime-dot.is-idle {
+  background: var(--tmd-fg-faint);
+  animation: none;
+}
+
+/* ===== 更多...(codemoss .thread-more) ===== */
+.thread-more {
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: var(--sidebar-caption-font-size);
+  padding: 4px 8px;
+  margin-left: 10px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  display: inline-block;
+  box-shadow: none;
+  outline: none;
+}
+
+.thread-more:hover,
+.thread-more:focus,
+.thread-more:active {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: var(--text-muted);
+}
+

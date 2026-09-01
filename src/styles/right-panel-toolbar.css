@@ -1,0 +1,226 @@
+/* ──────────────────────────────────────────────────────────
+ * Right panel toolbar —— 复刻 codemoss right-panel-toolbar 视觉。
+ *
+ * 顶部 6 个 ghost icon 按钮(folder/git/edit/list/note/...)外加 ⋯ 下拉入口,
+ * 下拉弹出可勾选面板列表。
+ * ────────────────────────────────────────────────────────── */
+
+.right-panel-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 4px 4px 4px;
+  border-bottom: 1px solid var(--tmd-border);
+  background: var(--tmd-bg-base);
+  position: relative;
+}
+
+.panel-tabs-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+}
+
+.panel-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.panel-tab {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tmd-fg-subtle);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+  flex: 0 0 auto;
+}
+
+.panel-tab:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.panel-tab.is-active {
+  color: rgb(255, 140, 60); /* 橙色 ─ 跟用户截图一致 */
+}
+
+.panel-tab.is-active.git {
+  color: rgb(255, 140, 60);
+}
+
+.panel-tab svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.75;
+}
+
+/* ⋯ more 按钮 ─ 略不同视觉 */
+.panel-tab-overflow {
+  margin-left: auto;
+  border-radius: 6px;
+}
+
+/* ── 下拉面板 ──
+ * 菜单经 createPortal 挂到 document.body(position: fixed),
+ * 跳出 titlebar/右栏层叠上下文,与 .wsmenu 同层(z-index 1200+)。
+ * 背景为不透明实色,绝不透出身后内容。 */
+
+.panel-overflow-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: transparent;
+}
+
+.panel-overflow-menu {
+  position: fixed;
+  z-index: 1201;
+  min-width: 240px;
+  background: var(--tmd-bg-popover);
+  border: 1px solid var(--tmd-border);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+.panel-overflow-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--tmd-fg);
+  user-select: none;
+  transition: background 120ms ease;
+}
+
+.panel-overflow-item:hover {
+  background: var(--tmd-bg-hover);
+}
+
+.panel-overflow-item.is-active {
+  background: var(--tmd-bg-hover);
+}
+
+.panel-overflow-item-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
+  color: var(--tmd-fg-muted);
+}
+
+.panel-overflow-item.is-active .panel-overflow-item-icon {
+  color: rgb(255, 140, 60);
+}
+
+.panel-overflow-item-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.panel-overflow-item-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.panel-overflow-item-check {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--tmd-border-strong);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  flex: 0 0 16px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.panel-overflow-item-check:hover {
+  border-color: var(--tmd-fg-muted);
+}
+
+.panel-overflow-item-check.is-checked {
+  background: rgb(255, 140, 60);
+  border-color: rgb(255, 140, 60);
+}
+
+/* ── subbar: workspace label + 文件操作 ── */
+.panel-subbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 21px;
+  padding: 0 4px;
+}
+
+.panel-subbar-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tmd-fg-subtle);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.panel-subbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+}
+
+.panel-subbar-action {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.panel-subbar-action:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.panel-subbar-action svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 1.75;
+}
+.panel-overflow-item-check svg {
+  width: 11px;
+  height: 11px;
+  color: rgb(23, 23, 23);
+  stroke-width: 3;
+}

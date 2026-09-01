@@ -1,0 +1,179 @@
+/* ──────────────────────────────────────────────────────────
+ * Editor tab bar —— 复刻 codemoss FileViewPanel tab 视觉。
+ *
+ * 设计原则:
+ * - tab 行高 30px;每个 tab 内含:文件类型 SVG icon + 文件名 + detach(外部窗口)
+ *   按钮(蓝色) + close 按钮(neutral)。
+ * - active tab 顶部 2px 蓝色 accent 条 + 浅灰背景,字体加粗。
+ * - 标签水平排列,溢出横向滚动,无滚动条。
+ * - 文件图标用 codemoss 的 getFileTreeIconSvg 渲染(16x16)。
+ * ────────────────────────────────────────────────────────── */
+
+.tab-bar {
+  display: block;
+  min-height: 30px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--tmd-border);
+  background: var(--tmd-bg-base);
+  flex-shrink: 0;
+}
+
+.tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-bar-track {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 1px;
+  min-width: max-content;
+  padding-top: 0;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  max-width: 220px;
+  min-height: 30px;
+  border: 1px solid var(--tmd-border);
+  border-bottom: none;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  position: relative;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.tab:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.tab.is-active {
+  border-color: var(--tmd-border-strong);
+  background: var(--tmd-bg-elevated);
+  color: var(--tmd-fg);
+  z-index: 1;
+}
+
+/* active 顶部蓝色 accent 条 ─ VSCode 风格 */
+.tab.is-active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--tmd-accent); /* accent-500 */
+  pointer-events: none;
+}
+
+/* active 底部与内容区融合:覆盖 border-bottom 形成无缝衔接 */
+.tab.is-active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--tmd-bg-elevated);
+  pointer-events: none;
+}
+
+.tab.is-active .tab-main-label {
+  font-weight: 600;
+}
+
+.tab-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px 0 8px;
+  height: 30px;
+  min-width: 0;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-align: left;
+}
+
+.tab-icon {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  overflow: hidden;
+  color: var(--tmd-fg-subtle);
+}
+
+.tab-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.tab.is-active .tab-icon {
+  color: var(--tmd-fg);
+}
+
+.tab-main-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.tab-detach,
+.tab-close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 30px;
+  padding: 0;
+  border-radius: 0;
+  opacity: 0.5;
+  transition: background 120ms ease, opacity 120ms ease, color 120ms ease;
+  cursor: pointer;
+}
+
+.tab-detach {
+  color: rgb(56, 189, 248);
+  opacity: 1;
+}
+
+.tab-detach:hover {
+  background: transparent;
+  color: rgb(103, 232, 249);
+}
+
+.tab-close:hover {
+  background: var(--tmd-bg-hover);
+  opacity: 1;
+  color: var(--tmd-fg);
+}
+
+.tab.is-active .tab-detach,
+.tab.is-active .tab-close {
+  opacity: 0.9;
+}
+
+.tab.is-active .tab-detach {
+  opacity: 1;
+}
+
+.tab-detach svg,
+.tab-close svg {
+  color: inherit;
+  stroke: currentColor;
+  width: 11px;
+  height: 11px;
+}

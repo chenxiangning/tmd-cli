@@ -1,5 +1,59 @@
 @import "tailwindcss";
-@import "highlight.js/styles/github-dark.css";
+@import "./themes.css";
+@import "./file-tree.css";
+@import "./tab-bar.css";
+@import "./right-panel-toolbar.css";
+@import "./quota.css";
+@import "./workspace-sidebar.css";
+@import "./workspace-sessions.css";
+@import "./workspace-menu.css";
+@import "./titlebar.css";
+@import "./panel-handle.css";
+@import "./settings-cluster.css";
+@import "./settings-panel.css";
+
+/* ──────────────────────────────────────────────────────────
+ * 全局细滚动条 —— 平时完全隐藏,悬停滚动区时浮现 4px 细条。
+ * 功能保留:轨道常驻(thumb 透明),滚轮/触控板/拖拽 thumb 均可用。
+ * 覆盖:终端 xterm viewport、文件树、composer、文件预览等所有滚动容器。
+ * tab-bar / wsmenu 的 display:none 规则优先级更高,不受影响。
+ * 颜色吃主题 token,随 preset 联动。
+ * ────────────────────────────────────────────────────────── */
+
+/* Firefox:细轨道 + 透明 thumb,悬停时上色。 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+*:hover {
+  scrollbar-color: var(--tmd-border-strong) transparent;
+}
+
+/* WebKit(WKWebView/Chromium):4px 轨道常驻,thumb 平时透明。 */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* 悬停滚动容器(含内部任意位置)时浮现细条。 */
+*:hover::-webkit-scrollbar-thumb {
+  background: var(--tmd-border-strong);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--tmd-fg-subtle);
+}
 
 /* 骨架期极简全局样式；mossx 外观复刻在独立阶段提取 tokens 后进行。 */
 html,
@@ -27,10 +81,56 @@ body,
   animation: breathe 1.2s ease-in-out infinite;
 }
 
-/* hljs 高亮区跟主题对齐 */
+/* hljs 高亮:颜色吃 --tmd-syntax-* token(主题引擎随 preset 内联更新),
+ * 不再 import 固定暗色 github-dark.css。 */
 .hljs-preview pre.hljs {
   background: transparent;
   padding: 0;
   margin: 0;
   font-family: inherit;
+  color: var(--tmd-fg);
+}
+
+.hljs-preview .hljs-keyword,
+.hljs-preview .hljs-selector-tag,
+.hljs-preview .hljs-meta {
+  color: var(--tmd-syntax-keyword);
+}
+
+.hljs-preview .hljs-string,
+.hljs-preview .hljs-regexp,
+.hljs-preview .hljs-addition {
+  color: var(--tmd-syntax-string);
+}
+
+.hljs-preview .hljs-comment,
+.hljs-preview .hljs-quote {
+  color: var(--tmd-syntax-comment);
+}
+
+.hljs-preview .hljs-number,
+.hljs-preview .hljs-literal {
+  color: var(--tmd-syntax-number);
+}
+
+.hljs-preview .hljs-title,
+.hljs-preview .hljs-section {
+  color: var(--tmd-syntax-function);
+}
+
+.hljs-preview .hljs-operator,
+.hljs-preview .hljs-punctuation {
+  color: var(--tmd-syntax-operator);
+}
+
+.hljs-preview .hljs-built_in,
+.hljs-preview .hljs-class,
+.hljs-preview .hljs-type {
+  color: var(--tmd-syntax-type);
+}
+
+.hljs-preview .hljs-name,
+.hljs-preview .hljs-tag,
+.hljs-preview .hljs-deletion {
+  color: var(--tmd-syntax-tag);
 }

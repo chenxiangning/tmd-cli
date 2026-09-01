@@ -1,0 +1,160 @@
+/**
+ * 新建会话菜单样式(从 workspace-sidebar.css 拆分) — portal 菜单 + 遮罩。
+ * 复刻 codemoss sidebar-workspace-menu,z-index 1200+ 与 panel-overflow 同层。
+ */
+
+/* ===== 新建会话菜单(codemoss .sidebar-workspace-menu) ===== */
+.wsmenu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: transparent;
+}
+
+.wsmenu {
+  /* 菜单经 createPortal 挂到 document.body,跳出 .ws-sidebar 作用域:
+     调色板变量必须在此重声明,否则 var() 全部失效(透明背景+文字色丢失)。 */
+  --surface-hover: var(--tmd-bg-hover);
+  --surface-hover-strong: var(--tmd-border-strong);
+  --surface-sidebar-opaque: var(--tmd-bg-elevated);
+  --text-strong: var(--tmd-fg);
+  --text-quiet: var(--tmd-fg);
+  --text-muted: var(--tmd-fg-muted);
+  --text-faint: var(--tmd-fg-subtle);
+  --border-subtle: var(--tmd-border);
+  --border-quiet: var(--tmd-border);
+  --accent-primary: var(--tmd-accent);
+  --danger-strong: #f87171;
+
+  position: fixed;
+  z-index: 1201;
+  min-width: 256px;
+  max-width: min(332px, calc(100vw - 24px));
+  max-height: min(68vh, 460px);
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-quiet);
+  background: var(--surface-sidebar-opaque);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.18),
+    0 1px 4px rgba(0, 0, 0, 0.1);
+  scrollbar-width: none;
+}
+
+.wsmenu::-webkit-scrollbar {
+  display: none;
+}
+
+.wsmenu-group-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 3px 8px 6px;
+}
+
+.wsmenu-divider {
+  margin: 8px 4px 2px;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.wsmenu-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wsmenu-item-row > .wsmenu-item {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wsmenu-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 7px 8px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.22;
+  cursor: pointer;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.wsmenu-item:hover {
+  background: var(--surface-hover);
+}
+
+.wsmenu-item.is-danger {
+  color: var(--danger-strong);
+}
+
+.wsmenu-item-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wsmenu-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+}
+
+.wsmenu-item-refresh {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.wsmenu-item-refresh svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  stroke: currentColor;
+}
+
+.wsmenu-item-refresh:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.wsmenu-item-refresh.is-refreshing svg {
+  animation: wsmenu-spin 0.85s linear infinite;
+}
+
+@keyframes wsmenu-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

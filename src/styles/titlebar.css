@@ -1,0 +1,224 @@
+/* ──────────────────────────────────────────────────────────
+ * Custom titlebar —— 复刻 codemoss titlebar 视觉。
+ *
+ * 设计原则:
+ * - macOS:原生 Overlay traffic lights 在左侧,React 端预留 72px inset。
+ * - Windows:decorations=false,React 端在右侧预留窗口控制区并自绘按钮。
+ * - Drag region:整条 33px 高 header 都是 tauri drag 区(除 buttons)。
+ *
+ * ────────────────────────────────────────────────────────── */
+
+.titlebar {
+  position: relative;
+  width: 100%;
+  height: var(--titlebar-height, 33px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* 左 padding 移到 .titlebar-zone-left 内部,保证左区左缘与左侧栏左缘同为 x=0,宽度才能对齐栏边界 */
+  padding: 0 12px 0 0;
+  background: color-mix(in srgb, var(--tmd-bg-sunken) 85%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--tmd-border);
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  font-size: 12px;
+  -webkit-app-region: drag;
+}
+
+.titlebar *,
+.titlebar button,
+.titlebar a,
+.titlebar [role="button"] {
+  -webkit-app-region: no-drag;
+}
+
+/* ── macOS:左侧 traffic lights inset ── */
+.app.macos-desktop .titlebar-leading {
+  width: 70px;
+  flex: 0 0 70px;
+}
+/* ── 左区:与左侧栏同宽(内联 style 给 width),折叠按钮钉在右缘 ── */
+.titlebar-zone-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 0 0 auto;
+  padding-left: 12px;
+}
+/* 栏边界线拉上顶栏:左区右缘 1px 竖线,与下方 4px 分隔手柄同色同位(仅定宽=左栏展开时出现)。 */
+.titlebar-zone-left[style] {
+  align-self: stretch;
+  border-right: 1px solid var(--tmd-border);
+}
+
+/* 折叠左栏按钮 → 左区最右缘;左区收起/未测量时宽度自适应,按钮自然跟在 inset 后。 */
+.titlebar-zone-left > .titlebar-action {
+  margin-left: auto;
+}
+/* 左栏展开(定宽)且有经典滚动条时:按钮右缘让出滚动条宽度,与下方内容列右缘对齐。 */
+.titlebar-zone-left[style] > .titlebar-action {
+  margin-right: calc(var(--tmd-scrollbar-w, 0px) + 4px);
+}
+
+/* Windows/Linux 不再在左侧放自绘窗口按钮;保留布局由右侧控制区承接。 */
+
+/* ── 中间:breadcrumb + capabilities ── */
+.titlebar-center {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+/* ── 右侧:actions (search/settings/refresh) ── */
+.titlebar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+/* 右区定宽(与右侧栏对齐)时:折叠右栏按钮钉在右区最左缘(内边界),其余 icons 保持右对齐。 */
+.titlebar-actions[style] > .titlebar-action:first-child {
+  margin-right: auto;
+}
+/* 栏边界线拉上顶栏:右区左缘 1px 竖线(仅定宽=右栏展开时出现)。 */
+.titlebar-actions[style] {
+  align-self: stretch;
+  border-left: 1px solid var(--tmd-border);
+}
+/* Windows 右侧窗口控制组位置,对齐 codemoss 的原生控制区预留宽度。 */
+.app.windows-desktop .titlebar-window-controls {
+  flex: 0 0 var(--titlebar-window-controls-width, 116px);
+  justify-content: flex-end;
+}
+
+
+/* ── macOS traffic lights 占位(decorations=false 时 React 端画),但 mac 上是系统绘制 ── */
+.traffic-lights {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+/* Windows 自定义 traffic lights 风格按钮 */
+.win-traffic-lights {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+}
+
+.win-traffic-light {
+  width: 30px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.win-traffic-light:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.win-traffic-light.close:hover {
+  background: rgb(232, 17, 35);
+  color: white;
+}
+
+.win-traffic-light svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* ── Workspace breadcrumb ── */
+.workspace-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--tmd-fg);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease;
+  max-width: 280px;
+  min-width: 0;
+}
+
+.workspace-breadcrumb:hover {
+  background: var(--tmd-bg-hover);
+}
+
+.workspace-breadcrumb-icon {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  color: var(--tmd-fg-subtle);
+}
+
+.workspace-breadcrumb-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.workspace-breadcrumb-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-breadcrumb-chevron {
+  flex: 0 0 auto;
+  color: var(--tmd-fg-subtle);
+  display: inline-flex;
+}
+
+.workspace-breadcrumb-chevron svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* ── Action button ── */
+.titlebar-action {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.titlebar-action:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.titlebar-action.is-active {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.titlebar-action svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.75;
+}

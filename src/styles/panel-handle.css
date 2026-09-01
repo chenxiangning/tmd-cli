@@ -1,0 +1,118 @@
+/* ──────────────────────────────────────────────────────────
+ * 面板拖拽条(react-resizable-panels Separator)—— 短抓手风格。
+ *
+ * 视觉:
+ * - 整条 1px 细线(neutral-800)贯通,与顶栏竖线/栏边界同色;
+ * - 中央一枚短粗抓手(4×32 / 32×4 pill),是唯一的拖拽暗示;
+ * - hover 时抓手增亮,细线不变。
+ *
+ * 对齐不变量(与顶栏三区分界线像素级接续):
+ * - 左外栏 handle:细线贴 4px 轨道右缘(.panel-handle-line-r)
+ * - 右外栏 handle:细线贴轨道左缘(.panel-handle-line-l)
+ * - 内栏/editor、composer:细线居中,无顶栏接续需求
+ *
+ * aside 不再自带 border-r/border-l,边界线唯一来源是这里,杜绝双轨。
+ * ────────────────────────────────────────────────────────── */
+
+.panel-handle {
+  position: relative;
+  flex-shrink: 0;
+  background: transparent;
+  /* 抓手以细线为轴居中,贴边场景会溢出轨道 1.5px;抬层级让溢出部分压在相邻面板背景上。 */
+  z-index: 5;
+}
+
+.panel-handle-v {
+  width: 4px;
+  cursor: col-resize;
+}
+
+.panel-handle-h {
+  height: 4px;
+  cursor: row-resize;
+}
+
+/* ── 细线 ── */
+.panel-handle-v::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--tmd-border);
+}
+
+.panel-handle-h::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  margin-top: -0.5px;
+  background: var(--tmd-border);
+}
+
+/* 左外栏:细线贴轨道右缘,接续顶栏左区 border-right。 */
+.panel-handle-line-r::before {
+  left: auto;
+  right: 0;
+  margin-left: 0;
+}
+
+/* 右外栏:细线贴轨道左缘,接续顶栏右区 border-left。 */
+.panel-handle-line-l::before {
+  left: 0;
+  margin-left: 0;
+}
+
+/* ── 短粗抓手:胶囊形,始终以 1px 细线为轴居中 ── */
+.panel-handle::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  background: var(--tmd-border-strong);
+  transition: background 120ms ease;
+}
+
+/* 默认:细线居中于轨道,抓手随之居中。 */
+.panel-handle-v::after {
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 28px;
+  margin-left: -2px;
+  margin-top: -14px;
+}
+
+/* 细线贴右缘(中心 x=3.5):抓手右缘溢出轨道 1.5px,恰好以线为轴。 */
+.panel-handle-line-r::after {
+  left: auto;
+  right: -1.5px;
+  margin-left: 0;
+}
+
+/* 细线贴左缘(中心 x=0.5):抓手左缘溢出轨道 1.5px。 */
+.panel-handle-line-l::after {
+  left: -1.5px;
+  margin-left: 0;
+}
+
+.panel-handle-h::after {
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 4px;
+  margin-left: -14px;
+  margin-top: -2px;
+}
+
+/* v4 Separator 状态经 data-separator 暴露:hover/active(drag)/focus。 */
+.panel-handle:hover::after,
+.panel-handle[data-separator="hover"]::after,
+.panel-handle[data-separator="active"]::after,
+.panel-handle[data-separator="focus"]::after {
+  background: var(--tmd-fg-subtle);
+}
