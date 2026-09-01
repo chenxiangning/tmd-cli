@@ -3,6 +3,7 @@
 //! 骨架阶段：单层目录列举。递归/监听/忽略规则随 files 插件实装时补。
 
 use std::time::{SystemTime, UNIX_EPOCH};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 
 use serde::Serialize;
 use std::fs;
@@ -37,6 +38,45 @@ pub fn list_dir(path: &str) -> Result<Vec<DirEntry>, String> {
     Ok(entries)
 }
 const MAX_PREVIEW_BYTES: u64 = 512 * 1024;
+/// 内联图片上限(codemoss 同值 20MB):超出拒绝转 dataURL,前端回退 asset:// 直载。
+const MAX_INLINE_IMAGE_BYTES: u64 = 20 * 1024 * 1024;
+
+/// 支持的图片扩展名 → MIME。白名单制,非图片直接拒绝。
+fn image_mime_type(path: &std::path::Path) -> Option<&'static str> {
+    match path.extension()?.to_str()?.to_ascii_lowercase().as_str() {
+        "png" => Some("image/png"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "gif" => Some("image/gif"),
+        "webp" => Some("image/webp"),
+        "svg" => Some("image/svg+xml"),
+        "bmp" => Some("image/bmp"),
+        "avif" => Some("image/avif"),
+        "apng" => Some("image/apng"),
+        _ => None,
+    }
+}
+
+/// 读取本地图片转 data URL(markdown 预览 asset:// 加载失败的回退通道)。
+/// 照抄 codemoss read_local_image_data_url:绝对路径 + 文件校验 + 大小与扩展名白名单。
+pub fn read_local_image_data_url(path: &str) -> Result<String, String> {
+    let absolute = std::path::Path::new(path);
+    if !absolute.is_absolute() {
+        return Err("图片路径必须是绝对路径".to_string());
+    }
+    let meta = fs::metadata(absolute).map_err(|e| format!("读取图片信息失败: {e}"))?;
+    if !meta.is_file() {
+        return Err("目标路径不是文件".to_string());
+    }
+    if meta.len() > MAX_INLINE_IMAGE_BYTES {
+        return Err(format!(
+            "图片过大,不支持内联(上限 {}MB)",
+            MAX_INLINE_IMAGE_BYTES / 1024 / 1024
+        ));
+    }
+    let mime = image_mime_type(absolute).ok_or_else(|| "不支持的图片格式".to_string())?;
+    let bytes = fs::read(absolute).map_err(|e| format!("读取图片失败: {e}"))?;
+    Ok(format!("data:{mime};base64,{}", BASE64.encode(bytes)))
+}
 
 /// 读取文本文件内容供前端预览。超限/二进制直接拒绝。
 pub fn read_file(path: &str) -> Result<String, String> {

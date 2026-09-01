@@ -1,12 +1,15 @@
 /**
- * 文件内容 tab 渲染 —— 文本经 fileHighlighter 注册点高亮。
- * 未注册或失败时降级到 <pre> 直渲。
+ * 文件内容 tab 渲染 —— md 走 markdown 渲染管线(照抄 codemoss 富路径),
+ * 其余文本经 fileHighlighter 注册点高亮;未注册或失败时降级到 <pre> 直渲。
  */
 
 import { useEffect, useState } from "react";
 import { ipc } from "@kernel/ipc";
 import { useEditorTabs } from "@kernel/tabs";
 import { getFileHighlighter } from "@kernel/fileHighlighter";
+import { FileMarkdownPreview } from "./markdown/FileMarkdownPreview";
+
+const MARKDOWN_FILE_RE = /\.(md|markdown|mdx)$/i;
 
 interface FilePayload {
   path: string;
@@ -97,6 +100,16 @@ export function FileTabContent() {
     return (
       <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
         加载中…
+      </div>
+    );
+  }
+
+  if (path && MARKDOWN_FILE_RE.test(path)) {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="min-h-0 flex-1 overflow-auto">
+          <FileMarkdownPreview value={payload.content ?? ""} sourceFilePath={path} />
+        </div>
       </div>
     );
   }

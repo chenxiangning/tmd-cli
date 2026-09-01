@@ -13,7 +13,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["protocol-asset"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 portable-pty = "0.9"
@@ -23,3 +23,5 @@ tauri-plugin-dialog = "2.0.0-rc.8"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 # 只读 omp agent.db(auth_credentials 表)取供应商凭据;bundled 免系统 sqlite 依赖。
 rusqlite = { version = "0.32", features = ["bundled"] }
+base64 = "0.22"
+tauri-plugin-shell = { version = "2", default-features = false }

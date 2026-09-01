@@ -30,7 +30,7 @@ fn session_spawn(
        spec: SpawnSpec,
     workspace_id: Option<String>,
 ) -> Result<SpawnedSession, String> {
-    let spawned = state.pty.spawn(&app, spec.clone())?;
+    let spawned = state.pty.spawn(&app, &profile_id, spec.clone())?;
     state.sessions.register(SessionMeta {
         id: spawned.id.clone(),
         profile_id,
@@ -68,6 +68,23 @@ fn session_kill(state: State<'_, AppState>, id: String) -> Result<(), String> {
     state.pty.kill(&id)
 }
 
+/// 会话输出日志的绝对末尾偏移;无日志(创建失败/会话已退出)返回 0。
+#[tauri::command]
+fn session_log_size(state: State<'_, AppState>, id: String) -> u64 {
+    state.pty.session_log_end(&id).unwrap_or(0)
+}
+
+/// 幕布往前翻页:before 绝对偏移之前最多 max_bytes 字节的原始输出。
+#[tauri::command]
+fn session_history_page(
+    state: State<'_, AppState>,
+    id: String,
+    before: u64,
+    max_bytes: u64,
+) -> Result<pty::HistoryPage, String> {
+    state.pty.session_history_page(&id, before, max_bytes)
+}
+
 #[tauri::command]
 fn fs_list_dir(path: String) -> Result<Vec<fs::DirEntry>, String> {
     fs::list_dir(&path)
@@ -76,6 +93,10 @@ fn fs_list_dir(path: String) -> Result<Vec<fs::DirEntry>, String> {
 #[tauri::command]
 fn fs_read_file(path: String) -> Result<String, String> {
     fs::read_file(&path)
+}
+#[tauri::command]
+fn read_local_image_data_url(path: String) -> Result<String, String> {
+    fs::read_local_image_data_url(&path)
 }
 
 #[tauri::command]
@@ -148,6 +169,7 @@ pub fn run() {
     let sessions = session::SessionRegistry::default();
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .manage(AppState {
             pty: PtyRegistry::default(),
             sessions,
@@ -187,12 +209,15 @@ pub fn run() {
             session_write,
             session_resize,
             session_kill,
+            session_log_size,
+            session_history_page,
             fs_write_temp,
             quota::quota_fetch,
             quota::omp_auth_credential,
             quota::quota_env_value,
             fs_list_dir,
             fs_read_file,
+            read_local_image_data_url,
             git_status,
             fs_collect_files,
             fs_read_head,

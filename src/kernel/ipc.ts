@@ -23,6 +23,13 @@ export interface SpawnedSession {
   pid?: number;
 }
 
+/** 幕布翻页结果。startOffset 为全量输出的绝对字节偏移(含已截断部分)。 */
+export interface HistoryPage {
+  text: string;
+  startOffset: number;
+  hasMore: boolean;
+}
+
 export interface SessionMeta {
   id: string;
   profileId: string;
@@ -71,10 +78,18 @@ export const ipc = {
   sessionResize: (id: string, cols: number, rows: number) =>
     invoke<void>("session_resize", { id, cols, rows }),
   sessionKill: (id: string) => invoke<void>("session_kill", { id }),
+  /** 会话输出日志的绝对末尾偏移(累计字节数);无日志返回 0。 */
+  sessionLogSize: (id: string) => invoke<number>("session_log_size", { id }),
+  /** 幕布往前翻页:before 绝对偏移之前最多 maxBytes 字节的原始输出。 */
+  sessionHistoryPage: (id: string, before: number, maxBytes: number) =>
+    invoke<HistoryPage>("session_history_page", { id, before, maxBytes }),
   fsListDir: (path: string) => invoke<DirEntry[]>("fs_list_dir", { path }),
   fsWriteTemp: (name: string, data: Uint8Array) =>
     invoke<string>("fs_write_temp", { name, data: Array.from(data) }),
   fsReadFile: (path: string) => invoke<string>("fs_read_file", { path }),
+  /** 本地图片 → data URL(markdown 预览 asset:// 失败回退;Rust 侧白名单+大小闸)。 */
+  readLocalImageDataUrl: (path: string) =>
+    invoke<string>("read_local_image_data_url", { path }),
   gitStatus: (cwd: string) => invoke<GitStatus>("git_status", { cwd }),
   /** 递归收集目录下指定后缀文件,按修改时间倒序。目录不存在 = 空表。 */
   fsCollectFiles: (dir: string, suffix: string) =>

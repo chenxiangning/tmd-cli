@@ -1,0 +1,262 @@
+/* ═══════════════════════════════════════════════════════════════
+   markdown 文件预览样式 —— 照抄 codemoss file-view-panel.css 1621-2250
+   + mermaid-fullscreen.css + image-fullscreen.css。
+
+   codemoss 的 --fvp-、--surface-、--text- 系列 变量桥接到 tmd 的 --tmd-* tokens
+   (作用域隔离,不污染全局);Prism token 颜色直接吃 --tmd-syntax-*
+   (主题引擎随 preset 内联更新,与 hljs 预览同一套色板)。
+   ═══════════════════════════════════════════════════════════════ */
+
+.fvp-file-markdown {
+  /* ── codemoss → tmd 变量桥接(本容器作用域) ── */
+  --fvp-reader-text: var(--tmd-fg);
+  --fvp-reader-muted: var(--tmd-fg-muted);
+  --fvp-reader-faint: var(--tmd-fg-faint);
+  --text-stronger: var(--tmd-fg);
+  --border: var(--tmd-border);
+  --border-subtle: var(--tmd-border);
+  --surface-card: var(--tmd-bg-elevated);
+  --surface-control: var(--tmd-bg-hover);
+  --surface-hover: var(--tmd-bg-hover);
+  --text-accent: var(--tmd-accent);
+  --radius-lg: var(--tmd-radius-lg);
+  --message-codeblock-bg: var(--tmd-bg-elevated);
+  --message-codeblock-divider: var(--tmd-border);
+  --code-font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  font-size: 14px;
+  color: var(--fvp-reader-text);
+  line-height: 1.75;
+  max-width: 100%;
+  width: 100%;
+  padding: 16px 20px 32px;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.fvp-markdown-github {
+  --fvp-markdown-rule: color-mix(in srgb, var(--border-subtle) 78%, transparent);
+  --fvp-markdown-inline-code-bg: color-mix(in srgb, var(--surface-control) 74%, transparent);
+  --fvp-markdown-code-bg: color-mix(in srgb, var(--surface-card) 86%, transparent);
+  --fvp-markdown-title-accent: var(--text-stronger);
+  --fvp-markdown-title-secondary: var(--text-stronger);
+  --fvp-markdown-title-tertiary: var(--text-stronger);
+  --fvp-markdown-table-head-bg: var(--surface-control);
+  --fvp-markdown-table-stripe: color-mix(in srgb, var(--surface-control) 24%, transparent);
+  --fvp-markdown-quote-bg: color-mix(in srgb, var(--surface-control) 42%, transparent);
+  --fvp-markdown-list-marker: color-mix(in srgb, var(--text-stronger) 90%, #000 10%);
+}
+
+/* ── 标题 ── */
+.fvp-file-markdown :where(h1, h2, h3, h4, h5, h6) {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  line-height: 1.28;
+  font-weight: 650;
+  color: var(--fvp-markdown-title-secondary);
+  letter-spacing: -0.01em;
+}
+
+.fvp-file-markdown :where(h1, h2) {
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid var(--fvp-markdown-rule);
+}
+
+.fvp-file-markdown :where(h1) {
+  font-size: 1.9em;
+  color: var(--fvp-markdown-title-accent);
+}
+
+.fvp-file-markdown :where(h2) {
+  font-size: 1.5em;
+  color: var(--fvp-markdown-title-secondary);
+}
+
+.fvp-file-markdown :where(h3) {
+  font-size: 1.25em;
+  color: var(--fvp-markdown-title-tertiary);
+}
+
+.fvp-file-markdown :where(h4, h5, h6) {
+  font-size: 1em;
+  color: var(--text-stronger);
+}
+
+.fvp-file-markdown :where(h1, h2, h3, h4, h5, h6):first-child {
+  margin-top: 0;
+}
+
+.fvp-file-markdown :where(p, ul, ol, pre, blockquote, table) {
+  margin: 0 0 16px;
+}
+
+.fvp-file-markdown :where([align="center"]) {
+  text-align: center;
+}
+
+.fvp-file-markdown :where(img) {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* ── KaTeX ── */
+.fvp-file-markdown .katex {
+  color: var(--fvp-reader-text);
+  font-size: 1.03em;
+}
+
+.fvp-file-markdown .katex-display {
+  margin: 18px 0;
+  padding: 8px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.fvp-file-markdown .katex-display > .katex {
+  display: inline-block;
+  min-width: max-content;
+}
+
+.fvp-file-markdown-math-block {
+  margin: 16px 0 22px;
+  padding: 4px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: center;
+}
+
+/* ── Frontmatter ── */
+.fvp-file-markdown-frontmatter {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--fvp-markdown-rule);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-card) 92%, #5fa3ff 4%);
+}
+
+.fvp-file-markdown-frontmatter-label {
+  margin-bottom: 8px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fvp-reader-faint);
+}
+
+.fvp-file-markdown-frontmatter-grid {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.fvp-file-markdown-frontmatter-row {
+  display: grid;
+  grid-template-columns: minmax(82px, 108px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  line-height: 1.35;
+}
+
+.fvp-file-markdown-frontmatter-row dt {
+  color: var(--fvp-reader-faint);
+  font-size: 11px;
+  text-transform: lowercase;
+}
+
+.fvp-file-markdown-frontmatter-row dd {
+  color: var(--fvp-reader-text);
+  font-weight: 500;
+  font-size: 13px;
+  word-break: break-word;
+}
+
+/* ── 列表 ── */
+.fvp-file-markdown :where(ul, ol) {
+  padding-left: 1.15em;
+  margin-left: 0;
+}
+
+.fvp-file-markdown :where(li + li) {
+  margin-top: 0.42em;
+}
+
+.fvp-file-markdown :where(li > ul, li > ol) {
+  margin-top: 0.55em;
+  margin-bottom: 0;
+  padding-top: 0.15em;
+}
+
+.fvp-file-markdown :where(ul) {
+  list-style-type: disc;
+}
+
+.fvp-file-markdown :where(ul ul) {
+  list-style-type: circle;
+}
+
+.fvp-file-markdown :where(ul ul ul) {
+  list-style-type: square;
+}
+
+.fvp-file-markdown :where(li) {
+  padding-left: 0.04em;
+}
+
+.fvp-file-markdown :where(li)::marker,
+.fvp-file-markdown :where(ol > li)::marker {
+  color: var(--fvp-markdown-list-marker);
+  font-weight: 600;
+}
+
+.fvp-file-markdown :where(li > p:first-child:last-child) {
+  margin-bottom: 0;
+}
+
+.fvp-file-markdown :where(li:has(input[type="checkbox"])) {
+  list-style: none;
+  margin-left: -0.05em;
+  padding: 0.08em 0;
+}
+
+.fvp-file-markdown :where(li:has(input[type="checkbox"]) + li:has(input[type="checkbox"])) {
+  margin-top: 0.35em;
+}
+
+.fvp-file-markdown :where(input[type="checkbox"]) {
+  width: 0.95em;
+  height: 0.95em;
+  margin-right: 0.55em;
+  accent-color: var(--fvp-markdown-list-marker);
+}
+
+/* ── 链接 / 强调 / hr / 引用 ── */
+.fvp-file-markdown :where(a) {
+  color: var(--fvp-markdown-link, var(--tmd-accent));
+  text-decoration: none;
+  text-underline-offset: 0.14em;
+}
+
+.fvp-file-markdown :where(a:hover) {
+  text-decoration: underline;
+}
+
+.fvp-file-markdown :where(strong) {
+  color: var(--text-stronger);
+}
+
+.fvp-file-markdown :where(hr) {
+  margin: 24px 0;
+  border: 0;
+  border-top: 1px solid var(--fvp-markdown-rule);
+}
+
+.fvp-file-markdown :where(blockquote) {
+  margin-left: 0;
+  padding: 10px 14px;
+  color: var(--fvp-reader-muted);
+  border-left: 4px solid var(--fvp-markdown-rule);
+  background: var(--fvp-markdown-quote-bg);
+  border-radius: 0 10px 10px 0;
+}
+

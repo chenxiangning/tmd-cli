@@ -1,0 +1,114 @@
+/* ═══════════════════════════════════════════════════════════════
+   全屏查看器(viewerjs 皮肤)—— 照抄 codemoss mermaid-fullscreen.css
+   + image-fullscreen.css。viewerjs 挂 document.body,变量必须上 :root。
+   tmd 无 dim 主题,对应段已裁;--surface-、--text- 系列 桥接 --tmd-*。
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --z-mermaid-fullscreen: 1300;
+  --mermaid-fullscreen-blur: 14px;
+  --mermaid-fullscreen-tint: color-mix(in srgb, var(--tmd-bg-base) 80%, transparent);
+  --mermaid-fullscreen-button-bg: var(--tmd-bg-popover);
+  --mermaid-fullscreen-button-fg: var(--tmd-fg);
+  --mermaid-fullscreen-button-border: color-mix(in srgb, var(--tmd-fg) 58%, transparent);
+  --mermaid-fullscreen-button-hover-bg: var(--tmd-bg-hover);
+  --mermaid-fullscreen-toolbar-bg: color-mix(in srgb, var(--tmd-bg-popover) 80%, transparent);
+  --mermaid-fullscreen-toolbar-item-bg: color-mix(in srgb, var(--tmd-bg-popover) 88%, transparent);
+  --mermaid-fullscreen-toolbar-item-hover-bg: var(--tmd-bg-hover);
+  /* 深色主题:保留白色 sprite,不反色。 */
+  --mermaid-fullscreen-icon-filter: none;
+  --z-image-fullscreen: var(--z-mermaid-fullscreen, 1300);
+}
+
+.viewer-backdrop {
+  background: var(--mermaid-fullscreen-tint);
+  backdrop-filter: blur(var(--mermaid-fullscreen-blur)) saturate(1.1);
+  -webkit-backdrop-filter: blur(var(--mermaid-fullscreen-blur)) saturate(1.1);
+}
+
+.viewer-toolbar {
+  background: var(--mermaid-fullscreen-toolbar-bg);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+}
+
+/* viewerjs 内嵌白色 SVG sprite,color 到不了 path fill;
+   只在 ::before 图标层按主题反色,不影响工具条底色。 */
+.viewer-toolbar > ul > li::before,
+.viewer-button::before {
+  filter: var(--mermaid-fullscreen-icon-filter);
+}
+
+.viewer-toolbar > ul > li {
+  background-color: var(--mermaid-fullscreen-toolbar-item-bg);
+  color: var(--mermaid-fullscreen-button-fg);
+  border-radius: 6px;
+}
+
+.viewer-toolbar > ul > li:hover {
+  color: var(--tmd-fg);
+  background-color: var(--mermaid-fullscreen-toolbar-item-hover-bg);
+}
+
+.viewer-button {
+  background-color: var(--mermaid-fullscreen-button-bg);
+  border: 1px solid var(--mermaid-fullscreen-button-border);
+}
+
+.viewer-button:hover,
+.viewer-button:focus {
+  background-color: var(--mermaid-fullscreen-button-hover-bg);
+}
+
+.viewer-title {
+  color: var(--tmd-fg-faint);
+}
+
+.viewer-navbar {
+  background: var(--mermaid-fullscreen-navbar-bg, var(--tmd-bg-popover));
+}
+
+.viewer-container {
+  z-index: var(--z-mermaid-fullscreen);
+}
+
+.viewer-image {
+  cursor: zoom-in;
+}
+
+.viewer-container .viewer-image {
+  cursor: default;
+}
+
+/* 浅色主题:更亮的底需要更强模糊;白色 sprite 需反色才可见。 */
+:root[data-theme="light"] {
+  --mermaid-fullscreen-blur: 18px;
+  --mermaid-fullscreen-tint: color-mix(in srgb, var(--tmd-bg-base) 70%, transparent);
+  --mermaid-fullscreen-button-bg: rgba(255, 255, 255, 0.92);
+  --mermaid-fullscreen-button-fg: #111827;
+  --mermaid-fullscreen-button-border: rgba(17, 24, 39, 0.28);
+  --mermaid-fullscreen-button-hover-bg: rgba(255, 255, 255, 0.98);
+  --mermaid-fullscreen-toolbar-bg: rgba(248, 250, 252, 0.74);
+  --mermaid-fullscreen-toolbar-item-bg: rgba(255, 255, 255, 0.86);
+  --mermaid-fullscreen-toolbar-item-hover-bg: rgba(226, 232, 240, 0.94);
+  --mermaid-fullscreen-icon-filter: invert(1) brightness(0.85);
+  --mermaid-fullscreen-navbar-bg: rgba(255, 255, 255, 0.78);
+}
+
+:root[data-theme="dark"] {
+  --mermaid-fullscreen-navbar-bg: color-mix(in srgb, var(--tmd-bg-popover) 84%, transparent);
+  --mermaid-fullscreen-button-bg: color-mix(in srgb, var(--tmd-bg-popover) 92%, transparent);
+  --mermaid-fullscreen-button-border: color-mix(in srgb, var(--tmd-fg) 72%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mermaid-fullscreen-blur: 0px;
+  }
+
+  .viewer-image,
+  .viewer-backdrop {
+    transition: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}

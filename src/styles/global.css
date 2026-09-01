@@ -12,6 +12,9 @@
 @import "./settings-cluster.css";
 @import "./settings-panel.css";
 @import "./composer-attachments.css";
+@import "./markdown-preview.css";
+@import "./markdown-codeblock.css";
+@import "./markdown-fullscreen.css";
 
 /* ──────────────────────────────────────────────────────────
  * 全局细滚动条 —— 平时完全隐藏,悬停滚动区时浮现 4px 细条。

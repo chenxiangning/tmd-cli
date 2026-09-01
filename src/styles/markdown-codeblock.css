@@ -1,0 +1,289 @@
+/* markdown 代码块 / Prism token / Mermaid / 重块占位 —— 从 markdown-preview.css 拆分(文件规模铁则 ≤500 行)。
+   变量桥接在 markdown-preview.css 的 .fvp-file-markdown 作用域,本文件规则全部位于该容器内,直接复用。 */
+
+/* ── 代码(行内 + 块) ── */
+.fvp-file-markdown pre {
+  white-space: pre;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.fvp-file-markdown code {
+  font-family: var(--code-font-family);
+  font-weight: var(--code-font-weight, 400);
+}
+
+.fvp-file-markdown :where(p code, li code, blockquote code, td code, th code) {
+  padding: 0.18em 0.4em;
+  border-radius: 6px;
+  background: var(--fvp-markdown-inline-code-bg);
+  font-size: 0.92em;
+}
+
+.fvp-file-markdown-codeblock {
+  margin: 0 0 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--message-codeblock-bg);
+  overflow: hidden;
+}
+
+.fvp-file-markdown-codeblock-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 14px;
+  border-bottom: 1px solid var(--message-codeblock-divider);
+  font-size: 13px;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--fvp-reader-faint);
+  background: var(--message-codeblock-bg);
+}
+
+.fvp-file-markdown-codeblock-label .markdown-codeblock-language {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.fvp-file-markdown-codeblock-label .markdown-codeblock-language-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.6;
+  flex: none;
+}
+
+.fvp-file-markdown-codeblock-label .markdown-codeblock-language-text {
+  line-height: 1;
+  font-family: var(--code-font-family);
+}
+
+.fvp-file-markdown-codeblock pre {
+  margin: 0;
+  padding: 12px 16px 16px;
+  white-space: pre;
+  overflow-x: auto;
+  font-family: var(--code-font-family);
+  font-size: var(--message-codeblock-font-size, 13px);
+  font-weight: var(--code-font-weight, 400);
+  line-height: var(--message-codeblock-line-height, 1.6);
+}
+
+.fvp-file-markdown-codeblock code {
+  color: var(--fvp-reader-text);
+}
+
+/* 复制按钮(codemoss messages.part2.css 同款,作用域换到 markdown 容器) */
+.fvp-file-markdown .markdown-codeblock-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--tmd-radius-md);
+  background: transparent;
+  color: var(--fvp-reader-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.fvp-file-markdown .markdown-codeblock-copy:hover,
+.fvp-file-markdown .markdown-codeblock-copy:focus-visible {
+  background: var(--surface-hover);
+  color: var(--fvp-reader-text);
+}
+
+.fvp-file-markdown .markdown-codeblock-copy.is-copied {
+  color: var(--fvp-reader-text);
+}
+
+.fvp-file-markdown .markdown-codeblock-copy-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Prism token → tmd syntax tokens(与 hljs 预览同一色板) */
+.fvp-file-markdown-codeblock :is(.token.comment, .token.prolog, .token.doctype, .token.cdata) {
+  color: var(--tmd-syntax-comment);
+}
+
+.fvp-file-markdown-codeblock .token.punctuation {
+  color: var(--tmd-syntax-operator);
+}
+
+.fvp-file-markdown-codeblock :is(.token.property, .token.constant, .token.symbol, .token.deleted) {
+  color: var(--tmd-syntax-type);
+}
+
+.fvp-file-markdown-codeblock .token.tag {
+  color: var(--tmd-syntax-tag);
+}
+
+.fvp-file-markdown-codeblock :is(.token.boolean, .token.number) {
+  color: var(--tmd-syntax-number);
+}
+
+.fvp-file-markdown-codeblock :is(.token.selector, .token.attr-name, .token.string, .token.char, .token.builtin, .token.inserted) {
+  color: var(--tmd-syntax-string);
+}
+
+.fvp-file-markdown-codeblock :is(.token.operator, .token.entity, .token.url, .token.variable) {
+  color: var(--tmd-syntax-operator);
+}
+
+.fvp-file-markdown-codeblock :is(.token.atrule, .token.attr-value, .token.keyword) {
+  color: var(--tmd-syntax-keyword);
+}
+
+.fvp-file-markdown-codeblock :is(.token.function, .token.class-name) {
+  color: var(--tmd-syntax-function);
+}
+
+/* ── Mermaid ── */
+.fvp-file-markdown-mermaid {
+  overflow-anchor: none;
+}
+
+.fvp-file-markdown-mermaid .fvp-file-markdown-codeblock-label {
+  min-height: 34px;
+}
+
+.fvp-file-markdown-mermaid-body {
+  min-height: 160px;
+  overflow-anchor: none;
+}
+
+.fvp-file-markdown-mermaid-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  flex: 0 0 auto;
+}
+
+.fvp-file-markdown-mermaid-tab {
+  border: 0;
+  border-radius: 999px;
+  min-width: 48px;
+  padding: 4px 8px;
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fvp-reader-faint);
+  background: transparent;
+  cursor: pointer;
+}
+
+.fvp-file-markdown-mermaid-tab:hover {
+  color: var(--text-stronger);
+  background: color-mix(in srgb, var(--surface-hover) 72%, transparent);
+}
+
+.fvp-file-markdown-mermaid-tab.is-active {
+  color: var(--text-stronger);
+  background: color-mix(in srgb, var(--surface-control) 76%, #79a6ff 10%);
+}
+
+.fvp-file-markdown-mermaid-tab:focus-visible {
+  outline: 1px solid var(--text-accent);
+  outline-offset: 1px;
+}
+
+.fvp-file-markdown-mermaid-fullscreen {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--tmd-radius-md);
+  background: transparent;
+  color: var(--fvp-reader-faint);
+  cursor: pointer;
+}
+
+.fvp-file-markdown-mermaid-fullscreen:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--fvp-reader-text);
+}
+
+.fvp-file-markdown-mermaid-fullscreen:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.fvp-file-markdown-mermaid-diagram {
+  padding: 14px;
+  overflow: auto;
+}
+
+.fvp-file-markdown-mermaid-diagram svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.fvp-file-markdown-mermaid-status {
+  padding: 14px;
+  color: var(--fvp-reader-muted);
+  font-size: 12px;
+}
+
+.fvp-file-markdown-mermaid-error {
+  color: var(--color-danger-strong, #ef4444);
+}
+
+/* ── 表格(横向滚动包裹) ── */
+.fvp-file-markdown-table-wrap {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 0 0 16px;
+  border: 1px solid var(--fvp-markdown-rule);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-card) 90%, transparent);
+}
+
+.fvp-file-markdown table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+.fvp-file-markdown th,
+.fvp-file-markdown td {
+  white-space: normal;
+  border: 1px solid var(--fvp-markdown-rule);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.fvp-file-markdown th {
+  font-weight: 600;
+  color: var(--fvp-markdown-title-secondary);
+  background: var(--fvp-markdown-table-head-bg);
+}
+
+.fvp-file-markdown tbody tr:nth-child(2n) {
+  background: var(--fvp-markdown-table-stripe);
+}
+
+/* ── 重块懒揭示占位(codemoss 无专属样式,此处自补) ── */
+.fvp-file-markdown-heavy-placeholder {
+  margin: 0 0 16px;
+  padding: 18px 16px;
+  border: 1px dashed var(--fvp-markdown-rule);
+  border-radius: var(--radius-lg);
+  color: var(--fvp-reader-faint);
+  font-size: 12px;
+  text-align: center;
+}
+
