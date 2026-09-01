@@ -1,4 +1,12 @@
-# CLI 触发器与会话能力矩阵：omp / pi / codex
+# CLI 触发器与会话能力矩阵：omp / pi / codex（+ claude 增补）
+
+> **2026-09-02 增补（claude 2.1.251 本机实证）**：`cli-claude` 插件已按本矩阵同法接入。要点：
+> - **触发符**：`/` 命令、`@` 文件引用原生支持，纯透传；skill 原生语法为 `/skill-name`（`--help`: "Skills still resolve via /skill-name"），composer `$` 发送时翻译为 `/name`（同 omp 方案）；`!` bash 模式不在契约 TriggerKind 内，未声明。
+> - **会话存储**：`~/.claude/projects/<slug>/<session-uuid>.jsonl`，文件名即 sessionId；slug = cwd 中所有非 `[a-zA-Z0-9]` 字符逐一替换为 `-`（实证：`/Users/x/.claude → -Users-x--claude`、`/Users/x/code/内容分析 → -Users-x-code-----`；本机全部会话目录校验 0 mismatch）。目录即 cwd 分区，无需读文件头过滤。
+> - **恢复**：`claude --resume <uuid>` / `-c` 继续最近；`--fork-session` 分叉。
+> - **状态**：assistant 行 `message.model` 为模型真相（尾部倒序最后一帧）；思考强度不落盘（settings 全局开关），不提供 thinkingLevel。
+> - **额度**：`settings.json` env 的 `ANTHROPIC_BASE_URL`+key → vendors 检测走 HTTP（实证 kimi）；官方订阅 OAuth 无公开额度 API，显式报不支持。
+> - **skill 候选**：`~/.claude/skills/<name>/SKILL.md`，目录名即 skill 名，composer `$` 下拉扫真实磁盘。
 
 > 调查日期：2026-09-01。方法：本机二进制 `--help` 输出、配置/会话目录实测、官方文档、二进制 strings 取证（只读）。未做任何交互式 TUI 启动。
 > 用途：tmd-cli（Tauri + React + PTY + xterm.js 包装 CLI TUI）的 composer 透传与 session 管理设计输入。

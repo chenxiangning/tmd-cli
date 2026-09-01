@@ -34,6 +34,7 @@ flowchart TB
             P_OMP["cli-omp<br/>profile: omp<br/>$→/skill: 翻译"]
             P_PI["cli-pi<br/>profile: pi<br/>$→/skill: 翻译"]
             P_CODEX["cli-codex<br/>profile: codex<br/>纯透传"]
+            P_CLAUDE["cli-claude<br/>profile: claude<br/>$→/skill-name 翻译"]
             P_WS["workspace<br/>leftSidebar.section"]
             P_FILES["files<br/>文件树 + FileTabContent<br/>注册默认高亮/视觉"]
             P_GIT["git（占位）"]
@@ -178,7 +179,8 @@ flowchart LR
     PROFILE --> OMP["cli-omp<br/>最后 model_change / thinking_level_change"]
     PROFILE --> PI["cli-pi<br/>最后 model_change / thinking_level_change"]
     PROFILE --> CODEX["cli-codex<br/>session_meta / turn_context"]
-    OMP & PI & CODEX --> STATUS["CliSessionStatus<br/>model? / thinkingLevel?"]
+    PROFILE --> CLAUDE["cli-claude<br/>assistant message.model"]
+    OMP & PI & CODEX & CLAUDE--> STATUS["CliSessionStatus<br/>model? / thinkingLevel?"]
     STATUS --> HOST["Host.sessionStatuses<br/>只保存当前已识别值"]
     HOST --> TOOLBAR["ComposerToolbar<br/>composer.statusBar<br/>只读展示"]
 ```
@@ -196,7 +198,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    NEW["SessionList 点击 +omp/pi/codex"] --> CS["host.createSession(profileId, cwd, workspaceId)"]
+    NEW["SessionList 点击 +新建 CLI 会话"] --> CS["host.createSession(profileId, cwd, workspaceId)"]
     CS --> PROF{"cliProfiles 有该 id？"}
     PROF -->|否| ERR["throw 未知 CLI profile"]
     PROF -->|是| SP["ipc.sessionSpawn → Rust<br/>session_spawn → PtyRegistry.spawn"]
@@ -270,7 +272,7 @@ flowchart TD
     CT --> KH
     CT --> KW["kernel/workspace.ts"]
 
-    PI --> P1["cli-omp / cli-pi / cli-codex"]
+    PI --> P1["cli-omp / cli-pi / cli-codex / cli-claude"]
     PI --> P2["workspace"]
     PI --> P3["files"]
     PI --> P4["git"]

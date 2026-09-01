@@ -21,7 +21,7 @@
 React Host
 ├── kernel/       插件契约、生命周期、事件总线、IPC、PTY TerminalView
 ├── app-shell/    五区外壳与挂载点（宿主职责）
-└── plugins/      cli-omp / cli-pi / cli-codex / workspace / files / git / composer
+└── plugins/      cli-omp / cli-pi / cli-codex / cli-claude / workspace / files / git / composer
 
 Tauri Rust
 ├── pty.rs        portable-pty：spawn / read / write / resize / kill
@@ -110,6 +110,7 @@ QuotaChip (composer 插件)
 - **Pi 是"多供应商 CLI",路由不猜**:model 前缀(`zai-coding-cn/glm-5.2`,provider 来自 session jsonl `model_change.provider`)→ 裸 modelId 经 models-store/models.json 反查(凭据存在性消歧,多候选报错)→ 无 model 时仅单供应商配置可安全回退。
 - **Pi 凭据三源**:`auth.json[provider]` → auth 语义 vendor 匹配(模型前缀 `kimi-code` ≠ auth key `kimi-coding`)→ `models.json` 的 `apiKey`(中转站实证,auth.json 无条目)。配置目录支持 `PI_CODING_AGENT_DIR` 覆盖。
 - **凭据引用**:`$ENV_VAR` 经 Rust `quota_env_value` 只读解析;`!command` 显式拒绝(不执行 shell)。
+- **Claude 额度分级(与 codex 同策略)**:凭据源为 `~/.claude/settings.json` 的 `env.ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN`/`ANTHROPIC_API_KEY`(实证 kimi 中转);有 base_url 则按 vendors 检测走 HTTP。官方 OAuth(`~/.claude/.credentials.json` 的 `claudeAiOauth.accessToken`)无公开套餐额度 HTTP 面,显式报不支持并指引 `claude /usage`,不猜接口。
 - **relay(未知中转站)**:Sub2API `{origin}/v1/usage` 探测,失败回退 New API `/api/user/self`。
 - **解析/IO 分离**:`parseCodexRolloutTail` / `parseZhipuLimit` / `resolvePiRoute` 为纯函数,契约由 vitest 单测守护(`pnpm test`)。
 
