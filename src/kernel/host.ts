@@ -7,6 +7,7 @@
 
 import { useSyncExternalStore } from "react";
 import { EventBus, KernelTopics } from "./events";
+
 import { ipc, onPtyExit, onPtyOutput, type SessionMeta, type SpawnSpec } from "./ipc";
 import type { CliProfile } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";

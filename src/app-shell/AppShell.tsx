@@ -1,24 +1,30 @@
 /**
- * 五区外壳 + 左右工具条（rail）。
+ * 五区外壳 + 左右工具条（rail）+ 中间分屏（终端 | 文件 tab）
  *
- * 布局：头部 / [左 rail + 左栏 | 幕布 | 右栏 + 右 rail] / 底部。
+ * 布局：头部 / [左 rail + 左栏 | 幕布主体(终端 | 文件 tab, 拖拽条)  | 右栏 + 右 rail] / composer / 底部
+ * - 中间主体用 react-resizable-panels 左右分屏，可拖拽,可"最大化右侧"折叠左半
+ * - 文件 tab 全局共享(跨会话),由 plugins/files 点文件时 openTab()
  * - rail 是 VS Code activity bar 式窄条，插件可挂 leftRail/rightRail 图标
  * - 底部左右角的折叠钮控制对应侧整区（rail + 面板）显隐，状态持久化
- * - 外壳是内核的一部分；头/底/rail/侧栏都暴露挂载点给插件
+ * - 外壳是内核的一部分；头/底/rail/侧栏/中间主体都暴露挂载点给插件
  */
 
 import { useEffect, useState } from "react";
+import { closeTab, setActiveTab, useEditorTabs } from "@kernel/tabs";
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { host, useHost } from "@kernel/host";
 import type { MountPoint } from "@kernel/plugin";
 import { TerminalView } from "@kernel/TerminalView";
+
 
 function Mounts({ point }: { point: MountPoint }) {
   useHost();
   return (
     <>
-      {host.getMount(point).map(({ component: C }, i) => (
-        <C key={i} />
-      ))}
+      {host.getMount(point).map((c, i) => {
+        const Comp = c.component;
+        return <Comp key={i} />;
+      })}
     </>
   );
 }
@@ -33,9 +39,127 @@ function usePersistedToggle(key: string, initial: boolean) {
   return [open, () => setOpen((v) => !v)] as const;
 }
 
+/**
+ * 文件编辑器 tab 区：标签栏 + 当前 tab 内容 + 关闭按钮。
+ * tab 全局共享(mossx 习惯)。
+ */
+function EditorCenter() {
+  const { tabs, activeId } = useEditorTabs();
+  const active = tabs.find((t) => t.id === activeId) ?? null;
+
+  if (tabs.length === 0) {
+    return (
+      <div className="flex h-full flex-col bg-neutral-950 text-xs text-neutral-600">
+        <div className="flex h-8 shrink-0 items-center border-b border-neutral-800 px-3 text-neutral-500">
+          无打开的文件
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          点击右侧文件树即可在此打开
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col bg-neutral-950">
+      <div className="flex h-8 shrink-0 items-center gap-1 overflow-x-auto border-b border-neutral-800 px-1 text-xs">
+        {tabs.map((t) => {
+          const isActive = t.id === activeId;
+          return (
+            <button
+              key={t.id}
+              className={`flex shrink-0 items-center gap-1 rounded px-2 py-1 ${
+                isActive
+                  ? "bg-neutral-800 text-neutral-100"
+                  : "text-neutral-400 hover:bg-neutral-800/60"
+              }`}
+              onClick={() => {
+                setActiveTab(t.id);
+              }}
+              title={t.path}
+            >
+              <span className="truncate">{t.title}</span>
+              <span
+                className="ml-1 rounded px-1 text-neutral-500 hover:bg-neutral-700"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeTab(t.id);
+                }}
+              >
+                ✕
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        {active ? (
+          <Mounts point="editorCenter.tabContent" />
+        ) : (
+          <div className="flex h-full items-center justify-center text-xs text-neutral-600">
+            选中一个文件查看
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 中间主体：左 terminal / 右 editor tabs,可拖拽。
+ * "最大化右侧" 按钮把左半收缩到 0%。
+ */
+function MainPanel() {
+  const activeId = host.getActiveSessionId();
+  const [rightMaximized, setRightMaximized] = useState(false);
+
+  return (
+    <main className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1">
+        <PanelGroup orientation="horizontal" id="tmd.main" autoSave="tmd.main">
+          <Panel
+            defaultSize={rightMaximized ? 0 : 70}
+            minSize={0}
+            id="terminal"
+          >
+            <div className="h-full w-full">
+              {activeId ? (
+                <TerminalView key={activeId} sessionId={activeId} />
+              ) : (
+                <div className="flex h-full items-center justify-center text-neutral-500">
+                  左侧新建一个会话开始
+                </div>
+              )}
+            </div>
+          </Panel>
+          <PanelResizeHandle className="w-1 shrink-0 bg-neutral-800 hover:bg-neutral-600" />
+          <Panel
+            defaultSize={rightMaximized ? 100 : 30}
+            minSize={15}
+            id="editor"
+          >
+            <div className="relative h-full w-full">
+              <button
+                onClick={() => setRightMaximized((v) => !v)}
+                title={rightMaximized ? "恢复左侧" : "最大化右侧"}
+                className="absolute right-1 top-1 z-10 rounded bg-neutral-800/80 px-1.5 py-0.5 text-xs text-neutral-400 hover:bg-neutral-700 hover:text-neutral-100"
+              >
+                {rightMaximized ? "⤇" : "⤆"}
+              </button>
+              <EditorCenter />
+            </div>
+          </Panel>
+        </PanelGroup>
+      </div>
+      <div className="h-56 shrink-0 border-t border-neutral-800">
+        <Mounts point="editorCenter.composer" />
+      </div>
+    </main>
+  );
+}
+
 export function AppShell() {
   useHost();
-  const activeId = host.getActiveSessionId();
   const [leftOpen, toggleLeft] = usePersistedToggle("shell.left", true);
   const [rightOpen, toggleRight] = usePersistedToggle("shell.right", true);
 
@@ -66,16 +190,8 @@ export function AppShell() {
           </>
         )}
 
-        {/* 幕布 */}
-        <main className="min-w-0 flex-1">
-          {activeId ? (
-            <TerminalView key={activeId} sessionId={activeId} />
-          ) : (
-            <div className="flex h-full items-center justify-center text-neutral-500">
-              左侧新建一个会话开始
-            </div>
-          )}
-        </main>
+        {/* 中间主体(终端 + 文件 tab + composer) */}
+        <MainPanel />
 
         {/* 右侧面板 + 工具条 */}
         {rightOpen && (
@@ -119,7 +235,7 @@ export function AppShell() {
         </div>
       </footer>
 
-      {/* 浮层挂载点（文件预览等） */}
+      {/* 浮层挂载点（兜底） */}
       <Mounts point="overlay" />
     </div>
   );
