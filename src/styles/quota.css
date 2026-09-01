@@ -1,0 +1,172 @@
+/* ──────────────────────────────────────────────────────────
+ * Quota chip ─ 内嵌 composer 工具栏(模型/思考 同一行)。
+ *
+ * 迷你进度条:5h / 7d 双窗口并排,供应商支持几个展示几个;
+ * 余额型供应商(deepseek/中转站)无窗口,直接显示余额文本。
+ * 橙色 fill 沿用用户截图 #ff8c3c。
+ * ────────────────────────────────────────────────────────── */
+
+.quota-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.quota-chip:hover .quota-chip-value {
+  color: var(--tmd-fg);
+}
+
+.quota-chip-label {
+  color: var(--tmd-fg-subtle);
+  margin-left: 2px;
+}
+
+.quota-chip-value {
+  color: var(--tmd-fg);
+  font-family: Menlo, Monaco, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.quota-chip.is-error .quota-chip-value {
+  color: var(--tmd-fg-subtle);
+}
+
+.quota-mini-bar {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--tmd-bg-input);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.quota-mini-fill {
+  display: block;
+  height: 100%;
+  background: rgb(255, 140, 60);
+  border-radius: 2px;
+}
+
+.quota-chip .is-spinning {
+  animation: quota-spin 800ms linear infinite;
+}
+/* ── 额度详情弹窗 ──
+ * portal 挂 document.body(position: fixed),与 .panel-overflow-menu 同层(z-index 1201),
+ * 遮罩复用 .panel-overflow-backdrop。背景不透明实色,绝不透出身后内容。 */
+
+.quota-popover {
+  position: fixed;
+  z-index: 1201;
+  width: 264px;
+  background: var(--tmd-bg-popover);
+  border: 1px solid var(--tmd-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  font-size: 12px;
+  color: var(--tmd-fg);
+}
+
+.quota-popover-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.quota-popover-plan {
+  color: var(--tmd-fg-subtle);
+  font-weight: 400;
+}
+
+.quota-popover-window {
+  margin: 8px 0;
+}
+
+.quota-popover-window-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quota-popover-window-label {
+  width: 36px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  color: var(--tmd-fg-subtle);
+}
+
+.quota-popover-bar {
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--tmd-bg-input);
+  overflow: hidden;
+}
+
+.quota-popover-fill {
+  display: block;
+  height: 100%;
+  background: rgb(255, 140, 60);
+  border-radius: 3px;
+}
+
+.quota-popover-pct {
+  font-family: Menlo, Monaco, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 下次刷新时间:与窗口行头(label 36px + gap 8px)对齐 */
+.quota-popover-reset {
+  margin-top: 4px;
+  padding-left: 44px;
+  font-size: 11px;
+  color: var(--tmd-fg-faint);
+}
+
+.quota-popover-balance {
+  margin: 8px 0;
+  font-family: Menlo, Monaco, monospace;
+}
+
+.quota-popover-error {
+  margin: 8px 0;
+  color: rgb(248, 113, 113);
+}
+
+.quota-popover-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--tmd-border);
+  font-size: 11px;
+  color: var(--tmd-fg-faint);
+}
+
+.quota-popover-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tmd-fg-subtle);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.quota-popover-refresh:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+@keyframes quota-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
