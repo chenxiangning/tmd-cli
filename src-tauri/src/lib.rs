@@ -141,6 +141,9 @@ fn config_write_settings(data: serde_json::Value) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    /* 打包 .app(launchd 环境)PATH 贫瘠,先用 login shell PATH 修复进程环境,
+       让 git 等裸命令名调用与 PTY 子进程都能解析;须在起线程/建窗口之前执行 */
+    std::env::set_var("PATH", pty::enriched_path());
     session::ensure_config_dir().ok();
     let sessions = session::SessionRegistry::default();
     let builder = tauri::Builder::default()
