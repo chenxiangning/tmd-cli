@@ -13,9 +13,38 @@ pub struct SessionMeta {
     pub id: String,
     pub profile_id: String,
     pub cwd: String,
+    /// 所属工作区 id;老 session 无此字段时归到 default。
+    #[serde(default)]
+    pub workspace_id: Option<String>,
+    /// 创建时间 ms epoch。老 session 无 = 0,前端展示 fallback。
+    #[serde(default)]
+    pub created_at: u64,
+    /// 用户自定义 label(默认 = profileId + 短 id)。
+    #[serde(default)]
+    pub display_label: Option<String>,
     pub pid: Option<u32>,
     /// CLI 自身的 session id（如 codex 的 rollout id），用于 resume。可空 = 尚未探测到。
     pub cli_session_id: Option<String>,
+}
+
+/// 工作区元数据。持久化到 `~/.tmd-cli/workspaces.json`。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceMeta {
+    pub id: String,
+    pub name: String,
+    pub root: String,
+    pub created_at: u64,
+}
+
+/// workspaces.json 顶层结构。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspacesFile {
+    #[serde(default)]
+    pub list: Vec<WorkspaceMeta>,
+    #[serde(default)]
+    pub active_id: Option<String>,
 }
 
 /// 用户全局配置目录: `~/.tmd-cli/`。所有客户端本地数据落此。
@@ -28,6 +57,11 @@ pub fn config_dir() -> PathBuf {
 /// 配置目录下 sessions 持久化文件路径。
 pub fn sessions_file() -> PathBuf {
     config_dir().join("sessions.json")
+}
+
+/// 配置目录下 workspaces 持久化文件路径。
+pub fn workspaces_file() -> PathBuf {
+    config_dir().join("workspaces.json")
 }
 
 /// 确保 `~/.tmd-cli/` 目录存在。
@@ -49,6 +83,33 @@ pub fn save_sessions(sessions: &[SessionMeta]) -> std::io::Result<()> {
     ensure_config_dir()?;
     let file = sessions_file();
     let json = serde_json::to_string_pretty(sessions)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    std::fs::write(&file, json)
+}
+
+/// 读取工作区列表。文件不存在返回空结构。
+pub fn load_workspaces() -> WorkspacesFile {
+    let file = workspaces_file();
+    match std::fs::read_to_string(&file) {
+        Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
+        Err(_) => WorkspacesFile::default(),
+    }
+}
+
+impl Default for WorkspacesFile {
+    fn default() -> Self {
+        WorkspacesFile {
+            list: Vec::new(),
+            active_id: None,
+        }
+    }
+}
+
+/// 落盘工作区列表。
+pub fn save_workspaces(data: &WorkspacesFile) -> std::io::Result<()> {
+    ensure_config_dir()?;
+    let file = workspaces_file();
+    let json = serde_json::to_string_pretty(data)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     std::fs::write(&file, json)
 }

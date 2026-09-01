@@ -119,7 +119,11 @@ class Host implements PluginContext {
 
   // ---- 会话服务（kernel 固有职责：PTY 生命周期） ---------------------------
 
-  async createSession(profileId: string, cwd: string): Promise<SessionMeta> {
+    async createSession(
+    profileId: string,
+    cwd: string,
+    workspaceId?: string,
+  ): Promise<SessionMeta> {
     const profile = this.cliProfiles.get(profileId);
     if (!profile) throw new Error(`未知 CLI profile: ${profileId}`);
     const spec: SpawnSpec = {
@@ -128,7 +132,7 @@ class Host implements PluginContext {
       cwd,
       env: profile.env,
     };
-    const spawned = await ipc.sessionSpawn(profileId, spec);
+        const spawned = await ipc.sessionSpawn(profileId, spec, workspaceId);
     this.sessions = await ipc.sessionList();
     this.activeSessionId = spawned.id;
     // 常驻订阅：从会话诞生起就持续缓冲输出，与幕布是否挂载无关。

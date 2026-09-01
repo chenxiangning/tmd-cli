@@ -26,6 +26,21 @@ export interface SessionMeta {
   cwd: string;
   pid?: number;
   cliSessionId?: string;
+  workspaceId?: string;
+  createdAt?: number;
+  displayLabel?: string;
+}
+
+export interface WorkspaceMeta {
+  id: string;
+  name: string;
+  root: string;
+  createdAt: number;
+}
+
+export interface WorkspacesFile {
+  list: WorkspaceMeta[];
+  activeId?: string | null;
 }
 
 export interface DirEntry {
@@ -40,8 +55,8 @@ export interface GitStatus {
 }
 
 export const ipc = {
-  sessionSpawn: (profileId: string, spec: SpawnSpec) =>
-    invoke<SpawnedSession>("session_spawn", { profileId, spec }),
+  sessionSpawn: (profileId: string, spec: SpawnSpec, workspaceId?: string) =>
+    invoke<SpawnedSession>("session_spawn", { profileId, spec, workspaceId: workspaceId ?? null }),
   sessionList: () => invoke<SessionMeta[]>("session_list"),
   sessionWrite: (id: string, data: string) =>
     invoke<void>("session_write", { id, data }),
@@ -53,6 +68,9 @@ export const ipc = {
     invoke<string>("fs_write_temp", { name, data: Array.from(data) }),
   fsReadFile: (path: string) => invoke<string>("fs_read_file", { path }),
   gitStatus: (cwd: string) => invoke<GitStatus>("git_status", { cwd }),
+  configReadWorkspaces: () => invoke<WorkspacesFile>("config_read_workspaces"),
+  configWriteWorkspaces: (data: WorkspacesFile) =>
+    invoke<void>("config_write_workspaces", { data }),
 };
 
 /** 订阅某会话的 PTY 输出流。返回退订函数。 */

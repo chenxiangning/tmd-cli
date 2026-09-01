@@ -12,6 +12,7 @@ export default defineConfig({
       "@shell": fileURLToPath(new URL("./src/app-shell", import.meta.url)),
       "@plugins": fileURLToPath(new URL("./src/plugins", import.meta.url)),
     },
+    extensions: [".tsx", ".ts", ".jsx", ".js", ".json"],
   },
   server: {
     host: "127.0.0.1",

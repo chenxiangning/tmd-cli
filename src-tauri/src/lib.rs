@@ -12,18 +12,29 @@ struct AppState {
     sessions: SessionRegistry,
 }
 
+fn now_millis() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
 #[tauri::command]
 fn session_spawn(
     app: AppHandle,
     state: State<'_, AppState>,
     profile_id: String,
-    spec: SpawnSpec,
+       spec: SpawnSpec,
+    workspace_id: Option<String>,
 ) -> Result<SpawnedSession, String> {
     let spawned = state.pty.spawn(&app, spec.clone())?;
     state.sessions.register(SessionMeta {
         id: spawned.id.clone(),
         profile_id,
         cwd: spec.cwd,
+                workspace_id,
+        created_at: now_millis(),
+        display_label: None,
         pid: spawned.pid,
         cli_session_id: None,
     });
@@ -60,10 +71,12 @@ fn session_kill(state: State<'_, AppState>, id: String) -> Result<(), String> {
 fn fs_list_dir(path: String) -> Result<Vec<fs::DirEntry>, String> {
     fs::list_dir(&path)
 }
+
 #[tauri::command]
 fn fs_read_file(path: String) -> Result<String, String> {
     fs::read_file(&path)
 }
+
 #[tauri::command]
 fn fs_write_temp(name: String, data: Vec<u8>) -> Result<String, String> {
     fs::write_temp_file(&name, &data)
@@ -74,6 +87,16 @@ fn git_status(cwd: String) -> Result<git::GitStatus, String> {
     git::status(&cwd)
 }
 
+#[tauri::command]
+fn config_read_workspaces() -> session::WorkspacesFile {
+    session::load_workspaces()
+}
+
+#[tauri::command]
+fn config_write_workspaces(data: session::WorkspacesFile) -> Result<(), String> {
+    session::save_workspaces(&data).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     session::ensure_config_dir().ok();
@@ -82,7 +105,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
             pty: PtyRegistry::default(),
-                        sessions,
+            sessions,
         })
         .invoke_handler(tauri::generate_handler![
             session_spawn,
@@ -94,6 +117,8 @@ pub fn run() {
             fs_list_dir,
             fs_read_file,
             git_status,
+            config_read_workspaces,
+            config_write_workspaces,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
