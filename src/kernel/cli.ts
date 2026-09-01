@@ -49,4 +49,10 @@ export interface CliProfile {
   suggestions?: Partial<Record<TriggerKind, CliSuggestion[]>>;
   /** 恢复 CLI 自身会话的参数模板；缺省 = 不支持恢复。 */
   resumeArgs?: (cliSessionId: string) => string[];
+  /**
+   * 探测 CLI 自身 session id。在 spawn 后周期性调用,直到返回非空。
+   * 例:omp 的 session 在 ~/.omp/agent/sessions/<cwd-slug>/<ts>_<uuid>.jsonl,
+   * 文件创建后从文件名解析 uuid。
+   */
+  detectCliSessionId?: (cwd: string) => Promise<string | null>;
 }

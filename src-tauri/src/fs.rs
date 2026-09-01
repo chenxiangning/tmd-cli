@@ -70,3 +70,32 @@ pub fn write_temp_file(name: &str, bytes: &[u8]) -> Result<String, String> {
 }
 
 
+
+/// 扫描目录下所有文件,返回最新的一个文件名(按修改时间)。
+/// 用于 omp session 探测:cli 创建 .jsonl 后从文件名解析 uuid。
+pub fn latest_file_in_dir(dir: &str, suffix: &str) -> Result<Option<String>, String> {
+    let path = std::path::Path::new(dir);
+    if !path.exists() {
+        return Ok(None);
+    }
+    let mut latest: Option<(std::time::SystemTime, String)> = None;
+    let entries = std::fs::read_dir(path).map_err(|e| format!("读取目录失败: {e}"))?;
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.ends_with(suffix) {
+            continue;
+        }
+        let meta = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        let mtime = match meta.modified() {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        if latest.as_ref().map(|(t, _)| mtime > *t).unwrap_or(true) {
+            latest = Some((mtime, name));
+        }
+    }
+    Ok(latest.map(|(_, n)| n))
+}

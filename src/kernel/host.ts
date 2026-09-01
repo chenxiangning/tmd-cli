@@ -138,6 +138,8 @@ class Host implements PluginContext {
     this.sessions = await ipc.sessionList();
     this.activeSessionId = spawned.id;
     this.liveSessionIds.add(spawned.id);
+    // 后台探测 CLI 自身 session id(omp/pi 把 session 落盘后才能拿到),抓到了写回 Rust 持久化
+    void this.detectAndStoreCliSessionId(spawned.id, profile, cwd);
     // 常驻订阅：从会话诞生起就持续缓冲输出，与幕布是否挂载无关。
     void onPtyOutput(spawned.id, (text) => this.appendOutput(spawned.id, text));
     onPtyExit(spawned.id, () => {
@@ -216,9 +218,14 @@ class Host implements PluginContext {
         cwd: meta.cwd,
         env: profile.env,
       };
+      // 先删老记录(Rust 注册表 + 前端 sessions 同步),避免列表无限累积
+      await ipc.sessionKill(meta.id).catch(() => undefined);
+      this.sessions = this.sessions.filter((s) => s.id !== meta.id);
+
       const spawned = await ipc.sessionSpawn(meta.profileId, spec, meta.workspaceId);
       this.sessions = await ipc.sessionList();
       this.liveSessionIds.add(spawned.id);
+      void this.detectAndStoreCliSessionId(spawned.id, profile, meta.cwd);
       void onPtyOutput(spawned.id, (text) => this.appendOutput(spawned.id, text));
       onPtyExit(spawned.id, () => {
         void this.removeSession(spawned.id);
@@ -228,6 +235,32 @@ class Host implements PluginContext {
     } catch (err) {
       console.warn("resume historical session failed", err);
       return null;
+    }
+  }
+
+  /**
+   * 后台轮询 profile.detectCliSessionId,拿到后写回 Rust(让 session 持久化带 cliSessionId)。
+   * 最多试 30 次,每次间隔 500ms。
+   */
+  private async detectAndStoreCliSessionId(
+    sessionId: string,
+    profile: CliProfile,
+    cwd: string,
+  ): Promise<void> {
+    if (!profile.detectCliSessionId) return;
+    for (let i = 0; i < 30; i++) {
+      try {
+        const cliId = await profile.detectCliSessionId(cwd);
+        if (cliId) {
+          await ipc.sessionSetCliSessionId(sessionId, cliId);
+          this.sessions = await ipc.sessionList();
+          this.notify();
+          return;
+        }
+      } catch {
+        // 文件还没生成,继续试
+      }
+      await new Promise((r) => setTimeout(r, 500));
     }
   }
 

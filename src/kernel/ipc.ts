@@ -63,11 +63,16 @@ export const ipc = {
   sessionResize: (id: string, cols: number, rows: number) =>
     invoke<void>("session_resize", { id, cols, rows }),
   sessionKill: (id: string) => invoke<void>("session_kill", { id }),
+  sessionSetCliSessionId: (id: string, cliSessionId: string) =>
+    invoke<void>("session_set_cli_session_id", { id, cliSessionId }),
   fsListDir: (path: string) => invoke<DirEntry[]>("fs_list_dir", { path }),
   fsWriteTemp: (name: string, data: Uint8Array) =>
     invoke<string>("fs_write_temp", { name, data: Array.from(data) }),
   fsReadFile: (path: string) => invoke<string>("fs_read_file", { path }),
   gitStatus: (cwd: string) => invoke<GitStatus>("git_status", { cwd }),
+  fsLatestFile: (dir: string, suffix: string) =>
+    invoke<string | null>("fs_latest_file", { dir, suffix }),
+  configHomeDir: () => invoke<string>("config_home_dir"),
   configReadWorkspaces: () => invoke<WorkspacesFile>("config_read_workspaces"),
   configWriteWorkspaces: (data: WorkspacesFile) =>
     invoke<void>("config_write_workspaces", { data }),

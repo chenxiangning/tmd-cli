@@ -134,6 +134,16 @@ impl SessionRegistry {
         self.persist();
     }
 
+    /// 设置某 session 的 cliSessionId(detect 到之后写回持久化)。
+    pub fn update_cli_session_id(&self, id: &str, cli_session_id: &str) {
+        let mut map = self.sessions.lock();
+        if let Some(meta) = map.get_mut(id) {
+            meta.cli_session_id = Some(cli_session_id.to_string());
+        }
+        drop(map);
+        self.persist();
+    }
+
     /// 启动时:从磁盘恢复到内存表。CLI 进程已死或 cwd 已不存在 = 仅留记录,可点开重连。
     pub fn restore_from_disk(&self) {
         let loaded = load_sessions();

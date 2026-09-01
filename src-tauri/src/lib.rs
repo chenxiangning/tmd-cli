@@ -68,6 +68,16 @@ fn session_kill(state: State<'_, AppState>, id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn session_set_cli_session_id(
+    state: State<'_, AppState>,
+    id: String,
+    cli_session_id: String,
+) -> Result<(), String> {
+    state.sessions.update_cli_session_id(&id, &cli_session_id);
+    Ok(())
+}
+
+#[tauri::command]
 fn fs_list_dir(path: String) -> Result<Vec<fs::DirEntry>, String> {
     fs::list_dir(&path)
 }
@@ -85,6 +95,16 @@ fn fs_write_temp(name: String, data: Vec<u8>) -> Result<String, String> {
 #[tauri::command]
 fn git_status(cwd: String) -> Result<git::GitStatus, String> {
     git::status(&cwd)
+}
+
+#[tauri::command]
+fn fs_latest_file(dir: String, suffix: String) -> Result<Option<String>, String> {
+    fs::latest_file_in_dir(&dir, &suffix)
+}
+
+#[tauri::command]
+fn config_home_dir() -> String {
+    std::env::var("HOME").unwrap_or_else(|_| "/tmp".into())
 }
 
 #[tauri::command]
@@ -114,10 +134,13 @@ pub fn run() {
             session_write,
             session_resize,
             session_kill,
+            session_set_cli_session_id,
             fs_write_temp,
             fs_list_dir,
             fs_read_file,
             git_status,
+            fs_latest_file,
+            config_home_dir,
             config_read_workspaces,
             config_write_workspaces,
         ])
