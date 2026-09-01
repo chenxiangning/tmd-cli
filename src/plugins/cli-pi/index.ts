@@ -22,6 +22,16 @@ export const cliPiPlugin: Plugin = {
           translate: (token) => `/skill:${token.replace(/^\$/, "")}`,
         },
       ],
+      suggestions: {
+        command: [
+          { value: "help", description: "查看可用命令" },
+          { value: "clear", description: "清屏" },
+        ],
+        skill: [
+          { value: "think", description: "深度思考" },
+          { value: "code", description: "代码任务" },
+        ],
+      },
       resumeArgs: (sessionId) => ["--resume", sessionId],
     });
   },

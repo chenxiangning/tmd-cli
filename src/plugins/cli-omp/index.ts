@@ -23,6 +23,18 @@ export const cliOmpPlugin: Plugin = {
           translate: (token) => `/skill:${token.replace(/^\$/, "")}`,
         },
       ],
+      suggestions: {
+        command: [
+          { value: "help", description: "查看可用命令" },
+          { value: "clear", description: "清屏" },
+          { value: "model", description: "查看/切换模型" },
+        ],
+        skill: [
+          { value: "think", description: "深度思考模式" },
+          { value: "plan", description: "只读规划模式" },
+          { value: "review", description: "代码评审" },
+        ],
+      },
       resumeArgs: (sessionId) => ["--resume", sessionId],
     });
   },
