@@ -68,5 +68,6 @@ export function prepareSendPayload(
   profile: CliProfile,
   text: string,
 ): string {
-  return translatePrompt(profile, text) + "\n";
+    // TUI 应用(omp/pi/codex)期待 CR 作 Enter 键 — LF 不会被识别为"提交"
+  return translatePrompt(profile, text) + "\r";
 }

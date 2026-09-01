@@ -8,7 +8,6 @@
  *   无 workspace 时归到 default)
  */
 
-import { useState } from "react";
 import type { Plugin } from "@kernel/plugin";
 import { useHost } from "@kernel/host";
 import {
@@ -17,22 +16,20 @@ import {
   setActiveWorkspace,
   useWorkspaces,
 } from "@kernel/workspace";
+import { open } from "@tauri-apps/plugin-dialog";
 
 function WorkspaceSection() {
   useHost();
   const { list, activeId } = useWorkspaces();
-  const [newPath, setNewPath] = useState("");
-  const [showInput, setShowInput] = useState(false);
-
-  function commitAdd() {
-    const trimmed = newPath.trim();
-    if (!trimmed) {
-      setShowInput(false);
-      return;
+    async function handleAdd() {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: "选择工作区目录",
+    });
+    if (typeof selected === "string" && selected) {
+      addWorkspace(selected);
     }
-    addWorkspace(trimmed);
-    setNewPath("");
-    setShowInput(false);
   }
 
   return (
@@ -42,26 +39,11 @@ function WorkspaceSection() {
         <button
           title="添加工作区"
           className="rounded px-1 hover:bg-neutral-800"
-          onClick={() => setShowInput((v) => !v)}
+                    onClick={() => void handleAdd()}
         >
           +
         </button>
       </div>
-
-      {showInput && (
-        <input
-          autoFocus
-          value={newPath}
-          onChange={(e) => setNewPath(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commitAdd();
-            if (e.key === "Escape") setShowInput(false);
-          }}
-          onBlur={commitAdd}
-          placeholder="/绝对/路径"
-          className="rounded bg-neutral-900 px-2 py-1 text-xs text-neutral-100 outline-none placeholder:text-neutral-600"
-        />
-      )}
 
       {list.map((ws) => {
         const isActive = ws.id === activeId;

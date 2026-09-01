@@ -21,6 +21,8 @@ class Host implements PluginContext {
   private sessions: SessionMeta[] = [];
   private activeSessionId: string | null = null;
   private listeners = new Set<() => void>();
+  /** 本会话周期内 createSession 出来的活 session id。其他都是历史快照。 */
+  private liveSessionIds = new Set<string>();
   /** 每会话 PTY 输出环形缓冲：会话切换后 xterm 重挂载靠它回放，这是"切回不黑屏"的核心。 */
   private outputBuffers = new Map<string, string>();
   /** 每会话最近输出时间：驱动会话列表呼吸灯。 */
@@ -135,6 +137,7 @@ class Host implements PluginContext {
         const spawned = await ipc.sessionSpawn(profileId, spec, workspaceId);
     this.sessions = await ipc.sessionList();
     this.activeSessionId = spawned.id;
+    this.liveSessionIds.add(spawned.id);
     // 常驻订阅：从会话诞生起就持续缓冲输出，与幕布是否挂载无关。
     void onPtyOutput(spawned.id, (text) => this.appendOutput(spawned.id, text));
     onPtyExit(spawned.id, () => {
@@ -179,9 +182,53 @@ class Host implements PluginContext {
 
   setActiveSession(id: string | null): void {
     if (this.activeSessionId === id) return;
+    // 历史快照:点开时如果该 session 不在 liveSessionIds,说明 PTY 已死
+    // → 按 profile.resumeArgs 重新 spawn(有 cliSessionId 时)或直接 spawn
+    if (id && !this.liveSessionIds.has(id)) {
+      const meta = this.sessions.find((s) => s.id === id);
+      if (meta) {
+        void this.resumeHistoricalSession(meta).then((newId) => {
+          if (newId) {
+            this.activeSessionId = newId;
+            this.events.emit(KernelTopics.activeSessionChanged, newId);
+            this.notify();
+          }
+        });
+        return;
+      }
+    }
     this.activeSessionId = id;
     this.events.emit(KernelTopics.activeSessionChanged, id);
     this.notify();
+  }
+
+  /** 历史 session 重开:用 profile 的 resumeArgs(有 cliSessionId 时)或全新 spawn。 */
+  private async resumeHistoricalSession(meta: SessionMeta): Promise<string | null> {
+    try {
+      const profile = this.cliProfiles.get(meta.profileId);
+      if (!profile) return null;
+      const args = meta.cliSessionId && profile.resumeArgs
+        ? profile.resumeArgs(meta.cliSessionId)
+        : profile.args;
+      const spec: SpawnSpec = {
+        command: profile.command,
+        args,
+        cwd: meta.cwd,
+        env: profile.env,
+      };
+      const spawned = await ipc.sessionSpawn(meta.profileId, spec, meta.workspaceId);
+      this.sessions = await ipc.sessionList();
+      this.liveSessionIds.add(spawned.id);
+      void onPtyOutput(spawned.id, (text) => this.appendOutput(spawned.id, text));
+      onPtyExit(spawned.id, () => {
+        void this.removeSession(spawned.id);
+        this.events.emit(KernelTopics.sessionExited, spawned.id);
+      });
+      return spawned.id;
+    } catch (err) {
+      console.warn("resume historical session failed", err);
+      return null;
+    }
   }
 
   async removeSession(id: string): Promise<void> {

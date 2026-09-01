@@ -103,6 +103,7 @@ pub fn run() {
     let sessions = session::SessionRegistry::default();
     sessions.restore_from_disk();
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             pty: PtyRegistry::default(),
             sessions,
