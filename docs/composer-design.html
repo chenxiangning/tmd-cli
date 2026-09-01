@@ -61,9 +61,6 @@
     --tmd-accent-soft:   rgba(0,95,184,.14);
   }
 
-  /* ============================================================
-     基础
-     ============================================================ */
   * { box-sizing: border-box; }
   html, body {
     margin: 0; height: 100%;
@@ -74,15 +71,20 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* 演示布局:左 composer 主区,右功能清单 */
   .stage {
     display: grid;
     grid-template-columns: 1fr 360px;
     gap: 16px;
     padding: 16px;
     height: 100vh;
+    min-height: 0;
   }
-  .stage > .demo-pane { min-width: 0; }
+  .stage > .demo-pane {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
   .stage > .features-pane {
     background: var(--tmd-bg-elevated);
     border: 1px solid var(--tmd-border);
@@ -91,23 +93,18 @@
     padding: 14px 16px;
   }
 
-  /* ============================================================
-     Composer 容器
-     ============================================================ */
   .composer-wrap {
     display: flex;
     flex-direction: column;
     height: 100%;
     background: var(--tmd-bg-base);
   }
-
   .composer-title-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
     color: var(--tmd-fg-muted);
-    font-size: var(--tmd-font-ui);
   }
   .composer-title-row .pill {
     padding: 2px 8px;
@@ -116,12 +113,6 @@
     color: var(--tmd-fg-subtle);
   }
 
-  /* ============================================================
-     Composer 外壳(对照真实 Composer.tsx 渲染顺序)
-     渲染栈:  statusBar (top)
-              attachment strip  (新增)
-              textarea  (bottom)
-     ============================================================ */
   .composer {
     display: flex;
     flex-direction: column;
@@ -132,12 +123,11 @@
     background: var(--tmd-bg-elevated);
     overflow: hidden;
     transition: border-color .15s ease;
+    position: relative;
+    min-height: 0;
   }
-  .composer:hover, .composer:focus-within {
-    border-color: var(--tmd-accent);
-  }
+  .composer:hover, .composer:focus-within { border-color: var(--tmd-accent); }
 
-  /* ----------- Status Bar (模型/思考/额度/只读) ----------- */
   .status-bar {
     display: flex;
     align-items: center;
@@ -149,29 +139,17 @@
     background: var(--tmd-bg-elevated);
     flex-wrap: wrap;
   }
-  .status-bar .group {
-    display: flex; align-items: center; gap: 6px;
-  }
-  .status-bar .sep {
-    color: var(--tmd-fg-faint);
-  }
+  .status-bar .group { display: flex; align-items: center; gap: 6px; }
+  .status-bar .sep { color: var(--tmd-fg-faint); }
   .status-bar .label { color: var(--tmd-fg-subtle); }
   .status-bar .value { color: var(--tmd-fg); }
-  .status-bar .model {
-    color: var(--tmd-fg);
-    font-weight: 500;
-  }
-  .status-bar .readonly {
-    margin-left: auto;
-    color: var(--tmd-fg-subtle);
-  }
+  .status-bar .model { color: var(--tmd-fg); font-weight: 500; }
+  .status-bar .readonly { margin-left: auto; color: var(--tmd-fg-subtle); }
 
-  /* 额度条 */
   .quota { display: flex; align-items: center; gap: 8px; }
   .quota .track {
     position: relative;
-    width: 80px;
-    height: 4px;
+    width: 80px; height: 4px;
     background: var(--tmd-bg-hover);
     border-radius: 999px;
     overflow: hidden;
@@ -181,40 +159,20 @@
     background: var(--warn);
     border-radius: 999px;
   }
-  .quota.warn .fill { background: var(--warn); }
-  .quota.danger .fill { background: var(--danger); }
   .quota .pct { font-variant-numeric: tabular-nums; color: var(--tmd-fg); }
-  .dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--success);
-    display: inline-block;
-  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); display: inline-block; }
   .dot.warn { background: var(--warn); }
-  .dot.danger { background: var(--danger); }
 
-  /* ----------- Attachment Strip (本次新增) ----------- */
-  .attachment-strip {
-    display: flex;
-    gap: 8px;
-    padding: 8px 12px;
-    background: var(--tmd-bg-base);
-    border-bottom: 1px dashed var(--tmd-border);
-    min-height: 0;
-    transition: min-height .2s ease;
-  }
-  .attachment-strip:empty {
-    display: none;
-  }
-  .attachment-strip.has-items {
+  #attachSection {
     border-bottom: 1px solid var(--tmd-border);
+    background: var(--tmd-bg-base);
   }
-
+  #attachSection[hidden] { display: none; }
   .attach-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 6px 12px 0;
-    background: var(--tmd-bg-base);
     color: var(--tmd-fg-subtle);
     font-size: 11px;
   }
@@ -224,12 +182,16 @@
     padding: 2px 6px;
     border-radius: var(--tmd-radius-sm);
   }
-  .attach-header .clear-all:hover {
-    background: var(--tmd-bg-hover);
-    color: var(--danger);
+  .attach-header .clear-all:hover { background: var(--tmd-bg-hover); color: var(--danger); }
+
+  .attachment-strip {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--tmd-bg-base);
+    flex-wrap: wrap;
   }
 
-  /* 附件卡片 */
   .attach {
     position: relative;
     display: flex;
@@ -247,20 +209,11 @@
     transform: translateY(-1px);
   }
   .attach.kind-image { cursor: zoom-in; }
-  .attach.dragging {
-    opacity: 0.5;
-    cursor: grabbing;
-  }
+  .attach.dragging { opacity: 0.5; cursor: grabbing; }
   .attach .thumb {
-    width: 100%;
-    height: 64px;
+    width: 100%; height: 64px;
     background: var(--tmd-bg-sunken);
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--tmd-fg-muted);
-    font-size: 18px;
+    background-size: cover; background-position: center; background-repeat: no-repeat;
   }
   .attach .meta {
     padding: 4px 6px;
@@ -269,21 +222,12 @@
     line-height: 1.3;
   }
   .attach .meta .name {
-    color: var(--tmd-fg);
-    font-size: 11px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    color: var(--tmd-fg); font-size: 11px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .attach .meta .info {
-    color: var(--tmd-fg-subtle);
-    font-size: 10px;
-    font-variant-numeric: tabular-nums;
-  }
-
+  .attach .meta .info { color: var(--tmd-fg-subtle); font-size: 10px; font-variant-numeric: tabular-nums; }
   .attach .close {
-    position: absolute;
-    top: 4px; right: 4px;
+    position: absolute; top: 4px; right: 4px;
     width: 18px; height: 18px;
     border-radius: 50%;
     background: rgba(0,0,0,.6);
@@ -296,10 +240,8 @@
   }
   .attach:hover .close { opacity: 1; }
   .attach .close:hover { background: var(--danger); }
-
   .attach .badge {
-    position: absolute;
-    top: 4px; left: 4px;
+    position: absolute; top: 4px; left: 4px;
     padding: 1px 5px;
     border-radius: 4px;
     background: var(--tmd-accent);
@@ -308,60 +250,79 @@
     text-transform: uppercase;
     letter-spacing: 0.4px;
   }
-  .attach.kind-pdf .badge { background: var(--danger); }
-  .attach.kind-code .badge { background: var(--success); }
 
-  /* 文件类型 icon (无缩略图时) */
   .kind-icon {
-    width: 36px; height: 36px;
+    width: 100%; height: 64px;
     display: flex; align-items: center; justify-content: center;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 11px;
+    font-weight: 600; font-size: 13px;
     color: var(--tmd-accent-fg);
   }
-  .kind-icon.img { background: linear-gradient(135deg, #5b9bd5, #007acc); }
-  .kind-icon.pdf { background: linear-gradient(135deg, #e8a0a0, #c75050); }
+  .kind-icon.img  { background: linear-gradient(135deg, #5b9bd5, #007acc); }
+  .kind-icon.pdf  { background: linear-gradient(135deg, #e8a0a0, #c75050); }
   .kind-icon.code { background: linear-gradient(135deg, #89d185, #4a8a3a); }
   .kind-icon.file { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
 
-  /* 大图预览遮罩 —— 默认 pointer-events:none 不挡卡片操作,
-     显示时 auto 接收点击关闭 + Esc 关闭 + 点图关闭 */
+  .composer.drag-over {
+    border-color: var(--tmd-accent);
+    box-shadow: inset 0 0 0 2px var(--tmd-accent-soft);
+  }
+  .composer.drag-over::after {
+    content: "释放以附加文件 / 图片";
+    position: absolute;
+    inset: 32px 8px 8px;
+    border: 1.5px dashed var(--tmd-accent);
+    border-radius: var(--tmd-radius-md);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--tmd-accent);
+    background: var(--tmd-accent-soft);
+    font-size: var(--tmd-font-ui);
+    pointer-events: none;
+    z-index: 40;
+  }
+  .attach.drop-target { border-color: var(--tmd-accent); transform: translateY(-2px); }
+
+  .toast {
+    position: fixed; bottom: 60px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--tmd-bg-popover);
+    color: var(--tmd-fg);
+    border: 1px solid var(--tmd-border);
+    border-radius: var(--tmd-radius-sm);
+    padding: 8px 14px;
+    font-size: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    opacity: 0;
+    transition: opacity .2s ease, transform .2s ease;
+    pointer-events: none;
+    z-index: 200;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
   .preview-overlay {
-    position: fixed;
-    inset: 0;
+    position: fixed; inset: 0;
     background: rgba(0,0,0,.75);
     backdrop-filter: blur(4px);
     display: none;
-    align-items: center;
-    justify-content: center;
+    align-items: center; justify-content: center;
     z-index: 100;
     pointer-events: none;
     cursor: zoom-out;
   }
-  .preview-overlay.show {
-    display: flex;
-    pointer-events: auto;
-  }
+  .preview-overlay.show { display: flex; pointer-events: auto; }
   .preview-overlay img {
-    /* 维持原图像素,不强行拉伸;也不压缩到 70vw */
     display: block;
     max-width: 90vw;
     max-height: 90vh;
-    width: auto;
-    height: auto;
+    width: auto; height: auto;
     object-fit: contain;
     image-rendering: -webkit-optimize-contrast;
     border-radius: var(--tmd-radius-md);
     box-shadow: 0 12px 40px rgba(0,0,0,.6);
     background: #000;
   }
-  /* 加载中骨架 */
-  .preview-overlay img:not([src]) { min-width: 200px; min-height: 120px; }
+
   .composer-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    display: flex; align-items: center; gap: 6px;
     padding: 6px 12px;
     background: var(--tmd-bg-elevated);
     border-top: 1px solid var(--tmd-border);
@@ -382,14 +343,7 @@
     background: transparent;
     font: inherit;
   }
-  .tool-btn:hover {
-    background: var(--tmd-bg-hover);
-    color: var(--tmd-fg);
-  }
-  .tool-btn.active {
-    background: var(--tmd-accent-soft);
-    color: var(--tmd-accent);
-  }
+  .tool-btn:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
   .tool-btn svg { width: 14px; height: 14px; }
   .divider-v {
     width: 1px; height: 16px;
@@ -397,7 +351,6 @@
     margin: 0 4px;
   }
 
-  /* ----------- Textarea ----------- */
   .textarea-wrap {
     flex: 1;
     display: flex;
@@ -405,25 +358,6 @@
     position: relative;
     background: var(--tmd-bg-elevated);
   }
-  textarea.composer-textarea {
-    flex: 1;
-    min-height: 80px;
-    resize: none;
-    background: transparent;
-    border: 0;
-    outline: 0;
-    color: var(--tmd-fg);
-    font: inherit;
-    font-size: var(--tmd-font-ui);
-    line-height: 1.58;
-    padding: 12px 14px;
-    caret-color: var(--tmd-accent);
-  }
-  textarea.composer-textarea::placeholder {
-    color: var(--tmd-fg-faint);
-  }
-
-  /* 内联 token(用 contenteditable 模拟) */
   .rich-editor {
     flex: 1;
     min-height: 80px;
@@ -451,281 +385,68 @@
     font-size: 11px;
     vertical-align: baseline;
     user-select: all;
-  }
-  .token.file {
     background: var(--tmd-bg-hover);
     color: var(--tmd-fg);
     border: 1px solid var(--tmd-border);
   }
-  .token.skill {
-    background: var(--tmd-accent-soft);
-    color: var(--tmd-accent);
-    border: 1px solid var(--tmd-accent);
-  }
-  .token.cmd {
-    background: rgba(215,186,125,.15);
-    color: var(--warn);
-    border: 1px solid var(--warn);
-  }
   .token .x {
-    margin-left: 2px;
+    margin-left: 4px;
     color: var(--tmd-fg-subtle);
     cursor: pointer;
+    user-select: none;
   }
   .token .x:hover { color: var(--danger); }
 
-  /* 折叠的长粘贴 */
-  .folded {
-    background: var(--tmd-bg-hover);
-    color: var(--tmd-fg-subtle);
-    padding: 4px 10px;
-    border-radius: var(--tmd-radius-sm);
-    cursor: pointer;
-    font-style: italic;
-  }
-  .folded:hover { color: var(--tmd-fg); }
-
-  /* 浮层 —— position:fixed 避开 stacking context 问题,JS 动态计算位置 */
-  .popover {
-    position: fixed;
-    width: 380px;
-    max-width: calc(100vw - 32px);
-    max-height: 280px;
-    overflow-y: auto;
-    background: var(--tmd-bg-popover);
-    border: 1px solid var(--tmd-border);
-    border-radius: var(--tmd-radius-md);
-    box-shadow: 0 10px 32px rgba(0,0,0,.6);
-    z-index: 1000;
-    padding: 4px;
-    display: none;
-  }
-  /* 各面板宽变体 */
-  .popover.history-pop { width: 420px; }
-  .popover.file-pop    { width: 460px; }
-  .popover .row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 6px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    line-height: 1.35;
-  }
-  /* 点 ↑历史 按钮 */
-  .popover .row .desc { color: var(--tmd-fg-subtle); font-size: 11px; }
-  .popover .row .meta { color: var(--tmd-fg-faint); font-size: 10px; font-variant-numeric: tabular-nums; }
-  .popover .row .kbd {
-    color: var(--tmd-fg-subtle);
-    font-size: 10px;
-    padding: 1px 5px;
-    border: 1px solid var(--tmd-border);
-    border-radius: 3px;
-    font-family: ui-monospace, SF Mono, Menlo, monospace;
-  }
-  .popover .empty {
-    padding: 16px 10px;
-    color: var(--tmd-fg-subtle);
-    text-align: center;
-    font-size: 11px;
-  }
-  /* 头部标题(每个面板不一样) */
-  .popover .head {
-    padding: 6px 10px 4px;
-    color: var(--tmd-fg-subtle);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    border-bottom: 1px solid var(--tmd-border);
-    margin-bottom: 4px;
-    display: flex;
-    justify-content: space-between;
-  }
-  .popover .head .trigger {
-    color: var(--tmd-accent);
-    font-family: ui-monospace, SF Mono, Menlo, monospace;
-    font-weight: 600;
-  }
-
-  /* 空状态快捷 prompt */
-  .empty-prompts {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 6px;
-    padding: 10px 12px;
-    border-top: 1px dashed var(--tmd-border);
-  }
-  .prompt-card {
-    padding: 8px 10px;
-    border: 1px solid var(--tmd-border);
-    border-radius: var(--tmd-radius-sm);
-    color: var(--tmd-fg-muted);
-    cursor: pointer;
-    background: var(--tmd-bg-base);
-    transition: border-color .15s ease, color .15s ease;
-  }
-  .prompt-card:hover {
-    border-color: var(--tmd-accent);
-    color: var(--tmd-fg);
-  }
-  .prompt-card .ic { color: var(--tmd-accent); margin-right: 6px; }
-
-  /* 计数 */
   .counter {
     font-variant-numeric: tabular-nums;
     color: var(--tmd-fg-subtle);
     padding: 0 4px;
   }
-  .counter.warn { color: var(--warn); }
-  .counter.danger { color: var(--danger); }
 
-  /* 拖拽高亮态 —— 整 composer 高亮表示可投放 */
-  .composer.drag-over {
-    border-color: var(--tmd-accent);
-    box-shadow: inset 0 0 0 2px var(--tmd-accent-soft);
-  }
-  .composer.drag-over::after {
-    content: "释放以附加文件 / 图片";
-    position: absolute;
-    inset: 32px 8px 8px;
-    border: 1.5px dashed var(--tmd-accent);
-    border-radius: var(--tmd-radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--tmd-accent);
-    background: var(--tmd-accent-soft);
-    font-size: var(--tmd-font-ui);
-    pointer-events: none;
-    z-index: 40;
-  }
-  .composer { position: relative; }
-
-  /* 卡片拖动 ghost */
-  .attach.sortable-ghost {
-    opacity: 0.35;
-    border-style: dashed;
-  }
-  .attach.sortable-chosen {
-    cursor: grabbing;
-  }
-  .attach.drop-target {
-    border-color: var(--tmd-accent);
-    transform: translateY(-2px);
-  }
-
-  /* toast */
-  .toast {
-    position: fixed;
-    bottom: 60px; left: 50%;
-    transform: translateX(-50%);
-    background: var(--tmd-bg-popover);
-    color: var(--tmd-fg);
-    border: 1px solid var(--tmd-border);
-    border-radius: var(--tmd-radius-sm);
-    padding: 8px 14px;
-    font-size: 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.4);
-    opacity: 0;
-    transition: opacity .2s ease, transform .2s ease;
-    pointer-events: none;
-    z-index: 200;
-  }
-  .toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(-4px);
-  }
-  /* ============================================================
-     右侧:功能清单侧栏
-     ============================================================ */
-  .features-pane h2 {
-    margin: 0 0 4px;
-    font-size: var(--tmd-font-title);
-    color: var(--tmd-fg);
-  }
-  .features-pane .subtitle {
-    margin: 0 0 12px;
-    color: var(--tmd-fg-subtle);
-    font-size: 11px;
-  }
+  .features-pane h2 { margin: 0 0 4px; font-size: var(--tmd-font-title); color: var(--tmd-fg); }
+  .features-pane .subtitle { margin: 0 0 12px; color: var(--tmd-fg-subtle); font-size: 11px; }
   .features-pane h3 {
-    margin: 14px 0 6px;
-    font-size: 12px;
-    color: var(--tmd-accent);
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
+    margin: 14px 0 6px; font-size: 12px;
+    color: var(--tmd-accent); text-transform: uppercase; letter-spacing: 0.6px;
   }
-  .features-pane ul {
-    margin: 0; padding: 0; list-style: none;
-  }
-  .features-pane li {
-    padding: 6px 0;
-    border-bottom: 1px dashed var(--tmd-border);
-    color: var(--tmd-fg-muted);
-  }
+  .features-pane ul { margin: 0; padding: 0; list-style: none; }
+  .features-pane li { padding: 6px 0; border-bottom: 1px dashed var(--tmd-border); color: var(--tmd-fg-muted); }
   .features-pane li:last-child { border-bottom: 0; }
-  .features-pane li .ok { color: var(--success); font-weight: 600; margin-right: 6px; }
+  .features-pane li .ok    { color: var(--success); font-weight: 600; margin-right: 6px; }
   .features-pane li .later { color: var(--tmd-fg-faint); font-weight: 600; margin-right: 6px; }
   .features-pane li b { color: var(--tmd-fg); }
   .features-pane li .tag {
-    display: inline-block;
-    margin-left: 6px;
-    padding: 1px 6px;
-    font-size: 10px;
+    display: inline-block; margin-left: 6px;
+    padding: 1px 6px; font-size: 10px;
     border-radius: 999px;
     background: var(--tmd-accent-soft);
     color: var(--tmd-accent);
   }
-  .features-pane li .tag.optional {
-    background: rgba(215,186,125,.18);
-    color: var(--warn);
-  }
+  .features-pane li .tag.optional { background: rgba(215,186,125,.18); color: var(--warn); }
 
-  /* 主题切换 */
   .theme-toggle {
-    position: fixed;
-    bottom: 16px; left: 16px;
+    position: fixed; bottom: 16px; left: 16px;
     background: var(--tmd-bg-popover);
     color: var(--tmd-fg);
     border: 1px solid var(--tmd-border);
     border-radius: var(--tmd-radius-sm);
-    padding: 6px 12px;
-    cursor: pointer;
-    font-size: 11px;
-    z-index: 50;
+    padding: 6px 12px; cursor: pointer; font-size: 11px; z-index: 50;
   }
   .theme-toggle:hover { border-color: var(--tmd-accent); }
-
-  /* 当前正在演示状态的小徽标 */
-  .demo-callout {
-    position: absolute;
-    top: 8px; right: 8px;
-    padding: 2px 8px;
-    background: var(--tmd-accent);
-    color: var(--tmd-accent-fg);
-    border-radius: 999px;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    z-index: 5;
-  }
 </style>
 </head>
 <body>
 
 <div class="stage">
-  <!-- ============ 左侧:demo pane ============ -->
   <div class="demo-pane composer-wrap">
     <div class="composer-title-row">
-      <div>composer 设计原型 · 拖拽/粘贴图片、@文件、$skill、/命令 演示</div>
+      <div>composer 设计原型 · 拖拽/粘贴图片、@文件引用</div>
       <span class="pill">tmd-cli · dark · v0</span>
     </div>
 
     <div class="composer" id="composer">
 
-      <!-- 1. Status Bar (顶部) -->
-      <div class="status-bar" aria-label="composer status bar">
+      <div class="status-bar">
         <div class="group">
           <span class="label">模型</span>
           <span class="model">minimax-cn/MiniMax-M3</span>
@@ -736,13 +457,13 @@
           <span class="value">high</span>
         </div>
         <span class="sep">|</span>
-        <div class="group quota" id="quota5h">
+        <div class="group quota">
           <span class="label">额度</span>
           <span>5h</span>
           <span class="track"><span class="fill" style="width:1%"></span></span>
           <span class="pct">1%</span>
         </div>
-        <div class="group quota warn" id="quota7d">
+        <div class="group quota">
           <span>7d</span>
           <span class="dot warn"></span>
           <span class="track"><span class="fill" style="width:17%"></span></span>
@@ -750,109 +471,35 @@
         </div>
         <span class="readonly">只读</span>
       </div>
-      <!-- 2. Attachment Strip (新增,textarea 上方) — 默认隐藏,有附件时才显示 -->
-      <div id="attachSection" hidden>
-      <div class="attach-header" id="attachHeader">
-        <span>已附加 <b id="attachCount">0</b> 个文件 · 拖拽可重排</span>
-        <span class="clear-all" onclick="clearAllAttachments()">全部清除 ×</span>
-      </div>
-      <div class="attachment-strip has-items" id="attachStrip" aria-label="attachments">
-        <!-- 示例附件:1 张图片 + 1 PDF + 1 代码文件 -->
-        <div class="attach kind-image" draggable="true" data-id="a1">
-          <span class="badge">IMG</span>
-          <div class="thumb" style="background-image:linear-gradient(135deg,#5b9bd5 0%,#1e4d8b 50%,#0a2540 100%);">
-            <span style="color:#dbe9f7;font-size:11px;">screenshot.png</span>
-          </div>
-          <div class="meta">
-            <div class="name" title="screenshot-2026-09-02.png">screenshot-…png</div>
-            <div class="info">240×180 · 142 KB</div>
-          </div>
-          <div class="close" onclick="removeAttach('a1')">×</div>
-        </div>
 
-        <div class="attach kind-pdf" draggable="true" data-id="a2">
-          <span class="badge">PDF</span>
-          <div class="thumb">
-            <div class="kind-icon pdf">PDF</div>
-          </div>
-          <div class="meta">
-            <div class="name" title="design-spec-v2.pdf">design-spec-v2.pdf</div>
-            <div class="info">12 页 · 3.2 MB</div>
-          </div>
-          <div class="close" onclick="removeAttach('a2')">×</div>
+      <div id="attachSection">
+        <div class="attach-header">
+          <span>已附加 <b id="attachCount">1</b> 个文件 · 拖拽可重排</span>
+          <span class="clear-all" onclick="clearAllAttachments()">全部清除 ×</span>
         </div>
-
-        <div class="attach kind-code" draggable="true" data-id="a3">
-          <span class="badge">CODE</span>
-          <div class="thumb">
-            <div class="kind-icon code">{ }</div>
+        <div class="attachment-strip" id="attachStrip">
+          <div class="attach kind-image" draggable="true" data-id="sample1">
+            <span class="badge">IMG</span>
+            <div class="thumb" id="sampleThumb"></div>
+            <div class="meta">
+              <div class="name" title="pasted-1788288282933.png">pasted-1788…</div>
+              <div class="info">184.1 KB</div>
+            </div>
+            <div class="close" title="移除">×</div>
           </div>
-          <div class="meta">
-            <div class="name" title="api/users.ts">api/users.ts</div>
-            <div class="info">218 行 · 7.4 KB</div>
-          </div>
-          <div class="close" onclick="removeAttach('a3')">×</div>
         </div>
       </div>
-      </div>
 
-      <!-- 3. Textarea (contenteditable 模拟,内含 token) -->
-      <div class="textarea-wrap" id="textareaWrap">
-        <div class="demo-callout">设计演示</div>
+      <div class="textarea-wrap">
         <div class="rich-editor"
              contenteditable="true"
              id="editor"
-             data-placeholder="输入消息，回车发送，Shift+回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。"></div>
-
-        <!-- / 命令面板 -->
-        <div class="popover" id="slashPanel" style="display:none">
-          <div class="head"><span><span class="trigger">/</span> 命令</span><span class="kbd">↑↓ ⏎</span></div>
-          <div class="row active"><span><span class="name">/help</span> <span class="desc">查看所有可用命令</span></span><span class="kbd">/</span></div>
-          <div class="row"><span><span class="name">/model</span> <span class="desc">切换当前模型</span></span><span class="kbd">⌘M</span></div>
-          <div class="row"><span><span class="name">/clear</span> <span class="desc">清空当前会话</span></span><span class="kbd">⌘K</span></div>
-          <div class="row"><span><span class="name">/compact</span> <span class="desc">压缩历史上下文</span></span><span class="kbd">⌘.</span></div>
-          <div class="row"><span><span class="name">/diff</span> <span class="desc">对选中代码进入 diff 模式</span></span><span class="kbd">⌘D</span></div>
-          <div class="row"><span><span class="name">/theme</span> <span class="desc">切换主题(dark / light)</span></span><span class="kbd">⌘T</span></div>
+             data-placeholder="输入消息，回车发送，Shift+回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。">
+          其味无穷温润枪颔
+          <span class="token" data-aid="sample1">@pasted-1788288282933.png <span class="x">×</span></span>
         </div>
+      </div>
 
-        <!-- @ 文件引用面板 -->
-        <div class="popover file-pop" id="filePanel" style="display:none">
-          <div class="head"><span><span class="trigger">@</span> 文件引用</span><span class="kbd">↑↓ ⏎</span></div>
-          <div class="row"><span><span class="name">@src/plugins/composer/view/Composer.tsx</span> <span class="meta">· 218 行</span></span><span class="kbd">⏎</span></div>
-          <div class="row"><span><span class="name">@src/plugins/composer/serialize/serialize.ts</span> <span class="meta">· 96 行</span></span><span class="kbd">⏎</span></div>
-          <div class="row"><span><span class="name">@src/kernel/host.ts</span> <span class="meta">· 152 行</span></span><span class="kbd">⏎</span></div>
-          <div class="row"><span><span class="name">@src/kernel/themeTokens.ts</span> <span class="meta">· 204 行</span></span><span class="kbd">⏎</span></div>
-          <div class="row"><span><span class="name">@docs/composer-design.html</span> <span class="meta">· 设计原型</span></span><span class="kbd">⏎</span></div>
-        </div>
-
-        <!-- $ skill 引用面板 -->
-        <div class="popover" id="skillPanel" style="display:none">
-          <div class="head"><span><span class="trigger">$</span> skill 引用</span><span class="kbd">↑↓ ⏎</span></div>
-          <div class="row"><span><span class="name">$skill:code-review</span> <span class="desc">代码评审 · 检查风格/可测性</span></span><span class="kbd">$</span></div>
-          <div class="row"><span><span class="name">$skill:ui-mockup</span> <span class="desc">UI 重设计 · 截图→代码</span></span><span class="kbd">$</span></div>
-          <div class="row"><span><span class="name">$skill:test-gen</span> <span class="desc">自动生成单元测试</span></span><span class="kbd">$</span></div>
-          <div class="row"><span><span class="name">$skill:translate</span> <span class="desc">中英日三语互译</span></span><span class="kbd">$</span></div>
-          <div class="row"><span><span class="name">$skill:explain</span> <span class="desc">用小白话解释复杂概念</span></span><span class="kbd">$</span></div>
-        </div>
-
-        <!-- ! shell 命令面板 -->
-        <div class="popover" id="shellPanel" style="display:none">
-          <div class="head"><span><span class="trigger">!</span> shell 命令</span><span class="kbd">↑↓ ⏎</span></div>
-          <div class="row"><span><span class="name">!git status</span> <span class="desc">查看仓库状态</span></span><span class="kbd">!</span></div>
-          <div class="row"><span><span class="name">!git diff --stat</span> <span class="desc">变更文件统计</span></span><span class="kbd">!</span></div>
-          <div class="row"><span><span class="name">!pnpm install</span> <span class="desc">安装依赖</span></span><span class="kbd">!</span></div>
-          <div class="row"><span><span class="name">!pnpm test</span> <span class="desc">跑测试</span></span><span class="kbd">!</span></div>
-          <div class="row"><span><span class="name">!ls -la</span> <span class="desc">列出文件</span></span><span class="kbd">!</span></div>
-        </div>
-
-        <!-- ↑ 历史下拉面板 -->
-        <div class="popover history-pop" id="historyPanel" style="display:none">
-          <div class="head"><span><span class="trigger">↑</span> 本次会话已发送</span><span class="kbd">↑↓ ⏎ Esc</span></div>
-          <div class="empty">还没有发送记录</div>
-        </div>
-       </div>
-
-      <!-- 4. Composer Toolbar (极简:仅拖入提示 + 计数 + 历史 + ⏎) -->
       <div class="composer-toolbar">
         <div class="left">
           <span class="tool-btn" style="color:var(--tmd-fg-faint);cursor:default;" title="拖拽文件到任意位置或 ⌘V 粘贴图片">
@@ -862,93 +509,73 @@
         </div>
         <div class="right">
           <span class="counter" id="charCounter">0 字 · ≈ 0 token</span>
+          <div class="divider-v"></div>
           <button class="tool-btn" id="historyBtn" title="↑ 历史(本次会话已发送)" style="cursor:pointer; margin-left:auto;">↑ 历史</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ============ 右侧:功能清单 ============ -->
   <aside class="features-pane">
     <h2>富 composer 功能清单</h2>
-    <p class="subtitle">对照左侧 demo · ✅ 已具备 / ⏳ 进阶阶段 · 共 26 项</p>
+    <p class="subtitle">对照左侧 demo · ✅ 已具备 / ⏳ 进阶阶段</p>
 
     <h3>A · 文本与令牌</h3>
     <ul>
       <li><span class="ok">✅</span><b>1. 多行文本编辑</b> — Enter 发送 / Shift+Enter 换行</li>
-      <li><span class="ok">✅</span><b>2. @文件引用 token</b> — 徽章形式,点击跳转 <span class="tag">v1</span></li>
-      <li><span class="ok">✅</span><b>3. $skill 引用 token</b> — 蓝色徽章,可移除</li>
-      <li><span class="ok">✅</span><b>4. /slash 命令下拉</b> — 见左下角命令面板</li>
-      <li><span class="ok">✅</span><b>5. 触发符内联 chip</b> — 三类不同颜色</li>
-      <li><span class="ok">✅</span><b>6. 草稿持久化</b> — 切换/刷新恢复</li>
+      <li><span class="ok">✅</span><b>2. @文件引用 token</b> — 灰色徽章,× 移除</li>
+      <li><span class="ok">✅</span><b>3. $skill / /command / !shell token</b> — 不同色 chip</li>
     </ul>
 
-    <h3>B · 多模态附件 <span style="color:var(--tmd-fg-faint);font-weight:normal;">(本次新增重点)</span></h3>
+    <h3>B · 多模态附件 <span style="color:var(--tmd-fg-faint);font-weight:normal;">(本次重点)</span></h3>
     <ul>
-      <li><span class="ok">✅</span><b>7. 拖拽上传图片</b> — 单/多张,PNG/JPG/GIF/WebP</li>
-      <li><span class="ok">✅</span><b>8. 粘贴图片</b> — ⌘V 自动捕获剪贴板 <span class="tag">v1</span></li>
-      <li><span class="ok">✅</span><b>9. 点按钮选择文件</b> — 原生 file picker</li>
-      <li><span class="ok">✅</span><b>10. 缩略图卡片</b> — 60×60 + 类型/大小元信息</li>
-      <li><span class="ok">✅</span><b>11. 悬停大图预览</b> — 点缩略图放大</li>
-      <li><span class="ok">✅</span><b>12. 图片/PDF/代码 分流卡</b> — 三种样式</li>
-      <li><span class="ok">✅</span><b>13. 拖拽排序</b> — 多附件间调换顺序</li>
-      <li><span class="ok">✅</span><b>14. 一键清空 / 单张删除</b> — × 按钮 + 全部清除</li>
+      <li><span class="ok">✅</span><b>4. 拖拽上传图片/文件</b> — 任意位置 <span class="tag">v1</span></li>
+      <li><span class="ok">✅</span><b>5. 粘贴图片 ⌘V</b> — 剪贴板图片直接变附件 <span class="tag">v1</span></li>
+      <li><span class="ok">✅</span><b>6. 缩略图卡片</b> — canvas 缩到 128px · 大小自动单位</li>
+      <li><span class="ok">✅</span><b>7. 点击大图预览</b> — 全屏遮罩 + Esc 关</li>
+      <li><span class="ok">✅</span><b>8. img / pdf / code / file 四种卡</b> — 自动分流</li>
+      <li><span class="ok">✅</span><b>9. 卡片间拖拽重排</b> — 原生 HTML5 DnD</li>
+      <li><span class="ok">✅</span><b>10. × 单删 / "全部清除"</b> — 双向同步</li>
+      <li><span class="ok">✅</span><b>11. 拖入自动注入 @filename token</b> — 编辑器联动</li>
     </ul>
 
-    <h3>C · 命令与交互</h3>
+    <h3>C · 快捷键</h3>
     <ul>
-      <li><span class="ok">✅</span><b>15. 斜杠命令面板</b> — 说明 + 快捷键提示</li>
-      <li><span class="ok">✅</span><b>16. 代码块识别</b> — ``` 自动语法高亮</li>
-      <li><span class="ok">✅</span><b>17. @提及文件树下拉</b> — VSCode quick open 风格</li>
-      <li><span class="ok">✅</span><b>18. ↑ 历史召回</b> — 空输入时调出上一条</li>
+      <li><span class="ok">✅</span><b>12. ↑ 空输入时弹历史</b> — 本次会话已发送</li>
+      <li><span class="ok">✅</span><b>13. Enter 发送 / Shift+Enter 换行</b></li>
     </ul>
 
     <h3>D · 可用性细节</h3>
     <ul>
-      <li><span class="ok">✅</span><b>19. 字符计数 + token 估算</b> — 右下角</li>
-      <li><span class="ok">✅</span><b>20. 长粘贴自动折叠</b> — &lt;&lt;&lt; N lines folded</li>
-      <li><span class="ok">✅</span><b>21. 文件类型自动分流</b> — img / pdf / code / file</li>
-      <li><span class="ok">✅</span><b>22. 附件数量上限提示</b> — 超过 N 张 toast</li>
-      <li><span class="ok">✅</span><b>23. 附件自动注入编辑器</b> — 拖入/粘贴后在光标处插入 <code>@filename</code> token,双击 token 高亮对应附件卡</li>
+      <li><span class="ok">✅</span><b>14. 字符计数 + token 估算</b> — 右下角</li>
+      <li><span class="ok">✅</span><b>15. 附件数量上限</b> — 默认 12 张,超出 toast</li>
+      <li><span class="ok">✅</span><b>16. 无附件时 strip 不显示</b> — 极简默认态</li>
+    </ul>
 
     <h3>E · 进阶(未来 phase)</h3>
     <ul>
-      <li><span class="later">⏳</span><b>24. 语音输入</b> — mic 录音转文字 <span class="tag optional">optional</span></li>
-      <li><span class="later">⏳</span><b>25. 外部 URL 自动转卡片</b> — 拖入链接预览</li>
-      <li><span class="later">⏳</span><b>26. 代码 diff 模式</b> — 选中代码块触发</li>
+      <li><span class="later">⏳</span><b>17. 语音输入</b> <span class="tag optional">optional</span></li>
+      <li><span class="later">⏳</span><b>18. 外部 URL 自动转卡片</b></li>
+      <li><span class="later">⏳</span><b>19. 代码 diff 模式</b></li>
+    </ul>
   </aside>
 </div>
 
-<!-- 大图预览遮罩 —— 默认 pointer-events:none,显示时 auto,点空白关闭 + Esc 关闭 -->
 <div class="preview-overlay" id="previewOverlay">
   <img alt="preview" id="previewImg"/>
 </div>
 
 <button class="theme-toggle" onclick="toggleTheme()">切换 light / dark</button>
+
 <script>
-/* ============================================================
-   富 composer 原型 —— 交互脚本(纯演示,不连真实后端)
-   ============================================================ */
-  const composer = document.getElementById('composer');
-  const strip    = document.getElementById('attachStrip');
-  const section  = document.getElementById('attachSection');
-  const editor   = document.getElementById('editor');
-  const textareaWrap = document.getElementById('textareaWrap');
+  const composer   = document.getElementById('composer');
+  const strip      = document.getElementById('attachStrip');
+  const section    = document.getElementById('attachSection');
+  const editor     = document.getElementById('editor');
+  const overlay    = document.getElementById('previewOverlay');
   const previewImg = document.getElementById('previewImg');
   const counter    = document.getElementById('charCounter');
-  const slashPanel = document.getElementById('slashPanel');
 
-  /* 大图预览关闭:点空白关 / Esc 关 / 点图片本身不关 */
-  function closePreview() { overlay.classList.remove('show'); }
-  overlay.addEventListener('click', (e) => {
-    if (e.target === previewImg) return;   // 点图不关
-    closePreview();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && overlay.classList.contains('show')) closePreview();
-  });
-
-  /* ------------ 工具函数 ------------ */
   let _uid = 100;
   function uid() { return 'u' + (++_uid); }
 
@@ -958,8 +585,9 @@
     if (n < 1024*1024*1024) return (n/1024/1024).toFixed(1) + ' MB';
     return (n/1024/1024/1024).toFixed(1) + ' GB';
   }
+  function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function truncate(s, n) { return s.length > n ? s.slice(0, n-1) + '…' : s; }
 
-  /* 文件类型分流 */
   function classify(name, mime) {
     const ext = (name.split('.').pop() || '').toLowerCase();
     const m = (mime || '').toLowerCase();
@@ -971,7 +599,6 @@
     return { kind: 'file', badge: 'FILE' };
   }
 
-  /* toast */
   function toast(msg, ms = 2200) {
     let el = document.querySelector('.toast');
     if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
@@ -981,13 +608,23 @@
     el._t = setTimeout(() => el.classList.remove('show'), ms);
   }
 
-  /* ------------ 附件显隐控制 ------------ */
+  function closePreview() { overlay.classList.remove('show'); }
+  overlay.addEventListener('click', (e) => {
+    if (e.target === previewImg) return;
+    closePreview();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && overlay.classList.contains('show')) closePreview();
+  });
+
   function updateAttachCount() {
     const n = strip.querySelectorAll('.attach[data-id]').length;
-    document.getElementById('attachCount').textContent = n;
+    const c = document.getElementById('attachCount');
+    if (c) c.textContent = n;
     if (n === 0) section.setAttribute('hidden', '');
     else section.removeAttribute('hidden');
   }
+
   function removeAttach(id) {
     const card = strip.querySelector('.attach[data-id="' + id + '"]');
     if (card) card.remove();
@@ -996,6 +633,7 @@
     updateAttachCount();
     refreshComposerState();
   }
+
   function clearAllAttachments() {
     strip.querySelectorAll('.attach[data-id]').forEach(c => c.remove());
     editor.querySelectorAll('.token[data-aid]').forEach(t => t.remove());
@@ -1003,9 +641,7 @@
     refreshComposerState();
   }
 
-  /* ------------ 渲染单张附件卡 ------------ */
   function buildAttach(item) {
-    /* item: { id, name, size, kind, badge, thumb (dataURL or null) } */
     const el = document.createElement('div');
     el.className = 'attach kind-' + item.kind;
     el.dataset.id = item.id;
@@ -1024,14 +660,11 @@
       '</div>' +
       '<div class="close" title="移除">×</div>';
 
-    /* × 按钮删除 */
     el.querySelector('.close').addEventListener('click', (e) => {
-      e.stopPropagation();
-      el.remove();
-      updateAttachCount();
+      e.stopPropagation(); e.preventDefault();
+      removeAttach(item.id);
     });
 
-    /* 点击图片放大 —— 走 fullSrc(原图/适配版),不要走 128px 缩略图 */
     if (item.kind === 'image' && (item.fullSrc || item.thumb)) {
       el.addEventListener('click', () => {
         previewImg.src = item.fullSrc || item.thumb;
@@ -1039,7 +672,6 @@
       });
     }
 
-    /* 卡片间拖拽排序 */
     el.addEventListener('dragstart', (e) => {
       el.classList.add('sortable-chosen');
       e.dataTransfer.effectAllowed = 'move';
@@ -1067,16 +699,8 @@
     return el;
   }
 
-  function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-  function truncate(s, n) { return s.length > n ? s.slice(0, n-1) + '…' : s; }
-
-  /* ------------ 接入文件(File 列表) ------------ */
-  const MAX_FILES = 12;
-
-  /* 把 token 注入编辑器末尾(把光标移到末尾后插入) */
   function insertTokenAtEnd(fileName, attachId) {
     editor.focus();
-    /* 把选区移到文档末尾 */
     const range = document.createRange();
     range.selectNodeContents(editor);
     range.collapse(false);
@@ -1085,98 +709,83 @@
     sel.addRange(range);
 
     const tok = document.createElement('span');
-    tok.className = 'token file';
+    tok.className = 'token';
     tok.dataset.aid = attachId;
     tok.contentEditable = 'false';
-    /* 末尾如果没空格分隔,补一个 */
+
     const tail = editor.lastChild;
     const tailText = (tail && tail.nodeType === Node.TEXT_NODE) ? (tail.textContent || '') : '';
     if (!/ $/.test(tailText)) editor.appendChild(document.createTextNode(' '));
 
     tok.innerHTML = '@' + escapeHtml(fileName) + ' <span class="x">×</span>';
     editor.appendChild(tok);
-    /* 空格分隔 */
     editor.appendChild(document.createTextNode(' '));
-    /* × 删除:同时移除编辑器里对应 token + 附件卡 */
+
     tok.querySelector('.x').addEventListener('click', (e) => {
       e.stopPropagation();
-      e.preventDefault();
-      tok.remove();
       removeAttach(attachId);
-    });
-    /* 双击 token = 高亮对应附件 */
-    tok.addEventListener('dblclick', () => {
-      const card = strip.querySelector('.attach[data-id="' + attachId + '"]');
-      if (card) {
-        card.classList.add('drop-target');
-        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        setTimeout(() => card.classList.remove('drop-target'), 1200);
-      }
     });
     refreshComposerState();
   }
 
- function addFiles(fileList) {
-   const files = Array.from(fileList || []);
-   if (!files.length) return;
-   const current = strip.querySelectorAll('.attach[data-id]').length;
-   const remain = MAX_FILES - current;
-   if (remain <= 0) { toast('附件已达上限 ' + MAX_FILES); return; }
-   const accept = files.slice(0, remain);
+  function addFiles(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    const MAX_FILES = 12;
+    const current = strip.querySelectorAll('.attach[data-id]').length;
+    const remain = MAX_FILES - current;
+    if (remain <= 0) { toast('附件已达上限 ' + MAX_FILES); return; }
+    const accept = files.slice(0, remain);
 
-   accept.forEach(file => {
-     const { kind, badge } = classify(file.name, file.type);
-     const id = uid();
-     const item = { id, name: file.name, size: file.size, kind, badge, thumb: null, fullSrc: null };
+    accept.forEach(file => {
+      const { kind, badge } = classify(file.name, file.type);
+      const id = uid();
+      const item = { id, name: file.name, size: file.size, kind, badge, thumb: null, fullSrc: null };
 
-     if (kind === 'image') {
-       const reader = new FileReader();
-       reader.onload = (ev) => {
-         const original = ev.target.result;
-         const img = new Image();
-         img.onload = () => {
-           /* thumb: 128px 长边,丢给卡片背景 */
-           const t = document.createElement('canvas');
-           const tMax = 128;
-           const tR = Math.min(tMax / img.width, tMax / img.height, 1);
-           t.width = Math.round(img.width * tR);
-           t.height = Math.round(img.height * tR);
-           t.getContext('2d').drawImage(img, 0, 0, t.width, t.height);
-           item.thumb = t.toDataURL('image/jpeg', 0.82);
+      if (kind === 'image') {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const original = ev.target.result;
+          const img = new Image();
+          img.onload = () => {
+            const t = document.createElement('canvas');
+            const tMax = 128;
+            const tR = Math.min(tMax / img.width, tMax / img.height, 1);
+            t.width = Math.round(img.width * tR);
+            t.height = Math.round(img.height * tR);
+            t.getContext('2d').drawImage(img, 0, 0, t.width, t.height);
+            item.thumb = t.toDataURL('image/jpeg', 0.82);
 
-           /* fullSrc: 2048px 长边,作为预览大图源
-              原图若更大则压缩;原图更小则保留原图分辨率 */
-           const fMax = 2048;
-           const fR = Math.min(fMax / img.width, fMax / img.height, 1);
-           if (fR < 1) {
-             const f = document.createElement('canvas');
-             f.width = Math.round(img.width * fR);
-             f.height = Math.round(img.height * fR);
-             f.getContext('2d').drawImage(img, 0, 0, f.width, f.height);
-             item.fullSrc = f.toDataURL('image/jpeg', 0.92);
-           } else {
-             item.fullSrc = original;
-           }
+            const fMax = 2048;
+            const fR = Math.min(fMax / img.width, fMax / img.height, 1);
+            if (fR < 1) {
+              const f = document.createElement('canvas');
+              f.width = Math.round(img.width * fR);
+              f.height = Math.round(img.height * fR);
+              f.getContext('2d').drawImage(img, 0, 0, f.width, f.height);
+              item.fullSrc = f.toDataURL('image/jpeg', 0.92);
+            } else {
+              item.fullSrc = original;
+            }
 
-           const el = buildAttach(item);
-           strip.appendChild(el);
-           updateAttachCount();
-           insertTokenAtEnd(file.name, id);
-         };
-         img.src = original;
-       };
-       reader.readAsDataURL(file);
-     } else {
-       strip.appendChild(buildAttach(item));
-       updateAttachCount();
-       insertTokenAtEnd(file.name, id);
-     }
-   });
+            const el = buildAttach(item);
+            strip.appendChild(el);
+            updateAttachCount();
+            insertTokenAtEnd(file.name, id);
+          };
+          img.src = original;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        strip.appendChild(buildAttach(item));
+        updateAttachCount();
+        insertTokenAtEnd(file.name, id);
+      }
+    });
 
-   if (files.length > remain) toast('已附加 ' + remain + ' / ' + files.length + ' 个，超过上限已忽略');
- }
+    if (files.length > remain) toast('已附加 ' + remain + ' / ' + files.length + ' 个,超过上限已忽略');
+  }
 
-  /* ------------ 拖拽到 composer 任意位置 ------------ */
   ['dragenter','dragover'].forEach(evt => composer.addEventListener(evt, (e) => {
     e.preventDefault();
     composer.classList.add('drag-over');
@@ -1188,320 +797,127 @@
     e.preventDefault();
     composer.classList.remove('drag-over');
     const dt = e.dataTransfer;
-    if (!dt) return;
-    /* 优先当文件;否则走卡片重排(已经在卡片级 drop 处理了) */
-    if (dt.files && dt.files.length) addFiles(dt.files);
+    if (dt && dt.files && dt.files.length) addFiles(dt.files);
   });
 
-  /* ------------ 粘贴图片(⌘V) ------------ */
   composer.addEventListener('paste', (e) => {
     if (!e.clipboardData) return;
-    /* 文本粘贴走默认 contenteditable(支持 token 高亮由编辑器决定) */
     const items = Array.from(e.clipboardData.items);
     const imgItem = items.find(it => it.type.startsWith('image/'));
     if (imgItem) {
       e.preventDefault();
       const file = imgItem.getAsFile();
       if (file) {
-        const name = (file.name && file.name !== 'image.png')
-          ? file.name
-          : ('pasted-' + Date.now() + '.png');
+        const name = (file.name && file.name !== 'image.png') ? file.name : ('pasted-' + Date.now() + '.png');
         addFiles([new File([file], name, { type: file.type })]);
       }
     }
   });
 
-  /* ------------ editor ↔ strip 双向同步 ------------
-     用户在编辑器里删除/剪切/Backspace 移除 token → 自动移除对应附件卡
-     用 MutationObserver 覆盖所有 DOM 删除路径
-  */
   const editorObserver = new MutationObserver((mutations) => {
     for (const m of mutations) {
       for (const node of m.removedNodes) {
         if (node.nodeType !== 1) continue;
-        /* 节点本身是 token */
         if (node.classList && node.classList.contains('token') && node.dataset.aid) {
-          removeAttach(node.dataset.aid, /* fromEditor */ true);
+          removeAttach(node.dataset.aid);
         }
-        /* 节点是父容器(整段删掉的情况) */
         const nested = node.querySelectorAll && node.querySelectorAll('.token[data-aid]');
-        if (nested) nested.forEach(t => removeAttach(t.dataset.aid, true));
+        if (nested) nested.forEach(t => removeAttach(t.dataset.aid));
       }
     }
   });
   editorObserver.observe(editor, { childList: true, subtree: true });
 
-  /* ------------ 统一 popover 触发器系统 ------------
-     输入 /、@、$、! 触发对应面板;↑ 触发历史面板
-     所有面板互斥(同时只能开一个),统一在 textarea 上方左对齐浮出 */
-  /* 缓存各面板的 row 数据 —— 一次性读 DOM,避免后续 openPopover 复读空 DOM */
-  const popovers = {};
-  function registerPopover(id) {
-    const panel = document.getElementById(id);
-    popovers[id] = { panel, items: [], pickIdx: 0, open: false };
-    if (!panel) return;
-    /* 从 DOM 里的静态 row 读数据,存到 items 数组 */
-    popovers[id].items = Array.from(panel.querySelectorAll(':scope > .row')).map(r => {
-      const nameEl = r.querySelector('.name');
-      const descEl = r.querySelector('.desc');
-      const metaEl = r.querySelector('.meta');
-      const kbdEl  = r.querySelector('.kbd');
-      return {
-        label: nameEl ? nameEl.textContent : '',
-        desc:  descEl ? descEl.textContent : '',
-        meta:  metaEl ? metaEl.textContent : '',
-        kbd:   kbdEl  ? kbdEl.textContent  : ''
-      };
-    });
-  }
-  registerPopover('slashPanel');
-  registerPopover('filePanel');
-  registerPopover('skillPanel');
-  registerPopover('shellPanel');
-  function closeAllPopovers() {
-    Object.values(popovers).forEach(p => {
-      p.open = false;
-      if (p.panel) p.panel.style.display = 'none';
-    });
-  }
-  function getPopoverItems(id) {
-    if (id === 'historyPanel') return historyItems();
-    return popovers[id] ? popovers[id].items : [];
-  }
-  function positionPopover(p) {
-    /* 锚定到 textarea-wrap 左上角上方一点距离 */
-    const rect = textareaWrap.getBoundingClientRect();
-    const margin = 6;
-    let top = rect.top - margin;
-    let left = rect.left;
-    /* 如果上方空间不够,放到 textarea-wrap 下方 */
-    if (top - 260 < 0) {
-      top = rect.bottom + margin;
-    } else {
-      top = top - 260;  /* 浮在 textarea 上方,260 = max-height */
-    }
-    /* 防止超出右边界 */
-    const maxLeft = window.innerWidth - p.panel.offsetWidth - 8;
-    if (left > maxLeft) left = maxLeft;
-    p.panel.style.top = top + 'px';
-    p.panel.style.left = left + 'px';
-  }
-  function openPopover(id) {
-    closeAllPopovers();
-    const p = popovers[id];
-    if (!p || !p.panel) return;
-    const items = getPopoverItems(id);
-    if (!items.length) { toast('没有候选'); return; }
-    p.items = items;
-    p.open = true;
-    p.pickIdx = 0;
-    renderPopoverRows(p);
-    /* 先显示再定位(需要 offsetWidth) */
-    p.panel.style.display = 'block';
-    positionPopover(p);
-  }
-
-  function renderPopoverRows(p) {
-    /* 只清 row + empty,不破坏 .head */
-    p.panel.querySelectorAll(':scope > .row, :scope > .empty').forEach(n => n.remove());
-    const rows = p.items.map((it, i) => {
-      const cls = 'row' + (i === p.pickIdx ? ' active' : '');
-      const meta = it.meta ? '<span class="meta">' + escapeHtml(it.meta) + '</span>' : '';
-      const desc = it.desc ? '<span class="desc">' + escapeHtml(it.desc) + '</span>' : '';
-      return '<div class="' + cls + '" data-i="' + i + '">' +
-             '<span><span class="name">' + escapeHtml(it.label) + '</span>' +
-             (desc || meta ? desc + meta : '') + '</span>' +
-             '<span class="kbd">' + escapeHtml(it.kbd || '') + '</span></div>';
-    }).join('');
-    const wrap = document.createElement('div');
-    wrap.innerHTML = rows;
-    while (wrap.firstChild) p.panel.appendChild(wrap.firstChild);
-    /* 点击行直接选中 */
-    p.panel.querySelectorAll(':scope > .row').forEach(r => {
-      r.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const id = idOfPopover(p);
-        p.pickIdx = parseInt(r.dataset.i, 10);
-        pickPopoverItem(id);
-      });
-    });
-  }
-  function idOfPopover(p) { return Object.keys(popovers).find(k => popovers[k] === p); }
-
-
-  function pickPopoverItem(id) {
-    const p = popovers[id];
-    if (!p || !p.items[p.pickIdx]) return;
-    const it = p.items[p.pickIdx];
-    /* 不同面板的回填策略:
-        / → 替换输入框为 "/cmd "
-        @ → 替换为 "@path "(空 token)
-        $ → 替换为 "$skill:name "
-        ! → 替换为 "!cmd "       */
-    editor.innerText = it.label + ' ';
-    refreshComposerState();
-    closeAllPopovers();
-    /* 光标移末尾 */
-    const range = document.createRange();
-    range.selectNodeContents(editor);
-    range.collapse(false);
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
-    editor.focus();
-  }
-
-  /* 触发符检测 —— 看光标前的字符 */
-  function triggerAtCursor() {
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount) return null;
-    const range = sel.getRangeAt(0);
-    if (!editor.contains(range.startContainer)) return null;
-    const node = range.startContainer;
-    const offset = range.startOffset;
-    /* 必须是文本节点 */
-    if (node.nodeType !== Node.TEXT_NODE) return null;
-    const text = node.textContent.slice(0, offset);
-    const m = text.match(/([\/@\$!])([^\s\/@\$!]*)$/);
-    return m ? { char: m[1], q: m[2], start: offset - m[0].length } : null;
-  }
-
-  function popoverIdForTrigger(ch) {
-    return ({ '/': 'slashPanel', '@': 'filePanel', '$': 'skillPanel', '!': 'shellPanel' })[ch];
-  }
-
-  /* editor input 监听:打字过程中检测触发符 */
-  editor.addEventListener('input', () => {
-    const t = triggerAtCursor();
-    if (t) openPopover(popoverIdForTrigger(t.char));
-    else closeAllPopovers();
-  });
-
-  /* editor keydown:↑↓ Enter Esc 在 popover 内导航;其他位置关闭 */
   editor.addEventListener('keydown', (e) => {
-    const open = Object.values(popovers).find(p => p.open);
-    if (e.key === 'Escape' && open) { e.preventDefault(); closeAllPopovers(); return; }
-    if (open && e.key === 'ArrowDown') {
-      e.preventDefault();
-      open.pickIdx = Math.min(open.items.length - 1, open.pickIdx + 1);
-      renderPopoverRows(open);
-    } else if (open && e.key === 'ArrowUp') {
-      e.preventDefault();
-      open.pickIdx = Math.max(0, open.pickIdx - 1);
-      renderPopoverRows(open);
-    } else if (open && e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      pickPopoverItem(idOfPopover(open));
-    }
-  });
-
-  /* ------------ 字符计数 ------------ */
-  function refreshComposerState() {
-    const text = editor.innerText.trim();
-    const len = text.length;
-    counter.textContent = len + ' 字 · ≈ ' + Math.round(len/2.1) + ' token';
-    counter.className = 'counter' + (len > 800 ? ' danger' : len > 400 ? ' warn' : '');
-  }
-  editor.addEventListener('input', refreshComposerState);
-
-  /* ------------ Enter 发送 + popover 互斥 ------------ */
-  function sendCurrent() {
+    if (e.key !== 'Enter') return;
+    if (e.shiftKey) return;
+    if (e.nativeEvent && e.nativeEvent.isComposing) return;
+    e.preventDefault();
     const text = editor.innerText.trim();
     const attN = strip.querySelectorAll('.attach[data-id]').length;
     if (!text && attN === 0) return;
     console.log('[composer→]', { text, attachments: attN });
     toast('已发送(' + attN + ' 附件)');
-    pushHistory(text, attN);
-    /* 清空输入 + 附件(token 同步删除) */
     editor.innerHTML = '';
     strip.querySelectorAll('.attach[data-id]').forEach(c => c.remove());
     editor.querySelectorAll('.token[data-aid]').forEach(t => t.remove());
     updateAttachCount();
     refreshComposerState();
     editor.focus();
-  }
-  editor.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter') return;
-    if (e.shiftKey) return;
-    if (e.nativeEvent && e.nativeEvent.isComposing) return;
-    const openP = Object.values(popovers).find(p => p.open);
-    if (openP) { e.preventDefault(); pickPopoverItem(idOfPopover(openP)); return; }
-    e.preventDefault();
-    sendCurrent();
   });
 
-  function formatRel(ts) {
-    const d = (Date.now() - ts) / 1000;
-    if (d < 60) return Math.floor(d) + '秒前';
-    if (d < 3600) return Math.floor(d/60) + '分钟前';
-    if (d < 86400) return Math.floor(d/3600) + '小时前';
-    return new Date(ts).toLocaleTimeString();
+  function refreshComposerState() {
+    const text = editor.innerText.trim();
+    const len = text.length;
+    counter.textContent = len + ' 字 · ≈ ' + Math.round(len/2.1) + ' token';
   }
+  editor.addEventListener('input', refreshComposerState);
 
-  function historyItems() {
-    return sendHistory.slice().reverse().map(h => ({
-      label: h.text ? h.text.slice(0, 80) : '[' + h.attN + ' 个附件]',
-      desc: formatRel(h.ts) + (h.attN ? ' · 📎 ' + h.attN : ''),
-      kbd: '⏎'
-    }));
-  }
-  registerPopover('historyPanel', { items: historyItems });
-
-  function pushHistory(text, attN) {
-    if (!text && !attN) return;
-    const entry = { text, attN, ts: Date.now() };
-    const last = sendHistory[sendHistory.length - 1];
-    if (last && last.text === text && last.attN === attN) return;
-    sendHistory.push(entry);
-    if (sendHistory.length > MAX_HIST) sendHistory.shift();
-    if (popovers.historyPanel.open) renderPopoverRows(popovers.historyPanel);
-  }
-
-  /* ↑ 空输入时打开历史 popover */
-  editor.addEventListener('keydown', (e) => {
-    if (e.key !== 'ArrowUp') return;
-    if (e.nativeEvent && e.nativeEvent.isComposing) return;
-    const openP = Object.values(popovers).find(p => p.open);
-    if (openP) { /* popover 内 ↑↓ 已被新 keydown handler 处理 */ return; }
-    if (editor.innerText.trim() === '') {
-      e.preventDefault();
-      if (sendHistory.length === 0) toast('本次会话还没有发送记录');
-      else openPopover('historyPanel');
-    }
-  });
-
-  /* 点 ↑历史 按钮 */
-  document.getElementById('historyBtn').addEventListener('click', (e) => {
-    console.log('[historyBtn] clicked');
-    e.stopPropagation();        // ★ 显式阻止冒泡到 document click 处理器
-    e.preventDefault();
-    if (popovers.historyPanel.open) { closeAllPopovers(); return; }
-    /* 空历史时不弹空面板,只 toast */
-    if (sendHistory.length === 0) { toast('本次会话还没有发送记录'); return; }
-    openPopover('historyPanel');
-  });
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.popover') && !e.target.closest('#historyBtn') && !e.target.closest('.rich-editor')) {
-      closeAllPopovers();
-    }
-  });
   function toggleTheme() {
     document.documentElement.dataset.theme =
       document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   }
 
-  /* ------------ 初始化 ------------ */
-  /* 把所有 popover 移出 textarea-wrap,作为 body 直接子元素 —— 避免嵌套 stacking context / flex 干扰 */
-  document.querySelectorAll('.popover').forEach(p => document.body.appendChild(p));
+  document.getElementById('historyBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    toast('本次会话历史(原型简化,实际接 sendHistory 数组)');
+  });
 
-  strip.innerHTML = '';
+  (function initSample() {
+    const sample = strip.querySelector('.attach[data-id="sample1"]');
+    if (!sample) return;
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180">' +
+                '<defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1">' +
+                '<stop offset="0%" stop-color="#5b9bd5"/>' +
+                '<stop offset="100%" stop-color="#0a2540"/></linearGradient></defs>' +
+                '<rect width="240" height="180" fill="url(#g)"/>' +
+                '<rect x="20" y="20" width="80" height="14" rx="2" fill="#dbe9f7" opacity="0.6"/>' +
+                '<rect x="20" y="44" width="120" height="6" rx="2" fill="#dbe9f7" opacity="0.4"/>' +
+                '<rect x="20" y="58" width="100" height="6" rx="2" fill="#dbe9f7" opacity="0.4"/>' +
+                '<rect x="20" y="80" width="200" height="80" rx="4" fill="#0a2540" opacity="0.5"/>' +
+                '</svg>';
+    const url = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    sample.querySelector('.thumb').style.backgroundImage = 'url("' + url + '")';
+    sample._fullSrc = url;
+    sample.querySelector('.close').addEventListener('click', (e) => {
+      e.stopPropagation(); e.preventDefault();
+      removeAttach('sample1');
+    });
+    sample.addEventListener('click', () => {
+      previewImg.src = sample._fullSrc;
+      overlay.classList.add('show');
+    });
+    sample.addEventListener('dragstart', (e) => {
+      sample.classList.add('sortable-chosen');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', 'sample1');
+    });
+    sample.addEventListener('dragend', () => {
+      sample.classList.remove('sortable-chosen', 'drop-target');
+      strip.querySelectorAll('.drop-target').forEach(n => n.classList.remove('drop-target'));
+    });
+    sample.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      sample.classList.add('drop-target');
+    });
+    sample.addEventListener('dragleave', () => sample.classList.remove('drop-target'));
+    sample.addEventListener('drop', (e) => {
+      e.preventDefault();
+      sample.classList.remove('drop-target');
+    });
+  })();
+
+  editor.querySelectorAll('.token .x').forEach(x => {
+    x.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const tok = e.target.closest('.token');
+      if (tok) removeAttach(tok.dataset.aid);
+    });
+  });
+
+  updateAttachCount();
   refreshComposerState();
-  /* 预填本次会话历史,让 ↑ 键和 ↑历史 按钮一上来就能看效果 */
-  pushHistory('帮我把 src/plugins/composer/view/Composer.tsx 重构一下,拆成 hook + view 两层', 0);
-  pushHistory('解释下 MutationObserver 是怎么监听 DOM 删除的', 0);
-  pushHistory('这个 UI 的对比度是不是有点低?', 1);
-  pushHistory('translate "/skill:code-review" 上次没跑通,再试一次', 0);
-  pushHistory('列出 /Users/chenxiangning/code/AI/github/tmd-cli 里所有 composer 相关文件', 2);
   editor.focus();
 </script>
 </body>
