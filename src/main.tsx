@@ -1,10 +1,11 @@
 /**
- * 入口：装配内核 + 激活插件 + 挂外壳。
+ * 入口：装配内核 + 激活插件 + 注册默认贡献 + 挂外壳。
  */
 
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { AppShell } from "@shell/AppShell";
+import { registerDefaultContributions } from "@shell/contributions";
 import { host } from "@kernel/host";
 import { allPlugins } from "@plugins/index";
 import "./styles/global.css";
@@ -16,7 +17,10 @@ function App() {
   React.useEffect(() => {
     host
       .activateAll(allPlugins)
-      .then(() => setReady(true))
+      .then(() => {
+        registerDefaultContributions(host);
+        setReady(true);
+      })
       .catch((e: unknown) => setError(String(e)));
   }, []);
 

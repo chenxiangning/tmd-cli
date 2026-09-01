@@ -39,6 +39,12 @@ function emit() {
     : state.tabs[0]?.id ?? null;
   listeners.forEach((fn) => fn());
 }
+/** useSyncExternalStore 的 snapshot — 返回新引用,让 React 检测变化。 */
+let snapshot: TabState = state;
+function refreshSnapshot(): TabState {
+  snapshot = { tabs: [...state.tabs], activeId: state.activeId };
+  return snapshot;
+}
 
 export function openTab(tab: EditorTab): void {
   const existing = state.tabs.find((t) => t.id === tab.id);
@@ -47,18 +53,21 @@ export function openTab(tab: EditorTab): void {
   } else {
     state.tabs.push(tab);
     state.activeId = tab.id;
-  }
+   }
+  refreshSnapshot();
   emit();
 }
 
 export function closeTab(id: string): void {
-  state.tabs = state.tabs.filter((t) => t.id !== id);
+   state.tabs = state.tabs.filter((t) => t.id !== id);
+  refreshSnapshot();
   emit();
 }
 
 export function setActiveTab(id: string | null): void {
   if (state.activeId === id) return;
-  state.activeId = id;
+   state.activeId = id;
+  refreshSnapshot();
   emit();
 }
 
@@ -76,6 +85,6 @@ export function useEditorTabs(): TabState {
       listeners.add(fn);
       return () => listeners.delete(fn);
     },
-    () => state,
+        () => snapshot,
   );
 }

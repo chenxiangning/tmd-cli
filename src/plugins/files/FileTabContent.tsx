@@ -1,0 +1,124 @@
+/**
+ * 文件内容 tab 渲染 —— 文本经 fileHighlighter 注册点高亮。
+ * 未注册或失败时降级到 <pre> 直渲。
+ */
+
+import { useEffect, useState } from "react";
+import { ipc } from "@kernel/ipc";
+import { useEditorTabs } from "@kernel/tabs";
+import { getFileHighlighter } from "@kernel/fileHighlighter";
+
+interface FilePayload {
+  path: string;
+  content: string | null;
+  error: string | null;
+  loaded: boolean;
+}
+
+const fileCache = new Map<string, FilePayload>();
+
+function loadFile(path: string): FilePayload {
+  const cached = fileCache.get(path);
+  if (cached) return cached;
+  const fresh: FilePayload = { path, content: null, error: null, loaded: false };
+  fileCache.set(path, fresh);
+  ipc.fsReadFile(path).then(
+    (content) => {
+      const cur = fileCache.get(path);
+      if (cur) fileCache.set(path, { ...cur, content, loaded: true });
+    },
+    (e) => {
+      const cur = fileCache.get(path);
+      if (cur) fileCache.set(path, { ...cur, error: String(e), loaded: true });
+    },
+  );
+  return fresh;
+}
+
+export function FileTabContent() {
+  const { activeId, tabs } = useEditorTabs();
+  const active = tabs.find((t) => t.id === activeId);
+  const [, setTick] = useState(0);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+
+  const path = active?.kind === "file" ? active.path : null;
+  const payload = path ? loadFile(path) : null;
+
+  // 等待 cache 变 loaded 后强制重渲
+  useEffect(() => {
+    if (!path) return;
+    if (fileCache.get(path)?.loaded) return;
+    const timer = setInterval(() => {
+      if (fileCache.get(path)?.loaded) {
+        setTick((n) => n + 1);
+        clearInterval(timer);
+      }
+    }, 100);
+    return () => clearInterval(timer);
+  }, [path]);
+
+  // 高亮(经注册点,可插拔)
+  useEffect(() => {
+    if (!payload?.loaded || !payload.content || !path) {
+      setHighlighted(null);
+      return;
+    }
+    const highlighter = getFileHighlighter();
+    if (!highlighter || !highlighter.supports(path)) {
+      setHighlighted(null);
+      return;
+    }
+    let cancelled = false;
+    void highlighter.highlight(path, payload.content).then((html) => {
+      if (!cancelled) setHighlighted(html);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [payload?.loaded, payload?.content, path]);
+
+  if (!active || active.kind !== "file" || !payload) {
+    return (
+      <div className="flex h-full items-center justify-center text-xs text-neutral-600">
+        选中一个文件查看
+      </div>
+    );
+  }
+
+  if (payload.error) {
+    return (
+      <div className="flex h-full items-center justify-center text-xs text-red-400">
+        ⚠ {payload.error}
+      </div>
+    );
+  }
+
+  if (!payload.loaded) {
+    return (
+      <div className="flex h-full items-center justify-center text-xs text-neutral-600">
+        加载中…
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* 面包屑:文件相对路径 */}
+      <div className="flex h-7 shrink-0 items-center border-b border-neutral-800 px-3 text-xs text-neutral-500">
+        <span className="truncate">{path}</span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        {highlighted ? (
+          <div
+            className="hljs-preview p-3 text-xs leading-[1.58]"
+            dangerouslySetInnerHTML={{ __html: highlighted }}
+          />
+        ) : (
+          <pre className="p-3 text-xs leading-[1.58] text-neutral-300">
+            {payload.content}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
+}

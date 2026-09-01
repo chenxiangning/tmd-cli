@@ -9,12 +9,17 @@ import type { ComponentType } from "react";
 import type { EventBus } from "./events";
 import type { CliProfile } from "./cli";
 
+/** 外壳暴露的挂载点（第五轮决策：头/底工具栏为扩展预留）。 */
 export type MountPoint =
   | "header.left"
   | "header.right"
+  /** 头部面包屑/工作区-会话导航区。 */
+  | "header.breadcrumb"
   | "footer.left"
   | "footer.right"
   | "leftSidebar.section"
+  /** 左侧会话列表(默认会话面板在此贡献,可被替换)。 */
+  | "leftSidebar.sessionList"
   | "rightSidebar.tab"
   | "leftRail"
   | "rightRail"
@@ -24,7 +29,9 @@ export type MountPoint =
   /** 中央编辑区标签内容 —— 每个 tab 一个组件,按 tabId 取对应内容。 */
   | "editorCenter.tabContent"
   /** 幕布下方富 composer 输入区。 */
-  | "editorCenter.composer";
+  | "editorCenter.composer"
+  /** composer 底部状态条(+ 模型/能力/发送)。 */
+  | "composer.statusBar";
 
 export interface MountContribution {
   /** 同挂载点内排序，小的在前。 */
