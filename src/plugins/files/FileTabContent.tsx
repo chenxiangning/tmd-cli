@@ -79,7 +79,7 @@ export function FileTabContent() {
 
   if (!active || active.kind !== "file" || !payload) {
     return (
-      <div className="flex h-full items-center justify-center text-xs text-neutral-600">
+      <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
         选中一个文件查看
       </div>
     );
@@ -95,7 +95,7 @@ export function FileTabContent() {
 
   if (!payload.loaded) {
     return (
-      <div className="flex h-full items-center justify-center text-xs text-neutral-600">
+      <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
         加载中…
       </div>
     );
@@ -103,10 +103,6 @@ export function FileTabContent() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* 面包屑:文件相对路径 */}
-      <div className="flex h-7 shrink-0 items-center border-b border-neutral-800 px-3 text-xs text-neutral-500">
-        <span className="truncate">{path}</span>
-      </div>
       <div className="min-h-0 flex-1 overflow-auto">
         {highlighted ? (
           <div
@@ -114,7 +110,7 @@ export function FileTabContent() {
             dangerouslySetInnerHTML={{ __html: highlighted }}
           />
         ) : (
-          <pre className="p-3 text-xs leading-[1.58] text-neutral-300">
+          <pre className="p-3 text-xs leading-[1.58] text-(--tmd-fg)">
             {payload.content}
           </pre>
         )}

@@ -9,7 +9,7 @@
 
 import type { Plugin } from "@kernel/plugin";
 import { Composer } from "./view/Composer";
-
+import { ComposerToolbar } from "./view/ComposerToolbar";
 export const composerPlugin: Plugin = {
   id: "composer",
   activate(ctx) {
@@ -17,5 +17,10 @@ export const composerPlugin: Plugin = {
       order: 0,
       component: Composer,
     });
+    ctx.contribute("composer.statusBar", {
+      order: 0,
+      component: ComposerToolbar,
+    });
+    // 额度以 QuotaChip 内嵌 ComposerToolbar(模型/思考 同一行),不再独立卡片。
   },
 };

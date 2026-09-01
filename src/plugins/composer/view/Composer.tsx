@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { host } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
+import { Mounts } from "@kernel/Mounts";
 import { findActiveTrigger, prepareSendPayload } from "../serialize/serialize";
 import type { SuggestionMatch } from "../triggers/suggest";
 import { lookupSuggestions } from "../triggers/suggest";
@@ -143,24 +144,25 @@ export function Composer() {
     <div
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
-      className="relative flex h-full flex-col bg-[#1e1e1e] px-3 py-2"
+      className="relative flex h-full flex-col bg-(--tmd-bg-base)"
     >
       {/* mossx 风格: 圆角 + 1px 边框 + hover/focus 蓝边,跟 chat-input-box 对齐 */}
-      <div className="relative flex h-full flex-col rounded-xl border border-[#3e3e42] bg-[#252526] transition-colors focus-within:border-[#007fd4] hover:border-[#5c5c60]">
-      {matches && activeRange && (
-        <SuggestionList
-          matches={matches}
-          pickIndex={pickIndex}
-          onPick={applyPick}
-          onHoverIndex={setPickIndex}
-        />
-      )}
-      <textarea
-        id="composer-textarea"
-        ref={ref}
-        value={value}
-        placeholder="输入消息，回车发送，Shift+回车换行。可用 / 命令 / $ skill / @ 文件引用。"
-        className="min-h-0 flex-1 resize-none bg-transparent px-3 py-3 text-sm leading-[1.58] text-[#cccccc] outline-none placeholder:text-[#666666]"
+      <div className="relative flex h-full flex-col overflow-hidden border-t border-(--tmd-border) bg-(--tmd-bg-elevated)">
+        <Mounts point="composer.statusBar" />
+        {matches && activeRange && (
+          <SuggestionList
+            matches={matches}
+            pickIndex={pickIndex}
+            onPick={applyPick}
+            onHoverIndex={setPickIndex}
+          />
+        )}
+        <textarea
+          id="composer-textarea"
+          ref={ref}
+          value={value}
+          placeholder="输入消息，回车发送，Shift+回车换行。可用 / 命令 / $ skill / @ 文件引用。"
+          className="min-h-0 flex-1 resize-none bg-transparent p-0 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint)"
         onChange={(e) => {
           setValue(e.target.value);
           setCursor(e.target.selectionStart);

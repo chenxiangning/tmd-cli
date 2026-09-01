@@ -1,87 +1,25 @@
 /**
  * 默认文件视觉 provider —— 通过 kernel/fileVisual 注册点暴露。
- * 用户插件可注册 order 更小的 provider 覆盖默认。
+ *
+ * 视觉规范严格复刻 codemoss 文件树:
+ * - 文件夹统一灰色轮廓(展开换开口造型)。
+ * - 文件按扩展名/文件名映射到 brand-color SVG (JS 黄色 hex / TS 蓝色 hex /
+ *   markdown 深灰框 / git 红色菱形 / eslint 紫色六边形 / shell 绿色 chevron)。
+ * - 颜色名仅控制文字颜色;文件图标本身携带 SVG 内部固定色。
  */
 
 import type { FileVisualProvider } from "@kernel/fileVisual";
+import { getFileTreeIconSvg } from "./utils/fileTreeIcons";
 
-function fileColorClass(name: string, isDir: boolean): string {
-  if (isDir) return "text-sky-400";
-  if (name.startsWith(".")) return "text-neutral-500";
-  const ext = name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
-  switch (ext) {
-    case "md":
-      return "text-orange-400";
-    case "ts":
-    case "tsx":
-      return "text-blue-400";
-    case "js":
-    case "jsx":
-      return "text-yellow-400";
-    case "json":
-      return "text-amber-400";
-    case "rs":
-      return "text-orange-500";
-    case "toml":
-      return "text-purple-400";
-    case "css":
-      return "text-pink-400";
-    case "java":
-      return "text-red-400";
-    case "xml":
-      return "text-teal-400";
-    case "py":
-      return "text-green-400";
-    case "go":
-      return "text-cyan-400";
-    case "yml":
-    case "yaml":
-      return "text-rose-400";
-    default:
-      return "text-neutral-300";
-  }
-}
-
-function fileGlyph(name: string, isDir: boolean): string {
-  if (isDir) return "▸";
-  if (name.startsWith(".")) return "·";
-  const ext = name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
-  switch (ext) {
-    case "md":
-      return "M↓";
-    case "ts":
-    case "tsx":
-      return "TS";
-    case "js":
-    case "jsx":
-      return "JS";
-    case "rs":
-      return "Rs";
-    case "toml":
-      return "T";
-    case "css":
-      return "#";
-    case "json":
-      return "{ }";
-    case "java":
-      return "☕";
-    case "xml":
-      return "<>";
-    case "py":
-      return "Py";
-    case "go":
-      return "Go";
-    default:
-      return "·";
-  }
-}
+/** 文件夹/普通文件统一灰色文字;icon 颜色由 SVG 内部固定。 */
+const DEFAULT_COLOR = "text-(--tmd-fg)";
 
 export const defaultFileVisualProvider: FileVisualProvider = {
   order: 100,
-  match(name, isDir) {
+  match(name, isDir, expanded = false) {
     return {
-      glyph: fileGlyph(name, isDir),
-      colorClass: fileColorClass(name, isDir),
+      svgHtml: getFileTreeIconSvg(name, isDir, expanded),
+      colorClass: DEFAULT_COLOR,
     };
   },
 };

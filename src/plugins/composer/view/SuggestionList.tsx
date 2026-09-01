@@ -14,7 +14,7 @@ export interface SuggestionListProps {
 export function SuggestionList({ matches, pickIndex, onPick, onHoverIndex }: SuggestionListProps) {
   if (matches.length === 0) return null;
   return (
-    <div className="absolute left-3 right-3 top-2 z-10 max-h-56 overflow-auto rounded border border-neutral-700 bg-neutral-900/95 shadow-lg backdrop-blur">
+    <div className="absolute left-0 right-0 top-7 z-10 max-h-56 overflow-auto rounded border border-(--tmd-border-strong) bg-(--tmd-bg-popover) shadow-lg backdrop-blur">
       {matches.map((m, i) => {
         const active = i === pickIndex;
         return (
@@ -26,12 +26,12 @@ export function SuggestionList({ matches, pickIndex, onPick, onHoverIndex }: Sug
             }}
             onMouseEnter={() => onHoverIndex(i)}
             className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs ${
-              active ? "bg-neutral-800 text-neutral-100" : "text-neutral-300 hover:bg-neutral-800"
+              active ? "bg-(--tmd-bg-hover) text-(--tmd-fg)" : "text-(--tmd-fg) hover:bg-(--tmd-bg-hover)"
             }`}
           >
             <span className="font-mono">{m.value}</span>
             {m.description && (
-              <span className="truncate text-neutral-500">{m.description}</span>
+              <span className="truncate text-(--tmd-fg-subtle)">{m.description}</span>
             )}
           </button>
         );
