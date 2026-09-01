@@ -9,10 +9,11 @@
  * 本文件不需要改动 —— 设置面板是注册表驱动的开放结构。
  */
 
-import { Monitor, Settings } from "lucide-react";
+import { Keyboard, Monitor, Settings } from "lucide-react";
 import type { Plugin } from "@kernel/plugin";
 import { SettingsPanel } from "./SettingsPanel";
 import { BasicAppearanceTab } from "./BasicAppearanceTab";
+import { BehaviorTab } from "./BehaviorTab";
 
 export const settingsPlugin: Plugin = {
   id: "settings",
@@ -31,6 +32,13 @@ export const settingsPlugin: Plugin = {
           icon: <Monitor size={14} aria-hidden />,
           order: 0,
           component: BasicAppearanceTab,
+        },
+        {
+          id: "behavior",
+          title: "行为",
+          icon: <Keyboard size={14} aria-hidden />,
+          order: 1,
+          component: BehaviorTab,
         },
       ],
     });

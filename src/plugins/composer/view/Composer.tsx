@@ -2,7 +2,7 @@
  * Composer 视图 —— textarea + 触发器下拉 + 附件条 + 翻译 → PTY。
  *
  * 行为:
- * - Enter 发送 / Shift+Enter 换行
+ * - 发送快捷键由 settings.sendShortcut 决定(默认 Enter 发送 / Shift+Enter 换行;⌘/Ctrl+Enter 模式下相反)
  * - 触发符(由当前会话 cli profile 声明)在光标前识别后,弹下拉
  *   - 候选来自:
  *     @ fsListDir(file 触发)
@@ -19,11 +19,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { host } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import { Mounts } from "@kernel/Mounts";
+import { useSettingsState } from "@kernel/settings";
 import { readDragPayload, clearDragPayload } from "@kernel/internalDrag";
 import { findActiveTrigger, prepareSendPayload } from "../serialize/serialize";
 import type { SuggestionMatch } from "../triggers/suggest";
 import { lookupSuggestions } from "../triggers/suggest";
 import { SuggestionList } from "./SuggestionList";
+import { shouldSendOnEnter } from "./enterAction";
 import { useActiveProfile } from "../state/useActiveProfile";
 import { AttachmentStrip } from "./AttachmentStrip";
 import {
@@ -48,6 +50,7 @@ export function Composer() {
   const [pickIndex, setPickIndex] = useState(0);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const profile = useActiveProfile();
+  const { settings } = useSettingsState();
 
   const triggerSpecs = useMemo(() => profile?.triggers ?? [], [profile]);
 
@@ -246,7 +249,9 @@ export function Composer() {
           id="composer-textarea"
           ref={ref}
           value={value}
-          placeholder="输入消息，回车发送，Shift+回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。"
+          placeholder={settings.sendShortcut === "cmdOrCtrlEnter"
+            ? "输入消息，⌘/Ctrl+回车发送，回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。"
+            : "输入消息，回车发送，Shift+回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。"}
           className="min-h-0 flex-1 resize-none bg-transparent p-0 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint)"
           onChange={(e) => {
             setValue(e.target.value);
@@ -276,7 +281,16 @@ export function Composer() {
                 return;
               }
             }
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            if (e.key === "Enter" &&
+              shouldSendOnEnter(
+                {
+                  shiftKey: e.shiftKey,
+                  metaKey: e.metaKey,
+                  ctrlKey: e.ctrlKey,
+                  isComposing: e.nativeEvent.isComposing,
+                },
+                settings.sendShortcut,
+              )) {
               e.preventDefault();
               sendCurrent();
             }

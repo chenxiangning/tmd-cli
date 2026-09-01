@@ -1,6 +1,6 @@
 /**
  * 全局设置 store 行为契约测试。
- * 覆盖:默认值、updateSettings 合并与 sanitize 回落(非法 theme/preset id)、
+ * 覆盖:默认值、updateSettings 合并与 sanitize 回落(非法 theme/preset id/sendShortcut)、
  * boot 加载优先级(Tauri → localStorage 降级)、持久化降级、面板开关幂等、
  * subscribe/退订。
  * 模块级单例,每个用例经 vi.resetModules + 动态 import 取全新实例。
@@ -57,6 +57,7 @@ describe("初始状态与默认值", () => {
       lightThemePresetId: "vscode-light-modern",
       darkThemePresetId: "vscode-dark-modern",
       customThemePresetId: "vscode-dark-modern",
+      sendShortcut: "enter",
     });
     expect(s.loaded).toBe(false);
     expect(s.panelOpen).toBe(false);
@@ -81,6 +82,17 @@ describe("updateSettings 合并与清洗", () => {
     expect(settings.getSettingsState().settings.darkThemePresetId).toBe(
       "vscode-dark-modern",
     );
+  });
+  it("非法 sendShortcut 回落 enter", () => {
+    settings.updateSettings({ sendShortcut: "ctrl+shift" as never });
+    expect(settings.getSettingsState().settings.sendShortcut).toBe("enter");
+  });
+
+  it("合法 sendShortcut 合并生效,未触及字段保留", () => {
+    settings.updateSettings({ sendShortcut: "cmdOrCtrlEnter" });
+    const s = settings.getSettingsState().settings;
+    expect(s.sendShortcut).toBe("cmdOrCtrlEnter");
+    expect(s.theme).toBe("system");
   });
 
   it("合法 preset id 生效", () => {

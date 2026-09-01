@@ -19,6 +19,8 @@ import {
 } from "./themePresets";
 
 export type ThemePreference = "system" | "light" | "dark" | "custom";
+/** 发送快捷键:"enter" = Enter 发送 / Shift+Enter 换行;"cmdOrCtrlEnter" = ⌘/Ctrl+Enter 发送 / Enter 换行。 */
+export type SendShortcut = "enter" | "cmdOrCtrlEnter";
 
 export interface AppSettings {
   theme: ThemePreference;
@@ -28,6 +30,8 @@ export interface AppSettings {
   darkThemePresetId: ThemePresetId;
   /** 自定义模式当前 preset。 */
   customThemePresetId: ThemePresetId;
+  /** Composer 发送快捷键行为。 */
+  sendShortcut: SendShortcut;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -35,12 +39,14 @@ const DEFAULT_SETTINGS: AppSettings = {
   lightThemePresetId: DEFAULT_LIGHT_THEME_PRESET_ID,
   darkThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
   customThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
+  sendShortcut: "enter",
 };
 
 /** 浏览器 dev 降级存储 key(Tauri 环境不走这里)。 */
 const LOCAL_FALLBACK_KEY = "tmd.settings.v1";
 
 const THEME_PREFERENCES: readonly ThemePreference[] = ["system", "light", "dark", "custom"];
+const SEND_SHORTCUTS: readonly SendShortcut[] = ["enter", "cmdOrCtrlEnter"];
 
 /** 外部数据 → 合法 AppSettings;非法/缺失字段回落默认值。 */
 function sanitize(raw: unknown): AppSettings {
@@ -59,6 +65,9 @@ function sanitize(raw: unknown): AppSettings {
     customThemePresetId: isThemePresetId(obj.customThemePresetId as string)
       ? (obj.customThemePresetId as ThemePresetId)
       : DEFAULT_SETTINGS.customThemePresetId,
+    sendShortcut: SEND_SHORTCUTS.includes(obj.sendShortcut as SendShortcut)
+      ? (obj.sendShortcut as SendShortcut)
+      : DEFAULT_SETTINGS.sendShortcut,
   };
 }
 
