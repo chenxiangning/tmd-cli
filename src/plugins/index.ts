@@ -11,6 +11,7 @@ import { composerPlugin } from "./composer";
 import { filesPlugin } from "./files";
 import { gitPlugin } from "./git";
 import { workspacePlugin } from "./workspace";
+import { settingsPlugin } from "./settings";
 
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
@@ -20,4 +21,5 @@ export const allPlugins: Plugin[] = [
   filesPlugin,
   gitPlugin,
   composerPlugin,
+  settingsPlugin,
 ];

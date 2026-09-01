@@ -1,0 +1,305 @@
+/* ──────────────────────────────────────────────────────────
+ * 设置面板 —— 全屏 overlay(返回应用 + 左 section 导航 + 右 tab 内容)。
+ *
+ * 视觉与 docs/prototypes/settings-panel.html 原型 1:1;
+ * 颜色零硬编码,全部消费 design-tokens.md 的 --tmd-* 变量。
+ * ────────────────────────────────────────────────────────── */
+
+.settings-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 100; /* 压过三栏与 composer,等同「切换到设置页」 */
+  display: flex;
+  background: var(--tmd-bg-base);
+  color: var(--tmd-fg);
+  font-size: var(--tmd-font-ui);
+}
+
+/* ── 左侧导航 ── */
+
+.settings-nav {
+  width: 208px;
+  flex: 0 0 208px;
+  background: var(--tmd-bg-elevated);
+  border-right: 1px solid var(--tmd-border);
+  display: flex;
+  flex-direction: column;
+  padding: 12px 8px;
+  gap: 2px;
+  /* 面板盖住 titlebar,导航顶部补拖拽区(macOS overlay traffic lights) */
+  -webkit-app-region: drag;
+}
+
+.settings-nav button {
+  -webkit-app-region: no-drag;
+}
+
+.settings-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  margin: 20px 0 10px; /* 上 margin 让开 macOS traffic lights */
+  border: none;
+  border-radius: var(--tmd-radius-sm);
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.settings-back:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: var(--tmd-radius-sm);
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-nav-item:hover {
+  background: var(--tmd-bg-hover);
+}
+
+.settings-nav-item.is-active {
+  background: var(--tmd-bg-active);
+  color: var(--tmd-fg);
+  font-weight: 600;
+}
+
+/* ── 右侧内容 ── */
+
+.settings-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  background: var(--tmd-bg-base);
+  -webkit-app-region: drag;
+}
+
+.settings-content {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 36px 40px 64px;
+  -webkit-app-region: no-drag;
+}
+
+.settings-title {
+  font-size: var(--tmd-font-title);
+  font-weight: 700;
+}
+
+.settings-subtitle {
+  color: var(--tmd-fg-muted);
+  margin-top: 4px;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 24px;
+  border-bottom: 1px solid var(--tmd-border);
+}
+
+.settings-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: -1px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--tmd-radius-sm) var(--tmd-radius-sm) 0 0;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.settings-tab:hover {
+  color: var(--tmd-fg);
+  background: var(--tmd-bg-hover);
+}
+
+.settings-tab.is-active {
+  color: var(--tmd-fg);
+  border-bottom-color: var(--tmd-accent);
+  font-weight: 600;
+}
+
+/* ── pref 卡片 ── */
+
+.pref-card {
+  margin-top: 20px;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  background: var(--tmd-bg-elevated);
+}
+
+.pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 16px;
+}
+
+.pref-row + .pref-row {
+  border-top: 1px solid var(--tmd-border);
+}
+
+.pref-title {
+  font-weight: 600;
+}
+
+.pref-desc {
+  color: var(--tmd-fg-muted);
+  margin-top: 2px;
+}
+
+/* ── segmented 控件 ── */
+
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--tmd-bg-input);
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+}
+
+.segment {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: var(--tmd-radius-sm);
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.segment:hover {
+  color: var(--tmd-fg);
+}
+
+.segment.is-active {
+  background: var(--tmd-bg-active);
+  color: var(--tmd-fg);
+  font-weight: 600;
+}
+
+/* ── preset 网格(自定义模式展开) ── */
+
+.preset-section {
+  display: none;
+  padding: 14px 16px;
+  border-top: 1px solid var(--tmd-border);
+}
+
+.pref-card.is-custom .preset-section {
+  display: block;
+}
+
+.preset-group-label {
+  color: var(--tmd-fg-muted);
+  font-weight: 600;
+  margin: 8px 0;
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 10px;
+}
+
+.preset-card {
+  padding: 0;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  overflow: hidden;
+  background: var(--tmd-bg-base);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.preset-card:hover {
+  border-color: var(--tmd-border-strong);
+}
+
+.preset-card.is-active {
+  border-color: var(--tmd-accent);
+  box-shadow: 0 0 0 1px var(--tmd-accent);
+}
+
+.preset-thumb {
+  height: 64px;
+  display: flex;
+}
+
+.preset-thumb-side {
+  width: 30%;
+  display: flex;
+  flex-direction: column;
+}
+
+.preset-thumb-side span {
+  flex: 1;
+}
+
+.preset-thumb-side span:first-child {
+  flex: 0 0 14px;
+  margin: 6px 4px 0;
+  border-radius: 3px;
+}
+
+.preset-thumb-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 4px;
+}
+
+.preset-thumb-main i {
+  height: 6px;
+  border-radius: 3px;
+  display: block;
+}
+
+.preset-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  color: var(--tmd-fg-muted);
+}
+
+.preset-card.is-active .preset-name {
+  color: var(--tmd-fg);
+  font-weight: 600;
+}
+
+.preset-check {
+  color: var(--tmd-accent);
+  visibility: hidden;
+}
+
+.preset-card.is-active .preset-check {
+  visibility: visible;
+}

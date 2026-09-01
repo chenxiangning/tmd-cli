@@ -7,6 +7,7 @@ import ReactDOM from "react-dom/client";
 import { AppShell } from "@shell/AppShell";
 import { registerDefaultContributions } from "@shell/contributions";
 import { host } from "@kernel/host";
+import { startThemeEngine } from "@kernel/theme";
 import { allPlugins } from "@plugins/index";
 import "./styles/global.css";
 
@@ -15,6 +16,7 @@ function App() {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
+    startThemeEngine(); /* 设置加载 + 主题应用,与插件激活并行 */
     host
       .activateAll(allPlugins)
       .then(() => {

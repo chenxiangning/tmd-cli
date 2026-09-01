@@ -1,0 +1,167 @@
+/* ──────────────────────────────────────────────────────────
+ * Sidebar settings cluster —— 复刻 codemoss 左下角设置区。
+ *
+ * 底栏:齿轮 + pinned 快捷图标 + 右侧版本号;
+ * 菜单:向上弹出,每行 icon + label + pin 复选框,底部「设置」。
+ * ────────────────────────────────────────────────────────── */
+
+.settings-cluster {
+  position: relative;
+  flex-shrink: 0;
+  border-top: 1px solid var(--tmd-border); /* neutral-800,与侧栏边框一致 */
+}
+
+/* ── 底栏 ── */
+
+.settings-cluster-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 27px;
+  padding: 0 8px;
+}
+
+.settings-bar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tmd-fg-muted); /* neutral-400 */
+  cursor: pointer;
+}
+
+.settings-bar-btn:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg); /* neutral-200 */
+}
+
+.settings-bar-btn.is-active {
+  color: rgb(255, 140, 60); /* 与 right-panel-toolbar 激活色一致 */
+}
+
+.settings-gear.is-active {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+/* 左下角入口用应用 logo 替代齿轮 */
+.settings-logo {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+}
+
+.settings-cluster-spacer {
+  flex: 1;
+}
+
+.settings-cluster-version {
+  font-size: 11px;
+  color: var(--tmd-fg-subtle); /* neutral-500 */
+  user-select: none;
+}
+
+/* ── 上弹菜单 ── */
+
+.settings-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 8px;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 10px;
+  background: var(--tmd-bg-popover); /* neutral-900 */
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);
+  z-index: 50;
+}
+
+.settings-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 6px;
+}
+
+.settings-menu-row:hover {
+  background: var(--tmd-bg-hover);
+}
+
+.settings-menu-row.is-active .settings-menu-icon {
+  color: rgb(255, 140, 60);
+}
+
+.settings-menu-item {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tmd-fg); /* neutral-300 */
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-menu-icon {
+  display: flex;
+  align-items: center;
+  color: var(--tmd-fg-muted);
+  flex-shrink: 0;
+}
+
+.settings-menu-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* pin 复选框 ─ 圆角方块,选中出对号 */
+.settings-menu-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  border: 1px solid var(--tmd-border-strong); /* neutral-600 */
+  border-radius: 5px;
+  background: transparent;
+  color: var(--tmd-bg-base);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.settings-menu-pin.is-checked {
+  background: var(--tmd-fg);
+  border-color: var(--tmd-fg);
+}
+
+.settings-menu-pin:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.settings-menu-divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--tmd-bg-hover);
+}
+
+/* 「设置」常驻高亮底(对齐截图选中态) */
+.settings-menu-settings {
+  background: var(--tmd-bg-hover);
+  width: 100%;
+}
+
+.settings-menu-settings:hover {
+  background: var(--tmd-border-strong);
+}
