@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "tmd-cli",
   "version": "0.1.0",
-  "identifier": "com.tmdcli.app",
+  "identifier": "com.tmdcli.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1421",

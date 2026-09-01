@@ -12,7 +12,9 @@
     "check:file-size": "node scripts/check-file-size.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "build:mac-arm64": "node scripts/build-mac.mjs aarch64-apple-darwin",
+    "release:mac-local": "zsh scripts/release-mac-local.sh"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.9.0",

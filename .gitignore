@@ -24,6 +24,7 @@ dist-ssr
 *.sln
 *.sw?
 /release-artifacts
+re-local/
 .codex-worktrees/
 .ace-tool/
 .artifacts/
