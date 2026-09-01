@@ -1,0 +1,149 @@
+/**
+ * Composer 附件条样式 —— 从 docs/composer-design.html 原型抽取。
+ *
+ * 命名:tmd-attach-* / tmd-kind-* —— 与 tmd 主题 token 一致
+ * 作用域:.tmd-attach-section(Composer 容器内)
+ */
+
+/* ── 附件区块 ── */
+.tmd-attach-section {
+  border-bottom: 1px solid var(--tmd-border);
+  background: var(--tmd-bg-base);
+}
+
+.tmd-attach-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px 0;
+  color: var(--tmd-fg-subtle);
+  font-size: 11px;
+}
+
+.tmd-attach-clear {
+  cursor: pointer;
+  color: var(--tmd-fg-subtle);
+  padding: 2px 6px;
+  border-radius: var(--tmd-radius-sm);
+  border: 0;
+  background: transparent;
+  font: inherit;
+}
+.tmd-attach-clear:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--danger);
+}
+
+.tmd-attach-strip {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--tmd-bg-base);
+  flex-wrap: wrap;
+}
+
+/* ── 单卡 ── */
+.tmd-attach {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 92px;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-sm);
+  background: var(--tmd-bg-elevated);
+  overflow: hidden;
+  cursor: grab;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.tmd-attach:hover {
+  border-color: var(--tmd-accent);
+  transform: translateY(-1px);
+}
+.tmd-attach-image { cursor: zoom-in; }
+.tmd-attach-dragging { opacity: 0.5; cursor: grabbing; }
+.tmd-attach-drop-target { border-color: var(--tmd-accent); transform: translateY(-2px); }
+
+.tmd-attach-thumb {
+  width: 100%;
+  height: 64px;
+  background: var(--tmd-bg-sunken);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tmd-attach-meta {
+  padding: 4px 6px;
+  border-top: 1px solid var(--tmd-border);
+  color: var(--tmd-fg-muted);
+  line-height: 1.3;
+}
+.tmd-attach-name {
+  color: var(--tmd-fg);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tmd-attach-info {
+  color: var(--tmd-fg-subtle);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tmd-attach-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  border: 0;
+  padding: 0;
+}
+.tmd-attach:hover .tmd-attach-close { opacity: 1; }
+.tmd-attach-close:hover { background: var(--danger); }
+
+.tmd-attach-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--tmd-accent);
+  color: var(--tmd-accent-fg);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  z-index: 1;
+}
+.tmd-attach-pdf .tmd-attach-badge { background: var(--danger); }
+.tmd-attach-code .tmd-attach-badge { background: var(--success); }
+
+/* ── 类型图标(非图片时) ── */
+.tmd-kind-icon {
+  width: 100%;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--tmd-accent-fg);
+}
+.tmd-kind-image { background: linear-gradient(135deg, #5b9bd5, #007acc); }
+.tmd-kind-pdf   { background: linear-gradient(135deg, #e8a0a0, #c75050); }
+.tmd-kind-code  { background: linear-gradient(135deg, #89d185, #4a8a3a); }
+.tmd-kind-file  { background: var(--tmd-bg-hover); color: var(--tmd-fg); }

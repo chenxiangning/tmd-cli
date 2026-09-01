@@ -16,6 +16,7 @@ import { ChevronRight, FilePlus2, RefreshCw } from "lucide-react";
 import { ipc, type DirEntry } from "@kernel/ipc";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { openTab } from "@kernel/tabs";
+import { clearDragPayload, setDragPayload } from "@kernel/internalDrag";
 import { useWorkspaces } from "@kernel/workspace";
 import { baseName } from "@kernel/pathUtils";
 import { registerFileHighlighter } from "@kernel/fileHighlighter";
@@ -54,6 +55,18 @@ function FileTreeRow({
   const hint = resolveFileVisual(entry.name, entry.isDir, expanded);
   const color = hint.colorClass ?? "text-(--tmd-fg)";
 
+  /* 文件/文件夹拖到 composer:写 kernel 共享 payload,composer drop 时读 */
+  function handleDragStart(e: React.DragEvent<HTMLButtonElement>) {
+    e.dataTransfer.effectAllowed = "copy";
+    /* 兜底:也写 text/plain,允许拖到外部应用 */
+    e.dataTransfer.setData("text/plain", entry.path);
+    setDragPayload({ path: entry.path, isDir: entry.isDir, name: entry.name });
+  }
+  function handleDragEnd() {
+    /* 无论 drop 是否成功,结束都清 payload,防止跨拖拽残留 */
+    clearDragPayload();
+  }
+
   return (
     <div className={`file-tree-row-wrap${selected ? " is-selected" : ""}`}>
       <button
@@ -61,6 +74,9 @@ function FileTreeRow({
         className={`file-tree-row${selected ? " is-selected" : ""}`}
         style={{ paddingLeft: depth * 12 + 12 }}
         onClick={onClick}
+        draggable
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
         aria-expanded={entry.isDir ? expanded : undefined}
       >
         <span className={`file-tree-icon-cell${entry.isDir ? " has-chevron" : ""}`}>

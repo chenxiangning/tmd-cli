@@ -155,6 +155,9 @@ pub fn run() {
                 "main",
                 tauri::WebviewUrl::App("index.html".into()),
             )
+            /* 禁用 Tauri 原生 drop handler —— 让 HTML5 drop event 在 webview 内正常派发
+               否则 Tauri 拦截文件拖放,只发 tauri://drag-drop 事件,composer 收不到 */
+            .disable_drag_drop_handler()
             .title("tmd-cli")
             .inner_size(1440.0, 900.0)
             .min_inner_size(960.0, 600.0);

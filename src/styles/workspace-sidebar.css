@@ -50,7 +50,7 @@
   background: transparent;
   color: var(--text-muted);
   border-radius: 4px;
-  padding: 0 4px;
+  padding: 0 4px 0 6px;
   cursor: pointer;
   line-height: 1.4;
 }
@@ -95,7 +95,7 @@
   align-items: center;
   min-height: var(--sidebar-row-height-workspace);
   width: 100%;
-  padding: 2px 0 2px 6px;
+  padding: 2px 0 2px 8px;
   gap: 6px;
   color: var(--text-muted);
   border-radius: var(--sidebar-row-radius);
