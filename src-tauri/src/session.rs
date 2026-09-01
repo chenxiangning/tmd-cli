@@ -121,7 +121,25 @@ pub struct SessionRegistry {
 
 impl SessionRegistry {
     pub fn register(&self, meta: SessionMeta) {
-        self.sessions.lock().insert(meta.id.clone(), meta);
+        let mut map = self.sessions.lock();
+        // Dedupe:同一 (profileId, cliSessionId) 的 session 在表里只保留最新一条,
+        // 避免反复 resume 时无限累积。
+        if let Some(cli_id) = meta.cli_session_id.clone() {
+            let dup_keys: Vec<String> = map
+                .iter()
+                .filter(|(_, m)| {
+                    m.profile_id == meta.profile_id
+                        && m.cli_session_id.as_deref() == Some(cli_id.as_str())
+                        && m.id != meta.id
+                })
+                .map(|(k, _)| k.clone())
+                .collect();
+            for k in dup_keys {
+                map.remove(&k);
+            }
+        }
+        map.insert(meta.id.clone(), meta);
+        drop(map);
         self.persist();
     }
 

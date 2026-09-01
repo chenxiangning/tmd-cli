@@ -55,7 +55,7 @@ function SessionListDefault() {
 
   const byWorkspace = new Map<string, typeof sessions>();
   for (const s of sessions) {
-    const key = s.workspaceId ?? "default";
+        const key = s.workspaceId ?? "__orphan__";
     const list = byWorkspace.get(key) ?? [];
     list.push(s);
     byWorkspace.set(key, list);
@@ -103,10 +103,10 @@ function SessionListDefault() {
           </div>
         );
       })}
-      {(byWorkspace.get("default") ?? []).length > 0 && (
+            {(byWorkspace.get("__orphan__") ?? []).length > 0 && (
         <div className="flex flex-col gap-0.5">
           <div className="px-1 pt-2 text-xs text-neutral-600">未分组</div>
-          {(byWorkspace.get("default") ?? []).map((s) => (
+                    {(byWorkspace.get("__orphan__") ?? []).map((s) => (
             <button
               key={s.id}
               className={`flex items-center gap-2 rounded px-2 py-1 text-left text-sm ${
