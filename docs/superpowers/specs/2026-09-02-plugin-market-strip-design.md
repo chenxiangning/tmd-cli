@@ -147,3 +147,9 @@ export interface Plugin {
 - 远程插件源 / 下载 / 签名 / 沙箱（预留 UI 占位）。
 - 运行期热拔插（deactivate 完整实现）。
 - 插件排序、搜索、分类（10 个内置插件无需）。
+
+## 实现修订（2026-09-02）
+
+- §3.1 的 `PluginMeta.core?: boolean` 实际落地为 `category: "engine" | "feature" | "core"`（`core` ⇒ 焊死不可拔，同时供插排页分类分排），见 `src/kernel/plugin.ts`。
+- 插件总数 10 → 15（`src/plugins/index.ts`）。
+- 后续 e9ebebe / eb11467 追加了分类分排、页头按钮归位、合并大插排与插排/列表互斥视图（本设计文档早于这些实现）。

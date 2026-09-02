@@ -21,19 +21,21 @@
 React Host
 ├── kernel/       插件契约、生命周期、事件总线、IPC、PTY TerminalView
 ├── app-shell/    五区外壳与挂载点（宿主职责）
-└── plugins/      cli-omp / cli-pi / cli-codex / cli-claude / workspace / files / git / composer
+└── plugins/      cli-* ×8(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn) / session-budget / workspace / files / git / composer / settings / welcome
 
 Tauri Rust
 ├── pty.rs         portable-pty：spawn / read / write / resize / kill,双线程聚合泵
 ├── session_log.rs 会话输出落盘(64MB 旋转) + 幕布翻页读取
-├── resolve.rs     PATH 富化 / 裸命令名 → 绝对路径(pty·probe·installer 共用)
+├── resolve/       PATH 富化 / 裸命令名 → 绝对路径(mod/path_cache/which,pty·probe·installer 共用)
 ├── probe.rs       CLI 探针(found/path/version,8s 超时)
 ├── installer.rs   一键安装 CLI(npm -g / claude native),流式日志事件
 ├── omp_auth.rs    omp agent.db 凭据只读(sqlite,CLI 私有存储的唯一例外模块)
 ├── quota.rs       通用 HTTP 代理 + 只读环境变量
+├── hash.rs        MD5 原语(kimi 会话目录名)
+├── settings.rs    settings.json 读写
 ├── session.rs     Session 元数据注册表
 ├── fs.rs          文件树读取
-└── git.rs         git CLI shell-out
+└── git/           libgit2 原语(git2 vendored);fetch/pull/push 走远端 shell-out
 ```
 
 ### 内核边界
@@ -60,7 +62,7 @@ Composer 只负责富输入体验和发送编排，不实现 CLI 命令语义：
 - `/`：common command；由 CLI 自己解析
 - `@`：文件/文件夹引用；候选来自 files 插件
 - 截图/拖拽文件：落盘为会话临时文件，再按 CLI profile 规则注入
-- 发送：统一进入 PTY 写入通道，使用 bracketed paste 处理多行文本
+- 发送：统一进入 PTY 写入通道，多行文本直发并以 CR 提交（v1 不用 bracketed paste；bracketed-paste 发送器为后续规划，见 §8）
 
 CLI 插件可以提供 `translate` 钩子处理语法差异，例如 omp/pi 的 `$skill` → `/skill:skill`；codex 原样透传。
 
@@ -95,7 +97,7 @@ PTY bytes → Tauri event pty://out/{sessionId} → xterm.js
 QuotaChip (composer 插件)
   └─ kernel/quota.ts        QuotaProvider 注册点 + QuotaSnapshot 统一结构
        └─ cli-*/quota.ts    凭据适配层(读各 CLI 自己的登录态)
-            ├─ cli-shared/quota/vendors.ts   供应商 HTTP 协议适配(kimi/minimax/zhipu/deepseek/relay/wham)
+            ├─ cli-shared/quota/vendors/(目录:index/types/http/detect/fetchers/codex/relay)   供应商 HTTP 协议适配(kimi/minimax/zhipu/deepseek/relay/wham)
             │    └─ tauri quota_fetch        Rust 通用 HTTP 代理(reqwest,15s 超时)
             └─ cli-shared/quota/codexLocal.ts  codex 官方 OAuth 本地 rollout 快照(零 HTTP 优先)
 ```
@@ -106,7 +108,7 @@ QuotaChip (composer 插件)
 |---|---|---|
 | `kernel/quota.ts` | `QuotaSnapshot{windows,balanceText,planLabel}` 契约与注册表 | 供应商差异 |
 | `cli-*/quota.ts` | 凭据来源(codex auth.json+config.toml / omp agent.db / pi auth.json+models.json)与模型→供应商路由 | HTTP 协议 |
-| `vendors.ts` | 6 类供应商协议:kimi / minimax-cn·en / zhipu-cn·en / deepseek / relay + codex wham(降级) | CLI 凭据格式 |
+| `vendors/` | 6 类供应商协议:kimi / minimax-cn·en / zhipu-cn·en / deepseek / relay + codex wham(降级) | CLI 凭据格式 |
 | `codexLocal.ts` | codex 官方 OAuth 本地 rollout 快照解析(优先路径) | HTTP(零请求) |
 | `quota.rs` | 通用 HTTP 代理 + `quota_env_value` 只读环境变量 | 业务语义 |
 | `omp_auth.rs` | omp agent.db(auth_credentials)只读代读:JS 无法解析 sqlite,CLI 私有存储知识集中于此例外模块 | HTTP/其它 CLI |
@@ -123,6 +125,6 @@ QuotaChip (composer 插件)
 
 ## 8. 当前实现状态
 
-已完成：配置脚手架、插件宿主、四 CLI profile、PTY spawn/read/write/resize/kill、Session 注册表、文件树单层懒展开、git status、xterm 幕布接线、五区外壳、Composer 触发器/拖拽/截图、Composer 只读 session 状态工具栏、Quota 额度查询(7 类供应商 + relay 探测 + 契约单测)、welcome 首页(引擎探针/一键安装/凭据盘点/近期会话)、会话输出落盘与幕布往前翻页、输出缓冲分块化(上限可配)与字节流安全截断(streamSlice)。
+已完成：配置脚手架、插件宿主、八 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn)、PTY spawn/read/write/resize/kill、Session 注册表、文件树单层懒展开、右栏 Git 面板全量(差异/分支/历史/远端 fetch-pull-push)、xterm 幕布接线、五区外壳、Composer 触发器/拖拽/截图、Composer 只读 session 状态工具栏、Quota 额度查询(7 类供应商 + relay 探测 + 契约单测)、welcome 首页(引擎探针/一键安装/凭据盘点/近期会话)、会话输出落盘与幕布往前翻页、输出缓冲分块化(上限可配)与字节流安全截断(streamSlice)。
 
-后续按优先级：PTY bracketed-paste 发送器 → mossx git 核心子集 → CLI 交互式兼容性验证。
+后续按优先级：PTY bracketed-paste 发送器 → CLI 交互式兼容性验证。

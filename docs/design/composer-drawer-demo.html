@@ -66,6 +66,7 @@
   .legend .dot { width: 6px; height: 6px; border-radius: 50%; }
   .dot.send { background: var(--accent); }
   .dot.insert { background: var(--fg-faint); }
+  .dot.open { background: var(--ok); }
 
   /* ── 模拟应用窗口 ── */
   .app {
@@ -251,6 +252,32 @@
   .drawer-search input::placeholder { color: var(--fg-faint); }
   .drawer-search input:focus { border-color: var(--border-strong); }
 
+  /* 分区切换按钮(segmented) */
+  .drawer-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 12px 10px;
+  }
+  .drawer-tabs button {
+    flex: 1;
+    height: 24px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--fg-subtle);
+    font: 10.5px var(--mono);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    white-space: nowrap;
+  }
+  .drawer-tabs button:hover { background: var(--bg-hover); color: var(--fg); }
+  .drawer-tabs button.on {
+    background: var(--accent-soft);
+    border-color: rgba(224, 138, 60, 0.35);
+    color: var(--accent);
+  }
+  .drawer-tabs button:focus-visible { outline: 1.5px solid var(--accent); outline-offset: 1px; }
+
   .drawer-list {
     flex: 1;
     min-height: 0;
@@ -340,6 +367,12 @@
     background: var(--accent-soft);
     color: var(--accent);
   }
+  .item.open .mode-tag {
+    border-color: rgba(111, 191, 122, 0.4);
+    background: rgba(111, 191, 122, 0.12);
+    color: var(--ok);
+  }
+  .item.open .icon-chip { color: var(--ok); border-color: rgba(111, 191, 122, 0.35); }
   .empty {
     padding: 24px 0;
     text-align: center;
@@ -404,6 +437,7 @@
   <div class="legend">
     <span><i class="dot send"></i>直接发送</span>
     <span><i class="dot insert"></i>插入输入框</span>
+    <span><i class="dot open"></i>打开面板</span>
   </div>
 </div>
 
@@ -461,10 +495,12 @@
         </svg>
         <input id="drawerFilter" type="text" placeholder="过滤命令 / 技能…" />
       </div>
+      <div class="drawer-tabs" id="drawerTabs" role="tablist" aria-label="分区切换"></div>
       <div class="drawer-list" id="drawerList"></div>
       <div class="drawer-foot">
         <span>⚡ 直接发送到幕布</span>
         <span>↵ 插入输入框</span>
+        <span>⇱ 打开面板</span>
         <span class="count" id="drawerCount"></span>
       </div>
     </aside>
@@ -481,23 +517,34 @@
 </div>
 
 <script>
-/* ── 数据:与 profile.suggestions 同构,mode 标注点击行为 ──
-   send   = 自包含命令,点击 → 直接写入幕布(PTY)
-   insert = 需要补参数,点击 → 插入输入框继续编辑            */
+/* ── 数据:与 profile.suggestions 同构,action 标注点击行为 ──
+   send   = bare 合法命令/管理入口,点击 → 直接写入幕布(PTY)
+   insert = 需要补参数,点击 → 插入输入框继续编辑
+   open   = tmd 插件(内核注册表),点击 → 打开对应面板
+   token  = 完整 wire 文本(覆盖按 sec 合成的默认值,与协议 token 字段一致) */
 const ITEMS = [
-  // / 命令(取自 cli-claude / cli-omp / cli-grok 真实清单)
-  { sec: "cmd", name: "help",    desc: "查看可用命令",       mode: "send"   },
-  { sec: "cmd", name: "clear",   desc: "清屏 / 清空上下文",  mode: "send"   },
-  { sec: "cmd", name: "compact", desc: "压缩会话上下文",     mode: "send"   },
-  { sec: "cmd", name: "usage",   desc: "查看额度用量",       mode: "send"   },
-  { sec: "cmd", name: "model",   desc: "查看/切换模型",      mode: "insert" },
-  { sec: "cmd", name: "resume",  desc: "恢复历史会话",       mode: "insert" },
-  { sec: "cmd", name: "skills",  desc: "查看/注入技能",      mode: "insert" },
-  { sec: "cmd", name: "plugins", desc: "管理插件",           mode: "insert" },
-  // $ 技能(发送时翻译为 /skill:<name>)
-  { sec: "skill", name: "think",  desc: "深度思考模式",      mode: "send"   },
-  { sec: "skill", name: "plan",   desc: "只读规划模式",      mode: "insert" },
-  { sec: "skill", name: "review", desc: "代码评审",          mode: "insert" },
+  // / 命令(取自 cli-claude / cli-omp / cli-grok 真实清单;model 类 picker 按用户拍板归 send)
+  { sec: "cmd", name: "help",    desc: "查看可用命令",                  mode: "send" },
+  { sec: "cmd", name: "clear",   desc: "清屏 / 清空上下文",             mode: "send" },
+  { sec: "cmd", name: "compact", desc: "压缩会话上下文(参数可选)",      mode: "send" },
+  { sec: "cmd", name: "usage",   desc: "查看额度用量",                  mode: "send" },
+  { sec: "cmd", name: "model",   desc: "查看/切换模型(幕布内 picker)",  mode: "send" },
+  { sec: "cmd", name: "resume",  desc: "恢复历史会话(幕布内 picker)",   mode: "send" },
+  { sec: "cmd", name: "skills",  desc: "查看/注入技能",                 mode: "send" },
+  { sec: "cmd", name: "plugins", desc: "管理插件",                      mode: "send" },
+  // $ 技能(发送时翻译为 /skill:<name>;注入后通常要跟任务 → insert)
+  { sec: "skill", name: "think",  desc: "深度思考模式", mode: "send"   },
+  { sec: "skill", name: "plan",   desc: "只读规划模式", mode: "insert" },
+  { sec: "skill", name: "review", desc: "代码评审",     mode: "insert" },
+  // MCP 服务器(per-CLI 声明;omp v1 = 打开 MCP 管理入口,token 由 profile 给定)
+  { sec: "mcp", name: "context7",         desc: "MCP · 文档查询",          mode: "send", token: "/mcp " },
+  { sec: "mcp", name: "chrome-devtools",  desc: "MCP · 浏览器调试",        mode: "send", token: "/mcp " },
+  { sec: "mcp", name: "web-search-prime", desc: "MCP · 联网搜索",          mode: "send", token: "/mcp " },
+  { sec: "mcp", name: "zai-mcp-server",   desc: "MCP · 智谱工具集",        mode: "send", token: "/mcp " },
+  // tmd 插件(插件商城已装;数据源 = 内核 listPluginStates,点击 = 打开面板)
+  { sec: "plugin", name: "git",      desc: "Git 面板 · 右栏", mode: "open" },
+  { sec: "plugin", name: "files",    desc: "文件面板 · 右栏", mode: "open" },
+  { sec: "plugin", name: "settings", desc: "设置 · 行为/外观", mode: "open" },
 ];
 
 const ICONS = {
@@ -512,6 +559,15 @@ const ICONS = {
   think: '<polygon points="13 2.5 3.5 14 11 14 10.5 21.5 20.5 10 13 10 13 2.5"/>',
   plan: '<rect x="4" y="3.5" width="16" height="17" rx="2"/><polyline points="8 12.5 11 15.5 16.5 9.5"/>',
   review: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/>',
+  // MCP 服务器
+  context7: '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><line x1="7" y1="7.5" x2="7" y2="7.51"/><line x1="7" y1="16.5" x2="7" y2="16.51"/>',
+  "chrome-devtools": '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><line x1="7" y1="7.5" x2="7" y2="7.51"/><line x1="7" y1="16.5" x2="7" y2="16.51"/>',
+  "web-search-prime": '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><line x1="7" y1="7.5" x2="7" y2="7.51"/><line x1="7" y1="16.5" x2="7" y2="16.51"/>',
+  "zai-mcp-server": '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><line x1="7" y1="7.5" x2="7" y2="7.51"/><line x1="7" y1="16.5" x2="7" y2="16.51"/>',
+  // tmd 插件
+  git: '<line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>',
+  files: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  settings: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v3M12 18.2v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2.8 12h3M18.2 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/>',
 };
 
 function icon(name, size = 15) {
@@ -522,7 +578,18 @@ function icon(name, size = 15) {
 const MODE_META = {
   send:   { cls: "send",   tag: "⚡ 直接发送", hint: "直接发送到幕布" },
   insert: { cls: "insert", tag: "↵ 插入",      hint: "插入输入框继续编辑" },
+  open:   { cls: "open",   tag: "⇱ 打开",      hint: "打开对应面板" },
 };
+
+/* 分区元数据:显示名 / 角标符号;tab 行按「实际有数据的分区 + 全部」渲染 */
+const SECTION_META = {
+  cmd:    { label: "命令",  sym: "/" },
+  skill:  { label: "技能",  sym: "$" },
+  mcp:    { label: "MCP",   sym: "⧉" },
+  plugin: { label: "插件",  sym: "▣" },
+};
+const SECTIONS = Object.keys(SECTION_META);
+let activeTab = "all";
 
 /* ── 渲染 ── */
 const drawer      = document.getElementById("drawer");
@@ -538,11 +605,36 @@ const toastText   = document.getElementById("toastText");
 const countEl     = document.getElementById("drawerCount");
 
 function tokenOf(item) {
-  return item.sec === "cmd" ? `/${item.name} ` : `$${item.name} `;
+  /* token 字段 = profile 声明的完整插入文本;缺省按 sec 合成 */
+  return item.token ?? (item.sec === "skill" ? `$${item.name} ` : `/${item.name} `);
 }
-/* send 模式实际写入幕布的文本(skill 翻译为 /skill:<name>,与 serialize 一致) */
+/* send 模式实际写入幕布的文本(token 为完整字面量;skill 走 translate 合成) */
 function wireOf(item) {
+  if (item.token) return item.token.trim();
   return item.sec === "cmd" ? `/${item.name}` : `/skill:${item.name}`;
+}
+
+/* 分区切换 tab 行:按「实际有数据的分区 + 全部」渲染 */
+const drawerTabs = document.getElementById("drawerTabs");
+function renderTabs() {
+  const present = SECTIONS.filter((sec) => ITEMS.some((it) => it.sec === sec));
+  drawerTabs.innerHTML = "";
+  const mk = (key, label) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    b.className = activeTab === key ? "on" : "";
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", activeTab === key ? "true" : "false");
+    b.addEventListener("click", () => {
+      activeTab = key;
+      renderTabs();
+      render(filterInput.value);
+    });
+    drawerTabs.appendChild(b);
+  };
+  mk("all", "全部");
+  for (const sec of present) mk(sec, SECTION_META[sec].label);
 }
 
 function render(filter = "") {
@@ -550,14 +642,16 @@ function render(filter = "") {
   drawerList.innerHTML = "";
   let shown = 0;
 
-  for (const sec of ["cmd", "skill"]) {
+  for (const sec of SECTIONS) {
+    if (activeTab !== "all" && sec !== activeTab) continue;
     const items = ITEMS.filter(
       (it) => it.sec === sec && (!q || it.name.toLowerCase().includes(q) || it.desc.includes(filter.trim())),
     );
     if (items.length === 0) continue;
+    const meta = SECTION_META[sec];
     const secEl = document.createElement("div");
     secEl.className = "sec-label";
-    secEl.innerHTML = `<span class="sym">${sec === "cmd" ? "/" : "$"}</span>${sec === "cmd" ? "命令" : "技能"} · ${items.length}`;
+    secEl.innerHTML = `<span class="sym">${meta.sym}</span>${meta.label} · ${items.length}`;
     drawerList.appendChild(secEl);
 
     for (const it of items) {
@@ -569,7 +663,7 @@ function render(filter = "") {
       btn.innerHTML = `
         <span class="icon-chip">${icon(it.name)}</span>
         <span class="item-body">
-          <span class="item-name">${it.sec === "cmd" ? "/" : "$"}${it.name}</span>
+          <span class="item-name">${it.sec === "cmd" ? "/" : it.sec === "skill" ? "$" : ""}${it.name}</span>
           <div class="item-desc">${it.desc}</div>
         </span>
         <span class="mode-tag">${m.tag}</span>`;
@@ -597,6 +691,8 @@ function openDrawer() {
   isOpen = true;
   drawer.classList.add("open");
   toggleBtn.setAttribute("aria-expanded", "true");
+  activeTab = "all";
+  renderTabs();
   filterInput.value = "";
   render("");
   setTimeout(() => filterInput.focus(), 120);
@@ -626,6 +722,10 @@ function activate(item, btnEl) {
     void btnEl.offsetWidth; /* 重启动画 */
     btnEl.classList.add("flash");
     showToast(`已发送到幕布:${wireOf(item)}`);
+    setTimeout(closeDrawer, 320);
+  } else if (item.mode === "open") {
+    /* open:打开 tmd 插件面板(真实实现 = filePanel.setFilePanelMode(panelId)) */
+    showToast(`已打开:${item.desc.split(" ·")[0]}(演示)`);
     setTimeout(closeDrawer, 320);
   } else {
     insertIntoComposer(tokenOf(item));

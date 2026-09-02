@@ -36,13 +36,16 @@ flowchart TB
             P_OMP["cli-omp<br/>profile: omp<br/>$→/skill: 翻译"]
             P_PI["cli-pi<br/>profile: pi<br/>$→/skill: 翻译"]
             P_CODEX["cli-codex<br/>profile: codex<br/>纯透传"]
-            P_CLAUDE["cli-claude<br/>profile: claude<br/>$→/skill-name 翻译"]
+            P_CLAUDE["cli-claude<br/>profile: claude<br/>$→/<name> 翻译"]
             P_GROK["cli-grok<br/>profile: grok<br/>npm @xai-official/grok"]
             P_KIMI["cli-kimi<br/>profile: kimi<br/>$→/skill: 翻译<br/>MD5(cwd) 目录会话"]
-            P_WS["workspace<br/>leftSidebar.section"]
+            P_QODER["cli-qoder / cli-qoder-cn<br/>profile: qoder / qoder-cn<br/>claude 同构存储,共享 qoderSessions"]
+            P_WS["workspace<br/>leftSidebar.section<br/>+ leftSidebar.workspaceCaption 渲染"]
+            P_SBU["session-budget<br/>显示预算独立插件<br/>leftSidebar.workspaceCaption 贡献"]
             P_FILES["files<br/>文件树 + FileTabContent<br/>注册默认高亮/视觉"]
-            P_GIT["git（占位）"]
+            P_GIT["git<br/>右栏 Git 面板<br/>(filePanel 注册表)"]
             P_COMPOSER["composer<br/>富输入 + composer.statusBar 工具栏"]
+            P_SETTINGS["settings<br/>overlay 设置面板<br/>+ 设置 section 注册表"]
             P_WELCOME["welcome<br/>editorCenter.welcome 首页<br/>引擎探针/安装/凭据盘点/近期会话"]
         end
     end
@@ -56,14 +59,14 @@ flowchart TB
         INST["installer.rs<br/>一键安装 CLI(npm -g / claude native)流式日志"]
         OAUTH["omp_auth.rs<br/>omp agent.db 凭据只读(sqlite)"]
         SESS["session.rs — SessionRegistry<br/>活会话纯内存表(不落盘)<br/>workspaces.json 持久化"]
-        FS["fs.rs<br/>list_dir / read_file / read_head / read_tail / collect_files / remove_path(白名单)"]
+        FS["fs.rs<br/>list_dir / read_file / read_head / read_tail<br/>collect_files / write_temp / remove_path(白名单)<br/>read_local_image_data_url(md 预览)"]
         GIT["git/<br/>libgit2 原语(status/diff/branch/log/commit)<br/>远端 fetch/pull/push shell-out(300s 总超时)"]
         HASH["hash.rs<br/>md5_hex 通用哈希原语"]
     end
 
-    EXT["外部 CLI 子进程<br/>omp / pi / codex / claude / grok / kimi（PTY slave）"]
-    DISK["~/.tmd-cli/<br/>sessions.json · workspaces.json · tmp/"]
-    CLIDATA["CLI 自身 session 落盘<br/>OMP / Pi / Codex / Claude / Kimi"]
+    EXT["外部 CLI 子进程<br/>omp / pi / codex / claude / grok / kimi / qoder / qoder-cn（PTY slave）"]
+    DISK["~/.tmd-cli/<br/>settings.json · workspaces.json<br/>(活会话注册表纯内存不落盘;<br/>临时附件走系统 temp/tmd-cli)"]
+    CLIDATA["CLI 自身 session 落盘<br/>OMP / Pi / Codex / Claude / Kimi / Grok / Qoder"]
 
     MAIN --> SHELL & KERNEL
     KERNEL -->|registerCliProfile / contribute| PLUGINS
@@ -101,7 +104,7 @@ sequenceDiagram
     participant M as main.tsx
     participant H as host (Host 单例)
     participant R as Rust: session_list
-    participant P as allPlugins (12 个)
+    participant P as allPlugins (15 个)
     participant C as contributions.tsx
     participant A as AppShell
 
@@ -109,7 +112,7 @@ sequenceDiagram
     Note over H: activation Promise 单例<br/>挡 StrictMode 双调用
     par 激活与恢复并行
         H->>P: 拓扑序 activate(ctx)<br/>dependsOn 未就绪则等下一轮<br/>无进展 → 抛"依赖环或缺失"
-        P-->>H: registerCliProfile ×6<br/>contribute 挂点 ×N
+        P-->>H: registerCliProfile ×8<br/>contribute 挂点 ×N
     and
         H->>R: ipc.sessionList()
         R-->>H: 历史 SessionMeta[]<br/>（只恢复元数据，不重 spawn PTY）
@@ -181,7 +184,7 @@ flowchart LR
 关键不变量：
 
 - **composer 不做 CLI 语义**——触发符、`translate` 全由 CLI profile 声明；codex 无 `translate` 即原样透传。
-- 粘贴/拖拽文件（`handlePaste` / `handleDrop`）先经 `ipc.fsWriteTemp` 落盘 `~/.tmd-cli/tmp/`，再把绝对路径插入草稿。
+- 粘贴/拖拽文件（`handlePaste` / `handleDrop`）先经 `ipc.fsWriteTemp` 落盘系统临时目录 `temp_dir()/tmd-cli`（受 fs.rs remove 白名单管辖），再把绝对路径插入草稿。
 - 裸 xterm 输入与 composer 发送**汇入同一条** `session_write` 通道。
 
 ### 4.1 Composer 状态链路：CLI session JSONL → 只读工具栏
@@ -232,20 +235,20 @@ flowchart TD
 ```
 
 状态读取不会写回 Rust `SessionMeta`。`cliSessionIds` 和 `sessionStatuses` 是 Host 运行时内存态；CLI 原生 session 文件仍由各 CLI 自己维护。
-### 5.1 CLI 会话存储共性（五家实证,新业务功能先查此表）
+### 5.1 CLI 会话存储共性（八家实证,新业务功能先查此表）
 
-| 能力 | omp | pi | claude | codex | kimi |
-|---|---|---|---|---|---|
-| 存储 | `~/.omp/agent/sessions/<slug>/<ts>_<uuid>.jsonl` | `~/.pi/agent/sessions/<slug>/<ts>_<uuid>.jsonl` | `~/.claude/projects/<slug>/<uuid>.jsonl` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<ts>-<uuid>.jsonl` | `~/.kimi/sessions/<MD5(cwd)>/<uuid>/wire.jsonl` |
-| cwd 分区 | 目录 slug | 目录 slug(规则与 omp 不同!) | 目录 slug | 无,读首行 `session_meta.payload.cwd` 过滤 | MD5(cwd) 目录哈希(会话文件内无 cwd,Rust `md5_hex` 原语计算) |
-| 原生标题 | 首行 `type:"title"` 记录(定长 pad 覆写) + `title_change` 事件 | `title_change` 事件 + session 行 title | `type:"summary"` 行(部分版本不落) | 无概念 | 无(TUI 内存推导,wire.jsonl 不落标题事件) |
-| 标题兜底 | — | — | 首条 `type:"user"` 消息 | 首条 `role:"user"` 的 `response_item` | 首条 `TurnBegin` 用户输入 |
+| 能力 | omp | pi | claude | codex | kimi | grok | qoder / qoder-cn |
+|---|---|---|---|---|---|---|---|
+| 存储 | `~/.omp/agent/sessions/<slug>/<ts>_<uuid>.jsonl` | `~/.pi/agent/sessions/<slug>/<ts>_<uuid>.jsonl` | `~/.claude/projects/<slug>/<uuid>.jsonl` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<ts>-<uuid>.jsonl` | `~/.kimi/sessions/<MD5(cwd)>/<uuid>/wire.jsonl` | `~/.grok/sessions/<encodeURIComponent(cwd)>/<uuid>/`(目录态,内含 wire + summary.json) | `~/.qoder`/`~/.qoder-cn` 下 `projects/<slug>/<uuid>.jsonl`(claude 同构) |
+| cwd 分区 | 目录 slug | 目录 slug(规则与 omp 不同!) | 目录 slug | 无,读首行 `session_meta.payload.cwd` 过滤 | MD5(cwd) 目录哈希(会话文件内无 cwd,Rust `md5_hex` 原语计算) | encodeURIComponent(cwd) 目录名 | 目录 slug(claude 同构规则) |
+| 原生标题 | 首行 `type:"title"` 记录(定长 pad 覆写) + `title_change` 事件 | `title_change` 事件 + session 行 title | `type:"summary"` 行(部分版本不落) | 无概念 | 无(TUI 内存推导,wire.jsonl 不落标题事件) | 目录内 `summary.json` 是元数据真相(generated_title/session_summary) | 无 title/summary 记录 |
+| 标题兜底 | — | — | 首条 `type:"user"` 消息 | 首条 `role:"user"` 的 `response_item` | 首条 `TurnBegin` 用户输入 | —(summary.json 即真源) | 首条用户消息(head 窗口 32KB,容忍前置 snapshot 行) |
 
 共性法则（2026-09 会话列表功能沉淀）：
 
 1. **标题提取统一走 `kernel/diskSessions.ts#extractJsonlTitle`（纯函数）**：
    `title 记录 > session 行 title > summary > 首条用户消息`，逐行 try/catch 容忍 head 截断。
-   各插件只声明自己的 head 窗口（omp/pi 8KB / claude 32KB / codex 128KB 且先 4KB meta 过滤再读大窗 / kimi 8KB）。
+   各插件只声明自己的 head 窗口（omp/pi 8KB / claude 32KB / codex 128KB 且先 4KB meta 过滤再读大窗 / kimi 8KB / qoder 32KB / grok 读 summary.json）。
 2. **手动重命名 = 应用侧覆盖层（`settings.sessionTitles`），禁止写回 CLI 磁盘文件**：
    omp/pi 的 title 记录是定长 pad 覆写格式，改写有长度/并发风险；claude/codex 无原生 rename 概念，
    追加异构行有解析破坏风险。覆盖层 key = `${profileId}:${cliSessionId}`，显示优先级最高。
@@ -311,7 +314,7 @@ flowchart TD
     CT --> KH
     CT --> KW["kernel/workspace.ts"]
 
-    PI --> P1["cli-omp / cli-pi / cli-codex / cli-claude"]
+    PI --> P1["cli-omp / cli-pi / cli-codex / cli-claude / cli-grok / cli-kimi / cli-qoder / cli-qoder-cn"]
     PI --> P2["workspace"]
     PI --> P3["files"]
     PI --> P4["git"]
@@ -340,28 +343,35 @@ flowchart TD
 
 ## 8. Rust 后端命令面
 
-注册的 29 个 `#[tauri::command]`（lib.rs 25 + quota.rs 2 + omp_auth.rs 2），与 `ipc.ts` 一一对应：
+注册的 45 个 `#[tauri::command]`（lib.rs 26 + git/commands.rs 15 + quota.rs 2 + omp_auth.rs 2），与 `ipc.ts` 一一对应：
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
-| `session_spawn` | `pty.rs` + `session.rs` | openpty → spawn 子进程 → reader 线程泵事件 → 注册表落盘 |
-| `session_list` | `session.rs` | 内存注册表（启动时从 sessions.json 恢复） |
+| `session_spawn` | `pty.rs` + `session.rs` | openpty → spawn 子进程 → reader/emitter 双线程泵输出 → 内存注册表登记 |
+| `session_list` | `session.rs` | 活会话纯内存注册表(进程重启即空;历史恢复走各 CLI 磁盘扫描) |
 | `session_write` / `session_resize` / `session_kill` | `pty.rs` | writer 直写 / master.resize / child.kill |
 | `session_log_size` / `session_history_page` | `session_log.rs` | 输出日志末尾偏移 / 绝对偏移前翻一页(转义+UTF-8 边界对齐) |
-| `cli_probe` | `probe.rs` | PATH 解析 + `--version`(8s 硬超时,spawn_blocking) |
+| `cli_probe` | `probe.rs` | PATH 解析 + `--version`(8s 硬超时,spawn_blocking;输出带超时收集防孙进程握管道挂死) |
 | `cli_install_run` | `installer.rs` | npm -g / claude native 安装,`cli-install://{engine}` 流式日志(300s 超时) |
 | `omp_auth_credential` / `omp_auth_providers` | `omp_auth.rs` | omp agent.db 只读:单供应商凭据 JSON / 已登录供应商列表 |
 | `quota_fetch` / `quota_env_value` | `quota.rs` | 通用 HTTP 代理(15s 超时) / 只读环境变量 |
-| `platform_kind` | `lib.rs` | UA 探测失败时的 OS 兜底 |
+| `platform_kind` / `app_restart` | `lib.rs` | UA 探测失败时的 OS 兜底 / 重启应用(插件启停重启生效) |
 | `fs_list_dir` | `fs.rs` | 单层列举，隐藏过滤，目录排前 |
 | `fs_read_file` | `fs.rs` | ≤512KB、非二进制、UTF-8 才给预览 |
-| `fs_write_temp` | `fs.rs` | 截图/拖拽文件落 `~/.tmd-cli/tmp/` |
+| `fs_write_temp` | `fs.rs` | 截图/拖拽文件落系统临时目录 `temp_dir()/tmd-cli` |
 | `fs_collect_files` | `fs.rs` | 递归收集指定后缀文件并按 mtime 倒序 |
 | `fs_read_head` / `fs_read_tail` | `fs.rs` | 读取 JSONL 头/尾，避免全文加载 |
-| `fs_remove_file` | `fs.rs` | 物理删除文件（会话删除双端统一）,NotFound 幂等成功 |
-| `git_status` | `git.rs` | `git rev-parse` + `git status --porcelain=v1 --branch` |
+| `fs_remove_path` | `fs.rs` | 物理删除文件/目录（会话删除双端统一）,NotFound 幂等成功 |
+| `read_local_image_data_url` | `lib.rs`/`fs.rs` | md 预览本地图片(白名单 + 20MB 闸) |
+| `md5_hex` | `hash.rs` | 通用哈希原语(kimi 会话目录 `MD5(cwd)`) |
+| `git_status` / `git_totals` / `git_ahead_behind` | `git/status.rs` 等 | libgit2 本地读(status 聚合/改动统计/领先落后) |
+| `git_diff_file_patch` | `git/diff.rs` | libgit2 patch 生成(前端 PatchLRU 缓存 50 条/20MB) |
+| `git_stage` / `git_unstage` / `git_discard` / `git_commit` | `git/index_ops.rs` 等 | index 写操作(discard = checkout_index,不经 fs 删除) |
+| `git_log` / `git_branches` / `git_checkout` / `git_create_branch` / `git_delete_branch` | `git/log.rs`/`branch_ops.rs` | 历史/分支操作(全 libgit2) |
+| `git_fetch` / `git_pull_push` | `git/remote_ops.rs` | 远端操作 shell-out(300s 总超时,GIT_TERMINAL_PROMPT=0,管道排空不 join) |
 | `config_home_dir` / `config_default_workspace_root` | `session.rs` | 返回配置和默认工作区路径 |
-| `config_read_workspaces` / `config_write_workspaces` | `session.rs` | `~/.tmd-cli/` 工作区配置读写 |
+| `config_read_settings` / `config_write_settings` | `settings.rs` | `~/.tmd-cli/settings.json` 全局设置读写 |
+| `config_read_workspaces` / `config_write_workspaces` | `session.rs` | `~/.tmd-cli/workspaces.json` 工作区配置读写 |
 
 ## 9. 设计原则 ↔ 代码落点对照
 
@@ -378,8 +388,8 @@ flowchart TD
 
 ## 10. 已知缺口（代码现状，非设计意图）
 
-- `git` 插件仅注册占位面板（`GitPanel` 空态）：`git.rs` 只有 status，面板待实装。
-- `footer.*`、`overlay` 等挂点暂无贡献者。
+- `footer.left`、`footer.right` 等挂点暂无贡献者（`overlay` 已由 settings 插件贡献设置面板）。
+- CLI 凭据盘点未覆盖 kimi/qoder/qoder-cn（`welcome/credentials.ts` 默认分支返回空）。
 - Codex 的 session 状态解析采用容错字段匹配，完整 `turn_context` schema 仍需随 CLI 版本验证。
 - `prepareSendPayload` 注释声明 v1 不用 bracketed paste（多行粘贴交给 CLI 自理）。
-- `composer/index.ts` 注释里的 Step 4/5（触发器下拉已完成；拖拽/截图已进 `Composer.tsx`）。
+- `composer` 命令抽屉(openspec composer-command-drawer)在途:代码已实装待真机验收。

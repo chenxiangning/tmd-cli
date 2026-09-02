@@ -23,5 +23,8 @@ tmd-cli 托管的 CLI 会话（omp/claude 等）弹出 Ask 提问、权限确认
 
 - 新增：`src/kernel/askSound.ts`（检测 + 播放）、`src/assets/sounds/*.wav`
 - 修改：`src/kernel/host.ts`（appendOutput 检测接线 / 轮次结算重置 / removeSession 清理）、`src/kernel/settings.ts`（两个新字段 + 清洗）、`src/plugins/settings/BehaviorTab.tsx`（设置 UI）
+
+> **落地修订(2026-09-02)**:最终实现为 host 零改动 —— 检测逻辑独立在 `src/kernel/askSound.ts`
+> 纯监听模块,`main.tsx` 启动时 `bootAskSound()` 挂载;settings 字段与 BehaviorTab 如期落地。
 - 架构边界不破坏：新模块不 import `@tauri-apps/*`（R3）、kernel 不 import plugins（R1）
 - 不做自定义音频文件（`convertFileSrc` 需为 R3 开专门通道，本次 YAGNI）

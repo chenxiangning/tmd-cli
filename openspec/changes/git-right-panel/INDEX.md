@@ -4,10 +4,10 @@
 
 | 文件 | 角色 | 状态 |
 |---|---|---|
-| `proposal.md` | 决策层:范围 / 决策 / 验收 / 回滚 | Draft v0.2 · 已合入一轮 review 修订 |
-| `design.md` | 设计层:拐点论证 / 修正后实现 / UI 布局契约 | Draft v0.2 |
-| `tasks.md` | 执行层:5 阶段 36 任务 [E]/[V]/[D]/[B] | Draft v0.2 |
-| `specs/git-panel/spec.md` | 能力契约:11 条 Requirement + Scenario | Draft v0.2 |
+| `proposal.md` | 决策层:范围 / 决策 / 验收 / 回滚 | Implemented v0.3 · 2026-09-02 实装完成,待验收 |
+| `design.md` | 设计层:拐点论证 / 修正后实现 / UI 布局契约 | v0.3(随实装校订) |
+| `tasks.md` | 执行层:5 阶段 36 任务 [E]/[V]/[D]/[B] | v0.3(实现完成,DoD 手动验收项未勾) |
+| `specs/git-panel/spec.md` | 能力契约:11 条 Requirement + Scenario | v0.3 |
 
 ## v0.2 修订摘要(review 后)
 

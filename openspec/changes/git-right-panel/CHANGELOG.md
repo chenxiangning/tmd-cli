@@ -1,5 +1,11 @@
 # Changelog: git-right-panel
 
+## 0.3 · 2026-09-02 · 实装完成(待验收)
+
+- 状态 Draft → Implemented:后端 git/ 15 命令 + 前端 src/plugins/git/ 全量面板随 f80b6ce 落地
+- 2026-09-02 晚间评审补修:remote_ops 成功路径 join 持锁挂死 → channel + recv_timeout 有限等待
+- DoD 手动验收项(9 步验证 / 三平台打包留档 / proposal→Verified)未完成,维持待验收
+
 ## 0.2 · 2026-09-02 · review 修订 + 迁入仓内 openspec/
 
 - 位置:`tmd-cli-spec/openspec/`(平级)→ `tmd-cli/openspec/changes/git-right-panel/`(仓内维护)

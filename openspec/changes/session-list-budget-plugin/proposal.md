@@ -23,6 +23,11 @@
 
 ## Impact
 
+> **路径已迁移(2026-09-02,由后继变更 [session-budget-standalone](../session-budget-standalone/) 承接)**:
+> 本节所列 `src/plugins/workspace/budgetCommit.ts` / `BudgetPopover.tsx` 等文件现已位于
+> `src/plugins/session-budget/`(独立插件,样式 `src/styles/session-budget.css`)。
+> 下方为当时快照,现状以上述迁移为准。
+
 - **新增**:`src/plugins/workspace/budgetCommit.ts`(提交校验纯函数)+ `budgetCommit.test.ts`
 - **修改**:`src/plugins/workspace/SessionList.tsx`(初始 limit 接 quota)、`src/plugins/workspace/BudgetPopover.tsx`(校验迁移至纯函数,UI 不变)
 - **保持**:`src/plugins/workspace/index.tsx`(caption 弹窗入口原样)、`src/styles/workspace-menu.css`(wsbudget 样式原样)、kernel 零改动

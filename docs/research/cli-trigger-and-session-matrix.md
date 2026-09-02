@@ -1,4 +1,4 @@
-# CLI 触发器与会话能力矩阵:omp / pi / codex(+ claude / grok 增补)
+# CLI 触发器与会话能力矩阵:omp / pi / codex(+ claude / grok / kimi / qoder 增补)
 
 > **2026-09-02 增补（claude 2.1.251 本机实证）**：`cli-claude` 插件已按本矩阵同法接入。要点：
 > - **触发符**：`/` 命令、`@` 文件引用原生支持，纯透传；skill 原生语法为 `/skill-name`（`--help`: "Skills still resolve via /skill-name"），composer `$` 发送时翻译为 `/name`（同 omp 方案）；`!` bash 模式不在契约 TriggerKind 内，未声明。
@@ -16,6 +16,21 @@
 > - **额度**:`config.toml` `[model."<id>"]` 的 `base_url`+`api_key` → vendors 检测走 HTTP(本机实证 fufei.mossx.ai → relay);官方 OAuth(`grok login`)凭据不落 config.toml,无公开额度 API,显式报不支持。
 > - **skill 候选**:`~/.grok/skills/<name>/SKILL.md`(另有项目级 `./.grok/skills/`、`~/.claude/skills/` 复用,官方优先级表),composer `$` 下拉扫 home 级真实磁盘。
 > - **默认态**:`config.toml` `[models].default` → `[model."<id>"].model`(档案 id 缺省 = 二进制内置 "grok",`grok models` 实证;本机默认档案 wire 模型 = grok-4.6)。
+
+> **2026-09-02 增补(kimi 0.34.0 本机实证,npm `@moonshot-ai/kimi-code`)**:`cli-kimi` 插件已按本矩阵同法接入。要点:
+> - **触发符**:`/` 命令、`@` 文件引用原生支持,纯透传;skill 原生语法 `/skill:<name>`,composer `$` 发送时翻译为 `/skill:<name>`(同 omp 方案)。
+> - **会话存储**:`~/.kimi/sessions/<MD5(cwd)>/<uuid>/wire.jsonl`,目录哈希分 cwd(会话文件内不记录 cwd,Rust `md5_hex` 原语计算);恢复 `kimi --session <uuid>`;标题无原生记录(兜底首条 TurnBegin 用户输入,head 8KB)。
+> - **状态**:模型/思考强度真相在全局 `~/.kimi/config.toml`(`default_model`/`default_thinking`,/model 切换即写并热重载),会话层无独立模型事件 → 会话态与默认态同源。
+> - **额度**:HTTP fetcher 存在(`cli-shared/quota/vendors/fetchers.ts`,api.kimi.com);kimi 侧凭据盘点暂缺。
+> - 来源:`src/plugins/cli-kimi/index.tsx`。
+
+> **2026-09-02 增补(qoder 双分发版本机实证,国际版 qodercli 1.1.33 / 国内版 qoderclicn 1.1.28)**:`cli-qoder` / `cli-qoder-cn` 插件已按本矩阵同法接入。要点:
+> - **双分发版**:国际版(命令 `qodercli`,数据目录 `~/.qoder`,npm `@qoder-ai/qodercli`)与国内版(命令 `qoderclicn`,`~/.qoder-cn`,npm `@qodercn-ai/qoderclicn`);两插件共享 `cli-shared/qoderSessions.tsx` 的磁盘格式内核,变体差异只有常量(command/dataDir,由各插件目录声明)。
+> - **触发符**:仅 `/` 命令声明(内置 skill 原生 `/name` 语法,纯透传);`@`/`$` 未实证,不声明(不猜接口)——与 claude 不同,无 `$` 翻译。
+> - **会话存储**:claude 同构 `<dataDir>/projects/<slug>/<uuid>.jsonl`,文件名即会话 id;slug 规则 `[^a-zA-Z0-9]`→`-`(CJK 逐字符,与 claude 同规则);恢复 `--resume <uuid>`;标题无原生记录(兜底首条用户消息,head 32KB)。
+> - **状态**:会话态 tail 扫 runtime-config/assistant 帧取 model/reasoningEffort;默认态读 `settings.json`(思考强度只在 settings,不落会话)。
+> - **额度/凭据盘点**:暂缺。
+> - 来源:`src/plugins/cli-qoder/index.tsx`、`src/plugins/cli-qoder-cn/index.tsx`、`src/plugins/cli-shared/qoderSessions.tsx`。
 
 > 调查日期：2026-09-01。方法：本机二进制 `--help` 输出、配置/会话目录实测、官方文档、二进制 strings 取证（只读）。未做任何交互式 TUI 启动。
 > 用途：tmd-cli（Tauri + React + PTY + xterm.js 包装 CLI TUI）的 composer 透传与 session 管理设计输入。
