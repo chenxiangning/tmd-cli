@@ -3,6 +3,8 @@
  * 外观与交互完全复刻 codemoss(WorkspaceCard/ThreadList/WorkspaceMenuOverlay):
  * - 工作区行:双态文件夹图标(hover 换 chevrons)+ 名称 + Default badge
  *   + hover 显形动作组(切到主区/刷新会话/新建会话菜单),右键同「+」
+ * - caption 动作区:折叠/展开全部工作区会话(受控 collapsedMap,卡片行内
+ *   toggle 与全局按钮同源)+ 插件贡献位(leftSidebar.workspaceCaption)+ 添加工作区
  * - 会话树:贯穿竖线 + ╰ 弯钩;行 = CLI EngineIcon + 名称 + meta
  *   (活会话 meta 显示呼吸灯,磁盘会话显示相对时间),固定在 CLI 分组内
  * - 磁盘历史分页:初始条数 = 显示预算解析配额(见 SessionList);
@@ -23,7 +25,7 @@ import {
   type Workspace,
 } from "@kernel/workspace";
 import { pickDirectory } from "@kernel/ipc";
-import { FolderPlus } from "lucide-react";
+import { FolderPlus, ListChevronsDownUp, ListChevronsUpDown } from "lucide-react";
 import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
 import { WorkspaceCard } from "./WorkspaceCard";
 import { PinnedSessionsSection } from "./PinnedSessions";
@@ -38,6 +40,12 @@ function WorkspaceSection() {
   } | null>(null);
   const [refreshTicks, setRefreshTicks] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
+  /** 各工作区折叠态(受控):卡片行内 toggle 与 caption「折叠全部」共用一份。 */
+  const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
+  const isCollapsed = (id: string) => collapsedMap[id] ?? false;
+  const allCollapsed = list.length > 0 && list.every((ws) => isCollapsed(ws.id));
+  const setAllCollapsed = (v: boolean) =>
+    setCollapsedMap(Object.fromEntries(list.map((ws) => [ws.id, v])));
 
   async function handleAdd() {
     try {
@@ -71,6 +79,18 @@ function WorkspaceSection() {
       <div className="ws-caption">
         <span>工作区</span>
         <span className="ws-caption-actions">
+          <button
+            className="ws-caption-btn"
+            title={allCollapsed ? "展开全部工作区会话" : "折叠全部工作区会话"}
+            aria-label={allCollapsed ? "展开全部工作区会话" : "折叠全部工作区会话"}
+            onClick={() => setAllCollapsed(!allCollapsed)}
+          >
+            {allCollapsed ? (
+              <ListChevronsUpDown size={13} aria-hidden />
+            ) : (
+              <ListChevronsDownUp size={13} aria-hidden />
+            )}
+          </button>
           {/* 插件贡献的动作位(如 session-budget 的预算入口),渲染器 = kernel Mounts */}
           <Mounts point="leftSidebar.workspaceCaption" />
           <button
@@ -88,6 +108,10 @@ function WorkspaceSection() {
           key={ws.id}
           workspace={ws}
           isActive={ws.id === activeId}
+          collapsed={isCollapsed(ws.id)}
+          onToggleCollapsed={() =>
+            setCollapsedMap((m) => ({ ...m, [ws.id]: !(m[ws.id] ?? false) }))
+          }
           refreshTicks={refreshTicks}
           onRefreshWorkspace={(wsId) =>
             host.getCliProfiles().forEach((p) => bumpTick(wsId, p.id))

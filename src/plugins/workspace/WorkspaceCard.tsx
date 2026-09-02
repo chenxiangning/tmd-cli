@@ -4,7 +4,6 @@
  *   + hover 显形动作组(切到主区/刷新会话/新建会话菜单),右键同「+」。
  */
 
-import { useState } from "react";
 import { host } from "@kernel/host";
 import { setActiveWorkspace, type Workspace } from "@kernel/workspace";
 import {
@@ -52,6 +51,8 @@ function FolderIcon({ expanded }: { expanded: boolean }) {
 export function WorkspaceCard({
   workspace,
   isActive,
+  collapsed,
+  onToggleCollapsed,
   refreshTicks,
   onRefreshWorkspace,
   onScanDone,
@@ -59,13 +60,15 @@ export function WorkspaceCard({
 }: {
   workspace: Workspace;
   isActive: boolean;
+  /** 折叠态由 WorkspaceSection 持有(受控):caption「折叠全部」按钮据此全局切换。 */
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
   refreshTicks: Record<string, number>;
   onRefreshWorkspace: (workspaceId: string) => void;
   /** 组扫描完成上报:清菜单刷新按钮的 spin。 */
   onScanDone: (workspaceId: string, profileId: string) => void;
   onShowMenu: (workspace: Workspace, x: number, y: number) => void;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
   const profiles = host.getCliProfiles();
   const scanKey = (profileId: string) => `${workspace.id}:${profileId}`;
 
@@ -81,7 +84,7 @@ export function WorkspaceCard({
         }}
         onDoubleClick={(e) => {
           e.preventDefault();
-          setCollapsed((c) => !c);
+          onToggleCollapsed();
         }}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -102,7 +105,7 @@ export function WorkspaceCard({
             aria-expanded={!collapsed}
             onClick={(e) => {
               e.stopPropagation();
-              setCollapsed((c) => !c);
+              onToggleCollapsed();
             }}
             onDoubleClick={(e) => e.stopPropagation()}
           >
