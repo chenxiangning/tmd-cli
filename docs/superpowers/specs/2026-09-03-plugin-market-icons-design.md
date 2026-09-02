@@ -33,18 +33,22 @@ export interface PluginMeta {
 
 ## 图标映射(定稿)
 
-### CLI 引擎 · 8 位 —— 复用已有品牌字形,原样接入、跟随主题单色
+### CLI 引擎 · 8 位 —— 复用已有品牌字形,按官方品牌色着色(修订)
 
-| 插件 | 组件 | 备注 |
-|---|---|---|
-| cli-omp | `OmpGlyph` | 保留自带粉紫→蓝渐变 |
-| cli-pi | `PiGlyph` | currentColor |
-| cli-kimi | `KimiGlyph` | currentColor |
-| cli-codex | `CodexGlyph` | currentColor |
-| cli-claude | `ClaudeGlyph` | vendored 官方日芒标志,自带品牌橙 #D97757(原样保留) |
-| cli-grok | `GrokGlyph` | currentColor |
-| cli-qoder | `QoderGlyph` | 自 cli-shared/qoderSessions 导入 |
-| cli-qoder-cn | `QoderGlyph` | 同上 |
+字形组件不内部改色,统一经 meta.iconColor 施加(容器 currentColor 传导):
+
+| 插件 | 组件 | iconColor | 依据 |
+|---|---|---|---|
+| cli-omp | `OmpGlyph` | —(字形自带粉紫→蓝渐变) | 上游 hero 标志 |
+| cli-pi | `PiGlyph` | —(跟随主题;官方品牌色无权威来源,暂缺) | — |
+| cli-kimi | `KimiGlyph` | `#1783FF` | Moonshot 官方 Branding-Guide k-only-light.svg 实测 |
+| cli-codex | `CodexGlyph` | `var(--tmd-fg)` | OpenAI 单色品牌:浅色黑/深色白 |
+| cli-claude | `ClaudeGlyph` | —(字形自带品牌橙 #D97757) | vendored 官方日芒标志 |
+| cli-grok | `GrokGlyph` | `var(--tmd-fg)` | xAI 单色品牌:浅色黑/深色白 |
+| cli-qoder | `QoderGlyph` | `var(--tmd-fg)` | 官方 favicon 实测单色 #0F0D0C(浅)/反白(深) |
+| cli-qoder-cn | `QoderGlyph` | `var(--tmd-fg)` | 同上 |
+
+注:品牌色只作用于插件市场页(meta 层);侧栏会话行/欢迎页等处 renderIcon 仍跟随主题色,维持全局单色语言。
 
 ### 界面功能 + 核心系统 · 9 位 —— lucide 语义图标 + 独立彩色
 

@@ -185,6 +185,7 @@ export const cliGrokPlugin: Plugin = {
     abbr: "GK",
     desc: "Grok Build 引擎:会话扫描、配额、状态",
     icon: GrokGlyph,
+    iconColor: "var(--tmd-fg)",
     category: "engine",
   },
   activate(ctx) {

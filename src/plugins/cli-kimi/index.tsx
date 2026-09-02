@@ -206,6 +206,7 @@ export const cliKimiPlugin: Plugin = {
     abbr: "KI",
     desc: "Kimi Code CLI 引擎:MD5 目录会话、config 状态",
     icon: KimiGlyph,
+    iconColor: "#1783FF",
     category: "engine",
   },
   activate(ctx) {

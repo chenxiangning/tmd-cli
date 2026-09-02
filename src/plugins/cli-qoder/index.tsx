@@ -30,6 +30,7 @@ export const cliQoderPlugin: Plugin = {
     abbr: "Q",
     desc: "Qoder CLI 引擎:磁盘会话、模型状态",
     icon: QoderGlyph,
+    iconColor: "var(--tmd-fg)",
     category: "engine",
   },
   activate(ctx) {
