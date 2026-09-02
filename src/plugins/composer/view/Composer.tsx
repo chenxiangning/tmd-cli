@@ -110,7 +110,8 @@ export function Composer() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  /* send 与手动发送完全同路径(prepareSendPayload → sessionWrite,translate 生效,零拦截);
+  /* send 与手动发送完全同路径(prepareSendPayload → host.writeSession,translate 生效,零拦截;
+     writeSession 同时终止宽限期 —— 用户首写后的输出按对话语义结算呼吸灯);
      返回写入的 wire 文本(translate 后)供抽屉 toast 展示;无会话/无 profile 返回空串
      (spec:静默守卫,不弹"已发送"假反馈) */
   function sendFromDrawer(item: DrawerItem): string {
@@ -118,7 +119,7 @@ export function Composer() {
     if (!sid || !profile) return "";
     const text = drawerWireText(item);
     const wire = prepareSendPayload(profile, text);
-    void ipc.sessionWrite(sid, wire);
+    host.writeSession(sid, wire);
     return wire.replace(/\r$/, "");
   }
 
@@ -229,7 +230,7 @@ export function Composer() {
       host.events.emit("git://composer-prefill", { message: trimmed.slice(8).trim() });
     }
     const payload = prepareSendPayload(profile, value);
-    void ipc.sessionWrite(host.getActiveSessionId()!, payload);
+    host.writeSession(host.getActiveSessionId()!, payload);
     setValue("");
     clearAttachments();
     setMatches(null);

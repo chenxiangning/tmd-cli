@@ -94,6 +94,12 @@ export interface AppSettings {
   askSoundEnabled: boolean;
   /** Ask 提示音效 id。 */
   askSoundId: AskSoundId;
+  /** 对话轮次结束(未被查看)提示音开关,默认开启。 */
+  turnEndSoundEnabled: boolean;
+  /** 轮次结束提示音效 id(与 Ask 音共用内置 wav 白名单)。 */
+  turnEndSoundId: AskSoundId;
+  /** 后台提醒:窗口失焦时激活会话完成一轮也视为未查看(标蓝 + 结束音)。 */
+  backgroundNotify: boolean;
     /** 单会话输出环形缓冲上限(字符);切回会话的回放深度由它决定,更早历史走幕布翻页。 */
   sessionOutputBufferLimit: number;
   /** 工作区会话列表显示预算(总数 + 按 CLI 配额)。 */
@@ -134,6 +140,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   sendShortcut: "enter",
   askSoundEnabled: true,
   askSoundId: "default",
+  turnEndSoundEnabled: true,
+  turnEndSoundId: "default",
+  backgroundNotify: true,
   sessionOutputBufferLimit: 500_000,
   sessionListBudget: { total: SESSION_LIST_TOTAL_DEFAULT, perCli: {} },
   disabledPlugins: [],
@@ -287,6 +296,17 @@ function sanitize(raw: unknown): AppSettings {
     askSoundId: ASK_SOUND_IDS.includes(obj.askSoundId as AskSoundId)
       ? (obj.askSoundId as AskSoundId)
       : DEFAULT_SETTINGS.askSoundId,
+    turnEndSoundEnabled:
+      typeof obj.turnEndSoundEnabled === "boolean"
+        ? obj.turnEndSoundEnabled
+        : DEFAULT_SETTINGS.turnEndSoundEnabled,
+    turnEndSoundId: ASK_SOUND_IDS.includes(obj.turnEndSoundId as AskSoundId)
+      ? (obj.turnEndSoundId as AskSoundId)
+      : DEFAULT_SETTINGS.turnEndSoundId,
+    backgroundNotify:
+      typeof obj.backgroundNotify === "boolean"
+        ? obj.backgroundNotify
+        : DEFAULT_SETTINGS.backgroundNotify,
     sessionOutputBufferLimit: sanitizeBufferLimit(obj.sessionOutputBufferLimit),
     sessionListBudget: sanitizeSessionListBudget(obj.sessionListBudget),
     disabledPlugins: sanitizeDisabledPlugins(obj.disabledPlugins),

@@ -31,4 +31,13 @@ export const KernelTopics = {
   activeSessionChanged: "kernel.sessions.active",
   /** 某会话 CLI 进程退出。payload: sessionId */
   sessionExited: "kernel.sessions.exited",
+  /** 一轮对话结算(输出静默超阈)。payload: TurnSettledEvent */
+  turnSettled: "kernel.sessions.turn.settled",
 } as const;
+
+/** turnSettled 负载:unviewed = 结算时未被查看(即标了完成未读);settledAt = 末次输出时刻。 */
+export interface TurnSettledEvent {
+  sessionId: string;
+  unviewed: boolean;
+  settledAt: number;
+}

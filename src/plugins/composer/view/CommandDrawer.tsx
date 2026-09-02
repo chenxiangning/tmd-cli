@@ -6,7 +6,7 @@
  * - Esc 关闭、点外关闭、↑↓ + Enter 键盘导航(仅可见条目)
  *
  * 执行机制不在本组件:点击经 onSend/onInsert/onOpen 回调交回 Composer
- * (send 走 prepareSendPayload → sessionWrite,与手动发送同路径)。
+ * (send 走 prepareSendPayload → host.writeSession,与手动发送同路径)。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";

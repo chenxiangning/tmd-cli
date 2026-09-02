@@ -29,6 +29,7 @@ vi.mock("./ipc", () => ({
     }),
     sessionList: vi.fn(async () => sessions),
     sessionKill: vi.fn(async () => undefined),
+    sessionWrite: vi.fn(async () => undefined),
   },
   onPtyOutput: vi.fn(async (id: string, cb: (text: string) => void) => {
     ptyOutputCbs.set(id, cb);
@@ -322,10 +323,16 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
     ptyOutputCbs.get(sessionId)?.(text);
   }
 
+  /** 模拟用户发起一轮对话(真实路径:幕布按键/Composer 发送 → host.writeSession)。 */
+  function userPrompt(sessionId: string): void {
+    host.writeSession(sessionId, "prompt\r");
+  }
+
   it("对话结束且未被查看 → 标未读;点开查看即清", async () => {
     const a = await host.createSession(PROFILE_ID, CWD);
     const b = await host.createSession(PROFILE_ID, CWD);
     /* B 后创建 = 当前查看;A 在后台跑完一轮对话 */
+    userPrompt(a.id);
     fireOutput(a.id);
     await vi.advanceTimersByTimeAsync(3000);
     expect(host.isUnread(a.id)).toBe(true);
@@ -338,6 +345,7 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
   it("正在查看的会话结束 → 不标未读(不打扰)", async () => {
     const a = await host.createSession(PROFILE_ID, CWD);
     /* a 即当前查看会话;其对话结束不应产生未读 */
+    userPrompt(a.id);
     fireOutput(a.id);
     await vi.advanceTimersByTimeAsync(3000);
     expect(host.isUnread(a.id)).toBe(false);
@@ -346,6 +354,7 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
   it("未读会话来新输出 → 立即回到进行中(清未读)", async () => {
     const a = await host.createSession(PROFILE_ID, CWD);
     await host.createSession(PROFILE_ID, CWD);
+    userPrompt(a.id);
     fireOutput(a.id);
     await vi.advanceTimersByTimeAsync(3000);
     expect(host.isUnread(a.id)).toBe(true);
@@ -357,6 +366,7 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
   it("输出间隔 ≤2s 视为同一轮:不提前结算未读", async () => {
     const a = await host.createSession(PROFILE_ID, CWD);
     await host.createSession(PROFILE_ID, CWD);
+    userPrompt(a.id);
     fireOutput(a.id);
     await vi.advanceTimersByTimeAsync(1500);
     fireOutput(a.id, "still streaming");
@@ -370,11 +380,120 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
   it("会话移除 → 未读/轮次残留一并清除", async () => {
     const a = await host.createSession(PROFILE_ID, CWD);
     await host.createSession(PROFILE_ID, CWD);
+    userPrompt(a.id);
     fireOutput(a.id);
     await vi.advanceTimersByTimeAsync(3000);
     expect(host.isUnread(a.id)).toBe(true);
 
     await host.removeSession(a.id);
     expect(host.isUnread(a.id)).toBe(false);
+  });
+});
+
+describe("宽限期:spawn 首个输出突发不结算(呼吸灯灰)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    sessions.length = 0;
+    ptyOutputCbs.clear();
+    disk = [];
+    resetStatusTimer();
+    host.resetActivityWatchForTest();
+    if (!host.getCliProfile(PROFILE_ID)) host.registerCliProfile(profile);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function fireOutput(sessionId: string, text = "chunk"): void {
+    ptyOutputCbs.get(sessionId)?.(text);
+  }
+
+  it("新会话横幅输出:不亮灯、不结算未读", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await host.createSession(PROFILE_ID, CWD);
+    fireOutput(a.id, "banner");
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(host.isUnread(a.id)).toBe(false);
+    expect(host.getLastActivityAt(a.id)).toBe(0);
+  });
+
+  it("历史会话 resume 回放:全程不结算,切走也不标蓝", async () => {
+    const other = await host.createSession(PROFILE_ID, CWD); // 当前查看
+    const h = await host.openDiskSession(PROFILE_ID, CWD, undefined, "resume-1");
+    fireOutput(h.id, "replay..."); // CLI 重绘历史
+    host.setActiveSession(other.id); // 回放未结束即切走
+    fireOutput(h.id, "more replay");
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(host.isUnread(h.id)).toBe(false);
+  });
+
+  it("用户首写立即出宽限:应答按对话结算", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await host.createSession(PROFILE_ID, CWD);
+    host.writeSession(a.id, "hi\r");
+    fireOutput(a.id, "answer");
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(host.isUnread(a.id)).toBe(true);
+  });
+
+  it("宽限静默后的新突发 = 正常对话(慢启动 CLI 语义)", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await host.createSession(PROFILE_ID, CWD);
+    fireOutput(a.id, "banner"); // 宽限内:静默 2s 后出宽限
+    await vi.advanceTimersByTimeAsync(3000);
+    fireOutput(a.id, "late turn"); // 无写入的后续输出:正常结算
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(host.isUnread(a.id)).toBe(true);
+  });
+});
+
+describe("turnSettled 结算事件(结束音数据源)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    sessions.length = 0;
+    ptyOutputCbs.clear();
+    disk = [];
+    resetStatusTimer();
+    host.resetActivityWatchForTest();
+    if (!host.getCliProfile(PROFILE_ID)) host.registerCliProfile(profile);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("真实轮次结算发事件:未查看带 unviewed=true,正在查看 false", async () => {
+    const settled: { sessionId: string; unviewed: boolean }[] = [];
+    const off = host.events.on<{
+      sessionId: string;
+      unviewed: boolean;
+      settledAt: number;
+    }>("kernel.sessions.turn.settled", (e) => settled.push(e));
+
+    const a = await host.createSession(PROFILE_ID, CWD); // 后台
+    const b = await host.createSession(PROFILE_ID, CWD); // 查看
+    host.writeSession(a.id, "q\r");
+    host.writeSession(b.id, "q\r");
+    ptyOutputCbs.get(a.id)?.("answer-a");
+    ptyOutputCbs.get(b.id)?.("answer-b");
+    await vi.advanceTimersByTimeAsync(3000);
+    off();
+
+    expect(settled).toHaveLength(2);
+    expect(settled.find((e) => e.sessionId === a.id)?.unviewed).toBe(true);
+    expect(settled.find((e) => e.sessionId === b.id)?.unviewed).toBe(false);
+    expect(host.isUnread(a.id)).toBe(true);
+  });
+
+  it("宽限静默退出不发事件(打开历史会话不得响结束音)", async () => {
+    const settled: unknown[] = [];
+    const off = host.events.on("kernel.sessions.turn.settled", (e) => settled.push(e));
+    await host.createSession(PROFILE_ID, CWD);
+    const h = await host.openDiskSession(PROFILE_ID, CWD, undefined, "resume-2");
+    ptyOutputCbs.get(h.id)?.("replay");
+    await vi.advanceTimersByTimeAsync(4000);
+    off();
+    expect(settled).toHaveLength(0);
   });
 });

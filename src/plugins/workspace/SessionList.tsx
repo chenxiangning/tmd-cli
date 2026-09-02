@@ -2,8 +2,9 @@
  * 会话列表 —— 活会话行 + CLI 分组 + 磁盘历史分页。
  * 数据源:活会话 = 内核 PTY 注册表;历史 = 各 CLI 插件 listSessions。
  *
- * 呼吸灯三态(内核 host 活动守望结算,见 kernel/host.ts):
- * - 绿呼吸:对话进行中(2s 内有 PTY 输出)
+ * 呼吸灯三态(内核 host 活动守望结算,见 kernel/host.ts / activityWatch.ts):
+ * - 绿呼吸:对话进行中(2s 内有 PTY 输出;spawn 后的首个输出突发处于宽限期 ——
+ *   新会话横幅/历史 resume 回放不亮灯、不结算未读,用户首写或静默 2s 出宽限)
  * - 蓝呼吸:对话结束且未被查看(完成未读),组内置顶;点开查看即消
  * - 灰静止:已读完成 / 无输出
  * 行右键菜单:复制 Session ID / 重命名(应用侧覆盖层,见 kernel/sessionTitles.ts)

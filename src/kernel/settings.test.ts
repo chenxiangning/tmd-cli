@@ -60,6 +60,9 @@ describe("初始状态与默认值", () => {
       sendShortcut: "enter",
       askSoundEnabled: true,
       askSoundId: "default",
+      turnEndSoundEnabled: true,
+      turnEndSoundId: "default",
+      backgroundNotify: true,
       sessionOutputBufferLimit: 500_000,
       sessionListBudget: { total: 20, perCli: {} },
       disabledPlugins: [],
@@ -225,6 +228,40 @@ describe("Ask 提示音设置", () => {
     const s = settings.getSettingsState().settings;
     expect(s.askSoundEnabled).toBe(true);
     expect(s.askSoundId).toBe("chime");
+  });
+});
+
+describe("结束提示音与后台提醒设置", () => {
+  it("合法补丁合并生效", () => {
+    settings.updateSettings({ turnEndSoundEnabled: false, turnEndSoundId: "ding" });
+    const s = settings.getSettingsState().settings;
+    expect(s.turnEndSoundEnabled).toBe(false);
+    expect(s.turnEndSoundId).toBe("ding");
+  });
+
+  it("非法音效 id 回落 default,非布尔开关回落 true", () => {
+    settings.updateSettings({
+      turnEndSoundId: "junk" as never,
+      turnEndSoundEnabled: 1 as never,
+      backgroundNotify: "no" as never,
+    });
+    const s = settings.getSettingsState().settings;
+    expect(s.turnEndSoundId).toBe("default");
+    expect(s.turnEndSoundEnabled).toBe(true);
+    expect(s.backgroundNotify).toBe(true);
+  });
+
+  it("boot 加载:缺失字段补默认,合法字段保留", async () => {
+    ipcMock.configReadSettings.mockResolvedValue({
+      turnEndSoundId: "bell",
+      backgroundNotify: false,
+    });
+    settings.ensureSettingsBooted();
+    await waitLoaded();
+    const s = settings.getSettingsState().settings;
+    expect(s.turnEndSoundEnabled).toBe(true);
+    expect(s.turnEndSoundId).toBe("bell");
+    expect(s.backgroundNotify).toBe(false);
   });
 });
 

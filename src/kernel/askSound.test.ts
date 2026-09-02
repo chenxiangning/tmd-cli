@@ -83,6 +83,30 @@ describe("标记检测与播放", () => {
     await waitPlayed(1);
   });
 
+  it("claude 权限确认标题命中(Do you want,选项区在窗口内)", async () => {
+    askSound.observeSessionOutput(
+      "s8",
+      "Do you want to make this edit to settings.json?\n ❯ 1. Yes\n  2. Yes, and don't ask again\n  3. No",
+    );
+    await waitPlayed(1);
+  });
+
+  it("大写方括号 Y/N 变体命中", async () => {
+    askSound.observeSessionOutput("s9", "Apply patch? [Y/N]");
+    await waitPlayed(1);
+  });
+
+  it("页脚窗口外的正文引用不误报(对照会话证明管线已冲洗)", async () => {
+    /* 助手正文引用确认句式,其后又输出 6 行 —— 标记滚出末 5 行窗口 */
+    askSound.observeSessionOutput(
+      "s10",
+      "Do you want to know more?\nans1\nans2\nans3\nans4\nans5\nans6",
+    );
+    askSound.observeSessionOutput("s10-ctrl", "Do you want to proceed?");
+    await waitPlayed(1);
+    expect(audioUrls.length).toBe(1);
+  });
+
   it("普通输出不误报(对照会话证明管线已冲洗)", async () => {
     askSound.observeSessionOutput("s4", "ESC to exit. Press Enter to continue.");
     askSound.observeSessionOutput("s4", "task completed in 2 questions of 10");

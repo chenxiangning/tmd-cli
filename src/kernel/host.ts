@@ -7,11 +7,11 @@
 
 import { useSyncExternalStore } from "react";
 import { EventBus, KernelTopics } from "./events";
-import { sliceStreamTail } from "./streamSlice";
 import { getSettingsState } from "./settings";
 import { pickFreshIdentity } from "./diskIdentity";
 import { PluginLifecycle } from "./pluginLifecycle";
 import { ActivityWatch } from "./activityWatch";
+import { OutputBufferStore } from "./outputBuffers";
 
 import { ipc, onPtyExit, onPtyOutput, type SessionMeta, type SpawnSpec } from "./ipc";
 import type { CliProfile, CliSessionStatus } from "./cli";
@@ -20,16 +20,6 @@ import { registerSettingsSection, type SettingsSectionContribution } from "./set
 
 /** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅 Host 内部持有。 */
 type TimerHandle = ReturnType<typeof setInterval>;
-
-/** 输出缓冲的分块结构:chunks 按到达顺序排列,totalChars/totalBytes 为增量维护的合计。 */
-interface OutputBuffer {
-  chunks: string[];
-  totalChars: number;
-  totalBytes: number;
-}
-
-/** 共享 TextEncoder:appendOutput 逐 chunk 累计 UTF-8 字节数(TextEncoder 无线程语义,复用安全)。 */
-const outputByteEncoder = new TextEncoder();
 
 class Host implements PluginContext {
   readonly events = new EventBus();
@@ -53,11 +43,9 @@ class Host implements PluginContext {
   private listeners = new Set<() => void>();
   /**
    * 每会话 PTY 输出环形缓冲：会话切换后 xterm 重挂载靠它回放，这是"切回不黑屏"的核心。
-   * 分块存储:append 只 push 不拼接(高频路径零复制);totalBytes 随 chunk 增量维护,
-   * 供 TerminalView 翻页锚点反推,消除挂载时全量 TextEncoder 编码。
-   * totalChars 超 1.2×limit 才 join+截断一次,平摊 O(limit)。
+   * 存储细节(分块/迟滞截断/字节数增量)见 kernel/outputBuffers.ts。
    */
-  private outputBuffers = new Map<string, OutputBuffer>();
+  private readonly outputBuffers = new OutputBufferStore();
   /**
    * 活会话 → CLI 磁盘身份绑定(omp/pi 的 jsonl uuid、codex 的 rollout id)。
    * 纯前端内存,随 PTY 消亡 —— 这是活会话的身份属性,不是持久化映射。
@@ -76,10 +64,19 @@ class Host implements PluginContext {
   private ptyUnlistens = new Map<string, Array<() => void>>();
   /** openDiskSession 在途单例闸:key = profileId:cliSessionId,双击去重。 */
   private openingDiskSessions = new Map<string, Promise<SessionMeta>>();
+  /** 窗口聚焦态(main.tsx 挂 focus/blur 监听馈入):失焦时激活会话完成也视为未查看。 */
+  private windowFocused = true;
   private readonly activity = new ActivityWatch({
-    isViewing: (id) => id === this.activeSessionId,
+    /* 后台提醒开启时,窗口失焦的激活会话不算"正在查看"(完成照标蓝/响结束音);
+       Node 测试环境 windowFocused 恒 true,退化为纯 activeSessionId 语义 */
+    isViewing: (id) =>
+      id === this.activeSessionId &&
+      (!getSettingsState().settings.backgroundNotify || this.windowFocused),
     exists: (id) => this.sessions.some((s) => s.id === id),
     onChange: () => this.notify(),
+    onTurnSettled: (id, unviewed, settledAt) => {
+      this.events.emit(KernelTopics.turnSettled, { sessionId: id, unviewed, settledAt });
+    },
 });
 
 // ---- PluginContext 实现 -------------------------------------------------
@@ -231,6 +228,8 @@ class Host implements PluginContext {
     cliSessionId?: string,
   ): Promise<SessionMeta> {
     if (cliSessionId) this.cliSessionIds.set(sessionId, cliSessionId);
+    /* 入宽限:横幅/resume 回放不是对话(呼吸灯灰、不结算未读/结束音) */
+    this.activity.onSpawned(sessionId);
     this.sessions = await ipc.sessionList();
     this.activeSessionId = sessionId;
     // 常驻订阅：从会话诞生起就持续缓冲输出，与幕布是否挂载无关。
@@ -324,31 +323,21 @@ class Host implements PluginContext {
   private static readonly OUTPUT_BUFFER_LIMIT = 500_000;
 
   private appendOutput(sessionId: string, text: string): void {
-    const buf: OutputBuffer = this.outputBuffers.get(sessionId) ?? {
-      chunks: [],
-      totalChars: 0,
-      totalBytes: 0,
-    };
-    buf.chunks.push(text);
-    buf.totalChars += text.length;
-    /* 逐 chunk 编码累计字节数:PTY 侧按完整码点切包(decode_utf8_chunk 暂存尾部),
-       chunk 边界永不劈开 surrogate pair,故分块编码之和 === 拼接后整段编码 */
-    buf.totalBytes += outputByteEncoder.encode(text).length;
-    /* 上限读设置项 sessionOutputBufferLimit(行为页可调),异常值已被 sanitize 拦截。
-       1.2× 迟滞:只有明显超限才合并截断,避免每次 append 都做 O(limit) 拼接 */
+    /* 上限读设置项 sessionOutputBufferLimit(行为页可调),异常值已被 sanitize 拦截。 */
     const limit =
       getSettingsState().settings.sessionOutputBufferLimit || Host.OUTPUT_BUFFER_LIMIT;
-    if (buf.totalChars > limit * 1.2) {
-      const trimmed = sliceStreamTail(buf.chunks.join(""), limit);
-      buf.chunks = [trimmed];
-      buf.totalChars = trimmed.length;
-      buf.totalBytes = outputByteEncoder.encode(trimmed).length;
-    }
-    this.outputBuffers.set(sessionId, buf);
+    this.outputBuffers.append(sessionId, text, limit);
     this.events.emit(ptyLiveTopic(sessionId), text);
 
-    /* 呼吸灯三态结算全部由 ActivityWatch 负责:新输出回绿 + 节流 notify */
+    /* 呼吸灯三态结算全部由 ActivityWatch 负责:新输出回绿 + 节流 notify;
+       宽限期内(横幅/回放)返回 false —— 灯不变,免外壳重渲染。 */
     if (this.activity.onOutput(sessionId)) this.notify();
+  }
+
+  /** 用户输入的唯一写入口:PTY 写入 + 宽限终止(首写后输出按对话语义结算)。 */
+  writeSession(sessionId: string, data: string): void {
+    void ipc.sessionWrite(sessionId, data);
+    this.activity.onUserWrite(sessionId);
   }
 
   /** 完成未读判定(会话列表蓝呼吸灯)。 */
@@ -361,14 +350,9 @@ class Host implements PluginContext {
     this.activity.resetForTest();
   }
 
-  /** 会话至今的全部（尾部）输出，供 xterm 重挂载回放。join 后顺手压实为单 chunk。 */
+  /** 会话至今的全部（尾部）输出，供 xterm 重挂载回放（压实语义见 OutputBufferStore.get）。 */
   getOutputBuffer(sessionId: string): string {
-    const buf = this.outputBuffers.get(sessionId);
-    if (!buf) return "";
-    if (buf.chunks.length === 1) return buf.chunks[0];
-    const joined = buf.chunks.join("");
-    buf.chunks = [joined]; // 回放即压实:后续 append 继续在单块上增长
-    return joined;
+    return this.outputBuffers.get(sessionId);
   }
 
   /**
@@ -376,7 +360,15 @@ class Host implements PluginContext {
    * 供 TerminalView 翻页锚点反推缓冲起点的绝对日志偏移。
    */
   getOutputBufferBytes(sessionId: string): number {
-    return this.outputBuffers.get(sessionId)?.totalBytes ?? 0;
+    return this.outputBuffers.getBytes(sessionId);
+  }
+
+  /** 窗口聚焦态馈入(main.tsx 挂 focus/blur):重聚焦即视激活会话为已读(蓝灯让位)。 */
+  setWindowFocus(focused: boolean): void {
+    if (this.windowFocused === focused) return;
+    this.windowFocused = focused;
+    if (focused && this.activeSessionId) this.activity.markViewed(this.activeSessionId);
+    this.notify();
   }
 
   /** 会话最近输出时间戳（无输出为 0）。 */
@@ -458,7 +450,7 @@ class Host implements PluginContext {
     this.cliSessionIds.delete(id);
     this.pendingIdentities.delete(id);
     this.sessionStatuses.delete(id);
-    this.outputBuffers.delete(id);
+    this.outputBuffers.remove(id);
     this.activity.onSessionRemoved(id);
     if (this.activeSessionId === id) {
       const next = this.sessions[0]?.id ?? null;

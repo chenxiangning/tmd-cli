@@ -134,7 +134,7 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) =>
       term.write(text),
     );
-    const offInput = term.onData((data) => void ipc.sessionWrite(sessionId, data));
+    const offInput = term.onData((data) => host.writeSession(sessionId, data));
     /* 对话锚点:向内核注册本幕布的跳转/定位能力(composer 锚点栏经此中转)。 */
     const terminalHandle: TerminalHandle = {
       lineText: (row) => term.buffer.active.getLine(row)?.translateToString(true) ?? "",
