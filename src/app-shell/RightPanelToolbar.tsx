@@ -182,9 +182,10 @@ export function WorkspaceSubbar() {
   const active = list.find((w) => w.id === activeId) ?? list[0];
   const root = active?.root;
   const label = useMemo(() => (root ? deriveWorkspaceLabel(root) : ""), [root]);
-  /* 刷新文件树:调激活面板注册的 refresh 槽,in-flight 期间图标转圈。 */
+  /* 刷新/新建文件/新建文件夹:调激活面板注册的对应槽;刷新 in-flight 转圈。 */
   const { mode, panels } = useFilePanel();
-  const activeRefresh = panels.find((p) => p.id === mode)?.refresh;
+  const activePanel = panels.find((p) => p.id === mode);
+  const activeRefresh = activePanel?.refresh;
   const [refreshBusy, setRefreshBusy] = useState(false);
   const refreshBatchRef = useRef(0);
 
@@ -223,10 +224,8 @@ export function WorkspaceSubbar() {
           className="panel-subbar-action"
           aria-label="新建文件"
           title="新建文件"
-          onClick={() => {
-            // eslint-disable-next-line no-console
-            console.info("[right-panel] new-file under", root);
-          }}
+          disabled={!activePanel?.newFile}
+          onClick={() => activePanel?.newFile?.()}
         >
           <FilePlus2 size={12} aria-hidden />
         </button>
@@ -235,10 +234,8 @@ export function WorkspaceSubbar() {
           className="panel-subbar-action"
           aria-label="新建文件夹"
           title="新建文件夹"
-          onClick={() => {
-            // eslint-disable-next-line no-console
-            console.info("[right-panel] new-folder under", root);
-          }}
+          disabled={!activePanel?.newFolder}
+          onClick={() => activePanel?.newFolder?.()}
         >
           <FolderPlus size={12} aria-hidden />
         </button>
@@ -265,9 +262,10 @@ export function WorkspaceSubbar() {
  * ────────────────────────────────────────────────────────── */
 /* memo 兜底:无 props,父级(AppShell 右栏 aside)重渲染时不再连带重渲染。 */
 export const RightPanelToolbar = memo(function RightPanelToolbar() {
-  /* git 面板自带聚合行(分支 · ±统计 · 文件数),workspace 行只服务文件面板 */
+  /* git 面板自带聚合行(分支 · ±统计 · 文件数);checkpoints 自带审批线摘要行
+     (审批线 · 批次规模 · 待审计数)—— workspace 文件行只服务文件面板 */
   const { mode } = useFilePanel();
-  if (mode === "git") return null;
+  if (mode === "git" || mode === "checkpoints") return null;
   return (
     <div className="right-panel-toolbar">
       <WorkspaceSubbar />

@@ -103,21 +103,26 @@ export function CheckpointsPanel() {
 
   return (
     <div className="flex h-full flex-col bg-(--tmd-bg-base)">
-      {/* 摘要行 */}
-      <div className="flex h-[34px] flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2.5">
-        <span className="flex flex-none items-center gap-1.5 font-semibold">
-          <History size={13} className="text-[#007acc]" aria-hidden />
+      {/* 摘要行 —— 字号对齐面板体系(11px 为主),项目名用扁平标签非胶囊 */}
+      <div className="flex h-[30px] flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2.5 text-[11px]">
+        <span className="flex flex-none items-center gap-1.5 text-[11px] font-semibold text-(--tmd-fg)">
+          <History size={12} className="text-[#007acc]" aria-hidden />
           审批线
         </span>
-        <span className="min-w-0 truncate rounded-full bg-[#007acc]/20 px-2 py-px text-[#7ec3f0]">
-          {active?.name ?? "无工作区"}
-        </span>
+        {active && (
+          <span
+            className="max-w-[45%] truncate rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-px text-[10px] leading-[14px] text-(--tmd-fg-subtle)"
+            title={active.root}
+          >
+            {active.name}
+          </span>
+        )}
         <span className="flex-1" />
-        <span className="flex-none text-(--tmd-fg-muted)">
-          待审 <b className="text-[#facc20]">{pendingCount}</b>
+        <span className="flex-none text-(--tmd-fg-faint)">
+          待审 <b className="font-semibold text-[#facc20]">{pendingCount}</b>
         </span>
         <span
-          className="flex-none cursor-help border-b border-dotted border-(--tmd-fg-faint) text-[11px] text-(--tmd-fg-faint)"
+          className="flex-none cursor-help border-b border-dotted border-(--tmd-fg-faint) text-[10px] text-(--tmd-fg-faint)"
           title="每会话保留最近 100 批快照,超期 30 天清理;回退前自动打恢复点"
         >
           100/30 天
