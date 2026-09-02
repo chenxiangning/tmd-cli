@@ -112,7 +112,7 @@ export interface PiLocalConfig {
 /** pi 配置目录默认 ~/.pi/agent;允许 PI_CODING_AGENT_DIR 覆盖。 */
 export async function piAgentDir(): Promise<string> {
   const configured = await ipc.quotaEnvValue(AGENT_DIR_ENV);
-  if (configured) return configured.replace(/\/+$/, "");
+  if (configured) return configured.replace(/[\\/]+$/, "");
   return `${await ipc.configHomeDir()}/.pi/agent`;
 }
 

@@ -6,8 +6,12 @@
 import type { Plugin } from "@kernel/plugin";
 import { cliCodexPlugin } from "./cli-codex";
 import { cliClaudePlugin } from "./cli-claude";
+import { cliGrokPlugin } from "./cli-grok";
 import { cliOmpPlugin } from "./cli-omp";
 import { cliPiPlugin } from "./cli-pi";
+import { cliKimiPlugin } from "./cli-kimi";
+import { cliQoderPlugin } from "./cli-qoder";
+import { cliQoderCnPlugin } from "./cli-qoder-cn";
 import { composerPlugin } from "./composer";
 import { filesPlugin } from "./files";
 import { gitPlugin } from "./git";
@@ -18,8 +22,12 @@ import { welcomePlugin } from "./welcome";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
+  cliKimiPlugin,
   cliCodexPlugin,
   cliClaudePlugin,
+  cliGrokPlugin,
+  cliQoderPlugin,
+  cliQoderCnPlugin,
   workspacePlugin,
   filesPlugin,
   gitPlugin,

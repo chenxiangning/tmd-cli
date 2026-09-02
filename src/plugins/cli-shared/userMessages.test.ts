@@ -1,6 +1,6 @@
 /**
- * 用户消息锚点提取测试 —— 四种 CLI 行型的解析契约:
- * 只收真实用户输入;tool_result / XML 包装 / AGENTS.md 指令包装 / claude sidechain 一律跳过。
+ * 用户消息锚点提取测试 —— 五种 CLI 行型的解析契约:
+ * 只收真实用户输入;tool_result / XML 包装 / AGENTS.md 指令包装 / claude sidechain / grok 非 user_query 行一律跳过。
  */
 
 import { describe, expect, it } from "vitest";
@@ -14,6 +14,8 @@ vi.mock("@kernel/ipc", () => ({
 import {
   claudeUserMessageLine,
   codexUserMessageLine,
+  grokUserMessageLine,
+  qoderUserMessageLine,
   ompPiUserMessageLine,
   parseUserMessages,
   readUserMessagesFromFile,
@@ -159,6 +161,32 @@ describe("parseUserMessages 通用行为", () => {
     ]);
   });
 });
+
+describe("parseUserMessages 行预筛契约", () => {
+  it("TurnBegin 行型(kimi)不被行预筛丢弃", () => {
+    /* 回归守护(2026-09-02):预筛只认 role:user/type:user 时,kimi 全部行
+       在预筛即被丢弃,锚点栏永远为空 —— 单测直调解析器绕过了预筛,未暴露。 */
+    const kimiLine = JSON.stringify({
+      timestamp: 1700000000.5,
+      message: {
+        type: "TurnBegin",
+        payload: { user_input: [{ type: "text", text: "你好" }] },
+      },
+    });
+    /* kimi 解析器归 cli-kimi 插件所有;此处用同型 stub 只锁"预筛放行"契约 */
+    const stubTurnBeginParser = (event: Record<string, unknown>) => {
+      const message = event.message as
+        | { type?: string; payload?: { user_input?: Array<{ text?: string }> } }
+        | undefined;
+      if (message?.type !== "TurnBegin") return null;
+      const text = message.payload?.user_input?.[0]?.text;
+      return text ? { id: "kimi-turn", text } : null;
+    };
+    expect(
+      parseUserMessages(kimiLine, stubTurnBeginParser).map((m) => m.text),
+    ).toEqual(["你好"]);
+  });
+});
 describe("readUserMessagesFromFile 成败语义", () => {
   it("读取失败返回 null(调用方不得推进 fullLoaded)", async () => {
     fsReadTail.mockRejectedValueOnce(new Error("文件超过 512KB，暂不支持预览"));
@@ -174,5 +202,99 @@ describe("readUserMessagesFromFile 成败语义", () => {
     fsReadTail.mockResolvedValueOnce("");
     await readUserMessagesFromFile("/x.jsonl", true, ompPiUserMessageLine);
     expect(fsReadTail).toHaveBeenCalledWith("/x.jsonl", 32 * 1024 * 1024);
+  });
+});
+
+describe("grokUserMessageLine", () => {
+  it("提取 <user_query> 包裹的真实输入(实证行型:content 直挂 event)", () => {
+    const line = JSON.stringify({
+      type: "user",
+      content: [{ type: "text", text: "<user_query>\n在吗\n</user_query>" }],
+    });
+    const messages = parseUserMessages(line, grokUserMessageLine);
+    expect(messages).toHaveLength(1);
+    expect(messages[0].text).toBe("在吗");
+    expect(messages[0].id).toMatch(/^gk:[0-9a-f]{8}$/);
+  });
+
+  it("system-reminder / skill 注入行无 user_query 包裹,跳过", () => {
+    const reminder = JSON.stringify({
+      type: "user",
+      content: [
+        {
+          type: "text",
+          text: "<system-reminder>\nThe following skills are available:\n- coss</system-reminder>",
+        },
+      ],
+    });
+    expect(parseUserMessages(reminder, grokUserMessageLine)).toEqual([]);
+  });
+
+  it("assistant/reasoning/system 行与字符串 content 都跳过", () => {
+    const assistant = JSON.stringify({
+      type: "assistant",
+      content: "在的。需要我帮你做什么？",
+      model_id: "grok-4.6-build",
+    });
+    const reasoning = JSON.stringify({ type: "reasoning", content: [] });
+    const system = JSON.stringify({ type: "system", content: "You are Grok" });
+    const stringContent = JSON.stringify({
+      type: "user",
+      content: "<user_query>字符串 content 不是实证行型</user_query>",
+    });
+    expect(
+      parseUserMessages(`${assistant}\n${reasoning}\n${system}\n${stringContent}`, grokUserMessageLine),
+    ).toEqual([]);
+  });
+
+  it("id = 文本 FNV-1a hash:同文重复折叠同 id(去重契约),异文不同 id", () => {
+    const mk = (text: string) =>
+      JSON.stringify({
+        type: "user",
+        content: [{ type: "text", text: `<user_query>${text}</user_query>` }],
+      });
+    const messages = parseUserMessages(`${mk("继续")}\n${mk("继续")}\n${mk("停")}`, grokUserMessageLine);
+    expect(messages).toHaveLength(3);
+    expect(messages[0].id).toBe(messages[1].id);
+    expect(messages[2].id).not.toBe(messages[0].id);
+  });
+});
+
+describe("qoderUserMessageLine", () => {
+  const humanLine = JSON.stringify({
+    type: "user",
+    uuid: "5810de9c-6a8e",
+    message: { role: "user", content: [{ type: "text", text: "在吗" }] },
+    origin: { kind: "human" },
+  });
+
+  it("origin.kind=human 的用户行提取为锚点(实证行型)", () => {
+    expect(parseUserMessages(humanLine, qoderUserMessageLine)).toEqual([
+      { id: "5810de9c-6a8e", text: "在吗" },
+    ]);
+  });
+
+  it("origin.kind 非 human / origin 缺失 / sidechain 都跳过", () => {
+    const injected = JSON.stringify({
+      type: "user",
+      uuid: "u2",
+      message: { role: "user", content: [{ type: "text", text: "注入" }] },
+      origin: { kind: "system" },
+    });
+    const noOrigin = JSON.stringify({
+      type: "user",
+      uuid: "u3",
+      message: { role: "user", content: [{ type: "text", text: "无 origin" }] },
+    });
+    const sidechain = JSON.stringify({
+      type: "user",
+      uuid: "u4",
+      isSidechain: true,
+      origin: { kind: "human" },
+      message: { role: "user", content: [{ type: "text", text: "子代理" }] },
+    });
+    expect(parseUserMessages(injected, qoderUserMessageLine)).toEqual([]);
+    expect(parseUserMessages(noOrigin, qoderUserMessageLine)).toEqual([]);
+    expect(parseUserMessages(sidechain, qoderUserMessageLine)).toEqual([]);
   });
 });

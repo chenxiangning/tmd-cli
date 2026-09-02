@@ -56,11 +56,15 @@ function OmpGlyph({ size }: { size: number }) {
 async function ompSessionsDir(cwd: string): Promise<string | null> {
   const home = await ipc.configHomeDir().catch(() => null);
   if (!home) return null;
+  /* 分隔符归一:Windows 的 home/cwd 都是反斜杠形态,不归一则前缀判断
+     与 slug 生成全部失配 → 会话目录永远找不到。slug 规则本身不变。 */
+  const homeNorm = home.replace(/\\/g, "/");
+  const cwdNorm = cwd.replace(/\\/g, "/");
   /* 路径边界:/Users/foo2/x 不得误判在 home /Users/foo 之下。 */
-  const inHome = cwd === home || cwd.startsWith(home + "/");
+  const inHome = cwdNorm === homeNorm || cwdNorm.startsWith(homeNorm + "/");
   const slug = inHome
-    ? cwd.slice(home.length).replace(/\//g, "-")
-    : `-${cwd.replace(/\//g, "-")}-`;
+    ? cwdNorm.slice(homeNorm.length).replace(/\//g, "-")
+    : `-${cwdNorm.replace(/\//g, "-")}-`;
   return `${home}/.omp/agent/sessions/${slug}`;
 }
 

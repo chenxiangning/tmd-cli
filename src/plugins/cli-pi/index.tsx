@@ -41,7 +41,10 @@ function PiGlyph({ size }: { size: number }) {
 async function piSessionsDir(cwd: string): Promise<string | null> {
   const agentDir = await piAgentDir().catch(() => null);
   if (!agentDir) return null;
-  const slug = `--${cwd.replace(/^\/+/, "").replace(/\//g, "-")}--`;
+  /* 分隔符归一:Windows cwd 是反斜杠形态,不归一则 slug 永不失配。
+     slug 规则本身不变:去前导斜杠 → 分隔符转 "-"。 */
+  const cwdNorm = cwd.replace(/\\/g, "/");
+  const slug = `--${cwdNorm.replace(/^\/+/, "").replace(/\//g, "-")}--`;
   return `${agentDir}/sessions/${slug}`;
 }
 

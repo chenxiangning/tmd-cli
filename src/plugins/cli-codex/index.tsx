@@ -118,14 +118,18 @@ async function readCodexSessionStatus(
 }
 
 function extractLastJsonString(text: string, keys: readonly string[]) {
-  let result: string | undefined;
+  /* 键别名按优先级:第一个有匹配的键获胜,键内取文件位置最后一次。
+     此前 result 跨键连续覆盖,最末别名(effort)会压掉更权威的
+     reasoning_effort —— 与 model 路径的 `?? 优先级` 语义自相矛盾。 */
   for (const key of keys) {
     const pattern = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`, "g");
+    let found: string | undefined;
     for (const match of text.matchAll(pattern)) {
-      result = match[1];
+      found = match[1];
     }
+    if (found !== undefined) return found;
   }
-  return result;
+  return undefined;
 }
 /** codex rollout 文件名含会话 id;resume/fork 产生同 id 新文件,取 mtime 最新(collect 已倒序,先见即最新)。 */
 async function readCodexUserMessages(cwd: string, cliSessionId: string, full: boolean) {
