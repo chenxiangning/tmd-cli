@@ -5,7 +5,7 @@
  * http/data/blob/asset/file 直载;装饰符(引号/<…>/%20 编码)先剥离。
  */
 
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { assetUrl } from "@kernel/ipc";
 
 const FILE_MARKDOWN_IMAGE_EXTENSION_REGEX =
   /\.(?:apng|avif|bmp|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
@@ -100,7 +100,7 @@ export function resolveImageRenderSource(src: string, sourceFilePath?: string | 
     return { src: cleaned, localPath: null };
   }
   try {
-    return { src: convertFileSrc(localPath), localPath };
+    return { src: assetUrl(localPath), localPath };
   } catch {
     return { src: cleaned, localPath };
   }

@@ -13,6 +13,7 @@ import { filesPlugin } from "./files";
 import { gitPlugin } from "./git";
 import { workspacePlugin } from "./workspace";
 import { settingsPlugin } from "./settings";
+import { welcomePlugin } from "./welcome";
 
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
@@ -24,4 +25,5 @@ export const allPlugins: Plugin[] = [
   gitPlugin,
   composerPlugin,
   settingsPlugin,
+  welcomePlugin,
 ];

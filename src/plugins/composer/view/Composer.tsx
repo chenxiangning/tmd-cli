@@ -68,16 +68,22 @@ export function Composer() {
       return;
     }
     let cancelled = false;
-    void lookupSuggestions(profile, hit.spec, value.slice(hit.range[0], hit.range[1])).then(
-      (ms) => {
-        if (cancelled) return;
-        setActiveRange(hit.range);
-        setMatches(ms.length ? ms : null);
-        setPickIndex(0);
-      },
-    );
+    const run = () =>
+      void lookupSuggestions(profile, hit.spec, value.slice(hit.range[0], hit.range[1])).then(
+        (ms) => {
+          if (cancelled) return;
+          setActiveRange(hit.range);
+          setMatches(ms.length ? ms : null);
+          setPickIndex(0);
+        },
+      );
+    /* @ 文件触发每键一次 IPC(suggest.ts 侧另有 60s 目录缓存兜底),150ms 防抖合并连续击键;
+       / $ 走本地 filter,零 IO,保持即时。 */
+    const timer = hit.spec.kind === "file" ? setTimeout(run, 150) : undefined;
+    if (timer === undefined) run();
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [value, cursor, profile, triggerSpecs]);
 

@@ -3,11 +3,18 @@
  * 其余文本经 fileHighlighter 注册点高亮;未注册或失败时降级到 <pre> 直渲。
  */
 
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { ipc } from "@kernel/ipc";
 import { useEditorTabs } from "@kernel/tabs";
 import { getFileHighlighter } from "@kernel/fileHighlighter";
-import { FileMarkdownPreview } from "./markdown/FileMarkdownPreview";
+
+/* md 预览管线(react-markdown/katex/mermaid/viewerjs 体积大)按需拆包:
+   仅当真正打开 md 文件时才加载该 chunk。 */
+const FileMarkdownPreview = lazy(() =>
+  import("./markdown/FileMarkdownPreview").then((m) => ({
+    default: m.FileMarkdownPreview,
+  })),
+);
 
 const MARKDOWN_FILE_RE = /\.(md|markdown|mdx)$/i;
 
@@ -18,21 +25,54 @@ interface FilePayload {
   loaded: boolean;
 }
 
+/* 文件内容缓存:字节预算 LRU —— 命中提新,总占用超 32MB 时淘汰最旧条目,
+   防止长时间浏览大文件后内存无界增长。Map 迭代序 = 插入序,即新旧序。 */
+const FILE_CACHE_BYTE_BUDGET = 32 * 1024 * 1024;
 const fileCache = new Map<string, FilePayload>();
+let fileCacheBytes = 0;
+
+/** 条目字节估算(UTF-16: length × 2) —— 仅作预算记账,不追求精确。 */
+function payloadBytes(p: FilePayload): number {
+  return p.content ? p.content.length * 2 : 0;
+}
+
+function cacheGet(path: string): FilePayload | undefined {
+  const hit = fileCache.get(path);
+  if (hit) {
+    /* LRU:命中即提新(delete + set 把条目移到最新位) */
+    fileCache.delete(path);
+    fileCache.set(path, hit);
+  }
+  return hit;
+}
+
+function cacheSet(path: string, payload: FilePayload): void {
+  const prev = fileCache.get(path);
+  if (prev) fileCacheBytes -= payloadBytes(prev);
+  fileCache.delete(path);
+  fileCache.set(path, payload);
+  fileCacheBytes += payloadBytes(payload);
+  /* 超预算淘汰最旧;刚写入的这条永远保留(单文件超预算也容忍) */
+  let oldest = fileCache.keys().next();
+  while (fileCacheBytes > FILE_CACHE_BYTE_BUDGET && !oldest.done && oldest.value !== path) {
+    fileCacheBytes -= payloadBytes(fileCache.get(oldest.value)!);
+    fileCache.delete(oldest.value);
+    oldest = fileCache.keys().next();
+  }
+}
 
 function loadFile(path: string): FilePayload {
-  const cached = fileCache.get(path);
+  const cached = cacheGet(path);
   if (cached) return cached;
   const fresh: FilePayload = { path, content: null, error: null, loaded: false };
-  fileCache.set(path, fresh);
+  cacheSet(path, fresh);
   ipc.fsReadFile(path).then(
     (content) => {
-      const cur = fileCache.get(path);
-      if (cur) fileCache.set(path, { ...cur, content, loaded: true });
+      /* 条目可能已被 LRU 淘汰:直接重插结果(幂等,不复活半状态) */
+      cacheSet(path, { path, content, error: null, loaded: true });
     },
     (e) => {
-      const cur = fileCache.get(path);
-      if (cur) fileCache.set(path, { ...cur, error: String(e), loaded: true });
+      cacheSet(path, { path, content: null, error: String(e), loaded: true });
     },
   );
   return fresh;
@@ -50,9 +90,10 @@ export function FileTabContent() {
   // 等待 cache 变 loaded 后强制重渲
   useEffect(() => {
     if (!path) return;
-    if (fileCache.get(path)?.loaded) return;
+    if (cacheGet(path)?.loaded) return;
     const timer = setInterval(() => {
-      if (fileCache.get(path)?.loaded) {
+      /* 加载中条目被 LRU 淘汰时,ipc 回调会把完成态重插回缓存,轮询自然终止 */
+      if (cacheGet(path)?.loaded) {
         setTick((n) => n + 1);
         clearInterval(timer);
       }
@@ -109,7 +150,15 @@ export function FileTabContent() {
        外层不再包 overflow-auto,避免双滚动条。 */
     return (
       <div className="flex h-full flex-col">
-        <FileMarkdownPreview value={payload.content ?? ""} sourceFilePath={path} />
+        <Suspense
+          fallback={
+            <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
+              加载中…
+            </div>
+          }
+        >
+          <FileMarkdownPreview value={payload.content ?? ""} sourceFilePath={path} />
+        </Suspense>
       </div>
     );
   }

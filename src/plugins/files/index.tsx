@@ -22,7 +22,7 @@ import { baseName } from "@kernel/pathUtils";
 import { registerFileHighlighter } from "@kernel/fileHighlighter";
 import { registerFileVisual, resolveFileVisual } from "@kernel/fileVisual";
 import { FileTabContent } from "./FileTabContent";
-import { highlightSync } from "./highlighter";
+import { extToLang } from "./highlightLangs";
 import { defaultFileVisualProvider } from "./fileVisual";
 function openFileInTab(path: string) {
   openTab({
@@ -231,8 +231,11 @@ export const filesPlugin: Plugin = {
   activate(ctx: PluginContext) {
     registerFileVisual(defaultFileVisualProvider);
     registerFileHighlighter({
-      supports: (path) => highlightSync(path, "") !== null,
-      highlight: async (path, content) => highlightSync(path, content),
+      /* supports 只走纯函数 extToLang,不拉 hljs;
+         highlight 首次调用时才动态 import hljs chunk(之后模块系统缓存,近零成本)。 */
+      supports: (path) => extToLang(path) !== null,
+      highlight: async (path, content) =>
+        (await import("./highlighter")).highlightSync(path, content),
     });
 
     ctx.contribute("rightSidebar.tab", {

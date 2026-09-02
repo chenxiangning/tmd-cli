@@ -20,12 +20,15 @@
  * - SessionList/TopBar 面包屑等通过挂点贡献(见 contributions.tsx),非硬编码
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
 import {
   ExternalLink,
+  Inbox,
   PanelLeftClose,
   PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   X,
 } from "lucide-react";
 import { host, useHost } from "@kernel/host";
@@ -49,26 +52,42 @@ function usePersistedToggle(key: string, initial: boolean) {
   }, [key, open]);
   return [open, () => setOpen((v) => !v)] as const;
 }
-/** 测量元素宽度(随拖动实时更新);元素卸载时归零。 */
-function useElementWidth() {
-  const [width, setWidth] = useState(0);
+/**
+ * 测量元素宽度并直写 CSS 变量(随拖动实时更新)。
+ * 直写 var 而非 setState:分栏拖动每帧触发,避免顶栏整树重渲染(顶栏经 var() 消费);
+ * 元素卸载时移除变量 —— 消费端 var() 无回退即 computed-value 无效,退化 auto(= 旧 0=未测量语义)。
+ */
+function useElementWidth(cssVar: string) {
   const observerRef = useRef<ResizeObserver | null>(null);
-  const ref = useCallback((el: HTMLElement | null) => {
-    observerRef.current?.disconnect();
-    observerRef.current = null;
-    if (!el) {
-      setWidth(0);
-      return;
-    }
-    const ro = new ResizeObserver((entries) => {
-      const w = Math.round(entries[0]?.contentRect.width ?? 0);
-      setWidth((prev) => (prev === w ? prev : w));
-    });
-    ro.observe(el);
-    observerRef.current = ro;
-  }, []);
-  useEffect(() => () => observerRef.current?.disconnect(), []);
-  return [ref, width] as const;
+  const lastWidthRef = useRef(-1);
+  const ref = useCallback(
+    (el: HTMLElement | null) => {
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+      if (!el) {
+        lastWidthRef.current = -1;
+        document.documentElement.style.removeProperty(cssVar);
+        return;
+      }
+      const ro = new ResizeObserver((entries) => {
+        const w = Math.round(entries[0]?.contentRect.width ?? 0);
+        if (w === lastWidthRef.current) return;
+        lastWidthRef.current = w;
+        document.documentElement.style.setProperty(cssVar, `${w}px`);
+      });
+      ro.observe(el);
+      observerRef.current = ro;
+    },
+    [cssVar],
+  );
+  useEffect(
+    () => () => {
+      observerRef.current?.disconnect();
+      document.documentElement.style.removeProperty(cssVar);
+    },
+    [cssVar],
+  );
+  return ref;
 }
 
 /* 文件类型 SVG ─ 由 fileTreeIcons 给出(与文件树一致)。 */
@@ -135,7 +154,7 @@ function FileTab({
   );
 }
 
-function EditorCenter() {
+const EditorCenter = memo(function EditorCenter() {
   const { tabs, activeId } = useEditorTabs();
   const active = tabs.find((t) => t.id === activeId) ?? null;
 
@@ -164,7 +183,7 @@ function EditorCenter() {
       </div>
     </div>
   );
-}
+});
 
 /**
  * 中央幕布 —— 上下结构:terminal(无 session 时占位) + composer,高度可拖。
@@ -174,16 +193,16 @@ function EditorCenter() {
 function MainPanel() {
   const activeId = host.getActiveSessionId();
 
+  /* 无活跃 session:整页渲染 welcome(引擎探针/安装 + 近期会话),
+     terminal 与 composer 一并替换 —— 首页即初始形态。 */
+  if (!activeId) {
+    return <Mounts point="editorCenter.welcome" />;
+  }
+
   return (
     <PanelGroup orientation="vertical" id="tmd.main.vertical">
       <Panel defaultSize={70} minSize={30} id="canvas">
-        {activeId ? (
-          <TerminalView key={activeId} sessionId={activeId} />
-        ) : (
-          <div className="flex h-full items-center justify-center text-(--tmd-fg-subtle)">
-            左侧新建一个会话开始
-          </div>
-        )}
+        <TerminalView key={activeId} sessionId={activeId} />
       </Panel>
       <PanelResizeHandle className="panel-handle panel-handle-h" />
       <Panel defaultSize={30} minSize={10} id="composer">
@@ -224,29 +243,24 @@ function TopBar({
   onToggleRight,
   leftOpen,
   rightOpen,
-  leftWidth,
-  rightWidth,
 }: {
   onToggleLeft: () => void;
   onToggleRight: () => void;
   leftOpen: boolean;
   rightOpen: boolean;
-  /** 左侧栏实测宽度(px);0 = 收起或未测量,左区退化为内容自适应。 */
-  leftWidth: number;
-  /** 右侧栏实测宽度(px);0 = 收起或未测量,右区退化为内容自适应。 */
-  rightWidth: number;
 }) {
   const platform = usePlatformKind();
-  /* 右区宽度换算:右栏宽 + 4px 手柄 - 12px 顶栏右 padding - Windows 自绘窗口控制区。 */
+  /* 右区宽度换算:右栏宽 + 4px 手柄 - 12px 顶栏右 padding - Windows 自绘窗口控制区。
+     栏宽经 CSS 变量(--tmd-left/right-aside-w)消费:变量未写入时 var() 无效 → 宽度退化 auto,
+     与旧 0=未测量/收起 行为一致;拖动期间不再触发本组件重渲染。 */
   const rightInset = platform === "windows" ? 116 : 0;
-  const rightZoneWidth = rightWidth > 0 ? Math.max(rightWidth - 8 - rightInset, 0) : 0;
   return (
     <header className="titlebar" data-tauri-drag-region>
       {/* 左区域:与左侧栏同宽,折叠左栏按钮钉在左区最右缘(+4px 吞掉分隔手柄,与栏边界对齐) */}
       <div
-        className="titlebar-zone-left"
+        className={`titlebar-zone-left${leftOpen ? " is-expanded" : ""}`}
         data-tauri-drag-region
-        style={leftWidth > 0 ? { width: leftWidth + 4 } : undefined}
+        style={leftOpen ? { width: "calc(var(--tmd-left-aside-w) + 4px)" } : undefined}
       >
         {platform === "macos" ? <div className="titlebar-leading" aria-hidden /> : null}
         <button
@@ -258,6 +272,15 @@ function TopBar({
         >
           {leftOpen ? <PanelLeftClose size={14} aria-hidden /> : <PanelLeftOpen size={14} aria-hidden />}
         </button>
+        {/* 入库(回 welcome) — 当前纯展示占位,后续接入跳转逻辑 */}
+        <button
+          type="button"
+          className="titlebar-action"
+          aria-label="入库"
+          title="入库"
+        >
+          <Inbox size={14} aria-hidden />
+        </button>
       </div>
       <div className="titlebar-center" data-tauri-drag-region>
         {/* 项目面包屑:中间区域靠左(codemoss 布局) */}
@@ -265,9 +288,9 @@ function TopBar({
         <Mounts point="header.left" />
       </div>
       <div
-        className="titlebar-actions"
+        className={`titlebar-actions${rightOpen ? " is-expanded" : ""}`}
         data-tauri-drag-region
-        style={rightZoneWidth > 0 ? { width: rightZoneWidth } : undefined}
+        style={rightOpen ? { width: `max(calc(var(--tmd-right-aside-w) - ${8 + rightInset}px), 0px)` } : undefined}
       >
         {/* 折叠/展开右侧栏 */}
         <button
@@ -277,7 +300,7 @@ function TopBar({
           title={rightOpen ? "收起右栏" : "展开右栏"}
           onClick={onToggleRight}
         >
-          {rightOpen ? <PanelLeftClose size={14} aria-hidden /> : <PanelLeftOpen size={14} aria-hidden />}
+          {rightOpen ? <PanelRightClose size={14} aria-hidden /> : <PanelRightOpen size={14} aria-hidden />}
         </button>
         <TopBarPanelTabs />
         <Mounts point="header.right" />
@@ -293,8 +316,8 @@ export function AppShell() {
   const [leftOpen, toggleLeft] = usePersistedToggle("shell.left", true);
   const [rightOpen, toggleRight] = usePersistedToggle("shell.right", true);
   const { tabs } = useEditorTabs();
-  const [leftAsideRef, leftAsideWidth] = useElementWidth();
-  const [rightAsideRef, rightAsideWidth] = useElementWidth();
+  const leftAsideRef = useElementWidth("--tmd-left-aside-w");
+  const rightAsideRef = useElementWidth("--tmd-right-aside-w");
   /* 经典滚动条会吃掉滚动容器的内容宽度:实测一次,供顶栏折叠按钮让位对齐。 */
   useEffect(() => {
     const probe = document.createElement("div");
@@ -315,8 +338,6 @@ export function AppShell() {
         onToggleRight={toggleRight}
         leftOpen={leftOpen}
         rightOpen={rightOpen}
-        leftWidth={leftOpen ? leftAsideWidth : 0}
-        rightWidth={rightOpen ? rightAsideWidth : 0}
       />
 
       <PanelGroup orientation="horizontal" id="tmd.outer">

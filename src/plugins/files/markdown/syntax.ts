@@ -7,6 +7,7 @@
  */
 
 import Prism, { type Grammar } from "prismjs";
+import { hashStableString } from "./markdownDocument";
 import "prismjs/components/prism-bash";
 import "prismjs/components/prism-c";
 import "prismjs/components/prism-csharp";
@@ -86,7 +87,8 @@ export function highlightLine(text: string, language?: string | null) {
   if (!language || !(Prism.languages as Record<string, unknown>)[language]) {
     return escapeHtml(text);
   }
-  const cacheKey = `${language}\0${text}`;
+  /* LRU key 用语言 + 内容 hash:不以全文为 key,缓存查找不再逐字符比较超长代码串。 */
+  const cacheKey = `${language}:${hashStableString(text)}`;
   const cached = readHighlightCache(cacheKey);
   if (cached !== undefined) {
     return cached;

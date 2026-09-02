@@ -85,13 +85,17 @@ function useActiveQuota(): {
       .fetch({ model })
       .then(setSnapshot)
       .catch((e: unknown) =>
-        setSnapshot({
+        /* 瞬时失败(网络抖动/限流)不清空上次成功数据:保留旧窗口/余额,
+           error 仅作警示样式与 tooltip 原因;首次即失败才显示 "!"。 */
+        setSnapshot((prev) => ({
           providerLabel: profileId,
-          title: `${profileId.toUpperCase()} 额度`,
-          usedLabel: "已使用",
-          windows: [],
+          title: prev?.title ?? `${profileId.toUpperCase()} 额度`,
+          usedLabel: prev?.usedLabel ?? "已使用",
+          windows: prev?.windows ?? [],
+          balanceText: prev?.balanceText,
+          planLabel: prev?.planLabel,
           error: e instanceof Error ? e.message : String(e),
-        }),
+        })),
       )
       .finally(() => {
         setFetchedAt(Date.now());

@@ -47,8 +47,9 @@
   flex: 0 0 auto;
   padding-left: 12px;
 }
-/* 栏边界线拉上顶栏:左区右缘 1px 竖线,与下方 4px 分隔手柄同色同位(仅定宽=左栏展开时出现)。 */
-.titlebar-zone-left[style] {
+/* 栏边界线拉上顶栏:左区右缘 1px 竖线,仅左栏展开时出现。
+   注意:不能用 [style] 属性存在性判断——React 收起时留空 style="" 属性,会误命中。 */
+.titlebar-zone-left.is-expanded {
   align-self: stretch;
   border-right: 1px solid var(--tmd-border);
 }
@@ -58,7 +59,7 @@
   margin-left: auto;
 }
 /* 左栏展开(定宽)且有经典滚动条时:按钮右缘让出滚动条宽度,与下方内容列右缘对齐。 */
-.titlebar-zone-left[style] > .titlebar-action {
+.titlebar-zone-left.is-expanded > .titlebar-action {
   margin-right: calc(var(--tmd-scrollbar-w, 0px) + 4px);
 }
 
@@ -82,11 +83,11 @@
   flex: 0 0 auto;
 }
 /* 右区定宽(与右侧栏对齐)时:折叠右栏按钮钉在右区最左缘(内边界),其余 icons 保持右对齐。 */
-.titlebar-actions[style] > .titlebar-action:first-child {
+.titlebar-actions.is-expanded > .titlebar-action:first-child {
   margin-right: auto;
 }
-/* 栏边界线拉上顶栏:右区左缘 1px 竖线(仅定宽=右栏展开时出现)。 */
-.titlebar-actions[style] {
+/* 栏边界线拉上顶栏:右区左缘 1px 竖线,仅右栏展开时出现(同左区,避开 [style] 空属性陷阱)。 */
+.titlebar-actions.is-expanded {
   align-self: stretch;
   border-left: 1px solid var(--tmd-border);
 }

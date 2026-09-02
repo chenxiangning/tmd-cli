@@ -10,7 +10,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionMeta } from "./ipc";
-import type { CliDiskSession, CliProfile } from "./cli";
+import type { CliDiskSession, CliProfile, CliSessionStatus } from "./cli";
 
 let spawnSeq = 0;
 const sessions: SessionMeta[] = [];
@@ -43,6 +43,9 @@ function diskSession(id: string): CliDiskSession {
   return { id, path: `/dir/${id}.jsonl`, modifiedAt: 0 } as CliDiskSession;
 }
 
+/** readSessionStatus 的可控返回:模拟 tail 扫描各时刻的观测结果。 */
+let nextStatus: CliSessionStatus | null = null;
+
 const profile: CliProfile = {
   id: PROFILE_ID,
   name: "test",
@@ -50,6 +53,7 @@ const profile: CliProfile = {
   args: [],
   triggers: [],
   listSessions: async () => disk,
+  readSessionStatus: async () => nextStatus,
 };
 
 /** 确定性驱动探测器(内部 500ms 轮询):逐格推进假时钟直到绑定或窗口耗尽。 */
@@ -97,5 +101,66 @@ describe("detectDiskIdentity 身份绑定", () => {
     disk = [diskSession("t2-fNew"), diskSession("t2-fA")];
     await vi.advanceTimersByTimeAsync(16_000);
     expect(host.getCliSessionId(a.id)).toBe("t2-fA");
+  });
+});
+
+describe("refreshSessionStatus 字段级合并", () => {
+  /* 实证缺陷:omp/pi 的 thinking_level_change 只在会话开头落盘一次,
+     jsonl 超过 256KB 后滚出 tail 窗口 → 部分观测把已识别字段覆盖成 undefined,
+     状态条思考(乃至模型)永久显示 "—"。
+     契约:观测缺省 = 滚出窗口,保留旧值;新非空观测 = 真实切换,正常推进。 */
+  beforeEach(() => {
+    vi.useFakeTimers();
+    sessions.length = 0;
+    disk = [];
+    nextStatus = null;
+    if (!host.getCliProfile(PROFILE_ID)) host.registerCliProfile(profile);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** 重触发一次状态刷新(statusTimer 跨用例残留,2s 轮询不可靠,走 setActiveSession 路径)。 */
+  async function refreshOnce(sessionId: string): Promise<void> {
+    host.setActiveSession(null);
+    host.setActiveSession(sessionId);
+    await vi.advanceTimersByTimeAsync(0);
+  }
+
+  it("tail 观测缺省不抹既有字段;新非空观测正常推进", async () => {
+    nextStatus = { model: "kimi-code/k3", thinkingLevel: "high" };
+    const a = await host.createSession(PROFILE_ID, CWD);
+    disk = [diskSession("t3-fA")];
+    expect(await advanceUntilBound(a.id)).toBe("t3-fA");
+    await vi.advanceTimersByTimeAsync(0); // 绑定后的首次 refresh 落库
+    expect(host.getSessionStatus(a.id)).toEqual({
+      model: "kimi-code/k3",
+      thinkingLevel: "high",
+    });
+
+    /* thinking 滚出 tail:部分观测 → 保留旧值,不得覆盖成 undefined */
+    nextStatus = { model: "kimi-code/k3", thinkingLevel: undefined };
+    await refreshOnce(a.id);
+    expect(host.getSessionStatus(a.id)).toEqual({
+      model: "kimi-code/k3",
+      thinkingLevel: "high",
+    });
+
+    /* 真实切换模型:新事件在 tail 内 → 非空观测正常推进 */
+    nextStatus = { model: "minimax-code-cn/MiniMax-M3", thinkingLevel: undefined };
+    await refreshOnce(a.id);
+    expect(host.getSessionStatus(a.id)).toEqual({
+      model: "minimax-code-cn/MiniMax-M3",
+      thinkingLevel: "high",
+    });
+
+    /* 完全读不到(文件暂未落盘/读取失败)→ 全量保留 */
+    nextStatus = null;
+    await refreshOnce(a.id);
+    expect(host.getSessionStatus(a.id)).toEqual({
+      model: "minimax-code-cn/MiniMax-M3",
+      thinkingLevel: "high",
+    });
   });
 });

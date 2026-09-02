@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && node scripts/prune-katex-fonts.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check:file-size": "node scripts/check-file-size.mjs",
@@ -19,16 +19,15 @@
   "dependencies": {
     "@tauri-apps/api": "^2.9.0",
     "@tauri-apps/plugin-dialog": "^2.7.3",
-    "@tauri-apps/plugin-opener": "^2.5.5",
     "@tauri-apps/plugin-shell": "^2.3.6",
-    "@xterm/addon-fit": "^0.10.0",
-    "@xterm/addon-search": "^0.15.0",
-    "@xterm/addon-web-links": "^0.11.0",
-    "@xterm/addon-webgl": "^0.18.0",
-    "@xterm/xterm": "^5.5.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-search": "^0.16.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/addon-webgl": "^0.19.0",
+    "@xterm/xterm": "^6.0.0",
     "highlight.js": "^11.12.0",
     "katex": "^0.18.5",
-    "lucide-react": "^1.38.0",
+    "lucide-react": "^1.39.0",
     "mermaid": "^11.17.2",
     "prismjs": "^1.30.0",
     "react": "^19.2.0",
@@ -43,16 +42,16 @@
     "viewerjs": "^1.12.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.1.0",
+    "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.9.0",
     "@types/hast": "^3.0.5",
     "@types/prismjs": "^1.26.6",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^5.1.0",
-    "tailwindcss": "^4.1.0",
-    "typescript": "^5.9.0",
-    "vite": "^7.0.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
     "vitest": "^4.1.11"
   }
 }

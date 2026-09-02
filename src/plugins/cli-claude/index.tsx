@@ -1,5 +1,5 @@
 import { ipc } from "@kernel/ipc";
-import type { CliDiskSession, CliSessionStatus, CliSuggestion } from "@kernel/cli";
+import type { CliDiskSession, CliProfile, CliSessionStatus, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { registerClaudeQuotaProvider } from "./quota";
 
@@ -119,11 +119,13 @@ async function listClaudeSkillSuggestions(): Promise<CliSuggestion[]> {
  */
 export const cliClaudePlugin: Plugin = {
   id: "cli-claude",
-  async activate(ctx) {
+  activate(ctx) {
     // 注册 claude quota provider(settings.json env 凭据 → 供应商 HTTP 面)。
     registerClaudeQuotaProvider();
-    const skills = await listClaudeSkillSuggestions();
-    ctx.registerCliProfile({
+    /* 激活不等待 skills 扫盘(2 次 IPC):先空候选同步注册,让 profile 立刻可用;
+       异步 hydrate 后就地回填同一对象 —— suggest.ts 每次按键都经 host.getCliProfile
+       读活引用,无需额外 notify。 */
+    const profile: CliProfile = {
       id: "claude",
       name: "claude",
       renderIcon: (size) => <ClaudeGlyph size={size} />,
@@ -147,11 +149,15 @@ export const cliClaudePlugin: Plugin = {
           { value: "usage", description: "查看额度用量" },
           { value: "resume", description: "恢复历史会话" },
         ],
-        skill: skills,
+        skill: [],
       },
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listClaudeSessions,
       readSessionStatus: readClaudeSessionStatus,
+    };
+    ctx.registerCliProfile(profile);
+    void listClaudeSkillSuggestions().then((skills) => {
+      profile.suggestions = { ...profile.suggestions, skill: skills };
     });
   },
 };

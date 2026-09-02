@@ -32,6 +32,8 @@ export interface AppSettings {
   customThemePresetId: ThemePresetId;
   /** Composer 发送快捷键行为。 */
   sendShortcut: SendShortcut;
+    /** 单会话输出环形缓冲上限(字符);切回会话的回放深度由它决定,更早历史走幕布翻页。 */
+  sessionOutputBufferLimit: number;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -40,6 +42,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   darkThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
   customThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
   sendShortcut: "enter",
+  sessionOutputBufferLimit: 500_000,
 };
 
 /** 浏览器 dev 降级存储 key(Tauri 环境不走这里)。 */
@@ -47,6 +50,14 @@ const LOCAL_FALLBACK_KEY = "tmd.settings.v1";
 
 const THEME_PREFERENCES: readonly ThemePreference[] = ["system", "light", "dark", "custom"];
 const SEND_SHORTCUTS: readonly SendShortcut[] = ["enter", "cmdOrCtrlEnter"];
+
+/** 缓冲上限合法域:5万–1000万字符;非法/缺失回落默认。 */
+function sanitizeBufferLimit(value: unknown): number {
+  const n = typeof value === "number" ? value : Number.NaN;
+  return Number.isFinite(n) && n >= 50_000 && n <= 10_000_000
+    ? Math.floor(n)
+    : DEFAULT_SETTINGS.sessionOutputBufferLimit;
+}
 
 /** 外部数据 → 合法 AppSettings;非法/缺失字段回落默认值。 */
 function sanitize(raw: unknown): AppSettings {
@@ -68,6 +79,7 @@ function sanitize(raw: unknown): AppSettings {
     sendShortcut: SEND_SHORTCUTS.includes(obj.sendShortcut as SendShortcut)
       ? (obj.sendShortcut as SendShortcut)
       : DEFAULT_SETTINGS.sendShortcut,
+    sessionOutputBufferLimit: sanitizeBufferLimit(obj.sessionOutputBufferLimit),
   };
 }
 

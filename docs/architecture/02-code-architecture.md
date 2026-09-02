@@ -24,8 +24,9 @@ flowchart TB
             EVENTS["events.ts<br/>EventBus + KernelTopics"]
             TABS["tabs.ts<br/>编辑器 tab 全局 store"]
             WS["workspace.ts<br/>工作区 store（内存态）"]
-            IPC["ipc.ts<br/>invoke/listen 薄封装（唯一触 Rust 入口）"]
-            TV["TerminalView.tsx<br/>xterm.js 幕布"]
+            IPC["ipc.ts<br/>invoke/listen 薄封装（唯一触 Rust 入口）<br/>+ Tauri API 统一收口(窗口/对话框/外链)"]
+            TV["TerminalView.tsx<br/>xterm.js 幕布(WebGL/搜索/翻页)"]
+            SS["streamSlice.ts<br/>字节流尾部安全截断"]
             FH["fileHighlighter.ts<br/>高亮器注册点"]
             FV["fileVisual.ts<br/>文件视觉 provider 注册点"]
         end
@@ -39,12 +40,18 @@ flowchart TB
             P_FILES["files<br/>文件树 + FileTabContent<br/>注册默认高亮/视觉"]
             P_GIT["git（占位）"]
             P_COMPOSER["composer<br/>富输入 + composer.statusBar 工具栏"]
+            P_WELCOME["welcome<br/>editorCenter.welcome 首页<br/>引擎探针/安装/凭据盘点/近期会话"]
         end
     end
 
     subgraph BE["Tauri Rust 后端（src-tauri/src/）"]
-        LIB["lib.rs<br/>22 个 tauri::command 注册（含 quota.rs 3 个）"]
-        PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader 线程泵输出"]
+        LIB["lib.rs<br/>28 个 tauri::command 注册(lib.rs 24 + quota.rs 2 + omp_auth.rs 2)"]
+        PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出"]
+        SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
+        RESOLVE["resolve.rs<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
+        PROBE["probe.rs<br/>CLI 探针 found/path/version(8s 超时)"]
+        INST["installer.rs<br/>一键安装 CLI(npm -g / claude native)流式日志"]
+        OAUTH["omp_auth.rs<br/>omp agent.db 凭据只读(sqlite)"]
         SESS["session.rs — SessionRegistry<br/>sessions.json / workspaces.json 持久化"]
         FS["fs.rs<br/>list_dir / read_file / read_head / read_tail / collect_files"]
         GIT["git.rs<br/>git CLI shell-out（status）"]
@@ -59,6 +66,8 @@ flowchart TB
     PLUGINS -->|ipc.*| IPC
     IPC -->|invoke| LIB
     LIB --> PTY & SESS & FS & GIT
+    PTY --> SLOG & RESOLVE
+    PROBE & INST --> RESOLVE
     PTY -->|spawn| EXT
     EXT -->|"pty://out/{id} 事件流"| PTY
     SESS --> DISK
@@ -88,7 +97,7 @@ sequenceDiagram
     participant M as main.tsx
     participant H as host (Host 单例)
     participant R as Rust: session_list
-    participant P as allPlugins (8 个)
+    participant P as allPlugins (9 个)
     participant C as contributions.tsx
     participant A as AppShell
 
@@ -96,7 +105,7 @@ sequenceDiagram
     Note over H: activation Promise 单例<br/>挡 StrictMode 双调用
     par 激活与恢复并行
         H->>P: 拓扑序 activate(ctx)<br/>dependsOn 未就绪则等下一轮<br/>无进展 → 抛"依赖环或缺失"
-        P-->>H: registerCliProfile ×3<br/>contribute 挂点 ×N
+        P-->>H: registerCliProfile ×4<br/>contribute 挂点 ×N
     and
         H->>R: ipc.sessionList()
         R-->>H: 历史 SessionMeta[]<br/>（只恢复元数据，不重 spawn PTY）
@@ -112,14 +121,15 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant CLI as CLI 子进程
-    participant PT as pty.rs reader 线程
+    participant PT as pty.rs reader→emitter 线程
     participant EVT as Tauri Event
     participant H as host.appendOutput
-    participant BUF as outputBuffers<br/>(500KB 环形尾部)
+    participant BUF as outputBuffers<br/>(分块环形尾部,上限可配<br/>默认 50 万字符)
     participant BUS as EventBus<br/>ptyLiveTopic(sessionId)
     participant TV as TerminalView (xterm)
 
     CLI->>PT: 字节流 (8192B buf)
+    PT->>PT: 8ms 聚合窗拼批 + 落盘 session_log<br/>增量 UTF-8 解码(跨包不断字)
     PT->>EVT: emit "pty://out/{sessionId}"
     Note over H: 常驻订阅：会话诞生即挂<br/>与幕布是否挂载无关
     EVT->>H: onPtyOutput 回调
@@ -128,7 +138,7 @@ sequenceDiagram
     H-->>H: lastActivityAt 更新<br/>呼吸灯 notify 节流 500ms
     BUS->>TV: term.write(text)
 
-    Note over TV: 切会话重挂载时：<br/>1. 先回放 getOutputBuffer()<br/>2. 再订阅实时流<br/>→ "切回不黑屏"
+    Note over TV: 切会话重挂载时：<br/>1. 先回放 getOutputBuffer()<br/>2. 再订阅实时流<br/>→ "切回不黑屏"<br/>滚到顶可经 session_history_page<br/>从日志文件往前翻页(512KB/页)
 
     CLI->>PT: 进程退出 / read 返回 0
     PT->>EVT: emit "pty://exit/{sessionId}"
@@ -234,12 +244,13 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    subgraph MOUNT["MountPoint（plugin.ts 定义的 13 个挂点）"]
+    subgraph MOUNT["MountPoint（plugin.ts 定义的 14 个挂点）"]
         direction TB
         HB["header.breadcrumb"]
         HLR["header.left / header.right"]
         LS1["leftSidebar.section"]
         RS["rightSidebar.tab"]
+        ECW["editorCenter.welcome"]
         ECT["editorCenter.tabContent"]
         ECC["editorCenter.composer"]
         CSB["composer.statusBar"]
@@ -254,6 +265,7 @@ flowchart LR
     P_COMP2["composer 插件"] -->|"order:0<br/>Composer"| ECC
     P_COMP2 -->|"order:0<br/>ComposerToolbar"| CSB
     P_GIT2["git 插件<br/>（占位，暂无贡献）"] -.-> RS
+    P_WELCOME2["welcome 插件"] -->|"order:0<br/>WelcomePage"| ECW
 
     Note["Mounts 是 kernel 公共渲染器；<br/>挂点按 order 升序渲染；<br/>composer.statusBar 已承载只读模型/思考强度工具栏"]
 ```
@@ -301,13 +313,19 @@ flowchart TD
 
 ## 8. Rust 后端命令面
 
-`lib.rs` 注册的 22 个 `#[tauri::command]`（lib.rs 19 + quota.rs 3），与 `ipc.ts` 一一对应：
+注册的 28 个 `#[tauri::command]`（lib.rs 24 + quota.rs 2 + omp_auth.rs 2），与 `ipc.ts` 一一对应：
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
 | `session_spawn` | `pty.rs` + `session.rs` | openpty → spawn 子进程 → reader 线程泵事件 → 注册表落盘 |
 | `session_list` | `session.rs` | 内存注册表（启动时从 sessions.json 恢复） |
 | `session_write` / `session_resize` / `session_kill` | `pty.rs` | writer 直写 / master.resize / child.kill |
+| `session_log_size` / `session_history_page` | `session_log.rs` | 输出日志末尾偏移 / 绝对偏移前翻一页(转义+UTF-8 边界对齐) |
+| `cli_probe` | `probe.rs` | PATH 解析 + `--version`(8s 硬超时,spawn_blocking) |
+| `cli_install_run` | `installer.rs` | npm -g / claude native 安装,`cli-install://{engine}` 流式日志(300s 超时) |
+| `omp_auth_credential` / `omp_auth_providers` | `omp_auth.rs` | omp agent.db 只读:单供应商凭据 JSON / 已登录供应商列表 |
+| `quota_fetch` / `quota_env_value` | `quota.rs` | 通用 HTTP 代理(15s 超时) / 只读环境变量 |
+| `platform_kind` | `lib.rs` | UA 探测失败时的 OS 兜底 |
 | `fs_list_dir` | `fs.rs` | 单层列举，隐藏过滤，目录排前 |
 | `fs_read_file` | `fs.rs` | ≤512KB、非二进制、UTF-8 才给预览 |
 | `fs_write_temp` | `fs.rs` | 截图/拖拽文件落 `~/.tmd-cli/tmp/` |
@@ -322,7 +340,7 @@ flowchart TD
 | 原则（01-overview） | 代码证据 |
 |---|---|
 | 幕布零渲染 | `TerminalView.tsx`：字节流只进 `term.write`，无任何二次解析 |
-| 切回不黑屏 | `host.ts` `outputBuffers`（500KB 环形尾部）+ TerminalView 挂载先回放再订阅 |
+| 切回不黑屏 | `host.ts` `outputBuffers`（分块环形尾部,上限经设置项 `sessionOutputBufferLimit` 可配,默认 50 万字符;`streamSlice` 保证截断不劈转义序列/surrogate）+ TerminalView 挂载先回放再订阅 |
 | 触发符纯透传 | `cli.ts` `translate?` 是唯一例外钩子；`serialize.translatePrompt` 只调用 profile 声明 |
 | 一切能力皆插件 | `plugins/index.ts` 是唯一插件清单；内核无插件 import |
 | 插件不互相依赖 | 协作仅经 `PluginContext` / `EventBus` / `fileHighlighter` / `fileVisual` 注册点；`cli-shared` 是无生命周期的共享格式库，不是插件 |
@@ -333,7 +351,6 @@ flowchart TD
 ## 10. 已知缺口（代码现状，非设计意图）
 
 - `git` 插件为空壳：`git.rs` 只有 status，前端无贡献。
-- `files` 插件文件树 root **硬编码**为当前仓库路径（`src/plugins/files/index.tsx`），尚未跟随活跃工作区。
 - `footer.*`、`overlay` 等挂点暂无贡献者。
 - Codex 的 session 状态解析采用容错字段匹配，完整 `turn_context` schema 仍需随 CLI 版本验证。
 - `prepareSendPayload` 注释声明 v1 不用 bracketed paste（多行粘贴交给 CLI 自理）。

@@ -71,42 +71,6 @@ pub async fn quota_fetch(spec: QuotaRequest) -> Result<QuotaResponse, String> {
     Ok(QuotaResponse { status, body })
 }
 
-/// 读取 omp CLI 某供应商的最新凭据 data JSON(auth_credentials 表)。
-/// omp 凭据存 sqlite(~/.omp/agent/agent.db),JS 无法解析,由 Rust 只读取出。
-/// 库不存在/无记录返回 Ok(None),不抛错(前端据此显示空态)。
-#[tauri::command]
-pub fn omp_auth_credential(provider: String) -> Result<Option<String>, String> {
-    let db_path = dirs::home_dir()
-        .unwrap_or_else(std::env::temp_dir)
-        .join(".omp/agent/agent.db");
-    if !db_path.exists() {
-        return Ok(None);
-    }
-    let conn = rusqlite::Connection::open_with_flags(
-        &db_path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .map_err(|e| format!("open omp agent.db: {e}"))?;
-    let mut stmt = conn
-        .prepare(
-            "SELECT data FROM auth_credentials \
-             WHERE provider = ?1 AND disabled_cause IS NULL \
-             ORDER BY updated_at DESC LIMIT 1",
-        )
-        .map_err(|e| format!("prepare omp credential query: {e}"))?;
-    let mut rows = stmt
-        .query(rusqlite::params![provider])
-        .map_err(|e| format!("query omp credential: {e}"))?;
-    match rows.next().map_err(|e| format!("read omp credential row: {e}"))? {
-        Some(row) => {
-            let data: String = row
-                .get(0)
-                .map_err(|e| format!("read credential data column: {e}"))?;
-            Ok(Some(data))
-        }
-        None => Ok(None),
-    }
-}
 /// 读取 quota provider 使用的环境变量。仅返回非空值,不执行 shell 命令。
 #[tauri::command]
 pub fn quota_env_value(name: String) -> Option<String> {

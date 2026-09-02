@@ -3,11 +3,12 @@
  * 模式复用 mossx 的 services/tauri 分层，但砍到只剩直连。
  */
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { open as shellOpen } from "@tauri-apps/plugin-shell";
 
 export interface SpawnSpec {
   command: string;
@@ -121,7 +122,16 @@ export const ipc = {
   /** 读取非空环境变量;用于 pi auth.json 的 $ENV_VAR 凭据引用。 */
   quotaEnvValue: (name: string) =>
     invoke<string | null>("quota_env_value", { name }),
-};
+
+  /** 探针 CLI 是否在本机 PATH 中可解析(以及 `--version` 输出)。 */
+  cliProbe: (command: string) =>
+    invoke<CliProbeResult>("cli_probe", { command }),
+  /** 一键安装 CLI(claude 官方 native,其余 npm -g);日志经 cli-install://{engine} 事件推。 */
+  cliInstallRun: (engine: string) =>
+    invoke<boolean>("cli_install_run", { engine }),
+  /** 列出 omp 已登录的供应商 id 列表(agent.db auth_credentials,未禁用)。 */
+  ompAuthProviders: () => invoke<string[]>("omp_auth_providers"),
+ };
 /* ── Tauri API 统一收口 ──
  * 架构铁律:前端任何 @tauri-apps/* import 只允许出现在本文件。
  * 以下为非 invoke 通道的 Tauri 能力(窗口控制/版本/系统对话框),同样在此薄封装。 */
@@ -156,6 +166,20 @@ export function pickDirectory(title: string): Promise<string | null> {
   return openDialog({ directory: true, multiple: false, title });
 }
 
+/** 系统默认浏览器打开外链;浏览器 dev 无 shell 插件时回退 window.open。 */
+export async function openExternalUrl(url: string): Promise<void> {
+  try {
+    await shellOpen(url);
+  } catch {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
+/** 本地文件路径 → asset:// URL(markdown 预览本地图片)。 */
+export function assetUrl(path: string): string {
+  return convertFileSrc(path);
+}
+
 export interface QuotaFetchSpec {
   url: string;
   method?: string;
@@ -166,6 +190,28 @@ export interface QuotaFetchSpec {
 export interface QuotaFetchResponse {
   status: number;
   body: unknown;
+}
+
+/** 安装事件 payload(对齐 installer.rs CliInstallEvent)。 */
+export interface CliInstallEvent {
+  stream: "stdout" | "stderr" | "phase";
+  text: string;
+}
+
+/** 后端 `cli_probe` command 返回结构(对齐 src-tauri/src/probe.rs)。 */
+export interface CliProbeResult {
+  command: string;
+  found: boolean;
+  path: string | null;
+  version: string | null;
+}
+
+/** 订阅某引擎的安装事件流。返回退订函数。 */
+export function onCliInstallEvent(
+  engine: string,
+  cb: (e: CliInstallEvent) => void,
+) {
+  return listen<CliInstallEvent>(`cli-install://${engine}`, (ev) => cb(ev.payload));
 }
 
 /** 订阅某会话的 PTY 输出流。返回退订函数。 */

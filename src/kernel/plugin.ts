@@ -23,6 +23,8 @@ export type MountPoint =
   | "leftRail"
   | "rightRail"
   | "overlay"
+  /** 中央幕布的无会话首页(welcome/引导页);无活跃 session 时整页渲染。 */
+  | "editorCenter.welcome"
   /** 中央编辑区标签内容 —— 每个 tab 一个组件,按 tabId 取对应内容。 */
   | "editorCenter.tabContent"
   /** 幕布下方富 composer 输入区。 */

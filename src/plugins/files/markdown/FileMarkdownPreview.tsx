@@ -24,8 +24,8 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Element } from "hast";
+import { openExternalUrl } from "@kernel/ipc";
 import {
   compileFileMarkdownDocument,
   hashStableString,
@@ -64,6 +64,10 @@ const PROGRESSIVE_INITIAL_LINES = 360;
 const PROGRESSIVE_CHUNK_LINES = 720;
 const HEAVY_CODE_BLOCK_LINE_THRESHOLD = 80;
 const HEAVY_CODE_BLOCK_BYTE_THRESHOLD = 12_000;
+
+/* remark 插件数组提升为模块级常量:行内字面量会让每个 render 都拿到新数组
+   引用,ReactMarkdown 视其为插件变化而增加不必要的重解析成本。 */
+const MARKDOWN_REMARK_PLUGINS = [remarkGfm, remarkMath];
 
 function extractCodeFromPre(node?: PreviewPreNode) {
   const codeNode = node?.children?.find((child) => child.tagName === "code");
@@ -110,6 +114,34 @@ function createMermaidBlockKey(
   const endLine = (node?.position?.end.line ?? 1) + blockStartLine - 1;
   return `${startLine}:${endLine}:${hashStableString(value)}`;
 }
+
+type BlockMarkdownProps = {
+  /** 块稳定 key(含内容 hash):仅作为 props 参与 memo 比较,组件内不直接消费。 */
+  blockKey: string;
+  markdown: string;
+  rehypePlugins: Parameters<typeof ReactMarkdown>[0]["rehypePlugins"];
+  components: Components;
+};
+
+/* 每 block 的 ReactMarkdown 包一层 memo:渐进揭示推进时 visibleLineLimit 每 16ms
+   变一次、父组件随之重渲染,已挂载块只要 props(markdown/rehypePlugins/components)
+   引用不变就整体跳过重渲染与重解析。components 引用稳定性由下方
+   markdownComponentsByBlockKey 缓存保证。 */
+const BlockMarkdown = memo(function BlockMarkdown({
+  markdown,
+  rehypePlugins,
+  components,
+}: BlockMarkdownProps) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={MARKDOWN_REMARK_PLUGINS}
+      rehypePlugins={rehypePlugins}
+      components={components}
+    >
+      {markdown}
+    </ReactMarkdown>
+  );
+});
 
 export const FileMarkdownPreview = memo(function FileMarkdownPreview({
   value,
@@ -258,10 +290,8 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
     }
     event.preventDefault();
     event.stopPropagation();
-    void openUrl(href).catch(() => {
-      // 浏览器 dev 无 opener 插件:回退新窗口打开。
-      window.open(href, "_blank", "noopener,noreferrer");
-    });
+    /* 系统浏览器打开(浏览器 dev 回退 window.open,封装在 ipc 层)。 */
+    void openExternalUrl(href);
   }, []);
 
   const createMarkdownComponents = useCallback((blockStartLine: number, blockKey: string): Components => ({
@@ -336,7 +366,7 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
           <LazyMarkdownHeavyBlock
             defer={progressive}
             label={languageTag ?? "math"}
-            revealKey={`${documentKey}:${blockKey}:${languageTag ?? "math"}:${hashStableString(codeValue)}`}
+            revealKey={`${documentKey}:${blockKey}:${languageTag ?? "math"}`}
           >
             <FileMarkdownMathBlock className={codeClassName} value={codeValue} />
           </LazyMarkdownHeavyBlock>
@@ -346,13 +376,34 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
         <LazyMarkdownHeavyBlock
           defer={progressive && isHeavyCodeBlock(codeValue)}
           label={languageTag ?? "code"}
-          revealKey={`${documentKey}:${blockKey}:${languageTag ?? "code"}:${hashStableString(codeValue)}`}
+          revealKey={`${documentKey}:${blockKey}:${languageTag ?? "code"}`}
         >
           <FileMarkdownCodeBlock className={codeClassName} value={codeValue} />
         </LazyMarkdownHeavyBlock>
       );
     },
   }), [documentKey, handleAnchorClick, progressive, sourceFilePath]);
+
+  /* components 工厂结果按 blockKey 缓存复用:同一 block 在渐进揭示推进期间反复
+     render 时拿到同一 components 引用,配合 BlockMarkdown memo 跳过重渲染。
+     工厂闭包依赖(documentKey/handleAnchorClick/progressive/sourceFilePath)任一变化
+     → createMarkdownComponents 标识变化 → Map 整体重建,即自动清缓存,不会串旧闭包。 */
+  const markdownComponentsByBlockKey = useMemo(
+    () => new Map<string, Components>(),
+    [createMarkdownComponents],
+  );
+  const getBlockMarkdownComponents = useCallback(
+    (blockStartLine: number, blockKey: string): Components => {
+      const cachedComponents = markdownComponentsByBlockKey.get(blockKey);
+      if (cachedComponents) {
+        return cachedComponents;
+      }
+      const components = createMarkdownComponents(blockStartLine, blockKey);
+      markdownComponentsByBlockKey.set(blockKey, components);
+      return components;
+    },
+    [createMarkdownComponents, markdownComponentsByBlockKey],
+  );
 
   return (
     <div className="fvp-markdown-preview-frame">
@@ -396,14 +447,13 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
             </section>
           ) : null}
           {visibleMarkdownBlocks.map((block) => (
-            <ReactMarkdown
+            <BlockMarkdown
               key={block.key}
-              remarkPlugins={[remarkGfm, remarkMath]}
+              blockKey={block.key}
+              markdown={block.markdown}
               rehypePlugins={rehypePlugins}
-              components={createMarkdownComponents(block.startLine, block.key)}
-            >
-              {block.markdown}
-            </ReactMarkdown>
+              components={getBlockMarkdownComponents(block.startLine, block.key)}
+            />
           ))}
         </div>
       </div>

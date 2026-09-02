@@ -19,9 +19,17 @@ serde_json = "1"
 portable-pty = "0.9"
 parking_lot = "0.12"
 dirs = "6"
-tauri-plugin-dialog = "2.0.0-rc.8"
-reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+tauri-plugin-dialog = "2"
+# reqwest 0.13 起 rustls 为默认 TLS 后端;旧 "rustls-tls" feature 已移除
+reqwest = { version = "0.13", features = ["json", "rustls"] }
 # 只读 omp agent.db(auth_credentials 表)取供应商凭据;bundled 免系统 sqlite 依赖。
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
 base64 = "0.22"
 tauri-plugin-shell = { version = "2", default-features = false }
+# 产物体积与运行性能:lto 全量链接优化 + 单 codegen unit 提升内联,
+# strip 去符号表,panic=abort 省掉 unwinding 运行时(无跨 panic 边界逻辑)。
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

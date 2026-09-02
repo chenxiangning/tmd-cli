@@ -1,0 +1,114 @@
+/**
+ * 欢迎页 —— 无活跃 session 时的中央幕布首页(嵌入页,非弹窗)。
+ *
+ * 区块:
+ * 1. 引擎卡 ×N(ENGINE_METAS):探针 + 安装(进度条 + 流式日志)+ 已登录供应商/额度;
+ * 2. 近期会话:工作区分组,点击直接续上。
+ *
+ * 状态集中在页级:探针结果/安装状态按引擎 id 存 Record,卡片纯渲染。
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import { host, useHost } from "@kernel/host";
+import { ENGINE_METAS, ENGINE_META_BY_ID } from "./engineMeta";
+import {
+  EngineCard,
+  probeEngine,
+  useEngineInstall,
+  type EngineProbeState,
+  type InstallState,
+} from "./EngineCard";
+import { CredentialList } from "./CredentialList";
+import { RecentSessions } from "./RecentSessions";
+
+function buildInitialProbes(): Record<string, EngineProbeState> {
+  return Object.fromEntries(
+    ENGINE_METAS.map((m) => [m.id, { status: "loading" as const, result: null }]),
+  );
+}
+
+/** 单引擎状态容器(探针 + 安装 hook 必须组件化,故每引擎一个子组件)。 */
+function EngineSection({
+  engineId,
+  probe,
+  onProbe,
+}: {
+  engineId: string;
+  probe: EngineProbeState;
+  onProbe: () => void;
+}) {
+  const meta = ENGINE_META_BY_ID[engineId];
+  const profile = host.getCliProfile(engineId);
+  const [install, startInstall] = useEngineInstall(meta, onProbe);
+  return (
+    <div>
+      <EngineCard
+        meta={meta}
+        profile={profile}
+        probe={probe}
+        install={install}
+        onProbe={onProbe}
+        onInstall={startInstall}
+      />
+      {probe.status === "ok" && <CredentialList engineId={engineId} />}
+    </div>
+  );
+}
+
+export function WelcomePage() {
+  useHost(); /* profile 注册完成/变化时重渲染 */
+  const [probes, setProbes] = useState<Record<string, EngineProbeState>>(
+    buildInitialProbes,
+  );
+
+  const runProbe = useCallback(async (engineId: string) => {
+    const meta = ENGINE_META_BY_ID[engineId];
+    if (!meta) return;
+    setProbes((prev) => ({
+      ...prev,
+      [engineId]: { status: "loading", result: null },
+    }));
+    const next = await probeEngine(meta.binary);
+    setProbes((prev) => ({ ...prev, [engineId]: next }));
+  }, []);
+
+  /* 首 mount 全量探针一次。 */
+  useEffect(() => {
+    for (const meta of ENGINE_METAS) void runProbe(meta.id);
+  }, [runProbe]);
+
+  const installedCount = Object.values(probes).filter(
+    (p) => p.status === "ok",
+  ).length;
+
+  return (
+    <div className="welcome-page">
+      <div className="welcome-scroll">
+        <header className="welcome-hero">
+          <h1 className="welcome-title">tmd-cli</h1>
+          <p className="welcome-subtitle">
+            多 CLI 桌面客户端 —— 已就绪 {installedCount} / {ENGINE_METAS.length} 个引擎
+          </p>
+        </header>
+
+        <div className="welcome-engines">
+          {ENGINE_METAS.map((meta) => (
+            <EngineSection
+              key={meta.id}
+              engineId={meta.id}
+              probe={
+                probes[meta.id] ?? { status: "loading", result: null }
+              }
+              onProbe={() => void runProbe(meta.id)}
+            />
+          ))}
+        </div>
+
+        <RecentSessions />
+      </div>
+    </div>
+  );
+}
+
+/** 安装状态类型 re-export(EngineSection 外部不直接用,保持类型对齐)。 */
+export type { InstallState };

@@ -22,10 +22,18 @@ export function useMarkdownOutline({
 }: {
   body: string;
   cacheKey: string;
-  /** 渐进渲染的可见行上限:揭示推进后需要补挂新标题的锚点。 */
+  /** 渐进渲染的可见行上限:仅用于推导 revealComplete(>= 总行数),锚点 effect 不随其逐帧重跑。 */
   visibleLineLimit: number;
 }) {
   const outline = useMemo(() => extractMarkdownOutline(body), [body]);
+  const totalLineCount = useMemo(
+    () => (body.length === 0 ? 0 : body.split(/\r?\n/).length),
+    [body],
+  );
+  /* 锚点挂载只关心「渐进揭示是否完成」:visibleLineLimit 渐进期每 16ms 变一次,
+     若直接作 effect 依赖会反复全树 querySelectorAll。收敛成布尔后,渐进期间不跑、
+     完成瞬间跑一次;渐进中点击跳转由 handleSelectOutlineItem 的序号兜底承接。 */
+  const revealComplete = visibleLineLimit >= totalLineCount;
   const previewRootRef = useRef<HTMLDivElement | null>(null);
   const [activeOutlineItemId, setActiveOutlineItemId] = useState<string | null>(null);
   const [isOutlinePinned, setIsOutlinePinned] = useState(false);
@@ -55,7 +63,7 @@ export function useMarkdownOutline({
         headingNode.id = item.target.anchorId;
       }
     });
-  }, [outline, visibleLineLimit]);
+  }, [outline, revealComplete]);
 
   const handleSelectOutlineItem = useCallback((item: PreviewOutlineItem) => {
     const articleNode = previewRootRef.current?.querySelector(".fvp-file-markdown");

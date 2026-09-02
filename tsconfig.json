@@ -12,11 +12,10 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
-      "@kernel/*": ["src/kernel/*"],
-      "@shell/*": ["src/app-shell/*"],
-      "@plugins/*": ["src/plugins/*"]
+      "@kernel/*": ["./src/kernel/*"],
+      "@shell/*": ["./src/app-shell/*"],
+      "@plugins/*": ["./src/plugins/*"]
     }
   },
   "include": ["src"]

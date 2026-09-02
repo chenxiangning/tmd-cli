@@ -2,16 +2,70 @@
 //!
 //! 每个会话 = 一个 portable-pty 伪终端 + 一个 CLI 子进程。
 //! 输出通过 Tauri event `pty://out/{id}` 推给前端 xterm.js 透传渲染。
+//!
+//! 拆分边界(文件规模铁则):
+//! - 会话日志落盘/翻页 → crate::session_log;
+//! - PATH 富化/命令解析 → crate::resolve(probe/installer 共用)。
 
 use std::collections::HashMap;
+use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::sync::Arc;
-use std::sync::LazyLock;
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
+use crate::resolve::{enriched_path, resolve_command};
+use crate::session_log::{
+    append_log, read_history_page, session_log_path, HistoryPage, LogMeta,
+};
+
+/// 增量 UTF-8 解码：不完整的多字节尾部暂存进 `tail`，与下一 chunk 拼接后再解码。
+/// 真正的坏字节(error_len 存在)按 U+FFFD 替换；仅是"没读完"的字节绝不误伤。
+fn decode_utf8_chunk(tail: &mut Vec<u8>, chunk: &[u8]) -> String {
+    let mut bytes = std::mem::take(tail);
+    bytes.extend_from_slice(chunk);
+
+    let mut start = 0;
+    let mut text = String::with_capacity(bytes.len());
+    loop {
+        match std::str::from_utf8(&bytes[start..]) {
+            Ok(valid) => {
+                text.push_str(valid);
+                start = bytes.len();
+                break;
+            }
+            Err(e) => {
+                let up_to = start + e.valid_up_to();
+                // 安全:valid_up_to 边界内必为合法 UTF-8
+                text.push_str(unsafe { std::str::from_utf8_unchecked(&bytes[start..up_to]) });
+                match e.error_len() {
+                    Some(len) => {
+                        text.push('\u{FFFD}');
+                        start = up_to + len;
+                    }
+                    None => {
+                        start = up_to;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    tail.extend_from_slice(&bytes[start..]);
+    text
+}
+
+/// 输出聚合窗:首个 chunk 到达后再收 8ms 内的后续 chunk,拼成一个事件发出。
+/// 8KB/次的 read 在高吞吐场景(编译刷屏、cat 大文件)会打成事件风暴,
+/// Tauri IPC 序列化 + WebView 派发是主线程开销大头;8ms ≈ 半个 60fps 帧,
+/// 人眼无感,事件数可降一个数量级。
+const OUT_AGGREGATE_WINDOW: Duration = Duration::from_millis(8);
+/// 单次聚合批次的字节上限:防恶意/失控输出在窗口内无限堆积撑爆内存。
+const OUT_AGGREGATE_MAX_BYTES: usize = 1024 * 1024;
 
 /// 一次 PTY 会话的句柄。reader 线程在后台把字节流转发为 Tauri 事件。
 struct PtyHandle {
@@ -23,6 +77,8 @@ struct PtyHandle {
 #[derive(Default)]
 pub struct PtyRegistry {
     sessions: Arc<Mutex<HashMap<String, PtyHandle>>>,
+    /// 会话输出日志账本:泵线程写,翻页命令读。
+    logs: Arc<Mutex<HashMap<String, LogMeta>>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -46,171 +102,6 @@ fn default_cols() -> u16 {
 fn default_rows() -> u16 {
     32
 }
-/* ---------- 打包环境命令解析 ----------
- * macOS: Finder/Dock 启动的 .app 由 launchd 拉起,PATH 只有 /usr/bin:/bin:/usr/sbin:/sbin,
- *   claude/omp/pi/codex 装在 ~/.local/bin、/opt/homebrew/bin → 裸命令名 spawn 必失败。
- *   解法:login shell 提取真实 PATH + 合并兜底目录,缓存一次,命令解析为绝对路径。
- * Linux: 桌面环境启动同样 PATH 贫瘠,同一机制覆盖;$SHELL 为 dash 等不支持 -l 时
- *   静默降级到进程 PATH + 兜底目录。
- * Windows: GUI 应用继承注册表合并 PATH,通常不缺目录;真正的坑是 npm 全局 CLI 是
- *   .cmd/.bat shim,CreateProcess 不解析无扩展名批处理 → 按 PATHEXT 搜索,
- *   命中批处理时包裹 `cmd /c`。 */
-
-static ENRICHED_PATH: LazyLock<String> = LazyLock::new(build_enriched_path);
-
-/// 合并后的 PATH:login shell(unix) > 进程环境 > 常见安装目录(去重,保序)。
-pub(crate) fn enriched_path() -> &'static str {
-    &ENRICHED_PATH
-}
-
-fn push_unique_dirs(dirs: &mut Vec<std::path::PathBuf>, value: &std::ffi::OsStr) {
-    for dir in std::env::split_paths(value) {
-        if !dir.as_os_str().is_empty() && !dirs.contains(&dir) {
-            dirs.push(dir);
-        }
-    }
-}
-
-fn push_unique_dir(dirs: &mut Vec<std::path::PathBuf>, dir: std::path::PathBuf) {
-    if !dirs.contains(&dir) {
-        dirs.push(dir);
-    }
-}
-
-fn build_enriched_path() -> String {
-    let mut dirs: Vec<std::path::PathBuf> = Vec::new();
-    if let Some(login) = login_shell_path() {
-        push_unique_dirs(&mut dirs, std::ffi::OsStr::new(&login));
-    }
-    if let Some(current) = std::env::var_os("PATH") {
-        push_unique_dirs(&mut dirs, &current);
-    }
-    /* 家目录 bin:unix 用 HOME,Windows 用 USERPROFILE */
-    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"));
-    if let Some(home) = home {
-        push_unique_dir(&mut dirs, std::path::Path::new(&home).join(".local").join("bin"));
-    }
-    #[cfg(target_os = "macos")]
-    push_unique_dirs(&mut dirs, std::ffi::OsStr::new("/opt/homebrew/bin:/usr/local/bin"));
-    #[cfg(target_os = "linux")]
-    push_unique_dirs(&mut dirs, std::ffi::OsStr::new("/usr/local/bin:/snap/bin"));
-    #[cfg(windows)]
-    {
-        /* npm 全局目录通常在注册表 PATH 里,补一道兜底 */
-        if let Some(appdata) = std::env::var_os("APPDATA") {
-            push_unique_dir(&mut dirs, std::path::Path::new(&appdata).join("npm"));
-        }
-    }
-    std::env::join_paths(dirs)
-        .map(|p| p.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
-
-/// 从用户 login shell 提取 PATH。哨兵包裹输出,免疫用户 rc 文件的噪音打印。
-/// 仅 unix:Windows 无 login shell 概念,GUI 进程已继承注册表合并 PATH。
-#[cfg(unix)]
-fn login_shell_path() -> Option<String> {
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
-    const BEGIN: &str = "__TMD_PATH_BEGIN__";
-    const END: &str = "__TMD_PATH_END__";
-    let out = std::process::Command::new(shell)
-        .args(["-ilc", &format!("echo {BEGIN}; printf '%s' \"$PATH\"; echo; echo {END}")])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let text = String::from_utf8_lossy(&out.stdout);
-    let path = text
-        .split_once(BEGIN)?
-        .1
-        .split_once(END)?
-        .0
-        .trim()
-        .to_string();
-    if path.is_empty() { None } else { Some(path) }
-}
-
-#[cfg(windows)]
-fn login_shell_path() -> Option<String> {
-    None
-}
-
-/// 解析结果:最终 program + 需要前插的参数(Windows 批处理 shim → ["cmd.exe", "/c", path])。
-pub(crate) struct ResolvedCommand {
-    pub program: String,
-    pub prefix_args: Vec<String>,
-}
-
-/// 裸命令名 → 可执行绝对路径;找不到时原样返回,错误信息仍指向原命令名。
-/// Windows 下命中 .cmd/.bat shim 时改为 cmd /c 包裹(CreateProcess 不能直跑批处理)。
-fn resolve_command(command: &str, path: &str) -> ResolvedCommand {
-    let has_separator = command.contains('/') || command.contains('\\');
-    if has_separator {
-        return wrap_if_batch(command.to_string());
-    }
-    for dir in std::env::split_paths(std::ffi::OsStr::new(path)) {
-        if let Some(candidate) = find_in_dir(&dir, command) {
-            return wrap_if_batch(candidate.to_string_lossy().into_owned());
-        }
-    }
-    ResolvedCommand { program: command.to_string(), prefix_args: Vec::new() }
-}
-
-#[cfg(unix)]
-fn find_in_dir(dir: &std::path::Path, command: &str) -> Option<std::path::PathBuf> {
-    let candidate = dir.join(command);
-    is_executable(&candidate).then_some(candidate)
-}
-
-#[cfg(windows)]
-fn find_in_dir(dir: &std::path::Path, command: &str) -> Option<std::path::PathBuf> {
-    /* 已带扩展名 → 直接命中;否则按 PATHEXT 顺序补扩展名 */
-    if std::path::Path::new(command).extension().is_some() {
-        let candidate = dir.join(command);
-        return candidate.is_file().then_some(candidate);
-    }
-    let pathext = std::env::var("PATHEXT")
-        .unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".to_string());
-    for ext in pathext.split(';').filter(|e| !e.is_empty()) {
-        let ext = ext.trim_start_matches('.');
-        let candidate = dir.join(format!("{command}.{ext}"));
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-    None
-}
-
-/// 批处理 shim 必须经 cmd /c 执行;其余原样。非 Windows 永不包裹。
-fn wrap_if_batch(path: String) -> ResolvedCommand {
-    #[cfg(windows)]
-    if is_batch_script(&path) {
-        let comspec = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
-        return ResolvedCommand { program: comspec, prefix_args: vec!["/c".to_string(), path] };
-    }
-    ResolvedCommand { program: path, prefix_args: Vec::new() }
-}
-
-/// 纯函数:路径是否指向 Windows 批处理脚本(大小写不敏感)。跨平台可测。
-#[cfg(any(windows, test))]
-fn is_batch_script(path: &str) -> bool {
-    let lower = path.to_ascii_lowercase();
-    lower.ends_with(".cmd") || lower.ends_with(".bat")
-}
-
-#[cfg(unix)]
-fn is_executable(path: &std::path::Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    path.metadata()
-        .map(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
-        .unwrap_or(false)
-}
-
-#[cfg(not(unix))]
-fn is_executable(path: &std::path::Path) -> bool {
-    path.is_file()
-}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -220,7 +111,12 @@ pub struct SpawnedSession {
 }
 
 impl PtyRegistry {
-    pub fn spawn(&self, app: &AppHandle, spec: SpawnSpec) -> Result<SpawnedSession, String> {
+    pub fn spawn(
+        &self,
+        app: &AppHandle,
+        profile_id: &str,
+        spec: SpawnSpec,
+    ) -> Result<SpawnedSession, String> {
         let id = uuid_v4();
         let pty_system = native_pty_system();
         let pair = pty_system
@@ -255,6 +151,32 @@ impl PtyRegistry {
             .map_err(|e| format!("spawn `{}` 失败: {e}", spec.command))?;
         let pid = child.process_id();
 
+        /* 会话输出日志:~/.tmd-cli/session/<引擎>/<项目-slug>/<id>.log。
+           创建失败不阻塞终端,仅关闭"加载更早输出"能力 */
+        let log_path = session_log_path(profile_id, &spec.cwd, &id);
+        let log_file = log_path
+            .parent()
+            .and_then(|dir| std::fs::create_dir_all(dir).ok())
+            .and_then(|_| {
+                OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(&log_path)
+                    .ok()
+            });
+        let log_path = log_file.as_ref().map(|_| log_path);
+        if let Some(path) = log_path.as_ref() {
+            self.logs.lock().insert(
+                id.clone(),
+                LogMeta {
+                    written: 0,
+                    base: 0,
+                    path: path.clone(),
+                },
+            );
+        }
+
         let mut reader = pair
             .master
             .try_clone_reader()
@@ -264,24 +186,75 @@ impl PtyRegistry {
             .take_writer()
             .map_err(|e| format!("take writer 失败: {e}"))?;
 
-        // 输出泵：PTY → Tauri event。xterm.js 只认这条通道。
+        /* 输出泵：PTY → Tauri event + 会话日志。xterm.js 只认事件通道。
+           聚合选型:portable-pty 的 reader 只有阻塞 read(无 try_read),
+           最小侵入方案是拆 channel 两段 ——
+           reader 线程只管阻塞读 + send 原始字节(职责单一,永不阻塞下游);
+           emitter 线程 recv 首 chunk 后在 8ms 窗口内 drain 尽所有后续 chunk,
+           拼成一批再落日志/解码/emit。日志按批次追加(字节序不变,
+           read_history_page 的偏移语义不受影响)。 */
         let out_id = id.clone();
         let out_app = app.clone();
+        let logs = Arc::clone(&self.logs);
+        let (out_tx, out_rx) = mpsc::channel::<Vec<u8>>();
         std::thread::spawn(move || {
-            let event = format!("pty://out/{out_id}");
             let mut buf = [0u8; 8192];
             loop {
                 match reader.read(&mut buf) {
                     Ok(0) => break,
+                    /* 下游已退出(前端销毁/会话结束)即停 */
                     Ok(n) => {
-                        let text = String::from_utf8_lossy(&buf[..n]).to_string();
-                        if out_app.emit(&event, text).is_err() {
-                            break; // 前端已销毁
+                        if out_tx.send(buf[..n].to_vec()).is_err() {
+                            break;
                         }
                     }
                     Err(_) => break,
                 }
             }
+            /* drop(out_tx) 随线程结束自动发生 → emitter 收 Disconnected 退出 */
+        });
+        std::thread::spawn(move || {
+            let event = format!("pty://out/{out_id}");
+            /* 跨 chunk 的不完整 UTF-8 尾部(如 3 字节中文被聚合批边界劈开),
+               暂存后与下一批拼接再解码,避免 from_utf8_lossy 逐包转换产生 */
+            let mut tail: Vec<u8> = Vec::new();
+            let mut log_file = log_file;
+            loop {
+                /* 阻塞等首 chunk;channel 关闭且排空 → 会话结束 */
+                let mut batch = match out_rx.recv() {
+                    Ok(first) => first,
+                    Err(_) => break,
+                };
+                /* 聚合窗:drain 窗口内已到达的所有 chunk,合并为一个事件 */
+                let deadline = Instant::now() + OUT_AGGREGATE_WINDOW;
+                while batch.len() < OUT_AGGREGATE_MAX_BYTES {
+                    let now = Instant::now();
+                    if now >= deadline {
+                        break;
+                    }
+                    match out_rx.recv_timeout(deadline - now) {
+                        Ok(chunk) => batch.extend_from_slice(&chunk),
+                        /* Timeout → 窗口耗尽;Disconnected → 先发完手头这批,
+                           下一轮 recv 拿到 Err 再统一走退出清理 */
+                        Err(_) => break,
+                    }
+                }
+                /* 原始字节先落日志(供幕布往前翻页),再解码推事件 */
+                if let (Some(file), Some(path)) = (log_file.as_mut(), log_path.as_ref()) {
+                    if append_log(&logs, &out_id, file, path, &batch).is_err() {
+                        log_file = None; // 日志失败不拖累终端;翻页能力降级
+                    }
+                }
+                let text = decode_utf8_chunk(&mut tail, &batch);
+                if out_app.emit(&event, text).is_err() {
+                    break; // 前端已销毁
+                }
+            }
+            /* 进程退出即会话销毁:清理日志文件与账本(kill 路径同样经由此处) */
+            if let Some(path) = log_path.as_ref() {
+                let _ = std::fs::remove_file(path);
+            }
+            logs.lock().remove(&out_id);
             let _ = out_app.emit(&format!("pty://exit/{out_id}"), ());
         });
 
@@ -326,6 +299,27 @@ impl PtyRegistry {
         let mut handle = sessions.remove(id).ok_or_else(|| format!("会话 {id} 不存在"))?;
         handle.child.kill().map_err(|e| format!("kill 失败: {e}"))
     }
+
+    /// 会话全量输出的绝对末尾偏移(= 累计写入字节数);无日志返回 None。
+    pub fn session_log_end(&self, id: &str) -> Option<u64> {
+        self.logs.lock().get(id).map(|m| m.written)
+    }
+
+    /// 往前翻一页:before 绝对偏移之前最多 max_bytes 字节的原始输出。
+    pub fn session_history_page(
+        &self,
+        id: &str,
+        before: u64,
+        max_bytes: u64,
+    ) -> Result<HistoryPage, String> {
+        let meta = self
+            .logs
+            .lock()
+            .get(id)
+            .cloned()
+            .ok_or_else(|| format!("会话 {id} 无输出日志"))?;
+        read_history_page(&meta.path, meta.base, meta.written, before, max_bytes)
+    }
 }
 
 /// 无 uuid 依赖的 id 生成：时间戳 + 计数器 + 随机段。
@@ -363,46 +357,27 @@ fn random_u64() -> u64 {
 }
 
 #[cfg(test)]
+#[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn resolve_command_在_PATH_中找到可执行文件并返回绝对路径() {
-        let r = resolve_command("ls", "/bin:/usr/bin");
-        assert_eq!(r.program, "/bin/ls");
-        assert!(r.prefix_args.is_empty());
+    fn decode_utf8_chunk_多字节字符跨包不产生替换符() {
+        /* "输出中" 共 9 字节;切在 7 = "中" 的 3 字节被劈成 1 + 2,模拟 8KB chunk 边界 */
+        let bytes = "输出中".as_bytes();
+        let cut = 7;
+        let mut tail = Vec::new();
+        let first = decode_utf8_chunk(&mut tail, &bytes[..cut]);
+        let second = decode_utf8_chunk(&mut tail, &bytes[cut..]);
+        assert_eq!(format!("{first}{second}"), "输出中");
+        assert!(!first.contains('\u{FFFD}'));
+        assert!(tail.is_empty());
     }
 
     #[test]
-    fn resolve_command_找不到时原样返回() {
-        let r = resolve_command("tmd-no-such-cmd", "/bin");
-        assert_eq!(r.program, "tmd-no-such-cmd");
-        assert!(r.prefix_args.is_empty());
-    }
-
-    #[test]
-    fn resolve_command_已是路径时原样返回() {
-        let r = resolve_command("/bin/ls", "/usr/bin");
-        assert_eq!(r.program, "/bin/ls");
-        assert!(r.prefix_args.is_empty());
-    }
-
-    #[test]
-    fn is_batch_script_仅识别_cmd_bat_扩展名() {
-        assert!(is_batch_script("C:\\Users\\x\\AppData\\npm\\claude.CMD"));
-        assert!(is_batch_script("npm/omp.bat"));
-        assert!(!is_batch_script("/opt/homebrew/bin/omp"));
-        assert!(!is_batch_script("claude.exe"));
-    }
-
-    #[test]
-    fn enriched_path_包含进程_PATH_与常见安装目录且去重() {
-        let path = enriched_path();
-        for dir in ["/usr/bin", "/bin"] {
-            assert!(path.split(':').any(|d| d == dir), "缺 {dir}: {path}");
-        }
-        let dirs: Vec<&str> = path.split(':').collect();
-        let unique: std::collections::HashSet<_> = dirs.iter().collect();
-        assert_eq!(dirs.len(), unique.len(), "PATH 有重复项: {path}");
+    fn decode_utf8_chunk_真正的坏字节才替换() {
+        let mut tail = Vec::new();
+        let text = decode_utf8_chunk(&mut tail, &[0xff, b'a']);
+        assert_eq!(text, "\u{FFFD}a");
     }
 }

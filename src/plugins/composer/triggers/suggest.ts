@@ -11,6 +11,20 @@ import type { CliProfile, CliSuggestion, CliTriggerSpec } from "@kernel/cli";
 import type { DirEntry } from "@kernel/ipc";
 import { ipc } from "@kernel/ipc";
 
+/* @ 文件触发目录缓存:同一目录 60s 内复用 fsListDir 结果。
+   连续敲击路径字符每键一次 IPC,缓存把目录列举压到每目录每分钟一次;
+   失败不缓存(下次击键重试),避免把瞬时错误固化一分钟。 */
+const DIR_CACHE_TTL_MS = 60_000;
+const dirListCache = new Map<string, { at: number; entries: DirEntry[] }>();
+
+async function listDirCached(dir: string): Promise<DirEntry[]> {
+  const hit = dirListCache.get(dir);
+  if (hit && Date.now() - hit.at < DIR_CACHE_TTL_MS) return hit.entries;
+  const entries = await ipc.fsListDir(dir);
+  dirListCache.set(dir, { at: Date.now(), entries });
+  return entries;
+}
+
 export interface SuggestionMatch {
   /** 替换进文本的值(不含 char)。 */
   value: string;
@@ -43,7 +57,7 @@ export async function lookupSuggestions(
       const prefix = sep >= 0 ? needle.slice(sep + 1) : needle;
       let entries: DirEntry[] = [];
       try {
-        entries = await ipc.fsListDir(dir);
+        entries = await listDirCached(dir);
       } catch {
         return [];
       }

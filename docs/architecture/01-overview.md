@@ -24,10 +24,16 @@ React Host
 └── plugins/      cli-omp / cli-pi / cli-codex / cli-claude / workspace / files / git / composer
 
 Tauri Rust
-├── pty.rs        portable-pty：spawn / read / write / resize / kill
-├── session.rs    Session 元数据注册表
-├── fs.rs         文件树读取
-└── git.rs        git CLI shell-out
+├── pty.rs         portable-pty：spawn / read / write / resize / kill,双线程聚合泵
+├── session_log.rs 会话输出落盘(64MB 旋转) + 幕布翻页读取
+├── resolve.rs     PATH 富化 / 裸命令名 → 绝对路径(pty·probe·installer 共用)
+├── probe.rs       CLI 探针(found/path/version,8s 超时)
+├── installer.rs   一键安装 CLI(npm -g / claude native),流式日志事件
+├── omp_auth.rs    omp agent.db 凭据只读(sqlite,CLI 私有存储的唯一例外模块)
+├── quota.rs       通用 HTTP 代理 + 只读环境变量
+├── session.rs     Session 元数据注册表
+├── fs.rs          文件树读取
+└── git.rs         git CLI shell-out
 ```
 
 ### 内核边界
@@ -103,6 +109,7 @@ QuotaChip (composer 插件)
 | `vendors.ts` | 6 类供应商协议:kimi / minimax-cn·en / zhipu-cn·en / deepseek / relay + codex wham(降级) | CLI 凭据格式 |
 | `codexLocal.ts` | codex 官方 OAuth 本地 rollout 快照解析(优先路径) | HTTP(零请求) |
 | `quota.rs` | 通用 HTTP 代理 + `quota_env_value` 只读环境变量 | 业务语义 |
+| `omp_auth.rs` | omp agent.db(auth_credentials)只读代读:JS 无法解析 sqlite,CLI 私有存储知识集中于此例外模块 | HTTP/其它 CLI |
 
 **关键设计决策**:
 
@@ -116,6 +123,6 @@ QuotaChip (composer 插件)
 
 ## 8. 当前实现状态
 
-已完成：配置脚手架、插件宿主、三 CLI profile、PTY spawn/read/write/resize/kill、Session 注册表、文件树单层懒展开、git status、xterm 幕布接线、五区外壳、Composer 触发器/拖拽/截图、Composer 只读 session 状态工具栏、Quota 额度查询(7 类供应商 + relay 探测 + 契约单测)。
+已完成：配置脚手架、插件宿主、四 CLI profile、PTY spawn/read/write/resize/kill、Session 注册表、文件树单层懒展开、git status、xterm 幕布接线、五区外壳、Composer 触发器/拖拽/截图、Composer 只读 session 状态工具栏、Quota 额度查询(7 类供应商 + relay 探测 + 契约单测)、welcome 首页(引擎探针/一键安装/凭据盘点/近期会话)、会话输出落盘与幕布往前翻页、输出缓冲分块化(上限可配)与字节流安全截断(streamSlice)。
 
 后续按优先级：PTY bracketed-paste 发送器 → mossx git 核心子集 → CLI 交互式兼容性验证。

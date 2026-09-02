@@ -11,14 +11,27 @@ import { formatRelativeTime } from "@kernel/relativeTime";
 import type { Workspace } from "@kernel/workspace";
 import { shortId } from "./utils";
 
+/* 共享 1Hz ticker:N 个 ActivityDot 共用一个 interval(替代每点一表),0 订阅时停表。 */
+const tickSubscribers = new Set<() => void>();
+let tickTimer: number | null = null;
+
+function subscribeActivityTick(cb: () => void): () => void {
+  tickSubscribers.add(cb);
+  tickTimer ??= window.setInterval(() => tickSubscribers.forEach((fn) => fn()), 1000);
+  return () => {
+    tickSubscribers.delete(cb);
+    if (tickSubscribers.size === 0 && tickTimer) {
+      clearInterval(tickTimer);
+      tickTimer = null;
+    }
+  };
+}
+
 /** 呼吸灯：2 秒内有过 PTY 输出 = 呼吸态，否则静止。 */
 function ActivityDot({ sessionId }: { sessionId: string }) {
   useHost();
   const [, tick] = useState(0);
-  useEffect(() => {
-    const timer = setInterval(() => tick((n) => n + 1), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  useEffect(() => subscribeActivityTick(() => tick((n) => n + 1)), []);
   const alive = Date.now() - host.getLastActivityAt(sessionId) < 2000;
   return (
     <span

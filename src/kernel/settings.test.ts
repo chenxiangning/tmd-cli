@@ -58,6 +58,7 @@ describe("初始状态与默认值", () => {
       darkThemePresetId: "vscode-dark-modern",
       customThemePresetId: "vscode-dark-modern",
       sendShortcut: "enter",
+      sessionOutputBufferLimit: 500_000,
     });
     expect(s.loaded).toBe(false);
     expect(s.panelOpen).toBe(false);
@@ -93,6 +94,18 @@ describe("updateSettings 合并与清洗", () => {
     const s = settings.getSettingsState().settings;
     expect(s.sendShortcut).toBe("cmdOrCtrlEnter");
     expect(s.theme).toBe("system");
+  });
+
+  it("非法 sessionOutputBufferLimit 回落默认 50 万", () => {
+    settings.updateSettings({ sessionOutputBufferLimit: 10 });
+    expect(settings.getSettingsState().settings.sessionOutputBufferLimit).toBe(500_000);
+    settings.updateSettings({ sessionOutputBufferLimit: Number.NaN });
+    expect(settings.getSettingsState().settings.sessionOutputBufferLimit).toBe(500_000);
+  });
+
+  it("合法 sessionOutputBufferLimit 生效", () => {
+    settings.updateSettings({ sessionOutputBufferLimit: 1_000_000 });
+    expect(settings.getSettingsState().settings.sessionOutputBufferLimit).toBe(1_000_000);
   });
 
   it("合法 preset id 生效", () => {

@@ -8,7 +8,7 @@
  * - RightPanelToolbar: 内部组件,仅在右侧 aside 渲染 WorkspaceSubbar。
  */
 
-import { useEffect, useMemo, useState, type ForwardRefExoticComponent, type MouseEvent as ReactMouseEvent, type RefAttributes } from "react";
+import { memo, useEffect, useMemo, useState, type ForwardRefExoticComponent, type MouseEvent as ReactMouseEvent, type RefAttributes } from "react";
 import { createPortal } from "react-dom";
 import {
   Check,
@@ -292,13 +292,14 @@ export function WorkspaceSubbar() {
 /* ──────────────────────────────────────────────────────────
  * 兼容旧调用 ─ 内部用,渲染 WorkspaceSubbar(panel tabs 已挪到 TopBarPanelTabs)。
  * ────────────────────────────────────────────────────────── */
-export function RightPanelToolbar() {
+/* memo 兜底:无 props,父级(AppShell 右栏 aside)重渲染时不再连带重渲染。 */
+export const RightPanelToolbar = memo(function RightPanelToolbar() {
   return (
     <div className="right-panel-toolbar">
       <WorkspaceSubbar />
     </div>
   );
-}
+});
 
 /**
  * Git panel 占位 ─ 当前 git 插件未实装面板,渲染一个友好的 "未接入" 占位。

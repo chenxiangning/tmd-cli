@@ -7,6 +7,8 @@
 
 import { useSyncExternalStore } from "react";
 import { EventBus, KernelTopics } from "./events";
+import { sliceStreamTail } from "./streamSlice";
+import { getSettingsState } from "./settings";
 
 import { ipc, onPtyExit, onPtyOutput, type SessionMeta, type SpawnSpec } from "./ipc";
 import type { CliProfile, CliSessionStatus } from "./cli";
@@ -15,6 +17,16 @@ import {
   registerSettingsSection,
   type SettingsSectionContribution,
 } from "./settingsRegistry";
+
+/** 输出缓冲的分块结构:chunks 按到达顺序排列,totalChars/totalBytes 为增量维护的合计。 */
+interface OutputBuffer {
+  chunks: string[];
+  totalChars: number;
+  totalBytes: number;
+}
+
+/** 共享 TextEncoder:appendOutput 逐 chunk 累计 UTF-8 字节数(TextEncoder 无线程语义,复用安全)。 */
+const outputByteEncoder = new TextEncoder();
 
 class Host implements PluginContext {
   readonly events = new EventBus();
@@ -28,8 +40,13 @@ class Host implements PluginContext {
   private sessionStatuses = new Map<string, CliSessionStatus>();
   private statusTimer: number | null = null;
   private listeners = new Set<() => void>();
-  /** 每会话 PTY 输出环形缓冲：会话切换后 xterm 重挂载靠它回放，这是"切回不黑屏"的核心。 */
-  private outputBuffers = new Map<string, string>();
+  /**
+   * 每会话 PTY 输出环形缓冲：会话切换后 xterm 重挂载靠它回放，这是"切回不黑屏"的核心。
+   * 分块存储:append 只 push 不拼接(高频路径零复制);totalBytes 随 chunk 增量维护,
+   * 供 TerminalView 翻页锚点反推,消除挂载时全量 TextEncoder 编码。
+   * totalChars 超 1.2×limit 才 join+截断一次,平摊 O(limit)。
+   */
+  private outputBuffers = new Map<string, OutputBuffer>();
   /**
    * 活会话 → CLI 磁盘身份绑定(omp/pi 的 jsonl uuid、codex 的 rollout id)。
    * 纯前端内存,随 PTY 消亡 —— 这是活会话的身份属性,不是持久化映射。
@@ -246,16 +263,31 @@ class Host implements PluginContext {
     }
   }
 
-  /** 单会话输出缓冲上限。全屏 TUI 靠重绘恢复，保留尾部足够。 */
+  /** 缓冲上限兜底值(设置未落地前/异常时)。全屏 TUI 靠重绘恢复，保留尾部足够。 */
   private static readonly OUTPUT_BUFFER_LIMIT = 500_000;
 
   private appendOutput(sessionId: string, text: string): void {
-    const prev = this.outputBuffers.get(sessionId) ?? "";
-    let next = prev + text;
-    if (next.length > Host.OUTPUT_BUFFER_LIMIT) {
-      next = next.slice(next.length - Host.OUTPUT_BUFFER_LIMIT);
+    const buf: OutputBuffer = this.outputBuffers.get(sessionId) ?? {
+      chunks: [],
+      totalChars: 0,
+      totalBytes: 0,
+    };
+    buf.chunks.push(text);
+    buf.totalChars += text.length;
+    /* 逐 chunk 编码累计字节数:PTY 侧按完整码点切包(decode_utf8_chunk 暂存尾部),
+       chunk 边界永不劈开 surrogate pair,故分块编码之和 === 拼接后整段编码 */
+    buf.totalBytes += outputByteEncoder.encode(text).length;
+    /* 上限读设置项 sessionOutputBufferLimit(行为页可调),异常值已被 sanitize 拦截。
+       1.2× 迟滞:只有明显超限才合并截断,避免每次 append 都做 O(limit) 拼接 */
+    const limit =
+      getSettingsState().settings.sessionOutputBufferLimit || Host.OUTPUT_BUFFER_LIMIT;
+    if (buf.totalChars > limit * 1.2) {
+      const trimmed = sliceStreamTail(buf.chunks.join(""), limit);
+      buf.chunks = [trimmed];
+      buf.totalChars = trimmed.length;
+      buf.totalBytes = outputByteEncoder.encode(trimmed).length;
     }
-    this.outputBuffers.set(sessionId, next);
+    this.outputBuffers.set(sessionId, buf);
     this.events.emit(ptyLiveTopic(sessionId), text);
 
     const now = Date.now();
@@ -267,9 +299,22 @@ class Host implements PluginContext {
     }
   }
 
-  /** 会话至今的全部（尾部）输出，供 xterm 重挂载回放。 */
+  /** 会话至今的全部（尾部）输出，供 xterm 重挂载回放。join 后顺手压实为单 chunk。 */
   getOutputBuffer(sessionId: string): string {
-    return this.outputBuffers.get(sessionId) ?? "";
+    const buf = this.outputBuffers.get(sessionId);
+    if (!buf) return "";
+    if (buf.chunks.length === 1) return buf.chunks[0];
+    const joined = buf.chunks.join("");
+    buf.chunks = [joined]; // 回放即压实:后续 append 继续在单块上增长
+    return joined;
+  }
+
+  /**
+   * 缓冲的 UTF-8 字节数(增量维护,O(1) 读取)。
+   * 供 TerminalView 翻页锚点反推缓冲起点的绝对日志偏移。
+   */
+  getOutputBufferBytes(sessionId: string): number {
+    return this.outputBuffers.get(sessionId)?.totalBytes ?? 0;
   }
 
   /** 会话最近输出时间戳（无输出为 0）。 */
@@ -292,9 +337,18 @@ class Host implements PluginContext {
     if (!session || !cliSessionId) return;
     const profile = this.cliProfiles.get(session.profileId);
     if (!profile?.readSessionStatus) return;
-    const status = await profile.readSessionStatus(session.cwd, cliSessionId).catch(() => null);
-    if (!status) return;
+    const observed = await profile
+      .readSessionStatus(session.cwd, cliSessionId)
+      .catch(() => null);
+    if (!observed) return;
     const previous = this.sessionStatuses.get(sessionId);
+    /* tail 扫描是"最新观测"而非全量状态:字段缺省 = 事件滚出 256KB 窗口或尚未落盘,
+       不等于"被清除"——缺省字段保留旧值。真实切换必在 tail 落新事件,
+       以非空观测推进,故合并不会挡住正常的模型/思考变更。 */
+    const status: CliSessionStatus = {
+      model: observed.model ?? previous?.model,
+      thinkingLevel: observed.thinkingLevel ?? previous?.thinkingLevel,
+    };
     if (
       previous?.model === status.model &&
       previous?.thinkingLevel === status.thinkingLevel
