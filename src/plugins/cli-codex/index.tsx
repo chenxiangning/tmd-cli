@@ -207,7 +207,7 @@ async function listCodexMcpServers(): Promise<CliSuggestion[] | null> {
  */
 export const cliCodexPlugin: Plugin = {
   id: "cli-codex",
-  meta: { name: "Codex CLI", abbr: "CX", desc: "Codex CLI 引擎:rollout 扫描、配额", category: "engine" },
+  meta: { name: "Codex CLI", abbr: "CX", desc: "Codex CLI 引擎:rollout 扫描、配额", icon: CodexGlyph, category: "engine" },
   activate(ctx) {
     // 注册 codex quota provider(本地 rollout 快照,零 HTTP)。
     registerCodexQuotaProvider();

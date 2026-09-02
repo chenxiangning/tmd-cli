@@ -25,7 +25,7 @@ import {
   type Workspace,
 } from "@kernel/workspace";
 import { pickDirectory } from "@kernel/ipc";
-import { FolderPlus, ListChevronsDownUp, ListChevronsUpDown } from "lucide-react";
+import { FolderOpen, FolderPlus, ListChevronsDownUp, ListChevronsUpDown } from "lucide-react";
 import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
 import { WorkspaceCard } from "./WorkspaceCard";
 import { PinnedSessionsSection } from "./PinnedSessions";
@@ -147,7 +147,14 @@ function WorkspaceSection() {
 
 export const workspacePlugin: Plugin = {
   id: "workspace",
-  meta: { name: "工作区", abbr: "WK", desc: "左侧栏工作区/会话列表与菜单", category: "feature" },
+  meta: {
+    name: "工作区",
+    abbr: "WK",
+    desc: "左侧栏工作区/会话列表与菜单",
+    icon: FolderOpen,
+    iconColor: "#5B8BE8",
+    category: "feature",
+  },
   activate(ctx) {
     ctx.contribute("leftSidebar.section", {
       order: 0,

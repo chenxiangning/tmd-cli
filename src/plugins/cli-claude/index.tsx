@@ -194,7 +194,13 @@ async function listClaudeMcpServers(cwd: string): Promise<CliSuggestion[] | null
  */
 export const cliClaudePlugin: Plugin = {
   id: "cli-claude",
-  meta: { name: "Claude Code", abbr: "CC", desc: "Claude Code 引擎:项目会话、skill 提示", category: "engine" },
+  meta: {
+    name: "Claude Code",
+    abbr: "CC",
+    desc: "Claude Code 引擎:项目会话、skill 提示",
+    icon: ClaudeGlyph,
+    category: "engine",
+  },
   activate(ctx) {
     // 注册 claude quota provider(settings.json env 凭据 → 供应商 HTTP 面)。
     registerClaudeQuotaProvider();

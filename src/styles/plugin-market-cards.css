@@ -51,9 +51,15 @@
   color: var(--tmd-accent);
 }
 
+.pm-card-icon svg {
+  display: block;
+}
+
 .pm-card.is-out .pm-card-icon {
   background: var(--tmd-bg-hover);
   color: var(--tmd-fg-subtle);
+  /* 彩色图标走 inline color,上述 color 覆盖不到,统一降透明表达断电。 */
+  opacity: 0.55;
 }
 
 .pm-card-main {

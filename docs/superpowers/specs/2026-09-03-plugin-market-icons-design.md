@@ -41,12 +41,12 @@ export interface PluginMeta {
 | cli-pi | `PiGlyph` | currentColor |
 | cli-kimi | `KimiGlyph` | currentColor |
 | cli-codex | `CodexGlyph` | currentColor |
-| cli-claude | `ClaudeGlyph` | currentColor |
+| cli-claude | `ClaudeGlyph` | vendored 官方日芒标志,自带品牌橙 #D97757(原样保留) |
 | cli-grok | `GrokGlyph` | currentColor |
 | cli-qoder | `QoderGlyph` | 自 cli-shared/qoderSessions 导入 |
 | cli-qoder-cn | `QoderGlyph` | 同上 |
 
-### 界面功能 + 核心系统 · 8 位 —— lucide 语义图标 + 独立彩色
+### 界面功能 + 核心系统 · 9 位 —— lucide 语义图标 + 独立彩色
 
 取中明度色值,深浅主题均可读:
 
@@ -56,6 +56,7 @@ export interface PluginMeta {
 | session-budget 预算 | `Gauge` | 配额仪表(替掉汉字"预算") | `#E8B84D` 金 |
 | files 文件编辑 | `FilePen` | 文件+书写 | `#4DAF7C` 绿 |
 | git | `GitBranch` | 分支 | `#F05032` Git 官方橙红 |
+| checkpoints 批次审批 | `History` | 快照回溯(实现时新增的第 17 位插件) | `#2FB8AD` 青 |
 | network-proxy | `Network` | 代理拓扑 | `#45B8C8` 青 |
 | composer 输入区 | `SquarePen` | 输入框 | `#A78BFA` 紫 |
 | settings 设置 | `Settings` | 齿轮 | `#9AA5B1` 中性灰 |

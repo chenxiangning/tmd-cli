@@ -7,12 +7,20 @@
  * - Step 4 在此基础上增加触发器下拉 / Step 5 增加拖拽 + 截图
  */
 
+import { SquarePen } from "lucide-react";
 import type { Plugin } from "@kernel/plugin";
 import { Composer } from "./view/Composer";
 import { ComposerToolbar } from "./view/ComposerToolbar";
 export const composerPlugin: Plugin = {
   id: "composer",
-  meta: { name: "输入区", abbr: "CP", desc: "Composer:富文本输入、附件、建议", category: "core" },
+  meta: {
+    name: "输入区",
+    abbr: "CP",
+    desc: "Composer:富文本输入、附件、建议",
+    icon: SquarePen,
+    iconColor: "#A78BFA",
+    category: "core",
+  },
   activate(ctx) {
     ctx.contribute("editorCenter.composer", {
       order: 0,

@@ -111,7 +111,7 @@ export const OMP_SKILL_SUGGESTIONS: CliSuggestion[] = [
  */
 export const cliOmpPlugin: Plugin = {
   id: "cli-omp",
-  meta: { name: "OMP", abbr: "OM", desc: "OMP CLI 引擎:会话扫描、配额、状态", category: "engine" },
+  meta: { name: "OMP", abbr: "OM", desc: "OMP CLI 引擎:会话扫描、配额、状态", icon: OmpGlyph, category: "engine" },
   activate(ctx) {
     // 注册 omp quota provider(按当前模型前缀路由供应商,凭据走 Rust 只读 sqlite)。
     registerOmpQuotaProvider();

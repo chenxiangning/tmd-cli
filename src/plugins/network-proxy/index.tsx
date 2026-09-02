@@ -10,6 +10,7 @@
  *   settings 数值保留,重启客户端后 env 不再注入(启动 apply 读字段恒定)。
  */
 
+import { Network } from "lucide-react";
 import type { Plugin } from "@kernel/plugin";
 import { ProxyPopover } from "./ProxyPopover";
 import { openProxyPopover } from "./proxyPopoverStore";
@@ -23,6 +24,8 @@ export const networkProxyPlugin: Plugin = {
     name: "网络代理",
     abbr: "NP",
     desc: "客户端与 CLI 子进程统一走 http(s)/socks5 代理",
+    icon: Network,
+    iconColor: "#45B8C8",
     category: "feature",
   },
   activate(ctx) {

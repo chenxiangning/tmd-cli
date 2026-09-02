@@ -276,6 +276,11 @@
   color: var(--tmd-accent);
 }
 
+/* 品牌字形/语义图标(monogram 时无 svg):block 防基线偏移。 */
+.pm-plug-icon svg {
+  display: block;
+}
+
 .pm-plug-name {
   font-size: 11px;
   font-weight: 600;
@@ -342,6 +347,8 @@
 .pm-outlet.is-out .pm-plug-icon {
   background: var(--tmd-bg-hover);
   color: var(--tmd-fg-subtle);
+  /* 彩色图标走 inline color,上述 color 覆盖不到,统一降透明表达断电。 */
+  opacity: 0.55;
 }
 
 /* 焊死的核心插件 */

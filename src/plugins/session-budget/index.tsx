@@ -10,7 +10,7 @@
  */
 
 import { useState } from "react";
-import { ListTree } from "lucide-react";
+import { Gauge, ListTree } from "lucide-react";
 import type { Plugin } from "@kernel/plugin";
 import { BudgetPopover, clampBudgetPosition } from "./BudgetPopover";
 
@@ -42,6 +42,8 @@ export const sessionBudgetPlugin: Plugin = {
     name: "会话列表预算",
     abbr: "预算",
     desc: "工作区会话列表的磁盘历史露出预算(caption 弹窗编辑)",
+    icon: Gauge,
+    iconColor: "#E8B84D",
     category: "feature",
   },
   activate(ctx) {

@@ -13,6 +13,7 @@
  */
 
 import { useMemo, useRef, useState } from "react";
+import type { ComponentType } from "react";
 import { Globe, List, Lock, Plug, RotateCw, X } from "lucide-react";
 import { host } from "@kernel/host";
 import { updateSettings, useSettingsState } from "@kernel/settings";
@@ -41,6 +42,8 @@ function Outlet({
   id,
   name,
   abbr,
+  icon: Icon,
+  iconColor,
   core,
   on,
   dirty,
@@ -48,7 +51,12 @@ function Outlet({
 }: {
   id: string;
   name: string;
+  /** icon 缺省时的 monogram 兜底。 */
   abbr: string;
+  /** 品牌字形/语义图标;缺省回退 abbr。 */
+  icon?: ComponentType<{ size: number }>;
+  /** 图标颜色(CSS color);缺省跟随主题 accent。 */
+  iconColor?: string;
   core: boolean;
   /** 期望态:true = 插入。 */
   on: boolean;
@@ -75,7 +83,9 @@ function Outlet({
             </span>
           ) : null}
           <span className="pm-plug-led" aria-hidden />
-          <span className="pm-plug-icon">{abbr}</span>
+          <span className="pm-plug-icon" style={iconColor ? { color: iconColor } : undefined}>
+            {Icon ? <Icon size={14} /> : abbr}
+          </span>
           <span className="pm-plug-name">{name}</span>
         </div>
         <div className="pm-prongs" aria-hidden>
@@ -126,6 +136,8 @@ function MergedStrip({
                   id={plugin.id}
                   name={plugin.meta.name}
                   abbr={plugin.meta.abbr}
+                  icon={plugin.meta.icon}
+                  iconColor={plugin.meta.iconColor}
                   core={plugin.meta.category === "core"}
                   on={on}
                   dirty={dirty}
@@ -269,9 +281,15 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
             <div className="pm-card-grid">
               {g.rows.map(({ plugin, on, dirty }) => {
                 const core = plugin.meta.category === "core";
+                const Icon = plugin.meta.icon;
                 return (
                   <div key={plugin.id} className={`pm-card${on ? "" : " is-out"}`}>
-                    <div className="pm-card-icon">{plugin.meta.abbr}</div>
+                    <div
+                      className="pm-card-icon"
+                      style={plugin.meta.iconColor ? { color: plugin.meta.iconColor } : undefined}
+                    >
+                      {Icon ? <Icon size={15} /> : plugin.meta.abbr}
+                    </div>
                     <div className="pm-card-main">
                       <div className="pm-card-name">
                         {plugin.meta.name}

@@ -17,7 +17,14 @@ import { BehaviorTab } from "./BehaviorTab";
 
 export const settingsPlugin: Plugin = {
   id: "settings",
-  meta: { name: "设置", abbr: "ST", desc: "设置面板与主题/行为配置", category: "core" },
+  meta: {
+    name: "设置",
+    abbr: "ST",
+    desc: "设置面板与主题/行为配置",
+    icon: Settings,
+    iconColor: "#9AA5B1",
+    category: "core",
+  },
   activate(ctx) {
     ctx.contribute("overlay", { order: 0, component: SettingsPanel });
     ctx.registerSettingsSection({

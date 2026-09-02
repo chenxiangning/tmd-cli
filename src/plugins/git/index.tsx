@@ -9,7 +9,7 @@ import { GitToolbar } from "./GitToolbar";
 
 export const gitPlugin: Plugin = {
   id: "git",
-  meta: { name: "Git", abbr: "GT", desc: "Git 状态与面板集成", category: "feature" },
+  meta: { name: "Git", abbr: "GT", desc: "Git 状态与面板集成", icon: GitBranch, iconColor: "#F05032", category: "feature" },
   activate() {
     registerFilePanel({
       id: "git",

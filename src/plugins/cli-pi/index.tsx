@@ -95,7 +95,7 @@ async function readPiUserMessages(cwd: string, cliSessionId: string, full: boole
  */
 export const cliPiPlugin: Plugin = {
   id: "cli-pi",
-  meta: { name: "Pi", abbr: "PI", desc: "Pi CLI 引擎:会话扫描、配额、状态", category: "engine" },
+  meta: { name: "Pi", abbr: "PI", desc: "Pi CLI 引擎:会话扫描、配额、状态", icon: PiGlyph, category: "engine" },
   activate(ctx) {
     // 注册 pi quota provider(按当前模型前缀路由供应商,HTTP 走共享 vendors)。
     registerPiQuotaProvider();

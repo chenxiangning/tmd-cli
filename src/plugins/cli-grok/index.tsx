@@ -180,7 +180,13 @@ async function listGrokSkillSuggestions(): Promise<CliSuggestion[]> {
  */
 export const cliGrokPlugin: Plugin = {
   id: "cli-grok",
-  meta: { name: "Grok", abbr: "GK", desc: "Grok Build 引擎:会话扫描、配额、状态", category: "engine" },
+  meta: {
+    name: "Grok",
+    abbr: "GK",
+    desc: "Grok Build 引擎:会话扫描、配额、状态",
+    icon: GrokGlyph,
+    category: "engine",
+  },
   activate(ctx) {
     // 注册 grok quota provider(config.toml 凭据 → 供应商 HTTP 面)。
     registerGrokQuotaProvider();

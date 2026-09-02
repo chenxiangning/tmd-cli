@@ -201,7 +201,13 @@ export const KIMI_COMMAND_SUGGESTIONS: CliSuggestion[] = [
  */
 export const cliKimiPlugin: Plugin = {
   id: "cli-kimi",
-  meta: { name: "Kimi", abbr: "KI", desc: "Kimi Code CLI 引擎:MD5 目录会话、config 状态", category: "engine" },
+  meta: {
+    name: "Kimi",
+    abbr: "KI",
+    desc: "Kimi Code CLI 引擎:MD5 目录会话、config 状态",
+    icon: KimiGlyph,
+    category: "engine",
+  },
   activate(ctx) {
     const profile: CliProfile = {
       id: "kimi",
