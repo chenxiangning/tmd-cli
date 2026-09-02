@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Git 文件列表 · 方案 E「表格」</title>
+<style>
+  /* ═══════════════════════════════════════════════════════
+     方案 E · 表格 —— IDE 工具窗的数据表风格。
+     定位:右侧栏面板(≈460px)或底部横窗;列即信息架构。
+     克制原则:
+       · 真表格:列头可排序,数字等宽右对齐,行高统一
+       · 状态只占一列字母,不加底色;勾选行仅 2px 左缘线
+       · 操作列常驻但低对比,hover 提亮;危险操作仅 hover 变红
+     ═══════════════════════════════════════════════════════ */
+  :root {
+    --bg: #1f1f1f; --bg-head: #1c1c1c; --bg-sunken: #1a1a1a; --bg-hover: #262626;
+    --fg: #c6c6c6; --muted: #8f8f8f; --faint: #646464;
+    --border: #363636;
+    --accent: #4da3ff;
+    --ins: #3fb950; --del: #f85149;
+    --st-m: #d3b354; --st-a: #6bc46d; --st-d: #e06c6c; --st-r: #9d8cd6; --st-u: #c586c0;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    font: 12px/1.5 -apple-system, "PingFang SC", "Segoe UI", sans-serif;
+    background: #161616; color: var(--fg);
+    display: grid; place-items: center;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; padding: 0; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: #3d3d3d; border-radius: 4px; }
+
+  .demo-badge { position: fixed; top: 14px; left: 14px; z-index: 9; font-size: 11px; color: var(--faint); }
+  .demo-badge b { color: var(--muted); font-weight: 600; }
+
+  .panel {
+    width: 460px; height: 720px;
+    display: flex; flex-direction: column;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  /* ── 聚合行 ── */
+  .summary {
+    flex: none; display: flex; align-items: center; gap: 8px;
+    height: 30px; padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted); white-space: nowrap;
+  }
+  .summary .branch { color: var(--fg); }
+  .summary .spacer { flex: 1; }
+  .summary .nums { font: 11px var(--mono); }
+  .summary .nums .i { color: var(--ins); }
+  .summary .nums .d { color: var(--del); }
+  .push { color: var(--accent); font: 11px var(--mono); }
+  .push:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+  /* ── 工具行 ── */
+  .toolbar {
+    flex: none; display: flex; align-items: center; gap: 10px;
+    height: 32px; padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .search {
+    flex: 1; display: flex; align-items: center; gap: 6px;
+    height: 22px; padding: 0 7px;
+    border: 1px solid var(--border); color: var(--faint);
+  }
+  .search input { flex: 1; min-width: 0; border: none; outline: none; background: none; color: var(--fg); font: inherit; }
+  .search input::placeholder { color: var(--faint); }
+  .search:focus-within { border-color: #4d4d4d; }
+  .tabs { display: flex; gap: 10px; }
+  .tab { color: var(--muted); height: 22px; }
+  .tab:hover { color: var(--fg); }
+  .tab.on { color: var(--fg); box-shadow: inset 0 -1px 0 var(--fg); }
+
+  /* ── 表格 ── */
+  .table { flex: 1; min-height: 0; overflow-y: auto; font-variant-numeric: tabular-nums; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--bg-head);
+    border-bottom: 1px solid var(--border);
+    color: var(--faint); font-weight: 400; font-size: 11px;
+    text-align: left; padding: 4px 6px; white-space: nowrap;
+  }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--muted); }
+  th .arrow { font-size: 9px; margin-left: 2px; }
+  th.num, td.num { text-align: right; }
+  tbody tr { cursor: pointer; user-select: none; }
+  tbody tr:hover { background: var(--bg-hover); }
+  tbody tr.checked { box-shadow: inset 2px 0 0 #5b87b8; }
+  td { padding: 0 6px; height: 28px; white-space: nowrap; }
+  td input[type=checkbox] { width: 12px; height: 12px; margin: 0; accent-color: #5a5a5a; cursor: pointer; display: block; }
+  td input[type=checkbox]:disabled { opacity: .3; cursor: not-allowed; }
+  td .st { font: 600 11px var(--mono); display: block; text-align: center; width: 12px; }
+  td.file { max-width: 150px; overflow: hidden; text-overflow: ellipsis; color: var(--fg); }
+  td.path { max-width: 120px; overflow: hidden; text-overflow: ellipsis; color: var(--faint); font-size: 11px; direction: rtl; text-align: left; }
+  td.nums { font: 11px var(--mono); }
+  td.nums .i { color: var(--ins); }
+  td.nums .d { color: var(--del); }
+  td.acts { text-align: right; opacity: .45; white-space: nowrap; }
+  tbody tr:hover td.acts { opacity: 1; }
+  .act {
+    width: 18px; height: 18px; display: inline-grid; place-items: center;
+    font: 12px var(--mono); color: var(--muted);
+  }
+  .act:hover { color: var(--fg); background: #2f2f2f; }
+  .act.danger:hover { color: var(--del); }
+  td .cnote { color: var(--del); font-size: 11px; }
+  tr.expand-row td { padding: 0; cursor: default; }
+  tr.expand-row:hover td { background: none; }
+
+  /* 行内 diff */
+  .diff { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--bg-sunken); }
+  .diff pre { max-height: 180px; overflow: auto; padding: 5px 12px; font: 11px/1.55 var(--mono); }
+  .diff .ln { display: block; white-space: pre-wrap; word-break: break-all; }
+  .ln.add { color: #8ecf97; background: rgba(63,185,80,.08); }
+  .ln.del { color: #eb9c95; background: rgba(248,81,73,.07); }
+  .ln.hunk { color: var(--muted); }
+  .ln.ctx { color: var(--faint); }
+
+  /* ── 提交区 ── */
+  .composer { flex: none; padding: 8px 12px; border-top: 1px solid var(--border); }
+  .composer textarea {
+    width: 100%; height: 44px; resize: none; outline: none;
+    padding: 5px 8px;
+    background: var(--bg-sunken); color: var(--fg);
+    border: 1px solid var(--border); font: inherit;
+  }
+  .composer textarea:focus { border-color: #4d4d4d; }
+  .composer textarea::placeholder { color: var(--faint); }
+  .composer .meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .amend { display: inline-flex; align-items: center; gap: 4px; color: var(--faint); cursor: pointer; user-select: none; }
+  .amend input { width: 12px; height: 12px; margin: 0; accent-color: #5a5a5a; }
+  .picked { color: var(--faint); }
+  .picked b { color: var(--muted); font-weight: 500; font: 11px var(--mono); }
+  .commit { margin-left: auto; height: 24px; padding: 0 14px; background: #3774b8; color: #fff; font-weight: 500; }
+  .commit:hover:not(:disabled) { background: #4082c6; }
+  .commit:disabled { background: #2e2e2e; color: var(--faint); cursor: default; }
+</style>
+</head>
+<body>
+
+<div class="demo-badge">方案 <b>E</b> · 表格 · 右栏 460px</div>
+
+<div class="panel">
+
+  <div class="summary">
+    <span class="branch">2-web-user-crud</span>
+    <span style="color:var(--faint)">→ origin/2-web-user-crud</span>
+    <span class="spacer"></span>
+    <span class="nums"><span class="i">+6,527</span> <span class="d">−1,170</span></span>
+    <span>20 文件</span>
+    <button class="push" title="推送 2 个提交">↑2</button>
+  </div>
+
+  <div class="toolbar">
+    <label class="search">
+      <span style="font:11px var(--mono)">/</span>
+      <input id="q" placeholder="筛选…" />
+    </label>
+    <div class="tabs">
+      <button class="tab on" data-z="all">全部</button>
+      <button class="tab" data-z="un">未暂存</button>
+      <button class="tab" data-z="st">已暂存</button>
+    </div>
+  </div>
+
+  <div class="table">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:24px" title="纳入本次提交"><input type="checkbox" id="checkall" style="width:12px;height:12px;accent-color:#5a5a5a" /></th>
+          <th style="width:20px">状态</th>
+          <th class="sortable" data-sort="name">文件 <span class="arrow"></span></th>
+          <th class="sortable" data-sort="path">路径 <span class="arrow"></span></th>
+          <th class="num sortable" data-sort="i">增 <span class="arrow"></span></th>
+          <th class="num sortable" data-sort="d">删 <span class="arrow"></span></th>
+          <th style="width:82px"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="composer">
+    <textarea id="msg" placeholder="提交信息…"></textarea>
+    <div class="meta">
+      <label class="amend"><input type="checkbox" id="amend" /> amend</label>
+      <span class="picked">已选 <b id="picked">0</b></span>
+      <button class="commit" id="commit" disabled>提交<kbd style="font:10px var(--mono);margin-left:5px;opacity:.75">⌘⏎</kbd></button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── 数据:单行一文件;checked = 已暂存;± = 暂存后又改 ── */
+const FILES = [
+  { st:"M", name:"lib.rs",     dir:"src-tauri/src", i:211, d:89,  zone:"un" },
+  { st:"M", name:"resolve.rs", dir:"src-tauri/src", i:95,  d:120, zone:"un" },
+  { st:"U", name:"proxy.rs",   dir:"src-tauri/src", i:0,   d:0,   zone:"un" },
+  { st:"M", name:"DiffView.tsx", dir:"src/plugins/git/views", i:142, d:36, zone:"st", wt:1 },
+  { st:"C", name:"useGitStatus.test.ts", dir:"src/plugins/git/views", i:38, d:12, zone:"un" },
+  { st:"M", name:"GitToolbar.tsx", dir:"src/plugins/git", i:58, d:12, zone:"st" },
+  { st:"M", name:"panelStore.ts", dir:"src/plugins/git", i:23, d:4, zone:"st" },
+  { st:"M", name:"gitError.ts", dir:"src/plugins/git", i:9, d:2, zone:"un" },
+  { st:"M", name:"CommandDrawer.tsx", dir:"src/plugins/composer/view", i:187, d:44, zone:"un" },
+  { st:"A", name:"cliProfiles.contract.test.ts", dir:"src/plugins/composer", i:402, d:0, zone:"st" },
+  { st:"R", name:"BudgetPopover.tsx", dir:"src/plugins/budget", i:64, d:0, zone:"un", from:"src/plugins/session-budget/" },
+  { st:"M", name:"ipc.ts",  dir:"src/kernel", i:36, d:11, zone:"st" },
+  { st:"M", name:"host.ts", i:4, d:1, dir:"src/kernel", zone:"un" },
+  { st:"M", name:"tokens.css", dir:"src/styles", i:18, d:6, zone:"st" },
+  { st:"U", name:"2026-09-01-full-day.md", dir:"docs/review", i:0, d:0, zone:"un" },
+  { st:"U", name:"git-filelist-E-table.html", dir:"docs/prototypes", i:0, d:0, zone:"un" },
+  { st:"D", name:"trash.svg", dir:"assets/icons", i:0, d:18, zone:"un" },
+  { st:"M", name:"package.json", dir:"", i:6, d:2, zone:"st" },
+  { st:"M", name:"pnpm-lock.yaml", dir:"", i:3120, d:840, zone:"st" },
+  { st:"M", name:"README.md", dir:"", i:12, d:3, zone:"st" },
+];
+const STC = { M:"var(--st-m)", A:"var(--st-a)", D:"var(--st-d)", R:"var(--st-r)", U:"var(--st-u)", C:"var(--del)" };
+const SAMPLE_DIFF = `@@ -88,9 +88,14 @@ export function CommandDrawer({ cwd, layout }) {
+-  const rows = useMemo(() => buildTree(files), [files]);
++  const rows = useMemo(
++    () => (layout === "tree" ? buildTree(files) : files.map(f => ({ depth: 0, file: f }))),
++    [files, layout],
++  );
+   return (
+-    <div className="flex h-full flex-col">
++    <div className="flex h-full flex-col" data-layout={layout}>`;
+
+const fmt = n => n.toLocaleString("en-US");
+const el = h => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
+let zoneFilter = "all", sortKey = null, sortDir = 1;
+
+function rowEl(f) {
+  const isC = f.st === "C";
+  const blank = f.i + f.d === 0;
+  const tr = el(`
+  <tr data-key="${f.dir}/${f.name}" class="${f.zone === "st" ? "checked" : ""}"
+      title="${f.dir ? f.dir + "/" : ""}${f.name}${f.wt ? " · 暂存后又有工作区改动" : ""}${isC ? " · 冲突,需先到幕布解决" : ""}">
+    <td><input type="checkbox" ${f.zone === "st" ? "checked" : ""} ${isC ? "disabled" : ""} /></td>
+    <td><span class="st" style="color:${STC[f.st]}">${f.st}</span></td>
+    <td class="file">${f.name}</td>
+    <td class="path">${f.from ? "← " + f.from : f.dir + (f.dir ? "/" : "")}</td>
+    <td class="num nums">${blank ? "" : `<span class="i">+${fmt(f.i)}</span>`}</td>
+    <td class="num nums">${blank ? "" : `<span class="d">−${fmt(f.d)}</span>`}</td>
+    <td class="acts">${isC ? '<span class="cnote">冲突</span>' : `
+      <button class="act ${f.zone === "st" ? "unstage" : "stage"}" title="${f.zone === "st" ? "取消暂存" : f.st === "U" ? "开始跟踪" : "暂存"}">${f.zone === "st" ? "−" : "+"}</button>
+      ${f.st !== "D" && f.st !== "R" ? '<button class="act danger" title="放弃改动(不可恢复)">↺</button>' : ""}
+      <button class="act" title="复制路径">⧉</button>
+      <button class="act" title="在编辑器打开">↗</button>`}
+    </td>
+  </tr>`);
+  tr.querySelector("input")?.addEventListener("change", e => {
+    tr.classList.toggle("checked", e.target.checked);
+    syncPicked();
+  });
+  tr.querySelectorAll(".act").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation();
+    if (b.classList.contains("stage") || b.classList.contains("unstage")) {
+      f.zone = f.zone === "st" ? "un" : "st";
+      render();
+    } else if (b.classList.contains("danger")) {
+      if (confirm(`放弃 ${f.dir}/${f.name} 的工作区改动?不可恢复。`)) {}
+    }
+  }));
+  tr.addEventListener("click", e => {
+    if (e.target.closest("input,.act")) return;
+    const had = tr.nextElementSibling?.classList.contains("expand-row");
+    document.querySelectorAll("tr.expand-row").forEach(r => r.remove());
+    if (!had) tr.after(expandEl(f));
+  });
+  return tr;
+}
+
+function expandEl(f) {
+  const body = f.name === "CommandDrawer.tsx" ? SAMPLE_DIFF
+    : `@@ -1,+1 @@ ${f.name}\n(演示:其余文件 diff 懒加载)\n+ wt 优先预览 = 勾选提交的实际内容`;
+  const tr = el('<tr class="expand-row"><td colspan="7"></td></tr>');
+  tr.firstChild.append(el(`<div class="diff"><pre>${body.split("\n").map(l =>
+    l.startsWith("+") ? `<span class="ln add">${l}</span>`
+    : l.startsWith("-") ? `<span class="ln del">${l}</span>`
+    : l.startsWith("@@") ? `<span class="ln hunk">${l}</span>`
+    : `<span class="ln ctx">${l}</span>`).join("")}</pre></div>`));
+  return tr;
+}
+
+function render() {
+  const tb = document.getElementById("tbody");
+  tb.innerHTML = "";
+  let rows = FILES.filter(f =>
+    (zoneFilter === "all" || f.zone === zoneFilter) &&
+    (!q || (f.dir + "/" + f.name).toLowerCase().includes(q.toLowerCase())));
+  if (sortKey) rows = [...rows].sort((a, b) => {
+    const va = sortKey === "name" ? a.name : sortKey === "path" ? a.dir : a[sortKey];
+    const vb = sortKey === "name" ? b.name : sortKey === "path" ? b.dir : b[sortKey];
+    return (va > vb ? 1 : va < vb ? -1 : 0) * sortDir;
+  });
+  rows.forEach(f => {
+    const tr = rowEl(f);
+    tb.append(tr);
+    if (f.name === "CommandDrawer.tsx" && zoneFilter === "all" && !sortKey && !q) tr.after(expandEl(f));
+  });
+  syncPicked();
+}
+let q = "";
+function syncPicked() {
+  const n = document.querySelectorAll('tbody input:checked').length;
+  document.getElementById("picked").textContent = n;
+  document.getElementById("commit").disabled =
+    !((n > 0 || document.getElementById("amend").checked) && document.getElementById("msg").value.trim());
+}
+document.getElementById("msg").addEventListener("input", syncPicked);
+document.getElementById("amend").addEventListener("change", syncPicked);
+document.getElementById("q").addEventListener("input", e => { q = e.target.value; render(); });
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.remove("on"));
+  t.classList.add("on"); zoneFilter = t.dataset.z; render();
+}));
+document.querySelectorAll("th.sortable").forEach(th => th.addEventListener("click", () => {
+  const k = th.dataset.sort;
+  if (sortKey === k) { if (sortDir === 1) sortDir = -1; else { sortKey = null; sortDir = 1; } }
+  else { sortKey = k; sortDir = 1; }
+  document.querySelectorAll("th .arrow").forEach(a => a.textContent = "");
+  if (sortKey) {
+    const arrow = th.querySelector(".arrow");
+    if (arrow) arrow.textContent = sortDir === 1 ? "▴" : "▾";
+  }
+  render();
+}));
+document.getElementById("checkall").addEventListener("change", e => {
+  /* 全选 = 纳入提交勾选,不改暂存状态(与 +/− 正交) */
+  document.querySelectorAll("tbody input:not(:disabled)").forEach(cb => {
+    cb.checked = e.target.checked;
+    cb.closest("tr").classList.toggle("checked", e.target.checked);
+  });
+  syncPicked();
+});
+
+render();
+</script>
+</body>
+</html>

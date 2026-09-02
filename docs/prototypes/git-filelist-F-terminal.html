@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Git 文件列表 · 方案 F「终端风」</title>
+<style>
+  /* ═══════════════════════════════════════════════════════
+     方案 F · 终端风 —— git status 原生语义搬到面板里。
+     定位:右侧栏面板(≈430px),与幕布终端同一气质。
+     克制原则:
+       · 全等宽字体;零图形元素,勾选就是 [ ] / [x]
+       · 分区标题 = git status 原文短语
+       · 键位提示用裸文本;操作是括号式文字动作
+     ═══════════════════════════════════════════════════════ */
+  :root {
+    --bg: #1e1e1e; --bg-sunken: #1a1a1a; --bg-hover: #262626;
+    --fg: #c6c6c6; --muted: #8f8f8f; --faint: #616161;
+    --border: #343434;
+    --accent: #4da3ff;
+    --ins: #3fb950; --del: #f85149;
+    --st-m: #d3b354; --st-a: #6bc46d; --st-d: #e06c6c; --st-r: #9d8cd6; --st-u: #c586c0;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    font: 12px/1.6 var(--mono);
+    background: #141414; color: var(--fg);
+    display: grid; place-items: center;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; padding: 0; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 4px; }
+
+  .demo-badge { position: fixed; top: 14px; left: 14px; z-index: 9; font-size: 11px; color: var(--faint); }
+  .demo-badge b { color: var(--muted); font-weight: 600; }
+
+  .panel {
+    width: 430px; height: 720px;
+    display: flex; flex-direction: column;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  /* ── git status 头部原文 ── */
+  .head { flex: none; padding: 10px 12px 8px; border-bottom: 1px solid var(--border); color: var(--muted); }
+  .head .l1 { color: var(--fg); }
+  .head .l2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .head .push { color: var(--accent); }
+  .head .push:hover { text-decoration: underline; text-underline-offset: 2px; }
+  .head .filter { margin-top: 8px; display: flex; align-items: center; gap: 6px; color: var(--faint); }
+  .head .filter input {
+    flex: 1; min-width: 0; height: 20px;
+    background: var(--bg-sunken); color: var(--fg);
+    border: 1px solid var(--border); outline: none;
+    font: inherit; padding: 0 6px;
+  }
+  .head .filter input:focus { border-color: #4d4d4d; }
+
+  /* ── 状态主体 ── */
+  .status { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 0 12px; }
+
+  .sec-head {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 6px 12px 3px;
+    color: var(--muted); cursor: pointer; user-select: none;
+  }
+  .sec-head .t { white-space: nowrap; }
+  .sec-head .n { color: var(--faint); }
+  .sec-head .spacer { flex: 1; }
+  .sec-head .act { color: var(--faint); font-size: 11px; }
+  .sec-head .act:hover { color: var(--fg); text-decoration: underline; text-underline-offset: 2px; }
+  .sec-head.collapsed + .sec-body { display: none; }
+  .sec-head .caret { font-size: 9px; color: var(--faint); }
+  .sec-head.collapsed .caret { display: inline-block; transform: rotate(-90deg); }
+
+  .frow {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px 0 24px; height: 24px;
+    cursor: pointer; user-select: none;
+    white-space: nowrap;
+  }
+  .frow:hover { background: var(--bg-hover); }
+  .frow .ck { flex: none; width: 14px; color: var(--muted); }
+  .frow.on .ck { color: var(--fg); }
+  .frow .kw { flex: none; width: 86px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; }
+  .frow .nm {
+    flex: none; max-width: 40%;
+    overflow: hidden; text-overflow: ellipsis;
+    color: var(--fg);
+  }
+  .frow .dir {
+    flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis;
+    direction: rtl; text-align: right;
+    color: var(--faint); font-size: 11px;
+  }
+  .frow .nums { flex: none; font-size: 11px; }
+  .frow .nums .i { color: var(--ins); }
+  .frow .nums .d { color: var(--del); }
+  .frow .nums.blank { visibility: hidden; }
+  .frow .kw .m { color: var(--st-m); } .frow .kw .a { color: var(--st-a); }
+  .frow .kw .d { color: var(--st-d); } .frow .kw .r { color: var(--st-r); }
+  .frow .kw .u { color: var(--st-u); } .frow .kw .c { color: var(--del); }
+  .frow .cnote { flex: none; color: var(--del); font-size: 11px; }
+
+  /* 悬停括号动作 */
+  .frow .ops { flex: none; display: none; gap: 6px; font-size: 11px; }
+  .frow:hover .ops { display: flex; }
+  .frow:hover .nums { display: none; }
+  .ops button { color: var(--faint); }
+  .ops button:hover { color: var(--fg); text-decoration: underline; text-underline-offset: 2px; }
+  .ops button.danger:hover { color: var(--del); }
+
+  /* 冲突段 */
+  .sec-head.conflict .t { color: var(--del); }
+
+  /* 行内 diff:缩进纯文本 */
+  .fdiff { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--bg-sunken); }
+  .fdiff pre { max-height: 176px; overflow: auto; padding: 4px 12px 4px 28px; font: 11px/1.55 var(--mono); }
+  .fdiff .ln { display: block; white-space: pre-wrap; word-break: break-all; }
+  .ln.add { color: #8ecf97; }
+  .ln.del { color: #eb9c95; }
+  .ln.hunk { color: var(--muted); }
+  .ln.ctx { color: var(--faint); }
+
+  .empty { padding: 4px 24px; color: var(--faint); font-size: 11px; }
+
+  /* ── 底部:提交行(提示符式)── */
+  .commitline {
+    flex: none; border-top: 1px solid var(--border);
+    padding: 8px 12px;
+  }
+  .prompt { display: flex; align-items: center; gap: 6px; }
+  .prompt .p { color: var(--muted); flex: none; }
+  .prompt input {
+    flex: 1; min-width: 0; height: 22px;
+    background: none; border: none; border-bottom: 1px solid var(--border); outline: none;
+    color: var(--fg); font: inherit; padding: 0 2px;
+  }
+  .prompt input:focus { border-bottom-color: #4d4d4d; }
+  .prompt input::placeholder { color: var(--faint); }
+  .commitmeta { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 11px; color: var(--faint); }
+  .commitmeta .amend { cursor: pointer; user-select: none; }
+  .commitmeta .amend:hover { color: var(--muted); }
+  .commitmeta .amend .bx { color: var(--muted); }
+  .commitmeta .spacer { flex: 1; }
+  .commitmeta .go { color: #fff; background: #3774b8; padding: 2px 12px; }
+  .commitmeta .go:hover:not(:disabled) { background: #4082c6; }
+  .commitmeta .go:disabled { background: #2e2e2e; color: var(--faint); cursor: default; }
+  .keys { margin-top: 6px; font-size: 10.5px; color: var(--faint); }
+</style>
+</head>
+<body>
+
+<div class="demo-badge">方案 <b>F</b> · 终端风 · 右栏 430px</div>
+
+<div class="panel">
+
+  <!-- git status 头部 -->
+  <div class="head">
+    <div class="l1">On branch 2-web-user-crud</div>
+    <div class="l2">
+      Your branch is ahead of 'origin/2-web-user-crud' by 2 commits.
+      <button class="push" title="git push">(推送 ↑2)</button>
+    </div>
+    <div class="filter">
+      <span>/</span>
+      <input id="q" placeholder="筛选…" />
+    </div>
+  </div>
+
+  <!-- 分区:git status 原文短语 -->
+  <div class="status" id="status">
+
+    <div class="sec-head" id="sh-un" role="button">
+      <span class="caret">▾</span>
+      <span class="t">Changes not staged for commit:</span>
+      <span class="n" id="cnt-un"></span>
+      <span class="spacer"></span>
+      <button class="act" id="a-stage" title="git add -A .">(全部暂存)</button>
+    </div>
+    <div class="sec-body" id="sb-un"></div>
+
+    <div class="sec-head" id="sh-ut" role="button">
+      <span class="caret">▾</span>
+      <span class="t">Untracked files:</span>
+      <span class="n" id="cnt-ut"></span>
+    </div>
+    <div class="sec-body" id="sb-ut"></div>
+
+    <div class="sec-head" id="sh-st" role="button">
+      <span class="caret">▾</span>
+      <span class="t">Changes to be committed:</span>
+      <span class="n" id="cnt-st"></span>
+      <span class="spacer"></span>
+      <button class="act" id="a-unstage" title="git reset">(全部取消)</button>
+    </div>
+    <div class="sec-body" id="sb-st"></div>
+
+  </div>
+
+  <!-- 提交行 -->
+  <div class="commitline">
+    <div class="prompt">
+      <span class="p">commit ▸</span>
+      <input id="msg" placeholder="提交信息…" />
+    </div>
+    <div class="commitmeta">
+      <span class="amend" id="amend-tgl" title="附加 --amend">
+        <span class="bx">[ ]</span> --amend
+      </span>
+      <span id="picked">0 selected</span>
+      <span class="spacer"></span>
+      <button class="go" id="go" disabled>⏎ commit</button>
+    </div>
+    <div class="keys">⏎ 展开/收起 diff · s 暂存 · u 取消 · x 放弃 · ⌘⏎ 提交</div>
+  </div>
+</div>
+
+<script>
+/* ── 数据:三段 = git status 的三个区块;DiffView 在两段各一条 ── */
+const FILES = [
+  { sec:"un", kw:"modified:",   kc:"m", name:"lib.rs",          dir:"src-tauri/src",           i:211, d:89 },
+  { sec:"un", kw:"modified:",   kc:"m", name:"resolve.rs",      dir:"src-tauri/src",           i:95,  d:120 },
+  { sec:"un", kw:"modified:",   kc:"m", name:"gitError.ts",     dir:"src/plugins/git",         i:9,   d:2 },
+  { sec:"un", kw:"modified:",   kc:"m", name:"host.ts",         dir:"src/kernel",              i:4,   d:1 },
+  { sec:"un", kw:"modified:",   kc:"m", name:"DiffView.tsx",    dir:"src/plugins/git/views",   i:18,  d:4 },
+  { sec:"un", kw:"modified:",   kc:"m", name:"CommandDrawer.tsx", dir:"src/plugins/composer/view", i:187, d:44 },
+  { sec:"un", kw:"deleted:",    kc:"d", name:"trash.svg",       dir:"assets/icons",            i:0,   d:18 },
+  { sec:"un", kw:"renamed:",    kc:"r", name:"BudgetPopover.tsx", dir:"src/plugins/budget",    i:64,  d:0, from:"← src/plugins/session-budget/" },
+  { sec:"un", kw:"both modified:", kc:"c", name:"useGitStatus.test.ts", dir:"src/plugins/git/views", i:38, d:12, conflict:1 },
+  { sec:"ut", kw:"", kc:"u", name:"proxy.rs",      dir:"src-tauri/src",       i:0, d:0 },
+  { sec:"ut", kw:"", kc:"u", name:"2026-09-01-full-day.md", dir:"docs/review", i:0, d:0 },
+  { sec:"ut", kw:"", kc:"u", name:"git-filelist-F-terminal.html", dir:"docs/prototypes", i:0, d:0 },
+  { sec:"st", kw:"modified:", kc:"m", name:"DiffView.tsx",   dir:"src/plugins/git/views", i:142, d:36 },
+  { sec:"st", kw:"modified:", kc:"m", name:"GitToolbar.tsx", dir:"src/plugins/git",       i:58,  d:12 },
+  { sec:"st", kw:"modified:", kc:"m", name:"panelStore.ts",  dir:"src/plugins/git",       i:23,  d:4 },
+  { sec:"st", kw:"new file:", kc:"a", name:"cliProfiles.contract.test.ts", dir:"src/plugins/composer", i:402, d:0 },
+  { sec:"st", kw:"modified:", kc:"m", name:"ipc.ts",      dir:"src/kernel",  i:36,  d:11 },
+  { sec:"st", kw:"modified:", kc:"m", name:"tokens.css",  dir:"src/styles",  i:18,  d:6 },
+  { sec:"st", kw:"modified:", kc:"m", name:"package.json", dir:"",           i:6,   d:2 },
+  { sec:"st", kw:"modified:", kc:"m", name:"pnpm-lock.yaml", dir:"",         i:3120,d:840 },
+  { sec:"st", kw:"modified:", kc:"m", name:"README.md",     dir:"",          i:12,  d:3 },
+];
+const SAMPLE_DIFF = `@@ -88,9 +88,14 @@ export function CommandDrawer({ cwd, layout }) {
+-  const rows = useMemo(() => buildTree(files), [files]);
++  const rows = useMemo(
++    () => (layout === "tree" ? buildTree(files) : files.map(f => ({ depth: 0, file: f }))),
++    [files, layout],
++  );
+   return (
+-    <div className="flex h-full flex-col">
++    <div className="flex h-full flex-col" data-layout={layout}>`;
+
+const fmt = n => n.toLocaleString("en-US");
+const el = h => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
+
+function rowEl(f) {
+  const blank = f.i + f.d === 0;
+  const picked = f.sec === "st";
+  const row = el(`
+  <div class="frow ${picked ? "on" : ""}" data-key="${f.dir}/${f.name}" data-sec="${f.sec}"
+       title="${f.dir ? f.dir + "/" : ""}${f.name}${f.conflict ? " · 冲突,需先到幕布解决" : ""}">
+    <span class="ck">${f.conflict ? "—" : picked ? "[x]" : "[ ]"}</span>
+    <span class="kw"><span class="${f.kc}">${f.kw}</span></span>
+    <span class="nm">${f.name}</span>
+    <span class="dir">${f.from ? f.from : f.dir + (f.dir ? "/" : "")}</span>
+    <span class="nums ${blank ? "blank" : ""}"><span class="i">+${fmt(f.i)}</span> <span class="d">−${fmt(f.d)}</span></span>
+    ${f.conflict ? '<span class="cnote">冲突</span>' : `
+    <span class="ops">
+      <button class="${picked ? "u" : "s"}">${picked ? "(取消暂存)" : "(暂存)"}</button>
+      ${f.sec !== "ut" && !f.from && f.kw !== "deleted:" ? '<button class="danger">(放弃)</button>' : ""}
+    </span>`}
+  </div>`);
+  row.addEventListener("click", e => {
+    if (e.target.closest(".ops")) return;
+    if (f.conflict) return;
+    /* staged 段:点 [x] = 取消暂存移回未暂存;未暂存段:点行 = 勾选纳入提交 */
+    if (f.sec === "st") {
+      if (e.target.closest(".ck")) { f.sec = "un"; render(q); }
+      return;
+    }
+    row.classList.toggle("on");
+    row.querySelector(".ck").textContent = row.classList.contains("on") ? "[x]" : "[ ]";
+    syncPicked();
+  });
+  row.querySelectorAll(".ops button").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation();
+    if (b.classList.contains("s")) { f.sec = "st"; render(q); }
+    else if (b.classList.contains("u")) { f.sec = "un"; render(q); }
+    else if (b.classList.contains("danger")) {
+      if (confirm(`放弃 ${f.dir}/${f.name} 的工作区改动?不可恢复。`)) {}
+    }
+  }));
+  return row;
+}
+
+function diffEl(f) {
+  const body = f.name === "CommandDrawer.tsx" ? SAMPLE_DIFF
+    : `@@ -1,+1 @@ ${f.name}\n(演示:其余文件 diff 懒加载)\n+ wt 优先预览 = 提交的实际内容`;
+  return el(`<div class="fdiff"><pre>${body.split("\n").map(l =>
+    l.startsWith("+") ? `<span class="ln add">${l}</span>`
+    : l.startsWith("-") ? `<span class="ln del">${l}</span>`
+    : l.startsWith("@@") ? `<span class="ln hunk">${l}</span>`
+    : `<span class="ln ctx">${l}</span>`).join("")}</pre></div>`);
+}
+
+let q = "";
+function render(qq = "") {
+  for (const [sec, host, cntId] of [["un","sb-un","cnt-un"],["ut","sb-ut","cnt-ut"],["st","sb-st","cnt-st"]]) {
+    const h = document.getElementById(host);
+    h.innerHTML = "";
+    const rows = FILES.filter(f => f.sec === sec &&
+      (!qq || (f.dir + "/" + f.name).toLowerCase().includes(qq.toLowerCase())));
+    if (!rows.length) { h.append(el('<div class="empty">(nothing)</div>')); }
+    rows.forEach(f => {
+      const r = rowEl(f);
+      h.append(r);
+      if (f.name === "CommandDrawer.tsx" && f.sec === "un" && !qq) r.after(diffEl(f));
+    });
+    document.getElementById(cntId).textContent = rows.length ? `(${rows.length})` : "";
+  }
+  syncPicked();
+}
+function syncPicked() {
+  const n = FILES.filter(f => f.sec === "st").length + document.querySelectorAll(".frow.on:not([data-sec=st])").length;
+  document.getElementById("picked").textContent = `${n} selected`;
+  document.getElementById("go").disabled =
+    !((n > 0 || amendOn) && document.getElementById("msg").value.trim());
+}
+let amendOn = false;
+document.getElementById("amend-tgl").addEventListener("click", () => {
+  amendOn = !amendOn;
+  document.querySelector("#amend-tgl .bx").textContent = amendOn ? "[x]" : "[ ]";
+  syncPicked();
+});
+document.getElementById("msg").addEventListener("input", syncPicked);
+document.getElementById("q").addEventListener("input", e => { q = e.target.value; render(q); });
+for (const id of ["sh-un", "sh-ut", "sh-st"]) {
+  document.getElementById(id).addEventListener("click", e => {
+    if (e.target.closest(".act")) return;
+    document.getElementById(id).classList.toggle("collapsed");
+  });
+}
+document.getElementById("a-stage").addEventListener("click", () => {
+  FILES.forEach(f => { if (f.sec !== "st" && !f.conflict) f.sec = "st"; });
+  render(q);
+});
+document.getElementById("a-unstage").addEventListener("click", () => {
+  FILES.forEach(f => { if (f.sec === "st") f.sec = "un"; });
+  render(q);
+});
+
+render();
+</script>
+</body>
+</html>
