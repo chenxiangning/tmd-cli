@@ -2,7 +2,7 @@
 //!
 //! 设计决策(照抄 codemoss installer 的策略矩阵,但砍到只剩"安装最新版"):
 //! - claude:官方 native 安装器(unix `curl -fsSL ... | bash`;Windows PowerShell irm|iex);
-//! - codex/omp/pi:npm 全局安装(`npm install -g <pkg>@latest`);
+//! - codex/omp/pi/grok:npm 全局安装(`npm install -g <pkg>@latest`);
 //! - 进度语义:npm/curl 都无离散百分比 → 前端用 indeterminate 进度条 + 本模块的流式日志。
 //!
 //! 事件协议(Tauri event,topic = `cli-install://{engine}`):
@@ -23,7 +23,7 @@ use crate::resolve::enriched_path;
 /// 安装超时(秒)。npm 全局安装在慢网络下分钟级;对齐 codemoss INSTALL_TIMEOUT_SECS。
 const INSTALL_TIMEOUT_SECS: u64 = 300;
 
-/// 安装引擎(前端按 camelCase 传: "claude" | "codex" | "omp" | "pi")。
+/// 安装引擎(前端按 camelCase 传: "claude" | "codex" | "omp" | "pi" | "kimi" | "grok")。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CliInstallEngine {
@@ -31,6 +31,8 @@ pub enum CliInstallEngine {
     Codex,
     Omp,
     Pi,
+    Kimi,
+    Grok,
 }
 
 impl CliInstallEngine {
@@ -40,6 +42,8 @@ impl CliInstallEngine {
             Self::Codex => "codex",
             Self::Omp => "omp",
             Self::Pi => "pi",
+            Self::Kimi => "kimi",
+            Self::Grok => "grok",
         }
     }
 }
@@ -58,6 +62,8 @@ fn npm_package(engine: CliInstallEngine) -> &'static str {
         CliInstallEngine::Codex => "@openai/codex@latest",
         CliInstallEngine::Omp => "@oh-my-pi/pi-coding-agent@latest",
         CliInstallEngine::Pi => "@earendil-works/pi-coding-agent@latest",
+        CliInstallEngine::Kimi => "@moonshot-ai/kimi-code@latest",
+        CliInstallEngine::Grok => "@xai-official/grok@latest",
         CliInstallEngine::Claude => unreachable!("claude 走官方 native 安装器"),
     }
 }
@@ -90,10 +96,19 @@ fn install_command(engine: CliInstallEngine) -> (String, Vec<String>) {
     #[cfg(windows)]
     return (
         "cmd".into(),
-        vec!["/c".into(), "npm".into(), "install".into(), "-g".into(), pkg.into()],
+        vec![
+            "/c".into(),
+            "npm".into(),
+            "install".into(),
+            "-g".into(),
+            pkg.into(),
+        ],
     );
     #[cfg(not(windows))]
-    ("npm".into(), vec!["install".into(), "-g".into(), pkg.into()])
+    (
+        "npm".into(),
+        vec!["install".into(), "-g".into(), pkg.into()],
+    )
 }
 
 /// 执行安装:spawn → 双线程逐行泵 stdout/stderr → 事件流 → 等退出。
@@ -122,12 +137,10 @@ pub fn run_install(app: &AppHandle, engine: CliInstallEngine) -> Result<bool, St
     /* 防挂:子进程若继承 stdin 且安装脚本读输入,会永久等待。 */
     cmd.stdin(Stdio::null());
 
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| format!("spawn {program}: {e}"))?;
+    let mut child = cmd.spawn().map_err(|e| format!("spawn {program}: {e}"))?;
 
     /* 双线程逐行泵:stdout/stderr 各一个,AppHandle clone 进线程(Send)。
-       泛型 over Read:ChildStdout/ChildStderr 是不同类型,闭包无法复用。 */
+    泛型 over Read:ChildStdout/ChildStderr 是不同类型,闭包无法复用。 */
     fn pump<R: std::io::Read + Send + 'static>(
         reader: Option<R>,
         stream: &'static str,
