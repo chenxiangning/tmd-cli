@@ -20,7 +20,7 @@ function App() {
 
   React.useEffect(() => {
     startThemeEngine(); /* 设置加载 + 主题应用,与插件激活并行 */
-    bootAskSound(host.events); /* Ask 提示音观察者:先于插件激活,不漏任何会话输出 */
+    bootAskSound(host.events); /* Ask 提示音:消费 askDetected(host 主链路检测,见 askWatch.ts) */
     bootTurnSound(host.events); /* 轮次结束提示音:消费 turnSettled,延迟确认后播放 */
     bootDropGuard(); /* 文件拖放护栏:防 webview drop 导航开文件(lib.rs 关原生拦截的副作用) */
     /* 窗口聚焦态馈入内核:失焦时激活会话的完成也计未读(后台提醒),重聚焦即已读 */

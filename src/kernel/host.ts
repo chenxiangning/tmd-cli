@@ -11,6 +11,7 @@ import { getSettingsState } from "./settings";
 import { pickFreshIdentity } from "./diskIdentity";
 import { PluginLifecycle } from "./pluginLifecycle";
 import { ActivityWatch } from "./activityWatch";
+import { AskWatch } from "./askWatch";
 import { OutputBufferStore } from "./outputBuffers";
 
 import { ipc, onPtyExit, onPtyOutput, type SessionMeta, type SpawnSpec } from "./ipc";
@@ -46,6 +47,7 @@ class Host implements PluginContext {
    * 存储细节(分块/迟滞截断/字节数增量)见 kernel/outputBuffers.ts。
    */
   private readonly outputBuffers = new OutputBufferStore();
+  private readonly askWatch = new AskWatch(); /* Ask 等待确认状态仓(见 kernel/askWatch.ts) */
   /**
    * 活会话 → CLI 磁盘身份绑定(omp/pi 的 jsonl uuid、codex 的 rollout id)。
    * 纯前端内存,随 PTY 消亡 —— 这是活会话的身份属性,不是持久化映射。
@@ -329,15 +331,17 @@ class Host implements PluginContext {
     this.outputBuffers.append(sessionId, text, limit);
     this.events.emit(ptyLiveTopic(sessionId), text);
 
-    /* 呼吸灯三态结算全部由 ActivityWatch 负责:新输出回绿 + 节流 notify;
-       宽限期内(横幅/回放)返回 false —— 灯不变,免外壳重渲染。 */
-    if (this.activity.onOutput(sessionId)) this.notify();
+    /* ActivityWatch:输出回绿 + 节流 notify(宽限期免重渲染);AskWatch:命中提问 → 事件 + 标签重渲染。 */
+    const asked = this.askWatch.onOutput(sessionId, text);
+    if (asked) this.events.emit(KernelTopics.askDetected, sessionId);
+    if (asked || this.activity.onOutput(sessionId)) this.notify();
   }
 
-  /** 用户输入的唯一写入口:PTY 写入 + 宽限终止(首写后输出按对话语义结算)。 */
+  /** 用户输入的唯一写入口:PTY 写入 + 宽限终止 + Ask 等待解除(作答即摘标签)。 */
   writeSession(sessionId: string, data: string): void {
     void ipc.sessionWrite(sessionId, data);
     this.activity.onUserWrite(sessionId);
+    if (this.askWatch.onUserWrite(sessionId)) this.notify();
   }
 
   /** 完成未读判定(会话列表蓝呼吸灯)。 */
@@ -345,9 +349,13 @@ class Host implements PluginContext {
     return this.activity.isUnread(sessionId);
   }
 
-  /** 测试专用:假时钟换届时重置活动守望(与 resetStatusTimerForTest 同因)。 */
+  /** 等待确认判定(会话列表「等待确认」标签;用户写入即清)。 */
+  isWaitingConfirm = (sessionId: string): boolean => this.askWatch.isWaiting(sessionId);
+
+  /** 测试专用:假时钟换届时重置活动守望与 Ask 守望(与 resetStatusTimerForTest 同因)。 */
   resetActivityWatchForTest(): void {
     this.activity.resetForTest();
+    this.askWatch.resetForTest();
   }
 
   /** 会话至今的全部（尾部）输出，供 xterm 重挂载回放（压实语义见 OutputBufferStore.get）。 */
@@ -376,7 +384,6 @@ class Host implements PluginContext {
     return this.activity.lastActivityAt(sessionId);
   }
 
- 
   /** 测试专用:假时钟换届时重置巡航计时器(真实运行单例连续,无需调用)。 */
   resetStatusTimerForTest(): void {
     if (this.statusTimer !== null) {
@@ -452,6 +459,7 @@ class Host implements PluginContext {
     this.sessionStatuses.delete(id);
     this.outputBuffers.remove(id);
     this.activity.onSessionRemoved(id);
+    this.askWatch.onSessionRemoved(id);
     if (this.activeSessionId === id) {
       const next = this.sessions[0]?.id ?? null;
       this.activeSessionId = next;

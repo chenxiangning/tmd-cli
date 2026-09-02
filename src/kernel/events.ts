@@ -33,6 +33,8 @@ export const KernelTopics = {
   sessionExited: "kernel.sessions.exited",
   /** 一轮对话结算(输出静默超阈)。payload: TurnSettledEvent */
   turnSettled: "kernel.sessions.turn.settled",
+  /** 会话新进入等待用户确认(Ask 标记命中,本轮首次)。payload: sessionId */
+  askDetected: "kernel.sessions.ask.detected",
 } as const;
 
 /** turnSettled 负载:unviewed = 结算时未被查看(即标了完成未读);settledAt = 末次输出时刻。 */

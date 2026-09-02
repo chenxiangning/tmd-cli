@@ -85,6 +85,7 @@ function LiveSessionRow({
   isActive,
   title,
   pinned,
+  waiting,
   renaming,
   onContextMenu,
   onRenameCommit,
@@ -95,6 +96,8 @@ function LiveSessionRow({
   title: string;
   /** 已置顶(任一作用域):meta 常亮 pin 角标;不影响活会话排序。 */
   pinned: boolean;
+  /** 正等待用户确认(Ask 标记命中):meta 区亮「等待确认」标签,作答即消。 */
+  waiting: boolean;
   renaming: RenameTarget | null;
   onContextMenu: (e: React.MouseEvent) => void;
   onRenameCommit: (value: string | null) => void;
@@ -121,6 +124,7 @@ function LiveSessionRow({
       {/* 身份统一:绑定磁盘身份后与磁盘条目同形显示(标题/命名/短码) */}
       <span className="thread-name">{title}</span>
       <span className="thread-meta">
+        {waiting ? <span className="thread-ask-badge">等待确认</span> : null}
         {pinned ? <Pin size={11} className="thread-pin-icon" aria-hidden /> : null}
         <ActivityDot sessionId={session.id} />
       </span>
@@ -348,6 +352,7 @@ export function CliSessionGroup({
               cliSessionId !== undefined &&
               sessionPinKey(workspace.id, profile.id, cliSessionId) in pins
             }
+            waiting={host.isWaitingConfirm(s.id)}
             renaming={
               renaming && cliSessionId === renaming.cliSessionId ? renaming : null
             }

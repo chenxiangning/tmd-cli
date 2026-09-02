@@ -160,6 +160,10 @@ export function PinnedSessionsSection() {
               </span>
               <span className="thread-name">{titleOf(row)}</span>
               <span className="thread-meta">
+                {/* 绑定的活会话正等待确认:同组内行,置顶区也亮「等待确认」标签 */}
+                {live && host.isWaitingConfirm(live.id) ? (
+                  <span className="thread-ask-badge">等待确认</span>
+                ) : null}
                 <span className="thread-time">{row.workspace.name}</span>
                 <Pin size={11} className="thread-pin-icon" aria-hidden />
               </span>
