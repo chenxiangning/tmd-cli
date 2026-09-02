@@ -4,7 +4,7 @@
 状态：设计已确认；评审修订 v5（UI 主形态 D，与 git 插件解耦，动作语义极简化，中央 = 批审阅单）
 原型：`docs/prototypes/batch-review-D-panel.html`（**主形态**：右栏审批时间线 ×
 中央 diff tab，用户选定，经两轮反馈收敛）
-　　　`docs/prototypes/batch-review-A-timeline.html` / `B-anchor.html` / `C-replay.html`（探索稿：右栏列表 / 锚点卡 / 全屏回放台）
+（探索稿 A/B/C 已删除，仅存 git 历史）
 
 ## 1. 背景与目标
 
