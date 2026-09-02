@@ -8,6 +8,7 @@ import { GitPanel } from "./GitPanel";
 
 export const gitPlugin: Plugin = {
   id: "git",
+  meta: { name: "Git", abbr: "GT", desc: "Git 状态与面板集成" },
   activate() {
     registerFilePanel({
       id: "git",

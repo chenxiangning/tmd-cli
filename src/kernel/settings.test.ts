@@ -59,6 +59,7 @@ describe("初始状态与默认值", () => {
       customThemePresetId: "vscode-dark-modern",
       sendShortcut: "enter",
       sessionOutputBufferLimit: 500_000,
+      disabledPlugins: [],
     });
     expect(s.loaded).toBe(false);
     expect(s.panelOpen).toBe(false);
@@ -113,6 +114,27 @@ describe("updateSettings 合并与清洗", () => {
     expect(settings.getSettingsState().settings.darkThemePresetId).toBe(
       "vscode-monokai",
     );
+  });
+
+  it("disabledPlugins:非字符串剔除、去重、排序(确定性)", () => {
+    settings.updateSettings({
+      disabledPlugins: ["cli-codex", "git", "cli-codex", 1, "", null],
+    } as never);
+    expect(settings.getSettingsState().settings.disabledPlugins).toEqual([
+      "cli-codex",
+      "git",
+    ]);
+  });
+
+  it("disabledPlugins:非数组回落空表(全启用,失败安全方向)", () => {
+    settings.updateSettings({ disabledPlugins: "git" as never });
+    expect(settings.getSettingsState().settings.disabledPlugins).toEqual([]);
+  });
+
+  it("disabledPlugins:插回(从列表移除)合并生效", () => {
+    settings.updateSettings({ disabledPlugins: ["cli-codex", "git"] });
+    settings.updateSettings({ disabledPlugins: ["git"] });
+    expect(settings.getSettingsState().settings.disabledPlugins).toEqual(["git"]);
   });
 
   it("持久化收到的是清洗后的完整 settings", () => {

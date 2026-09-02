@@ -9,6 +9,17 @@ import type { ComponentType } from "react";
 import type { EventBus } from "./events";
 import type { CliProfile } from "./cli";
 import type { SettingsSectionContribution } from "./settingsRegistry";
+/** 插件展示元数据 —— 插件市场(插排页)消费,与激活逻辑无关。 */
+export interface PluginMeta {
+  /** 显示名,如 "Claude Code"。 */
+  name: string;
+  /** 一句话能力描述,市场页卡片用。 */
+  desc: string;
+  /** 插头/卡片的 monogram 缩写(≤2 字符),如 "CC"。 */
+  abbr: string;
+  /** true = 焊死的核心插件,市场页不可拔出。 */
+  core?: boolean;
+}
 
 /** 外壳暴露的挂载点（第五轮决策：头/底工具栏为扩展预留）。 */
 export type MountPoint =
@@ -52,6 +63,8 @@ export interface PluginContext {
 export interface Plugin {
   /** 全局唯一 id，约定 `cli-omp` / `files` / `git` 风格。 */
   readonly id: string;
+  /** 展示元数据(插件市场渲染来源)。 */
+  readonly meta: PluginMeta;
   /** 依赖的其它插件 id，内核保证先激活依赖。 */
   readonly dependsOn?: readonly string[];
   activate(ctx: PluginContext): void | Promise<void>;

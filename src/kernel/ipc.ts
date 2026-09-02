@@ -161,6 +161,11 @@ export function appVersion(): Promise<string> {
   return getVersion();
 }
 
+/** 重启应用(插件市场"拔插 = 重启生效"的一键入口;浏览器 dev 无 Tauri runtime,调用方需兜底)。 */
+export function appRestart(): Promise<void> {
+  return invoke<void>("app_restart");
+}
+
 /** 目录选择对话框;返回绝对路径,取消返回 null。 */
 export function pickDirectory(title: string): Promise<string | null> {
   return openDialog({ directory: true, multiple: false, title });

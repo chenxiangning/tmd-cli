@@ -8,7 +8,7 @@
  * 状态集中在页级:探针结果/安装状态按引擎 id 存 Record,卡片纯渲染。
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { host, useHost } from "@kernel/host";
 import { ENGINE_METAS, ENGINE_META_BY_ID } from "./engineMeta";
 import {
@@ -56,9 +56,15 @@ function EngineSection({
 }
 
 export function WelcomePage() {
-  useHost(); /* profile 注册完成/变化时重渲染 */
+  const hostVersion = useHost(); /* profile 注册完成/变化时重渲染 */
   const [probes, setProbes] = useState<Record<string, EngineProbeState>>(
     buildInitialProbes,
+  );
+  /* 只展示 profile 已注册的引擎:cli 插件被拔出(禁用)时不激活、不注册,卡片随之消失。
+     useMemo 锚定 hostVersion:否则每次 render 新数组 → 下方探针 effect 无限循环。 */
+  const visibleMetas = useMemo(
+    () => ENGINE_METAS.filter((m) => host.getCliProfile(m.id) !== undefined),
+    [hostVersion],
   );
 
   const runProbe = useCallback(async (engineId: string) => {
@@ -72,13 +78,13 @@ export function WelcomePage() {
     setProbes((prev) => ({ ...prev, [engineId]: next }));
   }, []);
 
-  /* 首 mount 全量探针一次。 */
+  /* 首 mount(及可见引擎集变化时)全量探针一次。 */
   useEffect(() => {
-    for (const meta of ENGINE_METAS) void runProbe(meta.id);
-  }, [runProbe]);
+    for (const meta of visibleMetas) void runProbe(meta.id);
+  }, [runProbe, visibleMetas]);
 
-  const installedCount = Object.values(probes).filter(
-    (p) => p.status === "ok",
+  const installedCount = visibleMetas.filter(
+    (m) => probes[m.id]?.status === "ok",
   ).length;
 
   return (
@@ -87,12 +93,12 @@ export function WelcomePage() {
         <header className="welcome-hero">
           <h1 className="welcome-title">tmd-cli</h1>
           <p className="welcome-subtitle">
-            多 CLI 桌面客户端 —— 已就绪 {installedCount} / {ENGINE_METAS.length} 个引擎
+            多 CLI 桌面客户端 —— 已就绪 {installedCount} / {visibleMetas.length} 个引擎
           </p>
         </header>
 
         <div className="welcome-engines">
-          {ENGINE_METAS.map((meta) => (
+          {visibleMetas.map((meta) => (
             <EngineSection
               key={meta.id}
               engineId={meta.id}

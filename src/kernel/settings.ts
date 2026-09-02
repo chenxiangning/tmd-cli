@@ -34,6 +34,8 @@ export interface AppSettings {
   sendShortcut: SendShortcut;
     /** 单会话输出环形缓冲上限(字符);切回会话的回放深度由它决定,更早历史走幕布翻页。 */
   sessionOutputBufferLimit: number;
+  /** 插件市场"拔出"的插件 id 列表;重启后 activateAll 跳过(插拔语义 = 重启生效)。 */
+  disabledPlugins: string[];
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -43,6 +45,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   customThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
   sendShortcut: "enter",
   sessionOutputBufferLimit: 500_000,
+  disabledPlugins: [],
 };
 
 /** 浏览器 dev 降级存储 key(Tauri 环境不走这里)。 */
@@ -57,6 +60,16 @@ function sanitizeBufferLimit(value: unknown): number {
   return Number.isFinite(n) && n >= 50_000 && n <= 10_000_000
     ? Math.floor(n)
     : DEFAULT_SETTINGS.sessionOutputBufferLimit;
+}
+
+/** 拔出的插件 id 清洗:仅留非空字符串,去重 + 排序(手改 JSON 兜底,确定性)。 */
+function sanitizeDisabledPlugins(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const ids = new Set<string>();
+  for (const item of raw) {
+    if (typeof item === "string" && item) ids.add(item);
+  }
+  return [...ids].sort();
 }
 
 /** 外部数据 → 合法 AppSettings;非法/缺失字段回落默认值。 */
@@ -80,6 +93,7 @@ function sanitize(raw: unknown): AppSettings {
       ? (obj.sendShortcut as SendShortcut)
       : DEFAULT_SETTINGS.sendShortcut,
     sessionOutputBufferLimit: sanitizeBufferLimit(obj.sessionOutputBufferLimit),
+    disabledPlugins: sanitizeDisabledPlugins(obj.disabledPlugins),
   };
 }
 
@@ -134,10 +148,13 @@ async function load(): Promise<void> {
 
 let booted = false;
 /** 启动时调用一次(main.tsx);幂等。 */
+/** 首载完成的 Promise:host.activateAll 等它再按 disabledPlugins 过滤(否则过滤读到的是默认值)。 */
+export let settingsReady: Promise<void> = Promise.resolve();
+
 export function ensureSettingsBooted(): void {
   if (booted) return;
   booted = true;
-  void load();
+  settingsReady = load();
 }
 
 /** 合并补丁并持久化。唯一写入口。 */

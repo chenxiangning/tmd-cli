@@ -120,6 +120,7 @@ function extractLastJsonString(text: string, keys: readonly string[]) {
  */
 export const cliCodexPlugin: Plugin = {
   id: "cli-codex",
+  meta: { name: "Codex CLI", abbr: "CX", desc: "Codex CLI 引擎:rollout 扫描、配额" },
   activate(ctx) {
     // 注册 codex quota provider(本地 rollout 快照,零 HTTP)。
     registerCodexQuotaProvider();

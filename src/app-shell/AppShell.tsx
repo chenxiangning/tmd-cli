@@ -25,6 +25,7 @@ import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "reac
 import {
   ExternalLink,
   Inbox,
+  Plug,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
@@ -42,6 +43,7 @@ import { useFilePanel } from "@kernel/filePanel";
 import { usePlatformKind } from "@kernel/platform";
 import { RightPanelToolbar, TopBarPanelTabs } from "./RightPanelToolbar";
 import { SidebarSettingsCluster } from "./SidebarSettingsCluster";
+import { PluginMarketPage } from "./PluginMarketPage";
 
 function usePersistedToggle(key: string, initial: boolean) {
   const [open, setOpen] = useState(
@@ -243,11 +245,15 @@ function TopBar({
   onToggleRight,
   leftOpen,
   rightOpen,
+  marketOpen,
+  onToggleMarket,
 }: {
   onToggleLeft: () => void;
   onToggleRight: () => void;
   leftOpen: boolean;
   rightOpen: boolean;
+  marketOpen: boolean;
+  onToggleMarket: () => void;
 }) {
   const platform = usePlatformKind();
   /* 右区宽度换算:右栏宽 + 4px 手柄 - 12px 顶栏右 padding - Windows 自绘窗口控制区。
@@ -271,6 +277,16 @@ function TopBar({
           onClick={onToggleLeft}
         >
           {leftOpen ? <PanelLeftClose size={14} aria-hidden /> : <PanelLeftOpen size={14} aria-hidden />}
+        </button>
+        {/* 插件市场(插排页):整页替换下方三栏,再点或页内关闭即回 */}
+        <button
+          type="button"
+          className={`titlebar-action${marketOpen ? " is-active" : ""}`}
+          aria-label="插件市场"
+          title="插件市场"
+          onClick={onToggleMarket}
+        >
+          <Plug size={14} aria-hidden />
         </button>
         {/* 入库(回 welcome):摘掉活跃 session 指针,MainPanel 兜底渲染 welcome;session 不删可唤回 */}
         <button
@@ -319,6 +335,9 @@ export function AppShell() {
     filePanels.find((p) => p.id === filePanelMode) ?? filePanels[0];
   const [leftOpen, toggleLeft] = usePersistedToggle("shell.left", true);
   const [rightOpen, toggleRight] = usePersistedToggle("shell.right", true);
+  /* 插件市场页开关:打开时整页替换下方三栏(session 现场不丢,关掉即回)。 */
+  const [marketOpen, setMarketOpen] = useState(false);
+  const toggleMarket = useCallback(() => setMarketOpen((v) => !v), []);
   const { tabs } = useEditorTabs();
   const leftAsideRef = useElementWidth("--tmd-left-aside-w");
   const rightAsideRef = useElementWidth("--tmd-right-aside-w");
@@ -342,7 +361,12 @@ export function AppShell() {
         onToggleRight={toggleRight}
         leftOpen={leftOpen}
         rightOpen={rightOpen}
+        marketOpen={marketOpen}
+        onToggleMarket={toggleMarket}
       />
+      {marketOpen ? (
+        <PluginMarketPage onClose={() => setMarketOpen(false)} />
+      ) : (
 
       <PanelGroup orientation="horizontal" id="tmd.outer">
         {/* 左侧 session 栏 */}
@@ -394,6 +418,7 @@ export function AppShell() {
           </>
         )}
       </PanelGroup>
+      )}
 
       <Mounts point="overlay" />
     </div>

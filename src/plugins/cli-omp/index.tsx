@@ -79,6 +79,7 @@ async function readOmpSessionStatus(cwd: string, cliSessionId: string) {
  */
 export const cliOmpPlugin: Plugin = {
   id: "cli-omp",
+  meta: { name: "OMP", abbr: "OM", desc: "OMP CLI 引擎:会话扫描、配额、状态" },
   activate(ctx) {
     // 注册 omp quota provider(按当前模型前缀路由供应商,凭据走 Rust 只读 sqlite)。
     registerOmpQuotaProvider();

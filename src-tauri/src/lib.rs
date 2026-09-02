@@ -166,6 +166,12 @@ fn platform_kind() -> &'static str {
     std::env::consts::OS
 }
 
+/// 重启应用(插件市场"拔插 = 重启生效"的一键入口;进程替换,永不返回)。
+#[tauri::command]
+fn app_restart(app: AppHandle) {
+    app.restart();
+}
+
 #[tauri::command]
 fn config_home_dir() -> String {
     session::home_dir().to_string_lossy().to_string()
@@ -250,6 +256,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             platform_kind,
+            app_restart,
             cli_probe,
             cli_install_run,
             session_spawn,

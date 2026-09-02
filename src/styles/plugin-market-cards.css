@@ -1,0 +1,218 @@
+/* ──────────────────────────────────────────────────────────
+ * 插件市场(插排页) —— 清单卡片 + 在线市场占位 + Toast。
+ * 插排场景样式见 plugin-market.css(文件规模铁则拆分)。
+ * ────────────────────────────────────────────────────────── */
+
+/* ═══ 插件清单 ═══ */
+
+.pm-section-title {
+  margin: 40px 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pm-section-title .pm-count {
+  color: var(--tmd-fg-subtle);
+  font-weight: 400;
+}
+
+.pm-card-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.pm-card {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: var(--tmd-bg-elevated);
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+}
+
+.pm-card.is-out {
+  opacity: 0.6;
+}
+
+.pm-card-icon {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--tmd-radius-sm);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--tmd-accent-soft);
+  color: var(--tmd-accent);
+}
+
+.pm-card.is-out .pm-card-icon {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg-subtle);
+}
+
+.pm-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.pm-card-name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pm-card-id {
+  color: var(--tmd-fg-faint);
+  font-size: 10px;
+  font-family: ui-monospace, monospace;
+}
+
+.pm-card-desc {
+  color: var(--tmd-fg-muted);
+  margin-top: 2px;
+  min-height: 32px;
+}
+
+.pm-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.pm-badge {
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-size: 10px;
+  border: 1px solid var(--tmd-border);
+  color: var(--tmd-fg-subtle);
+}
+
+.pm-badge.dirty {
+  color: var(--tmd-accent);
+  border-color: var(--tmd-accent);
+}
+
+.pm-badge.core {
+  color: var(--tmd-fg-muted);
+}
+
+.pm-toggle-btn {
+  margin-left: auto;
+  padding: 2px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--tmd-border-strong);
+  background: none;
+  cursor: pointer;
+  color: var(--tmd-fg-muted);
+}
+
+.pm-toggle-btn:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.pm-toggle-btn.on {
+  background: var(--tmd-accent);
+  border-color: var(--tmd-accent);
+  color: var(--tmd-accent-fg);
+}
+
+.pm-toggle-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: none;
+  color: var(--tmd-fg-faint);
+}
+
+/* ═══ 在线市场(预留) ═══ */
+
+.pm-market-soon {
+  margin-top: 12px;
+  padding: 28px;
+  border: 1px dashed var(--tmd-border-strong);
+  border-radius: var(--tmd-radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--tmd-fg-subtle);
+  text-align: center;
+}
+
+.pm-market-soon .pm-soon-title {
+  font-weight: 600;
+  color: var(--tmd-fg-muted);
+  font-size: 13px;
+}
+
+.pm-soon-btn {
+  margin-top: 6px;
+  padding: 4px 14px;
+  border-radius: var(--tmd-radius-sm);
+  border: 1px solid var(--tmd-border);
+  background: none;
+  color: var(--tmd-fg-faint);
+  cursor: not-allowed;
+}
+
+/* 重启按钮:有待生效变更时 accent 高亮 + 计数。 */
+.pm-restart {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-sm);
+  background: none;
+  color: var(--tmd-fg-muted);
+  cursor: pointer;
+}
+
+.pm-restart:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.pm-restart.dirty {
+  background: var(--tmd-accent);
+  border-color: var(--tmd-accent);
+  color: var(--tmd-accent-fg);
+}
+
+.pm-restart.dirty:hover {
+  filter: brightness(1.1);
+  color: var(--tmd-accent-fg);
+}
+
+/* Toast */
+.pm-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%) translateY(20px);
+  padding: 7px 16px;
+  background: var(--tmd-bg-popover);
+  border: 1px solid var(--tmd-border-strong);
+  border-radius: var(--tmd-radius-md);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.pm-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}

@@ -229,6 +229,7 @@ function ActiveWorkspaceFileTree() {
 
 export const filesPlugin: Plugin = {
   id: "files",
+  meta: { name: "文件预览", abbr: "FL", desc: "文件树、Markdown 预览、代码高亮" },
   activate(ctx: PluginContext) {
     registerFileVisual(defaultFileVisualProvider);
     registerFileHighlighter({

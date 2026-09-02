@@ -108,6 +108,7 @@ function WorkspaceSection() {
 
 export const workspacePlugin: Plugin = {
   id: "workspace",
+  meta: { name: "工作区", abbr: "WK", desc: "左侧栏工作区/会话列表与菜单" },
   activate(ctx) {
     ctx.contribute("leftSidebar.section", {
       order: 0,

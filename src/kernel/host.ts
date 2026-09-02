@@ -9,9 +9,11 @@ import { useSyncExternalStore } from "react";
 import { EventBus, KernelTopics } from "./events";
 import { sliceStreamTail } from "./streamSlice";
 import { getSettingsState } from "./settings";
+import { pickFreshIdentity } from "./diskIdentity";
+import { PluginLifecycle } from "./pluginLifecycle";
 
 import { ipc, onPtyExit, onPtyOutput, type SessionMeta, type SpawnSpec } from "./ipc";
-import type { CliDiskSession, CliProfile, CliSessionStatus } from "./cli";
+import type { CliProfile, CliSessionStatus } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";
 import {
   registerSettingsSection,
@@ -31,7 +33,6 @@ const outputByteEncoder = new TextEncoder();
 class Host implements PluginContext {
   readonly events = new EventBus();
 
-  private plugins = new Map<string, Plugin>();
   private cliProfiles = new Map<string, CliProfile>();
   private mounts = new Map<MountPoint, MountContribution[]>();
   private sessions: SessionMeta[] = [];
@@ -95,40 +96,12 @@ class Host implements PluginContext {
     registerSettingsSection(section);
   }
 
-  // ---- 插件生命周期 -------------------------------------------------------
+  // ---- 插件生命周期(委托 kernel/pluginLifecycle;文件规模铁则拆分) -------------
 
-  /** 并发闸：StrictMode 双调用会在首个 await 处交错，已激活过滤挡不住，必须共享同一个激活 Promise。 */
-  private activation: Promise<void> | null = null;
+  private readonly lifecycle = new PluginLifecycle();
 
   activateAll(plugins: Plugin[]): Promise<void> {
-    if (!this.activation) {
-      this.activation = this.doActivateAll(plugins);
-    }
-    return this.activation;
-  }
-
-  private async doActivateAll(plugins: Plugin[]): Promise<void> {
-    // 幂等：已激活的插件直接跳过（热更新场景）；
-    // registerCliProfile 的重复检查仍然保留，用于拦截两个不同插件抢同一 id 的真冲突。
-    const pending = new Map(
-      plugins.filter((p) => !this.plugins.has(p.id)).map((p) => [p.id, p]),
-    );
-    while (pending.size > 0) {
-      let progressed = false;
-      for (const [id, plugin] of pending) {
-        const ready = (plugin.dependsOn ?? []).every((d) => this.plugins.has(d));
-        if (!ready) continue;
-        await plugin.activate(this);
-        this.plugins.set(id, plugin);
-        pending.delete(id);
-        progressed = true;
-      }
-      if (!progressed) {
-        throw new Error(
-          `插件依赖环或缺失: ${[...pending.keys()].join(", ")}`,
-        );
-      }
-    }
+    return this.lifecycle.activateAll(plugins, this);
   }
 
   // ---- 查询（外壳/插件消费） ----------------------------------------------
@@ -143,6 +116,11 @@ class Host implements PluginContext {
 
   getMount(point: MountPoint): MountContribution[] {
     return this.mounts.get(point) ?? [];
+  }
+
+  /** 插件市场数据源(委托 lifecycle)。 */
+  listPluginStates(): { plugin: Plugin; enabled: boolean }[] {
+    return this.lifecycle.listPluginStates();
   }
 
   getSessions(): SessionMeta[] {
@@ -449,34 +427,6 @@ class Host implements PluginContext {
     this.version += 1;
     this.listeners.forEach((fn) => fn());
   }
-}
-
-/**
- * 磁盘身份挑选(纯函数,契约由 host.test.ts 守护)。
- * fresh 判定(均取最旧的未认领项 —— listSessions mtime 倒序,findLast = 最旧,先 spawn 先认领):
- * 1. 有基线:新文件(基线外 id)优先;其次复活文件(mtime 较快照增长 = CLI 内 /resume 追加写旧文件);
- * 2. 无基线(快照失败):只认 spawn 水位线之后的落盘/增长,pre-spawn 旧文件不得抢绑。
- */
-export function pickFreshIdentity(
-  list: CliDiskSession[],
-  before: ReadonlyMap<string, number> | null,
-  spawnedAt: number,
-  claimed: ReadonlySet<string>,
-): string | null {
-  if (before) {
-    const fresh = list.findLast((s) => !before.has(s.id) && !claimed.has(s.id));
-    if (fresh) return fresh.id;
-    return (
-      list.findLast(
-        (s) =>
-          !claimed.has(s.id) &&
-          s.modifiedAt > (before.get(s.id) ?? Number.POSITIVE_INFINITY),
-      )?.id ?? null
-    );
-  }
-  return (
-    list.findLast((s) => !claimed.has(s.id) && s.modifiedAt >= spawnedAt)?.id ?? null
-  );
 }
 
 /** 全局唯一宿主实例。 */
