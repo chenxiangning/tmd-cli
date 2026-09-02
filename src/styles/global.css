@@ -8,6 +8,7 @@
 @import "./workspace-sessions.css";
 @import "./workspace-menu.css";
 @import "./session-budget.css";
+@import "./network-proxy.css";
 @import "./titlebar.css";
 @import "./panel-handle.css";
 @import "./settings-cluster.css";

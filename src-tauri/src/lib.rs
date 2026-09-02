@@ -4,6 +4,7 @@ mod hash;
 mod installer;
 mod omp_auth;
 mod probe;
+mod proxy;
 mod pty;
 mod quota;
 mod resolve;
@@ -248,7 +249,11 @@ fn config_read_settings() -> serde_json::Value {
 
 #[tauri::command]
 fn config_write_settings(data: serde_json::Value) -> Result<(), String> {
-    settings::save_settings(&data).map_err(|e| e.to_string())
+    settings::save_settings(&data).map_err(|e| e.to_string())?;
+    /* 网络代理字段变化即时生效:写盘成功后应用到进程 env,
+       之后 spawn 的 PTY 子进程与 reqwest 新请求即走代理(旧会话不受影响)。 */
+    proxy::apply_and_report(&data);
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -268,6 +273,9 @@ pub fn run() {
         std::env::set_var("PATH", resolve::enriched_path());
     });
     session::ensure_config_dir().ok();
+    /* 启动即应用已存的网络代理设置(读本地文件 + set_var,微秒级,同步执行
+       换确定性:任何子进程 spawn / reqwest 之前 env 已就位)。 */
+    proxy::apply_and_report(&settings::load_settings());
     let sessions = session::SessionRegistry::default();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())

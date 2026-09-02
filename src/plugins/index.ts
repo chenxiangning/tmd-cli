@@ -19,6 +19,7 @@ import { sessionBudgetPlugin } from "./session-budget";
 import { workspacePlugin } from "./workspace";
 import { settingsPlugin } from "./settings";
 import { welcomePlugin } from "./welcome";
+import { networkProxyPlugin } from "./network-proxy";
 
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
@@ -35,5 +36,6 @@ export const allPlugins: Plugin[] = [
   gitPlugin,
   composerPlugin,
   settingsPlugin,
+  networkProxyPlugin,
   welcomePlugin,
 ];

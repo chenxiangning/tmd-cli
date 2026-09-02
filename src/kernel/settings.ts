@@ -115,6 +115,15 @@ export interface AppSettings {
    * title 为置顶时刻的标题快照,供全局区免磁盘扫描直接显示(手动命名覆盖层优先于快照)。
    */
   sessionPins: Record<string, SessionPinEntry>;
+  /**
+   * 网络代理(network-proxy 插件的编辑域):客户端自身联网(quota_fetch 等
+   * Rust reqwest 请求、installer 的 curl/npm 子进程)与之后 spawn 的 PTY CLI
+   * 子进程统一走该代理。生效在 Rust 侧 proxy.rs(进程 env 注入,启动 + 写盘
+   * 两个时机),前端只持数值。已在跑的旧会话不受影响,需手动重启。
+   */
+  networkProxyEnabled: boolean;
+  /** 代理地址,http(s)://host:port 或 socks5://host:port;关闭时保留以便重开。 */
+  networkProxyUrl: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -130,6 +139,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   disabledPlugins: [],
   sessionTitles: {},
   sessionPins: {},
+  networkProxyEnabled: false,
+  networkProxyUrl: "",
 };
 /** 手动命名覆盖层上限:500 条(超出按 key 序丢弃,确定性兜底);标题 1–200 字符。 */
 const SESSION_TITLES_MAX_ENTRIES = 500;
@@ -234,6 +245,21 @@ function sanitizeDisabledPlugins(raw: unknown): string[] {
   return [...ids].sort();
 }
 
+/** 网络代理地址长度上限(env 注入侧的确定性兜底)。 */
+const NETWORK_PROXY_URL_MAX_LENGTH = 500;
+
+/**
+ * 代理地址清洗:trim + 去 C0 控制字符 + 截断。不做格式校验 ——
+ * 用户可见的格式校验归 network-proxy 插件编辑器,Rust proxy.rs 另有兜底。
+ */
+function sanitizeNetworkProxyUrl(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  return raw
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .trim()
+    .slice(0, NETWORK_PROXY_URL_MAX_LENGTH);
+}
+
 /** 外部数据 → 合法 AppSettings;非法/缺失字段回落默认值。 */
 function sanitize(raw: unknown): AppSettings {
   const obj = (raw ?? {}) as Record<string, unknown>;
@@ -266,6 +292,11 @@ function sanitize(raw: unknown): AppSettings {
     disabledPlugins: sanitizeDisabledPlugins(obj.disabledPlugins),
     sessionTitles: sanitizeSessionTitles(obj.sessionTitles),
     sessionPins: sanitizeSessionPins(obj.sessionPins),
+    networkProxyEnabled:
+      typeof obj.networkProxyEnabled === "boolean"
+        ? obj.networkProxyEnabled
+        : DEFAULT_SETTINGS.networkProxyEnabled,
+    networkProxyUrl: sanitizeNetworkProxyUrl(obj.networkProxyUrl),
   };
 }
 

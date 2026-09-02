@@ -65,6 +65,8 @@ describe("初始状态与默认值", () => {
       disabledPlugins: [],
       sessionTitles: {},
       sessionPins: {},
+      networkProxyEnabled: false,
+      networkProxyUrl: "",
     });
     expect(s.loaded).toBe(false);
     expect(s.panelOpen).toBe(false);
@@ -223,6 +225,40 @@ describe("Ask 提示音设置", () => {
     const s = settings.getSettingsState().settings;
     expect(s.askSoundEnabled).toBe(true);
     expect(s.askSoundId).toBe("chime");
+  });
+});
+
+describe("网络代理设置", () => {
+  it("合法补丁合并生效", () => {
+    settings.updateSettings({
+      networkProxyEnabled: true,
+      networkProxyUrl: " http://127.0.0.1:7890 ",
+    });
+    const s = settings.getSettingsState().settings;
+    expect(s.networkProxyEnabled).toBe(true);
+    expect(s.networkProxyUrl).toBe("http://127.0.0.1:7890");
+  });
+
+  it("非布尔开关回落 false,非字符串地址回落空串", () => {
+    settings.updateSettings({
+      networkProxyEnabled: "yes" as never,
+      networkProxyUrl: 7890 as never,
+    });
+    const s = settings.getSettingsState().settings;
+    expect(s.networkProxyEnabled).toBe(false);
+    expect(s.networkProxyUrl).toBe("");
+  });
+
+  it("boot 加载:地址 trim + 去控制字符,关闭态允许空地址保留", async () => {
+    ipcMock.configReadSettings.mockResolvedValue({
+      networkProxyEnabled: false,
+      networkProxyUrl: "  socks5://127.0.0.1:1080\t",
+    });
+    settings.ensureSettingsBooted();
+    await waitLoaded();
+    const s = settings.getSettingsState().settings;
+    expect(s.networkProxyEnabled).toBe(false);
+    expect(s.networkProxyUrl).toBe("socks5://127.0.0.1:1080");
   });
 });
 

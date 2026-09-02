@@ -24,7 +24,7 @@ parking_lot = "0.12"
 dirs = "6"
 tauri-plugin-dialog = "2"
 # reqwest 0.13 起 rustls 为默认 TLS 后端;旧 "rustls-tls" feature 已移除
-reqwest = { version = "0.13", features = ["json", "rustls"] }
+reqwest = { version = "0.13", features = ["json", "rustls", "socks"] }
 # 只读 omp agent.db(auth_credentials 表)取供应商凭据;bundled 免系统 sqlite 依赖。
 rusqlite = { version = "0.40", features = ["bundled"] }
 base64 = "0.22"

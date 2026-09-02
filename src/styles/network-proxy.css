@@ -1,0 +1,163 @@
+/*
+ * network-proxy 插件样式 —— 网络代理浮层(侧栏齿轮/钉住按钮入口)。
+ * 弹窗 portal 挂到 body,跳出 .ws-sidebar 作用域,故需独立作用域与变量重声明
+ * (同 session-budget.css 的 wsbudget 策略)。
+ * 排版自带 pxy-* 体系(竖排小浮窗度量),不复用设置面板 pref-*(宽面板横排)。
+ */
+
+/* ───── 浮层本体 ───── */
+.pxy-popover {
+  --text-muted: var(--tmd-fg-muted);
+  --border-quiet: var(--tmd-border);
+
+  position: fixed;
+  z-index: 1201;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  border-radius: 12px;
+  border: 1px solid var(--border-quiet);
+  /* bg-popover:浮层专用 token(dark 提亮浮起 / light #ffffff) */
+  background: var(--tmd-bg-popover, var(--tmd-bg-elevated));
+  /* 容器兜底文字色:portal 后继承不到 sidebar 作用域色 */
+  color: var(--tmd-fg);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.18),
+    0 1px 4px rgba(0, 0, 0, 0.1);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pxy-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 6px;
+}
+
+.pxy-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tmd-fg);
+}
+
+.pxy-close {
+  display: flex;
+  align-items: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.pxy-close:hover {
+  color: var(--tmd-fg);
+  background: var(--tmd-border);
+}
+
+/* ───── 内容区:竖排堆叠 ───── */
+.pxy-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 14px 12px;
+}
+
+/* 开关行:标题+说明在左,滑动块在右。 */
+.pxy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pxy-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tmd-fg);
+}
+
+.pxy-desc {
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* 地址域:标签独占一行,输入框整行铺开(URL 长串不折行挤压)。 */
+.pxy-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pxy-input {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--border-quiet);
+  background: var(--tmd-bg-input);
+  color: var(--tmd-fg);
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  outline: none;
+}
+
+.pxy-input:focus {
+  border-color: var(--tmd-accent);
+}
+
+.pxy-error {
+  font-size: 11px;
+  color: var(--tmd-diff-removed);
+}
+
+.pxy-hint {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* ───── 滑动块开关 ───── */
+.pxy-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-quiet);
+  border-radius: 999px;
+  background: var(--tmd-bg-input);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.pxy-switch-thumb {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--tmd-fg-muted);
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.pxy-switch.is-on {
+  border-color: var(--tmd-accent);
+  background: var(--tmd-accent);
+}
+
+.pxy-switch.is-on .pxy-switch-thumb {
+  transform: translateX(16px);
+  background: var(--tmd-accent-fg, #fff);
+}
+
+.pxy-switch:focus-visible {
+  outline: 2px solid var(--tmd-accent);
+  outline-offset: 2px;
+}

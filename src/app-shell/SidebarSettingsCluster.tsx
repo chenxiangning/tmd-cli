@@ -8,16 +8,19 @@
  *   └────────────────────────┘
  *   [logo] [pinned…]      v0.1.0  ← 底栏
  *
- * 当前为占位实装：
+ * 当前实装状态：
  * - pin/unpin 是真功能（localStorage 持久化，上限 4，同 codemoss）；
- * - 六个菜单动作全部占位（console.info），Git Graph / 网络代理 仅本地 toggle 出 active 态；
+ * - 网络代理已实装：经内核事件总线唤起 network-proxy 插件的浮层
+ *   (滑动块开关 + 代理地址),active 态读 settings.networkProxyEnabled;
+ * - 其余菜单动作（锁屏 / Git Graph / 运行时提示）仍为占位（console.info）;
  * - 版本号取 Tauri app version，浏览器 dev 环境回退 "0.1.0"。
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { appVersion } from "@kernel/ipc";
+import { host } from "@kernel/host";
 import logoUrl from "../assets/logo.png";
-import { openSettingsPanel } from "../kernel/settings";
+import { openSettingsPanel, useSettingsState } from "../kernel/settings";
 import {
   Check,
   CircleAlert,
@@ -96,7 +99,8 @@ export function SidebarSettingsCluster() {
   const [version, setVersion] = useState("0.1.0");
   /* toggle 占位态:仅用于演示 active 视觉,未接真实能力。 */
   const [gitGraphActive, setGitGraphActive] = useState(false);
-  const [proxyActive, setProxyActive] = useState(false);
+  /* 网络代理 active = 设置里的启用态(network-proxy 插件写入)。 */
+  const { settings } = useSettingsState();
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -160,8 +164,16 @@ export function SidebarSettingsCluster() {
       id: "system-proxy",
       label: "网络代理",
       icon: <Network size={14} aria-hidden />,
-      active: proxyActive,
-      onSelect: () => setProxyActive((v) => !v),
+      active: settings.networkProxyEnabled,
+      onSelect: () => {
+        /* 经内核事件总线唤起 network-proxy 插件浮层:壳与插件互不引用。
+           锚点 = 本簇右缘(浮层开在右侧,自身做视口夹取)。 */
+        const rect = rootRef.current?.getBoundingClientRect();
+        host.events.emit("plugin.network-proxy.popover.open", {
+          x: (rect?.right ?? 0) + 8,
+          y: rect?.top ?? 0,
+        });
+      },
     },
     {
       id: "runtime-notice",
