@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>批次审批 · 方案 D「右栏审批时间线」</title>
+<style>
+  /* ═══════════════════════════════════════════════════════
+     方案 D · 右栏审批时间线 —— C 稿时间线布局 × 右栏面板宿主(用户选定方向)。
+     核心主张:
+       1) 审批线 = 盖在工作区之上的台账+安全网,不是"git 前缓冲队列":
+          改动实时落工作区,这里按轮归批、审去留
+       2) 与 git 插件零耦合:「保留」= 认可(改动本来就在工作区),
+          暂存/提交是用户自己的 git 流程;文件被抢先 commit 后
+          该批自动转「已留」,回退退役
+       3) 时间线(默认) ↔ 批次详情(点开看 diff)双视图,
+          C 稿的点-线-徽标视觉语言原样继承
+     全部颜色来自 --tmd-* 体系(dark)。交互:筛选/点批进详情/
+     文件组折叠/保留/回退(带恢复点确认)/断档线。
+     ═══════════════════════════════════════════════════════ */
+  :root[data-theme="dark"] {
+    --tmd-bg-base: #1f1f1f; --tmd-bg-elevated: #181818; --tmd-bg-sunken: #181818;
+    --tmd-bg-hover: #2a2a2a; --tmd-bg-active: rgba(0,122,204,.24);
+    --tmd-bg-input: #313131; --tmd-bg-popover: #252526;
+    --tmd-fg: #cccccc; --tmd-fg-muted: #9d9d9d; --tmd-fg-subtle: #7a7a7a; --tmd-fg-faint: #585858;
+    --tmd-border: #3c3c3c; --tmd-border-strong: #555555;
+    --tmd-accent: #007acc; --tmd-accent-fg: #ffffff; --tmd-accent-soft: rgba(0,122,204,.24);
+    --diff-ins: #2ea043; --diff-del: #f85149;
+    --st-m: #facc20; --st-a: #4ade80;
+    --bk-open: #007acc; --bk-pending: #facc20; --bk-kept: #4ade80; --bk-reverted: #a78bfa;
+  }
+  :root { --tmd-font-ui: 12px; --tmd-radius-sm: 6px; --tmd-radius-md: 8px; }
+
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    font: var(--tmd-font-ui)/1.5 -apple-system, "PingFang SC", "Segoe UI", sans-serif;
+    background: var(--tmd-bg-sunken);
+    color: var(--tmd-fg);
+    display: grid; place-items: center;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  button:disabled { cursor: default; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #4a4a4a80; border-radius: 4px; }
+
+  .demo-badge {
+    position: fixed; top: 14px; left: 14px; z-index: 99;
+    padding: 4px 10px; border-radius: 999px;
+    background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border);
+    color: var(--tmd-fg-muted); font-size: 11px;
+  }
+  .demo-badge b { color: var(--tmd-fg); }
+
+  /* ═══ 面板本体(右栏场景 440px × 720px,独立于 git 面板)═══ */
+  .panel {
+    width: 440px; height: 720px;
+    display: flex; flex-direction: column; position: relative;
+    background: var(--tmd-bg-base);
+    border: 1px solid var(--tmd-border);
+    border-radius: 10px; overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0,0,0,.45);
+  }
+
+  /* ── 1. 摘要行 ── */
+  .summary {
+    flex: none; display: flex; align-items: center; gap: 8px;
+    height: 34px; padding: 0 10px;
+    border-bottom: 1px solid var(--tmd-border);
+    background: var(--tmd-bg-elevated);
+  }
+  .summary .title { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+  .summary .title svg { color: var(--tmd-accent); }
+  .sess-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 1px 8px 1px 6px; border-radius: 999px;
+    background: var(--tmd-accent-soft); color: #7ec3f0; font-weight: 500;
+    max-width: 40%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sess-chip .abbr { font-size: 9px; font-weight: 700; padding: 0 4px; border-radius: 4px;
+    background: rgba(0,122,204,.32); color: #9fd1f5; }
+  .summary .spacer { flex: 1; }
+  .bk-count { color: var(--tmd-fg-muted); white-space: nowrap; }
+  .bk-count b { color: var(--tmd-fg); font-variant-numeric: tabular-nums; }
+  .retention { color: var(--tmd-fg-faint); font-size: 11px; white-space: nowrap;
+    cursor: help; border-bottom: 1px dotted var(--tmd-fg-faint); }
+
+  /* ── 2. 工具行 ── */
+  .toolbar {
+    flex: none; display: flex; align-items: center; gap: 5px;
+    padding: 7px 10px; border-bottom: 1px solid var(--tmd-border);
+  }
+  .chip {
+    height: 24px; padding: 0 8px;
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid var(--tmd-border); border-radius: 999px;
+    color: var(--tmd-fg-muted); font-variant-numeric: tabular-nums;
+  }
+  .chip:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+  .chip.on { border-color: transparent; background: var(--tmd-accent-soft); color: #9fd1f5; }
+  .chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .chip .n { font-size: 11px; color: var(--tmd-fg-faint); }
+  .chip.on .n { color: #9fd1f5; }
+
+  /* ═══ 视图一:审批时间线 ═══ */
+  .tl { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 8px 12px; }
+  .tl-item {
+    position: relative; display: flex; gap: 9px;
+    padding: 7px 8px 7px 10px; border-radius: var(--tmd-radius-sm);
+    cursor: pointer; user-select: none;
+  }
+  .tl-item:hover { background: var(--tmd-bg-hover); }
+  .tl-item::before {
+    content: ""; position: absolute; left: 14px; top: 27px; bottom: -4px;
+    width: 1px; background: var(--tmd-border);
+  }
+  .tl-item:last-child::before { display: none; }
+  .tl-dot {
+    flex: none; width: 10px; height: 10px; margin-top: 3px; border-radius: 50%;
+    position: relative; z-index: 2; background: var(--tmd-bg-base);
+    border: 2px solid var(--tmd-border-strong);
+  }
+  .tl-dot.open { border-color: var(--bk-open); background: var(--bk-open); animation: breathe 1.6s ease infinite; }
+  .tl-dot.pending { border-color: var(--bk-pending); background: var(--bk-pending); }
+  .tl-dot.kept { border-color: var(--bk-kept); background: var(--bk-kept); }
+  .tl-dot.reverted { border-color: var(--bk-reverted); background: var(--bk-reverted); }
+  @keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+
+  .tl-main { flex: 1; min-width: 0; }
+  .tl-l1 { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; overflow: hidden; }
+  .tl-l1 .no { color: var(--tmd-fg-faint); font-variant-numeric: tabular-nums; flex: none; }
+  .tl-l1 .prompt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tmd-fg); }
+  .tl-item.dimmed .tl-l1 .prompt { color: var(--tmd-fg-faint); text-decoration: line-through; }
+  .tl-l1 .go { margin-left: auto; flex: none; color: var(--tmd-fg-faint); font-size: 10.5px; }
+  .tl-item:hover .tl-l1 .go { color: var(--tmd-accent); }
+  .tl-l2 { display: flex; gap: 6px; align-items: center; color: var(--tmd-fg-faint); font-size: 11px;
+    white-space: nowrap; overflow: hidden; font-variant-numeric: tabular-nums; }
+  .tl-l2 .ins { color: var(--diff-ins); }
+  .tl-l2 .del { color: var(--diff-del); }
+  .tl-l2 .when { margin-left: auto; }
+  .badge { flex: none; padding: 0 6px; border-radius: 999px; font-size: 9.5px; line-height: 15px; font-weight: 600; }
+  .badge.pending { background: rgba(250,204,32,.14); color: var(--bk-pending); }
+  .badge.kept { background: rgba(74,222,128,.14); color: var(--bk-kept); }
+  .badge.reverted { background: rgba(167,139,250,.16); color: var(--bk-reverted); }
+  .badge.open { background: var(--tmd-accent-soft); color: #7ec3f0; }
+  .badge.committed { background: rgba(154,157,160,.16); color: #b8bcc0; }
+
+  .tl-gap {
+    display: flex; align-items: center; gap: 7px;
+    margin: 8px 4px 10px; padding: 0 8px;
+    color: var(--tmd-fg-faint); font-size: 10.5px;
+  }
+  .tl-gap::before, .tl-gap::after { content: ""; flex: 1; height: 1px; background: var(--tmd-border); }
+  .tl-item.readonly .tl-l1 .prompt, .tl-item.readonly .tl-l2 { opacity: .55; }
+
+  /* ═══ 视图二:批次详情(点开看 diff)═══ */
+  .detail { flex: 1; min-height: 0; display: none; flex-direction: column; }
+  .panel.show-detail .tl, .panel.show-detail .toolbar { display: none; }
+  .panel.show-detail .detail { display: flex; }
+
+  .dt-back {
+    flex: none; display: flex; align-items: center; gap: 7px;
+    height: 32px; padding: 0 10px;
+    border-bottom: 1px solid var(--tmd-border);
+    background: var(--tmd-bg-elevated); cursor: pointer; user-select: none;
+    color: var(--tmd-fg-muted);
+  }
+  .dt-back:hover { color: var(--tmd-fg); }
+  .dt-back b { color: var(--tmd-fg); }
+  .dt-back .spacer { flex: 1; }
+  .dt-head { flex: none; padding: 10px 14px 8px; border-bottom: 1px solid var(--tmd-border); }
+  .dt-prompt { font-size: 13px; font-weight: 600; line-height: 1.5; margin-bottom: 4px; }
+  .dt-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    color: var(--tmd-fg-faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .dt-meta .ins { color: var(--diff-ins); }
+  .dt-meta .del { color: var(--diff-del); }
+
+  .dt-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 12px; }
+
+  .fgroup { margin-bottom: 8px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); overflow: hidden; }
+  .fg-head {
+    display: flex; align-items: center; gap: 7px;
+    height: 30px; padding: 0 9px; cursor: pointer; user-select: none;
+    background: var(--tmd-bg-elevated);
+  }
+  .fg-head:hover { background: var(--tmd-bg-hover); }
+  .fg-head .caret { color: var(--tmd-fg-faint); transition: transform .15s; }
+  .fgroup.open .fg-head .caret { transform: rotate(90deg); }
+  .fg-head .st { flex: none; width: 15px; height: 15px; border-radius: 4px; display: grid; place-items: center; font-size: 10px; font-weight: 700; }
+  .fg-head .st.M { background: rgba(250,204,32,.16); color: var(--st-m); }
+  .fg-head .st.A { background: rgba(74,222,128,.16); color: var(--st-a); }
+  .fg-head .path { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    direction: rtl; text-align: left; font-family: "SF Mono", Menlo, monospace; font-size: 11px; color: var(--tmd-fg); }
+  .fg-head .path b { direction: ltr; unicode-bidi: isolate; font-weight: 500; }
+  .fg-head .path span { color: var(--tmd-fg-faint); }
+  .fg-head .pm { flex: none; font-variant-numeric: tabular-nums; font-size: 11px; }
+  .fg-head .pm .ins { color: var(--diff-ins); }
+  .fg-head .pm .del { color: var(--diff-del); }
+  .fg-head .rv1 {
+    flex: none; height: 20px; padding: 0 7px; border-radius: 5px;
+    display: none; align-items: center; gap: 4px;
+    border: 1px solid var(--tmd-border); color: var(--tmd-fg-subtle); font-size: 10.5px;
+  }
+  .fg-head:hover .rv1 { display: inline-flex; }
+  .fg-head .rv1:hover { border-color: rgba(167,139,250,.5); color: var(--bk-reverted); }
+  .fg-body { display: none; }
+  .fgroup.open .fg-body { display: block; }
+  .fg-body pre { margin: 0; padding: 7px 10px; overflow-x: auto;
+    font-family: "SF Mono", Menlo, monospace; font-size: 10.5px; line-height: 1.6; }
+  .dl-add { color: var(--diff-ins); background: rgba(46,160,67,.10); display: block; }
+  .dl-del { color: var(--diff-del); background: rgba(248,81,73,.10); display: block; }
+  .dl-ctx { color: var(--tmd-fg-subtle); display: block; }
+  .dl-hnk { color: var(--tmd-fg-faint); display: block; }
+
+  /* 详情底部动作条 */
+  .dt-actions {
+    flex: none; display: flex; align-items: center; gap: 7px;
+    padding: 9px 12px; border-top: 1px solid var(--tmd-border);
+    background: var(--tmd-bg-elevated);
+  }
+  .btn {
+    height: 26px; padding: 0 11px; border-radius: var(--tmd-radius-sm);
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted);
+    white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+  .btn:disabled { opacity: .4; }
+  .btn.primary { border-color: transparent; background: var(--tmd-accent-soft); color: #9fd1f5; }
+  .btn.primary:hover:not(:disabled) { background: rgba(0,122,204,.36); }
+  .btn.danger { border-color: rgba(167,139,250,.4); color: var(--bk-reverted); }
+  .btn.danger:hover:not(:disabled) { background: rgba(167,139,250,.12); }
+  .dt-actions .note { color: var(--tmd-fg-faint); font-size: 10.5px; }
+
+  /* ── 回退确认 popover ── */
+  .confirm {
+    position: absolute; right: 10px; bottom: 52px; z-index: 40;
+    width: 320px; padding: 10px 12px;
+    background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border-strong);
+    border-radius: var(--tmd-radius-md);
+    box-shadow: 0 12px 36px rgba(0,0,0,.5);
+  }
+  .confirm h4 { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+  .confirm .sub { color: var(--tmd-fg-muted); font-size: 11px; line-height: 1.55; margin-bottom: 8px; }
+  .confirm .sub .guard { color: var(--bk-kept); }
+  .confirm .files {
+    max-height: 96px; overflow-y: auto; margin-bottom: 8px;
+    border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); padding: 3px 7px;
+  }
+  .confirm .files div {
+    font-family: "SF Mono", Menlo, monospace; font-size: 10.5px;
+    color: var(--tmd-fg-muted); padding: 1.5px 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .confirm .row { display: flex; gap: 6px; justify-content: flex-end; }
+
+  /* ── toast ── */
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 14px; border-radius: 999px;
+    background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border-strong);
+    color: var(--tmd-fg); font-size: 12px;
+    box-shadow: 0 10px 32px rgba(0,0,0,.5);
+    opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease;
+    z-index: 99;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+  .toast .ok { color: var(--bk-kept); }
+  .toast .rv { color: var(--bk-reverted); }
+</style>
+</head>
+<body>
+
+<div class="demo-badge">方案 <b>D · 右栏审批时间线</b> ｜ C 稿时间线 × 右栏面板 · 与 git 插件零耦合（点批次进详情看 diff）</div>
+
+<div class="panel" id="panel">
+  <div class="summary">
+    <span class="title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      审批线
+    </span>
+    <span class="sess-chip"><span class="abbr">omp</span>网络代理插件</span>
+    <span class="spacer"></span>
+    <span class="bk-count"><b>5</b> 批 · 9 文件</span>
+    <span class="retention" title="每会话保留最近 100 批快照，超期 30 天清理；回退前自动打恢复点">100/会话 · 30 天</span>
+  </div>
+
+  <div class="toolbar" id="filters">
+    <button class="chip on" data-f="all"><span class="dot" style="background:var(--tmd-fg-muted)"></span>全部 <span class="n">5</span></button>
+    <button class="chip" data-f="open"><span class="dot" style="background:var(--bk-open)"></span>进行中 <span class="n">1</span></button>
+    <button class="chip" data-f="pending"><span class="dot" style="background:var(--bk-pending)"></span>未审 <span class="n">2</span></button>
+    <button class="chip" data-f="kept"><span class="dot" style="background:var(--bk-kept)"></span>已留 <span class="n">1</span></button>
+    <button class="chip" data-f="reverted"><span class="dot" style="background:var(--bk-reverted)"></span>已退 <span class="n">1</span></button>
+  </div>
+
+  <!-- 视图一:审批时间线 -->
+  <div class="tl" id="tl"></div>
+
+  <!-- 视图二:批次详情 -->
+  <div class="detail">
+    <div class="dt-back" id="dtBack">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      时间线 ｜ <b id="dtBackNo"></b>
+      <span class="spacer"></span>
+      <span id="dtBackBadge"></span>
+    </div>
+    <div class="dt-head" id="dtHead"></div>
+    <div class="dt-scroll" id="dtScroll"></div>
+    <div class="dt-actions" id="dtActions"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── 与 A/B/C 原型同叙事:omp · 网络代理插件会话 ── */
+const BATCHES = [
+  { no: 6, state: "open", when: "刚刚", prompt: "代理挂掉时给个明确的错误提示吧",
+    files: [{ st: "M", name: "proxy.rs", dir: "src-tauri/src/", ins: 38, del: 6 }] },
+  { no: 5, state: "pending", when: "2 分钟前", prompt: "把代理设置挂到设置面板里,新增一个分区",
+    files: [
+      { st: "M", name: "settings.ts", dir: "src/kernel/", ins: 54, del: 3,
+        diff: [
+          ["ctx", " export interface AppSettings {"],
+          ["add", "   proxy: ProxySettings;        // 新增:网络代理分区"],
+          ["ctx", "   disabledPlugins: string[];"],
+          ["ctx", " }"],
+          ["ctx", ""],
+          ["add", " export interface ProxySettings {"],
+          ["add", "   port: number;                // 0 = 随机可用端口"],
+          ["add", "   upstream: string;            // 显式上游,空 = 直连"],
+          ["del", " export interface LegacyProxyConf {"],
+          ["del", "   legacyPortField: string;     // 旧字段,迁入 ProxySettings"],
+          ["ctx", ""],
+          ["add", " export function sanitizeProxy(p: unknown): ProxySettings {"],
+          ["add", "   // 非法端口回退 0;upstream 仅允许 http(s):// 前缀"],
+          ["ctx", "   return { ...DEFAULT_PROXY, ...pickValid(p) };"] ] },
+      { st: "M", name: "settings.test.ts", dir: "src/kernel/", ins: 31, del: 0 },
+      { st: "M", name: "SidebarSettingsCluster.tsx", dir: "src/app-shell/", ins: 88, del: 12,
+        diff: [
+          ["ctx", " const CLUSTERS: SettingsSectionContribution[] = ["],
+          ["add", "   { id: \"proxy\", label: \"网络代理\", component: ProxySection },"],
+          ["ctx", "   { id: \"quota\", label: \"额度\", component: QuotaSection },"],
+          ["ctx", " ];" ] ] },
+    ] },
+  { no: 4, state: "pending", when: "8 分钟前", prompt: "sanitize 加上 proxy 字段清洗,非法端口回退默认",
+    files: [
+      { st: "M", name: "settings.ts", dir: "src/kernel/", ins: 22, del: 4 },
+      { st: "M", name: "settings.test.ts", dir: "src/kernel/", ins: 18, del: 0 },
+    ] },
+  { no: 3, state: "kept", when: "昨天 21:40", prompt: "提交逻辑挪到 proxyCommit.ts,别混在组件里",
+    files: [
+      { st: "A", name: "proxyCommit.ts", dir: "src/plugins/network-proxy/", ins: 112, del: 0 },
+      { st: "M", name: "index.tsx", dir: "src/plugins/network-proxy/", ins: 12, del: 64 },
+      { st: "A", name: "proxyCommit.test.ts", dir: "src/plugins/network-proxy/", ins: 47, del: 0 },
+    ] },
+  { no: 2, state: "reverted", when: "昨天 21:12", prompt: "顺手把 Cargo.toml 的 reqwest 降到 0.12",
+    files: [{ st: "M", name: "Cargo.toml", dir: "src-tauri/", ins: 2, del: 2 }] },
+  /* resume 断档线以下:上一段运行的批,只读 */
+  { no: 1, state: "kept", when: "09-01 22:31", prompt: "proxy 子模块起个头,先跑通 spawn 生命周期", committed: true, readonly: true,
+    files: [
+      { st: "A", name: "proxy.rs", dir: "src-tauri/src/", ins: 214, del: 0 },
+      { st: "M", name: "lib.rs", dir: "src-tauri/src/", ins: 9, del: 1 },
+    ] },
+];
+
+const STATE_TEXT = { open: "进行中", pending: "未审", kept: "已留", reverted: "已退" };
+let selected = null;
+let pendingOnly = false;
+
+const panel = document.getElementById("panel");
+const tl = document.getElementById("tl");
+
+function visible() { return BATCHES.filter(b => !pendingOnly || b.state === "pending"); }
+function stat(b) {
+  return { ins: b.files.reduce((s, f) => s + f.ins, 0), del: b.files.reduce((s, f) => s + f.del, 0) };
+}
+function badgeOf(b) {
+  if (b.committed) return `<span class="badge committed">已提交 · 已留</span>`;
+  return `<span class="badge ${b.state}">${STATE_TEXT[b.state]}</span>`;
+}
+
+/* ── 时间线视图 ── */
+function renderTL() {
+  tl.innerHTML = "";
+  visible().forEach(b => {
+    if (b.no === 1) {
+      const gap = document.createElement("div");
+      gap.className = "tl-gap";
+      gap.textContent = "↳ 会话 resume · 09-01 22:14 · 断档前只读";
+      tl.appendChild(gap);
+    }
+    const s = stat(b);
+    const el = document.createElement("div");
+    el.className = "tl-item" + (b.state === "reverted" ? " dimmed" : "") + (b.readonly ? " readonly" : "");
+    el.innerHTML = `
+      <span class="tl-dot ${b.state}"></span>
+      <span class="tl-main">
+        <span class="tl-l1"><span class="no">#${b.no}</span><span class="prompt">${esc(b.prompt)}</span><span class="go">看 diff ›</span></span>
+        <span class="tl-l2"><span>${b.files.length} 文件</span>
+          <span><span class="ins">+${s.ins}</span> <span class="del">−${s.del}</span></span>
+          ${badgeOf(b)}
+          <span class="when">${b.when}</span></span>
+      </span>`;
+    el.addEventListener("click", () => { selected = b.no; showDetail(); });
+    tl.appendChild(el);
+  });
+}
+
+/* ── 详情视图 ── */
+function showDetail() {
+  const b = BATCHES.find(x => x.no === selected);
+  const s = stat(b);
+  document.getElementById("dtBackNo").textContent = `批次 #${b.no}`;
+  document.getElementById("dtBackBadge").innerHTML = badgeOf(b);
+  document.getElementById("dtHead").innerHTML = `
+    <div class="dt-prompt">${esc(b.prompt)}</div>
+    <div class="dt-meta">
+      <span>${b.when}</span><span>omp</span>
+      <span>${b.files.length} 文件</span>
+      <span><span class="ins">+${s.ins}</span> <span class="del">−${s.del}</span></span>
+      <span>对照:${b.state === "open" ? "当前工作区(进行中)" : "批次结束时点"}</span>
+      ${b.readonly ? `<span class="badge kept">断档前 · 只读</span>` : ""}
+      ${b.committed ? `<span class="badge committed">文件已随你的提交进入 git · 本批自动已留</span>` : ""}
+    </div>`;
+
+  const sc = document.getElementById("dtScroll");
+  sc.innerHTML = "";
+  b.files.forEach((f, i) => {
+    const g = document.createElement("div");
+    g.className = "fgroup" + (f.diff && i === 0 ? " open" : "");
+    g.innerHTML = `
+      <div class="fg-head">
+        <span class="caret">›</span>
+        <span class="st ${f.st}">${f.st}</span>
+        <span class="path"><b>${esc(f.name)}</b> <span>${esc(f.dir)}</span></span>
+        <span class="pm"><span class="ins">+${f.ins}</span> <span class="del">−${f.del}</span></span>
+        ${b.state === "pending" ? `<button class="rv1">↩ 只回退此文件</button>` : ""}
+      </div>
+      ${f.diff ? `<div class="fg-body"><pre>${
+        f.diff.map(([k, t]) => `<span class="dl-${k === "add" ? "add" : k === "del" ? "del" : "ctx"}">${k === "add" ? "+" : k === "del" ? "−" : " "} ${esc(t)}</span>`).join("")
+      }<span class="dl-hnk">@@ -42,7 +42,${f.ins + 9} @@ 区间外已折叠(完整渲染走 patch LRU)</span></pre></div>` : ""}`;
+    g.querySelector(".fg-head").addEventListener("click", e => {
+      if (e.target.closest(".rv1")) return;
+      g.classList.toggle("open");
+    });
+    const rv1 = g.querySelector(".rv1");
+    if (rv1) rv1.addEventListener("click", () =>
+      toast(`已回退 ${f.dir}${f.name} · 批次 #${b.no} 转为部分处理(恢复点 #g9 留存)`, "rv"));
+    sc.appendChild(g);
+  });
+
+  const acts = document.getElementById("dtActions");
+  if (b.readonly || b.committed) {
+    acts.innerHTML = `<span class="note">断档前批次只读;文件已提交的部分回退属 git revert 职责</span>`;
+  } else if (b.state === "pending") {
+    acts.innerHTML = `
+      <button class="btn primary" id="aKeep">✓ 保留</button>
+      <button class="btn danger" id="aRevert">↩ 回退整批</button>
+      <span class="spacer" style="flex:1"></span>
+      <span class="note">回退前自动打恢复点</span>`;
+    document.getElementById("aKeep").addEventListener("click", () => {
+      b.state = "kept";
+      toast(`批次 #${b.no} 已保留 —— 改动本就在工作区,暂存/提交由你在 git 面板自行完成`, "ok");
+      backToTL();
+    });
+    document.getElementById("aRevert").addEventListener("click", () => confirmRevert(b, b.files));
+  } else if (b.state === "kept") {
+    acts.innerHTML = `
+      <button class="btn" disabled>✓ 已保留</button>
+      <button class="btn danger" id="aRevert">↩ 仍要回退</button>
+      <span class="spacer" style="flex:1"></span>
+      <span class="note">回退前自动打恢复点</span>`;
+    document.getElementById("aRevert").addEventListener("click", () => confirmRevert(b, b.files));
+  } else if (b.state === "reverted") {
+    acts.innerHTML = `
+      <span class="note" style="color:var(--bk-reverted)">已回退(恢复点 #g8 留存)</span>
+      <span class="spacer" style="flex:1"></span>
+      <button class="btn" id="aUndo">↩ 反悔 · 恢复回来</button>`;
+    document.getElementById("aUndo").addEventListener("click", () => {
+      b.state = "pending";
+      toast(`批次 #${b.no} 已从恢复点 #g8 恢复,回到「未审」`, "rv");
+      showDetail();
+    });
+  } else { /* open */
+    acts.innerHTML = `<span class="note">进行中 —— 批次在下一条消息发出时自动封口进入待审</span>`;
+  }
+
+  panel.classList.add("show-detail");
+  sc.scrollTop = 0;
+}
+
+function backToTL() {
+  panel.classList.remove("show-detail");
+  document.querySelectorAll(".confirm").forEach(n => n.remove());
+  renderTL();
+}
+
+/* ── 回退确认 popover ── */
+function confirmRevert(b, files) {
+  document.querySelectorAll(".confirm").forEach(n => n.remove());
+  const pop = document.createElement("div");
+  pop.className = "confirm";
+  pop.innerHTML = `
+    <h4>回退批次 #${b.no}(${files.length} 个路径)</h4>
+    <div class="sub">改动将还原到这轮消息发出之前。<span class="guard">回退前已自动打恢复点 #g9,反悔可再回来。</span>
+      当前内容与批次后状态不一致的文件会被跳过并列出,绝不静默覆盖。</div>
+    <div class="files">${files.map(f => `<div>${esc(f.dir + f.name)}　<span style="color:var(--diff-ins)">+${f.ins}</span> <span style="color:var(--diff-del)">−${f.del}</span></div>`).join("")}</div>
+    <div class="row">
+      <button class="btn">取消</button>
+      <button class="btn danger">确认回退</button>
+    </div>`;
+  pop.querySelector(".btn").addEventListener("click", () => pop.remove());
+  pop.querySelectorAll(".btn")[1].addEventListener("click", () => {
+    b.state = "reverted";
+    pop.remove();
+    toast(`批次 #${b.no} 已回退(${files.length} 文件)· 恢复点 #g9 留存`, "rv");
+    backToTL();
+  });
+  panel.appendChild(pop);
+}
+
+document.getElementById("dtBack").addEventListener("click", backToTL);
+document.querySelectorAll("#filters .chip").forEach(c =>
+  c.addEventListener("click", () => {
+    document.querySelectorAll("#filters .chip").forEach(x => x.classList.remove("on"));
+    pendingOnly = c.dataset.f === "pending";
+    c.classList.add("on"); renderTL();
+  }));
+
+let toastTimer = 0;
+function toast(msg, tone) {
+  const t = document.getElementById("toast");
+  t.innerHTML = `<span class="${tone}">●</span>${esc(msg)}`;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+function esc(s) { return s.replace(/</g, "&lt;"); }
+
+renderTL();
+</script>
+</body>
+</html>
