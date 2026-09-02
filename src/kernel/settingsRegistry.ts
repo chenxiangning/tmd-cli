@@ -4,7 +4,7 @@
  * 插件通过 ctx.registerSettingsSection 注册一个左侧导航项;
  * 每个 section 携带自己的 tabs(右侧内容区顶部的 tab 条)。
  * 注册表本身不渲染:渲染归 settings 插件的 SettingsPanel(overlay 挂点)。
- * 未注册 = 不渲染(一期只有 settings 插件注册的「基础设置」)。
+ * 未注册 = 不渲染(目前已注册:settings 插件「基础设置」)。
  */
 
 import type { ComponentType, ReactNode } from "react";

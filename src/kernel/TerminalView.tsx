@@ -18,6 +18,11 @@ import "@xterm/xterm/css/xterm.css";
 import { ipc, openExternalUrl } from "@kernel/ipc";
 import { getPlatformKind } from "@kernel/platform";
 import { host, ptyLiveTopic } from "@kernel/host";
+import {
+  registerTerminalHandle,
+  unregisterTerminalHandle,
+  type TerminalHandle,
+} from "@kernel/messageAnchors";
 import { subscribeThemeApplied } from "@kernel/theme";
 
 /** 每次翻页向日志读取的历史字节数(512KB)。 */
@@ -50,6 +55,9 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
      prefixRef 按"从旧到新"存已翻出的历史页(数组),write 前一次 join,避免字符串 O(N²) 拼接 */
   const earliestByteRef = useRef(0);
   const prefixRef = useRef<string[]>([]);
+  /* loadEarlier 经 ref 暴露给锚点跳转注册表:handle 在 effect 里注册一次,
+     经 ref 取最新闭包,避免 loadingHistory 状态闭包过期。 */
+  const loadEarlierRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -126,6 +134,21 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
       term.write(text),
     );
     const offInput = term.onData((data) => void ipc.sessionWrite(sessionId, data));
+    /* 对话锚点:向内核注册本幕布的跳转/定位能力(composer 锚点栏经此中转)。 */
+    const terminalHandle: TerminalHandle = {
+      lineText: (row) => term.buffer.active.getLine(row)?.translateToString(true) ?? "",
+      bufferLength: () => term.buffer.active.length,
+      viewportTop: () => term.buffer.active.viewportY,
+      rows: () => term.rows,
+      scrollToLine: (row) => term.scrollToLine(row),
+      onScroll: (cb) => {
+        const d = term.onScroll(cb);
+        return () => d.dispose();
+      },
+      hasMoreHistory: () => earliestByteRef.current > 0,
+      loadEarlier: () => loadEarlierRef.current?.() ?? Promise.resolve(),
+    };
+    registerTerminalHandle(sessionId, terminalHandle);
 
     const syncSize = () => {
       fit.fit();
@@ -137,6 +160,7 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
 
     return () => {
       offTheme();
+      unregisterTerminalHandle(sessionId, terminalHandle);
       offLive();
       offInput.dispose();
       offScroll.dispose();
@@ -179,11 +203,18 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
       /* \x1bc(RIS)整屏重置后与历史一并入队:与实时写共用 xterm 同一写队列,无竞态;
          期间到达的实时字节已含在 getOutputBuffer 快照里,之后的排在本次写之后。 */
       const full = prefixRef.current.join("") + host.getOutputBuffer(sessionId);
-      term.write(`\x1bc${full}`, () => term.scrollToTop());
+      /* write 回调内 resolve:调用方(锚点跳转翻页循环)await 拿到的是 buffer 已含新历史的时刻 */
+      await new Promise<void>((resolve) =>
+        term.write(`\x1bc${full}`, () => {
+          term.scrollToTop();
+          resolve();
+        }),
+      );
     } finally {
       setLoadingHistory(false);
     }
   };
+  loadEarlierRef.current = loadEarlier;
 
   return (
     <div className="relative h-full w-full">

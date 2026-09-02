@@ -59,7 +59,9 @@ describe("初始状态与默认值", () => {
       customThemePresetId: "vscode-dark-modern",
       sendShortcut: "enter",
       sessionOutputBufferLimit: 500_000,
+      sessionListBudget: { total: 20, perCli: {} },
       disabledPlugins: [],
+      sessionTitles: {},
     });
     expect(s.loaded).toBe(false);
     expect(s.panelOpen).toBe(false);
@@ -114,6 +116,47 @@ describe("updateSettings 合并与清洗", () => {
     expect(settings.getSettingsState().settings.darkThemePresetId).toBe(
       "vscode-monokai",
     );
+  });
+  it("sessionListBudget:非法 total 与缺省字段回落默认", () => {
+    settings.updateSettings({
+      sessionListBudget: { total: 0, perCli: {} },
+    });
+    expect(settings.getSettingsState().settings.sessionListBudget).toEqual({
+      total: 20,
+      perCli: {},
+    });
+    settings.updateSettings({ sessionListBudget: {} as never });
+    expect(settings.getSettingsState().settings.sessionListBudget).toEqual({
+      total: 20,
+      perCli: {},
+    });
+  });
+
+  it("sessionListBudget:非法 perCli 项丢弃,合法项保留", () => {
+    settings.updateSettings({
+      sessionListBudget: {
+        total: 10,
+        perCli: { claude: 3, bad: -1, worse: 1.5, worst: "x" },
+      } as never,
+    });
+    expect(settings.getSettingsState().settings.sessionListBudget).toEqual({
+      total: 10,
+      perCli: { claude: 3 },
+    });
+  });
+
+  it("sessionListBudget:超 sum ≤ total 的项按 key 序丢弃(确定性)", () => {
+    settings.updateSettings({
+      sessionListBudget: {
+        total: 5,
+        perCli: { codex: 3, claude: 3, omp: 2 },
+      },
+    });
+    // key 排序后 claude(3) 先纳入,codex(3) 超预算丢弃,omp(2) 恰好纳入
+    expect(settings.getSettingsState().settings.sessionListBudget).toEqual({
+      total: 5,
+      perCli: { claude: 3, omp: 2 },
+    });
   });
 
   it("disabledPlugins:非字符串剔除、去重、排序(确定性)", () => {
@@ -236,5 +279,39 @@ describe("subscribeSettings", () => {
     unsub();
     settings.updateSettings({ theme: "light" });
     expect(fn).toHaveBeenCalledTimes(1);
+  });
+});
+describe("resolveCliSessionQuota", () => {
+  const REGISTERED = ["claude", "codex", "omp", "pi"] as const;
+
+  it("全部未配置:均分总数(向下取整)", () => {
+    const budget = { total: 20, perCli: {} };
+    for (const id of REGISTERED) {
+      expect(settings.resolveCliSessionQuota(budget, id, REGISTERED)).toBe(5);
+    }
+  });
+
+  it("已配置 CLI 拿配额原值,未配置均分剩余", () => {
+    const budget = { total: 20, perCli: { claude: 11 } };
+    expect(settings.resolveCliSessionQuota(budget, "claude", REGISTERED)).toBe(11);
+    expect(settings.resolveCliSessionQuota(budget, "codex", REGISTERED)).toBe(3);
+  });
+
+  it("显式 0 与未配置不同:0 是「不露出」,不参与均分", () => {
+    const budget = { total: 9, perCli: { claude: 0 } };
+    expect(settings.resolveCliSessionQuota(budget, "claude", REGISTERED)).toBe(0);
+    expect(settings.resolveCliSessionQuota(budget, "codex", REGISTERED)).toBe(3);
+  });
+
+  it("剩余不足均分时落 0,不为负", () => {
+    const budget = { total: 2, perCli: {} };
+    expect(settings.resolveCliSessionQuota(budget, "claude", REGISTERED)).toBe(0);
+  });
+
+  it("全部已配置时未配置查询返回 0(无可分母)", () => {
+    const budget = { total: 10, perCli: { claude: 4, codex: 3, omp: 2, pi: 1 } };
+    expect(
+      settings.resolveCliSessionQuota(budget, "ghost", REGISTERED),
+    ).toBe(0);
   });
 });

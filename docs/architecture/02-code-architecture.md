@@ -229,6 +229,27 @@ flowchart TD
 ```
 
 状态读取不会写回 Rust `SessionMeta`。`cliSessionIds` 和 `sessionStatuses` 是 Host 运行时内存态；CLI 原生 session 文件仍由各 CLI 自己维护。
+### 5.1 CLI 会话存储共性（四家实证,新业务功能先查此表）
+
+| 能力 | omp | pi | claude | codex |
+|---|---|---|---|---|
+| 存储 | `~/.omp/agent/sessions/<slug>/<ts>_<uuid>.jsonl` | `~/.pi/agent/sessions/<slug>/<ts>_<uuid>.jsonl` | `~/.claude/projects/<slug>/<uuid>.jsonl` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<ts>-<uuid>.jsonl` |
+| cwd 分区 | 目录 slug | 目录 slug(规则与 omp 不同!) | 目录 slug | 无,读首行 `session_meta.payload.cwd` 过滤 |
+| 原生标题 | 首行 `type:"title"` 记录(定长 pad 覆写) + `title_change` 事件 | `title_change` 事件 + session 行 title | `type:"summary"` 行(部分版本不落) | 无概念 |
+| 标题兜底 | — | — | 首条 `type:"user"` 消息 | 首条 `role:"user"` 的 `response_item` |
+
+共性法则（2026-09 会话列表功能沉淀）：
+
+1. **标题提取统一走 `kernel/diskSessions.ts#extractJsonlTitle`（纯函数）**：
+   `title 记录 > session 行 title > summary > 首条用户消息`，逐行 try/catch 容忍 head 截断。
+   各插件只声明自己的 head 窗口（omp/pi 8KB / claude 32KB / codex 128KB 且先 4KB meta 过滤再读大窗）。
+2. **手动重命名 = 应用侧覆盖层（`settings.sessionTitles`），禁止写回 CLI 磁盘文件**：
+   omp/pi 的 title 记录是定长 pad 覆写格式，改写有长度/并发风险；claude/codex 无原生 rename 概念，
+   追加异构行有解析破坏风险。覆盖层 key = `${profileId}:${cliSessionId}`，显示优先级最高。
+3. **删除会话 = 双端统一物理删除 jsonl（`fs_remove_file`，NotFound 幂等成功）**：
+   活会话先删已绑定磁盘文件再 kill PTY；磁盘会话直接删文件。UI 侧两步确认防误删。
+4. **呼吸灯三态归内核 Host 结算（活动守望 1Hz）**：绿(2s 内有输出) → 蓝(静默结算时未被查看,
+   组内置顶) → 点开即清(灰)。UI 只读 `host.isUnread`，不各自实现状态机。
 
 **Session 模型**（Rust `SessionMeta` + Host 运行时绑定）：
 
@@ -312,7 +333,7 @@ flowchart TD
 
 ## 8. Rust 后端命令面
 
-注册的 28 个 `#[tauri::command]`（lib.rs 24 + quota.rs 2 + omp_auth.rs 2），与 `ipc.ts` 一一对应：
+注册的 29 个 `#[tauri::command]`（lib.rs 25 + quota.rs 2 + omp_auth.rs 2），与 `ipc.ts` 一一对应：
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
@@ -330,6 +351,7 @@ flowchart TD
 | `fs_write_temp` | `fs.rs` | 截图/拖拽文件落 `~/.tmd-cli/tmp/` |
 | `fs_collect_files` | `fs.rs` | 递归收集指定后缀文件并按 mtime 倒序 |
 | `fs_read_head` / `fs_read_tail` | `fs.rs` | 读取 JSONL 头/尾，避免全文加载 |
+| `fs_remove_file` | `fs.rs` | 物理删除文件（会话删除双端统一）,NotFound 幂等成功 |
 | `git_status` | `git.rs` | `git rev-parse` + `git status --porcelain=v1 --branch` |
 | `config_home_dir` / `config_default_workspace_root` | `session.rs` | 返回配置和默认工作区路径 |
 | `config_read_workspaces` / `config_write_workspaces` | `session.rs` | `~/.tmd-cli/` 工作区配置读写 |

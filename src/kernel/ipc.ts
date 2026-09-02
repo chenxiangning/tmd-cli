@@ -101,6 +101,8 @@ export const ipc = {
   /** 读文件头部 maxBytes 字节(解析 jsonl 首行 meta 用,避免全文加载)。 */
   fsReadHead: (path: string, maxBytes: number) =>
     invoke<string>("fs_read_head", { path, maxBytes }),
+  /** 物理删除文件(会话列表"删除会话"用);文件不存在视为成功(幂等)。 */
+  fsRemoveFile: (path: string) => invoke<void>("fs_remove_file", { path }),
   configHomeDir: () => invoke<string>("config_home_dir"),
   /** 默认工作区根目录(~/.tmd-cli/default,Rust 侧已确保存在,mac/win 兼容)。 */
   configDefaultWorkspaceRoot: () =>

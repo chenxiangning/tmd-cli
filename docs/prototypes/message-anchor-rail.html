@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>tmd-cli 对话锚点栏原型 v2 — 停靠 composer 右缘</title>
+<style>
+/* ── tmd-cli design tokens(dark 默认值,源自 design-tokens.md)── */
+:root {
+  --tmd-bg-base: #1f1f1f;
+  --tmd-bg-elevated: #181818;
+  --tmd-bg-sunken: #181818;
+  --tmd-bg-hover: #2a2a2a;
+  --tmd-bg-active: rgba(0,122,204,.24);
+  --tmd-bg-input: #313131;
+  --tmd-bg-popover: #252526;
+  --tmd-fg: #cccccc;
+  --tmd-fg-muted: #9d9d9d;
+  --tmd-fg-subtle: #7a7a7a;
+  --tmd-fg-faint: #585858;
+  --tmd-border: #3c3c3c;
+  --tmd-border-strong: #555555;
+  --tmd-accent: #007acc;
+  --tmd-accent-fg: #ffffff;
+  --tmd-accent-soft: rgba(0,122,204,.24);
+  --tmd-font-ui: 12px;
+  --tmd-radius-sm: 6px;
+  --tmd-radius-md: 8px;
+  --tmd-radius-lg: 12px;
+}
+
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body {
+  background: #101010;
+  display: flex; align-items: center; justify-content: center;
+  font-family: -apple-system, "PingFang SC", sans-serif;
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg);
+}
+
+/* ── 窗口 mock ──────────────────────────── */
+.window {
+  width: 1080px; height: 680px;
+  background: var(--tmd-bg-base);
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-lg);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 80px rgba(0,0,0,.55);
+}
+.titlebar {
+  height: 38px; flex: none;
+  background: var(--tmd-bg-sunken);
+  border-bottom: 1px solid var(--tmd-border);
+  display: flex; align-items: center; gap: 8px; padding: 0 14px;
+  color: var(--tmd-fg-muted);
+}
+.titlebar .dots { display: flex; gap: 6px; margin-right: 6px; }
+.titlebar .dots i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+.titlebar .dots i:nth-child(1) { background: #ff5f57; }
+.titlebar .dots i:nth-child(2) { background: #febc2e; }
+.titlebar .dots i:nth-child(3) { background: #28c840; }
+
+.body { flex: 1; display: flex; min-height: 0; }
+.sidebar {
+  width: 190px; flex: none;
+  background: var(--tmd-bg-elevated);
+  border-right: 1px solid var(--tmd-border);
+  padding: 10px;
+  color: var(--tmd-fg-subtle);
+}
+.sidebar .ws { padding: 6px 8px; border-radius: var(--tmd-radius-sm); display: flex; align-items: center; gap: 6px; }
+.sidebar .ws.active { background: var(--tmd-bg-active); color: var(--tmd-fg); }
+.sidebar .sess { padding: 4px 8px 4px 22px; color: var(--tmd-fg-faint); white-space: nowrap; overflow: hidden; }
+.sidebar .sess.on { color: var(--tmd-fg-muted); }
+
+/* ── 中央幕布:上 terminal + 下 composer(真实 AppShell 结构)── */
+.stage { flex: 1; position: relative; min-width: 0; display: flex; flex-direction: column; }
+.transcript {
+  flex: 1; overflow-y: auto; padding: 14px 18px;
+  font-family: "SF Mono", Menlo, monospace; font-size: 12px; line-height: 1.6;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+.transcript::-webkit-scrollbar { display: none; }
+.line { color: var(--tmd-fg-subtle); white-space: pre-wrap; }
+.line.dim { color: var(--tmd-fg-faint); }
+.user-msg {
+  margin: 10px 0 4px;
+  border-left: 2px solid var(--tmd-accent);
+  background: var(--tmd-bg-hover);
+  border-radius: 0 var(--tmd-radius-sm) var(--tmd-radius-sm) 0;
+  padding: 6px 10px;
+  color: var(--tmd-fg);
+}
+.user-msg .meta { color: var(--tmd-fg-faint); font-size: 11px; margin-bottom: 2px; }
+.user-msg.flash { animation: flash 1.2s ease; }
+@keyframes flash { 0%, 60% { background: var(--tmd-accent-soft); } 100% { background: var(--tmd-bg-hover); } }
+
+/* 可拖分隔条 mock */
+.panel-handle { flex: none; height: 5px; background: var(--tmd-bg-sunken); border-top: 1px solid var(--tmd-border); cursor: row-resize; }
+.panel-handle:hover { background: var(--tmd-accent-soft); }
+
+/* ── composer 面板(锚点栏的新家)────────────── */
+.composer {
+  flex: none; height: 190px;
+  position: relative;                 /* 锚点栏的定位容器 */
+  display: flex; flex-direction: column;
+  background: var(--tmd-bg-elevated);
+}
+.composer-statusbar {
+  flex: none; height: 28px;
+  display: flex; align-items: center; gap: 14px; padding: 0 12px;
+  border-bottom: 1px solid var(--tmd-border);
+  color: var(--tmd-fg-subtle); font-size: 11px;
+}
+.composer-statusbar .bar { width: 42px; height: 4px; border-radius: 2px; background: var(--tmd-border); position: relative; overflow: hidden; }
+.composer-statusbar .bar i { position: absolute; inset: 0; right: 60%; background: #d9782d; } /* 额度条,mock 色 */
+.composer-statusbar .sp { margin-left: auto; }
+.composer-input {
+  flex: 1; padding: 10px 40px 10px 12px;   /* 右侧留出锚点栏通道 */
+  color: var(--tmd-fg-faint);
+  font-family: "SF Mono", Menlo, monospace; font-size: 13px; line-height: 1.58;
+}
+
+/* ── 对话锚点栏:停靠 composer 右缘 ─────────────
+   dash 垂直居中堆叠;预览卡向上浮(可越过 composer 顶缘压到幕布) */
+.anchor-rail {
+  position: absolute;
+  right: 0; top: 34px; bottom: 10px;   /* 让开 statusbar */
+  width: 26px;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-end;
+  gap: 3px;
+  padding-right: 7px;
+  z-index: 20;
+}
+/* 栏底衬:hover 时浮现一条细分隔,暗示可交互区 */
+.anchor-rail::before {
+  content: ""; position: absolute; left: 6px; top: 0; bottom: 0; width: 1px;
+  background: var(--tmd-border); opacity: 0; transition: opacity .15s ease;
+}
+.anchor-rail:hover::before { opacity: 1; }
+
+.anchor-item { position: relative; display: flex; align-items: center; height: 10px; }
+.anchor-dash {
+  border: 0; padding: 0; cursor: pointer;
+  width: 9px; height: 2px; border-radius: 1px;
+  background: var(--tmd-fg-faint);
+  transition: width .15s ease, background .15s ease;
+}
+.anchor-item.is-proximity-0 .anchor-dash { width: 26px; background: var(--tmd-fg); }
+.anchor-item.is-proximity-1 .anchor-dash { width: 18px; background: var(--tmd-fg-subtle); }
+.anchor-item.is-proximity-2 .anchor-dash { width: 13px; }
+.anchor-dash.is-active { background: var(--tmd-accent); width: 18px; }
+.anchor-item.is-proximity-0 .anchor-dash.is-active { width: 26px; background: var(--tmd-accent); }
+
+/* 预览卡:向左展开,垂直方向对齐 dash,可浮出 composer 顶缘(真实实现用 portal/fixed) */
+.anchor-preview {
+  position: absolute; right: 34px; top: 50%;
+  width: 300px;
+  background: var(--tmd-bg-popover);
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  box-shadow: 0 8px 28px rgba(0,0,0,.45);
+  padding: 10px 12px;
+  transform: translateY(-50%);
+  animation: preview-in .12s ease;
+  pointer-events: none;
+  z-index: 30;
+}
+@keyframes preview-in { from { opacity: 0; transform: translateY(-50%) translateX(4px); } to { opacity: 1; transform: translateY(-50%); } }
+.anchor-preview .pv-title { display: block; color: var(--tmd-fg); font-weight: 600; margin-bottom: 4px; word-break: break-all; }
+.anchor-preview .pv-desc { display: block; color: var(--tmd-fg-muted); font-size: 11px; line-height: 1.5; word-break: break-all; }
+/* 预览卡右侧小三角指向 dash */
+.anchor-preview::after {
+  content: ""; position: absolute; right: -5px; top: 50%; margin-top: -5px;
+  border: 5px solid transparent; border-left-color: var(--tmd-border);
+}
+
+/* 说明标签(仅原型用) */
+.proto-note {
+  position: absolute; left: 14px; top: 10px;
+  color: var(--tmd-fg-faint); font-size: 11px;
+  background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-sm); padding: 5px 9px;
+  z-index: 5;
+}
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="titlebar">
+    <span class="dots"><i></i><i></i><i></i></span>
+    tmd-cli ⌄ &nbsp;·&nbsp; 锚点栏停靠 composer 右缘(hover / 点击 dash 试试)
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="ws active">📁 tmd-cli</div>
+      <div class="sess on">● omp · 添加工作区会话列表…</div>
+      <div class="sess">○ claude · 修复翻页锚点</div>
+      <div class="sess">○ pi · 插件市场设计</div>
+      <div class="ws" style="margin-top:10px">📁 codemoss</div>
+      <div class="sess">○ omp · 锚点栏调研</div>
+    </div>
+    <div class="stage">
+      <div class="transcript" id="transcript"></div>
+      <div class="panel-handle"></div>
+
+      <!-- composer 面板:锚点栏在它内部右缘 -->
+      <div class="composer">
+        <div class="composer-statusbar">
+          <span>模型 kimi-code/k3</span><span>思考 auto</span>
+          <span>额度 5h</span><span class="bar"><i></i></span><span>24%</span>
+          <span>7d</span><span class="bar"><i style="right:46%"></i></span><span>54%</span>
+          <span class="sp">只读</span>
+        </div>
+        <div class="composer-input">输入消息,⌘/Ctrl+回车发送,回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。</div>
+        <div class="anchor-rail" id="anchorRail" role="navigation" aria-label="消息锚点"></div>
+      </div>
+
+      <div class="proto-note">原型 v2:锚点栏住进 composer 组件右缘;hover 预览卡向左/上浮出(可压到幕布);点击 dash 幕布滚动到对应气泡(28% 留头)</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MESSAGES = [
+  { role: "user", text: "帮我把工作区会话列表的初始露出条数做成可配置的,每个 CLI 分组共享一个预算" },
+  { role: "assistant", lines: 6 },
+  { role: "user", text: "SESSION_LIST_TOTAL_MIN-MAX 默认 20 合理吗?已分配的从总预算里扣,剩下的未配置 CLI 均分" },
+  { role: "assistant", lines: 9 },
+  { role: "user", text: "BudgetPopover.tsx 单独抽一个组件吧,别塞进 SessionList 里" },
+  { role: "assistant", lines: 5 },
+  { role: "user", text: "放到项目里吧 /Users/chenxiangning/code/AI/github/tmd-cli,弹窗样式复用 pref-card/pref-row,零新增 CSS" },
+  { role: "assistant", lines: 12 },
+  { role: "user", text: "SessionListSettingsTab 删了,入口改成 caption 按钮 + popover" },
+  { role: "assistant", lines: 7 },
+  { role: "user", text: "data-testid=\"session-list-budget-card\" 在测试里有引用吗?grep 一下别漏了" },
+  { role: "assistant", lines: 4 },
+  { role: "user", text: "popover 打开时 input 自动 focus,Esc 关闭,点外部也关闭" },
+  { role: "assistant", lines: 8 },
+  { role: "user", text: "数字输入要 clamp 到 MIN-MAX,非法值回退默认 20,别让用户输入把布局搞炸" },
+  { role: "assistant", lines: 6 },
+  { role: "user", text: "settingsRegistry.ts 第 7 行注释和 SessionList.tsx 第 4 行注释也同步更新" },
+  { role: "assistant", lines: 5 },
+  { role: "user", text: "跑一遍 typecheck 和 vitest,失败集不许扩大" },
+  { role: "assistant", lines: 10 },
+];
+
+function derivePreviewCopy(text) {
+  const lines = text.split("\n").map(s => s.trim()).filter(Boolean);
+  return { title: (lines[0] ?? "").slice(0, 60), desc: lines.slice(1).join(" ").slice(0, 160) };
+}
+
+const transcript = document.getElementById("transcript");
+const rail = document.getElementById("anchorRail");
+const anchors = [];
+const AI_FILLER = [
+  "  ⏺ 我先看下现有实现…", "    Grep: session-list-budget → 2 matches · 1 file",
+  "    Read: src/plugins/workspace/SessionList.tsx", "  ⏺ 方案:caption 按钮触发 popover,状态收在 index.tsx。",
+  "    Write: src/plugins/workspace/BudgetPopover.tsx (+145 行)", "    Edit: index.tsx — caption button + popover state",
+  "    Bash: pnpm typecheck ✓ 零 error", "  ⏺ 完成。预算超界时 clamp,非法输入回退默认值。",
+  "    · 已分配 12 条,剩余 8 条由未配置 CLI 均分", "    · 「更多…」仍可按需翻倍加载",
+];
+
+let uid = 0;
+MESSAGES.forEach((m) => {
+  if (m.role === "user") {
+    uid += 1;
+    const el = document.createElement("div");
+    el.className = "user-msg";
+    el.dataset.anchorId = "a" + uid;
+    el.innerHTML = `<div class="meta">你 · 第 ${uid} 条</div>${m.text.replace(/</g, "&lt;")}`;
+    transcript.appendChild(el);
+    const { title, desc } = derivePreviewCopy(m.text);
+    anchors.push({ id: "a" + uid, index: uid, title, desc, el });
+  } else {
+    for (let i = 0; i < m.lines; i++) {
+      const div = document.createElement("div");
+      div.className = "line" + (i % 3 === 2 ? " dim" : "");
+      div.textContent = AI_FILLER[(i + m.lines) % AI_FILLER.length];
+      transcript.appendChild(div);
+    }
+  }
+});
+
+/* ── 锚点栏(codemoss MessagesAnchorRail 移植):均匀堆叠;预览卡全部向上浮 ── */
+let activeId = null;
+
+anchors.forEach((a) => {
+  const item = document.createElement("div");
+  item.className = "anchor-item";
+  const dash = document.createElement("button");
+  dash.className = "anchor-dash";
+  dash.dataset.anchorId = a.id;
+  dash.title = `${a.index}. ${a.title}`;
+  item.appendChild(dash);
+
+  item.addEventListener("mouseenter", () => {
+    const vi = anchors.indexOf(a);
+    anchors.forEach((b, vj) => {
+      const d = Math.abs(vj - vi);
+      b.itemEl.classList.toggle("is-proximity-0", d === 0);
+      b.itemEl.classList.toggle("is-proximity-1", d === 1);
+      b.itemEl.classList.toggle("is-proximity-2", d === 2);
+    });
+    renderPreview(item, a);
+  });
+  dash.addEventListener("click", () => jumpTo(a));
+  a.itemEl = item; a.dashEl = dash;
+  rail.appendChild(item);
+});
+rail.addEventListener("mouseleave", () => {
+  rail.querySelectorAll(".anchor-preview").forEach(n => n.remove());
+  anchors.forEach(b => b.itemEl.classList.remove("is-proximity-0", "is-proximity-1", "is-proximity-2"));
+});
+
+function renderPreview(item, a) {
+  rail.querySelectorAll(".anchor-preview").forEach(n => n.remove());
+  const pv = document.createElement("div");
+  pv.className = "anchor-preview";
+  pv.innerHTML = `<strong class="pv-title">${a.index}. ${a.title.replace(/</g, "&lt;")}</strong>` +
+    (a.desc ? `<span class="pv-desc">${a.desc.replace(/</g, "&lt;")}</span>` : "");
+  item.appendChild(pv);
+  /* composer 高度有限:预览卡若顶出 composer 上缘,改为底对齐向上浮 */
+  const r = pv.getBoundingClientRect();
+  const composerRect = document.querySelector(".composer").getBoundingClientRect();
+  if (r.top < composerRect.top - 8) {
+    pv.style.top = "auto";
+    pv.style.bottom = (composerRect.bottom - item.getBoundingClientRect().bottom - 5) + "px";
+    pv.style.transform = "none";
+  }
+}
+
+function jumpTo(a) {
+  const top = transcript.scrollTop + (a.el.getBoundingClientRect().top - transcript.getBoundingClientRect().top)
+    - transcript.clientHeight * 0.28;
+  transcript.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  setActive(a.id);
+  a.el.classList.remove("flash"); void a.el.offsetWidth; a.el.classList.add("flash");
+}
+function setActive(id) {
+  activeId = id;
+  anchors.forEach(b => b.dashEl.classList.toggle("is-active", b.id === id));
+}
+
+let raf = 0;
+transcript.addEventListener("scroll", () => {
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(() => {
+    const cRect = transcript.getBoundingClientRect();
+    const refLine = cRect.top + Math.min(96, transcript.clientHeight * 0.32);
+    let best = null, bestDist = Infinity;
+    for (const a of anchors) {
+      const d = Math.abs(a.el.getBoundingClientRect().top - refLine);
+      if (d < bestDist) { bestDist = d; best = a; }
+    }
+    if (best && best.id !== activeId) setActive(best.id);
+  });
+});
+
+setActive(anchors[anchors.length - 1].id);
+</script>
+</body>
+</html>

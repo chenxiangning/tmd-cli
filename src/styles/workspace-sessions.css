@@ -178,6 +178,29 @@
   background: var(--tmd-fg-faint);
   animation: none;
 }
+/* 完成未读:对话结束且未查看 → 蓝色呼吸(accent 蓝,design tokens 语义色);
+   点开查看后 host 清 unread,回落 .is-idle 灰。 */
+.thread-runtime-dot.is-unread {
+  background: var(--tmd-accent);
+}
+
+/* ===== 行内重命名(右键"重命名" → 行内容替换为输入框) ===== */
+.thread-row.is-renaming {
+  cursor: default;
+}
+
+.thread-rename-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--tmd-bg-input);
+  color: var(--tmd-fg);
+  border: 1px solid var(--tmd-accent);
+  border-radius: var(--tmd-radius-sm);
+  font-size: inherit;
+  font-family: inherit;
+  padding: 1px 6px;
+  outline: none;
+}
 
 /* ===== 更多...(codemoss .thread-more) ===== */
 .thread-more {

@@ -59,6 +59,11 @@
   background: var(--surface-hover);
   color: var(--text-strong);
 }
+.ws-caption-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
 
 /* ===== 工作区行(codemoss .workspace-card/.workspace-row) ===== */
 .workspace-card {

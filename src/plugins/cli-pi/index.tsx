@@ -1,4 +1,9 @@
 import { readJsonlSessionStatus } from "../cli-shared/sessionStatus";
+import {
+  findJsonlSessionFile,
+  ompPiUserMessageLine,
+  readUserMessagesFromFile,
+} from "../cli-shared/userMessages";
 import { readPiDefaultStatus } from "./configStatus";
 import { piAgentDir, registerPiQuotaProvider } from "./quota";
 import { scanJsonlSessions } from "@kernel/diskSessions";
@@ -57,6 +62,14 @@ async function readPiSessionStatus(cwd: string, cliSessionId: string) {
   );
 }
 
+async function readPiUserMessages(cwd: string, cliSessionId: string, full: boolean) {
+  const dir = await piSessionsDir(cwd);
+  if (!dir) return null;
+  const path = await findJsonlSessionFile(dir, cliSessionId);
+  if (!path) return null;
+  return readUserMessagesFromFile(path, full, ompPiUserMessageLine);
+}
+
 /**
  * pi CLI 插件（CLI 能力矩阵调研结论）：
  * 与 omp 同宗 pi-tui 编辑器，`/` 与 `@` 原生支持；
@@ -98,6 +111,7 @@ export const cliPiPlugin: Plugin = {
       listSessions: listPiSessions,
       readSessionStatus: readPiSessionStatus,
       readDefaultStatus: readPiDefaultStatus,
+      readSessionUserMessages: readPiUserMessages,
     });
   },
 };

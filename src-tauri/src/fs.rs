@@ -16,17 +16,21 @@ pub struct DirEntry {
     pub is_dir: bool,
 }
 
-/// 列举一层目录（隐藏文件默认过滤，目录排前）。
+/// 列举一层目录（目录排前）。过滤语义照抄 codemoss：
+/// 仅跳过 `.git` 目录与 `.DS_Store` 文件，其余 dotfile 正常展示。
 pub fn list_dir(path: &str) -> Result<Vec<DirEntry>, String> {
     let mut entries = fs::read_dir(path)
         .map_err(|e| format!("读取目录失败: {e}"))?
         .filter_map(|entry| {
             let entry = entry.ok()?;
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with('.') {
+            let is_dir = entry.file_type().ok()?.is_dir();
+            if is_dir && name == ".git" {
                 return None;
             }
-            let is_dir = entry.file_type().ok()?.is_dir();
+            if !is_dir && name == ".DS_Store" {
+                return None;
+            }
             Some(DirEntry {
                 name,
                 path: entry.path().to_string_lossy().to_string(),
@@ -188,4 +192,103 @@ pub fn read_tail(path: &str, max_bytes: usize) -> Result<String, String> {
     f.read_to_end(&mut buf)
         .map_err(|e| format!("读取文件失败: {e}"))?;
     Ok(String::from_utf8_lossy(&buf).to_string())
+}
+/// 物理删除单个文件(会话列表"删除会话":双端统一删 CLI 磁盘 jsonl)。
+/// 文件不存在视为成功 —— 删除是幂等操作,重试/竞态(活会话刚被 CLI 轮替)不应报错。
+pub fn remove_file(path: &str) -> Result<(), String> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(format!("删除文件失败: {e}")),
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_root(tag: &str) -> std::path::PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "tmd-cli-list-dir-{tag}-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).expect("创建临时目录失败");
+        root
+    }
+
+    #[test]
+    fn list_dir_保留常规_dotfile_与_dotdir() {
+        let root = temp_root("dotfiles");
+        fs::create_dir_all(root.join(".claude")).unwrap();
+        fs::create_dir_all(root.join(".github")).unwrap();
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(root.join(".gitignore"), "target\n").unwrap();
+        fs::write(root.join("README.md"), "# hi\n").unwrap();
+
+        let names: Vec<String> = list_dir(root.to_str().unwrap())
+            .unwrap()
+            .into_iter()
+            .map(|e| e.name)
+            .collect();
+
+        assert_eq!(
+            names,
+            vec![".claude", ".github", "src", ".gitignore", "README.md"]
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn list_dir_仅跳过_git_目录与_ds_store_文件() {
+        // 主场景:同名目录 .git 与同名文件 .DS_Store 被跳过。
+        let root = temp_root("skip");
+        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::write(root.join(".DS_Store"), "junk").unwrap();
+        fs::write(root.join("main.rs"), "fn main() {}\n").unwrap();
+
+        let names: Vec<String> = list_dir(root.to_str().unwrap())
+            .unwrap()
+            .into_iter()
+            .map(|e| e.name)
+            .collect();
+        assert_eq!(names, vec!["main.rs"]);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn list_dir_黑名单按类型匹配() {
+        // 名为 .git 的文件、名为 .DS_Store 的目录不在黑名单语义内,必须保留。
+        let root = temp_root("skip-type");
+        fs::write(root.join(".git"), "not-a-dir").unwrap();
+        fs::create_dir_all(root.join(".DS_Store")).unwrap();
+
+        let entries = list_dir(root.to_str().unwrap()).unwrap();
+        let dirs: Vec<&str> = entries
+            .iter()
+            .filter(|e| e.is_dir)
+            .map(|e| e.name.as_str())
+            .collect();
+        let files: Vec<&str> = entries
+            .iter()
+            .filter(|e| !e.is_dir)
+            .map(|e| e.name.as_str())
+            .collect();
+
+        assert_eq!(dirs, vec![".DS_Store"]);
+        assert_eq!(files, vec![".git"]);
+        let _ = fs::remove_dir_all(&root);
+    }
+    #[test]
+    fn remove_file_删除存在文件且对缺失文件幂等() {
+        let root = temp_root("remove");
+        let target = root.join("session.jsonl");
+        fs::write(&target, "{}\n").unwrap();
+
+        // 存在的文件:删除成功且确实消失
+        remove_file(target.to_str().unwrap()).unwrap();
+        assert!(!target.exists());
+        // 再删一次(竞态/重试语义):NotFound 幂等成功,不得报错
+        remove_file(target.to_str().unwrap()).unwrap();
+        let _ = fs::remove_dir_all(&root);
+    }
 }

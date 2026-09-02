@@ -56,3 +56,6 @@ Cargo.lock
 .vite/
 .tsbuildinfo
 .mossx
+# Ignore all dot-directories (exceptions above stay valid via re-include below)
+.*/
+!/.vscode/

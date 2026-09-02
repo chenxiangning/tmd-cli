@@ -73,6 +73,15 @@ class Host implements PluginContext {
   private lastActivityAt = new Map<string, number>();
   /** 呼吸灯 notify 节流记录。 */
   private lastActivityNotify = new Map<string, number>();
+  /**
+   * 完成未读集合:一轮对话结束(输出静默 >2s)且当时未被查看 → 列表蓝呼吸 + 组内置顶;
+   * 点开查看(setActiveSession)即清。纯内存态,随 PTY 消亡。
+   */
+  private unreadSessions = new Set<string>();
+  /** 进行中的对话轮次:appendOutput 进站,活动守望(1Hz)判静默超时后出站结算。 */
+  private activeTurns = new Set<string>();
+  /** 活动守望计时器:无进行中轮次时停表(与共享 tick 同策略,0 订阅不空转)。 */
+  private activityTimer: number | null = null;
 
   // ---- PluginContext 实现 -------------------------------------------------
 
@@ -305,10 +314,53 @@ class Host implements PluginContext {
 
     const now = Date.now();
     this.lastActivityAt.set(sessionId, now);
+    /* 新输出 = 轮次进行中;若此前是完成未读,回到绿呼吸(蓝 --新输出--> 绿) */
+    this.activeTurns.add(sessionId);
+    this.unreadSessions.delete(sessionId);
+    this.ensureActivityWatch();
     // 呼吸灯节流：每会话 500ms 最多触发一次外壳重渲染
     if (now - (this.lastActivityNotify.get(sessionId) ?? 0) > 500) {
       this.lastActivityNotify.set(sessionId, now);
       this.notify();
+    }
+  }
+
+  /** 完成未读判定(会话列表蓝呼吸灯)。 */
+  isUnread(sessionId: string): boolean {
+    return this.unreadSessions.has(sessionId);
+  }
+
+  /**
+   * 活动守望:1Hz 结算轮次 —— 静默 >2s = 一轮对话结束;
+   * 结束时未被查看(≠ activeSessionId)才标未读,正在看的会话完成不打扰。
+   * 无进行中轮次即停表;有状态变化才 notify。
+   */
+  private ensureActivityWatch(): void {
+    if (this.activityTimer !== null) return;
+    this.activityTimer = setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+      for (const id of [...this.activeTurns]) {
+        if (now - (this.lastActivityAt.get(id) ?? 0) <= 2000) continue;
+        this.activeTurns.delete(id);
+        if (id !== this.activeSessionId && this.sessions.some((s) => s.id === id)) {
+          this.unreadSessions.add(id);
+        }
+        changed = true;
+      }
+      if (this.activeTurns.size === 0 && this.activityTimer !== null) {
+        clearInterval(this.activityTimer);
+        this.activityTimer = null;
+      }
+      if (changed) this.notify();
+    }, 1000);
+  }
+
+  /** 测试专用:假时钟换届时重置活动守望(与 resetStatusTimerForTest 同因)。 */
+  resetActivityWatchForTest(): void {
+    if (this.activityTimer !== null) {
+      clearInterval(this.activityTimer);
+      this.activityTimer = null;
     }
   }
 
@@ -389,6 +441,8 @@ class Host implements PluginContext {
   setActiveSession(id: string | null): void {
     if (this.activeSessionId === id) return;
     this.activeSessionId = id;
+    /* 点开查看 = 已读:清完成未读标记(蓝 → 灰) */
+    if (id) this.unreadSessions.delete(id);
     this.events.emit(KernelTopics.activeSessionChanged, id);
     if (id) {
       this.ensureStatusPolling();
@@ -406,6 +460,8 @@ class Host implements PluginContext {
     this.outputBuffers.delete(id);
     this.lastActivityAt.delete(id);
     this.lastActivityNotify.delete(id);
+    this.unreadSessions.delete(id);
+    this.activeTurns.delete(id);
     if (this.activeSessionId === id) {
       this.activeSessionId = this.sessions[0]?.id ?? null;
     }

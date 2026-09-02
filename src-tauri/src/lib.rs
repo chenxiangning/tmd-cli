@@ -159,6 +159,10 @@ fn fs_read_head(path: String, max_bytes: usize) -> Result<String, String> {
 fn fs_read_tail(path: String, max_bytes: usize) -> Result<String, String> {
     fs::read_tail(&path, max_bytes)
 }
+#[tauri::command]
+fn fs_remove_file(path: String) -> Result<(), String> {
+    fs::remove_file(&path)
+}
 
 /// 平台标识兜底:UA 探测失败时前端经此取真实 OS("macos"/"windows"/"linux")。
 #[tauri::command]
@@ -272,6 +276,7 @@ pub fn run() {
             fs_collect_files,
             fs_read_head,
             fs_read_tail,
+            fs_remove_file,
             read_local_image_data_url,
             git_status,
             quota::quota_fetch,

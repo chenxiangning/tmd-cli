@@ -1,4 +1,9 @@
 import { readJsonlSessionStatus } from "../cli-shared/sessionStatus";
+import {
+  findJsonlSessionFile,
+  ompPiUserMessageLine,
+  readUserMessagesFromFile,
+} from "../cli-shared/userMessages";
 import { readOmpDefaultStatus } from "./configStatus";
 import { registerOmpQuotaProvider } from "./quota";
 import { ipc } from "@kernel/ipc";
@@ -70,6 +75,13 @@ async function readOmpSessionStatus(cwd: string, cliSessionId: string) {
   if (!dir) return null;
   return readJsonlSessionStatus(dir, cliSessionId, ["model"]);
 }
+async function readOmpUserMessages(cwd: string, cliSessionId: string, full: boolean) {
+  const dir = await ompSessionsDir(cwd);
+  if (!dir) return null;
+  const path = await findJsonlSessionFile(dir, cliSessionId);
+  if (!path) return null;
+  return readUserMessagesFromFile(path, full, ompPiUserMessageLine);
+}
 
 /**
  * omp CLI 插件（CLI 能力矩阵调研结论）：
@@ -114,6 +126,7 @@ export const cliOmpPlugin: Plugin = {
       listSessions: listOmpSessions,
       readSessionStatus: readOmpSessionStatus,
       readDefaultStatus: readOmpDefaultStatus,
+      readSessionUserMessages: readOmpUserMessages,
     });
   },
 };

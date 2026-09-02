@@ -43,6 +43,13 @@ export interface CliSessionStatus {
   model?: string;
   thinkingLevel?: string;
 }
+/** 会话文件中的一条真实用户输入 —— 对话锚点栏的数据单元。 */
+export interface CliUserMessage {
+  /** CLI 消息 id(omp/pi 的 message id、claude 的 uuid、codex 的 payload id),跨增量窗口去重用。 */
+  id: string;
+  /** 完整文本:预览卡内容与幕布定位 needle 的共同来源。 */
+  text: string;
+}
 
 /**
  * 触发器补全 UI 候选项 —— 给 composer 下拉显示用,不在协议里走。
@@ -89,6 +96,17 @@ export interface CliProfile {
     cwd: string,
     cliSessionId: string,
   ) => Promise<CliSessionStatus | null>;
+  /**
+   * 读取会话文件中的用户消息列表(对话锚点栏数据源),只读且可缺省。
+   * full = true 要求全量扫描(会话激活首轮);false 允许尾部窗口增量读。
+   * 返回窗口内全部用户消息(按文件顺序);跨窗口去重由内核按 id 完成。
+   * 缺省 = 该 CLI 不支持锚点栏。
+   */
+  readSessionUserMessages?: (
+    cwd: string,
+    cliSessionId: string,
+    full: boolean,
+  ) => Promise<CliUserMessage[] | null>;
   /**
    * 读取该 CLI 的默认模型与思考强度(配置层,非会话层)。
    * 用途:全新会话创建即赋值 —— 磁盘会话文件要等首条消息才落盘(实证 omp),

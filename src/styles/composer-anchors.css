@@ -1,0 +1,169 @@
+/* ──────────────────────────────────────────────────────────
+ * composer 对话锚点栏 —— 右缘竖向 dash 导航(数值逐一对齐 codemoss
+ * MessagesAnchorRail:messages.status-shell.css)。
+ *
+ * 跟手设计:
+ * - rail 本体 pointer-events:none,只有 dash 行可点 —— 不挡 composer 文本选择;
+ * - dash 按钮铺满行宽(40×10),视觉短线是 ::before 伪元素;
+ * - hover 邻近渐变 is-proximity-0..3 = 32/26/22/18px(codemoss 原值);
+ * - active = 亮白(--tmd-fg,codemoss text-strong 同位),非 accent。
+ * 全部色值吃 --tmd-* token,随主题 preset 联动。
+ * ────────────────────────────────────────────────────────── */
+
+.composer-anchor-rail {
+  position: absolute;
+  right: 0;
+  top: 34px;
+  bottom: 10px;
+  width: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  align-items: flex-end;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.composer-anchor-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 10px;
+  flex: none;
+  pointer-events: auto;
+}
+
+/* 命中区 40×10;视觉线右对齐,右端留 6px 边 */
+.composer-anchor-dash {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 40px;
+  height: 10px;
+  margin: 0;
+  padding: 0 6px 0 0;
+  border: 0;
+  border-radius: var(--tmd-radius-sm);
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.composer-anchor-dash::before {
+  content: "";
+  display: block;
+  width: 9px;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tmd-fg-faint) 54%, transparent);
+  transition:
+    width 0.16s ease,
+    background-color 0.16s ease;
+}
+
+/* hover 邻近渐变(codemoss proximity 原值):0=32 1=26 2=22 3=18 */
+.is-proximity-3 .composer-anchor-dash::before {
+  width: 18px;
+}
+
+.is-proximity-2 .composer-anchor-dash::before {
+  width: 22px;
+}
+
+.is-proximity-1 .composer-anchor-dash::before {
+  width: 26px;
+}
+
+.is-proximity-0 .composer-anchor-dash::before,
+.composer-anchor-dash:hover::before,
+.composer-anchor-dash:focus-visible::before {
+  width: 32px;
+  background: color-mix(in srgb, var(--tmd-fg-muted) 78%, transparent);
+}
+
+.composer-anchor-dash:focus-visible {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tmd-accent) 42%, transparent);
+}
+
+/* 当前视口锚点:亮白(codemoss text-strong 同位) */
+.composer-anchor-dash.is-active::before,
+.composer-anchor-dash.is-active:hover::before,
+.composer-anchor-dash.is-active:focus-visible::before {
+  background: var(--tmd-fg);
+}
+
+/* 跳转失败(消息未进幕布 buffer):短暂闪烁提示 */
+.composer-anchor-dash.is-miss::before {
+  animation: composer-anchor-miss 1.2s ease;
+}
+
+@keyframes composer-anchor-miss {
+  0%,
+  60% {
+    opacity: 0.25;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* 预览卡:portal 挂 body,fixed 定位浮出 composer 顶缘;
+   常驻单卡 —— hover 在 dash 间移动时只滑位置/换内容,不卸载重挂(不闪) */
+.composer-anchor-preview {
+  position: fixed;
+  display: grid;
+  gap: 6px;
+  width: 340px;
+  padding: 10px 12px;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-lg);
+  background: var(--tmd-bg-popover);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 90;
+  font-family: inherit;
+  transition: top 0.12s ease;
+  animation: composer-anchor-preview-in 0.14s ease;
+}
+
+@keyframes composer-anchor-preview-in {
+  from {
+    opacity: 0;
+    margin-right: -2px;
+  }
+}
+
+.composer-anchor-preview-title {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--tmd-fg);
+  font-size: var(--tmd-font-ui);
+  font-weight: 650;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.composer-anchor-preview-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--tmd-fg-muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-anchor-dash::before,
+  .composer-anchor-preview {
+    transition: none !important;
+    animation: none !important;
+  }
+}

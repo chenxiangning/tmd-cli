@@ -28,6 +28,7 @@ import { SuggestionList } from "./SuggestionList";
 import { shouldSendOnEnter } from "./enterAction";
 import { useActiveProfile } from "../state/useActiveProfile";
 import { AttachmentStrip } from "./AttachmentStrip";
+import { AnchorRail } from "./AnchorRail";
 import {
   addAttachment,
   classifyAttachment,
@@ -258,7 +259,7 @@ export function Composer() {
           placeholder={settings.sendShortcut === "cmdOrCtrlEnter"
             ? "输入消息，⌘/Ctrl+回车发送，回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。"
             : "输入消息，回车发送，Shift+回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。"}
-          className="min-h-0 flex-1 resize-none bg-transparent p-0 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint)"
+          className="min-h-0 flex-1 resize-none bg-transparent p-0 pr-10 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint)"
           onChange={(e) => {
             setValue(e.target.value);
             setCursor(e.target.selectionStart);
@@ -303,6 +304,8 @@ export function Composer() {
           }}
           onPaste={handlePaste}
         />
+        {/* 对话锚点栏:右缘 dash 导航,数据/跳转走 kernel messageAnchors */}
+        <AnchorRail />
       </div>
       {previewSrc && (
         <div

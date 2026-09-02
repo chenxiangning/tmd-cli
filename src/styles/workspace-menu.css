@@ -97,6 +97,25 @@
 .wsmenu-item.is-danger {
   color: var(--danger-strong);
 }
+/* 会话行右键菜单:比新建会话菜单窄(仅 3 项操作) */
+.wsmenu.session-menu {
+  min-width: 180px;
+}
+
+.wsmenu-item:disabled {
+  color: var(--tmd-fg-faint);
+  cursor: default;
+}
+
+.wsmenu-item:disabled:hover {
+  background: transparent;
+}
+
+/* 删除两步确认:武装态整项反色,与悬停态明确区分 */
+.wsmenu-item.is-danger.is-armed {
+  background: var(--danger-strong);
+  color: var(--tmd-accent-fg);
+}
 
 .wsmenu-item-icon {
   width: 14px;
@@ -157,4 +176,82 @@
   to {
     transform: rotate(360deg);
   }
+}
+/* ===== 会话列表显示预算弹窗(caption icon 入口) ===== */
+.wsbudget {
+  /* 同 .wsmenu:portal 挂到 body,跳出 .ws-sidebar 作用域,调色板变量需重声明 */
+  --text-muted: var(--tmd-fg-muted);
+  --border-quiet: var(--tmd-border);
+
+  position: fixed;
+  z-index: 1201;
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  max-height: min(70vh, 480px);
+  overflow-y: auto;
+  padding-bottom: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--border-quiet);
+  /* bg-popover:浮层专用 token(dark #313131 提亮浮起 / light #ffffff);
+     elevated 在 dark 比 base 还暗,弹窗会"陷进"背景 */
+  background: var(--tmd-bg-popover, var(--tmd-bg-elevated));
+  /* 容器兜底文字色:pref-title 等只设字重不设色,portal 到 body 后
+     继承不到 sidebar 作用域色,dark 下会黑底黑字 */
+  color: var(--tmd-fg);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.18),
+    0 1px 4px rgba(0, 0, 0, 0.1);
+  scrollbar-width: none;
+}
+
+.wsbudget::-webkit-scrollbar {
+  display: none;
+}
+
+.wsbudget-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 4px;
+}
+
+.wsbudget-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tmd-fg);
+}
+
+.wsbudget-close {
+  display: flex;
+  align-items: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.wsbudget-close:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+/* 弹窗内 pref-row 更紧凑(设置面板里是 14px/16px 卡片语境) */
+.wsbudget .pref-row {
+  padding: 10px 16px;
+  gap: 16px;
+}
+
+.wsbudget .pref-row + .pref-row {
+  border-top: none;
+}
+
+.wsbudget .pref-desc {
+  font-size: 12px;
+}
+/* 输入框比浮层低一级:bg-popover 与 bg-input 在 dark 同为 #313131,
+   不换 sunken 输入框会隐形;light 下白浮层 + 浅灰输入框同样有层次 */
+.wsbudget input {
+  background: var(--tmd-bg-sunken);
 }
