@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>tmd-cli 插件市场原型 — 插排</title>
+<style>
+  /* ═══════════════════════════════════════════════════════
+     全部颜色来自 design-tokens.md 的 --tmd-* 变量。
+     默认 light/dark 由 data-theme 静态给出。
+     ═══════════════════════════════════════════════════════ */
+  :root[data-theme="light"] {
+    --tmd-bg-base: #ffffff; --tmd-bg-elevated: #f8f8f8; --tmd-bg-sunken: #f8f8f8;
+    --tmd-bg-hover: #f2f2f2; --tmd-bg-active: rgba(0,95,184,.14);
+    --tmd-bg-input: #ffffff; --tmd-bg-popover: #f8f8f8;
+    --tmd-fg: #3b3b3b; --tmd-fg-muted: #6e6e6e; --tmd-fg-subtle: #8a8a8a; --tmd-fg-faint: #a6a6a6;
+    --tmd-border: #cecece; --tmd-border-strong: #a3a3a3;
+    --tmd-accent: #005fb8; --tmd-accent-fg: #ffffff; --tmd-accent-soft: rgba(0,95,184,.14);
+  }
+  :root[data-theme="dark"] {
+    --tmd-bg-base: #1f1f1f; --tmd-bg-elevated: #181818; --tmd-bg-sunken: #181818;
+    --tmd-bg-hover: #2a2a2a; --tmd-bg-active: rgba(0,122,204,.24);
+    --tmd-bg-input: #313131; --tmd-bg-popover: #252526;
+    --tmd-fg: #cccccc; --tmd-fg-muted: #9d9d9d; --tmd-fg-subtle: #7a7a7a; --tmd-fg-faint: #585858;
+    --tmd-border: #3c3c3c; --tmd-border-strong: #555555;
+    --tmd-accent: #007acc; --tmd-accent-fg: #ffffff; --tmd-accent-soft: rgba(0,122,204,.24);
+  }
+  :root {
+    --tmd-font-ui: 12px; --tmd-font-title: 20px;
+    --tmd-radius-sm: 6px; --tmd-radius-md: 8px; --tmd-radius-lg: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    font: var(--tmd-font-ui)/1.5 -apple-system, "PingFang SC", "Segoe UI", sans-serif;
+    background: var(--tmd-bg-base);
+    color: var(--tmd-fg);
+    overflow-x: hidden;
+  }
+  button { font: inherit; color: inherit; }
+
+  /* ── 顶栏 mock:演示新 icon 位置(左区:折叠侧栏 | 插件市场 | 回到首页) ── */
+  .titlebar-mock {
+    height: 33px; display: flex; align-items: center; gap: 2px;
+    background: var(--tmd-bg-sunken);
+    border-bottom: 1px solid var(--tmd-border);
+    padding: 0 12px 0 78px; /* macOS 红绿灯 inset */
+  }
+  .titlebar-action {
+    width: 26px; height: 22px; display: grid; place-items: center;
+    background: none; border: none; border-radius: var(--tmd-radius-sm);
+    color: var(--tmd-fg-muted); cursor: pointer;
+  }
+  .titlebar-action:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+  .titlebar-action.is-new { color: var(--tmd-accent); }
+  .titlebar-hint {
+    margin-left: 8px; color: var(--tmd-fg-subtle); font-size: 11px;
+  }
+
+  /* ── 页面骨架 ── */
+  .page { max-width: 1280px; margin: 0 auto; padding: 28px 24px 80px; }
+  .page-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  .page-title { font-size: var(--tmd-font-title); font-weight: 600; }
+  .page-sub { color: var(--tmd-fg-muted); }
+  .head-actions { margin-left: auto; display: flex; gap: 8px; }
+  .ghost-btn {
+    padding: 4px 10px; border: 1px solid var(--tmd-border);
+    border-radius: var(--tmd-radius-sm); background: none; cursor: pointer;
+    color: var(--tmd-fg-muted);
+  }
+  .ghost-btn:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+
+  /* ═══ 插排(客户端本体) ═══ */
+  .strip-scene {
+    position: relative;
+    margin: 56px 0 8px;
+    padding: 64px 0 0; /* 给拔起的插头留上方空间 */
+  }
+  .strip {
+    position: relative;
+    display: flex; align-items: stretch; gap: 8px;
+    padding: 14px 14px;
+    background: var(--tmd-bg-elevated);
+    border: 1px solid var(--tmd-border-strong);
+    border-radius: var(--tmd-radius-lg);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.04),
+      0 8px 24px rgba(0,0,0,.28);
+    overflow-x: auto;
+  }
+  /* 市电电缆:插排右端接出 */
+  .strip::after {
+    content: ""; position: absolute; right: -34px; top: 50%;
+    width: 34px; height: 6px; margin-top: -3px;
+    background: var(--tmd-border-strong);
+    border-radius: 0 3px 3px 0;
+  }
+  .strip-brand {
+    flex: 0 0 auto; display: flex; flex-direction: column;
+    justify-content: center; gap: 6px;
+    padding: 0 14px 0 4px; border-right: 1px dashed var(--tmd-border);
+  }
+  .strip-brand .name { font-weight: 600; font-size: 13px; }
+  .strip-brand .role { color: var(--tmd-fg-subtle); font-size: 11px; }
+  .master-row { display: flex; align-items: center; gap: 8px; }
+  .master-led {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--tmd-accent);
+    box-shadow: 0 0 6px 1px var(--tmd-accent);
+  }
+  .master-label { color: var(--tmd-fg-subtle); font-size: 11px; }
+
+  /* 插座单元:孔位 + 插头 */
+  .outlet {
+    position: relative; flex: 0 0 auto;
+    width: 96px; padding: 0 4px 6px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  /* 插头:绝对定位于插座上方,可上下滑动(插拔) */
+  .plug {
+    position: absolute; left: 50%; bottom: 34px;
+    transform: translateX(-50%);
+    width: 84px;
+    display: flex; flex-direction: column; align-items: center;
+    cursor: pointer; user-select: none;
+    transition: transform .22s cubic-bezier(.34,1.56,.64,1), opacity .22s, filter .22s;
+    z-index: 2;
+  }
+  .plug-body {
+    width: 84px; padding: 8px 6px 7px;
+    background: var(--tmd-bg-popover);
+    border: 1px solid var(--tmd-border-strong);
+    border-radius: var(--tmd-radius-md);
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25);
+    position: relative;
+  }
+  .plug-icon {
+    width: 26px; height: 26px; border-radius: var(--tmd-radius-sm);
+    display: grid; place-items: center;
+    font-size: 10px; font-weight: 700; letter-spacing: .5px;
+    background: var(--tmd-accent-soft); color: var(--tmd-accent);
+  }
+  .plug-name { font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .plug-led {
+    position: absolute; top: 5px; right: 5px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--tmd-accent);
+    box-shadow: 0 0 5px 1px var(--tmd-accent);
+  }
+  /* 插脚:插入时没入插座,拔出时完整露出 */
+  .prongs { display: flex; gap: 12px; height: 14px; overflow: hidden; }
+  .prong {
+    width: 5px; height: 14px;
+    background: var(--tmd-fg-faint);
+    border-radius: 0 0 2px 2px;
+  }
+  /* 电线:从插头背部向上走 */
+  .cord {
+    position: absolute; left: 50%; bottom: calc(100% - 6px);
+    width: 60px; height: 46px; transform: translateX(-50%);
+    pointer-events: none; overflow: visible;
+  }
+  .cord path {
+    fill: none; stroke: var(--tmd-border-strong); stroke-width: 3;
+    stroke-linecap: round;
+  }
+
+  /* 拔出态:上浮 + 微倾 + 变暗 + LED 熄灭 */
+  .outlet.is-out .plug {
+    transform: translateX(-50%) translateY(-34px) rotate(-4deg);
+    opacity: .55; filter: saturate(.4);
+  }
+  .outlet.is-out .plug-led { background: var(--tmd-fg-faint); box-shadow: none; }
+  .outlet.is-out .plug-icon { background: var(--tmd-bg-hover); color: var(--tmd-fg-subtle); }
+
+  /* 焊死的核心插件 */
+  .outlet.is-core .plug { cursor: not-allowed; }
+  .plug-weld {
+    position: absolute; top: 5px; left: 5px;
+    color: var(--tmd-fg-subtle); display: grid; place-items: center;
+  }
+  .outlet.is-core .plug:hover { animation: weld-shake .3s; }
+  @keyframes weld-shake {
+    25% { transform: translateX(calc(-50% - 2px)); }
+    75% { transform: translateX(calc(-50% + 2px)); }
+  }
+
+  /* 插座孔位面板 */
+  .socket {
+    margin-top: 96px; /* 插头座下后的贴面位置 */
+    width: 100%; height: 30px;
+    background: var(--tmd-bg-sunken);
+    border: 1px solid var(--tmd-border);
+    border-radius: var(--tmd-radius-sm);
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.35);
+  }
+  .socket-hole {
+    width: 5px; height: 12px; border-radius: 2px;
+    background: var(--tmd-bg-base);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.6);
+  }
+  .outlet-label {
+    margin-top: 5px; font-size: 10px; color: var(--tmd-fg-faint);
+    white-space: nowrap;
+  }
+  .outlet.is-dirty .outlet-label { color: var(--tmd-accent); }
+
+  .strip-caption {
+    margin-top: 10px; color: var(--tmd-fg-subtle); font-size: 11px;
+    display: flex; gap: 16px; flex-wrap: wrap;
+  }
+  .legend-dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    margin-right: 5px; vertical-align: 1px;
+  }
+
+  /* ═══ 插件清单(管理视图) ═══ */
+  .section-title {
+    margin: 40px 0 12px; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title .count { color: var(--tmd-fg-subtle); font-weight: 400; }
+  .card-grid {
+    display: grid; gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+  .plugin-card {
+    display: flex; gap: 10px; padding: 12px;
+    background: var(--tmd-bg-elevated);
+    border: 1px solid var(--tmd-border);
+    border-radius: var(--tmd-radius-md);
+  }
+  .plugin-card.is-out { opacity: .6; }
+  .pc-icon {
+    flex: 0 0 auto; width: 32px; height: 32px;
+    border-radius: var(--tmd-radius-sm);
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 700;
+    background: var(--tmd-accent-soft); color: var(--tmd-accent);
+  }
+  .plugin-card.is-out .pc-icon { background: var(--tmd-bg-hover); color: var(--tmd-fg-subtle); }
+  .pc-main { flex: 1; min-width: 0; }
+  .pc-name { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .pc-id { color: var(--tmd-fg-faint); font-size: 10px; font-family: ui-monospace, monospace; }
+  .pc-desc { color: var(--tmd-fg-muted); margin-top: 2px; min-height: 32px; }
+  .pc-foot { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .badge {
+    padding: 1px 6px; border-radius: 99px; font-size: 10px;
+    border: 1px solid var(--tmd-border); color: var(--tmd-fg-subtle);
+  }
+  .badge.dirty { color: var(--tmd-accent); border-color: var(--tmd-accent); }
+  .badge.core { color: var(--tmd-fg-muted); }
+  .toggle-btn {
+    margin-left: auto; padding: 2px 10px;
+    border-radius: 99px; border: 1px solid var(--tmd-border-strong);
+    background: none; cursor: pointer; color: var(--tmd-fg-muted);
+  }
+  .toggle-btn:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+  .toggle-btn.on { background: var(--tmd-accent); border-color: var(--tmd-accent); color: var(--tmd-accent-fg); }
+  .toggle-btn:disabled { opacity: .45; cursor: not-allowed; background: none; color: var(--tmd-fg-faint); }
+
+  /* ═══ 在线市场(预留) ═══ */
+  .market-soon {
+    margin-top: 12px; padding: 28px;
+    border: 1px dashed var(--tmd-border-strong);
+    border-radius: var(--tmd-radius-lg);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    color: var(--tmd-fg-subtle); text-align: center;
+  }
+  .market-soon .title { font-weight: 600; color: var(--tmd-fg-muted); font-size: 13px; }
+  .soon-btn {
+    margin-top: 6px; padding: 4px 14px;
+    border-radius: var(--tmd-radius-sm); border: 1px solid var(--tmd-border);
+    background: none; color: var(--tmd-fg-faint); cursor: not-allowed;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; left: 50%; bottom: 28px;
+    transform: translateX(-50%) translateY(20px);
+    padding: 7px 16px;
+    background: var(--tmd-bg-popover);
+    border: 1px solid var(--tmd-border-strong);
+    border-radius: var(--tmd-radius-md);
+    box-shadow: 0 6px 20px rgba(0,0,0,.35);
+    opacity: 0; transition: opacity .2s, transform .2s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- 顶栏 mock:插件市场 icon 位于「折叠侧栏」与「回到首页」之间 -->
+<div class="titlebar-mock">
+  <button class="titlebar-action" title="收起左栏" aria-label="收起左栏">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9-2 3 2 3"/></svg>
+  </button>
+  <button class="titlebar-action is-new" title="插件市场" aria-label="插件市场">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg>
+  </button>
+  <button class="titlebar-action" title="回到首页" aria-label="回到首页">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+  </button>
+  <span class="titlebar-hint">← 新增「插件市场」入口(蓝色),位于回到首页左侧</span>
+</div>
+
+<div class="page">
+  <div class="page-head">
+    <span class="page-title">插件市场</span>
+    <span class="page-sub">客户端是插排,插件是插头 —— 插上即用,拔掉即停</span>
+    <div class="head-actions">
+      <button class="ghost-btn" id="themeBtn">切换 light</button>
+    </div>
+  </div>
+
+  <!-- ═══ 插排场景 ═══ -->
+  <div class="strip-scene">
+    <div class="strip" id="strip">
+      <div class="strip-brand">
+        <div class="name">tmd-cli</div>
+        <div class="role">客户端 · 插排本体</div>
+        <div class="master-row">
+          <span class="master-led"></span>
+          <span class="master-label">总电源常开</span>
+        </div>
+      </div>
+      <!-- outlets 由 JS 渲染 -->
+    </div>
+  </div>
+  <div class="strip-caption">
+    <span><span class="legend-dot" style="background:var(--tmd-accent)"></span>已插入(运行中)</span>
+    <span><span class="legend-dot" style="background:var(--tmd-fg-faint)"></span>已拔出(重启后生效)</span>
+    <span>🔒 焊死的核心插件不可拔</span>
+    <span>点击插头即可插拔</span>
+  </div>
+
+  <!-- ═══ 插件清单 ═══ -->
+  <div class="section-title">插件清单 <span class="count" id="listCount"></span></div>
+  <div class="card-grid" id="cardGrid"></div>
+
+  <!-- ═══ 在线市场(预留) ═══ -->
+  <div class="section-title">在线市场</div>
+  <div class="market-soon">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    <div class="title">远程插件市场 · 建设中</div>
+    <div>未来可在此浏览、安装社区插件包 —— 新插头直接快递到你的插排</div>
+    <button class="soon-btn" disabled>即将上线</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  /* 插件元数据:与 src/plugins/index.ts 清单一一对应 */
+  const PLUGINS = [
+    { id: "cli-omp",    name: "OMP",          abbr: "OM", desc: "OMP CLI 引擎:会话扫描、配额、状态",        core: false, on: true  },
+    { id: "cli-pi",     name: "Pi",           abbr: "PI", desc: "Pi CLI 引擎:会话扫描、配额、状态",         core: false, on: true  },
+    { id: "cli-codex",  name: "Codex CLI",    abbr: "CX", desc: "Codex CLI 引擎:rollout 扫描、配额",        core: false, on: true  },
+    { id: "cli-claude", name: "Claude Code",  abbr: "CC", desc: "Claude Code 引擎:项目会话、skill 提示",    core: false, on: true  },
+    { id: "workspace",  name: "工作区",        abbr: "WK", desc: "左侧栏工作区/会话列表与菜单",              core: false, on: true  },
+    { id: "files",      name: "文件预览",      abbr: "FL", desc: "文件树、Markdown 预览、代码高亮",          core: false, on: true  },
+    { id: "git",        name: "Git",          abbr: "GT", desc: "Git 状态与面板集成",                       core: false, on: true  },
+    { id: "composer",   name: "输入区",        abbr: "CP", desc: "Composer:富文本输入、附件、建议",          core: true,  on: true  },
+    { id: "settings",   name: "设置",          abbr: "ST", desc: "设置面板与主题/行为配置",                  core: true,  on: true  },
+    { id: "welcome",    name: "欢迎页",        abbr: "WL", desc: "无会话首页:引擎卡片、凭据、最近会话",       core: true,  on: true  },
+  ];
+  /* now = 当前期望状态(可能与 on 启动态不同 → dirty,重启后生效) */
+  PLUGINS.forEach(p => p.now = p.on);
+
+  const strip = document.getElementById("strip");
+  const grid = document.getElementById("cardGrid");
+  const toast = document.getElementById("toast");
+  let toastTimer = 0;
+
+  function showToast(text) {
+    toast.textContent = text;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+  }
+
+  const lockSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+
+  function renderStrip() {
+    strip.querySelectorAll(".outlet").forEach(n => n.remove());
+    for (const p of PLUGINS) {
+      const dirty = p.now !== p.on;
+      const outlet = document.createElement("div");
+      outlet.className = "outlet"
+        + (p.now ? "" : " is-out")
+        + (p.core ? " is-core" : "")
+        + (dirty ? " is-dirty" : "");
+      outlet.innerHTML = `
+        <div class="plug" title="${p.core ? "核心插件 · 已焊死,不可拔出" : (p.now ? "点击拔出 " + p.id : "点击插入 " + p.id)}">
+          <svg class="cord" viewBox="0 0 60 46"><path d="M30 46 C 30 20, ${p.now ? 18 : 44} 26, 30 -6"/></svg>
+          <div class="plug-body">
+            ${p.core ? `<span class="plug-weld" title="核心插件">${lockSvg}</span>` : ""}
+            <span class="plug-led"></span>
+            <span class="plug-icon">${p.abbr}</span>
+            <span class="plug-name">${p.name}</span>
+          </div>
+          <div class="prongs"><span class="prong"></span><span class="prong"></span></div>
+        </div>
+        <div class="socket"><span class="socket-hole"></span><span class="socket-hole"></span></div>
+        <div class="outlet-label">${p.id}${dirty ? " · 待重启" : ""}</div>`;
+      outlet.querySelector(".plug").addEventListener("click", () => toggle(p.id));
+      strip.appendChild(outlet);
+    }
+  }
+
+  function renderGrid() {
+    grid.innerHTML = "";
+    let onCount = 0;
+    for (const p of PLUGINS) {
+      if (p.now) onCount++;
+      const dirty = p.now !== p.on;
+      const card = document.createElement("div");
+      card.className = "plugin-card" + (p.now ? "" : " is-out");
+      card.innerHTML = `
+        <div class="pc-icon">${p.abbr}</div>
+        <div class="pc-main">
+          <div class="pc-name">${p.name} <span class="pc-id">${p.id}</span></div>
+          <div class="pc-desc">${p.desc}</div>
+          <div class="pc-foot">
+            ${p.core ? `<span class="badge core">核心 · 焊死</span>` : ""}
+            ${dirty ? `<span class="badge dirty">重启后生效</span>` : ""}
+            <button class="toggle-btn ${p.now ? "on" : ""}" ${p.core ? "disabled" : ""}>
+              ${p.core ? "常插" : (p.now ? "拔出" : "插入")}
+            </button>
+          </div>
+        </div>`;
+      card.querySelector(".toggle-btn").addEventListener("click", () => toggle(p.id));
+      grid.appendChild(card);
+    }
+    document.getElementById("listCount").textContent = `${onCount}/${PLUGINS.length} 已插入`;
+  }
+
+  function toggle(id) {
+    const p = PLUGINS.find(x => x.id === id);
+    if (!p || p.core) return;
+    p.now = !p.now;
+    showToast(p.now
+      ? `已插入 ${p.id} —— 重启后生效`
+      : `已拔出 ${p.id} —— 重启后从插排断电`);
+    renderStrip();
+    renderGrid();
+  }
+
+  /* 主题切换(原型演示用) */
+  document.getElementById("themeBtn").addEventListener("click", (e) => {
+    const html = document.documentElement;
+    const next = html.dataset.theme === "dark" ? "light" : "dark";
+    html.dataset.theme = next;
+    e.target.textContent = `切换 ${next === "dark" ? "light" : "dark"}`;
+  });
+
+  renderStrip();
+  renderGrid();
+</script>
+</body>
+</html>
