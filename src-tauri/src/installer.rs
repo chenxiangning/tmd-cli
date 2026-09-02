@@ -2,7 +2,7 @@
 //!
 //! 设计决策(照抄 codemoss installer 的策略矩阵,但砍到只剩"安装最新版"):
 //! - claude:官方 native 安装器(unix `curl -fsSL ... | bash`;Windows PowerShell irm|iex);
-//! - codex/omp/pi/grok:npm 全局安装(`npm install -g <pkg>@latest`);
+//! - codex/omp/pi/grok/qodercli/qoderclicn:npm 全局安装(`npm install -g <pkg>@latest`);
 //! - 进度语义:npm/curl 都无离散百分比 → 前端用 indeterminate 进度条 + 本模块的流式日志。
 //!
 //! 事件协议(Tauri event,topic = `cli-install://{engine}`):
@@ -23,7 +23,7 @@ use crate::resolve::enriched_path;
 /// 安装超时(秒)。npm 全局安装在慢网络下分钟级;对齐 codemoss INSTALL_TIMEOUT_SECS。
 const INSTALL_TIMEOUT_SECS: u64 = 300;
 
-/// 安装引擎(前端按 camelCase 传: "claude" | "codex" | "omp" | "pi" | "kimi" | "grok")。
+/// 安装引擎(前端按 camelCase 传: "claude" | "codex" | "omp" | "pi" | "kimi" | "grok" | "qodercli" | "qoderclicn")。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CliInstallEngine {
@@ -33,6 +33,8 @@ pub enum CliInstallEngine {
     Pi,
     Kimi,
     Grok,
+    Qodercli,
+    Qoderclicn,
 }
 
 impl CliInstallEngine {
@@ -44,6 +46,8 @@ impl CliInstallEngine {
             Self::Pi => "pi",
             Self::Kimi => "kimi",
             Self::Grok => "grok",
+            Self::Qodercli => "qodercli",
+            Self::Qoderclicn => "qoderclicn",
         }
     }
 }
@@ -64,6 +68,8 @@ fn npm_package(engine: CliInstallEngine) -> &'static str {
         CliInstallEngine::Pi => "@earendil-works/pi-coding-agent@latest",
         CliInstallEngine::Kimi => "@moonshot-ai/kimi-code@latest",
         CliInstallEngine::Grok => "@xai-official/grok@latest",
+        CliInstallEngine::Qodercli => "@qoder-ai/qodercli@latest",
+        CliInstallEngine::Qoderclicn => "@qodercn-ai/qoderclicn@latest",
         CliInstallEngine::Claude => unreachable!("claude 走官方 native 安装器"),
     }
 }
@@ -196,5 +202,33 @@ pub fn run_install(app: &AppHandle, engine: CliInstallEngine) -> Result<bool, St
             emit("phase", "done:fail".into());
             Err(format!("install timed out after {INSTALL_TIMEOUT_SECS}s"))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 前端把 meta.binary 原样作为 engine 串传 invoke(EngineCard cliInstallRun),
+    /// 串必须能反序列化成枚举 —— 回归守护:曾因缺 qodercli/qoderclicn 变体安装直接报
+    /// "unknown variant" 拒绝。
+    #[test]
+    fn engine_accepts_frontend_binary_names() {
+        assert!(matches!(
+            serde_json::from_str::<CliInstallEngine>("\"qodercli\"").unwrap(),
+            CliInstallEngine::Qodercli
+        ));
+        assert!(matches!(
+            serde_json::from_str::<CliInstallEngine>("\"qoderclicn\"").unwrap(),
+            CliInstallEngine::Qoderclicn
+        ));
+        assert_eq!(
+            npm_package(CliInstallEngine::Qodercli),
+            "@qoder-ai/qodercli@latest"
+        );
+        assert_eq!(
+            npm_package(CliInstallEngine::Qoderclicn),
+            "@qodercn-ai/qoderclicn@latest"
+        );
     }
 }
