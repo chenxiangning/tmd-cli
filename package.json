@@ -1,8 +1,9 @@
 {
   "name": "tmd-cli",
-  "private": true,
   "version": "0.1.0",
   "description": "Plugin-based multi-CLI desktop client. Raw terminal canvas + rich composer.",
+  "license": "MIT",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",

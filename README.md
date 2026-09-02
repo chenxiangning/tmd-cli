@@ -5,6 +5,10 @@
 </p>
 
 <p align="center">
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
+</p>
+
+<p align="center">
   <strong>插件化的多 CLI 桌面客户端 —— 一块原生终端幕布 + 一个富输入 Composer，统一驱动 omp / pi / codex。</strong>
 </p>
 
@@ -84,3 +88,8 @@ pnpm build            # 仅构建前端产物
 骨架已落地：插件宿主、三 CLI profile、PTY 全生命周期、Session 注册表、文件树、git status、xterm 幕布接线、五区外壳、Composer 触发器 / 拖拽 / 截图、只读 session 状态栏。
 
 进行中：bracketed-paste 发送器、git 核心子集、CLI 交互式兼容性验证。
+
+## License
+
+本项目基于 [MIT License](LICENSE) 开源。Copyright © 2026 Chen Xiangning。
+
