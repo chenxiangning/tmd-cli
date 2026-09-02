@@ -14,7 +14,8 @@ export interface GitLogState {
   hasMore: boolean;
   error: string | null;
   loadMore: () => void;
-  refresh: () => void;
+  /** 返回在途 promise,调用方据此驱动「刷新中」反馈(如顶栏 ⟳ 转圈)。 */
+  refresh: () => Promise<void>;
 }
 
 export function useGitLog(cwd: string | null, active: boolean): GitLogState {
@@ -26,10 +27,10 @@ export function useGitLog(cwd: string | null, active: boolean): GitLogState {
 
   const load = useCallback(
     (offset: number, replace: boolean) => {
-      if (!cwd) return;
+      if (!cwd) return Promise.resolve();
       const myToken = ++tokenRef.current;
       setLoading(true);
-      ipc.gitLog(cwd, PAGE_SIZE, offset).then(
+      return ipc.gitLog(cwd, PAGE_SIZE, offset).then(
         (page) => {
           if (myToken !== tokenRef.current) return;
           setEntries((prev) => (replace ? page : [...prev, ...page]));

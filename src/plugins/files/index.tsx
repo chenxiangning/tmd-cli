@@ -35,6 +35,9 @@ function openFileInTab(path: string) {
   });
 }
 
+/** 当前挂载 FileTree 的 reloadRoot:注册表 refresh 槽据此转发(两棵组件树,同 git panelStore 理念)。 */
+let activeReloadRoot: (() => Promise<void>) | null = null;
+
 /* ──────────────────────────────────────────────────────────
  * 文件/文件夹 icon ─ 从 fileVisual.hint.icon 读取,无则用 lucide fallback。
  * ────────────────────────────────────────────────────────── */
@@ -152,6 +155,14 @@ function FileTree({ root }: { root: string }) {
     void reloadRoot();
   }, [reloadRoot]);
 
+  /* 上交 reloadRoot 给注册表 refresh 槽(右栏「刷新文件树」按钮),卸载即断开。 */
+  useEffect(() => {
+    activeReloadRoot = reloadRoot;
+    return () => {
+      activeReloadRoot = null;
+    };
+  }, [reloadRoot]);
+
   const toggle = useCallback(
     (entry: DirEntry) => {
       if (!entry.isDir) {
@@ -245,6 +256,7 @@ export const filesPlugin: Plugin = {
       label: "文件",
       icon: Folder,
       component: ActiveWorkspaceFileTree,
+      refresh: () => void activeReloadRoot?.(),
     });
     ctx.contribute("editorCenter.tabContent", {
       order: 0,

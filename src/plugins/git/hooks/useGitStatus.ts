@@ -16,7 +16,8 @@ export interface GitStatusState {
   loading: boolean;
   error: string | null;
   notARepo: boolean;
-  refresh: () => void;
+  /** 返回在途 promise,调用方据此驱动「刷新中」反馈(如顶栏 ⟳ 转圈)。 */
+  refresh: () => Promise<void>;
 }
 
 export function useGitStatus(cwd: string | null): GitStatusState {
@@ -33,9 +34,9 @@ export function useGitStatus(cwd: string | null): GitStatusState {
     const myToken = ++tokenRef.current;
     if (!cwd) {
       setState({ data: null, loading: false, error: null, notARepo: true });
-      return;
+      return Promise.resolve();
     }
-    ipc.gitStatus(cwd).then(
+    return ipc.gitStatus(cwd).then(
       (data) => {
         if (myToken !== tokenRef.current) return; // cwd 已切换,丢弃过期响应
         setState({ data, loading: false, error: null, notARepo: false });

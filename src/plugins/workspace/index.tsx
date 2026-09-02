@@ -113,8 +113,12 @@ function WorkspaceSection() {
             setCollapsedMap((m) => ({ ...m, [ws.id]: !(m[ws.id] ?? false) }))
           }
           refreshTicks={refreshTicks}
+          refreshing={refreshing}
           onRefreshWorkspace={(wsId) =>
-            host.getCliProfiles().forEach((p) => bumpTick(wsId, p.id))
+            host.getCliProfiles().forEach((p) => {
+              /* 无 listSessions 的 profile 没有扫描完成回调,跳过以免刷新按钮永远转圈 */
+              if (p.listSessions) bumpTick(wsId, p.id);
+            })
           }
           onScanDone={scanDone}
           onShowMenu={(workspace, x, y) =>

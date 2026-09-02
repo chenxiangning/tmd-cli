@@ -14,9 +14,11 @@ interface GitPanelState {
   view: GitViewMode;
   layout: FileListLayout;
   refreshNonce: number;
+  /** 顶栏 ⟳ 转圈:批量刷新发起置 true,全部 settle 后清除。 */
+  refreshing: boolean;
 }
 
-const state: GitPanelState = { view: "diff", layout: "tree", refreshNonce: 0 };
+const state: GitPanelState = { view: "diff", layout: "tree", refreshNonce: 0, refreshing: false };
 const listeners = new Set<() => void>();
 let snapshot: GitPanelState = state;
 
@@ -38,6 +40,13 @@ export function setGitLayout(layout: FileListLayout): void {
 /** 顶栏 ⟳ → 面板全量刷新 */
 export function bumpGitRefresh(): void {
   state.refreshNonce += 1;
+  emit();
+}
+
+/** ⟳ 转圈开关:GitPanel 批量刷新发起/结束时调用,按钮据此显示 loading。 */
+export function setGitRefreshing(refreshing: boolean): void {
+  if (state.refreshing === refreshing) return;
+  state.refreshing = refreshing;
   emit();
 }
 

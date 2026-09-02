@@ -8,7 +8,7 @@
  * - RightPanelToolbar: 内部组件,仅在右侧 aside 渲染 WorkspaceSubbar。
  */
 
-import { memo, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import {
   Check,
@@ -182,6 +182,23 @@ export function WorkspaceSubbar() {
   const active = list.find((w) => w.id === activeId) ?? list[0];
   const root = active?.root;
   const label = useMemo(() => (root ? deriveWorkspaceLabel(root) : ""), [root]);
+  /* 刷新文件树:调激活面板注册的 refresh 槽,in-flight 期间图标转圈。 */
+  const { mode, panels } = useFilePanel();
+  const activeRefresh = panels.find((p) => p.id === mode)?.refresh;
+  const [refreshBusy, setRefreshBusy] = useState(false);
+  const refreshBatchRef = useRef(0);
+
+  const handleRefreshFiles = () => {
+    if (!activeRefresh || refreshBusy) return;
+    const myBatch = ++refreshBatchRef.current;
+    setRefreshBusy(true);
+    /* refresh 实现经 .then 调用:同步抛错也归入 rejection,finally 必然清转圈 */
+    void Promise.resolve()
+      .then(activeRefresh)
+      .finally(() => {
+        if (refreshBatchRef.current === myBatch) setRefreshBusy(false);
+      });
+  };
 
   if (!root) return null;
 
@@ -230,12 +247,13 @@ export function WorkspaceSubbar() {
           className="panel-subbar-action"
           aria-label="刷新文件树"
           title="刷新文件树"
-          onClick={() => {
-            // eslint-disable-next-line no-console
-            console.info("[right-panel] refresh-files under", root);
-          }}
+          onClick={handleRefreshFiles}
         >
-          <RefreshCw size={12} aria-hidden />
+          <RefreshCw
+            size={12}
+            aria-hidden
+            className={refreshBusy ? "animate-spin" : undefined}
+          />
         </button>
       </span>
     </div>

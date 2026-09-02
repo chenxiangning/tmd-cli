@@ -10,7 +10,8 @@ export interface GitBranchesState {
   data: GitBranchList | null;
   loading: boolean;
   error: string | null;
-  refresh: () => void;
+  /** 返回在途 promise,调用方据此驱动「刷新中」反馈(如顶栏 ⟳ 转圈)。 */
+  refresh: () => Promise<void>;
 }
 
 export function useGitBranches(cwd: string | null, active: boolean): GitBranchesState {
@@ -22,10 +23,10 @@ export function useGitBranches(cwd: string | null, active: boolean): GitBranches
   const tokenRef = useRef(0);
 
   const refresh = useCallback(() => {
-    if (!cwd) return;
+    if (!cwd) return Promise.resolve();
     const myToken = ++tokenRef.current;
     setState((s) => ({ ...s, loading: true }));
-    ipc.gitBranches(cwd).then(
+    return ipc.gitBranches(cwd).then(
       (data) => {
         if (myToken !== tokenRef.current) return;
         setState({ data, loading: false, error: null });

@@ -30,6 +30,9 @@ export interface FilePanelContribution {
   /** 顶栏嵌入段(激活时渲染在 panel tabs 左侧,对齐 codemoss 单行顶栏);
    *  与 component 是两棵组件树,共享状态须走插件内模块级 store。 */
   toolbar?: ComponentType;
+  /** 面板数据刷新(可选):外壳刷新按钮点击时调用;返回 Promise 则按钮转到 settle。
+   *  实现同样经插件内 store/引用转发到面板组件(如 FileTree 的 reloadRoot)。 */
+  refresh?: () => void | Promise<void>;
   /** tab 排序,小的在前;缺省 0。 */
   order?: number;
   /** 注册即钉到 toolbar;缺省 true。 */

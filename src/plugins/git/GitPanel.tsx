@@ -18,7 +18,7 @@ import { useGitBranches } from "./hooks/useGitBranches";
 import { useGitLog } from "./hooks/useGitLog";
 import { gitErrorDisplay, isAuth } from "./gitError";
 import { GIT_PREFILL_TOPIC, type GitPrefillPayload } from "./gitEvents";
-import { setGitView, useGitPanelState } from "./panelStore";
+import { setGitView, setGitRefreshing, useGitPanelState } from "./panelStore";
 import { DiffView } from "./views/DiffView";
 import { BranchView } from "./views/BranchView";
 import { HistoryView } from "./views/HistoryView";
@@ -49,9 +49,9 @@ export function GitPanel() {
   const [aheadBehind, setAheadBehind] = useState<GitAheadBehind | null>(null);
   const aheadTokenRef = useRef(0);
   const refreshAheadBehind = useCallback(() => {
-    if (!cwd) return;
+    if (!cwd) return Promise.resolve();
     const myToken = ++aheadTokenRef.current;
-    ipc.gitAheadBehind(cwd).then(
+    return ipc.gitAheadBehind(cwd).then(
       (ab) => {
         if (myToken === aheadTokenRef.current) setAheadBehind(ab);
       },
@@ -60,7 +60,9 @@ export function GitPanel() {
       },
     );
   }, [cwd]);
-  useEffect(refreshAheadBehind, [refreshAheadBehind, status.data?.branch]);
+  useEffect(() => {
+    void refreshAheadBehind();
+  }, [refreshAheadBehind, status.data?.branch]);
 
   // composer `/commit <msg>` → 预填提交框并切差异视图(仅预填,执行权在提交按钮)
   useEffect(
@@ -72,13 +74,20 @@ export function GitPanel() {
     [],
   );
 
+  /** 刷新批次号:快速连点 ⟳ 时,旧批次 settle 不得提前熄掉新批次的转圈。 */
+  const refreshBatchRef = useRef(0);
+
   const afterMutation = useCallback(() => {
-    status.refresh();
-    totals.refresh();
     diffs.invalidate();
-    refreshAheadBehind();
-    if (view === "branch") branches.refresh();
-    if (view === "history") log.refresh();
+    const jobs: Promise<unknown>[] = [status.refresh(), totals.refresh(), refreshAheadBehind()];
+    if (view === "branch") jobs.push(branches.refresh());
+    if (view === "history") jobs.push(log.refresh());
+    /* 全部拉取 settle 才关 ⟳ 转圈;失败也算完成,绝不留常转。 */
+    const myBatch = ++refreshBatchRef.current;
+    setGitRefreshing(true);
+    void Promise.allSettled(jobs).then(() => {
+      if (refreshBatchRef.current === myBatch) setGitRefreshing(false);
+    });
   }, [status, totals, diffs, refreshAheadBehind, view, branches, log]);
 
   // 顶栏 ⟳ → 全量刷新

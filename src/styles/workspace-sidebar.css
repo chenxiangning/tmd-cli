@@ -235,3 +235,14 @@
   color: var(--text-strong);
 }
 
+/* 刷新会话 in-flight:图标转圈(同 wsmenu-item-refresh 的反馈语义) */
+.workspace-action-btn.is-refreshing svg {
+  animation: ws-action-spin 0.85s linear infinite;
+}
+
+@keyframes ws-action-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+

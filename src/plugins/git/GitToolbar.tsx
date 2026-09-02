@@ -21,7 +21,7 @@ const VIEW_LABEL: Record<GitViewMode, string> = {
 };
 
 export function GitToolbar() {
-  const { view, layout } = useGitPanelState();
+  const { view, layout, refreshing } = useGitPanelState();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -40,7 +40,10 @@ export function GitToolbar() {
         onClick={bumpGitRefresh}
         className="rounded p-1 hover:bg-(--tmd-bg-hover)"
       >
-        <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+        <RefreshCw
+          className={`h-3.5 w-3.5${refreshing ? " animate-spin" : ""}`}
+          aria-hidden
+        />
       </button>
 
       {menuOpen && (

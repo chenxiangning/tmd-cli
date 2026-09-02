@@ -13,7 +13,8 @@ const SLOW_POLL_MS = 60_000;
 
 export interface GitTotalsState {
   data: GitTotals | null;
-  refresh: () => void;
+  /** 返回在途 promise,调用方据此驱动「刷新中」反馈(如顶栏 ⟳ 转圈)。 */
+  refresh: () => Promise<void>;
 }
 
 export function useGitTotals(cwd: string | null): GitTotalsState {
@@ -24,9 +25,9 @@ export function useGitTotals(cwd: string | null): GitTotalsState {
     const myToken = ++tokenRef.current;
     if (!cwd) {
       setData(null);
-      return;
+      return Promise.resolve();
     }
-    ipc.gitTotals(cwd).then(
+    return ipc.gitTotals(cwd).then(
       (next) => {
         if (myToken === tokenRef.current) setData(next);
       },

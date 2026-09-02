@@ -54,6 +54,7 @@ export function WorkspaceCard({
   collapsed,
   onToggleCollapsed,
   refreshTicks,
+  refreshing,
   onRefreshWorkspace,
   onScanDone,
   onShowMenu,
@@ -64,6 +65,8 @@ export function WorkspaceCard({
   collapsed: boolean;
   onToggleCollapsed: () => void;
   refreshTicks: Record<string, number>;
+  /** 各工作区:CLI 扫描在途表 —— 本工作区任一 CLI 扫描中,行刷新按钮转圈。 */
+  refreshing: Record<string, boolean>;
   onRefreshWorkspace: (workspaceId: string) => void;
   /** 组扫描完成上报:清菜单刷新按钮的 spin。 */
   onScanDone: (workspaceId: string, profileId: string) => void;
@@ -71,6 +74,7 @@ export function WorkspaceCard({
 }) {
   const profiles = host.getCliProfiles();
   const scanKey = (profileId: string) => `${workspace.id}:${profileId}`;
+  const rowRefreshing = profiles.some((p) => refreshing[scanKey(p.id)] ?? false);
 
   return (
     <div className={`workspace-card${isActive ? " is-active" : ""}`}>
@@ -141,7 +145,7 @@ export function WorkspaceCard({
               <ArrowRight size={16} aria-hidden />
             </button>
             <button
-              className="workspace-action-btn"
+              className={`workspace-action-btn${rowRefreshing ? " is-refreshing" : ""}`}
               title="刷新会话"
               onClick={(e) => {
                 e.stopPropagation();
