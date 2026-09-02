@@ -255,14 +255,15 @@ fn config_write_settings(data: serde_json::Value) -> Result<(), String> {
 pub fn run() {
     /* 打包 .app(launchd 环境)PATH 贫瘠,需用 login shell PATH 修复进程环境,
     让 git 等裸命令名调用与 PTY 子进程都能解析。
-    但 enriched_path 要 fork login shell(-ilc),慢 shellrc 下可达数百 ms,
+    但 enriched_path 要 fork login shell(两级 -lc/-ilc),慢 shellrc 下秒级,
     同步执行会阻塞建窗 —— 挪到后台线程,窗口先行。
 
     时序依据(消费链核实):
-    - PTY spawn(pty.rs)自带 LazyLock 解析 + 显式 cmd.env("PATH", …),
-      不依赖进程级 set_var 的就绪时刻,首个 spawn 时按需计算;
+    - PTY spawn(pty.rs)首次访问自行触发缓存计算 + 显式 cmd.env("PATH", …),
+      不依赖进程级 set_var 的就绪时刻;
     - git.rs/probe.rs 的裸命令名解析读进程 PATH,但二者都是建窗后由前端
-      IPC 触发,此时后台线程早已落地;LazyLock 保证多线程只算一次、结果可见。 */
+      IPC 触发,此时后台线程早已落地;PATH_CACHE 单飞,结果跨线程可见;
+      缓存降级(login shell 超时)时后台重试自愈,probe 走同步重算。 */
     std::thread::spawn(|| {
         std::env::set_var("PATH", resolve::enriched_path());
     });

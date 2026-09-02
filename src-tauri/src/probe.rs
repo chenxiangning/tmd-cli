@@ -4,8 +4,9 @@
 //! 设计决策(对齐 codemoss cli_installer.run_binary_version,但更薄):
 //! - 单一入口 `probe_cli` → `CliProbeResult`,供 Tauri command 包装。
 //! - 超时硬限 8s,避免 PATH 中挂死的 binary 卡住首屏。
-//! - PATH 与 pty/installer 同源(enriched_path),进程内缓存一次:probe 是
-//!   只读探针;用户改了 PATH 重启应用即可。
+//! - PATH 与 pty/installer 同源(resolve 进程级缓存);probe 走
+//!   enriched_path_refresh():缓存降级(login shell 超时)时同步重算,
+//!   用户点刷新立即可愈。用户改了 PATH 重启应用生效。
 //! - 不查 latest_version / update_available:UI 只需"装了/没装 + 当前版本",
 //!   是否要升级是后续版本的事。
 //!
@@ -14,20 +15,12 @@
 
 use serde::{Deserialize, Serialize};
 use std::process::Command;
-use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
-use crate::resolve::{enriched_path, wait_child_with_timeout};
+use crate::resolve::{enriched_path_refresh, wait_child_with_timeout};
 
 /// 探针超时硬限(秒)。与 codemoss PREFLIGHT_TIMEOUT_SECS=8 对齐。
 const PROBE_TIMEOUT_SECS: u64 = 8;
-
-/// 探针 PATH 进程级缓存:enriched_path = login shell > 进程 PATH > 常见安装
-/// 目录兜底。曾直接用裸 login_shell_path():rc 慢的机器(代理检测/端口扫描类
-/// zshrc 秒级起步)撞 3s 硬超时返回 None,而 LazyLock 把 None 永久缓存 →
-/// 所有引擎误报"未安装"且刷新键无法自愈。富化 PATH 的兜底层保证超时只损失
-/// login shell 独有目录,不再致盲。
-static PROBE_PATH: LazyLock<&'static str> = LazyLock::new(enriched_path);
 
 /// 探针结果。`found=false` 时 path/version 都是 None,前端按"未安装"渲染。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,8 +72,9 @@ fn find_binary_absolute(command: &str) -> Option<String> {
         return Some(command.to_string());
     }
 
-    /* 裸名:在富化 PATH(login shell > 进程 > 兜底目录)中找(进程内缓存)。 */
-    let path = *PROBE_PATH;
+    /* 裸名:在富化 PATH(login shell > 进程 > 兜底目录)中找;refresh 变体:
+     * 缓存降级(login shell 超时)时同步重算,刷新键可自愈。 */
+    let path = enriched_path_refresh();
     for dir in std::env::split_paths(std::ffi::OsStr::new(&path)) {
         let candidate = dir.join(command);
         if is_executable_file(&candidate) {

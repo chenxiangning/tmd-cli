@@ -129,7 +129,7 @@ impl PtyRegistry {
 
         /* 注入完整 PATH:命令解析与 CLI 孙进程(git/node 等)都依赖它 */
         let path = enriched_path();
-        let resolved = resolve_command(&spec.command, path);
+        let resolved = resolve_command(&spec.command, &path);
         let mut cmd = CommandBuilder::new(&resolved.program);
         /* Windows 批处理 shim 的 cmd /c 前插参数,unix 为空 */
         cmd.args(&resolved.prefix_args);

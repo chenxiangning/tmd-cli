@@ -1,25 +1,99 @@
 //! 打包环境命令解析 —— PATH 富化与裸命令名 → 绝对路径。
 //!
 //! 消费方:pty.rs(PTY spawn)、probe.rs(CLI 探针)、installer.rs(一键安装)、
-//! lib.rs(进程级 PATH 修复)。全部缓存一次(LazyLock),多线程只算一次。
+//! lib.rs(进程级 PATH 修复)。PATH 进程级缓存;降级结果(login shell
+//! 超时/失败)不永久缓存 —— 后台重试 + probe 同步重算,可自愈。
 
-use std::sync::LazyLock;
+use parking_lot::Mutex;
 
 /* ---------- 打包环境命令解析 ----------
  * macOS: Finder/Dock 启动的 .app 由 launchd 拉起,PATH 只有 /usr/bin:/bin:/usr/sbin:/sbin,
  *   claude/omp/pi/codex 装在 ~/.local/bin、/opt/homebrew/bin → 裸命令名 spawn 必失败。
- *   解法:login shell 提取真实 PATH + 合并兜底目录,缓存一次,命令解析为绝对路径。
+ *   解法:login shell 两级提取(-lc 快路径优先,-ilc 兜底/升级)+ 合并兜底目录,
+ *   进程级缓存(降级可自愈),命令解析为绝对路径。
  * Linux: 桌面环境启动同样 PATH 贫瘠,同一机制覆盖;$SHELL 为 dash 等不支持 -l 时
  *   静默降级到进程 PATH + 兜底目录。
  * Windows: GUI 应用继承注册表合并 PATH,通常不缺目录;真正的坑是 npm 全局 CLI 是
  *   .cmd/.bat shim,CreateProcess 不解析无扩展名批处理 → 按 PATHEXT 搜索,
  *   命中批处理时包裹 `cmd /c`。 */
 
-static ENRICHED_PATH: LazyLock<String> = LazyLock::new(build_enriched_path);
+/// PATH 计算结果:合并后的 PATH + 提取质量标记。
+struct ComputedPath {
+    path: String,
+    /// login shell 提取是否成功。false = 降级:缺 login shell 独有目录
+    /// (如 ~/.hermes/node/bin),允许重试自愈,不得永久缓存。
+    /// Windows 无 login shell 概念,恒 true。
+    shell_ok: bool,
+    /// 本次是否只用了快路径(-lc):true 时需后台补一次 -ilc 升级,
+    /// 否则 .zshrc 独有目录(如 nvm 的 node bin)拿不到。仅 unix 使用。
+    #[cfg_attr(not(unix), allow(dead_code))]
+    needs_interactive_upgrade: bool,
+}
+
+/// PATH 缓存状态。Degraded 不永久缓存(2026-09-02 前 LazyLock 永久缓存
+/// 降级结果,omp/kimi 误报"未安装"且刷新键无法自愈)。
+enum PathState {
+    Ready(String),
+    Degraded(String),
+}
+
+#[derive(Default)]
+struct PathCache {
+    state: Option<PathState>,
+    /// 后台线程(降级重试 / -ilc 升级)单飞标记,防并发 fork 多个 login shell。
+    bg_in_flight: bool,
+}
+
+static PATH_CACHE: Mutex<PathCache> = Mutex::new(PathCache {
+    state: None,
+    bg_in_flight: false,
+});
 
 /// 合并后的 PATH:login shell(unix) > 进程环境 > 常见安装目录(去重,保序)。
-pub(crate) fn enriched_path() -> &'static str {
-    &ENRICHED_PATH
+/// 首次调用同步计算;降级时返回旧值并踢后台重试自愈,不阻塞调用方
+/// (PTY spawn 等)。probe 等用户刷新路径用 enriched_path_refresh()。
+pub(crate) fn enriched_path() -> String {
+    cache_get_or_refresh(&mut PATH_CACHE.lock(), false, compute_enriched_path)
+}
+
+/// 降级状态下同步重算(用户点刷新立即可愈),Ready 时零开销。
+/// 持锁重算即单飞;并发调用方最坏阻塞 2s+5s,仅降级自愈瞬间发生。
+pub(crate) fn enriched_path_refresh() -> String {
+    cache_get_or_refresh(&mut PATH_CACHE.lock(), true, compute_enriched_path)
+}
+
+/// 缓存状态机(同步部分;compute 可注入,便于单测):
+/// Ready → 直接返回;Degraded + 非 refresh → 返回旧值并踢后台重试;
+/// 其余(冷启动 / Degraded + refresh)→ 同步重算入库。
+fn cache_get_or_refresh(
+    cache: &mut PathCache,
+    refresh: bool,
+    compute: impl FnOnce() -> ComputedPath,
+) -> String {
+    match &cache.state {
+        Some(PathState::Ready(p)) => p.clone(),
+        Some(PathState::Degraded(p)) if !refresh => {
+            let stale = p.clone();
+            kick_background_recompute(cache);
+            stale
+        }
+        _ => compute_and_store(cache, compute),
+    }
+}
+
+fn compute_and_store(cache: &mut PathCache, compute: impl FnOnce() -> ComputedPath) -> String {
+    let computed = compute();
+    let path = computed.path.clone();
+    #[cfg(unix)]
+    if computed.shell_ok && computed.needs_interactive_upgrade {
+        kick_interactive_upgrade(cache);
+    }
+    cache.state = Some(if computed.shell_ok {
+        PathState::Ready(computed.path)
+    } else {
+        PathState::Degraded(computed.path)
+    });
+    path
 }
 
 fn push_unique_dirs(dirs: &mut Vec<std::path::PathBuf>, value: &std::ffi::OsStr) {
@@ -36,10 +110,10 @@ fn push_unique_dir(dirs: &mut Vec<std::path::PathBuf>, dir: std::path::PathBuf) 
     }
 }
 
-fn build_enriched_path() -> String {
+fn build_enriched_path(login_shell: Option<&str>) -> String {
     let mut dirs: Vec<std::path::PathBuf> = Vec::new();
-    if let Some(login) = login_shell_path() {
-        push_unique_dirs(&mut dirs, std::ffi::OsStr::new(&login));
+    if let Some(login) = login_shell {
+        push_unique_dirs(&mut dirs, std::ffi::OsStr::new(login));
     }
     if let Some(current) = std::env::var_os("PATH") {
         push_unique_dirs(&mut dirs, &current);
@@ -55,6 +129,15 @@ fn build_enriched_path() -> String {
         push_unique_dir(
             &mut dirs,
             std::path::Path::new(&home).join(".grok").join("bin"),
+        );
+        /* hermes npm 全局 prefix:omp/kimi 等 CLI 引擎只落这里(~/.local/bin 无符号链接),
+         * login shell 3s 超时时丢此目录 = omp/kimi 误报未安装(2026-09-02 实证) */
+        push_unique_dir(
+            &mut dirs,
+            std::path::Path::new(&home)
+                .join(".hermes")
+                .join("node")
+                .join("bin"),
         );
     }
     #[cfg(target_os = "macos")]
@@ -76,9 +159,14 @@ fn build_enriched_path() -> String {
         .unwrap_or_default()
 }
 
-/// 子进程等待超时(秒)。login shell 加载用户 rc 文件,oh-my-zsh 类重配置
-/// 秒级起步;rc 里有交互/阻塞读取则永久挂住 —— 必须硬超时。
-const SHELL_PATH_TIMEOUT_SECS: u64 = 3;
+/// login shell 快路径(-lc)超时(秒):只读 .zshenv/.zprofile(不读 .zshrc),
+/// 典型 <0.1s,重 rc 机器也撞不到上限。
+#[cfg(unix)]
+const LOGIN_SHELL_FAST_TIMEOUT_SECS: u64 = 2;
+/// login shell 交互路径(-ilc)超时(秒):读 .zshrc,nvm/pyenv/代理检测类重 rc
+/// 秒级起步(实测热缓存 ~2s);rc 里有交互/阻塞读取则永久挂住 —— 必须硬超时。
+#[cfg(unix)]
+const LOGIN_SHELL_INTERACTIVE_TIMEOUT_SECS: u64 = 5;
 
 /// 带超时的子进程等待。超时 kill 并返回 None;调用方无需再 kill。
 /// sleep+try_wait 轮询(100ms tick),不引入 wait-timeout crate。
@@ -105,18 +193,18 @@ pub(crate) fn wait_child_with_timeout(
 }
 
 /// 从用户 login shell 提取 PATH。哨兵包裹输出,免疫用户 rc 文件的噪音打印。
-/// 3s 硬超时:rc 挂住时返回 None,调用方用兜底 PATH,不卡主流程。
+/// mode:"-lc"(快路径,不读 .zshrc)或 "-ilc"(完整路径);超时 kill 返回 None。
 /// 仅 unix:Windows 无 login shell 概念,GUI 进程已继承注册表合并 PATH。
 #[cfg(unix)]
-pub(crate) fn login_shell_path() -> Option<String> {
+fn extract_path_from_shell(mode: &str, timeout_secs: u64) -> Option<String> {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
     const BEGIN: &str = "__TMD_PATH_BEGIN__";
     const END: &str = "__TMD_PATH_END__";
     let mut child = std::process::Command::new(shell)
-        .args([
-            "-ilc",
-            &format!("echo {BEGIN}; printf '%s' \"$PATH\"; echo; echo {END}"),
-        ])
+        .arg(mode)
+        .arg(format!(
+            "echo {BEGIN}; printf '%s' \"$PATH\"; echo; echo {END}"
+        ))
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
@@ -140,10 +228,7 @@ pub(crate) fn login_shell_path() -> Option<String> {
         let _ = stderr_pipe.read_to_end(&mut sink);
     });
 
-    let exit = wait_child_with_timeout(
-        &mut child,
-        std::time::Duration::from_secs(SHELL_PATH_TIMEOUT_SECS),
-    )?;
+    let exit = wait_child_with_timeout(&mut child, std::time::Duration::from_secs(timeout_secs))?;
     if !exit.ok()?.success() {
         return None;
     }
@@ -163,9 +248,92 @@ pub(crate) fn login_shell_path() -> Option<String> {
     }
 }
 
-#[cfg(windows)]
-pub(crate) fn login_shell_path() -> Option<String> {
-    None
+/// 计算一次富化 PATH(unix 两级提取;Windows 进程 PATH + 兜底目录)。
+#[cfg(unix)]
+fn compute_enriched_path() -> ComputedPath {
+    /* 快路径 -lc:只读 .zshenv/.zprofile,典型 <0.1s。成功但可能缺 .zshrc
+     * 独有目录(如 nvm 的 node bin)→ 标记 needs_interactive_upgrade,
+     * 由调用方后台补一次 -ilc 升级。 */
+    if let Some(fast) = extract_path_from_shell("-lc", LOGIN_SHELL_FAST_TIMEOUT_SECS) {
+        return ComputedPath {
+            path: build_enriched_path(Some(&fast)),
+            shell_ok: true,
+            needs_interactive_upgrade: true,
+        };
+    }
+    /* 完整路径 -ilc:读 .zshrc,nvm/pyenv/代理检测类重 rc 秒级起步 */
+    if let Some(full) = extract_path_from_shell("-ilc", LOGIN_SHELL_INTERACTIVE_TIMEOUT_SECS) {
+        return ComputedPath {
+            path: build_enriched_path(Some(&full)),
+            shell_ok: true,
+            needs_interactive_upgrade: false,
+        };
+    }
+    /* 两级全失败(超时/挂住/$SHELL 不支持 -l):降级为进程 PATH + 兜底目录 */
+    ComputedPath {
+        path: build_enriched_path(None),
+        shell_ok: false,
+        needs_interactive_upgrade: false,
+    }
+}
+
+/// Windows:GUI 进程继承注册表合并 PATH,+ 兜底目录即最终结果;
+/// 无 login shell 提取,无降级/重试概念(shell_ok 恒 true)。
+#[cfg(not(unix))]
+fn compute_enriched_path() -> ComputedPath {
+    ComputedPath {
+        path: build_enriched_path(None),
+        shell_ok: true,
+        needs_interactive_upgrade: false,
+    }
+}
+
+/// 降级自愈:后台重算 PATH(单飞,bg_in_flight 防并发 fork 多个 login
+/// shell)。快路径恢复的同线程补完 -ilc 再入库;仍失败保持旧降级值,
+/// 下次访问再试。非 unix 无降级概念,为空操作。
+fn kick_background_recompute(cache: &mut PathCache) {
+    #[cfg(unix)]
+    {
+        if cache.bg_in_flight {
+            return;
+        }
+        cache.bg_in_flight = true;
+        std::thread::spawn(|| {
+            let mut computed = compute_enriched_path();
+            if computed.shell_ok && computed.needs_interactive_upgrade {
+                if let Some(full) =
+                    extract_path_from_shell("-ilc", LOGIN_SHELL_INTERACTIVE_TIMEOUT_SECS)
+                {
+                    computed.path = build_enriched_path(Some(&full));
+                }
+            }
+            let mut cache = PATH_CACHE.lock();
+            cache.bg_in_flight = false;
+            if computed.shell_ok {
+                cache.state = Some(PathState::Ready(computed.path));
+            }
+        });
+    }
+    #[cfg(not(unix))]
+    let _ = cache;
+}
+
+/// 快路径(-lc)成功后后台补一次 -ilc 升级,把 .zshrc 独有目录合入缓存。
+/// 单飞;升级失败保持快路径结果,无害。仅 unix 有意义。
+#[cfg(unix)]
+fn kick_interactive_upgrade(cache: &mut PathCache) {
+    if cache.bg_in_flight {
+        return;
+    }
+    cache.bg_in_flight = true;
+    std::thread::spawn(|| {
+        let upgrade = extract_path_from_shell("-ilc", LOGIN_SHELL_INTERACTIVE_TIMEOUT_SECS);
+        let mut cache = PATH_CACHE.lock();
+        cache.bg_in_flight = false;
+        if let Some(login) = upgrade {
+            cache.state = Some(PathState::Ready(build_enriched_path(Some(&login))));
+        }
+    });
 }
 
 /// 解析结果:最终 program + 需要前插的参数(Windows 批处理 shim → ["cmd.exe", "/c", path])。
@@ -294,5 +462,69 @@ mod tests {
         let dirs: Vec<&str> = path.split(':').collect();
         let unique: std::collections::HashSet<_> = dirs.iter().collect();
         assert_eq!(dirs.len(), unique.len(), "PATH 有重复项: {path}");
+    }
+
+    #[test]
+    fn build_enriched_path_包含_hermes_node_bin_兜底() {
+        /* 回归守卫(2026-09-02 omp/kimi 误报"未安装"):omp/kimi 只存在于
+         * ~/.hermes/node/bin,login shell 超时丢目录时兜底必须覆盖。 */
+        let path = build_enriched_path(None);
+        let home = std::env::var_os("HOME")
+            .or_else(|| std::env::var_os("USERPROFILE"))
+            .expect("HOME/USERPROFILE 未设置");
+        let hermes = std::path::Path::new(&home)
+            .join(".hermes")
+            .join("node")
+            .join("bin");
+        let sep = if cfg!(windows) { ';' } else { ':' };
+        assert!(
+            path.split(sep).any(|d| d == hermes.to_string_lossy()),
+            "缺 hermes 兜底目录: {path}"
+        );
+    }
+
+    #[test]
+    fn build_enriched_path_login_shell_目录排最前() {
+        let path = build_enriched_path(Some("/tmp/tmd-cli-test-login-only-bin"));
+        let sep = if cfg!(windows) { ';' } else { ':' };
+        assert_eq!(
+            path.split(sep).next().unwrap(),
+            "/tmp/tmd-cli-test-login-only-bin"
+        );
+    }
+
+    #[test]
+    fn 缓存_ready_后不再重算() {
+        let mut cache = PathCache::default();
+        let p1 = cache_get_or_refresh(&mut cache, false, || ComputedPath {
+            path: "full".into(),
+            shell_ok: true,
+            needs_interactive_upgrade: false,
+        });
+        assert_eq!(p1, "full");
+        let p2 = cache_get_or_refresh(&mut cache, true, || panic!("Ready 不应重算"));
+        assert_eq!(p2, "full");
+    }
+
+    #[test]
+    fn 缓存降级结果_refresh_时同步重算自愈() {
+        /* 回归守卫:2026-09-02 前 LazyLock 永久缓存降级 PATH,omp/kimi
+         * 误报"未安装"且刷新键无法自愈。 */
+        let mut cache = PathCache::default();
+        let p1 = cache_get_or_refresh(&mut cache, true, || ComputedPath {
+            path: "fallback-only".into(),
+            shell_ok: false,
+            needs_interactive_upgrade: false,
+        });
+        assert_eq!(p1, "fallback-only");
+        assert!(matches!(cache.state, Some(PathState::Degraded(_))));
+        /* shell 恢复后 refresh 同步重算 → Ready */
+        let p2 = cache_get_or_refresh(&mut cache, true, || ComputedPath {
+            path: "full".into(),
+            shell_ok: true,
+            needs_interactive_upgrade: false,
+        });
+        assert_eq!(p2, "full");
+        assert!(matches!(cache.state, Some(PathState::Ready(_))));
     }
 }
