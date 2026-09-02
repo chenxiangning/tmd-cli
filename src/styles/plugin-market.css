@@ -69,9 +69,46 @@
   padding: 64px 0 0; /* 给拔起的插头留上方空间 */
 }
 
-/* 分类分排:相邻插排收紧间距(首排与页头间距不变)。 */
-.pm-strip-scene + .pm-strip-scene {
-  margin-top: 24px;
+/* 合并大插排的内部分区:虚线分隔 + 区内小标签 + 插座横排。 */
+.pm-cat-group {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+}
+
+.pm-cat-group + .pm-cat-group {
+  border-left: 1px dashed var(--tmd-border);
+  padding-left: 12px;
+  margin-left: 4px;
+}
+
+.pm-cat-label {
+  height: 18px;
+  padding-left: 4px;
+  font-size: 11px;
+  color: var(--tmd-fg-subtle);
+  white-space: nowrap;
+}
+
+.pm-cat-outlets {
+  display: flex;
+  gap: 8px;
+}
+
+/* 视图互斥切换:重挂载淡入。 */
+.pm-view {
+  animation: pm-view-in 0.18s ease-out;
+}
+
+@keyframes pm-view-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .pm-strip {
@@ -100,6 +137,39 @@
   margin-top: -3px;
   background: var(--tmd-border-strong);
   border-radius: 0 3px 3px 0;
+}
+
+/* 页头视图切换(segmented):插排 ⇄ 列表互斥。 */
+.pm-view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-sm);
+  overflow: hidden;
+}
+
+.pm-view-toggle button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 22px;
+  border: none;
+  background: none;
+  color: var(--tmd-fg-muted);
+  cursor: pointer;
+}
+
+.pm-view-toggle button + button {
+  border-left: 1px solid var(--tmd-border);
+}
+
+.pm-view-toggle button:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.pm-view-toggle button.active {
+  background: var(--tmd-accent-soft);
+  color: var(--tmd-accent);
 }
 
 .pm-strip-brand {

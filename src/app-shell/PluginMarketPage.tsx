@@ -5,15 +5,15 @@
  * (activateAll 组装时过滤);运行中不热卸载(避免 PTY/事件订阅泄漏)。
  * 核心插件(meta.category === "core")焊死不可拔。
  *
- * 布局:按 meta.category 分排 —— 每类一条大插排(CLI 引擎 / 界面功能 / 核心系统),
- * 下方清单同样按类分节;插拔动画与单排一致(见 styles/plugin-market.css)。
+ * 布局:一条大插排内部分区(分类虚线分隔 + 区内标签);清单列表与插排互斥
+ * 切换(页头视图开关,同页只展示一份,淡入过渡);插拔动画不受影响。
  *
  * 数据源:host.listPluginStates()(启动态) × settings.disabledPlugins(期望态),
  * 两者不一致 = dirty,展示"重启后生效"徽章。
  */
 
 import { useMemo, useRef, useState } from "react";
-import { Globe, Lock, RotateCw, X } from "lucide-react";
+import { Globe, List, Lock, Plug, RotateCw, X } from "lucide-react";
 import { host } from "@kernel/host";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { appRestart } from "@kernel/ipc";
@@ -95,38 +95,45 @@ function Outlet({
   );
 }
 
-/** 一条分类大插排:品牌区(分类名 + 位数 + 电源 LED) + 该类全部插座。 */
-function CategoryStrip({
-  category,
-  rows,
+/** 合并大插排:tmd-cli 品牌区 + 各分类分区(虚线分隔 + 区内小标签)。 */
+function MergedStrip({
+  groups,
   onToggle,
 }: {
-  category: PluginCategory;
-  rows: Row[];
+  groups: { category: PluginCategory; rows: Row[] }[];
   onToggle: (id: string) => void;
 }) {
   return (
     <div className="pm-strip-scene">
       <div className="pm-strip">
         <div className="pm-strip-brand">
-          <div className="pm-brand-name">{CATEGORY_LABEL[category]}</div>
-          <div className="pm-brand-role">分类插排 · {rows.length} 位</div>
+          <div className="pm-brand-name">tmd-cli</div>
+          <div className="pm-brand-role">客户端 · 插排本体</div>
           <div className="pm-master-row">
             <span className="pm-master-led" aria-hidden />
-            <span className="pm-master-label">电源常开</span>
+            <span className="pm-master-label">总电源常开</span>
           </div>
         </div>
-        {rows.map(({ plugin, on, dirty }) => (
-          <Outlet
-            key={plugin.id}
-            id={plugin.id}
-            name={plugin.meta.name}
-            abbr={plugin.meta.abbr}
-            core={plugin.meta.category === "core"}
-            on={on}
-            dirty={dirty}
-            onToggle={onToggle}
-          />
+        {groups.map((g) => (
+          <div className="pm-cat-group" key={g.category}>
+            <div className="pm-cat-label">
+              {CATEGORY_LABEL[g.category]} · {g.rows.length} 位
+            </div>
+            <div className="pm-cat-outlets">
+              {g.rows.map(({ plugin, on, dirty }) => (
+                <Outlet
+                  key={plugin.id}
+                  id={plugin.id}
+                  name={plugin.meta.name}
+                  abbr={plugin.meta.abbr}
+                  core={plugin.meta.category === "core"}
+                  on={on}
+                  dirty={dirty}
+                  onToggle={onToggle}
+                />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </div>
@@ -154,6 +161,8 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
     rows: rows.filter((r) => r.plugin.meta.category === category),
   })).filter((g) => g.rows.length > 0);
   const dirtyCount = rows.filter((r) => r.dirty).length;
+  /* 插排视图 ⇄ 清单列表:互斥,同页只展示一份。 */
+  const [view, setView] = useState<"strip" | "list">("strip");
 
   /* Tauri 环境进程替换不返回;浏览器 dev invoke 抛错 → 降级整页刷新(同样重走 activateAll 过滤)。 */
   const restart = () => void appRestart().catch(() => window.location.reload());
@@ -187,6 +196,28 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
             客户端是插排,插件是插头 —— 插上即用,拔掉即停
           </span>
           <div className="pm-head-actions">
+            <div className="pm-view-toggle" role="tablist" aria-label="视图切换">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === "strip"}
+                className={view === "strip" ? "active" : ""}
+                title="插排视图"
+                onClick={() => setView("strip")}
+              >
+                <Plug size={12} aria-hidden />
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === "list"}
+                className={view === "list" ? "active" : ""}
+                title="列表视图"
+                onClick={() => setView("list")}
+              >
+                <List size={12} aria-hidden />
+              </button>
+            </div>
             <button
               type="button"
               className={`pm-restart${dirtyCount > 0 ? " dirty" : ""}`}
@@ -208,24 +239,25 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        {/* ═══ 分类大插排 ═══ */}
-        {groups.map((g) => (
-          <CategoryStrip key={g.category} category={g.category} rows={g.rows} onToggle={toggle} />
-        ))}
-        <div className="pm-strip-caption">
-          <span>
-            <span className="pm-legend-dot" style={{ background: "var(--tmd-accent)" }} />
-            已插入(运行中)
-          </span>
-          <span>
-            <span className="pm-legend-dot" style={{ background: "var(--tmd-fg-faint)" }} />
-            已拔出(重启后生效)
-          </span>
-          <span>焊死的核心插件不可拔</span>
-          <span>点击插头即可插拔</span>
-        </div>
-
-        {/* ═══ 插件清单(分类列表) ═══ */}
+        {/* ═══ 主视图:插排 ⇄ 清单互斥(key 强制重挂载,淡入过渡) ═══ */}
+        {view === "strip" ? (
+          <div className="pm-view" key="strip">
+            <MergedStrip groups={groups} onToggle={toggle} />
+            <div className="pm-strip-caption">
+              <span>
+                <span className="pm-legend-dot" style={{ background: "var(--tmd-accent)" }} />
+                已插入(运行中)
+              </span>
+              <span>
+                <span className="pm-legend-dot" style={{ background: "var(--tmd-fg-faint)" }} />
+                已拔出(重启后生效)
+              </span>
+              <span>焊死的核心插件不可拔</span>
+              <span>点击插头即可插拔</span>
+            </div>
+          </div>
+        ) : (
+          <div className="pm-view" key="list">
         {groups.map((g) => (
           <section key={g.category}>
             <div className="pm-section-title">
@@ -265,6 +297,8 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
             </div>
           </section>
         ))}
+          </div>
+        )}
 
         {/* ═══ 在线市场(预留) ═══ */}
         <div className="pm-section-title">在线市场</div>
