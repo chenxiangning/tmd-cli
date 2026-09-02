@@ -27,6 +27,9 @@ export interface FilePanelContribution {
   icon: FilePanelIcon;
   /** 面板内容组件(激活时整栏渲染)。 */
   component: ComponentType;
+  /** 顶栏嵌入段(激活时渲染在 panel tabs 左侧,对齐 codemoss 单行顶栏);
+   *  与 component 是两棵组件树,共享状态须走插件内模块级 store。 */
+  toolbar?: ComponentType;
   /** tab 排序,小的在前;缺省 0。 */
   order?: number;
   /** 注册即钉到 toolbar;缺省 true。 */

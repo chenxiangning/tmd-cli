@@ -65,9 +65,79 @@ export interface FileStamp {
   modifiedAt: number;
 }
 
-export interface GitStatus {
+/* ── Git 契约(对齐 src-tauri/src/git/*,serde camelCase)──
+ * E_* 错误前缀:E_NOT_A_REPO / E_EMPTY / E_GIT2 / E_SHELL / E_AUTH,
+ * 前端 startsWith 匹配,勿 grep 中文文案。 */
+
+/** 单文件工作区状态;status "?" 即 untracked(UI 渲染为 U)。 */
+export interface GitFileStatus {
+  path: string;
+  /** "?" 即 untracked(UI 渲染为 U);"C" 即合并冲突(UI 禁 stage/discard) */
+  status: "M" | "A" | "D" | "R" | "T" | "C" | "?";
+  /** index 侧有变更(已暂存) */
+  staged: boolean;
+  /** 工作区侧有变更;staged && wt = 暂存后又改,预览/提交以 wt 侧为准 */
+  wt: boolean;
+}
+
+export interface GitDiffStatus {
+  /** 分支名;detached 时为 "detached@<短sha>" */
   branch: string;
-  porcelain: string;
+  headSha: string;
+  upstream: string | null;
+  files: GitFileStatus[];
+}
+
+/** 聚合 ±行数 —— 独立低频命令(写操作后/手动刷新),不随 5s 轮询。 */
+export interface GitTotals {
+  insertions: number;
+  deletions: number;
+}
+
+export interface GitAheadBehind {
+  ahead: number;
+  behind: number;
+  upstream: string | null;
+}
+
+export interface GitFilePatch {
+  path: string;
+  oldPath: string | null;
+  kind: "A" | "D" | "M" | "R" | "C" | "T";
+  binary: boolean;
+  additions: number;
+  deletions: number;
+  patch: string;
+}
+
+export interface GitCommitInput {
+  message: string;
+  amend: boolean;
+}
+
+export interface GitLogEntry {
+  shortSha: string;
+  longSha: string;
+  summary: string;
+  authorName: string;
+  authorEmail: string;
+  authorWhen: number;
+  parentShas: string[];
+}
+
+export interface GitBranchInfo {
+  name: string;
+  isHead: boolean;
+  isRemote: boolean;
+  upstream: string | null;
+  lastCommitSha: string;
+  lastCommitSummary: string;
+  lastCommitWhen: number;
+}
+
+export interface GitBranchList {
+  local: GitBranchInfo[];
+  remote: GitBranchInfo[];
 }
 
 export const ipc = {
@@ -91,7 +161,37 @@ export const ipc = {
   /** 本地图片 → data URL(markdown 预览 asset:// 失败回退;Rust 侧白名单+大小闸)。 */
   readLocalImageDataUrl: (path: string) =>
     invoke<string>("read_local_image_data_url", { path }),
-  gitStatus: (cwd: string) => invoke<GitStatus>("git_status", { cwd }),
+  /* ── git(右栏面板;cwd 由调用方从活跃 workspace 取)── */
+  gitStatus: (cwd: string) => invoke<GitDiffStatus>("git_status", { cwd }),
+  /** 低频:聚合 ±行数(全仓 diff×2),仅在写操作后/手动刷新拉,勿挂轮询。 */
+  gitTotals: (cwd: string) => invoke<GitTotals>("git_totals", { cwd }),
+  /** 低频:ahead/behind 仅在 fetch/切分支/手动刷新后拉,勿挂轮询。 */
+  gitAheadBehind: (cwd: string) => invoke<GitAheadBehind>("git_ahead_behind", { cwd }),
+  gitDiffFilePatch: (cwd: string, path: string, staged: boolean) =>
+    invoke<GitFilePatch | null>("git_diff_file_patch", { cwd, path, staged }),
+  gitStage: (cwd: string, paths: string[]) =>
+    invoke<void>("git_stage", { cwd, paths }),
+  gitUnstage: (cwd: string, paths: string[]) =>
+    invoke<void>("git_unstage", { cwd, paths }),
+  /** 还原已跟踪文件到 HEAD;untracked 不动。 */
+  gitDiscard: (cwd: string, paths: string[]) =>
+    invoke<void>("git_discard", { cwd, paths }),
+  /** 勾选提交:paths 非空先 stage 再 commit,单次 IPC 原子完成。 */
+  gitCommit: (cwd: string, paths: string[], input: GitCommitInput) =>
+    invoke<string>("git_commit", { cwd, paths, input }),
+  gitLog: (cwd: string, limit: number, offset: number) =>
+    invoke<GitLogEntry[]>("git_log", { cwd, limit, offset }),
+  gitBranches: (cwd: string) => invoke<GitBranchList>("git_branches", { cwd }),
+  gitCheckout: (cwd: string, name: string) =>
+    invoke<void>("git_checkout", { cwd, name }),
+  gitCreateBranch: (cwd: string, name: string, from?: string) =>
+    invoke<void>("git_create_branch", { cwd, name, from: from ?? null }),
+  gitDeleteBranch: (cwd: string, name: string, force: boolean) =>
+    invoke<void>("git_delete_branch", { cwd, name, force }),
+  gitFetch: (cwd: string) => invoke<string>("git_fetch", { cwd }),
+  /** pull/push 统一入口;凭据失败返 E_AUTH:,引导用户去幕布终端。 */
+  gitPullPush: (cwd: string, op: "pull" | "push", branch?: string) =>
+    invoke<string>("git_pull_push", { cwd, op, branch: branch ?? null }),
   /** 递归收集目录下指定后缀文件,按修改时间倒序。目录不存在 = 空表。 */
   fsCollectFiles: (dir: string, suffix: string) =>
     invoke<FileStamp[]>("fs_collect_files", { dir, suffix }),
@@ -101,8 +201,9 @@ export const ipc = {
   /** 读文件头部 maxBytes 字节(解析 jsonl 首行 meta 用,避免全文加载)。 */
   fsReadHead: (path: string, maxBytes: number) =>
     invoke<string>("fs_read_head", { path, maxBytes }),
-  /** 物理删除文件(会话列表"删除会话"用);文件不存在视为成功(幂等)。 */
-  fsRemoveFile: (path: string) => invoke<void>("fs_remove_file", { path }),
+  /** 物理删除文件或目录(会话列表"删除会话"用);kimi 会话是目录,统一走此命令。
+   *  路径不存在视为成功(幂等)。 */
+  fsRemovePath: (path: string) => invoke<void>("fs_remove_path", { path }),
   configHomeDir: () => invoke<string>("config_home_dir"),
   /** 默认工作区根目录(~/.tmd-cli/default,Rust 侧已确保存在,mac/win 兼容)。 */
   configDefaultWorkspaceRoot: () =>
@@ -131,6 +232,8 @@ export const ipc = {
   /** 一键安装 CLI(claude 官方 native,其余 npm -g);日志经 cli-install://{engine} 事件推。 */
   cliInstallRun: (engine: string) =>
     invoke<boolean>("cli_install_run", { engine }),
+  /** 字符串 MD5(小写 hex)。kimi 会话目录按 MD5(cwd) 命名,前端据此拼会话路径。 */
+  md5Hex: (text: string) => invoke<string>("md5_hex", { text }),
   /** 列出 omp 已登录的供应商 id 列表(agent.db auth_credentials,未禁用)。 */
   ompAuthProviders: () => invoke<string[]>("omp_auth_providers"),
  };

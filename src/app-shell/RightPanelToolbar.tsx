@@ -39,6 +39,8 @@ function deriveWorkspaceLabel(root: string, fallbackName?: string): string {
 export function TopBarPanelTabs() {
   const { mode, pinnedIds, panels } = useFilePanel();
   const [overflowPos, setOverflowPos] = useState<{ x: number; y: number } | null>(null);
+  /* 激活面板的顶栏嵌入段(如 git 的视图下拉 + ⟳) */
+  const ActiveToolbar = panels.find((p) => p.id === mode)?.toolbar;
 
   /* 外显 tab = 已钉住 + 当前激活(未钉也临时外显) */
   const visiblePanels = panels.filter((p) => pinnedIds.has(p.id) || p.id === mode);
@@ -59,6 +61,7 @@ export function TopBarPanelTabs() {
 
   return (
     <div className="panel-tabs-row">
+      {ActiveToolbar ? <ActiveToolbar /> : null}
       <div className="panel-tabs" role="tablist" aria-label="右侧面板">
         {visiblePanels.map((panel) => {
           const Icon = panel.icon;
@@ -244,6 +247,9 @@ export function WorkspaceSubbar() {
  * ────────────────────────────────────────────────────────── */
 /* memo 兜底:无 props,父级(AppShell 右栏 aside)重渲染时不再连带重渲染。 */
 export const RightPanelToolbar = memo(function RightPanelToolbar() {
+  /* git 面板自带聚合行(分支 · ±统计 · 文件数),workspace 行只服务文件面板 */
+  const { mode } = useFilePanel();
+  if (mode === "git") return null;
   return (
     <div className="right-panel-toolbar">
       <WorkspaceSubbar />

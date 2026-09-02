@@ -1,6 +1,7 @@
 # Proposal: 右栏 Git 面板实装(基于 git2 / libgit2)
 
-> **状态**:Draft v0.2 · 已合入 review 修订(6×P0 / 6×P1 / 8×P2)
+> **状态**:Implemented v0.3 · 2026-09-02 实装完成,待湘宁验收
+> **验证**:cargo test 11 绿(真实 repo 集成)/ vitest 356 绿 / typecheck / file-size / arch-boundary 全绿 / macOS arm64 打包通过(dmg 9.8MB)
 > **作者**:AI 联合架构师
 > **关联**:替代骨架期决策"git shell-out"(原 `src-tauri/src/git.rs` 头注释)
 > **布局基准**:codemoss 右栏 Git 面板外观(见 §1.3 布局契约)

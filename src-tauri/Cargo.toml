@@ -3,7 +3,7 @@ name = "tmd-cli"
 version = "0.1.0"
 description = "Plugin-based multi-CLI desktop client"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.80"
 
 [lib]
 name = "tmd_cli_lib"
@@ -17,6 +17,9 @@ tauri = { version = "2", features = ["protocol-asset"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 portable-pty = "0.9"
+# git2:libgit2 vendored 静态编译;default-features 全关(https/ssh 不需要 —
+# 远端操作走 shell-out,见 git/remote_ops.rs),vendored-libgit2 自带 zlib。
+git2 = { version = "0.20", default-features = false, features = ["vendored-libgit2"] }
 parking_lot = "0.12"
 dirs = "6"
 tauri-plugin-dialog = "2"
@@ -25,6 +28,8 @@ reqwest = { version = "0.13", features = ["json", "rustls"] }
 # 只读 omp agent.db(auth_credentials 表)取供应商凭据;bundled 免系统 sqlite 依赖。
 rusqlite = { version = "0.40", features = ["bundled"] }
 base64 = "0.22"
+# MD5(非安全用途):kimi CLI 的会话目录按 MD5(cwd) 哈希命名,前端算 cwd → 目录名。
+md-5 = "0.10"
 tauri-plugin-shell = { version = "2", default-features = false }
 # 产物体积与运行性能:lto 全量链接优化 + 单 codegen unit 提升内联,
 # strip 去符号表,panic=abort 省掉 unwinding 运行时(无跨 panic 边界逻辑)。
