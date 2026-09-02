@@ -9,10 +9,12 @@
 
 import { useEffect, useState } from "react";
 import { History, Loader2, RotateCcw, Undo2 } from "lucide-react";
+import { host } from "@kernel/host";
 import { useWorkspaces } from "@kernel/workspace";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import type { CkptBatch, CkptBatchFile, CkptPatch } from "@kernel/ipc";
 import {
+  ckptSourceLabel,
   getCachedDiff,
   loadDiff,
   refreshBatches,
@@ -57,6 +59,13 @@ export function CheckpointsPanel() {
   const active = list.find((w) => w.id === activeId) ?? list[0];
   const cwd = active?.root ?? null;
   const state = useCkptBatches(cwd);
+  /* 范围过滤:默认只看当前会话的批次;无活会话在本工作区时自动退化为全部 */
+  const [scope, setScope] = useState<"session" | "all">("session");
+  const activeSessionId = host.getActiveSessionId();
+  const activeSession = host.getSessions().find((s) => s.id === activeSessionId);
+  const sessionInCwd =
+    activeSession && cwd && activeSession.cwd === cwd ? activeSession : null;
+  const hasSession = !!sessionInCwd;
   const [confirm, setConfirm] = useState<{ batchId: string; paths?: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -68,7 +77,11 @@ export function CheckpointsPanel() {
     return () => window.clearInterval(timer);
   }, [cwd]);
 
-  const pendingCount = state.batches.filter((b) => batchState(b) === "pending").length;
+  const visible =
+    scope === "session" && sessionInCwd
+      ? state.batches.filter((b) => b.sessionId === sessionInCwd.id)
+      : state.batches;
+  const pendingCount = visible.filter((b) => batchState(b) === "pending").length;
 
   async function doRevert(cwd2: string, batchId: string, paths?: string[]) {
     setBusy(true);
@@ -118,6 +131,34 @@ export function CheckpointsPanel() {
           </span>
         )}
         <span className="flex-1" />
+        {/* 范围开关:本会话 / 全部工作区 */}
+        <div className="flex flex-none items-center overflow-hidden rounded-(--tmd-radius-sm) border border-(--tmd-border)">
+          <button
+            type="button"
+            disabled={!hasSession}
+            className={`px-1.5 py-px text-[10px] leading-[14px] disabled:opacity-40 ${
+              scope === "session"
+                ? "bg-(--tmd-bg-active) text-(--tmd-fg)"
+                : "text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover)"
+            }`}
+            title={hasSession ? "只看当前会话产生的批次" : "当前工作区没有活会话"}
+            onClick={() => setScope("session")}
+          >
+            会话
+          </button>
+          <button
+            type="button"
+            className={`px-1.5 py-px text-[10px] leading-[14px] ${
+              scope === "all"
+                ? "bg-(--tmd-bg-active) text-(--tmd-fg)"
+                : "text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover)"
+            }`}
+            title="看本工作区全部批次(含历史会话)"
+            onClick={() => setScope("all")}
+          >
+            全部
+          </button>
+        </div>
         <span className="flex-none text-(--tmd-fg-faint)">
           待审 <b className="font-semibold text-[#facc20]">{pendingCount}</b>
         </span>
@@ -149,14 +190,16 @@ export function CheckpointsPanel() {
           <div className="flex items-center justify-center gap-2 pt-10 text-(--tmd-fg-faint)">
             <Loader2 size={13} className="animate-spin" aria-hidden /> 读取批次…
           </div>
-        ) : state.batches.length === 0 ? (
+        ) : visible.length === 0 && scope === "session" && state.batches.length > 0 ? (
+          <Empty text="当前会话暂无批次 —— 切到「全部」查看工作区其他批次" />
+        ) : visible.length === 0 ? (
           <Empty text="还没有批次 —— 发送一条让 AI 改文件的消息后,这里会按轮归批" />
         ) : (
-          state.batches.map((b, i) => (
+          visible.map((b, i) => (
             <BatchRow
               key={b.id}
               batch={b}
-              last={i === state.batches.length - 1}
+              last={i === visible.length - 1}
               busy={busy}
               confirm={confirm?.batchId === b.id ? confirm : null}
               setConfirm={setConfirm}
@@ -205,6 +248,7 @@ function BatchRow({
 
   const st = batchState(b);
   const meta = STATE_META[st];
+  const src = ckptSourceLabel(b.sessionId);
   const stats = batchStats(b.open ? undefined : getCachedDiff(cwd, b.id));
   const revertable = b.files.filter((f) => f.live === "same");
 
@@ -241,6 +285,9 @@ function BatchRow({
                 <span className="text-[#f85149]">−{stats.del}</span>
               </span>
             )}
+            <span className="flex-none rounded border border-(--tmd-border) px-1 text-[9.5px] leading-[14px] text-(--tmd-fg-faint)">
+              {src.label}
+            </span>
             <span className={`flex-none rounded-full px-1.5 text-[9.5px] font-semibold leading-[15px] ${meta.chip}`}>
               {meta.label}
               {st === "done" && b.doneReason ? ` · ${b.doneReason}` : ""}

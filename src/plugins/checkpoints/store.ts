@@ -8,6 +8,7 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { host } from "@kernel/host";
 import { ipc, type CkptBatch, type CkptPatch } from "@kernel/ipc";
 
 export interface CwdCkptState {
@@ -124,6 +125,18 @@ export function loadDiff(cwd: string, batchId: string): CkptPatch[] | null {
 }
 
 // ---- React 绑定 -----------------------------------------------------------
+
+/** 批次来源标注:活会话 → CLI profile id;已退出 → 「历史」。审批线是工作区维度,
+ *  多会话并行时靠它区分归属(锚点 manifest 记录的就是 tmd sessionId)。 */
+export function ckptSourceLabel(sessionId: string): { label: string; title: string } {
+  const s = host.getSessions().find((x) => x.id === sessionId);
+  if (!s) return { label: "历史", title: `历史会话 ${sessionId.slice(0, 8)}` };
+  const p = host.getCliProfile(s.profileId);
+  return {
+    label: s.profileId,
+    title: `${p?.name ?? s.profileId} · 会话 ${sessionId.slice(0, 8)}`,
+  };
+}
 
 export function useCkptVersion(): number {
   return useSyncExternalStore(

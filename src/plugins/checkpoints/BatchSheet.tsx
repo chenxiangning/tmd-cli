@@ -12,7 +12,7 @@ import { ChevronRight, Loader2, RotateCcw } from "lucide-react";
 import { useEditorTabs } from "@kernel/tabs";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import type { CkptPatch } from "@kernel/ipc";
-import { getCachedDiff, loadDiff, revertBatch, useCkptVersion, useCkptBatches } from "./store";
+import { getCachedDiff, ckptSourceLabel, loadDiff, revertBatch, useCkptVersion, useCkptBatches } from "./store";
 import { readBatchPayload } from "./batchTab";
 
 export function BatchSheetTabContent() {
@@ -104,6 +104,12 @@ function SheetBody({
       <div className="flex h-8 flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-3">
         <span className="text-[11px] text-(--tmd-fg-faint)">
           批次 #{batch.index} · {stateLabel} · {formatRelativeTime(batch.ts)}
+        </span>
+        <span
+          className="rounded border border-(--tmd-border) px-1 text-[9.5px] leading-[14px] text-(--tmd-fg-faint)"
+          title={ckptSourceLabel(batch.sessionId).title}
+        >
+          {ckptSourceLabel(batch.sessionId).label}
         </span>
         {patches && (
           <span className="font-mono text-[11px]">
