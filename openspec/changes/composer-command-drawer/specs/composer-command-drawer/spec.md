@@ -4,7 +4,7 @@
 
 ### Requirement: 协议声明(数据归 CLI 插件)
 
-CLI 插件 SHALL 通过 `CliProfile.suggestions` 声明命令/技能候选,并 MAY 为每项声明 `action`("send" | "insert")、`icon`(语义名)、`group`、`order`;`action` 缺省 SHALL 为 "insert"。composer 侧 SHALL NOT 出现任何 `profile.id` 条件分支。
+CLI 插件 SHALL 通过 `CliProfile.suggestions` 声明命令/技能候选,并 MAY 为每项声明 `action`("send" | "insert")、`icon`(语义名)、`token`(完整 wire/插入文本)、`group`、`order`;`action` 缺省 SHALL 为 "insert"。MCP 服务器 MAY 经 `CliProfile.listMcpServers(cwd)` 声明;未声明时抽屉 SHALL NOT 显示 MCP 分区。composer 侧 SHALL NOT 出现任何 `profile.id` 条件分支。
 
 #### Scenario: 老 profile 零改动可用
 
@@ -16,32 +16,42 @@ CLI 插件 SHALL 通过 `CliProfile.suggestions` 声明命令/技能候选,并 M
 - **WHEN** 用户点击一个未声明 action 的候选
 - **THEN** 文本插入输入框光标处,不发生任何 PTY 写入
 
-### Requirement: 分区由 triggers 派生
+### Requirement: 分区由声明派生并可以切换
 
-抽屉分区 SHALL 由 `profile.triggers` 已声明的 kind 派生;未声明对应触发符的 kind(如 qoder 无 `$` 技能触发符)SHALL 不显示该分区。
+命令/技能分区 SHALL 由 `profile.triggers` 已声明的 kind 派生;MCP 分区 SHALL 由 `listMcpServers` 声明派生;插件分区 SHALL 渲染内核 `listPluginStates()` 中 `category: "feature"` 的启用插件。抽屉 SHALL 提供分区切换按钮(segmented),tab 行 SHALL 只渲染实际有数据的分区,并提供「全部」聚合视图;打开抽屉时 SHALL 重置为「全部」并清空过滤词。
 
 #### Scenario: 无技能触发符的 CLI
 
-- **WHEN** 活跃 profile 的 triggers 只含 `{ char: "/", kind: "command" }`
-- **THEN** 抽屉仅显示命令区,不出现空的技能区
+- **WHEN** 活跃 profile 的 triggers 只含 `{ char: "/", kind: "command" }` 且未声明 listMcpServers
+- **THEN** 抽屉仅显示命令分区,tab 行无「技能」「MCP」chip
+
+#### Scenario: 插件分区点击
+
+- **WHEN** 用户点击插件分区中的 Git 面板
+- **THEN** 右栏面板经 `filePanel.setFilePanelMode` 切换到 Git,抽屉收起
 
 ### Requirement: 开合与入口
 
-composer 右上角(原「只读」位置)SHALL 提供抽屉开关按钮,展开时呈现 `aria-expanded`;⌘/Ctrl+K SHALL 切换开合;Esc 与点击抽屉外 SHALL 关闭;无活跃会话时开关 SHALL 置灰。
+composer 右上角(原「只读」位置,只读标识直接删除、不迁移)SHALL 提供抽屉开关按钮,展开时呈现 `aria-expanded`;⌘/Ctrl+K SHALL 切换开合;Esc 与点击抽屉外 SHALL 关闭;无活跃会话时开关 SHALL 置灰。
 
 #### Scenario: 键盘开合
 
 - **WHEN** 用户在输入框按 ⌘K
-- **THEN** 抽屉在开 ↔ 关之间切换,输入焦点与草稿不受影响
+- **THEN** 抽屉在开 ↔ 关之间切换;打开时焦点移入过滤框(草稿内容不受影响),关闭时焦点归还输入框
 
-### Requirement: send 直接执行
+### Requirement: send 直接执行且与手动发送同路径
 
-`action: "send"` 的项被点击时,composer SHALL 将该候选文本经 `prepareSendPayload`(translate 钩子生效)后直接 `sessionWrite` 到活跃会话,SHALL 给出 toast 反馈并收起抽屉;发送路径 SHALL 与正常发送完全一致(不新增写入通道)。
+`action: "send"` 的项被点击时,composer SHALL 将该候选文本经 `prepareSendPayload`(translate 钩子生效)后直接 `sessionWrite` 到活跃会话,SHALL 给出 toast 反馈并收起抽屉;发送路径 SHALL 与用户手动输入同一命令后发送完全一致——composer 对手动输入的命令文本 SHALL NOT 做任何解析、拦截或特殊确认。
 
 #### Scenario: omp 技能直接发送
 
 - **WHEN** 用户点击 omp 抽屉中 `action: "send"` 的 `$think`
 - **THEN** 幕布收到 `/skill:think`(由 profile translate 决定),composer 不出现字面 `$think`
+
+#### Scenario: 手敲 model 与抽屉发送无差别
+
+- **WHEN** 用户在输入框手敲 `/model` 回车,而非从抽屉点击
+- **THEN** 与抽屉点击 `/model` 走完全相同的发送路径,幕布同样打开模型 picker,composer 无任何拦截
 
 #### Scenario: 无活跃会话
 
@@ -50,12 +60,17 @@ composer 右上角(原「只读」位置)SHALL 提供抽屉开关按钮,展开�
 
 ### Requirement: insert 插入输入框
 
-`action: "insert"`(含缺省)的项被点击时,composer SHALL 在光标处插入候选 token(command 为 `/name`,skill 为 `$name`,翻译留到发送时),焦点 SHALL 回到输入框且光标位于插入文本之后。
+`action: "insert"`(含缺省)的项被点击时,composer SHALL 在光标处插入候选 token(command 为 `/name`,skill 为 `$name`,声明 `token` 时用 token 原文,翻译留到发送时),焦点 SHALL 回到输入框且光标位于插入文本之后。
 
 #### Scenario: 带参命令续编
 
 - **WHEN** 用户点击 kimi 的 `/title`
 - **THEN** 输入框光标处出现 `/title `,用户继续输入会话名后自行发送
+
+#### Scenario: codex MCP mention
+
+- **WHEN** 用户点击 codex 抽屉 MCP 分区中 `token: "$github "`、`action: "insert"` 的服务器
+- **THEN** 输入框光标处出现 `$github `,原样透传(codex 原生 mention 语法)
 
 ### Requirement: 过滤与键盘导航
 
@@ -68,12 +83,12 @@ composer 右上角(原「只读」位置)SHALL 提供抽屉开关按钮,展开�
 
 ### Requirement: 运行时发现覆盖静态表
 
-`CliProfile.listSuggestions(kind, cwd)` 声明时,抽屉与触发符下拉 SHALL 优先消费其结果;返回 null 或失败 SHALL 回退静态 `suggestions`;resolver SHALL 以 60s TTL 缓存(key 含 profileId/kind/cwd),失败不缓存。
+`CliProfile.listSuggestions(kind, cwd)` 声明时,抽屉 resolver SHALL 优先消费其结果;返回 null 或失败 SHALL 回退静态 `suggestions`;resolver SHALL 以 60s TTL 缓存(key 含 profileId/kind/cwd),失败不缓存。`listMcpServers` 结果 SHALL 共享同一缓存语义(失败 = MCP 分区为空,不渲染错误)。触发符下拉消费 `listSuggestions` 与 CLI 磁盘技能热更新属后续变更范围(本变更落地时暂无 profile 声明该钩子,claude 技能仍为激活期扫描)。
 
-#### Scenario: 磁盘技能热更新
+#### Scenario: 声明即优先,失败即回退
 
-- **WHEN** 用户在 `~/.claude/skills` 新增技能并等待缓存过期后重新打开抽屉
-- **THEN** 新技能出现在候选中,无需重启应用
+- **WHEN** 某 profile 声明了 `listSuggestions("skill", cwd)` 并返回候选
+- **THEN** 抽屉技能区消费其返回;若返回 null(如磁盘扫描失败),回退静态 `suggestions` 且不渲染错误
 
 ### Requirement: 图标语义声明与回退
 

@@ -1,12 +1,19 @@
 /**
- * Composer 附件条样式 —— 从 docs/composer-design.html 原型抽取。
+ * Composer 附件条样式 —— 紧凑单行布局。
  *
+ * 结构:卡片条居左(横向滚动),头部文案 + 全部清除右移同行;
+ * 卡片为 48px 横向小片(40px 缩略图 + 大小),不显示文件名
+ * (悬停卡片由 title 提示完整路径),整体高度约为原竖版卡布局的 1/2。
  * 命名:tmd-attach-* / tmd-kind-* —— 与 tmd 主题 token 一致
  * 作用域:.tmd-attach-section(Composer 容器内)
  */
 
-/* ── 附件区块 ── */
+/* ── 附件区块:单行,卡片条左 / 文案右 ── */
 .tmd-attach-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--tmd-border);
   background: var(--tmd-bg-base);
 }
@@ -14,8 +21,10 @@
 .tmd-attach-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px 0;
+  gap: 6px;
+  flex: none;
+  margin-left: auto;
+  white-space: nowrap;
   color: var(--tmd-fg-subtle);
   font-size: 11px;
 }
@@ -37,17 +46,22 @@
 .tmd-attach-strip {
   display: flex;
   gap: 8px;
-  padding: 8px 12px;
-  background: var(--tmd-bg-base);
-  flex-wrap: wrap;
+  min-width: 0;
+  flex: 1;
+  padding: 2px;
+  overflow-x: auto;
 }
 
-/* ── 单卡 ── */
+/* ── 单卡:横向小片 ── */
 .tmd-attach {
   position: relative;
   display: flex;
-  flex-direction: column;
-  width: 92px;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  height: 48px;
+  /* 右侧留 × 的落位 */
+  padding: 0 24px 0 4px;
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-elevated);
@@ -64,8 +78,10 @@
 .tmd-attach-drop-target { border-color: var(--tmd-accent); transform: translateY(-2px); }
 
 .tmd-attach-thumb {
-  width: 100%;
-  height: 64px;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 4px;
   background: var(--tmd-bg-sunken);
   background-size: cover;
   background-position: center;
@@ -73,33 +89,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .tmd-attach-meta {
-  padding: 4px 6px;
-  border-top: 1px solid var(--tmd-border);
-  color: var(--tmd-fg-muted);
-  line-height: 1.3;
-}
-.tmd-attach-name {
-  color: var(--tmd-fg);
-  font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  color: var(--tmd-fg-subtle);
 }
 .tmd-attach-info {
-  color: var(--tmd-fg-subtle);
-  font-size: 10px;
+  font-size: 11px;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
 .tmd-attach-close {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 18px;
-  height: 18px;
+  top: 50%;
+  right: 3px;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
@@ -116,31 +125,15 @@
 .tmd-attach:hover .tmd-attach-close { opacity: 1; }
 .tmd-attach-close:hover { background: var(--danger); }
 
-.tmd-attach-badge {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--tmd-accent);
-  color: var(--tmd-accent-fg);
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  z-index: 1;
-}
-.tmd-attach-pdf .tmd-attach-badge { background: var(--danger); }
-.tmd-attach-code .tmd-attach-badge { background: var(--success); }
-
-/* ── 类型图标(非图片时) ── */
+/* ── 类型图标(非图片时,填满 32px 缩略块) ── */
 .tmd-kind-icon {
   width: 100%;
-  height: 64px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 10px;
   color: var(--tmd-accent-fg);
 }
 .tmd-kind-image { background: linear-gradient(135deg, #5b9bd5, #007acc); }
