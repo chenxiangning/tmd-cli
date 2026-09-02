@@ -1,4 +1,4 @@
-//! Tauri command 层 —— 14 个命令,cwd 字符串为唯一维度。
+//! Tauri command 层 —— 15 个命令,cwd 字符串为唯一维度。
 //!
 //! 全部 async + spawn_blocking(libgit2/子进程皆阻塞;同步 command 会跑在
 //! Tauri 主线程冻结 UI —— 本仓 cli_probe/cli_install 同款约定)。

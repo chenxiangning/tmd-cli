@@ -196,7 +196,9 @@ impl PtyRegistry {
         let out_app = app.clone();
         let logs = Arc::clone(&self.logs);
         let out_sessions = Arc::clone(&self.sessions);
-        let (out_tx, out_rx) = mpsc::channel::<Vec<u8>>();
+        /* 有界 channel:队列满则 reader 阻塞 → 内核 PTY 缓冲回压子进程,
+        防持续高速输出(cat 大文件/构建刷屏)下无界队列内存膨胀。 */
+        let (out_tx, out_rx) = mpsc::sync_channel::<Vec<u8>>(64);
         std::thread::spawn(move || {
             let mut buf = [0u8; 8192];
             loop {

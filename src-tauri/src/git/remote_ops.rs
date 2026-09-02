@@ -18,18 +18,24 @@ use super::GitError;
 const REMOTE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 /// try_wait 轮询间隔。
 const REMOTE_POLL: std::time::Duration = std::time::Duration::from_millis(200);
+/// 退出后管道排空等待上限:git 的 ssh 孙进程(ControlMaster/GCM)可能
+/// 握管道写端不撒手,join/无限等会把锁拖到孙进程消亡。
+const PIPE_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
-/// 排空子进程管道到缓冲(独立线程):防子进程写满管道缓冲自我阻塞。
+/// 排空子进程管道并把结果发回 channel(独立线程):防子进程写满管道缓冲
+/// 自我阻塞。不 join:收集端 recv_timeout 兜底(超时/放弃路径直接丢接收端)。
 fn drain_pipe<R: std::io::Read + Send + 'static>(
     pipe: Option<R>,
-) -> std::thread::JoinHandle<Vec<u8>> {
+) -> std::sync::mpsc::Receiver<Vec<u8>> {
+    let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let mut buf = Vec::new();
         if let Some(mut p) = pipe {
             let _ = std::io::Read::read_to_end(&mut p, &mut buf);
         }
-        buf
-    })
+        let _ = tx.send(buf);
+    });
+    rx
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -91,8 +97,8 @@ pub fn run(
     let stdout_pipe = child.stdout.take();
     let stderr_pipe = child.stderr.take();
     /* 双管道即刻并发排空:防子进程写满管道缓冲自我阻塞 */
-    let out_thread = drain_pipe(stdout_pipe);
-    let err_thread = drain_pipe(stderr_pipe);
+    let out_rx = drain_pipe(stdout_pipe);
+    let err_rx = drain_pipe(stderr_pipe);
 
     let started = std::time::Instant::now();
     let status = loop {
@@ -103,7 +109,7 @@ pub fn run(
                     let _ = child.kill();
                     let _ = child.wait();
                     /* 不 join 读线程:git 的 ssh 孙进程可能仍握管道写端,
-                     * join 会把锁持有时间拖到孙进程消亡 —— 线程随 buf 丢弃 */
+                     * join 会把锁持有时间拖到孙进程消亡 —— 接收端直接丢弃 */
                     return Err(GitError::empty(
                         "git 网络操作超时(>300s),已中止;请检查网络/远端后重试",
                     ));
@@ -113,8 +119,9 @@ pub fn run(
             Err(e) => return Err(GitError::shell(format!("git 等待失败: {e}"))),
         }
     };
-    let stdout = out_thread.join().unwrap_or_default();
-    let stderr = err_thread.join().unwrap_or_default();
+    /* 正常退出后管道排空同样可能被孙进程拖住 —— 与超时路径同规则有限等待 */
+    let stdout = out_rx.recv_timeout(PIPE_DRAIN_TIMEOUT).unwrap_or_default();
+    let stderr = err_rx.recv_timeout(PIPE_DRAIN_TIMEOUT).unwrap_or_default();
     let mut combined = String::from_utf8_lossy(&stdout).into_owned();
     if !stderr.is_empty() {
         if !combined.ends_with('\n') && !combined.is_empty() {

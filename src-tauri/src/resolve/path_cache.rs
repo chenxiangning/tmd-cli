@@ -1,21 +1,11 @@
-//! 打包环境命令解析 —— PATH 富化与裸命令名 → 绝对路径。
+//! PATH 富化:login shell 两级提取 + 兜底目录合并 + 进程级缓存(降级可自愈)。
 //!
-//! 消费方:pty.rs(PTY spawn)、probe.rs(CLI 探针)、installer.rs(一键安装)、
-//! lib.rs(进程级 PATH 修复)。PATH 进程级缓存;降级结果(login shell
-//! 超时/失败)不永久缓存 —— 后台重试 + probe 同步重算,可自愈。
+//! 2026-09-02 前 LazyLock 永久缓存降级结果,打包版 omp/kimi 误报"未安装"
+//! 且刷新键无法自愈 —— 本模块的状态机保证 Degraded 结果不永久缓存。
 
 use parking_lot::Mutex;
 
-/* ---------- 打包环境命令解析 ----------
- * macOS: Finder/Dock 启动的 .app 由 launchd 拉起,PATH 只有 /usr/bin:/bin:/usr/sbin:/sbin,
- *   claude/omp/pi/codex 装在 ~/.local/bin、/opt/homebrew/bin → 裸命令名 spawn 必失败。
- *   解法:login shell 两级提取(-lc 快路径优先,-ilc 兜底/升级)+ 合并兜底目录,
- *   进程级缓存(降级可自愈),命令解析为绝对路径。
- * Linux: 桌面环境启动同样 PATH 贫瘠,同一机制覆盖;$SHELL 为 dash 等不支持 -l 时
- *   静默降级到进程 PATH + 兜底目录。
- * Windows: GUI 应用继承注册表合并 PATH,通常不缺目录;真正的坑是 npm 全局 CLI 是
- *   .cmd/.bat shim,CreateProcess 不解析无扩展名批处理 → 按 PATHEXT 搜索,
- *   命中批处理时包裹 `cmd /c`。 */
+use super::wait_child_with_timeout;
 
 /// PATH 计算结果:合并后的 PATH + 提取质量标记。
 struct ComputedPath {
@@ -84,15 +74,16 @@ fn cache_get_or_refresh(
 fn compute_and_store(cache: &mut PathCache, compute: impl FnOnce() -> ComputedPath) -> String {
     let computed = compute();
     let path = computed.path.clone();
-    #[cfg(unix)]
-    if computed.shell_ok && computed.needs_interactive_upgrade {
-        kick_interactive_upgrade(cache);
-    }
+    /* 先入库再踢升级:-ilc 升级线程可能先完成,后入库会被快路径旧值覆写 */
     cache.state = Some(if computed.shell_ok {
         PathState::Ready(computed.path)
     } else {
         PathState::Degraded(computed.path)
     });
+    #[cfg(unix)]
+    if computed.shell_ok && computed.needs_interactive_upgrade {
+        kick_interactive_upgrade(cache);
+    }
     path
 }
 
@@ -167,30 +158,6 @@ const LOGIN_SHELL_FAST_TIMEOUT_SECS: u64 = 2;
 /// 秒级起步(实测热缓存 ~2s);rc 里有交互/阻塞读取则永久挂住 —— 必须硬超时。
 #[cfg(unix)]
 const LOGIN_SHELL_INTERACTIVE_TIMEOUT_SECS: u64 = 5;
-
-/// 带超时的子进程等待。超时 kill 并返回 None;调用方无需再 kill。
-/// sleep+try_wait 轮询(100ms tick),不引入 wait-timeout crate。
-pub(crate) fn wait_child_with_timeout(
-    child: &mut std::process::Child,
-    timeout: std::time::Duration,
-) -> Option<std::io::Result<std::process::ExitStatus>> {
-    let started = std::time::Instant::now();
-    let tick = std::time::Duration::from_millis(100);
-    loop {
-        match child.try_wait() {
-            Ok(Some(status)) => return Some(Ok(status)),
-            Ok(None) => {
-                if started.elapsed() >= timeout {
-                    let _ = child.kill();
-                    let _ = child.wait(); /* 防 zombie */
-                    return None;
-                }
-                std::thread::sleep(tick);
-            }
-            Err(e) => return Some(Err(e)),
-        }
-    }
-}
 
 /// 从用户 login shell 提取 PATH。哨兵包裹输出,免疫用户 rc 文件的噪音打印。
 /// mode:"-lc"(快路径,不读 .zshrc)或 "-ilc"(完整路径);超时 kill 返回 None。
@@ -336,122 +303,9 @@ fn kick_interactive_upgrade(cache: &mut PathCache) {
     });
 }
 
-/// 解析结果:最终 program + 需要前插的参数(Windows 批处理 shim → ["cmd.exe", "/c", path])。
-pub(crate) struct ResolvedCommand {
-    pub program: String,
-    pub prefix_args: Vec<String>,
-}
-
-/// 裸命令名 → 可执行绝对路径;找不到时原样返回,错误信息仍指向原命令名。
-/// Windows 下命中 .cmd/.bat shim 时改为 cmd /c 包裹(CreateProcess 不能直跑批处理)。
-pub(crate) fn resolve_command(command: &str, path: &str) -> ResolvedCommand {
-    let has_separator = command.contains('/') || command.contains('\\');
-    if has_separator {
-        return wrap_if_batch(command.to_string());
-    }
-    for dir in std::env::split_paths(std::ffi::OsStr::new(path)) {
-        if let Some(candidate) = find_in_dir(&dir, command) {
-            return wrap_if_batch(candidate.to_string_lossy().into_owned());
-        }
-    }
-    ResolvedCommand {
-        program: command.to_string(),
-        prefix_args: Vec::new(),
-    }
-}
-
-#[cfg(unix)]
-fn find_in_dir(dir: &std::path::Path, command: &str) -> Option<std::path::PathBuf> {
-    let candidate = dir.join(command);
-    is_executable(&candidate).then_some(candidate)
-}
-
-#[cfg(windows)]
-fn find_in_dir(dir: &std::path::Path, command: &str) -> Option<std::path::PathBuf> {
-    /* 已带扩展名 → 直接命中;否则按 PATHEXT 顺序补扩展名 */
-    if std::path::Path::new(command).extension().is_some() {
-        let candidate = dir.join(command);
-        return candidate.is_file().then_some(candidate);
-    }
-    let pathext = std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".to_string());
-    for ext in pathext.split(';').filter(|e| !e.is_empty()) {
-        let ext = ext.trim_start_matches('.');
-        let candidate = dir.join(format!("{command}.{ext}"));
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-    None
-}
-
-/// 批处理 shim 必须经 cmd /c 执行;其余原样。非 Windows 永不包裹。
-fn wrap_if_batch(path: String) -> ResolvedCommand {
-    #[cfg(windows)]
-    if is_batch_script(&path) {
-        let comspec = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
-        return ResolvedCommand {
-            program: comspec,
-            prefix_args: vec!["/c".to_string(), path],
-        };
-    }
-    ResolvedCommand {
-        program: path,
-        prefix_args: Vec::new(),
-    }
-}
-
-/// 纯函数:路径是否指向 Windows 批处理脚本(大小写不敏感)。跨平台可测。
-#[cfg(any(windows, test))]
-fn is_batch_script(path: &str) -> bool {
-    let lower = path.to_ascii_lowercase();
-    lower.ends_with(".cmd") || lower.ends_with(".bat")
-}
-
-#[cfg(unix)]
-fn is_executable(path: &std::path::Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    path.metadata()
-        .map(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
-        .unwrap_or(false)
-}
-
-#[cfg(not(unix))]
-fn is_executable(path: &std::path::Path) -> bool {
-    path.is_file()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn resolve_command_在_path_中找到可执行文件并返回绝对路径() {
-        let r = resolve_command("ls", "/bin:/usr/bin");
-        assert_eq!(r.program, "/bin/ls");
-        assert!(r.prefix_args.is_empty());
-    }
-
-    #[test]
-    fn resolve_command_找不到时原样返回() {
-        let r = resolve_command("tmd-no-such-cmd", "/bin");
-        assert_eq!(r.program, "tmd-no-such-cmd");
-        assert!(r.prefix_args.is_empty());
-    }
-
-    #[test]
-    fn resolve_command_已是路径时原样返回() {
-        let r = resolve_command("/bin/ls", "/usr/bin");
-        assert_eq!(r.program, "/bin/ls");
-        assert!(r.prefix_args.is_empty());
-    }
-
-    #[test]
-    fn is_batch_script_仅识别_cmd_bat_扩展名() {
-        assert!(is_batch_script("C:\\Users\\x\\AppData\\npm\\claude.CMD"));
-        assert!(is_batch_script("npm/omp.bat"));
-        assert!(!is_batch_script("/opt/homebrew/bin/omp"));
-        assert!(!is_batch_script("claude.exe"));
-    }
 
     #[test]
     fn enriched_path_包含进程_path_与常见安装目录且去重() {

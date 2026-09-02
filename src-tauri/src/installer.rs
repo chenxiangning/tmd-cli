@@ -146,16 +146,19 @@ pub fn run_install(app: &AppHandle, engine: CliInstallEngine) -> Result<bool, St
     let mut child = cmd.spawn().map_err(|e| format!("spawn {program}: {e}"))?;
 
     /* 双线程逐行泵:stdout/stderr 各一个,AppHandle clone 进线程(Send)。
-    泛型 over Read:ChildStdout/ChildStderr 是不同类型,闭包无法复用。 */
+    泛型 over Read:ChildStdout/ChildStderr 是不同类型,闭包无法复用。
+    泵完成经 channel 回执,不 join:npm 拉起的孙进程(node 脚本可守护化)
+    可能握管道写端,join 会让安装命令在超时后仍不返回。 */
     fn pump<R: std::io::Read + Send + 'static>(
         reader: Option<R>,
         stream: &'static str,
         app: &AppHandle,
         topic: &str,
-    ) -> Option<thread::JoinHandle<()>> {
+    ) -> Option<std::sync::mpsc::Receiver<()>> {
         reader.map(|r| {
             let app2 = app.clone();
             let topic2 = topic.to_string();
+            let (tx, rx) = std::sync::mpsc::channel::<()>();
             thread::spawn(move || {
                 for line in BufReader::new(r).lines() {
                     let Ok(text) = line else { break };
@@ -167,21 +170,26 @@ pub fn run_install(app: &AppHandle, engine: CliInstallEngine) -> Result<bool, St
                         },
                     );
                 }
-            })
+                let _ = tx.send(());
+            });
+            rx
         })
     }
-    let out_thread = pump(child.stdout.take(), "stdout", app, &topic);
-    let err_thread = pump(child.stderr.take(), "stderr", app, &topic);
+    let out_rx = pump(child.stdout.take(), "stdout", app, &topic);
+    let err_rx = pump(child.stderr.take(), "stderr", app, &topic);
 
     let exit = crate::resolve::wait_child_with_timeout(
         &mut child,
         std::time::Duration::from_secs(INSTALL_TIMEOUT_SECS),
     );
-    if let Some(t) = out_thread {
-        let _ = t.join();
+    /* 泵线程在放弃等待后仍会继续排空管道(防孙进程写阻塞),迟到的行
+     * 照常 emit,无害;这里只做有限等待。 */
+    let drain_wait = std::time::Duration::from_secs(5);
+    if let Some(rx) = out_rx {
+        let _ = rx.recv_timeout(drain_wait);
     }
-    if let Some(t) = err_thread {
-        let _ = t.join();
+    if let Some(rx) = err_rx {
+        let _ = rx.recv_timeout(drain_wait);
     }
 
     match exit {

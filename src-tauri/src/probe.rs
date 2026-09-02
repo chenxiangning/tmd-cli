@@ -108,16 +108,33 @@ fn run_version(program: &str) -> Option<String> {
 
     let started = Instant::now();
     let mut child = cmd.spawn().ok()?;
+
+    /* CLI fork 的后台进程会继承管道写端:wait 之后再 read-to-EOF 可能永不
+     * 返回(与 resolve.rs login shell 提取同类挂死)。spawn 后立刻并发
+     * 排空两个管道,退出后用带超时的 channel 收 stdout。 */
+    use std::io::Read;
+    let mut stdout_pipe = child.stdout.take()?;
+    let mut stderr_pipe = child.stderr.take()?;
+    let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
+    std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stdout_pipe.read_to_end(&mut buf);
+        let _ = tx.send(buf);
+    });
+    std::thread::spawn(move || {
+        let mut sink = Vec::new();
+        let _ = stderr_pipe.read_to_end(&mut sink);
+    });
+
     let exit = wait_child_with_timeout(&mut child, Duration::from_secs(PROBE_TIMEOUT_SECS));
-
-    let output = match exit {
-        Some(Ok(status)) if status.success() => child.wait_with_output().ok(),
-        _ => return None, /* 超时已被 wait_child_with_timeout kill;失败进程已退出。 */
-    };
     let _ = started; /* 留作未来 metrics(单次探针耗时)。 */
-    let output = output?;
+    match exit {
+        Some(Ok(status)) if status.success() => {}
+        _ => return None, /* 超时已被 wait_child_with_timeout kill;失败进程已退出。 */
+    }
+    let out = rx.recv_timeout(Duration::from_secs(1)).ok()?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = String::from_utf8_lossy(&out);
     let first_line = stdout.lines().next().unwrap_or("").trim();
     if first_line.is_empty() {
         None
