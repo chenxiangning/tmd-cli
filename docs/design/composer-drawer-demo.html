@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Composer 命令抽屉 · 交互示例</title>
+<style>
+  /* ── 对齐 tmd-cli 深色主题 token(--tmd-* 映射,取 VS Code dark 系) ── */
+  :root {
+    --bg-page: #0c0e11;
+    --bg-base: #15181d;
+    --bg-elevated: #191d23;
+    --bg-popover: #1b2027;
+    --bg-hover: #22272f;
+    --bg-active: rgba(224, 138, 60, 0.14);
+    --border: #2a3038;
+    --border-strong: #3c434d;
+    --fg: #d7dbe0;
+    --fg-muted: #8b929b;
+    --fg-subtle: #6a717b;
+    --fg-faint: #4b525c;
+    --accent: #e08a3c;
+    --accent-soft: rgba(224, 138, 60, 0.15);
+    --ok: #6fbf7a;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg-page);
+    color: var(--fg);
+    font-family: var(--mono);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 24px;
+  }
+
+  /* ── 页头说明(仅演示页,非应用内容) ── */
+  .demo-note {
+    width: min(900px, 100%);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 11.5px;
+    color: var(--fg-subtle);
+  }
+  .demo-note b { color: var(--fg-muted); font-weight: 600; }
+  .legend {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+  .legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 10.5px;
+    color: var(--fg-muted);
+  }
+  .legend .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot.send { background: var(--accent); }
+  .dot.insert { background: var(--fg-faint); }
+
+  /* ── 模拟应用窗口 ── */
+  .app {
+    width: min(900px, 100%);
+    height: min(600px, calc(100vh - 110px));
+    min-height: 420px;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  }
+
+  /* ── 幕布终端(mock) ── */
+  .terminal {
+    flex: 1;
+    min-height: 0;
+    background: #101318;
+    padding: 14px 16px;
+    overflow-y: auto;
+    font-size: 12px;
+    line-height: 1.75;
+  }
+  .terminal .sys { color: var(--fg-faint); }
+  .terminal .prompt { color: var(--fg-muted); }
+  .terminal .cmd { color: var(--fg); }
+  .terminal .echo { color: var(--fg-subtle); }
+  .terminal .sent { color: var(--accent); }
+  .terminal .caret {
+    display: inline-block;
+    width: 7px;
+    height: 14px;
+    background: var(--fg-muted);
+    vertical-align: -2px;
+    animation: blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── Composer ── */
+  .composer {
+    position: relative;
+    height: 316px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-elevated);
+    border-top: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  /* 工具栏:原「只读」位置 → 抽屉开关 */
+  .toolbar {
+    height: 28px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 6px 0 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--fg-muted);
+    user-select: none;
+  }
+  .toolbar .kv b { color: var(--fg); font-weight: 500; }
+  .toolbar .sep { color: var(--fg-faint); }
+  .quota { display: inline-flex; align-items: center; gap: 5px; }
+  .bar {
+    width: 34px; height: 4px;
+    border-radius: 2px;
+    background: var(--bg-hover);
+    overflow: hidden;
+  }
+  .bar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+
+  /* 抽屉开关(替代原「只读」) */
+  .drawer-toggle {
+    margin-left: auto;
+    width: 24px; height: 24px;
+    display: grid;
+    place-items: center;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--fg-subtle);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .drawer-toggle:hover { background: var(--bg-hover); color: var(--fg); }
+  .drawer-toggle[aria-expanded="true"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .drawer-toggle:focus-visible { outline: 1.5px solid var(--accent); outline-offset: 1px; }
+
+  /* 输入区 */
+  .input-wrap { position: relative; flex: 1; min-height: 0; }
+  .input-wrap textarea {
+    width: 100%; height: 100%;
+    resize: none;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--fg);
+    caret-color: var(--accent);
+    font: 13px/1.58 var(--mono);
+    padding: 10px 40px 10px 2px;
+  }
+  .input-wrap textarea::placeholder { color: var(--fg-faint); }
+  .anchor-rail {
+    position: absolute;
+    right: 10px; top: 50%;
+    width: 14px; height: 2px;
+    background: var(--fg-faint);
+    border-radius: 1px;
+    opacity: 0.7;
+  }
+
+  /* ── 抽屉面板:自右滑入,悬浮于输入区之上,不遮挡工具栏 ── */
+  .drawer {
+    position: absolute;
+    top: 28px; right: 0; bottom: 0;
+    width: 300px;
+    max-width: 88%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-popover);
+    border-left: 1px solid var(--border);
+    box-shadow: -16px 0 40px rgba(0, 0, 0, 0.45);
+    transform: translateX(105%);
+    transition: transform 0.26s cubic-bezier(0.32, 0.72, 0.24, 1);
+    z-index: 30;
+  }
+  .drawer.open { transform: translateX(0); }
+
+  .drawer-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 10px 8px 14px;
+  }
+  .drawer-title { font-size: 12px; font-weight: 600; color: var(--fg); }
+  .cli-badge {
+    font-size: 9.5px;
+    padding: 1.5px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border-strong);
+    color: var(--fg-subtle);
+  }
+  .drawer-close {
+    margin-left: auto;
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    border: none; border-radius: 6px;
+    background: transparent;
+    color: var(--fg-subtle);
+    cursor: pointer;
+  }
+  .drawer-close:hover { background: var(--bg-hover); color: var(--fg); }
+
+  .drawer-search {
+    position: relative;
+    padding: 0 12px 10px;
+  }
+  .drawer-search svg {
+    position: absolute;
+    left: 21px; top: 8px;
+    color: var(--fg-faint);
+    pointer-events: none;
+  }
+  .drawer-search input {
+    width: 100%;
+    height: 28px;
+    padding: 0 10px 0 30px;
+    font: 11.5px var(--mono);
+    color: var(--fg);
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    outline: none;
+  }
+  .drawer-search input::placeholder { color: var(--fg-faint); }
+  .drawer-search input:focus { border-color: var(--border-strong); }
+
+  .drawer-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 2px 8px 8px;
+  }
+  .drawer-list::-webkit-scrollbar { width: 8px; }
+  .drawer-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .sec-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 6px 5px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--fg-faint);
+    position: sticky;
+    top: 0;
+    background: var(--bg-popover);
+  }
+  .sec-label .sym {
+    width: 16px; height: 16px;
+    display: grid; place-items: center;
+    border-radius: 4px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--fg-muted);
+    font-size: 11px;
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 6px 6px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font-family: var(--mono);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .item:hover, .item.active { background: var(--bg-hover); }
+  .item:focus-visible { outline: 1.5px solid var(--accent); outline-offset: -1.5px; }
+  .item.flash { animation: flash 0.5s; }
+  @keyframes flash {
+    0% { background: var(--accent-soft); }
+    100% { background: var(--bg-hover); }
+  }
+  .icon-chip {
+    flex-shrink: 0;
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    border-radius: 7px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--fg-muted);
+  }
+  .item.send .icon-chip { color: var(--accent); border-color: rgba(224, 138, 60, 0.35); }
+  .item-body { flex: 1; min-width: 0; }
+  .item-name { font-size: 12px; color: var(--fg); }
+  .item-desc {
+    font-size: 10.5px;
+    color: var(--fg-subtle);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+  }
+  .mode-tag {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 9.5px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--fg-subtle);
+  }
+  .item.send .mode-tag {
+    border-color: rgba(224, 138, 60, 0.35);
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .empty {
+    padding: 24px 0;
+    text-align: center;
+    font-size: 11px;
+    color: var(--fg-faint);
+    display: none;
+  }
+
+  .drawer-foot {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 9.5px;
+    color: var(--fg-faint);
+  }
+  .drawer-foot kbd {
+    font: 9.5px var(--mono);
+    padding: 1px 4px;
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    color: var(--fg-subtle);
+  }
+  .drawer-foot .count { margin-left: auto; }
+
+  /* ── Toast:直接发送反馈 ── */
+  .toast {
+    position: absolute;
+    left: 12px; bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    background: var(--bg-popover);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    font-size: 11px;
+    color: var(--fg);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 40;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast svg { color: var(--ok); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .drawer, .toast, .terminal .caret { transition: none; animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="demo-note">
+  <b>Composer 命令抽屉 · 交互示例</b>
+  <span>原右上「只读」移除 → 换为抽屉开关;⚡ 点击直达幕布,↵ 点击插入输入框</span>
+  <div class="legend">
+    <span><i class="dot send"></i>直接发送</span>
+    <span><i class="dot insert"></i>插入输入框</span>
+  </div>
+</div>
+
+<div class="app">
+  <!-- 幕布终端 mock -->
+  <div class="terminal" id="terminal">
+    <div class="sys">▸ omp 0.9.2 · zhipu-coding-plan/glm-5.3-flash · 思考 max</div>
+    <div class="sys">▸ 会话已就绪,输入消息或 / 命令</div>
+    <div class="prompt">❯ <span class="caret"></span></div>
+  </div>
+
+  <!-- Composer -->
+  <div class="composer" id="composer">
+    <div class="toolbar">
+      <span class="kv">模型 <b>zhipu-coding-plan/glm-5.3-flash</b></span>
+      <span class="sep">│</span>
+      <span class="kv">思考 <b>max</b></span>
+      <span class="sep">│</span>
+      <span class="quota">额度 5h <span class="bar"><i style="width:40%"></i></span> 40%</span>
+      <span class="quota">7d <span class="bar"><i style="width:8%"></i></span> 8%</span>
+
+      <!-- 原「只读」位置 → 抽屉开关 -->
+      <button class="drawer-toggle" id="drawerToggle" aria-expanded="false" aria-controls="drawer"
+              title="命令与技能(⌘K)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2.5"/>
+          <line x1="15" y1="3" x2="15" y2="21"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="input-wrap">
+      <textarea id="composerInput" spellcheck="false"
+        placeholder="输入消息,回车发送,Shift+回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。"></textarea>
+      <span class="anchor-rail" title="对话锚点栏"></span>
+    </div>
+
+    <!-- 抽屉 -->
+    <aside class="drawer" id="drawer" role="dialog" aria-label="命令与技能面板">
+      <div class="drawer-head">
+        <span class="drawer-title">命令与技能</span>
+        <span class="cli-badge">omp</span>
+        <button class="drawer-close" id="drawerClose" title="关闭 (Esc)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="drawer-search">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/>
+        </svg>
+        <input id="drawerFilter" type="text" placeholder="过滤命令 / 技能…" />
+      </div>
+      <div class="drawer-list" id="drawerList"></div>
+      <div class="drawer-foot">
+        <span>⚡ 直接发送到幕布</span>
+        <span>↵ 插入输入框</span>
+        <span class="count" id="drawerCount"></span>
+      </div>
+    </aside>
+
+    <!-- 发送反馈 toast -->
+    <div class="toast" id="toast" role="status">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      <span id="toastText"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── 数据:与 profile.suggestions 同构,mode 标注点击行为 ──
+   send   = 自包含命令,点击 → 直接写入幕布(PTY)
+   insert = 需要补参数,点击 → 插入输入框继续编辑            */
+const ITEMS = [
+  // / 命令(取自 cli-claude / cli-omp / cli-grok 真实清单)
+  { sec: "cmd", name: "help",    desc: "查看可用命令",       mode: "send"   },
+  { sec: "cmd", name: "clear",   desc: "清屏 / 清空上下文",  mode: "send"   },
+  { sec: "cmd", name: "compact", desc: "压缩会话上下文",     mode: "send"   },
+  { sec: "cmd", name: "usage",   desc: "查看额度用量",       mode: "send"   },
+  { sec: "cmd", name: "model",   desc: "查看/切换模型",      mode: "insert" },
+  { sec: "cmd", name: "resume",  desc: "恢复历史会话",       mode: "insert" },
+  { sec: "cmd", name: "skills",  desc: "查看/注入技能",      mode: "insert" },
+  { sec: "cmd", name: "plugins", desc: "管理插件",           mode: "insert" },
+  // $ 技能(发送时翻译为 /skill:<name>)
+  { sec: "skill", name: "think",  desc: "深度思考模式",      mode: "send"   },
+  { sec: "skill", name: "plan",   desc: "只读规划模式",      mode: "insert" },
+  { sec: "skill", name: "review", desc: "代码评审",          mode: "insert" },
+];
+
+const ICONS = {
+  help: '<circle cx="12" cy="12" r="9.5"/><path d="M9.1 9a3 3 0 0 1 5.83 1c0 2-3 2.6-3 4"/><line x1="12" y1="17.5" x2="12" y2="17.51"/>',
+  clear: '<circle cx="12" cy="12" r="9.5"/><line x1="8" y1="12" x2="16" y2="12"/>',
+  compact: '<polyline points="8 3 8 9 5 6.5 8 4"/><line x1="8" y1="9" x2="8" y2="3" /><polyline points="16 21 16 15 19 17.5 16 20"/><line x1="8" y1="15" x2="8" y2="21"/><line x1="16" y1="9" x2="16" y2="3"/>',
+  usage: '<line x1="6" y1="20" x2="6" y2="13"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="10"/>',
+  model: '<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9.5" y="9.5" width="5" height="5"/><line x1="9" y1="2.5" x2="9" y2="5"/><line x1="15" y1="2.5" x2="15" y2="5"/><line x1="9" y1="19" x2="9" y2="21.5"/><line x1="15" y1="19" x2="15" y2="21.5"/><line x1="2.5" y1="9" x2="5" y2="9"/><line x1="2.5" y1="15" x2="5" y2="15"/><line x1="19" y1="9" x2="21.5" y2="9"/><line x1="19" y1="15" x2="21.5" y2="15"/>',
+  resume: '<polyline points="2 4 2 10 8 10"/><path d="M3.5 15a9 9 0 1 0 2.1-9.4L2 10"/>',
+  skills: '<path d="M12 3l2.2 5.6L20 11l-5.8 2.4L12 19l-2.2-5.6L4 11l5.8-2.4z"/>',
+  plugins: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
+  think: '<polygon points="13 2.5 3.5 14 11 14 10.5 21.5 20.5 10 13 10 13 2.5"/>',
+  plan: '<rect x="4" y="3.5" width="16" height="17" rx="2"/><polyline points="8 12.5 11 15.5 16.5 9.5"/>',
+  review: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/>',
+};
+
+function icon(name, size = 15) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] ?? ""}</svg>`;
+}
+
+const MODE_META = {
+  send:   { cls: "send",   tag: "⚡ 直接发送", hint: "直接发送到幕布" },
+  insert: { cls: "insert", tag: "↵ 插入",      hint: "插入输入框继续编辑" },
+};
+
+/* ── 渲染 ── */
+const drawer      = document.getElementById("drawer");
+const drawerList  = document.getElementById("drawerList");
+const filterInput = document.getElementById("drawerFilter");
+const toggleBtn   = document.getElementById("drawerToggle");
+const closeBtn    = document.getElementById("drawerClose");
+const composerEl  = document.getElementById("composer");
+const inputEl     = document.getElementById("composerInput");
+const terminalEl  = document.getElementById("terminal");
+const toastEl     = document.getElementById("toast");
+const toastText   = document.getElementById("toastText");
+const countEl     = document.getElementById("drawerCount");
+
+function tokenOf(item) {
+  return item.sec === "cmd" ? `/${item.name} ` : `$${item.name} `;
+}
+/* send 模式实际写入幕布的文本(skill 翻译为 /skill:<name>,与 serialize 一致) */
+function wireOf(item) {
+  return item.sec === "cmd" ? `/${item.name}` : `/skill:${item.name}`;
+}
+
+function render(filter = "") {
+  const q = filter.trim().toLowerCase();
+  drawerList.innerHTML = "";
+  let shown = 0;
+
+  for (const sec of ["cmd", "skill"]) {
+    const items = ITEMS.filter(
+      (it) => it.sec === sec && (!q || it.name.toLowerCase().includes(q) || it.desc.includes(filter.trim())),
+    );
+    if (items.length === 0) continue;
+    const secEl = document.createElement("div");
+    secEl.className = "sec-label";
+    secEl.innerHTML = `<span class="sym">${sec === "cmd" ? "/" : "$"}</span>${sec === "cmd" ? "命令" : "技能"} · ${items.length}`;
+    drawerList.appendChild(secEl);
+
+    for (const it of items) {
+      const m = MODE_META[it.mode];
+      const btn = document.createElement("button");
+      btn.className = `item ${m.cls}`;
+      btn.dataset.name = it.name;
+      btn.title = m.hint;
+      btn.innerHTML = `
+        <span class="icon-chip">${icon(it.name)}</span>
+        <span class="item-body">
+          <span class="item-name">${it.sec === "cmd" ? "/" : "$"}${it.name}</span>
+          <div class="item-desc">${it.desc}</div>
+        </span>
+        <span class="mode-tag">${m.tag}</span>`;
+      btn.addEventListener("click", () => activate(it, btn));
+      drawerList.appendChild(btn);
+      shown++;
+    }
+  }
+
+  if (shown === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "没有匹配的命令或技能";
+    empty.style.display = "block";
+    drawerList.appendChild(empty);
+  }
+  countEl.textContent = `${shown} 项`;
+  activeIndex = -1;
+}
+
+/* ── 开合 ── */
+let isOpen = false;
+function openDrawer() {
+  if (isOpen) return;
+  isOpen = true;
+  drawer.classList.add("open");
+  toggleBtn.setAttribute("aria-expanded", "true");
+  filterInput.value = "";
+  render("");
+  setTimeout(() => filterInput.focus(), 120);
+}
+function closeDrawer() {
+  if (!isOpen) return;
+  isOpen = false;
+  drawer.classList.remove("open");
+  toggleBtn.setAttribute("aria-expanded", "false");
+  activeIndex = -1;
+}
+toggleBtn.addEventListener("click", (e) => { e.stopPropagation(); isOpen ? closeDrawer() : openDrawer(); });
+closeBtn.addEventListener("click", closeDrawer);
+
+/* 点击抽屉外(composer 内)关闭;避免 textarea 点击误关时丢失焦点 */
+document.addEventListener("pointerdown", (e) => {
+  if (!isOpen) return;
+  if (drawer.contains(e.target) || toggleBtn.contains(e.target)) return;
+  closeDrawer();
+});
+
+/* ── 点击行为 ── */
+function activate(item, btnEl) {
+  if (item.mode === "send") {
+    sendToTerminal(item);
+    btnEl.classList.remove("flash");
+    void btnEl.offsetWidth; /* 重启动画 */
+    btnEl.classList.add("flash");
+    showToast(`已发送到幕布:${wireOf(item)}`);
+    setTimeout(closeDrawer, 320);
+  } else {
+    insertIntoComposer(tokenOf(item));
+    closeDrawer();
+  }
+}
+
+/* send:直接写入幕布(真实实现 = ipc.sessionWrite(sessionId, wireOf(item))) */
+function sendToTerminal(item) {
+  const promptLine = terminalEl.querySelector(".prompt");
+  const line = document.createElement("div");
+  line.innerHTML = `<span class="prompt">❯ </span><span class="cmd">${wireOf(item)}</span>`;
+  terminalEl.insertBefore(line, promptLine);
+  const echo = document.createElement("div");
+  echo.className = "echo";
+  echo.textContent = item.mode === "send" && item.sec === "skill"
+    ? `  ✓ 已注入技能 ${item.name}(演示)`
+    : `  ✓ 已执行(演示)`;
+  terminalEl.insertBefore(echo, promptLine);
+  terminalEl.scrollTop = terminalEl.scrollHeight;
+}
+
+/* insert:插入输入框光标处,焦点回输入框(真实实现 = insertAtCursor) */
+function insertIntoComposer(token) {
+  const start = inputEl.selectionStart ?? inputEl.value.length;
+  const end = inputEl.selectionEnd ?? inputEl.value.length;
+  inputEl.value = inputEl.value.slice(0, start) + token + inputEl.value.slice(end);
+  const caret = start + token.length;
+  inputEl.focus();
+  inputEl.setSelectionRange(caret, caret);
+}
+
+/* ── toast ── */
+let toastTimer = null;
+function showToast(text) {
+  toastText.textContent = text;
+  toastEl.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
+}
+
+/* ── 键盘:⌘K 开关 / Esc 关闭 / ↑↓ 选择 / Enter 确认 ── */
+function visibleItems() {
+  return Array.from(drawerList.querySelectorAll(".item"));
+}
+let activeIndex = -1;
+function setActive(idx) {
+  const items = visibleItems();
+  if (items.length === 0) return;
+  activeIndex = (idx + items.length) % items.length;
+  items.forEach((el, i) => el.classList.toggle("active", i === activeIndex));
+  items[activeIndex].scrollIntoView({ block: "nearest" });
+}
+
+document.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    isOpen ? closeDrawer() : openDrawer();
+    return;
+  }
+  if (!isOpen) return;
+  if (e.key === "Escape") { e.preventDefault(); closeDrawer(); }
+  if (e.key === "ArrowDown") { e.preventDefault(); setActive(activeIndex + 1); }
+  if (e.key === "ArrowUp")   { e.preventDefault(); setActive(activeIndex - 1); }
+  if (e.key === "Enter" && activeIndex >= 0) {
+    e.preventDefault();
+    visibleItems()[activeIndex].click();
+  }
+});
+
+filterInput.addEventListener("input", () => render(filterInput.value));
+filterInput.addEventListener("keydown", (e) => {
+  /* 输入框内 ↑↓ 也可选,Enter 交由全局处理 */
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") e.stopPropagation();
+});
+
+render();
+</script>
+</body>
+</html>
