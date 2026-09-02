@@ -52,7 +52,8 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
   const [atTop, setAtTop] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   /* 翻页锚点:当前幕布内容起点在全量输出中的绝对字节偏移;
-     prefixRef 按"从旧到新"存已翻出的历史页(数组),write 前一次 join,避免字符串 O(N²) 拼接 */
+     prefixRef 按"从旧到新"存已翻出的历史页(数组) */
+  const loadingHistoryRef = useRef(false);
   const earliestByteRef = useRef(0);
   const prefixRef = useRef<string[]>([]);
   /* loadEarlier 经 ref 暴露给锚点跳转注册表:handle 在 effect 里注册一次,
@@ -184,8 +185,12 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
 
   /** 往前翻一页:从会话日志读更早的原始输出,RIS 重置后连同现有内容整段重写。 */
   const loadEarlier = async () => {
+    /* 重入闸必须用同步 ref:loadingHistory state 要等 React 重渲染才翻转,
+       而锚点跳转的翻页循环在微任务里续延 —— state 闸会让第 2 页起确定性停摆 */
+    if (loadingHistoryRef.current) return;
     const term = termRef.current;
-    if (!term || loadingHistory) return;
+    if (!term) return;
+    loadingHistoryRef.current = true;
     setLoadingHistory(true);
     try {
       const page = await ipc.sessionHistoryPage(
@@ -201,16 +206,21 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
       earliestByteRef.current = page.startOffset;
       setHasMore(page.hasMore);
       /* \x1bc(RIS)整屏重置后与历史一并入队:与实时写共用 xterm 同一写队列,无竞态;
-         期间到达的实时字节已含在 getOutputBuffer 快照里,之后的排在本次写之后。 */
-      const full = prefixRef.current.join("") + host.getOutputBuffer(sessionId);
-      /* write 回调内 resolve:调用方(锚点跳转翻页循环)await 拿到的是 buffer 已含新历史的时刻 */
+         期间到达的实时字节已含在 getOutputBuffer 快照里,之后的排在本次写之后。
+         顺序逐页 write,不做 join 大字符串 —— 跨页 join 是 O(N²) 字符工作量,
+         xterm 自带写队列,分次写入语义与一次性大 write 等价。 */
+      term.write("\x1bc");
+      for (const prefix of prefixRef.current) term.write(prefix);
+      /* 末段 write 回调内 resolve:调用方(锚点跳转翻页循环)await 拿到的是
+         buffer 已含新历史的时刻 */
       await new Promise<void>((resolve) =>
-        term.write(`\x1bc${full}`, () => {
+        term.write(host.getOutputBuffer(sessionId), () => {
           term.scrollToTop();
           resolve();
         }),
       );
     } finally {
+      loadingHistoryRef.current = false;
       setLoadingHistory(false);
     }
   };

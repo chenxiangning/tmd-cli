@@ -7,23 +7,36 @@
  * - 蓝呼吸:对话结束且未被查看(完成未读),组内置顶;点开查看即消
  * - 灰静止:已读完成 / 无输出
  * 行右键菜单:复制 Session ID / 重命名(应用侧覆盖层,见 kernel/sessionTitles.ts)
+ * / 置顶到全局 / 置顶到工作区内(双作用域,见 kernel/sessionPins.ts)
  * / 删除会话(两步确认,双端统一物理删除磁盘 jsonl)。
+ *
+ * 置顶投影(codemoss useThreadRows 三分适配):
+ * - scope=workspace → 固定在 CLI 分组顶部(置顶时间升序),不参与分页;
+ * - scope=global → 离开本组,汇入左侧栏顶部「已置顶」区(PinnedSessions.tsx);
+ * - 未置顶 → 常规分页。活会话不受置顶影响(运行态恒在组内,仅加 pin 角标)。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host, useHost } from "@kernel/host";
 import { ipc, type SessionMeta } from "@kernel/ipc";
-import { formatRelativeTime } from "@kernel/relativeTime";
 import { useSettingsState } from "@kernel/settings";
+import {
+  listSessionPins,
+  sessionPinKey,
+  toggleSessionPin,
+  unpinSession,
+} from "@kernel/sessionPins";
 import {
   removeSessionTitle,
   sessionTitleKey,
   setSessionTitle,
 } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
+import { Pin } from "lucide-react";
 import { SessionContextMenu } from "./SessionContextMenu";
-import { shortId } from "./utils";
+import { DiskSessionRow, RenameInput, type RenameTarget } from "./SessionRows";
+import { compareLiveSessions, shortId } from "./utils";
 
 /* 共享 1Hz ticker:N 个 ActivityDot 共用一个 interval(替代每点一表),0 订阅时停表。 */
 const tickSubscribers = new Set<() => void>();
@@ -64,59 +77,13 @@ type MenuTarget =
   | { kind: "live"; session: SessionMeta; x: number; y: number }
   | { kind: "disk"; session: CliDiskSession; x: number; y: number };
 
-/** 行内重命名目标:以 CLI 磁盘身份为 key(与覆盖层同 key)。 */
-interface RenameTarget {
-  cliSessionId: string;
-  current: string;
-}
-
-/**
- * 行内重命名输入(Enter/blur 提交,Escape 取消;空值 = 清除手动命名)。
- * settled 闸:提交/取消后卸载触发的二次 blur 不得重复回调。
- */
-function RenameInput({
-  target,
-  onCommit,
-}: {
-  target: RenameTarget;
-  /** value=null 为取消;否则为最终输入(可能为空串 = 清除命名)。 */
-  onCommit: (value: string | null) => void;
-}) {
-  const [value, setValue] = useState(target.current);
-  const settled = useRef(false);
-  const finish = (result: string | null) => {
-    if (settled.current) return;
-    settled.current = true;
-    onCommit(result);
-  };
-  return (
-    <input
-      className="thread-rename-input"
-      autoFocus
-      value={value}
-      placeholder="会话名称(留空清除命名)"
-      onChange={(e) => setValue(e.target.value)}
-      onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          finish(value);
-        } else if (e.key === "Escape") {
-          e.preventDefault();
-          finish(null);
-        }
-      }}
-      onBlur={() => finish(value)}
-    />
-  );
-}
-
-/** 活会话行 —— 固定在 CLI 分组顶部;重命名态替换为输入行。 */
+/** 活会话行 —— 固定在 CLI 分组顶部(工作区置顶块之上);重命名态替换为输入行。 */
 function LiveSessionRow({
   session,
   profile,
   isActive,
   title,
+  pinned,
   renaming,
   onContextMenu,
   onRenameCommit,
@@ -125,6 +92,8 @@ function LiveSessionRow({
   profile: CliProfile;
   isActive: boolean;
   title: string;
+  /** 已置顶(任一作用域):meta 常亮 pin 角标;不影响活会话排序。 */
+  pinned: boolean;
   renaming: RenameTarget | null;
   onContextMenu: (e: React.MouseEvent) => void;
   onRenameCommit: (value: string | null) => void;
@@ -151,6 +120,7 @@ function LiveSessionRow({
       {/* 身份统一:绑定磁盘身份后与磁盘条目同形显示(标题/命名/短码) */}
       <span className="thread-name">{title}</span>
       <span className="thread-meta">
+        {pinned ? <Pin size={11} className="thread-pin-icon" aria-hidden /> : null}
         <ActivityDot sessionId={session.id} />
       </span>
     </button>
@@ -158,7 +128,7 @@ function LiveSessionRow({
 }
 
 /**
- * 单个 CLI 的会话分组 —— 活会话置顶 + 磁盘历史分页。
+ * 单个 CLI 的会话分组 —— 工作区置顶块 + 活会话 + 磁盘历史分页。
  * 活会话 spawn/exit 改变 liveCount、外部 refreshTick 变化,均触发重扫。
  */
 export function CliSessionGroup({
@@ -181,8 +151,10 @@ export function CliSessionGroup({
   const [rescanTick, setRescanTick] = useState(0);
   const [menu, setMenu] = useState<MenuTarget | null>(null);
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
+  const { settings } = useSettingsState();
   /* 命名覆盖层变化(重命名提交)需重渲行标题 */
-  const titleOverrides = useSettingsState().settings.sessionTitles;
+  const titleOverrides = settings.sessionTitles;
+  const pins = settings.sessionPins;
 
   const liveSessions = host
     .getSessions()
@@ -233,17 +205,37 @@ export function CliSessionGroup({
     return shortId(cliSessionId ?? fallbackId);
   };
 
-  /** 活会话排序:完成未读置顶(最近完成最上),其余保持活动时间倒序。 */
-  const orderedLive = [...liveSessions].sort((a, b) => {
-    const ua = host.isUnread(a.id) ? 0 : 1;
-    const ub = host.isUnread(b.id) ? 0 : 1;
-    if (ua !== ub) return ua - ub;
-    return host.getLastActivityAt(b.id) - host.getLastActivityAt(a.id);
+  /** 本组置顶投影:workspace scope → 组顶块;global scope → 离组进全局区。 */
+  const workspacePins = listSessionPins(pins, {
+    workspaceId: workspace.id,
+    profileId: profile.id,
+    scope: "workspace",
   });
+  const pinnedOutIds = new Set(
+    listSessionPins(pins, {
+      workspaceId: workspace.id,
+      profileId: profile.id,
+      scope: "global",
+    }).map((p) => p.cliSessionId),
+  );
+  const workspacePinnedIds = new Set(workspacePins.map((p) => p.cliSessionId));
+
+  /** 活会话排序:完成未读置顶,其余 spawn 时间倒序(比较器见 utils —— 稳定键防抖动)。 */
+  const orderedLive = [...liveSessions].sort((a, b) =>
+    compareLiveSessions(a, b, (id) => host.isUnread(id)),
+  );
 
   const disk = (sessions ?? []).filter((s) => !liveCliIds.has(s.id));
-  const visible = disk.slice(0, limit);
-  const remaining = disk.length - visible.length;
+  /* 工作区置顶块:按置顶时间升序;磁盘已消失的置顶(外部删文件)自然缺席。 */
+  const pinnedDisk = workspacePins.flatMap((p) => {
+    const entry = disk.find((d) => d.id === p.cliSessionId);
+    return entry ? [entry] : [];
+  });
+  const unpinnedDisk = disk.filter(
+    (s) => !workspacePinnedIds.has(s.id) && !pinnedOutIds.has(s.id),
+  );
+  const visible = unpinnedDisk.slice(0, limit);
+  const remaining = unpinnedDisk.length - visible.length;
 
   const copyText = (text: string) => {
     void navigator.clipboard?.writeText(text).catch(() => undefined);
@@ -257,27 +249,41 @@ export function CliSessionGroup({
     setRenaming(null);
   };
 
-  /** 删除活会话:物理删除已绑定磁盘文件(双端统一) + kill PTY + 清命名覆盖。 */
+  /** 删除活会话:物理删除已绑定磁盘文件(双端统一) + kill PTY + 清命名/置顶覆盖。 */
   const deleteLive = async (session: SessionMeta) => {
     const cliSessionId = host.getCliSessionId(session.id);
     const entry = cliSessionId
       ? (sessions ?? []).find((s) => s.id === cliSessionId)
       : undefined;
-    if (entry) await ipc.fsRemoveFile(entry.path).catch(() => undefined);
-    if (cliSessionId) removeSessionTitle(profile.id, cliSessionId);
+    if (entry) await ipc.fsRemovePath(entry.path).catch(() => undefined);
+    if (cliSessionId) {
+      removeSessionTitle(profile.id, cliSessionId);
+      unpinSession(sessionPinKey(workspace.id, profile.id, cliSessionId));
+    }
     await host.removeSession(session.id);
   };
 
-  /** 删除磁盘会话:物理删除 jsonl + 清命名覆盖 + 本地重扫。 */
+  /** 删除磁盘会话:物理删除会话文件/目录(kimi 是目录) + 清命名/置顶覆盖 + 本地重扫。 */
   const deleteDisk = async (session: CliDiskSession) => {
-    await ipc.fsRemoveFile(session.path).catch(() => undefined);
+    await ipc.fsRemovePath(session.path).catch(() => undefined);
     removeSessionTitle(profile.id, session.id);
+    unpinSession(sessionPinKey(workspace.id, profile.id, session.id));
     setRescanTick((t) => t + 1);
   };
 
   const startRename = (cliSessionId: string, current: string) => {
-    setRenaming({ cliSessionId, current });
+    setRenaming({ profileId: profile.id, cliSessionId, current });
   };
+
+  /** 菜单目标的磁盘身份:未绑定(活会话未落盘)则不可重命名/置顶。 */
+  const menuCliSessionId = menu
+    ? menu.kind === "disk"
+      ? menu.session.id
+      : host.getCliSessionId(menu.session.id)
+    : undefined;
+  const menuPinKey = menuCliSessionId
+    ? sessionPinKey(workspace.id, profile.id, menuCliSessionId)
+    : undefined;
 
   // 整组为空(无活会话且磁盘历史加载完也为空)则不占位
   if (liveSessions.length === 0 && sessions !== null && disk.length === 0) {
@@ -288,6 +294,26 @@ export function CliSessionGroup({
   return (
     <div className="cli-group">
       <div className="cli-group-label">{profile.name}</div>
+
+      {/* 工作区置顶块(置顶时间升序,pin 角标常亮) */}
+      {pinnedDisk.map((s) => (
+        <DiskSessionRow
+          key={s.id}
+          profile={profile}
+          session={s}
+          title={displayTitle(s.id, s.id)}
+          pinned
+          renaming={renaming?.cliSessionId === s.id ? renaming : null}
+          onOpen={() =>
+            void host.openDiskSession(profile.id, workspace.root, workspace.id, s.id)
+          }
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setMenu({ kind: "disk", session: s, x: e.clientX, y: e.clientY });
+          }}
+          onRenameCommit={commitRename}
+        />
+      ))}
 
       {/* 活会话(完成未读置顶,呼吸灯三态) */}
       {orderedLive.map((s) => {
@@ -300,6 +326,10 @@ export function CliSessionGroup({
             profile={profile}
             isActive={s.id === activeSessionId}
             title={title}
+            pinned={
+              cliSessionId !== undefined &&
+              sessionPinKey(workspace.id, profile.id, cliSessionId) in pins
+            }
             renaming={
               renaming && cliSessionId === renaming.cliSessionId ? renaming : null
             }
@@ -312,42 +342,25 @@ export function CliSessionGroup({
         );
       })}
 
-      {/* 磁盘历史(分页) */}
-      {visible.map((s) => {
-        const title = displayTitle(s.id, s.id);
-        if (renaming?.cliSessionId === s.id) {
-          return (
-            <div key={s.id} className="thread-row is-renaming">
-              <span className="thread-engine-badge" title={profile.name}>
-                {profile.renderIcon?.(12)}
-              </span>
-              <RenameInput target={renaming} onCommit={commitRename} />
-            </div>
-          );
-        }
-        return (
-          <button
-            key={s.id}
-            title={`恢复 ${profile.name} 会话 ${s.id}`}
-            className="thread-row"
-            onClick={() =>
-              void host.openDiskSession(profile.id, workspace.root, workspace.id, s.id)
-            }
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setMenu({ kind: "disk", session: s, x: e.clientX, y: e.clientY });
-            }}
-          >
-            <span className="thread-engine-badge" title={profile.name}>
-              {profile.renderIcon?.(12)}
-            </span>
-            <span className="thread-name is-disk">{title}</span>
-            <span className="thread-meta">
-              <span className="thread-time">{formatRelativeTime(s.modifiedAt)}</span>
-            </span>
-          </button>
-        );
-      })}
+      {/* 磁盘历史(分页;已排除工作区置顶块与全局置顶) */}
+      {visible.map((s) => (
+        <DiskSessionRow
+          key={s.id}
+          profile={profile}
+          session={s}
+          title={displayTitle(s.id, s.id)}
+          pinned={false}
+          renaming={renaming?.cliSessionId === s.id ? renaming : null}
+          onOpen={() =>
+            void host.openDiskSession(profile.id, workspace.root, workspace.id, s.id)
+          }
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setMenu({ kind: "disk", session: s, x: e.clientX, y: e.clientY });
+          }}
+          onRenameCommit={commitRename}
+        />
+      ))}
 
       {/* 分页:更多... → 翻倍(10 → 20 → 40 → 80) */}
       {remaining > 0 && (
@@ -360,25 +373,24 @@ export function CliSessionGroup({
       {menu && (
         <SessionContextMenu
           position={{ x: menu.x, y: menu.y }}
-          canRename={
-            menu.kind === "disk" || host.getCliSessionId(menu.session.id) !== undefined
+          canRename={menuCliSessionId !== undefined}
+          pinScope={
+            menuPinKey === undefined ? undefined : (pins[menuPinKey]?.scope ?? null)
           }
-          onCopyId={() =>
-            copyText(
-              menu.kind === "disk"
-                ? menu.session.id
-                : (host.getCliSessionId(menu.session.id) ?? menu.session.id),
-            )
-          }
+          onCopyId={() => copyText(menuCliSessionId ?? menu.session.id)}
           onRename={() => {
-            const cliSessionId =
-              menu.kind === "disk"
-                ? menu.session.id
-                : host.getCliSessionId(menu.session.id);
-            if (!cliSessionId) return;
+            if (!menuCliSessionId) return;
             startRename(
-              cliSessionId,
-              titleOverrides[sessionTitleKey(profile.id, cliSessionId)] ?? "",
+              menuCliSessionId,
+              titleOverrides[sessionTitleKey(profile.id, menuCliSessionId)] ?? "",
+            );
+          }}
+          onPinScope={(scope) => {
+            if (!menuPinKey || !menuCliSessionId) return;
+            toggleSessionPin(
+              menuPinKey,
+              scope,
+              displayTitle(menuCliSessionId, menu.session.id),
             );
           }}
           onDelete={() => {

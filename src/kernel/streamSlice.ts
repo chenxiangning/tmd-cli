@@ -33,6 +33,14 @@ function sequenceEnd(s: string, esc: number): number {
     }
     return -1;
   }
+  if (kind === 0x50) {
+    /* 'P' DCS(tmux passthrough 等,payload 可远超 3 字节)：与 OSC 同以 ESC\ 收尾
+       (BEL 不合法)。扫描到末尾未闭合 → -1,由调用方退到该 ESC。 */
+    for (let i = esc + 2; i < s.length; i++) {
+      if (s.charCodeAt(i) === 0x1b && s.charCodeAt(i + 1) === 0x5c) return i + 2;
+    }
+    return -1;
+  }
   /* 其余转义(字符集选择等)至多 3 字节;宁可保守视为更长 */
   return esc + 3;
 }

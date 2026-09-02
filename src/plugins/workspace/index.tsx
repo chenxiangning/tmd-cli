@@ -26,6 +26,7 @@ import { FolderPlus, ListTree } from "lucide-react";
 import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
 import { BudgetPopover, clampBudgetPosition } from "./BudgetPopover";
 import { WorkspaceCard } from "./WorkspaceCard";
+import { PinnedSessionsSection } from "./PinnedSessions";
 
 function WorkspaceSection() {
   useHost();
@@ -67,6 +68,9 @@ function WorkspaceSection() {
 
   return (
     <div className="ws-sidebar">
+      {/* 全局置顶区(codemoss Pinned 复刻):scope=global 的会话跨工作区汇总于此 */}
+      <PinnedSessionsSection />
+
       <div className="ws-caption">
         <span>工作区</span>
         <span className="ws-caption-actions">

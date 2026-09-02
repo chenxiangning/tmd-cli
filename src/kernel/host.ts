@@ -11,6 +11,7 @@ import { sliceStreamTail } from "./streamSlice";
 import { getSettingsState } from "./settings";
 import { pickFreshIdentity } from "./diskIdentity";
 import { PluginLifecycle } from "./pluginLifecycle";
+import { ActivityWatch } from "./activityWatch";
 
 import { ipc, onPtyExit, onPtyOutput, type SessionMeta, type SpawnSpec } from "./ipc";
 import type { CliProfile, CliSessionStatus } from "./cli";
@@ -19,6 +20,9 @@ import {
   registerSettingsSection,
   type SettingsSectionContribution,
 } from "./settingsRegistry";
+
+/** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅 Host 内部持有。 */
+type TimerHandle = ReturnType<typeof setInterval>;
 
 /** 输出缓冲的分块结构:chunks 按到达顺序排列,totalChars/totalBytes 为增量维护的合计。 */
 interface OutputBuffer {
@@ -48,7 +52,7 @@ class Host implements PluginContext {
   >();
   /** 活会话对应的 CLI 当前模型/思考强度,由 profile 只读读取。 */
   private sessionStatuses = new Map<string, CliSessionStatus>();
-  private statusTimer: number | null = null;
+  private statusTimer: TimerHandle | null = null;
   private listeners = new Set<() => void>();
   /**
    * 每会话 PTY 输出环形缓冲：会话切换后 xterm 重挂载靠它回放，这是"切回不黑屏"的核心。
@@ -68,22 +72,20 @@ class Host implements PluginContext {
   getCliSessionId(sessionId: string): string | undefined {
     return this.cliSessionIds.get(sessionId);
   }
-
-  /** 每会话最近输出时间：驱动会话列表呼吸灯。 */
-  private lastActivityAt = new Map<string, number>();
-  /** 呼吸灯 notify 节流记录。 */
-  private lastActivityNotify = new Map<string, number>();
   /**
-   * 完成未读集合:一轮对话结束(输出静默 >2s)且当时未被查看 → 列表蓝呼吸 + 组内置顶;
-   * 点开查看(setActiveSession)即清。纯内存态,随 PTY 消亡。
+   * PTY 事件退订表:spawn 时登记输出/退出两个全局监听,会话移除时成对退订。
+   * 此前 void 掉 listen 的 UnlistenFn,每次 spawn 泄漏 2 个监听器。
    */
-  private unreadSessions = new Set<string>();
-  /** 进行中的对话轮次:appendOutput 进站,活动守望(1Hz)判静默超时后出站结算。 */
-  private activeTurns = new Set<string>();
-  /** 活动守望计时器:无进行中轮次时停表(与共享 tick 同策略,0 订阅不空转)。 */
-  private activityTimer: number | null = null;
+  private ptyUnlistens = new Map<string, Array<() => void>>();
+  /** openDiskSession 在途单例闸:key = profileId:cliSessionId,双击去重。 */
+  private openingDiskSessions = new Map<string, Promise<SessionMeta>>();
+  private readonly activity = new ActivityWatch({
+    isViewing: (id) => id === this.activeSessionId,
+    exists: (id) => this.sessions.some((s) => s.id === id),
+    onChange: () => this.notify(),
+});
 
-  // ---- PluginContext 实现 -------------------------------------------------
+// ---- PluginContext 实现 -------------------------------------------------
 
   registerCliProfile(profile: CliProfile): void {
     if (this.cliProfiles.has(profile.id)) {
@@ -199,6 +201,12 @@ class Host implements PluginContext {
       this.setActiveSession(existing.id);
       return existing;
     }
+    /* 在途单例闸(与 PluginLifecycle.activation 同构):快速双击历史行时,
+       两个并发 openDiskSession 都能通过上面的活表检查 —— 若不收口,
+       同一 CLI 磁盘会话会开出两个 PTY,cliSessionIds 后写覆盖先写 */
+    const key = `${profileId}:${cliSessionId}`;
+    const opening = this.openingDiskSessions.get(key);
+    if (opening) return opening;
     const args = profile.resumeArgs?.(cliSessionId) ?? profile.args;
     const spec: SpawnSpec = {
       command: profile.command,
@@ -206,8 +214,16 @@ class Host implements PluginContext {
       cwd,
       env: profile.env,
     };
-    const spawned = await ipc.sessionSpawn(profileId, spec, workspaceId);
-    return this.adoptSpawned(spawned.id, cliSessionId);
+    const task = (async () => {
+      try {
+        const spawned = await ipc.sessionSpawn(profileId, spec, workspaceId);
+        return await this.adoptSpawned(spawned.id, cliSessionId);
+      } finally {
+        this.openingDiskSessions.delete(key);
+      }
+    })();
+    this.openingDiskSessions.set(key, task);
+    return task;
   }
 
   /** spawn 后的统一装配:绑定磁盘身份、刷新活表、置为 active、常驻订阅输出与退出。 */
@@ -219,11 +235,16 @@ class Host implements PluginContext {
     this.sessions = await ipc.sessionList();
     this.activeSessionId = sessionId;
     // 常驻订阅：从会话诞生起就持续缓冲输出，与幕布是否挂载无关。
-    void onPtyOutput(sessionId, (text) => this.appendOutput(sessionId, text));
-    onPtyExit(sessionId, () => {
+    const offOutput = await onPtyOutput(sessionId, (text) => {
+      /* 存活守卫:退订前在途的迟到输出不得复活已删会话的缓冲/呼吸灯状态 */
+      if (!this.sessions.some((s) => s.id === sessionId)) return;
+      this.appendOutput(sessionId, text);
+    });
+    const offExit = await onPtyExit(sessionId, () => {
       void this.removeSession(sessionId);
       this.events.emit(KernelTopics.sessionExited, sessionId);
     });
+    this.ptyUnlistens.set(sessionId, [offOutput, offExit]);
     this.events.emit(KernelTopics.sessionsChanged, this.sessions);
     this.events.emit(KernelTopics.activeSessionChanged, sessionId);
     this.notify();
@@ -245,8 +266,15 @@ class Host implements PluginContext {
     if (!profile?.readDefaultStatus) return;
     const status = await profile.readDefaultStatus(session.cwd).catch(() => null);
     if (!status) return;
-    /* 竞态防线:await 期间磁盘真相可能已落地,默认种子不得覆盖真实观测 */
-    if (this.sessionStatuses.has(sessionId) || this.cliSessionIds.has(sessionId)) return;
+    /* 竞态防线:await 期间磁盘真相可能已落地,默认种子不得覆盖真实观测;
+       会话可能已被移除 —— 死会话不得回写状态表 */
+    if (
+      !this.sessions.some((s) => s.id === sessionId) ||
+      this.sessionStatuses.has(sessionId) ||
+      this.cliSessionIds.has(sessionId)
+    ) {
+      return;
+    }
     this.sessionStatuses.set(sessionId, status);
     this.notify();
   }
@@ -261,6 +289,9 @@ class Host implements PluginContext {
     const profile = this.cliProfiles.get(pending.profileId);
     if (!profile?.listSessions) return;
     const list = await profile.listSessions(pending.cwd).catch(() => []);
+    /* await 期间会话可能已被移除:死会话绑上 CLI 身份会永久占位,
+       令同 cwd 后续新会话再也绑不上该磁盘身份 */
+    if (!this.sessions.some((s) => s.id === sessionId)) return;
     const fresh = pickFreshIdentity(
       list,
       pending.before,
@@ -312,56 +343,18 @@ class Host implements PluginContext {
     this.outputBuffers.set(sessionId, buf);
     this.events.emit(ptyLiveTopic(sessionId), text);
 
-    const now = Date.now();
-    this.lastActivityAt.set(sessionId, now);
-    /* 新输出 = 轮次进行中;若此前是完成未读,回到绿呼吸(蓝 --新输出--> 绿) */
-    this.activeTurns.add(sessionId);
-    this.unreadSessions.delete(sessionId);
-    this.ensureActivityWatch();
-    // 呼吸灯节流：每会话 500ms 最多触发一次外壳重渲染
-    if (now - (this.lastActivityNotify.get(sessionId) ?? 0) > 500) {
-      this.lastActivityNotify.set(sessionId, now);
-      this.notify();
-    }
+    /* 呼吸灯三态结算全部由 ActivityWatch 负责:新输出回绿 + 节流 notify */
+    if (this.activity.onOutput(sessionId)) this.notify();
   }
 
   /** 完成未读判定(会话列表蓝呼吸灯)。 */
   isUnread(sessionId: string): boolean {
-    return this.unreadSessions.has(sessionId);
-  }
-
-  /**
-   * 活动守望:1Hz 结算轮次 —— 静默 >2s = 一轮对话结束;
-   * 结束时未被查看(≠ activeSessionId)才标未读,正在看的会话完成不打扰。
-   * 无进行中轮次即停表;有状态变化才 notify。
-   */
-  private ensureActivityWatch(): void {
-    if (this.activityTimer !== null) return;
-    this.activityTimer = setInterval(() => {
-      const now = Date.now();
-      let changed = false;
-      for (const id of [...this.activeTurns]) {
-        if (now - (this.lastActivityAt.get(id) ?? 0) <= 2000) continue;
-        this.activeTurns.delete(id);
-        if (id !== this.activeSessionId && this.sessions.some((s) => s.id === id)) {
-          this.unreadSessions.add(id);
-        }
-        changed = true;
-      }
-      if (this.activeTurns.size === 0 && this.activityTimer !== null) {
-        clearInterval(this.activityTimer);
-        this.activityTimer = null;
-      }
-      if (changed) this.notify();
-    }, 1000);
+    return this.activity.isUnread(sessionId);
   }
 
   /** 测试专用:假时钟换届时重置活动守望(与 resetStatusTimerForTest 同因)。 */
   resetActivityWatchForTest(): void {
-    if (this.activityTimer !== null) {
-      clearInterval(this.activityTimer);
-      this.activityTimer = null;
-    }
+    this.activity.resetForTest();
   }
 
   /** 会话至今的全部（尾部）输出，供 xterm 重挂载回放。join 后顺手压实为单 chunk。 */
@@ -384,7 +377,7 @@ class Host implements PluginContext {
 
   /** 会话最近输出时间戳（无输出为 0）。 */
   getLastActivityAt(sessionId: string): number {
-    return this.lastActivityAt.get(sessionId) ?? 0;
+    return this.activity.lastActivityAt(sessionId);
   }
 
  
@@ -420,6 +413,8 @@ class Host implements PluginContext {
       .readSessionStatus(session.cwd, cliSessionId)
       .catch(() => null);
     if (!observed) return;
+    /* await 期间会话可能已被移除:回包不得给死会话写状态 */
+    if (!this.sessions.some((s) => s.id === sessionId)) return;
     const previous = this.sessionStatuses.get(sessionId);
     /* tail 扫描是"最新观测"而非全量状态:字段缺省 = 事件滚出 256KB 窗口或尚未落盘,
        不等于"被清除"——缺省字段保留旧值。真实切换必在 tail 落新事件,
@@ -442,7 +437,7 @@ class Host implements PluginContext {
     if (this.activeSessionId === id) return;
     this.activeSessionId = id;
     /* 点开查看 = 已读:清完成未读标记(蓝 → 灰) */
-    if (id) this.unreadSessions.delete(id);
+    if (id) this.activity.markViewed(id);
     this.events.emit(KernelTopics.activeSessionChanged, id);
     if (id) {
       this.ensureStatusPolling();
@@ -453,17 +448,19 @@ class Host implements PluginContext {
 
   async removeSession(id: string): Promise<void> {
     await ipc.sessionKill(id).catch(() => undefined);
+    this.ptyUnlistens.get(id)?.forEach((off) => off());
+    this.ptyUnlistens.delete(id);
     this.sessions = this.sessions.filter((s) => s.id !== id);
     this.cliSessionIds.delete(id);
     this.pendingIdentities.delete(id);
     this.sessionStatuses.delete(id);
     this.outputBuffers.delete(id);
-    this.lastActivityAt.delete(id);
-    this.lastActivityNotify.delete(id);
-    this.unreadSessions.delete(id);
-    this.activeTurns.delete(id);
+    this.activity.onSessionRemoved(id);
     if (this.activeSessionId === id) {
-      this.activeSessionId = this.sessions[0]?.id ?? null;
+      const next = this.sessions[0]?.id ?? null;
+      this.activeSessionId = next;
+      /* 隐式切换也要广播:EventBus 是跨插件唯一通道,陈旧 active 会话会误导订阅方 */
+      if (next !== null) this.events.emit(KernelTopics.activeSessionChanged, next);
     }
     this.events.emit(KernelTopics.sessionsChanged, this.sessions);
     this.notify();

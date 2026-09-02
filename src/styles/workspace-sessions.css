@@ -227,3 +227,57 @@
   color: var(--text-muted);
 }
 
+
+/* ===== 置顶 pin 角标(置顶行 meta 常亮) ===== */
+.thread-pin-icon {
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.thread-row.is-pinned .thread-name {
+  color: var(--text-strong);
+}
+
+/* ===== 全局置顶区(codemoss sidebar-pinned 适配:平铺 + 段折叠) ===== */
+.pinned-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 4px;
+}
+
+.pinned-sessions-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  padding: 4px 6px;
+  font-size: var(--sidebar-caption-font-size);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  text-align: left;
+  width: 100%;
+}
+
+.pinned-sessions-header:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.pinned-sessions-header-icon {
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.pinned-sessions-header-count {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  flex: 1;
+}
+
+.pinned-sessions-header-chevron {
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
