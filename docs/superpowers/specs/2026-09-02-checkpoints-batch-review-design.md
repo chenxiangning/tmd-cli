@@ -219,3 +219,29 @@ prototypes 目录供后续演进参考。
 - 非 git 工作区支持（v2 fs 扫描降级）。
 - hunk 级部分回退（文件粒度已覆盖 90% 场景）。
 - 跨 resume 的历史批追溯。
+
+## 实现修订（2026-09-03，已落地）
+
+后端 `src-tauri/src/checkpoints/`（mod/capture/derive/diff/restore/commands/tests，
+按文件规模铁则拆分；64 Rust 测试全绿）+ 前端 `src/plugins/checkpoints/`
+（store/CheckpointsPanel/BatchSheet/batchTab/index）。与设计稿的差异：
+
+- **promptSent 的 emit 归 composer 插件**（设计原写 host.writeSession 路径）：
+  幕布击键同样走 `host.writeSession`，不能当 prompt；发送语义是 composer 的
+  知识（`sendCurrent` / `sendFromDrawer` 两处漏斗），内核只持有 topic 常量
+  `kernel.sessions.prompt`，payload `{sessionId, text(截断 400)}`。
+- **快照内容增加 `baseOid`**（§3.2 未提）：anchor 时刻每个 dirty 路径记录
+  index 侧 blob oid。前像解析顺序 = 工作区 blob(sidecar) → baseOid(用户仓库)
+  → HEAD 兜底；避免"用户中途 commit 导致前像漂移"，done 批对照 diff 不失真。
+- **done 判定精细化**：逐文件 `live` 分类（same 待审未动 / changed 内容已变 /
+  committed 已入 git / reverted），全部 processed 才翻 done；内容相等但仍
+  dirty = same（可回退），干净且相等 = committed。
+- **守卫(guard)反悔按 revertedPaths 定向恢复**，不整树写回守卫快照。
+- UI 落地：右栏面板经 `registerFilePanel`（order 10），中央审阅单经
+  `editorCenter.tabContent`（一批一个 tab，id `ckpt-batch:<batchId>`）；
+  FileTabContent 对非 file kind 让位返回 null（多 kind 并存前提）；
+  `openTab` 增加 `{refresh:true}` 显式 opt-in 刷新 title/payload（缺省保持
+  原去重不覆盖语义，tabs.test.ts 原断言不动）。
+- 时间线 ± 行数来自批 diff 懒加载缓存（`loadDiff`，面板与审阅单共享）；
+  open 批不展示 ±（无批后像）。
+- prune 命令已实现，设置页入口未接（低频操作，v2 接入）。

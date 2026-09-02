@@ -3,7 +3,8 @@
 //! 实现:两侧内容物化进 sidecar(内容寻址,重复免写),Patch::from_blob_and_blob
 //! 生成 unified 文本。patch 头无文件路径(blob 无路径语义),文件名由前端分区头渲染。
 
-use super::{batch_paths, load_manifests, open_sidecar, resolve_snap_bytes, write_sidecar_blob, CkptError};
+use super::derive::batch_paths;
+use super::{load_manifests, open_sidecar, resolve_snap_bytes, write_sidecar_blob, CkptError};
 use git2::DiffOptions;
 use serde::Serialize;
 

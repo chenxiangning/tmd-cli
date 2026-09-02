@@ -5,9 +5,10 @@
 //! 先在闭包内解析还原计划,释放锁后再抓 guard、执行磁盘写入。
 
 use super::capture::SnapKind;
+use super::derive::{batch_paths, classify_live};
 use super::{
-    batch_paths, capture_snapshot, classify_live, load_manifests, load_states, resolve_snap_bytes,
-    save_states, open_sidecar, CkptError,
+    capture_snapshot, load_manifests, load_states, resolve_snap_bytes, save_states, open_sidecar,
+    CkptError,
 };
 use serde::Serialize;
 
