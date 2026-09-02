@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<!--
+  Welcome 引擎卡额度区重设计原型 v4 —— 2 列网格 + 进度条跨行 y 轴对齐。
+
+  配色/字号/圆角唯一来源: design/design-tokens.md 的 --tmd-* 变量(light 默认值内联);
+  7天窗口橘色沿用 quota.css 既有 quota fill: rgb(255,140,60)(不新增色值);
+  窗口短标 5h/7d 沿用 QuotaChip SHORT_LABEL 约定。
+
+  v4 变更点(对照 v3):
+  - 每行 = 2 列网格: [132px 标题列] [1fr 窗口列],标题列定宽保证窗口区跨行同 x 起点;
+  - 窗口列内嵌 1fr 1fr 网格: 5h 段固定第 1 格,7d 段固定第 2 格(缺窗格留空,不错位);
+  - reset 列定宽 104px(无数据留空槽),pct 列定宽 30px → 各行的 5h/7d 进度条 y 轴对齐;
+  - 余额/备注行: 标题在第 1 列,内容(+套餐名)在第 2 列,同样对齐。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>Welcome 额度区原型 v4 — 2 列 + y 轴对齐</title>
+<style>
+  :root {
+    /* design-tokens.md · light 默认 */
+    --tmd-bg-base: #ffffff;
+    --tmd-bg-elevated: #f8f8f8;
+    --tmd-bg-sunken: #f8f8f8;
+    --tmd-fg: #3b3b3b;
+    --tmd-fg-muted: #6e6e6e;
+    --tmd-fg-subtle: #8a8a8a;
+    --tmd-border: #cecece;
+    --tmd-accent: #005fb8;
+    --tmd-radius-md: 8px;
+    --tmd-font-ui: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--tmd-bg-base);
+    color: var(--tmd-fg);
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    font-size: var(--tmd-font-ui);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  h2 { font-size: 12px; font-weight: 500; color: var(--tmd-fg-subtle); }
+
+  .engine-card {
+    width: 640px;
+    border: 1px solid var(--tmd-border);
+    border-radius: var(--tmd-radius-md);
+    background: var(--tmd-bg-elevated);
+    overflow: hidden;
+  }
+  .engine-card-head {
+    padding: 12px 14px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* ===== 额度区(v4:2 列网格,进度条跨行对齐) ===== */
+  .welcome-creds {
+    border-top: 1px solid var(--tmd-border);
+    padding: 6px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .welcome-cred {
+    display: grid;
+    grid-template-columns: 132px 1fr;   /* 标题列定宽 → 窗口列跨行对齐 */
+    align-items: center;
+    gap: 12px;
+    min-height: 22px;
+  }
+  .welcome-cred-head {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .welcome-cred-title {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .welcome-cred-plan {
+    font-size: 11px;
+    color: var(--tmd-fg-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* 窗口列:5h 固定第 1 格,7d 固定第 2 格 */
+  .welcome-cred-windows {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 14px;
+    align-items: center;
+    min-width: 0;
+  }
+  .welcome-cred-window {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+  }
+  .welcome-cred-window-label {
+    font-size: 11px;
+    color: var(--tmd-fg-muted);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .welcome-cred-window-bar {
+    flex: 1;
+    min-width: 20px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--tmd-bg-sunken);
+    border: 1px solid var(--tmd-border);
+    overflow: hidden;
+  }
+  .welcome-cred-window-fill {
+    display: block;
+    height: 100%;
+    background: var(--tmd-accent);
+  }
+  /* 7天窗口:橘色(沿用 quota.css rgb(255,140,60)) */
+  .welcome-cred-window-fill--weekly {
+    background: rgb(255, 140, 60);
+  }
+  .welcome-cred-window-pct {
+    width: 30px;                 /* 定宽 → 条右缘跨行对齐 */
+    font-size: 11px;
+    color: var(--tmd-fg-muted);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    flex-shrink: 0;
+  }
+  .welcome-cred-window-reset {
+    width: 104px;                /* 定宽槽:无数据留空,不换行不推移 */
+    font-size: 11px;
+    color: var(--tmd-fg-subtle);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+  }
+
+  .welcome-cred-body {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+  .welcome-cred-balance {
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  .welcome-cred-note {
+    font-size: 11px;
+    color: var(--tmd-fg-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+</style>
+</head>
+<body>
+
+<h2>v4:2 列网格 —— 标题列定宽 132px;5h/7d 各固定一格,进度条跨行 y 轴对齐</h2>
+
+<div class="engine-card">
+  <div class="engine-card-head">PI CLI</div>
+  <div class="welcome-creds">
+
+    <div class="welcome-cred">
+      <div class="welcome-cred-head">
+        <span class="welcome-cred-title">DeepSeek 账户余额</span>
+      </div>
+      <div class="welcome-cred-body">
+        <span class="welcome-cred-balance">¥-1.29</span>
+        <span class="welcome-cred-plan">unavailable</span>
+      </div>
+    </div>
+
+    <div class="welcome-cred">
+      <div class="welcome-cred-head">
+        <span class="welcome-cred-title">KIMI 套餐额度</span>
+      </div>
+      <div class="welcome-cred-windows">
+        <div class="welcome-cred-window" style="grid-column:1" title="5小时窗口 · 已使用 2% · 重置于 9月2日 18:30(4小时后)">
+          <span class="welcome-cred-window-label">5h</span>
+          <span class="welcome-cred-window-bar"><span class="welcome-cred-window-fill" style="width:2%"></span></span>
+          <span class="welcome-cred-window-pct">2%</span>
+          <span class="welcome-cred-window-reset">重置18:30 · 4小时后</span>
+        </div>
+        <div class="welcome-cred-window" style="grid-column:2" title="7天窗口 · 已使用 51% · 重置于 9月8日 00:00(5天后)">
+          <span class="welcome-cred-window-label">7d</span>
+          <span class="welcome-cred-window-bar"><span class="welcome-cred-window-fill welcome-cred-window-fill--weekly" style="width:51%"></span></span>
+          <span class="welcome-cred-window-pct">51%</span>
+          <span class="welcome-cred-window-reset">重置9月8日 · 5天后</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="welcome-cred">
+      <div class="welcome-cred-head">
+        <span class="welcome-cred-title">MiniMax 套餐额度</span>
+      </div>
+      <div class="welcome-cred-windows">
+        <div class="welcome-cred-window" style="grid-column:1" title="5小时窗口 · 已使用 54% · 重置于 9月2日 16:00(1小时后)">
+          <span class="welcome-cred-window-label">5h</span>
+          <span class="welcome-cred-window-bar"><span class="welcome-cred-window-fill" style="width:54%"></span></span>
+          <span class="welcome-cred-window-pct">54%</span>
+          <span class="welcome-cred-window-reset">重置16:00 · 1小时后</span>
+        </div>
+        <div class="welcome-cred-window" style="grid-column:2" title="7天窗口 · 已使用 32% · 重置于 9月7日 12:00(4天后)">
+          <span class="welcome-cred-window-label">7d</span>
+          <span class="welcome-cred-window-bar"><span class="welcome-cred-window-fill welcome-cred-window-fill--weekly" style="width:32%"></span></span>
+          <span class="welcome-cred-window-pct">32%</span>
+          <span class="welcome-cred-window-reset">重置9月7日 · 4天后</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="welcome-cred">
+      <div class="welcome-cred-head">
+        <span class="welcome-cred-title">Codex 账号额度</span>
+      </div>
+      <div class="welcome-cred-body">
+        <span class="welcome-cred-note">缺少 openai-codex oauth 凭据 (access/accountId)</span>
+      </div>
+    </div>
+
+    <div class="welcome-cred">
+      <div class="welcome-cred-head">
+        <span class="welcome-cred-title">智谱 套餐额度</span>
+        <span class="welcome-cred-plan">max</span>
+      </div>
+      <div class="welcome-cred-windows">
+        <div class="welcome-cred-window" style="grid-column:1" title="5小时窗口 · 已使用 0% · 重置于 9月2日 19:00(5小时后)">
+          <span class="welcome-cred-window-label">5h</span>
+          <span class="welcome-cred-window-bar"><span class="welcome-cred-window-fill" style="width:0%"></span></span>
+          <span class="welcome-cred-window-pct">0%</span>
+          <span class="welcome-cred-window-reset">重置19:00 · 5小时后</span>
+        </div>
+        <div class="welcome-cred-window" style="grid-column:2" title="7天窗口 · 已使用 100% · 重置于 9月9日 08:00(6天后)">
+          <span class="welcome-cred-window-label">7d</span>
+          <span class="welcome-cred-window-bar"><span class="welcome-cred-window-fill welcome-cred-window-fill--weekly" style="width:100%"></span></span>
+          <span class="welcome-cred-window-pct">100%</span>
+          <span class="welcome-cred-window-reset">重置9月9日 · 6天后</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<h2>对照:缺 reset(5h 桶 0% 常缺) / 只有 7d 单窗口 —— 7d 条仍落第 2 格对齐</h2>
+
+<div class="engine-card">
+  <div class="engine-card-head">OMP CLI</div>
+  <div class="welcome-creds">
+    <div class="welcome-cred">
+      <div class="welcome-cred-head">
+        <span class="welcome-cred-title">KIMI 套餐额度</span>
+      </div>
+      <div class="welcome-cred-windows">
+        <div class="welcome-cred-window" style="grid-column:1">
+          <span class="welcome-cred-window-label">5h</span>
+          <span class="welcome-cred-window-bar"><span class="welcome-cred-window-fill" style="width:2%"></span></span>
+          <span class="welcome-cred-window-pct">2%</span>
+          <span class="welcome-cred-window-reset"></span>
+        </div>
+        <div class="welcome-cred-window" style="grid-column:2" title="7天窗口 · 已使用 51% · 重置于 9月8日 00:00(5天后)">
+          <span class="welcome-cred-window-label">7d</span>
+          <span class="welcome-cred-window-bar"><span class="welcome-cred-window-fill welcome-cred-window-fill--weekly" style="width:51%"></span></span>
+          <span class="welcome-cred-window-pct">51%</span>
+          <span class="welcome-cred-window-reset">重置9月8日 · 5天后</span>
+        </div>
+      </div>
+    </div>
+    <div class="welcome-cred">
+      <div class="welcome-cred-head">
+        <span class="welcome-cred-title">中转站额度</span>
+        <span class="welcome-cred-plan">pro</span>
+      </div>
+      <div class="welcome-cred-windows">
+        <div class="welcome-cred-window" style="grid-column:2" title="7天窗口 · 已使用 70% · 重置于 9月5日 08:00(3天后)">
+          <span class="welcome-cred-window-label">7d</span>
+          <span class="welcome-cred-window-bar"><span class="welcome-cred-window-fill welcome-cred-window-fill--weekly" style="width:70%"></span></span>
+          <span class="welcome-cred-window-pct">70%</span>
+          <span class="welcome-cred-window-reset">重置9月5日 · 3天后</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

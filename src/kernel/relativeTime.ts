@@ -2,7 +2,17 @@
  * 相对时间 —— 过去向与未来向收敛为一份实现。
  * 此前 workspace 侧(过去向:"刚刚"/"N 分")与 composer QuotaChip 侧
  * (未来向:"N秒后"/"现在")各写一份,此处统一为带语向的单一函数。
+ *
+ * formatResetAt: 额度窗口重置时刻的短绝对格式("9月5日 14:30"),
+ * QuotaChip 弹窗与 welcome 额度区共用,禁止各自再写一份。
  */
+
+/** ms epoch → "9月5日 14:30"(额度窗口下次重置时间)。 */
+export function formatResetAt(ms: number): string {
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 /**
  * 目标时刻相对现在的中文相对时间。

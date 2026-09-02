@@ -12,6 +12,14 @@
  * - window.resetsAt: 重置时间 (ms epoch)
  */
 
+/** 窗口长标签 → 短标(QuotaChip 工具栏与 welcome 额度区共用,禁止各写一份)。 */
+export const SHORT_WINDOW_LABEL: Record<string, string> = {
+  "5小时": "5h",
+  "7天": "7d",
+  "1天": "1d",
+  "30天": "30d",
+};
+
 export interface QuotaWindow {
   /** 显示标签: 例 "5小时" / "7天"。 */
   label: string;

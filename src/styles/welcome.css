@@ -234,48 +234,70 @@
 
 .welcome-creds {
   border-top: 1px solid var(--tmd-border);
-  padding: 10px 14px;
+  padding: 6px 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
+}
+
+/* 每供应商 1 行 = 2 列: 定宽标题列 + 窗口列(跨行同 x 起点) */
+.welcome-cred {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  align-items: center;
+  gap: 12px;
+  min-height: 22px;
 }
 
 .welcome-cred-head {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .welcome-cred-title {
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .welcome-cred-plan {
   font-size: 11px;
   color: var(--tmd-fg-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
+/* 5h 段固定第 1 格,7d/30d 段固定第 2 格(缺窗格留空,不错位) */
 .welcome-cred-windows {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 14px;
+  align-items: center;
+  min-width: 0;
 }
 
 .welcome-cred-window {
-  display: grid;
-  grid-template-columns: 44px 1fr 38px;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
+  min-width: 0;
 }
 
 .welcome-cred-window-label {
   font-size: 11px;
   color: var(--tmd-fg-muted);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .welcome-cred-window-bar {
+  flex: 1;
+  min-width: 20px;
   height: 5px;
   border-radius: 999px;
   background: var(--tmd-bg-sunken);
@@ -289,11 +311,36 @@
   border-radius: 999px;
 }
 
+/* 7天/30天窗口: 橘色(沿用 quota.css rgb(255,140,60)) */
+.welcome-cred-window-fill--weekly {
+  background: rgb(255, 140, 60);
+}
+
 .welcome-cred-window-pct {
+  width: 30px; /* 定宽 → 条右缘跨行对齐 */
   font-size: 11px;
   color: var(--tmd-fg-muted);
   text-align: right;
+  font-variant-numeric: tabular-nums;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  flex-shrink: 0;
+}
+
+.welcome-cred-window-reset {
+  width: 104px; /* 定宽槽: 无数据留空,不换行不推移进度条 */
+  font-size: 11px;
+  color: var(--tmd-fg-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.welcome-cred-body {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
 }
 
 .welcome-cred-balance {
@@ -304,6 +351,9 @@
 .welcome-cred-note {
   font-size: 11px;
   color: var(--tmd-fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── 近期会话 ── */
