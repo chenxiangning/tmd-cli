@@ -40,7 +40,7 @@ import { closeTab, setActiveTab, useEditorTabs } from "@kernel/tabs";
 import { resolveFileVisual } from "@kernel/fileVisual";
 import { useFilePanel } from "@kernel/filePanel";
 import { usePlatformKind } from "@kernel/platform";
-import { RightPanelToolbar, GitPanelPlaceholder, TopBarPanelTabs } from "./RightPanelToolbar";
+import { RightPanelToolbar, TopBarPanelTabs } from "./RightPanelToolbar";
 import { SidebarSettingsCluster } from "./SidebarSettingsCluster";
 
 function usePersistedToggle(key: string, initial: boolean) {
@@ -272,12 +272,13 @@ function TopBar({
         >
           {leftOpen ? <PanelLeftClose size={14} aria-hidden /> : <PanelLeftOpen size={14} aria-hidden />}
         </button>
-        {/* 入库(回 welcome) — 当前纯展示占位,后续接入跳转逻辑 */}
+        {/* 入库(回 welcome):摘掉活跃 session 指针,MainPanel 兜底渲染 welcome;session 不删可唤回 */}
         <button
           type="button"
           className="titlebar-action"
-          aria-label="入库"
-          title="入库"
+          aria-label="回到首页"
+          title="回到首页"
+          onClick={() => host.setActiveSession(null)}
         >
           <Inbox size={14} aria-hidden />
         </button>
@@ -312,7 +313,10 @@ function TopBar({
 export function AppShell() {
   useHost();
   const platform = usePlatformKind();
-  const { mode: filePanelMode } = useFilePanel();
+  const { mode: filePanelMode, panels: filePanels } = useFilePanel();
+  /* 激活面板 = mode 命中项,回落首个注册项(插件 activate 顺序) */
+  const activeFilePanel =
+    filePanels.find((p) => p.id === filePanelMode) ?? filePanels[0];
   const [leftOpen, toggleLeft] = usePersistedToggle("shell.left", true);
   const [rightOpen, toggleRight] = usePersistedToggle("shell.right", true);
   const { tabs } = useEditorTabs();
@@ -379,15 +383,11 @@ export function AppShell() {
               <aside ref={rightAsideRef} className="flex h-full flex-col">
                 {/* 顶部 toolbar:右侧面板控制器(folder/git/...) */}
                 <RightPanelToolbar />
-                {/* 模式切换:files → FileTree;git → GitPanelPlaceholder */}
+                {/* 面板内容:按注册表路由,外壳不认识任何业务面板 */}
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                   {/* 必须 flex 容器:内部 file-tree-panel 的 flex:1 才能拿到有界高度,
                       否则文件树内容无限长高被裁掉,列表永远滚不动。 */}
-                  {filePanelMode === "files" ? (
-                    <Mounts point="rightSidebar.tab" />
-                  ) : (
-                    <GitPanelPlaceholder />
-                  )}
+                  {activeFilePanel ? <activeFilePanel.component /> : null}
                 </div>
               </aside>
             </Panel>

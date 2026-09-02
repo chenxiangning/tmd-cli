@@ -12,7 +12,7 @@
  * - fileHighlighter:文件内容→HTML(默认 highlight.js,可替换)
  */
 import { useCallback, useEffect, useState } from "react";
-import { ChevronRight, FilePlus2, RefreshCw } from "lucide-react";
+import { ChevronRight, FilePlus2, Folder, RefreshCw } from "lucide-react";
 import { ipc, type DirEntry } from "@kernel/ipc";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { openTab } from "@kernel/tabs";
@@ -21,6 +21,7 @@ import { useWorkspaces } from "@kernel/workspace";
 import { baseName } from "@kernel/pathUtils";
 import { registerFileHighlighter } from "@kernel/fileHighlighter";
 import { registerFileVisual, resolveFileVisual } from "@kernel/fileVisual";
+import { registerFilePanel } from "@kernel/filePanel";
 import { FileTabContent } from "./FileTabContent";
 import { extToLang } from "./highlightLangs";
 import { defaultFileVisualProvider } from "./fileVisual";
@@ -238,8 +239,10 @@ export const filesPlugin: Plugin = {
         (await import("./highlighter")).highlightSync(path, content),
     });
 
-    ctx.contribute("rightSidebar.tab", {
-      order: 0,
+    registerFilePanel({
+      id: "files",
+      label: "文件",
+      icon: Folder,
       component: ActiveWorkspaceFileTree,
     });
     ctx.contribute("editorCenter.tabContent", {

@@ -29,6 +29,7 @@ flowchart TB
             SS["streamSlice.ts<br/>字节流尾部安全截断"]
             FH["fileHighlighter.ts<br/>高亮器注册点"]
             FV["fileVisual.ts<br/>文件视觉 provider 注册点"]
+            FP["filePanel.ts<br/>右栏面板注册表(通用 tab store,<br/>不预知业务面板)"]
         end
 
         subgraph PLUGINS["plugins/（一切能力皆插件）"]
@@ -79,7 +80,7 @@ flowchart TB
 **依赖铁律**（代码中已成立）：
 
  - 内核 `src/kernel/` 不 import 任何 `src/plugins/`；插件清单唯一入口是 `src/plugins/index.ts` 的 `allPlugins` 数组（编译期注册）。
- - 插件之间**零直接依赖**：协作仅通过 `PluginContext`（`registerCliProfile` / `contribute` / `events`）和两个注册点（`fileHighlighter` / `fileVisual`）；`plugins/cli-shared` 仅是无生命周期的共享格式库，不是插件。
+ - 插件之间**零直接依赖**：协作仅通过 `PluginContext`（`registerCliProfile` / `contribute` / `events`）和内核注册点（`fileHighlighter` / `fileVisual` / `filePanel`）；`plugins/cli-shared` 仅是无生命周期的共享格式库，不是插件。
  - 前端触达 Rust 的唯一通道是 `src/kernel/ipc.ts`；插件不直接 import `@tauri-apps/api`。
 
 **文件规模铁则**（2026-09-02 起生效）：
@@ -244,12 +245,11 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    subgraph MOUNT["MountPoint（plugin.ts 定义的 14 个挂点）"]
+    subgraph MOUNT["MountPoint（plugin.ts 定义的 13 个挂点）"]
         direction TB
         HB["header.breadcrumb"]
         HLR["header.left / header.right"]
         LS1["leftSidebar.section"]
-        RS["rightSidebar.tab"]
         ECW["editorCenter.welcome"]
         ECT["editorCenter.tabContent"]
         ECC["editorCenter.composer"]
@@ -260,12 +260,11 @@ flowchart LR
 
     CONTRIB2["contributions.tsx<br/>（内置默认，可替换）"] --> HB
     P_WS2["workspace 插件"] -->|"order:0"| LS1
-    P_FILES2["files 插件"] -->|"order:0"| RS
     P_FILES2 -->|"order:0<br/>FileTabContent"| ECT
     P_COMP2["composer 插件"] -->|"order:0<br/>Composer"| ECC
     P_COMP2 -->|"order:0<br/>ComposerToolbar"| CSB
-    P_GIT2["git 插件<br/>（占位，暂无贡献）"] -.-> RS
     P_WELCOME2["welcome 插件"] -->|"order:0<br/>WelcomePage"| ECW
+    Note2["右栏 files/git 并列 tab 不走挂点:<br/>经 kernel/filePanel 注册表(registerFilePanel)<br/>由插件贡献,外壳只按注册表路由渲染"]
 
     Note["Mounts 是 kernel 公共渲染器；<br/>挂点按 order 升序渲染；<br/>composer.statusBar 已承载只读模型/思考强度工具栏"]
 ```
@@ -299,7 +298,7 @@ flowchart TD
     P1 --> KI
     P1 --> SH["plugins/cli-shared<br/>共享 JSONL 格式库(非插件)"]
     P2 --> KW
-    P3 --> KI & KT & KFH["kernel/fileHighlighter.ts"] & KFV["kernel/fileVisual.ts"]
+    P3 --> KI & KT & KFH["kernel/fileHighlighter.ts"] & KFV["kernel/fileVisual.ts"] & KFP["kernel/filePanel.ts"]
     P5 --> KH & KM & KI
 
     KI --> TAPI["@tauri-apps/api<br/>invoke / listen"]
@@ -343,14 +342,14 @@ flowchart TD
 | 切回不黑屏 | `host.ts` `outputBuffers`（分块环形尾部,上限经设置项 `sessionOutputBufferLimit` 可配,默认 50 万字符;`streamSlice` 保证截断不劈转义序列/surrogate）+ TerminalView 挂载先回放再订阅 |
 | 触发符纯透传 | `cli.ts` `translate?` 是唯一例外钩子；`serialize.translatePrompt` 只调用 profile 声明 |
 | 一切能力皆插件 | `plugins/index.ts` 是唯一插件清单；内核无插件 import |
-| 插件不互相依赖 | 协作仅经 `PluginContext` / `EventBus` / `fileHighlighter` / `fileVisual` 注册点；`cli-shared` 是无生命周期的共享格式库，不是插件 |
+| 插件不互相依赖 | 协作仅经 `PluginContext` / `EventBus` / `fileHighlighter` / `fileVisual` / `filePanel` 注册点；`cli-shared` 是无生命周期的共享格式库，不是插件 |
 | 会话状态只读 | `CliProfile.readSessionStatus` 负责 CLI 私有 JSONL 解析；Host 只缓存/刷新，Composer 通过 `composer.statusBar` 展示 |
 | 会话固定一个 CLI | `SessionMeta.profileId` 创建后不变；resume 用同 profile 重 spawn |
 | 幂等/防御 | `activateAll` Promise 并发闸；`registerDefaultContributions` registered 标志；`registerCliProfile` 重复即抛错 |
 
 ## 10. 已知缺口（代码现状，非设计意图）
 
-- `git` 插件为空壳：`git.rs` 只有 status，前端无贡献。
+- `git` 插件仅注册占位面板（`GitPanel` 空态）：`git.rs` 只有 status，面板待实装。
 - `footer.*`、`overlay` 等挂点暂无贡献者。
 - Codex 的 session 状态解析采用容错字段匹配，完整 `turn_context` schema 仍需随 CLI 版本验证。
 - `prepareSendPayload` 注释声明 v1 不用 bracketed paste（多行粘贴交给 CLI 自理）。

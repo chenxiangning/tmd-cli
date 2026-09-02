@@ -19,7 +19,6 @@ export type MountPoint =
   | "footer.left"
   | "footer.right"
   | "leftSidebar.section"
-  | "rightSidebar.tab"
   | "leftRail"
   | "rightRail"
   | "overlay"

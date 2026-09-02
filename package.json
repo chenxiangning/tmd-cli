@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check:file-size": "node scripts/check-file-size.mjs",
+    "check:arch-boundary": "node scripts/check-arch-boundary.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",

@@ -1,82 +1,87 @@
 /**
- * 右侧面板(file/git/...)模式 store —— 复刻 codemoss WorkspaceFilePanelMode。
+ * 右侧面板注册表 + 激活/钉住状态 store。
  *
- * 当前实现仅保留 files 与 git 两个实际可用模式;其它 panel tab 在 UI
- * 显示但实际功能未接入,以便未来按挂点扩 panel。
- *
- * 设计:
- * - 单值 store: 当前激活 panel mode。
- * - Pinned tabs(哪些 panel 钉在 toolbar 外显)持久的 clientStorage;
- *   简化版:tmd-cli 暂不持久化,默认 [files, git] 永久钉住。
+ * kernel 只提供「tab 注册 + 激活/钉住」通用原语,不预知任何业务面板
+ * (files/git/search 都是产品路线图,不是内核知识);面板 id/图标/组件
+ * 由各自插件 activate 时注册:
+ *   files 插件 → { id: "files", label: "文件", ... }
+ *   git 插件   → { id: "git",   label: "Git", ... }
+ * 外壳(AppShell 右栏 / TopBarPanelTabs)只按注册表渲染 —— 新增面板零改外壳。
  */
 
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, type ComponentType } from "react";
 
-export type FilePanelMode = "files" | "git";
+/** 面板图标的最小 props 面(兼容 lucide-react 图标组件)。 */
+export type FilePanelIcon = ComponentType<{
+  size?: number | string;
+  className?: string;
+  "aria-hidden"?: boolean | "true" | "false";
+}>;
 
-/** 全部 panel tab 类型 ─ UI 上展示用,但只有 files/git 真接入。 */
-export type FilePanelTabId =
-  | "files"
-  | "search"
-  | "git"
-  | "projectMap"
-  | "intentCanvas"
-  | "radar"
-  | "notes"
-  | "specHub"
-  | "detachedExplorer";
-
-/** 每个 tab 的元数据。当前只有 files/git 实装并默认钉在 toolbar;
- * 其余为占位,等对应面板接入后再启用。 */
-export interface FilePanelTabMeta {
-  id: FilePanelTabId;
+/** 插件注册的右栏面板。 */
+export interface FilePanelContribution {
+  /** 全局唯一 id(插件自带,如 "files"/"git");重复注册即抛错。 */
+  id: string;
+  /** tab 的 aria/title 文案。 */
   label: string;
-  /** 是否默认钉在 toolbar。 */
-  pinnedByDefault: boolean;
+  icon: FilePanelIcon;
+  /** 面板内容组件(激活时整栏渲染)。 */
+  component: ComponentType;
+  /** tab 排序,小的在前;缺省 0。 */
+  order?: number;
+  /** 注册即钉到 toolbar;缺省 true。 */
+  pinnedByDefault?: boolean;
 }
 
-export const FILE_PANEL_TABS: FilePanelTabMeta[] = [
-  { id: "files", label: "文件", pinnedByDefault: true },
-  { id: "search", label: "搜索", pinnedByDefault: false },
-  { id: "git", label: "Git", pinnedByDefault: true },
-  { id: "projectMap", label: "项目知识地图", pinnedByDefault: false },
-  { id: "intentCanvas", label: "意图画布", pinnedByDefault: false },
-  { id: "radar", label: "雷达", pinnedByDefault: false },
-  { id: "notes", label: "便签", pinnedByDefault: false },
-  { id: "specHub", label: "Spec Hub", pinnedByDefault: false },
-  { id: "detachedExplorer", label: "打开独立文件窗口", pinnedByDefault: false },
-];
-
-interface PanelState {
-  mode: FilePanelMode;
-  /** 钉在 toolbar 上的 tab ids ─ 实际未持久化,默认 [files, git]。 */
-  pinnedIds: Set<FilePanelTabId>;
+export interface FilePanelState {
+  /** 已注册面板(按 order 升序);数组不可变,注册时整体替换。 */
+  panels: readonly FilePanelContribution[];
+  /** 当前激活面板 id;首个注册面板自动成为初始激活。 */
+  mode: string;
+  /** 钉在 toolbar 外显的面板 id。 */
+  pinnedIds: ReadonlySet<string>;
 }
 
-const state: PanelState = {
-  mode: "files",
-  // 默认只钉 文件 + Git;其余 tab 未实装,钉出来只是死图标,等接入后再加默认。
-  pinnedIds: new Set(["files", "git"] as FilePanelTabId[]),
+const state: FilePanelState = {
+  panels: [],
+  mode: "",
+  pinnedIds: new Set(),
 };
 
 const listeners = new Set<() => void>();
 function emit() {
   listeners.forEach((fn) => fn());
 }
-let snapshot: PanelState = state;
-function refreshSnapshot(): PanelState {
-  snapshot = { mode: state.mode, pinnedIds: new Set(state.pinnedIds) };
+let snapshot: FilePanelState = state;
+function refreshSnapshot(): FilePanelState {
+  snapshot = { panels: state.panels, mode: state.mode, pinnedIds: new Set(state.pinnedIds) };
   return snapshot;
 }
 
-export function setFilePanelMode(mode: FilePanelMode): void {
-  if (state.mode === mode) return;
-  state.mode = mode;
+/** 注册右栏面板(插件 activate 内调用)。重复 id 抛错,与 registerCliProfile 同纪律。 */
+export function registerFilePanel(panel: FilePanelContribution): void {
+  if (state.panels.some((p) => p.id === panel.id)) {
+    throw new Error(`右栏面板重复注册: ${panel.id}`);
+  }
+  state.panels = [...state.panels, panel].sort(
+    (a, b) => (a.order ?? 0) - (b.order ?? 0),
+  );
+  if (panel.pinnedByDefault ?? true) {
+    state.pinnedIds = new Set([...state.pinnedIds, panel.id]);
+  }
+  if (!state.mode) state.mode = panel.id;
   refreshSnapshot();
   emit();
 }
 
-export function togglePinned(id: FilePanelTabId): void {
+export function setFilePanelMode(id: string): void {
+  if (state.mode === id) return;
+  state.mode = id;
+  refreshSnapshot();
+  emit();
+}
+
+export function togglePinned(id: string): void {
   const next = new Set(state.pinnedIds);
   if (next.has(id)) next.delete(id);
   else next.add(id);
@@ -85,15 +90,19 @@ export function togglePinned(id: FilePanelTabId): void {
   emit();
 }
 
-export function getFilePanelMode(): FilePanelMode {
+export function getFilePanels(): readonly FilePanelContribution[] {
+  return state.panels;
+}
+
+export function getFilePanelMode(): string {
   return state.mode;
 }
 
-export function getPinnedPanelIds(): readonly FilePanelTabId[] {
+export function getPinnedPanelIds(): readonly string[] {
   return Array.from(state.pinnedIds);
 }
 
-export function useFilePanel(): PanelState {
+export function useFilePanel(): FilePanelState {
   return useSyncExternalStore(
     (fn) => {
       listeners.add(fn);
