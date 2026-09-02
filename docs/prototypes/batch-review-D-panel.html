@@ -3,17 +3,15 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>批次审批 · 方案 D v3「右栏时间线 × 中央对话/diff」</title>
+<title>批次审批 · 方案 D v4「右栏时间线 × 中央批审阅单」</title>
 <style>
   /* ═══════════════════════════════════════════════════════
-     方案 D v3 —— 评审第三轮修订(用户反馈):
-       ① 砍掉状态筛选 chips 行(窄面板下换行叠字,且状态徽标
-          已挂在每个时间线条目上,切换开关是冗余控件)
-       ② 时间线批次节点点击 → 中央编辑区开「对话」tab:
-          显示该轮用户消息全文(readSessionUserMessages 本就
-          携带全文)+ 该轮 assistant 活动摘要
-       ③ 文件行点击 → 中央开 diff tab(不变)
-     两个点击目标,两个去处:批=对话,文件=diff。
+     方案 D v4 —— 评审第四轮修订(用户反馈):
+       点批次 ≠ 看 session 原始详情,而是「批审阅单」:
+       用户消息全文 + 该轮 AI 修改的文件列表(各自 diff)。
+       每批一个中央 tab;时间线点文件行 = 深链到该文件分区。
+       右栏无筛选行(状态挂条目);无保留按钮(回退唯一动作);
+       提交/内容失配 → 自动已处理。
      挂载点全部复用现有:右栏 registerFilePanel,
      中央 = editorCenter.tabContent —— 零内核新增。
      全部颜色 --tmd-* 体系(dark)。
@@ -98,7 +96,7 @@
   }
   .tab {
     display: flex; align-items: center; gap: 7px;
-    padding: 0 12px; max-width: 300px;
+    padding: 0 12px; max-width: 260px;
     border-right: 1px solid var(--tmd-border);
     color: var(--tmd-fg-faint); cursor: pointer; user-select: none;
     font-size: 11.5px; position: relative; white-space: nowrap;
@@ -113,23 +111,19 @@
   .tab .bd.open { background: var(--bk-open); animation: breathe 1.6s ease infinite; }
   .tab .bd.reverted { background: var(--bk-reverted); }
   .tab .bd.done { border: 1.5px solid var(--bk-done); background: transparent; width: 6px; height: 6px; }
-  .tab .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    font-family: "SF Mono", Menlo, monospace; font-size: 11px; }
   @keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
 
-  /* 中央工具行(diff/对话共用) */
+  /* 中央工具行 */
   .view-bar {
     flex: none; display: flex; align-items: center; gap: 8px;
-    height: 32px; padding: 0 12px;
+    height: 32px; padding: 0 14px;
     border-bottom: 1px solid var(--tmd-border);
     background: var(--tmd-bg-elevated);
   }
-  .view-bar .path { font-family: "SF Mono", Menlo, monospace; font-size: 11px; color: var(--tmd-fg); }
-  .view-bar .path span { color: var(--tmd-fg-faint); }
+  .view-bar .ctx { color: var(--tmd-fg-faint); font-size: 11px; }
   .view-bar .pm { font-variant-numeric: tabular-nums; font-size: 11px; }
   .view-bar .pm .ins { color: var(--diff-ins); }
   .view-bar .pm .del { color: var(--diff-del); }
-  .view-bar .ctx { color: var(--tmd-fg-faint); font-size: 11px; }
   .view-bar .spacer { flex: 1; }
   .btn {
     height: 24px; padding: 0 10px; border-radius: var(--tmd-radius-sm);
@@ -137,30 +131,14 @@
     border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); white-space: nowrap;
   }
   .btn:hover:not(:disabled) { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
-  .btn:disabled { opacity: .4; }
   .btn.danger { border-color: rgba(167,139,250,.4); color: var(--bk-reverted); }
   .btn.danger:hover:not(:disabled) { background: rgba(167,139,250,.12); }
 
-  /* diff 正文 */
-  .diff-scroll { flex: 1; min-height: 0; overflow: auto; }
-  .diff-scroll pre {
-    margin: 0; padding: 8px 0 24px; min-width: max-content;
-    font-family: "SF Mono", Menlo, monospace; font-size: 11.5px; line-height: 1.62;
-  }
-  .dl { display: block; padding: 0 14px 0 0; white-space: pre; }
-  .dl .ln { display: inline-block; width: 44px; padding-right: 12px; text-align: right;
-    color: var(--tmd-fg-faint); user-select: none; font-size: 10.5px; }
-  .dl-add { color: var(--diff-ins); background: rgba(46,160,67,.10); }
-  .dl-add .ln { color: rgba(46,160,67,.6); }
-  .dl-del { color: var(--diff-del); background: rgba(248,81,73,.10); }
-  .dl-del .ln { color: rgba(248,81,73,.6); }
-  .dl-ctx { color: var(--tmd-fg-subtle); }
-  .dl-hnk { color: var(--tmd-accent); opacity: .75; padding-top: 6px; padding-bottom: 2px; }
-  .dl-end { color: var(--tmd-fg-faint); padding-top: 10px; }
+  /* 审阅单滚动体 */
+  .sheet { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 22px 30px; }
+  .sheet-cap { color: var(--tmd-fg-faint); font-size: 11px; margin: 14px 0 8px; }
 
-  /* 对话正文:该轮用户消息全文 + assistant 活动摘要 */
-  .conv-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 26px 28px; }
-  .conv-meta { color: var(--tmd-fg-faint); font-size: 11px; margin-bottom: 10px; }
+  /* 用户消息全文卡 */
   .user-full {
     border-left: 2px solid var(--tmd-accent);
     background: var(--tmd-bg-hover);
@@ -169,18 +147,50 @@
     color: var(--tmd-fg); line-height: 1.7; font-size: 13px;
     white-space: pre-wrap; word-break: break-word;
   }
-  .user-full .meta { color: var(--tmd-fg-faint); font-size: 11px; margin-bottom: 6px;
-    font-family: -apple-system, "PingFang SC", sans-serif; }
-  .as-act { margin-top: 14px; }
-  .as-act .cap { color: var(--tmd-fg-faint); font-size: 11px; margin-bottom: 6px; }
-  .as-act .lines {
-    border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm);
-    background: var(--tmd-bg-elevated); padding: 8px 12px;
-    font-family: "SF Mono", Menlo, monospace; font-size: 11px; line-height: 1.7;
-    color: var(--tmd-fg-subtle);
+  .user-full .meta { color: var(--tmd-fg-faint); font-size: 11px; margin-bottom: 6px; }
+
+  /* 文件分区 */
+  .fsec { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); margin-bottom: 8px; overflow: hidden; }
+  .fsec.flash { animation: sec-flash 1.2s ease; }
+  @keyframes sec-flash { 0%, 50% { border-color: var(--tmd-accent); } 100% { border-color: var(--tmd-border); } }
+  .fs-head {
+    display: flex; align-items: center; gap: 8px;
+    height: 30px; padding: 0 10px; cursor: pointer; user-select: none;
+    background: var(--tmd-bg-elevated);
   }
-  .as-act .lines .dim { color: var(--tmd-fg-faint); }
-  .as-act .lines b { color: var(--tmd-fg-muted); font-weight: 500; }
+  .fs-head:hover { background: var(--tmd-bg-hover); }
+  .fs-head .caret { color: var(--tmd-fg-faint); transition: transform .15s; flex: none; }
+  .fsec.open .fs-head .caret { transform: rotate(90deg); }
+  .fs-head .st { flex: none; width: 15px; height: 15px; border-radius: 4px; display: grid; place-items: center;
+    font-size: 10px; font-weight: 700; }
+  .fs-head .st.M { background: rgba(250,204,32,.16); color: var(--st-m); }
+  .fs-head .st.A { background: rgba(74,222,128,.16); color: var(--st-a); }
+  .fs-head .path { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    direction: rtl; text-align: left; font-family: "SF Mono", Menlo, monospace; font-size: 11px; color: var(--tmd-fg); }
+  .fs-head .path b { direction: ltr; unicode-bidi: isolate; font-weight: 500; }
+  .fs-head .path span { color: var(--tmd-fg-faint); }
+  .fs-head .mark { flex: none; font-size: 9.5px; border: 1px dotted var(--tmd-fg-faint);
+    border-radius: 4px; padding: 0 4px; line-height: 14px; color: var(--tmd-fg-faint); }
+  .fs-head .mark.rv { color: var(--bk-reverted); border-color: var(--bk-reverted); }
+  .fs-head .pm { flex: none; font-variant-numeric: tabular-nums; font-size: 10.5px; }
+  .fs-head .pm .ins { color: var(--diff-ins); }
+  .fs-head .pm .del { color: var(--diff-del); }
+  .fs-head .rv1 {
+    flex: none; height: 20px; padding: 0 7px; border-radius: 5px;
+    display: none; align-items: center; gap: 4px;
+    border: 1px solid var(--tmd-border); color: var(--tmd-fg-subtle); font-size: 10.5px;
+  }
+  .fs-head:hover .rv1 { display: inline-flex; }
+  .fs-head .rv1:hover { border-color: rgba(167,139,250,.5); color: var(--bk-reverted); }
+  .fs-body { display: none; }
+  .fsec.open .fs-body { display: block; }
+  .fs-body pre { margin: 0; padding: 7px 10px; overflow-x: auto;
+    font-family: "SF Mono", Menlo, monospace; font-size: 10.5px; line-height: 1.6; background: var(--tmd-bg-base); }
+  .dl-add { color: var(--diff-ins); background: rgba(46,160,67,.10); display: block; }
+  .dl-del { color: var(--diff-del); background: rgba(248,81,73,.10); display: block; }
+  .dl-ctx { color: var(--tmd-fg-subtle); display: block; }
+  .dl-hnk { color: var(--tmd-accent); opacity: .75; display: block; padding: 4px 0 2px; }
+  .dl-end { color: var(--tmd-fg-faint); display: block; padding-top: 6px; }
 
   /* 空态 */
   .empty { flex: 1; display: grid; place-items: center; color: var(--tmd-fg-faint);
@@ -260,7 +270,6 @@
   .badge.open { background: var(--tmd-accent-soft); color: #7ec3f0; }
   .badge.done { background: rgba(154,157,160,.14); color: var(--bk-done); }
 
-  /* 文件行(常驻展开,无折叠) */
   .files { margin: 1px 0 3px 32px; }
   .frow {
     display: flex; align-items: center; gap: 7px;
@@ -268,7 +277,6 @@
     color: var(--tmd-fg-muted); cursor: pointer;
   }
   .frow:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
-  .frow.on { background: var(--tmd-bg-active); color: var(--tmd-fg); }
   .frow .st { flex: none; width: 14px; height: 14px; border-radius: 4px; display: grid; place-items: center;
     font-size: 9.5px; font-weight: 700; }
   .frow .st.M { background: rgba(250,204,32,.16); color: var(--st-m); }
@@ -344,12 +352,12 @@
 </head>
 <body>
 
-<div class="demo-badge">方案 <b>D v3</b> ｜ 状态挂时间线条目(无筛选行)；点批次 → 中央看该轮对话全文，点文件 → 中央看 diff</div>
+<div class="demo-badge">方案 <b>D v4 · 审批时间线 × 批审阅单</b> ｜ 点批次/文件 → 中央「用户消息 + 该轮文件 diff」审阅单，一批一个 tab</div>
 
 <div class="window">
   <div class="titlebar">
     <span class="dots"><i></i><i></i><i></i></span>
-    tmd-cli ⌄ &nbsp;·&nbsp; 两个点击目标:批=对话 · 文件=diff
+    tmd-cli ⌄ &nbsp;·&nbsp; 中央 = 批审阅单(用户消息 + 文件 diff 列表) · 时间线点文件深链到对应分区
   </div>
   <div class="body">
     <div class="sidebar">
@@ -390,19 +398,13 @@
 <script>
 /* ── 与 A/B/C 原型同叙事:omp · 网络代理插件会话 ──
    状态机:open → pending → reverted | done(自动:已提交/内容已变)
-   prompt 为该轮用户消息全文(readSessionUserMessages 携带全文),
-   时间线里截断展示,中央「对话」tab 展示全文 */
+   中央「批审阅单」= 用户消息全文 + 该轮文件 diff 分区列表 */
 const BATCHES = [
   { no: 6, state: "open", when: "刚刚", prompt:
       "代理挂掉时给个明确的错误提示吧。现在 spawn 失败和上游超时都报同一个 ECONNREFUSED,分不开。\n把错误码在 spawn 侧就分类,UI 只认枚举;提示文案要带上游地址,方便一眼定位是本地端口冲突还是上游挂了。",
-    asLines: ["⏺ 我先看下现有报错路径…", "Read: src-tauri/src/proxy.rs (412 行) · Grep: ECONNREFUSED → 4 matches",
-      "Edit: src-tauri/src/proxy.rs (+38 −6) · Bash: cargo check ✓",
-      "⏺(进行中——本批在下一条消息发出时封口)"],
     files: [{ st: "M", name: "proxy.rs", dir: "src-tauri/src/", ins: 38, del: 6 }] },
   { no: 5, state: "pending", when: "2 分钟前", prompt:
       "把代理设置挂到设置面板里,新增一个分区。要求:\n1) settings.ts 里加 ProxySettings 接口,port 默认 0 表示随机可用端口,upstream 为空表示直连;\n2) sanitize 做字段清洗,非法端口回退默认,别让手改 config 把布局搞炸;\n3) SidebarSettingsCluster 按现有 pref-card/pref-row 样式出分区,零新增 CSS;\n4) 测试补齐回退默认的用例。",
-    asLines: ["⏺ 方案:接口进 settings.ts,分区组件挂 CLUSTERS,清洗走 sanitize。", "Read: src/kernel/settings.ts · src/app-shell/SidebarSettingsCluster.tsx",
-      "Edit: settings.ts (+54 −3) · settings.test.ts (+31) · SidebarSettingsCluster.tsx (+88 −12)", "⏺ 完成。分区已在设置面板可见,非法值一律回退默认。"],
     files: [
       { st: "M", name: "settings.ts", dir: "src/kernel/", ins: 54, del: 3,
         diff: [
@@ -430,14 +432,12 @@ const BATCHES = [
     ] },
   { no: 4, state: "pending", when: "8 分钟前", prompt:
       "sanitize 加上 proxy 字段清洗:port clamp 到 0-65535,upstream 仅允许 http(s):// 前缀,非法值回退默认。settings.test.ts 补对应用例,注意别把合法的 0 端口误伤。",
-    asLines: ["⏺ 清洗规则三条:clamp / 前缀白名单 / 回退默认。", "Edit: settings.ts (+22 −4) · settings.test.ts (+18)"],
     files: [
       { st: "M", name: "settings.ts", dir: "src/kernel/", ins: 22, del: 4, stale: "内容已变" },
       { st: "M", name: "settings.test.ts", dir: "src/kernel/", ins: 18, del: 0 },
     ] },
   { no: 3, state: "done", doneReason: "已提交", when: "昨天 21:40", prompt:
       "提交逻辑挪到 proxyCommit.ts,别混在组件里。ProxyPopover 里 setState 和 commit 命令绞在一起,拆成纯函数 + 测试,组件只留交互。",
-    asLines: ["⏺ 拆:proxyCommit.ts 纯函数(构造命令/清理时机),组件留 state。", "Write: proxyCommit.ts (+112) · proxyCommit.test.ts (+47) · Edit: index.tsx (+12 −64)"],
     files: [
       { st: "A", name: "proxyCommit.ts", dir: "src/plugins/network-proxy/", ins: 112, del: 0 },
       { st: "M", name: "index.tsx", dir: "src/plugins/network-proxy/", ins: 12, del: 64 },
@@ -445,12 +445,10 @@ const BATCHES = [
     ] },
   { no: 2, state: "reverted", when: "昨天 21:12", prompt:
       "顺手把 Cargo.toml 的 reqwest 降到 0.12 吧,听说 0.13 的 rustls 默认后端在老系统上有问题。",
-    asLines: ["⏺ 改了版本号,cargo check 通过。", "Edit: Cargo.toml (+2 −2)", "(已回退:0.13 起 rustls 为默认后端,旧 feature 名已移除,降级反而破坏构建)"],
     files: [{ st: "M", name: "Cargo.toml", dir: "src-tauri/", ins: 2, del: 2 }] },
   /* resume 断档线以下:上一段运行的批,只读 */
   { no: 1, state: "done", doneReason: "已提交", when: "09-01 22:31", prompt:
       "proxy 子模块起个头:先跑通 spawn 生命周期,子进程挂死要有兜底 kill。lib.rs 挂上命令注册,别忘了 windowsHide。",
-    asLines: ["⏺ portable-pty spawn + waitpid 超时兜底。", "Write: proxy.rs (+214) · Edit: lib.rs (+9 −1)"],
     readonly: true,
     files: [
       { st: "A", name: "proxy.rs", dir: "src-tauri/src/", ins: 214, del: 0 },
@@ -459,7 +457,7 @@ const BATCHES = [
 ];
 
 const STATE_TEXT = { open: "进行中", pending: "待审", reverted: "已退", done: "已处理" };
-let tabs = [];            /* [{key, kind:"conv"|"diff", batch}] */
+let tabs = [];            /* [{key:"batch:no", batch}] —— 一批一个 tab */
 let activeTab = null;
 
 const tl = document.getElementById("tl");
@@ -477,6 +475,7 @@ function updateWait() {
   document.querySelector(".wait b").textContent =
     BATCHES.filter(b => !b.readonly && b.state === "pending").length;
 }
+function revertable(b) { return b.files.filter(f => !f.stale && !f.rv); }
 
 /* ── 右栏时间线 ── */
 function renderTL() {
@@ -490,32 +489,31 @@ function renderTL() {
       tl.appendChild(gap);
     }
     const s = stat(b);
-    const convOn = tabs.some(t => t.key === "conv:" + b.no && t.key === activeTab);
+    const on = activeTab === "batch:" + b.no;
     const el = document.createElement("div");
     el.className = "batch" + (b.state === "reverted" ? " dimmed" : "") + (b.readonly ? " readonly" : "");
 
-    /* 批头:点击 → 中央开「对话」tab(该轮用户消息全文) */
+    /* 批头:点击 → 中央批审阅单 */
     const head = document.createElement("div");
-    head.className = "bk-head" + (convOn ? " on" : "");
+    head.className = "bk-head" + (on ? " on" : "");
     head.innerHTML = `
       <span class="bk-state ${b.state}"></span>
       <span class="bk-main">
-        <span class="bk-l1"><span class="no">#${b.no}</span><span class="prompt">${esc(b.prompt.split("\n")[0])}</span><span class="go">对话 ›</span></span>
+        <span class="bk-l1"><span class="no">#${b.no}</span><span class="prompt">${esc(b.prompt.split("\n")[0])}</span><span class="go">审阅 ›</span></span>
         <span class="bk-l2"><span>${b.files.length} 文件</span>
           <span><span class="ins">+${s.ins}</span> <span class="del">−${s.del}</span></span>
           ${badgeOf(b)}<span class="when">${b.when}</span></span>
       </span>`;
-    head.title = "点击查看该轮用户消息全文";
-    head.addEventListener("click", () => openConv(b));
+    head.title = "点击审阅该批(用户消息 + 文件 diff)";
+    head.addEventListener("click", () => openBatch(b));
     el.appendChild(head);
 
-    /* 文件行:点击 → 中央开 diff tab */
+    /* 文件行:点击 → 深链到审阅单对应分区 */
     const files = document.createElement("div");
     files.className = "files";
     b.files.forEach(f => {
-      const key = "diff:" + b.no + ":" + f.dir + f.name;
       const row = document.createElement("div");
-      row.className = "frow" + (activeTab === key ? " on" : "");
+      row.className = "frow";
       row.innerHTML = `
         <span class="st ${f.st}">${f.st}</span>
         <span class="fname"><b>${esc(f.name)}</b> <span>${esc(f.dir)}</span></span>
@@ -525,7 +523,7 @@ function renderTL() {
         ${b.state === "pending" && !f.stale && !f.rv ? `<button class="act" title="只回退这个文件">↩</button>` : ""}`;
       row.addEventListener("click", e => {
         if (e.target.closest(".act")) { confirmRevert(el, b, [f], true); return; }
-        openDiff(b, f);
+        openBatch(b, f);
       });
       files.appendChild(row);
     });
@@ -534,13 +532,13 @@ function renderTL() {
     const foot = document.createElement("div");
     foot.className = "bk-foot";
     if (b.state === "pending") {
-      const revertable = b.files.filter(f => !f.stale && !f.rv);
-      if (revertable.length) {
-        foot.innerHTML = `<button class="mini danger">↩ 回退整批(${revertable.length} 文件)</button>
+      const rv = revertable(b);
+      if (rv.length) {
+        foot.innerHTML = `<button class="mini danger">↩ 回退整批(${rv.length} 文件)</button>
           <span class="note">回退前自动打恢复点</span>`;
         foot.querySelector(".mini").addEventListener("click", e => {
           e.stopPropagation();
-          confirmRevert(el, b, revertable, false);
+          confirmRevert(el, b, rv, false);
         });
       } else {
         foot.innerHTML = `<span class="note" style="color:var(--bk-reverted)">全部文件已单独处理 —— 本批视为已退</span>`;
@@ -551,7 +549,7 @@ function renderTL() {
       foot.querySelector(".mini").addEventListener("click", () => {
         b.state = "pending";
         toast(`批次 #${b.no} 已从恢复点 #g8 恢复,回到「待审」`, "rv");
-        renderTL(); renderTabs(); renderView();
+        renderAll();
       });
     } else if (b.state === "done") {
       foot.innerHTML = `<span class="note">${b.doneReason === "已提交" ? "文件已随你的提交进入 git,自动已处理" : "工作区内容已偏离批次后像,自动已处理"} —— 无需操作</span>`;
@@ -564,23 +562,19 @@ function renderTL() {
   });
 }
 
-/* ── 中央 tab 管理 ── */
-function openConv(b) {
-  const key = "conv:" + b.no;
-  if (!tabs.some(t => t.key === key)) tabs.push({ key, kind: "conv", batch: b });
+/* ── 中央:批审阅单(一批一个 tab)── */
+function openBatch(b, focusFile) {
+  const key = "batch:" + b.no;
+  if (!tabs.some(t => t.key === key)) tabs.push({ key, batch: b });
   activeTab = key;
-  renderTabs(); renderView(); renderTL();
-}
-function openDiff(b, f) {
-  const key = "diff:" + b.no + ":" + f.dir + f.name;
-  if (!tabs.some(t => t.key === key)) tabs.push({ key, kind: "diff", batch: b, file: f });
-  activeTab = key;
-  renderTabs(); renderView(); renderTL();
+  renderTabs(); renderSheet(b, focusFile); renderTL();
 }
 function closeTab(key) {
   tabs = tabs.filter(t => t.key !== key);
   if (activeTab === key) activeTab = tabs.length ? tabs[tabs.length - 1].key : null;
-  renderTabs(); renderView(); renderTL();
+  renderTabs();
+  if (activeTab) renderSheet(tabs.find(t => t.key === activeTab).batch); else viewHost.innerHTML = `<div class="empty">从右侧审批线点批次或文件,在这里审阅该轮改动</div>`;
+  renderTL();
 }
 
 function renderTabs() {
@@ -588,92 +582,95 @@ function renderTabs() {
   tabs.forEach(t => {
     const tab = document.createElement("div");
     tab.className = "tab" + (t.key === activeTab ? " active" : "");
-    const name = t.kind === "conv"
-      ? `对话 #${t.batch.no}`
-      : `#${t.batch.no} · ${t.file.name}`;
     tab.innerHTML = `<span class="bd ${t.batch.state}"></span>
-      <span class="name">${esc(name)}</span>
+      <span style="overflow:hidden;text-overflow:ellipsis">批次 #${t.batch.no}</span>
       <span class="x" title="关闭">×</span>`;
     tab.addEventListener("click", e => {
       if (e.target.closest(".x")) { closeTab(t.key); return; }
-      activeTab = t.key; renderTabs(); renderView(); renderTL();
+      activeTab = t.key; renderTabs(); renderSheet(t.batch); renderTL();
     });
     tabbar.appendChild(tab);
   });
 }
 
-/* ── 中央内容渲染:对话 tab / diff tab ── */
-function renderView() {
+function renderSheet(b, focusFile) {
   viewHost.innerHTML = "";
-  if (!activeTab) {
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = "从右侧审批线:点批次看该轮对话全文 · 点文件看 diff";
-    viewHost.appendChild(empty);
-    return;
-  }
-  const t = tabs.find(x => x.key === activeTab);
-  t.kind === "conv" ? renderConv(t.batch) : renderDiff(t.batch, t.file);
-}
-
-function renderConv(b) {
   const s = stat(b);
+
   const bar = document.createElement("div");
   bar.className = "view-bar";
   bar.innerHTML = `
     <span class="ctx">批次 #${b.no} · ${STATE_TEXT[b.state]}${b.state === "done" ? " · " + b.doneReason : ""} · ${esc(b.when)} · omp</span>
     <span class="pm"><span class="ins">+${s.ins}</span> <span class="del">−${s.del}</span></span>
     <span class="spacer"></span>
-    ${b.state === "pending" ? `<button class="btn danger">↩ 回退整批(${b.files.filter(f => !f.stale && !f.rv).length} 文件)</button>` : ""}`;
+    ${b.state === "pending" && revertable(b).length ? `<button class="btn danger">↩ 回退整批(${revertable(b).length} 文件)</button>` : ""}
+    ${b.readonly ? `<span class="ctx">断档前 · 只读</span>` : ""}`;
   const rvAll = bar.querySelector(".danger");
-  if (rvAll) rvAll.addEventListener("click", () =>
-    confirmRevert(document.getElementById("apanel"), b, b.files.filter(f => !f.stale && !f.rv), false));
+  if (rvAll) rvAll.addEventListener("click", () => confirmRevert(document.getElementById("apanel"), b, revertable(b), false));
   viewHost.appendChild(bar);
 
-  const scroll = document.createElement("div");
-  scroll.className = "conv-scroll";
-  scroll.innerHTML = `
-    <div class="conv-meta">该轮用户消息全文(锚点 ${b.readonly ? "断档前" : "实时抓取"}) · 下方为该轮 assistant 活动摘要</div>
-    <div class="user-full"><div class="meta">你 · ${esc(b.when)}</div>${esc(b.prompt)}</div>
-    <div class="as-act">
-      <div class="cap">assistant 活动</div>
-      <div class="lines">${b.asLines.map(l => `<div class="${l.startsWith("(") || l.includes("已回退") ? "dim" : ""}">${l.startsWith("⏺") ? `<b>${esc(l)}</b>` : esc(l)}</div>`).join("")}</div>
-    </div>`;
-  viewHost.appendChild(scroll);
-}
+  const sheet = document.createElement("div");
+  sheet.className = "sheet";
 
-function renderDiff(b, f) {
-  const bar = document.createElement("div");
-  bar.className = "view-bar";
-  bar.innerHTML = `
-    <span class="path"><b>${esc(f.name)}</b> <span>${esc(f.dir)}</span></span>
-    <span class="pm"><span class="ins">+${f.ins}</span> <span class="del">−${f.del}</span></span>
-    <span class="ctx">批次 #${b.no} · ${STATE_TEXT[b.state]}${b.state === "done" ? " · " + b.doneReason : ""} · ${esc(b.when)}</span>
-    <span class="spacer"></span>
-    ${b.state === "pending" && !f.stale && !f.rv ? `<button class="btn danger">↩ 回退此文件</button>` : ""}
-    ${b.state === "pending" && !f.stale && !f.rv ? `<button class="btn danger" data-all="1">↩ 回退整批</button>` : ""}
-    ${f.stale ? `<span class="ctx" style="color:var(--tmd-fg-muted)">内容已变 —— 对照参考,不可回退</span>` : ""}
-    ${f.rv ? `<span class="ctx" style="color:var(--bk-reverted)">该文件已单独回退</span>` : ""}`;
-  const [rv1, rvAll] = bar.querySelectorAll(".danger");
-  if (rv1 && !rv1.dataset.all) rv1.addEventListener("click", () => confirmRevert(document.getElementById("apanel"), b, [f], true));
-  if (rvAll) rvAll.addEventListener("click", () => confirmRevert(document.getElementById("apanel"), b, b.files.filter(x => !x.stale && !x.rv), false));
-  viewHost.appendChild(bar);
+  /* 1. 用户消息全文 */
+  const cap1 = document.createElement("div");
+  cap1.className = "sheet-cap";
+  cap1.textContent = "用户消息 · " + b.when;
+  sheet.appendChild(cap1);
+  const uf = document.createElement("div");
+  uf.className = "user-full";
+  uf.innerHTML = `<div class="meta">你</div>${esc(b.prompt)}`;
+  sheet.appendChild(uf);
 
-  const scroll = document.createElement("div");
-  scroll.className = "diff-scroll";
-  if (f.diff) {
-    let ln = 42;
-    const lines = f.diff.map(([k, txt]) => {
-      const cur = ln;
-      if (k !== "add") ln++;
-      const num = k === "add" ? `${ln}` : `${cur}`;
-      return `<span class="dl dl-${k}"><span class="ln">${num}</span>${k === "add" ? "+" : k === "del" ? "−" : " "} ${esc(txt)}</span>`;
-    }).join("");
-    scroll.innerHTML = `<pre><span class="dl dl-hnk"><span class="ln"></span>@@ -42,7 +42,${f.ins + 9} @@ src/kernel/${esc(f.name)}</span>${lines}<span class="dl dl-end"><span class="ln"></span>—— 区间外已折叠 · 完整渲染走 patch LRU ——</span></pre>`;
-  } else {
-    scroll.innerHTML = `<pre><span class="dl dl-end"><span class="ln"></span>(${f.ins} 行变更 —— 演示数据省略展开,渲染同上)</span></pre>`;
+  /* 2. AI 修改的文件列表(分区 + diff) */
+  const cap2 = document.createElement("div");
+  cap2.className = "sheet-cap";
+  cap2.textContent = `AI 修改的文件(${b.files.length}) —— 点击分区头折叠;hover 可单文件回退`;
+  sheet.appendChild(cap2);
+
+  b.files.forEach(f => {
+    const sec = document.createElement("div");
+    sec.className = "fsec open";
+    sec.dataset.file = f.dir + f.name;
+    const canRv = b.state === "pending" && !f.stale && !f.rv;
+    sec.innerHTML = `
+      <div class="fs-head">
+        <span class="caret">›</span>
+        <span class="st ${f.st}">${f.st}</span>
+        <span class="path"><b>${esc(f.name)}</b> <span>${esc(f.dir)}</span></span>
+        ${f.rv ? `<span class="mark rv">已退</span>` : ""}
+        ${f.stale ? `<span class="mark" title="工作区当前内容已偏离本批后像,不可回退">${f.stale}</span>` : ""}
+        <span class="pm"><span class="ins">+${f.ins}</span> <span class="del">−${f.del}</span></span>
+        ${canRv ? `<button class="rv1">↩ 只回退此文件</button>` : ""}
+      </div>
+      <div class="fs-body">${
+        f.diff
+        ? `<pre><span class="dl-hnk">@@ -42,7 +42,${f.ins + 9} @@ ${esc(f.dir + f.name)}</span>${
+            f.diff.map(([k, t]) => `<span class="dl-${k}">${k === "add" ? "+" : k === "del" ? "−" : " "} ${esc(t)}</span>`).join("")
+          }<span class="dl-end">—— 区间外已折叠 · 完整渲染走 patch LRU ——</span></pre>`
+        : `<pre><span class="dl-end">(${f.ins} 行变更 —— 演示数据省略展开,渲染同上)</span></pre>`
+      }</div>`;
+    sec.querySelector(".fs-head").addEventListener("click", e => {
+      if (e.target.closest(".rv1")) return;
+      sec.classList.toggle("open");
+    });
+    const rv1 = sec.querySelector(".rv1");
+    if (rv1) rv1.addEventListener("click", () => confirmRevert(document.getElementById("apanel"), b, [f], true));
+    sheet.appendChild(sec);
+  });
+
+  viewHost.appendChild(sheet);
+  sheet.scrollTop = 0;
+
+  /* 深链:滚动到目标文件分区并高亮 */
+  if (focusFile) {
+    const target = sheet.querySelector(`[data-file="${CSS.escape(focusFile.dir + focusFile.name)}"]`);
+    if (target) {
+      target.classList.add("open", "flash");
+      target.scrollIntoView({ block: "center" });
+      setTimeout(() => target.classList.remove("flash"), 1300);
+    }
   }
-  viewHost.appendChild(scroll);
 }
 
 /* ── 回退确认 popover ── */
@@ -703,9 +700,15 @@ function confirmRevert(host, b, files, single) {
       pop.remove();
       toast(`批次 #${b.no} 已回退(${files.length} 文件)· 恢复点 #g9 留存`, "rv");
     }
-    renderTL(); renderTabs(); renderView();
+    renderAll();
   });
   host.appendChild(pop);
+}
+
+function renderAll() {
+  renderTL(); renderTabs();
+  if (activeTab) renderSheet(tabs.find(t => t.key === activeTab).batch);
+  else viewHost.innerHTML = `<div class="empty">从右侧审批线点批次或文件,在这里审阅该轮改动</div>`;
 }
 
 let toastTimer = 0;
@@ -718,11 +721,9 @@ function toast(msg, tone) {
 }
 function esc(s) { return s.replace(/</g, "&lt;"); }
 
-renderTL(); renderTabs(); renderView();
-/* 初始演示:打开待审批 #5 的对话与 settings.ts diff */
-openConv(BATCHES.find(b => b.no === 5));
-openDiff(BATCHES.find(b => b.no === 5), BATCHES.find(b => b.no === 5).files[0]);
-openConv(BATCHES.find(b => b.no === 5));   /* 回到对话 tab 置顶 */
+/* 初始演示:打开待审批 #5 的审阅单 */
+renderAll();
+openBatch(BATCHES.find(b => b.no === 5));
 </script>
 </body>
 </html>
