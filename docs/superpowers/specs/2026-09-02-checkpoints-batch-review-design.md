@@ -1,8 +1,9 @@
 # 批次审批/回退（checkpoints）设计文档
 
 日期：2026-09-02
-状态：设计已确认；评审修订 v2（UI 主形态定为 D，与 git 插件解耦）
-原型：`docs/prototypes/batch-review-D-panel.html`（**主形态**：右栏审批时间线，C 稿时间线布局 × 右栏面板宿主，用户选定）
+状态：设计已确认；评审修订 v3（UI 主形态 D，与 git 插件解耦，动作语义极简化）
+原型：`docs/prototypes/batch-review-D-panel.html`（**主形态**：右栏审批时间线 ×
+中央 diff tab，用户选定，经两轮反馈收敛）
 　　　`docs/prototypes/batch-review-A-timeline.html` / `B-anchor.html` / `C-replay.html`（探索稿：右栏列表 / 锚点卡 / 全屏回放台）
 
 ## 1. 背景与目标
@@ -21,11 +22,11 @@ Gemini CLI（/checkpoint · /restore）、Cline/Roo（shadow git）、OpenCode
 1. 壳层跨 CLI 统一提供**批次**（= 一条用户消息之后到下一条之前的所有文件
    改动）的审核能力：看 diff、保留、按文件/整批回退。
 2. 审批线 = 盖在工作区之上的**台账 + 安全网**，不是 git 前缓冲队列：PTY
-   CLI 直写工作区，改动实时归批；「保留」= 认可（从待审队列移除），
-   「回退」= 把该批路径还原到这轮消息之前。
+   CLI 直写工作区，改动实时归批。审批重点是发现"不需要的"：**通过 =
+   什么都不做**（无保留按钮），**回退是唯一动作**；批次文件被提交或工作
+   区内容偏离批次后像 → 自动「已处理」（默认通过）。
 3. **与 git 插件零耦合**（评审修订）：不做保留→转暂存联动；暂存/提交是
-   用户自己的 git 流程。用户抢先 commit 了某批文件 → 该批自动转「已留
-   （已提交）」，回退入口退役——回退已提交历史是 `git revert` 的职责。
+   用户自己的 git 流程。
 4. 铁律对齐：Rust 只做快照**原语**（不理解 CLI、不理解轮次）；批次生命周期
    与归因在特性插件；CLI 格式知识留在各 cli-\* 插件（本期仅预留接口）。
 
@@ -37,7 +38,8 @@ Gemini CLI（/checkpoint · /restore）、Cline/Roo（shadow git）、OpenCode
 | 批次定义 | **用户消息锚点切分** | 复用锚点栏基础设施（`readSessionUserMessages`）；批次 = 相邻两锚点快照的路径差集，快照与归因解耦，不依赖解析 CLI 工具调用流 |
 | 快照机制 | **影子对象库** | sidecar 裸仓库只写 blob/tree 不建 commit，配 manifest；git2 已 vendored；Cline + OpenCode 双验证；不碰用户仓库 |
 | 快照内容 | **变动集 + git 侧兜底**（见 §3.2） | 干净文件的前像永远是 git 侧（index/HEAD）内容，无需复制；快照成本 O(变动集) 而非 O(全树) |
-| UI 主形态 | **D：右栏「审批时间线」面板**（评审修订，用户选定） | C 稿时间线布局 × 右栏面板宿主；时间线（默认）↔ 批次详情（点开看 diff）双视图；A/B/C 为探索稿 |
+| UI 主形态 | **D：右栏「审批时间线」× 中央 diff tab**（v3 修订） | 右栏（`registerFilePanel`）纯时间线列表，点文件在中央编辑区以 tab 打开 diff（`editorCenter.tabContent` 挂载点已有）——**零内核挂载点新增**；A/B/C 为探索稿 |
+| 动作语义 | **极简（v3 修订）**：无「保留」按钮 | 审批重点是发现"不需要的"——通过=什么都不做；**回退是唯一动作**（对照参考）；批次文件被提交或工作区内容偏离批次后像 → 自动转「已处理」，无需操作 |
 | MVP 工作区 | 仅 git 工作区 | status 增量 + ignore 规则免费；非 git 目录灰掉说明（v2 用 fs 扫描降级） |
 
 ## 3. 架构与数据流
@@ -85,8 +87,11 @@ git 模块语义 = 用户仓库操作且有 commit 安全不变量，checkpoints
 
 **特性插件 `src/plugins/checkpoints/`**：
 
-- `batchModel.ts`：批次状态机 `open → sealed → kept | reverted | partial`；
-  监听 `kernel.sessions.prompt`（触发锚点快照 + seal 上一批）、
+- `batchModel.ts`：批次状态机（v3 简化）`open → pending → reverted | done`；
+  `pending` 是唯一可回退状态；`done` 全部自动触发——该批文件已提交
+  （committed）或工作区内容偏离批次后像（changed：手改/后续批触碰），
+  逐文件判定，全部失配才翻批态；单文件回退后批留在 pending，该文件行
+  标记已退。监听 `kernel.sessions.prompt`（触发锚点快照 + seal 上一批）、
   `activeSessionChanged`（baseline 快照）、`sessionExited`（seal 收尾）。
 - `attribution.ts`：轮询 `git_status` 原语（invoke 原语不构成插件间依赖），
   增量路径归入 open 批次；无锚点数据（CLI 未实现 `readSessionUserMessages`）
@@ -125,31 +130,37 @@ git 模块语义 = 用户仓库操作且有 commit 安全不变量，checkpoints
   轮→文件归因表。有它归因更准（连 bash 造成的改动都能按轮归属）；
   **MVP 不实现任何 cli-\* 适配**，接口先立住。
 
-## 4. UI 设计（主形态 D，评审修订）
+## 4. UI 设计（主形态 D v3：右栏时间线 × 中央 diff）
 
-状态徽标色：进行中(open) accent 呼吸点、未审(sealed) `#facc20`、已留(kept)
-`#4ade80`、已退(reverted) `#a78bfa`、已提交自动已留(committed) 中性灰；
+状态徽标色：进行中(open) accent 呼吸点、待审(pending) `#facc20`、
+已退(reverted) `#a78bfa`、已处理(done) 中性灰（reason：已提交/内容已变）；
 文件状态字母 chip 沿用 `--st-m/a/d/r/u/c` 体系。回退一律走确认 popover，
 文案明示"回退前已自动打恢复点，可再回来"。
 
-**D 右栏「审批时间线」面板**（`registerFilePanel` 注册独立面板，与 git
-面板并列、互不感知）：
+**右栏审批时间线**（`registerFilePanel` 注册独立面板，与 git 面板并列、
+互不感知）：
 
-- 时间线视图（默认）：批次倒序，点-线-徽标视觉语言（继承 C 稿）；
-  批次行 = 序号 + prompt 摘要 + 文件数 ±stats + 状态徽标 + 时间；
-  顶部状态筛选 chips；resume 断档线（断档前批次只读）。
-- 批次详情视图（点击进入，← 返回）：prompt 全文 + 对照基准（进行中批对
-  当前工作区，封口批对批次结束时点）；文件组折叠列表，点开即行级 diff；
-  pending 批文件行 hover 出「只回退此文件」。
-- 动作语义（与 git 解耦后）：**保留** = 认可，改动本就在工作区，暂存/
-  提交由用户自行完成（toast 文案明示）；**回退整批/单文件** = 还原到该轮
-  消息之前；reverted 批详情底部有「反悔 · 恢复回来」（恢复点回放）。
-- committed 批：显示"文件已随你的提交进入 git · 本批自动已留"，无回退
-  动作（属 `git revert` 职责）。
+- 纯时间线列表（无视图切换）：批次倒序，点-线-徽标视觉语言（继承 C 稿）；
+  批次行 = 序号 + prompt 摘要 + 文件数 ±stats + 状态徽标 + 时间，可折叠；
+  顶部状态筛选 chips + 待审计数；resume 断档线（断档前批次只读）。
+- 批次展开 = 文件行（状态 chip + 文件名 + ± + hover「只回退此文件」）；
+  pending 批尾部「回退整批」；reverted 批尾部「反悔 · 恢复回来」；
+  done 批尾部说明缘由，无任何动作。
+- 逐文件陈旧标记：文件当前内容 ≠ 批次后像 → 行内「内容已变」虚线 chip，
+  该文件不可回退（仍可看 diff 作对照）；全部文件失配 → 批自动转 done。
 
-探索稿 A（右栏列表）/ B（锚点栏批次卡，需 `anchorRail.card` 挂载点）/
-C（全屏回放台，Esc Esc）保留在 prototypes 目录供后续演进参考；B/C 涉及
-的内核挂载点（`anchorRail.card`）从本期范围移除。
+**中央 diff tab**（`editorCenter.tabContent` 挂载点，文件打开的容器位置）：
+
+- 点右栏文件行 → 中央编辑区开 tab：`#批次号 · 文件名`，tab 上带批次
+  状态点；可开多个，可关闭；空态提示"从右侧审批线点一个文件"。
+- diff 工具条：路径 + ± + 批次上下文（#号 · 状态 · 时间）+「回退此文件 /
+  回退整批」（仅 pending 且未陈旧时出现）；陈旧文件显示"内容已变 ——
+  对照参考，不可回退"。
+- diff 正文：行号 + 着色 unified diff（复用 git 插件 patch LRU 渲染惯例），
+  区间外折叠。
+
+探索稿 A（右栏列表）/ B（锚点栏批次卡）/ C（全屏回放台）保留在
+prototypes 目录供后续演进参考。
 
 ## 5. 文件改动清单
 
@@ -170,9 +181,10 @@ C（全屏回放台，Esc Esc）保留在 prototypes 目录供后续演进参考
 - 锚点快照失败不阻塞发送：后台重试一次，仍失败标 `partial` 并在 UI 提示。
 - 回退冲突：当前文件内容 ≠ 该批后像（用户手改过）→ 进 `skipped[]` 显式
   列出，**绝不静默覆盖**。
-- 用户抢先提交（评审修订新增）：批次文件被用户 commit/stage 后，状态轮询
-  发现该路径已进入 git 历史/暂存 → 该批自动转「已留（已提交）」，回退
-  入口退役并提示缘由；不产生任何 git 侧写操作。
+- 自动已处理（v3 修订扩展）：状态轮询逐文件比对当前内容与批次后像——
+  已提交（进入 git 历史/暂存）或内容偏离（手改/后续批触碰）即标记失配；
+  全部文件失配 → 批自动转 done（默认通过），回退退役并提示缘由；
+  不产生任何 git 侧写操作。
 - sidecar 损坏：降级只读列表 + 提示重建（删除目录重新 baseline）。
 - 磁盘不足：`checkpoint_prune` 紧急收缩（先 TTL 后条数）；仍不足则停止
   capture 并提示。
@@ -184,8 +196,8 @@ C（全屏回放台，Esc Esc）保留在 prototypes 目录供后续演进参考
 - Rust：capture/restore 往返（含新建文件删除式回退）、非 ASCII 路径、
   symlink/大文件跳过、XY 兜底推导（index/HEAD）、guard 快照链、prune、
   并发 capture 序列化（`parking_lot` 既有惯例）。
-- TS：批次状态机（锚点→seal、时间窗降级、partial、用户抢先提交→自动
-  已留）、事件契约（对齐现有 `*.test.ts` 惯例）。
+- TS：批次状态机（锚点→seal、时间窗降级、单文件回退、自动已处理
+  committed/changed 判定）、事件契约（对齐现有 `*.test.ts` 惯例）。
 - 手动 smoke：`pnpm dev` → omp 会话连发两轮改文件 → A 面板出两批 →
   回退第二批 → 编辑器确认文件回滚 → guard 再回退一次回到改后状态。
 
