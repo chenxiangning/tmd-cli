@@ -23,6 +23,7 @@ import {
   codexPlanLabelWithSnapshot,
   readCodexLocalQuota,
 } from "../cli-shared/quota/codexLocal";
+import { resolveGrokDefaultProfile } from "../cli-shared/grokConfig";
 
 /** 单个已登录供应商的盘点结果。 */
 export interface EngineCredential {
@@ -74,11 +75,22 @@ async function toCredential(
     };
   }
 }
+/* ── omp(agent.db provider 列表) ───────────────────────── */
 
+/** JSON.parse 容错:磁盘文件可能截断/损坏,裸抛会让整个凭据区静默消失
+ *  (调用方 CredentialList 无 catch,还附带 unhandled rejection)。 */
+function parseJsonLoose(raw: string | null): Record<string, unknown> | null {
+  if (!raw) return null;
+  try {
+    return asObj(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
 /* ── omp(agent.db provider 列表) ───────────────────────── */
 
 function parseCredentialData(raw: string): VendorCredential {
-  const parsed = asObj(JSON.parse(raw));
+  const parsed = parseJsonLoose(raw);
   if (!parsed) return {};
   return {
     key: asStr(parsed.key),
@@ -128,7 +140,7 @@ export async function listPiCredentials(): Promise<EngineCredential[]> {
   if (!home) return [];
   const raw = await ipc.fsReadFile(`${home}/.pi/agent/auth.json`).catch(() => null);
   if (!raw) return [];
-  const auth = asObj(JSON.parse(raw));
+  const auth = parseJsonLoose(raw);
   if (!auth) return [];
   const out: EngineCredential[] = [];
   for (const [providerId, entryRaw] of Object.entries(auth)) {
@@ -148,7 +160,7 @@ export async function listCodexCredentials(): Promise<EngineCredential[]> {
   if (!home) return [];
   const raw = await ipc.fsReadFile(`${home}/.codex/auth.json`).catch(() => null);
   if (!raw) return [];
-  const auth = asObj(JSON.parse(raw));
+  const auth = parseJsonLoose(raw);
   const tokens = asObj(auth?.tokens);
   if (!asStr(tokens?.access_token)) return [];
   try {
@@ -179,7 +191,7 @@ export async function listClaudeCredentials(): Promise<EngineCredential[]> {
   const home = await ipc.configHomeDir().catch(() => null);
   if (!home) return [];
   const raw = await ipc.fsReadFile(`${home}/.claude/settings.json`).catch(() => null);
-  const env = asObj(asObj(raw ? JSON.parse(raw) : null)?.env);
+  const env = asObj(parseJsonLoose(raw)?.env);
   const baseUrl = asStr(env?.ANTHROPIC_BASE_URL);
   const key = asStr(env?.ANTHROPIC_AUTH_TOKEN) ?? asStr(env?.ANTHROPIC_API_KEY);
   if (baseUrl && key) {
@@ -192,7 +204,7 @@ export async function listClaudeCredentials(): Promise<EngineCredential[]> {
   const cred = await ipc
     .fsReadFile(`${home}/.claude/.credentials.json`)
     .catch(() => null);
-  const oauth = asObj(asObj(cred ? JSON.parse(cred) : null)?.claudeAiOauth);
+  const oauth = asObj(parseJsonLoose(cred)?.claudeAiOauth);
   if (asStr(oauth?.accessToken)) {
     return [
       {
@@ -203,6 +215,25 @@ export async function listClaudeCredentials(): Promise<EngineCredential[]> {
       },
     ];
   }
+  return [];
+}
+
+
+/* ── grok(config.toml 默认档案 → vendor 检测) ──────────── */
+
+export async function listGrokCredentials(): Promise<EngineCredential[]> {
+  const home = await ipc.configHomeDir().catch(() => null);
+  if (!home) return [];
+  const raw = await ipc.fsReadFile(`${home}/.grok/config.toml`).catch(() => null);
+  if (!raw) return [];
+  const profile = resolveGrokDefaultProfile(raw);
+  if (profile.baseUrl && profile.apiKey) {
+    const vendor = detectVendorByBaseUrl(profile.baseUrl);
+    return [
+      await toCredential(`grok/${profile.id}`, vendor, { key: profile.apiKey }, profile.baseUrl),
+    ];
+  }
+  /* grok login(OAuth)凭据不落 config.toml,磁盘无可证伪的登录态,不猜 → 空表。 */
   return [];
 }
 
@@ -220,6 +251,8 @@ export async function listEngineCredentials(
       return listCodexCredentials();
     case "claude":
       return listClaudeCredentials();
+    case "grok":
+      return listGrokCredentials();
     default:
       return [];
   }

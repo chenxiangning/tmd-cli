@@ -69,7 +69,7 @@
   padding: 64px 0 0; /* 给拔起的插头留上方空间 */
 }
 
-/* 合并大插排的内部分区:虚线分隔 + 区内小标签 + 插座横排。 */
+/* 合并大插排的内部分区:虚线分隔 + 区内小标签 + 插座分行(每排 3 个)。 */
 .pm-cat-group {
   display: flex;
   flex-direction: column;
@@ -91,8 +91,9 @@
 }
 
 .pm-cat-outlets {
-  display: flex;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, 96px); /* 每排固定 3 个插座,多余起下一排 */
+  gap: 42px 8px; /* 行距给拔出态上浮(-34px)让位,避免叠到上一排 */
 }
 
 /* 视图互斥切换:重挂载淡入。 */

@@ -21,6 +21,10 @@ import {
 export type ThemePreference = "system" | "light" | "dark" | "custom";
 /** 发送快捷键:"enter" = Enter 发送 / Shift+Enter 换行;"cmdOrCtrlEnter" = ⌘/Ctrl+Enter 发送 / Enter 换行。 */
 export type SendShortcut = "enter" | "cmdOrCtrlEnter";
+/** Ask 提示音效 id(内置 wav 资产,见 kernel/askSound.ts 加载器)。 */
+export type AskSoundId = "default" | "chime" | "bell" | "ding";
+/** Ask 提示音效白名单(清洗与播放共用)。 */
+export const ASK_SOUND_IDS: readonly AskSoundId[] = ["default", "chime", "bell", "ding"];
 
 /**
  * 工作区会话列表显示预算(参考 codemoss 工作区设置,改为预算分配语义):
@@ -61,6 +65,16 @@ export function resolveCliSessionQuota(
   return Math.max(0, Math.floor((budget.total - allocated) / unallocatedCount));
 }
 
+/** 置顶作用域:"global" = 左侧栏全局置顶区;"workspace" = 工作区 CLI 分组内顶部。 */
+export type SessionPinScope = "global" | "workspace";
+
+/** 单条置顶记录:作用域 + 置顶时间戳(ms) + 标题快照。 */
+export interface SessionPinEntry {
+  scope: SessionPinScope;
+  pinnedAt: number;
+  title: string;
+}
+
 export interface AppSettings {
   theme: ThemePreference;
   /** 浅色外观使用的 preset(system/light 模式生效)。 */
@@ -71,6 +85,10 @@ export interface AppSettings {
   customThemePresetId: ThemePresetId;
   /** Composer 发送快捷键行为。 */
   sendShortcut: SendShortcut;
+  /** Ask/确认面板提示音开关(行为页可调,默认开启)。 */
+  askSoundEnabled: boolean;
+  /** Ask 提示音效 id。 */
+  askSoundId: AskSoundId;
     /** 单会话输出环形缓冲上限(字符);切回会话的回放深度由它决定,更早历史走幕布翻页。 */
   sessionOutputBufferLimit: number;
   /** 工作区会话列表显示预算(总数 + 按 CLI 配额)。 */
@@ -84,6 +102,14 @@ export interface AppSettings {
    * claude/codex 无原生 rename 概念,改写他人私有格式有解析破坏风险(架构决策见 docs/architecture)。
    */
   sessionTitles: Record<string, string>;
+  /**
+   * 会话置顶层(codemoss 双作用域置顶复刻):key = `${workspaceId}:${profileId}:${cliSessionId}`。
+   * - scope "global":会话离开工作区分组,汇入左侧栏顶部「已置顶」全局区;
+   * - scope "workspace":会话固定在其 CLI 分组顶部,不参与磁盘历史分页。
+   * 两作用域互斥由单 map 结构保证(一个 key 同时只属于一个 scope);
+   * title 为置顶时刻的标题快照,供全局区免磁盘扫描直接显示(手动命名覆盖层优先于快照)。
+   */
+  sessionPins: Record<string, SessionPinEntry>;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -92,10 +118,13 @@ const DEFAULT_SETTINGS: AppSettings = {
   darkThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
   customThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
   sendShortcut: "enter",
+  askSoundEnabled: true,
+  askSoundId: "default",
   sessionOutputBufferLimit: 500_000,
   sessionListBudget: { total: SESSION_LIST_TOTAL_DEFAULT, perCli: {} },
   disabledPlugins: [],
   sessionTitles: {},
+  sessionPins: {},
 };
 /** 手动命名覆盖层上限:500 条(超出按 key 序丢弃,确定性兜底);标题 1–200 字符。 */
 const SESSION_TITLES_MAX_ENTRIES = 500;
@@ -115,6 +144,34 @@ export function sanitizeSessionTitles(raw: unknown): Record<string, string> {
     titles[key] = trimmed.slice(0, SESSION_TITLE_MAX_LENGTH);
   }
   return titles;
+}
+/** 置顶层上限:200 条(超出按 key 序丢弃,确定性兜底);标题快照 ≤200 字符(可为空串)。 */
+const SESSION_PINS_MAX_ENTRIES = 200;
+const SESSION_PIN_SCOPES: readonly SessionPinScope[] = ["global", "workspace"];
+
+/** 置顶清洗:只收合法 scope + 有限非负时间戳的项,标题截断,按 key 序限量纳入。 */
+export function sanitizeSessionPins(raw: unknown): Record<string, SessionPinEntry> {
+  const pins: Record<string, SessionPinEntry> = {};
+  if (!raw || typeof raw !== "object") return pins;
+  const entries = raw as Record<string, unknown>;
+  for (const key of Object.keys(entries).sort()) {
+    if (Object.keys(pins).length >= SESSION_PINS_MAX_ENTRIES) break;
+    const value = entries[key];
+    if (!key || !value || typeof value !== "object") continue;
+    const entry = value as Record<string, unknown>;
+    if (!SESSION_PIN_SCOPES.includes(entry.scope as SessionPinScope)) continue;
+    const pinnedAt = typeof entry.pinnedAt === "number" ? entry.pinnedAt : Number.NaN;
+    if (!Number.isFinite(pinnedAt) || pinnedAt < 0) continue;
+    pins[key] = {
+      scope: entry.scope as SessionPinScope,
+      pinnedAt: Math.floor(pinnedAt),
+      title:
+        typeof entry.title === "string"
+          ? entry.title.trim().slice(0, SESSION_TITLE_MAX_LENGTH)
+          : "",
+    };
+  }
+  return pins;
 }
 
 /** 浏览器 dev 降级存储 key(Tauri 环境不走这里)。 */
@@ -191,10 +248,18 @@ function sanitize(raw: unknown): AppSettings {
     sendShortcut: SEND_SHORTCUTS.includes(obj.sendShortcut as SendShortcut)
       ? (obj.sendShortcut as SendShortcut)
       : DEFAULT_SETTINGS.sendShortcut,
+    askSoundEnabled:
+      typeof obj.askSoundEnabled === "boolean"
+        ? obj.askSoundEnabled
+        : DEFAULT_SETTINGS.askSoundEnabled,
+    askSoundId: ASK_SOUND_IDS.includes(obj.askSoundId as AskSoundId)
+      ? (obj.askSoundId as AskSoundId)
+      : DEFAULT_SETTINGS.askSoundId,
     sessionOutputBufferLimit: sanitizeBufferLimit(obj.sessionOutputBufferLimit),
     sessionListBudget: sanitizeSessionListBudget(obj.sessionListBudget),
     disabledPlugins: sanitizeDisabledPlugins(obj.disabledPlugins),
     sessionTitles: sanitizeSessionTitles(obj.sessionTitles),
+    sessionPins: sanitizeSessionPins(obj.sessionPins),
   };
 }
 

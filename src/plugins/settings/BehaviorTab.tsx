@@ -1,5 +1,5 @@
 /**
- * 基础设置 / 行为 tab —— 发送快捷键 + 会话输出缓冲上限。
+ * 基础设置 / 行为 tab —— 发送快捷键 + 会话输出缓冲上限 + Ask 提示音。
  *
  * segmented 两选项:
  * - Enter 发送(默认,Shift+Enter 换行)
@@ -10,10 +10,13 @@
  */
 
 import {
+  ASK_SOUND_IDS,
   updateSettings,
   useSettingsState,
+  type AskSoundId,
   type SendShortcut,
 } from "@kernel/settings";
+import { playAskSound } from "@kernel/askSound";
 
 const SEND_SHORTCUT_OPTIONS: ReadonlyArray<{
   id: SendShortcut;
@@ -22,6 +25,17 @@ const SEND_SHORTCUT_OPTIONS: ReadonlyArray<{
   { id: "enter", label: "Enter 发送" },
   { id: "cmdOrCtrlEnter", label: "⌘/Ctrl+Enter 发送" },
 ];
+
+/** 音效显示名(静态字面量表,Record 直查)。 */
+const ASK_SOUND_LABELS: Record<AskSoundId, string> = {
+  default: "默认",
+  chime: "风铃",
+  bell: "铃声",
+  ding: "叮咚",
+};
+
+const ASK_SOUND_OPTIONS: ReadonlyArray<{ id: AskSoundId; label: string }> =
+  ASK_SOUND_IDS.map((id) => ({ id, label: ASK_SOUND_LABELS[id] }));
 
 export function BehaviorTab() {
   const { settings } = useSettingsState();
@@ -75,6 +89,65 @@ export function BehaviorTab() {
           className="w-32 shrink-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-right text-sm text-(--tmd-fg) outline-none"
         />
       </div>
+      <div className="pref-row">
+        <div>
+          <div className="pref-title">Ask 提示音</div>
+          <div className="pref-desc">
+            CLI 弹出提问/权限确认面板时播放提示音，离开屏幕也能第一时间知道。
+          </div>
+        </div>
+        <div className="segmented" role="radiogroup" aria-label="Ask 提示音">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={settings.askSoundEnabled}
+            className={`segment${settings.askSoundEnabled ? " is-active" : ""}`}
+            onClick={() => updateSettings({ askSoundEnabled: true })}
+          >
+            开启
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!settings.askSoundEnabled}
+            className={`segment${!settings.askSoundEnabled ? " is-active" : ""}`}
+            onClick={() => updateSettings({ askSoundEnabled: false })}
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+      {settings.askSoundEnabled ? (
+        <div className="pref-row">
+          <div>
+            <div className="pref-title">提示音</div>
+            <div className="pref-desc">选择 Ask 提示音音效，「测试」立即试听。</div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <select
+              value={settings.askSoundId}
+              aria-label="提示音音效"
+              onChange={(e) =>
+                updateSettings({ askSoundId: e.target.value as AskSoundId })
+              }
+              className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-sm text-(--tmd-fg) outline-none"
+            >
+              {ASK_SOUND_OPTIONS.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="segment is-active"
+              onClick={() => playAskSound(settings.askSoundId)}
+            >
+              测试
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

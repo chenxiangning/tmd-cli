@@ -58,10 +58,13 @@ describe("初始状态与默认值", () => {
       darkThemePresetId: "vscode-dark-modern",
       customThemePresetId: "vscode-dark-modern",
       sendShortcut: "enter",
+      askSoundEnabled: true,
+      askSoundId: "default",
       sessionOutputBufferLimit: 500_000,
       sessionListBudget: { total: 20, perCli: {} },
       disabledPlugins: [],
       sessionTitles: {},
+      sessionPins: {},
     });
     expect(s.loaded).toBe(false);
     expect(s.panelOpen).toBe(false);
@@ -190,6 +193,36 @@ describe("updateSettings 合并与清洗", () => {
         customThemePresetId: "vscode-dark-modern",
       }),
     );
+  });
+});
+
+describe("Ask 提示音设置", () => {
+  it("合法补丁合并生效", () => {
+    settings.updateSettings({ askSoundEnabled: false, askSoundId: "bell" });
+    const s = settings.getSettingsState().settings;
+    expect(s.askSoundEnabled).toBe(false);
+    expect(s.askSoundId).toBe("bell");
+  });
+
+  it("非法音效 id 回落 default,非布尔开关回落 true", async () => {
+    settings.updateSettings({
+      askSoundId: "junk" as never,
+      askSoundEnabled: "yes" as never,
+    });
+    const s = settings.getSettingsState().settings;
+    expect(s.askSoundId).toBe("default");
+    expect(s.askSoundEnabled).toBe(true);
+  });
+
+  it("boot 加载:缺失字段补默认,非法字段清洗", async () => {
+    ipcMock.configReadSettings.mockResolvedValue({
+      askSoundId: "chime",
+    });
+    settings.ensureSettingsBooted();
+    await waitLoaded();
+    const s = settings.getSettingsState().settings;
+    expect(s.askSoundEnabled).toBe(true);
+    expect(s.askSoundId).toBe("chime");
   });
 });
 

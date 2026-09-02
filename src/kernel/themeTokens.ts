@@ -183,6 +183,8 @@ export function mapPresetToTokens(preset: ThemePresetDefinition): ThemeCssVariab
     // diff(文件树/git 面板消费)
     "--tmd-diff-inserted": diff.inserted,
     "--tmd-diff-removed": diff.removed,
+    /* git 状态字符 M(修改)专用琥珀;A/D 复用 diff-inserted/removed,U 用 fg-faint。 */
+    "--tmd-git-modified": getColor(colors, "editorWarning.foreground", isDark ? "#e5c07b" : "#b7791f"),
     // 幕布终端(xterm 消费,kernel/TerminalView 读计算样式应用)
     "--tmd-terminal-bg": getColor(colors, "terminal.background", bgBase),
     "--tmd-terminal-fg": getColor(

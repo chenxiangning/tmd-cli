@@ -85,9 +85,15 @@ export function CredentialList({ engineId }: { engineId: string }) {
 
   useEffect(() => {
     let alive = true;
-    void listEngineCredentials(engineId).then((list) => {
-      if (alive) setCreds(list);
-    });
+    void listEngineCredentials(engineId)
+      .then((list) => {
+        if (alive) setCreds(list);
+      })
+      .catch(() => {
+        /* 单文件损坏等已由 parseJsonLoose 兜住;此处是最后防线:
+           凭据区整体失败也不产生 unhandled rejection */
+        if (alive) setCreds([]);
+      });
     return () => {
       alive = false;
     };

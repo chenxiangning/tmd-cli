@@ -59,6 +59,39 @@ export const ENGINE_METAS: readonly EngineMeta[] = [
     installHint: "curl -fsSL https://claude.ai/install.sh | bash",
     npmPackage: "@anthropic-ai/claude-code",
   },
+  {
+    id: "grok",
+    displayName: "Grok CLI",
+    binary: "grok",
+    docsUrl: "https://github.com/xai-org/grok-build",
+    // 官方 install.sh 走 x.ai(Cloudflare 墙),npm 通道更稳。
+    installHint: "npm install -g @xai-official/grok",
+    npmPackage: "@xai-official/grok",
+  },
+  {
+    id: "kimi",
+    displayName: "Kimi CLI",
+    binary: "kimi",
+    docsUrl: "https://moonshotai.github.io/kimi-code/",
+    installHint: "npm install -g @moonshot-ai/kimi-code",
+    npmPackage: "@moonshot-ai/kimi-code",
+  },
+  {
+    id: "qoder",
+    displayName: "Qoder CLI",
+    binary: "qodercli",
+    docsUrl: "https://docs.qoder.com",
+    installHint: "npm install -g @qoder-ai/qodercli",
+    npmPackage: "@qoder-ai/qodercli",
+  },
+  {
+    id: "qoder-cn",
+    displayName: "Qoder CLI (CN)",
+    binary: "qoderclicn",
+    docsUrl: "https://docs.qoder.cn",
+    installHint: "npm install -g @qodercn-ai/qoderclicn",
+    npmPackage: "@qodercn-ai/qoderclicn",
+  },
 ] as const;
 
 export const ENGINE_META_BY_ID: Record<string, EngineMeta> = Object.fromEntries(
