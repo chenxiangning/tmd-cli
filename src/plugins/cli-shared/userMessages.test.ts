@@ -186,6 +186,28 @@ describe("parseUserMessages 行预筛契约", () => {
       parseUserMessages(kimiLine, stubTurnBeginParser).map((m) => m.text),
     ).toEqual(["你好"]);
   });
+
+  it("turn.prompt 行型(kimi-code 1.4)不被行预筛丢弃", () => {
+    /* 回归守护(2026-09-03):kimi 0.40 迁移 ~/.kimi-code 后 wire 协议升级为
+       turn.prompt 行型,预筛漏补会让新 home 会话锚点栏全空。 */
+    const kimiLine = JSON.stringify({
+      type: "turn.prompt",
+      agentId: "main",
+      input: [{ type: "text", text: "在吗" }],
+      origin: { kind: "user" },
+      promptId: "msg_01M1HM4F8GK5M04QTFW3TJB",
+      time: 1788371684425,
+    });
+    const stubTurnPromptParser = (event: Record<string, unknown>) => {
+      if (event.type !== "turn.prompt") return null;
+      const input = event.input as Array<{ text?: string }> | undefined;
+      const text = input?.[0]?.text;
+      return text ? { id: String(event.promptId), text } : null;
+    };
+    expect(
+      parseUserMessages(kimiLine, stubTurnPromptParser).map((m) => m.text),
+    ).toEqual(["在吗"]);
+  });
 });
 describe("readUserMessagesFromFile 成败语义", () => {
   it("读取失败返回 null(调用方不得推进 fullLoaded)", async () => {

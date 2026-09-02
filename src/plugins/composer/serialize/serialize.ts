@@ -69,12 +69,18 @@ export function translatePrompt(profile: CliProfile, text: string): string {
 }
 
 /**
- * 写入 PTY 之前的最终文本。v1 不用 bracketed paste(交给 CLI 自己处理粘贴)。
+ * 写入 PTY 之前的最终文本。
+ * bracketedPaste profile(pi-tui 系:kimi/pi):正文包 ESC[200~…ESC[201~ 再追加 CR ——
+ * 一次性整串写入会被其"粘贴爆发"启发式当成粘贴而吞掉提交回车,标记让 CLI
+ * 走 handlePaste 通路并复位启发式(契约见 kernel/cli.ts bracketedPaste 注)。
+ * 其余 profile:v1 不用 bracketed paste,裸文本;TUI 应用期待 CR 作 Enter 键 —
+ * LF 不会被识别为"提交"。
  */
 export function prepareSendPayload(
   profile: CliProfile,
   text: string,
 ): string {
-    // TUI 应用(omp/pi/codex)期待 CR 作 Enter 键 — LF 不会被识别为"提交"
-  return translatePrompt(profile, text) + "\r";
+  const wire = translatePrompt(profile, text);
+  if (profile.bracketedPaste) return `\x1b[200~${wire}\x1b[201~\r`;
+  return wire + "\r";
 }

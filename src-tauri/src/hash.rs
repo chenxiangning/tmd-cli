@@ -1,8 +1,10 @@
-//! 哈希原语 —— 目前只有 MD5,给 kimi CLI 的会话目录定位用。
+//! 哈希原语 —— 目前只有 MD5,给 kimi CLI 的老版会话目录定位用。
 //!
-//! 背景:kimi 把会话落盘在 `~/.kimi/sessions/<MD5(cwd)>/<uuid>/wire.jsonl`,
+//! 背景:kimi ≤0.34 把会话落盘在 `~/.kimi/sessions/<MD5(cwd)>/<uuid>/wire.jsonl`,
 //! 会话文件内不记录 cwd,MD5(cwd) 是 cwd → 会话目录的唯一映射(0.34 实证,
-//! `printf '<path>' | md5` 与真实目录名一致)。
+//! `printf '<path>' | md5` 与真实目录名一致)。0.40 迁移到 ~/.kimi-code 后新布局
+//! (wd_<slug>_<sha256前12位> 桶 + state.json 自描述 cwd)不再依赖 MD5,
+//! 本原语仅供 cli-kimi 的老 home 兜底扫描使用。
 //!
 //! 设计决策:
 //! - 通用原语进内核命令面,不携带任何 CLI 语义(与 fs_read_tail 同层);

@@ -149,4 +149,16 @@ export interface CliProfile {
    * 在此之前工具栏只能取自 CLI 的默认配置。磁盘真相落地后由字段级合并自然覆盖。
    */
   readDefaultStatus?: (cwd: string) => Promise<CliSessionStatus | null>;
+  /**
+   * 发送时用 bracketed paste 协议注入(ESC[200~ 正文 ESC[201~ + CR)。
+   *
+   * 背景:pi-tui 系(kimi/pi)输入编辑器带"粘贴爆发"启发式 —— 短窗口内连续到达的
+   * ≥8 个普通字符视为粘贴,其后紧跟的 CR 会被改写成换行而不提交(防终端里
+   * 多行粘贴逐行提交)。composer 是整串一次性写入 PTY,正文 + \r 同帧到达,
+   * 在 kimi 0.40 实测必中:文本进了输入框但回车被吞,须再到幕布手按回车。
+   * 包上标记后 CLI 走 handlePaste 通路并复位启发式,随后的 CR 正常提交 ——
+   * 与真实终端粘贴行为一致。未声明 = 维持裸文本 + CR(claude/codex/omp 等
+   * 实测正常,勿盲改;它们的 TUI 无此启发式,注入未知转义反而有风险)。
+   */
+  bracketedPaste?: boolean;
 }

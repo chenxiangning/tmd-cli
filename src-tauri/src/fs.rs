@@ -220,6 +220,9 @@ fn allowed_remove_roots() -> Vec<std::path::PathBuf> {
         ".claude",
         ".codex",
         ".kimi",
+        // kimi-code 0.40 起数据 home 迁到 ~/.kimi-code(.migrated-to-kimi-code 标记),
+        // 新会话全落这里;老 .kimi 仅存未迁移机器的会话,两个都得放行。
+        ".kimi-code",
         ".grok",
         ".qoder",
         ".qoder-cn",

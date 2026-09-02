@@ -108,4 +108,15 @@ describe("prepareSendPayload", () => {
   it("先 translate 再追加 \\r", () => {
     expect(prepareSendPayload(profileOf([DOLLAR]), "$think")).toBe("/skill:think\r");
   });
+
+  it("bracketedPaste profile:正文包 ESC[200~…ESC[201~ 标记 + CR(translate 仍先生效)", () => {
+    const profile: CliProfile = { ...profileOf([DOLLAR]), bracketedPaste: true };
+    expect(prepareSendPayload(profile, "$think")).toBe(
+      "\x1b[200~/skill:think\x1b[201~\r",
+    );
+  });
+
+  it("bracketedPaste 未声明 = 裸文本注入(其余 TUI 无粘贴爆发启发式,不盲加转义)", () => {
+    expect(prepareSendPayload(profileOf([SLASH]), "hello")).not.toContain("\x1b[200~");
+  });
 });

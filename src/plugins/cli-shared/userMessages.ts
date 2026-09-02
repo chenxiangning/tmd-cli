@@ -168,12 +168,13 @@ export function parseUserMessages(
 ): CliUserMessage[] {
   const out: CliUserMessage[] = [];
   for (const line of text.split("\n")) {
-    /* kimi 行型是 message.type === "TurnBegin",不含 role/type 两个子串;
-       漏补会让 kimi 用户消息锚点全丢 */
+    /* kimi 行型:message.type === "TurnBegin"(1.1 老 home)或 type === "turn.prompt"
+       (1.4 kimi-code),均不含 role/type=user 子串;漏补会让 kimi 用户消息锚点全丢 */
     if (
       !line.includes('"role":"user"') &&
       !line.includes('"type":"user"') &&
-      !line.includes('"TurnBegin"')
+      !line.includes('"TurnBegin"') &&
+      !line.includes('"turn.prompt"')
     ) {
       continue;
     }
