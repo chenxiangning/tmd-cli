@@ -55,8 +55,12 @@ export function translatePrompt(profile: CliProfile, text: string): string {
   return triggers.reduce((acc, spec) => {
     if (!spec.translate) return acc;
     const char = spec.char.replace(/[-\\^$*+?.()|[\]{}]/g, "\\$&");
-    return acc.replace(new RegExp(`${char}\\S+`, "g"), (match) =>
-      spec.translate!(match),
+    /* 边界收紧:只匹配"词首触发符 + 字母开头的 token"。
+       裸 `\S+` 会把正文里的 $100、$HOME 等金额/shell 变量静默改写进 PTY;
+       lookbehind 排除前导词字符/$,排除数字开头的 token。 */
+    return acc.replace(
+      new RegExp(`(?<![\\w$])${char}[A-Za-z][\\w.-]*`, "g"),
+      (match) => spec.translate!(match),
     );
   }, text);
 }

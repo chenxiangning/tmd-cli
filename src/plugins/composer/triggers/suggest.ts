@@ -65,7 +65,9 @@ export async function lookupSuggestions(
         .filter((e) => e.name.toLowerCase().startsWith(prefix.toLowerCase()))
         .slice(0, 20)
         .map<SuggestionMatch>((e) => ({
-          value: e.isDir ? `${needle.replace(/[^/]*$/, "")}${e.name}/` : e.name,
+          /* 文件与目录同规则保留目录前缀:@src/fo 选 foo.ts → @src/foo.ts,
+             只回 basename 会让 CLI 收到指向根目录的不存在路径 */
+          value: `${needle.replace(/[^/]*$/, "")}${e.name}${e.isDir ? "/" : ""}`,
           description: e.isDir ? "目录" : "文件",
           detail: e.path,
         }));

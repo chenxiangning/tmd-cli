@@ -135,6 +135,14 @@ export function Composer() {
   function sendCurrent() {
     if (!value.trim()) return;
     if (!profile || !host.getActiveSessionId()) return;
+    /* git 联动:`/commit <msg>` → 预填 git 面板提交框。
+     * 契约源头:src/plugins/git/gitEvents.ts(GIT_PREFILL_TOPIC);
+     * 插件间不互相 import,topic 字符串即契约(事件总线惯例)。
+     * 仅预填 —— 文本照常发给 CLI,commit 执行权永在 git 面板按钮。 */
+    const trimmed = value.trim();
+    if (trimmed.startsWith("/commit ")) {
+      host.events.emit("git://composer-prefill", { message: trimmed.slice(8).trim() });
+    }
     const payload = prepareSendPayload(profile, value);
     void ipc.sessionWrite(host.getActiveSessionId()!, payload);
     setValue("");
@@ -152,6 +160,10 @@ export function Composer() {
       return;
     }
     const accepted = files.slice(0, remain);
+    /* token 聚合后单次插入:逐个 insertAtCursor 会基于同一次渲染的闭包 value
+       连续 setValue,React 批处理下只剩最后一个 @path,其余附件被 token
+       同步 effect 静默删除。 */
+    const tokens: string[] = [];
     for (const f of accepted) {
       try {
         const buf = new Uint8Array(await f.arrayBuffer());
@@ -167,11 +179,14 @@ export function Composer() {
           }
         }
         const att = addAttachment({ path, name: f.name, size: f.size, kind, thumbDataUrl, previewDataUrl });
-        insertAtCursor(ref.current!, `@${att.path} `);
+        tokens.push(`@${att.path} `);
       } catch (err) {
         /* 单文件失败不阻塞其余文件,与改造前行为对齐 */
         console.warn("composer: 附件写入失败", f.name, err);
       }
+    }
+    if (tokens.length > 0 && ref.current) {
+      insertAtCursor(ref.current, tokens.join(""));
     }
   }
 
@@ -263,6 +278,11 @@ export function Composer() {
           onChange={(e) => {
             setValue(e.target.value);
             setCursor(e.target.selectionStart);
+          }}
+          /* onSelect 覆盖点击与 ←/→ 移动光标:value 不变的移动不触发 onChange,
+             不同步会让下拉用过期 activeRange 做 token 替换,错插正文 */
+          onSelect={(e) => {
+            setCursor(e.currentTarget.selectionStart);
           }}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown" && matches) {
