@@ -342,6 +342,7 @@ pub fn run() {
             checkpoints::commands::checkpoint_list,
             checkpoints::commands::checkpoint_batch_diff,
             checkpoints::commands::checkpoint_restore,
+            checkpoints::commands::checkpoint_approve,
             checkpoints::commands::checkpoint_undo_revert,
             checkpoints::commands::checkpoint_prune,
             git::commands::git_totals,

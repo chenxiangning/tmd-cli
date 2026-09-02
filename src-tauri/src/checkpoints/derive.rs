@@ -8,7 +8,6 @@ use super::{
     capture, load_manifests, load_states, manifests_file, now_millis, open_sidecar, open_user,
     resolve_snap_bytes, save_states, ws_dir, BatchFile, BatchInfo, CkptError, Snapshot,
 };
-use serde::Serialize;
 use std::collections::BTreeMap;
 use std::fs;
 
@@ -68,15 +67,19 @@ pub fn derive_batches(cwd: &str, session_id: &str) -> Result<Vec<BatchInfo>, Ckp
             }
 
             let reverted = stored.state == "reverted";
+            let approved = stored.state == "approved";
             let (state, done_reason) = if reverted {
                 ("reverted".into(), None)
             } else if open {
                 ("pending".into(), None)
             } else if all_processed {
+                // 自动已处理(已提交/内容已变)优先于通过标记 —— 事实胜于标记
                 (
                     "done".into(),
                     Some(if any_committed { "已提交".into() } else { "内容已变".into() }),
                 )
+            } else if approved {
+                ("approved".into(), None)
             } else {
                 ("pending".into(), None)
             };

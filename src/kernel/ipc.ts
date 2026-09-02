@@ -157,7 +157,8 @@ export interface CkptBatch {
   tsEnd: number | null;
   sessionId: string;
   prompt: string;
-  state: "pending" | "reverted" | "done";
+  /** pending 待审 / approved 已通过(纯标记) / reverted 已退 / done 自动已处理 */
+  state: "pending" | "approved" | "reverted" | "done";
   doneReason: string | null;
   guardId: string | null;
   files: CkptBatchFile[];
@@ -260,6 +261,9 @@ export const ipc = {
   /** sealed 批次逐文件 unified patch;open 批用 gitDiffFilePatch。 */
   checkpointBatchDiff: (cwd: string, batchId: string) =>
     invoke<CkptPatch[]>("checkpoint_batch_diff", { cwd, batchId }),
+  /** 通过标记:纯标记,不动文件/不碰 git;approved 批仍可回退。 */
+  checkpointApprove: (cwd: string, batchId: string) =>
+    invoke<void>("checkpoint_approve", { cwd, batchId }),
   /** 回退整批或子集;返回恢复点 id 供反悔。 */
   checkpointRestore: (cwd: string, batchId: string, paths?: string[]) =>
     invoke<CkptRestoreOutcome>("checkpoint_restore", { cwd, batchId, paths: paths ?? null }),

@@ -2,8 +2,8 @@
 //! 同 git::commands 惯例);cwd 为唯一维度。
 
 use super::{
-    batch_patches, derive_batches, prune, restore_batch, undo_revert, capture_snapshot,
-    capture::SnapKind, CkptError, RestoreOutcome, Snapshot,
+    approve_batch, batch_patches, derive_batches, prune, restore_batch, undo_revert,
+    capture::SnapKind, capture_snapshot, CkptError, RestoreOutcome, Snapshot,
 };
 
 async fn run<T, F>(f: F) -> Result<T, String>
@@ -51,6 +51,12 @@ pub async fn checkpoint_restore(
     paths: Option<Vec<String>>,
 ) -> Result<RestoreOutcome, String> {
     run(move || restore_batch(&cwd, &batch_id, paths)).await
+}
+
+/// 通过标记:纯标记,不动文件/不碰 git;approved 批仍可回退。
+#[tauri::command]
+pub async fn checkpoint_approve(cwd: String, batch_id: String) -> Result<(), String> {
+    run(move || approve_batch(&cwd, &batch_id)).await
 }
 
 /// 反悔:用守卫快照写回回退前状态。

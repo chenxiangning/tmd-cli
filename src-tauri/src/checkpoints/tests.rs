@@ -300,3 +300,37 @@ fn 非_git_目录_报_not_a_repo() {
     assert!(err.to_string().starts_with("E_NOT_A_REPO:"));
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn 通过标记_纯标记_不阻回退() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    let a = ws.anchor("s1", "锚1");
+    ws.write("a.txt", "v2\n");
+    ws.anchor("s1", "锚2");
+
+    // 未通过:pending
+    assert_eq!(derive_batches(ws.path(), "s1").unwrap()[0].state, "pending");
+
+    // 通过 = 纯标记:文件内容不变,状态翻 approved
+    super::approve_batch(ws.path(), &a.id).unwrap();
+    assert_eq!(ws.read("a.txt").as_deref(), Some("v2\n"), "通过不得动文件");
+    assert_eq!(
+        derive_batches(ws.path(), "s1").unwrap()[0].state,
+        "approved"
+    );
+
+    // approved 批仍可回退(标记弱于安全动作)
+    let out = restore_batch(ws.path(), &a.id, None).unwrap();
+    assert_eq!(out.state, "reverted");
+    assert_eq!(ws.read("a.txt").as_deref(), Some("v1\n"));
+
+    // 已回退批不可再标记通过
+    assert!(super::approve_batch(ws.path(), &a.id).is_err());
+
+    // 反悔后:标记已被回退动作清除,回到 pending
+    undo_revert(ws.path(), &a.id).unwrap();
+    assert_eq!(derive_batches(ws.path(), "s1").unwrap()[0].state, "pending");
+}

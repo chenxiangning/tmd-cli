@@ -8,7 +8,7 @@ use super::capture::SnapKind;
 use super::derive::{batch_paths, classify_live};
 use super::{
     capture_snapshot, load_manifests, load_states, resolve_snap_bytes, save_states, open_sidecar,
-    CkptError,
+    BatchState, CkptError,
 };
 use serde::Serialize;
 
@@ -28,6 +28,32 @@ pub struct RestoreOutcome {
     pub guard_id: Option<String>,
     /// 还原后的批次态(pending = 部分回退,批仍在待审)
     pub state: String,
+}
+
+/// 通过标记 —— 纯标记动作,不动任何文件、不触碰 git。 approved 批仍可回退
+/// (标记弱于安全动作);其后若文件被提交/失配,展示层自动升级为 done。
+pub fn approve_batch(cwd: &str, batch_id: &str) -> Result<(), CkptError> {
+    let manifests = load_manifests(cwd);
+    let exists = manifests
+        .iter()
+        .any(|s| s.kind == "anchor" && s.id == batch_id);
+    if !exists {
+        return Err(CkptError::Empty(format!("批次不存在: {batch_id}")));
+    }
+    let mut states = load_states(cwd);
+    let entry = states.batches.get(batch_id).cloned().unwrap_or_default();
+    if entry.state == "reverted" {
+        return Err(CkptError::Empty("批次已回退,无需通过标记".into()));
+    }
+    states.batches.insert(
+        batch_id.to_string(),
+        BatchState {
+            state: "approved".into(),
+            ..entry
+        },
+    );
+    save_states(cwd, &states)?;
+    Ok(())
 }
 
 /// 回退整批或子集(paths 缺省 = 全部可回退文件)。

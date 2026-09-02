@@ -87,6 +87,11 @@ export function captureAnchor(cwd: string, sessionId: string, prompt: string): v
 
 export type CkptRestoreResult = Awaited<ReturnType<typeof ipc.checkpointRestore>>;
 
+/** 通过标记:纯标记(后端只写状态),标记后仍可回退。 */
+export async function approveBatch(cwd: string, batchId: string): Promise<void> {
+  await ipc.checkpointApprove(cwd, batchId);
+}
+
 export async function revertBatch(
   cwd: string,
   batchId: string,

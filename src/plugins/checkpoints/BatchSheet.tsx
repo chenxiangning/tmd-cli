@@ -10,11 +10,11 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Loader2, RotateCcw } from "lucide-react";
+import { Check, ChevronRight, Loader2, RotateCcw } from "lucide-react";
 import { useEditorTabs } from "@kernel/tabs";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import type { CkptBatch, CkptPatch } from "@kernel/ipc";
-import { getCachedDiff, loadDiff, refreshBatches, revertBatch, useCkptVersion, useCkptBatches } from "./store";
+import { approveBatch, getCachedDiff, loadDiff, refreshBatches, revertBatch, useCkptVersion, useCkptBatches } from "./store";
 import { readBatchPayload } from "./batchTab";
 
 export function BatchSheetTabContent() {
@@ -91,6 +91,16 @@ function SheetBody({
     }
   }, [focusPath, patches]);
 
+  async function doApprove() {
+    setBusy(true);
+    try {
+      await approveBatch(cwd, batch.id);
+    } finally {
+      setBusy(false);
+      void refreshBatches(cwd, sessionId);
+    }
+  }
+
   async function doRevert(paths?: string[]) {
     setBusy(true);
     setConfirmPath(null);
@@ -109,9 +119,11 @@ function SheetBody({
     ? "进行中"
     : batch.state === "done"
       ? `已处理 · ${batch.doneReason ?? ""}`
-      : batch.state === "reverted"
-        ? "已退"
-        : "待审";
+      : batch.state === "approved"
+        ? "已通过"
+        : batch.state === "reverted"
+          ? "已退"
+          : "待审";
 
   return (
     <div className="flex h-full flex-col">
@@ -122,16 +134,27 @@ function SheetBody({
         </span>
         {patches && (
           <span className="font-mono text-[11px]">
-            <span className="text-[#2ea043]">
+            <span className="text-(--tmd-diff-inserted)">
               +{patches.reduce((s, p) => s + p.additions, 0)}
             </span>{" "}
-            <span className="text-[#f85149]">
+            <span className="text-(--tmd-diff-removed)">
               −{patches.reduce((s, p) => s + p.deletions, 0)}
             </span>
           </span>
         )}
         <span className="flex-1" />
-        {batch.state === "pending" && revertable.length > 0 && (
+        {batch.state === "pending" && (
+          <button
+            type="button"
+            disabled={busy}
+            className="flex h-6 items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-[11px] text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
+            title="标记本批已审阅(纯标记,不影响任何文件)"
+            onClick={() => void doApprove()}
+          >
+            <Check size={10} aria-hidden /> 通过
+          </button>
+        )}
+        {(batch.state === "pending" || batch.state === "approved") && revertable.length > 0 && (
           <button
             type="button"
             disabled={busy}
@@ -144,7 +167,7 @@ function SheetBody({
       </div>
 
       {confirmPath && (
-        <div className="flex flex-none items-center gap-3 border-b border-[#555] bg-(--tmd-bg-popover) px-3 py-1.5 text-[11px]">
+        <div className="flex flex-none items-center gap-3 border-b border-(--tmd-border-strong) bg-(--tmd-bg-popover) px-3 py-1.5 text-[11px]">
           <span className="text-(--tmd-fg-muted)">
             确认回退{confirmPath === "all" ? `整批(${revertable.length} 文件)` : confirmPath}?
             恢复点自动留存。
@@ -178,7 +201,7 @@ function SheetBody({
             <div className="mb-2 text-[11px] text-(--tmd-fg-faint)">
               用户消息 · {formatRelativeTime(batch.ts)}
             </div>
-            <div className="whitespace-pre-wrap break-words rounded-r border-l-2 border-[#007acc] bg-(--tmd-bg-hover) px-3.5 py-2.5 text-[13px] leading-relaxed text-(--tmd-fg)">
+            <div className="whitespace-pre-wrap break-words rounded-r border-l-2 border-(--tmd-accent) bg-(--tmd-bg-hover) px-3.5 py-2.5 text-[13px] leading-relaxed text-(--tmd-fg)">
               {batch.prompt}
             </div>
 
@@ -238,15 +261,15 @@ function FileSection({
   const dir = segs.length ? segs.join("/") + "/" : "";
   const chipCls =
     status === "A"
-      ? "bg-[#4ade80]/15 text-[#4ade80]"
+      ? "bg-(--tmd-diff-inserted)/15 text-(--tmd-diff-inserted)"
       : status === "D"
-        ? "bg-[#f87171]/15 text-[#f87171]"
-        : "bg-[#facc20]/15 text-[#facc20]";
+        ? "bg-(--tmd-diff-removed)/15 text-(--tmd-diff-removed)"
+        : "bg-(--tmd-git-modified)/15 text-(--tmd-git-modified)";
   const lines = useMemo(() => patch?.patch.split("\n") ?? [], [patch]);
   return (
     <div
       data-file={path}
-      className={`mb-2 overflow-hidden rounded border ${flashed ? "border-[#007acc]" : "border-(--tmd-border)"}`}
+      className={`mb-2 overflow-hidden rounded border ${flashed ? "border-(--tmd-accent)" : "border-(--tmd-border)"}`}
     >
       <div className="group flex h-[30px] items-center gap-2 bg-(--tmd-bg-elevated) px-2.5 hover:bg-(--tmd-bg-hover)">
         <button
@@ -267,22 +290,22 @@ function FileSection({
             <span className="text-(--tmd-fg-faint)">{dir}</span>
           </span>
           {reverted && (
-            <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[9.5px] leading-[14px] text-[#a78bfa]">
+            <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[10px] leading-[14px] text-[#a78bfa]">
               已退
             </span>
           )}
           {stale && (
             <span
-              className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[9.5px] leading-[14px] text-(--tmd-fg-faint)"
+              className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[10px] leading-[14px] text-(--tmd-fg-faint)"
               title="工作区内容已偏离本批后像,不可回退,仅可对照"
             >
               内容已变
             </span>
           )}
           {patch && (
-            <span className="flex-none font-mono text-[10.5px]">
-              <span className="text-[#2ea043]">+{patch.additions}</span>{" "}
-              <span className="text-[#f85149]">−{patch.deletions}</span>
+            <span className="flex-none font-mono text-[10px]">
+              <span className="text-(--tmd-diff-inserted)">+{patch.additions}</span>{" "}
+              <span className="text-(--tmd-diff-removed)">−{patch.deletions}</span>
             </span>
           )}
         </button>
@@ -290,7 +313,7 @@ function FileSection({
           <button
             type="button"
             disabled={busy}
-            className="hidden h-5 flex-none items-center gap-1 rounded border border-(--tmd-border) px-1.5 text-[10.5px] text-(--tmd-fg-subtle) hover:border-[rgba(167,139,250,.5)] hover:text-[#a78bfa] group-hover:flex disabled:opacity-40"
+            className="hidden h-5 flex-none items-center gap-1 rounded border border-(--tmd-border) px-1.5 text-[10px] text-(--tmd-fg-subtle) hover:border-[rgba(167,139,250,.5)] hover:text-[#a78bfa] group-hover:flex disabled:opacity-40"
             onClick={onRevert}
           >
             <RotateCcw size={10} aria-hidden /> 只回退此文件
@@ -298,14 +321,14 @@ function FileSection({
         )}
       </div>
       {open && patch && (
-        <pre className="overflow-x-auto bg-(--tmd-bg-base) p-2.5 font-mono text-[10.5px] leading-[1.6]">
+        <pre className="overflow-x-auto bg-(--tmd-bg-base) p-2.5 font-mono text-[11px] leading-[1.6]">
           {lines.map((line, i) => {
             const cls = line.startsWith("@@")
-              ? "text-[#007acc]/75"
+              ? "text-(--tmd-accent)/75"
               : line.startsWith("+")
-                ? "bg-[#2ea043]/10 text-[#2ea043]"
+                ? "bg-(--tmd-diff-inserted)/10 text-(--tmd-diff-inserted)"
                 : line.startsWith("-")
-                  ? "bg-[#f85149]/10 text-[#f85149]"
+                  ? "bg-(--tmd-diff-removed)/10 text-(--tmd-diff-removed)"
                   : "text-(--tmd-fg-subtle)";
             return (
               <span key={i} className={`${cls} block whitespace-pre`}>

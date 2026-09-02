@@ -28,7 +28,7 @@ pub use capture::capture_snapshot;
 pub use derive::{derive_batches, prune};
 pub use diff::batch_patches;
 pub use error::CkptError;
-pub use restore::{restore_batch, undo_revert, RestoreOutcome};
+pub use restore::{approve_batch, restore_batch, undo_revert, RestoreOutcome};
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
