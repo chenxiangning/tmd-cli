@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>批次审批 · 方案 A「批次时间线」</title>
+<style>
+  /* ═══════════════════════════════════════════════════════
+     方案 A · 批次时间线 —— 右栏 filePanel 第二个 tab。
+     定位:与 git 插件 DiffView 并列的常驻「批次」面板(≈400px)。
+     核心主张:
+       1) 批次 = 一轮对话的改动集合,倒序时间线,锚点摘要可认
+       2) 状态四态一屏读尽:进行中(呼吸)/未审(amber)/已留(绿)/已退(紫)
+       3) 批级与文件级双粒度动作;回退走确认 popover,明示恢复点
+     全部颜色来自 --tmd-* 体系(dark)。交互:点批卡展开、筛选 chips、
+     保留/回退/恢复均可点(演示态流转)。
+     ═══════════════════════════════════════════════════════ */
+  :root[data-theme="dark"] {
+    --tmd-bg-base: #1f1f1f; --tmd-bg-elevated: #181818; --tmd-bg-sunken: #181818;
+    --tmd-bg-hover: #2a2a2a; --tmd-bg-active: rgba(0,122,204,.24);
+    --tmd-bg-input: #313131; --tmd-bg-popover: #252526;
+    --tmd-fg: #cccccc; --tmd-fg-muted: #9d9d9d; --tmd-fg-subtle: #7a7a7a; --tmd-fg-faint: #585858;
+    --tmd-border: #3c3c3c; --tmd-border-strong: #555555;
+    --tmd-accent: #007acc; --tmd-accent-fg: #ffffff; --tmd-accent-soft: rgba(0,122,204,.24);
+    --diff-ins: #2ea043; --diff-del: #f85149;
+    --st-m: #facc20; --st-a: #4ade80; --st-d: #f87171; --st-r: #a78bfa; --st-u: #f472b6;
+    /* 批次状态色 */
+    --bk-open: #007acc; --bk-pending: #facc20; --bk-kept: #4ade80; --bk-reverted: #a78bfa;
+  }
+  :root { --tmd-font-ui: 12px; --tmd-radius-sm: 6px; --tmd-radius-md: 8px; }
+
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    font: var(--tmd-font-ui)/1.5 -apple-system, "PingFang SC", "Segoe UI", sans-serif;
+    background: var(--tmd-bg-sunken);
+    color: var(--tmd-fg);
+    display: grid; place-items: center;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  button:disabled { cursor: default; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #4a4a4a80; border-radius: 4px; }
+
+  .demo-badge {
+    position: fixed; top: 14px; left: 14px; z-index: 99;
+    padding: 4px 10px; border-radius: 999px;
+    background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border);
+    color: var(--tmd-fg-muted); font-size: 11px;
+  }
+  .demo-badge b { color: var(--tmd-fg); }
+
+  /* ═══ 面板本体(右栏场景 400px × 720px,filePanel 第二 tab)═══ */
+  .panel {
+    width: 400px; height: 720px;
+    display: flex; flex-direction: column;
+    background: var(--tmd-bg-base);
+    border: 1px solid var(--tmd-border);
+    border-radius: 10px; overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0,0,0,.45);
+  }
+
+  /* ── 1. 摘要行:会话 · 批次规模 · 保留策略 ── */
+  .summary {
+    flex: none; display: flex; align-items: center; gap: 8px;
+    height: 34px; padding: 0 10px;
+    border-bottom: 1px solid var(--tmd-border);
+    background: var(--tmd-bg-elevated);
+  }
+  .sess-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 1px 8px 1px 6px; border-radius: 999px;
+    background: var(--tmd-accent-soft); color: #7ec3f0;
+    font-weight: 500; max-width: 52%;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sess-chip .abbr {
+    font-size: 9px; font-weight: 700; letter-spacing: .04em;
+    padding: 0 4px; border-radius: 4px;
+    background: rgba(0,122,204,.32); color: #9fd1f5;
+  }
+  .summary .spacer { flex: 1; }
+  .bk-count { color: var(--tmd-fg-muted); white-space: nowrap; }
+  .bk-count b { color: var(--tmd-fg); font-variant-numeric: tabular-nums; }
+  .retention {
+    color: var(--tmd-fg-faint); font-size: 11px; white-space: nowrap;
+    cursor: help; border-bottom: 1px dotted var(--tmd-fg-faint);
+  }
+
+  /* ── 2. 工具行:状态筛选 ── */
+  .toolbar {
+    flex: none; display: flex; align-items: center; gap: 6px;
+    padding: 7px 10px; border-bottom: 1px solid var(--tmd-border);
+  }
+  .chip {
+    height: 24px; padding: 0 9px;
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid var(--tmd-border); border-radius: 999px;
+    color: var(--tmd-fg-muted); font-variant-numeric: tabular-nums;
+  }
+  .chip:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+  .chip.on { border-color: transparent; background: var(--tmd-accent-soft); color: #9fd1f5; }
+  .chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .chip .n { font-size: 11px; color: var(--tmd-fg-faint); }
+  .chip.on .n { color: #9fd1f5; }
+  .toolbar .spacer { flex: 1; }
+  .replay-btn {
+    height: 24px; padding: 0 8px; border-radius: var(--tmd-radius-sm);
+    display: inline-flex; align-items: center; gap: 5px;
+    color: var(--tmd-fg-subtle); border: 1px solid var(--tmd-border);
+  }
+  .replay-btn:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+  .replay-btn kbd {
+    font: 10px/1 inherit; padding: 2px 4px; border-radius: 4px;
+    background: rgba(255,255,255,.06); color: var(--tmd-fg-faint);
+  }
+
+  /* ── 3. 批次时间线滚动区 ── */
+  .list { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 8px 12px; }
+
+  .batch { position: relative; margin-bottom: 8px; }
+  /* 时间线轴 */
+  .batch::before {
+    content: ""; position: absolute; left: 15px; top: 26px; bottom: -10px;
+    width: 1px; background: var(--tmd-border);
+  }
+  .batch:last-child::before { display: none; }
+
+  .bk-head {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 8px; border-radius: var(--tmd-radius-sm);
+    cursor: pointer; user-select: none;
+  }
+  .bk-head:hover { background: var(--tmd-bg-hover); }
+  .bk-state {
+    flex: none; width: 17px; height: 17px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--tmd-bg-base); border: 1.5px solid var(--tmd-border-strong);
+    position: relative; z-index: 2;
+  }
+  .bk-state .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .bk-state.open { border-color: var(--bk-open); }
+  .bk-state.open .dot { background: var(--bk-open); animation: breathe 1.6s ease infinite; }
+  .bk-state.pending { border-color: var(--bk-pending); }
+  .bk-state.pending .dot { background: var(--bk-pending); }
+  .bk-state.kept { border-color: var(--bk-kept); }
+  .bk-state.kept .dot { background: var(--bk-kept); }
+  .bk-state.reverted { border-color: var(--bk-reverted); }
+  .bk-state.reverted .dot { background: var(--bk-reverted); }
+  @keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+
+  .bk-title { flex: 1; min-width: 0; }
+  .bk-title .t1 {
+    display: flex; align-items: baseline; gap: 6px;
+    white-space: nowrap; overflow: hidden;
+  }
+  .bk-title .no { color: var(--tmd-fg-faint); font-variant-numeric: tabular-nums; flex: none; }
+  .bk-title .prompt {
+    color: var(--tmd-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .batch.dimmed .bk-title .prompt { color: var(--tmd-fg-faint); text-decoration: line-through;
+    text-decoration-color: var(--tmd-fg-faint); }
+  .bk-title .t2 {
+    display: flex; gap: 6px; align-items: center;
+    color: var(--tmd-fg-faint); font-size: 11px;
+    white-space: nowrap; overflow: hidden;
+  }
+  .bk-title .t2 .stats { font-variant-numeric: tabular-nums; }
+  .bk-title .t2 .stats .ins { color: var(--diff-ins); }
+  .bk-title .t2 .stats .del { color: var(--diff-del); }
+  .bk-when { flex: none; color: var(--tmd-fg-faint); font-size: 11px; }
+  .caret { flex: none; color: var(--tmd-fg-faint); transition: transform .15s; }
+  .batch.expanded .bk-head .caret { transform: rotate(90deg); }
+
+  /* 状态徽标(内联在 t2) */
+  .badge {
+    flex: none; padding: 0 6px; border-radius: 999px;
+    font-size: 10px; line-height: 16px; font-weight: 600;
+  }
+  .badge.pending { background: rgba(250,204,32,.14); color: var(--bk-pending); }
+  .badge.kept { background: rgba(74,222,128,.14); color: var(--bk-kept); }
+  .badge.reverted { background: rgba(167,139,250,.16); color: var(--bk-reverted); }
+  .badge.open { background: var(--tmd-accent-soft); color: #7ec3f0; }
+
+  /* ── 展开体:文件行 ── */
+  .bk-body { display: none; margin: 2px 0 0 32px; }
+  .batch.expanded .bk-body { display: block; }
+  .bk-body.dimmed .file-row .fname { color: var(--tmd-fg-faint); }
+
+  .file-row {
+    display: flex; align-items: center; gap: 7px;
+    height: 26px; padding: 0 7px; border-radius: var(--tmd-radius-sm);
+    color: var(--tmd-fg-muted); cursor: pointer;
+  }
+  .file-row:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+  .file-row .st {
+    flex: none; width: 15px; height: 15px; border-radius: 4px;
+    display: grid; place-items: center;
+    font-size: 10px; font-weight: 700;
+  }
+  .file-row .st.M { background: rgba(250,204,32,.16); color: var(--st-m); }
+  .file-row .st.A { background: rgba(74,222,128,.16); color: var(--st-a); }
+  .file-row .st.D { background: rgba(248,113,113,.16); color: var(--st-d); }
+  .file-row .fname {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    direction: rtl; text-align: left;   /* 文件名左、目录右截断 */
+  }
+  .file-row .fname b { direction: ltr; unicode-bidi: isolate; font-weight: 500; }
+  .file-row .pm { flex: none; font-variant-numeric: tabular-nums; font-size: 11px; white-space: nowrap; }
+  .file-row .pm .ins { color: var(--diff-ins); }
+  .file-row .pm .del { color: var(--diff-del); }
+  .file-row .act {
+    flex: none; width: 20px; height: 20px; border-radius: 5px;
+    display: none; place-items: center; color: var(--tmd-fg-subtle);
+  }
+  .file-row:hover .act { display: grid; }
+  .file-row .act:hover { background: rgba(167,139,250,.18); color: var(--bk-reverted); }
+
+  /* ── 批级动作条 ── */
+  .bk-actions {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 6px; padding: 7px;
+    border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm);
+    background: var(--tmd-bg-elevated);
+  }
+  .btn {
+    height: 24px; padding: 0 10px; border-radius: var(--tmd-radius-sm);
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted);
+    white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+  .btn.primary { border-color: transparent; background: var(--tmd-accent-soft); color: #9fd1f5; }
+  .btn.primary:hover:not(:disabled) { background: rgba(0,122,204,.36); }
+  .btn.danger:hover:not(:disabled) { border-color: rgba(167,139,250,.5); color: var(--bk-reverted); }
+  .btn:disabled { opacity: .4; }
+  .bk-actions .spacer { flex: 1; }
+  .bk-note { color: var(--tmd-fg-faint); font-size: 10.5px; }
+
+  /* 进行中批次的实时行 */
+  .live-row {
+    display: flex; align-items: center; gap: 7px;
+    margin-left: 32px; padding: 5px 8px;
+    border: 1px dashed var(--tmd-border); border-radius: var(--tmd-radius-sm);
+    color: var(--tmd-fg-subtle); font-size: 11px;
+  }
+  .live-row .rec { width: 6px; height: 6px; border-radius: 50%; background: var(--bk-open);
+    animation: breathe 1.6s ease infinite; }
+  .live-row .path { font-family: "SF Mono", Menlo, monospace; color: var(--tmd-fg-muted); }
+
+  /* ── 回退确认 popover ── */
+  .confirm {
+    position: absolute; right: 10px; z-index: 40;
+    width: 300px; padding: 10px 12px;
+    background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border-strong);
+    border-radius: var(--tmd-radius-md);
+    box-shadow: 0 12px 36px rgba(0,0,0,.5);
+  }
+  .confirm h4 { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+  .confirm .sub { color: var(--tmd-fg-muted); font-size: 11px; line-height: 1.55; margin-bottom: 8px; }
+  .confirm .sub .guard { color: var(--bk-kept); }
+  .confirm .files {
+    max-height: 96px; overflow-y: auto; margin-bottom: 8px;
+    border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); padding: 3px 7px;
+  }
+  .confirm .files div {
+    font-family: "SF Mono", Menlo, monospace; font-size: 10.5px;
+    color: var(--tmd-fg-muted); padding: 1.5px 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .confirm .row { display: flex; gap: 6px; justify-content: flex-end; }
+
+  /* ── toast ── */
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 14px; border-radius: 999px;
+    background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border-strong);
+    color: var(--tmd-fg); font-size: 12px;
+    box-shadow: 0 10px 32px rgba(0,0,0,.5);
+    opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease;
+    z-index: 99;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+  .toast .ok { color: var(--bk-kept); }
+  .toast .rv { color: var(--bk-reverted); }
+</style>
+</head>
+<body>
+
+<div class="demo-badge">方案 <b>A · 批次时间线</b> ｜ filePanel 第二 tab · 常驻审阅（点批卡展开 / 试筛选与回退）</div>
+
+<div class="panel">
+  <div class="summary">
+    <span class="sess-chip"><span class="abbr">omp</span>网络代理插件</span>
+    <span class="spacer"></span>
+    <span class="bk-count"><b>5</b> 批 · 9 文件</span>
+    <span class="retention" title="每会话保留最近 100 批快照，超期 30 天清理；回退前自动打恢复点">保留 100/会话 · 30 天</span>
+  </div>
+
+  <div class="toolbar" id="filters">
+    <button class="chip on" data-f="all"><span class="dot" style="background:var(--tmd-fg-muted)"></span>全部 <span class="n">5</span></button>
+    <button class="chip" data-f="open"><span class="dot" style="background:var(--bk-open)"></span>进行中 <span class="n">1</span></button>
+    <button class="chip" data-f="pending"><span class="dot" style="background:var(--bk-pending)"></span>未审 <span class="n">2</span></button>
+    <button class="chip" data-f="kept"><span class="dot" style="background:var(--bk-kept)"></span>已留 <span class="n">1</span></button>
+    <button class="chip" data-f="reverted"><span class="dot" style="background:var(--bk-reverted)"></span>已退 <span class="n">1</span></button>
+    <span class="spacer"></span>
+    <button class="replay-btn" onclick="toast('回放台是方案 C 的主场 —— 此处仅示意入口','ok')">回放台 <kbd>Esc Esc</kbd></button>
+  </div>
+
+  <div class="list" id="list"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── 演示数据:与 B/C 原型同叙事(omp · 网络代理插件会话)── */
+const BATCHES = [
+  { no: 6, state: "open",    when: "刚刚",   cli: "omp",
+    prompt: "代理挂掉时给个明确的错误提示吧",
+    live: "src-tauri/src/proxy.rs", stats: { ins: 38, del: 6 }, files: [] },
+  { no: 5, state: "pending", when: "2 分钟前", cli: "omp", expanded: true,
+    prompt: "把代理设置挂到设置面板里，新增一个分区",
+    stats: { ins: 173, del: 15 },
+    files: [
+      { st: "M", name: "settings.ts", dir: "src/kernel/", ins: 54, del: 3 },
+      { st: "M", name: "settings.test.ts", dir: "src/kernel/", ins: 31, del: 0 },
+      { st: "M", name: "SidebarSettingsCluster.tsx", dir: "src/app-shell/", ins: 88, del: 12 },
+    ] },
+  { no: 4, state: "pending", when: "8 分钟前", cli: "omp",
+    prompt: "sanitize 加上 proxy 字段清洗，非法端口回退默认",
+    stats: { ins: 40, del: 4 },
+    files: [
+      { st: "M", name: "settings.ts", dir: "src/kernel/", ins: 22, del: 4 },
+      { st: "M", name: "settings.test.ts", dir: "src/kernel/", ins: 18, del: 0 },
+    ] },
+  { no: 3, state: "kept", when: "昨天 21:40", cli: "omp",
+    prompt: "提交逻辑挪到 proxyCommit.ts，别混在组件里",
+    stats: { ins: 171, del: 64 },
+    files: [
+      { st: "A", name: "proxyCommit.ts", dir: "src/plugins/network-proxy/", ins: 112, del: 0 },
+      { st: "M", name: "index.tsx", dir: "src/plugins/network-proxy/", ins: 12, del: 64 },
+      { st: "A", name: "proxyCommit.test.ts", dir: "src/plugins/network-proxy/", ins: 47, del: 0 },
+    ] },
+  { no: 2, state: "reverted", when: "昨天 21:12", cli: "omp",
+    prompt: "顺手把 Cargo.toml 的 reqwest 降到 0.12",
+    stats: { ins: 2, del: 2 },
+    files: [
+      { st: "M", name: "Cargo.toml", dir: "src-tauri/", ins: 2, del: 2 },
+    ] },
+];
+
+const STATE_TEXT = { open: "进行中", pending: "未审", kept: "已留", reverted: "已退" };
+
+const list = document.getElementById("list");
+
+function render() {
+  list.innerHTML = "";
+  const f = document.querySelector("#filters .chip.on").dataset.f;
+  BATCHES.filter(b => f === "all" || b.state === f).forEach(b => {
+    const el = document.createElement("div");
+    el.className = "batch" + (b.expanded ? " expanded" : "") + (b.state === "reverted" ? " dimmed" : "");
+    el.dataset.no = b.no;
+
+    /* ── 批头 ── */
+    const head = document.createElement("div");
+    head.className = "bk-head";
+    const badge = b.state === "open" ? "" :
+      `<span class="badge ${b.state}">${STATE_TEXT[b.state]}${b.state === "kept" ? " · 已转暂存" : ""}${b.state === "reverted" ? " · 21:14" : ""}</span>`;
+    head.innerHTML = `
+      <span class="bk-state ${b.state}"><span class="dot"></span></span>
+      <span class="bk-title">
+        <span class="t1"><span class="no">#${b.no}</span><span class="prompt">${esc(b.prompt)}</span></span>
+        <span class="t2"><span>${b.files.length || "…"} 文件</span>
+          <span class="stats"><span class="ins">+${b.stats.ins}</span> <span class="del">−${b.stats.del}</span></span>
+          ${badge}</span>
+      </span>
+      <span class="bk-when">${b.when}</span>
+      <span class="caret">›</span>`;
+    head.addEventListener("click", () => { b.expanded = !b.expanded; render(); });
+    el.appendChild(head);
+
+    /* ── 展开体 ── */
+    const body = document.createElement("div");
+    body.className = "bk-body" + (b.state === "reverted" ? " dimmed" : "");
+
+    if (b.state === "open") {
+      const live = document.createElement("div");
+      live.className = "live-row";
+      live.innerHTML = `<span class="rec"></span>正在记录 <span class="path">${esc(b.live)}</span> <b style="color:var(--diff-ins)">+${b.stats.ins}</b> <b style="color:var(--diff-del)">−${b.stats.del}</b>`;
+      body.appendChild(live);
+      const wait = document.createElement("div");
+      wait.className = "bk-actions";
+      wait.innerHTML = `<span class="bk-note">批次在下一条消息发出时自动封口</span>`;
+      body.appendChild(wait);
+    } else {
+      b.files.forEach(fx => {
+        const row = document.createElement("div");
+        row.className = "file-row";
+        row.innerHTML = `
+          <span class="st ${fx.st}">${fx.st}</span>
+          <span class="fname"><b>${esc(fx.name)}</b> <span style="color:var(--tmd-fg-faint)">${esc(fx.dir)}</span></span>
+          <span class="pm"><span class="ins">+${fx.ins}</span> <span class="del">−${fx.del}</span></span>
+          <button class="act" title="只回退这个文件">↩</button>`;
+        row.addEventListener("click", e => {
+          if (e.target.closest(".act")) {
+            confirmPopover(el, b, [fx], true);
+          } else {
+            toast(`diff 查看：${fx.dir}${fx.name}（复用 patch LRU 渲染）`, "ok");
+          }
+        });
+        body.appendChild(row);
+      });
+
+      const actions = document.createElement("div");
+      actions.className = "bk-actions";
+      if (b.state === "pending") {
+        actions.innerHTML = `
+          <button class="btn primary">✓ 保留 · 转暂存</button>
+          <button class="btn danger">↩ 回退整批</button>
+          <span class="spacer"></span>
+          <button class="btn">复制 prompt</button>
+          <div class="bk-note" style="display:none"></div>`;
+        actions.querySelector(".primary").addEventListener("click", () => {
+          b.state = "kept"; render();
+          toast(`批次 #${b.no} 已保留，3 个文件转入暂存区`, "ok");
+        });
+        actions.querySelectorAll(".btn")[1].addEventListener("click", () => confirmPopover(el, b, b.files, false));
+      } else if (b.state === "kept") {
+        actions.innerHTML = `
+          <button class="btn" disabled>✓ 已保留 · 已转暂存</button>
+          <button class="btn danger">↩ 仍要回退</button>
+          <span class="spacer"></span>
+          <button class="btn">复制 prompt</button>`;
+        actions.querySelector(".danger").addEventListener("click", () => confirmPopover(el, b, b.files, false));
+      } else { /* reverted:恢复点入口 */
+        actions.innerHTML = `
+          <span class="bk-note" style="color:var(--bk-reverted)">已回退（恢复点 #g8 已留存）</span>
+          <span class="spacer"></span>
+          <button class="btn">↩ 反悔 · 恢复回来</button>`;
+        actions.querySelector(".btn").addEventListener("click", () => {
+          b.state = "pending"; render();
+          toast(`批次 #${b.no} 已从恢复点 #g8 恢复，回到「未审」`, "rv");
+        });
+      }
+      body.appendChild(actions);
+    }
+    el.appendChild(body);
+    list.appendChild(el);
+  });
+}
+
+/* ── 回退确认 popover（挂在批次卡内）── */
+function confirmPopover(batchEl, b, files, single) {
+  document.querySelectorAll(".confirm").forEach(n => n.remove());
+  const pop = document.createElement("div");
+  pop.className = "confirm";
+  pop.innerHTML = `
+    <h4>回退${single ? "文件" : `批次 #${b.no}`}（${files.length} 个路径）</h4>
+    <div class="sub">改动将还原到这轮消息发出之前。<span class="guard">回退前已自动打恢复点 #g9，反悔可再回来。</span>
+      当前内容与批次后状态不一致的文件会被跳过并列出，绝不静默覆盖。</div>
+    <div class="files">${files.map(f => `<div>${esc(f.dir + f.name)}　<span style="color:var(--diff-ins)">+${f.ins}</span> <span style="color:var(--diff-del)">−${f.del}</span></div>`).join("")}</div>
+    <div class="row">
+      <button class="btn">取消</button>
+      <button class="btn danger" style="border-color:rgba(167,139,250,.5);color:var(--bk-reverted)">确认回退</button>
+    </div>`;
+  pop.querySelector(".btn").addEventListener("click", () => pop.remove());
+  pop.querySelectorAll(".btn")[1].addEventListener("click", () => {
+    b.state = single ? "pending" : "reverted";
+    if (single) { /* 文件级演示：从批中移除该文件 */
+      b.files = b.files.filter(x => !files.includes(x));
+      b.stats.ins = b.files.reduce((s, x) => s + x.ins, 0);
+      b.stats.del = b.files.reduce((s, x) => s + x.del, 0);
+    }
+    pop.remove(); render();
+    toast(single ? `已回退 1 个文件（批次 #${b.no} 转为部分处理）` : `批次 #${b.no} 已回退 · 恢复点 #g9 已留存`, "rv");
+  });
+  batchEl.appendChild(pop);
+}
+
+function esc(s) { return s.replace(/</g, "&lt;"); }
+
+let toastTimer = 0;
+function toast(msg, tone) {
+  const t = document.getElementById("toast");
+  t.innerHTML = `<span class="${tone}">●</span>${esc(msg)}`;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2400);
+}
+
+document.querySelectorAll("#filters .chip").forEach(c =>
+  c.addEventListener("click", () => {
+    document.querySelectorAll("#filters .chip").forEach(x => x.classList.remove("on"));
+    c.classList.add("on"); render();
+  }));
+
+render();
+</script>
+</body>
+</html>

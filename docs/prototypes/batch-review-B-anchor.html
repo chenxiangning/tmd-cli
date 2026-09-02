@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>批次审批 · 方案 B「锚点栏批次卡」</title>
+<style>
+  /* ═══════════════════════════════════════════════════════
+     方案 B · 锚点栏批次化 —— 复用消息锚点栏(v2,停靠 composer 右缘)。
+     核心主张:
+       1) 锚点天然就是批次边界:用户消息 = 快照点 = 批次起点
+       2) dash 上编码批次状态点(呼吸=进行中/amber=未审/绿=已留/紫=已退),
+         无改动的锚点保持素 dash —— 不新增任何常驻 UI
+       3) hover 浮批次卡(文件+±+动作);点击 pin 展开 mini diff;
+         审核发生在对话语境里,路径最短
+     挂载依据:kernel 新增 anchorRail.card 挂载点(锚点栏查注册表)。
+     全部颜色来自 --tmd-* 体系(dark)。
+     ═══════════════════════════════════════════════════════ */
+  :root {
+    --tmd-bg-base: #1f1f1f; --tmd-bg-elevated: #181818; --tmd-bg-sunken: #181818;
+    --tmd-bg-hover: #2a2a2a; --tmd-bg-active: rgba(0,122,204,.24);
+    --tmd-bg-input: #313131; --tmd-bg-popover: #252526;
+    --tmd-fg: #cccccc; --tmd-fg-muted: #9d9d9d; --tmd-fg-subtle: #7a7a7a; --tmd-fg-faint: #585858;
+    --tmd-border: #3c3c3c; --tmd-border-strong: #555555;
+    --tmd-accent: #007acc; --tmd-accent-fg: #ffffff; --tmd-accent-soft: rgba(0,122,204,.24);
+    --tmd-font-ui: 12px; --tmd-radius-sm: 6px; --tmd-radius-md: 8px; --tmd-radius-lg: 12px;
+    --diff-ins: #2ea043; --diff-del: #f85149;
+    --st-m: #facc20; --st-a: #4ade80; --st-d: #f87171;
+    --bk-open: #007acc; --bk-pending: #facc20; --bk-kept: #4ade80; --bk-reverted: #a78bfa;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #101010;
+    display: flex; align-items: center; justify-content: center;
+    font-family: -apple-system, "PingFang SC", sans-serif;
+    font-size: var(--tmd-font-ui);
+    color: var(--tmd-fg);
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+
+  /* ── 窗口 mock(对齐 message-anchor-rail.html)── */
+  .window {
+    width: 1080px; height: 680px;
+    background: var(--tmd-bg-base);
+    border: 1px solid var(--tmd-border);
+    border-radius: var(--tmd-radius-lg);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    box-shadow: 0 24px 80px rgba(0,0,0,.55);
+    position: relative;
+  }
+  .titlebar {
+    height: 38px; flex: none;
+    background: var(--tmd-bg-sunken);
+    border-bottom: 1px solid var(--tmd-border);
+    display: flex; align-items: center; gap: 8px; padding: 0 14px;
+    color: var(--tmd-fg-muted); font-size: 12px;
+  }
+  .titlebar .dots { display: flex; gap: 6px; margin-right: 6px; }
+  .titlebar .dots i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+  .titlebar .dots i:nth-child(1) { background: #ff5f57; }
+  .titlebar .dots i:nth-child(2) { background: #febc2e; }
+  .titlebar .dots i:nth-child(3) { background: #28c840; }
+
+  .body { flex: 1; display: flex; min-height: 0; }
+  .sidebar {
+    width: 190px; flex: none;
+    background: var(--tmd-bg-elevated);
+    border-right: 1px solid var(--tmd-border);
+    padding: 10px; color: var(--tmd-fg-subtle);
+  }
+  .sidebar .ws { padding: 6px 8px; border-radius: var(--tmd-radius-sm); display: flex; align-items: center; gap: 6px; }
+  .sidebar .ws.active { background: var(--tmd-bg-active); color: var(--tmd-fg); }
+  .sidebar .sess { padding: 4px 8px 4px 22px; color: var(--tmd-fg-faint); white-space: nowrap; overflow: hidden; }
+  .sidebar .sess.on { color: var(--tmd-fg-muted); }
+
+  .stage { flex: 1; position: relative; min-width: 0; display: flex; flex-direction: column; }
+  .transcript {
+    flex: 1; overflow-y: auto; padding: 14px 18px;
+    font-family: "SF Mono", Menlo, monospace; font-size: 12px; line-height: 1.6;
+    scrollbar-width: none;
+  }
+  .transcript::-webkit-scrollbar { display: none; }
+  .line { color: var(--tmd-fg-subtle); white-space: pre-wrap; }
+  .line.dim { color: var(--tmd-fg-faint); }
+  .user-msg {
+    margin: 10px 0 4px;
+    border-left: 2px solid var(--tmd-accent);
+    background: var(--tmd-bg-hover);
+    border-radius: 0 var(--tmd-radius-sm) var(--tmd-radius-sm) 0;
+    padding: 6px 10px;
+    color: var(--tmd-fg);
+    font-family: -apple-system, "PingFang SC", sans-serif;
+  }
+  .user-msg .meta { color: var(--tmd-fg-faint); font-size: 11px; margin-bottom: 2px; }
+
+  .composer {
+    flex: none; height: 200px; position: relative;
+    display: flex; flex-direction: column;
+    background: var(--tmd-bg-elevated);
+    border-top: 1px solid var(--tmd-border);
+  }
+  .composer-statusbar {
+    flex: none; height: 28px;
+    display: flex; align-items: center; gap: 14px; padding: 0 12px;
+    border-bottom: 1px solid var(--tmd-border);
+    color: var(--tmd-fg-subtle); font-size: 11px;
+  }
+  .composer-statusbar .sp { margin-left: auto; }
+  .composer-input {
+    flex: 1; padding: 10px 44px 10px 12px;
+    color: var(--tmd-fg-faint);
+    font-family: "SF Mono", Menlo, monospace; font-size: 13px; line-height: 1.58;
+  }
+
+  /* ── 锚点栏(v2 结构 + 批次状态点)────────────── */
+  .anchor-rail {
+    position: absolute; right: 0; top: 34px; bottom: 10px;
+    width: 26px;
+    display: flex; flex-direction: column; justify-content: center; align-items: flex-end;
+    gap: 5px; padding-right: 7px;
+    z-index: 20;
+  }
+  .anchor-rail::before {
+    content: ""; position: absolute; left: 6px; top: 0; bottom: 0; width: 1px;
+    background: var(--tmd-border); opacity: 0; transition: opacity .15s ease;
+  }
+  .anchor-rail:hover::before { opacity: 1; }
+
+  .anchor-item { position: relative; display: flex; align-items: center; height: 12px; }
+  .anchor-dash {
+    border: 0; padding: 0; cursor: pointer; position: relative;
+    width: 9px; height: 2px; border-radius: 1px;
+    background: var(--tmd-fg-faint);
+    transition: width .15s ease, background .15s ease;
+  }
+  .anchor-item.is-proximity-0 .anchor-dash { width: 26px; background: var(--tmd-fg); }
+  .anchor-item.is-proximity-1 .anchor-dash { width: 18px; background: var(--tmd-fg-subtle); }
+  .anchor-item.is-proximity-2 .anchor-dash { width: 13px; }
+  .anchor-dash.is-active { background: var(--tmd-accent); width: 18px; }
+  .anchor-item.is-proximity-0 .anchor-dash.is-active { width: 26px; background: var(--tmd-accent); }
+
+  /* 批次状态点:骑在 dash 中点上方 */
+  .bdot {
+    position: absolute; left: 50%; top: -3px; margin-left: -2.5px;
+    width: 5px; height: 5px; border-radius: 50%;
+  }
+  .bdot.open { background: var(--bk-open); animation: breathe 1.6s ease infinite; }
+  .bdot.pending { background: var(--bk-pending); }
+  .bdot.kept { background: var(--bk-kept); }
+  .bdot.reverted { background: var(--bk-reverted); }
+  @keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+
+  /* ── 批次卡:hover 浮出;点击 pin(真实实现 portal/fixed)── */
+  .bcard {
+    position: absolute; right: 36px; top: 50%;
+    width: 340px;
+    background: var(--tmd-bg-popover);
+    border: 1px solid var(--tmd-border-strong);
+    border-radius: var(--tmd-radius-md);
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+    padding: 10px 12px 9px;
+    transform: translateY(-50%);
+    animation: card-in .14s ease;
+    z-index: 30;
+  }
+  .bcard.pinned { border-color: var(--tmd-accent); }
+  @keyframes card-in { from { opacity: 0; transform: translateY(-50%) translateX(5px); } to { opacity: 1; transform: translateY(-50%); } }
+  .bcard::after {
+    content: ""; position: absolute; right: -6px; top: 50%; margin-top: -6px;
+    border: 6px solid transparent; border-left-color: var(--tmd-border-strong);
+  }
+
+  .bcard .head { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .bcard .badge {
+    padding: 0 7px; border-radius: 999px; font-size: 10px; line-height: 17px; font-weight: 600;
+  }
+  .bcard .badge.pending { background: rgba(250,204,32,.14); color: var(--bk-pending); }
+  .bcard .badge.kept { background: rgba(74,222,128,.14); color: var(--bk-kept); }
+  .bcard .badge.reverted { background: rgba(167,139,250,.16); color: var(--bk-reverted); }
+  .bcard .badge.open { background: var(--tmd-accent-soft); color: #7ec3f0; }
+  .bcard .no { color: var(--tmd-fg-faint); font-variant-numeric: tabular-nums; }
+  .bcard .when { margin-left: auto; color: var(--tmd-fg-faint); font-size: 10.5px; }
+  .bcard .title {
+    color: var(--tmd-fg); font-weight: 600; line-height: 1.45; margin-bottom: 7px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .bcard .stats { color: var(--tmd-fg-faint); font-size: 11px; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+  .bcard .stats .ins { color: var(--diff-ins); }
+  .bcard .stats .del { color: var(--diff-del); }
+
+  .bcard .files { border-top: 1px solid var(--tmd-border); padding-top: 5px; margin-bottom: 7px; }
+  .frow {
+    display: flex; align-items: center; gap: 6px;
+    height: 23px; padding: 0 4px; border-radius: 5px;
+    color: var(--tmd-fg-muted); cursor: pointer;
+  }
+  .frow:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+  .frow .st { flex: none; width: 14px; height: 14px; border-radius: 4px; display: grid; place-items: center; font-size: 9.5px; font-weight: 700; }
+  .frow .st.M { background: rgba(250,204,32,.16); color: var(--st-m); }
+  .frow .st.A { background: rgba(74,222,128,.16); color: var(--st-a); }
+  .frow .fname { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-family: "SF Mono", Menlo, monospace; font-size: 11px; direction: rtl; text-align: left; }
+  .frow .fname b { direction: ltr; unicode-bidi: isolate; font-weight: 500; }
+  .frow .pm { flex: none; font-variant-numeric: tabular-nums; font-size: 10.5px; }
+  .frow .pm .ins { color: var(--diff-ins); }
+  .frow .pm .del { color: var(--diff-del); }
+
+  .bcard .actions { display: flex; gap: 6px; align-items: center; }
+  .bcard .btn {
+    height: 23px; padding: 0 9px; border-radius: 5px;
+    display: inline-flex; align-items: center; gap: 4px;
+    border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); font-size: 11px;
+  }
+  .bcard .btn:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+  .bcard .btn.primary { border-color: transparent; background: var(--tmd-accent-soft); color: #9fd1f5; }
+  .bcard .btn.danger:hover { border-color: rgba(167,139,250,.5); color: var(--bk-reverted); }
+  .bcard .hint { margin-left: auto; color: var(--tmd-fg-faint); font-size: 10px; }
+
+  /* mini diff(pin 后「看 diff」展开) */
+  .bcard .mdiff {
+    display: none; margin: 2px 0 7px;
+    border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm);
+    background: var(--tmd-bg-base); overflow: hidden;
+  }
+  .bcard .mdiff.show { display: block; }
+  .bcard .mdiff .mf-head {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 8px; border-bottom: 1px solid var(--tmd-border);
+    font-family: "SF Mono", Menlo, monospace; font-size: 10.5px; color: var(--tmd-fg-muted);
+  }
+  .bcard .mdiff pre {
+    padding: 6px 8px; margin: 0; max-height: 132px; overflow-y: auto;
+    font-family: "SF Mono", Menlo, monospace; font-size: 10.5px; line-height: 1.55;
+  }
+  .bcard .mdiff .dl-add { color: var(--diff-ins); background: rgba(46,160,67,.10); display: block; }
+  .bcard .mdiff .dl-del { color: var(--diff-del); background: rgba(248,81,73,.10); display: block; }
+  .bcard .mdiff .dl-ctx { color: var(--tmd-fg-faint); display: block; }
+
+  .proto-note {
+    position: absolute; left: 14px; top: 48px;
+    color: var(--tmd-fg-faint); font-size: 11px; max-width: 470px; line-height: 1.6;
+    background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border);
+    border-radius: var(--tmd-radius-sm); padding: 6px 10px;
+    z-index: 5;
+  }
+  .proto-note b { color: var(--tmd-fg-muted); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 14px; border-radius: 999px;
+    background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border-strong);
+    color: var(--tmd-fg); font-size: 12px;
+    box-shadow: 0 10px 32px rgba(0,0,0,.5);
+    opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease;
+    z-index: 99;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+  .toast .ok { color: var(--bk-kept); }
+  .toast .rv { color: var(--bk-reverted); }
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="titlebar">
+    <span class="dots"><i></i><i></i><i></i></span>
+    tmd-cli ⌄ &nbsp;·&nbsp; 方案 B:锚点 = 批次边界 —— hover 带点的 dash 看批次卡,点击 pin 可展开 diff
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="ws active">📁 tmd-cli</div>
+      <div class="sess on">● omp · 网络代理插件</div>
+      <div class="sess">○ claude · 修复翻页锚点</div>
+      <div class="sess">○ pi · 插件市场设计</div>
+      <div class="ws" style="margin-top:10px">📁 codemoss</div>
+      <div class="sess">○ omp · 锚点栏调研</div>
+    </div>
+    <div class="stage">
+      <div class="transcript" id="transcript"></div>
+      <div class="composer">
+        <div class="composer-statusbar">
+          <span>模型 kimi-code/k3</span><span>思考 auto</span>
+          <span class="sp">批次 5 · 未审 2 · <b style="color:var(--bk-pending)">待处理</b></span>
+        </div>
+        <div class="composer-input">输入消息,⌘/Ctrl+回车发送。发送瞬间自动打锚点快照 —— 上一批同时封口进入待审。</div>
+        <div class="anchor-rail" id="anchorRail" role="navigation" aria-label="消息锚点与批次"></div>
+      </div>
+      <div class="proto-note">
+        <b>方案 B · 锚点栏批次化</b>:dash 中点上方的彩色点即批次状态(呼吸=进行中 / amber=未审 / 绿=已留 / 紫=已退),
+        无改动的锚点保持素 dash,零新增常驻 UI。批次卡数据来自 checkpoints 插件经
+        <b>anchorRail.card</b> 挂载点贡献,锚点栏只查注册表渲染。
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── 与 A/C 原型同叙事:omp · 网络代理插件会话 ── */
+const TURNS = [
+  { prompt: "先看下现有 proxy.rs 的结构,梳理一下子进程挂死的修复点", lines: 8 },          /* 锚1:纯阅读,无批次 */
+  { prompt: "顺手把 Cargo.toml 的 reqwest 降到 0.12", lines: 4,
+    batch: { no: 2, state: "reverted", when: "昨天 21:12",
+      files: [{ st: "M", name: "Cargo.toml", dir: "src-tauri/", ins: 2, del: 2 }],
+      note: "已回退 · 恢复点 #g3 留存(rustls 默认后端会破)" } },
+  { prompt: "提交逻辑挪到 proxyCommit.ts,别混在组件里", lines: 7,
+    batch: { no: 3, state: "kept", when: "昨天 21:40",
+      files: [
+        { st: "A", name: "proxyCommit.ts", dir: "src/plugins/network-proxy/", ins: 112, del: 0 },
+        { st: "M", name: "index.tsx", dir: "src/plugins/network-proxy/", ins: 12, del: 64 },
+        { st: "A", name: "proxyCommit.test.ts", dir: "src/plugins/network-proxy/", ins: 47, del: 0 },
+      ], note: "已保留 · 已转暂存" } },
+  { prompt: "sanitize 加上 proxy 字段清洗,非法端口回退默认", lines: 5,
+    batch: { no: 4, state: "pending", when: "8 分钟前",
+      files: [
+        { st: "M", name: "settings.ts", dir: "src/kernel/", ins: 22, del: 4 },
+        { st: "M", name: "settings.test.ts", dir: "src/kernel/", ins: 18, del: 0 },
+      ] } },
+  { prompt: "把代理设置挂到设置面板里,新增一个分区", lines: 9,
+    batch: { no: 5, state: "pending", when: "2 分钟前",
+      files: [
+        { st: "M", name: "settings.ts", dir: "src/kernel/", ins: 54, del: 3 },
+        { st: "M", name: "settings.test.ts", dir: "src/kernel/", ins: 31, del: 0 },
+        { st: "M", name: "SidebarSettingsCluster.tsx", dir: "src/app-shell/", ins: 88, del: 12 },
+      ],
+      diff: { file: "src/kernel/settings.ts",
+        lines: [
+          ["ctx", " export interface ProxySettings {"],
+          ["add", "   port: number;            // 0 = 随机可用端口"],
+          ["add", "   upstream: string;        // 显式上游,空 = 直连"],
+          ["del", "   legacyPortField: string;"],
+          ["ctx", " }"],
+          ["add", " export function sanitizeProxy(p: unknown): ProxySettings {"],
+          ["add", "   // 非法端口回退 0;upstream 仅允许 http(s):// 前缀"],
+          ["ctx", "   return { ...DEFAULT_PROXY, ...pick(p) };"],
+        ] } } },
+  { prompt: "代理挂掉时给个明确的错误提示吧", lines: 3,
+    batch: { no: 6, state: "open", when: "刚刚",
+      files: [{ st: "M", name: "proxy.rs", dir: "src-tauri/src/", ins: 38, del: 6 }],
+      note: "正在记录 —— 下一条消息发出时封口" } },
+];
+
+const FILLER = [
+  "  ⏺ 我先看下现有实现…", "    Read: src-tauri/src/proxy.rs (412 行)",
+  "    Grep: spawn/waitpid → 6 matches · 2 files", "  ⏺ 方案:错误码在 spawn 侧就分类,UI 只认枚举。",
+  "    Edit: src-tauri/src/proxy.rs (+38 −6)", "    Bash: cargo check ✓ 零 warning",
+  "  ⏺ 完成。挂死修复点已梳理,见上。", "    · 端口冲突与上游超时分开报",
+];
+
+const STATE_TEXT = { open: "进行中", pending: "未审", kept: "已留", reverted: "已退" };
+
+const transcript = document.getElementById("transcript");
+const rail = document.getElementById("anchorRail");
+const anchors = [];
+let uid = 0;
+
+TURNS.forEach((m) => {
+  uid += 1;
+  const el = document.createElement("div");
+  el.className = "user-msg";
+  el.innerHTML = `<div class="meta">你 · 第 ${uid} 条</div>${esc(m.prompt)}`;
+  transcript.appendChild(el);
+  anchors.push({ id: "a" + uid, index: uid, text: m.prompt, batch: m.batch, el });
+  for (let i = 0; i < m.lines; i++) {
+    const div = document.createElement("div");
+    div.className = "line" + (i % 3 === 2 ? " dim" : "");
+    div.textContent = FILLER[(i + m.lines) % FILLER.length];
+    transcript.appendChild(div);
+  }
+});
+
+let pinned = null;
+
+anchors.forEach((a) => {
+  const item = document.createElement("div");
+  item.className = "anchor-item";
+  const dash = document.createElement("button");
+  dash.className = "anchor-dash";
+  dash.title = a.batch ? `${a.index}. ${a.text.split("，")[0]} · 批次 #${a.batch.no}（${STATE_TEXT[a.batch.state]}）`
+                       : `${a.index}. ${a.text.split("，")[0]}`;
+  if (a.batch) {
+    const dot = document.createElement("span");
+    dot.className = "bdot " + a.batch.state;
+    dash.appendChild(dot);
+    dash.classList.add("has-batch");
+  }
+  item.appendChild(dash);
+  a.itemEl = item; a.dashEl = dash;
+  rail.appendChild(item);
+
+  item.addEventListener("mouseenter", () => {
+    if (pinned === a) return;
+    proximity(a);
+    renderCard(a, false);
+  });
+  dash.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (pinned === a) { unpin(); return; }
+    pinned = a; renderCard(a, true);
+  });
+});
+
+rail.addEventListener("mouseleave", () => {
+  if (pinned) return;
+  clearCards();
+  clearProximity();
+});
+
+document.addEventListener("click", (e) => {
+  if (pinned && !e.target.closest(".bcard") && !e.target.closest(".anchor-dash")) unpin();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && pinned) unpin(); });
+
+function proximity(center) {
+  anchors.forEach((b, j) => {
+    const d = Math.abs(anchors.indexOf(center) - j);
+    b.itemEl.classList.toggle("is-proximity-0", d === 0);
+    b.itemEl.classList.toggle("is-proximity-1", d === 1);
+    b.itemEl.classList.toggle("is-proximity-2", d === 2);
+  });
+}
+function clearProximity() {
+  anchors.forEach(b => b.itemEl.classList.remove("is-proximity-0", "is-proximity-1", "is-proximity-2"));
+}
+function clearCards() { rail.querySelectorAll(".bcard").forEach(n => n.remove()); }
+function unpin() { pinned = null; clearCards(); clearProximity(); }
+
+function renderCard(a, isPin) {
+  clearCards();
+  if (!a.batch) {
+    /* 素锚点:仍是纯预览卡(v2 行为) */
+    const pv = document.createElement("div");
+    pv.className = "bcard";
+    pv.innerHTML = `<div class="head"><span class="no">#${a.index}</span><span class="when">纯阅读轮</span></div>
+      <div class="title">${esc(a.text)}</div>
+      <div class="stats">本轮无文件改动 —— 未生成批次</div>`;
+    a.itemEl.appendChild(pv);
+    clamp(pv, a.itemEl);
+    return;
+  }
+  const b = a.batch;
+  const ins = b.files.reduce((s, f) => s + f.ins, 0);
+  const del = b.files.reduce((s, f) => s + f.del, 0);
+  const card = document.createElement("div");
+  card.className = "bcard" + (isPin ? " pinned" : "");
+
+  const actionRow = b.state === "pending"
+    ? `<button class="btn primary" data-act="keep">✓ 保留 · 转暂存</button>
+       <button class="btn danger" data-act="revert">↩ 回退</button>
+       ${b.diff ? `<button class="btn" data-act="diff">${isPin ? "收起 diff" : "看 diff"}</button>` : ""}
+       <span class="hint">回退有恢复点</span>`
+    : `<span class="hint" style="color:${b.state === "kept" ? "var(--bk-kept)" : b.state === "reverted" ? "var(--bk-reverted)" : "var(--tmd-fg-faint)"}">
+        ${esc(b.note || STATE_TEXT[b.state])}</span>`;
+
+  card.innerHTML = `
+    <div class="head">
+      <span class="badge ${b.state}">${STATE_TEXT[b.state]}</span>
+      <span class="no">批次 #${b.no} · 第 ${a.index} 条消息之后</span>
+      <span class="when">${b.when}</span>
+    </div>
+    <div class="title">${esc(a.text)}</div>
+    <div class="stats">${b.files.length} 文件 · <span class="ins">+${ins}</span> <span class="del">−${del}</span></div>
+    ${b.diff ? `
+    <div class="mdiff" id="mdiff">
+      <div class="mf-head"><span class="st M" style="width:13px;height:13px;border-radius:4px;display:grid;place-items:center;font-size:9px;font-weight:700;background:rgba(250,204,32,.16);color:var(--st-m)">M</span>${esc(b.diff.file)}</div>
+      <pre>${b.diff.lines.map(([k, t]) =>
+        `<span class="dl-${k === "add" ? "add" : k === "del" ? "del" : "ctx"}">${k === "add" ? "+" : k === "del" ? "−" : " "} ${esc(t)}</span>`).join("")}</pre>
+    </div>` : ""}
+    <div class="files">${b.files.map(f => `
+      <div class="frow" data-file="${esc(f.dir + f.name)}">
+        <span class="st ${f.st}">${f.st}</span>
+        <span class="fname"><b>${esc(f.name)}</b> <span style="color:var(--tmd-fg-faint)">${esc(f.dir)}</span></span>
+        <span class="pm"><span class="ins">+${f.ins}</span> <span class="del">−${f.del}</span></span>
+      </div>`).join("")}
+    </div>
+    <div class="actions">${actionRow}</div>`;
+
+  card.querySelectorAll(".frow").forEach(r =>
+    r.addEventListener("click", () => toast(`diff 查看:${r.dataset.file}(复用 patch LRU)`, "ok")));
+
+  const keepBtn = card.querySelector('[data-act="keep"]');
+  if (keepBtn) keepBtn.addEventListener("click", () => {
+    b.state = "kept"; b.note = "已保留 · 已转暂存";
+    a.dashEl.querySelector(".bdot").className = "bdot kept";
+    toast(`批次 #${b.no} 已保留,${b.files.length} 个文件转入暂存区`, "ok");
+    if (isPin) renderCard(a, true); else clearCards();
+  });
+  const rvBtn = card.querySelector('[data-act="revert"]');
+  if (rvBtn) rvBtn.addEventListener("click", () => {
+    b.state = "reverted"; b.note = "已回退 · 恢复点 #g9 留存";
+    a.dashEl.querySelector(".bdot").className = "bdot reverted";
+    toast(`批次 #${b.no} 已回退(恢复点 #g9 留存,反悔可回来)`, "rv");
+    if (isPin) renderCard(a, true); else clearCards();
+  });
+  const dfBtn = card.querySelector('[data-act="diff"]');
+  if (dfBtn) dfBtn.addEventListener("click", () => {
+    const md = card.querySelector("#mdiff");
+    md.classList.toggle("show");
+    dfBtn.textContent = md.classList.contains("show") ? "收起 diff" : "看 diff";
+  });
+
+  a.itemEl.appendChild(card);
+  clamp(card, a.itemEl);
+}
+
+/* composer 高度有限:卡顶出 composer 上缘时改为向上钳制(真实实现 fixed+翻转) */
+function clamp(card, item) {
+  const stageRect = document.querySelector(".stage").getBoundingClientRect();
+  const r = card.getBoundingClientRect();
+  if (r.top < stageRect.top + 8) {
+    card.style.top = "auto";
+    card.style.bottom = (stageRect.bottom - item.getBoundingClientRect().bottom - 6) + "px";
+    card.style.transform = "none";
+  }
+}
+
+let toastTimer = 0;
+function toast(msg, tone) {
+  const t = document.getElementById("toast");
+  t.innerHTML = `<span class="${tone}">●</span>${esc(msg)}`;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2400);
+}
+function esc(s) { return s.replace(/</g, "&lt;"); }
+
+/* 初始:滚到底,最后一条锚点激活(进行中批次) */
+transcript.scrollTop = transcript.scrollHeight;
+const last = anchors[anchors.length - 1];
+last.dashEl.classList.add("is-active");
+</script>
+</body>
+</html>
