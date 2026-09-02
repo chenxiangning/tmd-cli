@@ -177,3 +177,12 @@
   width: 11px;
   height: 11px;
 }
+/* 未保存圆点 ─ 编辑态脏标记,缀于文件名后(codemoss fvp-dirty-dot 同位) */
+.tab-dirty-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 999px;
+  background: var(--tmd-accent);
+  margin-left: 2px;
+}

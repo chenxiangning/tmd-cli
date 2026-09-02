@@ -1,45 +1,41 @@
 /**
- * files 插件：右栏文件树(可插拔视觉 provider) + 中央 tab 文件预览(可插拔高亮器)。
+ * files 插件:右栏文件树(右键菜单 + 新建/重命名/删除)+ 中央 tab 文件编辑器。
  *
  * 视觉规范:
- * - 复刻 codemoss file-tree ─ 顶部 root label + 三个 ghost icon 按钮。
- * - 文件/文件夹行用 lucide-react 图标:folder/folder-open/file-text/file-code 等。
- * - 行 hover/selected 用 surface-hover,文件夹 hover 让位给 chevron。
- * - 行右侧 + 按钮:在新窗口打开(占位)。
+ * - 复刻 codemoss file-tree ─ 顶部 root label + 文件操作按钮(subbar 由外壳渲染)。
+ * - 文件/文件夹行用 fileVisual 图标;行 hover 右侧按钮 = 复制路径。
+ * - 右键菜单走 wsmenu 范式(FileTreeContextMenu),命名走居中卡片(NamePrompt)。
  *
  * 注册点:
- * - fileVisual:文件类型→颜色/图标(默认 provider 可替换)
- * - fileHighlighter:文件内容→HTML(默认 highlight.js,可替换)
+ * - fileVisual / fileHighlighter:可插拔视觉与高亮(编辑器另走 CodeMirror)
+ * - filePanel:{ refresh / newFile / newFolder } 槽,外壳 subbar 按钮消费
  */
 import { useCallback, useEffect, useState } from "react";
-import { ChevronRight, FilePlus2, Folder, RefreshCw } from "lucide-react";
+import { ChevronRight, Copy, FilePen, Folder, RefreshCw } from "lucide-react";
 import { ipc, type DirEntry } from "@kernel/ipc";
 import type { Plugin, PluginContext } from "@kernel/plugin";
-import { openTab } from "@kernel/tabs";
 import { clearDragPayload, setDragPayload } from "@kernel/internalDrag";
 import { useWorkspaces } from "@kernel/workspace";
-import { baseName } from "@kernel/pathUtils";
 import { registerFileHighlighter } from "@kernel/fileHighlighter";
 import { registerFileVisual, resolveFileVisual } from "@kernel/fileVisual";
 import { registerFilePanel } from "@kernel/filePanel";
 import { FileTabContent } from "./FileTabContent";
 import { extToLang } from "./highlightLangs";
 import { defaultFileVisualProvider } from "./fileVisual";
-function openFileInTab(path: string) {
-  openTab({
-    id: `file:${path}`,
-    kind: "file",
-    title: baseName(path) || path,
-    path,
-    payload: { path },
-  });
-}
+import { openFileInTab } from "./openFile";
+import { useTreeOperations } from "./useTreeOperations";
+import { FileTreeContextMenu } from "./FileTreeContextMenu";
+import { NamePrompt } from "./NamePrompt";
 
-/** 当前挂载 FileTree 的 reloadRoot:注册表 refresh 槽据此转发(两棵组件树,同 git panelStore 理念)。 */
-let activeReloadRoot: (() => Promise<void>) | null = null;
+/** 当前挂载 FileTree 的动作句柄:注册表 refresh/newFile/newFolder 槽据此转发。 */
+let activeTreeHandles: {
+  reloadRoot: () => Promise<void>;
+  newFile: () => void;
+  newFolder: () => void;
+} | null = null;
 
 /* ──────────────────────────────────────────────────────────
- * 文件/文件夹 icon ─ 从 fileVisual.hint.icon 读取,无则用 lucide fallback。
+ * 文件/文件夹行 ─ 点击开 tab;右键呼菜单;hover 复制路径。
  * ────────────────────────────────────────────────────────── */
 function FileTreeRow({
   entry,
@@ -47,14 +43,16 @@ function FileTreeRow({
   expanded,
   selected,
   onClick,
-  onOpenInNewWindow,
+  onContextMenu,
+  onCopyPath,
 }: {
   entry: DirEntry;
   depth: number;
   expanded: boolean;
   selected: boolean;
   onClick: () => void;
-  onOpenInNewWindow: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+  onCopyPath: () => void;
 }) {
   const hint = resolveFileVisual(entry.name, entry.isDir, expanded);
   const color = hint.colorClass ?? "text-(--tmd-fg)";
@@ -78,6 +76,7 @@ function FileTreeRow({
         className={`file-tree-row${selected ? " is-selected" : ""}`}
         style={{ paddingLeft: depth * 12 + 12 }}
         onClick={onClick}
+        onContextMenu={onContextMenu}
         draggable
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
@@ -118,12 +117,17 @@ function FileTreeRow({
           className="file-tree-action"
           onClick={(ev) => {
             ev.stopPropagation();
-            onOpenInNewWindow();
+            onCopyPath();
           }}
-          aria-label="在新窗口打开"
-          title="在新窗口打开"
+          onContextMenu={(ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            onContextMenu(ev);
+          }}
+          aria-label="复制路径"
+          title="复制路径"
         >
-          <FilePlus2 aria-hidden size={11} />
+          <Copy aria-hidden size={11} />
         </button>
       </span>
     </div>
@@ -131,7 +135,7 @@ function FileTreeRow({
 }
 
 /* ──────────────────────────────────────────────────────────
- * 主体:文件树列表 + toolbar。展开态就地保存。
+ * 主体:文件树列表 + 右键菜单 + 命名弹窗。展开态就地保存。
  * ────────────────────────────────────────────────────────── */
 function FileTree({ root }: { root: string }) {
   const [entries, setEntries] = useState<DirEntry[]>([]);
@@ -155,13 +159,37 @@ function FileTree({ root }: { root: string }) {
     void reloadRoot();
   }, [reloadRoot]);
 
-  /* 上交 reloadRoot 给注册表 refresh 槽(右栏「刷新文件树」按钮),卸载即断开。 */
+  /* 重拉某目录并展示(reveal 语义):root 走根层;其余展开 + 刷新该层快照。 */
+  const revealDir = useCallback(
+    async (dir: string) => {
+      if (dir === root) {
+        await reloadRoot();
+        return;
+      }
+      try {
+        const children = await ipc.fsListDir(dir);
+        setExpanded((prev) => ({ ...prev, [dir]: children }));
+      } catch {
+        /* 目录消失(被删/改名):从展开表摘除 */
+        setExpanded(({ [dir]: _drop, ...rest }) => rest);
+      }
+    },
+    [root, reloadRoot],
+  );
+
+  const ops = useTreeOperations({ root, revealDir, setSelected: setSelectedPath });
+
+  /* 上交动作句柄给注册表槽(刷新 / 新建文件 / 新建文件夹按钮),卸载即断开。 */
   useEffect(() => {
-    activeReloadRoot = reloadRoot;
-    return () => {
-      activeReloadRoot = null;
+    activeTreeHandles = {
+      reloadRoot,
+      newFile: () => ops.openPrompt({ kind: "new-file", dir: root }),
+      newFolder: () => ops.openPrompt({ kind: "new-folder", dir: root }),
     };
-  }, [reloadRoot]);
+    return () => {
+      activeTreeHandles = null;
+    };
+  }, [reloadRoot, root, ops.openPrompt]);
 
   const toggle = useCallback(
     (entry: DirEntry) => {
@@ -182,12 +210,14 @@ function FileTree({ root }: { root: string }) {
     [expanded],
   );
 
-  const openInNewWindow = useCallback((entry: DirEntry) => {
-    if (!entry.isDir) openFileInTab(entry.path);
-    // eslint-disable-next-line no-console
-    console.info("[files] open-in-new-window:", entry.path);
-
-  }, []);
+  const rowMenu = useCallback(
+    (entry: DirEntry) => (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      ops.openMenu(e.clientX, e.clientY, entry);
+    },
+    [ops],
+  );
 
   const renderEntries = (list: DirEntry[], depth: number) =>
     list.map((e) => {
@@ -200,7 +230,8 @@ function FileTree({ root }: { root: string }) {
             expanded={isOpen}
             selected={selectedPath === e.path}
             onClick={() => toggle(e)}
-            onOpenInNewWindow={() => openInNewWindow(e)}
+            onContextMenu={rowMenu(e)}
+            onCopyPath={() => ops.copyPath(e)}
           />
           {isOpen && renderEntries(expanded[e.path], depth + 1)}
         </div>
@@ -209,9 +240,15 @@ function FileTree({ root }: { root: string }) {
 
   return (
     <div className="file-tree-panel">
-      {/* 顶部 toolbar(root label + 文件操作按钮)由 RightPanelToolbar 统一提供。
-        FileTree 只渲染列表。 */}
-      <div className="file-tree-list">
+      {/* 顶部 toolbar(root label + 文件操作按钮)由 RightPanelToolbar 统一提供;
+          列表空白区右键 = 根目录新建。 */}
+      <div
+        className="file-tree-list"
+        onContextMenu={(e) => {
+          e.preventDefault();
+          ops.openMenu(e.clientX, e.clientY, null);
+        }}
+      >
         {loading && entries.length === 0 ? (
           <div className="file-tree-loading-row" role="status" aria-live="polite">
             <span className="file-tree-loading-spinner" aria-hidden>
@@ -225,6 +262,48 @@ function FileTree({ root }: { root: string }) {
           renderEntries(entries, 0)
         )}
       </div>
+
+      {ops.notice ? (
+        <div className="file-tree-notice" role="status">
+          {ops.notice}
+        </div>
+      ) : null}
+
+      {ops.menu ? (
+        <FileTreeContextMenu
+          state={ops.menu}
+          root={root}
+          actions={{
+            createFile: (dir) => ops.openPrompt({ kind: "new-file", dir }),
+            createFolder: (dir) => ops.openPrompt({ kind: "new-folder", dir }),
+            rename: (entry) => ops.openPrompt({ kind: "rename", entry }),
+            copyPath: ops.copyPath,
+            reveal: ops.revealInFileManager,
+            trash: (entry) => void ops.trash(entry),
+          }}
+          onClose={ops.closeMenu}
+        />
+      ) : null}
+
+      {ops.prompt ? (
+        <NamePrompt
+          title={
+            ops.prompt.kind === "new-file"
+              ? "新建文件"
+              : ops.prompt.kind === "new-folder"
+                ? "新建文件夹"
+                : "重命名"
+          }
+          parentPath={
+            ops.prompt.kind === "rename" ? ops.prompt.entry.path : ops.prompt.dir
+          }
+          initialName={ops.prompt.kind === "rename" ? ops.prompt.entry.name : undefined}
+          confirmLabel={ops.prompt.kind === "rename" ? "重命名" : "创建"}
+          error={ops.promptError}
+          onCancel={ops.closePrompt}
+          onConfirm={ops.submitPrompt}
+        />
+      ) : null}
     </div>
   );
 }
@@ -240,7 +319,14 @@ function ActiveWorkspaceFileTree() {
 
 export const filesPlugin: Plugin = {
   id: "files",
-  meta: { name: "文件预览", abbr: "FL", desc: "文件树、Markdown 预览、代码高亮", category: "feature" },
+  meta: {
+    name: "文件编辑",
+    abbr: "FL",
+    desc: "文件树、文件编辑、Markdown 预览",
+    icon: FilePen,
+    iconColor: "#4DAF7C",
+    category: "feature",
+  },
   activate(ctx: PluginContext) {
     registerFileVisual(defaultFileVisualProvider);
     registerFileHighlighter({
@@ -256,7 +342,9 @@ export const filesPlugin: Plugin = {
       label: "文件",
       icon: Folder,
       component: ActiveWorkspaceFileTree,
-      refresh: () => void activeReloadRoot?.(),
+      refresh: () => void activeTreeHandles?.reloadRoot(),
+      newFile: () => activeTreeHandles?.newFile(),
+      newFolder: () => activeTreeHandles?.newFolder(),
     });
     ctx.contribute("editorCenter.tabContent", {
       order: 0,

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./themes.css";
 @import "./file-tree.css";
+@import "./file-editor.css";
 @import "./tab-bar.css";
 @import "./right-panel-toolbar.css";
 @import "./quota.css";

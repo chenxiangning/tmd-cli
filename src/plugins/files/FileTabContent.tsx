@@ -47,58 +47,44 @@ function useDarkTheme(): boolean {
   return dark;
 }
 
-/** 单文件编辑面板:key={path} 挂载 —— 文档状态随文件切换整体重建。 */
-function FileEditorSurface({ path, diskContent }: { path: string; diskContent: string }) {
-  const doc = useFileDocument(path, diskContent);
-  const dark = useDarkTheme();
-  const status =
-    doc.error ?? (doc.saving ? "保存中…" : doc.dirty ? "● 未保存的更改 · ⌘S 保存" : "已保存");
-  return (
-    <div className="file-editor-surface">
-      <div className="file-editor-body">
-        <Suspense fallback={LOADING}>
-          <FileCodeEditor
-            path={path}
-            value={doc.content}
-            dark={dark}
-            onChange={doc.setDoc}
-            onSave={doc.save}
-          />
-        </Suspense>
-      </div>
-      <div
-        className={`file-editor-status${doc.error ? " is-error" : doc.dirty ? " is-dirty" : ""}`}
-        role="status"
-      >
-        {status}
-      </div>
-    </div>
-  );
-}
-
-/** 单文件主体:key={path} —— md 切换偏好等局部状态随文件重建。 */
+/** 单文件主体:key={path} —— 文档状态、md 切换偏好随文件切换整体重建。 */
 function FileTabBody({ path, content }: { path: string; content: string }) {
   const isMd = MARKDOWN_FILE_RE.test(path);
   const [mdEditor, setMdEditor] = useState(() => mdEditMode.get(path) ?? false);
+  const dark = useDarkTheme();
+  /* 文档钩子常驻(含 md 预览态):⌘S 在预览下也能保存未落盘草稿,
+     状态文字两种模式连续显示。 */
+  const doc = useFileDocument(path, content);
+  const status =
+    doc.error ?? (doc.saving ? "保存中…" : doc.dirty ? "● 未保存的更改 · ⌘S 保存" : "已保存");
 
   const showEditor = !isMd || mdEditor;
   return (
     <div className="file-editor-shell">
-      <div className="file-editor-main">
+      <div className="file-editor-body">
         {showEditor ? (
-          <FileEditorSurface path={path} diskContent={content} />
+          <Suspense fallback={LOADING}>
+            <FileCodeEditor
+              path={path}
+              value={doc.content}
+              dark={dark}
+              onChange={doc.setDoc}
+              onSave={doc.save}
+            />
+          </Suspense>
         ) : (
           /* md 预览自带滚动容器(fvp-markdown-preview-frame/scroll,章节浮窗锚点依赖它) */
-          <Suspense
-            fallback={
-              <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
-                加载中…
-              </div>
-            }
-          >
+          <Suspense fallback={LOADING}>
             <FileMarkdownPreview value={content} sourceFilePath={path} />
           </Suspense>
         )}
+      </div>
+      {/* 矮工具条:状态文字在左,编辑/预览切换钮在右(md 才有) */}
+      <div
+        className={`file-editor-toolbar${doc.error ? " is-error" : doc.dirty ? " is-dirty" : ""}`}
+        role="status"
+      >
+        <span className="file-editor-toolbar-status">{status}</span>
         {isMd ? (
           <button
             type="button"
@@ -130,20 +116,12 @@ export function FileTabContent() {
   const active = tabs.find((t) => t.id === activeId);
   const [, setTick] = useState(0);
 
-  /* 多 kind 并存:非 file kind 的 tab(如 checkpoints 批审阅单)由各自插件的
-     挂载组件渲染,这里让位返回 null;无任何 tab 时本组件仍兜底空态 */
-  if (!active) {
-    return (
-      <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
-        选中一个文件查看
-      </div>
-    );
-  }
-  if (active.kind !== "file") return null;
+  const isFileTab = active?.kind === "file";
+  const path = isFileTab ? active.path : null;
+  const payload = path ? loadFile(path) : null;
 
-  const path = active.path;
-  const payload = loadFile(path);
-
+  /* hooks 必须无条件执行:本组件对不同 kind 的 tab 都会挂载,
+     早退分支只能放在全部 hooks 之后(否则切 tab 时 hooks 数量错配)。 */
   // 等待 cache 变 loaded 后强制重渲
   useEffect(() => {
     if (!path) return;
@@ -158,7 +136,17 @@ export function FileTabContent() {
     return () => window.clearInterval(timer);
   }, [path]);
 
-  if (!path || !payload) {
+  /* 多 kind 并存:非 file kind 的 tab(如 checkpoints 批审阅单)由各自插件的
+     挂载组件渲染,这里让位返回 null;无任何 tab 时本组件仍兜底空态 */
+  if (!active) {
+    return (
+      <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
+        选中一个文件查看
+      </div>
+    );
+  }
+  if (!isFileTab || !path || !payload) {
+    if (!isFileTab) return null;
     return (
       <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
         选中一个文件查看

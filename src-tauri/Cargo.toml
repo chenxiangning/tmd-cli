@@ -31,6 +31,8 @@ base64 = "0.22"
 # MD5(非安全用途):kimi CLI 的会话目录按 MD5(cwd) 哈希命名,前端算 cwd → 目录名。
 md-5 = "0.10"
 tauri-plugin-shell = { version = "2", default-features = false }
+# 右键菜单「移到废纸篓」:走系统回收站(可挽回),不做物理删除;codemoss 同款。
+trash = "5"
 # 产物体积与运行性能:lto 全量链接优化 + 单 codegen unit 提升内联,
 # strip 去符号表,panic=abort 省掉 unwinding 运行时(无跨 panic 边界逻辑)。
 [profile.release]

@@ -1,0 +1,225 @@
+/**
+ * 文件编辑器(FileTabContent v2)+ 命名弹窗(NamePrompt)样式。
+ *
+ * - .file-editor-* :中央文件 tab 的编辑器骨架 + 底部保存状态栏 + md 预览切换钮
+ * - .fvp-cm        :CodeMirror 实例的尺寸兜底(主题全在 cmEditorTheme 里)
+ * - .nprompt-*     :新建文件/文件夹、重命名的居中小卡片(codemoss FileTreePrompts)
+ */
+
+/* ===== 编辑器骨架 ===== */
+.file-editor-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.file-editor-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* CodeMirror 实例:填满 + 无双边框(颜色/字体在 cmEditorTheme) */
+.fvp-cm,
+.fvp-cm .cm-editor {
+  height: 100%;
+}
+
+.fvp-cm .cm-editor {
+  background: transparent;
+}
+
+.fvp-cm .cm-scroller {
+  overflow: auto;
+}
+
+/* ===== 底部矮工具条:状态文字在左,编辑/预览切换钮在右(md 才有) ===== */
+.file-editor-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 26px;
+  padding: 0 8px 0 12px;
+  border-top: 1px solid var(--tmd-border);
+  background: var(--tmd-bg-base);
+  color: var(--tmd-fg-muted);
+  font-size: 11px;
+  line-height: 1;
+  user-select: none;
+}
+
+.file-editor-toolbar.is-dirty {
+  color: var(--tmd-fg);
+}
+
+.file-editor-toolbar.is-error {
+  color: #f87171;
+}
+
+.file-editor-toolbar-status {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-mode-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 18px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--tmd-border);
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease;
+}
+
+.file-mode-toggle:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+  border-color: var(--tmd-border-strong);
+}
+
+/* ===== 命名弹窗(新建文件/文件夹/重命名) ===== */
+.nprompt-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(0, 0, 0, 0.32);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 18vh;
+}
+
+.nprompt-card {
+  width: min(380px, calc(100vw - 48px));
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--tmd-border);
+  background: var(--tmd-bg-elevated);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.nprompt-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tmd-fg);
+}
+
+.nprompt-parent {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--tmd-fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.nprompt-input {
+  margin-top: 10px;
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--tmd-border-strong);
+  background: var(--tmd-bg-base);
+  color: var(--tmd-fg);
+  font-size: 12px;
+  outline: none;
+}
+
+.nprompt-input:focus {
+  border-color: var(--tmd-accent);
+}
+
+.nprompt-error {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #f87171;
+  overflow-wrap: anywhere;
+}
+
+.nprompt-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.nprompt-btn {
+  height: 26px;
+  padding: 0 14px;
+  border-radius: 7px;
+  border: 1px solid var(--tmd-border);
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.nprompt-btn:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.nprompt-btn.is-primary {
+  border-color: transparent;
+  background: var(--tmd-accent);
+  color: var(--tmd-accent-fg);
+}
+
+.nprompt-btn.is-primary:hover {
+  background: var(--tmd-accent);
+  color: var(--tmd-accent-fg);
+  filter: brightness(1.08);
+}
+
+.nprompt-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ===== 文件树轻提示(复制成功/删除失败等瞬时反馈) ===== */
+.file-tree-panel {
+  position: relative;
+}
+
+.file-tree-notice {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 20;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--tmd-border);
+  background: var(--tmd-bg-elevated);
+  color: var(--tmd-fg);
+  font-size: 11px;
+  line-height: 1.3;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  pointer-events: none;
+  overflow-wrap: anywhere;
+}

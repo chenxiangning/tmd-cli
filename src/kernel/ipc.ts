@@ -230,9 +230,11 @@ export const ipc = {
     invoke<string>("fs_write_temp", { name, data: Array.from(data) }),
   fsReadFile: (path: string) => invoke<string>("fs_read_file", { path }),
   /* ── 文件编辑/管理写操作(右键菜单 + 编辑器保存;对齐 src-tauri/src/fs_edit.rs)── */
-  /** 覆写文本文件(保存/新建空文件)。后端拒绝相对路径与 .git 段。 */
+  /** 覆写文本文件(编辑器保存通道)。后端拒绝相对路径与 .git 段。 */
   fsWriteFile: (path: string, content: string) =>
     invoke<void>("fs_write_file", { path, content }),
+  /** 新建空文件;同名(文件/目录)已存在报错,绝不覆写 —— 新建走这里,不走 fsWriteFile。 */
+  fsCreateFile: (path: string) => invoke<void>("fs_create_file", { path }),
   /** 新建文件夹;同名已存在报错。 */
   fsCreateDir: (path: string) => invoke<void>("fs_create_dir", { path }),
   /** 同目录内改名;返回新绝对路径;目标撞名报错。 */

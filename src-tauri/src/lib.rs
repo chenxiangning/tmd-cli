@@ -331,6 +331,7 @@ pub fn run() {
             fs_read_tail,
             fs_remove_path,
             fs_edit::fs_write_file,
+            fs_edit::fs_create_file,
             fs_edit::fs_create_dir,
             fs_edit::fs_rename_entry,
             fs_edit::fs_trash_entry,

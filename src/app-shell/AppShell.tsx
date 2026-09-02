@@ -109,15 +109,17 @@ function FileTabIcon({ fileName }: { fileName: string }) {
   );
 }
 
-/** 单个 tab ─ 图标 + 名称 + detach + close。 */
+/** 单个 tab ─ 图标 + 名称(+ 脏标记圆点)+ detach + close。 */
 function FileTab({
   tabId,
   tabPath,
   isActive,
+  dirty,
 }: {
   tabId: string;
   tabPath: string;
   isActive: boolean;
+  dirty?: boolean;
 }) {
   const fileName = baseName(tabPath) || tabPath;
   return (
@@ -130,6 +132,8 @@ function FileTab({
       >
         <FileTabIcon fileName={fileName} />
         <span className="tab-main-label">{fileName}</span>
+        {/* 未保存圆点(useFileDocument 经 updateTab 上报) */}
+        {dirty ? <span className="tab-dirty-dot" aria-hidden /> : null}
       </button>
       <button
         type="button"
@@ -175,6 +179,7 @@ const EditorCenter = memo(function EditorCenter() {
               tabId={t.id}
               tabPath={t.path || t.title}
               isActive={t.id === activeId}
+              dirty={t.dirty}
             />
           ))}
         </div>
