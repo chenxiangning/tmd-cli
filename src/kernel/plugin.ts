@@ -9,6 +9,9 @@ import type { ComponentType } from "react";
 import type { EventBus } from "./events";
 import type { CliProfile } from "./cli";
 import type { SettingsSectionContribution } from "./settingsRegistry";
+/** 插件分类 —— 插件市场按类分排;"core" 同时意味着焊死(不可拔出)。 */
+export type PluginCategory = "engine" | "feature" | "core";
+
 /** 插件展示元数据 —— 插件市场(插排页)消费,与激活逻辑无关。 */
 export interface PluginMeta {
   /** 显示名,如 "Claude Code"。 */
@@ -17,8 +20,8 @@ export interface PluginMeta {
   desc: string;
   /** 插头/卡片的 monogram 缩写(≤2 字符),如 "CC"。 */
   abbr: string;
-  /** true = 焊死的核心插件,市场页不可拔出。 */
-  core?: boolean;
+  /** 分类:插排页分排依据;"core" = 焊死不可拔。 */
+  category: PluginCategory;
 }
 
 /** 外壳暴露的挂载点（第五轮决策：头/底工具栏为扩展预留）。 */

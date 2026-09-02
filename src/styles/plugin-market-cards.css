@@ -165,7 +165,6 @@
 
 /* 重启按钮:有待生效变更时 accent 高亮 + 计数。 */
 .pm-restart {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 5px;

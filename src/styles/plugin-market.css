@@ -37,8 +37,14 @@
   color: var(--tmd-fg-muted);
 }
 
-.pm-close {
+.pm-head-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pm-close {
   display: grid;
   place-items: center;
   width: 26px;
@@ -59,8 +65,13 @@
 
 .pm-strip-scene {
   position: relative;
-  margin: 56px 0 8px;
+  margin: 32px 0 8px;
   padding: 64px 0 0; /* 给拔起的插头留上方空间 */
+}
+
+/* 分类分排:相邻插排收紧间距(首排与页头间距不变)。 */
+.pm-strip-scene + .pm-strip-scene {
+  margin-top: 24px;
 }
 
 .pm-strip {

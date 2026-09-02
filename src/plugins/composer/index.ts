@@ -12,7 +12,7 @@ import { Composer } from "./view/Composer";
 import { ComposerToolbar } from "./view/ComposerToolbar";
 export const composerPlugin: Plugin = {
   id: "composer",
-  meta: { name: "输入区", abbr: "CP", desc: "Composer:富文本输入、附件、建议", core: true },
+  meta: { name: "输入区", abbr: "CP", desc: "Composer:富文本输入、附件、建议", category: "core" },
   activate(ctx) {
     ctx.contribute("editorCenter.composer", {
       order: 0,

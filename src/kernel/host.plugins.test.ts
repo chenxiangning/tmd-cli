@@ -31,7 +31,7 @@ const activated: string[] = [];
 function mkPlugin(id: string, dependsOn?: string[]): Plugin {
   return {
     id,
-    meta: { name: id, abbr: id.slice(0, 2).toUpperCase(), desc: id },
+    meta: { name: id, abbr: id.slice(0, 2).toUpperCase(), desc: id, category: "feature" },
     dependsOn,
     activate: () => {
       activated.push(id);

@@ -10,7 +10,7 @@ import { WelcomePage } from "./WelcomePage";
 
 export const welcomePlugin: Plugin = {
   id: "welcome",
-  meta: { name: "欢迎页", abbr: "WL", desc: "无会话首页:引擎卡片、凭据、最近会话", core: true },
+  meta: { name: "欢迎页", abbr: "WL", desc: "无会话首页:引擎卡片、凭据、最近会话", category: "core" },
   activate(ctx) {
     ctx.contribute("editorCenter.welcome", {
       order: 0,

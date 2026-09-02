@@ -119,7 +119,7 @@ async function listClaudeSkillSuggestions(): Promise<CliSuggestion[]> {
  */
 export const cliClaudePlugin: Plugin = {
   id: "cli-claude",
-  meta: { name: "Claude Code", abbr: "CC", desc: "Claude Code 引擎:项目会话、skill 提示" },
+  meta: { name: "Claude Code", abbr: "CC", desc: "Claude Code 引擎:项目会话、skill 提示", category: "engine" },
   activate(ctx) {
     // 注册 claude quota provider(settings.json env 凭据 → 供应商 HTTP 面)。
     registerClaudeQuotaProvider();
