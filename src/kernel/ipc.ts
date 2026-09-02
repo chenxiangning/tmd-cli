@@ -115,6 +115,76 @@ export interface GitCommitInput {
   amend: boolean;
 }
 
+/* ── checkpoints 契约(对齐 src-tauri/src/checkpoints/*,serde camelCase)── */
+
+/** 快照内单文件记录(Rust SnapFile 镜像)。 */
+export interface CkptSnapFile {
+  path: string;
+  /** 工作区内容在 sidecar 的 blob hex;"" = 未存(existed=false 或 skip) */
+  oid: string;
+  /** git 侧(index)基线 blob hex;"" = untracked 无基线 */
+  baseOid: string;
+  existed: boolean;
+  bytes: number;
+  skip: string | null;
+  status: string;
+}
+
+export interface CkptSnapshot {
+  id: string;
+  ts: number;
+  kind: "anchor" | "guard";
+  sessionId: string;
+  prompt: string;
+  files: CkptSnapFile[];
+}
+
+/** live 相对批后像:same 可回退 / changed 内容已变 / committed 已入 git / reverted 已退 */
+export interface CkptBatchFile {
+  path: string;
+  status: string;
+  reverted: boolean;
+  live: "same" | "changed" | "committed" | "reverted";
+  stale: boolean;
+}
+
+export interface CkptBatch {
+  id: string;
+  /** 1-based 显示序号(老 → 新) */
+  index: number;
+  open: boolean;
+  ts: number;
+  tsEnd: number | null;
+  sessionId: string;
+  prompt: string;
+  state: "pending" | "reverted" | "done";
+  doneReason: string | null;
+  guardId: string | null;
+  files: CkptBatchFile[];
+}
+
+export interface CkptPatch {
+  path: string;
+  kind: "A" | "D" | "M";
+  additions: number;
+  deletions: number;
+  patch: string;
+  binary: boolean;
+}
+
+export interface CkptSkipEntry {
+  path: string;
+  reason: string;
+}
+
+export interface CkptRestoreOutcome {
+  restored: string[];
+  deleted: string[];
+  skipped: CkptSkipEntry[];
+  guardId: string | null;
+  state: "pending" | "reverted";
+}
+
 export interface GitLogEntry {
   shortSha: string;
   longSha: string;
@@ -158,11 +228,47 @@ export const ipc = {
   fsWriteTemp: (name: string, data: Uint8Array) =>
     invoke<string>("fs_write_temp", { name, data: Array.from(data) }),
   fsReadFile: (path: string) => invoke<string>("fs_read_file", { path }),
+  /* ── 文件编辑/管理写操作(右键菜单 + 编辑器保存;对齐 src-tauri/src/fs_edit.rs)── */
+  /** 覆写文本文件(保存/新建空文件)。后端拒绝相对路径与 .git 段。 */
+  fsWriteFile: (path: string, content: string) =>
+    invoke<void>("fs_write_file", { path, content }),
+  /** 新建文件夹;同名已存在报错。 */
+  fsCreateDir: (path: string) => invoke<void>("fs_create_dir", { path }),
+  /** 同目录内改名;返回新绝对路径;目标撞名报错。 */
+  fsRenameEntry: (path: string, newName: string) =>
+    invoke<string>("fs_rename_entry", { path, newName }),
+  /** 移入系统废纸篓;路径不存在幂等成功。 */
+  fsTrashEntry: (path: string) => invoke<void>("fs_trash_entry", { path }),
+  /** 在系统文件管理器中显示并选中(macOS Finder / Win 资源管理器)。 */
+  fsRevealInFileManager: (path: string) =>
+    invoke<void>("fs_reveal_in_file_manager", { path }),
   /** 本地图片 → data URL(markdown 预览 asset:// 失败回退;Rust 侧白名单+大小闸)。 */
   readLocalImageDataUrl: (path: string) =>
     invoke<string>("read_local_image_data_url", { path }),
   /* ── git(右栏面板;cwd 由调用方从活跃 workspace 取)── */
   gitStatus: (cwd: string) => invoke<GitDiffStatus>("git_status", { cwd }),
+
+  /* ── checkpoints(批次审批/回退;契约对齐 src-tauri/src/checkpoints/*,serde camelCase)
+   * E_* 前缀:E_NOT_A_REPO / E_EMPTY / E_STORE / E_GIT2 / E_IO ── */
+
+  /** 锚点快照:用户消息发送瞬间调用;失败不阻塞发送(调用方 catch 重试一次)。 */
+  checkpointCapture: (cwd: string, sessionId: string, prompt: string) =>
+    invoke<CkptSnapshot>("checkpoint_capture", { cwd, sessionId, prompt }),
+  /** 批次清单(含 live 分类与状态合成);按需调用,勿挂轮询。 */
+  checkpointList: (cwd: string) => invoke<CkptBatch[]>("checkpoint_list", { cwd }),
+  /** sealed 批次逐文件 unified patch;open 批用 gitDiffFilePatch。 */
+  checkpointBatchDiff: (cwd: string, batchId: string) =>
+    invoke<CkptPatch[]>("checkpoint_batch_diff", { cwd, batchId }),
+  /** 回退整批或子集;返回恢复点 id 供反悔。 */
+  checkpointRestore: (cwd: string, batchId: string, paths?: string[]) =>
+    invoke<CkptRestoreOutcome>("checkpoint_restore", { cwd, batchId, paths: paths ?? null }),
+  /** 反悔:用守卫快照写回回退前状态。 */
+  checkpointUndoRevert: (cwd: string, batchId: string) =>
+    invoke<CkptRestoreOutcome>("checkpoint_undo_revert", { cwd, batchId }),
+  /** 保留策略清理(低频)。返回删除的批次数。 */
+  checkpointPrune: (cwd: string, keep: number, ttlDays: number) =>
+    invoke<number>("checkpoint_prune", { cwd, keep, ttlDays }),
+
   /** 低频:聚合 ±行数(全仓 diff×2),仅在写操作后/手动刷新拉,勿挂轮询。 */
   gitTotals: (cwd: string) => invoke<GitTotals>("git_totals", { cwd }),
   /** 低频:ahead/behind 仅在 fetch/切分支/手动刷新后拉,勿挂轮询。 */

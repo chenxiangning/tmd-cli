@@ -24,6 +24,8 @@ export interface EditorTab {
   kind: string;
   /** 插件自定义负载:tabContent mount 按 id 渲染时读这个。 */
   payload: unknown;
+  /** 文件 tab 专用:有未保存修改时 tab 栏渲染圆点。由编辑侧经 updateTab 维护。 */
+  dirty?: boolean;
 }
 
 interface TabState {
@@ -46,9 +48,15 @@ function refreshSnapshot(): TabState {
   return snapshot;
 }
 
-export function openTab(tab: EditorTab): void {
+export function openTab(tab: EditorTab, opts?: { refresh?: boolean }): void {
   const existing = state.tabs.find((t) => t.id === tab.id);
   if (existing) {
+    /* refresh(显式 opt-in):激活并把 title/payload 刷成最新 —— 深链重开场景
+       payload 携带新的定位目标;缺省保持旧语义(保留首次注册,不覆盖) */
+    if (opts?.refresh) {
+      existing.title = tab.title;
+      existing.payload = tab.payload;
+    }
     state.activeId = tab.id;
   } else {
     state.tabs.push(tab);
@@ -60,6 +68,22 @@ export function openTab(tab: EditorTab): void {
 
 export function closeTab(id: string): void {
    state.tabs = state.tabs.filter((t) => t.id !== id);
+  refreshSnapshot();
+  emit();
+}
+
+/**
+ * 原地合并 tab 字段(title/dirty 等)—— openTab 对已存在 id 只激活不覆盖,
+ * 编辑态(脏标记)需要单独的更新通道。id 不存在时静默忽略(不复活已关 tab)。
+ */
+export function updateTab(
+  id: string,
+  patch: Partial<Pick<EditorTab, "title" | "dirty">>,
+): void {
+  const tab = state.tabs.find((t) => t.id === id);
+  if (!tab) return;
+  if (patch.title !== undefined) tab.title = patch.title;
+  if (patch.dirty !== undefined) tab.dirty = patch.dirty;
   refreshSnapshot();
   emit();
 }

@@ -20,6 +20,7 @@ import { workspacePlugin } from "./workspace";
 import { settingsPlugin } from "./settings";
 import { welcomePlugin } from "./welcome";
 import { networkProxyPlugin } from "./network-proxy";
+import { checkpointsPlugin } from "./checkpoints";
 
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
@@ -34,6 +35,7 @@ export const allPlugins: Plugin[] = [
   workspacePlugin,
   filesPlugin,
   gitPlugin,
+  checkpointsPlugin,
   composerPlugin,
   settingsPlugin,
   networkProxyPlugin,

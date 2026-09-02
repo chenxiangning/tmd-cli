@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { host } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
+import { KernelTopics } from "@kernel/events";
 import { Mounts } from "@kernel/Mounts";
 import { openSettingsPanel, useSettingsState } from "@kernel/settings";
 import { setFilePanelMode } from "@kernel/filePanel";
@@ -120,6 +121,7 @@ export function Composer() {
     const text = drawerWireText(item);
     const wire = prepareSendPayload(profile, text);
     host.writeSession(sid, wire);
+    host.events.emit(KernelTopics.promptSent, { sessionId: sid, text: text.slice(0, 400) });
     return wire.replace(/\r$/, "");
   }
 
@@ -230,7 +232,10 @@ export function Composer() {
       host.events.emit("git://composer-prefill", { message: trimmed.slice(8).trim() });
     }
     const payload = prepareSendPayload(profile, value);
-    host.writeSession(host.getActiveSessionId()!, payload);
+    const sid = host.getActiveSessionId()!;
+    host.writeSession(sid, payload);
+    /* 锚点快照信号(checkpoints 消费):仅此处与抽屉发送 emit —— 幕布击键同走 writeSession,不能当 prompt */
+    host.events.emit(KernelTopics.promptSent, { sessionId: sid, text: trimmed.slice(0, 400) });
     setValue("");
     clearAttachments();
     setMatches(null);

@@ -35,7 +35,19 @@ export const KernelTopics = {
   turnSettled: "kernel.sessions.turn.settled",
   /** 会话新进入等待用户确认(Ask 标记命中,本轮首次)。payload: sessionId */
   askDetected: "kernel.sessions.ask.detected",
+  /**
+   * 一条用户 prompt 已写入 PTY。payload: { sessionId, text }
+   * 常量归内核,emit 归 composer —— 发送语义是 composer 的知识
+   * (幕布击键同样走 writeSession,不能当 prompt)。消费方:checkpoints 插件打锚点快照。
+   */
+  promptSent: "kernel.sessions.prompt",
 } as const;
+
+/** promptSent 负载:text = 发送的原文(prepareSendPayload 前,translate 后的展示文本截断)。 */
+export interface PromptSentEvent {
+  sessionId: string;
+  text: string;
+}
 
 /** turnSettled 负载:unviewed = 结算时未被查看(即标了完成未读);settledAt = 末次输出时刻。 */
 export interface TurnSettledEvent {

@@ -1,12 +1,22 @@
 /**
- * 文件内容 tab 渲染 —— md 走 markdown 渲染管线(照抄 codemoss 富路径),
- * 其余文本经 fileHighlighter 注册点高亮;未注册或失败时降级到 <pre> 直渲。
+ * 文件内容 tab 渲染 —— v2:文本文件直接进 CodeMirror 编辑(可写、⌘S 保存、
+ * 草稿保留),md 默认走 markdown 渲染管线 + 右上角「编辑/预览」切换,
+ * 其余形态(二进制/超大/读取失败)维持只读占位。
+ *
+ * 旧的高亮只读预览被编辑器取代(fileHighlighter 注册点保留,预览管线不动)。
  */
 
 import { Suspense, lazy, useEffect, useState } from "react";
-import { ipc } from "@kernel/ipc";
+import { Eye, Pencil } from "lucide-react";
 import { useEditorTabs } from "@kernel/tabs";
-import { getFileHighlighter } from "@kernel/fileHighlighter";
+import { cacheGet, loadFile } from "./editor/fileCache";
+
+/* 编辑器(CodeMirror 全家 + 主题/语言包)按需拆包:真正进入编辑态才拉 chunk。
+   useFileDocument 只依赖轻量 fileCache,静态引入不拖累拆包。 */
+const FileCodeEditor = lazy(() =>
+  import("./editor/FileCodeEditor").then((m) => ({ default: m.FileCodeEditor })),
+);
+import { useFileDocument } from "./editor/useFileDocument";
 
 /* md 预览管线(react-markdown/katex/mermaid/viewerjs 体积大)按需拆包:
    仅当真正打开 md 文件时才加载该 chunk。 */
@@ -18,74 +28,121 @@ const FileMarkdownPreview = lazy(() =>
 
 const MARKDOWN_FILE_RE = /\.(md|markdown|mdx)$/i;
 
-interface FilePayload {
-  path: string;
-  content: string | null;
-  error: string | null;
-  loaded: boolean;
-}
+/** md 编辑/预览偏好(按路径,进程内记住,切 tab 不丢)。 */
+const mdEditMode = new Map<string, boolean>();
 
-/* 文件内容缓存:字节预算 LRU —— 命中提新,总占用超 32MB 时淘汰最旧条目,
-   防止长时间浏览大文件后内存无界增长。Map 迭代序 = 插入序,即新旧序。 */
-const FILE_CACHE_BYTE_BUDGET = 32 * 1024 * 1024;
-const fileCache = new Map<string, FilePayload>();
-let fileCacheBytes = 0;
-
-/** 条目字节估算(UTF-16: length × 2) —— 仅作预算记账,不追求精确。 */
-function payloadBytes(p: FilePayload): number {
-  return p.content ? p.content.length * 2 : 0;
-}
-
-function cacheGet(path: string): FilePayload | undefined {
-  const hit = fileCache.get(path);
-  if (hit) {
-    /* LRU:命中即提新(delete + set 把条目移到最新位) */
-    fileCache.delete(path);
-    fileCache.set(path, hit);
-  }
-  return hit;
-}
-
-function cacheSet(path: string, payload: FilePayload): void {
-  const prev = fileCache.get(path);
-  if (prev) fileCacheBytes -= payloadBytes(prev);
-  fileCache.delete(path);
-  fileCache.set(path, payload);
-  fileCacheBytes += payloadBytes(payload);
-  /* 超预算淘汰最旧;刚写入的这条永远保留(单文件超预算也容忍) */
-  let oldest = fileCache.keys().next();
-  while (fileCacheBytes > FILE_CACHE_BYTE_BUDGET && !oldest.done && oldest.value !== path) {
-    fileCacheBytes -= payloadBytes(fileCache.get(oldest.value)!);
-    fileCache.delete(oldest.value);
-    oldest = fileCache.keys().next();
-  }
-}
-
-function loadFile(path: string): FilePayload {
-  const cached = cacheGet(path);
-  if (cached) return cached;
-  const fresh: FilePayload = { path, content: null, error: null, loaded: false };
-  cacheSet(path, fresh);
-  ipc.fsReadFile(path).then(
-    (content) => {
-      /* 条目可能已被 LRU 淘汰:直接重插结果(幂等,不复活半状态) */
-      cacheSet(path, { path, content, error: null, loaded: true });
-    },
-    (e) => {
-      cacheSet(path, { path, content: null, error: String(e), loaded: true });
-    },
+/** 编辑器明暗跟随 <html data-theme>(custom preset 也只二分 dark/light)。 */
+function useDarkTheme(): boolean {
+  const [dark, setDark] = useState(
+    () => document.documentElement.dataset.theme === "dark",
   );
-  return fresh;
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => {
+      setDark(root.dataset.theme === "dark");
+    });
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
+  return dark;
 }
+
+/** 单文件编辑面板:key={path} 挂载 —— 文档状态随文件切换整体重建。 */
+function FileEditorSurface({ path, diskContent }: { path: string; diskContent: string }) {
+  const doc = useFileDocument(path, diskContent);
+  const dark = useDarkTheme();
+  const status =
+    doc.error ?? (doc.saving ? "保存中…" : doc.dirty ? "● 未保存的更改 · ⌘S 保存" : "已保存");
+  return (
+    <div className="file-editor-surface">
+      <div className="file-editor-body">
+        <Suspense fallback={LOADING}>
+          <FileCodeEditor
+            path={path}
+            value={doc.content}
+            dark={dark}
+            onChange={doc.setDoc}
+            onSave={doc.save}
+          />
+        </Suspense>
+      </div>
+      <div
+        className={`file-editor-status${doc.error ? " is-error" : doc.dirty ? " is-dirty" : ""}`}
+        role="status"
+      >
+        {status}
+      </div>
+    </div>
+  );
+}
+
+/** 单文件主体:key={path} —— md 切换偏好等局部状态随文件重建。 */
+function FileTabBody({ path, content }: { path: string; content: string }) {
+  const isMd = MARKDOWN_FILE_RE.test(path);
+  const [mdEditor, setMdEditor] = useState(() => mdEditMode.get(path) ?? false);
+
+  const showEditor = !isMd || mdEditor;
+  return (
+    <div className="file-editor-shell">
+      <div className="file-editor-main">
+        {showEditor ? (
+          <FileEditorSurface path={path} diskContent={content} />
+        ) : (
+          /* md 预览自带滚动容器(fvp-markdown-preview-frame/scroll,章节浮窗锚点依赖它) */
+          <Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
+                加载中…
+              </div>
+            }
+          >
+            <FileMarkdownPreview value={content} sourceFilePath={path} />
+          </Suspense>
+        )}
+        {isMd ? (
+          <button
+            type="button"
+            className="file-mode-toggle"
+            title={mdEditor ? "预览" : "编辑"}
+            onClick={() => {
+              const next = !mdEditor;
+              mdEditMode.set(path, next);
+              setMdEditor(next);
+            }}
+          >
+            {mdEditor ? <Eye size={12} aria-hidden /> : <Pencil size={12} aria-hidden />}
+            {mdEditor ? "预览" : "编辑"}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+const LOADING = (
+  <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
+    加载中…
+  </div>
+);
 
 export function FileTabContent() {
   const { activeId, tabs } = useEditorTabs();
   const active = tabs.find((t) => t.id === activeId);
   const [, setTick] = useState(0);
-  const [highlighted, setHighlighted] = useState<string | null>(null);
 
-  const path = active?.kind === "file" ? active.path : null;
-  const payload = path ? loadFile(path) : null;
+  /* 多 kind 并存:非 file kind 的 tab(如 checkpoints 批审阅单)由各自插件的
+     挂载组件渲染,这里让位返回 null;无任何 tab 时本组件仍兜底空态 */
+  if (!active) {
+    return (
+      <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
+        选中一个文件查看
+      </div>
+    );
+  }
+  if (active.kind !== "file") return null;
+
+  const path = active.path;
+  const payload = loadFile(path);
 
   // 等待 cache 变 loaded 后强制重渲
   useEffect(() => {
@@ -101,27 +158,7 @@ export function FileTabContent() {
     return () => window.clearInterval(timer);
   }, [path]);
 
-  // 高亮(经注册点,可插拔)
-  useEffect(() => {
-    if (!payload?.loaded || !payload.content || !path) {
-      setHighlighted(null);
-      return;
-    }
-    const highlighter = getFileHighlighter();
-    if (!highlighter || !highlighter.supports(path)) {
-      setHighlighted(null);
-      return;
-    }
-    let cancelled = false;
-    void highlighter.highlight(path, payload.content).then((html) => {
-      if (!cancelled) setHighlighted(html);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [payload?.loaded, payload?.content, path]);
-
-  if (!active || active.kind !== "file" || !payload) {
+  if (!path || !payload) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
         选中一个文件查看
@@ -137,46 +174,7 @@ export function FileTabContent() {
     );
   }
 
-  if (!payload.loaded) {
-    return (
-      <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
-        加载中…
-      </div>
-    );
-  }
+  if (!payload.loaded) return LOADING;
 
-  if (path && MARKDOWN_FILE_RE.test(path)) {
-    /* md 预览自带滚动容器(fvp-markdown-preview-frame/scroll,章节浮窗锚点依赖它),
-       外层不再包 overflow-auto,避免双滚动条。 */
-    return (
-      <div className="flex h-full flex-col">
-        <Suspense
-          fallback={
-            <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
-              加载中…
-            </div>
-          }
-        >
-          <FileMarkdownPreview value={payload.content ?? ""} sourceFilePath={path} />
-        </Suspense>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex h-full flex-col">
-      <div className="min-h-0 flex-1 overflow-auto">
-        {highlighted ? (
-          <div
-            className="hljs-preview p-3 text-xs leading-[1.58]"
-            dangerouslySetInnerHTML={{ __html: highlighted }}
-          />
-        ) : (
-          <pre className="p-3 text-xs leading-[1.58] text-(--tmd-fg)">
-            {payload.content}
-          </pre>
-        )}
-      </div>
-    </div>
-  );
+  return <FileTabBody key={path} path={path} content={payload.content ?? ""} />;
 }
