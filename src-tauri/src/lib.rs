@@ -1,4 +1,6 @@
+mod checkpoints;
 mod fs;
+mod fs_edit;
 mod git;
 mod hash;
 mod installer;
@@ -328,9 +330,20 @@ pub fn run() {
             fs_read_head,
             fs_read_tail,
             fs_remove_path,
+            fs_edit::fs_write_file,
+            fs_edit::fs_create_dir,
+            fs_edit::fs_rename_entry,
+            fs_edit::fs_trash_entry,
+            fs_edit::fs_reveal_in_file_manager,
             md5_hex,
             read_local_image_data_url,
             git::commands::git_status,
+            checkpoints::commands::checkpoint_capture,
+            checkpoints::commands::checkpoint_list,
+            checkpoints::commands::checkpoint_batch_diff,
+            checkpoints::commands::checkpoint_restore,
+            checkpoints::commands::checkpoint_undo_revert,
+            checkpoints::commands::checkpoint_prune,
             git::commands::git_totals,
             git::commands::git_ahead_behind,
             git::commands::git_diff_file_patch,
