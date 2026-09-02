@@ -15,11 +15,9 @@ pub fn omp_auth_credential(provider: String) -> Result<Option<String>, String> {
     if !db_path.exists() {
         return Ok(None);
     }
-    let conn = rusqlite::Connection::open_with_flags(
-        &db_path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .map_err(|e| format!("open omp agent.db: {e}"))?;
+    let conn =
+        rusqlite::Connection::open_with_flags(&db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .map_err(|e| format!("open omp agent.db: {e}"))?;
     let mut stmt = conn
         .prepare(
             "SELECT data FROM auth_credentials \
@@ -30,7 +28,10 @@ pub fn omp_auth_credential(provider: String) -> Result<Option<String>, String> {
     let mut rows = stmt
         .query(rusqlite::params![provider])
         .map_err(|e| format!("query omp credential: {e}"))?;
-    match rows.next().map_err(|e| format!("read omp credential row: {e}"))? {
+    match rows
+        .next()
+        .map_err(|e| format!("read omp credential row: {e}"))?
+    {
         Some(row) => {
             let data: String = row
                 .get(0)
@@ -50,10 +51,9 @@ pub fn omp_auth_providers() -> Vec<String> {
     if !db_path.exists() {
         return Vec::new();
     }
-    let Ok(conn) = rusqlite::Connection::open_with_flags(
-        &db_path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    ) else {
+    let Ok(conn) =
+        rusqlite::Connection::open_with_flags(&db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+    else {
         return Vec::new();
     };
     let Ok(mut stmt) = conn.prepare(
@@ -68,4 +68,3 @@ pub fn omp_auth_providers() -> Vec<String> {
         Err(_) => Vec::new(),
     }
 }
-

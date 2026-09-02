@@ -37,6 +37,8 @@ flowchart TB
             P_PI["cli-pi<br/>profile: pi<br/>$→/skill: 翻译"]
             P_CODEX["cli-codex<br/>profile: codex<br/>纯透传"]
             P_CLAUDE["cli-claude<br/>profile: claude<br/>$→/skill-name 翻译"]
+            P_GROK["cli-grok<br/>profile: grok<br/>npm @xai-official/grok"]
+            P_KIMI["cli-kimi<br/>profile: kimi<br/>$→/skill: 翻译<br/>MD5(cwd) 目录会话"]
             P_WS["workspace<br/>leftSidebar.section"]
             P_FILES["files<br/>文件树 + FileTabContent<br/>注册默认高亮/视觉"]
             P_GIT["git（占位）"]
@@ -46,21 +48,22 @@ flowchart TB
     end
 
     subgraph BE["Tauri Rust 后端（src-tauri/src/）"]
-        LIB["lib.rs<br/>28 个 tauri::command 注册(lib.rs 24 + quota.rs 2 + omp_auth.rs 2)"]
+        LIB["lib.rs<br/>45 个 tauri::command 注册(lib.rs 26 + git 15 + quota 2 + omp_auth 2)"]
         PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出"]
         SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
         RESOLVE["resolve.rs<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
         PROBE["probe.rs<br/>CLI 探针 found/path/version(8s 超时)"]
         INST["installer.rs<br/>一键安装 CLI(npm -g / claude native)流式日志"]
         OAUTH["omp_auth.rs<br/>omp agent.db 凭据只读(sqlite)"]
-        SESS["session.rs — SessionRegistry<br/>sessions.json / workspaces.json 持久化"]
-        FS["fs.rs<br/>list_dir / read_file / read_head / read_tail / collect_files"]
-        GIT["git.rs<br/>git CLI shell-out（status）"]
+        SESS["session.rs — SessionRegistry<br/>活会话纯内存表(不落盘)<br/>workspaces.json 持久化"]
+        FS["fs.rs<br/>list_dir / read_file / read_head / read_tail / collect_files / remove_path(白名单)"]
+        GIT["git/<br/>libgit2 原语(status/diff/branch/log/commit)<br/>远端 fetch/pull/push shell-out(300s 总超时)"]
+        HASH["hash.rs<br/>md5_hex 通用哈希原语"]
     end
 
-    EXT["外部 CLI 子进程<br/>omp / pi / codex（PTY slave）"]
+    EXT["外部 CLI 子进程<br/>omp / pi / codex / claude / grok / kimi（PTY slave）"]
     DISK["~/.tmd-cli/<br/>sessions.json · workspaces.json · tmp/"]
-    CLIDATA["CLI 自身 session 落盘<br/>OMP / Pi / Codex JSONL"]
+    CLIDATA["CLI 自身 session 落盘<br/>OMP / Pi / Codex / Claude / Kimi"]
 
     MAIN --> SHELL & KERNEL
     KERNEL -->|registerCliProfile / contribute| PLUGINS
@@ -98,7 +101,7 @@ sequenceDiagram
     participant M as main.tsx
     participant H as host (Host 单例)
     participant R as Rust: session_list
-    participant P as allPlugins (9 个)
+    participant P as allPlugins (12 个)
     participant C as contributions.tsx
     participant A as AppShell
 
@@ -106,7 +109,7 @@ sequenceDiagram
     Note over H: activation Promise 单例<br/>挡 StrictMode 双调用
     par 激活与恢复并行
         H->>P: 拓扑序 activate(ctx)<br/>dependsOn 未就绪则等下一轮<br/>无进展 → 抛"依赖环或缺失"
-        P-->>H: registerCliProfile ×4<br/>contribute 挂点 ×N
+        P-->>H: registerCliProfile ×6<br/>contribute 挂点 ×N
     and
         H->>R: ipc.sessionList()
         R-->>H: 历史 SessionMeta[]<br/>（只恢复元数据，不重 spawn PTY）
@@ -229,25 +232,26 @@ flowchart TD
 ```
 
 状态读取不会写回 Rust `SessionMeta`。`cliSessionIds` 和 `sessionStatuses` 是 Host 运行时内存态；CLI 原生 session 文件仍由各 CLI 自己维护。
-### 5.1 CLI 会话存储共性（四家实证,新业务功能先查此表）
+### 5.1 CLI 会话存储共性（五家实证,新业务功能先查此表）
 
-| 能力 | omp | pi | claude | codex |
-|---|---|---|---|---|
-| 存储 | `~/.omp/agent/sessions/<slug>/<ts>_<uuid>.jsonl` | `~/.pi/agent/sessions/<slug>/<ts>_<uuid>.jsonl` | `~/.claude/projects/<slug>/<uuid>.jsonl` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<ts>-<uuid>.jsonl` |
-| cwd 分区 | 目录 slug | 目录 slug(规则与 omp 不同!) | 目录 slug | 无,读首行 `session_meta.payload.cwd` 过滤 |
-| 原生标题 | 首行 `type:"title"` 记录(定长 pad 覆写) + `title_change` 事件 | `title_change` 事件 + session 行 title | `type:"summary"` 行(部分版本不落) | 无概念 |
-| 标题兜底 | — | — | 首条 `type:"user"` 消息 | 首条 `role:"user"` 的 `response_item` |
+| 能力 | omp | pi | claude | codex | kimi |
+|---|---|---|---|---|---|
+| 存储 | `~/.omp/agent/sessions/<slug>/<ts>_<uuid>.jsonl` | `~/.pi/agent/sessions/<slug>/<ts>_<uuid>.jsonl` | `~/.claude/projects/<slug>/<uuid>.jsonl` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<ts>-<uuid>.jsonl` | `~/.kimi/sessions/<MD5(cwd)>/<uuid>/wire.jsonl` |
+| cwd 分区 | 目录 slug | 目录 slug(规则与 omp 不同!) | 目录 slug | 无,读首行 `session_meta.payload.cwd` 过滤 | MD5(cwd) 目录哈希(会话文件内无 cwd,Rust `md5_hex` 原语计算) |
+| 原生标题 | 首行 `type:"title"` 记录(定长 pad 覆写) + `title_change` 事件 | `title_change` 事件 + session 行 title | `type:"summary"` 行(部分版本不落) | 无概念 | 无(TUI 内存推导,wire.jsonl 不落标题事件) |
+| 标题兜底 | — | — | 首条 `type:"user"` 消息 | 首条 `role:"user"` 的 `response_item` | 首条 `TurnBegin` 用户输入 |
 
 共性法则（2026-09 会话列表功能沉淀）：
 
 1. **标题提取统一走 `kernel/diskSessions.ts#extractJsonlTitle`（纯函数）**：
    `title 记录 > session 行 title > summary > 首条用户消息`，逐行 try/catch 容忍 head 截断。
-   各插件只声明自己的 head 窗口（omp/pi 8KB / claude 32KB / codex 128KB 且先 4KB meta 过滤再读大窗）。
+   各插件只声明自己的 head 窗口（omp/pi 8KB / claude 32KB / codex 128KB 且先 4KB meta 过滤再读大窗 / kimi 8KB）。
 2. **手动重命名 = 应用侧覆盖层（`settings.sessionTitles`），禁止写回 CLI 磁盘文件**：
    omp/pi 的 title 记录是定长 pad 覆写格式，改写有长度/并发风险；claude/codex 无原生 rename 概念，
    追加异构行有解析破坏风险。覆盖层 key = `${profileId}:${cliSessionId}`，显示优先级最高。
-3. **删除会话 = 双端统一物理删除 jsonl（`fs_remove_file`，NotFound 幂等成功）**：
-   活会话先删已绑定磁盘文件再 kill PTY；磁盘会话直接删文件。UI 侧两步确认防误删。
+3. **删除会话 = 双端统一物理删除（`fs_remove_path`，NotFound 幂等成功）**：
+   活会话先删已绑定磁盘文件/目录再 kill PTY；磁盘会话直接删。kimi 会话是目录
+   (`<uuid>/wire.jsonl`),按整目录删避免 CLI /sessions 留幽灵会话。UI 侧两步确认防误删。
 4. **呼吸灯三态归内核 Host 结算（活动守望 1Hz）**：绿(2s 内有输出) → 蓝(静默结算时未被查看,
    组内置顶) → 点开即清(灰)。UI 只读 `host.isUnread`，不各自实现状态机。
 

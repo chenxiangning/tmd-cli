@@ -4,8 +4,8 @@
 //! 设计决策(对齐 codemoss cli_installer.run_binary_version,但更薄):
 //! - 单一入口 `probe_cli` → `CliProbeResult`,供 Tauri command 包装。
 //! - 超时硬限 8s,避免 PATH 中挂死的 binary 卡住首屏。
-//! - login shell PATH 进程内缓存一次(OnceLock):probe 是只读探针,
-//!   不需要像 PTY spawn 那样每次取最新;用户改了 PATH 重启应用即可。
+//! - PATH 与 pty/installer 同源(enriched_path),进程内缓存一次:probe 是
+//!   只读探针;用户改了 PATH 重启应用即可。
 //! - 不查 latest_version / update_available:UI 只需"装了/没装 + 当前版本",
 //!   是否要升级是后续版本的事。
 //!
@@ -17,14 +17,17 @@ use std::process::Command;
 use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
-use crate::resolve::{login_shell_path, wait_child_with_timeout};
+use crate::resolve::{enriched_path, wait_child_with_timeout};
 
 /// 探针超时硬限(秒)。与 codemoss PREFLIGHT_TIMEOUT_SECS=8 对齐。
 const PROBE_TIMEOUT_SECS: u64 = 8;
 
-/// login shell PATH 进程级缓存。探针调用频繁(启动 4 个 + 每次开 overlay 4 个),
-/// 每次 spawn login shell(3s 超时上限)不可接受;进程内只算一次。
-static LOGIN_PATH: LazyLock<Option<String>> = LazyLock::new(login_shell_path);
+/// 探针 PATH 进程级缓存:enriched_path = login shell > 进程 PATH > 常见安装
+/// 目录兜底。曾直接用裸 login_shell_path():rc 慢的机器(代理检测/端口扫描类
+/// zshrc 秒级起步)撞 3s 硬超时返回 None,而 LazyLock 把 None 永久缓存 →
+/// 所有引擎误报"未安装"且刷新键无法自愈。富化 PATH 的兜底层保证超时只损失
+/// login shell 独有目录,不再致盲。
+static PROBE_PATH: LazyLock<&'static str> = LazyLock::new(enriched_path);
 
 /// 探针结果。`found=false` 时 path/version 都是 None,前端按"未安装"渲染。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,8 +79,8 @@ fn find_binary_absolute(command: &str) -> Option<String> {
         return Some(command.to_string());
     }
 
-    /* 裸名:在 login shell PATH 中找(进程内缓存)。 */
-    let path = LOGIN_PATH.clone().unwrap_or_default();
+    /* 裸名:在富化 PATH(login shell > 进程 > 兜底目录)中找(进程内缓存)。 */
+    let path = *PROBE_PATH;
     for dir in std::env::split_paths(std::ffi::OsStr::new(&path)) {
         let candidate = dir.join(command);
         if is_executable_file(&candidate) {
@@ -169,5 +172,15 @@ mod tests {
         assert!(json.contains("\"found\":false"));
         assert!(json.contains("\"command\":\"x\""));
         assert!(json.contains("\"path\":null"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn probe_finds_system_binary_via_enriched_path() {
+        /* 回归守卫:PATH 查找链(find_binary_absolute × enriched_path)必须
+         * 命中 /bin 兜底目录里的 sh —— 守住"PATH 内二进制不漏检"契约。 */
+        let r = probe_cli("sh");
+        assert!(r.found, "sh 未命中:PATH 查找链断裂");
+        assert!(r.version.is_some());
     }
 }

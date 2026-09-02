@@ -1,4 +1,4 @@
-# CLI 触发器与会话能力矩阵：omp / pi / codex（+ claude 增补）
+# CLI 触发器与会话能力矩阵:omp / pi / codex(+ claude / grok 增补)
 
 > **2026-09-02 增补（claude 2.1.251 本机实证）**：`cli-claude` 插件已按本矩阵同法接入。要点：
 > - **触发符**：`/` 命令、`@` 文件引用原生支持，纯透传；skill 原生语法为 `/skill-name`（`--help`: "Skills still resolve via /skill-name"），composer `$` 发送时翻译为 `/name`（同 omp 方案）；`!` bash 模式不在契约 TriggerKind 内，未声明。
@@ -7,6 +7,15 @@
 > - **状态**：assistant 行 `message.model` 为模型真相（尾部倒序最后一帧）；思考强度不落盘（settings 全局开关），不提供 thinkingLevel。
 > - **额度**：`settings.json` env 的 `ANTHROPIC_BASE_URL`+key → vendors 检测走 HTTP（实证 kimi）；官方订阅 OAuth 无公开额度 API，显式报不支持。
 > - **skill 候选**：`~/.claude/skills/<name>/SKILL.md`，目录名即 skill 名，composer `$` 下拉扫真实磁盘。
+
+> **2026-09-02 增补(grok 1.0.4 本机实证,xAI 官方 Grok Build,`@xai-official/grok`)**:`cli-grok` 插件已按本矩阵同法接入。要点:
+> - **触发符**:`/` 命令(`/model` `/new` `/load` `/compact` `/skills` `/plugins` 等,官方 README 斜杠命令表)、`@` 文件引用(fuzzy picker,支持 `@path:10-50` 行段与 `!` 前缀强制显示 hidden files)原生支持,纯透传;skill 无 `$` 语法,原生入口为 `/skills <name>`(注入上下文),composer `$` 发送时翻译为 `/skills <name>`(同 omp 方案)。
+> - **会话存储**:`~/.grok/sessions/<encodeURIComponent(cwd)>/<session-uuid>/`,**会话 = 目录**;目录名即 sessionId(`/`→`%2F`、中文逐字符百分号编码,实证 `/Users/x/code/内容分析 → %2FUsers%2Fx%2Fcode%2F%E5%86%85…`)。目录内 `summary.json` 是元数据真相:`generated_title`/`session_summary`(标题)、`current_model_id`(模型)、`updated_at`/`last_active_at`(时间);对话记录 `chat_history.jsonl` 行型 `{"type":"user|assistant|reasoning|system","content":…}`(**无 role 字段**),真实用户输入由 CLI 包裹 `<user_query>` 标签(system prompt 协议明载),system-reminder/skill 注入行无此包裹天然滤除。
+> - **恢复**:`grok --resume <uuid|标题>` / `-c` 继续最近;`--fork-session` 分叉;`grok sessions list/search` 子命令存在(实测本机索引返回空,以磁盘扫描为准)。
+> - **状态**:`summary.json` 的 `current_model_id` 为模型真相(1KB 小文件,比 head 扫描便宜);推理强度不落盘 summary,不提供 thinkingLevel。
+> - **额度**:`config.toml` `[model."<id>"]` 的 `base_url`+`api_key` → vendors 检测走 HTTP(本机实证 fufei.mossx.ai → relay);官方 OAuth(`grok login`)凭据不落 config.toml,无公开额度 API,显式报不支持。
+> - **skill 候选**:`~/.grok/skills/<name>/SKILL.md`(另有项目级 `./.grok/skills/`、`~/.claude/skills/` 复用,官方优先级表),composer `$` 下拉扫 home 级真实磁盘。
+> - **默认态**:`config.toml` `[models].default` → `[model."<id>"].model`(档案 id 缺省 = 二进制内置 "grok",`grok models` 实证;本机默认档案 wire 模型 = grok-4.6)。
 
 > 调查日期：2026-09-01。方法：本机二进制 `--help` 输出、配置/会话目录实测、官方文档、二进制 strings 取证（只读）。未做任何交互式 TUI 启动。
 > 用途：tmd-cli（Tauri + React + PTY + xterm.js 包装 CLI TUI）的 composer 透传与 session 管理设计输入。

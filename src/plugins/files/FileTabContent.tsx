@@ -91,14 +91,14 @@ export function FileTabContent() {
   useEffect(() => {
     if (!path) return;
     if (cacheGet(path)?.loaded) return;
-    const timer = setInterval(() => {
+    const timer = window.setInterval(() => {
       /* 加载中条目被 LRU 淘汰时,ipc 回调会把完成态重插回缓存,轮询自然终止 */
       if (cacheGet(path)?.loaded) {
         setTick((n) => n + 1);
-        clearInterval(timer);
+        window.clearInterval(timer);
       }
     }, 100);
-    return () => clearInterval(timer);
+    return () => window.clearInterval(timer);
   }, [path]);
 
   // 高亮(经注册点,可插拔)
