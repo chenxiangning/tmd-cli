@@ -14,7 +14,7 @@ import {
 import { useSettingsSections } from "@kernel/settingsRegistry";
 
 export function SettingsPanel() {
-  const { panelOpen } = useSettingsState();
+  const { panelOpen, panelTarget } = useSettingsState();
   const sections = useSettingsSections();
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -28,6 +28,14 @@ export function SettingsPanel() {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [panelOpen]);
+
+  /* 深链定位:打开且携带 target 时选中对应 section/tab;
+     无参打开 target 为 null,不定位 —— 保持「记住上次选中」的现状。 */
+  useEffect(() => {
+    if (!panelOpen || !panelTarget) return;
+    setActiveSectionId(panelTarget.sectionId);
+    setActiveTabId(panelTarget.tabId ?? null);
+  }, [panelOpen, panelTarget]);
 
   const activeSection = useMemo(() => {
     const fallback = sections[0] ?? null;

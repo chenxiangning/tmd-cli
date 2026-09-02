@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host, useHost } from "@kernel/host";
 import { ipc, type SessionMeta } from "@kernel/ipc";
-import { useSettingsState } from "@kernel/settings";
+import { resolveCliSessionQuota, useSettingsState } from "@kernel/settings";
 import {
   listSessionPins,
   sessionPinKey,
@@ -69,7 +69,7 @@ function ActivityDot({ sessionId }: { sessionId: string }) {
   return <span className={`thread-runtime-dot ${state}`} />;
 }
 
-/** 磁盘历史分页: 初始 10 条,"更多..."翻倍递增(10 → 20 → 40 → 80)。 */
+/** 0 配额组「更多...」首击的展开步长(正配额组从配额值起翻倍:quota → 2× → 4×)。 */
 const PAGE_INITIAL = 10;
 
 /** 右键菜单目标:活会话(PTY 态)或磁盘会话(文件态)。 */
@@ -146,12 +146,25 @@ export function CliSessionGroup({
 }) {
   useHost();
   const [sessions, setSessions] = useState<CliDiskSession[] | null>(null);
-  const [limit, setLimit] = useState(PAGE_INITIAL);
+  const { settings } = useSettingsState();
+  /**
+   * 初始露出条数 = 显示预算解析配额(断裂修复:曾硬编码 PAGE_INITIAL,
+   * settings.sessionListBudget 从不被消费,设置改了列表没反应)。
+   */
+  const quota = resolveCliSessionQuota(
+    settings.sessionListBudget,
+    profile.id,
+    host.getCliProfiles().map((p) => p.id),
+  );
+  const [limit, setLimit] = useState(quota);
+  /** 预算修改响应式生效:按新配额重新起步(已展开的「更多」随之重置)。 */
+  useEffect(() => {
+    setLimit(quota);
+  }, [quota]);
   /** 本地重扫信号:删除磁盘会话后立刻反映(不等外部刷新)。 */
   const [rescanTick, setRescanTick] = useState(0);
   const [menu, setMenu] = useState<MenuTarget | null>(null);
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
-  const { settings } = useSettingsState();
   /* 命名覆盖层变化(重命名提交)需重渲行标题 */
   const titleOverrides = settings.sessionTitles;
   const pins = settings.sessionPins;
@@ -362,9 +375,12 @@ export function CliSessionGroup({
         />
       ))}
 
-      {/* 分页:更多... → 翻倍(10 → 20 → 40 → 80) */}
+      {/* 分页:更多... → 翻倍(0 配额组首击从 PAGE_INITIAL 起步) */}
       {remaining > 0 && (
-        <button className="thread-more" onClick={() => setLimit((l) => l * 2)}>
+        <button
+          className="thread-more"
+          onClick={() => setLimit((l) => (l > 0 ? l * 2 : PAGE_INITIAL))}
+        >
           更多... (还有 {remaining} 条)
         </button>
       )}
