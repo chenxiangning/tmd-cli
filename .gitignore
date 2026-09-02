@@ -30,7 +30,6 @@ re-local/
 .artifacts/
 release-local
 CLAUDE.md
-.claude.github/workflows/release.yml
 .pi
 # AI workflow local-only state
 .claude/settings.local.json
@@ -50,12 +49,15 @@ scripts/i18n/.work/
 # Rust / Tauri build artifacts
 src-tauri/target/
 Cargo.bak.lock
-Cargo.lock
+
+# pnpm 是唯一 JS 锁文件;npm 误装的 package-lock.json 防复发
+package-lock.json
 
 # Node build cache
 .vite/
 .tsbuildinfo
 .mossx
-# Ignore all dot-directories (exceptions above stay valid via re-include below)
+# Ignore all dot-directories (exceptions below re-include)
 .*/
 !/.vscode/
+!/.github/
