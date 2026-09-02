@@ -11,6 +11,7 @@
  *   - 候选面板支持 ↑↓/Enter/Tab/Esc 选中,选中替换触发器 + token
  * - 发送时把命中 "$token" → translate("/skill:token")(omp/pi 已声明)
  * - 拖入/粘贴图片 → 写临时文件 → 注册 attachment → textarea 注入 "@path "
+ * - 拖拽悬停 composer → accent 内环 + 虚线遮罩(仅外部文件/文件树拖拽;附件重排不弹)
  * - attachment × 删除 → 同步移除 textarea 里对应 "@path " 文本
  * - textarea 里删除 "@path " 文本 → MutationObserver 移除对应 attachment
  */
@@ -19,7 +20,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { host } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import { Mounts } from "@kernel/Mounts";
-import { useSettingsState } from "@kernel/settings";
+import { openSettingsPanel, useSettingsState } from "@kernel/settings";
+import { setFilePanelMode } from "@kernel/filePanel";
+import { getTerminalHandle } from "@kernel/messageAnchors";
+import { useWorkspaces } from "@kernel/workspace";
 import { readDragPayload, clearDragPayload } from "@kernel/internalDrag";
 import { findActiveTrigger, prepareSendPayload } from "../serialize/serialize";
 import type { SuggestionMatch } from "../triggers/suggest";
@@ -27,6 +31,14 @@ import { lookupSuggestions } from "../triggers/suggest";
 import { SuggestionList } from "./SuggestionList";
 import { shouldSendOnEnter } from "./enterAction";
 import { useActiveProfile } from "../state/useActiveProfile";
+import { toggleDrawer, useDrawerOpen } from "../state/drawerOpen";
+import { CommandDrawer } from "./CommandDrawer";
+import {
+  resolveProfileDrawerItems,
+  resolvePluginDrawerItems,
+  type DrawerItem,
+} from "../drawerItems";
+import { resolveArrowIntent } from "./arrowIntent";
 import { AttachmentStrip } from "./AttachmentStrip";
 import { AnchorRail } from "./AnchorRail";
 import {
@@ -42,16 +54,84 @@ import {
 
 const ATTACH_TOKEN_RE = /@[^\s@]+/g;
 
+/** 抽屉条目 → 实际写入幕布的文本(token 覆盖默认;发送前统一走 prepareSendPayload)。 */
+function drawerWireText(item: DrawerItem): string {
+  if (item.token) return item.token.trim();
+  return item.section === "skill" ? `$${item.name}` : `/${item.name}`;
+}
+
 export function Composer() {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
   const [value, setValue] = useState("");
   const [cursor, setCursor] = useState(0);
   const [matches, setMatches] = useState<SuggestionMatch[] | null>(null);
   const [activeRange, setActiveRange] = useState<[number, number] | null>(null);
   const [pickIndex, setPickIndex] = useState(0);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const profile = useActiveProfile();
   const { settings } = useSettingsState();
+
+  /* ── 命令抽屉(openspec/changes/composer-command-drawer)──
+     数据:profile 四分区解析 + 内核插件注册表;执行:三模式回调交回本组件 */
+  const drawerOpen = useDrawerOpen();
+  const workspaces = useWorkspaces();
+  const cwd = useMemo(
+    () => workspaces.list.find((w) => w.id === workspaces.activeId)?.root ?? workspaces.list[0]?.root ?? "",
+    [workspaces],
+  );
+  const [drawerItems, setDrawerItems] = useState<DrawerItem[]>([]);
+  useEffect(() => {
+    if (!drawerOpen) return;
+    if (!profile) {
+      /* 会话消失(profile → null)时清掉上一个 CLI 的残留条目,只留插件区 */
+      setDrawerItems(resolvePluginDrawerItems());
+      return;
+    }
+    let cancelled = false;
+    void resolveProfileDrawerItems(profile, cwd).then((items) => {
+      if (!cancelled) setDrawerItems([...items, ...resolvePluginDrawerItems()]);
+    });
+    return () => { cancelled = true; };
+  }, [drawerOpen, profile, cwd]);
+
+  /* ⌘/Ctrl+K 开合(监听放常挂的 Composer:抽屉关着也要能开)。
+     与工具栏按钮同门控:无活跃会话不开;按住不放不重复触发 */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        if (e.repeat || !host.getActiveSessionId()) return;
+        e.preventDefault();
+        toggleDrawer();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  /* send 与手动发送完全同路径(prepareSendPayload → sessionWrite,translate 生效,零拦截);
+     返回写入的 wire 文本(translate 后)供抽屉 toast 展示;无会话/无 profile 返回空串
+     (spec:静默守卫,不弹"已发送"假反馈) */
+  function sendFromDrawer(item: DrawerItem): string {
+    const sid = host.getActiveSessionId();
+    if (!sid || !profile) return "";
+    const text = drawerWireText(item);
+    const wire = prepareSendPayload(profile, text);
+    void ipc.sessionWrite(sid, wire);
+    return wire.replace(/\r$/, "");
+  }
+
+  function insertFromDrawer(item: DrawerItem): void {
+    const token = item.token ?? (item.section === "skill" ? `$${item.name} ` : `/${item.name} `);
+    if (ref.current) insertAtCursor(ref.current, token);
+  }
+
+  function openFromDrawer(item: DrawerItem): void {
+    if (item.panelId) setFilePanelMode(item.panelId);
+    else openSettingsPanel();
+  }
+
 
   const triggerSpecs = useMemo(() => profile?.triggers ?? [], [profile]);
 
@@ -88,12 +168,17 @@ export function Composer() {
     };
   }, [value, cursor, profile, triggerSpecs]);
 
-  /* 附件 × 移除 → textarea 移除对应 "@path" 文本 */
+  /* 附件 × 移除 → textarea 移除对应 "@path" 文本。
+     函数式更新:全部清除等同一批次多次调用时,每次都基于最新 value 计算 ——
+     闭包 value 连续 setValue 在 React 批处理下只剩最后一个的旧 bug 不再可能 */
   function removeTokenForAttachment(a: Attachment): void {
-    if (!value) return;
-    const next = value.replace(ATTACH_TOKEN_RE, (m) => (m.slice(1) === a.path ? "" : m));
-    /* 清理连续空白 + 前后空白 */
-    setValue(next.replace(/  +/g, " ").replace(/^\s+|\s+$/g, ""));
+    setValue((v) =>
+      v
+        .replace(ATTACH_TOKEN_RE, (m) => (m.slice(1) === a.path ? "" : m))
+        /* 清理连续空白 + 前后空白 */
+        .replace(/  +/g, " ")
+        .replace(/^\s+|\s+$/g, ""),
+    );
   }
 
   /* textarea 里的 "@path " 文本被删 → MutationObserver 移除 attachment
@@ -215,6 +300,7 @@ export function Composer() {
 
   async function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
+    setDragOver(false);
     const dt = e.dataTransfer;
 
     /* 优先:文件树拖来的项目内文件/文件夹 —— 从 kernel 共享 payload 读 */
@@ -250,13 +336,35 @@ export function Composer() {
     removeTokenForAttachment(a);
   }
 
+  /* 悬停高亮只认 composer 能收的拖拽:外部文件(Files)或文件树内部拖拽(payload)。
+     附件条重排(纯 text/plain)不弹遮罩,避免重排时闪烁 */
+  function isAttachDrag(e: React.DragEvent): boolean {
+    return Array.from(e.dataTransfer.types).includes("Files") || readDragPayload() !== null;
+  }
+
   return (
     <div
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
+      onDragEnter={(e) => {
+        e.preventDefault();
+        if (isAttachDrag(e)) setDragOver(true);
+      }}
+      onDragLeave={(e) => {
+        /* 子元素间移动也派发 dragleave(relatedTarget = 将进入的元素);
+           只有真正离开 composer 边界(含拖出窗口,relatedTarget 为 null)才撤遮罩 */
+        if (!composerRef.current?.contains(e.relatedTarget as Node | null)) setDragOver(false);
+      }}
       className="relative flex h-full flex-col bg-(--tmd-bg-base)"
     >
-      <div className="relative flex h-full flex-col overflow-hidden border-t border-(--tmd-border) bg-(--tmd-bg-elevated)">
+      <div
+        ref={composerRef}
+        className={`relative flex h-full flex-col overflow-hidden border-t bg-(--tmd-bg-elevated) ${
+          dragOver
+            ? "border-(--tmd-accent) ring-2 ring-inset ring-(--tmd-accent-soft)"
+            : "border-(--tmd-border)"
+        }`}
+      >
         <Mounts point="composer.statusBar" />
         <AttachmentStrip onRemove={handleRemoveAttachment} onPreviewImage={(a) => setPreviewSrc(a.previewDataUrl || a.thumbDataUrl)} />
         {matches && activeRange && (
@@ -284,18 +392,30 @@ export function Composer() {
           onSelect={(e) => {
             setCursor(e.currentTarget.selectionStart);
           }}
+          /* 失焦到 composer 外(点幕布/侧栏等)→ 收起候选面板。
+             面板内部点击不触发此 blur(面板容器 onMouseDown preventDefault 保焦) */
+          onBlur={(e) => {
+            if (!composerRef.current?.contains(e.relatedTarget as Node | null)) {
+              setMatches(null);
+              setActiveRange(null);
+            }
+          }}
           onKeyDown={(e) => {
-            if (e.key === "ArrowDown" && matches) {
+            /* 判定顺序契约见 openspec design §6:IME → 下拉 → 非空 → 移交。
+               IME 组词期全部放行给输入法:↑↓ 属候选窗导航,Enter 属候选上屏,
+               此处拦截会把组词文本错替换成下拉首项 */
+            const composing = e.nativeEvent.isComposing;
+            if (e.key === "ArrowDown" && matches && !composing) {
               e.preventDefault();
               setPickIndex((i) => (matches.length ? (i + 1) % matches.length : 0));
               return;
             }
-            if (e.key === "ArrowUp" && matches) {
+            if (e.key === "ArrowUp" && matches && !composing) {
               e.preventDefault();
               setPickIndex((i) => (matches.length ? (i - 1 + matches.length) % matches.length : 0));
               return;
             }
-            if (matches) {
+            if (matches && !composing) {
               if (e.key === "Enter" || e.key === "Tab") {
                 e.preventDefault();
                 if (matches[pickIndex]) applyPick(matches[pickIndex]);
@@ -307,6 +427,22 @@ export function Composer() {
                 setActiveRange(null);
                 return;
               }
+            }
+            /* 空输入 ↑↓ → 焦点移交幕布(部分 CLI 终端里方向键有历史/选择语义);
+               判定顺序契约见 openspec design §6:IME → 下拉 → 非空 → 移交 */
+            if (
+              (e.key === "ArrowUp" || e.key === "ArrowDown") &&
+              resolveArrowIntent({
+                key: e.key,
+                value,
+                hasMatches: !!matches,
+                isComposing: e.nativeEvent.isComposing,
+              }) === "handoff"
+            ) {
+              e.preventDefault();
+              const sid = host.getActiveSessionId();
+              if (sid) getTerminalHandle(sid)?.focus();
+              return;
             }
             if (e.key === "Enter" &&
               shouldSendOnEnter(
@@ -326,6 +462,23 @@ export function Composer() {
         />
         {/* 对话锚点栏:右缘 dash 导航,数据/跳转走 kernel messageAnchors */}
         <AnchorRail />
+        {/* 命令抽屉:自右滑入,悬浮于输入区之上(常挂以便滑出动画) */}
+        <CommandDrawer
+          open={drawerOpen}
+          items={drawerItems}
+          cliName={profile?.name}
+          onSend={sendFromDrawer}
+          onInsert={insertFromDrawer}
+          onOpen={openFromDrawer}
+        />
+        {/* 拖拽悬停遮罩:对齐 composer-design.html 的 .drag-over(accent 内环 + 虚线框 + 提示)。
+           pointer-events-none 让 drop 穿透到根容器;inset 顶部留 32px 避开状态栏 */}
+        {dragOver && (
+          <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-(--tmd-bg-elevated)/75">
+            <div className="absolute inset-x-2 bottom-2 top-8 rounded-lg border-[1.5px] border-dashed border-(--tmd-accent)" />
+            <span className="relative text-xs text-(--tmd-accent)">释放以附加文件 / 图片</span>
+          </div>
+        )}
       </div>
       {previewSrc && (
         <div

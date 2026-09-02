@@ -71,26 +71,12 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
 
   return (
     <div className="tmd-attach-section" role="region" aria-label="附件">
-      <div className="tmd-attach-header">
-        <span>
-          已附加 <b>{items.length}</b> 个文件 · 拖拽可重排
-        </span>
-        <button
-          type="button"
-          className="tmd-attach-clear"
-          onClick={() => {
-            items.forEach((a) => onRemove(a));
-            /* store clear 由调用方处理 */
-          }}
-        >
-          全部清除 ×
-        </button>
-      </div>
       <div className="tmd-attach-strip" ref={stripRef}>
         {items.map((a) => (
           <div
             key={a.id}
             className={`tmd-attach tmd-attach-${a.kind}`}
+            title={a.path}
             draggable
             onDragStart={(e) => handleDragStart(e, a.id)}
             onDragEnd={handleDragEnd}
@@ -99,7 +85,6 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
             onDrop={(e) => handleDrop(e, a.id)}
             onClick={() => handlePreview(a)}
           >
-            <span className="tmd-attach-badge">{a.kind.toUpperCase()}</span>
             {a.kind === "image" && a.thumbDataUrl ? (
               <div className="tmd-attach-thumb" style={{ backgroundImage: `url("${a.thumbDataUrl}")` }} />
             ) : (
@@ -108,9 +93,6 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
               </div>
             )}
             <div className="tmd-attach-meta">
-              <div className="tmd-attach-name" title={a.path}>
-                {truncate(a.name, 18)}
-              </div>
               <div className="tmd-attach-info">{formatBytes(a.size)}</div>
             </div>
             <button
@@ -128,6 +110,21 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
           </div>
         ))}
       </div>
+      <div className="tmd-attach-header">
+        <span>
+          已附加 <b>{items.length}</b> 个文件 · 拖拽可重排
+        </span>
+        <button
+          type="button"
+          className="tmd-attach-clear"
+          onClick={() => {
+            items.forEach((a) => onRemove(a));
+            /* store clear 由调用方处理 */
+          }}
+        >
+          全部清除 ×
+        </button>
+      </div>
     </div>
   );
 }
@@ -139,8 +136,4 @@ function badgeText(kind: Attachment["kind"]): string {
     case "code":  return "{ }";
     default:      return "FILE";
   }
-}
-
-function truncate(s: string, n: number): string {
-  return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }

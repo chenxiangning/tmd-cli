@@ -52,14 +52,35 @@ export interface CliUserMessage {
 }
 
 /**
- * 触发器补全 UI 候选项 —— 给 composer 下拉显示用,不在协议里走。
+ * 触发器补全 UI 候选项 —— composer 下拉与命令抽屉的共同数据单元。
  * file 触发符靠 fsListDir 实时拿,不从此声明。
  */
+export type SuggestionAction = "send" | "insert";
+
 export interface CliSuggestion {
   /** 触发符后的部分(不含 char)。例 "$"触发时:"think";"/"触发时:"help"。 */
   value: string;
   /** 给用户看的描述(可选)。 */
   description?: string;
+  /**
+   * 抽屉点击行为。缺省 "insert"(安全兜底:send 会立即写入 PTY)。
+   * 判定规则:bare 合法(无必需参数 / 参数可选 / bare 打开的交互 picker 由幕布内
+   * TUI 接管,如 /model)→ "send";有必需参数或需要任务上下文 → "insert"。
+   * 初判清单与校准记录:openspec/changes/composer-command-drawer/proposal.md
+   */
+  action?: SuggestionAction;
+  /** 语义图标名(composer drawerIcons 内置集);缺省按 kind 回退通用 glyph(/ $)。 */
+  icon?: string;
+  /**
+   * 完整 wire/插入文本,覆盖按 kind 合成的默认值("/name"、"$name")。
+   * 用途:MCP 引用等非标准语法(codex "$<name>" mention、claude "/mcp" 管理入口)。
+   * send 时作为 prepareSendPayload 输入(translate 仍生效);insert 时原样插入。
+   */
+  token?: string;
+  /** 覆盖默认分区标题;缺省按 kind(命令 / 技能)。 */
+  group?: string;
+  /** 同分区内排序权重,小的在前;缺省保持声明顺序。 */
+  order?: number;
 }
 
 export interface CliProfile {
@@ -82,6 +103,21 @@ export interface CliProfile {
    * file 触发符的候选来自 fsListDir,忽略此处。
    */
   suggestions?: Partial<Record<TriggerKind, CliSuggestion[]>>;
+  /**
+   * 运行时命令/技能发现(磁盘扫描 / CLI 查询),声明后覆盖静态 suggestions;
+   * 返回 null 或失败 = 回退静态表。对齐 listSessions 惯例:插件自扫自家存储,
+   * kernel 只提供 fs 原语,不理解任何 CLI 的格式。
+   */
+  listSuggestions?: (
+    kind: "command" | "skill",
+    cwd: string,
+  ) => Promise<CliSuggestion[] | null>;
+  /**
+   * MCP 服务器发现(读自家 CLI 的配置文件),声明后抽屉出现 MCP 分区;
+   * 不声明 = 该 CLI 无此区。返回 null 或失败 = MCP 分区为空。
+   * 点击语义由每项的 action/token 声明(codex "$name" insert / claude "/mcp" send)。
+   */
+  listMcpServers?: (cwd: string) => Promise<CliSuggestion[] | null>;
   /** 恢复 CLI 自身会话的参数模板；缺省 = 不支持恢复。 */
   resumeArgs?: (cliSessionId: string) => string[];
   /**

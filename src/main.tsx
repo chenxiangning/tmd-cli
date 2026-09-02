@@ -8,6 +8,7 @@ import { AppShell } from "@shell/AppShell";
 import { registerDefaultContributions } from "@shell/contributions";
 import { host } from "@kernel/host";
 import { bootAskSound } from "@kernel/askSound";
+import { bootDropGuard } from "@kernel/dropGuard";
 import { startThemeEngine } from "@kernel/theme";
 import { allPlugins } from "@plugins/index";
 import "./styles/global.css";
@@ -19,6 +20,7 @@ function App() {
   React.useEffect(() => {
     startThemeEngine(); /* 设置加载 + 主题应用,与插件激活并行 */
     bootAskSound(host.events); /* Ask 提示音观察者:先于插件激活,不漏任何会话输出 */
+    bootDropGuard(); /* 文件拖放护栏:防 webview drop 导航开文件(lib.rs 关原生拦截的副作用) */
     host
       .activateAll(allPlugins)
       .then(() => {

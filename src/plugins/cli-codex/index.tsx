@@ -8,7 +8,7 @@ import { extractJsonlTitle } from "@kernel/diskSessions";
 import { pathsEqual } from "@kernel/pathUtils";
 import { getPlatformKind } from "@kernel/platform";
 import { registerCodexQuotaProvider } from "./quota";
-import type { CliDiskSession, CliSessionStatus } from "@kernel/cli";
+import type { CliDiskSession, CliSessionStatus, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 
 /* macOS APFS / Windows NTFS 默认大小写不敏感,cwd 严格相等会在大小写/分隔符差异时漏配。 */
@@ -145,6 +145,62 @@ async function readCodexUserMessages(cwd: string, cliSessionId: string, full: bo
 }
 
 /**
+ * codex / 命令候选(官方 CLI 参考;此前未声明,M4 补齐 —— proposal §初判表)。
+ * action 初判:picker/状态类 bare 合法 → send;/mention 需路径参数 → insert。
+ * $ 技能为原生 mentions(CLI 自发现),不在此静态声明。
+ */
+export const CODEX_COMMAND_SUGGESTIONS: CliSuggestion[] = [
+  { value: "model", description: "查看/切换模型(幕布内 picker)", action: "send", icon: "model" },
+  { value: "status", description: "会话与配置状态", action: "send", icon: "usage" },
+  { value: "diff", description: "查看改动 diff", action: "send", icon: "review" },
+  { value: "init", description: "初始化 AGENTS.md", action: "send", icon: "help" },
+  { value: "compact", description: "压缩会话上下文", action: "send", icon: "compact" },
+  { value: "review", description: "代码评审", action: "send", icon: "review" },
+  { value: "permissions", description: "查看/管理审批规则", action: "send", icon: "plan" },
+  { value: "skills", description: "查看/注入技能", action: "send", icon: "skills" },
+  { value: "mention", description: "引用文件(需路径参数)", icon: "resume" },
+];
+
+/**
+ * MCP 配置真相 = ~/.codex/config.toml 的 [mcp_servers.<name>] 段(本机实证)。
+ * 点击语义:insert "$<name>"(codex 原生 $ mention)。TOML 不引解析库:
+ * 轻量按行提取段头即可,name + command 够抽屉展示。
+ * 纯函数可测;解析失败由调用方兜底为空。
+ */
+export function extractCodexMcpServers(toml: string): CliSuggestion[] {
+  const found: { name: string; command?: string }[] = [];
+  let current: { name: string; command?: string } | null = null;
+  for (const rawLine of toml.split("\n")) {
+    const line = rawLine.trim();
+    const header = line.match(/^\[mcp_servers\.([^.\]]+)\]$/);
+    if (header) {
+      if (current) found.push(current);
+      current = { name: header[1] };
+      continue;
+    }
+    if (!current) continue;
+    const cmd = line.match(/^command\s*=\s*"([^"]*)"/);
+    if (cmd) current.command = cmd[1];
+  }
+  if (current) found.push(current);
+  return found.map((s) => ({
+    value: s.name,
+    description: s.command ? `MCP · ${s.command}` : "MCP 服务器",
+    action: "insert" as const,
+    icon: "server",
+    token: `$${s.name} `,
+  }));
+}
+
+async function listCodexMcpServers(): Promise<CliSuggestion[] | null> {
+  const home = await ipc.configHomeDir().catch(() => null);
+  if (!home) return null;
+  const toml = await ipc.fsReadFile(`${home}/.codex/config.toml`).catch(() => "");
+  if (!toml) return null;
+  return extractCodexMcpServers(toml);
+}
+
+/**
  * codex CLI 插件（CLI 能力矩阵调研结论）：
  * 三个触发符 `$` `/` `@` 全部原生支持，零翻译纯透传。
  * 会话恢复：codex resume <id>；历史列表 = 扫 codex 自己的 rollout 目录按 cwd 过滤。
@@ -166,6 +222,11 @@ export const cliCodexPlugin: Plugin = {
         { char: "/", kind: "command" },
         { char: "@", kind: "file" },
       ],
+      suggestions: {
+        command: CODEX_COMMAND_SUGGESTIONS,
+        skill: [],
+      },
+      listMcpServers: () => listCodexMcpServers(),
       resumeArgs: (sessionId) => ["resume", sessionId],
       listSessions: listCodexSessions,
       readSessionStatus: readCodexSessionStatus,

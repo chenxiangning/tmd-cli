@@ -41,15 +41,17 @@ const QODER_TITLE_HEAD_BYTES = 32 * 1024;
  * (内置 skill,/name 原生语法),feedback 取自错误文案("input /feedback")。
  * 候选只是 composer 补全 UI 提示(纯透传,不进协议);两分发版上游同源,cn 侧无独立
  * 实证,不一致时以实际 CLI 为准。
+ * action 初判(openspec/changes/composer-command-drawer):/loop 需 prompt 参数 → insert,
+ * 其余 bare 合法(simplify/quest/run 直接执行任务,mcp-config/feedback 进交互界面)→ send。
  */
 export const QODER_COMMAND_SUGGESTIONS: CliProfile["suggestions"] = {
   command: [
-    { value: "simplify", description: "审查改动代码的复用/质量/效率并修复" },
-    { value: "quest", description: "两阶段特性开发:先方案确认再实现" },
-    { value: "mcp-config", description: "交互式管理 MCP 服务器配置" },
-    { value: "loop", description: "定时循环执行 prompt 或命令" },
-    { value: "run", description: "启动并驱动项目应用验证改动" },
-    { value: "feedback", description: "提交问题反馈" },
+    { value: "simplify", description: "审查改动代码的复用/质量/效率并修复", action: "send", icon: "review" },
+    { value: "quest", description: "两阶段特性开发:先方案确认再实现", action: "send", icon: "plan" },
+    { value: "mcp-config", description: "交互式管理 MCP 服务器配置", action: "send", icon: "server" },
+    { value: "loop", description: "定时循环执行 prompt 或命令(需参数)", icon: "compact" },
+    { value: "run", description: "启动并驱动项目应用验证改动", action: "send", icon: "usage" },
+    { value: "feedback", description: "提交问题反馈", action: "send", icon: "help" },
   ],
 };
 /** 扫描该 cwd 的磁盘历史会话;<uuid>.jsonl 文件名即会话 id,直接喂 --resume。 */

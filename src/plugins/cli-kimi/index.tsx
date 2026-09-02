@@ -178,16 +178,19 @@ async function readKimiUserMessages(
   return readUserMessagesFromFile(path, full, kimiUserMessageLine);
 }
 
-/** `/` 内置命令候选(官方 slash-commands 参考摘选高频项)。 */
-const KIMI_COMMAND_SUGGESTIONS: CliSuggestion[] = [
-  { value: "help", description: "帮助与快捷键" },
-  { value: "model", description: "切换模型/思考模式" },
-  { value: "sessions", description: "会话列表与切换" },
-  { value: "new", description: "新建会话" },
-  { value: "title", description: "重命名当前会话" },
-  { value: "plan", description: "只读规划模式" },
-  { value: "compact", description: "压缩上下文" },
-  { value: "usage", description: "用量与配额" },
+/**
+ * `/` 内置命令候选(官方 slash-commands 参考摘选高频项;action 初判见
+ * openspec/changes/composer-command-drawer,/sessions /model 等 picker 类已拍板 send)。
+ */
+export const KIMI_COMMAND_SUGGESTIONS: CliSuggestion[] = [
+  { value: "help", description: "帮助与快捷键", action: "send", icon: "help" },
+  { value: "model", description: "切换模型/思考模式(幕布内 picker)", action: "send", icon: "model" },
+  { value: "sessions", description: "会话列表与切换(幕布内 picker)", action: "send", icon: "resume" },
+  { value: "new", description: "新建会话", action: "send", icon: "compact" },
+  { value: "title", description: "重命名当前会话(需会话名)", icon: "plan" },
+  { value: "plan", description: "只读规划模式", action: "send", icon: "plan" },
+  { value: "compact", description: "压缩上下文", action: "send", icon: "compact" },
+  { value: "usage", description: "用量与配额", action: "send", icon: "usage" },
 ];
 
 /**

@@ -129,6 +129,63 @@ async function listClaudeSkillSuggestions(): Promise<CliSuggestion[]> {
 }
 
 /**
+ * / 命令候选(官方 slash-commands 高频项;action 初判见
+ * openspec/changes/composer-command-drawer/proposal.md,/model 类 picker 已拍板 send)。
+ */
+export const CLAUDE_COMMAND_SUGGESTIONS: CliSuggestion[] = [
+  { value: "help", description: "查看可用命令", action: "send", icon: "help" },
+  { value: "clear", description: "清空对话上下文", action: "send", icon: "clear" },
+  { value: "compact", description: "压缩会话上下文(参数可选)", action: "send", icon: "compact" },
+  { value: "model", description: "查看/切换模型(幕布内 picker)", action: "send", icon: "model" },
+  { value: "usage", description: "查看额度用量", action: "send", icon: "usage" },
+  { value: "resume", description: "恢复历史会话(幕布内 picker)", action: "send", icon: "resume" },
+];
+
+/**
+ * MCP 配置真相 = ~/.claude.json 的 mcpServers(全局)+ projects.<cwd>.mcpServers(项目覆盖)。
+ * 抽屉点击语义:send "/mcp"(管理入口;claude 的 MCP 服务器本身无 composer 引用语法)。
+ * 纯函数可测;解析失败由调用方兜底为空。
+ */
+export function extractClaudeMcpServers(json: string, cwd: string): CliSuggestion[] {
+  let root: unknown;
+  try {
+    root = JSON.parse(json);
+  } catch {
+    return [];
+  }
+  if (!root || typeof root !== "object" || !("mcpServers" in root)) return [];
+  const byName = new Map<string, string>();
+  const take = (obj: unknown, source: string) => {
+    if (!obj || typeof obj !== "object") return;
+    for (const name of Object.keys(obj)) {
+      if (name) byName.set(name, source);
+    }
+  };
+  take(root.mcpServers, "全局");
+  if ("projects" in root && typeof root.projects === "object" && root.projects !== null) {
+    for (const [projPath, proj] of Object.entries(root.projects)) {
+      if (projPath !== cwd || !proj || typeof proj !== "object" || !("mcpServers" in proj)) continue;
+      take(proj.mcpServers, "项目");
+    }
+  }
+  return Array.from(byName, ([name, source]) => ({
+    value: name,
+    description: `MCP · ${source}`,
+    action: "send" as const,
+    icon: "server",
+    token: "/mcp ",
+  }));
+}
+
+async function listClaudeMcpServers(cwd: string): Promise<CliSuggestion[] | null> {
+  const home = await ipc.configHomeDir().catch(() => null);
+  if (!home) return null;
+  const json = await ipc.fsReadFile(`${home}/.claude.json`).catch(() => "");
+  if (!json) return null;
+  return extractClaudeMcpServers(json, cwd);
+}
+
+/**
  * claude CLI 插件(CLI 能力矩阵 + 本机 2.1.251 实证):
  * - `/` 命令、`@` 文件引用:原生支持,纯透传。
  * - `$` skill:claude 原生语法是 /skill-name(--help: "Skills still resolve
@@ -160,16 +217,10 @@ export const cliClaudePlugin: Plugin = {
         },
       ],
       suggestions: {
-        command: [
-          { value: "help", description: "查看可用命令" },
-          { value: "clear", description: "清空对话上下文" },
-          { value: "compact", description: "压缩会话上下文" },
-          { value: "model", description: "查看/切换模型" },
-          { value: "usage", description: "查看额度用量" },
-          { value: "resume", description: "恢复历史会话" },
-        ],
+        command: CLAUDE_COMMAND_SUGGESTIONS,
         skill: [],
       },
+      listMcpServers: listClaudeMcpServers,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listClaudeSessions,
       readSessionStatus: readClaudeSessionStatus,

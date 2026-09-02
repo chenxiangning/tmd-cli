@@ -8,7 +8,7 @@ import { readOmpDefaultStatus } from "./configStatus";
 import { registerOmpQuotaProvider } from "./quota";
 import { ipc } from "@kernel/ipc";
 import { scanJsonlSessions } from "@kernel/diskSessions";
-import type { CliDiskSession } from "@kernel/cli";
+import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 
 /**
@@ -88,6 +88,22 @@ async function readOmpUserMessages(cwd: string, cliSessionId: string, full: bool
 }
 
 /**
+ * omp 命令/技能候选(action 初判见 openspec/changes/composer-command-drawer)。
+ * 技能注入后通常要跟任务文本 → 默认 insert;/model 为幕布内 picker → send。
+ */
+export const OMP_COMMAND_SUGGESTIONS: CliSuggestion[] = [
+  { value: "help", description: "查看可用命令", action: "send", icon: "help" },
+  { value: "clear", description: "清屏", action: "send", icon: "clear" },
+  { value: "model", description: "查看/切换模型(幕布内 picker)", action: "send", icon: "model" },
+];
+
+export const OMP_SKILL_SUGGESTIONS: CliSuggestion[] = [
+  { value: "think", description: "深度思考模式", icon: "think" },
+  { value: "plan", description: "只读规划模式", icon: "plan" },
+  { value: "review", description: "代码评审", icon: "review" },
+];
+
+/**
  * omp CLI 插件（CLI 能力矩阵调研结论）：
  * - `/` = 通用命令、`@` = 文件引用：原生支持，纯透传
  * - `$` = skill：omp 原生语法是 /skill:<name>，发送时翻译（方案 2）
@@ -115,16 +131,8 @@ export const cliOmpPlugin: Plugin = {
         },
       ],
       suggestions: {
-        command: [
-          { value: "help", description: "查看可用命令" },
-          { value: "clear", description: "清屏" },
-          { value: "model", description: "查看/切换模型" },
-        ],
-        skill: [
-          { value: "think", description: "深度思考模式" },
-          { value: "plan", description: "只读规划模式" },
-          { value: "review", description: "代码评审" },
-        ],
+        command: OMP_COMMAND_SUGGESTIONS,
+        skill: OMP_SKILL_SUGGESTIONS,
       },
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listOmpSessions,

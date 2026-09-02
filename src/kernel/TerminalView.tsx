@@ -142,6 +142,7 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
       viewportTop: () => term.buffer.active.viewportY,
       rows: () => term.rows,
       scrollToLine: (row) => term.scrollToLine(row),
+      focus: () => termRef.current?.focus(),
       onScroll: (cb) => {
         const d = term.onScroll(cb);
         return () => d.dispose();

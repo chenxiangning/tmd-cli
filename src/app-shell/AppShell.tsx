@@ -21,7 +21,7 @@
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle, useGroupRef } from "react-resizable-panels";
 import {
   ExternalLink,
   Inbox,
@@ -33,6 +33,11 @@ import {
   X,
 } from "lucide-react";
 import { host, useHost } from "@kernel/host";
+import {
+  COMPOSER_RESIZE_STEP,
+  COMPOSER_STAGE_SIZE,
+  useComposerStage,
+} from "@kernel/composerStage";
 import { windowClose, windowMinimize, windowToggleMaximize } from "@kernel/ipc";
 import { baseName } from "@kernel/pathUtils";
 import { Mounts } from "@kernel/Mounts";
@@ -194,6 +199,24 @@ const EditorCenter = memo(function EditorCenter() {
  */
 function MainPanel() {
   const activeId = host.getActiveSessionId();
+  /* 对话框四段式高度:composer 插件工具栏的 ↑↓ 写 kernel composerStage,这里消费。
+     实测本库命令式 setLayout/panelRef.resize 在嵌套 group 下会被静默回滚,不可用;
+     separator 键盘路径(每键 5%)走库自身状态更新,可靠 —— 借它驱动:
+     键数 = round((目标% − 当前%)/5),从 groupRef.getLayout() 读当前值。 */
+  const stage = useComposerStage();
+  const groupRef = useGroupRef();
+
+  useEffect(() => {
+    /* activeId 入依赖:切会话时 PanelGroup 重挂载回 defaultSize,需按当前 stage 重放 */
+    const group = document.querySelector('[data-group][id="tmd.main.vertical"]');
+    const sep = group?.querySelector(":scope > [data-separator]");
+    const current = groupRef.current?.getLayout().composer ?? 30;
+    const steps = Math.round((COMPOSER_STAGE_SIZE[stage] - current) / COMPOSER_RESIZE_STEP);
+    const key = steps > 0 ? "ArrowUp" : "ArrowDown";
+    for (let i = 0; i < Math.abs(steps); i++) {
+      sep?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    }
+  }, [stage, activeId, groupRef]);
 
   /* 无活跃 session:整页渲染 welcome(引擎探针/安装 + 近期会话),
      terminal 与 composer 一并替换 —— 首页即初始形态。 */
@@ -202,7 +225,7 @@ function MainPanel() {
   }
 
   return (
-    <PanelGroup orientation="vertical" id="tmd.main.vertical">
+    <PanelGroup orientation="vertical" id="tmd.main.vertical" groupRef={groupRef}>
       <Panel defaultSize={70} minSize={30} id="canvas">
         <TerminalView key={activeId} sessionId={activeId} />
       </Panel>

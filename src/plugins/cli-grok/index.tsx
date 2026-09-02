@@ -16,6 +16,19 @@ import type {
 import type { Plugin } from "@kernel/plugin";
 
 /**
+ * grok / 命令候选(官方 README 斜杠命令表;action 初判见
+ * openspec/changes/composer-command-drawer,/model /load 等 picker 类已拍板 send)。
+ */
+export const GROK_COMMAND_SUGGESTIONS: CliSuggestion[] = [
+  { value: "model", description: "查看/切换模型(幕布内 picker)", action: "send", icon: "model" },
+  { value: "new", description: "新建会话(清空上下文)", action: "send", icon: "compact" },
+  { value: "load", description: "恢复历史会话(幕布内 picker)", action: "send", icon: "resume" },
+  { value: "compact", description: "压缩会话上下文", action: "send", icon: "compact" },
+  { value: "skills", description: "查看/注入技能", action: "send", icon: "skills" },
+  { value: "plugins", description: "管理插件", action: "send", icon: "plugins" },
+];
+
+/**
  * grok 品牌 glyph:xAI 官方斜杠标志(vendored 自 grok-build-vscode media/grok.svg,
  * 与 omp/claude glyph 同源策略;viewBox 0 0 24 24 官方一致)。
  * 官方为单色 mark → currentColor 随主题(codex 同法),evenodd 官方一致。
@@ -189,14 +202,7 @@ export const cliGrokPlugin: Plugin = {
         },
       ],
       suggestions: {
-        command: [
-          { value: "model", description: "查看/切换模型" },
-          { value: "new", description: "新建会话(清空上下文)" },
-          { value: "load", description: "恢复历史会话" },
-          { value: "compact", description: "压缩会话上下文" },
-          { value: "skills", description: "查看/注入技能" },
-          { value: "plugins", description: "管理插件" },
-        ],
+        command: GROK_COMMAND_SUGGESTIONS,
         skill: [],
       },
       resumeArgs: (sessionId) => ["--resume", sessionId],

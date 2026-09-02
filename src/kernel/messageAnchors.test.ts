@@ -40,6 +40,7 @@ function fakeHandle(lines: string[], opts?: { viewportTop?: number; rows?: numbe
     scrollToLine: (row) => {
       state.scrollTo = row;
     },
+    focus: () => {},
     onScroll: () => () => {},
     hasMoreHistory: () => state.pages.length > 0,
     loadEarlier: async () => {

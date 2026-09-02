@@ -136,6 +136,8 @@ export interface TerminalHandle {
   /** 视口行数。 */
   rows(): number;
   scrollToLine(row: number): void;
+  /** xterm 聚焦(composer 空输入 ↑↓ 焦点移交用;无 handle 时调用方静默)。 */
+  focus(): void;
   /** 订阅滚动;返回退订函数。 */
   onScroll(cb: () => void): () => void;
   /** 会话日志还有更早未加载的输出。 */

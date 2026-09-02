@@ -7,8 +7,22 @@ import {
 import { readPiDefaultStatus } from "./configStatus";
 import { piAgentDir, registerPiQuotaProvider } from "./quota";
 import { scanJsonlSessions } from "@kernel/diskSessions";
-import type { CliDiskSession } from "@kernel/cli";
+import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
+
+/**
+ * pi 命令/技能候选(action 初判见 openspec/changes/composer-command-drawer)。
+ * 技能注入后通常要跟任务文本 → 默认 insert。
+ */
+export const PI_COMMAND_SUGGESTIONS: CliSuggestion[] = [
+  { value: "help", description: "查看可用命令", action: "send", icon: "help" },
+  { value: "clear", description: "清屏", action: "send", icon: "clear" },
+];
+
+export const PI_SKILL_SUGGESTIONS: CliSuggestion[] = [
+  { value: "think", description: "深度思考", icon: "think" },
+  { value: "code", description: "代码任务", icon: "review" },
+];
 
 /** pi 品牌字形(codemoss EngineIcon 同源):π 方块组合,currentColor 随主题。 */
 const PI_ICON_PATHS = [
@@ -101,14 +115,8 @@ export const cliPiPlugin: Plugin = {
         },
       ],
       suggestions: {
-        command: [
-          { value: "help", description: "查看可用命令" },
-          { value: "clear", description: "清屏" },
-        ],
-        skill: [
-          { value: "think", description: "深度思考" },
-          { value: "code", description: "代码任务" },
-        ],
+        command: PI_COMMAND_SUGGESTIONS,
+        skill: PI_SKILL_SUGGESTIONS,
       },
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listPiSessions,

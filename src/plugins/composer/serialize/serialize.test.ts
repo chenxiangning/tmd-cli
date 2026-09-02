@@ -81,6 +81,19 @@ describe("translatePrompt", () => {
     expect(translatePrompt(profileOf([DOLLAR]), "价格是 100")).toBe("价格是 100");
   });
 
+  it("边界收紧:$HOME/$PATH 等大写开头 shell 变量原样透传", () => {
+    expect(translatePrompt(profileOf([DOLLAR]), "看 $HOME 和 $PATH")).toBe("看 $HOME 和 $PATH");
+  });
+
+  it("边界收紧:数字开头($100)与前导词字符(foo$bar)不触发翻译", () => {
+    expect(translatePrompt(profileOf([DOLLAR]), "花了 $100")).toBe("花了 $100");
+    expect(translatePrompt(profileOf([DOLLAR]), "foo$bar")).toBe("foo$bar");
+  });
+
+  it("词首大写 token($Think)不翻译 —— 漏译透传优于静默改写", () => {
+    expect(translatePrompt(profileOf([DOLLAR]), "$Think")).toBe("$Think");
+  });
+
   it("不含任何触发符的文本恒等透传(单向管线的往返不变量)", () => {
     const text = "一段没有任何 trigger 的普通 prompt";
     expect(translatePrompt(profileOf([DOLLAR, SLASH, AT]), text)).toBe(text);

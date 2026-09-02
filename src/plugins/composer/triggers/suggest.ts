@@ -7,7 +7,7 @@
  * - $ (skill):从 cli profile.suggestions.skill 拉
  */
 
-import type { CliProfile, CliSuggestion, CliTriggerSpec } from "@kernel/cli";
+import type { CliProfile, CliSuggestion, CliTriggerSpec, TriggerKind } from "@kernel/cli";
 import type { DirEntry } from "@kernel/ipc";
 import { ipc } from "@kernel/ipc";
 
@@ -32,6 +32,8 @@ export interface SuggestionMatch {
   description?: string;
   /** file 时携带的绝对路径,用于 hint;非 file 留空。 */
   detail?: string;
+  /** 候选所属触发类别 —— 候选面板的分区标题/展示前缀用(同一次查询内一致)。 */
+  kind?: TriggerKind;
 }
 
 /**
@@ -46,9 +48,9 @@ export async function lookupSuggestions(
   const needle = tokenText.slice(triggerSpec.char.length);
   switch (triggerSpec.kind) {
     case "command":
-      return filterDeclared(profile.suggestions?.command, needle);
+      return filterDeclared(profile.suggestions?.command, needle, "command");
     case "skill":
-      return filterDeclared(profile.suggestions?.skill, needle);
+      return filterDeclared(profile.suggestions?.skill, needle, "skill");
     case "file": {
       // @ 后半:可能是目录前缀路径 —— 取最后一段为 dir,prefix 为最后/后
       // 例如 "/Users/x/src/k" → dir=/Users/x/src prefix=k
@@ -70,6 +72,7 @@ export async function lookupSuggestions(
           value: `${needle.replace(/[^/]*$/, "")}${e.name}${e.isDir ? "/" : ""}`,
           description: e.isDir ? "目录" : "文件",
           detail: e.path,
+          kind: "file",
         }));
     }
   }
@@ -78,10 +81,11 @@ export async function lookupSuggestions(
 function filterDeclared(
   list: readonly CliSuggestion[] | undefined,
   needle: string,
+  kind: "command" | "skill",
 ): SuggestionMatch[] {
   if (!list) return [];
   const lower = needle.toLowerCase();
   return list
     .filter((s) => s.value.toLowerCase().startsWith(lower))
-    .map<SuggestionMatch>((s) => ({ value: s.value, description: s.description }));
+    .map<SuggestionMatch>((s) => ({ value: s.value, description: s.description, kind }));
 }
