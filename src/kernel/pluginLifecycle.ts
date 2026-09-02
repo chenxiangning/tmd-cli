@@ -79,4 +79,9 @@ export class PluginLifecycle {
       enabled: !this.disabledPluginIds.has(plugin.id),
     }));
   }
+
+  /** 插件是否已激活(拔插 = 重启生效,运行期此态在 activateAll 后定格)。消费方据此做特性门控。 */
+  isPluginActive(id: string): boolean {
+    return this.plugins.has(id);
+  }
 }

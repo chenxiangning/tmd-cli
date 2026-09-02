@@ -33,6 +33,8 @@ export type MountPoint =
   | "footer.left"
   | "footer.right"
   | "leftSidebar.section"
+  /** 工作区标题行右侧动作区:贡献 icon 按钮级组件(如 session-budget 的预算入口)。 */
+  | "leftSidebar.workspaceCaption"
   | "leftRail"
   | "rightRail"
   | "overlay"

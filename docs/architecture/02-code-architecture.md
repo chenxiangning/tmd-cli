@@ -270,11 +270,12 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    subgraph MOUNT["MountPoint（plugin.ts 定义的 13 个挂点）"]
+    subgraph MOUNT["MountPoint（plugin.ts 定义的 14 个挂点）"]
         direction TB
         HB["header.breadcrumb"]
         HLR["header.left / header.right"]
         LS1["leftSidebar.section"]
+        LS2["leftSidebar.workspaceCaption"]
         ECW["editorCenter.welcome"]
         ECT["editorCenter.tabContent"]
         ECC["editorCenter.composer"]
@@ -285,6 +286,8 @@ flowchart LR
 
     CONTRIB2["contributions.tsx<br/>（内置默认，可替换）"] --> HB
     P_WS2["workspace 插件"] -->|"order:0"| LS1
+    P_WS2 -->|"渲染 caption 挂点<br/>（Mounts 公共渲染器）"| LS2
+    P_SBU["session-budget 插件"] -->|"order:0<br/>CaptionBudgetButton"| LS2
     P_FILES2 -->|"order:0<br/>FileTabContent"| ECT
     P_COMP2["composer 插件"] -->|"order:0<br/>Composer"| ECC
     P_COMP2 -->|"order:0<br/>ComposerToolbar"| CSB

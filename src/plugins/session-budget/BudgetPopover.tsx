@@ -1,6 +1,7 @@
 /**
- * 工作区 caption 弹窗 —— 会话列表显示预算:总数 + 按 CLI 配额。
- * 入口:侧栏「工作区」标题行右侧 icon(添加工作区旁边),portal + fixed 定位。
+ * session-budget 插件弹窗 —— 会话列表显示预算:总数 + 按 CLI 配额。
+ * 入口:侧栏「工作区」标题行右侧 icon(添加工作区旁边),portal + fixed 定位;
+ * 入口按钮与弹窗同属本插件,经 leftSidebar.workspaceCaption 挂载点贡献。
  *
  * 预算语义(与 kernel/settings sanitize 同规则):
  * - 总数:一个工作区内所有 CLI 分组共享的初始露出条数(1–100,默认 20);

@@ -50,6 +50,11 @@ describe("activateAll 插件过滤", () => {
 
     expect(activated).toEqual(["p-a", "p-b"]);
 
+    /* isPluginActive 反映真实激活态:被拔插件 false,清单外 id false。 */
+    expect(host.isPluginActive("p-a")).toBe(true);
+    expect(host.isPluginActive("p-disabled")).toBe(false);
+    expect(host.isPluginActive("p-never-registered")).toBe(false);
+
     expect(host.listPluginStates()).toEqual([
       { plugin: expect.objectContaining({ id: "p-a" }), enabled: true },
       { plugin: expect.objectContaining({ id: "p-disabled" }), enabled: false },

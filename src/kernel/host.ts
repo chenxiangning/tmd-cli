@@ -133,6 +133,8 @@ class Host implements PluginContext {
   listPluginStates(): { plugin: Plugin; enabled: boolean }[] {
     return this.lifecycle.listPluginStates();
   }
+  /** 插件是否已激活(委托 lifecycle):特性门控用(如 SessionList 消费预算与否)。 */
+  isPluginActive = (id: string): boolean => this.lifecycle.isPluginActive(id);
 
   getSessions(): SessionMeta[] {
     return this.sessions;

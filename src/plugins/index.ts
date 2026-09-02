@@ -15,6 +15,7 @@ import { cliQoderCnPlugin } from "./cli-qoder-cn";
 import { composerPlugin } from "./composer";
 import { filesPlugin } from "./files";
 import { gitPlugin } from "./git";
+import { sessionBudgetPlugin } from "./session-budget";
 import { workspacePlugin } from "./workspace";
 import { settingsPlugin } from "./settings";
 import { welcomePlugin } from "./welcome";
@@ -28,6 +29,7 @@ export const allPlugins: Plugin[] = [
   cliGrokPlugin,
   cliQoderPlugin,
   cliQoderCnPlugin,
+  sessionBudgetPlugin,
   workspacePlugin,
   filesPlugin,
   gitPlugin,

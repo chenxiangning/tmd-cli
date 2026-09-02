@@ -150,17 +150,21 @@ export function CliSessionGroup({
   /**
    * 初始露出条数 = 显示预算解析配额(断裂修复:曾硬编码 PAGE_INITIAL,
    * settings.sessionListBudget 从不被消费,设置改了列表没反应)。
+   * 拔出门控:session-budget 插件未激活 = 完全断电,回默认分页;
+   * 预算数值保留在 settings,重新插入插件后继续生效。
    */
-  const quota = resolveCliSessionQuota(
-    settings.sessionListBudget,
-    profile.id,
-    host.getCliProfiles().map((p) => p.id),
-  );
-  const [limit, setLimit] = useState(quota);
+  const initialLimit = host.isPluginActive("session-budget")
+    ? resolveCliSessionQuota(
+        settings.sessionListBudget,
+        profile.id,
+        host.getCliProfiles().map((p) => p.id),
+      )
+    : PAGE_INITIAL;
+  const [limit, setLimit] = useState(initialLimit);
   /** 预算修改响应式生效:按新配额重新起步(已展开的「更多」随之重置)。 */
   useEffect(() => {
-    setLimit(quota);
-  }, [quota]);
+    setLimit(initialLimit);
+  }, [initialLimit]);
   /** 本地重扫信号:删除磁盘会话后立刻反映(不等外部刷新)。 */
   const [rescanTick, setRescanTick] = useState(0);
   const [menu, setMenu] = useState<MenuTarget | null>(null);

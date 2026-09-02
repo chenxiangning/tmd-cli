@@ -5,26 +5,26 @@
  *   + hover 显形动作组(切到主区/刷新会话/新建会话菜单),右键同「+」
  * - 会话树:贯穿竖线 + ╰ 弯钩;行 = CLI EngineIcon + 名称 + meta
  *   (活会话 meta 显示呼吸灯,磁盘会话显示相对时间),固定在 CLI 分组内
- * - 磁盘历史分页:初始条数 = 显示预算解析配额(见 SessionList),
- *   「更多...」翻倍递增;预算编辑 = caption「会话列表显示预算」弹窗(BudgetPopover)
- * - 显示预算弹窗:caption icon 入口,portal + fixed 锚定按钮下方(校验见 budgetCommit)
+ * - 磁盘历史分页:初始条数 = 显示预算解析配额(见 SessionList);
+ *   预算编辑入口由 session-budget 插件经 leftSidebar.workspaceCaption
+ *   挂载点贡献,本插件不感知预算 UI(拔出该插件 = 回默认分页)
  * - 新建会话菜单:portal + fixed 定位(点击点夹取),CLI 行 + 行右侧刷新
  * - 数据源:活会话 = 内核 PTY 注册表;历史 = 各 CLI 插件 listSessions
- * 组件实现见同目录:WorkspaceCard / SessionList / SessionMenu / BudgetPopover / utils。
+ * 组件实现见同目录:WorkspaceCard / SessionList / SessionMenu / utils。
  */
 
 import { useState } from "react";
 import { host, useHost } from "@kernel/host";
 import type { Plugin } from "@kernel/plugin";
+import { Mounts } from "@kernel/Mounts";
 import {
   addWorkspace,
   useWorkspaces,
   type Workspace,
 } from "@kernel/workspace";
 import { pickDirectory } from "@kernel/ipc";
-import { FolderPlus, ListTree } from "lucide-react";
+import { FolderPlus } from "lucide-react";
 import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
-import { BudgetPopover, clampBudgetPosition } from "./BudgetPopover";
 import { WorkspaceCard } from "./WorkspaceCard";
 import { PinnedSessionsSection } from "./PinnedSessions";
 
@@ -38,9 +38,6 @@ function WorkspaceSection() {
   } | null>(null);
   const [refreshTicks, setRefreshTicks] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
-  const [budgetPos, setBudgetPos] = useState<{ x: number; y: number } | null>(
-    null,
-  );
 
   async function handleAdd() {
     try {
@@ -74,20 +71,8 @@ function WorkspaceSection() {
       <div className="ws-caption">
         <span>工作区</span>
         <span className="ws-caption-actions">
-          <button
-            className="ws-caption-btn"
-            title="会话列表显示预算"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              setBudgetPos(
-                budgetPos
-                  ? null
-                  : clampBudgetPosition(rect.left, rect.bottom + 6),
-              );
-            }}
-          >
-            <ListTree size={13} aria-hidden />
-          </button>
+          {/* 插件贡献的动作位(如 session-budget 的预算入口),渲染器 = kernel Mounts */}
+          <Mounts point="leftSidebar.workspaceCaption" />
           <button
             className="ws-caption-btn"
             title="添加工作区"
@@ -127,9 +112,6 @@ function WorkspaceSection() {
           onRefresh={(profileId) => bumpTick(menu.workspace.id, profileId)}
           onClose={() => setMenu(null)}
         />
-      )}
-      {budgetPos && (
-        <BudgetPopover position={budgetPos} onClose={() => setBudgetPos(null)} />
       )}
     </div>
   );
