@@ -21,10 +21,9 @@ pub fn load_settings() -> serde_json::Value {
     }
 }
 
-/// 落盘设置(整棵写;前端 store 保证传入的是完整 settings 对象)。
+/// 落盘设置(整棵写;前端 store 保证传入的是完整 settings 对象)。原子替换防截断。
 pub fn save_settings(data: &serde_json::Value) -> std::io::Result<()> {
     ensure_config_dir()?;
-    let json = serde_json::to_string_pretty(data)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-    std::fs::write(settings_file(), json)
+    let json = serde_json::to_string_pretty(data).map_err(std::io::Error::other)?;
+    crate::session::write_json_atomic(&settings_file(), &json)
 }

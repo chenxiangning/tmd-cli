@@ -1,5 +1,6 @@
 mod fs;
 mod git;
+mod hash;
 mod installer;
 mod omp_auth;
 mod probe;
@@ -13,9 +14,9 @@ mod settings;
 use pty::{PtyRegistry, SpawnSpec, SpawnedSession};
 use session::{SessionMeta, SessionRegistry};
 use tauri::webview::WebviewWindowBuilder;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
-struct AppState {
+pub(crate) struct AppState {
     pty: PtyRegistry,
     sessions: SessionRegistry,
 }
@@ -57,24 +58,31 @@ async fn cli_install_run(
         .map_err(|e| format!("install task join: {e}"))?
 }
 
+/// 必须 async + spawn_blocking:冷路径首个 spawn 会内联触发 PATH 富化
+/// (login shell 最长 3s 硬超时),同步执行冻结主线程。
 #[tauri::command]
-fn session_spawn(
+async fn session_spawn(
     app: AppHandle,
-    state: State<'_, AppState>,
     profile_id: String,
     spec: SpawnSpec,
     workspace_id: Option<String>,
 ) -> Result<SpawnedSession, String> {
-    let spawned = state.pty.spawn(&app, &profile_id, spec.clone())?;
-    state.sessions.register(SessionMeta {
-        id: spawned.id.clone(),
-        profile_id,
-        cwd: spec.cwd,
-                workspace_id,
-        created_at: now_millis(),
-        pid: spawned.pid,
-    });
-    Ok(spawned)
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let cwd = spec.cwd.clone();
+        let spawned = state.pty.spawn(&app, &profile_id, spec)?;
+        state.sessions.register(SessionMeta {
+            id: spawned.id.clone(),
+            profile_id,
+            cwd,
+            workspace_id,
+            created_at: now_millis(),
+            pid: spawned.pid,
+        });
+        Ok(spawned)
+    })
+    .await
+    .map_err(|e| format!("session_spawn join 失败: {e}"))?
 }
 
 #[tauri::command]
@@ -82,9 +90,16 @@ fn session_list(state: State<'_, AppState>) -> Vec<SessionMeta> {
     state.sessions.list()
 }
 
+/// 必须 async + spawn_blocking:PTY 写入在子进程停读时可无限阻塞,
+/// 同步 command 跑在主线程会冻结整个 UI,且全局注册表锁连带卡死所有会话。
 #[tauri::command]
-fn session_write(state: State<'_, AppState>, id: String, data: String) -> Result<(), String> {
-    state.pty.write(&id, &data)
+async fn session_write(app: AppHandle, id: String, data: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        state.pty.write(&id, &data)
+    })
+    .await
+    .map_err(|e| format!("session_write join 失败: {e}"))?
 }
 
 #[tauri::command]
@@ -97,10 +112,16 @@ fn session_resize(
     state.pty.resize(&id, cols, rows)
 }
 
+/// kill 涉及子进程回收,与写路径同纪律:spawn_blocking,不占主线程。
 #[tauri::command]
-fn session_kill(state: State<'_, AppState>, id: String) -> Result<(), String> {
-    state.sessions.remove(&id);
-    state.pty.kill(&id)
+async fn session_kill(app: AppHandle, id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        state.sessions.remove(&id);
+        state.pty.kill(&id)
+    })
+    .await
+    .map_err(|e| format!("session_kill join 失败: {e}"))?
 }
 
 /// 会话输出日志的绝对末尾偏移;无日志(创建失败/会话已退出)返回 0。
@@ -109,59 +130,81 @@ fn session_log_size(state: State<'_, AppState>, id: String) -> u64 {
     state.pty.session_log_end(&id).unwrap_or(0)
 }
 
-/// 幕布往前翻页:before 绝对偏移之前最多 max_bytes 字节的原始输出。
+/// 幕布往前翻页:磁盘读,spawn_blocking 与其余 fs 命令同纪律。
 #[tauri::command]
-fn session_history_page(
-    state: State<'_, AppState>,
+async fn session_history_page(
+    app: AppHandle,
     id: String,
     before: u64,
     max_bytes: u64,
 ) -> Result<session_log::HistoryPage, String> {
-    state.pty.session_history_page(&id, before, max_bytes)
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<AppState>()
+            .pty
+            .session_history_page(&id, before, max_bytes)
+    })
+    .await
+    .map_err(|e| format!("session_history_page join 失败: {e}"))?
+}
+
+/// fs 系命令统一 async + spawn_blocking:目录递归/最大 20MB 读/base64 编码
+/// 都是可感阻塞,同步执行跑在主线程会掉帧(cli_probe 同款纪律)。
+#[tauri::command]
+async fn fs_list_dir(path: String) -> Result<Vec<fs::DirEntry>, String> {
+    spawn_fs(move || fs::list_dir(&path)).await
 }
 
 #[tauri::command]
-fn fs_list_dir(path: String) -> Result<Vec<fs::DirEntry>, String> {
-    fs::list_dir(&path)
+async fn fs_read_file(path: String) -> Result<String, String> {
+    spawn_fs(move || fs::read_file(&path)).await
 }
 
 #[tauri::command]
-fn fs_read_file(path: String) -> Result<String, String> {
-    fs::read_file(&path)
+async fn read_local_image_data_url(path: String) -> Result<String, String> {
+    spawn_fs(move || fs::read_local_image_data_url(&path)).await
 }
 
 #[tauri::command]
-fn read_local_image_data_url(path: String) -> Result<String, String> {
-    fs::read_local_image_data_url(&path)
+async fn fs_write_temp(name: String, data: Vec<u8>) -> Result<String, String> {
+    spawn_fs(move || fs::write_temp_file(&name, &data)).await
 }
 
 #[tauri::command]
-fn fs_write_temp(name: String, data: Vec<u8>) -> Result<String, String> {
-    fs::write_temp_file(&name, &data)
+async fn fs_collect_files(dir: String, suffix: String) -> Result<Vec<fs::FileStamp>, String> {
+    spawn_fs(move || fs::collect_files(&dir, &suffix)).await
 }
 
 #[tauri::command]
-fn git_status(cwd: String) -> Result<git::GitStatus, String> {
-    git::status(&cwd)
+async fn fs_read_head(path: String, max_bytes: usize) -> Result<String, String> {
+    spawn_fs(move || fs::read_head(&path, max_bytes)).await
 }
 
 #[tauri::command]
-fn fs_collect_files(dir: String, suffix: String) -> Result<Vec<fs::FileStamp>, String> {
-    fs::collect_files(&dir, &suffix)
+async fn fs_read_tail(path: String, max_bytes: usize) -> Result<String, String> {
+    spawn_fs(move || fs::read_tail(&path, max_bytes)).await
 }
 
 #[tauri::command]
-fn fs_read_head(path: String, max_bytes: usize) -> Result<String, String> {
-    fs::read_head(&path, max_bytes)
+async fn fs_remove_path(path: String) -> Result<(), String> {
+    spawn_fs(move || fs::remove_path(&path)).await
 }
 
-#[tauri::command]
-fn fs_read_tail(path: String, max_bytes: usize) -> Result<String, String> {
-    fs::read_tail(&path, max_bytes)
+/// fs 命令公共模板:spawn_blocking 包裹 + JoinError 转 String。
+async fn spawn_fs<T, F>(f: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| format!("fs 命令 join 失败: {e}"))?
 }
+
+/// 字符串 MD5(小写 hex)。kimi 会话目录按 MD5(cwd) 命名,前端据此定位会话目录;
+/// 通用哈希原语,不携带 CLI 语义。纯内存计算,同步执行无阻塞风险。
 #[tauri::command]
-fn fs_remove_file(path: String) -> Result<(), String> {
-    fs::remove_file(&path)
+fn md5_hex(text: String) -> String {
+    hash::md5_hex(text)
 }
 
 /// 平台标识兜底:UA 探测失败时前端经此取真实 OS("macos"/"windows"/"linux")。
@@ -183,7 +226,9 @@ fn config_home_dir() -> String {
 
 #[tauri::command]
 fn config_default_workspace_root() -> String {
-    session::default_workspace_root().to_string_lossy().to_string()
+    session::default_workspace_root()
+        .to_string_lossy()
+        .to_string()
 }
 
 #[tauri::command]
@@ -209,15 +254,15 @@ fn config_write_settings(data: serde_json::Value) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     /* 打包 .app(launchd 环境)PATH 贫瘠,需用 login shell PATH 修复进程环境,
-       让 git 等裸命令名调用与 PTY 子进程都能解析。
-       但 enriched_path 要 fork login shell(-ilc),慢 shellrc 下可达数百 ms,
-       同步执行会阻塞建窗 —— 挪到后台线程,窗口先行。
+    让 git 等裸命令名调用与 PTY 子进程都能解析。
+    但 enriched_path 要 fork login shell(-ilc),慢 shellrc 下可达数百 ms,
+    同步执行会阻塞建窗 —— 挪到后台线程,窗口先行。
 
-       时序依据(消费链核实):
-       - PTY spawn(pty.rs)自带 LazyLock 解析 + 显式 cmd.env("PATH", …),
-         不依赖进程级 set_var 的就绪时刻,首个 spawn 时按需计算;
-       - git.rs/probe.rs 的裸命令名解析读进程 PATH,但二者都是建窗后由前端
-         IPC 触发,此时后台线程早已落地;LazyLock 保证多线程只算一次、结果可见。 */
+    时序依据(消费链核实):
+    - PTY spawn(pty.rs)自带 LazyLock 解析 + 显式 cmd.env("PATH", …),
+      不依赖进程级 set_var 的就绪时刻,首个 spawn 时按需计算;
+    - git.rs/probe.rs 的裸命令名解析读进程 PATH,但二者都是建窗后由前端
+      IPC 触发,此时后台线程早已落地;LazyLock 保证多线程只算一次、结果可见。 */
     std::thread::spawn(|| {
         std::env::set_var("PATH", resolve::enriched_path());
     });
@@ -231,17 +276,14 @@ pub fn run() {
             sessions,
         })
         .setup(|app| {
-            let mut window = WebviewWindowBuilder::new(
-                app,
-                "main",
-                tauri::WebviewUrl::App("index.html".into()),
-            )
-            /* 禁用 Tauri 原生 drop handler —— 让 HTML5 drop event 在 webview 内正常派发
-               否则 Tauri 拦截文件拖放,只发 tauri://drag-drop 事件,composer 收不到 */
-            .disable_drag_drop_handler()
-            .title("tmd-cli")
-            .inner_size(1440.0, 900.0)
-            .min_inner_size(960.0, 600.0);
+            let mut window =
+                WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
+                    /* 禁用 Tauri 原生 drop handler —— 让 HTML5 drop event 在 webview 内正常派发
+                    否则 Tauri 拦截文件拖放,只发 tauri://drag-drop 事件,composer 收不到 */
+                    .disable_drag_drop_handler()
+                    .title("tmd-cli")
+                    .inner_size(1440.0, 900.0)
+                    .min_inner_size(960.0, 600.0);
 
             #[cfg(target_os = "windows")]
             {
@@ -276,9 +318,24 @@ pub fn run() {
             fs_collect_files,
             fs_read_head,
             fs_read_tail,
-            fs_remove_file,
+            fs_remove_path,
+            md5_hex,
             read_local_image_data_url,
-            git_status,
+            git::commands::git_status,
+            git::commands::git_totals,
+            git::commands::git_ahead_behind,
+            git::commands::git_diff_file_patch,
+            git::commands::git_stage,
+            git::commands::git_unstage,
+            git::commands::git_discard,
+            git::commands::git_commit,
+            git::commands::git_log,
+            git::commands::git_branches,
+            git::commands::git_checkout,
+            git::commands::git_create_branch,
+            git::commands::git_delete_branch,
+            git::commands::git_fetch,
+            git::commands::git_pull_push,
             quota::quota_fetch,
             quota::quota_env_value,
             omp_auth::omp_auth_credential,

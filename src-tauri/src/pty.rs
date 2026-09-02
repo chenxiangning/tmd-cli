@@ -10,18 +10,16 @@
 use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
-use std::sync::Arc;
 use std::sync::mpsc;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::resolve::{enriched_path, resolve_command};
+use crate::session_log::{append_log, read_history_page, session_log_path, HistoryPage, LogMeta};
 use parking_lot::Mutex;
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
-use crate::resolve::{enriched_path, resolve_command};
-use crate::session_log::{
-    append_log, read_history_page, session_log_path, HistoryPage, LogMeta,
-};
+use tauri::{AppHandle, Emitter, Manager};
 
 /// 增量 UTF-8 解码：不完整的多字节尾部暂存进 `tail`，与下一 chunk 拼接后再解码。
 /// 真正的坏字节(error_len 存在)按 U+FFFD 替换；仅是"没读完"的字节绝不误伤。
@@ -69,7 +67,8 @@ const OUT_AGGREGATE_MAX_BYTES: usize = 1024 * 1024;
 
 /// 一次 PTY 会话的句柄。reader 线程在后台把字节流转发为 Tauri 事件。
 struct PtyHandle {
-    writer: Box<dyn Write + Send>,
+    /// 每会话独立锁:写入可无限阻塞(子进程停读时),绝不能持全局注册表锁等它。
+    writer: Arc<Mutex<Box<dyn Write + Send>>>,
     master: Box<dyn MasterPty + Send>,
     child: Box<dyn portable_pty::Child + Send + Sync>,
 }
@@ -152,7 +151,7 @@ impl PtyRegistry {
         let pid = child.process_id();
 
         /* 会话输出日志:~/.tmd-cli/session/<引擎>/<项目-slug>/<id>.log。
-           创建失败不阻塞终端,仅关闭"加载更早输出"能力 */
+        创建失败不阻塞终端,仅关闭"加载更早输出"能力 */
         let log_path = session_log_path(profile_id, &spec.cwd, &id);
         let log_file = log_path
             .parent()
@@ -187,15 +186,16 @@ impl PtyRegistry {
             .map_err(|e| format!("take writer 失败: {e}"))?;
 
         /* 输出泵：PTY → Tauri event + 会话日志。xterm.js 只认事件通道。
-           聚合选型:portable-pty 的 reader 只有阻塞 read(无 try_read),
-           最小侵入方案是拆 channel 两段 ——
-           reader 线程只管阻塞读 + send 原始字节(职责单一,永不阻塞下游);
-           emitter 线程 recv 首 chunk 后在 8ms 窗口内 drain 尽所有后续 chunk,
-           拼成一批再落日志/解码/emit。日志按批次追加(字节序不变,
-           read_history_page 的偏移语义不受影响)。 */
+        聚合选型:portable-pty 的 reader 只有阻塞 read(无 try_read),
+        最小侵入方案是拆 channel 两段 ——
+        reader 线程只管阻塞读 + send 原始字节(职责单一,永不阻塞下游);
+        emitter 线程 recv 首 chunk 后在 8ms 窗口内 drain 尽所有后续 chunk,
+        拼成一批再落日志/解码/emit。日志按批次追加(字节序不变,
+        read_history_page 的偏移语义不受影响)。 */
         let out_id = id.clone();
         let out_app = app.clone();
         let logs = Arc::clone(&self.logs);
+        let out_sessions = Arc::clone(&self.sessions);
         let (out_tx, out_rx) = mpsc::channel::<Vec<u8>>();
         std::thread::spawn(move || {
             let mut buf = [0u8; 8192];
@@ -216,15 +216,12 @@ impl PtyRegistry {
         std::thread::spawn(move || {
             let event = format!("pty://out/{out_id}");
             /* 跨 chunk 的不完整 UTF-8 尾部(如 3 字节中文被聚合批边界劈开),
-               暂存后与下一批拼接再解码,避免 from_utf8_lossy 逐包转换产生 */
+            暂存后与下一批拼接再解码,避免 from_utf8_lossy 逐包转换产生 */
             let mut tail: Vec<u8> = Vec::new();
             let mut log_file = log_file;
-            loop {
-                /* 阻塞等首 chunk;channel 关闭且排空 → 会话结束 */
-                let mut batch = match out_rx.recv() {
-                    Ok(first) => first,
-                    Err(_) => break,
-                };
+            /* 阻塞等首 chunk;channel 关闭且排空 → 会话结束 */
+            while let Ok(first) = out_rx.recv() {
+                let mut batch = first;
                 /* 聚合窗:drain 窗口内已到达的所有 chunk,合并为一个事件 */
                 let deadline = Instant::now() + OUT_AGGREGATE_WINDOW;
                 while batch.len() < OUT_AGGREGATE_MAX_BYTES {
@@ -235,7 +232,7 @@ impl PtyRegistry {
                     match out_rx.recv_timeout(deadline - now) {
                         Ok(chunk) => batch.extend_from_slice(&chunk),
                         /* Timeout → 窗口耗尽;Disconnected → 先发完手头这批,
-                           下一轮 recv 拿到 Err 再统一走退出清理 */
+                        下一轮 recv 拿到 Err 再统一走退出清理 */
                         Err(_) => break,
                     }
                 }
@@ -255,13 +252,23 @@ impl PtyRegistry {
                 let _ = std::fs::remove_file(path);
             }
             logs.lock().remove(&out_id);
+            /* Rust 侧自清理:移除句柄并回收子进程,不依赖前端 kill 回调 ——
+             * webview reload 会错过 pty://exit,句柄(master fd)否则永久滞留。 */
+            if let Some(mut handle) = out_sessions.lock().remove(&out_id) {
+                let _ = handle.child.kill();
+            }
+            /* 活会话注册表同步移除:webview reload 错过 exit 事件后,
+             * session_list 不再把死会话当活会话返回 */
+            if let Some(state) = out_app.try_state::<crate::AppState>() {
+                state.sessions.remove(&out_id);
+            }
             let _ = out_app.emit(&format!("pty://exit/{out_id}"), ());
         });
 
         self.sessions.lock().insert(
             id.clone(),
             PtyHandle {
-                writer,
+                writer: Arc::new(Mutex::new(writer)),
                 master: pair.master,
                 child,
             },
@@ -270,19 +277,29 @@ impl PtyRegistry {
         Ok(SpawnedSession { id, pid })
     }
 
+    /// 写入会话 stdin。PTY master 写入在子进程停止读入时会无限阻塞
+    /// (挂起前台进程后粘贴即触发):①注册表锁只取句柄当场释放,锁内零 IO;
+    /// ②每会话独立 writer 锁串行化写,单会话卡写不放大为全局卡死;
+    /// ③命令层以 spawn_blocking 执行,不占 Tauri 主线程。
     pub fn write(&self, id: &str, data: &str) -> Result<(), String> {
-        let mut sessions = self.sessions.lock();
-        let handle = sessions.get_mut(id).ok_or_else(|| format!("会话 {id} 不存在"))?;
-        handle
-            .writer
-            .write_all(data.as_bytes())
-            .and_then(|_| handle.writer.flush())
+        let writer = {
+            let sessions = self.sessions.lock();
+            let handle = sessions
+                .get(id)
+                .ok_or_else(|| format!("会话 {id} 不存在"))?;
+            Arc::clone(&handle.writer)
+        };
+        let mut w = writer.lock();
+        w.write_all(data.as_bytes())
+            .and_then(|_| w.flush())
             .map_err(|e| format!("写入 PTY 失败: {e}"))
     }
 
     pub fn resize(&self, id: &str, cols: u16, rows: u16) -> Result<(), String> {
         let sessions = self.sessions.lock();
-        let handle = sessions.get(id).ok_or_else(|| format!("会话 {id} 不存在"))?;
+        let handle = sessions
+            .get(id)
+            .ok_or_else(|| format!("会话 {id} 不存在"))?;
         handle
             .master
             .resize(PtySize {
@@ -296,7 +313,9 @@ impl PtyRegistry {
 
     pub fn kill(&self, id: &str) -> Result<(), String> {
         let mut sessions = self.sessions.lock();
-        let mut handle = sessions.remove(id).ok_or_else(|| format!("会话 {id} 不存在"))?;
+        let mut handle = sessions
+            .remove(id)
+            .ok_or_else(|| format!("会话 {id} 不存在"))?;
         handle.child.kill().map_err(|e| format!("kill 失败: {e}"))
     }
 
@@ -356,7 +375,6 @@ fn random_u64() -> u64 {
     nanos ^ ((std::process::id() as u64) << 32)
 }
 
-#[cfg(test)]
 #[cfg(test)]
 mod tests {
     use super::*;

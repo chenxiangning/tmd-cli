@@ -150,6 +150,15 @@ pub(crate) fn read_history_page(
     }
     let file_end = end - base;
     let file_start = file_end.saturating_sub(max_bytes);
+    if file_start >= file_end {
+        /* max_bytes=0(或零宽页):无可读内容,直接空页;
+         * 同时保证下方 rel < buf.len() 不变量,防闭区间索引越界 */
+        return Ok(HistoryPage {
+            text: String::new(),
+            start_offset: base + file_start,
+            has_more: file_start > 0,
+        });
+    }
     let lookback = file_start.min(LOG_ALIGN_LOOKBACK);
     let read_start = file_start - lookback;
 
@@ -168,7 +177,7 @@ pub(crate) fn read_history_page(
     }
     buf.truncate(filled);
     let rel = (file_start - read_start) as usize;
-    if rel > buf.len() {
+    if rel >= buf.len() {
         return Err("会话日志被并发截断,请重试".to_string());
     }
     let mut start_idx = rel;
@@ -264,7 +273,10 @@ mod tests {
 
     #[test]
     fn project_slug_路径转连字符() {
-        assert_eq!(project_slug("/Users/x/code/tmd-cli"), "-Users-x-code-tmd-cli");
+        assert_eq!(
+            project_slug("/Users/x/code/tmd-cli"),
+            "-Users-x-code-tmd-cli"
+        );
         assert_eq!(project_slug("C:\\code\\proj"), "C--code-proj");
     }
 }

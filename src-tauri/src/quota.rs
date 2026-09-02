@@ -30,11 +30,7 @@ pub async fn quota_fetch(spec: QuotaRequest) -> Result<QuotaResponse, String> {
         .build()
         .map_err(|e| format!("http client build: {e}"))?;
 
-    let method = spec
-        .method
-        .as_deref()
-        .unwrap_or("GET")
-        .to_uppercase();
+    let method = spec.method.as_deref().unwrap_or("GET").to_uppercase();
 
     let mut req = match method.as_str() {
         "GET" => client.get(&spec.url),
@@ -54,10 +50,7 @@ pub async fn quota_fetch(spec: QuotaRequest) -> Result<QuotaResponse, String> {
         req = req.body(body);
     }
 
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| format!("http send: {e}"))?;
+    let resp = req.send().await.map_err(|e| format!("http send: {e}"))?;
 
     let status = resp.status().as_u16();
     let body_text = resp
@@ -65,18 +58,34 @@ pub async fn quota_fetch(spec: QuotaRequest) -> Result<QuotaResponse, String> {
         .await
         .map_err(|e| format!("http read body: {e}"))?;
 
-    let body: serde_json::Value = serde_json::from_str(&body_text)
-        .map_err(|e| format!("http parse json: {e}; body={}", &body_text[..body_text.len().min(500)]))?;
+    let body: serde_json::Value = serde_json::from_str(&body_text).map_err(|e| {
+        /* 非 JSON 响应常是 CJK/HTML 错误页:按字节切 500 会劈进多字节字符 → panic(abort)。
+         * 按字符截断,天然落在边界上。 */
+        let preview: String = body_text.chars().take(200).collect();
+        format!("http parse json: {e}; body={preview}")
+    })?;
 
     Ok(QuotaResponse { status, body })
 }
 
 /// 读取 quota provider 使用的环境变量。仅返回非空值,不执行 shell 命令。
+/// 纵深防御:renderer 不可信,仅放行密钥/token 类与 pi 配置目录覆盖,
+/// 阻断 PATH/HOME 等任意环境变量读取。
 #[tauri::command]
 pub fn quota_env_value(name: String) -> Option<String> {
     let key = name.trim();
     if key.is_empty() {
         return None;
     }
-    std::env::var(key).ok().filter(|value| !value.trim().is_empty())
+    let allowed = key.ends_with("_KEY")
+        || key.ends_with("_TOKEN")
+        || key.ends_with("_SECRET")
+        || key.starts_with("QUOTA_")
+        || key.starts_with("PI_");
+    if !allowed {
+        return None;
+    }
+    std::env::var(key)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
 }

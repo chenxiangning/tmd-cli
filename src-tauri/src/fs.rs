@@ -2,8 +2,8 @@
 //!
 //! 骨架阶段：单层目录列举。递归/监听/忽略规则随 files 插件实装时补。
 
-use std::time::{SystemTime, UNIX_EPOCH};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 use std::fs;
@@ -86,7 +86,10 @@ pub fn read_local_image_data_url(path: &str) -> Result<String, String> {
 pub fn read_file(path: &str) -> Result<String, String> {
     let meta = fs::metadata(path).map_err(|e| format!("读取文件信息失败: {e}"))?;
     if meta.len() > MAX_PREVIEW_BYTES {
-        return Err(format!("文件超过 {}KB，暂不支持预览", MAX_PREVIEW_BYTES / 1024));
+        return Err(format!(
+            "文件超过 {}KB，暂不支持预览",
+            MAX_PREVIEW_BYTES / 1024
+        ));
     }
     let bytes = fs::read(path).map_err(|e| format!("读取文件失败: {e}"))?;
     if bytes.contains(&0) {
@@ -102,18 +105,25 @@ pub fn write_temp_file(name: &str, bytes: &[u8]) -> Result<String, String> {
     // 从 name 抽扩展名(空则 bin)
     let ext = name
         .rsplit_once('.')
-        .map(|(_, e)| if e.len() <= 5 && !e.is_empty() { e } else { "bin" })
+        .map(|(_, e)| {
+            if e.len() <= 5 && !e.is_empty() {
+                e
+            } else {
+                "bin"
+            }
+        })
         .unwrap_or("bin");
+    /* 毫秒时间戳 + 进程内单调计数:同一毫秒内连续上传也不互相覆盖 */
+    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis())
         .unwrap_or(0);
-    let path = base.join(format!("upload-{stamp}.{ext}"));
+    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let path = base.join(format!("upload-{stamp}-{seq:x}.{ext}"));
     fs::write(&path, bytes).map_err(|e| format!("写入临时文件失败: {e}"))?;
     Ok(path.to_string_lossy().to_string())
 }
-
-
 
 /// 带修改时间的文件条目 —— CLI 磁盘会话扫描(fs_collect_files)的返回单元。
 #[derive(Debug, Serialize)]
@@ -175,7 +185,7 @@ pub fn read_head(path: &str, max_bytes: usize) -> Result<String, String> {
     let n = f.read(&mut buf).map_err(|e| format!("读取文件失败: {e}"))?;
     Ok(String::from_utf8_lossy(&buf[..n]).to_string())
 }
- 
+
 /// 读取文件尾部最多 max_bytes 字节(UTF-8 损失容忍)。
 /// 给 JSONL session 状态解析用,避免把完整对话文件加载到前端。
 pub fn read_tail(path: &str, max_bytes: usize) -> Result<String, String> {
@@ -193,24 +203,68 @@ pub fn read_tail(path: &str, max_bytes: usize) -> Result<String, String> {
         .map_err(|e| format!("读取文件失败: {e}"))?;
     Ok(String::from_utf8_lossy(&buf).to_string())
 }
-/// 物理删除单个文件(会话列表"删除会话":双端统一删 CLI 磁盘 jsonl)。
-/// 文件不存在视为成功 —— 删除是幂等操作,重试/竞态(活会话刚被 CLI 轮替)不应报错。
-pub fn remove_file(path: &str) -> Result<(), String> {
-    match fs::remove_file(path) {
+/// 删除操作允许的 canonical 根前缀 —— 各 CLI 会话数据目录 + 本应用临时区。
+/// 与 docs/architecture/02-code-architecture.md §5.1 的会话存储表对应;
+/// 新增 CLI 插件时同步维护此表。绝对禁止:文件系统根、home 本身及白名单外的任意路径。
+fn allowed_remove_roots() -> Vec<std::path::PathBuf> {
+    /* 根也须 canonicalize:macOS 的 temp_dir 在 /var(→/private/var 符号链接)下,
+     * 与入参路径的 canonical 形态比较前必须同基准。根可能尚不存在(未创建),
+     * canonicalize 失败时退回原始形态 —— 此时其下路径也不存在,删除走 NotFound 幂等。 */
+    fn canon_or_self(p: std::path::PathBuf) -> std::path::PathBuf {
+        p.canonicalize().unwrap_or(p)
+    }
+    let home = crate::session::home_dir();
+    let mut roots: Vec<std::path::PathBuf> = [
+        ".omp",
+        ".pi",
+        ".claude",
+        ".codex",
+        ".kimi",
+        ".grok",
+        ".qoder",
+        ".qoder-cn",
+        ".tmd-cli",
+    ]
+    .iter()
+    .map(|d| home.join(d))
+    .map(canon_or_self)
+    .collect();
+    roots.push(canon_or_self(std::env::temp_dir().join("tmd-cli")));
+    roots
+}
+/// 安全面:renderer 不可信,删除原语只对白名单根前缀内的 canonical 路径开放。
+pub fn remove_path(path: &str) -> Result<(), String> {
+    let p = std::path::Path::new(path);
+    let canonical = match p.canonicalize() {
+        Ok(c) => c,
+        /* 路径不存在 = 删除已达成:幂等语义在此兑现,不进白名单检查 */
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(format!("路径不可解析: {e}")),
+    };
+    let ok = allowed_remove_roots()
+        .iter()
+        .any(|root| canonical.starts_with(root));
+    if !ok {
+        return Err(format!("拒绝删除白名单外的路径: {path}"));
+    }
+    let result = if canonical.is_dir() {
+        fs::remove_dir_all(&canonical)
+    } else {
+        fs::remove_file(&canonical)
+    };
+    match result {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(format!("删除文件失败: {e}")),
+        Err(e) => Err(format!("删除失败: {e}")),
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
     fn temp_root(tag: &str) -> std::path::PathBuf {
-        let root = std::env::temp_dir().join(format!(
-            "tmd-cli-list-dir-{tag}-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("tmd-cli-list-dir-{tag}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).expect("创建临时目录失败");
         root
@@ -278,17 +332,54 @@ mod tests {
         assert_eq!(files, vec![".git"]);
         let _ = fs::remove_dir_all(&root);
     }
+
+    /// remove_path 测试专用根:temp_dir()/tmd-cli 本身就在白名单内。
+    fn remove_test_root(tag: &str) -> std::path::PathBuf {
+        let root = std::env::temp_dir()
+            .join("tmd-cli")
+            .join(format!("remove-{tag}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).expect("创建临时目录失败");
+        root
+    }
+
     #[test]
-    fn remove_file_删除存在文件且对缺失文件幂等() {
-        let root = temp_root("remove");
-        let target = root.join("session.jsonl");
-        fs::write(&target, "{}\n").unwrap();
+    fn remove_path_删文件删目录且对缺失路径幂等() {
+        let root = remove_test_root("ok");
+        let file = root.join("session.jsonl");
+        fs::write(&file, "{}\n").unwrap();
 
         // 存在的文件:删除成功且确实消失
-        remove_file(target.to_str().unwrap()).unwrap();
-        assert!(!target.exists());
+        remove_path(file.to_str().unwrap()).unwrap();
+        assert!(!file.exists());
         // 再删一次(竞态/重试语义):NotFound 幂等成功,不得报错
-        remove_file(target.to_str().unwrap()).unwrap();
+        remove_path(file.to_str().unwrap()).unwrap();
+
+        // 目录(含嵌套内容):整树删除 —— kimi 会话目录形态
+        let dir = root.join("910a");
+        fs::create_dir_all(dir.join("uuid")).unwrap();
+        fs::write(dir.join("uuid").join("wire.jsonl"), "{}\n").unwrap();
+        remove_path(dir.to_str().unwrap()).unwrap();
+        assert!(!dir.exists());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn remove_path_拒绝白名单外的路径() {
+        // 白名单外(临时目录散列根)的路径必须被拒,防 renderer 任意删除
+        let outside = std::env::temp_dir().join(format!("tmd-outside-{}", std::process::id()));
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(outside.join("x.txt"), "keep").unwrap();
+        let err = remove_path(outside.to_str().unwrap()).unwrap_err();
+        assert!(err.contains("白名单"), "应报白名单拒绝: {err}");
+        assert!(outside.join("x.txt").exists(), "白名单外文件不得被动");
+        let _ = fs::remove_dir_all(&outside);
+
+        // 存在的文件 + 白名单内:正常删除(正例对照)
+        let root = remove_test_root("allow");
+        fs::write(root.join("y.txt"), "x").unwrap();
+        remove_path(root.join("y.txt").to_str().unwrap()).unwrap();
+        assert!(!root.join("y.txt").exists());
         let _ = fs::remove_dir_all(&root);
     }
 }

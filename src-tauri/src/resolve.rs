@@ -47,10 +47,21 @@ fn build_enriched_path() -> String {
     /* 家目录 bin:unix 用 HOME,Windows 用 USERPROFILE */
     let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"));
     if let Some(home) = home {
-        push_unique_dir(&mut dirs, std::path::Path::new(&home).join(".local").join("bin"));
+        push_unique_dir(
+            &mut dirs,
+            std::path::Path::new(&home).join(".local").join("bin"),
+        );
+        /* xai 官方 install.sh 固定装 ~/.grok/bin —— login shell 超时丢目录时兜底 */
+        push_unique_dir(
+            &mut dirs,
+            std::path::Path::new(&home).join(".grok").join("bin"),
+        );
     }
     #[cfg(target_os = "macos")]
-    push_unique_dirs(&mut dirs, std::ffi::OsStr::new("/opt/homebrew/bin:/usr/local/bin"));
+    push_unique_dirs(
+        &mut dirs,
+        std::ffi::OsStr::new("/opt/homebrew/bin:/usr/local/bin"),
+    );
     #[cfg(target_os = "linux")]
     push_unique_dirs(&mut dirs, std::ffi::OsStr::new("/usr/local/bin:/snap/bin"));
     #[cfg(windows)]
@@ -102,11 +113,33 @@ pub(crate) fn login_shell_path() -> Option<String> {
     const BEGIN: &str = "__TMD_PATH_BEGIN__";
     const END: &str = "__TMD_PATH_END__";
     let mut child = std::process::Command::new(shell)
-        .args(["-ilc", &format!("echo {BEGIN}; printf '%s' \"$PATH\"; echo; echo {END}")])
+        .args([
+            "-ilc",
+            &format!("echo {BEGIN}; printf '%s' \"$PATH\"; echo; echo {END}"),
+        ])
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
         .ok()?;
+
+    /* rc 文件 fork 的守护进程(ssh-agent 等)会继承管道写端:wait 之后再
+     * read-to-EOF 永不返回。必须在 spawn 后立刻并发排空两个管道,
+     * 退出后用带超时的 channel 收 stdout,超时即放弃(防挂死)。 */
+    use std::io::Read;
+    let mut stdout_pipe = child.stdout.take()?;
+    let mut stderr_pipe = child.stderr.take()?;
+    let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
+    std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stdout_pipe.read_to_end(&mut buf);
+        let _ = tx.send(buf);
+        /* buf 随线程消亡;stderr 同法排空(内容不关心,只为防子进程写阻塞) */
+    });
+    std::thread::spawn(move || {
+        let mut sink = Vec::new();
+        let _ = stderr_pipe.read_to_end(&mut sink);
+    });
+
     let exit = wait_child_with_timeout(
         &mut child,
         std::time::Duration::from_secs(SHELL_PATH_TIMEOUT_SECS),
@@ -114,8 +147,8 @@ pub(crate) fn login_shell_path() -> Option<String> {
     if !exit.ok()?.success() {
         return None;
     }
-    let out = child.wait_with_output().ok()?;
-    let text = String::from_utf8_lossy(&out.stdout);
+    let out = rx.recv_timeout(std::time::Duration::from_secs(1)).ok()?;
+    let text = String::from_utf8_lossy(&out);
     let path = text
         .split_once(BEGIN)?
         .1
@@ -123,7 +156,11 @@ pub(crate) fn login_shell_path() -> Option<String> {
         .0
         .trim()
         .to_string();
-    if path.is_empty() { None } else { Some(path) }
+    if path.is_empty() {
+        None
+    } else {
+        Some(path)
+    }
 }
 
 #[cfg(windows)]
@@ -149,7 +186,10 @@ pub(crate) fn resolve_command(command: &str, path: &str) -> ResolvedCommand {
             return wrap_if_batch(candidate.to_string_lossy().into_owned());
         }
     }
-    ResolvedCommand { program: command.to_string(), prefix_args: Vec::new() }
+    ResolvedCommand {
+        program: command.to_string(),
+        prefix_args: Vec::new(),
+    }
 }
 
 #[cfg(unix)]
@@ -165,8 +205,7 @@ fn find_in_dir(dir: &std::path::Path, command: &str) -> Option<std::path::PathBu
         let candidate = dir.join(command);
         return candidate.is_file().then_some(candidate);
     }
-    let pathext = std::env::var("PATHEXT")
-        .unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".to_string());
+    let pathext = std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".to_string());
     for ext in pathext.split(';').filter(|e| !e.is_empty()) {
         let ext = ext.trim_start_matches('.');
         let candidate = dir.join(format!("{command}.{ext}"));
@@ -182,9 +221,15 @@ fn wrap_if_batch(path: String) -> ResolvedCommand {
     #[cfg(windows)]
     if is_batch_script(&path) {
         let comspec = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
-        return ResolvedCommand { program: comspec, prefix_args: vec!["/c".to_string(), path] };
+        return ResolvedCommand {
+            program: comspec,
+            prefix_args: vec!["/c".to_string(), path],
+        };
     }
-    ResolvedCommand { program: path, prefix_args: Vec::new() }
+    ResolvedCommand {
+        program: path,
+        prefix_args: Vec::new(),
+    }
 }
 
 /// 纯函数:路径是否指向 Windows 批处理脚本(大小写不敏感)。跨平台可测。
@@ -212,7 +257,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn resolve_command_在_PATH_中找到可执行文件并返回绝对路径() {
+    fn resolve_command_在_path_中找到可执行文件并返回绝对路径() {
         let r = resolve_command("ls", "/bin:/usr/bin");
         assert_eq!(r.program, "/bin/ls");
         assert!(r.prefix_args.is_empty());
@@ -241,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    fn enriched_path_包含进程_PATH_与常见安装目录且去重() {
+    fn enriched_path_包含进程_path_与常见安装目录且去重() {
         let path = enriched_path();
         for dir in ["/usr/bin", "/bin"] {
             assert!(path.split(':').any(|d| d == dir), "缺 {dir}: {path}");

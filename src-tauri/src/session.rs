@@ -38,20 +38,12 @@ pub struct WorkspaceMeta {
 /// workspaces.json 顶层结构。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[derive(Default)]
 pub struct WorkspacesFile {
     #[serde(default)]
     pub list: Vec<WorkspaceMeta>,
     #[serde(default)]
     pub active_id: Option<String>,
-}
-
-impl Default for WorkspacesFile {
-    fn default() -> Self {
-        WorkspacesFile {
-            list: Vec::new(),
-            active_id: None,
-        }
-    }
 }
 
 /// 用户 home 目录(mac/win 兼容)。极端环境取不到时退到临时目录。
@@ -90,13 +82,20 @@ pub fn load_workspaces() -> WorkspacesFile {
     }
 }
 
+/// 同目录临时文件 + rename 的原子替换:进程崩溃/掉电不会留下截断的 JSON。
+/// rename 在同一文件系统内原子;load 侧失败本就回退默认,损坏不再不可逆。
+pub(crate) fn write_json_atomic(path: &std::path::Path, json: &str) -> std::io::Result<()> {
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(&tmp, json)?;
+    std::fs::rename(&tmp, path)
+}
+
 /// 落盘工作区列表。
 pub fn save_workspaces(data: &WorkspacesFile) -> std::io::Result<()> {
     ensure_config_dir()?;
     let file = workspaces_file();
-    let json = serde_json::to_string_pretty(data)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-    std::fs::write(&file, json)
+    let json = serde_json::to_string_pretty(data).map_err(std::io::Error::other)?;
+    write_json_atomic(&file, &json)
 }
 
 /// 活会话注册表。进程内存态,不落盘;PTY 退出即移除。
