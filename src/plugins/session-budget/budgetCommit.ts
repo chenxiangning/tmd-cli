@@ -41,7 +41,7 @@ export function commitTotal(
 ): BudgetCommitResult {
   const perCli = prunePerCli(budget.perCli, registeredIds);
   const allocated = allocatedOf(perCli);
-  const n = Number.parseInt(raw, 10);
+  const n = Number(raw);
   if (
     !Number.isInteger(n) ||
     n < SESSION_LIST_TOTAL_MIN ||
@@ -75,7 +75,7 @@ export function commitQuota(
     delete next[cliId];
     return { ok: true, value: { total: budget.total, perCli: next } };
   }
-  const n = Number.parseInt(raw, 10);
+  const n = Number(raw);
   if (!Number.isInteger(n) || n < 0 || othersTotal + n > budget.total) {
     return {
       ok: false,

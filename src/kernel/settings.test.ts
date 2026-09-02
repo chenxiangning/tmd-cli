@@ -347,4 +347,13 @@ describe("resolveCliSessionQuota", () => {
       settings.resolveCliSessionQuota(budget, "ghost", REGISTERED),
     ).toBe(0);
   });
+
+  it("已卸载 CLI 的残留 perCli key 不抬高占用(注册集外不计入已分配)", () => {
+    /* 回归守卫:total 20,残留 uninstalled:14 若计入已分配,
+       未配置组会被挤成 floor(6/4)=1 而非 floor(20/4)=5;
+       与 budgetCommit.prunePerCli 的"残留不得抬高占用"不变式对齐 */
+    const budget = { total: 20, perCli: { uninstalled: 14 } };
+    expect(settings.resolveCliSessionQuota(budget, "claude", REGISTERED)).toBe(5);
+    expect(settings.resolveCliSessionQuota(budget, "omp", REGISTERED)).toBe(5);
+  });
 });

@@ -11,6 +11,11 @@
 
 import { ipc } from "@kernel/ipc";
 
+/** 模块级 TTL 缓存:WelcomePage 每次回首页都重挂载,不缓存会对 8 个引擎
+ *  各发一次 registry 请求;5 分钟内同包直接复用(失败不缓存,下次重试)。 */
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const cache = new Map<string, { at: number; version: string }>();
+
 /**
  * 查 npm registry 上某包的最新版本(dist-tags.latest)。
  * scoped 包 encodeURIComponent 后 `@openai/codex` → `%40openai%2Fcodex`,registry 接受。
@@ -18,13 +23,17 @@ import { ipc } from "@kernel/ipc";
 export async function fetchLatestVersion(
   npmPackage: string,
 ): Promise<string | null> {
+  const hit = cache.get(npmPackage);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.version;
   try {
     const res = await ipc.quotaFetch({
       url: `https://registry.npmjs.org/${encodeURIComponent(npmPackage)}/latest`,
     });
     if (res.status !== 200) return null;
     const body = res.body as { version?: unknown } | null;
-    return typeof body?.version === "string" ? body.version : null;
+    if (typeof body?.version !== "string") return null;
+    cache.set(npmPackage, { at: Date.now(), version: body.version });
+    return body.version;
   } catch {
     return null;
   }

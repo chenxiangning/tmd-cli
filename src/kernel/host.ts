@@ -16,10 +16,7 @@ import { ActivityWatch } from "./activityWatch";
 import { ipc, onPtyExit, onPtyOutput, type SessionMeta, type SpawnSpec } from "./ipc";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";
-import {
-  registerSettingsSection,
-  type SettingsSectionContribution,
-} from "./settingsRegistry";
+import { registerSettingsSection, type SettingsSectionContribution } from "./settingsRegistry";
 
 /** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅 Host 内部持有。 */
 type TimerHandle = ReturnType<typeof setInterval>;
@@ -246,6 +243,11 @@ class Host implements PluginContext {
       void this.removeSession(sessionId);
       this.events.emit(KernelTopics.sessionExited, sessionId);
     });
+    /* removeSession 插进两次订阅 await 之间 → 退订表查不到会漏退订:复查存活,已删则成对退订 */
+    if (!this.sessions.some((s) => s.id === sessionId)) {
+      [offOutput, offExit].forEach((off) => off());
+      return this.sessions.find((s) => s.id === sessionId)!;
+    }
     this.ptyUnlistens.set(sessionId, [offOutput, offExit]);
     this.events.emit(KernelTopics.sessionsChanged, this.sessions);
     this.events.emit(KernelTopics.activeSessionChanged, sessionId);
@@ -461,8 +463,8 @@ class Host implements PluginContext {
     if (this.activeSessionId === id) {
       const next = this.sessions[0]?.id ?? null;
       this.activeSessionId = next;
-      /* 隐式切换也要广播:EventBus 是跨插件唯一通道,陈旧 active 会话会误导订阅方 */
-      if (next !== null) this.events.emit(KernelTopics.activeSessionChanged, next);
+      /* 隐式切换也要广播(含删尽转 null):EventBus 是跨插件唯一通道,陈旧 id 误导订阅方 */
+      this.events.emit(KernelTopics.activeSessionChanged, next);
     }
     this.events.emit(KernelTopics.sessionsChanged, this.sessions);
     this.notify();

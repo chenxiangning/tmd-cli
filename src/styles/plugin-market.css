@@ -234,6 +234,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* button 元素化(键盘可达)后消 UA 默认样式,外观与 div 版一致 */
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
   cursor: pointer;
   user-select: none;
   transition:

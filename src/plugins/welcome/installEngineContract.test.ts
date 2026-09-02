@@ -57,3 +57,38 @@ describe("安装引擎清单契约(ENGINE_METAS ↔ CliInstallEngine)", () => {
     ).toEqual([]);
   });
 });
+
+/* ── 引擎卡片 ↔ 注册 profile 契约 ──
+ * WelcomePage 按 host.getCliProfile(m.id) 过滤 ENGINE_METAS:id 对不上时
+ * 卡片静默消失(2026-09-02 评审发现的盲区:安装侧有契约,profile 侧没有)。
+ * 直接激活 allPlugins 捕获注册集 —— 编译期清单引用,不构成运行时依赖。 */
+import { allPlugins } from "../index";
+import type { CliProfile } from "@kernel/cli";
+import type { PluginContext } from "@kernel/plugin";
+
+describe("引擎卡片 ↔ 注册 profile 契约(ENGINE_METAS ↔ allPlugins)", () => {
+  it("ENGINE_METAS 与注册 profile id 双向集合相等", async () => {
+    const profiles: CliProfile[] = [];
+    const ctx: PluginContext = {
+      registerCliProfile: (p) => profiles.push(p),
+      contribute: () => undefined,
+      registerSettingsSection: () => undefined,
+      events: { on: () => () => undefined, off: () => undefined, emit: () => undefined } as never,
+    };
+    await Promise.all(allPlugins.map((p) => p.activate(ctx)));
+    const registered = new Set(profiles.map((p) => p.id));
+    const engineIds = new Set(ENGINE_METAS.map((m) => m.id));
+
+    const noCard = [...registered].filter((id) => !engineIds.has(id));
+    expect(
+      noCard,
+      `以下 profile 注册了但 ENGINE_METAS 没有引擎卡片(欢迎页不显示):请补 engineMeta.ts`,
+    ).toEqual([]);
+
+    const noProfile = [...engineIds].filter((id) => !registered.has(id));
+    expect(
+      noProfile,
+      `以下引擎卡片找不到已注册的 profile(WelcomePage 会静默过滤掉):检查 id 拼写/插件是否入 allPlugins`,
+    ).toEqual([]);
+  });
+});

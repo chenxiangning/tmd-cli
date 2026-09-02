@@ -16,7 +16,7 @@ describe("prunePerCli", () => {
 
 describe("commitTotal", () => {
   it("越界/非整数输入拒绝并给行内提示", () => {
-    for (const raw of ["", "abc", "0", "101", "-5"]) {
+    for (const raw of ["", "abc", "0", "101", "-5", "30x", "3.5"]) {
       const result = commitTotal({ total: 20, perCli: {} }, IDS, raw);
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.hint).toContain("总数");
@@ -55,6 +55,8 @@ describe("commitQuota", () => {
   it("负数/非整数/超出剩余空间拒绝,上限值合法", () => {
     expect(commitQuota(budget, "kimi", IDS, "-1").ok).toBe(false);
     expect(commitQuota(budget, "kimi", IDS, "abc").ok).toBe(false);
+    /* parseInt 宽容回归:"30x" 曾被静默截成 30 通过 */
+    expect(commitQuota(budget, "kimi", IDS, "10x").ok).toBe(false);
     // others = 5+5 = 10,total = 20 → kimi 上限 10
     expect(commitQuota(budget, "kimi", IDS, "11").ok).toBe(false);
     expect(commitQuota(budget, "kimi", IDS, "10")).toEqual({

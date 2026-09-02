@@ -49,6 +49,8 @@ export const SESSION_LIST_TOTAL_MAX = 100;
  * 已配置 = 配额原值(可为 0:该组初始不露出历史,仅活会话 + 「更多...」);
  * 未配置 = floor(剩余预算 / 未配置 CLI 数),可整除尽,剩余尾数不补。
  * registeredCliIds 由调用方给(内核不认识 CLI 注册表)。
+ * 已分配只计注册集内 key:已卸载 CLI 的残留 perCli 不抬高占用
+ * (与 session-budget 的 prunePerCli 同不变式)。
  */
 export function resolveCliSessionQuota(
   budget: SessionListBudget,
@@ -57,7 +59,10 @@ export function resolveCliSessionQuota(
 ): number {
   const explicit = budget.perCli[cliId];
   if (explicit !== undefined) return explicit;
-  const allocated = Object.values(budget.perCli).reduce((sum, n) => sum + n, 0);
+  const allocated = registeredCliIds.reduce(
+    (sum, id) => sum + (budget.perCli[id] ?? 0),
+    0,
+  );
   const unallocatedCount = registeredCliIds.filter(
     (id) => budget.perCli[id] === undefined,
   ).length;
@@ -190,7 +195,8 @@ function sanitizeBufferLimit(value: unknown): number {
 /**
  * 显示预算清洗:total 越界回落默认;perCli 丢弃非负整数以外的项,
  * 按 key 排序逐项纳入,加入即超 sum ≤ total 的项丢弃(手改 JSON 兜底,确定性)。
- * 已卸载 CLI 的残留 key 不在这里剪(内核不认识注册表),由设置面板下次写入时自然剪掉。
+ * 已卸载 CLI 的残留 key 不在这里剪(内核不认识注册表),由 session-budget 弹窗
+ * 写入时经 budgetCommit.prunePerCli 剪除;读取侧 resolveCliSessionQuota 亦只计注册集。
  */
 function sanitizeSessionListBudget(raw: unknown): SessionListBudget {
   const obj = (raw ?? {}) as Record<string, unknown>;

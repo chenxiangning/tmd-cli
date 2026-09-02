@@ -206,17 +206,26 @@ export function useEngineInstall(
     const finish = (ok: boolean) => {
       runningRef.current = false;
       setState((prev) => ({ ...prev, running: false, ok }));
-      if (ok) onDone();
     };
 
     /* listen 是 async:unlisten 在 then 里拿;若 invoke 先完成,挂标后在
        listener 注册完成时立即退订,防竞态泄漏。 */
     let unlisten: (() => void) | null = null;
     let settled = false;
+    /* 成功回调只发一次:phase 事件与 invoke 返回双双成功时不重复触发
+       onDone(否则成功安装会跑两次重新探针)。 */
+    let doneFired = false;
+    const fireDone = () => {
+      if (doneFired) return;
+      doneFired = true;
+      onDone();
+    };
     void onCliInstallEvent(meta.binary, (e: CliInstallEvent) => {
       if (e.stream === "phase") {
-        if (e.text === "done:ok") finish(true);
-        else if (e.text === "done:fail") finish(false);
+        if (e.text === "done:ok") {
+          finish(true);
+          fireDone();
+        } else if (e.text === "done:fail") finish(false);
         return;
       }
       append(e.text);
@@ -231,7 +240,7 @@ export function useEngineInstall(
         /* phase 事件是权威收尾;invoke 返回仅兜底(事件丢失时不挂起)。 */
         setState((prev) => (prev.running ? { ...prev, running: false, ok } : prev));
         runningRef.current = false;
-        if (ok) onDone();
+        if (ok) fireDone();
       })
       .catch((err) => {
         append(err instanceof Error ? err.message : String(err));

@@ -64,7 +64,7 @@ function Outlet({
       : `点击插入 ${id}`;
   return (
     <div className={cls}>
-      <div className="pm-plug" title={tip} onClick={() => onToggle(id)}>
+      <button type="button" className="pm-plug" title={tip} aria-pressed={on && !core} onClick={() => onToggle(id)}>
         <svg className="pm-cord" viewBox="0 0 60 46" aria-hidden>
           <path d={`M30 46 C 30 20, ${on ? 18 : 44} 26, 30 -6`} />
         </svg>
@@ -82,7 +82,7 @@ function Outlet({
           <span className="pm-prong" />
           <span className="pm-prong" />
         </div>
-      </div>
+      </button>
       <div className="pm-socket" aria-hidden>
         <span className="pm-socket-hole" />
         <span className="pm-socket-hole" />
