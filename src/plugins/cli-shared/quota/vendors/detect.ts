@@ -30,6 +30,8 @@ export function detectVendorByProviderId(id: string): VendorId | null {
     case "zhipu":
     case "zhipuai":
     case "zhipu-coding":
+    case "zhipu-coding-plan":
+    case "zhipuai-coding-plan":
     case "glm":
     case "glm-cn":
     case "glm-coding":

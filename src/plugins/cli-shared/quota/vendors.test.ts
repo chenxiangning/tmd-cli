@@ -1,10 +1,11 @@
 /**
  * vendors.ts 纯解析契约测试。
- * 覆盖:智谱 unit 映射、planLabel 提取、codex HTTP 路径禁用。
+ * 覆盖:供应商 id 识别、智谱 unit 映射、planLabel 提取、codex HTTP 路径禁用。
  */
 import { describe, expect, it } from "vitest";
 import {
   aggregateCodexUsage,
+  detectVendorByProviderId,
   fetchVendorQuota,
   parseZhipuLimit,
 } from "./vendors";
@@ -96,5 +97,17 @@ describe("fetchVendorQuota openai-codex 降级守卫", () => {
     await expect(fetchVendorQuota("openai-codex", {})).rejects.toThrow(
       "缺少 openai-codex oauth 凭据",
     );
+  });
+});
+
+describe("detectVendorByProviderId (provider id → vendor)", () => {
+  it("omp 现役 id zhipu-coding-plan 及旧别名归 zhipu-cn", () => {
+    expect(detectVendorByProviderId("zhipu-coding-plan")).toBe("zhipu-cn");
+    expect(detectVendorByProviderId("zhipuai-coding-plan")).toBe("zhipu-cn");
+  });
+
+  it("pi 侧 id 与未知 id 边界不变", () => {
+    expect(detectVendorByProviderId("zai-coding-cn")).toBe("zhipu-cn");
+    expect(detectVendorByProviderId("unknown-relay")).toBeNull();
   });
 });
