@@ -54,12 +54,12 @@
   border-right: 1px solid var(--tmd-border);
 }
 
-/* 折叠左栏按钮 → 左区最右缘;左区收起/未测量时宽度自适应,按钮自然跟在 inset 后。 */
-.titlebar-zone-left > .titlebar-action {
+/* 折叠左栏按钮 → 左区最右缘(只推首个按钮,组内后续按钮紧贴);左区收起/未测量时宽度自适应。 */
+.titlebar-zone-left > .titlebar-action:first-of-type {
   margin-left: auto;
 }
-/* 左栏展开(定宽)且有经典滚动条时:按钮右缘让出滚动条宽度,与下方内容列右缘对齐。 */
-.titlebar-zone-left.is-expanded > .titlebar-action {
+/* 左栏展开(定宽)且有经典滚动条时:仅最末按钮右缘让出滚动条宽度,与下方内容列右缘对齐。 */
+.titlebar-zone-left.is-expanded > .titlebar-action:last-of-type {
   margin-right: calc(var(--tmd-scrollbar-w, 0px) + 4px);
 }
 
