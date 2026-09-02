@@ -8,7 +8,7 @@
  * 状态集中在页级:探针结果/安装状态按引擎 id 存 Record,卡片纯渲染。
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { host, useHost } from "@kernel/host";
 import { ENGINE_METAS, ENGINE_META_BY_ID } from "./engineMeta";
 import {
@@ -19,6 +19,7 @@ import {
   type InstallState,
 } from "./EngineCard";
 import { CredentialList } from "./CredentialList";
+import { fetchLatestVersion } from "./latestVersion";
 import { RecentSessions } from "./RecentSessions";
 
 function buildInitialProbes(): Record<string, EngineProbeState> {
@@ -31,10 +32,12 @@ function buildInitialProbes(): Record<string, EngineProbeState> {
 function EngineSection({
   engineId,
   probe,
+  latest,
   onProbe,
 }: {
   engineId: string;
   probe: EngineProbeState;
+  latest: string | null | undefined;
   onProbe: () => void;
 }) {
   const meta = ENGINE_META_BY_ID[engineId];
@@ -46,6 +49,7 @@ function EngineSection({
         meta={meta}
         profile={profile}
         probe={probe}
+        latest={latest}
         install={install}
         onProbe={onProbe}
         onInstall={startInstall}
@@ -60,6 +64,10 @@ export function WelcomePage() {
   const [probes, setProbes] = useState<Record<string, EngineProbeState>>(
     buildInitialProbes,
   );
+  /* 最新版本:每引擎只拉一次(ref 去重),与探针解耦 —
+     重探/安装后最新版不变,无需重拉。undefined=拉取中,null=失败(静默)。 */
+  const [latest, setLatest] = useState<Record<string, string | null>>({});
+  const latestFetchedRef = useRef<Set<string>>(new Set());
   /* 只展示 profile 已注册的引擎:cli 插件被拔出(禁用)时不激活、不注册,卡片随之消失。
      useMemo 锚定 hostVersion:否则每次 render 新数组 → 下方探针 effect 无限循环。 */
   const visibleMetas = useMemo(
@@ -83,6 +91,17 @@ export function WelcomePage() {
     for (const meta of visibleMetas) void runProbe(meta.id);
   }, [runProbe, visibleMetas]);
 
+  /* 可见引擎集确定后,每引擎拉一次最新版本。 */
+  useEffect(() => {
+    for (const meta of visibleMetas) {
+      if (latestFetchedRef.current.has(meta.id)) continue;
+      latestFetchedRef.current.add(meta.id);
+      void fetchLatestVersion(meta.npmPackage).then((version) =>
+        setLatest((prev) => ({ ...prev, [meta.id]: version })),
+      );
+    }
+  }, [visibleMetas]);
+
   const installedCount = visibleMetas.filter(
     (m) => probes[m.id]?.status === "ok",
   ).length;
@@ -105,6 +124,7 @@ export function WelcomePage() {
               probe={
                 probes[meta.id] ?? { status: "loading", result: null }
               }
+              latest={latest[meta.id]}
               onProbe={() => void runProbe(meta.id)}
             />
           ))}

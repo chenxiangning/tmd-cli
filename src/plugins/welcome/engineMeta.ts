@@ -21,6 +21,8 @@ export interface EngineMeta {
   docsUrl?: string;
   /** 安装方式说明(按钮旁的提示文本)。 */
   installHint: string;
+  /** npm 包名(不带 @latest),用于查 registry 最新版本。 */
+  npmPackage: string;
 }
 
 /** 展示顺序 = 数组顺序(按用户接触概率)。 */
@@ -31,6 +33,7 @@ export const ENGINE_METAS: readonly EngineMeta[] = [
     binary: "omp",
     docsUrl: "https://github.com/oh-my-pi/pi-coding-agent",
     installHint: "npm install -g @oh-my-pi/pi-coding-agent",
+    npmPackage: "@oh-my-pi/pi-coding-agent",
   },
   {
     id: "pi",
@@ -38,6 +41,7 @@ export const ENGINE_METAS: readonly EngineMeta[] = [
     binary: "pi",
     docsUrl: "https://github.com/earendil-works/pi-coding-agent",
     installHint: "npm install -g @earendil-works/pi-coding-agent",
+    npmPackage: "@earendil-works/pi-coding-agent",
   },
   {
     id: "codex",
@@ -45,6 +49,7 @@ export const ENGINE_METAS: readonly EngineMeta[] = [
     binary: "codex",
     docsUrl: "https://github.com/openai/codex",
     installHint: "npm install -g @openai/codex",
+    npmPackage: "@openai/codex",
   },
   {
     id: "claude",
@@ -52,6 +57,7 @@ export const ENGINE_METAS: readonly EngineMeta[] = [
     binary: "claude",
     docsUrl: "https://code.claude.com/docs/en/cli-reference",
     installHint: "curl -fsSL https://claude.ai/install.sh | bash",
+    npmPackage: "@anthropic-ai/claude-code",
   },
 ] as const;
 

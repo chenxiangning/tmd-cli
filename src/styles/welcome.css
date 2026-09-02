@@ -130,6 +130,31 @@
   border: 1px solid var(--tmd-diff-removed);
 }
 
+/* 落后最新版:强调色箭头 pill,引导点"更新" */
+
+.welcome-pill.is-outdated {
+  color: var(--tmd-accent);
+  background: var(--tmd-accent-soft);
+  border: 1px solid var(--tmd-accent);
+}
+
+/* 已是最新:弱化提示,不抢主版本 pill 的视觉权重 */
+
+.welcome-pill.is-latest {
+  color: var(--tmd-fg-faint);
+  background: transparent;
+}
+
+.welcome-icon-btn.has-update {
+  color: var(--tmd-accent);
+  border-color: var(--tmd-accent);
+}
+
+.welcome-icon-btn.has-update:hover:not(:disabled) {
+  color: var(--tmd-accent);
+  background: var(--tmd-accent-soft);
+}
+
 /* 按钮 */
 
 .welcome-install-btn {

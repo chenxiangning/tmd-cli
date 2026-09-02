@@ -17,6 +17,7 @@ import {
 } from "@kernel/ipc";
 import type { CliProfile } from "@kernel/cli";
 import type { EngineMeta } from "./engineMeta";
+import { isOutdated } from "./latestVersion";
 
 /** 日志滚动上限(行)。npm 全量输出数千行,只留尾部。 */
 const LOG_LINE_LIMIT = 200;
@@ -38,6 +39,7 @@ export function EngineCard({
   meta,
   profile,
   probe,
+  latest,
   install,
   onProbe,
   onInstall,
@@ -45,11 +47,14 @@ export function EngineCard({
   meta: EngineMeta;
   profile: CliProfile | undefined;
   probe: EngineProbeState;
+  /** 最新版本:undefined=查询中,null=查询失败(不渲染),string=已拿到。 */
+  latest: string | null | undefined;
   install: InstallState;
   onProbe: () => void;
   onInstall: () => void;
 }) {
   const logRef = useRef<HTMLDivElement>(null);
+  const outdated = isOutdated(probe.result?.version, latest ?? null);
 
   /* 日志追加时滚到底(用户上翻时不打断:仅当已贴底才跟滚)。 */
   useEffect(() => {
@@ -86,6 +91,19 @@ export function EngineCard({
               {probe.result?.version ?? "已安装"}
             </span>
           )}
+          {probe.status === "ok" && typeof latest === "string" && outdated && (
+            <span
+              className="welcome-pill is-outdated"
+              title={`最新版本 ${latest},点"更新"升级`}
+            >
+              → {latest}
+            </span>
+          )}
+          {probe.status === "ok" && typeof latest === "string" && !outdated && (
+            <span className="welcome-pill is-latest" title={`最新版本 ${latest}`}>
+              已是最新
+            </span>
+          )}
           {probe.status === "notFound" && (
             <span className="welcome-pill is-missing">未安装</span>
           )}
@@ -106,10 +124,12 @@ export function EngineCard({
           {probe.status === "ok" && install.ok !== true && (
             <button
               type="button"
-              className="welcome-icon-btn"
+              className={
+                outdated ? "welcome-icon-btn has-update" : "welcome-icon-btn"
+              }
               onClick={onInstall}
               disabled={install.running}
-              title="重新安装/更新到最新版"
+              title={outdated ? `更新到 ${latest}` : "重新安装/更新到最新版"}
             >
               更新
             </button>
