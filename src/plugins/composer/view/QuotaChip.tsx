@@ -4,7 +4,8 @@
  * 渲染(当前激活 CLI session):
  * - 窗口型供应商: 额度 5h [▓▓░] 42%  7d [▓░░] 18%  (支持几个窗口展示几个)
  * - 余额型供应商(deepseek/中转站): 额度 ¥12.50
- * - 加载中: 额度 …;失败: 额度 !
+ * - 加载中: 额度 …;失败: 额度 !(同模型保留上次成功数据,仅加警示)
+ * - 模型切换: 旧供应商数据立即作废,按新模型重新抓取(任意 CLI 统一)
  * - 无 session / 无 provider: 不渲染(不猜)
  *
  * 交互: 点击 chip = 弹出额度详情小弹窗(各窗口用量 + 下次刷新时间 + 余额);
@@ -18,15 +19,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { RefreshCw } from "lucide-react";
 import { host, useHost } from "@kernel/host";
-import { getQuotaProvider, type QuotaSnapshot } from "@kernel/quota";
-import { formatRelativeTime } from "@kernel/relativeTime";
-
-/** ms epoch → "9月5日 14:30"(下次刷新时间)。 */
-function formatResetAt(ms: number): string {
-  const d = new Date(ms);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getMonth() + 1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+import { getQuotaProvider, SHORT_WINDOW_LABEL, type QuotaSnapshot } from "@kernel/quota";
+import { formatRelativeTime, formatResetAt } from "@kernel/relativeTime";
 
 /** ms epoch → "14:30:05"(弹窗底部"更新于")。 */
 function formatClock(ms: number): string {
@@ -35,13 +29,15 @@ function formatClock(ms: number): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-/** 窗口长标签 → 工具栏短标。 */
-const SHORT_LABEL: Record<string, string> = {
-  "5小时": "5h",
-  "7天": "7d",
-  "1天": "1d",
-  "30天": "30d",
-};
+/** 空快照(占位):模型切换后旧供应商数据立即作废,新抓取落地前 chip 显示 "额度 …"。 */
+function emptyQuotaSnapshot(profileId: string): QuotaSnapshot {
+  return {
+    providerLabel: profileId,
+    title: `${profileId.toUpperCase()} 额度`,
+    usedLabel: "已使用",
+    windows: [],
+  };
+}
 
 /** 当前激活 session 的 CLI quota。 */
 function useActiveQuota(): {
@@ -57,7 +53,14 @@ function useActiveQuota(): {
   const profileId = session?.profileId;
   const model = sessionId ? (host.getSessionStatus(sessionId)?.model ?? null) : null;
 
-  const [snapshot, setSnapshot] = useState<QuotaSnapshot | null>(null);
+  /* 快照与路由模型同存同灭(任意 CLI 统一语义):
+     - 模型切换 → 旧快照归属旧供应商,立即作废换占位并重新抓取,绝不跨模型混搭显示;
+     - 抓取乱序/过期(快速连切)→ 按模型标签丢弃,不得覆盖当前模型的占位/数据;
+     - 同模型刷新失败 → 保留旧数据,error 仅作警示样式与 tooltip 原因。 */
+  const [entry, setEntry] = useState<{
+    model: string | null;
+    snapshot: QuotaSnapshot;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchedAt, setFetchedAt] = useState<number | null>(null);
   const [tick, setTick] = useState(0);
@@ -66,36 +69,38 @@ function useActiveQuota(): {
 
   useEffect(() => {
     if (!profileId) {
-      setSnapshot(null);
+      setEntry(null);
       return;
     }
     const provider = getQuotaProvider(profileId);
     if (!provider) {
-      setSnapshot({
-        providerLabel: profileId,
-        title: `${profileId.toUpperCase()} 额度`,
-        usedLabel: "已使用",
-        windows: [],
-        error: "暂不支持额度查询",
+      setEntry({
+        model,
+        snapshot: { ...emptyQuotaSnapshot(profileId), error: "暂不支持额度查询" },
       });
       return;
     }
+    setEntry((prev) =>
+      prev?.model === model ? prev : { model, snapshot: emptyQuotaSnapshot(profileId) },
+    );
     setLoading(true);
     provider
       .fetch({ model })
-      .then(setSnapshot)
+      .then((snapshot) =>
+        setEntry((prev) => (prev?.model === model ? { model, snapshot } : prev)),
+      )
       .catch((e: unknown) =>
-        /* 瞬时失败(网络抖动/限流)不清空上次成功数据:保留旧窗口/余额,
-           error 仅作警示样式与 tooltip 原因;首次即失败才显示 "!"。 */
-        setSnapshot((prev) => ({
-          providerLabel: profileId,
-          title: prev?.title ?? `${profileId.toUpperCase()} 额度`,
-          usedLabel: prev?.usedLabel ?? "已使用",
-          windows: prev?.windows ?? [],
-          balanceText: prev?.balanceText,
-          planLabel: prev?.planLabel,
-          error: e instanceof Error ? e.message : String(e),
-        })),
+        setEntry((prev) =>
+          prev?.model === model
+            ? {
+                model,
+                snapshot: {
+                  ...prev.snapshot,
+                  error: e instanceof Error ? e.message : String(e),
+                },
+              }
+            : prev,
+        ),
       )
       .finally(() => {
         setFetchedAt(Date.now());
@@ -103,7 +108,7 @@ function useActiveQuota(): {
       });
   }, [profileId, model, session?.workspaceId, tick]);
 
-  return { snapshot, loading, fetchedAt, refresh };
+  return { snapshot: entry?.snapshot ?? null, loading, fetchedAt, refresh };
 }
 
 /**
@@ -247,7 +252,7 @@ export function QuotaChip() {
           <>
             {snapshot.windows.map((w) => (
               <span key={w.label} className="quota-chip-window" style={{ display: "contents" }}>
-                <span className="quota-chip-label">{SHORT_LABEL[w.label] ?? w.label}</span>
+                <span className="quota-chip-label">{SHORT_WINDOW_LABEL[w.label] ?? w.label}</span>
                 <span className="quota-mini-bar">
                   <span className="quota-mini-fill" style={{ width: `${w.displayPercent}%` }} />
                 </span>

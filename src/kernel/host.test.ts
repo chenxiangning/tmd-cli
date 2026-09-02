@@ -39,12 +39,23 @@ const CWD = "/proj";
 /** 磁盘会话列表(可变,模拟 CLI 陆续落盘;mtime 倒序 = 新文件在前)。 */
 let disk: CliDiskSession[] = [];
 
-function diskSession(id: string): CliDiskSession {
-  return { id, path: `/dir/${id}.jsonl`, modifiedAt: 0 } as CliDiskSession;
+/** listSessions 的可控实现:模拟快照失败等异常路径。 */
+let listImpl: () => Promise<CliDiskSession[]> = async () => disk;
+
+function diskSession(id: string, modifiedAt = 0): CliDiskSession {
+  return { id, path: `/dir/${id}.jsonl`, modifiedAt } as CliDiskSession;
 }
 
 /** readSessionStatus 的可控返回:模拟 tail 扫描各时刻的观测结果。 */
 let nextStatus: CliSessionStatus | null = null;
+
+/** readDefaultStatus 的可控返回:模拟 CLI 配置的默认模型/思考。 */
+let defaultStatus: CliSessionStatus | null = null;
+
+/** 状态巡航 interval 是单例且跨用例残留;假时钟换届时必须清柄,否则慢相位永不着火。 */
+function resetStatusTimer(): void {
+  host.resetStatusTimerForTest();
+}
 
 const profile: CliProfile = {
   id: PROFILE_ID,
@@ -52,8 +63,9 @@ const profile: CliProfile = {
   command: "true",
   args: [],
   triggers: [],
-  listSessions: async () => disk,
+  listSessions: () => listImpl(),
   readSessionStatus: async () => nextStatus,
+  readDefaultStatus: async () => defaultStatus,
 };
 
 /** 确定性驱动探测器(内部 500ms 轮询):逐格推进假时钟直到绑定或窗口耗尽。 */
@@ -101,6 +113,125 @@ describe("detectDiskIdentity 身份绑定", () => {
     disk = [diskSession("t2-fNew"), diskSession("t2-fA")];
     await vi.advanceTimersByTimeAsync(16_000);
     expect(host.getCliSessionId(a.id)).toBe("t2-fA");
+  });
+});
+
+describe("detectDiskIdentity 快照与复活", () => {
+  /* 实证缺陷:CLI 内 /resume 追加写旧文件(无新文件落盘),探测永久失明;
+     而 createSession 的 before 快照 .catch(() => []) 把失败静默降级为空集,
+     findLast 抢到目录里最旧的别人会话 → 状态条张冠李戴(模型/思考/额度全部冻结在别的会话)。
+     契约:快照失败 = 禁用探测(宁 "—" 勿错绑);快照后 mtime 增长的旧文件 = resume 目标;
+     新文件优先于复活文件。 */
+  beforeEach(() => {
+    vi.useFakeTimers();
+    sessions.length = 0;
+    disk = [];
+    listImpl = async () => disk;
+    if (!host.getCliProfile(PROFILE_ID)) host.registerCliProfile(profile);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("快照失败 → 水位线探测:pre-spawn 旧文件不抢绑,post-spawn 增长可绑", async () => {
+    listImpl = async () => {
+      throw new Error("io");
+    };
+    const a = await host.createSession(PROFILE_ID, CWD);
+
+    /* pre-spawn 旧文件(mtime 远小于水位线):绝不抢绑 */
+    listImpl = async () => disk;
+    disk = [diskSession("t6-foreign", 100)];
+    await vi.advanceTimersByTimeAsync(16_000);
+    expect(host.getCliSessionId(a.id)).toBeUndefined();
+  });
+
+  it("in-CLI /resume:快照后 mtime 增长的旧文件被识别为本会话", async () => {
+    disk = [diskSession("t6-old", 100)];
+    const a = await host.createSession(PROFILE_ID, CWD);
+
+    /* resume 追加写旧文件:无新文件,mtime 增长 */
+    disk = [diskSession("t6-old", 200)];
+    expect(await advanceUntilBound(a.id)).toBe("t6-old");
+  });
+
+  it("新文件优先于复活文件:并发新会话不得误绑 resume 目标", async () => {
+    disk = [diskSession("t7-old", 100)];
+    const a = await host.createSession(PROFILE_ID, CWD);
+
+    /* 本会话的全新文件与另一会话的 resume 复活同时出现 → 必须绑新文件 */
+    disk = [diskSession("t7-new", 300), diskSession("t7-old", 200)];
+    expect(await advanceUntilBound(a.id)).toBe("t7-new");
+  });
+});
+
+describe("创建即赋值与慢相位绑定", () => {
+  /* 实证缺陷:omp 全新会话要等首条消息才落盘,15s 探测上限必然失明 → 模型/思考/额度永久 "—";
+     且创建后、首条消息前工具栏无任何值。
+     契约:创建即种 CLI 默认配置;磁盘真相落地后覆盖;探测会话不死不止(慢相位 2s 巡航)。 */
+  beforeEach(() => {
+    vi.useFakeTimers();
+    resetStatusTimer();
+    sessions.length = 0;
+    disk = [];
+    nextStatus = null;
+    defaultStatus = null;
+    listImpl = async () => disk;
+    if (!host.getCliProfile(PROFILE_ID)) host.registerCliProfile(profile);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("创建即种默认状态;磁盘真相落地后覆盖种子", async () => {
+    defaultStatus = { model: "minimax-code-cn/MiniMax-M3", thinkingLevel: "auto" };
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await vi.advanceTimersByTimeAsync(0); // 种子异步落地
+    expect(host.getSessionStatus(a.id)).toEqual({
+      model: "minimax-code-cn/MiniMax-M3",
+      thinkingLevel: "auto",
+    });
+
+    /* 会话文件落盘(首条消息)→ 绑定 → 真实观测覆盖种子 */
+    nextStatus = { model: "kimi-code/k3", thinkingLevel: "high" };
+    disk = [diskSession("t8-fA", Date.now())];
+    expect(await advanceUntilBound(a.id)).toBe("t8-fA");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(host.getSessionStatus(a.id)).toEqual({
+      model: "kimi-code/k3",
+      thinkingLevel: "high",
+    });
+  });
+
+  it("快相位耗尽后文件才落盘:慢相位 2s 巡航绑上", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await vi.advanceTimersByTimeAsync(16_000); // 快相位 30×500ms 耗尽
+    expect(host.getCliSessionId(a.id)).toBeUndefined();
+
+    /* 用户在第 16s 发出首条消息 → CLI 此刻才落盘 → 慢相位 2s 内绑上 */
+    disk = [diskSession("t9-late", Date.now())];
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(host.getCliSessionId(a.id)).toBe("t9-late");
+  });
+
+  it("快照失败:水位线只认 post-spawn 增长", async () => {
+    listImpl = async () => {
+      throw new Error("io");
+    };
+    const a = await host.createSession(PROFILE_ID, CWD);
+    listImpl = async () => disk;
+
+    /* pre-spawn 旧文件:快相位+慢相位都不得抢绑 */
+    disk = [diskSession("t10-old", 100)];
+    await vi.advanceTimersByTimeAsync(18_000);
+    expect(host.getCliSessionId(a.id)).toBeUndefined();
+
+    /* 同文件 post-spawn 增长(本会话的迟到落盘/resume 复活):水位线放行 */
+    disk = [diskSession("t10-old", Date.now())];
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(host.getCliSessionId(a.id)).toBe("t10-old");
   });
 });
 

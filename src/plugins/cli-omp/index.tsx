@@ -1,4 +1,5 @@
 import { readJsonlSessionStatus } from "../cli-shared/sessionStatus";
+import { readOmpDefaultStatus } from "./configStatus";
 import { registerOmpQuotaProvider } from "./quota";
 import { ipc } from "@kernel/ipc";
 import { scanJsonlSessions } from "@kernel/diskSessions";
@@ -111,6 +112,7 @@ export const cliOmpPlugin: Plugin = {
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listOmpSessions,
       readSessionStatus: readOmpSessionStatus,
+      readDefaultStatus: readOmpDefaultStatus,
     });
   },
 };

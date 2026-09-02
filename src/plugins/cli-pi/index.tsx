@@ -1,4 +1,5 @@
 import { readJsonlSessionStatus } from "../cli-shared/sessionStatus";
+import { readPiDefaultStatus } from "./configStatus";
 import { piAgentDir, registerPiQuotaProvider } from "./quota";
 import { scanJsonlSessions } from "@kernel/diskSessions";
 import type { CliDiskSession } from "@kernel/cli";
@@ -95,6 +96,7 @@ export const cliPiPlugin: Plugin = {
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listPiSessions,
       readSessionStatus: readPiSessionStatus,
+      readDefaultStatus: readPiDefaultStatus,
     });
   },
 };

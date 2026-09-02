@@ -11,7 +11,7 @@ import { sliceStreamTail } from "./streamSlice";
 import { getSettingsState } from "./settings";
 
 import { ipc, onPtyExit, onPtyOutput, type SessionMeta, type SpawnSpec } from "./ipc";
-import type { CliProfile, CliSessionStatus } from "./cli";
+import type { CliDiskSession, CliProfile, CliSessionStatus } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";
 import {
   registerSettingsSection,
@@ -36,6 +36,15 @@ class Host implements PluginContext {
   private mounts = new Map<MountPoint, MountContribution[]>();
   private sessions: SessionMeta[] = [];
   private activeSessionId: string | null = null;
+  /**
+   * 待绑定磁盘身份的会话:sessionId → 快照基线 + spawn 水位线。
+   * 快相位(500ms×30)扫不尽就转入状态巡航的慢相位(2s),直到绑上或会话死 —
+   * 实证:omp 全新会话要等首条消息才落盘,15s 上限必然失明。
+   */
+  private pendingIdentities = new Map<
+    string,
+    { profileId: string; cwd: string; before: ReadonlyMap<string, number> | null; spawnedAt: number }
+  >();
   /** 活会话对应的 CLI 当前模型/思考强度,由 profile 只读读取。 */
   private sessionStatuses = new Map<string, CliSessionStatus>();
   private statusTimer: number | null = null;
@@ -163,14 +172,21 @@ class Host implements PluginContext {
       cwd,
       env: profile.env,
     };
-    // 快照既有磁盘会话:spawn 后 CLI 会新落盘一个文件,据此把磁盘身份绑到活会话
+    const spawnedAt = Date.now();
+    /* 快照既有磁盘会话(id → 快照时 mtime):spawn 后 CLI 新落盘/复活的文件据此绑到活会话。
+       快照失败 → null → 退化到 spawn 水位线判定(只认 spawn 后的落盘/增长),
+       pre-spawn 旧文件永远不得抢绑:身份绑定 fail-open(张冠李戴)比 fail-closed(状态 "—")恶劣一个数量级。 */
     const before = profile.listSessions
-      ? new Set(
-          (await profile.listSessions(cwd).catch(() => [])).map((s) => s.id),
+      ? await profile.listSessions(cwd).then(
+          (list) => new Map(list.map((s) => [s.id, s.modifiedAt] as const)),
+          () => null,
         )
       : null;
     const spawned = await ipc.sessionSpawn(profileId, spec, workspaceId);
-    if (before) void this.detectDiskIdentity(spawned.id, profile, cwd, before);
+    if (profile.listSessions) {
+      this.pendingIdentities.set(spawned.id, { profileId, cwd, before, spawnedAt });
+      void this.detectDiskIdentity(spawned.id);
+    }
     return this.adoptSpawned(spawned.id);
   }
 
@@ -226,40 +242,59 @@ class Host implements PluginContext {
     this.notify();
     this.ensureStatusPolling();
     void this.refreshSessionStatus(sessionId);
+    /* 全新会话创建即赋值:磁盘文件要等首条消息才落盘,先种 CLI 默认配置 */
+    if (!cliSessionId) void this.seedDefaultStatus(sessionId);
     return this.sessions.find((s) => s.id === sessionId)!;
   }
 
   /**
-   * spawn 后轮询磁盘,把 CLI 新落盘的会话身份绑到活会话上。最多 30 次 × 500ms。
-   * 判定:出现 before 快照里不存在、且未被其他活会话认领的会话 id。
-   *
-   * 竞态防线(实证:多会话 15s 探测窗口重叠时状态条模型/思考永久丢失):
-   * 1. 绑定成功即终 —— 继续轮询会把后续新会话的身份抢绑到本会话;
-   * 2. 认领集排除 —— 并发 spawn 同 cwd 时,晚到的探测不得抢绑已认领身份;
-   * 3. 取最旧的未认领 fresh —— 文件按落盘顺序对应 spawn 顺序,先 spawn 先认领。
+   * 创建即赋值的种子:CLI 配置的默认模型/思考强度。
+   * 磁盘真相(身份绑定后的会话文件观测)落地后由字段级合并自然覆盖,无需清理种子。
    */
-  private async detectDiskIdentity(
-    sessionId: string,
-    profile: CliProfile,
-    cwd: string,
-    before: ReadonlySet<string>,
-  ): Promise<void> {
-    if (!profile.listSessions) return;
+  private async seedDefaultStatus(sessionId: string): Promise<void> {
+    const session = this.sessions.find((s) => s.id === sessionId);
+    if (!session || this.sessionStatuses.has(sessionId)) return;
+    const profile = this.cliProfiles.get(session.profileId);
+    if (!profile?.readDefaultStatus) return;
+    const status = await profile.readDefaultStatus(session.cwd).catch(() => null);
+    if (!status) return;
+    /* 竞态防线:await 期间磁盘真相可能已落地,默认种子不得覆盖真实观测 */
+    if (this.sessionStatuses.has(sessionId) || this.cliSessionIds.has(sessionId)) return;
+    this.sessionStatuses.set(sessionId, status);
+    this.notify();
+  }
+
+  /**
+   * 单次身份扫描:快相位(spawn 后 500ms×30)与慢相位(状态巡航 2s)共用。
+   * 绑定成功即终 —— pendingIdentities 删除,两个相位自然停止。
+   */
+  private async tryBindIdentity(sessionId: string): Promise<void> {
+    const pending = this.pendingIdentities.get(sessionId);
+    if (!pending || this.cliSessionIds.has(sessionId)) return;
+    const profile = this.cliProfiles.get(pending.profileId);
+    if (!profile?.listSessions) return;
+    const list = await profile.listSessions(pending.cwd).catch(() => []);
+    const fresh = pickFreshIdentity(
+      list,
+      pending.before,
+      pending.spawnedAt,
+      new Set(this.cliSessionIds.values()),
+    );
+    if (!fresh) return;
+    this.cliSessionIds.set(sessionId, fresh);
+    this.pendingIdentities.delete(sessionId);
+    void this.refreshSessionStatus(sessionId);
+    this.notify();
+  }
+
+  /** 快相位:spawn 后 15s 内 500ms 一格扫盘;扫不尽由慢相位(2s 巡航)继续,会话不死探测不止。 */
+  private async detectDiskIdentity(sessionId: string): Promise<void> {
     for (let i = 0; i < 30; i++) {
       const { promise, resolve } = Promise.withResolvers<void>();
       setTimeout(resolve, 500);
       await promise;
-      if (!this.sessions.some((s) => s.id === sessionId)) return; // PTY 已死
-      if (this.cliSessionIds.has(sessionId)) return; // 已绑定(防御:身份一经确认不再改)
-      const list = await profile.listSessions(cwd).catch(() => []);
-      const claimed = new Set(this.cliSessionIds.values());
-      /* listSessions 按 mtime 倒序 → 倒着找 = 最旧的未认领 fresh */
-      const fresh = list.findLast((s) => !before.has(s.id) && !claimed.has(s.id));
-      if (!fresh) continue;
-      this.cliSessionIds.set(sessionId, fresh.id);
-      void this.refreshSessionStatus(sessionId);
-      this.notify();
-      return;
+      if (!this.pendingIdentities.has(sessionId)) return; // 已绑定或会话已死
+      await this.tryBindIdentity(sessionId);
     }
   }
 
@@ -323,11 +358,25 @@ class Host implements PluginContext {
   }
 
  
+  /** 测试专用:假时钟换届时重置巡航计时器(真实运行单例连续,无需调用)。 */
+  resetStatusTimerForTest(): void {
+    if (this.statusTimer !== null) {
+      clearInterval(this.statusTimer);
+      this.statusTimer = null;
+    }
+  }
+
   private ensureStatusPolling(): void {
     if (this.statusTimer) return;
     this.statusTimer = setInterval(() => {
       const sessionId = this.activeSessionId;
-      if (sessionId) void this.refreshSessionStatus(sessionId);
+      if (!sessionId) return;
+      if (this.cliSessionIds.has(sessionId)) {
+        void this.refreshSessionStatus(sessionId);
+      } else if (this.pendingIdentities.has(sessionId)) {
+        /* 慢相位:文件迟到(首条消息才落盘)/快照失败,激活会话 2s 巡航直到绑上 */
+        void this.tryBindIdentity(sessionId);
+      }
     }, 2_000);
   }
 
@@ -374,6 +423,7 @@ class Host implements PluginContext {
     await ipc.sessionKill(id).catch(() => undefined);
     this.sessions = this.sessions.filter((s) => s.id !== id);
     this.cliSessionIds.delete(id);
+    this.pendingIdentities.delete(id);
     this.sessionStatuses.delete(id);
     this.outputBuffers.delete(id);
     this.lastActivityAt.delete(id);
@@ -399,6 +449,34 @@ class Host implements PluginContext {
     this.version += 1;
     this.listeners.forEach((fn) => fn());
   }
+}
+
+/**
+ * 磁盘身份挑选(纯函数,契约由 host.test.ts 守护)。
+ * fresh 判定(均取最旧的未认领项 —— listSessions mtime 倒序,findLast = 最旧,先 spawn 先认领):
+ * 1. 有基线:新文件(基线外 id)优先;其次复活文件(mtime 较快照增长 = CLI 内 /resume 追加写旧文件);
+ * 2. 无基线(快照失败):只认 spawn 水位线之后的落盘/增长,pre-spawn 旧文件不得抢绑。
+ */
+export function pickFreshIdentity(
+  list: CliDiskSession[],
+  before: ReadonlyMap<string, number> | null,
+  spawnedAt: number,
+  claimed: ReadonlySet<string>,
+): string | null {
+  if (before) {
+    const fresh = list.findLast((s) => !before.has(s.id) && !claimed.has(s.id));
+    if (fresh) return fresh.id;
+    return (
+      list.findLast(
+        (s) =>
+          !claimed.has(s.id) &&
+          s.modifiedAt > (before.get(s.id) ?? Number.POSITIVE_INFINITY),
+      )?.id ?? null
+    );
+  }
+  return (
+    list.findLast((s) => !claimed.has(s.id) && s.modifiedAt >= spawnedAt)?.id ?? null
+  );
 }
 
 /** 全局唯一宿主实例。 */

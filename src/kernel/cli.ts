@@ -89,4 +89,10 @@ export interface CliProfile {
     cwd: string,
     cliSessionId: string,
   ) => Promise<CliSessionStatus | null>;
+  /**
+   * 读取该 CLI 的默认模型与思考强度(配置层,非会话层)。
+   * 用途:全新会话创建即赋值 —— 磁盘会话文件要等首条消息才落盘(实证 omp),
+   * 在此之前工具栏只能取自 CLI 的默认配置。磁盘真相落地后由字段级合并自然覆盖。
+   */
+  readDefaultStatus?: (cwd: string) => Promise<CliSessionStatus | null>;
 }
