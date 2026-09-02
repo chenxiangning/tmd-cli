@@ -16,21 +16,21 @@
 
 #### Scenario: 预算修改即时生效
 
-- **WHEN** 用户在设置面板修改总数或某 CLI 配额并提交
+- **WHEN** 用户在预算弹窗修改总数或某 CLI 配额并提交
 - **THEN** 各 CLI 分组按新解析配额重新露出(无需重启或刷新工作区)
 
 #### Scenario: 配额按注册集解析,全量 CLI 自适应
 
 - **WHEN** 任一 cli-* 插件注册 profile(含新接入 CLI)
-- **THEN** 该 CLI 分组与配额行无需改任何既有代码即参与解析与展示;禁用的插件不参与
+- **THEN** 该 CLI 分组与弹窗配额行无需改任何既有代码即参与解析与展示;禁用的插件不参与
 
-### Requirement: 设置面板注册表驱动的预算编辑 section
+### Requirement: caption 弹窗编辑预算
 
-workspace 插件 SHALL 通过 `registerSettingsSection` 注册「会话列表」section(显示预算 tab),在设置面板内渲染:总数编辑行 + 每注册 CLI 一行的配额编辑行(图标 + 名称 + 数字输入),样式复用 `pref-*` 体系。校验规则:total 须为 1–100 整数且不小于已分配配额之和;配额须为不大于剩余空间的非负整数;非法提交 SHALL 拒绝写入并给行内提示(不静默兜底);清空配额 = 取消预留回到均分;写入 SHALL 剪除已卸载 CLI 的残留 perCli key。
+工作区标题旁入口 SHALL 打开「会话列表显示预算」悬浮弹窗(portal + fixed 定位,backdrop 点击 / Escape / X 关闭),内含总数编辑行 + 每注册 CLI 一行的配额编辑行(图标 + 名称 + 数字输入)。校验规则:total 须为 1–100 整数且不小于已分配配额之和;配额须为不大于剩余空间的非负整数;非法提交 SHALL 拒绝写入并给行内提示、回退输入框(不静默兜底);清空配额 = 取消预留回到均分;写入 SHALL 剪除已卸载 CLI 的残留 perCli key,且已分配之和按剪除后的基底计算(残留 key 不得虚增占用)。
 
 #### Scenario: 配额行动态枚举注册 CLI
 
-- **WHEN** 打开设置面板「会话列表 / 显示预算」
+- **WHEN** 打开预算弹窗
 - **THEN** 为每个已注册 CLI profile 渲染一行(品牌图标 + 名称 + 配额输入,placeholder 为当前均分/配额值),不出现已禁用插件的行
 
 #### Scenario: 总数小于已分配被拒绝
@@ -43,10 +43,10 @@ workspace 插件 SHALL 通过 `registerSettingsSection` 注册「会话列表」
 - **WHEN** 用户清空某 CLI 的配额输入并提交
 - **THEN** 该 CLI 的 perCli key 被删除,回到未配置均分语义
 
-#### Scenario: 卸载 CLI 残留 key 剪除
+#### Scenario: 卸载 CLI 残留 key 剪除且不虚增已分配
 
-- **WHEN** settings.json 存在某已禁用 CLI 的 perCli key,用户在预算 tab 提交任意合法修改
-- **THEN** 写入的新 perCli 不再包含该残留 key
+- **WHEN** settings.json 存在某已禁用 CLI 的残留 perCli key,用户提交任意合法修改
+- **THEN** 写入的新 perCli 不再包含该残留 key,「已分配」提示按剪除后的基底计算
 
 ### Requirement: 更多分页翻倍加载
 
@@ -61,17 +61,3 @@ workspace 插件 SHALL 通过 `registerSettingsSection` 注册「会话列表」
 
 - **WHEN** 某 CLI 配额为 0,用户首次点击「更多」
 - **THEN** 该组露出 10 条,后续点击翻倍
-
-### Requirement: 工作区入口深链设置 section
-
-工作区标题旁的预算入口按钮 SHALL 打开设置面板并定位到「会话列表」section 的显示预算 tab;无参打开设置面板的既有入口 SHALL 保持现状(不定位、记住上次选中);深链目标 section 缺席时 SHALL 回落默认 section,不报错。
-
-#### Scenario: 入口按钮直达预算 tab
-
-- **WHEN** 用户点击工作区标题旁的 ListTree 按钮
-- **THEN** 设置面板打开,左侧导航选中「会话列表」,内容区为显示预算 tab
-
-#### Scenario: 无参打开不受影响
-
-- **WHEN** 用户从 Composer 齿轮或侧栏设置簇打开设置面板
-- **THEN** 不发生定位跳转,行为与改动前一致

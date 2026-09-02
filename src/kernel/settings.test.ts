@@ -290,19 +290,6 @@ describe("设置面板开关", () => {
     expect(settings.getSettingsState().panelOpen).toBe(false);
   });
 
-  it("深链定位:有参 open 写入 panelTarget,无参 open 覆盖为 null", () => {
-    settings.openSettingsPanel({ sectionId: "workspace", tabId: "budget" });
-    expect(settings.getSettingsState().panelTarget).toEqual({
-      sectionId: "workspace",
-      tabId: "budget",
-    });
-    settings.closeSettingsPanel();
-    /* 无参再开不得残留上一次的深链 target(panelOpen 翻真会被 effect 消费) */
-    settings.openSettingsPanel();
-    expect(settings.getSettingsState().panelOpen).toBe(true);
-    expect(settings.getSettingsState().panelTarget).toBeNull();
-  });
-
   it("重复 open/close 幂等,不重复通知订阅者", () => {
     const fn = vi.fn();
     const unsub = settings.subscribeSettings(fn);

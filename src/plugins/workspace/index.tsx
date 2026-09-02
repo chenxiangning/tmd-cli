@@ -6,18 +6,16 @@
  * - 会话树:贯穿竖线 + ╰ 弯钩;行 = CLI EngineIcon + 名称 + meta
  *   (活会话 meta 显示呼吸灯,磁盘会话显示相对时间),固定在 CLI 分组内
  * - 磁盘历史分页:初始条数 = 显示预算解析配额(见 SessionList),
- *   「更多...」翻倍递增;预算编辑在设置面板「会话列表」section(BudgetTab)
- * - 设置注册:registerSettingsSection 贡献「会话列表/显示预算」(设置域插件化
- *   标准路径);caption ListTree 按钮深链直达(openSettingsPanel 定位)
+ *   「更多...」翻倍递增;预算编辑 = caption「会话列表显示预算」弹窗(BudgetPopover)
+ * - 显示预算弹窗:caption icon 入口,portal + fixed 锚定按钮下方(校验见 budgetCommit)
  * - 新建会话菜单:portal + fixed 定位(点击点夹取),CLI 行 + 行右侧刷新
  * - 数据源:活会话 = 内核 PTY 注册表;历史 = 各 CLI 插件 listSessions
- * 组件实现见同目录:WorkspaceCard / SessionList / SessionMenu / BudgetTab / utils。
+ * 组件实现见同目录:WorkspaceCard / SessionList / SessionMenu / BudgetPopover / utils。
  */
 
 import { useState } from "react";
 import { host, useHost } from "@kernel/host";
 import type { Plugin } from "@kernel/plugin";
-import { openSettingsPanel } from "@kernel/settings";
 import {
   addWorkspace,
   useWorkspaces,
@@ -26,7 +24,7 @@ import {
 import { pickDirectory } from "@kernel/ipc";
 import { FolderPlus, ListTree } from "lucide-react";
 import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
-import { BudgetTab } from "./BudgetTab";
+import { BudgetPopover, clampBudgetPosition } from "./BudgetPopover";
 import { WorkspaceCard } from "./WorkspaceCard";
 import { PinnedSessionsSection } from "./PinnedSessions";
 
@@ -40,6 +38,9 @@ function WorkspaceSection() {
   } | null>(null);
   const [refreshTicks, setRefreshTicks] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
+  const [budgetPos, setBudgetPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
 
   async function handleAdd() {
     try {
@@ -76,9 +77,14 @@ function WorkspaceSection() {
           <button
             className="ws-caption-btn"
             title="会话列表显示预算"
-            onClick={() =>
-              openSettingsPanel({ sectionId: "workspace", tabId: "budget" })
-            }
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setBudgetPos(
+                budgetPos
+                  ? null
+                  : clampBudgetPosition(rect.left, rect.bottom + 6),
+              );
+            }}
           >
             <ListTree size={13} aria-hidden />
           </button>
@@ -122,6 +128,9 @@ function WorkspaceSection() {
           onClose={() => setMenu(null)}
         />
       )}
+      {budgetPos && (
+        <BudgetPopover position={budgetPos} onClose={() => setBudgetPos(null)} />
+      )}
     </div>
   );
 }
@@ -133,23 +142,6 @@ export const workspacePlugin: Plugin = {
     ctx.contribute("leftSidebar.section", {
       order: 0,
       component: WorkspaceSection,
-    });
-    /* 设置域插件化标准路径:注册表驱动,渲染归 settings 插件的 SettingsPanel。 */
-    ctx.registerSettingsSection({
-      id: "workspace",
-      title: "会话列表",
-      description: "工作区会话列表的磁盘历史露出预算。",
-      icon: <ListTree size={14} aria-hidden />,
-      order: 1,
-      tabs: [
-        {
-          id: "budget",
-          title: "显示预算",
-          icon: <ListTree size={14} aria-hidden />,
-          order: 0,
-          component: BudgetTab,
-        },
-      ],
     });
   },
 };

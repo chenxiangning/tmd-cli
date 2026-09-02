@@ -68,12 +68,6 @@ export function resolveCliSessionQuota(
 /** 置顶作用域:"global" = 左侧栏全局置顶区;"workspace" = 工作区 CLI 分组内顶部。 */
 export type SessionPinScope = "global" | "workspace";
 
-/** 设置面板深链定位:openSettingsPanel 有参写入,SettingsPanel 打开时选中该 section/tab。 */
-export interface SettingsPanelTarget {
-  sectionId: string;
-  tabId?: string;
-}
-
 /** 单条置顶记录:作用域 + 置顶时间戳(ms) + 标题快照。 */
 export interface SessionPinEntry {
   scope: SessionPinScope;
@@ -274,15 +268,12 @@ interface SettingsState {
   /** 首屏落地前为 false,主题引擎等它再应用(防闪默认色)。 */
   loaded: boolean;
   panelOpen: boolean;
-  /** 深链定位目标;null = 不定位(保持上次选中)。 */
-  panelTarget: SettingsPanelTarget | null;
 }
 
 const state: SettingsState = {
   settings: DEFAULT_SETTINGS,
   loaded: false,
   panelOpen: false,
-  panelTarget: null,
 };
 const listeners = new Set<() => void>();
 let snapshot: SettingsState = state;
@@ -339,15 +330,8 @@ export function updateSettings(patch: Partial<AppSettings>): void {
   void persist();
 }
 
-/**
- * 打开设置面板;有参 = 深链定位到某 section/tab。
- * 每次调用都写 panelTarget(无参 = null):若深链后无参打开不覆盖,
- * 旧 target 会借 panelOpen 翻真被 SettingsPanel 的 effect 再次消费,残留定位。
- */
-export function openSettingsPanel(target?: SettingsPanelTarget): void {
-  const next = target ?? null;
-  if (state.panelOpen && next === null && state.panelTarget === null) return;
-  state.panelTarget = next;
+export function openSettingsPanel(): void {
+  if (state.panelOpen) return;
   state.panelOpen = true;
   emit();
 }
