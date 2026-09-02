@@ -33,6 +33,9 @@ export interface FilePanelContribution {
   /** 面板数据刷新(可选):外壳刷新按钮点击时调用;返回 Promise 则按钮转到 settle。
    *  实现同样经插件内 store/引用转发到面板组件(如 FileTree 的 reloadRoot)。 */
   refresh?: () => void | Promise<void>;
+  /** 新建文件/文件夹(可选):顶栏对应按钮点击时调用;缺省按钮置灰。 */
+  newFile?: () => void;
+  newFolder?: () => void;
   /** tab 排序,小的在前;缺省 0。 */
   order?: number;
   /** 注册即钉到 toolbar;缺省 true。 */

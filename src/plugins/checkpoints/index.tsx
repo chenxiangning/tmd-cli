@@ -24,6 +24,8 @@ export const checkpointsPlugin: Plugin = {
     name: "批次审批",
     abbr: "CK",
     desc: "AI 改动按轮成批:审 diff、整批或按文件回退",
+    icon: History,
+    iconColor: "#2FB8AD",
     category: "feature",
   },
   activate(ctx: PluginContext) {
