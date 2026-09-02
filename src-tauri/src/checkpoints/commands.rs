@@ -27,10 +27,11 @@ pub async fn checkpoint_capture(
     run(move || capture_snapshot(&cwd, &session_id, &prompt, SnapKind::Anchor)).await
 }
 
-/// 批次清单(含 live 分类与状态合成)。按需调用:UI 打开/批次更新/还原后,不挂轮询。
+/// 批次清单(session 严格隔离;含 live 分类与状态合成)。
+/// 按需调用:UI 打开/批次更新/还原后,不挂轮询。
 #[tauri::command]
-pub async fn checkpoint_list(cwd: String) -> Result<Vec<super::BatchInfo>, String> {
-    run(move || derive_batches(&cwd)).await
+pub async fn checkpoint_list(cwd: String, session_id: String) -> Result<Vec<super::BatchInfo>, String> {
+    run(move || derive_batches(&cwd, &session_id)).await
 }
 
 /// sealed 批次逐文件 unified patch。

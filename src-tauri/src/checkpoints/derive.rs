@@ -12,9 +12,15 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 use std::fs;
 
-pub fn derive_batches(cwd: &str) -> Result<Vec<BatchInfo>, CkptError> {
+/// 批次推导(session 严格隔离)。审批线生命周期 = 单个 tmd 会话:
+/// 只取该会话的锚点序列配对成批,其他会话/历史会话的锚点一律不可见。
+/// sidecar 按 cwd 分库只是存储布局,可见性完全由 sessionId 划界。
+pub fn derive_batches(cwd: &str, session_id: &str) -> Result<Vec<BatchInfo>, CkptError> {
     let manifests = load_manifests(cwd);
-    let anchors: Vec<&Snapshot> = manifests.iter().filter(|s| s.kind == "anchor").collect();
+    let anchors: Vec<&Snapshot> = manifests
+        .iter()
+        .filter(|s| s.kind == "anchor" && s.session_id == session_id)
+        .collect();
     let states = load_states(cwd);
 
     // 用户仓库侧:live dirty 集(open_user 同时验证 git 工作区前提)

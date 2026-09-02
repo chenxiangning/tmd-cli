@@ -3,6 +3,8 @@
  *
  * 一批一个 tab:用户消息全文卡 + "AI 修改的文件"分区列表(各自 unified diff,
  * 默认展开可折叠);文件行深链滚动到分区并高亮。
+ * 会话严格绑定:清单按 payload 里的 (cwd, sessionId) 取 —— 会话切换/结束后,
+ * 旧审阅单显示"已随会话结束"。
  * 动作同面板:回退唯一(整批/单文件,带确认),done 无操作。
  * 非 ckpt-batch kind 的 tab 返回 null —— 每种 kind 的渲染由各自插件负责。
  */
@@ -11,8 +13,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Loader2, RotateCcw } from "lucide-react";
 import { useEditorTabs } from "@kernel/tabs";
 import { formatRelativeTime } from "@kernel/relativeTime";
-import type { CkptPatch } from "@kernel/ipc";
-import { getCachedDiff, ckptSourceLabel, loadDiff, revertBatch, useCkptVersion, useCkptBatches } from "./store";
+import type { CkptBatch, CkptPatch } from "@kernel/ipc";
+import { getCachedDiff, loadDiff, refreshBatches, revertBatch, useCkptVersion, useCkptBatches } from "./store";
 import { readBatchPayload } from "./batchTab";
 
 export function BatchSheetTabContent() {
@@ -20,20 +22,30 @@ export function BatchSheetTabContent() {
   const active = tabs.find((t) => t.id === activeId);
   const payload = active ? readBatchPayload(active) : null;
   if (!active || !payload) return null;
-  return <BatchSheet key={active.id} cwd={payload.cwd} batchId={payload.batchId} focusPath={payload.focusPath} />;
+  return (
+    <BatchSheet
+      key={`${payload.sessionId}:${payload.batchId}`}
+      cwd={payload.cwd}
+      sessionId={payload.sessionId}
+      batchId={payload.batchId}
+      focusPath={payload.focusPath}
+    />
+  );
 }
 
 function BatchSheet({
   cwd,
+  sessionId,
   batchId,
   focusPath,
 }: {
   cwd: string;
+  sessionId: string;
   batchId: string;
   focusPath?: string;
 }) {
   useCkptVersion();
-  const { batches, notARepo } = useCkptBatches(cwd);
+  const { batches, notARepo } = useCkptBatches(cwd, sessionId);
   const batch = batches.find((b) => b.id === batchId);
   useEffect(() => {
     // 审阅单挂载即拉该批 patch(与时间线共享缓存)
@@ -44,18 +56,20 @@ function BatchSheet({
     return <Center>该工作区不是 git 仓库,无审批数据</Center>;
   }
   if (!batch) {
-    return <Center>批次不存在或已被清理(保留策略 100 批/会话 · 30 天)</Center>;
+    return <Center>批次不存在或已随会话结束(审批线生命周期 = 单个会话)</Center>;
   }
-  return <SheetBody cwd={cwd} batch={batch} focusPath={focusPath} />;
+  return <SheetBody cwd={cwd} sessionId={sessionId} batch={batch} focusPath={focusPath} />;
 }
 
 function SheetBody({
   cwd,
+  sessionId,
   batch,
   focusPath,
 }: {
   cwd: string;
-  batch: import("@kernel/ipc").CkptBatch;
+  sessionId: string;
+  batch: CkptBatch;
   focusPath?: string;
 }) {
   useCkptVersion();
@@ -86,6 +100,7 @@ function SheetBody({
       /* 错误横幅与时间线共享:此处静默,时间线 notice 已展示同源错误 */
     } finally {
       setBusy(false);
+      void refreshBatches(cwd, sessionId);
     }
   }
 
@@ -104,12 +119,6 @@ function SheetBody({
       <div className="flex h-8 flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-3">
         <span className="text-[11px] text-(--tmd-fg-faint)">
           批次 #{batch.index} · {stateLabel} · {formatRelativeTime(batch.ts)}
-        </span>
-        <span
-          className="rounded border border-(--tmd-border) px-1 text-[9.5px] leading-[14px] text-(--tmd-fg-faint)"
-          title={ckptSourceLabel(batch.sessionId).title}
-        >
-          {ckptSourceLabel(batch.sessionId).label}
         </span>
         {patches && (
           <span className="font-mono text-[11px]">

@@ -1,10 +1,10 @@
 /**
  * CheckpointsPanel —— 右栏「审批线」时间线(spec §4,D 主形态)。
  *
- * 批次倒序;状态挂条目(无筛选行);两个点击目标一个去处:
- * 批次行/文件行 → 中央批审阅单(文件行深链分区)。
+ * 生命周期严格绑定单个会话:清单由后端按 sessionId 推导,新会话从零开始,
+ * 历史批次不跨会话可见(不允许扩散)。cwd 取活跃 workspace(与 git/files
+ * 面板同模式);仅当活跃会话属于该工作区时展示其审批线。
  * 动作极简:回退是唯一动作(带确认),done 全自动(提交/失配),无保留按钮。
- * cwd 取活跃 workspace(与 git/files 面板同模式,外壳零改动)。
  */
 
 import { useEffect, useState } from "react";
@@ -14,7 +14,6 @@ import { useWorkspaces } from "@kernel/workspace";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import type { CkptBatch, CkptBatchFile, CkptPatch } from "@kernel/ipc";
 import {
-  ckptSourceLabel,
   getCachedDiff,
   loadDiff,
   refreshBatches,
@@ -58,36 +57,31 @@ export function CheckpointsPanel() {
   const { list, activeId } = useWorkspaces();
   const active = list.find((w) => w.id === activeId) ?? list[0];
   const cwd = active?.root ?? null;
-  const state = useCkptBatches(cwd);
-  /* 范围过滤:默认只看当前会话的批次;无活会话在本工作区时自动退化为全部 */
-  const [scope, setScope] = useState<"session" | "all">("session");
+  /* 会话严格绑定:只认属于当前工作区的活跃会话(审批线生命周期 = 单个会话) */
   const activeSessionId = host.getActiveSessionId();
   const activeSession = host.getSessions().find((s) => s.id === activeSessionId);
-  const sessionInCwd =
-    activeSession && cwd && activeSession.cwd === cwd ? activeSession : null;
-  const hasSession = !!sessionInCwd;
+  const sessionId = activeSession && cwd && activeSession.cwd === cwd ? activeSessionId : null;
+
+  const state = useCkptBatches(cwd, sessionId);
   const [confirm, setConfirm] = useState<{ batchId: string; paths?: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!cwd) return;
-    void refreshBatches(cwd);
-    const timer = window.setInterval(() => void refreshBatches(cwd), POLL_MS);
+    if (!cwd || !sessionId) return;
+    void refreshBatches(cwd, sessionId);
+    const timer = window.setInterval(() => void refreshBatches(cwd, sessionId), POLL_MS);
     return () => window.clearInterval(timer);
-  }, [cwd]);
+  }, [cwd, sessionId]);
 
-  const visible =
-    scope === "session" && sessionInCwd
-      ? state.batches.filter((b) => b.sessionId === sessionInCwd.id)
-      : state.batches;
-  const pendingCount = visible.filter((b) => batchState(b) === "pending").length;
+  const pendingCount = state.batches.filter((b) => batchState(b) === "pending").length;
 
-  async function doRevert(cwd2: string, batchId: string, paths?: string[]) {
+  async function doRevert(batchId: string, paths?: string[]) {
+    if (!cwd || !sessionId) return;
     setBusy(true);
     setConfirm(null);
     try {
-      const out = await revertBatch(cwd2, batchId, paths);
+      const out = await revertBatch(cwd, batchId, paths);
       const n = out.restored.length + out.deleted.length;
       const skipped = out.skipped.map((s) => `${s.path}(${s.reason})`).join("、");
       setNotice(
@@ -99,18 +93,21 @@ export function CheckpointsPanel() {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
     } finally {
       setBusy(false);
+      void refreshBatches(cwd, sessionId);
     }
   }
 
-  async function doUndo(cwd2: string, batchId: string) {
+  async function doUndo(batchId: string) {
+    if (!cwd || !sessionId) return;
     setBusy(true);
     try {
-      const out = await undoRevertBatch(cwd2, batchId);
+      const out = await undoRevertBatch(cwd, batchId);
       setNotice(`已从恢复点恢复 ${out.restored.length} 个文件,批次回到待审`);
     } catch (e) {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
     } finally {
       setBusy(false);
+      void refreshBatches(cwd, sessionId);
     }
   }
 
@@ -131,40 +128,12 @@ export function CheckpointsPanel() {
           </span>
         )}
         <span className="flex-1" />
-        {/* 范围开关:本会话 / 全部工作区 */}
-        <div className="flex flex-none items-center overflow-hidden rounded-(--tmd-radius-sm) border border-(--tmd-border)">
-          <button
-            type="button"
-            disabled={!hasSession}
-            className={`px-1.5 py-px text-[10px] leading-[14px] disabled:opacity-40 ${
-              scope === "session"
-                ? "bg-(--tmd-bg-active) text-(--tmd-fg)"
-                : "text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover)"
-            }`}
-            title={hasSession ? "只看当前会话产生的批次" : "当前工作区没有活会话"}
-            onClick={() => setScope("session")}
-          >
-            会话
-          </button>
-          <button
-            type="button"
-            className={`px-1.5 py-px text-[10px] leading-[14px] ${
-              scope === "all"
-                ? "bg-(--tmd-bg-active) text-(--tmd-fg)"
-                : "text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover)"
-            }`}
-            title="看本工作区全部批次(含历史会话)"
-            onClick={() => setScope("all")}
-          >
-            全部
-          </button>
-        </div>
         <span className="flex-none text-(--tmd-fg-faint)">
           待审 <b className="font-semibold text-[#facc20]">{pendingCount}</b>
         </span>
         <span
           className="flex-none cursor-help border-b border-dotted border-(--tmd-fg-faint) text-[10px] text-(--tmd-fg-faint)"
-          title="每会话保留最近 100 批快照,超期 30 天清理;回退前自动打恢复点"
+          title="审批线跟随会话生命周期;快照每会话保留最近 100 批、超期 30 天清理"
         >
           100/30 天
         </span>
@@ -184,28 +153,29 @@ export function CheckpointsPanel() {
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {!cwd ? (
           <Empty text="暂无活跃工作区" />
+        ) : !sessionId ? (
+          <Empty text="审批线跟随会话生命周期 —— 当前工作区没有活会话" />
         ) : state.notARepo ? (
           <Empty text="该工作区不是 git 仓库 —— 审批线目前仅支持 git 工作区" />
         ) : state.loading && state.batches.length === 0 ? (
           <div className="flex items-center justify-center gap-2 pt-10 text-(--tmd-fg-faint)">
             <Loader2 size={13} className="animate-spin" aria-hidden /> 读取批次…
           </div>
-        ) : visible.length === 0 && scope === "session" && state.batches.length > 0 ? (
-          <Empty text="当前会话暂无批次 —— 切到「全部」查看工作区其他批次" />
-        ) : visible.length === 0 ? (
-          <Empty text="还没有批次 —— 发送一条让 AI 改文件的消息后,这里会按轮归批" />
+        ) : state.batches.length === 0 ? (
+          <Empty text="本会话还没有批次 —— 发送一条让 AI 改文件的消息后,这里会按轮归批" />
         ) : (
-          visible.map((b, i) => (
+          state.batches.map((b, i) => (
             <BatchRow
               key={b.id}
               batch={b}
-              last={i === visible.length - 1}
+              last={i === state.batches.length - 1}
               busy={busy}
               confirm={confirm?.batchId === b.id ? confirm : null}
               setConfirm={setConfirm}
               onRevert={doRevert}
               onUndo={doUndo}
               cwd={cwd}
+              sessionId={sessionId}
             />
           ))
         )}
@@ -231,15 +201,17 @@ function BatchRow({
   onRevert,
   onUndo,
   cwd,
+  sessionId,
 }: {
   batch: CkptBatch;
   last: boolean;
   busy: boolean;
   confirm: { batchId: string; paths?: string[] } | null;
   setConfirm: (v: { batchId: string; paths?: string[] } | null) => void;
-  onRevert: (cwd: string, batchId: string, paths?: string[]) => Promise<void>;
-  onUndo: (cwd: string, batchId: string) => Promise<void>;
+  onRevert: (batchId: string, paths?: string[]) => Promise<void>;
+  onUndo: (batchId: string) => Promise<void>;
   cwd: string;
+  sessionId: string;
 }) {
   // sealed 批懒加载 patch(时间线 ± 用;审阅单共用同一缓存)
   useEffect(() => {
@@ -248,7 +220,6 @@ function BatchRow({
 
   const st = batchState(b);
   const meta = STATE_META[st];
-  const src = ckptSourceLabel(b.sessionId);
   const stats = batchStats(b.open ? undefined : getCachedDiff(cwd, b.id));
   const revertable = b.files.filter((f) => f.live === "same");
 
@@ -261,7 +232,9 @@ function BatchRow({
         type="button"
         className="relative z-[1] flex w-full items-start gap-2 rounded-(--tmd-radius-sm) px-2.5 py-1.5 text-left hover:bg-(--tmd-bg-hover)"
         title="点击审阅该批(用户消息 + 文件 diff)"
-        onClick={() => openBatchTab({ cwd, batchId: b.id, title: `批次 #${b.index}` })}
+        onClick={() =>
+          openBatchTab({ cwd, sessionId, batchId: b.id, title: `批次 #${b.index}` })
+        }
       >
         <span
           className={`mt-0.5 h-3 w-3 flex-none rounded-full border-2 border-[#555] ${st === "open" ? "animate-pulse" : ""}`}
@@ -285,9 +258,6 @@ function BatchRow({
                 <span className="text-[#f85149]">−{stats.del}</span>
               </span>
             )}
-            <span className="flex-none rounded border border-(--tmd-border) px-1 text-[9.5px] leading-[14px] text-(--tmd-fg-faint)">
-              {src.label}
-            </span>
             <span className={`flex-none rounded-full px-1.5 text-[9.5px] font-semibold leading-[15px] ${meta.chip}`}>
               {meta.label}
               {st === "done" && b.doneReason ? ` · ${b.doneReason}` : ""}
@@ -300,7 +270,15 @@ function BatchRow({
       {/* 文件行 → 审阅单深链 */}
       <div className="ml-8 mt-px">
         {b.files.map((f) => (
-          <FileRow key={f.path} file={f} batch={b} cwd={cwd} busy={busy} setConfirm={setConfirm} />
+          <FileRow
+            key={f.path}
+            file={f}
+            batch={b}
+            cwd={cwd}
+            sessionId={sessionId}
+            busy={busy}
+            setConfirm={setConfirm}
+          />
         ))}
       </div>
 
@@ -321,7 +299,7 @@ function BatchRow({
             type="button"
             disabled={busy}
             className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-border) px-2 text-[10.5px] text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) disabled:opacity-40"
-            onClick={() => void onUndo(cwd, b.id)}
+            onClick={() => void onUndo(b.id)}
           >
             <Undo2 size={10} aria-hidden /> 反悔 · 恢复回来
           </button>
@@ -360,7 +338,7 @@ function BatchRow({
               type="button"
               disabled={busy}
               className="h-6 rounded border border-[rgba(167,139,250,.5)] px-2 text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
-              onClick={() => void onRevert(cwd, b.id, confirm.paths)}
+              onClick={() => void onRevert(b.id, confirm.paths)}
             >
               确认回退
             </button>
@@ -375,12 +353,14 @@ function FileRow({
   file: f,
   batch: b,
   cwd,
+  sessionId,
   busy,
   setConfirm,
 }: {
   file: CkptBatchFile;
   batch: CkptBatch;
   cwd: string;
+  sessionId: string;
   busy: boolean;
   setConfirm: (v: { batchId: string; paths?: string[] } | null) => void;
 }) {
@@ -397,7 +377,13 @@ function FileRow({
         className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left"
         title="点击在编辑区查看该文件 diff"
         onClick={() =>
-          openBatchTab({ cwd, batchId: b.id, title: `批次 #${b.index}`, focusPath: f.path })
+          openBatchTab({
+            cwd,
+            sessionId,
+            batchId: b.id,
+            title: `批次 #${b.index}`,
+            focusPath: f.path,
+          })
         }
       >
         <span

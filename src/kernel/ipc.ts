@@ -254,8 +254,9 @@ export const ipc = {
   /** 锚点快照:用户消息发送瞬间调用;失败不阻塞发送(调用方 catch 重试一次)。 */
   checkpointCapture: (cwd: string, sessionId: string, prompt: string) =>
     invoke<CkptSnapshot>("checkpoint_capture", { cwd, sessionId, prompt }),
-  /** 批次清单(含 live 分类与状态合成);按需调用,勿挂轮询。 */
-  checkpointList: (cwd: string) => invoke<CkptBatch[]>("checkpoint_list", { cwd }),
+  /** 批次清单(session 严格隔离;含 live 分类与状态合成);按需调用,勿挂轮询。 */
+  checkpointList: (cwd: string, sessionId: string) =>
+    invoke<CkptBatch[]>("checkpoint_list", { cwd, sessionId }),
   /** sealed 批次逐文件 unified patch;open 批用 gitDiffFilePatch。 */
   checkpointBatchDiff: (cwd: string, batchId: string) =>
     invoke<CkptPatch[]>("checkpoint_batch_diff", { cwd, batchId }),

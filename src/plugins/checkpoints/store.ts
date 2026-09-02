@@ -2,13 +2,14 @@
  * checkpoints store —— 右栏审批线面板与中央批审阅单共享的批次状态仓
  * (对齐 git 插件 panelStore 惯例:模块级 store + useSyncExternalStore)。
  *
+ * 会话严格绑定:状态仓按 (cwd, sessionId) 键控,清单由后端按 sessionId 推导 ——
+ * 新会话从零开始,历史批次不跨会话可见(生命周期 = 单个会话)。
  * 数据流:promptSent → captureAnchor(锚点快照) → refreshBatches;
- * 回退/反悔动作后各自 refresh。diff 按批懒加载缓存;批次清单不挂轮询
+ * 回退/反悔动作后各自 refresh。diff 按批懒加载缓存;清单不挂轮询
  * (UI 挂载期间 6s 轻刷新,保证 open 批的 live 分类跟进)。
  */
 
 import { useSyncExternalStore } from "react";
-import { host } from "@kernel/host";
 import { ipc, type CkptBatch, type CkptPatch } from "@kernel/ipc";
 
 export interface CwdCkptState {
@@ -20,7 +21,8 @@ export interface CwdCkptState {
 }
 
 const EMPTY: CwdCkptState = { batches: [], loading: false, error: null, notARepo: false };
-const byCwd = new Map<string, CwdCkptState>();
+/** key = `${cwd}|${sessionId}` */
+const byKey = new Map<string, CwdCkptState>();
 /** cwd → batchId → patches(懒加载缓存) */
 const diffCache = new Map<string, Map<string, CkptPatch[]>>();
 
@@ -31,8 +33,12 @@ function emit() {
   listeners.forEach((fn) => fn());
 }
 
-function setCwd(cwd: string, patch: Partial<CwdCkptState>): void {
-  byCwd.set(cwd, { ...EMPTY, ...byCwd.get(cwd), ...patch });
+function stateKey(cwd: string, sessionId: string): string {
+  return `${cwd}|${sessionId}`;
+}
+
+function setKey(key: string, patch: Partial<CwdCkptState>): void {
+  byKey.set(key, { ...EMPTY, ...byKey.get(key), ...patch });
   emit();
 }
 
@@ -41,17 +47,18 @@ function isNotARepoError(e: unknown): boolean {
 }
 
 /** 拉批次清单(幂等;并发去重靠 token 丢弃过期响应)。 */
-export function refreshBatches(cwd: string): Promise<void> {
-  if (!cwd) return Promise.resolve();
-  setCwd(cwd, { loading: true });
+export function refreshBatches(cwd: string, sessionId: string): Promise<void> {
+  if (!cwd || !sessionId) return Promise.resolve();
+  const key = stateKey(cwd, sessionId);
+  setKey(key, { loading: true });
   return ipc
-    .checkpointList(cwd)
+    .checkpointList(cwd, sessionId)
     .then((batches) => {
-      byCwd.set(cwd, { batches, loading: false, error: null, notARepo: false });
+      byKey.set(key, { batches, loading: false, error: null, notARepo: false });
       emit();
     })
     .catch((e: unknown) => {
-      byCwd.set(cwd, {
+      byKey.set(key, {
         batches: [],
         loading: false,
         error: String(e),
@@ -67,16 +74,18 @@ export function captureAnchor(cwd: string, sessionId: string, prompt: string): v
   run().catch(() => {
     window.setTimeout(() => {
       run()
-        .then(() => refreshBatches(cwd))
+        .then(() => refreshBatches(cwd, sessionId))
         .catch(() => {
           /* 两次都失败:本锚点缺失,批会并入下一批(快照对推导的自然兜底) */
         });
     }, 1500);
     return;
   });
-  // 快路径:capture 成功与否都要刷新清单(capture 完成有延迟,6s 轮询也会兜住)
-  window.setTimeout(() => void refreshBatches(cwd), 800);
+  // 快路径:capture 完成有延迟,定时刷新也会兜住
+  window.setTimeout(() => void refreshBatches(cwd, sessionId), 800);
 }
+
+export type CkptRestoreResult = Awaited<ReturnType<typeof ipc.checkpointRestore>>;
 
 export async function revertBatch(
   cwd: string,
@@ -85,15 +94,12 @@ export async function revertBatch(
 ): Promise<CkptRestoreResult> {
   const out = await ipc.checkpointRestore(cwd, batchId, paths);
   invalidateDiff(cwd, batchId);
-  await refreshBatches(cwd);
   return out;
 }
-export type CkptRestoreResult = Awaited<ReturnType<typeof ipc.checkpointRestore>>;
 
 export async function undoRevertBatch(cwd: string, batchId: string): Promise<CkptRestoreResult> {
   const out = await ipc.checkpointUndoRevert(cwd, batchId);
   invalidateDiff(cwd, batchId);
-  await refreshBatches(cwd);
   return out;
 }
 
@@ -126,18 +132,6 @@ export function loadDiff(cwd: string, batchId: string): CkptPatch[] | null {
 
 // ---- React 绑定 -----------------------------------------------------------
 
-/** 批次来源标注:活会话 → CLI profile id;已退出 → 「历史」。审批线是工作区维度,
- *  多会话并行时靠它区分归属(锚点 manifest 记录的就是 tmd sessionId)。 */
-export function ckptSourceLabel(sessionId: string): { label: string; title: string } {
-  const s = host.getSessions().find((x) => x.id === sessionId);
-  if (!s) return { label: "历史", title: `历史会话 ${sessionId.slice(0, 8)}` };
-  const p = host.getCliProfile(s.profileId);
-  return {
-    label: s.profileId,
-    title: `${p?.name ?? s.profileId} · 会话 ${sessionId.slice(0, 8)}`,
-  };
-}
-
 export function useCkptVersion(): number {
   return useSyncExternalStore(
     (fn) => {
@@ -148,7 +142,7 @@ export function useCkptVersion(): number {
   );
 }
 
-export function useCkptBatches(cwd: string | null): CwdCkptState {
+export function useCkptBatches(cwd: string | null, sessionId: string | null): CwdCkptState {
   useCkptVersion();
-  return (cwd ? byCwd.get(cwd) : undefined) ?? EMPTY;
+  return cwd && sessionId ? (byKey.get(stateKey(cwd, sessionId)) ?? EMPTY) : EMPTY;
 }
