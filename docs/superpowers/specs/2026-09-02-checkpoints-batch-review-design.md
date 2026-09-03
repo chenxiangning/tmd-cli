@@ -250,3 +250,18 @@ prototypes 目录供后续演进参考。
   审批线生命周期 = 单个 tmd 会话,新会话从零开始,历史/其他会话的批次
   不可见(不允许扩散)。sidecar 按 cwd 分库仅为存储布局;来源标注与
   会话/全部开关随此语义移除(同一视图内批次必同源)。
+
+## 2026-09-03 代码校准增量
+
+- **状态机补记 approved**:open → pending → approved / reverted / done(全部失配自动转 done);
+  approved 为纯标记,不动任何文件;pending 与 approved 均可回退(restore 仅拒已 reverted)。
+  动作集 = 回退 / 应用 / 反悔 / 通过标记,与 git 插件维持零耦合。
+- **events 归因第二信号源落定**:CLI 可声明 `readSessionEdits`(会话磁盘事件流),与 editMarks
+  等效走 events 归因;omp(读 JSONL 事件流)与 pi(edits 适配器)均已注册。两者皆无才回退
+  git 窗口推断(现仅 codex/grok/kimi/qoder/qoder-cn)。插件 4s 轮询 + 水位线增量落账;
+  早于本轮锚点的迟到事件直接丢弃,防串轮。
+- **resume 断档线撤销**:原设计的「resume 断档线、断档前批次只读」不再实现 ——
+  会话严格绑定 + tmd id 起链 + 身份回填/争持仲裁已杜绝新旧批次混板,断档线无适用场景。
+- **面板文件行 ×N**:AI 写入次数 chip 同时展示在时间线文件行与批审阅单(events 归因且 editCount>0)。
+- **prompt 截断接受**:锚点落账截 4000 字,审阅单消息卡按此展示;全文存储不做,后续有真实
+  需求再议 sidecar 方案。

@@ -1,5 +1,5 @@
 /**
- * 设置 section 注册表 —— 设置面板的扩展点(同 fileHighlighter/fileVisual 模式)。
+ * 设置 section 注册表 —— 设置面板的扩展点(同 fileVisual 模式)。
  *
  * 插件通过 ctx.registerSettingsSection 注册一个左侧导航项;
  * 每个 section 携带自己的 tabs(右侧内容区顶部的 tab 条)。

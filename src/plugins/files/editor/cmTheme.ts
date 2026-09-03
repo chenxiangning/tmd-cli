@@ -8,7 +8,7 @@ import { EditorView } from "@codemirror/view";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as levTags } from "@lezer/highlight";
 
-/** 语义 tag → --tmd-syntax-* token(与 global.css 的 hljs 映射同构)。 */
+/** 语义 tag → --tmd-syntax-* token(与 Prism 代码块同一色板)。 */
 const syntaxHighlight = HighlightStyle.define([
   { tag: [levTags.keyword, levTags.modifier, levTags.atom, levTags.self, levTags.null], color: "var(--tmd-syntax-keyword)" },
   { tag: [levTags.string, levTags.special(levTags.string), levTags.regexp, levTags.escape], color: "var(--tmd-syntax-string)" },

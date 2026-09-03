@@ -143,7 +143,7 @@ export function ProxyPopover() {
           </label>
 
           <p className="pxy-hint">
-            支持 http(s) 与 socks5。开关即时生效;已在跑的旧会话需手动重启后走代理。
+            支持 http(s) / socks5 / socks5h。开关即时生效;已在跑的旧会话需手动重启后走代理。
           </p>
         </div>
       </div>

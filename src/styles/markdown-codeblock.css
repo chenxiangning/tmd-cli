@@ -107,7 +107,7 @@
   height: 14px;
 }
 
-/* Prism token → tmd syntax tokens(与 hljs 预览同一色板) */
+/* Prism token → tmd syntax tokens(与 CodeMirror 编辑器同一色板) */
 .fvp-file-markdown-codeblock :is(.token.comment, .token.prolog, .token.doctype, .token.cdata) {
   color: var(--tmd-syntax-comment);
 }

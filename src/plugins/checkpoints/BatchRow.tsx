@@ -362,6 +362,14 @@ function FileRow({
         >
           {f.status}
         </span>
+        {f.editCount > 0 && b.attribution === "events" && (
+          <span
+            className="flex-none rounded border border-(--tmd-border) px-1 text-[9px] leading-[13px] text-(--tmd-fg-faint)"
+            title={`AI 本轮写入该文件 ${f.editCount} 次(事件流轨迹,账本可审计)`}
+          >
+            ×{f.editCount}
+          </span>
+        )}
         <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-(--tmd-fg-muted)">
           <b className="font-medium text-(--tmd-fg)">{name}</b>{" "}
           <span className="text-(--tmd-fg-faint)">{dir}</span>

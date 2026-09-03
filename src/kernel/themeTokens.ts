@@ -171,7 +171,7 @@ export function mapPresetToTokens(preset: ThemePresetDefinition): ThemeCssVariab
     "--tmd-accent": accent,
     "--tmd-accent-fg": getColor(colors, "button.foreground", getContrastingTextColor(accent)),
     "--tmd-accent-soft": withAlpha(accent, isDark ? 0.24 : 0.14),
-    // 语法高亮(hljs 消费)
+    // 语法高亮(CodeMirror / Prism 消费)
     "--tmd-syntax-keyword": normalizeHexColor(syntax.keyword) ?? FALLBACK_SYNTAX[appearance].keyword,
     "--tmd-syntax-string": normalizeHexColor(syntax.string) ?? FALLBACK_SYNTAX[appearance].string,
     "--tmd-syntax-comment": normalizeHexColor(syntax.comment) ?? FALLBACK_SYNTAX[appearance].comment,

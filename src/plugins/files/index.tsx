@@ -7,7 +7,7 @@
  * - 右键菜单走 wsmenu 范式(FileTreeContextMenu),命名走居中卡片(NamePrompt)。
  *
  * 注册点:
- * - fileVisual / fileHighlighter:可插拔视觉与高亮(编辑器另走 CodeMirror)
+ * - fileVisual:可插拔文件图标/颜色(编辑器高亮走 CodeMirror)
  * - filePanel:{ refresh / newFile / newFolder } 槽,外壳 subbar 按钮消费
  */
 import { useCallback, useEffect, useState } from "react";
@@ -16,11 +16,9 @@ import { ipc, type DirEntry } from "@kernel/ipc";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { clearDragPayload, setDragPayload } from "@kernel/internalDrag";
 import { useWorkspaces } from "@kernel/workspace";
-import { registerFileHighlighter } from "@kernel/fileHighlighter";
 import { registerFileVisual, resolveFileVisual } from "@kernel/fileVisual";
 import { registerFilePanel } from "@kernel/filePanel";
 import { FileTabContent } from "./FileTabContent";
-import { extToLang } from "./highlightLangs";
 import { defaultFileVisualProvider } from "./fileVisual";
 import { openFileInTab } from "./openFile";
 import { useTreeOperations } from "./useTreeOperations";
@@ -350,13 +348,6 @@ export const filesPlugin: Plugin = {
   },
   activate(ctx: PluginContext) {
     registerFileVisual(defaultFileVisualProvider);
-    registerFileHighlighter({
-      /* supports 只走纯函数 extToLang,不拉 hljs;
-         highlight 首次调用时才动态 import hljs chunk(之后模块系统缓存,近零成本)。 */
-      supports: (path) => extToLang(path) !== null,
-      highlight: async (path, content) =>
-        (await import("./highlighter")).highlightSync(path, content),
-    });
 
     registerFilePanel({
       id: "files",

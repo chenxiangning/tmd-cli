@@ -123,7 +123,7 @@ export function BehaviorTab() {
         <div className="pref-row">
           <div>
             <div className="pref-title">提示音</div>
-            <div className="pref-desc">选择 Ask 提示音音效，「测试」立即试听。</div>
+            <div className="pref-desc">选择 Ask 提示音音效，「试听」立即播放。</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <select
@@ -145,7 +145,7 @@ export function BehaviorTab() {
               className="segment is-active"
               onClick={() => playAskSound(settings.askSoundId)}
             >
-              测试
+              试听
             </button>
           </div>
         </div>
@@ -182,7 +182,7 @@ export function BehaviorTab() {
         <div className="pref-row">
           <div>
             <div className="pref-title">结束音效</div>
-            <div className="pref-desc">选择轮次结束提示音音效，「测试」立即试听。</div>
+            <div className="pref-desc">选择轮次结束提示音音效，「试听」立即播放。</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <select
@@ -204,7 +204,7 @@ export function BehaviorTab() {
               className="segment is-active"
               onClick={() => playAskSound(settings.turnEndSoundId)}
             >
-              测试
+              试听
             </button>
           </div>
         </div>

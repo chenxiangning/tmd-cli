@@ -36,7 +36,8 @@ static INITIAL_PROXY_ENV: LazyLock<Mutex<Option<ProxyEnvSnapshot>>> =
 #[cfg(test)]
 static PROXY_ENV_TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
-/// 从 settings.json 透传对象解析代理配置(缺字段/类型不符 = 关闭 + 空地址)。
+/// 从 settings.json 透传对象解析代理配置(缺字段/类型不符 = 关闭 + 空地址;
+/// disabledPlugins 含 network-proxy = 强制关闭,插件拔出即功能下电,开关为开也视同关)。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProxyConfig {
     pub enabled: bool,
@@ -46,10 +47,17 @@ pub struct ProxyConfig {
 impl ProxyConfig {
     pub fn from_settings(value: &serde_json::Value) -> Self {
         let obj = value.as_object();
-        let enabled = obj
-            .and_then(|o| o.get("networkProxyEnabled"))
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        // 拔出 network-proxy = 功能下电:Rust 侧不感知插件系统,这里读 settings.disabledPlugins
+        // 兜住「拔出插件后重启不再注入 env」的设计语义(前端拔插写 disabledPlugins,重启生效)。
+        let unplugged = obj
+            .and_then(|o| o.get("disabledPlugins"))
+            .and_then(|v| v.as_array())
+            .is_some_and(|a| a.iter().any(|x| x.as_str() == Some("network-proxy")));
+        let enabled = !unplugged
+            && obj
+                .and_then(|o| o.get("networkProxyEnabled"))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
         let url = obj
             .and_then(|o| o.get("networkProxyUrl"))
             .and_then(|v| v.as_str())
@@ -233,6 +241,30 @@ mod tests {
         assert_eq!(
             ProxyConfig::from_settings(&serde_json::json!({"networkProxyEnabled": "yes"})),
             config(false, "")
+        );
+    }
+
+    #[test]
+    fn from_settings_honors_disabled_plugins() {
+        // 拔出 network-proxy = 强制关闭:开关为开也不注入
+        let unplugged = serde_json::json!({
+            "networkProxyEnabled": true,
+            "networkProxyUrl": "http://127.0.0.1:7890",
+            "disabledPlugins": ["git", "network-proxy"]
+        });
+        assert_eq!(
+            ProxyConfig::from_settings(&unplugged),
+            config(false, "http://127.0.0.1:7890")
+        );
+        // 其他插件被拔不影响代理
+        let others = serde_json::json!({
+            "networkProxyEnabled": true,
+            "networkProxyUrl": "http://127.0.0.1:7890",
+            "disabledPlugins": ["git"]
+        });
+        assert_eq!(
+            ProxyConfig::from_settings(&others),
+            config(true, "http://127.0.0.1:7890")
         );
     }
 

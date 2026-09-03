@@ -3,7 +3,7 @@
  * 草稿保留),md 默认走 markdown 渲染管线 + 右上角「编辑/预览」切换,
  * 其余形态(二进制/超大/读取失败)维持只读占位。
  *
- * 旧的高亮只读预览被编辑器取代(fileHighlighter 注册点保留,预览管线不动)。
+ * 旧的高亮只读预览被编辑器取代,fileHighlighter 注册点与 highlight.js 依赖已移除。
  */
 
 import { Suspense, lazy, useEffect, useState } from "react";

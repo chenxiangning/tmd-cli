@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Download, Loader2 } from "lucide-react";
 import { useWorkspaces } from "@kernel/workspace";
 import { host } from "@kernel/host";
 import { ipc, type GitAheadBehind } from "@kernel/ipc";
@@ -31,7 +31,7 @@ export function GitPanel() {
   const { view, layout, refreshNonce } = useGitPanelState();
   const [notice, setNotice] = useState<string | null>(null);
   const [prefill, setPrefill] = useState<{ message: string; seq: number } | null>(null);
-  const [pushBusy, setPushBusy] = useState(false);
+  const [remoteBusy, setRemoteBusy] = useState<"push" | "pull" | "fetch" | null>(null);
 
   const status = useGitStatus(cwd);
   const totals = useGitTotals(cwd);
@@ -99,26 +99,31 @@ export function GitPanel() {
     }
   }, [refreshNonce, afterMutation]);
 
-  const pushAhead = useCallback(() => {
-    if (!cwd || pushBusy) return;
-    setPushBusy(true);
-    setNotice(null);
-    ipc.gitPullPush(cwd, "push").then(
-      () => {
-        setPushBusy(false);
-        setNotice("push 完成");
-        afterMutation();
-      },
-      (e: unknown) => {
-        setPushBusy(false);
-        setNotice(
-          isAuth(e)
-            ? "凭据需要交互,请到幕布终端执行 git push"
-            : gitErrorDisplay(e),
-        );
-      },
-    );
-  }, [cwd, pushBusy, afterMutation]);
+  /** 远端操作统一入口:fetch/pull/push 共用 busy 与通知;凭据失败引导幕布终端。 */
+  const runRemote = useCallback(
+    (op: "push" | "pull" | "fetch") => {
+      if (!cwd || remoteBusy) return;
+      setRemoteBusy(op);
+      setNotice(null);
+      const request = op === "fetch" ? ipc.gitFetch(cwd) : ipc.gitPullPush(cwd, op);
+      request.then(
+        () => {
+          setRemoteBusy(null);
+          setNotice(`${op} 完成`);
+          afterMutation();
+        },
+        (e: unknown) => {
+          setRemoteBusy(null);
+          setNotice(
+            isAuth(e)
+              ? `凭据需要交互,请到幕布终端执行 git ${op}`
+              : gitErrorDisplay(e),
+          );
+        },
+      );
+    },
+    [cwd, remoteBusy, afterMutation],
+  );
 
   if (!cwd || status.notARepo) {
     return (
@@ -132,7 +137,7 @@ export function GitPanel() {
 
   return (
     <div className="flex h-full flex-col text-xs">
-      {/* 聚合行:分支 · 文件数 · ahead/push */}
+      {/* 聚合行:分支 · 文件数 · fetch/pull/push */}
       <div className="flex h-7 shrink-0 items-center gap-2 overflow-hidden whitespace-nowrap border-b border-(--tmd-border) px-2 text-(--tmd-fg-muted)">
         <span className="shrink-0 font-medium text-(--tmd-fg)">{status.data?.branch ?? "…"}</span>
         {status.data?.upstream && (
@@ -149,14 +154,43 @@ export function GitPanel() {
           </span>
         </span>
         <span className="shrink-0">{files.length} 文件</span>
+        <button
+          onClick={() => runRemote("fetch")}
+          disabled={remoteBusy !== null}
+          title="fetch --all --prune(更新远端引用,不动本地分支)"
+          className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+        >
+          {remoteBusy === "fetch" ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Download className="h-3.5 w-3.5" />
+          )}
+        </button>
+        <button
+          onClick={() => runRemote("pull")}
+          disabled={remoteBusy !== null}
+          title={
+            (aheadBehind?.behind ?? 0) > 0
+              ? `pull(落后 ${aheadBehind!.behind} 个提交)`
+              : "pull(跟随上游与 pull.rebase 配置)"
+          }
+          className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+        >
+          {remoteBusy === "pull" ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <ArrowDown className="h-3.5 w-3.5" />
+          )}
+          {(aheadBehind?.behind ?? 0) > 0 && aheadBehind!.behind}
+        </button>
         {(aheadBehind?.ahead ?? 0) > 0 && (
           <button
-            onClick={pushAhead}
-            disabled={pushBusy}
+            onClick={() => runRemote("push")}
+            disabled={remoteBusy !== null}
             title={`push ${aheadBehind!.ahead} 个提交`}
             className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
           >
-            {pushBusy ? (
+            {remoteBusy === "push" ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <ArrowUp className="h-3.5 w-3.5" />

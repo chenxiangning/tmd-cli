@@ -4,7 +4,7 @@
 
    codemoss 的 --fvp-、--surface-、--text- 系列 变量桥接到 tmd 的 --tmd-* tokens
    (作用域隔离,不污染全局);Prism token 颜色直接吃 --tmd-syntax-*
-   (主题引擎随 preset 内联更新,与 hljs 预览同一套色板)。
+   (主题引擎随 preset 内联更新,与 CodeMirror 编辑器同一套色板)。
    ═══════════════════════════════════════════════════════════════ */
 
 .fvp-file-markdown {
