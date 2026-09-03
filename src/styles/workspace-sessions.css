@@ -1,12 +1,15 @@
 /**
- * 会话树样式(从 workspace-sidebar.css 拆分) — 会话列表/CLI 分组/呼吸灯。
- * 复刻 codemoss thread-row 体系,作用域 .ws-sidebar。
+ * 会话时间轴样式(从 workspace-sidebar.css 拆分) — 会话列表/CLI 分组/时间节点。
+ * FLUX 时间轴流:贯穿竖线 + 状态节点圆点,作用域 .ws-sidebar。
  */
 
 /* ===== 会话树容器(codemoss .workspace-children + 贯穿竖线) ===== */
 .workspace-children {
   --workspace-tree-rail: color-mix(in srgb, var(--text-muted) 30%, transparent);
-  --workspace-tree-rail-x: 10px;
+  /* 轨道水平位:竖线中心须穿过文件夹图标中心(x=20)= 工作区行 margin-left(4)
+     + header padding-left(8) + 图标半宽(8);线宽 1px,left 取 19.5 让中心落 20。
+     行/分组标签/更多…的 margin-left 全部消费本变量,与轨道同进退。 */
+  --workspace-tree-rail-x: 19.5px;
   position: relative;
   display: grid;
   margin: 2px 0 0;
@@ -55,14 +58,34 @@
 /* ===== CLI 分组标签 ===== */
 .cli-group-label {
   position: relative;
-  margin-left: 10px;
-  padding: 2px 5px 0 8px;
+  margin-left: var(--workspace-tree-rail-x);
+  padding: 2px 5px 0 12px;
   font-size: var(--sidebar-caption-font-size);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-faint);
   line-height: 18px;
+}
+
+/* 品牌 logo 段头:中心对齐轨道(x=20),不透明圆底遮住贯穿线(同原空心环底)。
+   有 logo 时取代空心环;无 renderIcon 的 profile 保持环节点回退。 */
+.cli-group-label-icon {
+  position: absolute;
+  left: -5.5px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  background: var(--tmd-bg-base);
+  border-radius: 999px;
+}
+
+.cli-group-label:has(> .cli-group-label-icon)::before {
+  display: none;
 }
 
 /* ===== 会话行(codemoss .thread-row) ===== */
@@ -83,22 +106,63 @@
     color 0.16s ease;
   background: transparent;
   border: none;
-  width: calc(100% - 10px);
-  margin-left: 10px;
+  width: calc(100% - var(--workspace-tree-rail-x));
+  margin-left: var(--workspace-tree-rail-x);
   text-align: left;
 }
 
-/* ╰ 圆弧弯钩:只画「弧 + 水平短线」叠在贯穿线上(codemoss v4.2 数值) */
-.workspace-children-inner .thread-row::before,
-.workspace-children-inner .cli-group-label::before {
+/* ══ 时间节点(FLUX 时间轴):落在贯穿竖线上的状态圆点 ══
+   行左缘 = 竖线位(margin-left 10px = rail-x),dot 左移半宽即骑线。
+   绿 = 对话中(呼吸 + halo);蓝 = 完成未读(呼吸);灰 = 静止磁盘历史。 */
+.tl-node {
+  position: absolute;
+  left: -3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--tmd-fg-faint);
+  pointer-events: none;
+}
+
+.tl-node.is-run {
+  background: #34d399;
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.25);
+}
+
+/* 完成未读:对话结束且未查看 → 蓝色呼吸(accent 蓝,design tokens 语义色);
+   点开查看后 host 清 unread,回落 .is-idle 灰。 */
+.tl-node.is-unread {
+  background: var(--tmd-accent);
+  box-shadow: 0 0 0 2px var(--tmd-accent-soft);
+}
+
+.tl-node.is-idle {
+  animation: none;
+}
+
+/* 激活行:accent 节点 + 双环,替代原左侧指示条语义 */
+.thread-row.active .tl-node {
+  background: var(--tmd-accent);
+  box-shadow:
+    0 0 0 2px var(--tmd-accent-soft),
+    0 0 0 4px color-mix(in srgb, var(--tmd-accent) 10%, transparent);
+}
+
+/* CLI 分组标签:空心环节点,作为时间轴段头 */
+.cli-group-label::before {
   content: "";
   position: absolute;
-  left: 0;
-  width: 7px;
-  top: calc(50% - 4px);
-  height: 4px;
-  border-bottom: 1px solid var(--workspace-tree-rail);
-  border-bottom-left-radius: 4px;
+  left: -3.5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--tmd-bg-base);
+  border: 1.5px solid var(--text-muted);
   pointer-events: none;
 }
 
@@ -167,24 +231,6 @@
   opacity: 0.72;
 }
 
-/* 活会话呼吸灯(meta 区,替换时间 —— codemoss runtime dot 语义) */
-.thread-runtime-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: #34d399;
-}
-
-.thread-runtime-dot.is-idle {
-  background: var(--tmd-fg-faint);
-  animation: none;
-}
-/* 完成未读:对话结束且未查看 → 蓝色呼吸(accent 蓝,design tokens 语义色);
-   点开查看后 host 清 unread,回落 .is-idle 灰。 */
-.thread-runtime-dot.is-unread {
-  background: var(--tmd-accent);
-}
 
 /* 等待确认标签:CLI 阻塞在 Ask/确认面板(kernel/askWatch.ts 标记命中),
    用户作答即清。绿色 = 需要用户行动;soft 底 + 描边与 welcome-pill 同构,
@@ -229,7 +275,7 @@
   color: var(--text-faint);
   font-size: var(--sidebar-caption-font-size);
   padding: 4px 8px;
-  margin-left: 10px;
+  margin-left: var(--workspace-tree-rail-x);
   text-align: left;
   cursor: pointer;
   border-radius: 4px;

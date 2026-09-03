@@ -87,9 +87,7 @@ export function DiskSessionRow({
   if (renaming) {
     return (
       <div className="thread-row is-renaming">
-        <span className="thread-engine-badge" title={profile.name}>
-          {profile.renderIcon?.(12)}
-        </span>
+        <span className="tl-node is-idle" aria-hidden />
         <RenameInput target={renaming} onCommit={onRenameCommit} />
       </div>
     );
@@ -101,9 +99,7 @@ export function DiskSessionRow({
       onClick={onOpen}
       onContextMenu={onContextMenu}
     >
-      <span className="thread-engine-badge" title={profile.name}>
-        {profile.renderIcon?.(12)}
-      </span>
+      <span className="tl-node is-idle" aria-hidden />
       <span className="thread-name is-disk">{title}</span>
       <span className="thread-meta">
         <PinToggle on={pinned} onToggle={onTogglePin} />

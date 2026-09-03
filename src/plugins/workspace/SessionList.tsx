@@ -61,7 +61,7 @@ function subscribeActivityTick(cb: () => void): () => void {
   };
 }
 
-/** 呼吸灯三态:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止。 */
+/** 时间节点三态:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止 —— 呼吸灯从 meta 区移到时间轴节点位。 */
 function ActivityDot({ sessionId }: { sessionId: string }) {
   useHost();
   const [, tick] = useState(0);
@@ -69,11 +69,11 @@ function ActivityDot({ sessionId }: { sessionId: string }) {
   const alive = Date.now() - host.getLastActivityAt(sessionId) < 2000;
   const unread = host.isUnread(sessionId);
   const state = alive
-    ? "animate-breathe"
+    ? "is-run animate-breathe"
     : unread
       ? "is-unread animate-breathe"
       : "is-idle";
-  return <span className={`thread-runtime-dot ${state}`} />;
+  return <span className={`tl-node ${state}`} aria-hidden />;
 }
 
 /** 0 配额组「更多...」首击的展开步长(正配额组从配额值起翻倍:quota → 2× → 4×)。 */
@@ -87,7 +87,6 @@ type MenuTarget =
 /** 活会话行 —— 固定在 CLI 分组顶部(工作区置顶块之上);重命名态替换为输入行。 */
 function LiveSessionRow({
   session,
-  profile,
   isActive,
   title,
   pinned,
@@ -99,7 +98,6 @@ function LiveSessionRow({
   onRenameCommit,
 }: {
   session: SessionMeta;
-  profile: CliProfile;
   isActive: boolean;
   title: string;
   pinned: boolean;
@@ -115,9 +113,7 @@ function LiveSessionRow({
   if (renaming) {
     return (
       <div className="thread-row is-renaming">
-        <span className="thread-engine-badge" title={profile.name}>
-          {profile.renderIcon?.(12)}
-        </span>
+        <span className="tl-node is-idle" aria-hidden />
         <RenameInput target={renaming} onCommit={onRenameCommit} />
       </div>
     );
@@ -128,15 +124,12 @@ function LiveSessionRow({
       onClick={() => host.setActiveSession(session.id)}
       onContextMenu={onContextMenu}
     >
-      <span className="thread-engine-badge" title={profile.name}>
-        {profile.renderIcon?.(12)}
-      </span>
+      <ActivityDot sessionId={session.id} />
       {/* 身份统一:绑定磁盘身份后与磁盘条目同形显示(标题/命名/短码) */}
       <span className="thread-name">{title}</span>
       <span className="thread-meta">
         {waiting ? <span className="thread-ask-badge">等待确认</span> : null}
         <PinToggle on={pinned} disabled={!canPin} onToggle={onTogglePin} />
-        <ActivityDot sessionId={session.id} />
       </span>
     </button>
   );
@@ -268,9 +261,10 @@ export function CliSessionGroup({
     const entry = disk.find((d) => d.id === p.cliSessionId);
     return entry ? [entry] : [];
   });
-  const unpinnedDisk = disk.filter(
-    (s) => !workspacePinnedIds.has(s.id) && !pinnedOutIds.has(s.id),
-  );
+  /* 时间轴语义:显式按修改时间倒序,不依赖各 CLI listSessions 的返回顺序。 */
+  const unpinnedDisk = disk
+    .filter((s) => !workspacePinnedIds.has(s.id) && !pinnedOutIds.has(s.id))
+    .sort((a, b) => b.modifiedAt - a.modifiedAt);
   const visible = unpinnedDisk.slice(0, limit);
   const remaining = unpinnedDisk.length - visible.length;
 
@@ -342,7 +336,15 @@ export function CliSessionGroup({
 
   return (
     <div className="cli-group">
-      <div className="cli-group-label">{profile.name}</div>
+      <div className="cli-group-label">
+        {/* 品牌 logo 段头:骑在时间轴轨道中心(取代空心环;无 renderIcon 回退环) */}
+        {profile.renderIcon ? (
+          <span className="cli-group-label-icon" aria-hidden>
+            {profile.renderIcon(12)}
+          </span>
+        ) : null}
+        {profile.name}
+      </div>
 
       {/* 工作区置顶块(置顶时间升序,行内扎点常亮) */}
       {pinnedDisk.map((s) => (
@@ -373,7 +375,6 @@ export function CliSessionGroup({
           <LiveSessionRow
             key={s.id}
             session={s}
-            profile={profile}
             isActive={s.id === activeSessionId}
             title={title}
             pinned={

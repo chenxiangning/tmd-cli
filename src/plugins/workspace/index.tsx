@@ -5,8 +5,8 @@
  *   + hover 显形动作组(切到主区/刷新会话/新建会话菜单),右键同「+」
  * - caption 动作区:折叠/展开全部工作区会话(受控 collapsedMap,卡片行内
  *   toggle 与全局按钮同源)+ 插件贡献位(leftSidebar.workspaceCaption)+ 添加工作区
- * - 会话树:贯穿竖线 + ╰ 弯钩;行 = CLI EngineIcon + 名称 + meta
- *   (活会话 meta 显示呼吸灯,磁盘会话显示相对时间),固定在 CLI 分组内
+ * - 会话时间轴:贯穿竖线 + 状态节点圆点(绿=对话中 / 蓝=完成未读 / 灰=静止);
+ *   行 = 节点 + 名称 + meta(磁盘会话显示相对时间),固定在 CLI 分组内,按时间倒序
  * - 磁盘历史分页:初始条数 = 显示预算解析配额(见 SessionList);
  *   预算编辑入口由 session-budget 插件经 leftSidebar.workspaceCaption
  *   挂载点贡献,本插件不感知预算 UI(拔出该插件 = 回默认分页)
