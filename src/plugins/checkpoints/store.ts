@@ -6,8 +6,9 @@
  * (工作区 + 会话 + 轮次三元组落盘,封口即定死,不再现场推导)。
  * 数据流:promptSent → captureAnchor(记账锚点,隐式封上一轮) /
  * turnSettled → sealTurn(封口固化 turn 条目) → refreshBatches;
- * 回退/反悔动作后各自 refresh。diff 按批懒加载缓存;清单不挂轮询
- * (UI 挂载期间 6s 轻刷新,保证 open 批的 live 分类跟进)。
+ * 回退/反悔动作后各自 refresh。清单刷新失败保留旧批(error 态由面板渲染),
+ * diff 按批懒加载缓存;清单不挂轮询(UI 挂载期间 6s 轻刷新,保证 open 批
+ * 的 live 分类跟进)。
  */
 
 import { useSyncExternalStore } from "react";
@@ -50,6 +51,9 @@ function isNotARepoError(e: unknown): boolean {
 /**
  * 拉批次清单(幂等)。tmdSessionId:首条 prompt 打锚点时 CLI 磁盘身份常未绑上,
  * 锚点落在 tmd 会话 id 名下;后端按 (sessionId, tmdSessionId) 双字段命中并自动回填。
+ * 失败语义:保留上一次的 batches(只置 error,不清空)—— 一次瞬时失败(git
+ * 并发、IPC 抖动)不得把时间线打回「没有批次」的假象;首拉失败 = 空清单 +
+ * error,由面板渲染错误态。
  */
 export function refreshBatches(
   cwd: string,
@@ -66,11 +70,12 @@ export function refreshBatches(
       emit();
     })
     .catch((e: unknown) => {
+      const msg = String(e);
       byKey.set(key, {
-        batches: [],
+        batches: byKey.get(key)?.batches ?? [],
         loading: false,
-        error: String(e),
-        notARepo: isNotARepoError(e),
+        error: msg,
+        notARepo: isNotARepoError(msg),
       });
       emit();
     });

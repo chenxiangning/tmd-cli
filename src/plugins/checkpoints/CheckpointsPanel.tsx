@@ -169,6 +169,19 @@ export function CheckpointsPanel() {
         </button>
       )}
 
+      {/* 清单刷新失败:必须与「没有批次」可区分 —— 此前错误被吞进空态,
+          一次瞬时失败(git 并发/IPC 抖动)就会显示成「本会话还没有批次」。
+          点击横幅重拉;失败期间已保留旧清单,时间线照常可读可操作。 */}
+      {state.error && !state.notARepo && cwd && sessionId && (
+        <button
+          type="button"
+          className="flex-none border-b border-(--tmd-border) bg-(--tmd-diff-removed)/10 px-3 py-1.5 text-left text-[11px] text-(--tmd-diff-removed) hover:underline"
+          onClick={() => void refreshBatches(cwd, sessionId, tmdSessionId)}
+        >
+          审批线清单刷新失败:{state.error.replace(/^E_\w+:\s*/, "")} · 点击重试
+        </button>
+      )}
+
       {/* 时间线 */}
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {!cwd ? (
@@ -182,7 +195,9 @@ export function CheckpointsPanel() {
             <Loader2 size={13} className="animate-spin" aria-hidden /> 读取批次…
           </div>
         ) : state.batches.length === 0 ? (
-          <Empty text="本会话还没有批次 —— 发送一条让 AI 改文件的消息后,这里会按轮归批" />
+          state.error ? null /* 错误横幅已说明原因,不再叠加误导性空态 */ : (
+            <Empty text="本会话还没有批次 —— 发送一条让 AI 改文件的消息后,这里会按轮归批" />
+          )
         ) : (
           state.batches.map((b, i) => (
             <BatchRow

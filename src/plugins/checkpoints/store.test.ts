@@ -72,16 +72,37 @@ describe("refreshBatches(账本单查询)", () => {
     expect(ipcMock.checkpointList).toHaveBeenCalledWith(CWD, CLI, undefined);
   });
 
-  it("错误上抛进 error 态,清单清空,不得以空数据冒充完整账本", async () => {
+  it("刷新失败:保留旧清单 + error 态 —— 一次瞬时失败不得把时间线打回「没有批次」", async () => {
+    ipcMock.checkpointList.mockResolvedValueOnce([batch("b1", 1)]);
+    await store.refreshBatches(CWD, CLI, TMD);
+
     /* Tauri invoke 拒绝值是裸字符串(非 Error) */
     ipcMock.checkpointList.mockRejectedValue("E_IO: boom");
-
     await store.refreshBatches(CWD, CLI, TMD);
 
     const st = store.getCkptBatches(CWD, CLI);
     expect(st.error).toContain("E_IO");
-    expect(st.batches).toEqual([]);
+    /* 旧批保留,由面板的错误横幅标注数据非新鲜 */
+    expect(st.batches.map((b) => b.id)).toEqual(["b1"]);
     expect(st.loading).toBe(false);
+    expect(st.notARepo).toBe(false);
+
+    /* 恢复成功:清单与 error 双双复位 */
+    ipcMock.checkpointList.mockResolvedValue([batch("b2", 2)]);
+    await store.refreshBatches(CWD, CLI, TMD);
+    const ok = store.getCkptBatches(CWD, CLI);
+    expect(ok.error).toBeNull();
+    expect(ok.batches.map((b) => b.id)).toEqual(["b2"]);
+  });
+
+  it("首拉即失败:空清单 + error(面板渲染错误态,不冒充「本会话还没有批次」)", async () => {
+    ipcMock.checkpointList.mockRejectedValue("E_GIT2: lock");
+
+    await store.refreshBatches(CWD, CLI, TMD);
+
+    const st = store.getCkptBatches(CWD, CLI);
+    expect(st.error).toContain("E_GIT2");
+    expect(st.batches).toEqual([]);
     expect(st.notARepo).toBe(false);
   });
 
