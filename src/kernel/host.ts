@@ -47,7 +47,7 @@ class Host implements PluginContext {
    * 存储细节(分块/迟滞截断/字节数增量)见 kernel/outputBuffers.ts。
    */
   private readonly outputBuffers = new OutputBufferStore();
-  private readonly askWatch = new AskWatch(); /* Ask 等待确认状态仓(见 kernel/askWatch.ts) */
+  private readonly askWatch = new AskWatch(() => this.notify()); /* Ask 等待确认状态仓(见 kernel/askWatch.ts,onHealed = 静默自愈摘签后重渲染) */
   /**
    * 活会话 → CLI 磁盘身份绑定(omp/pi 的 jsonl uuid、codex 的 rollout id)。
    * 纯前端内存,随 PTY 消亡 —— 这是活会话的身份属性,不是持久化映射。
@@ -367,7 +367,8 @@ class Host implements PluginContext {
     this.outputBuffers.append(sessionId, text, limit);
     this.events.emit(ptyLiveTopic(sessionId), text);
 
-    /* ActivityWatch:输出回绿 + 节流 notify(未锚定会话免重渲染);AskWatch:命中提问 → 事件 + 标签重渲染。 */
+    /* AskWatch:命中面板标记立候选,复现确认后升级等待 → 事件 + 标签重渲染;
+       ActivityWatch:输出回绿 + 节流 notify(未锚定会话免重渲染)。 */
     const asked = this.askWatch.onOutput(sessionId, text);
     if (asked) this.events.emit(KernelTopics.askDetected, sessionId);
     if (asked || this.activity.onOutput(sessionId)) this.notify();
