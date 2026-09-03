@@ -25,6 +25,7 @@ import {
 } from "@kernel/messageAnchors";
 import { subscribeThemeApplied } from "@kernel/theme";
 import { createReplayInputGate } from "@kernel/terminalInputGate";
+import { isTerminalReport } from "@kernel/terminalReports";
 
 /** 每次翻页向日志读取的历史字节数(512KB)。 */
 const HISTORY_PAGE_BYTES = 512 * 1024;
@@ -120,8 +121,8 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
 
     // 先回放历史输出，再挂实时流——顺序保证字节流连续。
     // 回放期间上输入闸:历史内容里的终端查询(DSR/DA/OSC 颜色)会被 xterm 重新应答,
-    // 应答照走 writeSession 即 ① 陈旧应答注入活 PTY ② 视同用户首写、终止宽限期,
-    // 历史会话点开即走呼吸灯绿→蓝生命周期(见 terminalInputGate.ts)。
+    // 应答照走 writeSession 即 ① 陈旧应答注入活 PTY ② 视同用户首写、锚定对话,
+    // 历史会话点开即误走呼吸灯绿→蓝生命周期(见 terminalInputGate.ts)。
     const inputGate = inputGateRef.current;
     const replay = host.getOutputBuffer(sessionId);
     if (replay) {
@@ -145,9 +146,12 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) =>
       term.write(text),
     );
-    /* 闸外(实时流/用户击键)照常写会话;闸内(历史重写)回传整段丢弃 */
+    /* 闸外照常写会话;终端协议回传(焦点/鼠标/查询应答,见 terminalReports.ts)
+       照写 PTY 但标 synthetic —— 它们不是用户输入,不得锚定对话,
+       否则点一下终端/滚一轮就会点亮无对话会话的呼吸灯 */
     const offInput = term.onData((data) => {
-      if (!inputGate.blocked()) host.writeSession(sessionId, data);
+      if (inputGate.blocked()) return;
+      host.writeSession(sessionId, data, isTerminalReport(data));
     });
     /* 对话锚点:向内核注册本幕布的跳转/定位能力(composer 锚点栏经此中转)。 */
     const terminalHandle: TerminalHandle = {

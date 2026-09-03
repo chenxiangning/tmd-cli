@@ -436,7 +436,7 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
   });
 });
 
-describe("宽限期:spawn 首个输出突发不结算(呼吸灯灰)", () => {
+describe("首写闸:首写前输出不点亮呼吸灯", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     sessions.length = 0;
@@ -474,21 +474,34 @@ describe("宽限期:spawn 首个输出突发不结算(呼吸灯灰)", () => {
     expect(host.isUnread(h.id)).toBe(false);
   });
 
-  it("用户首写立即出宽限:应答按对话结算", async () => {
+  it("首写前静默后的迟到突发也不结算(无对话会话永不亮灯)", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await host.createSession(PROFILE_ID, CWD);
+    fireOutput(a.id, "banner");
+    await vi.advanceTimersByTimeAsync(3000);
+    fireOutput(a.id, "late async message"); // resume 后迟到的 MCP/状态消息、重绘
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(host.isUnread(a.id)).toBe(false);
+    expect(host.getLastActivityAt(a.id)).toBe(0);
+  });
+
+  it("终端协议回传不锚定对话:焦点/鼠标不点亮呼吸灯", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await host.createSession(PROFILE_ID, CWD);
+    /* 真实路径:TerminalView.onData 对焦点/鼠标上报标 synthetic(见 terminalReports.ts) */
+    host.writeSession(a.id, "\x1b[I", true); // 焦点进入
+    host.writeSession(a.id, "\x1b[<0;10;5M", true); // SGR 鼠标点击
+    fireOutput(a.id, "redraw"); // TUI 因焦点/滚动重绘
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(host.isUnread(a.id)).toBe(false);
+    expect(host.getLastActivityAt(a.id)).toBe(0);
+  });
+
+  it("用户首写锚定对话:应答按对话结算", async () => {
     const a = await host.createSession(PROFILE_ID, CWD);
     await host.createSession(PROFILE_ID, CWD);
     host.writeSession(a.id, "hi\r");
     fireOutput(a.id, "answer");
-    await vi.advanceTimersByTimeAsync(3000);
-    expect(host.isUnread(a.id)).toBe(true);
-  });
-
-  it("宽限静默后的新突发 = 正常对话(慢启动 CLI 语义)", async () => {
-    const a = await host.createSession(PROFILE_ID, CWD);
-    await host.createSession(PROFILE_ID, CWD);
-    fireOutput(a.id, "banner"); // 宽限内:静默 2s 后出宽限
-    await vi.advanceTimersByTimeAsync(3000);
-    fireOutput(a.id, "late turn"); // 无写入的后续输出:正常结算
     await vi.advanceTimersByTimeAsync(3000);
     expect(host.isUnread(a.id)).toBe(true);
   });
@@ -532,7 +545,7 @@ describe("turnSettled 结算事件(结束音数据源)", () => {
     expect(host.isUnread(a.id)).toBe(true);
   });
 
-  it("宽限静默退出不发事件(打开历史会话不得响结束音)", async () => {
+  it("首写前输出不发结算事件(打开历史会话不得响结束音)", async () => {
     const settled: unknown[] = [];
     const off = host.events.on("kernel.sessions.turn.settled", (e) => settled.push(e));
     await host.createSession(PROFILE_ID, CWD);

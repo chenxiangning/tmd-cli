@@ -142,12 +142,12 @@ sequenceDiagram
     EVT->>H: onPtyOutput 回调
     H->>BUF: 追加 + 截尾
     H->>BUS: emit(ptyLiveTopic, text)
-    H-->>H: lastActivityAt 更新<br/>呼吸灯 notify 节流 500ms
+    H-->>H: 首写闸(activityWatch)通过<br/>才结算呼吸灯;未对话会话<br/>输出直通幕布不进灯<br/>notify 节流 500ms
     BUS->>TV: term.write(text)
 
     Note over TV: 切会话重挂载时：<br/>1. 先回放 getOutputBuffer()<br/>2. 再订阅实时流<br/>→ "切回不黑屏"<br/>滚到顶可经 session_history_page<br/>从日志文件往前翻页(512KB/页)
 
-    Note over TV: 回放/翻页重写期间上「输入闸」<br/>(terminalInputGate):历史内容里的终端查询<br/>(DSR/DA/OSC 颜色)会被 xterm 重新应答,<br/>闸内丢弃 —— 否则陈旧应答注入活 PTY,<br/>且 writeSession 视同首写终止宽限期,<br/>历史会话点开即误走呼吸灯绿→蓝
+    Note over TV: 回放/翻页重写期间上「输入闸」<br/>(terminalInputGate):历史内容里的终端查询<br/>(DSR/DA/OSC 颜色)会被 xterm 重新应答,<br/>闸内丢弃 —— 否则陈旧应答注入活 PTY,<br/>且 writeSession 视同首写锚定对话,<br/>历史会话点开即误走呼吸灯绿→蓝;<br/>闸外终端协议回传(焦点/鼠标/查询应答)<br/>经 isTerminalReport 标 synthetic ——<br/>照写 PTY 但不锚定对话
 
     CLI->>PT: 进程退出 / read 返回 0
     PT->>EVT: emit "pty://exit/{sessionId}"
@@ -188,6 +188,9 @@ flowchart LR
 - **composer 不做 CLI 语义**——触发符、`translate` 全由 CLI profile 声明；codex 无 `translate` 即原样透传。
 - 粘贴/拖拽文件（`handlePaste` / `handleDrop`）先经 `ipc.fsWriteTemp` 落盘系统临时目录 `temp_dir()/tmd-cli`（受 fs.rs remove 白名单管辖），再把绝对路径插入草稿。
 - 裸 xterm 输入与 composer 发送**汇入同一条** `session_write` 通道。
+- 终端协议回传（焦点上报 DECSET 1004 / 鼠标上报 / 查询应答）经 `terminalReports.ts`
+  识别后以 `synthetic` 标记走同一条 `host.writeSession`：照写 PTY（CLI 在等这些应答），
+  但不锚定呼吸灯对话 —— 点一下终端/滚一轮不是用户首写。
 
 ### 4.1 Composer 状态链路：CLI session JSONL → 只读工具栏
 
@@ -259,6 +262,10 @@ flowchart TD
    (`<uuid>/wire.jsonl`),按整目录删避免 CLI /sessions 留幽灵会话。UI 侧两步确认防误删。
 4. **呼吸灯三态归内核 Host 结算（活动守望 1Hz）**：绿(2s 内有输出) → 蓝(静默结算时未被查看,
    组内置顶) → 点开即清(灰)。UI 只读 `host.isUnread`，不各自实现状态机。
+   呼吸灯锚定**用户首写**（activityWatch 首写闸）：首写前的一切输出（spawn 横幅、
+   resume 回放、TUI 重绘、迟到异步消息）不亮灯、不标未读、不发结束音 —— 静默不是
+   "用户在场"的证据。终端协议回传（焦点/鼠标/查询应答，`terminalReports.ts` 识别）
+   照写 PTY 但标 synthetic，不算用户首写。
 
 **Session 模型**（Rust `SessionMeta` + Host 运行时绑定）：
 

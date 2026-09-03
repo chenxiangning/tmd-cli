@@ -233,8 +233,6 @@ class Host implements PluginContext {
     cliSessionId?: string,
   ): Promise<SessionMeta> {
     if (cliSessionId) this.cliSessionIds.set(sessionId, cliSessionId);
-    /* 入宽限:横幅/resume 回放不是对话(呼吸灯灰、不结算未读/结束音) */
-    this.activity.onSpawned(sessionId);
     this.sessions = await ipc.sessionList();
     this.activeSessionId = sessionId;
     // 常驻订阅：从会话诞生起就持续缓冲输出，与幕布是否挂载无关。
@@ -369,16 +367,21 @@ class Host implements PluginContext {
     this.outputBuffers.append(sessionId, text, limit);
     this.events.emit(ptyLiveTopic(sessionId), text);
 
-    /* ActivityWatch:输出回绿 + 节流 notify(宽限期免重渲染);AskWatch:命中提问 → 事件 + 标签重渲染。 */
+    /* ActivityWatch:输出回绿 + 节流 notify(未锚定会话免重渲染);AskWatch:命中提问 → 事件 + 标签重渲染。 */
     const asked = this.askWatch.onOutput(sessionId, text);
     if (asked) this.events.emit(KernelTopics.askDetected, sessionId);
     if (asked || this.activity.onOutput(sessionId)) this.notify();
   }
 
-  /** 用户输入的唯一写入口:PTY 写入 + 宽限终止 + Ask 等待解除(作答即摘标签)。 */
-  writeSession(sessionId: string, data: string): void {
+  /**
+   * 用户输入的唯一写入口:PTY 写入 + 对话锚定(呼吸灯首写闸,activityWatch)
+   * + Ask 等待解除(作答即摘标签)。
+   * synthetic = 终端协议回传(焦点/鼠标/查询应答,见 terminalReports.ts):
+   * 照常写 PTY(CLI 正在等),但不锚定对话 —— 点一下终端/滚一轮不算用户首写。
+   */
+  writeSession(sessionId: string, data: string, synthetic = false): void {
     void ipc.sessionWrite(sessionId, data);
-    this.activity.onUserWrite(sessionId);
+    if (!synthetic) this.activity.onUserWrite(sessionId);
     if (this.askWatch.onUserWrite(sessionId)) this.notify();
   }
 
