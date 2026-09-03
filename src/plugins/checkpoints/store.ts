@@ -46,14 +46,36 @@ function isNotARepoError(e: unknown): boolean {
   return String(e).startsWith("E_NOT_A_REPO:");
 }
 
-/** 拉批次清单(幂等;并发去重靠 token 丢弃过期响应)。 */
-export function refreshBatches(cwd: string, sessionId: string): Promise<void> {
+/**
+ * 拉批次清单(幂等;并发去重靠 token 丢弃过期响应)。
+ * altSessionId:首条 prompt 打锚点时 CLI 磁盘身份常未绑上,锚点落在 tmd 会话 id
+ * 名下;绑定后读取按 cli id 查会漏掉这批。两个键都查,按批 id 去重合并。
+ */
+export function refreshBatches(
+  cwd: string,
+  sessionId: string,
+  altSessionId?: string,
+): Promise<void> {
   if (!cwd || !sessionId) return Promise.resolve();
+  const ids = altSessionId && altSessionId !== sessionId ? [sessionId, altSessionId] : [sessionId];
   const key = stateKey(cwd, sessionId);
   setKey(key, { loading: true });
-  return ipc
-    .checkpointList(cwd, sessionId)
-    .then((batches) => {
+  return Promise.all(
+    ids.map((id) =>
+      ipc.checkpointList(cwd, id).catch((e: unknown) => {
+        /* 仅副键失败可降级为空(锚点未必已落到副键名下);主键错误必须上抛
+           走 error 分支 —— 否则主键瞬时故障会静默丢整份清单 */
+        if (id !== sessionId && !isNotARepoError(e)) return [];
+        throw e;
+      }),
+    ),
+  )
+    .then((lists) => {
+      const byId = new Map<string, CkptBatch>();
+      for (const batches of lists) {
+        for (const b of batches) byId.set(b.id, b);
+      }
+      const batches = [...byId.values()].sort((a, b) => b.ts - a.ts);
       byKey.set(key, { batches, loading: false, error: null, notARepo: false });
       emit();
     })
@@ -171,7 +193,12 @@ export function useCkptVersion(): number {
   );
 }
 
+/** 非 hook 读取(测试/非 React 上下文);React 组件走 useCkptBatches 订阅版。 */
+export function getCkptBatches(cwd: string | null, sessionId: string | null): CwdCkptState {
+  return cwd && sessionId ? (byKey.get(stateKey(cwd, sessionId)) ?? EMPTY) : EMPTY;
+}
+
 export function useCkptBatches(cwd: string | null, sessionId: string | null): CwdCkptState {
   useCkptVersion();
-  return cwd && sessionId ? (byKey.get(stateKey(cwd, sessionId)) ?? EMPTY) : EMPTY;
+  return getCkptBatches(cwd, sessionId);
 }

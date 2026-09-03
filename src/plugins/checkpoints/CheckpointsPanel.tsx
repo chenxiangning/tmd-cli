@@ -74,13 +74,23 @@ export function CheckpointsPanel() {
   const { list, activeId } = useWorkspaces();
   const active = list.find((w) => w.id === activeId) ?? list[0];
   const cwd = active?.root ?? null;
-  /* 会话严格绑定:只认属于当前工作区的活跃会话(审批线生命周期 = 单个会话) */
+  /* 会话严格绑定:只认当前活跃会话(审批线生命周期 = 单个会话);不再要求
+     session.cwd === 工作区 root —— 锚点写入用 session.cwd,Rust 侧按键
+     精确匹配,跨工作区查询天然返回空,而会话 cwd 是工作区子目录时旧守卫
+     会把本可命中的批次整批隐藏。
+     读写都以 CLI 磁盘身份为准;首条 prompt 打锚点时身份常未绑上(回落 tmd id),
+     故查询把 tmd id 作为副键一并合并。 */
   const activeSessionId = host.getActiveSessionId();
   const activeSession = host.getSessions().find((s) => s.id === activeSessionId);
+  const boundCliId =
+    activeSession && cwd && activeSessionId !== null
+      ? host.getCliSessionId(activeSessionId)
+      : undefined;
   const sessionId =
-    activeSession && cwd && activeSession.cwd === cwd && activeSessionId !== null
-      ? host.getCliSessionId(activeSessionId) ?? activeSessionId
+    activeSession && cwd && activeSessionId !== null
+      ? boundCliId ?? activeSessionId
       : null;
+  const altSessionId = boundCliId && activeSessionId ? activeSessionId : undefined;
 
   const state = useCkptBatches(cwd, sessionId);
   const [confirm, setConfirm] = useState<{ batchId: string; paths?: string[] } | null>(null);
@@ -91,10 +101,10 @@ export function CheckpointsPanel() {
     if (!cwd) return;
     pruneRetention(cwd);
     if (!sessionId) return;
-    void refreshBatches(cwd, sessionId);
-    const timer = window.setInterval(() => void refreshBatches(cwd, sessionId), POLL_MS);
+    void refreshBatches(cwd, sessionId, altSessionId);
+    const timer = window.setInterval(() => void refreshBatches(cwd, sessionId, altSessionId), POLL_MS);
     return () => window.clearInterval(timer);
-  }, [cwd, sessionId]);
+  }, [cwd, sessionId, altSessionId]);
 
   const pendingCount = state.batches.filter((b) => batchState(b) === "pending").length;
 
@@ -108,7 +118,7 @@ export function CheckpointsPanel() {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
     } finally {
       setBusy(false);
-      void refreshBatches(cwd, sessionId);
+      void refreshBatches(cwd, sessionId, altSessionId);
     }
   }
 
@@ -129,7 +139,7 @@ export function CheckpointsPanel() {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
     } finally {
       setBusy(false);
-      void refreshBatches(cwd, sessionId);
+      void refreshBatches(cwd, sessionId, altSessionId);
     }
   }
 
@@ -143,7 +153,7 @@ export function CheckpointsPanel() {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
     } finally {
       setBusy(false);
-      void refreshBatches(cwd, sessionId);
+      void refreshBatches(cwd, sessionId, altSessionId);
     }
   }
 
