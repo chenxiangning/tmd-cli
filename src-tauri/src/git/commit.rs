@@ -46,14 +46,37 @@ pub fn commit(
     }
 
     let sig = resolve_signature(repo)?;
-    let parents: Vec<Commit> = match (input.amend, head_commit) {
+    let parents: Vec<Commit> = match (&input.amend, &head_commit) {
         (true, Some(hc)) => hc.parents().collect(),
         (true, None) => return Err(GitError::empty("无提交可 amend")),
-        (false, Some(hc)) => vec![hc],
+        (false, Some(hc)) => vec![hc.clone()],
         (false, None) => vec![],
     };
     let parents_ref: Vec<&Commit> = parents.iter().collect();
     let tree = repo.find_tree(tree_oid)?;
+    if input.amend {
+        let hc = head_commit.as_ref().unwrap();
+        // amend: 新 commit 首父 ≠ 当前 tip,libgit2 拒绝经 "HEAD" 直写;
+        // 先建对象(保留原 author,更新 committer),再手动把分支 ref 指过去。
+        let author = hc.author();
+        let oid = repo.commit(
+            None,
+            &author,
+            &sig,
+            input.message.trim(),
+            &tree,
+            &parents_ref,
+        )?;
+        // HEAD symbolic 时指向分支 ref,amend 需移动分支而非 HEAD;detached 时 HEAD 本身是直接 ref。
+        let mut head_ref = repo.head()?;
+        let msg = format!("commit (amend): {}", input.message.trim());
+        if let Some(branch_name) = head_ref.symbolic_target() {
+            repo.find_reference(branch_name)?.set_target(oid, &msg)?;
+        } else {
+            head_ref.set_target(oid, &msg)?;
+        }
+        return Ok(oid.to_string());
+    }
     let oid = repo.commit(
         Some("HEAD"),
         &sig,
@@ -80,4 +103,30 @@ fn resolve_signature(repo: &Repository) -> Result<Signature<'static>, GitError> 
         .or_else(|| std::env::var("GIT_AUTHOR_EMAIL").ok())
         .unwrap_or_else(|| "tmd-cli@localhost".into());
     Ok(Signature::now(&name, &email)?)
+}
+
+#[cfg(test)]
+mod amend_verify {
+    use super::*;
+    use crate::git::{tests_common::TempRepo, with_repo};
+
+    #[test]
+    fn amend_replaces_head() {
+        let t = TempRepo::new();
+        with_repo(t.path(), |repo| {
+            commit(repo, vec![], CommitInput { message: "init".into(), amend: false })?;
+            std::fs::write(std::path::Path::new(t.path()).join("f.txt"), "data").unwrap();
+            commit(repo, vec!["f.txt".into()], CommitInput { message: "second".into(), amend: false })?;
+            let before_author = repo.head()?.peel_to_commit()?.author().name().unwrap().to_string();
+            let sha = commit(repo, vec![], CommitInput { message: "amended".into(), amend: true })?;
+            let head = repo.head()?.peel_to_commit()?;
+            assert_eq!(head.id().to_string(), sha);
+            assert_eq!(head.summary(), Some("amended"));
+            assert_eq!(head.parent_count(), 1);
+            assert_eq!(head.parent(0)?.summary(), Some("init"));
+            assert_eq!(head.author().name(), Some(before_author.as_str()));
+            Ok(())
+        })
+        .unwrap();
+    }
 }
