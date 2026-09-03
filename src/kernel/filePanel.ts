@@ -31,7 +31,7 @@ export interface FilePanelContribution {
    *  与 component 是两棵组件树,共享状态须走插件内模块级 store。 */
   toolbar?: ComponentType;
   /** 面板数据刷新(可选):外壳刷新按钮点击时调用;返回 Promise 则按钮转到 settle。
-   *  实现同样经插件内 store/引用转发到面板组件(如 FileTree 的 reloadRoot)。 */
+   *  实现同样经插件内 store/引用转发到面板组件(如 FileTree 的 reload 全量重拉)。 */
   refresh?: () => void | Promise<void>;
   /** 新建文件/文件夹(可选):顶栏对应按钮点击时调用;缺省按钮置灰。 */
   newFile?: () => void;

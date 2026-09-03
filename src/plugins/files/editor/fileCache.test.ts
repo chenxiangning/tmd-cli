@@ -1,8 +1,15 @@
 /**
  * 文件缓存 + 草稿 + 行尾保持 的纯逻辑契约测试。
  * 模块级单例(drafts/fileCache 为模块态),每用例 vi.resetModules 取全新实例。
+ * reloadFile/变更通知走 mock 的 ipc.fsReadFile。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const ipcMock = vi.hoisted(() => ({
+  fsReadFile: vi.fn(),
+}));
+
+vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
 
 type CacheModule = typeof import("./fileCache");
 
@@ -12,6 +19,7 @@ beforeEach(async () => {
   vi.resetModules();
   // 动态 import 例外:被测模块持有模块级缓存状态,必须借 resetModules 隔离
   cache = await import("./fileCache");
+  ipcMock.fsReadFile.mockReset();
 });
 
 describe("cache LRU", () => {
@@ -46,6 +54,56 @@ describe("cache LRU", () => {
     expect(cache.cacheGet("C:\\w-else\\c.ts")?.content).toBe("3");
     expect(cache.pathEqualsOrUnder("C:\\w\\sub\\b.ts", "C:\\w")).toBe(true);
     expect(cache.pathEqualsOrUnder("C:\\w-else\\c.ts", "C:\\w")).toBe(false);
+  });
+});
+
+describe("reloadFile 与变更通知", () => {
+  it("已载入条目:作废重读磁盘,内容更新,草稿保留", async () => {
+    ipcMock.fsReadFile.mockResolvedValue("v2");
+    cache.cacheSet("/a", { path: "/a", content: "v1", error: null, loaded: true });
+    cache.draftSet("/a", "草稿");
+
+    const payload = cache.reloadFile("/a");
+    expect(payload.loaded).toBe(false);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(ipcMock.fsReadFile).toHaveBeenCalledWith("/a");
+    expect(cache.cacheGet("/a")).toEqual({ path: "/a", content: "v2", error: null, loaded: true });
+    expect(cache.draftGet("/a")).toBe("草稿");
+  });
+
+  it("无缓存路径:reloadFile 直接拉盘并入缓存", async () => {
+    ipcMock.fsReadFile.mockResolvedValue("fresh");
+
+    cache.reloadFile("/b");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(cache.cacheGet("/b")?.content).toBe("fresh");
+  });
+
+  it("加载在途:reloadFile 不重复发 IPC,等首次落地", () => {
+    ipcMock.fsReadFile.mockReturnValue(new Promise(() => {}));
+
+    cache.loadFile("/c");
+    cache.reloadFile("/c");
+
+    expect(ipcMock.fsReadFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("缓存任何变更(cacheSet/作废)都推版本号并通知订阅者", () => {
+    const seen: number[] = [];
+    const unsubscribe = cache.subscribeFileCache(() => seen.push(cache.getFileCacheVersion()));
+
+    cache.cacheSet("/x", { path: "/x", content: "1", error: null, loaded: true });
+    cache.cacheDeletePrefix("/x");
+    unsubscribe();
+    cache.cacheSet("/y", { path: "/y", content: "2", error: null, loaded: true });
+
+    /* 退订后不再收通知;版本号单调递增 */
+    expect(seen).toEqual([1, 2]);
+    expect(cache.getFileCacheVersion()).toBe(3);
   });
 });
 

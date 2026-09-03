@@ -6,10 +6,14 @@
  * 旧的高亮只读预览被编辑器取代,fileHighlighter 注册点与 highlight.js 依赖已移除。
  */
 
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState, useSyncExternalStore } from "react";
 import { Eye, Pencil } from "lucide-react";
 import { useEditorTabs } from "@kernel/tabs";
-import { cacheGet, loadFile } from "./editor/fileCache";
+import {
+  getFileCacheVersion,
+  loadFile,
+  subscribeFileCache,
+} from "./editor/fileCache";
 
 /* 编辑器(CodeMirror 全家 + 主题/语言包)按需拆包:真正进入编辑态才拉 chunk。
    useFileDocument 只依赖轻量 fileCache,静态引入不拖累拆包。 */
@@ -114,27 +118,13 @@ const LOADING = (
 export function FileTabContent() {
   const { activeId, tabs } = useEditorTabs();
   const active = tabs.find((t) => t.id === activeId);
-  const [, setTick] = useState(0);
+  /* 缓存任意变更(加载完成/刷新重读/保存回写)都推版本号 → 重渲拿到最新 payload;
+     hooks 无条件执行:本组件对不同 kind 的 tab 都会挂载,早退分支放在全部 hooks 之后。 */
+  useSyncExternalStore(subscribeFileCache, getFileCacheVersion);
 
   const isFileTab = active?.kind === "file";
   const path = isFileTab ? active.path : null;
   const payload = path ? loadFile(path) : null;
-
-  /* hooks 必须无条件执行:本组件对不同 kind 的 tab 都会挂载,
-     早退分支只能放在全部 hooks 之后(否则切 tab 时 hooks 数量错配)。 */
-  // 等待 cache 变 loaded 后强制重渲
-  useEffect(() => {
-    if (!path) return;
-    if (cacheGet(path)?.loaded) return;
-    const timer = window.setInterval(() => {
-      /* 加载中条目被 LRU 淘汰时,ipc 回调会把完成态重插回缓存,轮询自然终止 */
-      if (cacheGet(path)?.loaded) {
-        setTick((n) => n + 1);
-        window.clearInterval(timer);
-      }
-    }, 100);
-    return () => window.clearInterval(timer);
-  }, [path]);
 
   /* 多 kind 并存:非 file kind 的 tab(如 checkpoints 批审阅单)由各自插件的
      挂载组件渲染,这里让位返回 null;无任何 tab 时本组件仍兜底空态 */

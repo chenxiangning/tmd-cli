@@ -1,0 +1,29 @@
+version: 2
+updates:
+  # 前端依赖
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Rust 依赖(src-tauri)
+  - package-ecosystem: cargo
+    directory: "/src-tauri"
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions 自身
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

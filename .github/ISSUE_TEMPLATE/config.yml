@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 使用问题 / 讨论
+    url: https://github.com/chenxiangning/tmd-cli/discussions
+    about: 不确定是 bug 还是使用方式时,先来这里讨论。

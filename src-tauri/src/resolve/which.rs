@@ -25,14 +25,19 @@ pub(crate) fn resolve_command(command: &str, path: &str) -> ResolvedCommand {
     }
 }
 
+/// 单目录命中:unix 查可执行位;Windows 已带扩展名直接判存在,否则按
+/// PATHEXT 顺序补扩展名(npm 全局 CLI 是 .cmd shim,裸名必须补)。pty 与
+/// probe 共用,保证"幕布能跑的探针一定探得到"。
 #[cfg(unix)]
-fn find_in_dir(dir: &std::path::Path, command: &str) -> Option<std::path::PathBuf> {
+pub(crate) fn find_in_dir(dir: &std::path::Path, command: &str) -> Option<std::path::PathBuf> {
     let candidate = dir.join(command);
     is_executable(&candidate).then_some(candidate)
 }
-
+/// 单目录命中:unix 查可执行位;Windows 已带扩展名直接判存在,否则按
+/// PATHEXT 顺序补扩展名(npm 全局 CLI 是 .cmd shim,裸名必须补)。pty 与
+/// probe 共用,保证"幕布能跑的探针一定探得到"。
 #[cfg(windows)]
-fn find_in_dir(dir: &std::path::Path, command: &str) -> Option<std::path::PathBuf> {
+pub(crate) fn find_in_dir(dir: &std::path::Path, command: &str) -> Option<std::path::PathBuf> {
     /* 已带扩展名 → 直接命中;否则按 PATHEXT 顺序补扩展名 */
     if std::path::Path::new(command).extension().is_some() {
         let candidate = dir.join(command);

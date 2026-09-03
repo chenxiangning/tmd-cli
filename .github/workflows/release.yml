@@ -84,25 +84,16 @@ jobs:
       # ---------- ⭐ 核心打包 ----------
       # tauri-apps/tauri-action 是 Tauri 官方 GitHub Action,跨平台 build + 签名 + 公证 + 上传 artifact。
       # 这里完全不传任何 APPLE_* / TAURI_SIGNING_* 凭据
-      #   → 等价于本地的 --skip-sign --skip-notarize
-      #   → 零成本,未签名/未公证,跟 release-mac-local.sh 行为一致
+      #   → 等价于本地的 --skip-sign --skip-notarize,零成本,未签名/未公证,与 release-mac-local.sh 行为一致。
+      # tagName 动态取值:推送 v* tag 时非空 → 自动创建 Draft Release 并挂全部产物;
+      # workflow_dispatch 手动触发时为空串 → 只构建,产物仅落 workflow Artifacts 面板。
       - name: Build installers
         uses: tauri-apps/tauri-action@v0
         with:
           projectPath: src-tauri
+          tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+          releaseName: ${{ startsWith(github.ref, 'refs/tags/v') && format('tmd-cli {0}', github.ref_name) || '' }}
+          releaseBody: "Automated build. See commit log for changes."
+          releaseDraft: true
           args: --target ${{ matrix.tauri-target }}
 
-      # ---------- 可选:让产物直接挂到 GitHub Release ----------
-      # 当前未开启 (没有 tagName),产物只会落到 workflow run 的 Artifacts 面板下载。
-      # 真要对外发版时,把下面这块的注释打开,并把触发器里的 workflow_dispatch 改成只在 UI 选 tag。
-      #
-      # - name: Publish to GitHub Release
-      #   if: startsWith(github.ref, 'refs/tags/v')
-      #   uses: tauri-apps/tauri-action@v0
-      #   with:
-      #     projectPath: src-tauri
-      #     args: --target ${{ matrix.tauri-target }}
-      #     tagName: ${{ github.ref_name }}
-      #     releaseName: "tmd-cli ${{ github.ref_name }}"
-      #     releaseBody: "Automated build. See commit log for changes."
-      #     releaseDraft: true

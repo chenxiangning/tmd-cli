@@ -2,6 +2,11 @@
 name = "tmd-cli"
 version = "0.1.0"
 description = "Plugin-based multi-CLI desktop client"
+authors = ["Chen Xiangning"]
+license = "MIT"
+repository = "https://github.com/chenxiangning/tmd-cli"
+homepage = "https://github.com/chenxiangning/tmd-cli"
+publish = false
 edition = "2021"
 rust-version = "1.80"
 

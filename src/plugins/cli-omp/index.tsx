@@ -131,6 +131,11 @@ export const cliOmpPlugin: Plugin = {
       readDefaultStatus: readOmpDefaultStatus,
       readSessionUserMessages: readOmpUserMessages,
       readSessionEdits: readOmpSessionEdits,
+      /* omp 是 oh-my-pi(pi fork),输入编辑器与 pi/kimi 同源 pi-tui:composer 整串
+       * 正文+\r 同帧到达会命中"粘贴爆发"启发式,提交回车被改写成换行 —— win
+       * 实测偶发"composer 发了但幕布没提交,须再手按回车"。声明后走 bracketed
+       * paste 通路,与真实终端粘贴行为一致(契约见 kernel/cli.ts)。 */
+      bracketedPaste: true,
     });
   },
 };

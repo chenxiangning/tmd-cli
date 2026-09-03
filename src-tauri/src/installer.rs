@@ -18,7 +18,7 @@ use std::process::{Command, Stdio};
 use std::thread;
 use tauri::{AppHandle, Emitter};
 
-use crate::resolve::enriched_path;
+use crate::resolve::{enriched_path, hide_console};
 
 /// 安装超时(秒)。npm 全局安装在慢网络下分钟级;对齐 codemoss INSTALL_TIMEOUT_SECS。
 const INSTALL_TIMEOUT_SECS: u64 = 300;
@@ -140,6 +140,8 @@ pub fn run_install(app: &AppHandle, engine: CliInstallEngine) -> Result<bool, St
     cmd.env("PATH", enriched_path());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
+    /* Windows 下 cmd /c npm 与 powershell 都是控制台子系统,GUI 拉起会弹窗 */
+    hide_console(&mut cmd);
     /* 防挂:子进程若继承 stdin 且安装脚本读输入,会永久等待。 */
     cmd.stdin(Stdio::null());
 

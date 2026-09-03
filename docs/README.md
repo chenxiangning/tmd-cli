@@ -14,6 +14,7 @@
 | `review/` | 评审记录（架构 / 平台 / 冗余等） | 评审完成后 |
 | `superpowers/` | superpowers 流程产出的正式设计 spec | 需求收敛后 |
 | `architecture/` | 已落地的系统架构与契约 | 基础设施或架构调整后 |
+| `images/` | README 配图等静态图片资产 | README 引用新图时 |
 
 ## 文档索引
 
@@ -42,5 +43,6 @@
 | 2026-09-03 | [会话标题 tab 条设计](superpowers/specs/2026-09-03-session-title-tabs-design.md) | 已落地 |
 | 2026-09-03 | [父子会话层级原型:方案 B 定稿(父节点即开关,保留 FLUX 时间轴)](design/session-hierarchy-schemes.html) | 设计原型 |
 | 常态 | [功能清单 FEATURES](FEATURES.md) | 随代码演进(09-03 全域代码校准) |
+| 2026-09-04 | [GitHub 社区规范文档集(贡献指南 / 安全策略 / 行为准则 / issue 与 PR 模板)](../.github/) | 已落地 |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

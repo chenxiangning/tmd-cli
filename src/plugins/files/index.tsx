@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronRight, Copy, FilePen, Folder, FolderOpen, RefreshCw } from "lucide-react";
 import { ipc, type DirEntry } from "@kernel/ipc";
+import { getTabs } from "@kernel/tabs";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { clearDragPayload, setDragPayload } from "@kernel/internalDrag";
 import { useWorkspaces } from "@kernel/workspace";
@@ -22,12 +23,13 @@ import { FileTabContent } from "./FileTabContent";
 import { defaultFileVisualProvider } from "./fileVisual";
 import { openFileInTab } from "./openFile";
 import { useTreeOperations } from "./useTreeOperations";
+import { reloadFile } from "./editor/fileCache";
 import { FileTreeContextMenu } from "./FileTreeContextMenu";
 import { NamePrompt } from "./NamePrompt";
 
 /** 当前挂载 FileTree 的动作句柄:注册表 refresh/newFile/newFolder 槽据此转发。 */
 let activeTreeHandles: {
-  reloadRoot: () => Promise<void>;
+  reload: () => Promise<void>;
   newFile: () => void;
   newFolder: () => void;
 } | null = null;
@@ -173,9 +175,27 @@ function FileTree({ root }: { root: string }) {
     }
   }, [root]);
 
-  useEffect(() => {
-    void reloadRoot();
-  }, [reloadRoot]);
+  /* 刷新按钮语义:根层与全部展开目录快照并发重拉;消失的目录从展开表摘除。 */
+  const reloadAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const dirs = Object.keys(expanded);
+      const settled = await Promise.allSettled([
+        ipc.fsListDir(root),
+        ...dirs.map((dir) => ipc.fsListDir(dir)),
+      ]);
+      setEntries(settled[0].status === "fulfilled" ? settled[0].value : []);
+      const next: Record<string, DirEntry[]> = {};
+      dirs.forEach((dir, i) => {
+        const r = settled[i + 1];
+        /* 目录消失(被删/改名):不进新表 = 从展开表摘除 */
+        if (r.status === "fulfilled") next[dir] = r.value;
+      });
+      setExpanded(next);
+    } finally {
+      setLoading(false);
+    }
+  }, [root, expanded]);
 
   /* 重拉某目录并展示(reveal 语义):root 走根层;其余展开 + 刷新该层快照。 */
   const revealDir = useCallback(
@@ -200,14 +220,14 @@ function FileTree({ root }: { root: string }) {
   /* 上交动作句柄给注册表槽(刷新 / 新建文件 / 新建文件夹按钮),卸载即断开。 */
   useEffect(() => {
     activeTreeHandles = {
-      reloadRoot,
+      reload: reloadAll,
       newFile: () => ops.openPrompt({ kind: "new-file", dir: root }),
       newFolder: () => ops.openPrompt({ kind: "new-folder", dir: root }),
     };
     return () => {
       activeTreeHandles = null;
     };
-  }, [reloadRoot, root, ops.openPrompt]);
+  }, [reloadAll, root, ops.openPrompt]);
 
   const toggle = useCallback(
     (entry: DirEntry) => {
@@ -354,7 +374,14 @@ export const filesPlugin: Plugin = {
       label: "文件",
       icon: Folder,
       component: ActiveWorkspaceFileTree,
-      refresh: () => void activeTreeHandles?.reloadRoot(),
+      refresh: async () => {
+        /* 刷新 = 树全量重拉(根层 + 展开目录)+ 打开中的文件 tab 重读磁盘,
+           消灭目录快照与文件内容两层缓存滞后;草稿不受影响。 */
+        await activeTreeHandles?.reload();
+        for (const tab of getTabs()) {
+          if (tab.kind === "file") reloadFile(tab.path);
+        }
+      },
       newFile: () => activeTreeHandles?.newFile(),
       newFolder: () => activeTreeHandles?.newFolder(),
     });

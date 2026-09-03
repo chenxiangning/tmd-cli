@@ -18,6 +18,7 @@
 //! list 只读账本渲染视图,不再做任何推导归因 —— 每轮绑定的文件集合在封口瞬间定死。
 
 mod apply;
+mod attribution;
 mod capture;
 mod diff;
 mod error;

@@ -1,7 +1,8 @@
 /**
  * 文件内容缓存 + 未保存草稿 —— FileTabContent 与编辑器的共享内存层。
  *
- * - fileCache:磁盘内容 LRU(32MB 预算),预览与编辑共读,保存后原地刷新。
+ * - fileCache:磁盘内容 LRU(32MB 预算),预览与编辑共读,保存后原地刷新;
+ *   缓存一变即广播版本号,打开中的文件 tab 订阅重渲,外部改盘经 reloadFile 重读。
  * - drafts:未保存草稿(按绝对路径),切 tab / 关 tab 后保留 —— 复刻 codemoss
  *   fileDocumentSessionCache:关脏 tab 不弹确认,重开 tab 自动恢复草稿。
  * - CRLF:磁盘内容含 \r\n 时,载入编辑器前归一为 \n,保存时还原(codemoss
@@ -52,9 +53,33 @@ export function cacheSet(path: string, payload: FilePayload): void {
     fileCache.delete(oldest.value);
     oldest = fileCache.keys().next();
   }
+  notifyCacheChanged();
 }
 
-/** 拉取文件内容(带缓存);加载完成由调用方轮询 cacheGet(path).loaded 感知。 */
+/* ── 变更通知:tab 侧 useSyncExternalStore 订阅版本号,缓存一变即重渲 ── */
+
+let cacheVersion = 0;
+const cacheListeners = new Set<() => void>();
+
+function notifyCacheChanged(): void {
+  cacheVersion += 1;
+  cacheListeners.forEach((fn) => fn());
+}
+
+/** useSyncExternalStore 订阅端:返回退订函数。 */
+export function subscribeFileCache(fn: () => void): () => void {
+  cacheListeners.add(fn);
+  return () => {
+    cacheListeners.delete(fn);
+  };
+}
+
+/** useSyncExternalStore 快照端:整数版本号,变更即自增。 */
+export function getFileCacheVersion(): number {
+  return cacheVersion;
+}
+
+/** 拉取文件内容(带缓存);加载完成经变更通知驱动 tab 重渲感知。 */
 export function loadFile(path: string): FilePayload {
   const cached = cacheGet(path);
   if (cached) return cached;
@@ -70,6 +95,15 @@ export function loadFile(path: string): FilePayload {
     },
   );
   return fresh;
+}
+
+/** 外部可能已改盘(刷新按钮/外部编辑):作废条目重读磁盘。草稿独立存储,不受影响。 */
+export function reloadFile(path: string): FilePayload {
+  const cached = fileCache.get(path);
+  /* 加载已在途:等它落地即可,不重复发 IPC */
+  if (cached && !cached.loaded) return cached;
+  fileCache.delete(path);
+  return loadFile(path);
 }
 
 /** 保存成功后原地刷新缓存内容(磁盘真实形态),预览/重开编辑器读到新值。 */
@@ -127,9 +161,14 @@ export function draftRenamePrefix(oldPrefix: string, newPrefix: string): void {
 
 /** 缓存条目整段作废(路径或其子孙)—— 目录被删除/重命名时调用。 */
 export function cacheDeletePrefix(prefix: string): void {
+  let removed = false;
   for (const key of [...fileCache.keys()]) {
-    if (pathEqualsOrUnder(key, prefix)) fileCache.delete(key);
+    if (pathEqualsOrUnder(key, prefix)) {
+      fileCache.delete(key);
+      removed = true;
+    }
   }
+  if (removed) notifyCacheChanged();
 }
 
 /* ── 行尾保持 ── */

@@ -53,6 +53,7 @@ pub fn run(
 ) -> Result<String, GitError> {
     let mut cmd = Command::new("git");
     cmd.current_dir(cwd).env("GIT_TERMINAL_PROMPT", "0");
+    crate::resolve::hide_console(&mut cmd);
 
     // 用户未自配 sshCommand 时才注入无交互兜底
     let user_has_ssh_cfg = repo

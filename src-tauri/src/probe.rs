@@ -17,7 +17,9 @@ use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::time::{Duration, Instant};
 
-use crate::resolve::{enriched_path_refresh, wait_child_with_timeout};
+use crate::resolve::{
+    enriched_path_refresh, find_in_dir, hide_console, resolve_command, wait_child_with_timeout,
+};
 
 /// 探针超时硬限(秒)。与 codemoss PREFLIGHT_TIMEOUT_SECS=8 对齐。
 const PROBE_TIMEOUT_SECS: u64 = 8;
@@ -50,7 +52,10 @@ pub fn probe_cli(command: &str) -> CliProbeResult {
         return empty_result(command);
     };
 
-    let version = run_version(&absolute);
+    /* Windows 命中 .cmd/.bat shim 时经 cmd /c 包裹(与 pty 同一解析,
+     * CreateProcess 无法直跑批处理);unix 原样。 */
+    let resolved = resolve_command(&absolute, "");
+    let version = run_version(&resolved.program, &resolved.prefix_args);
 
     CliProbeResult {
         command: command.to_string(),
@@ -72,12 +77,12 @@ fn find_binary_absolute(command: &str) -> Option<String> {
         return Some(command.to_string());
     }
 
-    /* 裸名:在富化 PATH(login shell > 进程 > 兜底目录)中找;refresh 变体:
-     * 缓存降级(login shell 超时)时同步重算,刷新键可自愈。 */
     let path = enriched_path_refresh();
     for dir in std::env::split_paths(std::ffi::OsStr::new(&path)) {
-        let candidate = dir.join(command);
-        if is_executable_file(&candidate) {
+        /* 复用 which 的单目录命中:Windows 按 PATHEXT 补扩展名 —— npm 全局
+         * CLI 在 Windows 是 grok.cmd/kimi.cmd shim,裸名 join 探不到,
+         * 会把已装引擎误报成"未安装"(win 实测);unix 查可执行位。 */
+        if let Some(candidate) = find_in_dir(&dir, command) {
             return Some(candidate.to_string_lossy().into_owned());
         }
     }
@@ -100,12 +105,13 @@ fn is_executable_file(p: &std::path::Path) -> bool {
 }
 
 /// `--version` 输出第一行 trimmed。失败/超时 = None,不抛错(前端按"未安装"渲染)。
-fn run_version(program: &str) -> Option<String> {
+fn run_version(program: &str, prefix_args: &[String]) -> Option<String> {
     let mut cmd = Command::new(program);
+    cmd.args(prefix_args);
     cmd.arg("--version");
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
-
+    hide_console(&mut cmd);
     let started = Instant::now();
     let mut child = cmd.spawn().ok()?;
 

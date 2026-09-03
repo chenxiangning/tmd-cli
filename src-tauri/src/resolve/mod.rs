@@ -13,7 +13,22 @@ mod path_cache;
 mod which;
 
 pub(crate) use path_cache::{enriched_path, enriched_path_refresh};
-pub(crate) use which::resolve_command;
+pub(crate) use which::{find_in_dir, resolve_command};
+
+/// GUI 进程在 Windows 上 spawn 控制台子进程(probe --version / npm 安装 /
+/// git 网络操作)时,系统会为子进程新建一个可见的控制台窗口并闪现。
+/// CREATE_NO_WINDOW 抑制之;PTY 通路走 ConPTY,不经过此函数。
+/// 非 Windows 为空操作,调用方无需 cfg 门控。
+pub(crate) fn hide_console(cmd: &mut std::process::Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        /* 0x0800_0000 = CREATE_NO_WINDOW */
+        cmd.creation_flags(0x0800_0000);
+    }
+    #[cfg(not(windows))]
+    let _ = cmd;
+}
 
 /* ---------- 打包环境命令解析 ----------
  * macOS: Finder/Dock 启动的 .app 由 launchd 拉起,PATH 只有 /usr/bin:/bin:/usr/sbin:/sbin,

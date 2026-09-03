@@ -40,6 +40,9 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /* 行尾标记放 ref:磁盘内容外变(刷新重读)时随新内容更新,保存还原才不会用旧行尾。 */
+  const hasCRLFRef = useRef(init.hasCRLF);
+
   const dirty = content !== saved;
 
   const contentRef = useRef(content);
@@ -47,6 +50,17 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
   const savedRef = useRef(saved);
   savedRef.current = saved;
   const savingRef = useRef(false);
+
+  /* 磁盘内容外变(刷新按钮 reloadFile 重读):无未保存草稿时静默跟进新内容;
+     有草稿则以编辑态为准,不覆盖用户输入。行尾标记同步更新。 */
+  useEffect(() => {
+    if (savedRef.current !== contentRef.current) return;
+    const { text, hasCRLF } = toEditorContent(diskContent);
+    hasCRLFRef.current = hasCRLF;
+    if (text === savedRef.current) return;
+    setSaved(text);
+    setContent(text);
+  }, [diskContent]);
 
   const setDoc = useCallback(
     (value: string) => {
@@ -64,7 +78,7 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
     savingRef.current = true;
     setSaving(true);
     setError(null);
-    const disk = toDiskContent(text, init.hasCRLF);
+    const disk = toDiskContent(text, hasCRLFRef.current);
     ipc.fsWriteFile(path, disk).then(
       () => {
         savingRef.current = false;

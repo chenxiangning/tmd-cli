@@ -1,6 +1,7 @@
 //! events 归因测试(AI 写入事件流)—— tests.rs 的姊妹模块(文件规模铁则)。
-//! 覆盖:手改不混入、重复事件修订计数、净零轮、封口后丢弃、前像自足、
-//! 跨轮前像链(非 git 工作区既有文件不误记 A)、并行零误归、路径逃逸拒绝。
+//! 覆盖:shell 落盘并入(事件盲区走 git 窗口推断)、锚点基线外才算、重复事件
+//! 修订计数、净零轮、封口后丢弃、前像自足、跨轮前像链(非 git 工作区既有文件
+//! 不误记 A)、并行零误归、路径逃逸拒绝。
 
 use super::super::{apply_batch, record_edit, LedgerEntry};
 use super::*;
@@ -51,26 +52,60 @@ fn events_迟到事件_早于锚点丢弃_防上一轮尾巴串轮() {
 }
 
 #[test]
-fn events_归因_手改不混入_账本只记事件路径() {
+fn events_归因_shell落盘并入_基线未动不混入() {
     let ws = TempWs::new();
     ws.write("a.txt", "v1\n");
-    ws.write("手改.txt", "keep\n");
+    ws.write("基线脏.txt", "pre\n");
+    ws.commit_all("init");
+    // 锚点前已脏的手改:内容已入锚点基线,本轮不动 → 不入批(手改不误伤)
+    ws.write("基线脏.txt", "dirty-before-anchor\n");
+    anchor_events(&ws, "cli-1", "tmd-1", "改 a");
+    ws.write("a.txt", "v2\n");
+    assert!(edit(&ws, "cli-1", "tmd-1", "a.txt"));
+    // shell 落盘(cp/脚本生成图片等,无事件):事件源盲区,git 窗口推断补充
+    ws.write("shots/gen.png", "png\n");
+    assert!(ws.seal("cli-1", "tmd-1"));
+
+    let batches = ws.batches("cli-1");
+    assert_eq!(batches.len(), 1);
+    assert_eq!(batches[0].attribution, "events");
+    let a = batches[0].files.iter().find(|f| f.path == "a.txt").unwrap();
+    assert_eq!(a.status, "M", "事件路径仍由 edit 行主责");
+    assert_eq!(a.edit_count, 1);
+    let gen = batches[0]
+        .files
+        .iter()
+        .find(|f| f.path == "shots/gen.png")
+        .expect("shell 落盘并入批");
+    assert_eq!(gen.status, "A", "未跟踪新建 = A");
+    assert_eq!(gen.edit_count, 0, "补充路径无事件计数");
+    assert!(
+        batches[0].files.iter().all(|f| f.path != "基线脏.txt"),
+        "锚点基线之外无变化的手改不入批"
+    );
+}
+
+#[test]
+fn events_open待审_shell落盘_实时可见() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
     ws.commit_all("init");
 
     anchor_events(&ws, "cli-1", "tmd-1", "改 a");
     ws.write("a.txt", "v2\n");
     assert!(edit(&ws, "cli-1", "tmd-1", "a.txt"));
-    // 用户手改(无事件):不得混入批次 —— 设计点「跟随 AI 输出」
-    ws.write("手改.txt", "user touched\n");
-    assert!(ws.seal("cli-1", "tmd-1"));
-
-    let batches = ws.batches("cli-1");
+    ws.write("shots/gen.png", "png\n"); // 无事件 shell 落盘
+    let batches = ws.batches("cli-1"); // 未封口 = open 待审批
     assert_eq!(batches.len(), 1);
-    assert_eq!(batches[0].files.len(), 1, "只含事件路径,手改不混入");
-    assert_eq!(batches[0].files[0].path, "a.txt");
-    assert_eq!(batches[0].files[0].status, "M");
-    assert_eq!(batches[0].files[0].edit_count, 1);
-    assert_eq!(batches[0].attribution, "events");
+    assert!(batches[0].open);
+    let mut paths: Vec<&str> = batches[0].files.iter().map(|f| f.path.as_str()).collect();
+    paths.sort_unstable();
+    assert_eq!(paths, vec!["a.txt", "shots/gen.png"]);
+    // 时间线 ± 与审阅单:补充路径同样有 patch
+    let patches = batch_patches(ws.path(), &batches[0].id).unwrap();
+    let mut ppaths: Vec<&str> = patches.iter().map(|p| p.path.as_str()).collect();
+    ppaths.sort_unstable();
+    assert_eq!(ppaths, vec!["a.txt", "shots/gen.png"]);
 }
 
 #[test]

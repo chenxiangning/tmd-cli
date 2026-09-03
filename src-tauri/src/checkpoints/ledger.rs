@@ -5,11 +5,14 @@
 //! 逐文件变更(前后像 blob + unified diff)固化成 turn 条目,追加进 ledger.jsonl
 //! (同一 id 可修订追加,读取取最后一行)。
 //!
-//! 双归因(作者设计点「审批线跟随 AI 输出落盘,不光靠 git」):
+//! 双归因(设计点「审批线跟随 AI 输出落盘」):
 //! - events:AI 写入事件流(record_edit 流式记账)是归因主信号 —— 本轮碰过
-//!   哪些文件由事件行定死,git 不参与归因;首击时抓前像拷成 sidecar 自足副本。
-//! - git:未声明写入事件检测的 CLI 回退旧路径 —— 窗口内 dirty 推断 +
-//!   mtime 落窗仲裁、最近提示者赢(turn_changed_paths)。
+//!   哪些文件由事件行定死;首击时抓前像拷成 sidecar 自足副本。
+//! - git:未声明写入事件检测的 CLI 走窗口推断(attribution.rs)—— 窗口内
+//!   dirty 推断 + mtime 落窗仲裁、最近提示者赢。
+//! - events 会话的 shell 落盘(cp/脚本/重定向,无事件)是事件源盲区:open 视图
+//!   与封口在 edit 行之外用同一套窗口推断补「全账本无 edit 行」的路径(事件
+//!   路径永不被并行窗口抢走);非 git 工作区维持纯事件语义。
 //!
 //! 归因模式随锚点固化(anchor.attribution),封口/视图按锚点分支。
 //!
@@ -19,11 +22,8 @@
 
 use super::{
     append_ledger, entry_in_session, load_ledger, new_entry_id, now_millis, open_sidecar,
-    open_user, resolve_snap_bytes, rewrite_ledger, write_sidecar_blob, CkptError, LedgerEntry,
-    TurnFile,
+    open_user, rewrite_ledger, CkptError, LedgerEntry, TurnFile,
 };
-use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
 
 /// 记第 N 轮锚点。隐式先封上一轮(防 turnSettled 丢失导致窗口跨轮),
 /// 再做身份回填,最后抓基线落账。返回新锚点条目(含分配的轮次)。
@@ -128,109 +128,6 @@ fn next_turn(entries: &[LedgerEntry], session_id: &str, tmd_session_id: &str) ->
         + 1
 }
 
-/// 并行会话归属仲裁(按写入时刻,非封口先后;仅 git 归因路径使用):
-/// 每个锚点张成窗口 [锚点 ts, 封口 ts(未封口 = now)];文件 mtime 落在谁的
-/// 窗口内,取**最近提示**(anchor ts 最大)的会话归主 —— 后提示的会话天然
-/// 只对自己锚点之后的写入负责,先封口也不再抢走别人窗口内的改动。
-pub(super) fn foreign_claims(entries: &[LedgerEntry], anchor: &LedgerEntry) -> BTreeSet<String> {
-    entries
-        .iter()
-        .filter(|e| e.kind == "turn" && e.session_id != anchor.session_id && e.seal_ts > anchor.ts)
-        .flat_map(|e| e.turn_files.iter().map(|tf| tf.path.clone()))
-        .collect()
-}
-
-/// 会话活动窗口(归属仲裁的时间线):每个 anchor 一条,
-/// end = 该锚点最后一版 turn 的封口 ts,尚无 turn = now(仍开放)。
-fn session_windows(entries: &[LedgerEntry], now: i64) -> Vec<(i64, i64, &str)> {
-    entries
-        .iter()
-        .filter(|e| e.kind == "anchor")
-        .map(|a| {
-            let end = entries
-                .iter()
-                .rfind(|e| e.kind == "turn" && e.id == a.id)
-                .map(|t| t.seal_ts)
-                .unwrap_or(now);
-            (a.ts, end.max(a.ts), a.session_id.as_str())
-        })
-        .collect()
-}
-
-/// 文件写入时刻(fs mtime,ms);不可得(已删/时钟异常)返回 None。
-fn path_mtime(root: &std::path::Path, path: &str) -> Option<i64> {
-    let t = fs::metadata(root.join(path)).ok()?.modified().ok()?;
-    let d = t.duration_since(std::time::UNIX_EPOCH).ok()?;
-    Some(d.as_millis() as i64)
-}
-
-/// 锚点以来的真实变更集(仅 git 归因;封口与 open 视图共用):
-/// 候选 = live dirty ∪ anchor 基线路径;内容可比的比内容,不可知的按条目语义;
-/// 并行归属按 mtime 窗口仲裁(mtime 不可得时回退"外会话封口认领"规则)。
-/// 返回 (path, live 状态符) 按路径排序。
-pub(super) fn turn_changed_paths(
-    sidecar: &git2::Repository,
-    user: Option<&git2::Repository>,
-    root: &std::path::Path,
-    anchor: &LedgerEntry,
-    live: &BTreeMap<String, String>,
-    entries: &[LedgerEntry],
-) -> Result<Vec<(String, String)>, CkptError> {
-    let anchor_files = &anchor.files;
-    let now = now_millis();
-    let windows = session_windows(entries, now);
-    let claims = foreign_claims(entries, anchor);
-    let mut candidates = std::collections::BTreeSet::new();
-    for p in live.keys() {
-        candidates.insert(p.clone());
-    }
-    for f in anchor_files {
-        candidates.insert(f.path.clone());
-    }
-    let mut changed = Vec::new();
-    for p in candidates {
-        let entry = anchor_files.iter().find(|f| f.path == p);
-        if let Some(e) = entry {
-            // anchor 时刻内容不可知(超大/符号链接/冲突/读失败):不归因,
-            // 否则 skip 文件会凭 index 基线每轮被重复归属
-            if e.skip.is_some() {
-                continue;
-            }
-            // anchor 时刻已删:现在也无内容(仍处于删除态)= 未变;重建则照常判变
-            if !e.existed && fs::read(root.join(&p)).is_err() {
-                continue;
-            }
-        }
-        let anchor_bytes = resolve_snap_bytes(sidecar, user, anchor_files, &p)?;
-        let live_bytes = fs::read(root.join(&p)).ok();
-        let is_changed = match anchor_bytes {
-            Some((ab, _)) => live_bytes.as_deref() != Some(ab.as_slice()),
-            None => true,
-        };
-        if !is_changed {
-            continue;
-        }
-        // 归属仲裁:mtime 落在谁的窗口 → 最近提示者赢;不是本会话则丢弃
-        let is_mine = match path_mtime(root, &p) {
-            Some(m) => match windows
-                .iter()
-                .filter(|(s, e, _)| s <= &m && &m <= e)
-                .max_by_key(|(s, _, _)| s)
-            {
-                Some((_, _, owner)) => owner == &anchor.session_id,
-                None => !claims.contains(&p), // 无窗口可容纳(时钟异常):退回认领规则
-            },
-            // 删除态(mtime 不可得):外会话窗口重叠期内已封口认领则不归我
-            None => !claims.contains(&p),
-        };
-        if is_mine {
-            let status = live.get(&p).cloned().unwrap_or_else(|| "M".into());
-            changed.push((p, status));
-        }
-    }
-    Ok(changed)
-}
-
 /// 幽灵窗口收口:锚点超过 grace_ms 仍无 turn 条目(app 崩溃/强退 kill 掉
 /// sessionExited,最后一轮永远等不到显式封口)时,代其封口 —— 开放窗口
 /// 不再无限吞掉后续写入的归属,死链的最后一轮得以及时落账。
@@ -319,12 +216,12 @@ fn build_turn_entry(
         .rfind(|e| e.kind == "turn" && e.id == anchor.id);
 
     let turn_files = if anchor.attribution == "events" {
-        super::events::build_events_turn_files(&sidecar, &root, anchor, entries)?
+        super::events::build_events_turn_files(&sidecar, user.as_ref(), &root, anchor, entries)?
     } else {
         let Some(user) = user.as_ref() else {
             return Ok(None); // git 归因 + 非 git:无 dirty 集可推断
         };
-        build_git_turn_files(&sidecar, user, &root, anchor, entries)?
+        super::attribution::build_git_turn_files(&sidecar, user, &root, anchor, entries)?
     };
     if turn_files.is_empty() {
         // events 归因:写过但净零(写了又写回)也要封口 —— 落一个空 turn 行
@@ -381,88 +278,6 @@ fn build_turn_entry(
     }))
 }
 
-/// git 归因封口(原路径):窗口推断变更集 → 逐文件前后像 + diff。
-fn build_git_turn_files(
-    sidecar: &git2::Repository,
-    user: &git2::Repository,
-    root: &std::path::Path,
-    anchor: &LedgerEntry,
-    entries: &[LedgerEntry],
-) -> Result<Vec<TurnFile>, CkptError> {
-    let live = super::dirty_paths(user)?;
-    let changed = turn_changed_paths(sidecar, Some(user), root, anchor, &live, entries)?;
-    let mut tfs = Vec::with_capacity(changed.len());
-    for (path, _) in changed {
-        let entry = anchor.files.iter().find(|f| f.path == path);
-        // 批前像:existed 语义优先于内容解析(锚点时已删的文件,回退 = 删除而非复活旧基线)
-        let existed_before = match entry {
-            Some(e) => e.existed,
-            None => head_has(user, &path)?,
-        };
-        let before = if existed_before {
-            resolve_snap_bytes(sidecar, Some(user), &anchor.files, &path)?
-        } else {
-            None
-        };
-        // 前像不可得(skip 且无基线):diff/回退都跳过,只记状态
-        let before_skip = match entry {
-            Some(e) if existed_before && before.is_none() => e
-                .skip
-                .clone()
-                .filter(|s| !s.is_empty())
-                .or_else(|| Some("前像缺失".into())),
-            _ => None,
-        };
-        let meta_exists = root.join(&path).symlink_metadata().is_ok();
-        let (after, existed_after, after_skip) = match fs::read(root.join(&path)) {
-            Ok(bytes) => (Some(bytes), true, None),
-            Err(_) if meta_exists => (None, true, Some("读取失败".to_string())),
-            Err(_) => (None, false, None),
-        };
-        if before.as_ref().map(|b| &b.0) == after.as_ref() {
-            continue; // 等值短路(changed 判定已滤,双保险)
-        }
-        let status = match (existed_before, existed_after) {
-            (false, true) => "A",
-            (true, false) => "D",
-            _ => "M",
-        };
-        let patch = if before_skip.is_some() || after_skip.is_some() {
-            empty_patch(&path, status)
-        } else {
-            super::blob_patch(
-                sidecar,
-                &path,
-                before.as_ref().map(|b| b.0.as_slice()),
-                after.as_deref(),
-            )?
-        };
-        let before_oid = match &before {
-            Some((bytes, _)) if before_skip.is_none() => write_sidecar_blob(sidecar, bytes)?,
-            _ => String::new(),
-        };
-        let after_oid = match &after {
-            Some(bytes) if after_skip.is_none() => write_sidecar_blob(sidecar, bytes)?,
-            _ => String::new(),
-        };
-        tfs.push(TurnFile {
-            path,
-            status: status.into(),
-            before_oid,
-            after_oid,
-            existed_before,
-            existed_after,
-            additions: patch.additions,
-            deletions: patch.deletions,
-            binary: patch.binary,
-            patch: patch.patch,
-            skip: before_skip.or(after_skip),
-            edit_count: 0,
-        });
-    }
-    Ok(tfs)
-}
-
 pub(super) fn empty_patch(path: &str, kind: &str) -> super::CkptPatch {
     super::CkptPatch {
         path: path.to_string(),
@@ -472,10 +287,6 @@ pub(super) fn empty_patch(path: &str, kind: &str) -> super::CkptPatch {
         patch: String::new(),
         binary: false,
     }
-}
-
-fn head_has(user: &git2::Repository, path: &str) -> Result<bool, CkptError> {
-    Ok(super::head_blob_bytes(Some(user), path)?.is_some())
 }
 
 /// 两次封口修订是否同一变更集(前后像 oid 一致即视为相同)。

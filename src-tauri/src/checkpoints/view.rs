@@ -6,8 +6,8 @@
 //! 批 diff:sealed 零重算(open 按需现算)。
 //! 非 git 工作区:events 会话照常(前像自足);live 分类无 committed 档。
 
+use super::attribution::turn_changed_paths;
 use super::events::edit_open_paths;
-use super::ledger::turn_changed_paths;
 use super::{
     entry_in_session, load_ledger, load_states, now_millis, open_sidecar, open_user,
     rewrite_ledger, save_states, BatchFile, BatchInfo, CkptError, LedgerEntry, TurnFile,
@@ -90,7 +90,7 @@ pub fn derive_batches(
                     continue;
                 }
                 let changed = if a.attribution == "events" {
-                    edit_open_paths(&root, a, &entries)?
+                    edit_open_paths(&root, &sidecar, user.as_ref(), &live, a, &entries)?
                 } else {
                     let Some(u) = user.as_ref() else {
                         continue; // git 归因 + 非 git:无推断素材
@@ -374,6 +374,20 @@ pub fn batch_patches(cwd: &str, batch_id: &str) -> Result<Vec<super::CkptPatch>,
                 before.as_deref(),
                 after.as_deref(),
             )?);
+        }
+        // shell 落盘盲区:git 窗口推断补充路径,锚点基线 → live 与 git open 批同源
+        if let Some(u) = user.as_ref() {
+            let live = super::dirty_paths(u)?;
+            let evented = super::events::evented_paths(&entries);
+            let supp: Vec<String> =
+                turn_changed_paths(&sidecar, Some(u), &root, a, &live, &entries)?
+                    .into_iter()
+                    .map(|(p, _)| p)
+                    .filter(|p| !evented.contains(p))
+                    .collect();
+            if !supp.is_empty() {
+                out.extend(super::open_batch_patches(cwd, &a.files, &supp)?);
+            }
         }
         return Ok(out);
     }
