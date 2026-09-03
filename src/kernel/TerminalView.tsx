@@ -24,6 +24,7 @@ import {
   type TerminalHandle,
 } from "@kernel/messageAnchors";
 import { subscribeThemeApplied } from "@kernel/theme";
+import { createReplayInputGate } from "@kernel/terminalInputGate";
 
 /** 每次翻页向日志读取的历史字节数(512KB)。 */
 const HISTORY_PAGE_BYTES = 512 * 1024;
@@ -56,6 +57,9 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
   const loadingHistoryRef = useRef(false);
   const earliestByteRef = useRef(0);
   const prefixRef = useRef<string[]>([]);
+  /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答
+     (见 terminalInputGate.ts);组件按 key=sessionId 重挂载,闸随实例重生。 */
+  const inputGateRef = useRef(createReplayInputGate());
   /* loadEarlier 经 ref 暴露给锚点跳转注册表:handle 在 effect 里注册一次,
      经 ref 取最新闭包,避免 loadingHistory 状态闭包过期。 */
   const loadEarlierRef = useRef<(() => Promise<void>) | null>(null);
@@ -114,9 +118,16 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     termRef.current = term;
     searchRef.current = search;
 
-    // 先回放历史输出，再挂实时流——顺序保证字节流连续
+    // 先回放历史输出，再挂实时流——顺序保证字节流连续。
+    // 回放期间上输入闸:历史内容里的终端查询(DSR/DA/OSC 颜色)会被 xterm 重新应答,
+    // 应答照走 writeSession 即 ① 陈旧应答注入活 PTY ② 视同用户首写、终止宽限期,
+    // 历史会话点开即走呼吸灯绿→蓝生命周期(见 terminalInputGate.ts)。
+    const inputGate = inputGateRef.current;
     const replay = host.getOutputBuffer(sessionId);
-    if (replay) term.write(replay);
+    if (replay) {
+      inputGate.arm();
+      term.write(replay, () => inputGate.release());
+    }
 
     /* 翻页锚点初始化:缓冲起点绝对偏移 = 日志末尾 - 当前缓冲字节数。
        缓冲是字节流的精确后缀(sliceStreamTail 保证边界),故用字节数反推。 */
@@ -134,7 +145,10 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) =>
       term.write(text),
     );
-    const offInput = term.onData((data) => host.writeSession(sessionId, data));
+    /* 闸外(实时流/用户击键)照常写会话;闸内(历史重写)回传整段丢弃 */
+    const offInput = term.onData((data) => {
+      if (!inputGate.blocked()) host.writeSession(sessionId, data);
+    });
     /* 对话锚点:向内核注册本幕布的跳转/定位能力(composer 锚点栏经此中转)。 */
     const terminalHandle: TerminalHandle = {
       lineText: (row) => term.buffer.active.getLine(row)?.translateToString(true) ?? "",
@@ -212,17 +226,22 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
          期间到达的实时字节已含在 getOutputBuffer 快照里,之后的排在本次写之后。
          顺序逐页 write,不做 join 大字符串 —— 跨页 join 是 O(N²) 字符工作量,
          xterm 自带写队列,分次写入语义与一次性大 write 等价。 */
+      /* 整段重写 = 历史查询(DSR/DA/OSC 颜色)被重新应答 —— 上闸,
+         末段 write 回调释放;异常路径由 finally 兜底,不成对会永久锁死输入 */
+      inputGateRef.current.arm();
       term.write("\x1bc");
       for (const prefix of prefixRef.current) term.write(prefix);
       /* 末段 write 回调内 resolve:调用方(锚点跳转翻页循环)await 拿到的是
          buffer 已含新历史的时刻 */
       await new Promise<void>((resolve) =>
         term.write(host.getOutputBuffer(sessionId), () => {
+          inputGateRef.current.release();
           term.scrollToTop();
           resolve();
         }),
       );
     } finally {
+      inputGateRef.current.release(); // 异常兜底:正常路径已释放,计数钳位到 0
       loadingHistoryRef.current = false;
       setLoadingHistory(false);
     }

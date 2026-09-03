@@ -147,6 +147,8 @@ sequenceDiagram
 
     Note over TV: 切会话重挂载时：<br/>1. 先回放 getOutputBuffer()<br/>2. 再订阅实时流<br/>→ "切回不黑屏"<br/>滚到顶可经 session_history_page<br/>从日志文件往前翻页(512KB/页)
 
+    Note over TV: 回放/翻页重写期间上「输入闸」<br/>(terminalInputGate):历史内容里的终端查询<br/>(DSR/DA/OSC 颜色)会被 xterm 重新应答,<br/>闸内丢弃 —— 否则陈旧应答注入活 PTY,<br/>且 writeSession 视同首写终止宽限期,<br/>历史会话点开即误走呼吸灯绿→蓝
+
     CLI->>PT: 进程退出 / read 返回 0
     PT->>EVT: emit "pty://exit/{sessionId}"
     EVT->>H: removeSession +<br/>emit KernelTopics.sessionExited
