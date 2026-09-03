@@ -55,6 +55,9 @@ class Host implements PluginContext {
    */
   private cliSessionIds = new Map<string, string>();
 
+  /** 并行 spawn 仲裁窗口:年轻会话等待更老未绑定会话先认领的最长时长。 */
+  private static readonly BIND_DEFER_MS = 10_000;
+
   /** 活会话绑定的 CLI 磁盘身份;未绑定(探测前)为 undefined。 */
   getCliSessionId(sessionId: string): string | undefined {
     return this.cliSessionIds.get(sessionId);
@@ -287,6 +290,13 @@ class Host implements PluginContext {
   /**
    * 单次身份扫描:快相位(spawn 后 500ms×30)与慢相位(状态巡航 2s)共用。
    * 绑定成功即终 —— pendingIdentities 删除,两个相位自然停止。
+   *
+   * 并行 spawn 仲裁(claimed 只在绑定成功时记账,挡不住未绑定期间的抢绑):
+   * - 新文件(基线外):spawn 窗口配对 —— 文件属于其落盘 mtime 之前最近 spawn 的
+   *   未绑定会话。归属是我 → 立即绑(不受老会话闲置拖累);归属别人 → 本轮让位。
+   *   时序异常(落盘早于所有 spawn)回退到下条。
+   * - 复活/无基线(归属不可判):BIND_DEFER_MS 窗口内老会话优先,窗口外放行,
+   *   老会话纯闲置不永久阻塞年轻会话。
    */
   private async tryBindIdentity(sessionId: string): Promise<void> {
     const pending = this.pendingIdentities.get(sessionId);
@@ -304,6 +314,34 @@ class Host implements PluginContext {
       new Set(this.cliSessionIds.values()),
     );
     if (!fresh) return;
+
+    const entry = list.find((s) => s.id === fresh);
+    let ownerIsMe = false;
+    if (entry && pending.before && !pending.before.has(fresh)) {
+      let ownerId: string | null = null;
+      let ownerSpawn = Number.NEGATIVE_INFINITY;
+      for (const [id, p] of this.pendingIdentities) {
+        if (p.profileId !== pending.profileId || p.cwd !== pending.cwd) continue;
+        if (p.spawnedAt <= entry.modifiedAt && p.spawnedAt >= ownerSpawn) {
+          ownerSpawn = p.spawnedAt;
+          ownerId = id;
+        }
+      }
+      if (ownerId !== null && ownerId !== sessionId) return; // 属于别的 spawn,让位
+      ownerIsMe = ownerId === sessionId;
+    }
+    if (!ownerIsMe) {
+      /* 归属不可判:老会话优先(窗口内) */
+      for (const [id, p] of this.pendingIdentities) {
+        if (id === sessionId || p.profileId !== pending.profileId || p.cwd !== pending.cwd) {
+          continue;
+        }
+        if (p.spawnedAt < pending.spawnedAt && Date.now() - p.spawnedAt < Host.BIND_DEFER_MS) {
+          return;
+        }
+      }
+    }
+
     this.cliSessionIds.set(sessionId, fresh);
     this.pendingIdentities.delete(sessionId);
     void this.refreshSessionStatus(sessionId);

@@ -110,6 +110,52 @@ describe("detectDiskIdentity 身份绑定", () => {
     expect(await advanceUntilBound(b.id)).toBe("t1-fB");
   });
 
+  /* 仲裁按 profile+cwd 作用域:本组用例各自独立 cwd,隔离用例间遗留的未绑定 pending;
+     spawn 间用 setSystemTime 拉开时刻,使落盘 mtime 可落入明确窗口 */
+  it("并行仲裁:落盘窗口属于老会话的文件,年轻会话让位", async () => {
+    const cwd = `${CWD}/arb-steal`;
+    const a = await host.createSession(PROFILE_ID, cwd);
+    vi.setSystemTime(Date.now() + 1_000);
+    const b = await host.createSession(PROFILE_ID, cwd);
+
+    /* 文件落盘时刻在 A spawn 之后、B spawn 之前 → 窗口属于 A,B 必须让位 */
+    disk = [diskSession("t11-fA", Date.now() - 500)];
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(host.getCliSessionId(a.id)).toBe("t11-fA");
+    expect(host.getCliSessionId(b.id)).toBeUndefined();
+
+    /* B 自己的文件落盘(窗口属于 B)→ B 绑自己的,不串到 t11-fA */
+    disk = [diskSession("t11-fB", Date.now()), diskSession("t11-fA", Date.now() - 500)];
+    expect(await advanceUntilBound(b.id)).toBe("t11-fB");
+  });
+
+  it("并行仲裁:复活文件归属不可判,年轻会话窗口内让位老会话", async () => {
+    const cwd = `${CWD}/arb-revive`;
+    /* A/B spawn 前旧文件已存在并进入双方基线 */
+    disk = [diskSession("t12-old", 1_000)];
+    const a = await host.createSession(PROFILE_ID, cwd);
+    const b = await host.createSession(PROFILE_ID, cwd);
+
+    /* 旧文件 mtime 增长(=A 的 CLI 在写);B 不得把它当自己的复活 */
+    disk = [diskSession("t12-old", Date.now() + 1)];
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(host.getCliSessionId(a.id)).toBe("t12-old");
+    expect(host.getCliSessionId(b.id)).toBeUndefined();
+  });
+
+  it("并行仲裁:窗口归属明确的文件不被闲置老会话阻塞", async () => {
+    const cwd = `${CWD}/arb-expire`;
+    const a = await host.createSession(PROFILE_ID, cwd); // 永不落盘(闲置)
+    vi.setSystemTime(Date.now() + 1_000);
+    const b = await host.createSession(PROFILE_ID, cwd);
+
+    /* 文件落盘在 B spawn 之后 → 窗口明确属于 B,无需等 A,2s 内绑上 */
+    disk = [diskSession("t13-fB", Date.now())];
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(host.getCliSessionId(b.id)).toBe("t13-fB");
+    expect(host.getCliSessionId(a.id)).toBeUndefined();
+  });
+
   it("绑定即终:探测窗口内出现更新文件不抢绑", async () => {
     const a = await host.createSession(PROFILE_ID, CWD);
 
