@@ -9,9 +9,7 @@ use std::collections::BTreeMap;
 
 /// 用户仓库当前 dirty 路径集(路径 → 展示状态符,untracked = "?")。
 /// 含 untracked、含 staged-only、不含 ignored;冲突路径标 "C" 且调用方跳过存内容。
-pub fn dirty_paths(
-    repo: &git2::Repository,
-) -> Result<BTreeMap<String, String>, git2::Error> {
+pub fn dirty_paths(repo: &git2::Repository) -> Result<BTreeMap<String, String>, git2::Error> {
     let mut opts = git2::StatusOptions::new();
     opts.include_untracked(true)
         .recurse_untracked_dirs(true)
@@ -76,8 +74,7 @@ pub(crate) fn snapshot_dirty(
 /// 逐路径守卫快照(回退/应用前):只抓即将被触碰的路径,不枚举全仓 dirty。
 /// 不依赖用户 git(非 git 工作区同样可用);status 恒 "M"(guard 不进 UI)。
 pub fn snapshot_paths(cwd: &str, paths: &[String]) -> Result<Vec<SnapFile>, CkptError> {
-    let dirty: BTreeMap<String, String> =
-        paths.iter().map(|p| (p.clone(), "M".into())).collect();
+    let dirty: BTreeMap<String, String> = paths.iter().map(|p| (p.clone(), "M".into())).collect();
     snapshot_with_root(cwd, &dirty, &BTreeMap::new())
 }
 

@@ -34,6 +34,16 @@
 - 输出缓冲分块(上限可配)与字节流安全截断
 - 近期会话:欢迎页展示磁盘最近会话,可快速进入
 
+## Ask 等待确认与提示音
+
+- Ask 等待确认检测:内核单点检测 PTY 输出中 CLI 阻塞等待确认的界面标记(跨分片 / 夹杂 ANSI 均可命中)
+- 等待确认标签:会话列表行(含全局置顶区活会话)显示绿色胶囊,用户作答立即清除,会话消亡一并清理
+- 重绘去重:同一未答提问反复出现不重复广播事件
+- Ask 提示音:检测命中播放,每轮(以输出静默为界)最多一次,新一轮确认再次播放
+- 轮次结束提示音:turnSettled 后 3s 延迟确认播放(声音资产懒加载,不进主 chunk)
+- 提示音配置:设置页行为 tab,开关(默认开)+ 内置音效选择(默认/风铃/铃声/叮咚)+ 试听按钮,即时持久化
+- 提示音设置兼容:非法值回落默认,旧配置无损加载
+
 ## 对话框(Composer)
 
 - 富输入 textarea,发送快捷键可配置(Enter 发送/Shift+Enter 换行,或 ⌘/Ctrl+Enter 模式互换)
@@ -61,12 +71,6 @@
 
 ## 审批线
 
-- Ask 等待确认检测:内核单点检测 PTY 输出中 CLI 阻塞等待确认的界面标记(跨分片 / 夹杂 ANSI 均可命中)
-- 等待确认标签:会话列表行(含全局置顶区活会话)显示绿色胶囊,用户作答立即清除,会话消亡一并清理
-- 重绘去重:同一未答提问反复出现不重复广播事件
-- Ask 提示音:检测命中播放,每轮(以输出静默为界)最多一次,新一轮确认再次播放
-- 提示音配置:设置页行为 tab,开关(默认开)+ 内置音效选择(默认/风铃/铃声/叮咚)+ 试听按钮,即时持久化
-- 提示音设置兼容:非法值回落默认,旧配置无损加载
 - 批次定义:一轮对话(相邻两条用户消息之间)的所有 AI 文件改动为一个批次
 - 双归因:CLI profile 声明 editMarks(写入事件标记)→ events 归因(账本只记 AI 写过的文件);未声明 → 回退 git 窗口推断(批次标「推断」提示可信度)
 - 写入事件检测:内核 EditWatch 扫 PTY 流(剥 ANSI、跨分片行拼接),路径按会话 cwd 归一,逃逸/家目录拒绝;宁漏勿误
@@ -89,16 +93,47 @@
 - 快照机制:影子对象库(裸仓库只写 blob 不建 commit),永不触碰用户仓库 index/refs;与 git 工作区最终变更是两套
 - 快照清理:prune 按保留条数 + TTL 清账本,并对对象库做 reachability 清理(未被保留条目引用的 blob 直删,对象库不再单调增长)
 
+## Git 面板
 
+- 单视图三段:差异 / 分支 / 历史,外观对齐 codemoss(契约见 `openspec/changes/git-right-panel/`)
+- 勾选文件 + 写消息 + 提交一次完成;commit 执行权仅面板按钮,composer `/commit <msg>` 仅预填
+- 差异视图:libgit2 patch 生成,前端 LRU 缓存 50 条/20MB;平铺/树形切换
+- 暂存/取消暂存/丢弃(stage/unstage/discard,discard 走 checkout_index 不经 fs 删除)
+- 分支:列举 / 切换 / 新建 / 删除;历史 log 浏览
+- 远端:fetch / pull / push shell-out(300s 总超时,免终端凭据提示);ahead/behind 计数
 
+## 文件与编辑器
 
+- 文件树:单层懒展开,隐藏过滤,目录排前
+- 文件树右键:新建文件 / 新建文件夹 / 重命名 / 移入废纸篓 / 在访达中显示;写操作全经 Rust fs_edit(绝对路径,禁 .git 段,写上限 16MB)
+- 文件树行 hover「在访达中显示」快捷按钮
+- 中央 tab 文件编辑器:CodeMirror 6 可写编辑 + 保存,语言包按扩展名动态加载
+- 预览高亮:highlight.js;文件图标/颜色经 fileVisual provider 注册点
+- Markdown 预览:GFM + 数学(KaTeX)+ Mermaid 图 + 本地图片(asset 协议)+ 图片查看器 + 大纲侧栏 + 图片/Mermaid 全屏
 
+## 设置与外观
 
+- 设置面板:overlay 常驻,section/tab 经 settingsRegistry 注册表扩展
+- 外观 tab:主题跟随系统/亮/暗 + 21 个 VS Code preset 网格(内核 theme 引擎,--tmd-* token 派生)
+- 行为 tab:发送快捷键模式(Enter 发送 ↔ ⌘/Ctrl+Enter 发送互换)、Ask 提示音开关与音效、会话输出缓冲上限
+- 设置持久化 `~/.tmd-cli/settings.json`,sanitize 归一,非法值回落默认
+- 插件拔插状态(disabledPlugins)同落 settings,重启生效
 
+## 插件市场(插排)
 
+- 插排 / 清单双视图,17 个注册插件可视化插拔,写 settings.disabledPlugins,重启生效(运行期不热卸载)
+- core 类焊死不可拔(composer / settings / welcome);engine / feature 可拔
+- 插件徽标:CLI 引擎用品牌字形,功能插件用 lucide 语义图标独立彩色(设计定稿见 superpowers/specs/2026-09-03)
 
+## 欢迎页
 
+- 引擎卡:CLI 探针(found/path/version,8s 超时)+ 一键安装(npm -g / claude native,流式日志)
+- 凭据盘点:已登录供应商凭据与额度一览(覆盖 omp/pi/codex/claude/grok;kimi/qoder 未覆盖)
+- 最近会话:磁盘最近会话快速进入
 
+## 网络代理
 
-
-
+- 「网络代理」浮层:滑动块开关 + 代理地址(http(s)/socks5),校验/归一后落 settings
+- 生效:Rust proxy.rs 进程 env 注入,覆盖客户端联网与之后 spawn 的 CLI 子进程
+- 拔出插件 = 浮层断电(入口事件无人订阅),数值保留,重启后 env 不再注入
+- 入口:侧栏齿轮菜单 / 底栏钉住按钮,经事件总线唤起,壳与插件互不引用

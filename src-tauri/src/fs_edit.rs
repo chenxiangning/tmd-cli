@@ -221,7 +221,10 @@ mod tests {
         assert!(write_file("relative/path.txt", "x").is_err());
         assert!(write_file(git_dir.join("x").to_str().unwrap(), "x").is_err());
         assert!(write_file(root.to_str().unwrap(), "x").is_err());
-        assert!(fs::read(git_dir.join("x")).is_err(), ".git 内文件不得被创建");
+        assert!(
+            fs::read(git_dir.join("x")).is_err(),
+            ".git 内文件不得被创建"
+        );
         let _ = fs::remove_dir_all(&root);
     }
 

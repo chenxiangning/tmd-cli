@@ -33,6 +33,8 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
   - 多行文本直发 CR 提交，bracketed-paste 发送器为进行中项
 - **只读状态栏**：模型 / 思考强度等状态由 CLI 插件声明的 `readSessionStatus` 适配器读取各家私有 session JSONL，内核不理解 CLI 私有格式，缺失时显示 `—`。
 - **右栏 Git 面板**：单视图三段(差异 / 分支 / 历史),外观对齐 codemoss;勾选文件 + 写消息 + 提交一次完成;commit 执行权仅在面板按钮,composer `/commit <msg>` 仅预填。契约见 `openspec/changes/git-right-panel/`。
+- **审批线(checkpoints)**:AI 改动按轮成批,右栏时间线 + 中央批审阅单;整批/按文件回退、反悔恢复;影子对象库只写 blob,永不触碰用户仓库。
+- **插件市场(插排)**:17 个插件可视插拔,重启生效;core 类焊死,引擎/功能可拔;CLI 品牌字形 + 语义彩色图标。
 
 ## 架构分层
 
@@ -40,18 +42,20 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
 React Host
 ├── src/kernel/       插件契约、生命周期、事件总线、IPC、PTY TerminalView
 ├── src/app-shell/    五区外壳（头部 / 左栏 / 幕布 / 右栏 / 底部）与挂载点
-└── src/plugins/      cli-* × 8(omp / pi / kimi / codex / claude / grok / qoder / qoder-cn) · session-budget · workspace · files · git · composer · settings · welcome
+└── src/plugins/      cli-* × 8(omp / pi / kimi / codex / claude / grok / qoder / qoder-cn) · session-budget · workspace · files · git · checkpoints · composer · settings · network-proxy · welcome
 
 Tauri Rust (src-tauri/)
 ├── pty.rs        portable-pty：spawn / read / write / resize / kill
 ├── session.rs    Session 元数据注册表
-├── fs.rs         文件树读取
-└── git/          git2(libgit2 vendored);fetch/pull/push 走 shell-out 兜底
+├── fs.rs         文件树读取(只读) + fs_edit.rs 文件写操作
+├── proxy.rs      进程级代理 env 注入
+└── git/ + checkpoints/   libgit2 原语 / 审批线账本 sidecar
 ```
 
 新增能力的标准路径：
 
 - **UI / CLI 能力** → 新建 `src/plugins/<id>/`，实现 `Plugin` 接口，在 `src/plugins/index.ts` 加一行注册。
+- **插件插拔** → 声明 `PluginMeta.category`(engine/feature/core),插件市场写 `settings.disabledPlugins`,重启生效。
 - **跨插件基础契约** → 先在 `src/kernel/` 增加稳定类型/原语，再由插件实现。
 
 ## 技术栈
@@ -62,6 +66,7 @@ Tauri Rust (src-tauri/)
 | 前端 | React 19 + TypeScript + Vite 8 |
 | 终端 | xterm.js + addon-fit |
 | 样式 | Tailwind CSS 4 |
+| 文件编辑/预览 | CodeMirror 6 · highlight.js · react-markdown · KaTeX · Mermaid |
 | 图标 | lucide-react |
 
 ## 快速开始
@@ -86,9 +91,9 @@ pnpm build            # 仅构建前端产物
 
 ## 当前状态
 
-骨架已落地：插件宿主、八 CLI profile(omp/pi/codex/claude/grok/kimi/qoder/qoder-cn)、PTY 全生命周期、Session 注册表、文件树、git 面板(status/diff/stage/commit/branch/log/remote)、xterm 幕布接线、五区外壳、Composer 触发器 / 拖拽 / 截图、只读 session 状态栏。
+骨架已落地:插件宿主与插件市场(17 个注册插件)、八 CLI profile(omp/pi/codex/claude/grok/kimi/qoder/qoder-cn)、PTY 全生命周期与会话输出落盘翻页、xterm 幕布、五区外壳、Composer(触发符/拖拽/截图/命令抽屉/消息锚点栏/Quota/bracketed-paste)、右栏 Git 面板全量(差异/分支/历史/远端)、文件树 + CodeMirror 编辑器 + Markdown 预览、审批线(checkpoints 账本:双归因/回退/影子对象库)、主题引擎(21 个 VS Code preset)、网络代理、只读 session 状态栏。
 
-进行中：bracketed-paste 发送器、Git Graph(提案待开)、CLI 交互式兼容性验证。
+进行中:命令抽屉真机验收(openspec composer-command-drawer)、CLI 交互式兼容性验证;Git Graph 提案待开。
 
 ## License
 

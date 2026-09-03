@@ -10,6 +10,7 @@
 //!   哪些文件由事件行定死,git 不参与归因;首击时抓前像拷成 sidecar 自足副本。
 //! - git:未声明写入事件检测的 CLI 回退旧路径 —— 窗口内 dirty 推断 +
 //!   mtime 落窗仲裁、最近提示者赢(turn_changed_paths)。
+//!
 //! 归因模式随锚点固化(anchor.attribution),封口/视图按锚点分支。
 //!
 //! 会话身份:锚点常发生在 CLI 磁盘身份绑定之前,先以 tmd 会话 id 记账;
@@ -29,6 +30,7 @@ use std::fs;
 /// engine/model/thinking = 发送时刻的引擎与状态快照,随锚点固化(历史批不随后续切换漂移)。
 /// attribution = 归因模式("events" | "git"),由前端按 CLI profile 是否声明
 /// 写入事件检测(editMarks)决定,随锚点定死。
+#[allow(clippy::too_many_arguments)] // 与 checkpoint_anchor 同构:扁平参数直通 tauri IPC 契约
 pub fn anchor_turn(
     cwd: &str,
     session_id: &str,
@@ -95,7 +97,7 @@ pub fn seal_turn(cwd: &str, session_id: &str, tmd_session_id: &str) -> Result<bo
 /// (一次整文件重写;条目顺序与内容不变)。只在主副键不同(确已绑定)时执行。
 fn backfill_identity(
     cwd: &str,
-    entries: &mut Vec<LedgerEntry>,
+    entries: &mut [LedgerEntry],
     session_id: &str,
     tmd_session_id: &str,
 ) -> Result<(), CkptError> {
@@ -133,26 +135,21 @@ fn next_turn(entries: &[LedgerEntry], session_id: &str, tmd_session_id: &str) ->
 pub(super) fn foreign_claims(entries: &[LedgerEntry], anchor: &LedgerEntry) -> BTreeSet<String> {
     entries
         .iter()
-        .filter(|e| {
-            e.kind == "turn"
-                && e.session_id != anchor.session_id
-                && e.seal_ts > anchor.ts
-        })
+        .filter(|e| e.kind == "turn" && e.session_id != anchor.session_id && e.seal_ts > anchor.ts)
         .flat_map(|e| e.turn_files.iter().map(|tf| tf.path.clone()))
         .collect()
 }
 
 /// 会话活动窗口(归属仲裁的时间线):每个 anchor 一条,
 /// end = 该锚点最后一版 turn 的封口 ts,尚无 turn = now(仍开放)。
-fn session_windows<'a>(entries: &'a [LedgerEntry], now: i64) -> Vec<(i64, i64, &'a str)> {
+fn session_windows(entries: &[LedgerEntry], now: i64) -> Vec<(i64, i64, &str)> {
     entries
         .iter()
         .filter(|e| e.kind == "anchor")
         .map(|a| {
             let end = entries
                 .iter()
-                .filter(|e| e.kind == "turn" && e.id == a.id)
-                .next_back()
+                .rfind(|e| e.kind == "turn" && e.id == a.id)
                 .map(|t| t.seal_ts)
                 .unwrap_or(now);
             (a.ts, end.max(a.ts), a.session_id.as_str())
@@ -319,8 +316,7 @@ fn build_turn_entry(
     let root = std::path::PathBuf::from(cwd);
     let prev = entries
         .iter()
-        .filter(|e| e.kind == "turn" && e.id == anchor.id)
-        .next_back();
+        .rfind(|e| e.kind == "turn" && e.id == anchor.id);
 
     let turn_files = if anchor.attribution == "events" {
         super::events::build_events_turn_files(&sidecar, &root, anchor, entries)?
@@ -334,7 +330,9 @@ fn build_turn_entry(
         // events 归因:写过但净零(写了又写回)也要封口 —— 落一个空 turn 行
         // 把该轮关上(不再被视图当 open);纯阅读轮(无 edit 行)照旧不落账。
         if anchor.attribution == "events"
-            && entries.iter().any(|e| e.kind == "edit" && e.id == anchor.id)
+            && entries
+                .iter()
+                .any(|e| e.kind == "edit" && e.id == anchor.id)
         {
             return Ok(Some(LedgerEntry {
                 id: anchor.id.clone(),

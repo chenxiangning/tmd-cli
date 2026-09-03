@@ -7,7 +7,10 @@
 //!   - 并行会话:先封口者认领路径,另一会话不再重复归属
 //!   - CLI 身份回填:tmd id 名下的历史条目并入绑定后的 CLI id 链
 
-use super::{anchor_turn, append_ledger, batch_patches, derive_batches, prune, restore_batch, seal_turn, undo_revert, approve_batch, set_base_for_test};
+use super::{
+    anchor_turn, append_ledger, approve_batch, batch_patches, derive_batches, prune, restore_batch,
+    seal_turn, set_base_for_test, undo_revert,
+};
 use std::fs;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -43,7 +46,8 @@ impl TempWs {
         cfg.set_str("user.name", "t").unwrap();
         cfg.set_str("user.email", "t@t").unwrap();
         drop(cfg);
-        let base = std::env::temp_dir().join(format!("tmd-ckpt-store-{}-{seq}", std::process::id()));
+        let base =
+            std::env::temp_dir().join(format!("tmd-ckpt-store-{}-{seq}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
         fs::create_dir_all(&base).unwrap();
         set_base_for_test(base);
@@ -81,7 +85,8 @@ impl TempWs {
         if let Some(p) = &parent {
             parents.push(p);
         }
-        repo.commit(Some("HEAD"), &sig, &sig, msg, &tree, &parents).unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, msg, &tree, &parents)
+            .unwrap();
     }
 
     /// 记锚点:session_id = 会话身份,tmd_session_id = tmd 侧 id(同一会话恒定)。
@@ -90,8 +95,26 @@ impl TempWs {
     }
 
     /// 记带状态快照的锚点(引擎/模型/思考强度随批固化契约)。
-    fn anchor_meta(&self, sid: &str, tmd: &str, prompt: &str, engine: &str, model: &str, thinking: &str) -> super::LedgerEntry {
-        anchor_turn(self.path(), sid, tmd, prompt, engine, model, thinking, "git").unwrap()
+    fn anchor_meta(
+        &self,
+        sid: &str,
+        tmd: &str,
+        prompt: &str,
+        engine: &str,
+        model: &str,
+        thinking: &str,
+    ) -> super::LedgerEntry {
+        anchor_turn(
+            self.path(),
+            sid,
+            tmd,
+            prompt,
+            engine,
+            model,
+            thinking,
+            "git",
+        )
+        .unwrap()
     }
 
     fn seal(&self, sid: &str, tmd: &str) -> bool {
@@ -238,7 +261,11 @@ fn cli身份回填_tmd名下历史并入绑定链() {
     assert_eq!(a2.turn, 2, "轮次接续不重排");
 
     let batches = derive_batches(ws.path(), "cli-1", "tmd-1").unwrap();
-    assert_eq!(batches.len(), 1, "回填后按 CLI id 一查到底(第 2 轮纯阅读不出现)");
+    assert_eq!(
+        batches.len(),
+        1,
+        "回填后按 CLI id 一查到底(第 2 轮纯阅读不出现)"
+    );
     assert_eq!(batches[0].id, a1.id);
     assert_eq!(batches[0].index, 1);
 
@@ -263,7 +290,11 @@ fn 轮内新建_回退即删除_反悔恢复() {
     assert_eq!(batches[0].files.len(), 2);
 
     let out = restore_batch(ws.path(), &a.id, None).unwrap();
-    assert_eq!(out.deleted, vec!["new/nested.txt".to_string()], "轮内新建,回退 = 删除");
+    assert_eq!(
+        out.deleted,
+        vec!["new/nested.txt".to_string()],
+        "轮内新建,回退 = 删除"
+    );
     assert_eq!(out.restored, vec!["a.txt".to_string()]);
     assert_eq!(out.state, "reverted");
     assert!(out.guard_id.is_some());
@@ -296,7 +327,10 @@ fn 锚点时已删的文件_轮内重建_回退即删() {
     assert_eq!(batches[0].files[0].path, "gone.txt");
 
     restore_batch(ws.path(), &a.id, None).unwrap();
-    assert!(ws.read("gone.txt").is_none(), "锚点时不存在,回退 = 删除(非复活旧基线)");
+    assert!(
+        ws.read("gone.txt").is_none(),
+        "锚点时不存在,回退 = 删除(非复活旧基线)"
+    );
 }
 
 #[test]
@@ -317,7 +351,10 @@ fn 内容失配_自动已处理且回退被拒() {
     assert!(batches[0].files[0].stale);
 
     let err = restore_batch(ws.path(), &a.id, None).unwrap_err();
-    assert!(err.to_string().starts_with("E_EMPTY:"), "失配文件不可回退: {err}");
+    assert!(
+        err.to_string().starts_with("E_EMPTY:"),
+        "失配文件不可回退: {err}"
+    );
 }
 
 #[test]
@@ -359,7 +396,11 @@ fn 单文件回退_批留待审_全处理完才翻已退() {
     assert!(!files.iter().find(|f| f.path == "c.txt").unwrap().reverted);
 
     restore_batch(ws.path(), &a.id, Some(vec!["c.txt".into()])).unwrap();
-    assert_eq!(ws.batches("cli-1")[0].state, "reverted", "全部文件处理完 → 已退");
+    assert_eq!(
+        ws.batches("cli-1")[0].state,
+        "reverted",
+        "全部文件处理完 → 已退"
+    );
 
     // 已回退批再回退被拒;反悔后回 pending
     assert!(restore_batch(ws.path(), &a.id, None).is_err());
@@ -386,7 +427,10 @@ fn 通过标记_纯标记_不阻回退() {
     let out = restore_batch(ws.path(), &a.id, None).unwrap();
     assert_eq!(out.state, "reverted");
     assert_eq!(ws.read("a.txt").as_deref(), Some("v1\n"));
-    assert!(approve_batch(ws.path(), &a.id).is_err(), "已回退批不可再标记");
+    assert!(
+        approve_batch(ws.path(), &a.id).is_err(),
+        "已回退批不可再标记"
+    );
 }
 
 #[test]
@@ -465,4 +509,3 @@ fn 非_git_目录_报_not_a_repo() {
     assert!(err.to_string().starts_with("E_NOT_A_REPO:"));
     let _ = fs::remove_dir_all(&dir);
 }
-

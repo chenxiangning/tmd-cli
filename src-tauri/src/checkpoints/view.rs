@@ -56,10 +56,7 @@ pub fn derive_batches(
     let mut out = Vec::new();
     let last_anchor = anchors.len().saturating_sub(1);
     for (ai, a) in anchors.iter().enumerate() {
-        let turn_entry = entries
-            .iter()
-            .filter(|e| e.kind == "turn" && e.id == a.id)
-            .next_back();
+        let turn_entry = entries.iter().rfind(|e| e.kind == "turn" && e.id == a.id);
         let stored = states.batches.get(&a.id);
 
         let (files, open, ts_end) = match turn_entry {
@@ -137,7 +134,11 @@ pub fn derive_batches(
             // 自动已处理(已提交/内容已变)优先于通过标记 —— 事实胜于标记
             (
                 "done".into(),
-                Some(if any_committed { "已提交".into() } else { "内容已变".into() }),
+                Some(if any_committed {
+                    "已提交".into()
+                } else {
+                    "内容已变".into()
+                }),
             )
         } else if approved {
             ("approved".into(), None)
@@ -191,7 +192,11 @@ pub fn prune(cwd: &str, keep: usize, ttl_days: u32) -> Result<usize, CkptError> 
     // 各会话最新 anchor(open 轮的基线 + 其 edit 行)不可丢
     let mut latest_anchor: BTreeMap<String, &LedgerEntry> = BTreeMap::new();
     for e in entries.iter().filter(|e| e.kind == "anchor") {
-        let key = if e.session_id.is_empty() { e.tmd_session_id.clone() } else { e.session_id.clone() };
+        let key = if e.session_id.is_empty() {
+            e.tmd_session_id.clone()
+        } else {
+            e.session_id.clone()
+        };
         match latest_anchor.get(&key) {
             Some(prev) if prev.turn > e.turn => {}
             _ => {
@@ -226,8 +231,11 @@ pub fn prune(cwd: &str, keep: usize, ttl_days: u32) -> Result<usize, CkptError> 
     rewrite_ledger(cwd, &kept)?;
 
     // 悬空 states 一并清理
-    let kept_ids: std::collections::BTreeSet<String> =
-        kept.iter().filter(|e| e.kind == "anchor").map(|e| e.id.clone()).collect();
+    let kept_ids: std::collections::BTreeSet<String> = kept
+        .iter()
+        .filter(|e| e.kind == "anchor")
+        .map(|e| e.id.clone())
+        .collect();
     let mut states = load_states(cwd);
     states.batches.retain(|id, _| kept_ids.contains(id));
     save_states(cwd, &states)?;
@@ -297,7 +305,11 @@ fn prune_sidecar_objects(cwd: &str, kept: &[LedgerEntry]) -> Result<(), CkptErro
 }
 
 fn session_key(e: &LedgerEntry) -> String {
-    if e.session_id.is_empty() { e.tmd_session_id.clone() } else { e.session_id.clone() }
+    if e.session_id.is_empty() {
+        e.tmd_session_id.clone()
+    } else {
+        e.session_id.clone()
+    }
 }
 
 /// 批次逐文件 patch:sealed 批直接读账本固化的 diff(封口瞬间定死,零重算);
@@ -307,8 +319,7 @@ pub fn batch_patches(cwd: &str, batch_id: &str) -> Result<Vec<super::CkptPatch>,
     let entries = load_ledger(cwd);
     if let Some(t) = entries
         .iter()
-        .filter(|e| e.kind == "turn" && e.id == batch_id)
-        .next_back()
+        .rfind(|e| e.kind == "turn" && e.id == batch_id)
     {
         return Ok(t
             .turn_files
@@ -357,7 +368,12 @@ pub fn batch_patches(cwd: &str, batch_id: &str) -> Result<Vec<super::CkptPatch>,
             if before.as_deref() == after.as_deref() {
                 continue; // 写了又写回:无 diff
             }
-            out.push(super::blob_patch(&sidecar, &e.path, before.as_deref(), after.as_deref())?);
+            out.push(super::blob_patch(
+                &sidecar,
+                &e.path,
+                before.as_deref(),
+                after.as_deref(),
+            )?);
         }
         return Ok(out);
     }
@@ -389,12 +405,14 @@ fn classify_turn_file(
     let live_bytes = fs::read(root.join(&tf.path)).ok();
     if user.is_none() {
         // 非 git 工作区:提交态不可推导,只有 same(可回退/应用)/ changed 两档
-        return Ok(
-            if after.as_deref() == live_bytes.as_deref() { "same".into() } else { "changed".into() },
-        );
+        return Ok(if after.as_deref() == live_bytes.as_deref() {
+            "same".into()
+        } else {
+            "changed".into()
+        });
     }
     match (after, live_bytes) {
-        (None, None) => Ok("committed".into()),  // 批后已删,现在也没有 = 已处理
+        (None, None) => Ok("committed".into()), // 批后已删,现在也没有 = 已处理
         (None, Some(_)) => Ok("changed".into()), // 批后已删/不可知,现在有内容
         (Some(a), Some(l)) => {
             if a != l {
@@ -410,12 +428,20 @@ fn classify_turn_file(
         (Some(_), None) => {
             // 批后有内容,现在没了:不在 dirty 集 = 被 commit 后又 revert 掉,视为已处理;
             // 在 dirty 集 = 工作区删除,内容已变
-            Ok(if live.contains_key(&tf.path) { "changed".into() } else { "committed".into() })
+            Ok(if live.contains_key(&tf.path) {
+                "changed".into()
+            } else {
+                "committed".into()
+            })
         }
     }
 }
 
 fn untrack_char(status: &str) -> String {
     // untracked 在 live 状态里是 "?",批次文件展示沿用 A(新增)
-    if status == "?" { "A".into() } else { status.to_string() }
+    if status == "?" {
+        "A".into()
+    } else {
+        status.to_string()
+    }
 }

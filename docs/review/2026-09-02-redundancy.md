@@ -130,3 +130,19 @@
 | 3 重复逻辑 | 0 | 1 | 3 |
 | 4 CSS 零引用 | 0 | 3 | 2(含 1 待人工确认) |
 | 5 依赖 | 0 | 0 | 0(全部有消费) |
+
+## 2026-09-03 复核与处置
+
+逐条复核(证据口径同上),结果分三类:
+
+**已在此前修复(本次复核确认无残留)**:1a 的 `isMacPlatform`/`isWindowsPlatform`、2c 的 glyph 兼容字段、4 的 `capability-badge` 三类与 `file-tree-root-*` 11 类及 `is-text`/`is-dir`、1b 的 `extToLang`、2a 的 git 空 activate 与 RightPanelToolbar 4 个占位按钮。
+
+**本次清理落地**:
+
+| 动作 | 对象 | 说明 |
+|---|---|---|
+| 删除 | `src/kernel/index.ts` | 死 barrel:全仓 0 import,消费方一律 `@kernel/<module>` 深路径;契约面由各模块文件自身承担 |
+| 删除 | `src/styles/file-tree.css` `.git-a/m/d/r/u` 五行 | 4 章「待人工确认」项裁决:git 染色未入 roadmap,判死;如实装 5 行可复原 |
+| 修正 | `checkpoints/BatchRow.tsx:18` 注释 | 去掉对已删 `.git-r` 的引用 |
+
+**保留不动(有意决策)**:1b 冗余导出(ipc.ts 类型是 Rust serde 契约镜像、kernel 类型是插件契约面);1c 仅测试引用(store getter 与主题 preset id 集由测试锁契约);2a 剩余 3 处占位 handler(独立文件窗口/锁屏等 roadmap 入口);3 的 fs.rs 一行重复(未到三处抽 helper 阈值)。另:3 的两宗重复逻辑此后已收敛——相对时间入 `kernel/relativeTime.ts`,basename/workspace 名入 `kernel/pathUtils.ts`。5 依赖审计 09-03 复核仍全部干净(38 npm 包 / 14 crate 均有消费)。

@@ -2,8 +2,8 @@
 //! 覆盖:kill 掉 sessionExited 的最后一轮由 seal_dead_turns 落账、
 //! 新鲜度宽限保护在途轮、幂等再收、与显式封口的修订互不重复。
 
-use super::*;
 use super::super::seal_dead_turns;
+use super::*;
 
 #[test]
 fn 死锚点收口_强退最后一轮落账() {

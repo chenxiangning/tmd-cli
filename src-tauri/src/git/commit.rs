@@ -114,11 +114,38 @@ mod amend_verify {
     fn amend_replaces_head() {
         let t = TempRepo::new();
         with_repo(t.path(), |repo| {
-            commit(repo, vec![], CommitInput { message: "init".into(), amend: false })?;
+            commit(
+                repo,
+                vec![],
+                CommitInput {
+                    message: "init".into(),
+                    amend: false,
+                },
+            )?;
             std::fs::write(std::path::Path::new(t.path()).join("f.txt"), "data").unwrap();
-            commit(repo, vec!["f.txt".into()], CommitInput { message: "second".into(), amend: false })?;
-            let before_author = repo.head()?.peel_to_commit()?.author().name().unwrap().to_string();
-            let sha = commit(repo, vec![], CommitInput { message: "amended".into(), amend: true })?;
+            commit(
+                repo,
+                vec!["f.txt".into()],
+                CommitInput {
+                    message: "second".into(),
+                    amend: false,
+                },
+            )?;
+            let before_author = repo
+                .head()?
+                .peel_to_commit()?
+                .author()
+                .name()
+                .unwrap()
+                .to_string();
+            let sha = commit(
+                repo,
+                vec![],
+                CommitInput {
+                    message: "amended".into(),
+                    amend: true,
+                },
+            )?;
             let head = repo.head()?.peel_to_commit()?;
             assert_eq!(head.id().to_string(), sha);
             assert_eq!(head.summary(), Some("amended"));

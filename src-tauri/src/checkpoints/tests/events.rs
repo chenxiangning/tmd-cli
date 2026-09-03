@@ -2,8 +2,8 @@
 //! 覆盖:手改不混入、重复事件修订计数、净零轮、封口后丢弃、前像自足、
 //! 跨轮前像链(非 git 工作区既有文件不误记 A)、并行零误归、路径逃逸拒绝。
 
-use super::*;
 use super::super::{apply_batch, record_edit, LedgerEntry};
+use super::*;
 
 // ---- events 归因(AI 写入事件流,作者设计点严格版)--------------------------
 
@@ -94,7 +94,10 @@ fn events_新建与删除_封口后事件丢弃() {
     let b = &ws.batches("cli-1")[0];
     let new = b.files.iter().find(|f| f.path == "new.txt").unwrap();
     assert_eq!(new.status, "A");
-    assert_eq!(b.files.iter().find(|f| f.path == "a.txt").unwrap().status, "M");
+    assert_eq!(
+        b.files.iter().find(|f| f.path == "a.txt").unwrap().status,
+        "M"
+    );
     // 回退:A 文件删除、M 文件还原
     restore_batch(ws.path(), &b.id, None).unwrap();
     assert!(ws.read("new.txt").is_none());
@@ -115,7 +118,11 @@ fn events_前像自足_用户仓库_重置后仍可回退() {
     // 用户仓库硬重置:blob 不再可达(等价 gc 后账本仍要自足)
     let b = &ws.batches("cli-1")[0];
     restore_batch(ws.path(), &b.id, None).unwrap();
-    assert_eq!(ws.read("a.txt").as_deref(), Some("v1\n"), "前像来自 sidecar 自足副本");
+    assert_eq!(
+        ws.read("a.txt").as_deref(),
+        Some("v1\n"),
+        "前像来自 sidecar 自足副本"
+    );
 }
 
 #[test]
@@ -254,12 +261,11 @@ fn events_并行会话零泄露_各自事件各自账() {
     assert_eq!(b2[0].files[0].path, "b.txt");
 }
 
-
 #[test]
 fn events_非git_跨轮修改既有文件_前像链_回退不误删() {
     /* P0 回归:非 git 工作区 anchor 基线恒空,轮 2 修改轮 1 创建的文件时,
-       前像缺失曾把 M 误记成 A —— 回退变成整文件删除,轮 1 内容丢失。
-       修复:首击前像解析为空时回退取同路径最近 turn 条目的批后像。 */
+    前像缺失曾把 M 误记成 A —— 回退变成整文件删除,轮 1 内容丢失。
+    修复:首击前像解析为空时回退取同路径最近 turn 条目的批后像。 */
     let _g = io_lock();
     let seq = SEQ.fetch_add(1, Ordering::SeqCst);
     let dir = std::env::temp_dir().join(format!("tmd-ckpt-chain-{}-{seq}", std::process::id()));
@@ -287,7 +293,11 @@ fn events_非git_跨轮修改既有文件_前像链_回退不误删() {
 
     // 回退轮 2 = 还原到 v1,绝不删除文件
     restore_batch(dir.to_str().unwrap(), &b2.id, None).unwrap();
-    assert_eq!(fs::read_to_string(dir.join("a.txt")).unwrap(), "v1\n", "回退还原轮前内容,不误删");
+    assert_eq!(
+        fs::read_to_string(dir.join("a.txt")).unwrap(),
+        "v1\n",
+        "回退还原轮前内容,不误删"
+    );
     // 链继续(回退感知):轮 2 已退(后像 v2 不在磁盘)→ 轮 3 前像链跳过
     // 轮 2 取轮 1 批后像(v1),回退轮 3 仍还原 v1 而非复活被拒的 v2
     // 走一轮仍闭环

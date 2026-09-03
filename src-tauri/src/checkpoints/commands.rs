@@ -22,6 +22,8 @@ where
 /// engine/model/thinking = 发送时刻的引擎与状态快照,随锚点固化。
 /// attribution = 归因模式("events" | "git"):前端按 CLI profile 是否声明
 /// editMarks 决定,随锚点定死。失败不阻塞发送 —— 前端 catch 后重试一次。
+// 8 个扁平参数是 tauri invoke 契约(按字段名传参),分组结构体会破坏前端契约。
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn checkpoint_anchor(
     cwd: String,
@@ -36,7 +38,13 @@ pub async fn checkpoint_anchor(
     run(move || {
         let attribution = attribution.unwrap_or_else(|| "git".into());
         anchor_turn(
-            &cwd, &session_id, &tmd_session_id, &prompt, &engine, &model, &thinking,
+            &cwd,
+            &session_id,
+            &tmd_session_id,
+            &prompt,
+            &engine,
+            &model,
+            &thinking,
             &attribution,
         )
         .map(|e| e.id)
@@ -123,7 +131,10 @@ pub async fn checkpoint_approve(cwd: String, batch_id: String) -> Result<(), Str
 
 /// 反悔:用守卫条目写回回退前状态。
 #[tauri::command]
-pub async fn checkpoint_undo_revert(cwd: String, batch_id: String) -> Result<RestoreOutcome, String> {
+pub async fn checkpoint_undo_revert(
+    cwd: String,
+    batch_id: String,
+) -> Result<RestoreOutcome, String> {
     run(move || undo_revert(&cwd, &batch_id)).await
 }
 

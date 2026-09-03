@@ -1,8 +1,8 @@
 //! 并行归属仲裁与链完整性测试 —— mtime 窗口归属 / turn 身份继承 / 幽灵窗口收口。
 //! 账本与工作区基建(TempWs / io_lock)在父模块 tests。
 
-use super::TempWs;
 use super::super::{batch_patches, load_ledger, now_millis, LedgerEntry};
+use super::TempWs;
 
 /// 毫秒时钟间隔:保证"写文件 → 下一个锚点"的 mtime 严格有序(平局会让
 /// 归属仲裁退化为比较谁后锚点)。

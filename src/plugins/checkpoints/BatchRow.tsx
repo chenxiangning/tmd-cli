@@ -15,7 +15,7 @@ import { openBatchTab } from "./batchTab";
 
 const POLL_MS = 6000;
 
-/* 状态色走主题 token(随 preset 联动);紫 = 回退语义色(与文件树 git-r 一致,无 token) */
+/* 状态色走主题 token(随 preset 联动);紫 = 回退语义色(无 token,钉死 #a78bfa) */
 const STATE_META = {
   open: {
     label: "进行中",

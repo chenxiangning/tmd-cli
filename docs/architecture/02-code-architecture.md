@@ -1,6 +1,6 @@
 # tmd-cli 代码级架构（当前实现）
 
-- 日期：2026-09-01
+- 日期：2026-09-01（2026-09-03 按当前代码校准）
 - 状态：对应主干当前代码（v0.1.0 骨架）
 - 前置阅读：[01-overview.md](01-overview.md)（设计决策层）；本文是**代码事实层**——每个节点都能在仓库里找到对应文件/符号。
 
@@ -30,6 +30,11 @@ flowchart TB
             FH["fileHighlighter.ts<br/>高亮器注册点"]
             FV["fileVisual.ts<br/>文件视觉 provider 注册点"]
             FP["filePanel.ts<br/>右栏面板注册表(通用 tab store,<br/>不预知业务面板)"]
+            WATCH["守望组(host 拆分件)<br/>activityWatch·askWatch·editWatch·identityWatch<br/>+ askSound·turnSound"]
+            THEME["theme.ts + themeTokens.ts + themePresets/<br/>主题引擎:21 个 VS Code preset → --tmd-*"]
+            SETT["settings.ts<br/>全局设置 store 唯一事实源<br/>(~/.tmd-cli/settings.json)"]
+            MA["messageAnchors.ts<br/>用户消息锚点内核(2s 轮询,0 订阅停表)"]
+            QUA["quota.ts<br/>QuotaProvider 注册点"]
         end
 
         subgraph PLUGINS["plugins/（一切能力皆插件）"]
@@ -47,11 +52,13 @@ flowchart TB
             P_COMPOSER["composer<br/>富输入 + composer.statusBar 工具栏"]
             P_SETTINGS["settings<br/>overlay 设置面板<br/>+ 设置 section 注册表"]
             P_WELCOME["welcome<br/>editorCenter.welcome 首页<br/>引擎探针/安装/凭据盘点/近期会话"]
+            P_CKPT["checkpoints<br/>审批线:右栏时间线 + 中央批审阅单<br/>账本/diff/还原在 Rust checkpoints/"]
+            P_NP["network-proxy<br/>网络代理浮层(overlay)<br/>生效率 Rust proxy.rs env 注入"]
         end
     end
 
     subgraph BE["Tauri Rust 后端（src-tauri/src/）"]
-        LIB["lib.rs<br/>59 个 tauri::command 注册(lib.rs 26 + git 15 + checkpoints 8 + fs_edit 6 + quota 2 + omp_auth 2)"]
+        LIB["lib.rs<br/>62 个 tauri::command 注册(lib.rs 26 + git 15 + checkpoints 11 + fs_edit 6 + quota 2 + omp_auth 2)"]
         PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出"]
         SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
         RESOLVE["resolve.rs<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
@@ -62,6 +69,9 @@ flowchart TB
         FS["fs.rs<br/>list_dir / read_file / read_head / read_tail<br/>collect_files / write_temp / remove_path(白名单)<br/>read_local_image_data_url(md 预览)"]
         GIT["git/<br/>libgit2 原语(status/diff/branch/log/commit)<br/>远端 fetch/pull/push shell-out(300s 总超时)"]
         HASH["hash.rs<br/>md5_hex 通用哈希原语"]
+        FSE["fs_edit.rs — 文件写操作<br/>新建/重命名/废纸篓/访达显示/编辑器保存<br/>(绝对路径,禁 .git 段,16MB 上限)"]
+        PROXY["proxy.rs — 进程级代理 env 注入<br/>启动按 settings 应用,无 command 面"]
+        CKPTR["checkpoints/ — 审批线账本 sidecar<br/>ledger.rs·events.rs·restore.rs·view.rs<br/>capture.rs·diff.rs·commands.rs"]
     end
 
     EXT["外部 CLI 子进程<br/>omp / pi / codex / claude / grok / kimi / qoder / qoder-cn（PTY slave）"]
@@ -104,7 +114,7 @@ sequenceDiagram
     participant M as main.tsx
     participant H as host (Host 单例)
     participant R as Rust: session_list
-    participant P as allPlugins (15 个)
+    participant P as allPlugins (17 个)
     participant C as contributions.tsx
     participant A as AppShell
 
@@ -328,6 +338,7 @@ flowchart TD
     PI --> P3["files"]
     PI --> P4["git"]
     PI --> P5["composer"]
+    PI --> P6["checkpoints / network-proxy / settings / welcome / session-budget"]
 
     KH --> KE["kernel/events.ts"]
     KH --> KI["kernel/ipc.ts"]
@@ -352,7 +363,7 @@ flowchart TD
 
 ## 8. Rust 后端命令面
 
-注册的 59 个 `#[tauri::command]`（lib.rs 26 + git/commands.rs 15 + checkpoints 8 + fs_edit 6 + quota.rs 2 + omp_auth.rs 2），与 `ipc.ts` 一一对应：
+注册的 62 个 `#[tauri::command]`（lib.rs 26 + git/commands.rs 15 + checkpoints/commands.rs 11 + fs_edit.rs 6 + quota.rs 2 + omp_auth.rs 2），与 `ipc.ts` 一一对应：
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
@@ -371,11 +382,13 @@ flowchart TD
 | `fs_collect_files` | `fs.rs` | 递归收集指定后缀文件并按 mtime 倒序 |
 | `fs_read_head` / `fs_read_tail` | `fs.rs` | 读取 JSONL 头/尾，避免全文加载 |
 | `fs_remove_path` | `fs.rs` | 物理删除文件/目录（会话删除双端统一）,NotFound 幂等成功 |
+| `fs_create_dir` / `fs_create_file` / `fs_write_file` | `fs_edit.rs` | 文件树新建目录/文件、编辑器保存(绝对路径,禁 .git 段,写上限 16MB) |
+| `fs_rename_entry` / `fs_trash_entry` / `fs_reveal_in_file_manager` | `fs_edit.rs` | 重命名(校验 basename) / 废纸篓(trash crate) / 在访达(Finder)中显示 |
 | `read_local_image_data_url` | `lib.rs`/`fs.rs` | md 预览本地图片(白名单 + 20MB 闸) |
 | `md5_hex` | `hash.rs` | 通用哈希原语(kimi 会话目录 `MD5(cwd)`) |
-| `checkpoint_anchor` / `checkpoint_seal` | `checkpoints/ledger.rs` | 审批线账本:记第 N 轮锚点(隐式封上一轮+CLI 身份回填) / 结算封口固化 turn 条目 |
+| `checkpoint_anchor` / `checkpoint_seal` / `checkpoint_seal_dead` | `checkpoints/ledger.rs` | 审批线账本:记第 N 轮锚点(隐式封上一轮+CLI 身份回填) / 结算封口固化 turn 条目 / 幽灵窗口(超 24h 未封口)代封 |
 | `checkpoint_list` / `checkpoint_batch_diff` | `checkpoints/view.rs` | 账本只读视图(会话隔离+live 分类) / 批 diff(sealed 读账本,open 现算) |
-| `checkpoint_restore` / `checkpoint_approve` / `checkpoint_undo_revert` / `checkpoint_prune` | `checkpoints/restore.rs` 等 | 整批/单文件回退(guard 落账) / 通过标记 / 反悔恢复 / 保留策略 |
+| `checkpoint_record_edit` / `checkpoint_restore` / `checkpoint_apply` / `checkpoint_approve` / `checkpoint_undo_revert` / `checkpoint_prune` | `checkpoints/events.rs` / `restore.rs` / `view.rs` 等 | AI 写入事件流式记账(events 归因主信号) / 整批或单文件回退(guard 落账) / 已退批按批后像写回 / 通过标记 / 反悔恢复 / 保留策略与对象库 reachability 清理 |
 | `git_status` / `git_totals` / `git_ahead_behind` | `git/status.rs` 等 | libgit2 本地读(status 聚合/改动统计/领先落后) |
 | `git_diff_file_patch` | `git/diff.rs` | libgit2 patch 生成(前端 PatchLRU 缓存 50 条/20MB) |
 | `git_stage` / `git_unstage` / `git_discard` / `git_commit` | `git/index_ops.rs` 等 | index 写操作(discard = checkout_index,不经 fs 删除) |
@@ -436,8 +449,7 @@ sessionExited → checkpoint_seal(兜底,最后一轮落账)
 
 ## 10. 已知缺口（代码现状，非设计意图）
 
-- `footer.left`、`footer.right` 等挂点暂无贡献者（`overlay` 已由 settings 插件贡献设置面板）。
-- CLI 凭据盘点未覆盖 kimi/qoder/qoder-cn（`welcome/credentials.ts` 默认分支返回空）。
+- `footer.left`、`footer.right` 等挂点暂无贡献者（`overlay` 已由 settings 插件贡献设置面板,network-proxy 浮层亦经 overlay 常驻）。
+- CLI 凭据盘点未覆盖 kimi/qoder/qoder-cn（`welcome/credentials.ts` 分支仅 omp/pi/codex/claude/grok）。
 - Codex 的 session 状态解析采用容错字段匹配，完整 `turn_context` schema 仍需随 CLI 版本验证。
-- `prepareSendPayload` 注释声明 v1 不用 bracketed paste（多行粘贴交给 CLI 自理）。
-- `composer` 命令抽屉(openspec composer-command-drawer)在途:代码已实装待真机验收。
+- `composer` 命令抽屉(openspec composer-command-drawer)代码已实装,余 5 项 `[V]` 真机验收在途。

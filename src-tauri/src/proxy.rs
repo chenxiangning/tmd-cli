@@ -9,6 +9,7 @@
 //!   installer 的 curl/npm 子进程;
 //! - 之后 spawn 的全部 PTY CLI 子进程(portable-pty 默认继承进程 env,
 //!   pty.rs 的 spec.env 仍可按 CLI 覆盖)。
+//!
 //! 已在跑的旧会话不受影响,需手动重启 —— 该语义由前端 network-proxy 插件提示。
 //!
 //! 设置 schema 归前端 kernel/settings.ts(settings.rs 设计决策:Rust 只透传 Value),

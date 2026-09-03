@@ -13,8 +13,8 @@
 //! 3. 都不可知 = 真新建(A)。
 
 use super::{
-    append_ledger, entry_in_session, load_ledger, lock_ledger, now_millis, open_sidecar,
-    open_user, resolve_snap_bytes, write_sidecar_blob, CkptError, LedgerEntry, TurnFile,
+    append_ledger, entry_in_session, load_ledger, lock_ledger, now_millis, open_sidecar, open_user,
+    resolve_snap_bytes, write_sidecar_blob, CkptError, LedgerEntry, TurnFile,
 };
 use std::fs;
 
@@ -48,7 +48,10 @@ pub fn record_edit(
         return Ok(false);
     };
     // 该轮已封口:封口后的输出(回放/重绘/迟到的翻译行)不记账
-    if entries.iter().any(|e| e.kind == "turn" && e.id == anchor.id) {
+    if entries
+        .iter()
+        .any(|e| e.kind == "turn" && e.id == anchor.id)
+    {
         return Ok(false);
     }
 
@@ -58,8 +61,7 @@ pub fn record_edit(
 
     let prev = entries
         .iter()
-        .filter(|e| e.kind == "edit" && e.id == anchor.id && e.path == path)
-        .next_back()
+        .rfind(|e| e.kind == "edit" && e.id == anchor.id && e.path == path)
         .cloned();
     let entry = match prev {
         Some(mut p) => {

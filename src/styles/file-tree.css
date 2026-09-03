@@ -253,10 +253,3 @@
   height: 12px;
   animation: file-tree-spin 1s linear infinite;
 }
-
-/* git 状态名 ─ 加粗 + 颜色 */
-.file-tree-name.git-a { color: rgb(74, 222, 128); }
-.file-tree-name.git-m { color: rgb(250, 204, 21); }
-.file-tree-name.git-d { color: rgb(248, 113, 113); }
-.file-tree-name.git-r { color: rgb(167, 139, 250); }
-.file-tree-name.git-u { color: rgb(244, 114, 182); }

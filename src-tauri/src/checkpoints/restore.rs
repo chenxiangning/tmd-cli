@@ -6,8 +6,8 @@
 //! 串行执行,不存在 derive 时代的闭包嵌套锁问题。
 
 use super::{
-    append_ledger, load_ledger, load_states, new_entry_id, now_millis,
-    open_sidecar, open_user, resolve_snap_bytes, save_states, CkptError, LedgerEntry,
+    append_ledger, load_ledger, load_states, new_entry_id, now_millis, open_sidecar, open_user,
+    resolve_snap_bytes, save_states, CkptError, LedgerEntry,
 };
 use serde::Serialize;
 use std::fs;
@@ -35,7 +35,10 @@ pub struct RestoreOutcome {
 pub fn approve_batch(cwd: &str, batch_id: &str) -> Result<(), CkptError> {
     let _g = super::lock_ledger();
     let entries = load_ledger(cwd);
-    if !entries.iter().any(|e| e.kind == "anchor" && e.id == batch_id) {
+    if !entries
+        .iter()
+        .any(|e| e.kind == "anchor" && e.id == batch_id)
+    {
         return Err(CkptError::Empty(format!("批次不存在: {batch_id}")));
     }
     let mut states = load_states(cwd);
@@ -70,15 +73,17 @@ pub fn restore_batch(
         .clone();
     let turn = entries
         .iter()
-        .filter(|e| e.kind == "turn" && e.id == batch_id)
-        .next_back()
-        .ok_or_else(|| {
-            CkptError::Empty("进行中批次不可回退 —— 等本轮结算封口后再操作".into())
-        })?
+        .rfind(|e| e.kind == "turn" && e.id == batch_id)
+        .ok_or_else(|| CkptError::Empty("进行中批次不可回退 —— 等本轮结算封口后再操作".into()))?
         .clone();
 
     let mut states = load_states(cwd);
-    if states.batches.get(batch_id).map(|s| s.state == "reverted").unwrap_or(false) {
+    if states
+        .batches
+        .get(batch_id)
+        .map(|s| s.state == "reverted")
+        .unwrap_or(false)
+    {
         return Err(CkptError::Empty("批次已整体回退(可先反悔恢复)".into()));
     }
 
@@ -109,7 +114,10 @@ pub fn restore_batch(
             .map(|s| s.reverted_paths.iter().any(|p| p == path))
             .unwrap_or(false)
         {
-            skipped.push(SkipEntry { path: path.clone(), reason: "已回退".into() });
+            skipped.push(SkipEntry {
+                path: path.clone(),
+                reason: "已回退".into(),
+            });
             continue;
         }
         // 内容失配/已提交判定:live 必须与批后像逐字节一致(或同样不存在)
@@ -126,7 +134,10 @@ pub fn restore_batch(
             _ => false,
         };
         if !untouched {
-            skipped.push(SkipEntry { path: path.clone(), reason: "内容已变".into() });
+            skipped.push(SkipEntry {
+                path: path.clone(),
+                reason: "内容已变".into(),
+            });
             continue;
         }
         let op = if !tf.existed_before {
@@ -140,7 +151,10 @@ pub fn restore_batch(
             match resolve_snap_bytes(&sidecar, user.as_ref(), &anchor.files, path)? {
                 Some((bytes, _)) => PlanOp::Write(bytes),
                 None => {
-                    skipped.push(SkipEntry { path: path.clone(), reason: "前像缺失".into() });
+                    skipped.push(SkipEntry {
+                        path: path.clone(),
+                        reason: "前像缺失".into(),
+                    });
                     continue;
                 }
             }
@@ -149,7 +163,9 @@ pub fn restore_batch(
     }
 
     if plan.is_empty() {
-        return Err(CkptError::Empty("没有可回退的文件(全部已处理或内容已变)".into()));
+        return Err(CkptError::Empty(
+            "没有可回退的文件(全部已处理或内容已变)".into(),
+        ));
     }
 
     // 阶段二:守卫条目(账本)→ 执行磁盘写入。
@@ -188,7 +204,10 @@ pub fn restore_batch(
                     fs::remove_file(&full)?;
                     deleted.push(path.clone());
                 } else {
-                    skipped.push(SkipEntry { path: path.clone(), reason: "已不存在".into() });
+                    skipped.push(SkipEntry {
+                        path: path.clone(),
+                        reason: "已不存在".into(),
+                    });
                 }
             }
         }
@@ -200,10 +219,13 @@ pub fn restore_batch(
     entry.reverted_paths.extend(deleted.iter().cloned());
     entry.guard_id = Some(guard.id.clone());
     let processed = turn.turn_files.iter().all(|tf| {
-        entry.reverted_paths.contains(&tf.path)
-            || skipped.iter().any(|s| s.path == tf.path)
+        entry.reverted_paths.contains(&tf.path) || skipped.iter().any(|s| s.path == tf.path)
     });
-    entry.state = if processed { "reverted".into() } else { "pending".into() };
+    entry.state = if processed {
+        "reverted".into()
+    } else {
+        "pending".into()
+    };
     states.batches.insert(batch_id.to_string(), entry.clone());
     save_states(cwd, &states)?;
 
@@ -268,7 +290,10 @@ pub fn undo_revert(cwd: &str, batch_id: &str) -> Result<RestoreOutcome, CkptErro
                     fs::remove_file(&full)?;
                     deleted.push(path.clone());
                 } else {
-                    skipped.push(SkipEntry { path: path.clone(), reason: "已不存在".into() });
+                    skipped.push(SkipEntry {
+                        path: path.clone(),
+                        reason: "已不存在".into(),
+                    });
                 }
             }
         }
@@ -291,7 +316,6 @@ pub fn undo_revert(cwd: &str, batch_id: &str) -> Result<RestoreOutcome, CkptErro
     })
 }
 
-
 /// 应用(设计点:回退**和**应用,副本作为依据):把账本固化的批后像
 /// 精确写回磁盘 —— restore 的镜像。安全纪律与回退对称:live == 批前像
 /// (或该文件已被回退删除)才写;live == 批后像 skip「已是」;其余失配
@@ -310,11 +334,8 @@ pub fn apply_batch(
         .clone();
     let turn = entries
         .iter()
-        .filter(|e| e.kind == "turn" && e.id == batch_id)
-        .next_back()
-        .ok_or_else(|| {
-            CkptError::Empty("进行中批次不可应用 —— 等本轮结算封口后再操作".into())
-        })?
+        .rfind(|e| e.kind == "turn" && e.id == batch_id)
+        .ok_or_else(|| CkptError::Empty("进行中批次不可应用 —— 等本轮结算封口后再操作".into()))?
         .clone();
 
     let sidecar = open_sidecar(cwd)?;
@@ -368,7 +389,10 @@ pub fn apply_batch(
         let live_bytes = fs::read(root.join(path)).ok();
         match live_bytes {
             Some(l) if l == after => {
-                skipped.push(SkipEntry { path: path.clone(), reason: "已是该内容".into() });
+                skipped.push(SkipEntry {
+                    path: path.clone(),
+                    reason: "已是该内容".into(),
+                });
                 continue;
             }
             Some(l) => {
@@ -397,7 +421,10 @@ pub fn apply_batch(
                             }),
                         }
                     }
-                    _ => skipped.push(SkipEntry { path: path.clone(), reason: "内容已变".into() }),
+                    _ => skipped.push(SkipEntry {
+                        path: path.clone(),
+                        reason: "内容已变".into(),
+                    }),
                 }
             }
             None => plan.push((path.clone(), PlanOp::Write(after))), // 磁盘已无 → 写回批后像
@@ -414,7 +441,11 @@ pub fn apply_batch(
             deleted: Vec::new(),
             skipped,
             guard_id: None,
-            state: if cur.state.is_empty() { "pending".into() } else { cur.state },
+            state: if cur.state.is_empty() {
+                "pending".into()
+            } else {
+                cur.state
+            },
         });
     }
 

@@ -34,7 +34,7 @@ pub use diff::{blob_patch, open_batch_patches, CkptPatch};
 pub use error::CkptError;
 pub use events::record_edit;
 pub use ledger::{anchor_turn, seal_dead_turns, seal_turn};
-pub use restore::{approve_batch, apply_batch, restore_batch, undo_revert, RestoreOutcome};
+pub use restore::{apply_batch, approve_batch, restore_batch, undo_revert, RestoreOutcome};
 pub use view::{batch_patches, derive_batches, prune};
 
 use serde::{Deserialize, Serialize};
@@ -290,7 +290,10 @@ fn open_user(cwd: &str) -> Result<git2::Repository, CkptError> {
 }
 
 /// 写 blob 进 sidecar(内容寻址,重复内容自动去重)。
-pub(crate) fn write_sidecar_blob(repo: &git2::Repository, data: &[u8]) -> Result<String, CkptError> {
+pub(crate) fn write_sidecar_blob(
+    repo: &git2::Repository,
+    data: &[u8],
+) -> Result<String, CkptError> {
     let odb = repo.odb()?;
     let oid = odb.write(git2::ObjectType::Blob, data)?;
     Ok(oid.to_string())
@@ -302,7 +305,10 @@ pub(crate) fn append_ledger(cwd: &str, entry: &LedgerEntry) -> Result<(), CkptEr
         fs::create_dir_all(parent)?;
     }
     use std::io::Write;
-    let mut f = fs::OpenOptions::new().create(true).append(true).open(&file)?;
+    let mut f = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&file)?;
     f.write_all(serde_json::to_string(entry).unwrap().as_bytes())?;
     f.write_all(b"\n")?;
     Ok(())
@@ -318,7 +324,9 @@ pub(crate) fn load_ledger(cwd: &str) -> Vec<LedgerEntry> {
     // 逐事件 append + list 秒级刷新,长账本不可接受)
     let mut index: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     for line in text.lines() {
-        let Ok(mut e) = serde_json::from_str::<LedgerEntry>(line) else { continue };
+        let Ok(mut e) = serde_json::from_str::<LedgerEntry>(line) else {
+            continue;
+        };
         if e.attribution.is_empty() {
             e.attribution = "git".into(); // 旧账本缺省
         }
