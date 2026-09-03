@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>会话列表 · 5 套方案(对齐客户端设计系统)</title>
+<style>
+  /* ── 客户端 token(src/styles/themes.css dark)── */
+  :root {
+    --bg-base: #1f1f1f;
+    --bg-elevated: #181818;
+    --bg-hover: #242424;
+    --bg-active: rgba(0,120,212,0.24);
+    --bg-input: #313131;
+    --fg: #cccccc;
+    --fg-muted: #919191;
+    --fg-subtle: #797979;
+    --fg-faint: #565656;
+    --border: #3c3c3c;
+    --border-strong: #595959;
+    --accent: #0078d4;
+    --accent-soft: rgba(0,120,212,0.24);
+    --run: #34d399;
+    --ask: #34d399;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    font-size: 12px;
+    background: #131313;
+    color: var(--fg);
+    padding: 36px 28px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+  svg { display: block; }
+  .ic { flex: none; }
+
+  .page-head { max-width: 1700px; margin: 0 auto 28px; }
+  .page-head h1 { font-size: 18px; font-weight: 600; }
+  .page-head p { margin-top: 6px; font-size: 12px; color: var(--fg-muted); }
+
+  .gallery {
+    max-width: 1700px; margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, 300px);
+    gap: 24px;
+    align-items: start;
+    justify-content: center;
+  }
+  .panel-meta { padding: 0 2px 10px; }
+  .panel-meta .no { font-size: 10px; font-weight: 700; letter-spacing: .16em; color: var(--fg-faint); font-family: var(--mono); }
+  .panel-meta h2 { font-size: 13px; font-weight: 600; margin: 3px 0 5px; }
+  .panel-meta .desc { font-size: 11px; color: var(--fg-muted); line-height: 1.5; }
+
+  .panel {
+    width: 300px;
+    background: var(--bg-base);
+    border: 1px solid #2d2d2d;
+    border-radius: 10px;
+    overflow: hidden;
+    padding-bottom: 8px;
+  }
+
+  /* ════════════════════════════════════════════════
+     01 CANOPY · 原生增强树 —— 现有体系的直接进化
+     ════════════════════════════════════════════════ */
+  .v1 .side-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px 8px; font-size: 11px; font-weight: 600;
+    letter-spacing: .06em; color: var(--fg-muted); text-transform: uppercase;
+  }
+  .v1 .side-head .tools { display: flex; gap: 2px; }
+  .v1 .tool-btn {
+    width: 22px; height: 22px; border-radius: 5px; display: grid; place-items: center;
+    color: var(--fg-muted); cursor: pointer;
+  }
+  .v1 .tool-btn:hover { background: var(--bg-hover); color: var(--fg); }
+
+  .v1 .ws-row {
+    display: flex; align-items: center; gap: 6px;
+    margin: 0 6px; padding: 4px 6px; border-radius: var(--radius-sm);
+    font-size: 12.5px; font-weight: 600; color: var(--fg); cursor: pointer;
+    transition: background-color .16s ease;
+  }
+  .v1 .ws-row:hover { background: var(--bg-hover); }
+  .v1 .ws-row.open { background: color-mix(in srgb, var(--bg-hover) 72%, transparent); }
+  .v1 .ws-row .chev { color: var(--fg-subtle); transition: transform .16s ease; }
+  .v1 .ws-row .folder { color: var(--fg-muted); }
+  .v1 .ws-row .ws-acts { margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity .16s ease; }
+  .v1 .ws-row:hover .ws-acts, .v1 .ws-row.open .ws-acts { opacity: 1; }
+  .v1 .ws-row .ws-acts .tool-btn { width: 20px; height: 20px; }
+
+  /* 树形容器:贯穿竖线 + 弯钩 */
+  .v1 .tree { position: relative; margin: 2px 0 0; padding: 0 6px 0 17px; }
+  .v1 .tree::before {
+    content: ""; position: absolute; left: 16px; top: -12px; bottom: 8px;
+    width: 1px; background: var(--border);
+  }
+  .v1 .group-label {
+    position: relative; display: flex; align-items: center; gap: 6px;
+    padding: 8px 6px 3px 10px; font-size: 10px; font-weight: 700;
+    letter-spacing: .12em; color: var(--fg-subtle);
+  }
+  .v1 .group-label::before,
+  .v1 .t-row::before {
+    content: ""; position: absolute; left: -1px; top: calc(50% - 4px);
+    width: 7px; height: 4px;
+    border-bottom: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .v1 .t-row {
+    position: relative; display: flex; align-items: center; gap: 6px;
+    margin-left: 10px; width: calc(100% - 10px);
+    padding: 3px 6px 3px 8px; min-height: 26px;
+    border-radius: var(--radius-sm); cursor: pointer;
+    color: var(--fg-muted);
+    transition: background-color .16s ease, color .16s ease;
+  }
+  .v1 .t-row:hover { background: var(--bg-hover); color: var(--fg); }
+  .v1 .t-row.active { background: color-mix(in srgb, var(--bg-hover) 72%, transparent); color: var(--fg); }
+  .v1 .engine-badge {
+    flex: none; width: 18px; display: flex; justify-content: center;
+    font-size: 11px; color: var(--fg-subtle); opacity: .8;
+  }
+  .v1 .t-row:hover .engine-badge, .v1 .t-row.active .engine-badge { opacity: 1; color: var(--fg); }
+  .v1 .t-name {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .v1 .t-row.unread .t-name { color: var(--fg); }
+  .v1 .t-meta { flex: none; display: flex; align-items: center; gap: 6px; }
+  .v1 .t-time { font-size: 11px; color: var(--fg-subtle); font-variant-numeric: tabular-nums; }
+  .v1 .pin {
+    width: 18px; height: 18px; border-radius: 4px; display: grid; place-items: center;
+    color: var(--fg-subtle); opacity: 0; cursor: pointer; transition: opacity .16s ease;
+  }
+  .v1 .t-row:hover .pin { opacity: 1; }
+  .v1 .pin:hover { background: var(--bg-hover); color: var(--fg); }
+  .v1 .pin.on { opacity: 1; color: var(--fg-muted); }
+  .v1 .pin.on svg { fill: currentColor; }
+
+  /* 呼吸灯:运行绿脉冲 / 未读 accent / 空闲灰 */
+  .v1 .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+  .v1 .dot.run { background: var(--run); animation: pulse 1.8s ease-in-out infinite; }
+  .v1 .dot.unread { background: var(--accent); animation: pulse 2.4s ease-in-out infinite; }
+  .v1 .dot.idle { background: var(--fg-faint); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+  .v1 .ask-badge {
+    flex: none; font-size: 10px; font-weight: 600; line-height: 1;
+    padding: 3px 6px; border-radius: 99px;
+    color: var(--ask);
+    background: color-mix(in srgb, var(--ask) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ask) 35%, transparent);
+  }
+  .v1 .more {
+    position: relative; margin-left: 10px; padding: 4px 8px;
+    font-size: 11px; color: var(--fg-subtle); cursor: pointer; border-radius: var(--radius-sm);
+  }
+  .v1 .more:hover { background: var(--bg-hover); color: var(--fg-muted); }
+  .v1 .more::before {
+    content: ""; position: absolute; left: -1px; top: calc(50% - 4px);
+    width: 7px; height: 4px; border-bottom: 1px solid var(--border); border-bottom-left-radius: 4px;
+  }
+
+  /* ════════════════════════════════════════════════
+     02 PALETTE · 命令面板 —— 键盘优先的高密度
+     ════════════════════════════════════════════════ */
+  .v2 { padding-bottom: 0; }
+  .v2 .quick {
+    margin: 10px 10px 8px; display: flex; align-items: center; gap: 7px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 5px 8px; color: var(--fg-subtle);
+  }
+  .v2 .quick .ph { flex: 1; font-size: 12px; }
+  .v2 kbd {
+    font-family: var(--mono); font-size: 10px; color: var(--fg-muted);
+    background: var(--bg-base); border: 1px solid var(--border);
+    border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px;
+  }
+  .v2 .ws-strip {
+    display: flex; align-items: center; gap: 5px; padding: 2px 12px 8px;
+    font-size: 11px; color: var(--fg-subtle);
+  }
+  .v2 .ws-strip b { color: var(--fg); font-weight: 600; }
+  .v2 .ws-strip .sep { color: var(--fg-faint); }
+  .v2 .g-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px 4px; font-size: 10px; font-weight: 700;
+    letter-spacing: .14em; color: var(--fg-subtle);
+  }
+  .v2 .g-head .line { flex: 1; height: 1px; background: #2b2b2b; }
+  .v2 .g-head .cnt { font-family: var(--mono); font-weight: 400; color: var(--fg-faint); letter-spacing: 0; }
+  .v2 .p-row {
+    position: relative; display: flex; align-items: center; gap: 8px;
+    height: 26px; padding: 0 12px 0 14px; cursor: pointer; color: var(--fg-muted);
+  }
+  .v2 .p-row:hover { background: var(--bg-hover); color: var(--fg); }
+  .v2 .p-row.active { background: var(--accent-soft); color: var(--fg); }
+  .v2 .p-row.active::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent);
+  }
+  .v2 .p-eng { flex: none; width: 16px; font-family: var(--mono); font-size: 10px; color: var(--fg-faint); }
+  .v2 .p-row.active .p-eng { color: var(--accent); }
+  .v2 .p-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .v2 .p-row.unread .p-name { color: var(--fg); font-weight: 600; }
+  .v2 .p-row.unread .p-name::after {
+    content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent); margin-left: 6px; vertical-align: 2px;
+  }
+  .v2 .p-time { flex: none; font-family: var(--mono); font-size: 10.5px; color: var(--fg-faint); font-variant-numeric: tabular-nums; }
+  .v2 .p-row.active .p-time { color: var(--fg-muted); }
+  .v2 .p-row .enter { display: none; }
+  .v2 .p-row.active .enter { display: inline; }
+  .v2 .p-row.active .p-time { display: none; }
+  .v2 .p-row .run-tag {
+    flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--run);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  .v2 .p-foot {
+    margin-top: 8px; padding: 7px 12px; border-top: 1px solid #2b2b2b;
+    display: flex; gap: 12px; font-size: 10.5px; color: var(--fg-faint);
+  }
+  .v2 .p-foot span { display: flex; align-items: center; gap: 4px; }
+  .v2 .p-more { padding: 3px 12px 6px 42px; font-size: 11px; color: var(--fg-faint); cursor: pointer; }
+  .v2 .p-more:hover { color: var(--fg-muted); }
+
+  /* ════════════════════════════════════════════════
+     03 HARBOR · 分区面板 —— 分组卡片化,长列表有结构
+     ════════════════════════════════════════════════ */
+  .v3 .side-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px 8px; font-size: 11px; font-weight: 600;
+    letter-spacing: .06em; color: var(--fg-muted); text-transform: uppercase;
+  }
+  .v3 .side-head .tools { display: flex; gap: 2px; }
+  .v3 .tool-btn {
+    width: 22px; height: 22px; border-radius: 5px; display: grid; place-items: center;
+    color: var(--fg-muted); cursor: pointer;
+  }
+  .v3 .tool-btn:hover { background: var(--bg-hover); color: var(--fg); }
+  .v3 .ws-row {
+    display: flex; align-items: center; gap: 6px;
+    margin: 0 8px 8px; padding: 4px 6px; border-radius: var(--radius-sm);
+    font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  .v3 .ws-row .chev { color: var(--fg-subtle); }
+  .v3 .ws-row .folder { color: var(--fg-muted); }
+  .v3 .ws-row.dim { color: var(--fg-muted); font-weight: 500; }
+  .v3 .ws-row:hover { background: var(--bg-hover); }
+  .v3 .ws-row .cnt { margin-left: auto; font-size: 10px; font-family: var(--mono); color: var(--fg-faint); }
+
+  .v3 .deck {
+    margin: 0 8px 8px; background: var(--bg-hover); /* #242424 raised */
+    border: 1px solid #2e2e2e; border-radius: var(--radius-md); overflow: hidden;
+  }
+  .v3 .deck-head {
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 9px; cursor: pointer; border-bottom: 1px solid #2b2b2b;
+  }
+  .v3 .deck-head:hover { background: #282828; }
+  .v3 .deck-head .eng-ic {
+    width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center;
+    font-size: 10px; font-weight: 700;
+  }
+  .v3 .deck-head .eng-ic.omp { background: color-mix(in srgb, var(--accent) 18%, transparent); color: #4da3e8; }
+  .v3 .deck-head .eng-ic.pi  { background: rgba(78,201,176,.13); color: #4ec9b0; }
+  .v3 .deck-head .deck-name { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--fg-muted); }
+  .v3 .deck-head .chip {
+    font-size: 10px; font-family: var(--mono); color: var(--fg-muted);
+    background: var(--bg-input); border-radius: 99px; padding: 1px 7px;
+  }
+  .v3 .deck-head .chev { margin-left: auto; color: var(--fg-subtle); }
+  .v3 .d-row {
+    display: flex; align-items: center; gap: 7px;
+    padding: 0 9px; height: 28px; cursor: pointer; color: var(--fg-muted);
+    border-left: 2px solid transparent;
+    transition: background-color .16s ease;
+  }
+  .v3 .d-row:hover { background: #2a2a2a; color: var(--fg); }
+  .v3 .d-row.active { background: var(--accent-soft); border-left-color: var(--accent); color: var(--fg); }
+  .v3 .d-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .v3 .d-row.unread .d-name { color: var(--fg); }
+  .v3 .d-time { flex: none; font-size: 10.5px; color: var(--fg-faint); font-variant-numeric: tabular-nums; }
+  .v3 .d-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; }
+  .v3 .d-dot.unread { background: var(--accent); animation: pulse 2.4s ease-in-out infinite; }
+  .v3 .spin { flex: none; animation: rot 1.2s linear infinite; color: var(--run); }
+  @keyframes rot { to { transform: rotate(360deg); } }
+  .v3 .deck-foot {
+    padding: 5px 9px; font-size: 11px; color: var(--fg-subtle); cursor: pointer;
+    border-top: 1px solid #2b2b2b;
+  }
+  .v3 .deck-foot:hover { color: var(--fg-muted); background: #282828; }
+
+  /* ════════════════════════════════════════════════
+     04 FLUX · 时间轴 —— 以时间为第一维度的流式组织
+     ════════════════════════════════════════════════ */
+  .v4 .side-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px 8px; font-size: 11px; font-weight: 600;
+    letter-spacing: .06em; color: var(--fg-muted); text-transform: uppercase;
+  }
+  .v4 .side-head .tools { display: flex; gap: 2px; }
+  .v4 .tool-btn {
+    width: 22px; height: 22px; border-radius: 5px; display: grid; place-items: center;
+    color: var(--fg-muted); cursor: pointer;
+  }
+  .v4 .tool-btn:hover { background: var(--bg-hover); color: var(--fg); }
+  .v4 .ws-now {
+    display: flex; align-items: center; gap: 6px;
+    margin: 0 8px 6px; padding: 4px 6px; font-size: 12px; color: var(--fg-muted);
+  }
+  .v4 .ws-now b { color: var(--fg); font-weight: 600; }
+  .v4 .ws-now .chev { margin-left: auto; color: var(--fg-subtle); }
+
+  .v4 .tl { position: relative; margin-left: 19px; padding-left: 14px; }
+  .v4 .tl::before {
+    content: ""; position: absolute; left: 0; top: 4px; bottom: 10px;
+    width: 1px; background: var(--border);
+  }
+  .v4 .day {
+    position: relative; padding: 7px 0 3px; font-size: 10px; font-weight: 700;
+    letter-spacing: .12em; color: var(--fg-subtle);
+  }
+  .v4 .day::before {
+    content: ""; position: absolute; left: -17.5px; top: 12px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--bg-base); border: 1.5px solid var(--border-strong);
+  }
+  .v4 .f-row {
+    position: relative; display: flex; align-items: center; gap: 7px;
+    margin: 1px 8px 1px 0; padding: 4px 8px; border-radius: var(--radius-sm);
+    cursor: pointer; color: var(--fg-muted);
+    transition: background-color .16s ease;
+  }
+  .v4 .f-row:hover { background: var(--bg-hover); color: var(--fg); }
+  .v4 .f-row.active { background: color-mix(in srgb, var(--bg-hover) 72%, transparent); color: var(--fg); }
+  /* 时间节点 */
+  .v4 .node {
+    position: absolute; left: -17.5px; top: 50%; transform: translateY(-50%);
+    width: 7px; height: 7px; border-radius: 50%; background: var(--fg-faint);
+  }
+  .v4 .node.run { background: var(--run); box-shadow: 0 0 0 2px color-mix(in srgb, var(--run) 25%, transparent); }
+  .v4 .node.unread { background: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .v4 .f-row.active .node { box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 4px color-mix(in srgb, var(--accent) 10%, transparent); background: var(--accent); }
+  .v4 .f-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .v4 .f-row.unread .f-name { color: var(--fg); font-weight: 600; }
+  .v4 .f-tag {
+    flex: none; font-size: 9px; font-weight: 700; font-family: var(--mono);
+    padding: 1px 4px; border-radius: 3px; letter-spacing: .04em;
+  }
+  .v4 .f-tag.omp { color: #4da3e8; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .v4 .f-tag.pi  { color: #4ec9b0; background: rgba(78,201,176,.1); }
+  .v4 .f-time { flex: none; font-family: var(--mono); font-size: 10.5px; color: var(--fg-faint); font-variant-numeric: tabular-nums; }
+  .v4 .f-row.active .f-time { color: var(--fg-muted); }
+  .v4 .tl-more { padding: 4px 8px 6px; font-size: 11px; color: var(--fg-faint); cursor: pointer; }
+  .v4 .tl-more:hover { color: var(--fg-muted); }
+
+  /* ════════════════════════════════════════════════
+     05 MATRIX · 紧凑矩阵 —— 22px 行高,状态图标列
+     ════════════════════════════════════════════════ */
+  .v5 { padding-bottom: 0; }
+  .v5 .side-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 10px 7px; font-size: 11px; font-weight: 600;
+    letter-spacing: .06em; color: var(--fg-muted); text-transform: uppercase;
+    border-bottom: 1px solid #2b2b2b;
+  }
+  .v5 .side-head .tools { display: flex; gap: 2px; }
+  .v5 .tool-btn {
+    width: 22px; height: 22px; border-radius: 5px; display: grid; place-items: center;
+    color: var(--fg-muted); cursor: pointer;
+  }
+  .v5 .tool-btn:hover { background: var(--bg-hover); color: var(--fg); }
+  .v5 .ws-block { padding: 5px 10px 3px; }
+  .v5 .ws-line {
+    display: flex; align-items: center; gap: 6px; height: 22px;
+    font-size: 12px; color: var(--fg-muted); cursor: pointer; border-radius: 4px; padding: 0 4px;
+  }
+  .v5 .ws-line:hover { background: var(--bg-hover); }
+  .v5 .ws-line.sel { color: var(--fg); font-weight: 600; }
+  .v5 .ws-line .chev { color: var(--fg-subtle); }
+  .v5 .m-head {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px 3px; font-size: 9.5px; font-weight: 700;
+    letter-spacing: .16em; color: var(--fg-faint);
+  }
+  .v5 .m-head .cnt { font-family: var(--mono); font-weight: 400; letter-spacing: 0; }
+  .v5 .m-row {
+    display: flex; align-items: center; gap: 6px;
+    height: 23px; padding: 0 10px 0 14px; cursor: pointer;
+    color: var(--fg-muted); border-radius: 4px; margin: 0 4px;
+    transition: background-color .12s ease;
+  }
+  .v5 .m-row:hover { background: var(--bg-hover); color: var(--fg); }
+  .v5 .m-row.active { background: var(--accent-soft); color: var(--fg); }
+  .v5 .st { flex: none; width: 13px; display: grid; place-items: center; }
+  .v5 .st.run { color: var(--run); }
+  .v5 .st.unread { color: var(--accent); }
+  .v5 .st.idle { color: var(--fg-faint); }
+  .v5 .st.done { color: var(--fg-subtle); }
+  .v5 .m-eng { flex: none; width: 12px; font-family: var(--mono); font-size: 9px; color: var(--fg-subtle); text-align: center; }
+  .v5 .m-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .v5 .m-row.unread .m-name { color: var(--fg); font-weight: 600; }
+  .v5 .m-time { flex: none; font-family: var(--mono); font-size: 10px; color: var(--fg-faint); font-variant-numeric: tabular-nums; }
+  /* hover 行为组:替换时间 */
+  .v5 .m-acts { flex: none; display: none; gap: 1px; }
+  .v5 .m-row:hover .m-acts { display: flex; }
+  .v5 .m-row:hover .m-time { display: none; }
+  .v5 .m-acts .tool-btn { width: 17px; height: 17px; border-radius: 3px; color: var(--fg-subtle); }
+  .v5 .m-acts .tool-btn:hover { background: var(--bg-input); color: var(--fg); }
+  .v5 .m-more {
+    height: 22px; display: flex; align-items: center; margin: 0 4px; padding: 0 10px 0 40px;
+    font-size: 10.5px; color: var(--fg-faint); cursor: pointer; border-radius: 4px;
+  }
+  .v5 .m-more:hover { background: var(--bg-hover); color: var(--fg-muted); }
+  .v5 .m-foot {
+    margin-top: 6px; padding: 5px 14px; border-top: 1px solid #2b2b2b;
+    font-family: var(--mono); font-size: 9.5px; color: var(--fg-faint);
+    display: flex; justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-chev-d" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 16 16"><path d="M2 4.5A1.5 1.5 0 013.5 3h2.6l1.4 1.6h5A1.5 1.5 0 0114 6.1v5.4a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 11.5v-7z" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 16 16"><path d="M2 5.5h9M8.5 3l2.5 2.5L8.5 8M14 10.5H5M7.5 8 5 10.5 7.5 13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 16 16"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M13.5 8a5.5 5.5 0 11-1.6-3.9M13.5 2.5v2.6h-2.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-open" viewBox="0 0 16 16"><path d="M6.5 3.5H3.5v9h9V9.5M9.5 3.5h3v3M12.2 3.8 7 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 16 16"><path d="M9.5 2.5 13.5 6.5 12 8l-1.5-.5-2.5 2.5.5 2.5-1.5 1.5-3-3L1.5 14.5 3 9.5l-3-3L1.5 5l2.5.5L6.5 3 6 1.5z" transform="translate(1.2 1.2) scale(0.86)" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10.2 10.2 14 14" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="i-loader" viewBox="0 0 16 16"><path d="M8 2a6 6 0 016 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-circle" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3" fill="currentColor"/></symbol>
+    <symbol id="i-circle-o" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 16 16"><path d="M11 2.5 13.5 5 5.5 13H3v-2.5z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="page-head">
+  <h1>会话列表 · 5 套方案</h1>
+  <p>严格使用客户端设计 token(#1f1f1f / #242424 / #0078d4 / 12px / 呼吸灯语义)· 真实侧栏宽度 300px · 悬停行查看 hover 与行内操作</p>
+</div>
+
+<div class="gallery">
+
+  <!-- ════════ 01 CANOPY ════════ -->
+  <div>
+    <div class="panel-meta">
+      <div class="no">01 / CANOPY</div>
+      <h2>原生增强树</h2>
+      <div class="desc">现有体系的直接进化:贯穿竖线 + 弯钩、呼吸灯取代时间表达状态、hover 浮现扎点。改动最小、风险最低。</div>
+    </div>
+    <div class="panel v1">
+      <div class="side-head">
+        <span>工作区</span>
+        <span class="tools">
+          <span class="tool-btn"><svg class="ic" width="13" height="13"><use href="#i-swap"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="13" height="13"><use href="#i-menu"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="13" height="13"><use href="#i-plus"/></svg></span>
+        </span>
+      </div>
+      <div class="ws-row"><svg class="ic chev" width="12" height="12"><use href="#i-chev-r"/></svg><svg class="ic folder" width="14" height="14"><use href="#i-folder"/></svg>default</div>
+      <div class="ws-row"><svg class="ic chev" width="12" height="12"><use href="#i-chev-r"/></svg><svg class="ic folder" width="14" height="14"><use href="#i-folder"/></svg>springboot-demo</div>
+      <div class="ws-row open"><svg class="ic chev" width="12" height="12"><use href="#i-chev-d"/></svg><svg class="ic folder" width="14" height="14"><use href="#i-folder"/></svg>tmd-cli
+        <span class="ws-acts">
+          <span class="tool-btn"><svg class="ic" width="12" height="12"><use href="#i-open"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="12" height="12"><use href="#i-refresh"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="12" height="12"><use href="#i-plus"/></svg></span>
+        </span>
+      </div>
+      <div class="tree">
+        <div class="group-label">OMP</div>
+        <div class="t-row active">
+          <span class="engine-badge">π</span>
+          <span class="t-name">Fix breathing light animation</span>
+          <span class="t-meta"><span class="dot run"></span></span>
+        </div>
+        <div class="t-row unread">
+          <span class="engine-badge">π</span>
+          <span class="t-name">我先查看工作区结构和…</span>
+          <span class="t-meta"><span class="dot unread"></span></span>
+        </div>
+        <div class="t-row">
+          <span class="engine-badge">π</span>
+          <span class="t-name">Hide pinned global threads</span>
+          <span class="t-meta"><span class="ask-badge">等待确认</span></span>
+        </div>
+        <div class="t-row">
+          <span class="engine-badge">π</span>
+          <span class="t-name">Review, fix, and polish UI</span>
+          <span class="t-meta"><span class="t-time">3 小时前</span><span class="pin"><svg class="ic" width="11" height="11"><use href="#i-pin"/></svg></span></span>
+        </div>
+        <div class="t-row">
+          <span class="engine-badge">π</span>
+          <span class="t-name">Align file list rendering</span>
+          <span class="t-meta"><span class="t-time">4 小时前</span><span class="pin on"><svg class="ic" width="11" height="11"><use href="#i-pin"/></svg></span></span>
+        </div>
+        <div class="more">更多… (还有 62 条)</div>
+        <div class="group-label">PI</div>
+        <div class="t-row">
+          <span class="engine-badge">P</span>
+          <span class="t-name">你好</span>
+          <span class="t-meta"><span class="t-time">16 小时前</span></span>
+        </div>
+        <div class="t-row">
+          <span class="engine-badge">P</span>
+          <span class="t-name">@/var/folders/p5/…</span>
+          <span class="t-meta"><span class="t-time">17 小时前</span></span>
+        </div>
+        <div class="t-row">
+          <span class="engine-badge">P</span>
+          <span class="t-name">我想知道.我能否打包…</span>
+          <span class="t-meta"><span class="t-time">22 小时前</span></span>
+        </div>
+        <div class="t-row">
+          <span class="engine-badge">P</span>
+          <span class="t-name">检索一下看看当前项目有…</span>
+          <span class="t-meta"><span class="t-time">1 天前</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ 02 PALETTE ════════ -->
+  <div>
+    <div class="panel-meta">
+      <div class="no">02 / PALETTE</div>
+      <h2>命令面板</h2>
+      <div class="desc">Quick Pick 语言:顶部筛选框、等宽时间列、选中行给 ↵ 提示、底部快捷键栏。键盘用户的最高效率形态。</div>
+    </div>
+    <div class="panel v2">
+      <div class="quick">
+        <svg class="ic" width="12" height="12"><use href="#i-search"/></svg>
+        <span class="ph">筛选会话…</span>
+        <kbd>⌘K</kbd>
+      </div>
+      <div class="ws-strip"><b>tmd-cli</b><span class="sep">/</span><span>全部会话</span><span style="margin-left:auto;width:18px;height:18px;display:inline-grid;place-items:center;color:var(--fg-subtle);cursor:pointer"><svg class="ic" width="12" height="12"><use href="#i-swap"/></svg></span></div>
+      <div class="g-head">OMP<span class="line"></span><span class="cnt">63</span></div>
+      <div class="p-row active">
+        <span class="p-eng">π</span>
+        <span class="p-name">Fix breathing light animation</span>
+        <span class="run-tag"></span>
+        <span class="p-time">12m</span>
+        <kbd class="enter">↵</kbd>
+      </div>
+      <div class="p-row unread">
+        <span class="p-eng">π</span>
+        <span class="p-name">我先查看工作区结构和…</span>
+        <span class="p-time">1h</span>
+      </div>
+      <div class="p-row">
+        <span class="p-eng">π</span>
+        <span class="p-name">Hide pinned global threads</span>
+        <span class="p-time">1h</span>
+      </div>
+      <div class="p-row">
+        <span class="p-eng">π</span>
+        <span class="p-name">Review, fix, and polish UI</span>
+        <span class="p-time">3h</span>
+      </div>
+      <div class="p-row">
+        <span class="p-eng">π</span>
+        <span class="p-name">Align file list rendering</span>
+        <span class="p-time">4h</span>
+      </div>
+      <div class="p-more">… 62 more</div>
+      <div class="g-head">PI<span class="line"></span><span class="cnt">4</span></div>
+      <div class="p-row">
+        <span class="p-eng">P</span>
+        <span class="p-name">你好</span>
+        <span class="p-time">16h</span>
+      </div>
+      <div class="p-row">
+        <span class="p-eng">P</span>
+        <span class="p-name">@/var/folders/p5/…</span>
+        <span class="p-time">17h</span>
+      </div>
+      <div class="p-row">
+        <span class="p-eng">P</span>
+        <span class="p-name">我想知道.我能否打包…</span>
+        <span class="p-time">22h</span>
+      </div>
+      <div class="p-row">
+        <span class="p-eng">P</span>
+        <span class="p-name">检索一下看看当前项目有…</span>
+        <span class="p-time">1d</span>
+      </div>
+      <div class="p-foot">
+        <span><kbd>↑↓</kbd> 导航</span><span><kbd>↵</kbd> 打开</span><span><kbd>⌘P</kbd> 扎点</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ 03 HARBOR ════════ -->
+  <div>
+    <div class="panel-meta">
+      <div class="no">03 / HARBOR</div>
+      <h2>分区面板</h2>
+      <div class="desc">每个 CLI 引擎一张抬升卡片:头部带计数 chip 与折叠,选中行 2px accent 描边。60+ 条长列表的结构化解法。</div>
+    </div>
+    <div class="panel v3">
+      <div class="side-head">
+        <span>工作区</span>
+        <span class="tools">
+          <span class="tool-btn"><svg class="ic" width="13" height="13"><use href="#i-swap"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="13" height="13"><use href="#i-menu"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="13" height="13"><use href="#i-plus"/></svg></span>
+        </span>
+      </div>
+      <div class="ws-row dim"><svg class="ic chev" width="12" height="12"><use href="#i-chev-r"/></svg><svg class="ic folder" width="14" height="14"><use href="#i-folder"/></svg>default<span class="cnt">2</span></div>
+      <div class="ws-row dim"><svg class="ic chev" width="12" height="12"><use href="#i-chev-r"/></svg><svg class="ic folder" width="14" height="14"><use href="#i-folder"/></svg>springboot-demo<span class="cnt">0</span></div>
+      <div class="ws-row"><svg class="ic chev" width="12" height="12"><use href="#i-chev-d"/></svg><svg class="ic folder" width="14" height="14"><use href="#i-folder"/></svg>tmd-cli<span class="cnt">67</span></div>
+
+      <div class="deck">
+        <div class="deck-head">
+          <span class="eng-ic omp">π</span>
+          <span class="deck-name">OMP</span>
+          <span class="chip">63</span>
+          <svg class="ic chev" width="12" height="12"><use href="#i-chev-d"/></svg>
+        </div>
+        <div class="d-row active">
+          <svg class="ic spin" width="11" height="11"><use href="#i-loader"/></svg>
+          <span class="d-name">Fix breathing light animation</span>
+          <span class="d-time">12 分钟前</span>
+        </div>
+        <div class="d-row unread">
+          <span class="d-name" style="padding-left:18px">我先查看工作区结构和…</span>
+          <span class="d-dot unread"></span>
+        </div>
+        <div class="d-row">
+          <span class="d-name" style="padding-left:18px">Hide pinned global threads</span>
+          <span class="d-time">1 小时前</span>
+        </div>
+        <div class="d-row">
+          <span class="d-name" style="padding-left:18px">Review, fix, and polish UI</span>
+          <span class="d-time">3 小时前</span>
+        </div>
+        <div class="d-row">
+          <span class="d-name" style="padding-left:18px">Align file list rendering</span>
+          <span class="d-time">4 小时前</span>
+        </div>
+        <div class="deck-foot">显示全部 63 条</div>
+      </div>
+
+      <div class="deck">
+        <div class="deck-head">
+          <span class="eng-ic pi">P</span>
+          <span class="deck-name">PI</span>
+          <span class="chip">4</span>
+          <svg class="ic chev" width="12" height="12"><use href="#i-chev-d"/></svg>
+        </div>
+        <div class="d-row">
+          <span class="d-name" style="padding-left:18px">你好</span>
+          <span class="d-time">16 小时前</span>
+        </div>
+        <div class="d-row">
+          <span class="d-name" style="padding-left:18px">@/var/folders/p5/…</span>
+          <span class="d-time">17 小时前</span>
+        </div>
+        <div class="d-row">
+          <span class="d-name" style="padding-left:18px">我想知道.我能否打包…</span>
+          <span class="d-time">22 小时前</span>
+        </div>
+        <div class="d-row">
+          <span class="d-name" style="padding-left:18px">检索一下看看当前项目有…</span>
+          <span class="d-time">1 天前</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ 04 FLUX ════════ -->
+  <div>
+    <div class="panel-meta">
+      <div class="no">04 / FLUX</div>
+      <h2>时间轴流</h2>
+      <div class="desc">以时间为第一维度:今天/昨天/本周分段,节点颜色即状态,引擎退居为标题后的 tag。回答「最近在干什么」最快。</div>
+    </div>
+    <div class="panel v4">
+      <div class="side-head">
+        <span>工作区</span>
+        <span class="tools">
+          <span class="tool-btn"><svg class="ic" width="13" height="13"><use href="#i-swap"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="13" height="13"><use href="#i-menu"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="13" height="13"><use href="#i-plus"/></svg></span>
+        </span>
+      </div>
+      <div class="ws-now">
+        <svg class="ic" width="14" height="14"><use href="#i-folder"/></svg>
+        <b>tmd-cli</b>
+        <svg class="ic chev" width="12" height="12"><use href="#i-chev-d"/></svg>
+      </div>
+      <div class="tl">
+        <div class="day">今天</div>
+        <div class="f-row active">
+          <span class="node run"></span>
+          <span class="f-name">Fix breathing light animation</span>
+          <span class="f-tag omp">OMP</span>
+          <span class="f-time">12m</span>
+        </div>
+        <div class="f-row unread">
+          <span class="node unread"></span>
+          <span class="f-name">我先查看工作区结构和…</span>
+          <span class="f-tag omp">OMP</span>
+          <span class="f-time">1h</span>
+        </div>
+        <div class="f-row">
+          <span class="node"></span>
+          <span class="f-name">Hide pinned global threads</span>
+          <span class="f-tag omp">OMP</span>
+          <span class="f-time">1h</span>
+        </div>
+        <div class="f-row">
+          <span class="node"></span>
+          <span class="f-name">Review, fix, and polish UI</span>
+          <span class="f-tag omp">OMP</span>
+          <span class="f-time">3h</span>
+        </div>
+        <div class="f-row">
+          <span class="node"></span>
+          <span class="f-name">Align file list rendering</span>
+          <span class="f-tag omp">OMP</span>
+          <span class="f-time">4h</span>
+        </div>
+        <div class="f-row">
+          <span class="node"></span>
+          <span class="f-name">你好</span>
+          <span class="f-tag pi">PI</span>
+          <span class="f-time">16h</span>
+        </div>
+        <div class="day">昨天</div>
+        <div class="f-row">
+          <span class="node"></span>
+          <span class="f-name">@/var/folders/p5/…</span>
+          <span class="f-tag pi">PI</span>
+          <span class="f-time">17h</span>
+        </div>
+        <div class="f-row">
+          <span class="node"></span>
+          <span class="f-name">我想知道.我能否打包…</span>
+          <span class="f-tag pi">PI</span>
+          <span class="f-time">22h</span>
+        </div>
+        <div class="day">更早</div>
+        <div class="f-row">
+          <span class="node"></span>
+          <span class="f-name">检索一下看看当前项目有…</span>
+          <span class="f-tag pi">PI</span>
+          <span class="f-time">1d</span>
+        </div>
+        <div class="tl-more">加载更早的 58 条…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ 05 MATRIX ════════ -->
+  <div>
+    <div class="panel-meta">
+      <div class="no">05 / MATRIX</div>
+      <h2>紧凑矩阵</h2>
+      <div class="desc">23px 行高、状态图标列、hover 时时间让位给操作组(扎点/重命名/关闭)。一屏容量最大的专家形态。</div>
+    </div>
+    <div class="panel v5">
+      <div class="side-head">
+        <span>工作区</span>
+        <span class="tools">
+          <span class="tool-btn"><svg class="ic" width="13" height="13"><use href="#i-swap"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="13" height="13"><use href="#i-menu"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="13" height="13"><use href="#i-plus"/></svg></span>
+        </span>
+      </div>
+      <div class="ws-block">
+        <div class="ws-line"><svg class="ic chev" width="11" height="11"><use href="#i-chev-r"/></svg><svg class="ic" width="12" height="12"><use href="#i-folder"/></svg>default</div>
+        <div class="ws-line"><svg class="ic chev" width="11" height="11"><use href="#i-chev-r"/></svg><svg class="ic" width="12" height="12"><use href="#i-folder"/></svg>springboot-demo</div>
+        <div class="ws-line sel"><svg class="ic chev" width="11" height="11"><use href="#i-chev-d"/></svg><svg class="ic" width="12" height="12"><use href="#i-folder"/></svg>tmd-cli</div>
+      </div>
+      <div class="m-head">OMP <span class="cnt">· 63</span></div>
+      <div class="m-row active">
+        <span class="st run"><svg class="ic" width="11" height="11"><use href="#i-loader"/></svg></span>
+        <span class="m-eng">π</span>
+        <span class="m-name">Fix breathing light animation</span>
+        <span class="m-time">12m</span>
+        <span class="m-acts">
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pin"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pencil"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-x"/></svg></span>
+        </span>
+      </div>
+      <div class="m-row unread">
+        <span class="st unread"><svg class="ic" width="11" height="11"><use href="#i-circle"/></svg></span>
+        <span class="m-eng">π</span>
+        <span class="m-name">我先查看工作区结构和…</span>
+        <span class="m-time">1h</span>
+        <span class="m-acts">
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pin"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pencil"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-x"/></svg></span>
+        </span>
+      </div>
+      <div class="m-row">
+        <span class="st done"><svg class="ic" width="11" height="11"><use href="#i-check"/></svg></span>
+        <span class="m-eng">π</span>
+        <span class="m-name">Hide pinned global threads</span>
+        <span class="m-time">1h</span>
+        <span class="m-acts">
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pin"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pencil"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-x"/></svg></span>
+        </span>
+      </div>
+      <div class="m-row">
+        <span class="st done"><svg class="ic" width="11" height="11"><use href="#i-check"/></svg></span>
+        <span class="m-eng">π</span>
+        <span class="m-name">Review, fix, and polish UI</span>
+        <span class="m-time">3h</span>
+        <span class="m-acts">
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pin"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pencil"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-x"/></svg></span>
+        </span>
+      </div>
+      <div class="m-row">
+        <span class="st idle"><svg class="ic" width="11" height="11"><use href="#i-circle-o"/></svg></span>
+        <span class="m-eng">π</span>
+        <span class="m-name">Align file list rendering</span>
+        <span class="m-time">4h</span>
+        <span class="m-acts">
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pin"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pencil"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-x"/></svg></span>
+        </span>
+      </div>
+      <div class="m-more">… 62 more</div>
+      <div class="m-head">PI <span class="cnt">· 4</span></div>
+      <div class="m-row">
+        <span class="st done"><svg class="ic" width="11" height="11"><use href="#i-check"/></svg></span>
+        <span class="m-eng">P</span>
+        <span class="m-name">你好</span>
+        <span class="m-time">16h</span>
+        <span class="m-acts">
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pin"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pencil"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-x"/></svg></span>
+        </span>
+      </div>
+      <div class="m-row">
+        <span class="st idle"><svg class="ic" width="11" height="11"><use href="#i-circle-o"/></svg></span>
+        <span class="m-eng">P</span>
+        <span class="m-name">@/var/folders/p5/…</span>
+        <span class="m-time">17h</span>
+        <span class="m-acts">
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pin"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pencil"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-x"/></svg></span>
+        </span>
+      </div>
+      <div class="m-row">
+        <span class="st idle"><svg class="ic" width="11" height="11"><use href="#i-circle-o"/></svg></span>
+        <span class="m-eng">P</span>
+        <span class="m-name">我想知道.我能否打包…</span>
+        <span class="m-time">22h</span>
+        <span class="m-acts">
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pin"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pencil"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-x"/></svg></span>
+        </span>
+      </div>
+      <div class="m-row">
+        <span class="st idle"><svg class="ic" width="11" height="11"><use href="#i-circle-o"/></svg></span>
+        <span class="m-eng">P</span>
+        <span class="m-name">检索一下看看当前项目有…</span>
+        <span class="m-time">1d</span>
+        <span class="m-acts">
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pin"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-pencil"/></svg></span>
+          <span class="tool-btn"><svg class="ic" width="10" height="10"><use href="#i-x"/></svg></span>
+        </span>
+      </div>
+      <div class="m-foot"><span>67 sessions</span><span>omp 63 · pi 4</span></div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

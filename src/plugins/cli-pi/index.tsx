@@ -1,4 +1,6 @@
 import { readJsonlSessionStatus } from "../cli-shared/sessionStatus";
+import { parsePiFamilySessionHead } from "../cli-shared/sessionIdentity";
+import { ipc } from "@kernel/ipc";
 import {
   findJsonlSessionFile,
   ompPiUserMessageLine,
@@ -79,6 +81,12 @@ async function readPiSessionStatus(cwd: string, cliSessionId: string) {
   );
 }
 
+/** 身份自证:头部 {"type":"session","id","cwd","timestamp"} 行(与 omp 同族,共享解析)。 */
+async function readPiSessionIdentity(path: string) {
+  const head = await ipc.fsReadHead(path, 4 * 1024).catch(() => null);
+  return head ? parsePiFamilySessionHead(head) : null;
+}
+
 async function readPiUserMessages(cwd: string, cliSessionId: string, full: boolean) {
   const dir = await piSessionsDir(cwd);
   if (!dir) return null;
@@ -124,6 +132,7 @@ export const cliPiPlugin: Plugin = {
       bracketedPaste: true,
       listSessions: listPiSessions,
       readSessionStatus: readPiSessionStatus,
+      readSessionFileIdentity: readPiSessionIdentity,
       readDefaultStatus: readPiDefaultStatus,
       readSessionUserMessages: readPiUserMessages,
     });

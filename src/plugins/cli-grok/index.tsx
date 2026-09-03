@@ -112,6 +112,33 @@ export function parseGrokSummary(raw: string): GrokSummary | null {
 
 const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+/**
+ * 身份自证:path = 会话目录,summary.json 的 info.{id,cwd} + created_at
+ * (会话创建时刻,ISO 8601;内容级绑定按它对齐 spawn 时刻)。
+ */
+async function readGrokSessionIdentity(path: string) {
+  const raw = await ipc.fsReadFile(`${path}/summary.json`).catch(() => null);
+  if (!raw) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const info: unknown = (parsed as Record<string, unknown>).info;
+  if (!info || typeof info !== "object") return null;
+  const id = summaryString(info, "id");
+  if (!id) return null;
+  const iso = summaryString(parsed, "created_at");
+  const ms = iso ? Date.parse(iso) : NaN;
+  return {
+    id,
+    cwd: summaryString(info, "cwd"),
+    createdAt: Number.isFinite(ms) ? ms : undefined,
+  };
+}
+
 async function listGrokSessions(cwd: string): Promise<CliDiskSession[]> {
   const dir = await grokSessionsDir(cwd);
   if (!dir) return [];
@@ -215,6 +242,7 @@ export const cliGrokPlugin: Plugin = {
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listGrokSessions,
       readSessionStatus: readGrokSessionStatus,
+      readSessionFileIdentity: readGrokSessionIdentity,
       readSessionUserMessages: readGrokUserMessages,
       readDefaultStatus: readGrokDefaultStatus,
     };

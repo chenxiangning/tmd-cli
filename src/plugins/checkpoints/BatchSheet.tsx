@@ -12,10 +12,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronRight, Loader2, RotateCcw } from "lucide-react";
 import { useEditorTabs } from "@kernel/tabs";
-import { formatRelativeTime } from "@kernel/relativeTime";
+import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
 import type { CkptBatch, CkptPatch } from "@kernel/ipc";
 import { approveBatch, getCachedDiff, loadDiff, refreshBatches, refreshOpenDiff, revertBatch, useCkptVersion, useCkptBatches } from "./store";
 import { readBatchPayload } from "./batchTab";
+
+/** 轮耗时短语(锚点 → 封口);秒取整,分段到时。 */
+function formatDuration(ms: number): string {
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s} 秒`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} 分 ${s % 60} 秒`;
+  return `${Math.floor(m / 60)} 小时 ${m % 60} 分`;
+}
 
 export function BatchSheetTabContent() {
   const { activeId, tabs } = useEditorTabs();
@@ -146,7 +155,10 @@ function SheetBody({
     <div className="flex h-full flex-col">
       {/* 工具条 */}
       <div className="flex h-8 flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-3">
-        <span className="text-[11px] text-(--tmd-fg-faint)">
+        <span
+          className="text-[11px] text-(--tmd-fg-faint)"
+          title={`${formatAbsolute(batch.ts)} 发起${batch.tsEnd ? ` · ${formatAbsolute(batch.tsEnd)} 封口` : ""}`}
+        >
           批次 #{batch.index} · {stateLabel} · {formatRelativeTime(batch.ts)}
         </span>
         {patches && (
@@ -215,8 +227,29 @@ function SheetBody({
           </div>
         ) : (
           <>
-            <div className="mb-2 text-[11px] text-(--tmd-fg-faint)">
-              用户消息 · {formatRelativeTime(batch.ts)}
+            {/* 账本随批固化的元信息:引擎/模型/思考 + 精确时刻 + 轮耗时(空段隐藏) */}
+            <div className="mb-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-(--tmd-fg-faint)">
+              <span className="flex-none">用户消息</span>
+              {batch.engine && (
+                <span className="flex-none rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) px-1 text-[10px] leading-[16px] text-(--tmd-fg-muted)">
+                  {batch.engine}
+                </span>
+              )}
+              {batch.model && (
+                <span className="flex-none font-mono text-(--tmd-fg-muted)">{batch.model}</span>
+              )}
+              {batch.thinking && (
+                <span className="flex-none">
+                  思考 <span className="font-mono text-(--tmd-fg-muted)">{batch.thinking}</span>
+                </span>
+              )}
+              <span className="flex-none">
+                {formatAbsolute(batch.ts)}
+                <span className="ml-1.5">({formatRelativeTime(batch.ts)})</span>
+              </span>
+              {batch.tsEnd != null && batch.tsEnd > batch.ts && (
+                <span className="flex-none">耗时 {formatDuration(batch.tsEnd - batch.ts)}</span>
+              )}
             </div>
             <div className="whitespace-pre-wrap break-words rounded-r border-l-2 border-(--tmd-accent) bg-(--tmd-bg-hover) px-3.5 py-2.5 text-[13px] leading-relaxed text-(--tmd-fg)">
               {batch.prompt}

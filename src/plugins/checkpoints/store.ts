@@ -11,7 +11,7 @@
  */
 
 import { useSyncExternalStore } from "react";
-import { ipc, type CkptBatch, type CkptPatch } from "@kernel/ipc";
+import { ipc, type CkptAnchorMeta, type CkptBatch, type CkptPatch } from "@kernel/ipc";
 
 export interface CwdCkptState {
   batches: CkptBatch[];
@@ -78,6 +78,7 @@ export function refreshBatches(
 
 /**
  * 记第 N 轮锚点(prompt 发送瞬间);后端隐式先封上一轮并做 CLI 身份回填。
+ * meta = 发送时刻的引擎/模型/思考强度快照,随锚点固化进账本。
  * 失败后台重试一次,不阻塞发送路径。
  */
 export function captureAnchor(
@@ -85,8 +86,9 @@ export function captureAnchor(
   sessionId: string,
   tmdSessionId: string,
   prompt: string,
+  meta: CkptAnchorMeta,
 ): void {
-  const run = () => ipc.checkpointAnchor(cwd, sessionId, tmdSessionId, prompt);
+  const run = () => ipc.checkpointAnchor(cwd, sessionId, tmdSessionId, prompt, meta);
   run().catch(() => {
     window.setTimeout(() => {
       run()

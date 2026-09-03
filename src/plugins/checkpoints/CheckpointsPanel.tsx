@@ -12,7 +12,7 @@ import { Check, History, Loader2, RotateCcw, Undo2 } from "lucide-react";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
-import { formatRelativeTime } from "@kernel/relativeTime";
+import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
 import type { CkptBatch, CkptBatchFile, CkptPatch } from "@kernel/ipc";
 import { checkpointIdentity } from "./identity";
 import {
@@ -287,7 +287,10 @@ function BatchRow({
       <button
         type="button"
         className="relative z-[1] flex w-full items-start gap-2 rounded-(--tmd-radius-sm) px-2.5 py-1.5 text-left hover:bg-(--tmd-bg-hover)"
-        title="点击审阅该批(用户消息 + 文件 diff)"
+        title={
+          `点击审阅该批(用户消息 + 文件 diff) · ${formatAbsolute(b.ts)} 发起` +
+          (b.tsEnd ? ` · ${formatAbsolute(b.tsEnd)} 封口` : "")
+        }
         onClick={() =>
           openBatchTab({ cwd, sessionId, tmdSessionId, batchId: b.id, title: `批次 #${b.index}` })
         }
@@ -319,7 +322,19 @@ function BatchRow({
               {meta.label}
               {st === "done" && b.doneReason ? ` · ${b.doneReason}` : ""}
             </span>
-            <span className="ml-auto flex-none">{formatRelativeTime(b.ts)}</span>
+            {(b.engine || b.model) && (
+              <span
+                className="min-w-0 truncate text-[10px]"
+                title={[b.engine, b.model, b.thinking ? `思考 ${b.thinking}` : ""].filter(Boolean).join(" · ")}
+              >
+                {b.engine}
+                {b.engine && b.model ? " · " : ""}
+                {b.model}
+              </span>
+            )}
+            <span className="ml-auto flex-none" title={formatAbsolute(b.ts)}>
+              {formatRelativeTime(b.ts)}
+            </span>
           </span>
         </span>
       </button>

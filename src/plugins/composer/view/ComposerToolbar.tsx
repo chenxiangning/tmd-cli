@@ -8,6 +8,9 @@ export function ComposerToolbar() {
   useHost();
   const sessionId = host.getActiveSessionId();
   const status = sessionId ? host.getSessionStatus(sessionId) : undefined;
+  const statusSource = sessionId ? host.getSessionStatusSource(sessionId) : undefined;
+  /* seeded = 尚未读到会话实况,展示的是 CLI 默认配置种子(可能与会话实际生效值不符) */
+  const seeded = statusSource === "seeded";
   const drawerOpen = useDrawerOpen();
   const stage = useComposerStage();
   const noSession = !sessionId;
@@ -17,9 +20,21 @@ export function ComposerToolbar() {
 
   return (
     <div className="flex h-7 shrink-0 items-center gap-2 border-b border-(--tmd-border) px-2 text-[11px] leading-none text-(--tmd-fg-muted) select-none">
-      <span className="flex items-center gap-1" title={status?.model ?? "未识别模型"}>
+      <span
+        className="flex items-center gap-1"
+        title={status?.model ?? "未识别模型"}
+      >
         <span aria-hidden>模型</span>
         <span className="font-mono text-(--tmd-fg)">{status?.model ?? "—"}</span>
+        {seeded && status?.model ? (
+          <span
+            aria-label="默认模型(尚未读到会话实况)"
+            title="来自 CLI 默认配置,尚未读到会话实况"
+            className="rounded-sm bg-(--tmd-bg-hover) px-1 text-[10px] text-(--tmd-fg-muted)"
+          >
+            默认
+          </span>
+        ) : null}
       </span>
       <span aria-hidden className="text-(--tmd-fg-faint)">|</span>
       <span className="flex items-center gap-1" title={status?.thinkingLevel ?? "未识别思考强度"}>

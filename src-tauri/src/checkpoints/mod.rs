@@ -111,6 +111,13 @@ pub struct LedgerEntry {
     /// 锚点 prompt 摘要(anchor/turn 条目)
     #[serde(default)]
     pub prompt: String,
+    /// 锚点时刻快照:引擎显示名 / 模型 / 思考强度(空串 = 未知;旧账本条目缺省为空)
+    #[serde(default)]
+    pub engine: String,
+    #[serde(default)]
+    pub model: String,
+    #[serde(default)]
+    pub thinking: String,
     /// turn 封口时刻(ms;修订追加时刷新)
     #[serde(default)]
     pub seal_ts: i64,
@@ -174,6 +181,10 @@ pub struct BatchInfo {
     pub ts_end: Option<i64>,
     pub session_id: String,
     pub prompt: String,
+    /// 锚点时刻快照:引擎显示名 / 模型 / 思考强度(继承锚点条目)
+    pub engine: String,
+    pub model: String,
+    pub thinking: String,
     /// pending | reverted | done(现场推导)
     pub state: String,
     pub done_reason: Option<String>,

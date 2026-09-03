@@ -3,6 +3,7 @@ import {
   QoderGlyph,
   listQoderSessions,
   readQoderDefaultStatus,
+  readQoderSessionIdentity,
   readQoderSessionStatus,
   readQoderUserMessages,
 } from "../cli-shared/qoderSessions";
@@ -46,6 +47,7 @@ export const cliQoderCnPlugin: Plugin = {
       listSessions: (cwd) => listQoderSessions(QODER_CN_VARIANT.dataDir, cwd),
       readSessionStatus: (cwd, cliSessionId) =>
         readQoderSessionStatus(QODER_CN_VARIANT.dataDir, cwd, cliSessionId),
+      readSessionFileIdentity: readQoderSessionIdentity,
       readSessionUserMessages: (cwd, cliSessionId, full) =>
         readQoderUserMessages(QODER_CN_VARIANT.dataDir, cwd, cliSessionId, full),
       readDefaultStatus: () => readQoderDefaultStatus(QODER_CN_VARIANT.dataDir),

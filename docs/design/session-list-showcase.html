@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>会话列表外观 · 5 套专业设计方案</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: #0b0d12;
+    color: #e6e8ee;
+    padding: 40px 32px 64px;
+  }
+  .page-head { max-width: 1920px; margin: 0 auto 32px; }
+  .page-head h1 { font-size: 24px; font-weight: 700; letter-spacing: .02em; }
+  .page-head p { margin-top: 8px; font-size: 13px; color: #8b90a0; }
+  .gallery {
+    max-width: 1920px; margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 28px;
+    align-items: start;
+  }
+  .panel { border-radius: 14px; overflow: hidden; }
+  .panel-meta { padding: 0 4px 12px; }
+  .panel-meta .no { font-size: 11px; font-weight: 700; letter-spacing: .14em; color: #6b7280; }
+  .panel-meta h2 { font-size: 16px; font-weight: 650; margin: 4px 0 6px; color: #f2f3f7; }
+  .panel-meta .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .panel-meta .tags span {
+    font-size: 11px; padding: 2px 8px; border-radius: 99px;
+    background: #171a22; color: #9aa0b0; border: 1px solid #262b38;
+  }
+
+  /* ============================================================
+     方案 1 · NEBULA —— 深色 SaaS 侧栏(截图精修方向)
+     关键词:暗色玻璃感 / 强调色竖条 / hover 浮现操作
+     ============================================================ */
+  .v1 {
+    background: linear-gradient(180deg, #14161d 0%, #101218 100%);
+    border: 1px solid #232733;
+    color: #cfd3de;
+    font-size: 13px;
+  }
+  .v1 .ws-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 10px; font-size: 12px; color: #7d8292;
+  }
+  .v1 .ws-head .icons { display: flex; gap: 12px; color: #8a8fa0; }
+  .v1 .ws-head .icons i { cursor: pointer; font-style: normal; }
+  .v1 .ws-head .icons i:hover { color: #d5d9e5; }
+  .v1 .ws-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 16px; font-size: 14.5px; font-weight: 600; color: #e8eaf1;
+    border-radius: 8px; margin: 0 8px; cursor: pointer; position: relative;
+  }
+  .v1 .ws-item .badge {
+    margin-left: auto; font-size: 11px; font-weight: 600; color: #b9a7ff;
+    background: rgba(139,109,255,.14); border: 1px solid rgba(139,109,255,.35);
+    padding: 1px 8px; border-radius: 6px;
+  }
+  .v1 .ws-item:hover { background: #1b1e28; }
+  .v1 .ws-item.active { background: #1e2130; }
+  .v1 .ws-item .acts { margin-left: auto; display: none; gap: 10px; color: #8a8fa0; font-weight: 400; }
+  .v1 .ws-item.active .acts { display: flex; }
+  .v1 .ws-item .acts i { font-style: normal; cursor: pointer; }
+  .v1 .ws-item .acts i:hover { color: #e2e5ee; }
+  .v1 .group {
+    margin: 12px 16px 4px; font-size: 11px; font-weight: 700; letter-spacing: .12em;
+    color: #6a6f80; display: flex; align-items: center; gap: 8px;
+  }
+  .v1 .group::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: #3a3f4e; }
+  .v1 .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 12px 7px 10px; margin: 1px 8px; border-radius: 7px;
+    cursor: pointer; position: relative;
+  }
+  .v1 .row:hover { background: #1a1d27; }
+  .v1 .row.active { background: #222639; }
+  .v1 .row.active::before {
+    content: ""; position: absolute; left: -8px; top: 6px; bottom: 6px;
+    width: 3px; border-radius: 3px; background: #8b6dff;
+  }
+  .v1 .row .glyph {
+    flex: none; width: 22px; height: 22px; border-radius: 6px;
+    display: grid; place-items: center; font-size: 11px; font-weight: 700;
+  }
+  .v1 .row .glyph.omp { background: rgba(139,109,255,.16); color: #a78bfa; }
+  .v1 .row .glyph.pi  { background: rgba(96,165,250,.14); color: #7aa5f8; }
+  .v1 .row .title {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: #c9cdd9;
+  }
+  .v1 .row.active .title { color: #f0f1f6; font-weight: 600; }
+  .v1 .row .time { flex: none; font-size: 11.5px; color: #6d7284; }
+  .v1 .row .unread {
+    flex: none; min-width: 17px; height: 17px; padding: 0 5px; border-radius: 99px;
+    background: #8b6dff; color: #fff; font-size: 10.5px; font-weight: 700;
+    display: grid; place-items: center;
+  }
+  .v1 .more { padding: 8px 28px; font-size: 12px; color: #71768a; cursor: pointer; }
+  .v1 .more:hover { color: #a7adc0; }
+
+  /* ============================================================
+     方案 2 · MINIMAL —— Linear 风极简浅灰
+     关键词:无装饰 / 细分隔线 / 未读圆点 / 左指示条
+     ============================================================ */
+  .v2 {
+    background: #fafafa; border: 1px solid #e5e5e7; color: #3f3f46;
+    font-size: 13px;
+  }
+  .v2 .ws-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 12px; font-size: 11px; font-weight: 600;
+    letter-spacing: .08em; text-transform: uppercase; color: #8e8e96;
+  }
+  .v2 .ws-head .icons { display: flex; gap: 10px; }
+  .v2 .ws-head .icons i {
+    font-style: normal; width: 24px; height: 24px; border-radius: 6px;
+    display: grid; place-items: center; cursor: pointer; color: #71717a;
+  }
+  .v2 .ws-head .icons i:hover { background: #f0f0f2; color: #18181b; }
+  .v2 .ws-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 16px; font-weight: 550; font-size: 13.5px; color: #27272a;
+    cursor: pointer; border-left: 2px solid transparent;
+  }
+  .v2 .ws-item:hover { background: #f4f4f5; }
+  .v2 .ws-item.active { background: #efeff1; border-left-color: #18181b; }
+  .v2 .ws-item .count { margin-left: auto; font-size: 11px; color: #a1a1aa; font-weight: 400; }
+  .v2 .group {
+    padding: 14px 16px 6px; font-size: 11px; font-weight: 600; color: #a1a1aa;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .v2 .group .n { font-weight: 400; }
+  .v2 .row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 16px; cursor: pointer; border-left: 2px solid transparent;
+  }
+  .v2 .row:hover { background: #f4f4f5; }
+  .v2 .row.active { background: #ececee; border-left-color: #18181b; }
+  .v2 .row .dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: #d4d4d8; }
+  .v2 .row.unread .dot { background: #18181b; }
+  .v2 .row .title {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: #52525b;
+  }
+  .v2 .row.unread .title { color: #18181b; font-weight: 600; }
+  .v2 .row.active .title { color: #18181b; font-weight: 600; }
+  .v2 .row .time { flex: none; font-size: 11.5px; color: #a1a1aa; font-variant-numeric: tabular-nums; }
+  .v2 .more {
+    padding: 7px 16px 7px 30px; font-size: 12px; color: #8e8e96; cursor: pointer;
+    border-left: 2px solid transparent;
+  }
+  .v2 .more:hover { background: #f4f4f5; color: #52525b; }
+  .v2 .foot { height: 10px; }
+
+  /* ============================================================
+     方案 3 · PULSE —— 卡片式 Dashboard 浅色
+     关键词:圆角卡片 / 彩色工具头像 / 状态 chip / 双行信息
+     ============================================================ */
+  .v3 {
+    background: #f2f4f8; border: 1px solid #e2e6ee; color: #1e2430;
+    font-size: 13px; padding-bottom: 14px;
+  }
+  .v3 .ws-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 16px 12px;
+  }
+  .v3 .ws-head .name { font-size: 13px; font-weight: 700; color: #475069; letter-spacing: .04em; }
+  .v3 .ws-head .icons { display: flex; gap: 8px; }
+  .v3 .ws-head .icons i {
+    font-style: normal; width: 26px; height: 26px; border-radius: 8px;
+    display: grid; place-items: center; background: #fff; border: 1px solid #e2e6ee;
+    cursor: pointer; color: #5a6478; font-size: 13px;
+  }
+  .v3 .ws-head .icons i:hover { border-color: #c7cfdd; color: #1e2430; }
+  .v3 .ws-tabs { display: flex; gap: 6px; padding: 0 16px 12px; }
+  .v3 .ws-tabs .tab {
+    font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 99px;
+    background: #fff; border: 1px solid #e2e6ee; color: #5a6478; cursor: pointer;
+  }
+  .v3 .ws-tabs .tab.active { background: #1e2430; border-color: #1e2430; color: #fff; }
+  .v3 .group {
+    padding: 4px 16px 8px; font-size: 11px; font-weight: 700; letter-spacing: .1em;
+    color: #8b95a9; text-transform: uppercase;
+  }
+  .v3 .card {
+    display: flex; gap: 11px; align-items: center;
+    margin: 0 12px 8px; padding: 10px 12px;
+    background: #fff; border: 1px solid #e5e9f1; border-radius: 12px;
+    cursor: pointer; transition: box-shadow .15s ease, border-color .15s ease;
+  }
+  .v3 .card:hover { border-color: #c9d3e4; box-shadow: 0 2px 10px rgba(30,36,48,.06); }
+  .v3 .card.active { border-color: #4f7cff; box-shadow: 0 0 0 1px #4f7cff, 0 2px 10px rgba(79,124,255,.12); }
+  .v3 .card .avatar {
+    flex: none; width: 34px; height: 34px; border-radius: 10px;
+    display: grid; place-items: center; font-size: 13px; font-weight: 800; color: #fff;
+  }
+  .v3 .card .avatar.omp { background: linear-gradient(135deg, #7c5cff, #4f7cff); }
+  .v3 .card .avatar.pi  { background: linear-gradient(135deg, #0ea5a4, #22c1a3); }
+  .v3 .card .body { flex: 1; min-width: 0; }
+  .v3 .card .title {
+    font-weight: 600; font-size: 13px; color: #1e2430;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .v3 .card .sub {
+    margin-top: 3px; display: flex; align-items: center; gap: 6px;
+    font-size: 11.5px; color: #8b95a9;
+  }
+  .v3 .card .chip {
+    font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 99px;
+  }
+  .v3 .card .chip.done { background: #e7f7ee; color: #17935a; }
+  .v3 .card .chip.run  { background: #e9f0ff; color: #3b6fe0; }
+  .v3 .card .chip.idle { background: #f1f3f8; color: #8b95a9; }
+  .v3 .card .time { flex: none; font-size: 11px; color: #9aa4b8; align-self: flex-start; }
+  .v3 .card .unread {
+    flex: none; align-self: flex-start; min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 99px; background: #ff5d5d; color: #fff;
+    font-size: 10.5px; font-weight: 700; display: grid; place-items: center;
+  }
+  .v3 .more {
+    margin: 2px 12px 12px; padding: 8px; text-align: center;
+    font-size: 12px; font-weight: 600; color: #5a6478;
+    background: #fff; border: 1px dashed #ccd4e2; border-radius: 12px; cursor: pointer;
+  }
+  .v3 .more:hover { border-color: #4f7cff; color: #3b6fe0; }
+
+  /* ============================================================
+     方案 4 · TERMINAL —— 企业级高密度深色控制台
+     关键词:等宽时间 / 状态灯 / 列对齐 / 蓝色 accent / 表格化
+     ============================================================ */
+  .v4 {
+    background: #0c111c; border: 1px solid #1d2740; color: #b8c2d8;
+    font-size: 12.5px; font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  .v4 .ws-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; border-bottom: 1px solid #1d2740;
+    font-size: 11px; letter-spacing: .14em; color: #5d6b8c; text-transform: uppercase;
+  }
+  .v4 .ws-head .icons { display: flex; gap: 10px; }
+  .v4 .ws-head .icons i { font-style: normal; cursor: pointer; color: #5d6b8c; }
+  .v4 .ws-head .icons i:hover { color: #9fb4e0; }
+  .v4 .ws-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; font-weight: 700; font-size: 13px; color: #dbe4f5;
+    border-bottom: 1px solid #141b2c; cursor: pointer;
+  }
+  .v4 .ws-item:hover { background: #101827; }
+  .v4 .ws-item.active { background: #12203a; box-shadow: inset 2px 0 0 #3d7bfd; }
+  .v4 .ws-item .meta { margin-left: auto; font-weight: 400; font-size: 11px; color: #4d5a78; }
+  .v4 .group {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px 6px; font-size: 10.5px; letter-spacing: .16em; color: #4d5a78;
+  }
+  .v4 .group .line { flex: 1; height: 1px; background: #1a2438; }
+  .v4 .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6.5px 14px; cursor: pointer; border-bottom: 1px solid #10182a;
+  }
+  .v4 .row:hover { background: #101827; }
+  .v4 .row.active { background: #12203a; box-shadow: inset 2px 0 0 #3d7bfd; }
+  .v4 .row .lamp { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+  .v4 .row .lamp.ok   { background: #34d399; box-shadow: 0 0 6px rgba(52,211,153,.5); }
+  .v4 .row .lamp.run  { background: #3d7bfd; box-shadow: 0 0 6px rgba(61,123,253,.55); }
+  .v4 .row .lamp.idle { background: #33415e; }
+  .v4 .row .src { flex: none; width: 34px; font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+  .v4 .row .src.omp { color: #8f7bff; }
+  .v4 .row .src.pi  { color: #3ec6b8; }
+  .v4 .row .title {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: #aab6cf;
+  }
+  .v4 .row.active .title { color: #eef3fc; }
+  .v4 .row .time {
+    flex: none; width: 76px; text-align: right; font-size: 11px; color: #4d5a78;
+    font-variant-numeric: tabular-nums;
+  }
+  .v4 .row.unread .time { color: #7ea2ff; }
+  .v4 .row.unread .time::after { content: " ●"; color: #3d7bfd; }
+  .v4 .more {
+    padding: 8px 14px 8px 60px; font-size: 11px; color: #4d5a78; cursor: pointer;
+    border-bottom: 1px solid #10182a;
+  }
+  .v4 .more:hover { color: #7ea2ff; background: #101827; }
+  .v4 .foot {
+    padding: 8px 14px; font-size: 10.5px; color: #3c4a66;
+    display: flex; justify-content: space-between;
+  }
+
+  /* ============================================================
+     方案 5 · ATLAS —— 编辑器树形暖色浅色
+     关键词:缩进引导线 / Notion 质感 / 时间 pill / 暖灰
+     ============================================================ */
+  .v5 {
+    background: #fdfcf9; border: 1px solid #ece7dd; color: #37352f;
+    font-size: 13.5px; padding-bottom: 8px;
+  }
+  .v5 .ws-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 14px 10px; font-size: 11.5px; font-weight: 600; color: #9b968a;
+  }
+  .v5 .ws-head .icons { display: flex; gap: 6px; }
+  .v5 .ws-head .icons i {
+    font-style: normal; width: 24px; height: 24px; border-radius: 6px;
+    display: grid; place-items: center; cursor: pointer; color: #9b968a;
+  }
+  .v5 .ws-head .icons i:hover { background: #f1eee7; color: #37352f; }
+  .v5 .ws-item {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 6px; padding: 6px 8px; border-radius: 7px;
+    font-weight: 650; font-size: 14px; color: #37352f; cursor: pointer;
+  }
+  .v5 .ws-item:hover { background: #f5f2ea; }
+  .v5 .ws-item.active { background: #f0ede4; }
+  .v5 .ws-item .chev { font-size: 10px; color: #b0ab9d; width: 14px; }
+  .v5 .ws-item .tag {
+    margin-left: auto; font-size: 10.5px; font-weight: 600; color: #8a8578;
+    background: #efeadf; padding: 1px 8px; border-radius: 5px;
+  }
+  .v5 .tree { margin-left: 21px; border-left: 1px solid #e8e3d7; padding-left: 4px; }
+  .v5 .group {
+    padding: 10px 10px 4px; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .1em; color: #a8a294; text-transform: uppercase;
+  }
+  .v5 .row {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 6px 0 0; padding: 5px 8px; border-radius: 7px; cursor: pointer;
+    position: relative;
+  }
+  .v5 .row::before {
+    content: ""; position: absolute; left: -5px; top: 50%; width: 5px; height: 1px;
+    background: #e8e3d7;
+  }
+  .v5 .row:hover { background: #f5f2ea; }
+  .v5 .row.active { background: #efe9db; }
+  .v5 .row .ico {
+    flex: none; width: 20px; height: 20px; border-radius: 5px; font-size: 10px;
+    display: grid; place-items: center; font-weight: 800;
+  }
+  .v5 .row .ico.omp { background: #f3e8ff; color: #8b5cf6; }
+  .v5 .row .ico.pi  { background: #e0f2f1; color: #0d9488; }
+  .v5 .row .title {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: #4a463d;
+  }
+  .v5 .row.active .title { color: #24211a; font-weight: 600; }
+  .v5 .row .time {
+    flex: none; font-size: 10.5px; color: #a8a294; background: #f5f2ea;
+    padding: 1px 7px; border-radius: 99px;
+  }
+  .v5 .row:hover .time { background: #ede9de; }
+  .v5 .row .unread { flex: none; width: 7px; height: 7px; border-radius: 50%; background: #e16259; }
+  .v5 .more {
+    padding: 6px 10px 6px 32px; font-size: 12px; color: #9b968a; cursor: pointer;
+  }
+  .v5 .more:hover { color: #6b675c; }
+
+  @media (max-width: 800px) { body { padding: 24px 16px 48px; } }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>会话列表外观 · 5 套专业设计方案</h1>
+  <p>同一组数据(工作区 → OMP / PI 会话分组)的五种差异化呈现 · 悬停行查看 hover 态,每套均含选中态 / 未读态示例</p>
+</div>
+
+<div class="gallery">
+
+  <!-- ============ 方案 1 ============ -->
+  <div>
+    <div class="panel-meta">
+      <div class="no">01 / NEBULA</div>
+      <h2>深色 SaaS 侧栏</h2>
+      <div class="tags"><span>暗色玻璃感</span><span>强调色竖条</span><span>hover 浮现操作</span><span>延续现有风格</span></div>
+    </div>
+    <div class="panel v1">
+      <div class="ws-head">
+        <span>工作区</span>
+        <span class="icons"><i>⇋</i><i>☰</i><i>⊞</i></span>
+      </div>
+      <div class="ws-item"><span>📁</span>default<span class="badge">Default</span></div>
+      <div class="ws-item"><span>📁</span>springboot-demo</div>
+      <div class="ws-item active"><span>📂</span>tmd-cli
+        <span class="acts"><i>→</i><i>⟳</i><i>＋</i></span>
+      </div>
+      <div class="group">OMP</div>
+      <div class="row active">
+        <span class="glyph omp">π</span>
+        <span class="title">Fix breathing l…</span>
+        <span class="time">12 分钟前</span>
+      </div>
+      <div class="row">
+        <span class="glyph omp">π</span>
+        <span class="title">我先查看工作区结构和…</span>
+        <span class="unread">3</span>
+      </div>
+      <div class="row">
+        <span class="glyph omp">π</span>
+        <span class="title">Hide pinned glob…</span>
+        <span class="time">1 小时前</span>
+      </div>
+      <div class="row">
+        <span class="glyph omp">π</span>
+        <span class="title">Review, fix, and…</span>
+        <span class="time">3 小时前</span>
+      </div>
+      <div class="row">
+        <span class="glyph omp">π</span>
+        <span class="title">Align file list …</span>
+        <span class="time">4 小时前</span>
+      </div>
+      <div class="more">更多… (还有 62 条)</div>
+      <div class="group">PI</div>
+      <div class="row">
+        <span class="glyph pi">P</span>
+        <span class="title">你好</span>
+        <span class="time">16 小时前</span>
+      </div>
+      <div class="row">
+        <span class="glyph pi">P</span>
+        <span class="title">@/var/folders/p…</span>
+        <span class="time">17 小时前</span>
+      </div>
+      <div class="row">
+        <span class="glyph pi">P</span>
+        <span class="title">我想知道.我能否打包…</span>
+        <span class="time">22 小时前</span>
+      </div>
+      <div class="row" style="margin-bottom:10px">
+        <span class="glyph pi">P</span>
+        <span class="title">检索一下看看当前项目有…</span>
+        <span class="time">1 天前</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 方案 2 ============ -->
+  <div>
+    <div class="panel-meta">
+      <div class="no">02 / MINIMAL</div>
+      <h2>Linear 风极简浅灰</h2>
+      <div class="tags"><span>零装饰</span><span>左指示条</span><span>未读圆点</span><span>等宽数字</span></div>
+    </div>
+    <div class="panel v2">
+      <div class="ws-head">
+        <span>工作区</span>
+        <span class="icons"><i>⇋</i><i>☰</i><i>＋</i></span>
+      </div>
+      <div class="ws-item"><span style="color:#a1a1aa">▸</span>default</div>
+      <div class="ws-item"><span style="color:#a1a1aa">▸</span>springboot-demo</div>
+      <div class="ws-item active"><span style="color:#52525b">▾</span>tmd-cli<span class="count">67</span></div>
+      <div class="group"><span>OMP</span><span class="n">63</span></div>
+      <div class="row active">
+        <span class="dot"></span>
+        <span class="title">Fix breathing l…</span>
+        <span class="time">12 分钟前</span>
+      </div>
+      <div class="row unread">
+        <span class="dot"></span>
+        <span class="title">我先查看工作区结构和…</span>
+        <span class="time">1 小时前</span>
+      </div>
+      <div class="row">
+        <span class="dot"></span>
+        <span class="title">Hide pinned glob…</span>
+        <span class="time">1 小时前</span>
+      </div>
+      <div class="row">
+        <span class="dot"></span>
+        <span class="title">Review, fix, and…</span>
+        <span class="time">3 小时前</span>
+      </div>
+      <div class="row">
+        <span class="dot"></span>
+        <span class="title">Align file list …</span>
+        <span class="time">4 小时前</span>
+      </div>
+      <div class="more">更多… (还有 62 条)</div>
+      <div class="group"><span>PI</span><span class="n">4</span></div>
+      <div class="row">
+        <span class="dot"></span>
+        <span class="title">你好</span>
+        <span class="time">16 小时前</span>
+      </div>
+      <div class="row">
+        <span class="dot"></span>
+        <span class="title">@/var/folders/p…</span>
+        <span class="time">17 小时前</span>
+      </div>
+      <div class="row">
+        <span class="dot"></span>
+        <span class="title">我想知道.我能否打包…</span>
+        <span class="time">22 小时前</span>
+      </div>
+      <div class="row">
+        <span class="dot"></span>
+        <span class="title">检索一下看看当前项目有…</span>
+        <span class="time">1 天前</span>
+      </div>
+      <div class="foot"></div>
+    </div>
+  </div>
+
+  <!-- ============ 方案 3 ============ -->
+  <div>
+    <div class="panel-meta">
+      <div class="no">03 / PULSE</div>
+      <h2>卡片式 Dashboard</h2>
+      <div class="tags"><span>圆角卡片</span><span>彩色工具头像</span><span>状态 chip</span><span>双行信息密度</span></div>
+    </div>
+    <div class="panel v3">
+      <div class="ws-head">
+        <span class="name">工作区</span>
+        <span class="icons"><i>⇋</i><i>☰</i><i>＋</i></span>
+      </div>
+      <div class="ws-tabs">
+        <span class="tab">default</span>
+        <span class="tab">springboot-demo</span>
+        <span class="tab active">tmd-cli</span>
+      </div>
+      <div class="group">OMP · 63</div>
+      <div class="card active">
+        <span class="avatar omp">π</span>
+        <div class="body">
+          <div class="title">Fix breathing l…</div>
+          <div class="sub"><span class="chip run">运行中</span><span>tmd-cli</span></div>
+        </div>
+        <span class="time">12 分钟前</span>
+      </div>
+      <div class="card">
+        <span class="avatar omp">π</span>
+        <div class="body">
+          <div class="title">我先查看工作区结构和…</div>
+          <div class="sub"><span class="chip done">已完成</span><span>tmd-cli</span></div>
+        </div>
+        <span class="unread">3</span>
+      </div>
+      <div class="card">
+        <span class="avatar omp">π</span>
+        <div class="body">
+          <div class="title">Hide pinned glob…</div>
+          <div class="sub"><span class="chip done">已完成</span><span>tmd-cli</span></div>
+        </div>
+        <span class="time">1 小时前</span>
+      </div>
+      <div class="card">
+        <span class="avatar omp">π</span>
+        <div class="body">
+          <div class="title">Review, fix, and…</div>
+          <div class="sub"><span class="chip idle">空闲</span><span>tmd-cli</span></div>
+        </div>
+        <span class="time">3 小时前</span>
+      </div>
+      <div class="more">显示全部 63 条 OMP 会话 ↓</div>
+      <div class="group">PI · 4</div>
+      <div class="card">
+        <span class="avatar pi">P</span>
+        <div class="body">
+          <div class="title">你好</div>
+          <div class="sub"><span class="chip done">已完成</span><span>tmd-cli</span></div>
+        </div>
+        <span class="time">16 小时前</span>
+      </div>
+      <div class="card">
+        <span class="avatar pi">P</span>
+        <div class="body">
+          <div class="title">@/var/folders/p…</div>
+          <div class="sub"><span class="chip done">已完成</span><span>tmd-cli</span></div>
+        </div>
+        <span class="time">17 小时前</span>
+      </div>
+      <div class="card">
+        <span class="avatar pi">P</span>
+        <div class="body">
+          <div class="title">检索一下看看当前项目有…</div>
+          <div class="sub"><span class="chip idle">空闲</span><span>tmd-cli</span></div>
+        </div>
+        <span class="time">1 天前</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 方案 4 ============ -->
+  <div>
+    <div class="panel-meta">
+      <div class="no">04 / TERMINAL</div>
+      <h2>企业级高密度控制台</h2>
+      <div class="tags"><span>等宽字体</span><span>状态灯</span><span>列对齐</span><span>表格化行</span></div>
+    </div>
+    <div class="panel v4">
+      <div class="ws-head">
+        <span>◈ WORKSPACES</span>
+        <span class="icons"><i>[⇋]</i><i>[≡]</i><i>[+]</i></span>
+      </div>
+      <div class="ws-item"><span style="color:#4d5a78">▸</span>default<span class="meta">2 sessions</span></div>
+      <div class="ws-item"><span style="color:#4d5a78">▸</span>springboot-demo<span class="meta">—</span></div>
+      <div class="ws-item active"><span style="color:#7ea2ff">▾</span>tmd-cli<span class="meta">67 sessions</span></div>
+      <div class="group">OMP<span class="line"></span>63</div>
+      <div class="row active">
+        <span class="lamp run"></span><span class="src omp">OMP</span>
+        <span class="title">Fix breathing l…</span>
+        <span class="time">12m ago</span>
+      </div>
+      <div class="row unread">
+        <span class="lamp ok"></span><span class="src omp">OMP</span>
+        <span class="title">我先查看工作区结构和…</span>
+        <span class="time">1h ago</span>
+      </div>
+      <div class="row">
+        <span class="lamp ok"></span><span class="src omp">OMP</span>
+        <span class="title">Hide pinned glob…</span>
+        <span class="time">1h ago</span>
+      </div>
+      <div class="row">
+        <span class="lamp idle"></span><span class="src omp">OMP</span>
+        <span class="title">Review, fix, and…</span>
+        <span class="time">3h ago</span>
+      </div>
+      <div class="row">
+        <span class="lamp idle"></span><span class="src omp">OMP</span>
+        <span class="title">Align file list …</span>
+        <span class="time">4h ago</span>
+      </div>
+      <div class="more">… 62 more entries</div>
+      <div class="group">PI<span class="line"></span>4</div>
+      <div class="row">
+        <span class="lamp ok"></span><span class="src pi">PI</span>
+        <span class="title">你好</span>
+        <span class="time">16h ago</span>
+      </div>
+      <div class="row">
+        <span class="lamp idle"></span><span class="src pi">PI</span>
+        <span class="title">@/var/folders/p…</span>
+        <span class="time">17h ago</span>
+      </div>
+      <div class="row">
+        <span class="lamp idle"></span><span class="src pi">PI</span>
+        <span class="title">我想知道.我能否打包…</span>
+        <span class="time">22h ago</span>
+      </div>
+      <div class="row">
+        <span class="lamp idle"></span><span class="src pi">PI</span>
+        <span class="title">检索一下看看当前项目有…</span>
+        <span class="time">1d ago</span>
+      </div>
+      <div class="foot"><span>total: 67</span><span>updated 12m ago</span></div>
+    </div>
+  </div>
+
+  <!-- ============ 方案 5 ============ -->
+  <div>
+    <div class="panel-meta">
+      <div class="no">05 / ATLAS</div>
+      <h2>编辑器树形暖色</h2>
+      <div class="tags"><span>缩进引导线</span><span>Notion 质感</span><span>时间 pill</span><span>暖灰纸面</span></div>
+    </div>
+    <div class="panel v5">
+      <div class="ws-head">
+        <span>工作区</span>
+        <span class="icons"><i>⇋</i><i>☰</i><i>＋</i></span>
+      </div>
+      <div class="ws-item"><span class="chev">▸</span>📁 default</div>
+      <div class="ws-item"><span class="chev">▸</span>📁 springboot-demo</div>
+      <div class="ws-item active"><span class="chev">▾</span>📂 tmd-cli<span class="tag">当前</span></div>
+      <div class="tree">
+        <div class="group">OMP</div>
+        <div class="row active">
+          <span class="ico omp">π</span>
+          <span class="title">Fix breathing l…</span>
+          <span class="time">12 分钟前</span>
+        </div>
+        <div class="row">
+          <span class="ico omp">π</span>
+          <span class="title">我先查看工作区结构和…</span>
+          <span class="unread"></span>
+        </div>
+        <div class="row">
+          <span class="ico omp">π</span>
+          <span class="title">Hide pinned glob…</span>
+          <span class="time">1 小时前</span>
+        </div>
+        <div class="row">
+          <span class="ico omp">π</span>
+          <span class="title">Review, fix, and…</span>
+          <span class="time">3 小时前</span>
+        </div>
+        <div class="row">
+          <span class="ico omp">π</span>
+          <span class="title">Align file list …</span>
+          <span class="time">4 小时前</span>
+        </div>
+        <div class="more">更多… (还有 62 条)</div>
+        <div class="group">PI</div>
+        <div class="row">
+          <span class="ico pi">P</span>
+          <span class="title">你好</span>
+          <span class="time">16 小时前</span>
+        </div>
+        <div class="row">
+          <span class="ico pi">P</span>
+          <span class="title">@/var/folders/p…</span>
+          <span class="time">17 小时前</span>
+        </div>
+        <div class="row">
+          <span class="ico pi">P</span>
+          <span class="title">我想知道.我能否打包…</span>
+          <span class="time">22 小时前</span>
+        </div>
+        <div class="row" style="margin-bottom:8px">
+          <span class="ico pi">P</span>
+          <span class="title">检索一下看看当前项目有…</span>
+          <span class="time">1 天前</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

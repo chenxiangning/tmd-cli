@@ -8,19 +8,17 @@
 import { useSyncExternalStore } from "react";
 import { EventBus, KernelTopics } from "./events";
 import { getSettingsState } from "./settings";
-import { pickFreshIdentity } from "./diskIdentity";
+import { pickFreshIdentity, listFreshCandidates, pickContentIdentity } from "./diskIdentity";
 import { PluginLifecycle } from "./pluginLifecycle";
 import { ActivityWatch } from "./activityWatch";
 import { AskWatch } from "./askWatch";
 import { OutputBufferStore } from "./outputBuffers";
+import { SessionStatusWatch } from "./sessionStatus";
 
 import { ipc, onPtyExit, onPtyOutput, type SessionMeta, type SpawnSpec } from "./ipc";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";
 import { registerSettingsSection, type SettingsSectionContribution } from "./settingsRegistry";
-
-/** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅 Host 内部持有。 */
-type TimerHandle = ReturnType<typeof setInterval>;
 
 class Host implements PluginContext {
   readonly events = new EventBus();
@@ -38,9 +36,17 @@ class Host implements PluginContext {
     string,
     { profileId: string; cwd: string; before: ReadonlyMap<string, number> | null; spawnedAt: number }
   >();
-  /** 活会话对应的 CLI 当前模型/思考强度,由 profile 只读读取。 */
-  private sessionStatuses = new Map<string, CliSessionStatus>();
-  private statusTimer: TimerHandle | null = null;
+  /** 活会话对应的 CLI 当前模型/思考强度与来源分级(实现见 kernel/sessionStatus.ts)。 */
+  private readonly statusWatch = new SessionStatusWatch({
+    getActiveSessionId: () => this.activeSessionId,
+    findSession: (sessionId) => this.sessions.find((s) => s.id === sessionId),
+    hasSession: (sessionId) => this.sessions.some((s) => s.id === sessionId),
+    getCliProfile: (profileId) => this.cliProfiles.get(profileId),
+    getCliSessionId: (sessionId) => this.cliSessionIds.get(sessionId),
+    isPendingIdentity: (sessionId) => this.pendingIdentities.has(sessionId),
+    tryBindIdentity: (sessionId) => this.tryBindIdentity(sessionId),
+    notify: () => this.notify(),
+  });
   private listeners = new Set<() => void>();
   /**
    * 每会话 PTY 输出环形缓冲：会话切换后 xterm 重挂载靠它回放，这是"切回不黑屏"的核心。
@@ -144,7 +150,12 @@ class Host implements PluginContext {
   }
 
   getSessionStatus(sessionId: string): CliSessionStatus | undefined {
-    return this.sessionStatuses.get(sessionId);
+    return this.statusWatch.get(sessionId);
+  }
+
+  /** 状态值来源:"seeded" = CLI 默认配置种子,"observed" = 会话文件真实观测。 */
+  getSessionStatusSource(sessionId: string): "seeded" | "observed" | undefined {
+    return this.statusWatch.source(sessionId);
   }
 
   // ---- 会话服务（kernel 固有职责：PTY 生命周期） ---------------------------
@@ -254,47 +265,23 @@ class Host implements PluginContext {
     this.events.emit(KernelTopics.sessionsChanged, this.sessions);
     this.events.emit(KernelTopics.activeSessionChanged, sessionId);
     this.notify();
-    this.ensureStatusPolling();
-    void this.refreshSessionStatus(sessionId);
+    this.statusWatch.ensurePolling();
+    void this.statusWatch.refresh(sessionId);
     /* 全新会话创建即赋值:磁盘文件要等首条消息才落盘,先种 CLI 默认配置 */
-    if (!cliSessionId) void this.seedDefaultStatus(sessionId);
+    if (!cliSessionId) void this.statusWatch.seed(sessionId);
     return this.sessions.find((s) => s.id === sessionId)!;
-  }
-
-  /**
-   * 创建即赋值的种子:CLI 配置的默认模型/思考强度。
-   * 磁盘真相(身份绑定后的会话文件观测)落地后由字段级合并自然覆盖,无需清理种子。
-   */
-  private async seedDefaultStatus(sessionId: string): Promise<void> {
-    const session = this.sessions.find((s) => s.id === sessionId);
-    if (!session || this.sessionStatuses.has(sessionId)) return;
-    const profile = this.cliProfiles.get(session.profileId);
-    if (!profile?.readDefaultStatus) return;
-    const status = await profile.readDefaultStatus(session.cwd).catch(() => null);
-    if (!status) return;
-    /* 竞态防线:await 期间磁盘真相可能已落地,默认种子不得覆盖真实观测;
-       会话可能已被移除 —— 死会话不得回写状态表 */
-    if (
-      !this.sessions.some((s) => s.id === sessionId) ||
-      this.sessionStatuses.has(sessionId) ||
-      this.cliSessionIds.has(sessionId)
-    ) {
-      return;
-    }
-    this.sessionStatuses.set(sessionId, status);
-    this.notify();
   }
 
   /**
    * 单次身份扫描:快相位(spawn 后 500ms×30)与慢相位(状态巡航 2s)共用。
    * 绑定成功即终 —— pendingIdentities 删除,两个相位自然停止。
    *
-   * 并行 spawn 仲裁(claimed 只在绑定成功时记账,挡不住未绑定期间的抢绑):
+   * 主路径内容证据(pickContentIdentity):文件自证 id/cwd/createdAt + 兄弟仲裁,
+   * 懒落盘 + 并行 spawn 不串线(实证:mtime 仲裁曾把同 cwd 两会话绑定互换)。
+   * 兜底并行 spawn 仲裁(插件未声明自证时;claimed 只在绑定成功时记账):
    * - 新文件(基线外):spawn 窗口配对 —— 文件属于其落盘 mtime 之前最近 spawn 的
-   *   未绑定会话。归属是我 → 立即绑(不受老会话闲置拖累);归属别人 → 本轮让位。
-   *   时序异常(落盘早于所有 spawn)回退到下条。
-   * - 复活/无基线(归属不可判):BIND_DEFER_MS 窗口内老会话优先,窗口外放行,
-   *   老会话纯闲置不永久阻塞年轻会话。
+   *   未绑定会话。归属是我 → 立即绑;归属别人 → 本轮让位。
+   * - 复活/无基线(归属不可判):BIND_DEFER_MS 窗口内老会话优先,窗口外放行。
    */
   private async tryBindIdentity(sessionId: string): Promise<void> {
     const pending = this.pendingIdentities.get(sessionId);
@@ -305,12 +292,30 @@ class Host implements PluginContext {
     /* await 期间会话可能已被移除:死会话绑上 CLI 身份会永久占位,
        令同 cwd 后续新会话再也绑不上该磁盘身份 */
     if (!this.sessions.some((s) => s.id === sessionId)) return;
-    const fresh = pickFreshIdentity(
-      list,
-      pending.before,
-      pending.spawnedAt,
-      new Set(this.cliSessionIds.values()),
-    );
+    const claimed = new Set(this.cliSessionIds.values());
+    /* unmatched = 文件读出了身份但不属于我(cwd 不符/归属兄弟)→ 强拒绝,等下一个文件;
+       unreadable = 读不出身份或证据不足以唯一仲裁 → 才允许退回水位线仲裁。 */
+    if (profile.readSessionFileIdentity) {
+      const siblingSpawns = [...this.pendingIdentities]
+        .filter(([id, p]) => id !== sessionId && p.profileId === pending.profileId && p.cwd === pending.cwd)
+        .map(([, p]) => p.spawnedAt);
+      const matched = await pickContentIdentity(
+        listFreshCandidates(list, pending.before, pending.spawnedAt, claimed),
+        pending.cwd,
+        pending.spawnedAt,
+        (path) => profile.readSessionFileIdentity!(path),
+        siblingSpawns,
+      );
+      if (matched.kind === "matched") {
+        this.cliSessionIds.set(sessionId, matched.id);
+        this.pendingIdentities.delete(sessionId);
+        void this.statusWatch.refresh(sessionId);
+        this.notify();
+        return;
+      }
+      if (matched.kind === "unmatched") return;
+    }
+    const fresh = pickFreshIdentity(list, pending.before, pending.spawnedAt, claimed);
     if (!fresh) return;
 
     const entry = list.find((s) => s.id === fresh);
@@ -342,7 +347,7 @@ class Host implements PluginContext {
 
     this.cliSessionIds.set(sessionId, fresh);
     this.pendingIdentities.delete(sessionId);
-    void this.refreshSessionStatus(sessionId);
+    void this.statusWatch.refresh(sessionId);
     this.notify();
   }
 
@@ -428,54 +433,7 @@ class Host implements PluginContext {
 
   /** 测试专用:假时钟换届时重置巡航计时器(真实运行单例连续,无需调用)。 */
   resetStatusTimerForTest(): void {
-    if (this.statusTimer !== null) {
-      clearInterval(this.statusTimer);
-      this.statusTimer = null;
-    }
-  }
-
-  private ensureStatusPolling(): void {
-    if (this.statusTimer) return;
-    this.statusTimer = setInterval(() => {
-      const sessionId = this.activeSessionId;
-      if (!sessionId) return;
-      if (this.cliSessionIds.has(sessionId)) {
-        void this.refreshSessionStatus(sessionId);
-      } else if (this.pendingIdentities.has(sessionId)) {
-        /* 慢相位:文件迟到(首条消息才落盘)/快照失败,激活会话 2s 巡航直到绑上 */
-        void this.tryBindIdentity(sessionId);
-      }
-    }, 2_000);
-  }
-
-  private async refreshSessionStatus(sessionId: string): Promise<void> {
-    const session = this.sessions.find((item) => item.id === sessionId);
-    const cliSessionId = this.cliSessionIds.get(sessionId);
-    if (!session || !cliSessionId) return;
-    const profile = this.cliProfiles.get(session.profileId);
-    if (!profile?.readSessionStatus) return;
-    const observed = await profile
-      .readSessionStatus(session.cwd, cliSessionId)
-      .catch(() => null);
-    if (!observed) return;
-    /* await 期间会话可能已被移除:回包不得给死会话写状态 */
-    if (!this.sessions.some((s) => s.id === sessionId)) return;
-    const previous = this.sessionStatuses.get(sessionId);
-    /* tail 扫描是"最新观测"而非全量状态:字段缺省 = 事件滚出 256KB 窗口或尚未落盘,
-       不等于"被清除"——缺省字段保留旧值。真实切换必在 tail 落新事件,
-       以非空观测推进,故合并不会挡住正常的模型/思考变更。 */
-    const status: CliSessionStatus = {
-      model: observed.model ?? previous?.model,
-      thinkingLevel: observed.thinkingLevel ?? previous?.thinkingLevel,
-    };
-    if (
-      previous?.model === status.model &&
-      previous?.thinkingLevel === status.thinkingLevel
-    ) {
-      return;
-    }
-    this.sessionStatuses.set(sessionId, status);
-    this.notify();
+    this.statusWatch.resetTimerForTest();
   }
 
   setActiveSession(id: string | null): void {
@@ -485,8 +443,8 @@ class Host implements PluginContext {
     if (id) this.activity.markViewed(id);
     this.events.emit(KernelTopics.activeSessionChanged, id);
     if (id) {
-      this.ensureStatusPolling();
-      void this.refreshSessionStatus(id);
+      this.statusWatch.ensurePolling();
+      void this.statusWatch.refresh(id);
     }
     this.notify();
   }
@@ -498,7 +456,7 @@ class Host implements PluginContext {
     this.sessions = this.sessions.filter((s) => s.id !== id);
     this.cliSessionIds.delete(id);
     this.pendingIdentities.delete(id);
-    this.sessionStatuses.delete(id);
+    this.statusWatch.remove(id);
     this.outputBuffers.remove(id);
     this.activity.onSessionRemoved(id);
     this.askWatch.onSessionRemoved(id);

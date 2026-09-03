@@ -84,7 +84,12 @@ impl TempWs {
 
     /// 记锚点:session_id = 会话身份,tmd_session_id = tmd 侧 id(同一会话恒定)。
     fn anchor(&self, sid: &str, tmd: &str, prompt: &str) -> super::LedgerEntry {
-        anchor_turn(self.path(), sid, tmd, prompt).unwrap()
+        anchor_turn(self.path(), sid, tmd, prompt, "", "", "").unwrap()
+    }
+
+    /// 记带状态快照的锚点(引擎/模型/思考强度随批固化契约)。
+    fn anchor_meta(&self, sid: &str, tmd: &str, prompt: &str, engine: &str, model: &str, thinking: &str) -> super::LedgerEntry {
+        anchor_turn(self.path(), sid, tmd, prompt, engine, model, thinking).unwrap()
     }
 
     fn seal(&self, sid: &str, tmd: &str) -> bool {
@@ -117,8 +122,8 @@ fn 轮次归因_每轮只绑本窗口变更() {
     ws.anchor("cli-1", "tmd-1", "第二轮");
     assert!(!ws.seal("cli-1", "tmd-1"), "纯阅读轮零条目");
 
-    // 第 3 轮:新建 b.txt → 封口
-    ws.anchor("cli-1", "tmd-1", "第三轮");
+    // 第 3 轮:新建 b.txt → 封口(带状态快照:引擎/模型/思考随批固化)
+    ws.anchor_meta("cli-1", "tmd-1", "第三轮", "Claude Code", "glm-5.3", "high");
     ws.write("b.txt", "hello\n");
     assert!(ws.seal("cli-1", "tmd-1"));
 
@@ -130,11 +135,17 @@ fn 轮次归因_每轮只绑本窗口变更() {
     assert_eq!(batches[0].files[0].path, "b.txt");
     assert_eq!(batches[0].files[0].status, "A");
     assert!(!batches[0].open);
+    assert_eq!(batches[0].engine, "Claude Code", "锚点快照随批固化");
+    assert_eq!(batches[0].model, "glm-5.3");
+    assert_eq!(batches[0].thinking, "high");
     assert_eq!(batches[1].index, 1, "第 2 轮缺号,编号不重排");
     assert_eq!(batches[1].files.len(), 1);
     assert_eq!(batches[1].files[0].path, "a.txt");
     assert_eq!(batches[1].files[0].status, "M");
     assert_eq!(batches[1].files[0].live, "same", "内容 == 批后像,可回退");
+    assert_eq!(batches[1].engine, "", "无快照锚点(旧账本)三字段为空串");
+    assert_eq!(batches[1].model, "");
+    assert_eq!(batches[1].thinking, "");
 
     // 账本固化的 diff 可直接读:a.txt v1 → v2
     let patches = batch_patches(ws.path(), &a1.id).unwrap();
@@ -448,7 +459,7 @@ fn 非_git_目录_报_not_a_repo() {
     let base = dir.join("store");
     fs::create_dir_all(&base).unwrap();
     set_base_for_test(base);
-    let err = anchor_turn(dir.to_str().unwrap(), "s", "s", "p").unwrap_err();
+    let err = anchor_turn(dir.to_str().unwrap(), "s", "s", "p", "", "", "").unwrap_err();
     assert!(err.to_string().starts_with("E_NOT_A_REPO:"));
     let _ = fs::remove_dir_all(&dir);
 }

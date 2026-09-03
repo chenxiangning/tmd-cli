@@ -19,6 +19,7 @@ where
 }
 
 /// 记第 N 轮锚点(prompt 发送瞬间)。隐式先封上一轮,再做 CLI 身份回填。
+/// engine/model/thinking = 发送时刻的引擎与状态快照,随锚点固化。
 /// 失败不阻塞发送 —— 前端 catch 后重试一次。
 #[tauri::command]
 pub async fn checkpoint_anchor(
@@ -26,9 +27,13 @@ pub async fn checkpoint_anchor(
     session_id: String,
     tmd_session_id: String,
     prompt: String,
+    engine: String,
+    model: String,
+    thinking: String,
 ) -> Result<String, String> {
     run(move || {
-        anchor_turn(&cwd, &session_id, &tmd_session_id, &prompt).map(|e| e.id)
+        anchor_turn(&cwd, &session_id, &tmd_session_id, &prompt, &engine, &model, &thinking)
+            .map(|e| e.id)
     })
     .await
 }

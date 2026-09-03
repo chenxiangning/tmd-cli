@@ -13,6 +13,7 @@ import { ipc } from "@kernel/ipc";
 import { extractJsonlTitle } from "@kernel/diskSessions";
 import type { CliDiskSession, CliProfile, CliSessionStatus } from "@kernel/cli";
 import { qoderUserMessageLine, readUserMessagesFromFile } from "./userMessages";
+import { parseClaudeFamilySessionHead } from "./sessionIdentity";
 
 /**
  * cwd → projects 子目录 slug。
@@ -149,6 +150,12 @@ export async function readQoderUserMessages(
     full,
     qoderUserMessageLine,
   );
+}
+
+/** 身份自证:行内 sessionId/cwd 字段(claude 家族格式,共享解析)。 */
+export async function readQoderSessionIdentity(path: string) {
+  const head = await ipc.fsReadHead(path, 8 * 1024).catch(() => null);
+  return head ? parseClaudeFamilySessionHead(head) : null;
 }
 
 /**

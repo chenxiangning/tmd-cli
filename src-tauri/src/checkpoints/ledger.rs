@@ -20,11 +20,15 @@ use std::fs;
 
 /// 账本入口:记录第 N 轮锚点。隐式先封上一轮(防 turnSettled 丢失导致窗口跨轮),
 /// 再做身份回填,最后抓基线落账。返回新锚点条目(含分配的轮次)。
+/// engine/model/thinking = 发送时刻的引擎与状态快照,随锚点固化(历史批不随后续切换漂移)。
 pub fn anchor_turn(
     cwd: &str,
     session_id: &str,
     tmd_session_id: &str,
     prompt: &str,
+    engine: &str,
+    model: &str,
+    thinking: &str,
 ) -> Result<LedgerEntry, CkptError> {
     let _g = super::lock_ledger();
     let mut entries = load_ledger(cwd);
@@ -46,6 +50,9 @@ pub fn anchor_turn(
         tmd_session_id: tmd_session_id.to_string(),
         turn,
         prompt: prompt.chars().take(4000).collect(),
+        engine: engine.chars().take(200).collect(),
+        model: model.chars().take(200).collect(),
+        thinking: thinking.chars().take(200).collect(),
         files: super::snapshot_files(cwd)?,
         ..Default::default()
     };
@@ -369,6 +376,10 @@ fn build_turn_entry(
         tmd_session_id: anchor.tmd_session_id.clone(),
         turn: anchor.turn,
         prompt: anchor.prompt.clone(),
+        // 状态快照同继承锚点:同一批的视图无论读 anchor 还是 turn 都一致
+        engine: anchor.engine.clone(),
+        model: anchor.model.clone(),
+        thinking: anchor.thinking.clone(),
         seal_ts: now_millis(),
         batch_id: String::new(),
         files: Vec::new(),

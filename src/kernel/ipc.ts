@@ -126,6 +126,16 @@ export interface CkptBatchFile {
   stale: boolean;
 }
 
+/** 锚点时刻的引擎状态快照(账本随批固化;空串 = 未知,UI 隐藏该段)。 */
+export interface CkptAnchorMeta {
+  /** 引擎显示名(如 "Claude Code") */
+  engine: string;
+  /** 发送时刻观测的模型 id */
+  model: string;
+  /** 发送时刻观测的思考强度 */
+  thinking: string;
+}
+
 export interface CkptBatch {
   id: string;
   /** 会话内 1-based 轮次(账本记录;纯阅读轮缺号 = 真实轮次) */
@@ -135,6 +145,10 @@ export interface CkptBatch {
   tsEnd: number | null;
   sessionId: string;
   prompt: string;
+  /** 锚点时刻快照:引擎显示名 / 模型 / 思考强度(旧账本条目为空串,UI 隐藏) */
+  engine: string;
+  model: string;
+  thinking: string;
   /** pending 待审 / approved 已通过(纯标记) / reverted 已退 / done 自动已处理 */
   state: "pending" | "approved" | "reverted" | "done";
   doneReason: string | null;
@@ -232,9 +246,18 @@ export const ipc = {
   /* ── checkpoints(批次审批/回退;契约对齐 src-tauri/src/checkpoints/*,serde camelCase)
    * E_* 前缀:E_NOT_A_REPO / E_EMPTY / E_STORE / E_GIT2 / E_IO ── */
 
-  /** 记第 N 轮锚点(隐式封上一轮 + CLI 身份回填);失败不阻塞发送(调用方 catch 重试一次)。 */
-  checkpointAnchor: (cwd: string, sessionId: string, tmdSessionId: string, prompt: string) =>
-    invoke<string>("checkpoint_anchor", { cwd, sessionId, tmdSessionId, prompt }),
+  /** 记第 N 轮锚点(隐式封上一轮 + CLI 身份回填);失败不阻塞发送(调用方 catch 重试一次)。
+   *  meta = 发送时刻的引擎/模型/思考强度快照,随锚点固化进账本。 */
+  checkpointAnchor: (cwd: string, sessionId: string, tmdSessionId: string, prompt: string, meta: CkptAnchorMeta) =>
+    invoke<string>("checkpoint_anchor", {
+      cwd,
+      sessionId,
+      tmdSessionId,
+      prompt,
+      engine: meta.engine,
+      model: meta.model,
+      thinking: meta.thinking,
+    }),
   /** 显式封口(一轮对话结算):把最新锚点以来的变更固化成账本 turn 条目。 */
   checkpointSeal: (cwd: string, sessionId: string, tmdSessionId: string) =>
     invoke<boolean>("checkpoint_seal", { cwd, sessionId, tmdSessionId }),

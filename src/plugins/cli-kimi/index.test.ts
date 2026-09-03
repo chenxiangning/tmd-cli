@@ -227,4 +227,33 @@ describe("parseKimiConfigStatus", () => {
     });
     expect(parseKimiConfigStatus('[loop_control]\nmax_steps = 1')).toBeNull();
   });
+
+  it("新键型实证:[thinking] 段 enabled+effort → effort 档位,优先于旧键", () => {
+    const toml = [
+      'default_model = "kimi-code/kimi-for-coding-highspeed"',
+      "",
+      "[thinking]",
+      'enabled = true',
+      'effort = "high"',
+      "",
+      "[loop_control]",
+      "max_retries_per_step = 3",
+    ].join("\n");
+    expect(parseKimiConfigStatus(toml)).toEqual({
+      model: "kimi-code/kimi-for-coding-highspeed",
+      thinkingLevel: "high",
+    });
+  });
+
+  it("[thinking] enabled=false → off,即使 effort 在场;段后跟其他 section 不误吞", () => {
+    expect(
+      parseKimiConfigStatus('[thinking]\nenabled = false\neffort = "high"\n\n[models."m"]'),
+    ).toEqual({ thinkingLevel: "off" });
+  });
+
+  it("[thinking] 只有 effort 无 enabled → 取 effort", () => {
+    expect(parseKimiConfigStatus('[thinking]\neffort = "medium"')).toEqual({
+      thinkingLevel: "medium",
+    });
+  });
 });

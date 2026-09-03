@@ -4,6 +4,7 @@ import {
   readUserMessagesFromFile,
 } from "../cli-shared/userMessages";
 import { extractJsonlTitle } from "@kernel/diskSessions";
+import { parseClaudeFamilySessionHead } from "../cli-shared/sessionIdentity";
 import type { CliDiskSession, CliProfile, CliSessionStatus, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { registerClaudeQuotaProvider } from "./quota";
@@ -113,6 +114,12 @@ async function readClaudeUserMessages(cwd: string, cliSessionId: string, full: b
   const dir = await claudeSessionsDir(cwd);
   if (!dir) return null;
   return readUserMessagesFromFile(`${dir}/${cliSessionId}.jsonl`, full, claudeUserMessageLine);
+}
+
+/** 身份自证:行内 sessionId/cwd 字段(claude 家族格式,与 qoder 共享解析)。 */
+async function readClaudeSessionIdentity(path: string) {
+  const head = await ipc.fsReadHead(path, 8 * 1024).catch(() => null);
+  return head ? parseClaudeFamilySessionHead(head) : null;
 }
 
 /**
@@ -230,6 +237,7 @@ export const cliClaudePlugin: Plugin = {
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listClaudeSessions,
       readSessionStatus: readClaudeSessionStatus,
+      readSessionFileIdentity: readClaudeSessionIdentity,
       readSessionUserMessages: readClaudeUserMessages,
     };
     ctx.registerCliProfile(profile);

@@ -24,6 +24,19 @@ export interface CliDiskSession {
   path: string;
 }
 
+/**
+ * 会话文件内容自证的身份(readSessionFileIdentity 的返回)。
+ * id 必填;cwd/createdAt 缺失表示该 CLI 不自证对应维度,内核按其余维度匹配。
+ */
+export interface SessionFileIdentity {
+  /** CLI 会话 id(resumeArgs 可直接消费的形态)。 */
+  id: string;
+  /** 会话创建 cwd。 */
+  cwd?: string;
+  /** 会话创建时刻 ms epoch(omp/pi 来自 session 行 timestamp,codex 来自 meta)。 */
+  createdAt?: number;
+}
+
 export interface CliTriggerSpec {
   /** 触发字符，如 `$` `/` `@`。 */
   char: string;
@@ -132,6 +145,14 @@ export interface CliProfile {
     cwd: string,
     cliSessionId: string,
   ) => Promise<CliSessionStatus | null>;
+  /**
+   * 会话文件身份自证:读 CliDiskSession.path 指向的文件(目录类插件自行拼内部路径),
+   * 从文件内容提取 {id, cwd, createdAt}。内容级绑定(identityBinding)的数据源 ——
+   * mtime 水位仲裁在懒落盘 CLI(omp 首条消息才 flush)+ 同 cwd 并行 spawn 下会
+   * 张冠李戴(实证两会话互换),文件内自证 id/cwd/创建时刻则零猜测。
+   * 未声明 = 内核退回 mtime 水位仲裁(旧路径,契约由 host.test.ts 守护)。
+   */
+  readSessionFileIdentity?: (path: string) => Promise<SessionFileIdentity | null>;
   /**
    * 读取会话文件中的用户消息列表(对话锚点栏数据源),只读且可缺省。
    * full = true 要求全量扫描(会话激活首轮);false 允许尾部窗口增量读。

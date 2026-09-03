@@ -14,6 +14,17 @@ export function formatResetAt(ms: number): string {
   return `${d.getMonth() + 1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** ms epoch → "2026-09-03 14:32:05"(账本/审计场景的精确时刻,秒级、可排序)。 */
+export function formatAbsolute(ms: number): string {
+  if (!ms) return "";
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+    `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  );
+}
+
 /**
  * 目标时刻相对现在的中文相对时间。
  * 过去 → "刚刚" / "N 分钟前" / "N 小时前" / "N 天前" / "N 周前" / "N 个月前";

@@ -12,6 +12,7 @@
  */
 
 import { History } from "lucide-react";
+import { host } from "@kernel/host";
 import { KernelTopics, type PromptSentEvent, type TurnSettledEvent } from "@kernel/events";
 import { registerFilePanel } from "@kernel/filePanel";
 import type { Plugin, PluginContext } from "@kernel/plugin";
@@ -51,12 +52,25 @@ export const checkpointsPlugin: Plugin = {
       return { cwd: id.cwd, cliId: id.key, tmdId: id.tmdId };
     };
 
+    /** 锚点随批固化的状态快照:发送时刻的引擎显示名 + 观测的模型/思考强度。
+     *  取不到(会话已摘除/CLI 未声明观测)记空串,UI 按段隐藏;宁空勿猜。 */
+    const anchorMeta = (tmdSessionId: string) => {
+      const session = host.getSessions().find((s) => s.id === tmdSessionId);
+      const profile = session ? host.getCliProfile(session.profileId) : undefined;
+      const status = host.getSessionStatus(tmdSessionId);
+      return {
+        engine: profile?.name ?? session?.profileId ?? "",
+        model: status?.model ?? "",
+        thinking: status?.thinkingLevel ?? "",
+      };
+    };
+
     // 批次边界:prompt 发送瞬间记锚点(失败不阻塞,store 内部重试)
     ctx.events.on<PromptSentEvent>(KernelTopics.promptSent, ({ sessionId, text }) => {
       const id = identity(sessionId);
       if (!id) return;
       /* 用 CLI 磁盘身份作 key:重启/resume 后 tmd 会话 id 会换,稳定 id 才能找回历史批次 */
-      captureAnchor(id.cwd, id.cliId, id.tmdId, text);
+      captureAnchor(id.cwd, id.cliId, id.tmdId, text, anchorMeta(sessionId));
     });
 
     // 一轮对话结算:封口落账(幂等;失败由下一条 prompt 的隐式封口兜底)

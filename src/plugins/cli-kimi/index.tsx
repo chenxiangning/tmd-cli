@@ -84,9 +84,12 @@ export function normalizeKimiTitle(raw: string): string {
 /**
  * state.json 文本 → 归一结构(纯函数,可测);坏 JSON/异型 = null。
  * cwd 键名 v2 为 cwd、v1 为 workDir,读取时双键兼容。
+ * id/createdAt 供内容级身份绑定(readSessionFileIdentity)消费。
  */
 export function parseKimiState(text: string): {
+  id?: string;
   cwd?: string;
+  createdAt?: number;
   title?: string;
   lastPrompt?: string;
   archived: boolean;
@@ -101,8 +104,12 @@ export function parseKimiState(text: string): {
   const state = raw as Record<string, unknown>;
   const str = (value: unknown) =>
     typeof value === "string" && value ? value : undefined;
+  const num = (value: unknown) =>
+    typeof value === "number" && Number.isFinite(value) ? value : undefined;
   return {
+    id: str(state.id),
     cwd: str(state.cwd) ?? str(state.workDir),
+    createdAt: num(state.createdAt),
     title: str(state.title),
     lastPrompt: str(state.lastPrompt),
     archived: state.archived === true,
@@ -264,19 +271,27 @@ async function listKimiSessions(cwd: string): Promise<CliDiskSession[]> {
 
 /**
  * config.toml → 默认模型/思考强度(纯函数,可测)。
- * 行级最小解析(不引入 toml 依赖):配置面只消费这两个键,契约由单测守护。
- * default_thinking 是布尔,映射为工具栏可读的 "on"/"off"(0.40 配置已弃用此键,
- * 缺省 → thinkingLevel undefined,工具栏显示 "—")。
+ * 行级最小解析(不引入 toml 依赖):配置面只消费这几个键,契约由单测守护。
+ * 思考键双代并存:0.40 后期起为 [thinking] 段(enabled 布尔 + effort 档位,
+ * 实证本机 config.toml),更早为 default_thinking 布尔 → 映射 "on"/"off"。
+ * [thinking] 段优先于旧键;全缺 → thinkingLevel undefined,工具栏显示 "—"。
  */
 export function parseKimiConfigStatus(configToml: string): CliSessionStatus | null {
   const model = configToml.match(/^default_model\s*=\s*"([^"]+)"/m)?.[1];
-  const thinking = configToml.match(/^default_thinking\s*=\s*(true|false)/m)?.[1];
-  if (!model && thinking === undefined) return null;
-  return {
-    model,
-    thinkingLevel:
-      thinking === undefined ? undefined : thinking === "true" ? "on" : "off",
-  };
+  const legacy = configToml.match(/^default_thinking\s*=\s*(true|false)/m)?.[1];
+  const section = configToml.match(/^\[thinking\]\s*\n((?:[^\[].*\n?|\n.*)*?)(?=^\[|\s*$)/m)?.[1];
+  const enabled = section?.match(/^enabled\s*=\s*(true|false)\s*$/m)?.[1];
+  const effort = section?.match(/^effort\s*=\s*"([^"]+)"/m)?.[1];
+  let thinkingLevel: string | undefined;
+  if (enabled === "false") {
+    thinkingLevel = "off";
+  } else if (effort) {
+    thinkingLevel = effort;
+  } else if (legacy !== undefined) {
+    thinkingLevel = legacy === "true" ? "on" : "off";
+  }
+  if (!model && thinkingLevel === undefined) return null;
+  return { model, thinkingLevel };
 }
 
 /**
@@ -296,6 +311,14 @@ async function readKimiConfigStatus(): Promise<CliSessionStatus | null> {
     if (status) return status;
   }
   return null;
+}
+
+/** 身份自证:path = 会话目录,state.json 自带 id/cwd/createdAt(ms epoch)。 */
+async function readKimiSessionIdentity(path: string) {
+  const text = await ipc.fsReadFile(`${path}/state.json`).catch(() => null);
+  const state = text ? parseKimiState(text) : null;
+  if (!state?.id) return null;
+  return { id: state.id, cwd: state.cwd, createdAt: state.createdAt };
 }
 
 async function kimiWirePath(
@@ -374,6 +397,7 @@ export const cliKimiPlugin: Plugin = {
       bracketedPaste: true,
       listSessions: listKimiSessions,
       readSessionStatus: () => readKimiConfigStatus(),
+      readSessionFileIdentity: readKimiSessionIdentity,
       readDefaultStatus: readKimiConfigStatus,
       readSessionUserMessages: readKimiUserMessages,
     };

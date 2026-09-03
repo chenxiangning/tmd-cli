@@ -1,10 +1,10 @@
 /**
  * 相对时间契约测试。
  * 覆盖:空值、过去向各粒度(刚刚/分钟/小时/天/周/个月)、
- * 未来向各粒度(现在/秒/分钟/小时/天/周/个月)及语向切换。
+ * 未来向各粒度(现在/秒/分钟/小时/天/周/个月)、语向切换及绝对时刻格式。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatRelativeTime } from "./relativeTime";
+import { formatAbsolute, formatRelativeTime } from "./relativeTime";
 
 const NOW = 1_700_000_000_000;
 
@@ -76,5 +76,20 @@ describe("formatRelativeTime 未来向", () => {
 
   it("月级 → N 个月后", () => {
     expect(formatRelativeTime(NOW + 90 * 86_400_000)).toBe("3 个月后");
+  });
+});
+
+describe("formatAbsolute 精确时刻", () => {
+  it("0 返回空串", () => {
+    expect(formatAbsolute(0)).toBe("");
+  });
+
+  it("本地时区 YYYY-MM-DD HH:mm:ss,单位补零", () => {
+    const d = new Date(NOW);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const want =
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+      `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    expect(formatAbsolute(NOW)).toBe(want);
   });
 });

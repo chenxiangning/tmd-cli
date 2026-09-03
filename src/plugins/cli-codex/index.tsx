@@ -61,6 +61,34 @@ function extractMeta(head: string): { id: string; cwd: string } | null {
   }
 }
 
+/**
+ * 身份自证:首行 session_meta payload 的 id/cwd/timestamp(实证 2026-09-03)。
+ * payload.timestamp = 会话创建时刻(ISO),内容级绑定按它对齐 spawn 时刻。
+ */
+async function readCodexSessionIdentity(path: string) {
+  const head = await ipc.fsReadHead(path, 8 * 1024).catch(() => null);
+  if (!head) return null;
+  const firstLine = head.split("\n", 1)[0];
+  if (!firstLine.includes('"type":"session_meta"')) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(firstLine);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object" || !("payload" in parsed)) return null;
+  const payload: unknown = (parsed as Record<string, unknown>).payload;
+  if (!payload || typeof payload !== "object") return null;
+  const frame = payload as Record<string, unknown>;
+  if (typeof frame.id !== "string" || !frame.id) return null;
+  const ts = typeof frame.timestamp === "string" ? Date.parse(frame.timestamp) : NaN;
+  return {
+    id: frame.id,
+    cwd: typeof frame.cwd === "string" && frame.cwd ? frame.cwd : undefined,
+    createdAt: Number.isFinite(ts) ? ts : undefined,
+  };
+}
+
 async function listCodexSessions(cwd: string): Promise<CliDiskSession[]> {
   const home = await ipc.configHomeDir().catch(() => null);
   if (!home) return [];
@@ -237,6 +265,7 @@ export const cliCodexPlugin: Plugin = {
       resumeArgs: (sessionId) => ["resume", sessionId],
       listSessions: listCodexSessions,
       readSessionStatus: readCodexSessionStatus,
+      readSessionFileIdentity: readCodexSessionIdentity,
       readSessionUserMessages: readCodexUserMessages,
     });
   },
