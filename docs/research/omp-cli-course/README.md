@@ -26,10 +26,10 @@
 | 05 | Memory 三层:checkpoint/retain/recall/reflect/learn/skill | [05-memory-system.md](./05-memory-system.md) |
 | 06 | 多模型协作:fallback/凭据池/path-scoped/Coding Plan OAuth | [06-multi-model-routing.md](./06-multi-model-routing.md) |
 | 07 | Web search:23 provider + site-aware extraction | [07-web-search.md](./07-web-search.md) |
-| 08 | `omp commit` 原子化:cycle 检测 + priority + lockfile 排除 | [08-omp-commit.md](./08-omp-commit.md) |
-| 09 | Time-traveling stream rules:正则触发 + blocker | [09-stream-rules.md](./09-stream-rules.md) |
+| 08 | `omp commit` + `omp git`:message 生成 + changelog + worktree | [08-omp-commit.md](./08-omp-commit.md) |
+| 09 | Time-traveling stream rules:`.omp/rules/` 触发式注入 + interruptMode | [09-stream-rules.md](./09-stream-rules.md) |
 | 10 | `/collab` 协作 + Zed ACP 编辑器集成 | [10-collab-acp.md](./10-collab-acp.md) |
-| 11 | 8 种规则格式继承 + 16 个内部 schemes | [11-inheritance-filesystem.md](./11-inheritance-filesystem.md) |
+| 11 | 规则继承(上下文 9 来源 + 规则 7 来源)+ 16 个内部 schemes | [11-inheritance-filesystem.md](./11-inheritance-filesystem.md) |
 | 12 | `/vibe` + `/fresh` + magic keywords | [12-session-modes.md](./12-session-modes.md) |
 | 13 | browser + computer + generate_image/inspect_image/tts | [13-multimodal-desktop.md](./13-multimodal-desktop.md) |
 | 14 | 与 pi 终极对比 + 实战综合 + 学习复盘 | [14-final-comparison.md](./14-final-comparison.md) |

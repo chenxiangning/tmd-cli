@@ -35,21 +35,24 @@ pi --version
 **目的**:用 Coding Plan 套餐(订阅制,按月给额度,不走按量计费)的额度接入 omp,不用自己贴 API key (模型提供方分给你的访问密钥)。
 
 ```bash
-# 1. 一行命令,按 provider (模型提供方) 走 OAuth (浏览器授权登录) 或 Coding Plan 套餐路由
-omp login                  # 不带参数 = 走自动/默认 provider
-omp login zai              # GLM Coding Plan,你已经在用
-omp login cursor           # Cursor 套餐
-omp login kimi             # Kimi 套餐
-omp login devin            # Devin 套餐
+# 1. 起会话后用 /login slash 命令按 provider (模型提供方) 走 OAuth (浏览器授权) 或套餐路由
+#    (在 TUI 里输,不是终端子命令)
+/login zai                 # Z.AI / GLM Coding Plan,你已经在用
+/login cursor              # Cursor
+/login kimi-code           # Kimi Code 套餐
+/login devin               # Devin
+/login anthropic           # Claude 账号
 
-# 2. 登录后可以列出"我有权限用的"模型,验证 token (登录令牌) 真活着
-omp models                 # 看哪些 role / provider 可用
+# 2. CLI 侧核对登录态与可用模型
+omp auth-broker list       # 已存凭据
+omp models ls              # 模型目录
 ```
 
 **期望**:
 
 - 浏览器自动弹出授权页,确认后回到终端;
-- 命令结束后,omp 把 token 写到 `~/.omp/agent/` 下面的认证目录,下次启动自动用。
+- token 写进 `~/.omp/agent/agent.db`(SQLite),下次启动自动用。
+
 
 **踩坑提醒**:
 
@@ -120,21 +123,20 @@ omp web_search "..."     # 直接搜(详见 07 课)
 ```yaml
 # ~/.omp/agent/config.yml
 modelRoles:
-  default:        claude-sonnet            # 日常 80% 任务
-  reasoning:      claude-opus              # 复杂推理 / 多步改
-  fast:           claude-haiku             # 补全 / 小改
-  vision:         gpt-4o                  # 看图
-  browse:         gpt-4o-mini             # 抓网页
-  bash:           claude-sonnet            # 命令行小帮
-  review:         claude-opus              # /review 用
-  plan:           claude-opus              # 规划模式
-  orchestrate:    claude-opus              # 调子代理
-  advisor:        claude-haiku             # 旁听模型(便宜就行)
+  default: anthropic/claude-sonnet-4.5   # 日常 80% 任务
+  slow:    anthropic/claude-opus-4.7     # 复杂推理 / 多步改
+  smol:    anthropic/claude-haiku-4.5    # 补全 / 小改 / subagent
+  plan:    anthropic/claude-opus-4.7     # 规划模式
+  advisor: anthropic/claude-haiku-4.5    # 旁听模型(便宜就行)
+  vision:  google/gemini-3-flash         # 看图
+  task:    anthropic/claude-haiku-4.5    # 子代理工作模型
+  commit:  anthropic/claude-sonnet-4.5   # commit message / changelog
+  tiny:    anthropic/claude-haiku-4.5    # 后台轻任务(标题/记忆)
 ```
 
 ```bash
 # 装好配置后,核对一次(看 omp 真的认这些 role)
-omp models --roles
+omp config get modelRoles
 ```
 
 **踩坑提醒**:
@@ -150,11 +152,11 @@ omp models --roles
 
 | 场景 | pi 的行为 | omp 的行为 | 用户该怎么做 |
 | ------ | ----------- | ------------- | ---------------- |
-| 改一行代码 | 重贴整行 + `<<<<<<<` block | hashline 锚点(短哈希码,如 `#3 7qr4`)直接指到行 | 看 02 课,只说"改第几行"就行 |
+| 改一行代码 | 重贴整行 + `<<<<<<<` block | hashline 快照锚(`[PATH#TAG]` + 行号)直接指到行 | 看 02 课,只说"改第几行"就行 |
 | 工具命名 | 通用 name (`bash`, `read`, `edit`) | omp 自己的 `tools.*` 名字空间,前缀更明确 | 在 TUI 里 `/tools` 看清单 |
 | 配置文件 | `~/.pi/...` | `~/.omp/agent/...` | 别混,`ln -s` 是灾难 |
 | Provider 数量 | 较少 | 60+(含 Coding Plan) | 直接 `/login <provider>` 一把梭 |
-| 起子代理 | 没原生 fan-out (扇出派发) | `task { workers: 3, schema: ... }` | 看 03 课,用 schema 校验产物 |
+| 起子代理 | 没原生 fan-out (扇出派发) | `task { context, tasks: [...] }` | 看 03 课,用 outputSchema 校验产物 |
 
 **一句话总结**:把 omp 当成"pi 的 IDE-wired (与 IDE 深度打通的) 升级版",而不是 pi 的复刻。
 

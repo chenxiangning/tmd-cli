@@ -8,39 +8,37 @@
 
 ## 场景 1 — 让 omp 直接继承我现有项目的 agent 规则
 
-**目的**:你机器上已经有 `.claude/`、`.cursor/`、`.aider.conf.yml` 等 8 种格式的 agent 规则,omp 不要再"双份维护"。
+**目的**:你机器上已经有 `.claude/`、`.cursor/` 等 agent 规则,omp 不要再"双份维护"。
 
-```yaml
-# ~/.omp/agent/config.yml
-inheritance:
-  sources:
-    - ".claude/CLAUDE.md"
-    - ".cursor/rules"
-    - ".aider.conf.yml"
-    - ".continue/config.json"
-    - ".github/copilot-instructions.md"
-    - "AGENTS.md"          # 我们项目里用这个
-    - ".cody/behavior.json"
-    - ".windsurf/rules"
+```text
+已有文件,omp 直接读:
+  .omp/AGENTS.md / .omp/rules/     ← 自家格式(优先级最高)
+  CLAUDE.md / GEMINI.md            ← Claude / Gemini 的
+  AGENTS.md(散装,向上爬)         ← Codex / 通用
+  .cursor/rules/*.mdc              ← Cursor 规则
+  .windsurf global_rules           ← Windsurf 规则
+  .clinerules                      ← Cline 规则
+  .github/copilot-instructions.md  ← Copilot 规则
+  RULES.md                         ← 粘性规则,常驻 prompt
 ```
 
 ```text
-你:启动 omp,看到当前项目的规则有哪些。
+你:启动 omp,看看当前项目的规则加载了哪些。
 
-agent:继承已生效,以下文件被加载:
-       - AGENTS.md (最高优先级)
-       - .cursor/rules/general.mdc
-       - .aider.conf.yml (legacy format)
-       ...
+agent:/extensions 里能看到各来源的开关;实际被加载的:
+       - .omp/AGENTS.md(native,最高优先级)
+       - .cursor/rules/general.mdc(cursor,50)
+       - .clinerules(cline,40)
+       同名规则先到先得,按来源优先级阴影。
 ```
 
 **期望**:
 
 - omp 自动 follow 这些规则,**不**让你再写一遍;
-- 重复规则按"本地 > 工具级 > 全局"优先级;
-- 新规则混旧规则也认。
+- 冲突按来源优先级 + 目录深度裁决(同名折叠,离 cwd 最近的赢);
+- 新规则混旧规则也认;单个文件不想让它们掺和 → `disabledExtensions: context-file:<level>:<basename>`。
 
-**踩坑提醒**:`inheritance.sources` 是列表,顺序影响优先级;放第一个的优先级最高。
+**踩坑提醒**:Aider `CONVENTIONS.md`、Continue、Cody 的格式**不在**支持列表里;优先级由来源 provider 决定,不是"列表顺序"。
 
 ---
 

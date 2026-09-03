@@ -13,9 +13,8 @@
 ```text
 你:我要探索两种 auth (身份验证) 重写方案,先打一个 checkpoint (打快照)。
 
-agent:checkpoint { reason: "before-exploring-auth-rewrite-options" }
-
-agent:Checkpoint id: ckpt-A1B2  saved.
+agent:checkpoint { goal: "对比三种 auth 重构方案" }
+       已打点。后续 rewind 会回到这里,中间探索只留结论报告。
        后续随时可以 rewind 回来。
 ```
 
@@ -38,8 +37,7 @@ agent:Checkpoint id: ckpt-A1B2  saved.
    改成方案 C。
 
 agent:rewind {
-  to: "before-exploring-auth-rewrite-options",
-  keep: "concise_report"
+  report: "B 因 X 不可行;C 因 Y 不可行;定 A,理由:改动面最小且已验证"
 }
 
 agent:已回到 ckpt-A1B2 时刻,导航报:方案 B 失败原因 = X。
@@ -107,15 +105,12 @@ agent:整理出当前 race condition 风险地图(token / cache / session 三处
 **目的**:改一条旧事实的 tag 或 confidence,或者直接删。
 
 ```text
-你:刚才那条 "auth token 必须 CAS" 的 confidence 改成 0.9,
-   tag 加一条 "reviewed-by-senior"。
+你:刚才那条 "auth token 必须 CAS" 的重要性改成 0.9。
 
 agent:memory_edit {
+  op: "update",
   id: "fact-0023",
-  ops: [
-    { op: "set", field: "confidence", value: 0.9 },
-    { op: "add", field: "tags",       value: "reviewed-by-senior" }
-  ]
+  importance: 0.9
 }
 
 agent:已更新。
@@ -124,7 +119,7 @@ agent:已更新。
 ```text
 你:删掉 fact-0042("pgx 不如 sqlx")。
 
-agent:memory_edit { id: "fact-0042", ops: [{ op: "delete" }] }
+agent:memory_edit { op: "forget", id: "fact-0042" }
 
 agent:已删。
 ```

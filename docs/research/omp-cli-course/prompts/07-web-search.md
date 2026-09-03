@@ -35,7 +35,7 @@ agent:
 - 你也可以强制某个 provider:`web_search { provider: "exa", query: "..." }`;
 - 失败链里会打印每个 provider 的失败原因,排错方便。
 
-**踩坑提醒**:keyless 模式有 rate limit;实在不行就 `omp login <provider>` 接套餐。
+**踩坑提醒**:keyless 模式有 rate limit;要更稳就在会话里 `/login <provider>` 接套餐,或在配置里给 provider 配 key。
 
 ---
 
@@ -210,8 +210,8 @@ webSearch:
 1. `web_search { query }` 走 auto chain (无 key 也能跑)。
 2. GitHub / npm / arxiv 命中自动开 handler,markdown 拿到。
 3. `site:github.com/xxx` 精确限位。
-4. 安全审计走 NVD/OSV/Github-Advisory,拿到厂商数据。
-5. 调优 `webSearch.providerChain` 和 `siteAware`。
+4. 安全审计走 NVD/OSV/CISA-KEV,拿到厂商数据。
+5. 单 provider 超时调 `providers.webSearchTimeoutSeconds`;CLI 用 `omp search` 直接试。
 
 ---
 

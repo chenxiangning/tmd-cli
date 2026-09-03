@@ -37,12 +37,12 @@
 | 03 | [03-smart-collaboration.md](./03-smart-collaboration.md) | [../03-smart-collaboration.md](../03-smart-collaboration.md) | task 子代理扇出 / advisor 旁听 / /review verdict + 置信度 |
 | 04 | [04-ide-depth.md](./04-ide-depth.md) | [../04-ide-depth.md](../04-ide-depth.md) | LSP 14 ops / DAP 28 ops / ast_grep 写复杂 pattern |
 | 05 | [05-memory-system.md](./05-memory-system.md) | [../05-memory-system.md](../05-memory-system.md) | checkpoint + rewind / retain / recall / reflect / learn / manage_skill |
-| 06 | [06-multi-model-routing.md](./06-multi-model-routing.md) | [../06-multi-model-routing.md](../06-multi-model-routing.md) | fallback / 凭据池 / path-scoped / 30+ Coding Plan OAuth |
+| 06 | [06-multi-model-routing.md](./06-multi-model-routing.md) | [../06-multi-model-routing.md](../06-multi-model-routing.md) | fallback / 多账号轮换 / path-scoped / `/login` |
 | 07 | [07-web-search.md](./07-web-search.md) | [../07-web-search.md](../07-web-search.md) | 23 provider / site-aware / NVD-OSV-GHSA / arxiv handler |
-| 08 | [08-omp-commit.md](./08-omp-commit.md) | [../08-omp-commit.md](../08-omp-commit.md) | git_overview / atomic commit / 依赖图 / lockfile 排除 |
-| 09 | [09-stream-rules.md](./09-stream-rules.md) | [../09-stream-rules.md](../09-stream-rules.md) | rules.yml 触发式注入 / severity / cooldown / 抗压缩 |
+| 08 | [08-omp-commit.md](./08-omp-commit.md) | [../08-omp-commit.md](../08-omp-commit.md) | `omp commit` / `omp git` / changelog / worktree |
+| 09 | [09-stream-rules.md](./09-stream-rules.md) | [../09-stream-rules.md](../09-stream-rules.md) | `.omp/rules/` 触发式注入 / interruptMode / 抗压缩 |
 | 10 | [10-collab-acp.md](./10-collab-acp.md) | [../10-collab-acp.md](../10-collab-acp.md) | /collab session 分享 / ACP 接入 Zed / 多模式 |
-| 11 | [11-inheritance-filesystem.md](./11-inheritance-filesystem.md) | [../11-inheritance-filesystem.md](../11-inheritance-filesystem.md) | 继承 8 种 agent 格式 / 16 个 scheme:// / ssh:// 远程 |
+| 11 | [11-inheritance-filesystem.md](./11-inheritance-filesystem.md) | [../11-inheritance-filesystem.md](../11-inheritance-filesystem.md) | 规则继承(上下文 9 来源 + 规则 7 来源)/ 16 个 scheme:// / ssh:// 远程 |
 | 12 | [12-session-modes.md](./12-session-modes.md) | [../12-session-modes.md](../12-session-modes.md) | /vibe / /fresh / /model / ultrathink / orchestrate / workflowz |
 | 13 | [13-multimodal-desktop.md](./13-multimodal-desktop.md) | [../13-multimodal-desktop.md](../13-multimodal-desktop.md) | browser / computer / generate_image / inspect_image / tts |
 | 14 | [14-final-comparison.md](./14-final-comparison.md) | [../14-final-comparison.md](../14-final-comparison.md) | omp vs pi vs opencode 终极对比表 + 5min/周/月 三档清单 |
@@ -82,9 +82,10 @@ agent:
    #02 课 hashline
    改 L42 加 atomic CAS
 
-agent:edit src/auth.ts {
-  "#42 x9k7": "    const next = await refreshAtomic(current);"
-}
+agent:edit =
+  [src/auth.ts#9F3C]
+  PUT 42.=42:
+  +    const next = await refreshAtomic(current);
 
 你:把这次改动 commit 上。
    #08 课 omp commit

@@ -67,7 +67,7 @@ reviewer:在 chat 框里追加 "你能不能换成 connection pool?" —— 跟�
 ```
 
 ```text
-甲方:打 "#3 改成 strict 模式"。
+甲方:把 verify 那行加上 strict 模式(指 check 命令行位置)。
 
 乙方:看 agent 改成 strict,审一下 diff,补一句"再加测试覆盖 negative 路径"。
 

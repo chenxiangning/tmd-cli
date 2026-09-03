@@ -92,8 +92,8 @@ agent:已发。
 ```text
 你:看一下我的桌面,告诉我现在屏幕上开着哪些 app。
 
-agent:computer { action: "captureScreen" }
-agent:inspect_image { file: "<screenshot>" }
+agent:computer { code: "await screenshot()" }
+agent:inspect_image { path: "<截图>", question: "屏幕上是什么?" }
 
 agent:
   - Chrome (3 个标签可见)
@@ -211,9 +211,8 @@ agent:设计稿 vs 现实的 diff:
 
 agent:tts {
   text: "<release notes 内容>",
-  voice: "alloy",                # 或其他声音
-  duration: "30s",
-  format: "mp3"
+  output_path: "~/notes.wav",
+  voice_id: "eve"                # xAI 默认音色;本地引擎忽略该参数
 }
 
 agent:已生成 → ~/Downloads/release-notes.mp3

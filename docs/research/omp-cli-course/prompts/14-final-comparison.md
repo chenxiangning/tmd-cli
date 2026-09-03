@@ -10,8 +10,8 @@
 
 ```text
 上午 9:00 ─ login 与起 session ────────────────
-  $ omp login zai                 # 01 课 Coding Plan OAuth
-  $ omp                           # 01 课 进 TUI
+  $ omp    → 会话内 /login zai     # 01 课 Coding Plan OAuth
+  (进 TUI)                        # 01 课
 
 上午 9:05 ─ 任务准备 ───────────────
   > /vibe                         # 12 课:先只读
@@ -92,10 +92,10 @@ $ omp
 
 ## 场景 3 — 一周内实操
 
-1. **接 Coding Plan**:`omp login zai`(如果你已经用 GLM)/ `omp login cursor` / `omp login kimi`。
-2. **配 fallbackChains**:config.yml 写 `[zai:glm-4.6, anthropic:claude-sonnet]`(07 课)。
-3. **写一条 stream rule**:`~/.omp/agent/rules.yml` 写 no-sql-string-concat(09 课)。
-4. **集成到 IDE**:`omp acp start --port 4733` 接到 Zed / VSCode(10 课)。
+1. **接 Coding Plan**:会话内 `/login zai`(如果你已经用 GLM)/ `/login cursor` / `/login kimi-code`。
+2. **配 fallbackChains**:config.yml 的 `retry.fallbackChains` 按 role 列链(06 课)。
+3. **写一条 stream rule**:`.omp/rules/no-sql-concat.md` 写 condition + interruptMode(09 课)。
+4. **集成到 IDE**:`omp acp`(或 `omp --mode acp`)接到 Zed(10 课)。
 5. **复盘 1 个真实重构**:用 fan-out + advisor + /review 走完整闭环(03 课)。
 6. **接一个 inbound PR**:用 `pr://` 直接评论+合并(11 课)。
 
@@ -105,8 +105,8 @@ $ omp
 
 - **profile (画像)** :你常用哪种 agent posture?调 / modelRoles 优化;
 - **memory 整理**:把项目里踩过的坑全部 retain,tag 分类(05 课);
-- **skill 沉淀**:把"成功路径"学成 skill → promote 到 managed(05 课);
-- **规则库**:rules.yml 攒 5~10 条(空 catch、SQL 拼接、console.log、Test must include edge case 等);
+- **skill 沉淀**:把"成功路径"用 learn 沉淀,manage_skill 建托管 skill(05 课);
+- **规则库**:`.omp/rules/` 攒 5~10 条(空 catch、SQL 拼接、console.log 等,09 课);
 - **scope 拆分**:experiments 走便宜 model,prod 走 opus(06 课)。
 
 ---
@@ -127,7 +127,7 @@ $ omp
 | **DAP ops (真调试器集成)** | 无 | 28 个 ops | 无 |
 | **ast_grep** | 无 | ✅ 完整 | 无 |
 | **三层 memory** | 无 | checkpoint / retain / skills | 简易 |
-| **流式规则注入** | 无 | ✅ rules.yml,抗压缩 | 无 |
+| **流式规则注入** | 无 | ✅ `.omp/rules/` 触发式,抗压缩 | 无 |
 | **/collab 协作** | 无 | ✅ 含 ACL | 无 |
 | **ACP / Editor 集成** | 无 | ✅ Zed / VSCode | 无 |
 | **browser + computer (多模态)** | 无 | ✅ 全套 | 弱 |

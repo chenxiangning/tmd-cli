@@ -13,31 +13,31 @@
 ```
 你:打开 src/auth.ts,看一下 login 函数。
 
-agent:
-│ #1 g8k2  import { User } from './user';                │
-│ #2 p9z1  export async function login(token: string) {  │
-│ #3 7qr4    const user = await verify(token);            │
-│ #4 m3f8    return user;                                 │
-│ #6 d2n5  }                                              │
+agent:[read 返回快照头 + 行号]
+  [src/auth.ts#1A2B]
+  1: import { User } from './user';
+  2: export async function login(token: string) {
+  3:     const user = await verify(token);
+  4:     return user;
+  5: }
 
-你:改 #3 → 加上 strict: true 校验:
+你:第 3 行加上 strict: true 校验。
 
-   const user = await verify(token, { strict: true });
-
-agent:edit src/auth.ts {
-  "#3 7qr4": "    const user = await verify(token, { strict: true });"
-}
+agent:edit 输入 =
+  [src/auth.ts#1A2B]
+  PUT 3.=3:
+  +    const user = await verify(token, { strict: true });
 
 你:再打开文件看一眼,确认改好了。
 ```
 
 **期望**:
 
-- agent 只贴修改后的那一行,不贴整个函数;
-- 文件里 `#3` 那一行的内容真的变成了 strict 版本;
-- 头部的 `7qr4` 是这行的内容哈希(短哈希码,行内任意字符变了它就跟着变),用来防止"对不上行"的歧义。
+- agent 只写改动行,不重抄整个函数;
+- `#1A2B` 是**这次 read 时整个文件内容的快照哈希**,edit 时必须原样带上;
+- 落盘成功会返回新的快照头(比如 `[src/auth.ts#9F3C]`),下次编辑用它。
 
-**踩坑提醒**:`#3` 是"行号",`7qr4` 是"这行的哈希校验码",两者必须同时给;只给 `#3` 在大文件里偶尔会撞行。
+**踩坑提醒**:read 之后如果文件被(人或别的 agent)改过,快照就 stale (过时) 了——omp 会尝试按快照链安全恢复,恢复不了直接拒绝并要求重新 read;绝不会悄悄覆盖。
 
 ---
 
