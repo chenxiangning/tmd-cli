@@ -19,12 +19,9 @@ import { useState } from "react";
 import { host, useHost } from "@kernel/host";
 import type { Plugin } from "@kernel/plugin";
 import { Mounts } from "@kernel/Mounts";
-import {
-  addWorkspace,
-  useWorkspaces,
-  type Workspace,
-} from "@kernel/workspace";
+import { addWorkspace, useWorkspaces, type Workspace } from "@kernel/workspace";
 import { pickDirectory } from "@kernel/ipc";
+import { updateSettings, useSettingsState } from "@kernel/settings";
 import { FolderOpen, FolderPlus, ListChevronsDownUp, ListChevronsUpDown } from "lucide-react";
 import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
 import { WorkspaceCard } from "./WorkspaceCard";
@@ -40,12 +37,18 @@ function WorkspaceSection() {
   } | null>(null);
   const [refreshTicks, setRefreshTicks] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
-  /** 各工作区折叠态(受控):卡片行内 toggle 与 caption「折叠全部」共用一份。 */
-  const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
-  const isCollapsed = (id: string) => collapsedMap[id] ?? false;
+  /** 各工作区折叠态(持久化):读写全局 settings.workspaceCollapsedMap,重启恢复。 */
+  const collapsedMap = useSettingsState().settings.workspaceCollapsedMap;
+  const isCollapsed = (id: string) => collapsedMap[id] ?? true;
   const allCollapsed = list.length > 0 && list.every((ws) => isCollapsed(ws.id));
   const setAllCollapsed = (v: boolean) =>
-    setCollapsedMap(Object.fromEntries(list.map((ws) => [ws.id, v])));
+    updateSettings({
+      workspaceCollapsedMap: Object.fromEntries(list.map((ws) => [ws.id, v])),
+    });
+  const setCollapsed = (id: string, v: boolean) =>
+    updateSettings({
+      workspaceCollapsedMap: { ...collapsedMap, [id]: v },
+    });
 
   async function handleAdd() {
     try {
@@ -110,7 +113,7 @@ function WorkspaceSection() {
           isActive={ws.id === activeId}
           collapsed={isCollapsed(ws.id)}
           onToggleCollapsed={() =>
-            setCollapsedMap((m) => ({ ...m, [ws.id]: !(m[ws.id] ?? false) }))
+            setCollapsed(ws.id, !isCollapsed(ws.id))
           }
           refreshTicks={refreshTicks}
           refreshing={refreshing}

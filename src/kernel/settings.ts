@@ -122,6 +122,12 @@ export interface AppSettings {
    */
   sessionPins: Record<string, SessionPinEntry>;
   /**
+   * 左侧栏各工作区会话列表折叠态:key = workspaceId,value = 是否折叠。
+   * 缺失的工作区(首次出现)默认折叠;切换折叠/展开与「折叠全部」均写这里,
+   * 重启后恢复上次状态。
+   */
+  workspaceCollapsedMap: Record<string, boolean>;
+  /**
    * 网络代理(network-proxy 插件的编辑域):客户端自身联网(quota_fetch 等
    * Rust reqwest 请求、installer 的 curl/npm 子进程)与之后 spawn 的 PTY CLI
    * 子进程统一走该代理。生效在 Rust 侧 proxy.rs(进程 env 注入,启动 + 写盘
@@ -148,6 +154,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   disabledPlugins: [],
   sessionTitles: {},
   sessionPins: {},
+  workspaceCollapsedMap: {},
   networkProxyEnabled: false,
   networkProxyUrl: "",
 };
@@ -197,6 +204,17 @@ export function sanitizeSessionPins(raw: unknown): Record<string, SessionPinEntr
     };
   }
   return pins;
+}
+
+/** 工作区折叠态清洗:只收 boolean 值,按 key 序限量纳入(与置顶同款确定性兜底)。 */
+function sanitizeWorkspaceCollapsedMap(raw: unknown): Record<string, boolean> {
+  const map: Record<string, boolean> = {};
+  if (!raw || typeof raw !== "object") return map;
+  const entries = raw as Record<string, unknown>;
+  for (const key of Object.keys(entries).sort().slice(0, SESSION_PINS_MAX_ENTRIES)) {
+    if (typeof entries[key] === "boolean") map[key] = entries[key] as boolean;
+  }
+  return map;
 }
 
 /** 浏览器 dev 降级存储 key(Tauri 环境不走这里)。 */
@@ -312,6 +330,7 @@ function sanitize(raw: unknown): AppSettings {
     disabledPlugins: sanitizeDisabledPlugins(obj.disabledPlugins),
     sessionTitles: sanitizeSessionTitles(obj.sessionTitles),
     sessionPins: sanitizeSessionPins(obj.sessionPins),
+    workspaceCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceCollapsedMap),
     networkProxyEnabled:
       typeof obj.networkProxyEnabled === "boolean"
         ? obj.networkProxyEnabled

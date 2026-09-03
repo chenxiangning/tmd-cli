@@ -68,6 +68,7 @@ describe("初始状态与默认值", () => {
       disabledPlugins: [],
       sessionTitles: {},
       sessionPins: {},
+      workspaceCollapsedMap: {},
       networkProxyEnabled: false,
       networkProxyUrl: "",
     });
