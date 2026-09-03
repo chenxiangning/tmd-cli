@@ -8,10 +8,11 @@
 import { useSyncExternalStore } from "react";
 import { EventBus, KernelTopics } from "./events";
 import { getSettingsState } from "./settings";
-import { pickFreshIdentity, listFreshCandidates, pickContentIdentity } from "./diskIdentity";
 import { PluginLifecycle } from "./pluginLifecycle";
 import { ActivityWatch } from "./activityWatch";
 import { AskWatch } from "./askWatch";
+import { EditWatch } from "./editWatch";
+import { DiskIdentityWatch } from "./identityWatch";
 import { OutputBufferStore } from "./outputBuffers";
 import { SessionStatusWatch } from "./sessionStatus";
 
@@ -28,14 +29,20 @@ class Host implements PluginContext {
   private sessions: SessionMeta[] = [];
   private activeSessionId: string | null = null;
   /**
-   * 待绑定磁盘身份的会话:sessionId → 快照基线 + spawn 水位线。
-   * 快相位(500ms×30)扫不尽就转入状态巡航的慢相位(2s),直到绑上或会话死 —
-   * 实证:omp 全新会话要等首条消息才落盘,15s 上限必然失明。
+   * 待绑定磁盘身份的会话探测(快相位 500ms×30 → 巡航 5s,预算 10min)。
+   * 拆分件:循环与仲裁在 kernel/identityWatch.ts,绑定表/存活表经 ctx 回调。
    */
-  private pendingIdentities = new Map<
-    string,
-    { profileId: string; cwd: string; before: ReadonlyMap<string, number> | null; spawnedAt: number }
-  >();
+  private readonly identityWatch = new DiskIdentityWatch({
+    getCliProfile: (profileId) => this.cliProfiles.get(profileId),
+    sessionAlive: (sessionId) => this.sessions.some((s) => s.id === sessionId),
+    isBound: (sessionId) => this.cliSessionIds.has(sessionId),
+    claimedIds: () => new Set(this.cliSessionIds.values()),
+    onBound: (sessionId, cliSessionId) => {
+      this.cliSessionIds.set(sessionId, cliSessionId);
+      void this.statusWatch.refresh(sessionId);
+      this.notify();
+    },
+  });
   /** 活会话对应的 CLI 当前模型/思考强度与来源分级(实现见 kernel/sessionStatus.ts)。 */
   private readonly statusWatch = new SessionStatusWatch({
     getActiveSessionId: () => this.activeSessionId,
@@ -43,8 +50,8 @@ class Host implements PluginContext {
     hasSession: (sessionId) => this.sessions.some((s) => s.id === sessionId),
     getCliProfile: (profileId) => this.cliProfiles.get(profileId),
     getCliSessionId: (sessionId) => this.cliSessionIds.get(sessionId),
-    isPendingIdentity: (sessionId) => this.pendingIdentities.has(sessionId),
-    tryBindIdentity: (sessionId) => this.tryBindIdentity(sessionId),
+    isPendingIdentity: (sessionId) => this.identityWatch.has(sessionId),
+    tryBindIdentity: (sessionId) => this.identityWatch.tryBind(sessionId),
     notify: () => this.notify(),
   });
   private listeners = new Set<() => void>();
@@ -54,15 +61,14 @@ class Host implements PluginContext {
    */
   private readonly outputBuffers = new OutputBufferStore();
   private readonly askWatch = new AskWatch(() => this.notify()); /* Ask 等待确认状态仓(见 kernel/askWatch.ts,onHealed = 静默自愈摘签后重渲染) */
+  /** AI 写入文件守望(events 归因主信号,见 kernel/editWatch.ts;纯内存,随 PTY 消亡) */
+  private readonly editWatch = new EditWatch();
   /**
    * 活会话 → CLI 磁盘身份绑定(omp/pi 的 jsonl uuid、codex 的 rollout id)。
    * 纯前端内存,随 PTY 消亡 —— 这是活会话的身份属性,不是持久化映射。
    * 用途:UI 按身份去重(同一会话在活区/磁盘区只出现一次)。
    */
   private cliSessionIds = new Map<string, string>();
-
-  /** 并行 spawn 仲裁窗口:年轻会话等待更老未绑定会话先认领的最长时长。 */
-  private static readonly BIND_DEFER_MS = 10_000;
 
   /** 活会话绑定的 CLI 磁盘身份;未绑定(探测前)为 undefined。 */
   getCliSessionId(sessionId: string): string | undefined {
@@ -185,8 +191,7 @@ class Host implements PluginContext {
       : null;
     const spawned = await ipc.sessionSpawn(profileId, spec, workspaceId);
     if (profile.listSessions) {
-      this.pendingIdentities.set(spawned.id, { profileId, cwd, before, spawnedAt });
-      void this.detectDiskIdentity(spawned.id);
+      this.identityWatch.track(spawned.id, profileId, cwd, before, spawnedAt);
     }
     return this.adoptSpawned(spawned.id);
   }
@@ -272,95 +277,7 @@ class Host implements PluginContext {
     return this.sessions.find((s) => s.id === sessionId)!;
   }
 
-  /**
-   * 单次身份扫描:快相位(spawn 后 500ms×30)与慢相位(状态巡航 2s)共用。
-   * 绑定成功即终 —— pendingIdentities 删除,两个相位自然停止。
-   *
-   * 主路径内容证据(pickContentIdentity):文件自证 id/cwd/createdAt + 兄弟仲裁,
-   * 懒落盘 + 并行 spawn 不串线(实证:mtime 仲裁曾把同 cwd 两会话绑定互换)。
-   * 兜底并行 spawn 仲裁(插件未声明自证时;claimed 只在绑定成功时记账):
-   * - 新文件(基线外):spawn 窗口配对 —— 文件属于其落盘 mtime 之前最近 spawn 的
-   *   未绑定会话。归属是我 → 立即绑;归属别人 → 本轮让位。
-   * - 复活/无基线(归属不可判):BIND_DEFER_MS 窗口内老会话优先,窗口外放行。
-   */
-  private async tryBindIdentity(sessionId: string): Promise<void> {
-    const pending = this.pendingIdentities.get(sessionId);
-    if (!pending || this.cliSessionIds.has(sessionId)) return;
-    const profile = this.cliProfiles.get(pending.profileId);
-    if (!profile?.listSessions) return;
-    const list = await profile.listSessions(pending.cwd).catch(() => []);
-    /* await 期间会话可能已被移除:死会话绑上 CLI 身份会永久占位,
-       令同 cwd 后续新会话再也绑不上该磁盘身份 */
-    if (!this.sessions.some((s) => s.id === sessionId)) return;
-    const claimed = new Set(this.cliSessionIds.values());
-    /* unmatched = 文件读出了身份但不属于我(cwd 不符/归属兄弟)→ 强拒绝,等下一个文件;
-       unreadable = 读不出身份或证据不足以唯一仲裁 → 才允许退回水位线仲裁。 */
-    if (profile.readSessionFileIdentity) {
-      const siblingSpawns = [...this.pendingIdentities]
-        .filter(([id, p]) => id !== sessionId && p.profileId === pending.profileId && p.cwd === pending.cwd)
-        .map(([, p]) => p.spawnedAt);
-      const matched = await pickContentIdentity(
-        listFreshCandidates(list, pending.before, pending.spawnedAt, claimed),
-        pending.cwd,
-        pending.spawnedAt,
-        (path) => profile.readSessionFileIdentity!(path),
-        siblingSpawns,
-      );
-      if (matched.kind === "matched") {
-        this.cliSessionIds.set(sessionId, matched.id);
-        this.pendingIdentities.delete(sessionId);
-        void this.statusWatch.refresh(sessionId);
-        this.notify();
-        return;
-      }
-      if (matched.kind === "unmatched") return;
-    }
-    const fresh = pickFreshIdentity(list, pending.before, pending.spawnedAt, claimed);
-    if (!fresh) return;
-
-    const entry = list.find((s) => s.id === fresh);
-    let ownerIsMe = false;
-    if (entry && pending.before && !pending.before.has(fresh)) {
-      let ownerId: string | null = null;
-      let ownerSpawn = Number.NEGATIVE_INFINITY;
-      for (const [id, p] of this.pendingIdentities) {
-        if (p.profileId !== pending.profileId || p.cwd !== pending.cwd) continue;
-        if (p.spawnedAt <= entry.modifiedAt && p.spawnedAt >= ownerSpawn) {
-          ownerSpawn = p.spawnedAt;
-          ownerId = id;
-        }
-      }
-      if (ownerId !== null && ownerId !== sessionId) return; // 属于别的 spawn,让位
-      ownerIsMe = ownerId === sessionId;
-    }
-    if (!ownerIsMe) {
-      /* 归属不可判:老会话优先(窗口内) */
-      for (const [id, p] of this.pendingIdentities) {
-        if (id === sessionId || p.profileId !== pending.profileId || p.cwd !== pending.cwd) {
-          continue;
-        }
-        if (p.spawnedAt < pending.spawnedAt && Date.now() - p.spawnedAt < Host.BIND_DEFER_MS) {
-          return;
-        }
-      }
-    }
-
-    this.cliSessionIds.set(sessionId, fresh);
-    this.pendingIdentities.delete(sessionId);
-    void this.statusWatch.refresh(sessionId);
-    this.notify();
-  }
-
-  /** 快相位:spawn 后 15s 内 500ms 一格扫盘;扫不尽由慢相位(2s 巡航)继续,会话不死探测不止。 */
-  private async detectDiskIdentity(sessionId: string): Promise<void> {
-    for (let i = 0; i < 30; i++) {
-      const { promise, resolve } = Promise.withResolvers<void>();
-      setTimeout(resolve, 500);
-      await promise;
-      if (!this.pendingIdentities.has(sessionId)) return; // 已绑定或会话已死
-      await this.tryBindIdentity(sessionId);
-    }
-  }
+  // ---- 身份探测:kernel/identityWatch.ts(文件规模铁则拆分) ---------------
 
   /** 缓冲上限兜底值(设置未落地前/异常时)。全屏 TUI 靠重绘恢复，保留尾部足够。 */
   private static readonly OUTPUT_BUFFER_LIMIT = 500_000;
@@ -373,21 +290,32 @@ class Host implements PluginContext {
     this.events.emit(ptyLiveTopic(sessionId), text);
 
     /* AskWatch:命中面板标记立候选,复现确认后升级等待 → 事件 + 标签重渲染;
-       ActivityWatch:输出回绿 + 节流 notify(未锚定会话免重渲染)。 */
+       ActivityWatch:输出回绿 + 节流 notify(未锚定会话免重渲染);
+       EditWatch:CLI 声明 editMarks 时检测 AI 写入标记 → fileEditDetected
+       (审批线 events 归因主信号,checkpoints 流式记账)。 */
     const asked = this.askWatch.onOutput(sessionId, text);
     if (asked) this.events.emit(KernelTopics.askDetected, sessionId);
     if (asked || this.activity.onOutput(sessionId)) this.notify();
+    const session = this.sessions.find((s) => s.id === sessionId);
+    const marks = session ? this.cliProfiles.get(session.profileId)?.editMarks : undefined;
+    if (session && marks && marks.length > 0) {
+      const paths = this.editWatch.onOutput(sessionId, text, session.cwd, marks);
+      if (paths.length > 0) {
+        this.events.emit(KernelTopics.fileEditDetected, { sessionId, paths });
+      }
+    }
   }
 
   /**
    * 用户输入的唯一写入口:PTY 写入 + 对话锚定(呼吸灯首写闸,activityWatch)
    * + Ask 等待解除(作答即摘标签)。
-   * synthetic = 终端协议回传(焦点/鼠标/查询应答,见 terminalReports.ts):
-   * 照常写 PTY(CLI 正在等),但不锚定对话 —— 点一下终端/滚一轮不算用户首写。
    */
   writeSession(sessionId: string, data: string, synthetic = false): void {
     void ipc.sessionWrite(sessionId, data);
-    if (!synthetic) this.activity.onUserWrite(sessionId);
+    if (!synthetic) {
+      this.activity.onUserWrite(sessionId);
+      this.editWatch.onUserWrite(sessionId); // 新一轮:EditWatch 去重集清空
+    }
     if (this.askWatch.onUserWrite(sessionId)) this.notify();
   }
 
@@ -455,11 +383,12 @@ class Host implements PluginContext {
     this.ptyUnlistens.delete(id);
     this.sessions = this.sessions.filter((s) => s.id !== id);
     this.cliSessionIds.delete(id);
-    this.pendingIdentities.delete(id);
+    this.identityWatch.remove(id);
     this.statusWatch.remove(id);
     this.outputBuffers.remove(id);
     this.activity.onSessionRemoved(id);
     this.askWatch.onSessionRemoved(id);
+    this.editWatch.onSessionRemoved(id); // 无条件清:非激活会话移除同样不得泄漏检测态
     if (this.activeSessionId === id) {
       const next = this.sessions[0]?.id ?? null;
       this.activeSessionId = next;

@@ -17,7 +17,7 @@
  * - 未置顶 → 常规分页。scope=global 的活会话同样离组(仅全局区可见)。
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host, useHost } from "@kernel/host";
 import { ipc, type SessionMeta } from "@kernel/ipc";
@@ -192,6 +192,18 @@ export function CliSessionGroup({
       .filter((id): id is string => id !== undefined),
   );
 
+  /* 身份绑定跳变 → 磁盘重扫:omp 实证懒落盘晚于 spawn 35s+,spawn 时点的扫描看不到
+   * 文件与标题;绑定成功即文件已出生,立即补扫,并延迟再补一次(自动命名晚 birth ~1s)。 */
+  const boundCount = liveCliIds.size;
+  const prevBoundCount = useRef(boundCount);
+  useEffect(() => {
+    if (boundCount === prevBoundCount.current) return;
+    prevBoundCount.current = boundCount;
+    setRescanTick((t) => t + 1);
+    const catchUp = setTimeout(() => setRescanTick((t) => t + 1), 3_000);
+    return () => clearTimeout(catchUp);
+  }, [boundCount]);
+
   useEffect(() => {
     let stale = false;
     if (!profile.listSessions) return;
@@ -219,16 +231,18 @@ export function CliSessionGroup({
       .map((s) => [s.id, s.title as string]),
   );
 
-  /** 行标题解析:手动命名 > 磁盘原生标题 > 短码。 */
-  const displayTitle = (cliSessionId: string | undefined, fallbackId: string): string => {
-    if (cliSessionId) {
-      const override = titleOverrides[sessionTitleKey(profile.id, cliSessionId)];
-      if (override) return override;
-      const diskTitle = diskTitleByCliId.get(cliSessionId);
-      if (diskTitle) return diskTitle;
-    }
-    return shortId(cliSessionId ?? fallbackId);
+  /** 真标题:手动命名 > 磁盘原生标题。短码兜底不是标题 —— 置顶快照只收这里的结果。 */
+  const realTitle = (cliSessionId: string | undefined): string | undefined => {
+    if (!cliSessionId) return undefined;
+    return (
+      titleOverrides[sessionTitleKey(profile.id, cliSessionId)] ??
+      diskTitleByCliId.get(cliSessionId)
+    );
   };
+
+  /** 行标题解析:手动命名 > 磁盘原生标题 > 短码。 */
+  const displayTitle = (cliSessionId: string | undefined, fallbackId: string): string =>
+    realTitle(cliSessionId) ?? shortId(cliSessionId ?? fallbackId);
 
   /** 本组置顶投影:workspace scope → 组顶块;global scope → 离组进全局区。 */
   const workspacePins = listSessionPins(pins, {
@@ -310,12 +324,12 @@ export function CliSessionGroup({
    * 行内扎点开关:未扎 → 置顶到全局;已扎(任一作用域)→ 取消置顶。
    * 跨作用域迁移仍走右键菜单(codemoss 双作用域语义,开关只做最常用的一键路径)。
    */
-  const togglePin = (cliSessionId: string, fallbackId: string) => {
+  const togglePin = (cliSessionId: string) => {
     const key = sessionPinKey(workspace.id, profile.id, cliSessionId);
     if (isSessionPinned(key)) {
       unpinSession(key);
     } else {
-      pinSession(key, "global", displayTitle(cliSessionId, fallbackId));
+      pinSession(key, "global", realTitle(cliSessionId));
     }
   };
   /** 菜单目标的磁盘身份:未绑定(活会话未落盘)则不可重命名/置顶。 */
@@ -363,7 +377,7 @@ export function CliSessionGroup({
             setMenu({ kind: "disk", session: s, x: e.clientX, y: e.clientY });
           }}
           onRenameCommit={commitRename}
-          onTogglePin={() => togglePin(s.id, s.id)}
+          onTogglePin={() => togglePin(s.id)}
         />
       ))}
 
@@ -391,7 +405,7 @@ export function CliSessionGroup({
               setMenu({ kind: "live", session: s, x: e.clientX, y: e.clientY });
             }}
             onTogglePin={() => {
-              if (cliSessionId !== undefined) togglePin(cliSessionId, s.id);
+              if (cliSessionId !== undefined) togglePin(cliSessionId);
             }}
             onRenameCommit={commitRename}
           />
@@ -415,7 +429,7 @@ export function CliSessionGroup({
             setMenu({ kind: "disk", session: s, x: e.clientX, y: e.clientY });
           }}
           onRenameCommit={commitRename}
-          onTogglePin={() => togglePin(s.id, s.id)}
+          onTogglePin={() => togglePin(s.id)}
         />
       ))}
 
@@ -447,11 +461,7 @@ export function CliSessionGroup({
           }}
           onPinScope={(scope) => {
             if (!menuPinKey || !menuCliSessionId) return;
-            toggleSessionPin(
-              menuPinKey,
-              scope,
-              displayTitle(menuCliSessionId, menu.session.id),
-            );
+            toggleSessionPin(menuPinKey, scope, realTitle(menuCliSessionId));
           }}
           onDelete={() => {
             if (menu.kind === "live") {

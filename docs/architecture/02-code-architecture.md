@@ -226,7 +226,7 @@ flowchart TD
     PROF -->|是| SP["ipc.sessionSpawn → Rust<br/>session_spawn → PtyRegistry.spawn"]
     SP --> META["session_list 全量回拉<br/>activeSessionId = 新 id"]
     META --> SUB["常驻订阅 pty://out → appendOutput"]
-    META --> ID["后台 detectDiskIdentity<br/>最多 30 次 × 500ms"]
+    META --> ID["后台 detectDiskIdentity<br/>快相位 30 × 500ms → 巡航相位 5s 一格<br/>(预算 10min,不依赖激活态)"]
     ID -->|命中| BIND["Host.cliSessionIds 绑定 CLI native session id"]
     BIND --> STATUS["立即调用 profile.readSessionStatus"]
     STATUS --> POLL["active session 每 2 秒刷新<br/>写入 Host.sessionStatuses"]

@@ -22,3 +22,14 @@ export function compareLiveSessions(
   if (ua !== ub) return ua - ub;
   return (b.createdAt ?? 0) - (a.createdAt ?? 0) || b.id.localeCompare(a.id);
 }
+
+/**
+ * 置顶快照有效性:短码垃圾(历史缺陷把 shortId 当快照持久化)视为无快照。
+ * 判定用精确等值 —— 垃圾快照正是 shortId(cliSessionId) 的产物,不做模式猜测。
+ */
+export function realPinSnapshot(
+  snapshot: string,
+  cliSessionId: string,
+): string | undefined {
+  return snapshot && snapshot !== shortId(cliSessionId) ? snapshot : undefined;
+}

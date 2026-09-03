@@ -2,9 +2,13 @@
  * 活会话列表比较器行为契约测试。
  * 契约:完成未读置顶;其余按 spawn 时间(createdAt)倒序 —— 排序键必须是稳定身份,
  * 两个同时流式输出的会话绝不因输出先后互换位置(会话列表抖动事故的回归防线)。
+ *
+ * 置顶快照有效性(短码垃圾判定):历史缺陷里置顶早于 CLI 自动命名落地时,
+ * shortId 兜底串被当作标题快照持久化,全局置顶区从此永久显示短码;
+ * realPinSnapshot 负责把它识别为"无快照"。
  */
 import { describe, expect, it } from "vitest";
-import { compareLiveSessions } from "./utils";
+import { compareLiveSessions, realPinSnapshot, shortId } from "./utils";
 import type { SessionMeta } from "@kernel/ipc";
 
 const meta = (id: string, createdAt?: number): SessionMeta => ({
@@ -43,5 +47,23 @@ describe("compareLiveSessions", () => {
       compareLiveSessions(x, y, () => false),
     );
     expect(sorted.map((s) => s.id)).toEqual(["z", "a", "legacy"]);
+  });
+});
+
+describe("realPinSnapshot", () => {
+  const id = "01a066bd-2682-72df-909c-1d5336bfb21d";
+
+  it("短码垃圾(历史缺陷持久化的 shortId)与空串均视为无快照", () => {
+    expect(realPinSnapshot(shortId(id), id)).toBeUndefined();
+    expect(realPinSnapshot("", id)).toBeUndefined();
+  });
+
+  it("真标题原样通过,不受其他会话短码影响", () => {
+    expect(realPinSnapshot("Verify approval line features match client", id)).toBe(
+      "Verify approval line features match client",
+    );
+    expect(realPinSnapshot(shortId("other-session-id"), id)).toBe(
+      shortId("other-session-id"),
+    );
   });
 });

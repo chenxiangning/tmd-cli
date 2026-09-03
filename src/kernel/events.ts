@@ -36,6 +36,13 @@ export const KernelTopics = {
   /** 会话新进入等待用户确认(Ask 标记命中,本轮首次)。payload: sessionId */
   askDetected: "kernel.sessions.ask.detected",
   /**
+   * CLI 输出出现「AI 写入文件」标记(EditWatch 命中,路径已按会话 cwd 归一)。
+   * payload: { sessionId, paths } —— 审批线 events 归因的主信号
+   * (作者设计点:审批线跟随 AI 输出落盘,而不是光靠 git 推断)。
+   * 常量归内核,检测归 editWatch(host 主链路);消费方:checkpoints 流式记账。
+   */
+  fileEditDetected: "kernel.sessions.fileEdit.detected",
+  /**
    * 一条用户 prompt 已写入 PTY。payload: { sessionId, text }
    * 常量归内核,emit 归 composer —— 发送语义是 composer 的知识
    * (幕布击键同样走 writeSession,不能当 prompt)。消费方:checkpoints 插件打锚点快照。
@@ -54,4 +61,10 @@ export interface TurnSettledEvent {
   sessionId: string;
   unviewed: boolean;
   settledAt: number;
+}
+
+/** fileEditDetected 负载:paths = 本批新增命中(去重后,仓库相对、已归一)。 */
+export interface FileEditEvent {
+  sessionId: string;
+  paths: string[];
 }

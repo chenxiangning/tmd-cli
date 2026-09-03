@@ -57,19 +57,21 @@ export function isSessionPinned(key: string, scope?: SessionPinScope): boolean {
 /**
  * 置顶 / 迁移作用域。已以相同 scope 置顶时为 no-op(返回 false);
  * 否则写入新记录(新时间戳),结构性互斥无需显式清另一作用域。
- * title 为置顶时刻的显示标题快照(供全局区免磁盘扫描显示)。
+ * title 为置顶时刻的真标题快照(供全局区免磁盘扫描显示)。仅收真标题 ——
+ * 短码兜底不入库(历史缺陷曾把 shortId 存成快照,永久顶替真标题);
+ * 缺快照(空串)由全局区读磁盘解析并经 refreshPinTitle 回填。
  */
 export function pinSession(
   key: string,
   scope: SessionPinScope,
-  title: string,
+  title?: string,
 ): boolean {
   const current = getSettingsState().settings.sessionPins;
   if (current[key]?.scope === scope) return false;
   updateSettings({
     sessionPins: {
       ...current,
-      [key]: { scope, pinnedAt: Date.now(), title },
+      [key]: { scope, pinnedAt: Date.now(), title: title ?? "" },
     },
   });
   return true;
@@ -86,12 +88,12 @@ export function unpinSession(key: string): void {
 
 /**
  * 切换置顶(codemoss 菜单语义):当前已是该 scope → 取消(返回 false);
- * 否则置顶/迁移到该 scope(返回 true)。
+ * 否则置顶/迁移到该 scope(返回 true)。title 语义同 pinSession(仅真标题)。
  */
 export function toggleSessionPin(
   key: string,
   scope: SessionPinScope,
-  title: string,
+  title?: string,
 ): boolean {
   if (isSessionPinned(key, scope)) {
     unpinSession(key);
@@ -99,6 +101,18 @@ export function toggleSessionPin(
   }
   pinSession(key, scope, title);
   return true;
+}
+
+/**
+ * 升级快照标题(全局区磁盘解析回填):未置顶 / 空标题 / 无变化均 no-op。
+ * 快照一旦补全,全局区恢复免磁盘扫描显示。
+ */
+export function refreshPinTitle(key: string, title: string): void {
+  const current = getSettingsState().settings.sessionPins;
+  const entry = current[key];
+  const next = title.trim();
+  if (!entry || !next || entry.title === next) return;
+  updateSettings({ sessionPins: { ...current, [key]: { ...entry, title: next } } });
 }
 
 /** 指定 scope 的置顶列表(可按工作区/CLI 过滤,按置顶时间升序,最早置顶最上)。 */

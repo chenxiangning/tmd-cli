@@ -191,6 +191,20 @@ async function listClaudeMcpServers(cwd: string): Promise<CliSuggestion[] | null
   if (!json) return null;
   return extractClaudeMcpServers(json, cwd);
 }
+/**
+ * 「AI 写入文件」输出标记(审批线 events 归因;实证 claude 2.1.x TUI):
+ * - 工具行:`⏺ Update(file)` / `⏺ Write(file)` / `⏺ Edit(file)`(1.x 工具名,
+ *   2.x 更名 Update —— 两个都收,旧版安装不缺事件)/ `⏺ NotebookEdit(file)`
+ * - patch 头(工具结果区):`*** Update File: path` / `*** Add File: path` /
+ *   `*** Delete File: path`(路径可为绝对,EditWatch 按会话 cwd 相对化)
+ * 只收工具/patch 字面量,不收 Bash 行与助手正文(宁漏勿误 —— 手改混入
+ * 批次比漏记更伤审批线可信度)。长路径截断(`…`)的行不匹配 → 漏报
+ * 自愈为普通 dirty,不误报。
+ */
+export const CLAUDE_EDIT_MARKS: RegExp[] = [
+  /^\s*⏺\s+(?:Update|Write|Edit|NotebookEdit)\((.+)\)\s*$/,
+  /^\s*\*\*\*\s+(?:Update|Add|Delete)\s+File:\s*(.+?)\s*$/,
+];
 
 /**
  * claude CLI 插件(CLI 能力矩阵 + 本机 2.1.251 实证):
@@ -198,6 +212,7 @@ async function listClaudeMcpServers(cwd: string): Promise<CliSuggestion[] | null
  * - `$` skill:claude 原生语法是 /skill-name(--help: "Skills still resolve
  *   via /skill-name"),发送时翻译(同 omp 的 $→/skill: 方案)。
  * - 会话恢复:claude --resume <uuid>;历史列表 = 扫 claude 自己的 projects 目录。
+ * - editMarks:审批线 events 归因(AI 写入事件流,见 CLAUDE_EDIT_MARKS)。
  */
 export const cliClaudePlugin: Plugin = {
   id: "cli-claude",
@@ -239,6 +254,7 @@ export const cliClaudePlugin: Plugin = {
       readSessionStatus: readClaudeSessionStatus,
       readSessionFileIdentity: readClaudeSessionIdentity,
       readSessionUserMessages: readClaudeUserMessages,
+      editMarks: CLAUDE_EDIT_MARKS,
     };
     ctx.registerCliProfile(profile);
     void listClaudeSkillSuggestions().then((skills) => {

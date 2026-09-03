@@ -4,19 +4,23 @@
  * codemoss PinnedThreadList 适配:
  * - 平铺列表按置顶时间升序(tmd-cli 置顶规模小,不做 codemoss 的日历日分组);
  * - 段折叠态持久化 localStorage(纯 UI 态,不污染 settings schema);
- * - 行标题:手动命名覆盖层 > 置顶时刻标题快照 > 短码(快照让全局区免磁盘扫描);
+ * - 行标题:手动命名覆盖层 > 置顶快照 > 短码;快照缺失或为短码垃圾(历史缺陷
+ *   把 shortId 存成了快照)时读磁盘解析真标题并回填快照(节流重试,见下);
  * - 行点击:绑定的活会话 → 切到该会话;否则按原工作区恢复磁盘会话;
  * - 已移除工作区/未注册 CLI 的残留置顶不渲染(数据保留,加回即恢复);
  * - 右键菜单无删除项:全局区不持有磁盘文件路径,删除回工作区分组操作
  *   (先「置顶到工作区内」迁移回组,或「取消置顶」后组内删除)。
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CliProfile } from "@kernel/cli";
+import { extractJsonlTitle, TITLE_HEAD_BYTES } from "@kernel/diskSessions";
 import { host, useHost } from "@kernel/host";
+import { ipc } from "@kernel/ipc";
 import { useSettingsState } from "@kernel/settings";
 import {
   listSessionPins,
+  refreshPinTitle,
   toggleSessionPin,
   unpinSession,
   type SessionPinEntry,
@@ -25,11 +29,18 @@ import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { ChevronDown, ChevronRight, Pin } from "lucide-react";
 import { SessionContextMenu } from "./SessionContextMenu";
+import { realPinSnapshot, shortId } from "./utils";
 import { PinToggle, RenameInput, type RenameTarget } from "./SessionRows";
-import { shortId } from "./utils";
 
 /** 段折叠态存储 key(纯 UI 态,localStorage 即可,浏览器/Tauri 行为一致)。 */
 const COLLAPSED_KEY = "tmd.pinnedSectionCollapsed";
+
+/** 快照缺失/短码垃圾行的磁盘解析重试:3s 起步指数退避至 24s 封顶,
+ * 8 次后放弃(共 ~2.4min)。omp 懒落盘晚 spawn 35-44s 在窗口内;文件已删
+ * 的置顶不再永续扫描(此前固定 3s interval 无限轮询)。 */
+const TITLE_RESOLVE_RETRY_MS = 3_000;
+const TITLE_RESOLVE_MAX_BACKOFF_MS = 24_000;
+const TITLE_RESOLVE_MAX_ATTEMPTS = 8;
 
 /** 解析成功的全局置顶行:身份 + 所属工作区/CLI 均已就位。 */
 interface PinnedRow {
@@ -63,6 +74,57 @@ export function PinnedSessionsSection() {
       : [];
   });
 
+  /* 快照缺失或为短码垃圾(历史缺陷)的置顶行:读磁盘解析真标题并经 refreshPinTitle
+   * 回填 settings —— 回填后全局区恢复免磁盘扫描;解析不到(文件未落盘)节流重试。 */
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const unresolvedKeys = rows
+    .filter(
+      (r) =>
+        !settings.sessionTitles[sessionTitleKey(r.profile.id, r.cliSessionId)] &&
+        !realPinSnapshot(r.entry.title, r.cliSessionId),
+    )
+    .map((r) => r.key)
+    .join("|");
+
+  useEffect(() => {
+    if (!unresolvedKeys) return;
+    const keys = new Set(unresolvedKeys.split("|"));
+    let stale = false;
+    let timer: number | undefined;
+    let attempts = 0;
+    const attempt = async () => {
+      for (const row of rowsRef.current) {
+        if (!keys.has(row.key) || !row.profile.listSessions) continue;
+        const list = await row.profile.listSessions(row.workspace.root).catch(() => []);
+        if (stale) return;
+        const hit = list.find((s) => s.id === row.cliSessionId);
+        const head = hit
+          ? await ipc.fsReadHead(hit.path, TITLE_HEAD_BYTES).catch(() => "")
+          : "";
+        const title = head ? extractJsonlTitle(head) : undefined;
+        if (stale) return;
+        if (title) refreshPinTitle(row.key, title);
+      }
+    };
+    const schedule = () => {
+      if (stale || attempts >= TITLE_RESOLVE_MAX_ATTEMPTS) return;
+      attempts += 1;
+      const delay = Math.min(
+        TITLE_RESOLVE_RETRY_MS * 2 ** (attempts - 1),
+        TITLE_RESOLVE_MAX_BACKOFF_MS,
+      );
+      timer = window.setTimeout(() => {
+        void attempt().then(schedule);
+      }, delay);
+    };
+    void attempt().then(schedule);
+    return () => {
+      stale = true;
+      window.clearTimeout(timer);
+    };
+  }, [unresolvedKeys]);
+
   if (rows.length === 0) return null;
 
   const toggleCollapsed = () => {
@@ -71,10 +133,12 @@ export function PinnedSessionsSection() {
     localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0");
   };
 
-  /** 行标题:手动命名 > 置顶时刻快照 > 短码。 */
+
+  /** 行标题:手动命名 > 置顶快照(短码垃圾视为无快照) > 短码。 */
   const titleOf = (row: PinnedRow): string =>
     settings.sessionTitles[sessionTitleKey(row.profile.id, row.cliSessionId)] ??
-    (row.entry.title || shortId(row.cliSessionId));
+    realPinSnapshot(row.entry.title, row.cliSessionId) ??
+    shortId(row.cliSessionId);
 
   /** 绑定的活会话(同工作区 + 同 CLI + 同磁盘身份);存在则点击 = 切会话。 */
   const liveOf = (row: PinnedRow) =>

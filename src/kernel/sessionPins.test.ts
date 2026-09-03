@@ -130,3 +130,27 @@ describe("listSessionPins 投影", () => {
     expect(ws1CodexGlobal.map((p) => p.key)).toEqual([KEY_OTHER_CLI]);
   });
 });
+
+describe("快照标题语义", () => {
+  it("pinSession 缺省快照存空串:短码兜底不入库(历史缺陷曾把 shortId 存成快照)", () => {
+    expect(pins.pinSession(KEY_A, "global")).toBe(true);
+    expect(settings.getSettingsState().settings.sessionPins[KEY_A]?.title).toBe("");
+  });
+
+  it("refreshPinTitle 回填快照;未置顶 / 空标题 / 同值均 no-op", () => {
+    const entryTitle = () =>
+      settings.getSettingsState().settings.sessionPins[KEY_A]?.title;
+
+    pins.refreshPinTitle(KEY_A, "未置顶时不写");
+    expect(entryTitle()).toBeUndefined();
+
+    pins.pinSession(KEY_A, "global");
+    expect(entryTitle()).toBe("");
+    pins.refreshPinTitle(KEY_A, "  ");
+    expect(entryTitle()).toBe("");
+    pins.refreshPinTitle(KEY_A, "Verify approval line features match client");
+    expect(entryTitle()).toBe("Verify approval line features match client");
+    pins.refreshPinTitle(KEY_A, "Verify approval line features match client");
+    expect(entryTitle()).toBe("Verify approval line features match client");
+  });
+});

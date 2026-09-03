@@ -167,6 +167,18 @@ describe("detectDiskIdentity 身份绑定", () => {
     await vi.advanceTimersByTimeAsync(16_000);
     expect(host.getCliSessionId(a.id)).toBe("t2-fA");
   });
+
+  it("巡航相位:快相位耗尽后文件才落盘,后台会话(非激活)也绑上", async () => {
+    /* omp 实证懒落盘:jsonl 出生晚于 spawn 35-44s,快相位 15s 必然扑空;
+       旧逻辑慢相位只巡航激活会话,后台会话聚焦前永远绑不上(标题退化为应用短码) */
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await vi.advanceTimersByTimeAsync(16_000);
+    expect(host.getCliSessionId(a.id)).toBeUndefined();
+
+    disk = [diskSession("t14-cruise", Date.now())];
+    await vi.advanceTimersByTimeAsync(5_000); // 巡航 5s 一格
+    expect(host.getCliSessionId(a.id)).toBe("t14-cruise");
+  });
 });
 
 describe("detectDiskIdentity 快照与复活", () => {

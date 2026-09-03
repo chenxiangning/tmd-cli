@@ -171,6 +171,15 @@ export interface CliProfile {
    */
   readDefaultStatus?: (cwd: string) => Promise<CliSessionStatus | null>;
   /**
+   * 「AI 写入文件」输出标记(审批线 events 归因):每条正则对剥 ANSI 后的
+   * 单行匹配,捕获组 1 = 文件路径(仓库相对或 cwd 内绝对)。
+   * 声明后该 CLI 的会话走 events 归因(审批线跟随 AI 输出落账);
+   * 未声明 = 回退 git 窗口推断(旧行为)。
+   * 标记选词只认工具行字面量(宁可漏报不可误报 —— 手改文件混入批次
+   * 比漏记一个文件更伤审批线可信度)。
+   */
+  editMarks?: RegExp[];
+  /**
    * 发送时用 bracketed paste 协议注入(ESC[200~ 正文 ESC[201~ + CR)。
    *
    * 背景:pi-tui 系(kimi/pi)输入编辑器带"粘贴爆发"启发式 —— 短窗口内连续到达的
