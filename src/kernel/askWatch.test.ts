@@ -41,6 +41,13 @@ import { KernelTopics } from "./events";
 const OMP_ASK =
   "\x1b[1mAsk 1 questions\x1b[0m\r\n\x1b[2m[plan_confirm] · options:3\x1b[0m";
 
+/** omp ask 工具面板尾部(真实字节形态):问题+长选项渲染后,「Ask N questions」
+ *  头部已被推出 240 字符尾窗,只有底部字面量落在页脚窗口 —— 实测漏报根因。 */
+const OMP_ASK_TOOL_TAIL =
+  "\x1b[38;2;107;114;128m│\x1b[39m   \x1b[38;2;107;114;128m○\x1b[39m \x1b[39m保留 CLI 分组,组内时间轴化\x1b[39m\r\n" +
+  "\x1b[38;2;107;114;128m│\x1b[39m   \x1b[38;2;107;114;128m○\x1b[39m \x1b[39m混合:默认合并,可切回分组\x1b[39m\r\n" +
+  "\x1b[38;2;107;114;128m│\x1b[39m   \x1b[38;2;107;114;128m○\x1b[39m \x1b[39mOther (type your own)\x1b[39m";
+
 /** 推过确认窗(1.2s)再触发输出评估的便捷步进。 */
 async function pastConfirm() {
   await vi.advanceTimersByTimeAsync(1_300);
@@ -75,13 +82,14 @@ describe("AskWatch 标记检测与状态迁移(候选确认制)", () => {
     expect(watch.onOutput("s2", OMP_ASK)).toBe(true);
   });
 
-  it("瞬态内容:标记滚出页脚窗口即撤销候选(作答残影不复燃)", async () => {
+  it("字节缺口撤销:标记随流远去(超 16KB 无复现)候选撤销,后续重新观察", async () => {
     watch.onOutput("s3", OMP_ASK); // 面板帧
-    /* 响应流多行推进,把面板标记冲出末 5 行窗口 */
-    watch.onOutput("s3", "assistant response streams on\r\nline2\r\nline3\r\nline4\r\nline5\r\n");
+    watch.onOutput("s3", "r".repeat(17_000)); // 响应流冲远,缺口超限撤销
     await pastConfirm();
-    expect(watch.onOutput("s3", "more response\r\n")).toBe(false);
-    expect(watch.isWaiting("s3")).toBe(false);
+    expect(watch.onOutput("s3", OMP_ASK)).toBe(false); // 重新立候选
+    await pastConfirm();
+    expect(watch.onOutput("s3", OMP_ASK)).toBe(true);
+    expect(watch.isWaiting("s3")).toBe(true);
   });
 
   it("resume 回放的历史面板文本是瞬态:流式滚过不错绑(bug 2 回归)", async () => {
@@ -124,6 +132,14 @@ describe("AskWatch 标记检测与状态迁移(候选确认制)", () => {
     expect(watch.onOutput("s9", "redraw still shows: Esc to cancel")).toBe(true);
   });
 
+  it("omp ask 工具面板:头部被长选项推出尾窗,底部字面量照样确认(实测漏报回归)", async () => {
+    /* 真实帧序:面板流式渲染,底部 "Other (type your own)" 每帧都在尾窗 */
+    expect(watch.onOutput("s20", OMP_ASK_TOOL_TAIL)).toBe(false);
+    await pastConfirm();
+    expect(watch.onOutput("s20", OMP_ASK_TOOL_TAIL)).toBe(true);
+    expect(watch.isWaiting("s20")).toBe(true);
+  });
+
   it("页脚窗口:标记滚出末 5 行不命中(正文引用不触发)", () => {
     const scrolledOut = "Ask 1 questions\npad1\npad2\npad3\npad4\npad5";
     expect(watch.onOutput("s10", scrolledOut)).toBe(false);
@@ -137,27 +153,34 @@ describe("AskWatch 标记检测与状态迁移(候选确认制)", () => {
     expect(watch.isWaiting("s11")).toBe(true);
   });
 
-  it("用户作答清除;作答后的整帧重绘(残影)不再复燃(bug 1 回归)", async () => {
+  it("用户作答清除;残影重绘被写后抑制窗挡住,不再复燃(bug 1 回归)", async () => {
     watch.onOutput("s12", OMP_ASK);
     await pastConfirm();
     watch.onOutput("s12", OMP_ASK); // 确认升级
     expect(watch.onUserWrite("s12")).toBe(true);
     expect(watch.isWaiting("s12")).toBe(false);
-    /* 实测序列:作答后 omp 整帧重发面板文本(旧模型在此复燃并卡死整个响应流) */
+    /* 实测序列:作答后 omp 整帧重发面板文本 —— 候选立起,但写后抑制窗挡住升级 */
     expect(watch.onOutput("s12", OMP_ASK)).toBe(false);
-    expect(watch.onOutput("s12", "response\r\n")).toBe(false);
+    await pastConfirm();
+    expect(watch.onOutput("s12", OMP_ASK)).toBe(false); // 距写入 1.3s < 8s 抑制窗
+    expect(watch.isWaiting("s12")).toBe(false);
+    /* 响应流把残影推出屏幕:16KB 无复现,候选撤销,永不复燃 */
+    watch.onOutput("s12", "r".repeat(17_000));
+    await pastConfirm();
+    expect(watch.onOutput("s12", "more response")).toBe(false);
     expect(watch.isWaiting("s12")).toBe(false);
   });
 
-  it("作答后的下一个提问仍会进入等待(连续多问流程)", async () => {
+  it("作答后的下一个提问仍会进入等待(抑制窗只延迟不吞掉,连续多问流程)", async () => {
     watch.onOutput("s13", OMP_ASK);
     await pastConfirm();
     watch.onOutput("s13", OMP_ASK);
     watch.onUserWrite("s13");
-    /* 下一问:候选 → 确认,与首问同径 */
+    /* 下一问在抑制窗内:只延迟 */
     expect(watch.onOutput("s13", OMP_ASK)).toBe(false);
-    await pastConfirm();
+    await vi.advanceTimersByTimeAsync(8_500);
     expect(watch.onOutput("s13", OMP_ASK)).toBe(true);
+    expect(watch.isWaiting("s13")).toBe(true);
   });
 
   it("静默自愈:等待中 CLI 自行继续(响应流过、尾巴无字面量)→ 摘除残签", async () => {

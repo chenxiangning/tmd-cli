@@ -24,20 +24,25 @@
  *
  * 状态迁移:
  * - 立候选:空闲时标记命中(不响不亮,仅观察);
- * - 升级:候选存在,标记复现且距首击 ≥ 确认窗 → 等待(askDetected + 标签);
- * - 撤销:候选存在,标记滚出页脚窗口 → 回到空闲(瞬态内容);
+ * - 升级:候选存在,标记复现、距首击 ≥ 确认窗、且不在写后抑制窗内
+ *   → 等待(askDetected + 标签);
+ * - 撤销:候选存在,距上次命中流出超 16KB 仍无复现 → 回到空闲;
  * - 清除:用户写入(作答,尾巴/候选一并重置)/ 静默自愈 / 会话移除。
- * 一个未回答的提问期间无论重绘多少次只触发一次;作答后的下一个提问再触发。
+ * 一个未回答的提问期间无论重绘多少次只触发一次;作答后的下一个提问再触发
+ * (抑制窗内只延迟,面板持续重绘、窗过后即升级)。
  */
 
 /** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅内部持有。 */
 type TimerHandle = ReturnType<typeof setInterval>;
 
 /** Ask/确认界面标记:保守选词(面板标题/页脚提示字面量),助手正文误报概率极低。
- * omp Ask 面板 / 通用选择与取消页脚 / y-n 提问(含大小写与方括号变体)/
- * claude 权限确认标题句式。扩展新 CLI 只需在此追加。 */
+ * omp Ask 面板 / omp ask 工具选项尾行 / 通用选择与取消页脚 / y-n 提问(含大小写
+ * 与方括号变体)/ claude 权限确认标题句式。扩展新 CLI 只需在此追加。
+ * 选词位置原则:标记必须出现在面板的「尾部」—— 长选项会把面板头部推出
+ * 240 字符尾窗(实测:omp ask 面板的 "Ask 1 questions" 头部在选项渲染后
+ * 距尾窗数行,永不命中),底部字面量才稳定落在页脚窗口。 */
 const ASK_MARKER_RE =
-  /Ask \d+ questions?|Enter select\b|Esc(?: to)? cancel\b|[([][yY]\/[nN][)\]]|Do you want/;
+  /Ask \d+ questions?|Enter select\b|Esc(?: to)? cancel\b|[([][yY]\/[nN][)\]]|Do you want|Other \(type your own\)/;
 
 /** 页脚窗口:标记只认剥 ANSI 后的末 5 行 —— 面板标题+选项区的高度上限。 */
 const FOOTER_WINDOW_LINES = 5;
@@ -46,12 +51,25 @@ const FOOTER_WINDOW_LINES = 5;
 const ANSI_RE =
   /[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d/#&.:=?%@~_]*)?)?\u0007)|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-ntqry=><~]))/g;
 
-/** 尾巴长度:覆盖标记短字面量的跨分片窗口,又不至于每 chunk 全量重扫。 */
-const RAW_TAIL_CHARS = 240;
+/** 尾巴长度:覆盖标记短字面量的跨分片拼接。240 被实测证伪 —— omp 等宽面板
+ *  TUI 单行可达 110-180 列(含边框/衬垫),240 字符装不下两行,面板底部字面量
+ *  永远进不了页脚窗口(漏报根因之一)。1024 ≈ 宽行 TUI 的 5 行页脚窗口。 */
+const RAW_TAIL_CHARS = 1024;
 
 /** 候选确认窗:升级等待要求标记在后续帧复现且距首击不小于此值。
  *  真面板从出现到被人作答远长于此;残影/回放的瞬态文本撑不过一次输出续流。 */
 const ASK_CONFIRM_MS = 1_200;
+
+/** 候选撤销缺口:距上次标记命中流出超过此字节数仍无复现,候选撤销。
+ *  按"单次脱窗即撤销"被仿真证伪 —— 整帧重绘 TUI 一帧 ~8KB,帧内流式推进时
+ *  标记只在帧尾进窗,命中/脱窗逐 chunk 交替。omp 整帧 ≈8KB,16KB 容忍两次
+ *  帧距;残留/回放文本一旦随流远去,16KB 内必然无复现。 */
+const ASK_CANDIDATE_MAX_GAP_BYTES = 16_384;
+
+/** 写后复燃抑制:作答后此窗口内的复现不升级 —— 已答面板块会随整帧重绘在
+ *  屏幕上逗留数秒(transcript 里同样含标记字面量),响应流将其推出屏幕后
+ *  复现自然停止。活面板持续重绘,抑制期一过即升级(连续多问只是延迟亮标)。 */
+const ASK_REARM_SUPPRESS_MS = 8_000;
 
 /** 自愈静默阈值:等待会话输出静默超此值且尾巴无面板字面量才摘残签
  *  (与 activityWatch 的轮次静默同语义,常量各自持有以解耦)。 */
@@ -73,9 +91,10 @@ interface AskTail {
   rawTail: string;
 }
 
-/** 候选:首次命中的时刻,确认升级前与标记复现一起观察。 */
+/** 候选:首次命中时刻 + 最近命中时的累计输出字节(缺口撤销用)。 */
 interface AskCandidate {
   firstHitAt: number;
+  lastHitBytes: number;
 }
 
 export class AskWatch {
@@ -86,6 +105,10 @@ export class AskWatch {
   private readonly candidates = new Map<string, AskCandidate>();
   /** 每会话最近输出时刻:等待期静默判定(自愈)用。 */
   private readonly lastOutputAt = new Map<string, number>();
+  /** 每会话累计输出字节:候选缺口撤销的度量。 */
+  private readonly bytesIn = new Map<string, number>();
+  /** 每会话最近写入时刻:写后复燃抑制窗用。 */
+  private readonly lastWriteAt = new Map<string, number>();
   /** 自愈守望计时器:无等待会话时停表(不空转)。 */
   private timer: TimerHandle | null = null;
 
@@ -101,30 +124,39 @@ export class AskWatch {
   onOutput(sessionId: string, text: string): boolean {
     const tail = this.tails.get(sessionId) ?? { rawTail: "" };
     const combined = tail.rawTail + text;
-    this.tails.set(
-      sessionId,
-      combined.length > RAW_TAIL_CHARS
-        ? { rawTail: combined.slice(-RAW_TAIL_CHARS) }
-        : { rawTail: combined },
-    );
+    /* 命中评估必须用截断后的尾巴:整帧 TUI 的大 chunk(可达数 KB)若照
+       combined 全量评估,页脚窗口语义形同虚设(帧头部的已答面板块也会命中) */
+    const updatedTail =
+      combined.length > RAW_TAIL_CHARS ? combined.slice(-RAW_TAIL_CHARS) : combined;
+    this.tails.set(sessionId, { rawTail: updatedTail });
     const now = Date.now();
+    const bytesIn = (this.bytesIn.get(sessionId) ?? 0) + text.length;
+    this.bytesIn.set(sessionId, bytesIn);
     this.lastOutputAt.set(sessionId, now);
     if (this.waiting.has(sessionId)) return false;
-    const hit = ASK_MARKER_RE.test(footerWindow(stripAnsi(combined)));
+    const hit = ASK_MARKER_RE.test(footerWindow(stripAnsi(updatedTail)));
     const candidate = this.candidates.get(sessionId);
     if (!hit) {
-      /* 标记滚出页脚窗口:瞬态内容(作答残影/回放历史),候选撤销 */
-      this.candidates.delete(sessionId);
+      /* 标记滚出页脚窗口:按字节缺口撤销(整帧重绘 TUI 帧内交替命中/脱窗属常态),
+         缺口超限 = 标记确已随流远去(残留/回放/响应体),候选撤销 */
+      if (candidate && bytesIn - candidate.lastHitBytes > ASK_CANDIDATE_MAX_GAP_BYTES) {
+        this.candidates.delete(sessionId);
+      }
       return false;
     }
     if (candidate) {
+      this.candidates.set(sessionId, { ...candidate, lastHitBytes: bytesIn });
       if (now - candidate.firstHitAt < ASK_CONFIRM_MS) return false;
+      const lastWrite = this.lastWriteAt.get(sessionId);
+      if (lastWrite !== undefined && now - lastWrite < ASK_REARM_SUPPRESS_MS) {
+        return false; /* 写后抑制窗:已答面板的残影重绘,不升级 */
+      }
       this.candidates.delete(sessionId);
       this.waiting.add(sessionId);
       this.ensureHealWatch();
       return true;
     }
-    this.candidates.set(sessionId, { firstHitAt: now });
+    this.candidates.set(sessionId, { firstHitAt: now, lastHitBytes: bytesIn });
     return false;
   }
 
@@ -137,6 +169,7 @@ export class AskWatch {
     this.tails.delete(sessionId);
     this.candidates.delete(sessionId);
     this.lastOutputAt.delete(sessionId);
+    this.lastWriteAt.set(sessionId, Date.now());
     this.stopHealWatchIfIdle();
     if (!this.waiting.delete(sessionId)) return false;
     return true;
@@ -180,6 +213,8 @@ export class AskWatch {
     this.candidates.delete(sessionId);
     this.waiting.delete(sessionId);
     this.lastOutputAt.delete(sessionId);
+    this.bytesIn.delete(sessionId);
+    this.lastWriteAt.delete(sessionId);
     this.stopHealWatchIfIdle();
   }
 
@@ -198,5 +233,7 @@ export class AskWatch {
     this.candidates.clear();
     this.waiting.clear();
     this.lastOutputAt.clear();
+    this.bytesIn.clear();
+    this.lastWriteAt.clear();
   }
 }
