@@ -3,7 +3,7 @@
  *
  * 视觉规范:
  * - 复刻 codemoss file-tree ─ 顶部 root label + 文件操作按钮(subbar 由外壳渲染)。
- * - 文件/文件夹行用 fileVisual 图标;行 hover 右侧按钮 = 复制路径。
+ * - 文件/文件夹行用 fileVisual 图标;行 hover 右侧按钮 = 在访达中显示 + 复制路径。
  * - 右键菜单走 wsmenu 范式(FileTreeContextMenu),命名走居中卡片(NamePrompt)。
  *
  * 注册点:
@@ -11,7 +11,7 @@
  * - filePanel:{ refresh / newFile / newFolder } 槽,外壳 subbar 按钮消费
  */
 import { useCallback, useEffect, useState } from "react";
-import { ChevronRight, Copy, FilePen, Folder, RefreshCw } from "lucide-react";
+import { ChevronRight, Copy, FilePen, Folder, FolderOpen, RefreshCw } from "lucide-react";
 import { ipc, type DirEntry } from "@kernel/ipc";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { clearDragPayload, setDragPayload } from "@kernel/internalDrag";
@@ -35,7 +35,7 @@ let activeTreeHandles: {
 } | null = null;
 
 /* ──────────────────────────────────────────────────────────
- * 文件/文件夹行 ─ 点击开 tab;右键呼菜单;hover 复制路径。
+ * 文件/文件夹行 ─ 点击开 tab;右键呼菜单;hover 右侧 = 在访达中显示 + 复制路径。
  * ────────────────────────────────────────────────────────── */
 function FileTreeRow({
   entry,
@@ -45,6 +45,7 @@ function FileTreeRow({
   onClick,
   onContextMenu,
   onCopyPath,
+  onReveal,
 }: {
   entry: DirEntry;
   depth: number;
@@ -53,6 +54,7 @@ function FileTreeRow({
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onCopyPath: () => void;
+  onReveal: () => void;
 }) {
   const hint = resolveFileVisual(entry.name, entry.isDir, expanded);
   const color = hint.colorClass ?? "text-(--tmd-fg)";
@@ -112,6 +114,24 @@ function FileTreeRow({
         </span>
       </button>
       <span className="file-tree-actions">
+        {/* 在访达中显示 ─ 设计参考图 hover 组首位(开口文件夹 icon) */}
+        <button
+          type="button"
+          className="file-tree-action"
+          onClick={(ev) => {
+            ev.stopPropagation();
+            onReveal();
+          }}
+          onContextMenu={(ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            onContextMenu(ev);
+          }}
+          aria-label="在访达中显示"
+          title="在访达中显示"
+        >
+          <FolderOpen aria-hidden size={11} />
+        </button>
         <button
           type="button"
           className="file-tree-action"
@@ -232,6 +252,7 @@ function FileTree({ root }: { root: string }) {
             onClick={() => toggle(e)}
             onContextMenu={rowMenu(e)}
             onCopyPath={() => ops.copyPath(e)}
+            onReveal={() => ops.revealInFileManager(e)}
           />
           {isOpen && renderEntries(expanded[e.path], depth + 1)}
         </div>
