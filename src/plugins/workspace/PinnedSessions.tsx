@@ -18,13 +18,14 @@ import { useSettingsState } from "@kernel/settings";
 import {
   listSessionPins,
   toggleSessionPin,
+  unpinSession,
   type SessionPinEntry,
 } from "@kernel/sessionPins";
 import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { ChevronDown, ChevronRight, Pin } from "lucide-react";
 import { SessionContextMenu } from "./SessionContextMenu";
-import { RenameInput, type RenameTarget } from "./SessionRows";
+import { PinToggle, RenameInput, type RenameTarget } from "./SessionRows";
 import { shortId } from "./utils";
 
 /** 段折叠态存储 key(纯 UI 态,localStorage 即可,浏览器/Tauri 行为一致)。 */
@@ -165,7 +166,7 @@ export function PinnedSessionsSection() {
                   <span className="thread-ask-badge">等待确认</span>
                 ) : null}
                 <span className="thread-time">{row.workspace.name}</span>
-                <Pin size={11} className="thread-pin-icon" aria-hidden />
+                <PinToggle on onToggle={() => unpinSession(row.key)} />
               </span>
             </button>
           );

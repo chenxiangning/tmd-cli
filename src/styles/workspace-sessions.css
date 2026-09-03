@@ -12,7 +12,7 @@
   margin: 2px 0 0;
   opacity: 1;
   transform: translateY(0);
-  overflow: hidden;
+  /* 不裁剪:树线顶部要上探 16px 扎进文件夹行;行内容裁剪由 inner 的 overflow 负责。 */
   transition:
     grid-template-rows 0.18s cubic-bezier(0.2, 0, 0, 1),
     opacity 0.16s ease,
@@ -38,12 +38,14 @@
   z-index: 1;
 }
 
-/* 容器级贯穿竖线(连续性由它保证,行只画弯钩) */
+/* 容器级贯穿竖线(连续性由它保证,行只画弯钩)。
+   top: -16px = 工作区行高一半(14px)+ margin-top(2px):
+   线顶与文件夹图标垂直中心对齐,线从文件夹正下方垂出。 */
 .workspace-children::before {
   content: "";
   position: absolute;
   left: var(--workspace-tree-rail-x);
-  top: 0;
+  top: -16px;
   bottom: 6px;
   width: 1px;
   background: var(--workspace-tree-rail);
@@ -246,14 +248,46 @@
 }
 
 
-/* ===== 置顶 pin 角标(置顶行 meta 常亮) ===== */
-.thread-pin-icon {
+/* ===== 行内扎点开关(hover 显形,已扎常亮;点击即扎/取消) ===== */
+.thread-pin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
   color: var(--text-faint);
+  opacity: 0;
   flex-shrink: 0;
+  cursor: pointer;
+  transition:
+    opacity 0.12s ease,
+    background-color 0.12s ease,
+    color 0.12s ease;
 }
 
-.thread-row.is-pinned .thread-name {
+.thread-row:hover .thread-pin-btn,
+.thread-row:focus-visible .thread-pin-btn,
+.thread-pin-btn.is-on {
+  opacity: 1;
+}
+
+.thread-pin-btn:hover {
+  background: var(--surface-hover);
   color: var(--text-strong);
+}
+
+.thread-pin-btn.is-on {
+  color: var(--text-muted);
+}
+
+/* 已扎:实心 pin,与未扎的轮廓态一眼可辨 */
+.thread-pin-btn.is-on .thread-pin-icon {
+  fill: currentColor;
+}
+
+.thread-pin-icon {
+  flex-shrink: 0;
 }
 
 /* ===== 全局置顶区(codemoss sidebar-pinned 适配:平铺 + 段折叠) ===== */

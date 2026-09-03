@@ -23,7 +23,9 @@ import { host, useHost } from "@kernel/host";
 import { ipc, type SessionMeta } from "@kernel/ipc";
 import { resolveCliSessionQuota, useSettingsState } from "@kernel/settings";
 import {
+  isSessionPinned,
   listSessionPins,
+  pinSession,
   sessionPinKey,
   toggleSessionPin,
   unpinSession,
@@ -34,9 +36,13 @@ import {
   setSessionTitle,
 } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
-import { Pin } from "lucide-react";
 import { SessionContextMenu } from "./SessionContextMenu";
-import { DiskSessionRow, RenameInput, type RenameTarget } from "./SessionRows";
+import {
+  DiskSessionRow,
+  PinToggle,
+  RenameInput,
+  type RenameTarget,
+} from "./SessionRows";
 import { compareLiveSessions, shortId } from "./utils";
 
 /* 共享 1Hz ticker:N 个 ActivityDot 共用一个 interval(替代每点一表),0 订阅时停表。 */
@@ -85,21 +91,25 @@ function LiveSessionRow({
   isActive,
   title,
   pinned,
+  canPin,
   waiting,
   renaming,
   onContextMenu,
+  onTogglePin,
   onRenameCommit,
 }: {
   session: SessionMeta;
   profile: CliProfile;
   isActive: boolean;
   title: string;
-  /** 已置顶(任一作用域):meta 常亮 pin 角标;不影响活会话排序。 */
   pinned: boolean;
+  /** 已绑定磁盘身份才可扎(覆盖层以 CLI 身份为 key)。 */
+  canPin: boolean;
   /** 正等待用户确认(Ask 标记命中):meta 区亮「等待确认」标签,作答即消。 */
   waiting: boolean;
   renaming: RenameTarget | null;
   onContextMenu: (e: React.MouseEvent) => void;
+  onTogglePin: () => void;
   onRenameCommit: (value: string | null) => void;
 }) {
   if (renaming) {
@@ -125,7 +135,7 @@ function LiveSessionRow({
       <span className="thread-name">{title}</span>
       <span className="thread-meta">
         {waiting ? <span className="thread-ask-badge">等待确认</span> : null}
-        {pinned ? <Pin size={11} className="thread-pin-icon" aria-hidden /> : null}
+        <PinToggle on={pinned} disabled={!canPin} onToggle={onTogglePin} />
         <ActivityDot sessionId={session.id} />
       </span>
     </button>
@@ -243,14 +253,12 @@ export function CliSessionGroup({
   const workspacePinnedIds = new Set(workspacePins.map((p) => p.cliSessionId));
 
   /** 活会话排序:完成未读置顶,其余 spawn 时间倒序(比较器见 utils —— 稳定键防抖动);
-   *  scope=global 的活会话离组,汇入全局「已置顶」区,不在本组显示。 */
+   *  scope=global 的活会话离组,汇入全局「已置顶」区,不在本组显示。
+   *  pinnedOutIds 已按本工作区+本 CLI 过滤,存裸 cliSessionId(与磁盘过滤的 s.id 同构)。 */
   const orderedLive = [...liveSessions]
     .filter((s) => {
       const cliSessionId = host.getCliSessionId(s.id);
-      return !(
-        cliSessionId !== undefined &&
-        pinnedOutIds.has(sessionPinKey(workspace.id, profile.id, cliSessionId))
-      );
+      return cliSessionId === undefined || !pinnedOutIds.has(cliSessionId);
     })
     .sort((a, b) => compareLiveSessions(a, b, (id) => host.isUnread(id)));
 
@@ -304,6 +312,18 @@ export function CliSessionGroup({
     setRenaming({ profileId: profile.id, cliSessionId, current });
   };
 
+  /**
+   * 行内扎点开关:未扎 → 置顶到全局;已扎(任一作用域)→ 取消置顶。
+   * 跨作用域迁移仍走右键菜单(codemoss 双作用域语义,开关只做最常用的一键路径)。
+   */
+  const togglePin = (cliSessionId: string, fallbackId: string) => {
+    const key = sessionPinKey(workspace.id, profile.id, cliSessionId);
+    if (isSessionPinned(key)) {
+      unpinSession(key);
+    } else {
+      pinSession(key, "global", displayTitle(cliSessionId, fallbackId));
+    }
+  };
   /** 菜单目标的磁盘身份:未绑定(活会话未落盘)则不可重命名/置顶。 */
   const menuCliSessionId = menu
     ? menu.kind === "disk"
@@ -324,7 +344,7 @@ export function CliSessionGroup({
     <div className="cli-group">
       <div className="cli-group-label">{profile.name}</div>
 
-      {/* 工作区置顶块(置顶时间升序,pin 角标常亮) */}
+      {/* 工作区置顶块(置顶时间升序,行内扎点常亮) */}
       {pinnedDisk.map((s) => (
         <DiskSessionRow
           key={s.id}
@@ -341,6 +361,7 @@ export function CliSessionGroup({
             setMenu({ kind: "disk", session: s, x: e.clientX, y: e.clientY });
           }}
           onRenameCommit={commitRename}
+          onTogglePin={() => togglePin(s.id, s.id)}
         />
       ))}
 
@@ -359,6 +380,7 @@ export function CliSessionGroup({
               cliSessionId !== undefined &&
               sessionPinKey(workspace.id, profile.id, cliSessionId) in pins
             }
+            canPin={cliSessionId !== undefined}
             waiting={host.isWaitingConfirm(s.id)}
             renaming={
               renaming && cliSessionId === renaming.cliSessionId ? renaming : null
@@ -366,6 +388,9 @@ export function CliSessionGroup({
             onContextMenu={(e) => {
               e.preventDefault();
               setMenu({ kind: "live", session: s, x: e.clientX, y: e.clientY });
+            }}
+            onTogglePin={() => {
+              if (cliSessionId !== undefined) togglePin(cliSessionId, s.id);
             }}
             onRenameCommit={commitRename}
           />
@@ -389,6 +414,7 @@ export function CliSessionGroup({
             setMenu({ kind: "disk", session: s, x: e.clientX, y: e.clientY });
           }}
           onRenameCommit={commitRename}
+          onTogglePin={() => togglePin(s.id, s.id)}
         />
       ))}
 
