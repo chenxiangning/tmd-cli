@@ -244,6 +244,8 @@ export const ipc = {
   /** 本地图片 → data URL(markdown 预览 asset:// 失败回退;Rust 侧白名单+大小闸)。 */
   readLocalImageDataUrl: (path: string) =>
     invoke<string>("read_local_image_data_url", { path }),
+  /** 二进制预览文件 → base64(pdf/xls/xlsx/docx;Rust 侧白名单+分档大小闸)。 */
+  readBinaryFileBase64: (path: string) => invoke<string>("read_binary_file_base64", { path }),
   /* ── git(右栏面板;cwd 由调用方从活跃 workspace 取)── */
   gitStatus: (cwd: string) => invoke<GitDiffStatus>("git_status", { cwd }),
 

@@ -7,9 +7,17 @@
  */
 
 import { useCallback, useState } from "react";
-import type { PreviewOutlineItem } from "./outline";
 
-function PreviewOutlineEntry({
+/** 侧栏可渲染的最小条目形状。泛型化(纯类型改造):md 大纲与 PDF/文档
+ *  预览大纲复用同一组件,target 类型由调用方自带,渲染只读 id/title/level/children。 */
+type OutlineItemShape<T> = {
+  id: string;
+  title: string;
+  level: number;
+  children: T[];
+};
+
+function PreviewOutlineEntry<T extends OutlineItemShape<T>>({
   item,
   depth,
   activeItemId,
@@ -17,10 +25,10 @@ function PreviewOutlineEntry({
   expandedItemIds,
   onToggleExpanded,
 }: {
-  item: PreviewOutlineItem;
+  item: T;
   depth: number;
   activeItemId: string | null;
-  onSelectItem: (item: PreviewOutlineItem) => void;
+  onSelectItem: (item: T) => void;
   expandedItemIds: Set<string>;
   onToggleExpanded: (itemId: string) => void;
 }) {
@@ -79,7 +87,7 @@ function PreviewOutlineEntry({
   );
 }
 
-export function PreviewOutlineSidebar({
+export function PreviewOutlineSidebar<T extends OutlineItemShape<T>>({
   items,
   activeItemId,
   onSelectItem,
@@ -89,9 +97,9 @@ export function PreviewOutlineSidebar({
   onTogglePinned,
   onMouseLeave,
 }: {
-  items: PreviewOutlineItem[];
+  items: T[];
   activeItemId: string | null;
-  onSelectItem: (item: PreviewOutlineItem) => void;
+  onSelectItem: (item: T) => void;
   collapsed?: boolean;
   pinned?: boolean;
   onToggleCollapsed?: () => void;
@@ -166,7 +174,7 @@ export function PreviewOutlineSidebar({
         {items.length > 0 ? (
           <ul className="fvp-preview-outline-list">
             {items.map((item) => (
-              <PreviewOutlineEntry
+              <PreviewOutlineEntry<T>
                 key={item.id}
                 item={item}
                 depth={0}
@@ -185,9 +193,9 @@ export function PreviewOutlineSidebar({
   );
 }
 
-function collectExpandableItemIds(items: PreviewOutlineItem[]): string[] {
+function collectExpandableItemIds<T extends OutlineItemShape<T>>(items: T[]): string[] {
   const itemIds: string[] = [];
-  const visit = (item: PreviewOutlineItem) => {
+  const visit = (item: T) => {
     if (item.children.length > 0) {
       itemIds.push(item.id);
     }

@@ -211,6 +211,11 @@ async fn read_local_image_data_url(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+async fn read_binary_file_base64(path: String) -> Result<String, String> {
+    spawn_fs(move || fs::read_binary_file_base64(&path)).await
+}
+
+#[tauri::command]
 async fn fs_write_temp(name: String, data: Vec<u8>) -> Result<String, String> {
     spawn_fs(move || fs::write_temp_file(&name, &data)).await
 }
@@ -383,6 +388,7 @@ pub fn run() {
             fs_edit::fs_reveal_in_file_manager,
             md5_hex,
             read_local_image_data_url,
+            read_binary_file_base64,
             git::commands::git_status,
             checkpoints::commands::checkpoint_anchor,
             checkpoints::commands::checkpoint_record_edit,

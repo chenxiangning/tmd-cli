@@ -1,0 +1,175 @@
+/* ═══════════════════════════════════════════════════════════════
+   重文档预览样式(PDF / 表格 / 文档 / 二进制占位)
+   —— 照抄 codemoss file-view-panel.css 1467-1596 段;变量桥接在
+   file-preview.css 的 :where 预览容器作用域,本文件规则均在其内。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── PDF / 表格 / 文档共享骨架 ── */
+
+.fvp-pdf-preview,
+.fvp-tabular-preview,
+.fvp-document-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* ── PDF ── */
+
+.fvp-pdf-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.fvp-pdf-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 72%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-card) 88%, transparent);
+}
+
+.fvp-pdf-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--fvp-reader-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fvp-pdf-page-placeholder,
+.fvp-pdf-page-error {
+  display: flex;
+  min-height: 96px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-control) 40%, transparent);
+  color: var(--fvp-reader-muted);
+  text-align: center;
+  font-size: 12px;
+}
+
+.fvp-pdf-page-error {
+  color: #f87171;
+}
+
+.fvp-pdf-canvas {
+  width: 100%;
+  max-width: 100%;
+  align-self: center;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+/* ── 表格 ── */
+
+.fvp-tabular-sheet-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fvp-tabular-sheet-tab {
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-control) 42%, transparent);
+  color: var(--text-muted);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fvp-tabular-sheet-tab.is-active {
+  border-color: color-mix(in srgb, var(--border-accent) 66%, transparent);
+  background: color-mix(in srgb, var(--surface-active) 52%, #5f9dff 10%);
+  color: var(--text-stronger);
+}
+
+.fvp-tabular-table-wrap {
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 68%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-card) 90%, transparent);
+}
+
+.fvp-tabular-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+}
+
+.fvp-tabular-table td {
+  border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 54%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--border-subtle) 42%, transparent);
+  padding: 8px 10px;
+  color: var(--fvp-reader-text);
+  font-size: 12px;
+  line-height: 1.5;
+  vertical-align: top;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.fvp-tabular-table tr:nth-child(odd) td {
+  background: color-mix(in srgb, var(--surface-control) 18%, transparent);
+}
+
+/* ── 文档(docx) ── */
+
+.fvp-document-preview--fallback {
+  max-width: 760px;
+}
+
+.fvp-document-preview-article {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 860px;
+  color: var(--fvp-reader-text);
+  line-height: 1.7;
+}
+
+.fvp-document-preview-article :where(h1, h2, h3, h4, h5, h6) {
+  margin: 0;
+  color: var(--text-stronger);
+  line-height: 1.35;
+  scroll-margin-top: 18px;
+}
+
+.fvp-document-preview-article :where(p, ul, ol, blockquote, table) {
+  margin: 0;
+}
+
+/* ── 二进制不支态占位 ── */
+
+.fvp-binary-unsupported {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.fvp-binary-unsupported p {
+  margin: 0;
+}
+
+/* ── 窄栏:大纲侧栏收起为单栏 ── */
+
+@media (max-width: 980px) {
+  .fvp-preview-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
