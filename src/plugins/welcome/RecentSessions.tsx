@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { host, useHost } from "@kernel/host";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
+import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { formatRelativeTime } from "@kernel/relativeTime";
 
@@ -70,14 +71,17 @@ export function RecentSessions() {
               key={`${profile.id}:${session.id}`}
               type="button"
               className="welcome-session-row"
-              onClick={() =>
-                void host.openDiskSession(
-                  profile.id,
-                  group.workspace.root,
-                  group.workspace.id,
-                  session.id,
-                )
-              }
+              onClick={() => {
+                const title = session.title ?? session.id.slice(0, 8);
+                void host
+                  .openDiskSession(
+                    profile.id,
+                    group.workspace.root,
+                    group.workspace.id,
+                    session.id,
+                  )
+                  .then((meta) => noteSessionTabTitle(meta.id, title));
+              }}
             >
               <span className="welcome-session-icon" aria-hidden>
                 {profile.renderIcon?.(14)}

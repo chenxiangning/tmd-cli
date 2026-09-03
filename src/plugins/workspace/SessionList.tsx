@@ -30,10 +30,12 @@ import {
   toggleSessionPin,
   unpinSession,
 } from "@kernel/sessionPins";
+import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import {
   removeSessionTitle,
   sessionTitleKey,
   setSessionTitle,
+  shortId,
 } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
 import { SessionContextMenu } from "./SessionContextMenu";
@@ -43,7 +45,7 @@ import {
   RenameInput,
   type RenameTarget,
 } from "./SessionRows";
-import { compareLiveSessions, shortId } from "./utils";
+import { compareLiveSessions } from "./utils";
 
 /* 共享 1Hz ticker:N 个 ActivityDot 共用一个 interval(替代每点一表),0 订阅时停表。 */
 const tickSubscribers = new Set<() => void>();
@@ -121,7 +123,10 @@ function LiveSessionRow({
   return (
     <button
       className={`thread-row${isActive ? " active" : ""}`}
-      onClick={() => host.setActiveSession(session.id)}
+      onClick={() => {
+        noteSessionTabTitle(session.id, title);
+        host.setActiveSession(session.id);
+      }}
       onContextMenu={onContextMenu}
     >
       <ActivityDot sessionId={session.id} />
@@ -370,7 +375,9 @@ export function CliSessionGroup({
           pinned
           renaming={renaming?.cliSessionId === s.id ? renaming : null}
           onOpen={() =>
-            void host.openDiskSession(profile.id, workspace.root, workspace.id, s.id)
+            void host
+              .openDiskSession(profile.id, workspace.root, workspace.id, s.id)
+              .then((meta) => noteSessionTabTitle(meta.id, displayTitle(s.id, s.id)))
           }
           onContextMenu={(e) => {
             e.preventDefault();
@@ -422,7 +429,9 @@ export function CliSessionGroup({
           pinned={false}
           renaming={renaming?.cliSessionId === s.id ? renaming : null}
           onOpen={() =>
-            void host.openDiskSession(profile.id, workspace.root, workspace.id, s.id)
+            void host
+              .openDiskSession(profile.id, workspace.root, workspace.id, s.id)
+              .then((meta) => noteSessionTabTitle(meta.id, displayTitle(s.id, s.id)))
           }
           onContextMenu={(e) => {
             e.preventDefault();

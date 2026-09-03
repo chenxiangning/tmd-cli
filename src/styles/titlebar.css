@@ -223,3 +223,102 @@
   height: 14px;
   stroke-width: 1.75;
 }
+
+/* ── Session title tabs(顶栏中央,面包屑右侧;≤4 个,溢出收 ellipsis 不撑破顶栏)── */
+.session-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 0 1 auto;
+  height: 100%;
+  overflow: hidden;
+}
+
+.session-tab {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 160px;
+  height: 24px;
+  flex: 0 1 auto;
+  border-radius: 6px;
+  transition: background 120ms ease;
+}
+
+.session-tab:hover {
+  background: var(--tmd-bg-hover);
+}
+
+.session-tab.is-active {
+  background: var(--tmd-bg-active);
+}
+
+.session-tab-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex: 1 1 auto;
+  height: 100%;
+  padding: 0 2px 0 8px;
+  border: none;
+  background: none;
+  color: var(--tmd-fg-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.session-tab-switch:hover,
+.session-tab.is-active .session-tab-switch {
+  color: var(--tmd-fg);
+}
+
+.session-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 完成未查看圆点(与侧栏 ActivityDot 的未读语义同源,读 host.isUnread) */
+.session-tab-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--tmd-accent);
+}
+
+.session-tab-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin-right: 3px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--tmd-fg-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.session-tab:hover .session-tab-remove,
+.session-tab.is-active .session-tab-remove {
+  opacity: 1;
+}
+
+.session-tab-remove:hover {
+  color: var(--tmd-fg);
+  background: var(--tmd-bg-hover);
+}
+
+.session-tab-remove svg {
+  width: 10px;
+  height: 10px;
+}

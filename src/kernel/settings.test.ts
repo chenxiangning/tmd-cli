@@ -57,6 +57,7 @@ describe("初始状态与默认值", () => {
       lightThemePresetId: "vscode-light-modern",
       darkThemePresetId: "vscode-dark-modern",
       customThemePresetId: "vscode-dark-modern",
+      sessionTabsEnabled: true,
       sendShortcut: "enter",
       askSoundEnabled: true,
       askSoundId: "default",
@@ -74,6 +75,15 @@ describe("初始状态与默认值", () => {
     });
     expect(s.loaded).toBe(false);
     expect(s.panelOpen).toBe(false);
+  });
+});
+
+describe("会话标题 tab 开关", () => {
+  it("合法补丁合并生效,非布尔回落 true(默认开)", () => {
+    settings.updateSettings({ sessionTabsEnabled: false });
+    expect(settings.getSettingsState().settings.sessionTabsEnabled).toBe(false);
+    settings.updateSettings({ sessionTabsEnabled: "no" as never });
+    expect(settings.getSettingsState().settings.sessionTabsEnabled).toBe(true);
   });
 });
 

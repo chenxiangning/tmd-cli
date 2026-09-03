@@ -7,8 +7,12 @@
  * - 覆盖层对所有 CLI 行为一致,单一代码路径。
  * 代价:CLI 侧(如 omp /title)再改名不会回冲覆盖层 —— 手动命名优先,符合用户预期。
  */
-
 import { getSettingsState, updateSettings } from "./settings";
+
+/** 会话 id 短显:UUIDv7 类 id 前 8 位是时间戳,近缘会话必然撞前缀 → 头 4 + 尾 4。 */
+export function shortId(id: string): string {
+  return id.length <= 10 ? id : `${id.slice(0, 4)}…${id.slice(-4)}`;
+}
 
 /** 覆盖层 key:`${profileId}:${cliSessionId}` —— 与 CLI 无关的活会话 PTY id 不入层。 */
 export function sessionTitleKey(profileId: string, cliSessionId: string): string {

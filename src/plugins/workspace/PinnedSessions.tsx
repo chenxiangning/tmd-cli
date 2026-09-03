@@ -25,11 +25,12 @@ import {
   unpinSession,
   type SessionPinEntry,
 } from "@kernel/sessionPins";
-import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
+import { noteSessionTabTitle } from "@kernel/sessionTabs";
+import { sessionTitleKey, setSessionTitle, shortId } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { ChevronDown, ChevronRight, Pin } from "lucide-react";
 import { SessionContextMenu } from "./SessionContextMenu";
-import { realPinSnapshot, shortId } from "./utils";
+import { realPinSnapshot } from "./utils";
 import { PinToggle, RenameInput, type RenameTarget } from "./SessionRows";
 
 /** 段折叠态存储 key(纯 UI 态,localStorage 即可,浏览器/Tauri 行为一致)。 */
@@ -154,15 +155,18 @@ export function PinnedSessionsSection() {
   const openRow = (row: PinnedRow) => {
     const live = liveOf(row);
     if (live) {
+      noteSessionTabTitle(live.id, titleOf(row));
       host.setActiveSession(live.id);
       return;
     }
-    void host.openDiskSession(
-      row.profile.id,
-      row.workspace.root,
-      row.workspace.id,
-      row.cliSessionId,
-    );
+    void host
+      .openDiskSession(
+        row.profile.id,
+        row.workspace.root,
+        row.workspace.id,
+        row.cliSessionId,
+      )
+      .then((meta) => noteSessionTabTitle(meta.id, titleOf(row)));
   };
 
   const commitRename = (value: string | null) => {

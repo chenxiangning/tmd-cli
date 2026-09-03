@@ -33,6 +33,7 @@
 - 会话输出落盘:64MB 旋转日志 + 幕布往前翻页读取
 - 输出缓冲分块(上限可配)与字节流安全截断
 - 近期会话:欢迎页展示磁盘最近会话,可快速进入
+- 顶栏会话 tab 条:顶栏中央同时展示最多 4 个已打开会话,点击切换、× 摘除不杀会话(摘活跃 tab 自动切到剩余最近打开的);打开次序稳定,超限挤除最老;完成未读缀蓝点(设计见 `superpowers/specs/2026-09-03-session-title-tabs-design.md`)
 
 ## Ask 等待确认与提示音
 
@@ -114,7 +115,7 @@
 ## 设置与外观
 
 - 设置面板:overlay 常驻,section/tab 经 settingsRegistry 注册表扩展
-- 外观 tab:主题跟随系统/亮/暗 + 21 个 VS Code preset 网格(内核 theme 引擎,--tmd-* token 派生)
+- 外观 tab:主题跟随系统/亮/暗 + 21 个 VS Code preset 网格(内核 theme 引擎,--tmd-* token 派生) + 会话标题 tab 条开关(默认开)
 - 行为 tab:发送快捷键模式(Enter 发送 ↔ ⌘/Ctrl+Enter 发送互换)、Ask 提示音开关与音效、会话输出缓冲上限
 - 设置持久化 `~/.tmd-cli/settings.json`,sanitize 归一,非法值回落默认
 - 插件拔插状态(disabledPlugins)同落 settings,重启生效

@@ -39,6 +39,8 @@
 | 2026-09-02 | [冗余与死代码评审](review/2026-09-02-redundancy.md) | 已完成(09-03 复核处置,见文末) |
 | 2026-09-02 | [每日评审](review/2026-09-02-daily-review.md) | 已完成 |
 | 2026-09-03 | [插排徽标升级设计](superpowers/specs/2026-09-03-plugin-market-icons-design.md) | 已评审通过 |
+| 2026-09-03 | [会话标题 tab 条设计](superpowers/specs/2026-09-03-session-title-tabs-design.md) | 已落地 |
+| 2026-09-03 | [会话列表三态标识 / 父子层级 / 边界操作原型](design/session-states-hierarchy.html) | 设计原型 |
 | 常态 | [功能清单 FEATURES](FEATURES.md) | 随代码演进(09-03 补全六域) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

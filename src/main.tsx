@@ -10,6 +10,7 @@ import { host } from "@kernel/host";
 import { bootAskSound } from "@kernel/askSound";
 import { bootTurnSound } from "@kernel/turnSound";
 import { bootDropGuard } from "@kernel/dropGuard";
+import { bootSessionTabs } from "@kernel/sessionTabs";
 import { startThemeEngine } from "@kernel/theme";
 import { allPlugins } from "@plugins/index";
 import "./styles/global.css";
@@ -23,7 +24,7 @@ function App() {
     bootAskSound(host.events); /* Ask 提示音:消费 askDetected(host 主链路检测,见 askWatch.ts) */
     bootTurnSound(host.events); /* 轮次结束提示音:消费 turnSettled,延迟确认后播放 */
     bootDropGuard(); /* 文件拖放护栏:防 webview drop 导航开文件(lib.rs 关原生拦截的副作用) */
-    /* 窗口聚焦态馈入内核:失焦时激活会话的完成也计未读(后台提醒),重聚焦即已读 */
+    bootSessionTabs(host.events); /* 会话标题 tab 条:订阅打开/存活广播,见 kernel/sessionTabs.ts */
     const syncFocus = () => host.setWindowFocus(document.hasFocus());
     window.addEventListener("focus", syncFocus);
     window.addEventListener("blur", syncFocus);

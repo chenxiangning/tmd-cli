@@ -78,6 +78,34 @@ export function BasicAppearanceTab() {
     >
       <div className="pref-row">
         <div>
+          <div className="pref-title">会话标题 tab 条</div>
+          <div className="pref-desc">
+            顶栏中央同时展示最多 4 个已打开的会话,点击切换;关闭后仍可从左侧栏进入会话。
+          </div>
+        </div>
+        <div className="segmented" role="radiogroup" aria-label="会话标题 tab 条">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={settings.sessionTabsEnabled}
+            className={`segment${settings.sessionTabsEnabled ? " is-active" : ""}`}
+            onClick={() => updateSettings({ sessionTabsEnabled: true })}
+          >
+            开启
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!settings.sessionTabsEnabled}
+            className={`segment${!settings.sessionTabsEnabled ? " is-active" : ""}`}
+            onClick={() => updateSettings({ sessionTabsEnabled: false })}
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+      <div className="pref-row">
+        <div>
           <div className="pref-title">主题</div>
           <div className="pref-desc">{themeHint}</div>
         </div>

@@ -88,6 +88,8 @@ export interface AppSettings {
   darkThemePresetId: ThemePresetId;
   /** 自定义模式当前 preset。 */
   customThemePresetId: ThemePresetId;
+  /** 顶栏中央会话标题 tab 条开关(外观页可调,默认开启;见 kernel/sessionTabs.ts)。 */
+  sessionTabsEnabled: boolean;
   /** Composer 发送快捷键行为。 */
   sendShortcut: SendShortcut;
   /** Ask/确认面板提示音开关(行为页可调,默认开启)。 */
@@ -143,6 +145,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   lightThemePresetId: DEFAULT_LIGHT_THEME_PRESET_ID,
   darkThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
   customThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
+  sessionTabsEnabled: true,
   sendShortcut: "enter",
   askSoundEnabled: true,
   askSoundId: "default",
@@ -304,6 +307,10 @@ function sanitize(raw: unknown): AppSettings {
     customThemePresetId: isThemePresetId(obj.customThemePresetId as string)
       ? (obj.customThemePresetId as ThemePresetId)
       : DEFAULT_SETTINGS.customThemePresetId,
+    sessionTabsEnabled:
+      typeof obj.sessionTabsEnabled === "boolean"
+        ? obj.sessionTabsEnabled
+        : DEFAULT_SETTINGS.sessionTabsEnabled,
     sendShortcut: SEND_SHORTCUTS.includes(obj.sendShortcut as SendShortcut)
       ? (obj.sendShortcut as SendShortcut)
       : DEFAULT_SETTINGS.sendShortcut,

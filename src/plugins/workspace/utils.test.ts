@@ -8,7 +8,8 @@
  * realPinSnapshot 负责把它识别为"无快照"。
  */
 import { describe, expect, it } from "vitest";
-import { compareLiveSessions, realPinSnapshot, shortId } from "./utils";
+import { shortId } from "@kernel/sessionTitles";
+import { compareLiveSessions, realPinSnapshot } from "./utils";
 import type { SessionMeta } from "@kernel/ipc";
 
 const meta = (id: string, createdAt?: number): SessionMeta => ({
