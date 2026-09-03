@@ -40,8 +40,9 @@ pub struct CliProbeResult {
 
 /// 探针入口。`command` 是裸 binary 名,允许包含 `/` 或 `\`(绝对路径)。
 ///
-/// 路径查找逻辑(与 pty.rs resolve_command 不同 —— 那个给 PTY spawn 用,
-/// 找不到时返回原命令名让 PTY 自己报错;本函数只做"探针",找不到 = found=false)。
+/// 路径查找与 PTY spawn 同源(find_in_dir × 富化 PATH,Windows 按 PATHEXT
+/// 补扩展名;命中 .cmd/.bat 同样经 resolve_command 包裹 cmd /c)。差别只在
+/// 找不到时的语义:探针返回 found=false,PTY 原样返回交由 spawn 报错。
 pub fn probe_cli(command: &str) -> CliProbeResult {
     let command = command.trim();
     if command.is_empty() {
