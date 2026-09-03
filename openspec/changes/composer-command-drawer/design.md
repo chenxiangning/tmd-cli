@@ -1,6 +1,7 @@
 # Design: Composer 命令抽屉
 
 > 交互与视觉基准:`docs/design/composer-drawer-demo.html`(浏览器实测记录见 proposal 验收节)。
+> 2026-09-03 紧凑化改造后与 demo v2 的差异:标题/搜索/横排 tab 三行移除,分区切换改左缘竖排 rail(顶部关闭、底部计数;二次修订 chip 去文案改图标),抽屉高度自适应内容(上限 = 容器),点外不再自动关闭;demo 保留为 v2 历史对照。
 > 本文档把 demo 的每一块映射到真实实现,并补齐 demo 里刻意省略的契约细节。
 
 ## 1. 协议层(kernel/cli.ts 增量)
@@ -86,8 +87,8 @@ profile    profile    profile   kernel(与 CLI 无关,切会话不变化)
 
 ```
 view/ComposerToolbar.tsx   「只读」→ 抽屉开关(24×24,aria-expanded,⌘K;置灰当无活跃会话)
-view/CommandDrawer.tsx     抽屉本体:head(标题+profile badge+关闭)/ search / 分区 tabs /
-                           分区列表 / foot 图例
+view/CommandDrawer.tsx     抽屉本体:左缘竖排图标分区 rail(关闭 + 全部/命令/… + 计数)/ 分区列表 /
+                           foot 图例;高度自适应内容(v3 紧凑化,无标题/搜索行;点外不自动关)
 drawerItems.ts             resolveDrawerItems + 缓存(唯一数据入口,UI 不直接摸 profile.suggestions
                            / pluginLifecycle)
 drawerIcons.tsx            语义图标集:name → path(初步:clear model help resume history plugins
@@ -100,11 +101,10 @@ drawerIcons.tsx            语义图标集:name → path(初步:clear model help
 | 交互 | 实现 |
 |---|---|
 | 开合 | `isOpen` + `.open` class,transform 260ms cubic-bezier;`prefers-reduced-motion` 降级 |
-| 分区切换 | `activeTab: "all" \| section`;tab 行只渲染实际有数据的分区;打开抽屉时重置为 all(demo 修过过滤词残留,同教训:重置先于渲染) |
-| 点外关闭 | document pointerdown 捕获,抽屉/开关外即关 |
+| 点外不关闭 | v3.1 修订:失焦/点外不自动关;显式关闭 = 开关按钮 / ⌘K / Esc / rail × |
+| 分区切换 | `activeTab: "all" \| section`;左缘竖排图标 rail 只渲染实际有数据的分区(文案进 title/aria-label);打开抽屉时重置为 all(重置先于渲染);单分区视图不重复渲染组头 |
 | Esc / ⌘K | document keydown;⌘K 与 settings.sendShortcut 无冲突(不占 Enter) |
-| 过滤 | 受控 input,`render(filter)` 重渲;作用于当前 tab 可见项 |
-| ↑↓ Enter | 平铺可见项数组 + activeIndex;Enter 触发点击;ArrowDown/Up 在 input 内 stopPropagation 后走全局 |
+| ↑↓ Enter | 平铺可见项数组 + activeIndex;键盘监听挂抽屉容器(搜索框已移除),焦点落在按钮上时 Enter 走原生 click 防双激活 |
 | send 点击 | `prepareSendPayload(profile, token)` → `ipc.sessionWrite(sessionId, payload)` → toast → 320ms 后收起(让 flash 动画可见) |
 | insert 点击 | 复用 `Composer.insertAtCursor` 同款逻辑(光标处插入 + setSelectionRange + focus) |
 | open 点击 | `setFilePanelMode(panelId)` → toast → 收起 |
@@ -119,8 +119,8 @@ drawerIcons.tsx            语义图标集:name → path(初步:clear model help
 | `ICONS` 按命令名 hardcode 的 map | **demo 简化,不照搬** → `drawerIcons.tsx` 语义集 + kind glyph 兜底 |
 | `.mode-tag`(⚡ 直接发送 / ↵ 插入 / ⇱ 打开) | 由 `action` 派生的同一 pill 组件 |
 | terminal mock + `wireOf()` | 删除;真发送 = `ipc.sessionWrite`,翻译交给 translate |
-| toast / flash / 滑入动画 / 切换 tabs | 原样平移进 CommandDrawer |
-| 硬编码 omp badge | `profile.renderIcon?.(12)` + `profile.name` |
+| toast / flash / 滑入动画 / 切换分区 | 原样平移进 CommandDrawer;分区切换自 v3 为左缘竖排 rail |
+| demo 的 head(标题+badge)行 / 搜索框 / 横排 tab 行 | v3 移除;关闭移入 rail 顶部,计数移入 rail 底部,高度自适应内容 |
 
 ## 5. send 与手动发送同路径(零拦截)
 

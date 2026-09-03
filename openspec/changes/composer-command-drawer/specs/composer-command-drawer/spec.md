@@ -18,12 +18,12 @@ CLI 插件 SHALL 通过 `CliProfile.suggestions` 声明命令/技能候选,并 M
 
 ### Requirement: 分区由声明派生并可以切换
 
-命令/技能分区 SHALL 由 `profile.triggers` 已声明的 kind 派生;MCP 分区 SHALL 由 `listMcpServers` 声明派生;插件分区 SHALL 渲染内核 `listPluginStates()` 中 `category: "feature"` 的启用插件。抽屉 SHALL 提供分区切换按钮(segmented),tab 行 SHALL 只渲染实际有数据的分区,并提供「全部」聚合视图;打开抽屉时 SHALL 重置为「全部」并清空过滤词。
+命令/技能分区 SHALL 由 `profile.triggers` 已声明的 kind 派生;MCP 分区 SHALL 由 `listMcpServers` 声明派生;插件分区 SHALL 渲染内核 `listPluginStates()` 中 `category: "feature"` 的启用插件。抽屉 SHALL 以左缘竖排图标 rail 提供分区切换(2026-09-03 紧凑化:原横排 tab 行与标题/搜索行移除;二次修订:chip 去文案改图标,文案进 title/aria-label),rail SHALL 只渲染实际有数据的分区,并提供「全部」聚合视图;打开抽屉时 SHALL 重置为「全部」。抽屉高度 SHALL 自适应内容且不超过所在容器;抽屉 SHALL NOT 提供搜索/过滤输入框。
 
 #### Scenario: 无技能触发符的 CLI
 
 - **WHEN** 活跃 profile 的 triggers 只含 `{ char: "/", kind: "command" }` 且未声明 listMcpServers
-- **THEN** 抽屉仅显示命令分区,tab 行无「技能」「MCP」chip
+- **THEN** 抽屉仅显示命令分区,rail 无「技能」「MCP」chip
 
 #### Scenario: 插件分区点击
 
@@ -32,12 +32,12 @@ CLI 插件 SHALL 通过 `CliProfile.suggestions` 声明命令/技能候选,并 M
 
 ### Requirement: 开合与入口
 
-composer 右上角(原「只读」位置,只读标识直接删除、不迁移)SHALL 提供抽屉开关按钮,展开时呈现 `aria-expanded`;⌘/Ctrl+K SHALL 切换开合;Esc 与点击抽屉外 SHALL 关闭;无活跃会话时开关 SHALL 置灰。
+composer 右上角(原「只读」位置,只读标识直接删除、不迁移)SHALL 提供抽屉开关按钮,展开时呈现 `aria-expanded`;⌘/Ctrl+K SHALL 切换开合;Esc SHALL 关闭;点抽屉外 SHALL NOT 自动关闭(2026-09-03 修订:防失焦误关,显式关闭 = 开关按钮 / ⌘K / Esc / rail 关闭钮);无活跃会话时开关 SHALL 置灰。
 
 #### Scenario: 键盘开合
 
 - **WHEN** 用户在输入框按 ⌘K
-- **THEN** 抽屉在开 ↔ 关之间切换;打开时焦点移入过滤框(草稿内容不受影响),关闭时焦点归还输入框
+- **THEN** 抽屉在开 ↔ 关之间切换;打开时焦点移入抽屉容器(搜索框已移除;草稿内容不受影响),关闭时焦点归还输入框
 
 ### Requirement: send 直接执行且与手动发送同路径
 
@@ -72,14 +72,14 @@ composer 右上角(原「只读」位置,只读标识直接删除、不迁移)SH
 - **WHEN** 用户点击 codex 抽屉 MCP 分区中 `token: "$github "`、`action: "insert"` 的服务器
 - **THEN** 输入框光标处出现 `$github `,原样透传(codex 原生 mention 语法)
 
-### Requirement: 过滤与键盘导航
+### Requirement: 键盘导航
 
-抽屉 SHALL 提供实时过滤输入框(命中 name / description);打开时 SHALL 清空上次过滤词并聚焦;↑↓ SHALL 在全部可见项间移动选中,Enter SHALL 触发选中项,Esc SHALL 关闭。
+↑↓ SHALL 在全部可见项间移动选中,Enter SHALL 触发选中项(焦点落在按钮上时由原生 click 承担),Esc SHALL 关闭。(2026-09-03 紧凑化:过滤输入框移除,键盘导航挂在抽屉容器上。)
 
-#### Scenario: 过滤后键盘执行
+#### Scenario: 键盘执行
 
-- **WHEN** 用户输入 "re" 后按 ↓ ↓ Enter
-- **THEN** 选中项在 resume/review 等命中项间移动并最终执行该项的动作
+- **WHEN** 用户打开抽屉后按 ↓ ↓ Enter
+- **THEN** 选中项在可见项间移动并最终执行该项的动作
 
 ### Requirement: 运行时发现覆盖静态表
 

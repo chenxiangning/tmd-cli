@@ -71,7 +71,6 @@ export function ComposerToolbar() {
       {/* 命令抽屉直达开关(closed ↔ open);原「只读」占位(openspec/changes/composer-command-drawer) */}
       <button
         type="button"
-        data-drawer-toggle
         aria-expanded={drawerOpen}
         aria-controls="command-drawer"
         title="命令与技能(⌘K)"

@@ -472,7 +472,6 @@ export function Composer() {
         <CommandDrawer
           open={drawerOpen}
           items={drawerItems}
-          cliName={profile?.name}
           onSend={sendFromDrawer}
           onInsert={insertFromDrawer}
           onOpen={openFromDrawer}

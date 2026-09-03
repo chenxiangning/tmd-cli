@@ -18,7 +18,7 @@
 ## What Changes
 
 - **协议层**(`src/kernel/cli.ts`):`CliSuggestion` 增加可选字段 `action`("send" | "insert",缺省 insert)/ `icon`(语义图标名)/ `token`(完整 wire 文本,覆盖按触发符合成,供 MCP 引用等非标准语法)/ `group` / `order`;`CliProfile` 增加可选 `listSuggestions(kind, cwd)`(命令/技能运行时发现)与 `listMcpServers(cwd)`(MCP 服务器发现),对齐 `listSessions` 惯例。全部向后兼容,老 profile 零改动
-- **composer 插件**:`ComposerToolbar` 右上「只读」→ 抽屉开关按钮(只读直接删除,不迁移);新增 `CommandDrawer` 组件(通用渲染器,**零 `profile.id` 分支**)与 `drawerItems` resolver(静态表 + 运行时发现统一收口,60s 缓存);抽屉顶部提供**分区切换按钮**(全部/命令/技能/MCP/插件,按实际有数据的分区渲染)
+- **composer 插件**:`ComposerToolbar` 右上「只读」→ 抽屉开关按钮(只读直接删除,不迁移);新增 `CommandDrawer` 组件(通用渲染器,**零 `profile.id` 分支**)与 `drawerItems` resolver(静态表 + 运行时发现统一收口,60s 缓存);抽屉左缘竖排分区 rail(全部/命令/技能/MCP/插件,按实际有数据的分区渲染;2026-09-03 紧凑化,原横排 tab + 搜索框移除)
 - **执行机制**:send = `prepareSendPayload(profile, wire)` + `ipc.sessionWrite`(translate 钩子已吃掉 wire 差异,如 omp `$think` → `/skill:think`);insert = 现成 `insertAtCursor`;**抽屉发送与用户手敲发送完全同路径,对手动输入的任何命令(含 /model)不做特殊拦截**
 - **MCP / 插件分区**:MCP 数据 = per-CLI `listMcpServers`(claude 实证 `~/.claude.json` mcpServers、codex 实证 `~/.codex/config.toml [mcp_servers]`,omp/pi 现状无 mcp 键则不显示该区);插件数据 = 内核 `pluginLifecycle.listPluginStates()`(插件市场同源),点击经现成 `filePanel.setFilePanelMode(id)` 打开面板
 - **8 个 cli-\* 插件**:只补声明数据(`action` / `icon` / `token` / `listMcpServers`),不强制——不改 = 该 CLI 抽屉命令/技能全 insert 模式、无 MCP 区,功能完整;codex 顺带补齐现状缺失的 suggestions 清单
@@ -69,9 +69,9 @@ profile 声明 `icon: "clear"` 等语义名,从 composer 自带的小图标集�
 - 点击:已注册右栏面板的插件(git / files)走现成 `filePanel.setFilePanelMode(id)` 直接打开;其余(engine 类 cli-\*、无 UI 的)点击 = 现成 `settings.openSettingsPanel()`(section 定位不含,YAGNI)。**不开新的"插件激活"事件通道**(YAGNI;真需要时再加 topic 契约,同 `git://composer-prefill` 惯例)
 - 展示范围:仅 `category: "feature"`(有可打开 UI 的);engine/core 类是引擎/焊死件,进抽屉是噪音
 
-### D8 分区切换按钮:segmented tabs,按实际数据渲染
+### D8 分区切换:左缘竖排 rail,按实际数据渲染(2026-09-03 紧凑化修订)
 
-抽屉搜索框下方一排 chip(全部 / 命令 / 技能 / MCP / 插件),**只渲染实际有数据的分区**(qoder 无技能 → 无技能 chip;omp v1 无 MCP → 无 MCP chip);「全部」= 纵向堆叠全部分区。键盘导航(↑↓)只在可见项间移动,tab 用鼠标点击(避免快捷键表膨胀)。
+抽屉左缘竖排图标 chip rail(全部 / 命令 / 技能 / MCP / 插件 + 顶部关闭、底部计数;二次修订去文案改图标,文案进 title/aria-label),**只渲染实际有数据的分区**(qoder 无技能 → 无技能 chip;omp v1 无 MCP → 无 MCP chip);「全部」= 纵向堆叠全部分区。键盘导航(↑↓)只在可见项间移动,rail 用鼠标点击(避免快捷键表膨胀)。原 v2 的标题/搜索/横排 tab 三行与过滤词已随紧凑化移除(高度自适应内容);点外自动关闭同批移除(防失焦误关)。
 
 ## 8 个 CLI 的 action 初判清单
 
