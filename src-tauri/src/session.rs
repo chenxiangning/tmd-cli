@@ -23,6 +23,16 @@ pub struct SessionMeta {
     #[serde(default)]
     pub created_at: u64,
     pub pid: Option<u32>,
+    /// 会话后端类型:"cli"(本地 PTY,缺省)| "ssh"(russh 引擎)。
+    #[serde(default = "default_session_kind")]
+    pub kind: String,
+    /// 会话展示标题(SSH 会话 = 主机名;CLI 会话由磁盘会话/命名覆盖层供给,缺省 None)。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+}
+
+fn default_session_kind() -> String {
+    "cli".to_string()
 }
 
 /// 工作区元数据。持久化到 `~/.tmd-cli/workspaces.json`。

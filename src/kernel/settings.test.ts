@@ -72,6 +72,7 @@ describe("初始状态与默认值", () => {
       workspaceCollapsedMap: {},
       networkProxyEnabled: false,
       networkProxyUrl: "",
+      ssh: { hosts: [] },
     });
     expect(s.loaded).toBe(false);
     expect(s.panelOpen).toBe(false);

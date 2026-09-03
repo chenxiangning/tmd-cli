@@ -1,0 +1,199 @@
+/* ssh 插件 —— 设置页主机簿 / 模态 / 远端编辑器 tab(与 ssh.css 同插件拆件) */
+
+/* ── 设置页 ── */
+.ssh-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ssh-settings-toolbar {
+  display: flex;
+  gap: 6px;
+}
+.ssh-host-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ssh-host-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.ssh-host-card-main {
+  flex: 1;
+  min-width: 0;
+}
+.ssh-host-card-name {
+  font-size: 12px;
+  color: var(--tmd-fg);
+}
+.ssh-host-card-endpoint {
+  font-size: 11px;
+  color: var(--tmd-fg-faint);
+}
+.ssh-host-card-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* 模态(主机编辑/导入) */
+.ssh-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 92;
+  background: color-mix(in srgb, var(--tmd-bg-base) 55%, transparent);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 10vh;
+}
+.ssh-modal {
+  width: 440px;
+  max-height: 74vh;
+  overflow-y: auto;
+  border: 1px solid var(--tmd-border);
+  border-radius: 10px;
+  background: var(--tmd-bg-panel);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 35%);
+  padding: 12px 14px;
+}
+.ssh-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.ssh-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ssh-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--tmd-fg-faint);
+}
+.ssh-form input,
+.ssh-form select,
+.ssh-form textarea {
+  padding: 5px 8px;
+  font-size: 12px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 6px;
+  background: var(--tmd-bg-base);
+  color: var(--tmd-fg);
+}
+.ssh-form textarea {
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  resize: vertical;
+}
+.ssh-form-row {
+  display: flex;
+  gap: 6px;
+}
+.ssh-form-row label {
+  flex: 1;
+}
+.ssh-form-row input,
+.ssh-form-row select {
+  width: 100%;
+}
+.ssh-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+}
+.ssh-import-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 44vh;
+  overflow-y: auto;
+}
+.ssh-import-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ssh-import-row:hover {
+  background: var(--tmd-bg-hover);
+  border-radius: 6px;
+}
+.ssh-import-name {
+  flex: none;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tmd-fg);
+}
+.ssh-import-endpoint {
+  flex: 1;
+  font-size: 11px;
+  color: var(--tmd-fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ssh-import-meta {
+  flex: none;
+  font-size: 10px;
+  color: var(--tmd-fg-faint);
+}
+
+/* ── 远端编辑器 tab ── */
+.ssh-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.ssh-editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--tmd-border);
+}
+.ssh-editor-path {
+  font-size: 11px;
+  color: var(--tmd-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ssh-editor-meta {
+  font-size: 10px;
+  color: var(--tmd-fg-faint);
+  flex: none;
+}
+.ssh-editor-banner {
+  font-size: 10px;
+  color: #f59e0b;
+  flex: none;
+}
+.ssh-editor-bar .ssh-btn {
+  margin-left: auto;
+  flex: none;
+}
+.ssh-editor-warn {
+  padding: 4px 10px;
+  font-size: 11px;
+  color: #f59e0b;
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+}
+.ssh-editor-body {
+  flex: 1;
+  min-height: 0;
+}

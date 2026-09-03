@@ -11,20 +11,22 @@ mod pty;
 mod quota;
 mod resolve;
 mod session;
+mod session_commands;
 mod session_log;
 mod settings;
+mod ssh;
 
-use pty::{PtyRegistry, SpawnSpec, SpawnedSession};
-use session::{SessionMeta, SessionRegistry};
+use pty::PtyRegistry;
 use tauri::webview::WebviewWindowBuilder;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager};
 
 pub(crate) struct AppState {
     pty: PtyRegistry,
-    sessions: SessionRegistry,
+    sessions: session::SessionRegistry,
+    ssh: std::sync::Arc<ssh::SshRegistry>,
 }
 
-fn now_millis() -> u64 {
+pub(crate) fn now_millis() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
@@ -102,95 +104,6 @@ async fn cli_install_run(
     tauri::async_runtime::spawn_blocking(move || installer::run_install(&app, engine))
         .await
         .map_err(|e| format!("install task join: {e}"))?
-}
-
-/// 必须 async + spawn_blocking:冷路径首个 spawn 会内联触发 PATH 富化
-/// (login shell 最长 3s 硬超时),同步执行冻结主线程。
-#[tauri::command]
-async fn session_spawn(
-    app: AppHandle,
-    profile_id: String,
-    spec: SpawnSpec,
-    workspace_id: Option<String>,
-) -> Result<SpawnedSession, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<AppState>();
-        let cwd = spec.cwd.clone();
-        let spawned = state.pty.spawn(&app, &profile_id, spec)?;
-        state.sessions.register(SessionMeta {
-            id: spawned.id.clone(),
-            profile_id,
-            cwd,
-            workspace_id,
-            created_at: now_millis(),
-            pid: spawned.pid,
-        });
-        Ok(spawned)
-    })
-    .await
-    .map_err(|e| format!("session_spawn join 失败: {e}"))?
-}
-
-#[tauri::command]
-fn session_list(state: State<'_, AppState>) -> Vec<SessionMeta> {
-    state.sessions.list()
-}
-
-/// 必须 async + spawn_blocking:PTY 写入在子进程停读时可无限阻塞,
-/// 同步 command 跑在主线程会冻结整个 UI,且全局注册表锁连带卡死所有会话。
-#[tauri::command]
-async fn session_write(app: AppHandle, id: String, data: String) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<AppState>();
-        state.pty.write(&id, &data)
-    })
-    .await
-    .map_err(|e| format!("session_write join 失败: {e}"))?
-}
-
-#[tauri::command]
-fn session_resize(
-    state: State<'_, AppState>,
-    id: String,
-    cols: u16,
-    rows: u16,
-) -> Result<(), String> {
-    state.pty.resize(&id, cols, rows)
-}
-
-/// kill 涉及子进程回收,与写路径同纪律:spawn_blocking,不占主线程。
-#[tauri::command]
-async fn session_kill(app: AppHandle, id: String) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<AppState>();
-        state.sessions.remove(&id);
-        state.pty.kill(&id)
-    })
-    .await
-    .map_err(|e| format!("session_kill join 失败: {e}"))?
-}
-
-/// 会话输出日志的绝对末尾偏移;无日志(创建失败/会话已退出)返回 0。
-#[tauri::command]
-fn session_log_size(state: State<'_, AppState>, id: String) -> u64 {
-    state.pty.session_log_end(&id).unwrap_or(0)
-}
-
-/// 幕布往前翻页:磁盘读,spawn_blocking 与其余 fs 命令同纪律。
-#[tauri::command]
-async fn session_history_page(
-    app: AppHandle,
-    id: String,
-    before: u64,
-    max_bytes: u64,
-) -> Result<session_log::HistoryPage, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        app.state::<AppState>()
-            .pty
-            .session_history_page(&id, before, max_bytes)
-    })
-    .await
-    .map_err(|e| format!("session_history_page join 失败: {e}"))?
 }
 
 /// fs 系命令统一 async + spawn_blocking:目录递归/最大 20MB 读/base64 编码
@@ -329,14 +242,21 @@ pub fn run() {
     换确定性:任何子进程 spawn / reqwest 之前 env 已就位)。 */
     proxy::apply_and_report(&settings::load_settings());
     let sessions = session::SessionRegistry::default();
+    let ssh_registry = ssh::commands::new_registry();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .manage(AppState {
             pty: PtyRegistry::default(),
             sessions,
+            ssh: ssh_registry,
         })
         .setup(|app| {
+            /* SSH 引擎全局注入(forward/sftp 后台任务的注册表回取)。 */
+            {
+                let state = app.state::<AppState>();
+                ssh::attach_globals(Some(app.handle()), &state.ssh);
+            }
             let mut window =
                 WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
                     /* 禁用 Tauri 原生 drop handler —— 让 HTML5 drop event 在 webview 内正常派发
@@ -366,13 +286,13 @@ pub fn run() {
             app_restart,
             cli_probe,
             cli_install_run,
-            session_spawn,
-            session_list,
-            session_write,
-            session_resize,
-            session_kill,
-            session_log_size,
-            session_history_page,
+            session_commands::session_spawn,
+            session_commands::session_list,
+            session_commands::session_write,
+            session_commands::session_resize,
+            session_commands::session_kill,
+            session_commands::session_log_size,
+            session_commands::session_history_page,
             fs_list_dir,
             fs_read_file,
             fs_write_temp,
@@ -409,6 +329,8 @@ pub fn run() {
             git::commands::git_discard,
             git::commands::git_commit,
             git::commands::git_log,
+            git::commands::git_commit_files,
+            git::commands::git_commit_file_patch,
             git::commands::git_branches,
             git::commands::git_checkout,
             git::commands::git_create_branch,
@@ -424,6 +346,26 @@ pub fn run() {
             config_read_workspaces,
             config_write_workspaces,
             config_read_settings,
+            ssh::commands::ssh_session_create,
+            ssh::commands::ssh_session_status,
+            ssh::commands::ssh_prompt_answer,
+            ssh::commands::ssh_prompt_cancel,
+            ssh::commands::ssh_latency,
+            ssh::commands::ssh_known_hosts_reset,
+            ssh::commands::ssh_sftp_list,
+            ssh::commands::ssh_sftp_stat,
+            ssh::commands::ssh_sftp_read_text,
+            ssh::commands::ssh_sftp_write_text,
+            ssh::commands::ssh_sftp_mkdir,
+            ssh::commands::ssh_sftp_rename,
+            ssh::commands::ssh_sftp_delete,
+            ssh::commands::ssh_sftp_transfer,
+            ssh::commands::ssh_sftp_transfer_cancel,
+            ssh::commands::ssh_sftp_transfer_status,
+            ssh::commands::ssh_forward_start,
+            ssh::commands::ssh_forward_stop,
+            ssh::commands::ssh_forward_list,
+            ssh::commands::ssh_forward_check_port,
             config_write_settings,
         ])
         .run(tauri::generate_context!())

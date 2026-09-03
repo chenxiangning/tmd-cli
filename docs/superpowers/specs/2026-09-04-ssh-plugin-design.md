@@ -1,7 +1,7 @@
 # SSH 插件设计:一等会话 + 右栏 SFTP 树 + 端口转发(参照参考实现 复刻)
 
 日期:2026-09-04
-状态:已定稿(用户五项裁决已复核,实施期技术细节按本 spec「方案取舍」执行,不再回问)
+状态:已落地(门禁全绿 + 引擎/SFTP 端到端实测通过;浏览器目检通道损坏,见文末验证记录)
 
 ## 背景与目标
 
@@ -104,4 +104,6 @@ tmd-cli 是插件化多 CLI 宿主,会话 = CLI profile + PTY。用户要求参�
 1. Rust:`cargo test`(模块单测:代理解析/SOCKS5 地址编码/转发校验/known_hosts 指纹/路径安全/PEM 清洗)+ `cargo clippy --all-targets -- -D warnings` + `cargo fmt --check`。
 2. 前端:`pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build`(scan.ts 路径展开、settings sanitize、状态仓、转发校验的 Vitest)。
 3. 目检:`pnpm tauri:dev` 真实窗口——主机管理/导入、新建入口、幕布 SSH 会话、右栏面板、编辑器 tab、composer 隐藏。
-4. 端到端:本机 localhost sshd(或可达主机)真实连接,验证密码/私钥认证、known_hosts 信任流、SFTP 读写、端口转发(curl 本地转发口)。
+4. 端到端:已实测(2026-09-04,`cargo test --lib ssh_engine_end_to_end -- --ignored`,本机 127.0.0.1:2222 临时 sshd + ed25519 私钥):known_hosts 首连信任流 → 信任落库 → 私钥认证 → PTY shell 写读回显 → SFTP list/write/read + 乐观并发冲突 → 二连免信任,全链路通过。端口转发未做 curl 级实测(转发实现与 参考实现 同构,单测覆盖校验/注册表)。
+
+> 验证记录备注:tauri:dev 真实窗口目检受阻 —— 用户自有 dev 实例占用 1421(其窗口经 HMR 已运行本插件代码),且本会话浏览器验证通道损坏(run 输出不回显,已报 issue)。UI 面已由 vitest 724 用例 + typecheck/build 全绿覆盖;建议用户在其运行中的窗口点检:新建会话菜单「SSH 连接…」、设置 → SSH、右栏 SSH 面板。

@@ -39,6 +39,8 @@ export type MountPoint =
   | "leftSidebar.section"
   /** 工作区标题行右侧动作区:贡献 icon 按钮级组件(如 session-budget 的预算入口)。 */
   | "leftSidebar.workspaceCaption"
+  /** 工作区「新建会话」菜单组末尾:贡献新会话入口行(如 ssh 插件的「SSH 连接」)。 */
+  | "workspace.newSessionMenu"
   | "leftRail"
   | "rightRail"
   | "overlay"

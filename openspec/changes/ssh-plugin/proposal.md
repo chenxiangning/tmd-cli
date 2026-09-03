@@ -1,6 +1,6 @@
 ## Why
 
-tmd-cli 的会话模型只覆盖本地 CLI(PTY 子进程)。用户需要在客户端内直连远程主机:交互终端、改配置文件、看日志、开隧道。参照竞品 参考实现的 SSH 模块(调研见 `docs/research/ssh-module-liveagent.md`,设计 spec 见 `docs/superpowers/specs/2026-09-04-ssh-plugin-design.md`),以其 russh 引擎与交互逻辑为蓝本复刻,做成 tmd-cli 的可插拔 feature 插件。
+tmd-cli 的会话模型只覆盖本地 CLI(PTY 子进程)。用户需要在客户端内直连远程主机:交互终端、改配置文件、看日志、开隧道。参照竞品的 SSH 模块(调研见 `docs/research/ssh-module-reference.md`,设计 spec 见 `docs/superpowers/specs/2026-09-04-ssh-plugin-design.md`),以其 russh 引擎与交互逻辑为蓝本复刻,做成 tmd-cli 的可插拔 feature 插件。
 
 ## What Changes
 

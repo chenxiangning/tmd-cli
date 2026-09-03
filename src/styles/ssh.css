@@ -1,0 +1,495 @@
+/* ssh 插件 —— 主机选择器 / 提示卡 / 右栏面板 / 设置页 / 远端编辑器 */
+
+/* ── 主机选择 overlay ── */
+.ssh-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: color-mix(in srgb, var(--tmd-bg-base) 55%, transparent);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 14vh;
+}
+.ssh-picker {
+  width: 380px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--tmd-border);
+  border-radius: 8px;
+  background: var(--tmd-bg-panel);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 35%);
+  overflow: hidden;
+}
+.ssh-picker-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--tmd-border);
+}
+.ssh-picker-close {
+  margin-left: auto;
+  color: var(--tmd-fg-faint);
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+}
+.ssh-picker-empty,
+.ssh-settings-empty {
+  padding: 22px 14px;
+  font-size: 12px;
+  color: var(--tmd-fg-faint);
+  text-align: center;
+}
+.ssh-picker-list {
+  overflow-y: auto;
+  padding: 6px;
+}
+.ssh-picker-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "name auth" "endpoint auth";
+  gap: 2px 8px;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+.ssh-picker-item:hover {
+  background: var(--tmd-bg-hover);
+}
+.ssh-picker-item:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.ssh-picker-item-name {
+  grid-area: name;
+  font-size: 12px;
+  color: var(--tmd-fg);
+}
+.ssh-picker-item-endpoint {
+  grid-area: endpoint;
+  font-size: 11px;
+  color: var(--tmd-fg-faint);
+}
+.ssh-picker-item-auth {
+  grid-area: auth;
+  align-self: center;
+  font-size: 10px;
+  color: var(--tmd-fg-faint);
+  border: 1px solid var(--tmd-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.ssh-picker-error {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: #ef4444;
+}
+/* ── 提示卡(host key / KBI / 密码)── */
+.ssh-prompt-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ssh-prompt-card {
+  width: 320px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 8px;
+  background: var(--tmd-bg-panel);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 30%);
+  padding: 10px 12px;
+}
+.ssh-prompt-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.ssh-prompt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ssh-prompt-line {
+  font-size: 11px;
+  color: var(--tmd-fg-faint);
+  word-break: break-all;
+}
+.ssh-prompt-warn {
+  font-size: 11px;
+  color: #f59e0b;
+}
+.ssh-prompt-hint {
+  font-size: 11px;
+  color: var(--tmd-fg-faint);
+}
+.ssh-prompt-input {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 6px;
+  background: var(--tmd-bg-base);
+  color: var(--tmd-fg);
+}
+.ssh-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+}
+.ssh-prompt-actions button,
+.ssh-modal-actions button {
+  padding: 4px 10px;
+  font-size: 11px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 6px;
+  background: none;
+  color: var(--tmd-fg);
+  cursor: pointer;
+}
+.ssh-prompt-actions .is-primary,
+.ssh-modal-actions .is-primary,
+.ssh-btn.is-primary {
+  background: var(--tmd-accent, #6c8aff);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* ── 右栏面板 ── */
+.ssh-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px;
+  height: 100%;
+  overflow-y: auto;
+}
+.ssh-panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 30px 10px;
+  font-size: 12px;
+  color: var(--tmd-fg-faint);
+}
+.ssh-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ssh-session-card {
+  border: 1px solid var(--tmd-border);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.ssh-session-card.is-active {
+  border-color: var(--tmd-accent, #6c8aff);
+}
+.ssh-session-main {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.ssh-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tmd-fg-faint);
+  flex: none;
+}
+.ssh-status-dot.is-connected {
+  background: #22c55e;
+}
+.ssh-status-dot.is-connecting,
+.ssh-status-dot.is-reconnecting {
+  background: #eab308;
+  animation: ssh-breathe 1.6s ease-in-out infinite;
+}
+.ssh-status-dot.is-failed {
+  background: #ef4444;
+}
+.ssh-status-dot.is-disconnected {
+  background: var(--tmd-fg-faint);
+}
+@keyframes ssh-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.ssh-session-label {
+  font-size: 12px;
+  color: var(--tmd-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ssh-session-status,
+.ssh-session-latency {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--tmd-fg-faint);
+  flex: none;
+}
+.ssh-session-message {
+  margin-top: 4px;
+  font-size: 10px;
+  color: #ef4444;
+  word-break: break-all;
+}
+.ssh-session-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.ssh-session-actions button,
+.ssh-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--tmd-fg-faint);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+}
+.ssh-session-actions button:hover,
+.ssh-icon-btn:hover {
+  color: var(--tmd-fg);
+  background: var(--tmd-bg-hover);
+}
+.ssh-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── 面板通用段(转发/SFTP)── */
+.ssh-section {
+  border: 1px solid var(--tmd-border);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.ssh-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tmd-fg);
+}
+.ssh-section-head .ssh-icon-btn {
+  margin-left: auto;
+}
+.ssh-section-head .ssh-icon-btn + .ssh-icon-btn {
+  margin-left: 0;
+}
+.ssh-section-empty {
+  padding: 10px 0 4px;
+  font-size: 11px;
+  color: var(--tmd-fg-faint);
+}
+
+/* 转发 */
+.ssh-forward-list {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ssh-forward-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ssh-forward-addr {
+  flex: 1;
+  text-align: left;
+  font-size: 11px;
+  background: none;
+  border: none;
+  color: var(--tmd-fg);
+  cursor: copy;
+  padding: 2px 0;
+}
+.ssh-forward-arrow {
+  color: var(--tmd-fg-faint);
+  margin: 0 2px;
+}
+.ssh-forward-form {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ssh-forward-form input {
+  flex: 1 1 30%;
+  min-width: 60px;
+  padding: 4px 6px;
+  font-size: 11px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 6px;
+  background: var(--tmd-bg-base);
+  color: var(--tmd-fg);
+}
+.ssh-form-error {
+  width: 100%;
+  font-size: 10px;
+  color: #ef4444;
+}
+.ssh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 6px;
+  background: none;
+  color: var(--tmd-fg);
+  cursor: pointer;
+}
+.ssh-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* SFTP 树 */
+.ssh-sftp-tree {
+  margin-top: 4px;
+  max-height: 40vh;
+  overflow: auto;
+}
+.ssh-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 0;
+}
+.ssh-tree-toggle {
+  display: inline-flex;
+  width: 13px;
+  height: 13px;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--tmd-fg-faint);
+  cursor: pointer;
+  padding: 0;
+}
+.ssh-tree-label {
+  font-size: 11px;
+  background: none;
+  border: none;
+  color: var(--tmd-fg);
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ssh-tree-label:hover {
+  text-decoration: underline;
+}
+.ssh-tree-spin {
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--tmd-fg-faint);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: ssh-spin 0.8s linear infinite;
+}
+@keyframes ssh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ssh-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 96;
+}
+.ssh-menu {
+  position: fixed;
+  z-index: 97;
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  padding: 4px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 8px;
+  background: var(--tmd-bg-panel);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
+}
+.ssh-menu button {
+  text-align: left;
+  padding: 5px 8px;
+  font-size: 11px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--tmd-fg);
+  cursor: pointer;
+}
+.ssh-menu button:hover {
+  background: var(--tmd-bg-hover);
+}
+.ssh-menu button.is-danger {
+  color: #ef4444;
+}
+
+/* 传输进度 */
+.ssh-transfer-list {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ssh-transfer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ssh-transfer-label {
+  flex: 1;
+  font-size: 10px;
+  color: var(--tmd-fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ssh-transfer-bar {
+  width: 70px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--tmd-bg-hover);
+  overflow: hidden;
+}
+.ssh-transfer-fill {
+  height: 100%;
+  background: var(--tmd-accent, #6c8aff);
+  transition: width 0.2s ease;
+}
+

@@ -14,7 +14,7 @@ import type { PluginContext } from "@kernel/plugin";
 function activateCapturingProfile(): CliProfile {
   const captured: CliProfile[] = [];
   cliOmpPlugin.activate({
-    registerCliProfile: (profile) => captured.push(profile),
+    registerCliProfile: (profile: CliProfile) => captured.push(profile),
   } as unknown as PluginContext);
   const profile = captured[0];
   if (!profile) throw new Error("activate 未注册任何 profile");

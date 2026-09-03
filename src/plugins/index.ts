@@ -18,6 +18,7 @@ import { gitPlugin } from "./git";
 import { sessionBudgetPlugin } from "./session-budget";
 import { workspacePlugin } from "./workspace";
 import { settingsPlugin } from "./settings";
+import { sshPlugin } from "./ssh";
 import { welcomePlugin } from "./welcome";
 import { networkProxyPlugin } from "./network-proxy";
 import { checkpointsPlugin } from "./checkpoints";
@@ -39,5 +40,6 @@ export const allPlugins: Plugin[] = [
   composerPlugin,
   settingsPlugin,
   networkProxyPlugin,
+  sshPlugin,
   welcomePlugin,
 ];

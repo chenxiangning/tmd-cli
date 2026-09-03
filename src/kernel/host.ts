@@ -8,6 +8,7 @@
 import { useSyncExternalStore } from "react";
 import { EventBus, KernelTopics } from "./events";
 import { getSettingsState } from "./settings";
+import { getActiveWorkspace, getWorkspaces } from "./workspace";
 import { PluginLifecycle } from "./pluginLifecycle";
 import { ActivityWatch } from "./activityWatch";
 import { AskWatch } from "./askWatch";
@@ -187,6 +188,41 @@ class Host implements PluginContext {
 
   // ---- 会话服务（kernel 固有职责：PTY 生命周期） ---------------------------
 
+  /**
+   * 创建 SSH 会话(russh 引擎):注册即返回,连接/认证在 Rust 后台完成。
+   * 输出/退出复用 pty://out / pty://exit 事件契约,幕布全链路零分叉;
+   * SSH 会话不参与 CLI 身份探测/状态栏/审批线(无 profile),Ask 检测按 kind 跳过
+   * (远端输出里的 "Do you want" 类文本会误报呼吸灯/提示音)。
+   */
+  async createSshSession(
+    host: import("./ipc").SshHostConfig,
+    workspaceId?: string,
+  ): Promise<SessionMeta> {
+    /* cwd 只作会话归属/日志 slug 锚点(取工作区根),远端工作目录由服务器决定。 */
+    const workspace =
+      getWorkspaces().find((w) => w.id === workspaceId) ?? getActiveWorkspace();
+    const spawned = await ipc.sshSessionCreate(host, workspace?.root ?? "", workspace?.id);
+    this.sessions = await ipc.sessionList();
+    this.activeSessionId = spawned.id;
+    const offOutput = await onPtyOutput(spawned.id, (text) => {
+      if (!this.sessions.some((s) => s.id === spawned.id)) return;
+      this.appendOutput(spawned.id, text);
+    });
+    const offExit = await onPtyExit(spawned.id, () => {
+      void this.removeSession(spawned.id);
+      this.events.emit(KernelTopics.sessionExited, spawned.id);
+    });
+    if (!this.sessions.some((s) => s.id === spawned.id)) {
+      [offOutput, offExit].forEach((off) => off());
+      return this.sessions.find((s) => s.id === spawned.id)!;
+    }
+    this.ptyUnlistens.set(spawned.id, [offOutput, offExit]);
+    this.events.emit(KernelTopics.sessionsChanged, this.sessions);
+    this.events.emit(KernelTopics.activeSessionChanged, spawned.id);
+    this.notify();
+    return this.sessions.find((s) => s.id === spawned.id)!;
+  }
+
   async createSession(
     profileId: string,
     cwd: string,
@@ -317,10 +353,12 @@ class Host implements PluginContext {
        ActivityWatch:输出回绿 + 节流 notify(未锚定会话免重渲染);
        EditWatch:CLI 声明 editMarks 时检测 AI 写入标记 → fileEditDetected
        (审批线 events 归因主信号,checkpoints 流式记账)。 */
-    const asked = this.askWatch.onOutput(sessionId, text);
+    const session = this.sessions.find((s) => s.id === sessionId);
+    /* SSH 会话跳过 Ask 检测:标记词是 CLI 面板专用,远端输出必然误报。 */
+    const asked =
+      session?.kind === "ssh" ? false : this.askWatch.onOutput(sessionId, text);
     if (asked) this.events.emit(KernelTopics.askDetected, sessionId);
     if (asked || this.activity.onOutput(sessionId)) this.notify();
-    const session = this.sessions.find((s) => s.id === sessionId);
     const marks = session ? this.cliProfiles.get(session.profileId)?.editMarks : undefined;
     if (session && marks && marks.length > 0) {
       const paths = this.editWatch.onOutput(sessionId, text, session.cwd, marks);

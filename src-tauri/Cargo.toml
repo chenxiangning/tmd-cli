@@ -38,6 +38,14 @@ md-5 = "0.10"
 tauri-plugin-shell = { version = "2", default-features = false }
 # 右键菜单「移到废纸篓」:走系统回收站(可挽回),不做物理删除;codemoss 同款。
 trash = "5"
+# SSH 引擎(russh 0.62 系实测组合;0.63 起 MSRV 1.85 超本仓 rust-version 1.80):
+# russh 客户端(连接/认证/KBI/通道)+ russh-sftp(SFTP subsystem)。
+russh = "0.62.2"
+# russh/转发/IO 泵直接使用 tokio 原语(mpsc/watch/Semaphore/Tcp/JoinSet);tauri 已传递引入,这里显式声明所需 feature。
+tokio = { version = "1", features = ["rt", "sync", "time", "net", "io-util", "fs", "macros"] }
+russh-sftp = "2.3"
+# known_hosts 指纹 SHA256 展示。
+sha2 = "0.10"
 # 产物体积与运行性能:lto 全量链接优化 + 单 codegen unit 提升内联,strip 去符号表。
 # 不用 panic=abort:它把任何异步任务 panic(如 wry 自定义协议竞态,2026-09-03
 # 崩溃)放大成整进程 SIGABRT;unwind 下 tokio 捕获任务 panic,命令层已有

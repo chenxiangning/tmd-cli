@@ -1,6 +1,9 @@
 /**
  * IPC 薄封装 —— 前端触达 Rust 后端的唯一入口。
  * 模式复用 mossx 的 services/tauri 分层，但砍到只剩直连。
+ * Git 契约类型在 ./gitContract、SSH/SFTP 契约在 ./sshTypes(此处转发导出,消费方路径不变)。
+ * file-size-exempt:R3 规定 @tauri-apps/* 唯一 import 点是本文件,fs/git/checkpoints/ssh
+ * 四域 invoke 封装必须集中于此;契约类型已外拆,剩余为不可分散的命令面。
  */
 
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
@@ -9,6 +12,41 @@ import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
+import type {
+  SftpEntry,
+  SftpEventPayload,
+  SftpReadText,
+  SftpTransferState,
+  SftpWriteOutcome,
+  SshForwardInfo,
+  SshHostConfig,
+  SshPromptEvent,
+  SshSessionEvent,
+} from "./sshTypes";
+
+export type {
+  SftpEntry,
+  SftpEventPayload,
+  SftpReadText,
+  SftpTransferState,
+  SftpWriteOutcome,
+  SshForwardInfo,
+  SshHostConfig,
+  SshPromptEvent,
+  SshSessionEvent,
+} from "./sshTypes";
+
+export type * from "./gitContract";
+import type {
+  GitAheadBehind,
+  GitBranchList,
+  GitCommitFile,
+  GitCommitInput,
+  GitDiffStatus,
+  GitFilePatch,
+  GitLogEntry,
+  GitTotals,
+} from "./gitContract";
 
 export interface SpawnSpec {
   command: string;
@@ -38,6 +76,10 @@ export interface SessionMeta {
   pid?: number;
   workspaceId?: string;
   createdAt?: number;
+  /** 会话后端类型:"cli"(本地 PTY,缺省)| "ssh"(russh 引擎)。 */
+  kind?: "cli" | "ssh";
+  /** 会话展示标题(SSH = 主机名;CLI 走磁盘会话/命名覆盖层,缺省无)。 */
+  title?: string;
 }
 
 export interface WorkspaceMeta {
@@ -65,55 +107,6 @@ export interface FileStamp {
   modifiedAt: number;
 }
 
-/* ── Git 契约(对齐 src-tauri/src/git/*,serde camelCase)──
- * E_* 错误前缀:E_NOT_A_REPO / E_EMPTY / E_GIT2 / E_SHELL / E_AUTH,
- * 前端 startsWith 匹配,勿 grep 中文文案。 */
-
-/** 单文件工作区状态;status "?" 即 untracked(UI 渲染为 U)。 */
-export interface GitFileStatus {
-  path: string;
-  /** "?" 即 untracked(UI 渲染为 U);"C" 即合并冲突(UI 禁 stage/discard) */
-  status: "M" | "A" | "D" | "R" | "T" | "C" | "?";
-  /** index 侧有变更(已暂存) */
-  staged: boolean;
-  /** 工作区侧有变更;staged && wt = 暂存后又改,预览/提交以 wt 侧为准 */
-  wt: boolean;
-}
-
-export interface GitDiffStatus {
-  /** 分支名;detached 时为 "detached@<短sha>" */
-  branch: string;
-  headSha: string;
-  upstream: string | null;
-  files: GitFileStatus[];
-}
-
-/** 聚合 ±行数 —— 独立低频命令(写操作后/手动刷新),不随 5s 轮询。 */
-export interface GitTotals {
-  insertions: number;
-  deletions: number;
-}
-
-export interface GitAheadBehind {
-  ahead: number;
-  behind: number;
-  upstream: string | null;
-}
-
-export interface GitFilePatch {
-  path: string;
-  oldPath: string | null;
-  kind: "A" | "D" | "M" | "R" | "C" | "T";
-  binary: boolean;
-  additions: number;
-  deletions: number;
-  patch: string;
-}
-
-export interface GitCommitInput {
-  message: string;
-  amend: boolean;
-}
 
 /* ── checkpoints 契约(对齐 src-tauri/src/checkpoints/*,serde camelCase)── */
 
@@ -182,30 +175,6 @@ export interface CkptRestoreOutcome {
   state: "pending" | "reverted";
 }
 
-export interface GitLogEntry {
-  shortSha: string;
-  longSha: string;
-  summary: string;
-  authorName: string;
-  authorEmail: string;
-  authorWhen: number;
-  parentShas: string[];
-}
-
-export interface GitBranchInfo {
-  name: string;
-  isHead: boolean;
-  isRemote: boolean;
-  upstream: string | null;
-  lastCommitSha: string;
-  lastCommitSummary: string;
-  lastCommitWhen: number;
-}
-
-export interface GitBranchList {
-  local: GitBranchInfo[];
-  remote: GitBranchInfo[];
-}
 
 export const ipc = {
   sessionSpawn: (profileId: string, spec: SpawnSpec, workspaceId?: string) =>
@@ -329,6 +298,12 @@ export const ipc = {
     invoke<string>("git_commit", { cwd, paths, input }),
   gitLog: (cwd: string, limit: number, offset: number) =>
     invoke<GitLogEntry[]>("git_log", { cwd, limit, offset }),
+  /** 单提交文件清单(历史 Graph 展开;sha 口径 = 提交 vs 首父)。 */
+  gitCommitFiles: (cwd: string, sha: string) =>
+    invoke<GitCommitFile[]>("git_commit_files", { cwd, sha }),
+  /** 提交内单文件 patch;path 按 新路径/rename 来源 匹配。 */
+  gitCommitFilePatch: (cwd: string, sha: string, path: string) =>
+    invoke<GitFilePatch | null>("git_commit_file_patch", { cwd, sha, path }),
   gitBranches: (cwd: string) => invoke<GitBranchList>("git_branches", { cwd }),
   gitCheckout: (cwd: string, name: string) =>
     invoke<void>("git_checkout", { cwd, name }),
@@ -384,7 +359,119 @@ export const ipc = {
   md5Hex: (text: string) => invoke<string>("md5_hex", { text }),
   /** 列出 omp 已登录的供应商 id 列表(agent.db auth_credentials,未禁用)。 */
   ompAuthProviders: () => invoke<string[]>("omp_auth_providers"),
- };
+
+  /* ── SSH(对齐 src-tauri/src/ssh/commands.rs;输出/翻页走上方 session_* 按 kind 路由)── */
+  /** 创建 SSH 会话:立即返回 id,连接/认证后台完成(ssh://event / ssh://prompt)。 */
+  sshSessionCreate: (
+    host: SshHostConfig,
+    cwd: string,
+    workspaceId?: string,
+    cols?: number,
+    rows?: number,
+  ) =>
+    invoke<SpawnedSession>("ssh_session_create", {
+      host,
+      cwd,
+      workspaceId: workspaceId ?? null,
+      cols: cols ?? null,
+      rows: rows ?? null,
+    }),
+  /** 会话当前状态(webview 重载后重建面板状态用)。 */
+  sshSessionStatus: (sessionId: string) =>
+    invoke<string>("ssh_session_status", { sessionId }),
+  /** 提示应答:hostKey 传 trustHostKey;kbi/password 传 answer。 */
+  sshPromptAnswer: (promptId: string, answer?: string, trustHostKey?: boolean) =>
+    invoke<void>("ssh_prompt_answer", {
+      promptId,
+      answer: answer ?? null,
+      trustHostKey: trustHostKey ?? false,
+    }),
+  /** 提示取消(等价拒绝)。 */
+  sshPromptCancel: (promptId: string) =>
+    invoke<void>("ssh_prompt_cancel", { promptId }),
+  /** 延迟探测(右栏面板轮询)。 */
+  sshLatency: (sessionId: string) => invoke<number>("ssh_latency", { sessionId }),
+  /** 重置某主机的 known_hosts 信任(设置页「忘记此主机」)。 */
+  sshKnownHostsReset: (host: string, port: number) =>
+    invoke<boolean>("ssh_known_hosts_reset", { host, port }),
+
+  /* ── SFTP ── */
+  sftpList: (sessionId: string, path?: string) =>
+    invoke<SftpEntry[]>("ssh_sftp_list", { sessionId, path: path ?? null }),
+  sftpStat: (sessionId: string, path: string) =>
+    invoke<SftpEntry | null>("ssh_sftp_stat", { sessionId, path }),
+  sftpReadText: (sessionId: string, path: string, offset?: number, maxBytes?: number) =>
+    invoke<SftpReadText>("ssh_sftp_read_text", {
+      sessionId,
+      path,
+      offset: offset ?? null,
+      maxBytes: maxBytes ?? null,
+    }),
+  /** 写回带乐观并发:expectedMtime/expectedSize 不符返回 action=conflict。 */
+  sftpWriteText: (
+    sessionId: string,
+    path: string,
+    content: string,
+    expectedMtime?: number,
+    expectedSize?: number,
+  ) =>
+    invoke<SftpWriteOutcome>("ssh_sftp_write_text", {
+      sessionId,
+      path,
+      content,
+      expectedMtime: expectedMtime ?? null,
+      expectedSize: expectedSize ?? null,
+    }),
+  sftpMkdir: (sessionId: string, path: string) =>
+    invoke<SftpEntry>("ssh_sftp_mkdir", { sessionId, path }),
+  sftpRename: (sessionId: string, fromPath: string, toPath: string) =>
+    invoke<SftpEntry>("ssh_sftp_rename", { sessionId, fromPath, toPath }),
+  sftpDelete: (sessionId: string, path: string, recursive?: boolean) =>
+    invoke<void>("ssh_sftp_delete", {
+      sessionId,
+      path,
+      recursive: recursive ?? false,
+    }),
+  /** 启动上传/下载(后台任务 + ssh://sftp 进度事件);返回 queued 初始态。 */
+  sftpTransfer: (
+    sessionId: string,
+    direction: "upload" | "download",
+    sourcePath: string,
+    targetPath: string,
+    recursive?: boolean,
+  ) =>
+    invoke<SftpTransferState>("ssh_sftp_transfer", {
+      sessionId,
+      direction,
+      sourcePath,
+      targetPath,
+      recursive: recursive ?? false,
+    }),
+  sftpTransferCancel: (sessionId: string, transferId: string) =>
+    invoke<void>("ssh_sftp_transfer_cancel", { sessionId, transferId }),
+  sftpTransferStatus: (sessionId: string, transferId: string) =>
+    invoke<SftpTransferState>("ssh_sftp_transfer_status", { sessionId, transferId }),
+
+  /* ── SSH 本地端口转发(-L)── */
+  sshForwardStart: (
+    sessionId: string,
+    remoteHost: string,
+    remotePort: number,
+    localPort?: number,
+  ) =>
+    invoke<SshForwardInfo>("ssh_forward_start", {
+      sessionId,
+      remoteHost,
+      remotePort,
+      localPort: localPort ?? null,
+    }),
+  sshForwardStop: (sessionId: string, forwardId: string) =>
+    invoke<void>("ssh_forward_stop", { sessionId, forwardId }),
+  sshForwardList: (sessionId: string) =>
+    invoke<SshForwardInfo[]>("ssh_forward_list", { sessionId }),
+  /** 本地端口占用预检(advisory;start 的 bind 才是权威)。 */
+  sshForwardCheckPort: (port: number) => invoke<boolean>("ssh_forward_check_port", { port }),
+};
 /* ── Tauri API 统一收口 ──
  * 架构铁律:前端任何 @tauri-apps/* import 只允许出现在本文件。
  * 以下为非 invoke 通道的 Tauri 能力(窗口控制/版本/系统对话框),同样在此薄封装。 */
@@ -422,6 +509,11 @@ export function appRestart(): Promise<void> {
 /** 目录选择对话框;返回绝对路径,取消返回 null。 */
 export function pickDirectory(title: string): Promise<string | null> {
   return openDialog({ directory: true, multiple: false, title });
+}
+
+/** 文件选择对话框(上传等需要本地文件路径的场景);取消返回 null。 */
+export function pickFile(title: string): Promise<string | null> {
+  return openDialog({ directory: false, multiple: false, title });
 }
 
 /** 系统默认浏览器打开外链;浏览器 dev 无 shell 插件时回退 window.open。 */
@@ -480,4 +572,19 @@ export function onPtyOutput(sessionId: string, cb: (text: string) => void) {
 /** 订阅某会话的进程退出。返回退订函数。 */
 export function onPtyExit(sessionId: string, cb: () => void) {
   return listen(`pty://exit/${sessionId}`, () => cb());
+}
+
+/** 订阅某 SSH 会话的状态/转发快照事件。返回退订函数。 */
+export function onSshSessionEvent(sessionId: string, cb: (e: SshSessionEvent) => void) {
+  return listen<SshSessionEvent>(`ssh://event/${sessionId}`, (ev) => cb(ev.payload));
+}
+
+/** 订阅某 SSH 会话的认证/host key 提示。返回退订函数。 */
+export function onSshPrompt(sessionId: string, cb: (e: SshPromptEvent) => void) {
+  return listen<SshPromptEvent>(`ssh://prompt/${sessionId}`, (ev) => cb(ev.payload));
+}
+
+/** 订阅 SFTP 传输进度/终态(全局通道,按 payload.transfer.sessionId 归属)。 */
+export function onSftpEvent(cb: (e: SftpEventPayload) => void) {
+  return listen<SftpEventPayload>("ssh://sftp", (ev) => cb(ev.payload));
 }

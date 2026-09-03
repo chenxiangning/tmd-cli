@@ -11,6 +11,8 @@
 
 import { useSyncExternalStore } from "react";
 import { ipc } from "./ipc";
+import type { SshHostConfig } from "./sshTypes";
+import { sanitizeSshSettings } from "./sshSettings";
 import {
   DEFAULT_DARK_THEME_PRESET_ID,
   DEFAULT_LIGHT_THEME_PRESET_ID,
@@ -138,6 +140,12 @@ export interface AppSettings {
   networkProxyEnabled: boolean;
   /** 代理地址,http(s)://host:port 或 socks5://host:port;关闭时保留以便重开。 */
   networkProxyUrl: string;
+  /**
+   * SSH 主机簿(ssh 插件的编辑域):终端/SFTP/端口转发共用的主机清单。
+   * 凭据明文随 settings.json 落盘(用户裁决,与竞品同级;spec 已记录风险),
+   * Web/远端场景不存在 —— 单机应用,不经任何同步通道外发。
+   */
+  ssh: { hosts: SshHostConfig[] };
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -160,6 +168,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   workspaceCollapsedMap: {},
   networkProxyEnabled: false,
   networkProxyUrl: "",
+  ssh: { hosts: [] },
 };
 /** 手动命名覆盖层上限:500 条(超出按 key 序丢弃,确定性兜底);标题 1–200 字符。 */
 const SESSION_TITLES_MAX_ENTRIES = 500;
@@ -343,6 +352,7 @@ function sanitize(raw: unknown): AppSettings {
         ? obj.networkProxyEnabled
         : DEFAULT_SETTINGS.networkProxyEnabled,
     networkProxyUrl: sanitizeNetworkProxyUrl(obj.networkProxyUrl),
+    ssh: sanitizeSshSettings(obj.ssh),
   };
 }
 

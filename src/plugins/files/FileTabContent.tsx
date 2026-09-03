@@ -20,7 +20,7 @@ import {
 /* 编辑器(CodeMirror 全家 + 主题/语言包)按需拆包:真正进入编辑态才拉 chunk。
    useFileDocument 只依赖轻量 fileCache,静态引入不拖累拆包。 */
 const FileCodeEditor = lazy(() =>
-  import("./editor/FileCodeEditor").then((m) => ({ default: m.FileCodeEditor })),
+  import("@kernel/cmEditor/FileCodeEditor").then((m) => ({ default: m.FileCodeEditor })),
 );
 import { useFileDocument } from "./editor/useFileDocument";
 

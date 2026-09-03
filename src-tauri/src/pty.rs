@@ -359,7 +359,7 @@ impl PtyRegistry {
 /// 无 uuid 依赖的 id 生成：时间戳 + 计数器 + 随机段。
 /// 随机段必须存在：纳秒时间戳的 hex 高 6 位约 3 天才变一次,
 /// 前端列表取 id 前/后 6 位展示,纯时间戳会显示碰撞(一堆"一样的 id")。
-fn uuid_v4() -> String {
+pub(crate) fn uuid_v4() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let nanos = SystemTime::now()
@@ -375,7 +375,7 @@ fn uuid_v4() -> String {
 }
 
 /// 零依赖随机源：读 /dev/urandom(macOS/Linux);失败退回 pid ^ 纳秒兜底。
-fn random_u64() -> u64 {
+pub(crate) fn random_u64() -> u64 {
     use std::io::Read;
     let mut buf = [0u8; 8];
     if let Ok(mut f) = std::fs::File::open("/dev/urandom") {

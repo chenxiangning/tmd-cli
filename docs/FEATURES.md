@@ -249,6 +249,22 @@
 - 凭据盘点:已登录供应商凭据与额度一览(覆盖 omp/pi/codex/claude/grok,读各 CLI 本地凭据文件;kimi/qoder 未覆盖);查不到额度显示「已登录」不报错
 - 最近会话:磁盘最近会话快速进入,按工作区分组每区最多 5 条,扫描失败静默跳过
 
+## SSH 远程
+
+- SSH 一等会话(russh 0.62.2 + russh-sftp 2.3 引擎):输出走 `pty://out/{id}` 同构事件,幕布/tab 条/输出缓冲/翻页全链路复用;SSH 会话无 composer,不参与 Ask 检测/审批线/状态栏
+- 认证矩阵:password / privateKey(PEM 清洗 + passphrase + 路径展开)/ keyboard-interactive 多轮(上限 5 轮,密码类提示自动代答);私钥认证失败自动回落 KBI;KBI 被禁且允许密码时走密码回落提示
+- known_hosts:`~/.tmd-cli/ssh_known_hosts.json`(host+port → SHA256 指纹);首连/变更弹信任卡(120s 超时 = 拒绝),设置页可重置信任
+- 断线重连:keepalive 30s×3 探活,3 次退避重连(2/5/10s,单次 20s 超时),连接代际失效 SFTP/转发通道;重连失败会话退出(不复活)
+- 代理:每主机可配 HTTP CONNECT / SOCKS5(手写握手,支持用户名密码),配错快速失败不静默直连
+- 右栏 SSH 面板:连接卡(状态呼吸点/延迟探测 15s 轮询/断开)+ 端口转发段 + SFTP 远端文件树(懒展开)
+- 本地端口转发(`-L`):127.0.0.1 绑定,本地端口留空自动分配(49152+),占用预检,点击复制地址,会话关闭级联停止
+- SFTP:与终端同连接开 subsystem(不重认证);右键菜单下载/上传/新建目录/重命名/递归删除;传输进度条 + 取消
+- 远端文件编辑:点击文件开编辑器 tab(CodeMirror),读 200KB 上限分页,写回带 mtime+size 乐观并发,冲突弹覆盖确认,⌘S/按钮保存,脏标记
+- 主机管理:设置页 SSH 分区,主机 CRUD(留空保留旧凭据)+ `~/.ssh/config` 扫描导入(Host/HostName/User/Port/IdentityFile 解析,私钥 PEM 校验内联,重复标灰)+ known_hosts 重置;凭据明文随 settings.json 落盘(用户裁决,spec 记录风险)
+- 新建入口:新建会话菜单「SSH 连接…」(workspace.newSessionMenu 挂载点)→ 主机选择 overlay → 建会话挂当前工作区
+- 会话列表:SSH 活会话独立分组(kind 判断),标题取主机名,右键断开
+- 插件可拔(feature 类):拔出 = 菜单入口/右栏面板/设置分区/overlay 全下电,引擎会话随应用退出消亡
+
 ## 网络代理
 
 - 「网络代理」浮层:滑动块开关 + 代理地址(http/https/socks5/socks5h,默认 http://127.0.0.1:7890,启用态空地址回落默认),校验/归一后落 settings

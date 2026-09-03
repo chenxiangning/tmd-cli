@@ -204,6 +204,8 @@ const EditorCenter = memo(function EditorCenter() {
  */
 function MainPanel() {
   const activeId = host.getActiveSessionId();
+  /* SSH 会话无 composer:幕布即输入面(触发符/审批线等都是 CLI 语义)。 */
+  const activeKind = host.getSessions().find((s) => s.id === activeId)?.kind;
   /* 对话框四段式高度:composer 插件工具栏的 ↑↓ 写 kernel composerStage,这里消费。
      实测本库命令式 setLayout/panelRef.resize 在嵌套 group 下会被静默回滚,不可用;
      separator 键盘路径(每键 5%)走库自身状态更新,可靠 —— 借它驱动:
@@ -234,10 +236,14 @@ function MainPanel() {
       <Panel defaultSize={70} minSize={30} id="canvas">
         <TerminalView key={activeId} sessionId={activeId} />
       </Panel>
-      <PanelResizeHandle className="panel-handle panel-handle-h" />
-      <Panel defaultSize={30} minSize={10} id="composer">
-        <Mounts point="editorCenter.composer" />
-      </Panel>
+      {activeKind === "ssh" ? null : (
+        <>
+          <PanelResizeHandle className="panel-handle panel-handle-h" />
+          <Panel defaultSize={30} minSize={10} id="composer">
+            <Mounts point="editorCenter.composer" />
+          </Panel>
+        </>
+      )}
     </PanelGroup>
   );
 }

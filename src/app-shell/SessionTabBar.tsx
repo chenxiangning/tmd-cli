@@ -38,6 +38,7 @@ function SessionTabBarImpl() {
             ? settings.sessionTitles[sessionTitleKey(meta.profileId, cliSessionId)]
             : undefined) ??
           getSessionTabTitle(id) ??
+          meta.title ??
           shortId(meta.id);
         const active = host.getActiveSessionId() === id;
         return (

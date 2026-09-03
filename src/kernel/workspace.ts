@@ -112,6 +112,11 @@ export function getActiveWorkspace(): Workspace | null {
   return state.list.find((w) => w.id === state.activeId) ?? null;
 }
 
+/** 工作区全表快照(会话锚点等非 React 消费方)。 */
+export function getWorkspaces(): Workspace[] {
+  return state.list;
+}
+
 export function useWorkspaces(): WorkspaceState {
   ensureWorkspaceBooted();
   return useSyncExternalStore(

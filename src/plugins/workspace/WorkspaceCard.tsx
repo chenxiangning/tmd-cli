@@ -14,6 +14,7 @@ import {
   SquarePlus,
 } from "lucide-react";
 import { CliSessionGroup } from "./SessionList";
+import { SshSessionGroup } from "./SshSessionGroup";
 
 /** 双态文件夹图标(codemoss WorkspaceCard 同源 SVG):展开=开口,收起=闭合。 */
 function FolderIcon({ expanded }: { expanded: boolean }) {
@@ -184,6 +185,7 @@ export function WorkspaceCard({
               onScanned={() => onScanDone(workspace.id, p.id)}
             />
           ))}
+          <SshSessionGroup workspace={workspace} />
         </div>
       </div>
     </div>

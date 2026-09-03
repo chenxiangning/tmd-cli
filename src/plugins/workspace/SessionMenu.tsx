@@ -6,6 +6,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { host } from "@kernel/host";
+import { Mounts } from "@kernel/Mounts";
 import { removeWorkspace, type Workspace } from "@kernel/workspace";
 import { RefreshCw, Trash2 } from "lucide-react";
 
@@ -73,6 +74,9 @@ export function SessionMenuOverlay({
             </button>
           </div>
         ))}
+
+        {/* 扩展入口:插件贡献的会话类型(如 ssh 插件的「SSH 连接」)。 */}
+        <Mounts point="workspace.newSessionMenu" />
 
         <div className="wsmenu-divider" />
         <div className="wsmenu-group-title">工作区操作</div>
