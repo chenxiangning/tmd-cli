@@ -17,7 +17,9 @@ import {
   approveBatch,
   getCachedDiff,
   loadDiff,
+  pruneRetention,
   refreshBatches,
+  refreshOpenDiff,
   revertBatch,
   undoRevertBatch,
   useCkptBatches,
@@ -75,7 +77,10 @@ export function CheckpointsPanel() {
   /* 会话严格绑定:只认属于当前工作区的活跃会话(审批线生命周期 = 单个会话) */
   const activeSessionId = host.getActiveSessionId();
   const activeSession = host.getSessions().find((s) => s.id === activeSessionId);
-  const sessionId = activeSession && cwd && activeSession.cwd === cwd ? activeSessionId : null;
+  const sessionId =
+    activeSession && cwd && activeSession.cwd === cwd && activeSessionId !== null
+      ? host.getCliSessionId(activeSessionId) ?? activeSessionId
+      : null;
 
   const state = useCkptBatches(cwd, sessionId);
   const [confirm, setConfirm] = useState<{ batchId: string; paths?: string[] } | null>(null);
@@ -83,7 +88,9 @@ export function CheckpointsPanel() {
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!cwd || !sessionId) return;
+    if (!cwd) return;
+    pruneRetention(cwd);
+    if (!sessionId) return;
     void refreshBatches(cwd, sessionId);
     const timer = window.setInterval(() => void refreshBatches(cwd, sessionId), POLL_MS);
     return () => window.clearInterval(timer);
@@ -159,12 +166,6 @@ export function CheckpointsPanel() {
         <span className="flex-1" />
         <span className="flex-none text-(--tmd-fg-faint)">
           待审 <b className="font-semibold text-(--tmd-git-modified)">{pendingCount}</b>
-        </span>
-        <span
-          className="flex-none cursor-help border-b border-dotted border-(--tmd-fg-faint) text-[10px] text-(--tmd-fg-faint)"
-          title="审批线跟随会话生命周期;快照每会话保留最近 100 批、超期 30 天清理"
-        >
-          100/30 天
         </span>
       </div>
 
@@ -245,14 +246,18 @@ function BatchRow({
   cwd: string;
   sessionId: string;
 }) {
-  // sealed 批懒加载 patch(时间线 ± 用;审阅单共用同一缓存)
+  // 批 diff 懒加载(含 open 批,时间线 ± 与审阅单共用同一缓存);
+  // open 批新像 = live 工作区,轮内改动定时跟进,封口后停
   useEffect(() => {
-    if (!b.open) loadDiff(cwd, b.id);
+    loadDiff(cwd, b.id);
+    if (!b.open) return;
+    const timer = window.setInterval(() => refreshOpenDiff(cwd, b.id), POLL_MS);
+    return () => window.clearInterval(timer);
   }, [cwd, b.id, b.open]);
 
   const st = batchState(b);
   const meta = STATE_META[st];
-  const stats = batchStats(b.open ? undefined : getCachedDiff(cwd, b.id));
+  const stats = batchStats(getCachedDiff(cwd, b.id));
   const revertable = b.files.filter((f) => f.live === "same");
 
   return (

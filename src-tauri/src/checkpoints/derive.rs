@@ -33,7 +33,7 @@ pub fn derive_batches(cwd: &str, session_id: &str) -> Result<Vec<BatchInfo>, Ckp
         for (i, a) in anchors.iter().enumerate() {
             let b = anchors.get(i + 1).copied();
             let open = b.is_none();
-            let Some(paths) = batch_paths(a, b, open, &live) else {
+            let Some(paths) = batch_paths(&sidecar, &user, &root, a, b, open, &live) else {
                 continue; // 封口后零差异 = 纯阅读轮,不进审批线
             };
             let stored = states.batches.get(&a.id).cloned().unwrap_or_default();
@@ -140,9 +140,15 @@ pub(super) fn classify_live(
 }
 
 /// 单批路径集:sealed = A/B 两快照的路径差集(状态或内容变即入批);
-/// open = live dirty − A 已记录路径(A 时已 dirty 的路径无法区分是否本轮再改,不重复归因)。
+/// open = live dirty 中,A 未记录的新路径直接入批;A 已记录的路径比对该路径
+/// live 内容与 A 记录内容(sidecar blob / git 基线),不同 = 本轮再改,同样入批
+/// —— 修复「连续改同一文件要等下一条 prompt 封口才上时间线」的滞后。
+/// A 内容不可知(超限跳过/冲突等)维持旧语义:不归因,避免与上一批重复。
 /// 返回 None = 封口后零差异(纯阅读轮)。
 pub(super) fn batch_paths(
+    sidecar: &git2::Repository,
+    user: &git2::Repository,
+    root: &std::path::Path,
     a: &Snapshot,
     b: Option<&Snapshot>,
     open: bool,
@@ -151,7 +157,18 @@ pub(super) fn batch_paths(
     let mut paths: Vec<(String, String)> = Vec::new();
     if open {
         for p in live.keys() {
-            if !a.files.iter().any(|f| &f.path == p) {
+            let known = a.files.iter().any(|f| &f.path == p);
+            let changed_since_anchor = if !known {
+                true
+            } else {
+                match super::resolve_snap_bytes(sidecar, user, a, p) {
+                    Ok(Some((anchor_bytes, _))) => std::fs::read(root.join(p))
+                        .map(|live_bytes| live_bytes != anchor_bytes)
+                        .unwrap_or(true), // live 读不到 = 已删,算变
+                    _ => false, // A 内容不可知:不归因(旧语义,防重复)
+                }
+            };
+            if changed_since_anchor {
                 let status = live.get(p).cloned().unwrap_or_else(|| "M".into());
                 paths.push((p.clone(), untrack_char(&status)));
             }

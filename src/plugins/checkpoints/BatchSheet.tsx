@@ -14,7 +14,7 @@ import { Check, ChevronRight, Loader2, RotateCcw } from "lucide-react";
 import { useEditorTabs } from "@kernel/tabs";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import type { CkptBatch, CkptPatch } from "@kernel/ipc";
-import { approveBatch, getCachedDiff, loadDiff, refreshBatches, revertBatch, useCkptVersion, useCkptBatches } from "./store";
+import { approveBatch, getCachedDiff, loadDiff, refreshBatches, refreshOpenDiff, revertBatch, useCkptVersion, useCkptBatches } from "./store";
 import { readBatchPayload } from "./batchTab";
 
 export function BatchSheetTabContent() {
@@ -50,7 +50,11 @@ function BatchSheet({
   useEffect(() => {
     // 审阅单挂载即拉该批 patch(与时间线共享缓存)
     loadDiff(cwd, batchId);
-  }, [cwd, batchId]);
+    // open 批新像 = live 工作区:轮内改动要跟进,定时强刷直到封口
+    if (!batch?.open) return;
+    const timer = window.setInterval(() => refreshOpenDiff(cwd, batchId), 6000);
+    return () => window.clearInterval(timer);
+  }, [cwd, batchId, batch?.open]);
 
   if (notARepo) {
     return <Center>该工作区不是 git 仓库,无审批数据</Center>;

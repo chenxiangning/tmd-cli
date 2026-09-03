@@ -45,7 +45,8 @@ export const checkpointsPlugin: Plugin = {
     ctx.events.on<KernelEvent>(KernelTopics.promptSent, ({ sessionId, text }) => {
       const session = host.getSessions().find((s) => s.id === sessionId);
       if (!session) return;
-      captureAnchor(session.cwd, sessionId, text);
+      /* 用 CLI 磁盘身份作 key:重启/resume 后 tmd 会话 id 会换,稳定 id 才能找回历史批次 */
+      captureAnchor(session.cwd, host.getCliSessionId(sessionId) ?? sessionId, text);
     });
   },
 };

@@ -1,7 +1,7 @@
 //! checkpoints 集成测试 —— TempWs(临时用户仓库 + 隔离 sidecar 根)。
 //! 并行隔离:所有测试持全局 IO 锁(TEST_BASE 是进程级单例)。
 
-use super::{capture_snapshot, capture::SnapKind, derive_batches, prune, restore_batch, undo_revert, set_base_for_test};
+use super::{batch_patches, capture_snapshot, capture::SnapKind, derive_batches, prune, restore_batch, undo_revert, set_base_for_test};
 use std::fs;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -169,9 +169,12 @@ fn 内容失配_自动已处理且回退被拒() {
     ws.write("a.txt", "hand-edited\n");
 
     let batches = derive_batches(ws.path(), "s1").unwrap();
-    assert_eq!(batches[0].state, "done");
-    assert_eq!(batches[0].done_reason.as_deref(), Some("内容已变"));
-    assert!(batches[0].files[0].stale);
+    // 手改会即时归因进 open 待审批(修复滞后);封口批仍是 done/内容已变
+    let sealed = batches.iter().find(|b| !b.open).expect("封口批存在");
+    assert_eq!(sealed.state, "done");
+    assert_eq!(sealed.done_reason.as_deref(), Some("内容已变"));
+    assert!(sealed.files[0].stale);
+    assert!(batches.iter().any(|b| b.open && b.state == "pending"));
 
     let err = restore_batch(ws.path(), &a.id, None).unwrap_err();
     assert!(err.to_string().starts_with("E_EMPTY:"), "失配文件不可回退: {err}");
@@ -220,6 +223,42 @@ fn 单文件回退_批留在待审_全处理完才翻已退() {
     restore_batch(ws.path(), &a.id, Some(vec!["c.txt".into()])).unwrap();
     let batches = derive_batches(ws.path(), "s1").unwrap();
     assert_eq!(batches[0].state, "reverted", "全部文件处理完 → 已退");
+}
+
+#[test]
+fn open_批_同文件连续改动即时归因() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    // 锚1 后改 a.txt(封口批);锚2 再改同一文件但不发新 prompt → open 批应立即含它
+    ws.write("a.txt", "v2\n");
+    let _a1 = ws.anchor("s1", "第一批");
+    ws.write("a.txt", "v3\n");
+
+    let batches = derive_batches(ws.path(), "s1").unwrap();
+    let open = batches.iter().find(|b| b.open).expect("open 批存在");
+    assert_eq!(open.files.len(), 1, "anchor 时已 dirty 但本轮再改 → 即时归因");
+    assert_eq!(open.files[0].path, "a.txt");
+    assert_eq!(open.state, "pending");
+}
+
+#[test]
+fn open_批_diff_新像取_live_工作区() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    let a = ws.anchor("s1", "第一批");
+    ws.write("a.txt", "v2\n");
+
+    // 无封口:open 批的 diff = A → live 工作区
+    let patches = batch_patches(ws.path(), &a.id).unwrap();
+    assert_eq!(patches.len(), 1);
+    assert_eq!(patches[0].path, "a.txt");
+    assert_eq!(patches[0].kind, "M");
+    assert!(patches[0].patch.contains("v2"), "新像应为 live 内容");
+    assert!(patches[0].additions >= 1);
 }
 
 #[test]

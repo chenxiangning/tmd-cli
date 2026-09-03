@@ -21,8 +21,8 @@ pub struct CkptPatch {
     pub binary: bool,
 }
 
-/// 指定批次(anchorA id)的逐文件 patch。仅 sealed 批;open 批前端复用 git 面板的
-/// git_diff_file_patch(工作区 diff ≈ 本批 diff:A 时干净的路径两边一致)。
+/// 指定批次(anchorA id)的逐文件 patch。sealed 批新像 = anchor B;open 批(进行中)
+/// 新像 = live 工作区内容(文件已删 = None),审阅单打开即见当前轮改动。
 pub fn batch_patches(cwd: &str, batch_id: &str) -> Result<Vec<CkptPatch>, CkptError> {
     let manifests = load_manifests(cwd);
     let anchors: Vec<&super::Snapshot> = manifests.iter().filter(|s| s.kind == "anchor").collect();
@@ -31,22 +31,26 @@ pub fn batch_patches(cwd: &str, batch_id: &str) -> Result<Vec<CkptPatch>, CkptEr
         .position(|s| s.id == batch_id)
         .ok_or_else(|| CkptError::Empty(format!("批次不存在: {batch_id}")))?;
     let a = anchors[ai];
-    let b = anchors.get(ai + 1).copied().ok_or_else(|| {
-        CkptError::Empty("进行中批次无批后像,请用 git 面板查看工作区 diff".into())
-    })?;
+    let b = anchors.get(ai + 1).copied();
+    let open = b.is_none();
 
     let sidecar = open_sidecar(cwd)?;
     let user = super::open_user(cwd)?;
+    let root = std::path::PathBuf::from(cwd);
     {
         let live = super::capture::dirty_paths(&user)?;
-        let Some(paths) = batch_paths(a, Some(b), false, &live) else {
+        let Some(paths) = batch_paths(&sidecar, &user, &root, a, b, open, &live) else {
             return Ok(Vec::new());
         };
         let mut out = Vec::new();
         for (path, _) in paths {
-            // 旧像:A;新像:B(缺条目 = B 时已干净 → HEAD 兜底)
+            // 旧像:A;新像:sealed = anchor B(缺条目 = B 时已干净 → HEAD 兜底),
+            // open = live 工作区(读不到 = 已删)
             let old = resolve_snap_bytes(&sidecar, &user, a, &path)?;
-            let new = resolve_snap_bytes(&sidecar, &user, b, &path)?;
+            let new = match &b {
+                Some(bb) => resolve_snap_bytes(&sidecar, &user, bb, &path)?,
+                None => std::fs::read(root.join(&path)).ok().map(|d| (d, true)),
+            };
             let (kind, old_blob, new_blob) = match (&old, &new) {
                 (None, Some(_)) => ("A", None, Some(new.as_ref().unwrap().0.as_slice())),
                 (Some(_), None) => ("D", Some(old.as_ref().unwrap().0.as_slice()), None),

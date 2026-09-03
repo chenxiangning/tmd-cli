@@ -236,7 +236,7 @@ fn new_snapshot_id(ts: i64) -> String {
 }
 
 /// 用户仓库 HEAD 中 path 的 blob 内容(前像兜底:anchor 时刻干净的文件,内容 == HEAD)。
-fn head_blob_bytes<'r>(repo: &'r git2::Repository, path: &str) -> Result<Option<Vec<u8>>, CkptError> {
+fn head_blob_bytes(repo: &git2::Repository, path: &str) -> Result<Option<Vec<u8>>, CkptError> {
     let Ok(head) = repo.head() else {
         return Ok(None); // unborn HEAD(空仓库)
     };

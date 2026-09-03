@@ -85,7 +85,7 @@ pub fn restore_batch(
     let (plan, mut skipped, all_paths) = {
         let user = super::open_user(cwd)?;
         let live = super::capture::dirty_paths(&user)?;
-        let Some(all) = batch_paths(a, Some(b), false, &live) else {
+        let Some(all) = batch_paths(&sidecar, &user, &root, a, Some(b), false, &live) else {
             return Err(CkptError::Empty("批次无文件差异".into()));
         };
         let targets: Vec<String> = match &paths {
@@ -114,7 +114,7 @@ pub fn restore_batch(
             if live_state != "same" {
                 continue;
             }
-            let op = match resolve_snap_bytes(&sidecar, &user, a, &path)? {
+            let op = match resolve_snap_bytes(&sidecar, &user, a, path)? {
                 Some((bytes, _)) => PlanOp::Write(bytes),
                 None => PlanOp::Delete, // 批前不存在 → 批内新建,回退 = 删除
             };

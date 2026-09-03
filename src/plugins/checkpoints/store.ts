@@ -85,6 +85,24 @@ export function captureAnchor(cwd: string, sessionId: string, prompt: string): v
   window.setTimeout(() => void refreshBatches(cwd, sessionId), 800);
 }
 
+// ---- 保留策略 --------------------------------------------------------------
+
+/** 与面板「100/30 天」文案一致:每 cwd 保最近 100 批、超期 30 天清理。 */
+export const CKPT_KEEP = 100;
+export const CKPT_TTL_DAYS = 30;
+
+/** 已执行过清理的 cwd:面板挂载时低频触发,同 cwd 不重复跑。 */
+const prunedCwds = new Set<string>();
+
+/** 保留策略清理:面板挂载/切换工作区时调用一次;失败静默(下次挂载重试)。 */
+export function pruneRetention(cwd: string): void {
+  if (prunedCwds.has(cwd)) return;
+  prunedCwds.add(cwd);
+  ipc
+    .checkpointPrune(cwd, CKPT_KEEP, CKPT_TTL_DAYS)
+    .catch(() => prunedCwds.delete(cwd));
+}
+
 export type CkptRestoreResult = Awaited<ReturnType<typeof ipc.checkpointRestore>>;
 
 /** 通过标记:纯标记(后端只写状态),标记后仍可回退。 */
@@ -114,6 +132,12 @@ function invalidateDiff(cwd: string, batchId: string): void {
 
 export function getCachedDiff(cwd: string, batchId: string): CkptPatch[] | undefined {
   return diffCache.get(cwd)?.get(batchId);
+}
+
+/** open 批 diff 强制刷新:live 新像随轮内改动推进,「占位防重」缓存只适用封口批。 */
+export function refreshOpenDiff(cwd: string, batchId: string): void {
+  diffCache.get(cwd)?.delete(batchId);
+  loadDiff(cwd, batchId);
 }
 
 /** 批 diff 懒加载:命中缓存同步返回;否则发起 IPC(结果进缓存并 emit)。 */
