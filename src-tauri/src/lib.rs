@@ -31,6 +31,49 @@ fn now_millis() -> u64 {
         .unwrap_or(0)
 }
 
+/// panic 落盘钩子:消息/位置/线程追加到 `~/.tmd-cli/panic.log`(上限 1MB 截断)。
+///
+/// 背景(2026-09-03 崩溃归因):wry WKURLSchemeHandler 竞态 panic 发生在 tokio
+/// 任务里,GUI 进程 stderr 无处可看、release 又 strip,崩溃只剩一份无符号 .ips。
+/// unwind 语义下任务 panic 被 tokio 捕获不至于灭进程,这里再把首条现场写盘,
+/// 让下一次异常可以直接对到 crate 源码行,不再依赖"同源码重构建比对偏移"。
+fn install_panic_logger() {
+    let log_path = session::config_dir().join("panic.log");
+    std::panic::set_hook(Box::new(move |info| {
+        let thread = std::thread::current();
+        let thread_name = thread.name().unwrap_or("<unnamed>").to_string();
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+            .unwrap_or_else(|| "<unknown>".to_string());
+        let payload = info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|s| (*s).to_string())
+            .or_else(|| info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "<non-string panic payload>".to_string());
+        let line = format!(
+            "[{}] thread '{thread_name}' panicked at {location}: {payload}\n",
+            now_millis()
+        );
+        eprint!("{line}");
+        if let Some(parent) = log_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        // 上限保护:超 1MB 先清空,防长期运行撑爆磁盘(panic 应是罕见事件)。
+        if let Ok(meta) = std::fs::metadata(&log_path) {
+            if meta.len() > 1024 * 1024 {
+                let _ = std::fs::write(&log_path, "");
+            }
+        }
+        let _ = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)
+            .and_then(|mut f| std::io::Write::write_all(&mut f, line.as_bytes()));
+    }));
+}
+
 /// 探针某个 CLI 命令是否在本机 PATH 中可解析,以及其 `--version` 输出。
 /// 返回 `probe::CliProbeResult`,前端按 found/path/version 渲染行卡。
 ///
@@ -260,6 +303,8 @@ fn config_write_settings(data: serde_json::Value) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    /* panic 钩子最先装:任何后续启动路径上的 panic 都有现场可查。 */
+    install_panic_logger();
     /* 打包 .app(launchd 环境)PATH 贫瘠,需用 login shell PATH 修复进程环境,
     让 git 等裸命令名调用与 PTY 子进程都能解析。
     但 enriched_path 要 fork login shell(两级 -lc/-ilc),慢 shellrc 下秒级,
