@@ -197,6 +197,12 @@ function FileTree({ root }: { root: string }) {
     }
   }, [root, expanded]);
 
+  /* 首拉:挂载即取根层(key={root} 使工作区切换 = 重挂载,天然覆盖两场景);
+   * 刷新按钮才需要 reloadAll —— 展开目录快照 + 打开中 tab 的内容缓存。 */
+  useEffect(() => {
+    void reloadRoot();
+  }, [reloadRoot]);
+
   /* 重拉某目录并展示(reveal 语义):root 走根层;其余展开 + 刷新该层快照。 */
   const revealDir = useCallback(
     async (dir: string) => {
