@@ -376,9 +376,11 @@ pub(crate) fn resolve_snap_bytes(
 
 /// 账本去重折叠后的会话链:session_id 命中主键,或 tmd_session_id 命中副键
 /// (首条锚点常落在 CLI 身份绑定之前,以 tmd id 记账;回填后统一)。
+/// 副键无条件参与匹配:封口调用方的 CLI 身份可能漂移丢失(→ 主键 = tmd id),
+/// 此时靠 tmd 副键找回自己的链;tmd id 会话级唯一,无误伤。
 pub(crate) fn entry_in_session(e: &LedgerEntry, session_id: &str, tmd_session_id: &str) -> bool {
     if e.session_id == session_id {
         return true;
     }
-    !tmd_session_id.is_empty() && tmd_session_id != session_id && e.tmd_session_id == tmd_session_id
+    !tmd_session_id.is_empty() && e.tmd_session_id == tmd_session_id
 }

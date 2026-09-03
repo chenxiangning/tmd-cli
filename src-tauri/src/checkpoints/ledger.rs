@@ -3,8 +3,8 @@
 //! 核心不变量:**归因在封口瞬间定死,list 只读账本**。
 //! 每条 anchor 记第 N 轮开始前的工作区基线;seal 把「基线 → 当前工作区」的
 //! 逐文件变更(前后像 blob + unified diff)固化成 turn 条目,追加进 ledger.jsonl
-//! (同一 id 可修订追加,读取取最后一行)。因此并行会话/连续轮次不会再共享
-//! 同一份"全工作区脏集"推导 —— 每轮绑定的文件集合只含本窗口内的真实变更。
+//! (同一 id 可修订追加,读取取最后一行)。每轮绑定的文件集合只含本窗口内的
+//! 真实变更;并行会话归属按文件 mtime 落窗仲裁、最近提示者赢(见 turn_changed_paths)。
 //!
 //! 会话身份:锚点常发生在 CLI 磁盘身份绑定之前,先以 tmd 会话 id 记账;
 //! 绑定后(anchor/seal 时)把同名 tmd id 的历史条目回填为 CLI id,
@@ -13,7 +13,7 @@
 use super::{
     append_ledger, entry_in_session, load_ledger, new_entry_id, now_millis, open_sidecar,
     open_user, resolve_snap_bytes, rewrite_ledger, write_sidecar_blob, CkptError, LedgerEntry,
-    SnapFile, TurnFile,
+    TurnFile,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -29,6 +29,10 @@ pub fn anchor_turn(
     let _g = super::lock_ledger();
     let mut entries = load_ledger(cwd);
     backfill_identity(cwd, &mut entries, session_id, tmd_session_id)?;
+
+    // 幽灵窗口收口:app 退出/崩溃会留下永远开放的锚点窗口,吞掉之后所有
+    // 写入的归属。超时未封口的锚点代为封口(幂等;其链保持自身身份)。
+    seal_stale_foreign(cwd, &mut entries)?;
 
     seal_locked(cwd, session_id, tmd_session_id, &entries)?;
 
@@ -95,9 +99,10 @@ fn next_turn(entries: &[LedgerEntry], session_id: &str, tmd_session_id: &str) ->
         + 1
 }
 
-/// 并行会话归属仲裁:其他会话已认领的路径(封口时刻晚于本窗口锚点 = 窗口重叠)
-/// 不再重复归属 —— 共享工作区里同一份改动只进先封口那会话的账;
-/// 本会话后续轮次窗口不再重叠,可重新认领。
+/// 并行会话归属仲裁(按写入时刻,非封口先后):
+/// 每个锚点张成窗口 [锚点 ts, 封口 ts(未封口 = now)];文件 mtime 落在谁的
+/// 窗口内,取**最近提示**(anchor ts 最大)的会话归主 —— 后提示的会话天然
+/// 只对自己锚点之后的写入负责,先封口也不再抢走别人窗口内的改动。
 pub(super) fn foreign_claims(entries: &[LedgerEntry], anchor: &LedgerEntry) -> BTreeSet<String> {
     entries
         .iter()
@@ -110,17 +115,47 @@ pub(super) fn foreign_claims(entries: &[LedgerEntry], anchor: &LedgerEntry) -> B
         .collect()
 }
 
+/// 会话活动窗口(归属仲裁的时间线):每个 anchor 一条,
+/// end = 该锚点最后一版 turn 的封口 ts,尚无 turn = now(仍开放)。
+fn session_windows<'a>(entries: &'a [LedgerEntry], now: i64) -> Vec<(i64, i64, &'a str)> {
+    entries
+        .iter()
+        .filter(|e| e.kind == "anchor")
+        .map(|a| {
+            let end = entries
+                .iter()
+                .filter(|e| e.kind == "turn" && e.id == a.id)
+                .next_back()
+                .map(|t| t.seal_ts)
+                .unwrap_or(now);
+            (a.ts, end.max(a.ts), a.session_id.as_str())
+        })
+        .collect()
+}
+
+/// 文件写入时刻(fs mtime,ms);不可得(已删/时钟异常)返回 None。
+fn path_mtime(root: &std::path::Path, path: &str) -> Option<i64> {
+    let t = fs::metadata(root.join(path)).ok()?.modified().ok()?;
+    let d = t.duration_since(std::time::UNIX_EPOCH).ok()?;
+    Some(d.as_millis() as i64)
+}
+
 /// 锚点以来的真实变更集(封口与 open 视图共用):
-/// 候选 = live dirty ∪ anchor 基线路径;内容可比的比内容,不可知的按条目语义。
-/// exclude = 其他会话已认领的路径(并行仲裁)。返回 (path, live 状态符) 按路径排序。
+/// 候选 = live dirty ∪ anchor 基线路径;内容可比的比内容,不可知的按条目语义;
+/// 并行归属按 mtime 窗口仲裁(mtime 不可得时回退"外会话封口认领"规则)。
+/// 返回 (path, live 状态符) 按路径排序。
 pub(super) fn turn_changed_paths(
     sidecar: &git2::Repository,
     user: &git2::Repository,
     root: &std::path::Path,
-    anchor_files: &[SnapFile],
+    anchor: &LedgerEntry,
     live: &BTreeMap<String, String>,
-    exclude: &BTreeSet<String>,
+    entries: &[LedgerEntry],
 ) -> Result<Vec<(String, String)>, CkptError> {
+    let anchor_files = &anchor.files;
+    let now = now_millis();
+    let windows = session_windows(entries, now);
+    let claims = foreign_claims(entries, anchor);
     let mut candidates = std::collections::BTreeSet::new();
     for p in live.keys() {
         candidates.insert(p.clone());
@@ -130,9 +165,6 @@ pub(super) fn turn_changed_paths(
     }
     let mut changed = Vec::new();
     for p in candidates {
-        if exclude.contains(&p) {
-            continue; // 其他会话窗口重叠期内已认领:不重复归属
-        }
         let entry = anchor_files.iter().find(|f| f.path == p);
         if let Some(e) = entry {
             // anchor 时刻内容不可知(超大/符号链接/冲突/读失败):不归因,
@@ -154,12 +186,48 @@ pub(super) fn turn_changed_paths(
             // anchor 未记录 → 候选必来自 live dirty = 轮内新建
             None => true,
         };
-        if is_changed {
+        if !is_changed {
+            continue;
+        }
+        // 归属仲裁:mtime 落在谁的窗口 → 最近提示者赢;不是本会话则丢弃
+        let is_mine = match path_mtime(root, &p) {
+            Some(m) => match windows.iter().filter(|(s, e, _)| s <= &m && &m <= e).max_by_key(|(s, _, _)| s) {
+                Some((_, _, owner)) => owner == &anchor.session_id,
+                None => !claims.contains(&p), // 无窗口可容纳(时钟异常):退回认领规则
+            },
+            // 删除态(mtime 不可得):外会话窗口重叠期内已封口认领则不归我
+            None => !claims.contains(&p),
+        };
+        if is_mine {
             let status = live.get(&p).cloned().unwrap_or_else(|| "M".into());
             changed.push((p, status));
         }
     }
     Ok(changed)
+}
+
+/// 幽灵窗口收口:外会话锚点超过 STALE_OPEN_MS 仍无 turn 条目(app 崩溃/强退
+/// 所致)时,代其封口 —— 开放窗口不再无限吞掉后续写入的归属。
+const STALE_OPEN_MS: i64 = 24 * 3600 * 1000;
+
+fn seal_stale_foreign(cwd: &str, entries: &mut Vec<LedgerEntry>) -> Result<(), CkptError> {
+    let now = now_millis();
+    let stale: Vec<LedgerEntry> = entries
+        .iter()
+        .filter(|a| {
+            a.kind == "anchor"
+                && now - a.ts > STALE_OPEN_MS
+                && !entries.iter().any(|e| e.kind == "turn" && e.id == a.id)
+        })
+        .cloned()
+        .collect();
+    for a in stale {
+        if let Some(e) = build_turn_entry(cwd, &a, entries)? {
+            append_ledger(cwd, &e)?;
+            entries.push(e);
+        }
+    }
+    Ok(())
 }
 
 /// 封口:最新锚点 → turn 条目(修订追加)。零差异不落账。
@@ -176,7 +244,7 @@ fn seal_locked(
     let Some(a) = anchor else {
         return Ok(false);
     };
-    let entry = build_turn_entry(cwd, a, session_id, tmd_session_id, entries)?;
+    let entry = build_turn_entry(cwd, a, entries)?;
     match entry {
         Some(e) => {
             append_ledger(cwd, &e)?;
@@ -187,19 +255,18 @@ fn seal_locked(
 }
 
 /// 由锚点基线 + live 工作区构建 turn 条目(逐文件前后像 + diff 固化)。
+/// 身份恒继承锚点:封口可能由任一事件触发,调用方身份在 CLI 绑定前后可能漂移
+/// (cli id ↔ tmd id),随调用方会让同一锚点的链劈成两截。
 fn build_turn_entry(
     cwd: &str,
     anchor: &LedgerEntry,
-    session_id: &str,
-    tmd_session_id: &str,
     entries: &[LedgerEntry],
 ) -> Result<Option<LedgerEntry>, CkptError> {
     let sidecar = open_sidecar(cwd)?;
     let user = open_user(cwd)?;
     let root = std::path::PathBuf::from(cwd);
     let live = super::dirty_paths(&user)?;
-    let exclude = foreign_claims(entries, anchor);
-    let changed = turn_changed_paths(&sidecar, &user, &root, &anchor.files, &live, &exclude)?;
+    let changed = turn_changed_paths(&sidecar, &user, &root, anchor, &live, entries)?;
     if changed.is_empty() {
         return Ok(None);
     }
@@ -297,8 +364,9 @@ fn build_turn_entry(
         id: anchor.id.clone(),
         kind: "turn".into(),
         ts: anchor.ts,
-        session_id: session_id.to_string(),
-        tmd_session_id: tmd_session_id.to_string(),
+        // 身份继承锚点(见 fn doc):链的归属以记账时刻为准,不随封口调用方漂移
+        session_id: anchor.session_id.clone(),
+        tmd_session_id: anchor.tmd_session_id.clone(),
         turn: anchor.turn,
         prompt: anchor.prompt.clone(),
         seal_ts: now_millis(),

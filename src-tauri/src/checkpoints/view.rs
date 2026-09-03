@@ -4,7 +4,7 @@
 //! live 分类(未动/内容已变/已提交);open 轮只属于各会话最新锚点,
 //! 只列本窗口内的真实变更。批 diff:sealed 零重算(open 按需现算)。
 
-use super::ledger::{foreign_claims, turn_changed_paths};
+use super::ledger::turn_changed_paths;
 use super::{
     entry_in_session, load_ledger, load_states, now_millis, open_sidecar, open_user,
     rewrite_ledger, save_states, BatchFile, BatchInfo, CkptError, LedgerEntry, TurnFile,
@@ -70,8 +70,7 @@ pub fn derive_batches(
                 if ai != last_anchor {
                     continue;
                 }
-                let exclude = foreign_claims(&entries, a);
-                let changed = turn_changed_paths(&sidecar, &user, &root, &a.files, &live, &exclude)?;
+                let changed = turn_changed_paths(&sidecar, &user, &root, a, &live, &entries)?;
                 if changed.is_empty() {
                     continue; // 本轮尚无变更:不上时间线(纯阅读轮同理,永不出现)
                 }
@@ -229,8 +228,7 @@ pub fn batch_patches(cwd: &str, batch_id: &str) -> Result<Vec<super::CkptPatch>,
     let user = open_user(cwd)?;
     let root = std::path::PathBuf::from(cwd);
     let live = super::dirty_paths(&user)?;
-    let exclude = foreign_claims(&entries, a);
-    let changed = turn_changed_paths(&sidecar, &user, &root, &a.files, &live, &exclude)?;
+    let changed = turn_changed_paths(&sidecar, &user, &root, a, &live, &entries)?;
     let paths: Vec<String> = changed.into_iter().map(|(p, _)| p).collect();
     super::open_batch_patches(cwd, &a.files, &paths)
 }

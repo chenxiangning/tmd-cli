@@ -7,12 +7,14 @@
 //!   - 并行会话:先封口者认领路径,另一会话不再重复归属
 //!   - CLI 身份回填:tmd id 名下的历史条目并入绑定后的 CLI id 链
 
-use super::{anchor_turn, batch_patches, derive_batches, prune, restore_batch, seal_turn, undo_revert, approve_batch, set_base_for_test};
+use super::{anchor_turn, append_ledger, batch_patches, derive_batches, prune, restore_batch, seal_turn, undo_revert, approve_batch, set_base_for_test};
 use std::fs;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 static SEQ: AtomicU64 = AtomicU64::new(0);
+
+mod parallel;
 
 fn io_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -190,45 +192,6 @@ fn 封口修订_再改再封_最后一行为准() {
     let patches = batch_patches(ws.path(), &a.id).unwrap();
     assert!(patches[0].patch.contains("+v3"), "修订后 diff = 全窗口累计");
     assert!(!patches[0].patch.contains("+v2"));
-}
-
-#[test]
-fn 并行会话_先封口认领_不重复归属() {
-    let ws = TempWs::new();
-    ws.write("a.txt", "v1\n");
-    ws.commit_all("init");
-
-    // 会话 A 锚点 → A 改 a.txt
-    ws.anchor("cli-a", "tmd-a", "A 第一轮");
-    ws.write("a.txt", "a2\n");
-    // 会话 B 锚点(此刻 a.txt 已是 a2,成为 B 的基线)→ B 改 b.txt
-    ws.anchor("cli-b", "tmd-b", "B 第一轮");
-    ws.write("b.txt", "b1\n");
-    // B 先封口:认领 b.txt
-    assert!(ws.seal("cli-b", "tmd-b"));
-    // A 后封口:a.txt 归 A;b.txt 出现在 A 窗口内但已被 B 认领 → 不重复归属
-    assert!(ws.seal("cli-a", "tmd-a"));
-
-    let for_a = ws.batches("cli-a");
-    assert_eq!(for_a.len(), 1);
-    assert_eq!(for_a[0].files.len(), 1, "B 认领的 b.txt 不得混入 A");
-    assert_eq!(for_a[0].files[0].path, "a.txt");
-
-    let for_b = ws.batches("cli-b");
-    assert_eq!(for_b.len(), 1);
-    assert_eq!(for_b[0].files.len(), 1);
-    assert_eq!(for_b[0].files[0].path, "b.txt");
-
-    // A 后续轮再改 b.txt(窗口与 B 的认领不重叠)→ 可重新认领
-    let a2 = ws.anchor("cli-a", "tmd-a", "A 第二轮");
-    ws.write("b.txt", "b2-by-a\n");
-    assert!(ws.seal("cli-a", "tmd-a"));
-    let for_a = ws.batches("cli-a");
-    assert_eq!(for_a.len(), 2);
-    assert_eq!(for_a[0].files.len(), 1);
-    assert_eq!(for_a[0].files[0].path, "b.txt", "非重叠窗口可重新认领");
-    assert_eq!(for_a[0].index, 2);
-    let _ = a2;
 }
 
 #[test]
@@ -489,5 +452,4 @@ fn 非_git_目录_报_not_a_repo() {
     assert!(err.to_string().starts_with("E_NOT_A_REPO:"));
     let _ = fs::remove_dir_all(&dir);
 }
-
 
