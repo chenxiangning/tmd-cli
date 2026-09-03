@@ -11,6 +11,8 @@ export const BATCH_TAB_KIND = "ckpt-batch";
 export interface BatchTabPayload {
   cwd: string;
   sessionId: string;
+  /** tmd 会话 id(副键;首锚点落在 CLI 身份绑定前的查询兜底) */
+  tmdSessionId?: string;
   batchId: string;
   /** 深链:打开审阅单后滚动到该文件分区并高亮 */
   focusPath?: string;
@@ -20,6 +22,7 @@ export interface BatchTabPayload {
 export function openBatchTab(tab: {
   cwd: string;
   sessionId: string;
+  tmdSessionId?: string;
   batchId: string;
   title: string;
   focusPath?: string;
@@ -33,6 +36,7 @@ export function openBatchTab(tab: {
       payload: {
         cwd: tab.cwd,
         sessionId: tab.sessionId,
+        tmdSessionId: tab.tmdSessionId,
         batchId: tab.batchId,
         focusPath: tab.focusPath,
       },
@@ -45,5 +49,11 @@ export function readBatchPayload(tab: EditorTab): BatchTabPayload | null {
   if (tab.kind !== BATCH_TAB_KIND) return null;
   const p = tab.payload as Partial<BatchTabPayload> | null;
   if (!p?.cwd || !p.sessionId || !p.batchId) return null;
-  return { cwd: p.cwd, sessionId: p.sessionId, batchId: p.batchId, focusPath: p.focusPath };
+  return {
+    cwd: p.cwd,
+    sessionId: p.sessionId,
+    tmdSessionId: p.tmdSessionId,
+    batchId: p.batchId,
+    focusPath: p.focusPath,
+  };
 }

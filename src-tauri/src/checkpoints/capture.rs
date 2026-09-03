@@ -2,25 +2,10 @@
 //!
 //! 只写 blob,不触碰用户仓库的 index/refs;O(变动集) 成本:clean 路径不存
 //! (前像由 base_oid/HEAD 兜底,见 mod.rs resolve_snap_bytes)。
+//! 记账(anchor/guard 条目落 ledger)归 ledger 模块,这里只产文件基线。
 
-use super::{new_snapshot_id, append_manifest, open_sidecar, write_sidecar_blob, CkptError, Snapshot, SnapFile, MAX_FILE_BYTES};
+use super::{write_sidecar_blob, CkptError, SnapFile, MAX_FILE_BYTES};
 use std::collections::BTreeMap;
-
-/// anchor(用户消息锚点)| guard(回退前守卫)。
-#[derive(Clone, Copy, PartialEq)]
-pub enum SnapKind {
-    Anchor,
-    Guard,
-}
-
-impl SnapKind {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Anchor => "anchor",
-            Self::Guard => "guard",
-        }
-    }
-}
 
 /// 用户仓库当前 dirty 路径集(路径 → 展示状态符,untracked = "?")。
 /// 含 untracked、含 staged-only、不含 ignored;冲突路径标 "C" 且调用方跳过存内容。
@@ -56,14 +41,9 @@ pub fn dirty_paths(
     Ok(map)
 }
 
-/// 抓一份快照:枚举 dirty 路径 → 逐个读工作区 → blob 入 sidecar → 追加 manifest。
-/// capture 失败向上传播,由 commands 层决定"不阻塞发送"的重试/降级策略。
-pub fn capture_snapshot(
-    cwd: &str,
-    session_id: &str,
-    prompt: &str,
-    kind: SnapKind,
-) -> Result<Snapshot, CkptError> {
+/// 抓一份基线:枚举 dirty 路径 → 逐个读工作区 → blob 入 sidecar → 文件记录。
+/// anchor(轮开始基线)与 guard(回退前守卫)共用;失败向上传播。
+pub fn snapshot_files(cwd: &str) -> Result<Vec<SnapFile>, CkptError> {
     // 1. 用户仓库:dirty 集 + index 基线 oid(git 侧前像)
     let user = super::open_user(cwd)?;
     let dirty = dirty_paths(&user)?;
@@ -79,7 +59,7 @@ pub fn capture_snapshot(
     }
 
     // 2. 工作区内容 → sidecar blob
-    let sidecar = open_sidecar(cwd)?;
+    let sidecar = super::open_sidecar(cwd)?;
     let root = std::path::PathBuf::from(cwd);
     let mut files = Vec::with_capacity(dirty.len());
     for (path, status) in &dirty {
@@ -160,16 +140,5 @@ pub fn capture_snapshot(
             }),
         }
     }
-
-    // 3. manifest 落盘(prompt 截断存摘要,全文归前端锚点栏设施)
-    let snap = Snapshot {
-        id: new_snapshot_id(super::now_millis()),
-        ts: super::now_millis(),
-        kind: kind.as_str().to_string(),
-        session_id: session_id.to_string(),
-        prompt: prompt.chars().take(4000).collect(),
-        files,
-    };
-    append_manifest(cwd, &snap)?;
-    Ok(snap)
+    Ok(files)
 }

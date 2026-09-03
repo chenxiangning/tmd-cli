@@ -27,6 +27,7 @@ export function BatchSheetTabContent() {
       key={`${payload.sessionId}:${payload.batchId}`}
       cwd={payload.cwd}
       sessionId={payload.sessionId}
+      tmdSessionId={payload.tmdSessionId}
       batchId={payload.batchId}
       focusPath={payload.focusPath}
     />
@@ -36,11 +37,13 @@ export function BatchSheetTabContent() {
 function BatchSheet({
   cwd,
   sessionId,
+  tmdSessionId,
   batchId,
   focusPath,
 }: {
   cwd: string;
   sessionId: string;
+  tmdSessionId?: string;
   batchId: string;
   focusPath?: string;
 }) {
@@ -62,17 +65,27 @@ function BatchSheet({
   if (!batch) {
     return <Center>批次不存在或已随会话结束(审批线生命周期 = 单个会话)</Center>;
   }
-  return <SheetBody cwd={cwd} sessionId={sessionId} batch={batch} focusPath={focusPath} />;
+  return (
+    <SheetBody
+      cwd={cwd}
+      sessionId={sessionId}
+      tmdSessionId={tmdSessionId}
+      batch={batch}
+      focusPath={focusPath}
+    />
+  );
 }
 
 function SheetBody({
   cwd,
   sessionId,
+  tmdSessionId,
   batch,
   focusPath,
 }: {
   cwd: string;
   sessionId: string;
+  tmdSessionId?: string;
   batch: CkptBatch;
   focusPath?: string;
 }) {
@@ -101,7 +114,7 @@ function SheetBody({
       await approveBatch(cwd, batch.id);
     } finally {
       setBusy(false);
-      void refreshBatches(cwd, sessionId);
+      void refreshBatches(cwd, sessionId, tmdSessionId);
     }
   }
 
@@ -114,7 +127,7 @@ function SheetBody({
       /* 错误横幅与时间线共享:此处静默,时间线 notice 已展示同源错误 */
     } finally {
       setBusy(false);
-      void refreshBatches(cwd, sessionId);
+      void refreshBatches(cwd, sessionId, tmdSessionId);
     }
   }
 

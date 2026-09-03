@@ -78,8 +78,8 @@ export function CheckpointsPanel() {
      session.cwd === 工作区 root —— 锚点写入用 session.cwd,Rust 侧按键
      精确匹配,跨工作区查询天然返回空,而会话 cwd 是工作区子目录时旧守卫
      会把本可命中的批次整批隐藏。
-     读写都以 CLI 磁盘身份为准;首条 prompt 打锚点时身份常未绑上(回落 tmd id),
-     故查询把 tmd id 作为副键一并合并。 */
+     读写都以 CLI 磁盘身份为准(账本按其落盘);首条 prompt 打锚点时身份常未绑上
+     (锚点暂记 tmd id 名下),查询把 tmd id 作为副键一并命中,后端自动回填。 */
   const activeSessionId = host.getActiveSessionId();
   const activeSession = host.getSessions().find((s) => s.id === activeSessionId);
   const boundCliId =
@@ -90,7 +90,7 @@ export function CheckpointsPanel() {
     activeSession && cwd && activeSessionId !== null
       ? boundCliId ?? activeSessionId
       : null;
-  const altSessionId = boundCliId && activeSessionId ? activeSessionId : undefined;
+  const tmdSessionId = activeSessionId ?? undefined;
 
   const state = useCkptBatches(cwd, sessionId);
   const [confirm, setConfirm] = useState<{ batchId: string; paths?: string[] } | null>(null);
@@ -101,10 +101,10 @@ export function CheckpointsPanel() {
     if (!cwd) return;
     pruneRetention(cwd);
     if (!sessionId) return;
-    void refreshBatches(cwd, sessionId, altSessionId);
-    const timer = window.setInterval(() => void refreshBatches(cwd, sessionId, altSessionId), POLL_MS);
+    void refreshBatches(cwd, sessionId, tmdSessionId);
+    const timer = window.setInterval(() => void refreshBatches(cwd, sessionId, tmdSessionId), POLL_MS);
     return () => window.clearInterval(timer);
-  }, [cwd, sessionId, altSessionId]);
+  }, [cwd, sessionId, tmdSessionId]);
 
   const pendingCount = state.batches.filter((b) => batchState(b) === "pending").length;
 
@@ -118,7 +118,7 @@ export function CheckpointsPanel() {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
     } finally {
       setBusy(false);
-      void refreshBatches(cwd, sessionId, altSessionId);
+      void refreshBatches(cwd, sessionId, tmdSessionId);
     }
   }
 
@@ -139,7 +139,7 @@ export function CheckpointsPanel() {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
     } finally {
       setBusy(false);
-      void refreshBatches(cwd, sessionId, altSessionId);
+      void refreshBatches(cwd, sessionId, tmdSessionId);
     }
   }
 
@@ -153,7 +153,7 @@ export function CheckpointsPanel() {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
     } finally {
       setBusy(false);
-      void refreshBatches(cwd, sessionId, altSessionId);
+      void refreshBatches(cwd, sessionId, tmdSessionId);
     }
   }
 
@@ -217,6 +217,7 @@ export function CheckpointsPanel() {
               onUndo={doUndo}
               cwd={cwd}
               sessionId={sessionId}
+              tmdSessionId={tmdSessionId}
             />
           ))
         )}
@@ -244,6 +245,7 @@ function BatchRow({
   onUndo,
   cwd,
   sessionId,
+  tmdSessionId,
 }: {
   batch: CkptBatch;
   last: boolean;
@@ -255,6 +257,7 @@ function BatchRow({
   onUndo: (batchId: string) => Promise<void>;
   cwd: string;
   sessionId: string;
+  tmdSessionId?: string;
 }) {
   // 批 diff 懒加载(含 open 批,时间线 ± 与审阅单共用同一缓存);
   // open 批新像 = live 工作区,轮内改动定时跟进,封口后停
@@ -280,7 +283,7 @@ function BatchRow({
         className="relative z-[1] flex w-full items-start gap-2 rounded-(--tmd-radius-sm) px-2.5 py-1.5 text-left hover:bg-(--tmd-bg-hover)"
         title="点击审阅该批(用户消息 + 文件 diff)"
         onClick={() =>
-          openBatchTab({ cwd, sessionId, batchId: b.id, title: `批次 #${b.index}` })
+          openBatchTab({ cwd, sessionId, tmdSessionId, batchId: b.id, title: `批次 #${b.index}` })
         }
       >
         <span
@@ -324,6 +327,7 @@ function BatchRow({
             batch={b}
             cwd={cwd}
             sessionId={sessionId}
+            tmdSessionId={tmdSessionId}
             busy={busy}
             setConfirm={setConfirm}
           />
@@ -365,7 +369,7 @@ function BatchRow({
         )}
         <span className="truncate text-[10px] text-(--tmd-fg-faint)">
           {st === "open"
-            ? "进行中 —— 下一条消息发出时自动封口进入待审"
+            ? "进行中 —— 本轮对话结算后自动封口进入待审"
             : st === "done"
               ? "已处理 —— 无需操作"
               : st === "approved"
@@ -415,6 +419,7 @@ function FileRow({
   batch: b,
   cwd,
   sessionId,
+  tmdSessionId,
   busy,
   setConfirm,
 }: {
@@ -422,6 +427,7 @@ function FileRow({
   batch: CkptBatch;
   cwd: string;
   sessionId: string;
+  tmdSessionId?: string;
   busy: boolean;
   setConfirm: (v: { batchId: string; paths?: string[] } | null) => void;
 }) {
@@ -441,6 +447,7 @@ function FileRow({
           openBatchTab({
             cwd,
             sessionId,
+            tmdSessionId,
             batchId: b.id,
             title: `批次 #${b.index}`,
             focusPath: f.path,

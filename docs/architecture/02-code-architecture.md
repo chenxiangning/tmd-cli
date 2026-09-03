@@ -51,7 +51,7 @@ flowchart TB
     end
 
     subgraph BE["Tauri Rust 后端（src-tauri/src/）"]
-        LIB["lib.rs<br/>45 个 tauri::command 注册(lib.rs 26 + git 15 + quota 2 + omp_auth 2)"]
+        LIB["lib.rs<br/>59 个 tauri::command 注册(lib.rs 26 + git 15 + checkpoints 8 + fs_edit 6 + quota 2 + omp_auth 2)"]
         PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出"]
         SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
         RESOLVE["resolve.rs<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
@@ -345,7 +345,7 @@ flowchart TD
 
 ## 8. Rust 后端命令面
 
-注册的 45 个 `#[tauri::command]`（lib.rs 26 + git/commands.rs 15 + quota.rs 2 + omp_auth.rs 2），与 `ipc.ts` 一一对应：
+注册的 59 个 `#[tauri::command]`（lib.rs 26 + git/commands.rs 15 + checkpoints 8 + fs_edit 6 + quota.rs 2 + omp_auth.rs 2），与 `ipc.ts` 一一对应：
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
@@ -366,6 +366,9 @@ flowchart TD
 | `fs_remove_path` | `fs.rs` | 物理删除文件/目录（会话删除双端统一）,NotFound 幂等成功 |
 | `read_local_image_data_url` | `lib.rs`/`fs.rs` | md 预览本地图片(白名单 + 20MB 闸) |
 | `md5_hex` | `hash.rs` | 通用哈希原语(kimi 会话目录 `MD5(cwd)`) |
+| `checkpoint_anchor` / `checkpoint_seal` | `checkpoints/ledger.rs` | 审批线账本:记第 N 轮锚点(隐式封上一轮+CLI 身份回填) / 结算封口固化 turn 条目 |
+| `checkpoint_list` / `checkpoint_batch_diff` | `checkpoints/view.rs` | 账本只读视图(会话隔离+live 分类) / 批 diff(sealed 读账本,open 现算) |
+| `checkpoint_restore` / `checkpoint_approve` / `checkpoint_undo_revert` / `checkpoint_prune` | `checkpoints/restore.rs` 等 | 整批/单文件回退(guard 落账) / 通过标记 / 反悔恢复 / 保留策略 |
 | `git_status` / `git_totals` / `git_ahead_behind` | `git/status.rs` 等 | libgit2 本地读(status 聚合/改动统计/领先落后) |
 | `git_diff_file_patch` | `git/diff.rs` | libgit2 patch 生成(前端 PatchLRU 缓存 50 条/20MB) |
 | `git_stage` / `git_unstage` / `git_discard` / `git_commit` | `git/index_ops.rs` 等 | index 写操作(discard = checkout_index,不经 fs 删除) |
@@ -374,6 +377,32 @@ flowchart TD
 | `config_home_dir` / `config_default_workspace_root` | `session.rs` | 返回配置和默认工作区路径 |
 | `config_read_settings` / `config_write_settings` | `settings.rs` | `~/.tmd-cli/settings.json` 全局设置读写 |
 | `config_read_workspaces` / `config_write_workspaces` | `session.rs` | `~/.tmd-cli/workspaces.json` 工作区配置读写 |
+
+### 8.1 checkpoints 账本模型(审批线底层)
+
+批次 = **工作区 + 会话 + 轮次**三元组下的账本条目,落盘于 `~/.tmd-cli/checkpoints/{md5(cwd)}/`:
+
+| 文件 | 内容 |
+|---|---|
+| `ledger.jsonl` | 追加写账本。`anchor`(第 N 轮 prompt 发出前的工作区基线)/ `turn`(该轮封口固化的变更集:逐文件前后像 oid + unified diff)/ `guard`(回退前守卫)。同一 `(kind,id)` 多行取最后一行(turn 可修订至下一锚点落地) |
+| `objects.git` | sidecar 裸仓库,只写 blob(内容寻址去重),永不触碰用户仓库 index/refs |
+| `states.json` | 审核态覆盖(approved/reverted/reverted_paths/guard_id);done 由 list 现场推导 |
+
+生命周期事件流(前端 `plugins/checkpoints/index.tsx` → 后端原语):
+
+```
+promptSent   → checkpoint_anchor(记锚点;隐式先封上一轮,防 turnSettled 丢失)
+turnSettled  → checkpoint_seal(封口:基线→live 的真实变更固化为 turn 条目,零差异不落账)
+sessionExited → checkpoint_seal(兜底,最后一轮落账)
+```
+
+关键不变量:**归因在封口瞬间定死,list 只读账本不推导**——每轮绑定的文件集合只含本窗口内
+的真实变更,历史轮不再随工作区脏集漂移。两条仲裁规则:
+
+- **会话身份回填**:首条 prompt 常早于 CLI 磁盘身份绑定,锚点暂记 tmd 会话 id 名下;绑定后
+  anchor/seal 把同名 tmd 条目回填为 CLI id,查询按 `(sessionId, tmdSessionId)` 双字段命中。
+- **并行会话先封口先认领**:共享工作区里,路径若已被**其他**会话在其窗口重叠期内封口认领
+  (`seal_ts > 本窗口锚点 ts`),本会话不再重复归属;后续不重叠窗口可重新认领。
 
 ## 9. 设计原则 ↔ 代码落点对照
 

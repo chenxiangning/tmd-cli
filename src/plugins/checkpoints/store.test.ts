@@ -1,7 +1,7 @@
 /**
- * checkpoints store 双键查询契约测试。
- * 覆盖:主键瞬时错误上抛进 error 态(不得静默丢清单)、副键错误降级为空合并、
- * 双键结果按批 id 去重 + ts 倒序。
+ * checkpoints store 契约测试(账本模型)。
+ * 覆盖:清单 IPC 单次调用(副键 tmdSessionId 透传)、主键错误进 error 态、
+ * E_NOT_A_REPO 置 notARepo、成功清单原样入仓。
  * 模块级单例,每个用例经 vi.resetModules + 动态 import 取全新实例。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,17 +19,17 @@ let store: StoreModule;
 
 const CWD = "/repo";
 /** 主键 = 已绑定的 CLI 磁盘身份;副键 = 绑定前锚点落名的 tmd 会话 id */
-const MAIN = "cli-1";
-const ALT = "tmd-1";
+const CLI = "cli-1";
+const TMD = "tmd-1";
 
-function batch(id: string, ts: number): CkptBatch {
+function batch(id: string, turn: number): CkptBatch {
   return {
     id,
-    index: 1,
+    index: turn,
     open: false,
-    ts,
+    ts: turn,
     tsEnd: null,
-    sessionId: MAIN,
+    sessionId: CLI,
     prompt: "p",
     state: "pending",
     doneReason: null,
@@ -45,57 +45,56 @@ beforeEach(async () => {
   store = await import("./store");
 });
 
-describe("refreshBatches 双键查询", () => {
-  it("主键瞬时错误:上抛进 error 态,不得静默合并副键数据冒充完整清单", async () => {
-    ipcMock.checkpointList.mockImplementation((_cwd: string, id: string) =>
-      id === MAIN ? Promise.reject(new Error("E_IO: boom")) : Promise.resolve([batch("b-alt", 2)]),
-    );
+describe("refreshBatches(账本单查询)", () => {
+  it("单次 IPC,副键 tmdSessionId 原样透传;成功清单原样入仓", async () => {
+    ipcMock.checkpointList.mockResolvedValue([batch("b1", 1), batch("b2", 3)]);
 
-    await store.refreshBatches(CWD, MAIN, ALT);
+    await store.refreshBatches(CWD, CLI, TMD);
 
-    const st = store.getCkptBatches(CWD, MAIN);
+    expect(ipcMock.checkpointList).toHaveBeenCalledWith(CWD, CLI, TMD);
+    const st = store.getCkptBatches(CWD, CLI);
+    expect(st.error).toBeNull();
+    expect(st.loading).toBe(false);
+    expect(st.batches.map((b) => b.id)).toEqual(["b1", "b2"]);
+    // 轮次号 = 账本记录,前端不重排
+    expect(st.batches.map((b) => b.index)).toEqual([1, 3]);
+  });
+
+  it("未传副键:原样透传 undefined(空串归一在 ipc 层)", async () => {
+    ipcMock.checkpointList.mockResolvedValue([]);
+
+    await store.refreshBatches(CWD, CLI);
+
+    expect(ipcMock.checkpointList).toHaveBeenCalledWith(CWD, CLI, undefined);
+  });
+
+  it("错误上抛进 error 态,清单清空,不得以空数据冒充完整账本", async () => {
+    /* Tauri invoke 拒绝值是裸字符串(非 Error) */
+    ipcMock.checkpointList.mockRejectedValue("E_IO: boom");
+
+    await store.refreshBatches(CWD, CLI, TMD);
+
+    const st = store.getCkptBatches(CWD, CLI);
     expect(st.error).toContain("E_IO");
     expect(st.batches).toEqual([]);
     expect(st.loading).toBe(false);
+    expect(st.notARepo).toBe(false);
   });
 
-  it("副键瞬时错误:降级为空合并,主键数据完整保留", async () => {
-    ipcMock.checkpointList.mockImplementation((_cwd: string, id: string) =>
-      id === MAIN
-        ? Promise.resolve([batch("b-main", 1)])
-        : Promise.reject(new Error("E_IO: boom")),
-    );
+  it("E_NOT_A_REPO:置 notARepo(UI 切非 git 工作区文案)", async () => {
+    ipcMock.checkpointList.mockRejectedValue("E_NOT_A_REPO: nope");
 
-    await store.refreshBatches(CWD, MAIN, ALT);
+    await store.refreshBatches(CWD, CLI, TMD);
 
-    const st = store.getCkptBatches(CWD, MAIN);
-    expect(st.error).toBeNull();
-    expect(st.batches.map((b) => b.id)).toEqual(["b-main"]);
-  });
-
-  it("双键合并:按批 id 去重,ts 倒序", async () => {
-    ipcMock.checkpointList.mockImplementation((_cwd: string, id: string) =>
-      id === MAIN
-        ? Promise.resolve([batch("b1", 1), batch("b3", 3)])
-        : Promise.resolve([batch("b2", 2), batch("b3", 3)]),
-    );
-
-    await store.refreshBatches(CWD, MAIN, ALT);
-
-    const st = store.getCkptBatches(CWD, MAIN);
-    expect(st.batches.map((b) => b.id)).toEqual(["b3", "b2", "b1"]);
-  });
-
-  it("副键 E_NOT_A_REPO:两键同 cwd 必然同命,上抛置 notARepo 而非降级", async () => {
-    /* Tauri invoke 拒绝值是裸字符串(非 Error),isNotARepoError 按前缀匹配 */
-    ipcMock.checkpointList.mockImplementation((_cwd: string, id: string) =>
-      id === MAIN ? Promise.resolve([batch("b-main", 1)]) : Promise.reject("E_NOT_A_REPO: nope"),
-    );
-
-    await store.refreshBatches(CWD, MAIN, ALT);
-
-    const st = store.getCkptBatches(CWD, MAIN);
+    const st = store.getCkptBatches(CWD, CLI);
     expect(st.notARepo).toBe(true);
     expect(st.batches).toEqual([]);
+  });
+
+  it("cwd/sessionId 缺失:直接短路,不发起 IPC", async () => {
+    await store.refreshBatches("", CLI);
+    await store.refreshBatches(CWD, "");
+
+    expect(ipcMock.checkpointList).not.toHaveBeenCalled();
   });
 });

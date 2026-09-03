@@ -117,28 +117,6 @@ export interface GitCommitInput {
 
 /* ── checkpoints 契约(对齐 src-tauri/src/checkpoints/*,serde camelCase)── */
 
-/** 快照内单文件记录(Rust SnapFile 镜像)。 */
-export interface CkptSnapFile {
-  path: string;
-  /** 工作区内容在 sidecar 的 blob hex;"" = 未存(existed=false 或 skip) */
-  oid: string;
-  /** git 侧(index)基线 blob hex;"" = untracked 无基线 */
-  baseOid: string;
-  existed: boolean;
-  bytes: number;
-  skip: string | null;
-  status: string;
-}
-
-export interface CkptSnapshot {
-  id: string;
-  ts: number;
-  kind: "anchor" | "guard";
-  sessionId: string;
-  prompt: string;
-  files: CkptSnapFile[];
-}
-
 /** live 相对批后像:same 可回退 / changed 内容已变 / committed 已入 git / reverted 已退 */
 export interface CkptBatchFile {
   path: string;
@@ -150,7 +128,7 @@ export interface CkptBatchFile {
 
 export interface CkptBatch {
   id: string;
-  /** 1-based 显示序号(老 → 新) */
+  /** 会话内 1-based 轮次(账本记录;纯阅读轮缺号 = 真实轮次) */
   index: number;
   open: boolean;
   ts: number;
@@ -254,13 +232,16 @@ export const ipc = {
   /* ── checkpoints(批次审批/回退;契约对齐 src-tauri/src/checkpoints/*,serde camelCase)
    * E_* 前缀:E_NOT_A_REPO / E_EMPTY / E_STORE / E_GIT2 / E_IO ── */
 
-  /** 锚点快照:用户消息发送瞬间调用;失败不阻塞发送(调用方 catch 重试一次)。 */
-  checkpointCapture: (cwd: string, sessionId: string, prompt: string) =>
-    invoke<CkptSnapshot>("checkpoint_capture", { cwd, sessionId, prompt }),
-  /** 批次清单(session 严格隔离;含 live 分类与状态合成);按需调用,勿挂轮询。 */
-  checkpointList: (cwd: string, sessionId: string) =>
-    invoke<CkptBatch[]>("checkpoint_list", { cwd, sessionId }),
-  /** sealed 批次逐文件 unified patch;open 批用 gitDiffFilePatch。 */
+  /** 记第 N 轮锚点(隐式封上一轮 + CLI 身份回填);失败不阻塞发送(调用方 catch 重试一次)。 */
+  checkpointAnchor: (cwd: string, sessionId: string, tmdSessionId: string, prompt: string) =>
+    invoke<string>("checkpoint_anchor", { cwd, sessionId, tmdSessionId, prompt }),
+  /** 显式封口(一轮对话结算):把最新锚点以来的变更固化成账本 turn 条目。 */
+  checkpointSeal: (cwd: string, sessionId: string, tmdSessionId: string) =>
+    invoke<boolean>("checkpoint_seal", { cwd, sessionId, tmdSessionId }),
+  /** 批次清单(账本只读视图;session 严格隔离);按需调用,勿挂轮询。 */
+  checkpointList: (cwd: string, sessionId: string, tmdSessionId?: string) =>
+    invoke<CkptBatch[]>("checkpoint_list", { cwd, sessionId, tmdSessionId: tmdSessionId ?? "" }),
+  /** 批次逐文件 unified patch(sealed 读账本固化的 diff,open 批新像 = live 现算)。 */
   checkpointBatchDiff: (cwd: string, batchId: string) =>
     invoke<CkptPatch[]>("checkpoint_batch_diff", { cwd, batchId }),
   /** 通过标记:纯标记,不动文件/不碰 git;approved 批仍可回退。 */

@@ -1,20 +1,22 @@
 /**
- * checkpoints 插件 —— 批次审批/回退(spec: docs/superpowers/specs/2026-09-02-checkpoints-batch-review-design.md)。
+ * checkpoints 插件 —— 批次审批/回退(账本模型)。
  *
- * 职责:批次生命周期(锚点快照时机) + 批次 UI(右栏时间线 + 中央审阅单)。
- * 快照存储/diff/还原全部是后端原语(src-tauri/src/checkpoints);本插件不理解 git 细节。
+ * 职责:批次生命周期(锚点/封口时机) + 批次 UI(右栏时间线 + 中央审阅单)。
+ * 账本存储/diff/还原全部是后端原语(src-tauri/src/checkpoints);本插件不理解 git 细节。
  * 与 git 插件零耦合:回退直接作用于工作区,不产生任何 git 侧写操作。
  *
- * 批次边界 = 用户 prompt:composer emit kernel.sessions.prompt → 锚点快照;
- * 下一条 prompt 到来时上一批自动封口(快照对推导,不解析 CLI 工具流)。
+ * 账本生命周期 = 工作区 + 会话 + 轮次:
+ *   promptSent   → 记第 N 轮锚点(后端隐式先封上一轮,防 turnSettled 丢失)
+ *   turnSettled  → 封口:把本窗口变更固化成 turn 条目(文件 + diff 落盘)
+ *   sessionExited → 兜底封口,最后一轮落账
  */
 
 import { History } from "lucide-react";
 import { host } from "@kernel/host";
-import { KernelTopics, type PromptSentEvent } from "@kernel/events";
+import { KernelTopics, type PromptSentEvent, type TurnSettledEvent } from "@kernel/events";
 import { registerFilePanel } from "@kernel/filePanel";
 import type { Plugin, PluginContext } from "@kernel/plugin";
-import { captureAnchor } from "./store";
+import { captureAnchor, sealTurn } from "./store";
 import { CheckpointsPanel } from "./CheckpointsPanel";
 import { BatchSheetTabContent } from "./BatchSheet";
 
@@ -41,14 +43,35 @@ export const checkpointsPlugin: Plugin = {
       component: BatchSheetTabContent,
     });
 
-    // 批次边界信号:prompt 发送瞬间打锚点快照(失败不阻塞,store 内部重试)
-    ctx.events.on<KernelEvent>(KernelTopics.promptSent, ({ sessionId, text }) => {
-      const session = host.getSessions().find((s) => s.id === sessionId);
-      if (!session) return;
+    /** 会话身份解析:(cliId, tmdId);cliId 未绑定时以 tmd id 记账,绑定后自动回填。 */
+    const identity = (tmdSessionId: string) => {
+      const session = host.getSessions().find((s) => s.id === tmdSessionId);
+      if (!session) return null;
+      const cliId = host.getCliSessionId(tmdSessionId) ?? tmdSessionId;
+      return { cwd: session.cwd, cliId, tmdId: tmdSessionId };
+    };
+
+    // 批次边界:prompt 发送瞬间记锚点(失败不阻塞,store 内部重试)
+    ctx.events.on<PromptSentEvent>(KernelTopics.promptSent, ({ sessionId, text }) => {
+      const id = identity(sessionId);
+      if (!id) return;
       /* 用 CLI 磁盘身份作 key:重启/resume 后 tmd 会话 id 会换,稳定 id 才能找回历史批次 */
-      captureAnchor(session.cwd, host.getCliSessionId(sessionId) ?? sessionId, text);
+      captureAnchor(id.cwd, id.cliId, id.tmdId, text);
+    });
+
+    // 一轮对话结算:封口落账(幂等;失败由下一条 prompt 的隐式封口兜底)
+    ctx.events.on<TurnSettledEvent>(KernelTopics.turnSettled, ({ sessionId }) => {
+      const id = identity(sessionId);
+      if (!id) return;
+      sealTurn(id.cwd, id.cliId, id.tmdId);
+    });
+
+    // 会话退出:兜底封口,最后一轮落账(host.removeSession 先 await IPC 再摘会话,
+    // emit 时会话与 CLI 身份仍在列表里 —— 依赖此顺序,勿在 identity 前做异步查询)
+    ctx.events.on<string>(KernelTopics.sessionExited, (sessionId) => {
+      const id = identity(sessionId);
+      if (!id) return;
+      sealTurn(id.cwd, id.cliId, id.tmdId);
     });
   },
 };
-
-type KernelEvent = PromptSentEvent;

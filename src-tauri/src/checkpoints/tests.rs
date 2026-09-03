@@ -1,7 +1,13 @@
-//! checkpoints 集成测试 —— TempWs(临时用户仓库 + 隔离 sidecar 根)。
+//! checkpoints 集成测试 —— TempWs(临时用户仓库 + 隔离账本根)。
 //! 并行隔离:所有测试持全局 IO 锁(TEST_BASE 是进程级单例)。
+//!
+//! 账本模型核心契约:
+//!   - 每轮绑定 = 封口瞬间固化的 turn 条目,list 只读不推导
+//!   - 纯阅读轮不产生条目,轮次号保持真实(缺号可见)
+//!   - 并行会话:先封口者认领路径,另一会话不再重复归属
+//!   - CLI 身份回填:tmd id 名下的历史条目并入绑定后的 CLI id 链
 
-use super::{batch_patches, capture_snapshot, capture::SnapKind, derive_batches, prune, restore_batch, undo_revert, set_base_for_test};
+use super::{anchor_turn, batch_patches, derive_batches, prune, restore_batch, seal_turn, undo_revert, approve_batch, set_base_for_test};
 use std::fs;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -74,86 +80,247 @@ impl TempWs {
         repo.commit(Some("HEAD"), &sig, &sig, msg, &tree, &parents).unwrap();
     }
 
-    fn anchor(&self, sid: &str, prompt: &str) -> super::Snapshot {
-        capture_snapshot(self.path(), sid, prompt, SnapKind::Anchor).unwrap()
+    /// 记锚点:session_id = 会话身份,tmd_session_id = tmd 侧 id(同一会话恒定)。
+    fn anchor(&self, sid: &str, tmd: &str, prompt: &str) -> super::LedgerEntry {
+        anchor_turn(self.path(), sid, tmd, prompt).unwrap()
+    }
+
+    fn seal(&self, sid: &str, tmd: &str) -> bool {
+        seal_turn(self.path(), sid, tmd).unwrap()
+    }
+
+    fn batches(&self, sid: &str) -> Vec<super::BatchInfo> {
+        derive_batches(self.path(), sid, "").unwrap()
     }
 }
 
 impl Drop for TempWs {
     fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.dir);
+        let _ = fs::remove_dir_all(self.path());
     }
 }
 
 #[test]
-fn 快照往返_批推导_diff_回退_反悔() {
+fn 轮次归因_每轮只绑本窗口变更() {
     let ws = TempWs::new();
     ws.write("a.txt", "v1\n");
     ws.commit_all("init");
 
-    // 第 1 批:A(v2 + 新文件 b)→ B(a 改 v3)
+    // 第 1 轮:改 a.txt → 封口
+    let a1 = ws.anchor("cli-1", "tmd-1", "第一轮");
     ws.write("a.txt", "v2\n");
+    assert!(ws.seal("cli-1", "tmd-1"), "有变更应落账");
+
+    // 第 2 轮:不动文件(纯阅读)→ 不产生条目
+    ws.anchor("cli-1", "tmd-1", "第二轮");
+    assert!(!ws.seal("cli-1", "tmd-1"), "纯阅读轮零条目");
+
+    // 第 3 轮:新建 b.txt → 封口
+    ws.anchor("cli-1", "tmd-1", "第三轮");
     ws.write("b.txt", "hello\n");
-    let a = ws.anchor("s1", "第一批");
-    ws.write("a.txt", "v3\n");
-    let b = ws.anchor("s1", "第二批");
-    assert_ne!(a.id, b.id);
+    assert!(ws.seal("cli-1", "tmd-1"));
 
-    let batches = derive_batches(ws.path(), "s1").unwrap();
-    assert_eq!(batches.len(), 1, "b.txt 两锚点间未变,不入批");
-    let batch = &batches[0];
-    assert_eq!(batch.id, a.id);
-    assert_eq!(batch.index, 1);
-    assert!(!batch.open);
-    assert_eq!(batch.state, "pending");
-    assert_eq!(batch.files.len(), 1);
-    let f = &batch.files[0];
-    assert_eq!(f.path, "a.txt");
-    assert_eq!(f.status, "M");
-    assert_eq!(f.live, "same", "当前内容 == 批后像,可回退");
-    assert!(!f.stale);
+    let batches = ws.batches("cli-1");
+    assert_eq!(batches.len(), 2, "纯阅读轮不出现在时间线");
+    // 倒序:最新在前
+    assert_eq!(batches[0].index, 3, "轮次号 = 账本记录的真实轮次(缺号可见)");
+    assert_eq!(batches[0].files.len(), 1);
+    assert_eq!(batches[0].files[0].path, "b.txt");
+    assert_eq!(batches[0].files[0].status, "A");
+    assert!(!batches[0].open);
+    assert_eq!(batches[1].index, 1, "第 2 轮缺号,编号不重排");
+    assert_eq!(batches[1].files.len(), 1);
+    assert_eq!(batches[1].files[0].path, "a.txt");
+    assert_eq!(batches[1].files[0].status, "M");
+    assert_eq!(batches[1].files[0].live, "same", "内容 == 批后像,可回退");
 
-    // diff:v2 → v3
-    let patches = super::batch_patches(ws.path(), &a.id).unwrap();
+    // 账本固化的 diff 可直接读:a.txt v1 → v2
+    let patches = batch_patches(ws.path(), &a1.id).unwrap();
     assert_eq!(patches.len(), 1);
-    assert_eq!(patches[0].kind, "M");
-    assert!(patches[0].patch.contains("-v2"));
-    assert!(patches[0].patch.contains("+v3"));
-
-    // 回退整批 → a.txt 回到 v2;state=reverted;守卫存在
-    let out = restore_batch(ws.path(), &a.id, None).unwrap();
-    assert_eq!(out.restored, vec!["a.txt".to_string()]);
-    assert_eq!(out.state, "reverted");
-    assert!(out.guard_id.is_some());
-    assert_eq!(ws.read("a.txt").as_deref(), Some("v2\n"));
-
-    // 反悔 → 回到 v3(守卫内容),state 回 pending
-    let undo = undo_revert(ws.path(), &a.id).unwrap();
-    assert_eq!(undo.restored, vec!["a.txt".to_string()]);
-    assert_eq!(ws.read("a.txt").as_deref(), Some("v3\n"));
-    let batches = derive_batches(ws.path(), "s1").unwrap();
-    assert_eq!(batches[0].state, "pending");
+    assert!(patches[0].patch.contains("-v1"));
+    assert!(patches[0].patch.contains("+v2"));
 }
 
 #[test]
-fn 批内新建文件_回退即删除() {
+fn open_轮_只列本窗口变更_结算前可见() {
     let ws = TempWs::new();
     ws.write("a.txt", "v1\n");
     ws.commit_all("init");
 
-    let a = ws.anchor("s1", "锚1");
-    ws.write("new/nested.txt", "created\n");
-    ws.anchor("s1", "锚2");
+    // 工作区先有一份历史脏改动(pre-existing)
+    ws.write("legacy.txt", "old-dirty\n");
 
-    let batches = derive_batches(ws.path(), "s1").unwrap();
-    assert_eq!(batches.len(), 1);
-    let f = &batches[0].files[0];
-    assert_eq!(f.path, "new/nested.txt");
-    assert_eq!(f.status, "A");
+    let a = ws.anchor("cli-1", "tmd-1", "第一轮");
+    // 本轮才改 a.txt
+    ws.write("a.txt", "v2\n");
+
+    let batches = ws.batches("cli-1");
+    assert_eq!(batches.len(), 1, "legacy 脏文件未动,不得入本轮");
+    assert!(batches[0].open);
+    assert_eq!(batches[0].files.len(), 1);
+    assert_eq!(batches[0].files[0].path, "a.txt");
+
+    // open 轮 diff:新像 = live
+    let patches = batch_patches(ws.path(), &a.id).unwrap();
+    assert_eq!(patches.len(), 1);
+    assert!(patches[0].patch.contains("v2"));
+
+    // 封口后:turn 条目固化,内容与 open 视图一致
+    assert!(ws.seal("cli-1", "tmd-1"));
+    let batches = ws.batches("cli-1");
+    assert!(!batches[0].open);
+    assert_eq!(batches[0].files.len(), 1);
+}
+
+#[test]
+fn 封口修订_再改再封_最后一行为准() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    let a = ws.anchor("cli-1", "tmd-1", "第一轮");
+    ws.write("a.txt", "v2\n");
+    assert!(ws.seal("cli-1", "tmd-1"));
+    // 结算后(下一锚点前)又改:修订封口,账本取最后一行
+    ws.write("a.txt", "v3\n");
+    assert!(ws.seal("cli-1", "tmd-1"));
+
+    let batches = ws.batches("cli-1");
+    assert_eq!(batches[0].files.len(), 1);
+    let patches = batch_patches(ws.path(), &a.id).unwrap();
+    assert!(patches[0].patch.contains("+v3"), "修订后 diff = 全窗口累计");
+    assert!(!patches[0].patch.contains("+v2"));
+}
+
+#[test]
+fn 并行会话_先封口认领_不重复归属() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    // 会话 A 锚点 → A 改 a.txt
+    ws.anchor("cli-a", "tmd-a", "A 第一轮");
+    ws.write("a.txt", "a2\n");
+    // 会话 B 锚点(此刻 a.txt 已是 a2,成为 B 的基线)→ B 改 b.txt
+    ws.anchor("cli-b", "tmd-b", "B 第一轮");
+    ws.write("b.txt", "b1\n");
+    // B 先封口:认领 b.txt
+    assert!(ws.seal("cli-b", "tmd-b"));
+    // A 后封口:a.txt 归 A;b.txt 出现在 A 窗口内但已被 B 认领 → 不重复归属
+    assert!(ws.seal("cli-a", "tmd-a"));
+
+    let for_a = ws.batches("cli-a");
+    assert_eq!(for_a.len(), 1);
+    assert_eq!(for_a[0].files.len(), 1, "B 认领的 b.txt 不得混入 A");
+    assert_eq!(for_a[0].files[0].path, "a.txt");
+
+    let for_b = ws.batches("cli-b");
+    assert_eq!(for_b.len(), 1);
+    assert_eq!(for_b[0].files.len(), 1);
+    assert_eq!(for_b[0].files[0].path, "b.txt");
+
+    // A 后续轮再改 b.txt(窗口与 B 的认领不重叠)→ 可重新认领
+    let a2 = ws.anchor("cli-a", "tmd-a", "A 第二轮");
+    ws.write("b.txt", "b2-by-a\n");
+    assert!(ws.seal("cli-a", "tmd-a"));
+    let for_a = ws.batches("cli-a");
+    assert_eq!(for_a.len(), 2);
+    assert_eq!(for_a[0].files.len(), 1);
+    assert_eq!(for_a[0].files[0].path, "b.txt", "非重叠窗口可重新认领");
+    assert_eq!(for_a[0].index, 2);
+    let _ = a2;
+}
+
+#[test]
+fn 会话严格隔离_新会话从零开始() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    ws.anchor("sess-a", "tmd-a", "A 第一轮");
+    ws.write("a.txt", "v2\n");
+    ws.seal("sess-a", "tmd-a");
+
+    assert!(ws.batches("sess-b").is_empty(), "其他会话不得看到 A 的批次");
+    assert!(ws.batches("sess-new").is_empty(), "全新会话从零开始");
+    assert_eq!(ws.batches("sess-a").len(), 1);
+}
+
+#[test]
+fn cli身份回填_tmd名下历史并入绑定链() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    // 首条 prompt:CLI 身份未绑,整链记在 tmd id 名下
+    let a1 = ws.anchor("tmd-1", "tmd-1", "第一轮");
+    ws.write("a.txt", "v2\n");
+    assert!(ws.seal("tmd-1", "tmd-1"));
+
+    // 绑定后:同一会话以 (cli-1, tmd-1) 继续
+    let a2 = ws.anchor("cli-1", "tmd-1", "第二轮");
+    assert_eq!(a2.turn, 2, "轮次接续不重排");
+
+    let batches = derive_batches(ws.path(), "cli-1", "tmd-1").unwrap();
+    assert_eq!(batches.len(), 1, "回填后按 CLI id 一查到底(第 2 轮纯阅读不出现)");
+    assert_eq!(batches[0].id, a1.id);
+    assert_eq!(batches[0].index, 1);
+
+    // 回退经 CLI id 链照常工作:还原到第 1 轮锚点之前的内容 v1
+    let out = restore_batch(ws.path(), &a1.id, None).unwrap();
+    assert_eq!(out.restored, vec!["a.txt".to_string()]);
+    assert_eq!(ws.read("a.txt").as_deref(), Some("v1\n"));
+}
+
+#[test]
+fn 轮内新建_回退即删除_反悔恢复() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    let a = ws.anchor("cli-1", "tmd-1", "锚1");
+    ws.write("new/nested.txt", "created\n");
+    ws.write("a.txt", "v2\n");
+    ws.seal("cli-1", "tmd-1");
+
+    let batches = ws.batches("cli-1");
+    assert_eq!(batches[0].files.len(), 2);
 
     let out = restore_batch(ws.path(), &a.id, None).unwrap();
-    assert_eq!(out.deleted, vec!["new/nested.txt".to_string()]);
-    assert!(ws.read("new/nested.txt").is_none(), "批内新建文件,回退 = 删除");
+    assert_eq!(out.deleted, vec!["new/nested.txt".to_string()], "轮内新建,回退 = 删除");
+    assert_eq!(out.restored, vec!["a.txt".to_string()]);
+    assert_eq!(out.state, "reverted");
+    assert!(out.guard_id.is_some());
+    assert!(ws.read("new/nested.txt").is_none());
+    assert_eq!(ws.read("a.txt").as_deref(), Some("v1\n"));
+
+    // 反悔 → 守卫条目写回回退前状态
+    let undo = undo_revert(ws.path(), &a.id).unwrap();
+    assert_eq!(undo.restored.len() + undo.deleted.len(), 2);
+    assert_eq!(ws.read("new/nested.txt").as_deref(), Some("created\n"));
+    assert_eq!(ws.read("a.txt").as_deref(), Some("v2\n"));
+    assert_eq!(ws.batches("cli-1")[0].state, "pending");
+}
+
+#[test]
+fn 锚点时已删的文件_轮内重建_回退即删() {
+    let ws = TempWs::new();
+    ws.write("gone.txt", "base\n");
+    ws.commit_all("init");
+    // 锚点前删掉 gone.txt(工作区删除态)
+    fs::remove_file(ws.dir.join("gone.txt")).unwrap();
+
+    let a = ws.anchor("cli-1", "tmd-1", "锚1");
+    // 轮内重建
+    ws.write("gone.txt", "rebuilt\n");
+    ws.seal("cli-1", "tmd-1");
+
+    let batches = ws.batches("cli-1");
+    assert_eq!(batches[0].files.len(), 1, "删除态未变不得重复入批");
+    assert_eq!(batches[0].files[0].path, "gone.txt");
+
+    restore_batch(ws.path(), &a.id, None).unwrap();
+    assert!(ws.read("gone.txt").is_none(), "锚点时不存在,回退 = 删除(非复活旧基线)");
 }
 
 #[test]
@@ -162,19 +329,16 @@ fn 内容失配_自动已处理且回退被拒() {
     ws.write("a.txt", "v1\n");
     ws.commit_all("init");
 
-    let a = ws.anchor("s1", "锚1");
+    let a = ws.anchor("cli-1", "tmd-1", "锚1");
     ws.write("a.txt", "v2\n");
-    ws.anchor("s1", "锚2");
-    // 批后用户手改
+    ws.seal("cli-1", "tmd-1");
+    // 封口后用户手改
     ws.write("a.txt", "hand-edited\n");
 
-    let batches = derive_batches(ws.path(), "s1").unwrap();
-    // 手改会即时归因进 open 待审批(修复滞后);封口批仍是 done/内容已变
-    let sealed = batches.iter().find(|b| !b.open).expect("封口批存在");
-    assert_eq!(sealed.state, "done");
-    assert_eq!(sealed.done_reason.as_deref(), Some("内容已变"));
-    assert!(sealed.files[0].stale);
-    assert!(batches.iter().any(|b| b.open && b.state == "pending"));
+    let batches = ws.batches("cli-1");
+    assert_eq!(batches[0].state, "done");
+    assert_eq!(batches[0].done_reason.as_deref(), Some("内容已变"));
+    assert!(batches[0].files[0].stale);
 
     let err = restore_batch(ws.path(), &a.id, None).unwrap_err();
     assert!(err.to_string().starts_with("E_EMPTY:"), "失配文件不可回退: {err}");
@@ -186,100 +350,111 @@ fn 用户提交_自动已处理_理由已提交() {
     ws.write("a.txt", "v1\n");
     ws.commit_all("init");
 
-    let _a = ws.anchor("s1", "锚1");
+    ws.anchor("cli-1", "tmd-1", "锚1");
     ws.write("a.txt", "v2\n");
-    ws.anchor("s1", "锚2");
-    // 用户 stage+commit 批内文件
-    ws.write("a.txt", "v2\n");
+    ws.seal("cli-1", "tmd-1");
+    // 用户提交批内内容
     ws.commit_all("keep batch work");
 
-    let batches = derive_batches(ws.path(), "s1").unwrap();
+    let batches = ws.batches("cli-1");
     assert_eq!(batches[0].state, "done");
     assert_eq!(batches[0].done_reason.as_deref(), Some("已提交"));
 }
 
 #[test]
-fn 单文件回退_批留在待审_全处理完才翻已退() {
+fn 单文件回退_批留待审_全处理完才翻已退() {
     let ws = TempWs::new();
     ws.write("a.txt", "v1\n");
     ws.write("c.txt", "c1\n");
     ws.commit_all("init");
 
-    let a = ws.anchor("s1", "锚1");
+    let a = ws.anchor("cli-1", "tmd-1", "锚1");
     ws.write("a.txt", "v2\n");
     ws.write("c.txt", "c2\n");
-    ws.anchor("s1", "锚2");
+    ws.seal("cli-1", "tmd-1");
 
     let out = restore_batch(ws.path(), &a.id, Some(vec!["a.txt".into()])).unwrap();
     assert_eq!(out.state, "pending", "还有一个文件未处理");
     assert_eq!(ws.read("a.txt").as_deref(), Some("v1\n"));
     assert_eq!(ws.read("c.txt").as_deref(), Some("c2\n"));
 
-    let batches = derive_batches(ws.path(), "s1").unwrap();
-    let files = &batches[0].files;
+    let files = &ws.batches("cli-1")[0].files;
     assert!(files.iter().find(|f| f.path == "a.txt").unwrap().reverted);
     assert!(!files.iter().find(|f| f.path == "c.txt").unwrap().reverted);
 
     restore_batch(ws.path(), &a.id, Some(vec!["c.txt".into()])).unwrap();
-    let batches = derive_batches(ws.path(), "s1").unwrap();
-    assert_eq!(batches[0].state, "reverted", "全部文件处理完 → 已退");
+    assert_eq!(ws.batches("cli-1")[0].state, "reverted", "全部文件处理完 → 已退");
+
+    // 已回退批再回退被拒;反悔后回 pending
+    assert!(restore_batch(ws.path(), &a.id, None).is_err());
+    undo_revert(ws.path(), &a.id).unwrap();
+    assert_eq!(ws.batches("cli-1")[0].state, "pending");
 }
 
 #[test]
-fn open_批_同文件连续改动即时归因() {
+fn 通过标记_纯标记_不阻回退() {
     let ws = TempWs::new();
     ws.write("a.txt", "v1\n");
     ws.commit_all("init");
 
-    // 锚1 后改 a.txt(封口批);锚2 再改同一文件但不发新 prompt → open 批应立即含它
+    let a = ws.anchor("cli-1", "tmd-1", "锚1");
     ws.write("a.txt", "v2\n");
-    let _a1 = ws.anchor("s1", "第一批");
+    ws.seal("cli-1", "tmd-1");
+
+    assert_eq!(ws.batches("cli-1")[0].state, "pending");
+    approve_batch(ws.path(), &a.id).unwrap();
+    assert_eq!(ws.read("a.txt").as_deref(), Some("v2\n"), "通过不得动文件");
+    assert_eq!(ws.batches("cli-1")[0].state, "approved");
+
+    // approved 批仍可回退(标记弱于安全动作)
+    let out = restore_batch(ws.path(), &a.id, None).unwrap();
+    assert_eq!(out.state, "reverted");
+    assert_eq!(ws.read("a.txt").as_deref(), Some("v1\n"));
+    assert!(approve_batch(ws.path(), &a.id).is_err(), "已回退批不可再标记");
+}
+
+#[test]
+fn open_轮不可回退() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    let a = ws.anchor("cli-1", "tmd-1", "锚1");
+    ws.write("a.txt", "v2\n");
+    // 未封口
+    let err = restore_batch(ws.path(), &a.id, None).unwrap_err();
+    assert!(err.to_string().contains("进行中"), "open 轮不可回退: {err}");
+}
+
+#[test]
+fn prune_按批保留_锚点守卫随批清理() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    let a1 = ws.anchor("cli-1", "tmd-1", "锚1");
+    ws.write("a.txt", "v2\n");
+    ws.seal("cli-1", "tmd-1");
+    restore_batch(ws.path(), &a1.id, None).unwrap(); // 产生 guard 条目
+
+    let a2 = ws.anchor("cli-1", "tmd-1", "锚2");
     ws.write("a.txt", "v3\n");
+    ws.seal("cli-1", "tmd-1");
 
-    let batches = derive_batches(ws.path(), "s1").unwrap();
-    let open = batches.iter().find(|b| b.open).expect("open 批存在");
-    assert_eq!(open.files.len(), 1, "anchor 时已 dirty 但本轮再改 → 即时归因");
-    assert_eq!(open.files[0].path, "a.txt");
-    assert_eq!(open.state, "pending");
-}
-
-#[test]
-fn open_批_diff_新像取_live_工作区() {
-    let ws = TempWs::new();
-    ws.write("a.txt", "v1\n");
-    ws.commit_all("init");
-
-    let a = ws.anchor("s1", "第一批");
-    ws.write("a.txt", "v2\n");
-
-    // 无封口:open 批的 diff = A → live 工作区
-    let patches = batch_patches(ws.path(), &a.id).unwrap();
-    assert_eq!(patches.len(), 1);
-    assert_eq!(patches[0].path, "a.txt");
-    assert_eq!(patches[0].kind, "M");
-    assert!(patches[0].patch.contains("v2"), "新像应为 live 内容");
-    assert!(patches[0].additions >= 1);
-}
-
-#[test]
-fn prune_保留最近_n_批() {
-    let ws = TempWs::new();
-    ws.write("a.txt", "v1\n");
-    ws.commit_all("init");
-
-    let a1 = ws.anchor("s1", "锚1");
-    ws.write("a.txt", "v2\n");
-    let a2 = ws.anchor("s1", "锚2");
-    ws.write("a.txt", "v3\n");
-    let _a3 = ws.anchor("s1", "锚3");
+    ws.anchor("cli-1", "tmd-1", "锚3");
+    ws.write("a.txt", "v4\n");
+    ws.seal("cli-1", "tmd-1");
 
     let dropped = prune(ws.path(), 2, 30).unwrap();
-    assert_eq!(dropped, 1);
-    // 保 2 个锚点(a2,a3) → 只剩 a2→a3 一批;a1 已随锚点清理
-    let batches = derive_batches(ws.path(), "s1").unwrap();
-    assert_eq!(batches.len(), 1);
-    assert!(!batches.iter().any(|b| b.id == a1.id), "最老批被清理");
+    assert!(dropped > 0);
+
+    let batches = ws.batches("cli-1");
+    assert_eq!(batches.len(), 2, "保最近 2 批");
+    assert!(!batches.iter().any(|b| b.id == a1.id), "最老批随锚点清理");
     assert!(batches.iter().any(|b| b.id == a2.id));
+    // 反悔依据被清理后给出明确错误
+    let err = undo_revert(ws.path(), &a1.id).unwrap_err();
+    assert!(!err.to_string().is_empty());
 }
 
 #[test]
@@ -288,41 +463,16 @@ fn 非_ascii_路径_往返无损() {
     ws.write("a.txt", "v1\n");
     ws.commit_all("init");
 
-    let a = ws.anchor("s1", "锚1");
+    let a = ws.anchor("cli-1", "tmd-1", "锚1");
     ws.write("目录/中文文件.txt", "内容\n");
-    ws.anchor("s1", "锚2");
+    ws.seal("cli-1", "tmd-1");
 
-    let batches = derive_batches(ws.path(), "s1").unwrap();
+    let batches = ws.batches("cli-1");
     assert_eq!(batches[0].files[0].path, "目录/中文文件.txt");
     restore_batch(ws.path(), &a.id, None).unwrap();
     assert!(ws.read("目录/中文文件.txt").is_none());
     undo_revert(ws.path(), &a.id).unwrap();
     assert_eq!(ws.read("目录/中文文件.txt").as_deref(), Some("内容\n"));
-}
-
-#[test]
-fn 会话严格隔离_新会话看不到历史批次() {
-    let ws = TempWs::new();
-    ws.write("a.txt", "v1\n");
-    ws.commit_all("init");
-
-    // 会话 A 两轮,产生一个批次
-    let a = ws.anchor("sess-a", "A 第一轮");
-    ws.write("a.txt", "v2\n");
-    ws.anchor("sess-a", "A 第二轮");
-
-    // 会话 B 视角:零批次(哪怕工作区是脏的)
-    let for_b = derive_batches(ws.path(), "sess-b").unwrap();
-    assert!(for_b.is_empty(), "其他会话不得看到 A 的批次");
-    let for_b2 = derive_batches(ws.path(), "sess-new").unwrap();
-    assert!(for_b2.is_empty(), "全新会话从零开始");
-
-    // 会话 A 视角:批次仍在,且回退/反悔生命周期不受 B 影响
-    let for_a = derive_batches(ws.path(), "sess-a").unwrap();
-    assert_eq!(for_a.len(), 1);
-    assert_eq!(for_a[0].id, a.id);
-    restore_batch(ws.path(), &a.id, None).unwrap();
-    assert_eq!(ws.read("a.txt").as_deref(), Some("v1\n"));
 }
 
 #[test]
@@ -335,41 +485,9 @@ fn 非_git_目录_报_not_a_repo() {
     let base = dir.join("store");
     fs::create_dir_all(&base).unwrap();
     set_base_for_test(base);
-    let err = capture_snapshot(dir.to_str().unwrap(), "s", "p", SnapKind::Anchor).unwrap_err();
+    let err = anchor_turn(dir.to_str().unwrap(), "s", "s", "p").unwrap_err();
     assert!(err.to_string().starts_with("E_NOT_A_REPO:"));
     let _ = fs::remove_dir_all(&dir);
 }
 
-#[test]
-fn 通过标记_纯标记_不阻回退() {
-    let ws = TempWs::new();
-    ws.write("a.txt", "v1\n");
-    ws.commit_all("init");
 
-    let a = ws.anchor("s1", "锚1");
-    ws.write("a.txt", "v2\n");
-    ws.anchor("s1", "锚2");
-
-    // 未通过:pending
-    assert_eq!(derive_batches(ws.path(), "s1").unwrap()[0].state, "pending");
-
-    // 通过 = 纯标记:文件内容不变,状态翻 approved
-    super::approve_batch(ws.path(), &a.id).unwrap();
-    assert_eq!(ws.read("a.txt").as_deref(), Some("v2\n"), "通过不得动文件");
-    assert_eq!(
-        derive_batches(ws.path(), "s1").unwrap()[0].state,
-        "approved"
-    );
-
-    // approved 批仍可回退(标记弱于安全动作)
-    let out = restore_batch(ws.path(), &a.id, None).unwrap();
-    assert_eq!(out.state, "reverted");
-    assert_eq!(ws.read("a.txt").as_deref(), Some("v1\n"));
-
-    // 已回退批不可再标记通过
-    assert!(super::approve_batch(ws.path(), &a.id).is_err());
-
-    // 反悔后:标记已被回退动作清除,回到 pending
-    undo_revert(ws.path(), &a.id).unwrap();
-    assert_eq!(derive_batches(ws.path(), "s1").unwrap()[0].state, "pending");
-}

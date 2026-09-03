@@ -2,9 +2,10 @@
  * checkpoints store —— 右栏审批线面板与中央批审阅单共享的批次状态仓
  * (对齐 git 插件 panelStore 惯例:模块级 store + useSyncExternalStore)。
  *
- * 会话严格绑定:状态仓按 (cwd, sessionId) 键控,清单由后端按 sessionId 推导 ——
- * 新会话从零开始,历史批次不跨会话可见(生命周期 = 单个会话)。
- * 数据流:promptSent → captureAnchor(锚点快照) → refreshBatches;
+ * 会话严格绑定:状态仓按 (cwd, sessionId) 键控,清单由后端从账本只读导出
+ * (工作区 + 会话 + 轮次三元组落盘,封口即定死,不再现场推导)。
+ * 数据流:promptSent → captureAnchor(记账锚点,隐式封上一轮) /
+ * turnSettled → sealTurn(封口固化 turn 条目) → refreshBatches;
  * 回退/反悔动作后各自 refresh。diff 按批懒加载缓存;清单不挂轮询
  * (UI 挂载期间 6s 轻刷新,保证 open 批的 live 分类跟进)。
  */
@@ -47,35 +48,20 @@ function isNotARepoError(e: unknown): boolean {
 }
 
 /**
- * 拉批次清单(幂等;并发去重靠 token 丢弃过期响应)。
- * altSessionId:首条 prompt 打锚点时 CLI 磁盘身份常未绑上,锚点落在 tmd 会话 id
- * 名下;绑定后读取按 cli id 查会漏掉这批。两个键都查,按批 id 去重合并。
+ * 拉批次清单(幂等)。tmdSessionId:首条 prompt 打锚点时 CLI 磁盘身份常未绑上,
+ * 锚点落在 tmd 会话 id 名下;后端按 (sessionId, tmdSessionId) 双字段命中并自动回填。
  */
 export function refreshBatches(
   cwd: string,
   sessionId: string,
-  altSessionId?: string,
+  tmdSessionId?: string,
 ): Promise<void> {
   if (!cwd || !sessionId) return Promise.resolve();
-  const ids = altSessionId && altSessionId !== sessionId ? [sessionId, altSessionId] : [sessionId];
   const key = stateKey(cwd, sessionId);
   setKey(key, { loading: true });
-  return Promise.all(
-    ids.map((id) =>
-      ipc.checkpointList(cwd, id).catch((e: unknown) => {
-        /* 仅副键失败可降级为空(锚点未必已落到副键名下);主键错误必须上抛
-           走 error 分支 —— 否则主键瞬时故障会静默丢整份清单 */
-        if (id !== sessionId && !isNotARepoError(e)) return [];
-        throw e;
-      }),
-    ),
-  )
-    .then((lists) => {
-      const byId = new Map<string, CkptBatch>();
-      for (const batches of lists) {
-        for (const b of batches) byId.set(b.id, b);
-      }
-      const batches = [...byId.values()].sort((a, b) => b.ts - a.ts);
+  return ipc
+    .checkpointList(cwd, sessionId, tmdSessionId)
+    .then((batches) => {
       byKey.set(key, { batches, loading: false, error: null, notARepo: false });
       emit();
     })
@@ -90,21 +76,40 @@ export function refreshBatches(
     });
 }
 
-/** 锚点快照:发送瞬间调用;失败后台重试一次,不阻塞发送路径。 */
-export function captureAnchor(cwd: string, sessionId: string, prompt: string): void {
-  const run = () => ipc.checkpointCapture(cwd, sessionId, prompt);
+/**
+ * 记第 N 轮锚点(prompt 发送瞬间);后端隐式先封上一轮并做 CLI 身份回填。
+ * 失败后台重试一次,不阻塞发送路径。
+ */
+export function captureAnchor(
+  cwd: string,
+  sessionId: string,
+  tmdSessionId: string,
+  prompt: string,
+): void {
+  const run = () => ipc.checkpointAnchor(cwd, sessionId, tmdSessionId, prompt);
   run().catch(() => {
     window.setTimeout(() => {
       run()
-        .then(() => refreshBatches(cwd, sessionId))
+        .then(() => refreshBatches(cwd, sessionId, tmdSessionId))
         .catch(() => {
-          /* 两次都失败:本锚点缺失,批会并入下一批(快照对推导的自然兜底) */
+          /* 两次都失败:本锚点缺失,本轮变更并入下一轮窗口(封口推导的自然兜底) */
         });
     }, 1500);
     return;
   });
   // 快路径:capture 完成有延迟,定时刷新也会兜住
-  window.setTimeout(() => void refreshBatches(cwd, sessionId), 800);
+  window.setTimeout(() => void refreshBatches(cwd, sessionId, tmdSessionId), 800);
+}
+
+/** 显式封口(一轮对话结算):把最新锚点以来的变更固化成账本 turn 条目。 */
+export function sealTurn(cwd: string, sessionId: string, tmdSessionId: string): void {
+  if (!cwd || !sessionId) return;
+  ipc
+    .checkpointSeal(cwd, sessionId, tmdSessionId)
+    .then(() => refreshBatches(cwd, sessionId, tmdSessionId))
+    .catch(() => {
+      /* 封口失败不打断会话:下一条 prompt 的 anchor 会隐式补封 */
+    });
 }
 
 // ---- 保留策略 --------------------------------------------------------------
