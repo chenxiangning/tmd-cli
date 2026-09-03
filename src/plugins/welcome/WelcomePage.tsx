@@ -60,7 +60,7 @@ function EngineSection({
 }
 
 export function WelcomePage() {
-  const hostVersion = useHost(); /* profile 注册完成/变化时重渲染 */
+  useHost(); /* 订阅宿主:profile 注册/注销(启动激活、插件市场开关)时重渲染 */
   const [probes, setProbes] = useState<Record<string, EngineProbeState>>(
     buildInitialProbes,
   );
@@ -69,10 +69,15 @@ export function WelcomePage() {
   const [latest, setLatest] = useState<Record<string, string | null>>({});
   const latestFetchedRef = useRef<Set<string>>(new Set());
   /* 只展示 profile 已注册的引擎:cli 插件被拔出(禁用)时不激活、不注册,卡片随之消失。
-     useMemo 锚定 hostVersion:否则每次 render 新数组 → 下方探针 effect 无限循环。 */
+     useMemo 锚定注册集指纹而非 version:host 任意 notify(后台会话的 PTY 输出、
+     身份绑定等)都会 bump version,锚 version 会让对话期间每 500ms 重探全部引擎
+     (探针页反复闪烁);指纹只在注册集真正变化时改变。 */
+  const registrationKey = ENGINE_METAS.map((m) =>
+    host.getCliProfile(m.id) ? m.id : "-",
+  ).join("|");
   const visibleMetas = useMemo(
     () => ENGINE_METAS.filter((m) => host.getCliProfile(m.id) !== undefined),
-    [hostVersion],
+    [registrationKey],
   );
 
   const runProbe = useCallback(async (engineId: string) => {

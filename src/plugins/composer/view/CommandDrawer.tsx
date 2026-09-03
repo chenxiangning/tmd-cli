@@ -34,10 +34,12 @@ const SECTION_TAB_ICONS: Record<"all" | DrawerSection, DrawerIconComponent> = {
   plugin: Puzzle,
 };
 
+/** 动作徽标:软填充色芯片(不用描边,亮色系主题下描边 pill 过于抢眼);
+    颜色全部走主题 token,preset 换色自动跟随。 */
 const MODE_TAG: Record<DrawerItem["action"], { label: string; cls: string; hint: string }> = {
-  send: { label: "⚡ 直接发送", cls: "border-(--tmd-accent) text-(--tmd-accent)", hint: "直接发送到幕布" },
-  insert: { label: "↵ 插入", cls: "border-(--tmd-border) text-(--tmd-fg-subtle)", hint: "插入输入框继续编辑" },
-  open: { label: "⇱ 打开", cls: "border-(--tmd-diff-inserted) text-(--tmd-diff-inserted)", hint: "打开对应面板" },
+  send: { label: "⚡ 直接发送", cls: "bg-(--tmd-accent-soft) text-(--tmd-accent)", hint: "直接发送到幕布" },
+  insert: { label: "↵ 插入", cls: "bg-(--tmd-bg-hover) text-(--tmd-fg-muted)", hint: "插入输入框继续编辑" },
+  open: { label: "⇱ 打开", cls: "bg-(--tmd-diff-inserted)/10 text-(--tmd-diff-inserted)", hint: "打开对应面板" },
 };
 
 function displayName(item: DrawerItem): string {
@@ -201,7 +203,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen }: Command
     >
       {/* 左缘竖排 rail:关闭 + 分区图标切换 + 计数(文案进 title/aria-label) */}
       <div
-        className="flex w-10 shrink-0 flex-col gap-1 border-r border-(--tmd-border) p-1"
+        className="flex w-10 shrink-0 flex-col gap-1 border-r border-(--tmd-border) bg-(--tmd-bg-sunken) p-1"
         role="tablist"
         aria-orientation="vertical"
         aria-label="分区切换"
@@ -227,10 +229,10 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen }: Command
               aria-label={label}
               title={label}
               onClick={() => { setTab(key); setActiveIndex(-1); }}
-              className={`grid h-7 w-full cursor-pointer place-items-center rounded-md border transition-colors ${
+              className={`grid h-7 w-full cursor-pointer place-items-center rounded-md transition-colors ${
                 tab === key
-                  ? "border-(--tmd-accent) bg-(--tmd-accent-soft) text-(--tmd-accent)"
-                  : "border-transparent text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+                  ? "bg-(--tmd-accent-soft) text-(--tmd-accent)"
+                  : "text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
               }`}
             >
               <Icon size={13} />
@@ -256,10 +258,11 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen }: Command
                 {/* 单分区视图由 rail 标示当前区,组头只在「全部」聚合时出现 */}
                 {tab === "all" && (
                   <div className="sticky top-0 z-10 flex items-center gap-1.5 bg-(--tmd-bg-popover) px-1.5 py-2 text-[10px] tracking-widest text-(--tmd-fg-faint)">
-                    <span className="grid h-4 w-4 place-items-center rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) text-[11px] text-(--tmd-fg-muted)">
+                    <span className="w-4 text-center font-mono text-[11px] text-(--tmd-fg-muted)">
                       {SECTION_GLYPHS[sec] ?? SECTION_META[sec].glyph}
                     </span>
-                    {SECTION_META[sec].label} · {secItems.length}
+                    <span>{SECTION_META[sec].label} · {secItems.length}</span>
+                    <span className="h-px flex-1 bg-(--tmd-border)" />
                   </div>
                 )}
                 {secItems.map((item) => {
@@ -280,7 +283,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen }: Command
                         idx === activeIndex ? "bg-(--tmd-bg-hover)" : ""
                       } ${flashKey === key ? "bg-(--tmd-accent-soft)" : ""}`}
                     >
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) text-(--tmd-fg-muted)">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-(--tmd-bg-hover) text-(--tmd-fg-muted)">
                         {Icon ? <Icon size={15} /> : (SECTION_GLYPHS[item.section] ?? "·")}
                       </span>
                       <span className="min-w-0 flex-1">
@@ -291,7 +294,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen }: Command
                           </span>
                         )}
                       </span>
-                      <span className={`shrink-0 rounded-full border px-1.5 py-px text-[9.5px] ${tag.cls}`}>
+                      <span className={`shrink-0 rounded-full px-1.5 py-px text-[10px] ${tag.cls}`}>
                         {tag.label}
                       </span>
                     </button>
