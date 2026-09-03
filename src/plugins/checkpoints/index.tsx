@@ -12,11 +12,11 @@
  */
 
 import { History } from "lucide-react";
-import { host } from "@kernel/host";
 import { KernelTopics, type PromptSentEvent, type TurnSettledEvent } from "@kernel/events";
 import { registerFilePanel } from "@kernel/filePanel";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { captureAnchor, sealTurn } from "./store";
+import { checkpointIdentity } from "./identity";
 import { CheckpointsPanel } from "./CheckpointsPanel";
 import { BatchSheetTabContent } from "./BatchSheet";
 
@@ -43,12 +43,12 @@ export const checkpointsPlugin: Plugin = {
       component: BatchSheetTabContent,
     });
 
-    /** 会话身份解析:(cliId, tmdId);cliId 未绑定时以 tmd id 记账,绑定后自动回填。 */
+    /** 会话身份解析:统一走 identity.ts 仲裁(cli 身份被多活会话争持时,
+     *  先创建者保留、后到者回退 tmd id —— 防绑定竞态把两个会话并进同一条账)。 */
     const identity = (tmdSessionId: string) => {
-      const session = host.getSessions().find((s) => s.id === tmdSessionId);
-      if (!session) return null;
-      const cliId = host.getCliSessionId(tmdSessionId) ?? tmdSessionId;
-      return { cwd: session.cwd, cliId, tmdId: tmdSessionId };
+      const id = checkpointIdentity(tmdSessionId);
+      if (!id) return null;
+      return { cwd: id.cwd, cliId: id.key, tmdId: id.tmdId };
     };
 
     // 批次边界:prompt 发送瞬间记锚点(失败不阻塞,store 内部重试)

@@ -7,12 +7,14 @@
  * 动作极简:回退是唯一动作(带确认),done 全自动(提交/失配),无保留按钮。
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { Check, History, Loader2, RotateCcw, Undo2 } from "lucide-react";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import type { CkptBatch, CkptBatchFile, CkptPatch } from "@kernel/ipc";
+import { checkpointIdentity } from "./identity";
 import {
   approveBatch,
   getCachedDiff,
@@ -78,18 +80,22 @@ export function CheckpointsPanel() {
      session.cwd === 工作区 root —— 锚点写入用 session.cwd,Rust 侧按键
      精确匹配,跨工作区查询天然返回空,而会话 cwd 是工作区子目录时旧守卫
      会把本可命中的批次整批隐藏。
-     读写都以 CLI 磁盘身份为准(账本按其落盘);首条 prompt 打锚点时身份常未绑上
-     (锚点暂记 tmd id 名下),查询把 tmd id 作为副键一并命中,后端自动回填。 */
+     读写都以 CLI 磁盘身份为准(账本按其落盘),身份统一经 identity.ts 仲裁:
+     cli 身份被多个活会话争持(绑定竞态)时先创建者保留、后到者回退 tmd id,
+     新会话不再看到老会话的审批线;首条 prompt 时身份常未绑上(锚点暂记
+     tmd id 名下),查询把 tmd id 作为副键一并命中,后端自动回填。 */
+  const [, bumpRender] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => {
+    const offs = [
+      host.events.on(KernelTopics.activeSessionChanged, bumpRender),
+      host.events.on(KernelTopics.sessionsChanged, bumpRender),
+    ];
+    return () => offs.forEach((off) => off());
+  }, []);
+
   const activeSessionId = host.getActiveSessionId();
-  const activeSession = host.getSessions().find((s) => s.id === activeSessionId);
-  const boundCliId =
-    activeSession && cwd && activeSessionId !== null
-      ? host.getCliSessionId(activeSessionId)
-      : undefined;
-  const sessionId =
-    activeSession && cwd && activeSessionId !== null
-      ? boundCliId ?? activeSessionId
-      : null;
+  const identity = activeSessionId ? checkpointIdentity(activeSessionId) : null;
+  const sessionId = identity && cwd ? identity.key : null;
   const tmdSessionId = activeSessionId ?? undefined;
 
   const state = useCkptBatches(cwd, sessionId);
