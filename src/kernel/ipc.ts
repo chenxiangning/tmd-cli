@@ -276,6 +276,11 @@ export const ipc = {
   /** 显式封口(一轮对话结算):把最新锚点以来的变更固化成账本 turn 条目。 */
   checkpointSeal: (cwd: string, sessionId: string, tmdSessionId: string) =>
     invoke<boolean>("checkpoint_seal", { cwd, sessionId, tmdSessionId }),
+  /** 死锚点收口(强退恢复):上一运行被 kill 的会话没有 sessionExited,
+   *  最后一轮仍是开放锚点 —— 此命令按 cwd 把超过 graceMs 的开放锚点代为
+   *  封口。graceMs 保护本运行刚打的在途锚点。返回本次封口的锚点数。 */
+  checkpointSealDead: (cwd: string, graceMs: number) =>
+    invoke<number>("checkpoint_seal_dead", { cwd, graceMs }),
   /** 批次清单(账本只读视图;session 严格隔离);按需调用,勿挂轮询。 */
   checkpointList: (cwd: string, sessionId: string, tmdSessionId?: string) =>
     invoke<CkptBatch[]>("checkpoint_list", { cwd, sessionId, tmdSessionId: tmdSessionId ?? "" }),

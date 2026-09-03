@@ -33,7 +33,7 @@ pub use capture::{dirty_paths, snapshot_paths};
 pub use diff::{blob_patch, open_batch_patches, CkptPatch};
 pub use error::CkptError;
 pub use events::record_edit;
-pub use ledger::{anchor_turn, seal_turn};
+pub use ledger::{anchor_turn, seal_dead_turns, seal_turn};
 pub use restore::{approve_batch, apply_batch, restore_batch, undo_revert, RestoreOutcome};
 pub use view::{batch_patches, derive_batches, prune};
 

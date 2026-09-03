@@ -6,6 +6,7 @@
  * (工作区 + 会话 + 轮次三元组落盘,封口即定死,不再现场推导)。
  * 数据流:promptSent → captureAnchor(记账锚点,隐式封上一轮) /
  * turnSettled → sealTurn(封口固化 turn 条目) → refreshBatches;
+ * 强退恢复 → sealDeadTurns(面板首挂时代封上一运行的开放锚点);
  * 回退/反悔动作后各自 refresh。清单刷新失败保留旧批(error 态由面板渲染),
  * diff 按批懒加载缓存;清单不挂轮询(UI 挂载期间 6s 轻刷新,保证 open 批
  * 的 live 分类跟进)。
@@ -156,6 +157,28 @@ export function pruneRetention(cwd: string): void {
   ipc
     .checkpointPrune(cwd, CKPT_KEEP, CKPT_TTL_DAYS)
     .catch(() => prunedCwds.delete(cwd));
+}
+
+/** 已执行死锚点收口的 cwd:每 cwd 每运行一次(强退恢复是启动期语义)。 */
+const sealedDeadCwds = new Set<string>();
+
+/** 死锚点新鲜度保护:不误封本运行刚打的在途锚点(误封亦无损失,封口是
+ *  修订追加 —— 此宽限只是让「进行中」批不被提前翻成「待审」)。 */
+const SEAL_DEAD_GRACE_MS = 60_000;
+
+/**
+ * 强退恢复:上一运行被 kill 的会话没有 sessionExited,最后一段轮次永远是
+ * 开放锚点 —— 直到下次记账/收口前,它的批次在时间线上不可见。面板首次
+ * 挂载时按 cwd 触发一次,随后紧跟一次清单刷新把恢复出的批带出来。
+ * 失败允许重试(移除标记,下次挂载再收)。
+ */
+export function sealDeadTurns(cwd: string): Promise<void> {
+  if (!cwd || sealedDeadCwds.has(cwd)) return Promise.resolve();
+  sealedDeadCwds.add(cwd);
+  return ipc
+    .checkpointSealDead(cwd, SEAL_DEAD_GRACE_MS)
+    .catch(() => sealedDeadCwds.delete(cwd))
+    .then(() => undefined);
 }
 
 export type CkptRestoreResult = Awaited<ReturnType<typeof ipc.checkpointRestore>>;

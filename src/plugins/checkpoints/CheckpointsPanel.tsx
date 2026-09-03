@@ -19,6 +19,7 @@ import {
   pruneRetention,
   refreshBatches,
   revertBatch,
+  sealDeadTurns,
   undoRevertBatch,
   useCkptBatches,
 } from "./store";
@@ -59,8 +60,13 @@ export function CheckpointsPanel() {
   useEffect(() => {
     if (!cwd) return;
     pruneRetention(cwd);
-    if (!sessionId) return;
-    void refreshBatches(cwd, sessionId, tmdSessionId);
+    /* 强退恢复先于首拉:上一运行的开放锚点在此代为封口,恢复出的批随
+       紧跟的这次 refresh 一并上时间线(每 cwd 每运行一次,失败可重收)。 */
+    if (!sessionId) {
+      void sealDeadTurns(cwd);
+      return;
+    }
+    void sealDeadTurns(cwd).then(() => refreshBatches(cwd, sessionId, tmdSessionId));
     const timer = window.setInterval(() => void refreshBatches(cwd, sessionId, tmdSessionId), POLL_MS);
     return () => window.clearInterval(timer);
   }, [cwd, sessionId, tmdSessionId]);

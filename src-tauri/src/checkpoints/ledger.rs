@@ -45,7 +45,7 @@ pub fn anchor_turn(
 
     // 幽灵窗口收口:app 退出/崩溃会留下永远开放的锚点窗口,吞掉之后所有
     // 写入的归属。超时未封口的锚点代为封口(幂等;其链保持自身身份)。
-    seal_stale_foreign(cwd, &mut entries)?;
+    seal_stale_foreign(cwd, &mut entries, STALE_OPEN_MS)?;
 
     seal_locked(cwd, session_id, tmd_session_id, &entries)?;
 
@@ -234,29 +234,50 @@ pub(super) fn turn_changed_paths(
     Ok(changed)
 }
 
-/// 幽灵窗口收口:外会话锚点超过 STALE_OPEN_MS 仍无 turn 条目(app 崩溃/强退
-/// 所致)时,代其封口 —— 开放窗口不再无限吞掉后续写入的归属。
-const STALE_OPEN_MS: i64 = 24 * 3600 * 1000;
+/// 幽灵窗口收口:锚点超过 grace_ms 仍无 turn 条目(app 崩溃/强退 kill 掉
+/// sessionExited,最后一轮永远等不到显式封口)时,代其封口 —— 开放窗口
+/// 不再无限吞掉后续写入的归属,死链的最后一轮得以及时落账。
+/// 返回本次代封的锚点数。幂等:已有 turn 条目的锚点不再处理。
+/// 宽限语义:seal 对在途轮是修订追加(结算后再封只是多一行修订),误封
+/// 活会话的在途轮无数据损失,只影响「进行中 → 待审」的提前切换 —— 因此
+/// 记账路径(30min)与启动恢复路径(grace 0/60s)都可以放心收紧。
+const STALE_OPEN_MS: i64 = 30 * 60 * 1000;
 
-fn seal_stale_foreign(cwd: &str, entries: &mut Vec<LedgerEntry>) -> Result<(), CkptError> {
+fn seal_stale_foreign(
+    cwd: &str,
+    entries: &mut Vec<LedgerEntry>,
+    grace_ms: i64,
+) -> Result<usize, CkptError> {
     let now = now_millis();
     let stale: Vec<LedgerEntry> = entries
         .iter()
         .filter(|e| {
             e.kind == "anchor"
-                && now - e.ts > STALE_OPEN_MS
+                && now - e.ts > grace_ms
                 && !entries.iter().any(|t| t.kind == "turn" && t.id == e.id)
         })
         .cloned()
         .collect();
+    let mut sealed = 0;
     for a in &stale {
         // 单条失败不阻断记账主流程(如某外会话工作区已被删除)
         if let Ok(Some(t)) = build_turn_entry(cwd, a, entries) {
             append_ledger(cwd, &t)?;
             entries.push(t);
+            sealed += 1;
         }
     }
-    Ok(())
+    Ok(sealed)
+}
+
+/// 死锚点收口的显式入口(app 重启后由前端触发一次):上一运行的会话被
+/// 强退杀掉,sessionExited 兜底封口没机会执行,其最后一段轮次在账本里
+/// 仍是开放锚点。启动恢复 = 此刻无在途轮,grace 取 0 把全部死锚点立即
+/// 落账。返回本次封口的锚点数。
+pub fn seal_dead_turns(cwd: &str, grace_ms: i64) -> Result<usize, CkptError> {
+    let _g = super::lock_ledger();
+    let mut entries = load_ledger(cwd);
+    seal_stale_foreign(cwd, &mut entries, grace_ms)
 }
 
 /// 封口:最新锚点 → turn 条目(修订追加)。零差异不落账。

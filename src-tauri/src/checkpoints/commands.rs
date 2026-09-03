@@ -4,7 +4,7 @@
 
 use super::{
     anchor_turn, apply_batch, approve_batch, batch_patches, derive_batches, prune, record_edit,
-    restore_batch, seal_turn, undo_revert, CkptError, RestoreOutcome,
+    restore_batch, seal_dead_turns, seal_turn, undo_revert, CkptError, RestoreOutcome,
 };
 
 async fn run<T, F>(f: F) -> Result<T, String>
@@ -74,6 +74,15 @@ pub async fn checkpoint_seal(
     tmd_session_id: String,
 ) -> Result<bool, String> {
     run(move || seal_turn(&cwd, &session_id, &tmd_session_id)).await
+}
+
+/// 死锚点收口(强退恢复):上一运行被 kill 的会话没有 sessionExited,
+/// 最后一段轮次在账本里仍是开放锚点。前端在面板首次挂载时按 cwd 触发
+/// 一次;grace_ms = 锚点新鲜度保护(避免误封本运行刚打的在途锚点,
+/// 误封亦无损失 —— 封口是修订追加)。返回本次代封的锚点数。
+#[tauri::command]
+pub async fn checkpoint_seal_dead(cwd: String, grace_ms: i64) -> Result<usize, String> {
+    run(move || seal_dead_turns(&cwd, grace_ms)).await
 }
 
 /// 批次清单(会话严格隔离;含 live 分类与状态合成)。

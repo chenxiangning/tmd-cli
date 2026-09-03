@@ -14,6 +14,7 @@ use std::sync::{Mutex, OnceLock};
 
 static SEQ: AtomicU64 = AtomicU64::new(0);
 
+mod dead;
 mod events;
 mod parallel;
 
