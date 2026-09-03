@@ -38,7 +38,7 @@ class Host implements PluginContext {
     isBound: (sessionId) => this.cliSessionIds.has(sessionId),
     claimedIds: () => new Set(this.cliSessionIds.values()),
     onBound: (sessionId, cliSessionId) => {
-      this.cliSessionIds.set(sessionId, cliSessionId);
+      this.bindIdentity(sessionId, cliSessionId);
       void this.statusWatch.refresh(sessionId);
       this.notify();
     },
@@ -73,6 +73,27 @@ class Host implements PluginContext {
   /** 活会话绑定的 CLI 磁盘身份;未绑定(探测前)为 undefined。 */
   getCliSessionId(sessionId: string): string | undefined {
     return this.cliSessionIds.get(sessionId);
+  }
+
+  /**
+   * 绑定表唯一写入口:一个 CLI 磁盘身份只准一个活会话持有。身份守望的
+   * claimed 过滤是快照式(await 期间会过期),此处是绑定落表的同步终审
+   * (实证:四会话共绑一老会话,ptys 各自 resume 了同一磁盘会话)。
+   * 抢绑失败 = 新会话保持未绑定(fail-closed):账本按 tmd id 隔离,
+   * UI 不去重,不与既有会话并账。
+   */
+  private bindIdentity(sessionId: string, cliSessionId: string): boolean {
+    const rival = [...this.cliSessionIds.entries()].some(
+      ([id, cid]) => id !== sessionId && cid === cliSessionId,
+    );
+    if (rival) return false;
+    this.cliSessionIds.set(sessionId, cliSessionId);
+    return true;
+  }
+
+  /** 测试专用:直通绑定终审闸(共绑一磁盘身份的回归入口)。 */
+  bindIdentityForTest(sessionId: string, cliSessionId: string): boolean {
+    return this.bindIdentity(sessionId, cliSessionId);
   }
   /**
    * PTY 事件退订表:spawn 时登记输出/退出两个全局监听,会话移除时成对退订。
@@ -248,7 +269,10 @@ class Host implements PluginContext {
     sessionId: string,
     cliSessionId?: string,
   ): Promise<SessionMeta> {
-    if (cliSessionId) this.cliSessionIds.set(sessionId, cliSessionId);
+    /* 显式恢复路径的绑定也走唯一写入口:入口去重的兜底闸 —— 同一磁盘会话
+       已有活 PTY 时新 PTY 照常运行,但身份不绑(账本/UI 按 tmd id 隔离,
+       不与既有会话并账)。 */
+    if (cliSessionId) this.bindIdentity(sessionId, cliSessionId);
     this.sessions = await ipc.sessionList();
     this.activeSessionId = sessionId;
     // 常驻订阅：从会话诞生起就持续缓冲输出，与幕布是否挂载无关。

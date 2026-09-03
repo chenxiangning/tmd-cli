@@ -139,6 +139,12 @@ export class DiskIdentityWatch {
   }
 
   private bind(sessionId: string, cliSessionId: string): void {
+    /* 绑定瞬间的同步再校验:claimed 快照在 listSessions/pickContentIdentity
+     * 的 await 期间会过期 —— 并行 spawn 的兄弟会话可能已把同一磁盘身份绑走
+     * (实证:四会话共绑一老会话)。探测循环是单线程事件循环,此检查与
+     * onBound 写入之间无交错,排他性由此闭环;败者留在 pending 继续巡航,
+     * 自己的会话文件晚出生时仍可绑定(fail-closed,不猜)。 */
+    if (this.ctx.claimedIds().has(cliSessionId)) return;
     this.pending.delete(sessionId);
     this.ctx.onBound(sessionId, cliSessionId);
   }
