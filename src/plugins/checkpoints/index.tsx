@@ -13,10 +13,15 @@
 
 import { History } from "lucide-react";
 import { host } from "@kernel/host";
-import { KernelTopics, type PromptSentEvent, type TurnSettledEvent } from "@kernel/events";
+import {
+  KernelTopics,
+  type FileEditEvent,
+  type PromptSentEvent,
+  type TurnSettledEvent,
+} from "@kernel/events";
 import { registerFilePanel } from "@kernel/filePanel";
 import type { Plugin, PluginContext } from "@kernel/plugin";
-import { captureAnchor, sealTurn } from "./store";
+import { captureAnchor, recordEdit, sealTurn } from "./store";
 import { checkpointIdentity } from "./identity";
 import { CheckpointsPanel } from "./CheckpointsPanel";
 import { BatchSheetTabContent } from "./BatchSheet";
@@ -65,12 +70,32 @@ export const checkpointsPlugin: Plugin = {
       };
     };
 
-    // 批次边界:prompt 发送瞬间记锚点(失败不阻塞,store 内部重试)
+    // 批次边界:prompt 发送瞬间记锚点(失败不阻塞,store 内部重试)。
+    // 归因模式随锚点固化:profile 声明 editMarks → events(AI 写入事件流),
+    // 否则 git(窗口推断)。
     ctx.events.on<PromptSentEvent>(KernelTopics.promptSent, ({ sessionId, text }) => {
       const id = identity(sessionId);
       if (!id) return;
+      const session = host.getSessions().find((s) => s.id === sessionId);
+      const marks = session
+        ? host.getCliProfile(session.profileId)?.editMarks
+        : undefined;
       /* 用 CLI 磁盘身份作 key:重启/resume 后 tmd 会话 id 会换,稳定 id 才能找回历史批次 */
-      captureAnchor(id.cwd, id.cliId, id.tmdId, text, anchorMeta(sessionId));
+      captureAnchor(
+        id.cwd,
+        id.cliId,
+        id.tmdId,
+        text,
+        anchorMeta(sessionId),
+        marks && marks.length > 0 ? "events" : "git",
+      );
+    });
+
+    // AI 写入事件流式记账(events 归因主信号;git 归因会话后端直接丢弃)
+    ctx.events.on<FileEditEvent>(KernelTopics.fileEditDetected, ({ sessionId, paths }) => {
+      const id = identity(sessionId);
+      if (!id) return;
+      for (const p of paths) recordEdit(id.cwd, id.cliId, id.tmdId, p);
     });
 
     // 一轮对话结算:封口落账(幂等;失败由下一条 prompt 的隐式封口兜底)

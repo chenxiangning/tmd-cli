@@ -95,7 +95,7 @@ pub fn open_batch_patches(
     let root = std::path::PathBuf::from(cwd);
     let mut out = Vec::new();
     for path in paths {
-        let old = super::resolve_snap_bytes(&sidecar, &user, anchor_files, path)?;
+        let old = super::resolve_snap_bytes(&sidecar, Some(&user), anchor_files, path)?;
         let new = std::fs::read(root.join(path)).ok().map(|d| (d, true));
         let (old, new) = match (old, new) {
             (None, None) => continue, // 两侧皆无内容(如双方都是 skip 文件)

@@ -79,6 +79,8 @@ export function refreshBatches(
 /**
  * 记第 N 轮锚点(prompt 发送瞬间);后端隐式先封上一轮并做 CLI 身份回填。
  * meta = 发送时刻的引擎/模型/思考强度快照,随锚点固化进账本。
+ * attribution = 归因模式:profile 声明 editMarks → "events"(AI 写入事件流,
+ * 审批线跟随 AI 输出落账),否则 "git"(窗口推断,旧行为)。
  * 失败后台重试一次,不阻塞发送路径。
  */
 export function captureAnchor(
@@ -87,8 +89,10 @@ export function captureAnchor(
   tmdSessionId: string,
   prompt: string,
   meta: CkptAnchorMeta,
+  attribution: "events" | "git" = "git",
 ): void {
-  const run = () => ipc.checkpointAnchor(cwd, sessionId, tmdSessionId, prompt, meta);
+  const run = () =>
+    ipc.checkpointAnchor(cwd, sessionId, tmdSessionId, prompt, meta, attribution);
   run().catch(() => {
     window.setTimeout(() => {
       run()
@@ -101,6 +105,23 @@ export function captureAnchor(
   });
   // 快路径:capture 完成有延迟,定时刷新也会兜住
   window.setTimeout(() => void refreshBatches(cwd, sessionId, tmdSessionId), 800);
+}
+
+/**
+ * AI 写入事件流式记账(EditWatch 命中即调,事件模式会话)。
+ * 前像副本在这一刻抓 —— 晚于磁盘写入,早于封口,是账本可自足的关键时点。
+ * 失败重试一次(丢事件 = 丢前像,值得一次补救);再失败静默(封口兜底)。
+ */
+export function recordEdit(
+  cwd: string,
+  sessionId: string,
+  tmdSessionId: string,
+  path: string,
+): void {
+  const run = () => ipc.checkpointRecordEdit(cwd, sessionId, tmdSessionId, path);
+  run().catch(() => {
+    window.setTimeout(() => run().catch(() => {}), 1000);
+  });
 }
 
 /** 显式封口(一轮对话结算):把最新锚点以来的变更固化成账本 turn 条目。 */
@@ -149,6 +170,16 @@ export async function revertBatch(
   return out;
 }
 
+/** 应用:把账本固化的批后像精确写回磁盘(回退的镜像);守卫可反悔。 */
+export async function applyBatch(
+  cwd: string,
+  batchId: string,
+  paths?: string[],
+): Promise<CkptRestoreResult> {
+  const out = await ipc.checkpointApply(cwd, batchId, paths);
+  invalidateDiff(cwd, batchId);
+  return out;
+}
 export async function undoRevertBatch(cwd: string, batchId: string): Promise<CkptRestoreResult> {
   const out = await ipc.checkpointUndoRevert(cwd, batchId);
   invalidateDiff(cwd, batchId);

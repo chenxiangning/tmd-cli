@@ -3,8 +3,8 @@
 //! tmd_session_id) 双字段命中。
 
 use super::{
-    approve_batch, batch_patches, derive_batches, anchor_turn, prune, restore_batch, seal_turn,
-    undo_revert, CkptError, RestoreOutcome,
+    anchor_turn, apply_batch, approve_batch, batch_patches, derive_batches, prune, record_edit,
+    restore_batch, seal_turn, undo_revert, CkptError, RestoreOutcome,
 };
 
 async fn run<T, F>(f: F) -> Result<T, String>
@@ -20,7 +20,8 @@ where
 
 /// 记第 N 轮锚点(prompt 发送瞬间)。隐式先封上一轮,再做 CLI 身份回填。
 /// engine/model/thinking = 发送时刻的引擎与状态快照,随锚点固化。
-/// 失败不阻塞发送 —— 前端 catch 后重试一次。
+/// attribution = 归因模式("events" | "git"):前端按 CLI profile 是否声明
+/// editMarks 决定,随锚点定死。失败不阻塞发送 —— 前端 catch 后重试一次。
 #[tauri::command]
 pub async fn checkpoint_anchor(
     cwd: String,
@@ -30,12 +31,39 @@ pub async fn checkpoint_anchor(
     engine: String,
     model: String,
     thinking: String,
+    attribution: Option<String>,
 ) -> Result<String, String> {
     run(move || {
-        anchor_turn(&cwd, &session_id, &tmd_session_id, &prompt, &engine, &model, &thinking)
-            .map(|e| e.id)
+        let attribution = attribution.unwrap_or_else(|| "git".into());
+        anchor_turn(
+            &cwd, &session_id, &tmd_session_id, &prompt, &engine, &model, &thinking,
+            &attribution,
+        )
+        .map(|e| e.id)
     })
     .await
+}
+
+/// AI 写入事件流式记账(EditWatch 检测命中即调)。返回是否入账
+/// (false = 无锚点/已封口/git 归因会话,事件被丢弃)。
+#[tauri::command]
+pub async fn checkpoint_record_edit(
+    cwd: String,
+    session_id: String,
+    tmd_session_id: String,
+    path: String,
+) -> Result<bool, String> {
+    run(move || record_edit(&cwd, &session_id, &tmd_session_id, &path)).await
+}
+
+/// 应用:把账本固化的批后像精确写回磁盘(回退的镜像);执行前打守卫可反悔。
+#[tauri::command]
+pub async fn checkpoint_apply(
+    cwd: String,
+    batch_id: String,
+    paths: Option<Vec<String>>,
+) -> Result<RestoreOutcome, String> {
+    run(move || apply_batch(&cwd, &batch_id, paths)).await
 }
 
 /// 显式封口(一轮对话结算):把最新锚点以来的变更固化成 turn 条目。

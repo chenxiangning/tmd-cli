@@ -124,6 +124,8 @@ export interface CkptBatchFile {
   reverted: boolean;
   live: "same" | "changed" | "committed" | "reverted";
   stale: boolean;
+  /** 本轮 AI 写入事件计数(events 归因轨迹;git 归因 = 0) */
+  editCount: number;
 }
 
 /** 锚点时刻的引擎状态快照(账本随批固化;空串 = 未知,UI 隐藏该段)。 */
@@ -154,6 +156,8 @@ export interface CkptBatch {
   doneReason: string | null;
   guardId: string | null;
   files: CkptBatchFile[];
+  /** 归因模式:"events"(AI 事件流)| "git"(窗口推断;UI 提示可信度) */
+  attribution: "events" | "git";
 }
 
 export interface CkptPatch {
@@ -245,10 +249,17 @@ export const ipc = {
 
   /* ── checkpoints(批次审批/回退;契约对齐 src-tauri/src/checkpoints/*,serde camelCase)
    * E_* 前缀:E_NOT_A_REPO / E_EMPTY / E_STORE / E_GIT2 / E_IO ── */
-
   /** 记第 N 轮锚点(隐式封上一轮 + CLI 身份回填);失败不阻塞发送(调用方 catch 重试一次)。
-   *  meta = 发送时刻的引擎/模型/思考强度快照,随锚点固化进账本。 */
-  checkpointAnchor: (cwd: string, sessionId: string, tmdSessionId: string, prompt: string, meta: CkptAnchorMeta) =>
+   *  meta = 发送时刻的引擎/模型/思考强度快照,随锚点固化进账本;
+   *  attribution = 归因模式(profile.editMarks 声明派生:"events" | "git")。 */
+  checkpointAnchor: (
+    cwd: string,
+    sessionId: string,
+    tmdSessionId: string,
+    prompt: string,
+    meta: CkptAnchorMeta,
+    attribution?: "events" | "git",
+  ) =>
     invoke<string>("checkpoint_anchor", {
       cwd,
       sessionId,
@@ -257,7 +268,11 @@ export const ipc = {
       engine: meta.engine,
       model: meta.model,
       thinking: meta.thinking,
+      attribution: attribution ?? "git",
     }),
+  /** AI 写入事件流式记账(EditWatch 命中即调)。返回是否入账。 */
+  checkpointRecordEdit: (cwd: string, sessionId: string, tmdSessionId: string, path: string) =>
+    invoke<boolean>("checkpoint_record_edit", { cwd, sessionId, tmdSessionId, path }),
   /** 显式封口(一轮对话结算):把最新锚点以来的变更固化成账本 turn 条目。 */
   checkpointSeal: (cwd: string, sessionId: string, tmdSessionId: string) =>
     invoke<boolean>("checkpoint_seal", { cwd, sessionId, tmdSessionId }),
@@ -273,7 +288,9 @@ export const ipc = {
   /** 回退整批或子集;返回恢复点 id 供反悔。 */
   checkpointRestore: (cwd: string, batchId: string, paths?: string[]) =>
     invoke<CkptRestoreOutcome>("checkpoint_restore", { cwd, batchId, paths: paths ?? null }),
-  /** 反悔:用守卫快照写回回退前状态。 */
+  /** 应用:把账本固化的批后像精确写回磁盘(回退的镜像);守卫可反悔。 */
+  checkpointApply: (cwd: string, batchId: string, paths?: string[]) =>
+    invoke<CkptRestoreOutcome>("checkpoint_apply", { cwd, batchId, paths: paths ?? null }),
   checkpointUndoRevert: (cwd: string, batchId: string) =>
     invoke<CkptRestoreOutcome>("checkpoint_undo_revert", { cwd, batchId }),
   /** 保留策略清理(低频)。返回删除的批次数。 */

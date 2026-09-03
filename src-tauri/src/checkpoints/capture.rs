@@ -41,11 +41,21 @@ pub fn dirty_paths(
     Ok(map)
 }
 
-/// 抓一份基线:枚举 dirty 路径 → 逐个读工作区 → blob 入 sidecar → 文件记录。
-/// anchor(轮开始基线)与 guard(回退前守卫)共用;失败向上传播。
-pub fn snapshot_files(cwd: &str) -> Result<Vec<SnapFile>, CkptError> {
-    // 1. 用户仓库:dirty 集 + index 基线 oid(git 侧前像)
-    let user = super::open_user(cwd)?;
+/// 抓一份基线:枚举 dirty 路径 → 逐个读工作区 → blob 入 sidecar → 文件记录,
+/// 并把用户仓库句柄一并交出(anchor 复用,免重开)。
+/// 非 git 工作区 = (空基线, None)。
+pub(crate) fn snapshot_dirty(
+    cwd: &str,
+) -> Result<(Vec<SnapFile>, Option<git2::Repository>), CkptError> {
+    // 1. 用户仓库:dirty 集 + index 基线 oid(git 侧前像);非 git = 空集
+    let user = match super::open_user(cwd) {
+        Ok(r) => Some(r),
+        Err(super::CkptError::NotARepo(_)) => None,
+        Err(e) => return Err(e),
+    };
+    let Some(user) = user else {
+        return Ok((Vec::new(), None));
+    };
     let dirty = dirty_paths(&user)?;
     let mut index = user.index()?;
     index.read(true)?;
@@ -59,10 +69,28 @@ pub fn snapshot_files(cwd: &str) -> Result<Vec<SnapFile>, CkptError> {
     }
 
     // 2. 工作区内容 → sidecar blob
+    let files = snapshot_with_root(cwd, &dirty, &bases)?;
+    Ok((files, Some(user)))
+}
+
+/// 逐路径守卫快照(回退/应用前):只抓即将被触碰的路径,不枚举全仓 dirty。
+/// 不依赖用户 git(非 git 工作区同样可用);status 恒 "M"(guard 不进 UI)。
+pub fn snapshot_paths(cwd: &str, paths: &[String]) -> Result<Vec<SnapFile>, CkptError> {
+    let dirty: BTreeMap<String, String> =
+        paths.iter().map(|p| (p.clone(), "M".into())).collect();
+    snapshot_with_root(cwd, &dirty, &BTreeMap::new())
+}
+
+/// 逐路径读工作区内容 → SnapFile 记录(dirty → files 的公共内核)。
+fn snapshot_with_root(
+    cwd: &str,
+    dirty: &BTreeMap<String, String>,
+    bases: &BTreeMap<String, String>,
+) -> Result<Vec<SnapFile>, CkptError> {
     let sidecar = super::open_sidecar(cwd)?;
     let root = std::path::PathBuf::from(cwd);
     let mut files = Vec::with_capacity(dirty.len());
-    for (path, status) in &dirty {
+    for (path, status) in dirty {
         let full = root.join(path);
         let base_oid = bases.get(path).cloned().unwrap_or_default();
 
@@ -111,7 +139,7 @@ pub fn snapshot_files(cwd: &str) -> Result<Vec<SnapFile>, CkptError> {
                 base_oid,
                 existed: true,
                 bytes: meta.len(),
-                skip: Some("超过 2MiB".into()),
+                skip: Some(format!("超过 {}MiB", MAX_FILE_BYTES / 1024 / 1024)),
                 status: status.clone(),
             });
             continue;

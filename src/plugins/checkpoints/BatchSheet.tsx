@@ -270,6 +270,8 @@ function SheetBody({
                 status={f.status}
                 stale={f.stale}
                 reverted={f.reverted}
+                editCount={f.editCount}
+                attribution={batch.attribution}
                 canRevert={batch.state === "pending" && f.live === "same"}
                 patch={patches.find((p) => p.path === f.path) ?? null}
                 flashed={flash === f.path}
@@ -283,12 +285,13 @@ function SheetBody({
     </div>
   );
 }
-
 function FileSection({
   path,
   status,
   stale,
   reverted,
+  editCount,
+  attribution,
   canRevert,
   patch,
   flashed,
@@ -299,6 +302,9 @@ function FileSection({
   status: string;
   stale: boolean;
   reverted: boolean;
+  /** 本轮 AI 写入事件计数(events 归因轨迹;git 归因 = 0 不展示) */
+  editCount: number;
+  attribution: "events" | "git";
   canRevert: boolean;
   patch: CkptPatch | null;
   flashed: boolean;
@@ -350,6 +356,14 @@ function FileSection({
               title="工作区内容已偏离本批后像,不可回退,仅可对照"
             >
               内容已变
+            </span>
+          )}
+          {editCount > 0 && attribution === "events" && (
+            <span
+              className="flex-none rounded border border-(--tmd-border) px-1 text-[9px] leading-[13px] text-(--tmd-fg-faint)"
+              title={`AI 本轮写入该文件 ${editCount} 次(事件流轨迹,账本可审计)`}
+            >
+              ×{editCount}
             </span>
           )}
           {patch && (

@@ -20,6 +20,7 @@
 mod capture;
 mod diff;
 mod error;
+mod events;
 mod ledger;
 mod restore;
 mod view;
@@ -28,11 +29,12 @@ pub mod commands;
 #[cfg(test)]
 mod tests;
 
-pub use capture::{dirty_paths, snapshot_files};
+pub use capture::{dirty_paths, snapshot_paths};
 pub use diff::{blob_patch, open_batch_patches, CkptPatch};
 pub use error::CkptError;
+pub use events::record_edit;
 pub use ledger::{anchor_turn, seal_turn};
-pub use restore::{approve_batch, restore_batch, undo_revert, RestoreOutcome};
+pub use restore::{approve_batch, apply_batch, restore_batch, undo_revert, RestoreOutcome};
 pub use view::{batch_patches, derive_batches, prune};
 
 use serde::{Deserialize, Serialize};
@@ -41,9 +43,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
-
-/// 单文件快照上限(对齐 OpenCode 经验值):超过则跳过存内容,只记状态。
-pub const MAX_FILE_BYTES: u64 = 2 * 1024 * 1024;
+/// 单文件快照上限:超过则跳过存内容,只记状态(副本完整性 tradeoff:
+/// 覆盖常规源码/配置,避免巨型产物撑爆 sidecar;skip 语义在 UI 显式可见)。
+pub const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024;
 
 /// anchor 时刻(或 guard 时刻)的单文件记录。
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -89,23 +91,27 @@ pub struct TurnFile {
     /// 批前/后像不可存档的原因(继承自 anchor 的 skip:超大/符号链接/冲突)
     #[serde(default)]
     pub skip: Option<String>,
+    /// 本轮 AI 写入事件计数(events 归因;git 归因 = 0)
+    #[serde(default)]
+    pub edit_count: u32,
 }
 
 /// 账本条目。同一 id 可追加多行(turn 封口修订),读取以最后一行为准。
+/// edit 行按 (kind, id, path) 折叠 —— 每轮每文件一行,重复事件修订计数。
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct LedgerEntry {
     pub id: String,
-    /// "anchor" | "turn" | "guard"
+    /// "anchor" | "turn" | "guard" | "edit"
     pub kind: String,
-    /// ms epoch(anchor/turn = 锚点时刻;guard = 回退时刻)
+    /// ms epoch(anchor/turn/edit = 锚点时刻或事件首击;guard = 回退时刻)
     pub ts: i64,
     /// 会话身份:写入时刻的规范 id(已绑 CLI 身份则 = CLI id,否则 = tmd 会话 id)
     pub session_id: String,
     /// tmd 会话 id(恒填;CLI 身份回填/查询副键)
     #[serde(default)]
     pub tmd_session_id: String,
-    /// 1-based 会话内轮次(anchor/turn 条目;guard = 0)
+    /// 1-based 会话内轮次(anchor/turn/edit 条目;guard = 0)
     #[serde(default)]
     pub turn: u64,
     /// 锚点 prompt 摘要(anchor/turn 条目)
@@ -118,7 +124,7 @@ pub struct LedgerEntry {
     pub model: String,
     #[serde(default)]
     pub thinking: String,
-    /// turn 封口时刻(ms;修订追加时刷新)
+    /// turn 封口时刻(ms;修订追加时刷新);edit 行复用为末次事件时刻
     #[serde(default)]
     pub seal_ts: i64,
     /// guard 所属批次 id
@@ -130,6 +136,25 @@ pub struct LedgerEntry {
     /// turn 条目:固化变更集
     #[serde(default)]
     pub turn_files: Vec<TurnFile>,
+    /// 归因模式,随锚点固化:"events"(AI 写入事件流,设计点「跟随 AI 输出」)
+    /// | "git"(窗口内 git status 推断,未声明 editMarks 的 CLI 回退)。
+    /// 旧账本条目缺省 = "git"(当时的唯一模式)。
+    #[serde(default)]
+    pub attribution: String,
+    /// edit 行专用:事件目标路径(仓库相对)
+    #[serde(default)]
+    pub path: String,
+    /// edit 行专用:轮内首击时抓的批前像(sidecar blob,自足副本 —— 不依赖
+    /// 用户 git 对象存活;anchor 基线解析不到 = 空串,seal 时按无前像处理)
+    #[serde(default)]
+    pub before_oid: String,
+    /// edit 行专用:首击时刻的磁盘内容快照(sidecar blob;轮内中间态的
+    /// 账本轨迹,审计可见,不参与回退语义)
+    #[serde(default)]
+    pub snap_oid: String,
+    /// edit 行专用:本轮该文件的 AI 写入事件计数
+    #[serde(default)]
+    pub edit_count: u32,
 }
 
 /// 批次审核态(persist 覆盖项)。done 不落盘 —— 由 list 现场推导(提交/失配)。
@@ -166,6 +191,8 @@ pub struct BatchFile {
     pub live: String,
     /// live == "changed" 的便捷标记(不可回退,仅可对照)
     pub stale: bool,
+    /// 本轮 AI 写入事件计数(events 归因的轨迹;git 归因 = 0)
+    pub edit_count: u32,
 }
 
 /// list 推导出的批次。id = 起始 anchor 的条目 id(稳定);index = 账本轮次。
@@ -190,6 +217,8 @@ pub struct BatchInfo {
     pub done_reason: Option<String>,
     pub guard_id: Option<String>,
     pub files: Vec<BatchFile>,
+    /// 归因模式:"events"(AI 事件流)| "git"(推断;UI 提示可信度)
+    pub attribution: String,
 }
 
 /// 账本互斥:anchor/seal/restore/prune 都要读改 ledger.jsonl,
@@ -281,26 +310,32 @@ pub(crate) fn append_ledger(cwd: &str, entry: &LedgerEntry) -> Result<(), CkptEr
 
 /// 读账本并折叠:同一 (kind, id) 多行以最后一行为准(turn 封口修订语义;
 /// anchor 与 turn 共用 id 但 kind 不同,各自保留),保持文件顺序。
+/// edit 行折叠键多了 path —— 每轮每文件独立一行。
 pub(crate) fn load_ledger(cwd: &str) -> Vec<LedgerEntry> {
-    let Ok(content) = fs::read_to_string(ledger_file(cwd)) else {
-        return Vec::new();
-    };
-    let mut latest: BTreeMap<String, LedgerEntry> = BTreeMap::new();
-    let mut order: Vec<String> = Vec::new();
-    for line in content.lines() {
-        let Ok(e) = serde_json::from_str::<LedgerEntry>(line) else {
-            continue;
-        };
-        let key = format!("{}:{}", e.kind, e.id);
-        if !latest.contains_key(&key) {
-            order.push(key.clone());
+    let text = fs::read_to_string(ledger_file(cwd)).unwrap_or_default();
+    let mut out: Vec<LedgerEntry> = Vec::new();
+    // 折叠索引 O(1) 定位(此前线性扫描把单次读放大到 O(n²),事件流记账
+    // 逐事件 append + list 秒级刷新,长账本不可接受)
+    let mut index: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for line in text.lines() {
+        let Ok(mut e) = serde_json::from_str::<LedgerEntry>(line) else { continue };
+        if e.attribution.is_empty() {
+            e.attribution = "git".into(); // 旧账本缺省
         }
-        latest.insert(key, e);
+        let key = if e.kind == "edit" {
+            format!("edit:{}:{}", e.id, e.path)
+        } else {
+            format!("{}:{}", e.kind, e.id)
+        };
+        match index.get(&key) {
+            Some(&i) => out[i] = e,
+            None => {
+                index.insert(key, out.len());
+                out.push(e);
+            }
+        }
     }
-    order
-        .into_iter()
-        .filter_map(|key| latest.remove(&key))
-        .collect()
+    out
 }
 
 /// 整文件重写账本(身份回填/ prune 用;条目顺序保持)。
@@ -347,7 +382,12 @@ pub(crate) fn now_millis() -> i64 {
 }
 
 /// 用户仓库 HEAD 中 path 的 blob 内容(基线兜底:anchor 时刻干净的文件,内容 == HEAD)。
-fn head_blob_bytes(repo: &git2::Repository, path: &str) -> Result<Option<Vec<u8>>, CkptError> {
+/// repo = None(非 git 工作区)= 无兜底。
+fn head_blob_bytes(
+    repo: Option<&git2::Repository>,
+    path: &str,
+) -> Result<Option<Vec<u8>>, CkptError> {
+    let Some(repo) = repo else { return Ok(None) };
     let Ok(head) = repo.head() else {
         return Ok(None); // unborn HEAD(空仓库)
     };
@@ -356,22 +396,22 @@ fn head_blob_bytes(repo: &git2::Repository, path: &str) -> Result<Option<Vec<u8>
         Err(_) => return Ok(None),
     };
     let Ok(entry) = tree.get_path(std::path::Path::new(path)) else {
-        return Ok(None);
+        return Ok(None); // HEAD 无此路径 = 无基线
     };
     Ok(Some(repo.find_blob(entry.id())?.content().to_vec()))
 }
 
 /// 基线文件条目(anchor/guard 的 files)中 path 的内容解析:
-/// 条目工作区 blob(sidecar)→ git 侧基线 blob(用户仓库)→ None(不存在)。
-/// 返回 (bytes, from_sidecar)。
+/// 条目工作区 blob(sidecar)→ git 侧基线 blob(用户仓库,可能缺)→ None(不存在)。
+/// 返回 (bytes, from_sidecar)。user = None(非 git 工作区)时只走 sidecar 副本。
 pub(crate) fn resolve_snap_bytes(
     sidecar: &git2::Repository,
-    user: &git2::Repository,
+    user: Option<&git2::Repository>,
     files: &[SnapFile],
     path: &str,
 ) -> Result<Option<(Vec<u8>, bool)>, CkptError> {
     let Some(entry) = files.iter().find(|f| f.path == path) else {
-        // 快照时刻干净的路径 = 当时内容即 HEAD
+        // 快照时刻干净的路径 = 当时内容即 HEAD(非 git 工作区无此兜底)
         return head_blob_bytes(user, path).map(|o| o.map(|b| (b, false)));
     };
     if !entry.oid.is_empty() {
@@ -379,8 +419,10 @@ pub(crate) fn resolve_snap_bytes(
         return Ok(Some((sidecar.find_blob(oid)?.content().to_vec(), true)));
     }
     if !entry.base_oid.is_empty() {
-        let oid = git2::Oid::from_str(&entry.base_oid)?;
-        return Ok(Some((user.find_blob(oid)?.content().to_vec(), false)));
+        if let Some(user) = user {
+            let oid = git2::Oid::from_str(&entry.base_oid)?;
+            return Ok(Some((user.find_blob(oid)?.content().to_vec(), false)));
+        }
     }
     Ok(None) // existed=false 或 skip:该路径在快照时刻无内容
 }

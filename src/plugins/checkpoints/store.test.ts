@@ -37,6 +37,7 @@ function batch(id: string, turn: number): CkptBatch {
     state: "pending",
     doneReason: null,
     guardId: null,
+    attribution: "git",
     files: [],
   };
 }
