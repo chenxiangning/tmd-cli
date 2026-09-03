@@ -14,7 +14,7 @@
  * 置顶投影(codemoss useThreadRows 三分适配):
  * - scope=workspace → 固定在 CLI 分组顶部(置顶时间升序),不参与分页;
  * - scope=global → 离开本组,汇入左侧栏顶部「已置顶」区(PinnedSessions.tsx);
- * - 未置顶 → 常规分页。活会话不受置顶影响(运行态恒在组内,仅加 pin 角标)。
+ * - 未置顶 → 常规分页。scope=global 的活会话同样离组(仅全局区可见)。
  */
 
 import { useEffect, useState } from "react";
@@ -242,10 +242,17 @@ export function CliSessionGroup({
   );
   const workspacePinnedIds = new Set(workspacePins.map((p) => p.cliSessionId));
 
-  /** 活会话排序:完成未读置顶,其余 spawn 时间倒序(比较器见 utils —— 稳定键防抖动)。 */
-  const orderedLive = [...liveSessions].sort((a, b) =>
-    compareLiveSessions(a, b, (id) => host.isUnread(id)),
-  );
+  /** 活会话排序:完成未读置顶,其余 spawn 时间倒序(比较器见 utils —— 稳定键防抖动);
+   *  scope=global 的活会话离组,汇入全局「已置顶」区,不在本组显示。 */
+  const orderedLive = [...liveSessions]
+    .filter((s) => {
+      const cliSessionId = host.getCliSessionId(s.id);
+      return !(
+        cliSessionId !== undefined &&
+        pinnedOutIds.has(sessionPinKey(workspace.id, profile.id, cliSessionId))
+      );
+    })
+    .sort((a, b) => compareLiveSessions(a, b, (id) => host.isUnread(id)));
 
   const disk = (sessions ?? []).filter((s) => !liveCliIds.has(s.id));
   /* 工作区置顶块:按置顶时间升序;磁盘已消失的置顶(外部删文件)自然缺席。 */
@@ -308,10 +315,10 @@ export function CliSessionGroup({
     : undefined;
 
   // 整组为空(无活会话且磁盘历史加载完也为空)则不占位
-  if (liveSessions.length === 0 && sessions !== null && disk.length === 0) {
+  if (orderedLive.length === 0 && sessions !== null && disk.length === 0) {
     return null;
   }
-  if (liveSessions.length === 0 && sessions === null) return null;
+  if (orderedLive.length === 0 && sessions === null) return null;
 
   return (
     <div className="cli-group">
