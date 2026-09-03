@@ -7,6 +7,7 @@ import {
 import { extractJsonlTitle } from "@kernel/diskSessions";
 import { pathsEqual } from "@kernel/pathUtils";
 import { getPlatformKind } from "@kernel/platform";
+import { readCodexSessionEdits } from "./edits";
 import { registerCodexQuotaProvider } from "./quota";
 import type { CliDiskSession, CliSessionStatus, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
@@ -267,6 +268,7 @@ export const cliCodexPlugin: Plugin = {
       readSessionStatus: readCodexSessionStatus,
       readSessionFileIdentity: readCodexSessionIdentity,
       readSessionUserMessages: readCodexUserMessages,
+      readSessionEdits: readCodexSessionEdits,
     });
   },
 };

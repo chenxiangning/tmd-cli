@@ -114,8 +114,9 @@ export function captureAnchor(
 }
 
 /**
- * AI 写入事件流式记账(EditWatch 命中即调,事件模式会话)。
- * 前像副本在这一刻抓 —— 晚于磁盘写入,早于封口,是账本可自足的关键时点。
+ * AI 写入事件流式记账(EditWatch / 会话磁盘事件拉取命中即调,events 模式会话)。
+ * 前像三级解析是历史态(anchor 基线/上一轮批后像),不依赖调用时刻 —— 磁盘事件
+ * 源(带 ts)哪怕迟到也记对轮次;ts 早于锚点 = 上一轮尾巴,Rust 侧守卫丢弃。
  * 失败重试一次(丢事件 = 丢前像,值得一次补救);再失败静默(封口兜底)。
  */
 export function recordEdit(
@@ -123,8 +124,9 @@ export function recordEdit(
   sessionId: string,
   tmdSessionId: string,
   path: string,
+  ts?: number,
 ): void {
-  const run = () => ipc.checkpointRecordEdit(cwd, sessionId, tmdSessionId, path);
+  const run = () => ipc.checkpointRecordEdit(cwd, sessionId, tmdSessionId, path, ts ?? null);
   run().catch(() => {
     window.setTimeout(() => run().catch(() => {}), 1000);
   });

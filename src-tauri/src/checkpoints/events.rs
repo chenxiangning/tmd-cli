@@ -1,9 +1,11 @@
 //! events 归因(AI 写入事件流)的记账与封口 —— ledger 的姊妹模块。
 //!
-//! 数据流:EditWatch(内核)命中 → checkpoint_record_edit → record_edit
-//! 流式落 edit 行(每轮每文件一行,重复事件修订计数)→ 封口时
-//! build_events_turn_files 把 edit 行固化成 TurnFile(前像 = 首击自足副本,
-//! 后像 = 封口时刻磁盘)。git 归因(窗口推断)仍在 ledger.rs。
+//! 数据流(双信号源,归因等价):EditWatch(PTY 输出标记,claude)命中即报 /
+//! checkpoints 插件按 4s 拉取会话磁盘事件流(readSessionEdits,omp)→
+//! checkpoint_record_edit → record_edit 流式落 edit 行(每轮每文件一行,重复
+//! 事件修订计数)→ 封口时 build_events_turn_files 把 edit 行固化成 TurnFile
+//! (前像 = 首击自足副本,后像 = 封口时刻磁盘)。git 归因(窗口推断)仍在
+//! ledger.rs。
 //!
 //! 前像三级解析(首击时,全部拷进 sidecar 自足):
 //! 1. anchor 基线(dirty 快照 / 用户仓库 HEAD 兜底);
@@ -21,12 +23,16 @@ use std::fs;
 /// AI 写入事件流式记账(设计点:审批线跟随 AI 输出落盘,相当于账本)。
 /// 事件到达即刻:定位本会话 open 轮锚点 → 该路径首击时抓批前像并拷成
 /// sidecar 自足副本 + 磁盘首拍快照;重复事件修订计数不重抓。
-/// 返回 false = 事件被丢弃(无锚点 / git 归因会话 / 该轮已封口后的回放)。
+/// ts = 写入事件时刻(磁盘事件源携带;PTY 标记无时刻传 None):早于锚点
+/// 的事件属于上一轮(锚点隐式封上一轮),记入本轮会错归轮次,丢弃 ——
+/// 磁盘事件拉取迟到/水位线重放时防串轮。
+/// 返回 false = 事件被丢弃(无锚点 / git 归因会话 / 该轮已封口 / 迟到回放)。
 pub fn record_edit(
     cwd: &str,
     session_id: &str,
     tmd_session_id: &str,
     path: &str,
+    ts: Option<i64>,
 ) -> Result<bool, CkptError> {
     // 路径纪律:仓库相对、拒绝绝对/父级逃逸(事件正则来自 CLI 输出,不可信)
     if path.is_empty()
@@ -53,6 +59,13 @@ pub fn record_edit(
         .any(|e| e.kind == "turn" && e.id == anchor.id)
     {
         return Ok(false);
+    }
+    // 迟到守卫:磁盘事件源带写入时刻,早于锚点 = 上一轮尾巴(锚点隐式封
+    // 上一轮),记入本轮会错归轮次 —— 丢弃。
+    if let Some(ts) = ts {
+        if ts < anchor.ts {
+            return Ok(false);
+        }
     }
 
     let sidecar = open_sidecar(cwd)?;

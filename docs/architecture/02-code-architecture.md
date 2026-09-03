@@ -71,7 +71,7 @@ flowchart TB
         HASH["hash.rs<br/>md5_hex 通用哈希原语"]
         FSE["fs_edit.rs — 文件写操作<br/>新建/重命名/废纸篓/访达显示/编辑器保存<br/>(绝对路径,禁 .git 段,16MB 上限)"]
         PROXY["proxy.rs — 进程级代理 env 注入<br/>启动按 settings 应用,无 command 面"]
-        CKPTR["checkpoints/ — 审批线账本 sidecar<br/>ledger.rs·events.rs·restore.rs·view.rs<br/>capture.rs·diff.rs·commands.rs"]
+        CKPTR["checkpoints/ — 审批线账本 sidecar<br/>ledger.rs·events.rs·restore.rs·apply.rs·view.rs<br/>capture.rs·diff.rs·commands.rs"]
     end
 
     EXT["外部 CLI 子进程<br/>omp / pi / codex / claude / grok / kimi / qoder / qoder-cn（PTY slave）"]
@@ -276,6 +276,10 @@ flowchart TD
    resume 回放、TUI 重绘、迟到异步消息）不亮灯、不标未读、不发结束音 —— 静默不是
    "用户在场"的证据。终端协议回传（焦点/鼠标/查询应答，`terminalReports.ts` 识别）
    照写 PTY 但标 synthetic，不算用户首写。
+5. **顶栏会话 tab 条(`kernel/sessionTabs.ts`)**:纯事件驱动 MRU —— 所有打开/聚焦路径
+   收敛于 `activeSessionChanged` 广播,host 与调用点零侵入;容量 4、打开次序稳定、
+   不持久化(PTY 会话不跨重启存活)。标签标题链 = 手动命名 > 打开时快照 > 短码;
+   关闭语义 = 摘 tab 不杀会话(摘活跃 tab 切到剩余最近打开的一个)。
 
 **Session 模型**（Rust `SessionMeta` + Host 运行时绑定）：
 
@@ -330,6 +334,7 @@ flowchart TD
     AS --> KH["kernel/host.ts"]
     AS --> KM["kernel/Mounts.tsx"]
     AS --> KTV["kernel/TerminalView.tsx"]
+    AS --> KST["kernel/sessionTabs.ts"]
     CT --> KH
     CT --> KW["kernel/workspace.ts"]
 
@@ -388,7 +393,7 @@ flowchart TD
 | `md5_hex` | `hash.rs` | 通用哈希原语(kimi 会话目录 `MD5(cwd)`) |
 | `checkpoint_anchor` / `checkpoint_seal` / `checkpoint_seal_dead` | `checkpoints/ledger.rs` | 审批线账本:记第 N 轮锚点(隐式封上一轮+CLI 身份回填) / 结算封口固化 turn 条目 / 幽灵窗口(超 24h 未封口)代封 |
 | `checkpoint_list` / `checkpoint_batch_diff` | `checkpoints/view.rs` | 账本只读视图(会话隔离+live 分类) / 批 diff(sealed 读账本,open 现算) |
-| `checkpoint_record_edit` / `checkpoint_restore` / `checkpoint_apply` / `checkpoint_approve` / `checkpoint_undo_revert` / `checkpoint_prune` | `checkpoints/events.rs` / `restore.rs` / `view.rs` 等 | AI 写入事件流式记账(events 归因主信号) / 整批或单文件回退(guard 落账) / 已退批按批后像写回 / 通过标记 / 反悔恢复 / 保留策略与对象库 reachability 清理 |
+| `checkpoint_record_edit` / `checkpoint_restore` / `checkpoint_apply` / `checkpoint_approve` / `checkpoint_undo_revert` / `checkpoint_prune` | `checkpoints/events.rs` / `restore.rs` / `apply.rs` / `view.rs` 等 | AI 写入事件流式记账(带 ts 迟到守卫;信号源 = PTY 标记或会话磁盘事件流) / 整批或单文件回退(guard 落账) / 已退批按批后像写回 / 通过标记 / 反悔恢复 / 保留策略与对象库 reachability 清理 |
 | `git_status` / `git_totals` / `git_ahead_behind` | `git/status.rs` 等 | libgit2 本地读(status 聚合/改动统计/领先落后) |
 | `git_diff_file_patch` | `git/diff.rs` | libgit2 patch 生成(前端 PatchLRU 缓存 50 条/20MB) |
 | `git_stage` / `git_unstage` / `git_discard` / `git_commit` | `git/index_ops.rs` 等 | index 写操作(discard = checkout_index,不经 fs 删除) |
@@ -412,22 +417,34 @@ flowchart TD
 
 ```
 promptSent   → checkpoint_anchor(记锚点;隐式先封上一轮,防 turnSettled 丢失)
+               ↑ 声明 readSessionEdits 的 CLI(omp)先拉净上一轮磁盘事件尾巴再落锚
 turnSettled  → checkpoint_seal(封口:基线→live 的真实变更固化为 turn 条目,零差异不落账)
+               ↑ 同类会话先拉最后一批磁盘事件再封,结算完整
 sessionExited → checkpoint_seal(兜底,最后一轮落账)
+(轮询 4s)    → checkpoint_record_edit(会话磁盘事件流增量落账,open 批实时可见)
 ```
 
 关键不变量:**归因在封口瞬间定死,list 只读账本不推导**——每轮绑定的文件集合只含本窗口内
-的真实变更,历史轮不再随工作区脏集漂移。三条仲裁规则:
+  的真实变更,历史轮不再随工作区脏集漂移。归因仲裁规则:
 
-- **并行归属按写入时刻,不按封口先后**:每个锚点张成窗口 `[锚点 ts, 封口 ts(未封口 = now)]`,
-  文件按 mtime 落窗,取**最近提示**(锚点最新)的会话归主 —— 后提示的会话只对自己锚点之后的
-  写入负责,先封口抢不走别人窗口内的改动,open 批也不混入他会在途的工作。mtime 不可得
-  (删除态)回退"外会话已封口认领则不重复归属"。
+- **双归因信号,events 优先**:归因模式随锚点固化。声明 `editMarks`(PTY 输出标记,
+  claude)或 `readSessionEdits`(会话磁盘事件流,omp / pi / codex / grok)的 CLI 走
+  **events** —— 账本只记该会话自己信号源里出现过的写入路径,天然按会话隔离;
+  `record_edit` 带 ts 守卫,早于锚点的事件(上一轮尾巴的迟到拉取/重放)直接丢弃。
+  未声明任何信号的 CLI 回退 **git**
+  窗口推断:每个锚点张成窗口 `[锚点 ts, 封口 ts(未封口 = now)]`,文件按 mtime 落窗,
+  取**最近提示**(锚点最新)的会话归主,mtime 不可得(删除态)回退"外会话已封口认领则
+  不重复归属"。
+- **git 归因的已知残余歧义(结构性,不可修)**:并行会话轮次重叠时 mtime 只证明「何时被
+  写」不证明「谁写的」,「最近提示者赢」会把他人窗口内写入判给自己 —— 实证 `/model` 纯
+  切换命令也能吸进并行会话的在途变更。出路是各 CLI 逐步声明 events 信号源,而非修补
+  mtime 规则;omp / pi / codex / grok 走会话磁盘事件流,claude 走 PTY 标记,均已覆盖;
+  kimi / qoder 磁盘格式具备事件形态但缺真实编辑样本实证,接入随实证跟进。
 - **turn 条目身份继承锚点**:封口可能由任意事件触发,调用方的 CLI 身份可能漂移(cli id ↔
   tmd id);落账恒用锚点记账时的身份,链不劈裂,查询按 `(sessionId, tmdSessionId)` 双字段命中。
 - **幽灵窗口收口**:崩溃/强退会留下永不封口的锚点窗口;记锚点时对超 24h 未封口的外会话
-  锚点代为封口,窗口不再无限吞掉后续写入的归属。已知残余歧义:他人长轮次横跨本会话提示
-  期间写入的文件,归属最近提示者(纯文件系统事实无法区分谁是写入者)。
+  锚点代为封口,窗口不再无限吞掉后续写入的归属。git 归因会话的残余歧义见上条;
+  events 归因会话(信号源就绪的 CLI)按本会话事件流归属,无此歧义。
 - **账本主键仲裁(绑定竞态兜底,前端 `plugins/checkpoints/identity.ts`)**:并行 spawn/
   磁盘身份扫描竞态会把新会话绑到老会话的 cli 磁盘身份上(2026-09-03 账本实证)。同一 cli
   身份被多个活会话持有时,**先创建者保留**(同毫秒按 id 字典序定全序),后到者回退自己的

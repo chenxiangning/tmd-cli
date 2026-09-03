@@ -1,4 +1,5 @@
 import { readJsonlSessionStatus } from "../cli-shared/sessionStatus";
+import { ipc } from "@kernel/ipc";
 import { parsePiFamilySessionHead } from "../cli-shared/sessionIdentity";
 import {
   findJsonlSessionFile,
@@ -7,7 +8,7 @@ import {
 } from "../cli-shared/userMessages";
 import { readOmpDefaultStatus } from "./configStatus";
 import { registerOmpQuotaProvider } from "./quota";
-import { ipc } from "@kernel/ipc";
+import { ompSessionsDir, readOmpSessionEdits } from "./edits";
 import { scanJsonlSessions } from "@kernel/diskSessions";
 import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
@@ -46,28 +47,9 @@ function OmpGlyph({ size }: { size: number }) {
 }
 
 /**
- * omp 磁盘会话存储(实证自 ~/.omp/agent/sessions/ 真实目录):
- * - 目录 = ~/.omp/agent/sessions/<slug>/<iso-ts>_<uuid>.jsonl
- * - slug 规则:
- *   - cwd 在 home 下: 去掉 home 前缀,"/" → "-"
- *     例 /Users/x/code/AI/github/tmd-cli → -code-AI-github-tmd-cli
- *   - cwd 在 home 外: 绝对路径 "/" → "-" 后两侧再包 "-"
- *     例 /private/tmp → --private-tmp--
+ * omp 磁盘会话存储与写入事件适配器在 ./edits.ts(审批线 events 归因第二信号源),
+ * 目录 slug 规则随实现注释走,此处只消费。
  */
-async function ompSessionsDir(cwd: string): Promise<string | null> {
-  const home = await ipc.configHomeDir().catch(() => null);
-  if (!home) return null;
-  /* 分隔符归一:Windows 的 home/cwd 都是反斜杠形态,不归一则前缀判断
-     与 slug 生成全部失配 → 会话目录永远找不到。slug 规则本身不变。 */
-  const homeNorm = home.replace(/\\/g, "/");
-  const cwdNorm = cwd.replace(/\\/g, "/");
-  /* 路径边界:/Users/foo2/x 不得误判在 home /Users/foo 之下。 */
-  const inHome = cwdNorm === homeNorm || cwdNorm.startsWith(homeNorm + "/");
-  const slug = inHome
-    ? cwdNorm.slice(homeNorm.length).replace(/\//g, "-")
-    : `-${cwdNorm.replace(/\//g, "-")}-`;
-  return `${home}/.omp/agent/sessions/${slug}`;
-}
 
 async function listOmpSessions(cwd: string): Promise<CliDiskSession[]> {
   const dir = await ompSessionsDir(cwd);
@@ -86,6 +68,7 @@ async function readOmpSessionIdentity(path: string) {
   const head = await ipc.fsReadHead(path, 4 * 1024).catch(() => null);
   return head ? parsePiFamilySessionHead(head) : null;
 }
+
 async function readOmpUserMessages(cwd: string, cliSessionId: string, full: boolean) {
   const dir = await ompSessionsDir(cwd);
   if (!dir) return null;
@@ -147,6 +130,7 @@ export const cliOmpPlugin: Plugin = {
       readSessionFileIdentity: readOmpSessionIdentity,
       readDefaultStatus: readOmpDefaultStatus,
       readSessionUserMessages: readOmpUserMessages,
+      readSessionEdits: readOmpSessionEdits,
     });
   },
 };

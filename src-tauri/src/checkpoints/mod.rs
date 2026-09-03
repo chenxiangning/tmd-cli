@@ -17,6 +17,7 @@
 //!   guard  = 回退前守卫(反悔恢复的依据,不可变)
 //! list 只读账本渲染视图,不再做任何推导归因 —— 每轮绑定的文件集合在封口瞬间定死。
 
+mod apply;
 mod capture;
 mod diff;
 mod error;
@@ -29,12 +30,13 @@ pub mod commands;
 #[cfg(test)]
 mod tests;
 
+pub use apply::apply_batch;
 pub use capture::{dirty_paths, snapshot_paths};
 pub use diff::{blob_patch, open_batch_patches, CkptPatch};
 pub use error::CkptError;
 pub use events::record_edit;
 pub use ledger::{anchor_turn, seal_dead_turns, seal_turn};
-pub use restore::{apply_batch, approve_batch, restore_batch, undo_revert, RestoreOutcome};
+pub use restore::{approve_batch, restore_batch, undo_revert, RestoreOutcome};
 pub use view::{batch_patches, derive_batches, prune};
 
 use serde::{Deserialize, Serialize};

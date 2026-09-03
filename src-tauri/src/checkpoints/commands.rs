@@ -52,16 +52,18 @@ pub async fn checkpoint_anchor(
     .await
 }
 
-/// AI 写入事件流式记账(EditWatch 检测命中即调)。返回是否入账
-/// (false = 无锚点/已封口/git 归因会话,事件被丢弃)。
+/// AI 写入事件流式记账(EditWatch / 会话磁盘事件拉取命中即调)。返回是否入账
+/// (false = 无锚点/已封口/git 归因会话/迟到事件,被丢弃)。
+/// ts = 写入事件时刻(None = PTY 标记无时刻),守卫早于锚点的上一轮尾巴。
 #[tauri::command]
 pub async fn checkpoint_record_edit(
     cwd: String,
     session_id: String,
     tmd_session_id: String,
     path: String,
+    ts: Option<i64>,
 ) -> Result<bool, String> {
-    run(move || record_edit(&cwd, &session_id, &tmd_session_id, &path)).await
+    run(move || record_edit(&cwd, &session_id, &tmd_session_id, &path, ts)).await
 }
 
 /// 应用:把账本固化的批后像精确写回磁盘(回退的镜像);执行前打守卫可反悔。

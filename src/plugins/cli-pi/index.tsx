@@ -1,3 +1,4 @@
+import { piSessionsDir, readPiSessionEdits } from "./edits";
 import { readJsonlSessionStatus } from "../cli-shared/sessionStatus";
 import { parsePiFamilySessionHead } from "../cli-shared/sessionIdentity";
 import { ipc } from "@kernel/ipc";
@@ -7,7 +8,7 @@ import {
   readUserMessagesFromFile,
 } from "../cli-shared/userMessages";
 import { readPiDefaultStatus } from "./configStatus";
-import { piAgentDir, registerPiQuotaProvider } from "./quota";
+import { registerPiQuotaProvider } from "./quota";
 import { scanJsonlSessions } from "@kernel/diskSessions";
 import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
@@ -49,20 +50,9 @@ function PiGlyph({ size }: { size: number }) {
 }
 
 /**
- * pi 磁盘会话存储(实证自 ~/.pi/agent/sessions/ 真实目录):
- * - 目录 = ~/.pi/agent/sessions/<slug>/<iso-ts>_<uuid>.jsonl
- * - slug 规则(与 omp 不同!): "--" + cwd 去前导斜杠后 "/" → "-" + "--"
- *   例 /Users/x/code/AI/github/tmd-cli → --Users-chenxiangning-...-tmd-cli--
+ * pi 磁盘会话目录与写入事件适配器在 ./edits.ts(审批线 events 归因第二信号源),
+ * slug 规则随实现注释走,此处只消费。
  */
-async function piSessionsDir(cwd: string): Promise<string | null> {
-  const agentDir = await piAgentDir().catch(() => null);
-  if (!agentDir) return null;
-  /* 分隔符归一:Windows cwd 是反斜杠形态,不归一则 slug 永不失配。
-     slug 规则本身不变:去前导斜杠 → 分隔符转 "-"。 */
-  const cwdNorm = cwd.replace(/\\/g, "/");
-  const slug = `--${cwdNorm.replace(/^\/+/, "").replace(/\//g, "-")}--`;
-  return `${agentDir}/sessions/${slug}`;
-}
 
 async function listPiSessions(cwd: string): Promise<CliDiskSession[]> {
   const dir = await piSessionsDir(cwd);
@@ -135,6 +125,7 @@ export const cliPiPlugin: Plugin = {
       readSessionFileIdentity: readPiSessionIdentity,
       readDefaultStatus: readPiDefaultStatus,
       readSessionUserMessages: readPiUserMessages,
+      readSessionEdits: readPiSessionEdits,
     });
   },
 };

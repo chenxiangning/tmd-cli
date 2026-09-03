@@ -65,6 +65,18 @@ export interface CliUserMessage {
 }
 
 /**
+ * 会话磁盘事件流中的一条 AI 写入事件(readSessionEdits 的返回单元)。
+ * 审批线 events 归因的第二信号源:与 editMarks(PTY 输出标记)互补,
+ * 从该 CLI 自己的会话 JSONL 提取,天然按会话隔离,并行会话零串扰。
+ */
+export interface CliSessionEdit {
+  /** 写入文件路径(cwd 相对;cwd 内绝对亦可,消费侧归一)。 */
+  path: string;
+  /** 写入发生时刻 ms epoch(取自 CLI 自记的时间戳,非观测时刻)。 */
+  ts: number;
+}
+
+/**
  * 触发器补全 UI 候选项 —— composer 下拉与命令抽屉的共同数据单元。
  * file 触发符靠 fsListDir 实时拿,不从此声明。
  */
@@ -179,6 +191,21 @@ export interface CliProfile {
    * 比漏记一个文件更伤审批线可信度)。
    */
   editMarks?: RegExp[];
+  /**
+   * 会话磁盘事件流的 AI 写入读取(审批线 events 归因第二信号源)。
+   * 从该 CLI 自己的会话 JSONL 提取 edit/write 工具写入的文件 —— 每会话一个
+   * 文件,天然按会话隔离,并行会话不串扰(editMarks 的 PTY 标记做不到:
+   * 同一幕布字节流无法区分并行写入者,git 窗口推断更做不到)。
+   * 契约:返回 ts > sinceTs 的事件(增量;调用方持水位线),路径为 cwd 相对
+   * 或 cwd 内绝对;文件尚未落盘(懒 flush CLI 首条消息才建文件)返回 [],
+   * 探测失败返回 null(≠ 零事件,调用方保水位线重试)。
+   * 声明后该 CLI 的会话走 events 归因(与 editMarks 等效)。
+   */
+  readSessionEdits?: (
+    cwd: string,
+    cliSessionId: string,
+    sinceTs: number,
+  ) => Promise<CliSessionEdit[] | null>;
   /**
    * 发送时用 bracketed paste 协议注入(ESC[200~ 正文 ESC[201~ + CR)。
    *

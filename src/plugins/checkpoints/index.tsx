@@ -70,25 +70,68 @@ export const checkpointsPlugin: Plugin = {
       };
     };
 
+    // ---- 会话磁盘事件源(readSessionEdits)--------------------------------
+    // editMarks 之外的 events 归因第二信号:从 CLI 自己的会话 JSONL 拉写入
+    // 事件(omp)。每会话一个流文件,天然按会话隔离 —— 用户报的"同工作区
+    // 并行两会话审批线互相串批"是 git 窗口推断的结构性缺陷(mtime 窗口在
+    // 重叠轮次下无法区分写入者),磁盘事件流从根上消除它。
+
+    /** 每会话水位线(tmdSessionId → 已拉取事件最大 ts);首见 = 现在,
+     *  防应用重启后全量回放灌入死锚点(封口侧另有 ts 守卫双保险)。 */
+    const diskEditWatermark = new Map<string, number>();
+    const diskEditInFlight = new Set<string>();
+
+    /** 会话声明了磁盘事件源 → { 身份, 适配器 };否则 null。 */
+    const diskEditSource = (tmdSessionId: string) => {
+      const session = host.getSessions().find((s) => s.id === tmdSessionId);
+      const adapter = session ? host.getCliProfile(session.profileId)?.readSessionEdits : undefined;
+      if (!session || !adapter) return null;
+      const id = identity(tmdSessionId);
+      return id ? { id, adapter } : null;
+    };
+
+    /** 拉取本会话增量写入事件并逐条记账。失败保水位线(下次重拉)。 */
+    const pullSessionEdits = async (tmdSessionId: string): Promise<void> => {
+      const source = diskEditSource(tmdSessionId);
+      if (!source || diskEditInFlight.has(tmdSessionId)) return;
+      diskEditInFlight.add(tmdSessionId);
+      try {
+        const since = diskEditWatermark.get(tmdSessionId) ?? Date.now();
+        const edits = await source.adapter(source.id.cwd, source.id.cliId, since).catch(() => null);
+        if (!edits) return;
+        for (const e of edits) recordEdit(source.id.cwd, source.id.cliId, source.id.tmdId, e.path, e.ts);
+        diskEditWatermark.set(tmdSessionId, Math.max(since, ...edits.map((e) => e.ts)));
+      } finally {
+        diskEditInFlight.delete(tmdSessionId);
+      }
+    };
+
+    // 轻轮询:事件落账延迟 ≤ 拉取间隔,open 批次随 6s 面板刷新可见;
+    // 无适配器会话空转一次 Map/Set 查询,开销可忽略。
+    // 全局 setInterval(非 window.):activate 会被 node 环境的契约测试直调。
+    setInterval(() => {
+      for (const s of host.getSessions()) {
+        if (diskEditSource(s.id)) void pullSessionEdits(s.id);
+      }
+    }, 4000);
+
     // 批次边界:prompt 发送瞬间记锚点(失败不阻塞,store 内部重试)。
-    // 归因模式随锚点固化:profile 声明 editMarks → events(AI 写入事件流),
-    // 否则 git(窗口推断)。
+    // 归因模式随锚点固化:profile 声明 editMarks 或 readSessionEdits →
+    // events(AI 写入事件流),否则 git(窗口推断)。
     ctx.events.on<PromptSentEvent>(KernelTopics.promptSent, ({ sessionId, text }) => {
       const id = identity(sessionId);
       if (!id) return;
       const session = host.getSessions().find((s) => s.id === sessionId);
-      const marks = session
-        ? host.getCliProfile(session.profileId)?.editMarks
-        : undefined;
-      /* 用 CLI 磁盘身份作 key:重启/resume 后 tmd 会话 id 会换,稳定 id 才能找回历史批次 */
-      captureAnchor(
-        id.cwd,
-        id.cliId,
-        id.tmdId,
-        text,
-        anchorMeta(sessionId),
-        marks && marks.length > 0 ? "events" : "git",
-      );
+      const profile = session ? host.getCliProfile(session.profileId) : undefined;
+      const eventsMode =
+        (profile?.editMarks?.length ?? 0) > 0 || profile?.readSessionEdits != null;
+      const capture = () =>
+        captureAnchor(id.cwd, id.cliId, id.tmdId, text, anchorMeta(sessionId), eventsMode ? "events" : "git");
+      /* 磁盘事件源:先拉净上一轮尾巴再落锚 —— record_edit 恒记入最新 open
+         锚点,锚点落地后才拉到的前轮事件会错记新轮(ts 守卫再兜一道);
+         用 CLI 磁盘身份作 key:重启/resume 后 tmd 会话 id 会换,稳定 id 才能找回历史批次 */
+      if (profile?.readSessionEdits) void pullSessionEdits(sessionId).then(capture, capture);
+      else capture();
     });
 
     // AI 写入事件流式记账(events 归因主信号;git 归因会话后端直接丢弃)
@@ -98,19 +141,20 @@ export const checkpointsPlugin: Plugin = {
       for (const p of paths) recordEdit(id.cwd, id.cliId, id.tmdId, p);
     });
 
-    // 一轮对话结算:封口落账(幂等;失败由下一条 prompt 的隐式封口兜底)
-    ctx.events.on<TurnSettledEvent>(KernelTopics.turnSettled, ({ sessionId }) => {
+    // 一轮对话结算:封口落账(幂等;失败由下一条 prompt 的隐式封口兜底)。
+    // 磁盘事件源先拉最后一次(结算前 omp 已把全部 toolResult 刷盘,尾部拉取
+    // 即完整轮内事件),落账完成再封口。
+    const sealWith = (sessionId: string) => {
       const id = identity(sessionId);
       if (!id) return;
-      sealTurn(id.cwd, id.cliId, id.tmdId);
-    });
+      const seal = () => sealTurn(id.cwd, id.cliId, id.tmdId);
+      if (diskEditSource(sessionId)) void pullSessionEdits(sessionId).then(seal, seal);
+      else seal();
+    };
+    ctx.events.on<TurnSettledEvent>(KernelTopics.turnSettled, ({ sessionId }) => sealWith(sessionId));
 
     // 会话退出:兜底封口,最后一轮落账(host.removeSession 先 await IPC 再摘会话,
     // emit 时会话与 CLI 身份仍在列表里 —— 依赖此顺序,勿在 identity 前做异步查询)
-    ctx.events.on<string>(KernelTopics.sessionExited, (sessionId) => {
-      const id = identity(sessionId);
-      if (!id) return;
-      sealTurn(id.cwd, id.cliId, id.tmdId);
-    });
+    ctx.events.on<string>(KernelTopics.sessionExited, (sessionId) => sealWith(sessionId));
   },
 };

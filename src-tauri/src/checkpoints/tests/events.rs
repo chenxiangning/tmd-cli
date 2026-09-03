@@ -12,7 +12,42 @@ fn anchor_events(ws: &TempWs, sid: &str, tmd: &str, prompt: &str) -> LedgerEntry
 }
 
 fn edit(ws: &TempWs, sid: &str, tmd: &str, path: &str) -> bool {
-    record_edit(ws.path(), sid, tmd, path).unwrap()
+    record_edit(ws.path(), sid, tmd, path, None).unwrap()
+}
+
+#[test]
+fn events_迟到事件_早于锚点丢弃_防上一轮尾巴串轮() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+    let anchor = anchor_events(&ws, "cli-1", "tmd-1", "改 a");
+    ws.write("a.txt", "v2\n");
+    // 磁盘事件源迟到拉取:早于锚点的写入属上一轮(锚点隐式封上一轮),丢弃
+    assert!(!record_edit(
+        ws.path(),
+        "cli-1",
+        "tmd-1",
+        "a.txt",
+        Some(anchor.ts - 5_000)
+    )
+    .unwrap());
+    // 本轮事件(晚于锚点)照常入账;None = PTY 标记无时刻,守卫不适用
+    assert!(record_edit(
+        ws.path(),
+        "cli-1",
+        "tmd-1",
+        "a.txt",
+        Some(anchor.ts + 1_000)
+    )
+    .unwrap());
+    assert!(edit(&ws, "cli-1", "tmd-1", "a.txt"));
+    assert!(ws.seal("cli-1", "tmd-1"));
+    let batches = ws.batches("cli-1");
+    assert_eq!(batches.len(), 1);
+    assert_eq!(
+        batches[0].files[0].edit_count, 2,
+        "迟到事件已弃,仅本轮两次入账"
+    );
 }
 
 #[test]
@@ -197,7 +232,7 @@ fn events_非_git_工作区_记账回退照常() {
     // 非 git:anchor(events)不报错;基线空 → 前像无 → A 语义
     anchor_turn(dir.to_str().unwrap(), "s", "s", "p", "", "", "", "events").unwrap();
     fs::write(dir.join("new.txt"), "n1\n").unwrap();
-    assert!(record_edit(dir.to_str().unwrap(), "s", "s", "new.txt").unwrap());
+    assert!(record_edit(dir.to_str().unwrap(), "s", "s", "new.txt", None).unwrap());
     assert!(seal_turn(dir.to_str().unwrap(), "s", "s").unwrap());
 
     let batches = derive_batches(dir.to_str().unwrap(), "s", "").unwrap();
@@ -278,13 +313,13 @@ fn events_非git_跨轮修改既有文件_前像链_回退不误删() {
     // 轮 1:AI 新建 a.txt(v1)并封口
     anchor_turn(dir.to_str().unwrap(), "s", "s", "一", "", "", "", "events").unwrap();
     fs::write(dir.join("a.txt"), "v1\n").unwrap();
-    assert!(record_edit(dir.to_str().unwrap(), "s", "s", "a.txt").unwrap());
+    assert!(record_edit(dir.to_str().unwrap(), "s", "s", "a.txt", None).unwrap());
     assert!(seal_turn(dir.to_str().unwrap(), "s", "s").unwrap());
 
     // 轮 2:AI 修改同一文件(v2)并封口 —— 前像应链到轮 1 批后像(M),非 A
     anchor_turn(dir.to_str().unwrap(), "s", "s", "二", "", "", "", "events").unwrap();
     fs::write(dir.join("a.txt"), "v2\n").unwrap();
-    assert!(record_edit(dir.to_str().unwrap(), "s", "s", "a.txt").unwrap());
+    assert!(record_edit(dir.to_str().unwrap(), "s", "s", "a.txt", None).unwrap());
     assert!(seal_turn(dir.to_str().unwrap(), "s", "s").unwrap());
 
     let batches = derive_batches(dir.to_str().unwrap(), "s", "").unwrap();
@@ -303,7 +338,7 @@ fn events_非git_跨轮修改既有文件_前像链_回退不误删() {
     // 走一轮仍闭环
     anchor_turn(dir.to_str().unwrap(), "s", "s", "三", "", "", "", "events").unwrap();
     fs::write(dir.join("a.txt"), "v3\n").unwrap();
-    assert!(record_edit(dir.to_str().unwrap(), "s", "s", "a.txt").unwrap());
+    assert!(record_edit(dir.to_str().unwrap(), "s", "s", "a.txt", None).unwrap());
     assert!(seal_turn(dir.to_str().unwrap(), "s", "s").unwrap());
     let b3 = derive_batches(dir.to_str().unwrap(), "s", "")
         .unwrap()

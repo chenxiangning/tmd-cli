@@ -6,6 +6,7 @@ import {
 import {
   readGrokDefaultStatus,
 } from "./configStatus";
+import { readGrokSessionEdits } from "./edits";
 import { registerGrokQuotaProvider } from "./quota";
 import type {
   CliDiskSession,
@@ -244,6 +245,7 @@ export const cliGrokPlugin: Plugin = {
       readSessionStatus: readGrokSessionStatus,
       readSessionFileIdentity: readGrokSessionIdentity,
       readSessionUserMessages: readGrokUserMessages,
+      readSessionEdits: readGrokSessionEdits,
       readDefaultStatus: readGrokDefaultStatus,
     };
     ctx.registerCliProfile(profile);

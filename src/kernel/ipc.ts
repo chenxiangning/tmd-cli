@@ -270,9 +270,16 @@ export const ipc = {
       thinking: meta.thinking,
       attribution: attribution ?? "git",
     }),
-  /** AI 写入事件流式记账(EditWatch 命中即调)。返回是否入账。 */
-  checkpointRecordEdit: (cwd: string, sessionId: string, tmdSessionId: string, path: string) =>
-    invoke<boolean>("checkpoint_record_edit", { cwd, sessionId, tmdSessionId, path }),
+  /** AI 写入事件流式记账(EditWatch / 会话磁盘事件拉取命中即调)。
+   *  ts = 写入事件时刻(磁盘事件源携带;PTY 标记无时刻传 null),Rust 侧
+   *  以它守卫迟到事件(早于锚点 = 上一轮尾巴,丢弃)。返回是否入账。 */
+  checkpointRecordEdit: (
+    cwd: string,
+    sessionId: string,
+    tmdSessionId: string,
+    path: string,
+    ts: number | null,
+  ) => invoke<boolean>("checkpoint_record_edit", { cwd, sessionId, tmdSessionId, path, ts }),
   /** 显式封口(一轮对话结算):把最新锚点以来的变更固化成账本 turn 条目。 */
   checkpointSeal: (cwd: string, sessionId: string, tmdSessionId: string) =>
     invoke<boolean>("checkpoint_seal", { cwd, sessionId, tmdSessionId }),
