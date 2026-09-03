@@ -27,9 +27,9 @@ use crate::session_log::LogMeta;
 
 pub mod auth;
 pub mod commands;
+pub mod control;
 #[cfg(test)]
 mod e2e_tests;
-pub mod control;
 pub mod forward;
 pub mod io;
 pub mod known_hosts;

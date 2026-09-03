@@ -34,8 +34,8 @@ async fn ssh_engine_end_to_end() {
 
     let captured = Arc::new(tokio::sync::Mutex::new(None::<transport::CapturedHostKey>));
     let first = transport::connect_ssh_handle(&host, Arc::clone(&captured)).await;
-    let first_error = first.err().map(|e| e).unwrap_or_default();
-    let host_key_needed = first_error.len() > 0 && captured.lock().await.is_some();
+    let first_error = first.err().unwrap_or_default();
+    let host_key_needed = !first_error.is_empty() && captured.lock().await.is_some();
     assert!(
         host_key_needed,
         "首连应触发 host key 信任流(实得错误:{first_error})"
@@ -53,7 +53,10 @@ async fn ssh_engine_end_to_end() {
         .await
         .expect("信任后连接成功");
     let auth = auth::resolve_ssh_auth_material(&host).expect("认证材料");
-    match auth::authenticate_ssh_handle(&mut handle, &host, auth).await.unwrap() {
+    match auth::authenticate_ssh_handle(&mut handle, &host, auth)
+        .await
+        .unwrap()
+    {
         auth::SshAuthOutcome::Authenticated => {}
         auth::SshAuthOutcome::KeyboardInteractivePrompt(_) => {
             panic!("私钥认证应直接成功,不应进入 KBI")
@@ -67,7 +70,9 @@ async fn ssh_engine_end_to_end() {
     let (mut reader, writer) = channel.split();
     let mut sink = writer.make_writer();
     use tokio::io::AsyncWriteExt;
-    sink.write_all(b"echo TMD_E2E_OK\n").await.expect("写入命令");
+    sink.write_all(b"echo TMD_E2E_OK\n")
+        .await
+        .expect("写入命令");
     /* 读取走 ChannelMsg::Data(IO 泵同款原语),2s 窗口内等回显标记。 */
     let mut seen = String::new();
     for _ in 0..16 {
@@ -81,7 +86,10 @@ async fn ssh_engine_end_to_end() {
             }
         }
     }
-    assert!(seen.contains("TMD_E2E_OK"), "shell 输出应回显标记,实得:{seen}");
+    assert!(
+        seen.contains("TMD_E2E_OK"),
+        "shell 输出应回显标记,实得:{seen}"
+    );
 
     /* SFTP 子系统:同连接开 channel,list + 写 + 读回(乐观并发携带 mtime/size)。 */
     {
@@ -105,13 +113,19 @@ async fn ssh_engine_end_to_end() {
         ) {
             panic!("SFTP 段认证意外进 KBI");
         }
-        let _ = runtime.install_connection(sftp_handle, {
-            let (tx, _rx) = tokio::sync::mpsc::channel(1);
-            tx
-        }, {
-            let (tx, _rx) = tokio::sync::mpsc::channel(1);
-            tx
-        }).await;
+        let _ = runtime
+            .install_connection(
+                sftp_handle,
+                {
+                    let (tx, _rx) = tokio::sync::mpsc::channel(1);
+                    tx
+                },
+                {
+                    let (tx, _rx) = tokio::sync::mpsc::channel(1);
+                    tx
+                },
+            )
+            .await;
         registry.sessions.lock().insert(
             "e2e".into(),
             Arc::new(SshSessionEntry {
@@ -126,7 +140,9 @@ async fn ssh_engine_end_to_end() {
         /* 测试只注入注册表(SFTP 路径无需 AppHandle,事件广播静默跳过)。 */
         attach_globals(None, &registry);
 
-        let entries = sftp::list("e2e", Some("/tmp".into())).await.expect("SFTP list");
+        let entries = sftp::list("e2e", Some("/tmp".into()))
+            .await
+            .expect("SFTP list");
         assert!(entries.iter().any(|e| e.kind == "dir"), "/tmp 应含目录项");
 
         let target = "/tmp/tmd_sftp_e2e.txt";
@@ -137,13 +153,18 @@ async fn ssh_engine_end_to_end() {
             sftp::SftpWriteOutcome::Written { entry } => entry,
             sftp::SftpWriteOutcome::Conflict { .. } => panic!("全新文件不应冲突"),
         };
-        let read = sftp::read_text("e2e", target, None, None).await.expect("SFTP 读回");
+        let read = sftp::read_text("e2e", target, None, None)
+            .await
+            .expect("SFTP 读回");
         assert_eq!(read.content, "hello-ssh-plugin");
         /* 乐观并发:携带过期 mtime 应报 conflict。 */
         let stale = sftp::write_text("e2e", target, "x", Some(entry.mtime - 999_999), None)
             .await
             .expect("写入调用本身成功");
-        assert!(matches!(stale, sftp::SftpWriteOutcome::Conflict { .. }), "过期 mtime 应冲突");
+        assert!(
+            matches!(stale, sftp::SftpWriteOutcome::Conflict { .. }),
+            "过期 mtime 应冲突"
+        );
         let _ = sftp::delete("e2e", target, false).await;
     }
 
