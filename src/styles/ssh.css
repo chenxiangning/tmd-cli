@@ -5,7 +5,7 @@
   position: fixed;
   inset: 0;
   z-index: 90;
-  background: color-mix(in srgb, var(--tmd-bg-base) 55%, transparent);
+  background: rgba(0, 0, 0, 0.32);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -17,9 +17,9 @@
   display: flex;
   flex-direction: column;
   border: 1px solid var(--tmd-border);
-  border-radius: 8px;
-  background: var(--tmd-bg-panel);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 35%);
+  border-radius: var(--tmd-radius-lg);
+  background: var(--tmd-bg-elevated);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18), 0 1px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 .ssh-picker-head {
@@ -92,7 +92,7 @@
 .ssh-picker-error {
   padding: 6px 10px;
   font-size: 11px;
-  color: #ef4444;
+  color: #f87171;
 }
 /* ── 提示卡(host key / KBI / 密码)── */
 .ssh-prompt-stack {
@@ -107,9 +107,9 @@
 .ssh-prompt-card {
   width: 320px;
   border: 1px solid var(--tmd-border);
-  border-radius: 8px;
-  background: var(--tmd-bg-panel);
-  box-shadow: 0 8px 28px rgb(0 0 0 / 30%);
+  border-radius: var(--tmd-radius-md);
+  background: var(--tmd-bg-elevated);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18), 0 1px 4px rgba(0, 0, 0, 0.1);
   padding: 10px 12px;
 }
 .ssh-prompt-title {
@@ -144,7 +144,7 @@
   font-size: 12px;
   border: 1px solid var(--tmd-border);
   border-radius: 6px;
-  background: var(--tmd-bg-base);
+  background: var(--tmd-bg-input);
   color: var(--tmd-fg);
 }
 .ssh-prompt-actions {
@@ -166,9 +166,9 @@
 .ssh-prompt-actions .is-primary,
 .ssh-modal-actions .is-primary,
 .ssh-btn.is-primary {
-  background: var(--tmd-accent, #6c8aff);
+  background: var(--tmd-accent);
   border-color: transparent;
-  color: #fff;
+  color: var(--tmd-accent-fg);
 }
 
 /* ── 右栏面板 ── */
@@ -200,7 +200,7 @@
   padding: 6px 8px;
 }
 .ssh-session-card.is-active {
-  border-color: var(--tmd-accent, #6c8aff);
+  border-color: var(--tmd-accent);
 }
 .ssh-session-main {
   width: 100%;
@@ -220,7 +220,8 @@
   flex: none;
 }
 .ssh-status-dot.is-connected {
-  background: #22c55e;
+  background: #34d399;
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.25);
 }
 .ssh-status-dot.is-connecting,
 .ssh-status-dot.is-reconnecting {
@@ -228,7 +229,7 @@
   animation: ssh-breathe 1.6s ease-in-out infinite;
 }
 .ssh-status-dot.is-failed {
-  background: #ef4444;
+  background: #f87171;
 }
 .ssh-status-dot.is-disconnected {
   background: var(--tmd-fg-faint);
@@ -254,7 +255,7 @@
 .ssh-session-message {
   margin-top: 4px;
   font-size: 10px;
-  color: #ef4444;
+  color: #f87171;
   word-break: break-all;
 }
 .ssh-session-actions {
@@ -349,13 +350,13 @@
   font-size: 11px;
   border: 1px solid var(--tmd-border);
   border-radius: 6px;
-  background: var(--tmd-bg-base);
+  background: var(--tmd-bg-input);
   color: var(--tmd-fg);
 }
 .ssh-form-error {
   width: 100%;
   font-size: 10px;
-  color: #ef4444;
+  color: #f87171;
 }
 .ssh-btn {
   display: inline-flex;
@@ -439,9 +440,9 @@
   min-width: 150px;
   padding: 4px;
   border: 1px solid var(--tmd-border);
-  border-radius: 8px;
-  background: var(--tmd-bg-panel);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
+  border-radius: var(--tmd-radius-md);
+  background: var(--tmd-bg-popover);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18), 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 .ssh-menu button {
   text-align: left;
@@ -457,7 +458,7 @@
   background: var(--tmd-bg-hover);
 }
 .ssh-menu button.is-danger {
-  color: #ef4444;
+  color: #f87171;
 }
 
 /* 传输进度 */
@@ -489,7 +490,7 @@
 }
 .ssh-transfer-fill {
   height: 100%;
-  background: var(--tmd-accent, #6c8aff);
+  background: var(--tmd-accent);
   transition: width 0.2s ease;
 }
 

@@ -45,7 +45,7 @@
   position: fixed;
   inset: 0;
   z-index: 92;
-  background: color-mix(in srgb, var(--tmd-bg-base) 55%, transparent);
+  background: rgba(0, 0, 0, 0.32);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -56,9 +56,11 @@
   max-height: 74vh;
   overflow-y: auto;
   border: 1px solid var(--tmd-border);
-  border-radius: 10px;
-  background: var(--tmd-bg-panel);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 35%);
+  border-radius: var(--tmd-radius-lg);
+  background: var(--tmd-bg-elevated);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.18),
+    0 1px 4px rgba(0, 0, 0, 0.1);
   padding: 12px 14px;
 }
 .ssh-modal-title {
@@ -88,7 +90,7 @@
   font-size: 12px;
   border: 1px solid var(--tmd-border);
   border-radius: 6px;
-  background: var(--tmd-bg-base);
+  background: var(--tmd-bg-input);
   color: var(--tmd-fg);
 }
 .ssh-form textarea {
