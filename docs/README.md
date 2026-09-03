@@ -43,6 +43,10 @@
 | 2026-09-03 | [会话标题 tab 条设计](superpowers/specs/2026-09-03-session-title-tabs-design.md) | 已落地 |
 | 2026-09-03 | [父子会话层级原型:方案 B 定稿(父节点即开关,保留 FLUX 时间轴)](design/session-hierarchy-schemes.html) | 设计原型 |
 | 常态 | [功能清单 FEATURES](FEATURES.md) | 随代码演进(09-03 全域代码校准) |
-| 2026-09-04 | [GitHub 社区规范文档集(贡献指南 / 安全策略 / 行为准则 / issue 与 PR 模板)](../.github/) | 已落地 |
+| 2026-09-04 | [Git 历史视图 Graph 化 + 提交 diff 进左侧文件容器](superpowers/specs/2026-09-04-git-history-graph-design.md) | 已落地 |
+| 2026-09-04 | [文件渲染档案:补齐 codemoss 全量文件预览形态](superpowers/specs/2026-09-04-file-render-profiles-design.md) | 已落地 |
+| 2026-09-04 | [SSH 模块竞品调研](research/ssh-module-reference.md) | 已完成 |
+| 2026-09-04 | [SSH 插件需求澄清(竞品调研)](brainstorm/2026-09-04-ssh-plugin.md) | 已收敛 |
+| 2026-09-04 | [SSH 插件设计:一等会话 + 右栏 SFTP 树 + 端口转发](superpowers/specs/2026-09-04-ssh-plugin-design.md) | 已定稿(实施中,契约见 openspec/changes/ssh-plugin/) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
