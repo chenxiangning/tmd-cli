@@ -152,6 +152,8 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     };
     registerTerminalHandle(sessionId, terminalHandle);
 
+    /* 重挂载必发一次;同尺寸 resize 在 Rust 侧幂等去重(pty.rs)——
+       否则 SIGWINCH 引发的 TUI 重绘会被活动守望误判成一轮对话(呼吸灯+结束音)。 */
     const syncSize = () => {
       fit.fit();
       void ipc.sessionResize(sessionId, term.cols, term.rows);

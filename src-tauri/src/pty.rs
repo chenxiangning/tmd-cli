@@ -71,6 +71,11 @@ struct PtyHandle {
     writer: Arc<Mutex<Box<dyn Write + Send>>>,
     master: Box<dyn MasterPty + Send>,
     child: Box<dyn portable_pty::Child + Send + Sync>,
+    /// 最近一次生效的 (cols, rows):resize 幂等去重。尺寸未变的 resize 若照发
+    /// SIGWINCH,全屏 TUI(omp/claude)会整屏重绘 —— 切会话重挂载时 TerminalView
+    /// 必发一次 syncSize,重绘输出会被前端活动守望误判成一轮对话
+    /// (呼吸灯绿→蓝 + 结束音),而用户并未发起任何对话。
+    size: Mutex<(u16, u16)>,
 }
 
 #[derive(Default)]
@@ -273,6 +278,7 @@ impl PtyRegistry {
                 writer: Arc::new(Mutex::new(writer)),
                 master: pair.master,
                 child,
+                size: Mutex::new((spec.cols, spec.rows)),
             },
         );
 
@@ -302,6 +308,11 @@ impl PtyRegistry {
         let handle = sessions
             .get(id)
             .ok_or_else(|| format!("会话 {id} 不存在"))?;
+        /* 尺寸未变 = 幂等跳过:不发 SIGWINCH,TUI 不重绘,前端呼吸灯语义不受扰 */
+        let mut size = handle.size.lock();
+        if *size == (cols, rows) {
+            return Ok(());
+        }
         handle
             .master
             .resize(PtySize {
@@ -310,7 +321,9 @@ impl PtyRegistry {
                 pixel_width: 0,
                 pixel_height: 0,
             })
-            .map_err(|e| format!("resize 失败: {e}"))
+            .map_err(|e| format!("resize 失败: {e}"))?;
+        *size = (cols, rows);
+        Ok(())
     }
 
     pub fn kill(&self, id: &str) -> Result<(), String> {
@@ -399,5 +412,40 @@ mod tests {
         let mut tail = Vec::new();
         let text = decode_utf8_chunk(&mut tail, &[0xff, b'a']);
         assert_eq!(text, "\u{FFFD}a");
+    }
+
+    /// resize 幂等契约:记录尺寸随真实变更更新,同尺寸调用保持记录不变。
+    /// 记录错误 = 后续同尺寸 resize 漏去重 → SIGWINCH 重绘 → 前端误判对话轮次。
+    #[test]
+    fn resize_尺寸记录随真实变更更新() {
+        let registry = PtyRegistry::default();
+        let pair = native_pty_system()
+            .openpty(PtySize {
+                rows: 24,
+                cols: 80,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .expect("openpty");
+        let child = pair
+            .slave
+            .spawn_command(CommandBuilder::new("cat"))
+            .expect("spawn cat");
+        let writer = pair.master.take_writer().expect("writer");
+        registry.sessions.lock().insert(
+            "t".to_string(),
+            PtyHandle {
+                writer: Arc::new(Mutex::new(writer)),
+                master: pair.master,
+                child,
+                size: Mutex::new((80, 24)),
+            },
+        );
+        /* 同尺寸:幂等跳过,记录不变 */
+        registry.resize("t", 80, 24).expect("same-size resize");
+        /* 真实变更:生效并记录 */
+        registry.resize("t", 100, 40).expect("real resize");
+        let sessions = registry.sessions.lock();
+        assert_eq!(*sessions["t"].size.lock(), (100, 40));
     }
 }
