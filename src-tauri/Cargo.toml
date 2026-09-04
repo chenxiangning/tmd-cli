@@ -32,7 +32,7 @@ tauri-plugin-dialog = "2"
 reqwest = { version = "0.13", features = ["json", "rustls", "socks"] }
 # 只读 omp agent.db(auth_credentials 表)取供应商凭据;bundled 免系统 sqlite 依赖。
 rusqlite = { version = "0.40", features = ["bundled"] }
-base64 = "0.22"
+base64 = "0.23"
 # composer @ 文件补全:ripgrep 同源 gitignore/.ignore/.fdignore 递归引擎(见 fs_walk.rs)。
 ignore = "0.4"
 # MD5(非安全用途):kimi CLI 的会话目录按 MD5(cwd) 哈希命名,前端算 cwd → 目录名。
