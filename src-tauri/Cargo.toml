@@ -36,7 +36,7 @@ base64 = "0.22"
 # composer @ 文件补全:ripgrep 同源 gitignore/.ignore/.fdignore 递归引擎(见 fs_walk.rs)。
 ignore = "0.4"
 # MD5(非安全用途):kimi CLI 的会话目录按 MD5(cwd) 哈希命名,前端算 cwd → 目录名。
-md-5 = "0.10"
+md-5 = "0.11"
 tauri-plugin-shell = { version = "2", default-features = false }
 # 右键菜单「移到废纸篓」:走系统回收站(可挽回),不做物理删除;codemoss 同款。
 trash = "5"
