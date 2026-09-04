@@ -29,7 +29,7 @@ function clampMenuPosition(x: number, y: number): { x: number; y: number } {
   };
 }
 
-export interface TreeMenuActions {
+interface TreeMenuActions {
   createFile: (dir: string) => void;
   createFolder: (dir: string) => void;
   rename: (entry: DirEntry) => void;

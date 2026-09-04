@@ -9,7 +9,7 @@ import {
 } from "../cli-shared/userMessages";
 import { readPiDefaultStatus } from "./configStatus";
 import { registerPiQuotaProvider } from "./quota";
-import { scanJsonlSessions } from "@kernel/diskSessions";
+import { scanJsonlSessions } from "../cli-shared/diskSessions";
 import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 

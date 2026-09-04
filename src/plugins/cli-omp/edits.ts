@@ -22,9 +22,8 @@ import type { CliSessionEdit } from "@kernel/cli";
 import { normalizeEditPath } from "@kernel/editWatch";
 import { ipc } from "@kernel/ipc";
 import { findJsonlSessionFile } from "../cli-shared/userMessages";
+import { parseEditEventsFromText, readEditsTail } from "../cli-shared/sessionEdits";
 
-/** 尾窗预算:两次轮询间的写入爆发(大文件/密集编辑)覆盖到 2MB;超出漏报可接受。 */
-const TAIL_BYTES = 2 * 1024 * 1024;
 
 /** edit/write 之外的工具(read/grep/bash/todo…)不落业务文件,行预筛直接跳过。 */
 const WRITE_TOOLS: Record<string, true> = { edit: true, write: true };
@@ -108,23 +107,16 @@ function editEventsOf(entry: Record<string, unknown>, cwd: string): CliSessionEd
 
 /**
  * 从 omp 会话 JSONL 文本提取写入事件(纯函数,可测)。
- * sinceTs = 水位线:只返回 ts > sinceTs 的事件(增量;坏行/窗口截断跳过)。
+ * sinceTs = 水位线:只返回 ts > sinceTs 的事件;循环契约见 cli-shared/sessionEdits.ts。
  */
 export function parseOmpEditEvents(text: string, sinceTs: number, cwd: string): CliSessionEdit[] {
-  const out: CliSessionEdit[] = [];
-  for (const line of text.split("\n")) {
-    if (!line.startsWith('{"type":"message"')) continue;
-    let entry: Record<string, unknown>;
-    try {
-      entry = JSON.parse(line) as Record<string, unknown>;
-    } catch {
-      continue; // 尾窗截断的坏行
-    }
-    for (const event of editEventsOf(entry, cwd)) {
-      if (event.ts > sinceTs) out.push(event);
-    }
-  }
-  return out;
+  return parseEditEventsFromText(
+    text,
+    sinceTs,
+    cwd,
+    (line) => line.startsWith('{"type":"message"'),
+    editEventsOf,
+  );
 }
 
 /**
@@ -139,9 +131,10 @@ export async function readOmpSessionEdits(
 ): Promise<CliSessionEdit[] | null> {
   const dir = await ompSessionsDir(cwd);
   if (!dir) return null;
-  const path = await findJsonlSessionFile(dir, cliSessionId);
-  if (!path) return [];
-  const tail = await ipc.fsReadTail(path, TAIL_BYTES).catch(() => null);
-  if (tail === null) return null;
-  return parseOmpEditEvents(tail, sinceTs, cwd);
+  return readEditsTail(
+    await findJsonlSessionFile(dir, cliSessionId),
+    sinceTs,
+    cwd,
+    parseOmpEditEvents,
+  );
 }

@@ -10,7 +10,7 @@
 import { useEffect, useState } from "react";
 import { platformKind } from "@kernel/ipc";
 
-export type PlatformKind = "macos" | "windows" | "linux" | "unknown";
+type PlatformKind = "macos" | "windows" | "linux" | "unknown";
 
 let cached: PlatformKind | null = null;
 

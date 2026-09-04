@@ -20,7 +20,7 @@ import {
 import { openFileInTab } from "./openFile";
 
 /** 命名弹窗:new-file/new-folder 在 dir 下新建;rename 改名 entry。 */
-export type TreePrompt =
+type TreePrompt =
   | { kind: "new-file"; dir: string }
   | { kind: "new-folder"; dir: string }
   | { kind: "rename"; entry: DirEntry };

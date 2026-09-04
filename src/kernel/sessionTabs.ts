@@ -21,7 +21,7 @@ import type { SessionMeta } from "./ipc";
 /** tab 条容量:同时展示的打开会话数上限(用户定向:4 个)。 */
 export const SESSION_TABS_MAX = 4;
 
-export interface SessionTabsState {
+interface SessionTabsState {
   /** 打开次序(早 → 晚)的活会话 tab id(tmd PTY id,非 CLI 磁盘 id)。 */
   ids: readonly string[];
 }
@@ -64,7 +64,7 @@ function pruneTo(sessions: readonly SessionMeta[]): void {
 }
 
 /** 关闭语义依赖的 host 指针操作;boot 可注入替身(测试)。 */
-export interface SessionTabsDeps {
+interface SessionTabsDeps {
   getActiveSessionId(): string | null;
   setActiveSession(id: string | null): void;
 }

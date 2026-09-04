@@ -261,9 +261,12 @@ flowchart TD
 
 共性法则（2026-09 会话列表功能沉淀）：
 
-1. **标题提取统一走 `kernel/diskSessions.ts#extractJsonlTitle`（纯函数）**：
+1. **标题提取统一走 `plugins/cli-shared/diskSessions.ts#extractJsonlTitle`（纯函数）**：
    `title 记录 > session 行 title > summary > 首条用户消息`，逐行 try/catch 容忍 head 截断。
    各插件只声明自己的 head 窗口（omp/pi 8KB / claude 32KB / codex 128KB 且先 4KB meta 过滤再读大窗 / kimi 8KB / qoder 32KB / grok 读 summary.json）。
+   （2026-09-04 自 `kernel/diskSessions.ts` 迁入 cli-shared：四家行型知识是 CLI 私有格式，
+   内核不得理解 —— 落实 `review/2026-09-02-architecture.md` F7；消费方为 5 个 cli-*
+   插件 + workspace 钉选列表。）
 2. **手动重命名 = 应用侧覆盖层（`settings.sessionTitles`），禁止写回 CLI 磁盘文件**：
    omp/pi 的 title 记录是定长 pad 覆写格式，改写有长度/并发风险；claude/codex 无原生 rename 概念，
    追加异构行有解析破坏风险。覆盖层 key = `${profileId}:${cliSessionId}`，显示优先级最高。

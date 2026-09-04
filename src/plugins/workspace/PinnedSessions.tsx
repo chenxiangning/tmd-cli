@@ -14,7 +14,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CliProfile } from "@kernel/cli";
-import { extractJsonlTitle, TITLE_HEAD_BYTES } from "@kernel/diskSessions";
+/* 经 cli-shared 消费 jsonl 标题行型(无生命周期格式库,插件零直接依赖铁律
+ * 下的合法通道,同 welcome/credentials.ts 的依赖声明)。 */
+import { extractJsonlTitle, TITLE_HEAD_BYTES } from "../cli-shared/diskSessions";
 import { host, useHost } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import { useSettingsState } from "@kernel/settings";

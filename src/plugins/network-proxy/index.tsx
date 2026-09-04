@@ -16,7 +16,7 @@ import { ProxyPopover } from "./ProxyPopover";
 import { openProxyPopover } from "./proxyPopoverStore";
 
 /** 打开浮层的内核事件 topic(payload: {x,y} 锚点视口坐标)。 */
-export const NETWORK_PROXY_POPOVER_TOPIC = "plugin.network-proxy.popover.open";
+const NETWORK_PROXY_POPOVER_TOPIC = "plugin.network-proxy.popover.open";
 
 export const networkProxyPlugin: Plugin = {
   id: "network-proxy",

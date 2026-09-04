@@ -16,8 +16,7 @@ import type { CliSessionEdit } from "@kernel/cli";
 import { normalizeEditPath } from "@kernel/editWatch";
 import { ipc } from "@kernel/ipc";
 
-/** 尾窗预算:updates 流含大量 thought/message 分片,两次轮询间覆盖到 2MB。 */
-const TAIL_BYTES = 2 * 1024 * 1024;
+import { EDITS_TAIL_BYTES, parseEditEventsFromText } from "../cli-shared/sessionEdits";
 
 /** edit 类工具(供应商 kind 字段缺省时的名字兜底;实证 search_replace/write)。 */
 const EDIT_TOOL_NAMES: Record<string, true> = {
@@ -71,25 +70,19 @@ function editEventsOf(entry: Record<string, unknown>, cwd: string): CliSessionEd
  * sinceTs = 水位线:只返回 ts > sinceTs 的事件(增量;坏行/窗口截断跳过)。
  */
 export function parseGrokEditEvents(text: string, sinceTs: number, cwd: string): CliSessionEdit[] {
-  const out: CliSessionEdit[] = [];
-  for (const line of text.split("\n")) {
-    if (!line.includes('"sessionUpdate":"tool_call"')) continue;
-    let entry: Record<string, unknown>;
-    try {
-      entry = JSON.parse(line) as Record<string, unknown>;
-    } catch {
-      continue; // 尾窗截断的坏行
-    }
-    for (const event of editEventsOf(entry, cwd)) {
-      if (event.ts > sinceTs) out.push(event);
-    }
-  }
-  return out;
+  return parseEditEventsFromText(
+    text,
+    sinceTs,
+    cwd,
+    (line) => line.includes('"sessionUpdate":"tool_call"'),
+    editEventsOf,
+  );
 }
 
 /**
  * readSessionEdits 实现:定位会话目录 → updates.jsonl 尾窗读 → 解析增量事件。
- * 文件尚不存在返回 [];尾窗读取失败返回 null(调用方保水位线重试)。
+ * 读失败也返回 [](零事件):未装 grok / 会话未产生 updates 流 / 读失败无法区分,
+ * 与「文件未建 = 零事件」同义 —— 不经 readEditsTail 的 null 语义(那会卡水位线重试)。
  */
 export async function readGrokSessionEdits(
   cwd: string,
@@ -101,11 +94,7 @@ export async function readGrokSessionEdits(
   // 会话目录名 = encodeURIComponent(cwd)(实证:分隔符 → %2F,中文亦编码)
   const dir = `${home}/.grok/sessions/${encodeURIComponent(cwd)}/${cliSessionId}`;
   const path = `${dir}/updates.jsonl`;
-  const tail = await ipc.fsReadTail(path, TAIL_BYTES).catch(() => null);
-  if (tail === null) {
-    // 未装 grok / 会话未产生 updates 流都落到这里;与「文件未建 = 零事件」同义,
-    // 但 fsReadTail 失败无法区分不存在与读失败 —— 统一按零事件,不卡水位线。
-    return [];
-  }
+  const tail = await ipc.fsReadTail(path, EDITS_TAIL_BYTES).catch(() => null);
+  if (tail === null) return [];
   return parseGrokEditEvents(tail, sinceTs, cwd);
 }

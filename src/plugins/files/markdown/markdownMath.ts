@@ -9,17 +9,13 @@
 import type katexDefault from "katex";
 import type rehypeKatexDefault from "rehype-katex";
 
-export type KatexModule = typeof katexDefault;
-export type RehypeKatexPlugin = typeof rehypeKatexDefault;
+type KatexModule = typeof katexDefault;
+type RehypeKatexPlugin = typeof rehypeKatexDefault;
 
 let cachedKatex: KatexModule | null = null;
 let cachedRehypeKatex: RehypeKatexPlugin | null = null;
 let katexCssLoaded = false;
 let katexLoadingPromise: Promise<void> | null = null;
-
-export function getCachedKatex() {
-  return cachedKatex;
-}
 
 export function getCachedRehypeKatex() {
   return cachedRehypeKatex;
@@ -66,7 +62,7 @@ export function detectMathContent(value: string | undefined | null): boolean {
 }
 
 /** 剥掉外层 $$…$$ / \[…\] / $…$ / \(…\) 定界符,取公式本体。 */
-export function unwrapLatexDelimiters(source: string) {
+function unwrapLatexDelimiters(source: string) {
   const trimmed = source.trim();
   if (!trimmed) {
     return trimmed;

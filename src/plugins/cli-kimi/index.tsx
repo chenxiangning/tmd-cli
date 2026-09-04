@@ -53,7 +53,7 @@ function KimiGlyph({ size }: { size: number }) {
  *   openDiskSession 以 workspace.root 起进程,天然满足。
  */
 
-/** 标题展示最大长度(与 kernel/diskSessions 的通用规则一致)。 */
+/** 标题展示最大长度(与 cli-shared/diskSessions 的通用规则一致)。 */
 const TITLE_MAX_CHARS = 60;
 /** 扫描上限:fsCollectFiles 按 mtime 倒序,只解析最近 N 个会话的状态。 */
 const KIMI_SCAN_LIMIT = 200;

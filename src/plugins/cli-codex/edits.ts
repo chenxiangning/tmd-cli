@@ -17,8 +17,7 @@ import type { CliSessionEdit } from "@kernel/cli";
 import { normalizeEditPath } from "@kernel/editWatch";
 import { ipc } from "@kernel/ipc";
 
-/** 尾窗预算:apply_patch 补丁可很大(批量重构),覆盖到 2MB;超出漏报可接受。 */
-const TAIL_BYTES = 2 * 1024 * 1024;
+import { parseEditEventsFromText, readEditsTail } from "../cli-shared/sessionEdits";
 
 /** 补丁头:`*** Update File: path` / `*** Add File:` / `*** Delete File:`(行首锚定)。 */
 const PATCH_FILE = /^\*\*\* (?:Update|Add|Delete) File: (.+)$/;
@@ -52,23 +51,16 @@ function editEventsOf(entry: Record<string, unknown>, cwd: string): CliSessionEd
 
 /**
  * 从 codex rollout JSONL 文本提取写入事件(纯函数,可测)。
- * sinceTs = 水位线:只返回 ts > sinceTs 的事件(增量;坏行/窗口截断跳过)。
+ * sinceTs = 水位线:只返回 ts > sinceTs 的事件;循环契约见 cli-shared/sessionEdits.ts。
  */
 export function parseCodexEditEvents(text: string, sinceTs: number, cwd: string): CliSessionEdit[] {
-  const out: CliSessionEdit[] = [];
-  for (const line of text.split("\n")) {
-    if (!line.startsWith('{"type":"response_item"')) continue;
-    let entry: Record<string, unknown>;
-    try {
-      entry = JSON.parse(line) as Record<string, unknown>;
-    } catch {
-      continue; // 尾窗截断的坏行
-    }
-    for (const event of editEventsOf(entry, cwd)) {
-      if (event.ts > sinceTs) out.push(event);
-    }
-  }
-  return out;
+  return parseEditEventsFromText(
+    text,
+    sinceTs,
+    cwd,
+    (line) => line.startsWith('{"type":"response_item"'),
+    editEventsOf,
+  );
 }
 
 /** 定位会话 rollout 文件:全量收集文件名按 id 匹配,命中后缓存。 */
@@ -92,9 +84,5 @@ export async function readCodexSessionEdits(
   cliSessionId: string,
   sinceTs: number,
 ): Promise<CliSessionEdit[] | null> {
-  const path = await locateRollout(cliSessionId);
-  if (!path) return [];
-  const tail = await ipc.fsReadTail(path, TAIL_BYTES).catch(() => null);
-  if (tail === null) return null;
-  return parseCodexEditEvents(tail, sinceTs, cwd);
+  return readEditsTail(await locateRollout(cliSessionId), sinceTs, cwd, parseCodexEditEvents);
 }

@@ -21,6 +21,7 @@ export const gitPlugin: Plugin = {
       icon: GitBranch,
       component: GitPanel,
       toolbar: GitToolbar,
+      showFileSubbar: false, // git 面板自带聚合行(分支 · ±统计 · 文件数)
     });
     // 提交 diff tab + 工作区 diff tab:右栏点文件 → 编辑器区打开(同 checkpoints 批审阅单模式)
     ctx.contribute("editorCenter.tabContent", {

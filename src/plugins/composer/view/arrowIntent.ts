@@ -9,9 +9,9 @@
  * 幕布拿到焦点后按键经 PTY 原生透传,语义(历史/选择)归各 CLI 自行解释。
  */
 
-export type ArrowIntent = "handoff" | "default";
+type ArrowIntent = "handoff" | "default";
 
-export interface ArrowIntentInput {
+interface ArrowIntentInput {
   key: string;
   /** 当前输入框文本(trim 判空)。 */
   value: string;

@@ -72,14 +72,14 @@ const LANGUAGE_ICON_BUCKETS: Record<string, LucideIcon> = {
   less: Hash,
 };
 
-export function getCodeBlockLanguageIcon(languageTag: string | null): LucideIcon {
+function getCodeBlockLanguageIcon(languageTag: string | null): LucideIcon {
   if (!languageTag) {
     return Code;
   }
   return LANGUAGE_ICON_BUCKETS[languageTag.trim().toLowerCase()] ?? FileCode;
 }
 
-export function CodeBlockLanguageBadge({
+function CodeBlockLanguageBadge({
   languageTag,
   label,
   title,
@@ -98,7 +98,7 @@ export function CodeBlockLanguageBadge({
 }
 
 /** 复制按钮:Copy 图标,成功变 Check 1.2s。 */
-export function CodeBlockCopyButton({ value }: { value: string }) {
+function CodeBlockCopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   const copyTimeoutRef = useRef<number | null>(null);
 

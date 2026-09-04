@@ -14,7 +14,7 @@ import {
 } from "@kernel/settings";
 
 /** 提交结果:ok 携带写入值;拒绝携带行内提示。 */
-export type BudgetCommitResult =
+type BudgetCommitResult =
   | { ok: true; value: SessionListBudget }
   | { ok: false; hint: string };
 

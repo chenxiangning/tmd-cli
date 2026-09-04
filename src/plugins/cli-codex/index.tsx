@@ -4,7 +4,7 @@ import {
   findJsonlSessionFile,
   readUserMessagesFromFile,
 } from "../cli-shared/userMessages";
-import { extractJsonlTitle } from "@kernel/diskSessions";
+import { extractJsonlTitle } from "../cli-shared/diskSessions";
 import { pathsEqual } from "@kernel/pathUtils";
 import { getPlatformKind } from "@kernel/platform";
 import { readCodexSessionEdits } from "./edits";

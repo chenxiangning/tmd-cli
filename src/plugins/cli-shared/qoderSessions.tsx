@@ -10,7 +10,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
-import { extractJsonlTitle } from "@kernel/diskSessions";
+import { extractJsonlTitle } from "./diskSessions";
 import type { CliDiskSession, CliProfile, CliSessionStatus } from "@kernel/cli";
 import { qoderUserMessageLine, readUserMessagesFromFile } from "./userMessages";
 import { parseClaudeFamilySessionHead } from "./sessionIdentity";
@@ -25,7 +25,7 @@ export function qoderProjectSlug(cwd: string): string {
 }
 
 /** cwd → 该分发版的会话目录;home 取不到 = null(不猜)。 */
-export async function qoderSessionsDir(
+async function qoderSessionsDir(
   dataDirName: string,
   cwd: string,
 ): Promise<string | null> {

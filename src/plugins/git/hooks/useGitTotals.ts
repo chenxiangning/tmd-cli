@@ -11,7 +11,7 @@ import { ipc, type GitTotals } from "@kernel/ipc";
 
 const SLOW_POLL_MS = 60_000;
 
-export interface GitTotalsState {
+interface GitTotalsState {
   data: GitTotals | null;
   /** 返回在途 promise,调用方据此驱动「刷新中」反馈(如顶栏 ⟳ 转圈)。 */
   refresh: () => Promise<void>;

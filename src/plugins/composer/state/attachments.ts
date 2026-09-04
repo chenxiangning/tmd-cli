@@ -13,7 +13,7 @@
  * (textarea 内部是 text node,MutationObserver 抓不到字符级删除)。
  */
 
-export type AttachmentKind = "image" | "pdf" | "code" | "file";
+type AttachmentKind = "image" | "pdf" | "code" | "file";
 
 export interface Attachment {
   id: string;

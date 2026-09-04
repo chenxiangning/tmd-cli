@@ -8,7 +8,7 @@
 
 import { useSyncExternalStore } from "react";
 
-export interface ProxyPopoverState {
+interface ProxyPopoverState {
   open: boolean;
   /** 锚点坐标(视口系,来自侧栏按钮 rect,浮层渲染时自行夹取)。 */
   x: number;

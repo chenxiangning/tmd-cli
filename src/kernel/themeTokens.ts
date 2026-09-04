@@ -10,7 +10,7 @@
 import type { DiffTokens, SyntaxTokens, ThemePresetDefinition } from "./themePresets";
 
 /** `--tmd-*` 变量名 → 颜色值。 */
-export type ThemeCssVariableMap = Record<`--tmd-${string}`, string>;
+type ThemeCssVariableMap = Record<`--tmd-${string}`, string>;
 
 // ── 颜色工具(与 codemoss utils/colorUtils 同算法) ──────────────────────────
 

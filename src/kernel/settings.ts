@@ -42,7 +42,7 @@ export interface SessionListBudget {
 }
 
 /** 显示总数合法域:1–100,默认 20(4 个 CLI 均分 ≈ 每组 5 条)。 */
-export const SESSION_LIST_TOTAL_DEFAULT = 20;
+const SESSION_LIST_TOTAL_DEFAULT = 20;
 export const SESSION_LIST_TOTAL_MIN = 1;
 export const SESSION_LIST_TOTAL_MAX = 100;
 
@@ -175,7 +175,7 @@ const SESSION_TITLES_MAX_ENTRIES = 500;
 const SESSION_TITLE_MAX_LENGTH = 200;
 
 /** 会话命名清洗:只收非空 key + 非空字符串值,截断超长标题,按 key 序限量纳入。 */
-export function sanitizeSessionTitles(raw: unknown): Record<string, string> {
+function sanitizeSessionTitles(raw: unknown): Record<string, string> {
   const titles: Record<string, string> = {};
   if (!raw || typeof raw !== "object") return titles;
   const entries = raw as Record<string, unknown>;
@@ -194,7 +194,7 @@ const SESSION_PINS_MAX_ENTRIES = 200;
 const SESSION_PIN_SCOPES: readonly SessionPinScope[] = ["global", "workspace"];
 
 /** 置顶清洗:只收合法 scope + 有限非负时间戳的项,标题截断,按 key 序限量纳入。 */
-export function sanitizeSessionPins(raw: unknown): Record<string, SessionPinEntry> {
+function sanitizeSessionPins(raw: unknown): Record<string, SessionPinEntry> {
   const pins: Record<string, SessionPinEntry> = {};
   if (!raw || typeof raw !== "object") return pins;
   const entries = raw as Record<string, unknown>;

@@ -32,7 +32,7 @@ export type ThemePresetId =
   | "vscode-tokyo-night"
   | "vscode-rose-pine";
 
-export type VsCodeThemeColors = Record<string, string>;
+type VsCodeThemeColors = Record<string, string>;
 
 export interface SyntaxTokens {
   keyword: string;

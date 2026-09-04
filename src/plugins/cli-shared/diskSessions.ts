@@ -1,13 +1,15 @@
 /**
- * jsonl 会话目录扫描 —— omp/pi 共用的磁盘文件格式:
- * `<dir>/<iso-ts>_<uuid>.jsonl`,会话 id 从文件名解析。
+ * jsonl 会话磁盘格式共享库 —— 标题行型提取 + 目录扫描,供 cli-* 插件与
+ * workspace(钉选会话列表)消费。原居 kernel/diskSessions.ts,因 extractJsonlTitle
+ * 内含 omp/pi/claude/codex 四家私有行型知识,违反「内核不理解 CLI 私有格式」
+ * 铁律,2026-09-04 下沉至 cli-shared(kernel 不得 import plugins,无法反向引用)。
  *
- * 目录约定(slug 规则/根路径)由各 CLI 插件自己声明 —— 那是 CLI 私有知识;
- * 本 helper 只管"这层目录里的 jsonl 文件 → CliDiskSession"的通用解析。
+ * 目录约定(slug 规则/根路径)由各 CLI 插件自己声明;本库只管
+ * "jsonl 文件内容 → 标题 / CliDiskSession"的行型解析。
  */
 
-import type { CliDiskSession } from "./cli";
-import { ipc } from "./ipc";
+import type { CliDiskSession } from "@kernel/cli";
+import { ipc } from "@kernel/ipc";
 
 /** 标题展示最大长度:超出截断补省略号。 */
 const TITLE_MAX_CHARS = 60;

@@ -31,7 +31,7 @@ const MISS_FLASH_MS = 1200;
 /** 邻近渐变的最大距离:is-proximity-0..3。 */
 const PROXIMITY_RANGE = 3;
 
-export interface VisibleAnchor {
+interface VisibleAnchor {
   anchor: UserMessageAnchor;
   /** 在完整列表里的序号(预览卡 N. 标题来源)。 */
   index: number;

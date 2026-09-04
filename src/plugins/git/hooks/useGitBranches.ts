@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ipc, type GitBranchList } from "@kernel/ipc";
 import { gitErrorMessage } from "../gitError";
 
-export interface GitBranchesState {
+interface GitBranchesState {
   data: GitBranchList | null;
   loading: boolean;
   error: string | null;

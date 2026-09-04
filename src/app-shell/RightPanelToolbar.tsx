@@ -177,7 +177,7 @@ function PanelOverflowMenu({
 /* ──────────────────────────────────────────────────────────
  * 第 2 行:workspace label + 文件操作按钮。
  * ────────────────────────────────────────────────────────── */
-export function WorkspaceSubbar() {
+function WorkspaceSubbar() {
   const { list, activeId } = useWorkspaces();
   const active = list.find((w) => w.id === activeId) ?? list[0];
   const root = active?.root;
@@ -258,15 +258,15 @@ export function WorkspaceSubbar() {
 }
 
 /* ──────────────────────────────────────────────────────────
- * 兼容旧调用 ─ 内部用,渲染 WorkspaceSubbar(panel tabs 已挪到 TopBarPanelTabs)。
+ * AppShell 右栏 aside 的渲染入口(panel tabs 已挪到 TopBarPanelTabs)。
  * ────────────────────────────────────────────────────────── */
 /* memo 兜底:无 props,父级(AppShell 右栏 aside)重渲染时不再连带重渲染。 */
 export const RightPanelToolbar = memo(function RightPanelToolbar() {
-  /* git 面板自带聚合行(分支 · ±统计 · 文件数);checkpoints 自带审批线摘要行
-     (审批线 · 批次规模 · 待审计数);ssh 自带连接/转发/SFTP 三段 ——
-     workspace 文件行只服务文件面板 */
-  const { mode } = useFilePanel();
-  if (mode === "git" || mode === "checkpoints" || mode === "ssh") return null;
+  /* 是否显示 workspace 文件行由面板注册时自声明(showFileSubbar,缺省 true)——
+     外壳不认识任何业务面板 id。 */
+  const { mode, panels } = useFilePanel();
+  const show = panels.find((p) => p.id === mode)?.showFileSubbar !== false;
+  if (!show) return null;
   return (
     <div className="right-panel-toolbar">
       <WorkspaceSubbar />

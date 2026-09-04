@@ -3,7 +3,7 @@
  * 刻意极简：字符串 topic + 任意负载，类型安全靠各插件自定义窄接口。
  */
 
-export type EventHandler<T = unknown> = (payload: T) => void;
+type EventHandler<T = unknown> = (payload: T) => void;
 
 export class EventBus {
   private handlers = new Map<string, Set<EventHandler>>();

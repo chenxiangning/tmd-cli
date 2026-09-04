@@ -10,7 +10,7 @@
 import type { ComponentType, ReactNode } from "react";
 import { useSyncExternalStore } from "react";
 
-export interface SettingsTabContribution {
+interface SettingsTabContribution {
   /** section 内唯一,如 "appearance"。 */
   id: string;
   title: string;

@@ -3,7 +3,7 @@ import {
   claudeUserMessageLine,
   readUserMessagesFromFile,
 } from "../cli-shared/userMessages";
-import { extractJsonlTitle } from "@kernel/diskSessions";
+import { extractJsonlTitle } from "../cli-shared/diskSessions";
 import { parseClaudeFamilySessionHead } from "../cli-shared/sessionIdentity";
 import type { CliDiskSession, CliProfile, CliSessionStatus, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
@@ -201,7 +201,7 @@ async function listClaudeMcpServers(cwd: string): Promise<CliSuggestion[] | null
  * 批次比漏记更伤审批线可信度)。长路径截断(`…`)的行不匹配 → 漏报
  * 自愈为普通 dirty,不误报。
  */
-export const CLAUDE_EDIT_MARKS: RegExp[] = [
+const CLAUDE_EDIT_MARKS: RegExp[] = [
   /^\s*⏺\s+(?:Update|Write|Edit|NotebookEdit)\((.+)\)\s*$/,
   /^\s*\*\*\*\s+(?:Update|Add|Delete)\s+File:\s*(.+?)\s*$/,
 ];

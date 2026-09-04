@@ -11,9 +11,9 @@
  *   code/markdown 不引入低成本降级 —— md 管线已单独优化,文本读取侧 Rust 已有 512KB 闸。
  */
 
-export type StructuredPreviewKind = "shell" | "dockerfile";
+type StructuredPreviewKind = "shell" | "dockerfile";
 
-export type FileRenderKind =
+type FileRenderKind =
   | "image"
   | "markdown"
   | "structured"
@@ -24,7 +24,7 @@ export type FileRenderKind =
   | "document"
   | "binary-unsupported";
 
-export type FilePreviewMode =
+type FilePreviewMode =
   | "image-preview"
   | "markdown-preview"
   | "structured-preview"
@@ -35,7 +35,7 @@ export type FilePreviewMode =
   | "document-preview"
   | "binary-unsupported";
 
-export type FileRenderProfile = {
+type FileRenderProfile = {
   kind: FileRenderKind;
   previewMode: FilePreviewMode;
   extension: string | null;
@@ -85,7 +85,7 @@ const SHELL_SCRIPT_FILENAMES: Record<string, true> = {
   ".profile": true, profile: true,
 };
 
-export function normalizeRenderLookupPath(path?: string | null) {
+function normalizeRenderLookupPath(path?: string | null) {
   return (path ?? "").replace(/\\/g, "/");
 }
 
@@ -103,17 +103,17 @@ export function fileExtensionFromPath(path?: string | null) {
   return fileName.slice(dotIndex + 1);
 }
 
-export function isImagePath(path?: string | null) {
+function isImagePath(path?: string | null) {
   const ext = fileExtensionFromPath(path);
   return ext != null && IMAGE_EXTENSIONS[ext] === true;
 }
 
-export function isPdfPath(path?: string | null) {
+function isPdfPath(path?: string | null) {
   const ext = fileExtensionFromPath(path);
   return ext != null && PDF_EXTENSIONS[ext] === true;
 }
 
-export function isTabularPath(path?: string | null) {
+function isTabularPath(path?: string | null) {
   const ext = fileExtensionFromPath(path);
   return (
     ext != null &&
@@ -127,12 +127,12 @@ export function isTabularBinaryPath(path?: string | null) {
   return ext != null && TABULAR_BINARY_EXTENSIONS[ext] === true;
 }
 
-export function isDocumentPath(path?: string | null) {
+function isDocumentPath(path?: string | null) {
   const ext = fileExtensionFromPath(path);
   return ext != null && DOCUMENT_EXTENSIONS[ext] === true;
 }
 
-export function isBinaryPath(path?: string | null) {
+function isBinaryPath(path?: string | null) {
   const ext = fileExtensionFromPath(path);
   return ext != null && BINARY_EXTENSIONS[ext] === true;
 }

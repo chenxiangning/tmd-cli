@@ -60,6 +60,7 @@ export const sshPlugin: Plugin = {
       label: "SSH",
       icon: Server,
       order: 15,
+      showFileSubbar: false, // ssh 自带连接/转发/SFTP 摘要段
       component: SshPanel,
     });
     ctx.registerSettingsSection({

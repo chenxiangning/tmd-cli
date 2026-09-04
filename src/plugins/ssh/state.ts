@@ -18,7 +18,7 @@ import {
   type SshSessionEvent,
 } from "@kernel/ipc";
 
-export interface SshSessionView {
+interface SshSessionView {
   status: string;
   message?: string;
   forwards: SshForwardInfo[];

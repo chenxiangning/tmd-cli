@@ -28,7 +28,7 @@ interface TreeNode {
 }
 
 /** 远端编辑 tab 打开入口(tab.id = ssh://{sessionId}{path},kind = "ssh-file")。 */
-export function openRemoteFileTab(sessionId: string, entry: SftpEntry) {
+function openRemoteFileTab(sessionId: string, entry: SftpEntry) {
   openTab(
     {
       id: `ssh://${sessionId}${entry.path}`,

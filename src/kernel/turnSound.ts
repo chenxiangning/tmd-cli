@@ -14,13 +14,13 @@ import { playAskSound } from "./askSound";
 import { host } from "./host";
 
 /** 延迟确认窗口:结算后静默至此仍未被查看、无新输出,才认定"这轮真结束了"。 */
-export const TURN_END_CONFIRM_MS = 3_000;
+const TURN_END_CONFIRM_MS = 3_000;
 
 /** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅内部持有。 */
 type TimerHandle = ReturnType<typeof setTimeout>;
 
 /** 确认依赖(host 查询 + 播放);注入化仅为可测,生产默认绑 host 单例。 */
-export interface TurnSoundDeps {
+interface TurnSoundDeps {
   isUnread(sessionId: string): boolean;
   getLastActivityAt(sessionId: string): number;
   play(soundId: unknown): void;

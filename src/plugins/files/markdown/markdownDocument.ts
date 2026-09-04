@@ -8,19 +8,19 @@
  * - 无 rendererProfile 维度(单一 GitHub 风格 profile)。
  */
 
-export type FileMarkdownFrontmatterField = {
+type FileMarkdownFrontmatterField = {
   key: string;
   value: string;
 };
 
-export type FileMarkdownDocumentBlock = {
+type FileMarkdownDocumentBlock = {
   key: string;
   markdown: string;
   startLine: number;
   endLine: number;
 };
 
-export type CompiledFileMarkdownDocument = {
+type CompiledFileMarkdownDocument = {
   cacheKey: string;
   contentHash: string;
   documentKey: string;

@@ -61,7 +61,7 @@ function normalizePathSegments(path: string) {
   return `${isAbsolute ? "/" : ""}${resolvedSegments.join("/")}`;
 }
 
-export function resolveLocalImagePath(src: string, sourceFilePath?: string | null) {
+function resolveLocalImagePath(src: string, sourceFilePath?: string | null) {
   const cleaned = stripMarkdownImageDecorators(src);
   if (!cleaned || BROWSER_LOADABLE_IMAGE_SRC_REGEX.test(cleaned)) {
     return null;

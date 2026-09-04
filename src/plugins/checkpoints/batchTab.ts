@@ -6,9 +6,9 @@
 
 import { openTab, type EditorTab } from "@kernel/tabs";
 
-export const BATCH_TAB_KIND = "ckpt-batch";
+const BATCH_TAB_KIND = "ckpt-batch";
 
-export interface BatchTabPayload {
+interface BatchTabPayload {
   cwd: string;
   sessionId: string;
   /** tmd 会话 id(副键;首锚点落在 CLI 身份绑定前的查询兜底) */

@@ -13,7 +13,7 @@ import type { SettingsSectionContribution } from "./settingsRegistry";
 export type PluginCategory = "engine" | "feature" | "core";
 
 /** 插件展示元数据 —— 插件市场(插排页)消费,与激活逻辑无关。 */
-export interface PluginMeta {
+interface PluginMeta {
   /** 显示名,如 "Claude Code"。 */
   name: string;
   /** 一句话能力描述,市场页卡片用。 */

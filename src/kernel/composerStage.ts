@@ -16,7 +16,7 @@
 
 import { useSyncExternalStore } from "react";
 
-export type ComposerStage = "expanded" | "normal" | "compact" | "collapsed";
+type ComposerStage = "expanded" | "normal" | "compact" | "collapsed";
 
 /** 段序:展开端 → 收起端。转移 = 沿此数组移动一格,两端截断。 */
 const STAGE_ORDER: readonly ComposerStage[] = ["expanded", "normal", "compact", "collapsed"];
@@ -35,7 +35,7 @@ export const COMPOSER_STAGE_SIZE: Record<ComposerStage, number> = {
  */
 export const COMPOSER_RESIZE_STEP = 5;
 
-export const DEFAULT_COMPOSER_STAGE: ComposerStage = "normal";
+const DEFAULT_COMPOSER_STAGE: ComposerStage = "normal";
 
 let stage: ComposerStage = DEFAULT_COMPOSER_STAGE;
 const listeners = new Set<() => void>();

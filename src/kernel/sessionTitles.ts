@@ -19,16 +19,6 @@ export function sessionTitleKey(profileId: string, cliSessionId: string): string
   return `${profileId}:${cliSessionId}`;
 }
 
-/** 读取手动命名;未命名返回 undefined。 */
-export function getSessionTitle(
-  profileId: string,
-  cliSessionId: string,
-): string | undefined {
-  return getSettingsState().settings.sessionTitles[
-    sessionTitleKey(profileId, cliSessionId)
-  ];
-}
-
 /** 写入/更新手动命名(空标题 = 删除,回归磁盘原生标题)。 */
 export function setSessionTitle(
   profileId: string,

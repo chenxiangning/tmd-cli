@@ -13,7 +13,7 @@
  * —— 实时流里的查询应答是 CLI 正在等待的,不可丢。
  * 计数制(arm/release 配对):挂载回放与翻页重写交叠时不互相误放。
  */
-export interface ReplayInputGate {
+interface ReplayInputGate {
   /** 重写历史前调用;末段 write 回调(或异常兜底)里 release。 */
   arm(): void;
   release(): void;

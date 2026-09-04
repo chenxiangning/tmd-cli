@@ -11,7 +11,7 @@
 
 import { ipc } from "@kernel/ipc";
 
-export interface FilePayload {
+interface FilePayload {
   path: string;
   content: string | null;
   error: string | null;

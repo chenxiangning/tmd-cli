@@ -71,7 +71,7 @@ async function grokSessionsDir(cwd: string): Promise<string | null> {
 }
 
 /** summary.json 的解析结果(纯数据,可测)。 */
-export interface GrokSummary {
+interface GrokSummary {
   title?: string;
   model?: string;
   /** updated_at(优先)或 last_active_at 的 ms epoch;解析失败 = undefined。 */

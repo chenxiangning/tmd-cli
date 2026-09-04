@@ -42,6 +42,7 @@ export const checkpointsPlugin: Plugin = {
       label: "审批线",
       icon: History,
       component: CheckpointsPanel,
+      showFileSubbar: false, // 审批线自带摘要行(审批线 · 批次规模 · 待审计数)
       order: 10,
     });
     ctx.contribute("editorCenter.tabContent", {

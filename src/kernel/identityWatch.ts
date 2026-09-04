@@ -41,7 +41,7 @@ interface PendingIdentity {
 }
 
 /** host 注入的会话表/绑定表访问与绑定回调(闭包随用随取,免循环持锁)。 */
-export interface DiskIdentityContext {
+interface DiskIdentityContext {
   getCliProfile: (profileId: string) => CliProfile | undefined;
   /** 会话仍存活(removeSession 已清则探测自然终止)。 */
   sessionAlive: (sessionId: string) => boolean;

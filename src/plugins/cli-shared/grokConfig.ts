@@ -13,7 +13,7 @@
  */
 
 /** [model."<id>"] 档案块 —— 状态栏与 quota 凭据的共同数据源。 */
-export interface GrokModelProfile {
+interface GrokModelProfile {
   /** 档案 id([models].default,内置兜底 "grok")。 */
   id: string;
   /** 真实 wire 模型;档案块缺失/未写时 = id 本身。 */

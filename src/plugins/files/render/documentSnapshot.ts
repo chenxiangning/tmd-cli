@@ -5,7 +5,7 @@
  * 消费方:结构化预览的超限回退(只展示前 N 行)、表格/文档预算度量。
  */
 
-export type FileDocumentLineRange = {
+type FileDocumentLineRange = {
   start: number;
   end: number;
 };

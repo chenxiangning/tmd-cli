@@ -48,7 +48,7 @@ function displayName(item: DrawerItem): string {
   return item.name;
 }
 
-export interface CommandDrawerProps {
+interface CommandDrawerProps {
   open: boolean;
   items: DrawerItem[];
   /** 直接发送;返回实际写入文本供 toast 展示(translate 后的 wire)。 */

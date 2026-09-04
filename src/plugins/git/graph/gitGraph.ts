@@ -22,10 +22,10 @@ export const GIT_GRAPH_INCOMING_CHANGES_ID = "scm-graph-incoming-changes";
 export const GIT_GRAPH_OUTGOING_CHANGES_ID = "scm-graph-outgoing-changes";
 
 export type GraphColor = number | string;
-export type GraphRowKind = "commit" | "incoming-changes" | "outgoing-changes";
+type GraphRowKind = "commit" | "incoming-changes" | "outgoing-changes";
 
 /** 一条贯穿行的泳道:id = 该 lane 当前流向的提交 sha。 */
-export type GraphLane = {
+type GraphLane = {
   id: string;
   color: GraphColor;
 };
@@ -45,14 +45,14 @@ export type GraphRow = {
   isMerge: boolean;
 };
 
-export type GitGraphCommit = {
+type GitGraphCommit = {
   sha: string;
   parents: readonly string[];
   /** 指向本提交的 ref 装饰名(HEAD -> main / main / origin/main / tag: v1) */
   refs?: readonly string[];
 };
 
-export type GitGraphOptions = {
+type GitGraphOptions = {
   /** 当前所在分支名(status.branch;detached 传空串则首行视为 head) */
   currentRef?: string;
   /** 上游分支名(如 origin/main) */

@@ -75,7 +75,7 @@ async function toCredential(
     };
   }
 }
-/* ── omp(agent.db provider 列表) ───────────────────────── */
+/* ── omp(agent.db provider 列表 + 凭据数据) ──────────────── */
 
 /** JSON.parse 容错:磁盘文件可能截断/损坏,裸抛会让整个凭据区静默消失
  *  (调用方 CredentialList 无 catch,还附带 unhandled rejection)。 */
@@ -87,7 +87,7 @@ function parseJsonLoose(raw: string | null): Record<string, unknown> | null {
     return null;
   }
 }
-/* ── omp(agent.db provider 列表) ───────────────────────── */
+
 
 function parseCredentialData(raw: string): VendorCredential {
   const parsed = parseJsonLoose(raw);
@@ -99,7 +99,7 @@ function parseCredentialData(raw: string): VendorCredential {
   };
 }
 
-export async function listOmpCredentials(): Promise<EngineCredential[]> {
+async function listOmpCredentials(): Promise<EngineCredential[]> {
   const providers = await ipc.ompAuthProviders().catch(() => [] as string[]);
   const out: EngineCredential[] = [];
   for (const providerId of providers) {
@@ -135,7 +135,7 @@ export async function listOmpCredentials(): Promise<EngineCredential[]> {
 
 /* ── pi(auth.json provider keys) ───────────────────────── */
 
-export async function listPiCredentials(): Promise<EngineCredential[]> {
+async function listPiCredentials(): Promise<EngineCredential[]> {
   const home = await ipc.configHomeDir().catch(() => null);
   if (!home) return [];
   const raw = await ipc.fsReadFile(`${home}/.pi/agent/auth.json`).catch(() => null);
@@ -155,7 +155,7 @@ export async function listPiCredentials(): Promise<EngineCredential[]> {
 
 /* ── codex(auth.json OAuth → 本地快照) ─────────────────── */
 
-export async function listCodexCredentials(): Promise<EngineCredential[]> {
+async function listCodexCredentials(): Promise<EngineCredential[]> {
   const home = await ipc.configHomeDir().catch(() => null);
   if (!home) return [];
   const raw = await ipc.fsReadFile(`${home}/.codex/auth.json`).catch(() => null);
@@ -187,7 +187,7 @@ export async function listCodexCredentials(): Promise<EngineCredential[]> {
 
 /* ── claude(settings.json env → vendor 检测) ───────────── */
 
-export async function listClaudeCredentials(): Promise<EngineCredential[]> {
+async function listClaudeCredentials(): Promise<EngineCredential[]> {
   const home = await ipc.configHomeDir().catch(() => null);
   if (!home) return [];
   const raw = await ipc.fsReadFile(`${home}/.claude/settings.json`).catch(() => null);
@@ -221,7 +221,7 @@ export async function listClaudeCredentials(): Promise<EngineCredential[]> {
 
 /* ── grok(config.toml 默认档案 → vendor 检测) ──────────── */
 
-export async function listGrokCredentials(): Promise<EngineCredential[]> {
+async function listGrokCredentials(): Promise<EngineCredential[]> {
   const home = await ipc.configHomeDir().catch(() => null);
   if (!home) return [];
   const raw = await ipc.fsReadFile(`${home}/.grok/config.toml`).catch(() => null);

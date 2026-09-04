@@ -47,7 +47,7 @@ export interface QuotaSnapshot {
 }
 
 /** 单个 CLI 的 quota 抓取器。 */
-export interface QuotaProvider {
+interface QuotaProvider {
   /** 对应的 CLI profileId (例 "pi" / "omp" / "codex")。 */
   profileId: string;
   /** 抓取当前 CLI 的 quota。失败时 throw。 */

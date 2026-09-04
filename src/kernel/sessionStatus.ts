@@ -17,7 +17,7 @@ import type { CliProfile, CliSessionStatus } from "./cli";
 type TimerHandle = ReturnType<typeof setInterval>;
 
 /** host 侧最小依赖面(箭头函数惰性绑定,避免整 host 的构造顺序耦合)。 */
-export interface SessionStatusHost {
+interface SessionStatusHost {
   getActiveSessionId(): string | null;
   findSession(sessionId: string): { profileId: string; cwd: string } | undefined;
   hasSession(sessionId: string): boolean;

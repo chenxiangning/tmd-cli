@@ -78,7 +78,7 @@ function parseRelayWindowObject(item: Record<string, unknown>): QuotaWindow | nu
   return window(RELAY_WINDOW_LABEL[id] ?? name ?? "窗口", pct, resetsAt);
 }
 
-export async function fetchSub2api(baseUrl: string, key: string): Promise<VendorQuota> {
+async function fetchSub2api(baseUrl: string, key: string): Promise<VendorQuota> {
   const body = (await httpJson({
     url: sub2apiUsageUrl(baseUrl),
     headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
@@ -151,7 +151,7 @@ export async function fetchSub2api(baseUrl: string, key: string): Promise<Vendor
   return quota;
 }
 
-export async function fetchNewApi(baseUrl: string, key: string): Promise<VendorQuota> {
+async function fetchNewApi(baseUrl: string, key: string): Promise<VendorQuota> {
   const body = (await httpJson({
     url: `${relayOrigin(baseUrl)}/api/user/self`,
     headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },

@@ -19,7 +19,7 @@ import {
   toEditorContent,
 } from "./fileCache";
 
-export interface FileDocState {
+interface FileDocState {
   content: string;
   dirty: boolean;
   saving: boolean;

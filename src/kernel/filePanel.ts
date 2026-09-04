@@ -36,13 +36,17 @@ export interface FilePanelContribution {
   /** 新建文件/文件夹(可选):顶栏对应按钮点击时调用;缺省按钮置灰。 */
   newFile?: () => void;
   newFolder?: () => void;
+  /** 是否显示外壳 workspace 文件操作行(路径 + 新建/刷新);缺省 true。
+   * 自带摘要行的面板(git 聚合行 / checkpoints 审批线摘要 / ssh 连接段)声明 false ——
+   * 外壳不认识任何业务面板,可见性由面板自己声明,不硬编码 id。 */
+  showFileSubbar?: boolean;
   /** tab 排序,小的在前;缺省 0。 */
   order?: number;
   /** 注册即钉到 toolbar;缺省 true。 */
   pinnedByDefault?: boolean;
 }
 
-export interface FilePanelState {
+interface FilePanelState {
   /** 已注册面板(按 order 升序);数组不可变,注册时整体替换。 */
   panels: readonly FilePanelContribution[];
   /** 当前激活面板 id;首个注册面板自动成为初始激活。 */

@@ -12,7 +12,7 @@
  * - composer 插件:drop 时 readDragPayload() + 用完 clearDragPayload()
  */
 
-export interface InternalDragPayload {
+interface InternalDragPayload {
   path: string;
   isDir: boolean;
   name: string;

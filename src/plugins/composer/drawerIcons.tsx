@@ -42,7 +42,7 @@ export const DRAWER_ICONS: Record<string, DrawerIconComponent> = {
 };
 
 /** 插件等无语义图标的条目兜底。 */
-export const DrawerFallbackIcon = Puzzle;
+const DrawerFallbackIcon = Puzzle;
 
 /** 各分区缺省 glyph(无任何图标可解析时)。 */
 export const SECTION_GLYPHS: Record<string, string> = {

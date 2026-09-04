@@ -9,7 +9,7 @@ import {
 import { readOmpDefaultStatus } from "./configStatus";
 import { registerOmpQuotaProvider } from "./quota";
 import { ompSessionsDir, readOmpSessionEdits } from "./edits";
-import { scanJsonlSessions } from "@kernel/diskSessions";
+import { scanJsonlSessions } from "../cli-shared/diskSessions";
 import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 

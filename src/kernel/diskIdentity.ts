@@ -67,7 +67,7 @@ function sameCwd(a: string, b: string): boolean {
  *   createdAt)—— 弱缺席,调用方可退回水位线仲裁(该场景 = 文件 mtime ≈ spawn
  *   的即时落盘 CLI,水位线的 spawn 窗口配对本就准确)。
  */
-export type ContentIdentityResult =
+type ContentIdentityResult =
   | { kind: "matched"; id: string }
   | { kind: "unmatched" }
   | { kind: "unreadable" };

@@ -144,7 +144,7 @@ async function readPiLocalConfig(): Promise<PiLocalConfig> {
 
 /* ── 纯路由(可测)──────────────────────────────────────── */
 
-export interface PiRoute {
+interface PiRoute {
   providerId: string;
   vendor: VendorId;
   /** relay 探测需要;已知供应商为空。 */

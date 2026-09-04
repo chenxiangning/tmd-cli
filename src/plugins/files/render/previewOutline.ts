@@ -22,7 +22,7 @@ export type PreviewOutlineItem = {
   target: PreviewOutlineTarget;
 };
 
-export type DocumentPreviewOutlineResult = {
+type DocumentPreviewOutlineResult = {
   html: string;
   outline: PreviewOutlineItem[];
 };

@@ -22,7 +22,7 @@ import { isOutdated } from "./latestVersion";
 /** 日志滚动上限(行)。npm 全量输出数千行,只留尾部。 */
 const LOG_LINE_LIMIT = 200;
 
-export type ProbeStatus = "loading" | "ok" | "notFound" | "error";
+type ProbeStatus = "loading" | "ok" | "notFound" | "error";
 
 export interface EngineProbeState {
   status: ProbeStatus;

@@ -24,7 +24,7 @@ const KIND_META: Record<string, { label: string; char: string }> = {
   file: { label: "文件", char: "" },
 };
 
-export interface SuggestionListProps {
+interface SuggestionListProps {
   matches: SuggestionMatch[];
   pickIndex: number;
   onPick(match: SuggestionMatch): void;
