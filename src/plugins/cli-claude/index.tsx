@@ -8,6 +8,7 @@ import { parseClaudeFamilySessionHead } from "../cli-shared/sessionIdentity";
 import type { CliDiskSession, CliProfile, CliSessionStatus, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { registerClaudeQuotaProvider } from "./quota";
+import { listClaudeSuggestions } from "./scanSuggestions";
 
 /**
  * claude 品牌 glyph:官方日芒标志(simple-icons claude 矢量路径 vendored,
@@ -122,18 +123,6 @@ async function readClaudeSessionIdentity(path: string) {
   return head ? parseClaudeFamilySessionHead(head) : null;
 }
 
-/**
- * $ 触发符候选 = 用户真实安装的 skills(实证 ~/.claude/skills/<name>/SKILL.md,
- * 目录名即 skill 名)。omp/pi 用静态占位列表;claude 扫真实磁盘,不猜名字。
- * 仅扫 home 级(activate 时无 cwd,项目级 .claude/skills 留给 @ 文件触发)。
- * 读取失败 = 空候选,不阻塞激活。
- */
-async function listClaudeSkillSuggestions(): Promise<CliSuggestion[]> {
-  const home = await ipc.configHomeDir().catch(() => null);
-  if (!home) return [];
-  const entries = await ipc.fsListDir(`${home}/.claude/skills`).catch(() => []);
-  return entries.filter((e) => e.isDir).map((e) => ({ value: e.name }));
-}
 
 /**
  * / 命令候选(官方 slash-commands 高频项;action 初判见
@@ -226,9 +215,8 @@ export const cliClaudePlugin: Plugin = {
   activate(ctx) {
     // 注册 claude quota provider(settings.json env 凭据 → 供应商 HTTP 面)。
     registerClaudeQuotaProvider();
-    /* 激活不等待 skills 扫盘(2 次 IPC):先空候选同步注册,让 profile 立刻可用;
-       异步 hydrate 后就地回填同一对象 —— suggest.ts 每次按键都经 host.getCliProfile
-       读活引用,无需额外 notify。 */
+    /* 命令/技能真相:listSuggestions 磁盘扫描(commands/*.md + SKILL.md +
+       插件缓存,项目级优先),静态内置表兜底 —— 不再 activate 时 hydrate。 */
     const profile: CliProfile = {
       id: "claude",
       name: "claude",
@@ -248,6 +236,7 @@ export const cliClaudePlugin: Plugin = {
         command: CLAUDE_COMMAND_SUGGESTIONS,
         skill: [],
       },
+      listSuggestions: listClaudeSuggestions,
       listMcpServers: listClaudeMcpServers,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listClaudeSessions,
@@ -257,8 +246,5 @@ export const cliClaudePlugin: Plugin = {
       editMarks: CLAUDE_EDIT_MARKS,
     };
     ctx.registerCliProfile(profile);
-    void listClaudeSkillSuggestions().then((skills) => {
-      profile.suggestions = { ...profile.suggestions, skill: skills };
-    });
   },
 };

@@ -11,6 +11,7 @@ import { readPiDefaultStatus } from "./configStatus";
 import { registerPiQuotaProvider } from "./quota";
 import { scanJsonlSessions } from "../cli-shared/diskSessions";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
+import { listPiSuggestions } from "./rpcCommands";
 import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 
@@ -117,6 +118,8 @@ export const cliPiPlugin: Plugin = {
         command: PI_COMMAND_SUGGESTIONS,
         skill: PI_SKILL_SUGGESTIONS,
       },
+      /* 命令/技能真相:RPC 副车 get_commands(扩展命令+模板+技能),静态表兜底 */
+      listSuggestions: listPiSuggestions,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       /* pi 与 kimi 同源 pi-tui:编辑器原生解析 ESC[200~ 粘贴标记;声明后 composer
          发送走 bracketed paste,避开新版 TUI 的粘贴爆发回车吞没(见 kernel/cli.ts) */

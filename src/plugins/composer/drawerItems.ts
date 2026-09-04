@@ -1,8 +1,9 @@
 /**
  * 命令抽屉数据源 —— 四分区(命令/技能/MCP/插件)统一收口。
  *
- * 职责边界(proposal D1/D6/D7):
- * - command/skill:静态 suggestions 与 listSuggestions 择一,null/失败回退静态,60s TTL 缓存
+ * 职责边界(proposal D1/D6/D7;2026-09-04 起 command/skill 改为静态×动态合并):
+ * - command/skill:listSuggestions 动态发现(60s TTL 缓存)与静态 suggestions
+ *   按 value 去重合并(静态在前保留调校过的 action/token),动态 null/失败回退静态
  * - mcp:listMcpServers 声明式,无静态兜底,失败 = 分区为空;未声明 = 无此区
  * - plugin:内核 listPluginStates() ∩ feature 类,与 CLI 无关,不走缓存(启用态即时反映)
  * - 本模块不理解任何 CLI 语法;wire/插入文本由每项 action/token 声明
@@ -44,6 +45,19 @@ const cache = new Map<string, { at: number; items: CliSuggestion[] }>();
 /** 测试专用:清空 provider 结果缓存(静态表不经过缓存)。 */
 export function clearDrawerItemsCache(): void {
   cache.clear();
+}
+
+/**
+ * 静态表 × 动态发现合并(纯函数,suggest.ts 与抽屉共用):
+ * 静态在前(内置命令带调校过的 action/token,如 /model = 幕布内 picker),
+ * 动态按 value 去重后补后 —— 扩展注册命令、磁盘自定义项只增不顶替。
+ */
+export function mergeSuggestions(
+  declared: readonly CliSuggestion[],
+  dynamic: readonly CliSuggestion[],
+): CliSuggestion[] {
+  const seen = new Set(declared.map((s) => s.value));
+  return [...declared, ...dynamic.filter((s) => !seen.has(s.value))];
 }
 
 async function fetchKind(
@@ -93,6 +107,16 @@ function toItems(
 /** 静态表 → token 合成规则:命令 "/name ",技能 "$name "(发送时才走 translate)。 */
 function staticToken(section: "command" | "skill", s: CliSuggestion): string {
   return section === "command" ? `/${s.value} ` : `$${s.value} `;
+}
+
+/** profile 的静态抽屉条目(零 IO,同步)。Composer 两阶段渲染的第一拍:先上静态,动态到达后整体替换。 */
+export function staticProfileDrawerItems(profile: CliProfile): DrawerItem[] {
+  const items: DrawerItem[] = [];
+  for (const kind of ["command", "skill"] as const) {
+    if (!profile.triggers.some((t) => t.kind === kind)) continue;
+    items.push(...toItems(profile.suggestions?.[kind] ?? [], kind, (s) => staticToken(kind, s)));
+  }
+  return items;
 }
 
 /* ---------- 插件:内核注册表(feature 类),纯函数可测 ---------- */
@@ -145,10 +169,11 @@ export async function resolveProfileDrawerItems(
   for (const kind of ["command", "skill"] as const) {
     if (!profile.triggers.some((t) => t.kind === kind)) continue;
     const dynamic = await fetchKind(profile, kind, cwd);
-    const list = dynamic.length > 0
-      ? dynamic
-      : (profile.suggestions?.[kind] ?? []);
-    items.push(...toItems(list, kind, (s) => staticToken(kind, s)));
+    items.push(
+      ...toItems(mergeSuggestions(profile.suggestions?.[kind] ?? [], dynamic), kind, (s) =>
+        staticToken(kind, s),
+      ),
+    );
   }
   if (profile.listMcpServers) {
     const servers = await fetchKind(profile, "mcp", cwd);

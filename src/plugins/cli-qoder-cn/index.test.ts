@@ -29,7 +29,11 @@ describe("cli-qoder-cn 插件契约(国内版)", () => {
     expect(profile.id).toBe("qoder-cn");
     expect(profile.command).toBe("qoderclicn");
     expect(profile.args).toEqual([]);
-    expect(profile.triggers).toEqual([{ char: "/", kind: "command" }]);
+    expect(profile.triggers).toEqual([
+      { char: "/", kind: "command" },
+      { char: "$", kind: "skill", translate: expect.any(Function) },
+    ]);
+    expect(profile.listSuggestions).toBeDefined();
     expect(profile.resumeArgs?.("abc-uuid")).toEqual(["--resume", "abc-uuid"]);
     expect(profile.listSessions).toBeDefined();
     expect(profile.readSessionStatus).toBeDefined();

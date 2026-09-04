@@ -11,6 +11,7 @@ import { registerOmpQuotaProvider } from "./quota";
 import { ompSessionsDir, readOmpSessionEdits } from "./edits";
 import { scanJsonlSessions } from "../cli-shared/diskSessions";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
+import { listOmpSuggestions } from "./rpcCommands";
 import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 
@@ -125,6 +126,8 @@ export const cliOmpPlugin: Plugin = {
         command: OMP_COMMAND_SUGGESTIONS,
         skill: OMP_SKILL_SUGGESTIONS,
       },
+      /* 命令/技能真相:RPC 副车 get_available_commands(含扩展注册命令与子命令),静态表兜底 */
+      listSuggestions: listOmpSuggestions,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listOmpSessions,
       readSessionStatus: readOmpSessionStatus,

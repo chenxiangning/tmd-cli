@@ -7,11 +7,14 @@ import {
   readQoderSessionStatus,
   readQoderUserMessages,
 } from "../cli-shared/qoderSessions";
+import { listQoderSuggestions } from "../cli-shared/qoderSuggestions";
 import type { Plugin } from "@kernel/plugin";
 
 /**
  * Qoder CLI(国际版)插件(本机 qodercli 1.1.33 实证,2026-09-02):
- * - `/` 内置 skill 原生 /name 语法,纯透传;`@`/`$` 未实证,不声明(不猜接口)。
+ * - `/` 内置与自定义命令均原生 /name 语法,纯透传;`$` 技能手动触发同为
+ *   /<name>(docs.qoder.com/cli/Skills),发送时翻译(同 claude 方案)。
+ *   `@` 未实证,不声明(不猜接口)。
  * - 会话恢复 --resume <uuid>;历史列表扫 ~/.qoder/projects/<slug>/(claude 同构布局)。
  * - 模型/思考强度:会话态 tail 扫 message.model;默认态读 settings.json。
  * - 与国内版(cli-qoder-cn)只差分发渠道常量,磁盘格式知识归 cli-shared/qoderSessions。
@@ -41,8 +44,17 @@ export const cliQoderPlugin: Plugin = {
       renderIcon: (size) => <QoderGlyph size={size} />,
       command: QODER_VARIANT.command,
       args: [],
-      triggers: [{ char: "/", kind: "command" }],
+      triggers: [
+        { char: "/", kind: "command" },
+        {
+          char: "$",
+          kind: "skill",
+          translate: (token: string) => `/${token.replace(/^\$/, "")}`,
+        },
+      ],
       suggestions: QODER_COMMAND_SUGGESTIONS,
+      /* 命令/技能真相:扫 .qoder/commands 与 .qoder/skills + .agents/skills 兼容层 */
+      listSuggestions: listQoderSuggestions,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: (cwd) => listQoderSessions(QODER_VARIANT.dataDir, cwd),
       readSessionStatus: (cwd, cliSessionId) =>

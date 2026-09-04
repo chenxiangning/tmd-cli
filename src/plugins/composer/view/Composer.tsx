@@ -19,14 +19,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { host } from "@kernel/host";
-import { ipc } from "@kernel/ipc";
+import { useComposerAttachments, insertAtCursor } from "./useComposerAttachments";
 import { KernelTopics } from "@kernel/events";
 import { Mounts } from "@kernel/Mounts";
 import { openSettingsPanel, useSettingsState } from "@kernel/settings";
 import { setFilePanelMode } from "@kernel/filePanel";
 import { getTerminalHandle } from "@kernel/messageAnchors";
 import { useWorkspaces } from "@kernel/workspace";
-import { readDragPayload, clearDragPayload } from "@kernel/internalDrag";
+import { readDragPayload } from "@kernel/internalDrag";
 import { findActiveTrigger, prepareSendPayload } from "../serialize/serialize";
 import type { SuggestionMatch } from "../triggers/suggest";
 import { lookupSuggestions } from "../triggers/suggest";
@@ -38,24 +38,14 @@ import { CommandDrawer } from "./CommandDrawer";
 import {
   resolveProfileDrawerItems,
   resolvePluginDrawerItems,
+  staticProfileDrawerItems,
   type DrawerItem,
 } from "../drawerItems";
 import { resolveArrowIntent } from "./arrowIntent";
 import { AttachmentStrip } from "./AttachmentStrip";
 import { useAttachDragProps, usePopupAnchor } from "./composerChrome";
 import { AnchorRail } from "./AnchorRail";
-import {
-  addAttachment,
-  classifyAttachment,
-  clearAttachments,
-  getAttachments,
-  MAX_ATTACHMENTS,
-  makeImageThumb,
-  removeAttachmentByPath,
-  type Attachment,
-} from "../state/attachments";
-
-const ATTACH_TOKEN_RE = /@[^\s@]+/g;
+import { clearAttachments } from "../state/attachments";
 
 /** 抽屉条目 → 实际写入幕布的文本(token 覆盖默认;发送前统一走 prepareSendPayload)。 */
 function drawerWireText(item: DrawerItem): string {
@@ -75,7 +65,14 @@ export function Composer() {
   const [dragOver, setDragOver] = useState(false);
   const profile = useActiveProfile();
   const { settings } = useSettingsState();
-
+  /* 附件交互(拖放/粘贴/token 同步)职责在 useComposerAttachments */
+  const { removeTokenForAttachment, handlePaste, handleDrop } = useComposerAttachments(
+    ref,
+    value,
+    setValue,
+    setCursor,
+    setDragOver,
+  );
   /* ── 命令抽屉(openspec/changes/composer-command-drawer)──
      数据:profile 四分区解析 + 内核插件注册表;执行:三模式回调交回本组件 */
   const drawerOpen = useDrawerOpen();
@@ -92,6 +89,9 @@ export function Composer() {
       setDrawerItems(resolvePluginDrawerItems());
       return;
     }
+    /* 两阶段渲染:先静态(零 IO,omp/pi RPC 冷启动 5-6s 期间抽屉不空白),
+       动态发现到达后整体替换(profile → null 分支同款只留插件区) */
+    setDrawerItems([...staticProfileDrawerItems(profile), ...resolvePluginDrawerItems()]);
     let cancelled = false;
     void resolveProfileDrawerItems(profile, cwd).then((items) => {
       if (!cancelled) setDrawerItems([...items, ...resolvePluginDrawerItems()]);
@@ -129,7 +129,7 @@ export function Composer() {
 
   function insertFromDrawer(item: DrawerItem): void {
     const token = item.token ?? (item.section === "skill" ? `$${item.name} ` : `/${item.name} `);
-    if (ref.current) insertAtCursor(ref.current, token);
+    if (ref.current) insertAtCursor(ref.current, value, setValue, setCursor, token);
   }
 
   function openFromDrawer(item: DrawerItem): void {
@@ -153,9 +153,18 @@ export function Composer() {
       setActiveRange(null);
       return;
     }
+    /* @ 文件索引只覆盖本地 fs;SSH 会话显式不激活(远端列举不在本通道) */
+    const activeSessionKind = host.getSessions().find(
+      (s) => s.id === host.getActiveSessionId(),
+    )?.kind;
+    if (hit.spec.kind === "file" && activeSessionKind === "ssh") {
+      setMatches(null);
+      setActiveRange(null);
+      return;
+    }
     let cancelled = false;
     const run = () =>
-      void lookupSuggestions(profile, hit.spec, value.slice(hit.range[0], hit.range[1])).then(
+      void lookupSuggestions(profile, hit.spec, value.slice(hit.range[0], hit.range[1]), cwd).then(
         (ms) => {
           if (cancelled) return;
           setActiveRange(hit.range);
@@ -163,43 +172,15 @@ export function Composer() {
           setPickIndex(0);
         },
       );
-    /* @ 文件触发每键一次 IPC(suggest.ts 侧另有 60s 目录缓存兜底),150ms 防抖合并连续击键;
-       / $ 走本地 filter,零 IO,保持即时。 */
-    const timer = hit.spec.kind === "file" ? setTimeout(run, 150) : undefined;
-    if (timer === undefined) run();
+    /* @ 走全仓索引缓存(Rust walk + 60s TTL),/ $ 走 listSuggestions 适配层缓存
+       (omp/pi RPC 5min TTL);150ms 防抖合并连续击键。 */
+    const timer = setTimeout(run, 150);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [value, cursor, profile, triggerSpecs]);
+  }, [value, cursor, profile, triggerSpecs, cwd]);
 
-  /* 附件 × 移除 → textarea 移除对应 "@path" 文本。
-     函数式更新:全部清除等同一批次多次调用时,每次都基于最新 value 计算 ——
-     闭包 value 连续 setValue 在 React 批处理下只剩最后一个的旧 bug 不再可能 */
-  function removeTokenForAttachment(a: Attachment): void {
-    setValue((v) =>
-      v
-        .replace(ATTACH_TOKEN_RE, (m) => (m.slice(1) === a.path ? "" : m))
-        /* 清理连续空白 + 前后空白 */
-        .replace(/  +/g, " ")
-        .replace(/^\s+|\s+$/g, ""),
-    );
-  }
-
-  /* textarea 里的 "@path " 文本被删 → MutationObserver 移除 attachment
-     但 textarea 是 DOM,内部只是 text node —— MutationObserver 抓不到字符删除;
-     改用 keyup/input 比对 tokens 列表 */
-  useEffect(() => {
-    /* 每次 value 变化时,扫一遍 attachment token 是否还在 */
-    const attached = getAttachments();
-    if (attached.length === 0) return;
-    const existing = new Set(value.match(ATTACH_TOKEN_RE)?.map((t) => t.slice(1)) ?? []);
-    attached.forEach((a) => {
-      if (!existing.has(a.path)) {
-        removeAttachmentByPath(a.path);
-      }
-    });
-  }, [value]);
 
   function applyPick(match: SuggestionMatch) {
     const range = activeRange;
@@ -243,102 +224,6 @@ export function Composer() {
     setMatches(null);
   }
 
-  /* 拖入或粘贴一个文件 → 写临时文件 + 注册 attachment + textarea 注入 "@path " */
-  async function addFiles(fileList: FileList | File[]): Promise<void> {
-    const files = Array.from(fileList);
-    if (files.length === 0) return;
-    const remain = MAX_ATTACHMENTS - getAttachments().length;
-    if (remain <= 0) {
-      /* toast 由调用方处理 */
-      return;
-    }
-    const accepted = files.slice(0, remain);
-    /* token 聚合后单次插入:逐个 insertAtCursor 会基于同一次渲染的闭包 value
-       连续 setValue,React 批处理下只剩最后一个 @path,其余附件被 token
-       同步 effect 静默删除。 */
-    const tokens: string[] = [];
-    for (const f of accepted) {
-      try {
-        const buf = new Uint8Array(await f.arrayBuffer());
-        const path = await ipc.fsWriteTemp(f.name || "attachment", buf);
-        const kind = classifyAttachment(f.name, f.type);
-        let thumbDataUrl: string | null = null;
-        let previewDataUrl: string | null = null;
-        if (kind === "image") {
-          const thumb = await makeImageThumb(f);
-          if (thumb) {
-            thumbDataUrl = thumb.thumb;
-            previewDataUrl = thumb.full;
-          }
-        }
-        const att = addAttachment({ path, name: f.name, size: f.size, kind, thumbDataUrl, previewDataUrl });
-        tokens.push(`@${att.path} `);
-      } catch (err) {
-        /* 单文件失败不阻塞其余文件,与改造前行为对齐 */
-        console.warn("composer: 附件写入失败", f.name, err);
-      }
-    }
-    if (tokens.length > 0 && ref.current) {
-      insertAtCursor(ref.current, tokens.join(""));
-    }
-  }
-
-  function insertAtCursor(ta: HTMLTextAreaElement, insert: string): void {
-    const start = ta.selectionStart ?? value.length;
-    const end = ta.selectionEnd ?? value.length;
-    const next = value.slice(0, start) + insert + value.slice(end);
-    setValue(next);
-    requestAnimationFrame(() => {
-      ta.focus();
-      const caret = start + insert.length;
-      ta.setSelectionRange(caret, caret);
-      setCursor(caret);
-    });
-  }
-
-  async function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const items = Array.from(e.clipboardData.items);
-    const imgItem = items.find((it) => it.type.startsWith("image/"));
-    if (!imgItem) return;
-    e.preventDefault();
-    const file = imgItem.getAsFile();
-    if (!file) return;
-    await addFiles([file]);
-  }
-
-  async function handleDrop(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setDragOver(false);
-    const dt = e.dataTransfer;
-
-    /* 优先:文件树拖来的项目内文件/文件夹 —— 从 kernel 共享 payload 读 */
-    const payload = readDragPayload();
-    if (payload) {
-      clearDragPayload();
-      attachPathReference(payload);
-      return;
-    }
-
-    /* 外部文件 → 写临时文件 + 引用 */
-    const files = Array.from(dt.files);
-    if (files.length === 0) return;
-    await addFiles(files);
-  }
-
-  /* 把项目内路径作为引用 attachment —— 不写临时副本,直接引用原 path */
-  function attachPathReference(item: { path: string; isDir: boolean; name: string }): void {
-    if (getAttachments().length >= MAX_ATTACHMENTS) return;
-    const kind: Attachment["kind"] = item.isDir ? "file" : classifyAttachment(item.name, "");
-    const att = addAttachment({
-      path: item.path,
-      name: item.name,
-      size: 0,
-      kind,
-      thumbDataUrl: null,
-      previewDataUrl: null,
-    });
-    if (ref.current) insertAtCursor(ref.current, `@${att.path} `);
-  }
 
   /* 弹窗悬停锚定 + 拖拽判定(实现见 composerChrome.ts) */
   const { boxRect, popupBottom, popupMaxHeight } = usePopupAnchor(composerRef);

@@ -11,6 +11,7 @@ import { readCodexSessionEdits } from "./edits";
 import { registerCodexQuotaProvider } from "./quota";
 import type { CliDiskSession, CliSessionStatus, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
+import { listCodexSuggestions } from "./scanSuggestions";
 
 /* macOS APFS / Windows NTFS 默认大小写不敏感,cwd 严格相等会在大小写/分隔符差异时漏配。 */
 const CASE_INSENSITIVE_FS = getPlatformKind() !== "linux";
@@ -262,6 +263,9 @@ export const cliCodexPlugin: Plugin = {
         command: CODEX_COMMAND_SUGGESTIONS,
         skill: [],
       },
+      /* 技能真相:扫 .agents/skills + ~/.codex/skills(含 .system)+ 插件缓存;
+         ~/.codex/prompts 已废弃不扫,命令走静态表 */
+      listSuggestions: listCodexSuggestions,
       listMcpServers: () => listCodexMcpServers(),
       resumeArgs: (sessionId) => ["resume", sessionId],
       listSessions: listCodexSessions,

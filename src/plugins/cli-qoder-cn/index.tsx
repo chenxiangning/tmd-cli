@@ -7,6 +7,7 @@ import {
   readQoderSessionStatus,
   readQoderUserMessages,
 } from "../cli-shared/qoderSessions";
+import { listQoderSuggestions } from "../cli-shared/qoderSuggestions";
 import type { Plugin } from "@kernel/plugin";
 
 /**
@@ -41,8 +42,17 @@ export const cliQoderCnPlugin: Plugin = {
       renderIcon: (size) => <QoderGlyph size={size} />,
       command: QODER_CN_VARIANT.command,
       args: [],
-      triggers: [{ char: "/", kind: "command" }],
+      triggers: [
+        { char: "/", kind: "command" },
+        {
+          char: "$",
+          kind: "skill",
+          translate: (token: string) => `/${token.replace(/^\$/, "")}`,
+        },
+      ],
       suggestions: QODER_COMMAND_SUGGESTIONS,
+      /* 命令/技能真相:扫 .qoder/commands 与 .qoder/skills + .agents/skills 兼容层 */
+      listSuggestions: listQoderSuggestions,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: (cwd) => listQoderSessions(QODER_CN_VARIANT.dataDir, cwd),
       readSessionStatus: (cwd, cliSessionId) =>

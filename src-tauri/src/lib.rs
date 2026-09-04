@@ -1,11 +1,13 @@
 mod checkpoints;
 mod fs;
 mod fs_edit;
+mod fs_walk;
 mod git;
 mod hash;
 mod installer;
 mod omp_auth;
 mod probe;
+mod proc_run;
 mod proxy;
 mod pty;
 mod quota;
@@ -136,6 +138,20 @@ async fn fs_write_temp(name: String, data: Vec<u8>) -> Result<String, String> {
 #[tauri::command]
 async fn fs_collect_files(dir: String, suffix: String) -> Result<Vec<fs::FileStamp>, String> {
     spawn_fs(move || fs::collect_files(&dir, &suffix)).await
+}
+
+/// 项目文件索引(composer `@` 补全候选):递归 + gitignore 系语义,见 fs_walk.rs。
+#[tauri::command]
+async fn fs_walk_files(root: String, cap: usize) -> Result<Vec<String>, String> {
+    spawn_fs(move || fs_walk::walk_files(&root, cap)).await
+}
+
+/// 通用短进程通道(omp/pi RPC 副车查询、grok inspect):同步阻塞,spawn_blocking 包裹。
+#[tauri::command]
+async fn proc_communicate(spec: proc_run::ProcRunSpec) -> Result<proc_run::ProcRunResult, String> {
+    tauri::async_runtime::spawn_blocking(move || proc_run::run(&spec))
+        .await
+        .map_err(|e| format!("proc_communicate join 失败: {e}"))?
 }
 
 #[tauri::command]
@@ -300,6 +316,8 @@ pub fn run() {
             fs_read_head,
             fs_read_tail,
             fs_remove_path,
+            fs_walk_files,
+            proc_communicate,
             fs_edit::fs_write_file,
             fs_edit::fs_create_file,
             fs_edit::fs_create_dir,

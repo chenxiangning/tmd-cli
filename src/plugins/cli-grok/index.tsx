@@ -15,6 +15,7 @@ import type {
   CliSuggestion,
 } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
+import { listGrokSuggestions } from "./inspectSkills";
 
 /**
  * grok / 命令候选(官方 README 斜杠命令表;action 初判见
@@ -187,17 +188,6 @@ async function readGrokUserMessages(cwd: string, cliSessionId: string, full: boo
   );
 }
 
-/**
- * $ 触发符候选 = 用户真实安装的 skills(实证 ~/.grok/skills/<name>/SKILL.md,
- * 目录名即 skill 名;另有 ./.grok/skills 项目级与 ~/.claude/skills 复用,activate
- * 时无 cwd,只扫 home 级)。同 claude:扫真实磁盘,不猜名字;失败 = 空候选。
- */
-async function listGrokSkillSuggestions(): Promise<CliSuggestion[]> {
-  const home = await ipc.configHomeDir().catch(() => null);
-  if (!home) return [];
-  const entries = await ipc.fsListDir(`${home}/.grok/skills`).catch(() => []);
-  return entries.filter((e) => e.isDir).map((e) => ({ value: e.name }));
-}
 
 /**
  * grok CLI 插件(xAI Grok Build,CLI 能力矩阵 + 本机 1.0.4 实证):
@@ -240,6 +230,9 @@ export const cliGrokPlugin: Plugin = {
         command: GROK_COMMAND_SUGGESTIONS,
         skill: [],
       },
+      /* 命令/技能真相:grok inspect --json 枚举全层技能(用户/项目/兼容/插件);
+         命令不可枚举 → listSuggestions 只供 skill,command 走静态表 */
+      listSuggestions: listGrokSuggestions,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listGrokSessions,
       readSessionStatus: readGrokSessionStatus,
@@ -249,8 +242,5 @@ export const cliGrokPlugin: Plugin = {
       readDefaultStatus: readGrokDefaultStatus,
     };
     ctx.registerCliProfile(profile);
-    void listGrokSkillSuggestions().then((skills) => {
-      profile.suggestions = { ...profile.suggestions, skill: skills };
-    });
   },
 };

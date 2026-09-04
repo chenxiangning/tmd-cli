@@ -77,13 +77,17 @@ describe("resolveProfileDrawerItems", () => {
     expect(items[1].token).toBe("/a ");
   });
 
-  it("provider 按 kind 分别调用;非空结果覆盖静态表", async () => {
-    const provider = vi.fn().mockResolvedValue([{ value: "dynamic-cmd", action: "send" }]);
+  it("provider 按 kind 分别调用;动态与静态按 value 合并,静态 action 保留", async () => {
+    const provider = vi.fn().mockResolvedValue([
+      { value: "dynamic-cmd", action: "send" },
+      { value: "clear" }, // 与静态撞名 → 丢弃,静态条目(带 icon/action)保留
+    ]);
     const p = makeProfile({ listSuggestions: provider });
     const items = await resolveProfileDrawerItems(p, "/w");
     expect(names(items)).toContain("command:dynamic-cmd");
     expect(names(items)).toContain("skill:dynamic-cmd"); // 同一 provider 喂两个 kind
-    expect(names(items)).not.toContain("command:clear");
+    expect(names(items)).toContain("command:clear"); // 静态内置仍在前
+    expect(items.filter((i) => i.section === "command" && i.name === "clear")).toHaveLength(1); // 分区内去重,静态保留
     expect(provider).toHaveBeenCalledTimes(2); // command / skill 各一次
   });
 

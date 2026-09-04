@@ -12,6 +12,7 @@ import type {
 } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
+import { listKimiSuggestions } from "./scanSuggestions";
 
 /**
  * Kimi 品牌 glyph:几何 K 字monogram(codemoss EngineIcon 同源策略),
@@ -394,6 +395,9 @@ export const cliKimiPlugin: Plugin = {
         },
       ],
       suggestions: { command: KIMI_COMMAND_SUGGESTIONS },
+      /* 技能真相:扫 ~/.kimi-code/skills + 项目 .kimi-code/skills + ~/.agents/skills
+         (目录式与平铺 .md 双形态);kimi 无独立命令概念,命令走静态表 */
+      listSuggestions: listKimiSuggestions,
       resumeArgs: (sessionId) => ["--session", sessionId],
       bracketedPaste: true,
       listSessions: listKimiSessions,

@@ -176,6 +176,32 @@ export interface CkptRestoreOutcome {
 }
 
 
+
+/* ── proc_communicate 契约(对齐 src-tauri/src/proc_run.rs,serde camelCase)── */
+
+export interface ProcRunSpec {
+  /** 程序名(PATH 解析与 PTY 同源)或绝对路径。 */
+  command: string;
+  args: string[];
+  /** 工作目录(CLI 按此发现项目级扩展/技能)。 */
+  cwd: string;
+  /** 附加环境变量(叠加在继承环境之上)。 */
+  env?: Record<string, string>;
+  /** 启动后一次性写入 stdin;写入后管道保持打开,直到收割(kill/退出)。 */
+  stdin?: string;
+  /** stdout 出现该子串即提前收割(响应已到达,不等满超时)。 */
+  exitOnStdout?: string;
+  timeoutMs: number;
+}
+
+export interface ProcRunResult {
+  stdout: string;
+  stderr: string;
+  /** 退出码;被强杀时可能为 null(信号终止)。 */
+  code: number | null;
+  /** true = 超时强杀;false = exitOnStdout 命中或进程自然退出。 */
+  timedOut: boolean;
+}
 export const ipc = {
   sessionSpawn: (profileId: string, spec: SpawnSpec, workspaceId?: string) =>
     invoke<SpawnedSession>("session_spawn", { profileId, spec, workspaceId: workspaceId ?? null }),
@@ -191,6 +217,13 @@ export const ipc = {
   sessionHistoryPage: (id: string, before: number, maxBytes: number) =>
     invoke<HistoryPage>("session_history_page", { id, before, maxBytes }),
   fsListDir: (path: string) => invoke<DirEntry[]>("fs_list_dir", { path }),
+  /** 项目文件索引(composer @ 补全候选):递归 + gitignore/.ignore/.fdignore,
+   *  跳 dotfiles/node_modules,返回 root 相对 posix 路径(排序稳定);cap = 上限。
+   *  语义镜像 pi/omp TUI 自己的 @ 发现规则(见 fs_walk.rs)。 */
+  fsWalkFiles: (root: string, cap: number) => invoke<string[]>("fs_walk_files", { root, cap }),
+  /** 通用短进程通道:spawn + stdin(写入后持开防 RPC 丢响应)+ stdout 收割;
+   *  exitOnStdout 命中或超时即杀。omp/pi RPC 副车、grok inspect 共用(见 proc_run.rs)。 */
+  procCommunicate: (spec: ProcRunSpec) => invoke<ProcRunResult>("proc_communicate", { spec }),
   fsWriteTemp: (name: string, data: Uint8Array) =>
     invoke<string>("fs_write_temp", { name, data: Array.from(data) }),
   fsReadFile: (path: string) => invoke<string>("fs_read_file", { path }),
@@ -213,7 +246,6 @@ export const ipc = {
   /** 本地图片 → data URL(markdown 预览 asset:// 失败回退;Rust 侧白名单+大小闸)。 */
   readLocalImageDataUrl: (path: string) =>
     invoke<string>("read_local_image_data_url", { path }),
-  /** 二进制预览文件 → base64(pdf/xls/xlsx/docx;Rust 侧白名单+分档大小闸)。 */
   readBinaryFileBase64: (path: string) => invoke<string>("read_binary_file_base64", { path }),
   /* ── git(右栏面板;cwd 由调用方从活跃 workspace 取)── */
   gitStatus: (cwd: string) => invoke<GitDiffStatus>("git_status", { cwd }),

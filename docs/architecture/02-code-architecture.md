@@ -176,7 +176,7 @@ flowchart LR
     subgraph COMPOSER["composer 插件内部管线"]
         direction TB
         FAT["serialize.findActiveTrigger<br/>光标前找最近触发符 token"]
-        LS["triggers.lookupSuggestions<br/>@→fsListDir · /→suggestions.command<br/>$→suggestions.skill"]
+        LS["triggers.lookupSuggestions<br/>@→fileIndex(Rust fs_walk_files 全仓索引+模糊)<br/>/ $→listSuggestions(CLI RPC 副车/磁盘扫描)×静态表合并"]
         SL["SuggestionList 下拉<br/>↑↓/Enter/Tab/Esc"]
         TP["serialize.translatePrompt<br/>按 profile.triggers.translate 全量替换<br/>例：$think → /skill:think"]
         PSP["prepareSendPayload<br/>+ \\r（TUI 认 CR 作提交）"]
@@ -196,6 +196,7 @@ flowchart LR
 关键不变量：
 
 - **composer 不做 CLI 语义**——触发符、`translate` 全由 CLI profile 声明；codex 无 `translate` 即原样透传。
+- **补全数据以 CLI 为真相源**——`/` `$` 候选 = profile.`listSuggestions`(omp/pi RPC 副车 `get_available_commands`/`get_commands`,grok `inspect --json`,claude/qoder/codex/kimi 磁盘扫描)与静态表按 value 去重合并,静态 action 保留;`@` 候选 = Rust `fs_walk_files`(gitignore 系语义镜像 pi/omp TUI)+ 客户端模糊,根 = 会话 workspace。协议解析全在 cli-* / cli-shared,kernel 只提供 `fs_walk_files` / `proc_communicate` 通用原语(2026-09-04,spec:2026-09-04-composer-cli-sourced-suggestions-design.md)。
 - 粘贴/拖拽文件（`handlePaste` / `handleDrop`）先经 `ipc.fsWriteTemp` 落盘系统临时目录 `temp_dir()/tmd-cli`（受 fs.rs remove 白名单管辖），再把绝对路径插入草稿。
 - 裸 xterm 输入与 composer 发送**汇入同一条** `session_write` 通道。
 - 终端协议回传（焦点上报 DECSET 1004 / 鼠标上报 / 查询应答）经 `terminalReports.ts`

@@ -1,29 +1,21 @@
 /**
  * 触发器下拉的"查找候选"逻辑 —— 与 UI 分离,纯函数。
  *
- * 三类触发符:
- * - @ (file):从 fsListDir 拉目录内容,按前缀过滤
- * - / (command):从 cli profile.suggestions.command 拉
- * - $ (skill):从 cli profile.suggestions.skill 拉
+ * 三类触发符(2026-09-04 起数据源以 CLI 为真相源,见
+ * docs/superpowers/specs/2026-09-04-composer-cli-sourced-suggestions-design.md):
+ * - @ (file):cli-shared/fileIndex(Rust fs_walk_files 全仓索引 + 客户端模糊),
+ *   根 = 会话 workspace root(修复旧实现落到进程 cwd 只见根目录的 bug)
+ * - / (command) 与 $ (skill):profile.listSuggestions(CLI 查询/磁盘扫描)
+ *   与静态表按 value 去重合并(drawerItems.mergeSuggestions 共用语义);
+ *   无 provider 或失败 = 纯静态
  */
 
 import type { CliProfile, CliSuggestion, CliTriggerSpec, TriggerKind } from "@kernel/cli";
-import type { DirEntry } from "@kernel/ipc";
-import { ipc } from "@kernel/ipc";
+import { fuzzyFileMatch, projectFileIndex } from "../../cli-shared/fileIndex";
+import { mergeSuggestions } from "../drawerItems";
 
-/* @ 文件触发目录缓存:同一目录 60s 内复用 fsListDir 结果。
-   连续敲击路径字符每键一次 IPC,缓存把目录列举压到每目录每分钟一次;
-   失败不缓存(下次击键重试),避免把瞬时错误固化一分钟。 */
-const DIR_CACHE_TTL_MS = 60_000;
-const dirListCache = new Map<string, { at: number; entries: DirEntry[] }>();
-
-async function listDirCached(dir: string): Promise<DirEntry[]> {
-  const hit = dirListCache.get(dir);
-  if (hit && Date.now() - hit.at < DIR_CACHE_TTL_MS) return hit.entries;
-  const entries = await ipc.fsListDir(dir);
-  dirListCache.set(dir, { at: Date.now(), entries });
-  return entries;
-}
+/** 下拉候选上限:与 CLI 原生补全面板量级一致,太多反而不可扫读。 */
+const MAX_CANDIDATES = 20;
 
 export interface SuggestionMatch {
   /** 替换进文本的值(不含 char)。 */
@@ -44,48 +36,52 @@ export async function lookupSuggestions(
   profile: CliProfile,
   triggerSpec: CliTriggerSpec,
   tokenText: string,
+  cwd: string,
 ): Promise<SuggestionMatch[]> {
   const needle = tokenText.slice(triggerSpec.char.length);
   switch (triggerSpec.kind) {
     case "command":
-      return filterDeclared(profile.suggestions?.command, needle, "command");
     case "skill":
-      return filterDeclared(profile.suggestions?.skill, needle, "skill");
-    case "file": {
-      // @ 后半:可能是目录前缀路径 —— 取最后一段为 dir,prefix 为最后/后
-      // 例如 "/Users/x/src/k" → dir=/Users/x/src prefix=k
-      const sep = needle.lastIndexOf("/");
-      const dir = sep >= 0 ? needle.slice(0, sep) || "/" : ".";
-      const prefix = sep >= 0 ? needle.slice(sep + 1) : needle;
-      let entries: DirEntry[] = [];
-      try {
-        entries = await listDirCached(dir);
-      } catch {
-        return [];
-      }
-      return entries
-        .filter((e) => e.name.toLowerCase().startsWith(prefix.toLowerCase()))
-        .slice(0, 20)
-        .map<SuggestionMatch>((e) => ({
-          /* 文件与目录同规则保留目录前缀:@src/fo 选 foo.ts → @src/foo.ts,
-             只回 basename 会让 CLI 收到指向根目录的不存在路径 */
-          value: `${needle.replace(/[^/]*$/, "")}${e.name}${e.isDir ? "/" : ""}`,
-          description: e.isDir ? "目录" : "文件",
-          detail: e.path,
-          kind: "file",
-        }));
-    }
+      return filterDeclared(await declaredPlusDynamic(profile, triggerSpec.kind, cwd), needle, triggerSpec.kind);
+    case "file":
+      return matchFiles(needle, cwd);
   }
 }
 
+/** 静态表 × listSuggestions 合并;provider 失败 = 纯静态(合并层只增不顶替)。 */
+async function declaredPlusDynamic(
+  profile: CliProfile,
+  kind: "command" | "skill",
+  cwd: string,
+): Promise<CliSuggestion[]> {
+  const declared = profile.suggestions?.[kind] ?? [];
+  if (!profile.listSuggestions) return declared;
+  const dynamic = await profile.listSuggestions(kind, cwd).catch(() => null);
+  return dynamic ? mergeSuggestions(declared, dynamic) : declared;
+}
+
+/** 前缀过滤(大小写不敏感);空 needle = 全量(截到上限)。 */
 function filterDeclared(
-  list: readonly CliSuggestion[] | undefined,
+  list: readonly CliSuggestion[],
   needle: string,
   kind: "command" | "skill",
 ): SuggestionMatch[] {
-  if (!list) return [];
   const lower = needle.toLowerCase();
   return list
     .filter((s) => s.value.toLowerCase().startsWith(lower))
+    .slice(0, MAX_CANDIDATES)
     .map<SuggestionMatch>((s) => ({ value: s.value, description: s.description, kind }));
+}
+
+/** @ 候选:全仓相对路径模糊匹配;目录带尾 /(applyPick 插入后可继续下钻)。 */
+async function matchFiles(needle: string, cwd: string): Promise<SuggestionMatch[]> {
+  if (!cwd) return [];
+  const files = await projectFileIndex(cwd);
+  const base = cwd.endsWith("/") ? cwd : `${cwd}/`;
+  return fuzzyFileMatch(files, needle, MAX_CANDIDATES).map<SuggestionMatch>((path) => ({
+    value: path,
+    description: path.endsWith("/") ? "目录" : undefined,
+    detail: `${base}${path}`,
+    kind: "file",
+  }));
 }
