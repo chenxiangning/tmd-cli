@@ -45,7 +45,7 @@ russh = "0.62.2"
 tokio = { version = "1", features = ["rt", "sync", "time", "net", "io-util", "fs", "macros"] }
 russh-sftp = "2.3"
 # known_hosts 指纹 SHA256 展示。
-sha2 = "0.10"
+sha2 = "0.11"
 # 产物体积与运行性能:lto 全量链接优化 + 单 codegen unit 提升内联,strip 去符号表。
 # 不用 panic=abort:它把任何异步任务 panic(如 wry 自定义协议竞态,2026-09-03
 # 崩溃)放大成整进程 SIGABRT;unwind 下 tokio 捕获任务 panic,命令层已有
