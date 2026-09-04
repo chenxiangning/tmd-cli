@@ -79,8 +79,16 @@ pub(crate) async fn connect_and_run(
 }
 
 fn fail_session(app: &AppHandle, registry: &SshRegistry, session_id: &str, error: &str) {
+    /* 失败必须可见:错误文本原样进幕布(与重连提示同通道),状态卡同步 failed + message。
+    不立即 finish —— pty://exit 会秒删 tab,报错在任何界面都来不及呈现(静默闪退);
+    会话保留在 failed 态,幕布可读,由用户「断开」收尾(control::kill 兼容无泵会话)。 */
+    emit_output(
+        app,
+        registry,
+        session_id,
+        format!("[SSH] 连接失败: {error}\r\n").as_bytes(),
+    );
     registry.broadcast_status(app, session_id, STATUS_FAILED, Some(error.to_string()));
-    registry.finish_session(app, session_id);
 }
 
 /// 认证推进动作:认证材料 / KBI 应答 / 密码回落,单一循环消费。
@@ -259,6 +267,19 @@ async fn ask_user(
         }),
     );
     let _ = app.emit(&format!("ssh://prompt/{session_id}"), &event);
+    /* 等待可见化:提示卡在右下角,状态卡同步说明在等什么,
+    否则 120s 等待期表现为「一直连接中」,无从理解(实测踩坑)。 */
+    let waiting = match event.kind.as_str() {
+        "hostKey" => "等待主机密钥确认(右下角提示卡)",
+        "kbi" => "等待键盘交互应答(右下角提示卡)",
+        _ => "等待密码输入(右下角提示卡)",
+    };
+    registry.broadcast_status(
+        app,
+        session_id,
+        STATUS_CONNECTING,
+        Some(waiting.to_string()),
+    );
     match timeout(SSH_PROMPT_TIMEOUT, responder_rx).await {
         Ok(Ok(answer)) => Ok(answer),
         Ok(Err(_)) | Err(_) => {
