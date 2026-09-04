@@ -4,10 +4,12 @@
 use super::super::{batch_patches, load_ledger, now_millis, LedgerEntry};
 use super::TempWs;
 
-/// 毫秒时钟间隔:保证"写文件 → 下一个锚点"的 mtime 严格有序(平局会让
-/// 归属仲裁退化为比较谁后锚点)。
+/// 毫秒时钟间隔:保证「写文件 → 下一个锚点」与「锚点 → 紧随写入」的 mtime
+/// 严格有序(平局会让归属仲裁退化为比较谁后锚点)。25ms:容器/CI 文件系统
+/// 的 mtime 粒度可粗到内核 jiffy(约 4ms),写入会被向下取整进锚点之前,
+/// 归属翻转 —— ubuntu CI 实测踩中,APFS 纳秒粒度则永不复现。
 fn tick() {
-    std::thread::sleep(std::time::Duration::from_millis(5));
+    std::thread::sleep(std::time::Duration::from_millis(25));
 }
 
 #[test]
@@ -22,6 +24,7 @@ fn 并行会话_按写入时刻窗口归属() {
     tick();
     // 会话 B 锚点(此刻 a.txt 已是 a2,成为 B 的基线)→ B 改 b.txt
     ws.anchor("cli-b", "tmd-b", "B 第一轮");
+    tick();
     ws.write("b.txt", "b1\n");
     tick();
     // B 先封口:只认领 b.txt(a.txt 在 B 锚点前写入,本就不在 B 的候选里)
@@ -63,6 +66,7 @@ fn 并行会话_后锚会话的写入不进先封口批() {
     ws.anchor("cli-a", "tmd-a", "A 第一轮");
     tick();
     ws.anchor("cli-b", "tmd-b", "B 第一轮");
+    tick();
     ws.write("v.txt", "by-b\n");
     tick();
     // A 先封口:v.txt 写在 B 锚点之后,归属 B(最近提示者),A 不得抢
@@ -127,6 +131,7 @@ fn 幽灵锚点_超时未封口_代为收口() {
     ws.write("a.txt", "v2\n");
     tick();
     ws.anchor("cli-a", "tmd-a", "A 第一轮");
+    tick();
     let entries = load_ledger(ws.path());
     let ghost_turn = entries
         .iter()
