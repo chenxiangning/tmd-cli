@@ -94,7 +94,7 @@ jobs:
       # workflow_dispatch 手动触发时为空串 → 只构建;tauri-action 不会上传任何
       # workflow artifact,产物由下一步 upload-artifact 兜底落面板。
       - name: Build installers
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           # 内置仓库令牌,专供发布上传(建 Draft Release 挂产物);与签名无关。
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
