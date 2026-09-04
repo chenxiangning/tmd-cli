@@ -1,7 +1,8 @@
 /**
  * AskWatch v2 行为契约测试(候选确认制 + 结算自愈)。
  *
- * 覆盖:候选确认窗(首击立候选不置位 → 复现且距首击 ≥1.2s 才升级)、
+ * 覆盖:候选确认窗(首击立候选不置位 → 复现且距首击 ≥1.2s 才升级,或静态面板
+ * 静默期满页脚字面量仍在由守望计时器升级)、
  * 瞬态内容撤销(作答残影不复燃 / resume 回放历史面板不错绑 —— 两个实测 bug 的
  * 回归测试,字节序列取自 ~/.tmd-cli session 日志的 omp 真实帧序)、等待中边沿
  * 去重、静默自愈(尾巴无字面量摘除残签 / 真面板保守保留)、用户作答清除 +
@@ -153,6 +154,31 @@ describe("AskWatch 标记检测与状态迁移(候选确认制)", () => {
     expect(watch.isWaiting("s11")).toBe(true);
   });
 
+  it("静态面板静默确认:画完即静默的 omp Ask 面板期满升级(列表不亮标回归)", async () => {
+    /* 实测漏报:omp Ask 面板渲染一次后不再重绘,复现确认永不到达;
+       守望计时器在候选期满(≥1.2s)且页脚字面量仍守尾巴时升级等待 */
+    const asked: string[] = [];
+    const w = new AskWatch(undefined, (id) => asked.push(id));
+    expect(w.onOutput("s19", OMP_ASK)).toBe(false); // 首击只立候选
+    expect(w.isWaiting("s19")).toBe(false);
+    await vi.advanceTimersByTimeAsync(2_500); // 无任何后续输出
+    expect(w.isWaiting("s19")).toBe(true);
+    expect(asked).toEqual(["s19"]); // onAsked 边沿回调恰一次
+    /* 静态面板长期挂起:尾巴字面量仍在,自愈不误清 */
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(w.isWaiting("s19")).toBe(true);
+    expect(asked).toHaveLength(1);
+  });
+
+  it("静态残影在写后抑制窗内不被静默确认升级", async () => {
+    watch.onUserWrite("s21"); // 作答:记写入时刻
+    expect(watch.onOutput("s21", OMP_ASK)).toBe(false); // 残影立候选
+    await vi.advanceTimersByTimeAsync(7_000); // 窗内:确认期满也不升级
+    expect(watch.isWaiting("s21")).toBe(false);
+    await vi.advanceTimersByTimeAsync(2_000); // 窗过:与复现路径同语义,延迟升级
+    expect(watch.isWaiting("s21")).toBe(true);
+  });
+
   it("用户作答清除;残影重绘被写后抑制窗挡住,不再复燃(bug 1 回归)", async () => {
     watch.onOutput("s12", OMP_ASK);
     await pastConfirm();
@@ -178,8 +204,9 @@ describe("AskWatch 标记检测与状态迁移(候选确认制)", () => {
     watch.onUserWrite("s13");
     /* 下一问在抑制窗内:只延迟 */
     expect(watch.onOutput("s13", OMP_ASK)).toBe(false);
-    await vi.advanceTimersByTimeAsync(8_500);
-    expect(watch.onOutput("s13", OMP_ASK)).toBe(true);
+    await vi.advanceTimersByTimeAsync(9_500);
+    /* 抑制窗过后升级:复现/静默确认两路谁先到达均可(守望 tick 网格原点早于写入),
+       契约是最终进入等待 */
     expect(watch.isWaiting("s13")).toBe(true);
   });
 
@@ -257,6 +284,21 @@ describe("host 接线:检测进主链路,状态对 UI 可读", () => {
     host.resetStatusTimerForTest();
     host.resetActivityWatchForTest();
     vi.useRealTimers();
+  });
+
+  it("静态面板无复现:守望计时器静默确认 → askDetected + isWaitingConfirm", async () => {
+    const detected: string[] = [];
+    const off = host.events.on<string>(KernelTopics.askDetected, (id) =>
+      detected.push(id),
+    );
+    const s = await host.createSession(PROFILE_ID, CWD);
+    ptyOutputCbs.get(s.id)!(OMP_ASK); // 面板画完即静默,仅此一帧
+    expect(host.isWaitingConfirm(s.id)).toBe(false);
+    await vi.advanceTimersByTimeAsync(2_500); // 无任何后续输出,期满静默确认
+    expect(host.isWaitingConfirm(s.id)).toBe(true);
+    expect(detected).toEqual([s.id]);
+    off();
+    await host.removeSession(s.id);
   });
 
   it("提问面板复现确认 → askDetected 事件 + isWaitingConfirm;写入作答即清", async () => {

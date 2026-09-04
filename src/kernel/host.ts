@@ -61,7 +61,13 @@ class Host implements PluginContext {
    * 存储细节(分块/迟滞截断/字节数增量)见 kernel/outputBuffers.ts。
    */
   private readonly outputBuffers = new OutputBufferStore();
-  private readonly askWatch = new AskWatch(() => this.notify()); /* Ask 等待确认状态仓(见 kernel/askWatch.ts,onHealed = 静默自愈摘签后重渲染) */
+  private readonly askWatch = new AskWatch(
+    () => this.notify(),
+    (sessionId) => {
+      this.events.emit(KernelTopics.askDetected, sessionId);
+      this.notify();
+    },
+  ); /* Ask 等待确认状态仓(kernel/askWatch.ts):onHealed = 自愈摘签重渲染;onAsked = 守望计时器静默确认升级(静态面板),与 onOutput 复现升级同语义 */
   /** AI 写入文件守望(events 归因主信号,见 kernel/editWatch.ts;纯内存,随 PTY 消亡) */
   private readonly editWatch = new EditWatch();
   /**

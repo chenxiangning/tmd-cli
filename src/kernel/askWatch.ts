@@ -13,19 +13,21 @@
  * 仍会整帧重发面板文本(作答残影,session 日志实测:面板帧 3 次,最后一次在
  * 作答之后),切换会话的 resume 回放/SIGWINCH 重绘也会把历史面板文本再流一遍;
  * 单次命中就复燃/错绑,等待中跳过检测 + 只认写入清除让标签卡死整个响应流。
- * 现在:首次命中只立「候选」;标记在后续帧复现(真面板常驻重绘必复现)且距
- * 首击 ≥ ASK_CONFIRM_MS 才升级等待。瞬态文本(残影/回放)随流滚出页脚窗口,
- * 候选即撤销 —— 确认后不复燃,切换会话不错绑。
+ * 现在:首次命中只立「候选」;升级走双路 —— ① 复现确认:标记在后续帧复现
+ * (常驻重绘面板)且距首击 ≥ ASK_CONFIRM_MS;② 静默确认:候选期满且页脚字面量
+ * 仍守在尾巴里(omp Ask 面板画完即静默,复现永不到达,纯复现确认必然漏报)。
+ * 瞬态文本(残影/回放)随流滚出页脚窗口,候选即撤销;作答残影另由写入清尾 +
+ * 写后抑制窗双保险 —— 确认后不复燃,切换会话不错绑。
  *
- * 结算自愈(v2.1):等待期自持静默守望(懒计时器,无等待会话不空转)——
- * 输出静默 2s 且尾巴再无面板字面量 = CLI 已自行继续,残留等待就地摘除。
+ * 守望计时器(v2.1,1Hz 懒计时器,无等待/候选会话不空转)双职责:
+ * 候选静默确认(见上);等待期自愈 —— 输出静默 2s 且尾巴再无面板字面量
  * 真面板常驻重绘持续刷新静默钟、且整帧重绘的末行必含面板字面量,不会被误清。
  * 不依赖轮次结算:未锚定会话(回放误报的高发面)同样覆盖。
  *
  * 状态迁移:
  * - 立候选:空闲时标记命中(不响不亮,仅观察);
- * - 升级:候选存在,标记复现、距首击 ≥ 确认窗、且不在写后抑制窗内
- *   → 等待(askDetected + 标签);
+ * - 升级:候选存在,且①标记复现距首击 ≥ 确认窗,或②静默期满页脚字面量仍在,
+ *   均须不在写后抑制窗内 → 等待(askDetected + 标签);
  * - 撤销:候选存在,距上次命中流出超 16KB 仍无复现 → 回到空闲;
  * - 清除:用户写入(作答,尾巴/候选一并重置)/ 静默自愈 / 会话移除。
  * 一个未回答的提问期间无论重绘多少次只触发一次;作答后的下一个提问再触发
@@ -109,11 +111,16 @@ export class AskWatch {
   private readonly bytesIn = new Map<string, number>();
   /** 每会话最近写入时刻:写后复燃抑制窗用。 */
   private readonly lastWriteAt = new Map<string, number>();
-  /** 自愈守望计时器:无等待会话时停表(不空转)。 */
+  /** 守望计时器:候选静默确认 + 等待自愈;无等待且无候选时停表(不空转)。 */
   private timer: TimerHandle | null = null;
 
-  /** onHealed:自愈摘除残签后的状态变化回调(host 注入 notify,重渲染摘标签)。 */
-  constructor(private readonly onHealed?: (sessionId: string) => void) {}
+  /** onHealed:自愈摘除残签后的状态变化回调(host 注入 notify,重渲染摘标签)。
+   *  onAsked:守望计时器静默确认升级回调(host 注入 askDetected 广播 + notify);
+   *  onOutput 复现路径的升级由其返回值同步上报,不经此回调。 */
+  constructor(
+    private readonly onHealed?: (sessionId: string) => void,
+    private readonly onAsked?: (sessionId: string) => void,
+  ) {}
 
   /**
    * 会话输出进站(host.appendOutput 唯一调用方)。
@@ -146,6 +153,7 @@ export class AskWatch {
     }
     if (candidate) {
       this.candidates.set(sessionId, { ...candidate, lastHitBytes: bytesIn });
+      this.ensureWatch();
       if (now - candidate.firstHitAt < ASK_CONFIRM_MS) return false;
       const lastWrite = this.lastWriteAt.get(sessionId);
       if (lastWrite !== undefined && now - lastWrite < ASK_REARM_SUPPRESS_MS) {
@@ -153,10 +161,11 @@ export class AskWatch {
       }
       this.candidates.delete(sessionId);
       this.waiting.add(sessionId);
-      this.ensureHealWatch();
+      this.ensureWatch();
       return true;
     }
     this.candidates.set(sessionId, { firstHitAt: now, lastHitBytes: bytesIn });
+    this.ensureWatch();
     return false;
   }
 
@@ -170,23 +179,43 @@ export class AskWatch {
     this.candidates.delete(sessionId);
     this.lastOutputAt.delete(sessionId);
     this.lastWriteAt.set(sessionId, Date.now());
-    this.stopHealWatchIfIdle();
+    this.stopWatchIfIdle();
     if (!this.waiting.delete(sessionId)) return false;
     return true;
   }
 
   /**
-   * 自愈守望(1Hz,仅等待非空时运转):输出静默超阈值且尾巴再无面板字面量
-   * = CLI 已自行继续,残留等待就地摘除。真面板常驻重绘持续刷新静默钟不会被
-   * 误清;整帧重绘的末行必含面板字面量,静默挂起的真面板尾巴里仍有字面量,
-   * 同样保守保留。不依赖轮次结算,未锚定会话同样覆盖。
+   * 守望计时器(1Hz,等待或候选非空时运转)双职责:
+   * ① 候选静默确认:期满(≥ASK_CONFIRM_MS)且页脚字面量仍守在尾巴 = 静态面板
+   *   真等待,升级等待 —— omp Ask 面板画完即静默,复现确认路径永不到达;
+   *   写后抑制窗内的残影不升级(作答后的复燃双保险之一,另一是写入清尾)。
+   * ② 等待自愈:输出静默超阈值且尾巴再无面板字面量 = CLI 已自行继续,残留等待
+   *   就地摘除。真面板常驻重绘持续刷新静默钟不会被误清;整帧重绘的末行必含面板
+   *   字面量,静默挂起的真面板尾巴里仍有字面量,同样保守保留。
+   * 不依赖轮次结算,未锚定会话同样覆盖。
    */
-  private ensureHealWatch(): void {
+  private ensureWatch(): void {
     if (this.timer !== null) return;
     this.timer = setInterval(() => {
       const now = Date.now();
+      const asked: string[] = [];
+      for (const [id, candidate] of [...this.candidates]) {
+        if (now - candidate.firstHitAt < ASK_CONFIRM_MS) continue;
+        const tail = this.tails.get(id);
+        if (!tail || !ASK_MARKER_RE.test(footerWindow(stripAnsi(tail.rawTail)))) {
+          continue;
+        }
+        const lastWrite = this.lastWriteAt.get(id);
+        if (lastWrite !== undefined && now - lastWrite < ASK_REARM_SUPPRESS_MS) {
+          continue;
+        }
+        this.candidates.delete(id);
+        this.waiting.add(id);
+        asked.push(id);
+      }
       const healed: string[] = [];
       for (const id of [...this.waiting]) {
+        if (asked.includes(id)) continue;
         if (now - (this.lastOutputAt.get(id) ?? 0) < ASK_HEAL_SILENCE_MS) continue;
         const tail = this.tails.get(id);
         if (tail && ASK_MARKER_RE.test(footerWindow(stripAnsi(tail.rawTail)))) continue;
@@ -195,13 +224,14 @@ export class AskWatch {
         this.lastOutputAt.delete(id);
         healed.push(id);
       }
-      this.stopHealWatchIfIdle();
+      this.stopWatchIfIdle();
+      asked.forEach((id) => this.onAsked?.(id));
       healed.forEach((id) => this.onHealed?.(id));
     }, 1000);
   }
 
-  private stopHealWatchIfIdle(): void {
-    if (this.waiting.size === 0 && this.timer !== null) {
+  private stopWatchIfIdle(): void {
+    if (this.waiting.size === 0 && this.candidates.size === 0 && this.timer !== null) {
       clearInterval(this.timer);
       this.timer = null;
     }
@@ -215,7 +245,7 @@ export class AskWatch {
     this.lastOutputAt.delete(sessionId);
     this.bytesIn.delete(sessionId);
     this.lastWriteAt.delete(sessionId);
-    this.stopHealWatchIfIdle();
+    this.stopWatchIfIdle();
   }
 
   /** 等待确认判定(会话列表「等待确认」标签)。 */
