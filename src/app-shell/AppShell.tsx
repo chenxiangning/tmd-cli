@@ -20,17 +20,15 @@
  * - SessionList/TopBar 面包屑等通过挂点贡献(见 contributions.tsx),非硬编码
  */
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle, useGroupRef } from "react-resizable-panels";
 import {
-  ExternalLink,
   Inbox,
   Plug,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
-  X,
 } from "lucide-react";
 import { host, useHost } from "@kernel/host";
 import {
@@ -39,16 +37,16 @@ import {
   useComposerStage,
 } from "@kernel/composerStage";
 import { windowClose, windowMinimize, windowToggleMaximize } from "@kernel/ipc";
-import { baseName } from "@kernel/pathUtils";
 import { Mounts } from "@kernel/Mounts";
 import { TerminalView } from "@kernel/TerminalView";
-import { closeTab, setActiveTab, useEditorTabs } from "@kernel/tabs";
-import { resolveFileVisual } from "@kernel/fileVisual";
+import { useEditorTabs } from "@kernel/tabs";
 import { useFilePanel } from "@kernel/filePanel";
 import { usePlatformKind } from "@kernel/platform";
+import { EditorCenter } from "./EditorCenter";
 import { RightPanelToolbar, TopBarPanelTabs } from "./RightPanelToolbar";
 import { SidebarSettingsCluster } from "./SidebarSettingsCluster";
 import { PluginMarketPage } from "./PluginMarketPage";
+import { useEditorMaximized } from "./editorMaximized";
 
 function usePersistedToggle(key: string, initial: boolean) {
   const [open, setOpen] = useState(
@@ -97,105 +95,6 @@ function useElementWidth(cssVar: string) {
   return ref;
 }
 
-/* 文件类型 SVG ─ 由 fileTreeIcons 给出(与文件树一致)。 */
-function FileTabIcon({ fileName }: { fileName: string }) {
-  const html = resolveFileVisual(fileName, false).svgHtml;
-  return (
-    <span
-      className="tab-icon"
-      aria-hidden
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  );
-}
-
-/** 单个 tab ─ 图标 + 名称(+ 脏标记圆点)+ detach + close。 */
-function FileTab({
-  tabId,
-  tabPath,
-  isActive,
-  dirty,
-}: {
-  tabId: string;
-  tabPath: string;
-  isActive: boolean;
-  dirty?: boolean;
-}) {
-  const fileName = baseName(tabPath) || tabPath;
-  return (
-    <div className={`tab${isActive ? " is-active" : ""}`} data-tab-id={tabId}>
-      <button
-        type="button"
-        className="tab-main"
-        onClick={() => setActiveTab(tabId)}
-        title={tabPath}
-      >
-        <FileTabIcon fileName={fileName} />
-        <span className="tab-main-label">{fileName}</span>
-        {/* 未保存圆点(useFileDocument 经 updateTab 上报) */}
-        {dirty ? <span className="tab-dirty-dot" aria-hidden /> : null}
-      </button>
-      <button
-        type="button"
-        className="tab-detach"
-        aria-label={`在新窗口打开 ${fileName}`}
-        title="在新窗口打开"
-        onClick={(e) => {
-          e.stopPropagation();
-          // 占位:detached file explorer 后续接入
-          // eslint-disable-next-line no-console
-          console.info("[tabs] open-detached:", tabPath);
-        }}
-      >
-        <ExternalLink size={11} aria-hidden />
-      </button>
-      <button
-        type="button"
-        className="tab-close"
-        aria-label={`关闭 ${fileName}`}
-        title="关闭"
-        onClick={(e) => {
-          e.stopPropagation();
-          closeTab(tabId);
-        }}
-      >
-        <X size={11} aria-hidden />
-      </button>
-    </div>
-  );
-}
-
-const EditorCenter = memo(function EditorCenter() {
-  const { tabs, activeId } = useEditorTabs();
-  const active = tabs.find((t) => t.id === activeId) ?? null;
-
-  return (
-    <div className="flex h-full flex-col bg-(--tmd-bg-base)">
-      <div className="tab-bar">
-        <div className="tab-bar-track">
-          {tabs.map((t) => (
-            <FileTab
-              key={t.id}
-              tabId={t.id}
-              tabPath={t.path || t.title}
-              isActive={t.id === activeId}
-              dirty={t.dirty}
-            />
-          ))}
-        </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-auto">
-        {active ? (
-          <Mounts point="editorCenter.tabContent" />
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
-            选中一个文件查看
-          </div>
-        )}
-      </div>
-    </div>
-  );
-});
 
 /**
  * 中央幕布 —— 上下结构:terminal(无 session 时占位) + composer,高度可拖。
@@ -376,6 +275,9 @@ export function AppShell() {
   const [marketOpen, setMarketOpen] = useState(false);
   const toggleMarket = useCallback(() => setMarketOpen((v) => !v), []);
   const { tabs } = useEditorTabs();
+  /* 编辑区最大化(editorMaximized store,持久化):有 tab 时隐藏左栏与中央幕布,
+     编辑区 + 右文件面板并占通栏(右栏不参与);无 tab 时标志不生效。 */
+  const maximized = useEditorMaximized() && tabs.length > 0;
   const leftAsideRef = useElementWidth("--tmd-left-aside-w");
   const rightAsideRef = useElementWidth("--tmd-right-aside-w");
   /* 经典滚动条会吃掉滚动容器的内容宽度:实测一次,供顶栏折叠按钮让位对齐。 */
@@ -407,7 +309,7 @@ export function AppShell() {
 
       <PanelGroup orientation="horizontal" id="tmd.outer">
         {/* 左侧 session 栏 */}
-        {leftOpen && (
+        {!maximized && leftOpen && (
           <>
             <Panel defaultSize={18} minSize={12} id="left">
               <aside ref={leftAsideRef} className="flex h-full flex-col">
@@ -423,20 +325,25 @@ export function AppShell() {
         )}
 
         {/* 中央幕布 */}
+        {!maximized && (
         <Panel defaultSize={tabs.length > 0 ? 24 : 60} minSize={15} id="center">
           <MainPanel />
         </Panel>
+        )}
 
         {/* 文件预览:有打开 tab 时出现,占满竖屏,位于中栏与右栏之间(可拖) */}
         {tabs.length > 0 && (
           <>
-            <PanelResizeHandle className="panel-handle panel-handle-v panel-handle-line-l" />
+            {!maximized && (
+              <PanelResizeHandle className="panel-handle panel-handle-v panel-handle-line-l" />
+            )}
             <Panel defaultSize={36} minSize={15} id="editor">
               <EditorCenter />
             </Panel>
           </>
         )}
 
+        {/* 右文件面板:最大化时不参与隐藏(用户微调:文件树保持可见) */}
         {rightOpen && (
           <>
             <PanelResizeHandle className="panel-handle panel-handle-v panel-handle-line-l" />

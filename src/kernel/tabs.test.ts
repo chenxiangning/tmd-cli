@@ -72,6 +72,32 @@ describe("closeTab", () => {
   });
 });
 
+describe("closeOtherTabs / closeAllTabs", () => {
+  it("closeOtherTabs 只保留目标 tab 并激活它", () => {
+    tabs.openTab(tab("a"));
+    tabs.openTab(tab("b"));
+    tabs.openTab(tab("c"));
+    tabs.closeOtherTabs("b");
+    expect(tabs.getTabs().map((t) => t.id)).toEqual(["b"]);
+    expect(tabs.getActiveTabId()).toBe("b");
+  });
+
+  it("closeOtherTabs 传入不存在 id 时等同关闭全部", () => {
+    tabs.openTab(tab("a"));
+    tabs.closeOtherTabs("ghost");
+    expect(tabs.getTabs()).toEqual([]);
+    expect(tabs.getActiveTabId()).toBeNull();
+  });
+
+  it("closeAllTabs 清空列表,activeId 回落 null", () => {
+    tabs.openTab(tab("a"));
+    tabs.openTab(tab("b"));
+    tabs.closeAllTabs();
+    expect(tabs.getTabs()).toEqual([]);
+    expect(tabs.getActiveTabId()).toBeNull();
+  });
+});
+
 describe("setActiveTab 不变量", () => {
   it("切换到已存在 id 生效", () => {
     tabs.openTab(tab("a"));

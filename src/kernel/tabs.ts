@@ -72,6 +72,19 @@ export function closeTab(id: string): void {
   emit();
 }
 
+/** 关闭除 id 外的全部 tab;id 不存在时等同关闭全部。 */
+export function closeOtherTabs(id: string): void {
+  state.tabs = state.tabs.filter((t) => t.id === id);
+  refreshSnapshot();
+  emit();
+}
+
+export function closeAllTabs(): void {
+  state.tabs = [];
+  refreshSnapshot();
+  emit();
+}
+
 /**
  * 原地合并 tab 字段(title/dirty 等)—— openTab 对已存在 id 只激活不覆盖,
  * 编辑态(脏标记)需要单独的更新通道。id 不存在时静默忽略(不复活已关 tab)。

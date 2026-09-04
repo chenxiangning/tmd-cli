@@ -48,5 +48,6 @@
 | 2026-09-04 | [SSH 模块竞品调研](research/ssh-module-reference.md) | 已完成 |
 | 2026-09-04 | [SSH 插件需求澄清(竞品调研)](brainstorm/2026-09-04-ssh-plugin.md) | 已收敛 |
 | 2026-09-04 | [SSH 插件设计:一等会话 + 右栏 SFTP 树 + 端口转发](superpowers/specs/2026-09-04-ssh-plugin-design.md) | 已落地(引擎端到端实测,契约见 openspec/changes/ssh-plugin/) |
+| 2026-09-04 | [文件 tab 右键菜单 + 编辑区最大化切换设计](superpowers/specs/2026-09-04-tab-menu-editor-maximize-design.md) | 已落地 |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
