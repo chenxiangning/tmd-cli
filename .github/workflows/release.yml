@@ -91,7 +91,8 @@ jobs:
       # 这里完全不传任何 APPLE_* / TAURI_SIGNING_* 凭据
       #   → 等价于本地的 --skip-sign --skip-notarize,零成本,未签名/未公证,与 release-mac-local.sh 行为一致。
       # tagName 动态取值:推送 v* tag 时非空 → 自动创建 Draft Release 并挂全部产物;
-      # workflow_dispatch 手动触发时为空串 → 只构建,产物仅落 workflow Artifacts 面板。
+      # workflow_dispatch 手动触发时为空串 → 只构建;tauri-action 不会上传任何
+      # workflow artifact,产物由下一步 upload-artifact 兜底落面板。
       - name: Build installers
         uses: tauri-apps/tauri-action@v0
         env:
@@ -103,4 +104,13 @@ jobs:
           releaseBody: "Automated build. See commit log for changes."
           releaseDraft: true
           args: --target ${{ matrix.tauri-target }}
+
+      # 手动触发兜底:tauri-action 无 tagName 时产物不上传,job 结束即丢。
+      # tag run 的产物直接挂 Release,不重复上传。
+      - name: 上传构建产物(仅手动触发)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: tmd-cli-bundle-${{ matrix.tauri-target }}
+          path: src-tauri/target/${{ matrix.tauri-target }}/release/bundle/
 
