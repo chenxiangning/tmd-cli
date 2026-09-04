@@ -13,7 +13,6 @@ import { host } from "@kernel/host";
 import { ipc, type GitAheadBehind } from "@kernel/ipc";
 import { useGitStatus } from "./hooks/useGitStatus";
 import { useGitTotals } from "./hooks/useGitTotals";
-import { useGitDiffs } from "./hooks/useGitDiffs";
 import { useGitBranches } from "./hooks/useGitBranches";
 import { useGitLog } from "./hooks/useGitLog";
 import { gitErrorDisplay, isAuth } from "./gitError";
@@ -35,14 +34,6 @@ export function GitPanel() {
 
   const status = useGitStatus(cwd);
   const totals = useGitTotals(cwd);
-  /* 幕布外改动签名:headSha + 文件集。变化 = 仓库被面板之外途径改动,
-     useGitDiffs 据此作废 patch 缓存并重拉展开项,抽屉不显示陈旧 diff。 */
-  const statusSignature = status.data
-    ? `${status.data.headSha}|${status.data.files
-        .map((f) => `${f.path}:${f.status}${f.staged ? "s" : ""}${f.wt ? "w" : ""}`)
-        .join(",")}`
-    : null;
-  const diffs = useGitDiffs(cwd, statusSignature);
   const branches = useGitBranches(cwd, view === "branch");
   const log = useGitLog(cwd, view === "history");
 
@@ -78,7 +69,6 @@ export function GitPanel() {
   const refreshBatchRef = useRef(0);
 
   const afterMutation = useCallback(() => {
-    diffs.invalidate();
     const jobs: Promise<unknown>[] = [status.refresh(), totals.refresh(), refreshAheadBehind()];
     if (view === "branch") jobs.push(branches.refresh());
     if (view === "history") jobs.push(log.refresh());
@@ -88,7 +78,7 @@ export function GitPanel() {
     void Promise.allSettled(jobs).then(() => {
       if (refreshBatchRef.current === myBatch) setGitRefreshing(false);
     });
-  }, [status, totals, diffs, refreshAheadBehind, view, branches, log]);
+  }, [status, totals, refreshAheadBehind, view, branches, log]);
 
   // 顶栏 ⟳ → 全量刷新
   const lastNonceRef = useRef(refreshNonce);
@@ -217,7 +207,6 @@ export function GitPanel() {
             cwd={cwd}
             layout={layout}
             files={files}
-            diffs={diffs}
             prefill={prefill}
             onMutation={afterMutation}
           />

@@ -4,6 +4,7 @@ import { registerFilePanel } from "@kernel/filePanel";
 import { GitPanel } from "./GitPanel";
 import { GitToolbar } from "./GitToolbar";
 import { CommitDiffTabContent } from "./CommitDiffTab";
+import { DiffTabContent } from "./DiffTabContent";
 
 /** Git 插件入口:单视图三段面板(差异/分支/历史)+ 提交 diff 中央 tab。
  *  契约见 openspec/changes/git-right-panel/ 与
@@ -21,10 +22,14 @@ export const gitPlugin: Plugin = {
       component: GitPanel,
       toolbar: GitToolbar,
     });
-    // 提交 diff tab:历史 Graph 点文件 → 编辑器区打开(同 checkpoints 批审阅单模式)
+    // 提交 diff tab + 工作区 diff tab:右栏点文件 → 编辑器区打开(同 checkpoints 批审阅单模式)
     ctx.contribute("editorCenter.tabContent", {
       order: 11,
       component: CommitDiffTabContent,
+    });
+    ctx.contribute("editorCenter.tabContent", {
+      order: 12,
+      component: DiffTabContent,
     });
   },
 };
