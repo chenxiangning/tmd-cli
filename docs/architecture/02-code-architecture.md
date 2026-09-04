@@ -418,7 +418,7 @@ flowchart TD
 | `git_commit_files` / `git_commit_file_patch` | `git/commit_view.rs` | 单提交文件清单(提交 vs 首父,find_similar rename 检测) / 提交内单文件 patch —— 历史 Graph 展开与提交 diff tab |
 | `git_branches` / `git_checkout` / `git_create_branch` / `git_delete_branch` | `git/branch_ops.rs` | 分支操作(全 libgit2) |
 | `git_fetch` / `git_pull_push` | `git/remote_ops.rs` | 远端操作 shell-out(300s 总超时,GIT_TERMINAL_PROMPT=0,管道排空不 join) |
-| `ssh_session_create` / `ssh_session_status` | `ssh/commands.rs` + `session.rs`/`auth.rs` | SSH 一等会话建立/状态轮询(认证矩阵 password/PEM+passphrase/KBI 多轮;known_hosts 首连信任卡 120s 超时) |
+| `ssh_session_create` / `ssh_session_reconnect` / `ssh_session_status` | `ssh/commands.rs` + `session.rs`/`auth.rs` | SSH 一等会话建立/重连/状态轮询(认证矩阵 password/PEM+passphrase/KBI 多轮;known_hosts 首连信任卡 120s 超时;重连续取原配置收尾重建,凭据不出后端) |
 | `ssh_prompt_answer` / `ssh_prompt_cancel` / `ssh_latency` / `ssh_known_hosts_reset` | `ssh/commands.rs` + `control.rs`/`known_hosts.rs` | 交互提示应答(KBI 上限 5 轮,密码类自动代答) / 延迟探测 / 信任重置 |
 | `ssh_sftp_list` / `ssh_sftp_stat` / `ssh_sftp_read_text` / `ssh_sftp_write_text` / `ssh_sftp_mkdir` / `ssh_sftp_rename` / `ssh_sftp_delete` | `ssh/sftp.rs`(+`sftp_path.rs`) | SFTP 远端文件原语(与终端同连接 subsystem,不重认证;写回带 mtime+size 乐观并发) |
 | `ssh_sftp_transfer` / `ssh_sftp_transfer_cancel` / `ssh_sftp_transfer_status` | `ssh/sftp_transfer.rs`(+`sftp_transfer_state.rs`) | 递归上传/下载:进度事件 + 取消 + 代际失效 |

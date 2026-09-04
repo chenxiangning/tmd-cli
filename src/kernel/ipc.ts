@@ -339,14 +339,22 @@ export const ipc = {
   gitBranches: (cwd: string) => invoke<GitBranchList>("git_branches", { cwd }),
   gitCheckout: (cwd: string, name: string) =>
     invoke<void>("git_checkout", { cwd, name }),
+  /** 检出远程分支为本地同名分支并建跟踪(origin/feat → feat + upstream)。 */
+  gitCheckoutRemote: (cwd: string, name: string) =>
+    invoke<void>("git_checkout_remote", { cwd, name }),
   gitCreateBranch: (cwd: string, name: string, from?: string) =>
     invoke<void>("git_create_branch", { cwd, name, from: from ?? null }),
   gitDeleteBranch: (cwd: string, name: string, force: boolean) =>
     invoke<void>("git_delete_branch", { cwd, name, force }),
   gitFetch: (cwd: string) => invoke<string>("git_fetch", { cwd }),
-  /** pull/push 统一入口;凭据失败返 E_AUTH:,引导用户去幕布终端。 */
-  gitPullPush: (cwd: string, op: "pull" | "push", branch?: string) =>
+  /** pull/push/fetch 统一入口;branch 缺省作用于当前分支(fetch 缺省 = --all --prune)。
+   *  pull 非当前分支 = 仅 fast-forward 上游引用;fetch 带分支 = 刷新该分支上游引用。 */
+  gitPullPush: (cwd: string, op: "pull" | "push" | "fetch", branch?: string) =>
     invoke<string>("git_pull_push", { cwd, op, branch: branch ?? null }),
+  /** 「暂存并切换」(IDEA Smart Checkout):脏工作区 stash -u → 切换 → pop,
+   *  pop 冲突时切换已生效、stash 保留;remote = 检出远程分支版。 */
+  gitSmartCheckout: (cwd: string, name: string, remote: boolean) =>
+    invoke<void>("git_smart_checkout", { cwd, name, remote }),
   /** 递归收集目录下指定后缀文件,按修改时间倒序。目录不存在 = 空表。 */
   fsCollectFiles: (dir: string, suffix: string) =>
     invoke<FileStamp[]>("fs_collect_files", { dir, suffix }),
@@ -407,6 +415,13 @@ export const ipc = {
       workspaceId: workspaceId ?? null,
       cols: cols ?? null,
       rows: rows ?? null,
+    }),
+  /** 重连 SSH 会话:后端取原主机配置(凭据不出后端)收尾旧会话后同配置新建,新会话新 id。 */
+  sshSessionReconnect: (sessionId: string, cwd: string, workspaceId?: string) =>
+    invoke<SpawnedSession>("ssh_session_reconnect", {
+      sessionId,
+      cwd,
+      workspaceId: workspaceId ?? null,
     }),
   /** 会话当前状态(webview 重载后重建面板状态用)。 */
   sshSessionStatus: (sessionId: string) =>

@@ -220,20 +220,15 @@
   flex: none;
 }
 .ssh-status-dot.is-connected {
-  background: #34d399;
-  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.25);
+  background: var(--tmd-ok);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tmd-ok) 25%, transparent);
 }
-.ssh-status-dot.is-connecting,
-.ssh-status-dot.is-reconnecting {
-  background: #eab308;
+.ssh-status-dot.is-connecting, .ssh-status-dot.is-reconnecting {
+  background: var(--tmd-warn);
   animation: ssh-breathe 1.6s ease-in-out infinite;
 }
-.ssh-status-dot.is-failed {
-  background: #f87171;
-}
-.ssh-status-dot.is-disconnected {
-  background: var(--tmd-fg-faint);
-}
+.ssh-status-dot.is-failed { background: var(--tmd-err); }
+.ssh-status-dot.is-disconnected { background: var(--tmd-fg-faint); }
 @keyframes ssh-breathe {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -252,10 +247,14 @@
   color: var(--tmd-fg-faint);
   flex: none;
 }
+/* 状态文案按状态着色(语义变量适配明暗;latency 数值保持弱化色)。 */
+.ssh-session-status.is-connected { color: var(--tmd-ok); }
+.ssh-session-status.is-connecting, .ssh-session-status.is-reconnecting { color: var(--tmd-warn); }
+.ssh-session-status.is-failed { color: var(--tmd-err); }
 .ssh-session-message {
   margin-top: 4px;
   font-size: 10px;
-  color: #f87171;
+  color: var(--tmd-err);
   word-break: break-all;
 }
 .ssh-session-actions {

@@ -12,6 +12,7 @@ import {
   FileText,
   FolderClosed,
   FolderOpen,
+  RefreshCw,
   Upload,
 } from "lucide-react";
 import { ipc, pickDirectory, pickFile, type SftpEntry, type SftpTransferState } from "@kernel/ipc";
@@ -130,6 +131,15 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
       <div className="ssh-section-head">
         <FolderClosed size={12} aria-hidden />
         <span>远端文件</span>
+        <button
+          type="button"
+          className="ssh-icon-btn"
+          title="刷新"
+          disabled={!connected}
+          onClick={() => void reloadAll()}
+        >
+          <RefreshCw size={12} />
+        </button>
         <button
           type="button"
           className="ssh-icon-btn"

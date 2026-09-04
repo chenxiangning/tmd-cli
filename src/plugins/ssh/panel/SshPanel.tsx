@@ -4,8 +4,8 @@
  * 会话数据源 host.getSessions() 过滤 kind === "ssh";状态镜像 state.ts。
  */
 
-import { useEffect } from "react";
-import { Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, RefreshCw, RotateCw, Unplug } from "lucide-react";
 import { host, useHost } from "@kernel/host";
 import { SSH_STATUS_LABELS, openHostPicker, probeLatency, useSshSession } from "../state";
 import { ForwardSection } from "./ForwardSection";
@@ -63,6 +63,20 @@ function SessionCard({
 }) {
   const view = useSshSession(sessionId);
   const status = view?.status ?? "connecting";
+  const [busy, setBusy] = useState(false);
+  /* 重连:后端取原主机配置收尾重建(新会话新 id),旧 tab 随 pty://exit 消亡。 */
+  const reconnect = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const old = host.getSessions().find((s) => s.id === sessionId);
+      await host.createSshSession(sessionId, old?.workspaceId);
+    } catch (e) {
+      window.alert(`重连失败:${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <div className={`ssh-session-card${active ? " is-active" : ""}`}>
       <button
@@ -72,7 +86,7 @@ function SessionCard({
       >
         <span className={`ssh-status-dot is-${status}`} aria-hidden />
         <span className="ssh-session-label">{label}</span>
-        <span className="ssh-session-status">{SSH_STATUS_LABELS[status] ?? status}</span>
+        <span className={`ssh-session-status is-${status}`}>{SSH_STATUS_LABELS[status] ?? status}</span>
         {view?.latencyMs !== undefined ? (
           <span className="ssh-session-latency">{view.latencyMs}ms</span>
         ) : null}
@@ -88,10 +102,19 @@ function SessionCard({
         </button>
         <button
           type="button"
-          title="断开会话"
+          title="重新连接"
+          disabled={busy || status === "connecting" || status === "reconnecting"}
+          onClick={() => void reconnect()}
+        >
+          <RotateCw size={11} />
+        </button>
+        <button
+          type="button"
+          title="断开连接"
+          disabled={busy}
           onClick={() => void host.removeSession(sessionId)}
         >
-          <Trash2 size={11} />
+          <Unplug size={11} />
         </button>
       </div>
     </div>

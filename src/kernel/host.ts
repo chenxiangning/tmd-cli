@@ -17,7 +17,7 @@ import { DiskIdentityWatch } from "./identityWatch";
 import { OutputBufferStore } from "./outputBuffers";
 import { SessionStatusWatch } from "./sessionStatus";
 
-import { ipc, onPtyExit, onPtyOutput, type SessionMeta, type SpawnSpec } from "./ipc";
+import { ipc, onPtyExit, onPtyOutput, type SshHostConfig, type SessionMeta, type SpawnedSession, type SpawnSpec } from "./ipc";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";
 import { registerSettingsSection, type SettingsSectionContribution } from "./settingsRegistry";
@@ -196,25 +196,27 @@ class Host implements PluginContext {
 
   // ---- 会话服务（kernel 固有职责：PTY 生命周期） ---------------------------
 
-  /**
-   * 创建 SSH 会话(russh 引擎):注册即返回,连接/认证在 Rust 后台完成。
-   * 输出/退出复用 pty://out / pty://exit 事件契约,幕布全链路零分叉;
-   * SSH 会话不参与 CLI 身份探测/状态栏/审批线(无 profile),Ask 检测按 kind 跳过
-   * (远端输出里的 "Do you want" 类文本会误报呼吸灯/提示音)。
-   */
+  /** 创建/重连 SSH 一等会话:注册即返回,连接/认证 Rust 后台完成;幕布与 PTY 同构,无 profile。
+  重连形态第一参传旧会话 id:后端取原配置(凭据不出后端)收尾重建,新 id 新 tab,旧 tab 消亡。 */
+  async createSshSession(host: SshHostConfig, workspaceId?: string): Promise<SessionMeta>;
+  async createSshSession(reconnectOf: string, workspaceId?: string): Promise<SessionMeta>;
   async createSshSession(
-    host: import("./ipc").SshHostConfig,
+    host: SshHostConfig | string,
     workspaceId?: string,
   ): Promise<SessionMeta> {
-    /* cwd 只作会话归属/日志 slug 锚点(取工作区根),远端工作目录由服务器决定。 */
-    const workspace =
-      getWorkspaces().find((w) => w.id === workspaceId) ?? getActiveWorkspace();
-    const spawned = await ipc.sshSessionCreate(host, workspace?.root ?? "", workspace?.id);
+    const workspace = getWorkspaces().find((w) => w.id === workspaceId) ?? getActiveWorkspace();
+    const spawned =
+      typeof host === "string"
+        ? await ipc.sshSessionReconnect(host, workspace?.root ?? "", workspace?.id)
+        : await ipc.sshSessionCreate(host, workspace?.root ?? "", workspace?.id);
+    return this.adoptSshSession(spawned);
+  }
+
+  /** spawn/重连共用装配:常驻订阅输出与退出、置活跃、广播会话表。 */
+  private async adoptSshSession(spawned: SpawnedSession): Promise<SessionMeta> {
     this.sessions = await ipc.sessionList();
-    this.activeSessionId = spawned.id;
     const offOutput = await onPtyOutput(spawned.id, (text) => {
-      if (!this.sessions.some((s) => s.id === spawned.id)) return;
-      this.appendOutput(spawned.id, text);
+      if (this.sessions.some((s) => s.id === spawned.id)) this.appendOutput(spawned.id, text);
     });
     const offExit = await onPtyExit(spawned.id, () => {
       void this.removeSession(spawned.id);

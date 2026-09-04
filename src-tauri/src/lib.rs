@@ -368,6 +368,7 @@ pub fn run() {
             config_write_workspaces,
             config_read_settings,
             ssh::commands::ssh_session_create,
+            ssh::commands::ssh_session_reconnect,
             ssh::commands::ssh_session_status,
             ssh::commands::ssh_prompt_answer,
             ssh::commands::ssh_prompt_cancel,
