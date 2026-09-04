@@ -192,6 +192,16 @@ export interface CliProfile {
    */
   editMarks?: RegExp[];
   /**
+   * 「阻塞等待用户确认」的界面标记(Ask/确认问答卡片,审批线外的等待确认标签
+   * + 提示音数据源,见 kernel/askWatch.ts):每条正则对剥 ANSI 后的页脚窗口
+   * (末 5 行)与幕布屏幕底部行匹配。
+   * 纪律与 editMarks 相同:宁可漏报不可误报,只认面板页脚/选项字面量;
+   * 未声明 = 只用内核通用标记(y/n、Do you want 句式)。
+   * 选词位置原则:标记必须出现在面板「尾部」—— 长选项会把面板头部推出
+   * 尾窗,底部字面量才稳定落在页脚窗口。
+   */
+  askMarks?: RegExp[];
+  /**
    * 会话磁盘事件流的 AI 写入读取(审批线 events 归因第二信号源)。
    * 从该 CLI 自己的会话 JSONL 提取 edit/write 工具写入的文件 —— 每会话一个
    * 文件,天然按会话隔离,并行会话不串扰(editMarks 的 PTY 标记做不到:

@@ -11,6 +11,7 @@ import type {
   CliSuggestion,
 } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
+import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 
 /**
  * Kimi 品牌 glyph:几何 K 字monogram(codemoss EngineIcon 同源策略),
@@ -400,6 +401,8 @@ export const cliKimiPlugin: Plugin = {
       readSessionFileIdentity: readKimiSessionIdentity,
       readDefaultStatus: readKimiConfigStatus,
       readSessionUserMessages: readKimiUserMessages,
+      /* Ask 卡片标记(pi-tui 系共享字面量,见 cli-shared/askMarks.ts)。 */
+      askMarks: PI_TUI_ASK_MARKS,
     };
     ctx.registerCliProfile(profile);
   },

@@ -10,6 +10,7 @@ import {
 import { readPiDefaultStatus } from "./configStatus";
 import { registerPiQuotaProvider } from "./quota";
 import { scanJsonlSessions } from "../cli-shared/diskSessions";
+import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 
@@ -126,6 +127,8 @@ export const cliPiPlugin: Plugin = {
       readDefaultStatus: readPiDefaultStatus,
       readSessionUserMessages: readPiUserMessages,
       readSessionEdits: readPiSessionEdits,
+      /* Ask 卡片标记(pi-tui 系共享字面量,见 cli-shared/askMarks.ts)。 */
+      askMarks: PI_TUI_ASK_MARKS,
     });
   },
 };

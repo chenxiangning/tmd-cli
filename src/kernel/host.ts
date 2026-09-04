@@ -11,7 +11,7 @@ import { getSettingsState } from "./settings";
 import { getActiveWorkspace, getWorkspaces } from "./workspace";
 import { PluginLifecycle } from "./pluginLifecycle";
 import { ActivityWatch } from "./activityWatch";
-import { AskWatch } from "./askWatch";
+import { AskWatchFeed } from "./askWatch";
 import { EditWatch } from "./editWatch";
 import { DiskIdentityWatch } from "./identityWatch";
 import { OutputBufferStore } from "./outputBuffers";
@@ -56,18 +56,20 @@ class Host implements PluginContext {
     notify: () => this.notify(),
   });
   private listeners = new Set<() => void>();
-  /**
-   * 每会话 PTY 输出环形缓冲：会话切换后 xterm 重挂载靠它回放，这是"切回不黑屏"的核心。
-   * 存储细节(分块/迟滞截断/字节数增量)见 kernel/outputBuffers.ts。
-   */
+  /** 每会话 PTY 输出环形缓冲:xterm 重挂载回放("切回不黑屏");存储细节见 kernel/outputBuffers.ts。 */
   private readonly outputBuffers = new OutputBufferStore();
-  private readonly askWatch = new AskWatch(
-    () => this.notify(),
-    (sessionId) => {
-      this.events.emit(KernelTopics.askDetected, sessionId);
-      this.notify();
-    },
-  ); /* Ask 等待确认状态仓(kernel/askWatch.ts):onHealed = 自愈摘签重渲染;onAsked = 守望计时器静默确认升级(静态面板),与 onOutput 复现升级同语义 */
+  private readonly askWatch = new AskWatchFeed({
+    sessionKind: (sessionId) =>
+      this.sessions.find((s) => s.id === sessionId)?.kind,
+    askMarks: (sessionId) =>
+      this.cliProfiles.get(
+        this.sessions.find((s) => s.id === sessionId)?.profileId ?? "",
+      )?.askMarks,
+    emitAsked: (sessionId) => this.events.emit(KernelTopics.askDetected, sessionId),
+    notify: () => this.notify(),
+    bufferTail: (sessionId, maxChars) =>
+      this.outputBuffers.get(sessionId).slice(-maxChars), // askWatch 检测核心见 kernel/askWatch.ts
+  });
   /** AI 写入文件守望(events 归因主信号,见 kernel/editWatch.ts;纯内存,随 PTY 消亡) */
   private readonly editWatch = new EditWatch();
   /**
@@ -352,19 +354,15 @@ class Host implements PluginContext {
     /* 上限读设置项 sessionOutputBufferLimit(行为页可调),异常值已被 sanitize 拦截。 */
     const limit =
       getSettingsState().settings.sessionOutputBufferLimit || Host.OUTPUT_BUFFER_LIMIT;
-    this.outputBuffers.append(sessionId, text, limit);
+    const chunkBytes = this.outputBuffers.append(sessionId, text, limit);
     this.events.emit(ptyLiveTopic(sessionId), text);
 
-    /* AskWatch:命中面板标记立候选,复现确认后升级等待 → 事件 + 标签重渲染;
-       ActivityWatch:输出回绿 + 节流 notify(未锚定会话免重渲染);
-       EditWatch:CLI 声明 editMarks 时检测 AI 写入标记 → fileEditDetected
-       (审批线 events 归因主信号,checkpoints 流式记账)。 */
-    const session = this.sessions.find((s) => s.id === sessionId);
-    /* SSH 会话跳过 Ask 检测:标记词是 CLI 面板专用,远端输出必然误报。 */
-    const asked =
-      session?.kind === "ssh" ? false : this.askWatch.onOutput(sessionId, text);
-    if (asked) this.events.emit(KernelTopics.askDetected, sessionId);
+    /* AskWatch 升级 → askDetected(提示音)+ 标签;ActivityWatch 回绿;
+       EditWatch 检测 AI 写入标记 → fileEditDetected(审批线归因)。
+       notify 单次:ask 升级与回绿共享同一渲染节拍。 */
+    const asked = this.askWatch.onOutput(sessionId, text, chunkBytes);
     if (asked || this.activity.onOutput(sessionId)) this.notify();
+    const session = this.sessions.find((s) => s.id === sessionId);
     const marks = session ? this.cliProfiles.get(session.profileId)?.editMarks : undefined;
     if (session && marks && marks.length > 0) {
       const paths = this.editWatch.onOutput(sessionId, text, session.cwd, marks);
@@ -374,10 +372,13 @@ class Host implements PluginContext {
     }
   }
 
-  /**
-   * 用户输入的唯一写入口:PTY 写入 + 对话锚定(呼吸灯首写闸,activityWatch)
-   * + Ask 等待解除(作答即摘标签)。
-   */
+  /* 回放补观察 / 屏幕采样:委托 askWatch 组合件(语义见 kernel/askWatch.ts)。 */
+  observeReplayTail = (sessionId: string): void =>
+    this.askWatch.observeReplayTail(sessionId);
+  observeAskScreen = (sessionId: string, screenText: string): void =>
+    this.askWatch.onScreenSample(sessionId, screenText);
+
+  /** 用户输入的唯一写入口:PTY 写入 + 对话锚定(呼吸灯首写闸)+ Ask 作答解除。 */
   writeSession(sessionId: string, data: string, synthetic = false): void {
     void ipc.sessionWrite(sessionId, data);
     if (!synthetic) {

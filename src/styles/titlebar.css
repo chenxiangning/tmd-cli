@@ -290,6 +290,14 @@
   background: var(--tmd-accent);
 }
 
+/* 等待确认圆点(AskWatch 命中,读 host.isWaitingConfirm):呼吸灯绿,
+   与侧栏 .thread-ask-badge 同色板;压过未读蓝点(需要用户行动语义更强)。
+   呼吸动画复用 ssh-breathe(同参数 keyframes,不再另造)。 */
+.session-tab-dot.is-ask {
+  background: #059669;
+  animation: ssh-breathe 1.6s ease-in-out infinite;
+}
+
 .session-tab-remove {
   display: inline-flex;
   align-items: center;

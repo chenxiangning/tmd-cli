@@ -51,10 +51,16 @@ function SessionTabBarImpl() {
             <button
               type="button"
               className="session-tab-switch"
-              title={title}
+              title={
+                host.isWaitingConfirm(id) ? `${title} · 等待确认` : title
+              }
               onClick={() => host.setActiveSession(id)}
             >
-              {host.isUnread(id) ? <span className="session-tab-dot" aria-hidden /> : null}
+              {host.isWaitingConfirm(id) ? (
+                <span className="session-tab-dot is-ask" aria-hidden />
+              ) : host.isUnread(id) ? (
+                <span className="session-tab-dot" aria-hidden />
+              ) : null}
               <span className="session-tab-label">{title}</span>
             </button>
             <button

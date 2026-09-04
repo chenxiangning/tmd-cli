@@ -22,8 +22,9 @@ interface OutputBuffer {
 export class OutputBufferStore {
   private readonly buffers = new Map<string, OutputBuffer>();
 
-  /** 追加一块输出;totalChars 超 1.2×limit 时合并截断到尾部。 */
-  append(sessionId: string, text: string, limit: number): void {
+  /** 追加一块输出,返回该 chunk 的 UTF-8 字节数(供 askWatch 漂移计量);
+      totalChars 超 1.2×limit 时合并截断到尾部。 */
+  append(sessionId: string, text: string, limit: number): number {
     const buf: OutputBuffer = this.buffers.get(sessionId) ?? {
       chunks: [],
       totalChars: 0,
@@ -33,7 +34,8 @@ export class OutputBufferStore {
     buf.totalChars += text.length;
     /* 逐 chunk 编码累计字节数:PTY 侧按完整码点切包(decode_utf8_chunk 暂存尾部),
        chunk 边界永不劈开 surrogate pair,故分块编码之和 === 拼接后整段编码 */
-    buf.totalBytes += outputByteEncoder.encode(text).length;
+    const chunkBytes = outputByteEncoder.encode(text).length;
+    buf.totalBytes += chunkBytes;
     /* 1.2× 迟滞:只有明显超限才合并截断,避免每次 append 都做 O(limit) 拼接 */
     if (buf.totalChars > limit * 1.2) {
       const trimmed = sliceStreamTail(buf.chunks.join(""), limit);
@@ -42,6 +44,7 @@ export class OutputBufferStore {
       buf.totalBytes = outputByteEncoder.encode(trimmed).length;
     }
     this.buffers.set(sessionId, buf);
+    return chunkBytes;
   }
 
   /** 会话至今的全部（尾部）输出，供 xterm 重挂载回放。join 后顺手压实为单 chunk。 */

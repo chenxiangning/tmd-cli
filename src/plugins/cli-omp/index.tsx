@@ -10,6 +10,7 @@ import { readOmpDefaultStatus } from "./configStatus";
 import { registerOmpQuotaProvider } from "./quota";
 import { ompSessionsDir, readOmpSessionEdits } from "./edits";
 import { scanJsonlSessions } from "../cli-shared/diskSessions";
+import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 
@@ -131,6 +132,9 @@ export const cliOmpPlugin: Plugin = {
       readDefaultStatus: readOmpDefaultStatus,
       readSessionUserMessages: readOmpUserMessages,
       readSessionEdits: readOmpSessionEdits,
+      /* Ask 卡片标记(pi-tui 系共享字面量,见 cli-shared/askMarks.ts):
+         会话列表「等待确认」标签 + 提示音的检测源。 */
+      askMarks: PI_TUI_ASK_MARKS,
       /* omp 是 oh-my-pi(pi fork),输入编辑器与 pi/kimi 同源 pi-tui:composer 整串
        * 正文+\r 同帧到达会命中"粘贴爆发"启发式,提交回车被改写成换行 —— win
        * 实测偶发"composer 发了但幕布没提交,须再手按回车"。声明后走 bracketed

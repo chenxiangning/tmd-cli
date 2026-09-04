@@ -128,6 +128,10 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     if (replay) {
       inputGate.arm();
       term.write(replay, () => inputGate.release());
+      /* 重挂载(webview 重载/切回)补观察:AskWatch 是纯内存态,重载即清零,
+         而静态 Ask 面板不再产生新输出 —— 不喂尾巴,等待标签与提示音永久丢失。
+         尾巴里无面板标记(早已作答)则零副作用。 */
+      host.observeReplayTail(sessionId);
     }
 
     /* 翻页锚点初始化:缓冲起点绝对偏移 = 日志末尾 - 当前缓冲字节数。
@@ -146,6 +150,20 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) =>
       term.write(text),
     );
+    /* Ask 屏幕态采样(askWatch v3):omp 等待期间 spinner 以光标寻址持续重绘,
+       面板标记一旦流出字节尾窗永不复现(实测 3h 挂起面板后流 7.4MB)——
+       字节流检测对此原理性无解,但屏幕上标记始终在:读底部 8 行文本喂检测器
+       (命中判定在 askWatch 内,含 CLI 声明标记)。读 baseY 起的活动屏幕
+       (非 viewport),用户上翻历史不影响判定。 */
+    const askProbe = setInterval(() => {
+      const buf = term.buffer.active;
+      const bottom = Math.min(buf.length, buf.baseY + term.rows);
+      let screenTail = "";
+      for (let row = Math.max(0, bottom - 8); row < bottom; row++) {
+        screenTail += (buf.getLine(row)?.translateToString(true) ?? "") + "\n";
+      }
+      host.observeAskScreen(sessionId, screenTail);
+    }, 1000);
     /* 闸外照常写会话;终端协议回传(焦点/鼠标/查询应答,见 terminalReports.ts)
        照写 PTY 但标 synthetic —— 它们不是用户输入,不得锚定对话,
        否则点一下终端/滚一轮就会点亮无对话会话的呼吸灯 */
@@ -181,6 +199,7 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     observer.observe(container);
 
     return () => {
+      clearInterval(askProbe);
       offTheme();
       unregisterTerminalHandle(sessionId, terminalHandle);
       offLive();
