@@ -9,8 +9,14 @@
 //! pull 移动 HEAD/重写 index 期间,轮询的 status 并发读会撞 index.lock。
 //!
 //! pull 尊重用户 pull.rebase 配置,不擅自改写 merge/rebase 语义。
+//!
+//! 两条入口:
+//! - `run`:面板/右键菜单的快速操作(裸参数,尊重仓库配置);
+//! - `run_request`:远端对话框的结构化请求(选项拼装语义对齐 codemoss)。
 
-use git2::Repository;
+use serde::Deserialize;
+
+use git2::{BranchType, Repository};
 use std::process::Command;
 
 use super::GitError;
@@ -51,6 +57,45 @@ pub fn run(
     op: RemoteOp,
     branch: Option<String>,
 ) -> Result<String, GitError> {
+    let mut args: Vec<String> = Vec::new();
+    match op {
+        RemoteOp::Fetch => {
+            args.push("fetch".into());
+            if let Some(b) = non_empty_branch(&branch)? {
+                args.extend(fetch_args(repo, &b)?);
+            } else {
+                args.extend(["--all".into(), "--prune".into()]);
+            }
+        }
+        RemoteOp::Pull => {
+            let b = non_empty_branch(&branch)?;
+            match b {
+                Some(b) => {
+                    let extra = pull_args(repo, &b)?;
+                    if extra.is_empty() {
+                        args.push("pull".into());
+                    } else {
+                        // 非当前分支:仅 fast-forward 上游引用,等价 git fetch <远端> <上游>:<分支>
+                        // (merge/rebase 只对已检出分支有意义;git pull 无子命令,fetch 不能作其参数)
+                        args.push("fetch".into());
+                        args.extend(extra);
+                    }
+                }
+                None => args.push("pull".into()),
+            }
+        }
+        RemoteOp::Push => {
+            args.push("push".into());
+            if let Some(b) = non_empty_branch(&branch)? {
+                args.extend(push_args(repo, &b)?);
+            }
+        }
+    }
+    exec_git(repo, cwd, &args)
+}
+
+/// 组装并执行 git 命令:非交互环境 + 总时长上限 + 双管道排空。
+fn exec_git(repo: &Repository, cwd: &str, args: &[String]) -> Result<String, GitError> {
     let mut cmd = Command::new("git");
     cmd.current_dir(cwd).env("GIT_TERMINAL_PROMPT", "0");
     crate::resolve::hide_console(&mut cmd);
@@ -68,24 +113,7 @@ pub fn run(
             "ssh -o BatchMode=yes -o ConnectTimeout=10",
         );
     }
-
-    match op {
-        RemoteOp::Fetch => {
-            cmd.args(["fetch", "--all", "--prune"]);
-        }
-        RemoteOp::Pull => {
-            cmd.arg("pull");
-        }
-        RemoteOp::Push => {
-            cmd.arg("push");
-            if let Some(b) = branch.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
-                if b.starts_with('-') {
-                    return Err(GitError::empty(format!("非法分支名: {b}")));
-                }
-                cmd.args(["origin", b]);
-            }
-        }
-    }
+    cmd.args(args);
 
     /* 总时长上限:ConnectTimeout 只护 TCP connect 阶段,传输中途的网络停滞
      * (或用户自配 sshCommand)仍可无限挂起 —— 而本调用全程持 per-cwd 互斥锁,
@@ -134,4 +162,318 @@ pub fn run(
         return Err(GitError::from_shell_output(&combined));
     }
     Ok(combined)
+}
+
+/// push 附加参数(带分支 = 显式目标,非当前分支也可推):
+/// 有 upstream `origin/x` → `origin <b>:x`(推到其上游同名分支);
+/// 无 upstream(新分支)→ `-u <首个远端> <b>` 推送并建跟踪;
+/// upstream 不是 <远端>/<分支> 形态(罕见)→ 空,退回裸 push 尊重配置。
+pub(super) fn push_args(repo: &Repository, branch: &str) -> Result<Vec<String>, GitError> {
+    if let Some((remote, up)) = upstream_split(repo, branch) {
+        return Ok(vec![remote, format!("{branch}:{up}")]);
+    }
+    let no_upstream = repo
+        .find_branch(branch, BranchType::Local)
+        .ok()
+        .and_then(|b| b.upstream().ok())
+        .is_none();
+    if !no_upstream {
+        return Ok(Vec::new());
+    }
+    let remote = first_remote(repo)?;
+    Ok(vec!["-u".into(), remote, branch.to_string()])
+}
+
+/// pull 附加参数:当前分支 → 空(裸 pull,尊重 pull.rebase);非当前分支 →
+/// `<远端> <上游>:<分支>` 仅 fast-forward 引用,不落工作区(merge/rebase 只对
+/// 已检出分支有意义;run 层据此选 fetch 子命令)。无 upstream → E_EMPTY。
+/// 非法分支名在此统一拒绝。
+pub(super) fn pull_args(repo: &Repository, branch: &str) -> Result<Vec<String>, GitError> {
+    let current = repo
+        .head()
+        .ok()
+        .filter(|h| h.is_branch())
+        .and_then(|h| h.shorthand().map(str::to_string));
+    if current.as_deref() == Some(branch) {
+        return Ok(Vec::new());
+    }
+    if branch.starts_with('-') {
+        return Err(GitError::empty(format!("非法分支名: {branch}")));
+    }
+    let (remote, up) = upstream_split(repo, branch)
+        .ok_or_else(|| GitError::empty(format!("分支 {branch} 无 upstream,无法更新")))?;
+    Ok(vec![remote, format!("{up}:{branch}")])
+}
+
+/// fetch 附加参数(带分支 = 只刷新该分支的上游引用,不 --all):
+/// 分支名是远程分支(origin/x)→ fetch 该远端分支;本地分支 → fetch 其上游;
+/// 无 upstream → E_EMPTY。
+pub(super) fn fetch_args(repo: &Repository, branch: &str) -> Result<Vec<String>, GitError> {
+    if let Some((remote, short)) = split_remote(repo, branch) {
+        return Ok(vec![remote, short]);
+    }
+    let (remote, up) = upstream_split(repo, branch)
+        .ok_or_else(|| GitError::empty(format!("分支 {branch} 无 upstream,无法获取")))?;
+    Ok(vec![remote, up])
+}
+
+/// 归一化:空串 → None;非法(以 - 开头)→ E_EMPTY。
+fn non_empty_branch(branch: &Option<String>) -> Result<Option<String>, GitError> {
+    let b = branch.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    match b {
+        Some(s) if s.starts_with('-') => Err(GitError::empty(format!("非法分支名: {s}"))),
+        Some(s) => Ok(Some(s.to_string())),
+        None => Ok(None),
+    }
+}
+
+/// 本地分支 → 其上游拆 <远端名>/<上游短名>;无 upstream 或形态不符 → None。
+fn upstream_split(repo: &Repository, branch: &str) -> Option<(String, String)> {
+    let local = repo.find_branch(branch, BranchType::Local).ok()?;
+    let up = local.upstream().ok()?;
+    let up_name = up.name().ok().flatten()?.to_string();
+    split_remote(repo, &up_name)
+}
+
+/// 按已配置远端列表拆 <远端名>/<短名>;不匹配任何远端 → None。
+fn split_remote(repo: &Repository, full: &str) -> Option<(String, String)> {
+    let remotes = repo.remotes().ok()?;
+    let mut i = 0;
+    while let Some(r) = remotes.get(i) {
+        if let Some(short) = full.strip_prefix(&format!("{r}/")) {
+            if !short.is_empty() {
+                return Some((r.to_string(), short.to_string()));
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+fn first_remote(repo: &Repository) -> Result<String, GitError> {
+    Ok(repo
+        .remotes()?
+        .get(0)
+        .ok_or_else(|| GitError::empty("仓库未配置远端,请先 git remote add"))?
+        .to_string())
+}
+
+/* ── 远端对话框请求(op 分派;字段 camelCase 对齐 kernel/ipc 契约)── */
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteRequest {
+    /// "fetch" | "pull" | "push"
+    pub op: String,
+    pub remote: Option<String>,
+    pub branch: Option<String>,
+    /// pull:--rebase / --ff-only / --no-ff / --squash(单选,可空)
+    pub strategy: Option<String>,
+    #[serde(default)]
+    pub no_commit: bool,
+    #[serde(default)]
+    pub no_verify: bool,
+    #[serde(default)]
+    pub force_with_lease: bool,
+    #[serde(default)]
+    pub follow_tags: bool,
+    /// push:Gerrit 模式(refspec 改 HEAD:refs/for/<branch>[%suffix])
+    pub gerrit: Option<GerritExtra>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GerritExtra {
+    pub topic: Option<String>,
+    /// 逗号分隔用户名
+    pub reviewers: Option<String>,
+    /// 逗号分隔用户名
+    pub cc: Option<String>,
+}
+
+const PULL_STRATEGIES: [&str; 4] = ["--rebase", "--ff-only", "--no-ff", "--squash"];
+
+pub fn run_request(
+    repo: &Repository,
+    cwd: &str,
+    req: RemoteRequest,
+) -> Result<String, GitError> {
+    let args = match req.op.as_str() {
+        "fetch" => fetch_request_args(req.remote)?,
+        "pull" => pull_request_args(&req)?,
+        "push" => push_request_args(repo, &req)?,
+        other => return Err(GitError::empty(format!("未知远端操作: {other}"))),
+    };
+    exec_git(repo, cwd, &args)
+}
+
+/// fetch:remote 空 = 全部远端(保留 --prune,清理已删远端分支的引用);
+/// 非空 = 只 fetch 该远端。
+fn fetch_request_args(remote: Option<String>) -> Result<Vec<String>, GitError> {
+    Ok(match non_empty_branch(&remote)? {
+        Some(r) => vec!["fetch".into(), r],
+        None => vec!["fetch".into(), "--all".into(), "--prune".into()],
+    })
+}
+
+/// pull 拼装序:`pull [strategy] [--no-commit] [--no-verify] [remote [branch]]`。
+fn pull_request_args(req: &RemoteRequest) -> Result<Vec<String>, GitError> {
+    let mut args = vec!["pull".to_string()];
+    if let Some(s) = req.strategy.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        if !PULL_STRATEGIES.contains(&s) {
+            return Err(GitError::empty(format!("不支持的 pull 策略: {s}")));
+        }
+        args.push(s.into());
+    }
+    if req.no_commit {
+        args.push("--no-commit".into());
+    }
+    if req.no_verify {
+        args.push("--no-verify".into());
+    }
+    if let Some(r) = non_empty_branch(&req.remote)? {
+        args.push(r);
+    }
+    if let Some(b) = non_empty_branch(&req.branch)? {
+        args.push(b);
+    }
+    Ok(args)
+}
+
+/// push 拼装序:`push [--no-verify] [--force-with-lease] [--follow-tags] [-u] <remote> <refspec>`。
+/// refspec 常规 = `HEAD:<branch>`;Gerrit = `HEAD:refs/for/<branch>[%topic=…,r=…,cc=…]`。
+/// 当前分支无 upstream 时补 `-u` 建跟踪(保持面板直推的既有语义)。
+fn push_request_args(repo: &Repository, req: &RemoteRequest) -> Result<Vec<String>, GitError> {
+    let branch = non_empty_branch(&req.branch)?
+        .ok_or_else(|| GitError::empty("推送目标分支不能为空"))?;
+    let mut args = vec!["push".to_string()];
+    if req.no_verify {
+        args.push("--no-verify".into());
+    }
+    if req.force_with_lease {
+        args.push("--force-with-lease".into());
+    }
+    if req.follow_tags {
+        args.push("--follow-tags".into());
+    }
+    let remote = match non_empty_branch(&req.remote)? {
+        Some(r) => r,
+        // 未显式指定:上游远端 → 首个远端
+        None => {
+            let current = repo
+                .head()
+                .ok()
+                .filter(|h| h.is_branch())
+                .and_then(|h| h.shorthand().map(str::to_string));
+            current
+                .as_deref()
+                .and_then(|c| upstream_split(repo, c).map(|(r, _)| r))
+                .unwrap_or(first_remote(repo)?)
+        }
+    };
+    args.push(remote);
+    match &req.gerrit {
+        Some(g) => {
+            let mut refspec = format!("HEAD:refs/for/{branch}");
+            let suffix = gerrit_suffix(g);
+            if !suffix.is_empty() {
+                refspec.push('%');
+                refspec.push_str(&suffix);
+            }
+            args.push(refspec);
+        }
+        None => {
+            let current = repo
+                .head()
+                .ok()
+                .filter(|h| h.is_branch())
+                .and_then(|h| h.shorthand().map(str::to_string));
+            let tracked = current
+                .as_deref()
+                .and_then(|c| repo.find_branch(c, BranchType::Local).ok())
+                .and_then(|b| b.upstream().ok());
+            if tracked.is_none() {
+                args.push("-u".into());
+            }
+            args.push(format!("HEAD:{branch}"));
+        }
+    }
+    Ok(args)
+}
+
+/// Gerrit refspec 尾巴:`topic=<t>` 在前;reviewers/cc 逗号分隔展开为 `r=<v>` / `cc=<v>`。
+fn gerrit_suffix(g: &GerritExtra) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    if let Some(t) = g.topic.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        parts.push(format!("topic={t}"));
+    }
+    for (raw, prefix) in [(&g.reviewers, "r="), (&g.cc, "cc=")] {
+        for item in raw.as_deref().unwrap_or("").split(',') {
+            let s = item.trim();
+            if !s.is_empty() {
+                parts.push(format!("{prefix}{s}"));
+            }
+        }
+    }
+    parts.join(",")
+}
+
+/// 已配置远端名列表(配置序)。
+pub fn remotes(repo: &Repository) -> Result<Vec<String>, GitError> {
+    let list = repo.remotes()?;
+    Ok((0..list.len()).filter_map(|i| list.get(i).map(str::to_string)).collect())
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PushPreview {
+    pub source_branch: String,
+    /// 远端目标引用是否存在(false = 新分支首推)
+    pub target_found: bool,
+    pub has_more: bool,
+    pub commits: Vec<super::log::LogEntry>,
+}
+
+/// 推送预览:HEAD 相对 `refs/remotes/<remote>/<branch>` 的独有提交(新→旧)。
+/// 目标引用不存在 → 全部分支提交入列,target_found=false(新分支首推)。
+pub fn push_preview(
+    repo: &Repository,
+    remote: &str,
+    branch: &str,
+    limit: usize,
+) -> Result<PushPreview, GitError> {
+    if branch.starts_with('-') || remote.starts_with('-') || remote.contains('/') {
+        return Err(GitError::empty(format!("非法目标: {remote}/{branch}")));
+    }
+    let head = repo.head()?;
+    if !head.is_branch() {
+        return Err(GitError::empty("HEAD 不在分支上,无可推送预览"));
+    }
+    let source_branch = head.shorthand().unwrap_or("HEAD").to_string();
+    let source_oid = head
+        .target()
+        .ok_or_else(|| GitError::empty("HEAD 未指向提交"))?;
+    let target_ref = format!("refs/remotes/{remote}/{branch}");
+    let target_oid = repo.refname_to_id(&target_ref).ok();
+    let mut revwalk = repo.revwalk()?;
+    revwalk.push(source_oid)?;
+    if let Some(t) = target_oid {
+        revwalk.hide(t)?;
+    }
+    revwalk.set_sorting(git2::Sort::TIME | git2::Sort::TOPOLOGICAL)?;
+    let mut commits = Vec::with_capacity(limit);
+    let mut has_more = false;
+    for oid in revwalk {
+        if commits.len() >= limit {
+            has_more = true;
+            break;
+        }
+        commits.push(super::log::entry(repo, oid?, &std::collections::HashMap::new())?);
+    }
+    Ok(PushPreview {
+        source_branch,
+        target_found: target_oid.is_some(),
+        has_more,
+        commits,
+    })
 }
