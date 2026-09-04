@@ -38,15 +38,15 @@
 
 ### 三段分区(平铺模式)
 
-| 段 | 派生 | 标题(git status 原文短语) | 段动作 |
+| 段 | 派生 | 标题(中文,2026-09-05 目检反馈定稿) | 段动作 |
 |---|---|---|---|
-| un | `wt && status ≠ "?"` | `Changes not staged for commit:` | `(全部暂存)` |
-| ut | `status = "?"` | `Untracked files:` | — |
-| st | `staged` | `Changes to be committed:` | `(全部取消)` |
+| un | `wt && status ≠ "?"` | `未暂存变更` | `(全部暂存)` |
+| ut | `status = "?"` | `未跟踪文件` | — |
+| st | `staged` | `待提交变更` | `(全部取消)` |
 
 - 段头:`▾` 折叠(本地 state)+ 标题 + `(N)` + 右侧括号动作;空段显示 `(nothing)`。
-- 行(12px mono):`[x]`/`[ ]` 文本勾选框 · 关键字列 86px(`modified:` `new file:` `deleted:` `renamed:` `typechange:` `both modified:`)· 文件名(截断)· 右对齐 rtl 目录列 · `+N −N`。
-- 关键字着色沿用 `statusColor.ts` 语义:M=`--tmd-git-modified`、A=`--tmd-diff-inserted`、D/C=`--tmd-diff-removed`、R/T=`--tmd-accent`、ut 关键字空。
+- 行(12px mono):`[x]`/`[ ]` 文本勾选框 · 状态标识列(单字母 `M/A/D/R/T/C/U` 着色,hover 出中文描述 —— 目检反馈:关键字短语过长且 ut 行空缺,改标识)· 文件名(flex 收缩截断,消固定 40% 列的中部空白)· 右对齐 rtl 目录列(≤38%,溢出显尾部)· `+N −N`。
+- 标识着色沿用 `statusColor.ts` 语义:M=`--tmd-git-modified`、A=`--tmd-diff-inserted`、D/C=`--tmd-diff-removed`、R/T=`--tmd-accent`、U=`--tmd-fg-faint`。
 - hover:数字位换括号动作 `(暂存)` / `(取消暂存)` / `(放弃)`(危险动作红);un/ut 段勾选 = 纳入提交;st 段 `[x]` 点击 = unstage;冲突行 `—` 禁勾 + 红色 `冲突` 尾注(到幕布解决)。
 - 点行开中央 diff tab(现状选侧规则:wt 优先)。
 

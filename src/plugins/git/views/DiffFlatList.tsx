@@ -18,15 +18,26 @@ import { useMemo, useState } from "react";
 import type { GitFileStatus, GitTotals } from "@kernel/ipc";
 import { STATUS_COLOR } from "./statusColor";
 
-/** 状态字母 → git status 展示短语(着色沿用 STATUS_COLOR 语义)。 */
-const KEYWORD_TEXT: Record<GitFileStatus["status"], string> = {
-  M: "modified:",
-  A: "new file:",
-  D: "deleted:",
-  R: "renamed:",
-  T: "typechange:",
-  C: "both modified:",
-  "?": "",
+/** 状态字母 → 中文描述(hover 说明;行内只显示单字母标识)。 */
+const STATUS_DESC: Record<GitFileStatus["status"], string> = {
+  M: "已修改 (modified)",
+  A: "新增 (new file)",
+  D: "已删除 (deleted)",
+  R: "重命名 (renamed)",
+  T: "类型变更 (typechange)",
+  C: "双方修改,冲突 (both modified)",
+  "?": "未跟踪 (untracked)",
+};
+
+/** 状态标识字母(untracked 记 U,与聚合行/历史视图口径一致)。 */
+const BADGE: Record<GitFileStatus["status"], string> = {
+  M: "M",
+  A: "A",
+  D: "D",
+  R: "R",
+  T: "T",
+  C: "C",
+  "?": "U",
 };
 
 const fmt = (n: number): string => n.toLocaleString("en-US");
@@ -77,17 +88,17 @@ export function DiffFlatList({
     () => [
       {
         key: "un",
-        title: "Changes not staged for commit:",
+        title: "未暂存变更",
         rows: files.filter((f) => f.wt && f.status !== "?"),
       },
       {
         key: "ut",
-        title: "Untracked files:",
+        title: "未跟踪文件",
         rows: files.filter((f) => f.status === "?"),
       },
       {
         key: "st",
-        title: "Changes to be committed:",
+        title: "待提交变更",
         rows: files.filter((f) => f.staged),
       },
     ],
@@ -210,7 +221,6 @@ function FRow({
   const conflict = file.status === "C";
   const stagedRow = side === "st";
   const [name, dir] = splitPath(file.path);
-  const kw = KEYWORD_TEXT[file.status];
   const dirText = file.oldPath
     ? `← ${splitPath(file.oldPath)[1] ?? ""}/`
     : dir
@@ -247,15 +257,17 @@ function FRow({
       >
         {conflict ? "—" : stagedRow || checked ? "[x]" : "[ ]"}
       </button>
+      {/* 状态标识:单字母着色(替代长关键字短语,untracked 也有 U 可看) */}
       <span
-        className={`w-[86px] shrink-0 truncate ${kw ? (STATUS_COLOR[file.status] ?? "") : "text-(--tmd-fg-faint)"}`}
+        title={STATUS_DESC[file.status]}
+        className={`w-[14px] shrink-0 text-center font-semibold ${STATUS_COLOR[file.status] ?? ""}`}
       >
-        {kw}
+        {BADGE[file.status]}
       </span>
-      <span className="w-[40%] shrink-0 truncate text-(--tmd-fg)">{name}</span>
+      <span className="min-w-0 flex-1 truncate text-(--tmd-fg)">{name}</span>
       <span
         dir="rtl"
-        className="min-w-0 flex-1 truncate text-right text-[11px] text-(--tmd-fg-faint)"
+        className="max-w-[38%] shrink-0 truncate text-right text-[11px] text-(--tmd-fg-faint)"
       >
         {dirText}
       </span>
