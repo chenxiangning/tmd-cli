@@ -99,20 +99,57 @@ fn build_diff<'r>(repo: &'r Repository, staged: bool) -> Result<Diff<'r>, GitErr
 pub struct DiffTotals {
     pub insertions: u32,
     pub deletions: u32,
+    /// 每文件 ±行数,供差异面板行内展示(staged 标记侧别:tree→index / index→workdir)
+    pub files: Vec<DiffFileTotal>,
 }
 
-/// 聚合 ±行数:staged(HEAD→index)与 unstaged(index→workdir)两侧 stats 求和,
-/// 与文件清单(status = idx ∪ wt)口径一致;binary/untracked 分别不计行/整文件计入。
+/// 单文件单侧 ±行数。binary 不计行(0/0 不入列);untracked 整文件计入 wt 侧。
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DiffFileTotal {
+    pub path: String,
+    pub staged: bool,
+    pub insertions: u32,
+    pub deletions: u32,
+}
+
+/// 聚合 ±行数:staged(HEAD→index)与 unstaged(index→workdir)两侧逐 delta 取
+/// patch line_stats 求和 —— 与 DiffStats 聚合同源(内部同为 patch 行统计),聚合值
+/// 恒等于 files 求和;path 取 new 侧、删除取 old 侧,与 status 清单口径一致。
 pub fn totals_of(repo: &Repository) -> Result<DiffTotals, GitError> {
-    let mut sums = (0u32, 0u32);
+    let mut insertions = 0u32;
+    let mut deletions = 0u32;
+    let mut files = Vec::new();
     for staged in [true, false] {
-        let stats = build_diff(repo, staged)?.stats()?;
-        sums.0 += stats.insertions() as u32;
-        sums.1 += stats.deletions() as u32;
+        let diff = build_diff(repo, staged)?;
+        for (idx, delta) in diff.deltas().enumerate() {
+            let new_path = delta.new_file().path();
+            let old_path = delta.old_file().path();
+            let Some(path) = new_path.or(old_path) else {
+                continue;
+            };
+            if delta.new_file().is_binary() || delta.old_file().is_binary() {
+                continue;
+            }
+            let Some(patch) = git2::Patch::from_diff(&diff, idx)? else {
+                continue;
+            };
+            // line_stats: (context, insertions, deletions)
+            let (_ctx, adds, dels) = patch.line_stats()?;
+            insertions += adds as u32;
+            deletions += dels as u32;
+            files.push(DiffFileTotal {
+                path: path.to_string_lossy().into_owned(),
+                staged,
+                insertions: adds as u32,
+                deletions: dels as u32,
+            });
+        }
     }
     Ok(DiffTotals {
-        insertions: sums.0,
-        deletions: sums.1,
+        insertions,
+        deletions,
+        files,
     })
 }
 

@@ -52,5 +52,7 @@
 | 2026-09-04 | [插件边界审计 + 死代码清理](review/2026-09-04-boundary-deadcode-cleanup.md) | 已完成(diskSessions 下沉 cli-shared / 面板 subbar 注册化 / edits 骨架收敛 / 88 处导出降级) |
 | 2026-09-04 | [Composer 触发器补全重构:以 CLI 为真相源(需求澄清)](brainstorm/2026-09-04-composer-cli-sourced-suggestions.md) | 已收敛 |
 | 2026-09-04 | [Composer 触发器补全重构:`/` `$` `@` 以 CLI 为真相源](superpowers/specs/2026-09-04-composer-cli-sourced-suggestions-design.md) | 已落地 |
+| 2026-09-04 | [Diff 视图噪音清理:hunk 分隔条](superpowers/specs/2026-09-04-diff-noise-cleanup-design.md) | 已落地 |
+| 2026-09-05 | [Git 差异面板文件列表:F 终端风重构](superpowers/specs/2026-09-05-git-diff-filelist-f-terminal-design.md) | 已确认 |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

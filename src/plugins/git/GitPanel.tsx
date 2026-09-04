@@ -91,11 +91,11 @@ export function GitPanel() {
 
   /** 远端操作统一入口:fetch/pull/push 共用 busy 与通知;凭据失败引导幕布终端。 */
   const runRemote = useCallback(
-    (op: "push" | "pull" | "fetch") => {
+    (op: "push" | "pull" | "fetch", branch?: string) => {
       if (!cwd || remoteBusy) return;
       setRemoteBusy(op);
       setNotice(null);
-      const request = op === "fetch" ? ipc.gitFetch(cwd) : ipc.gitPullPush(cwd, op);
+      const request = op === "fetch" ? ipc.gitFetch(cwd) : ipc.gitPullPush(cwd, op, branch);
       request.then(
         () => {
           setRemoteBusy(null);
@@ -124,6 +124,14 @@ export function GitPanel() {
   }
 
   const files = status.data?.files ?? [];
+  /* push/pull 按钮:无 upstream(新分支)时 push 仍可主动推送(push -u 建跟踪),
+   * pull 无从拉取 → 禁用;detached HEAD 不参与远端按钮。 */
+  const branchName = status.data?.branch ?? "";
+  const hasUpstream = status.data?.upstream != null;
+  const canPush =
+    !!branchName &&
+    !branchName.startsWith("detached@") &&
+    (!hasUpstream || (aheadBehind?.ahead ?? 0) > 0);
 
   return (
     <div className="flex h-full flex-col text-xs">
@@ -158,13 +166,14 @@ export function GitPanel() {
         </button>
         <button
           onClick={() => runRemote("pull")}
-          disabled={remoteBusy !== null}
+          disabled={remoteBusy !== null || !hasUpstream}
           title={
-            (aheadBehind?.behind ?? 0) > 0
-              ? `pull(落后 ${aheadBehind!.behind} 个提交)`
-              : "pull(跟随上游与 pull.rebase 配置)"
+            !hasUpstream
+              ? "当前分支无 upstream,无可拉取(push 后自动跟踪)"
+              : (aheadBehind?.behind ?? 0) > 0
+                ? `pull(落后 ${aheadBehind!.behind} 个提交)`
+                : "pull(跟随上游与 pull.rebase 配置)"
           }
-          className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
         >
           {remoteBusy === "pull" ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -173,11 +182,15 @@ export function GitPanel() {
           )}
           {(aheadBehind?.behind ?? 0) > 0 && aheadBehind!.behind}
         </button>
-        {(aheadBehind?.ahead ?? 0) > 0 && (
+        {canPush && (
           <button
-            onClick={() => runRemote("push")}
+            onClick={() => runRemote("push", branchName)}
             disabled={remoteBusy !== null}
-            title={`push ${aheadBehind!.ahead} 个提交`}
+            title={
+              hasUpstream
+                ? `push ${aheadBehind!.ahead} 个提交`
+                : "推送新分支并建立 upstream(push -u)"
+            }
             className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
           >
             {remoteBusy === "push" ? (
@@ -207,6 +220,7 @@ export function GitPanel() {
             cwd={cwd}
             layout={layout}
             files={files}
+            totals={totals.data}
             prefill={prefill}
             onMutation={afterMutation}
           />
@@ -217,6 +231,7 @@ export function GitPanel() {
             data={branches.data}
             loading={branches.loading}
             currentName={status.data?.branch}
+            dirty={files.length > 0}
             onMutation={afterMutation}
           />
         )}

@@ -1,28 +1,35 @@
 /**
- * DiffView —— 差异视图:聚合行 + 文件列表(树/平铺)+ 提交 composer。
- * 文件行点击不再内联展开 patch —— 统一在中央文件开启位置开 git-diff tab
- * (选侧规则:wt 优先,即 staged=true 仅当已暂存且工作区无叠加改动)。
+ * DiffView —— 差异视图:文件列表(平铺 F 终端风 / 树形)+ 提交 composer。
+ * 平铺 = git status 原文短语三段分区(spec 2026-09-05,渲染在 DiffFlatList);
+ * 树形 = 目录分组列表(现状保留)。文件行点击不内联展开 patch ——
+ * 统一在中央文件区开 git-diff tab(选侧规则:wt 优先,即 staged=true 仅当
+ * 已暂存且工作区无叠加改动)。
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, FileText, Loader2 } from "lucide-react";
-import { ipc, type GitFileStatus } from "@kernel/ipc";
+import { ipc, type GitFileStatus, type GitTotals } from "@kernel/ipc";
 import type { FileListLayout } from "../panelStore";
 import { openDiffTab } from "../diffTab";
 import { buildTree } from "./diffTree";
+import { DiffFlatList } from "./DiffFlatList";
 import { gitErrorDisplay } from "../gitError";
+import { GitConfirmDialog, type GitConfirmState } from "./GitConfirmDialog";
 import { STATUS_COLOR } from "./statusColor";
 
 interface Props {
   cwd: string;
   layout: FileListLayout;
   files: GitFileStatus[];
+  /** 聚合 ±行数(低频 git_totals):平铺行内展示每文件 numstat 用 */
+  totals: GitTotals | null;
   prefill: { message: string; seq: number } | null;
   onMutation: () => void;
 }
 
-export function DiffView({ cwd, layout, files, prefill, onMutation }: Props) {
+export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Props) {
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
+  const [confirm, setConfirm] = useState<GitConfirmState | null>(null);
 
   // 文件消失(已提交/还原)时同步掉勾选
   useEffect(() => {
@@ -41,70 +48,90 @@ export function DiffView({ cwd, layout, files, prefill, onMutation }: Props) {
       return next;
     });
 
-  const rows = useMemo(
-    () => (layout === "tree" ? buildTree(files) : files.map((f) => ({ depth: 0, file: f }))),
-    [files, layout],
-  );
+  const runStage = (paths: string[]) =>
+    ipc.gitStage(cwd, paths).then(onMutation, (e) => console.warn(gitErrorDisplay(e)));
+  const runUnstage = (paths: string[]) =>
+    ipc.gitUnstage(cwd, paths).then(onMutation, (e) => console.warn(gitErrorDisplay(e)));
+  const askDiscard = (paths: string[]) =>
+    // 破坏性操作:应用内确认前置(window.confirm 在 Tauri 可能不弹即放行)
+    setConfirm({
+      title: `放弃 ${paths.length === 1 ? paths[0] : `${paths.length} 个文件`} 的工作区改动?`,
+      detail: "工作区还原到暂存区内容,不可恢复;staged 保留,untracked 不动。",
+      confirmLabel: "放弃改动",
+      danger: true,
+      onConfirm: () =>
+        ipc
+          .gitDiscard(cwd, paths)
+          .then(onMutation, (e) => console.warn(gitErrorDisplay(e))),
+    });
+
+  const openDiff = (file: GitFileStatus) =>
+    // wt 优先:暂存后又改的复合文件,看 worktree 侧(= 勾选提交的实际内容)
+    openDiffTab({
+      cwd,
+      path: file.path,
+      staged: file.staged && !file.wt,
+      status: file.status,
+    });
+
+  // 树形专用(平铺走 DiffFlatList 的三段分区)
+  const rows = useMemo(() => (layout === "tree" ? buildTree(files) : []), [files, layout]);
+  const stagedPaths = useMemo(() => files.filter((f) => f.staged).map((f) => f.path), [files]);
 
   return (
     <div className="flex h-full flex-col">
-      {/* 文件列表 */}
+      {/* 文件列表:平铺 = F 终端风三段分区;树形 = 目录分组(现状保留) */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {files.length === 0 && (
-          <div className="flex h-24 items-center justify-center text-(--tmd-fg-faint)">
+          <div className="flex h-24 items-center justify-center text-xs text-(--tmd-fg-faint)">
             工作区干净,无变更
           </div>
         )}
-        {rows.map((row) =>
-          "dir" in row ? (
-            <div
-              key={`dir:${row.dir}`}
-              className="flex items-center gap-1 px-2 py-1 font-medium text-(--tmd-fg-muted)"
-            >
-              <ChevronDown className="h-3 w-3" />
-              {row.dir}
-            </div>
-          ) : (
-            <FileRow
-              key={row.file.path}
-              file={row.file}
-              depth={row.depth}
-              checked={checked.has(row.file.path)}
-              onToggleCheck={() => toggleCheck(row.file.path)}
-              onOpen={() =>
-                // wt 优先:暂存后又改的复合文件,看 worktree 侧(= 勾选提交的实际内容)
-                openDiffTab({
-                  cwd,
-                  path: row.file.path,
-                  staged: row.file.staged && !row.file.wt,
-                  status: row.file.status,
-                })
-              }
-              onStage={() =>
-                ipc
-                  .gitStage(cwd, [row.file.path])
-                  .then(onMutation, (e) => console.warn(gitErrorDisplay(e)))
-              }
-              onUnstage={() =>
-                ipc
-                  .gitUnstage(cwd, [row.file.path])
-                  .then(onMutation, (e) => console.warn(gitErrorDisplay(e)))
-              }
-              onDiscard={() => {
-                // 破坏性操作:confirm 前置(工作区还原到暂存区内容,staged 保留,untracked 不动)
-                if (!window.confirm(`放弃 ${row.file.path} 的工作区改动?不可恢复。`)) return;
-                ipc
-                  .gitDiscard(cwd, [row.file.path])
-                  .then(onMutation, (e) => console.warn(gitErrorDisplay(e)));
-              }}
-            />
-          ),
+        {files.length > 0 && layout === "flat" && (
+          <DiffFlatList
+            files={files}
+            checked={checked}
+            totals={totals}
+            onToggleCheck={toggleCheck}
+            onOpen={openDiff}
+            onStage={runStage}
+            onUnstage={runUnstage}
+            onDiscard={askDiscard}
+          />
         )}
+        {files.length > 0 &&
+          layout === "tree" &&
+          rows.map((row) =>
+            "dir" in row ? (
+              <div
+                key={`dir:${row.dir}`}
+                className="flex items-center gap-1 px-2 py-1 font-medium text-(--tmd-fg-muted)"
+              >
+                <ChevronDown className="h-3 w-3" />
+                {row.dir}
+              </div>
+            ) : (
+              <FileRow
+                key={row.file.path}
+                file={row.file}
+                depth={row.depth}
+                checked={checked.has(row.file.path)}
+                onToggleCheck={() => toggleCheck(row.file.path)}
+                onOpen={() => openDiff(row.file)}
+                onStage={() => runStage([row.file.path])}
+                onUnstage={() => runUnstage([row.file.path])}
+                onDiscard={() => askDiscard([row.file.path])}
+              />
+            ),
+          )}
       </div>
+
+      {confirm && <GitConfirmDialog state={confirm} onClose={() => setConfirm(null)} />}
 
       <CommitComposer
         cwd={cwd}
         checked={checked}
+        stagedPaths={stagedPaths}
         prefill={prefill}
         onCommitted={() => {
           setChecked(new Set());
@@ -191,16 +218,18 @@ function FileRow({
   );
 }
 
-/* ── 提交 composer(常驻底部)── */
+/* ── 提交 composer(prompt 式,常驻底部;单行起步随内容长高,保留多行提交信息)── */
 
 function CommitComposer({
   cwd,
   checked,
+  stagedPaths,
   prefill,
   onCommitted,
 }: {
   cwd: string;
   checked: ReadonlySet<string>;
+  stagedPaths: string[];
   prefill: { message: string; seq: number } | null;
   onCommitted: () => void;
 }) {
@@ -208,12 +237,28 @@ function CommitComposer({
   const [amend, setAmend] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (prefill) setMessage(prefill.message);
   }, [prefill]);
 
-  const canCommit = message.trim().length > 0 && (checked.size > 0 || amend);
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [message]);
+
+  /* 提交范围 = 已暂存 ∪ 勾选(复合文件两段各一行,按路径集合并防双计)。
+   * 已暂存内容本就随 git commit 落库,staged ∪ checked 如实呈现提交面。 */
+  const selected = useMemo(() => {
+    const s = new Set(checked);
+    for (const p of stagedPaths) s.add(p);
+    return s.size;
+  }, [checked, stagedPaths]);
+
+  const canCommit = message.trim().length > 0 && (selected > 0 || amend);
 
   const submit = () => {
     if (!canCommit || busy) return;
@@ -236,42 +281,50 @@ function CommitComposer({
   };
 
   return (
-    <div className="shrink-0 border-t border-(--tmd-border) p-2">
-      <textarea
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        placeholder="提交信息..."
-        rows={3}
-        className="w-full resize-none rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) p-2 text-xs outline-none focus:border-(--tmd-accent)"
-      />
+    <div className="shrink-0 border-t border-(--tmd-border) p-2 font-mono text-xs">
+      <div className="flex items-start gap-1.5">
+        <span className="shrink-0 pt-0.5 text-(--tmd-fg-muted)">commit ▸</span>
+        <textarea
+          ref={inputRef}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          placeholder="提交信息…"
+          rows={1}
+          className="w-full resize-none border-0 border-b border-(--tmd-border) bg-transparent px-0.5 py-0.5 outline-none focus:border-(--tmd-border-strong) placeholder:text-(--tmd-fg-faint)"
+        />
+      </div>
       {error && (
-        <div className="mt-1 rounded bg-(--tmd-bg-sunken) px-2 py-1 text-(--tmd-diff-removed)">
+        <div className="mt-1 bg-(--tmd-bg-sunken) px-2 py-1 text-(--tmd-diff-removed)">
           {error}
         </div>
       )}
-      <div className="mt-1.5 flex items-center justify-between">
-        <label className="flex items-center gap-1 text-(--tmd-fg-faint)">
-          <input
-            type="checkbox"
-            checked={amend}
-            onChange={(e) => setAmend(e.target.checked)}
-            className="h-3 w-3 accent-(--tmd-accent)"
-          />
-          amend
-        </label>
-        <div className="flex items-center gap-2">
-          <span className="text-(--tmd-fg-faint)">
-            {checked.size === 0 && !amend ? "请先选择要提交的文件" : `已选 ${checked.size} 个文件`}
-          </span>
-          <button
-            onClick={submit}
-            disabled={!canCommit || busy}
-            className="flex items-center gap-1 rounded bg-(--tmd-accent) px-3 py-1 text-(--tmd-accent-fg) disabled:opacity-40"
-          >
-            {busy && <Loader2 className="h-3 w-3 animate-spin" />}
-            ✓ 提交
-          </button>
-        </div>
+      <div className="mt-1.5 flex items-center gap-2.5 text-[11px] text-(--tmd-fg-faint)">
+        <button
+          type="button"
+          title="附加 --amend:改动并入上一个提交"
+          onClick={() => setAmend((v) => !v)}
+          className="cursor-pointer select-none hover:text-(--tmd-fg-muted)"
+        >
+          <span className={amend ? "text-(--tmd-fg)" : ""}>{amend ? "[x]" : "[ ]"}</span> --amend
+        </button>
+        <span>{selected} selected</span>
+        <span className="flex-1" />
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!canCommit || busy}
+          title="提交(⌘⏎)"
+          className="flex items-center gap-1 bg-(--tmd-accent) px-3 py-0.5 text-(--tmd-accent-fg) disabled:cursor-default disabled:bg-(--tmd-bg-sunken) disabled:text-(--tmd-fg-faint)"
+        >
+          {busy && <Loader2 className="h-3 w-3 animate-spin" />}
+          ⌘⏎ commit
+        </button>
       </div>
     </div>
   );

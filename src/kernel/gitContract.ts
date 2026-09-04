@@ -16,6 +16,8 @@ export interface GitFileStatus {
   staged: boolean;
   /** 工作区侧有变更;staged && wt = 暂存后又改,预览/提交以 wt 侧为准 */
   wt: boolean;
+  /** rename 来源路径(仓库相对);非 rename 为 null —— 目录列显示「← 旧目录/」 */
+  oldPath: string | null;
 }
 
 export interface GitDiffStatus {
@@ -26,10 +28,20 @@ export interface GitDiffStatus {
   files: GitFileStatus[];
 }
 
+/** 每文件单侧 ±行数(staged 标记侧别:tree→index / index→workdir)。
+ *  binary 不入列;untracked 整文件计入 wt 侧;聚合值恒等于逐项求和。 */
+export interface GitFileTotal {
+  path: string;
+  staged: boolean;
+  insertions: number;
+  deletions: number;
+}
+
 /** 聚合 ±行数 —— 独立低频命令(写操作后/手动刷新),不随 5s 轮询。 */
 export interface GitTotals {
   insertions: number;
   deletions: number;
+  files: GitFileTotal[];
 }
 
 export interface GitAheadBehind {

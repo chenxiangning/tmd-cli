@@ -22,6 +22,8 @@ pub struct FileStatus {
     pub staged: bool,
     /// 工作区侧有变更(staged=true 且 wt=true = 暂存后又改)
     pub wt: bool,
+    /// rename 来源路径(仓库相对;非 rename 为 None)—— 前端目录列显示「← 旧目录/」
+    pub old_path: Option<String>,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -83,13 +85,34 @@ pub fn compute(repo: &Repository) -> Result<DiffStatus, GitError> {
         .map(|s| {
             /* 非 UTF-8 文件名(Linux 任意字节合法):此前 path() 返回 None 会被
              * filter_map 静默丢弃 → 文件从面板消失。改走 path_bytes + lossy 保可见。 */
-            let path = String::from_utf8_lossy(s.path_bytes()).into_owned();
             let (status, staged, wt) = fold_status(s.status());
+            /* rename 条目:libgit2 的 status entry 以「旧路径」为 key(path_bytes 即旧名),
+             * 若原样返回,前端将指向已不存在的旧名,新文件从面板消失。故改挂 delta 的
+             * 新路径为 path,旧路径放 old_path 供目录列显示「← 旧目录/」。
+             * index 侧(stage 后的 rename)优先 —— 新路径即 index 名,unstage/提交可寻址;
+             * 纯 workdir 改名走 index_to_workdir 兜底。 */
+            let (path, old_path) = if s.status().is_index_renamed() || s.status().is_wt_renamed() {
+                let delta = if s.status().is_index_renamed() {
+                    s.head_to_index()
+                } else {
+                    s.index_to_workdir()
+                };
+                let old = String::from_utf8_lossy(s.path_bytes()).into_owned();
+                let new = delta
+                    .as_ref()
+                    .and_then(|d| d.new_file().path())
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| old.clone());
+                (new, Some(old))
+            } else {
+                (String::from_utf8_lossy(s.path_bytes()).into_owned(), None)
+            };
             FileStatus {
                 path,
                 status,
                 staged,
                 wt,
+                old_path,
             }
         })
         .collect();
