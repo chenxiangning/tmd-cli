@@ -50,5 +50,7 @@
 | 2026-09-04 | [SSH 插件设计:一等会话 + 右栏 SFTP 树 + 端口转发](superpowers/specs/2026-09-04-ssh-plugin-design.md) | 已落地(引擎端到端实测,契约见 openspec/changes/ssh-plugin/) |
 | 2026-09-04 | [文件 tab 右键菜单 + 编辑区最大化切换设计](superpowers/specs/2026-09-04-tab-menu-editor-maximize-design.md) | 已落地 |
 | 2026-09-04 | [插件边界审计 + 死代码清理](review/2026-09-04-boundary-deadcode-cleanup.md) | 已完成(diskSessions 下沉 cli-shared / 面板 subbar 注册化 / edits 骨架收敛 / 88 处导出降级) |
+| 2026-09-04 | [Composer 触发器补全重构:以 CLI 为真相源(需求澄清)](brainstorm/2026-09-04-composer-cli-sourced-suggestions.md) | 已收敛 |
+| 2026-09-04 | [Composer 触发器补全重构:`/` `$` `@` 以 CLI 为真相源](superpowers/specs/2026-09-04-composer-cli-sourced-suggestions-design.md) | 已评审通过 |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
