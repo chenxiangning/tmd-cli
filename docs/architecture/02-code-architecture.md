@@ -58,7 +58,7 @@ flowchart TB
     end
 
     subgraph BE["Tauri Rust 后端（src-tauri/src/）"]
-        LIB["lib.rs<br/>62 个 tauri::command 注册(lib.rs 26 + git 15 + checkpoints 11 + fs_edit 6 + quota 2 + omp_auth 2)"]
+        LIB["lib.rs<br/>85 个 tauri::command 注册(git 17 + ssh 20(并行开发中) + checkpoints 11 + fs_edit 6 + 其余 lib/fs/session 直注册)"]
         PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出"]
         SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
         RESOLVE["resolve.rs<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
@@ -67,7 +67,7 @@ flowchart TB
         OAUTH["omp_auth.rs<br/>omp agent.db 凭据只读(sqlite)"]
         SESS["session.rs — SessionRegistry<br/>活会话纯内存表(不落盘)<br/>workspaces.json 持久化"]
         FS["fs.rs<br/>list_dir / read_file / read_head / read_tail<br/>collect_files / write_temp / remove_path(白名单)<br/>read_local_image_data_url(md 预览)"]
-        GIT["git/<br/>libgit2 原语(status/diff/branch/log/commit)<br/>远端 fetch/pull/push shell-out(300s 总超时)"]
+        GIT["git/<br/>libgit2 原语(status/diff/branch/log+refs装饰/commit)<br/>commit_view 单提交文件清单+patch(历史 Graph)<br/>远端 fetch/pull/push shell-out(300s 总超时)"]
         HASH["hash.rs<br/>md5_hex 通用哈希原语"]
         FSE["fs_edit.rs — 文件写操作<br/>新建/重命名/废纸篓/访达显示/编辑器保存<br/>(绝对路径,禁 .git 段,16MB 上限)"]
         PROXY["proxy.rs — 进程级代理 env 注入<br/>启动按 settings 应用,无 command 面"]
@@ -368,7 +368,7 @@ flowchart TD
 
 ## 8. Rust 后端命令面
 
-注册的 62 个 `#[tauri::command]`（lib.rs 26 + git/commands.rs 15 + checkpoints/commands.rs 11 + fs_edit.rs 6 + quota.rs 2 + omp_auth.rs 2），与 `ipc.ts` 一一对应：
+注册的 85 个 `#[tauri::command]`（git/commands.rs 17 + ssh 20(并行开发中) + checkpoints/commands.rs 11 + fs_edit.rs 6 + 其余为 lib.rs / fs.rs / session.rs 直注册），与 `ipc.ts` 一一对应：
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
@@ -397,7 +397,9 @@ flowchart TD
 | `git_status` / `git_totals` / `git_ahead_behind` | `git/status.rs` 等 | libgit2 本地读(status 聚合/改动统计/领先落后) |
 | `git_diff_file_patch` | `git/diff.rs` | libgit2 patch 生成(前端 PatchLRU 缓存 50 条/20MB) |
 | `git_stage` / `git_unstage` / `git_discard` / `git_commit` | `git/index_ops.rs` 等 | index 写操作(discard = checkout_index,不经 fs 删除) |
-| `git_log` / `git_branches` / `git_checkout` / `git_create_branch` / `git_delete_branch` | `git/log.rs`/`branch_ops.rs` | 历史/分支操作(全 libgit2) |
+| `git_log` | `git/log.rs` | 历史分页摘要 + 每提交 ref 装饰(附注 tag peel 到提交;HEAD→本地→远端→tag 排序) |
+| `git_commit_files` / `git_commit_file_patch` | `git/commit_view.rs` | 单提交文件清单(提交 vs 首父,find_similar rename 检测) / 提交内单文件 patch —— 历史 Graph 展开与提交 diff tab |
+| `git_branches` / `git_checkout` / `git_create_branch` / `git_delete_branch` | `git/branch_ops.rs` | 分支操作(全 libgit2) |
 | `git_fetch` / `git_pull_push` | `git/remote_ops.rs` | 远端操作 shell-out(300s 总超时,GIT_TERMINAL_PROMPT=0,管道排空不 join) |
 | `config_home_dir` / `config_default_workspace_root` | `session.rs` | 返回配置和默认工作区路径 |
 | `config_read_settings` / `config_write_settings` | `settings.rs` | `~/.tmd-cli/settings.json` 全局设置读写 |

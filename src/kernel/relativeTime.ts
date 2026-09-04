@@ -27,8 +27,8 @@ export function formatAbsolute(ms: number): string {
 
 /**
  * 目标时刻相对现在的中文相对时间。
- * 过去 → "刚刚" / "N 分钟前" / "N 小时前" / "N 天前" / "N 周前" / "N 个月前";
- * 未来 → "现在" / "N 秒后" / "N 分钟后" / "N 小时后" / "N 天后" / "N 周后" / "N 个月后"。
+ * 过去 → "刚刚" / "N 分钟前" / "N 小时前" / "N 天前" / "N 周前" / "N 个月前" / "N 年前";
+ * 未来 → "现在" / "N 秒后" / "N 分钟后" / "N 小时后" / "N 天后" / "N 周后" / "N 个月后" / "N 年后"。
  * targetMs 为 0/NaN 等空值时返回 ""。
  */
 export function formatRelativeTime(targetMs: number): string {
@@ -46,5 +46,7 @@ export function formatRelativeTime(targetMs: number): string {
   if (day < 7) return `${day} 天${suffix}`;
   const week = Math.floor(day / 7);
   if (week < 5) return `${week} 周${suffix}`;
-  return `${Math.floor(day / 30)} 个月${suffix}`;
+  const month = Math.floor(day / 30);
+  if (month < 12) return `${month} 个月${suffix}`;
+  return `${Math.floor(day / 365)} 年${suffix}`;
 }

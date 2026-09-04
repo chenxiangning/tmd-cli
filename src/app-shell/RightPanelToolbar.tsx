@@ -263,9 +263,10 @@ export function WorkspaceSubbar() {
 /* memo 兜底:无 props,父级(AppShell 右栏 aside)重渲染时不再连带重渲染。 */
 export const RightPanelToolbar = memo(function RightPanelToolbar() {
   /* git 面板自带聚合行(分支 · ±统计 · 文件数);checkpoints 自带审批线摘要行
-     (审批线 · 批次规模 · 待审计数)—— workspace 文件行只服务文件面板 */
+     (审批线 · 批次规模 · 待审计数);ssh 自带连接/转发/SFTP 三段 ——
+     workspace 文件行只服务文件面板 */
   const { mode } = useFilePanel();
-  if (mode === "git" || mode === "checkpoints") return null;
+  if (mode === "git" || mode === "checkpoints" || mode === "ssh") return null;
   return (
     <div className="right-panel-toolbar">
       <WorkspaceSubbar />

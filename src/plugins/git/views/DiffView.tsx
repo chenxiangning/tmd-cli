@@ -17,6 +17,8 @@ import type { FileListLayout } from "../panelStore";
 import type { GitPatchState } from "../hooks/useGitDiffs";
 import { buildTree } from "./diffTree";
 import { gitErrorDisplay } from "../gitError";
+import { PatchLines } from "./PatchLines";
+import { STATUS_COLOR } from "./statusColor";
 
 interface Props {
   cwd: string;
@@ -26,16 +28,6 @@ interface Props {
   prefill: { message: string; seq: number } | null;
   onMutation: () => void;
 }
-
-const STATUS_COLOR: Record<string, string> = {
-  M: "text-(--tmd-git-modified)",
-  A: "text-(--tmd-diff-inserted)",
-  D: "text-(--tmd-diff-removed)",
-  R: "text-(--tmd-accent)",
-  T: "text-(--tmd-accent)",
-  C: "text-(--tmd-diff-removed)",
-  "?": "text-(--tmd-fg-faint)",
-};
 
 export function DiffView({ cwd, layout, files, diffs, prefill, onMutation }: Props) {
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
@@ -242,34 +234,6 @@ function FileRow({
         </div>
       )}
     </div>
-  );
-}
-
-function PatchLines({ text }: { text: string }) {
-  const lines = text.split("\n");
-  return (
-    <pre className="max-h-72 overflow-auto px-3 py-1 font-mono text-[11px] leading-tight">
-      {lines.map((line, i) => {
-        const cls =
-          line.startsWith("+") && !line.startsWith("+++")
-            ? "bg-(color:--tmd-diff-inserted)/12 text-(--tmd-diff-inserted)"
-            : line.startsWith("-") && !line.startsWith("---")
-              ? "bg-(color:--tmd-diff-removed)/12 text-(--tmd-diff-removed)"
-              : line.startsWith("@@")
-                ? "text-(--tmd-accent)"
-                : "text-(--tmd-fg-muted)";
-        return (
-          /* content-visibility:auto:数千行的 lockfile/生成代码 diff,
-             视口外行跳过布局与绘制,展开不再卡顿 */
-          <div
-            key={i}
-            className={`whitespace-pre-wrap break-all [content-visibility:auto] [contain-intrinsic-size:auto 1em] ${cls}`}
-          >
-            {line}
-          </div>
-        );
-      })}
-    </pre>
   );
 }
 

@@ -42,6 +42,10 @@
   --tmd-syntax-tag: #569cd6;
   --tmd-diff-inserted: #2ea043;
   --tmd-diff-removed: #f85149;
+  /* git 历史 graph 的 ref 语义色(本地分支/远端/base;固定语义色,不随 preset 映射) */
+  --tmd-git-ref-local: #59a4f9;
+  --tmd-git-ref-remote: #b180d7;
+  --tmd-git-ref-base: #ea5c00;
   --tmd-terminal-bg: #1f1f1f;
   --tmd-terminal-fg: #cccccc;
   --tmd-terminal-cursor: #cccccc;
@@ -75,6 +79,9 @@
   --tmd-syntax-tag: #0000ff;
   --tmd-diff-inserted: #2ea043;
   --tmd-diff-removed: #f85149;
+  --tmd-git-ref-local: #0063d3;
+  --tmd-git-ref-remote: #652d90;
+  --tmd-git-ref-base: #ea5c00;
   --tmd-terminal-bg: #ffffff;
   --tmd-terminal-fg: #3b3b3b;
   --tmd-terminal-cursor: #005fb8;

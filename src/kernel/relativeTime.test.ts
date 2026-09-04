@@ -47,6 +47,11 @@ describe("formatRelativeTime 过去向", () => {
   it("月级 → N 个月前", () => {
     expect(formatRelativeTime(NOW - 60 * 86_400_000)).toBe("2 个月前");
   });
+
+  it("年级 → N 年前(满 12 个月升档)", () => {
+    expect(formatRelativeTime(NOW - 365 * 86_400_000)).toBe("1 年前");
+    expect(formatRelativeTime(NOW - 800 * 86_400_000)).toBe("2 年前");
+  });
 });
 
 describe("formatRelativeTime 未来向", () => {
@@ -76,6 +81,10 @@ describe("formatRelativeTime 未来向", () => {
 
   it("月级 → N 个月后", () => {
     expect(formatRelativeTime(NOW + 90 * 86_400_000)).toBe("3 个月后");
+  });
+
+  it("年级 → N 年后(满 12 个月升档)", () => {
+    expect(formatRelativeTime(NOW + 365 * 86_400_000)).toBe("1 年后");
   });
 });
 

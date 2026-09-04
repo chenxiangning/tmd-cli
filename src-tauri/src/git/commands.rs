@@ -7,9 +7,9 @@
 use git2::Repository;
 
 use super::{
-    ahead_behind as ahead_behind_impl, branch_ops, commit as commit_impl, diff, index_ops,
-    remote_ops, status as status_impl, walk_log, with_repo, AheadBehind, BranchList, CommitInput,
-    DiffStatus, DiffTotals, FilePatch, GitError, LogEntry,
+    ahead_behind as ahead_behind_impl, branch_ops, commit as commit_impl, commit_view, diff,
+    index_ops, remote_ops, status as status_impl, walk_log, with_repo, AheadBehind, BranchList,
+    CommitFile, CommitInput, DiffStatus, DiffTotals, FilePatch, GitError, LogEntry,
 };
 
 /// 读命令模板:spawn_blocking 包 with_repo;JoinError 只在 panic/取消时出现。
@@ -88,6 +88,22 @@ pub async fn git_commit(
 #[tauri::command]
 pub async fn git_log(cwd: String, limit: usize, offset: usize) -> Result<Vec<LogEntry>, String> {
     run(cwd, move |r| walk_log(r, limit, offset)).await
+}
+
+/// 提交文件清单(历史 Graph 展开;sha 口径见 commit_view)。
+#[tauri::command]
+pub async fn git_commit_files(cwd: String, sha: String) -> Result<Vec<CommitFile>, String> {
+    run(cwd, move |r| commit_view::files(r, &sha)).await
+}
+
+/// 提交内单文件 patch(path 按 新路径/rename 来源匹配)。
+#[tauri::command]
+pub async fn git_commit_file_patch(
+    cwd: String,
+    sha: String,
+    path: String,
+) -> Result<Option<FilePatch>, String> {
+    run(cwd, move |r| commit_view::file_patch(r, &sha, &path)).await
 }
 
 #[tauri::command]

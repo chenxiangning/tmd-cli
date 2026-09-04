@@ -62,7 +62,7 @@ export function GitToolbar() {
   );
 }
 
-/** 视图下拉:差异/分支/历史 + 平铺/树形 + Git Graph(disabled 占位)。 */
+/** 视图下拉:差异/分支/历史 + 平铺/树形。历史视图即 Graph(泳道拓扑)。 */
 function ViewMenu({
   current,
   layout,
@@ -96,14 +96,6 @@ function ViewMenu({
           </button>
         ))}
         {sep}
-        <button
-          type="button"
-          className={`${item} cursor-not-allowed opacity-40`}
-          disabled
-          title="后续版本提供"
-        >
-          <span>Git Graph</span>
-        </button>
       </div>
     </>
   );

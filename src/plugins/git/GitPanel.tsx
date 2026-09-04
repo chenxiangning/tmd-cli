@@ -231,7 +231,16 @@ export function GitPanel() {
             onMutation={afterMutation}
           />
         )}
-        {view === "history" && <HistoryView log={log} />}
+        {view === "history" && cwd && (
+          <HistoryView
+            log={log}
+            cwd={cwd}
+            branch={status.data?.branch ?? ""}
+            upstream={status.data?.upstream ?? null}
+            ahead={aheadBehind?.ahead ?? 0}
+            behind={aheadBehind?.behind ?? 0}
+          />
+        )}
       </div>
     </div>
   );

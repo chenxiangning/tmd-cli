@@ -116,7 +116,7 @@ pub fn totals_of(repo: &Repository) -> Result<DiffTotals, GitError> {
     })
 }
 
-fn fold_delta(d: Delta) -> &'static str {
+pub(crate) fn fold_delta(d: Delta) -> &'static str {
     match d {
         Delta::Added | Delta::Untracked => "A",
         Delta::Deleted => "D",
