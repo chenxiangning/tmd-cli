@@ -1,9 +1,10 @@
 /**
- * 触发器候选面板 —— 从输入线正下方长出(替换旧"钉在工具栏下"的小下拉)。
+ * 触发器候选面板 —— 统一悬在对话框(composer 输入框)上方,不再遮挡书写区。
  *
- * 几何契约:textarea 首行 = 工具栏下方 ~22px,面板吸在 top-[52px](输入行正下方),
- * 随内容向下生长、max-h 封顶后内部滚动 —— 面板永远贴着正在输入的那一行。
- * 动效:translateY(+8px) → 0 自下而上滑入。
+ * 几何契约:portal 挂 body + fixed 定位(Panel 容器 overflow:hidden 会裁切
+ * absolute 子元素),锚定坐标由 Composer 量测传入 —— 底缘 = 对话框顶缘 - 8px,
+ * 左右各留 12px,向上生长、maxHeight 封顶后内部滚动。
+ * 动效:translateY(-12px) → 0,朝输入线方向落下归位。
  *
  * 焦点契约:容器级 onMouseDown preventDefault —— 点面板任何位置(含空白)都不抢
  * textarea 焦点,方向键选中和直接打字过滤因此始终有效;点击面板外则由 Composer
@@ -29,9 +30,11 @@ interface SuggestionListProps {
   pickIndex: number;
   onPick(match: SuggestionMatch): void;
   onHoverIndex(i: number): void;
+  /** fixed 锚定几何( left/width/bottom/maxHeight ),Composer 量测传入。 */
+  style?: React.CSSProperties;
 }
 
-export function SuggestionList({ matches, pickIndex, onPick, onHoverIndex }: SuggestionListProps) {
+export function SuggestionList({ matches, pickIndex, onPick, onHoverIndex, style }: SuggestionListProps) {
   const [shown, setShown] = useState(false);
   const [scrollable, setScrollable] = useState(false);
   const [atBottom, setAtBottom] = useState(false);
@@ -70,10 +73,11 @@ export function SuggestionList({ matches, pickIndex, onPick, onHoverIndex }: Sug
   return (
     <div
       onMouseDown={(e) => e.preventDefault()}
-      className={`absolute left-3 right-3 top-[52px] z-20 flex max-h-[calc(100%-64px)] flex-col overflow-hidden rounded-xl
+      className={`fixed z-50 flex flex-col overflow-hidden rounded-xl
         border border-(--tmd-border) bg-(--tmd-bg-popover) shadow-[0_16px_40px_rgba(0,0,0,0.4)]
         transition-all duration-200 ease-out motion-reduce:transition-none
-        ${shown ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`}
+        ${shown ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0"}`}
+      style={style}
     >
       {/* 分区标题 */}
       <div className="shrink-0 px-3.5 pt-2 pb-1 text-[11px] tracking-widest text-(--tmd-fg-faint)">

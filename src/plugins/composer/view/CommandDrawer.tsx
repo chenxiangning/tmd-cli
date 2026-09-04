@@ -55,9 +55,12 @@ interface CommandDrawerProps {
   onSend: (item: DrawerItem) => string;
   onInsert: (item: DrawerItem) => void;
   onOpen: (item: DrawerItem) => void;
+  /** fixed 锚定几何( right/bottom/maxHeight ),Composer 量测传入。 */
+  style?: React.CSSProperties;
 }
 
-export function CommandDrawer({ open, items, onSend, onInsert, onOpen }: CommandDrawerProps) {
+export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: CommandDrawerProps) {
+
   const [tab, setTab] = useState<"all" | DrawerSection>("all");
   const [activeIndex, setActiveIndex] = useState(-1);
   const [flashKey, setFlashKey] = useState<string | null>(null);
@@ -195,11 +198,14 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen }: Command
           }
         }
       }}
-      /* 高度自适应内容,上限为容器(top-7 对位顶部 statusBar);不再拉满到底 */
-      className={`absolute top-7 right-0 z-30 flex max-h-[calc(100%-1.75rem)] w-[300px] max-w-[88%] flex-row outline-none
-        border-l border-(--tmd-border) bg-(--tmd-bg-popover) shadow-[-16px_0_40px_rgba(0,0,0,0.35)]
-        transition-transform duration-[260ms] ease-[cubic-bezier(0.32,0.72,0.24,1)]
-        motion-reduce:transition-none ${open ? "translate-x-0" : "translate-x-[105%]"}`}
+      /* 统一悬在对话框上方(portal + fixed,坐标 Composer 量测传入);
+         高度自适应内容,maxHeight 封顶后内部滚动。隐藏态加 opacity-0:
+         portal 无 overflow 裁切,纯 translate-x-[105%] 会把面板甩出视口。 */
+      className={`fixed z-50 flex w-[300px] max-w-[88%] flex-row outline-none
+        rounded-xl border border-(--tmd-border) bg-(--tmd-bg-popover) shadow-[0_16px_40px_rgba(0,0,0,0.4)]
+        transition-[transform,opacity] duration-[260ms] ease-[cubic-bezier(0.32,0.72,0.24,1)]
+        motion-reduce:transition-none ${open ? "translate-x-0 opacity-100" : "translate-x-[105%] opacity-0"}`}
+      style={style}
     >
       {/* 左缘竖排 rail:关闭 + 分区图标切换 + 计数(文案进 title/aria-label) */}
       <div

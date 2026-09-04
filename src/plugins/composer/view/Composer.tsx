@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { host } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import { KernelTopics } from "@kernel/events";
@@ -41,6 +42,7 @@ import {
 } from "../drawerItems";
 import { resolveArrowIntent } from "./arrowIntent";
 import { AttachmentStrip } from "./AttachmentStrip";
+import { useAttachDragProps, usePopupAnchor } from "./composerChrome";
 import { AnchorRail } from "./AnchorRail";
 import {
   addAttachment,
@@ -338,29 +340,13 @@ export function Composer() {
     if (ref.current) insertAtCursor(ref.current, `@${att.path} `);
   }
 
-  function handleRemoveAttachment(a: Attachment): void {
-    removeTokenForAttachment(a);
-  }
-
-  /* 悬停高亮只认 composer 能收的拖拽:外部文件(Files)或文件树内部拖拽(payload)。
-     附件条重排(纯 text/plain)不弹遮罩,避免重排时闪烁 */
-  function isAttachDrag(e: React.DragEvent): boolean {
-    return Array.from(e.dataTransfer.types).includes("Files") || readDragPayload() !== null;
-  }
-
+  /* 弹窗悬停锚定 + 拖拽判定(实现见 composerChrome.ts) */
+  const { boxRect, popupBottom, popupMaxHeight } = usePopupAnchor(composerRef);
+  const attachDragProps = useAttachDragProps(composerRef, readDragPayload, setDragOver);
   return (
     <div
       onDrop={handleDrop}
-      onDragOver={(e) => e.preventDefault()}
-      onDragEnter={(e) => {
-        e.preventDefault();
-        if (isAttachDrag(e)) setDragOver(true);
-      }}
-      onDragLeave={(e) => {
-        /* 子元素间移动也派发 dragleave(relatedTarget = 将进入的元素);
-           只有真正离开 composer 边界(含拖出窗口,relatedTarget 为 null)才撤遮罩 */
-        if (!composerRef.current?.contains(e.relatedTarget as Node | null)) setDragOver(false);
-      }}
+      {...attachDragProps}
       className="relative flex h-full flex-col bg-(--tmd-bg-base)"
     >
       <div
@@ -372,14 +358,21 @@ export function Composer() {
         }`}
       >
         <Mounts point="composer.statusBar" />
-        <AttachmentStrip onRemove={handleRemoveAttachment} onPreviewImage={(a) => setPreviewSrc(a.previewDataUrl || a.thumbDataUrl)} />
-        {matches && activeRange && (
+        <AttachmentStrip onRemove={removeTokenForAttachment} onPreviewImage={(a) => setPreviewSrc(a.previewDataUrl || a.thumbDataUrl)} />
+        {matches && activeRange && boxRect && createPortal(
           <SuggestionList
+            style={{
+              left: boxRect.left + 12,
+              width: boxRect.width - 24,
+              bottom: popupBottom,
+              maxHeight: popupMaxHeight,
+            }}
             matches={matches}
             pickIndex={pickIndex}
             onPick={applyPick}
             onHoverIndex={setPickIndex}
-          />
+          />,
+          document.body,
         )}
         <textarea
           id="composer-textarea"
@@ -468,14 +461,22 @@ export function Composer() {
         />
         {/* 对话锚点栏:右缘 dash 导航,数据/跳转走 kernel messageAnchors */}
         <AnchorRail />
-        {/* 命令抽屉:自右滑入,悬浮于输入区之上(常挂以便滑出动画) */}
-        <CommandDrawer
-          open={drawerOpen}
-          items={drawerItems}
-          onSend={sendFromDrawer}
-          onInsert={insertFromDrawer}
-          onOpen={openFromDrawer}
-        />
+        {/* 命令抽屉:统一悬在对话框上方(portal + fixed,常挂以便滑出动画) */}
+        {boxRect && createPortal(
+          <CommandDrawer
+            style={{
+              right: window.innerWidth - boxRect.right,
+              bottom: popupBottom,
+              maxHeight: popupMaxHeight,
+            }}
+            open={drawerOpen}
+            items={drawerItems}
+            onSend={sendFromDrawer}
+            onInsert={insertFromDrawer}
+            onOpen={openFromDrawer}
+          />,
+          document.body,
+        )}
         {/* 拖拽悬停遮罩:对齐 composer-design.html 的 .drag-over(accent 内环 + 虚线框 + 提示)。
            pointer-events-none 让 drop 穿透到根容器;inset 顶部留 32px 避开状态栏 */}
         {dragOver && (
