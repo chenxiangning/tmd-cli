@@ -40,7 +40,7 @@ tauri-plugin-shell = { version = "2", default-features = false }
 trash = "5"
 # SSH 引擎(russh 0.62 系实测组合;0.63 起 MSRV 1.85 超本仓 rust-version 1.80):
 # russh 客户端(连接/认证/KBI/通道)+ russh-sftp(SFTP subsystem)。
-russh = "0.62.2"
+russh = "0.63.1"
 # russh/转发/IO 泵直接使用 tokio 原语(mpsc/watch/Semaphore/Tcp/JoinSet);tauri 已传递引入,这里显式声明所需 feature。
 tokio = { version = "1", features = ["rt", "sync", "time", "net", "io-util", "fs", "macros"] }
 russh-sftp = "2.3"
