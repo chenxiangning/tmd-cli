@@ -23,6 +23,9 @@
 /* ── Hero ── */
 
 .welcome-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   margin-bottom: 24px;
 }
 
@@ -34,12 +37,47 @@
 }
 
 .welcome-subtitle {
-  margin: 6px 0 0;
+  margin: 0;
   font-size: 12px;
   color: var(--tmd-fg-muted);
 }
 
-/* ── 引擎卡 ── */
+.welcome-github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 4px 10px 4px 12px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tmd-fg);
+  text-decoration: none;
+  background-color: var(--tmd-bg-sunken);
+  transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+}
+
+.welcome-github-link:hover {
+  border-color: var(--tmd-accent);
+  color: var(--tmd-accent);
+  background-color: var(--tmd-bg-hover);
+}
+
+.welcome-github-link svg {
+  flex: none;
+  opacity: 0.9;
+}
+
+.welcome-github-license {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--tmd-accent);
+  background-color: var(--tmd-accent-soft);
+}
 
 .welcome-engines {
   display: flex;
