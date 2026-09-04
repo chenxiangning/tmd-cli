@@ -123,13 +123,13 @@ export function SessionNode({
   return <ActivityDot sessionId={sessionId} />;
 }
 
-/** 三态 label 文案与配色类(呼吸沿用圆点的 animate-breathe)。 */
+/** 三态 label 文案与配色类(纯文字不闪烁 —— 呼吸只属于左侧圆点,文字态以颜色区分)。 */
 const STATUS_LABEL: Record<
   Exclude<SessionStatus, "none">,
   { className: string; text: string }
 > = {
-  running: { className: "is-run animate-breathe", text: "运行时" },
-  unread: { className: "is-unread animate-breathe", text: "会话结束-未查看" },
+  running: { className: "is-run", text: "运行时" },
+  unread: { className: "is-unread", text: "会话结束-未查看" },
   viewed: { className: "is-viewed", text: "会话结束-已查看" },
 };
 

@@ -270,8 +270,8 @@
   flex-shrink: 0;
 }
 
-/* 会话状态校准 label(SessionStatusLabel):呼吸灯暗示的文字明示,活会话专属。
-   配色与时间节点同板:绿 = 运行时;accent 蓝 = 会话结束-未查看;灰 = 会话结束-已查看。 */
+/* 会话状态校准 label(SessionStatusLabel):呼吸灯暗示的文字明示,活会话专属,纯文字不闪烁。
+   配色:深绿 = 运行时(浅色主题加深);锚定蓝 = 会话结束-未查看;灰 = 会话结束-已查看。 */
 .thread-status-label {
   font-size: 10px;
   line-height: 1;
@@ -284,15 +284,21 @@
   color: #34d399;
 }
 
+/* 浅色主题下 emerald-400 文字对比度不足(白底看不清),降为深绿 emerald-600;
+   深色主题保持 #34d399(深底上反而清晰)。 */
+:root[data-theme="light"] .thread-status-label.is-run {
+  color: #059669;
+}
+
 .thread-status-label.is-unread {
-  color: var(--tmd-accent);
+  /* 锚定明确蓝 #0078d4(= 深色主题 accent):浅色主题的 accent #005fb8 偏深藏青,不像蓝。 */
+  color: #0078d4;
 }
 
 /* ===== 行内重命名(右键"重命名" → 行内容替换为输入框) ===== */
 .thread-row.is-renaming {
   cursor: default;
 }
-
 .thread-rename-input {
   flex: 1;
   min-width: 0;
