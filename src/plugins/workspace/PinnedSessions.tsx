@@ -7,7 +7,8 @@
  * - 行标题:手动命名覆盖层 > 置顶快照 > 短码;快照缺失或为短码垃圾(历史缺陷
  *   把 shortId 存成了快照)时读磁盘解析真标题并回填快照(节流重试,见下);
  * - 行点击:绑定的活会话 → 切到该会话;否则按原工作区恢复磁盘会话;
- * - 已移除工作区/未注册 CLI 的残留置顶不渲染(数据保留,加回即恢复);
+ * - 绑定活会话的行:meta 区亮状态 label(运行时/会话结束-未查看/已查看),
+ *   正在查看时左侧引擎图标让位给 Eye,切走还原(与组内行同口径);
  * - 右键菜单无删除项:全局区不持有磁盘文件路径,删除回工作区分组操作
  *   (先「置顶到工作区内」迁移回组,或「取消置顶」后组内删除)。
  */
@@ -30,10 +31,10 @@ import {
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle, shortId } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
-import { ChevronDown, ChevronRight, Pin } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, Pin } from "lucide-react";
 import { SessionContextMenu } from "./SessionContextMenu";
 import { realPinSnapshot } from "./utils";
-import { PinToggle, RenameInput, type RenameTarget } from "./SessionRows";
+import { PinToggle, RenameInput, SessionStatusLabel, type RenameTarget } from "./SessionRows";
 
 /** 段折叠态存储 key(纯 UI 态,localStorage 即可,浏览器/Tauri 行为一致)。 */
 const COLLAPSED_KEY = "tmd.pinnedSectionCollapsed";
@@ -226,11 +227,14 @@ export function PinnedSessionsSection() {
                 setMenu({ row, x: e.clientX, y: e.clientY });
               }}
             >
+              {/* 正在查看:引擎图标槽位让位给 Eye,切走还原 */}
               <span className="thread-engine-badge" title={row.profile.name}>
-                {row.profile.renderIcon?.(12)}
+                {isActive ? <Eye size={13} className="thread-viewing-eye" /> : row.profile.renderIcon?.(12)}
               </span>
               <span className="thread-name">{titleOf(row)}</span>
               <span className="thread-meta">
+                {/* 绑定活会话:状态校准 label(与组内行同口径,实时刷新) */}
+                {live ? <SessionStatusLabel sessionId={live.id} /> : null}
                 {/* 绑定的活会话正等待确认:同组内行,置顶区也亮「等待确认」标签 */}
                 {live && host.isWaitingConfirm(live.id) ? (
                   <span className="thread-ask-badge">等待确认</span>

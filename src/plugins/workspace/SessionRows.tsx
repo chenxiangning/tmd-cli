@@ -1,13 +1,16 @@
 /**
- * 会话行共享件 —— 行内重命名输入 + 磁盘会话行。
+ * 会话行共享件 —— 行内重命名输入 + 磁盘会话行 + 活会话状态件。
  * 从 SessionList 拆出:磁盘行同时服务于 CLI 分组内的工作区置顶块与分页列表,
- * RenameInput 同时服务于分组与全局置顶区(单文件 ≤500 行铁则)。
+ * RenameInput 同时服务于分组与全局置顶区;状态件(节点/label)同时服务于
+ * 分组活会话行与全局置顶区的活会话绑定行(单文件 ≤500 行铁则)。
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { formatRelativeTime } from "@kernel/relativeTime";
-import { Pin } from "lucide-react";
+import { host, useHost } from "@kernel/host";
+import { Eye, Pin } from "lucide-react";
+import { resolveSessionStatus, type SessionStatus } from "./utils";
 
 /** 行内重命名目标:以 CLI 磁盘身份为 key(与覆盖层同 key)。 */
 export interface RenameTarget {
@@ -55,6 +58,90 @@ export function RenameInput({
       onBlur={() => finish(value)}
     />
   );
+}
+
+/* 共享 1Hz ticker:N 个状态件共用一个 interval(替代每件一表),0 订阅时停表。 */
+const tickSubscribers = new Set<() => void>();
+let tickTimer: number | null = null;
+
+function subscribeActivityTick(cb: () => void): () => void {
+  tickSubscribers.add(cb);
+  tickTimer ??= window.setInterval(() => tickSubscribers.forEach((fn) => fn()), 1000);
+  return () => {
+    tickSubscribers.delete(cb);
+    if (tickSubscribers.size === 0 && tickTimer) {
+      clearInterval(tickTimer);
+      tickTimer = null;
+    }
+  };
+}
+
+export type { SessionStatus };
+
+/** 1Hz 重渲 + host 守望口径 → 当前状态(状态机见 utils.resolveSessionStatus)。 */
+export function useSessionStatus(sessionId: string): SessionStatus {
+  useHost();
+  const [, tick] = useState(0);
+  useEffect(() => subscribeActivityTick(() => tick((n) => n + 1)), []);
+  return resolveSessionStatus(
+    host.getLastActivityAt(sessionId),
+    host.isUnread(sessionId),
+    Date.now(),
+  );
+}
+
+/** 时间节点三态:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止 —— 呼吸灯从 meta 区移到时间轴节点位。 */
+export function ActivityDot({ sessionId }: { sessionId: string }) {
+  const status = useSessionStatus(sessionId);
+  const state =
+    status === "running"
+      ? "is-run animate-breathe"
+      : status === "unread"
+        ? "is-unread animate-breathe"
+        : "is-idle";
+  return <span className={`tl-node ${state}`} aria-hidden />;
+}
+
+/**
+ * 左侧节点槽位:正在查看(viewing = active)时圆点让位给 Eye 图标,
+ * 切走/关闭会话即还原圆点 —— 「查看中」语义压过状态灯。
+ */
+export function SessionNode({
+  sessionId,
+  viewing,
+}: {
+  sessionId: string;
+  viewing: boolean;
+}) {
+  if (viewing) {
+    return (
+      <span className="tl-node tl-node-viewing" aria-hidden>
+        <Eye size={13} className="thread-viewing-eye" />
+      </span>
+    );
+  }
+  return <ActivityDot sessionId={sessionId} />;
+}
+
+/** 三态 label 文案与配色类(呼吸沿用圆点的 animate-breathe)。 */
+const STATUS_LABEL: Record<
+  Exclude<SessionStatus, "none">,
+  { className: string; text: string }
+> = {
+  running: { className: "is-run animate-breathe", text: "运行时" },
+  unread: { className: "is-unread animate-breathe", text: "会话结束-未查看" },
+  viewed: { className: "is-viewed", text: "会话结束-已查看" },
+};
+
+/**
+ * 会话状态校准 label —— 把呼吸灯暗示改为文字明示,meta 区实时刷新。
+ * 仅活会话:磁盘历史行无未读/进行中概念,不出签。
+ */
+export function SessionStatusLabel({ sessionId }: { sessionId: string }) {
+  const status = useSessionStatus(sessionId);
+  if (status === "none") return null;
+  const { className, text } = STATUS_LABEL[status];
+  return <span className={`thread-status-label ${className}`}>{text}</span>;
 }
 
 /**

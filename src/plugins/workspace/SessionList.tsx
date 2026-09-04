@@ -2,11 +2,13 @@
  * 会话列表 —— 活会话行 + CLI 分组 + 磁盘历史分页。
  * 数据源:活会话 = 内核 PTY 注册表;历史 = 各 CLI 插件 listSessions。
  *
- * 呼吸灯三态(内核 host 活动守望结算,见 kernel/host.ts / activityWatch.ts):
- * - 绿呼吸:对话进行中(2s 内有 PTY 输出。呼吸灯锚定用户首写 —— 首写前的一切
- *   输出(spawn 横幅/resume 回放/TUI 重绘)不亮灯、不结算未读,见 activityWatch 首写闸)
- * - 蓝呼吸:对话结束且未被查看(完成未读),组内置顶;点开查看即消
- * - 灰静止:已读完成 / 无输出 / 从未对话
+ * 状态表达(kernel host 活动守望结算,见 kernel/host.ts / activityWatch.ts;
+ * 呼吸灯锚定用户首写 —— 首写前的一切输出(spawn 横幅/resume 回放/TUI 重绘)
+ * 不亮灯、不结算未读,见 activityWatch 首写闸):
+ * - 左侧节点:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止;正在查看的
+ *   会话圆点让位给 Eye 图标,切走/关闭还原(SessionNode)
+ * - meta 区状态 label(SessionStatusLabel):运行时 / 会话结束-未查看 /
+ *   会话结束-已查看;从未对话不出签,磁盘行无此概念
  * 行右键菜单:复制 Session ID / 重命名(应用侧覆盖层,见 kernel/sessionTitles.ts)
  * / 置顶到全局 / 置顶到工作区内(双作用域,见 kernel/sessionPins.ts)
  * / 删除会话(两步确认,双端统一物理删除磁盘 jsonl)。
@@ -43,40 +45,11 @@ import {
   DiskSessionRow,
   PinToggle,
   RenameInput,
+  SessionNode,
+  SessionStatusLabel,
   type RenameTarget,
 } from "./SessionRows";
 import { compareLiveSessions } from "./utils";
-
-/* 共享 1Hz ticker:N 个 ActivityDot 共用一个 interval(替代每点一表),0 订阅时停表。 */
-const tickSubscribers = new Set<() => void>();
-let tickTimer: number | null = null;
-
-function subscribeActivityTick(cb: () => void): () => void {
-  tickSubscribers.add(cb);
-  tickTimer ??= window.setInterval(() => tickSubscribers.forEach((fn) => fn()), 1000);
-  return () => {
-    tickSubscribers.delete(cb);
-    if (tickSubscribers.size === 0 && tickTimer) {
-      clearInterval(tickTimer);
-      tickTimer = null;
-    }
-  };
-}
-
-/** 时间节点三态:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止 —— 呼吸灯从 meta 区移到时间轴节点位。 */
-function ActivityDot({ sessionId }: { sessionId: string }) {
-  useHost();
-  const [, tick] = useState(0);
-  useEffect(() => subscribeActivityTick(() => tick((n) => n + 1)), []);
-  const alive = Date.now() - host.getLastActivityAt(sessionId) < 2000;
-  const unread = host.isUnread(sessionId);
-  const state = alive
-    ? "is-run animate-breathe"
-    : unread
-      ? "is-unread animate-breathe"
-      : "is-idle";
-  return <span className={`tl-node ${state}`} aria-hidden />;
-}
 
 /** 0 配额组「更多...」首击的展开步长(正配额组从配额值起翻倍:quota → 2× → 4×)。 */
 const PAGE_INITIAL = 10;
@@ -129,10 +102,11 @@ function LiveSessionRow({
       }}
       onContextMenu={onContextMenu}
     >
-      <ActivityDot sessionId={session.id} />
+      <SessionNode sessionId={session.id} viewing={isActive} />
       {/* 身份统一:绑定磁盘身份后与磁盘条目同形显示(标题/命名/短码) */}
       <span className="thread-name">{title}</span>
       <span className="thread-meta">
+        <SessionStatusLabel sessionId={session.id} />
         {waiting ? <span className="thread-ask-badge">等待确认</span> : null}
         <PinToggle on={pinned} disabled={!canPin} onToggle={onTogglePin} />
       </span>

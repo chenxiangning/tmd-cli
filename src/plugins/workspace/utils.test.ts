@@ -6,10 +6,13 @@
  * 置顶快照有效性(短码垃圾判定):历史缺陷里置顶早于 CLI 自动命名落地时,
  * shortId 兜底串被当作标题快照持久化,全局置顶区从此永久显示短码;
  * realPinSnapshot 负责把它识别为"无快照"。
+ *
+ * 会话状态校准(resolveSessionStatus):状态 label 与呼吸灯共用同一状态机 ——
+ * 运行时 / 会话结束-未查看 / 会话结束-已查看 / 从未对话不出签;进行中压过未读。
  */
 import { describe, expect, it } from "vitest";
 import { shortId } from "@kernel/sessionTitles";
-import { compareLiveSessions, realPinSnapshot } from "./utils";
+import { compareLiveSessions, realPinSnapshot, resolveSessionStatus } from "./utils";
 import type { SessionMeta } from "@kernel/ipc";
 
 const meta = (id: string, createdAt?: number): SessionMeta => ({
@@ -66,5 +69,28 @@ describe("realPinSnapshot", () => {
     expect(realPinSnapshot(shortId("other-session-id"), id)).toBe(
       shortId("other-session-id"),
     );
+  });
+});
+
+describe("resolveSessionStatus", () => {
+  const NOW = 10_000;
+
+  it("从未对话(lastActivityAt = 0,首写闸未锚定)→ none,不出签不亮灯", () => {
+    expect(resolveSessionStatus(0, false, NOW)).toBe("none");
+    expect(resolveSessionStatus(0, true, NOW)).toBe("none");
+  });
+
+  it("2s 活动窗内 → running;恰好 2s 出窗即不再是进行中", () => {
+    expect(resolveSessionStatus(NOW - 1999, false, NOW)).toBe("running");
+    expect(resolveSessionStatus(NOW - 2000, false, NOW)).not.toBe("running");
+  });
+
+  it("进行中压过未读:新输出即回 running(与 host 清未读双保险)", () => {
+    expect(resolveSessionStatus(NOW - 500, true, NOW)).toBe("running");
+  });
+
+  it("出窗后按已查看与否分流:unread / viewed", () => {
+    expect(resolveSessionStatus(NOW - 5000, true, NOW)).toBe("unread");
+    expect(resolveSessionStatus(NOW - 5000, false, NOW)).toBe("viewed");
   });
 });

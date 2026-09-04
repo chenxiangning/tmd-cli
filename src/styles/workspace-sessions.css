@@ -150,6 +150,26 @@
     0 0 0 4px color-mix(in srgb, var(--tmd-accent) 10%, transparent);
 }
 
+/* 正在查看:圆点让位 Eye 图标,同槽位骑线(15px 盒居中于竖线位);切走/关闭还原圆点。
+   特异性须压过 .thread-row.active .tl-node(0-3-0)的 accent 背景 + 双环,
+   否则背景方块吞掉 Eye(viewing 仅在 active 行出现,并列三段选择器 + 位置靠后取胜)。 */
+.thread-row .tl-node.tl-node-viewing {
+  left: -7px;
+  width: 15px;
+  height: 15px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 正在查看 Eye:置顶区与工作区行同形同色(size 13),主题前景 token,深浅主题自适应。 */
+.thread-viewing-eye {
+  color: var(--text-strong);
+}
+
 /* CLI 分组标签:空心环节点,作为时间轴段头 */
 .cli-group-label::before {
   content: "";
@@ -248,6 +268,24 @@
   line-height: 1;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+/* 会话状态校准 label(SessionStatusLabel):呼吸灯暗示的文字明示,活会话专属。
+   配色与时间节点同板:绿 = 运行时;accent 蓝 = 会话结束-未查看;灰 = 会话结束-已查看。 */
+.thread-status-label {
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+.thread-status-label.is-run {
+  color: #34d399;
+}
+
+.thread-status-label.is-unread {
+  color: var(--tmd-accent);
 }
 
 /* ===== 行内重命名(右键"重命名" → 行内容替换为输入框) ===== */

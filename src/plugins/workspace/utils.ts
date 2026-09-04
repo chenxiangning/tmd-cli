@@ -28,3 +28,25 @@ export function realPinSnapshot(
 ): string | undefined {
   return snapshot && snapshot !== shortId(cliSessionId) ? snapshot : undefined;
 }
+
+/**
+ * 活会话状态(内核 activityWatch 口径;首写闸:用户首写前的输出不算对话,
+ * lastActivityAt 保持 0):
+ * - running:对话进行中(2s 内有输出,与活动时间窗同阈值)
+ * - unread:会话结束且未查看(完成未读)
+ * - viewed:会话结束且已查看
+ * - none:从未对话 —— 不亮灯、不出 label
+ * 优先级:进行中压过未读(新输出即清未读,双保险)。
+ */
+export type SessionStatus = "running" | "unread" | "viewed" | "none";
+
+export function resolveSessionStatus(
+  lastActivityAt: number,
+  unread: boolean,
+  now: number,
+): SessionStatus {
+  if (lastActivityAt === 0) return "none";
+  if (now - lastActivityAt < 2000) return "running";
+  if (unread) return "unread";
+  return "viewed";
+}
