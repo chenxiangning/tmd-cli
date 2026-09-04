@@ -1,6 +1,6 @@
 # tmd-cli 基础架构总览
 
-- 日期：2026-09-01（2026-09-03 按当前代码校准）
+- 日期：2026-09-01（2026-09-04 按当前代码校准）
 - 状态：骨架已落地，持续演进
 - 铁律：**模块化 + 插件化**
 
@@ -10,9 +10,9 @@
 |---|---|
 | 头部工具栏 | 复刻 mossx 外观，预留插件挂载点 |
 | 左侧栏 | 工作区 + 会话列表；会话是主入口 |
-| 中央区 | xterm.js 幕布透传 CLI 原生 PTY 输出，零消息/Markdown/Diff 二次渲染；无会话时 welcome 首页；文件编辑器与批审阅单以中央 tab 并存 |
+| 中央区 | xterm.js 幕布透传 CLI 原生 PTY 输出，零消息/Markdown/Diff 二次渲染；无会话时 welcome 首页；文件编辑器/多形态预览、批审阅单、Git 提交 diff、SSH 远端文件编辑以中央 tab 并存 |
 | Composer | 富输入：工具栏显示当前 session 的模型/思考强度（只读）；输入支持截图、拖拽文件、`$` skill、`/` common、`@` 文件/文件夹 |
-| 右侧栏 | files 文件树 / git 面板 / checkpoints 审批线时间线，三面板并列 tab（经 kernel/filePanel 注册表） |
+| 右侧栏 | files 文件树 / git 面板 / checkpoints 审批线时间线 / ssh 面板(SFTP 树 + 端口转发)，四面板并列 tab（经 kernel/filePanel 注册表） |
 
 ## 2. 分层
 
@@ -20,7 +20,7 @@
 React Host
 ├── kernel/       插件契约、生命周期、事件总线、IPC、PTY TerminalView
 ├── app-shell/    五区外壳、插件市场页(PluginMarketPage)与挂载点(宿主职责)
-└── plugins/      cli-* ×8(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn) · workspace · session-budget · files · git · checkpoints(审批线) · composer · settings · network-proxy · welcome
+└── plugins/      cli-* ×8(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn) · workspace · session-budget · files · git · checkpoints(审批线) · composer · settings · network-proxy · ssh(远程会话) · welcome
 
 Tauri Rust
 ├── pty.rs            portable-pty：spawn / read / write / resize / kill,双线程聚合泵
@@ -34,9 +34,13 @@ Tauri Rust
 ├── hash.rs           MD5 原语(kimi 会话目录 / checkpoints 账本目录)
 ├── settings.rs       settings.json 读写
 ├── session.rs        Session 元数据注册表 + workspaces.json 持久化
+├── session_commands.rs session_* 命令自 lib.rs 拆件(PTY/SSH 会话按 kind 路由)
+├── fs_walk.rs        全仓文件索引(gitignore 系语义,composer `@` 候选)
+├── proc_run.rs       通用短进程通道(CLI RPC 副车 / inspect,spawn_blocking)
 ├── fs.rs             文件树读取(只读)
 ├── fs_edit.rs        文件写操作:新建/重命名/废纸篓/访达显示/编辑器保存(绝对路径,禁 .git 段,16MB 上限)
 ├── git/              libgit2 原语(git2 vendored);fetch/pull/push 走远端 shell-out
+├── ssh/              russh 一等 SSH 会话引擎(transport/session/auth/known_hosts/control/forward/sftp 全家,附 e2e 实测)
 └── checkpoints/      审批线账本 sidecar(ledger.jsonl + objects.git 裸库 + states.json,永不触碰用户仓库)
 
 ### 内核边界
@@ -53,15 +57,18 @@ Session = CLI profile + PTY + cwd + CLI native session id
 
 一个会话固定一个 CLI，不能中途切换。恢复会话由 CLI 插件声明 `resumeArgs`，适配各 CLI 自身的会话存储和恢复机制。
 
+SSH 会话是第二类一等会话：同一 `Session` 形状但无 CLI profile，Rust 侧按 kind 路由（russh 引擎），输出走同一 `pty://out/{id}` 事件，幕布 / tab 条 / 输出缓冲 / 翻页全链路零分叉；无 composer，不参与 Ask 检测、审批线与只读状态栏。
+连接失败不会静默消亡:错误文本原样进幕布,会话保留在 failed 态(右栏面板同步状态卡),由用户「断开」收尾;终态事件同时撤下未应答的 host key/KBI/密码提示卡。
+
 Composer 的只读状态通过 CLI profile 的 `readSessionStatus` 适配器读取各 CLI 自己的 session JSONL。内核只编排状态刷新，不理解 OMP、Pi、Codex 的文件格式；状态缺失时显示 `—`，不猜测默认值。
 
 ## 4. Composer 输入模型
 
 Composer 只负责富输入体验和发送编排，不实现 CLI 命令语义：
 
-- `$`：skill；由 CLI profile 声明，不支持则不激活
-- `/`：common command；由 CLI 自己解析
-- `@`：文件/文件夹引用；候选来自 files 插件
+- `$`：skill；由 CLI profile 声明，不支持则不激活；候选以 CLI 为真相源（`listSuggestions`：omp/pi RPC 副车、grok `inspect --json`、claude/qoder/codex/kimi 磁盘扫描）与静态表按 value 去重合并
+- `/`：common command；由 CLI 自己解析；候选来源同 `$`
+- `@`：文件/文件夹引用；候选 = Rust `fs_walk_files` 全仓索引（gitignore 系语义，60s 缓存，上限 2 万）+ 客户端 smart-case 模糊（cli-shared/fileIndex）
 - 截图/拖拽文件：落盘为会话临时文件，再按 CLI profile 规则注入
 - 发送：统一进入 PTY 写入通道，多行文本直发并以 CR 提交；bracketed paste 按 profile 声明（`bracketedPaste`，pi-tui 系 kimi/pi 生效，正文包 `ESC[200~…ESC[201~` 再 CR），未声明的 CLI 裸文本直发
 
@@ -82,8 +89,8 @@ PTY bytes → Tauri event pty://out/{sessionId} → xterm.js
 - `activate(ctx)` / `deactivate()`：生命周期
 - `registerCliProfile(profile)`：CLI 插件注册启动 profile
 - `CliProfile.readSessionStatus`：声明 CLI 私有 session 状态读取能力
-- `contribute(point, contribution)`：向 header/footer/sidebar/composer 子挂点扩展
-- `events`：跨插件唯一通信通道
+- `contribute(point, contribution)`：向 15 个挂点扩展（header.left/right/breadcrumb、footer.left/right、leftSidebar.section/workspaceCaption、workspace.newSessionMenu、leftRail/rightRail、overlay、editorCenter.welcome/tabContent/composer、composer.statusBar）
+- `registerSettingsSection(section)`：向设置面板注册 section（左导航 + 右 tab），settings 插件按注册表渲染
 
 新增能力的标准路径分两类：
 
@@ -127,6 +134,6 @@ QuotaChip (composer 插件)
 
 ## 8. 当前实现状态
 
-已完成：配置脚手架、插件宿主与插件市场（17 个注册插件）、八 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn)、PTY 全生命周期与会话输出落盘翻页、输出缓冲分块化(streamSlice)、xterm 幕布、五区外壳、Composer 触发符/拖拽/截图/命令抽屉/消息锚点栏/Quota chip、bracketed-paste 发送器(pi-tui 系)、只读 session 状态工具栏、Quota 额度查询(7 类供应商 + relay 探测 + 契约单测)、welcome 首页(引擎探针/一键安装/凭据盘点/近期会话)、右栏 Git 面板全量(差异/分支/历史/远端 fetch-pull-push)、文件树 + 中央文件编辑器(CodeMirror) + Markdown 预览(mermaid/KaTeX/图片/大纲)、审批线(checkpoints 账本:双归因/整批与按文件回退/影子对象库)、主题引擎(21 个 VS Code preset)、网络代理、会话置顶(双作用域)/重命名/显示预算、Ask 等待确认检测与提示音、轮次结束提示音。
+已完成：配置脚手架、插件宿主与插件市场（18 个注册插件）、八 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn)+ SSH 一等会话（russh 引擎，kind 路由）、PTY 全生命周期与会话输出落盘翻页、输出缓冲分块化(streamSlice)、xterm 幕布、五区外壳、顶栏会话 tab 条(容量 4)、Composer 触发符/拖拽/截图/命令抽屉/消息锚点栏/Quota chip、触发补全以 CLI 为真相源(RPC 副车/磁盘扫描/全仓模糊)、bracketed-paste 发送器(pi-tui 系)、只读 session 状态工具栏、Quota 额度查询(7 类供应商 + relay 探测 + 契约单测)、welcome 首页(引擎探针/一键安装/凭据盘点/近期会话/GitHub 仓库链接)、右栏 Git 面板全量(差异/分支/历史 Graph 化(泳道拓扑 + ahead/behind 合成行)/提交 diff 中央 tab/远端 fetch-pull-push)、文件树 + 中央文件编辑器(CodeMirror)+ 文件渲染档案(图片/PDF/表格/docx/结构化/二进制占位)+ Markdown 预览(mermaid/KaTeX/图片/大纲)、审批线(checkpoints 账本:双归因/整批与按文件回退/影子对象库/用户消息图片缩略图)、SSH 右栏面板(SFTP 树/端口转发/远端文件编辑)、主题引擎(21 个 VS Code preset)、网络代理、会话置顶(双作用域)/重命名/显示预算、Ask 等待确认检测(字节流 + 屏幕态双通道)与提示音、轮次结束提示音、文件 tab 右键菜单与编辑区最大化、panic 现场落盘(panic.log)。
 
-后续按优先级：命令抽屉真机验收(openspec composer-command-drawer)→ CLI 交互式兼容性验证；Git Graph 提案待开。
+后续按优先级：命令抽屉真机验收(openspec composer-command-drawer,余 5 项 `[V]`)→ CLI 交互式兼容性验证；在途契约归档(openspec/changes:ssh-plugin、git-right-panel 等)。

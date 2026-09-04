@@ -1,6 +1,6 @@
 # tmd-cli 代码级架构（当前实现）
 
-- 日期：2026-09-01（2026-09-03 按当前代码校准）
+- 日期：2026-09-01（2026-09-04 按当前代码校准）
 - 状态：对应主干当前代码（v0.1.0 骨架）
 - 前置阅读：[01-overview.md](01-overview.md)（设计决策层）；本文是**代码事实层**——每个节点都能在仓库里找到对应文件/符号。
 
@@ -15,6 +15,7 @@ flowchart TB
         subgraph SHELL["app-shell/（宿主外壳）"]
             APPSHELL["AppShell.tsx<br/>三栏可拖布局 + 顶/底栏<br/>Mounts(point) 渲染挂点"]
             CONTRIB["contributions.tsx<br/>默认 UI：SessionList / Breadcrumb / TopTabs"]
+            SHELLX["app-shell 组件群:EditorCenter(文件预览面板) · SessionTabBar(顶栏会话 tab)<br/>TabContextMenu · editorMaximized · RightPanelToolbar · SidebarSettingsCluster"]
         end
 
         subgraph KERNEL["kernel/（内核，不 import 任何插件）"]
@@ -32,9 +33,10 @@ flowchart TB
             FP["filePanel.ts<br/>右栏面板注册表(通用 tab store,<br/>不预知业务面板)"]
             WATCH["守望组(host 拆分件)<br/>activityWatch·askWatch·editWatch·identityWatch<br/>+ askSound·turnSound"]
             THEME["theme.ts + themeTokens.ts + themePresets/<br/>主题引擎:21 个 VS Code preset → --tmd-*"]
-            SETT["settings.ts<br/>全局设置 store 唯一事实源<br/>(~/.tmd-cli/settings.json)"]
+            SETT["settings.ts + settingsRegistry.ts<br/>全局设置 store 唯一事实源(~/.tmd-cli/settings.json)<br/>设置 section 注册表(面板经注册表渲染)"]
             MA["messageAnchors.ts<br/>用户消息锚点内核(2s 轮询,0 订阅停表)"]
             QUA["quota.ts<br/>QuotaProvider 注册点"]
+            SESN["会话面组:sessionTabs · sessionPins · sessionTitles · sessionStatus<br/>diskIdentity · composerStage · gitContract · internalDrag · dropGuard<br/>+ sshSettings/sshTypes · platform · pathUtils · relativeTime"]
         end
 
         subgraph PLUGINS["plugins/（一切能力皆插件）"]
@@ -54,11 +56,12 @@ flowchart TB
             P_WELCOME["welcome<br/>editorCenter.welcome 首页<br/>引擎探针/安装/凭据盘点/近期会话"]
             P_CKPT["checkpoints<br/>审批线:右栏时间线 + 中央批审阅单<br/>账本/diff/还原在 Rust checkpoints/"]
             P_NP["network-proxy<br/>网络代理浮层(overlay)<br/>生效率 Rust proxy.rs env 注入"]
+            P_SSH["ssh<br/>SSH 一等会话:overlay 主机选择 + 右栏面板(SFTP 树/端口转发)<br/>+ newSessionMenu 入口 + 远端文件 tab(kind=ssh-file)+ 设置 section"]
         end
     end
 
     subgraph BE["Tauri Rust 后端（src-tauri/src/）"]
-        LIB["lib.rs<br/>85 个 tauri::command 注册(git 17 + ssh 20(并行开发中) + checkpoints 11 + fs_edit 6 + 其余 lib/fs/session 直注册)"]
+        LIB["lib.rs<br/>87 个 tauri::command 注册(git 17 + ssh 20 + checkpoints 11 + fs_edit 6 + session 7 + quota 2 + omp_auth 2 + lib.rs 直注册 22)<br/>panic 钩子落盘 panic.log"]
         PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出"]
         SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
         RESOLVE["resolve.rs<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
@@ -67,11 +70,13 @@ flowchart TB
         OAUTH["omp_auth.rs<br/>omp agent.db 凭据只读(sqlite)"]
         SESS["session.rs — SessionRegistry<br/>活会话纯内存表(不落盘)<br/>workspaces.json 持久化"]
         FS["fs.rs<br/>list_dir / read_file / read_head / read_tail<br/>collect_files / write_temp / remove_path(白名单)<br/>read_local_image_data_url(md 预览)"]
+        FSW["fs_walk.rs 全仓文件索引(gitignore 系)<br/>proc_run.rs 通用短进程通道"]
         GIT["git/<br/>libgit2 原语(status/diff/branch/log+refs装饰/commit)<br/>commit_view 单提交文件清单+patch(历史 Graph)<br/>远端 fetch/pull/push shell-out(300s 总超时)"]
+        SSHB["ssh/ — russh 0.62 引擎(输出走 pty://out 同构事件)<br/>transport·session·auth·known_hosts·control<br/>forward(L 本地转发)·sftp(+transfer/path)·io·proxy·e2e_tests"]
         HASH["hash.rs<br/>md5_hex 通用哈希原语"]
         FSE["fs_edit.rs — 文件写操作<br/>新建/重命名/废纸篓/访达显示/编辑器保存<br/>(绝对路径,禁 .git 段,16MB 上限)"]
         PROXY["proxy.rs — 进程级代理 env 注入<br/>启动按 settings 应用,无 command 面"]
-        CKPTR["checkpoints/ — 审批线账本 sidecar<br/>ledger.rs·events.rs·restore.rs·apply.rs·view.rs<br/>capture.rs·diff.rs·commands.rs"]
+        CKPTR["checkpoints/ — 审批线账本 sidecar<br/>ledger.rs·events.rs·restore.rs·apply.rs·view.rs<br/>capture.rs·diff.rs·attribution.rs·commands.rs"]
     end
 
     EXT["外部 CLI 子进程<br/>omp / pi / codex / claude / grok / kimi / qoder / qoder-cn（PTY slave）"]
@@ -82,7 +87,7 @@ flowchart TB
     KERNEL -->|registerCliProfile / contribute| PLUGINS
     PLUGINS -->|ipc.*| IPC
     IPC -->|invoke| LIB
-    LIB --> PTY & SESS & FS & GIT
+    LIB --> PTY & SESS & FS & GIT & SSHB & FSW
     PTY --> SLOG & RESOLVE
     PROBE & INST --> RESOLVE
     PTY -->|spawn| EXT
@@ -114,7 +119,7 @@ sequenceDiagram
     participant M as main.tsx
     participant H as host (Host 单例)
     participant R as Rust: session_list
-    participant P as allPlugins (17 个)
+    participant P as allPlugins (18 个)
     participant C as contributions.tsx
     participant A as AppShell
 
@@ -122,7 +127,7 @@ sequenceDiagram
     Note over H: activation Promise 单例<br/>挡 StrictMode 双调用
     par 激活与恢复并行
         H->>P: 拓扑序 activate(ctx)<br/>dependsOn 未就绪则等下一轮<br/>无进展 → 抛"依赖环或缺失"
-        P-->>H: registerCliProfile ×8<br/>contribute 挂点 ×N
+        P-->>H: registerCliProfile ×8<br/>contribute 挂点 ×N<br/>registerSettingsSection ×N
     and
         H->>R: ipc.sessionList()
         R-->>H: 历史 SessionMeta[]<br/>（只恢复元数据，不重 spawn PTY）
@@ -300,7 +305,7 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    subgraph MOUNT["MountPoint（plugin.ts 定义的 14 个挂点）"]
+    subgraph MOUNT["MountPoint（plugin.ts 定义的 15 个挂点）"]
         direction TB
         HB["header.breadcrumb"]
         HLR["header.left / header.right"]
@@ -312,6 +317,7 @@ flowchart LR
         CSB["composer.statusBar"]
         FT["footer.left / footer.right"]
         OV["overlay / leftRail / rightRail"]
+        WSM["workspace.newSessionMenu"]
     end
 
     CONTRIB2["contributions.tsx<br/>（内置默认，可替换）"] --> HB
@@ -322,9 +328,12 @@ flowchart LR
     P_COMP2["composer 插件"] -->|"order:0<br/>Composer"| ECC
     P_COMP2 -->|"order:0<br/>ComposerToolbar"| CSB
     P_WELCOME2["welcome 插件"] -->|"order:0<br/>WelcomePage"| ECW
-    Note2["右栏 files/git 并列 tab 不走挂点:<br/>经 kernel/filePanel 注册表(registerFilePanel)<br/>由插件贡献,外壳只按注册表路由渲染"]
+    P_SSH2["ssh 插件"] -->|"order:30 SshOverlay"| OV
+    P_SSH2 -->|"「SSH 连接」入口"| WSM
+    P_SSH2 -->|"kind=ssh-file RemoteFileTab"| ECT
+    Note2["右栏 files/git/checkpoints/ssh 四面板并列 tab 不走挂点:<br/>经 kernel/filePanel 注册表(registerFilePanel)<br/>由插件贡献,外壳只按注册表路由渲染"]
 
-    Note["Mounts 是 kernel 公共渲染器；<br/>挂点按 order 升序渲染；<br/>composer.statusBar 已承载只读模型/思考强度工具栏"]
+    Note["Mounts 是 kernel 公共渲染器；<br/>挂点按 order 升序渲染；<br/>composer.statusBar 已承载只读模型/思考强度工具栏；<br/>设置面板 section 经 ctx.registerSettingsSection 注册"]
 ```
 
 ## 7. 模块级依赖图（import 事实）
@@ -347,7 +356,7 @@ flowchart TD
     PI --> P3["files"]
     PI --> P4["git"]
     PI --> P5["composer"]
-    PI --> P6["checkpoints / network-proxy / settings / welcome / session-budget"]
+    PI --> P6["checkpoints / network-proxy / settings / welcome / session-budget / ssh"]
 
     KH --> KE["kernel/events.ts"]
     KH --> KI["kernel/ipc.ts"]
@@ -359,6 +368,7 @@ flowchart TD
     P1 --> SH["plugins/cli-shared<br/>共享 JSONL 格式库(非插件)"]
     P2 --> KW
     P3 --> KI & KT & KFH["kernel/fileHighlighter.ts"] & KFV["kernel/fileVisual.ts"] & KFP["kernel/filePanel.ts"]
+    P6 --> KFP & KSR["kernel/settingsRegistry.ts"]
     P5 --> KH & KM & KI
 
     KI --> TAPI["@tauri-apps/api<br/>invoke / listen"]
@@ -372,14 +382,14 @@ flowchart TD
 
 ## 8. Rust 后端命令面
 
-注册的 85 个 `#[tauri::command]`（git/commands.rs 17 + ssh 20(并行开发中) + checkpoints/commands.rs 11 + fs_edit.rs 6 + 其余为 lib.rs / fs.rs / session.rs 直注册），与 `ipc.ts` 一一对应：
+注册的 87 个 `#[tauri::command]`（git/commands.rs 17 + ssh/commands.rs 20 + checkpoints/commands.rs 11 + fs_edit.rs 6 + session_commands.rs 7 + quota.rs 2 + omp_auth.rs 2 + lib.rs 直注册 22），与 `ipc.ts` 一一对应：
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
-| `session_spawn` | `pty.rs` + `session.rs` | openpty → spawn 子进程 → reader/emitter 双线程泵输出 → 内存注册表登记 |
-| `session_list` | `session.rs` | 活会话纯内存注册表(进程重启即空;历史恢复走各 CLI 磁盘扫描) |
-| `session_write` / `session_resize` / `session_kill` | `pty.rs` | writer 直写 / master.resize / child.kill |
-| `session_log_size` / `session_history_page` | `session_log.rs` | 输出日志末尾偏移 / 绝对偏移前翻一页(转义+UTF-8 边界对齐) |
+| `session_spawn` | `session_commands.rs` → `pty.rs`/`session.rs` | PTY:openpty → spawn 子进程 → 双线程泵 → 内存登记;SSH kind 路由 russh 引擎(spawn_blocking,冷路径内联 PATH 富化) |
+| `session_list` | `session_commands.rs` | 活会话纯内存注册表(进程重启即空;历史恢复走各 CLI 磁盘扫描;SSH 会话独立分组) |
+| `session_write` / `session_resize` / `session_kill` | `session_commands.rs` → `pty.rs` | writer 直写 / master.resize / child.kill(写路径 spawn_blocking 防全局锁卡 UI) |
+| `session_log_size` / `session_history_page` | `session_commands.rs` + `session_log.rs` | 输出日志末尾偏移 / 绝对偏移前翻一页(转义+UTF-8 边界对齐) |
 | `cli_probe` | `probe.rs` | PATH 解析 + `--version`(8s 硬超时,spawn_blocking;输出带超时收集防孙进程握管道挂死) |
 | `cli_install_run` | `installer.rs` | npm -g / claude native 安装,`cli-install://{engine}` 流式日志(300s 超时) |
 | `omp_auth_credential` / `omp_auth_providers` | `omp_auth.rs` | omp agent.db 只读:单供应商凭据 JSON / 已登录供应商列表 |
@@ -391,9 +401,12 @@ flowchart TD
 | `fs_collect_files` | `fs.rs` | 递归收集指定后缀文件并按 mtime 倒序 |
 | `fs_read_head` / `fs_read_tail` | `fs.rs` | 读取 JSONL 头/尾，避免全文加载 |
 | `fs_remove_path` | `fs.rs` | 物理删除文件/目录（会话删除双端统一）,NotFound 幂等成功 |
+| `fs_walk_files` | `fs_walk.rs` | 全仓文件索引(gitignore 系语义镜像 pi/omp TUI,cap 上限),composer `@` 候选 |
+| `proc_communicate` | `proc_run.rs` | 通用短进程通道(omp/pi RPC 副车、grok `inspect --json`),spawn_blocking |
 | `fs_create_dir` / `fs_create_file` / `fs_write_file` | `fs_edit.rs` | 文件树新建目录/文件、编辑器保存(绝对路径,禁 .git 段,写上限 16MB) |
 | `fs_rename_entry` / `fs_trash_entry` / `fs_reveal_in_file_manager` | `fs_edit.rs` | 重命名(校验 basename) / 废纸篓(trash crate) / 在访达(Finder)中显示 |
 | `read_local_image_data_url` | `lib.rs`/`fs.rs` | md 预览本地图片(白名单 + 20MB 闸) |
+| `read_binary_file_base64` | `lib.rs`/`fs.rs` | 二进制字节通道(文件渲染档案:图片/docx/pdf 预览) |
 | `md5_hex` | `hash.rs` | 通用哈希原语(kimi 会话目录 `MD5(cwd)`) |
 | `checkpoint_anchor` / `checkpoint_seal` / `checkpoint_seal_dead` | `checkpoints/ledger.rs` | 审批线账本:记第 N 轮锚点(隐式封上一轮+CLI 身份回填) / 结算封口固化 turn 条目 / 幽灵窗口(超 24h 未封口)代封 |
 | `checkpoint_list` / `checkpoint_batch_diff` | `checkpoints/view.rs` | 账本只读视图(会话隔离+live 分类) / 批 diff(sealed 读账本,open 现算) |
@@ -405,6 +418,11 @@ flowchart TD
 | `git_commit_files` / `git_commit_file_patch` | `git/commit_view.rs` | 单提交文件清单(提交 vs 首父,find_similar rename 检测) / 提交内单文件 patch —— 历史 Graph 展开与提交 diff tab |
 | `git_branches` / `git_checkout` / `git_create_branch` / `git_delete_branch` | `git/branch_ops.rs` | 分支操作(全 libgit2) |
 | `git_fetch` / `git_pull_push` | `git/remote_ops.rs` | 远端操作 shell-out(300s 总超时,GIT_TERMINAL_PROMPT=0,管道排空不 join) |
+| `ssh_session_create` / `ssh_session_status` | `ssh/commands.rs` + `session.rs`/`auth.rs` | SSH 一等会话建立/状态轮询(认证矩阵 password/PEM+passphrase/KBI 多轮;known_hosts 首连信任卡 120s 超时) |
+| `ssh_prompt_answer` / `ssh_prompt_cancel` / `ssh_latency` / `ssh_known_hosts_reset` | `ssh/commands.rs` + `control.rs`/`known_hosts.rs` | 交互提示应答(KBI 上限 5 轮,密码类自动代答) / 延迟探测 / 信任重置 |
+| `ssh_sftp_list` / `ssh_sftp_stat` / `ssh_sftp_read_text` / `ssh_sftp_write_text` / `ssh_sftp_mkdir` / `ssh_sftp_rename` / `ssh_sftp_delete` | `ssh/sftp.rs`(+`sftp_path.rs`) | SFTP 远端文件原语(与终端同连接 subsystem,不重认证;写回带 mtime+size 乐观并发) |
+| `ssh_sftp_transfer` / `ssh_sftp_transfer_cancel` / `ssh_sftp_transfer_status` | `ssh/sftp_transfer.rs`(+`sftp_transfer_state.rs`) | 递归上传/下载:进度事件 + 取消 + 代际失效 |
+| `ssh_forward_start` / `ssh_forward_stop` / `ssh_forward_list` / `ssh_forward_check_port` | `ssh/forward.rs` | 本地端口转发(-L,127.0.0.1 绑定,端口留空自动分配 49152+,占用预检,会话关闭级联停止) |
 | `config_home_dir` / `config_default_workspace_root` | `session.rs` | 返回配置和默认工作区路径 |
 | `config_read_settings` / `config_write_settings` | `settings.rs` | `~/.tmd-cli/settings.json` 全局设置读写 |
 | `config_read_workspaces` / `config_write_workspaces` | `session.rs` | `~/.tmd-cli/workspaces.json` 工作区配置读写 |
@@ -477,7 +495,7 @@ sessionExited → checkpoint_seal(兜底,最后一轮落账)
 
 ## 10. 已知缺口（代码现状，非设计意图）
 
-- `footer.left`、`footer.right` 等挂点暂无贡献者（`overlay` 已由 settings 插件贡献设置面板,network-proxy 浮层亦经 overlay 常驻）。
+- `footer.left`、`footer.right` 等挂点暂无贡献者（`overlay` 已由 settings 插件贡献设置面板,network-proxy 浮层与 ssh 主机选择卡亦经 overlay 常驻）。
 - CLI 凭据盘点未覆盖 kimi/qoder/qoder-cn（`welcome/credentials.ts` 分支仅 omp/pi/codex/claude/grok）。
 - Codex 的 session 状态解析采用容错字段匹配，完整 `turn_context` schema 仍需随 CLI 版本验证。
 - `composer` 命令抽屉(openspec composer-command-drawer)代码已实装,余 5 项 `[V]` 真机验收在途。

@@ -26,8 +26,8 @@
 | 2026-09-01 | [omp/pi/codex/claude/grok/kimi/qoder CLI 能力矩阵](research/cli-trigger-and-session-matrix.md) | 已完成 |
 | 2026-09-01 | [omp CLI 学习笔记(14 课主课 + prompts/ 用户速查)](research/omp-cli-course/README.md) | 已完结 |
 | 2026-09-03 | [omp 最近版本升级记录(v18.0.7-18.1.6)](research/omp-cli-course/releases.md) | 持续更新 |
-| 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-03 校准) |
-| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-03 校准) |
+| 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-04 校准) |
+| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-04 校准) |
 | 2026-09-01 | [Composer 工具栏设计](superpowers/specs/2026-09-01-composer-toolbar-design.md) | 已确认 |
 | 2026-09-01 | [Composer 富输入框设计原型](design/composer-design.html) | 已落地 |
 | 2026-09-01~02 | [UI 原型:composer 工具栏 / 欢迎页额度 / 设置面板 / 消息锚点栏 / git 文件列表 ×3 / 批审阅面板 / 插排](prototypes/) | 设计定稿配套 |
@@ -42,7 +42,7 @@
 | 2026-09-03 | [插排徽标升级设计](superpowers/specs/2026-09-03-plugin-market-icons-design.md) | 已评审通过 |
 | 2026-09-03 | [会话标题 tab 条设计](superpowers/specs/2026-09-03-session-title-tabs-design.md) | 已落地 |
 | 2026-09-03 | [父子会话层级原型:方案 B 定稿(父节点即开关,保留 FLUX 时间轴)](design/session-hierarchy-schemes.html) | 设计原型 |
-| 常态 | [功能清单 FEATURES](FEATURES.md) | 随代码演进(09-03 全域代码校准) |
+| 常态 | [功能清单 FEATURES](FEATURES.md) | 随代码演进(09-04 第四轮补校) |
 | 2026-09-04 | [Git 历史视图 Graph 化 + 提交 diff 进左侧文件容器](superpowers/specs/2026-09-04-git-history-graph-design.md) | 已落地 |
 | 2026-09-04 | [文件渲染档案:补齐 codemoss 全量文件预览形态](superpowers/specs/2026-09-04-file-render-profiles-design.md) | 已落地 |
 | 2026-09-04 | [SSH 模块竞品调研](research/ssh-module-reference.md) | 已完成 |
