@@ -178,7 +178,7 @@ pub struct FileStamp {
 pub fn collect_files(dir: &str, suffix: &str) -> Result<Vec<FileStamp>, String> {
     let mut out = Vec::new();
     collect_into(std::path::Path::new(dir), suffix, &mut out);
-    out.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+    out.sort_by_key(|f| std::cmp::Reverse(f.modified_at));
     Ok(out)
 }
 

@@ -273,6 +273,9 @@ pub fn run() {
                 let state = app.state::<AppState>();
                 ssh::attach_globals(Some(app.handle()), &state.ssh);
             }
+            /* mut 仅为 win/mac 的窗口重赋值(下方 cfg 块)预留;linux 无重赋值,
+            新工具链在其目标上报 unused_mut,精准豁免。 */
+            #[cfg_attr(target_os = "linux", allow(unused_mut))]
             let mut window =
                 WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
                     /* 禁用 Tauri 原生 drop handler —— 让 HTML5 drop event 在 webview 内正常派发

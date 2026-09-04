@@ -73,7 +73,7 @@ fn collect(
             last_commit_when: commit.time().seconds(),
         });
     }
-    out.sort_by(|a, b| b.last_commit_when.cmp(&a.last_commit_when));
+    out.sort_by_key(|b| std::cmp::Reverse(b.last_commit_when));
     Ok(out)
 }
 
