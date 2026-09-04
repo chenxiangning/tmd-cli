@@ -196,9 +196,10 @@ mod tests {
     #[test]
     fn probe_finds_system_binary_via_enriched_path() {
         /* 回归守卫:PATH 查找链(find_binary_absolute × enriched_path)必须
-         * 命中 /bin 兜底目录里的 sh —— 守住"PATH 内二进制不漏检"契约。 */
-        let r = probe_cli("sh");
-        assert!(r.found, "sh 未命中:PATH 查找链断裂");
+         * 命中 /bin 兜底目录里的 bash —— 守住"PATH 内二进制不漏检"契约。
+         * 不探 sh:CI(ubuntu)的 sh 是 dash,无 --version,恒 None。 */
+        let r = probe_cli("bash");
+        assert!(r.found, "bash 未命中:PATH 查找链断裂");
         assert!(r.version.is_some());
     }
 }
