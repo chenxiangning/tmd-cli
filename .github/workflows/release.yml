@@ -14,6 +14,11 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+# GITHUB_TOKEN 仅授予 contents 写:tauri-action 建 Draft Release / 上传产物所需,
+# 不给更高权限;签名/公证凭据(APPLE_* / TAURI_SIGNING_*)仍不引入。
+permissions:
+  contents: write
+
 jobs:
   build:
     name: ${{ matrix.label }}
@@ -89,8 +94,10 @@ jobs:
       # workflow_dispatch 手动触发时为空串 → 只构建,产物仅落 workflow Artifacts 面板。
       - name: Build installers
         uses: tauri-apps/tauri-action@v0
+        env:
+          # 内置仓库令牌,专供发布上传(建 Draft Release 挂产物);与签名无关。
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: src-tauri
           tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
           releaseName: ${{ startsWith(github.ref, 'refs/tags/v') && format('tmd-cli {0}', github.ref_name) || '' }}
           releaseBody: "Automated build. See commit log for changes."
