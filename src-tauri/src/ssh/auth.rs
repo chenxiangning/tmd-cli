@@ -20,6 +20,7 @@ pub(crate) enum ResolvedSshAuth {
 }
 
 /// 认证结果:成功,或需要用户输入(host key 密码回落 / KBI)。
+#[derive(Debug)]
 pub(crate) enum SshAuthOutcome {
     Authenticated,
     /// 需要用户输入:name/instructions/prompt 文本 + echo。
