@@ -84,7 +84,7 @@ pub(crate) struct CapturedHostKey {
     pub(crate) status: KnownHostStatus,
 }
 
-/// russh 客户端 Handler:host key 校验钩子(移植参考实现 参考实现SshClient)。
+/// russh 客户端 Handler:host key 校验钩子。
 pub(crate) struct SshClient {
     pub(crate) host: String,
     pub(crate) port: u16,

@@ -1,5 +1,5 @@
 //! SSH 认证 —— password / privateKey / keyboard-interactive 多轮。
-//! 认证状态机与 PEM 清洗移植参考实现 ssh_auth.rs;错误文案中文化。
+//! 认证状态机与 PEM 清洗自研;错误文案中文化。
 
 use russh::client;
 use russh::keys::ssh_key::HashAlg;
@@ -77,7 +77,7 @@ pub(crate) fn resolve_ssh_auth_material(host: &SshHostWire) -> Result<ResolvedSs
     }
 }
 
-/// 私钥材料清洗(移植参考实现):粘贴残迹(BOM/零宽/CRLF/字面 \n/缩进/单行坍缩)
+/// 私钥材料清洗:粘贴残迹(BOM/零宽/CRLF/字面 \n/缩进/单行坍缩)
 /// 修复后再交给 russh,否则 "看起来正常" 的 key 会以 Could not read key 失败。
 pub(crate) fn normalize_ssh_private_key_material(raw: &str) -> String {
     let mut text = raw.to_string();
@@ -216,7 +216,7 @@ fn classify_password_kbi_prompts(
     }
 }
 
-/// 主认证入口(移植参考实现 authenticate_ssh_handle):
+/// 主认证入口:
 /// password/privateKey 失败但服务器允许 KBI → 自动回落 KBI;KBI 密码类提示
 /// 有自动密码则代答,否则返回 Prompt 交给前端;RSA hash 走服务器协商。
 pub(crate) async fn authenticate_ssh_handle(

@@ -1,5 +1,5 @@
 //! SSH known_hosts —— `~/.tmd-cli/ssh_known_hosts.json` 的键值存储。
-//! 参考实现 用 SQLite;本仓配置文件全 JSON + 原子写原语,单表不值得进库。
+//! 存储走 JSON(本仓配置文件全 JSON + 原子写原语,单表不值得进库)。
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -92,7 +92,7 @@ pub fn check(key: &KnownHostKey) -> Result<KnownHostStatus, String> {
     }))
 }
 
-/// 信任(或更新)一条 host key。upsert 语义,与 参考实现 SQL upsert 一致。
+/// 信任(或更新)一条 host key。upsert 语义:存在即更新,不存在即插入。
 pub fn trust(key: &KnownHostKey) -> Result<(), String> {
     let mut next = with_store(|store| store.clone());
     let mut entry = key.clone();

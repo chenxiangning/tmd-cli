@@ -1,5 +1,5 @@
 //! SSH 会话编排 —— 创建/提示应答/重连/输入/断开。
-//! 移植参考实现 ssh_session.rs 的状态机,tmd-cli 化:
+//! 会话编排状态机,tmd-cli 化:
 //! - 创建即返回会话 id(连接在后台任务完成,状态经 ssh://event 流转);
 //! - 提示(host key/KBI/密码回落)经 ssh://prompt 事件 + oneshot 邮箱,
 //!   连接任务全程持有状态机,应答命令只投递答案(120s 超时 = 拒绝);
@@ -26,7 +26,7 @@ use super::{
     STATUS_FAILED, STATUS_RECONNECTING,
 };
 
-/// 打开 PTY shell 通道(移植参考实现 open_shell_channel)。
+/// 打开 PTY shell 通道(实现 open_shell_channel)。
 async fn open_shell_channel(
     handle: &client::Handle<SshClient>,
     cols: u16,
@@ -315,7 +315,7 @@ async fn install_connected(
     Ok(())
 }
 
-/// 意外断线的有界重连(移植参考实现 handle_ssh_unexpected_disconnect)。
+/// 意外断线的有界重连(退避重试,超限后会话退出)。
 pub(crate) async fn handle_unexpected_disconnect(
     app: AppHandle,
     registry: Arc<SshRegistry>,
@@ -399,7 +399,7 @@ pub(crate) async fn handle_unexpected_disconnect(
     runtime.finish_reconnect_runner();
 }
 
-/// 单次重连:静默建连(host key 必须 Known;KBI 主机自动重连不支持,参考实现同款纪律)。
+/// 单次重连:静默建连(host key 必须 Known;KBI 主机自动重连不支持)。
 async fn reconnect_once(
     app: &AppHandle,
     registry: &Arc<SshRegistry>,

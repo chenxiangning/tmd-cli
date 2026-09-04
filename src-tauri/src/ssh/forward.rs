@@ -1,5 +1,5 @@
 //! SSH 本地端口转发(`-L`)—— 会话级注册表 + 监听任务。
-//! 移植参考实现 ssh_local_forward.rs:127.0.0.1 绑定、localPort 0 自动分配、
+//! 127.0.0.1 绑定、localPort 0 自动分配、
 //! watch 取消、信号量限流、会话关闭级联停止。
 
 use std::collections::HashMap;

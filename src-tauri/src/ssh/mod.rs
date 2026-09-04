@@ -1,4 +1,4 @@
-//! SSH 会话引擎 —— tmd-cli 的一等会话后端(参照 参考实现 复刻)。
+//! SSH 会话引擎 —— tmd-cli 的一等会话后端(russh)。
 //!
 //! 每个会话 = 一条 russh 连接 + 一个 PTY shell 通道。输出以与 PTY 完全
 //! 同构的事件契约(`pty://out/{id}` / `pty://exit/{id}`)驱动幕布,
@@ -41,10 +41,10 @@ pub mod sftp_transfer;
 pub mod sftp_transfer_state;
 pub mod transport;
 
-/// keepalive:30s 间隔 × 3 次未响应判死(与 参考实现 一致)。
+/// keepalive:30s 间隔 × 3 次未响应判死。
 pub(crate) const SSH_KEEPALIVE_INTERVAL: Duration = Duration::from_secs(30);
 pub(crate) const SSH_KEEPALIVE_MAX_MISSES: usize = 3;
-/// 自动重连:3 次,2/5/10s 退避,单次尝试 20s 超时(与 参考实现 一致)。
+/// 自动重连:3 次,2/5/10s 退避,单次尝试 20s 超时。
 pub(crate) const SSH_RECONNECT_MAX_ATTEMPTS: u8 = 3;
 pub(crate) const SSH_RECONNECT_DELAYS: [Duration; 3] = [
     Duration::from_secs(2),
@@ -52,7 +52,7 @@ pub(crate) const SSH_RECONNECT_DELAYS: [Duration; 3] = [
     Duration::from_secs(10),
 ];
 pub(crate) const SSH_RECONNECT_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(20);
-/// host key / KBI 提示等待上限:超时视为拒绝(与 参考实现 一致)。
+/// host key / KBI 提示等待上限:超时视为拒绝。
 pub(crate) const SSH_PROMPT_TIMEOUT: Duration = Duration::from_secs(120);
 /// KBI 多轮上限。
 pub(crate) const SSH_KBI_MAX_ROUNDS: usize = 5;
@@ -141,7 +141,7 @@ pub struct SshPromptEvent {
 }
 
 /// 一次 SSH 会话的运行时(连接代际 + 输入/关闭通道 + 重连互斥)。
-/// 移植参考实现 SshSessionRuntime:代际 id 防旧通道写入新连接。
+/// 实现 SshSessionRuntime:代际 id 防旧通道写入新连接。
 pub(crate) struct SshSessionRuntime {
     /// Arc 包裹:转发/SFTP 等短通道操作克隆后即释放锁再 await 拨号。
     pub(crate) handle: tokio::sync::Mutex<Option<Arc<client::Handle<transport::SshClient>>>>,

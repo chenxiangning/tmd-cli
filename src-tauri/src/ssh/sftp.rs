@@ -1,5 +1,4 @@
-//! SFTP 子系统 —— 在终端会话的已认证连接上开 sftp channel(不重认证)。
-//! 移植参考实现 runtime/sftp.rs 的远端部分:list/stat/读写文本(乐观并发)/
+//! SFTP 子系统 —— 在终端会话的已认证连接上开 sftp channel(不重认证)。list/stat/读写文本(乐观并发)/
 //! mkdir/rename/递归 delete;通道按连接代际缓存,重连后自动失效重开。
 //! 路径原语见 sftp_path.rs;传输(上传/下载/进度/取消)见 sftp_transfer*.rs。
 
@@ -413,7 +412,7 @@ pub async fn rename(session_id: &str, from: &str, to: &str) -> Result<SftpEntry,
     remote_entry(&session, &to).await
 }
 
-/// 删除远端路径;目录必须 recursive(参考实现:文件先删、目录自底向上)。
+/// 删除远端路径;目录必须 recursive:文件先删、目录自底向上。
 pub async fn delete(session_id: &str, path: &str, recursive: bool) -> Result<(), String> {
     let registry = registry();
     let target = normalize_remote_path(path);

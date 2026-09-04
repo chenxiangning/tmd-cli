@@ -1,9 +1,9 @@
-//! SFTP 路径原语与纯谓词 —— 远端路径归一/拼接/父子推导、写冲突与错误分类。
-//! 移植参考实现 同名函数,独立成件供 sftp.rs 与传输侧共用。
+//! SFTP 路径原语与纯谓词 —— 远端路径归一/拼接/父子推导、写冲突与错误分类,
+//! 独立成件供 sftp.rs 与传输侧共用。
 
 use super::sftp::SftpEntry;
 
-/// 错误属于「连接已死」→ 弃缓存,调用方重试一次(参考实现同款)。
+/// 错误属于「连接已死」→ 弃缓存,调用方重试一次。
 pub(crate) fn is_session_closed_error(error: &str) -> bool {
     let normalized = error.to_ascii_lowercase();
     normalized.contains("session closed")

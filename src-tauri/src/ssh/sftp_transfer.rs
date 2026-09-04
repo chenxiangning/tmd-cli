@@ -1,5 +1,5 @@
 //! SFTP 传输 —— 上传/下载(递归、64KB 缓冲、进度事件、可取消)。
-//! 移植参考实现 的 plan-walk + 流式拷贝;状态表见 sftp_transfer_state.rs。
+//! plan-walk + 流式拷贝;状态表见 sftp_transfer_state.rs。
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;

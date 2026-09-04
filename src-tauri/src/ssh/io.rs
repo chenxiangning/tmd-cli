@@ -1,5 +1,5 @@
 //! SSH IO 泵 —— PTY shell 通道的双向转发。
-//! 移植参考实现 ssh_io.rs:writer 任务消费输入(数据/resize),reader 循环
+//! 实现 ssh_io.rs:writer 任务消费输入(数据/resize),reader 循环
 //! 把通道消息推 `pty://out/{id}` + 落会话日志;结束原因分类驱动重连或收尾。
 
 use russh::client;
@@ -43,7 +43,7 @@ pub(crate) fn emit_output(app: &AppHandle, registry: &SshRegistry, session_id: &
     let _ = app.emit(&format!("pty://out/{session_id}"), text);
 }
 
-/* 泵参数为通道原语,聚合进结构反而隔靴搔痒 —— 与 参考实现 同形,豁免参数数。 */
+/* 泵参数为通道原语,聚合进结构反而隔靴搔痒 */
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_session_io(
     app: AppHandle,

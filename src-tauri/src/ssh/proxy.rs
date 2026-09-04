@@ -1,5 +1,5 @@
 //! SSH 代理 —— HTTP CONNECT / SOCKS5 握手与代理解析。
-//! 协议实现移植参考实现 ssh_connect.rs(实测可靠),错误文案中文化。
+//! 手写代理协议握手,错误文案中文化。
 
 use base64::Engine;
 use std::net::{IpAddr, Ipv6Addr};
