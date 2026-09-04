@@ -90,7 +90,7 @@ pub fn commit(
 
 /// author = committer = git config user.* → 环境变量 → 兜底。
 /// git config 本就同一组 user.name/user.email,不分 author/committer 两路。
-fn resolve_signature(repo: &Repository) -> Result<Signature<'static>, GitError> {
+pub(crate) fn resolve_signature(repo: &Repository) -> Result<Signature<'static>, GitError> {
     let cfg = repo.config()?;
     let name = cfg
         .get_string("user.name")

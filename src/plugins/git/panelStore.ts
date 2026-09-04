@@ -59,3 +59,26 @@ export function useGitPanelState(): GitPanelState {
     () => snapshot,
   );
 }
+
+/* ── 「暂存并切换」来源分支 ──
+ * 冲突还原(undo)需要知道从哪切来的。非响应式模块变量即可:
+ * 横幅的显隐由 status 轮询(冲突文件出现/消失)驱动重渲染,不依赖它本身。
+ * 必须绑定 cwd:undo 是 reset --hard 级操作,横幅绝不允许跨仓库误触发;
+ * 冲突消失(未经 undo)时由消费方清除,防陈旧 origin 在无关冲突中复活。 */
+interface SmartSwitchOrigin {
+  cwd: string;
+  branch: string;
+}
+let smartSwitchOrigin: SmartSwitchOrigin | null = null;
+
+export function setSmartSwitchOrigin(cwd: string, branch: string): void {
+  smartSwitchOrigin = { cwd, branch };
+}
+
+export function getSmartSwitchOrigin(): SmartSwitchOrigin | null {
+  return smartSwitchOrigin;
+}
+
+export function clearSmartSwitchOrigin(): void {
+  smartSwitchOrigin = null;
+}

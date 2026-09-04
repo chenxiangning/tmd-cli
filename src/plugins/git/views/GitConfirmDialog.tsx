@@ -2,7 +2,8 @@
  * git 操作二次确认弹层 —— window.confirm 在 Tauri WKWebView 下不可靠
  * (可能不弹窗直接返回,破坏性操作等于裸奔),改用应用内 modal:
  * portal + fixed z-1000(对齐 checkpoints PromptImages 的层级纪律)。
- * Enter(按钮 autoFocus)/ Esc / 点遮罩 = 确认 / 取消 / 取消。
+ * Enter(按钮 autoFocus)/ Esc / 点遮罩 = 确认 / 取消 / 取消;
+ * 危险动作(danger)焦点固定在取消键,防回车误执行破坏性操作。
  */
 
 import { useEffect } from "react";
@@ -49,7 +50,7 @@ export function GitConfirmDialog({
         )}
         <div className="mt-3 flex justify-end gap-1.5">
           <button
-            type="button"
+            autoFocus={state.danger}
             onClick={onClose}
             className="rounded border border-(--tmd-border) px-2.5 py-1 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
           >
@@ -68,8 +69,7 @@ export function GitConfirmDialog({
             </button>
           )}
           <button
-            type="button"
-            autoFocus
+            autoFocus={!state.danger}
             onClick={() => {
               onClose();
               state.onConfirm();

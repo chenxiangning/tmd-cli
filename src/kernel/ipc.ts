@@ -45,6 +45,8 @@ import type {
   GitDiffStatus,
   GitFilePatch,
   GitLogEntry,
+  GitPushPreview,
+  GitRemoteRequest,
   GitTotals,
 } from "./gitContract";
 
@@ -351,10 +353,21 @@ export const ipc = {
    *  pull 非当前分支 = 仅 fast-forward 上游引用;fetch 带分支 = 刷新该分支上游引用。 */
   gitPullPush: (cwd: string, op: "pull" | "push" | "fetch", branch?: string) =>
     invoke<string>("git_pull_push", { cwd, op, branch: branch ?? null }),
+  /** 已配置远端名列表(推送/拉取对话框远端下拉)。 */
+  gitRemotes: (cwd: string) => invoke<string[]>("git_remotes", { cwd }),
+  /** 推送预览:HEAD 相对 <remote>/<branch> 的独有提交;低频,仅在对话框内按需拉。 */
+  gitPushPreview: (cwd: string, remote: string, branch: string, limit?: number) =>
+    invoke<GitPushPreview>("git_push_preview", { cwd, remote, branch, limit: limit ?? null }),
+  /** 远端对话框结构化请求(带选项);pull 移动 HEAD。 */
+  gitRemoteRequest: (cwd: string, req: GitRemoteRequest) =>
+    invoke<string>("git_remote_request", { cwd, req }),
   /** 「暂存并切换」(IDEA Smart Checkout):脏工作区 stash -u → 切换 → pop,
    *  pop 冲突时切换已生效、stash 保留;remote = 检出远程分支版。 */
   gitSmartCheckout: (cwd: string, name: string, remote: boolean) =>
     invoke<void>("git_smart_checkout", { cwd, name, remote }),
+  /** 还原一次「暂存并切换」:reset --hard 清冲突 → 切回 original → 恢复 stash。 */
+  gitSmartCheckoutUndo: (cwd: string, original: string) =>
+    invoke<void>("git_smart_checkout_undo", { cwd, original }),
   /** 递归收集目录下指定后缀文件,按修改时间倒序。目录不存在 = 空表。 */
   fsCollectFiles: (dir: string, suffix: string) =>
     invoke<FileStamp[]>("fs_collect_files", { dir, suffix }),

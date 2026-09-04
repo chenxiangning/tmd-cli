@@ -77,7 +77,8 @@ fn collect(
     Ok(out)
 }
 
-/// checkout:safe 模式,脏工作区冲突由 libgit2 拒绝(前端拿到 E_GIT2 后 confirm 引导)。
+/// checkout:safe 模式 —— 脏工作区与目标分支冲突时拒绝并给出可读引导,
+/// 绝不擅自 force(丢弃用户改动);无冲突的脏文件随切换携带(git 默认语义)。
 pub fn checkout(repo: &Repository, name: &str) -> Result<(), GitError> {
     if name.trim().is_empty() {
         return Err(GitError::empty("分支名为空"));
@@ -89,8 +90,55 @@ pub fn checkout(repo: &Repository, name: &str) -> Result<(), GitError> {
     let commit = branch.get().peel_to_commit()?;
     let mut opts = git2::build::CheckoutBuilder::new();
     opts.safe();
-    repo.checkout_tree(commit.as_object(), Some(&mut opts))?;
+    repo.checkout_tree(commit.as_object(), Some(&mut opts))
+        .map_err(|e| checkout_conflict_error(name, e))?;
     repo.set_head(&format!("refs/heads/{name}"))?;
+    Ok(())
+}
+
+/// safe 冲突 → 统一可读文案:本地未提交变动挡路,引导先提交/暂存。
+fn checkout_conflict_error(branch: &str, e: git2::Error) -> GitError {
+    GitError::empty(format!(
+        "本地有未提交的变动与分支 {branch} 冲突,请先提交或暂存(stash)后再切换({})",
+        e.message()
+    ))
+}
+
+/// checkout 远程分支到本地:建同名本地分支(set_upstream 建跟踪)并切换。
+/// `origin/feat/x` → 本地 `feat/x`(剥首个远端段);本地同名已存在 = E_EMPTY
+/// 引导直接切换,绝不静默复用(避免关联到用户预期外的提交)。
+/// safe 模式同 checkout:脏工作区冲突由 libgit2 拒绝。
+pub fn checkout_remote(repo: &Repository, name: &str) -> Result<(), GitError> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err(GitError::empty("分支名为空"));
+    }
+    let remote_branch = repo.find_branch(name, BranchType::Remote)?;
+    let local_name = name
+        .split_once('/')
+        .map(|(_, rest)| rest.trim())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| GitError::empty(format!("非法远程分支名: {name}")))?;
+    if repo.find_branch(local_name, BranchType::Local).is_ok() {
+        return Err(GitError::empty(format!(
+            "本地分支 {local_name} 已存在,请在本地列表直接切换"
+        )));
+    }
+    let commit = remote_branch.get().peel_to_commit()?;
+    let mut branch = repo.branch(local_name, &commit, false)?;
+    branch.set_upstream(Some(name))?;
+    let mut opts = git2::build::CheckoutBuilder::new();
+    opts.safe();
+    repo.checkout_tree(commit.as_object(), Some(&mut opts))
+        .map_err(|e| {
+            // 本地分支与跟踪已建成;解决工作区冲突后可在本地列表直接切换,无需重建
+            GitError::empty(format!(
+                "本地有未提交的变动与分支 {local_name} 冲突;\
+                 本地分支已创建并跟踪 {name},解决冲突后可直接切换,无需重复检出({})",
+                e.message()
+            ))
+        })?;
+    repo.set_head(&format!("refs/heads/{local_name}"))?;
     Ok(())
 }
 

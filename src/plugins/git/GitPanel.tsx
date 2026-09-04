@@ -17,7 +17,8 @@ import { useGitBranches } from "./hooks/useGitBranches";
 import { useGitLog } from "./hooks/useGitLog";
 import { gitErrorDisplay, isAuth } from "./gitError";
 import { GIT_PREFILL_TOPIC, type GitPrefillPayload } from "./gitEvents";
-import { setGitView, setGitRefreshing, useGitPanelState } from "./panelStore";
+import { setGitView, setGitRefreshing, useGitPanelState, getSmartSwitchOrigin, clearSmartSwitchOrigin } from "./panelStore";
+import { GitConfirmDialog, type GitConfirmState } from "./views/GitConfirmDialog";
 import { DiffView } from "./views/DiffView";
 import { BranchView } from "./views/BranchView";
 import { HistoryView } from "./views/HistoryView";
@@ -28,8 +29,9 @@ export function GitPanel() {
   const cwd = active?.root ?? null;
 
   const { view, layout, refreshNonce } = useGitPanelState();
-  const [notice, setNotice] = useState<string | null>(null);
   const [prefill, setPrefill] = useState<{ message: string; seq: number } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [undoConfirm, setUndoConfirm] = useState<GitConfirmState | null>(null);
   const [remoteBusy, setRemoteBusy] = useState<"push" | "pull" | "fetch" | null>(null);
 
   const status = useGitStatus(cwd);
@@ -132,6 +134,14 @@ export function GitPanel() {
     !!branchName &&
     !branchName.startsWith("detached@") &&
     (!hasUpstream || (aheadBehind?.ahead ?? 0) > 0);
+  const undoOrigin = getSmartSwitchOrigin();
+  const canUndo =
+    files.some((f) => f.status === "C") && undoOrigin != null && undoOrigin.cwd === cwd;
+  /* 冲突消失(未经 undo)→ 清除来源:横幅只准在「暂存并切换」冲突存续期出现,
+     防陈旧 origin 在日后无关冲突(乃至其他仓库)里复活 reset --hard 级还原。 */
+  useEffect(() => {
+    if (undoOrigin && !files.some((f) => f.status === "C")) clearSmartSwitchOrigin();
+  }, [undoOrigin, files]);
 
   return (
     <div className="flex h-full flex-col text-xs">
@@ -213,6 +223,39 @@ export function GitPanel() {
           {gitErrorDisplay(status.error)}
         </div>
       )}
+      {canUndo && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-sunken) px-2 py-1">
+          <span className="min-w-0 flex-1 truncate text-(--tmd-diff-removed)">
+            存在冲突(可能来自「暂存并切换」,原分支 {undoOrigin?.branch})
+          </span>
+          <button
+            onClick={() => {
+              const origin = undoOrigin;
+              if (!origin) return;
+              setUndoConfirm({
+                title: `还原到切换前的 ${origin?.branch}?`,
+                detail:
+                  "当前分支上的冲突标记与携带改动将被丢弃(内容已在 stash 中,不会丢失),切回原分支并自动恢复改动。",
+                confirmLabel: "还原",
+                onConfirm: () => {
+                  if (!cwd) return;
+                  ipc.gitSmartCheckoutUndo(cwd, origin.branch).then(
+                    () => {
+                      clearSmartSwitchOrigin();
+                      setNotice(`已还原到 ${origin},改动已恢复`);
+                      afterMutation();
+                    },
+                    (e: unknown) => setNotice(gitErrorDisplay(e)),
+                  );
+                },
+              });
+            }}
+            className="shrink-0 rounded border border-(--tmd-accent) px-1.5 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-accent-soft)"
+          >
+            还原到切换前
+          </button>
+        </div>
+      )}
 
       <div className="min-h-0 flex-1">
         {view === "diff" && (
@@ -246,6 +289,7 @@ export function GitPanel() {
           />
         )}
       </div>
+      {undoConfirm && <GitConfirmDialog state={undoConfirm} onClose={() => setUndoConfirm(null)} />}
     </div>
   );
 }
