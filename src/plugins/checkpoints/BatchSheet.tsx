@@ -16,6 +16,7 @@ import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
 import type { CkptBatch, CkptPatch } from "@kernel/ipc";
 import { approveBatch, getCachedDiff, loadDiff, refreshBatches, refreshOpenDiff, revertBatch, useCkptVersion, useCkptBatches } from "./store";
 import { readBatchPayload } from "./batchTab";
+import { extractPromptImages, PromptImages } from "./PromptImages";
 
 /** 轮耗时短语(锚点 → 封口);秒取整,分段到时。 */
 function formatDuration(ms: number): string {
@@ -103,6 +104,8 @@ function SheetBody({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [confirmPath, setConfirmPath] = useState<"all" | string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** 图片附件 token 剥离(缩略图横排 + 净文本);prompt 随批固化,memo 一次即可。 */
+  const promptContent = useMemo(() => extractPromptImages(batch.prompt), [batch.prompt]);
   const [flash, setFlash] = useState<string | null>(focusPath ?? null);
 
   // 深链定位:滚动到目标分区并高亮
@@ -251,9 +254,13 @@ function SheetBody({
                 <span className="flex-none">耗时 {formatDuration(batch.tsEnd - batch.ts)}</span>
               )}
             </div>
-            <div className="whitespace-pre-wrap break-words rounded-r border-l-2 border-(--tmd-accent) bg-(--tmd-bg-hover) px-3.5 py-2.5 text-[13px] leading-relaxed text-(--tmd-fg)">
-              {batch.prompt}
-            </div>
+            {/* 图片附件缩略图横排(点击放大);净文本为空(纯附件消息)不出文本块 */}
+            <PromptImages images={promptContent.images} />
+            {promptContent.text ? (
+              <div className="whitespace-pre-wrap break-words rounded-r border-l-2 border-(--tmd-accent) bg-(--tmd-bg-hover) px-3.5 py-2.5 text-[13px] leading-relaxed text-(--tmd-fg)">
+                {promptContent.text}
+              </div>
+            ) : null}
 
             <div className="mb-2 mt-5 text-[11px] text-(--tmd-fg-faint)">
               AI 修改的文件({batch.files.length}) —— 点击分区头折叠;hover 可单文件回退
