@@ -253,9 +253,18 @@ flowchart TD
     RES --> RESARGS["profile.resumeArgs(cliSessionId)<br/>spawn 新 PTY 并激活"]
 
     SP -.->|pty://exit| EXIT["removeSession<br/>清理输出缓冲/状态/活跃表"]
+    SP -.->|启动窗口(20s)内秒退| SF["sessionSpawn.emitIfStartFailed<br/>清缓冲前摘幕布尾部剥 ANSI 摘要<br/>广播 kernel.sessions.startFailed"]
+    SF --> TOAST["app-shell StartFailureToast<br/>右下角 toast 呈现报错(12s 自动消失)"]
 ```
 
 状态读取不会写回 Rust `SessionMeta`。`cliSessionIds` 和 `sessionStatuses` 是 Host 运行时内存态；CLI 原生 session 文件仍由各 CLI 自己维护。
+
+spawn 编排（createSession / openDiskSession / adoptSpawned 装配与秒退守望）自 2026-09 起
+拆分件 `kernel/sessionSpawn.ts`（host.ts 500 行铁则,同 `sshSessions.ts` 先例）,
+Host 保留同名委托方法作稳定入口。秒退守望的动机：`pty://exit` 触发 removeSession
+秒删 tab、输出缓冲即清,CLI 配置错误等启动失败原本在界面静默闪退（症状：新建会话直接回退首页）；
+spawn 即被拒（命令不存在）同样经 `kernel.sessions.startFailed` 广播。SSH 侧同题由
+Rust `fail_session` 在幕布内呈现,两条路径互补。
 ### 5.1 CLI 会话存储共性（八家实证,新业务功能先查此表）
 
 | 能力 | omp | pi | claude | codex | kimi | grok | qoder / qoder-cn |

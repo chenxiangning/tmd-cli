@@ -46,6 +46,7 @@ import { EditorCenter } from "./EditorCenter";
 import { RightPanelToolbar, TopBarPanelTabs } from "./RightPanelToolbar";
 import { SidebarSettingsCluster } from "./SidebarSettingsCluster";
 import { PluginMarketPage } from "./PluginMarketPage";
+import { StartFailureToast } from "./StartFailureToast";
 import { useEditorMaximized } from "./editorMaximized";
 
 function usePersistedToggle(key: string, initial: boolean) {
@@ -365,6 +366,8 @@ export function AppShell() {
       )}
 
       <Mounts point="overlay" />
+      {/* 会话启动失败通知:进程秒退静默闪退的兜底呈现(见 kernel/sessionSpawn.ts) */}
+      <StartFailureToast />
     </div>
   );
 }

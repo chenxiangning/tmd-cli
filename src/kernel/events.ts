@@ -31,6 +31,12 @@ export const KernelTopics = {
   activeSessionChanged: "kernel.sessions.active",
   /** 某会话 CLI 进程退出。payload: sessionId */
   sessionExited: "kernel.sessions.exited",
+  /**
+   * 会话启动失败(spawn 即被拒,或进程在启动窗口内秒退)。
+   * payload: SessionStartFailedEvent —— 秒退路径幕布缓冲随 tab 消亡,
+   * 报错来不及呈现,由 spawn 编排件摘尾部广播(见 kernel/sessionSpawn.ts)。
+   */
+  sessionStartFailed: "kernel.sessions.startFailed",
   /** 一轮对话结算(输出静默超阈)。payload: TurnSettledEvent */
   turnSettled: "kernel.sessions.turn.settled",
   /** 会话新进入等待用户确认(Ask 标记命中,本轮首次)。payload: sessionId */
@@ -67,4 +73,11 @@ export interface TurnSettledEvent {
 export interface FileEditEvent {
   sessionId: string;
   paths: string[];
+}
+
+/** sessionStartFailed 负载:reason = 幕布尾部摘要(秒退)或错误消息(spawn 被拒);sessionId 为 null = PTY 尚未诞生。 */
+export interface SessionStartFailedEvent {
+  sessionId: string | null;
+  profileId: string | null;
+  reason: string;
 }

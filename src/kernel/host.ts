@@ -15,7 +15,8 @@ import { OutputBufferStore } from "./outputBuffers";
 import { SessionStatusWatch } from "./sessionStatus";
 import { SshSessionService } from "./sshSessions";
 
-import { ipc, onPtyExit, onPtyOutput, type SshHostConfig, type SessionMeta, type SpawnSpec } from "./ipc";
+import { ipc, type SshHostConfig, type SessionMeta } from "./ipc";
+import { SessionSpawnService } from "./sessionSpawn";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";
 import { registerSettingsSection } from "./settingsRegistry";
@@ -109,8 +110,6 @@ class Host implements PluginContext {
    * 此前 void 掉 listen 的 UnlistenFn,每次 spawn 泄漏 2 个监听器。
    */
   private ptyUnlistens = new Map<string, Array<() => void>>();
-  /** openDiskSession 在途单例闸:key = profileId:cliSessionId,双击去重。 */
-  private openingDiskSessions = new Map<string, Promise<SessionMeta>>();
   /** 窗口聚焦态(main.tsx 挂 focus/blur 监听馈入):失焦时激活会话完成也视为未查看。 */
   private windowFocused = true;
   private readonly activity = new ActivityWatch({
@@ -227,118 +226,46 @@ class Host implements PluginContext {
     return this.sshSessions.create(host, workspaceId);
   }
 
+  /** 本地 CLI 会话 spawn 编排 + 秒退守望:拆分件 kernel/sessionSpawn.ts(文件规模铁则)。 */
+  private readonly spawn = new SessionSpawnService(
+    {
+      getCliProfile: (id) => this.getCliProfile(id),
+      getSessions: () => this.sessions,
+      setSessions: (sessions) => (this.sessions = sessions),
+      setActiveSessionId: (id) => (this.activeSessionId = id),
+      setActiveSession: (id) => this.setActiveSession(id),
+      bindIdentity: (sessionId, cliSessionId) => this.bindIdentity(sessionId, cliSessionId),
+      getCliSessionId: (sessionId) => this.cliSessionIds.get(sessionId),
+      identityTrack: (sessionId, profileId, cwd, before, spawnedAt) =>
+        this.identityWatch.track(sessionId, profileId, cwd, before, spawnedAt),
+      statusEnsurePolling: () => this.statusWatch.ensurePolling(),
+      statusRefresh: (sessionId) => void this.statusWatch.refresh(sessionId),
+      statusSeed: (sessionId) => void this.statusWatch.seed(sessionId),
+      trackUnlisten: (sessionId, offs) => this.ptyUnlistens.set(sessionId, offs),
+      outputTail: (sessionId, maxChars) => this.outputBuffers.get(sessionId).slice(-maxChars),
+      appendOutput: (sessionId, text) => this.appendOutput(sessionId, text),
+      removeSession: (sessionId) => this.removeSession(sessionId),
+      notify: () => this.notify(),
+    },
+    this.events,
+  );
+
   async createSession(
     profileId: string,
     cwd: string,
     workspaceId?: string,
   ): Promise<SessionMeta> {
-    const profile = this.cliProfiles.get(profileId);
-    if (!profile) throw new Error(`未知 CLI profile: ${profileId}`);
-    const spec: SpawnSpec = {
-      command: profile.command,
-      args: profile.args,
-      cwd,
-      env: profile.env,
-    };
-    const spawnedAt = Date.now();
-    /* 快照既有磁盘会话(id → 快照时 mtime):spawn 后 CLI 新落盘/复活的文件据此绑到活会话。
-       快照失败 → null → 退化到 spawn 水位线判定(只认 spawn 后的落盘/增长),
-       pre-spawn 旧文件永远不得抢绑:身份绑定 fail-open(张冠李戴)比 fail-closed(状态 "—")恶劣一个数量级。 */
-    const before = profile.listSessions
-      ? await profile.listSessions(cwd).then(
-          (list) => new Map(list.map((s) => [s.id, s.modifiedAt] as const)),
-          () => null,
-        )
-      : null;
-    const spawned = await ipc.sessionSpawn(profileId, spec, workspaceId);
-    if (profile.listSessions) {
-      this.identityWatch.track(spawned.id, profileId, cwd, before, spawnedAt);
-    }
-    return this.adoptSpawned(spawned.id);
+    return this.spawn.create(profileId, cwd, workspaceId);
   }
 
-  /**
-   * 打开 CLI 磁盘历史会话:按 profile.resumeArgs 带 cliSessionId 重连。
-   * 数据源是各 CLI 插件的 listSessions 扫描结果,tmd-cli 不持有任何映射。
-   */
+  /** 打开 CLI 磁盘历史会话(resume);实现见 kernel/sessionSpawn.ts。 */
   async openDiskSession(
     profileId: string,
     cwd: string,
     workspaceId: string | undefined,
     cliSessionId: string,
   ): Promise<SessionMeta> {
-    const profile = this.cliProfiles.get(profileId);
-    if (!profile) throw new Error(`未知 CLI profile: ${profileId}`);
-    // 身份去重:该磁盘会话已有活 PTY → 聚焦既有会话,同一会话绝不出两条
-    const existing = this.sessions.find(
-      (s) =>
-        s.profileId === profileId &&
-        this.cliSessionIds.get(s.id) === cliSessionId,
-    );
-    if (existing) {
-      this.setActiveSession(existing.id);
-      return existing;
-    }
-    /* 在途单例闸(与 PluginLifecycle.activation 同构):快速双击历史行时,
-       两个并发 openDiskSession 都能通过上面的活表检查 —— 若不收口,
-       同一 CLI 磁盘会话会开出两个 PTY,cliSessionIds 后写覆盖先写 */
-    const key = `${profileId}:${cliSessionId}`;
-    const opening = this.openingDiskSessions.get(key);
-    if (opening) return opening;
-    const args = profile.resumeArgs?.(cliSessionId) ?? profile.args;
-    const spec: SpawnSpec = {
-      command: profile.command,
-      args,
-      cwd,
-      env: profile.env,
-    };
-    const task = (async () => {
-      try {
-        const spawned = await ipc.sessionSpawn(profileId, spec, workspaceId);
-        return await this.adoptSpawned(spawned.id, cliSessionId);
-      } finally {
-        this.openingDiskSessions.delete(key);
-      }
-    })();
-    this.openingDiskSessions.set(key, task);
-    return task;
-  }
-
-  /** spawn 后的统一装配:绑定磁盘身份、刷新活表、置为 active、常驻订阅输出与退出。 */
-  private async adoptSpawned(
-    sessionId: string,
-    cliSessionId?: string,
-  ): Promise<SessionMeta> {
-    /* 显式恢复路径的绑定也走唯一写入口:入口去重的兜底闸 —— 同一磁盘会话
-       已有活 PTY 时新 PTY 照常运行,但身份不绑(账本/UI 按 tmd id 隔离,
-       不与既有会话并账)。 */
-    if (cliSessionId) this.bindIdentity(sessionId, cliSessionId);
-    this.sessions = await ipc.sessionList();
-    this.activeSessionId = sessionId;
-    // 常驻订阅：从会话诞生起就持续缓冲输出，与幕布是否挂载无关。
-    const offOutput = await onPtyOutput(sessionId, (text) => {
-      /* 存活守卫:退订前在途的迟到输出不得复活已删会话的缓冲/呼吸灯状态 */
-      if (!this.sessions.some((s) => s.id === sessionId)) return;
-      this.appendOutput(sessionId, text);
-    });
-    const offExit = await onPtyExit(sessionId, () => {
-      void this.removeSession(sessionId);
-      this.events.emit(KernelTopics.sessionExited, sessionId);
-    });
-    /* removeSession 插进两次订阅 await 之间 → 退订表查不到会漏退订:复查存活,已删则成对退订 */
-    if (!this.sessions.some((s) => s.id === sessionId)) {
-      [offOutput, offExit].forEach((off) => off());
-      return this.sessions.find((s) => s.id === sessionId)!;
-    }
-    this.ptyUnlistens.set(sessionId, [offOutput, offExit]);
-    this.events.emit(KernelTopics.sessionsChanged, this.sessions);
-    this.events.emit(KernelTopics.activeSessionChanged, sessionId);
-    this.notify();
-    this.statusWatch.ensurePolling();
-    void this.statusWatch.refresh(sessionId);
-    /* 全新会话创建即赋值:磁盘文件要等首条消息才落盘,先种 CLI 默认配置 */
-    if (!cliSessionId) void this.statusWatch.seed(sessionId);
-    return this.sessions.find((s) => s.id === sessionId)!;
+    return this.spawn.open(profileId, cwd, workspaceId, cliSessionId);
   }
 
   // ---- 身份探测:kernel/identityWatch.ts(文件规模铁则拆分) ---------------

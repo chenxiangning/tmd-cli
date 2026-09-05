@@ -28,6 +28,7 @@
 @import "./markdown-outline.css";
 @import "./file-preview.css";
 @import "./file-preview-docs.css";
+@import "./start-failure-toast.css";
 
 /* ──────────────────────────────────────────────────────────
  * 全局细滚动条 —— 平时完全隐藏,悬停滚动区时浮现 4px 细条。
