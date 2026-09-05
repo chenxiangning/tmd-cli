@@ -6,17 +6,30 @@
  * 喂给命令(先例:TerminalView 的 findRequestRef);其余命令直接调 kernel store。
  */
 
-import { getFilePanels, setFilePanelMode } from "@kernel/filePanel";
+import {
+  getFilePanelMode,
+  getFilePanels,
+  setFilePanelMode,
+} from "@kernel/filePanel";
 import { host } from "@kernel/host";
 import { openSettingsPanel } from "@kernel/settings";
 import { registerCommand, type ShortcutKeyEvent } from "@kernel/shortcuts";
-import { closeTab, getActiveTabId } from "@kernel/tabs";
+import {
+  closeTab,
+  getActiveTabId,
+  getTabs,
+  setActiveTab,
+} from "@kernel/tabs";
+import { toggleEditorMaximized } from "./editorMaximized";
 
 /** AppShell 局部折叠函数的挂载点:组件挂载期写入,卸载期清空。 */
 export const shellBarToggles: {
   left: (() => void) | null;
   right: (() => void) | null;
 } = { left: null, right: null };
+
+/** AppShell 市场页开合函数挂载点(组件局部 state,同 bars 桥)。 */
+export const shellMarketToggle: { current: (() => void) | null } = { current: null };
 
 registerCommand({
   id: "shell.toggleLeftBar",
@@ -98,6 +111,79 @@ registerCommand({
     run: () => {
       const panel = getFilePanels()[n - 1];
       if (panel) setFilePanelMode(panel.id);
+    },
+  }),
+);
+
+/* tab 顺序切换:浏览器/VS Code 惯例 Ctrl+Tab / Ctrl+Shift+Tab。
+   键位串沿用 "Cmd" 语法(mac 上 ⌘Tab 被 OS 截走,实际可触发键即 Ctrl 变体),
+   展示标签显式写 Ctrl,避免误导。 */
+function focusNeighborTab(offset: 1 | -1): void {
+  const tabs = getTabs();
+  const activeId = getActiveTabId();
+  const idx = tabs.findIndex((t) => t.id === activeId);
+  if (idx === -1 || tabs.length < 2) return;
+  const next = tabs[(idx + offset + tabs.length) % tabs.length];
+  setActiveTab(next.id);
+}
+registerCommand({
+  id: "shell.nextTab",
+  title: "下一个标签页",
+  keybinding: "Cmd+Tab",
+  keybindingLabel: "Ctrl+Tab",
+  when: () => getTabs().length >= 2,
+  run: () => focusNeighborTab(1),
+});
+registerCommand({
+  id: "shell.prevTab",
+  title: "上一个标签页",
+  keybinding: "Cmd+Shift+Tab",
+  keybindingLabel: "Ctrl+⇧Tab",
+  when: () => getTabs().length >= 2,
+  run: () => focusNeighborTab(-1),
+});
+
+/* 编辑区最大化:⌘⌥F(mac 全屏心智 ⌃⌘F 的可达变体;⌃⌘ 键位语法无法表达,
+   经 match 自定义匹配双修饰键)。 */
+registerCommand({
+  id: "shell.toggleEditorMaximized",
+  title: "最大化/还原编辑区",
+  keybindingLabel: "⌃⌘F",
+  match: (e) => e.metaKey && e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "f",
+  when: () => getTabs().length > 0,
+  run: () => toggleEditorMaximized(),
+});
+
+/* 插件市场:⌘⇧X(对齐 VS Code 扩展视图)。开合是 AppShell 组件 state,经 ref 桥。 */
+registerCommand({
+  id: "shell.openMarket",
+  title: "插件市场",
+  keybinding: "Cmd+Shift+X",
+  when: () => shellMarketToggle.current !== null,
+  run: () => shellMarketToggle.current?.(),
+});
+
+/* 右栏面板动作:作用于激活面板的注册槽(刷新/新建文件/新建文件夹),
+   无键位仅暴露;槽缺失(面板未提供)时 when 拦下,键穿透。 */
+(
+  [
+    { id: "panel.refresh", title: "刷新当前面板", slot: "refresh" },
+    { id: "panel.newFile", title: "新建文件", slot: "newFile" },
+    { id: "panel.newFolder", title: "新建文件夹", slot: "newFolder" },
+  ] as const
+).forEach(({ id, title, slot }) =>
+  registerCommand({
+    id,
+    title,
+    when: () => {
+      const mode = getFilePanelMode();
+      const panel = getFilePanels().find((p) => p.id === mode);
+      return panel?.[slot] != null;
+    },
+    run: () => {
+      const mode = getFilePanelMode();
+      const panel = getFilePanels().find((p) => p.id === mode);
+      void panel?.[slot]?.();
     },
   }),
 );

@@ -48,7 +48,7 @@ import { SidebarSettingsCluster } from "./SidebarSettingsCluster";
 import { PluginMarketPage } from "./PluginMarketPage";
 import { StartFailureToast } from "./StartFailureToast";
 import { useEditorMaximized } from "./editorMaximized";
-import { shellBarToggles } from "./shortcutCommands";
+import { shellBarToggles, shellMarketToggle } from "./shortcutCommands";
 import { installShortcutDispatcher } from "@kernel/shortcuts";
 
 function usePersistedToggle(key: string, initial: boolean) {
@@ -313,11 +313,13 @@ export function AppShell() {
   useEffect(() => {
     shellBarToggles.left = toggleLeft;
     shellBarToggles.right = toggleRight;
+    shellMarketToggle.current = toggleMarket;
     return () => {
       shellBarToggles.left = null;
       shellBarToggles.right = null;
+      shellMarketToggle.current = null;
     };
-  }, [toggleLeft, toggleRight]);
+  }, [toggleLeft, toggleRight, toggleMarket]);
 
   return (
     <div className={`app ${platform}-desktop flex h-screen w-screen flex-col bg-(--tmd-bg-base) text-(--tmd-fg)`}>

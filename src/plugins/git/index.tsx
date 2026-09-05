@@ -1,6 +1,7 @@
 import { GitBranch, GitCommitHorizontal } from "lucide-react";
 import type { Plugin } from "@kernel/plugin";
-import { setFilePanelMode } from "@kernel/filePanel";
+import { getFilePanelMode, setFilePanelMode } from "@kernel/filePanel";
+import { requestRemoteDialog } from "./panelStore";
 import { GitPanel } from "./GitPanel";
 import { GitToolbar } from "./GitToolbar";
 import { CommitDiffTabContent } from "./CommitDiffTab";
@@ -36,5 +37,16 @@ export const gitPlugin: Plugin = {
     // 提交 diff tab + 工作区 diff tab:右栏点文件 → 编辑器区打开(同 checkpoints 批审阅单模式)
     ctx.registerTabContent({ kind: COMMIT_TAB_KIND, component: CommitDiffTabContent });
     ctx.registerTabContent({ kind: DIFF_TAB_KIND, component: DiffTabContent });
+    // 远端动作命令化(fetch/pull/push):无键位仅暴露,为设置清单改键预留;
+    // 常规入口仍是工具栏按钮,GitPanel 内既有 effect 消费请求开对话框
+    for (const op of ["fetch", "pull", "push"] as const) {
+      const labels = { fetch: "获取远端更新(fetch)", pull: "拉取远端(pull)", push: "推送远端(push)" };
+      ctx.registerCommand({
+        id: `git.${op}`,
+        title: labels[op],
+        when: () => getFilePanelMode() === "git",
+        run: () => requestRemoteDialog(op),
+      });
+    }
   },
 };

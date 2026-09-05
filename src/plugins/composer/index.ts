@@ -15,6 +15,7 @@ import { Composer, composerSendRef } from "./view/Composer";
 import { ComposerToolbar } from "./view/ComposerToolbar";
 import { toggleDrawer } from "./state/drawerOpen";
 import { pluginDrawerCommands } from "./drawerItems";
+import { getComposerStage, setComposerStage } from "@kernel/composerStage";
 
 /* ⌘K 按住不放的自动重复抑制:命令 run 无事件面(拿不到 e.repeat),
    以「触发即挂起、键抬起重新武装」等价模拟原监听的 e.repeat 判断;
@@ -69,6 +70,14 @@ export const composerPlugin: Plugin = {
       id: "composer.send",
       title: "发送消息",
       run: () => composerSendRef.current?.(),
+    });
+    /* 切换输入区高度段:⌘J 在收起(min)与常规(normal)间往返,对齐 VS Code ⌘J 切底部面板;其余段按一次落到 min,再按回 normal */
+    ctx.registerCommand({
+      id: "composer.toggleStage",
+      title: "切换输入区高度段",
+      keybinding: "Cmd+J",
+      when: () => !!host.getActiveSessionId(),
+      run: () => setComposerStage(getComposerStage() === "min" ? "normal" : "min"),
     });
     /* 抽屉 plugin 区可执行条目(开右栏面板/开设置)→ 无键位命令;抽屉交互本身不动 */
     for (const cmd of pluginDrawerCommands()) ctx.registerCommand(cmd);

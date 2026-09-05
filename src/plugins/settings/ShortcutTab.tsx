@@ -48,24 +48,32 @@ function keybindingText(cmd: CommandContribution): string | null {
   return null;
 }
 
-/** 清单渲染(纯展示,容器注入分组数据):每组一张 pref-card,组标题为卡片首行弱化字。 */
+/** 键帽芯片:对齐主流设置页的 keycap 视觉(描边圆角小块)。 */
+function KeyCap({ label }: { label: string }) {
+  return (
+    <kbd className="inline-flex shrink-0 items-center rounded-[4px] border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-0.5 font-mono text-[11px] leading-none text-(--tmd-fg-muted)">
+      {label}
+    </kbd>
+  );
+}
+
+/** 清单渲染(纯展示,容器注入分组数据):每组一张 pref-card,组标题行右侧计总数。 */
 export function ShortcutGroups({ groups }: { groups: CommandGroup[] }) {
   return (
-    <div data-testid="settings-shortcuts-card">
+    <div data-testid="settings-shortcuts-card" className="flex flex-col gap-3">
       {groups.map((group) => (
         <div key={group.name} className="pref-card">
-          <div className="px-4 pt-3 pb-1 text-[11px] tracking-widest text-(--tmd-fg-faint)">
-            {group.name}
+          <div className="flex items-baseline justify-between px-4 pt-3 pb-1">
+            <span className="text-[11px] tracking-widest text-(--tmd-fg-faint)">{group.name}</span>
+            <span className="text-[11px] text-(--tmd-fg-faint)">{group.commands.length}</span>
           </div>
           {group.commands.map((cmd) => {
             const kb = keybindingText(cmd);
             return (
-              <div key={cmd.id} className="pref-row">
+              <div key={cmd.id} className="pref-row" title={cmd.id}>
                 <div className="pref-title">{cmd.title}</div>
                 {kb ? (
-                  <span className="shrink-0 font-mono text-xs text-(--tmd-fg-muted)">
-                    {kb}
-                  </span>
+                  <KeyCap label={kb} />
                 ) : (
                   <span className="shrink-0 text-xs text-(--tmd-fg-faint)">未绑定</span>
                 )}
@@ -78,8 +86,25 @@ export function ShortcutGroups({ groups }: { groups: CommandGroup[] }) {
   );
 }
 
+/** 大小写不敏感匹配:标题 / 命令 id / 键位标签三者任一命中即保留。 */
+export function filterCommands(
+  groups: CommandGroup[],
+  query: string,
+): CommandGroup[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return groups;
+  const hit = (cmd: CommandContribution): boolean =>
+    cmd.title.toLowerCase().includes(q) ||
+    cmd.id.toLowerCase().includes(q) ||
+    (keybindingText(cmd) ?? "").toLowerCase().includes(q);
+  return groups
+    .map((g) => ({ name: g.name, commands: g.commands.filter(hit) }))
+    .filter((g) => g.commands.length > 0);
+}
+
 export function ShortcutTab() {
   const commands = useCommands();
+  const [query, setQuery] = useState("");
   /* 插件清单是启动态快照(activateAll 完成后不再变化),取一次即可。 */
   const [nameByPluginId] = useState(() => {
     const map = new Map<string, string>();
@@ -89,10 +114,27 @@ export function ShortcutTab() {
     return map;
   });
 
-  const groups = useMemo(
-    () => groupCommandsByIdPrefix(commands, nameByPluginId),
-    [commands, nameByPluginId],
-  );
+  const groups = useMemo(() => {
+    const all = groupCommandsByIdPrefix(commands, nameByPluginId);
+    return filterCommands(all, query);
+  }, [commands, nameByPluginId, query]);
 
-  return <ShortcutGroups groups={groups} />;
+  return (
+    <div className="flex flex-col gap-3">
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="搜索命令、键位或 id…"
+        className="h-8 w-full rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-3 text-xs text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) focus:border-(--tmd-accent)"
+      />
+      {groups.length === 0 ? (
+        <div className="pref-card px-4 py-6 text-center text-xs text-(--tmd-fg-faint)">
+          没有匹配的命令
+        </div>
+      ) : (
+        <ShortcutGroups groups={groups} />
+      )}
+    </div>
+  );
 }
