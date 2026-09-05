@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { host } from "@kernel/host";
+import { useComposerStage } from "@kernel/composerStage";
 import { useComposerAttachments, insertAtCursor } from "./useComposerAttachments";
 import { KernelTopics } from "@kernel/events";
 import { Mounts } from "@kernel/Mounts";
@@ -76,6 +77,8 @@ export function Composer() {
   /* ── 命令抽屉(openspec/changes/composer-command-drawer)──
      数据:profile 四分区解析 + 内核插件注册表;执行:三模式回调交回本组件 */
   const drawerOpen = useDrawerOpen();
+  /* 五段高度最底段(min,仅工具栏条):隐藏输入区(附件条/textarea/锚点栏),工具栏保留 */
+  const inputHidden = useComposerStage() === "min";
   const workspaces = useWorkspaces();
   const cwd = useMemo(
     () => workspaces.list.find((w) => w.id === workspaces.activeId)?.root ?? workspaces.list[0]?.root ?? "",
@@ -243,7 +246,9 @@ export function Composer() {
         }`}
       >
         <Mounts point="composer.statusBar" />
+        {!inputHidden && (
         <AttachmentStrip onRemove={removeTokenForAttachment} onPreviewImage={(a) => setPreviewSrc(a.previewDataUrl || a.thumbDataUrl)} />
+        )}
         {matches && activeRange && boxRect && createPortal(
           <SuggestionList
             style={{
@@ -259,6 +264,8 @@ export function Composer() {
           />,
           document.body,
         )}
+        {!inputHidden && (
+        <>
         <textarea
           id="composer-textarea"
           ref={ref}
@@ -346,6 +353,8 @@ export function Composer() {
         />
         {/* 对话锚点栏:右缘 dash 导航,数据/跳转走 kernel messageAnchors */}
         <AnchorRail />
+        </>
+        )}
         {/* 命令抽屉:统一悬在对话框上方(portal + fixed,常挂以便滑出动画) */}
         {boxRect && createPortal(
           <CommandDrawer

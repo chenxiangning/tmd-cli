@@ -106,7 +106,7 @@ function MainPanel() {
   const activeId = host.getActiveSessionId();
   /* SSH 会话无 composer:幕布即输入面(触发符/审批线等都是 CLI 语义)。 */
   const activeKind = host.getSessions().find((s) => s.id === activeId)?.kind;
-  /* 对话框四段式高度:composer 插件工具栏的 ↑↓ 写 kernel composerStage,这里消费。
+  /* 对话框五段式高度:composer 插件工具栏的 ↑↓ 写 kernel composerStage,这里消费。
      实测本库命令式 setLayout/panelRef.resize 在嵌套 group 下会被静默回滚,不可用;
      separator 键盘路径(每键 5%)走库自身状态更新,可靠 —— 借它驱动:
      键数 = round((目标% − 当前%)/5),从 groupRef.getLayout() 读当前值。 */
@@ -114,7 +114,9 @@ function MainPanel() {
   const groupRef = useGroupRef();
 
   useEffect(() => {
-    /* activeId 入依赖:切会话时 PanelGroup 重挂载回 defaultSize,需按当前 stage 重放 */
+    /* activeId 入依赖:切会话时 PanelGroup 重挂载回 defaultSize,需按当前 stage 重放。
+       min 段 composer 不在 Panel 体系内(下方裸 div 直挂),无 separator 可调,直接跳过 */
+    if (stage === "min") return;
     const group = document.querySelector('[data-group][id="tmd.main.vertical"]');
     const sep = group?.querySelector(":scope > [data-separator]");
     const current = groupRef.current?.getLayout().composer ?? 30;
@@ -136,7 +138,14 @@ function MainPanel() {
       <Panel defaultSize={70} minSize={30} id="canvas">
         <TerminalView key={activeId} sessionId={activeId} />
       </Panel>
-      {activeKind === "ssh" ? null : (
+      {activeKind === "ssh" ? null : stage === "min" ? (
+        /* min 段:composer 退出 Panel 体系,挂裸 div —— 内容仅工具栏条(Composer 隐藏输入区),
+           高度 = 内容自身,与窗口底边零缝隙;固定百分比永远对不齐工具栏像素高。
+           离开 min 时 Panel/Separator 重挂载回 defaultSize,上方 effect 按目标段重放键步 */
+        <div className="shrink-0">
+          <Mounts point="editorCenter.composer" />
+        </div>
+      ) : (
         <>
           <PanelResizeHandle className="panel-handle panel-handle-h" />
           <Panel defaultSize={30} minSize={10} id="composer">

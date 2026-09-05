@@ -1,28 +1,30 @@
 /**
- * Composer(对话框)四段式高度 stage —— kernel 级 store。
+ * Composer(对话框)五段式高度 stage —— kernel 级 store。
  *
  * 为什么在 kernel:stage 的消费者跨层 —— ComposerToolbar(插件,↑↓ 按钮在此)写,
  * AppShell(外壳,持有 composer Panel 的 panelRef)读并编程式 resize。
  * R4 禁止插件 import 外壳,AppShell 又不能挂插件模块 —— kernel store 是唯一合规汇合点。
  *
- * 四段定长(react-resizable-panels 百分比;点一次走一段,两端停):
+ * 五段(点一次走一段,两端停):
  * - expanded 70%(大输入面;幕布让位)
  * - normal 30%(常规;= AppShell composer Panel defaultSize)
  * - compact 20%(紧凑)
- * - collapsed 10%(仅工具栏条;= composer Panel 的 minSize)
+ * - collapsed 10%(工具栏 + 一行输入区;= composer Panel 的 minSize)
+ * - min(仅工具栏条):不占 Panel 百分比 —— AppShell 此段把 composer 移出 Panel 体系,
+ *   挂内容高度的裸 div;固定百分比永远对不齐工具栏像素高(窗口越高缝越大)
  *
- * ↑ 逐级展开(到 expanded 停);↓ 逐级收起(到 collapsed 停)。
+ * ↑ 逐级展开(到 expanded 停);↓ 逐级收起(到 min 停)。
  */
 
 import { useSyncExternalStore } from "react";
 
-type ComposerStage = "expanded" | "normal" | "compact" | "collapsed";
+type ComposerStage = "expanded" | "normal" | "compact" | "collapsed" | "min";
 
 /** 段序:展开端 → 收起端。转移 = 沿此数组移动一格,两端截断。 */
-const STAGE_ORDER: readonly ComposerStage[] = ["expanded", "normal", "compact", "collapsed"];
+const STAGE_ORDER: readonly ComposerStage[] = ["expanded", "normal", "compact", "collapsed", "min"];
 
-/** stage → composer Panel 占比(0..100;canvas = 100 − 此值)。 */
-export const COMPOSER_STAGE_SIZE: Record<ComposerStage, number> = {
+/** stage → composer Panel 占比(0..100;canvas = 100 − 此值)。min 段不入 Panel 体系,不在此表。 */
+export const COMPOSER_STAGE_SIZE: Record<Exclude<ComposerStage, "min">, number> = {
   expanded: 70,
   normal: 30,
   compact: 20,
@@ -65,7 +67,7 @@ export function expandComposerStage(): void {
   step(-1);
 }
 
-/** ↓ 逐级收起(到 collapsed 停)。 */
+/** ↓ 逐级收起(到 min 停)。 */
 export function collapseComposerStage(): void {
   step(1);
 }
