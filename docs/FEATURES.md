@@ -8,6 +8,7 @@
 > 2026-09-05 审批线隔离与精准手术补校:events 纯事件归因(斩断窗口补充)、git 归因三道闸(认领优先/落窗最近提示者赢/僵尸封顶)、批审计冻结(回退/应用后禁修订重封)、共改文件 diff 精准擦除与重放(设计见 `superpowers/specs/2026-09-05-checkpoints-isolation-surgery-design.md`)。
 > 2026-09-05 opencode 接入评审补校:modifiedAt 改 time_updated(复活绑定/排序)、edits 水位改 state.time.end 同源基准 + CAST 参数(并行工具漏记/静默 0 事件)、摘 MCP 分区(codex `$name` token 兜底不适用)、命令优先级项目>全局>JSON、minimax-cn-coding-plan 别名(评审记录见 `docs/review/2026-09-05-opencode-plugin-review.md`)。
 > 2026-09-05 安装器加固:npm 通道追加 `--allow-scripts=<pkg>` —— npm 12(2026-07)起 install scripts 默认禁用且被挡只发 warn,opencode-ai 靠 postinstall 拷平台二进制,被跳即留 stub 启动器、运行必报错;`--allow-scripts` 为 npm 官方逐包放行(npm12 实证有效、npm11 仅告警不失败,已端到端验证;旧 `--ignore-scripts=false` 压不过新机制,实证无效)。
+> 2026-09-06 发版前评审补校:内置终端会话、会话/分支右键菜单、记忆协调(Memory)域、全局快捷键、版本号弹窗、会话启动失败 toast、对话框五段高度;插件计数 19→21(9 engine / 9 feature / 3 core),远端操作改走对话框。
 
 ## 工作区会话
 
@@ -52,18 +53,22 @@
 - 新会话默认 120×32,注入 TERM=xterm-256color 与 COLORTERM=truecolor(会话 env 可覆盖);resize 幂等,尺寸未变不重发 SIGWINCH
 - 幕布尺寸自适应:ResizeObserver 跟随分栏拖动/侧栏折叠/窗口缩放自动 fit 并下发 PTY resize,每次重挂载必发一次尺寸同步
 - 写入隔离:每会话独立写锁 + 后台线程执行,单会话阻塞写不冻结 UI、不波及其他会话
-- PTY 输出解码:跨聚合批暂存不完整 UTF-8 尾部与下批拼接再解码,仅真坏字节替换 U+FFFD
+- PTY 输出解码:跨聚合批暂存不完整 UTF-8 尾部与下批拼接再解码,仅真坏字节替换 U+FFFD;泵收尾时暂存尾字节同样以 U+FFFD 补发,输出尾部不完整字符不丢
 - 会话输出落盘:64MB 旋转日志(截头保留尾部 32MB,偏移锚点不受截头影响)+ 幕布往前翻页读取(每页 512KB,页起点对齐转义序列/UTF-8 边界);日志布局 `~/.tmd-cli/session/<引擎>/<项目slug>/<会话id>.log`
 - 会话日志降级:日志创建/写入失败不阻塞终端输出,仅「加载更早的输出」翻页能力关闭
 - 历史重写输入闸:回放/翻页整段重写窗口内丢弃终端查询应答,陈旧回传不注入 PTY、不误开首写闸
 - 会话退出清理:输出日志随退出删除,退出不区分正常/异常,内核统一移除会话并广播消亡(Rust 侧自清理兜底 webview reload 错过 exit)
+- 会话启动失败提示:宿主拒绝 spawn 或 20 秒内秒退,弹「启动失败」toast(命令 + 错误原因),装配竞态同走 toast,不再只有静默日志
 - 顶栏会话 tab 条:中央同时展示最多 4 个已打开会话,点击切换、活跃高亮,超容挤掉最早打开的 tab(会话不受影响)
 - tab 标题与会话列表同优先级(手动命名 > 打开时捕获快照 > 短码),改名即时生效;未读会话带未读点
 - tab × 仅摘除不杀会话:摘活跃 tab 自动切剩余最近打开的,摘尽回欢迎页;会话消亡同步剪除;tab 列表不持久化
 - tab 次序稳定:次序 = 打开次序,重复聚焦已打开会话原位不动(防跳动),仅新会话追加队尾
+- 会话 tab 右键菜单:在下方新建终端 tab / 重新加载 / 关闭 / 关闭其他 / 关闭全部;CLI 与终端 tab 同菜单,终端 tab 隐藏「新建终端」
 - 会话标题 tab 条可在设置/外观页整体关闭(sessionTabsEnabled,默认开)
 - 输出缓冲分块(上限可配,5 万–1000 万字符,默认 50 万)与字节流安全截断(转义序列/UTF-16 代理对对齐)
 - 会话输出常驻订阅:spawn 起即入内核缓冲,与幕布挂载无关;切换会话重挂载经缓冲整段回放,切回不黑屏不重载
+- 内置终端会话:宿主机 shell(bash/zsh,默认登录 shell)以第三类一等会话与 CLI 会话并列;中央 tab 图标「终端·{目录简称}」、侧栏💻徽标单列;目录不可访问 / PTY 失败即销毁该 shell 会话项
+- 内置终端入口:会话头部左区「新建 tab」并列「新建终端 tab」(⌥ 快捷变体),不挤占 CLI 列表
 - 近期会话:欢迎页展示磁盘最近会话,可快速进入
 
 ## Ask 等待确认与提示音
@@ -113,7 +118,7 @@
 - 命令抽屉运行时发现:listSuggestions(CLI RPC 副车/磁盘扫描)声明优先,失败或返回空回退静态表,按 value 去重合并,60s TTL 缓存
 - 命令抽屉图标:候选可声明语义图标;声明了但未收录回退通用图标,完全未声明才回退 kind glyph
 - 命令抽屉复位与焦点:每次打开重置回「全部」分区、选中归零、焦点驻留抽屉;关闭即归还焦点到 composer 输入框;插件分区无对应右栏面板的条目回退打开设置面板
-- 对话框高度四段可调(70/30/20/10%),工具栏 ↑↓ 逐级展开/收起
+- 对话框高度五段可调:展开 70% / 正常 30% / 紧凑 20% / 最小化 10%(均容器内拖拽)/ 最小条(挂裸 div 不入 Panel),工具栏 ↑↓ 逐级展开/收起;⌘J 切紧凑/正常(二期键位)
 - 消息锚点栏:composer 右缘用户消息 dash 导航,按栏高实测容量抽样分桶
 - 锚点数据来源:用户消息由 CLI profile readSessionUserMessages 声明,内核仅活跃会话 2s 轮询、按 id 增量合并;无订阅者停表,会话消亡清缓存
 - 锚点 hover 预览卡:序号 + 首行摘要;点击定位 xterm buffer 平滑滚动(目标不在 buffer 时逐页回翻最多 12 页);active 逐帧追踪
@@ -172,7 +177,7 @@
 - 视图切换:差异/分支/历史下拉切换;历史视图 Graph 化:泳道拓扑(SVG 单元格,ref 语义色 + 5 色调色板),按 ahead/behind 插入「传出的更改 / 传入的更改」合成行(VS Code SCM Graph 同款);平铺/树形选择为进程内存,重启回默认
 - 重命名检测:status 与 diff 双轨开启 rename 检测,文件可标 R、patch 携带旧路径(find_similar 默认 50% 相似度配对)
 - 暂存/取消暂存/丢弃(stage/unstage/discard,discard 走 checkout_index 不经 fs 删除,前端 confirm 前置)
-- 文件行内动作:hover 显形 +/−(按暂存态切换 stage/unstage)与 ↺(仅有工作区改动时出现);文件从清单消失时自动摘除其勾选与展开
+- 文件行内动作:hover 显形 +/−(按暂存态切换 stage/unstage)与 ↺(仅有工作区改动时出现),另含打开文件(中央 tab)/ 打开文件位置(系统文件管理器);文件从清单消失时自动摘除其勾选与展开
 - discard 语义 = 还原到暂存区(已暂存内容保留、untracked 不动);stage/unstage/discard 路径纵深校验,拒绝绝对路径与 `..` 分量
 - 冲突文件:状态标 C,禁勾选/暂存/丢弃,引导到幕布终端解决后提交
 - 未跟踪文件显示 U,可勾选提交,整文件按新增计入 diff 与行数统计
@@ -185,9 +190,10 @@
 - 分支:列举 / 切换 / 新建 / 删除;当前分支拒删,未合并分支双击后二次点击强制;切分支 safe 模式不覆盖脏工作区
 - 新建分支:分支视图顶部内联输入行(非弹层),Enter 或 + 提交、基于当前 HEAD;空仓库拒绝(先完成首个提交),重名拒绝
 - 分支列表:本地/远程分组带计数,远程分支只读展示,origin/HEAD 符号引用不入列,按末次提交时间倒序,行悬停显上游或末次提交摘要;行点击即切换,当前分支行不可点(checkout 目标=当前幂等成功)
+- 分支右键菜单:变基到当前 / 合并到当前 / 与当前对比 / 重命名 / 检出远端 / 自指定分支新建;脏工作区切换走「暂存并切换」(stash -u → 切换 → pop)
 - 历史 log 浏览:每页 50 条,滚动距底 48px 自动翻页,时间+拓扑双排序保证分页稳定
 - 历史条目:泳道格 + 短 sha + 摘要 + 相对到天时间(今天/昨天/N 天前/N 个月前/N 年前),悬停显作者名/邮箱与完整时间;点击提交懒加载展开文件清单(find_similar rename 检测),点击文件开中央 commit diff tab(一提交一 tab,id = `git-commit-diff:<sha>`,focusPath 深链);空消息显「(空消息)」,翻到底显「已到最早提交」
-- 远端:面板一键 fetch(--all --prune)/ pull(尊重 pull.rebase 配置,显 behind 计数)/ push(ahead>0 显现);300s 总超时到点中止,禁终端凭据提示;ssh 未自配 core.sshCommand 时才注入 BatchMode + ConnectTimeout=10(自配不覆盖);凭据失败引导幕布终端
+- 远端:fetch(--all --prune)/ pull(尊重 pull.rebase 配置,显 behind 计数)/ push(ahead>0 显现)统一走对话框(成功带聚合统计,push 自动建立跟踪);300s 总超时到点中止,禁终端凭据提示;ssh 未自配 core.sshCommand 时才注入 BatchMode + ConnectTimeout=10(自配不覆盖);凭据失败引导幕布终端
 - 错误契约:五类 E_* 前缀直传前端剥壳展示;非 git 目录显空态;凭据失败引导幕布终端执行
 - 后端 Repository 句柄缓存:per-cwd FIFO 上限 16,写操作成功后主动失效,下次访问重开保新鲜
 
@@ -235,11 +241,12 @@
 - 设置持久化 `~/.tmd-cli/settings.json`,前端 sanitize 归一,非法值回落默认,Rust 侧原子写
 - 侧栏齿轮菜单项可钉到底栏(localStorage 持久化,上限 4,默认钉 Git Graph + 网络代理);每行右侧 pin 复选框:16px 圆角方块、选中出对号(Check 图标),钉满置灰不可再钉(menuitemcheckbox 语义,类名 settings-menu-pin 定义于 settings-cluster.css)
 - 侧栏底栏常显应用版本号(取 Tauri 应用版本,纯浏览器 dev 回落 0.1.1)
+- 版本号点击弹版本信息弹窗:内嵌 CHANGELOG 分页(超长截断)+ 在线检查更新(解析 GitHub releases atom,失败回退重试 / 去发布页,超时 10s)
 - 插件拔插状态(disabledPlugins)同落 settings,重启生效
 
 ## 插件市场(插排)
 
-- 插排 / 清单双视图,19 个注册插件可视化插拔(9 engine + 7 feature + 3 core),写 settings.disabledPlugins,重启生效(运行期不热卸载)
+- 插排 / 清单双视图,21 个注册插件可视化插拔(9 engine + 9 feature + 3 core),写 settings.disabledPlugins,重启生效(运行期不热卸载)
 - core 类焊死不可拔(composer / settings / welcome);engine / feature 可拔
 - 插件市场经标题栏插头按钮开合(整页替换、会话现场不丢);页头「重启应用」按钮带待生效计数一键重启
 - 插拔变更即时标 dirty:插头标「待重启」、清单卡片标「重启后生效」徽章
@@ -267,7 +274,7 @@
 - 本地端口转发(`-L`):127.0.0.1 绑定,本地端口留空自动分配(49152+),占用预检,点击复制地址,会话关闭级联停止
 - SFTP:与终端同连接开 subsystem(不重认证);右键菜单下载/上传/新建目录/重命名/递归删除;传输进度条 + 取消
 - 远端文件编辑:点击文件开编辑器 tab(CodeMirror),读 200KB 上限分页,写回带 mtime+size 乐观并发,冲突弹覆盖确认,⌘S/按钮保存,脏标记
-- 主机管理:设置页 SSH 分区,主机 CRUD(留空保留旧凭据)+ `~/.ssh/config` 扫描导入(Host/HostName/User/Port/IdentityFile 解析,私钥 PEM 校验内联,重复标灰)+ known_hosts 重置;凭据明文随 settings.json 落盘(用户裁决,spec 记录风险)
+- 主机管理:设置页 SSH 分区,主机 CRUD(留空保留旧凭据)+ `~/.ssh/config` 扫描导入(Host/HostName/User/Port/IdentityFile 解析,私钥 PEM 校验内联,重复标灰)+ known_hosts 重置;凭据明文随 settings.json 落盘(用户裁决,spec 记录风险);主机条目带认证方式徽标与计数,仅一个分组 tab 时不渲染 tab 条
 - 新建入口:新建会话菜单「SSH 连接…」(workspace.newSessionMenu 挂载点)→ 主机选择 overlay → 建会话挂当前工作区
 - 会话列表:SSH 活会话独立分组(kind 判断),标题取主机名,右键断开
 - 插件可拔(feature 类):拔出 = 菜单入口/右栏面板/设置分区/overlay 全下电,引擎会话随应用退出消亡
@@ -281,6 +288,16 @@
 - 拔出插件 = 浮层断电且功能下电(数值保留;Rust 读 settings.disabledPlugins,重启后 env 不再注入,开关为开也视同关)
 - 入口:侧栏齿轮菜单 / 底栏钉住按钮,经事件总线唤起,壳与插件互不引用
 - 浮层交互:Esc / 点背板 / 右上角 X 关闭;锚点右侧优先弹出,视口边距夹取
+
+## 记忆协调(Memory)
+
+- Magic Context 外部共享库:`~/.magic-context/` 顶层 SQLite 单库,omp / codex / claude / kimi 等各家宿主共享一份长期记忆;本应用全程零直写,记忆写入由 omp 代写
+- 右栏 Memory 面板:三态标签(预蒸馏 / 记忆 / 设置,标签栏小字号防溢出)与 Git / 文件面板并列,版本号读库件 meta 表
+- 会话状态栏 Memory 胶囊:命中数 / 已存数轮播,红 / 黄 / 绿健康色,注入与命中详情提示、故障注入调试,点击跳 Memory 面板;omp / pi / opencode 引擎豁免不渲染
+- Memory 控制台中央 tab:不可关闭,预蒸馏(原始 JSONL 检查器 / 按会话浏览 / 纳入排除)+ 记忆(标签筛选 / 访问排行 / 时间线)+ 设置(服务状态与日志 / MCP 注册 / 共享库路径)完整三页
+- 会话路径扫描:按引擎声明路径枚举 JSONL 会话文件,供预蒸馏纳入 / 排除选择
+- 二期自动蒸馏开关(opt-in 默认关):蒸馏 worker 启停 + 会话旋转触发补蒸馏,状态查询与日志读取
+- MCP 注册引导:按引擎显示注册状态与安装指引,Magic Context 服务状态、错误提示与日志路径
 
 ## 外壳与窗口
 
@@ -297,4 +314,9 @@
 - 幕布滚动回放上界 5 万行,更早历史经滚顶「加载更早的输出」按钮翻页(RIS 重置整段重写幕布)
 - panic 落盘:任意线程 panic 的时间戳/线程/源码位置追加 `~/.tmd-cli/panic.log`,超 1MB 先清空再写
 - 启动 PATH 富化:后台 fork login shell(-lc 快路径/-ilc 完整路径,超时 kill)提取,与进程 env、常见安装目录(~/.local/bin 等)去重保序合并;降级单飞重试自愈;裸命令名经 which 解析绝对路径(Windows 批处理包 cmd /c);PTY 子进程与 CLI 探针共用
+- 全局快捷键:内核注册表 + 分发器,设置弹窗可视化改键(录制 / 重置 / 冲突检测,同分组冲突禁存);未绑定动作不出现在中央菜单
+- 快捷键作用域:global(含无会话)/ pty(会话获得焦点)/ composer(输入框焦点),分发逐作用域求值
+- macOS 仅 ⌘ 平台分流:Ctrl+M/N/P/W 等不加全局劫持,按原义传给 PTY(shell / REPL 常规键不被吞)
+- 一期键位:⌘T 新建会话、⌘, 设置、⌘1..9 切会话、⌘W 关闭当前 tab(终端 tab 发送 EOF 退出)、⌘⇧W 关闭窗口
+- 二期键位:⌘J 对话框紧凑/正常、⌘B 侧栏、⌘⇧F 文件面板、⌘⇧G Git 面板、⌘⇧O 工作区设置、⌘⇧D 切主题、⌘⇧T 重开已关闭 tab(含 shell 复原);另有 F3 朗读光标词、⌘F 预览查找
 - 插件激活失败整页报错,不白屏

@@ -14,14 +14,14 @@
 </p>
 
 <p align="center">
-  <strong>插件化的多 CLI 桌面客户端 —— 一块原生终端幕布 + 一个富输入 Composer，统一驱动 omp / pi / codex / claude / grok / kimi / qoder / qoder-cn 共 8 个 CLI，并一等支持 SSH 远程会话。</strong>
+  <strong>插件化的多 CLI 桌面客户端 —— 一块原生终端幕布 + 一个富输入 Composer，统一驱动 omp / pi / codex / claude / grok / kimi / qoder / qoder-cn / opencode 共 9 个 CLI，并一等支持 SSH 远程会话。</strong>
 </p>
 
 ---
 
 ## 这是什么？
 
-tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，把多个 AI Coding CLI（`omp`、`pi`、`codex`、`claude`、`grok`、`kimi`、`qoder`、`qoder-cn`）装进同一个窗口里，并可用内建 SSH 引擎把远程主机开成一等会话。它**不重新渲染** CLI 的消息流——中央幕布通过真实 PTY 透传 CLI 原生 TUI 输出，所有增强（模型状态、文件引用、skill 触发、Git、文件树）都发生在幕布之外。
+tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，把多个 AI Coding CLI（`omp`、`pi`、`codex`、`claude`、`grok`、`kimi`、`qoder`、`qoder-cn`、`opencode`）装进同一个窗口里，并可用内建 SSH 引擎把远程主机开成一等会话。它**不重新渲染** CLI 的消息流——中央幕布通过真实 PTY 透传 CLI 原生 TUI 输出，所有增强（模型状态、文件引用、skill 触发、Git、文件树）都发生在幕布之外。
 
 一句话：**CLI 的输出原样呈现，输入侧做富体验增强。**
 
@@ -31,7 +31,7 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
 
 ![主界面](docs/images/screenshot-main.png)
 
-**新建会话菜单** —— 按已注册 CLI 列出 8 个引擎,单项刷新;工作区操作(删除)收在同一菜单
+**新建会话菜单** —— 按已注册 CLI 列出 9 个引擎,单项刷新;工作区操作(删除)收在同一菜单
 
 ![新建会话菜单](docs/images/screenshot-new-session.png)
 
@@ -39,7 +39,7 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
 
 ![审批线](docs/images/screenshot-checkpoints.png)
 
-**插件市场(插排)** —— 18 个插件可视插拔:CLI 引擎 8 位 / 界面功能 7 位(含 SSH 远程) / 核心系统 3 位(core 焊死)
+**插件市场(插排)** —— 21 个插件可视插拔:CLI 引擎 9 位 / 界面功能 9 位(含 SSH 远程) / 核心系统 3 位(core 焊死)
 
 ![插件市场](docs/images/screenshot-plugin-market.png)
 
@@ -57,7 +57,7 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
   - `$` skill（Codex 原生支持、原样透传；omp/pi/kimi → `/skill:<name>`、claude → `/<name>`、grok → `/skills <name>`，发送时翻译；候选以各 CLI 自身为真相源 —— RPC 副车 / 磁盘扫描，静态表兜底）
   - `/` 命令（原样透传，由 CLI 自己解析；候选来源同 `$`）
   - 截图、拖拽/粘贴文件（落盘为会话临时文件后注入），附件条上限 12 个、缩略图预览
-  - 多行文本直发 CR 提交，bracketed-paste 发送器为进行中项
+  - 多行文本直发 CR 提交，bracketed-paste 按 profile 声明生效(pi-tui 系,正文包序列防吞回车)
   - 命令抽屉（⌘/Ctrl+K）：命令 / 技能 / MCP / 插件四分区，运行时发现 + 静态表回退
   - Quota 额度 chip：7 类供应商 HTTP 协议适配 + codex 官方 OAuth 本地快照，凭据仅 `$ENV_VAR` 白名单只读解析
 - **Ask 等待确认与提示音**：内核单点检测 PTY 流中 CLI 阻塞等待确认的界面标记，会话行绿色胶囊标签 + Ask/轮次结束两路提示音，后台失焦也计未读；全部可在设置页配置。
@@ -67,7 +67,11 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
 - **SSH 一等会话**：russh 引擎，输出与 PTY 会话同构直进幕布（tab 条/缓冲/翻页零分叉）；右栏面板承载连接卡 / 本地端口转发(-L) / SFTP 远端文件树，远端文件可开编辑 tab（mtime+size 乐观并发写回）；known_hosts 信任卡、断线退避重连、HTTP CONNECT / SOCKS5 代理；主机簿与 `~/.ssh/config` 导入在设置页。
 - **文件树与编辑器**：单层懒展开文件树 + 右键写操作(新建/重命名/废纸篓/访达显示);CodeMirror 6 中央 tab 编辑器(⌘S 保存、脏标记、按扩展名懒加载语言包);文件渲染档案:图片 / PDF / 表格(csv·xlsx) / docx(mammoth 转换 + 大纲) / 结构化预览,二进制显占位;文件 tab 右键菜单与编辑区最大化切换;Markdown 预览(GFM + KaTeX 数学 + Mermaid 图 + 大纲浮窗 + 渐进渲染)。
 - **欢迎页**：引擎卡(CLI 探针 + 一键安装流式日志 + npm registry 版本检查一键更新)、凭据盘点(已登录供应商与额度一览)、最近会话快速进入。
-- **插件市场(插排)**:18 个插件可视插拔,重启生效;core 类焊死,引擎/功能可拔;CLI 品牌字形 + 语义彩色图标。
+- **内置终端**:头部左区一键新建本地默认 shell 会话(kind=shell 第三类一等会话),幕布 / tab 条 / 缓冲 / 翻页全链路复用;生命周期归内核,拔插件不孤儿化会话。
+- **全局快捷键**:内核命令注册表 + 逐作用域分发(global / pty / composer),设置页可视化改键(录制 / 重置 / 冲突检测);macOS 仅 ⌘ 平台分流,Ctrl+M/N/P/W 等按原义透传 PTY 不被劫持。
+- **记忆协调(memory-coordinator)**:接入 Magic Context 外部共享记忆库(`~/.magic-context` SQLite,多 CLI 宿主共享,应用零直写);右栏 Memory 面板 + 状态栏 Memory 胶囊 + 控制台中央 tab,二期自动蒸馏 opt-in。
+- **版本号弹窗**:底栏版本号点击弹更新记录(内嵌 CHANGELOG 分页),并可在线检查 GitHub 最新发布。
+- **插件市场(插排)**:21 个插件可视插拔,重启生效;core 类焊死,引擎/功能可拔;CLI 品牌字形 + 语义彩色图标。
 
 ## 架构分层
 
@@ -75,7 +79,7 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
 React Host
 ├── src/kernel/       插件契约、生命周期、事件总线、IPC、PTY TerminalView、主题引擎
 ├── src/app-shell/    外壳(顶栏 / 左栏 / 幕布 / 右栏 / 底部)与挂载点、会话 tab 条
-└── src/plugins/      cli-* × 8(omp / pi / kimi / codex / claude / grok / qoder / qoder-cn) · session-budget · workspace · files · git · checkpoints · composer · settings · network-proxy · ssh · welcome
+└── src/plugins/      cli-* × 9(omp / pi / kimi / codex / claude / grok / qoder / qoder-cn / opencode) · session-budget · workspace · files · git · checkpoints · composer · settings · network-proxy · ssh · terminal · memory-coordinator · welcome
 
 Tauri Rust (src-tauri/)
 ├── pty.rs               portable-pty：spawn / read / write / resize / kill
@@ -88,7 +92,7 @@ Tauri Rust (src-tauri/)
 ├── probe.rs             CLI 探针(found / path / version，8s 超时)
 ├── installer.rs         CLI 一键安装(npm -g / claude native，流式日志)
 ├── quota.rs             额度查询通用 HTTP 代理
-├── omp_auth.rs          omp 凭据只读(agent.db sqlite)
+├── sqlite.rs            通用 sqlite 代读/代写(READ_ONLY + 参数化;CLI 私有库知识在插件侧)
 ├── proxy.rs             进程级代理 env 注入
 ├── ssh/                 russh SSH 会话引擎(transport/auth/forward/sftp,输出走 pty://out 同构事件)
 └── git/ + checkpoints/  libgit2 原语 / 审批线账本 sidecar
@@ -114,7 +118,7 @@ Tauri Rust (src-tauri/)
 
 ## 快速开始
 
-前置：Rust toolchain、Node.js / pnpm，以及本机已安装至少一个目标 CLI（`omp` / `pi` / `codex` / `claude` / `grok` / `kimi` / `qoder` / `qoder-cn`）。
+前置：Rust toolchain、Node.js / pnpm，以及本机已安装至少一个目标 CLI（`omp` / `pi` / `codex` / `claude` / `grok` / `kimi` / `qoder` / `qoder-cn` / `opencode`）。
 
 ```bash
 pnpm install              # 安装依赖
@@ -155,9 +159,9 @@ pnpm check:file-size      # 单文件 ≤500 行检查（CI 强制）
 
 ## 当前状态
 
-已落地:插件宿主与插件市场(18 个注册插件)、八 CLI profile(omp/pi/codex/claude/grok/kimi/qoder/qoder-cn)+ SSH 一等会话(russh 引擎)、PTY 全生命周期与会话输出落盘翻页、xterm 幕布、工作区 FLUX 时间轴会话列表(呼吸灯/状态 label/置顶/预算分页)、顶栏会话 tab 条、Composer 全量(触发符/拖拽/截图/命令抽屉 v3/消息锚点栏/Quota/bracketed-paste,触发补全以 CLI 为真相源)、Ask 等待确认检测(字节流 + 屏幕态双通道)与双路提示音、右栏 Git 面板全量(差异/分支/历史 Graph 化/提交 diff 中央 tab/远端 fetch/pull/push)、文件树 + CodeMirror 编辑器 + 文件渲染档案(图片/PDF/表格/docx/结构化)+ Markdown 预览、文件 tab 右键菜单与编辑区最大化、审批线(checkpoints 账本:双归因/回退/应用/反悔/影子对象库)、主题引擎(21 个 VS Code preset)、网络代理、欢迎页引擎卡与凭据盘点、只读 session 状态栏。
+已落地:插件宿主与插件市场(21 个注册插件)、九 CLI profile(omp/pi/codex/claude/grok/kimi/qoder/qoder-cn/opencode)+ SSH 一等会话(russh 引擎)+ 内置终端(kind=shell)、PTY 全生命周期与会话输出落盘翻页、xterm 幕布、工作区 FLUX 时间轴会话列表(呼吸灯/状态 label/置顶/预算分页)、顶栏会话 tab 条、Composer 全量(触发符/拖拽/截图/命令抽屉 v3/消息锚点栏/Quota/bracketed-paste,触发补全以 CLI 为真相源)、Ask 等待确认检测(字节流 + 屏幕态双通道)与双路提示音、右栏 Git 面板全量(差异/分支/历史 Graph 化/提交 diff 中央 tab/远端 fetch/pull/push)、文件树 + CodeMirror 编辑器 + 文件渲染档案(图片/PDF/表格/docx/结构化)+ Markdown 预览、文件 tab 右键菜单与编辑区最大化、审批线(checkpoints 账本:双归因/回退/应用/反悔/影子对象库)、主题引擎(21 个 VS Code preset)、网络代理、欢迎页引擎卡与凭据盘点、只读 session 状态栏、全局快捷键与可视化改键、版本号弹窗、记忆协调(Memory 面板 / 胶囊 / 控制台)、Git 分支右键菜单与远端操作对话框、会话 tab 右键菜单。
 
-进行中:命令抽屉真机验收(余 5 项 `[V]`)与 CLI 交互式兼容性验证;未归档变更契约见 `openspec/changes/`(ssh-plugin、composer-command-drawer、git-right-panel、session-budget-standalone、session-list-budget-plugin、fix-checkpoint-session-leak)。
+进行中:命令抽屉真机验收(余 5 项 `[V]`)与 CLI 交互式兼容性验证;未归档变更契约见 `openspec/changes/`(ssh-plugin、composer-command-drawer、git-right-panel、memory-coordinator、session-budget-standalone、session-list-budget-plugin、fix-checkpoint-session-leak)。
 
 ## License
 
