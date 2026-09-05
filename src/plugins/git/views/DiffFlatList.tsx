@@ -170,7 +170,7 @@ export function DiffFlatList({
             </div>
             {!isCollapsed &&
               (sec.rows.length === 0 ? (
-                <div className="py-0.5 pl-6 text-[11px] text-(--tmd-fg-faint)">(nothing)</div>
+                <div className="py-0.5 pl-3 text-[11px] text-(--tmd-fg-faint)">(nothing)</div>
               ) : (
                 sec.rows.map((f) => (
                   <FRow
@@ -234,7 +234,7 @@ function FRow({
     <div
       onClick={onOpen}
       title={`${file.path} —— 点击在中间打开 diff${conflict ? " · 冲突,请先到幕布解决" : ""}`}
-      className="group flex h-6 cursor-pointer select-none items-center gap-2 whitespace-nowrap pl-6 pr-3 hover:bg-(--tmd-bg-hover)"
+      className="group flex h-6 cursor-pointer select-none items-center gap-2 whitespace-nowrap pl-3 pr-3 hover:bg-(--tmd-bg-hover)"
     >
       <button
         type="button"
