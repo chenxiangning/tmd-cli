@@ -3,12 +3,14 @@
 //! 全文件回退的「内容已变」保护闸在共改场景过于一刀切:另一会话写进同一文件
 //! 的内容会被连坐。本模块把「本批改动」表示为 base→target 的行级补丁,以精确
 //! 上下文匹配应用到 ours(live)上 —— 上下文命中的 hunk 精准擦除/重放,命不中
-//! (他人在同区域改过)返回 None,调用方按冲突跳过,绝不静默覆盖。
+//! 或命中不唯一(他人在同区域改过 / 窗口内存在重复块)返回 None,调用方按冲突
+//! 跳过,绝不静默覆盖。
 //!
 //! 算法:统一 patch(上下文 3 行)。hunk 按 base 位置排序,上下文重叠的相邻
 //! hunk 合并;应用时在期望位置附近(±250 行)找 old 块的唯一精确匹配(整行
-//! 字节等值),替换为 new 块。行差异用 LCS(带格数上限,超限返回 None 走保守
-//! 跳过 —— 大文件全量手术本就罕见)。纯内存操作,不触碰用户仓库。
+//! 字节等值,两处及以上命中 = 歧义,拒绝手术),替换为 new 块。行差异用 LCS(带
+//! 格数上限,超限返回 None 走保守跳过 —— 大文件全量手术本就罕见)。纯内存操作,
+//! 不触碰用户仓库。
 
 /// hunk 匹配上下文行数。
 const CTX: usize = 3;
@@ -155,8 +157,9 @@ fn build_hunks<'a>(base: &[&'a [u8]], spans: &[Span<'a>]) -> Vec<Hunk<'a>> {
 
 /// 三方精准手术:把 base→target 的行级补丁应用到 ours 上(常见用法:
 /// 回退 = ours/live 为布,base=批后像,target=批前像;应用 = base=批前像,
-/// target=批后像)。逐 hunk 在期望位置 ±WINDOW 内找 old 块唯一精确匹配,
-/// 找不到(他人在同区域改过 / 差异过大)返回 None,调用方按冲突跳过。
+/// target=批后像)。逐 hunk 在期望位置 ±WINDOW 内找 old 块的唯一精确匹配;
+/// 找不到(他人在同区域改过 / 差异过大)或找到多处(重复块歧义,最近启发式
+/// 可能开错位置)一律返回 None,调用方按冲突跳过。
 pub fn merge_patch(ours: &[u8], base: &[u8], target: &[u8]) -> Option<Vec<u8>> {
     let base_l = split_lines(base);
     let target_l = split_lines(target);
@@ -180,21 +183,19 @@ pub fn merge_patch(ours: &[u8], base: &[u8], target: &[u8]) -> Option<Vec<u8>> {
         if hi < lo {
             return None;
         }
-        let mut best: Option<usize> = None;
+        let mut hit: Option<usize> = None;
         let mut pos = lo;
         while pos <= hi {
             if ours_l[pos as usize..pos as usize + h.old.len()] == *h.old {
-                let p = pos as usize;
-                if best
-                    .map(|b| (p as i64 - exp).abs() < (b as i64 - exp).abs())
-                    .unwrap_or(true)
-                {
-                    best = Some(p);
+                if hit.is_some() {
+                    // 窗口内重复块:取最近者可能开错位置,歧义即冲突
+                    return None;
                 }
+                hit = Some(pos as usize);
             }
             pos += 1;
         }
-        let p = best?;
+        let p = hit?;
         out.extend_from_slice(&ours_l[cursor..p]);
         out.extend_from_slice(&h.new);
         cursor = p + h.old.len();
@@ -244,6 +245,23 @@ mod tests {
         let live = live().replace("l2-批\n", "l2-他人\n");
         assert_eq!(
             merge_patch(live.as_bytes(), v2().as_bytes(), v1().as_bytes()),
+            None
+        );
+    }
+
+    #[test]
+    fn 窗口内重复块_歧义拒绝手术() {
+        // 本批把第二段 blk 的 K 改成 X,改后与既有第一段完全同文;他人在远处
+        // 追加一行触发手术。回退方向 old 块(含改动行的 7 行块)在 live 两处
+        // 命中:最近启发式在漂移下可能开错位置,必须按冲突拒绝,绝不静默覆盖。
+        let blk_a = "h\ni\nj\nX\nl\nm\nn\n";
+        let blk_b = "h\ni\nj\nK\nl\nm\nn\n";
+        let gap = "g1\ng2\ng3\ng4\ng5\ng6\ng7\ng8\n";
+        let v1 = format!("{blk_a}{gap}{blk_b}"); // 批前
+        let v2 = format!("{blk_a}{gap}{blk_a}"); // 批后:第二段与第一段同文
+        let live = format!("{v2}other\n"); // 他人远处追加
+        assert_eq!(
+            merge_patch(live.as_bytes(), v2.as_bytes(), v1.as_bytes()),
             None
         );
     }
