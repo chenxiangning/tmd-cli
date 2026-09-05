@@ -5,7 +5,6 @@ mod fs_walk;
 mod git;
 mod hash;
 mod installer;
-mod omp_auth;
 mod probe;
 mod proc_run;
 mod proxy;
@@ -16,6 +15,7 @@ mod session;
 mod session_commands;
 mod session_log;
 mod settings;
+mod sqlite;
 mod ssh;
 
 use pty::PtyRegistry;
@@ -95,15 +95,16 @@ async fn cli_probe(command: String) -> probe::CliProbeResult {
         })
 }
 
-/// 一键安装某个 CLI(claude 走官方 native 安装器,其余 npm -g)。
-/// 流式日志经 Tauri event `cli-install://{engine}` 推前端。
+/// 一键安装某个 CLI(按前端传入的参数化安装计划:npm 包 / 官方脚本)。
+/// 流式日志经 Tauri event `cli-install://{id}` 推前端。
 /// 必须 async + spawn_blocking:安装子进程分钟级阻塞,同步执行会卡死 UI。
 #[tauri::command]
 async fn cli_install_run(
     app: AppHandle,
-    engine: installer::CliInstallEngine,
+    id: String,
+    plan: installer::InstallPlan,
 ) -> Result<bool, String> {
-    tauri::async_runtime::spawn_blocking(move || installer::run_install(&app, engine))
+    tauri::async_runtime::spawn_blocking(move || installer::run_install(&app, &id, &plan))
         .await
         .map_err(|e| format!("install task join: {e}"))?
 }
@@ -373,8 +374,7 @@ pub fn run() {
             git::commands::git_smart_checkout_undo,
             quota::quota_fetch,
             quota::quota_env_value,
-            omp_auth::omp_auth_credential,
-            omp_auth::omp_auth_providers,
+            sqlite::sqlite_query,
             config_home_dir,
             config_default_workspace_root,
             config_read_workspaces,
