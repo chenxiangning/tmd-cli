@@ -435,3 +435,54 @@ fn apply_非已退批拒绝_先回退再应用() {
     assert_eq!(out.restored, vec!["a.txt".to_string()]);
     assert_eq!(ws.read("a.txt").as_deref(), Some("v2\n"));
 }
+
+#[test]
+fn 回退后批次冻结_修订重封不丢已退内容() {
+    /* 2026-09-05 实证:回退删掉的 A 文件在后续修订重封(下一条 prompt 的
+    隐式封口 / sessionExited 兜底)里「前后像皆空」被剔出批 —— 9 文件批缩成
+    1 文件,应用回此批失去依据。定约:批发生回退/应用(guard 存在)即冻结,
+    反悔解除冻结(内容回到批后像,重封与原批等值不冗余)。 */
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    anchor_events(&ws, "cli-1", "tmd-1", "改");
+    ws.write("new.txt", "n1\n");
+    assert!(edit(&ws, "cli-1", "tmd-1", "new.txt"));
+    ws.write("a.txt", "v2\n");
+    assert!(edit(&ws, "cli-1", "tmd-1", "a.txt"));
+    assert!(ws.seal("cli-1", "tmd-1"));
+
+    // 整批回退:new.txt(A 文件)删除,a.txt 还原 v1
+    let b = ws.batches("cli-1").into_iter().next().unwrap();
+    let out = restore_batch(ws.path(), &b.id, None).unwrap();
+    assert_eq!(out.deleted, vec!["new.txt".to_string()]);
+    assert!(ws.read("new.txt").is_none());
+
+    // 下一条 prompt(隐式重封上一轮):已回退批冻结,文件集不被 live 重算
+    anchor_events(&ws, "cli-1", "tmd-1", "下一轮");
+    let b1 = ws
+        .batches("cli-1")
+        .into_iter()
+        .find(|x| x.id == b.id)
+        .unwrap();
+    assert_eq!(b1.files.len(), 2, "回退删除的文件不得被修订重封剔出批");
+
+    // 反悔:guard 清除(解冻),内容写回,批回待审
+    undo_revert(ws.path(), &b.id).unwrap();
+    assert_eq!(ws.read("new.txt").as_deref(), Some("n1\n"));
+
+    // 再次回退后应用:批后像完整写回(冻结不碍恢复动作)
+    restore_batch(ws.path(), &b.id, None).unwrap();
+    let out = apply_batch(ws.path(), &b.id, None).unwrap();
+    assert_eq!(out.restored.len(), 2);
+    assert_eq!(ws.read("new.txt").as_deref(), Some("n1\n"));
+    assert_eq!(ws.read("a.txt").as_deref(), Some("v2\n"));
+    // 应用 guard 同样冻结:批内容不丢
+    let b1 = ws
+        .batches("cli-1")
+        .into_iter()
+        .find(|x| x.id == b.id)
+        .unwrap();
+    assert_eq!(b1.files.len(), 2);
+}

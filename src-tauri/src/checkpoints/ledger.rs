@@ -205,11 +205,24 @@ fn seal_locked(
 /// (cli id ↔ tmd id),随调用方会让同一锚点的链劈成两截。
 ///
 /// 双归因:events 分支在 events.rs(build_events_turn_files),git 分支在下方。
+///
+/// 审计冻结:批一旦发生过回退/应用(审核态带 guard),固化的变更集即成历史
+/// —— 修订重封按 live 重算文件集,被回退删除的文件会以「前后像皆空」被剔出
+/// 批,节点内容凭空消失、应用回此批失去依据(2026-09-05 实证)。反悔清掉
+/// 审核态后解除冻结;此时内容已回到批后像,重封与原批等值,不产生冗余修订。
 fn build_turn_entry(
     cwd: &str,
     anchor: &LedgerEntry,
     entries: &[LedgerEntry],
 ) -> Result<Option<LedgerEntry>, CkptError> {
+    if super::load_states(cwd)
+        .batches
+        .get(&anchor.id)
+        .map(|s| s.guard_id.is_some())
+        .unwrap_or(false)
+    {
+        return Ok(None);
+    }
     let sidecar = open_sidecar(cwd)?;
     let user = open_user(cwd).ok();
     let root = std::path::PathBuf::from(cwd);
