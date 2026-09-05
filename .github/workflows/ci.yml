@@ -20,8 +20,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # 文件规模铁则:单文件 ≤500 行(docs/architecture/02-code-architecture.md)
-      - name: 500 行铁则
+      # 文件规模铁则:单文件 ≤300 行(docs/architecture/02-code-architecture.md)
+      - name: 300 行铁则
         run: pnpm check:file-size
       # 架构边界铁则:R1 kernel↛plugins / R3 ipc 唯一通道 / R4 plugins↛app-shell
       - name: 架构边界铁则

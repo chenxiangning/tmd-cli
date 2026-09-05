@@ -32,7 +32,7 @@
 
 | 规则 | 内容 | 检查命令 |
 |---|---|---|
-| 500 行铁则 | 单文件 ≤500 行(`.ts/.tsx/.rs/.css`;豁免须文件头 10 行内标 `file-size-exempt`) | `pnpm check:file-size` |
+| 300 行铁则 | 单文件 ≤300 行(`.ts/.tsx/.rs/.css`;豁免须文件头 10 行内标 `file-size-exempt`) | `pnpm check:file-size` |
 | R1 | `src/kernel/**` 不得 import 任何 plugins | `pnpm check:arch-boundary` |
 | R3 | `@tauri-apps/*` 唯一 import 点是 `src/kernel/ipc.ts` | `pnpm check:arch-boundary` |
 | R4 | `src/plugins/**` 不得反向 import app-shell(`@shell/*`) | `pnpm check:arch-boundary` |

@@ -128,7 +128,7 @@ pnpm typecheck            # TypeScript 检查
 pnpm test                 # Vitest 单元测试
 pnpm build                # 仅构建前端产物
 pnpm check:arch-boundary  # 架构边界检查（CI 强制）
-pnpm check:file-size      # 单文件 ≤500 行检查（CI 强制）
+pnpm check:file-size      # 单文件 ≤300 行检查（CI 强制）
 ```
 
 ## 下载安装
