@@ -4,7 +4,8 @@
 //! live == 批前像(或该文件已被回退删除)整文件写回;live == 批后像 skip
 //! 「已是」;其余失配先试 diff 精准重放(patch.rs:他人并行写入的 hunk 保留),
 //! 重叠冲突与不具备重放条件的路径一律跳过并显式列出,绝不静默覆盖。
-//! 执行前打 guard(可反悔,与 undo 配对)。
+//! 执行前打 guard(用途 = 冻结批内容防修订重封 + 部分应用后可经 undo 反悔;
+//! 全量应用批回待审被 undo 的 state 闸拒,撤销应用的正路是再次回退)。
 //! 仅已退批可应用(后端状态闸,防 pending/done 批经直调 IPC 被写回)。
 //!
 //! 锁纪律与 restore 相同:全程持 LEDGER_LOCK 串行。
@@ -17,7 +18,7 @@ use super::{
 use std::fs;
 
 /// 应用(设计点:回退**和**应用,副本作为依据):把账本固化的批后像
-/// 精确写回磁盘 —— restore 的镜像。执行前打 guard(可反悔,与 undo 配对)。
+/// 精确写回磁盘 —— restore 的镜像。执行前打 guard(冻结凭证,见模块 doc)。
 pub fn apply_batch(
     cwd: &str,
     batch_id: &str,
@@ -156,7 +157,7 @@ pub fn apply_batch(
         });
     }
 
-    // 阶段二:守卫(可反悔)→ 写盘
+    // 阶段二:守卫(冻结批内容;部分应用后可反悔)→ 写盘
     let guard_paths: Vec<String> = plan.iter().map(|(p, _)| p.clone()).collect();
     let guard = LedgerEntry {
         id: new_entry_id(now_millis()),

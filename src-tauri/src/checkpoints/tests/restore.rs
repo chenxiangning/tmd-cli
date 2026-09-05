@@ -260,3 +260,26 @@ fn 应用_他人写入在场_精准重放本批改动() {
         ),
     );
 }
+
+#[test]
+fn 共改_a文件_按diff摘除本批写入块_他人追加保留() {
+    // 批内新建文件被并行会话追加:以空基线手术,批后全文块从 live 唯一命中
+    // 摘除,他人追加行保留 —— 不再整文件 skip「内容已变」
+    let ws = TempWs::new();
+    ws.write("seed.txt", "s\n");
+    ws.commit_all("init");
+
+    // 本批(会话 A):新建 new.txt
+    let a = ws.anchor("cli-a", "tmd-a", "A");
+    ws.write("new.txt", "n1\nn2\nn3\n");
+    ws.seal("cli-a", "tmd-a");
+
+    // 他人(并行会话 B):在批后追加两行
+    ws.write("new.txt", "n1\nn2\nn3\nb1\nb2\n");
+
+    // 回退:本批写入块摘除,他人追加保留(文件不删)
+    let out = restore_batch(ws.path(), &a.id, None).unwrap();
+    assert_eq!(out.restored, vec!["new.txt".to_string()]);
+    assert_eq!(ws.read("new.txt").as_deref(), Some("b1\nb2\n"));
+    assert_eq!(out.state, "reverted");
+}

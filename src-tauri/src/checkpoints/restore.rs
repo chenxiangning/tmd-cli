@@ -1,8 +1,7 @@
 //! 事务化还原 —— 全部基于账本:回退计划取自 turn 条目固化的前后像,
 //! 回退前自动落 guard 条目(反悔恢复的依据),只动批次触碰的路径,
-//! 内容失配(手改/并行会话触碰)先尝试 diff 精准擦除(patch.rs:只擦本批
-//! hunk,他人写入保留),重叠冲突与不具备手术条件的路径(A/D 文件、像缺失)
-//! 一律 skip,绝不静默覆盖(设计 §6)。
+//! hunk,他人写入保留;A 文件以空基线摘除本批写入块),重叠冲突与不具备
+//! 手术条件的路径(D 文件、像缺失)一律 skip,绝不静默覆盖(设计 §6)。
 //!
 //! 锁纪律:guard 抓取会枚举 dirty 集(读 repo),与账本写同持 LEDGER_LOCK,
 //! 串行执行,不存在 derive 时代的闭包嵌套锁问题。
@@ -59,9 +58,11 @@ pub fn approve_batch(cwd: &str, batch_id: &str) -> Result<(), CkptError> {
     Ok(())
 }
 
-/// 失配路径的精准手术:M 文件(批前后像俱在)尝试按 diff 擦除本批改动 ——
-/// 返回 Ok(Some(merged)) = 手术成功;Ok(None) = 与他人改动重叠冲突;
-/// Err(()) = 不具备手术条件(A/D 文件、前像缺失/不可解析),走保守跳过。
+/// 失配路径的精准手术:M/A 文件尝试按 diff 擦除本批改动 —— M 以批前像为基线,
+/// A(批内新建)以空内容为基线(old 块 = 批后全文,live 中唯一命中即摘除,
+/// 他人前后追加保留)。返回 Ok(Some(merged)) = 手术成功;Ok(None) = 与他人
+/// 改动重叠/歧义冲突;Err(()) = 不具备手术条件(D 文件、前像缺失/不可解析),
+/// 走保守跳过。
 fn surgical_erase(
     sidecar: &git2::Repository,
     tf: &super::TurnFile,
@@ -71,16 +72,20 @@ fn surgical_erase(
     let (Some(a), Some(l)) = (after, live) else {
         return Err(());
     };
-    if !tf.existed_before || tf.before_oid.is_empty() {
+    // A 文件(批内新建)基线 = 空;M 文件取批前像 blob,缺失/不可解析 = 无条件
+    let before: Vec<u8> = if !tf.existed_before {
+        Vec::new()
+    } else if tf.before_oid.is_empty() {
         return Err(());
-    }
-    let Ok(oid) = git2::Oid::from_str(&tf.before_oid) else {
-        return Err(());
+    } else {
+        let Ok(oid) = git2::Oid::from_str(&tf.before_oid) else {
+            return Err(());
+        };
+        let Ok(blob) = sidecar.find_blob(oid) else {
+            return Err(());
+        };
+        blob.content().to_vec()
     };
-    let Ok(blob) = sidecar.find_blob(oid) else {
-        return Err(());
-    };
-    let before = blob.content().to_vec();
     super::patch::merge_patch(l, a, &before).map(Some).ok_or(())
 }
 
