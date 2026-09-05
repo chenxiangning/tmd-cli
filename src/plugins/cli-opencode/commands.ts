@@ -37,14 +37,12 @@ export const OPENCODE_COMMAND_SUGGESTIONS: CliSuggestion[] = [
   { value: "exit", description: "退出 opencode(别名 /quit /q)", action: "insert" },
 ];
 
-/** 合并自定义与内置(纯函数,可测):同名自定义覆盖内置,内置兜底在尾。 */
-export function mergeOpencodeSuggestions(
-  custom: readonly CliSuggestion[],
-  builtin: readonly CliSuggestion[],
+/** 自定义命令同名去重(纯函数,可测):低优先级在前,高优先级覆盖。 */
+export function dedupeOpencodeSuggestions(
+  orderedLowToHigh: readonly CliSuggestion[],
 ): CliSuggestion[] {
   const byValue = new Map<string, CliSuggestion>();
-  for (const item of builtin) byValue.set(item.value, item);
-  for (const item of custom) byValue.set(item.value, item);
+  for (const item of orderedLowToHigh) byValue.set(item.value, item);
   return [...byValue.values()];
 }
 
@@ -73,8 +71,13 @@ async function globalCommandsDir(): Promise<string | null> {
 }
 
 /**
- * 运行时命令发现(listSuggestions 数据源):md 扫描 + JSON 命令 + 内置兜底。
- * 配置读取失败 = null(调用方回退静态表);扫描为空仍返回内置表。
+ * 运行时命令发现(listSuggestions 数据源):md 扫描 + JSON 命令,只出自定义项。
+ * 内置表由 profile.suggestions 静态声明,内核 mergeSuggestions 按 value 去重合并
+ * (静态优先)—— 动态层不再混入内置,避免同名时静态项把自定义描述顶掉一层后
+ * 又被本函数顶回的无效功;同名自定义在内核合并下保留内置项,是跨引擎统一
+ * 语义的已知限制(opencode 官方为自定义覆盖内置,见评审记录)。
+ * 配置读取失败 = null(调用方回退静态表);扫描为空 = 空表(只剩内置)。
+ * 优先级:项目 > 全局 > JSON(opencode 官方语义,项目同名覆盖全局)。
  */
 export async function listOpencodeSuggestions(
   cwd: string,
@@ -89,9 +92,9 @@ export async function listOpencodeSuggestions(
     scanCommandMdDir(projectDir),
   ]).catch(() => null);
   if (!scanned) return null;
-  /* 项目同名覆盖全局(扫描序即优先级,merge 首到先得语义反向:后到覆盖)。 */
-  const custom = [...scanned[1], ...scanned[0], ...opencodeJsonCommandSuggestions(config)];
-  const byValue = new Map<string, CliSuggestion>();
-  for (const item of custom) byValue.set(item.value, item);
-  return mergeOpencodeSuggestions([...byValue.values()], OPENCODE_COMMAND_SUGGESTIONS);
+  return dedupeOpencodeSuggestions([
+    ...opencodeJsonCommandSuggestions(config),
+    ...scanned[0],
+    ...scanned[1],
+  ]);
 }

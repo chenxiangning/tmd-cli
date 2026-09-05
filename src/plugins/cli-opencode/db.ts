@@ -72,7 +72,9 @@ export function opencodeDiskSessionRows(
     out.push({
       id,
       title: str(row[1]),
-      modifiedAt: num(row[2]) ?? num(row[3]) ?? 0,
+      /* modifiedAt 契约 = 最近修改:time_updated 优先(复活检测/相对时间/排序都吃它;
+         本机实证 56/56 会话 updated>created,CLI 内 /resume 只增长 updated)。 */
+      modifiedAt: num(row[3]) ?? num(row[2]) ?? 0,
       path: opencodeSessionPath(dbPath, id),
     });
   }
@@ -242,7 +244,28 @@ export async function readOpencodeUserMessages(
   return full ? messages : messages.reverse();
 }
 
-/** AI 写入事件(checkpoints events 归因):已完成的 write/edit 工具部件,增量水位。 */
+/** 删除一个磁盘会话(deleteSession 钩子):FK 级联清 message/part 等子行
+ *  (连接侧 PRAGMA foreign_keys,见 Rust sqlite_execute);库不可用/删除失败
+ *  reject 由 workspace 提示。 */
+export async function deleteOpencodeSession(cliSessionId: string): Promise<void> {
+  const db = await opencodeDbPath();
+  if (!db) throw new Error("opencode 数据目录不可用");
+  await ipc.sqliteExecute(db, "DELETE FROM session WHERE id = ?1", [cliSessionId]);
+}
+
+/**
+ * AI 写入事件(checkpoints events 归因):已完成的 write/edit 工具部件,增量水位。
+ *
+ * 行生命周期(本机实测):part 行在工具启动时创建、完成时原地更新 ——
+ * state.time.end 晚于 time_created 617~1011ms,time_updated == end。
+ * 因此过滤基准必须与返回 ts 同源(state.time.end):若按 time_created 过筛,
+ * 轮询落在并行工具 B 执行中(B 行已在、status 未 completed)时,同批 A 的 end
+ * 推进水位越过 B.time_created,B 完成后永不再命中 → 该写入从审批线漏记
+ * (本机库同 message 重叠工具对 127/578,常态而非边角)。pending 行无 end,
+ * json_extract 得 NULL,比较恒 NULL 被排除;完成后 end 就位自然入选。
+ * 库不存在(CLI 从未运行)= [],对齐「文件尚不存在 = 零事件」;
+ * 查询失败 = null(调用方保水位线重试)。
+ */
 export async function readOpencodeSessionEdits(
   _cwd: string,
   cliSessionId: string,
@@ -250,15 +273,20 @@ export async function readOpencodeSessionEdits(
 ): Promise<CliSessionEdit[] | null> {
   const db = await opencodeDbPath();
   if (!db) return null;
+  /* 存在性探测:fsReadHead 失败 = 库未落盘,按零事件(不保水位重试空转)。 */
+  const head = await ipc.fsReadHead(db, 1).catch(() => null);
+  if (head === null) return [];
   const rows = await ipc
     .sqliteQuery(
       db,
-      "SELECT data, time_created FROM part \
-       WHERE session_id = ?1 AND time_created > ?2 \
+      "SELECT data FROM part \
+       WHERE session_id = ?1 \
+         AND json_extract(data, '$.state.time.end') > CAST(?2 AS INTEGER) \
          AND json_extract(data, '$.type') = 'tool' \
          AND json_extract(data, '$.tool') IN ('write', 'edit') \
-       ORDER BY time_created",
-      /* INTEGER 亲和性把文本参数转数值比较(sqlite 语义)。 */
+       ORDER BY json_extract(data, '$.state.time.end')",
+      /* 参数必须 CAST:json_extract 结果无列亲和性,INTEGER 与 TEXT 跨类型
+         比较恒假(实证静默返回 0 事件;列比较的隐式转换在这里不生效)。 */
       [cliSessionId, String(sinceTs)],
     )
     .catch(() => null);
@@ -266,8 +294,8 @@ export async function readOpencodeSessionEdits(
   const out: CliSessionEdit[] = [];
   for (const row of rows) {
     try {
-      const edit = parseOpencodeToolEdit(JSON.parse(String(row[0])), num(row[1]));
-      if (edit) out.push(edit);
+      const edit = parseOpencodeToolEdit(JSON.parse(String(row[0])), undefined);
+      if (edit && edit.ts > sinceTs) out.push(edit);
     } catch {
       /* 单行 JSON 损坏跳过,不影响同批其余事件 */
     }

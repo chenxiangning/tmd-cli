@@ -432,6 +432,11 @@ export const ipc = {
    *  CLI 私有库的路径/表结构知识在插件侧(cli-shared),内核只做代读原语。 */
   sqliteQuery: (dbPath: string, sql: string, params: string[]) =>
     invoke<unknown[][]>("sqlite_query", { dbPath, sql, params }),
+  /** 通用参数化 sqlite 写执行(单条语句;连接启用 FK 级联 + 3s busy 超时)。
+   *  CLI 私有库的代写原语(单库 CLI 的会话删除等),SQL 知识在插件侧;
+   *  库不存在/执行失败 = 裸字符串错误(调用方提示)。 */
+  sqliteExecute: (dbPath: string, sql: string, params: string[]) =>
+    invoke<void>("sqlite_execute", { dbPath, sql, params }),
   /** 读取非空环境变量;用于 pi auth.json 的 $ENV_VAR 凭据引用。 */
   quotaEnvValue: (name: string) =>
     invoke<string | null>("quota_env_value", { name }),

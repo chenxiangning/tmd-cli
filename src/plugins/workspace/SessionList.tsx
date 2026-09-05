@@ -58,6 +58,19 @@ type MenuTarget =
   | { kind: "live"; session: SessionMeta; x: number; y: number }
   | { kind: "disk"; session: CliDiskSession; x: number; y: number };
 
+/** 物理删除一个磁盘会话:profile 声明 deleteSession(单库 CLI,合成路径不可
+ *  fsRemovePath)走代写钩子并让错误冒泡给调用方提示;否则照旧删文件/目录。 */
+async function removeDiskSession(
+  profile: CliProfile,
+  session: CliDiskSession,
+): Promise<void> {
+  if (profile.deleteSession) {
+    await profile.deleteSession(session.id);
+    return;
+  }
+  await ipc.fsRemovePath(session.path).catch(() => undefined);
+}
+
 /** 活会话行 —— 固定在 CLI 分组顶部(工作区置顶块之上);重命名态替换为输入行。 */
 function LiveSessionRow({
   session,
@@ -271,13 +284,14 @@ export function CliSessionGroup({
     setRenaming(null);
   };
 
-  /** 删除活会话:物理删除已绑定磁盘文件(双端统一) + kill PTY + 清命名/置顶覆盖。 */
+  /** 删除活会话:物理删除已绑定磁盘会话(双端统一) + kill PTY + 清命名/置顶覆盖。
+   *  单库 CLI(opencode)声明 deleteSession 钩子走代写原语,其余照旧删文件。 */
   const deleteLive = async (session: SessionMeta) => {
     const cliSessionId = host.getCliSessionId(session.id);
     const entry = cliSessionId
       ? (sessions ?? []).find((s) => s.id === cliSessionId)
       : undefined;
-    if (entry) await ipc.fsRemovePath(entry.path).catch(() => undefined);
+    if (entry) await removeDiskSession(profile, entry);
     if (cliSessionId) {
       removeSessionTitle(profile.id, cliSessionId);
       unpinSession(sessionPinKey(workspace.id, profile.id, cliSessionId));
@@ -285,9 +299,9 @@ export function CliSessionGroup({
     await host.removeSession(session.id);
   };
 
-  /** 删除磁盘会话:物理删除会话文件/目录(kimi 是目录) + 清命名/置顶覆盖 + 本地重扫。 */
+  /** 删除磁盘会话:物理删除会话(kimi 是目录,opencode 是库内行)+ 清命名/置顶覆盖 + 本地重扫。 */
   const deleteDisk = async (session: CliDiskSession) => {
-    await ipc.fsRemovePath(session.path).catch(() => undefined);
+    await removeDiskSession(profile, session);
     removeSessionTitle(profile.id, session.id);
     unpinSession(sessionPinKey(workspace.id, profile.id, session.id));
     setRescanTick((t) => t + 1);

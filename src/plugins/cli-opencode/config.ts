@@ -12,10 +12,10 @@
 import { ipc } from "@kernel/ipc";
 import type { CliSuggestion } from "@kernel/cli";
 
-/** opencode.json 中本插件消费的字段子集(其余键透传忽略)。 */
+/** opencode.json 中本插件消费的字段子集(其余键透传忽略;mcp 不消费:抽屉
+ *  MCP 分区的 token 兜底是 codex `$name` 语法,opencode 无对应触发符,不声明)。 */
 export interface OpencodeConfig {
   model?: string;
-  mcp?: Record<string, Record<string, unknown>>;
   command?: Record<string, Record<string, unknown>>;
 }
 
@@ -44,7 +44,7 @@ function objField<T extends Record<string, Record<string, unknown>>>(
 
 /**
  * 全局 + 项目配置合并(纯函数,可测):顶层标量项目覆盖全局,
- * mcp/command 映射按键合并(项目同名服务器/命令覆盖全局)。
+ * command 映射按键合并(项目同名命令覆盖全局)。
  */
 export function mergeOpencodeConfig(
   global: OpencodeConfig | null,
@@ -54,15 +54,8 @@ export function mergeOpencodeConfig(
     ...global,
     ...project,
   };
-  const globalMcp = objField<NonNullable<OpencodeConfig["mcp"]>>(global?.mcp);
-  const projectMcp = objField<NonNullable<OpencodeConfig["mcp"]>>(project?.mcp);
-  const globalCommand = objField<NonNullable<OpencodeConfig["command"]>>(
-    global?.command,
-  );
-  const projectCommand = objField<NonNullable<OpencodeConfig["command"]>>(
-    project?.command,
-  );
-  if (globalMcp || projectMcp) merged.mcp = { ...globalMcp, ...projectMcp };
+  const globalCommand = objField<NonNullable<OpencodeConfig["command"]>>(global?.command);
+  const projectCommand = objField<NonNullable<OpencodeConfig["command"]>>(project?.command);
   if (globalCommand || projectCommand) merged.command = { ...globalCommand, ...projectCommand };
   return merged;
 }
@@ -83,21 +76,6 @@ export function opencodeDefaultModel(config: OpencodeConfig | null): string | nu
   return typeof config?.model === "string" && config.model ? config.model : null;
 }
 
-/** mcp 表 → 抽屉 MCP 分区候选(纯函数,可测)。展示名 + 类型/启停态;insert 插入名字供会话引用。 */
-export function opencodeMcpSuggestions(config: OpencodeConfig | null): CliSuggestion[] {
-  const mcp = objField<NonNullable<OpencodeConfig["mcp"]>>(config?.mcp);
-  if (!mcp) return [];
-  return Object.entries(mcp).map(([name, entry]) => {
-    const type = typeof entry?.type === "string" ? entry.type : "local";
-    const disabled = entry?.enabled === false;
-    return {
-      value: name,
-      description: `MCP ${type}${disabled ? " · 已停用" : ""}`,
-      action: "insert" as const,
-      icon: "server",
-    };
-  });
-}
 
 /** command 表(JSON 自定义命令)→ 命令候选(纯函数,可测);template 必填缺失项跳过。 */
 export function opencodeJsonCommandSuggestions(config: OpencodeConfig | null): CliSuggestion[] {

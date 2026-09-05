@@ -66,6 +66,32 @@ pub fn sqlite_query(
     Ok(out)
 }
 
+/// 通用参数化 sqlite 写执行(单条语句)—— CLI 私有库的代写原语。
+///
+/// 设计边界同 sqlite_query:内核零 CLI 知识,调用方(插件侧)自带 dbPath/语句/参数。
+/// 与只读通道的差异:
+/// - 写打开(READ_WRITE,不 CREATE;库不存在 = Err,与读通道「不存在=空集」语义区分);
+/// - 连接上启用 PRAGMA foreign_keys,让 CLI 库自带的 ON DELETE CASCADE 约束生效
+///   (如单库 CLI 删会话行的级联清理),插件侧无需自带子表删除序;
+/// - 3s busy 超时,避免与 CLI 进程的写锁碰撞直接 SQLITE_BUSY。
+///
+/// 低频用户动作(如「删除会话」),同步命令开销可忽略。
+#[tauri::command]
+pub fn sqlite_execute(db_path: String, sql: String, params: Vec<String>) -> Result<(), String> {
+    let conn = rusqlite::Connection::open_with_flags(
+        &db_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    )
+    .map_err(|e| format!("open sqlite (rw): {e}"))?;
+    conn.busy_timeout(std::time::Duration::from_millis(3000))
+        .map_err(|e| format!("set sqlite busy timeout: {e}"))?;
+    conn.pragma_update(None, "foreign_keys", true)
+        .map_err(|e| format!("enable sqlite foreign_keys: {e}"))?;
+    conn.execute(&sql, rusqlite::params_from_iter(params.iter()))
+        .map_err(|e| format!("execute sqlite: {e}"))?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -120,5 +146,54 @@ mod tests {
         )
         .unwrap();
         assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn execute_deletes_with_fk_cascade_and_missing_db_errs() {
+        let dir = std::env::temp_dir().join(format!("tmd-cli-sqlite-exec-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = dir.join("t.db");
+        let _ = std::fs::remove_file(&db);
+        let conn = rusqlite::Connection::open(&db).unwrap();
+        conn.execute("CREATE TABLE parent (id TEXT PRIMARY KEY)", [])
+            .unwrap();
+        conn.execute(
+            "CREATE TABLE child (id TEXT PRIMARY KEY, parent_id TEXT NOT NULL \
+             REFERENCES parent(id) ON DELETE CASCADE)",
+            [],
+        )
+        .unwrap();
+        conn.execute("INSERT INTO parent VALUES ('p1')", [])
+            .unwrap();
+        conn.execute("INSERT INTO child VALUES ('c1', 'p1')", [])
+            .unwrap();
+        drop(conn);
+
+        // 参数化删除父行:FK 级联清子行(opencode 单库会话删除的形态)
+        sqlite_execute(
+            db.to_string_lossy().to_string(),
+            "DELETE FROM parent WHERE id = ?1".into(),
+            vec!["p1".into()],
+        )
+        .unwrap();
+        let rows = sqlite_query(
+            db.to_string_lossy().to_string(),
+            "SELECT (SELECT count(*) FROM parent) + (SELECT count(*) FROM child)".into(),
+            vec![],
+        )
+        .unwrap();
+        assert_eq!(rows, vec![vec![SqliteValue::Int(0)]]);
+
+        // 库不存在 = Err(写目标必须存在,不静默建库)
+        let err = sqlite_execute(
+            "/nonexistent/tmd-cli-exec-missing.db".into(),
+            "DELETE FROM t".into(),
+            vec![],
+        )
+        .unwrap_err();
+        assert!(err.contains("open sqlite"), "{err}");
+
+        let _ = std::fs::remove_file(&db);
+        let _ = std::fs::remove_dir(&dir);
     }
 }

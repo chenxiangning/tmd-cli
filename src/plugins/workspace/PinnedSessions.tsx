@@ -104,10 +104,15 @@ export function PinnedSessionsSection() {
         const list = await row.profile.listSessions(row.workspace.root).catch(() => []);
         if (stale) return;
         const hit = list.find((s) => s.id === row.cliSessionId);
-        const head = hit
-          ? await ipc.fsReadHead(hit.path, TITLE_HEAD_BYTES).catch(() => "")
-          : "";
-        const title = head ? extractJsonlTitle(head) : undefined;
+        /* listSessions 已带真标题的 CLI(opencode 的 SELECT title)直接用;
+         * 无列表标题的(omp/pi jsonl)照旧读文件头解析。 */
+        const title = hit?.title
+          ? hit.title
+          : hit
+            ? extractJsonlTitle(
+                await ipc.fsReadHead(hit.path, TITLE_HEAD_BYTES).catch(() => ""),
+              )
+            : undefined;
         if (stale) return;
         if (title) refreshPinTitle(row.key, title);
       }

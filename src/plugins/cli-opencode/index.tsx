@@ -1,19 +1,18 @@
 import type { Plugin } from "@kernel/plugin";
 import {
+  deleteOpencodeSession,
   listOpencodeSessions,
   readOpencodeSessionEdits,
   readOpencodeSessionIdentity,
   readOpencodeSessionStatus,
   readOpencodeUserMessages,
 } from "./db";
-import { opencodeDefaultModel, opencodeMcpSuggestions, readOpencodeConfig } from "./config";
+import { opencodeDefaultModel, readOpencodeConfig } from "./config";
 import { listOpencodeSuggestions, OPENCODE_COMMAND_SUGGESTIONS } from "./commands";
 
 /**
  * opencode CLI 插件(anomalyco/opencode,本机 1.18.25 实证,2026-09-05):
  * - TUI 即默认命令(`opencode [project]`),会话恢复 `-s/--session <id>`;
- * - 触发符:`/` 命令(内置 + commands/*.md + JSON 命令)、`@` 文件引用(fuzzy);
- *   `!` bash 前缀不属于 composer kind,不声明;
  * - 会话存储单库 SQLite(~/.local/share/opencode/opencode.db,WAL),读写分离
  *   经内核只读原语 sqliteQuery;表结构知识全部在 ./db.ts;
  * - 身份绑定用合成路径 <db>#<sessionId> 拆包查库(单库多会话,mtime 必串线);
@@ -69,12 +68,8 @@ export const cliOpencodePlugin: Plugin = {
       ],
       suggestions: { command: OPENCODE_COMMAND_SUGGESTIONS },
       listSuggestions: (_kind, cwd) => listOpencodeSuggestions(cwd),
-      listMcpServers: async (cwd) => {
-        const config = await readOpencodeConfig(cwd).catch(() => null);
-        const items = opencodeMcpSuggestions(config);
-        return items.length ? items : null;
-      },
       resumeArgs: (sessionId) => ["--session", sessionId],
+      deleteSession: deleteOpencodeSession,
       listSessions: listOpencodeSessions,
       readSessionStatus: readOpencodeSessionStatus,
       readSessionFileIdentity: readOpencodeSessionIdentity,

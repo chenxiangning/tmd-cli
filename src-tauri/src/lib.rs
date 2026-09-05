@@ -375,6 +375,7 @@ pub fn run() {
             quota::quota_fetch,
             quota::quota_env_value,
             sqlite::sqlite_query,
+            sqlite::sqlite_execute,
             config_home_dir,
             config_default_workspace_root,
             config_read_workspaces,

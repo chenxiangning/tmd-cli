@@ -8,10 +8,14 @@ import { describe, expect, it, vi } from "vitest";
 const sqliteQuery = vi.fn(
   async (_db: string, _sql: string, _params: string[]) => [] as unknown[][],
 );
+const sqliteExecute = vi.fn(async (_db: string, _sql: string, _params: string[]) => undefined);
 vi.mock("@kernel/ipc", () => ({
   ipc: {
     configHomeDir: vi.fn(async () => "/home"),
     quotaEnvValue: vi.fn(async () => null),
+    fsReadHead: vi.fn(async () => "S"),
+    sqliteExecute: (db: string, sql: string, params: string[]) =>
+      sqliteExecute(db, sql, params),
     sqliteQuery: (db: string, sql: string, params: string[]) => sqliteQuery(db, sql, params),
   },
 }));
@@ -23,12 +27,14 @@ import {
   opencodeUserMessageRows,
   parseOpencodeMessageModel,
   parseOpencodeModelVariant,
+  deleteOpencodeSession,
+  readOpencodeSessionEdits,
   parseOpencodeToolEdit,
   readOpencodeUserMessages,
 } from "./db";
 
 describe("opencodeDiskSessionRows(会话行 → CliDiskSession)", () => {
-  it("正常行:合成路径 <db>#<id>,mtime 取 time_created", () => {
+  it("正常行:合成路径 <db>#<id>,modifiedAt 取 time_updated(复活检测/排序吃它)", () => {
     const rows = [
       ["ses_abc", "打招呼", 1787986042610, 1787986055749],
       ["ses_def", "", 100, 200],
@@ -37,17 +43,17 @@ describe("opencodeDiskSessionRows(会话行 → CliDiskSession)", () => {
       {
         id: "ses_abc",
         title: "打招呼",
-        modifiedAt: 1787986042610,
+        modifiedAt: 1787986055749,
         path: "/data/opencode.db#ses_abc",
       },
-      { id: "ses_def", title: undefined, modifiedAt: 100, path: "/data/opencode.db#ses_def" },
+      { id: "ses_def", title: undefined, modifiedAt: 200, path: "/data/opencode.db#ses_def" },
     ]);
   });
 
-  it("id 缺失/异型行跳过;time_created 异型回退 time_updated", () => {
+  it("id 缺失/异型行跳过;time_updated 异型回退 time_created", () => {
     const rows = [
       [null, "x", 1, 2],
-      ["ses_ok", "t", "bad", 42],
+      ["ses_ok", "t", 42, "bad"],
     ];
     const out = opencodeDiskSessionRows("/db", rows);
     expect(out).toHaveLength(1);
@@ -189,5 +195,44 @@ describe("readOpencodeUserMessages(增量窗口语义,ipc 桩)", () => {
       { id: "msg_2", text: "第二句" },
     ]);
     expect((sqliteQuery.mock.calls.at(-1)?.[1] as string)).not.toContain("LIMIT");
+  });
+});
+
+describe("readOpencodeSessionEdits(水位契约,ipc 桩)", () => {
+  it("只返回 ts=end > 水位的事件(SQL 已按 end 过筛,返回层再守一道)", async () => {
+    sqliteQuery.mockResolvedValueOnce([
+      [
+        JSON.stringify({
+          type: "tool",
+          tool: "write",
+          state: { status: "completed", input: { filePath: "a.ts" }, time: { start: 50, end: 100 } },
+        }),
+      ],
+      [
+        JSON.stringify({
+          type: "tool",
+          tool: "write",
+          state: { status: "completed", input: { filePath: "b.ts" }, time: { start: 120, end: 150 } },
+        }),
+      ],
+    ]);
+    const edits = await readOpencodeSessionEdits("/w", "ses_1", 100);
+    expect(edits).toEqual([{ path: "b.ts", ts: 150 }]);
+    const sql = sqliteQuery.mock.calls.at(-1)?.[1] as string;
+    /* 过滤基准必须与返回 ts 同源(state.time.end)且参数 CAST
+       (json_extract 无列亲和性,INTEGER>TEXT 跨类型恒假,实证 0 事件)。 */
+    expect(sql).toContain("json_extract(data, '$.state.time.end') > CAST(?2 AS INTEGER)");
+    expect(sql).not.toContain("time_created > ?2");
+  });
+});
+
+describe("deleteOpencodeSession(deleteSession 钩子,ipc 桩)", () => {
+  it("按 id 参数化删除 session 行(FK 级联在连接侧生效)", async () => {
+    await deleteOpencodeSession("ses_1");
+    expect(sqliteExecute).toHaveBeenCalledWith(
+      expect.stringContaining("opencode.db"),
+      "DELETE FROM session WHERE id = ?1",
+      ["ses_1"],
+    );
   });
 });

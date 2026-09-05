@@ -1,11 +1,8 @@
 /**
- * opencode 命令候选单测 —— 内置表形状与「自定义覆盖内置」合并语义。
+ * opencode 命令候选单测 —— 内置表形状与自定义同名去重优先级。
  */
 import { describe, expect, it } from "vitest";
-import {
-  mergeOpencodeSuggestions,
-  OPENCODE_COMMAND_SUGGESTIONS,
-} from "./commands";
+import { dedupeOpencodeSuggestions, OPENCODE_COMMAND_SUGGESTIONS } from "./commands";
 
 describe("OPENCODE_COMMAND_SUGGESTIONS(内置表形状)", () => {
   it("value 唯一且每项显式 action(无默认歧义)", () => {
@@ -25,22 +22,16 @@ describe("OPENCODE_COMMAND_SUGGESTIONS(内置表形状)", () => {
   });
 });
 
-describe("mergeOpencodeSuggestions(自定义覆盖内置)", () => {
-  it("同名自定义覆盖内置;内置独有项保留", () => {
-    const merged = mergeOpencodeSuggestions(
-      [{ value: "init", description: "我的初始化", action: "insert" }],
-      [
-        { value: "init", description: "官方", action: "send" },
-        { value: "new", description: "新建", action: "send" },
-      ],
-    );
+describe("dedupeOpencodeSuggestions(同名去重,低→高优先级)", () => {
+  it("高优先级(靠后)覆盖低优先级:项目同名压过全局与 JSON", () => {
+    const merged = dedupeOpencodeSuggestions([
+      { value: "review", description: "JSON 版", action: "insert" },
+      { value: "foo", description: "全局版", action: "insert" },
+      { value: "review", description: "项目版", action: "insert" },
+    ]);
     const byValue = new Map(merged.map((s) => [s.value, s]));
-    expect(byValue.get("init")).toEqual({
-      value: "init",
-      description: "我的初始化",
-      action: "insert",
-    });
-    expect(byValue.get("new")).toEqual({ value: "new", description: "新建", action: "send" });
+    expect(byValue.get("review")?.description).toBe("项目版");
+    expect(byValue.get("foo")?.description).toBe("全局版");
     expect(merged).toHaveLength(2);
   });
 });

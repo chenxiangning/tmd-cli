@@ -153,6 +153,14 @@ export interface CliProfile {
    * 缺省 = 该 CLI 不提供历史列表。
    */
   listSessions?: (cwd: string) => Promise<CliDiskSession[]>;
+  /**
+   * 删除该 CLI 的一个磁盘会话(「删除会话」入口的 profile 级实现)。
+   * 单库多会话 CLI(opencode:多个会话共享一个 sqlite 文件,CliDiskSession.path
+   * 是合成路径)无法用 fsRemovePath 删文件,声明此钩子走代写原语;
+   * 文件/目录型 CLI(kimi/qoder 等)不声明,workspace 照旧 fsRemovePath。
+   * 成功 resolve;失败 reject 由调用方提示。
+   */
+  deleteSession?: (cliSessionId: string) => Promise<void>;
   /** 读取当前 CLI session 的模型与思考强度,只读且可缺省。 */
   readSessionStatus?: (
     cwd: string,
