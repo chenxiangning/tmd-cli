@@ -1,7 +1,7 @@
 # 应用内全局快捷键系统(kernel 命令注册表 + 插件贡献键位)
 
 日期:2026-09-05
-状态:设计中(用户已确认:应用内全局、固定键位一期、覆盖壳层导航/面板切换/收编散键/插件动作全量暴露)
+状态:已批准(应用内全局、一期固定键位;终端内按键行为不变,键位对齐 VS Code/macOS 主流)
 
 ## 背景与目标
 
@@ -40,12 +40,27 @@ export interface CommandContribution {
 
 - 注册表:模块级 state + useSyncExternalStore,同 id 重复注册抛错(同 settingsRegistry 范式);**同键同作用域重复绑定在 dev 下抛错**(固定键位期不需要用户态冲突 UI)。
 - `PluginContext.registerCommand(cmd)`:插件贡献唯一入口;`deactivate` 时按插件 id 反注销。
-- 分发器:AppShell 挂载时安装单个 window keydown capture 监听;命中(键匹配 + when 通过)→ preventDefault + run;未命中不拦截。
-- 硬约束内建:`isComposing` 组词期全放行;Esc 永不注册(保护约 20 处弹层生态);`key` 规范化统一 ⌘/Ctrl(metaKey||ctrlKey)。
 
 ### 终端桥(kernel/TerminalView.tsx 改造)
 
-终端聚焦时按键直接进 PTY,分发器收不到。现有 `attachCustomKeyEventHandler` 的 ⌘F 硬编码改为:查 kernel 注册表,有键位匹配的命令 → `return false` 拦截并触发;无匹配放行。这是终端内快捷键唯一通路;readline 代价键的侵占风险仅限显式注册的键(现状 ⌘F 已存在)。
+**终端内的自由快捷键一律不变**:用户在终端里敲的键继续原样进 PTY,一期不新增任何终端拦截;唯一保留现状的特例是既有 ⌘F(打开终端搜索框)。实现上把 ⌘F 的硬编码改为查 kernel 注册表,但一期注册表里终端作用域只有 terminal.find 一条——行为与今天完全一致,仅为二期留出统一通路。
+
+### 一期新增键位(壳层导航 + 面板)
+
+| 键 | 命令 | 备注 |
+|---|---|---|
+| ⌘T | workspace.newSessionMenu | 打开新建会话菜单 |
+| ⌘W | shell.closeTab | 关闭当前中央 tab(无 tab 则穿透) |
+| ⌘1-9 | shell.focusSessionN | 按会话列表序切换;超出穿透 |
+| ⌘, | shell.openSettings | 打开设置面板 |
+| ⌘B | shell.toggleLeftBar | 折叠/展开左栏 |
+| ⌘⌥B | shell.toggleRightBar | 折叠/展开右栏 |
+| ⌘⇧E | panel.focusByOrder 1 | 右栏文件面板(对齐 VS Code ⌘⇧E Explorer 心智) |
+| ⌘⇧G | panel.focusByOrder 2 | 右栏 Git 面板(对齐 VS Code ⌘⇧G Source Control 心智) |
+| ⌘⇧M | panel.focusByOrder 3 | 右栏 Memory 面板;面板按注册表 order 切换,不写死插件 id |
+| ⌘⇧H | shell.goHome | 回首页(welcome) |
+
+键位对齐说明:⌘, 设置(macOS 惯例)、⌘B 左栏(VS Code)、⌘⌥B 右栏(VS Code Secondary Side Bar)、⌘W 关 tab、⌘T 新建、⌘1-9 切换,均为主流编辑器/终端惯例。
 
 ### 收编既有散键(行为不变,来源统一)
 
@@ -58,20 +73,6 @@ export interface CommandContribution {
 | git.commit | ⌘Enter(when: 提交框聚焦,保留现 onKeyDown) | 仅登记,不改监听点 |
 | composer.send | ⌘Enter(受 settings.sendShortcut) | 仅登记语义,行为不动 |
 
-### 一期新增键位(壳层导航 + 面板)
-
-| 键 | 命令 | 备注 |
-|---|---|---|
-| ⌘T | workspace.newSessionMenu | 打开新建会话菜单 |
-| ⌘W | shell.closeTab | 关闭当前中央 tab(无 tab 则穿透) |
-| ⌘1-9 | shell.focusSessionN | 按会话列表序切换;超出穿透 |
-| ⌘, | shell.openSettings | 打开设置面板 |
-| ⌘B | shell.toggleLeftBar | 折叠/展开左栏 |
-| ⌘⌥B | shell.toggleRightBar | 折叠/展开右栏 |
-| ⌘⇧E | shell.goHome | 回首页(welcome) |
-| ⌘⇧F/G/M | panel.focusByOrder 1/2/3 | 右栏面板按注册表 order 切换,不写死插件 id |
-
-⚠ ⌘⇧F 与 terminal.find(⌘F)不冲突(多 Shift);若实现期发现 ⌘⇧F 与终端内注册键冲突,备选 ⌘⇧P。
 
 ### 插件动作全量暴露(无键位)
 
