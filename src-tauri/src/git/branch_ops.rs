@@ -1,4 +1,4 @@
-//! branch —— 列表 / checkout / 创建 / 删除。
+//! branch —— 列表 / checkout / 创建 / 删除 / 重命名 / 合并 / 变基。
 
 use git2::{BranchType, Repository};
 use serde::Serialize;
@@ -182,4 +182,42 @@ pub fn delete(repo: &Repository, name: &str, force: bool) -> Result<(), GitError
     }
     branch.delete()?;
     Ok(())
+}
+
+/// 重命名本地分支:shell-out `git branch -m`。不走 libgit2 Branch::rename:
+/// CLI 版本保证 `branch.<new>.remote/merge` 跟踪配置随迁,与官方 git 行为一致;
+/// 目标名已存在 / 非法名由 git 自身拒绝(stderr 经 E_SHELL 透传)。
+pub fn rename(repo: &Repository, cwd: &str, old: &str, new: &str) -> Result<(), GitError> {
+    let old = old.trim();
+    let new = new.trim();
+    if old.is_empty() || new.is_empty() {
+        return Err(GitError::empty("分支名为空"));
+    }
+    super::remote_ops::exec_git(
+        repo,
+        cwd,
+        &["branch".into(), "-m".into(), old.into(), new.into()],
+    )
+    .map(|_| ())
+}
+
+/// 合并分支到当前分支:shell-out `git merge <name>`,fast-forward 策略交给
+/// 仓库/用户 git 配置(与 codemoss 同语义)。冲突时 git 非零退出、MERGE_HEAD
+/// 中间态保留(E_SHELL 透传 CONFLICT 详情),由用户在终端 continue/abort 收尾。
+pub fn merge(repo: &Repository, cwd: &str, name: &str) -> Result<(), GitError> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err(GitError::empty("分支名为空"));
+    }
+    super::remote_ops::exec_git(repo, cwd, &["merge".into(), name.into()]).map(|_| ())
+}
+
+/// 当前分支变基到 onto:shell-out `git rebase <onto>`。libgit2 rebase 需逐提交
+/// 驱动且冲突状态机复杂;CLI 留标准 rebase-merge 中间态,幕布终端可直接接管。
+pub fn rebase(repo: &Repository, cwd: &str, onto: &str) -> Result<(), GitError> {
+    let onto = onto.trim();
+    if onto.is_empty() {
+        return Err(GitError::empty("变基目标分支名为空"));
+    }
+    super::remote_ops::exec_git(repo, cwd, &["rebase".into(), onto.into()]).map(|_| ())
 }

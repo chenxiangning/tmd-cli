@@ -55,5 +55,6 @@
 | 2026-09-04 | [Diff 视图噪音清理:hunk 分隔条](superpowers/specs/2026-09-04-diff-noise-cleanup-design.md) | 已落地 |
 | 2026-09-05 | [Git 差异面板文件列表:F 终端风重构](superpowers/specs/2026-09-05-git-diff-filelist-f-terminal-design.md) | 已确认 |
 | 2026-09-05 | [Git 远端操作对话框复刻(codemoss push/pull/fetch)+ 顶栏聚合数字迁移](superpowers/specs/2026-09-05-git-remote-dialogs-design.md) | 已落地 |
+| 2026-09-05 | [分支右键菜单对齐 codemoss:变基/合并/对比/重命名/自指定分支新建](superpowers/specs/2026-09-05-branch-menu-parity-design.md) | 已落地 |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

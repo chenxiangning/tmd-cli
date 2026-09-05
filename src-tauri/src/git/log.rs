@@ -25,7 +25,7 @@ pub struct LogEntry {
 
 /// oid → ref 展示名列表。每次 walk 建一次全量映射,分页各页共享同一次遍历。
 /// 只认 branches / remotes / tags,其余 refs(stash/notes 等)不装饰。
-fn ref_map(
+pub(super) fn ref_map(
     repo: &Repository,
 ) -> Result<std::collections::HashMap<git2::Oid, Vec<String>>, GitError> {
     use std::collections::HashMap;

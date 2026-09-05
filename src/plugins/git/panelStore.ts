@@ -18,6 +18,8 @@ export interface GitAggregate {
   fileCount: number;
 }
 
+export type RemoteDialogOp = "push" | "pull" | "fetch";
+
 interface GitPanelState {
   view: GitViewMode;
   layout: FileListLayout;
@@ -25,6 +27,8 @@ interface GitPanelState {
   /** 顶栏 ⟳ 转圈:批量刷新发起置 true,全部 settle 后清除。 */
   refreshing: boolean;
   aggregate: GitAggregate;
+  /** 右键菜单等外部入口请求打开远端对话框;nonce 保证同 op 连发也触发 effect。 */
+  remoteDialogRequest: { op: RemoteDialogOp; nonce: number } | null;
 }
 
 const state: GitPanelState = {
@@ -33,6 +37,7 @@ const state: GitPanelState = {
   refreshNonce: 0,
   refreshing: false,
   aggregate: { totals: null, fileCount: 0 },
+  remoteDialogRequest: null,
 };
 const listeners = new Set<() => void>();
 let snapshot: GitPanelState = state;
@@ -70,6 +75,22 @@ export function setGitAggregate(next: GitAggregate): void {
 export function setGitRefreshing(refreshing: boolean): void {
   if (state.refreshing === refreshing) return;
   state.refreshing = refreshing;
+  emit();
+}
+
+let remoteDialogNonce = 0;
+
+/** 分支右键菜单「推送...」等入口 → GitPanel 打开对应远端对话框。 */
+export function requestRemoteDialog(op: RemoteDialogOp): void {
+  remoteDialogNonce += 1;
+  state.remoteDialogRequest = { op, nonce: remoteDialogNonce };
+  emit();
+}
+
+/** GitPanel 消费后清除,防止重复触发。 */
+export function clearRemoteDialogRequest(): void {
+  if (!state.remoteDialogRequest) return;
+  state.remoteDialogRequest = null;
   emit();
 }
 

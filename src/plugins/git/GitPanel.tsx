@@ -18,6 +18,7 @@ import { useGitLog } from "./hooks/useGitLog";
 import { gitErrorDisplay, isAuth } from "./gitError";
 import { GIT_PREFILL_TOPIC, type GitPrefillPayload } from "./gitEvents";
 import {
+  clearRemoteDialogRequest,
   setGitAggregate,
   setGitView,
   setGitRefreshing,
@@ -38,12 +39,18 @@ export function GitPanel() {
   const active = list.find((w) => w.id === activeId) ?? list[0];
   const cwd = active?.root ?? null;
 
-  const { view, layout, refreshNonce } = useGitPanelState();
+  const { view, layout, refreshNonce, remoteDialogRequest } = useGitPanelState();
   const [prefill, setPrefill] = useState<{ message: string; seq: number } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [undoConfirm, setUndoConfirm] = useState<GitConfirmState | null>(null);
   const [remoteBusy, setRemoteBusy] = useState<"push" | "pull" | "fetch" | null>(null);
   const [dialog, setDialog] = useState<GitRemoteRequest["op"] | null>(null);
+  /* 分支右键菜单「推送...」等入口请求打开远端对话框:消费即清,nonce 防重复。 */
+  useEffect(() => {
+    if (!remoteDialogRequest) return;
+    clearRemoteDialogRequest();
+    setDialog(remoteDialogRequest.op);
+  }, [remoteDialogRequest]);
 
   const status = useGitStatus(cwd);
   const totals = useGitTotals(cwd);
@@ -170,11 +177,12 @@ export function GitPanel() {
           <span className="min-w-0 truncate text-(--tmd-fg-faint)">→ {status.data.upstream}</span>
         )}
         <span className="flex-1" />
+        <div className="flex items-center gap-0.5">
         <button
           onClick={() => setDialog("fetch")}
           disabled={remoteBusy !== null || detached}
           title="获取远端更新(fetch --all --prune,不动本地分支)"
-          className="flex items-center gap-0.5 rounded px-1.5 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+          className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
         >
           {remoteBusy === "fetch" ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -190,7 +198,7 @@ export function GitPanel() {
               ? `拉取远端更新(落后 ${aheadBehind!.behind} 个提交)`
               : "拉取远端更新(对话框内可选远端与分支)"
           }
-          className="flex items-center gap-0.5 rounded px-1.5 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+          className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
         >
           {remoteBusy === "pull" ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -209,7 +217,7 @@ export function GitPanel() {
                 ? "推送(对话框内查看预览与选项)"
                 : "推送新分支并建立 upstream"
           }
-          className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+          className="flex items-center gap-0.5 rounded px-1 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
         >
           {remoteBusy === "push" ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -218,6 +226,7 @@ export function GitPanel() {
           )}
           {(aheadBehind?.ahead ?? 0) > 0 && aheadBehind!.ahead}
         </button>
+        </div>
       </div>
 
       {notice && (

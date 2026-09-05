@@ -7,10 +7,10 @@
 use git2::Repository;
 
 use super::{
-    ahead_behind as ahead_behind_impl, branch_ops, commit as commit_impl, commit_view, diff,
-    index_ops, remote_ops, stash_ops, status as status_impl, walk_log, with_repo, with_repo_mut,
-    AheadBehind, BranchList, CommitFile, CommitInput, DiffStatus, DiffTotals, FilePatch, GitError,
-    LogEntry,
+    ahead_behind as ahead_behind_impl, branch_ops, commit as commit_impl, commit_view, compare_ops,
+    diff, index_ops, remote_ops, stash_ops, status as status_impl, walk_log, with_repo,
+    with_repo_mut, AheadBehind, BranchCompareSet, BranchDiffFile, BranchList, CommitFile,
+    CommitInput, DiffStatus, DiffTotals, FilePatch, GitError, LogEntry,
 };
 
 /// 读命令模板:spawn_blocking 包 with_repo;JoinError 只在 panic/取消时出现。
@@ -111,6 +111,12 @@ pub async fn git_commit_file_patch(
     run(cwd, move |r| commit_view::file_patch(r, &sha, &path)).await
 }
 
+/// 提交完整 message(分支对比详情面板)。
+#[tauri::command]
+pub async fn git_commit_message(cwd: String, sha: String) -> Result<String, String> {
+    run(cwd, move |r| commit_view::message(r, &sha)).await
+}
+
 #[tauri::command]
 pub async fn git_branches(cwd: String) -> Result<BranchList, String> {
     run(cwd, branch_ops::list_all).await
@@ -151,6 +157,67 @@ pub async fn git_create_branch(
 #[tauri::command]
 pub async fn git_delete_branch(cwd: String, name: String, force: bool) -> Result<(), String> {
     run_mut(cwd, move |r| branch_ops::delete(r, &name, force)).await
+}
+
+/// 合并分支到当前分支(CLI;冲突留 MERGE_HEAD 中间态,幕布终端可接管)。
+#[tauri::command]
+pub async fn git_merge_branch(cwd: String, name: String) -> Result<(), String> {
+    let c = cwd.clone();
+    run_mut(cwd, move |r| branch_ops::merge(r, &c, &name)).await
+}
+
+/// 当前分支变基到 onto(CLI;冲突留 rebase-merge 中间态)。
+#[tauri::command]
+pub async fn git_rebase_branch(cwd: String, onto: String) -> Result<(), String> {
+    let c = cwd.clone();
+    run_mut(cwd, move |r| branch_ops::rebase(r, &c, &onto)).await
+}
+
+/// 重命名本地分支(CLI `git branch -m`,upstream 配置随迁)。
+#[tauri::command]
+pub async fn git_rename_branch(
+    cwd: String,
+    old_name: String,
+    new_name: String,
+) -> Result<(), String> {
+    let c = cwd.clone();
+    run_mut(cwd, move |r| {
+        branch_ops::rename(r, &c, &old_name, &new_name)
+    })
+    .await
+}
+
+/// 分支对比:双向唯一提交(limit 缺省 200,clamp 1..500)。
+#[tauri::command]
+pub async fn git_branch_compare(
+    cwd: String,
+    target: String,
+    current: String,
+    limit: Option<usize>,
+) -> Result<BranchCompareSet, String> {
+    run(cwd, move |r| {
+        compare_ops::branch_compare(r, &target, &current, limit)
+    })
+    .await
+}
+
+/// 工作树对分支的差异文件清单(不带 patch)。
+#[tauri::command]
+pub async fn git_branch_worktree_files(
+    cwd: String,
+    branch: String,
+) -> Result<Vec<BranchDiffFile>, String> {
+    run(cwd, move |r| compare_ops::worktree_files(r, &branch)).await
+}
+
+/// 工作树对分支的单文件 patch(path 按 新路径/rename 来源 匹配)。
+#[tauri::command]
+pub async fn git_branch_worktree_patch(
+    cwd: String,
+    branch: String,
+    path: String,
+) -> Result<Option<FilePatch>, String> {
+    run(cwd, move |r| compare_ops::worktree_patch(r, &branch, &path)).await
 }
 
 #[tauri::command]

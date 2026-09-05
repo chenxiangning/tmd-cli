@@ -43,12 +43,12 @@ export function GitToolbar() {
   };
 
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex shrink-0 items-center gap-0.5 whitespace-nowrap">
       <button
         ref={viewBtnRef}
         type="button"
         onClick={toggleMenu}
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium hover:bg-(--tmd-bg-hover)"
+        className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-xs font-medium hover:bg-(--tmd-bg-hover)"
       >
         {VIEW_LABEL[view]}
         <ChevronDown className="h-3 w-3 text-(--tmd-fg-faint)" aria-hidden />

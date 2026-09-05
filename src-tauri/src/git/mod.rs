@@ -13,6 +13,7 @@
 mod branch_ops;
 mod commit;
 mod commit_view;
+mod compare_ops;
 mod diff;
 mod error;
 mod index_ops;
@@ -24,6 +25,8 @@ mod status;
 pub mod commands;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_branch_menu;
 #[cfg(test)]
 mod tests_commit_view;
 #[cfg(test)]
@@ -42,6 +45,7 @@ use std::sync::{Arc, LazyLock};
 pub use branch_ops::BranchList;
 pub use commit::CommitInput;
 pub use commit_view::CommitFile;
+pub use compare_ops::{BranchCompareSet, BranchDiffFile};
 pub use diff::{DiffTotals, FilePatch};
 pub use error::GitError;
 pub use log::{walk as walk_log, LogEntry};

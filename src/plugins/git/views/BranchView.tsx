@@ -1,12 +1,14 @@
 /**
  * BranchView —— 分支视图:本地/远程分组 + 创建 / checkout / 删除。
  *
- * 切换/检出/删除的二次确认走应用内 GitConfirmDialog(window.confirm 在 Tauri
- * WKWebView 下可能不弹窗直接放行,易失操作一律不用它);
+ * 切换/检出/删除/合并/变基/签出并变基的二次确认走应用内 GitConfirmDialog
+ * (window.confirm 在 Tauri WKWebView 下可能不弹窗直接放行,易失操作一律不用它);
  * 脏工作区切换提供「暂存并切换」次选(复刻 IDEA Smart Checkout:stash -u →
  * 切换 → pop;pop 冲突时 stash 保留、文件标冲突)。
- * 右键菜单(codemoss git graph 同款语义):更新(pull)/ 获取(刷新上游引用)/ 推送 / 删除。
+ * 右键菜单(codemoss git graph 全 11 项同款):新建自 X / 签出并变基 / 与当前比较 /
+ * 工作树差异 / 变基 / 合并 / 更新 / 获取 / 推送(开对话框)/ 重命名 / 删除。
  * checkout 脏工作区冲突:libgit2 safe 模式拒绝 → 后端给出「先提交或暂存」引导,不擅自 force。
+ * merge/rebase 冲突:git CLI 留标准中间态(E_SHELL 透传),幕布终端可接管收尾。
  * 远程行检出:建同名本地分支并建跟踪(checkout_remote),本地同名已存在由后端拒绝。
  */
 
@@ -20,7 +22,9 @@ import {
   type BranchMenuState,
 } from "./BranchContextMenu";
 import { GitConfirmDialog, type GitConfirmState } from "./GitConfirmDialog";
-import { setSmartSwitchOrigin } from "../panelStore";
+import { BranchCompareModal, type BranchCompareRequest } from "./BranchCompareModal";
+import { BranchNameDialog, type BranchNameDialogState } from "./BranchNameDialog";
+import { requestRemoteDialog, setSmartSwitchOrigin } from "../panelStore";
 
 interface Props {
   cwd: string;
@@ -44,6 +48,8 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
   const [notice, setNotice] = useState<string | null>(null);
   const [menu, setMenu] = useState<BranchMenuState | null>(null);
   const [confirm, setConfirm] = useState<GitConfirmState | null>(null);
+  const [nameDialog, setNameDialog] = useState<BranchNameDialogState | null>(null);
+  const [compare, setCompare] = useState<BranchCompareRequest | null>(null);
 
   const run = (action: () => Promise<unknown>, okNotice?: string) => {
     setBusy(true);
@@ -102,13 +108,74 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
 
   const menuActions: BranchMenuActions = {
     checkout: confirmSwitch,
+    createFrom: (b) =>
+      setNameDialog({
+        title: "新建分支",
+        source: b.name,
+        sourceLabel: "基于分支:",
+        inputLabel: "新分支名",
+        placeholder: "新分支名...",
+        submitLabel: "创建",
+        onSubmit: (name) =>
+          run(() => ipc.gitCreateBranch(cwd, name, b.name), `已基于 ${b.name} 创建 ${name}`),
+      }),
+    checkoutRebase: (b) => {
+      if (!currentName) return;
+      setConfirm({
+        title: "签出并变基",
+        detail: `确认签出 ${b.name} 并变基到 ${currentName} 吗?冲突时仓库留在变基中间态,可在幕布终端 continue/abort。`,
+        confirmLabel: "签出并变基",
+        onConfirm: () => {
+          const onto = currentName;
+          run(
+            () => ipc.gitCheckout(cwd, b.name).then(() => ipc.gitRebaseBranch(cwd, onto)),
+            `已签出 ${b.name} 并变基到 ${onto}`,
+          );
+        },
+      });
+    },
+    compareWithCurrent: (b) => setCompare({ mode: "compare", target: b.name }),
+    diffWithWorktree: (b) => setCompare({ mode: "worktree", branch: b.name }),
+    rebaseCurrentOnto: (b) => {
+      if (!currentName) return;
+      setConfirm({
+        title: "当前分支变基",
+        detail: `确认将当前分支 ${currentName} 变基到 ${b.name} 吗?冲突时仓库留在变基中间态,可在幕布终端 continue/abort。`,
+        confirmLabel: "变基",
+        onConfirm: () =>
+          run(() => ipc.gitRebaseBranch(cwd, b.name), `已将 ${currentName} 变基到 ${b.name}`),
+      });
+    },
+    mergeIntoCurrent: (b) =>
+      setConfirm({
+        title: "合并分支",
+        detail: `确认将 ${b.name} 合并到当前分支吗?冲突时仓库留在合并中间态,可在幕布终端处理。`,
+        confirmLabel: "合并",
+        onConfirm: () =>
+          run(
+            () => ipc.gitMergeBranch(cwd, b.name),
+            `已合并 ${b.name} 到 ${currentName ?? "当前分支"}`,
+          ),
+      }),
     pull: (b) =>
       run(
         () => ipc.gitPullPush(cwd, "pull", b.name),
         b.name === currentName ? `已更新 ${b.name}` : `已 fast-forward ${b.name}`,
       ),
     fetch: (b) => run(() => ipc.gitPullPush(cwd, "fetch", b.name), `已获取 ${b.name} 的远端引用`),
-    push: (b) => run(() => ipc.gitPullPush(cwd, "push", b.name), `已推送 ${b.name}`),
+    push: () => requestRemoteDialog("push"),
+    rename: (b) =>
+      setNameDialog({
+        title: "重命名分支",
+        source: b.name,
+        sourceLabel: "原分支名:",
+        inputLabel: "新分支名",
+        initial: b.name,
+        placeholder: "请输入新的分支名称",
+        submitLabel: "重命名",
+        onSubmit: (name) =>
+          run(() => ipc.gitRenameBranch(cwd, b.name, name), `已重命名 ${b.name} 为 ${name}`),
+      }),
     remove: (b) =>
       setConfirm({
         title: `删除分支 ${b.name}?`,
@@ -190,6 +257,17 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
       )}
 
       {confirm && <GitConfirmDialog state={confirm} onClose={() => setConfirm(null)} />}
+      {nameDialog && (
+        <BranchNameDialog state={nameDialog} onClose={() => setNameDialog(null)} />
+      )}
+      {compare && (
+        <BranchCompareModal
+          cwd={cwd}
+          currentName={currentName}
+          request={compare}
+          onClose={() => setCompare(null)}
+        />
+      )}
     </div>
   );
 }

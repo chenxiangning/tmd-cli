@@ -134,3 +134,18 @@ export interface GitPushPreview {
   hasMore: boolean;
   commits: GitLogEntry[];
 }
+
+/** 分支对比:双向唯一提交(targetOnly = target 有 current 无;反向 currentOnly)。 */
+export interface GitBranchCompareSet {
+  targetOnly: GitLogEntry[];
+  currentOnly: GitLogEntry[];
+}
+
+/** 工作树对分支的差异清单项(不带 patch;patch 按需单文件拉)。 */
+export interface GitBranchDiffFile {
+  path: string;
+  /** rename/copy 来源路径;非 rename 为 null */
+  oldPath: string | null;
+  /** M / A / D / R / C / T(与 GitFileStatus.status 同口径) */
+  status: string;
+}

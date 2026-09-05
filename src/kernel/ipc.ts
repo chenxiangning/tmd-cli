@@ -39,6 +39,8 @@ export type {
 export type * from "./gitContract";
 import type {
   GitAheadBehind,
+  GitBranchCompareSet,
+  GitBranchDiffFile,
   GitBranchList,
   GitCommitFile,
   GitCommitInput,
@@ -338,6 +340,9 @@ export const ipc = {
   /** 提交内单文件 patch;path 按 新路径/rename 来源 匹配。 */
   gitCommitFilePatch: (cwd: string, sha: string, path: string) =>
     invoke<GitFilePatch | null>("git_commit_file_patch", { cwd, sha, path }),
+  /** 提交完整 message(首行+正文;分支对比详情面板)。 */
+  gitCommitMessage: (cwd: string, sha: string) =>
+    invoke<string>("git_commit_message", { cwd, sha }),
   gitBranches: (cwd: string) => invoke<GitBranchList>("git_branches", { cwd }),
   gitCheckout: (cwd: string, name: string) =>
     invoke<void>("git_checkout", { cwd, name }),
@@ -348,6 +353,29 @@ export const ipc = {
     invoke<void>("git_create_branch", { cwd, name, from: from ?? null }),
   gitDeleteBranch: (cwd: string, name: string, force: boolean) =>
     invoke<void>("git_delete_branch", { cwd, name, force }),
+  /** 合并分支到当前分支(冲突留 MERGE_HEAD 中间态,幕布终端可接管)。 */
+  gitMergeBranch: (cwd: string, name: string) =>
+    invoke<void>("git_merge_branch", { cwd, name }),
+  /** 当前分支变基到 onto(冲突留 rebase-merge 中间态)。 */
+  gitRebaseBranch: (cwd: string, onto: string) =>
+    invoke<void>("git_rebase_branch", { cwd, onto }),
+  /** 重命名本地分支(git branch -m;upstream 配置随迁)。 */
+  gitRenameBranch: (cwd: string, oldName: string, newName: string) =>
+    invoke<void>("git_rename_branch", { cwd, oldName, newName }),
+  /** 分支对比:双向唯一提交(limit 缺省 200,clamp 1..500)。低频,菜单触发。 */
+  gitBranchCompare: (cwd: string, target: string, current: string, limit?: number) =>
+    invoke<GitBranchCompareSet>("git_branch_compare", {
+      cwd,
+      target,
+      current,
+      limit: limit ?? null,
+    }),
+  /** 工作树对分支的差异文件清单(不带 patch)。 */
+  gitBranchWorktreeFiles: (cwd: string, branch: string) =>
+    invoke<GitBranchDiffFile[]>("git_branch_worktree_files", { cwd, branch }),
+  /** 工作树对分支的单文件 patch(path 按 新路径/rename 来源 匹配)。 */
+  gitBranchWorktreePatch: (cwd: string, branch: string, path: string) =>
+    invoke<GitFilePatch | null>("git_branch_worktree_patch", { cwd, branch, path }),
   gitFetch: (cwd: string) => invoke<string>("git_fetch", { cwd }),
   /** pull/push/fetch 统一入口;branch 缺省作用于当前分支(fetch 缺省 = --all --prune)。
    *  pull 非当前分支 = 仅 fast-forward 上游引用;fetch 带分支 = 刷新该分支上游引用。 */

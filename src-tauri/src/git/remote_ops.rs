@@ -95,7 +95,7 @@ pub fn run(
 }
 
 /// 组装并执行 git 命令:非交互环境 + 总时长上限 + 双管道排空。
-fn exec_git(repo: &Repository, cwd: &str, args: &[String]) -> Result<String, GitError> {
+pub(super) fn exec_git(repo: &Repository, cwd: &str, args: &[String]) -> Result<String, GitError> {
     let mut cmd = Command::new("git");
     cmd.current_dir(cwd).env("GIT_TERMINAL_PROMPT", "0");
     crate::resolve::hide_console(&mut cmd);
@@ -140,7 +140,7 @@ fn exec_git(repo: &Repository, cwd: &str, args: &[String]) -> Result<String, Git
                     /* 不 join 读线程:git 的 ssh 孙进程可能仍握管道写端,
                      * join 会把锁持有时间拖到孙进程消亡 —— 接收端直接丢弃 */
                     return Err(GitError::empty(
-                        "git 网络操作超时(>300s),已中止;请检查网络/远端后重试",
+                        "git 操作超时(>300s),已中止;请检查网络/远端后重试",
                     ));
                 }
                 std::thread::sleep(REMOTE_POLL);
