@@ -637,6 +637,8 @@ export interface QuotaFetchSpec {
   method?: string;
   headers?: Record<string, string>;
   body?: string;
+  /** true = 响应按原始文本返回(body 为字符串),跳过 JSON 解析(如 atom/xml 源)。 */
+  text?: boolean;
 }
 
 export interface QuotaFetchResponse {

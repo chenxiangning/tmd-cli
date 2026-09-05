@@ -6,12 +6,12 @@
  *   │ (注册表动作…)        □ │  ← 右侧复选框 = pin 到底栏
  *   │ 设置                    │
  *   └────────────────────────┘
- *   [logo] [pinned…]      v0.1.0  ← 底栏
+ *   [logo] [pinned…]      v0.1.1  ← 底栏
  *
  * 动作数据源 = kernel/sidebarActions 注册表(插件 activate 时自注册),
  * 本组件只渲染注册表与钉住状态,不认识任何具体动作 —— 与右栏面板同纪律。
  * 「设置」行是壳自有入口(openSettingsPanel),钉住/pin 上限 4 同 codemoss。
- * 版本号取 Tauri app version,浏览器 dev 环境回退 "0.1.0"。
+ * 版本号取 Tauri app version,浏览器 dev 环境回退 "0.1.1"。
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -20,6 +20,7 @@ import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { openSettingsPanel, useSettingsState } from "@kernel/settings";
 import logoUrl from "../assets/logo.png";
 import { Settings } from "lucide-react";
+import { VersionPopover } from "./VersionPopover";
 
 /** 底栏空间有限,最多外显 4 个快捷入口(同 codemoss SIDEBAR_SETTINGS_PINNED_MAX)。 */
 const PINNED_MAX = 4;
@@ -71,7 +72,9 @@ function PinCheckbox({
 export function SidebarSettingsCluster() {
   const [open, setOpen] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<string[]>(loadPinned);
-  const [version, setVersion] = useState("0.1.0");
+  const [version, setVersion] = useState("0.1.1");
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [aboutAnchor, setAboutAnchor] = useState({ x: 0, y: 0 });
   /* 订阅设置仅作重渲染触发:动作的 active 是渲染期求值的 getter,
      设置变更(如代理开关)时本簇重渲、getter 重新取值;壳不读任何具体字段。 */
   useSettingsState();
@@ -81,7 +84,7 @@ export function SidebarSettingsCluster() {
   useEffect(() => {
     appVersion()
       .then(setVersion)
-      .catch(() => setVersion("0.1.0")); // 纯浏览器 dev(vite)下无 Tauri runtime
+      .catch(() => setVersion("0.1.1")); // 纯浏览器 dev(vite)下无 Tauri runtime
   }, []);
 
   /* 点击外部 / Esc 关菜单。 */
@@ -210,7 +213,26 @@ export function SidebarSettingsCluster() {
           );
         })}
         <span className="settings-cluster-spacer" />
-        <span className="settings-cluster-version">v{version}</span>
+        <button
+          type="button"
+          className="settings-cluster-version"
+          aria-label="版本与更新"
+          title="版本与更新"
+          onClick={() => {
+            const rect = rootRef.current?.getBoundingClientRect();
+            /* 面板(300px)宽于侧栏:锚定簇左缘、悬于底栏上方,越界由弹窗内夹取。 */
+            setAboutAnchor({ x: rect?.left ?? 0, y: rect?.top ?? 0 });
+            setAboutOpen(true);
+          }}
+        >
+          v{version}
+        </button>
+        <VersionPopover
+          open={aboutOpen}
+          anchor={aboutAnchor}
+          currentVersion={version}
+          onClose={() => setAboutOpen(false)}
+        />
       </div>
     </div>
   );

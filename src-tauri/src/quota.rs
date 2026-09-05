@@ -12,6 +12,9 @@ pub struct QuotaRequest {
     pub method: Option<String>,
     pub headers: Option<HashMap<String, String>>,
     pub body: Option<String>,
+    /// true = 响应按原始文本返回(body 为 JSON 字符串值),跳过 JSON 解析。
+    /// 供非 JSON 源使用(如 GitHub releases.atom 更新源)。
+    pub text: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -58,12 +61,16 @@ pub async fn quota_fetch(spec: QuotaRequest) -> Result<QuotaResponse, String> {
         .await
         .map_err(|e| format!("http read body: {e}"))?;
 
-    let body: serde_json::Value = serde_json::from_str(&body_text).map_err(|e| {
-        /* 非 JSON 响应常是 CJK/HTML 错误页:按字节切 500 会劈进多字节字符 → panic(abort)。
-         * 按字符截断,天然落在边界上。 */
-        let preview: String = body_text.chars().take(200).collect();
-        format!("http parse json: {e}; body={preview}")
-    })?;
+    let body: serde_json::Value = if spec.text.unwrap_or(false) {
+        serde_json::Value::String(body_text)
+    } else {
+        serde_json::from_str(&body_text).map_err(|e| {
+            /* 非 JSON 响应常是 CJK/HTML 错误页:按字节切 500 会劈进多字节字符 → panic(abort)。
+             * 按字符截断,天然落在边界上。 */
+            let preview: String = body_text.chars().take(200).collect();
+            format!("http parse json: {e}; body={preview}")
+        })?
+    };
 
     Ok(QuotaResponse { status, body })
 }
