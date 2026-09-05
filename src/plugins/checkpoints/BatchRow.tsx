@@ -107,12 +107,12 @@ export function BatchRow({
 
   return (
     <div className="relative mb-1.5">
-      {!last && <span className="absolute bottom-1 left-[15px] top-6 w-px bg-(--tmd-border)" aria-hidden />}
+      {!last && <span className="absolute bottom-1 left-[9px] top-6 w-px bg-(--tmd-border)" aria-hidden />}
 
       {/* 批头 → 审阅单 */}
       <button
         type="button"
-        className="relative z-[1] flex w-full items-start gap-2 rounded-(--tmd-radius-sm) px-2.5 py-1.5 text-left hover:bg-(--tmd-bg-hover)"
+        className="relative z-[1] flex w-full items-start gap-2 rounded-(--tmd-radius-sm) py-1.5 pl-1 pr-2.5 text-left hover:bg-(--tmd-bg-hover)"
         title={
           `点击审阅该批(用户消息 + 文件 diff) · ${formatAbsolute(b.ts)} 发起` +
           (b.tsEnd ? ` · ${formatAbsolute(b.tsEnd)} 封口` : "")
