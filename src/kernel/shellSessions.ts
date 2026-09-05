@@ -8,7 +8,8 @@
  */
 
 import { KernelTopics, type EventBus, type SessionStartFailedEvent } from "./events";
-import { ipc, onPtyExit, onPtyOutput, type SessionMeta, type SpawnedSession } from "./ipc";
+import { ipc, type SessionMeta, type SpawnedSession } from "./ipc";
+import { adoptPtySession, ADOPT_RACE_REASON } from "./sessionAdopt";
 import { getPlatformKind } from "./platform";
 import { getActiveWorkspace, getWorkspaces } from "./workspace";
 
@@ -82,25 +83,11 @@ export class ShellSessionService {
     return this.adopt(spawned);
   }
 
-  /** spawn 共用装配:常驻订阅输出与退出、广播会话表。 */
+  /** spawn 共用装配(订阅/守卫/广播见 kernel/sessionAdopt.ts);守卫命中已广播,抛出上抛。 */
   private async adopt(spawned: SpawnedSession): Promise<SessionMeta> {
     await this.h.refreshSessions();
-    const offOutput = await onPtyOutput(spawned.id, (text) => {
-      if (this.h.findSession(spawned.id)) this.h.appendOutput(spawned.id, text);
-    });
-    const offExit = await onPtyExit(spawned.id, () => {
-      void this.h.removeSession(spawned.id);
-      this.events.emit(KernelTopics.sessionExited, spawned.id);
-    });
-    /* removeSession 插进两次订阅 await 之间 → 退订表查不到会漏退订:复查存活,已删则成对退订 */
-    if (!this.h.findSession(spawned.id)) {
-      [offOutput, offExit].forEach((off) => off());
-      return this.h.findSession(spawned.id)!;
-    }
-    this.h.trackUnlisten(spawned.id, [offOutput, offExit]);
-    this.events.emit(KernelTopics.sessionsChanged, this.h.getSessions());
-    this.events.emit(KernelTopics.activeSessionChanged, spawned.id);
-    this.h.notify();
-    return this.h.findSession(spawned.id)!;
+    const meta = await adoptPtySession(this.h, this.events, spawned.id, { profileId: "shell" });
+    if (!meta) throw new Error(ADOPT_RACE_REASON);
+    return meta;
   }
 }

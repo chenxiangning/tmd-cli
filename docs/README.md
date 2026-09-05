@@ -23,7 +23,7 @@
 | 2026-09-01 | [项目启动：为什么另起炉灶](brainstorm/2026-09-01-kickoff.md) | 进行中 |
 | 2026-09-01 | [mossx 对话框能力盘点](research/mossx-composer-capabilities.md) | 已完成 |
 | 2026-09-01 | [mossx Git 能力盘点](research/mossx-git-capabilities.md) | 已完成 |
-| 2026-09-01 | [omp/pi/codex/claude/grok/kimi/qoder CLI 能力矩阵](research/cli-trigger-and-session-matrix.md) | 已完成 |
+| 2026-09-06 | [类似客户端产品盘点(GitHub,12 家公开项目 + 4 家闭源背景)](research/similar-products.md) | 已完成 |
 | 2026-09-01 | [omp CLI 学习笔记(14 课主课 + prompts/ 用户速查)](research/omp-cli-course/README.md) | 已完结 |
 | 2026-09-03 | [omp 最近版本升级记录(v18.0.7-18.1.6)](research/omp-cli-course/releases.md) | 持续更新 |
 | 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-04 校准) |
@@ -70,5 +70,6 @@
 | 2026-09-06 | [内置终端:terminal 插件(SSH 一等会话同构)+ 头部左区入口](superpowers/specs/2026-09-06-terminal-plugin-design.md) | 已落地 |
 | 2026-09-06 | [快捷键系统架构契约:kernel 命令注册表](architecture/03-shortcuts.md) | 已落地 |
 | 2026-09-06 | [版本号点击弹窗:更新记录 + 在线更新检查](superpowers/specs/2026-09-06-update-check-changelog-design.md) | 已落地(实现随本 spec 提交) |
+| 2026-09-06 | [发版前代码评审(死代码/P1 缺陷/P2 修复)](review/2026-09-06-prerelease-code-review.md) | 已落地(修复全绿,缓修 4 项见文末) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

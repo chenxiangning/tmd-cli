@@ -163,7 +163,7 @@ export function MemoryCapsule() {
 
       {injected && (
         <div className="flex-none truncate border-b border-(--tmd-border) px-2.5 py-1 text-[10.5px] text-(--tmd-accent)">
-          已注入 {checkedCount} 条为消息前缀,发送后 claude 将按项目约束执行。
+          已注入 {checkedCount} 条为消息前缀,发送后 {profile?.name ?? "当前 CLI"} 将按项目约束执行。
         </div>
       )}
     </>

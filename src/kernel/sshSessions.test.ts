@@ -1,15 +1,14 @@
 /**
- * 内置终端会话装配契约测试(kernel/shellSessions.ts)。
+ * SSH 会话装配契约测试(kernel/sshSessions.ts)。
  *
- * 覆盖:无工作区拒 spawn(广播 sessionStartFailed + 抛出)、spawn spec 形状
- * (profileId="shell" / kind="shell" / title=shell 名 / cwd=工作区 root)、
- * exit 清场(removeSession + sessionExited 广播)、输出接线(存活守卫:
- * 已删会话的迟到输出不复活缓冲)、双订阅 await 缝隙的成对退订(漏退订 =
- * 泄漏 PTY 事件订阅)。ipc/workspace/platform 注入替身,不触真实 host。
+ * 覆盖:创建走 sshSessionCreate(参数透传 host/cwd/workspaceId)、装配广播
+ * (sessionsChanged + activeSessionChanged)、exit 清场、双订阅 await 缝隙的
+ * 竞态守卫(成对退订 + 广播 sessionStartFailed + 抛出,不说谎的非空断言)。
+ * ipc/workspace 注入替身,不触真实 host。
  */
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { SessionMeta } from "./ipc";
-import { getActiveWorkspace } from "./workspace";
+import type { SshHostConfig } from "./sshTypes";
 
 const exitCbs = new Map<string, () => void>();
 const outputCbs = new Map<string, (text: string) => void>();
@@ -18,8 +17,8 @@ const offs: Mock[] = [];
 
 vi.mock("./ipc", () => ({
   ipc: {
-    sessionSpawn: vi.fn(async () => ({ id: "s1", pid: 100 })),
-    sessionList: vi.fn(async () => []),
+    sshSessionCreate: vi.fn(async () => ({ id: "ssh-1", pid: 200 })),
+    sshSessionReconnect: vi.fn(async () => ({ id: "ssh-2", pid: 201 })),
   },
   onPtyOutput: vi.fn(async (id: string, cb: (text: string) => void) => {
     outputCbs.set(id, cb);
@@ -41,21 +40,29 @@ vi.mock("./workspace", () => ({
   getActiveWorkspace: vi.fn(() => activeWorkspace),
 }));
 
-/* 平台钉住 macos:defaultShell 断言 zsh -l(纯 node 环境探测器不可靠)。 */
-vi.mock("./platform", () => ({
-  getPlatformKind: () => "macos",
-}));
-
 import { ipc } from "./ipc";
 import { EventBus, KernelTopics } from "./events";
-import { ShellSessionService } from "./shellSessions";
+import { SshSessionService } from "./sshSessions";
+
+const hostConfig: SshHostConfig = {
+  id: "h1",
+  name: "dev",
+  host: "192.168.1.10",
+  port: 22,
+  username: "u",
+  authType: "password",
+  password: "p",
+  privateKey: "",
+  privateKeyPath: "",
+  privateKeyPassphrase: "",
+};
 
 function mkService(findAlive: (id: string) => boolean = () => true) {
   const h = {
     refreshSessions: vi.fn(async () => {}),
     findSession: vi.fn(
       (id: string) =>
-        (findAlive(id) ? { id, profileId: "shell", cwd: "/repo" } : undefined) as
+        (findAlive(id) ? { id, profileId: "ssh", cwd: "/repo" } : undefined) as
           | SessionMeta
           | undefined,
     ),
@@ -75,66 +82,62 @@ function mkService(findAlive: (id: string) => boolean = () => true) {
   ]) {
     events.on(topic, (payload: unknown) => fired.push({ topic, payload }));
   }
-  return { svc: new ShellSessionService(h, events), h, events, fired };
+  return { svc: new SshSessionService(h, events), h, events, fired };
 }
 
 beforeEach(() => {
   outputCbs.clear();
   exitCbs.clear();
   offs.length = 0;
-  vi.mocked(ipc.sessionSpawn).mockClear();
+  vi.mocked(ipc.sshSessionCreate).mockClear();
+  vi.mocked(ipc.sshSessionReconnect).mockClear();
 });
 
-describe("ShellSessionService", () => {
-  it("无工作区:不 spawn,广播 sessionStartFailed 并抛出", async () => {
-    vi.mocked(getActiveWorkspace).mockReturnValueOnce(null);
-    const { svc, fired } = mkService();
-    await expect(svc.create()).rejects.toThrow("没有活跃工作区");
-    expect(ipc.sessionSpawn).not.toHaveBeenCalled();
+describe("SshSessionService", () => {
+  it("创建:sshSessionCreate 参数透传 + 装配广播", async () => {
+    const { svc, h, fired } = mkService();
+    const meta = await svc.create(hostConfig);
+    expect(meta).toMatchObject({ id: "ssh-1" });
+    expect(ipc.sshSessionCreate).toHaveBeenCalledWith(hostConfig, "/repo", "ws1");
+    expect(h.trackUnlisten).toHaveBeenCalledWith("ssh-1", [expect.any(Function), expect.any(Function)]);
     expect(fired).toEqual([
-      { topic: KernelTopics.sessionStartFailed, payload: expect.objectContaining({ profileId: "shell" }) },
+      { topic: KernelTopics.sessionsChanged, payload: h.getSessions() },
+      { topic: KernelTopics.activeSessionChanged, payload: "ssh-1" },
     ]);
   });
 
-  it("spawn spec 形状:profileId/kind/title/cwd/workspaceId + 装配广播", async () => {
-    const { svc, h, fired } = mkService();
-    const meta = await svc.create();
-    expect(meta).toMatchObject({ id: "s1" });
-    expect(ipc.sessionSpawn).toHaveBeenCalledWith(
-      "shell",
-      { command: "zsh", args: ["-l"], cwd: "/repo", kind: "shell", title: "zsh" },
-      "ws1",
-    );
-    expect(h.trackUnlisten).toHaveBeenCalledWith("s1", [expect.any(Function), expect.any(Function)]);
-    expect(fired).toEqual([
-      { topic: KernelTopics.sessionsChanged, payload: h.getSessions() },
-      { topic: KernelTopics.activeSessionChanged, payload: "s1" },
-    ]);
+  it("重连形态:第一参传旧会话 id → sshSessionReconnect", async () => {
+    const { svc } = mkService();
+    const meta = await svc.create("ssh-old");
+    expect(meta).toMatchObject({ id: "ssh-2" });
+    expect(ipc.sshSessionReconnect).toHaveBeenCalledWith("ssh-old", "/repo", "ws1");
+    expect(ipc.sshSessionCreate).not.toHaveBeenCalled();
   });
 
   it("exit 清场:removeSession + sessionExited 广播;已删会话的迟到输出不复活缓冲", async () => {
     const alive = { on: true };
-    const { svc, h } = mkService((id) => alive.on && id === "s1");
-    await svc.create();
-    outputCbs.get("s1")?.("chunk");
-    expect(h.appendOutput).toHaveBeenCalledWith("s1", "chunk");
-    exitCbs.get("s1")?.();
-    expect(h.removeSession).toHaveBeenCalledWith("s1");
+    const { svc, h, fired } = mkService((id) => alive.on && id === "ssh-1");
+    await svc.create(hostConfig);
+    outputCbs.get("ssh-1")?.("chunk");
+    expect(h.appendOutput).toHaveBeenCalledWith("ssh-1", "chunk");
+    exitCbs.get("ssh-1")?.();
+    expect(h.removeSession).toHaveBeenCalledWith("ssh-1");
+    expect(fired.some((f) => f.topic === KernelTopics.sessionExited)).toBe(true);
     alive.on = false;
-    outputCbs.get("s1")?.("late");
+    outputCbs.get("ssh-1")?.("late");
     expect(h.appendOutput).toHaveBeenCalledTimes(1);
   });
 
   it("双订阅 await 缝隙被删:成对退订 + 广播 sessionStartFailed + 抛出(非空断言已消灭)", async () => {
     const { svc, h, fired } = mkService(() => false);
-    await expect(svc.create()).rejects.toThrow("会话在装配期间被移除");
+    await expect(svc.create(hostConfig)).rejects.toThrow("会话在装配期间被移除");
     expect(offs).toHaveLength(2);
     expect(offs.every((off) => off.mock.calls.length === 1)).toBe(true);
     expect(h.trackUnlisten).not.toHaveBeenCalled();
     expect(fired).toEqual([
       {
         topic: KernelTopics.sessionStartFailed,
-        payload: expect.objectContaining({ sessionId: "s1", profileId: "shell" }),
+        payload: expect.objectContaining({ sessionId: "ssh-1", profileId: "ssh" }),
       },
     ]);
   });

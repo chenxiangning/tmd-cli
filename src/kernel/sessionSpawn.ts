@@ -9,14 +9,8 @@
  */
 
 import { KernelTopics, type EventBus, type SessionStartFailedEvent } from "./events";
-import {
-  ipc,
-  onPtyExit,
-  onPtyOutput,
-  type SessionMeta,
-  type SpawnSpec,
-  type SpawnedSession,
-} from "./ipc";
+import { ipc, type SessionMeta, type SpawnSpec, type SpawnedSession } from "./ipc";
+import { adoptPtySession, ADOPT_RACE_REASON } from "./sessionAdopt";
 import type { CliProfile } from "./cli";
 
 /** spawn 后多久内退出视为「启动失败」。node 系 CLI 冷启动数秒,窗口取宽些。 */
@@ -50,6 +44,8 @@ interface SessionSpawnHost {
   /** 活会话表(读:身份去重/存活复查;写:spawn 后以 Rust 注册表为准刷新)。 */
   getSessions(): SessionMeta[];
   setSessions(sessions: SessionMeta[]): void;
+  /** 活会话查存(装配竞态守卫,见 kernel/sessionAdopt.ts)。 */
+  findSession(sessionId: string): SessionMeta | undefined;
   /** 活跃指针直写(装配内置新会话为 active;广播由本件发,不走 setActiveSession)。 */
   setActiveSessionId(id: string): void;
   /** 活跃指针公开语义(去重聚焦已有会话:含已读标记/状态刷新/广播)。 */
@@ -180,7 +176,10 @@ export class SessionSpawnService {
     });
   }
 
-  /** spawn 后的统一装配:绑定磁盘身份、刷新活表、置为 active、常驻订阅输出与退出。 */
+  /**
+   * spawn 后的统一装配:绑定磁盘身份、刷新活表、置为 active、常驻订阅输出与退出
+   * (订阅/竞态守卫/广播收口在 kernel/sessionAdopt.ts;守卫命中已广播,抛出上抛)。
+   */
   private async adoptSpawned(
     sessionId: string,
     profileId: string,
@@ -192,33 +191,19 @@ export class SessionSpawnService {
     if (cliSessionId) this.h.bindIdentity(sessionId, cliSessionId);
     this.h.setSessions(await ipc.sessionList());
     this.h.setActiveSessionId(sessionId);
-    // 常驻订阅：从会话诞生起就持续缓冲输出，与幕布是否挂载无关。
+    /* 常驻订阅从会话诞生起持续缓冲输出(与幕布是否挂载无关);
+       秒退守望经 onExit 进退出回调 —— 缓冲随 removeSession 即清,摘尾须在清理前同步执行 */
     const adoptedAt = Date.now();
-    const offOutput = await onPtyOutput(sessionId, (text) => {
-      /* 存活守卫:退订前在途的迟到输出不得复活已删会话的缓冲/呼吸灯状态 */
-      if (!this.h.getSessions().some((s) => s.id === sessionId)) return;
-      this.h.appendOutput(sessionId, text);
+    const meta = await adoptPtySession(this.h, this.events, sessionId, {
+      profileId,
+      onExit: (id) => this.emitIfStartFailed(id, profileId, adoptedAt),
     });
-    const offExit = await onPtyExit(sessionId, () => {
-      /* 秒退守望:缓冲随 removeSession 即清,报错摘要须在清理前同步摘取 */
-      this.emitIfStartFailed(sessionId, profileId, adoptedAt);
-      void this.h.removeSession(sessionId);
-      this.events.emit(KernelTopics.sessionExited, sessionId);
-    });
-    /* removeSession 插进两次订阅 await 之间 → 退订表查不到会漏退订:复查存活,已删则成对退订 */
-    if (!this.h.getSessions().some((s) => s.id === sessionId)) {
-      [offOutput, offExit].forEach((off) => off());
-      return this.h.getSessions().find((s) => s.id === sessionId)!;
-    }
-    this.h.trackUnlisten(sessionId, [offOutput, offExit]);
-    this.events.emit(KernelTopics.sessionsChanged, this.h.getSessions());
-    this.events.emit(KernelTopics.activeSessionChanged, sessionId);
-    this.h.notify();
+    if (!meta) throw new Error(ADOPT_RACE_REASON);
     this.h.statusEnsurePolling();
     void this.h.statusRefresh(sessionId);
     /* 全新会话创建即赋值:磁盘文件要等首条消息才落盘,先种 CLI 默认配置 */
     if (!cliSessionId) void this.h.statusSeed(sessionId);
-    return this.h.getSessions().find((s) => s.id === sessionId)!;
+    return meta;
   }
 
   /** 启动窗口内退出 = 启动失败:摘幕布尾部广播 sessionStartFailed(Toast 呈现)。 */

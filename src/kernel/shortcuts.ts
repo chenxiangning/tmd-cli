@@ -17,6 +17,7 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { getPlatformKind } from "./platform";
 
 /** 分发器/终端桥共用的最小按键面(xterm 桥传入的是其 KeyboardEvent 子集)。 */
 export interface ShortcutKeyEvent {
@@ -34,7 +35,9 @@ export interface CommandContribution {
   title: string;
   /**
    * 键位串,修饰键前缀写法:"Cmd+K"、"Cmd+Shift+E"、"Cmd+Alt+B"、"Cmd+1"。
-   * Cmd 在 macOS 匹配 metaKey、其他平台匹配 ctrlKey(二者任一即视为按下)。
+   * Cmd 平台严格分流:macOS 仅匹配 metaKey,其他平台仅匹配 ctrlKey ——
+   * macOS 的 Ctrl+键是终端/Emacs 键生态(⌃A/⌃E/⌃K…),不得被全局快捷键劫持;
+   * unknown(纯浏览器 dev 探测失败)保持二者任一的宽松兜底。
    * 缺省 = 未绑定,仅进注册表(设置清单以「未绑定」呈现,为改键期备数据面)。
    */
   keybinding?: string;
@@ -86,7 +89,12 @@ function eventMatches(cmd: CommandContribution, e: ShortcutKeyEvent): boolean {
   if (!cmd.keybinding) return false;
   const parsed = parseKeybinding(cmd.keybinding);
   if (!parsed) return false;
-  if ((e.metaKey || e.ctrlKey) !== parsed.meta) return false;
+  /* 平台严格分流(见 CommandContribution.keybinding):macOS 仅 metaKey、
+     其他平台仅 ctrlKey;unknown 宽松兜底(二者任一)。 */
+  const kind = getPlatformKind();
+  const cmdPressed =
+    kind === "macos" ? e.metaKey : kind === "unknown" ? e.metaKey || e.ctrlKey : e.ctrlKey;
+  if (cmdPressed !== parsed.meta) return false;
   if (e.shiftKey !== parsed.shift) return false;
   if (e.altKey !== parsed.alt) return false;
   return e.key.toLowerCase() === parsed.key;

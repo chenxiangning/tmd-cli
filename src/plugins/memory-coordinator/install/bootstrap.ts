@@ -21,21 +21,26 @@ if (!distDir) {
   process.exit(0);
 }
 
-// 定位含 openDatabase 的 chunk(dist chunk 文件名随版本变化,不做硬编码)
+// 定位 core chunk(导出 openDatabase)与 util chunk(导出 getMagicContextStorageDir):
+// dist chunk 文件名随版本变化,一律动态扫描导出面,不硬编码哈希文件名
 const chunks = fs
   .readdirSync(distDir)
   .filter((f) => /^index-[\w-]+\.js$/.test(f))
   .map((f) => path.join(distDir, f));
 let core = null;
+let util = null;
 for (const file of chunks) {
   const mod = await import(pathToFileUrl(file));
-  if (typeof mod.openDatabase === "function") {
-    core = mod;
-    break;
-  }
+  if (!core && typeof mod.openDatabase === "function") core = mod;
+  if (!util && typeof mod.getMagicContextStorageDir === "function") util = mod;
+  if (core && util) break;
 }
 if (!core) {
   console.log("REFUSED openDatabase-chunk-not-found");
+  process.exit(0);
+}
+if (!util) {
+  console.log("REFUSED util-chunk-not-found");
   process.exit(0);
 }
 
@@ -44,8 +49,7 @@ function pathToFileUrl(p) {
   return "file://" + (abs.startsWith("/") ? abs : "/" + abs);
 }
 
-const util = await import(pathToFileUrl(path.join(distDir, "index-147qn1yq.js"))).catch(() => null);
-const storageDir = util?.getMagicContextStorageDir?.() ?? null;
+const storageDir = util.getMagicContextStorageDir() ?? null;
 
 const db = core.openDatabase(storageDir ? { dbPath: path.join(storageDir, "context.db") } : {});
 if (!db) {

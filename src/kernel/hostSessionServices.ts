@@ -63,6 +63,7 @@ export function createSessionServices(
         getCliProfile: (id) => ctx.getCliProfile(id),
         getSessions: base.getSessions,
         setSessions: (sessions) => ctx.setSessions(sessions),
+        findSession: base.findSession,
         setActiveSessionId: (id) => ctx.setActiveSessionId(id),
         setActiveSession: (id) => ctx.setActiveSession(id),
         bindIdentity: (sessionId, cliSessionId) =>

@@ -21,24 +21,6 @@ export interface InstallStepResult {
   message: string;
 }
 
-export type InstallPhase =
-  | "idle"
-  | "detecting"
-  | "installing"
-  | "configuring"
-  | "migrating"
-  | "blocked"
-  | "ready"
-  | "failed";
-
-export interface InstallProgress {
-  phase: InstallPhase;
-  /** 终端式进度行(UI 逐条渲染)。 */
-  lines: string[];
-  /** 迁移被外部进程阻塞时的 PID 列表(blocked 态非空)。 */
-  blockedPids: number[];
-}
-
 async function run(cmd: string, args: string[], timeoutMs: number): Promise<ProcRunResult> {
   return ipc.procCommunicate({ command: cmd, args, cwd: ".", timeoutMs });
 }

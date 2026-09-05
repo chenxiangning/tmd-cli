@@ -80,7 +80,7 @@
 
 ### 1.4 为什么不接 Git Graph
 
-截图底部 "Git Graph" 入口指向 codemoss `src/features/git-history/`——28,100 行 / 68 文件。不接的 4 个独立原因:
+截图底部 "Git Graph" 入口指向 codemoss `src/features/git-history/`(本仓 git 面板实现位于 `src/plugins/git/`)——28,100 行 / 68 文件。不接的 4 个独立原因:
 
 1. **依赖 workspaceId 多仓库管理** —— tmd `Session = cwd + PTY` 1:1,引入即架构撕裂
 2. **依赖 codemoss 私有框架** —— i18n / 异步样式加载 / Workspace Picker / PR Workflow,tmd 均无

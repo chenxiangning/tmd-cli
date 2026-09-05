@@ -52,6 +52,15 @@ fn decode_utf8_chunk(tail: &mut Vec<u8>, chunk: &[u8]) -> String {
     text
 }
 
+/// 泵循环收尾:tail 残留 = 永远等不到后续字节的不完整 UTF-8 序列(进程最后
+/// 输出的半个字符),按 U+FFFD 替换取出;空 tail 返回 None(无残留不补发)。
+fn flush_utf8_tail(tail: &mut [u8]) -> Option<String> {
+    if tail.is_empty() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(tail).into_owned())
+}
+
 /// 输出聚合窗:首个 chunk 到达后再收 8ms 内的后续 chunk,拼成一个事件发出。
 /// 8KB/次的 read 在高吞吐场景(编译刷屏、cat 大文件)会打成事件风暴,
 /// Tauri IPC 序列化 + WebView 派发是主线程开销大头;8ms ≈ 半个 60fps 帧,
@@ -199,6 +208,11 @@ pub(crate) fn spawn(
                 break; // 前端已销毁
             }
         }
+        /* 泵循环结束仍残留的 tail = 不完整 UTF-8 序列(进程最后输出的半个字符),
+        永远等不到后续字节 —— 按 U+FFFD 替换补发,不静默吞掉 */
+        if let Some(text) = flush_utf8_tail(&mut tail) {
+            let _ = out_app.emit(&event, text);
+        }
         /* 进程退出即会话销毁:清理日志文件与账本(kill 路径同样经由此处) */
         if let Some(path) = log_path.as_ref() {
             let _ = std::fs::remove_file(path);
@@ -252,5 +266,18 @@ mod tests {
         let mut tail = Vec::new();
         let text = decode_utf8_chunk(&mut tail, &[0xff, b'a']);
         assert_eq!(text, "\u{FFFD}a");
+    }
+
+    #[test]
+    fn flush_utf8_tail_泵尾残留的不完整序列补替换符() {
+        /* "中"(UTF-8: E4 B8 AD)只到了 2 字节进程就退出:残留 tail 按 U+FFFD 补发 */
+        let mut tail = vec![0xE4, 0xB8];
+        assert_eq!(flush_utf8_tail(&mut tail), Some("\u{FFFD}".to_string()));
+    }
+
+    #[test]
+    fn flush_utf8_tail_空尾不补发() {
+        let mut tail = Vec::new();
+        assert_eq!(flush_utf8_tail(&mut tail), None);
     }
 }

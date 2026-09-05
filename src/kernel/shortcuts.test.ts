@@ -11,11 +11,18 @@ type ShortcutsModule = typeof import("./shortcuts");
 
 let sc: ShortcutsModule;
 
+/** 可控平台(默认 unknown = 宽松兜底,既有用例行为不变)。 */
+let platformKind: "macos" | "windows" | "linux" | "unknown" = "unknown";
+vi.mock("./platform", () => ({
+  getPlatformKind: () => platformKind,
+}));
+
 function keyEvent(key: string, extra?: Partial<ShortcutKeyEvent>): ShortcutKeyEvent {
   return { key, metaKey: true, ctrlKey: false, shiftKey: false, altKey: false, ...extra };
 }
 
 beforeEach(async () => {
+  platformKind = "unknown";
   vi.resetModules();
   // 动态 import 例外:被测模块是模块级单例,必须借 resetModules 取全新实例
   sc = await import("./shortcuts");
@@ -102,6 +109,38 @@ describe("registerCommand", () => {
   });
 });
 
+
+describe("平台修饰键分流(macOS 的 Ctrl+键不被全局快捷键劫持)", () => {
+  it("macOS:Cmd+K 仅匹配 metaKey;Ctrl+K 穿透(留给终端/Emacs 键生态)", () => {
+    platformKind = "macos";
+    sc.registerCommand({
+      id: "t.k",
+      title: "K",
+      keybinding: "Cmd+K",
+      scope: "terminal",
+      run: () => undefined,
+    });
+    expect(sc.matchTerminalCommand(keyEvent("k"))?.id).toBe("t.k");
+    expect(
+      sc.matchTerminalCommand(keyEvent("k", { metaKey: false, ctrlKey: true })),
+    ).toBeUndefined();
+  });
+
+  it("Windows:Cmd+K 仅匹配 ctrlKey;metaKey 穿透", () => {
+    platformKind = "windows";
+    sc.registerCommand({
+      id: "t.k",
+      title: "K",
+      keybinding: "Cmd+K",
+      scope: "terminal",
+      run: () => undefined,
+    });
+    expect(
+      sc.matchTerminalCommand(keyEvent("k", { metaKey: false, ctrlKey: true }))?.id,
+    ).toBe("t.k");
+    expect(sc.matchTerminalCommand(keyEvent("k"))).toBeUndefined();
+  });
+});
 
 describe("终端桥 matchTerminalCommand", () => {
   it("只匹配 terminal 作用域;global 命令不可见", () => {

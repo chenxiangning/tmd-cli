@@ -55,10 +55,6 @@ export function registerSidebarAction(action: SidebarAction): void {
   emit();
 }
 
-export function getSidebarActions(): readonly SidebarAction[] {
-  return state.actions;
-}
-
 export function useSidebarActions(): readonly SidebarAction[] {
   return useSyncExternalStore(
     (fn) => {

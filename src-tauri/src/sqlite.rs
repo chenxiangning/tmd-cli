@@ -3,7 +3,9 @@
 //! 设计边界:JS 无法解析 sqlite,由 Rust 代读;但内核不理解任何 CLI 的
 //! 库路径/表结构/SQL —— 调用方(插件侧,知识沉淀在 cli-shared)自带
 //! dbPath 与语句,内核只保证两件事:
-//! - 只读打开(SQLITE_OPEN_READ_ONLY,写语句在连接层即被拒绝);
+//! - READ_WRITE 打开 + query_only 连接:WAL 库的未 checkpoint 数据只在
+//!   -wal 里,READ_ONLY 连接无法重放 WAL 会看不到最新行;query_only 在
+//!   连接层保证语句级只读(写语句被拒绝),重放所需的写句柄不落成数据写;
 //! - 参数化绑定(?N 占位,防注入)。
 //!
 //! 库不存在返回空行集,不抛错(调用方据此显示空态)。

@@ -26,6 +26,8 @@ export function CommitComposer({
   const [amend, setAmend] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* 提交成功的用户可见反馈(与 error 同槽位家族;下一次编辑/提交即清)。 */
+  const [note, setNote] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -53,13 +55,14 @@ export function CommitComposer({
     if (!canCommit || busy) return;
     setBusy(true);
     setError(null);
+    setNote(null);
     ipc.gitCommit(cwd, [...checked], { message, amend }).then(
       (sha) => {
         setMessage("");
         setAmend(false);
         setBusy(false);
         setError(null);
-        console.info(`已提交 ${sha.slice(0, 7)}`);
+        setNote(`已提交 ${sha.slice(0, 7)}`);
         onCommitted();
       },
       (e: unknown) => {
@@ -76,7 +79,10 @@ export function CommitComposer({
         <textarea
           ref={inputRef}
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            setNote(null);
+          }}
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
               e.preventDefault();
@@ -91,6 +97,11 @@ export function CommitComposer({
       {error && (
         <div className="mt-1 bg-(--tmd-bg-sunken) px-2 py-1 text-(--tmd-diff-removed)">
           {error}
+        </div>
+      )}
+      {note && (
+        <div className="mt-1 bg-(--tmd-bg-sunken) px-2 py-1 text-(--tmd-diff-inserted)">
+          {note}
         </div>
       )}
       <div className="mt-1.5 flex items-center gap-2.5 text-[11px] text-(--tmd-fg-faint)">

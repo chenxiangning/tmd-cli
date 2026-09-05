@@ -32,8 +32,6 @@ export async function detectNode(): Promise<NodeEnv> {
   }
 }
 
-export type HarnessKind = "omp" | "pi" | "opencode";
-
 /** omp 插件清单是否已含 pi-magic-context(omp plugin list 文本判定)。 */
 export async function detectOmpPluginInstalled(): Promise<boolean> {
   try {
