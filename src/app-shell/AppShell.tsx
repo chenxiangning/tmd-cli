@@ -48,6 +48,8 @@ import { SidebarSettingsCluster } from "./SidebarSettingsCluster";
 import { PluginMarketPage } from "./PluginMarketPage";
 import { StartFailureToast } from "./StartFailureToast";
 import { useEditorMaximized } from "./editorMaximized";
+import { shellBarToggles } from "./shortcutCommands";
+import { installShortcutDispatcher } from "@kernel/shortcuts";
 
 function usePersistedToggle(key: string, initial: boolean) {
   const [open, setOpen] = useState(
@@ -302,6 +304,18 @@ export function AppShell() {
     );
     probe.remove();
   }, []);
+
+  /* 全局快捷键分发器:挂载期安装一次,卸载退订;命令本体在 ./shortcutCommands 模块级注册。 */
+  useEffect(() => installShortcutDispatcher(), []);
+  /* 栏折叠是组件局部状态:经 ref 桥喂给模块级命令(同 TerminalView 的 findRequestRef)。 */
+  useEffect(() => {
+    shellBarToggles.left = toggleLeft;
+    shellBarToggles.right = toggleRight;
+    return () => {
+      shellBarToggles.left = null;
+      shellBarToggles.right = null;
+    };
+  }, [toggleLeft, toggleRight]);
 
   return (
     <div className={`app ${platform}-desktop flex h-screen w-screen flex-col bg-(--tmd-bg-base) text-(--tmd-fg)`}>

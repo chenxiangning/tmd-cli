@@ -26,6 +26,12 @@ import {
 import { subscribeThemeApplied } from "@kernel/theme";
 import { createReplayInputGate } from "@kernel/terminalInputGate";
 import { isTerminalReport } from "@kernel/terminalReports";
+import {
+  matchTerminalCommand,
+  registerCommand,
+  setTerminalFocused,
+  type ShortcutKeyEvent,
+} from "@kernel/shortcuts";
 
 /** 每次翻页向日志读取的历史字节数(512KB)。 */
 const HISTORY_PAGE_BYTES = 512 * 1024;
@@ -41,6 +47,20 @@ function readTerminalTheme(): ITheme {
     selectionBackground: read("--tmd-terminal-selection"),
   };
 }
+
+/* ── 终端作用域命令桥(spec 2026-09-05-shortcuts) ──
+ * 终端内自由快捷键一律不变:键照旧进 PTY,只有 terminal 作用域命令经
+ * attachCustomKeyEventHandler 桥触发。一期唯一成员 terminal.find(⌘F,行为
+ * 与桥接入前完全一致);搜索 UI 归内核终端本体,故命令在此登记,组件实例
+ * 经 findRequestRef 接收触发。 */
+const findRequestRef: { current: (() => void) | null } = { current: null };
+registerCommand({
+  id: "terminal.find",
+  title: "终端搜索",
+  keybinding: "Cmd+F",
+  scope: "terminal",
+  run: () => findRequestRef.current?.(),
+});
 
 /* 导出级 memo:props 仅 { sessionId: string } 原始类型,浅比较稳定;
    会话切换经 key={activeId} 重挂载,不受影响。内部逻辑零改动。 */
@@ -94,17 +114,32 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     term.loadAddon(search);
     /* 链接点击 → 系统浏览器(Tauri webview 内 window.open 不可靠,走 shell 插件)。 */
     term.loadAddon(new WebLinksAddon((_event, uri) => void openExternalUrl(uri)));
-    /* Cmd/Ctrl+F 打开搜索框,拦截不写入 PTY。
-       代价:Linux/Windows 下占用 shell 的 readline 前进字符键,换取应用级搜索。 */
-    term.attachCustomKeyEventHandler((e) => {
-      if (e.type === "keydown" && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
-        setSearchOpen(true);
-        return false;
-      }
-      return true;
+    /* 终端桥:先查注册表的 terminal 作用域命令(命中 = 应用级,拦截不写 PTY),
+       未命中放行 —— 终端内自由快捷键与桥接入前完全一致。⌘F 的 readline 代价
+       注释见 shortcuts.ts 纪律段。 */
+    term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      if (e.type !== "keydown") return true;
+      const probe: ShortcutKeyEvent = {
+        key: e.key,
+        metaKey: e.metaKey,
+        ctrlKey: e.ctrlKey,
+        shiftKey: e.shiftKey,
+        altKey: e.altKey,
+      };
+      const cmd = matchTerminalCommand(probe);
+      if (!cmd) return true;
+      void cmd.run();
+      return false;
     });
+    /* 聚焦态馈入分发器:终端聚焦期间 global 命令完全静默(键照旧进 PTY)。
+       xterm v6 无 onFocus/onBlur 事件,借容器 focusin/focusout(冒泡可达)。 */
+    const onFocusIn = () => setTerminalFocused(true);
+    const onFocusOut = () => setTerminalFocused(false);
+    container.addEventListener("focusin", onFocusIn);
+    container.addEventListener("focusout", onFocusOut);
     term.open(container);
     fit.fit();
+    findRequestRef.current = () => setSearchOpen(true);
 
     /* WebGL 渲染器:omp/claude 全屏重绘的性能关键。必须在 open 之后加载;
        无 WebGL 环境(部分 Linux WebKitGTK)或上下文丢失时回退 DOM 渲染,行为与之前一致。 */
@@ -202,6 +237,9 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     return () => {
       clearInterval(askProbe);
       offTheme();
+      container.removeEventListener("focusin", onFocusIn);
+      container.removeEventListener("focusout", onFocusOut);
+      findRequestRef.current = null;
       unregisterTerminalHandle(sessionId, terminalHandle);
       offLive();
       offInput.dispose();

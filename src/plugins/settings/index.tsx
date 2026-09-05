@@ -5,15 +5,16 @@
  * 1. contribute("overlay") → SettingsPanel 全屏面板壳(渲染注册表内容)。
  * 2. registerSettingsSection → 基础设置/外观 tab(主题模式 + preset 网格)。
  *
- * 后续其它设置域(CLI 配置/快捷键/项目管理)由各自插件注册新 section,
+ * 后续其它设置域(CLI 配置/项目管理)由各自插件注册新 section,
  * 本文件不需要改动 —— 设置面板是注册表驱动的开放结构。
  */
 
-import { Keyboard, Monitor, Settings } from "lucide-react";
+import { Command, Keyboard, Monitor, Settings } from "lucide-react";
 import type { Plugin } from "@kernel/plugin";
 import { SettingsPanel } from "./SettingsPanel";
 import { BasicAppearanceTab } from "./BasicAppearanceTab";
 import { BehaviorTab } from "./BehaviorTab";
+import { ShortcutTab } from "./ShortcutTab";
 
 export const settingsPlugin: Plugin = {
   id: "settings",
@@ -47,6 +48,13 @@ export const settingsPlugin: Plugin = {
           icon: <Keyboard size={14} aria-hidden />,
           order: 1,
           component: BehaviorTab,
+        },
+        {
+          id: "shortcuts",
+          title: "快捷键",
+          icon: <Command size={14} aria-hidden />,
+          order: 2,
+          component: ShortcutTab,
         },
       ],
     });

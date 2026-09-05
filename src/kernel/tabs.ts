@@ -116,6 +116,11 @@ export function getActiveTabId(): string | null {
   return state.activeId;
 }
 
+/** 激活 tab 本体(快捷键 when 等非响应式查询用);无激活 tab 返回 null。 */
+export function getActiveTab(): EditorTab | null {
+  return state.tabs.find((t) => t.id === state.activeId) ?? null;
+}
+
 /* ── tab 内容路由 ───────────────────────────────────────────────
  * 中央编辑区的内容组件按 tab.kind 路由:插座裁决渲染权,插件只注册自己
  * kind 的组件 —— 取代旧的 editorCenter.tabContent 挂点(全量挂载 + 各自

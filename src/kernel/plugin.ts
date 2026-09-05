@@ -12,6 +12,7 @@ import type { SettingsSectionContribution } from "./settingsRegistry";
 import type { FilePanelContribution } from "./filePanel";
 import type { TabContentContribution } from "./tabs";
 import type { FileVisualProvider } from "./fileVisual";
+import type { CommandContribution } from "./shortcuts";
 import type { SidebarAction } from "./sidebarActions";
 export type PluginCategory = "engine" | "feature" | "core";
 
@@ -36,7 +37,8 @@ interface PluginMeta {
  *  僵尸声明一经发现即删(曾清理 footer.left/right、leftRail/rightRail)。 */
 export type MountPoint =
   | "header.left"
-  | "header.right"
+  /** 头部左区按钮簇(折叠左栏/插件市场/回到首页所在 titlebar 左区,按钮列尾追加)。 */
+  | "header.leftCluster"
   /** 头部面包屑/工作区-会话导航区。 */
   | "header.breadcrumb"
   | "leftSidebar.section"
@@ -76,6 +78,8 @@ export interface PluginContext {
   registerSidebarAction(action: SidebarAction): void;
   /** 注册文件视觉 provider(fileVisual 注册表的 ctx 通道)。 */
   registerFileVisual(provider: FileVisualProvider): void;
+  /** 注册一条快捷键命令(shortcuts 注册表的 ctx 通道;键位语义归插件,内核只做分发)。 */
+  registerCommand(command: CommandContribution): void;
   /** 内核事件总线（跨插件通信唯一通道）。 */
   events: EventBus;
 }

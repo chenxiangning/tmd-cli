@@ -34,7 +34,7 @@ import { lookupSuggestions } from "../triggers/suggest";
 import { SuggestionList } from "./SuggestionList";
 import { shouldSendOnEnter } from "./enterAction";
 import { useActiveProfile } from "../state/useActiveProfile";
-import { toggleDrawer, useDrawerOpen } from "../state/drawerOpen";
+import { useDrawerOpen } from "../state/drawerOpen";
 import { CommandDrawer } from "./CommandDrawer";
 import {
   resolveProfileDrawerItems,
@@ -53,6 +53,10 @@ function drawerWireText(item: DrawerItem): string {
   if (item.token) return item.token.trim();
   return item.section === "skill" ? `$${item.name}` : `/${item.name}`;
 }
+
+/* composer.send 命令桥 —— 发送闭包长在组件实例上,命令 run 经此触达
+   (TerminalView findRequestRef 先例:命令注册在插件 activate 期,实例经模块级 ref 交接) */
+export const composerSendRef: { current: (() => void) | null } = { current: null };
 
 export function Composer() {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -102,19 +106,12 @@ export function Composer() {
     return () => { cancelled = true; };
   }, [drawerOpen, profile, cwd]);
 
-  /* ⌘/Ctrl+K 开合(监听放常挂的 Composer:抽屉关着也要能开)。
-     与工具栏按钮同门控:无活跃会话不开;按住不放不重复触发 */
+  /* composer.send 命令桥:每次渲染同步最新发送闭包(latest-ref),卸载断开。
+     ⌘K 开合已收编为 composer.toggleDrawer 命令(注册见插件入口);发送路径零改动 */
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        if (e.repeat || !host.getActiveSessionId()) return;
-        e.preventDefault();
-        toggleDrawer();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
+    composerSendRef.current = () => sendCurrent();
+    return () => { composerSendRef.current = null; };
+  });
 
   /* send 与手动发送完全同路径(prepareSendPayload → host.writeSession,translate 生效,零拦截;
      writeSession 同时锚定对话(呼吸灯首写闸) —— 用户首写后的输出才按对话语义结算呼吸灯);

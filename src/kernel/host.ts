@@ -23,7 +23,8 @@ import { registerSettingsSection } from "./settingsRegistry";
 import { registerFilePanel } from "./filePanel";
 import { registerTabContent } from "./tabs";
 import { registerFileVisual } from "./fileVisual";
-import { registerSidebarAction } from "./sidebarActions";
+import { registerSidebarAction, type SidebarAction } from "./sidebarActions";
+import { registerCommand } from "./shortcuts";
 import { registerQuotaProvider } from "./quota";
 
 class Host implements PluginContext {
@@ -146,12 +147,25 @@ class Host implements PluginContext {
     this.mounts.set(point, list);
     this.notify();
   }
-  /* 注册表通道自驱动通知(或 activate 期登记),纯委托即可。 */
+  /* 注册表通道自驱动通知(或 activate 期登记),纯委托即可(sidebarAction 例外,见下)。 */
   registerSettingsSection = registerSettingsSection;
   registerFilePanel = registerFilePanel;
   registerTabContent = registerTabContent;
-  registerSidebarAction = registerSidebarAction;
+  /* 侧栏动作 → 无键位命令镜像(全量暴露进命令注册表,设置清单可见,为改键期
+     备数据面)。内核不识业务语义:id/label/run 均取自 action 本身,属通用机制。
+     键盘路径无真实点击锚点,给视口左下角作缺省锚点 —— 浮层类动作自带视口
+     夹取定位(如 ProxyPopover),落点仍在左栏簇一带;非浮层动作(如 git-graph)
+     本就忽略锚点。 */
+  registerSidebarAction = (action: SidebarAction): void => {
+    registerSidebarAction(action);
+    registerCommand({
+      id: `sidebar.${action.id}`,
+      title: action.label,
+      run: () => action.onSelect({ x: 8, y: window.innerHeight - 8 }),
+    });
+  };
   registerFileVisual = registerFileVisual;
+  registerCommand = registerCommand;
 
   // ---- 插件生命周期(委托 kernel/pluginLifecycle) ----------------------------
 

@@ -11,7 +11,9 @@
 
 import type { ComponentType } from "react";
 import { host } from "@kernel/host";
-import { getFilePanels, type FilePanelIcon } from "@kernel/filePanel";
+import { getFilePanels, setFilePanelMode, type FilePanelIcon } from "@kernel/filePanel";
+import { openSettingsPanel } from "@kernel/settings";
+import type { CommandContribution } from "@kernel/shortcuts";
 import type { CliProfile, CliSuggestion, SuggestionAction } from "@kernel/cli";
 
 /** 抽屉分区;plugin 区数据来自内核注册表,与 CLI profile 无关。 */
@@ -144,6 +146,28 @@ export function pluginDrawerItems(
         openSettings: !panel,
       };
     });
+}
+
+/* ---------- plugin 区条目 → 无键位命令(spec「插件动作全量暴露」,消费侧映射) ---------- */
+
+/**
+ * 抽屉 plugin 区可执行条目 → 无键位命令(仅进注册表,设置清单以「未绑定」呈现)。
+ * 准入与 pluginDrawerItems 一致(启用 ∩ feature,lockstep);run 即条目 open 语义:
+ * 命中右栏面板开面板,无面板兜底开设置。插件启停 = 重启生效,
+ * 故插件 activate 期一次性注册与抽屉实况恒一致。
+ */
+export function pluginDrawerCommands(): CommandContribution[] {
+  return host
+    .listPluginStates()
+    .filter((s) => s.enabled && s.plugin.meta.category === "feature")
+    .map<CommandContribution>((s) => ({
+      id: `composer.drawer.${s.plugin.id}`,
+      title: `打开 ${s.plugin.meta.name}`,
+      run: () => {
+        if (getFilePanels().some((p) => p.id === s.plugin.id)) setFilePanelMode(s.plugin.id);
+        else openSettingsPanel();
+      },
+    }));
 }
 
 /* ---------- 总入口 ---------- */

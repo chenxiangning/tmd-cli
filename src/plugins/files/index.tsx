@@ -9,11 +9,12 @@
  * 注册点:
  * - fileVisual:可插拔文件图标/颜色(编辑器高亮走 CodeMirror)
  * - filePanel:{ refresh / newFile / newFolder } 槽,外壳 subbar 按钮消费
+ * - shortcuts:files.save(⌘S 保存本地文件,when 限定激活 tab 为本地文件)
  */
 import { useCallback, useEffect, useState } from "react";
 import { ChevronRight, Copy, FilePen, Folder, FolderOpen, RefreshCw } from "lucide-react";
 import { ipc, type DirEntry } from "@kernel/ipc";
-import { getTabs } from "@kernel/tabs";
+import { getActiveTab, getTabs } from "@kernel/tabs";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { clearDragPayload, setDragPayload } from "@kernel/internalDrag";
 import { useWorkspaces } from "@kernel/workspace";
@@ -23,6 +24,7 @@ import { defaultFileVisualProvider } from "./fileVisual";
 import { openFileInTab } from "./openFile";
 import { useTreeOperations } from "./useTreeOperations";
 import { reloadFile } from "./editor/fileCache";
+import { saveRequestRef } from "./editor/useFileDocument";
 import { FileTreeContextMenu } from "./FileTreeContextMenu";
 import { NamePrompt } from "./NamePrompt";
 
@@ -392,5 +394,14 @@ export const filesPlugin: Plugin = {
     });
     /* 中央文件 tab 内容:kind="file" 路由(kernel/tabs 注册表)。 */
     ctx.registerTabContent({ kind: "file", component: FileTabContent });
+    /* ⌘S 保存命令:when 限定激活 tab 为本地文件 tab(kind="file"),否则键穿透;
+       与 ssh.saveRemoteFile 同键,靠 when 互斥。触发经模块级 ref 桥转发到挂载中的编辑器。 */
+    ctx.registerCommand({
+      id: "files.save",
+      title: "保存本地文件",
+      keybinding: "Cmd+S",
+      when: () => getActiveTab()?.kind === "file",
+      run: () => saveRequestRef.current?.(),
+    });
   },
 };
