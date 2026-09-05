@@ -1,27 +1,38 @@
 /* ssh 插件 —— 设置页主机簿 / 模态 / 远端编辑器 tab(与 ssh.css 同插件拆件) */
 
-/* ── 设置页 ── */
+/* ── 设置页(单 tab section 不渲染 tab 条,内容自行补顶部节奏) ── */
 .ssh-settings {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-top: 24px;
 }
 .ssh-settings-toolbar {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+.ssh-settings-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--tmd-fg-faint);
 }
 .ssh-host-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .ssh-host-card {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   border: 1px solid var(--tmd-border);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 10px 12px;
+  transition: border-color 0.12s ease;
+}
+.ssh-host-card:hover {
+  border-color: var(--tmd-border-strong);
 }
 .ssh-host-card-main {
   flex: 1;
@@ -29,15 +40,35 @@
 }
 .ssh-host-card-name {
   font-size: 12px;
+  font-weight: 600;
   color: var(--tmd-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ssh-host-card-endpoint {
   font-size: 11px;
   color: var(--tmd-fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ssh-auth-chip {
+  flex: none;
+  font-size: 10px;
+  color: var(--tmd-fg-faint);
+  border: 1px solid var(--tmd-border);
+  border-radius: 4px;
+  padding: 1px 5px;
 }
 .ssh-host-card-actions {
   display: flex;
-  gap: 4px;
+  gap: 2px;
+}
+/* 空态虚线框只在分区直接子级生效(modal 内复用同名类不描边)。 */
+.ssh-settings > .ssh-settings-empty {
+  border: 1px dashed var(--tmd-border);
+  border-radius: 8px;
 }
 
 /* 模态(主机编辑/导入) */

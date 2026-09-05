@@ -75,7 +75,8 @@ export function SettingsPanel() {
               <p className="settings-subtitle">{activeSection.description}</p>
             )}
 
-            {activeSection.tabs.length > 0 && (
+            {/* 单 tab section 不渲染 tab 条:孤零零一个 tab 配通栏下划线观感差,内容直接平铺。 */}
+            {activeSection.tabs.length > 1 && (
               <div className="settings-tabs" role="tablist">
                 {activeSection.tabs.map((tab) => (
                   <button

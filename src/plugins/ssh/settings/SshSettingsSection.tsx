@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { KeyRound, Plus, RefreshCw, Server, Trash2, Upload } from "lucide-react";
+import { KeyRound, Pencil, Plus, Server, Trash2, Upload } from "lucide-react";
 import { ipc, type SshHostConfig } from "@kernel/ipc";
 import { getSettingsState, updateSettings } from "@kernel/settings";
 import { scanSshImportCandidates, type SshImportCandidate } from "../scan";
@@ -61,6 +61,7 @@ export function SshSettingsSection() {
         <button type="button" className="ssh-btn" onClick={() => setImportOpen(true)}>
           <Upload size={12} /> 从 ~/.ssh/config 导入
         </button>
+        {hosts.length > 0 && <span className="ssh-settings-count">{hosts.length} 台主机</span>}
       </div>
       {hosts.length === 0 ? (
         <div className="ssh-settings-empty">
@@ -75,22 +76,24 @@ export function SshSettingsSection() {
                 <div className="ssh-host-card-endpoint">
                   {host.username ? `${host.username}@` : ""}
                   {host.host}
-                  {host.port && host.port !== 22 ? `:${host.port}` : ""} · {authLabel(host)}
+                  {host.port && host.port !== 22 ? `:${host.port}` : ""}
                 </div>
               </div>
+              <span className="ssh-auth-chip">{authLabel(host)}</span>
               <div className="ssh-host-card-actions">
                 <button
                   type="button"
+                  className="ssh-icon-btn"
                   title="重置主机密钥信任(下次连接重新确认)"
                   onClick={() => void resetKnownHost(host)}
                 >
-                  <KeyRound size={11} />
+                  <KeyRound size={13} />
                 </button>
-                <button type="button" title="编辑" onClick={() => setEditing(host)}>
-                  <RefreshCw size={11} />
+                <button type="button" className="ssh-icon-btn" title="编辑" onClick={() => setEditing(host)}>
+                  <Pencil size={13} />
                 </button>
-                <button type="button" title="删除" onClick={() => removeHost(host)}>
-                  <Trash2 size={11} />
+                <button type="button" className="ssh-icon-btn" title="删除" onClick={() => removeHost(host)}>
+                  <Trash2 size={13} />
                 </button>
               </div>
             </div>
