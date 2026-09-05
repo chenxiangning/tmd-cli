@@ -17,6 +17,7 @@
 @import "./settings-cluster.css";
 @import "./settings-panel.css";
 @import "./welcome.css";
+@import "./welcome-creds.css";
 @import "./plugin-market.css";
 @import "./plugin-market-cards.css";
 @import "./composer-attachments.css";

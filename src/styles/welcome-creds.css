@@ -1,0 +1,143 @@
+/* ──────────────────────────────────────────────────────────
+ * Welcome 页 · 供应商/额度子区(自 welcome.css 拆分,500 行铁则)。
+ *
+ * 颜色零硬编码,全部消费 --tmd-* token。
+ * ────────────────────────────────────────────────────────── */
+
+.welcome-creds {
+  border-top: 1px solid var(--tmd-border);
+  padding: 6px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 每供应商 1 行 = 2 列: 定宽标题列 + 窗口列(跨行同 x 起点) */
+.welcome-cred {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  align-items: center;
+  gap: 12px;
+  min-height: 22px;
+}
+
+.welcome-cred-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.welcome-cred-title {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.welcome-cred-plan {
+  font-size: 11px;
+  color: var(--tmd-fg-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 5h 段固定第 1 格,7d/30d 段固定第 2 格(缺窗格留空,不错位) */
+.welcome-cred-windows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 14px;
+  align-items: center;
+  min-width: 0;
+}
+
+.welcome-cred-window {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+/* 周级窗口落第 2 列(类替代 inline style,窄断点可直接覆写) */
+.welcome-cred-window--weekly {
+  grid-column: 2;
+}
+
+.welcome-cred-window-label {
+  font-size: 11px;
+  color: var(--tmd-fg-muted);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.welcome-cred-window-bar {
+  flex: 1;
+  min-width: 20px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--tmd-bg-sunken);
+  overflow: hidden;
+}
+
+.welcome-cred-window-fill {
+  display: block;
+  height: 100%;
+  background: var(--tmd-accent);
+  border-radius: 999px;
+}
+
+/* 7天/30天窗口: 橘色(沿用 quota.css rgb(255,140,60)) */
+.welcome-cred-window-fill--weekly {
+  background: rgb(255, 140, 60);
+}
+
+.welcome-cred-window-pct {
+  width: 30px; /* 定宽 → 条右缘跨行对齐 */
+  font-size: 11px;
+  color: var(--tmd-fg-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  flex-shrink: 0;
+}
+
+.welcome-cred-window-reset {
+  flex: 0 1 104px; /* 基准 104 定宽槽保跨行对齐;窄窗收缩为省略号,不撑爆轨道 */
+  min-width: 0;
+  font-size: 11px;
+  color: var(--tmd-fg-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.welcome-cred-body {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.welcome-cred-balance {
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.welcome-cred-note {
+  font-size: 11px;
+  color: var(--tmd-fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 窄窗口: 欢迎页可被压到 ~360px 逻辑宽 ──
+   标题独占一行,窗口区全宽;所有行同模板 → 跨行 5h/7d 仍同 x 对齐 */
+@media (max-width: 560px) {
+  .welcome-cred {
+    grid-template-columns: 1fr;
+    gap: 2px 12px;
+  }
+}

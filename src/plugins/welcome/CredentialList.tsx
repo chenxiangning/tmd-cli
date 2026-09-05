@@ -51,8 +51,11 @@ function CredWindow({ w }: { w: QuotaWindow }) {
   const weekly = isWeeklyWindow(w.label);
   return (
     <div
-      className="welcome-cred-window"
-      style={{ gridColumn: weekly ? 2 : 1 }}
+      className={
+        weekly
+          ? "welcome-cred-window welcome-cred-window--weekly"
+          : "welcome-cred-window"
+      }
       title={windowTooltip(w)}
     >
       <span className="welcome-cred-window-label">
