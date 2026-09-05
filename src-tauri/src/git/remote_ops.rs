@@ -293,11 +293,7 @@ pub struct GerritExtra {
 
 const PULL_STRATEGIES: [&str; 4] = ["--rebase", "--ff-only", "--no-ff", "--squash"];
 
-pub fn run_request(
-    repo: &Repository,
-    cwd: &str,
-    req: RemoteRequest,
-) -> Result<String, GitError> {
+pub fn run_request(repo: &Repository, cwd: &str, req: RemoteRequest) -> Result<String, GitError> {
     let args = match req.op.as_str() {
         "fetch" => fetch_request_args(req.remote)?,
         "pull" => pull_request_args(&req)?,
@@ -309,7 +305,7 @@ pub fn run_request(
 
 /// fetch:remote 空 = 全部远端(保留 --prune,清理已删远端分支的引用);
 /// 非空 = 只 fetch 该远端。
-fn fetch_request_args(remote: Option<String>) -> Result<Vec<String>, GitError> {
+pub(super) fn fetch_request_args(remote: Option<String>) -> Result<Vec<String>, GitError> {
     Ok(match non_empty_branch(&remote)? {
         Some(r) => vec!["fetch".into(), r],
         None => vec!["fetch".into(), "--all".into(), "--prune".into()],
@@ -317,9 +313,14 @@ fn fetch_request_args(remote: Option<String>) -> Result<Vec<String>, GitError> {
 }
 
 /// pull 拼装序:`pull [strategy] [--no-commit] [--no-verify] [remote [branch]]`。
-fn pull_request_args(req: &RemoteRequest) -> Result<Vec<String>, GitError> {
+pub(super) fn pull_request_args(req: &RemoteRequest) -> Result<Vec<String>, GitError> {
     let mut args = vec!["pull".to_string()];
-    if let Some(s) = req.strategy.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+    if let Some(s) = req
+        .strategy
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
         if !PULL_STRATEGIES.contains(&s) {
             return Err(GitError::empty(format!("不支持的 pull 策略: {s}")));
         }
@@ -343,9 +344,12 @@ fn pull_request_args(req: &RemoteRequest) -> Result<Vec<String>, GitError> {
 /// push 拼装序:`push [--no-verify] [--force-with-lease] [--follow-tags] [-u] <remote> <refspec>`。
 /// refspec 常规 = `HEAD:<branch>`;Gerrit = `HEAD:refs/for/<branch>[%topic=…,r=…,cc=…]`。
 /// 当前分支无 upstream 时补 `-u` 建跟踪(保持面板直推的既有语义)。
-fn push_request_args(repo: &Repository, req: &RemoteRequest) -> Result<Vec<String>, GitError> {
-    let branch = non_empty_branch(&req.branch)?
-        .ok_or_else(|| GitError::empty("推送目标分支不能为空"))?;
+pub(super) fn push_request_args(
+    repo: &Repository,
+    req: &RemoteRequest,
+) -> Result<Vec<String>, GitError> {
+    let branch =
+        non_empty_branch(&req.branch)?.ok_or_else(|| GitError::empty("推送目标分支不能为空"))?;
     let mut args = vec!["push".to_string()];
     if req.no_verify {
         args.push("--no-verify".into());
@@ -402,7 +406,7 @@ fn push_request_args(repo: &Repository, req: &RemoteRequest) -> Result<Vec<Strin
 }
 
 /// Gerrit refspec 尾巴:`topic=<t>` 在前;reviewers/cc 逗号分隔展开为 `r=<v>` / `cc=<v>`。
-fn gerrit_suffix(g: &GerritExtra) -> String {
+pub(super) fn gerrit_suffix(g: &GerritExtra) -> String {
     let mut parts: Vec<String> = Vec::new();
     if let Some(t) = g.topic.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         parts.push(format!("topic={t}"));
@@ -421,7 +425,9 @@ fn gerrit_suffix(g: &GerritExtra) -> String {
 /// 已配置远端名列表(配置序)。
 pub fn remotes(repo: &Repository) -> Result<Vec<String>, GitError> {
     let list = repo.remotes()?;
-    Ok((0..list.len()).filter_map(|i| list.get(i).map(str::to_string)).collect())
+    Ok((0..list.len())
+        .filter_map(|i| list.get(i).map(str::to_string))
+        .collect())
 }
 
 #[derive(serde::Serialize)]
@@ -468,7 +474,11 @@ pub fn push_preview(
             has_more = true;
             break;
         }
-        commits.push(super::log::entry(repo, oid?, &std::collections::HashMap::new())?);
+        commits.push(super::log::entry(
+            repo,
+            oid?,
+            &std::collections::HashMap::new(),
+        )?);
     }
     Ok(PushPreview {
         source_branch,

@@ -86,20 +86,31 @@ pub fn walk(repo: &Repository, limit: usize, offset: usize) -> Result<Vec<LogEnt
 
     let mut out = Vec::with_capacity(limit.min(256));
     for oid in revwalk.skip(offset).take(limit) {
-        let oid = oid?;
-        let commit = repo.find_commit(oid)?;
-        let long = oid.to_string();
-        let short = long[..7.min(long.len())].to_string();
-        out.push(LogEntry {
-            short_sha: short,
-            long_sha: long,
-            summary: commit.summary().unwrap_or("").to_string(),
-            author_name: commit.author().name().unwrap_or("").to_string(),
-            author_email: commit.author().email().unwrap_or("").to_string(),
-            author_when: commit.author().when().seconds(),
-            parent_shas: commit.parent_ids().map(|o| o.to_string()).collect(),
-            refs: refs.get(&oid).cloned().unwrap_or_default(),
-        });
+        out.push(entry(repo, oid?, &refs)?);
     }
     Ok(out)
+}
+
+/// oid → LogEntry;refs 由调用方提供(walk 传全量映射,预览传空)。
+pub(super) fn entry(
+    repo: &Repository,
+    oid: git2::Oid,
+    refs: &std::collections::HashMap<git2::Oid, Vec<String>>,
+) -> Result<LogEntry, GitError> {
+    let commit = repo.find_commit(oid)?;
+    let long = oid.to_string();
+    let short = long[..7.min(long.len())].to_string();
+    // 先绑 author 局部:Signature 临时借自 commit,直接放尾表达式会被 E0597 卡住
+    let author = commit.author();
+    let item = LogEntry {
+        short_sha: short,
+        long_sha: long,
+        summary: commit.summary().unwrap_or("").to_string(),
+        author_name: author.name().unwrap_or("").to_string(),
+        author_email: author.email().unwrap_or("").to_string(),
+        author_when: author.when().seconds(),
+        parent_shas: commit.parent_ids().map(|o| o.to_string()).collect(),
+        refs: refs.get(&oid).cloned().unwrap_or_default(),
+    };
+    Ok(item)
 }

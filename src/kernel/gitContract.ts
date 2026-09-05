@@ -101,3 +101,36 @@ export interface GitBranchList {
   local: GitBranchInfo[];
   remote: GitBranchInfo[];
 }
+
+/* ── 远端对话框(请求结构对齐 remote_ops.rs RemoteRequest,serde camelCase)── */
+
+/** Gerrit 推送附加项;reviewers/cc 为逗号分隔用户名。 */
+export interface GerritExtra {
+  topic: string | null;
+  reviewers: string | null;
+  cc: string | null;
+}
+
+/** 远端对话框结构化请求;op = "fetch" | "pull" | "push"。 */
+export interface GitRemoteRequest {
+  op: "fetch" | "pull" | "push";
+  /** fetch:null = 全部远端;pull/push 必传(前端兜底 origin) */
+  remote: string | null;
+  /** pull:目标远端分支;push:目标远端分支 */
+  branch: string | null;
+  /** pull 单选:"--rebase" | "--ff-only" | "--no-ff" | "--squash" | null */
+  strategy: string | null;
+  noCommit: boolean;
+  noVerify: boolean;
+  forceWithLease: boolean;
+  followTags: boolean;
+  gerrit: GerritExtra | null;
+}
+
+/** 推送预览:HEAD 相对 <remote>/<branch> 的独有提交(targetFound=false = 新分支首推)。 */
+export interface GitPushPreview {
+  sourceBranch: string;
+  targetFound: boolean;
+  hasMore: boolean;
+  commits: GitLogEntry[];
+}

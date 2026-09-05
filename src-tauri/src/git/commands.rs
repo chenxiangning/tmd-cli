@@ -196,7 +196,10 @@ pub async fn git_push_preview(
     limit: Option<usize>,
 ) -> Result<remote_ops::PushPreview, String> {
     let limit = limit.unwrap_or(120).clamp(1, 500);
-    run(cwd, move |r| remote_ops::push_preview(r, &remote, &branch, limit)).await
+    run(cwd, move |r| {
+        remote_ops::push_preview(r, &remote, &branch, limit)
+    })
+    .await
 }
 
 /// 远端对话框结构化请求(fetch/pull/push 带选项);pull 会移动 HEAD → 写路径 evict。

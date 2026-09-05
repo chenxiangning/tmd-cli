@@ -4,6 +4,8 @@
  * 取数纪律(proposal §2.7):totals 是全仓 diff×2 + 全量读文件计行的重操作,
  * 与 ahead/behind 同为低频命令 —— 不挂 5s 轮询,只在 60s 慢巡航、窗口转可见、
  * 以及写操作后显式 refresh() 时拉取。5s 轮询由 useGitStatus 负责文件清单。
+ * 本 hook 是 totals 的唯一拉取点;聚合数字上顶栏由 GitPanel 经 panelStore 镜像,
+ * GitToolbar 只消费镜像,不另起第二份轮询。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";

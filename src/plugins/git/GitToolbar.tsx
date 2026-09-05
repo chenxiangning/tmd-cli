@@ -16,13 +16,14 @@ import {
 } from "./panelStore";
 
 const VIEW_LABEL: Record<GitViewMode, string> = {
-  diff: "差异 Diff",
+  diff: "差异",
   branch: "分支",
   history: "历史",
 };
 
 export function GitToolbar() {
-  const { view, layout, refreshing } = useGitPanelState();
+  const { view, layout, refreshing, aggregate } = useGitPanelState();
+  const totals = aggregate.totals;
   const viewBtnRef = useRef<HTMLButtonElement>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -52,6 +53,20 @@ export function GitToolbar() {
         {VIEW_LABEL[view]}
         <ChevronDown className="h-3 w-3 text-(--tmd-fg-faint)" aria-hidden />
       </button>
+      {totals && (
+        <span
+          title="聚合增删行数(staged + 未暂存)"
+        >
+          <span className="text-(--tmd-diff-inserted)">
+            +{totals.insertions.toLocaleString("en-US")}
+          </span>
+          <span className="mx-1 text-(--tmd-fg-faint)">/</span>
+          <span className="text-(--tmd-diff-removed)">
+            -{totals.deletions.toLocaleString("en-US")}
+          </span>
+          <span className="ml-1.5 text-(--tmd-fg-muted)">{aggregate.fileCount}</span>
+        </span>
+      )}
       <button
         type="button"
         title="刷新"

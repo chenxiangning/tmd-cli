@@ -29,6 +29,8 @@ mod tests_commit_view;
 #[cfg(test)]
 mod tests_common;
 #[cfg(test)]
+mod tests_remote_dialog;
+#[cfg(test)]
 mod tests_write_ops;
 
 use git2::Repository;
