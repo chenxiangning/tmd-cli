@@ -207,22 +207,20 @@ fn seal_locked(
 /// 双归因:events 分支在 events.rs(build_events_turn_files),git 分支在下方。
 ///
 /// 审计冻结:批一旦发生过回退/应用(审核态带 guard),固化的变更集即成历史
-/// —— 修订重封按 live 重算文件集,被回退删除的文件会以「前后像皆空」被剔出
-/// 批,节点内容凭空消失、应用回此批失去依据(2026-09-05 实证)。反悔清掉
-/// 审核态后解除冻结;此时内容已回到批后像,重封与原批等值,不产生冗余修订。
+/// —— 修订重封不得按 live 重算把已退文件剔出批(2026-09-05 实证:9 文件批缩成
+/// 1 文件)。但冻结期内(回退/应用后、下一锚点前)的手工改动也不允许凭空消失:
+/// 修订 = live 重算 ∪ 被剔出的封印文件(回补原前后像)—— 已退文件保持封印,
+/// 手改文件以新后像入修订,审计链不留洞。反悔清 guard 即解冻。
 fn build_turn_entry(
     cwd: &str,
     anchor: &LedgerEntry,
     entries: &[LedgerEntry],
 ) -> Result<Option<LedgerEntry>, CkptError> {
-    if super::load_states(cwd)
+    let frozen = super::load_states(cwd)
         .batches
         .get(&anchor.id)
         .map(|s| s.guard_id.is_some())
-        .unwrap_or(false)
-    {
-        return Ok(None);
-    }
+        .unwrap_or(false);
     let sidecar = open_sidecar(cwd)?;
     let user = open_user(cwd).ok();
     let root = std::path::PathBuf::from(cwd);
@@ -230,7 +228,7 @@ fn build_turn_entry(
         .iter()
         .rfind(|e| e.kind == "turn" && e.id == anchor.id);
 
-    let turn_files = if anchor.attribution == "events" {
+    let mut turn_files = if anchor.attribution == "events" {
         super::events::build_events_turn_files(&sidecar, &root, anchor, entries)?
     } else {
         let Some(user) = user.as_ref() else {
@@ -238,6 +236,17 @@ fn build_turn_entry(
         };
         super::attribution::build_git_turn_files(&sidecar, user, &root, anchor, entries)?
     };
+    if frozen {
+        // 冻结批修订:live 重算剔出的封印文件(回退删除/还原的)按原前后像回补,
+        // 留在重算结果里的文件(含冻结期手改)以新像入修订 —— 审计链不留洞
+        if let Some(p) = prev {
+            for tf in &p.turn_files {
+                if !turn_files.iter().any(|t| t.path == tf.path) {
+                    turn_files.push(tf.clone());
+                }
+            }
+        }
+    }
     if turn_files.is_empty() {
         // events 归因:写过但净零(写了又写回)也要封口 —— 落一个空 turn 行
         // 把该轮关上(不再被视图当 open);纯阅读轮(无 edit 行)照旧不落账。

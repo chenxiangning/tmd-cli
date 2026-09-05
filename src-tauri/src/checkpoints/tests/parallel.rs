@@ -218,3 +218,47 @@ fn 幽灵锚点_超时未封口_代为收口() {
     let patches = batch_patches(ws.path(), &for_a[0].id).unwrap();
     assert!(patches[0].patch.contains("+v3"), "A 只背自己窗口内的 v2→v3");
 }
+
+#[test]
+fn 冻结期手改_修订回补不留审计洞() {
+    /* 2026-09-05 review 实证:批回退后冻结(guard 在),若修订重封整段跳过,
+    冻结窗口内(回退后、下一锚点前)的手工改动会被下一锚点吞进基线,从此
+    不归入任何批 —— 审计链出洞。定约:冻结批修订 = live 重算 ∪ 回补被剔出
+    的封印文件,手改以新后像入修订。 */
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    ws.anchor("cli-1", "tmd-1", "改 a");
+    tick();
+    ws.write("a.txt", "v2\n");
+    tick();
+    assert!(ws.seal("cli-1", "tmd-1"));
+
+    // 整批回退 → 批冻结;冻结窗口内手工改成 v3-hand(模拟审完又动手)
+    let b = ws.batches("cli-1").into_iter().next().unwrap();
+    super::super::restore_batch(ws.path(), &b.id, None).unwrap();
+    assert_eq!(ws.read("a.txt").as_deref(), Some("v1\n"));
+    tick();
+    ws.write("a.txt", "v3-hand\n");
+    tick();
+
+    // 下一锚点隐式重封:批内容不丢,且手改以新后像入修订
+    ws.anchor("cli-1", "tmd-1", "下一轮");
+    let b1 = ws
+        .batches("cli-1")
+        .into_iter()
+        .find(|x| x.id == b.id)
+        .unwrap();
+    assert_eq!(b1.files.len(), 1, "已退文件不得被修订剔出批");
+    let patches = batch_patches(ws.path(), &b.id).unwrap();
+    assert!(
+        patches[0].patch.contains("+v3-hand"),
+        "冻结期手改必须入修订,不得凭空消失"
+    );
+
+    // 应用回此批:批后像 = 手改后的 v3-hand(修订入批的行为铁证)
+    std::fs::remove_file(std::path::Path::new(ws.path()).join("a.txt")).unwrap();
+    super::super::apply_batch(ws.path(), &b.id, None).unwrap();
+    assert_eq!(ws.read("a.txt").as_deref(), Some("v3-hand\n"));
+}
