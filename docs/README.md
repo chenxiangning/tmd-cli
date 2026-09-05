@@ -60,7 +60,12 @@
 | 2026-09-05 | [会话状态标签:结算归因修正 + SIGWINCH 重绘抑制窗](superpowers/specs/2026-09-05-session-status-settle-attribution-design.md) | 已落地 |
 | 2026-09-05 | [审批线隔离与精准手术:纯事件归因 · 批审计冻结 · 共改文件 diff 擦除](superpowers/specs/2026-09-05-checkpoints-isolation-surgery-design.md) | 已落地 |
 | 2026-09-05 | [插件化架构审查与插座化重构(评审记录)](review/2026-09-05-plugin-socket-refactor.md) | 已落地 |
+| 2026-09-05 | [8 引擎 Memory 治理集成设计 —— Magic Context 走法 B](research/magic-context-8-engine-integration.md) | 已被 spec 取代(保留作调研底稿) |
+| 2026-09-05 | [8 引擎 Memory 集成设计评审(走法 B 首稿)](review/2026-09-05-memory-integration-design-review.md) | 已完成(不通过,退回修订) |
+| 2026-09-05 | [Memory Coordinator 设计:Magic Context 记忆池 + 双通路注入(8 引擎)](superpowers/specs/2026-09-05-memory-coordinator-design.md) | **已批准**(§8 UI 定稿并入;实施契约见 openspec/changes/memory-coordinator/) |
+| 2026-09-05 | [Memory 胶囊最终效果原型(tmd-cli 客户端还原)](design/memory-capsule-demo.html) | 已定稿(随 spec 批准,headless 实测通过) |
 | 2026-09-05 | [opencode CLI 插件化接入设计](superpowers/specs/2026-09-05-opencode-cli-plugin-design.md) | 已落地(实现随本 spec 提交) |
-| 2026-09-05 | [opencode CLI 插件接入评审(换角度)](review/2026-09-05-opencode-plugin-review.md) | 已完成(4×P1+2×P2 全修,deleteSession 钩子随评落地) |
+| 2026-09-05 | [Magic Context PoC 实测报告(安装/schema/计划外发现)](research/magic-context-poc-report.md) | 持续更新(PoC-1 通过) |
+| 2026-09-05 | [应用内全局快捷键系统:kernel 命令注册表 + 插件贡献键位](superpowers/specs/2026-09-05-shortcuts-design.md) | 设计中 |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
