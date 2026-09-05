@@ -7,6 +7,7 @@
  *   files 插件 → { id: "files", label: "文件", ... }
  *   git 插件   → { id: "git",   label: "Git", ... }
  * 外壳(AppShell 右栏 / TopBarPanelTabs)只按注册表渲染 —— 新增面板零改外壳。
+ * 钉住清单按面板 id 持久化 localStorage(key tmd.filePanel.pinned.v1),重启原样恢复。
  */
 
 import { useSyncExternalStore, type ComponentType } from "react";
@@ -46,6 +47,37 @@ export interface FilePanelContribution {
   pinnedByDefault?: boolean;
 }
 
+/* ── 钉住清单持久化 ──
+ * 纯 UI 态,localStorage 即可,不进 settings schema(对齐 sidebarActions /
+ * PinnedSessions 折叠态惯例)。按面板 id 存全量 string[],key 存在即权威:
+ * 注册序(插件 activate)晚于模块加载,registerFilePanel 按表查钉住,
+ * 缺项回落 pinnedByDefault;插件拔出后清单保留原 id,重启用原样恢复。 */
+
+/** 存储 key;值为 string[](已钉面板 id 全集,含用户手动钉的缺省不钉面板)。 */
+const PINNED_STORAGE_KEY = "tmd.filePanel.pinned.v1";
+
+/** 读持久化钉住清单;key 缺失/脏数据/无 Web Storage(node 测试环境)返回 null。 */
+function loadPinnedIds(): ReadonlySet<string> | null {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(PINNED_STORAGE_KEY) ?? "null");
+    if (!Array.isArray(parsed)) return null;
+    return new Set(parsed.filter((v): v is string => typeof v === "string"));
+  } catch {
+    return null;
+  }
+}
+
+/** 模块加载时读一次(此后不变);togglePinned 是唯一写点,全量覆写。 */
+const persistedPinnedIds: ReadonlySet<string> | null = loadPinnedIds();
+
+function persistPinnedIds(ids: ReadonlySet<string>): void {
+  try {
+    localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(Array.from(ids)));
+  } catch {
+    /* 写失败静默(隐私模式/存储不可用):只丢持久化,不影响本会话状态。 */
+  }
+}
+
 interface FilePanelState {
   /** 已注册面板(按 order 升序);数组不可变,注册时整体替换。 */
   panels: readonly FilePanelContribution[];
@@ -79,7 +111,8 @@ export function registerFilePanel(panel: FilePanelContribution): void {
   state.panels = [...state.panels, panel].sort(
     (a, b) => (a.order ?? 0) - (b.order ?? 0),
   );
-  if (panel.pinnedByDefault ?? true) {
+  const pinned = persistedPinnedIds ? persistedPinnedIds.has(panel.id) : (panel.pinnedByDefault ?? true);
+  if (pinned) {
     state.pinnedIds = new Set([...state.pinnedIds, panel.id]);
   }
   if (!state.mode) state.mode = panel.id;
@@ -99,6 +132,7 @@ export function togglePinned(id: string): void {
   if (next.has(id)) next.delete(id);
   else next.add(id);
   state.pinnedIds = next;
+  persistPinnedIds(next);
   refreshSnapshot();
   emit();
 }
