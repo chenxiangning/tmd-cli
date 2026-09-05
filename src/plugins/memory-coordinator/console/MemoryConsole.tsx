@@ -211,26 +211,6 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
         <div className="mt-0.5 truncate pl-[88px] text-[10px] text-(--tmd-fg-faint)">
           claude/codex/grok/kimi/qoder 的新会话顶部出现「项目记忆」胶囊:手动=点开勾选后注入;自动=出现即展开;关闭=不显示。omp/pi 原生注入,不受此项影响。
         </div>
-        <div className="mt-1.5 flex flex-none items-center gap-2">
-          <span className="w-20 flex-none text-[11px] text-(--tmd-fg-muted)">自动沉淀</span>
-          <button
-            className={`relative h-5 w-[30px] flex-none rounded-full border ${
-              settings.memoryAutoDistill
-                ? "border-(--tmd-accent) bg-(--tmd-accent-soft)"
-                : "border-(--tmd-border-strong) bg-(--tmd-bg-input)"
-            }`}
-            onClick={() => updateSettings({ memoryAutoDistill: !settings.memoryAutoDistill })}
-          >
-            <span
-              className={`absolute top-1/2 h-[11px] w-[11px] -translate-y-1/2 rounded-full ${
-                settings.memoryAutoDistill ? "left-[14px] bg-(--tmd-accent)" : "left-[2px] bg-(--tmd-fg-faint)"
-              }`}
-            />
-          </button>
-        </div>
-        <div className="mt-0.5 truncate pl-[88px] text-[10px] text-(--tmd-fg-faint)" title="omp 会话结束 → 自动提炼该会话用户消息 → 记忆入库;默认关闭,开启后每次会话结束多一次小模型调用">
-          omp 会话结束时,自动把它里面你说过的话提炼成记忆入库(默认关;开启后每次会话结束多一次小模型调用)
-        </div>
       </div>
 
       {/* ── 写入(d 路) ── */}
@@ -329,65 +309,91 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
             <div className="mt-1 truncate text-[10.5px] text-(--tmd-fg-subtle)">{distillState}</div>
           )}
 
-          <div className="mt-3 border-t border-(--tmd-border) pt-2">
-            <div className="mb-1.5 text-[11px] font-semibold">沉淀设置</div>
-            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="w-20 flex-none text-[11px] text-(--tmd-fg-muted)" title="由哪个引擎的会话代为执行写入(三家插件都注册 ctx_memory,写的是同一个记忆库)">代写引擎</span>
-              <select
-                className={`${inputCls} cursor-pointer`}
-                value={settings.memoryDistillEngine}
-                onChange={(e) => updateSettings({ memoryDistillEngine: e.target.value as never })}
-              >
-                <option value="omp">omp(默认)</option>
-                <option value="pi">pi</option>
-                <option value="opencode">opencode</option>
-              </select>
-            </div>
-            <div className="mt-0.5 truncate pl-[88px] text-[10px] text-(--tmd-fg-faint)">
-              由该引擎代为执行写入(需已安装对应插件);三家写入同一条官方管线与记忆库。
-            </div>
-            <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="w-20 flex-none text-[11px] text-(--tmd-fg-muted)">提炼模型</span>
-              {distillModels.length > 0 ? (
-                <select
-                  className={`${inputCls} cursor-pointer`}
-                  value={settings.memoryDistillModel}
-                  onChange={(e) => updateSettings({ memoryDistillModel: e.target.value })}
-                  title={`沉淀提炼用的模型,列表实时取自 ${distillEngine};跟随默认 = 该引擎当前默认模型`}
-                >
-                  <option value="">跟随 {distillEngine} 默认模型</option>
-                  {distillModels.map((m) => (
-                    <option key={m.selector} value={m.selector}>{m.selector}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  className={inputCls}
-                  placeholder={distillModelsLoading ? "拉取模型列表中…" : `${distillEngine} 无列表命令,手动填 provider/model`}
-                  value={settings.memoryDistillModel}
-                  onChange={(e) => updateSettings({ memoryDistillModel: e.target.value })}
-                />
-              )}
-            </div>
-            <div className="mt-0.5 truncate pl-[88px] text-[10px] text-(--tmd-fg-faint)">
-              列表实时取自 {distillEngine} 可用模型;仅作用于沉淀提炼,选便宜快的即可。
-            </div>
-            <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="w-20 flex-none text-[11px] text-(--tmd-fg-muted)">补充规则</span>
-              <input
-                className={inputCls}
-                placeholder="如:特别记住数据库决定;忽略测试细节(留空 = 默认规则)"
-                value={settings.memoryDistillRules}
-                onChange={(e) => updateSettings({ memoryDistillRules: e.target.value })}
-              />
-            </div>
-            <div className="mt-0.5 truncate pl-[88px] text-[10px] text-(--tmd-fg-faint)">
-              追加到提炼指令,优先遵循;默认规则=记规则/架构/约束/配置/命名/偏好,忽略一次性请求与闲聊。
-            </div>
-          </div>
         </div>
       )}
 
+      {/* ── 沉淀设置(自动沉淀开关 + 提炼配置;自动与手动共用) ── */}
+      <div className={`mb-3 ${card}`}>
+        <div className="mb-0.5 text-[11.5px] font-semibold">沉淀设置</div>
+        <div className="mb-2 text-[10px] text-(--tmd-fg-faint)">
+          自动沉淀开关与提炼配置;引擎/模型/规则同时作用于会话结束的自动沉淀与「沉淀所选会话」。
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="w-20 flex-none text-[11px] text-(--tmd-fg-muted)">自动沉淀</span>
+          <button
+            className={`relative h-5 w-[30px] flex-none rounded-full border ${
+              settings.memoryAutoDistill
+                ? "border-(--tmd-accent) bg-(--tmd-accent-soft)"
+                : "border-(--tmd-border-strong) bg-(--tmd-bg-input)"
+            }`}
+            onClick={() => updateSettings({ memoryAutoDistill: !settings.memoryAutoDistill })}
+          >
+            <span
+              className={`absolute top-1/2 h-[11px] w-[11px] -translate-y-1/2 rounded-full ${
+                settings.memoryAutoDistill ? "left-[14px] bg-(--tmd-accent)" : "left-[2px] bg-(--tmd-fg-faint)"
+              }`}
+            />
+          </button>
+        </div>
+        <div className="mt-0.5 truncate pl-[88px] text-[10px] text-(--tmd-fg-faint)" title="omp 会话结束 → 自动提炼该会话用户消息 → 记忆入库;默认关闭,开启后每次会话结束多一次小模型调用">
+          omp 会话结束时,自动把它里面你说过的话提炼成记忆入库(默认关;开启后每次会话结束多一次小模型调用)
+        </div>
+        <div className="mt-3 border-t border-(--tmd-border) pt-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="w-20 flex-none text-[11px] text-(--tmd-fg-muted)" title="由哪个引擎的会话代为执行写入(三家插件都注册 ctx_memory,写的是同一个记忆库)">代写引擎</span>
+            <select
+              className={`${inputCls} cursor-pointer`}
+              value={settings.memoryDistillEngine}
+              onChange={(e) => updateSettings({ memoryDistillEngine: e.target.value as never })}
+            >
+              <option value="omp">omp(默认)</option>
+              <option value="pi">pi</option>
+              <option value="opencode">opencode</option>
+            </select>
+          </div>
+          <div className="mt-0.5 truncate pl-[88px] text-[10px] text-(--tmd-fg-faint)">
+            由该引擎代为执行写入(需已安装对应插件);三家写入同一条官方管线与记忆库。
+          </div>
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="w-20 flex-none text-[11px] text-(--tmd-fg-muted)">提炼模型</span>
+            {distillModels.length > 0 ? (
+              <select
+                className={`${inputCls} cursor-pointer`}
+                value={settings.memoryDistillModel}
+                onChange={(e) => updateSettings({ memoryDistillModel: e.target.value })}
+                title={`沉淀提炼用的模型,列表实时取自 ${distillEngine};跟随默认 = 该引擎当前默认模型`}
+              >
+                <option value="">跟随 {distillEngine} 默认模型</option>
+                {distillModels.map((m) => (
+                  <option key={m.selector} value={m.selector}>{m.selector}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className={inputCls}
+                placeholder={distillModelsLoading ? "拉取模型列表中…" : `${distillEngine} 无列表命令,手动填 provider/model`}
+                value={settings.memoryDistillModel}
+                onChange={(e) => updateSettings({ memoryDistillModel: e.target.value })}
+              />
+            )}
+          </div>
+          <div className="mt-0.5 truncate pl-[88px] text-[10px] text-(--tmd-fg-faint)">
+            列表实时取自 {distillEngine} 可用模型;仅作用于沉淀提炼,选便宜快的即可。
+          </div>
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="w-20 flex-none text-[11px] text-(--tmd-fg-muted)">补充规则</span>
+            <input
+              className={inputCls}
+              placeholder="如:特别记住数据库决定;忽略测试细节(留空 = 默认规则)"
+              value={settings.memoryDistillRules}
+              onChange={(e) => updateSettings({ memoryDistillRules: e.target.value })}
+            />
+          </div>
+          <div className="mt-0.5 truncate pl-[88px] text-[10px] text-(--tmd-fg-faint)">
+            追加到提炼指令,优先遵循;默认规则=记规则/架构/约束/配置/命名/偏好,忽略一次性请求与闲聊。
+          </div>
+        </div>
+      </div>
       {/* ── 统计 ── */}
       {counts && identity && (
         <div className={`mb-3 ${card}`}>
