@@ -8,7 +8,6 @@
 import { useSyncExternalStore } from "react";
 import { EventBus, KernelTopics } from "./events";
 import { getSettingsState } from "./settings";
-import { getActiveWorkspace, getWorkspaces } from "./workspace";
 import { PluginLifecycle } from "./pluginLifecycle";
 import { ActivityWatch } from "./activityWatch";
 import { AskWatchFeed } from "./askWatch";
@@ -16,8 +15,9 @@ import { EditWatch } from "./editWatch";
 import { DiskIdentityWatch } from "./identityWatch";
 import { OutputBufferStore } from "./outputBuffers";
 import { SessionStatusWatch } from "./sessionStatus";
+import { SshSessionService } from "./sshSessions";
 
-import { ipc, onPtyExit, onPtyOutput, type SshHostConfig, type SessionMeta, type SpawnedSession, type SpawnSpec } from "./ipc";
+import { ipc, onPtyExit, onPtyOutput, type SshHostConfig, type SessionMeta, type SpawnSpec } from "./ipc";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";
 import { registerSettingsSection, type SettingsSectionContribution } from "./settingsRegistry";
@@ -196,41 +196,30 @@ class Host implements PluginContext {
 
   // ---- 会话服务（kernel 固有职责：PTY 生命周期） ---------------------------
 
-  /** 创建/重连 SSH 一等会话:注册即返回,连接/认证 Rust 后台完成;幕布与 PTY 同构,无 profile。
-  重连形态第一参传旧会话 id:后端取原配置(凭据不出后端)收尾重建,新 id 新 tab,旧 tab 消亡。 */
+  /** SSH 会话创建/装配:拆分件 kernel/sshSessions.ts(文件规模铁则)。 */
+  private readonly sshSessions = new SshSessionService(
+    {
+      refreshSessions: async () => {
+        this.sessions = await ipc.sessionList();
+      },
+      findSession: (sessionId) => this.sessions.find((s) => s.id === sessionId),
+      appendOutput: (sessionId, text) => this.appendOutput(sessionId, text),
+      removeSession: (sessionId) => this.removeSession(sessionId),
+      trackUnlisten: (sessionId, offs) => this.ptyUnlistens.set(sessionId, offs),
+      getSessions: () => this.sessions,
+      notify: () => this.notify(),
+    },
+    this.events,
+  );
+
+  /** 创建/重连 SSH 一等会话(实现见 kernel/sshSessions.ts);幕布与 PTY 同构,无 profile。 */
   async createSshSession(host: SshHostConfig, workspaceId?: string): Promise<SessionMeta>;
   async createSshSession(reconnectOf: string, workspaceId?: string): Promise<SessionMeta>;
   async createSshSession(
     host: SshHostConfig | string,
     workspaceId?: string,
   ): Promise<SessionMeta> {
-    const workspace = getWorkspaces().find((w) => w.id === workspaceId) ?? getActiveWorkspace();
-    const spawned =
-      typeof host === "string"
-        ? await ipc.sshSessionReconnect(host, workspace?.root ?? "", workspace?.id)
-        : await ipc.sshSessionCreate(host, workspace?.root ?? "", workspace?.id);
-    return this.adoptSshSession(spawned);
-  }
-
-  /** spawn/重连共用装配:常驻订阅输出与退出、置活跃、广播会话表。 */
-  private async adoptSshSession(spawned: SpawnedSession): Promise<SessionMeta> {
-    this.sessions = await ipc.sessionList();
-    const offOutput = await onPtyOutput(spawned.id, (text) => {
-      if (this.sessions.some((s) => s.id === spawned.id)) this.appendOutput(spawned.id, text);
-    });
-    const offExit = await onPtyExit(spawned.id, () => {
-      void this.removeSession(spawned.id);
-      this.events.emit(KernelTopics.sessionExited, spawned.id);
-    });
-    if (!this.sessions.some((s) => s.id === spawned.id)) {
-      [offOutput, offExit].forEach((off) => off());
-      return this.sessions.find((s) => s.id === spawned.id)!;
-    }
-    this.ptyUnlistens.set(spawned.id, [offOutput, offExit]);
-    this.events.emit(KernelTopics.sessionsChanged, this.sessions);
-    this.events.emit(KernelTopics.activeSessionChanged, spawned.id);
-    this.notify();
-    return this.sessions.find((s) => s.id === spawned.id)!;
+    return this.sshSessions.create(host, workspaceId);
   }
 
   async createSession(
@@ -388,6 +377,12 @@ class Host implements PluginContext {
       this.editWatch.onUserWrite(sessionId); // 新一轮:EditWatch 去重集清空
     }
     if (this.askWatch.onUserWrite(sessionId)) this.notify();
+  }
+
+  /** 幕布尺寸同步的唯一入口(TerminalView):转发 resize + 给活动守望记重绘抑制窗起点。 */
+  resizeSession(sessionId: string, cols: number, rows: number): void {
+    this.activity.onResized(sessionId);
+    void ipc.sessionResize(sessionId, cols, rows);
   }
 
   /** 完成未读判定(会话列表蓝呼吸灯)。 */

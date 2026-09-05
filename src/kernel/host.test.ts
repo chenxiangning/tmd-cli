@@ -30,6 +30,7 @@ vi.mock("./ipc", () => ({
     sessionList: vi.fn(async () => sessions),
     sessionKill: vi.fn(async () => undefined),
     sessionWrite: vi.fn(async () => undefined),
+    sessionResize: vi.fn(async () => undefined),
   },
   onPtyOutput: vi.fn(async (id: string, cb: (text: string) => void) => {
     ptyOutputCbs.set(id, cb);

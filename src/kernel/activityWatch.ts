@@ -16,10 +16,16 @@
  *
  * 结算规则(1Hz):输出静默 >2s = 一轮对话结束;结束时未被查看(≠ activeSessionId)
  * 才标未读(蓝),正在看的会话完成不打扰;新输出回绿;点开即清(灰)。
+ * 未读归属锚定「最后一字节到达瞬间」而非「结算瞬间」(2026-09-05 归因修正):
+ * 亲眼看完回答、2s 检测窗内切走的会话不再误标未读;只看开头就切走的长轮次,
+ * 最后一字节到达时没在看,仍正确标未读。
  *
- * 已知取舍:首写后的 TUI 重绘(SIGWINCH/焦点切换)仍可能亮一次绿 —— 它与
- * "CLI 正在回答"在字节流上不可区分,靠时序窗口收紧会漏掉长思考后的真回答
- * (未读提醒失效),宁可保守放行。
+ * 重绘抑制窗:全屏 TUI 收到 SIGWINCH 的整屏重绘(实测 omp = 560KB 突发)与
+ * 「CLI 正在回答」在字节流上不可区分,但重绘必由本应用自发的 resize 触发 ——
+ * host.resizeSession 记时戳,锚定会话在 resize 后 1s 窗内的输出不进活动语义。
+ * 取舍:窗内恰好完整到达的短回答(<1s)会被整段吞掉漏一次提醒 —— 需要
+ * 「用户正在改尺寸」与「整个回答 <1s」同时成立,概率极低;回答稍长只晚亮 1s。
+ * 旧取舍(宁可保守放行)面向「无任何因果信息」时代,现已由 resize 因果取代。
  */
 
 /** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅内部持有。 */
@@ -27,6 +33,9 @@ type TimerHandle = ReturnType<typeof setInterval>;
 
 /** 输出静默轮次阈值:静默超此值即结算一轮对话。 */
 const TURN_SILENCE_MS = 2_000;
+
+/** 重绘抑制窗:resize 后此窗口内的输出视为 SIGWINCH 整屏重绘,不进活动语义。 */
+const REDRAW_SUPPRESS_MS = 1_000;
 
 /** Host 侧能力注入:守望只依赖这四个谓词/回调,不反向耦合 Host。 */
 interface ActivityWatchHost {
@@ -53,6 +62,10 @@ export class ActivityWatch {
   private readonly activeTurns = new Set<string>();
   /** 已锚定对话的会话(用户首写起,终生有效):锚定前输出不进呼吸灯语义。 */
   private readonly conversationStarted = new Set<string>();
+  /** 每会话最后一字节到达瞬间是否正被查看(结算归因,见文件头)。 */
+  private readonly lastOutputViewed = new Map<string, boolean>();
+  /** 每会话最近一次自发 resize 时戳(host.resizeSession 馈入):重绘抑制窗起点。 */
+  private readonly lastResizeAt = new Map<string, number>();
 
   constructor(private readonly host: ActivityWatchHost) {}
 
@@ -71,7 +84,11 @@ export class ActivityWatch {
   onOutput(sessionId: string): boolean {
     if (!this.conversationStarted.has(sessionId)) return false;
     const now = Date.now();
+    /* 重绘抑制窗:自发 resize 后窗内的输出 = SIGWINCH 整屏重绘,不推进活动钟、
+       不进轮次 —— 空闲已锚定会话被重绘打亮重跑生命周期的路径在此掐断。 */
+    if (now - (this.lastResizeAt.get(sessionId) ?? 0) < REDRAW_SUPPRESS_MS) return false;
     this.lastActivityAtMap.set(sessionId, now);
+    this.lastOutputViewed.set(sessionId, this.host.isViewing(sessionId));
     this.activeTurns.add(sessionId);
     this.unread.delete(sessionId);
     this.ensureWatch();
@@ -80,6 +97,11 @@ export class ActivityWatch {
       return true;
     }
     return false;
+  }
+
+  /** 自发 resize 入站(host.resizeSession 唯一调用方):开重绘抑制窗。 */
+  onResized(sessionId: string): void {
+    this.lastResizeAt.set(sessionId, Date.now());
   }
 
   /** 完成未读判定(会话列表蓝呼吸灯)。 */
@@ -101,6 +123,8 @@ export class ActivityWatch {
   onSessionRemoved(sessionId: string): void {
     this.lastActivityAtMap.delete(sessionId);
     this.lastActivityNotify.delete(sessionId);
+    this.lastOutputViewed.delete(sessionId);
+    this.lastResizeAt.delete(sessionId);
     this.unread.delete(sessionId);
     this.activeTurns.delete(sessionId);
     this.conversationStarted.delete(sessionId);
@@ -115,6 +139,8 @@ export class ActivityWatch {
     }
     this.lastActivityAtMap.clear();
     this.lastActivityNotify.clear();
+    this.lastOutputViewed.clear();
+    this.lastResizeAt.clear();
     this.unread.clear();
     this.activeTurns.clear();
     this.conversationStarted.clear();
@@ -128,7 +154,10 @@ export class ActivityWatch {
       for (const id of [...this.activeTurns]) {
         if (now - (this.lastActivityAtMap.get(id) ?? 0) <= TURN_SILENCE_MS) continue;
         this.activeTurns.delete(id);
-        const unviewed = !this.host.isViewing(id) && this.host.exists(id);
+        const unviewed =
+          !this.host.isViewing(id) &&
+          !this.lastOutputViewed.get(id) &&
+          this.host.exists(id);
         if (unviewed) this.unread.add(id);
         this.host.onTurnSettled(id, unviewed, this.lastActivityAtMap.get(id) ?? now);
         changed = true;
