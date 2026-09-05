@@ -141,6 +141,23 @@ export interface AppSettings {
   /** 代理地址,http(s)://host:port 或 socks5://host:port;关闭时保留以便重开。 */
   networkProxyUrl: string;
   /**
+   * Magic Context 共享记忆库路径(memory-coordinator 安装编排 bootstrap 回存;
+   * 空 = 未安装,读侧走上游默认解析)。
+   */
+  memoryDbPath: string;
+  /** Memory 插件启用开关(关闭 = 胶囊与右栏面板全部隐藏)。 */
+  memoryEnabled: boolean;
+  /** 记忆胶囊注入策略(仅非原生注入引擎生效):manual 手动 / auto 自动展开 / off 关闭。 */
+  memoryCapsuleMode: MemoryCapsuleMode;
+  /** omp 会话退出后自动沉淀其用户消息(经 omp 官方管线;默认关,显式 opt-in)。 */
+  memoryAutoDistill: boolean;
+  /** 沉淀提炼模型(空 = 跟随引擎默认)。 */
+  memoryDistillModel: string;
+  /** 沉淀代写引擎(omp/pi/opencode:谁的会话代执行 ctx_memory 写入)。 */
+  memoryDistillEngine: MemoryDistillEngine;
+  /** 沉淀补充规则(自由文本,追加到提炼指令;如「特别记住数据库决定;忽略测试细节」)。 */
+  memoryDistillRules: string;
+  /**
    * SSH 主机簿(ssh 插件的编辑域):终端/SFTP/端口转发共用的主机清单。
    * 凭据明文随 settings.json 落盘(用户裁决,与竞品同级;spec 已记录风险),
    * Web/远端场景不存在 —— 单机应用,不经任何同步通道外发。
@@ -168,6 +185,13 @@ const DEFAULT_SETTINGS: AppSettings = {
   workspaceCollapsedMap: {},
   networkProxyEnabled: false,
   networkProxyUrl: "",
+  memoryDbPath: "",
+  memoryEnabled: true,
+  memoryCapsuleMode: "manual",
+  memoryAutoDistill: false,
+  memoryDistillModel: "",
+  memoryDistillEngine: "omp",
+  memoryDistillRules: "",
   ssh: { hosts: [] },
 };
 /** 手动命名覆盖层上限:500 条(超出按 key 序丢弃,确定性兜底);标题 1–200 字符。 */
@@ -234,6 +258,13 @@ const LOCAL_FALLBACK_KEY = "tmd.settings.v1";
 
 const THEME_PREFERENCES: readonly ThemePreference[] = ["system", "light", "dark", "custom"];
 const SEND_SHORTCUTS: readonly SendShortcut[] = ["enter", "cmdOrCtrlEnter"];
+
+/** 记忆胶囊注入策略(manual 手动勾选注入 / auto 新会话自动展开 / off 关闭)。 */
+export type MemoryCapsuleMode = "manual" | "auto" | "off";
+const MEMORY_CAPSULE_MODES: readonly MemoryCapsuleMode[] = ["manual", "auto", "off"];
+
+export type MemoryDistillEngine = "omp" | "pi" | "opencode"; // 三 harness 均注册 ctx_memory
+const MEMORY_DISTILL_ENGINES = ["omp", "pi", "opencode"] as const;
 
 /** 缓冲上限合法域:5万–1000万字符;非法/缺失回落默认。 */
 function sanitizeBufferLimit(value: unknown): number {
@@ -352,6 +383,17 @@ function sanitize(raw: unknown): AppSettings {
         ? obj.networkProxyEnabled
         : DEFAULT_SETTINGS.networkProxyEnabled,
     networkProxyUrl: sanitizeNetworkProxyUrl(obj.networkProxyUrl),
+    memoryDbPath: typeof obj.memoryDbPath === "string" ? obj.memoryDbPath.slice(0, 500) : "",
+    memoryEnabled: typeof obj.memoryEnabled === "boolean" ? obj.memoryEnabled : true,
+    memoryCapsuleMode: MEMORY_CAPSULE_MODES.includes(obj.memoryCapsuleMode as MemoryCapsuleMode)
+      ? (obj.memoryCapsuleMode as MemoryCapsuleMode)
+      : "manual",
+    memoryAutoDistill: typeof obj.memoryAutoDistill === "boolean" ? obj.memoryAutoDistill : false,
+    memoryDistillModel: typeof obj.memoryDistillModel === "string" ? obj.memoryDistillModel.slice(0, 200) : "",
+    memoryDistillEngine: (MEMORY_DISTILL_ENGINES as readonly string[]).includes(obj.memoryDistillEngine as string)
+      ? (obj.memoryDistillEngine as MemoryDistillEngine)
+      : "omp",
+    memoryDistillRules: typeof obj.memoryDistillRules === "string" ? obj.memoryDistillRules.slice(0, 500) : "",
     ssh: sanitizeSshSettings(obj.ssh),
   };
 }

@@ -7,7 +7,12 @@
  * 与已知可打开 kind 做双向锁定;新增可打开 kind 时同步本表。
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+/* 并行 WIP(composer ⌘K 收编)在 activate 期注册 DOM 键监听;node 测试环境
+   给最小桩 —— 只让全量激活可跑,不模拟任何行为。 */
+vi.stubGlobal("document", { addEventListener: () => {}, removeEventListener: () => {} });
+vi.stubGlobal("window", { addEventListener: () => {}, removeEventListener: () => {} });
 import type { TabContentContribution } from "@kernel/tabs";
 import type { PluginContext } from "@kernel/plugin";
 import { allPlugins } from "@plugins/index";
@@ -19,6 +24,7 @@ const OPENABLE_KINDS = [
   "git-commit-diff",
   "git-diff",
   "ckpt-batch",
+  "memory-console",
 ] as const;
 
 function activateCollectingKinds(): Set<string> {
@@ -28,6 +34,7 @@ function activateCollectingKinds(): Set<string> {
     contribute: () => {},
     registerSettingsSection: () => {},
     registerFilePanel: () => {},
+    registerCommand: () => {},
     registerTabContent: (c: TabContentContribution) => kinds.add(c.kind),
     registerSidebarAction: () => {},
     registerFileVisual: () => {},

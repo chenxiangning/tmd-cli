@@ -45,9 +45,18 @@ pub fn sqlite_query(
     if !std::path::Path::new(&db_path).exists() {
         return Ok(Vec::new());
     }
-    let conn =
-        rusqlite::Connection::open_with_flags(&db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
-            .map_err(|e| format!("open sqlite (readonly): {e}"))?;
+    // 读写打开 + query_only:WAL 库的未 checkpoint 数据只在 -wal 里,
+    // READ_ONLY 连接无法重放 WAL 会看不到最新行(memory 池 0 条的根因);
+    // query_only 在连接层保证语句级只读,重放与 shm 交互需要写句柄。
+    let conn = rusqlite::Connection::open_with_flags(
+        &db_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    )
+    .map_err(|e| format!("open sqlite: {e}"))?;
+    conn.busy_timeout(std::time::Duration::from_millis(3000))
+        .map_err(|e| format!("set sqlite busy timeout: {e}"))?;
+    conn.pragma_update(None, "query_only", true)
+        .map_err(|e| format!("enable sqlite query_only: {e}"))?;
     let mut stmt = conn
         .prepare(&sql)
         .map_err(|e| format!("prepare sqlite: {e}"))?;
@@ -135,6 +144,34 @@ mod tests {
 
         let _ = std::fs::remove_file(&db);
         let _ = std::fs::remove_dir(&dir);
+    }
+
+    #[test]
+    fn query_sees_uncheckpointed_wal_rows() {
+        // 回归:omp 场景 —— 写入方持 WAL 连接不 checkpoint,只读代读必须能
+        // 看到未合并行(READ_ONLY 连接重放不了 WAL,曾致 memory 池 0 条)。
+        let dir = std::env::temp_dir().join(format!("tmd-cli-sqlite-wal-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = dir.join("wal.db");
+        let _ = std::fs::remove_file(&db);
+        let writer = rusqlite::Connection::open(&db).unwrap();
+        writer.pragma_update(None, "journal_mode", "WAL").unwrap();
+        writer.execute("CREATE TABLE m (c TEXT)", []).unwrap();
+        writer
+            .execute("INSERT INTO m VALUES ('fresh')", [])
+            .unwrap();
+        // writer 保持打开(数据停留在 -wal,未 checkpoint)
+
+        let rows = sqlite_query(
+            db.to_string_lossy().to_string(),
+            "SELECT c FROM m".into(),
+            vec![],
+        )
+        .unwrap();
+        assert_eq!(rows, vec![vec![SqliteValue::Text("fresh".into())]]);
+
+        drop(writer);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

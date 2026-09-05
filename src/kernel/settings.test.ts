@@ -72,6 +72,13 @@ describe("初始状态与默认值", () => {
       workspaceCollapsedMap: {},
       networkProxyEnabled: false,
       networkProxyUrl: "",
+      memoryDbPath: "",
+      memoryEnabled: true,
+      memoryCapsuleMode: "manual",
+      memoryAutoDistill: false,
+      memoryDistillModel: "",
+      memoryDistillEngine: "omp",
+      memoryDistillRules: "",
       ssh: { hosts: [] },
     });
     expect(s.loaded).toBe(false);
@@ -440,5 +447,51 @@ describe("resolveCliSessionQuota", () => {
     const budget = { total: 20, perCli: { uninstalled: 14 } };
     expect(settings.resolveCliSessionQuota(budget, "claude", REGISTERED)).toBe(5);
     expect(settings.resolveCliSessionQuota(budget, "omp", REGISTERED)).toBe(5);
+  });
+});
+
+describe("Memory 设置(memory-coordinator)", () => {
+  it("合法补丁合并生效", () => {
+    settings.updateSettings({
+      memoryEnabled: false,
+      memoryCapsuleMode: "auto",
+      memoryDbPath: "/tmp/fresh/mc/context.db",
+    });
+    const s = settings.getSettingsState().settings;
+    expect(s.memoryEnabled).toBe(false);
+    expect(s.memoryCapsuleMode).toBe("auto");
+    expect(s.memoryDbPath).toBe("/tmp/fresh/mc/context.db");
+  });
+
+  it("非法枚举/非字符串路径回落默认", () => {
+    settings.updateSettings({
+      memoryCapsuleMode: "sometimes" as never,
+      memoryDbPath: 42 as never,
+      memoryEnabled: "yes" as never,
+    });
+    const s = settings.getSettingsState().settings;
+    expect(s.memoryCapsuleMode).toBe("manual");
+    expect(s.memoryDbPath).toBe("");
+    expect(s.memoryEnabled).toBe(true);
+  });
+
+  it("自动沉淀开关与沉淀模型/规则:透传、截断、回落", () => {
+    const cur = () => settings.getSettingsState().settings;
+    settings.updateSettings({ memoryAutoDistill: true, memoryDistillModel: "kimi-code/k3", memoryDistillRules: "记住数据库决定" });
+    expect(cur().memoryAutoDistill).toBe(true);
+    expect(cur().memoryDistillModel).toBe("kimi-code/k3");
+    expect(cur().memoryDistillRules).toBe("记住数据库决定");
+    settings.updateSettings({ memoryDistillModel: "x".repeat(300), memoryDistillRules: "y".repeat(600) });
+    expect(cur().memoryDistillModel.length).toBe(200);
+    expect(cur().memoryDistillRules.length).toBe(500);
+    settings.updateSettings({ memoryAutoDistill: "on" as never, memoryDistillModel: 9 as never, memoryDistillRules: null as never });
+    expect(cur().memoryAutoDistill).toBe(false);
+    expect(cur().memoryDistillModel).toBe("");
+    expect(cur().memoryDistillRules).toBe("");
+  });
+
+  it("超长路径截断到 500 字符", () => {
+    settings.updateSettings({ memoryDbPath: "x".repeat(600) });
+    expect(settings.getSettingsState().settings.memoryDbPath.length).toBe(500);
   });
 });
