@@ -7,6 +7,7 @@
 > 2026-09-04 第四轮补校:文件渲染档案、Git 历史 Graph 与中央 commit diff、composer 触发器 CLI 真相源与悬浮展示、Ask 屏幕态通道、工作区状态 label、审批线图片缩略图、欢迎页仓库链接。
 > 2026-09-05 审批线隔离与精准手术补校:events 纯事件归因(斩断窗口补充)、git 归因三道闸(认领优先/落窗最近提示者赢/僵尸封顶)、批审计冻结(回退/应用后禁修订重封)、共改文件 diff 精准擦除与重放(设计见 `superpowers/specs/2026-09-05-checkpoints-isolation-surgery-design.md`)。
 > 2026-09-05 opencode 接入评审补校:modifiedAt 改 time_updated(复活绑定/排序)、edits 水位改 state.time.end 同源基准 + CAST 参数(并行工具漏记/静默 0 事件)、摘 MCP 分区(codex `$name` token 兜底不适用)、命令优先级项目>全局>JSON、minimax-cn-coding-plan 别名(评审记录见 `docs/review/2026-09-05-opencode-plugin-review.md`)。
+> 2026-09-05 安装器加固:npm 通道追加 `--allow-scripts=<pkg>` —— npm 12(2026-07)起 install scripts 默认禁用且被挡只发 warn,opencode-ai 靠 postinstall 拷平台二进制,被跳即留 stub 启动器、运行必报错;`--allow-scripts` 为 npm 官方逐包放行(npm12 实证有效、npm11 仅告警不失败,已端到端验证;旧 `--ignore-scripts=false` 压不过新机制,实证无效)。
 
 ## 工作区会话
 

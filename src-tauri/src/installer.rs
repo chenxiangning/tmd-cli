@@ -51,6 +51,15 @@ fn install_command(plan: &InstallPlan) -> (String, Vec<String>) {
     match plan {
         InstallPlan::Npm { package } => {
             let pkg = format!("{package}@latest");
+            /* npm 12(2026-07)起 install scripts 默认禁用(allowScripts 机制),
+             * 被挡的 postinstall 只发 warn 不报错 —— opencode-ai 这类靠
+             * postinstall 拷平台二进制的包会留下 stub 启动器,运行即报
+             * "postinstall script was not run"(2026-09-05 本机实证)。
+             * 解法 = npm 自己在 warn 里给的逐包放行旗标 --allow-scripts=<pkg>
+             * (npm 12 实证有效;旧 --ignore-scripts=false 是遗留开关,压不过
+             * 新机制,实证无效)。npm ≤11 对未知旗标仅 warn 不失败(11.6.2
+             * 实证),可无条件追加。 */
+            let allow = format!("--allow-scripts={package}");
             #[cfg(windows)]
             return (
                 "cmd".into(),
@@ -60,10 +69,14 @@ fn install_command(plan: &InstallPlan) -> (String, Vec<String>) {
                     "install".into(),
                     "-g".into(),
                     pkg,
+                    allow,
                 ],
             );
             #[cfg(not(windows))]
-            ("npm".into(), vec!["install".into(), "-g".into(), pkg])
+            (
+                "npm".into(),
+                vec!["install".into(), "-g".into(), pkg, allow],
+            )
         }
         InstallPlan::Script { unix, windows } => {
             /* 两侧字段都借引用消费一次:未激活平台侧不产生 unused 告警。 */
@@ -188,7 +201,15 @@ mod tests {
         };
         let (program, args) = install_command(&plan);
         assert_eq!(program, "npm");
-        assert_eq!(args, vec!["install", "-g", "@qoder-ai/qodercli@latest"]);
+        assert_eq!(
+            args,
+            vec![
+                "install",
+                "-g",
+                "@qoder-ai/qodercli@latest",
+                "--allow-scripts=@qoder-ai/qodercli"
+            ]
+        );
     }
 
     #[test]
