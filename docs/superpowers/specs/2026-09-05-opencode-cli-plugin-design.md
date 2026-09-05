@@ -54,7 +54,7 @@ headless server 需进程/端口生命周期管理,与 PTY 幕布架构冲突;�
 src/plugins/cli-opencode/
   index.tsx     插件装配(Plugin + CliProfile 声明 + 品牌 glyph,官方 favicon vendored)
   db.ts         opencode.db 知识(sqliteQuery 封装 + 行解析纯函数,可测)
-  config.ts     opencode.json 知识(默认模型 / MCP 表 / JSON 自定义命令;全局+项目合并)
+  config.ts     opencode.json 知识(默认模型 / JSON 自定义命令;全局+项目合并)
   commands.ts   内置斜杠命令静态表 + commands/*.md 根级扫描
   db.test.ts / config.test.ts / commands.test.ts
 ```
@@ -68,10 +68,12 @@ src/plugins/cli-opencode/
 - `readSessionFileIdentity`: 拆合成路径 → `SELECT directory,time_created FROM session WHERE id=?1`
 - `readSessionStatus`: 最新 message 的 `model{providerID,modelID}` 拼 `provider/model`;variant 存在且 ≠ "default" → thinkingLevel
 - `readSessionUserMessages`: message(role=user) ⋈ part(type=text) 按 time_created 序,id = message.id;full=false 取尾部 40 条窗口再正序返回
-- `readSessionEdits`: part(type=tool, tool∈{write,edit}, status=completed) 且 time_created > sinceTs → `{path: input.filePath, ts: state.time.end ?? 行 time_created}`(增量水位契约)
+- `readSessionEdits`: part(type=tool, tool∈{write,edit}, status=completed) 且 `json_extract(state.time.end) > CAST(sinceTs AS INTEGER)` → `{path: input.filePath, ts: state.time.end}`;过滤基准与返回 ts 同源(评审修正:行在工具启动时创建、end 晚于 time_created,基准错位会漏记并行工具;json_extract 结果无列亲和性,参数不 CAST 则跨类型比较恒假)
 - `readDefaultStatus`: 合并配置 `model` 字段 → `{model}`
-- `listSuggestions`: 内置静态表 + md 扫描 + JSON 命令,同名自定义覆盖内置(官方语义)
-- `listMcpServers`: 合并配置 `mcp` 表 → insert 项(token `@name` 语法仅 `@alias` 引用语义已实证;MCP 服务器项展示名 + enabled 态,点击插入名字供会话引用)
+- `listSuggestions`: 只出自定义项(md 扫描 + JSON 命令,优先级 项目 > 全局 > JSON);内置表由静态 suggestions 声明,内核 mergeSuggestions 按 value 去重(静态优先)—— 同名自定义在 UI 显示内置描述是跨引擎统一语义的已知限制
+- `listMcpServers`: 不声明(评审修正:抽屉 MCP 分区 token 兜底是 codex `$name` 语法,opencode 无对应触发符,插入即误发;qoder/grok 同为不声明阵营)
+- `listSessions` 的 `modifiedAt` = time_updated(评审修正:复活检测/相对时间/排序都吃它,取 time_created 会让 CLI 内 /resume 的老会话绑不上身份)
+- `deleteSession`(评审新增,用户拍板):`DELETE FROM session WHERE id = ?1`,经新通用代写原语 `ipc.sqliteExecute`(Rust `sqlite_execute`:READ_WRITE 打开 + PRAGMA foreign_keys 启用库自带 ON DELETE CASCADE + 3s busy 超时;库不存在 = Err)执行 —— 单库多会话 CLI 无法 fsRemovePath 合成路径;workspace 删除入口 profile 声明即走钩子,置顶标题解析改为优先 `CliDiskSession.title`
 - 不声明:`editMarks`(events 归因已覆盖,PTY 字面量未实证)、`askMarks`(面板字面量未实证,先靠内核通用标记)、`bracketedPaste`(非 pi-tui 系)、`fetchQuota`(多供应商无统一额度接口;凭据盘点只到「已登录」层)
 
 内置命令 action 初判(bare 合法 → send;实测校准回填契约测试):send = connect/compact/details/export/help/init/models/new/sessions/share/themes/thinking;insert = editor(依赖 $EDITOR 环境)/exit(误触即关会话)/undo/redo(直接作用于上一条消息,误触代价高)。

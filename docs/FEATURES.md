@@ -6,7 +6,7 @@
 > 2026-09-04 第三轮定向复审:七域契约数值逐一对码全数相符,补交互边角与交界契约 30 条;修正 apply 反悔通道陈述。
 > 2026-09-04 第四轮补校:文件渲染档案、Git 历史 Graph 与中央 commit diff、composer 触发器 CLI 真相源与悬浮展示、Ask 屏幕态通道、工作区状态 label、审批线图片缩略图、欢迎页仓库链接。
 > 2026-09-05 审批线隔离与精准手术补校:events 纯事件归因(斩断窗口补充)、git 归因三道闸(认领优先/落窗最近提示者赢/僵尸封顶)、批审计冻结(回退/应用后禁修订重封)、共改文件 diff 精准擦除与重放(设计见 `superpowers/specs/2026-09-05-checkpoints-isolation-surgery-design.md`)。
-> 2026-09-05 opencode 引擎接入:第 9 个 CLI 插件(SQLite 单库多会话,合成路径身份自证),凭据盘点/命令与 MCP 发现/事件归因全量面(设计见 `superpowers/specs/2026-09-05-opencode-cli-plugin-design.md`)。
+> 2026-09-05 opencode 接入评审补校:modifiedAt 改 time_updated(复活绑定/排序)、edits 水位改 state.time.end 同源基准 + CAST 参数(并行工具漏记/静默 0 事件)、摘 MCP 分区(codex `$name` token 兜底不适用)、命令优先级项目>全局>JSON、minimax-cn-coding-plan 别名(评审记录见 `docs/review/2026-09-05-opencode-plugin-review.md`)。
 
 ## 工作区会话
 
