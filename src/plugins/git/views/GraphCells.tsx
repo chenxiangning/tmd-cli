@@ -6,14 +6,14 @@
  */
 
 import { GRAPH_COLORS, type GraphColor, type GraphRow } from "../graph/gitGraph";
-
-const GRAPH_SWIMLANE_WIDTH = 11;
-const GRAPH_SVG_HEIGHT = 22;
-const GRAPH_DOT_Y = GRAPH_SWIMLANE_WIDTH;
-const GRAPH_DOT_R = 4;
-const GRAPH_STROKE_W = 2;
-const GRAPH_LINE_W = 1;
-const GRAPH_CURVE_R = 5;
+import { GitGraphCommitMarker } from "./GraphMarker";
+import {
+  GRAPH_CURVE_R,
+  GRAPH_DOT_Y,
+  GRAPH_LINE_W,
+  GRAPH_SVG_HEIGHT,
+  GRAPH_SWIMLANE_WIDTH,
+} from "./graphGeometry";
 
 /** 本行 SVG 宽 = 泳道数 + 1 的空当,留出右侧呼吸位。 */
 function graphColumnCount(row: GraphRow) {
@@ -83,109 +83,6 @@ function findLastGraphLaneIndex(lanes: GraphRow["outputLanes"], id: string) {
   return -1;
 }
 
-/** 圆点造型:head 空心环 / merge 双圈 / 合成行虚线圈 / 普通实心点。 */
-function GitGraphCommitMarker({
-  cx,
-  color,
-  kind,
-  isHead,
-  isMerge,
-}: {
-  cx: number;
-  color: string;
-  kind: GraphRow["kind"];
-  isHead: boolean;
-  isMerge: boolean;
-}) {
-  if (kind === "incoming-changes" || kind === "outgoing-changes") {
-    return (
-      <g>
-        <circle
-          cx={cx}
-          cy={GRAPH_DOT_Y}
-          r={GRAPH_DOT_R + 3}
-          fill={color}
-          stroke="var(--tmd-bg-base)"
-          strokeWidth={GRAPH_STROKE_W}
-        />
-        <circle
-          cx={cx}
-          cy={GRAPH_DOT_Y}
-          r={GRAPH_DOT_R + 1}
-          fill="var(--tmd-bg-base)"
-          stroke="var(--tmd-bg-base)"
-          strokeWidth={GRAPH_STROKE_W + 1}
-        />
-        <circle
-          cx={cx}
-          cy={GRAPH_DOT_Y}
-          r={GRAPH_DOT_R + 1}
-          fill="none"
-          stroke={color}
-          strokeDasharray="4 2"
-          strokeWidth={Math.max(1, GRAPH_STROKE_W - 1)}
-        />
-      </g>
-    );
-  }
-
-  if (isHead) {
-    return (
-      <g>
-        <circle
-          cx={cx}
-          cy={GRAPH_DOT_Y}
-          r={GRAPH_DOT_R + 3}
-          fill={color}
-          stroke="var(--tmd-bg-base)"
-          strokeWidth={GRAPH_STROKE_W}
-        />
-        <circle
-          cx={cx}
-          cy={GRAPH_DOT_Y}
-          r={GRAPH_DOT_R - 2}
-          fill="var(--tmd-bg-base)"
-          stroke="var(--tmd-bg-base)"
-          strokeWidth={GRAPH_DOT_R}
-        />
-      </g>
-    );
-  }
-
-  if (!isMerge) {
-    return (
-      <circle
-        cx={cx}
-        cy={GRAPH_DOT_Y}
-        r={GRAPH_DOT_R + 1}
-        fill={color}
-        stroke="var(--tmd-bg-base)"
-        strokeWidth={GRAPH_STROKE_W}
-      />
-    );
-  }
-
-  return (
-    <g>
-      <circle
-        cx={cx}
-        cy={GRAPH_DOT_Y}
-        r={GRAPH_DOT_R + 2}
-        fill={color}
-        stroke="var(--tmd-bg-base)"
-        strokeWidth={GRAPH_STROKE_W}
-      />
-      <circle
-        cx={cx}
-        cy={GRAPH_DOT_Y}
-        r={GRAPH_DOT_R - 1}
-        fill={color}
-        stroke="var(--tmd-bg-base)"
-        strokeWidth={GRAPH_STROKE_W}
-      />
-    </g>
-  );
-}
 
 /** 提交行左列:入线汇入 + 出线分支 + 圆点。 */
 export function GitGraphSvgCell({ row }: { row: GraphRow }) {
@@ -356,4 +253,5 @@ export function GitGraphContinuationCell({ row }: { row: GraphRow }) {
     </div>
   );
 }
+
 

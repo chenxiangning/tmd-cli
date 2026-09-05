@@ -1,10 +1,9 @@
 /**
  * Mermaid 代码块 —— 照抄 codemoss FileMarkdownMermaidBlock。
  *
- * Source/Render 双 tab(会话内缓存选择);Render 懒 import mermaid,
- * initialize{startOnLoad:false, securityLevel:"strict"},SVG LRU 缓存;
- * 主题跟随 documentElement data-theme(tmd 主题引擎同款属性);
+ * Source/Render 双 tab(会话内缓存选择);主题跟随 documentElement data-theme;
  * 全屏经 MermaidFullscreenViewer(viewerjs)。
+ * 渲染管线与缓存(懒 import mermaid / SVG LRU / 主题探测)见 useMermaidRender.ts。
  */
 
 import {
@@ -18,85 +17,17 @@ import {
 } from "react";
 import { Maximize2 } from "lucide-react";
 import { hashStableString } from "./markdownDocument";
-import { normalizeMermaidSource } from "./normalizeMermaidSource";
 import { highlightLine } from "./syntax";
 import { MermaidFullscreenViewer } from "./MermaidFullscreenViewer";
 import { preloadViewerjs } from "./viewerRuntime";
-
-type MermaidRenderState =
-  | { status: "idle" }
-  | { status: "rendering" }
-  | { status: "success"; svg: string }
-  | { status: "error"; message: string };
-
-type MermaidBlockTab = "source" | "render";
-
-const MAX_CACHED_MERMAID_DOCUMENTS = 50;
-const MAX_CACHED_MERMAID_RENDERS = 80;
-const mermaidTabSessionCache = new Map<string, Record<string, MermaidBlockTab>>();
-const mermaidRenderCache = new Map<string, string>();
-
-function readCachedMermaidTabs(documentKey: string): Record<string, MermaidBlockTab> {
-  return { ...(mermaidTabSessionCache.get(documentKey) ?? {}) };
-}
-
-function writeCachedMermaidTab(
-  documentKey: string,
-  blockKey: string,
-  activeTab: MermaidBlockTab,
-) {
-  const nextTabs = {
-    ...(mermaidTabSessionCache.get(documentKey) ?? {}),
-    [blockKey]: activeTab,
-  };
-  mermaidTabSessionCache.delete(documentKey);
-  mermaidTabSessionCache.set(documentKey, nextTabs);
-  while (mermaidTabSessionCache.size > MAX_CACHED_MERMAID_DOCUMENTS) {
-    const oldestDocumentKey = mermaidTabSessionCache.keys().next().value;
-    if (!oldestDocumentKey) {
-      break;
-    }
-    mermaidTabSessionCache.delete(oldestDocumentKey);
-  }
-}
-
-function readCachedMermaidRender(cacheKey: string) {
-  const svg = mermaidRenderCache.get(cacheKey);
-  if (!svg) {
-    return null;
-  }
-  mermaidRenderCache.delete(cacheKey);
-  mermaidRenderCache.set(cacheKey, svg);
-  return svg;
-}
-
-function writeCachedMermaidRender(cacheKey: string, svg: string) {
-  mermaidRenderCache.delete(cacheKey);
-  mermaidRenderCache.set(cacheKey, svg);
-  while (mermaidRenderCache.size > MAX_CACHED_MERMAID_RENDERS) {
-    const oldestKey = mermaidRenderCache.keys().next().value;
-    if (!oldestKey) {
-      break;
-    }
-    mermaidRenderCache.delete(oldestKey);
-  }
-}
-
-/** tmd 主题引擎:root.dataset.theme 恒为解析后的 light/dark。 */
-function detectMermaidTheme(): "dark" | "default" {
-  if (typeof document === "undefined") {
-    return "dark";
-  }
-  return document.documentElement.dataset.theme === "light" ? "default" : "dark";
-}
-
-function createStableRuntimeId(prefix: string) {
-  const randomId =
-    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  return `${prefix}-${randomId}`;
-}
+import {
+  detectMermaidTheme,
+  readCachedMermaidRender,
+  readCachedMermaidTabs,
+  useMermaidRenderState,
+  writeCachedMermaidTab,
+  type MermaidBlockTab,
+} from "./useMermaidRender";
 
 export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
   blockKey,
@@ -116,11 +47,12 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
   );
   const mermaidTheme = detectMermaidTheme();
   const renderCacheKey = `${documentKey}:${blockKey}:${mermaidTheme}:${hashStableString(value)}`;
-  const [renderState, setRenderState] = useState<MermaidRenderState>({
-    status: "idle",
+  const { renderState, lastSuccessfulSvgRef } = useMermaidRenderState({
+    activeTab,
+    mermaidTheme,
+    renderCacheKey,
+    value,
   });
-  const lastSuccessfulSvgRef = useRef<string | null>(null);
-  const idRef = useRef(createStableRuntimeId("file-mermaid"));
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const [stableBodyMinHeight, setStableBodyMinHeight] = useState(0);
   const highlightedHtml = useMemo(() => highlightLine(value, "mermaid"), [value]);
@@ -142,64 +74,6 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
       currentTab === nextActiveTab ? currentTab : nextActiveTab,
     );
   }, [blockKey, documentKey]);
-
-  useEffect(() => {
-    if (activeTab !== "render") {
-      return;
-    }
-
-    const cachedSvg = readCachedMermaidRender(renderCacheKey);
-    if (cachedSvg) {
-      lastSuccessfulSvgRef.current = cachedSvg;
-      setRenderState((current) =>
-        current.status === "success" && current.svg === cachedSvg
-          ? current
-          : { status: "success", svg: cachedSvg },
-      );
-      return;
-    }
-
-    let cancelled = false;
-    const previousSvg = lastSuccessfulSvgRef.current;
-    if (!previousSvg) {
-      setRenderState({ status: "rendering" });
-    }
-
-    void (async () => {
-      try {
-        // 有意 dynamic import:mermaid ~600KB,只在用户首次切到 Render 时加载(照抄 codemoss 的按需策略)
-        const mermaid = (await import("mermaid")).default;
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: mermaidTheme,
-          securityLevel: "strict",
-          fontFamily:
-            "ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif",
-        });
-
-        const id = `${idRef.current}-${hashStableString(renderCacheKey)}`;
-        // 渲染前给不安全的 flowchart 标签补引号;Source tab 保持原文。
-        const renderSource = normalizeMermaidSource(value);
-        const { svg } = await mermaid.render(id, renderSource);
-        if (!cancelled) {
-          writeCachedMermaidRender(renderCacheKey, svg);
-          lastSuccessfulSvgRef.current = svg;
-          setRenderState({ status: "success", svg });
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setRenderState({
-            status: "error",
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab, mermaidTheme, renderCacheKey, value]);
 
   useEffect(() => {
     const observer = new MutationObserver((mutations) => {

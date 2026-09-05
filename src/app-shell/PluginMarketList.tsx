@@ -1,0 +1,62 @@
+// 插件市场清单列表视图(按分类分节的卡片网格),自 PluginMarketPage.tsx 按「纯结构拆分、行为不变」拆出
+import type { PluginCategory } from "@kernel/plugin";
+import { CATEGORY_LABEL, type Row } from "./PluginMarketStrip";
+
+/** 清单列表:与插排视图互斥,同页只展示一份。 */
+export function PluginMarketList({
+  groups,
+  onToggle,
+}: {
+  groups: { category: PluginCategory; rows: Row[] }[];
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <>
+      {groups.map((g) => (
+        <section key={g.category}>
+          <div className="pm-section-title">
+            {CATEGORY_LABEL[g.category]}
+            <span className="pm-count">
+              {g.rows.filter((r) => r.on).length}/{g.rows.length} 已插入
+            </span>
+          </div>
+          <div className="pm-card-grid">
+            {g.rows.map(({ plugin, on, dirty }) => {
+              const core = plugin.meta.category === "core";
+              const Icon = plugin.meta.icon;
+              return (
+                <div key={plugin.id} className={`pm-card${on ? "" : " is-out"}`}>
+                  <div
+                    className="pm-card-icon"
+                    style={plugin.meta.iconColor ? { color: plugin.meta.iconColor } : undefined}
+                  >
+                    {Icon ? <Icon size={15} /> : plugin.meta.abbr}
+                  </div>
+                  <div className="pm-card-main">
+                    <div className="pm-card-name">
+                      {plugin.meta.name}
+                      <span className="pm-card-id">{plugin.id}</span>
+                    </div>
+                    <div className="pm-card-desc">{plugin.meta.desc}</div>
+                    <div className="pm-card-foot">
+                      {core ? <span className="pm-badge core">核心 · 焊死</span> : null}
+                      {dirty ? <span className="pm-badge dirty">重启后生效</span> : null}
+                      <button
+                        type="button"
+                        className={`pm-toggle-btn${on ? " on" : ""}`}
+                        disabled={core}
+                        onClick={() => onToggle(plugin.id)}
+                      >
+                        {core ? "常插" : on ? "拔出" : "插入"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </>
+  );
+}

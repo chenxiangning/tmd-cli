@@ -7,7 +7,6 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CloudDownload, Download, Loader2, Upload } from "lucide-react";
 import { useWorkspaces } from "@kernel/workspace";
 import { host } from "@kernel/host";
 import { ipc, type GitAheadBehind, type GitRemoteRequest } from "@kernel/ipc";
@@ -29,10 +28,10 @@ import {
 import { PushDialog } from "./views/remoteDialogs/PushDialog";
 import { PullDialog } from "./views/remoteDialogs/PullDialog";
 import { FetchDialog } from "./views/remoteDialogs/FetchDialog";
-import { GitConfirmDialog, type GitConfirmState } from "./views/GitConfirmDialog";
 import { DiffView } from "./views/DiffView";
 import { BranchView } from "./views/BranchView";
 import { HistoryView } from "./views/HistoryView";
+import { GitRemoteBar, SmartSwitchUndoBanner } from "./views/GitPanelBars";
 
 export function GitPanel() {
   const { list, activeId } = useWorkspaces();
@@ -42,7 +41,6 @@ export function GitPanel() {
   const { view, layout, refreshNonce, remoteDialogRequest } = useGitPanelState();
   const [prefill, setPrefill] = useState<{ message: string; seq: number } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [undoConfirm, setUndoConfirm] = useState<GitConfirmState | null>(null);
   const [remoteBusy, setRemoteBusy] = useState<"push" | "pull" | "fetch" | null>(null);
   const [dialog, setDialog] = useState<GitRemoteRequest["op"] | null>(null);
   /* 分支右键菜单「推送...」等入口请求打开远端对话框:消费即清,nonce 防重复。 */
@@ -170,64 +168,15 @@ export function GitPanel() {
     files.some((f) => f.status === "C") && undoOrigin != null && undoOrigin.cwd === cwd;
   return (
     <div className="flex h-full flex-col text-xs">
-      {/* 聚合行:分支 → upstream · fetch/pull/push(语义图标,点击开对话框) */}
-      <div className="flex h-7 shrink-0 items-center gap-2 overflow-hidden whitespace-nowrap border-b border-(--tmd-border) px-2 text-(--tmd-fg-muted)">
-        <span className="shrink-0 font-medium text-(--tmd-fg)">{status.data?.branch ?? "…"}</span>
-        {status.data?.upstream && (
-          <span className="min-w-0 truncate text-(--tmd-fg-faint)">→ {status.data.upstream}</span>
-        )}
-        <span className="flex-1" />
-        <div className="flex items-center gap-0.5">
-        <button
-          onClick={() => setDialog("fetch")}
-          disabled={remoteBusy !== null || detached}
-          title="获取远端更新(fetch --all --prune,不动本地分支)"
-          className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
-        >
-          {remoteBusy === "fetch" ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <CloudDownload className="h-3.5 w-3.5" />
-          )}
-        </button>
-        <button
-          onClick={() => setDialog("pull")}
-          disabled={remoteBusy !== null || detached}
-          title={
-            (aheadBehind?.behind ?? 0) > 0
-              ? `拉取远端更新(落后 ${aheadBehind!.behind} 个提交)`
-              : "拉取远端更新(对话框内可选远端与分支)"
-          }
-          className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
-        >
-          {remoteBusy === "pull" ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Download className="h-3.5 w-3.5" />
-          )}
-          {(aheadBehind?.behind ?? 0) > 0 && aheadBehind!.behind}
-        </button>
-        <button
-          onClick={() => setDialog("push")}
-          disabled={remoteBusy !== null || detached}
-          title={
-            (aheadBehind?.ahead ?? 0) > 0
-              ? `推送 ${aheadBehind!.ahead} 个提交(对话框内可预览)`
-              : hasUpstream
-                ? "推送(对话框内查看预览与选项)"
-                : "推送新分支并建立 upstream"
-          }
-          className="flex items-center gap-0.5 rounded px-1 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
-        >
-          {remoteBusy === "push" ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Upload className="h-3.5 w-3.5" />
-          )}
-          {(aheadBehind?.ahead ?? 0) > 0 && aheadBehind!.ahead}
-        </button>
-        </div>
-      </div>
+      <GitRemoteBar
+        branch={status.data?.branch}
+        upstream={status.data?.upstream}
+        remoteBusy={remoteBusy}
+        detached={detached}
+        aheadBehind={aheadBehind}
+        hasUpstream={hasUpstream}
+        onOpenDialog={setDialog}
+      />
 
       {notice && (
         <div className="shrink-0 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2 py-1 text-(--tmd-fg-muted)">
@@ -239,38 +188,13 @@ export function GitPanel() {
           {gitErrorDisplay(status.error)}
         </div>
       )}
-      {canUndo && (
-        <div className="flex shrink-0 items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-sunken) px-2 py-1">
-          <span className="min-w-0 flex-1 truncate text-(--tmd-diff-removed)">
-            存在冲突(可能来自「暂存并切换」,原分支 {undoOrigin?.branch})
-          </span>
-          <button
-            onClick={() => {
-              const origin = undoOrigin;
-              if (!origin) return;
-              setUndoConfirm({
-                title: `还原到切换前的 ${origin?.branch}?`,
-                detail:
-                  "当前分支上的冲突标记与携带改动将被丢弃(内容已在 stash 中,不会丢失),切回原分支并自动恢复改动。",
-                confirmLabel: "还原",
-                onConfirm: () => {
-                  if (!cwd) return;
-                  ipc.gitSmartCheckoutUndo(cwd, origin.branch).then(
-                    () => {
-                      clearSmartSwitchOrigin();
-                      setNotice(`已还原到 ${origin.branch},改动已恢复`);
-                      afterMutation();
-                    },
-                    (e: unknown) => setNotice(gitErrorDisplay(e)),
-                  );
-                },
-              });
-            }}
-            className="shrink-0 rounded border border-(--tmd-accent) px-1.5 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-accent-soft)"
-          >
-            还原到切换前
-          </button>
-        </div>
+      {canUndo && undoOrigin != null && (
+        <SmartSwitchUndoBanner
+          cwd={cwd}
+          undoOrigin={undoOrigin}
+          onNotice={setNotice}
+          afterMutation={afterMutation}
+        />
       )}
 
       <div className="min-h-0 flex-1">
@@ -305,7 +229,6 @@ export function GitPanel() {
           />
         )}
       </div>
-      {undoConfirm && <GitConfirmDialog state={undoConfirm} onClose={() => setUndoConfirm(null)} />}
       {cwd && dialog === "push" && (
         <PushDialog
           cwd={cwd}

@@ -2,31 +2,29 @@
  * SftpTree —— 远端文件树(懒展开,点击文件开编辑器 tab)。
  * 单一节点注册表(useRef Map<path, TreeNode>),展开即拉子级;
  * 右键弹操作菜单(下载/上传到目录/新建目录/重命名/删除)。
+ * 行渲染拆至 SftpTreeRows.tsx,右键菜单拆至 SftpTreeMenu.tsx,
+ * 共享类型与传输动作拆至 sftpTreeShared.ts(文件规模铁则)。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ChevronDown,
-  ChevronRight,
   Download,
-  FileText,
   FolderClosed,
-  FolderOpen,
   RefreshCw,
   Upload,
 } from "lucide-react";
-import { ipc, pickDirectory, pickFile, type SftpEntry, type SftpTransferState } from "@kernel/ipc";
+import { ipc, type SftpEntry, type SftpTransferState } from "@kernel/ipc";
 import { openTab } from "@kernel/tabs";
 import { useSshTransfers } from "../state";
-
-interface TreeNode {
-  path: string;
-  name: string;
-  kind: "dir" | "file";
-  expanded: boolean;
-  children?: SftpEntry[];
-  loading: boolean;
-}
+import {
+  basenameOf,
+  downloadNode,
+  uploadPicked,
+  type MenuState,
+  type TreeNode,
+} from "./sftpTreeShared";
+import { TreeRows } from "./SftpTreeRows";
+import { TreeMenu } from "./SftpTreeMenu";
 
 /** 远端编辑 tab 打开入口(tab.id = ssh://{sessionId}{path},kind = "ssh-file")。 */
 function openRemoteFileTab(sessionId: string, entry: SftpEntry) {
@@ -40,12 +38,6 @@ function openRemoteFileTab(sessionId: string, entry: SftpEntry) {
     },
     { refresh: true },
   );
-}
-
-interface MenuState {
-  x: number;
-  y: number;
-  node: TreeNode;
 }
 
 export function SftpTree({ sessionId, connected }: { sessionId: string; connected: boolean }) {
@@ -192,221 +184,6 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
   );
 }
 
-function TreeRows({
-  path,
-  depth,
-  nodeFor,
-  onToggle,
-  onOpen,
-  onMenu,
-}: {
-  path: string;
-  depth: number;
-  nodeFor: (path: string, name: string, kind: "dir" | "file") => TreeNode;
-  onToggle: (node: TreeNode) => Promise<void> | void;
-  onOpen: (node: TreeNode) => void;
-  onMenu: (x: number, y: number, node: TreeNode) => void;
-}) {
-  const node = nodeFor(path, path === "." ? "/" : path.split("/").pop() ?? path, "dir");
-  const isOpen = node.expanded;
-  return (
-    <div>
-      <div
-        className="ssh-tree-row"
-        style={{ paddingLeft: 4 + depth * 12 }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onMenu(e.clientX, e.clientY, node);
-        }}
-      >
-        <button type="button" className="ssh-tree-toggle" onClick={() => void onToggle(node)}>
-          {node.loading ? (
-            <span className="ssh-tree-spin" aria-label="加载中" />
-          ) : isOpen ? (
-            <ChevronDown size={11} />
-          ) : (
-            <ChevronRight size={11} />
-          )}
-        </button>
-        {isOpen ? <FolderOpen size={12} aria-hidden /> : <FolderClosed size={12} aria-hidden />}
-        <button
-          type="button"
-          className="ssh-tree-label"
-          onClick={() => void onToggle(node)}
-          title={node.path}
-        >
-          {node.name}
-        </button>
-      </div>
-      {isOpen && node.children
-        ? node.children.map((child) =>
-            child.kind === "dir" ? (
-              <TreeRows
-                key={child.path}
-                path={child.path}
-                depth={depth + 1}
-                nodeFor={nodeFor}
-                onToggle={onToggle}
-                onOpen={onOpen}
-                onMenu={onMenu}
-              />
-            ) : (
-              <FileRow
-                key={child.path}
-                entry={child}
-                depth={depth + 1}
-                nodeFor={nodeFor}
-                onOpen={onOpen}
-                onMenu={onMenu}
-              />
-            ),
-          )
-        : null}
-    </div>
-  );
-}
-
-function FileRow({
-  entry,
-  depth,
-  nodeFor,
-  onOpen,
-  onMenu,
-}: {
-  entry: SftpEntry;
-  depth: number;
-  nodeFor: (path: string, name: string, kind: "dir" | "file") => TreeNode;
-  onOpen: (node: TreeNode) => void;
-  onMenu: (x: number, y: number, node: TreeNode) => void;
-}) {
-  const node = nodeFor(entry.path, entry.name, "file");
-  return (
-    <div
-      className="ssh-tree-row"
-      style={{ paddingLeft: 4 + depth * 12 }}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        onMenu(e.clientX, e.clientY, node);
-      }}
-    >
-      <span className="ssh-tree-toggle" aria-hidden />
-      <FileText size={12} aria-hidden />
-      <button
-        type="button"
-        className="ssh-tree-label"
-        onClick={() => onOpen(node)}
-        title={node.path}
-      >
-        {node.name}
-      </button>
-    </div>
-  );
-}
-
-function TreeMenu({
-  sessionId,
-  state,
-  onClose,
-  onMutate,
-}: {
-  sessionId: string;
-  state: MenuState;
-  onClose: () => void;
-  onMutate: () => void;
-}) {
-  const { node } = state;
-  const parent = node.kind === "dir" ? node.path : parentPath(node.path);
-  const target = node.path;
-
-  const run = async (action: string) => {
-    onClose();
-    try {
-      if (action === "download") {
-        await downloadNode(sessionId, node, node.kind === "dir");
-      } else if (action === "upload") {
-        await uploadPicked(sessionId, onMutate, node.kind === "dir" ? node.path : parent);
-      } else if (action === "mkdir") {
-        const name = window.prompt("新目录名");
-        if (!name?.trim()) return;
-        await ipc.sftpMkdir(sessionId, joinRemote(parent, name.trim()));
-        onMutate();
-      } else if (action === "rename") {
-        const name = window.prompt("新名称", node.name);
-        if (!name?.trim() || name.trim() === node.name) return;
-        await ipc.sftpRename(sessionId, node.path, joinRemote(parent, name.trim()));
-        onMutate();
-      } else if (action === "delete") {
-        if (!window.confirm(`删除远端 ${node.path}?`)) return;
-        await ipc.sftpDelete(sessionId, target, true);
-        onMutate();
-      }
-    } catch (e) {
-      window.alert(`操作失败:${e instanceof Error ? e.message : String(e)}`);
-    }
-  };
-
-  const items = [
-    { id: "download", label: node.kind === "dir" ? "下载目录…" : "下载文件…" },
-    { id: "upload", label: "上传到此目录…" },
-    { id: "mkdir", label: "新建目录…" },
-    { id: "rename", label: "重命名…" },
-    { id: "delete", label: "删除", danger: true },
-  ];
-  return (
-    <>
-      <div className="ssh-menu-backdrop" onClick={onClose} onContextMenu={(e) => e.preventDefault()} />
-      <div className="ssh-menu" style={{ left: state.x, top: state.y }}>
-        {items.map((item) => (
-          <button
-            type="button"
-            key={item.id}
-            className={item.danger ? "is-danger" : undefined}
-            onClick={() => void run(item.id)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-    </>
-  );
-}
-
-function parentPath(path: string) {
-  const index = path.lastIndexOf("/");
-  if (index < 0) return ".";
-  if (index === 0) return "/";
-  return path.slice(0, index);
-}
-
-function joinRemote(parent: string, child: string) {
-  if (parent === "." || parent === "") return child;
-  if (parent === "/") return `/${child}`;
-  return `${parent}/${child}`;
-}
-
-async function downloadNode(sessionId: string, node: TreeNode, recursive: boolean) {
-  const target = await pickDirectory("下载到本地目录");
-  if (!target) return;
-  try {
-    const local = node.kind === "dir" ? target : `${target}/${node.name}`;
-    await ipc.sftpTransfer(sessionId, "download", node.path, local, recursive);
-  } catch (e) {
-    window.alert(`下载失败:${e instanceof Error ? e.message : String(e)}`);
-  }
-}
-
-async function uploadPicked(sessionId: string, onMutate: () => void, remoteDir = ".") {
-  const source = await pickFile("选择要上传的文件");
-  if (!source) return;
-  const name = source.split(/[\\/]/).pop() ?? "upload";
-  try {
-    await ipc.sftpTransfer(sessionId, "upload", source, joinRemote(remoteDir, name), false);
-    onMutate();
-  } catch (e) {
-    window.alert(`上传失败:${e instanceof Error ? e.message : String(e)}`);
-  }
-}
-
 function TransferRow({ transfer, sessionId }: { transfer: SftpTransferState; sessionId: string }) {
   const total = transfer.bytesTotal || 1;
   const pct = Math.min(100, Math.round((transfer.bytesDone / total) * 100));
@@ -428,8 +205,4 @@ function TransferRow({ transfer, sessionId }: { transfer: SftpTransferState; ses
       </button>
     </div>
   );
-}
-
-function basenameOf(path: string) {
-  return path.split(/[\\/]/).pop() ?? path;
 }

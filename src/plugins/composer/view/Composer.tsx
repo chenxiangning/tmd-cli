@@ -14,45 +14,34 @@
  * - 拖拽悬停 composer → accent 内环 + 虚线遮罩(仅外部文件/文件树拖拽;附件重排不弹)
  * - attachment × 删除 → 同步移除 textarea 里对应 "@path " 文本
  * - textarea 里删除 "@path " 文本 → MutationObserver 移除对应 attachment
+ *
+ * 命令抽屉与触发器下拉拆至 useComposerDrawer.ts / useComposerTriggers.ts
+ * (文件规模铁则)。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { host } from "@kernel/host";
 import { useComposerStage } from "@kernel/composerStage";
-import { useComposerAttachments, insertAtCursor } from "./useComposerAttachments";
+import { useComposerAttachments } from "./useComposerAttachments";
 import { KernelTopics } from "@kernel/events";
 import { Mounts } from "@kernel/Mounts";
-import { openSettingsPanel, useSettingsState } from "@kernel/settings";
-import { setFilePanelMode } from "@kernel/filePanel";
+import { useSettingsState } from "@kernel/settings";
 import { getTerminalHandle } from "@kernel/messageAnchors";
 import { useWorkspaces } from "@kernel/workspace";
 import { readDragPayload } from "@kernel/internalDrag";
-import { findActiveTrigger, prepareSendPayload } from "../serialize/serialize";
-import type { SuggestionMatch } from "../triggers/suggest";
-import { lookupSuggestions } from "../triggers/suggest";
+import { prepareSendPayload } from "../serialize/serialize";
 import { SuggestionList } from "./SuggestionList";
 import { shouldSendOnEnter } from "./enterAction";
 import { useActiveProfile } from "../state/useActiveProfile";
-import { useDrawerOpen } from "../state/drawerOpen";
 import { CommandDrawer } from "./CommandDrawer";
-import {
-  resolveProfileDrawerItems,
-  resolvePluginDrawerItems,
-  staticProfileDrawerItems,
-  type DrawerItem,
-} from "../drawerItems";
 import { resolveArrowIntent } from "./arrowIntent";
 import { AttachmentStrip } from "./AttachmentStrip";
 import { useAttachDragProps, usePopupAnchor } from "./composerChrome";
 import { AnchorRail } from "./AnchorRail";
 import { clearAttachments } from "../state/attachments";
-
-/** 抽屉条目 → 实际写入幕布的文本(token 覆盖默认;发送前统一走 prepareSendPayload)。 */
-function drawerWireText(item: DrawerItem): string {
-  if (item.token) return item.token.trim();
-  return item.section === "skill" ? `$${item.name}` : `/${item.name}`;
-}
+import { useComposerDrawer } from "./useComposerDrawer";
+import { useComposerTriggers } from "./useComposerTriggers";
 
 /* composer.send 命令桥 —— 发送闭包长在组件实例上,命令 run 经此触达
    (TerminalView findRequestRef 先例:命令注册在插件 activate 期,实例经模块级 ref 交接) */
@@ -63,9 +52,6 @@ export function Composer() {
   const composerRef = useRef<HTMLDivElement>(null);
   const [value, setValue] = useState("");
   const [cursor, setCursor] = useState(0);
-  const [matches, setMatches] = useState<SuggestionMatch[] | null>(null);
-  const [activeRange, setActiveRange] = useState<[number, number] | null>(null);
-  const [pickIndex, setPickIndex] = useState(0);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const profile = useActiveProfile();
@@ -78,9 +64,6 @@ export function Composer() {
     setCursor,
     setDragOver,
   );
-  /* ── 命令抽屉(openspec/changes/composer-command-drawer)──
-     数据:profile 四分区解析 + 内核插件注册表;执行:三模式回调交回本组件 */
-  const drawerOpen = useDrawerOpen();
   /* 五段高度最底段(min,仅工具栏条):隐藏输入区(附件条/textarea/锚点栏),工具栏保留 */
   const inputHidden = useComposerStage() === "min";
   const workspaces = useWorkspaces();
@@ -88,23 +71,32 @@ export function Composer() {
     () => workspaces.list.find((w) => w.id === workspaces.activeId)?.root ?? workspaces.list[0]?.root ?? "",
     [workspaces],
   );
-  const [drawerItems, setDrawerItems] = useState<DrawerItem[]>([]);
-  useEffect(() => {
-    if (!drawerOpen) return;
-    if (!profile) {
-      /* 会话消失(profile → null)时清掉上一个 CLI 的残留条目,只留插件区 */
-      setDrawerItems(resolvePluginDrawerItems());
-      return;
-    }
-    /* 两阶段渲染:先静态(零 IO,omp/pi RPC 冷启动 5-6s 期间抽屉不空白),
-       动态发现到达后整体替换(profile → null 分支同款只留插件区) */
-    setDrawerItems([...staticProfileDrawerItems(profile), ...resolvePluginDrawerItems()]);
-    let cancelled = false;
-    void resolveProfileDrawerItems(profile, cwd).then((items) => {
-      if (!cancelled) setDrawerItems([...items, ...resolvePluginDrawerItems()]);
+  const { drawerOpen, drawerItems, sendFromDrawer, insertFromDrawer, openFromDrawer } =
+    useComposerDrawer({
+      profile,
+      cwd,
+      textareaRef: ref,
+      value,
+      setValue,
+      setCursor,
     });
-    return () => { cancelled = true; };
-  }, [drawerOpen, profile, cwd]);
+  const {
+    matches,
+    activeRange,
+    pickIndex,
+    setPickIndex,
+    setMatches,
+    setActiveRange,
+    applyPick,
+  } = useComposerTriggers({
+    profile,
+    value,
+    cursor,
+    cwd,
+    textareaRef: ref,
+    setValue,
+    setCursor,
+  });
 
   /* composer.send 命令桥:每次渲染同步最新发送闭包(latest-ref),卸载断开。
      ⌘K 开合已收编为 composer.toggleDrawer 命令(注册见插件入口);发送路径零改动 */
@@ -112,96 +104,6 @@ export function Composer() {
     composerSendRef.current = () => sendCurrent();
     return () => { composerSendRef.current = null; };
   });
-
-  /* send 与手动发送完全同路径(prepareSendPayload → host.writeSession,translate 生效,零拦截;
-     writeSession 同时锚定对话(呼吸灯首写闸) —— 用户首写后的输出才按对话语义结算呼吸灯);
-     返回写入的 wire 文本(translate 后)供抽屉 toast 展示;无会话/无 profile 返回空串
-     (spec:静默守卫,不弹"已发送"假反馈) */
-  function sendFromDrawer(item: DrawerItem): string {
-    const sid = host.getActiveSessionId();
-    if (!sid || !profile) return "";
-    const text = drawerWireText(item);
-    const wire = prepareSendPayload(profile, text);
-    host.writeSession(sid, wire);
-    host.events.emit(KernelTopics.promptSent, { sessionId: sid, text: text.slice(0, 400) });
-    return wire.replace(/\r$/, "");
-  }
-
-  function insertFromDrawer(item: DrawerItem): void {
-    const token = item.token ?? (item.section === "skill" ? `$${item.name} ` : `/${item.name} `);
-    if (ref.current) insertAtCursor(ref.current, value, setValue, setCursor, token);
-  }
-
-  function openFromDrawer(item: DrawerItem): void {
-    if (item.panelId) setFilePanelMode(item.panelId);
-    else openSettingsPanel();
-  }
-
-
-  const triggerSpecs = useMemo(() => profile?.triggers ?? [], [profile]);
-
-  /* 触发器下拉:光标或 profile 变化时,探查是否存在激活触发符 */
-  useEffect(() => {
-    if (!profile || triggerSpecs.length === 0) {
-      setMatches(null);
-      setActiveRange(null);
-      return;
-    }
-    const hit = findActiveTrigger(value, cursor, triggerSpecs);
-    if (!hit) {
-      setMatches(null);
-      setActiveRange(null);
-      return;
-    }
-    /* @ 文件索引只覆盖本地 fs;SSH 会话显式不激活(远端列举不在本通道) */
-    const activeSessionKind = host.getSessions().find(
-      (s) => s.id === host.getActiveSessionId(),
-    )?.kind;
-    if (hit.spec.kind === "file" && activeSessionKind === "ssh") {
-      setMatches(null);
-      setActiveRange(null);
-      return;
-    }
-    let cancelled = false;
-    const run = () =>
-      void lookupSuggestions(profile, hit.spec, value.slice(hit.range[0], hit.range[1]), cwd).then(
-        (ms) => {
-          if (cancelled) return;
-          setActiveRange(hit.range);
-          setMatches(ms.length ? ms : null);
-          setPickIndex(0);
-        },
-      );
-    /* @ 走全仓索引缓存(Rust walk + 60s TTL),/ $ 走 listSuggestions 适配层缓存
-       (omp/pi RPC 5min TTL);150ms 防抖合并连续击键。 */
-    const timer = setTimeout(run, 150);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [value, cursor, profile, triggerSpecs, cwd]);
-
-
-  function applyPick(match: SuggestionMatch) {
-    const range = activeRange;
-    if (!range) return;
-    const charSpec = triggerSpecs.find((s) =>
-      value.slice(range[0], range[0] + 1) === s.char,
-    );
-    const head = charSpec?.char ?? "";
-    const next = value.slice(0, range[0]) + head + match.value + value.slice(range[1]);
-    setValue(next);
-    setMatches(null);
-    setActiveRange(null);
-    requestAnimationFrame(() => {
-      const ta = ref.current;
-      if (!ta) return;
-      const caret = range[0] + head.length + match.value.length;
-      ta.focus();
-      ta.setSelectionRange(caret, caret);
-      setCursor(caret);
-    });
-  }
 
   function sendCurrent() {
     if (!value.trim()) return;
