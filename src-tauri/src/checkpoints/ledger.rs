@@ -5,14 +5,14 @@
 //! 逐文件变更(前后像 blob + unified diff)固化成 turn 条目,追加进 ledger.jsonl
 //! (同一 id 可修订追加,读取取最后一行)。
 //!
-//! 双归因(设计点「审批线跟随 AI 输出落盘」):
+//! 双归因(设计点「审批线跟随 AI 输出落盘」,隔离优先于覆盖面):
 //! - events:AI 写入事件流(record_edit 流式记账)是归因主信号 —— 本轮碰过
-//!   哪些文件由事件行定死;首击时抓前像拷成 sidecar 自足副本。
+//!   哪些文件由事件行定死;批内容 = 且仅 = edit 行(纯事件归因,见 events.rs)。
 //! - git:未声明写入事件检测的 CLI 走窗口推断(attribution.rs)—— 窗口内
-//!   dirty 推断 + mtime 落窗仲裁、最近提示者赢。
-//! - events 会话的 shell 落盘(cp/脚本/重定向,无事件)是事件源盲区:open 视图
-//!   与封口在 edit 行之外用同一套窗口推断补「全账本无 edit 行」的路径(事件
-//!   路径永不被并行窗口抢走);非 git 工作区维持纯事件语义。
+//!   dirty 推断 + mtime 落窗仲裁、认领优先、僵尸窗口封顶。
+//! - events 会话的 shell 落盘(cp/脚本/重定向,无事件)是已知盲区:不并入批
+//!   —— 窗口推断分不清写入者,并回来即并行/外部写入串批(2026-09-05 泄露
+//!   回归定约:隔离优先于覆盖面)。
 //!
 //! 归因模式随锚点固化(anchor.attribution),封口/视图按锚点分支。
 //!
@@ -135,7 +135,9 @@ fn next_turn(entries: &[LedgerEntry], session_id: &str, tmd_session_id: &str) ->
 /// 宽限语义:seal 对在途轮是修订追加(结算后再封只是多一行修订),误封
 /// 活会话的在途轮无数据损失,只影响「进行中 → 待审」的提前切换 —— 因此
 /// 记账路径(30min)与启动恢复路径(grace 0/60s)都可以放心收紧。
-const STALE_OPEN_MS: i64 = 30 * 60 * 1000;
+/// 同值兼作归属仲裁的僵尸窗口封顶(attribution::session_windows):开放
+/// 锚点的推断窗口超过此宽限即视为关闭,昨天的死锚点不再吞今天的写入。
+pub(crate) const STALE_OPEN_MS: i64 = 30 * 60 * 1000;
 
 fn seal_stale_foreign(
     cwd: &str,
@@ -216,7 +218,7 @@ fn build_turn_entry(
         .rfind(|e| e.kind == "turn" && e.id == anchor.id);
 
     let turn_files = if anchor.attribution == "events" {
-        super::events::build_events_turn_files(&sidecar, user.as_ref(), &root, anchor, entries)?
+        super::events::build_events_turn_files(&sidecar, &root, anchor, entries)?
     } else {
         let Some(user) = user.as_ref() else {
             return Ok(None); // git 归因 + 非 git:无 dirty 集可推断

@@ -4,8 +4,13 @@
 //! checkpoints 插件按 4s 拉取会话磁盘事件流(readSessionEdits,omp)→
 //! checkpoint_record_edit → record_edit 流式落 edit 行(每轮每文件一行,重复
 //! 事件修订计数)→ 封口时 build_events_turn_files 把 edit 行固化成 TurnFile
-//! (前像 = 首击自足副本,后像 = 封口时刻磁盘)。事件源盲区(shell 落盘,
-//! 无 edit 行)由 git 窗口推断补充(turn_changed_paths,仅 git 工作区)。
+//! (前像 = 首击自足副本,后像 = 封口时刻磁盘)。
+//!
+//! 纯事件归因(2026-09-05 泄露回归定约):批内容 = 且仅 = 本会话本轮的
+//! edit 行。事件流按会话天然隔离(每会话一份 JSONL / PTY),从根上消除
+//! 并行会话与外部进程的写入串批;代价是 shell 落盘盲区(AI 用 cp/脚本/
+//! 重定向写仓库文件,无事件)不再并入审批线 —— 窗口推断只能证明「何时被
+//! 写」不能证明「谁写的」,并回来就是泄露回归,隔离优先于覆盖面。
 //!
 //! 前像三级解析(首击时,全部拷进 sidecar 自足):
 //! 1. anchor 基线(dirty 快照 / 用户仓库 HEAD 兜底);
@@ -152,61 +157,37 @@ fn latest_turn_after(
     Ok(Some((sidecar.find_blob(oid)?.content().to_vec(), true)))
 }
 
-/// 全账本 edit 行路径集:事件路径归事件归因,窗口推断只补「从未事件过」的
-/// 路径 —— 并行会话的事件文件不会因最近锚点窗口而被抢记进别的批。
-pub(super) fn evented_paths(entries: &[LedgerEntry]) -> std::collections::BTreeSet<String> {
-    entries
-        .iter()
-        .filter(|e| e.kind == "edit")
-        .map(|e| e.path.clone())
-        .collect()
-}
-
 /// events 归因的 open 轮文件集(视图共用):本轮 edit 行 → live 状态符。
 /// live 存在 → A(前像空)/M(前像有);磁盘已无 → D。
-/// shell 落盘等事件盲区由 git 窗口推断补充(仅 git 工作区;事件路径不重列)。
+/// 纯事件归因:只列 edit 行路径,shell 落盘等无事件写入不入 open 批
+/// (隔离优先,见模块 doc)。
 pub(super) fn edit_open_paths(
     root: &std::path::Path,
-    sidecar: &git2::Repository,
-    user: Option<&git2::Repository>,
-    live: &std::collections::BTreeMap<String, String>,
     anchor: &LedgerEntry,
     entries: &[LedgerEntry],
-) -> Result<Vec<(String, String)>, CkptError> {
-    let mut out = Vec::new();
-    for e in entries
+) -> Vec<(String, String)> {
+    entries
         .iter()
         .filter(|e| e.kind == "edit" && e.id == anchor.id)
-    {
-        let status = if fs::read(root.join(&e.path)).is_err() {
-            "D".to_string()
-        } else if e.before_oid.is_empty() {
-            "A".to_string()
-        } else {
-            // 前像自足副本在而磁盘内容等值 = 写了又写回;仍列出(轮未封口,轨迹可见)
-            "M".to_string()
-        };
-        out.push((e.path.clone(), status));
-    }
-    if let Some(u) = user {
-        let evented = evented_paths(entries);
-        for (p, st) in
-            super::attribution::turn_changed_paths(sidecar, Some(u), root, anchor, live, entries)?
-        {
-            if !evented.contains(&p) {
-                out.push((p, st));
-            }
-        }
-    }
-    Ok(out)
+        .map(|e| {
+            let status = if fs::read(root.join(&e.path)).is_err() {
+                "D".to_string()
+            } else if e.before_oid.is_empty() {
+                "A".to_string()
+            } else {
+                // 前像自足副本在而磁盘内容等值 = 写了又写回;仍列出(轮未封口,轨迹可见)
+                "M".to_string()
+            };
+            (e.path.clone(), status)
+        })
+        .collect()
 }
 
 /// events 归因封口:本轮 edit 行 → TurnFile(前像 = 首击自足副本,
 /// 后像 = 封口时刻磁盘;净零变更不入批,轨迹留在 edit 行)。
-/// shell 落盘等事件盲区由 git 窗口推断补充(git 工作区,git_turn_file 同语义)。
+/// 纯事件归因:shell 落盘等无事件写入不并入批(隔离优先,见模块 doc)。
 pub(super) fn build_events_turn_files(
     sidecar: &git2::Repository,
-    user: Option<&git2::Repository>,
     root: &std::path::Path,
     anchor: &LedgerEntry,
     entries: &[LedgerEntry],
@@ -278,22 +259,6 @@ pub(super) fn build_events_turn_files(
             skip,
             edit_count: e.edit_count,
         });
-    }
-    // 事件源盲区(shell 落盘):git 窗口推断补充;事件路径不在补充之列,
-    // 永不被并行窗口抢走。非 git 工作区(user = None)维持纯事件语义。
-    if let Some(u) = user {
-        let live = super::dirty_paths(u)?;
-        let evented = evented_paths(entries);
-        for (p, _) in
-            super::attribution::turn_changed_paths(sidecar, Some(u), root, anchor, &live, entries)?
-        {
-            if evented.contains(&p) {
-                continue;
-            }
-            if let Some(tf) = super::attribution::git_turn_file(sidecar, u, root, anchor, &p)? {
-                tfs.push(tf);
-            }
-        }
     }
     Ok(tfs)
 }

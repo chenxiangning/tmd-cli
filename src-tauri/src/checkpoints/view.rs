@@ -90,7 +90,7 @@ pub fn derive_batches(
                     continue;
                 }
                 let changed = if a.attribution == "events" {
-                    edit_open_paths(&root, &sidecar, user.as_ref(), &live, a, &entries)?
+                    edit_open_paths(&root, a, &entries)
                 } else {
                     let Some(u) = user.as_ref() else {
                         continue; // git 归因 + 非 git:无推断素材
@@ -352,7 +352,7 @@ pub fn batch_patches(cwd: &str, batch_id: &str) -> Result<Vec<super::CkptPatch>,
     let user = open_user(cwd).ok();
     let root = std::path::PathBuf::from(cwd);
     if a.attribution == "events" {
-        // events open 批:edit 行自足前像 → live 现算
+        // events open 批:纯事件归因,edit 行自足前像 → live 现算
         let mut out = Vec::new();
         for e in entries
             .iter()
@@ -374,20 +374,6 @@ pub fn batch_patches(cwd: &str, batch_id: &str) -> Result<Vec<super::CkptPatch>,
                 before.as_deref(),
                 after.as_deref(),
             )?);
-        }
-        // shell 落盘盲区:git 窗口推断补充路径,锚点基线 → live 与 git open 批同源
-        if let Some(u) = user.as_ref() {
-            let live = super::dirty_paths(u)?;
-            let evented = super::events::evented_paths(&entries);
-            let supp: Vec<String> =
-                turn_changed_paths(&sidecar, Some(u), &root, a, &live, &entries)?
-                    .into_iter()
-                    .map(|(p, _)| p)
-                    .filter(|p| !evented.contains(p))
-                    .collect();
-            if !supp.is_empty() {
-                out.extend(super::open_batch_patches(cwd, &a.files, &supp)?);
-            }
         }
         return Ok(out);
     }

@@ -52,7 +52,7 @@ fn events_迟到事件_早于锚点丢弃_防上一轮尾巴串轮() {
 }
 
 #[test]
-fn events_归因_shell落盘并入_基线未动不混入() {
+fn events_归因_纯事件流_shell落盘不入批() {
     let ws = TempWs::new();
     ws.write("a.txt", "v1\n");
     ws.write("基线脏.txt", "pre\n");
@@ -62,23 +62,23 @@ fn events_归因_shell落盘并入_基线未动不混入() {
     anchor_events(&ws, "cli-1", "tmd-1", "改 a");
     ws.write("a.txt", "v2\n");
     assert!(edit(&ws, "cli-1", "tmd-1", "a.txt"));
-    // shell 落盘(cp/脚本生成图片等,无事件):事件源盲区,git 窗口推断补充
+    // shell 落盘(cp/脚本/重定向,无事件):不并入批 —— 窗口推断只能证明
+    // 「何时被写」不能证明「谁写的」,并回来即外部/并行写入串批(2026-09-05
+    // 泄露回归定约:隔离优先于覆盖面,盲区换会话独立)
     ws.write("shots/gen.png", "png\n");
     assert!(ws.seal("cli-1", "tmd-1"));
 
     let batches = ws.batches("cli-1");
     assert_eq!(batches.len(), 1);
     assert_eq!(batches[0].attribution, "events");
-    let a = batches[0].files.iter().find(|f| f.path == "a.txt").unwrap();
-    assert_eq!(a.status, "M", "事件路径仍由 edit 行主责");
-    assert_eq!(a.edit_count, 1);
-    let gen = batches[0]
-        .files
-        .iter()
-        .find(|f| f.path == "shots/gen.png")
-        .expect("shell 落盘并入批");
-    assert_eq!(gen.status, "A", "未跟踪新建 = A");
-    assert_eq!(gen.edit_count, 0, "补充路径无事件计数");
+    assert_eq!(batches[0].files.len(), 1, "批内容 = 且仅 = 本轮 edit 行");
+    assert_eq!(batches[0].files[0].path, "a.txt");
+    assert_eq!(batches[0].files[0].status, "M");
+    assert_eq!(batches[0].files[0].edit_count, 1);
+    assert!(
+        batches[0].files.iter().all(|f| f.path != "shots/gen.png"),
+        "无事件写入不入批"
+    );
     assert!(
         batches[0].files.iter().all(|f| f.path != "基线脏.txt"),
         "锚点基线之外无变化的手改不入批"
@@ -86,7 +86,7 @@ fn events_归因_shell落盘并入_基线未动不混入() {
 }
 
 #[test]
-fn events_open待审_shell落盘_实时可见() {
+fn events_open待审_只列事件路径() {
     let ws = TempWs::new();
     ws.write("a.txt", "v1\n");
     ws.commit_all("init");
@@ -94,18 +94,16 @@ fn events_open待审_shell落盘_实时可见() {
     anchor_events(&ws, "cli-1", "tmd-1", "改 a");
     ws.write("a.txt", "v2\n");
     assert!(edit(&ws, "cli-1", "tmd-1", "a.txt"));
-    ws.write("shots/gen.png", "png\n"); // 无事件 shell 落盘
+    ws.write("shots/gen.png", "png\n"); // 无事件 shell 落盘:不入 open 批
     let batches = ws.batches("cli-1"); // 未封口 = open 待审批
     assert_eq!(batches.len(), 1);
     assert!(batches[0].open);
-    let mut paths: Vec<&str> = batches[0].files.iter().map(|f| f.path.as_str()).collect();
-    paths.sort_unstable();
-    assert_eq!(paths, vec!["a.txt", "shots/gen.png"]);
-    // 时间线 ± 与审阅单:补充路径同样有 patch
+    let paths: Vec<&str> = batches[0].files.iter().map(|f| f.path.as_str()).collect();
+    assert_eq!(paths, vec!["a.txt"]);
+    // 时间线 ± 与审阅单同源:只含事件路径的 patch
     let patches = batch_patches(ws.path(), &batches[0].id).unwrap();
-    let mut ppaths: Vec<&str> = patches.iter().map(|p| p.path.as_str()).collect();
-    ppaths.sort_unstable();
-    assert_eq!(ppaths, vec!["a.txt", "shots/gen.png"]);
+    let ppaths: Vec<&str> = patches.iter().map(|p| p.path.as_str()).collect();
+    assert_eq!(ppaths, vec!["a.txt"]);
 }
 
 #[test]
@@ -329,6 +327,36 @@ fn events_并行会话零泄露_各自事件各自账() {
     assert_eq!(b1[0].files[0].path, "a.txt");
     assert_eq!(b2[0].files.len(), 1);
     assert_eq!(b2[0].files[0].path, "b.txt");
+}
+
+#[test]
+fn events_会话不吞外部与并行写入_泄露回归() {
+    /* 2026-09-05 账本实证:纯提问的 omp 查询会话四个批全部是并行重构会话
+    与外部进程的写入(窗口推断补充吞入)。定约:events 会话批内容 = 且仅 =
+    本会话 edit 行,外部/并行写入不入任何 events 批。 */
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    // 查询会话(纯提问,零事件):外部进程/用户编辑器在同 cwd 改文件
+    anchor_events(&ws, "cli-q", "tmd-q", "/model");
+    ws.write("external.ts", "by-outside\n");
+
+    // 并行 omp 重构会话:写入走自己的事件链
+    anchor_events(&ws, "cli-r", "tmd-r", "重构");
+    ws.write("refactor.ts", "new\n");
+    assert!(edit(&ws, "cli-r", "tmd-r", "refactor.ts"));
+
+    // 查询会话封口:零事件轮零归属,外部写入不得入批
+    assert!(!ws.seal("cli-q", "tmd-q"), "无 edit 行的轮不落账");
+    assert!(ws.batches("cli-q").is_empty(), "查询会话的审批线必须干净");
+
+    // 重构会话封口:只认自己的事件路径
+    assert!(ws.seal("cli-r", "tmd-r"));
+    let batches = ws.batches("cli-r");
+    assert_eq!(batches.len(), 1);
+    assert_eq!(batches[0].files.len(), 1);
+    assert_eq!(batches[0].files[0].path, "refactor.ts");
 }
 
 #[test]

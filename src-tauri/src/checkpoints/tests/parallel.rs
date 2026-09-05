@@ -1,7 +1,7 @@
 //! 并行归属仲裁与链完整性测试 —— mtime 窗口归属 / turn 身份继承 / 幽灵窗口收口。
 //! 账本与工作区基建(TempWs / io_lock)在父模块 tests。
 
-use super::super::{batch_patches, load_ledger, now_millis, LedgerEntry};
+use super::super::{anchor_turn, batch_patches, load_ledger, now_millis, record_edit, LedgerEntry};
 use super::TempWs;
 
 /// 毫秒时钟间隔:保证「写文件 → 下一个锚点」与「锚点 → 紧随写入」的 mtime
@@ -79,6 +79,75 @@ fn 并行会话_后锚会话的写入不进先封口批() {
     assert_eq!(for_b.len(), 1);
     assert_eq!(for_b[0].files[0].path, "v.txt");
     assert!(ws.batches("cli-a").is_empty(), "A 的清单保持干净");
+}
+
+#[test]
+fn 并行会话_git归因不抢事件链认领的文件() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+
+    // omp(events)先锚点 → kimi(git)并行锚点 → omp 轮内 AI 写 c.ts(edit 行认领)
+    anchor_turn(
+        ws.path(),
+        "cli-omp",
+        "tmd-omp",
+        "omp 轮",
+        "",
+        "",
+        "",
+        "events",
+    )
+    .unwrap();
+    tick();
+    ws.anchor("cli-kimi", "tmd-kimi", "kimi 轮");
+    tick();
+    ws.write("c.ts", "by-omp\n");
+    tick();
+    assert!(record_edit(ws.path(), "cli-omp", "tmd-omp", "c.ts", None).unwrap());
+
+    // kimi 封口:c.ts 的 mtime 同时落在 kimi 与 omp 的开放窗口内,按落窗规则
+    // 最近锚点(kimi)会赢 —— 但 c.ts 已被 omp 的事件链认领,认领优先不抢
+    assert!(
+        !ws.seal("cli-kimi", "tmd-kimi"),
+        "事件链认领的路径不被窗口推断抢走"
+    );
+    assert!(ws.batches("cli-kimi").is_empty());
+
+    // omp 封口:c.ts 照常入自己的账
+    assert!(ws.seal("cli-omp", "tmd-omp"));
+    let for_omp = ws.batches("cli-omp");
+    assert_eq!(for_omp.len(), 1);
+    assert_eq!(for_omp[0].files[0].path, "c.ts");
+}
+
+#[test]
+fn 并行会话_外会话封口后再写_认领窗口不拦新写入() {
+    let ws = TempWs::new();
+    ws.write("p.txt", "v1\n");
+    ws.commit_all("init");
+
+    // A 第 1 轮写 p.txt 并封口(认领)
+    ws.anchor("cli-a", "tmd-a", "A 一");
+    ws.write("p.txt", "v2\n");
+    tick();
+    assert!(ws.seal("cli-a", "tmd-a"));
+    // B 锚点改 p.txt 并封口(认领)
+    ws.anchor("cli-b", "tmd-b", "B 一");
+    tick();
+    ws.write("p.txt", "v3\n");
+    tick();
+    assert!(ws.seal("cli-b", "tmd-b"));
+    // A 第 2 轮再改 p.txt:mtime 在 B 认领窗口之外 → 认领只护窗口内,不拦新写入
+    ws.anchor("cli-a", "tmd-a", "A 二");
+    tick();
+    ws.write("p.txt", "v4\n");
+    tick();
+    assert!(ws.seal("cli-a", "tmd-a"));
+    let for_a = ws.batches("cli-a");
+    assert_eq!(for_a.len(), 2);
+    assert_eq!(for_a[0].files.len(), 1, "A 第 2 轮只含自己的新写入");
+    assert_eq!(for_a[0].files[0].path, "p.txt");
 }
 
 #[test]
