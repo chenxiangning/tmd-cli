@@ -17,6 +17,7 @@
 import { useMemo, useState } from "react";
 import type { GitFileStatus, GitTotals } from "@kernel/ipc";
 import { STATUS_COLOR } from "./statusColor";
+import { FileOpenActions } from "./FileRowActions";
 
 /** 状态字母 → 中文描述(hover 说明;行内只显示单字母标识)。 */
 const STATUS_DESC: Record<GitFileStatus["status"], string> = {
@@ -50,6 +51,7 @@ function splitPath(p: string): [string, string] {
 
 interface Props {
   files: GitFileStatus[];
+  cwd: string;
   checked: ReadonlySet<string>;
   totals: GitTotals | null;
   onToggleCheck: (path: string) => void;
@@ -67,6 +69,7 @@ interface Section {
 
 export function DiffFlatList({
   files,
+  cwd,
   checked,
   totals,
   onToggleCheck,
@@ -174,6 +177,7 @@ export function DiffFlatList({
               ) : (
                 sec.rows.map((f) => (
                   <FRow
+                    cwd={cwd}
                     key={`${sec.key}:${f.path}`}
                     file={f}
                     side={sec.key}
@@ -201,6 +205,7 @@ function FRow({
   side,
   checked,
   nums,
+  cwd,
   onToggleCheck,
   onOpen,
   onStage,
@@ -208,6 +213,7 @@ function FRow({
   onDiscard,
 }: {
   file: GitFileStatus;
+  cwd: string;
   /** 行所在分区:"st" = index 侧视图(点击 [x] = unstage);"un"/"ut" = 工作区侧视图 */
   side: "un" | "ut" | "st";
   checked: boolean;
@@ -280,7 +286,8 @@ function FRow({
             <span className="text-(--tmd-diff-inserted)">+{nums ? fmt(nums.i) : 0}</span>{" "}
             <span className="text-(--tmd-diff-removed)">−{nums ? fmt(nums.d) : 0}</span>
           </span>
-          <span className="hidden items-baseline gap-2 group-hover:flex">
+          <span className="hidden items-center gap-2 group-hover:flex">
+            <FileOpenActions cwd={cwd} file={file} />
             {stagedRow ? (
               <button
                 type="button"

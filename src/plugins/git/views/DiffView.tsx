@@ -16,6 +16,7 @@ import { DiffFlatList } from "./DiffFlatList";
 import { gitErrorDisplay } from "../gitError";
 import { GitConfirmDialog, type GitConfirmState } from "./GitConfirmDialog";
 import { STATUS_COLOR } from "./statusColor";
+import { FileOpenActions } from "./FileRowActions";
 
 interface Props {
   cwd: string;
@@ -89,6 +90,7 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
         )}
         {files.length > 0 && layout === "flat" && (
           <DiffFlatList
+            cwd={cwd}
             files={files}
             checked={checked}
             totals={totals}
@@ -112,6 +114,7 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
               </div>
             ) : (
               <FileRow
+                cwd={cwd}
                 key={row.file.path}
                 file={row.file}
                 depth={row.depth}
@@ -146,6 +149,7 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
 
 function FileRow({
   file,
+  cwd,
   depth,
   checked,
   onToggleCheck,
@@ -155,6 +159,7 @@ function FileRow({
   onDiscard,
 }: {
   file: GitFileStatus;
+  cwd: string;
   depth: number;
   checked: boolean;
   onToggleCheck: () => void;
@@ -191,6 +196,11 @@ function FileRow({
           {displayStatus}
         </span>
       </button>
+      {!isConflict && (
+        <span className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-60">
+          <FileOpenActions cwd={cwd} file={file} />
+        </span>
+      )}
       {!isConflict && (
         <button
           type="button"
