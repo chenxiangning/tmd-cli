@@ -60,5 +60,6 @@
 | 2026-09-05 | [会话状态标签:结算归因修正 + SIGWINCH 重绘抑制窗](superpowers/specs/2026-09-05-session-status-settle-attribution-design.md) | 已落地 |
 | 2026-09-05 | [审批线隔离与精准手术:纯事件归因 · 批审计冻结 · 共改文件 diff 擦除](superpowers/specs/2026-09-05-checkpoints-isolation-surgery-design.md) | 已落地 |
 | 2026-09-05 | [插件化架构审查与插座化重构(评审记录)](review/2026-09-05-plugin-socket-refactor.md) | 已落地 |
+| 2026-09-05 | [opencode CLI 插件化接入设计](superpowers/specs/2026-09-05-opencode-cli-plugin-design.md) | 已落地(实现随本 spec 提交) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

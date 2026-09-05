@@ -30,6 +30,8 @@ import {
   listOmpAuthProviders,
   readOmpAuthCredential,
 } from "../cli-shared/quota/ompAuth";
+/* 同上:opencode auth.json 供应商表格式知识经 cli-shared 消费。 */
+import { listOpencodeAuthEntries } from "../cli-shared/opencodeDisk";
 
 /** 单个已登录供应商的盘点结果。 */
 export interface EngineCredential {
@@ -243,6 +245,27 @@ async function listGrokCredentials(): Promise<EngineCredential[]> {
   return [];
 }
 
+/* ── opencode(auth.json 供应商表 → vendor 检测) ────────── */
+
+async function listOpencodeCredentials(): Promise<EngineCredential[]> {
+  const entries = await listOpencodeAuthEntries();
+  const out: EngineCredential[] = [];
+  for (const { providerId, key } of entries) {
+    const vendor = detectVendorByProviderId(providerId);
+    if (!vendor) {
+      out.push({ providerId, title: providerId, windows: [], note: "已登录" });
+      continue;
+    }
+    /* oauth 型无 key(如 openai ChatGPT 档):查不了额度,按已登录展示。 */
+    if (!key) {
+      out.push({ providerId, title: VENDOR_TITLE[vendor], windows: [], note: "已登录" });
+      continue;
+    }
+    out.push(await toCredential(providerId, vendor, { key }));
+  }
+  return out;
+}
+
 /* ── 统一入口 ─────────────────────────────────────────── */
 
 export async function listEngineCredentials(
@@ -259,6 +282,8 @@ export async function listEngineCredentials(
       return listClaudeCredentials();
     case "grok":
       return listGrokCredentials();
+    case "opencode":
+      return listOpencodeCredentials();
     default:
       return [];
   }
