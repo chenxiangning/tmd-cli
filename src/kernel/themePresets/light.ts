@@ -5,8 +5,10 @@ import type { ThemePresetDefinition, ThemePresetId } from "./index";
 
 import { LIGHT_PRESETS_PART1 } from "./light1";
 import { LIGHT_PRESETS_PART2 } from "./light2";
+import { LIGHT_PRESETS_PART3 } from "./light3";
 
 export const LIGHT_PRESETS = {
   ...LIGHT_PRESETS_PART1,
   ...LIGHT_PRESETS_PART2,
+  ...LIGHT_PRESETS_PART3,
 } as unknown as Record<ThemePresetId, Omit<ThemePresetDefinition, "id">>;

@@ -12,7 +12,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
 
-const LIMIT = 500;
+const LIMIT = Number(process.env.FILE_SIZE_LIMIT ?? 500);
 const ROOTS = ["src", "src-tauri/src"];
 const EXTS = new Set([".ts", ".tsx", ".rs", ".css"]);
 const EXEMPT_MARK = /file-size-exempt/;
