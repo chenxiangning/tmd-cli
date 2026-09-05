@@ -14,6 +14,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import type { CliSuggestion, TriggerKind } from "@kernel/cli";
 
 /** RPC 冷启动 = CLI 加载全部扩展(实测 5-6s);20s 是异常兜底。 */
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -92,4 +93,63 @@ export class CachedCliQuery<T> {
     this.inflight.set(cwd, promise);
     return promise.finally(() => this.inflight.delete(cwd));
   }
+}
+
+/* ── get_commands 型建议源工厂(omp / pi 同构适配器上提)──────────────────
+ * 两家的差异只有:副车命令行、RPC 方法名、单项映射(hint 拼接等);
+ * `skill:` 前缀分流、TTL 缓存、kind 切片全部共享。 */
+
+/** 技能名前缀:pi 族原生语法 /skill:<name>,composer 侧存裸名、发送时翻译。 */
+const SKILL_PREFIX = "skill:";
+
+export interface RpcSuggestionSource {
+  /** listSuggestions 契约实现;副车不可达/超时 = null(回退静态表)。 */
+  list(kind: "command" | "skill", cwd: string): Promise<CliSuggestion[] | null>;
+  /** 测试 seam:绕过 TTL 缓存直测 fetch 映射与失败语义。 */
+  fetchForTest(cwd: string): Promise<Map<TriggerKind, CliSuggestion[]> | null>;
+}
+
+/** 构造一个 get_commands 型建议源。mapCommand 收原始命令对象,返回
+ *  { name(含 skill: 前缀时的原名), description };前缀剥壳与分桶由工厂做。 */
+export function createRpcSuggestionSource(spec: {
+  spawn: { command: string; args: readonly string[] };
+  method: string;
+  mapCommand: (cmd: Record<string, unknown>) => { name: string; description?: string };
+  ttlMs?: number;
+}): RpcSuggestionSource {
+  async function fetchByKind(
+    cwd: string,
+  ): Promise<Map<TriggerKind, CliSuggestion[]> | null> {
+    const response = await queryCliRpc(
+      { command: spec.spawn.command, args: [...spec.spawn.args], cwd },
+      { type: spec.method },
+    );
+    const data = response?.data as { commands?: unknown[] } | undefined;
+    if (response?.success !== true || !Array.isArray(data?.commands)) return null;
+    const byKind = new Map<TriggerKind, CliSuggestion[]>([
+      ["command", []],
+      ["skill", []],
+    ]);
+    for (const raw of data.commands) {
+      if (typeof raw !== "object" || raw === null) continue;
+      const mapped = spec.mapCommand(raw as Record<string, unknown>);
+      if (typeof mapped?.name !== "string") continue;
+      const skill = mapped.name.startsWith(SKILL_PREFIX);
+      byKind.get(skill ? "skill" : "command")?.push({
+        value: skill ? mapped.name.slice(SKILL_PREFIX.length) : mapped.name,
+        description: mapped.description,
+        action: "insert",
+      });
+    }
+    return byKind;
+  }
+
+  const cached = new CachedCliQuery(fetchByKind, spec.ttlMs ?? 5 * 60_000);
+  return {
+    async list(kind, cwd) {
+      const byKind = await cached.get(cwd);
+      return byKind?.get(kind) ?? null;
+    },
+    fetchForTest: fetchByKind,
+  };
 }

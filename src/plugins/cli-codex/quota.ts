@@ -15,10 +15,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
-import {
-  registerQuotaProvider,
-  type QuotaSnapshot,
-} from "@kernel/quota";
+import type { QuotaSnapshot } from "@kernel/quota";
 import {
   codexPlanLabelWithSnapshot,
   readCodexLocalQuota,
@@ -109,7 +106,7 @@ function httpSnapshot(quota: VendorQuota, planPrefix?: string): QuotaSnapshot {
   };
 }
 
-async function fetchCodexQuota(): Promise<QuotaSnapshot> {
+export async function fetchCodexQuota(): Promise<QuotaSnapshot> {
   const home = await ipc.configHomeDir();
   const auth = await readCodexAuth(home);
 
@@ -148,9 +145,3 @@ async function fetchCodexQuota(): Promise<QuotaSnapshot> {
   throw new Error("未找到 codex 登录态 (~/.codex/auth.json)");
 }
 
-export function registerCodexQuotaProvider(): void {
-  registerQuotaProvider({
-    profileId: "codex",
-    fetch: fetchCodexQuota,
-  });
-}

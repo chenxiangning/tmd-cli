@@ -8,7 +8,7 @@ import { extractJsonlTitle } from "../cli-shared/diskSessions";
 import { pathsEqual } from "@kernel/pathUtils";
 import { getPlatformKind } from "@kernel/platform";
 import { readCodexSessionEdits } from "./edits";
-import { registerCodexQuotaProvider } from "./quota";
+import { fetchCodexQuota } from "./quota";
 import type { CliDiskSession, CliSessionStatus, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { listCodexSuggestions } from "./scanSuggestions";
@@ -246,10 +246,11 @@ export const cliCodexPlugin: Plugin = {
     category: "engine",
   },
   activate(ctx) {
-    // 注册 codex quota provider(本地 rollout 快照,零 HTTP)。
-    registerCodexQuotaProvider();
     ctx.registerCliProfile({
       id: "codex",
+      fetchQuota: fetchCodexQuota,
+      docsUrl: "https://github.com/openai/codex",
+      npmPackage: "@openai/codex",
       name: "codex",
       renderIcon: (size) => <CodexGlyph size={size} />,
       command: "codex",

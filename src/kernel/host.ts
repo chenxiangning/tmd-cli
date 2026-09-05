@@ -1,8 +1,6 @@
 /**
  * 宿主 —— 插件注册表 + 挂载点注册表 + 会话服务的装配点。
- *
- * 内核不 import 任何插件；插件清单在 src/plugins/index.ts，
- * main.tsx 启动时一次性注册激活。
+ * 内核不 import 任何插件;插件清单在 src/plugins/index.ts,main.tsx 启动激活。
  */
 
 import { useSyncExternalStore } from "react";
@@ -20,7 +18,12 @@ import { SshSessionService } from "./sshSessions";
 import { ipc, onPtyExit, onPtyOutput, type SshHostConfig, type SessionMeta, type SpawnSpec } from "./ipc";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";
-import { registerSettingsSection, type SettingsSectionContribution } from "./settingsRegistry";
+import { registerSettingsSection } from "./settingsRegistry";
+import { registerFilePanel } from "./filePanel";
+import { registerTabContent } from "./tabs";
+import { registerFileVisual } from "./fileVisual";
+import { registerSidebarAction } from "./sidebarActions";
+import { registerQuotaProvider } from "./quota";
 
 class Host implements PluginContext {
   readonly events = new EventBus();
@@ -29,10 +32,7 @@ class Host implements PluginContext {
   private mounts = new Map<MountPoint, MountContribution[]>();
   private sessions: SessionMeta[] = [];
   private activeSessionId: string | null = null;
-  /**
-   * 待绑定磁盘身份的会话探测(快相位 500ms×30 → 巡航 5s,预算 10min)。
-   * 拆分件:循环与仲裁在 kernel/identityWatch.ts,绑定表/存活表经 ctx 回调。
-   */
+  /** 待绑定磁盘身份的会话探测(快相位 500ms×30 → 巡航 5s,预算 10min);实现见 kernel/identityWatch.ts。 */
   private readonly identityWatch = new DiskIdentityWatch({
     getCliProfile: (profileId) => this.cliProfiles.get(profileId),
     sessionAlive: (sessionId) => this.sessions.some((s) => s.id === sessionId),
@@ -133,6 +133,10 @@ class Host implements PluginContext {
       throw new Error(`CLI profile 重复注册: ${profile.id}`);
     }
     this.cliProfiles.set(profile.id, profile);
+    /* quota 抓取器随 profile.fetchQuota 声明(同 listSuggestions 惯例),统一接线进 kernel/quota。 */
+    if (profile.fetchQuota) {
+      registerQuotaProvider({ profileId: profile.id, fetch: profile.fetchQuota });
+    }
     this.notify();
   }
 
@@ -143,14 +147,16 @@ class Host implements PluginContext {
     this.mounts.set(point, list);
     this.notify();
   }
-  /** 委托给设置注册表(kernel/settingsRegistry);注册表自驱动通知,无需 host.notify。 */
-  registerSettingsSection(section: SettingsSectionContribution): void {
-    registerSettingsSection(section);
-  }
+  /* 注册表通道自驱动通知(或 activate 期登记),纯委托即可。 */
+  registerSettingsSection = registerSettingsSection;
+  registerFilePanel = registerFilePanel;
+  registerTabContent = registerTabContent;
+  registerSidebarAction = registerSidebarAction;
+  registerFileVisual = registerFileVisual;
 
-  // ---- 插件生命周期(委托 kernel/pluginLifecycle;文件规模铁则拆分) -------------
+  // ---- 插件生命周期(委托 kernel/pluginLifecycle) ----------------------------
 
-  private readonly lifecycle = new PluginLifecycle();
+  private lifecycle = new PluginLifecycle();
 
   activateAll(plugins: Plugin[]): Promise<void> {
     return this.lifecycle.activateAll(plugins, this);
@@ -169,12 +175,11 @@ class Host implements PluginContext {
   getMount(point: MountPoint): MountContribution[] {
     return this.mounts.get(point) ?? [];
   }
-
   /** 插件市场数据源(委托 lifecycle)。 */
   listPluginStates(): { plugin: Plugin; enabled: boolean }[] {
     return this.lifecycle.listPluginStates();
   }
-  /** 插件是否已激活(委托 lifecycle):特性门控用(如 SessionList 消费预算与否)。 */
+  /** 插件是否已激活(委托 lifecycle):拔插语义查询,门控应配合 dependsOn 声明。 */
   isPluginActive = (id: string): boolean => this.lifecycle.isPluginActive(id);
 
   getSessions(): SessionMeta[] {

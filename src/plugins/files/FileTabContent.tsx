@@ -10,7 +10,7 @@
 
 import { Suspense, lazy, useEffect, useState, useSyncExternalStore } from "react";
 import { Eye, Pencil } from "lucide-react";
-import { useEditorTabs } from "@kernel/tabs";
+import type { EditorTab } from "@kernel/tabs";
 import {
   getFileCacheVersion,
   loadFile,
@@ -176,33 +176,11 @@ const LOADING = (
   </div>
 );
 
-export function FileTabContent() {
-  const { activeId, tabs } = useEditorTabs();
-  const active = tabs.find((t) => t.id === activeId);
-  /* 缓存任意变更(加载完成/刷新重读/保存回写)都推版本号 → 重渲拿到最新 payload;
-     hooks 无条件执行:本组件对不同 kind 的 tab 都会挂载,早退分支放在全部 hooks 之后。 */
+export function FileTabContent({ tab }: { tab: EditorTab }) {
+  /* 缓存任意变更(加载完成/刷新重读/保存回写)都推版本号 → 重渲拿到最新内容。 */
   useSyncExternalStore(subscribeFileCache, getFileCacheVersion);
-
-  const isFileTab = active?.kind === "file";
-  const path = isFileTab ? active.path : null;
-
-  /* 多 kind 并存:非 file kind 的 tab(如 checkpoints 批审阅单)由各自插件的
-     挂载组件渲染,这里让位返回 null;无任何 tab 时本组件仍兜底空态 */
-  if (!active) {
-    return (
-      <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
-        选中一个文件查看
-      </div>
-    );
-  }
-  if (!isFileTab || !path) {
-    if (!isFileTab) return null;
-    return (
-      <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
-        选中一个文件查看
-      </div>
-    );
-  }
+  /* kind="file" 的 tab:path 为绝对路径(payload 同源,直接取 path 字段)。 */
+  const path = tab.path;
 
   /* ── 不走文本缓存的面:图片/二进制占位自取数据,PDF/文档/二进制表格走字节通道 ── */
   const profile = resolveFileRenderProfile(path);

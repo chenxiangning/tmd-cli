@@ -27,8 +27,8 @@ Tauri Rust
 ├── session_log.rs    会话输出落盘(64MB 旋转) + 幕布翻页读取
 ├── resolve/          PATH 富化 / 裸命令名 → 绝对路径(mod/path_cache/which,pty·probe·installer 共用)
 ├── probe.rs          CLI 探针(found/path/version,8s 超时)
-├── installer.rs      一键安装 CLI(npm -g / claude native),流式日志事件
-├── omp_auth.rs       omp agent.db 凭据只读(sqlite,CLI 私有存储的唯一例外模块)
+├── installer.rs      参数化安装执行器(InstallPlan:npm/script 双通道,配方由前端 CliProfile 声明),流式日志事件
+├── sqlite.rs         通用只读 sqlite 查询(参数化绑定;CLI 私有库路径/表结构知识在插件侧)
 ├── quota.rs          通用 HTTP 代理 + 只读环境变量
 ├── proxy.rs          进程级代理 env 注入(HTTP(S)_PROXY/ALL_PROXY;启动按 settings 应用,拔插件即断电)
 ├── hash.rs           MD5 原语(kimi 会话目录 / checkpoints 账本目录)
@@ -89,8 +89,9 @@ PTY bytes → Tauri event pty://out/{sessionId} → xterm.js
 - `activate(ctx)` / `deactivate()`：生命周期
 - `registerCliProfile(profile)`：CLI 插件注册启动 profile
 - `CliProfile.readSessionStatus`：声明 CLI 私有 session 状态读取能力
-- `contribute(point, contribution)`：向 15 个挂点扩展（header.left/right/breadcrumb、footer.left/right、leftSidebar.section/workspaceCaption、workspace.newSessionMenu、leftRail/rightRail、overlay、editorCenter.welcome/tabContent/composer、composer.statusBar）
+- `contribute(point, contribution)`：向 10 个挂点扩展（header.left/right/breadcrumb、leftSidebar.section/workspaceCaption、workspace.newSessionMenu、overlay、editorCenter.welcome/composer、composer.statusBar；无渲染方的挂点不声明）
 - `registerSettingsSection(section)`：向设置面板注册 section（左导航 + 右 tab），settings 插件按注册表渲染
+- `registerFilePanel` / `registerTabContent` / `registerSidebarAction` / `registerFileVisual`：右栏面板、中央 tab 内容（按 tab.kind 路由）、侧栏快捷动作、文件视觉,全部经 ctx 登记(无旁路注册表)
 
 新增能力的标准路径分两类：
 
@@ -104,7 +105,7 @@ PTY bytes → Tauri event pty://out/{sessionId} → xterm.js
 
 ```
 QuotaChip (composer 插件)
-  └─ kernel/quota.ts        QuotaProvider 注册点 + QuotaSnapshot 统一结构
+  └─ kernel/quota.ts        QuotaSnapshot 统一结构 + 注册表(host 按 CliProfile.fetchQuota 自动接线)
        └─ cli-*/quota.ts    凭据适配层(读各 CLI 自己的登录态)
             ├─ cli-shared/quota/vendors/(目录:index/types/http/detect/fetchers/codex/relay)   供应商 HTTP 协议适配(kimi/minimax/zhipu/deepseek/relay/wham)
             │    └─ tauri quota_fetch        Rust 通用 HTTP 代理(reqwest,15s 超时)
@@ -120,7 +121,7 @@ QuotaChip (composer 插件)
 | `vendors/` | 6 类供应商协议:kimi / minimax-cn·en / zhipu-cn·en / deepseek / relay + codex wham(降级) | CLI 凭据格式 |
 | `codexLocal.ts` | codex 官方 OAuth 本地 rollout 快照解析(优先路径) | HTTP(零请求) |
 | `quota.rs` | 通用 HTTP 代理 + `quota_env_value` 只读环境变量 | 业务语义 |
-| `omp_auth.rs` | omp agent.db(auth_credentials)只读代读:JS 无法解析 sqlite,CLI 私有存储知识集中于此例外模块 | HTTP/其它 CLI |
+| `sqlite.rs` | 只读 sqlite 通用代读(READ_ONLY + 参数化):JS 无法解析 sqlite,但路径/表结构知识在插件侧(cli-shared/quota/ompAuth.ts) | HTTP/其它 CLI |
 
 **关键设计决策**:
 

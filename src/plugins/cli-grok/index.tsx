@@ -7,7 +7,7 @@ import {
   readGrokDefaultStatus,
 } from "./configStatus";
 import { readGrokSessionEdits } from "./edits";
-import { registerGrokQuotaProvider } from "./quota";
+import { fetchGrokQuota } from "./quota";
 import type {
   CliDiskSession,
   CliProfile,
@@ -207,12 +207,14 @@ export const cliGrokPlugin: Plugin = {
     category: "engine",
   },
   activate(ctx) {
-    // 注册 grok quota provider(config.toml 凭据 → 供应商 HTTP 面)。
-    registerGrokQuotaProvider();
-    /* 激活不等待 skills 扫盘(2 次 IPC):先空候选同步注册,让 profile 立刻可用;
-       异步 hydrate 后就地回填同一对象(与 cli-claude 同法)。 */
+    /* 命令/技能真相:listSuggestions 磁盘扫描,激活不等待扫盘(2 次 IPC);
+       profile 立刻可用,候选按需查询(与 cli-claude 同法)。 */
     const profile: CliProfile = {
       id: "grok",
+      fetchQuota: fetchGrokQuota,
+      // 官方 install.sh 走 x.ai(Cloudflare 墙),npm 通道更稳。
+      docsUrl: "https://github.com/xai-org/grok-build",
+      npmPackage: "@xai-official/grok",
       name: "grok",
       renderIcon: (size: number) => <GrokGlyph size={size} />,
       command: "grok",

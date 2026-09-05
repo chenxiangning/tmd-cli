@@ -19,11 +19,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
-import {
-  registerQuotaProvider,
-  type QuotaFetchContext,
-  type QuotaSnapshot,
-} from "@kernel/quota";
+import type { QuotaFetchContext, QuotaSnapshot } from "@kernel/quota";
 import {
   detectVendorByBaseUrl,
   detectVendorByProviderId,
@@ -326,7 +322,7 @@ export async function resolveCredentialRefs(
 
 /* ── 入口 ─────────────────────────────────────────────── */
 
-async function fetchPiQuota(ctx: QuotaFetchContext): Promise<QuotaSnapshot> {
+export async function fetchPiQuota(ctx: QuotaFetchContext): Promise<QuotaSnapshot> {
   const config = await readPiLocalConfig();
   const route = resolvePiRoute(config, ctx.model);
   // codex 供应商分级(与 cli-codex 同策略):官方 OAuth 登录走 CLI 本地快照,
@@ -369,9 +365,3 @@ async function fetchPiQuota(ctx: QuotaFetchContext): Promise<QuotaSnapshot> {
   };
 }
 
-export function registerPiQuotaProvider(): void {
-  registerQuotaProvider({
-    profileId: "pi",
-    fetch: fetchPiQuota,
-  });
-}

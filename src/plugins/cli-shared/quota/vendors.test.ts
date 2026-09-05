@@ -3,11 +3,11 @@
  * 覆盖:供应商 id 识别、智谱 unit 映射、planLabel 提取、codex HTTP 路径禁用。
  */
 import { describe, expect, it } from "vitest";
+import { aggregateCodexUsage } from "./vendors/codex";
+import { parseZhipuLimit } from "./vendors/fetchers";
 import {
-  aggregateCodexUsage,
   detectVendorByProviderId,
   fetchVendorQuota,
-  parseZhipuLimit,
 } from "./vendors";
 
 describe("aggregateCodexUsage (WHAM 降级路径)", () => {

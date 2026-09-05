@@ -21,8 +21,8 @@
 import type { CliSessionEdit } from "@kernel/cli";
 import { normalizeEditPath } from "@kernel/editWatch";
 import { ipc } from "@kernel/ipc";
-import { findJsonlSessionFile } from "../cli-shared/userMessages";
-import { parseEditEventsFromText, readEditsTail } from "../cli-shared/sessionEdits";
+import { parseEditEventsFromText } from "../cli-shared/sessionEdits";
+import { readPiFamilySessionEdits } from "../cli-shared/piFamily";
 
 
 /** edit/write 之外的工具(read/grep/bash/todo…)不落业务文件,行预筛直接跳过。 */
@@ -120,7 +120,8 @@ export function parseOmpEditEvents(text: string, sinceTs: number, cwd: string): 
 }
 
 /**
- * readSessionEdits 实现:定位本会话 JSONL → 尾窗读 → 解析增量事件。
+ * readSessionEdits 实现:定位本会话 JSONL → 尾窗读 → 解析增量事件
+ * (定位/尾窗读走 pi 族共享工厂;parse 是 omp 私有契约)。
  * 文件尚不存在(懒 flush:omp 首条消息才建文件)返回 [],不是失败;
  * 尾窗读取失败返回 null(调用方保水位线重试)。
  */
@@ -129,12 +130,11 @@ export async function readOmpSessionEdits(
   cliSessionId: string,
   sinceTs: number,
 ): Promise<CliSessionEdit[] | null> {
-  const dir = await ompSessionsDir(cwd);
-  if (!dir) return null;
-  return readEditsTail(
-    await findJsonlSessionFile(dir, cliSessionId),
-    sinceTs,
-    cwd,
+  return readPiFamilySessionEdits(
+    { sessionsDir: ompSessionsDir },
     parseOmpEditEvents,
+    cwd,
+    cliSessionId,
+    sinceTs,
   );
 }

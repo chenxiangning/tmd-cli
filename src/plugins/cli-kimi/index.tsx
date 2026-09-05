@@ -381,6 +381,8 @@ export const cliKimiPlugin: Plugin = {
   activate(ctx) {
     const profile: CliProfile = {
       id: "kimi",
+      docsUrl: "https://moonshotai.github.io/kimi-code/",
+      npmPackage: "@moonshot-ai/kimi-code",
       name: "kimi",
       renderIcon: (size) => <KimiGlyph size={size} />,
       command: "kimi",

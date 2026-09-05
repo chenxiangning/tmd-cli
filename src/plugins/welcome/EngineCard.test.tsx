@@ -10,9 +10,18 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 import { EngineCard, type EngineProbeState, type InstallState } from "./EngineCard";
-import { ENGINE_META_BY_ID } from "./engineMeta";
+import type { EngineMeta } from "./engineMeta";
 
-const META = ENGINE_META_BY_ID.omp;
+/* 内联 meta 字面量(派生自 profile 后不再有静态表可引)。 */
+const META: EngineMeta = {
+  id: "omp",
+  displayName: "OMP",
+  binary: "omp",
+  docsUrl: "https://github.com/oh-my-pi/pi-coding-agent",
+  installHint: "npm install -g @oh-my-pi/pi-coding-agent",
+  npmPackage: "@oh-my-pi/pi-coding-agent",
+  plan: { channel: "npm", package: "@oh-my-pi/pi-coding-agent" },
+};
 
 const IDLE_INSTALL: InstallState = { running: false, ok: null, lines: [] };
 

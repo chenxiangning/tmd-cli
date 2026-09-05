@@ -1,9 +1,8 @@
 /**
  * 网络代理浮层开合状态(模块级 store,同 kernel/settings 模式)。
  *
- * 打开方是 app-shell 侧栏按钮(齿轮菜单项 / 底栏钉住按钮),与本插件
- * 无直接引用 —— 经内核事件总线转发(见 index.tsx 的 activate 订阅):
- * shell → host.events.emit(topic, 锚点坐标) → 插件 → openProxyPopover。
+ * 打开方是侧栏快捷动作(index.tsx activate 时经 kernel/sidebarActions 注册,
+ * 回调直调本 store)—— 插件自有状态,不经事件总线绕行。
  */
 
 import { useSyncExternalStore } from "react";

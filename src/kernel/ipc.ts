@@ -111,6 +111,11 @@ export interface FileStamp {
   modifiedAt: number;
 }
 
+/** 参数化安装计划(对齐 src-tauri/src/installer.rs InstallPlan;camelCase tagged)。 */
+export type CliInstallPlan =
+  | { channel: "npm"; package: string }
+  | { channel: "script"; unix: string; windows: string };
+
 
 /* ── checkpoints 契约(对齐 src-tauri/src/checkpoints/*,serde camelCase)── */
 
@@ -423,23 +428,22 @@ export const ipc = {
   /** 通用 HTTP 代理 ─ 各 CLI quota provider 通过此调用供应商 API。 */
   quotaFetch: (spec: QuotaFetchSpec) =>
     invoke<QuotaFetchResponse>("quota_fetch", { spec }),
-  /** 读 omp CLI 某供应商最新凭据 data JSON(~/.omp/agent/agent.db,只读);无记录返回 null。 */
-  ompAuthCredential: (provider: string) =>
-    invoke<string | null>("omp_auth_credential", { provider }),
+  /** 通用只读 sqlite 查询(参数化绑定,READ_ONLY 连接)。
+   *  CLI 私有库的路径/表结构知识在插件侧(cli-shared),内核只做代读原语。 */
+  sqliteQuery: (dbPath: string, sql: string, params: string[]) =>
+    invoke<unknown[][]>("sqlite_query", { dbPath, sql, params }),
   /** 读取非空环境变量;用于 pi auth.json 的 $ENV_VAR 凭据引用。 */
   quotaEnvValue: (name: string) =>
     invoke<string | null>("quota_env_value", { name }),
-
   /** 探针 CLI 是否在本机 PATH 中可解析(以及 `--version` 输出)。 */
   cliProbe: (command: string) =>
     invoke<CliProbeResult>("cli_probe", { command }),
-  /** 一键安装 CLI(claude 官方 native,其余 npm -g);日志经 cli-install://{engine} 事件推。 */
-  cliInstallRun: (engine: string) =>
-    invoke<boolean>("cli_install_run", { engine }),
+  /** 一键安装 CLI(计划由 CliProfile 安装元数据派生:scriptInstall 优先,否则 npm);
+   *  日志经 cli-install://{id} 事件推,id 惯例 = 引擎 binary。 */
+  cliInstallRun: (id: string, plan: CliInstallPlan) =>
+    invoke<boolean>("cli_install_run", { id, plan }),
   /** 字符串 MD5(小写 hex)。kimi 会话目录按 MD5(cwd) 命名,前端据此拼会话路径。 */
   md5Hex: (text: string) => invoke<string>("md5_hex", { text }),
-  /** 列出 omp 已登录的供应商 id 列表(agent.db auth_credentials,未禁用)。 */
-  ompAuthProviders: () => invoke<string[]>("omp_auth_providers"),
 
   /* ── SSH(对齐 src-tauri/src/ssh/commands.rs;输出/翻页走上方 session_* 按 kind 路由)── */
   /** 创建 SSH 会话:立即返回 id,连接/认证后台完成(ssh://event / ssh://prompt)。 */

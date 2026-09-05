@@ -1,10 +1,9 @@
 /**
  * 引擎凭据盘点 —— 每引擎列出"已登录/已配置"的供应商 + 尽力查询额度。
  *
- * 架构边界:
- * - 只用通用 IPC 原语(fsReadFile / ompAuthProviders / ompAuthCredential / configHomeDir),
- *   不依赖其它 cli-* 插件的实现(插件零直接依赖铁律);
- * - 额度查询走 cli-shared/quota/vendors 共享库(合法:它是无生命周期的格式库);
+ * - 只用通用 IPC 原语(fsReadFile / sqliteQuery / configHomeDir)+ cli-shared
+ *   共享格式库,不依赖其它 cli-* 插件的实现(插件零直接依赖铁律);
+ *
  * - 拿不到额度 ≠ 错误:显示"已登录/已配置",不猜接口(对齐 quota 体系既有原则);
  * - $ENV_VAR 引用不解析(welcome 是盘点视角,不是发送链路,显示已配置即可)。
  */
@@ -19,11 +18,18 @@ import {
   type VendorCredential,
   type VendorId,
 } from "../cli-shared/quota/vendors";
+/* 经 cli-shared 消费 codex 本地额度快照格式(合法通道,见文件头架构边界)。 */
 import {
   codexPlanLabelWithSnapshot,
   readCodexLocalQuota,
 } from "../cli-shared/quota/codexLocal";
+/* 经 cli-shared 消费 grok config.toml 默认档格式(合法通道,同上)。 */
 import { resolveGrokDefaultProfile } from "../cli-shared/grokConfig";
+/* 同上:omp 凭据库(agent.db)格式知识经 cli-shared 消费。 */
+import {
+  listOmpAuthProviders,
+  readOmpAuthCredential,
+} from "../cli-shared/quota/ompAuth";
 
 /** 单个已登录供应商的盘点结果。 */
 export interface EngineCredential {
@@ -100,7 +106,7 @@ function parseCredentialData(raw: string): VendorCredential {
 }
 
 async function listOmpCredentials(): Promise<EngineCredential[]> {
-  const providers = await ipc.ompAuthProviders().catch(() => [] as string[]);
+  const providers = await listOmpAuthProviders();
   const out: EngineCredential[] = [];
   for (const providerId of providers) {
     const vendor = detectVendorByProviderId(providerId);
@@ -123,7 +129,7 @@ async function listOmpCredentials(): Promise<EngineCredential[]> {
       }
       continue;
     }
-    const raw = await ipc.ompAuthCredential(providerId).catch(() => null);
+    const raw = await readOmpAuthCredential(providerId);
     if (!raw) {
       out.push({ providerId, title: VENDOR_TITLE[vendor], windows: [], note: "凭据缺失" });
       continue;

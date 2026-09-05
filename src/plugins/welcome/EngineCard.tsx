@@ -112,7 +112,7 @@ export function EngineCard({
           )}
         </span>
         <span className="welcome-engine-actions">
-          {probe.status === "notFound" && !install.running && (
+          {probe.status === "notFound" && !install.running && meta.plan && (
             <button
               type="button"
               className="welcome-install-btn"
@@ -121,7 +121,7 @@ export function EngineCard({
               安装
             </button>
           )}
-          {probe.status === "ok" && install.ok !== true && (
+          {probe.status === "ok" && install.ok !== true && meta.plan && (
             <button
               type="button"
               className={
@@ -194,6 +194,7 @@ export function useEngineInstall(
 
   const start = useCallback(() => {
     if (runningRef.current) return;
+    if (!meta.plan) return;
     runningRef.current = true;
     setState({ running: true, ok: null, lines: [] });
 
@@ -235,7 +236,7 @@ export function useEngineInstall(
     });
 
     void ipc
-      .cliInstallRun(meta.binary)
+      .cliInstallRun(meta.binary, meta.plan)
       .then((ok) => {
         /* phase 事件是权威收尾;invoke 返回仅兜底(事件丢失时不挂起)。 */
         setState((prev) => (prev.running ? { ...prev, running: false, ok } : prev));
@@ -250,7 +251,7 @@ export function useEngineInstall(
         settled = true;
         unlisten?.();
       });
-  }, [meta.binary, onDone]);
+  }, [meta.binary, meta.plan, onDone]);
 
   return [state, start];
 }

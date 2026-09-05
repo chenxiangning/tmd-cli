@@ -9,7 +9,10 @@ import type { ComponentType } from "react";
 import type { EventBus } from "./events";
 import type { CliProfile } from "./cli";
 import type { SettingsSectionContribution } from "./settingsRegistry";
-/** 插件分类 —— 插件市场按类分排;"core" 同时意味着焊死(不可拔出)。 */
+import type { FilePanelContribution } from "./filePanel";
+import type { TabContentContribution } from "./tabs";
+import type { FileVisualProvider } from "./fileVisual";
+import type { SidebarAction } from "./sidebarActions";
 export type PluginCategory = "engine" | "feature" | "core";
 
 /** 插件展示元数据 —— 插件市场(插排页)消费,与激活逻辑无关。 */
@@ -28,26 +31,22 @@ interface PluginMeta {
   category: PluginCategory;
 }
 
-/** 外壳暴露的挂载点（第五轮决策：头/底工具栏为扩展预留）。 */
+/** 外壳暴露的挂载点。
+ *  准入纪律:只声明外壳真的渲染 <Mounts> 的位点 —— 无渲染方/无贡献方的
+ *  僵尸声明一经发现即删(曾清理 footer.left/right、leftRail/rightRail)。 */
 export type MountPoint =
   | "header.left"
   | "header.right"
   /** 头部面包屑/工作区-会话导航区。 */
   | "header.breadcrumb"
-  | "footer.left"
-  | "footer.right"
   | "leftSidebar.section"
   /** 工作区标题行右侧动作区:贡献 icon 按钮级组件(如 session-budget 的预算入口)。 */
   | "leftSidebar.workspaceCaption"
   /** 工作区「新建会话」菜单组末尾:贡献新会话入口行(如 ssh 插件的「SSH 连接」)。 */
   | "workspace.newSessionMenu"
-  | "leftRail"
-  | "rightRail"
   | "overlay"
   /** 中央幕布的无会话首页(welcome/引导页);无活跃 session 时整页渲染。 */
   | "editorCenter.welcome"
-  /** 中央编辑区标签内容 —— 每个 tab 一个组件,按 tabId 取对应内容。 */
-  | "editorCenter.tabContent"
   /** 幕布下方富 composer 输入区。 */
   | "editorCenter.composer"
   /** composer 底部状态条(+ 模型/能力/发送)。 */
@@ -59,7 +58,9 @@ export interface MountContribution {
   component: ComponentType;
 }
 
-/** 插件激活时拿到的宿主上下文。这是插件能触达的全部世界。 */
+/** 插件激活时拿到的宿主上下文。这是插件能触达的全部注册面 ——
+ *  一切贡献点(挂点/CLI profile/设置/右栏面板/tab 内容/侧栏动作/文件视觉)都经
+ *  ctx 登记,不存在旁路注册表;运行时能力(host/ipc/settings 等模块)仍可直接 import。 */
 export interface PluginContext {
   /** 注册一个 CLI profile（cli-* 插件专用）。 */
   registerCliProfile(profile: CliProfile): void;
@@ -67,6 +68,14 @@ export interface PluginContext {
   contribute(point: MountPoint, contribution: MountContribution): void;
   /** 注册一个设置 section(设置面板左侧导航项 + 右侧 tab 内容)。 */
   registerSettingsSection(section: SettingsSectionContribution): void;
+  /** 注册右栏面板(filePanel 注册表的 ctx 通道)。 */
+  registerFilePanel(panel: FilePanelContribution): void;
+  /** 注册中央编辑区某 kind 的 tab 内容组件(tabs 路由注册表的 ctx 通道)。 */
+  registerTabContent(contribution: TabContentContribution): void;
+  /** 注册侧栏快捷动作(齿轮菜单 + 底栏钉住;sidebarActions 注册表的 ctx 通道)。 */
+  registerSidebarAction(action: SidebarAction): void;
+  /** 注册文件视觉 provider(fileVisual 注册表的 ctx 通道)。 */
+  registerFileVisual(provider: FileVisualProvider): void;
   /** 内核事件总线（跨插件通信唯一通道）。 */
   events: EventBus;
 }

@@ -17,8 +17,7 @@ import { getTabs } from "@kernel/tabs";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { clearDragPayload, setDragPayload } from "@kernel/internalDrag";
 import { useWorkspaces } from "@kernel/workspace";
-import { registerFileVisual, resolveFileVisual } from "@kernel/fileVisual";
-import { registerFilePanel } from "@kernel/filePanel";
+import { resolveFileVisual } from "@kernel/fileVisual";
 import { FileTabContent } from "./FileTabContent";
 import { defaultFileVisualProvider } from "./fileVisual";
 import { openFileInTab } from "./openFile";
@@ -373,9 +372,9 @@ export const filesPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx: PluginContext) {
-    registerFileVisual(defaultFileVisualProvider);
+    ctx.registerFileVisual(defaultFileVisualProvider);
 
-    registerFilePanel({
+    ctx.registerFilePanel({
       id: "files",
       label: "文件",
       icon: Folder,
@@ -391,9 +390,7 @@ export const filesPlugin: Plugin = {
       newFile: () => activeTreeHandles?.newFile(),
       newFolder: () => activeTreeHandles?.newFolder(),
     });
-    ctx.contribute("editorCenter.tabContent", {
-      order: 0,
-      component: FileTabContent,
-    });
+    /* 中央文件 tab 内容:kind="file" 路由(kernel/tabs 注册表)。 */
+    ctx.registerTabContent({ kind: "file", component: FileTabContent });
   },
 };

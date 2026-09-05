@@ -1,18 +1,10 @@
-import { piSessionsDir, readPiSessionEdits } from "./edits";
-import { readJsonlSessionStatus } from "../cli-shared/sessionStatus";
-import { parsePiFamilySessionHead } from "../cli-shared/sessionIdentity";
-import { ipc } from "@kernel/ipc";
-import {
-  findJsonlSessionFile,
-  ompPiUserMessageLine,
-  readUserMessagesFromFile,
-} from "../cli-shared/userMessages";
+import { piFamilySessions } from "../cli-shared/piFamily";
 import { readPiDefaultStatus } from "./configStatus";
-import { registerPiQuotaProvider } from "./quota";
-import { scanJsonlSessions } from "../cli-shared/diskSessions";
+import { fetchPiQuota } from "./quota";
+import { piSessionsDir, readPiSessionEdits } from "./edits";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 import { listPiSuggestions } from "./rpcCommands";
-import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
+import type { CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 
 /**
@@ -52,40 +44,15 @@ function PiGlyph({ size }: { size: number }) {
 }
 
 /**
- * pi 磁盘会话目录与写入事件适配器在 ./edits.ts(审批线 events 归因第二信号源),
- * slug 规则随实现注释走,此处只消费。
+ * pi 磁盘会话四件套(扫描/状态/身份自证/用户消息)走 pi 族共享适配器
+ * (状态字段键与 omp 分叉:modelId/provider 探测序);目录 slug 规则与写入
+ * 事件在 ./edits.ts(与 omp 分叉)。
  */
-
-async function listPiSessions(cwd: string): Promise<CliDiskSession[]> {
-  const dir = await piSessionsDir(cwd);
-  if (!dir) return [];
-  return scanJsonlSessions(dir);
-}
-
-async function readPiSessionStatus(cwd: string, cliSessionId: string) {
-  const dir = await piSessionsDir(cwd);
-  if (!dir) return null;
-  return readJsonlSessionStatus(
-    dir,
-    cliSessionId,
-    ["modelId", "model"],
-    ["provider", "providerId"],
-  );
-}
-
-/** 身份自证:头部 {"type":"session","id","cwd","timestamp"} 行(与 omp 同族,共享解析)。 */
-async function readPiSessionIdentity(path: string) {
-  const head = await ipc.fsReadHead(path, 4 * 1024).catch(() => null);
-  return head ? parsePiFamilySessionHead(head) : null;
-}
-
-async function readPiUserMessages(cwd: string, cliSessionId: string, full: boolean) {
-  const dir = await piSessionsDir(cwd);
-  if (!dir) return null;
-  const path = await findJsonlSessionFile(dir, cliSessionId);
-  if (!path) return null;
-  return readUserMessagesFromFile(path, full, ompPiUserMessageLine);
-}
+const piSessions = piFamilySessions({
+  sessionsDir: piSessionsDir,
+  modelKeys: ["modelId", "model"],
+  providerKeys: ["provider", "providerId"],
+});
 
 /**
  * pi CLI 插件（CLI 能力矩阵调研结论）：
@@ -97,10 +64,11 @@ export const cliPiPlugin: Plugin = {
   id: "cli-pi",
   meta: { name: "Pi", abbr: "PI", desc: "Pi CLI 引擎:会话扫描、配额、状态", icon: PiGlyph, category: "engine" },
   activate(ctx) {
-    // 注册 pi quota provider(按当前模型前缀路由供应商,HTTP 走共享 vendors)。
-    registerPiQuotaProvider();
     ctx.registerCliProfile({
       id: "pi",
+      fetchQuota: fetchPiQuota,
+      docsUrl: "https://github.com/earendil-works/pi-coding-agent",
+      npmPackage: "@earendil-works/pi-coding-agent",
       name: "pi",
       renderIcon: (size) => <PiGlyph size={size} />,
       command: "pi",
@@ -124,11 +92,8 @@ export const cliPiPlugin: Plugin = {
       /* pi 与 kimi 同源 pi-tui:编辑器原生解析 ESC[200~ 粘贴标记;声明后 composer
          发送走 bracketed paste,避开新版 TUI 的粘贴爆发回车吞没(见 kernel/cli.ts) */
       bracketedPaste: true,
-      listSessions: listPiSessions,
-      readSessionStatus: readPiSessionStatus,
-      readSessionFileIdentity: readPiSessionIdentity,
+      ...piSessions,
       readDefaultStatus: readPiDefaultStatus,
-      readSessionUserMessages: readPiUserMessages,
       readSessionEdits: readPiSessionEdits,
       /* Ask 卡片标记(pi-tui 系共享字面量,见 cli-shared/askMarks.ts)。 */
       askMarks: PI_TUI_ASK_MARKS,

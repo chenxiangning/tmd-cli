@@ -1,66 +1,42 @@
 /**
- * Sidebar settings cluster —— 复刻 codemoss 左下角「设置齿轮 + pinned 快捷 + 版本号」。
+ * Sidebar settings cluster —— 左下角「设置齿轮 + pinned 快捷 + 版本号」。
  *
  * 布局（对齐参考截图）：
  *   ┌─ 上弹菜单 ──────────────┐
- *   │ 锁屏 / Git Graph / …  □ │  ← 右侧复选框 = pin 到底栏
+ *   │ (注册表动作…)        □ │  ← 右侧复选框 = pin 到底栏
  *   │ 设置                    │
  *   └────────────────────────┘
  *   [logo] [pinned…]      v0.1.0  ← 底栏
  *
- * 当前实装状态：
- * - pin/unpin 是真功能（localStorage 持久化，上限 4，同 codemoss）；
- * - 网络代理已实装：经内核事件总线唤起 network-proxy 插件的浮层
- *   (滑动块开关 + 代理地址),active 态读 settings.networkProxyEnabled;
- * - 其余菜单动作（锁屏 / Git Graph / 运行时提示）仍为占位（console.info）;
- * - 版本号取 Tauri app version，浏览器 dev 环境回退 "0.1.0"。
+ * 动作数据源 = kernel/sidebarActions 注册表(插件 activate 时自注册),
+ * 本组件只渲染注册表与钉住状态,不认识任何具体动作 —— 与右栏面板同纪律。
+ * 「设置」行是壳自有入口(openSettingsPanel),钉住/pin 上限 4 同 codemoss。
+ * 版本号取 Tauri app version,浏览器 dev 环境回退 "0.1.0"。
  */
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { appVersion } from "@kernel/ipc";
-import { host } from "@kernel/host";
+import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
+import { openSettingsPanel, useSettingsState } from "@kernel/settings";
 import logoUrl from "../assets/logo.png";
-import { openSettingsPanel, useSettingsState } from "../kernel/settings";
-import {
-  Check,
-  CircleAlert,
-  GitCommitHorizontal,
-  Lock,
-  Network,
-  Settings,
-} from "lucide-react";
+import { Settings } from "lucide-react";
 
 /** 底栏空间有限,最多外显 4 个快捷入口(同 codemoss SIDEBAR_SETTINGS_PINNED_MAX)。 */
 const PINNED_MAX = 4;
 const PINNED_STORAGE_KEY = "shell.settingsPinned.v1";
-/** 默认 pinned ─ 对齐参考截图(Git Graph + 网络代理 已钉在齿轮旁)。 */
-const DEFAULT_PINNED: SettingsActionId[] = ["git-graph", "system-proxy"];
+/** 默认 pinned 的动作 id ─ 对齐参考截图(Git Graph + 网络代理 已钉在齿轮旁)。
+ *  id 由各插件注册时声明;插件拔出 = 动作消失,钉住项自动隐藏,插回恢复。 */
+const DEFAULT_PINNED: string[] = ["git-graph", "system-proxy"];
 
-type SettingsActionId =
-  | "lock"
-  | "git-graph"
-  | "system-proxy"
-  | "runtime-notice";
-
-interface SettingsAction {
-  id: SettingsActionId;
-  label: string;
-  icon: ReactNode;
-  /** 占位动作:目前只打日志 + 关菜单。 */
-  onSelect: () => void;
-  /** toggle 类动作的激活态(控制菜单对号/底栏高亮)。 */
-  active?: boolean;
-}
-
-function loadPinned(): SettingsActionId[] {
+function loadPinned(): string[] {
   try {
     const raw = localStorage.getItem(PINNED_STORAGE_KEY);
-    if (!raw) return DEFAULT_PINNED;
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return DEFAULT_PINNED;
-    return parsed.slice(0, PINNED_MAX) as SettingsActionId[];
+    const parsed = JSON.parse(raw ?? "[]");
+    if (!Array.isArray(parsed)) return [...DEFAULT_PINNED];
+    const ids = parsed.filter((v): v is string => typeof v === "string");
+    return ids.length > 0 ? ids.slice(0, PINNED_MAX) : [...DEFAULT_PINNED];
   } catch {
-    return DEFAULT_PINNED;
+    return [...DEFAULT_PINNED];
   }
 }
 
@@ -77,30 +53,29 @@ function PinCheckbox({
   return (
     <button
       type="button"
-      role="checkbox"
+      role="menuitemcheckbox"
       aria-checked={pinned}
-      aria-label={disabled ? `最多钉住 ${PINNED_MAX} 个` : "钉到底栏"}
-      title={disabled ? `最多钉住 ${PINNED_MAX} 个` : "钉到底栏"}
+      className={`pin-checkbox${pinned ? " is-checked" : ""}${disabled ? " is-disabled" : ""}`}
       disabled={disabled}
-      className={`settings-menu-pin${pinned ? " is-checked" : ""}`}
       onClick={(e) => {
         e.stopPropagation();
-        if (!disabled) onToggle();
+        onToggle();
       }}
+      title={pinned ? "取消钉住" : "钉到底栏"}
     >
-      {pinned && <Check size={10} aria-hidden />}
+      {pinned ? <span className="pin-check">✓</span> : null}
     </button>
   );
 }
 
 export function SidebarSettingsCluster() {
   const [open, setOpen] = useState(false);
-  const [pinnedIds, setPinnedIds] = useState<SettingsActionId[]>(loadPinned);
+  const [pinnedIds, setPinnedIds] = useState<string[]>(loadPinned);
   const [version, setVersion] = useState("0.1.0");
-  /* toggle 占位态:仅用于演示 active 视觉,未接真实能力。 */
-  const [gitGraphActive, setGitGraphActive] = useState(false);
-  /* 网络代理 active = 设置里的启用态(network-proxy 插件写入)。 */
-  const { settings } = useSettingsState();
+  /* 订阅设置仅作重渲染触发:动作的 active 是渲染期求值的 getter,
+     设置变更(如代理开关)时本簇重渲、getter 重新取值;壳不读任何具体字段。 */
+  useSettingsState();
+  const actions = useSidebarActions();
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -128,12 +103,12 @@ export function SidebarSettingsCluster() {
     };
   }, [open]);
 
-  const persistPinned = (next: SettingsActionId[]) => {
+  const persistPinned = (next: string[]) => {
     setPinnedIds(next);
     localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(next));
   };
 
-  const togglePinned = (id: SettingsActionId) => {
+  const togglePinned = (id: string) => {
     if (pinnedIds.includes(id)) {
       persistPinned(pinnedIds.filter((p) => p !== id));
     } else if (pinnedIds.length < PINNED_MAX) {
@@ -141,56 +116,20 @@ export function SidebarSettingsCluster() {
     }
   };
 
-  const placeholder = (name: string) => () => {
-    // eslint-disable-next-line no-console
-    console.info(`[settings-cluster] placeholder action: ${name}`);
+  /* 浮层类动作的锚点 = 本簇右缘(浮层开在右侧,自身做视口夹取)。 */
+  const anchor = () => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    return { x: (rect?.right ?? 0) + 8, y: rect?.top ?? 0 };
   };
-
-  const actions: SettingsAction[] = [
-    {
-      id: "lock",
-      label: "锁屏",
-      icon: <Lock size={14} aria-hidden />,
-      onSelect: placeholder("lock"),
-    },
-    {
-      id: "git-graph",
-      label: "Git Graph",
-      icon: <GitCommitHorizontal size={14} aria-hidden />,
-      active: gitGraphActive,
-      onSelect: () => setGitGraphActive((v) => !v),
-    },
-    {
-      id: "system-proxy",
-      label: "网络代理",
-      icon: <Network size={14} aria-hidden />,
-      active: settings.networkProxyEnabled,
-      onSelect: () => {
-        /* 经内核事件总线唤起 network-proxy 插件浮层:壳与插件互不引用。
-           锚点 = 本簇右缘(浮层开在右侧,自身做视口夹取)。 */
-        const rect = rootRef.current?.getBoundingClientRect();
-        host.events.emit("plugin.network-proxy.popover.open", {
-          x: (rect?.right ?? 0) + 8,
-          y: rect?.top ?? 0,
-        });
-      },
-    },
-    {
-      id: "runtime-notice",
-      label: "运行时提示",
-      icon: <CircleAlert size={14} aria-hidden />,
-      onSelect: placeholder("runtime-notice"),
-    },
-  ];
 
   const pinnedActions = pinnedIds
     .map((id) => actions.find((a) => a.id === id))
-    .filter((a): a is SettingsAction => Boolean(a));
+    .filter((a): a is SidebarAction => Boolean(a));
   const atPinLimit = pinnedIds.length >= PINNED_MAX;
 
-  const select = (action: SettingsAction) => {
+  const select = (action: SidebarAction) => {
     setOpen(false);
-    action.onSelect();
+    action.onSelect(anchor());
   };
 
   return (
@@ -199,10 +138,11 @@ export function SidebarSettingsCluster() {
         <div className="settings-menu" role="menu" aria-label="设置菜单">
           {actions.map((action) => {
             const pinned = pinnedIds.includes(action.id);
+            const isActive = action.active?.() ?? false;
             return (
               <div
                 key={action.id}
-                className={`settings-menu-row${action.active ? " is-active" : ""}`}
+                className={`settings-menu-row${isActive ? " is-active" : ""}`}
               >
                 <button
                   type="button"
@@ -210,7 +150,9 @@ export function SidebarSettingsCluster() {
                   className="settings-menu-item"
                   onClick={() => select(action)}
                 >
-                  <span className="settings-menu-icon">{action.icon}</span>
+                  <span className="settings-menu-icon" aria-hidden>
+                    <action.icon size={14} />
+                  </span>
                   <span className="settings-menu-label">{action.label}</span>
                 </button>
                 <PinCheckbox
@@ -231,8 +173,8 @@ export function SidebarSettingsCluster() {
               openSettingsPanel();
             }}
           >
-            <span className="settings-menu-icon">
-              <Settings size={14} aria-hidden />
+            <span className="settings-menu-icon" aria-hidden>
+              <Settings size={14} />
             </span>
             <span className="settings-menu-label">设置</span>
           </button>
@@ -251,19 +193,22 @@ export function SidebarSettingsCluster() {
         >
           <img src={logoUrl} alt="" className="settings-logo" />
         </button>
-        {pinnedActions.map((action) => (
-          <button
-            key={action.id}
-            type="button"
-            className={`settings-bar-btn${action.active ? " is-active" : ""}`}
-            aria-label={action.label}
-            aria-pressed={action.active}
-            title={action.label}
-            onClick={() => action.onSelect()}
-          >
-            {action.icon}
-          </button>
-        ))}
+        {pinnedActions.map((action) => {
+          const isActive = action.active?.() ?? false;
+          return (
+            <button
+              key={action.id}
+              type="button"
+              className={`settings-bar-btn${isActive ? " is-active" : ""}`}
+              aria-label={action.label}
+              aria-pressed={isActive}
+              title={action.label}
+              onClick={() => action.onSelect(anchor())}
+            >
+              <action.icon size={14} />
+            </button>
+          );
+        })}
         <span className="settings-cluster-spacer" />
         <span className="settings-cluster-version">v{version}</span>
       </div>

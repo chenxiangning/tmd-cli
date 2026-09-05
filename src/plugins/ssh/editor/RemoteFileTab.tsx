@@ -8,7 +8,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { ipc, type SftpEntry } from "@kernel/ipc";
-import { setActiveTab, updateTab, useEditorTabs } from "@kernel/tabs";
+import { setActiveTab, updateTab, type EditorTab } from "@kernel/tabs";
 
 /* CodeMirror 全家按需拆包(files 插件同款):首个 ssh-file tab 才拉 chunk;
    与 files 的 lazy import 指向同一模块,chunk 共享。 */
@@ -40,11 +40,8 @@ function useDarkTheme(): boolean {
   return dark;
 }
 
-export function RemoteFileTab() {
-  const { activeId, tabs } = useEditorTabs();
-  const active = tabs.find((t) => t.id === activeId);
-  const payload =
-    active?.kind === "ssh-file" ? (active.payload as { sessionId: string; path: string }) : null;
+export function RemoteFileTab({ tab }: { tab: EditorTab }) {
+  const payload = tab.payload as { sessionId: string; path: string };
   const [doc, setDoc] = useState<RemoteDoc | null>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -94,8 +91,8 @@ export function RemoteFileTab() {
   }, [payload?.sessionId, payload?.path]);
 
   useEffect(() => {
-    if (active) updateTab(active.id, { dirty });
-  }, [dirty, active]);
+    updateTab(tab.id, { dirty });
+  }, [dirty, tab]);
 
   const save = useCallback(
     async (force = false) => {
@@ -148,7 +145,6 @@ export function RemoteFileTab() {
     return () => window.removeEventListener("keydown", onKey, true);
   }, [payload, save]);
 
-  if (!active) return null;
   if (!payload) return null;
   if (!doc || !doc.loaded) {
     return (
@@ -190,7 +186,7 @@ export function RemoteFileTab() {
           文件超过 200KB,仅载入头部;保存将整文件覆写,确认后再编辑。
         </div>
       ) : null}
-      <div className="ssh-editor-body" onClick={() => setActiveTab(active.id)}>
+      <div className="ssh-editor-body" onClick={() => setActiveTab(tab.id)}>
         <Suspense
           fallback={
             <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">

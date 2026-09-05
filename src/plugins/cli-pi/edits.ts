@@ -15,8 +15,8 @@
 import type { CliSessionEdit } from "@kernel/cli";
 import { normalizeEditPath } from "@kernel/editWatch";
 import { piAgentDir } from "./quota";
-import { findJsonlSessionFile } from "../cli-shared/userMessages";
-import { parseEditEventsFromText, readEditsTail } from "../cli-shared/sessionEdits";
+import { parseEditEventsFromText } from "../cli-shared/sessionEdits";
+import { readPiFamilySessionEdits } from "../cli-shared/piFamily";
 
 
 /** edit/write 之外的工具(ctx_shell/ctx_read/web_search…)不落业务文件,行预筛跳过。 */
@@ -87,7 +87,8 @@ export function parsePiEditEvents(text: string, sinceTs: number, cwd: string): C
 }
 
 /**
- * readSessionEdits 实现:定位本会话 JSONL → 尾窗读 → 解析增量事件。
+ * readSessionEdits 实现:定位本会话 JSONL → 尾窗读 → 解析增量事件
+ * (定位/尾窗读走 pi 族共享工厂;parse 是 pi 私有契约,与 omp 分叉)。
  * 文件尚不存在返回 [];尾窗读取失败返回 null(调用方保水位线重试)。
  */
 export async function readPiSessionEdits(
@@ -95,12 +96,11 @@ export async function readPiSessionEdits(
   cliSessionId: string,
   sinceTs: number,
 ): Promise<CliSessionEdit[] | null> {
-  const dir = await piSessionsDir(cwd);
-  if (!dir) return null;
-  return readEditsTail(
-    await findJsonlSessionFile(dir, cliSessionId),
-    sinceTs,
-    cwd,
+  return readPiFamilySessionEdits(
+    { sessionsDir: piSessionsDir },
     parsePiEditEvents,
+    cwd,
+    cliSessionId,
+    sinceTs,
   );
 }

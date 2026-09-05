@@ -136,16 +136,15 @@ export function CliSessionGroup({
   /**
    * 初始露出条数 = 显示预算解析配额(断裂修复:曾硬编码 PAGE_INITIAL,
    * settings.sessionListBudget 从不被消费,设置改了列表没反应)。
-   * 拔出门控:session-budget 插件未激活 = 完全断电,回默认分页;
-   * 预算数值保留在 settings,重新插入插件后继续生效。
+   * 预算数据归 kernel/settings 所有,session-budget 插件只是编辑器:
+   * 拔出编辑器不改变数据语义(与拔出其它编辑器插件一致),
+   * workspace 不感知该插件存在(零字符串 id 门控)。
    */
-  const initialLimit = host.isPluginActive("session-budget")
-    ? resolveCliSessionQuota(
-        settings.sessionListBudget,
-        profile.id,
-        host.getCliProfiles().map((p) => p.id),
-      )
-    : PAGE_INITIAL;
+  const initialLimit = resolveCliSessionQuota(
+    settings.sessionListBudget,
+    profile.id,
+    host.getCliProfiles().map((p) => p.id),
+  );
   const [limit, setLimit] = useState(initialLimit);
   /** 预算修改响应式生效:按新配额重新起步(已展开的「更多」随之重置)。 */
   useEffect(() => {

@@ -11,7 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronRight, Loader2, RotateCcw } from "lucide-react";
-import { useEditorTabs } from "@kernel/tabs";
+import type { EditorTab } from "@kernel/tabs";
 import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
 import type { CkptBatch, CkptPatch } from "@kernel/ipc";
 import { approveBatch, getCachedDiff, loadDiff, refreshBatches, refreshOpenDiff, revertBatch, useCkptVersion, useCkptBatches } from "./store";
@@ -27,11 +27,9 @@ function formatDuration(ms: number): string {
   return `${Math.floor(m / 60)} 小时 ${m % 60} 分`;
 }
 
-export function BatchSheetTabContent() {
-  const { activeId, tabs } = useEditorTabs();
-  const active = tabs.find((t) => t.id === activeId);
-  const payload = active ? readBatchPayload(active) : null;
-  if (!active || !payload) return null;
+export function BatchSheetTabContent({ tab }: { tab: EditorTab }) {
+  const payload = readBatchPayload(tab);
+  if (!payload) return null;
   return (
     <BatchSheet
       key={`${payload.sessionId}:${payload.batchId}`}

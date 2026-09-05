@@ -13,8 +13,7 @@
  */
 
 import { Server } from "lucide-react";
-import type { Plugin, PluginContext } from "@kernel/plugin";
-import { registerFilePanel } from "@kernel/filePanel";
+import type { Plugin } from "@kernel/plugin";
 import { ipc, type SessionMeta } from "@kernel/ipc";
 import { KernelTopics } from "@kernel/events";
 import { host } from "@kernel/host";
@@ -50,12 +49,13 @@ export const sshPlugin: Plugin = {
     iconColor: "#8B7CF6",
     category: "feature",
   },
-  activate(ctx: PluginContext) {
+  activate(ctx) {
     /* UI 注册面(四挂载点 + 右栏面板 + 设置分区)。 */
     ctx.contribute("overlay", { order: 30, component: SshOverlay });
     ctx.contribute("workspace.newSessionMenu", { order: 20, component: MenuEntry });
-    ctx.contribute("editorCenter.tabContent", { order: 20, component: RemoteFileTab });
-    registerFilePanel({
+    /* 远端文件编辑 tab:kind="ssh-file" 路由(kernel/tabs 注册表)。 */
+    ctx.registerTabContent({ kind: "ssh-file", component: RemoteFileTab });
+    ctx.registerFilePanel({
       id: "ssh",
       label: "SSH",
       icon: Server,

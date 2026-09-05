@@ -6,13 +6,13 @@
 
 import { memo, useState } from "react";
 import { Maximize2, Minimize2, X } from "lucide-react";
-import { Mounts } from "@kernel/Mounts";
 import { baseName } from "@kernel/pathUtils";
 import { resolveFileVisual } from "@kernel/fileVisual";
 import {
   closeAllTabs,
   closeOtherTabs,
   closeTab,
+  getTabContent,
   setActiveTab,
   useEditorTabs,
 } from "@kernel/tabs";
@@ -103,6 +103,9 @@ function FileTab({
 export const EditorCenter = memo(function EditorCenter() {
   const { tabs, activeId } = useEditorTabs();
   const active = tabs.find((t) => t.id === activeId) ?? null;
+  /* 内容按 tab.kind 路由(kernel/tabs 注册表):插座裁决渲染权,
+     外壳不认识任何 tab 内容组件。未注册 kind 的兜底空态与无 tab 一致。 */
+  const Content = active ? getTabContent(active.kind) : undefined;
   /** tab 右键菜单目标:作用于被右键的 tab,不强制激活。 */
   const [menu, setMenu] = useState<{ tabId: string; x: number; y: number } | null>(null);
 
@@ -132,8 +135,8 @@ export const EditorCenter = memo(function EditorCenter() {
         />
       ) : null}
       <div className="min-h-0 flex-1 overflow-auto">
-        {active ? (
-          <Mounts point="editorCenter.tabContent" />
+        {active && Content ? (
+          <Content key={active.id} tab={active} />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
             选中一个文件查看

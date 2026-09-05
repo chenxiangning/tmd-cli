@@ -7,7 +7,7 @@ import { extractJsonlTitle } from "../cli-shared/diskSessions";
 import { parseClaudeFamilySessionHead } from "../cli-shared/sessionIdentity";
 import type { CliDiskSession, CliProfile, CliSessionStatus, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
-import { registerClaudeQuotaProvider } from "./quota";
+import { fetchClaudeQuota } from "./quota";
 import { listClaudeSuggestions } from "./scanSuggestions";
 
 /**
@@ -213,12 +213,18 @@ export const cliClaudePlugin: Plugin = {
     category: "engine",
   },
   activate(ctx) {
-    // 注册 claude quota provider(settings.json env 凭据 → 供应商 HTTP 面)。
-    registerClaudeQuotaProvider();
     /* 命令/技能真相:listSuggestions 磁盘扫描(commands/*.md + SKILL.md +
        插件缓存,项目级优先),静态内置表兜底 —— 不再 activate 时 hydrate。 */
     const profile: CliProfile = {
       id: "claude",
+      fetchQuota: fetchClaudeQuota,
+      docsUrl: "https://code.claude.com/docs/en/cli-reference",
+      // npm 包仅用于 registry 最新版查询;安装走下方官方脚本通道。
+      npmPackage: "@anthropic-ai/claude-code",
+      scriptInstall: {
+        unix: "curl -fsSL https://claude.ai/install.sh | bash",
+        windows: "irm https://claude.ai/install.ps1 | iex",
+      },
       name: "claude",
       renderIcon: (size) => <ClaudeGlyph size={size} />,
       command: "claude",

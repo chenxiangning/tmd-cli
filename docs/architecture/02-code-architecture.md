@@ -28,8 +28,8 @@ flowchart TB
             IPC["ipc.ts<br/>invoke/listen 薄封装（唯一触 Rust 入口）<br/>+ Tauri API 统一收口(窗口/对话框/外链)"]
             TV["TerminalView.tsx<br/>xterm.js 幕布(WebGL/搜索/翻页)"]
             SS["streamSlice.ts<br/>字节流尾部安全截断"]
-            FH["fileHighlighter.ts<br/>高亮器注册点"]
             FV["fileVisual.ts<br/>文件视觉 provider 注册点"]
+            SA["sidebarActions.ts<br/>侧栏快捷动作注册表"]
             FP["filePanel.ts<br/>右栏面板注册表(通用 tab store,<br/>不预知业务面板)"]
             WATCH["守望组(host 拆分件)<br/>activityWatch·askWatch·editWatch·identityWatch<br/>+ askSound·turnSound"]
             THEME["theme.ts + themeTokens.ts + themePresets/<br/>主题引擎:21 个 VS Code preset → --tmd-*"]
@@ -61,13 +61,13 @@ flowchart TB
     end
 
     subgraph BE["Tauri Rust 后端（src-tauri/src/）"]
-        LIB["lib.rs<br/>87 个 tauri::command 注册(git 17 + ssh 20 + checkpoints 11 + fs_edit 6 + session 7 + quota 2 + omp_auth 2 + lib.rs 直注册 22)<br/>panic 钩子落盘 panic.log"]
+        LIB["lib.rs<br/>100 个 tauri::command 注册(git 30 + ssh 21 + checkpoints 11 + fs_edit 6 + session 7 + quota 2 + sqlite 1 + lib.rs 直注册 22)<br/>panic 钩子落盘 panic.log"]
         PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出"]
         SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
         RESOLVE["resolve.rs<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
         PROBE["probe.rs<br/>CLI 探针 found/path/version(8s 超时)"]
-        INST["installer.rs<br/>一键安装 CLI(npm -g / claude native)流式日志"]
-        OAUTH["omp_auth.rs<br/>omp agent.db 凭据只读(sqlite)"]
+        INST["installer.rs<br/>参数化安装执行器(InstallPlan:npm/script)<br/>配方由前端 CliProfile 声明"]
+        SQL["sqlite.rs<br/>只读 sqlite 通用代读(参数化)<br/>CLI 私有库知识在插件侧"]
         SESS["session.rs — SessionRegistry<br/>活会话纯内存表(不落盘)<br/>workspaces.json 持久化"]
         FS["fs.rs<br/>list_dir / read_file / read_head / read_tail<br/>collect_files / write_temp / remove_path(白名单)<br/>read_local_image_data_url(md 预览)"]
         FSW["fs_walk.rs 全仓文件索引(gitignore 系)<br/>proc_run.rs 通用短进程通道"]
@@ -84,7 +84,7 @@ flowchart TB
     CLIDATA["CLI 自身 session 落盘<br/>OMP / Pi / Codex / Claude / Kimi / Grok / Qoder"]
 
     MAIN --> SHELL & KERNEL
-    KERNEL -->|registerCliProfile / contribute| PLUGINS
+    KERNEL -->|ctx 注册面(registerCliProfile/contribute/registerXxx)| PLUGINS
     PLUGINS -->|ipc.*| IPC
     IPC -->|invoke| LIB
     LIB --> PTY & SESS & FS & GIT & SSHB & FSW
@@ -101,7 +101,7 @@ flowchart TB
 **依赖铁律**（代码中已成立）：
 
  - 内核 `src/kernel/` 不 import 任何 `src/plugins/`；插件清单唯一入口是 `src/plugins/index.ts` 的 `allPlugins` 数组（编译期注册）。
- - 插件之间**零直接依赖**：协作仅通过 `PluginContext`（`registerCliProfile` / `contribute` / `events`）和内核注册点（`fileHighlighter` / `fileVisual` / `filePanel`）；`plugins/cli-shared` 仅是无生命周期的共享格式库，不是插件。
+ - 插件之间**零直接依赖**：协作仅通过 `PluginContext` 的注册面（`registerCliProfile` / `contribute` / `events` / `registerSettingsSection` / `registerFilePanel` / `registerTabContent` / `registerSidebarAction` / `registerFileVisual`，quota 折叠为 `CliProfile.fetchQuota` 由 host 自动接线）——一切贡献经 ctx 登记，无旁路注册表；`plugins/cli-shared` 仅是无生命周期的共享格式库，不是插件。
  - 前端触达 Rust 的唯一通道是 `src/kernel/ipc.ts`；插件不直接 import `@tauri-apps/api`。
 
 **文件规模铁则**（2026-09-02 起生效）：
@@ -305,33 +305,31 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    subgraph MOUNT["MountPoint（plugin.ts 定义的 15 个挂点）"]
+    subgraph MOUNT["MountPoint（plugin.ts 定义的 10 个挂点)"]
         direction TB
         HB["header.breadcrumb"]
         HLR["header.left / header.right"]
         LS1["leftSidebar.section"]
         LS2["leftSidebar.workspaceCaption"]
         ECW["editorCenter.welcome"]
-        ECT["editorCenter.tabContent"]
         ECC["editorCenter.composer"]
         CSB["composer.statusBar"]
-        FT["footer.left / footer.right"]
-        OV["overlay / leftRail / rightRail"]
+        OV["overlay"]
         WSM["workspace.newSessionMenu"]
     end
+    TABRT["kernel/tabs 注册表(registerTabContent)<br/>中央 tab 内容按 kind 路由:file / ssh-file /<br/>git-commit-diff / git-diff / ckpt-batch"]
 
     CONTRIB2["contributions.tsx<br/>（内置默认，可替换）"] --> HB
     P_WS2["workspace 插件"] -->|"order:0"| LS1
     P_WS2 -->|"渲染 caption 挂点<br/>（Mounts 公共渲染器）"| LS2
     P_SBU["session-budget 插件"] -->|"order:0<br/>CaptionBudgetButton"| LS2
-    P_FILES2 -->|"order:0<br/>FileTabContent"| ECT
     P_COMP2["composer 插件"] -->|"order:0<br/>Composer"| ECC
     P_COMP2 -->|"order:0<br/>ComposerToolbar"| CSB
     P_WELCOME2["welcome 插件"] -->|"order:0<br/>WelcomePage"| ECW
     P_SSH2["ssh 插件"] -->|"order:30 SshOverlay"| OV
     P_SSH2 -->|"「SSH 连接」入口"| WSM
-    P_SSH2 -->|"kind=ssh-file RemoteFileTab"| ECT
-    Note2["右栏 files/git/checkpoints/ssh 四面板并列 tab 不走挂点:<br/>经 kernel/filePanel 注册表(registerFilePanel)<br/>由插件贡献,外壳只按注册表路由渲染"]
+    P_FILES2 & P_SSH2 -->|"kind= file / ssh-file"| TABRT
+    Note2["右栏 files/git/checkpoints/ssh 四面板并列 tab 不走挂点:<br/>经 ctx.registerFilePanel(kernel/filePanel 注册表)<br/>由插件贡献,外壳只按注册表路由渲染"]
 
     Note["Mounts 是 kernel 公共渲染器；<br/>挂点按 order 升序渲染；<br/>composer.statusBar 已承载只读模型/思考强度工具栏；<br/>设置面板 section 经 ctx.registerSettingsSection 注册"]
 ```
@@ -367,7 +365,7 @@ flowchart TD
     P1 --> KI
     P1 --> SH["plugins/cli-shared<br/>共享 JSONL 格式库(非插件)"]
     P2 --> KW
-    P3 --> KI & KT & KFH["kernel/fileHighlighter.ts"] & KFV["kernel/fileVisual.ts"] & KFP["kernel/filePanel.ts"]
+    P3 --> KI & KT & KFV["kernel/fileVisual.ts"] & KFP["kernel/filePanel.ts"]
     P6 --> KFP & KSR["kernel/settingsRegistry.ts"]
     P5 --> KH & KM & KI
 
@@ -382,7 +380,7 @@ flowchart TD
 
 ## 8. Rust 后端命令面
 
-注册的 87 个 `#[tauri::command]`（git/commands.rs 17 + ssh/commands.rs 20 + checkpoints/commands.rs 11 + fs_edit.rs 6 + session_commands.rs 7 + quota.rs 2 + omp_auth.rs 2 + lib.rs 直注册 22），与 `ipc.ts` 一一对应：
+注册的 100 个 `#[tauri::command]`（git/commands.rs 30 + ssh/commands.rs 21 + checkpoints/commands.rs 11 + fs_edit.rs 6 + session_commands.rs 7 + quota.rs 2 + sqlite.rs 1 + lib.rs 直注册 22），与 `ipc.ts` 一一对应：
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
@@ -391,8 +389,8 @@ flowchart TD
 | `session_write` / `session_resize` / `session_kill` | `session_commands.rs` → `pty.rs` | writer 直写 / master.resize / child.kill(写路径 spawn_blocking 防全局锁卡 UI) |
 | `session_log_size` / `session_history_page` | `session_commands.rs` + `session_log.rs` | 输出日志末尾偏移 / 绝对偏移前翻一页(转义+UTF-8 边界对齐) |
 | `cli_probe` | `probe.rs` | PATH 解析 + `--version`(8s 硬超时,spawn_blocking;输出带超时收集防孙进程握管道挂死) |
-| `cli_install_run` | `installer.rs` | npm -g / claude native 安装,`cli-install://{engine}` 流式日志(300s 超时) |
-| `omp_auth_credential` / `omp_auth_providers` | `omp_auth.rs` | omp agent.db 只读:单供应商凭据 JSON / 已登录供应商列表 |
+| `cli_install_run` | `installer.rs` | 参数化 InstallPlan 执行(npm / script 双通道,配方由前端 CliProfile 声明),`cli-install://{id}` 流式日志(300s 超时) |
+| `sqlite_query` | `sqlite.rs` | 只读 sqlite 通用代读(READ_ONLY + 参数化绑定);CLI 私有库路径/表结构知识在插件侧(cli-shared/quota/ompAuth.ts) |
 | `quota_fetch` / `quota_env_value` | `quota.rs` | 通用 HTTP 代理(15s 超时) / 只读环境变量 |
 | `platform_kind` / `app_restart` | `lib.rs` | UA 探测失败时的 OS 兜底 / 重启应用(插件启停重启生效) |
 | `fs_list_dir` | `fs.rs` | 单层列举，隐藏过滤，目录排前 |
@@ -488,14 +486,14 @@ sessionExited → checkpoint_seal(兜底,最后一轮落账)
 | 切回不黑屏 | `host.ts` `outputBuffers`（分块环形尾部,上限经设置项 `sessionOutputBufferLimit` 可配,默认 50 万字符;`streamSlice` 保证截断不劈转义序列/surrogate）+ TerminalView 挂载先回放再订阅 |
 | 触发符纯透传 | `cli.ts` `translate?` 是唯一例外钩子；`serialize.translatePrompt` 只调用 profile 声明 |
 | 一切能力皆插件 | `plugins/index.ts` 是唯一插件清单；内核无插件 import |
-| 插件不互相依赖 | 协作仅经 `PluginContext` / `EventBus` / `fileHighlighter` / `fileVisual` / `filePanel` 注册点；`cli-shared` 是无生命周期的共享格式库，不是插件 |
+| 插件不互相依赖 | 协作仅经 `PluginContext` 注册面(挂点/CLI profile/设置/面板/tab 内容/侧栏动作/文件视觉)+ `EventBus`;quota 折叠为 `CliProfile.fetchQuota` 由 host 接线；`cli-shared` 是无生命周期的共享格式库，不是插件 |
 | 会话状态只读 | `CliProfile.readSessionStatus` 负责 CLI 私有 JSONL 解析；Host 只缓存/刷新，Composer 通过 `composer.statusBar` 展示 |
 | 会话固定一个 CLI | `SessionMeta.profileId` 创建后不变；resume 用同 profile 重 spawn |
 | 幂等/防御 | `activateAll` Promise 并发闸；`registerDefaultContributions` registered 标志；`registerCliProfile` 重复即抛错 |
 
 ## 10. 已知缺口（代码现状，非设计意图）
 
-- `footer.left`、`footer.right` 等挂点暂无贡献者（`overlay` 已由 settings 插件贡献设置面板,network-proxy 浮层与 ssh 主机选择卡亦经 overlay 常驻）。
+- 挂点准入纪律:只声明外壳真的渲染的位点(footer.*/leftRail/rightRail 死插座已于 2026-09-05 审查删除);`overlay` 由 settings/network-proxy/ssh 三插件贡献常驻浮层。
 - CLI 凭据盘点未覆盖 kimi/qoder/qoder-cn（`welcome/credentials.ts` 分支仅 omp/pi/codex/claude/grok）。
 - Codex 的 session 状态解析采用容错字段匹配，完整 `turn_context` schema 仍需随 CLI 版本验证。
 - `composer` 命令抽屉(openspec composer-command-drawer)代码已实装,余 5 项 `[V]` 真机验收在途。
