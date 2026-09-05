@@ -7,18 +7,25 @@
 @import "./quota.css";
 @import "./workspace-sidebar.css";
 @import "./workspace-sessions.css";
+@import "./workspace-sessions-extras.css";
 @import "./workspace-menu.css";
 @import "./session-budget.css";
 @import "./ssh.css";
+@import "./ssh-sftp.css";
 @import "./ssh-settings.css";
 @import "./network-proxy.css";
 @import "./titlebar.css";
+@import "./titlebar-session-tabs.css";
 @import "./panel-handle.css";
 @import "./settings-cluster.css";
+@import "./settings-version-popover.css";
 @import "./settings-panel.css";
+@import "./settings-preset-grid.css";
 @import "./welcome.css";
+@import "./welcome-install.css";
 @import "./welcome-creds.css";
 @import "./plugin-market.css";
+@import "./plugin-market-outlet.css";
 @import "./plugin-market-cards.css";
 @import "./composer-attachments.css";
 @import "./composer-anchors.css";
@@ -27,6 +34,7 @@
 @import "./markdown-fullscreen.css";
 @import "./markdown-outline.css";
 @import "./file-preview.css";
+@import "./file-preview-structured.css";
 @import "./file-preview-docs.css";
 @import "./start-failure-toast.css";
 
