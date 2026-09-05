@@ -233,8 +233,8 @@
 - 跟随系统模式监听系统深浅色切换即时换肤;主题变更同步重刷终端幕布配色
 - 行为 tab:发送快捷键模式(Enter 发送 ↔ ⌘/Ctrl+Enter 发送互换)、Ask 提示音开关与音效、结束提示音、后台提醒、会话输出缓冲上限(5 万–1000 万字符,默认 50 万)
 - 设置持久化 `~/.tmd-cli/settings.json`,前端 sanitize 归一,非法值回落默认,Rust 侧原子写
-- 侧栏齿轮菜单项可钉到底栏(localStorage 持久化,上限 4,默认钉 Git Graph + 网络代理)
-- 侧栏底栏常显应用版本号(取 Tauri 应用版本,纯浏览器 dev 回落 0.1.0)
+- 侧栏齿轮菜单项可钉到底栏(localStorage 持久化,上限 4,默认钉 Git Graph + 网络代理);每行右侧 pin 复选框:16px 圆角方块、选中出对号(Check 图标),钉满置灰不可再钉(menuitemcheckbox 语义,类名 settings-menu-pin 定义于 settings-cluster.css)
+- 侧栏底栏常显应用版本号(取 Tauri 应用版本,纯浏览器 dev 回落 0.1.1)
 - 插件拔插状态(disabledPlugins)同落 settings,重启生效
 
 ## 插件市场(插排)

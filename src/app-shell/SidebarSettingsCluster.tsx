@@ -19,7 +19,7 @@ import { appVersion } from "@kernel/ipc";
 import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { openSettingsPanel, useSettingsState } from "@kernel/settings";
 import logoUrl from "../assets/logo.png";
-import { Settings } from "lucide-react";
+import { Check, Settings } from "lucide-react";
 import { VersionPopover } from "./VersionPopover";
 
 /** 底栏空间有限,最多外显 4 个快捷入口(同 codemoss SIDEBAR_SETTINGS_PINNED_MAX)。 */
@@ -56,15 +56,16 @@ function PinCheckbox({
       type="button"
       role="menuitemcheckbox"
       aria-checked={pinned}
-      className={`pin-checkbox${pinned ? " is-checked" : ""}${disabled ? " is-disabled" : ""}`}
+      aria-label={disabled ? `最多钉住 ${PINNED_MAX} 个` : "钉到底栏"}
+      title={disabled ? `最多钉住 ${PINNED_MAX} 个` : pinned ? "取消钉住" : "钉到底栏"}
       disabled={disabled}
+      className={`settings-menu-pin${pinned ? " is-checked" : ""}`}
       onClick={(e) => {
         e.stopPropagation();
         onToggle();
       }}
-      title={pinned ? "取消钉住" : "钉到底栏"}
     >
-      {pinned ? <span className="pin-check">✓</span> : null}
+      {pinned && <Check size={10} aria-hidden />}
     </button>
   );
 }
