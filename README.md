@@ -162,3 +162,7 @@ pnpm check:file-size      # 单文件 ≤500 行检查（CI 强制）
 ## License
 
 本项目基于 [MIT License](LICENSE) 开源。Copyright © 2026 Chen Xiangning。
+
+## Friendship Link
+
+Thanks for the support and feedback from the friends at [LINUX DO](https://linux.do).
