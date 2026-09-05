@@ -19,13 +19,18 @@
 
 mod apply;
 mod attribution;
+mod batch_patches;
 mod capture;
 mod diff;
 mod error;
 mod events;
 mod ledger;
 mod patch;
+mod prune;
 mod restore;
+mod review;
+mod store;
+mod turn_entry;
 mod view;
 
 pub mod commands;
@@ -33,20 +38,19 @@ pub mod commands;
 mod tests;
 
 pub use apply::apply_batch;
+pub use batch_patches::batch_patches;
 pub use capture::{dirty_paths, snapshot_paths};
 pub use diff::{blob_patch, open_batch_patches, CkptPatch};
 pub use error::CkptError;
 pub use events::record_edit;
 pub use ledger::{anchor_turn, seal_dead_turns, seal_turn};
-pub use restore::{approve_batch, restore_batch, undo_revert, RestoreOutcome};
-pub use view::{batch_patches, derive_batches, prune};
+pub use prune::prune;
+pub use restore::{restore_batch, RestoreOutcome};
+pub use review::{approve_batch, undo_revert};
+pub use view::derive_batches;
 
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use std::fs;
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
+
 /// 单文件快照上限:超过则跳过存内容,只记状态(副本完整性 tradeoff:
 /// 覆盖常规源码/配置,避免巨型产物撑爆 sidecar;skip 语义在 UI 显式可见)。
 pub const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024;
@@ -175,13 +179,6 @@ pub struct BatchState {
     pub reverted_paths: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-struct StatesFile {
-    #[serde(default)]
-    pub batches: BTreeMap<String, BatchState>,
-}
-
 /// list 推导出的批次文件(含 live 分类,UI 直接消费)。
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -225,173 +222,13 @@ pub struct BatchInfo {
     pub attribution: String,
 }
 
-/// 账本互斥:anchor/seal/restore/prune 都要读改 ledger.jsonl,
-/// 进程内串行化防并行会话同时落账交错(文件自身是追加写,跨进程天然安全)。
-pub(crate) static LEDGER_LOCK: Mutex<()> = Mutex::new(());
-
-/// 持有 LEDGER_LOCK 的 RAII 守卫(测试 panic 毒化后可恢复)。
-pub(crate) fn lock_ledger() -> std::sync::MutexGuard<'static, ()> {
-    LEDGER_LOCK.lock().unwrap_or_else(|p| p.into_inner())
-}
-
-static SEQ: AtomicU64 = AtomicU64::new(0);
-
+// store.rs 拆出后保持 super::* 引用契约(apply/events/ledger/restore/view 均经 super:: 取原语)。
 #[cfg(test)]
-static TEST_BASE: std::sync::RwLock<Option<PathBuf>> = std::sync::RwLock::new(None);
-
-/// 存储根。测试经 set_base_for_test 重定向,生产 = ~/.tmd-cli/checkpoints。
-fn base_dir() -> PathBuf {
-    #[cfg(test)]
-    if let Some(p) = TEST_BASE.read().unwrap().clone() {
-        return p;
-    }
-    crate::session::config_dir().join("checkpoints")
-}
-
-#[cfg(test)]
-pub fn set_base_for_test(p: PathBuf) {
-    *TEST_BASE.write().unwrap() = Some(p);
-}
-
-fn ws_dir(cwd: &str) -> PathBuf {
-    base_dir().join(crate::hash::md5_hex(cwd.to_string()))
-}
-
-#[cfg(test)]
-pub(crate) fn ledger_file(cwd: &str) -> PathBuf {
-    ws_dir(cwd).join("ledger.jsonl")
-}
-
-#[cfg(not(test))]
-fn ledger_file(cwd: &str) -> PathBuf {
-    ws_dir(cwd).join("ledger.jsonl")
-}
-
-fn states_file(cwd: &str) -> PathBuf {
-    ws_dir(cwd).join("states.json")
-}
-
-/// 打开(必要时初始化)sidecar 裸仓库。只作 blob 对象库使用。
-fn open_sidecar(cwd: &str) -> Result<git2::Repository, CkptError> {
-    let dir = ws_dir(cwd).join("objects.git");
-    if dir.join("HEAD").exists() {
-        return Ok(git2::Repository::open(&dir)?);
-    }
-    fs::create_dir_all(&dir)?;
-    let mut opts = git2::RepositoryInitOptions::new();
-    opts.bare(true).mkpath(true);
-    Ok(git2::Repository::init_opts(&dir, &opts)?)
-}
-
-/// 打开用户仓库(discover 向上找 .git)。不借 git::with_repo 的句柄缓存:
-/// checkpoints 是按需低频调用,独立存储域自带错误语义更干净。
-fn open_user(cwd: &str) -> Result<git2::Repository, CkptError> {
-    match git2::Repository::discover(cwd) {
-        Ok(r) => Ok(r),
-        Err(e) if e.code() == git2::ErrorCode::NotFound => Err(CkptError::NotARepo(cwd.into())),
-        Err(e) => Err(e.into()),
-    }
-}
-
-/// 写 blob 进 sidecar(内容寻址,重复内容自动去重)。
-pub(crate) fn write_sidecar_blob(
-    repo: &git2::Repository,
-    data: &[u8],
-) -> Result<String, CkptError> {
-    let odb = repo.odb()?;
-    let oid = odb.write(git2::ObjectType::Blob, data)?;
-    Ok(oid.to_string())
-}
-
-pub(crate) fn append_ledger(cwd: &str, entry: &LedgerEntry) -> Result<(), CkptError> {
-    let file = ledger_file(cwd);
-    if let Some(parent) = file.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    use std::io::Write;
-    let mut f = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&file)?;
-    f.write_all(serde_json::to_string(entry).unwrap().as_bytes())?;
-    f.write_all(b"\n")?;
-    Ok(())
-}
-
-/// 读账本并折叠:同一 (kind, id) 多行以最后一行为准(turn 封口修订语义;
-/// anchor 与 turn 共用 id 但 kind 不同,各自保留),保持文件顺序。
-/// edit 行折叠键多了 path —— 每轮每文件独立一行。
-pub(crate) fn load_ledger(cwd: &str) -> Vec<LedgerEntry> {
-    let text = fs::read_to_string(ledger_file(cwd)).unwrap_or_default();
-    let mut out: Vec<LedgerEntry> = Vec::new();
-    // 折叠索引 O(1) 定位(此前线性扫描把单次读放大到 O(n²),事件流记账
-    // 逐事件 append + list 秒级刷新,长账本不可接受)
-    let mut index: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    for line in text.lines() {
-        let Ok(mut e) = serde_json::from_str::<LedgerEntry>(line) else {
-            continue;
-        };
-        if e.attribution.is_empty() {
-            e.attribution = "git".into(); // 旧账本缺省
-        }
-        let key = if e.kind == "edit" {
-            format!("edit:{}:{}", e.id, e.path)
-        } else {
-            format!("{}:{}", e.kind, e.id)
-        };
-        match index.get(&key) {
-            Some(&i) => out[i] = e,
-            None => {
-                index.insert(key, out.len());
-                out.push(e);
-            }
-        }
-    }
-    out
-}
-
-/// 整文件重写账本(身份回填/ prune 用;条目顺序保持)。
-pub(crate) fn rewrite_ledger(cwd: &str, entries: &[LedgerEntry]) -> Result<(), CkptError> {
-    let file = ledger_file(cwd);
-    if let Some(parent) = file.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let mut out = String::new();
-    for e in entries {
-        out.push_str(&serde_json::to_string(e).unwrap());
-        out.push('\n');
-    }
-    fs::write(&file, out)?;
-    Ok(())
-}
-
-fn load_states(cwd: &str) -> StatesFile {
-    fs::read_to_string(states_file(cwd))
-        .ok()
-        .and_then(|c| serde_json::from_str(&c).ok())
-        .unwrap_or_default()
-}
-
-fn save_states(cwd: &str, states: &StatesFile) -> Result<(), CkptError> {
-    let file = states_file(cwd);
-    if let Some(parent) = file.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let json = serde_json::to_string(states).map_err(|e| CkptError::Store(e.to_string()))?;
-    fs::write(&file, json)?;
-    Ok(())
-}
-
-fn new_entry_id(ts: i64) -> String {
-    format!("s{ts}-{}", SEQ.fetch_add(1, Ordering::SeqCst))
-}
-
-pub(crate) fn now_millis() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
-}
+pub use store::set_base_for_test;
+pub(crate) use store::{
+    append_ledger, load_ledger, load_states, lock_ledger, new_entry_id, now_millis, open_sidecar,
+    open_user, rewrite_ledger, save_states, write_sidecar_blob, StatesFile,
+};
 
 /// 用户仓库 HEAD 中 path 的 blob 内容(基线兜底:anchor 时刻干净的文件,内容 == HEAD)。
 /// repo = None(非 git 工作区)= 无兜底。

@@ -1,6 +1,10 @@
+mod app_setup;
 mod checkpoints;
+mod commands_fs;
 mod fs;
 mod fs_edit;
+mod fs_preview;
+mod fs_remove;
 mod fs_walk;
 mod git;
 mod hash;
@@ -9,6 +13,7 @@ mod probe;
 mod proc_run;
 mod proxy;
 mod pty;
+mod pty_spawn;
 mod quota;
 mod resolve;
 mod session;
@@ -19,8 +24,7 @@ mod sqlite;
 mod ssh;
 
 use pty::PtyRegistry;
-use tauri::webview::WebviewWindowBuilder;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 pub(crate) struct AppState {
     pty: PtyRegistry,
@@ -33,152 +37,6 @@ pub(crate) fn now_millis() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
-}
-
-/// panic 落盘钩子:消息/位置/线程追加到 `~/.tmd-cli/panic.log`(上限 1MB 截断)。
-///
-/// 背景(2026-09-03 崩溃归因):wry WKURLSchemeHandler 竞态 panic 发生在 tokio
-/// 任务里,GUI 进程 stderr 无处可看、release 又 strip,崩溃只剩一份无符号 .ips。
-/// unwind 语义下任务 panic 被 tokio 捕获不至于灭进程,这里再把首条现场写盘,
-/// 让下一次异常可以直接对到 crate 源码行,不再依赖"同源码重构建比对偏移"。
-fn install_panic_logger() {
-    let log_path = session::config_dir().join("panic.log");
-    std::panic::set_hook(Box::new(move |info| {
-        let thread = std::thread::current();
-        let thread_name = thread.name().unwrap_or("<unnamed>").to_string();
-        let location = info
-            .location()
-            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
-            .unwrap_or_else(|| "<unknown>".to_string());
-        let payload = info
-            .payload()
-            .downcast_ref::<&str>()
-            .map(|s| (*s).to_string())
-            .or_else(|| info.payload().downcast_ref::<String>().cloned())
-            .unwrap_or_else(|| "<non-string panic payload>".to_string());
-        let line = format!(
-            "[{}] thread '{thread_name}' panicked at {location}: {payload}\n",
-            now_millis()
-        );
-        eprint!("{line}");
-        if let Some(parent) = log_path.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        // 上限保护:超 1MB 先清空,防长期运行撑爆磁盘(panic 应是罕见事件)。
-        if let Ok(meta) = std::fs::metadata(&log_path) {
-            if meta.len() > 1024 * 1024 {
-                let _ = std::fs::write(&log_path, "");
-            }
-        }
-        let _ = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&log_path)
-            .and_then(|mut f| std::io::Write::write_all(&mut f, line.as_bytes()));
-    }));
-}
-
-/// 探针某个 CLI 命令是否在本机 PATH 中可解析,以及其 `--version` 输出。
-/// 返回 `probe::CliProbeResult`,前端按 found/path/version 渲染行卡。
-///
-/// 必须 async + spawn_blocking:同步 command 在 Tauri 主线程执行,而探针链路
-/// (login shell spawn + `--version` 8s 超时)是重阻塞 —— 曾致 UI 卡死。
-#[tauri::command]
-async fn cli_probe(command: String) -> probe::CliProbeResult {
-    tauri::async_runtime::spawn_blocking(move || probe::probe_cli(&command))
-        .await
-        .unwrap_or_else(|_| probe::CliProbeResult {
-            command: String::new(),
-            found: false,
-            path: None,
-            version: None,
-        })
-}
-
-/// 一键安装某个 CLI(按前端传入的参数化安装计划:npm 包 / 官方脚本)。
-/// 流式日志经 Tauri event `cli-install://{id}` 推前端。
-/// 必须 async + spawn_blocking:安装子进程分钟级阻塞,同步执行会卡死 UI。
-#[tauri::command]
-async fn cli_install_run(
-    app: AppHandle,
-    id: String,
-    plan: installer::InstallPlan,
-) -> Result<bool, String> {
-    tauri::async_runtime::spawn_blocking(move || installer::run_install(&app, &id, &plan))
-        .await
-        .map_err(|e| format!("install task join: {e}"))?
-}
-
-/// fs 系命令统一 async + spawn_blocking:目录递归/最大 20MB 读/base64 编码
-/// 都是可感阻塞,同步执行跑在主线程会掉帧(cli_probe 同款纪律)。
-#[tauri::command]
-async fn fs_list_dir(path: String) -> Result<Vec<fs::DirEntry>, String> {
-    spawn_fs(move || fs::list_dir(&path)).await
-}
-
-#[tauri::command]
-async fn fs_read_file(path: String) -> Result<String, String> {
-    spawn_fs(move || fs::read_file(&path)).await
-}
-
-#[tauri::command]
-async fn read_local_image_data_url(path: String) -> Result<String, String> {
-    spawn_fs(move || fs::read_local_image_data_url(&path)).await
-}
-
-#[tauri::command]
-async fn read_binary_file_base64(path: String) -> Result<String, String> {
-    spawn_fs(move || fs::read_binary_file_base64(&path)).await
-}
-
-#[tauri::command]
-async fn fs_write_temp(name: String, data: Vec<u8>) -> Result<String, String> {
-    spawn_fs(move || fs::write_temp_file(&name, &data)).await
-}
-
-#[tauri::command]
-async fn fs_collect_files(dir: String, suffix: String) -> Result<Vec<fs::FileStamp>, String> {
-    spawn_fs(move || fs::collect_files(&dir, &suffix)).await
-}
-
-/// 项目文件索引(composer `@` 补全候选):递归 + gitignore 系语义,见 fs_walk.rs。
-#[tauri::command]
-async fn fs_walk_files(root: String, cap: usize) -> Result<Vec<String>, String> {
-    spawn_fs(move || fs_walk::walk_files(&root, cap)).await
-}
-
-/// 通用短进程通道(omp/pi RPC 副车查询、grok inspect):同步阻塞,spawn_blocking 包裹。
-#[tauri::command]
-async fn proc_communicate(spec: proc_run::ProcRunSpec) -> Result<proc_run::ProcRunResult, String> {
-    tauri::async_runtime::spawn_blocking(move || proc_run::run(&spec))
-        .await
-        .map_err(|e| format!("proc_communicate join 失败: {e}"))?
-}
-
-#[tauri::command]
-async fn fs_read_head(path: String, max_bytes: usize) -> Result<String, String> {
-    spawn_fs(move || fs::read_head(&path, max_bytes)).await
-}
-
-#[tauri::command]
-async fn fs_read_tail(path: String, max_bytes: usize) -> Result<String, String> {
-    spawn_fs(move || fs::read_tail(&path, max_bytes)).await
-}
-
-#[tauri::command]
-async fn fs_remove_path(path: String) -> Result<(), String> {
-    spawn_fs(move || fs::remove_path(&path)).await
-}
-
-/// fs 命令公共模板:spawn_blocking 包裹 + JoinError 转 String。
-async fn spawn_fs<T, F>(f: F) -> Result<T, String>
-where
-    T: Send + 'static,
-    F: FnOnce() -> Result<T, String> + Send + 'static,
-{
-    tauri::async_runtime::spawn_blocking(f)
-        .await
-        .map_err(|e| format!("fs 命令 join 失败: {e}"))?
 }
 
 /// 字符串 MD5(小写 hex)。kimi 会话目录按 MD5(cwd) 命名,前端据此定位会话目录;
@@ -235,11 +93,10 @@ fn config_write_settings(data: serde_json::Value) -> Result<(), String> {
     proxy::apply_and_report(&data);
     Ok(())
 }
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     /* panic 钩子最先装:任何后续启动路径上的 panic 都有现场可查。 */
-    install_panic_logger();
+    app_setup::install_panic_logger();
     /* 打包 .app(launchd 环境)PATH 贫瘠,需用 login shell PATH 修复进程环境,
     让 git 等裸命令名调用与 PTY 子进程都能解析。
     但 enriched_path 要 fork login shell(两级 -lc/-ilc),慢 shellrc 下秒级,
@@ -268,44 +125,12 @@ pub fn run() {
             sessions,
             ssh: ssh_registry,
         })
-        .setup(|app| {
-            /* SSH 引擎全局注入(forward/sftp 后台任务的注册表回取)。 */
-            {
-                let state = app.state::<AppState>();
-                ssh::attach_globals(Some(app.handle()), &state.ssh);
-            }
-            /* mut 仅为 win/mac 的窗口重赋值(下方 cfg 块)预留;linux 无重赋值,
-            新工具链在其目标上报 unused_mut,精准豁免。 */
-            #[cfg_attr(target_os = "linux", allow(unused_mut))]
-            let mut window =
-                WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
-                    /* 禁用 Tauri 原生 drop handler —— 让 HTML5 drop event 在 webview 内正常派发
-                    否则 Tauri 拦截文件拖放,只发 tauri://drag-drop 事件,composer 收不到 */
-                    .disable_drag_drop_handler()
-                    .title("tmd-cli")
-                    .inner_size(1440.0, 900.0)
-                    .min_inner_size(960.0, 600.0);
-
-            #[cfg(target_os = "windows")]
-            {
-                window = window.decorations(false);
-            }
-
-            #[cfg(target_os = "macos")]
-            {
-                window = window
-                    .title_bar_style(tauri::TitleBarStyle::Overlay)
-                    .hidden_title(true);
-            }
-
-            window.build()?;
-            Ok(())
-        })
+        .setup(app_setup::setup)
         .invoke_handler(tauri::generate_handler![
             platform_kind,
             app_restart,
-            cli_probe,
-            cli_install_run,
+            commands_fs::cli_probe,
+            commands_fs::cli_install_run,
             session_commands::session_spawn,
             session_commands::session_list,
             session_commands::session_write,
@@ -313,15 +138,15 @@ pub fn run() {
             session_commands::session_kill,
             session_commands::session_log_size,
             session_commands::session_history_page,
-            fs_list_dir,
-            fs_read_file,
-            fs_write_temp,
-            fs_collect_files,
-            fs_read_head,
-            fs_read_tail,
-            fs_remove_path,
-            fs_walk_files,
-            proc_communicate,
+            commands_fs::fs_list_dir,
+            commands_fs::fs_read_file,
+            commands_fs::fs_write_temp,
+            commands_fs::fs_collect_files,
+            commands_fs::fs_read_head,
+            commands_fs::fs_read_tail,
+            commands_fs::fs_remove_path,
+            commands_fs::fs_walk_files,
+            commands_fs::proc_communicate,
             fs_edit::fs_write_file,
             fs_edit::fs_create_file,
             fs_edit::fs_create_dir,
@@ -329,8 +154,8 @@ pub fn run() {
             fs_edit::fs_trash_entry,
             fs_edit::fs_reveal_in_file_manager,
             md5_hex,
-            read_local_image_data_url,
-            read_binary_file_base64,
+            commands_fs::read_local_image_data_url,
+            commands_fs::read_binary_file_base64,
             git::commands::git_status,
             checkpoints::commands::checkpoint_anchor,
             checkpoints::commands::checkpoint_record_edit,

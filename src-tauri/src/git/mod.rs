@@ -18,7 +18,9 @@ mod diff;
 mod error;
 mod index_ops;
 mod log;
+mod remote_args;
 mod remote_ops;
+mod remote_request;
 mod stash_ops;
 mod status;
 
@@ -32,7 +34,11 @@ mod tests_commit_view;
 #[cfg(test)]
 mod tests_common;
 #[cfg(test)]
+mod tests_flow;
+#[cfg(test)]
 mod tests_remote_dialog;
+#[cfg(test)]
+mod tests_smart_checkout;
 #[cfg(test)]
 mod tests_write_ops;
 

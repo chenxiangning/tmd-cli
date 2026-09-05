@@ -1,9 +1,10 @@
 //! 远端对话框层测试 —— pull/push/fetch 参数拼装矩阵 + 推送预览 revwalk。
 //! 参数拼装不碰网络;预览用手造 refs(不开文件传输),保持毫秒级。
 
-use super::remote_ops::{
-    fetch_request_args, gerrit_suffix, pull_request_args, push_preview, push_request_args, remotes,
-    GerritExtra, RemoteRequest,
+use super::remote_ops::{push_preview, remotes};
+use super::remote_request::{
+    fetch_request_args, gerrit_suffix, pull_request_args, push_request_args, GerritExtra,
+    RemoteRequest,
 };
 use super::tests_common::TempRepo;
 

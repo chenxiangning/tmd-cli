@@ -9,6 +9,7 @@
 //! - `which`:裸命令名 → 绝对路径(Windows 批处理 shim 包裹)
 //! - 本文件:模块出口 + 共享的带超时子进程等待原语
 
+mod path_build;
 mod path_cache;
 mod which;
 
