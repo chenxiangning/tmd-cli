@@ -34,7 +34,8 @@ import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { ChevronDown, ChevronRight, Eye, Pin } from "lucide-react";
 import { SessionContextMenu } from "./SessionContextMenu";
 import { realPinSnapshot } from "./utils";
-import { PinToggle, RenameInput, SessionStatusLabel, type RenameTarget } from "./SessionRows";
+import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
+import { PinToggle, SessionStatusLabel } from "./SessionRows";
 
 /** 段折叠态存储 key(纯 UI 态,localStorage 即可,浏览器/Tauri 行为一致)。 */
 const COLLAPSED_KEY = "tmd.pinnedSectionCollapsed";

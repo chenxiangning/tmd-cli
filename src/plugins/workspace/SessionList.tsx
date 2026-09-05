@@ -41,13 +41,12 @@ import {
 } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
 import { SessionContextMenu } from "./SessionContextMenu";
+import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import {
   DiskSessionRow,
   PinToggle,
-  RenameInput,
   SessionNode,
   SessionStatusLabel,
-  type RenameTarget,
 } from "./SessionRows";
 import { compareLiveSessions } from "./utils";
 

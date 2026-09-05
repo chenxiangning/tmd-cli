@@ -330,3 +330,20 @@
   width: 10px;
   height: 10px;
 }
+
+/* 行内重命名输入(右键菜单「重命名」;复刻 .thread-rename-input 的聚焦边语义,
+   尺寸随 tab:高 24px 条内嵌 18px 输入,字号与标签一致 12px)。 */
+.session-tab-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--tmd-bg-input);
+  color: var(--tmd-fg);
+  border: 1px solid var(--tmd-accent);
+  border-radius: var(--tmd-radius-sm);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 0 6px;
+  outline: none;
+}

@@ -6,7 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { bootSessionTabs, closeSessionTab, getSessionTabTitle, getSessionTabs, noteSessionTabTitle, resetSessionTabsForTest, SESSION_TABS_MAX } from "./sessionTabs";
+import { bootSessionTabs, closeAllSessionTabs, closeOtherSessionTabs, closeSessionTab, getSessionTabTitle, getSessionTabs, noteSessionTabTitle, resetSessionTabsForTest, SESSION_TABS_MAX } from "./sessionTabs";
 import { EventBus, KernelTopics } from "./events";
 import type { SessionMeta } from "./ipc";
 
@@ -108,5 +108,47 @@ describe("摘 tab 语义", () => {
     const { deps } = boot();
     closeSessionTab("ghost");
     expect(deps.setActiveSession).not.toHaveBeenCalled();
+  });
+});
+
+describe("批量摘 tab(右键菜单)", () => {
+  it("关闭其他:只留目标;活跃 tab 被摘时指针切到保留 id", () => {
+    const { events, deps } = boot();
+    for (const id of ["a", "b", "c"]) open(events, id);
+    deps.getActiveSessionId.mockReturnValue("b");
+    closeOtherSessionTabs("c");
+    expect(getSessionTabs()).toEqual(["c"]);
+    expect(deps.setActiveSession).toHaveBeenCalledWith("c");
+  });
+
+  it("关闭其他:目标即活跃时不动指针;仅剩一个时整体无操作", () => {
+    const { events, deps } = boot();
+    open(events, "a");
+    open(events, "b");
+    deps.getActiveSessionId.mockReturnValue("b");
+    closeOtherSessionTabs("b");
+    expect(getSessionTabs()).toEqual(["b"]);
+    expect(deps.setActiveSession).not.toHaveBeenCalled();
+    closeOtherSessionTabs("b");
+    expect(getSessionTabs()).toEqual(["b"]);
+    expect(deps.setActiveSession).not.toHaveBeenCalled();
+  });
+
+  it("关闭其他:目标不在条内是静默空操作", () => {
+    const { events, deps } = boot();
+    open(events, "a");
+    closeOtherSessionTabs("ghost");
+    expect(getSessionTabs()).toEqual(["a"]);
+    expect(deps.setActiveSession).not.toHaveBeenCalled();
+  });
+
+  it("关闭全部:摘尽且活跃指针置 null 回 welcome", () => {
+    const { events, deps } = boot();
+    open(events, "a");
+    open(events, "b");
+    deps.getActiveSessionId.mockReturnValue("a");
+    closeAllSessionTabs();
+    expect(getSessionTabs()).toEqual([]);
+    expect(deps.setActiveSession).toHaveBeenCalledWith(null);
   });
 });

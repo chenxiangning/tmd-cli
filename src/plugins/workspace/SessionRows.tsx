@@ -1,64 +1,18 @@
 /**
- * 会话行共享件 —— 行内重命名输入 + 磁盘会话行 + 活会话状态件。
- * 从 SessionList 拆出:磁盘行同时服务于 CLI 分组内的工作区置顶块与分页列表,
- * RenameInput 同时服务于分组与全局置顶区;状态件(节点/label)同时服务于
- * 分组活会话行与全局置顶区的活会话绑定行(单文件 ≤500 行铁则)。
+ * 会话行共享件 —— 磁盘会话行 + 活会话状态件。
+ * 从 SessionList 拆出:磁盘行同时服务于 CLI 分组内的工作区置顶块与分页列表;
+ * 状态件(节点/label)同时服务于分组活会话行与全局置顶区的活会话绑定行
+ * (单文件 ≤500 行铁则)。行内重命名输入已沉淀进 kernel(见 @kernel/RenameInput)。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { host, useHost } from "@kernel/host";
 import { Eye, Pin } from "lucide-react";
 import { resolveSessionStatus, type SessionStatus } from "./utils";
 
-/** 行内重命名目标:以 CLI 磁盘身份为 key(与覆盖层同 key)。 */
-export interface RenameTarget {
-  profileId: string;
-  cliSessionId: string;
-  current: string;
-}
-
-/**
- * 行内重命名输入(Enter/blur 提交,Escape 取消;空值 = 清除手动命名)。
- * settled 闸:提交/取消后卸载触发的二次 blur 不得重复回调。
- */
-export function RenameInput({
-  target,
-  onCommit,
-}: {
-  target: RenameTarget;
-  /** value=null 为取消;否则为最终输入(可能为空串 = 清除命名)。 */
-  onCommit: (value: string | null) => void;
-}) {
-  const [value, setValue] = useState(target.current);
-  const settled = useRef(false);
-  const finish = (result: string | null) => {
-    if (settled.current) return;
-    settled.current = true;
-    onCommit(result);
-  };
-  return (
-    <input
-      className="thread-rename-input"
-      autoFocus
-      value={value}
-      placeholder="会话名称(留空清除命名)"
-      onChange={(e) => setValue(e.target.value)}
-      onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          finish(value);
-        } else if (e.key === "Escape") {
-          e.preventDefault();
-          finish(null);
-        }
-      }}
-      onBlur={() => finish(value)}
-    />
-  );
-}
 
 /* 共享 1Hz ticker:N 个状态件共用一个 interval(替代每件一表),0 订阅时停表。 */
 const tickSubscribers = new Set<() => void>();
