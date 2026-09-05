@@ -78,7 +78,7 @@ src/plugins/cli-opencode/
 
 ### welcome 凭据盘点
 
-- `src/plugins/cli-shared/opencodeAuth.ts`:读 auth.json 列供应商 id(文件头声明准入:cli-opencode + welcome 联合消费);不持久化密钥内容,仅透传给既有 vendor 检测
+- `src/plugins/cli-shared/opencodeDisk.ts`(实现时由 opencodeAuth 更名,并入磁盘布局知识):数据/配置目录解析 + 读 auth.json 列供应商 id(文件头声明准入:cli-opencode + welcome 联合消费);不持久化密钥内容,仅透传给既有 vendor 检测
 - `welcome/credentials.ts` 统一入口加 `case "opencode"`:按 pi 模式 `detectVendorByProviderId` → 已知 vendor 走额度查询,未知显示「已登录」;「opencode」官方 Zen id 按未知处理(不猜接口)
 
 ### 注册

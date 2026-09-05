@@ -19,7 +19,7 @@ import { listOpencodeSuggestions, OPENCODE_COMMAND_SUGGESTIONS } from "./command
  * - 身份绑定用合成路径 <db>#<sessionId> 拆包查库(单库多会话,mtime 必串线);
  * - checkpoints events 归因:part 表已完成 write/edit 工具部件(./db.ts);
  * - 不声明 editMarks/askMarks(PTY 面板字面量未实证)、bracketedPaste(非 pi-tui)、
- *   fetchQuota(多供应商无统一额度接口;凭据盘点见 cli-shared/opencodeAuth)。
+ *   fetchQuota(多供应商无统一额度接口;凭据盘点见 cli-shared/opencodeDisk)。
  */
 
 /**
