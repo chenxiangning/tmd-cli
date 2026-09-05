@@ -24,6 +24,7 @@ mod diff;
 mod error;
 mod events;
 mod ledger;
+mod patch;
 mod restore;
 mod view;
 

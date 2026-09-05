@@ -218,7 +218,10 @@ fn apply_批后像写回_镜像回退_失配不覆盖() {
     ws.write("a.txt", "human\n");
     let out = apply_batch(ws.path(), &b.id, None).unwrap();
     assert!(out.restored.is_empty());
-    assert_eq!(out.skipped[0].reason, "内容已变");
+    assert_eq!(
+        out.skipped[0].reason, "改动重叠",
+        "手改区域与本批 hunk 重叠,精准重放让位"
+    );
     assert_eq!(ws.read("a.txt").as_deref(), Some("human\n"));
 }
 

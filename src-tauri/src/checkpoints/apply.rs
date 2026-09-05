@@ -1,8 +1,10 @@
 //! 应用 —— 回退的镜像(restore.rs 的姊妹模块,文件规模铁则拆分)。
 //!
 //! 把账本固化的批后像精确写回磁盘,副本作为依据。安全纪律与回退对称:
-//! live == 批前像(或该文件已被回退删除)才写;live == 批后像 skip「已是」;
-//! 其余失配一律跳过并显式列出,绝不静默覆盖。执行前打 guard(可反悔,与 undo 配对)。
+//! live == 批前像(或该文件已被回退删除)整文件写回;live == 批后像 skip
+//! 「已是」;其余失配先试 diff 精准重放(patch.rs:他人并行写入的 hunk 保留),
+//! 重叠冲突与不具备重放条件的路径一律跳过并显式列出,绝不静默覆盖。
+//! 执行前打 guard(可反悔,与 undo 配对)。
 //! 仅已退批可应用(后端状态闸,防 pending/done 批经直调 IPC 被写回)。
 //!
 //! 锁纪律与 restore 相同:全程持 LEDGER_LOCK 串行。
@@ -89,10 +91,11 @@ pub fn apply_batch(
                     path: path.clone(),
                     reason: "已是该内容".into(),
                 });
-                continue;
             }
             Some(l) => {
-                // live == 批前像(正处回退态)才写;其余 = 手改过,不静默覆盖
+                // live == 批前像(正处回退态)整文件写回;否则精准重放:
+                // diff(批前像→批后像)应用到 live,他人并行写入的 hunk 保留,
+                // 重叠冲突仍跳过,绝不静默覆盖
                 let before: Option<Vec<u8>> = if tf.before_oid.is_empty() {
                     None
                 } else {
@@ -103,24 +106,32 @@ pub fn apply_batch(
                             .to_vec(),
                     )
                 };
-                match (&before, user.as_ref()) {
-                    (Some(b), _) if *b == l => plan.push((path.clone(), PlanOp::Write(after))),
-                    (None, Some(u)) => {
-                        // legacy 前像兜底(anchor 基线)
-                        match resolve_snap_bytes(&sidecar, Some(u), &anchor.files, path)? {
-                            Some((b, _)) if b == l => {
-                                plan.push((path.clone(), PlanOp::Write(after)))
-                            }
-                            _ => skipped.push(SkipEntry {
-                                path: path.clone(),
-                                reason: "内容已变".into(),
-                            }),
-                        }
+                if before.as_deref() == Some(l.as_slice()) {
+                    plan.push((path.clone(), PlanOp::Write(after)));
+                } else if tf.existed_before && before.is_some() {
+                    match super::patch::merge_patch(&l, before.as_deref().unwrap(), &after) {
+                        Some(merged) => plan.push((path.clone(), PlanOp::Write(merged))),
+                        None => skipped.push(SkipEntry {
+                            path: path.clone(),
+                            reason: "改动重叠".into(),
+                        }),
                     }
-                    _ => skipped.push(SkipEntry {
+                } else if before.is_none() {
+                    // legacy 前像兜底(anchor 基线)
+                    let baseline =
+                        resolve_snap_bytes(&sidecar, user.as_ref(), &anchor.files, path)?;
+                    match baseline {
+                        Some((b, _)) if b == l => plan.push((path.clone(), PlanOp::Write(after))),
+                        _ => skipped.push(SkipEntry {
+                            path: path.clone(),
+                            reason: "内容已变".into(),
+                        }),
+                    }
+                } else {
+                    skipped.push(SkipEntry {
                         path: path.clone(),
                         reason: "内容已变".into(),
-                    }),
+                    });
                 }
             }
             None => plan.push((path.clone(), PlanOp::Write(after))), // 磁盘已无 → 写回批后像

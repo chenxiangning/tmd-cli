@@ -1,6 +1,8 @@
 //! 事务化还原 —— 全部基于账本:回退计划取自 turn 条目固化的前后像,
 //! 回退前自动落 guard 条目(反悔恢复的依据),只动批次触碰的路径,
-//! 内容失配(手改/后续批触碰)一律 skip,绝不静默覆盖(设计 §6)。
+//! 内容失配(手改/并行会话触碰)先尝试 diff 精准擦除(patch.rs:只擦本批
+//! hunk,他人写入保留),重叠冲突与不具备手术条件的路径(A/D 文件、像缺失)
+//! 一律 skip,绝不静默覆盖(设计 §6)。
 //!
 //! 锁纪律:guard 抓取会枚举 dirty 集(读 repo),与账本写同持 LEDGER_LOCK,
 //! 串行执行,不存在 derive 时代的闭包嵌套锁问题。
@@ -57,8 +59,34 @@ pub fn approve_batch(cwd: &str, batch_id: &str) -> Result<(), CkptError> {
     Ok(())
 }
 
+/// 失配路径的精准手术:M 文件(批前后像俱在)尝试按 diff 擦除本批改动 ——
+/// 返回 Ok(Some(merged)) = 手术成功;Ok(None) = 与他人改动重叠冲突;
+/// Err(()) = 不具备手术条件(A/D 文件、前像缺失/不可解析),走保守跳过。
+fn surgical_erase(
+    sidecar: &git2::Repository,
+    tf: &super::TurnFile,
+    after: Option<&Vec<u8>>,
+    live: Option<&Vec<u8>>,
+) -> Result<Option<Vec<u8>>, ()> {
+    let (Some(a), Some(l)) = (after, live) else {
+        return Err(());
+    };
+    if !tf.existed_before || tf.before_oid.is_empty() {
+        return Err(());
+    }
+    let Ok(oid) = git2::Oid::from_str(&tf.before_oid) else {
+        return Err(());
+    };
+    let Ok(blob) = sidecar.find_blob(oid) else {
+        return Err(());
+    };
+    let before = blob.content().to_vec();
+    super::patch::merge_patch(l, a, &before).map(Some).ok_or(())
+}
+
 /// 回退整批或子集(paths 缺省 = 全部可回退文件)。计划来自账本 turn 条目:
-/// live 内容必须等于批后像才可回退;批前像取账本 before_oid(sidecar blob)。
+/// live 内容必须等于批后像才可回退;失配先试 diff 精准擦除(共改文件只擦
+/// 本批 hunk);批前像取账本 before_oid(sidecar blob)。
 pub fn restore_batch(
     cwd: &str,
     batch_id: &str,
@@ -128,17 +156,32 @@ pub fn restore_batch(
             Some(sidecar.find_blob(oid)?.content().to_vec())
         };
         let live_bytes = fs::read(root.join(path)).ok();
-        let untouched = match (&after, live_bytes) {
+        let untouched = match (&after, &live_bytes) {
             (None, None) => true,
-            (Some(a), Some(l)) => a == &l,
+            (Some(a), Some(l)) => a == l,
             _ => false,
         };
         if !untouched {
-            skipped.push(SkipEntry {
-                path: path.clone(),
-                reason: "内容已变".into(),
-            });
-            continue;
+            match surgical_erase(&sidecar, tf, after.as_ref(), live_bytes.as_ref()) {
+                Ok(Some(merged)) => {
+                    plan.push((path.clone(), PlanOp::Write(merged)));
+                    continue;
+                }
+                Ok(None) => {
+                    skipped.push(SkipEntry {
+                        path: path.clone(),
+                        reason: "改动重叠".into(),
+                    });
+                    continue;
+                }
+                Err(()) => {
+                    skipped.push(SkipEntry {
+                        path: path.clone(),
+                        reason: "内容已变".into(),
+                    });
+                    continue;
+                }
+            }
         }
         let op = if !tf.existed_before {
             PlanOp::Delete // 批前不存在 → 批内新建,回退 = 删除

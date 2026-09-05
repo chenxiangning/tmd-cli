@@ -280,13 +280,13 @@ function ConfirmCard({
           <>
             按账本副本把这轮改动精确写回磁盘(回退的镜像);
             <span className="text-(--tmd-diff-inserted)">执行前已自动打恢复点,可反悔</span>。
-            live 已偏离批前像的文件会跳过,绝不静默覆盖。
+            live 已偏离批前像的文件按 diff 精准重放,改动重叠才跳过。
           </>
         ) : (
           <>
             改动将还原到这轮消息发出之前;
             <span className="text-(--tmd-diff-inserted)">回退前已自动打恢复点,可反悔</span>。
-            内容已变的文件会被跳过,绝不静默覆盖。
+            共改文件按 diff 精准擦除(只擦本批改动),重叠才跳过。
           </>
         )}
       </div>
