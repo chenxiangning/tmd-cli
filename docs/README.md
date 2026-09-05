@@ -67,7 +67,7 @@
 | 2026-09-05 | [opencode CLI 插件化接入设计](superpowers/specs/2026-09-05-opencode-cli-plugin-design.md) | 已落地(实现随本 spec 提交) |
 | 2026-09-05 | [Magic Context PoC 实测报告(安装/schema/计划外发现)](research/magic-context-poc-report.md) | 持续更新(PoC-1 通过) |
 | 2026-09-05 | [应用内全局快捷键系统:kernel 命令注册表 + 插件贡献键位](superpowers/specs/2026-09-05-shortcuts-design.md) | 已落地(实现随本 spec 提交) |
-| 2026-09-06 | [内置终端:terminal 插件(SSH 一等会话同构)+ 头部左区入口](superpowers/specs/2026-09-06-terminal-plugin-design.md) | 已批准(实施中) |
+| 2026-09-06 | [内置终端:terminal 插件(SSH 一等会话同构)+ 头部左区入口](superpowers/specs/2026-09-06-terminal-plugin-design.md) | 已落地 |
 | 2026-09-06 | [快捷键系统架构契约:kernel 命令注册表](architecture/03-shortcuts.md) | 已落地 |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

@@ -57,6 +57,7 @@ flowchart TB
             P_CKPT["checkpoints<br/>审批线:右栏时间线 + 中央批审阅单<br/>账本/diff/还原在 Rust checkpoints/"]
             P_NP["network-proxy<br/>网络代理浮层(overlay)<br/>生效率 Rust proxy.rs env 注入"]
             P_SSH["ssh<br/>SSH 一等会话:overlay 主机选择 + 右栏面板(SFTP 树/端口转发)<br/>+ newSessionMenu 入口 + 远端文件 tab(kind=ssh-file)+ 设置 section"]
+            P_TERM["terminal<br/>内置终端:header.leftCluster 入口按钮<br/>点击聚焦最新 shell 会话/⌥新建"]
         end
     end
 
@@ -363,7 +364,7 @@ flowchart TD
     PI --> P3["files"]
     PI --> P4["git"]
     PI --> P5["composer"]
-    PI --> P6["checkpoints / network-proxy / settings / welcome / session-budget / ssh"]
+    PI --> P6["checkpoints / network-proxy / settings / welcome / session-budget / ssh / terminal"]
 
     KH --> KE["kernel/events.ts"]
     KH --> KI["kernel/ipc.ts"]
@@ -393,7 +394,7 @@ flowchart TD
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
-| `session_spawn` | `session_commands.rs` → `pty.rs`/`session.rs` | PTY:openpty → spawn 子进程 → 双线程泵 → 内存登记;SSH kind 路由 russh 引擎(spawn_blocking,冷路径内联 PATH 富化) |
+| `session_spawn` | `session_commands.rs` → `pty.rs`/`session.rs` | PTY:openpty → spawn 子进程 → 双线程泵 → 内存登记;SSH kind 路由 russh 引擎(spawn_blocking,冷路径内联 PATH 富化);kind/title 由调用方声明(内置终端 kind=shell,缺省 cli) |
 | `session_list` | `session_commands.rs` | 活会话纯内存注册表(进程重启即空;历史恢复走各 CLI 磁盘扫描;SSH 会话独立分组) |
 | `session_write` / `session_resize` / `session_kill` | `session_commands.rs` → `pty.rs` | writer 直写 / master.resize / child.kill(写路径 spawn_blocking 防全局锁卡 UI) |
 | `session_log_size` / `session_history_page` | `session_commands.rs` + `session_log.rs` | 输出日志末尾偏移 / 绝对偏移前翻一页(转义+UTF-8 边界对齐) |
