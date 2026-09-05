@@ -20,9 +20,11 @@ import { sessionBudgetPlugin } from "./session-budget";
 import { workspacePlugin } from "./workspace";
 import { settingsPlugin } from "./settings";
 import { sshPlugin } from "./ssh";
+import { terminalPlugin } from "./terminal";
 import { welcomePlugin } from "./welcome";
 import { networkProxyPlugin } from "./network-proxy";
 import { checkpointsPlugin } from "./checkpoints";
+import { memoryCoordinatorPlugin } from "./memory-coordinator";
 
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
@@ -43,5 +45,7 @@ export const allPlugins: Plugin[] = [
   settingsPlugin,
   networkProxyPlugin,
   sshPlugin,
+  terminalPlugin,
   welcomePlugin,
+  memoryCoordinatorPlugin,
 ];

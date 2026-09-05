@@ -19,6 +19,9 @@ pub async fn session_spawn(
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
         let cwd = spec.cwd.clone();
+        /* kind/title 由调用方声明(内置终端传 "shell" + shell 名);CLI 路径缺省原样。 */
+        let kind = spec.kind.clone().unwrap_or_else(|| "cli".to_string());
+        let title = spec.title.clone();
         let spawned = state.pty.spawn(&app, &profile_id, spec)?;
         state.sessions.register(SessionMeta {
             id: spawned.id.clone(),
@@ -27,8 +30,8 @@ pub async fn session_spawn(
             workspace_id,
             created_at: now_millis(),
             pid: spawned.pid,
-            kind: "cli".to_string(),
-            title: None,
+            kind,
+            title,
         });
         Ok(spawned)
     })

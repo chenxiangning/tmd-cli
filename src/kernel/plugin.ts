@@ -37,6 +37,7 @@ interface PluginMeta {
  *  僵尸声明一经发现即删(曾清理 footer.left/right、leftRail/rightRail)。 */
 export type MountPoint =
   | "header.left"
+  | "header.right"
   /** 头部左区按钮簇(折叠左栏/插件市场/回到首页所在 titlebar 左区,按钮列尾追加)。 */
   | "header.leftCluster"
   /** 头部面包屑/工作区-会话导航区。 */

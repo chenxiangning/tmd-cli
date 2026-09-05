@@ -398,9 +398,10 @@ export class AskWatchFeed {
   }
 
   /** 实时输出馈送(host.appendOutput);返回 true = 升级边沿,notify 由 host 统一。
-      SSH 会话跳过(标记词是 CLI 面板专用)。 */
+      非 CLI 会话跳过(标记词是 CLI 面板专用;ssh/shell 等无 profile 会话不参与)。 */
   onOutput(sessionId: string, text: string, byteLength?: number): boolean {
-    if (this.ctx.sessionKind(sessionId) === "ssh") return false;
+    const kind = this.ctx.sessionKind(sessionId);
+    if (kind !== undefined && kind !== "cli") return false;
     if (!this.watch.onOutput(sessionId, text, byteLength, this.ctx.askMarks(sessionId))) {
       return false;
     }
@@ -408,10 +409,15 @@ export class AskWatchFeed {
     return true;
   }
 
-  /** 屏幕采样馈送(TerminalView 1Hz,传幕布底部行文本;命中判定含 CLI 声明标记)。
-      SSH 跳过。 */
+  /**
+   * 屏幕采样进站(TerminalView 1Hz 轮询幕布底部行,v3)。非 CLI 会话跳过。
+   * 字节流检测的原理性盲区:omp 等待期间 spinner 以光标寻址持续重绘
+   * (实测 3h 挂起面板后流 7.4MB、标记远在 512KB 缓冲之外),静态面板的
+   * 标记一旦流出尾窗永不复现 —— 但屏幕(xterm buffer)上标记始终在。
+   */
   onScreenSample(sessionId: string, screenText: string): void {
-    if (this.ctx.sessionKind(sessionId) === "ssh") return;
+    const kind = this.ctx.sessionKind(sessionId);
+    if (kind !== undefined && kind !== "cli") return;
     const present =
       ASK_MARKER_RE.test(screenText) ||
       (this.ctx.askMarks(sessionId)?.some((re) => re.test(screenText)) ?? false);

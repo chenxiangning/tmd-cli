@@ -14,6 +14,7 @@ import { DiskIdentityWatch } from "./identityWatch";
 import { OutputBufferStore } from "./outputBuffers";
 import { SessionStatusWatch } from "./sessionStatus";
 import { SshSessionService } from "./sshSessions";
+import { ShellSessionService } from "./shellSessions";
 
 import { ipc, type SshHostConfig, type SessionMeta } from "./ipc";
 import { SessionSpawnService } from "./sessionSpawn";
@@ -238,6 +239,27 @@ class Host implements PluginContext {
     workspaceId?: string,
   ): Promise<SessionMeta> {
     return this.sshSessions.create(host, workspaceId);
+  }
+
+  /** 内置终端会话创建/装配:拆分件 kernel/shellSessions.ts(文件规模铁则)。 */
+  private readonly shellSessions = new ShellSessionService(
+    {
+      refreshSessions: async () => {
+        this.sessions = await ipc.sessionList();
+      },
+      findSession: (sessionId) => this.sessions.find((s) => s.id === sessionId),
+      appendOutput: (sessionId, text) => this.appendOutput(sessionId, text),
+      removeSession: (sessionId) => this.removeSession(sessionId),
+      trackUnlisten: (sessionId, offs) => this.ptyUnlistens.set(sessionId, offs),
+      getSessions: () => this.sessions,
+      notify: () => this.notify(),
+    },
+    this.events,
+  );
+
+  /** 新建内置终端会话(实现见 kernel/shellSessions.ts);本地默认 shell,幕布即输入面。 */
+  async createShellSession(workspaceId?: string): Promise<SessionMeta> {
+    return this.shellSessions.create(workspaceId);
   }
 
   /** 本地 CLI 会话 spawn 编排 + 秒退守望:拆分件 kernel/sessionSpawn.ts(文件规模铁则)。 */

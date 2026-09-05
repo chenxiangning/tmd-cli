@@ -105,8 +105,8 @@ function useElementWidth(cssVar: string) {
  * 打开文件时 terminal 不再被横向压缩。
  */
 function MainPanel() {
+  /* SSH / 内置终端会话无 composer:幕布即输入面(触发符/审批线等都是 CLI 语义)。 */
   const activeId = host.getActiveSessionId();
-  /* SSH 会话无 composer:幕布即输入面(触发符/审批线等都是 CLI 语义)。 */
   const activeKind = host.getSessions().find((s) => s.id === activeId)?.kind;
   /* 对话框五段式高度:composer 插件工具栏的 ↑↓ 写 kernel composerStage,这里消费。
      实测本库命令式 setLayout/panelRef.resize 在嵌套 group 下会被静默回滚,不可用;
@@ -140,7 +140,7 @@ function MainPanel() {
       <Panel defaultSize={70} minSize={30} id="canvas">
         <TerminalView key={activeId} sessionId={activeId} />
       </Panel>
-      {activeKind === "ssh" ? null : stage === "min" ? (
+      {activeKind === "ssh" || activeKind === "shell" ? null : stage === "min" ? (
         /* min 段:composer 退出 Panel 体系,挂裸 div —— 内容仅工具栏条(Composer 隐藏输入区),
            高度 = 内容自身,与窗口底边零缝隙;固定百分比永远对不齐工具栏像素高。
            离开 min 时 Panel/Separator 重挂载回 defaultSize,上方 effect 按目标段重放键步 */
@@ -246,6 +246,8 @@ function TopBar({
         >
           <Inbox size={14} aria-hidden />
         </button>
+        {/* 插件贡献的左区按钮簇(内置终端等):经 activate(ctx) 挂点登记 */}
+        <Mounts point="header.leftCluster" />
       </div>
       <div className="titlebar-center" data-tauri-drag-region>
         {/* 项目面包屑:中间区域靠左(codemoss 布局) */}

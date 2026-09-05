@@ -98,6 +98,12 @@ pub struct SpawnSpec {
     pub rows: u16,
     #[serde(default)]
     pub env: HashMap<String, String>,
+    /// 会话后端类型:缺省 "cli";内置终端传 "shell"。
+    #[serde(default)]
+    pub kind: Option<String>,
+    /// 会话展示标题:缺省 None;内置终端传 shell 名(tab 条/侧栏直读)。
+    #[serde(default)]
+    pub title: Option<String>,
 }
 
 fn default_cols() -> u16 {

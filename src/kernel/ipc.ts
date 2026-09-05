@@ -59,6 +59,11 @@ export interface SpawnSpec {
   cols?: number;
   rows?: number;
   env?: Record<string, string>;
+  /** 会话后端类型:缺省 "cli";内置终端传 "shell"(Rust 侧 serde default 对齐)。
+   *  "ssh" 不走 session_spawn(russh 有专属命令),不在本类型取值内。 */
+  kind?: "cli" | "shell";
+  /** 会话展示标题:缺省 None;内置终端传 shell 名(tab 条/侧栏直读)。 */
+  title?: string;
 }
 
 export interface SpawnedSession {
@@ -80,8 +85,8 @@ export interface SessionMeta {
   pid?: number;
   workspaceId?: string;
   createdAt?: number;
-  /** 会话后端类型:"cli"(本地 PTY,缺省)| "ssh"(russh 引擎)。 */
-  kind?: "cli" | "ssh";
+  /** 会话后端类型:"cli"(本地 PTY,缺省)| "ssh"(russh 引擎)| "shell"(内置终端)。 */
+  kind?: "cli" | "ssh" | "shell";
   /** 会话展示标题(SSH = 主机名;CLI 走磁盘会话/命名覆盖层,缺省无)。 */
   title?: string;
 }
