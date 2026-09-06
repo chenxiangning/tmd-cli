@@ -9,7 +9,7 @@
  */
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Pencil, SquareX, X, XCircle } from "lucide-react";
+import { Pencil, XSquare, Cross, XCircle } from "@phosphor-icons/react";
 
 /** 菜单约 180 宽:以点击点为左上,在视口内夹取;高度按项数(3 项 120 / 4 项 150)。 */
 function clampPosition(
@@ -86,7 +86,7 @@ export function TabContextMenu({
           }}
         >
           <span className="wsmenu-item-icon">
-            <X size={13} />
+            <Cross size={13} />
           </span>
           <span className="wsmenu-item-label">关闭</span>
         </button>
@@ -98,7 +98,7 @@ export function TabContextMenu({
           }}
         >
           <span className="wsmenu-item-icon">
-            <SquareX size={13} />
+            <XSquare size={13} />
           </span>
           <span className="wsmenu-item-label">关闭其他 tab</span>
         </button>

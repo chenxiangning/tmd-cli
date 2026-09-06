@@ -6,7 +6,7 @@
  * ConfirmTarget 类型唯一定义于此,BatchRow re-export 维持既有导入契约。
  */
 
-import { RotateCcw } from "lucide-react";
+import { ArrowCounterClockwise } from "@phosphor-icons/react";
 import type { CkptBatch, CkptBatchFile } from "@kernel/ipc";
 import { getCachedDiff } from "./store";
 import { openBatchTab } from "./batchTab";
@@ -174,7 +174,7 @@ export function FileRow({
           title="只回退这个文件"
           onClick={() => setConfirm({ batchId: b.id, paths: [f.path] })}
         >
-          <RotateCcw size={11} aria-hidden />
+          <ArrowCounterClockwise size={11} aria-hidden />
         </button>
       )}
     </div>

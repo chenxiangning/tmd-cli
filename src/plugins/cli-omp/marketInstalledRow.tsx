@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { CaretDown, CircleNotch } from "@phosphor-icons/react";
 import type { ProcRunResult } from "@kernel/ipc";
 import { fetchPkgDescription, type InstalledExt } from "./catalog";
 import { LogArea, runPluginAction } from "./marketCards";
@@ -91,7 +91,7 @@ export function InstalledRow({
         title={open ? "收起详情" : "展开详情"}
         onClick={() => setOpen((v) => !v)}
       >
-        <ChevronDown size={12} className="omp-ext-caret" aria-hidden />
+        <CaretDown size={12} className="omp-ext-caret" aria-hidden />
         <span className="omp-ext-pkg" title={ext.name}>
           {ext.name}
         </span>
@@ -103,7 +103,7 @@ export function InstalledRow({
       <div className="omp-ext-row-action">
         {running === "toggle" ? (
           <span className="omp-ext-running">
-            <Loader2 size={12} className="omp-ext-spin" aria-hidden />
+            <CircleNotch size={12} className="omp-ext-spin" aria-hidden />
             {ext.enabled ? "停用中" : "启用中"}
           </span>
         ) : (
@@ -118,7 +118,7 @@ export function InstalledRow({
         )}
         {running === "uninstall" ? (
           <span className="omp-ext-running">
-            <Loader2 size={12} className="omp-ext-spin" aria-hidden />
+            <CircleNotch size={12} className="omp-ext-spin" aria-hidden />
             卸载中
           </span>
         ) : armed ? (

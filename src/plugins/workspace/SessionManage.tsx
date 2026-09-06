@@ -10,7 +10,7 @@
  */
 
 import { useRef, useState } from "react";
-import { Archive, ArchiveRestore, Check, Trash2 } from "lucide-react";
+import { Archive, TrayArrowUp, Check, Trash } from "@phosphor-icons/react";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host } from "@kernel/host";
 import type { SessionMeta } from "@kernel/ipc";
@@ -195,7 +195,7 @@ export function ManageList({
               setArchived(row, !archiveViewOn);
             }}
           >
-            {archiveViewOn ? <ArchiveRestore size={12} /> : <Archive size={12} />}
+            {archiveViewOn ? <TrayArrowUp size={12} /> : <Archive size={12} />}
           </button>
           <DangerAction
             className="wm-act wm-danger"
@@ -204,7 +204,7 @@ export function ManageList({
             armedChildren={<span className="wm-danger-arm">确认</span>}
             onConfirm={() => void runDelete(row)}
           >
-            <Trash2 size={12} />
+            <Trash size={12} />
           </DangerAction>
         </span>
       </div>

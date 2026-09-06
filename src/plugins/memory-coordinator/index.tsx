@@ -9,7 +9,7 @@
  *   · Memory 控制台 tab(EditorCenter 位,kind="memory-console")
  */
 
-import { Brain } from "lucide-react";
+import { Brain } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { MemoryPanel } from "./panel/MemoryPanel";
 import { MemoryConsole, openConsoleTab } from "./console/MemoryConsole";

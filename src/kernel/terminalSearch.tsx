@@ -6,7 +6,7 @@
 
 import { useState, type RefObject } from "react";
 import type { SearchAddon } from "@xterm/addon-search";
-import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { CaretDown, CaretUp, Cross } from "@phosphor-icons/react";
 import { registerCommand } from "@kernel/shortcuts";
 
 /* ── 终端作用域命令桥(spec 2026-09-05-shortcuts) ──
@@ -60,21 +60,21 @@ export function TerminalSearchOverlay({
         onClick={() => query && searchRef.current?.findPrevious(query)}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
-        <ChevronUp size={14} />
+        <CaretUp size={14} />
       </button>
       <button
         title="下一个 (Enter)"
         onClick={() => query && searchRef.current?.findNext(query)}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
-        <ChevronDown size={14} />
+        <CaretDown size={14} />
       </button>
       <button
         title="关闭 (Esc)"
         onClick={onClose}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
-        <X size={14} />
+        <Cross size={14} />
       </button>
     </div>
   );

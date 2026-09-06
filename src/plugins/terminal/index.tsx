@@ -9,7 +9,7 @@
  * 侧栏分组见 workspace 插件 ShellSessionGroup(kind 是内核级会话概念)。
  */
 
-import { SquareTerminal } from "lucide-react";
+import { TerminalWindow } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { TerminalButton } from "./TerminalButton";
 
@@ -19,7 +19,7 @@ export const terminalPlugin: Plugin = {
     name: "内置终端",
     abbr: "SH",
     desc: "本地默认 shell 终端会话(zsh/bash/cmd),复用幕布全链路",
-    icon: SquareTerminal,
+    icon: TerminalWindow,
     category: "feature",
   },
   activate(ctx) {

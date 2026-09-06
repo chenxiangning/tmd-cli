@@ -19,7 +19,7 @@ import { appVersion } from "@kernel/ipc";
 import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { openSettingsPanel, useSettingsState } from "@kernel/settings";
 import logoUrl from "../assets/logo.png";
-import { Check, Settings } from "lucide-react";
+import { Check, Gear } from "@phosphor-icons/react";
 import { VersionPopover } from "./VersionPopover";
 
 /** 底栏空间有限,最多外显 4 个快捷入口(同 codemoss SIDEBAR_SETTINGS_PINNED_MAX)。 */
@@ -178,7 +178,7 @@ export function SidebarSettingsCluster() {
             }}
           >
             <span className="settings-menu-icon" aria-hidden>
-              <Settings size={14} />
+              <Gear size={14} />
             </span>
             <span className="settings-menu-label">设置</span>
           </button>

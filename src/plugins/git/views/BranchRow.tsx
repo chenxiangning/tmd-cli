@@ -5,7 +5,7 @@
  */
 
 import { useState } from "react";
-import { GitBranch, GitBranchPlus, Trash2 } from "lucide-react";
+import { GitBranch, Trash } from "@phosphor-icons/react";
 import type { GitBranchInfo } from "@kernel/ipc";
 
 export function GroupLabel({ label }: { label: string }) {
@@ -82,7 +82,7 @@ export function BranchRow({
           title="检出为本地分支并建跟踪"
           className="shrink-0 opacity-0 group-hover:opacity-60"
         >
-          <GitBranchPlus className="h-3.5 w-3.5" />
+          <GitBranch className="h-3.5 w-3.5" />
         </button>
       )}
       {!branch.isRemote && !isCurrent && onDelete && (
@@ -94,7 +94,7 @@ export function BranchRow({
             confirmForce || armedDelete ? "text-(--tmd-diff-removed) opacity-100!" : ""
           }`}
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash className="h-3.5 w-3.5" />
         </button>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { Package } from "lucide-react";
+import { Package } from "@phosphor-icons/react";
 import { piFamilySessions } from "../cli-shared/piFamily";
 import { readOmpDefaultStatus } from "./configStatus";
 import { fetchOmpQuota } from "./quota";

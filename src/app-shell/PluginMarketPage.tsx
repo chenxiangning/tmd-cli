@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Globe, List, Plug, RotateCw, X } from "lucide-react";
+import { Globe, List, Plug, ArrowClockwise, Cross } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { getMarketPanel } from "@kernel/marketPanel";
 import { updateSettings, useSettingsState } from "@kernel/settings";
@@ -116,7 +116,7 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
               title={dirtyCount > 0 ? `${dirtyCount} 个插拔变更待重启生效` : "重启应用"}
               onClick={restart}
             >
-              <RotateCw size={12} aria-hidden />
+              <ArrowClockwise size={12} aria-hidden />
               重启应用{dirtyCount > 0 ? ` (${dirtyCount})` : ""}
             </button>
             <button
@@ -126,7 +126,7 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
               title="关闭插件市场"
               onClick={onClose}
             >
-              <X size={14} aria-hidden />
+              <Cross size={14} aria-hidden />
             </button>
           </div>
         </div>

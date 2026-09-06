@@ -4,6 +4,7 @@
 
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { IconContext } from "@phosphor-icons/react";
 import { AppShell } from "@shell/AppShell";
 import { registerDefaultContributions } from "@shell/contributions";
 import { host } from "@kernel/host";
@@ -49,8 +50,12 @@ function App() {
   return <AppShell />;
 }
 
+/* Phosphor 全局默认 weight=bold —— 圆胖粗线视觉(对齐"圆乎乎 icon"诉求);
+   调用点显式 weight 可覆盖。 */
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <IconContext.Provider value={{ weight: "bold" }}>
+      <App />
+    </IconContext.Provider>
   </React.StrictMode>,
 );

@@ -3,7 +3,7 @@
  * 无选择 UI;解释区为固定文案;Example 与实际执行一致(tmd-cli 保留 --prune)。
  */
 
-import { CloudDownload } from "lucide-react";
+import { CloudArrowDown } from "@phosphor-icons/react";
 import type { GitRemoteRequest } from "@kernel/ipc";
 import { DialogActions, GitDialogShell } from "./GitDialogShell";
 import { GitOpTokens, OpSectionLabel, type GitOpToken } from "./GitOpTokens";
@@ -26,7 +26,7 @@ export function FetchDialog({
   return (
     <GitDialogShell
       title="获取远端更新"
-      icon={<CloudDownload className="h-3.5 w-3.5" aria-hidden />}
+      icon={<CloudArrowDown className="h-3.5 w-3.5" aria-hidden />}
       locked={submitting}
       onClose={onClose}
       footer={

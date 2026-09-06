@@ -6,7 +6,7 @@
  * (先例:sessionSpawn.openingDiskSessions)。
  */
 
-import { SquareTerminal } from "lucide-react";
+import { TerminalWindow } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 
 /** 在途创建 Promise(shell 会话 spawn 装配未落地期间再点直接忽略)。 */
@@ -48,7 +48,7 @@ export function TerminalButton() {
       title="内置终端(Option+点击新建)"
       onClick={(e) => open(e.altKey)}
     >
-      <SquareTerminal size={14} aria-hidden />
+      <TerminalWindow size={14} aria-hidden />
     </button>
   );
 }

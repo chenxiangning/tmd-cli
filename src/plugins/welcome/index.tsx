@@ -5,7 +5,7 @@
  * AppShell MainPanel 整页渲染 WelcomePage(连 composer 一起替换)。
  */
 
-import { House } from "lucide-react";
+import { House } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { WelcomePage } from "./WelcomePage";
 

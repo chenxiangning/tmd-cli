@@ -1,6 +1,6 @@
 import { host, useHost } from "@kernel/host";
 import { collapseComposerStage, expandComposerStage, useComposerStage } from "@kernel/composerStage";
-import { ChevronDown, ChevronUp, PanelRight } from "lucide-react";
+import { CaretDown, CaretUp, Sidebar } from "@phosphor-icons/react";
 import { QuotaChip } from "./QuotaChip";
 import { toggleDrawer, useDrawerOpen } from "../state/drawerOpen";
 
@@ -56,7 +56,7 @@ export function ComposerToolbar() {
         onClick={expandComposerStage}
         className={`${iconBtn} ml-auto text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >
-        <ChevronUp size={15} />
+        <CaretUp size={15} />
       </button>
       <button
         type="button"
@@ -66,7 +66,7 @@ export function ComposerToolbar() {
         onClick={collapseComposerStage}
         className={`${iconBtn} text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >
-        <ChevronDown size={15} />
+        <CaretDown size={15} />
       </button>
       {/* 命令抽屉直达开关(closed ↔ open);原「只读」占位(openspec/changes/composer-command-drawer) */}
       <button
@@ -82,7 +82,7 @@ export function ComposerToolbar() {
             : "text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         }`}
       >
-        <PanelRight size={15} />
+        <Sidebar size={15} />
       </button>
     </div>
   );

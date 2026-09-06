@@ -5,7 +5,7 @@
  */
 
 import { memo, useState } from "react";
-import { Maximize2, Minimize2, X } from "lucide-react";
+import { CornersOut, CornersIn, Cross } from "@phosphor-icons/react";
 import { baseName } from "@kernel/pathUtils";
 import { resolveFileVisual } from "@kernel/fileVisual";
 import {
@@ -79,9 +79,9 @@ function FileTab({
         }}
       >
         {maximized ? (
-          <Minimize2 size={11} aria-hidden />
+          <CornersIn size={11} aria-hidden />
         ) : (
-          <Maximize2 size={11} aria-hidden />
+          <CornersOut size={11} aria-hidden />
         )}
       </button>
       <button
@@ -94,7 +94,7 @@ function FileTab({
           closeTab(tabId);
         }}
       >
-        <X size={11} aria-hidden />
+        <Cross size={11} aria-hidden />
       </button>
     </div>
   );

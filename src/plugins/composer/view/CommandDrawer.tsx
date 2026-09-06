@@ -13,7 +13,7 @@
  * 分区常量拆至 drawerSections.ts,条目列表拆至 DrawerItemList.tsx(文件规模铁则)。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Cross } from "@phosphor-icons/react";
 import { isDrawerOpen, setDrawerOpen } from "../state/drawerOpen";
 import type { DrawerItem, DrawerSection } from "../drawerItems";
 import { SECTION_META, SECTION_ORDER, SECTION_TAB_ICONS } from "./drawerSections";
@@ -192,7 +192,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
           onClick={() => setDrawerOpen(false)}
           className="grid h-7 w-full cursor-pointer place-items-center rounded-md text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         >
-          <X size={13} />
+          <Cross size={13} />
         </button>
         {(["all", ...sections] as const).map((key) => {
           const label = key === "all" ? "全部" : SECTION_META[key].label;

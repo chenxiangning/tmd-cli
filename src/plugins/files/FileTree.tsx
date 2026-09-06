@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { ArrowClockwise } from "@phosphor-icons/react";
 import { ipc, type DirEntry } from "@kernel/ipc";
 import { useWorkspaces } from "@kernel/workspace";
 import { FileTreeRow } from "./FileTreeRow";
@@ -167,7 +167,7 @@ function FileTree({ root }: { root: string }) {
         {loading && entries.length === 0 ? (
           <div className="file-tree-loading-row" role="status" aria-live="polite">
             <span className="file-tree-loading-spinner" aria-hidden>
-              <RefreshCw size={12} />
+              <ArrowClockwise size={12} />
             </span>
             <span>加载中…</span>
           </div>

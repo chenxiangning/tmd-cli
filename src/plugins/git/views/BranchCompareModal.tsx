@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, GitCompare, Loader2, X } from "lucide-react";
+import { CaretDown, GitDiff, CircleNotch, Cross } from "@phosphor-icons/react";
 import { ipc, type GitBranchCompareSet, type GitBranchDiffFile, type GitLogEntry } from "@kernel/ipc";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { gitErrorDisplay } from "../gitError";
@@ -110,7 +110,7 @@ export function BranchCompareModal({
         <div className="shrink-0 border-b border-(--tmd-border) px-4 pt-3">
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1 rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-[10px] font-medium text-(--tmd-accent)">
-              <GitCompare className="h-3 w-3" />
+              <GitDiff className="h-3 w-3" />
               {badge}
             </span>
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-(--tmd-fg)">
@@ -121,7 +121,7 @@ export function BranchCompareModal({
               title="关闭"
               className="rounded p-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
             >
-              <X className="h-4 w-4" />
+              <Cross className="h-4 w-4" />
             </button>
           </div>
           <div className="flex items-center gap-3 py-1.5">
@@ -137,7 +137,7 @@ export function BranchCompareModal({
         {/* 主体 */}
         {loading && (
           <div className="flex flex-1 items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> 加载中…
+            <CircleNotch className="h-3.5 w-3.5 animate-spin" /> 加载中…
           </div>
         )}
         {error && (
@@ -215,7 +215,7 @@ function UniqueSection({
         className="flex w-full min-w-0 items-center gap-1.5 px-2 py-1.5 text-left"
         title={open ? "收起" : "展开"}
       >
-        <ChevronDown
+        <CaretDown
           className={`h-3 w-3 shrink-0 text-(--tmd-fg-faint) transition-transform ${
             open ? "" : "-rotate-90"
           }`}

@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { CircleNotch } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
 import { ipc, type GitFilePatch } from "@kernel/ipc";
 import { readDiffTabPayload, type DiffTabPayload } from "./diffTab";
@@ -88,7 +88,7 @@ function DiffTab({ payload }: { payload: DiffTabPayload }) {
       <div className="min-w-0 flex-1 overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center gap-1.5 py-6 text-(--tmd-fg-faint)">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> 加载 diff…
+            <CircleNotch className="h-3.5 w-3.5 animate-spin" /> 加载 diff…
           </div>
         ) : error ? (
           <div className="px-3 py-3 text-(--tmd-diff-removed)">{error.replace(/^E_[A-Z_]+:\s*/, "")}</div>

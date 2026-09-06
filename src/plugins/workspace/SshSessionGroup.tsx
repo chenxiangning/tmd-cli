@@ -4,7 +4,7 @@
  * 分类折叠:段头即开关(useGroupCollapsed,key = `ws:ssh`),折叠态显活会话数。
  */
 
-import { Server } from "lucide-react";
+import { HardDrive } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import type { Workspace } from "@kernel/workspace";
@@ -34,7 +34,7 @@ export function SshSessionGroup({ workspace }: { workspace: Workspace }) {
     <div className="cli-group">
       <GroupHeader
         label="SSH"
-        icon={<Server size={12} />}
+        icon={<HardDrive size={12} />}
         count={sessions.length}
         collapsed={collapsed}
         onToggle={toggle}

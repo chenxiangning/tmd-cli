@@ -31,7 +31,7 @@ import {
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle, shortId } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
-import { ChevronDown, ChevronRight, Eye, Pin } from "lucide-react";
+import { CaretDown, CaretRight, Eye, PushPinSimple } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
 import { realPinSnapshot } from "./utils";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
@@ -197,13 +197,13 @@ export function PinnedSessionsSection() {
         title={collapsed ? "展开已置顶" : "收起已置顶"}
         onClick={toggleCollapsed}
       >
-        <Pin size={11} className="pinned-sessions-header-icon" aria-hidden />
+        <PushPinSimple size={11} className="pinned-sessions-header-icon" aria-hidden />
         <span className="pinned-sessions-header-label">已置顶</span>
         <span className="pinned-sessions-header-count">· {rows.length}</span>
         {collapsed ? (
-          <ChevronRight size={12} className="pinned-sessions-header-chevron" aria-hidden />
+          <CaretRight size={12} className="pinned-sessions-header-chevron" aria-hidden />
         ) : (
-          <ChevronDown size={12} className="pinned-sessions-header-chevron" aria-hidden />
+          <CaretDown size={12} className="pinned-sessions-header-chevron" aria-hidden />
         )}
       </button>
 

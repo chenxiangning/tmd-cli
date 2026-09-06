@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react";
-import { Gauge, ListTree } from "lucide-react";
+import { Gauge, TreeStructure } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { BudgetPopover, clampBudgetPosition } from "./BudgetPopover";
 
@@ -28,7 +28,7 @@ function CaptionBudgetButton() {
           );
         }}
       >
-        <ListTree size={13} aria-hidden />
+        <TreeStructure size={13} aria-hidden />
       </button>
       {pos && <BudgetPopover position={pos} onClose={() => setPos(null)} />}
     </>

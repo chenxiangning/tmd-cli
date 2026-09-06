@@ -8,7 +8,7 @@
  */
 
 import { useEffect } from "react";
-import { Check, RotateCcw, Undo2, Zap } from "lucide-react";
+import { Check, ArrowCounterClockwise, ArrowUUpLeft, Lightning } from "@phosphor-icons/react";
 import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
 import type { CkptBatch, CkptPatch } from "@kernel/ipc";
 import { getCachedDiff, loadDiff, refreshOpenDiff } from "./store";
@@ -200,7 +200,7 @@ export function BatchRow({
             className="flex h-[21px] flex-none items-center gap-1 rounded border border-[rgba(167,139,250,.4)] px-2 text-[10px] text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
             onClick={() => setConfirm({ batchId: b.id, paths: revertable.map((f) => f.path) })}
           >
-            <RotateCcw size={10} aria-hidden /> 回退整批({revertable.length})
+            <ArrowCounterClockwise size={10} aria-hidden /> 回退整批({revertable.length})
           </button>
         )}
         {st === "reverted" && (
@@ -211,7 +211,7 @@ export function BatchRow({
             title="按账本副本把这轮改动精确写回(live 已偏离批前像的文件跳过,绝不覆盖)"
             onClick={() => setConfirm({ batchId: b.id, mode: "apply" })}
           >
-            <Zap size={10} aria-hidden /> 应用回此批
+            <Lightning size={10} aria-hidden /> 应用回此批
           </button>
         )}
         {st === "reverted" && b.guardId && (
@@ -221,7 +221,7 @@ export function BatchRow({
             className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-border) px-2 text-[10px] text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) disabled:opacity-40"
             onClick={() => void onUndo(b.id)}
           >
-            <Undo2 size={10} aria-hidden /> 反悔 · 恢复回来
+            <ArrowUUpLeft size={10} aria-hidden /> 反悔 · 恢复回来
           </button>
         )}
         <span className="truncate text-[10px] text-(--tmd-fg-faint)">

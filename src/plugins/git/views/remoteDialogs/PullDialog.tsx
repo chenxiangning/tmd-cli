@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, Cloud, Download, GitBranch, X } from "lucide-react";
+import { CaretDown, Cloud, DownloadSimple, GitBranch, Cross } from "@phosphor-icons/react";
 import { ipc, type GitRemoteRequest } from "@kernel/ipc";
 import { DialogActions, GitDialogShell } from "./GitDialogShell";
 import { GitOpTokens, type GitOpToken } from "./GitOpTokens";
@@ -108,7 +108,7 @@ export function PullDialog({
   return (
     <GitDialogShell
       title="拉取变更"
-      icon={<Download className="h-3.5 w-3.5" aria-hidden />}
+      icon={<DownloadSimple className="h-3.5 w-3.5" aria-hidden />}
       locked={submitting}
       onClose={onClose}
       footer={
@@ -164,7 +164,7 @@ export function PullDialog({
             {selectedOptions.length > 0 ? selectedOptions.length : ""}
           </span>
           修改选项
-          <ChevronDown
+          <CaretDown
             className={`ml-auto h-3.5 w-3.5 text-(--tmd-fg-faint) transition-transform ${optionsOpen ? "rotate-180" : ""}`}
             aria-hidden
           />
@@ -206,7 +206,7 @@ export function PullDialog({
                 className="flex items-center gap-1 rounded-full bg-(--tmd-bg-sunken) px-2 py-0.5 font-mono text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
               >
                 {o}
-                <X className="h-3 w-3" aria-hidden />
+                <Cross className="h-3 w-3" aria-hidden />
               </button>
             ))}
           </div>

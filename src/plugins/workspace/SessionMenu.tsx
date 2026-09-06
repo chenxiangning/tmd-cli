@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { host } from "@kernel/host";
 import { Mounts } from "@kernel/Mounts";
 import { removeWorkspace, type Workspace } from "@kernel/workspace";
-import { RefreshCw, Trash2 } from "lucide-react";
+import { ArrowClockwise, Trash } from "@phosphor-icons/react";
 
 /** 新建会话菜单定位:以点击点为左上,按估算尺寸在视口内夹取(codemoss 同款)。 */
 export function clampMenuPosition(x: number, y: number): { x: number; y: number } {
@@ -71,7 +71,7 @@ export function SessionMenuOverlay({
               title={`刷新 ${p.name} 会话列表`}
               onClick={() => onRefresh(p.id)}
             >
-              <RefreshCw />
+              <ArrowClockwise />
             </button>
           </div>
         ))}
@@ -90,7 +90,7 @@ export function SessionMenuOverlay({
             }}
           >
             <span className="wsmenu-item-icon">
-              <Trash2 size={13} />
+              <Trash size={13} />
             </span>
             <span className="wsmenu-item-label">删除工作区</span>
           </button>

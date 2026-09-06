@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Search } from "lucide-react";
+import { CaretDown, MagnifyingGlass } from "@phosphor-icons/react";
 import { useWorkspaces } from "@kernel/workspace";
 import { type MemoryItem } from "../protocol";
 import { useEditorTabs } from "@kernel/tabs";
@@ -149,7 +149,7 @@ export function MemoryPanel() {
         <span className="h-2 w-2 flex-none rounded-full bg-(--tmd-ok)" />
         <span className="text-[11px] text-(--tmd-fg-muted)">池就绪</span>
         <span className="ml-auto text-[11px] font-semibold">{count} 条</span>
-        <ChevronDown size={11} className={detailOpen ? "rotate-180 transition-transform" : "transition-transform"} />
+        <CaretDown size={11} className={detailOpen ? "rotate-180 transition-transform" : "transition-transform"} />
       </button>
       {detailOpen && (
         <div className="mb-2 flex flex-col gap-0.5 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2 font-mono text-[10px] text-(--tmd-fg-muted)">
@@ -164,7 +164,7 @@ export function MemoryPanel() {
 
       <div className="flex gap-1.5 px-1 pb-1.5">
         <div className="relative flex-1">
-          <Search size={12} className="absolute left-2 top-1.5 text-(--tmd-fg-faint)" />
+          <MagnifyingGlass size={12} className="absolute left-2 top-1.5 text-(--tmd-fg-faint)" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}

@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, Cloud, GitBranch } from "lucide-react";
+import { Check, CaretDown, Cloud, GitBranch } from "@phosphor-icons/react";
 
 interface MenuPos {
   x: number;
@@ -99,7 +99,7 @@ export function RemotePicker({
       >
         <Cloud className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-muted)" aria-hidden />
         <span className="min-w-0 flex-1 truncate text-left">{value || "origin"}</span>
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-faint)" aria-hidden />
+        <CaretDown className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-faint)" aria-hidden />
       </button>
       {pos && (
         <PickerMenu pos={pos} onClose={() => setPos(null)}>
@@ -192,7 +192,7 @@ export function BranchCombobox({
         onClick={() => (pos ? setPos(null) : openWith(""))}
         className="shrink-0 rounded border border-(--tmd-border) p-1.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
-        <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+        <CaretDown className="h-3.5 w-3.5" aria-hidden />
       </button>
       {pos && (
         <PickerMenu pos={pos} onClose={() => setPos(null)}>

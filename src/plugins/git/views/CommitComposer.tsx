@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { CircleNotch } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
 
@@ -122,7 +122,7 @@ export function CommitComposer({
           title="提交(⌘⏎)"
           className="flex items-center gap-1 bg-(--tmd-accent) px-3 py-0.5 text-(--tmd-accent-fg) disabled:cursor-default disabled:bg-(--tmd-bg-sunken) disabled:text-(--tmd-fg-faint)"
         >
-          {busy && <Loader2 className="h-3 w-3 animate-spin" />}
+          {busy && <CircleNotch className="h-3 w-3 animate-spin" />}
           ⌘⏎ commit
         </button>
       </div>

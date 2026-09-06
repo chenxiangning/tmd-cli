@@ -9,7 +9,7 @@
  *   安装/更新按钮禁用,卡片内引导先装依赖(独立安装日志);依赖探针 ok 后恢复。
  */
 import { useCallback, useRef, useState } from "react";
-import { CircleX, ExternalLink, RefreshCw } from "lucide-react";
+import { XCircle, ArrowSquareOut, ArrowClockwise } from "@phosphor-icons/react";
 import {
   ipc,
   onCliInstallEvent,
@@ -84,7 +84,7 @@ export function EngineCard({
     <section className="welcome-engine-card">
       <header className="welcome-engine-head">
         <span className="welcome-engine-icon" aria-hidden>
-          {profile?.renderIcon ? profile.renderIcon(22) : <CircleX size={22} />}
+          {profile?.renderIcon ? profile.renderIcon(22) : <XCircle size={22} />}
         </span>
         <span className="welcome-engine-name">{meta.displayName}</span>
         {meta.docsUrl && (
@@ -95,7 +95,7 @@ export function EngineCard({
             rel="noreferrer"
           >
             官方文档
-            <ExternalLink size={11} aria-hidden />
+            <ArrowSquareOut size={11} aria-hidden />
           </a>
         )}
         <span className="welcome-engine-status">
@@ -166,7 +166,7 @@ export function EngineCard({
             aria-label="重新探针"
             title="重新探针"
           >
-            <RefreshCw
+            <ArrowClockwise
               size={12}
               aria-hidden
               className={probe.status === "loading" ? "is-spinning" : ""}

@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { RotateCw, X } from "lucide-react";
+import { ArrowClockwise, Cross } from "@phosphor-icons/react";
 import { ipc, type CliProbeResult } from "@kernel/ipc";
 import {
   fetchExtCatalog,
@@ -91,7 +91,7 @@ export function OmpExtensionMarket({ onClose }: { onClose: () => void }) {
           title="刷新"
           onClick={refresh}
         >
-          <RotateCw size={12} aria-hidden />
+          <ArrowClockwise size={12} aria-hidden />
         </button>
         <button
           type="button"
@@ -99,7 +99,7 @@ export function OmpExtensionMarket({ onClose }: { onClose: () => void }) {
           title="关闭"
           onClick={onClose}
         >
-          <X size={14} aria-hidden />
+          <Cross size={14} aria-hidden />
         </button>
       </header>
 

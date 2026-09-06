@@ -7,7 +7,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { ChevronRight, RotateCcw } from "lucide-react";
+import { CaretRight, ArrowCounterClockwise } from "@phosphor-icons/react";
 import type { CkptPatch } from "@kernel/ipc";
 
 export function FileSection({
@@ -58,7 +58,7 @@ export function FileSection({
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
           onClick={() => setOpen((v) => !v)}
         >
-          <ChevronRight
+          <CaretRight
             size={12}
             aria-hidden
             className={`flex-none text-(--tmd-fg-faint) transition-transform ${open ? "rotate-90" : ""}`}
@@ -105,7 +105,7 @@ export function FileSection({
             className="hidden h-5 flex-none items-center gap-1 rounded border border-(--tmd-border) px-1.5 text-[10px] text-(--tmd-fg-subtle) hover:border-[rgba(167,139,250,.5)] hover:text-[#a78bfa] group-hover:flex disabled:opacity-40"
             onClick={onRevert}
           >
-            <RotateCcw size={10} aria-hidden /> 只回退此文件
+            <ArrowCounterClockwise size={10} aria-hidden /> 只回退此文件
           </button>
         )}
       </div>

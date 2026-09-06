@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Copy, Pencil, Pin, Trash2 } from "lucide-react";
+import { Copy, Pencil, PushPinSimple, Trash } from "@phosphor-icons/react";
 import type { SessionPinScope } from "@kernel/sessionPins";
 import { clampMenuPosition } from "./SessionMenu";
 
@@ -58,7 +58,7 @@ export function SessionContextMenu({
       }}
     >
       <span className="wsmenu-item-icon">
-        <Pin size={13} />
+        <PushPinSimple size={13} />
       </span>
       <span className="wsmenu-item-label">
         {pinScope === scope ? `✓ ${label}` : label}
@@ -120,7 +120,7 @@ export function SessionContextMenu({
               }}
             >
               <span className="wsmenu-item-icon">
-                <Trash2 size={13} />
+                <Trash size={13} />
               </span>
               <span className="wsmenu-item-label">
                 {armed ? "确认删除?" : "删除会话"}

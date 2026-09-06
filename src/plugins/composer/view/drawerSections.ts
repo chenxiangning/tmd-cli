@@ -4,7 +4,7 @@
  * 动作徽标(颜色全部走主题 token,preset 换色自动跟随)/ 条目展示名。
  */
 
-import { LayoutGrid, Puzzle, Server, Sparkles, SquareTerminal } from "lucide-react";
+import { GridFour, PuzzlePiece, HardDrive, Sparkle, TerminalWindow } from "@phosphor-icons/react";
 import type { DrawerIconComponent } from "../drawerIcons";
 import type { DrawerItem, DrawerSection } from "../drawerItems";
 
@@ -18,11 +18,11 @@ export const SECTION_META: Record<DrawerSection, { label: string; glyph: string 
 
 /** 左缘 rail 分区图标(UI 铬,非 profile 协议语义;文案进 title/aria-label)。 */
 export const SECTION_TAB_ICONS: Record<"all" | DrawerSection, DrawerIconComponent> = {
-  all: LayoutGrid,
-  command: SquareTerminal,
-  skill: Sparkles,
-  mcp: Server,
-  plugin: Puzzle,
+  all: GridFour,
+  command: TerminalWindow,
+  skill: Sparkle,
+  mcp: HardDrive,
+  plugin: PuzzlePiece,
 };
 
 /** 动作徽标:软填充色芯片(不用描边,亮色系主题下描边 pill 过于抢眼);

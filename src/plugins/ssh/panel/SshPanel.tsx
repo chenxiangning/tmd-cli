@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Plus, RefreshCw, RotateCw, Unplug } from "lucide-react";
+import { Plus, ArrowClockwise, PlugCharging } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { SSH_STATUS_LABELS, openHostPicker, probeLatency, useSshSession } from "../state";
 import { ForwardSection } from "./ForwardSection";
@@ -98,7 +98,7 @@ function SessionCard({
           title="测延迟"
           onClick={() => void probeLatency(sessionId)}
         >
-          <RefreshCw size={11} />
+          <ArrowClockwise size={11} />
         </button>
         <button
           type="button"
@@ -106,7 +106,7 @@ function SessionCard({
           disabled={busy || status === "connecting" || status === "reconnecting"}
           onClick={() => void reconnect()}
         >
-          <RotateCw size={11} />
+          <ArrowClockwise size={11} />
         </button>
         <button
           type="button"
@@ -114,7 +114,7 @@ function SessionCard({
           disabled={busy}
           onClick={() => void host.removeSession(sessionId)}
         >
-          <Unplug size={11} />
+          <PlugCharging size={11} />
         </button>
       </div>
     </div>

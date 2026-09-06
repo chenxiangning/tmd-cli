@@ -9,7 +9,7 @@
  */
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { CircleNotch } from "@phosphor-icons/react";
 import { resolveFileVisual } from "@kernel/fileVisual";
 import { formatAbsolute } from "@kernel/relativeTime";
 import type { GitCommitFile, GitLogEntry } from "@kernel/ipc";
@@ -219,7 +219,7 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
             {isExpanded && entry?.loading && (
               <div className={ROW_CLASS} title="加载改动文件">
                 <GitGraphContinuationCell row={row.graph} />
-                <Loader2 className="h-3 w-3 shrink-0 animate-spin text-(--tmd-fg-faint)" />
+                <CircleNotch className="h-3 w-3 shrink-0 animate-spin text-(--tmd-fg-faint)" />
                 <span className="text-(--tmd-fg-faint)">加载中…</span>
               </div>
             )}
@@ -245,7 +245,7 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
 
       {log.loading && (
         <div className="flex items-center justify-center gap-1.5 py-2 text-(--tmd-fg-faint)">
-          <Loader2 className="h-3 w-3 animate-spin" /> 加载中…
+          <CircleNotch className="h-3 w-3 animate-spin" /> 加载中…
         </div>
       )}
       {!log.hasMore && log.entries.length > 0 && (

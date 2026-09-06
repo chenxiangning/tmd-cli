@@ -10,7 +10,7 @@ import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { host, useHost } from "@kernel/host";
-import { Eye, Pin } from "lucide-react";
+import { Eye, PushPinSimple } from "@phosphor-icons/react";
 import { resolveSessionStatus, type SessionStatus } from "./utils";
 
 
@@ -200,7 +200,7 @@ export function PinToggle({
         }
       }}
     >
-      <Pin size={12} className="thread-pin-icon" aria-hidden />
+      <PushPinSimple size={12} className="thread-pin-icon" aria-hidden />
     </span>
   );
 }

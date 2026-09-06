@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Upload } from "lucide-react";
+import { UploadSimple } from "@phosphor-icons/react";
 import { getSettingsState } from "@kernel/settings";
 import { scanSshImportCandidates, type SshImportCandidate } from "../scan";
 
@@ -52,7 +52,7 @@ export function ImportModal({
     <div className="ssh-modal-backdrop" onClick={onClose}>
       <div className="ssh-modal" onClick={(e) => e.stopPropagation()}>
         <div className="ssh-modal-title">
-          <Upload size={14} aria-hidden />
+          <UploadSimple size={14} aria-hidden />
           <span>从 ~/.ssh/config 导入</span>
         </div>
         {state === "loading" ? <div className="ssh-settings-empty">扫描中…</div> : null}

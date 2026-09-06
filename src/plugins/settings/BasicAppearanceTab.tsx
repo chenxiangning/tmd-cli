@@ -6,7 +6,7 @@
  * 全部写入 kernel/settings store,主题引擎即时生效,无需「保存」按钮。
  */
 
-import { Check, Monitor, Moon, Palette, Sun } from "lucide-react";
+import { Check, Monitor, Moon, Palette, Sun } from "@phosphor-icons/react";
 import {
   updateSettings,
   useSettingsState,

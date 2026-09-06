@@ -4,7 +4,7 @@
  * HEAD:refs/for/<branch>[%suffix],语义对齐 codemoss)。
  */
 
-import { Upload } from "lucide-react";
+import { UploadSimple } from "@phosphor-icons/react";
 import { OpToggle } from "./GitDialogShell";
 
 export function PushGerritSection({
@@ -36,7 +36,7 @@ export function PushGerritSection({
     <div className="mt-3">
       <OpToggle
         active={gerrit}
-        icon={<Upload className="h-3.5 w-3.5" aria-hidden />}
+        icon={<UploadSimple className="h-3.5 w-3.5" aria-hidden />}
         label="Push to Gerrit"
         disabled={submitting}
         onToggle={onToggle}

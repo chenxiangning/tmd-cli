@@ -6,7 +6,7 @@
  */
 
 import { useState } from "react";
-import { KeyRound, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { Key, Pencil, Plus, Trash, UploadSimple } from "@phosphor-icons/react";
 import { ipc, type SshHostConfig } from "@kernel/ipc";
 import { getSettingsState, updateSettings } from "@kernel/settings";
 import type { SshImportCandidate } from "../scan";
@@ -62,7 +62,7 @@ export function SshSettingsSection() {
           <Plus size={12} /> 添加主机
         </button>
         <button type="button" className="ssh-btn" onClick={() => setImportOpen(true)}>
-          <Upload size={12} /> 从 ~/.ssh/config 导入
+          <UploadSimple size={12} /> 从 ~/.ssh/config 导入
         </button>
         {hosts.length > 0 && <span className="ssh-settings-count">{hosts.length} 台主机</span>}
       </div>
@@ -90,13 +90,13 @@ export function SshSettingsSection() {
                   title="重置主机密钥信任(下次连接重新确认)"
                   onClick={() => void resetKnownHost(host)}
                 >
-                  <KeyRound size={13} />
+                  <Key size={13} />
                 </button>
                 <button type="button" className="ssh-icon-btn" title="编辑" onClick={() => setEditing(host)}>
                   <Pencil size={13} />
                 </button>
                 <button type="button" className="ssh-icon-btn" title="删除" onClick={() => removeHost(host)}>
-                  <Trash2 size={13} />
+                  <Trash size={13} />
                 </button>
               </div>
             </div>

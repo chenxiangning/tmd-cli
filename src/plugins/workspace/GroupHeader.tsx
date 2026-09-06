@@ -8,7 +8,7 @@
  */
 
 import type { ReactNode } from "react";
-import { ChevronDown, ChevronRight, ListChecks } from "lucide-react";
+import { CaretDown, CaretRight, ListChecks } from "@phosphor-icons/react";
 
 export function GroupHeader({
   label,
@@ -68,7 +68,7 @@ export function GroupHeader({
         </span>
       )}
       <span className="cli-group-chevron" aria-hidden>
-        {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+        {collapsed ? <CaretRight size={12} /> : <CaretDown size={12} />}
       </span>
     </button>
   );

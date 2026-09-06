@@ -25,7 +25,7 @@ interface PluginMeta {
   desc: string;
   /** 插头/卡片的 monogram 缩写(≤2 字符),如 "CC"。icon 缺省时的兜底。 */
   abbr: string;
-  /** 插头/卡片徽标组件(CLI 品牌字形或 lucide 语义图标),调用方必传 size;缺省回退 abbr。 */
+  /** 插头/卡片徽标组件(CLI 品牌字形或 @phosphor-icons-react 语义图标),调用方必传 size;缺省回退 abbr。 */
   icon?: ComponentType<{ size: number }>;
   /** 徽标颜色(CSS color),施加在容器上经 currentColor 传导;缺省跟随主题 accent。 */
   iconColor?: string;

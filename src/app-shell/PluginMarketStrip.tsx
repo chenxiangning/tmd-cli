@@ -1,6 +1,6 @@
 // 插件市场插排视图(分类常量 + 插座单元 + 合并大插排),自 PluginMarketPage.tsx 按「纯结构拆分、行为不变」拆出
 import type { ComponentType } from "react";
-import { Lock } from "lucide-react";
+import { Lock } from "@phosphor-icons/react";
 import { getMarketPanel } from "@kernel/marketPanel";
 import type { Plugin, PluginCategory } from "@kernel/plugin";
 

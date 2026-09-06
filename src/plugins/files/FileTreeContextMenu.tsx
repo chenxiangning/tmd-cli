@@ -10,14 +10,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import {
-  Copy,
-  FilePlus2,
-  FolderOpen,
-  FolderPlus,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import { Copy, FilePlus, FolderOpen, FolderSimplePlus, Pencil, Trash } from "@phosphor-icons/react";
 import type { DirEntry } from "@kernel/ipc";
 import type { TreeMenuState } from "./useTreeOperations";
 
@@ -93,11 +86,11 @@ export function FileTreeContextMenu({
         }}
       />
       <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }} role="menu">
-        {item("新建文件", <FilePlus2 size={13} />, () => {
+        {item("新建文件", <FilePlus size={13} />, () => {
           onClose();
           actions.createFile(newDir);
         })}
-        {item("新建文件夹", <FolderPlus size={13} />, () => {
+        {item("新建文件夹", <FolderSimplePlus size={13} />, () => {
           onClose();
           actions.createFolder(newDir);
         })}
@@ -118,7 +111,7 @@ export function FileTreeContextMenu({
               actions.reveal(entry);
             })}
             <div className="wsmenu-divider" />
-            {item(armed ? "确认移到废纸篓?" : "移到废纸篓", <Trash2 size={13} />, () => {
+            {item(armed ? "确认移到废纸篓?" : "移到废纸篓", <Trash size={13} />, () => {
               if (!armed) {
                 setArmed(true);
                 return;

@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { RefreshCw } from "lucide-react";
+import { ArrowClockwise } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { getQuotaProvider, SHORT_WINDOW_LABEL, type QuotaSnapshot } from "@kernel/quota";
 import { formatRelativeTime, formatResetAt } from "@kernel/relativeTime";
@@ -193,7 +193,7 @@ function QuotaDetailPopover({
             onClick={onRefresh}
             title="重新抓取额度"
           >
-            <RefreshCw size={11} aria-hidden className={loading ? "is-spinning" : undefined} />
+            <ArrowClockwise size={11} aria-hidden className={loading ? "is-spinning" : undefined} />
             刷新
           </button>
         </div>

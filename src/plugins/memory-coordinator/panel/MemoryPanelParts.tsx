@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { CaretDown } from "@phosphor-icons/react";
 import { CATEGORY_CN, type MemoryItem } from "../protocol";
 import { memoryPool } from "../pool";
 import { toggleConsoleTab } from "../console/MemoryConsole";
@@ -103,7 +103,7 @@ export function MemoryListItem({
         <span>{m.harness || "pi"}</span>
         <span>·</span>
         <span>{new Date(m.updatedAt).toLocaleDateString("zh-CN")}</span>
-        <ChevronDown
+        <CaretDown
           size={11}
           className={`ml-auto transition-transform ${expanded ? "rotate-180" : ""}`}
         />

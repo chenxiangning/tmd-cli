@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { KeyRound, LockKeyhole, Server, ShieldAlert, X } from "lucide-react";
+import { Key, LockKey, HardDrive, ShieldWarning, Cross } from "@phosphor-icons/react";
 import { ipc, type SshHostConfig, type SshPromptEvent } from "@kernel/ipc";
 import { getSettingsState } from "@kernel/settings";
 import { host } from "@kernel/host";
@@ -57,10 +57,10 @@ function HostPicker() {
     <div className="ssh-picker-backdrop" onClick={busy ? undefined : closeHostPicker}>
       <div className="ssh-picker" onClick={(e) => e.stopPropagation()}>
         <div className="ssh-picker-head">
-          <Server size={14} aria-hidden />
+          <HardDrive size={14} aria-hidden />
           <span>SSH 连接</span>
           <button type="button" className="ssh-picker-close" onClick={closeHostPicker}>
-            <X size={13} />
+            <Cross size={13} />
           </button>
         </div>
         {hosts.length === 0 ? (
@@ -130,7 +130,7 @@ function PromptCard({ prompt }: { prompt: SshPromptEvent }) {
     return (
       <div className="ssh-prompt-card">
         <div className="ssh-prompt-title">
-          <ShieldAlert size={14} aria-hidden />
+          <ShieldWarning size={14} aria-hidden />
           <span>{prompt.storedFingerprint ? "主机密钥已变更" : "未知主机"}</span>
         </div>
         <div className="ssh-prompt-body">
@@ -162,7 +162,7 @@ function PromptCard({ prompt }: { prompt: SshPromptEvent }) {
   return (
     <div className="ssh-prompt-card">
       <div className="ssh-prompt-title">
-        {isPassword ? <KeyRound size={14} aria-hidden /> : <LockKeyhole size={14} aria-hidden />}
+        {isPassword ? <Key size={14} aria-hidden /> : <LockKey size={14} aria-hidden />}
         <span>{isPassword ? "输入密码" : "服务器要求输入"}</span>
       </div>
       <div className="ssh-prompt-body">

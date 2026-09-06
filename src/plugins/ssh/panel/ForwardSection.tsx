@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { ArrowRightLeft, Minus, Plus } from "lucide-react";
+import { ArrowsLeftRight, Minus, Plus } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { refreshForwards, useSshSession } from "../state";
 
@@ -20,7 +20,7 @@ export function ForwardSection({ sessionId, connected }: { sessionId: string; co
   return (
     <div className="ssh-section">
       <div className="ssh-section-head">
-        <ArrowRightLeft size={12} aria-hidden />
+        <ArrowsLeftRight size={12} aria-hidden />
         <span>端口转发</span>
         <button
           type="button"

@@ -7,7 +7,7 @@
  * - 打开位置:kernel ipc.fsRevealInFileManager(Rust fs_reveal_in_file_manager)。
  */
 
-import { FileText, FolderOpen } from "lucide-react";
+import { FileText, FolderOpen } from "@phosphor-icons/react";
 import { openTab } from "@kernel/tabs";
 import { baseName } from "@kernel/pathUtils";
 import { ipc, type GitFileStatus } from "@kernel/ipc";

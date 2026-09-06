@@ -10,7 +10,7 @@
  */
 
 import { memo, useState } from "react";
-import { X } from "lucide-react";
+import { Cross } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { useSettingsState } from "@kernel/settings";
@@ -114,7 +114,7 @@ function SessionTabBarImpl() {
                   title="从标签条移除(会话保持运行)"
                   onClick={() => closeSessionTab(id)}
                 >
-                  <X size={10} aria-hidden />
+                  <Cross size={10} aria-hidden />
                 </button>
               </>
             )}

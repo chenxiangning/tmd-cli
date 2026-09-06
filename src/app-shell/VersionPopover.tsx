@@ -12,7 +12,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Download, ExternalLink, RefreshCw, X } from "lucide-react";
+import { CaretLeft, CaretRight, DownloadSimple, ArrowSquareOut, ArrowClockwise, Cross } from "@phosphor-icons/react";
 import { openExternalUrl } from "@kernel/ipc";
 import {
   CHANGELOG_ENTRIES,
@@ -122,7 +122,7 @@ export function VersionPopover({
           <span className="vp-title">tmd-cli</span>
           <span className="vp-version-badge">v{currentVersion}</span>
           <button type="button" className="vp-close" aria-label="关闭" onClick={onClose}>
-            <X size={14} />
+            <Cross size={14} />
           </button>
         </div>
 
@@ -133,11 +133,11 @@ export function VersionPopover({
             onClick={() => void check()}
             disabled={status === "checking"}
           >
-            <RefreshCw size={13} className={status === "checking" ? "vp-spin" : undefined} />
+            <ArrowClockwise size={13} className={status === "checking" ? "vp-spin" : undefined} />
             {status === "checking" ? "检查中…" : "检查更新"}
           </button>
           <button type="button" className="vp-btn vp-btn-primary" onClick={goDownload}>
-            <Download size={13} />
+            <DownloadSimple size={13} />
             前往下载
           </button>
         </div>
@@ -174,7 +174,7 @@ export function VersionPopover({
                 disabled={idx === 0}
                 onClick={() => setEntryIndex(idx - 1)}
               >
-                <ChevronLeft size={13} />
+                <CaretLeft size={13} />
               </button>
               <span className="vp-pager-ind">
                 {idx + 1} / {entryCount}
@@ -186,7 +186,7 @@ export function VersionPopover({
                 disabled={idx >= entryCount - 1}
                 onClick={() => setEntryIndex(idx + 1)}
               >
-                <ChevronRight size={13} />
+                <CaretRight size={13} />
               </button>
             </span>
           )}
@@ -220,7 +220,7 @@ export function VersionPopover({
           className="vp-releases-link"
           onClick={() => void openExternalUrl(RELEASES_PAGE_URL)}
         >
-          <ExternalLink size={12} />
+          <ArrowSquareOut size={12} />
           查看 GitHub Releases
         </button>
       </div>

@@ -6,7 +6,7 @@
  * 并兜底 text/plain 允许拖到外部应用。
  */
 
-import { ChevronRight, Copy, FolderOpen } from "lucide-react";
+import { CaretRight, Copy, FolderOpen } from "@phosphor-icons/react";
 import type { DirEntry } from "@kernel/ipc";
 import { clearDragPayload, setDragPayload } from "@kernel/internalDrag";
 import { resolveFileVisual } from "@kernel/fileVisual";
@@ -65,7 +65,7 @@ export function FileTreeRow({
                 className={`file-tree-chevron${expanded ? " is-open" : ""}`}
                 aria-hidden
               >
-                <ChevronRight size={11} />
+                <CaretRight size={11} />
               </span>
               <span className="file-tree-icon" aria-hidden>
                 <span

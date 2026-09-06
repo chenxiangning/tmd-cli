@@ -7,7 +7,7 @@
  */
 
 import { useMemo } from "react";
-import { ChevronDown, Folder } from "lucide-react";
+import { CaretDown, Folder } from "@phosphor-icons/react";
 import { useHost } from "@kernel/host";
 import type { MountContribution, MountPoint } from "@kernel/plugin";
 import { useWorkspaces } from "@kernel/workspace";
@@ -43,7 +43,7 @@ function BreadcrumbDefault() {
       </span>
       <span className="workspace-breadcrumb-label">{label}</span>
       <span className="workspace-breadcrumb-chevron" aria-hidden>
-        <ChevronDown size={11} />
+        <CaretDown size={11} />
       </span>
     </button>
   );

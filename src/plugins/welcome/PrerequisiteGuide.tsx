@@ -5,7 +5,7 @@
  * 依赖就位后本组件由 EngineCard 整体卸载,主引擎安装/更新按钮随之解锁。
  */
 
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowSquareOut, ArrowClockwise } from "@phosphor-icons/react";
 import type { EngineProbeState, InstallState } from "./EngineCard";
 import { InstallLog } from "./InstallLog";
 import type { PrerequisiteMeta } from "./engineMeta";
@@ -40,7 +40,7 @@ export function PrerequisiteGuide({
                   rel="noreferrer"
                 >
                   {requires.name} 官网
-                  <ExternalLink size={11} aria-hidden />
+                  <ArrowSquareOut size={11} aria-hidden />
                 </a>
               )}
             </>
@@ -70,7 +70,7 @@ export function PrerequisiteGuide({
               aria-label="重新探针前置依赖"
               title="重新探针"
             >
-              <RefreshCw size={12} aria-hidden />
+              <ArrowClockwise size={12} aria-hidden />
             </button>
           )}
         </span>

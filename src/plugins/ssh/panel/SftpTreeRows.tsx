@@ -3,13 +3,7 @@
  * 目录行(懒展开 + 旋转指示)与文件行(点击开编辑器 tab),递归渲染。
  */
 
-import {
-  ChevronDown,
-  ChevronRight,
-  FileText,
-  FolderClosed,
-  FolderOpen,
-} from "lucide-react";
+import { CaretDown, CaretRight, FileText, FolderSimple, FolderOpen } from "@phosphor-icons/react";
 import type { SftpEntry } from "@kernel/ipc";
 import type { TreeNode } from "./sftpTreeShared";
 
@@ -44,12 +38,12 @@ export function TreeRows({
           {node.loading ? (
             <span className="ssh-tree-spin" aria-label="加载中" />
           ) : isOpen ? (
-            <ChevronDown size={11} />
+            <CaretDown size={11} />
           ) : (
-            <ChevronRight size={11} />
+            <CaretRight size={11} />
           )}
         </button>
-        {isOpen ? <FolderOpen size={12} aria-hidden /> : <FolderClosed size={12} aria-hidden />}
+        {isOpen ? <FolderOpen size={12} aria-hidden /> : <FolderSimple size={12} aria-hidden />}
         <button
           type="button"
           className="ssh-tree-label"

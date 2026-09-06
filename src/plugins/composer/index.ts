@@ -8,7 +8,7 @@
  * - 快捷键(spec 2026-09-05):⌘K 开合命令抽屉;发送与抽屉 plugin 区条目以无键位命令暴露
  */
 
-import { SquarePen } from "lucide-react";
+import { PenNib } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import type { Plugin } from "@kernel/plugin";
 import { Composer, composerSendRef } from "./view/Composer";
@@ -39,7 +39,7 @@ export const composerPlugin: Plugin = {
     name: "输入区",
     abbr: "CP",
     desc: "Composer:富文本输入、附件、建议",
-    icon: SquarePen,
+    icon: PenNib,
     iconColor: "#A78BFA",
     category: "core",
   },

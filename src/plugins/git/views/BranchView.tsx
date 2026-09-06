@@ -13,7 +13,7 @@
  */
 
 import { useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { CircleNotch, Plus } from "@phosphor-icons/react";
 import { ipc, type GitBranchInfo, type GitBranchList } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
 import {
@@ -219,7 +219,7 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
       )}
       {busy && (
         <div className="flex items-center gap-1.5 text-(--tmd-fg-faint)">
-          <Loader2 className="h-3 w-3 animate-spin" /> 执行中…
+          <CircleNotch className="h-3 w-3 animate-spin" /> 执行中…
         </div>
       )}
 

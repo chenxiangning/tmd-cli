@@ -14,21 +14,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import {
-  CloudDownload,
-  Download,
-  FileText,
-  FolderTree,
-  GitBranch,
-  GitBranchPlus,
-  GitMerge,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Repeat,
-  Trash2,
-  Upload,
-} from "lucide-react";
+import { CloudArrowDown, DownloadSimple, FileText, Folders, GitBranch, GitMerge, Pencil, Plus, ArrowClockwise, Repeat, Trash, UploadSimple } from "@phosphor-icons/react";
 import type { GitBranchInfo } from "@kernel/ipc";
 
 export interface BranchMenuState {
@@ -178,7 +164,7 @@ export function BranchContextMenu({
         </div>
         <div className="wsmenu-divider" />
         {isRemote
-          ? item("检出到本地", <GitBranchPlus size={13} />, () => {
+          ? item("检出到本地", <GitBranch size={13} />, () => {
               onClose();
               actions.checkout(branch);
             })
@@ -202,12 +188,12 @@ export function BranchContextMenu({
           disabled: busy || isCurrent || !hasCurrent,
           title: isCurrent ? currentBranchTitle : !hasCurrent ? needCurrentTitle : undefined,
         })}
-        {item("显示与工作树的差异", <FolderTree size={13} />, () => {
+        {item("显示与工作树的差异", <Folders size={13} />, () => {
           onClose();
           actions.diffWithWorktree(branch);
         }, { disabled: busy })}
         <div className="wsmenu-divider" />
-        {item(`将 ${currentName ?? "?"} 变基到 ${branch.name}`, <RefreshCw size={13} />, () => {
+        {item(`将 ${currentName ?? "?"} 变基到 ${branch.name}`, <ArrowClockwise size={13} />, () => {
           onClose();
           actions.rebaseCurrentOnto(branch);
         }, { disabled: historyOpDisabled, title: historyOpTitle })}
@@ -216,7 +202,7 @@ export function BranchContextMenu({
           actions.mergeIntoCurrent(branch);
         }, { disabled: historyOpDisabled, title: historyOpTitle })}
         <div className="wsmenu-divider" />
-        {item("更新", <Download size={13} />, () => {
+        {item("更新", <DownloadSimple size={13} />, () => {
           onClose();
           actions.pull(branch);
         }, {
@@ -227,7 +213,7 @@ export function BranchContextMenu({
               ? "跟随上游与 pull.rebase 配置"
               : "仅 fast-forward 该分支引用,不切分支",
         })}
-        {item("获取", <CloudDownload size={13} />, () => {
+        {item("获取", <CloudArrowDown size={13} />, () => {
           onClose();
           actions.fetch(branch);
         }, {
@@ -235,7 +221,7 @@ export function BranchContextMenu({
           title: !isRemote && !hasUpstream ? "无 upstream" : "只刷新远端引用,不动本地分支",
         })}
         {!isRemote &&
-          item("推送...", <Upload size={13} />, () => {
+          item("推送...", <UploadSimple size={13} />, () => {
             onClose();
             actions.push(branch);
           }, {
@@ -249,7 +235,7 @@ export function BranchContextMenu({
             actions.rename(branch);
           }, { disabled: busy })}
         {!isRemote &&
-          item("删除", <Trash2 size={13} />, () => {
+          item("删除", <Trash size={13} />, () => {
             onClose();
             actions.remove(branch);
           }, { danger: true, disabled: isCurrent || busy, title: isCurrent ? "不能删除当前分支" : undefined })}

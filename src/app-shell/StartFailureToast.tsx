@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { TriangleAlert, X } from "lucide-react";
+import { Warning, Cross } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { KernelTopics, type SessionStartFailedEvent } from "@kernel/events";
 
@@ -38,7 +38,7 @@ export function StartFailureNotices({
         return (
           <div className="sft-card" key={n.id}>
             <div className="sft-head">
-              <TriangleAlert size={14} className="sft-icon" aria-hidden />
+              <Warning size={14} className="sft-icon" aria-hidden />
               <span className="sft-title">{name} 会话启动失败</span>
               <button
                 type="button"
@@ -46,7 +46,7 @@ export function StartFailureNotices({
                 aria-label="关闭启动失败通知"
                 onClick={() => onClose(n.id)}
               >
-                <X size={12} aria-hidden />
+                <Cross size={12} aria-hidden />
               </button>
             </div>
             <pre className="sft-reason">{n.reason}</pre>

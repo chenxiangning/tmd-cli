@@ -3,7 +3,7 @@
  * 点击打开主机选择 overlay(SshOverlay),由 state.openHostPicker 驱动。
  */
 
-import { Server } from "lucide-react";
+import { HardDrive } from "@phosphor-icons/react";
 import { openHostPicker } from "./state";
 
 export function MenuEntry() {
@@ -14,7 +14,7 @@ export function MenuEntry() {
       onClick={() => openHostPicker()}
     >
       <span className="wsmenu-item-icon">
-        <Server size={14} />
+        <HardDrive size={14} />
       </span>
       <span className="wsmenu-item-label">SSH 连接…</span>
     </button>

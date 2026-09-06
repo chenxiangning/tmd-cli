@@ -4,7 +4,7 @@
  * 分类折叠:段头即开关(useGroupCollapsed,key = `ws:shell`),折叠态显活会话数。
  */
 
-import { SquareTerminal } from "lucide-react";
+import { TerminalWindow } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import type { Workspace } from "@kernel/workspace";
@@ -32,7 +32,7 @@ export function ShellSessionGroup({ workspace }: { workspace: Workspace }) {
     <div className="cli-group">
       <GroupHeader
         label="终端"
-        icon={<SquareTerminal size={12} />}
+        icon={<TerminalWindow size={12} />}
         count={sessions.length}
         collapsed={collapsed}
         onToggle={toggle}

@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { CaretDown } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { useSettingsState } from "@kernel/settings";
 import { NATIVE_INJECT_PROFILES, CATEGORY_CN, type MemoryItem } from "../protocol";
@@ -96,7 +96,7 @@ export function MemoryCapsule() {
           <span>项目记忆</span>
           <span className="font-bold text-(--tmd-accent)">{items.length}</span>
           <span>条</span>
-          <ChevronDown
+          <CaretDown
             size={11}
             className={expanded ? "rotate-180 transition-transform" : "transition-transform"}
           />

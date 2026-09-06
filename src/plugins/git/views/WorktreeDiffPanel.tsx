@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { CircleNotch } from "@phosphor-icons/react";
 import { ipc, type GitBranchDiffFile, type GitFilePatch } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
 import { PatchLines } from "./PatchLines";
@@ -66,7 +66,7 @@ export function WorktreeDiffPanel({
         )}
         {selected && patchLoading && (
           <div className="flex h-full items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> 加载中…
+            <CircleNotch className="h-3.5 w-3.5 animate-spin" /> 加载中…
           </div>
         )}
         {selected && patchError && (
@@ -93,7 +93,7 @@ export function WorktreeDiffPanel({
         <div className="min-h-0 flex-1 overflow-y-auto p-1">
           {loading && (
             <div className="flex items-center justify-center gap-1.5 py-3 text-(--tmd-fg-faint)">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> 加载中…
+              <CircleNotch className="h-3.5 w-3.5 animate-spin" /> 加载中…
             </div>
           )}
           {!loading && error && (

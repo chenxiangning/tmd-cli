@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { CircleNotch } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
 import { formatAbsolute } from "@kernel/relativeTime";
 import { ipc, type GitFilePatch } from "@kernel/ipc";
@@ -94,7 +94,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
         <div className="w-60 shrink-0 overflow-y-auto border-r border-(--tmd-border)">
           {entry?.loading && (
             <div className="flex items-center justify-center gap-1.5 py-3 text-(--tmd-fg-faint)">
-              <Loader2 className="h-3 w-3 animate-spin" /> 加载中…
+              <CircleNotch className="h-3 w-3 animate-spin" /> 加载中…
             </div>
           )}
           {entry?.error && (
@@ -138,7 +138,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
         <div className="min-w-0 flex-1 overflow-auto">
           {patchLoading ? (
             <div className="flex items-center justify-center gap-1.5 py-6 text-(--tmd-fg-faint)">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> 加载 diff…
+              <CircleNotch className="h-3.5 w-3.5 animate-spin" /> 加载 diff…
             </div>
           ) : patchError ? (
             <div className="px-3 py-3 text-(--tmd-diff-removed)">{gitErrorShort(patchError)}</div>

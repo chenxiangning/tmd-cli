@@ -5,7 +5,7 @@
  */
 
 import { useMemo, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronRight, FolderTree, FileText } from "lucide-react";
+import { CaretDown, CaretRight, Folders, FileText } from "@phosphor-icons/react";
 import type { GitCommitFile } from "@kernel/ipc";
 import { STATUS_COLOR } from "../statusColor";
 
@@ -78,11 +78,11 @@ export function CommitFileTree({
         className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-xs text-(--tmd-fg) hover:bg-(--tmd-bg-hover)"
       >
         {isOpen ? (
-          <ChevronDown className="h-3 w-3 shrink-0 text-(--tmd-fg-faint)" aria-hidden />
+          <CaretDown className="h-3 w-3 shrink-0 text-(--tmd-fg-faint)" aria-hidden />
         ) : (
-          <ChevronRight className="h-3 w-3 shrink-0 text-(--tmd-fg-faint)" aria-hidden />
+          <CaretRight className="h-3 w-3 shrink-0 text-(--tmd-fg-faint)" aria-hidden />
         )}
-        <FolderTree className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-muted)" aria-hidden />
+        <Folders className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-muted)" aria-hidden />
         <span className="truncate font-mono">{node.name}</span>
       </button>,
     ];

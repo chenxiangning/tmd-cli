@@ -15,7 +15,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Maximize2 } from "lucide-react";
+import { CornersOut } from "@phosphor-icons/react";
 import { hashStableString } from "./markdownDocument";
 import { highlightLine } from "./syntax";
 import { MermaidFullscreenViewer } from "./MermaidFullscreenViewer";
@@ -158,7 +158,7 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
             aria-label="全屏查看"
             title="全屏查看"
           >
-            <Maximize2 size={14} aria-hidden />
+            <CornersOut size={14} aria-hidden />
           </button>
         </div>
       </div>

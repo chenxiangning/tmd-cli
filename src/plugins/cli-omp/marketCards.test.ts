@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-/* installId 所在模块 import 链带 ipc/lucide/react;本用例只验纯函数,给空桩。 */
+/* installId 所在模块 import 链带 ipc/@phosphor-icons-react/react;本用例只验纯函数,给空桩。 */
 vi.mock("@kernel/ipc", () => ({
   ipc: {},
   onCliInstallEvent: vi.fn(),

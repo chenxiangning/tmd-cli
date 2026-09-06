@@ -7,12 +7,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Download,
-  FolderClosed,
-  RefreshCw,
-  Upload,
-} from "lucide-react";
+import { DownloadSimple, FolderSimple, ArrowClockwise, UploadSimple } from "@phosphor-icons/react";
 import { ipc, type SftpEntry, type SftpTransferState } from "@kernel/ipc";
 import { openTab } from "@kernel/tabs";
 import { useSshTransfers } from "../state";
@@ -121,7 +116,7 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
   return (
     <div className="ssh-section ssh-sftp">
       <div className="ssh-section-head">
-        <FolderClosed size={12} aria-hidden />
+        <FolderSimple size={12} aria-hidden />
         <span>远端文件</span>
         <button
           type="button"
@@ -130,7 +125,7 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
           disabled={!connected}
           onClick={() => void reloadAll()}
         >
-          <RefreshCw size={12} />
+          <ArrowClockwise size={12} />
         </button>
         <button
           type="button"
@@ -139,7 +134,7 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
           disabled={!connected}
           onClick={() => void uploadPicked(sessionId, reloadAll)}
         >
-          <Upload size={12} />
+          <UploadSimple size={12} />
         </button>
         <button
           type="button"
@@ -148,7 +143,7 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
           disabled={!connected}
           onClick={() => void downloadNode(sessionId, nodes.current.get(".")!, true)}
         >
-          <Download size={12} />
+          <DownloadSimple size={12} />
         </button>
       </div>
       {!connected ? (

@@ -1,4 +1,4 @@
-import { GitBranch } from "lucide-react";
+import { GitBranch } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { getFilePanelMode } from "@kernel/filePanel";
 import { hydrateGitPanelPrefs, requestRemoteDialog } from "./panelStore";

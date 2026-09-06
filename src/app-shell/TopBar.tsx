@@ -1,12 +1,5 @@
 // AppShell 头部 titlebar(三区布局 + Windows 自绘窗口控件),自 AppShell.tsx 按「纯结构拆分、行为不变」拆出
-import {
-  Inbox,
-  Plug,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
-} from "lucide-react";
+import { Tray, Plug, CaretLineLeft, CaretLineRight } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { windowClose, windowMinimize, windowToggleMaximize } from "@kernel/ipc";
 import { Mounts } from "@kernel/Mounts";
@@ -78,7 +71,7 @@ export function TopBar({
           title={leftOpen ? "收起左栏" : "展开左栏"}
           onClick={onToggleLeft}
         >
-          {leftOpen ? <PanelLeftClose size={14} aria-hidden /> : <PanelLeftOpen size={14} aria-hidden />}
+          {leftOpen ? <CaretLineLeft size={14} aria-hidden /> : <CaretLineRight size={14} aria-hidden />}
         </button>
         {/* 插件市场(插排页):整页替换下方三栏,再点或页内关闭即回 */}
         <button
@@ -98,7 +91,7 @@ export function TopBar({
           title="回到首页"
           onClick={() => host.setActiveSession(null)}
         >
-          <Inbox size={14} aria-hidden />
+          <Tray size={14} aria-hidden />
         </button>
         {/* 插件贡献的左区按钮簇(内置终端等):经 activate(ctx) 挂点登记 */}
         <Mounts point="header.leftCluster" />
@@ -121,7 +114,7 @@ export function TopBar({
           title={rightOpen ? "收起右栏" : "展开右栏"}
           onClick={onToggleRight}
         >
-          {rightOpen ? <PanelRightClose size={14} aria-hidden /> : <PanelRightOpen size={14} aria-hidden />}
+          {rightOpen ? <CaretLineRight size={14} aria-hidden /> : <CaretLineLeft size={14} aria-hidden />}
         </button>
         <TopBarPanelTabs />
         <Mounts point="header.right" />

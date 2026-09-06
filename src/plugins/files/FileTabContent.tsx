@@ -9,7 +9,7 @@
  */
 
 import { Suspense, lazy, useEffect, useState, useSyncExternalStore } from "react";
-import { Eye, Pencil } from "lucide-react";
+import { Eye, Pencil } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
 import {
   getFileCacheVersion,

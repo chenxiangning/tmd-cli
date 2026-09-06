@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, CircleNotch } from "@phosphor-icons/react";
 import { ipc, type GitCommitFile, type GitFilePatch, type GitLogEntry } from "@kernel/ipc";
 import { formatAbsolute } from "@kernel/relativeTime";
 import { gitErrorDisplay } from "../gitError";
@@ -68,7 +68,7 @@ export function CommitDetailsPanel({
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" /> 加载中…
+        <CircleNotch className="h-3.5 w-3.5 animate-spin" /> 加载中…
       </div>
     );
   }
@@ -196,7 +196,7 @@ function FilePatchView({
       <div className="min-h-0 flex-1 overflow-auto p-2">
         {loading && (
           <div className="flex h-full items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> 加载中…
+            <CircleNotch className="h-3.5 w-3.5 animate-spin" /> 加载中…
           </div>
         )}
         {!loading && error && <div className="text-(--tmd-diff-removed)">{error}</div>}

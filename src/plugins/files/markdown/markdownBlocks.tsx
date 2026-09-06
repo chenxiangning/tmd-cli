@@ -17,34 +17,22 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
-import {
-  Braces,
-  Check,
-  Code,
-  Copy,
-  FileCode,
-  FileText,
-  Hash,
-  Settings2,
-  Sigma,
-  Terminal,
-  type LucideIcon,
-} from "lucide-react";
+import { BracketsCurly, Check, Code, Copy, FileCode, FileText, Hash, Gear, Sigma, Terminal, type Icon } from "@phosphor-icons/react";
 import { highlightLine } from "./syntax";
 
 /* ── 语言 badge(照抄 codemoss codeBlockLanguageIcon 的桶映射) ── */
 
-const LANGUAGE_ICON_BUCKETS: Record<string, LucideIcon> = {
-  json: Braces,
-  json5: Braces,
-  jsonc: Braces,
-  yaml: Settings2,
-  yml: Settings2,
-  toml: Settings2,
-  ini: Settings2,
-  properties: Settings2,
-  env: Settings2,
-  dotenv: Settings2,
+const LANGUAGE_ICON_BUCKETS: Record<string, Icon> = {
+  json: BracketsCurly,
+  json5: BracketsCurly,
+  jsonc: BracketsCurly,
+  yaml: Gear,
+  yml: Gear,
+  toml: Gear,
+  ini: Gear,
+  properties: Gear,
+  env: Gear,
+  dotenv: Gear,
   bash: Terminal,
   sh: Terminal,
   shell: Terminal,
@@ -68,7 +56,7 @@ const LANGUAGE_ICON_BUCKETS: Record<string, LucideIcon> = {
   less: Hash,
 };
 
-function getCodeBlockLanguageIcon(languageTag: string | null): LucideIcon {
+function getCodeBlockLanguageIcon(languageTag: string | null): Icon {
   if (!languageTag) {
     return Code;
   }
@@ -93,7 +81,7 @@ function CodeBlockLanguageBadge({
   );
 }
 
-/** 复制按钮:Copy 图标,成功变 Check 1.2s。 */
+/** 复制按钮: Copy 图标,成功变 Check 1.2s。 */
 function CodeBlockCopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   const copyTimeoutRef = useRef<number | null>(null);

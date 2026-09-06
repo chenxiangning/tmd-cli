@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Cloud, GitBranch, History, RefreshCw, Repeat, Tag, Upload } from "lucide-react";
+import { Cloud, GitBranch, ClockClockwise, ArrowClockwise, Repeat, Tag, UploadSimple } from "@phosphor-icons/react";
 import { ipc, type GitCommitFile, type GitPushPreview, type GitRemoteRequest } from "@kernel/ipc";
 import { openCommitDiffTab } from "../../commitTab";
 import { BranchCombobox, PickerField, RemotePicker } from "./GitPicker";
@@ -150,14 +150,14 @@ export function PushDialog({
   return (
     <GitDialogShell
       title="将提交推送到远端"
-      icon={<Upload className="h-3.5 w-3.5" aria-hidden />}
+      icon={<UploadSimple className="h-3.5 w-3.5" aria-hidden />}
       width={880}
       locked={submitting}
       onClose={onClose}
       footer={
         <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-(--tmd-border) pt-3">
           <OpToggle active={tags} icon={<Tag className="h-3.5 w-3.5" aria-hidden />} label="推送标签" disabled={submitting} onToggle={() => setTags((v) => !v)} />
-          <OpToggle active={runHooks} icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden />} label="运行 Git 挂钩" disabled={submitting} onToggle={() => setRunHooks((v) => !v)} />
+          <OpToggle active={runHooks} icon={<ArrowClockwise className="h-3.5 w-3.5" aria-hidden />} label="运行 Git 挂钩" disabled={submitting} onToggle={() => setRunHooks((v) => !v)} />
           <OpToggle active={forceWithLease} icon={<Repeat className="h-3.5 w-3.5" aria-hidden />} label="Force with lease" disabled={submitting} onToggle={() => setForceWithLease((v) => !v)} />
           <span className="flex-1" />
           <DialogActions
@@ -207,7 +207,7 @@ export function PushDialog({
       {history.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <span className="flex items-center gap-1 text-xs text-(--tmd-fg-muted)">
-            <History className="h-3.5 w-3.5" aria-hidden />
+            <ClockClockwise className="h-3.5 w-3.5" aria-hidden />
             推送历史
           </span>
           {history.map((h) => (

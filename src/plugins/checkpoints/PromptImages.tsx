@@ -13,7 +13,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ImageOff, Loader2 } from "lucide-react";
+import { Image, CircleNotch } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 
 /** composer 图片附件 token:@ + 绝对路径 + 图片扩展名;后随空白/句读/结尾才判定,防误吞正文。 */
@@ -87,7 +87,7 @@ function Thumb({
         className="flex h-[72px] w-24 flex-none flex-col items-center justify-center gap-1 rounded border border-dashed border-(--tmd-border) px-1 text-(--tmd-fg-faint)"
         title={`${path}(文件已不可读)`}
       >
-        <ImageOff size={12} aria-hidden />
+        <Image size={12} aria-hidden />
         <span className="w-full truncate text-center text-[10px]">{fileName(path)}</span>
       </span>
     );
@@ -103,7 +103,7 @@ function Thumb({
       {src ? (
         <img src={src} alt={fileName(path)} className="h-full w-full object-cover" />
       ) : (
-        <Loader2 size={12} className="animate-spin text-(--tmd-fg-faint)" aria-hidden />
+        <CircleNotch size={12} className="animate-spin text-(--tmd-fg-faint)" aria-hidden />
       )}
     </button>
   );

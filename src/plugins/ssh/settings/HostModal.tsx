@@ -5,7 +5,7 @@
  */
 
 import { useState } from "react";
-import { Server } from "lucide-react";
+import { HardDrive } from "@phosphor-icons/react";
 import type { SshHostConfig } from "@kernel/ipc";
 
 export function HostModal({
@@ -47,7 +47,7 @@ export function HostModal({
     <div className="ssh-modal-backdrop" onClick={onClose}>
       <div className="ssh-modal" onClick={(e) => e.stopPropagation()}>
         <div className="ssh-modal-title">
-          <Server size={14} aria-hidden />
+          <HardDrive size={14} aria-hidden />
           <span>{isNew ? "添加 SSH 主机" : "编辑 SSH 主机"}</span>
         </div>
         <div className="ssh-form">

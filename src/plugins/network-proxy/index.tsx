@@ -17,7 +17,7 @@ import { getSettingsState } from "@kernel/settings";
 import { ProxyPopover } from "./ProxyPopover";
 import { openProxyPopover } from "./proxyPopoverStore";
 
-/** 梯子 icon(lucide-react 无对应 icon,本地内联 SVG;lucide-style props 面,
+/** 梯子 icon(@phosphor-icons-react 无对应 icon,本地内联 SVG;icon-style props 面,
  *  兼容 Plugin.meta.icon 与 SidebarAction.icon 两处约束)。 */
 type LadderProps = { size?: number; className?: string };
 const LadderIcon: ComponentType<LadderProps> = ({ size = 14, className }) => (

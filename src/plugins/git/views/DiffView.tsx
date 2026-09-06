@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, FileText } from "lucide-react";
+import { CaretDown, FileText } from "@phosphor-icons/react";
 import { ipc, type GitFileStatus, type GitTotals } from "@kernel/ipc";
 import type { FileListLayout } from "../panelStore";
 import { openDiffTab } from "../diffTab";
@@ -110,7 +110,7 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
                 key={`dir:${row.dir}`}
                 className="flex items-center gap-1 px-2 py-1 font-medium text-(--tmd-fg-muted)"
               >
-                <ChevronDown className="h-3 w-3" />
+                <CaretDown className="h-3 w-3" />
                 {row.dir}
               </div>
             ) : (

@@ -23,7 +23,7 @@ import {
   updateSettings,
   useSettingsState,
 } from "@kernel/settings";
-import { X } from "lucide-react";
+import { Cross } from "@phosphor-icons/react";
 import { commitQuota, commitTotal, prunePerCli } from "./budgetCommit";
 
 const INPUT_CLASS =
@@ -112,7 +112,7 @@ export function BudgetPopover({
         <div className="wsbudget-head">
           <span className="wsbudget-title">会话列表显示预算</span>
           <button className="wsbudget-close" title="关闭" onClick={onClose}>
-            <X size={14} aria-hidden />
+            <Cross size={14} aria-hidden />
           </button>
         </div>
 

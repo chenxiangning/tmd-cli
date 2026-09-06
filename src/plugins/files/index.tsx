@@ -13,7 +13,7 @@
  *
  * 树组件拆至 FileTree.tsx / FileTreeRow.tsx(文件规模铁则),本文件只留注册面。
  */
-import { FilePen, Folder } from "lucide-react";
+import { PencilSimple, Folder } from "@phosphor-icons/react";
 import { getActiveTab, getTabs } from "@kernel/tabs";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { FileTabContent } from "./FileTabContent";
@@ -28,7 +28,7 @@ export const filesPlugin: Plugin = {
     name: "文件编辑",
     abbr: "FL",
     desc: "文件树、文件编辑、Markdown 预览",
-    icon: FilePen,
+    icon: PencilSimple,
     iconColor: "#4DAF7C",
     category: "feature",
   },

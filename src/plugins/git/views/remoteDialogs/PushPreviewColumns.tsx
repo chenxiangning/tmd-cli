@@ -4,7 +4,7 @@
  * (摘要行 + 变更文件树,点击开中央提交 diff tab)。PreviewPane 为双栏共用外壳。
  */
 
-import { FileText, GitBranch, GitCommitHorizontal } from "lucide-react";
+import { FileText, GitBranch, GitCommit } from "@phosphor-icons/react";
 import type { GitCommitFile, GitPushPreview } from "@kernel/ipc";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { CommitFileTree } from "./CommitFileTree";
@@ -157,7 +157,7 @@ function PreviewPane({
     <div className="flex h-64 min-h-0 flex-col rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2">
       <div className="flex shrink-0 items-center gap-1 px-1 text-xs font-medium text-(--tmd-fg)">
         {title === "本次推送提交" ? (
-          <GitCommitHorizontal className="h-3.5 w-3.5" aria-hidden />
+          <GitCommit className="h-3.5 w-3.5" aria-hidden />
         ) : (
           <FileText className="h-3.5 w-3.5" aria-hidden />
         )}

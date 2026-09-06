@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useReducer, useState } from "react";
-import { History, Loader2 } from "lucide-react";
+import { ClockClockwise, CircleNotch } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
@@ -148,7 +148,7 @@ export function CheckpointsPanel() {
       {/* 摘要行 —— 字号对齐面板体系(11px 为主),项目名用扁平标签非胶囊 */}
       <div className="flex h-[30px] flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2.5 text-[11px]">
         <span className="flex flex-none items-center gap-1.5 text-[11px] font-semibold text-(--tmd-fg)">
-          <History size={12} className="text-(--tmd-accent)" aria-hidden />
+          <ClockClockwise size={12} className="text-(--tmd-accent)" aria-hidden />
           审批线
         </span>
         {active && (
@@ -198,7 +198,7 @@ export function CheckpointsPanel() {
           <Empty text="非 git 工作区 —— 仅声明写入事件检测的 CLI(如 claude)可在此记账,其余 CLI 需 git 仓库" />
         ) : state.loading && state.batches.length === 0 ? (
           <div className="flex items-center justify-center gap-2 pt-10 text-(--tmd-fg-faint)">
-            <Loader2 size={13} className="animate-spin" aria-hidden /> 读取批次…
+            <CircleNotch size={13} className="animate-spin" aria-hidden /> 读取批次…
           </div>
         ) : state.batches.length === 0 ? (
           state.error ? null /* 错误横幅已说明原因,不再叠加误导性空态 */ : (

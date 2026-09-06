@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Loader2, RotateCcw } from "lucide-react";
+import { Check, CircleNotch, ArrowCounterClockwise } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
 import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
 import type { CkptBatch } from "@kernel/ipc";
@@ -193,7 +193,7 @@ function SheetBody({
             className="flex h-6 items-center gap-1 rounded border border-[rgba(167,139,250,.4)] px-2 text-[11px] text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
             onClick={() => setConfirmPath("all")}
           >
-            <RotateCcw size={10} aria-hidden /> 回退整批({revertable.length})
+            <ArrowCounterClockwise size={10} aria-hidden /> 回退整批({revertable.length})
           </button>
         )}
       </div>
@@ -226,7 +226,7 @@ function SheetBody({
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         {!patches ? (
           <div className="flex items-center justify-center gap-2 pt-10 text-(--tmd-fg-faint)">
-            <Loader2 size={13} className="animate-spin" aria-hidden /> 生成批 diff…
+            <CircleNotch size={13} className="animate-spin" aria-hidden /> 生成批 diff…
           </div>
         ) : (
           <>
