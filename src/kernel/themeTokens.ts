@@ -185,6 +185,10 @@ export function mapPresetToTokens(preset: ThemePresetDefinition): ThemeCssVariab
     "--tmd-diff-removed": diff.removed,
     /* git 状态字符 M(修改)专用琥珀;A/D 复用 diff-inserted/removed,U 用 fg-faint。 */
     "--tmd-git-modified": getColor(colors, "editorWarning.foreground", isDark ? "#e5c07b" : "#b7791f"),
+    /* 文件树 Git 变更着色(files 插件 gitDecorate 消费):修改=蓝、新增=深绿
+     *  (用户口径定值,不取主题 gitDecoration,两主题分别给色)。 */
+    "--tmd-git-tree-modified": isDark ? "#4daafc" : "#0057ae",
+    "--tmd-git-tree-added": isDark ? "#2f8f4e" : "#587c0c",
     // 幕布终端(xterm 消费,kernel/TerminalView 读计算样式应用)
     "--tmd-terminal-bg": getColor(colors, "terminal.background", bgBase),
     "--tmd-terminal-fg": getColor(

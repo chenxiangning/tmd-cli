@@ -16,6 +16,7 @@ export function FileTreeRow({
   depth,
   expanded,
   selected,
+  decoColor,
   onClick,
   onContextMenu,
   onCopyPath,
@@ -25,13 +26,15 @@ export function FileTreeRow({
   depth: number;
   expanded: boolean;
   selected: boolean;
+  /** Git 变更着色(开启 diff 过滤时由 FileTree 传入);缺省走 fileVisual 色。 */
+  decoColor?: string;
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onCopyPath: () => void;
   onReveal: () => void;
 }) {
   const hint = resolveFileVisual(entry.name, entry.isDir, expanded);
-  const color = hint.colorClass ?? "text-(--tmd-fg)";
+  const color = decoColor ?? hint.colorClass ?? "text-(--tmd-fg)";
 
   /* 文件/文件夹拖到 composer:写 kernel 共享 payload,composer drop 时读 */
   function handleDragStart(e: React.DragEvent<HTMLButtonElement>) {
@@ -83,7 +86,7 @@ export function FileTreeRow({
             </span>
           )}
         </span>
-        <span className={`file-tree-name ${color}`}>
+        <span className={`file-tree-name ${color}${decoColor ? " font-semibold" : ""}`}>
           {entry.name}
         </span>
       </button>
@@ -98,7 +101,6 @@ export function FileTreeRow({
           }}
           onContextMenu={(ev) => {
             ev.preventDefault();
-            ev.stopPropagation();
             onContextMenu(ev);
           }}
           aria-label="在访达中显示"

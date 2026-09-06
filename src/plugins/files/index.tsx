@@ -21,6 +21,7 @@ import { defaultFileVisualProvider } from "./fileVisual";
 import { reloadFile } from "./editor/fileCache";
 import { saveRequestRef } from "./editor/useFileDocument";
 import { ActiveWorkspaceFileTree, getActiveTreeHandles } from "./FileTree";
+import { GitDecorateToggle } from "./gitDecorate";
 
 export const filesPlugin: Plugin = {
   id: "files",
@@ -50,6 +51,7 @@ export const filesPlugin: Plugin = {
       },
       newFile: () => getActiveTreeHandles()?.newFile(),
       newFolder: () => getActiveTreeHandles()?.newFolder(),
+      actions: GitDecorateToggle,
     });
     /* 中央文件 tab 内容:kind="file" 路由(kernel/tabs 注册表)。 */
     ctx.registerTabContent({ kind: "file", component: FileTabContent });

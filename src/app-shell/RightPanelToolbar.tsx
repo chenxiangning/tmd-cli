@@ -237,6 +237,7 @@ function WorkspaceSubbar() {
             className={refreshBusy ? "animate-spin" : undefined}
           />
         </button>
+        {activePanel?.actions ? <activePanel.actions /> : null}
       </span>
     </div>
   );

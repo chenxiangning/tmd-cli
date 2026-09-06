@@ -15,6 +15,7 @@ import { openFileInTab } from "./openFile";
 import { useTreeOperations } from "./useTreeOperations";
 import { FileTreeContextMenu } from "./FileTreeContextMenu";
 import { NamePrompt } from "./NamePrompt";
+import { useGitDecorations } from "./gitDecorate";
 
 /** 当前挂载 FileTree 的动作句柄:注册表 refresh/newFile/newFolder 槽据此转发。 */
 let activeTreeHandles: {
@@ -32,6 +33,7 @@ function FileTree({ root }: { root: string }) {
   const [expanded, setExpanded] = useState<Record<string, DirEntry[]>>({});
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const gitColors = useGitDecorations(root);
 
   const reloadRoot = useCallback(async () => {
     setLoading(true);
@@ -143,6 +145,7 @@ function FileTree({ root }: { root: string }) {
             depth={depth}
             expanded={isOpen}
             selected={selectedPath === e.path}
+            decoColor={gitColors.get(e.path)}
             onClick={() => toggle(e)}
             onContextMenu={rowMenu(e)}
             onCopyPath={() => ops.copyPath(e)}

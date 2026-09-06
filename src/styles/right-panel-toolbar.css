@@ -210,6 +210,10 @@
   background: var(--tmd-bg-hover);
   color: var(--tmd-fg);
 }
+/* 面板专属动作按钮激活态(如文件树 Git 变更着色开关) */
+.panel-subbar-action.is-active {
+  color: var(--tmd-accent);
+}
 
 .panel-subbar-action svg {
   width: 12px;
