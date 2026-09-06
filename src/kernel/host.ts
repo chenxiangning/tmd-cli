@@ -1,10 +1,8 @@
 /**
  * 宿主 —— 插件注册表 + 挂载点注册表 + 会话服务的装配点。
  * 内核不 import 任何插件;插件清单在 src/plugins/index.ts,main.tsx 启动激活。
- *
- * 文件规模铁则拆分(300 行):五守望与 appendOutput 主链路在 hostWatches.ts,
- * ssh/shell/spawn 会话服务接线在 hostSessionServices.ts;本文件留注册表、
- * 查询门面与 PTY 生命周期的公开语义。
+ * 文件规模铁则拆分:守望主链路在 hostWatches.ts,ssh/shell/spawn 接线在
+ * hostSessionServices.ts;本文件留注册表、查询门面与 PTY 生命周期公开语义。
  */
 
 import { useSyncExternalStore } from "react";
@@ -14,7 +12,7 @@ import { HostRegistry } from "./hostRegistry";
 import { HostWatches } from "./hostWatches";
 import { createSessionServices } from "./hostSessionServices";
 
-import { ipc, type SshHostConfig, type SessionMeta } from "./ipc";
+import { ipc, type SshHostConfig, type SessionMeta, type SpawnSpec } from "./ipc";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";
 import { registerSettingsSection } from "./settingsRegistry";
@@ -169,6 +167,11 @@ class Host implements PluginContext {
   ): Promise<SessionMeta> {
     return this.sessionServices.spawn.create(profileId, cwd, workspaceId);
   }
+  /** 按任意 spec spawn 并完整装配(SessionSpawnService.raw):插件自定 PTY 会话
+   *  唯一入口;裸 ipc.sessionSpawn 不经装配,幕布永远收不到输出。 */
+  spawnRawSession(profileId: string, spec: SpawnSpec, workspaceId?: string): Promise<SessionMeta> {
+    return this.sessionServices.spawn.raw(profileId, spec, workspaceId);
+  }
 
   /** 打开 CLI 磁盘历史会话(resume);实现见 kernel/sessionSpawn.ts。 */
   async openDiskSession(
@@ -210,17 +213,14 @@ class Host implements PluginContext {
   isWaitingConfirm = (sessionId: string): boolean =>
     this.watches.isWaiting(sessionId);
 
-  /** 测试专用:假时钟换届时重置活动守望与 Ask 守望(与 resetStatusTimerForTest 同因)。 */
   resetActivityWatchForTest(): void {
     this.watches.resetActivityWatchForTest();
   }
 
-  /** 会话至今的全部(尾部)输出,供 xterm 重挂载回放(压实语义见 OutputBufferStore.get)。 */
   getOutputBuffer(sessionId: string): string {
     return this.watches.getOutputBuffer(sessionId);
   }
 
-  /** 缓冲 UTF-8 字节数(O(1) 增量维护):TerminalView 翻页锚点反推缓冲起点的绝对偏移。 */
   getOutputBufferBytes(sessionId: string): number {
     return this.watches.getOutputBufferBytes(sessionId);
   }

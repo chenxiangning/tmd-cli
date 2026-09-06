@@ -1,9 +1,7 @@
 /**
  * DSH host 连接域逻辑(无 UI,hostPanel 的可测试内核):
- * - 探针 = host.describe RPC:POST {origin}/api/host.describe,线格式
- *   {type:"client-request",rpcId,method,payload} → {type:"server-response",
- *   rpcId,result:{ok,value}|{ok,error}}(codemoss host.rs 同款),走通用
- *   quota_fetch HTTP 通道,内核零配方。
+ * - 探针 = host.describe RPC:POST {origin}/api/host.describe(codemoss host.rs
+ *   同款线格式),走通用 quota_fetch HTTP 通道,内核零配方。
  * - 启动 = PTY 会话跑 `<dsh|自定义路径> web --host H --port P`:会话即 host,
  *   日志在幕布,杀会话即停服务。仅登记本面板拉起的会话 id;外部(终端/mossx)
  *   拉起的 host 一律 adopt 不碰 —— codemoss supervisor「只 kill 自 spawn」同语义。
@@ -159,8 +157,17 @@ function forgetHostSession(): string | null {
   return id;
 }
 
-export async function startHostSession(conn: DshConnection): Promise<string> {
-  const spawned = await ipc.sessionSpawn("dsh", {
+/** 注入式装配 spawn(host.spawnRawSession):裸 ipc.sessionSpawn 不经装配,幕布空白。 */
+export type RawSessionSpawner = (
+  profileId: string,
+  spec: { command: string; args: string[]; cwd: string; title: string },
+) => Promise<{ id: string }>;
+
+export async function startHostSession(
+  conn: DshConnection,
+  spawn: RawSessionSpawner,
+): Promise<string> {
+  const spawned = await spawn("dsh", {
     command: dshCommand(conn),
     args: ["web", "--host", conn.host, "--port", String(conn.port)],
     cwd: await ipc.configHomeDir(),
@@ -190,15 +197,15 @@ export async function stopHostSession(conn: DshConnection): Promise<DshStopOutco
     : terminateLocalListenerUnix(conn.port));
   return "stopped";
 }
-/**
- * codemoss ensure_host 同款:已运行 = 直接复用(不重 spawn);否则拉起并等
- * 就绪。spawn 竞速(等就绪期间端口被别人占)天然被 waitForHostReady 的
- * 起点探测覆盖 —— 它探的是 origin 本身,谁在服务都算数。 */
-export async function ensureHostSession(conn: DshConnection): Promise<DshHostView | null> {
+/** codemoss ensure_host 同款:已运行直接复用;否则拉起并等就绪(谁在服务都算数)。 */
+export async function ensureHostSession(
+  conn: DshConnection,
+  spawn: RawSessionSpawner,
+): Promise<DshHostView | null> {
   const live = await probeHost(conn);
   if (live) return live;
   try {
-    await startHostSession(conn);
+    await startHostSession(conn, spawn);
   } catch {
     /* spawn 被拒(二进制缺失等):按后续探测结果收口,报错已在会话幕布。 */
   }

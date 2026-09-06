@@ -162,19 +162,29 @@ describe("isLocalHost(停机准入口径)", () => {
   });
 });
 
+/** 注入式 spawn 桩:startHostSession 不再裸调 ipc.sessionSpawn。 */
+const spawnStub = (id: string) =>
+  vi.fn(async (_profileId: string, _spec: unknown) => {
+    ipcMocks.sessionSpawn();
+    return { id };
+  });
 describe("自拉起登记与停机(codemoss stop_host 同款)", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
 
   it("start 登记 + 落盘;stop 杀会话并按端口 TERM 监听,登记清空", async () => {
-    ipcMocks.sessionSpawn.mockResolvedValue({ id: "pty-9", pid: 42 });
     ipcMocks.sessionKill.mockResolvedValue(undefined);
     ipcMocks.procCommunicate.mockImplementation(async (spec: { command: string }) =>
       spec.command === "lsof" ? { stdout: "123\n456\n", code: 0 } : { stdout: "", code: 0 },
     );
     const conn = { ...DEFAULT_CONNECTION };
-    await startHostSession(conn);
+    const spawn = spawnStub("pty-9");
+    await startHostSession(conn, spawn);
+    expect(spawn).toHaveBeenCalledWith(
+      "dsh",
+      expect.objectContaining({ command: "dsh", args: ["web", "--host", "127.0.0.1", "--port", "3080"] }),
+    );
     expect(currentHostSessionId()).toBe("pty-9");
     expect(store.get("tmd.dsh.hostSession.v1")).toBe("pty-9");
 
@@ -202,7 +212,8 @@ describe("自拉起登记与停机(codemoss stop_host 同款)", () => {
           ? { stdout: "", code: 1 }
           : { stdout: "", code: 0 },
     );
-    await startHostSession({ ...DEFAULT_CONNECTION });
+    const spawn = spawnStub("pty-1");
+    await startHostSession({ ...DEFAULT_CONNECTION }, spawn);
     await stopHostSession({ ...DEFAULT_CONNECTION });
     const killArgs = ipcMocks.procCommunicate.mock.calls
       .filter((c) => (c[0] as { command: string }).command === "kill")
@@ -226,7 +237,8 @@ describe("自拉起登记与停机(codemoss stop_host 同款)", () => {
 
   it("登记持久化:重载模块后仍读到(webview 重载不丢)", async () => {
     ipcMocks.sessionSpawn.mockResolvedValue({ id: "pty-7", pid: 7 });
-    await startHostSession({ ...DEFAULT_CONNECTION });
+    const spawn = spawnStub("pty-7");
+    await startHostSession({ ...DEFAULT_CONNECTION }, spawn);
     vi.resetModules();
     const mod = await import("./dshHost");
     expect(mod.currentHostSessionId()).toBe("pty-7");
@@ -249,7 +261,7 @@ describe("ensureHostSession(codemoss ensure_host 同款)", () => {
 
   it("host 已运行:直接复用,不重 spawn", async () => {
     ipcMocks.quotaFetch.mockResolvedValue(OK);
-    const view = await ensureHostSession({ ...DEFAULT_CONNECTION });
+    const view = await ensureHostSession({ ...DEFAULT_CONNECTION }, spawnStub("pty-x"));
     expect(view).toEqual({ provider: "minimax-cn", model: "MiniMax-M3", sessions: 2 });
     expect(ipcMocks.sessionSpawn).not.toHaveBeenCalled();
   });
@@ -260,7 +272,7 @@ describe("ensureHostSession(codemoss ensure_host 同款)", () => {
       .mockResolvedValue(OK);
     ipcMocks.sessionSpawn.mockResolvedValue({ id: "pty-1", pid: 1 });
     vi.useFakeTimers();
-    const pending = ensureHostSession({ ...DEFAULT_CONNECTION });
+    const pending = ensureHostSession({ ...DEFAULT_CONNECTION }, spawnStub("pty-1"));
     await vi.advanceTimersByTimeAsync(1600);
     expect(await pending).toEqual({ provider: "minimax-cn", model: "MiniMax-M3", sessions: 2 });
     expect(ipcMocks.sessionSpawn).toHaveBeenCalledTimes(1);

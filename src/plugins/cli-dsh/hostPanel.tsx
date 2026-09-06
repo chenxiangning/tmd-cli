@@ -21,6 +21,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { openExternalUrl } from "@kernel/ipc";
+import { host } from "@kernel/host";
 import { DshConnectionSettings } from "./dshConnectionSettings";
 import {
   consumeAutoStart,
@@ -34,8 +35,11 @@ import {
   stopHostSession,
   type DshConnection,
   type DshHostView,
+  type RawSessionSpawner,
 } from "./dshHost";
-
+/** 经内核装配链 spawn(host.spawnRawSession):幕布输出缓冲/秒退守望全链路一致。 */
+const spawnHostSession: RawSessionSpawner = (profileId, spec) =>
+  host.spawnRawSession(profileId, spec);
 type HostStatus = { kind: "probing" } | { kind: "ok"; view: DshHostView } | { kind: "down" };
 
 const BTN =
@@ -83,7 +87,7 @@ export function DshHostPanel() {
       let next: DshHostView | null = view;
       if (!next && auto && conn.autoStart && found) {
         setPending("start");
-        next = await ensureHostSession(conn);
+        next = await ensureHostSession(conn, spawnHostSession);
       }
       /* 不做 seq 守卫:自动启动完成时写出的就是最新真相(StrictMode 双挂载下
          第二次挂载的初探会先写 down,这里随后覆盖为终态)。 */
@@ -105,7 +109,7 @@ export function DshHostPanel() {
   const onStart = async () => {
     setPending("start");
     setError(null);
-    const view = await ensureHostSession(conn);
+    const view = await ensureHostSession(conn, spawnHostSession);
     if (!alive.current) return;
     setStatus(view ? { kind: "ok", view } : { kind: "down" });
     if (!view) setError(DOWN_ERROR);

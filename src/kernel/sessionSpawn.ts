@@ -113,6 +113,16 @@ export class SessionSpawnService {
     return this.spawnNew(profileId, profile, cwd, workspaceId);
   }
 
+  /**
+   * 按任意 spec spawn 并完整装配(通用原语,shell 之外的插件自定 PTY 会话用,
+   * 例 dsh host 面板的自定义路径/参数启动)。与 create 的差异:spec 由调用方
+   * 给,不走 profile.command/args;身份探测/秒退守望按 profile 声明自然退化。
+   */
+  async raw(profileId: string, spec: SpawnSpec, workspaceId?: string): Promise<SessionMeta> {
+    const spawned = await this.spawn(profileId, spec, workspaceId);
+    return this.adoptSpawned(spawned.id, profileId, undefined);
+  }
+
   private async spawnNew(
     profileId: string,
     profile: CliProfile,
