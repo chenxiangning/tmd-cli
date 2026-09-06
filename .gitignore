@@ -48,6 +48,8 @@ scripts/i18n/.work/
 
 # Rust / Tauri build artifacts
 src-tauri/target/
+# tauri 构建生成物(capability schema,构建本地再生成,权限真源在 src-tauri/capabilities/)
+src-tauri/gen/schemas/
 Cargo.bak.lock
 
 # pnpm 是唯一 JS 锁文件;npm 误装的 package-lock.json 防复发
