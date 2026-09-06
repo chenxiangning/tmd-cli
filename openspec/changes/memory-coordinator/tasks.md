@@ -56,7 +56,20 @@
 ## 8. Phase 2(d 路已选定;写入侧已随 Phase 1 落地)
 
 - [ ] PoC-3/4 补验:omp 沉淀 → 胶囊命中端到端;sqlite_query 并发压测
-- [ ] `phase2/write.ts` d 路代写:proc_communicate 跑 `omp -p "记住:…"` → ctx_memory(write);失败重试 + c 路手动兜底 UI
+- [ ] `phase2/write.ts` d 路代写:proc_communicate 跑 `omp -p "记住:…"` → ctx_memory(write);失败重试 + c 路手动兜底 UI —— **形态由 §8a v2 取代**(v1 直跑 `-p` 在 0.41.3 失效)
 - [ ] 5 家 session close 钩子:增量摘要 → d 路批量代写(阈值/防抖)
-- [x] 面板「移除」接 ctx_memory(archive)经 d 路(逐条,归档中态)
-- [ ] 「合并」入口(多选 merge)随面板批量操作补
+
+### 8a. d 路 v2 修订(2026-09-06,评审通过,见 docs/review/2026-09-06-d-path-flag-fix.md)
+
+PoC-7 实证:`omp -p` 直跑不会让 magic-context subagent-entry.js 注册 ctx_memory 工具(需 `--extension <subagent-entry.js> --magic-context-dreamer-actions --tools ctx_memory`)。d 路 v2 = 模拟 main agent 启动 subagent 的参数组合。各引擎各自插件、按候选探测,不写死单一安装根(用户裁决 2026-09-06)。
+
+- [x] 根 `paths.ts` 扩展(唯一路径来源):`resolveSubagentEntry()` node 子进程探测 `~/.omp/plugins` 与 `~/.pi/agent/npm` 两候选(subagent-entry 运行时自适应 omp/pi 宿主);env `TMD_MAGIC_CONTEXT_SUBAGENT_ENTRY` override(`typeof process` 守卫);`isOpencodeMagicContextInstalled()` 配置文本判定(同 detect.ts 先例)
+- [x] `phase2/write.ts` `viaOmp()`:omp/pi 走 subagent 参数组合,缺失返 `missing-subagent-entry`;opencode 预检未装返 `missing-plugin`,已装走 `opencode run`(其插件为自动注册,无需 flag)
+- [x] `phase2/autoDistill.ts`:缺失早退收敛到 viaOmp detail,不重复探测
+- [x] `phase2/write.test.ts` 新建:9 用例(args 形态 / model 插位 / pi / opencode 已装未装 / 多 action 一致 / missing-subagent-entry / 非 0 退出)
+- [x] spec §2.2 决策措辞修订(v2 已并入)
+- [x] 门禁:typecheck / vitest 889 / arch-boundary / file-size / build 全绿
+- [x] **stdin 挂死修复**(2026-09-06 用户实测手动沉淀/合并报错 "Reading prompt from piped stdin… Still starting after 10s"):`proc_run.rs` 无条件 `Stdio::piped()` + 永不关闭 → 一次性 CLI(`omp -p`)等 EOF 直到超时。`ProcRunSpec` 增 `closeStdin`(默认 false 保 RPC 副车语义),d 路全部调用传 true;新增 Rust 测试 `close_stdin_gives_immediate_eof`
+- [x] **来源显示别名**:上游 `session_projects.harness` 把 omp 会话归为 "pi"(omp 为 oh-my-pi);`pool.ts` 数据源统一经 `harnessLabel()` 显示为 "pi/omp",不改上游数据(用户复核 2026-09-06)
+- [ ] 真窗目检:控制台「写入记忆」卡回车一条 → sqlite3 memories 落行(`source_type='dreamer'`);退出 omp 会话 → 自动沉淀同验
+- [ ] PoC-8 余项:opencode 真装 `@cortexkit/opencode-magic-context` 后的端到端写入实证

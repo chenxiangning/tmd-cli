@@ -44,6 +44,12 @@ pub struct ProcRunSpec {
     /// stdout 出现该子串即提前收割。
     #[serde(default)]
     pub exit_on_stdout: Option<String>,
+    /// stdin 以 null 启动(立即 EOF)而非保持管道。一次性 CLI(omp/pi/opencode
+    /// 的 `-p`/`run`)检测到管道 stdin 会等 EOF,永不关闭即挂到超时
+    /// (2026-09-06 d 路实证:"Reading prompt from piped stdin… Still starting
+    /// after 10s")。默认 false:RPC 副车需 stdin 保活,关了丢响应(见文件头)。
+    #[serde(default)]
+    pub close_stdin: bool,
     pub timeout_ms: u64,
 }
 
@@ -71,10 +77,13 @@ pub fn run(spec: &ProcRunSpec) -> Result<ProcRunResult, String> {
     let mut cmd = Command::new(resolved.program);
     cmd.args(resolved.prefix_args)
         .args(&spec.args)
-        .current_dir(&spec.cwd)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .current_dir(&spec.cwd);
+    if spec.close_stdin {
+        cmd.stdin(Stdio::null());
+    } else {
+        cmd.stdin(Stdio::piped());
+    }
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
     for (k, v) in &spec.env {
         cmd.env(k, v);
     }
@@ -171,8 +180,20 @@ mod tests {
             env: HashMap::new(),
             stdin: None,
             exit_on_stdout: None,
+            close_stdin: false,
             timeout_ms,
         }
+    }
+
+    #[test]
+    fn close_stdin_gives_immediate_eof() {
+        // cat 以 null stdin 启动 = 立即 EOF,自然退出(code 0)而非挂到超时。
+        // 对齐一次性 CLI(omp -p 等)读管道 stdin 等 EOF 的真实行为。
+        let mut s = spec("cat", &[], 5_000);
+        s.close_stdin = true;
+        let r = run(&s).unwrap();
+        assert_eq!(r.code, Some(0));
+        assert!(!r.timed_out);
     }
 
     #[test]

@@ -203,6 +203,8 @@ export interface ProcRunSpec {
   env?: Record<string, string>;
   /** 启动后一次性写入 stdin;写入后管道保持打开,直到收割(kill/退出)。 */
   stdin?: string;
+  /** stdin 以 null 启动(立即 EOF)。一次性 CLI(omp -p 等)检测到管道 stdin 会等 EOF 挂死;RPC 副车勿开。 */
+  closeStdin?: boolean;
   /** stdout 出现该子串即提前收割(响应已到达,不等满超时)。 */
   exitOnStdout?: string;
   timeoutMs: number;

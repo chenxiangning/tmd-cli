@@ -12,6 +12,7 @@ import { ipc } from "@kernel/ipc";
 import { memoryDbPath } from "./paths";
 import {
   CATEGORY_ORDER,
+  harnessLabel,
   projectIdentityFromRootCommit,
   type MemoryItem,
   type MemoryPool,
@@ -32,7 +33,7 @@ function rowsToItems(rows: unknown[][]): MemoryItem[] {
     status: String(r[4] ?? "active"),
     updatedAt: Number(r[5] ?? 0),
     createdAt: Number(r[6] ?? 0),
-    harness: String(r[7] ?? ""),
+    harness: harnessLabel(String(r[7] ?? "") || "pi"),
   }));
 }
 

@@ -1,10 +1,25 @@
 /**
- * Phase 2 写入 —— d 路:借道 omp 会话代写(官方管线全保)。
+ * Phase 2 写入 —— d 路 v2:借道引擎子代理(magic-context 插件的 ctx_memory 工具)。
  *
- * 机制(PoC-2 实证):omp 会话内 ctx_memory 工具是唯一权威写入口
- * (epoch 缓存协议 + authority 门控),tmd-cli 不直写 SQL;经
- * proc_communicate 跑 `omp -p` 非交互会话,由 omp 模型自己调用
- * ctx_memory 完成写入/归档 —— cwd 决定项目身份,必须与读取侧一致。
+ * 机制(PoC-7/8 实证,见 docs/research/magic-context-poc-report.md 与
+ * docs/review/2026-09-06-d-path-flag-fix.md):magic-context 的 ctx_memory 工具只在
+ * main agent 启动 subagent 时由 subagent-entry.js 注册,需 `--magic-context-dreamer-actions`
+ * flag。`omp -p` / `pi -p` / `opencode run` 直跑不会触发该路径。本模块模拟 main agent 启动
+ * subagent 的参数组合:
+ *
+ *   omp --extension <subagent-entry.js> \
+ *        --magic-context-dreamer-actions \
+ *        --tools ctx_memory \
+ *        --no-session \
+ *        [--model m] -p "<指令>"
+ *
+ * opencode:走 `opencode run`,前提是装了 `@cortexkit/opencode-magic-context` 插件;
+ * 走前做目录存在性预检,缺失返 `missing-plugin`。
+ *
+ * `--no-session` 避免一次性 subprocess 落 omp 会话;`--tools ctx_memory` 收敛工具列表,
+ * 避免主进程默认工具(read/write/bash/...)被带进 subprocess 引入治理面泄露。
+ *
+ * cwd 决定项目身份,必须与读取侧一致;失败 detail 由 UI 兜底。
  *
  * 沉淀可配(settings,对齐上游推荐面):
  * - memoryDistillModel:提炼用模型(omp --model 覆盖;空 = 跟随 omp 默认);
@@ -12,6 +27,10 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import {
+  isOpencodeMagicContextInstalled,
+  resolveSubagentEntry,
+} from "../paths";
 
 export interface WriteOutcome {
   ok: boolean;
@@ -31,36 +50,76 @@ export interface DistillOptions {
 const OMP_TIMEOUT_MS = 120_000;
 
 /**
- * 代写执行:omp/pi 走 `<engine> -p [--model m] <指令>`;opencode 走 `opencode run`
- * (其 run 子命令即非交互执行)。三家 Magic Context 插件均注册 ctx_memory,
- * cwd 决定项目身份,写入同一条官方管线。
+ * 拼出 omp/pi 子代理启动参数(模拟 main agent 启动 subagent 的形态)。
+ * 导出供 write.test.ts 断言;viaOmp 内部不再内联拼装。
+ */
+export function buildSubagentArgs(opts: {
+  model?: string;
+  instruction: string;
+  subagentEntry: string;
+}): string[] {
+  const args: string[] = [
+    "--extension",
+    opts.subagentEntry,
+    "--magic-context-dreamer-actions",
+    "--tools",
+    "ctx_memory",
+    "--no-session",
+  ];
+  if (opts.model) args.push("--model", opts.model);
+  args.push("-p", opts.instruction);
+  return args;
+}
+
+/**
+ * 代写执行:omp/pi 走 subagent 形态(见文件头);opencode 走 `opencode run`(预检插件安装)。
+ * 失败原因由 detail 携带:
+ * - `missing-subagent-entry`:omp/pi 的 magic-context 未装或路径偏移
+ * - `missing-plugin: opencode magic-context`:opencode 适配器未装
  */
 async function viaOmp(instruction: string, cwd: string, opts?: DistillOptions): Promise<WriteOutcome> {
   const engine = opts?.engine ?? "omp";
-  const result =
-    engine === "opencode"
-      ? await ipc.procCommunicate({
-          command: "opencode",
-          args: opts?.model ? ["run", "-m", opts.model, instruction] : ["run", instruction],
-          cwd,
-          timeoutMs: OMP_TIMEOUT_MS,
-        })
-      : await ipc.procCommunicate({
-          command: engine,
-          args: opts?.model ? ["--model", opts.model, "-p", instruction] : ["-p", instruction],
-          cwd,
-          timeoutMs: OMP_TIMEOUT_MS,
-        });
-  const detail = (result.stdout || result.stderr).trim().slice(0, 300);
-  if (result.code !== 0) {
-    return { ok: false, detail: detail || `exit ${result.code ?? "?"}` };
+  if (engine === "opencode") {
+    if (!(await isOpencodeMagicContextInstalled())) {
+      return {
+        ok: false,
+        detail:
+          "missing-plugin: opencode magic-context 未安装,d 路过 opencode 需先安装 @cortexkit/opencode-magic-context",
+      };
+    }
+    const result = await ipc.procCommunicate({
+      command: "opencode",
+      args: opts?.model ? ["run", "-m", opts.model, instruction] : ["run", instruction],
+      cwd,
+      closeStdin: true,
+      timeoutMs: OMP_TIMEOUT_MS,
+    });
+    const detail = (result.stdout || result.stderr).trim().slice(0, 300);
+    if (result.code !== 0) return { ok: false, detail: detail || `exit ${result.code ?? "?"}` };
+    return { ok: true, detail };
   }
+  const subagentEntry = await resolveSubagentEntry();
+  if (!subagentEntry) {
+    return {
+      ok: false,
+      detail: "missing-subagent-entry: magic-context subagent-entry.js 未找到,d 路 v2 需此文件",
+    };
+  }
+  const result = await ipc.procCommunicate({
+    command: engine,
+    args: buildSubagentArgs({ model: opts?.model, instruction, subagentEntry }),
+    cwd,
+    closeStdin: true,
+    timeoutMs: OMP_TIMEOUT_MS,
+  });
+  const detail = (result.stdout || result.stderr).trim().slice(0, 300);
+  if (result.code !== 0) return { ok: false, detail: detail || `exit ${result.code ?? "?"}` };
   return { ok: true, detail };
 }
 
 /** 引号清洗:内容进入指令文本前去掉双引号,避免破坏指令引号结构。 */
 function sanitize(text: string): string {
-  return text.replaceAll('"', "'").replaceAll("`", "'");
+  return text.replaceAll('"', "'").replaceAll('`', "'");
 }
 
 /** 手动添加 / 批量写入:逐条 ctx_memory(write)。 */

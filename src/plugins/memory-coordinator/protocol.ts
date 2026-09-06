@@ -63,6 +63,14 @@ export interface MemoryItem {
   harness: string;
 }
 
+/**
+ * 展示别名:上游 session_projects.harness 把 omp 会话也归为 "pi"
+ * (omp 为 oh-my-pi,pi 系 fork;上游字段,tmd-cli 不改数据只改显示)。
+ */
+export function harnessLabel(harness: string): string {
+  return harness === "pi" ? "pi/omp" : harness;
+}
+
 export interface MemoryPoolStatus {
   /** bootstrap 已完成且库可读。 */
   ready: boolean;
