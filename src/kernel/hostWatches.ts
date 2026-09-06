@@ -183,6 +183,10 @@ export class HostWatches {
   isUnread(sessionId: string): boolean {
     return this.activity.isUnread(sessionId);
   }
+  /** 对话轮次进行中判定(composer 模型位等「运行时不发送」门控消费)。 */
+  isTurnActive(sessionId: string): boolean {
+    return this.activity.isTurnActive(sessionId);
+  }
 
   /** 等待确认判定(会话列表「等待确认」标签;用户写入即清)。 */
   isWaiting(sessionId: string): boolean {

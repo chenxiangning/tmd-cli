@@ -24,6 +24,7 @@ import { registerFileVisual } from "./fileVisual";
 import { registerMarketPanel } from "./marketPanel";
 import type { SidebarAction } from "./sidebarActions";
 import { registerCommand } from "./shortcuts";
+import { registerHomePanel } from "./homePanels";
 
 class Host implements PluginContext {
   readonly events = new EventBus();
@@ -81,8 +82,7 @@ class Host implements PluginContext {
   contribute(point: MountPoint, contribution: MountContribution): void {
     this.registry.contribute(point, contribution);
   }
-  /* 注册表通道自驱动通知(或 activate 期登记),纯委托即可;sidebarAction 的
-     无键位命令镜像逻辑在 hostRegistry(注释亦随迁)。 */
+  /* 注册表通道纯委托即可;sidebarAction 的无键位命令镜像逻辑在 hostRegistry(注释亦随迁)。 */
   registerSettingsSection = registerSettingsSection;
   registerFilePanel = registerFilePanel;
   registerTabContent = registerTabContent;
@@ -91,7 +91,7 @@ class Host implements PluginContext {
     this.registry.registerSidebarAction(action);
   registerFileVisual = registerFileVisual;
   registerCommand = registerCommand;
-
+  registerHomePanel = registerHomePanel;
   // ---- 插件生命周期(委托 kernel/hostRegistry) ----------------------------
 
   activateAll(plugins: Plugin[]): Promise<void> {
@@ -202,6 +202,9 @@ class Host implements PluginContext {
   isUnread(sessionId: string): boolean {
     return this.watches.isUnread(sessionId);
   }
+  /** 对话轮次进行中判定(呼吸灯蓝态的进行时段;轮次结算即 false)。 */
+  isTurnActive = (sessionId: string): boolean =>
+    this.watches.isTurnActive(sessionId);
 
   /** 等待确认判定(会话列表「等待确认」标签;用户写入即清)。 */
   isWaitingConfirm = (sessionId: string): boolean =>
@@ -217,10 +220,7 @@ class Host implements PluginContext {
     return this.watches.getOutputBuffer(sessionId);
   }
 
-  /**
-   * 缓冲的 UTF-8 字节数(增量维护,O(1) 读取)。
-   * 供 TerminalView 翻页锚点反推缓冲起点的绝对日志偏移。
-   */
+  /** 缓冲 UTF-8 字节数(O(1) 增量维护):TerminalView 翻页锚点反推缓冲起点的绝对偏移。 */
   getOutputBufferBytes(sessionId: string): number {
     return this.watches.getOutputBufferBytes(sessionId);
   }

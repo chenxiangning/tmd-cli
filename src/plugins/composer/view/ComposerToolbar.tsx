@@ -1,28 +1,55 @@
 import { host, useHost } from "@kernel/host";
 import { collapseComposerStage, expandComposerStage, useComposerStage } from "@kernel/composerStage";
+import { KernelTopics } from "@kernel/events";
 import { CaretDown, CaretUp, Sidebar } from "@phosphor-icons/react";
 import { QuotaChip } from "./QuotaChip";
 import { toggleDrawer, useDrawerOpen } from "../state/drawerOpen";
+import { useActiveProfile } from "../state/useActiveProfile";
+import { prepareSendPayload } from "../serialize/serialize";
 
 export function ComposerToolbar() {
   useHost();
   const sessionId = host.getActiveSessionId();
   const status = sessionId ? host.getSessionStatus(sessionId) : undefined;
   const statusSource = sessionId ? host.getSessionStatusSource(sessionId) : undefined;
-  /* seeded = 尚未读到会话实况,展示的是 CLI 默认配置种子(可能与会话实际生效值不符) */
   const seeded = statusSource === "seeded";
+  /* seeded = 尚未读到会话实况,展示的是 CLI 默认配置种子(可能与会话实际生效值不符) */
+  const noSession = !sessionId;
+  const profile = useActiveProfile();
+  /* omp 随时可发 /model(其 TUI 支持流中弹出模型选择);其余 CLI 对话进行中
+   * 不可发(会串进输出流),等轮次结算(呼吸灯蓝态结束)才生效。 */
+  const turnActive = sessionId ? host.isTurnActive(sessionId) : false;
+  const modelClickable = noSession ? false : profile?.id === "omp" || !turnActive;
+  const modelTitle = !noSession && modelClickable
+    ? "点击发送 /model 打开 CLI 模型选择"
+    : turnActive
+      ? "对话进行中,本轮结束后可点击切换模型"
+      : (status?.model ?? "未识别模型");
+
+  /** 模型位点击 = 发送 /model(与抽屉 send 同路径:prepareSendPayload → writeSession)。 */
+  function sendModelCommand(): void {
+    if (!sessionId || !profile) return;
+    const wire = prepareSendPayload(profile, "/model");
+    host.writeSession(sessionId, wire);
+    host.events.emit(KernelTopics.promptSent, { sessionId, text: "/model" });
+  }
   const drawerOpen = useDrawerOpen();
   const stage = useComposerStage();
-  const noSession = !sessionId;
 
   const iconBtn =
     "grid h-6 w-6 place-items-center rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-40";
 
   return (
     <div className="flex h-7 shrink-0 items-center gap-2 border-b border-(--tmd-border) px-2 text-[11px] leading-none text-(--tmd-fg-muted) select-none">
-      <span
-        className="flex items-center gap-1"
-        title={status?.model ?? "未识别模型"}
+      <button
+        className={`flex items-center gap-1 rounded-md px-1 -mx-1 transition-colors ${
+          modelClickable
+            ? "cursor-pointer hover:bg-(--tmd-bg-hover)"
+            : "disabled:cursor-not-allowed disabled:opacity-40"
+        }`}
+        disabled={!modelClickable}
+        title={modelTitle}
+        onClick={sendModelCommand}
       >
         <span aria-hidden>模型</span>
         <span className="font-mono text-(--tmd-fg)">{status?.model ?? "—"}</span>
@@ -35,7 +62,7 @@ export function ComposerToolbar() {
             默认
           </span>
         ) : null}
-      </span>
+      </button>
       <span aria-hidden className="text-(--tmd-fg-faint)">|</span>
       <span className="flex items-center gap-1" title={status?.thinkingLevel ?? "未识别思考强度"}>
         <span aria-hidden>思考</span>

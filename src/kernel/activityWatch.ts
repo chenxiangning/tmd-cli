@@ -108,6 +108,10 @@ export class ActivityWatch {
   isUnread(sessionId: string): boolean {
     return this.unread.has(sessionId);
   }
+  /** 对话轮次进行中判定(输出进站起,静默超阈结算止)。 */
+  isTurnActive(sessionId: string): boolean {
+    return this.activeTurns.has(sessionId);
+  }
 
   /** 点开查看 = 已读(蓝 → 灰)。 */
   markViewed(sessionId: string): void {
