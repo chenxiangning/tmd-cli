@@ -259,4 +259,35 @@ export interface CliProfile {
    * 安装命令经通用 IPC 原语执行,Rust 不持有任何 CLI 配方。
    */
   scriptInstall?: { unix: string; windows: string };
+  /**
+   * 命令通道安装(program + args 原样):介于 script 与 npm 之间的通用通道,
+   * 例 omp 经 `bun install -g` 全局安装。安装命令经通用 IPC 原语执行,内核零配方。
+   */
+  commandInstall?: { program: string; args: string[] };
+  /**
+   * 前置依赖声明:安装/更新本 CLI 前必须就位的运行时(如 omp 依赖 bun)。
+   * welcome 引擎卡先探针依赖;缺失时引导先装依赖,就位前本引擎的
+   * 安装/更新按钮不可点。依赖的探针/安装走同一套通用原语(cli_probe / cli_install_run)。
+   */
+  requires?: CliPrerequisite;
 }
+
+/**
+ * 前置依赖(CliProfile.requires)—— 依赖自身的探针 binary 与安装通道声明,
+ * 通道派生规则与主 CLI 一致(scriptInstall > commandInstall > npmPackage),
+ * 见 welcome/engineMeta.ts 的 installPlanOf。
+ */
+export interface CliPrerequisite {
+  /** 依赖的 binary 名(PATH 探针用),如 "bun"。 */
+  binary: string;
+  /** 展示名,如 "Bun"。 */
+  name: string;
+  /** 官方文档 URL;缺省 = 引导区不显示链接。 */
+  docsUrl?: string;
+  /** 官方脚本安装通道(优先):unix/windows 为完整命令串。 */
+  scriptInstall?: { unix: string; windows: string };
+  /** 命令通道安装(program + args 原样)。 */
+  commandInstall?: { program: string; args: string[] };
+  /** npm 包名:registry 最新版查询 + npm 通道兜底安装共用。 */
+  npmPackage?: string;
+ }

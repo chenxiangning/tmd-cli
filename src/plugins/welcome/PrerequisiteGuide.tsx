@@ -1,0 +1,83 @@
+/**
+ * 前置依赖引导区 —— 引擎卡内嵌的依赖安装引导(profile.requires 的消费端,
+ * 如 omp → bun):依赖未装(notFound)→ 引导文案 + 「安装 {name}」按钮
+ * (独立安装日志);探针失败 → 重探按钮;探针中 → 状态文案。
+ * 依赖就位后本组件由 EngineCard 整体卸载,主引擎安装/更新按钮随之解锁。
+ */
+
+import { ExternalLink, RefreshCw } from "lucide-react";
+import type { EngineProbeState, InstallState } from "./EngineCard";
+import { InstallLog } from "./InstallLog";
+import type { PrerequisiteMeta } from "./engineMeta";
+
+export function PrerequisiteGuide({
+  requires,
+  probe,
+  install,
+  onInstall,
+  onProbe,
+}: {
+  requires: PrerequisiteMeta;
+  probe: EngineProbeState;
+  install: InstallState;
+  onInstall: () => void;
+  onProbe: () => void;
+}) {
+  return (
+    <div className="welcome-prereq">
+      <div className="welcome-prereq-row">
+        <span className="welcome-prereq-text">
+          {probe.status === "loading" && `探针前置依赖 ${requires.name}…`}
+          {probe.status === "notFound" && (
+            <>
+              依赖 {requires.name} 运行时 —— 先安装 {requires.name}
+              ,再安装/更新本引擎
+              {requires.docsUrl && (
+                <a
+                  className="welcome-prereq-docs"
+                  href={requires.docsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {requires.name} 官网
+                  <ExternalLink size={11} aria-hidden />
+                </a>
+              )}
+            </>
+          )}
+          {probe.status === "error" && `前置依赖 ${requires.name} 探针失败`}
+        </span>
+        <span className="welcome-prereq-actions">
+          {probe.status === "notFound" && requires.plan && (
+            <button
+              type="button"
+              className="welcome-install-btn"
+              onClick={onInstall}
+              disabled={install.running}
+              title={requires.installHint}
+            >
+              {install.running
+                ? `正在安装 ${requires.name}…`
+                : `安装 ${requires.name}`}
+            </button>
+          )}
+          {probe.status === "error" && (
+            <button
+              type="button"
+              className="welcome-icon-btn"
+              onClick={onProbe}
+              disabled={install.running}
+              aria-label="重新探针前置依赖"
+              title="重新探针"
+            >
+              <RefreshCw size={12} aria-hidden />
+            </button>
+          )}
+        </span>
+      </div>
+      {(install.running || install.lines.length > 0) && (
+        <InstallLog install={install} label={`${requires.name} 安装`} />
+      )}
+    </div>
+  );
+}

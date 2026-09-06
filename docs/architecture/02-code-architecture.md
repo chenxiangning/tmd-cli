@@ -21,7 +21,7 @@ flowchart TB
         subgraph KERNEL["kernel/（内核，不 import 任何插件）"]
             HOST["host.ts — Host 单例<br/>插件注册表 / 挂载点表 / 会话服务<br/>输出环形缓冲 / 呼吸灯<br/>(拆分件:hostRegistry · hostSessionServices · hostWatches)"]
             PLUGIN["plugin.ts<br/>Plugin · PluginContext · MountPoint"]
-            CLI["cli.ts<br/>CliProfile · CliSessionStatus<br/>session 状态读取契约"]
+            CLI["cli.ts<br/>CliProfile · CliPrerequisite(前置依赖)<br/>session 状态读取契约"]
             EVENTS["events.ts<br/>EventBus + KernelTopics"]
             TABS["tabs.ts<br/>编辑器 tab 全局 store"]
             WS["workspace.ts<br/>工作区 store（内存态）"]
@@ -53,7 +53,7 @@ flowchart TB
             P_GIT["git<br/>右栏 Git 面板<br/>(filePanel 注册表)"]
             P_COMPOSER["composer<br/>富输入 + composer.statusBar 工具栏"]
             P_SETTINGS["settings<br/>overlay 设置面板<br/>+ 设置 section 注册表"]
-            P_WELCOME["welcome<br/>editorCenter.welcome 首页<br/>引擎探针/安装/凭据盘点/近期会话"]
+            P_WELCOME["welcome<br/>editorCenter.welcome 首页<br/>引擎探针/前置依赖门控安装/凭据盘点/近期会话"]
             P_CKPT["checkpoints<br/>审批线:右栏时间线 + 中央批审阅单<br/>账本/diff/还原在 Rust checkpoints/"]
             P_NP["network-proxy<br/>网络代理浮层(overlay)<br/>生效率 Rust proxy.rs env 注入"]
             P_SSH["ssh<br/>SSH 一等会话:overlay 主机选择 + 右栏面板(SFTP 树/端口转发)<br/>+ newSessionMenu 入口 + 远端文件 tab(kind=ssh-file)+ 设置 section"]
@@ -69,7 +69,7 @@ flowchart TB
         SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
         RESOLVE["resolve.rs<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
         PROBE["probe.rs<br/>CLI 探针 found/path/version(8s 超时)"]
-        INST["installer.rs<br/>参数化安装执行器(InstallPlan:npm/script)<br/>配方由前端 CliProfile 声明"]
+        INST["installer.rs<br/>参数化安装执行器(InstallPlan:npm/script/command)<br/>配方由前端 CliProfile 声明"]
         SQL["sqlite.rs<br/>只读 sqlite 通用代读(参数化)<br/>CLI 私有库知识在插件侧"]
         SESS["session.rs — SessionRegistry<br/>活会话纯内存表(不落盘)<br/>workspaces.json 持久化"]
         FS["fs.rs<br/>list_dir / read_file / read_head / read_tail<br/>collect_files / write_temp / remove_path(白名单)<br/>read_local_image_data_url(md 预览)"]
@@ -402,7 +402,7 @@ flowchart TD
 | `session_write` / `session_resize` / `session_kill` | `session_commands.rs` → `pty.rs` | writer 直写 / master.resize / child.kill(写路径 spawn_blocking 防全局锁卡 UI) |
 | `session_log_size` / `session_history_page` | `session_commands.rs` + `session_log.rs` | 输出日志末尾偏移 / 绝对偏移前翻一页(转义+UTF-8 边界对齐) |
 | `cli_probe` | `probe.rs` | PATH 解析 + `--version`(8s 硬超时,spawn_blocking;输出带超时收集防孙进程握管道挂死) |
-| `cli_install_run` | `installer.rs` | 参数化 InstallPlan 执行(npm / script 双通道,配方由前端 CliProfile 声明),`cli-install://{id}` 流式日志(300s 超时) |
+| `cli_install_run` | `installer.rs` | 参数化 InstallPlan 执行(npm / script / command 三通道,配方由前端 CliProfile 声明),`cli-install://{id}` 流式日志(300s 超时);主引擎安装前的前置依赖门控在 welcome 引擎卡:`CliProfile.requires` 声明(如 omp→bun),依赖未就位则安装/更新按钮禁用并引导先装依赖 |
 | `sqlite_query` / `sqlite_execute` | `sqlite.rs` | 只读 sqlite 通用代读(READ_ONLY + 参数化绑定) / 参数化写(opencode 删除会话);CLI 私有库路径/表结构知识在插件侧(cli-shared/quota/ompAuth.ts、cli-opencode/db.ts) |
 | `quota_fetch` / `quota_env_value` | `quota.rs` | 通用 HTTP 代理(15s 超时) / 只读环境变量 |
 | `platform_kind` / `app_restart` | `lib.rs` | UA 探测失败时的 OS 兜底 / 重启应用(插件启停重启生效) |

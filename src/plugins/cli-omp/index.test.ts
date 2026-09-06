@@ -28,4 +28,19 @@ describe("cli-omp profile 注册契约", () => {
     expect(profile.id).toBe("omp");
     expect(profile.bracketedPaste).toBe(true);
   });
+
+  it("安装通道 = bun 全局安装,且声明 bun 前置依赖(welcome 门控数据源)", () => {
+    const profile = activateCapturingProfile();
+    /* omp 官方推荐 bun install -g;若通道回退 npm,bun 前置依赖即形同虚设。 */
+    expect(profile.commandInstall).toEqual({
+      program: "bun",
+      args: ["install", "-g", "@oh-my-pi/pi-coding-agent"],
+    });
+    expect(profile.requires).toMatchObject({ binary: "bun", name: "Bun" });
+    /* 依赖自身的安装通道 = bun 官方脚本(unix/Windows 双侧都要声明)。 */
+    expect(profile.requires?.scriptInstall?.unix).toContain("bun.sh/install");
+    expect(profile.requires?.scriptInstall?.windows).toContain("install.ps1");
+    /* npmPackage 保留:registry 最新版查询仍要走它。 */
+    expect(profile.npmPackage).toBe("@oh-my-pi/pi-coding-agent");
+  });
 });

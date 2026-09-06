@@ -86,6 +86,23 @@ export const cliOmpPlugin: Plugin = {
       fetchQuota: fetchOmpQuota,
       docsUrl: "https://github.com/oh-my-pi/pi-coding-agent",
       npmPackage: "@oh-my-pi/pi-coding-agent",
+      /* omp 官方推荐 bun 全局安装(docs/research/omp-cli-course/01-basics);
+       * npmPackage 仅保留作 registry 最新版查询。 */
+      commandInstall: {
+        program: "bun",
+        args: ["install", "-g", "@oh-my-pi/pi-coding-agent"],
+      },
+      /* omp 运行时依赖 bun:welcome 引擎卡先探针 bun,缺失时引导先装 bun,
+       * 就位前 omp 的安装/更新按钮不可点(契约见 kernel/cli.ts requires)。 */
+      requires: {
+        binary: "bun",
+        name: "Bun",
+        docsUrl: "https://bun.sh",
+        scriptInstall: {
+          unix: "curl -fsSL https://bun.sh/install | bash",
+          windows: "irm bun.sh/install.ps1|iex",
+        },
+      },
       name: "omp",
       renderIcon: (size) => <OmpGlyph size={size} />,
       command: "omp",

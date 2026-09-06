@@ -58,6 +58,50 @@
   color: var(--tmd-diff-removed);
 }
 
+/* ── 前置依赖引导(引擎卡内嵌:依赖未就位时引导先装依赖) ── */
+
+.welcome-prereq {
+  border-top: 1px solid var(--tmd-border);
+  background: var(--tmd-accent-soft);
+}
+
+.welcome-prereq-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 7px 14px;
+}
+
+.welcome-prereq-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--tmd-fg-muted);
+}
+
+.welcome-prereq-docs {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  color: var(--tmd-accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.welcome-prereq-docs:hover {
+  text-decoration: underline;
+}
+
+.welcome-prereq-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 /* ── 近期会话 ── */
 
 .welcome-sessions {

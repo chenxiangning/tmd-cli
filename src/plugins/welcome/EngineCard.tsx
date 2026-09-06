@@ -5,19 +5,23 @@
  * - mount → ipc.cliProbe(binary) 探一次;安装完成后自动重探;
  * - 安装:订阅 cli-install://{engine} 事件流 → 日志追加(上限 200 行滚动);
  *   phase "done:ok" → 重探 + 收尾;"done:fail" → 红字收尾,日志保留可翻。
+ * - 前置依赖(profile.requires,如 omp → bun):依赖未就位时主引擎的
+ *   安装/更新按钮禁用,卡片内引导先装依赖(独立安装日志);依赖探针 ok 后恢复。
  */
-
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { CircleX, ExternalLink, RefreshCw } from "lucide-react";
 import {
   ipc,
   onCliInstallEvent,
   type CliInstallEvent,
+  type CliInstallPlan,
   type CliProbeResult,
 } from "@kernel/ipc";
 import type { CliProfile } from "@kernel/cli";
 import type { EngineMeta } from "./engineMeta";
 import { isOutdated } from "./latestVersion";
+import { InstallLog } from "./InstallLog";
+import { PrerequisiteGuide } from "./PrerequisiteGuide";
 
 /** 日志滚动上限(行)。npm 全量输出数千行,只留尾部。 */
 const LOG_LINE_LIMIT = 200;
@@ -35,6 +39,14 @@ export interface InstallState {
   lines: string[];
 }
 
+/** 可安装目标 —— EngineMeta 与 PrerequisiteMeta 的共有形状,安装钩子复用同一套。 */
+export interface InstallTarget {
+  /** binary 名;安装事件 topic 的 id 惯例 = cli-install://{binary}。 */
+  binary: string;
+  /** 参数化安装计划;null = 未声明安装通道(start 直接 no-op)。 */
+  plan: CliInstallPlan | null;
+}
+
 export function EngineCard({
   meta,
   profile,
@@ -43,6 +55,10 @@ export function EngineCard({
   install,
   onProbe,
   onInstall,
+  depProbe,
+  depInstall,
+  onDepInstall,
+  onDepProbe,
 }: {
   meta: EngineMeta;
   profile: CliProfile | undefined;
@@ -52,17 +68,17 @@ export function EngineCard({
   install: InstallState;
   onProbe: () => void;
   onInstall: () => void;
+  /** 依赖探针状态;缺省 = 按探针中处理(保守禁用安装按钮)。 */
+  depProbe?: EngineProbeState;
+  /** 依赖自身的安装状态与动作(引导区按钮/日志)。 */
+  depInstall: InstallState;
+  onDepInstall: () => void;
+  onDepProbe: () => void;
 }) {
-  const logRef = useRef<HTMLDivElement>(null);
   const outdated = isOutdated(probe.result?.version, latest ?? null);
-
-  /* 日志追加时滚到底(用户上翻时不打断:仅当已贴底才跟滚)。 */
-  useEffect(() => {
-    const el = logRef.current;
-    if (!el) return;
-    const pinned = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-    if (pinned) el.scrollTop = el.scrollHeight;
-  }, [install.lines]);
+  /* 依赖门控:声明了依赖且未就位(探针中/未装/探针失败)→ 安装/更新不可点。 */
+  const depBlocked = !!meta.requires && (!depProbe || depProbe.status !== "ok");
+  const depName = meta.requires?.name ?? "";
 
   return (
     <section className="welcome-engine-card">
@@ -117,6 +133,8 @@ export function EngineCard({
               type="button"
               className="welcome-install-btn"
               onClick={onInstall}
+              disabled={depBlocked}
+              title={depBlocked ? `先安装 ${depName}` : undefined}
             >
               安装
             </button>
@@ -128,8 +146,14 @@ export function EngineCard({
                 outdated ? "welcome-icon-btn has-update" : "welcome-icon-btn"
               }
               onClick={onInstall}
-              disabled={install.running}
-              title={outdated ? `更新到 ${latest}` : "重新安装/更新到最新版"}
+              disabled={install.running || depBlocked}
+              title={
+                depBlocked
+                  ? `先安装 ${depName}`
+                  : outdated
+                    ? `更新到 ${latest}`
+                    : "重新安装/更新到最新版"
+              }
             >
               更新
             </button>
@@ -151,29 +175,19 @@ export function EngineCard({
         </span>
       </header>
 
+      {/* 前置依赖引导:未就位时引导先装依赖(独立安装日志);探针 ok 后整块消失。 */}
+      {meta.requires && depProbe && depProbe.status !== "ok" && (
+        <PrerequisiteGuide
+          requires={meta.requires}
+          probe={depProbe}
+          install={depInstall}
+          onInstall={onDepInstall}
+          onProbe={onDepProbe}
+        />
+      )}
+
       {(install.running || install.lines.length > 0) && (
-        <div className="welcome-install">
-          {install.running && (
-            <div className="welcome-progress" aria-label="安装中">
-              <div className="welcome-progress-bar" />
-            </div>
-          )}
-          <div className="welcome-install-log" ref={logRef}>
-            {install.lines.map((line, i) => (
-              <div key={i} className="welcome-install-line">
-                {line}
-              </div>
-            ))}
-          </div>
-          {install.ok === true && (
-            <div className="welcome-install-done is-ok">安装完成</div>
-          )}
-          {install.ok === false && (
-            <div className="welcome-install-done is-fail">
-              安装失败,日志见上方
-            </div>
-          )}
-        </div>
+        <InstallLog install={install} label="安装" />
       )}
     </section>
   );
@@ -182,7 +196,7 @@ export function EngineCard({
 /* ── 状态钩子(供 WelcomePage 集中管理) ─────────────────── */
 
 export function useEngineInstall(
-  meta: EngineMeta,
+  target: InstallTarget | null,
   onDone: () => void,
 ): [InstallState, () => void] {
   const [state, setState] = useState<InstallState>({
@@ -193,8 +207,7 @@ export function useEngineInstall(
   const runningRef = useRef(false);
 
   const start = useCallback(() => {
-    if (runningRef.current) return;
-    if (!meta.plan) return;
+    if (!target || !target.plan || runningRef.current) return;
     runningRef.current = true;
     setState({ running: true, ok: null, lines: [] });
 
@@ -221,7 +234,7 @@ export function useEngineInstall(
       doneFired = true;
       onDone();
     };
-    void onCliInstallEvent(meta.binary, (e: CliInstallEvent) => {
+    void onCliInstallEvent(target.binary, (e: CliInstallEvent) => {
       if (e.stream === "phase") {
         if (e.text === "done:ok") {
           finish(true);
@@ -236,7 +249,7 @@ export function useEngineInstall(
     });
 
     void ipc
-      .cliInstallRun(meta.binary, meta.plan)
+      .cliInstallRun(target.binary, target.plan)
       .then((ok) => {
         /* phase 事件是权威收尾;invoke 返回仅兜底(事件丢失时不挂起)。 */
         setState((prev) => (prev.running ? { ...prev, running: false, ok } : prev));
@@ -251,7 +264,7 @@ export function useEngineInstall(
         settled = true;
         unlisten?.();
       });
-  }, [meta.binary, meta.plan, onDone]);
+  }, [target?.binary, target?.plan, onDone]);
 
   return [state, start];
 }

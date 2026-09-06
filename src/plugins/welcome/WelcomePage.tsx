@@ -12,7 +12,11 @@ import { openExternalUrl } from "@kernel/ipc";
 
 import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { host, useHost } from "@kernel/host";
-import { engineMetas, type EngineMeta } from "./engineMeta";
+import {
+  engineMetas,
+  type EngineMeta,
+  type PrerequisiteMeta,
+} from "./engineMeta";
 
 import {
   EngineCard,
@@ -41,17 +45,28 @@ function buildInitialProbes(): Record<string, EngineProbeState> {
 function EngineSection({
   meta,
   probe,
+  depProbe,
   latest,
   onProbe,
+  onDepProbe,
 }: {
   meta: EngineMeta;
   probe: EngineProbeState;
+  /** 前置依赖探针状态(meta.requires 存在时由页级传入)。 */
+  depProbe?: EngineProbeState;
   latest: string | null | undefined;
   onProbe: () => void;
+  /** 重探前置依赖(参数 = 依赖 binary)。 */
+  onDepProbe: (binary: string) => void;
 }) {
   const engineId = meta.id;
   const profile = host.getCliProfile(engineId);
   const [install, startInstall] = useEngineInstall(meta, onProbe);
+  /* 依赖安装完成 → 重探依赖;探针 ok 后 EngineCard 的主引擎按钮自动解锁。 */
+  const requires = meta.requires ?? null;
+  const [depInstall, startDepInstall] = useEngineInstall(requires, () => {
+    if (requires) onDepProbe(requires.binary);
+  });
   return (
     <div>
       <EngineCard
@@ -62,6 +77,10 @@ function EngineSection({
         install={install}
         onProbe={onProbe}
         onInstall={startInstall}
+        depProbe={depProbe}
+        depInstall={depInstall}
+        onDepInstall={startDepInstall}
+        onDepProbe={() => requires && onDepProbe(requires.binary)}
       />
       {probe.status === "ok" && <CredentialList engineId={engineId} />}
     </div>
@@ -72,6 +91,10 @@ export function WelcomePage() {
   useHost(); /* 订阅宿主:profile 注册/注销(启动激活、插件市场开关)时重渲染 */
   const [probes, setProbes] = useState<Record<string, EngineProbeState>>(
     buildInitialProbes,
+  );
+  /* 前置依赖探针状态(按 binary 索引;多个引擎可共享同一依赖,如 bun)。 */
+  const [depProbes, setDepProbes] = useState<Record<string, EngineProbeState>>(
+    {},
   );
   /* 最新版本:每引擎只拉一次(ref 去重),与探针解耦 —
      重探/安装后最新版不变,无需重拉。undefined=拉取中,null=失败(静默)。 */
@@ -86,6 +109,17 @@ export function WelcomePage() {
     () => engineMetas(),
     [registrationKey],
   );
+  /* 去重后的前置依赖集:引擎自身探针之外,requires 声明的依赖也要探 ——
+     未就位时引擎的安装/更新按钮被门控(见 EngineCard depBlocked)。 */
+  const requires = useMemo(() => {
+    const byBinary = new Map<string, PrerequisiteMeta>();
+    for (const meta of visibleMetas) {
+      if (meta.requires && !byBinary.has(meta.requires.binary)) {
+        byBinary.set(meta.requires.binary, meta.requires);
+      }
+    }
+    return [...byBinary.values()];
+  }, [visibleMetas]);
 
   const runProbe = useCallback(async (engineId: string) => {
     const meta = engineMetas().find((m) => m.id === engineId);
@@ -98,10 +132,21 @@ export function WelcomePage() {
     setProbes((prev) => ({ ...prev, [engineId]: next }));
   }, []);
 
+  /* 前置依赖探针动作(按 binary)。 */
+  const runDepProbe = useCallback(async (binary: string) => {
+    setDepProbes((prev) => ({
+      ...prev,
+      [binary]: { status: "loading", result: null },
+    }));
+    const next = await probeEngine(binary);
+    setDepProbes((prev) => ({ ...prev, [binary]: next }));
+  }, []);
+
   /* 首 mount(及可见引擎集变化时)全量探针一次。 */
   useEffect(() => {
     for (const meta of visibleMetas) void runProbe(meta.id);
-  }, [runProbe, visibleMetas]);
+    for (const req of requires) void runDepProbe(req.binary);
+  }, [runProbe, runDepProbe, visibleMetas, requires]);
 
   /* 可见引擎集确定后,每引擎拉一次最新版本。 */
   useEffect(() => {
@@ -149,8 +194,12 @@ export function WelcomePage() {
               probe={
                 probes[meta.id] ?? { status: "loading", result: null }
               }
+              depProbe={
+                meta.requires ? depProbes[meta.requires.binary] : undefined
+              }
               latest={latest[meta.id]}
               onProbe={() => void runProbe(meta.id)}
+              onDepProbe={(binary) => void runDepProbe(binary)}
             />
           ))}
         </div>

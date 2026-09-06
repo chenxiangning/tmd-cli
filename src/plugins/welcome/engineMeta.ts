@@ -27,17 +27,52 @@ export interface EngineMeta {
   npmPackage?: string;
   /** 参数化安装计划;null = 该引擎未声明安装通道(不出安装按钮)。 */
   plan: CliInstallPlan | null;
+  /** 前置依赖(profile.requires 派生);缺省 = 无依赖,直接出安装按钮。 */
+  requires?: PrerequisiteMeta;
 }
 
-/** 安装计划派生:scriptInstall 优先(官方脚本),否则 npm 通道。 */
-export function installPlanOf(profile: CliProfile): CliInstallPlan | null {
-  if (profile.scriptInstall) {
-    return { channel: "script", ...profile.scriptInstall };
+/** 前置依赖元数据 —— binary/plan 形状与 EngineMeta 对齐,安装钩子复用同一套。 */
+export interface PrerequisiteMeta {
+  /** 依赖 binary 名(PATH 探针 + 安装事件 id 惯例)。 */
+  binary: string;
+  /** 展示名,如 "Bun"。 */
+  name: string;
+  /** 官方文档 URL;缺省 = 引导区不显示链接。 */
+  docsUrl?: string;
+  /** 安装方式说明,由依赖自己的安装通道派生。 */
+  installHint: string;
+  /** 依赖的安装计划;null = 未声明通道(只引导,不出安装按钮)。 */
+  plan: CliInstallPlan | null;
+}
+
+/** 安装通道声明形状(CliProfile 与 CliPrerequisite 的共有子集)。 */
+interface InstallChannels {
+  npmPackage?: string;
+  commandInstall?: { program: string; args: string[] };
+  scriptInstall?: { unix: string; windows: string };
+}
+
+/** 安装计划派生:scriptInstall(官方脚本)> commandInstall > npm 通道。 */
+export function installPlanOf(channels: InstallChannels): CliInstallPlan | null {
+  if (channels.scriptInstall) {
+    return { channel: "script", ...channels.scriptInstall };
   }
-  if (profile.npmPackage) {
-    return { channel: "npm", package: profile.npmPackage };
+  if (channels.commandInstall) {
+    return { channel: "command", ...channels.commandInstall };
+  }
+  if (channels.npmPackage) {
+    return { channel: "npm", package: channels.npmPackage };
   }
   return null;
+}
+
+/** 安装方式提示(按钮旁说明):按通道派生,与 installPlanOf 同序。 */
+function installHintOf(channels: InstallChannels): string {
+  if (channels.scriptInstall) return channels.scriptInstall.unix;
+  if (channels.commandInstall) {
+    return [channels.commandInstall.program, ...channels.commandInstall.args].join(" ");
+  }
+  return channels.npmPackage ? `npm install -g ${channels.npmPackage}` : "";
 }
 
 /** 引擎插头展示名:plugin.id = `cli-${profile.id}` 约定的 join。 */
@@ -48,20 +83,27 @@ function engineDisplayName(profile: CliProfile): string {
   return plugin?.plugin.meta.name ?? profile.id;
 }
 
+
 /** 单个 profile → 引擎卡元数据。 */
 export function engineMetaOf(profile: CliProfile): EngineMeta {
+  const req = profile.requires;
   return {
     id: profile.id,
     displayName: engineDisplayName(profile),
     binary: profile.command,
     docsUrl: profile.docsUrl,
     npmPackage: profile.npmPackage,
-    installHint: profile.scriptInstall
-      ? profile.scriptInstall.unix
-      : profile.npmPackage
-        ? `npm install -g ${profile.npmPackage}`
-        : "",
+    installHint: installHintOf(profile),
     plan: installPlanOf(profile),
+    requires: req
+      ? {
+          binary: req.binary,
+          name: req.name,
+          docsUrl: req.docsUrl,
+          installHint: installHintOf(req),
+          plan: installPlanOf(req),
+        }
+      : undefined,
   };
 }
 
