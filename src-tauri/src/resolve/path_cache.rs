@@ -7,6 +7,7 @@
 use parking_lot::Mutex;
 
 use super::path_build::build_enriched_path;
+#[cfg(unix)]
 use super::wait_child_with_timeout;
 
 /// PATH 计算结果:合并后的 PATH + 提取质量标记。
@@ -33,6 +34,8 @@ enum PathState {
 struct PathCache {
     state: Option<PathState>,
     /// 后台线程(降级重试 / -ilc 升级)单飞标记,防并发 fork 多个 login shell。
+    /// 仅 unix 后台重试机制使用;Windows 无降级概念。
+    #[cfg_attr(not(unix), allow(dead_code))]
     bg_in_flight: bool,
 }
 
@@ -243,52 +246,5 @@ fn kick_interactive_upgrade(cache: &mut PathCache) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn enriched_path_包含进程_path_与常见安装目录且去重() {
-        let path = enriched_path();
-        for dir in ["/usr/bin", "/bin"] {
-            assert!(path.split(':').any(|d| d == dir), "缺 {dir}: {path}");
-        }
-        let dirs: Vec<&str> = path.split(':').collect();
-        let unique: std::collections::HashSet<_> = dirs.iter().collect();
-        assert_eq!(dirs.len(), unique.len(), "PATH 有重复项: {path}");
-    }
-
-    #[test]
-    fn 缓存_ready_后不再重算() {
-        let mut cache = PathCache::default();
-        let p1 = cache_get_or_refresh(&mut cache, false, || ComputedPath {
-            path: "full".into(),
-            shell_ok: true,
-            needs_interactive_upgrade: false,
-        });
-        assert_eq!(p1, "full");
-        let p2 = cache_get_or_refresh(&mut cache, true, || panic!("Ready 不应重算"));
-        assert_eq!(p2, "full");
-    }
-
-    #[test]
-    fn 缓存降级结果_refresh_时同步重算自愈() {
-        /* 回归守卫:2026-09-02 前 LazyLock 永久缓存降级 PATH,omp/kimi
-         * 误报"未安装"且刷新键无法自愈。 */
-        let mut cache = PathCache::default();
-        let p1 = cache_get_or_refresh(&mut cache, true, || ComputedPath {
-            path: "fallback-only".into(),
-            shell_ok: false,
-            needs_interactive_upgrade: false,
-        });
-        assert_eq!(p1, "fallback-only");
-        assert!(matches!(cache.state, Some(PathState::Degraded(_))));
-        /* shell 恢复后 refresh 同步重算 → Ready */
-        let p2 = cache_get_or_refresh(&mut cache, true, || ComputedPath {
-            path: "full".into(),
-            shell_ok: true,
-            needs_interactive_upgrade: false,
-        });
-        assert_eq!(p2, "full");
-        assert!(matches!(cache.state, Some(PathState::Ready(_))));
-    }
-}
+#[path = "path_cache_tests.rs"]
+mod tests;
