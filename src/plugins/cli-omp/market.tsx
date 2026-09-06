@@ -111,55 +111,57 @@ export function OmpExtensionMarket({ onClose }: { onClose: () => void }) {
         </div>
       ) : (
         <>
-          {catalog?.offline ? (
-            <div className="omp-ext-offline">
-              实时目录拉取失败,展示离线精选目录
+          <div className="omp-ext-body">
+            {catalog?.offline ? (
+              <div className="omp-ext-offline">
+                实时目录拉取失败,展示离线精选目录
+              </div>
+            ) : null}
+
+            <div className="omp-ext-section">
+              已安装({installed?.length ?? "…"})
             </div>
-          ) : null}
+            {installedError ? (
+              <div className="omp-ext-state">
+                无法解析已装清单:{installedError}
+              </div>
+            ) : installed === null ? (
+              <div className="omp-ext-state">读取已装清单…</div>
+            ) : installed.length === 0 ? (
+              <div className="omp-ext-state">还没有安装任何扩展</div>
+            ) : (
+              installed.map((ext) => (
+                <InstalledRow
+                  key={ext.name}
+                  ext={ext}
+                  description={descByName.get(ext.name) ?? ""}
+                  runOmp={runOmp}
+                  onChanged={refreshInstalled}
+                />
+              ))
+            )}
 
-          <div className="omp-ext-section">
-            已安装({installed?.length ?? "…"})
-          </div>
-          {installedError ? (
-            <div className="omp-ext-state">
-              无法解析已装清单:{installedError}
+            <div className="omp-ext-section">
+              热门扩展{catalog?.offline ? "(离线精选)" : ""}
             </div>
-          ) : installed === null ? (
-            <div className="omp-ext-state">读取已装清单…</div>
-          ) : installed.length === 0 ? (
-            <div className="omp-ext-state">还没有安装任何扩展</div>
-          ) : (
-            installed.map((ext) => (
-              <InstalledRow
-                key={ext.name}
-                ext={ext}
-                description={descByName.get(ext.name) ?? ""}
-                runOmp={runOmp}
-                onChanged={refreshInstalled}
-              />
-            ))
-          )}
-
-          <div className="omp-ext-section">
-            热门扩展{catalog?.offline ? "(离线精选)" : ""}
+            {catalog === null ? (
+              <div className="omp-ext-state">加载目录…</div>
+            ) : (
+              catalog.entries.map((entry) => (
+                <ExtCard
+                  key={entry.name}
+                  entry={entry}
+                  installed={installedNames.has(entry.name)}
+                  onChanged={refreshInstalled}
+                />
+              ))
+            )}
           </div>
-          {catalog === null ? (
-            <div className="omp-ext-state">加载目录…</div>
-          ) : (
-            catalog.entries.map((entry) => (
-              <ExtCard
-                key={entry.name}
-                entry={entry}
-                installed={installedNames.has(entry.name)}
-                onChanged={refreshInstalled}
-              />
-            ))
-          )}
 
-        <footer className="omp-ext-foot">
-          扩展以当前用户权限在 omp 进程内执行任意代码;装卸/启停即时改磁盘,
-          已开的 omp 会话不热加载,重开会话生效。
-        </footer>
+          <footer className="omp-ext-foot">
+            扩展以当前用户权限在 omp 进程内执行任意代码;装卸/启停即时改磁盘,
+            已开的 omp 会话不热加载,重开会话生效。
+          </footer>
         </>
       )}
     </div>

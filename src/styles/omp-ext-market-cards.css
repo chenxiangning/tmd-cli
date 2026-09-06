@@ -154,11 +154,11 @@
 /* ── 已装行 ── */
 .omp-ext-row {
   border: 1px solid var(--tmd-border);
-  border-radius: var(--tmd-radius-md);
-  padding: 6px 11px;
+  border-radius: var(--tmd-radius-sm);
+  padding: 4px 10px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   background: var(--tmd-bg-popover);
 }
@@ -167,7 +167,7 @@
 .omp-ext-row-head {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
   flex: 1;
   border: none;
@@ -175,7 +175,7 @@
   color: inherit;
   font: inherit;
   text-align: left;
-  padding: 2px 0;
+  padding: 1px 0;
   cursor: pointer;
 }
 
@@ -192,10 +192,10 @@
 
 .omp-ext-row-detail {
   flex-basis: 100%;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--tmd-fg-muted);
   line-height: 1.5;
-  padding: 2px 20px 4px 20px;
+  padding: 1px 17px 3px 15px;
   cursor: default;
 }
 
