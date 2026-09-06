@@ -183,7 +183,7 @@ describe("自拉起登记与停机(codemoss stop_host 同款)", () => {
     await startHostSession(conn, spawn);
     expect(spawn).toHaveBeenCalledWith(
       "dsh",
-      expect.objectContaining({ command: "dsh", args: ["web", "--host", "127.0.0.1", "--port", "3080"] }),
+      expect.objectContaining({ command: "dsh", args: ["web", "--no-open", "--host", "127.0.0.1", "--port", "3080"] }),
     );
     expect(currentHostSessionId()).toBe("pty-9");
     expect(store.get("tmd.dsh.hostSession.v1")).toBe("pty-9");

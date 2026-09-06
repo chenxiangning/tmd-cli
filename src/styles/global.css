@@ -110,3 +110,10 @@ body,
 .animate-breathe {
   animation: breathe 1.2s ease-in-out infinite;
 }
+/* dsh 会话中央面:内嵌 host Web UI(iframe 铺满 canvas 位)。 */
+.dsh-canvas-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #fff;
+}

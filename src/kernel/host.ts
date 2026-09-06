@@ -1,8 +1,7 @@
 /**
  * 宿主 —— 插件注册表 + 挂载点注册表 + 会话服务的装配点。
  * 内核不 import 任何插件;插件清单在 src/plugins/index.ts,main.tsx 启动激活。
- * 文件规模铁则拆分:守望主链路在 hostWatches.ts,ssh/shell/spawn 接线在
- * hostSessionServices.ts;本文件留注册表、查询门面与 PTY 生命周期公开语义。
+ * 拆分件(文件规模铁则):hostWatches.ts / hostSessionServices.ts。
  */
 
 import { useSyncExternalStore } from "react";
@@ -23,6 +22,7 @@ import { registerMarketPanel } from "./marketPanel";
 import type { SidebarAction } from "./sidebarActions";
 import { registerCommand } from "./shortcuts";
 import { registerHomePanel } from "./homePanels";
+import { registerSessionCanvas } from "./sessionCanvas";
 
 class Host implements PluginContext {
   readonly events = new EventBus();
@@ -30,8 +30,7 @@ class Host implements PluginContext {
   private sessions: SessionMeta[] = [];
   private activeSessionId: string | null = null;
   private listeners = new Set<() => void>();
-  /** PTY 事件退订表:spawn 登记输出/退出两监听,会话移除成对退订
-   * (此前 void 掉 listen 的 UnlistenFn,每次 spawn 泄漏 2 个监听器)。 */
+  /** PTY 事件退订表:spawn 登记输出/退出监听,会话移除成对退订。 */
   private ptyUnlistens = new Map<string, Array<() => void>>();
   /** 窗口聚焦态(main.tsx 挂 focus/blur 监听馈入):失焦时激活会话完成也视为未查看。 */
   private windowFocused = true;
@@ -90,6 +89,7 @@ class Host implements PluginContext {
   registerFileVisual = registerFileVisual;
   registerCommand = registerCommand;
   registerHomePanel = registerHomePanel;
+  registerSessionCanvas = registerSessionCanvas;
   // ---- 插件生命周期(委托 kernel/hostRegistry) ----------------------------
 
   activateAll(plugins: Plugin[]): Promise<void> {

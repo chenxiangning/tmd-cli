@@ -9,6 +9,7 @@ import {
 } from "@kernel/composerStage";
 import { Mounts } from "@kernel/Mounts";
 import { TerminalView } from "@kernel/TerminalView";
+import { getSessionCanvas } from "@kernel/sessionCanvas";
 
 /**
  * 中央幕布 —— 上下结构:terminal(无 session 时占位) + composer,高度可拖。
@@ -18,7 +19,11 @@ import { TerminalView } from "@kernel/TerminalView";
 export function MainPanel() {
   /* SSH / 内置终端会话无 composer:幕布即输入面(触发符/审批线等都是 CLI 语义)。 */
   const activeId = host.getActiveSessionId();
-  const activeKind = host.getSessions().find((s) => s.id === activeId)?.kind;
+  const active = host.getSessions().find((s) => s.id === activeId);
+  const activeKind = active?.kind;
+  /* 插件按 profile 注册的中央面(如 dsh:host Web UI 内嵌)替换 terminal 位,
+     composer 一并隐藏(对话在覆盖面自身)。 */
+  const Canvas = active ? getSessionCanvas(active.profileId) : undefined;
   /* 对话框五段式高度:composer 插件工具栏的 ↑↓ 写 kernel composerStage,这里消费。
      实测本库命令式 setLayout/panelRef.resize 在嵌套 group 下会被静默回滚,不可用;
      separator 键盘路径(每键 5%)走库自身状态更新,可靠 —— 借它驱动:
@@ -49,9 +54,9 @@ export function MainPanel() {
   return (
     <PanelGroup orientation="vertical" id="tmd.main.vertical" groupRef={groupRef}>
       <Panel defaultSize={70} minSize={30} id="canvas">
-        <TerminalView key={activeId} sessionId={activeId} />
+        {Canvas ? <Canvas sessionId={activeId} /> : <TerminalView key={activeId} sessionId={activeId} />}
       </Panel>
-      {activeKind === "ssh" || activeKind === "shell" ? null : stage === "min" ? (
+      {Canvas || activeKind === "ssh" || activeKind === "shell" ? null : stage === "min" ? (
         /* min 段:composer 退出 Panel 体系,挂裸 div —— 内容仅工具栏条(Composer 隐藏输入区),
            高度 = 内容自身,与窗口底边零缝隙;固定百分比永远对不齐工具栏像素高。
            离开 min 时 Panel/Separator 重挂载回 defaultSize,上方 effect 按目标段重放键步 */

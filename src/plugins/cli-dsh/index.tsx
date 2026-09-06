@@ -1,5 +1,6 @@
 import type { Plugin } from "@kernel/plugin";
 import { DshHostPanel } from "./hostPanel";
+import { DshCanvas } from "./dshCanvas";
 
 /**
  * DSH(DeepSeek Harness)插件 —— 第十个 CLI 引擎,对接口径移植自 codemoss:
@@ -58,7 +59,8 @@ export const cliDshPlugin: Plugin = {
       name: DSH_VARIANT.command,
       renderIcon: (size) => <DshGlyph size={size} />,
       command: DSH_VARIANT.command,
-      args: ["web"],
+      /* 内嵌中央面已提供对话 UI,不再每次弹外部浏览器。 */
+      args: ["web", "--no-open"],
       triggers: [],
       /* 单实例:会话即 host,同 origin 第二个 `dsh web` 必然 EADDRINUSE。 */
       singleInstance: true,
@@ -70,5 +72,7 @@ export const cliDshPlugin: Plugin = {
     });
     /* 连接引导面板经 homePanels 注册表上卡(键 = profile id),不占 CliProfile 字段。 */
     ctx.registerHomePanel(DSH_VARIANT.profileId, DshHostPanel);
+    /* dsh 无 TUI:会话中央区内嵌 host Web UI(kernel/sessionCanvas)。 */
+    ctx.registerSessionCanvas(DSH_VARIANT.profileId, DshCanvas);
   },
 };

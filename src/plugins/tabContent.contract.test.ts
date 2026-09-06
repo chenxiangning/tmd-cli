@@ -38,6 +38,7 @@ function activateCollectingKinds(): Set<string> {
     registerTabContent: (c: TabContentContribution) => kinds.add(c.kind),
     registerMarketPanel: () => {},
     registerHomePanel: () => {},
+    registerSessionCanvas: () => {},
     registerSidebarAction: () => {},
     registerFileVisual: () => {},
     events: { on: () => () => {}, off: () => {}, emit: () => {} },
