@@ -154,8 +154,11 @@ export function useCliSessionGroup({
     .sort((a, b) => b.modifiedAt - a.modifiedAt);
   const visible = unpinnedDisk.slice(0, limit);
   const remaining = unpinnedDisk.length - visible.length;
+  /** 折叠态计数口径:未置顶磁盘历史条数(与 visible/remaining 同源)。 */
+  const unpinnedCount = unpinnedDisk.length;
 
   return {
+    unpinnedCount,
     sessions,
     limit,
     setLimit,

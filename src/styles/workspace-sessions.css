@@ -55,39 +55,6 @@
   pointer-events: none;
 }
 
-/* ===== CLI 分组标签 ===== */
-.cli-group-label {
-  position: relative;
-  margin-left: var(--workspace-tree-rail-x);
-  padding: 2px 5px 0 12px;
-  font-size: var(--sidebar-caption-font-size);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-faint);
-  line-height: 18px;
-}
-
-/* 品牌 logo 段头:中心对齐轨道(x=20),不透明圆底遮住贯穿线(同原空心环底)。
-   有 logo 时取代空心环;无 renderIcon 的 profile 保持环节点回退。 */
-.cli-group-label-icon {
-  position: absolute;
-  left: -5.5px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 12px;
-  height: 12px;
-  background: var(--tmd-bg-base);
-  border-radius: 999px;
-}
-
-.cli-group-label:has(> .cli-group-label-icon)::before {
-  display: none;
-}
-
 /* ===== 会话行(codemoss .thread-row) ===== */
 .thread-row {
   display: flex;
@@ -168,22 +135,6 @@
 /* 正在查看 Eye:置顶区与工作区行同形同色(size 13),主题前景 token,深浅主题自适应。 */
 .thread-viewing-eye {
   color: var(--text-strong);
-}
-
-/* CLI 分组标签:空心环节点,作为时间轴段头 */
-.cli-group-label::before {
-  content: "";
-  position: absolute;
-  left: -3.5px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
-  box-sizing: border-box;
-  border-radius: 999px;
-  background: var(--tmd-bg-base);
-  border: 1.5px solid var(--text-muted);
-  pointer-events: none;
 }
 
 .thread-row:hover {

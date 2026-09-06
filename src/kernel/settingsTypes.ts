@@ -123,6 +123,12 @@ export interface AppSettings {
    */
   workspaceCollapsedMap: Record<string, boolean>;
   /**
+   * 左侧栏工作区内各会话分类(CLI 分组 / 终端 / SSH)折叠态:
+   * key = `${workspaceId}:${groupId}`(groupId = CLI profileId 或 "shell"/"ssh"),
+   * value = 是否折叠。缺失的分类(首次出现)默认折叠;切换写这里,重启后恢复。
+   */
+  workspaceGroupCollapsedMap: Record<string, boolean>;
+  /**
    * 网络代理(network-proxy 插件的编辑域):客户端自身联网(quota_fetch 等
    * Rust reqwest 请求、installer 的 curl/npm 子进程)与之后 spawn 的 PTY CLI
    * 子进程统一走该代理。生效在 Rust 侧 proxy.rs(进程 env 注入,启动 + 写盘
@@ -174,6 +180,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionTitles: {},
   sessionPins: {},
   workspaceCollapsedMap: {},
+  workspaceGroupCollapsedMap: {},
   networkProxyEnabled: false,
   networkProxyUrl: "",
   memoryDbPath: "",

@@ -8,6 +8,7 @@
 @import "./workspace-sidebar.css";
 @import "./workspace-sessions.css";
 @import "./workspace-sessions-extras.css";
+@import "./workspace-sessions-groups.css";
 @import "./workspace-menu.css";
 @import "./session-budget.css";
 @import "./ssh.css";

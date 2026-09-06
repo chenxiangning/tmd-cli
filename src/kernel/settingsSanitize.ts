@@ -201,6 +201,10 @@ export function sanitize(raw: unknown): AppSettings {
     sessionTitles: sanitizeSessionTitles(obj.sessionTitles),
     sessionPins: sanitizeSessionPins(obj.sessionPins),
     workspaceCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceCollapsedMap),
+    // 同形 Record<string, boolean>,清洗语义与工作区折叠键完全一致
+    workspaceGroupCollapsedMap: sanitizeWorkspaceCollapsedMap(
+      obj.workspaceGroupCollapsedMap,
+    ),
     networkProxyEnabled:
       typeof obj.networkProxyEnabled === "boolean"
         ? obj.networkProxyEnabled

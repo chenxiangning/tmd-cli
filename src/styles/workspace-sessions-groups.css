@@ -1,0 +1,94 @@
+/* 会话分类段头(CLI / 终端 / SSH 共用)—— 自 workspace-sessions.css 按「规则逐字搬迁、顺序不变」拆出。
+ * 段头即折叠开关(spec:2026-09-06-workspace-group-collapse):logo 骑时间轴轨道不变,
+ * 名称弹性伸展,折叠态右侧显会话数徽标,chevron 指示状态。 */
+
+/* ===== CLI 分组标签 ===== */
+/* 分类段头 = 折叠开关(button):logo 骑轨道不变,名称弹性,右侧计数(仅折叠态)+ chevron。 */
+.cli-group-label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: calc(100% - var(--workspace-tree-rail-x));
+  margin-left: var(--workspace-tree-rail-x);
+  padding: 2px 5px 0 12px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--sidebar-caption-font-size);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  line-height: 18px;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.16s ease;
+}
+
+.cli-group-label:hover {
+  color: var(--text-strong);
+}
+
+.cli-group-label-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 折叠态会话数徽标:弱底色胶囊,不与 uppercase 互相干扰(关掉字距/大小写继承)。 */
+.cli-group-count {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: var(--surface-hover);
+  color: var(--text-quiet);
+  letter-spacing: 0;
+}
+
+.cli-group-chevron {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* 品牌 logo 段头:中心对齐轨道(x=20),不透明圆底遮住贯穿线(同原空心环底)。
+   有 logo 时取代空心环;无 renderIcon 的 profile 保持环节点回退。 */
+.cli-group-label-icon {
+  position: absolute;
+  left: -5.5px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  background: var(--tmd-bg-base);
+  border-radius: 999px;
+}
+
+.cli-group-label:has(> .cli-group-label-icon)::before {
+  display: none;
+}
+
+/* CLI 分组标签:空心环节点,作为时间轴段头 */
+.cli-group-label::before {
+  content: "";
+  position: absolute;
+  left: -3.5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--tmd-bg-base);
+  border: 1.5px solid var(--text-muted);
+  pointer-events: none;
+}

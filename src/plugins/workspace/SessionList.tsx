@@ -20,6 +20,8 @@
  *
  * 活会话行与磁盘删除助手拆至 LiveSessionRow.tsx,分组数据装配拆至
  * useCliSessionGroup.ts(文件规模铁则)。
+ * 分类折叠:段头即开关(GroupHeader),折叠态经 useGroupCollapsed 写
+ * settings.workspaceGroupCollapsedMap 持久化,重启恢复;折叠计数 = 展开后可见总数。
  */
 
 import { useState } from "react";
@@ -49,6 +51,8 @@ import {
   type MenuTarget,
 } from "./LiveSessionRow";
 import { useCliSessionGroup } from "./useCliSessionGroup";
+import { GroupHeader } from "./GroupHeader";
+import { useGroupCollapsed } from "./useGroupCollapsed";
 
 /** 0 配额组「更多...」首击的展开步长(正配额组从配额值起翻倍:quota → 2× → 4×)。 */
 const PAGE_INITIAL = 10;
@@ -82,9 +86,11 @@ export function CliSessionGroup({
     pinnedDisk,
     visible,
     remaining,
+    unpinnedCount,
     realTitle,
     displayTitle,
   } = useCliSessionGroup({ profile, workspace, refreshTick, onScanned });
+  const { collapsed, toggle } = useGroupCollapsed(workspace.id, profile.id);
   const [menu, setMenu] = useState<MenuTarget | null>(null);
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
 
@@ -149,6 +155,32 @@ export function CliSessionGroup({
     ? sessionPinKey(workspace.id, profile.id, menuCliSessionId)
     : undefined;
 
+  /** 磁盘行渲染契约:置顶块与分页历史共用同一份行装配(含菜单/重命名/扎点接线),仅 pinned 常亮差异。 */
+  const renderDiskRows = (rows: CliDiskSession[], pinned: boolean) =>
+    rows.map((s) => (
+      <DiskSessionRow
+        key={s.id}
+        profile={profile}
+        session={s}
+        title={displayTitle(s.id, s.id)}
+        pinned={pinned}
+        renaming={renaming?.cliSessionId === s.id ? renaming : null}
+        onOpen={() =>
+          void host
+            .openDiskSession(profile.id, workspace.root, workspace.id, s.id)
+            .then((meta) =>
+              noteSessionTabTitle(meta.id, displayTitle(s.id, s.id)),
+            )
+        }
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenu({ kind: "disk", session: s, x: e.clientX, y: e.clientY });
+        }}
+        onRenameCommit={commitRename}
+        onTogglePin={() => togglePin(s.id)}
+      />
+    ));
+
   // 整组为空(无活会话且磁盘历史加载完也为空)则不占位
   if (orderedLive.length === 0 && sessions !== null && disk.length === 0) {
     return null;
@@ -157,101 +189,67 @@ export function CliSessionGroup({
 
   return (
     <div className="cli-group">
-      <div className="cli-group-label">
-        {/* 品牌 logo 段头:骑在时间轴轨道中心(取代空心环;无 renderIcon 回退环) */}
-        {profile.renderIcon ? (
-          <span className="cli-group-label-icon" aria-hidden>
-            {profile.renderIcon(12)}
-          </span>
-        ) : null}
-        {profile.name}
-      </div>
+      {/* 分类段头 = 折叠开关;计数仅折叠态显示(展开后可见总数:活 + 工作区置顶 + 未置顶磁盘) */}
+      <GroupHeader
+        label={profile.name}
+        icon={profile.renderIcon ? profile.renderIcon(12) : undefined}
+        count={orderedLive.length + pinnedDisk.length + unpinnedCount}
+        collapsed={collapsed}
+        onToggle={toggle}
+      />
 
-      {/* 工作区置顶块(置顶时间升序,行内扎点常亮) */}
-      {pinnedDisk.map((s) => (
-        <DiskSessionRow
-          key={s.id}
-          profile={profile}
-          session={s}
-          title={displayTitle(s.id, s.id)}
-          pinned
-          renaming={renaming?.cliSessionId === s.id ? renaming : null}
-          onOpen={() =>
-            void host
-              .openDiskSession(profile.id, workspace.root, workspace.id, s.id)
-              .then((meta) => noteSessionTabTitle(meta.id, displayTitle(s.id, s.id)))
-          }
-          onContextMenu={(e) => {
-            e.preventDefault();
-            setMenu({ kind: "disk", session: s, x: e.clientX, y: e.clientY });
-          }}
-          onRenameCommit={commitRename}
-          onTogglePin={() => togglePin(s.id)}
-        />
-      ))}
+      {/* 折叠:仅段头 + 计数;展开:置顶块 + 活会话 + 磁盘历史 + 分页 */}
+      {!collapsed && (
+        <>
+          {/* 工作区置顶块(置顶时间升序,行内扎点常亮) */}
+          {renderDiskRows(pinnedDisk, true)}
 
-      {/* 活会话(完成未读置顶,呼吸灯三态) */}
-      {orderedLive.map((s) => {
-        const cliSessionId = host.getCliSessionId(s.id);
-        const title = displayTitle(cliSessionId, s.id);
-        return (
-          <LiveSessionRow
-            key={s.id}
-            session={s}
-            isActive={s.id === activeSessionId}
-            title={title}
-            pinned={
-              cliSessionId !== undefined &&
-              sessionPinKey(workspace.id, profile.id, cliSessionId) in pins
-            }
-            canPin={cliSessionId !== undefined}
-            waiting={host.isWaitingConfirm(s.id)}
-            renaming={
-              renaming && cliSessionId === renaming.cliSessionId ? renaming : null
-            }
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setMenu({ kind: "live", session: s, x: e.clientX, y: e.clientY });
-            }}
-            onTogglePin={() => {
-              if (cliSessionId !== undefined) togglePin(cliSessionId);
-            }}
-            onRenameCommit={commitRename}
-          />
-        );
-      })}
+          {/* 活会话(完成未读置顶,呼吸灯三态) */}
+          {orderedLive.map((s) => {
+            const cliSessionId = host.getCliSessionId(s.id);
+            const title = displayTitle(cliSessionId, s.id);
+            return (
+              <LiveSessionRow
+                key={s.id}
+                session={s}
+                isActive={s.id === activeSessionId}
+                title={title}
+                pinned={
+                  cliSessionId !== undefined &&
+                  sessionPinKey(workspace.id, profile.id, cliSessionId) in pins
+                }
+                canPin={cliSessionId !== undefined}
+                waiting={host.isWaitingConfirm(s.id)}
+                renaming={
+                  renaming && cliSessionId === renaming.cliSessionId
+                    ? renaming
+                    : null
+                }
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ kind: "live", session: s, x: e.clientX, y: e.clientY });
+                }}
+                onTogglePin={() => {
+                  if (cliSessionId !== undefined) togglePin(cliSessionId);
+                }}
+                onRenameCommit={commitRename}
+              />
+            );
+          })}
 
-      {/* 磁盘历史(分页;已排除工作区置顶块与全局置顶) */}
-      {visible.map((s) => (
-        <DiskSessionRow
-          key={s.id}
-          profile={profile}
-          session={s}
-          title={displayTitle(s.id, s.id)}
-          pinned={false}
-          renaming={renaming?.cliSessionId === s.id ? renaming : null}
-          onOpen={() =>
-            void host
-              .openDiskSession(profile.id, workspace.root, workspace.id, s.id)
-              .then((meta) => noteSessionTabTitle(meta.id, displayTitle(s.id, s.id)))
-          }
-          onContextMenu={(e) => {
-            e.preventDefault();
-            setMenu({ kind: "disk", session: s, x: e.clientX, y: e.clientY });
-          }}
-          onRenameCommit={commitRename}
-          onTogglePin={() => togglePin(s.id)}
-        />
-      ))}
+          {/* 磁盘历史(分页;已排除工作区置顶块与全局置顶) */}
+          {renderDiskRows(visible, false)}
 
-      {/* 分页:更多... → 翻倍(0 配额组首击从 PAGE_INITIAL 起步) */}
-      {remaining > 0 && (
-        <button
-          className="thread-more"
-          onClick={() => setLimit((l) => (l > 0 ? l * 2 : PAGE_INITIAL))}
-        >
-          更多... (还有 {remaining} 条)
-        </button>
+          {/* 分页:更多... → 翻倍(0 配额组首击从 PAGE_INITIAL 起步) */}
+          {remaining > 0 && (
+            <button
+              className="thread-more"
+              onClick={() => setLimit((l) => (l > 0 ? l * 2 : PAGE_INITIAL))}
+            >
+              更多... (还有 {remaining} 条)
+            </button>
+          )}
+        </>
       )}
 
       {/* 行右键菜单 */}
