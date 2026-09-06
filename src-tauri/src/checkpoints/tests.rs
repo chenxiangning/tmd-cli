@@ -72,6 +72,18 @@ impl TempWs {
         fs::write(full, content).unwrap();
     }
 
+    /// 显式钉文件 mtime(毫秒)。Linux ext4 落盘 mtime 走内核 coarse 时钟
+    /// (约 jiffy 粒度),自然写入的 mtime 可能早于其后锚点的 ledger ts
+    /// (SystemTime 细粒度),窗口仲裁在亚毫秒节奏的测试里失去次序。
+    fn touch(&self, name: &str, ms: i64) {
+        let f = fs::OpenOptions::new()
+            .write(true)
+            .open(self.dir.join(name))
+            .unwrap();
+        f.set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_millis(ms as u64))
+            .unwrap();
+    }
+
     fn read(&self, name: &str) -> Option<String> {
         fs::read_to_string(self.dir.join(name)).ok()
     }

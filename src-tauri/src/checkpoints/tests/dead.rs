@@ -45,11 +45,16 @@ fn 死锚点收口_按会话隔离_不吞别人窗口() {
     ws.write("a.txt", "v1\n");
     ws.commit_all("init");
 
-    // 会话 A 强退留下开放锚点;会话 B 在其后提示并写入
-    ws.anchor("dead-1", "dead-1", "被强退的一轮");
+    // 会话 A 强退留下开放锚点;会话 B 在其后提示并写入。
+    // mtime 显式钉在各自锚点 ts 之后:Linux ext4 coarse 时钟下自然 mtime
+    // 可能早于其后锚点的 ledger ts,亚毫秒节奏的 CI 上窗口会失去次序。
+    let a0 = ws.anchor("dead-1", "dead-1", "被强退的一轮");
     ws.write("a.txt", "v2\n");
-    ws.anchor("live-1", "live-1", "B 的一轮");
+    ws.touch("a.txt", a0.ts + 1);
+    std::thread::sleep(std::time::Duration::from_millis(3));
+    let b0 = ws.anchor("live-1", "live-1", "B 的一轮");
     ws.write("b.txt", "new\n");
+    ws.touch("b.txt", b0.ts + 1);
 
     // grace 0 下刚打的 live 锚点也可能超龄被一并代封(修订追加,无损失);
     // 要钉的契约是:收口不吞别人窗口,各会话批各归各的变更
