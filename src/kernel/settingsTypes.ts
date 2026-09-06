@@ -73,6 +73,11 @@ export interface SessionPinEntry {
   title: string;
 }
 
+/** 单条归档记录:仅归档时间戳(ms);归档语义见 kernel/sessionArchive.ts。 */
+export interface SessionArchiveEntry {
+  archivedAt: number;
+}
+
 /** Git 面板视图段(git 插件编辑域):差异 / 分支 / 历史。 */
 export type GitPanelView = "diff" | "branch" | "history";
 /** Git 差异文件列表布局:flat 平铺(status 原文三段分区)/ tree 目录树。 */
@@ -122,6 +127,12 @@ export interface AppSettings {
    */
   sessionPins: Record<string, SessionPinEntry>;
   /**
+   * 会话归档层:key = `${workspaceId}:${profileId}:${cliSessionId}`,value = 归档时间戳。
+   * 默认视图隐藏归档会话;「归档」视图反向只看归档项。应用侧覆盖层,不写回 CLI 磁盘
+   * (领域 API 见 kernel/sessionArchive.ts)。
+   */
+  sessionArchive: Record<string, SessionArchiveEntry>;
+  /**
    * 左侧栏各工作区会话列表折叠态:key = workspaceId,value = 是否折叠。
    * 缺失的工作区(首次出现)默认折叠;切换折叠/展开与「折叠全部」均写这里,
    * 重启后恢复上次状态。
@@ -133,6 +144,8 @@ export interface AppSettings {
    * value = 是否折叠。缺失的分类(首次出现)默认折叠;切换写这里,重启后恢复。
    */
   workspaceGroupCollapsedMap: Record<string, boolean>;
+  /** 左侧栏会话视图:false = 默认(隐藏归档),true = 归档(只看归档)。 */
+  workspaceArchiveView: boolean;
   /**
    * 网络代理(network-proxy 插件的编辑域):客户端自身联网(quota_fetch 等
    * Rust reqwest 请求、installer 的 curl/npm 子进程)与之后 spawn 的 PTY CLI
@@ -191,6 +204,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionPins: {},
   workspaceCollapsedMap: {},
   workspaceGroupCollapsedMap: {},
+  sessionArchive: {},
+  workspaceArchiveView: false,
   networkProxyEnabled: false,
   networkProxyUrl: "",
   memoryDbPath: "",

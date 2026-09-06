@@ -74,7 +74,10 @@ export function PinnedSessionsSection() {
   }).flatMap((pin) => {
     const workspace = workspaces.find((w) => w.id === pin.workspaceId);
     const profile = profiles.find((p) => p.id === pin.profileId);
-    return workspace && profile
+    // 已归档会话在默认视图全域隐藏(全局置顶区同理;归档 key 与置顶 key 同构)
+    return workspace &&
+      profile &&
+      settings.sessionArchive[pin.key] === undefined
       ? [{ key: pin.key, entry: pin.entry, cliSessionId: pin.cliSessionId, workspace, profile }]
       : [];
   });

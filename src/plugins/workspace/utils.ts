@@ -1,6 +1,9 @@
 import { shortId } from "@kernel/sessionTitles";
 import type { SessionMeta } from "@kernel/ipc";
 
+/** 0 配额组「更多...」首击的展开步长(正配额组从配额值起翻倍:quota → 2× → 4×)。 */
+export const PAGE_INITIAL = 10;
+
 /**
  * 活会话列表比较器:完成未读置顶,其余按 spawn 时间倒序。
  * 排序键必须是稳定身份(createdAt),绝不能用 lastActivityAt —— 它随每个输出

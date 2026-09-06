@@ -101,12 +101,14 @@ export function SessionStatusLabel({ sessionId }: { sessionId: string }) {
 /**
  * 磁盘会话行 —— 重命名态替换为输入行;行内扎点开关 hover 显形、已扎常亮。
  * 工作区置顶块与分页历史共用同一行形,保证视觉一致。
+ * archived:归档视图行 —— 时间轴圆点让位「归」字徽记(默认视图不渲染归档行)。
  */
 export function DiskSessionRow({
   profile,
   session,
   title,
   pinned,
+  archived,
   renaming,
   onOpen,
   onContextMenu,
@@ -118,6 +120,8 @@ export function DiskSessionRow({
   title: string;
   /** 工作区内置顶:行内扎点常亮,行加重量提示。 */
   pinned: boolean;
+  /** 归档视图标记:时间轴节点位显示「归」字。 */
+  archived?: boolean;
   renaming: RenameTarget | null;
   onOpen: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
@@ -140,7 +144,13 @@ export function DiskSessionRow({
       onClick={onOpen}
       onContextMenu={onContextMenu}
     >
-      <span className="tl-node is-idle" aria-hidden />
+      {archived ? (
+        <span className="tl-node tl-node-gui" aria-hidden>
+          归
+        </span>
+      ) : (
+        <span className="tl-node is-idle" aria-hidden />
+      )}
       <span className="thread-name is-disk">{title}</span>
       <span className="thread-meta">
         <PinToggle on={pinned} onToggle={onTogglePin} />

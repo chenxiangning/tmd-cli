@@ -11,10 +11,10 @@ import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host, useHost } from "@kernel/host";
 import { resolveCliSessionQuota, useSettingsState } from "@kernel/settings";
 import { listSessionPins } from "@kernel/sessionPins";
+import { sessionArchiveKey } from "@kernel/sessionArchive";
 import { sessionTitleKey, shortId } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
 import { compareLiveSessions } from "./utils";
-
 export function useCliSessionGroup({
   profile,
   workspace,
@@ -53,6 +53,11 @@ export function useCliSessionGroup({
   /* 命名覆盖层变化(重命名提交)需重渲行标题 */
   const titleOverrides = settings.sessionTitles;
   const pins = settings.sessionPins;
+  /** 归档覆盖层:默认视图隐藏归档会话;workspaceArchiveView=true 反向只看归档项。 */
+  const archiveMap = settings.sessionArchive;
+  const archivedView = settings.workspaceArchiveView;
+  const isArchived = (cliSessionId: string) =>
+    archiveMap[sessionArchiveKey(workspace.id, profile.id, cliSessionId)] !== undefined;
 
   const liveSessions = host
     .getSessions()
@@ -138,12 +143,16 @@ export function useCliSessionGroup({
   const orderedLive = [...liveSessions]
     .filter((s) => {
       const cliSessionId = host.getCliSessionId(s.id);
-      return cliSessionId === undefined || !pinnedOutIds.has(cliSessionId);
+      return (
+        (cliSessionId === undefined || !pinnedOutIds.has(cliSessionId)) &&
+        (cliSessionId === undefined || !isArchived(cliSessionId))
+      );
     })
     .sort((a, b) => compareLiveSessions(a, b, (id) => host.isUnread(id)));
 
-  const disk = (sessions ?? []).filter((s) => !liveCliIds.has(s.id));
-  /* 工作区置顶块:按置顶时间升序;磁盘已消失的置顶(外部删文件)自然缺席。 */
+  const disk = (sessions ?? []).filter((s) => !liveCliIds.has(s.id) && !isArchived(s.id));
+  /* 工作区置顶块:按置顶时间升序;磁盘已消失的置顶(外部删文件)自然缺席;
+   * 已归档的置顶在默认视图隐藏(disk 过滤已含 archived)。 */
   const pinnedDisk = workspacePins.flatMap((p) => {
     const entry = disk.find((d) => d.id === p.cliSessionId);
     return entry ? [entry] : [];
@@ -157,8 +166,21 @@ export function useCliSessionGroup({
   /** 折叠态计数口径:未置顶磁盘历史条数(与 visible/remaining 同源)。 */
   const unpinnedCount = unpinnedDisk.length;
 
+  /** 归档视图行集:含绑定活会话的条目(默认视图其活行已隐藏,归档视图以磁盘行形回归)。 */
+  const archivedRows = (sessions ?? [])
+    .filter((s) => isArchived(s.id))
+    .sort((a, b) => b.modifiedAt - a.modifiedAt);
+  const archivedVisible = archivedRows.slice(0, limit);
+
   return {
-    unpinnedCount,
+    archivedView,
+    /** 视图感知的空组判定:默认看活+磁盘,归档视图只看归档行集(sessions=null 视为加载中不算空)。 */
+    isEmpty:
+      sessions !== null &&
+      (archivedView
+        ? archivedRows.length === 0
+        : orderedLive.length === 0 && disk.length === 0),
+    unpinnedCount: archivedView ? archivedRows.length : unpinnedCount,
     sessions,
     limit,
     setLimit,
@@ -166,11 +188,11 @@ export function useCliSessionGroup({
     titleOverrides,
     pins,
     activeSessionId,
-    orderedLive,
+    orderedLive: archivedView ? [] : orderedLive,
     disk,
-    pinnedDisk,
-    visible,
-    remaining,
+    pinnedDisk: archivedView ? [] : pinnedDisk,
+    visible: archivedView ? archivedVisible : visible,
+    remaining: archivedView ? archivedRows.length - archivedVisible.length : remaining,
     realTitle,
     displayTitle,
   };

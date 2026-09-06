@@ -20,6 +20,7 @@ import {
   type MemoryDistillEngine,
   type SendShortcut,
   type SessionListBudget,
+  type SessionArchiveEntry,
   type SessionPinEntry,
   type SessionPinScope,
   type ThemePreference,
@@ -72,6 +73,26 @@ function sanitizeSessionPins(raw: unknown): Record<string, SessionPinEntry> {
   }
   return pins;
 }
+
+/**
+ * 归档层清洗:只收有限非负时间戳的项,按 key 序限量纳入(与置顶同款确定性兜底)。
+ */
+function sanitizeSessionArchive(raw: unknown): Record<string, SessionArchiveEntry> {
+  const archive: Record<string, SessionArchiveEntry> = {};
+  if (!raw || typeof raw !== "object") return archive;
+  const entries = raw as Record<string, unknown>;
+  for (const key of Object.keys(entries).sort()) {
+    if (Object.keys(archive).length >= SESSION_PINS_MAX_ENTRIES) break;
+    const value = entries[key];
+    if (!key || !value || typeof value !== "object") continue;
+    const entry = value as Record<string, unknown>;
+    const archivedAt = typeof entry.archivedAt === "number" ? entry.archivedAt : Number.NaN;
+    if (!Number.isFinite(archivedAt) || archivedAt < 0) continue;
+    archive[key] = { archivedAt: Math.floor(archivedAt) };
+  }
+  return archive;
+}
+
 
 /** 工作区折叠态清洗:只收 boolean 值,按 key 序限量纳入(与置顶同款确定性兜底)。 */
 function sanitizeWorkspaceCollapsedMap(raw: unknown): Record<string, boolean> {
@@ -219,6 +240,11 @@ export function sanitize(raw: unknown): AppSettings {
     disabledPlugins: sanitizeDisabledPlugins(obj.disabledPlugins),
     sessionTitles: sanitizeSessionTitles(obj.sessionTitles),
     sessionPins: sanitizeSessionPins(obj.sessionPins),
+    sessionArchive: sanitizeSessionArchive(obj.sessionArchive),
+    workspaceArchiveView:
+      typeof obj.workspaceArchiveView === "boolean"
+        ? obj.workspaceArchiveView
+        : DEFAULT_SETTINGS.workspaceArchiveView,
     workspaceCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceCollapsedMap),
     // 同形 Record<string, boolean>,清洗语义与工作区折叠键完全一致
     workspaceGroupCollapsedMap: sanitizeWorkspaceCollapsedMap(

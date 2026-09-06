@@ -42,7 +42,10 @@ function WorkspaceSection() {
   const [refreshTicks, setRefreshTicks] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
   /** 各工作区折叠态(持久化):读写全局 settings.workspaceCollapsedMap,重启恢复。 */
-  const collapsedMap = useSettingsState().settings.workspaceCollapsedMap;
+  const { settings } = useSettingsState();
+  const collapsedMap = settings.workspaceCollapsedMap;
+  /** 会话视图:默认(隐藏归档)/ 归档(只看归档),持久化。 */
+  const archivedView = settings.workspaceArchiveView;
   const isCollapsed = (id: string) => collapsedMap[id] ?? true;
   const allCollapsed = list.length > 0 && list.every((ws) => isCollapsed(ws.id));
   const setAllCollapsed = (v: boolean) =>
@@ -100,6 +103,27 @@ function WorkspaceSection() {
       <div className="ws-caption">
         <span>工作区</span>
         <span className="ws-caption-actions">
+          {/* 会话视图切换:默认/归档;workspace 插件内各分组经 settings 响应式过滤 */}
+          <div className="ws-view-toggle" role="radiogroup" aria-label="会话视图">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!archivedView}
+              className={!archivedView ? "is-on" : ""}
+              onClick={() => updateSettings({ workspaceArchiveView: false })}
+            >
+              默认
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={archivedView}
+              className={archivedView ? "is-on" : ""}
+              onClick={() => updateSettings({ workspaceArchiveView: true })}
+            >
+              归档
+            </button>
+          </div>
           <button
             className="ws-caption-btn"
             title={allCollapsed ? "展开全部工作区会话" : "折叠全部工作区会话"}

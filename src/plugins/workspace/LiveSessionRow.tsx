@@ -2,13 +2,12 @@
  * 活会话行 —— 自 SessionList.tsx 拆出(文件规模铁则)。
  *
  * 固定在 CLI 分组顶部(工作区置顶块之上);重命名态替换为输入行。
- * 另含右键菜单目标类型与磁盘会话物理删除助手(profile 声明 deleteSession
- * 的单库 CLI 走代写钩子,否则照旧删文件/目录)。
+ * 磁盘会话物理删除助手已拆至 sessionOps.ts(普通视图与管理模式共用)。
  */
 
-import type { CliDiskSession, CliProfile } from "@kernel/cli";
+import type { CliDiskSession } from "@kernel/cli";
 import { host } from "@kernel/host";
-import { ipc, type SessionMeta } from "@kernel/ipc";
+import type { SessionMeta } from "@kernel/ipc";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { PinToggle, SessionNode, SessionStatusLabel } from "./SessionRows";
@@ -18,18 +17,6 @@ export type MenuTarget =
   | { kind: "live"; session: SessionMeta; x: number; y: number }
   | { kind: "disk"; session: CliDiskSession; x: number; y: number };
 
-/** 物理删除一个磁盘会话:profile 声明 deleteSession(单库 CLI,合成路径不可
- *  fsRemovePath)走代写钩子并让错误冒泡给调用方提示;否则照旧删文件/目录。 */
-export async function removeDiskSession(
-  profile: CliProfile,
-  session: CliDiskSession,
-): Promise<void> {
-  if (profile.deleteSession) {
-    await profile.deleteSession(session.id);
-    return;
-  }
-  await ipc.fsRemovePath(session.path).catch(() => undefined);
-}
 
 export function LiveSessionRow({
   session,

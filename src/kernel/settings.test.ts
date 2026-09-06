@@ -52,6 +52,8 @@ describe("初始状态与默认值", () => {
       disabledPlugins: [],
       sessionTitles: {},
       sessionPins: {},
+      sessionArchive: {},
+      workspaceArchiveView: false,
       workspaceCollapsedMap: {},
       workspaceGroupCollapsedMap: {},
       networkProxyEnabled: false,

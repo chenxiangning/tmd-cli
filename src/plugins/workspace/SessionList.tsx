@@ -36,26 +36,18 @@ import {
   unpinSession,
 } from "@kernel/sessionPins";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
-import {
-  removeSessionTitle,
-  sessionTitleKey,
-  setSessionTitle,
-} from "@kernel/sessionTitles";
+import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
 import { SessionContextMenu } from "./SessionContextMenu";
 import type { RenameTarget } from "@kernel/RenameInput";
 import { DiskSessionRow } from "./SessionRows";
-import {
-  LiveSessionRow,
-  removeDiskSession,
-  type MenuTarget,
-} from "./LiveSessionRow";
+import { LiveSessionRow, type MenuTarget } from "./LiveSessionRow";
+import { deleteDiskSessionFull, deleteLiveSessionFull } from "./sessionOps";
+import { ManageList } from "./SessionManage";
 import { useCliSessionGroup } from "./useCliSessionGroup";
 import { GroupHeader } from "./GroupHeader";
 import { useGroupCollapsed } from "./useGroupCollapsed";
-
-/** 0 配额组「更多...」首击的展开步长(正配额组从配额值起翻倍:quota → 2× → 4×)。 */
-const PAGE_INITIAL = 10;
+import { PAGE_INITIAL } from "./utils";
 
 /**
  * 单个 CLI 的会话分组 —— 工作区置顶块 + 活会话 + 磁盘历史分页。
@@ -75,6 +67,8 @@ export function CliSessionGroup({
   onScanned: () => void;
 }) {
   const {
+    archivedView,
+    isEmpty,
     sessions,
     setLimit,
     setRescanTick,
@@ -82,7 +76,6 @@ export function CliSessionGroup({
     pins,
     activeSessionId,
     orderedLive,
-    disk,
     pinnedDisk,
     visible,
     remaining,
@@ -93,6 +86,8 @@ export function CliSessionGroup({
   const { collapsed, toggle } = useGroupCollapsed(workspace.id, profile.id);
   const [menu, setMenu] = useState<MenuTarget | null>(null);
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
+  /** 会话管理模式(per-group):GroupHeader 开关进入,行内复选框 + 批量操作。 */
+  const [manage, setManage] = useState(false);
 
   const copyText = (text: string) => {
     void navigator.clipboard?.writeText(text).catch(() => undefined);
@@ -106,28 +101,14 @@ export function CliSessionGroup({
     setRenaming(null);
   };
 
-  /** 删除活会话:物理删除已绑定磁盘会话(双端统一) + kill PTY + 清命名/置顶覆盖。
-   *  单库 CLI(opencode)声明 deleteSession 钩子走代写原语,其余照旧删文件。 */
-  const deleteLive = async (session: SessionMeta) => {
-    const cliSessionId = host.getCliSessionId(session.id);
-    const entry = cliSessionId
-      ? (sessions ?? []).find((s) => s.id === cliSessionId)
-      : undefined;
-    if (entry) await removeDiskSession(profile, entry);
-    if (cliSessionId) {
-      removeSessionTitle(profile.id, cliSessionId);
-      unpinSession(sessionPinKey(workspace.id, profile.id, cliSessionId));
-    }
-    await host.removeSession(session.id);
-  };
-
-  /** 删除磁盘会话:物理删除会话(kimi 是目录,opencode 是库内行)+ 清命名/置顶覆盖 + 本地重扫。 */
-  const deleteDisk = async (session: CliDiskSession) => {
-    await removeDiskSession(profile, session);
-    removeSessionTitle(profile.id, session.id);
-    unpinSession(sessionPinKey(workspace.id, profile.id, session.id));
-    setRescanTick((t) => t + 1);
-  };
+  /** 删除入口:物理删除 + 清命名/置顶覆盖层(语义见 sessionOps);
+   *  磁盘删除再触发本地重扫(活删除经 removeSession 的 liveCount 变化自然重扫)。 */
+  const deleteLive = (session: SessionMeta) =>
+    deleteLiveSessionFull(profile, session, workspace.id, sessions ?? []);
+  const deleteDisk = (session: CliDiskSession) =>
+    deleteDiskSessionFull(profile, session, workspace.id).then(() =>
+      setRescanTick((t) => t + 1),
+    );
 
   const startRename = (cliSessionId: string, current: string) => {
     setRenaming({ profileId: profile.id, cliSessionId, current });
@@ -164,6 +145,7 @@ export function CliSessionGroup({
         session={s}
         title={displayTitle(s.id, s.id)}
         pinned={pinned}
+        archived={archivedView}
         renaming={renaming?.cliSessionId === s.id ? renaming : null}
         onOpen={() =>
           void host
@@ -181,26 +163,46 @@ export function CliSessionGroup({
       />
     ));
 
-  // 整组为空(无活会话且磁盘历史加载完也为空)则不占位
-  if (orderedLive.length === 0 && sessions !== null && disk.length === 0) {
-    return null;
-  }
+  // 整组为空则不占位(默认视图:无活会话且磁盘历史加载完也为空;归档视图:无归档项);
+  // 历史加载中(orderedLive 空且 sessions===null)同样不占位
+  if (isEmpty) return null;
   if (orderedLive.length === 0 && sessions === null) return null;
 
   return (
     <div className="cli-group">
-      {/* 分类段头 = 折叠开关;计数仅折叠态显示(展开后可见总数:活 + 工作区置顶 + 未置顶磁盘) */}
+      {/* 分类段头 = 折叠开关;计数仅折叠态显示(展开后可见总数:活 + 工作区置顶 + 未置顶磁盘);
+       *  管理开关仅 CLI 组展开态注入(hover 显形,激活常亮)。 */}
       <GroupHeader
         label={profile.name}
         icon={profile.renderIcon ? profile.renderIcon(12) : undefined}
         count={orderedLive.length + pinnedDisk.length + unpinnedCount}
         collapsed={collapsed}
         onToggle={toggle}
+        manage={
+          collapsed ? undefined : { active: manage, onToggle: () => setManage((v) => !v) }
+        }
       />
 
-      {/* 折叠:仅段头 + 计数;展开:置顶块 + 活会话 + 磁盘历史 + 分页 */}
-      {!collapsed && (
-        <>
+      {/* 折叠:仅段头 + 计数;展开:管理模式(批量面)或普通时间轴。
+       *  key 随视图切换重建,管理行选中态不跨视图携带。 */}
+      {!collapsed &&
+        (manage ? (
+          <ManageList
+            key={archivedView ? "archived" : "default"}
+            profile={profile}
+            workspace={workspace}
+            orderedLive={orderedLive}
+            pinnedDisk={pinnedDisk}
+            visible={visible}
+            remaining={remaining}
+            setLimit={setLimit}
+            activeSessionId={activeSessionId}
+            displayTitle={displayTitle}
+            onDeleteLive={deleteLive}
+            onDeleteDisk={deleteDisk}
+          />
+        ) : (
+          <>
           {/* 工作区置顶块(置顶时间升序,行内扎点常亮) */}
           {renderDiskRows(pinnedDisk, true)}
 
@@ -249,8 +251,9 @@ export function CliSessionGroup({
               更多... (还有 {remaining} 条)
             </button>
           )}
-        </>
-      )}
+          </>
+        ))}
+
 
       {/* 行右键菜单 */}
       {menu && (
