@@ -149,6 +149,9 @@ pub(crate) fn spawn(
         .master
         .try_clone_reader()
         .map_err(|e| format!("clone reader 失败: {e}"))?;
+    /* mut 仅 Windows ConPTY CPR 应答(下方 cfg(windows))用;非 Windows 构建
+    writer 只读移交 PtyHandle 的 Mutex,mut 成假需求 —— 按目标平台消警。 */
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut writer = pair
         .master
         .take_writer()
