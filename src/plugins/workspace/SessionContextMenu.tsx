@@ -9,9 +9,10 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Copy, Pencil, PushPinSimple, Trash } from "@phosphor-icons/react";
+import { Copy, Pencil, Trash } from "@phosphor-icons/react";
 import type { SessionPinScope } from "@kernel/sessionPins";
 import { clampMenuPosition } from "./SessionMenu";
+import { PinIcon } from "./SessionRows";
 
 export function SessionContextMenu({
   position,
@@ -58,7 +59,7 @@ export function SessionContextMenu({
       }}
     >
       <span className="wsmenu-item-icon">
-        <PushPinSimple size={13} />
+        <PinIcon size={13} />
       </span>
       <span className="wsmenu-item-label">
         {pinScope === scope ? `✓ ${label}` : label}

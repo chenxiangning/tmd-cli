@@ -31,11 +31,11 @@ import {
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle, shortId } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
-import { CaretDown, CaretRight, Eye, PushPinSimple } from "@phosphor-icons/react";
+import { CaretDown, CaretRight, Eye } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
 import { realPinSnapshot } from "./utils";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
-import { PinToggle, SessionStatusLabel } from "./SessionRows";
+import { PinIcon, PinToggle, SessionStatusLabel } from "./SessionRows";
 
 /** 段折叠态存储 key(纯 UI 态,localStorage 即可,浏览器/Tauri 行为一致)。 */
 const COLLAPSED_KEY = "tmd.pinnedSectionCollapsed";
@@ -197,7 +197,7 @@ export function PinnedSessionsSection() {
         title={collapsed ? "展开已置顶" : "收起已置顶"}
         onClick={toggleCollapsed}
       >
-        <PushPinSimple size={11} className="pinned-sessions-header-icon" aria-hidden />
+        <PinIcon size={11} className="pinned-sessions-header-icon" />
         <span className="pinned-sessions-header-label">已置顶</span>
         <span className="pinned-sessions-header-count">· {rows.length}</span>
         {collapsed ? (

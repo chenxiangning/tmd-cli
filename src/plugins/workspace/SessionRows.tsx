@@ -10,9 +10,31 @@ import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { host, useHost } from "@kernel/host";
-import { Eye, PushPinSimple } from "@phosphor-icons/react";
+import { Eye } from "@phosphor-icons/react";
 import { resolveSessionStatus, type SessionStatus } from "./utils";
 
+
+/** lucide Pin v1.39.0(ISC)内联 —— 图标底座已统一 phosphor,扎点维持 lucide 造型,不为此回加依赖。 */
+export function PinIcon({ size, className }: { size: number; className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M12 17v5" />
+      <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+    </svg>
+  );
+}
 
 /* 共享 1Hz ticker:N 个状态件共用一个 interval(替代每件一表),0 订阅时停表。 */
 const tickSubscribers = new Set<() => void>();
@@ -200,7 +222,7 @@ export function PinToggle({
         }
       }}
     >
-      <PushPinSimple size={12} className="thread-pin-icon" aria-hidden />
+      <PinIcon size={12} className="thread-pin-icon" />
     </span>
   );
 }

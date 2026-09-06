@@ -76,7 +76,7 @@
   color: var(--text-muted);
 }
 
-/* 已扎:实心 pin,与未扎的轮廓态一眼可辨 */
+/* 已扎:实心 pin,与未扎的轮廓态一眼可辨(lucide Pin 为 stroke 型,fill 即实体) */
 .thread-pin-btn.is-on .thread-pin-icon {
   fill: currentColor;
 }
