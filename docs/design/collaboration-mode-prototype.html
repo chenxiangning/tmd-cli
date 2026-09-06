@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tmd-cli · 协作模式全旅程</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════
+   tmd-cli Collaboration — Full Journey (6 States)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+:root[data-theme="dark"] {
+  --bg0: #0d1117; --bg1: #161b22; --bg2: #1c2128; --bg3: #21262d; --bg4: #30363d;
+  --fg0: #f0f6fc; --fg1: #c9d1d9; --fg2: #8b949e; --fg3: #6e7681; --fg4: #484f58;
+  --accent: #58a6ff; --accent-dim: rgba(88,166,255,0.12); --accent-glow: rgba(88,166,255,0.3);
+  --success: #3fb950; --success-dim: rgba(63,185,80,0.12); --success-glow: rgba(63,185,80,0.25);
+  --warn: #d29922; --warn-dim: rgba(210,153,34,0.12);
+  --danger: #f85149; --danger-dim: rgba(248,81,73,0.12);
+  --terminal-bg: #0d1117; --terminal-fg: #c9d1d9;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3); --shadow: 0 4px 12px rgba(0,0,0,0.4); --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  --font: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono: 'SF Mono',Monaco,Inconsolata,'Fira Code','Courier New',monospace;
+  --ease: cubic-bezier(.16,1,.3,1); --ease-bounce: cubic-bezier(.34,1.56,.64,1);
+}
+
+* { box-sizing:border-box; margin:0; padding:0 }
+html,body { height:100%; font-family:var(--font); font-size:13px; line-height:1.5; color:var(--fg1); background:var(--bg0); overflow:hidden }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Journey Switcher (Fixed Top-Right)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.journey {
+  position:fixed; top:10px; right:10px; z-index:1000;
+  background:rgba(13,17,23,0.95); border:1px solid var(--bg4); border-radius:10px;
+  padding:6px 8px; display:flex; flex-wrap:wrap; gap:3px; align-items:center;
+  font-size:11px; max-width:520px; justify-content:flex-end;
+  backdrop-filter:blur(8px);
+}
+.journey .label { color:var(--fg3); margin-right:4px; font-weight:600; width:100%; text-align:right; margin-bottom:2px }
+.journey button {
+  padding:4px 10px; border-radius:5px; border:1px solid var(--bg4);
+  background:transparent; color:var(--fg3); cursor:pointer; font-size:11px; transition:.12s;
+}
+.journey button:hover { background:var(--bg3); color:var(--fg1) }
+.journey button.active { background:var(--accent); color:#fff; border-color:var(--accent) }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   State Containers
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.state { display:none; flex-direction:column; height:100vh }
+.state.on { display:flex }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Shared Top Bar
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.topbar {
+  height:40px; background:var(--bg1); border-bottom:1px solid var(--bg4);
+  display:flex; align-items:center; padding:0 18px; gap:12px; flex-shrink:0;
+}
+.app-logo { font-weight:700; font-size:13px; letter-spacing:0.3px; color:var(--fg0) }
+.app-logo span { color:var(--accent) }
+.breadcrumb { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--fg2) }
+.bc-sep { color:var(--fg4) }
+.bc-active { color:var(--accent); font-weight:500 }
+.status { margin-left:auto; display:flex; align-items:center; gap:8px }
+.badge { display:flex; align-items:center; gap:6px; padding:4px 12px; border-radius:8px; background:var(--bg2); border:1px solid var(--bg4); font-size:11px; font-weight:500 }
+.badge .dot { width:7px; height:7px; border-radius:50%; background:var(--fg4) }
+.badge.live .dot { background:var(--accent); box-shadow:0 0 8px var(--accent); animation:pulse-dot 1.5s ease-in-out infinite }
+.badge.done .dot { background:var(--success) }
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+.tbtn { padding:5px 10px; border-radius:6px; border:none; background:transparent; color:var(--fg2); font-size:12px; cursor:pointer; transition:.12s }
+.tbtn:hover { background:var(--bg3); color:var(--fg1) }
+.tbtn.danger:hover { color:var(--danger); border-color:var(--danger) }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   STATE ① — Normal Session (Collaboration OFF)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.body-normal { flex:1; display:flex; flex-direction:column; min-height:0 }
+.canvas-normal {
+  flex:1; min-height:0; background:var(--terminal-bg); color:var(--terminal-fg);
+  font:12.5px/1.6 var(--mono); padding:14px 18px; overflow:auto;
+}
+.canvas-normal .sys { color:var(--fg3) }
+.canvas-normal .msg { color:var(--fg1) }
+.canvas-normal .msg .from { color:var(--fg3); margin-right:8px }
+.canvas-normal .prompt { color:var(--accent) }
+.canvas-normal .caret { display:inline-block; width:7px; height:14px; background:var(--accent); vertical-align:-2px; animation:blink 1s steps(2) infinite; margin-left:2px }
+@keyframes blink { 50%{opacity:0} }
+
+.composer-normal {
+  border-top:1px solid var(--bg4); background:var(--bg1); flex-shrink:0;
+}
+.comp-toolbar {
+  height:32px; display:flex; align-items:center; gap:10px;
+  padding:0 14px; border-bottom:1px solid var(--bg4); font-size:11px; color:var(--fg3);
+}
+.comp-toolbar .pill {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:3px 10px; border-radius:10px; background:var(--bg3); color:var(--fg3);
+  font-size:10px; font-weight:600; border:1px solid var(--bg4); cursor:pointer; position:relative;
+}
+.comp-toolbar .pill:hover { border-color:var(--bg4); color:var(--fg1) }
+.comp-toolbar .pill.on {
+  background:var(--accent-dim); color:var(--accent); border-color:rgba(88,166,255,0.3);
+}
+.comp-toolbar .pill.on::before { content:"⚡ " }
+.comp-toolbar .spacer { flex:1 }
+.comp-input {
+  min-height:56px; padding:10px 14px; font-size:13px; color:var(--fg2);
+}
+.comp-input .placeholder { color:var(--fg4) }
+
+/* Collab switch hint */
+.collab-hint {
+  position:absolute; bottom:38px; left:14px;
+  background:var(--bg2); border:1px solid var(--bg4); border-radius:8px;
+  padding:8px 12px; font-size:11px; color:var(--fg2); box-shadow:var(--shadow-lg);
+  width:220px; line-height:1.6; opacity:0; pointer-events:none; transform:translateY(6px); transition:all .2s;
+}
+.collab-hint.on { opacity:1; transform:none; pointer-events:auto }
+.collab-hint b { color:var(--accent) }
+.collab-hint kbd {
+  display:inline-block; padding:1px 5px; border-radius:3px;
+  background:var(--bg3); border:1px solid var(--bg4); font:600 10px var(--mono); margin:0 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   STATE ② — Template Picker (Popover over normal session)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.body-picker { flex:1; display:grid; grid-template-columns:1fr 400px; min-height:0 }
+.canvas-picker {
+  background:var(--terminal-bg); color:var(--terminal-fg);
+  font:12.5px/1.6 var(--mono); padding:14px 18px; overflow:auto;
+}
+.popover-panel {
+  background:var(--bg1); border-left:1px solid var(--bg4);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.popover-head {
+  padding:14px 16px; border-bottom:1px solid var(--bg4);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.popover-title { font-weight:600; font-size:14px; color:var(--fg0) }
+.popover-manage { font-size:12px; color:var(--accent); background:none; border:none; cursor:pointer; font-weight:500 }
+.popover-list { flex:1; overflow-y:auto; padding:8px }
+.tpl-card {
+  padding:12px 14px; border:1px solid var(--bg4); border-radius:10px;
+  margin-bottom:8px; cursor:pointer; transition:.15s; background:var(--bg2);
+}
+.tpl-card:hover { background:var(--bg3); border-color:var(--bg4) }
+.tpl-card.on { border-color:var(--accent); background:var(--accent-dim) }
+.tpl-card .row1 { display:flex; align-items:center; gap:8px; margin-bottom:6px }
+.tpl-card .name { font-weight:600; font-size:13px; flex:1; color:var(--fg0) }
+.tpl-card .tag {
+  font-size:9px; padding:2px 6px; border-radius:4px;
+  background:var(--bg3); color:var(--fg3); text-transform:uppercase; font-weight:600;
+}
+.tpl-card .tag.custom { color:var(--accent); background:var(--accent-dim) }
+.tpl-card .flow { font-size:11.5px; color:var(--fg2); margin-bottom:6px }
+.tpl-card .flow b { color:var(--fg1); font-weight:500 }
+.tpl-card .meta { display:flex; gap:6px; font-size:10px; color:var(--fg3) }
+.tpl-card .meta .chip { padding:2px 7px; border-radius:5px; background:var(--bg3); color:var(--fg2) }
+.tpl-card .meta .status { margin-left:auto; padding:2px 7px; border-radius:8px; font-weight:600; font-size:10px }
+.tpl-card .meta .status.ok { background:var(--success-dim); color:var(--success) }
+.tpl-card .meta .status.warn { background:var(--warn-dim); color:var(--warn) }
+
+.popover-foot {
+  padding:12px 16px; border-top:1px solid var(--bg4);
+  display:flex; gap:8px;
+}
+.popover-foot button {
+  flex:1; height:32px; border-radius:7px; border:1px solid var(--bg4);
+  background:transparent; color:var(--fg2); cursor:pointer; font-size:12px;
+}
+.popover-foot button:hover { background:var(--bg3); color:var(--fg1) }
+.popover-foot button.primary {
+  background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600;
+}
+.popover-foot button.primary:hover { opacity:.9 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   STATE ③ — Fishbone DAG Running
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.body-fishbone { display:flex; flex:1; min-height:0 }
+
+.mindmap-wrap { flex:1; position:relative; overflow:hidden; background:var(--bg0); cursor:grab }
+.mindmap-wrap.dragging { cursor:grabbing }
+.mindmap-wrap::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background-image: linear-gradient(to right, var(--bg4) 1px, transparent 1px), linear-gradient(to bottom, var(--bg4) 1px, transparent 1px);
+  background-size:40px 40px; opacity:.1;
+}
+#mindmapSvg { width:100%; height:100%; display:block; position:relative; z-index:1 }
+
+/* Links */
+.spine-link { fill:none; stroke-linecap:round; transition:stroke .5s var(--ease) }
+.spine-link.active { stroke:var(--accent); stroke-width:4; stroke-dasharray:10 6; animation:flow 1.2s linear infinite; filter:drop-shadow(0 0 6px var(--accent-glow)) }
+.spine-link.done { stroke:var(--success); stroke-width:3.5; filter:drop-shadow(0 0 5px var(--success-glow)) }
+.spine-link.wait { stroke:var(--bg4); stroke-width:3; stroke-dasharray:6 5 }
+.rib-link { fill:none; stroke-linecap:round; transition:stroke .5s var(--ease) }
+.rib-link.active { stroke:var(--accent); stroke-width:2; stroke-dasharray:6 4; animation:flow 1.5s linear infinite; opacity:.85 }
+.rib-link.done { stroke:var(--success); stroke-width:1.5; opacity:.65 }
+.rib-link.wait { stroke:var(--bg4); stroke-width:1.2; stroke-dasharray:4 4; opacity:.35 }
+@keyframes flow { to { stroke-dashoffset:-32 } }
+.flow-particle { fill:var(--accent); filter:drop-shadow(0 0 4px var(--accent)) }
+.ghost-spine { fill:none; stroke:var(--bg4); stroke-width:2; stroke-dasharray:6 6; opacity:.25 }
+.rib-joint { fill:var(--bg4); transition:fill .3s }
+.rib-joint.active { fill:var(--accent) }
+.rib-joint.done { fill:var(--success) }
+
+/* Nodes */
+.mind-node { cursor:pointer; opacity:0; animation:node-in .5s var(--ease-bounce) forwards }
+@keyframes node-in { from{opacity:0;transform:scale(.8)} to{opacity:1;transform:scale(1)} }
+.node-spine.root { fill:var(--accent); filter:drop-shadow(0 0 28px var(--accent-glow)); animation:breathe 3s ease-in-out infinite }
+@keyframes breathe { 0%,100%{filter:drop-shadow(0 0 20px var(--accent-glow))} 50%{filter:drop-shadow(0 0 44px var(--accent-glow))} }
+.node-spine.stage-active { fill:var(--bg2); stroke:var(--accent); stroke-width:2.5; filter:drop-shadow(0 0 18px var(--accent-glow)); animation:pulse-active 2s ease-in-out infinite }
+@keyframes pulse-active { 0%,100%{filter:drop-shadow(0 0 12px var(--accent-glow))} 50%{filter:drop-shadow(0 0 28px var(--accent-glow))} }
+.node-spine.stage-done { fill:var(--bg2); stroke:var(--success); stroke-width:2; filter:drop-shadow(0 0 12px var(--success-glow)) }
+.node-spine.stage-wait { fill:var(--bg2); stroke:var(--bg4); stroke-width:1.5 }
+.node-spine.stage-fail { fill:var(--bg2); stroke:var(--danger); stroke-width:2.5 }
+.node-rib.active { fill:var(--bg2); stroke:var(--accent); stroke-width:1.5; filter:drop-shadow(0 0 10px var(--accent-glow)) }
+.node-rib.done { fill:var(--bg2); stroke:var(--success); stroke-width:1.2; filter:drop-shadow(0 0 7px var(--success-glow)) }
+.node-rib.wait { fill:var(--bg2); stroke:var(--bg4); stroke-width:1 }
+.node-text { fill:var(--fg0); font-family:var(--font); font-weight:600; text-anchor:middle; dominant-baseline:central; pointer-events:none }
+.node-text.sub { fill:var(--fg2); font-size:11px; font-weight:400 }
+.accent-bar { transition:fill .4s }
+.accent-bar.active { fill:var(--accent) }
+.accent-bar.done { fill:var(--success) }
+.accent-bar.wait { fill:var(--bg4) }
+.progress-ring { fill:none; stroke-width:2.5; stroke-linecap:round }
+.progress-ring.bg { stroke:var(--bg4); opacity:.3 }
+.progress-ring.fg { stroke:var(--accent); transition:stroke-dashoffset .6s var(--ease) }
+.progress-ring.fg.done { stroke:var(--success) }
+.agent-dot { transition:r .25s }
+.mind-node:hover .agent-dot { r:7 }
+.toggle-btn { cursor:pointer; fill:var(--bg2); stroke:var(--bg4); stroke-width:1.5; transition:.2s }
+.toggle-btn:hover { stroke:var(--fg2); fill:var(--bg3) }
+.toggle-icon { fill:var(--fg3); font-size:10px; text-anchor:middle; dominant-baseline:central; pointer-events:none }
+.sel-ring { fill:none; stroke:var(--accent); stroke-width:1.5; stroke-dasharray:4 3; opacity:0; transition:opacity .3s }
+.mind-node:hover .sel-ring, .mind-node.selected .sel-ring { opacity:.6 }
+
+/* Canvas controls */
+.canvas-tools {
+  position:absolute; right:16px; bottom:16px; display:flex; align-items:center; gap:4px;
+  padding:4px; border-radius:10px; background:var(--bg1); border:1px solid var(--bg4);
+  box-shadow:var(--shadow); z-index:10
+}
+.tool-btn { width:32px; height:32px; border-radius:7px; border:none; background:transparent; color:var(--fg3); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; transition:.15s }
+.tool-btn:hover { background:var(--bg3); color:var(--fg1) }
+.tool-zoom { font-size:11px; color:var(--fg3); min-width:44px; text-align:center; font-variant-numeric:tabular-nums }
+.canvas-hint {
+  position:absolute; left:16px; bottom:16px; padding:8px 14px; border-radius:8px;
+  background:var(--bg1); border:1px solid var(--bg4); color:var(--fg3); font-size:11px;
+  box-shadow:var(--shadow); z-index:10; opacity:.5; transition:opacity .3s
+}
+.canvas-hint:hover { opacity:1 }
+.canvas-hint kbd { display:inline-block; padding:1px 5px; border-radius:3px; background:var(--bg3); border:1px solid var(--bg4); font:600 10px var(--mono); margin:0 2px }
+
+/* Timeline Arrow Navigator (below topbar, above canvas) */
+.timeline-nav {
+  position:absolute; top:52px; left:50%; transform:translateX(-50%);
+  display:flex; align-items:center; gap:2px;
+  padding:6px 16px; border-radius:10px;
+  background:var(--bg1); border:1px solid var(--bg4);
+  box-shadow:var(--shadow); z-index:10;
+}
+.tl-step {
+  display:flex; align-items:center; gap:6px; padding:5px 12px; border-radius:7px;
+  font-size:11.5px; color:var(--fg3); cursor:pointer; transition:.15s; white-space:nowrap;
+}
+.tl-step:hover { background:var(--bg3); color:var(--fg1) }
+.tl-step.on { background:var(--accent-dim); color:var(--accent); font-weight:500 }
+.tl-step.done { color:var(--success) }
+.tl-step .num {
+  width:18px; height:18px; border-radius:50%; font-size:9px; font-weight:700;
+  display:flex; align-items:center; justify-content:center; background:var(--bg3); color:var(--fg3);
+}
+.tl-step.on .num { background:var(--accent); color:#fff }
+.tl-step.done .num { background:var(--success); color:#fff }
+.tl-arrow { color:var(--bg4); font-size:11px; padding:0 2px }
+
+/* Tooltip */
+.node-tooltip {
+  position:absolute; padding:8px 12px; border-radius:8px;
+  background:var(--bg1); border:1px solid var(--bg4); color:var(--fg1);
+  font-size:11px; box-shadow:var(--shadow-lg); pointer-events:none;
+  opacity:0; transform:translateY(4px); transition:all .2s var(--ease);
+  z-index:100; max-width:220px;
+}
+.node-tooltip.on { opacity:1; transform:translateY(0) }
+.node-tooltip .tt-title { font-weight:600; margin-bottom:3px }
+.node-tooltip .tt-meta { color:var(--fg3); font-size:10px }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Inspector (Right Panel) — used in State ③
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.inspector { width:360px; background:var(--bg1); border-left:1px solid var(--bg4); display:flex; flex-direction:column; flex-shrink:0 }
+.insp-head { padding:18px; border-bottom:1px solid var(--bg4); background:rgba(0,0,0,0.15) }
+.insp-kicker { font-size:10px; font-weight:600; color:var(--fg4); text-transform:uppercase; letter-spacing:.08em }
+.insp-title { margin-top:8px; font-size:22px; font-weight:700; color:var(--fg0); letter-spacing:-.02em }
+.insp-sub { margin-top:6px; font-size:12px; color:var(--fg3); display:flex; align-items:center; gap:8px }
+.insp-sub .agent-dot-insp { width:8px; height:8px; border-radius:50%; display:inline-block }
+.insp-body { flex:1; overflow:auto; padding:0 16px 16px }
+.insp-body::-webkit-scrollbar { width:6px }
+.insp-body::-webkit-scrollbar-thumb { background:var(--bg4); border-radius:3px }
+
+.sect { padding:16px 0; border-top:1px solid var(--bg4) }
+.sect:first-child { border-top:none }
+.sect-label { font-size:10px; font-weight:600; color:var(--fg4); text-transform:uppercase; letter-spacing:.06em; margin-bottom:12px }
+.pill-row { display:flex; gap:6px; flex-wrap:wrap }
+.pill { padding:4px 12px; border-radius:6px; font-size:11px; font-weight:500 }
+.pill.accent { color:var(--accent); background:var(--accent-dim); border:1px solid rgba(88,166,255,0.15) }
+.pill.success { color:var(--success); background:var(--success-dim); border:1px solid rgba(63,185,80,0.15) }
+.pill.wait { color:var(--fg3); background:var(--bg2); border:1px solid var(--bg4) }
+.pill.warn { color:var(--warn); background:var(--warn-dim); border:1px solid rgba(210,153,34,0.15) }
+
+.task-list { display:flex; flex-direction:column; gap:6px }
+.task-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px; background:var(--bg2); cursor:pointer; transition:.15s; border:1px solid transparent }
+.task-item:hover { background:var(--bg3); border-color:var(--bg4) }
+.task-item.done { opacity:.55 }
+.task-item.done .task-title { color:var(--fg4); text-decoration:line-through }
+.task-marker { width:20px; height:20px; flex-shrink:0 }
+.task-title { font-size:12px; color:var(--fg1); flex:1 }
+.task-meta { font-size:10px; color:var(--fg4); flex-shrink:0; font-variant-numeric:tabular-nums }
+
+.pty-box {
+  padding:14px; border-radius:10px; background:var(--terminal-bg); border:1px solid var(--bg4);
+  font-family:var(--mono); font-size:11.5px; line-height:1.65; color:var(--fg2); white-space:pre-wrap
+}
+.pty-box .ln { display:block }
+.pty-box .ln:hover { background:rgba(255,255,255,0.02) }
+.pty-box .p { color:var(--accent) }
+.pty-box .c { color:var(--fg0); font-weight:500 }
+.pty-box .o { color:var(--fg2) }
+.pty-box .s { color:var(--success) }
+.pty-box .e { color:var(--danger) }
+.pty-box .t { color:var(--fg4); user-select:none; margin-right:10px; font-size:10.5px }
+.pty-cursor { display:inline-block; width:7px; height:15px; background:var(--accent); vertical-align:middle; margin-left:2px; animation:cursorBlink 1s step-end infinite }
+@keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+.img-strip { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px }
+.img-strip::-webkit-scrollbar { height:4px }
+.img-strip::-webkit-scrollbar-thumb { background:var(--bg4); border-radius:2px }
+.img-item { border-radius:8px; overflow:hidden; border:1px solid var(--bg4); flex-shrink:0; width:120px; background:var(--bg2) }
+.img-item svg { width:100%; height:70px; display:block }
+.img-item-cap { padding:5px 8px; font-size:10px; color:var(--fg3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+
+.approve-bar {
+  padding:12px 14px; border-top:1px solid var(--bg4); background:var(--warn-dim);
+  display:flex; gap:10px; align-items:center
+}
+.approve-bar .text { flex:1; font-size:12px; color:var(--warn); font-weight:500 }
+.abtn { padding:6px 14px; border-radius:7px; border:none; font-size:12px; font-weight:500; cursor:pointer; transition:.15s }
+.abtn.ghost { background:transparent; color:var(--fg2); border:1px solid var(--bg4) }
+.abtn.ghost:hover { background:var(--bg3) }
+.abtn.primary { background:var(--accent); color:#fff }
+.abtn.primary:hover { opacity:.9 }
+
+/* Pop-out PTY button in inspector */
+.pop-pty-btn {
+  margin-left:auto; padding:4px 10px; border-radius:6px; border:1px solid var(--bg4);
+  background:transparent; color:var(--fg3); font-size:11px; cursor:pointer;
+}
+.pop-pty-btn:hover { background:var(--bg3); color:var(--fg1) }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   STATE ④ — Node PTY Fullscreen (Expanded XTerm Tab)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.body-xterm { flex:1; display:flex; flex-direction:column; min-height:0 }
+.xterm-bar {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 16px; background:var(--bg1); border-bottom:1px solid var(--bg4);
+}
+.xterm-bar .back {
+  height:28px; padding:0 12px; border-radius:6px; background:transparent;
+  border:1px solid var(--bg4); color:var(--fg3); cursor:pointer; font-size:12px;
+  display:inline-flex; align-items:center; gap:5px;
+}
+.xterm-bar .back:hover { background:var(--bg3); color:var(--fg1) }
+.xterm-bar .ttl { font-weight:600; font-size:13px; flex:1 }
+.xterm-bar .meta { font-size:11px; color:var(--fg3) }
+.xterm-bar .stage-badge {
+  padding:3px 10px; border-radius:8px; background:var(--accent-dim); color:var(--accent);
+  font-size:10px; font-weight:600;
+}
+
+.xterm-stage {
+  flex:1; min-height:0; background:var(--terminal-bg); color:var(--terminal-fg);
+  font:13px/1.65 var(--mono); padding:16px 20px; overflow:auto; white-space:pre-wrap;
+}
+.xterm-stage .ln { display:block }
+.xterm-stage .ln:hover { background:rgba(255,255,255,0.02) }
+.xterm-stage .t { color:var(--fg4); user-select:none; margin-right:12px; font-size:10.5px }
+.xterm-stage .p { color:var(--accent) }
+.xterm-stage .c { color:var(--fg0); font-weight:500 }
+.xterm-stage .o { color:var(--fg2) }
+.xterm-stage .s { color:var(--success) }
+.xterm-stage .e { color:var(--danger) }
+.xterm-stage .cursor::after { content:"▍"; color:var(--accent); animation:cursorBlink 1s step-end infinite }
+
+.xterm-pipeline {
+  display:flex; align-items:center; gap:6px;
+  padding:8px 16px; background:var(--bg0); border-bottom:1px solid var(--bg4); font-size:11px;
+}
+.xterm-pipeline .st {
+  padding:3px 8px; border-radius:5px; background:var(--bg3); color:var(--fg3); cursor:pointer;
+  display:inline-flex; align-items:center; gap:4px;
+}
+.xterm-pipeline .st:hover { background:var(--bg4); color:var(--fg1) }
+.xterm-pipeline .st.on { background:var(--accent-dim); color:var(--accent) }
+.xterm-pipeline .st.done { color:var(--success) }
+.xterm-pipeline .arr { color:var(--bg4); font-size:10px }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   STATE ⑤ — Template Manager
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.body-manager { flex:1; display:grid; grid-template-columns:220px 1fr; min-height:0; background:var(--bg0) }
+.manage-side {
+  background:var(--bg1); border-right:1px solid var(--bg4);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.manage-side .search { padding:12px; border-bottom:1px solid var(--bg4) }
+.manage-side .search input {
+  width:100%; height:28px; padding:0 10px; background:var(--bg3); color:var(--fg1);
+  border:1px solid var(--bg4); border-radius:6px; font-size:11px; outline:none;
+}
+.manage-side .search input:focus { border-color:var(--accent) }
+.manage-side .group-label {
+  padding:10px 12px 4px; font-size:10px; color:var(--fg3);
+  text-transform:uppercase; letter-spacing:0.5px; font-weight:600;
+}
+.manage-side .item {
+  padding:7px 12px; font-size:12px; cursor:pointer; border-left:2px solid transparent;
+  display:flex; align-items:center; gap:6px;
+}
+.manage-side .item:hover { background:var(--bg3) }
+.manage-side .item.on { background:var(--accent-dim); border-left-color:var(--accent) }
+.manage-side .item .name { font-weight:600 }
+.manage-side .item .desc { font-size:10px; color:var(--fg3) }
+.manage-side .new-item {
+  margin:8px; padding:8px 12px; border:1px dashed var(--bg4); border-radius:6px;
+  color:var(--fg3); font-size:12px; cursor:pointer; text-align:center;
+}
+.manage-side .new-item:hover { border-color:var(--accent); color:var(--accent) }
+
+.manage-main { overflow-y:auto; padding:18px 22px }
+.manage-main .name-row {
+  display:flex; align-items:center; gap:12px; margin-bottom:10px;
+}
+.manage-main .name-row input {
+  flex:1; height:32px; padding:0 12px; background:var(--bg3); color:var(--fg1);
+  border:1px solid var(--bg4); border-radius:6px; font-size:14px; font-weight:600; outline:none;
+}
+.manage-main .name-row input:focus { border-color:var(--accent) }
+.manage-main .desc-box {
+  padding:10px 12px; background:var(--bg3); border-radius:6px;
+  font-size:11.5px; color:var(--fg3); margin-bottom:16px; border:1px solid var(--bg4);
+}
+
+/* Stage edit blocks */
+.stage-block {
+  border:1px solid var(--bg4); border-radius:8px; margin-bottom:8px; overflow:hidden;
+}
+.stage-block .sh {
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  padding:8px 10px; background:rgba(0,0,0,0.15); border-bottom:1px solid var(--bg4);
+}
+.stage-block .sh .arrows { display:flex; flex-direction:column; gap:1px }
+.stage-block .sh .arrows button {
+  width:16px; height:10px; border-radius:2px; background:transparent; border:1px solid var(--bg4);
+  color:var(--fg3); cursor:pointer; font-size:8px; line-height:1; padding:0;
+  display:grid; place-items:center;
+}
+.stage-block .sh .arrows button:hover { background:var(--bg3); color:var(--fg1) }
+.stage-block .sh .sname {
+  font-weight:600; font-size:12px; padding:3px 8px; background:var(--bg3); border-radius:4px;
+}
+.stage-block .sh .pick {
+  padding:3px 8px; border-radius:4px; background:var(--bg3); border:1px solid var(--bg4);
+  color:var(--fg1); font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;
+}
+.stage-block .sh .pick:hover { border-color:var(--bg4) }
+.stage-block .sh .approve-toggle {
+  display:inline-flex; align-items:center; gap:4px; font-size:10.5px; color:var(--fg3);
+}
+.stage-block .sh .approve-toggle .switch {
+  width:22px; height:12px; border-radius:6px; background:var(--fg4); position:relative;
+}
+.stage-block .sh .approve-toggle.on .switch { background:var(--warn) }
+.stage-block .sh .approve-toggle.on .switch::after {
+  content:""; position:absolute; right:1px; top:1px; width:10px; height:10px; border-radius:50%; background:#fff;
+}
+.stage-block .sh .approve-toggle:not(.on) .switch::after {
+  content:""; position:absolute; left:1px; top:1px; width:10px; height:10px; border-radius:50%; background:var(--fg4);
+}
+.stage-block .sh .ctx-mode {
+  display:inline-flex; border:1px solid var(--bg4); border-radius:3px; overflow:hidden;
+}
+.stage-block .sh .ctx-mode span {
+  padding:2px 6px; font-size:10px; color:var(--fg3); background:transparent; cursor:pointer;
+}
+.stage-block .sh .ctx-mode span.on { background:var(--bg3); color:var(--fg1) }
+.stage-block .sh .del {
+  margin-left:auto; width:22px; height:22px; border-radius:4px;
+  background:transparent; border:1px solid var(--bg4); color:var(--fg3); cursor:pointer;
+  display:grid; place-items:center; font-size:11px;
+}
+.stage-block .sh .del:hover { color:var(--danger); border-color:var(--danger) }
+.stage-block textarea {
+  width:100%; min-height:52px; padding:8px 10px; background:var(--bg3); color:var(--fg1);
+  border:none; font:11.5px/1.5 var(--font); resize:vertical; outline:none;
+}
+.stage-block textarea:focus { background:var(--bg2) }
+
+.add-stage-btn {
+  width:100%; padding:10px; border:1px dashed var(--bg4); border-radius:6px;
+  background:transparent; color:var(--fg3); font-size:12.5px; cursor:pointer; text-align:center;
+  margin-top:4px;
+}
+.add-stage-btn:hover { border-color:var(--accent); color:var(--accent) }
+
+.manage-foot {
+  padding:12px 18px; background:var(--bg1); border-top:1px solid var(--bg4);
+  display:flex; gap:8px; align-items:center;
+}
+.manage-foot button {
+  height:30px; padding:0 14px; border-radius:6px; border:1px solid var(--bg4);
+  background:transparent; color:var(--fg2); cursor:pointer; font-size:12px;
+}
+.manage-foot button:hover { background:var(--bg3); color:var(--fg1) }
+.manage-foot button.del { color:var(--danger); border-color:var(--danger) }
+.manage-foot button.del:hover { background:var(--danger-dim) }
+.manage-foot button.save {
+  margin-left:auto; background:#fff; color:#000; border-color:#fff; font-weight:600;
+}
+.manage-foot button.save:hover { background:#e5e5e5 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   STATE ⑥ — Summary / End State
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.body-summary { flex:1; position:relative; min-height:0; overflow:auto; padding:30px 40px }
+.summary-card {
+  max-width:780px; margin:0 auto;
+  background:var(--bg1); border:1px solid var(--bg4); border-radius:12px; overflow:hidden;
+}
+.summary-head {
+  display:flex; align-items:center; gap:12px;
+  padding:16px 20px; background:rgba(0,0,0,0.2); border-bottom:1px solid var(--bg4);
+}
+.summary-head .icon {
+  width:32px; height:32px; border-radius:8px;
+  background:var(--success-dim); color:var(--success);
+  display:grid; place-items:center; font-size:18px; font-weight:700;
+}
+.summary-head .ttl { font-size:15px; font-weight:600; flex:1 }
+.summary-head .total { font-size:11px; color:var(--fg3); font-variant-numeric:tabular-nums }
+.summary-head .actions { display:flex; gap:6px }
+.summary-head .actions button {
+  height:26px; padding:0 12px; border-radius:5px; background:transparent;
+  border:1px solid var(--bg4); color:var(--fg3); cursor:pointer; font-size:11px;
+}
+.summary-head .actions button:hover { background:var(--bg3); color:var(--fg1) }
+
+.summary-stages { padding:14px 20px; border-bottom:1px solid var(--bg4) }
+.summary-stages .srow {
+  display:flex; align-items:center; gap:12px; padding:7px 0; font-size:12.5px;
+}
+.summary-stages .srow .icon { width:20px; text-align:center }
+.summary-stages .srow .ok { color:var(--success) }
+.summary-stages .srow .name { font-weight:600; flex:1; min-width:80px }
+.summary-stages .srow .target {
+  display:inline-flex; align-items:center; gap:4px; color:var(--fg3); font-size:11px;
+}
+.summary-stages .srow .out { color:var(--fg3); font-size:11px; flex:1 }
+.summary-stages .srow .time { color:var(--fg4); font-variant-numeric:tabular-nums; font-family:var(--mono); font-size:11px }
+
+.summary-text {
+  padding:18px 20px; font-size:13px; line-height:1.75; color:var(--fg1);
+}
+.summary-text b { color:var(--accent) }
+.summary-text code {
+  font:11.5px/1.5 var(--mono); background:var(--bg3); padding:2px 6px; border-radius:4px; color:#c084fc;
+}
+.summary-text .tag {
+  display:inline-block; padding:2px 8px; border-radius:4px;
+  background:var(--success-dim); color:var(--success); font-size:10px; font-weight:600; margin-right:5px;
+}
+
+.summary-foot {
+  padding:12px 20px; border-top:1px solid var(--bg4);
+  display:flex; gap:10px; align-items:center; background:rgba(0,0,0,0.15);
+}
+.summary-foot .save-tpl {
+  padding:5px 14px; border-radius:6px; background:var(--accent-dim); color:var(--accent);
+  border:1px solid rgba(88,166,255,0.3); font-size:11.5px; font-weight:600; cursor:pointer;
+}
+.summary-foot .save-tpl:hover { background:rgba(88,166,255,0.2) }
+.summary-foot .next-round {
+  padding:5px 14px; border-radius:6px; background:var(--accent); color:#fff;
+  border:none; font-size:11.5px; font-weight:600; cursor:pointer;
+}
+.summary-foot .next-round:hover { opacity:.9 }
+.summary-foot .spacer { flex:1 }
+.summary-foot .meta { font-size:11px; color:var(--fg3) }
+
+.history-card {
+  margin:16px auto 0; max-width:780px;
+  background:var(--bg1); border:1px solid var(--bg4); border-radius:8px;
+  padding:12px 18px; display:flex; align-items:center; gap:14px; cursor:pointer;
+}
+.history-card:hover { background:var(--bg3) }
+.history-card .icon { color:var(--success); font-size:16px }
+.history-card .ttl { font-weight:600; font-size:13px; flex:1 }
+.history-card .meta { font-size:11.5px; color:var(--fg3) }
+.history-card .arrow { color:var(--fg4) }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Shared Composer Bar
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.composer-bar {
+  border-top:1px solid var(--bg4); background:var(--bg1); flex-shrink:0;
+}
+.comp-body {
+  padding:10px 18px; display:flex; gap:10px; align-items:flex-end;
+}
+.comp-pill {
+  display:inline-flex; align-items:center; gap:6px; padding:5px 14px; border-radius:8px;
+  border:1px solid var(--bg4); background:var(--bg2); color:var(--fg3); font-size:12px;
+  cursor:pointer; font-weight:500; transition:.15s; flex-shrink:0;
+}
+.comp-pill:hover { background:var(--bg3) }
+.comp-pill.on { border-color:rgba(88,166,255,0.4); color:var(--accent); background:var(--accent-dim) }
+.comp-pill .dot { width:6px; height:6px; border-radius:50%; background:currentColor }
+.comp-ta {
+  flex:1; background:var(--bg3); border:1px solid var(--bg4); border-radius:10px;
+  padding:10px 14px; color:var(--fg1); font-size:13px; line-height:1.5;
+  resize:none; outline:none; min-height:40px; max-height:120px; font-family:inherit;
+}
+.comp-ta:focus { border-color:var(--accent) }
+.comp-ta::placeholder { color:var(--fg4) }
+.comp-send { width:36px; height:36px; border-radius:9px; border:none; background:var(--accent); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0 }
+.comp-send:hover { opacity:.9 }
+
+.grow { flex:1 }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+   Journey Switcher
+   ═══════════════════════════════════════════════════════════════════════════════ -->
+<div class="journey">
+  <span class="label">协作模式全旅程</span>
+  <button onclick="showState(1)" class="active" id="b1">① 普通会话</button>
+  <button onclick="showState(2)" id="b2">② 选模板</button>
+  <button onclick="showState(3)" id="b3">③ 鱼骨DAG</button>
+  <button onclick="showState(4)" id="b4">④ PTY全屏</button>
+  <button onclick="showState(5)" id="b5">⑤ 模板管理</button>
+  <button onclick="showState(6)" id="b6">⑥ 终态汇总</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+   STATE ① — Normal Session
+   ═══════════════════════════════════════════════════════════════════════════════ -->
+<div class="state on" id="state-1">
+  <div class="topbar">
+    <span class="app-logo">tmd<span>.</span>cli</span>
+    <div class="breadcrumb">
+      <span>会话</span><span class="bc-sep">/</span><span class="bc-active">修复侧栏 hydration bug</span>
+    </div>
+    <div class="status">
+      <span class="badge"><span class="dot" style="background:var(--fg4)"></span>普通会话</span>
+    </div>
+  </div>
+  <div class="body-normal">
+    <div class="canvas-normal">
+<div class="sys">▸ omp 0.9.2 · zhipu-coding-plan/glm-5.3-flash · thinking max</div>
+<div class="sys">▸ 会话已就绪，输入消息或 / 命令</div>
+<div class="msg"><span class="from">❯</span>侧栏切换时偶发丢项</div>
+<div class="msg">分析中...</div>
+<div class="prompt">❯<span class="caret"></span></div>
+    </div>
+    <div class="composer-normal">
+      <div class="comp-toolbar">
+        <span class="pill" id="collabPill1" onclick="toggleHint()">⚡ 协作(关)</span>
+        <span>模型 <b style="color:var(--fg1)">glm-5.3-flash</b></span>
+        <span style="color:var(--fg4)">|</span>
+        <span>思考 <b style="color:var(--fg1)">max</b></span>
+        <span class="spacer"></span>
+        <button class="tbtn">⌘ 命令 (⌘K)</button>
+        <div class="collab-hint" id="collabHint">
+          <b>⚡ 协作开关</b><br/>
+          点此或 <kbd>⌘⇧A</kbd> 切换<br/>
+          开启后选模板 → 发送即按阶段串行
+        </div>
+      </div>
+      <div class="comp-input"><span class="placeholder">修复侧栏 hydration bug...</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+   STATE ② — Template Picker
+   ═══════════════════════════════════════════════════════════════════════════════ -->
+<div class="state" id="state-2">
+  <div class="topbar">
+    <span class="app-logo">tmd<span>.</span>cli</span>
+    <div class="breadcrumb">
+      <span>会话</span><span class="bc-sep">/</span><span class="bc-active">修复侧栏 hydration bug</span><span class="bc-sep">/</span><span>选择协作模板</span>
+    </div>
+    <div class="status">
+      <span class="badge"><span class="dot" style="background:var(--accent)"></span>⚡ 协作 · 选模板</span>
+    </div>
+  </div>
+  <div class="body-picker">
+    <div class="canvas-picker">
+<div class="sys">▸ omp 0.9.2 · zhipu-coding-plan/glm-5.3-flash · thinking max</div>
+<div class="msg"><span class="from">❯</span>修复侧栏 hydration bug</div>
+<div class="msg">分析中...</div>
+<div class="prompt">❯<span class="caret"></span></div>
+    </div>
+    <div class="popover-panel">
+      <div class="popover-head">
+        <span class="popover-title">⚡ 选择协作模板</span>
+        <button class="popover-manage">⚙ 管理模板</button>
+      </div>
+      <div class="popover-list">
+        <div class="tpl-card on">
+          <div class="row1"><span class="name">修 Bug</span><span class="tag">内置</span></div>
+          <div class="flow"><b>复现定位</b> → <b>修复</b> → <b>回归加固</b> → <b>审查收口</b></div>
+          <div class="meta">
+            <span class="chip">批准点 ×1</span>
+            <span class="status ok">✓ 已配齐</span>
+          </div>
+        </div>
+        <div class="tpl-card">
+          <div class="row1"><span class="name">加功能</span><span class="tag">内置</span></div>
+          <div class="flow"><b>方案</b> → <b>实现</b> → <b>审查</b></div>
+          <div class="meta">
+            <span class="chip">批准点 ×1</span>
+            <span class="status warn">待配齐</span>
+          </div>
+        </div>
+        <div class="tpl-card">
+          <div class="row1"><span class="name">写文档</span><span class="tag">内置</span></div>
+          <div class="flow"><b>大纲</b> → <b>起草</b> → <b>润色定稿</b></div>
+          <div class="meta">
+            <span class="chip">批准点 ×0</span>
+            <span class="status warn">待配齐</span>
+          </div>
+        </div>
+        <div class="tpl-card">
+          <div class="row1"><span class="name">调研</span><span class="tag">内置</span></div>
+          <div class="flow"><b>摸底</b> → <b>深挖</b> → <b>结论</b></div>
+          <div class="meta">
+            <span class="chip">批准点 ×0</span>
+            <span class="status warn">待配齐</span>
+          </div>
+        </div>
+        <div class="tpl-card">
+          <div class="row1"><span class="name">Refactor 大重构</span><span class="tag custom">自定义</span></div>
+          <div class="flow"><b>摸底</b> → <b>渐进迁移</b> → <b>验证</b> → <b>清理</b></div>
+          <div class="meta">
+            <span class="chip">批准点 ×2</span>
+            <span class="status ok">✓ 已配齐</span>
+          </div>
+        </div>
+      </div>
+      <div class="popover-foot">
+        <button>取消</button>
+        <button class="primary">启用协作，发送</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+   STATE ③ — Fishbone DAG Running
+   ═══════════════════════════════════════════════════════════════════════════════ -->
+<div class="state" id="state-3">
+  <div class="topbar">
+    <span class="app-logo">tmd<span>.</span>cli</span>
+    <div class="breadcrumb">
+      <span>协作模式</span><span class="bc-sep">/</span><span class="bc-active">bug-fix 鱼骨图</span>
+    </div>
+    <div class="status">
+      <span class="badge live"><span class="dot"></span>修复 · 运行中</span>
+      <span class="badge done"><span class="dot"></span>2/4 完成</span>
+    </div>
+  </div>
+  <div class="body-fishbone">
+    <div class="mindmap-wrap" id="mindWrap">
+      <svg id="mindmapSvg" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="glow-active" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="8" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <g id="decoLayer"></g>
+        <g id="linkLayer"></g>
+        <g id="nodeLayer"></g>
+      </svg>
+
+      <!-- Timeline Arrow Navigator -->
+      <div class="timeline-nav">
+        <span class="tl-step done"><span class="num">1</span>复现定位</span>
+        <span class="tl-arrow">→</span>
+        <span class="tl-step on"><span class="num">2</span>修复</span>
+        <span class="tl-arrow">→</span>
+        <span class="tl-step"><span class="num">3</span>回归加固</span>
+        <span class="tl-arrow">→</span>
+        <span class="tl-step"><span class="num">4</span>审查收口</span>
+      </div>
+
+      <div class="node-tooltip" id="tooltip">
+        <div class="tt-title" id="ttTitle"></div>
+        <div class="tt-meta" id="ttMeta"></div>
+      </div>
+
+      <div class="canvas-tools">
+        <button class="tool-btn" onclick="zoomBy(0.85)" title="缩小">−</button>
+        <span class="tool-zoom" id="zoomLabel">100%</span>
+        <button class="tool-btn" onclick="zoomBy(1.18)" title="放大">+</button>
+        <button class="tool-btn" onclick="fitView()" title="适配画布">◉</button>
+      </div>
+      <div class="canvas-hint">
+        <kbd>滚轮</kbd>缩放 <kbd>拖拽</kbd>平移 <kbd>点击</kbd>选中 <kbd>双击节点</kbd>PTY全屏
+      </div>
+    </div>
+
+    <aside class="inspector" id="inspector">
+      <div class="insp-head">
+        <div class="insp-kicker">STAGE DETAIL</div>
+        <div class="insp-title" id="inspTitle">修复</div>
+        <div class="insp-sub" id="inspSub">
+          <span class="agent-dot-insp" style="background:#58a6ff"></span>
+          Codex CLI · Medium · 运行中
+        </div>
+      </div>
+      <div class="insp-body">
+        <div class="sect">
+          <div class="sect-label">Status</div>
+          <div class="pill-row">
+            <span class="pill accent">● 运行中</span>
+            <span class="pill wait">⏱ 3m 42s</span>
+            <span class="pill warn">批准点: 无</span>
+          </div>
+        </div>
+        <div class="sect">
+          <div class="sect-label">Tasks</div>
+          <div class="task-list">
+            <div class="task-item done">
+              <svg class="task-marker" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="var(--success)" stroke-width="2"/><path d="M7 12l3 3 5-5" stroke="var(--success)" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
+              <span class="task-title">cargo test — 42 passed</span>
+              <span class="task-meta">45s</span>
+            </div>
+            <div class="task-item">
+              <svg class="task-marker" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="var(--accent)"/></svg>
+              <span class="task-title">git diff — 12 insertions</span>
+              <span class="task-meta">2m 15s</span>
+            </div>
+            <div class="task-item">
+              <svg class="task-marker" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="var(--bg4)" stroke-width="2"/></svg>
+              <span class="task-title">cargo clippy — 等待</span>
+              <span class="task-meta">—</span>
+            </div>
+            <div class="task-item">
+              <svg class="task-marker" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="var(--bg4)" stroke-width="2"/></svg>
+              <span class="task-title">cargo fmt —check — 等待</span>
+              <span class="task-meta">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="sect">
+          <div class="sect-label" style="display:flex;align-items:center;gap:8px">
+            Live Output
+            <button class="pop-pty-btn" onclick="showState(4)">⤢ 弹出全屏</button>
+          </div>
+          <div class="pty-box" id="ptyBox">
+<span class="ln"><span class="t">04:00:15</span><span class="p">$</span> <span class="c">cargo test</span></span>
+<span class="ln"><span class="t">04:00:16</span><span class="o">   Compiling tmd-cli v0.8.0</span></span>
+<span class="ln"><span class="t">04:00:18</span><span class="o">    Finished test [unoptimized]</span></span>
+<span class="ln"><span class="t">04:00:20</span><span class="s">test collab::retry_agent_stage ... ok</span></span>
+<span class="ln"><span class="t">04:00:22</span><span class="s">test collab::chain_tokens ... ok</span></span>
+<span class="ln"><span class="t">04:00:24</span><span class="s">✓ test result: ok. 42 passed</span></span>
+<span class="ln"><span class="t">04:00:25</span><span class="p">$</span> <span class="c">git diff --stat</span></span>
+<span class="ln"><span class="t">04:00:26</span><span class="o"> src/kernel/collab.rs | 12 ++++++++++++</span></span>
+<span class="ln"><span class="t">04:00:27</span><span class="p">$</span> <span class="c">cargo clippy --all-targets</span><span class="pty-cursor"></span></span>
+          </div>
+        </div>
+        <div class="sect">
+          <div class="sect-label">识图 · Screenshots</div>
+          <div class="img-strip">
+            <div class="img-item">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 70"><rect fill="#161b22" width="120" height="70"/><rect x="8" y="12" width="104" height="5" rx="2" fill="#30363d"/><rect x="8" y="22" width="70" height="5" rx="2" fill="#58a6ff" opacity="0.35"/><rect x="8" y="32" width="90" height="5" rx="2" fill="#30363d"/><rect x="8" y="42" width="55" height="5" rx="2" fill="#58a6ff" opacity="0.25"/><text x="60" y="60" text-anchor="middle" fill="#6e7681" font-size="8">diff view</text></svg>
+              <div class="img-item-cap">代码 diff</div>
+            </div>
+            <div class="img-item">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 70"><rect fill="#0d1117" width="120" height="70"/><rect x="10" y="18" width="100" height="34" rx="4" fill="#1c2128" stroke="#30363d"/><rect x="16" y="28" width="45" height="4" rx="2" fill="#3fb950" opacity="0.35"/><rect x="16" y="36" width="60" height="4" rx="2" fill="#3fb950" opacity="0.35"/><text x="100" y="58" fill="#3fb950" font-size="9" font-weight="600">87%</text></svg>
+              <div class="img-item-cap">覆盖率</div>
+            </div>
+            <div class="img-item">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 70"><rect fill="#161b22" width="120" height="70"/><rect x="8" y="10" width="104" height="50" rx="4" fill="#0d1117" stroke="#30363d"/><text x="60" y="38" text-anchor="middle" fill="#6e7681" font-size="9">race trace</text></svg>
+              <div class="img-item-cap">竞态分析</div>
+            </div>
+          </div>
+        </div>
+        <div class="approve-bar">
+          <span class="text">⚠ 修复阶段无需批准，完成后自动流转到「回归加固」</span>
+          <button class="abtn ghost">⏹ 中断</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="composer-bar">
+    <div class="comp-body">
+      <div class="comp-pill on">
+        <span class="dot"></span>
+        <span>bug-fix 运行中</span>
+      </div>
+      <textarea class="comp-ta" rows="1" placeholder="输入消息... 当前协作模式已启用"></textarea>
+      <button class="comp-send">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+   STATE ④ — Node PTY Fullscreen
+   ═══════════════════════════════════════════════════════════════════════════════ -->
+<div class="state" id="state-4">
+  <div class="topbar">
+    <span class="app-logo">tmd<span>.</span>cli</span>
+    <div class="breadcrumb">
+      <span>协作模式</span><span class="bc-sep">/</span><span class="bc-active">bug-fix</span><span class="bc-sep">/</span><span>节点2 · 修复 · PTY</span>
+    </div>
+    <div class="status">
+      <span class="badge live"><span class="dot"></span>● LIVE</span>
+    </div>
+  </div>
+  <div class="body-xterm">
+    <div class="xterm-bar">
+      <button class="back" onclick="showState(3)">← 返回鱼骨图</button>
+      <span class="ttl">⚡ 修复 · Codex CLI</span>
+      <span class="meta">gpt-5.3-codex · medium · 3m42s</span>
+      <span class="stage-badge">阶段 2 / 4</span>
+    </div>
+    <div class="xterm-pipeline">
+      <span class="st done">✓ 复现定位</span>
+      <span class="arr">→</span>
+      <span class="st on">● 修复</span>
+      <span class="arr">→</span>
+      <span class="st">回归加固</span>
+      <span class="arr">→</span>
+      <span class="st">审查收口</span>
+      <span class="grow"></span>
+      <span style="color:var(--fg4);font-size:10px">切换 <kbd style="background:var(--bg3);padding:1px 4px;border-radius:3px;font:600 9px var(--mono)">⌥↑↓</kbd></span>
+    </div>
+    <div class="xterm-stage">
+<span class="ln"><span class="t">04:00:15</span><span class="p">$</span> <span class="c">cargo test</span></span>
+<span class="ln"><span class="t">04:00:16</span><span class="o">   Compiling tmd-cli v0.8.0</span></span>
+<span class="ln"><span class="t">04:00:17</span><span class="o">    Finished test [unoptimized]</span></span>
+<span class="ln"><span class="t">04:00:18</span><span class="o">     Running unittests src/lib.rs</span></span>
+<span class="ln"><span class="t">04:00:19</span><span class="o"></span></span>
+<span class="ln"><span class="t">04:00:20</span><span class="o">running 42 tests</span></span>
+<span class="ln"><span class="t">04:00:21</span><span class="s">test collab::retry_agent_stage ... ok</span></span>
+<span class="ln"><span class="t">04:00:22</span><span class="s">test collab::retry_collab_run ... ok</span></span>
+<span class="ln"><span class="t">04:00:23</span><span class="s">test collab::chain_tokens ... ok</span></span>
+<span class="ln"><span class="t">04:00:24</span><span class="s">test collab::approve_execute ... ok</span></span>
+<span class="ln"><span class="t">04:00:25</span><span class="o">...</span></span>
+<span class="ln"><span class="t">04:00:30</span><span class="s">test result: ok. 42 passed; 0 failed</span></span>
+<span class="ln"><span class="t">04:00:31</span><span class="o"></span></span>
+<span class="ln"><span class="t">04:00:32</span><span class="p">$</span> <span class="c">git diff --stat</span></span>
+<span class="ln"><span class="t">04:00:33</span><span class="o"> src/kernel/collab.rs | 12 ++++++++++++</span></span>
+<span class="ln"><span class="t">04:00:33</span><span class="o"> 1 file changed, 12 insertions(+)</span></span>
+<span class="ln"><span class="t">04:00:34</span><span class="o"></span></span>
+<span class="ln"><span class="t">04:00:35</span><span class="p">$</span> <span class="c">cargo clippy --all-targets</span></span>
+<span class="ln"><span class="t">04:00:36</span><span class="o">    Checking tmd-cli v0.8.0</span></span>
+<span class="ln"><span class="t">04:00:40</span><span class="o">    Finished dev [unoptimized]</span></span>
+<span class="ln"><span class="t">04:00:41</span><span class="s">✓ 0 warnings</span></span>
+<span class="ln"><span class="t">04:00:42</span><span class="p">$</span> <span class="c">cargo fmt -- --check</span></span>
+<span class="ln"><span class="t">04:00:43</span><span class="s">✓ 格式化检查通过</span></span>
+<span class="ln"><span class="t">04:00:44</span><span class="p">$</span> <span class="c">_</span><span class="cursor"></span></span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+   STATE ⑤ — Template Manager
+   ═══════════════════════════════════════════════════════════════════════════════ -->
+<div class="state" id="state-5">
+  <div class="topbar">
+    <span class="app-logo">tmd<span>.</span>cli</span>
+    <div class="breadcrumb">
+      <span>设置</span><span class="bc-sep">/</span><span class="bc-active">协作模板管理</span>
+    </div>
+    <div class="status">
+      <span class="badge"><span class="dot" style="background:var(--fg4)"></span>5 个模板</span>
+    </div>
+  </div>
+  <div class="body-manager">
+    <div class="manage-side">
+      <div class="search"><input placeholder="搜索模板..."></div>
+      <div class="group-label">内置模板</div>
+      <div class="item on"><span class="name">修 Bug</span></div>
+      <div class="item"><span class="name">加功能</span></div>
+      <div class="item"><span class="name">写文档</span></div>
+      <div class="item"><span class="name">调研</span></div>
+      <div class="group-label">自定义</div>
+      <div class="item"><span class="name">Refactor 大重构</span></div>
+      <div class="new-item">+ 新建模板</div>
+    </div>
+    <div class="manage-main">
+      <div class="name-row">
+        <input value="修 Bug">
+        <span style="font-size:11px;color:var(--fg3);display:flex;align-items:center;gap:6px">
+          <span style="width:28px;height:16px;border-radius:8px;background:var(--accent);position:relative"><span style="position:absolute;width:12px;height:12px;border-radius:50%;background:#fff;top:2px;right:2px"></span></span>
+          默认模板
+        </span>
+      </div>
+      <div class="desc-box">定位 → 修复 → 测试 → 审查的标准化 bug 修复流程，适用于大多数代码缺陷。</div>
+
+      <div class="stage-block">
+        <div class="sh">
+          <div class="arrows"><button>▲</button><button>▼</button></div>
+          <span class="sname">1 · 复现定位</span>
+          <span class="pick"><span style="width:8px;height:8px;border-radius:2px;background:#d4a574"></span>Claude Code</span>
+          <span class="approve-toggle on"><span class="switch"></span> 需批准</span>
+          <span class="ctx-mode"><span>short</span><span class="on">long</span></span>
+          <button class="del">✕</button>
+        </div>
+        <textarea>分析并复现问题，定位根因，输出 SUMMARY 供用户确认。</textarea>
+      </div>
+
+      <div class="stage-block">
+        <div class="sh">
+          <div class="arrows"><button>▲</button><button>▼</button></div>
+          <span class="sname">2 · 修复</span>
+          <span class="pick"><span style="width:8px;height:8px;border-radius:2px;background:#58a6ff"></span>Codex CLI</span>
+          <span class="approve-toggle"><span class="switch"></span> 需批准</span>
+          <span class="ctx-mode"><span class="on">short</span><span>long</span></span>
+          <button class="del">✕</button>
+        </div>
+        <textarea>按已确认的 SUMMARY 实施最小修复，跑测试验证。</textarea>
+      </div>
+
+      <div class="stage-block">
+        <div class="sh">
+          <div class="arrows"><button>▲</button><button>▼</button></div>
+          <span class="sname">3 · 回归加固</span>
+          <span class="pick"><span style="width:8px;height:8px;border-radius:2px;background:#d4a574"></span>Claude Code</span>
+          <span class="approve-toggle"><span class="switch"></span> 需批准</span>
+          <span class="ctx-mode"><span class="on">short</span><span>long</span></span>
+          <button class="del">✕</button>
+        </div>
+        <textarea>补边界测试，跑手测清单，确保无回归。</textarea>
+      </div>
+
+      <div class="stage-block">
+        <div class="sh">
+          <div class="arrows"><button>▲</button><button>▼</button></div>
+          <span class="sname">4 · 审查收口</span>
+          <span class="pick"><span style="width:8px;height:8px;border-radius:2px;background:#a855f7"></span>Grok CLI</span>
+          <span class="approve-toggle"><span class="switch"></span> 需批准</span>
+          <span class="ctx-mode"><span class="on">short</span><span>long</span></span>
+          <button class="del">✕</button>
+        </div>
+        <textarea>最终代码审查，输出汇总报告。</textarea>
+      </div>
+
+      <button class="add-stage-btn">+ 添加阶段</button>
+    </div>
+  </div>
+  <div class="manage-foot">
+    <button>重置</button>
+    <button class="del">删除模板</button>
+    <button class="save">保存</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+   STATE ⑥ — Summary / End State
+   ═══════════════════════════════════════════════════════════════════════════════ -->
+<div class="state" id="state-6">
+  <div class="topbar">
+    <span class="app-logo">tmd<span>.</span>cli</span>
+    <div class="breadcrumb">
+      <span>协作模式</span><span class="bc-sep">/</span><span class="bc-active">bug-fix · 已完成</span>
+    </div>
+    <div class="status">
+      <span class="badge done"><span class="dot"></span>✓ 协作完成</span>
+      <span class="badge"><span class="dot" style="background:var(--fg4)"></span>总耗时 8m36s</span>
+    </div>
+  </div>
+  <div class="body-summary">
+    <div class="summary-card">
+      <div class="summary-head">
+        <div class="icon">✓</div>
+        <span class="ttl">修 Bug 协作已完成</span>
+        <span class="total">4 阶段 · 8m36s</span>
+        <div class="actions">
+          <button>导出报告</button>
+          <button>查看 PTY 日志</button>
+        </div>
+      </div>
+      <div class="summary-stages">
+        <div class="srow">
+          <span class="icon ok">✓</span>
+          <span class="name">复现定位</span>
+          <span class="target"><span style="width:8px;height:8px;border-radius:2px;background:#d4a574;display:inline-block"></span> Claude · sonnet-4.6 · high</span>
+          <span class="out">定位 chainTokens race condition</span>
+          <span class="time">1m12s</span>
+        </div>
+        <div class="srow">
+          <span class="icon ok">✓</span>
+          <span class="name">修复</span>
+          <span class="target"><span style="width:8px;height:8px;border-radius:2px;background:#58a6ff;display:inline-block"></span> Codex · gpt-5.3 · medium</span>
+          <span class="out">src/kernel/collab.rs +12</span>
+          <span class="time">3m42s</span>
+        </div>
+        <div class="srow">
+          <span class="icon ok">✓</span>
+          <span class="name">回归加固</span>
+          <span class="target"><span style="width:8px;height:8px;border-radius:2px;background:#d4a574;display:inline-block"></span> Claude · sonnet-4.6 · medium</span>
+          <span class="out">补 3 个边界测试</span>
+          <span class="time">2m18s</span>
+        </div>
+        <div class="srow">
+          <span class="icon ok">✓</span>
+          <span class="name">审查收口</span>
+          <span class="target"><span style="width:8px;height:8px;border-radius:2px;background:#a855f7;display:inline-block"></span> Grok · grok-4 · medium</span>
+          <span class="out">代码审查通过，无建议</span>
+          <span class="time">1m24s</span>
+        </div>
+      </div>
+      <div class="summary-text">
+        <span class="tag">已合并</span>
+        <b>修复总结：</b>侧栏 hydration bug 已由协作流程完成修复。根因为 <code>chainTokens</code> 中的 race condition，Codex 实施了最小修复（加 atomic compare-and-swap），Claude 补了边界测试，Grok 审查通过。所有 42 个测试通过，0 warning。
+      </div>
+      <div class="summary-foot">
+        <button class="save-tpl">保存为模板</button>
+        <button class="next-round">开启下一轮协作</button>
+        <span class="spacer"></span>
+        <span class="meta">总 token: ~12.4k · 成本: ~$0.08</span>
+      </div>
+    </div>
+
+    <div class="history-card" onclick="showState(1)">
+      <span class="icon">✓</span>
+      <span class="ttl">返回普通会话</span>
+      <span class="meta">协作会话已归档</span>
+      <span class="arrow">→</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════════
+   State Switcher
+   ═══════════════════════════════════════════════════════════════════════════════ */
+function showState(n) {
+  for (let i = 1; i <= 6; i++) {
+    document.getElementById('state-' + i).classList.toggle('on', i === n);
+    document.getElementById('b' + i).classList.toggle('active', i === n);
+  }
+  if (n === 3) {
+    // Re-render fishbone when entering state 3
+    setTimeout(() => { renderFishbone(); }, 50);
+  }
+}
+
+/* Hint toggle for state 1 */
+function toggleHint() {
+  document.getElementById('collabHint').classList.toggle('on');
+}
+document.addEventListener('click', e => {
+  const pill = document.getElementById('collabPill1');
+  const hint = document.getElementById('collabHint');
+  if (pill && hint && !pill.contains(e.target) && !hint.contains(e.target)) {
+    hint.classList.remove('on');
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Fishbone Data & Engine (for State ③)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+const tree = {
+  id: 'root', label: '修 Bug', sub: '协作任务', status: 'active', type: 'root', agent: 'user', collapsed: false,
+  children: [
+    {
+      id: 'n1', label: '复现定位', sub: 'Claude Code · High', status: 'done', agent: 'claude', collapsed: false,
+      children: [
+        { id: 'n1a', label: '诊断复现路径', sub: '12s', status: 'done', agent: 'claude' },
+        { id: 'n1b', label: '定位 chainTokens', sub: '根因确认', status: 'done', agent: 'claude' },
+        { id: 'n1c', label: '输出 SUMMARY', sub: '已批准', status: 'done', agent: 'claude' },
+      ]
+    },
+    {
+      id: 'n2', label: '修复', sub: 'Codex CLI · Medium', status: 'active', agent: 'codex', collapsed: false,
+      children: [
+        { id: 'n2a', label: 'cargo test', sub: '42 passed · 45s', status: 'done', agent: 'codex' },
+        { id: 'n2b', label: 'git diff', sub: '12 insertions · 2m', status: 'active', agent: 'codex' },
+        { id: 'n2c', label: 'cargo clippy', sub: '等待', status: 'pending', agent: 'codex' },
+        { id: 'n2d', label: 'cargo fmt', sub: '格式化检查 · 等待', status: 'pending', agent: 'codex' },
+      ]
+    },
+    {
+      id: 'n3', label: '回归加固', sub: 'Claude Code · Medium', status: 'pending', agent: 'claude', collapsed: true,
+      children: [
+        { id: 'n3a', label: '补边界测试', sub: 'edge cases', status: 'pending', agent: 'claude' },
+        { id: 'n3b', label: '手测清单', sub: '手动验证', status: 'pending', agent: 'claude' },
+      ]
+    },
+    {
+      id: 'n4', label: '审查收口', sub: 'Grok CLI · Medium', status: 'pending', agent: 'grok', collapsed: true,
+      children: [
+        { id: 'n4a', label: '代码审查', sub: 'CR · 等待', status: 'pending', agent: 'grok' },
+        { id: 'n4b', label: '输出汇总', sub: '报告 · 等待', status: 'pending', agent: 'grok' },
+      ]
+    },
+  ]
+};
+const AGENTS = { claude:'#d4a574', codex:'#58a6ff', grok:'#a855f7', kimi:'#22c55e', user:'#58a6ff' };
+const AGENT_LABELS = { claude:'Claude', codex:'Codex', grok:'Grok', kimi:'Kimi', user:'User' };
+
+const SPINE_GAP = 280, RIB_ANGLE = 0.65, RIB_GAP = 95, RIB_START = 150;
+
+function measureSpine(node) { return { w: Math.max(150, node.label.length*14+50), h: node.sub?56:44 }; }
+function measureRib(node) { return { w: Math.max(120, node.label.length*12+44), h: node.sub?46:36 }; }
+
+function layoutFishbone(root) {
+  const nodes=[], links=[];
+  const {w:rw,h:rh}=measureSpine(root);
+  nodes.push({...root, x:0, y:0, w:rw, h:rh, level:0, parent:null, kind:'spine', animDelay:0});
+  const stages=root.children||[];
+  stages.forEach((stage,i)=>{
+    const {w:sw,h:sh}=measureSpine(stage);
+    const sx=(i+1)*SPINE_GAP, sy=0, animDelay=0.1+i*0.12;
+    nodes.push({...stage, x:sx, y:sy, w:sw, h:sh, level:1, parent:root.id, kind:'spine', animDelay, stageIndex:i});
+    if(i===0) links.push({from:root.id, to:stage.id, status:stage.status, kind:'spine'});
+    if(i>0) links.push({from:stages[i-1].id, to:stage.id, status:stage.status, kind:'spine'});
+    if(!stage.collapsed && stage.children){
+      stage.children.forEach((child,j)=>{
+        const {w:cw,h:ch}=measureRib(child);
+        const dist=RIB_START+j*RIB_GAP;
+        const rx=sx+Math.cos(RIB_ANGLE)*dist;
+        const ry=sy+Math.sin(RIB_ANGLE)*dist;
+        nodes.push({...child, x:rx, y:ry, w:cw, h:ch, level:2, parent:stage.id, kind:'rib', animDelay:animDelay+0.15+j*0.08});
+        links.push({from:stage.id, to:child.id, status:child.status, kind:'rib'});
+      });
+    }
+  });
+  return {nodes, links};
+}
+
+let zoom=1, pan={x:0,y:0}, dragging=false, dragStart={x:0,y:0}, panStart={x:0,y:0}, selectedNodeId=null;
+
+function renderFishbone() {
+  const svg=document.getElementById('mindmapSvg');
+  if(!svg) return;
+  const decoLayer=document.getElementById('decoLayer');
+  const linkLayer=document.getElementById('linkLayer');
+  const nodeLayer=document.getElementById('nodeLayer');
+  if(!decoLayer||!linkLayer||!nodeLayer) return;
+
+  const {nodes, links}=layoutFishbone(tree);
+  let decoHtml='', linksHtml='', nodesHtml='';
+
+  let maxX=0;
+  nodes.forEach(n=>{maxX=Math.max(maxX, n.x+n.w/2);});
+  decoHtml+=`<line class="ghost-spine" x1="${maxX+20}" y1="0" x2="${maxX+120}" y2="0"/>`;
+
+  links.forEach(link=>{
+    const from=nodes.find(n=>n.id===link.from);
+    const to=nodes.find(n=>n.id===link.to);
+    if(!from||!to) return;
+    const dx=to.x-from.x, dy=to.y-from.y;
+    const dist=Math.sqrt(dx*dx+dy*dy)||1;
+    const nx=dx/dist, ny=dy/dist;
+    const fromRx=from.w/2, fromRy=from.h/2, toRx=to.w/2, toRy=to.h/2;
+    const sx=from.x+nx*fromRx, sy=from.y+ny*fromRy;
+    const ex=to.x-nx*toRx, ey=to.y-ny*toRy;
+    let d;
+    if(link.kind==='spine'){
+      d=`M${sx.toFixed(1)},${sy.toFixed(1)} L${ex.toFixed(1)},${ey.toFixed(1)}`;
+      const cls=link.status==='active'?'active':link.status==='done'?'done':'wait';
+      linksHtml+=`<path class="spine-link ${cls}" d="${d}"/>`;
+    } else {
+      const mx=(sx+ex)/2, my=(sy+ey)/2;
+      const perpX=-ny*12, perpY=nx*12;
+      d=`M${sx.toFixed(1)},${sy.toFixed(1)} Q${(mx+perpX).toFixed(1)},${(my+perpY).toFixed(1)} ${ex.toFixed(1)},${ey.toFixed(1)}`;
+      const cls=link.status==='active'?'active':link.status==='done'?'done':'wait';
+      linksHtml+=`<path class="rib-link ${cls}" d="${d}"/>`;
+      if(link.status==='active'){
+        linksHtml+=`<circle class="flow-particle" r="2.5" opacity="0.9"><animateMotion dur="1.4s" repeatCount="indefinite" path="${d}"/></circle>`;
+      }
+      if(from.kind==='spine'){
+        const jCls=link.status==='active'?'active':link.status==='done'?'done':'';
+        linksHtml+=`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="3.5" class="rib-joint ${jCls}"/>`;
+      }
+    }
+  });
+
+  nodes.forEach((node,ni)=>{
+    const isRoot=node.type==='root', isSpine=node.kind==='spine', isRib=node.kind==='rib';
+    const isActive=node.status==='active', isDone=node.status==='done', isFail=node.status==='fail';
+    const hasChildren=node.children&&node.children.length>0;
+    const color=AGENTS[node.agent]||'var(--fg4)';
+    const isSelected=selectedNodeId===node.id;
+    let shapeCls;
+    if(isRoot) shapeCls='root';
+    else if(isSpine) shapeCls=isActive?'stage-active':isDone?'stage-done':isFail?'stage-fail':'stage-wait';
+    else shapeCls=isActive?'active':isDone?'done':'wait';
+    const rx=isRoot?30:isSpine?14:9;
+
+    nodesHtml+=`<g class="mind-node${isSelected?' selected':''}" id="node-${node.id}" onclick="selectNode('${node.id}')" onmouseenter="showTooltip(evt,'${node.id}')" onmouseleave="hideTooltip()" style="animation-delay:${node.animDelay||ni*0.04}s">`;
+
+    if(isSpine||isRoot){
+      nodesHtml+=`<rect class="sel-ring" x="${node.x-node.w/2-6}" y="${node.y-node.h/2-6}" width="${node.w+12}" height="${node.h+12}" rx="${rx+6}"/>`;
+    }
+
+    if(isSpine&&!isRoot&&node.children){
+      const total=node.children.length;
+      const done=node.children.filter(c=>c.status==='done').length;
+      const pct=total>0?done/total:0;
+      const r=Math.max(node.w,node.h)/2+10;
+      const circ=2*Math.PI*r;
+      const offset=circ*(1-pct);
+      const ringColor=pct>=1?'var(--success)':'var(--accent)';
+      nodesHtml+=`<circle cx="${node.x}" cy="${node.y}" r="${r}" class="progress-ring bg"/>`;
+      nodesHtml+=`<circle cx="${node.x}" cy="${node.y}" r="${r}" class="progress-ring fg${pct>=1?' done':''}" stroke="${ringColor}" stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" transform="rotate(-90 ${node.x} ${node.y})"/>`;
+    }
+
+    if(isSpine||isRoot){
+      nodesHtml+=`<rect class="node-spine ${shapeCls}" x="${node.x-node.w/2}" y="${node.y-node.h/2}" width="${node.w}" height="${node.h}" rx="${rx}"/>`;
+    } else {
+      nodesHtml+=`<rect class="node-rib ${shapeCls}" x="${node.x-node.w/2}" y="${node.y-node.h/2}" width="${node.w}" height="${node.h}" rx="${rx}"/>`;
+    }
+
+    if(!isRoot){
+      const barColor=isActive?'var(--accent)':isDone?'var(--success)':'var(--bg4)';
+      const barW=node.w-8;
+      nodesHtml+=`<rect class="accent-bar ${shapeCls}" x="${node.x-node.w/2+4}" y="${node.y-node.h/2+3.5}" width="${barW}" height="2.5" rx="1.25" fill="${barColor}" opacity="0.8"/>`;
+    }
+
+    const textY=node.sub?node.y-5:node.y;
+    const fontSize=isRoot?15:isSpine?13:11.5;
+    nodesHtml+=`<text class="node-text" x="${node.x}" y="${textY}" font-size="${fontSize}">${esc(node.label)}</text>`;
+    if(node.sub){
+      nodesHtml+=`<text class="node-text sub" x="${node.x}" y="${node.y+(isRoot?15:13)}">${esc(node.sub)}</text>`;
+    }
+
+    if(!isRoot){
+      const dotX=node.x+node.w/2-12, dotY=node.y-node.h/2+12;
+      nodesHtml+=`<circle class="agent-dot" cx="${dotX}" cy="${dotY}" r="5.5" fill="${color}"/>`;
+      if(isDone){
+        nodesHtml+=`<text x="${dotX}" y="${dotY+0.5}" font-size="7" fill="#fff" text-anchor="middle" dominant-baseline="central" font-weight="700">✓</text>`;
+      } else if(isActive){
+        nodesHtml+=`<circle cx="${dotX}" cy="${dotY}" r="2.5" fill="#fff"/>`;
+      }
+    }
+
+    if(isSpine&&hasChildren){
+      const tx=node.x+node.w/2+16, ty=node.y;
+      nodesHtml+=`<circle class="toggle-btn" cx="${tx}" cy="${ty}" r="11" onclick="event.stopPropagation();toggleCollapse('${node.id}')"/>`;
+      nodesHtml+=`<text class="toggle-icon" x="${tx}" y="${ty+0.5}">${node.collapsed?'+':'−'}</text>`;
+      if(node.collapsed){
+        const count=node.children.length;
+        const bx=tx+17, by=ty-9;
+        nodesHtml+=`<circle cx="${bx}" cy="${by}" r="7.5" fill="var(--accent)"/>`;
+        nodesHtml+=`<text x="${bx}" y="${by+0.5}" font-size="9" fill="#fff" text-anchor="middle" dominant-baseline="central" font-weight="700">${count}</text>`;
+      }
+    }
+
+    nodesHtml+=`</g>`;
+  });
+
+  decoLayer.innerHTML=decoHtml;
+  linkLayer.innerHTML=linksHtml;
+  nodeLayer.innerHTML=nodesHtml;
+  updateTransform();
+}
+
+function esc(str){const d=document.createElement('div');d.textContent=str;return d.innerHTML;}
+
+function updateTransform(){
+  const wrap=document.getElementById('mindWrap');
+  if(!wrap) return;
+  const baseX=wrap.clientWidth*0.22;
+  const baseY=wrap.clientHeight*0.32;
+  const tf=`translate(${baseX+pan.x},${baseY+pan.y}) scale(${zoom})`;
+  const dl=document.getElementById('decoLayer');
+  const ll=document.getElementById('linkLayer');
+  const nl=document.getElementById('nodeLayer');
+  if(dl) dl.setAttribute('transform',tf);
+  if(ll) ll.setAttribute('transform',tf);
+  if(nl) nl.setAttribute('transform',tf);
+  const zl=document.getElementById('zoomLabel');
+  if(zl) zl.textContent=Math.round(zoom*100)+'%';
+}
+
+function zoomBy(f){zoom=Math.max(0.2,Math.min(3.5,zoom*f));updateTransform();}
+function fitView(){zoom=1;pan={x:0,y:0};updateTransform();}
+
+function toggleCollapse(id){
+  function walk(n){if(n.id===id){n.collapsed=!n.collapsed;return true;}if(n.children)for(const c of n.children)if(walk(c))return true;return false;}
+  walk(tree); renderFishbone();
+}
+
+function selectNode(id){
+  selectedNodeId=id; renderFishbone();
+  function find(n){if(n.id===id)return n;if(n.children)for(const c of n.children){const f=find(c);if(f)return f;}return null;}
+  const node=find(tree);
+  if(!node) return;
+  const t=document.getElementById('inspTitle');
+  const s=document.getElementById('inspSub');
+  if(t) t.textContent=node.label;
+  if(s){
+    const ac=AGENTS[node.agent]||'var(--fg4)';
+    const al=AGENT_LABELS[node.agent]||node.agent;
+    const st=node.status==='done'?'已完成':node.status==='active'?'运行中':'等待';
+    s.innerHTML=`<span class="agent-dot-insp" style="background:${ac}"></span>${al} · ${node.sub||''} · ${st}`;
+  }
+}
+
+function showTooltip(evt,id){
+  function find(n){if(n.id===id)return n;if(n.children)for(const c of n.children){const f=find(c);if(f)return f;}return null;}
+  const node=find(tree);
+  if(!node) return;
+  const tt=document.getElementById('tooltip');
+  if(!tt) return;
+  document.getElementById('ttTitle').textContent=node.label;
+  const st=node.status==='done'?'✓ 已完成':node.status==='active'?'● 运行中':'○ 等待';
+  document.getElementById('ttMeta').textContent=`${AGENT_LABELS[node.agent]||node.agent} · ${st}`;
+  const wrap=document.getElementById('mindWrap');
+  if(!wrap) return;
+  const rect=wrap.getBoundingClientRect();
+  tt.style.left=(evt.clientX-rect.left+16)+'px';
+  tt.style.top=(evt.clientY-rect.top-10)+'px';
+  tt.classList.add('on');
+}
+function hideTooltip(){const tt=document.getElementById('tooltip');if(tt)tt.classList.remove('on');}
+
+/* Pan / Zoom */
+const wrapEl=document.getElementById('mindWrap');
+if(wrapEl){
+  wrapEl.addEventListener('pointerdown',e=>{
+    if(e.target.closest('.mind-node')||e.target.closest('.toggle-btn')||e.target.closest('.timeline-nav')||e.target.closest('.canvas-tools'))return;
+    dragging=true; dragStart={x:e.clientX,y:e.clientY}; panStart={...pan};
+    wrapEl.classList.add('dragging'); wrapEl.setPointerCapture(e.pointerId);
+  });
+  wrapEl.addEventListener('pointermove',e=>{
+    if(!dragging) return;
+    pan.x=panStart.x+(e.clientX-dragStart.x);
+    pan.y=panStart.y+(e.clientY-dragStart.y);
+    updateTransform();
+  });
+  wrapEl.addEventListener('pointerup',()=>{dragging=false;wrapEl.classList.remove('dragging');});
+  wrapEl.addEventListener('pointercancel',()=>{dragging=false;wrapEl.classList.remove('dragging');});
+  wrapEl.addEventListener('wheel',e=>{e.preventDefault();zoomBy(e.deltaY<0?1.12:0.88);},{passive:false});
+}
+
+/* PTY simulation */
+const ptyLines=[
+  '<span class="ln"><span class="t">04:00:28</span><span class="o">    Checking tmd-cli v0.8.0</span></span>',
+  '<span class="ln"><span class="t">04:00:32</span><span class="o">    Finished dev [unoptimized]</span></span>',
+  '<span class="ln"><span class="t">04:00:33</span><span class="s">✓ 0 warnings</span></span>',
+  '<span class="ln"><span class="t">04:00:34</span><span class="p">$</span> <span class="c">cargo fmt --check</span></span>',
+  '<span class="ln"><span class="t">04:00:35</span><span class="s">✓ 格式化检查通过</span></span>',
+  '<span class="ln"><span class="t">04:00:36</span><span class="p">$</span> <span class="c">_</span><span class="pty-cursor"></span></span>',
+];
+let ptyTick=0;
+const ptyBox=document.getElementById('ptyBox');
+if(ptyBox){
+  const ptyBase=ptyBox.innerHTML.split('<span class="pty-cursor">')[0];
+  setInterval(()=>{
+    if(ptyTick<ptyLines.length){
+      ptyBox.innerHTML=ptyBase+ptyLines.slice(0,ptyTick+1).join('')+'<span class="pty-cursor"></span>';
+      ptyTick++;
+    }
+  },2500);
+}
+
+/* Init fishbone after a slight delay to ensure container has size */
+setTimeout(()=>{renderFishbone();},100);
+window.addEventListener('resize',()=>{updateTransform();});
+</script>
+</body>
+</html>
