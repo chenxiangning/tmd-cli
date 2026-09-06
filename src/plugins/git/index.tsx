@@ -1,7 +1,7 @@
 import { GitBranch, GitCommitHorizontal } from "lucide-react";
 import type { Plugin } from "@kernel/plugin";
 import { getFilePanelMode, setFilePanelMode } from "@kernel/filePanel";
-import { requestRemoteDialog } from "./panelStore";
+import { hydrateGitPanelPrefs, requestRemoteDialog } from "./panelStore";
 import { GitPanel } from "./GitPanel";
 import { GitToolbar } from "./GitToolbar";
 import { CommitDiffTabContent } from "./CommitDiffTab";
@@ -18,6 +18,8 @@ export const gitPlugin: Plugin = {
   id: "git",
   meta: { name: "Git", abbr: "GT", desc: "Git 状态与面板集成", icon: GitBranch, iconColor: "#F05032", category: "feature" },
   activate(ctx) {
+    // 落盘偏好水合(视图段 + 文件列表布局):activate 晚于 settingsReady,直接读即为最终值
+    hydrateGitPanelPrefs();
     ctx.registerFilePanel({
       id: "git",
       label: "Git",

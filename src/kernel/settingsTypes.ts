@@ -73,6 +73,11 @@ export interface SessionPinEntry {
   title: string;
 }
 
+/** Git 面板视图段(git 插件编辑域):差异 / 分支 / 历史。 */
+export type GitPanelView = "diff" | "branch" | "history";
+/** Git 差异文件列表布局:flat 平铺(status 原文三段分区)/ tree 目录树。 */
+export type GitFileListLayout = "flat" | "tree";
+
 export interface AppSettings {
   theme: ThemePreference;
   /** 浅色外观使用的 preset(system/light 模式生效)。 */
@@ -155,6 +160,11 @@ export interface AppSettings {
   /** 沉淀补充规则(自由文本,追加到提炼指令;如「特别记住数据库决定;忽略测试细节」)。 */
   memoryDistillRules: string;
   /**
+   * Git 面板记忆态(git 插件的编辑域):视图段 + 差异文件列表布局。
+   * 顶栏切换即写,重启恢复上次选择;布局默认平铺。
+   */
+  git: { view: GitPanelView; layout: GitFileListLayout };
+  /**
    * SSH 主机簿(ssh 插件的编辑域):终端/SFTP/端口转发共用的主机清单。
    * 凭据明文随 settings.json 落盘(用户裁决,与竞品同级;spec 已记录风险),
    * Web/远端场景不存在 —— 单机应用,不经任何同步通道外发。
@@ -190,6 +200,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   memoryDistillModel: "",
   memoryDistillEngine: "omp",
   memoryDistillRules: "",
+  git: { view: "diff", layout: "flat" },
   ssh: { hosts: [] },
 };
 

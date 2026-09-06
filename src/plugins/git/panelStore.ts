@@ -9,9 +9,11 @@
 
 import { useSyncExternalStore } from "react";
 import type { GitTotals } from "@kernel/ipc";
+import { getSettingsState, updateSettings, type GitFileListLayout, type GitPanelView } from "@kernel/settings";
 
-export type GitViewMode = "diff" | "branch" | "history";
-export type FileListLayout = "tree" | "flat";
+/** 视图段与文件列表布局的持久化契约归内核 settings(git 编辑域),此处只留插件侧旧名别名。 */
+export type GitViewMode = GitPanelView;
+export type FileListLayout = GitFileListLayout;
 
 export interface GitAggregate {
   totals: GitTotals | null;
@@ -33,7 +35,7 @@ interface GitPanelState {
 
 const state: GitPanelState = {
   view: "diff",
-  layout: "tree",
+  layout: "flat",
   refreshNonce: 0,
   refreshing: false,
   aggregate: { totals: null, fileCount: 0 },
@@ -49,11 +51,25 @@ function emit(): void {
 
 export function setGitView(view: GitViewMode): void {
   state.view = view;
+  persistPanelPrefs({ view });
   emit();
 }
 
 export function setGitLayout(layout: FileListLayout): void {
   state.layout = layout;
+  persistPanelPrefs({ layout });
+  emit();
+}
+
+/** 视图/布局切换即写 settings(git 编辑域,settings.json 落盘);setter 是唯一写入口,水合不回写。 */
+function persistPanelPrefs(patch: Partial<{ view: GitViewMode; layout: FileListLayout }>): void {
+  updateSettings({ git: { ...getSettingsState().settings.git, ...patch } });
+}
+
+/** 启动水合:插件 activate 时(设置已就绪)把落盘偏好搬进内存 store,不回写。 */
+export function hydrateGitPanelPrefs(): void {
+  state.view = getSettingsState().settings.git.view;
+  state.layout = getSettingsState().settings.git.layout;
   emit();
 }
 

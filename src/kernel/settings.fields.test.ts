@@ -221,3 +221,49 @@ describe("Memory 设置(memory-coordinator)", () => {
     expect(settings.getSettingsState().settings.memoryDbPath.length).toBe(500);
   });
 });
+
+describe("Git 面板记忆态(git)", () => {
+  it("合法补丁合并生效:视图段 + 文件列表布局", () => {
+    settings.updateSettings({ git: { view: "history", layout: "tree" } });
+    expect(settings.getSettingsState().settings.git).toEqual({
+      view: "history",
+      layout: "tree",
+    });
+  });
+
+  it("白名单外回落默认(视图 diff / 布局平铺),异型整体回落", () => {
+    settings.updateSettings({ git: { view: "graph" as never, layout: "list" as never } });
+    expect(settings.getSettingsState().settings.git).toEqual({
+      view: "diff",
+      layout: "flat",
+    });
+    settings.updateSettings({ git: "recent" as never });
+    expect(settings.getSettingsState().settings.git).toEqual({
+      view: "diff",
+      layout: "flat",
+    });
+  });
+
+  it("boot 加载:落盘的选择重启恢复;缺字段回落默认", async () => {
+    ipcMock.configReadSettings.mockResolvedValue({
+      git: { view: "branch", layout: "flat" },
+    });
+    settings.ensureSettingsBooted();
+    await waitLoaded();
+    expect(settings.getSettingsState().settings.git).toEqual({
+      view: "branch",
+      layout: "flat",
+    });
+
+    // 动态 import 例外:验证 boot 从磁盘恢复须取全新模块单例,静态 import 做不到
+    vi.resetModules();
+    ipcMock.configReadSettings.mockResolvedValue({ theme: "dark" });
+    settings = await import("./settings");
+    settings.ensureSettingsBooted();
+    await waitLoaded();
+    expect(settings.getSettingsState().settings.git).toEqual({
+      view: "diff",
+      layout: "flat",
+    });
+  });
+});

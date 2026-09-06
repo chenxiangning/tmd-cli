@@ -64,6 +64,7 @@ describe("初始状态与默认值", () => {
       memoryDistillEngine: "omp",
       memoryDistillRules: "",
       ssh: { hosts: [] },
+      git: { view: "diff", layout: "flat" },
     });
     expect(s.loaded).toBe(false);
     expect(s.panelOpen).toBe(false);
