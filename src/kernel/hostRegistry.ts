@@ -43,8 +43,8 @@ export class HostRegistry {
   /* 侧栏动作 → 无键位命令镜像(全量暴露进命令注册表,设置清单可见,为改键期
      备数据面)。内核不识业务语义:id/label/run 均取自 action 本身,属通用机制。
      键盘路径无真实点击锚点,给视口左下角作缺省锚点 —— 浮层类动作自带视口
-     夹取定位(如 ProxyPopover),落点仍在左栏簇一带;非浮层动作(如 git-graph)
-     本就忽略锚点。 */
+     夹取定位(如 ProxyPopover),落点仍在左栏簇一带;非浮层动作本就忽略锚点。 */
+
   registerSidebarAction(action: SidebarAction): void {
     registerSidebarAction(action);
     registerCommand({

@@ -25,9 +25,9 @@ import { VersionPopover } from "./VersionPopover";
 /** 底栏空间有限,最多外显 4 个快捷入口(同 codemoss SIDEBAR_SETTINGS_PINNED_MAX)。 */
 const PINNED_MAX = 4;
 const PINNED_STORAGE_KEY = "shell.settingsPinned.v1";
-/** 默认 pinned 的动作 id ─ 对齐参考截图(Git Graph + 网络代理 已钉在齿轮旁)。
+/** 默认 pinned 的动作 id ─ 对齐参考截图(网络代理已钉在齿轮旁)。
  *  id 由各插件注册时声明;插件拔出 = 动作消失,钉住项自动隐藏,插回恢复。 */
-const DEFAULT_PINNED: string[] = ["git-graph", "system-proxy"];
+const DEFAULT_PINNED: string[] = ["system-proxy"];
 
 function loadPinned(): string[] {
   try {
