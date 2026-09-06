@@ -1,104 +1,11 @@
 /**
- * 编辑区(文件预览面板)—— tab 条 + 内容挂载点。
- * 从 AppShell 拆出(500 行铁则):FileTabIcon / FileTab / EditorCenter 三位一体的
- * tab 交互(右键菜单、最大化切换、关闭)集中于此。
+ * 编辑区(文件预览面板)── 内容挂载点。
+ * 2026-09-06 架构改:tab 条上移顶栏(EditorTabStrip,经 contributions 挂
+ * header.breadcrumb),本组件只按激活 tab 渲染内容,不再自带表头第二排。
  */
 
-import { memo, useState } from "react";
-import { CornersOut, CornersIn, Cross } from "@phosphor-icons/react";
-import { baseName } from "@kernel/pathUtils";
-import { resolveFileVisual } from "@kernel/fileVisual";
-import {
-  closeAllTabs,
-  closeOtherTabs,
-  closeTab,
-  getTabContent,
-  setActiveTab,
-  useEditorTabs,
-} from "@kernel/tabs";
-import { TabContextMenu } from "./TabContextMenu";
-import { toggleEditorMaximized, useEditorMaximized } from "./editorMaximized";
-
-/* 文件类型 SVG ─ 由 fileTreeIcons 给出(与文件树一致)。 */
-function FileTabIcon({ fileName }: { fileName: string }) {
-  const html = resolveFileVisual(fileName, false).svgHtml;
-  return (
-    <span
-      className="tab-icon"
-      aria-hidden
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  );
-}
-
-/** 单个 tab ─ 图标 + 名称(+ 脏标记圆点)+ 最大化切换 + close;右键出菜单。 */
-function FileTab({
-  tabId,
-  tabPath,
-  isActive,
-  dirty,
-  onContextMenu,
-}: {
-  tabId: string;
-  tabPath: string;
-  isActive: boolean;
-  dirty?: boolean;
-  onContextMenu: (e: React.MouseEvent) => void;
-}) {
-  const fileName = baseName(tabPath) || tabPath;
-  const maximized = useEditorMaximized();
-  return (
-    <div
-      className={`tab${isActive ? " is-active" : ""}`}
-      data-tab-id={tabId}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        onContextMenu(e);
-      }}
-    >
-      <button
-        type="button"
-        className="tab-main"
-        onClick={() => setActiveTab(tabId)}
-        title={tabPath}
-      >
-        <FileTabIcon fileName={fileName} />
-        <span className="tab-main-label">{fileName}</span>
-        {/* 未保存圆点(useFileDocument 经 updateTab 上报) */}
-        {dirty ? <span className="tab-dirty-dot" aria-hidden /> : null}
-      </button>
-      {/* 最大化查看/还原切换(沿用 tab-detach 样式钩子;原"在新窗口打开"为占位) */}
-      <button
-        type="button"
-        className="tab-detach"
-        aria-label={maximized ? "还原" : `最大化查看 ${fileName}`}
-        title={maximized ? "还原" : "最大化查看"}
-        onClick={(e) => {
-          e.stopPropagation();
-          toggleEditorMaximized();
-        }}
-      >
-        {maximized ? (
-          <CornersIn size={11} aria-hidden />
-        ) : (
-          <CornersOut size={11} aria-hidden />
-        )}
-      </button>
-      <button
-        type="button"
-        className="tab-close"
-        aria-label={`关闭 ${fileName}`}
-        title="关闭"
-        onClick={(e) => {
-          e.stopPropagation();
-          closeTab(tabId);
-        }}
-      >
-        <Cross size={11} aria-hidden />
-      </button>
-    </div>
-  );
-}
+import { memo } from "react";
+import { getTabContent, useEditorTabs } from "@kernel/tabs";
 
 export const EditorCenter = memo(function EditorCenter() {
   const { tabs, activeId } = useEditorTabs();
@@ -106,34 +13,9 @@ export const EditorCenter = memo(function EditorCenter() {
   /* 内容按 tab.kind 路由(kernel/tabs 注册表):插座裁决渲染权,
      外壳不认识任何 tab 内容组件。未注册 kind 的兜底空态与无 tab 一致。 */
   const Content = active ? getTabContent(active.kind) : undefined;
-  /** tab 右键菜单目标:作用于被右键的 tab,不强制激活。 */
-  const [menu, setMenu] = useState<{ tabId: string; x: number; y: number } | null>(null);
 
   return (
     <div className="flex h-full flex-col bg-(--tmd-bg-base)">
-      <div className="tab-bar">
-        <div className="tab-bar-track">
-          {tabs.map((t) => (
-            <FileTab
-              key={t.id}
-              tabId={t.id}
-              tabPath={t.path || t.title}
-              isActive={t.id === activeId}
-              dirty={t.dirty}
-              onContextMenu={(e) => setMenu({ tabId: t.id, x: e.clientX, y: e.clientY })}
-            />
-          ))}
-        </div>
-      </div>
-      {menu ? (
-        <TabContextMenu
-          position={{ x: menu.x, y: menu.y }}
-          onCloseTab={() => closeTab(menu.tabId)}
-          onCloseOthers={() => closeOtherTabs(menu.tabId)}
-          onCloseAll={() => closeAllTabs()}
-          onClose={() => setMenu(null)}
-        />
-      ) : null}
       <div className="min-h-0 flex-1 overflow-auto">
         {active && Content ? (
           <Content key={active.id} tab={active} />

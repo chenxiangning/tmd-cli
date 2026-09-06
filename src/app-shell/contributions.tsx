@@ -13,6 +13,7 @@ import type { MountContribution, MountPoint } from "@kernel/plugin";
 import { useWorkspaces } from "@kernel/workspace";
 import { deriveWorkspaceName } from "@kernel/pathUtils";
 import { SessionTabBar } from "./SessionTabBar";
+import { EditorTabStrip } from "./EditorTabStrip";
 
 /** workspace 路径末段当 breadcrumb label。 */
 function deriveLabel(root: string, fallbackName?: string): string {
@@ -64,5 +65,10 @@ export function registerDefaultContributions(ctx: {
   ctx.contribute("header.breadcrumb", {
     order: 200,
     component: SessionTabBar,
+  });
+  /* 编辑 tab 条(文件/记忆/diff):会话 tab 条右侧同排,双激活并存(2026-09-06 架构改) */
+  ctx.contribute("header.breadcrumb", {
+    order: 300,
+    component: EditorTabStrip,
   });
 }

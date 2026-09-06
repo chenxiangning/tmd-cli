@@ -79,5 +79,6 @@
 | 2026-09-06 | [协作画布/管线范式探索原型集(collab-paradigm A/B/C、collaboration-mode v1/v2、风格样张 ×3)](design/) | 设计原型 |
 | 2026-09-06 | [Windows 平台适配契约(ConPTY 握手 / 会话 slug / 子进程收尸 / cargo test)](architecture/04-windows-platform-contract.md) | 已落地 |
 | 2026-09-06 | [会话管理模式 + 归档视图(段头开关 / 拖选多选 / 批量归档删除 / 归 徽记)](superpowers/specs/2026-09-06-session-manage-archive-design.md) | 已落地(实现随本 spec 提交) |
+| 2026-09-06 | [编辑 tab 条上移顶栏:与会话 tab 合并一行(双激活并存)](superpowers/specs/2026-09-06-editor-tabs-into-titlebar-design.md) | 已落地(实现随本 spec 提交) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
