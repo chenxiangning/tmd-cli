@@ -86,15 +86,28 @@
 .titlebar-actions.is-expanded > .titlebar-action:first-child {
   margin-right: auto;
 }
-/* 栏边界线拉上顶栏:右区左缘 1px 竖线,仅右栏展开时出现(同左区,避开 [style] 空属性陷阱)。 */
+/* 栏边界线拉上顶栏:右区左缘 1px 竖线,仅右栏展开时出现(同左区,避开 [style] 空属性陷阱)。
+   宽度 = 右栏宽 + 4px 手柄 - 12px 顶栏右 padding,与左区公式对称;控制带是绝对 overlay
+   (复刻 codemoss .titlebar-controls 模式)不入 flex 流,竖线位置与控制带完全解耦。
+   var 无回退:右栏未挂载/未测量时整式 IACVT 退化 auto,同旧内联 style 缺省语义。 */
 .titlebar-actions.is-expanded {
   align-self: stretch;
   border-left: 1px solid var(--tmd-border);
+  width: max(calc(var(--tmd-right-aside-w) + 4px - 12px), 0px);
 }
-/* Windows 右侧窗口控制组位置,对齐 codemoss 的原生控制区预留宽度。 */
+/* Windows 右侧自绘控制带钉右上角,不占顶栏 flex 流;右区内容以 padding 让位,
+   末尾 icons 保持贴控制带左缘(+6px 呼吸),与旧 flex 布局像素一致。 */
 .app.windows-desktop .titlebar-window-controls {
-  flex: 0 0 var(--titlebar-window-controls-width, 116px);
-  justify-content: flex-end;
+  position: absolute;
+  top: 0;
+  right: 12px;
+  height: 100%;
+}
+.app.windows-desktop .titlebar-actions {
+  padding-right: calc(var(--titlebar-window-controls-width, 116px) + 6px);
+  /* 裁剪用 clip-path 而非 overflow: hidden——后者裁在 padding-box 缘,窗口拉窄后
+     溢出 icons 会钻进让位区压住控制带;inset 右缘精确贴控制带左缘,溢出即截断。 */
+  clip-path: inset(0 calc(var(--titlebar-window-controls-width, 116px) + 6px) 0 0);
 }
 
 

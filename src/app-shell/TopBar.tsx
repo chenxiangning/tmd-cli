@@ -48,13 +48,6 @@ export function TopBar({
   onToggleMarket: () => void;
 }) {
   const platform = usePlatformKind();
-  /* 右区宽度换算:右栏宽 + 4px 手柄 - 12px 顶栏右 padding - Windows 自绘窗口控制区。
-     Windows 额外扣 6px:WindowControls 入列后顶栏 flex gap 在 actions 与控制组之间
-     生效(mac 无控制组无此 gap)。漏扣时右区 border-left 竖线比下方栏边界手柄线
-     左移 6px,即 win 实测的"右侧竖线对不齐"。
-     栏宽经 CSS 变量(--tmd-left/right-aside-w)消费:变量未写入时 var() 无效 → 宽度退化 auto,
-     与旧 0=未测量/收起 行为一致;拖动期间不再触发本组件重渲染。 */
-  const rightInset = platform === "windows" ? 122 : 0;
   return (
     <header className="titlebar" data-tauri-drag-region>
       {/* 左区域:与左侧栏同宽,折叠左栏按钮钉在左区最右缘(+4px 吞掉分隔手柄,与栏边界对齐) */}
@@ -104,7 +97,6 @@ export function TopBar({
       <div
         className={`titlebar-actions${rightOpen ? " is-expanded" : ""}`}
         data-tauri-drag-region
-        style={rightOpen ? { width: `max(calc(var(--tmd-right-aside-w) - ${8 + rightInset}px), 0px)` } : undefined}
       >
         {/* 折叠/展开右侧栏 */}
         <button
