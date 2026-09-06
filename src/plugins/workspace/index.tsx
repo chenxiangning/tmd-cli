@@ -22,7 +22,7 @@ import { Mounts } from "@kernel/Mounts";
 import { addWorkspace, useWorkspaces, type Workspace } from "@kernel/workspace";
 import { pickDirectory } from "@kernel/ipc";
 import { updateSettings, useSettingsState } from "@kernel/settings";
-import { FolderOpen, FolderPlus, ListChevronsDownUp, ListChevronsUpDown } from "lucide-react";
+import { FolderClosed, FolderOpen, FolderPlus, ListChevronsDownUp, ListChevronsUpDown } from "lucide-react";
 import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
 import { WorkspaceCard } from "./WorkspaceCard";
 import { PinnedSessionsSection } from "./PinnedSessions";
@@ -101,7 +101,10 @@ function WorkspaceSection() {
       <PinnedSessionsSection />
 
       <div className="ws-caption">
-        <span>工作区</span>
+        <span className="ws-caption-label">
+          <FolderClosed size={11} aria-hidden className="ws-caption-icon" />
+          工作区
+        </span>
         <span className="ws-caption-actions">
           {/* 会话视图切换:默认/归档;workspace 插件内各分组经 settings 响应式过滤 */}
           <div className="ws-view-toggle" role="radiogroup" aria-label="会话视图">

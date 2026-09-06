@@ -45,6 +45,18 @@
   color: var(--text-muted);
 }
 
+/* caption 图标:与上方「已置顶」段头同基线(size 11 + gap 4 + 左 padding 6 对齐) */
+.ws-caption-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ws-caption-icon {
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
 .ws-caption-btn {
   border: none;
   background: transparent;
