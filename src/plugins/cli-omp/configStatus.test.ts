@@ -40,4 +40,12 @@ describe("parseOmpConfigStatus", () => {
     expect(parseOmpConfigStatus("symbolPreset: unicode\n")).toBeNull();
     expect(parseOmpConfigStatus("")).toBeNull();
   });
+
+  it("CRLF 全文(Windows 手编)同样解析出模型与思考强度", () => {
+    const yml = "modelRoles:\r\n  default: kimi-code/k3:high\r\ndefaultThinkingLevel: auto\r\n";
+    expect(parseOmpConfigStatus(yml)).toEqual({
+      model: "kimi-code/k3",
+      thinkingLevel: "high",
+    });
+  });
 });

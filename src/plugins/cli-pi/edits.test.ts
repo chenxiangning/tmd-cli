@@ -4,7 +4,7 @@
  * 与 omp 的差异点:pi 上游 edit 是 str_replace 语义,路径在结果正文句末,无快照头。
  */
 import { describe, expect, it } from "vitest";
-import { parsePiEditEvents } from "./edits";
+import { piSessionSlug, parsePiEditEvents } from "./edits";
 
 const CWD = "/Users/chenxiangning/code/AI/github/tmd-cli";
 
@@ -50,5 +50,22 @@ describe("parsePiEditEvents", () => {
       { path: ".github/workflows/release.yml", ts: Date.parse("2026-09-02T02:44:00.000Z") },
     ]);
     expect(parsePiEditEvents(both, T0, CWD)).toHaveLength(2);
+  });
+});
+
+/**
+ * pi 会话目录 slug 契约(实证锚定,防回归)。
+ * 2026-09-06 win 新装机实证:~/.pi/agent/sessions 全部目录为 `--C--<路径>--`
+ * 形态(冒号映射为 -);此前保留冒号产出永不匹配的目录名(契约见
+ * docs/architecture/04)。
+ */
+
+describe("piSessionSlug", () => {
+  it("Windows 盘符路径:冒号与分隔符全部映射为 -,双横线包裹", () => {
+    expect(piSessionSlug("C:/codeeee/tmd-cli")).toBe("--C--codeeee-tmd-cli--");
+  });
+
+  it("unix 绝对路径:剥前导斜杠后同形", () => {
+    expect(piSessionSlug("/Users/foo/bar")).toBe("--Users-foo-bar--");
   });
 });

@@ -3,7 +3,7 @@
  * 夹带行实证自 2026-09-03 真实会话 JSONL(~/.omp/agent/sessions),非构造格式。
  */
 import { describe, expect, it } from "vitest";
-import { parseOmpEditEvents } from "./edits";
+import { ompSessionSlug, parseOmpEditEvents } from "./edits";
 
 const CWD = "/Users/x/code/AI/github/tmd-cli";
 
@@ -72,5 +72,41 @@ describe("parseOmpEditEvents", () => {
       `{"type":"message","timestamp":"2026-09-03T13:45:20.263Z","message":{"role":"toolResult",` +
       `"toolName":"edit","content":[{"type":"text","text":"[~/outside.md#AB12]\\n[../escape.md#AB13]"}]}}`;
     expect(parseOmpEditEvents(hostile, 0, CWD)).toEqual([]);
+  });
+});
+
+/**
+ * omp 会话目录 slug 契约(实证锚定,防回归)。
+ * 2026-09-06 win 新装机实证:盘符冒号未映射曾致 slug 与真实落盘目录永不匹配,
+ * 身份绑定/自动重命名/状态观测整条链失效(契约见 docs/architecture/04)。
+ */
+
+describe("ompSessionSlug", () => {
+  it("Windows home 内:剥 home 前缀,分隔符转 -", () => {
+    expect(ompSessionSlug("C:/Users/CXN/.tmd-cli/default", "C:/Users/CXN")).toBe(
+      "-.tmd-cli-default",
+    );
+  });
+
+  it("Windows home 外:双横线包裹,盘符冒号一并映射为 -", () => {
+    expect(ompSessionSlug("C:/codeeee/tmd-cli", "C:/Users/CXN")).toBe(
+      "--C--codeeee-tmd-cli--",
+    );
+  });
+
+  it("Windows home 外:路径边界,foo2 不误判在 foo 之下", () => {
+    expect(ompSessionSlug("C:/Users/CXN2/x", "C:/Users/CXN")).toBe(
+      "--C--Users-CXN2-x--",
+    );
+  });
+
+  it("unix home 外:保持既有实现原样(分隔符转 -,前导斜杠亦映射,本次未改动)", () => {
+    expect(ompSessionSlug("/code/AI/tmd-cli", "/Users/foo")).toBe(
+      "--code-AI-tmd-cli-",
+    );
+  });
+
+  it("unix home 内:同样剥前缀", () => {
+    expect(ompSessionSlug("/Users/foo/work", "/Users/foo")).toBe("-work");
   });
 });

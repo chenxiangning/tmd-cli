@@ -16,8 +16,10 @@ import type { CliSessionStatus } from "@kernel/cli";
 
 /** 纯解析:config.yml 文本 → 默认模型/思考强度;取不到模型时给思考强度也算有效观测。 */
 export function parseOmpConfigStatus(configYml: string): CliSessionStatus | null {
+  /* CRLF 容忍:Windows 记事本手编的 config.yml 是 \r\n,硬锚 \n 会整段失配,
+  模型/思考强度种子静默变 null(2026-09-06 win 新装机实证)。 */
   const globalThinking = configYml.match(/^defaultThinkingLevel:\s*(\S+)\s*$/m)?.[1];
-  const rolesBlock = configYml.match(/^modelRoles:\n((?:[ \t]+\S.*(?:\n|$))+)/m);
+  const rolesBlock = configYml.match(/^modelRoles:\r?\n((?:[ \t]+\S.*(?:\r?\n|$))+)/m);
   const modelRef = rolesBlock?.[1].match(/^[ \t]+default:\s*(\S+)\s*$/m)?.[1];
   if (!modelRef) return globalThinking ? { thinkingLevel: globalThinking } : null;
   /* 角色模型值格式 provider/model[:thinking];provider/model 本身不含冒号,末冒号即思考后缀 */

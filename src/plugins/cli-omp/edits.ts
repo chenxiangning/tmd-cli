@@ -38,18 +38,27 @@ const WRITE_OK = /^Successfully wrote \d+ bytes to (.+)$/;
  * omp 磁盘会话目录(与 index 的 listSessions/status 共用;实证 slug 规则见彼处)。
  * 放本文件避免 index ↔ edits 循环 import。
  */
+export function ompSessionSlug(cwdNorm: string, homeNorm: string): string {
+  /* 路径边界:/Users/foo2/x 不得误判在 home /Users/foo 之下。 */
+  if (cwdNorm === homeNorm || cwdNorm.startsWith(homeNorm + "/")) {
+    return cwdNorm.slice(homeNorm.length).replace(/\//g, "-");
+  }
+  /* Windows 实证(2026-09-06 新装机):home 外目录 omp 真实落盘为
+  `--C--codeeee-tmd-cli--` —— 双横线包裹且 `\ / :` 全部映射为 `-`
+  (NTFS 目录名不允许冒号);此前产出 `-C:-…-` 与真实目录永不匹配,
+  身份绑定/自动重命名/状态观测整条链失效。mac 实证为单横线包裹。 */
+  if (/^[A-Za-z]:\//.test(cwdNorm)) {
+    return `--${cwdNorm.replace(/[\\/:]/g, "-")}--`;
+  }
+  return `-${cwdNorm.replace(/\//g, "-")}-`;
+}
+
 export function ompSessionsDir(cwd: string): Promise<string | null> {
   return ipc.configHomeDir().then((home) => {
     if (!home) return null;
     /* 分隔符归一:Windows 的 home/cwd 都是反斜杠形态,不归一则前缀判断
-       与 slug 生成全部失配 → 会话目录永远找不到。slug 规则本身不变。 */
-    const homeNorm = home.replace(/\\/g, "/");
-    const cwdNorm = cwd.replace(/\\/g, "/");
-    /* 路径边界:/Users/foo2/x 不得误判在 home /Users/foo 之下。 */
-    const inHome = cwdNorm === homeNorm || cwdNorm.startsWith(homeNorm + "/");
-    const slug = inHome
-      ? cwdNorm.slice(homeNorm.length).replace(/\//g, "-")
-      : `-${cwdNorm.replace(/\//g, "-")}-`;
+       与 slug 生成全部失配 → 会话目录永远找不到。slug 规则见 ompSessionSlug。 */
+    const slug = ompSessionSlug(cwd.replace(/\\/g, "/"), home.replace(/\\/g, "/"));
     return `${home}/.omp/agent/sessions/${slug}`;
   });
 }

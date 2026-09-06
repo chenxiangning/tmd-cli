@@ -32,14 +32,18 @@ const WRITE_OK = /^Successfully wrote \d+ bytes to (.+)$/;
  * pi 磁盘会话目录(slug 规则与 omp 不同:两侧各包 "--",实证注释随实现)。
  * 单一来源放本文件,index.tsx 复用,避免双向循环 import。
  */
+export function piSessionSlug(cwdNorm: string): string {
+  /* pi 实证(2026-09-06 win 新装机,~/.pi/agent/sessions 全部 7 目录):
+  `--` 包裹且 `\ / :` 全部映射为 `-`(真实目录 `--C--codeeee-tmd-cli--`);
+  此前保留盘符冒号产出 `--C:-…--`,永不匹配。unix 下冒号本就不出现,无害。 */
+  return `--${cwdNorm.replace(/^\/+/, "").replace(/[\\/:]/g, "-")}--`;
+}
+
 export async function piSessionsDir(cwd: string): Promise<string | null> {
   const agentDir = await piAgentDir().catch(() => null);
   if (!agentDir) return null;
-  /* 分隔符归一:Windows cwd 是反斜杠形态,不归一则 slug 永不失配。
-     slug 规则本身不变:去前导斜杠 → 分隔符转 "-"。 */
-  const cwdNorm = cwd.replace(/\\/g, "/");
-  const slug = `--${cwdNorm.replace(/^\/+/, "").replace(/\//g, "-")}--`;
-  return `${agentDir}/sessions/${slug}`;
+  /* 分隔符归一:Windows cwd 是反斜杠形态,不归一则 slug 永不失配。 */
+  return `${agentDir}/sessions/${piSessionSlug(cwd.replace(/\\/g, "/"))}`;
 }
 
 /** 一行已解析 JSON → 写入事件(非 edit/write 工具结果返回空)。 */
