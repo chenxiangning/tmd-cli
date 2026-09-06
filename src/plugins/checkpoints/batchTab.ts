@@ -6,7 +6,7 @@
 
 import { openTab, type EditorTab } from "@kernel/tabs";
 
-const BATCH_TAB_KIND = "ckpt-batch";
+export const BATCH_TAB_KIND = "ckpt-batch";
 
 interface BatchTabPayload {
   cwd: string;

@@ -1,7 +1,7 @@
 //! 回退/应用/通过标记的集成测试 —— tests.rs 的拆分件(文件规模铁则)。
 //! 夹具与并行隔离(io_lock/TempWs)随父模块,`use super::*` 取用。
 
-use super::super::{approve_batch, restore_batch, undo_revert};
+use super::super::{apply_batch, approve_batch, restore_batch, undo_revert};
 use super::*;
 
 #[test]
@@ -173,4 +173,113 @@ fn open_轮不可回退() {
     // 未封口
     let err = restore_batch(ws.path(), &a.id, None).unwrap_err();
     assert!(err.to_string().contains("进行中"), "open 轮不可回退: {err}");
+}
+
+// ---- 共改文件精准手术(patch.rs 集成)------------------------------------
+
+/// 12 行文件,行内容 = l1..l12。
+fn lines12() -> String {
+    (1..=12).map(|i| format!("l{i}\n")).collect()
+}
+
+#[test]
+fn 共改文件_按diff精准擦除_他人写入保留() {
+    let ws = TempWs::new();
+    ws.write("a.txt", lines12().as_str());
+    ws.commit_all("init");
+
+    // 本批(会话 A):改 l2
+    let a = ws.anchor("cli-a", "tmd-a", "A");
+    ws.write("a.txt", lines12().replace("l2\n", "l2-A\n").as_str());
+    ws.seal("cli-a", "tmd-a");
+
+    // 他人(并行会话 B):在批后改 l8
+    ws.write(
+        "a.txt",
+        lines12()
+            .replace("l2\n", "l2-A\n")
+            .replace("l8\n", "l8-B\n")
+            .as_str(),
+    );
+
+    // 回退:l2 擦回原文,l8-B 保留 —— 不再连坐
+    let out = restore_batch(ws.path(), &a.id, None).unwrap();
+    assert_eq!(out.restored, vec!["a.txt".to_string()]);
+    assert_eq!(
+        ws.read("a.txt").as_deref(),
+        Some(lines12().replace("l8\n", "l8-B\n").as_str()),
+        "本批改动精准擦除,他人写入保留"
+    );
+    assert_eq!(out.state, "reverted");
+}
+
+#[test]
+fn 共改文件_同区域重叠_跳过不覆盖() {
+    let ws = TempWs::new();
+    ws.write("a.txt", lines12().as_str());
+    ws.commit_all("init");
+
+    let a = ws.anchor("cli-a", "tmd-a", "A");
+    ws.write("a.txt", lines12().replace("l2\n", "l2-A\n").as_str());
+    ws.seal("cli-a", "tmd-a");
+
+    // 他人改的正是本批那一行:擦除 hunk 上下文失配
+    ws.write("a.txt", lines12().replace("l2\n", "l2-B\n").as_str());
+
+    let err = restore_batch(ws.path(), &a.id, None).unwrap_err();
+    assert!(err.to_string().contains("E_EMPTY"), "无路可走即拒绝: {err}");
+    assert_eq!(
+        ws.read("a.txt").as_deref(),
+        Some(lines12().replace("l2\n", "l2-B\n").as_str()),
+        "重叠冲突绝不静默覆盖"
+    );
+}
+
+#[test]
+fn 应用_他人写入在场_精准重放本批改动() {
+    let ws = TempWs::new();
+    ws.write("a.txt", lines12().as_str());
+    ws.commit_all("init");
+
+    let a = ws.anchor("cli-a", "tmd-a", "A");
+    ws.write("a.txt", lines12().replace("l2\n", "l2-A\n").as_str());
+    ws.seal("cli-a", "tmd-a");
+    restore_batch(ws.path(), &a.id, None).unwrap();
+
+    // 回退后他人又改了 l8:应用时 l2-A 重放回来,l8-B 保留
+    ws.write("a.txt", lines12().replace("l8\n", "l8-B\n").as_str());
+    let out = apply_batch(ws.path(), &a.id, None).unwrap();
+    assert_eq!(out.restored, vec!["a.txt".to_string()]);
+    assert_eq!(
+        ws.read("a.txt").as_deref(),
+        Some(
+            lines12()
+                .replace("l2\n", "l2-A\n")
+                .replace("l8\n", "l8-B\n")
+                .as_str()
+        ),
+    );
+}
+
+#[test]
+fn 共改_a文件_按diff摘除本批写入块_他人追加保留() {
+    // 批内新建文件被并行会话追加:以空基线手术,批后全文块从 live 唯一命中
+    // 摘除,他人追加行保留 —— 不再整文件 skip「内容已变」
+    let ws = TempWs::new();
+    ws.write("seed.txt", "s\n");
+    ws.commit_all("init");
+
+    // 本批(会话 A):新建 new.txt
+    let a = ws.anchor("cli-a", "tmd-a", "A");
+    ws.write("new.txt", "n1\nn2\nn3\n");
+    ws.seal("cli-a", "tmd-a");
+
+    // 他人(并行会话 B):在批后追加两行
+    ws.write("new.txt", "n1\nn2\nn3\nb1\nb2\n");
+
+    // 回退:本批写入块摘除,他人追加保留(文件不删)
+    let out = restore_batch(ws.path(), &a.id, None).unwrap();
+    assert_eq!(out.restored, vec!["new.txt".to_string()]);
+    assert_eq!(ws.read("new.txt").as_deref(), Some("b1\nb2\n"));
+    assert_eq!(out.state, "reverted");
 }

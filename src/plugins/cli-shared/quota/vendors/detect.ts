@@ -19,6 +19,7 @@ export function detectVendorByProviderId(id: string): VendorId | null {
       return "kimi";
     case "minimax-cn":
     case "minimax-code-cn":
+    case "minimax-cn-coding-plan":
       return "minimax-cn";
     case "minimax":
     case "minimax-code":

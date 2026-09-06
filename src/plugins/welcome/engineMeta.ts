@@ -1,99 +1,71 @@
 /**
- * 欢迎页引擎元数据 —— 每条对应一个已注册的 CLI profile。
+ * 欢迎页引擎元数据 —— 从已注册 CliProfile 派生,零静态表。
  *
- * 静态表,不动态构造。新增 CLI 插件时两步都要做:
- *   1. plugins/index.ts 注册 plugin 的 CliProfile;
- *   2. 本表追加 EngineMeta(id = profile.id, binary = profile.command)。
- *
- * 设计决策:
- * - 只放"显示 + 安装"的元数据;触发符/resume 等逻辑归 CliProfile。
- * - docsUrl 缺失 = 不显示"官方文档"链接,而不是给个占位。
+ * 展示/安装元数据(docsUrl / npmPackage / scriptInstall)是 CliProfile 的
+ * 声明字段(同 renderIcon 性质),本模块只做形状适配;展示名取引擎插头
+ * 自声明的 plugin.meta.name(按 plugin.id = `cli-${profile.id}` 约定 join,
+ * 见 kernel/plugin.ts 的 id 约定)。
+ * 新增 CLI 引擎 = 只走标准路径(新建插件目录 + allPlugins 一行),本文件不动。
  */
+
+import { host } from "@kernel/host";
+import type { CliProfile } from "@kernel/cli";
+import type { CliInstallPlan } from "@kernel/ipc";
 
 export interface EngineMeta {
   /** CliProfile.id(omp / pi / codex / claude ...)。 */
   id: string;
-  /** UI 展示名。 */
+  /** UI 展示名(引擎插头 meta.name,如 "Codex CLI")。 */
   displayName: string;
-  /** 探针的 binary 名(PATH 中查找用)。 */
+  /** 探针的 binary 名(PATH 中查找用)= profile.command。 */
   binary: string;
-  /** 官方文档 URL。undefined = 不显示。 */
+  /** 官方文档 URL(profile.docsUrl);缺省 = 不显示链接。 */
   docsUrl?: string;
-  /** 安装方式说明(按钮旁的提示文本)。 */
+  /** 安装方式说明(按钮旁提示文本),由安装通道派生。 */
   installHint: string;
-  /** npm 包名(不带 @latest),用于查 registry 最新版本。 */
-  npmPackage: string;
+  /** npm 包名(registry 最新版查询用);脚本通道引擎也可声明(仅查版本)。 */
+  npmPackage?: string;
+  /** 参数化安装计划;null = 该引擎未声明安装通道(不出安装按钮)。 */
+  plan: CliInstallPlan | null;
 }
 
-/** 展示顺序 = 数组顺序(按用户接触概率)。 */
-export const ENGINE_METAS: readonly EngineMeta[] = [
-  {
-    id: "omp",
-    displayName: "OMP CLI",
-    binary: "omp",
-    docsUrl: "https://github.com/oh-my-pi/pi-coding-agent",
-    installHint: "npm install -g @oh-my-pi/pi-coding-agent",
-    npmPackage: "@oh-my-pi/pi-coding-agent",
-  },
-  {
-    id: "pi",
-    displayName: "PI CLI",
-    binary: "pi",
-    docsUrl: "https://github.com/earendil-works/pi-coding-agent",
-    installHint: "npm install -g @earendil-works/pi-coding-agent",
-    npmPackage: "@earendil-works/pi-coding-agent",
-  },
-  {
-    id: "codex",
-    displayName: "Codex CLI",
-    binary: "codex",
-    docsUrl: "https://github.com/openai/codex",
-    installHint: "npm install -g @openai/codex",
-    npmPackage: "@openai/codex",
-  },
-  {
-    id: "claude",
-    displayName: "Claude Code CLI",
-    binary: "claude",
-    docsUrl: "https://code.claude.com/docs/en/cli-reference",
-    installHint: "curl -fsSL https://claude.ai/install.sh | bash",
-    npmPackage: "@anthropic-ai/claude-code",
-  },
-  {
-    id: "grok",
-    displayName: "Grok CLI",
-    binary: "grok",
-    docsUrl: "https://github.com/xai-org/grok-build",
-    // 官方 install.sh 走 x.ai(Cloudflare 墙),npm 通道更稳。
-    installHint: "npm install -g @xai-official/grok",
-    npmPackage: "@xai-official/grok",
-  },
-  {
-    id: "kimi",
-    displayName: "Kimi CLI",
-    binary: "kimi",
-    docsUrl: "https://moonshotai.github.io/kimi-code/",
-    installHint: "npm install -g @moonshot-ai/kimi-code",
-    npmPackage: "@moonshot-ai/kimi-code",
-  },
-  {
-    id: "qoder",
-    displayName: "Qoder CLI",
-    binary: "qodercli",
-    docsUrl: "https://docs.qoder.com",
-    installHint: "npm install -g @qoder-ai/qodercli",
-    npmPackage: "@qoder-ai/qodercli",
-  },
-  {
-    id: "qoder-cn",
-    displayName: "Qoder CLI (CN)",
-    binary: "qoderclicn",
-    docsUrl: "https://docs.qoder.cn",
-    installHint: "npm install -g @qodercn-ai/qoderclicn",
-    npmPackage: "@qodercn-ai/qoderclicn",
-  },
-] as const;
+/** 安装计划派生:scriptInstall 优先(官方脚本),否则 npm 通道。 */
+export function installPlanOf(profile: CliProfile): CliInstallPlan | null {
+  if (profile.scriptInstall) {
+    return { channel: "script", ...profile.scriptInstall };
+  }
+  if (profile.npmPackage) {
+    return { channel: "npm", package: profile.npmPackage };
+  }
+  return null;
+}
 
-export const ENGINE_META_BY_ID: Record<string, EngineMeta> = Object.fromEntries(
-  ENGINE_METAS.map((m) => [m.id, m]),
-);
+/** 引擎插头展示名:plugin.id = `cli-${profile.id}` 约定的 join。 */
+function engineDisplayName(profile: CliProfile): string {
+  const plugin = host
+    .listPluginStates()
+    .find((p) => p.plugin.id === `cli-${profile.id}`);
+  return plugin?.plugin.meta.name ?? profile.id;
+}
+
+/** 单个 profile → 引擎卡元数据。 */
+export function engineMetaOf(profile: CliProfile): EngineMeta {
+  return {
+    id: profile.id,
+    displayName: engineDisplayName(profile),
+    binary: profile.command,
+    docsUrl: profile.docsUrl,
+    npmPackage: profile.npmPackage,
+    installHint: profile.scriptInstall
+      ? profile.scriptInstall.unix
+      : profile.npmPackage
+        ? `npm install -g ${profile.npmPackage}`
+        : "",
+    plan: installPlanOf(profile),
+  };
+}
+
+/** 全部已注册引擎(顺序 = profile 注册顺序 = allPlugins 顺序)。 */
+export function engineMetas(): EngineMeta[] {
+  return host.getCliProfiles().map(engineMetaOf);
+}

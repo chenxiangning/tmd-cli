@@ -47,7 +47,7 @@ export function ComposerToolbar() {
           <QuotaChip />
         </>
       ) : null}
-      {/* 四段式对话框高度:↑ 逐级展开 / ↓ 逐级收起(collapsed → compact → normal → expanded),AppShell resize composer Panel */}
+      {/* 五段式对话框高度:↑ 逐级展开 / ↓ 逐级收起(min → collapsed → compact → normal → expanded),AppShell resize composer Panel */}
       <button
         type="button"
         title="展开对话框"
@@ -62,7 +62,7 @@ export function ComposerToolbar() {
         type="button"
         title="收起对话框"
         aria-label="收起对话框"
-        disabled={noSession || stage === "collapsed"}
+        disabled={noSession || stage === "min"}
         onClick={collapseComposerStage}
         className={`${iconBtn} text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >

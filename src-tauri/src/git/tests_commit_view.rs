@@ -128,3 +128,27 @@ fn log_refs_decoration() {
         );
     }
 }
+
+#[test]
+fn commit_message_完整消息含正文() {
+    let t = TempRepo::new();
+    t.write("a.txt", "v1\n");
+    let msg = "feat: add thing\n\nBody line one.\nBody line two.\n";
+    let sha = super::with_repo(t.path(), |r| {
+        super::commit::commit(
+            r,
+            vec!["a.txt".into()],
+            super::CommitInput {
+                message: msg.into(),
+                amend: false,
+            },
+        )
+    })
+    .unwrap();
+    super::evict_cwd(t.path());
+
+    let out = super::with_repo(t.path(), |r| super::commit_view::message(r, &sha)).unwrap();
+    assert_eq!(out, "feat: add thing\n\nBody line one.\nBody line two.");
+    // 非法 sha 报错
+    assert!(super::with_repo(t.path(), |r| super::commit_view::message(r, "deadbeef")).is_err());
+}

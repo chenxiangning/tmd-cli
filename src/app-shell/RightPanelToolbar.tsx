@@ -13,7 +13,6 @@ import { createPortal } from "react-dom";
 import {
   Check,
   Ellipsis,
-  ExternalLink,
   FilePlus2,
   FolderPlus,
   RefreshCw,
@@ -70,7 +69,7 @@ export function TopBarPanelTabs() {
             <button
               key={panel.id}
               type="button"
-              className={`panel-tab${isActive ? " is-active" : ""} ${panel.id}`}
+              className={`panel-tab${isActive ? " is-active" : ""}`}
               onClick={() => setFilePanelMode(panel.id)}
               aria-label={panel.label}
               title={panel.label}
@@ -207,18 +206,6 @@ function WorkspaceSubbar() {
     <div className="panel-subbar">
       <span className="panel-subbar-label" title={root}>{label}</span>
       <span className="panel-subbar-actions">
-        <button
-          type="button"
-          className="panel-subbar-action"
-          aria-label="打开独立文件窗口"
-          title="打开独立文件窗口"
-          onClick={() => {
-            // eslint-disable-next-line no-console
-            console.info("[right-panel] open-detached-explorer (subbar)", root);
-          }}
-        >
-          <ExternalLink size={12} aria-hidden />
-        </button>
         <button
           type="button"
           className="panel-subbar-action"

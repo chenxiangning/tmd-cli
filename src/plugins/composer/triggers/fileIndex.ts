@@ -1,5 +1,6 @@
 /**
- * @ 文件候选索引 ── Rust fs_walk_files(CLI 同款 ignore 语义)+ 客户端模糊匹配。
+ * composer 插件内部件(曾误居 cli-shared:零 CLI 格式知识且仅本插件消费,
+ * 不满足缝隙层准入)。
  *
  * 索引:每 workspace root 缓存 60s(fs_walk_files 对大仓是百毫秒级 IO,
  * 连续击键不能每键一次 IPC);失败不缓存(下次击键重试,不固化瞬时错误)。
@@ -35,5 +36,5 @@ export async function projectFileIndex(root: string): Promise<string[]> {
 }
 
 /* 模糊匹配纯函数在 ./fuzzyFiles(零 IO,独立单测);此处转发保持既有导入路径 */
-export { fuzzyFileMatch, fuzzyFileScore } from "./fuzzyFiles";
+export { fuzzyFileMatch } from "./fuzzyFiles";
 

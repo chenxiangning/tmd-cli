@@ -3,10 +3,9 @@
  *
  * - 职责:caption 入口按钮 + 预算弹窗(BudgetPopover),经挂载点
  *   leftSidebar.workspaceCaption 贡献进工作区标题行;workspace 不感知本插件。
- * - 消费门控:SessionList 依 host.isPluginActive("session-budget") 决定是否按
- *   预算分页 —— 拔出 = 完全断电(回默认分页 10 条 + 更多翻倍);预算数值保留在
- *   settings.sessionListBudget,重新插入后继续生效。
  * - 数据:预算数值归 kernel/settings 所有,本插件只是编辑器(校验见 budgetCommit)。
+ *   拔出 = 弹窗编辑器消失,已配置的预算继续生效(编辑器插件的拔出语义:
+ *   不改变数据);重新插入后可继续编辑。
  */
 
 import { useState } from "react";

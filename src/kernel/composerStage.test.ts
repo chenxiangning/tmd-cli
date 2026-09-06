@@ -1,5 +1,5 @@
 /**
- * composerStage 单测 —— 四段式转移契约:↑ 向展开端逐段走、↓ 向收起端逐段走,两端停。
+ * composerStage 单测 —— 五段式转移契约:↑ 向展开端逐段走、↓ 向收起端逐段走,两端停。
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import {
@@ -19,17 +19,21 @@ describe("composerStage", () => {
     expect(getComposerStage()).toBe("expanded");
   });
 
-  it("↓ 逐级收起:normal → compact → collapsed,到底停", () => {
+  it("↓ 逐级收起:normal → compact → collapsed → min,到底停", () => {
     collapseComposerStage();
     expect(getComposerStage()).toBe("compact");
     collapseComposerStage();
     expect(getComposerStage()).toBe("collapsed");
     collapseComposerStage();
-    expect(getComposerStage()).toBe("collapsed");
+    expect(getComposerStage()).toBe("min");
+    collapseComposerStage();
+    expect(getComposerStage()).toBe("min");
   });
 
-  it("collapsed 起点 ↑:compact → normal → expanded 共三段", () => {
-    setComposerStage("collapsed");
+  it("min 起点 ↑:collapsed → compact → normal → expanded 共四段", () => {
+    setComposerStage("min");
+    expandComposerStage();
+    expect(getComposerStage()).toBe("collapsed");
     expandComposerStage();
     expect(getComposerStage()).toBe("compact");
     expandComposerStage();

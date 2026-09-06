@@ -7,30 +7,48 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Download, Loader2 } from "lucide-react";
 import { useWorkspaces } from "@kernel/workspace";
 import { host } from "@kernel/host";
-import { ipc, type GitAheadBehind } from "@kernel/ipc";
+import { ipc, type GitAheadBehind, type GitRemoteRequest } from "@kernel/ipc";
 import { useGitStatus } from "./hooks/useGitStatus";
 import { useGitTotals } from "./hooks/useGitTotals";
 import { useGitBranches } from "./hooks/useGitBranches";
 import { useGitLog } from "./hooks/useGitLog";
 import { gitErrorDisplay, isAuth } from "./gitError";
 import { GIT_PREFILL_TOPIC, type GitPrefillPayload } from "./gitEvents";
-import { setGitView, setGitRefreshing, useGitPanelState } from "./panelStore";
+import {
+  clearRemoteDialogRequest,
+  setGitAggregate,
+  setGitView,
+  setGitRefreshing,
+  useGitPanelState,
+  getSmartSwitchOrigin,
+  clearSmartSwitchOrigin,
+} from "./panelStore";
+import { PushDialog } from "./views/remoteDialogs/PushDialog";
+import { PullDialog } from "./views/remoteDialogs/PullDialog";
+import { FetchDialog } from "./views/remoteDialogs/FetchDialog";
 import { DiffView } from "./views/DiffView";
 import { BranchView } from "./views/BranchView";
 import { HistoryView } from "./views/HistoryView";
+import { GitRemoteBar, SmartSwitchUndoBanner } from "./views/GitPanelBars";
 
 export function GitPanel() {
   const { list, activeId } = useWorkspaces();
   const active = list.find((w) => w.id === activeId) ?? list[0];
   const cwd = active?.root ?? null;
 
-  const { view, layout, refreshNonce } = useGitPanelState();
-  const [notice, setNotice] = useState<string | null>(null);
+  const { view, layout, refreshNonce, remoteDialogRequest } = useGitPanelState();
   const [prefill, setPrefill] = useState<{ message: string; seq: number } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [remoteBusy, setRemoteBusy] = useState<"push" | "pull" | "fetch" | null>(null);
+  const [dialog, setDialog] = useState<GitRemoteRequest["op"] | null>(null);
+  /* 分支右键菜单「推送...」等入口请求打开远端对话框:消费即清,nonce 防重复。 */
+  useEffect(() => {
+    if (!remoteDialogRequest) return;
+    clearRemoteDialogRequest();
+    setDialog(remoteDialogRequest.op);
+  }, [remoteDialogRequest]);
 
   const status = useGitStatus(cwd);
   const totals = useGitTotals(cwd);
@@ -55,6 +73,22 @@ export function GitPanel() {
     void refreshAheadBehind();
   }, [refreshAheadBehind, status.data?.branch]);
 
+  /* 聚合数字上顶栏:totals + 文件数镜像进 panelStore,GitToolbar 只读消费。 */
+  const totalsData = totals.data;
+  const fileCount = status.data?.files?.length ?? 0;
+  useEffect(() => {
+    setGitAggregate({ totals: totalsData, fileCount });
+  }, [totalsData, fileCount]);
+  /* 冲突消失(未经 undo)→ 清除来源:横幅只准在「暂存并切换」冲突存续期出现,
+   * 防陈旧 origin 在日后无关冲突(乃至其他仓库)里复活 reset --hard 级还原。
+   * 必须挂在提前 return 之前:notARepo/cwd 翻转会让 GitPanel 走空态分支,
+   * 钩子数变化 = React 卸整树白屏(实测踩过)。 */
+  const undoOrigin = getSmartSwitchOrigin();
+  useEffect(() => {
+    if (undoOrigin && !(status.data?.files ?? []).some((f) => f.status === "C")) {
+      clearSmartSwitchOrigin();
+    }
+  }, [undoOrigin, status.data?.files]);
   // composer `/commit <msg>` → 预填提交框并切差异视图(仅预填,执行权在提交按钮)
   useEffect(
     () =>
@@ -89,25 +123,26 @@ export function GitPanel() {
     }
   }, [refreshNonce, afterMutation]);
 
-  /** 远端操作统一入口:fetch/pull/push 共用 busy 与通知;凭据失败引导幕布终端。 */
-  const runRemote = useCallback(
-    (op: "push" | "pull" | "fetch") => {
+  /** 对话框执行链:关对话框 → 顶栏按钮转圈 → 成功通知+全量刷新 / 失败通知。
+   *  凭据失败引导幕布终端(与右键菜单快速操作同一纪律)。 */
+  const runDialog = useCallback(
+    (op: GitRemoteRequest["op"], req: GitRemoteRequest, opLabel: string) => {
       if (!cwd || remoteBusy) return;
+      setDialog(null);
       setRemoteBusy(op);
       setNotice(null);
-      const request = op === "fetch" ? ipc.gitFetch(cwd) : ipc.gitPullPush(cwd, op);
-      request.then(
+      ipc.gitRemoteRequest(cwd, req).then(
         () => {
           setRemoteBusy(null);
-          setNotice(`${op} 完成`);
+          setNotice(`${opLabel}成功。`);
           afterMutation();
         },
         (e: unknown) => {
           setRemoteBusy(null);
           setNotice(
             isAuth(e)
-              ? `凭据需要交互,请到幕布终端执行 git ${op}`
-              : gitErrorDisplay(e),
+              ? `${opLabel}失败:凭据需要交互,请到幕布终端执行 git ${op}`
+              : `${opLabel}失败。 ${gitErrorDisplay(e)} 可重试该操作。`,
           );
         },
       );
@@ -124,71 +159,24 @@ export function GitPanel() {
   }
 
   const files = status.data?.files ?? [];
-
+  /* 远端三按钮:打开对应对话框(preview/选项/解释在对话框内);
+   * detached HEAD 不参与远端按钮。无 upstream 也能拉取/推送(对话框可显式选目标)。 */
+  const branchName = status.data?.branch ?? "";
+  const detached = !branchName || branchName.startsWith("detached@");
+  const hasUpstream = status.data?.upstream != null;
+  const canUndo =
+    files.some((f) => f.status === "C") && undoOrigin != null && undoOrigin.cwd === cwd;
   return (
     <div className="flex h-full flex-col text-xs">
-      {/* 聚合行:分支 · 文件数 · fetch/pull/push */}
-      <div className="flex h-7 shrink-0 items-center gap-2 overflow-hidden whitespace-nowrap border-b border-(--tmd-border) px-2 text-(--tmd-fg-muted)">
-        <span className="shrink-0 font-medium text-(--tmd-fg)">{status.data?.branch ?? "…"}</span>
-        {status.data?.upstream && (
-          <span className="min-w-0 truncate text-(--tmd-fg-faint)">→ {status.data.upstream}</span>
-        )}
-        <span className="flex-1" />
-        <span className="shrink-0 tabular-nums" title="聚合增删行数(staged + 未暂存)">
-          <span className="text-(--tmd-diff-inserted)">
-            +{(totals.data?.insertions ?? 0).toLocaleString("en-US")}
-          </span>
-          <span className="mx-1 text-(--tmd-fg-faint)">/</span>
-          <span className="text-(--tmd-diff-removed)">
-            -{(totals.data?.deletions ?? 0).toLocaleString("en-US")}
-          </span>
-        </span>
-        <span className="shrink-0">{files.length} 文件</span>
-        <button
-          onClick={() => runRemote("fetch")}
-          disabled={remoteBusy !== null}
-          title="fetch --all --prune(更新远端引用,不动本地分支)"
-          className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
-        >
-          {remoteBusy === "fetch" ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Download className="h-3.5 w-3.5" />
-          )}
-        </button>
-        <button
-          onClick={() => runRemote("pull")}
-          disabled={remoteBusy !== null}
-          title={
-            (aheadBehind?.behind ?? 0) > 0
-              ? `pull(落后 ${aheadBehind!.behind} 个提交)`
-              : "pull(跟随上游与 pull.rebase 配置)"
-          }
-          className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
-        >
-          {remoteBusy === "pull" ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <ArrowDown className="h-3.5 w-3.5" />
-          )}
-          {(aheadBehind?.behind ?? 0) > 0 && aheadBehind!.behind}
-        </button>
-        {(aheadBehind?.ahead ?? 0) > 0 && (
-          <button
-            onClick={() => runRemote("push")}
-            disabled={remoteBusy !== null}
-            title={`push ${aheadBehind!.ahead} 个提交`}
-            className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
-          >
-            {remoteBusy === "push" ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <ArrowUp className="h-3.5 w-3.5" />
-            )}
-            {aheadBehind!.ahead}
-          </button>
-        )}
-      </div>
+      <GitRemoteBar
+        branch={status.data?.branch}
+        upstream={status.data?.upstream}
+        remoteBusy={remoteBusy}
+        detached={detached}
+        aheadBehind={aheadBehind}
+        hasUpstream={hasUpstream}
+        onOpenDialog={setDialog}
+      />
 
       {notice && (
         <div className="shrink-0 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2 py-1 text-(--tmd-fg-muted)">
@@ -200,6 +188,14 @@ export function GitPanel() {
           {gitErrorDisplay(status.error)}
         </div>
       )}
+      {canUndo && undoOrigin != null && (
+        <SmartSwitchUndoBanner
+          cwd={cwd}
+          undoOrigin={undoOrigin}
+          onNotice={setNotice}
+          afterMutation={afterMutation}
+        />
+      )}
 
       <div className="min-h-0 flex-1">
         {view === "diff" && (
@@ -207,6 +203,7 @@ export function GitPanel() {
             cwd={cwd}
             layout={layout}
             files={files}
+            totals={totals.data}
             prefill={prefill}
             onMutation={afterMutation}
           />
@@ -217,6 +214,7 @@ export function GitPanel() {
             data={branches.data}
             loading={branches.loading}
             currentName={status.data?.branch}
+            dirty={files.length > 0}
             onMutation={afterMutation}
           />
         )}
@@ -231,6 +229,31 @@ export function GitPanel() {
           />
         )}
       </div>
+      {cwd && dialog === "push" && (
+        <PushDialog
+          cwd={cwd}
+          branch={branchName}
+          submitting={remoteBusy === "push"}
+          onClose={() => setDialog(null)}
+          onRun={(req, label) => runDialog("push", req, label)}
+        />
+      )}
+      {cwd && dialog === "pull" && (
+        <PullDialog
+          cwd={cwd}
+          branch={branchName}
+          submitting={remoteBusy === "pull"}
+          onClose={() => setDialog(null)}
+          onRun={(req, label) => runDialog("pull", req, label)}
+        />
+      )}
+      {cwd && dialog === "fetch" && (
+        <FetchDialog
+          submitting={remoteBusy === "fetch"}
+          onClose={() => setDialog(null)}
+          onRun={(req, label) => runDialog("fetch", req, label)}
+        />
+      )}
     </div>
   );
 }

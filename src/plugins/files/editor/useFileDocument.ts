@@ -4,7 +4,7 @@
  * - 初始内容 = 磁盘内容(\r\n 归一),若有未保存草稿则草稿优先(关脏 tab 重开恢复)。
  * - dirty = content !== saved,变化时经 updateTab 同步到 tab 栏圆点。
  * - 保存:写回磁盘(CRLF 还原)→ 刷内容缓存 → 清草稿;失败信息落 footer。
- * - Mod-S:window 捕获阶段拦截(先于编辑器/幕布终端),活动 tab 即保存目标。
+ * - 保存触发:files.save(⌘S)命令经模块级 saveRequestRef 桥进来,活动 tab 即保存目标。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,6 +18,9 @@ import {
   toDiskContent,
   toEditorContent,
 } from "./fileCache";
+
+/** files.save 命令桥:挂载中的文件编辑器实例经此接收保存触发(先例 TerminalView.findRequestRef)。 */
+export const saveRequestRef: { current: (() => void) | null } = { current: null };
 
 interface FileDocState {
   content: string;
@@ -96,18 +99,15 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
     );
   }, [path, init]);
 
-  /* Mod-S 全局捕获:焦点在编辑器、幕布终端或任意处,保存的都是活动文件 tab。 */
+  /* 保存请求桥:⌘S 命令(files.save)注册口经此触发最新 save;卸载即摘除,
+     非文件 tab 下 when 不满足,键穿透。 */
   const saveRef = useRef(save);
   saveRef.current = save;
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "s") return;
-      e.preventDefault();
-      e.stopPropagation();
-      saveRef.current();
+    saveRequestRef.current = () => saveRef.current();
+    return () => {
+      saveRequestRef.current = null;
     };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
   }, []);
 
   /* 脏标记同步到 tab(圆点)。卸载不清理:切走的脏 tab 仍需保持圆点。 */

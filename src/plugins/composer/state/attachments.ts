@@ -43,6 +43,9 @@ export function classifyAttachment(name: string, mime: string): AttachmentKind {
   return "file";
 }
 
+/* 与 files/render/FileImagePreview.tsx 的 formatBytes 是刻意不同的两份实现:
+   本处带单位空格("1.5 KB",附件清单元数据,可读性优先);彼处紧凑无空格
+   ("1.5MB",图片信息条窄槽位)。输出契约不同,不合并。 */
 export function formatBytes(n: number): string {
   if (n < 1024) return n + " B";
   if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";

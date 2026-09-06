@@ -12,6 +12,7 @@ import { cliPiPlugin } from "./cli-pi";
 import { cliKimiPlugin } from "./cli-kimi";
 import { cliQoderPlugin } from "./cli-qoder";
 import { cliQoderCnPlugin } from "./cli-qoder-cn";
+import { cliOpencodePlugin } from "./cli-opencode";
 import { composerPlugin } from "./composer";
 import { filesPlugin } from "./files";
 import { gitPlugin } from "./git";
@@ -19,9 +20,11 @@ import { sessionBudgetPlugin } from "./session-budget";
 import { workspacePlugin } from "./workspace";
 import { settingsPlugin } from "./settings";
 import { sshPlugin } from "./ssh";
+import { terminalPlugin } from "./terminal";
 import { welcomePlugin } from "./welcome";
 import { networkProxyPlugin } from "./network-proxy";
 import { checkpointsPlugin } from "./checkpoints";
+import { memoryCoordinatorPlugin } from "./memory-coordinator";
 
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
@@ -32,6 +35,7 @@ export const allPlugins: Plugin[] = [
   cliGrokPlugin,
   cliQoderPlugin,
   cliQoderCnPlugin,
+  cliOpencodePlugin,
   sessionBudgetPlugin,
   workspacePlugin,
   filesPlugin,
@@ -41,5 +45,7 @@ export const allPlugins: Plugin[] = [
   settingsPlugin,
   networkProxyPlugin,
   sshPlugin,
+  terminalPlugin,
   welcomePlugin,
+  memoryCoordinatorPlugin,
 ];

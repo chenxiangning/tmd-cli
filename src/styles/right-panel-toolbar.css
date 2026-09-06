@@ -56,9 +56,6 @@
   color: rgb(255, 140, 60); /* 橙色 ─ 跟用户截图一致 */
 }
 
-.panel-tab.is-active.git {
-  color: rgb(255, 140, 60);
-}
 
 .panel-tab svg {
   width: 14px;
@@ -88,6 +85,7 @@
   position: fixed;
   z-index: 1201;
   min-width: 240px;
+  color: var(--tmd-fg);
   background: var(--tmd-bg-popover);
   border: 1px solid var(--tmd-border);
   border-radius: 10px;

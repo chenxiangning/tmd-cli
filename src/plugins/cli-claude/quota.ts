@@ -12,7 +12,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
-import { registerQuotaProvider, type QuotaSnapshot } from "@kernel/quota";
+import type { QuotaSnapshot } from "@kernel/quota";
 import {
   detectVendorByBaseUrl,
   fetchVendorQuota,
@@ -75,7 +75,7 @@ async function hasOfficialOAuth(home: string): Promise<boolean> {
   }
 }
 
-async function fetchClaudeQuota(): Promise<QuotaSnapshot> {
+export async function fetchClaudeQuota(): Promise<QuotaSnapshot> {
   const home = await ipc.configHomeDir();
   const cred = await readClaudeCredentials(home);
 
@@ -100,9 +100,3 @@ async function fetchClaudeQuota(): Promise<QuotaSnapshot> {
   throw new Error("未找到 claude 凭据 (~/.claude/settings.json env)");
 }
 
-export function registerClaudeQuotaProvider(): void {
-  registerQuotaProvider({
-    profileId: "claude",
-    fetch: fetchClaudeQuota,
-  });
-}

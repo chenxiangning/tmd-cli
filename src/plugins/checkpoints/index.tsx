@@ -19,10 +19,10 @@ import {
   type PromptSentEvent,
   type TurnSettledEvent,
 } from "@kernel/events";
-import { registerFilePanel } from "@kernel/filePanel";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { captureAnchor, recordEdit, sealTurn } from "./store";
 import { checkpointIdentity } from "./identity";
+import { BATCH_TAB_KIND } from "./batchTab";
 import { CheckpointsPanel } from "./CheckpointsPanel";
 import { BatchSheetTabContent } from "./BatchSheet";
 
@@ -37,7 +37,7 @@ export const checkpointsPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx: PluginContext) {
-    registerFilePanel({
+    ctx.registerFilePanel({
       id: "checkpoints",
       label: "审批线",
       icon: History,
@@ -45,10 +45,8 @@ export const checkpointsPlugin: Plugin = {
       showFileSubbar: false, // 审批线自带摘要行(审批线 · 批次规模 · 待审计数)
       order: 10,
     });
-    ctx.contribute("editorCenter.tabContent", {
-      order: 10,
-      component: BatchSheetTabContent,
-    });
+    /* 中央批审阅单 tab:kind="ckpt-batch" 路由(kernel/tabs 注册表)。 */
+    ctx.registerTabContent({ kind: BATCH_TAB_KIND, component: BatchSheetTabContent });
 
     /** 会话身份解析:统一走 identity.ts 仲裁(cli 身份被多活会话争持时,
      *  先创建者保留、后到者回退 tmd id —— 防绑定竞态把两个会话并进同一条账)。 */

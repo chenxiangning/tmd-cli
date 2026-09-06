@@ -9,7 +9,7 @@ import type { GitFileStatus } from "@kernel/ipc";
 import { buildTree } from "./diffTree";
 
 function f(path: string): GitFileStatus {
-  return { path, status: "M", staged: false, wt: true };
+  return { path, status: "M", staged: false, wt: true, oldPath: null };
 }
 
 describe("buildTree", () => {

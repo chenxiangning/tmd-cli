@@ -15,7 +15,7 @@
  * 组件实现见同目录:WorkspaceCard / SessionList / SessionMenu / utils。
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { host, useHost } from "@kernel/host";
 import type { Plugin } from "@kernel/plugin";
 import { Mounts } from "@kernel/Mounts";
@@ -26,6 +26,10 @@ import { FolderOpen, FolderPlus, ListChevronsDownUp, ListChevronsUpDown } from "
 import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
 import { WorkspaceCard } from "./WorkspaceCard";
 import { PinnedSessionsSection } from "./PinnedSessions";
+
+/** ⌘T 桥:新建会话菜单开合态在 WorkspaceSection 组件内,命令却在 activate 期注册 ——
+ *  模块级 ref 接收分发器触发(先例:TerminalView findRequestRef)。 */
+const openNewSessionMenuRef: { current: (() => void) | null } = { current: null };
 
 function WorkspaceSection() {
   useHost();
@@ -49,6 +53,20 @@ function WorkspaceSection() {
     updateSettings({
       workspaceCollapsedMap: { ...collapsedMap, [id]: v },
     });
+  /** ⌘T 入口:无点击锚点,菜单开在左栏顶部;工作区取活动者,缺省首个,皆无则不动。 */
+  const openMenu = () => {
+    const ws = list.find((w) => w.id === activeId) ?? list[0];
+    if (!ws) return;
+    setMenu({ workspace: ws, ...clampMenuPosition(16, 60) });
+  };
+
+  /* 开函数随渲染重建,效果依其重同步 ref;卸载置空(插件拔出后 ⌘T 成 no-op)。 */
+  useEffect(() => {
+    openNewSessionMenuRef.current = openMenu;
+    return () => {
+      openNewSessionMenuRef.current = null;
+    };
+  }, [openMenu]);
 
   async function handleAdd() {
     try {
@@ -162,6 +180,13 @@ export const workspacePlugin: Plugin = {
     ctx.contribute("leftSidebar.section", {
       order: 0,
       component: WorkspaceSection,
+    });
+    /* ⌘T 打开新建会话菜单:开合态经模块级 ref 桥进组件(见文件头)。 */
+    ctx.registerCommand({
+      id: "workspace.newSessionMenu",
+      title: "打开新建会话菜单",
+      keybinding: "Cmd+T",
+      run: () => openNewSessionMenuRef.current?.(),
     });
   },
 };

@@ -91,6 +91,25 @@ pub async fn ssh_session_create(
     Ok(crate::pty::SpawnedSession { id, pid: None })
 }
 
+/// 重连 SSH 会话:取原会话主机配置(凭据只进内存,不出后端)→ 旧会话完整收尾
+/// (级联转发/SFTP + pty://exit)→ 同配置新建;新会话新 id,旧 tab 退出即消亡。
+#[tauri::command]
+pub async fn ssh_session_reconnect(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    session_id: String,
+    cwd: String,
+    workspace_id: Option<String>,
+) -> Result<crate::pty::SpawnedSession, String> {
+    let host = {
+        let sessions = state.ssh.sessions.lock();
+        let entry = sessions.get(&session_id).ok_or("SSH 会话不存在或已结束")?;
+        entry.host.clone()
+    };
+    control::kill(&app, &state.ssh, &session_id)?;
+    ssh_session_create(app, state, host, cwd, workspace_id, None, None).await
+}
+
 #[tauri::command]
 pub fn ssh_session_status(state: State<'_, AppState>, session_id: String) -> String {
     state.ssh.status(&session_id)

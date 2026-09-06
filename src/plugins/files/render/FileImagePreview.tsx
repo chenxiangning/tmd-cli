@@ -11,6 +11,9 @@ import { useCallback, useEffect, useState, type SyntheticEvent } from "react";
 import { assetUrl, ipc } from "@kernel/ipc";
 import { dataUrlByteLength } from "./previewBytes";
 
+/* 与 composer/state/attachments.ts 的 formatBytes 是刻意不同的两份实现:
+   本处紧凑无空格("1.5MB",图片信息条窄槽位);彼处带单位空格("1.5 KB",
+   附件清单元数据)。输出契约不同,不合并。 */
 function formatBytes(sizeBytes: number): string {
   if (sizeBytes >= 1024 * 1024) {
     return `${(sizeBytes / (1024 * 1024)).toFixed(1)}MB`;

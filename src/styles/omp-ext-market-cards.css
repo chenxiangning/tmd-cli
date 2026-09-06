@@ -1,0 +1,255 @@
+/* omp 扩展市场面板 —— 交互单元样式:目录卡/已装行/装卸按钮/风险展开/流式日志。
+ * 骨架(头部/分区/横幅)在 omp-ext-market.css,滑出容器在 plugin-market.css。 */
+
+/* ── 目录卡 ── */
+.omp-ext-card {
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--tmd-bg-popover);
+}
+
+.omp-ext-card.is-running {
+  border-color: var(--tmd-accent);
+}
+
+.omp-ext-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.omp-ext-pkg {
+  font-weight: 600;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.omp-ext-ver {
+  font-size: 11px;
+  color: var(--tmd-fg-subtle);
+  white-space: nowrap;
+}
+
+.omp-ext-dl {
+  font-size: 11px;
+  color: var(--tmd-fg-muted);
+  white-space: nowrap;
+}
+
+.omp-ext-cur {
+  font-size: 10px;
+  color: var(--tmd-accent);
+  border: 1px solid var(--tmd-accent);
+  border-radius: 999px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.omp-ext-desc {
+  font-size: 12px;
+  color: var(--tmd-fg-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.omp-ext-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.omp-ext-risk {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--tmd-err);
+  cursor: help;
+}
+
+.omp-ext-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--tmd-fg-muted);
+  text-decoration: none;
+}
+
+.omp-ext-link:hover {
+  color: var(--tmd-accent);
+}
+
+.omp-ext-card-foot .omp-ext-running,
+.omp-ext-card-foot .omp-ext-done,
+.omp-ext-card-foot .omp-ext-btn,
+.omp-ext-card-foot .omp-ext-confirm {
+  margin-left: auto;
+}
+
+/* ── 按钮(安装/卸载/两步确认共用) ── */
+.omp-ext-btn {
+  border: 1px solid var(--tmd-border-strong);
+  border-radius: var(--tmd-radius-sm);
+  background: none;
+  color: var(--tmd-fg);
+  font-size: 11px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.omp-ext-btn:hover:not(:disabled) {
+  border-color: var(--tmd-accent);
+  color: var(--tmd-accent);
+}
+
+.omp-ext-btn.danger {
+  border-color: var(--tmd-err);
+  color: var(--tmd-err);
+}
+
+.omp-ext-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.omp-ext-confirm {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.omp-ext-running {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--tmd-accent);
+}
+
+.omp-ext-spin {
+  animation: omp-ext-rotate 1s linear infinite;
+}
+
+@keyframes omp-ext-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.omp-ext-done {
+  font-size: 11px;
+  color: var(--tmd-fg-subtle);
+}
+
+/* ── 已装行 ── */
+.omp-ext-row {
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-sm);
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--tmd-bg-popover);
+}
+
+/* 行头 = 折叠开关(整行可点);动作按钮独立其右,不进折叠区。 */
+.omp-ext-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 1px 0;
+  cursor: pointer;
+}
+
+.omp-ext-caret {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--tmd-fg-subtle);
+  transition: transform 0.15s;
+}
+
+.omp-ext-row.is-open .omp-ext-caret {
+  transform: rotate(180deg);
+}
+
+.omp-ext-row-detail {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--tmd-fg-muted);
+  line-height: 1.5;
+  padding: 1px 17px 3px 15px;
+  cursor: default;
+}
+
+.omp-ext-badge {
+  font-size: 10px;
+  color: var(--tmd-accent);
+  border: 1px solid var(--tmd-accent);
+  border-radius: 999px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.omp-ext-badge.off {
+  color: var(--tmd-fg-subtle);
+  border-color: var(--tmd-border-strong);
+}
+
+/* ── 风险展开与日志 ── */
+.omp-ext-risknote {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  font-size: 11px;
+  color: var(--tmd-err);
+  background: color-mix(in srgb, var(--tmd-err) 8%, transparent);
+  border-radius: var(--tmd-radius-sm);
+  padding: 6px 8px;
+}
+
+.omp-ext-risknote svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.omp-ext-log {
+  margin: 0;
+  max-height: 140px;
+  overflow-y: auto;
+  background: var(--tmd-bg-base);
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-sm);
+  padding: 6px 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--tmd-fg-muted);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── 底部横幅 ── */
+.omp-ext-foot {
+  padding: 8px 14px;
+  border-top: 1px solid var(--tmd-border);
+  font-size: 11px;
+  color: var(--tmd-fg-subtle);
+  line-height: 1.5;
+}

@@ -3,7 +3,7 @@
  *
  * 三类触发符(2026-09-04 起数据源以 CLI 为真相源,见
  * docs/superpowers/specs/2026-09-04-composer-cli-sourced-suggestions-design.md):
- * - @ (file):cli-shared/fileIndex(Rust fs_walk_files 全仓索引 + 客户端模糊),
+ * - @ (file):triggers/fileIndex(Rust fs_walk_files 全仓索引 + 客户端模糊,插件内部件),
  *   根 = 会话 workspace root(修复旧实现落到进程 cwd 只见根目录的 bug)
  * - / (command) 与 $ (skill):profile.listSuggestions(CLI 查询/磁盘扫描)
  *   与静态表按 value 去重合并(drawerItems.mergeSuggestions 共用语义);
@@ -11,7 +11,7 @@
  */
 
 import type { CliProfile, CliSuggestion, CliTriggerSpec, TriggerKind } from "@kernel/cli";
-import { fuzzyFileMatch, projectFileIndex } from "../../cli-shared/fileIndex";
+import { fuzzyFileMatch, projectFileIndex } from "./fileIndex";
 import { mergeSuggestions } from "../drawerItems";
 
 /** 下拉候选上限:与 CLI 原生补全面板量级一致,太多反而不可扫读。 */

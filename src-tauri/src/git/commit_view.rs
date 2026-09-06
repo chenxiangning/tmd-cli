@@ -89,6 +89,13 @@ pub fn files(repo: &Repository, sha: &str) -> Result<Vec<CommitFile>, GitError> 
     Ok(out)
 }
 
+/// 提交完整 message(首行 + 正文,去掉尾部换行);分支对比详情面板展示用。
+pub fn message(repo: &Repository, sha: &str) -> Result<String, GitError> {
+    let oid = Oid::from_str(sha)?;
+    let commit = repo.find_commit(oid)?;
+    Ok(commit.message().unwrap_or_default().trim_end().into())
+}
+
 /// 提交内单文件 patch:path 按 新路径 或 rename 来源路径 匹配 delta。
 pub fn file_patch(repo: &Repository, sha: &str, path: &str) -> Result<Option<FilePatch>, GitError> {
     let diff = commit_diff(repo, sha)?;

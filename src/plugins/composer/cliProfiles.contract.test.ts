@@ -17,6 +17,7 @@ import { CODEX_COMMAND_SUGGESTIONS, extractCodexMcpServers } from "../cli-codex"
 import { GROK_COMMAND_SUGGESTIONS } from "../cli-grok";
 import { KIMI_COMMAND_SUGGESTIONS } from "../cli-kimi";
 import { QODER_COMMAND_SUGGESTIONS } from "../cli-shared/qoderSessions";
+import { OPENCODE_COMMAND_SUGGESTIONS } from "../cli-opencode/commands";
 import type { CliSuggestion } from "@kernel/cli";
 
 /** bare 合法清单(proposal §初判表;实测校准后在此回填) */
@@ -29,6 +30,21 @@ const BARE_LEGAL: Record<string, ReadonlySet<string>> = {
   kimi: new Set(["help", "model", "sessions", "new", "plan", "compact", "usage"]),
   qoder: new Set(["simplify", "quest", "mcp-config", "run", "feedback"]),
   "qoder-cn": new Set(["simplify", "quest", "mcp-config", "run", "feedback"]),
+  opencode: new Set([
+    "new",
+    "sessions",
+    "models",
+    "compact",
+    "share",
+    "unshare",
+    "init",
+    "connect",
+    "export",
+    "thinking",
+    "details",
+    "themes",
+    "help",
+  ]),
 };
 
 const CANDIDATE_SETS: Record<string, CliSuggestion[]> = {
@@ -40,6 +56,7 @@ const CANDIDATE_SETS: Record<string, CliSuggestion[]> = {
   kimi: KIMI_COMMAND_SUGGESTIONS,
   qoder: QODER_COMMAND_SUGGESTIONS?.command ?? [],
   "qoder-cn": QODER_COMMAND_SUGGESTIONS?.command ?? [],
+  opencode: OPENCODE_COMMAND_SUGGESTIONS,
 };
 
 describe("cli-profiles 抽屉契约", () => {

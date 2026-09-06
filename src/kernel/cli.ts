@@ -6,6 +6,7 @@
  */
 
 import type { ReactNode } from "react";
+import type { QuotaFetchContext, QuotaSnapshot } from "./quota";
 
 export type TriggerKind = "skill" | "command" | "file";
 
@@ -152,6 +153,14 @@ export interface CliProfile {
    * 缺省 = 该 CLI 不提供历史列表。
    */
   listSessions?: (cwd: string) => Promise<CliDiskSession[]>;
+  /**
+   * 删除该 CLI 的一个磁盘会话(「删除会话」入口的 profile 级实现)。
+   * 单库多会话 CLI(opencode:多个会话共享一个 sqlite 文件,CliDiskSession.path
+   * 是合成路径)无法用 fsRemovePath 删文件,声明此钩子走代写原语;
+   * 文件/目录型 CLI(kimi/qoder 等)不声明,workspace 照旧 fsRemovePath。
+   * 成功 resolve;失败 reject 由调用方提示。
+   */
+  deleteSession?: (cliSessionId: string) => Promise<void>;
   /** 读取当前 CLI session 的模型与思考强度,只读且可缺省。 */
   readSessionStatus?: (
     cwd: string,
@@ -230,4 +239,24 @@ export interface CliProfile {
    * 声明阵营;新增 CLI 时先确认编辑器是否 pi-tui 系再决定是否声明。
    */
   bracketedPaste?: boolean;
+
+  /**
+   * 该 CLI 的额度抓取器(composer 状态条 QuotaChip / welcome 供应商盘点消费)。
+   * 声明后内核自动接线进 kernel/quota 注册表(按 profileId 索引);
+   * 未声明 = 该 CLI 无额度位。失败时 throw,由消费方渲染错误态。
+   */
+  fetchQuota?: (ctx: QuotaFetchContext) => Promise<QuotaSnapshot>;
+
+  /* ── 安装/展示元数据(welcome 引擎卡消费;与 renderIcon 同性质的声明字段)── */
+
+  /** 官方文档 URL;缺省 = 引擎卡不显示「官方文档」链接。 */
+  docsUrl?: string;
+  /** npm 包名(不带 @latest):registry 最新版查询 + npm 通道一键安装共用。 */
+  npmPackage?: string;
+  /**
+   * 官方脚本安装通道(优先于 npm):unix/windows 为完整命令串。
+   * 例 claude:unix `curl -fsSL https://claude.ai/install.sh | bash`。
+   * 安装命令经通用 IPC 原语执行,Rust 不持有任何 CLI 配方。
+   */
+  scriptInstall?: { unix: string; windows: string };
 }

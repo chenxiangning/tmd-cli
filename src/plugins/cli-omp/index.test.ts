@@ -15,6 +15,7 @@ function activateCapturingProfile(): CliProfile {
   const captured: CliProfile[] = [];
   cliOmpPlugin.activate({
     registerCliProfile: (profile: CliProfile) => captured.push(profile),
+    registerMarketPanel: () => {},
   } as unknown as PluginContext);
   const profile = captured[0];
   if (!profile) throw new Error("activate 未注册任何 profile");

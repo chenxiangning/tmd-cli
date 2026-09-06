@@ -13,20 +13,32 @@
 mod branch_ops;
 mod commit;
 mod commit_view;
+mod compare_ops;
 mod diff;
 mod error;
 mod index_ops;
 mod log;
+mod remote_args;
 mod remote_ops;
+mod remote_request;
+mod stash_ops;
 mod status;
 
 pub mod commands;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_branch_menu;
+#[cfg(test)]
 mod tests_commit_view;
 #[cfg(test)]
 mod tests_common;
+#[cfg(test)]
+mod tests_flow;
+#[cfg(test)]
+mod tests_remote_dialog;
+#[cfg(test)]
+mod tests_smart_checkout;
 #[cfg(test)]
 mod tests_write_ops;
 
@@ -39,6 +51,7 @@ use std::sync::{Arc, LazyLock};
 pub use branch_ops::BranchList;
 pub use commit::CommitInput;
 pub use commit_view::CommitFile;
+pub use compare_ops::{BranchCompareSet, BranchDiffFile};
 pub use diff::{DiffTotals, FilePatch};
 pub use error::GitError;
 pub use log::{walk as walk_log, LogEntry};
@@ -109,6 +122,34 @@ pub fn with_repo<T>(
     }; // 外层锁已释放,再申请内层
     let repo = arc.lock();
     f(&repo)
+}
+
+/// with_repo 的可变句柄变体 —— stash 等需要 &mut Repository 的写操作用。
+/// 与 with_repo 同款锁序(外层锁已释放再申请内层);Mutex 互斥保证独占。
+pub fn with_repo_mut<T>(
+    cwd: &str,
+    f: impl FnOnce(&mut Repository) -> Result<T, GitError>,
+) -> Result<T, GitError> {
+    let key = canonicalize_cwd(cwd)?;
+    let arc = {
+        let cached = REPO_CACHE.lock().get(&key);
+        match cached {
+            Some(a) => a,
+            None => {
+                let arc = Arc::new(Mutex::new(Repository::discover(&key).map_err(|e| {
+                    if e.code() == git2::ErrorCode::NotFound {
+                        GitError::NotARepo(key.display().to_string())
+                    } else {
+                        GitError::Libgit2(e)
+                    }
+                })?));
+                REPO_CACHE.lock().insert(key, arc.clone());
+                arc
+            }
+        }
+    }; // 外层锁已释放,再申请内层
+    let mut repo = arc.lock();
+    f(&mut repo)
 }
 
 /// 写操作(commit/checkout/stage/discard/branch_delete)成功后由 commands 层调用。

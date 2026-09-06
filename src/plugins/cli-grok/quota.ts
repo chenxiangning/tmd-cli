@@ -12,7 +12,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
-import { registerQuotaProvider, type QuotaSnapshot } from "@kernel/quota";
+import type { QuotaSnapshot } from "@kernel/quota";
 import {
   detectVendorByBaseUrl,
   fetchVendorQuota,
@@ -20,7 +20,7 @@ import {
 } from "../cli-shared/quota/vendors";
 import { resolveGrokDefaultProfile } from "../cli-shared/grokConfig";
 
-async function fetchGrokQuota(): Promise<QuotaSnapshot> {
+export async function fetchGrokQuota(): Promise<QuotaSnapshot> {
   const home = await ipc.configHomeDir();
   const text = await ipc.fsReadFile(`${home}/.grok/config.toml`);
   const profile = resolveGrokDefaultProfile(text);
@@ -43,9 +43,3 @@ async function fetchGrokQuota(): Promise<QuotaSnapshot> {
   );
 }
 
-export function registerGrokQuotaProvider(): void {
-  registerQuotaProvider({
-    profileId: "grok",
-    fetch: fetchGrokQuota,
-  });
-}

@@ -189,7 +189,7 @@ export function CheckpointsPanel() {
       )}
 
       {/* 时间线 */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto py-2 pr-2 pl-1">
         {!cwd ? (
           <Empty text="暂无活跃工作区" />
         ) : !sessionId ? (

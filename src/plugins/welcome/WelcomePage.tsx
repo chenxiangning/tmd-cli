@@ -2,7 +2,7 @@
  * 欢迎页 —— 无活跃 session 时的中央幕布首页(嵌入页,非弹窗)。
  *
  * 区块:
- * 1. 引擎卡 ×N(ENGINE_METAS):探针 + 安装(进度条 + 流式日志)+ 已登录供应商/额度;
+ * 1. 引擎卡 ×N(engineMetas() 派生自已注册 profile):探针 + 安装 + 已登录供应商/额度;
  * 2. 近期会话:工作区分组,点击直接续上。
  *
  * 状态集中在页级:探针结果/安装状态按引擎 id 存 Record,卡片纯渲染。
@@ -12,7 +12,7 @@ import { openExternalUrl } from "@kernel/ipc";
 
 import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { host, useHost } from "@kernel/host";
-import { ENGINE_METAS, ENGINE_META_BY_ID } from "./engineMeta";
+import { engineMetas, type EngineMeta } from "./engineMeta";
 
 import {
   EngineCard,
@@ -33,23 +33,23 @@ const GITHUB_SVG = (
 
 function buildInitialProbes(): Record<string, EngineProbeState> {
   return Object.fromEntries(
-    ENGINE_METAS.map((m) => [m.id, { status: "loading" as const, result: null }]),
+    engineMetas().map((m) => [m.id, { status: "loading" as const, result: null }]),
   );
 }
 
 /** 单引擎状态容器(探针 + 安装 hook 必须组件化,故每引擎一个子组件)。 */
 function EngineSection({
-  engineId,
+  meta,
   probe,
   latest,
   onProbe,
 }: {
-  engineId: string;
+  meta: EngineMeta;
   probe: EngineProbeState;
   latest: string | null | undefined;
   onProbe: () => void;
 }) {
-  const meta = ENGINE_META_BY_ID[engineId];
+  const engineId = meta.id;
   const profile = host.getCliProfile(engineId);
   const [install, startInstall] = useEngineInstall(meta, onProbe);
   return (
@@ -81,16 +81,14 @@ export function WelcomePage() {
      useMemo 锚定注册集指纹而非 version:host 任意 notify(后台会话的 PTY 输出、
      身份绑定等)都会 bump version,锚 version 会让对话期间每 500ms 重探全部引擎
      (探针页反复闪烁);指纹只在注册集真正变化时改变。 */
-  const registrationKey = ENGINE_METAS.map((m) =>
-    host.getCliProfile(m.id) ? m.id : "-",
-  ).join("|");
+  const registrationKey = engineMetas().map((m) => m.id).join("|");
   const visibleMetas = useMemo(
-    () => ENGINE_METAS.filter((m) => host.getCliProfile(m.id) !== undefined),
+    () => engineMetas(),
     [registrationKey],
   );
 
   const runProbe = useCallback(async (engineId: string) => {
-    const meta = ENGINE_META_BY_ID[engineId];
+    const meta = engineMetas().find((m) => m.id === engineId);
     if (!meta) return;
     setProbes((prev) => ({
       ...prev,
@@ -108,6 +106,7 @@ export function WelcomePage() {
   /* 可见引擎集确定后,每引擎拉一次最新版本。 */
   useEffect(() => {
     for (const meta of visibleMetas) {
+      if (!meta.npmPackage) continue;
       if (latestFetchedRef.current.has(meta.id)) continue;
       latestFetchedRef.current.add(meta.id);
       void fetchLatestVersion(meta.npmPackage).then((version) =>
@@ -146,7 +145,7 @@ export function WelcomePage() {
           {visibleMetas.map((meta) => (
             <EngineSection
               key={meta.id}
-              engineId={meta.id}
+              meta={meta}
               probe={
                 probes[meta.id] ?? { status: "loading", result: null }
               }

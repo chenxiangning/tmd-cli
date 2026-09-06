@@ -16,6 +16,8 @@ export interface GitFileStatus {
   staged: boolean;
   /** 工作区侧有变更;staged && wt = 暂存后又改,预览/提交以 wt 侧为准 */
   wt: boolean;
+  /** rename 来源路径(仓库相对);非 rename 为 null —— 目录列显示「← 旧目录/」 */
+  oldPath: string | null;
 }
 
 export interface GitDiffStatus {
@@ -26,10 +28,20 @@ export interface GitDiffStatus {
   files: GitFileStatus[];
 }
 
+/** 每文件单侧 ±行数(staged 标记侧别:tree→index / index→workdir)。
+ *  binary 不入列;untracked 整文件计入 wt 侧;聚合值恒等于逐项求和。 */
+export interface GitFileTotal {
+  path: string;
+  staged: boolean;
+  insertions: number;
+  deletions: number;
+}
+
 /** 聚合 ±行数 —— 独立低频命令(写操作后/手动刷新),不随 5s 轮询。 */
 export interface GitTotals {
   insertions: number;
   deletions: number;
+  files: GitFileTotal[];
 }
 
 export interface GitAheadBehind {
@@ -88,4 +100,52 @@ export interface GitBranchInfo {
 export interface GitBranchList {
   local: GitBranchInfo[];
   remote: GitBranchInfo[];
+}
+
+/* ── 远端对话框(请求结构对齐 remote_ops.rs RemoteRequest,serde camelCase)── */
+
+/** Gerrit 推送附加项;reviewers/cc 为逗号分隔用户名。 */
+export interface GerritExtra {
+  topic: string | null;
+  reviewers: string | null;
+  cc: string | null;
+}
+
+/** 远端对话框结构化请求;op = "fetch" | "pull" | "push"。 */
+export interface GitRemoteRequest {
+  op: "fetch" | "pull" | "push";
+  /** fetch:null = 全部远端;pull/push 必传(前端兜底 origin) */
+  remote: string | null;
+  /** pull:目标远端分支;push:目标远端分支 */
+  branch: string | null;
+  /** pull 单选:"--rebase" | "--ff-only" | "--no-ff" | "--squash" | null */
+  strategy: string | null;
+  noCommit: boolean;
+  noVerify: boolean;
+  forceWithLease: boolean;
+  followTags: boolean;
+  gerrit: GerritExtra | null;
+}
+
+/** 推送预览:HEAD 相对 <remote>/<branch> 的独有提交(targetFound=false = 新分支首推)。 */
+export interface GitPushPreview {
+  sourceBranch: string;
+  targetFound: boolean;
+  hasMore: boolean;
+  commits: GitLogEntry[];
+}
+
+/** 分支对比:双向唯一提交(targetOnly = target 有 current 无;反向 currentOnly)。 */
+export interface GitBranchCompareSet {
+  targetOnly: GitLogEntry[];
+  currentOnly: GitLogEntry[];
+}
+
+/** 工作树对分支的差异清单项(不带 patch;patch 按需单文件拉)。 */
+export interface GitBranchDiffFile {
+  path: string;
+  /** rename/copy 来源路径;非 rename 为 null */
+  oldPath: string | null;
+  /** M / A / D / R / C / T(与 GitFileStatus.status 同口径) */
+  status: string;
 }

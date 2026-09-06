@@ -25,13 +25,11 @@ import type { VendorCredential, VendorId, VendorQuota } from "./types";
 
 /* ── barrel:公共 API 面与原 vendors.ts 完全一致 ─────────── */
 
-export { aggregateCodexUsage } from "./codex";
 export {
   detectVendorByBaseUrl,
   detectVendorByProviderId,
   vendorFromModel,
 } from "./detect";
-export { parseZhipuLimit } from "./fetchers";
 export {
   VENDOR_TITLE,
   type VendorCredential,

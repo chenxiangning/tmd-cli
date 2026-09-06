@@ -9,11 +9,20 @@
 //! pull 移动 HEAD/重写 index 期间,轮询的 status 并发读会撞 index.lock。
 //!
 //! pull 尊重用户 pull.rebase 配置,不擅自改写 merge/rebase 语义。
+//!
+//! 两条入口:
+//! - `run`:面板/右键菜单的快速操作(裸参数,尊重仓库配置);
+//! - `run_request`:远端对话框的结构化请求(选项拼装语义对齐 codemoss)。
 
 use git2::Repository;
 use std::process::Command;
 
 use super::GitError;
+
+// 拆分后保持 remote_ops::* 引用契约:参数组装与对话框请求层经此处 re-export。
+pub(super) use super::remote_args::{fetch_args, pull_args, push_args};
+pub use super::remote_request::{run_request, RemoteRequest};
+
 /// 网络操作总时限:到点 kill,释放 per-cwd 互斥锁(面板冻结的最后防线)。
 const REMOTE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 /// try_wait 轮询间隔。
@@ -51,6 +60,45 @@ pub fn run(
     op: RemoteOp,
     branch: Option<String>,
 ) -> Result<String, GitError> {
+    let mut args: Vec<String> = Vec::new();
+    match op {
+        RemoteOp::Fetch => {
+            args.push("fetch".into());
+            if let Some(b) = non_empty_branch(&branch)? {
+                args.extend(fetch_args(repo, &b)?);
+            } else {
+                args.extend(["--all".into(), "--prune".into()]);
+            }
+        }
+        RemoteOp::Pull => {
+            let b = non_empty_branch(&branch)?;
+            match b {
+                Some(b) => {
+                    let extra = pull_args(repo, &b)?;
+                    if extra.is_empty() {
+                        args.push("pull".into());
+                    } else {
+                        // 非当前分支:仅 fast-forward 上游引用,等价 git fetch <远端> <上游>:<分支>
+                        // (merge/rebase 只对已检出分支有意义;git pull 无子命令,fetch 不能作其参数)
+                        args.push("fetch".into());
+                        args.extend(extra);
+                    }
+                }
+                None => args.push("pull".into()),
+            }
+        }
+        RemoteOp::Push => {
+            args.push("push".into());
+            if let Some(b) = non_empty_branch(&branch)? {
+                args.extend(push_args(repo, &b)?);
+            }
+        }
+    }
+    exec_git(repo, cwd, &args)
+}
+
+/// 组装并执行 git 命令:非交互环境 + 总时长上限 + 双管道排空。
+pub(super) fn exec_git(repo: &Repository, cwd: &str, args: &[String]) -> Result<String, GitError> {
     let mut cmd = Command::new("git");
     cmd.current_dir(cwd).env("GIT_TERMINAL_PROMPT", "0");
     crate::resolve::hide_console(&mut cmd);
@@ -68,24 +116,7 @@ pub fn run(
             "ssh -o BatchMode=yes -o ConnectTimeout=10",
         );
     }
-
-    match op {
-        RemoteOp::Fetch => {
-            cmd.args(["fetch", "--all", "--prune"]);
-        }
-        RemoteOp::Pull => {
-            cmd.arg("pull");
-        }
-        RemoteOp::Push => {
-            cmd.arg("push");
-            if let Some(b) = branch.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
-                if b.starts_with('-') {
-                    return Err(GitError::empty(format!("非法分支名: {b}")));
-                }
-                cmd.args(["origin", b]);
-            }
-        }
-    }
+    cmd.args(args);
 
     /* 总时长上限:ConnectTimeout 只护 TCP connect 阶段,传输中途的网络停滞
      * (或用户自配 sshCommand)仍可无限挂起 —— 而本调用全程持 per-cwd 互斥锁,
@@ -112,7 +143,7 @@ pub fn run(
                     /* 不 join 读线程:git 的 ssh 孙进程可能仍握管道写端,
                      * join 会把锁持有时间拖到孙进程消亡 —— 接收端直接丢弃 */
                     return Err(GitError::empty(
-                        "git 网络操作超时(>300s),已中止;请检查网络/远端后重试",
+                        "git 操作超时(>300s),已中止;请检查网络/远端后重试",
                     ));
                 }
                 std::thread::sleep(REMOTE_POLL);
@@ -134,4 +165,80 @@ pub fn run(
         return Err(GitError::from_shell_output(&combined));
     }
     Ok(combined)
+}
+
+/// 归一化:空串 → None;非法(以 - 开头)→ E_EMPTY。
+pub(super) fn non_empty_branch(branch: &Option<String>) -> Result<Option<String>, GitError> {
+    let b = branch.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    match b {
+        Some(s) if s.starts_with('-') => Err(GitError::empty(format!("非法分支名: {s}"))),
+        Some(s) => Ok(Some(s.to_string())),
+        None => Ok(None),
+    }
+}
+
+/// 已配置远端名列表(配置序)。
+pub fn remotes(repo: &Repository) -> Result<Vec<String>, GitError> {
+    let list = repo.remotes()?;
+    Ok((0..list.len())
+        .filter_map(|i| list.get(i).map(str::to_string))
+        .collect())
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PushPreview {
+    pub source_branch: String,
+    /// 远端目标引用是否存在(false = 新分支首推)
+    pub target_found: bool,
+    pub has_more: bool,
+    pub commits: Vec<super::log::LogEntry>,
+}
+
+/// 推送预览:HEAD 相对 `refs/remotes/<remote>/<branch>` 的独有提交(新→旧)。
+/// 目标引用不存在 → 全部分支提交入列,target_found=false(新分支首推)。
+pub fn push_preview(
+    repo: &Repository,
+    remote: &str,
+    branch: &str,
+    limit: usize,
+) -> Result<PushPreview, GitError> {
+    if branch.starts_with('-') || remote.starts_with('-') || remote.contains('/') {
+        return Err(GitError::empty(format!("非法目标: {remote}/{branch}")));
+    }
+    let head = repo.head()?;
+    if !head.is_branch() {
+        return Err(GitError::empty("HEAD 不在分支上,无可推送预览"));
+    }
+    let source_branch = head.shorthand().unwrap_or("HEAD").to_string();
+    let source_oid = head
+        .target()
+        .ok_or_else(|| GitError::empty("HEAD 未指向提交"))?;
+    let target_ref = format!("refs/remotes/{remote}/{branch}");
+    let target_oid = repo.refname_to_id(&target_ref).ok();
+    let mut revwalk = repo.revwalk()?;
+    revwalk.push(source_oid)?;
+    if let Some(t) = target_oid {
+        revwalk.hide(t)?;
+    }
+    revwalk.set_sorting(git2::Sort::TIME | git2::Sort::TOPOLOGICAL)?;
+    let mut commits = Vec::with_capacity(limit);
+    let mut has_more = false;
+    for oid in revwalk {
+        if commits.len() >= limit {
+            has_more = true;
+            break;
+        }
+        commits.push(super::log::entry(
+            repo,
+            oid?,
+            &std::collections::HashMap::new(),
+        )?);
+    }
+    Ok(PushPreview {
+        source_branch,
+        target_found: target_oid.is_some(),
+        has_more,
+        commits,
+    })
 }

@@ -32,16 +32,17 @@
 
 | 规则 | 内容 | 检查命令 |
 |---|---|---|
-| 500 行铁则 | 单文件 ≤500 行(`.ts/.tsx/.rs/.css`;豁免须文件头 10 行内标 `file-size-exempt`) | `pnpm check:file-size` |
+| 300 行铁则 | 单文件 ≤300 行(`.ts/.tsx/.rs/.css`;豁免须文件头 10 行内标 `file-size-exempt`) | `pnpm check:file-size` |
 | R1 | `src/kernel/**` 不得 import 任何 plugins | `pnpm check:arch-boundary` |
 | R3 | `@tauri-apps/*` 唯一 import 点是 `src/kernel/ipc.ts` | `pnpm check:arch-boundary` |
 | R4 | `src/plugins/**` 不得反向 import app-shell(`@shell/*`) | `pnpm check:arch-boundary` |
 
-- 新增 UI / CLI 能力的标准路径:新建 `src/plugins/<id>/` 实现 `Plugin` 接口 + 在 `src/plugins/index.ts` 的 `allPlugins` 数组注册一行;跨插件基础契约先沉淀进 `src/kernel/`,再由插件实现。
+- 新增 UI / CLI 能力的标准路径:新建 `src/plugins/<id>/` 实现 `Plugin` 接口 + 在 `src/plugins/index.ts` 的 `allPlugins` 数组注册一行;跨插件基础契约先沉淀进 `src/kernel/`,再由插件实现。插件的一切贡献(挂点 UI / CLI profile / 设置分区 / 右栏面板 / 中央 tab 内容 / 侧栏快捷动作 / 文件视觉)**一律经 `activate(ctx)` 的注册面登记**,禁止绕过 ctx 直接 import 注册模块调用(runtime 能力 host/ipc/settings 等模块除外)。
+- 内核准入 = 宿主机制与跨插件契约(会话生命周期/挂载点/注册表/通用原语),**单插件语义不入 kernel**:kernel 文件里出现某插件/CLI 专属知识(私有 IPC 命令、安装配方、字符串 id 分支)即违规;新增 CLI 引擎的理论改动面 = 插件目录 + `allPlugins` 一行,Rust/内核零改动。
 - 跨层 import 一律走别名 `@kernel` `@shell` `@plugins`(`tsconfig.json` / `vite.config.ts` 双处已配),不写长相对路径。
 - PTY 幕布硬约束:`PTY bytes → pty://out/{sessionId} → xterm.js` 原样透传,**严禁**在幕布侧做消息气泡 / Markdown / Diff 二次渲染;一切增强(状态栏、引用、Git、文件树)发生在幕布之外。
-- 内核不理解任何 CLI 私有格式;读取各家 session JSONL 只能经该 CLI 插件声明的适配器,缺失显示 `—`,不做猜测兜底。
-- CLI 私有格式的跨插件共享沉淀进 `src/plugins/cli-shared/`(无生命周期共享格式库,非插件、不入 `allPlugins`):它是「跨插件契约进 kernel」与「内核不理解 CLI 私有格式」两条规则的缝隙层,准入标准 = 至少两个 cli-* 插件消费同一磁盘/HTTP 格式知识;feature 插件(welcome / workspace)经它消费 CLI 格式属合法通道,须在 import 处注释声明。
+- 内核不理解任何 CLI 私有格式;读取各家 session JSONL 只能经该 CLI 插件声明的适配器,缺失显示 `—`,不做猜测兜底。CLI 私有库的 Rust 代读只能走通用原语(如只读 `sqliteQuery`),路径/表结构知识留插件侧。
+- CLI 私有格式的跨插件共享沉淀进 `src/plugins/cli-shared/`(无生命周期共享格式库,非插件、不入 `allPlugins`):它是「跨插件契约进 kernel」与「内核不理解 CLI 私有格式」两条规则的缝隙层,准入标准 = ≥2 个 cli-* 插件消费同一磁盘/HTTP 格式知识,或 1 个 cli-* + feature 插件(welcome / workspace / composer)联合消费(文件头注释声明先例);同族变体共享声明(glyph/静态表,如 qoder 双插件)视同满足。feature 插件经它消费 CLI 格式须在 import 处注释声明。
 
 ## 2. 验证(交付前必跑)
 

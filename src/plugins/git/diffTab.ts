@@ -9,7 +9,7 @@
 
 import { openTab } from "@kernel/tabs";
 
-const DIFF_TAB_KIND = "git-diff";
+export const DIFF_TAB_KIND = "git-diff";
 
 export interface DiffTabPayload {
   cwd: string;

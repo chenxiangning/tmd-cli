@@ -1,6 +1,7 @@
 //! 事务化还原 —— 全部基于账本:回退计划取自 turn 条目固化的前后像,
 //! 回退前自动落 guard 条目(反悔恢复的依据),只动批次触碰的路径,
-//! 内容失配(手改/后续批触碰)一律 skip,绝不静默覆盖(设计 §6)。
+//! hunk,他人写入保留;A 文件以空基线摘除本批写入块),重叠冲突与不具备
+//! 手术条件的路径(D 文件、像缺失)一律 skip,绝不静默覆盖(设计 §6)。
 //!
 //! 锁纪律:guard 抓取会枚举 dirty 集(读 repo),与账本写同持 LEDGER_LOCK,
 //! 串行执行,不存在 derive 时代的闭包嵌套锁问题。
@@ -30,35 +31,40 @@ pub struct RestoreOutcome {
     pub state: String,
 }
 
-/// 通过标记 —— 纯标记动作,不动任何文件、不触碰 git。 approved 批仍可回退
-/// (标记弱于安全动作);其后若文件被提交/失配,展示层自动升级为 done。
-pub fn approve_batch(cwd: &str, batch_id: &str) -> Result<(), CkptError> {
-    let _g = super::lock_ledger();
-    let entries = load_ledger(cwd);
-    if !entries
-        .iter()
-        .any(|e| e.kind == "anchor" && e.id == batch_id)
-    {
-        return Err(CkptError::Empty(format!("批次不存在: {batch_id}")));
-    }
-    let mut states = load_states(cwd);
-    let entry = states.batches.get(batch_id).cloned().unwrap_or_default();
-    if entry.state == "reverted" {
-        return Err(CkptError::Empty("批次已回退,无需通过标记".into()));
-    }
-    states.batches.insert(
-        batch_id.to_string(),
-        super::BatchState {
-            state: "approved".into(),
-            ..entry
-        },
-    );
-    save_states(cwd, &states)?;
-    Ok(())
+/// 失配路径的精准手术:M/A 文件尝试按 diff 擦除本批改动 —— M 以批前像为基线,
+/// A(批内新建)以空内容为基线(old 块 = 批后全文,live 中唯一命中即摘除,
+/// 他人前后追加保留)。返回 Ok(Some(merged)) = 手术成功;Ok(None) = 与他人
+/// 改动重叠/歧义冲突;Err(()) = 不具备手术条件(D 文件、前像缺失/不可解析),
+/// 走保守跳过。
+fn surgical_erase(
+    sidecar: &git2::Repository,
+    tf: &super::TurnFile,
+    after: Option<&Vec<u8>>,
+    live: Option<&Vec<u8>>,
+) -> Result<Option<Vec<u8>>, ()> {
+    let (Some(a), Some(l)) = (after, live) else {
+        return Err(());
+    };
+    // A 文件(批内新建)基线 = 空;M 文件取批前像 blob,缺失/不可解析 = 无条件
+    let before: Vec<u8> = if !tf.existed_before {
+        Vec::new()
+    } else if tf.before_oid.is_empty() {
+        return Err(());
+    } else {
+        let Ok(oid) = git2::Oid::from_str(&tf.before_oid) else {
+            return Err(());
+        };
+        let Ok(blob) = sidecar.find_blob(oid) else {
+            return Err(());
+        };
+        blob.content().to_vec()
+    };
+    super::patch::merge_patch(l, a, &before).map(Some).ok_or(())
 }
 
 /// 回退整批或子集(paths 缺省 = 全部可回退文件)。计划来自账本 turn 条目:
-/// live 内容必须等于批后像才可回退;批前像取账本 before_oid(sidecar blob)。
+/// live 内容必须等于批后像才可回退;失配先试 diff 精准擦除(共改文件只擦
+/// 本批 hunk);批前像取账本 before_oid(sidecar blob)。
 pub fn restore_batch(
     cwd: &str,
     batch_id: &str,
@@ -128,17 +134,32 @@ pub fn restore_batch(
             Some(sidecar.find_blob(oid)?.content().to_vec())
         };
         let live_bytes = fs::read(root.join(path)).ok();
-        let untouched = match (&after, live_bytes) {
+        let untouched = match (&after, &live_bytes) {
             (None, None) => true,
-            (Some(a), Some(l)) => a == &l,
+            (Some(a), Some(l)) => a == l,
             _ => false,
         };
         if !untouched {
-            skipped.push(SkipEntry {
-                path: path.clone(),
-                reason: "内容已变".into(),
-            });
-            continue;
+            match surgical_erase(&sidecar, tf, after.as_ref(), live_bytes.as_ref()) {
+                Ok(Some(merged)) => {
+                    plan.push((path.clone(), PlanOp::Write(merged)));
+                    continue;
+                }
+                Ok(None) => {
+                    skipped.push(SkipEntry {
+                        path: path.clone(),
+                        reason: "改动重叠".into(),
+                    });
+                    continue;
+                }
+                Err(()) => {
+                    skipped.push(SkipEntry {
+                        path: path.clone(),
+                        reason: "内容已变".into(),
+                    });
+                    continue;
+                }
+            }
         }
         let op = if !tf.existed_before {
             PlanOp::Delete // 批前不存在 → 批内新建,回退 = 删除
@@ -235,84 +256,6 @@ pub fn restore_batch(
         skipped,
         guard_id: Some(guard.id),
         state: entry.state,
-    })
-}
-
-/// 反悔:用账本 guard 条目把整批写回回退前的状态(内容失配的路径同样 skip)。
-pub fn undo_revert(cwd: &str, batch_id: &str) -> Result<RestoreOutcome, CkptError> {
-    let _g = super::lock_ledger();
-    let mut states = load_states(cwd);
-    let entry = states
-        .batches
-        .get(batch_id)
-        .cloned()
-        .ok_or_else(|| CkptError::Empty("批次无审核态".into()))?;
-    let guard_id = entry
-        .guard_id
-        .clone()
-        .ok_or_else(|| CkptError::Empty("该批没有守卫快照,无法反悔".into()))?;
-    if entry.state != "reverted" {
-        return Err(CkptError::Empty("批次不在已退状态".into()));
-    }
-    let guard = load_ledger(cwd)
-        .into_iter()
-        .find(|e| e.kind == "guard" && e.id == guard_id)
-        .ok_or_else(|| CkptError::Store(format!("守卫条目丢失: {guard_id}")))?;
-
-    let sidecar = open_sidecar(cwd)?;
-    let root = std::path::PathBuf::from(cwd);
-
-    // 守卫内容就是"回退前一刻"的工作区;只还原回退动作实际碰过的路径
-    // (reverted_paths),守卫里其他 dirty 文件保持原样
-    let reverted_paths = entry.reverted_paths.clone();
-    let mut restored = Vec::new();
-    let mut deleted = Vec::new();
-    let mut skipped = Vec::new();
-    for path in &reverted_paths {
-        let full = root.join(path);
-        let bytes = match guard.files.iter().find(|f| f.path == *path) {
-            Some(f) if f.skip.is_none() && !f.oid.is_empty() => {
-                let oid = git2::Oid::from_str(&f.oid)?;
-                Some(sidecar.find_blob(oid)?.content().to_vec())
-            }
-            _ => None,
-        };
-        match bytes {
-            Some(data) => {
-                if let Some(parent) = full.parent() {
-                    fs::create_dir_all(parent)?;
-                }
-                fs::write(&full, data)?;
-                restored.push(path.clone());
-            }
-            None => {
-                if full.symlink_metadata().is_ok() {
-                    fs::remove_file(&full)?;
-                    deleted.push(path.clone());
-                } else {
-                    skipped.push(SkipEntry {
-                        path: path.clone(),
-                        reason: "已不存在".into(),
-                    });
-                }
-            }
-        }
-    }
-
-    let mut entry = states.batches.get(batch_id).cloned().unwrap_or_default();
-    entry.state = "pending".into();
-    entry.reason = None;
-    entry.reverted_paths.clear();
-    entry.guard_id = None;
-    states.batches.insert(batch_id.to_string(), entry);
-    save_states(cwd, &states)?;
-
-    Ok(RestoreOutcome {
-        restored,
-        deleted,
-        skipped,
-        guard_id: None,
-        state: "pending".into(),
     })
 }
 

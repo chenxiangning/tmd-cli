@@ -10,43 +10,14 @@
  *
  * 执行机制不在本组件:点击经 onSend/onInsert/onOpen 回调交回 Composer
  * (send 走 prepareSendPayload → host.writeSession,与手动发送同路径)。
+ * 分区常量拆至 drawerSections.ts,条目列表拆至 DrawerItemList.tsx(文件规模铁则)。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LayoutGrid, Puzzle, Server, Sparkles, SquareTerminal, X } from "lucide-react";
+import { X } from "lucide-react";
 import { isDrawerOpen, setDrawerOpen } from "../state/drawerOpen";
-import { resolveDrawerIcon, SECTION_GLYPHS, type DrawerIconComponent } from "../drawerIcons";
 import type { DrawerItem, DrawerSection } from "../drawerItems";
-
-const SECTION_ORDER: DrawerSection[] = ["command", "skill", "mcp", "plugin"];
-const SECTION_META: Record<DrawerSection, { label: string; glyph: string }> = {
-  command: { label: "命令", glyph: "/" },
-  skill: { label: "技能", glyph: "$" },
-  mcp: { label: "MCP", glyph: "⧉" },
-  plugin: { label: "插件", glyph: "▣" },
-};
-
-/** 左缘 rail 分区图标(UI 铬,非 profile 协议语义;文案进 title/aria-label)。 */
-const SECTION_TAB_ICONS: Record<"all" | DrawerSection, DrawerIconComponent> = {
-  all: LayoutGrid,
-  command: SquareTerminal,
-  skill: Sparkles,
-  mcp: Server,
-  plugin: Puzzle,
-};
-
-/** 动作徽标:软填充色芯片(不用描边,亮色系主题下描边 pill 过于抢眼);
-    颜色全部走主题 token,preset 换色自动跟随。 */
-const MODE_TAG: Record<DrawerItem["action"], { label: string; cls: string; hint: string }> = {
-  send: { label: "⚡ 直接发送", cls: "bg-(--tmd-accent-soft) text-(--tmd-accent)", hint: "直接发送到幕布" },
-  insert: { label: "↵ 插入", cls: "bg-(--tmd-bg-hover) text-(--tmd-fg-muted)", hint: "插入输入框继续编辑" },
-  open: { label: "⇱ 打开", cls: "bg-(--tmd-diff-inserted)/10 text-(--tmd-diff-inserted)", hint: "打开对应面板" },
-};
-
-function displayName(item: DrawerItem): string {
-  if (item.section === "command") return `/${item.name}`;
-  if (item.section === "skill") return `$${item.name}`;
-  return item.name;
-}
+import { SECTION_META, SECTION_ORDER, SECTION_TAB_ICONS } from "./drawerSections";
+import { DrawerItemList } from "./DrawerItemList";
 
 interface CommandDrawerProps {
   open: boolean;
@@ -254,73 +225,16 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
       </div>
 
       {/* 右侧:条目列表 + 底部图例 */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-1.5 pb-2">
-          {sections.map((sec) => {
-            const secItems = visible.filter((it) => it.section === sec);
-            if (secItems.length === 0) return null;
-            return (
-              <div key={sec}>
-                {/* 单分区视图由 rail 标示当前区,组头只在「全部」聚合时出现 */}
-                {tab === "all" && (
-                  <div className="sticky top-0 z-10 flex items-center gap-1.5 bg-(--tmd-bg-popover) px-1.5 py-2 text-[10px] tracking-widest text-(--tmd-fg-faint)">
-                    <span className="w-4 text-center font-mono text-[11px] text-(--tmd-fg-muted)">
-                      {SECTION_GLYPHS[sec] ?? SECTION_META[sec].glyph}
-                    </span>
-                    <span>{SECTION_META[sec].label} · {secItems.length}</span>
-                    <span className="h-px flex-1 bg-(--tmd-border)" />
-                  </div>
-                )}
-                {secItems.map((item) => {
-                  const key = `${item.section}:${item.name}`;
-                  const idx = visible.indexOf(item);
-                  const Icon = resolveDrawerIcon(item);
-                  const tag = MODE_TAG[item.action];
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      ref={(el) => { itemRefs.current[idx] = el; }}
-                      data-name={item.name}
-                      title={tag.hint}
-                      onClick={() => activate(item)}
-                      onMouseEnter={() => setActiveIndex(idx)}
-                      className={`flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left font-mono transition-colors ${
-                        idx === activeIndex ? "bg-(--tmd-bg-hover)" : ""
-                      } ${flashKey === key ? "bg-(--tmd-accent-soft)" : ""}`}
-                    >
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-(--tmd-bg-hover) text-(--tmd-fg-muted)">
-                        {Icon ? <Icon size={15} /> : (SECTION_GLYPHS[item.section] ?? "·")}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-xs text-(--tmd-fg)">{displayName(item)}</span>
-                        {item.description && (
-                          <span className="mt-px block truncate text-[10.5px] text-(--tmd-fg-subtle)">
-                            {item.description}
-                          </span>
-                        )}
-                      </span>
-                      <span className={`shrink-0 rounded-full px-1.5 py-px text-[10px] ${tag.cls}`}>
-                        {tag.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })}
-          {visible.length === 0 && (
-            <div className="py-6 text-center text-[11px] text-(--tmd-fg-faint)">暂无命令或技能</div>
-          )}
-        </div>
-
-        {/* 底部图例 */}
-        <div className="flex shrink-0 items-center gap-2 border-t border-(--tmd-border) px-2.5 py-1.5 font-mono text-[9.5px] whitespace-nowrap text-(--tmd-fg-faint)">
-          <span>⚡ 直接发送到幕布</span>
-          <span>↵ 插入输入框</span>
-          <span>⇱ 打开面板</span>
-        </div>
-      </div>
+      <DrawerItemList
+        sections={sections}
+        visible={visible}
+        tab={tab}
+        activeIndex={activeIndex}
+        flashKey={flashKey}
+        itemRefs={itemRefs}
+        onActivate={activate}
+        onHoverIndex={setActiveIndex}
+      />
 
       {/* 发送/打开反馈 toast */}
       <div

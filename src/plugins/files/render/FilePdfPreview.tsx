@@ -6,11 +6,13 @@
  * 文档 outline 侧栏(点击跳页并平移页窗口)。
  * 与 codemoss 差异:数据源从 asset:// fetch 改为 readBinaryFileBase64 字节通道
  * (getDocument({ data })),免 asset 作用域问题;i18n 硬编码中文。
+ * 单页 canvas 渲染组件拆至 PdfPageCanvas.tsx(文件规模铁则)。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getDocument, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import { getDocument, type PDFDocumentProxy } from "pdfjs-dist";
 import { ensurePdfPreviewWorker } from "./pdfRuntime";
+import { PdfPageCanvas } from "./PdfPageCanvas";
 import { loadPreviewBytes } from "./previewBytes";
 import {
   extractPdfPreviewOutline,
@@ -24,99 +26,6 @@ const DEFAULT_PDF_SCALE = 1.15;
 const MIN_PDF_SCALE = 0.75;
 const MAX_PDF_SCALE = 3;
 const PDF_SCALE_STEP = 0.1;
-
-type PdfPageCanvasProps = {
-  pdfDocument: PDFDocumentProxy;
-  pageNumber: number;
-  scale: number;
-};
-
-function PdfPageCanvas({ pdfDocument, pageNumber, scale }: PdfPageCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const pageRootRef = useRef<HTMLDivElement | null>(null);
-  const [shouldRender, setShouldRender] = useState(pageNumber <= 2);
-  const [pageError, setPageError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const node = pageRootRef.current;
-    if (!node || shouldRender || typeof IntersectionObserver === "undefined") {
-      return;
-    }
-
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        setShouldRender(true);
-      }
-    }, { rootMargin: "240px 0px" });
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [shouldRender]);
-
-  useEffect(() => {
-    if (!shouldRender || !canvasRef.current) {
-      return;
-    }
-
-    let disposed = false;
-    let renderTask: RenderTask | null = null;
-    setPageError(null);
-
-    void (async () => {
-      try {
-        const page = await pdfDocument.getPage(pageNumber);
-        if (disposed || !canvasRef.current) {
-          return;
-        }
-        const viewport = page.getViewport({ scale });
-        const canvas = canvasRef.current;
-        const context = canvas.getContext("2d");
-        if (!context) {
-          throw new Error("Canvas 上下文不可用");
-        }
-        const devicePixelRatio = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(viewport.width * devicePixelRatio);
-        canvas.height = Math.floor(viewport.height * devicePixelRatio);
-        canvas.style.width = `${viewport.width}px`;
-        canvas.style.height = `${viewport.height}px`;
-        context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-        renderTask = page.render({
-          canvas,
-          canvasContext: context,
-          viewport,
-        });
-        await renderTask.promise;
-        if (!disposed) {
-          page.cleanup();
-        }
-      } catch (error) {
-        if (!disposed) {
-          setPageError(error instanceof Error ? error.message : String(error));
-        }
-      }
-    })();
-
-    return () => {
-      disposed = true;
-      renderTask?.cancel();
-    };
-  }, [pageNumber, pdfDocument, scale, shouldRender]);
-
-  return (
-    <div ref={pageRootRef} className="fvp-pdf-page" data-page-number={pageNumber}>
-      <header className="fvp-pdf-page-header">
-        <span>{`第 ${pageNumber} 页`}</span>
-      </header>
-      {pageError ? (
-        <div className="fvp-pdf-page-error">{pageError}</div>
-      ) : shouldRender ? (
-        <canvas ref={canvasRef} className="fvp-pdf-canvas" />
-      ) : (
-        <div className="fvp-pdf-page-placeholder">滚动到此处渲染</div>
-      )}
-    </div>
-  );
-}
 
 type FilePdfPreviewProps = {
   path: string;

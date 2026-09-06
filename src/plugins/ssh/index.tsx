@@ -7,20 +7,21 @@
  * - workspace.newSessionMenu:新建会话菜单的「SSH 连接」入口;
  * - editorCenter.tabContent:kind="ssh-file" 远端文件编辑 tab;
  * - 设置 section:主机簿 CRUD + ~/.ssh/config 导入。
+ * - shortcuts:ssh.saveRemoteFile(⌘S 保存远端文件,与 files.save 靠 when 互斥)
  *
  * 引擎在 src-tauri/src/ssh/(russh);会话输出走 pty://out 同构事件,
  * 幕布全链路(缓冲/翻页/搜索/tab 条)零分叉。
  */
 
 import { Server } from "lucide-react";
-import type { Plugin, PluginContext } from "@kernel/plugin";
-import { registerFilePanel } from "@kernel/filePanel";
+import type { Plugin } from "@kernel/plugin";
 import { ipc, type SessionMeta } from "@kernel/ipc";
 import { KernelTopics } from "@kernel/events";
 import { host } from "@kernel/host";
+import { getActiveTab } from "@kernel/tabs";
 import { SshOverlay } from "./SshOverlay";
 import { SshPanel } from "./panel/SshPanel";
-import { RemoteFileTab } from "./editor/RemoteFileTab";
+import { RemoteFileTab, saveRequestRef } from "./editor/RemoteFileTab";
 import { SshSettingsSection } from "./settings/SshSettingsSection";
 import { refreshForwards, unwatchSshSession, watchSshSession, wireSshEvents } from "./state";
 import { MenuEntry } from "./MenuEntry";
@@ -50,12 +51,22 @@ export const sshPlugin: Plugin = {
     iconColor: "#8B7CF6",
     category: "feature",
   },
-  activate(ctx: PluginContext) {
+  activate(ctx) {
     /* UI 注册面(四挂载点 + 右栏面板 + 设置分区)。 */
     ctx.contribute("overlay", { order: 30, component: SshOverlay });
     ctx.contribute("workspace.newSessionMenu", { order: 20, component: MenuEntry });
-    ctx.contribute("editorCenter.tabContent", { order: 20, component: RemoteFileTab });
-    registerFilePanel({
+    /* 远端文件编辑 tab:kind="ssh-file" 路由(kernel/tabs 注册表)。 */
+    ctx.registerTabContent({ kind: "ssh-file", component: RemoteFileTab });
+    /* ⌘S 保存命令:when 限定激活 tab 为远端文件 tab(kind="ssh-file"),否则键穿透;
+       与 files.save 同键,靠 when 互斥。触发经模块级 ref 桥转发到挂载中的编辑器。 */
+    ctx.registerCommand({
+      id: "ssh.saveRemoteFile",
+      title: "保存远端文件",
+      keybinding: "Cmd+S",
+      when: () => getActiveTab()?.kind === "ssh-file",
+      run: () => saveRequestRef.current?.(),
+    });
+    ctx.registerFilePanel({
       id: "ssh",
       label: "SSH",
       icon: Server,

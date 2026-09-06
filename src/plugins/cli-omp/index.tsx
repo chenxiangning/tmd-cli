@@ -1,18 +1,12 @@
-import { readJsonlSessionStatus } from "../cli-shared/sessionStatus";
-import { ipc } from "@kernel/ipc";
-import { parsePiFamilySessionHead } from "../cli-shared/sessionIdentity";
-import {
-  findJsonlSessionFile,
-  ompPiUserMessageLine,
-  readUserMessagesFromFile,
-} from "../cli-shared/userMessages";
+import { Package } from "lucide-react";
+import { piFamilySessions } from "../cli-shared/piFamily";
 import { readOmpDefaultStatus } from "./configStatus";
-import { registerOmpQuotaProvider } from "./quota";
+import { fetchOmpQuota } from "./quota";
 import { ompSessionsDir, readOmpSessionEdits } from "./edits";
-import { scanJsonlSessions } from "../cli-shared/diskSessions";
-import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 import { listOmpSuggestions } from "./rpcCommands";
-import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
+import { OmpExtensionMarket } from "./market";
+import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
+import type { CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 
 /**
@@ -49,35 +43,10 @@ function OmpGlyph({ size }: { size: number }) {
 }
 
 /**
- * omp 磁盘会话存储与写入事件适配器在 ./edits.ts(审批线 events 归因第二信号源),
- * 目录 slug 规则随实现注释走,此处只消费。
+ * omp 磁盘会话四件套(扫描/状态/身份自证/用户消息)走 pi 族共享适配器;
+ * 目录 slug 规则在 ./edits.ts(与 pi 分叉),写入事件同在 ./edits.ts。
  */
-
-async function listOmpSessions(cwd: string): Promise<CliDiskSession[]> {
-  const dir = await ompSessionsDir(cwd);
-  if (!dir) return [];
-  return scanJsonlSessions(dir);
-}
-
-async function readOmpSessionStatus(cwd: string, cliSessionId: string) {
-  const dir = await ompSessionsDir(cwd);
-  if (!dir) return null;
-  return readJsonlSessionStatus(dir, cliSessionId, ["model"]);
-}
-
-/** 身份自证:头部 {"type":"session","id","cwd","timestamp"} 行(与 pi 同族,共享解析)。 */
-async function readOmpSessionIdentity(path: string) {
-  const head = await ipc.fsReadHead(path, 4 * 1024).catch(() => null);
-  return head ? parsePiFamilySessionHead(head) : null;
-}
-
-async function readOmpUserMessages(cwd: string, cliSessionId: string, full: boolean) {
-  const dir = await ompSessionsDir(cwd);
-  if (!dir) return null;
-  const path = await findJsonlSessionFile(dir, cliSessionId);
-  if (!path) return null;
-  return readUserMessagesFromFile(path, full, ompPiUserMessageLine);
-}
+const ompSessions = piFamilySessions({ sessionsDir: ompSessionsDir });
 
 /**
  * omp 命令/技能候选(action 初判见 openspec/changes/composer-command-drawer)。
@@ -105,10 +74,18 @@ export const cliOmpPlugin: Plugin = {
   id: "cli-omp",
   meta: { name: "OMP", abbr: "OM", desc: "OMP CLI 引擎:会话扫描、配额、状态", icon: OmpGlyph, category: "engine" },
   activate(ctx) {
-    // 注册 omp quota provider(按当前模型前缀路由供应商,凭据走 Rust 只读 sqlite)。
-    registerOmpQuotaProvider();
+    /* 二级扩展市场:插排角标滑出面板(装卸 omp 自己的 npm 扩展)。 */
+    ctx.registerMarketPanel({
+      pluginId: "cli-omp",
+      icon: Package,
+      title: "omp 扩展市场",
+      component: OmpExtensionMarket,
+    });
     ctx.registerCliProfile({
       id: "omp",
+      fetchQuota: fetchOmpQuota,
+      docsUrl: "https://github.com/oh-my-pi/pi-coding-agent",
+      npmPackage: "@oh-my-pi/pi-coding-agent",
       name: "omp",
       renderIcon: (size) => <OmpGlyph size={size} />,
       command: "omp",
@@ -129,11 +106,8 @@ export const cliOmpPlugin: Plugin = {
       /* 命令/技能真相:RPC 副车 get_available_commands(含扩展注册命令与子命令),静态表兜底 */
       listSuggestions: listOmpSuggestions,
       resumeArgs: (sessionId) => ["--resume", sessionId],
-      listSessions: listOmpSessions,
-      readSessionStatus: readOmpSessionStatus,
-      readSessionFileIdentity: readOmpSessionIdentity,
+      ...ompSessions,
       readDefaultStatus: readOmpDefaultStatus,
-      readSessionUserMessages: readOmpUserMessages,
       readSessionEdits: readOmpSessionEdits,
       /* Ask 卡片标记(pi-tui 系共享字面量,见 cli-shared/askMarks.ts):
          会话列表「等待确认」标签 + 提示音的检测源。 */

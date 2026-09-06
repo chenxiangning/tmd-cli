@@ -3,7 +3,8 @@
  * 经 filePanel 的 toolbar 槽注册;状态共享走 panelStore。
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, RefreshCw } from "lucide-react";
 import {
   bumpGitRefresh,
@@ -15,25 +16,57 @@ import {
 } from "./panelStore";
 
 const VIEW_LABEL: Record<GitViewMode, string> = {
-  diff: "差异 Diff",
+  diff: "差异",
   branch: "分支",
   history: "历史",
 };
 
 export function GitToolbar() {
-  const { view, layout, refreshing } = useGitPanelState();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { view, layout, refreshing, aggregate } = useGitPanelState();
+  const totals = aggregate.totals;
+  const viewBtnRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+
+  /* 以按钮左缘对齐菜单左缘,视口内夹取(同 wsmenu / panel-overflow 模式)。 */
+  const toggleMenu = () => {
+    if (menuPos) {
+      setMenuPos(null);
+      return;
+    }
+    const rect = viewBtnRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const width = 176;
+    setMenuPos({
+      x: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)),
+      y: Math.min(rect.bottom + 4, window.innerHeight - 240),
+    });
+  };
 
   return (
-    <div className="relative flex items-center gap-0.5">
+    <div className="flex shrink-0 items-center gap-0.5 whitespace-nowrap">
       <button
+        ref={viewBtnRef}
         type="button"
-        onClick={() => setMenuOpen((v) => !v)}
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium hover:bg-(--tmd-bg-hover)"
+        onClick={toggleMenu}
+        className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-xs font-medium hover:bg-(--tmd-bg-hover)"
       >
         {VIEW_LABEL[view]}
         <ChevronDown className="h-3 w-3 text-(--tmd-fg-faint)" aria-hidden />
       </button>
+      {totals && (
+        <span
+          title="聚合增删行数(staged + 未暂存)"
+        >
+          <span className="text-(--tmd-diff-inserted)">
+            +{totals.insertions.toLocaleString("en-US")}
+          </span>
+          <span className="mx-1 text-(--tmd-fg-faint)">/</span>
+          <span className="text-(--tmd-diff-removed)">
+            -{totals.deletions.toLocaleString("en-US")}
+          </span>
+          <span className="ml-1.5 text-(--tmd-fg-muted)">{aggregate.fileCount}</span>
+        </span>
+      )}
       <button
         type="button"
         title="刷新"
@@ -46,41 +79,58 @@ export function GitToolbar() {
         />
       </button>
 
-      {menuOpen && (
+      {menuPos && (
         <ViewMenu
           current={view}
           layout={layout}
+          position={menuPos}
           onPick={(v) => {
             if (v === "flat" || v === "tree") setGitLayout(v);
             else setGitView(v);
-            setMenuOpen(false);
+            setMenuPos(null);
           }}
-          onClose={() => setMenuOpen(false)}
+          onClose={() => setMenuPos(null)}
         />
       )}
     </div>
   );
 }
 
-/** 视图下拉:差异/分支/历史 + 平铺/树形。历史视图即 Graph(泳道拓扑)。 */
+/** 视图下拉:差异/分支/历史 + 平铺/树形。历史视图即 Graph(泳道拓扑)。
+ *  portal 挂 document.body + fixed(复用 panel-overflow-backdrop/menu,z 1200+):
+ *  树内 absolute 会被右栏内容(聚合行 / sticky 组头 / 当前分支行)盖住。 */
 function ViewMenu({
   current,
   layout,
+  position,
   onPick,
   onClose,
 }: {
   current: GitViewMode;
   layout: FileListLayout;
+  position: { x: number; y: number };
   onPick: (v: GitViewMode | FileListLayout) => void;
   onClose: () => void;
 }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const item =
     "flex w-full items-center justify-between px-3 py-1.5 text-left text-xs hover:bg-(--tmd-bg-hover)";
   const sep = <div className="my-1 border-t border-(--tmd-border)" />;
-  return (
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-10" onClick={onClose} />
-      <div className="absolute left-0 top-7 z-20 w-44 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) py-1 shadow-lg">
+      <div className="panel-overflow-backdrop" onClick={onClose} />
+      <div
+        className="panel-overflow-menu"
+        style={{ left: position.x, top: position.y, minWidth: 176 }}
+        role="menu"
+      >
         {(Object.keys(VIEW_LABEL) as GitViewMode[]).map((v) => (
           <button key={v} type="button" className={item} onClick={() => onPick(v)}>
             <span>{VIEW_LABEL[v]}</span>
@@ -95,8 +145,8 @@ function ViewMenu({
             {layout === l && <span>✓</span>}
           </button>
         ))}
-        {sep}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }

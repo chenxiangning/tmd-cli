@@ -34,7 +34,8 @@ import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { ChevronDown, ChevronRight, Eye, Pin } from "lucide-react";
 import { SessionContextMenu } from "./SessionContextMenu";
 import { realPinSnapshot } from "./utils";
-import { PinToggle, RenameInput, SessionStatusLabel, type RenameTarget } from "./SessionRows";
+import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
+import { PinToggle, SessionStatusLabel } from "./SessionRows";
 
 /** 段折叠态存储 key(纯 UI 态,localStorage 即可,浏览器/Tauri 行为一致)。 */
 const COLLAPSED_KEY = "tmd.pinnedSectionCollapsed";
@@ -103,10 +104,15 @@ export function PinnedSessionsSection() {
         const list = await row.profile.listSessions(row.workspace.root).catch(() => []);
         if (stale) return;
         const hit = list.find((s) => s.id === row.cliSessionId);
-        const head = hit
-          ? await ipc.fsReadHead(hit.path, TITLE_HEAD_BYTES).catch(() => "")
-          : "";
-        const title = head ? extractJsonlTitle(head) : undefined;
+        /* listSessions 已带真标题的 CLI(opencode 的 SELECT title)直接用;
+         * 无列表标题的(omp/pi jsonl)照旧读文件头解析。 */
+        const title = hit?.title
+          ? hit.title
+          : hit
+            ? extractJsonlTitle(
+                await ipc.fsReadHead(hit.path, TITLE_HEAD_BYTES).catch(() => ""),
+              )
+            : undefined;
         if (stale) return;
         if (title) refreshPinTitle(row.key, title);
       }

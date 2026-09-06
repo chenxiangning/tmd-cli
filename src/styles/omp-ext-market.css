@@ -1,0 +1,86 @@
+/* omp 扩展市场面板(cli-omp 二级插件管理)—— 面板骨架:滑出容器在 plugin-market.css(pm-ext-*),
+ * 本文件管布局骨架:头部/分区/状态行/底部横幅;卡片/行/按钮/日志在 omp-ext-market-cards.css。 */
+
+.omp-ext {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  color: var(--tmd-fg);
+  font-size: var(--tmd-font-ui);
+}
+
+/* ── 头部 ── */
+.omp-ext-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--tmd-border);
+}
+
+.omp-ext-title {
+  font-weight: 600;
+}
+
+.omp-ext-cli {
+  font-size: 11px;
+  color: var(--tmd-fg-muted);
+  padding: 1px 7px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 999px;
+}
+
+.omp-ext-head-space {
+  flex: 1;
+}
+
+.omp-ext-iconbtn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 22px;
+  border: none;
+  border-radius: var(--tmd-radius-sm);
+  background: none;
+  color: var(--tmd-fg-muted);
+  cursor: pointer;
+}
+
+.omp-ext-iconbtn:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+/* ── 主体滚动区 ── */
+.omp-ext-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.omp-ext-section {
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tmd-fg-subtle);
+  letter-spacing: 0.4px;
+}
+
+.omp-ext-state {
+  padding: 14px 0;
+  color: var(--tmd-fg-muted);
+  font-size: 12px;
+}
+
+.omp-ext-offline {
+  padding: 6px 10px;
+  border: 1px dashed var(--tmd-warn);
+  border-radius: var(--tmd-radius-sm);
+  color: var(--tmd-warn);
+  font-size: 11px;
+}
+
+

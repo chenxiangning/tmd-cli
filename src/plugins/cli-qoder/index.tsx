@@ -40,6 +40,8 @@ export const cliQoderPlugin: Plugin = {
   activate(ctx) {
     ctx.registerCliProfile({
       id: QODER_VARIANT.profileId,
+      docsUrl: "https://docs.qoder.com",
+      npmPackage: "@qoder-ai/qodercli",
       name: QODER_VARIANT.command,
       renderIcon: (size) => <QoderGlyph size={size} />,
       command: QODER_VARIANT.command,

@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>协作范式 C · 链路导演 · 6 状态全旅程</title>
+<style>
+  :root {
+    --bg: #1e1e1e;
+    --bg-elev: #252526;
+    --bg-hover: #2a2d2e;
+    --bg-input: #3c3c3c;
+    --border: #3c3c3c;
+    --border-strong: #5a5d5e;
+    --fg: #cccccc;
+    --fg-muted: #969696;
+    --fg-subtle: #6e6e6e;
+    --accent: #0e7cd6;
+    --accent-light: #1a8ae6;
+    --accent-soft: rgba(14, 124, 214, 0.2);
+    --ok: #16a34a;
+    --ok-bg: rgba(22, 163, 74, 0.16);
+    --warn: #ca8a04;
+    --warn-bg: rgba(202, 138, 4, 0.16);
+    --err: #ef4444;
+    --violet: #a78bfa;
+    --violet-bg: rgba(167, 139, 250, 0.16);
+    --terminal-bg: #0d0d0d;
+    --terminal-fg: #d4d4d4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--fg); height: 100vh; overflow: hidden; }
+  body { font: 12.5px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+
+  .journey {
+    position: fixed; top: 10px; right: 10px; z-index: 1000;
+    background: rgba(0,0,0,0.92);
+    border: 1px solid var(--border-strong); border-radius: 8px;
+    padding: 6px 8px;
+    display: flex; flex-wrap: wrap; gap: 3px; align-items: center;
+    font-size: 11px;
+    max-width: 480px;
+    justify-content: flex-end;
+  }
+  .journey .label { color: var(--fg-muted); margin-right: 4px; font-weight: 600; width: 100%; text-align: right; margin-bottom: 2px; }
+  .journey button {
+    padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border);
+    background: transparent; color: var(--fg-muted); cursor: pointer;
+    font-size: 11px;
+  }
+  .journey button:hover { background: var(--bg-hover); color: var(--fg); }
+  .journey button.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  .state { display: none; }
+  .state.on { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ═══ 顶栏(沿用现有) ═══ */
+  .topbar {
+    display: flex; align-items: center;
+    padding: 0 12px;
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--border);
+    gap: 8px;
+    font-size: 12px;
+    height: 36px; flex: 0 0 36px;
+  }
+  .topbar .crumb { color: var(--fg-muted); }
+  .topbar .crumb b { color: var(--fg); font-weight: 600; }
+  .topbar .sep { color: var(--fg-subtle); }
+  .topbar .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 3px;
+    background: var(--accent-soft); color: var(--accent-light);
+    font-size: 11px; font-weight: 600;
+  }
+  .topbar .badge .pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-light); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.5; } }
+  .topbar .actions { margin-left: auto; display: flex; gap: 4px; }
+  .topbar .actions button {
+    height: 24px; padding: 0 10px; border-radius: 3px;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--fg-muted); cursor: pointer; font-size: 11px;
+  }
+  .topbar .actions button:hover { background: var(--bg-hover); color: var(--fg); border-color: var(--border-strong); }
+  .topbar .actions button.danger:hover { color: var(--err); border-color: var(--err); }
+
+  /* ═══ 协作时间线(GitKraken 风) ═══ */
+  .timeline-bar {
+    flex: 0 0 auto;
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px 8px;
+    position: relative;
+  }
+  .timeline-bar .label-row {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 10px;
+  }
+  .timeline-bar .ttl { font-size: 13px; font-weight: 600; }
+  .timeline-bar .sub { font-size: 11px; color: var(--fg-muted); }
+  .timeline-bar .progress {
+    flex: 1; max-width: 320px; height: 4px; border-radius: 2px;
+    background: var(--bg-input); overflow: hidden;
+  }
+  .timeline-bar .progress > div {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light));
+  }
+  .timeline-bar .meta { font-size: 11px; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+
+  .timeline-bar .lane {
+    display: flex; align-items: center; gap: 0;
+    padding: 6px 0 4px;
+    position: relative;
+  }
+  /* 水平连接线 */
+  .timeline-bar .lane::before {
+    content: "";
+    position: absolute;
+    left: 30px; right: 30px;
+    top: 50%;
+    height: 2px;
+    background: var(--border);
+    z-index: 0;
+  }
+  .timeline-bar .lane .seg {
+    position: absolute;
+    top: 50%;
+    height: 2px;
+    background: var(--ok);
+    z-index: 0;
+    transition: 0.4s;
+  }
+  .timeline-bar .lane .seg.live {
+    background: linear-gradient(90deg, var(--ok), var(--accent));
+    box-shadow: 0 0 6px var(--accent);
+  }
+
+  .tl-node {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center;
+    position: relative; z-index: 1;
+    cursor: pointer;
+  }
+  .tl-node .dot {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--bg-input);
+    border: 2px solid var(--border-strong);
+    display: grid; place-items: center;
+    font: 700 11px ui-monospace, monospace;
+    color: var(--fg-muted);
+    transition: 0.2s;
+  }
+  .tl-node.done .dot {
+    background: var(--ok); border-color: var(--ok); color: white;
+  }
+  .tl-node.live .dot {
+    background: var(--accent); border-color: var(--accent); color: white;
+    box-shadow: 0 0 0 4px var(--accent-soft);
+    animation: pulse-glow 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 4px var(--accent-soft); }
+    50% { box-shadow: 0 0 0 8px var(--accent-soft); }
+  }
+  .tl-node.pending .dot { opacity: 0.5; }
+  .tl-node.awaits .dot {
+    background: var(--warn-bg); border-color: var(--warn); color: var(--warn);
+  }
+  .tl-node .name {
+    margin-top: 6px;
+    font-size: 10.5px;
+    color: var(--fg-muted);
+    font-weight: 500;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .tl-node.active .name { color: var(--fg); font-weight: 600; }
+  .tl-node .target {
+    margin-top: 1px;
+    font-size: 9.5px;
+    color: var(--fg-subtle);
+    display: inline-flex; align-items: center; gap: 3px;
+  }
+  .tl-node .target .g { width: 5px; height: 5px; border-radius: 50%; }
+
+  /* ═══ 主区(幕布 + 底部节点面板) ═══ */
+  .main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .canvas {
+    flex: 1; min-height: 0;
+    background: var(--terminal-bg);
+    color: var(--terminal-fg);
+    font: 12.5px/1.5 ui-monospace, "SF Mono", "Cascadia Code", monospace;
+    padding: 14px 16px;
+    overflow: auto;
+  }
+  .canvas .sys { color: var(--fg-subtle); }
+  .canvas .msg { color: var(--fg); }
+  .canvas .msg .from { color: var(--fg-subtle); margin-right: 8px; }
+  .canvas .prompt { color: var(--accent-light); }
+  .canvas .caret { display: inline-block; width: 7px; height: 14px; background: var(--accent-light); vertical-align: -2px; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* 节点详情面板(从下方滑出,VS Code panel 风) */
+  .node-panel {
+    flex: 0 0 auto;
+    background: var(--bg-elev);
+    border-top: 2px solid var(--accent);
+    height: 280px;
+    display: flex; flex-direction: column;
+  }
+  .node-panel-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px;
+    background: rgba(0,0,0,0.2);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .node-panel-head .num {
+    font: 700 10px ui-monospace, monospace;
+    color: var(--fg-subtle); background: var(--bg-input);
+    padding: 2px 6px; border-radius: 3px;
+  }
+  .node-panel-head .name { font-weight: 600; font-size: 13px; }
+  .node-panel-head .target {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--fg-muted);
+  }
+  .node-panel-head .target .cli {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 7px; border-radius: 3px;
+    background: var(--bg-input); color: var(--fg); font-weight: 600;
+  }
+  .node-panel-head .target .cli .g { width: 8px; height: 8px; border-radius: 2px; }
+  .node-panel-head .state {
+    font-size: 10px; padding: 2px 7px; border-radius: 8px; font-weight: 600;
+    background: var(--accent-soft); color: var(--accent-light);
+  }
+  .node-panel-head .spacer { flex: 1; }
+  .node-panel-head button {
+    height: 22px; padding: 0 8px; border-radius: 3px;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--fg-muted); cursor: pointer; font-size: 11px;
+  }
+  .node-panel-head button:hover { background: var(--bg-hover); color: var(--fg); }
+  .node-panel-head .pop {
+    background: var(--accent); color: white; border-color: var(--accent);
+    font-weight: 600;
+  }
+  .node-panel-head .pop:hover { background: var(--accent-light); }
+
+  .node-panel-xterm {
+    flex: 1; min-height: 0;
+    background: var(--terminal-bg);
+    color: var(--terminal-fg);
+    font: 11.5px/1.5 ui-monospace, "SF Mono", "Cascadia Code", monospace;
+    padding: 10px 14px;
+    overflow: auto;
+    white-space: pre-wrap;
+  }
+  .node-panel-xterm .row { white-space: pre; }
+  .node-panel-xterm .row.dim { color: var(--fg-subtle); }
+  .node-panel-xterm .row.k { color: #c084fc; }
+  .node-panel-xterm .row.ok { color: var(--ok); }
+  .node-panel-xterm .row.accent { color: var(--accent-light); }
+  .node-panel-xterm .row.n { color: #fbbf24; }
+  .node-panel-xterm .cursor::after { content: "▍"; color: var(--accent-light); animation: blink 0.9s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* 节点面板(规划阶段):出现批准条 */
+  .node-panel.awaits .node-panel-xterm { flex: 0 0 180px; }
+  .node-panel.awaits .approve-strip {
+    flex: 1; min-height: 0;
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px;
+    background: var(--warn-bg);
+    border-top: 1px solid var(--border);
+  }
+  .node-panel.awaits .approve-strip .label {
+    color: var(--warn); font-weight: 600; font-size: 13px;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .node-panel.awaits .approve-strip .label::before {
+    content: "⏸"; font-size: 16px;
+  }
+  .node-panel.awaits .approve-strip .desc { font-size: 11px; color: var(--fg-muted); flex: 1; }
+  .node-panel.awaits .approve-strip button {
+    height: 30px; padding: 0 16px; border-radius: 4px;
+    border: 1px solid var(--border); cursor: pointer;
+    background: transparent; color: var(--fg-muted);
+    font-size: 12px; font-weight: 600;
+  }
+  .node-panel.awaits .approve-strip button:hover { background: var(--bg-hover); color: var(--fg); }
+  .node-panel.awaits .approve-strip button.primary {
+    background: var(--ok); color: white; border-color: var(--ok);
+  }
+  .node-panel.awaits .approve-strip button.primary:hover { filter: brightness(1.1); }
+
+  /* 底部 composer(沿用) */
+  .composer {
+    flex: 0 0 auto;
+    background: var(--bg-elev);
+    border-top: 1px solid var(--border);
+  }
+  .composer-toolbar {
+    height: 28px; display: flex; align-items: center; gap: 10px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; color: var(--fg-muted);
+  }
+  .composer-toolbar .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 9px; border-radius: 10px;
+    background: var(--violet-bg); color: var(--violet);
+    font-size: 10px; font-weight: 600;
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    cursor: pointer;
+  }
+  .composer-toolbar .pill:hover { filter: brightness(1.15); }
+  .composer-toolbar .spacer { flex: 1; }
+  .composer-toolbar button {
+    height: 22px; padding: 0 8px; border-radius: 3px;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--fg-muted); cursor: pointer; font-size: 11px;
+  }
+  .composer-toolbar button:hover { background: var(--bg-hover); color: var(--fg); }
+  .composer-input { min-height: 50px; padding: 8px 12px; font-size: 13px; }
+  .composer-input .placeholder { color: var(--fg-subtle); }
+
+  /* 弹出为 xterm 全屏(状态 #4) */
+  .canvas.xterm-mode {
+    background: var(--terminal-bg);
+  }
+  .canvas.xterm-mode .sys, .canvas.xterm-mode .msg, .canvas.xterm-mode .prompt { display: none; }
+  .canvas.xterm-mode .xterm-stage { display: block; }
+  .xterm-stage {
+    display: none;
+    background: var(--terminal-bg);
+    color: var(--terminal-fg);
+    font: 13px/1.5 ui-monospace, "Cascadia Code", monospace;
+    padding: 14px 16px;
+    overflow: auto;
+    white-space: pre-wrap;
+    height: 100%;
+  }
+  .xterm-stage .row { white-space: pre; }
+  .xterm-stage .row.dim { color: var(--fg-subtle); }
+  .xterm-stage .row.k { color: #c084fc; }
+  .xterm-stage .row.ok { color: var(--ok); }
+  .xterm-stage .row.accent { color: var(--accent-light); }
+  .xterm-stage .row.n { color: #fbbf24; }
+  .xterm-stage .cursor::after { content: "▍"; color: var(--accent-light); animation: blink 0.9s steps(2) infinite; }
+
+  /* 模板配置弹层(状态 #5) */
+  .editor-overlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .editor {
+    width: 880px; max-width: 92%;
+    max-height: 86%;
+    background: var(--bg-elev);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .editor-head {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .editor-head .icon { color: var(--warn); font-size: 16px; }
+  .editor-head h2 { font-size: 14px; font-weight: 600; flex: 1; }
+  .editor-head .close {
+    width: 26px; height: 26px; border-radius: 6px; background: transparent;
+    border: 1px solid var(--border); color: var(--fg-muted);
+    cursor: pointer; display: grid; place-items: center;
+  }
+  .editor-head .close:hover { background: var(--bg-hover); color: var(--fg); }
+  .editor-sub {
+    padding: 0 18px 12px;
+    font-size: 11px; color: var(--fg-muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .editor-body { flex: 1; display: flex; min-height: 0; }
+  .editor-side {
+    width: 200px; border-right: 1px solid var(--border);
+  }
+  .editor-side .search { padding: 10px; border-bottom: 1px solid var(--border); }
+  .editor-side .search input {
+    width: 100%; height: 26px; padding: 0 8px;
+    background: var(--bg-input); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 4px; font-size: 11px;
+  }
+  .editor-side .group-label {
+    padding: 8px 12px 4px;
+    font-size: 10px; color: var(--fg-subtle);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .editor-side .tpl-item {
+    padding: 8px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+  }
+  .editor-side .tpl-item:hover { background: var(--bg-hover); }
+  .editor-side .tpl-item.active { background: var(--accent-soft); border-left-color: var(--accent); }
+  .editor-side .tpl-item .name { font-weight: 600; margin-bottom: 2px; }
+  .editor-side .tpl-item .desc { font-size: 10px; color: var(--fg-subtle); }
+  .editor-side .default-tag {
+    display: inline-block; font-size: 9px; padding: 0 4px; margin-left: 4px;
+    background: var(--accent-soft); color: var(--accent-light);
+    border-radius: 3px;
+  }
+  .editor-side .new-item {
+    margin: 8px;
+    padding: 8px 12px;
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    color: var(--fg-muted); font-size: 12px;
+    cursor: pointer; text-align: center;
+  }
+  .editor-main {
+    flex: 1; min-width: 0;
+    overflow-y: auto;
+    padding: 14px 18px;
+  }
+  .editor-main .name-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .editor-main .name-row input {
+    flex: 1; height: 28px; padding: 0 10px;
+    background: var(--bg-input); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 4px;
+    font-size: 13px; font-weight: 600;
+  }
+  .editor-main .name-row .switch {
+    width: 28px; height: 16px; border-radius: 8px;
+    background: var(--accent); position: relative;
+  }
+  .editor-main .name-row .switch::after {
+    content: ""; position: absolute;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: white; top: 2px; right: 2px;
+  }
+  .editor-main .desc-row {
+    padding: 8px 10px;
+    background: var(--bg-input); border-radius: 4px;
+    font-size: 11px; color: var(--fg-muted);
+    margin-bottom: 14px;
+  }
+  .stage-edit {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 6px;
+    overflow: hidden;
+  }
+  .stage-edit .head {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.15);
+    border-bottom: 1px solid var(--border);
+  }
+  .stage-edit .head .step-name {
+    font-weight: 600; font-size: 12px;
+    padding: 2px 8px; background: var(--bg-input); border-radius: 3px;
+  }
+  .stage-edit .head .pick {
+    padding: 2px 7px; border-radius: 3px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    color: var(--fg); font-size: 11px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .stage-edit .head .pick .g { width: 8px; height: 8px; border-radius: 2px; }
+  .stage-edit .head .config-status {
+    padding: 2px 6px; border-radius: 8px;
+    background: var(--warn-bg); color: var(--warn);
+    font-size: 9.5px; font-weight: 600;
+  }
+  .stage-edit .head .approve-toggle {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; color: var(--fg-muted);
+  }
+  .stage-edit .head .approve-toggle .switch {
+    width: 22px; height: 12px; border-radius: 6px;
+    background: var(--fg-subtle); position: relative;
+  }
+  .stage-edit .head .approve-toggle.on .switch { background: var(--warn); }
+  .stage-edit .head .approve-toggle.on .switch::after {
+    content: ""; position: absolute; right: 1px; top: 1px;
+    width: 10px; height: 10px; border-radius: 50%; background: white;
+  }
+  .stage-edit .head .approve-toggle:not(.on) .switch::after {
+    content: ""; position: absolute; left: 1px; top: 1px;
+    width: 10px; height: 10px; border-radius: 50%; background: var(--fg-subtle);
+  }
+  .stage-edit .head .del {
+    margin-left: auto;
+    width: 22px; height: 22px; border-radius: 4px;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--fg-subtle); cursor: pointer;
+    display: grid; place-items: center;
+  }
+  .stage-edit .head .del:hover { color: var(--err); border-color: var(--err); }
+  .stage-edit textarea {
+    width: 100%; min-height: 50px;
+    padding: 6px 10px;
+    background: var(--bg-input); color: var(--fg);
+    border: none;
+    font: 11px/1.5 -apple-system, sans-serif;
+    resize: vertical;
+  }
+  .add-stage {
+    width: 100%; padding: 8px;
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--fg-muted);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .editor-foot {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 8px; align-items: center;
+  }
+  .editor-foot button {
+    height: 26px; padding: 0 12px; border-radius: 3px;
+    border: 1px solid var(--border); cursor: pointer;
+    font-size: 11px;
+    background: transparent; color: var(--fg-muted);
+  }
+  .editor-foot button:hover { background: var(--bg-hover); color: var(--fg); }
+  .editor-foot button.del-tpl { color: var(--err); border-color: var(--err); }
+  .editor-foot button.save {
+    margin-left: auto;
+    background: white; color: black; border-color: white;
+    font-weight: 600;
+  }
+  .editor-foot button.save:hover { background: #e5e5e5; }
+
+  /* 终态(状态 #6) */
+  .timeline-bar.done .tl-node.done .dot { background: var(--ok); border-color: var(--ok); }
+  .summary-card {
+    margin: 16px 20px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    max-width: 800px;
+  }
+  .summary-card .head {
+    padding: 12px 16px;
+    background: rgba(0,0,0,0.2);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .summary-card .head .icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: var(--ok-bg); color: var(--ok);
+    display: grid; place-items: center;
+    font-weight: 700;
+  }
+  .summary-card .head .ttl { font-weight: 600; flex: 1; }
+  .summary-card .head .total { font-size: 11px; color: var(--fg-muted); }
+  .summary-card .body { padding: 12px 16px; font-size: 12.5px; line-height: 1.7; }
+  .summary-card .body b { color: var(--accent-light); }
+  .summary-card .body code {
+    font: 11px ui-monospace, monospace;
+    background: var(--bg-input); padding: 1px 5px; border-radius: 3px;
+    color: #c084fc;
+  }
+  .summary-card .foot {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 8px; align-items: center;
+    background: rgba(0,0,0,0.15);
+  }
+  .summary-card .foot .next {
+    padding: 4px 12px; border-radius: 4px;
+    background: var(--accent); color: white; border: none;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+  }
+  .summary-card .foot button.save-tpl {
+    padding: 4px 12px; border-radius: 4px;
+    background: var(--violet-bg); color: var(--violet);
+    border: 1px solid rgba(167, 139, 250, 0.4);
+    font-size: 11px; font-weight: 600; cursor: pointer;
+  }
+  .summary-card .foot .spacer { flex: 1; }
+  .summary-card .foot .meta { font-size: 11px; color: var(--fg-muted); }
+
+  /* 注释 */
+  .annot {
+    position: fixed; z-index: 200;
+    background: rgba(167, 139, 250, 0.96); color: white;
+    padding: 8px 12px; border-radius: 6px;
+    font-size: 11px; line-height: 1.6;
+    max-width: 280px;
+    box-shadow: 0 4px 20px rgba(167, 139, 250, 0.4);
+  }
+  .annot b { color: white; }
+</style>
+</head>
+<body>
+
+<div class="journey">
+  <span class="label">范式 C · 旅程</span>
+  <button onclick="showState(1)" class="active" id="b1">① 触发</button>
+  <button onclick="showState(2)" id="b2">② 时间线</button>
+  <button onclick="showState(3)" id="b3">③ 节点面板</button>
+  <button onclick="showState(4)" id="b4">④ 全屏 xterm</button>
+  <button onclick="showState(5)" id="b5">⑤ 模板配置</button>
+  <button onclick="showState(6)" id="b6">⑥ 终态</button>
+</div>
+
+<!-- ════════════════════════════════════════
+     状态 #1 · 普通会话
+     ════════════════════════════════════════ -->
+<div class="state on" id="state-1">
+  <div class="topbar">
+    <span class="crumb">tmd-cli</span>
+    <span class="sep">›</span>
+    <span class="crumb"><b>修复侧栏 hydration bug</b></span>
+    <span class="sep">›</span>
+    <span class="crumb">普通会话</span>
+    <div class="actions">
+      <button>切换模板</button>
+      <button>查看完整输出</button>
+      <button class="danger">停止</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="canvas">
+<div class="sys">▸ omp 0.9.2 · zhipu-coding-plan/glm-5.3-flash · thinking max</div>
+<div class="sys">▸ 会话已就绪,输入消息或 / 命令</div>
+<div class="msg"><span class="from">❯</span>侧栏切换时偶发丢项</div>
+<div class="msg">分析中...</div>
+<div class="prompt">❯<span class="caret"></span></div>
+    </div>
+  </div>
+  <div class="composer">
+    <div class="composer-toolbar">
+      <span class="pill" style="position: relative;">⚡ 协作(关)
+        <div class="annot" style="bottom: 36px; left: 0; max-width: 240px;">
+          <b>⚡ 协作开关</b><br/>
+          点此 / <kbd style="background: rgba(0,0,0,0.3); padding: 1px 4px; border-radius: 2px;">⌘⇧A</kbd><br/>
+          顶部出现协作时间线<br/>
+          幕布保持普通对话习惯
+        </div>
+      </span>
+      <span>模型 <b style="color: var(--fg);">glm-5.3-flash</b></span>
+      <span class="spacer"></span>
+      <button>⌘ 命令 (⌘K)</button>
+    </div>
+    <div class="composer-input"><span class="placeholder">修复侧栏 hydration bug...</span></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     状态 #2 · 顶部时间线 + 节点面板
+     ════════════════════════════════════════ -->
+<div class="state" id="state-2">
+  <div class="topbar">
+    <span class="crumb">tmd-cli</span>
+    <span class="sep">›</span>
+    <span class="crumb"><b>修复侧栏 hydration bug</b></span>
+    <span class="sep">›</span>
+    <span class="badge"><span class="pulse"></span>协作进行中 · 实现</span>
+    <div class="actions">
+      <button>切换模板</button>
+      <button>查看完整输出</button>
+      <button class="danger">停止</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="timeline-bar">
+      <div class="label-row">
+        <span class="ttl">修 Bug 模板</span>
+        <span class="sub">复现定位 → 修复 → 回归加固 → 审查收口</span>
+        <div class="progress"><div style="width: 50%;"></div></div>
+        <span class="meta">2 / 4 · 3m24s</span>
+      </div>
+      <div class="lane" style="display: flex;">
+        <div class="seg" style="left: 30px; right: 70%;"></div>
+        <div class="seg live" style="left: 30px; right: 30px;"></div>
+        <div class="tl-node done" style="flex: 1;">
+          <div class="dot">✓</div>
+          <div class="name">复现定位</div>
+          <div class="target"><span class="g" style="background:#d97706;"></span>Claude · sonnet-4.6</div>
+        </div>
+        <div class="tl-node live active" style="flex: 1;">
+          <div class="dot">2</div>
+          <div class="name">修复</div>
+          <div class="target"><span class="g" style="background:#10a37f;"></span>Codex · gpt-5.3</div>
+        </div>
+        <div class="tl-node pending" style="flex: 1;">
+          <div class="dot">3</div>
+          <div class="name">回归加固</div>
+          <div class="target"><span class="g" style="background:#d97706;"></span>Claude</div>
+        </div>
+        <div class="tl-node pending" style="flex: 1;">
+          <div class="dot">4</div>
+          <div class="name">审查收口</div>
+          <div class="target"><span class="g" style="background:#1da1f2;"></span>Grok</div>
+        </div>
+      </div>
+    </div>
+    <div class="canvas">
+<div class="sys">▸ 已通过 ⚡ 协作 · 修 Bug 模板 arm</div>
+<div class="sys">▸ 协作运行中,顶部时间线查看进度</div>
+<div class="sys">▸ 下方节点面板查看当前阶段 PTY 流</div>
+<div class="prompt">❯<span class="caret"></span></div>
+    </div>
+    <!-- 节点面板:活跃节点详情 -->
+    <div class="node-panel">
+      <div class="node-panel-head">
+        <span class="num">2</span>
+        <span class="name">修复</span>
+        <span class="target">
+          <span class="cli"><span class="g" style="background:#10a37f;"></span>Codex CLI</span>
+          <span>gpt-5.3-codex</span>
+          <span style="color: #569cd6;">medium</span>
+        </span>
+        <span class="state">● LIVE</span>
+        <span class="spacer"></span>
+        <button>查看完整输出</button>
+        <button class="pop">⤢ 弹出为全屏</button>
+      </div>
+      <div class="node-panel-xterm">
+<div class="row dim">$ apply_patch src/features/sessions/stores/sessionStore.ts</div>
+<div class="row">&nbsp;</div>
+<div class="row k">@@ -42,6 +42,9</div>
+<div class="row"> async function hydrate() {</div>
+<div class="row">+  <span class="k">if</span> (Date.now() &lt; <span class="k">this</span>.lockUntil) <span class="k">return</span>;</div>
+<div class="row">   const items = <span class="k">await</span> loadEarlier();</div>
+<div class="row">-  <span class="k">this</span>.items = items;</div>
+<div class="row">+  <span class="k">this</span>.items = upsertById(<span class="k">this</span>.items, items);</div>
+<div class="row">+  <span class="k">this</span>.lockUntil = Date.now() + <span class="n">250</span>;</div>
+<div class="row"> }</div>
+<div class="row">&nbsp;</div>
+<div class="row ok">✓ patch applied (3 hunks)</div>
+<div class="row dim">$ pnpm test</div>
+<div class="row ok">✓ 18 passed</div>
+<div class="row cursor"></div>
+      </div>
+    </div>
+  </div>
+  <div class="composer">
+    <div class="composer-toolbar">
+      <span class="pill">⚡ 协作 · 修 Bug · 实现中</span>
+      <span class="spacer"></span>
+      <button>⌘ 命令</button>
+    </div>
+    <div class="composer-input"><span class="placeholder">协作进行中...</span></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     状态 #3 · 节点面板 = 批准门闩(规划阶段)
+     ════════════════════════════════════════ -->
+<div class="state" id="state-3">
+  <div class="topbar">
+    <span class="crumb">tmd-cli</span>
+    <span class="sep">›</span>
+    <span class="crumb"><b>修复侧栏 hydration bug</b></span>
+    <span class="sep">›</span>
+    <span class="badge" style="background: var(--warn-bg); color: var(--warn);">⏸ 等待批准 · 复现定位</span>
+    <div class="actions">
+      <button>切换模板</button>
+      <button>查看完整输出</button>
+      <button class="danger">停止</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="timeline-bar">
+      <div class="label-row">
+        <span class="ttl">修 Bug 模板</span>
+        <span class="sub">规划已完成,等待批准</span>
+        <div class="progress"><div style="width: 25%;"></div></div>
+        <span class="meta">1 / 4 · 1m12s</span>
+      </div>
+      <div class="lane" style="display: flex;">
+        <div class="seg" style="left: 30px; right: 75%;"></div>
+        <div class="tl-node awaits active" style="flex: 1;">
+          <div class="dot">✓</div>
+          <div class="name">复现定位</div>
+          <div class="target"><span class="g" style="background:#d97706;"></span>Claude · sonnet-4.6</div>
+        </div>
+        <div class="tl-node pending" style="flex: 1;">
+          <div class="dot">2</div>
+          <div class="name">修复</div>
+          <div class="target"><span class="g" style="background:#10a37f;"></span>Codex · gpt-5.3</div>
+        </div>
+        <div class="tl-node pending" style="flex: 1;">
+          <div class="dot">3</div>
+          <div class="name">回归加固</div>
+          <div class="target"><span class="g" style="background:#d97706;"></span>Claude</div>
+        </div>
+        <div class="tl-node pending" style="flex: 1;">
+          <div class="dot">4</div>
+          <div class="name">审查收口</div>
+          <div class="target"><span class="g" style="background:#1da1f2;"></span>Grok</div>
+        </div>
+      </div>
+    </div>
+    <div class="canvas">
+<div class="sys">▸ 复现定位已完成,主对话助手等待批准</div>
+<div class="prompt">❯<span class="caret"></span></div>
+    </div>
+    <!-- 节点面板:规划阶段 + 批准条 -->
+    <div class="node-panel awaits">
+      <div class="node-panel-head">
+        <span class="num">1</span>
+        <span class="name">复现定位</span>
+        <span class="target">
+          <span class="cli"><span class="g" style="background:#d97706;"></span>Claude Code</span>
+          <span>sonnet-4.6</span>
+          <span style="color: #569cd6;">high</span>
+        </span>
+        <span class="state" style="background: var(--warn-bg); color: var(--warn);">⏸ 等待批准</span>
+        <span class="spacer"></span>
+        <button>查看完整输出</button>
+      </div>
+      <div class="node-panel-xterm">
+<div class="row dim">▸ read sessionStore.test.ts</div>
+<div class="row dim">▸ repro: reload → hydrate → race</div>
+<div class="row">&nbsp;</div>
+<div class="row k">SUMMARY</div>
+<div class="row">hydrate 并发 loadEarlier,二次写覆盖更早项</div>
+<div class="row">replace-by-id → upsert-by-id</div>
+<div class="row">+ lockUntil 250ms 防重入</div>
+<div class="row">&nbsp;</div>
+<div class="row ok">✓ 1m12s · frozen plan</div>
+      </div>
+      <div class="approve-strip">
+        <span class="label">⏸ 规划已就绪</span>
+        <span class="desc">批准后将自动串行执行「修复 → 回归加固 → 审查收口」,每阶段完成后无人为中断。</span>
+        <button>打回重规划</button>
+        <button class="primary">✓ 批准,继续</button>
+      </div>
+    </div>
+  </div>
+  <div class="composer">
+    <div class="composer-toolbar">
+      <span class="pill" style="background: var(--warn-bg); color: var(--warn); border-color: var(--warn);">⏸ 等待批准</span>
+      <span class="spacer"></span>
+      <button>⌘ 命令</button>
+    </div>
+    <div class="composer-input"><span class="placeholder">协作进行中,批准后自动执行后续...</span></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     状态 #4 · 弹出为 xterm 全屏
+     ════════════════════════════════════════ -->
+<div class="state" id="state-4">
+  <div class="topbar">
+    <span class="crumb">tmd-cli</span>
+    <span class="sep">›</span>
+    <span class="crumb"><b>修复侧栏 hydration bug</b></span>
+    <span class="sep">›</span>
+    <span class="crumb">协作 · 修复 · 全屏 xterm</span>
+    <span class="badge"><span class="pulse"></span>● LIVE</span>
+    <div class="actions">
+      <button class="danger">停止</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="timeline-bar" style="padding: 8px 16px;">
+      <div class="lane" style="display: flex;">
+        <div class="seg" style="left: 30px; right: 75%;"></div>
+        <div class="tl-node done" style="flex: 1;">
+          <div class="dot">✓</div>
+          <div class="name">复现定位</div>
+        </div>
+        <div class="tl-node live active" style="flex: 1;">
+          <div class="dot">●</div>
+          <div class="name">修复 · Codex</div>
+        </div>
+        <div class="tl-node pending" style="flex: 1;">
+          <div class="dot">3</div>
+          <div class="name">回归加固</div>
+        </div>
+        <div class="tl-node pending" style="flex: 1;">
+          <div class="dot">4</div>
+          <div class="name">审查收口</div>
+        </div>
+      </div>
+    </div>
+    <div class="canvas xterm-mode">
+      <div class="xterm-stage">
+<div class="row dim">▸ spawn agent session · profile=codex · kind=agent</div>
+<div class="row dim">▸ cwd: /Users/chenxiangning/code/tmd-cli</div>
+<div class="row dim">▸ 继承 plan short_outcome 作为上下文</div>
+<div class="row">&nbsp;</div>
+<div class="row dim">$ apply_patch src/features/sessions/stores/sessionStore.ts</div>
+<div class="row dim">▸ 解析 patch...</div>
+<div class="row">&nbsp;</div>
+<div class="row k">@@ src/features/sessions/stores/sessionStore.ts</div>
+<div class="row k">@@ -42,6 +42,9 @@ async function hydrate() {</div>
+<div class="row">   const items = <span class="k">await</span> loadEarlier();</div>
+<div class="row">-  <span class="k">this</span>.items = items;</div>
+<div class="row">+  <span class="k">if</span> (Date.now() &lt; <span class="k">this</span>.lockUntil) <span class="k">return</span>;</div>
+<div class="row">+  <span class="k">this</span>.items = upsertById(<span class="k">this</span>.items, items);</div>
+<div class="row">+  <span class="k">this</span>.lockUntil = Date.now() + <span class="n">250</span>;</div>
+<div class="row">&nbsp;</div>
+<div class="row dim">▸ 验证 patch...</div>
+<div class="row ok">✓ applied (3 hunks, +12 −4)</div>
+<div class="row">&nbsp;</div>
+<div class="row dim">$ apply_patch src/features/sessions/utils/merge.ts</div>
+<div class="row dim">▸ 解析 patch...</div>
+<div class="row">&nbsp;</div>
+<div class="row k">@@ src/features/sessions/utils/merge.ts</div>
+<div class="row k">@@ -18,3 +18,11 @@</div>
+<div class="row"> export function loadEarlier() {</div>
+<div class="row">   <span class="k">return</span> db.sessions.all();</div>
+<div class="row"> }</div>
+<div class="row">&nbsp;</div>
+<div class="row">+export <span class="k">function</span> upsertById&lt;T extends { id: string }&gt;(</div>
+<div class="row">+  prev: T[], next: T[]</div>
+<div class="row">+): T[] {</div>
+<div class="row">+  <span class="k">const</span> map = <span class="k">new</span> Map(prev.map(x =&gt; [x.id, x]));</div>
+<div class="row">+  next.forEach(x =&gt; map.set(x.id, x));</div>
+<div class="row">+  <span class="k">return</span> [...map.values()];</div>
+<div class="row">+}</div>
+<div class="row">&nbsp;</div>
+<div class="row dim">▸ 验证 patch...</div>
+<div class="row ok">✓ applied (1 hunk, +8 −0)</div>
+<div class="row">&nbsp;</div>
+<div class="row dim">$ pnpm vitest run src/features/sessions/</div>
+<div class="row dim">▸ running...</div>
+<div class="row">&nbsp;</div>
+<div class="row ok">✓ src/features/sessions/stores/sessionStore.test.ts (8)</div>
+<div class="row ok">✓ src/features/sessions/hooks/useSessionLoad.test.ts (6)</div>
+<div class="row ok">✓ src/features/sessions/utils/merge.test.ts (4)</div>
+<div class="row">&nbsp;</div>
+<div class="row ok">Test Files  3 passed (3)</div>
+<div class="row ok">     Tests  18 passed (18)</div>
+<div class="row dim">  Start at  09:42:18</div>
+<div class="row dim">  Duration  1.84s</div>
+<div class="row">&nbsp;</div>
+<div class="row dim">$ git diff --stat</div>
+<div class="row"> src/features/sessions/stores/sessionStore.ts | <span class="n">8</span> +++++++</div>
+<div class="row"> src/features/sessions/utils/merge.ts         | <span class="n">8</span> ++++++++</div>
+<div class="row"> 2 files changed, <span class="n">16</span> insertions(+)</div>
+<div class="row">&nbsp;</div>
+<div class="row dim">▸ 等待模型整理汇报...</div>
+<div class="row cursor"></div>
+      </div>
+    </div>
+  </div>
+  <div class="composer">
+    <div class="composer-toolbar">
+      <span class="pill">⚡ 协作 · 修复 · LIVE</span>
+      <span style="color: var(--fg-subtle);">点击上方时间线返回节点面板</span>
+      <span class="spacer"></span>
+      <button>← 返回节点面板</button>
+    </div>
+    <div class="composer-input"><span class="placeholder">协作进行中...</span></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     状态 #5 · 模板配置(模态)
+     ════════════════════════════════════════ -->
+<div class="state" id="state-5">
+  <div class="topbar">
+    <span class="crumb">tmd-cli</span>
+    <span class="sep">›</span>
+    <span class="crumb"><b>修复侧栏 hydration bug</b></span>
+    <span class="sep">›</span>
+    <span class="crumb">协作进行中 · 实现</span>
+    <div class="actions">
+      <button>切换模板</button>
+      <button>查看完整输出</button>
+      <button class="danger">停止</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="timeline-bar">
+      <div class="label-row">
+        <span class="ttl">修 Bug 模板</span>
+        <span class="sub">复现定位 → 修复 → 回归加固 → 审查收口</span>
+        <div class="progress"><div style="width: 50%;"></div></div>
+        <span class="meta">2 / 4 · 3m24s</span>
+      </div>
+    </div>
+    <div class="canvas" style="background: var(--bg); display: flex; align-items: center; justify-content: center; color: var(--fg-subtle); font-size: 12px;">
+      💡 <b style="color: var(--accent-light);">查看完整输出</b> 由时间线节点弹出 xterm 全屏实现;<br/>
+      <span style="opacity: 0.7;">点击节点或在节点面板点 ⤢ 弹出按钮</span>
+    </div>
+  </div>
+  <div class="composer">
+    <div class="composer-toolbar">
+      <span class="pill">⚡ 协作 · 修 Bug</span>
+      <span class="spacer"></span>
+      <button>⌘ 命令</button>
+    </div>
+    <div class="composer-input"><span class="placeholder">协作进行中...</span></div>
+  </div>
+
+  <!-- 模板配置模态(由 ⚡ 长按 / 设置唤起) -->
+  <div class="editor-overlay">
+    <div class="editor">
+      <div class="editor-head">
+        <span class="icon">⚡</span>
+        <h2>协作模板管理</h2>
+        <button class="help">?</button>
+        <button class="close">×</button>
+      </div>
+      <div class="editor-sub">
+        模板 = 环节序列 × (CLI · 模型 · 思考强度 · 提示词 · 批准点),保存后出现在 composer ⚡ 弹层
+      </div>
+      <div class="editor-body">
+        <div class="editor-side">
+          <div class="search">
+            <input placeholder="搜索模板..." value=""/>
+          </div>
+          <div class="group-label">内置</div>
+          <div class="tpl-item active">
+            <div class="name">修 Bug <span class="default-tag">默认</span></div>
+            <div class="desc">复现定位 → 修复 → 回归加固 → 审查收口</div>
+          </div>
+          <div class="tpl-item"><div class="name">加功能</div><div class="desc">方案 → 实现 → 审查</div></div>
+          <div class="tpl-item"><div class="name">写文档</div><div class="desc">大纲 → 起草 → 润色定稿</div></div>
+          <div class="tpl-item"><div class="name">调研</div><div class="desc">摸底 → 深挖 → 结论</div></div>
+          <div class="group-label">我的模板</div>
+          <div class="new-item">+ 新建自定义模板</div>
+        </div>
+        <div class="editor-main">
+          <div class="name-row">
+            <input value="修 Bug"/>
+            <span class="default-toggle" style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--fg-muted);"><span class="switch"></span>设为默认</span>
+          </div>
+          <div class="desc-row">复现定位 → 修复 → 回归加固 → 审查收口。适合日常缺陷修复。</div>
+
+          <div class="stage-edit">
+            <div class="head">
+              <span class="step-name">复现定位</span>
+              <span class="pick"><span class="g" style="background:#d97706;"></span>Claude Code ▾</span>
+              <span class="pick">💡 high ▾</span>
+              <span class="config-status">待配齐</span>
+              <span class="approve-toggle on"><span class="switch"></span>需批准</span>
+              <button class="del">🗑</button>
+            </div>
+            <textarea>你是缺陷诊断环节。只读分析:复现路径、根因假设、最小改动面、验收标准。禁止改代码/写文件。输出 SUMMARY + 结构化计划,等待人工批准。</textarea>
+          </div>
+
+          <div class="stage-edit">
+            <div class="head">
+              <span class="step-name">修复</span>
+              <span class="pick"><span class="g" style="background:#10a37f;"></span>Codex CLI ▾</span>
+              <span class="pick">💡 medium ▾</span>
+              <button class="del">🗑</button>
+            </div>
+            <textarea>按已批准的诊断实施最小修复。允许改代码与跑相关测试;禁止 commit / push / deploy。</textarea>
+          </div>
+
+          <div class="stage-edit">
+            <div class="head">
+              <span class="step-name">回归加固</span>
+              <span class="pick"><span class="g" style="background:#d97706;"></span>Claude Code ▾</span>
+              <span class="pick">💡 medium ▾</span>
+              <button class="del">🗑</button>
+            </div>
+            <textarea>补边界 + 回归用例;禁止无关重构与 commit/push。</textarea>
+          </div>
+
+          <div class="stage-edit">
+            <div class="head">
+              <span class="step-name">审查收口</span>
+              <span class="pick"><span class="g" style="background:#1da1f2;"></span>Grok CLI ▾</span>
+              <span class="pick">💡 medium ▾</span>
+              <button class="del">🗑</button>
+            </div>
+            <textarea>只输出给用户的短汇总:根因、关键改动、如何验证、残留风险。</textarea>
+          </div>
+
+          <button class="add-stage">+ 添加环节</button>
+        </div>
+      </div>
+      <div class="editor-foot">
+        <button class="del-tpl">删除模板</button>
+        <button>取消</button>
+        <button class="save">保存模板</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     状态 #6 · 终态(时间线全绿)
+     ════════════════════════════════════════ -->
+<div class="state" id="state-6">
+  <div class="topbar">
+    <span class="crumb">tmd-cli</span>
+    <span class="sep">›</span>
+    <span class="crumb"><b>修复侧栏 hydration bug</b></span>
+    <span class="sep">›</span>
+    <span class="crumb" style="color: var(--ok); font-weight: 600;">✓ 协作完成</span>
+    <div class="actions">
+      <button>导出报告</button>
+      <button class="danger">关闭</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="timeline-bar done">
+      <div class="label-row">
+        <span class="ttl" style="color: var(--ok);">✓ 修 Bug 协作完成</span>
+        <span class="sub">4 / 4 阶段 · 总用 4m58s</span>
+        <div class="progress"><div style="width: 100%; background: var(--ok);"></div></div>
+        <span class="meta">节省 ~12 分钟手测</span>
+      </div>
+      <div class="lane" style="display: flex;">
+        <div class="seg" style="left: 30px; right: 30px; background: var(--ok);"></div>
+        <div class="tl-node done" style="flex: 1;"><div class="dot">✓</div><div class="name">复现定位</div><div class="target">1m12s</div></div>
+        <div class="tl-node done" style="flex: 1;"><div class="dot">✓</div><div class="name">修复</div><div class="target">1m48s</div></div>
+        <div class="tl-node done" style="flex: 1;"><div class="dot">✓</div><div class="name">回归加固</div><div class="target">1m21s</div></div>
+        <div class="tl-node done" style="flex: 1;"><div class="dot">✓</div><div class="name">审查收口</div><div class="target">37s</div></div>
+      </div>
+    </div>
+    <div class="canvas">
+      <div class="summary-card">
+        <div class="head">
+          <div class="icon">✓</div>
+          <div class="ttl">修 Bug 协作完成</div>
+          <div class="total">4 / 4 · 4m58s</div>
+        </div>
+        <div class="body">
+          <span style="display: inline-block; padding: 1px 6px; border-radius: 3px; background: var(--ok-bg); color: var(--ok); font-size: 10px; font-weight: 600; margin-right: 4px;">✓ 修复</span>侧栏 hydration 丢项 bug。根因 <code>hydrate</code> 并发 <code>loadEarlier</code> 二次写覆盖。改动 <code>sessionStore.ts</code>(+upsertById +lockUntil)和 <code>merge.ts</code>(新增 upsertById 函数)。18 单测 + 4 边界用例全过。<br/><br/>
+          <b>关键改动:</b><br/>
+          • <code>sessionStore.ts</code>:hydrate 入口加 250ms 重入锁,合并改 <code>upsertById</code><br/>
+          • <code>merge.ts</code>:新增通用 upsert 工具<br/>
+          • <b>验证:</b>18 unit + 4 边界用例通过<br/><br/>
+          <b>残留风险:</b> 无。
+        </div>
+        <div class="foot">
+          <span class="meta">修 Bug 模板 · 用时 4m58s</span>
+          <span class="spacer"></span>
+          <button class="save-tpl">存为我的模板</button>
+          <button class="next">开启下一轮</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="composer">
+    <div class="composer-toolbar">
+      <span class="pill" style="background: var(--ok-bg); color: var(--ok); border-color: var(--ok);">✓ 协作完成</span>
+      <span class="spacer"></span>
+      <button>⌘ 命令</button>
+    </div>
+    <div class="composer-input"><span class="placeholder">协作完成,继续发普通消息...</span></div>
+  </div>
+</div>
+
+<script>
+  function showState(n) {
+    for (let i = 1; i <= 6; i++) {
+      document.getElementById('state-' + i).classList.toggle('on', i === n);
+      document.getElementById('b' + i).classList.toggle('active', i === n);
+    }
+  }
+</script>
+
+<script>
+  function showState(n) {
+    for (let i = 1; i <= 6; i++) {
+      document.getElementById('state-' + i).classList.toggle('on', i === n);
+      document.getElementById('b' + i).classList.toggle('active', i === n);
+    }
+  }
+  // URL hash 自动切状态,方便预览 #s1 ~ #s6
+  document.addEventListener('DOMContentLoaded', () => {
+    const m = location.hash.match(/state-(\d)/) || location.hash.match(/s(\d)/);
+    if (m) showState(parseInt(m[1]));
+  });
+</script>
+
+</body>
+</html>

@@ -68,7 +68,15 @@ function applySessionEvent(sessionId: string, event: SshSessionEvent) {
   if (event.kind === "status") {
     view.status = event.status;
     view.message = event.message;
-    if (event.status === "connected") view.prompt = null;
+    /* 终态清提示:connected 正常收口;failed/disconnected 时连接任务已终止,
+       遗留的 host key/KBI/密码卡(应答通道已关)必须一并撤下。 */
+    if (
+      event.status === "connected" ||
+      event.status === "failed" ||
+      event.status === "disconnected"
+    ) {
+      view.prompt = null;
+    }
   } else if (event.kind === "forwards") {
     view.forwards = event.forwards;
   }

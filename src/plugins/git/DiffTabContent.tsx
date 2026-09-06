@@ -4,23 +4,21 @@
  * 一文件一侧一 tab:头部(状态字母 + 路径 + 侧标签 + ±行数)+ patch 主体。
  * 每次挂载即拉最新(gitDiffFilePatch),不做缓存 —— 幕布终端随时改盘,
  * 重开 tab 即新鲜;token 防 cwd/切 tab 竞态。
- * 非 git-diff kind 的 tab 返回 null —— 每 kind 由各自插件渲染。
+ * kind 路由由 kernel/tabs 注册表保证,本组件只见 git-diff tab。
  */
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { useEditorTabs } from "@kernel/tabs";
+import type { EditorTab } from "@kernel/tabs";
 import { ipc, type GitFilePatch } from "@kernel/ipc";
 import { readDiffTabPayload, type DiffTabPayload } from "./diffTab";
 import { gitErrorMessage } from "./gitError";
 import { PatchLines } from "./views/PatchLines";
 import { STATUS_COLOR } from "./views/statusColor";
 
-export function DiffTabContent() {
-  const { activeId, tabs } = useEditorTabs();
-  const active = tabs.find((t) => t.id === activeId);
-  const payload = active ? readDiffTabPayload(active) : null;
-  if (!active || !payload) return null;
+export function DiffTabContent({ tab }: { tab: EditorTab }) {
+  const payload = readDiffTabPayload(tab);
+  if (!payload) return null;
   return (
     <DiffTab
       key={`${payload.cwd}:${payload.staged ? "s" : "w"}:${payload.path}`}

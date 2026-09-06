@@ -1,42 +1,15 @@
 /**
- * AskWatch v2 行为契约测试(候选确认制 + 结算自愈)。
+ * AskWatch v2 行为契约测试(候选确认制 + 结算自愈)—— 核心状态机段,
+ * 自 askWatch.test.ts 拆出(文件规模铁则收紧至 300 行)。
  *
  * 覆盖:候选确认窗(首击立候选不置位 → 复现且距首击 ≥1.2s 才升级,或守望计时器
- * 漂移确认:期满且命中后新输出 ≤4KB —— 静态面板仅状态栏细水长流也覆盖)、
- * 瞬态内容撤销(作答残影不复燃 / resume 回放历史面板不错绑 —— 两个实测 bug 的
- * 回归测试,字节序列取自 ~/.tmd-cli session 日志的 omp 真实帧序)、等待中边沿
- * 去重、静默自愈(尾巴无字面量摘除残签 / 真面板保守保留)、用户作答清除 +
- * 尾巴重置、会话移除清理;以及 host 接线(appendOutput 检测 → isWaitingConfirm /
- * askDetected 事件,writeSession 作答清除,静默自愈,removeSession 清理)。
+ * 漂移确认)、瞬态内容撤销(作答残影不复燃 / resume 回放历史面板不错绑 —— 两个实测
+ * bug 的回归测试,字节序列取自 ~/.tmd-cli session 日志的 omp 真实帧序)、等待中边沿
+ * 去重、静默自愈(尾巴无字面量摘除残签 / 真面板保守保留)、用户作答清除 + 尾巴重置、
+ * 会话移除清理。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SessionMeta } from "./ipc";
 import { AskWatch, stripAnsi } from "./askWatch";
-
-/* host 接线段:与 host.test.ts 同款 ipc mock(静态 import 拿到的即 mock)。 */
-const sessions: SessionMeta[] = [];
-const ptyOutputCbs = new Map<string, (text: string) => void>();
-
-vi.mock("./ipc", () => ({
-  ipc: {
-    sessionSpawn: vi.fn(async (profileId: string, spec: { cwd: string }) => {
-      const id = `ask-pty-${sessions.length + 1}`;
-      sessions.push({ id, profileId, cwd: spec.cwd } as SessionMeta);
-      return { id, pid: 4000 + sessions.length };
-    }),
-    sessionList: vi.fn(async () => sessions),
-    sessionKill: vi.fn(async () => undefined),
-    sessionWrite: vi.fn(async () => undefined),
-  },
-  onPtyOutput: vi.fn(async (id: string, cb: (text: string) => void) => {
-    ptyOutputCbs.set(id, cb);
-    return () => ptyOutputCbs.delete(id);
-  }),
-  onPtyExit: vi.fn(async () => () => undefined),
-}));
-
-import { host } from "./host";
-import { KernelTopics } from "./events";
 
 /** omp Ask 面板样例(带 ANSI 样式,取自真实输出形态)。 */
 const OMP_ASK =
@@ -65,7 +38,6 @@ const TEST_ASK_MARKS: RegExp[] = [
 
 /** 带声明标记的馈送(每 describe 的 beforeEach 绑定当次 watch 实例)。 */
 let fire: (id: string, text: string) => boolean;
-
 describe("AskWatch 标记检测与状态迁移(候选确认制)", () => {
   let watch: AskWatch;
 
@@ -296,195 +268,5 @@ describe("AskWatch 标记检测与状态迁移(候选确认制)", () => {
 
   it("stripAnsi 剥离转义序列(跨 chunk 截断后拼接复原)", () => {
     expect(stripAnsi("text\x1b" + "[31mred\x1b[0m")).toBe("textred");
-  });
-});
-
-describe("屏幕态通道(onScreenSample,幕布 1Hz 采样)", () => {
-  let watch: AskWatch;
-
-  beforeEach(() => {
-    vi.useFakeTimers();
-    watch = new AskWatch();
-    fire = (id, text) => watch.onOutput(id, text, text.length, TEST_ASK_MARKS);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("标记连续在场 ≥1.2s 才置位(防抖),消失即摘", async () => {
-    expect(watch.onScreenSample("sc1", true)).toBeNull(); // 记起算
-    expect(watch.isWaiting("sc1")).toBe(false);
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(watch.onScreenSample("sc1", true)).toBeNull(); // 1.0s 未满窗
-    await vi.advanceTimersByTimeAsync(400);
-    expect(watch.onScreenSample("sc1", true)).toBe("asked"); // 1.4s 置位
-    expect(watch.isWaiting("sc1")).toBe(true);
-    expect(watch.onScreenSample("sc1", true)).toBeNull(); // 已置位不重复边沿
-    expect(watch.onScreenSample("sc1", false)).toBe("healed"); // 面板消失 → 摘
-    expect(watch.isWaiting("sc1")).toBe(false);
-  });
-
-  it("作答(write)清屏幕态;抑制窗内屏幕残影不复燃,窗后仍在场才升级", async () => {
-    watch.onScreenSample("sc2", true);
-    await vi.advanceTimersByTimeAsync(1_300);
-    watch.onScreenSample("sc2", true);
-    expect(watch.isWaiting("sc2")).toBe(true);
-    expect(watch.onUserWrite("sc2")).toBe(true); // 作答即摘
-    expect(watch.isWaiting("sc2")).toBe(false);
-    /* 残影仍在屏幕:抑制窗内采样不记起算 */
-    expect(watch.onScreenSample("sc2", true)).toBeNull();
-    await vi.advanceTimersByTimeAsync(4_000);
-    expect(watch.onScreenSample("sc2", true)).toBeNull(); // 仍在 8s 抑制窗
-    await vi.advanceTimersByTimeAsync(4_500);
-    expect(watch.onScreenSample("sc2", true)).toBeNull(); // 窗过,记起算
-    await vi.advanceTimersByTimeAsync(1_300);
-    expect(watch.onScreenSample("sc2", true)).toBe("asked"); // 连续多问延迟亮标
-  });
-
-  it("字节流置位的等待被屏幕消失自愈(CLI 自行继续,spinner 使流静默永不达成)", async () => {
-    fire("sc3", OMP_ASK);
-    await pastConfirm();
-    fire("sc3", OMP_ASK);
-    expect(watch.isWaiting("sc3")).toBe(true);
-    expect(watch.onScreenSample("sc3", false)).toBe("healed"); // 屏幕无面板 → 摘
-    expect(watch.isWaiting("sc3")).toBe(false);
-  });
-
-  it("hasState:等待/候选存在为 true,回放补观察短路判据", async () => {
-    expect(watch.hasState("sc4")).toBe(false);
-    fire("sc4", OMP_ASK); // 立候选
-    expect(watch.hasState("sc4")).toBe(true);
-    await pastConfirm();
-    fire("sc4", OMP_ASK); // 升级等待
-    expect(watch.hasState("sc4")).toBe(true);
-    watch.onUserWrite("sc4");
-    expect(watch.hasState("sc4")).toBe(false);
-  });
-});
-
-describe("host 接线:检测进主链路,状态对 UI 可读", () => {
-  const PROFILE_ID = "ask-test-cli";
-  const CWD = "/proj";
-
-  beforeEach(() => {
-    vi.useFakeTimers();
-    sessions.length = 0;
-    ptyOutputCbs.clear();
-    if (!host.getCliProfile(PROFILE_ID)) {
-      host.registerCliProfile({
-        id: PROFILE_ID,
-        name: "ask-test",
-        command: "true",
-        args: [],
-        triggers: [],
-        askMarks: TEST_ASK_MARKS,
-      });
-    }
-  });
-
-  afterEach(() => {
-    host.resetStatusTimerForTest();
-    host.resetActivityWatchForTest();
-    vi.useRealTimers();
-  });
-
-  it("静态面板无复现:守望计时器静默确认 → askDetected + isWaitingConfirm", async () => {
-    const detected: string[] = [];
-    const off = host.events.on<string>(KernelTopics.askDetected, (id) =>
-      detected.push(id),
-    );
-    const s = await host.createSession(PROFILE_ID, CWD);
-    ptyOutputCbs.get(s.id)!(OMP_ASK); // 面板画完即静默,仅此一帧
-    expect(host.isWaitingConfirm(s.id)).toBe(false);
-    await vi.advanceTimersByTimeAsync(2_500); // 无任何后续输出,期满静默确认
-    expect(host.isWaitingConfirm(s.id)).toBe(true);
-    expect(detected).toEqual([s.id]);
-    off();
-    await host.removeSession(s.id);
-  });
-
-  it("提问面板复现确认 → askDetected 事件 + isWaitingConfirm;写入作答即清", async () => {
-    const detected: string[] = [];
-    const off = host.events.on<string>(KernelTopics.askDetected, (id) =>
-      detected.push(id),
-    );
-    const s = await host.createSession(PROFILE_ID, CWD);
-    ptyOutputCbs.get(s.id)!(OMP_ASK); // 首击立候选
-    expect(host.isWaitingConfirm(s.id)).toBe(false);
-    await pastConfirm();
-    ptyOutputCbs.get(s.id)!(OMP_ASK); // 复现确认升级
-    expect(host.isWaitingConfirm(s.id)).toBe(true);
-    expect(detected).toEqual([s.id]);
-    /* 重绘不重复发事件 */
-    ptyOutputCbs.get(s.id)!(OMP_ASK);
-    expect(detected).toHaveLength(1);
-    /* 任何写入 = 作答(选择/回车/快捷键统一走 writeSession) */
-    host.writeSession(s.id, "\r");
-    expect(host.isWaitingConfirm(s.id)).toBe(false);
-    /* 作答残影帧不置位 */
-    ptyOutputCbs.get(s.id)!(OMP_ASK);
-    expect(host.isWaitingConfirm(s.id)).toBe(false);
-    off();
-    await host.removeSession(s.id);
-  });
-
-  it("静默自愈:未锚定会话(无用户写入)的残留等待同样被摘除", async () => {
-    const s = await host.createSession(PROFILE_ID, CWD);
-    ptyOutputCbs.get(s.id)!(OMP_ASK);
-    await pastConfirm();
-    ptyOutputCbs.get(s.id)!(OMP_ASK);
-    expect(host.isWaitingConfirm(s.id)).toBe(true);
-    /* CLI 未等作答自行输出,响应把面板文本冲出页脚窗口后静默 → 自愈摘签 */
-    ptyOutputCbs.get(s.id)!(
-      "the cli continued\r\non its own with\r\nplenty of response lines\r\nto push the marker out\r\nof the footer window\r\n",
-    );
-    await vi.advanceTimersByTimeAsync(3_500);
-    expect(host.isWaitingConfirm(s.id)).toBe(false);
-    await host.removeSession(s.id);
-  });
-
-  it("回放补观察:webview 重载后静态面板经 observeReplayTail 恢复等待(标签+提示音事件)", async () => {
-    const detected: string[] = [];
-    const off = host.events.on<string>(KernelTopics.askDetected, (id) =>
-      detected.push(id),
-    );
-    const s = await host.createSession(PROFILE_ID, CWD);
-    ptyOutputCbs.get(s.id)!(OMP_ASK);
-    await pastConfirm();
-    ptyOutputCbs.get(s.id)!(OMP_ASK);
-    expect(host.isWaitingConfirm(s.id)).toBe(true);
-    /* 模拟 webview 重载:检测器内存态清零(PTY/输出缓冲仍在) */
-    host.resetActivityWatchForTest();
-    expect(host.isWaitingConfirm(s.id)).toBe(false);
-    /* 幕布重挂载回放 → 补观察立候选;面板静态无新输出,漂移确认期满升级 */
-    host.observeReplayTail(s.id);
-    expect(host.isWaitingConfirm(s.id)).toBe(false);
-    await vi.advanceTimersByTimeAsync(2_500);
-    expect(host.isWaitingConfirm(s.id)).toBe(true);
-    expect(detected).toEqual([s.id, s.id]); /* 初次升级 + 重载后恢复各一次 */
-    off();
-    await host.removeSession(s.id);
-  });
-
-  it("回放补观察:尾巴无面板标记(早已作答)的会话零副作用", async () => {
-    const s = await host.createSession(PROFILE_ID, CWD);
-    ptyOutputCbs.get(s.id)!(
-      OMP_ASK + "\r\nanswered\r\nresponse body here\r\nmore output\r\nkept flowing\r\ndone\r\n",
-    ); /* 标记被 5 行尾随输出推出页脚窗口 = 早已作答的收尾形态 */
-    host.observeReplayTail(s.id);
-    await vi.advanceTimersByTimeAsync(2_500);
-    expect(host.isWaitingConfirm(s.id)).toBe(false);
-    await host.removeSession(s.id);
-  });
-
-  it("会话移除 → 等待残留一并清除", async () => {
-    const s = await host.createSession(PROFILE_ID, CWD);
-    ptyOutputCbs.get(s.id)!(OMP_ASK);
-    await pastConfirm();
-    ptyOutputCbs.get(s.id)!(OMP_ASK);
-    expect(host.isWaitingConfirm(s.id)).toBe(true);
-    await host.removeSession(s.id);
-    expect(host.isWaitingConfirm(s.id)).toBe(false);
   });
 });

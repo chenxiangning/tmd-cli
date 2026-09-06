@@ -3,18 +3,21 @@
  *
  * kind = "ssh-file" 的 tab:payload {sessionId, path, name}。
  * 读经 SFTP 分页(>200KB 提示只载头部);写回带 expectedMtime/expectedSize
- * 乐观并发,冲突弹覆盖确认;⌘S/工具条保存,脏标记走 kernel tabs.updateTab。
+ * 乐观并发,冲突弹覆盖确认;保存经 ssh.saveRemoteFile(⌘S)/工具条触发,脏标记走 kernel tabs.updateTab。
  */
 
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ipc, type SftpEntry } from "@kernel/ipc";
-import { setActiveTab, updateTab, useEditorTabs } from "@kernel/tabs";
+import { setActiveTab, updateTab, type EditorTab } from "@kernel/tabs";
 
 /* CodeMirror 全家按需拆包(files 插件同款):首个 ssh-file tab 才拉 chunk;
    与 files 的 lazy import 指向同一模块,chunk 共享。 */
 const Editor = lazy(() =>
   import("@kernel/cmEditor/FileCodeEditor").then((m) => ({ default: m.FileCodeEditor })),
 );
+
+/** ssh.saveRemoteFile 命令桥:挂载中的远端文件 tab 实例经此接收保存触发(先例 TerminalView.findRequestRef)。 */
+export const saveRequestRef: { current: (() => void) | null } = { current: null };
 
 interface RemoteDoc {
   content: string;
@@ -40,11 +43,8 @@ function useDarkTheme(): boolean {
   return dark;
 }
 
-export function RemoteFileTab() {
-  const { activeId, tabs } = useEditorTabs();
-  const active = tabs.find((t) => t.id === activeId);
-  const payload =
-    active?.kind === "ssh-file" ? (active.payload as { sessionId: string; path: string }) : null;
+export function RemoteFileTab({ tab }: { tab: EditorTab }) {
+  const payload = tab.payload as { sessionId: string; path: string };
   const [doc, setDoc] = useState<RemoteDoc | null>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -94,8 +94,8 @@ export function RemoteFileTab() {
   }, [payload?.sessionId, payload?.path]);
 
   useEffect(() => {
-    if (active) updateTab(active.id, { dirty });
-  }, [dirty, active]);
+    updateTab(tab.id, { dirty });
+  }, [dirty, tab]);
 
   const save = useCallback(
     async (force = false) => {
@@ -135,20 +135,17 @@ export function RemoteFileTab() {
     [payload, doc, saving, dirty],
   );
 
-  /* ⌘S 窗口级捕获(与 files 编辑器同款纪律:编辑器内键位之外的全局面)。 */
+  /* 保存请求桥:⌘S 命令(ssh.saveRemoteFile)注册口经此触发最新 save;卸载即摘除,
+     非远端文件 tab 下 when 不满足,键穿透。 */
+  const saveRef = useRef(save);
+  saveRef.current = save;
   useEffect(() => {
-    if (!payload) return;
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        void save();
-      }
+    saveRequestRef.current = () => void saveRef.current();
+    return () => {
+      saveRequestRef.current = null;
     };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [payload, save]);
+  }, []);
 
-  if (!active) return null;
   if (!payload) return null;
   if (!doc || !doc.loaded) {
     return (
@@ -190,7 +187,7 @@ export function RemoteFileTab() {
           文件超过 200KB,仅载入头部;保存将整文件覆写,确认后再编辑。
         </div>
       ) : null}
-      <div className="ssh-editor-body" onClick={() => setActiveTab(active.id)}>
+      <div className="ssh-editor-body" onClick={() => setActiveTab(tab.id)}>
         <Suspense
           fallback={
             <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">

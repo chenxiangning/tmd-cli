@@ -58,7 +58,8 @@ export function SessionMenuOverlay({
             <button
               className="wsmenu-item"
               onClick={() => {
-                void host.createSession(p.id, workspace.root, workspace.id);
+                /* spawn 被拒时原因已由内核广播 sessionStartFailed(toast 呈现),此处只吞掉 rejection */
+                host.createSession(p.id, workspace.root, workspace.id).catch(() => undefined);
                 onClose();
               }}
             >

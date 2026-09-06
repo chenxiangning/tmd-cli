@@ -11,7 +11,7 @@
  * 不内置缓存文件内容 —— 内容由插件自己负责(open 时新拉)。
  */
 
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, type ComponentType } from "react";
 
 export interface EditorTab {
   /** 全局唯一 tab id。 */
@@ -114,6 +114,41 @@ export function getTabs(): readonly EditorTab[] {
 
 export function getActiveTabId(): string | null {
   return state.activeId;
+}
+
+/** 激活 tab 本体(快捷键 when 等非响应式查询用);无激活 tab 返回 null。 */
+export function getActiveTab(): EditorTab | null {
+  return state.tabs.find((t) => t.id === state.activeId) ?? null;
+}
+
+/* ── tab 内容路由 ───────────────────────────────────────────────
+ * 中央编辑区的内容组件按 tab.kind 路由:插座裁决渲染权,插件只注册自己
+ * kind 的组件 —— 取代旧的 editorCenter.tabContent 挂点(全量挂载 + 各自
+ * 自查 kind 返回 null 的纪律约定)。注册发生在 activate 期(首帧渲染前),
+ * 查询无需响应式。 */
+
+/** tab 内容贡献:kind 匹配即渲染,组件收到激活 tab 本体。 */
+export interface TabContentContribution {
+  /** 匹配的 tab kind(如 "file" / "ssh-file" / "git-diff")。 */
+  kind: string;
+  component: ComponentType<{ tab: EditorTab }>;
+}
+
+const tabContents = new Map<string, TabContentContribution["component"]>();
+
+/** 注册某 kind 的 tab 内容组件(插件 activate 内调用)。重复 kind 抛错。 */
+export function registerTabContent(contribution: TabContentContribution): void {
+  if (tabContents.has(contribution.kind)) {
+    throw new Error(`tab 内容重复注册: ${contribution.kind}`);
+  }
+  tabContents.set(contribution.kind, contribution.component);
+}
+
+/** 查询某 kind 的内容组件;未注册 = undefined(调用方渲染兜底空态)。 */
+export function getTabContent(
+  kind: string,
+): TabContentContribution["component"] | undefined {
+  return tabContents.get(kind);
 }
 
 export function useEditorTabs(): TabState {

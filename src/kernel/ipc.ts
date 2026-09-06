@@ -39,12 +39,16 @@ export type {
 export type * from "./gitContract";
 import type {
   GitAheadBehind,
+  GitBranchCompareSet,
+  GitBranchDiffFile,
   GitBranchList,
   GitCommitFile,
   GitCommitInput,
   GitDiffStatus,
   GitFilePatch,
   GitLogEntry,
+  GitPushPreview,
+  GitRemoteRequest,
   GitTotals,
 } from "./gitContract";
 
@@ -55,6 +59,11 @@ export interface SpawnSpec {
   cols?: number;
   rows?: number;
   env?: Record<string, string>;
+  /** 会话后端类型:缺省 "cli";内置终端传 "shell"(Rust 侧 serde default 对齐)。
+   *  "ssh" 不走 session_spawn(russh 有专属命令),不在本类型取值内。 */
+  kind?: "cli" | "shell";
+  /** 会话展示标题:缺省 None;内置终端传 shell 名(tab 条/侧栏直读)。 */
+  title?: string;
 }
 
 export interface SpawnedSession {
@@ -76,8 +85,8 @@ export interface SessionMeta {
   pid?: number;
   workspaceId?: string;
   createdAt?: number;
-  /** 会话后端类型:"cli"(本地 PTY,缺省)| "ssh"(russh 引擎)。 */
-  kind?: "cli" | "ssh";
+  /** 会话后端类型:"cli"(本地 PTY,缺省)| "ssh"(russh 引擎)| "shell"(内置终端)。 */
+  kind?: "cli" | "ssh" | "shell";
   /** 会话展示标题(SSH = 主机名;CLI 走磁盘会话/命名覆盖层,缺省无)。 */
   title?: string;
 }
@@ -106,6 +115,13 @@ export interface FileStamp {
   path: string;
   modifiedAt: number;
 }
+
+/** 参数化安装计划(对齐 src-tauri/src/installer.rs InstallPlan;camelCase tagged)。 */
+export type CliInstallPlan =
+  | { channel: "npm"; package: string }
+  | { channel: "script"; unix: string; windows: string }
+  /** 通用命令通道:program/args 由调用方传入,内核零配方(cli-omp 扩展装卸等)。 */
+  | { channel: "command"; program: string; args: string[] };
 
 
 /* ── checkpoints 契约(对齐 src-tauri/src/checkpoints/*,serde camelCase)── */
@@ -189,6 +205,8 @@ export interface ProcRunSpec {
   env?: Record<string, string>;
   /** 启动后一次性写入 stdin;写入后管道保持打开,直到收割(kill/退出)。 */
   stdin?: string;
+  /** stdin 以 null 启动(立即 EOF)。一次性 CLI(omp -p 等)检测到管道 stdin 会等 EOF 挂死;RPC 副车勿开。 */
+  closeStdin?: boolean;
   /** stdout 出现该子串即提前收割(响应已到达,不等满超时)。 */
   exitOnStdout?: string;
   timeoutMs: number;
@@ -336,17 +354,62 @@ export const ipc = {
   /** 提交内单文件 patch;path 按 新路径/rename 来源 匹配。 */
   gitCommitFilePatch: (cwd: string, sha: string, path: string) =>
     invoke<GitFilePatch | null>("git_commit_file_patch", { cwd, sha, path }),
+  /** 提交完整 message(首行+正文;分支对比详情面板)。 */
+  gitCommitMessage: (cwd: string, sha: string) =>
+    invoke<string>("git_commit_message", { cwd, sha }),
   gitBranches: (cwd: string) => invoke<GitBranchList>("git_branches", { cwd }),
   gitCheckout: (cwd: string, name: string) =>
     invoke<void>("git_checkout", { cwd, name }),
+  /** 检出远程分支为本地同名分支并建跟踪(origin/feat → feat + upstream)。 */
+  gitCheckoutRemote: (cwd: string, name: string) =>
+    invoke<void>("git_checkout_remote", { cwd, name }),
   gitCreateBranch: (cwd: string, name: string, from?: string) =>
     invoke<void>("git_create_branch", { cwd, name, from: from ?? null }),
   gitDeleteBranch: (cwd: string, name: string, force: boolean) =>
     invoke<void>("git_delete_branch", { cwd, name, force }),
+  /** 合并分支到当前分支(冲突留 MERGE_HEAD 中间态,幕布终端可接管)。 */
+  gitMergeBranch: (cwd: string, name: string) =>
+    invoke<void>("git_merge_branch", { cwd, name }),
+  /** 当前分支变基到 onto(冲突留 rebase-merge 中间态)。 */
+  gitRebaseBranch: (cwd: string, onto: string) =>
+    invoke<void>("git_rebase_branch", { cwd, onto }),
+  /** 重命名本地分支(git branch -m;upstream 配置随迁)。 */
+  gitRenameBranch: (cwd: string, oldName: string, newName: string) =>
+    invoke<void>("git_rename_branch", { cwd, oldName, newName }),
+  /** 分支对比:双向唯一提交(limit 缺省 200,clamp 1..500)。低频,菜单触发。 */
+  gitBranchCompare: (cwd: string, target: string, current: string, limit?: number) =>
+    invoke<GitBranchCompareSet>("git_branch_compare", {
+      cwd,
+      target,
+      current,
+      limit: limit ?? null,
+    }),
+  /** 工作树对分支的差异文件清单(不带 patch)。 */
+  gitBranchWorktreeFiles: (cwd: string, branch: string) =>
+    invoke<GitBranchDiffFile[]>("git_branch_worktree_files", { cwd, branch }),
+  /** 工作树对分支的单文件 patch(path 按 新路径/rename 来源 匹配)。 */
+  gitBranchWorktreePatch: (cwd: string, branch: string, path: string) =>
+    invoke<GitFilePatch | null>("git_branch_worktree_patch", { cwd, branch, path }),
   gitFetch: (cwd: string) => invoke<string>("git_fetch", { cwd }),
-  /** pull/push 统一入口;凭据失败返 E_AUTH:,引导用户去幕布终端。 */
-  gitPullPush: (cwd: string, op: "pull" | "push", branch?: string) =>
+  /** pull/push/fetch 统一入口;branch 缺省作用于当前分支(fetch 缺省 = --all --prune)。
+   *  pull 非当前分支 = 仅 fast-forward 上游引用;fetch 带分支 = 刷新该分支上游引用。 */
+  gitPullPush: (cwd: string, op: "pull" | "push" | "fetch", branch?: string) =>
     invoke<string>("git_pull_push", { cwd, op, branch: branch ?? null }),
+  /** 已配置远端名列表(推送/拉取对话框远端下拉)。 */
+  gitRemotes: (cwd: string) => invoke<string[]>("git_remotes", { cwd }),
+  /** 推送预览:HEAD 相对 <remote>/<branch> 的独有提交;低频,仅在对话框内按需拉。 */
+  gitPushPreview: (cwd: string, remote: string, branch: string, limit?: number) =>
+    invoke<GitPushPreview>("git_push_preview", { cwd, remote, branch, limit: limit ?? null }),
+  /** 远端对话框结构化请求(带选项);pull 移动 HEAD。 */
+  gitRemoteRequest: (cwd: string, req: GitRemoteRequest) =>
+    invoke<string>("git_remote_request", { cwd, req }),
+  /** 「暂存并切换」(IDEA Smart Checkout):脏工作区 stash -u → 切换 → pop,
+   *  pop 冲突时切换已生效、stash 保留;remote = 检出远程分支版。 */
+  gitSmartCheckout: (cwd: string, name: string, remote: boolean) =>
+    invoke<void>("git_smart_checkout", { cwd, name, remote }),
+  /** 还原一次「暂存并切换」:reset --hard 清冲突 → 切回 original → 恢复 stash。 */
+  gitSmartCheckoutUndo: (cwd: string, original: string) =>
+    invoke<void>("git_smart_checkout_undo", { cwd, original }),
   /** 递归收集目录下指定后缀文件,按修改时间倒序。目录不存在 = 空表。 */
   fsCollectFiles: (dir: string, suffix: string) =>
     invoke<FileStamp[]>("fs_collect_files", { dir, suffix }),
@@ -374,23 +437,27 @@ export const ipc = {
   /** 通用 HTTP 代理 ─ 各 CLI quota provider 通过此调用供应商 API。 */
   quotaFetch: (spec: QuotaFetchSpec) =>
     invoke<QuotaFetchResponse>("quota_fetch", { spec }),
-  /** 读 omp CLI 某供应商最新凭据 data JSON(~/.omp/agent/agent.db,只读);无记录返回 null。 */
-  ompAuthCredential: (provider: string) =>
-    invoke<string | null>("omp_auth_credential", { provider }),
+  /** 通用只读 sqlite 查询(参数化绑定,READ_ONLY 连接)。
+   *  CLI 私有库的路径/表结构知识在插件侧(cli-shared),内核只做代读原语。 */
+  sqliteQuery: (dbPath: string, sql: string, params: string[]) =>
+    invoke<unknown[][]>("sqlite_query", { dbPath, sql, params }),
+  /** 通用参数化 sqlite 写执行(单条语句;连接启用 FK 级联 + 3s busy 超时)。
+   *  CLI 私有库的代写原语(单库 CLI 的会话删除等),SQL 知识在插件侧;
+   *  库不存在/执行失败 = 裸字符串错误(调用方提示)。 */
+  sqliteExecute: (dbPath: string, sql: string, params: string[]) =>
+    invoke<void>("sqlite_execute", { dbPath, sql, params }),
   /** 读取非空环境变量;用于 pi auth.json 的 $ENV_VAR 凭据引用。 */
   quotaEnvValue: (name: string) =>
     invoke<string | null>("quota_env_value", { name }),
-
   /** 探针 CLI 是否在本机 PATH 中可解析(以及 `--version` 输出)。 */
   cliProbe: (command: string) =>
     invoke<CliProbeResult>("cli_probe", { command }),
-  /** 一键安装 CLI(claude 官方 native,其余 npm -g);日志经 cli-install://{engine} 事件推。 */
-  cliInstallRun: (engine: string) =>
-    invoke<boolean>("cli_install_run", { engine }),
+  /** 一键安装 CLI(计划由 CliProfile 安装元数据派生:scriptInstall 优先,否则 npm);
+   *  日志经 cli-install://{id} 事件推,id 惯例 = 引擎 binary。 */
+  cliInstallRun: (id: string, plan: CliInstallPlan) =>
+    invoke<boolean>("cli_install_run", { id, plan }),
   /** 字符串 MD5(小写 hex)。kimi 会话目录按 MD5(cwd) 命名,前端据此拼会话路径。 */
   md5Hex: (text: string) => invoke<string>("md5_hex", { text }),
-  /** 列出 omp 已登录的供应商 id 列表(agent.db auth_credentials,未禁用)。 */
-  ompAuthProviders: () => invoke<string[]>("omp_auth_providers"),
 
   /* ── SSH(对齐 src-tauri/src/ssh/commands.rs;输出/翻页走上方 session_* 按 kind 路由)── */
   /** 创建 SSH 会话:立即返回 id,连接/认证后台完成(ssh://event / ssh://prompt)。 */
@@ -407,6 +474,13 @@ export const ipc = {
       workspaceId: workspaceId ?? null,
       cols: cols ?? null,
       rows: rows ?? null,
+    }),
+  /** 重连 SSH 会话:后端取原主机配置(凭据不出后端)收尾旧会话后同配置新建,新会话新 id。 */
+  sshSessionReconnect: (sessionId: string, cwd: string, workspaceId?: string) =>
+    invoke<SpawnedSession>("ssh_session_reconnect", {
+      sessionId,
+      cwd,
+      workspaceId: workspaceId ?? null,
     }),
   /** 会话当前状态(webview 重载后重建面板状态用)。 */
   sshSessionStatus: (sessionId: string) =>
@@ -567,6 +641,8 @@ export interface QuotaFetchSpec {
   method?: string;
   headers?: Record<string, string>;
   body?: string;
+  /** true = 响应按原始文本返回(body 为字符串),跳过 JSON 解析(如 atom/xml 源)。 */
+  text?: boolean;
 }
 
 export interface QuotaFetchResponse {

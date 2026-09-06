@@ -112,6 +112,26 @@ export function closeSessionTab(id: string): void {
   }
 }
 
+/** 摘掉其余 tab 只留指定 id:不杀会话;活跃 tab 被一并摘掉时指针切到保留 id。
+ *  目标不在条内 / 仅剩目标一个时无操作(不动活跃指针)。 */
+export function closeOtherSessionTabs(id: string): void {
+  if (!state.ids.includes(id) || state.ids.length === 1) return;
+  const active = deps.getActiveSessionId();
+  const switchActive =
+    active !== null && active !== id && state.ids.includes(active);
+  commit([id]);
+  if (switchActive) deps.setActiveSession(id);
+}
+
+/** 摘尽全部 tab:不杀会话;活跃会话在条内时指针置 null 回 welcome。 */
+export function closeAllSessionTabs(): void {
+  if (state.ids.length === 0) return;
+  const active = deps.getActiveSessionId();
+  const resetActive = active !== null && state.ids.includes(active);
+  commit([]);
+  if (resetActive) deps.setActiveSession(null);
+}
+
 export function getSessionTabs(): readonly string[] {
   return snapshot.ids;
 }

@@ -15,16 +15,12 @@
  * OAuth 凭据 → 本地 rollout 快照(零 HTTP),快照不可用降级 wham HTTP;非 OAuth → 直接 HTTP。
  */
 
-import { ipc } from "@kernel/ipc";
-import {
-  registerQuotaProvider,
-  type QuotaFetchContext,
-  type QuotaSnapshot,
-} from "@kernel/quota";
+import type { QuotaFetchContext, QuotaSnapshot } from "@kernel/quota";
 import {
   codexPlanLabelWithSnapshot,
   readCodexLocalQuota,
 } from "../cli-shared/quota/codexLocal";
+import { readOmpAuthCredential } from "../cli-shared/quota/ompAuth";
 import {
   detectVendorByProviderId,
   fetchVendorQuota,
@@ -58,7 +54,7 @@ function toSnapshot(providerId: string, vendor: VendorId, quota: {
   };
 }
 
-async function fetchOmpQuota(ctx: QuotaFetchContext): Promise<QuotaSnapshot> {
+export async function fetchOmpQuota(ctx: QuotaFetchContext): Promise<QuotaSnapshot> {
   const ompVendor = vendorFromModel(ctx.model);
   if (!ompVendor) {
     throw new Error("未识别当前模型,无法路由供应商");
@@ -68,7 +64,7 @@ async function fetchOmpQuota(ctx: QuotaFetchContext): Promise<QuotaSnapshot> {
     throw new Error(`omp 供应商 ${ompVendor} 暂不支持额度查询`);
   }
 
-  const raw = await ipc.ompAuthCredential(ompVendor);
+  const raw = await readOmpAuthCredential(ompVendor);
   const cred: VendorCredential = raw ? parseCredentialData(raw) : {};
 
   // codex 供应商:OAuth → 本地快照优先,降级 wham;非 OAuth/未登录 → wham 显式报错
@@ -98,9 +94,3 @@ async function fetchOmpQuota(ctx: QuotaFetchContext): Promise<QuotaSnapshot> {
   return toSnapshot(ompVendor, vendor, quota);
 }
 
-export function registerOmpQuotaProvider(): void {
-  registerQuotaProvider({
-    profileId: "omp",
-    fetch: fetchOmpQuota,
-  });
-}

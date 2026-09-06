@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { CliSessionGroup } from "./SessionList";
 import { SshSessionGroup } from "./SshSessionGroup";
+import { ShellSessionGroup } from "./ShellSessionGroup";
 
 /** 双态文件夹图标(codemoss WorkspaceCard 同源 SVG):展开=开口,收起=闭合。 */
 function FolderIcon({ expanded }: { expanded: boolean }) {
@@ -186,6 +187,7 @@ export function WorkspaceCard({
             />
           ))}
           <SshSessionGroup workspace={workspace} />
+          <ShellSessionGroup workspace={workspace} />
         </div>
       </div>
     </div>

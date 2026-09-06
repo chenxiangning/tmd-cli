@@ -1,10 +1,13 @@
 /**
- * 幕布终端 —— xterm.js 透传 PTY 字节流（幕布零渲染原则的唯一实现点）。
+ * 幕布终端 —— xterm.js 透传 PTY 字节流(幕布零渲染原则的唯一实现点)。
  *
- * 生命周期：挂载 → 回放内核输出缓冲（切回不黑屏）→ 订阅实时总线。
- * 输入路径：xterm onData 直写 PTY；富 composer 实装后汇入同一条 write 通道。
- * 渲染层：WebGL addon 承载全屏 TUI 高频重绘，不可用/上下文丢失自动回退 DOM 渲染器。
- * 点缀层：Cmd/Ctrl+F 搜索、可点击链接 —— 纯 xterm 插件，不触碰字节流。
+ * 生命周期:挂载 → 回放内核输出缓冲(切回不黑屏)→ 订阅实时总线。
+ * 输入路径:xterm onData 直写 PTY;富 composer 实装后汇入同一条 write 通道。
+ * 渲染层:WebGL addon 承载全屏 TUI 高频重绘,不可用/上下文丢失自动回退 DOM 渲染器。
+ * 点缀层:Cmd/Ctrl+F 搜索、可点击链接 —— 纯 xterm 插件,不触碰字节流。
+ *
+ * 文件规模铁则拆分(300 行):历史翻页器在 terminalHistory.ts,
+ * 搜索浮层与 terminal.find 命令桥在 terminalSearch.tsx。
  */
 
 import { memo, useEffect, useRef, useState } from "react";
@@ -13,9 +16,8 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
-import { ChevronDown, ChevronUp, X } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
-import { ipc, openExternalUrl } from "@kernel/ipc";
+import { openExternalUrl } from "@kernel/ipc";
 import { getPlatformKind } from "@kernel/platform";
 import { host, ptyLiveTopic } from "@kernel/host";
 import {
@@ -26,9 +28,9 @@ import {
 import { subscribeThemeApplied } from "@kernel/theme";
 import { createReplayInputGate } from "@kernel/terminalInputGate";
 import { isTerminalReport } from "@kernel/terminalReports";
-
-/** 每次翻页向日志读取的历史字节数(512KB)。 */
-const HISTORY_PAGE_BYTES = 512 * 1024;
+import { TerminalHistoryPager } from "@kernel/terminalHistory";
+import { TerminalSearchOverlay, findRequestRef } from "@kernel/terminalSearch";
+import { setTerminalFocused } from "@kernel/shortcuts";
 
 /** 从文档计算样式读终端 token → xterm theme(主题引擎已内联最新值)。 */
 function readTerminalTheme(): ITheme {
@@ -49,18 +51,15 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
   const termRef = useRef<Terminal | null>(null);
   const searchRef = useRef<SearchAddon | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [query, setQuery] = useState("");
   const [hasMore, setHasMore] = useState(false);
   const [atTop, setAtTop] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  /* 翻页锚点:当前幕布内容起点在全量输出中的绝对字节偏移;
-     prefixRef 按"从旧到新"存已翻出的历史页(数组) */
-  const loadingHistoryRef = useRef(false);
-  const earliestByteRef = useRef(0);
-  const prefixRef = useRef<string[]>([]);
   /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答
      (见 terminalInputGate.ts);组件按 key=sessionId 重挂载,闸随实例重生。 */
   const inputGateRef = useRef(createReplayInputGate());
+  /* 翻页器(实现见 terminalHistory.ts):锚点/前缀页/重入闸随实例持有,
+     hasMore/loading 经 onState 回喂上面的 React state。 */
+  const pagerRef = useRef<TerminalHistoryPager | null>(null);
   /* loadEarlier 经 ref 暴露给锚点跳转注册表:handle 在 effect 里注册一次,
      经 ref 取最新闭包,避免 loadingHistory 状态闭包过期。 */
   const loadEarlierRef = useRef<(() => Promise<void>) | null>(null);
@@ -94,17 +93,16 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     term.loadAddon(search);
     /* 链接点击 → 系统浏览器(Tauri webview 内 window.open 不可靠,走 shell 插件)。 */
     term.loadAddon(new WebLinksAddon((_event, uri) => void openExternalUrl(uri)));
-    /* Cmd/Ctrl+F 打开搜索框,拦截不写入 PTY。
-       代价:Linux/Windows 下占用 shell 的 readline 前进字符键,换取应用级搜索。 */
-    term.attachCustomKeyEventHandler((e) => {
-      if (e.type === "keydown" && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
-        setSearchOpen(true);
-        return false;
-      }
-      return true;
-    });
+    /* 聚焦态馈入分发器:聚焦期 terminal 作用域优先、global ⌘ 系键照常触发
+       (命中即拦截零 PTY 字节,未命中键原样进 PTY)——分发决策见 shortcuts.ts
+       resolveCommand。xterm v6 无 onFocus/onBlur 事件,借容器 focusin/focusout(冒泡可达)。 */
+    const onFocusIn = () => setTerminalFocused(true);
+    const onFocusOut = () => setTerminalFocused(false);
+    container.addEventListener("focusin", onFocusIn);
+    container.addEventListener("focusout", onFocusOut);
     term.open(container);
     fit.fit();
+    findRequestRef.current = () => setSearchOpen(true);
 
     /* WebGL 渲染器:omp/claude 全屏重绘的性能关键。必须在 open 之后加载;
        无 WebGL 环境(部分 Linux WebKitGTK)或上下文丢失时回退 DOM 渲染,行为与之前一致。 */
@@ -119,7 +117,14 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     termRef.current = term;
     searchRef.current = search;
 
-    // 先回放历史输出，再挂实时流——顺序保证字节流连续。
+    /* 翻页器随挂载创建(会话切换经 key 重挂载,锚点随实例重生)。 */
+    const pager = new TerminalHistoryPager(sessionId, inputGateRef.current, (h, l) => {
+      setHasMore(h);
+      setLoadingHistory(l);
+    });
+    pagerRef.current = pager;
+
+    // 先回放历史输出,再挂实时流——顺序保证字节流连续。
     // 回放期间上输入闸:历史内容里的终端查询(DSR/DA/OSC 颜色)会被 xterm 重新应答,
     // 应答照走 writeSession 即 ① 陈旧应答注入活 PTY ② 视同用户首写、锚定对话,
     // 历史会话点开即误走呼吸灯绿→蓝生命周期(见 terminalInputGate.ts)。
@@ -134,14 +139,8 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
       host.observeReplayTail(sessionId);
     }
 
-    /* 翻页锚点初始化:缓冲起点绝对偏移 = 日志末尾 - 当前缓冲字节数。
-       缓冲是字节流的精确后缀(sliceStreamTail 保证边界),故用字节数反推。 */
-    void ipc.sessionLogSize(sessionId).then((end) => {
-      /* 字节数由 host 随 append 增量维护,直读即可,不再全量编码 */
-      const currentBytes = host.getOutputBufferBytes(sessionId);
-      earliestByteRef.current = Math.max(0, end - currentBytes);
-      setHasMore(earliestByteRef.current > 0);
-    });
+    /* 翻页锚点初始化(缓冲起点绝对偏移反推,实现见 terminalHistory.ts)。 */
+    void pager.init();
 
     /* 滚动到顶才显示"加载更早的输出"入口 */
     setAtTop(term.buffer.active.viewportY === 0);
@@ -183,16 +182,17 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
         const d = term.onScroll(cb);
         return () => d.dispose();
       },
-      hasMoreHistory: () => earliestByteRef.current > 0,
+      hasMoreHistory: () => pager.hasMoreHistory(),
       loadEarlier: () => loadEarlierRef.current?.() ?? Promise.resolve(),
     };
     registerTerminalHandle(sessionId, terminalHandle);
 
-    /* 重挂载必发一次;同尺寸 resize 在 Rust 侧幂等去重(pty.rs)——
-       否则 SIGWINCH 引发的 TUI 重绘会被活动守望误判成一轮对话(呼吸灯+结束音)。 */
+    /* 重挂载必发一次;同尺寸 resize 在 Rust 侧幂等去重(pty.rs)。
+       经 host.resizeSession 走:真实尺寸变化(SIGWINCH 重绘)由活动守望
+       重绘抑制窗吸收,不再误判成一轮对话(见 activityWatch 头注释)。 */
     const syncSize = () => {
       fit.fit();
-      void ipc.sessionResize(sessionId, term.cols, term.rows);
+      host.resizeSession(sessionId, term.cols, term.rows);
     };
     syncSize();
     const observer = new ResizeObserver(syncSize);
@@ -201,6 +201,9 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     return () => {
       clearInterval(askProbe);
       offTheme();
+      container.removeEventListener("focusin", onFocusIn);
+      container.removeEventListener("focusout", onFocusOut);
+      findRequestRef.current = null;
       unregisterTerminalHandle(sessionId, terminalHandle);
       offLive();
       offInput.dispose();
@@ -209,9 +212,8 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
       term.dispose();
       termRef.current = null;
       searchRef.current = null;
-      prefixRef.current = [];
+      pagerRef.current = null;
       setSearchOpen(false);
-      setQuery("");
       setHasMore(false);
       setLoadingHistory(false);
     };
@@ -219,55 +221,15 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
 
   const closeSearch = () => {
     setSearchOpen(false);
-    setQuery("");
     termRef.current?.focus();
   };
 
-  /** 往前翻一页:从会话日志读更早的原始输出,RIS 重置后连同现有内容整段重写。 */
+  /** 往前翻一页(整段重写语义见 terminalHistory.ts)。 */
   const loadEarlier = async () => {
-    /* 重入闸必须用同步 ref:loadingHistory state 要等 React 重渲染才翻转,
-       而锚点跳转的翻页循环在微任务里续延 —— state 闸会让第 2 页起确定性停摆 */
-    if (loadingHistoryRef.current) return;
     const term = termRef.current;
-    if (!term) return;
-    loadingHistoryRef.current = true;
-    setLoadingHistory(true);
-    try {
-      const page = await ipc.sessionHistoryPage(
-        sessionId,
-        earliestByteRef.current,
-        HISTORY_PAGE_BYTES,
-      );
-      if (!page.text) {
-        setHasMore(false);
-        return;
-      }
-      prefixRef.current.unshift(page.text); // 更早的页排前面
-      earliestByteRef.current = page.startOffset;
-      setHasMore(page.hasMore);
-      /* \x1bc(RIS)整屏重置后与历史一并入队:与实时写共用 xterm 同一写队列,无竞态;
-         期间到达的实时字节已含在 getOutputBuffer 快照里,之后的排在本次写之后。
-         顺序逐页 write,不做 join 大字符串 —— 跨页 join 是 O(N²) 字符工作量,
-         xterm 自带写队列,分次写入语义与一次性大 write 等价。 */
-      /* 整段重写 = 历史查询(DSR/DA/OSC 颜色)被重新应答 —— 上闸,
-         末段 write 回调释放;异常路径由 finally 兜底,不成对会永久锁死输入 */
-      inputGateRef.current.arm();
-      term.write("\x1bc");
-      for (const prefix of prefixRef.current) term.write(prefix);
-      /* 末段 write 回调内 resolve:调用方(锚点跳转翻页循环)await 拿到的是
-         buffer 已含新历史的时刻 */
-      await new Promise<void>((resolve) =>
-        term.write(host.getOutputBuffer(sessionId), () => {
-          inputGateRef.current.release();
-          term.scrollToTop();
-          resolve();
-        }),
-      );
-    } finally {
-      inputGateRef.current.release(); // 异常兜底:正常路径已释放,计数钳位到 0
-      loadingHistoryRef.current = false;
-      setLoadingHistory(false);
-    }
+    const pager = pagerRef.current;
+    if (!term || !pager) return;
+    await pager.loadEarlier(term);
   };
   loadEarlierRef.current = loadEarlier;
 
@@ -284,50 +246,7 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
         </button>
       )}
       {searchOpen && (
-        <div className="absolute right-3 top-2 z-10 flex items-center gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) px-2 py-1 shadow-lg">
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              if (e.target.value) searchRef.current?.findNext(e.target.value);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                if (e.shiftKey) {
-                  if (query) searchRef.current?.findPrevious(query);
-                } else if (query) {
-                  searchRef.current?.findNext(query);
-                }
-              } else if (e.key === "Escape") {
-                closeSearch();
-              }
-            }}
-            placeholder="搜索终端输出"
-            className="w-44 bg-transparent text-xs text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint)"
-          />
-          <button
-            title="上一个 (Shift+Enter)"
-            onClick={() => query && searchRef.current?.findPrevious(query)}
-            className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
-          >
-            <ChevronUp size={14} />
-          </button>
-          <button
-            title="下一个 (Enter)"
-            onClick={() => query && searchRef.current?.findNext(query)}
-            className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
-          >
-            <ChevronDown size={14} />
-          </button>
-          <button
-            title="关闭 (Esc)"
-            onClick={closeSearch}
-            className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
-          >
-            <X size={14} />
-          </button>
-        </div>
+        <TerminalSearchOverlay searchRef={searchRef} onClose={closeSearch} />
       )}
     </div>
   );

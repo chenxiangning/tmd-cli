@@ -2,6 +2,8 @@
 
 日期：2026-09-02
 状态：设计已确认；评审修订 v5（UI 主形态 D，与 git 插件解耦，动作语义极简化，中央 = 批审阅单）
+增量：2026-09-05 隔离与精准手术（纯事件归因 / 批审计冻结 / 共改文件 diff 擦除），
+见 `2026-09-05-checkpoints-isolation-surgery-design.md`
 原型：`docs/prototypes/batch-review-D-panel.html`（**主形态**：右栏审批时间线 ×
 中央 diff tab，用户选定，经两轮反馈收敛）
 （探索稿 A/B/C 已删除，仅存 git 历史）

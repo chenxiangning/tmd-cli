@@ -4,14 +4,18 @@
  * 组成:批头(状态点 + prompt 摘要 + ±stats + 状态徽标 + 归因标记)→
  * 文件行(状态 chip + 路径 + ± + 深链审阅单)→ 批尾动作(通过/回退/应用/反悔)
  * → 内联确认卡(回退与应用共用,mode 区分文案与动作)。
+ * 文件行与确认卡拆至 BatchRowParts.tsx(文件规模铁则)。
  */
 
 import { useEffect } from "react";
 import { Check, RotateCcw, Undo2, Zap } from "lucide-react";
 import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
-import type { CkptBatch, CkptBatchFile, CkptPatch } from "@kernel/ipc";
+import type { CkptBatch, CkptPatch } from "@kernel/ipc";
 import { getCachedDiff, loadDiff, refreshOpenDiff } from "./store";
 import { openBatchTab } from "./batchTab";
+import { ConfirmCard, FileRow, type ConfirmTarget } from "./BatchRowParts";
+
+export type { ConfirmTarget } from "./BatchRowParts";
 
 const POLL_MS = 6000;
 
@@ -42,12 +46,6 @@ function batchState(b: CkptBatch): BatchStateKey {
   return b.open ? "open" : b.state;
 }
 
-function fileChipCls(st: string): string {
-  if (st === "A") return "bg-(--tmd-diff-inserted)/15 text-(--tmd-diff-inserted)";
-  if (st === "D") return "bg-(--tmd-diff-removed)/15 text-(--tmd-diff-removed)";
-  return "bg-(--tmd-git-modified)/15 text-(--tmd-git-modified)";
-}
-
 /** 批 ± 汇总(来自懒加载 patch;未加载/open 批返回 null,UI 显示占位)。 */
 function batchStats(patches: CkptPatch[] | undefined): { ins: number; del: number } | null {
   if (!patches) return null;
@@ -55,13 +53,6 @@ function batchStats(patches: CkptPatch[] | undefined): { ins: number; del: numbe
     ins: patches.reduce((s, p) => s + p.additions, 0),
     del: patches.reduce((s, p) => s + p.deletions, 0),
   };
-}
-
-/** 内联确认卡目标:mode 区分回退(默认,兼容既有 paths 子集语义)与应用。 */
-export interface ConfirmTarget {
-  batchId: string;
-  paths?: string[];
-  mode?: "revert" | "apply";
 }
 
 export function BatchRow({
@@ -107,12 +98,12 @@ export function BatchRow({
 
   return (
     <div className="relative mb-1.5">
-      {!last && <span className="absolute bottom-1 left-[15px] top-6 w-px bg-(--tmd-border)" aria-hidden />}
+      {!last && <span className="absolute bottom-1 left-[9px] top-6 w-px bg-(--tmd-border)" aria-hidden />}
 
       {/* 批头 → 审阅单 */}
       <button
         type="button"
-        className="relative z-[1] flex w-full items-start gap-2 rounded-(--tmd-radius-sm) px-2.5 py-1.5 text-left hover:bg-(--tmd-bg-hover)"
+        className="relative z-[1] flex w-full items-start gap-2 rounded-(--tmd-radius-sm) py-1.5 pl-1 pr-2.5 text-left hover:bg-(--tmd-bg-hover)"
         title={
           `点击审阅该批(用户消息 + 文件 diff) · ${formatAbsolute(b.ts)} 发起` +
           (b.tsEnd ? ` · ${formatAbsolute(b.tsEnd)} 封口` : "")
@@ -248,163 +239,6 @@ export function BatchRow({
 
       {/* 动作确认(内联卡;回退/应用共用,镜像文案) */}
       {confirm && <ConfirmCard batchId={b.id} confirm={confirm} busy={busy} setConfirm={setConfirm} onRevert={onRevert} onApply={onApply} />}
-    </div>
-  );
-}
-
-function ConfirmCard({
-  batchId,
-  confirm,
-  busy,
-  setConfirm,
-  onRevert,
-  onApply,
-}: {
-  batchId: string;
-  confirm: ConfirmTarget;
-  busy: boolean;
-  setConfirm: (v: ConfirmTarget | null) => void;
-  onRevert: (batchId: string, paths?: string[]) => Promise<void>;
-  onApply: (batchId: string) => Promise<void>;
-}) {
-  const apply = confirm.mode === "apply";
-  return (
-    <div className="ml-8 mb-2 rounded-(--tmd-radius-sm) border border-(--tmd-border-strong) bg-(--tmd-bg-popover) p-2.5">
-      <div className="mb-1 text-xs font-semibold">
-        {apply
-          ? "应用回此批"
-          : `回退${confirm.paths ? `${confirm.paths.length} 个路径` : "整批"}`}
-      </div>
-      <div className="mb-2 text-[11px] leading-relaxed text-(--tmd-fg-muted)">
-        {apply ? (
-          <>
-            按账本副本把这轮改动精确写回磁盘(回退的镜像);
-            <span className="text-(--tmd-diff-inserted)">执行前已自动打恢复点,可反悔</span>。
-            live 已偏离批前像的文件会跳过,绝不静默覆盖。
-          </>
-        ) : (
-          <>
-            改动将还原到这轮消息发出之前;
-            <span className="text-(--tmd-diff-inserted)">回退前已自动打恢复点,可反悔</span>。
-            内容已变的文件会被跳过,绝不静默覆盖。
-          </>
-        )}
-      </div>
-      <div className="flex justify-end gap-1.5">
-        <button
-          type="button"
-          className="h-6 rounded border border-(--tmd-border) px-2 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
-          onClick={() => setConfirm(null)}
-        >
-          取消
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          className={
-            apply
-              ? "h-6 rounded border border-(--tmd-diff-inserted)/50 px-2 text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
-              : "h-6 rounded border border-[rgba(167,139,250,.5)] px-2 text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
-          }
-          onClick={() =>
-            apply ? void onApply(batchId) : void onRevert(batchId, confirm.paths)
-          }
-        >
-          {apply ? "确认应用" : "确认回退"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function FileRow({
-  file: f,
-  batch: b,
-  cwd,
-  sessionId,
-  tmdSessionId,
-  busy,
-  setConfirm,
-}: {
-  file: CkptBatchFile;
-  batch: CkptBatch;
-  cwd: string;
-  sessionId: string;
-  tmdSessionId?: string;
-  busy: boolean;
-  setConfirm: (v: ConfirmTarget | null) => void;
-}) {
-  const canRevert = b.state === "pending" && f.live === "same";
-  const segs = f.path.split("/");
-  const name = segs.pop() ?? f.path;
-  const dir = segs.length ? segs.join("/") + "/" : "";
-  const patches = getCachedDiff(cwd, b.id);
-  const mine = patches?.find((p) => p.path === f.path);
-  return (
-    <div className="group flex h-[25px] items-center gap-1.5 rounded px-1.5 hover:bg-(--tmd-bg-hover)">
-      <button
-        type="button"
-        className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left"
-        title="点击在编辑区查看该文件 diff"
-        onClick={() =>
-          openBatchTab({
-            cwd,
-            sessionId,
-            tmdSessionId,
-            batchId: b.id,
-            title: `批次 #${b.index}`,
-            focusPath: f.path,
-          })
-        }
-      >
-        <span
-          className={`grid h-[14px] w-[14px] flex-none place-items-center rounded text-[10px] font-bold ${fileChipCls(f.status)}`}
-        >
-          {f.status}
-        </span>
-        {f.editCount > 0 && b.attribution === "events" && (
-          <span
-            className="flex-none rounded border border-(--tmd-border) px-1 text-[9px] leading-[13px] text-(--tmd-fg-faint)"
-            title={`AI 本轮写入该文件 ${f.editCount} 次(事件流轨迹,账本可审计)`}
-          >
-            ×{f.editCount}
-          </span>
-        )}
-        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-(--tmd-fg-muted)">
-          <b className="font-medium text-(--tmd-fg)">{name}</b>{" "}
-          <span className="text-(--tmd-fg-faint)">{dir}</span>
-        </span>
-        {mine && (
-          <span className="flex-none font-mono text-[10px]">
-            <span className="text-(--tmd-diff-inserted)">+{mine.additions}</span>{" "}
-            <span className="text-(--tmd-diff-removed)">−{mine.deletions}</span>
-          </span>
-        )}
-        {f.reverted && (
-          <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[10px] leading-[14px] text-[#a78bfa]">
-            已退
-          </span>
-        )}
-        {f.stale && (
-          <span
-            className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[10px] leading-[14px] text-(--tmd-fg-faint)"
-            title="工作区内容已偏离本批后像,不可回退,仅可对照"
-          >
-            内容已变
-          </span>
-        )}
-      </button>
-      {canRevert && (
-        <button
-          type="button"
-          disabled={busy}
-          className="hidden h-[19px] w-[19px] flex-none place-items-center rounded text-(--tmd-fg-subtle) group-hover:grid hover:bg-[#a78bfa]/15 hover:text-[#a78bfa] disabled:opacity-40"
-          title="只回退这个文件"
-          onClick={() => setConfirm({ batchId: b.id, paths: [f.path] })}
-        >
-          <RotateCcw size={11} aria-hidden />
-        </button>
-      )}
     </div>
   );
 }

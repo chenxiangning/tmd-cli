@@ -24,8 +24,9 @@
 
 .welcome-hero {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 14px;
+  gap: 6px 14px;
   margin-bottom: 24px;
 }
 
@@ -34,12 +35,16 @@
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.2px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .welcome-subtitle {
   margin: 0;
   font-size: 12px;
   color: var(--tmd-fg-muted);
+  flex: 1 1 220px;
+  min-width: 0;
 }
 
 .welcome-github-link {
@@ -47,6 +52,7 @@
   align-items: center;
   gap: 7px;
   margin-left: auto;
+  flex-shrink: 0;
   padding: 4px 10px 4px 12px;
   border: 1px solid var(--tmd-border);
   border-radius: 999px;
@@ -94,10 +100,11 @@
 
 .welcome-engine-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  height: 46px;
-  padding: 0 14px;
+  gap: 4px 10px;
+  min-height: 46px;
+  padding: 6px 14px;
 }
 
 .welcome-engine-icon {
@@ -109,6 +116,8 @@
 .welcome-engine-name {
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .welcome-engine-docs {
@@ -118,6 +127,8 @@
   font-size: 11px;
   color: var(--tmd-fg-muted);
   text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .welcome-engine-docs:hover {
@@ -126,21 +137,28 @@
 }
 
 .welcome-engine-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
   margin-left: auto;
+  min-width: 0;
 }
 
 .welcome-engine-actions {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 /* 版本/状态 pill(同 discovery 行卡语义) */
 
 .welcome-pill {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
   height: 20px;
+  line-height: 18px;
   padding: 0 9px;
   border-radius: 999px;
   background: var(--tmd-bg-sunken);
@@ -148,6 +166,9 @@
   font-size: 11px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .welcome-pill.is-loading {
@@ -233,267 +254,4 @@
 .welcome-icon-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-/* ── 安装进度 + 流式日志 ── */
-
-.welcome-install {
-  border-top: 1px solid var(--tmd-border);
-  background: var(--tmd-bg-sunken);
-}
-
-.welcome-progress {
-  height: 3px;
-  overflow: hidden;
-  background: var(--tmd-border);
-}
-
-.welcome-progress-bar {
-  height: 100%;
-  width: 40%;
-  background: var(--tmd-accent);
-  animation: welcome-progress-slide 1.2s ease-in-out infinite;
-}
-
-@keyframes welcome-progress-slide {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(350%);
-  }
-}
-
-.welcome-install-log {
-  max-height: 180px;
-  overflow-y: auto;
-  padding: 8px 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--tmd-fg-muted);
-}
-
-.welcome-install-line {
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.welcome-install-done {
-  padding: 6px 12px;
-  font-size: 11px;
-  border-top: 1px solid var(--tmd-border);
-}
-
-.welcome-install-done.is-ok {
-  color: var(--tmd-diff-inserted);
-}
-
-.welcome-install-done.is-fail {
-  color: var(--tmd-diff-removed);
-}
-
-/* ── 供应商/额度子区 ── */
-
-.welcome-creds {
-  border-top: 1px solid var(--tmd-border);
-  padding: 6px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-/* 每供应商 1 行 = 2 列: 定宽标题列 + 窗口列(跨行同 x 起点) */
-.welcome-cred {
-  display: grid;
-  grid-template-columns: 132px 1fr;
-  align-items: center;
-  gap: 12px;
-  min-height: 22px;
-}
-
-.welcome-cred-head {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.welcome-cred-title {
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.welcome-cred-plan {
-  font-size: 11px;
-  color: var(--tmd-fg-muted);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-/* 5h 段固定第 1 格,7d/30d 段固定第 2 格(缺窗格留空,不错位) */
-.welcome-cred-windows {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 14px;
-  align-items: center;
-  min-width: 0;
-}
-
-.welcome-cred-window {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-}
-
-.welcome-cred-window-label {
-  font-size: 11px;
-  color: var(--tmd-fg-muted);
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.welcome-cred-window-bar {
-  flex: 1;
-  min-width: 20px;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--tmd-bg-sunken);
-  overflow: hidden;
-}
-
-.welcome-cred-window-fill {
-  display: block;
-  height: 100%;
-  background: var(--tmd-accent);
-  border-radius: 999px;
-}
-
-/* 7天/30天窗口: 橘色(沿用 quota.css rgb(255,140,60)) */
-.welcome-cred-window-fill--weekly {
-  background: rgb(255, 140, 60);
-}
-
-.welcome-cred-window-pct {
-  width: 30px; /* 定宽 → 条右缘跨行对齐 */
-  font-size: 11px;
-  color: var(--tmd-fg-muted);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  flex-shrink: 0;
-}
-
-.welcome-cred-window-reset {
-  width: 104px; /* 定宽槽: 无数据留空,不换行不推移进度条 */
-  font-size: 11px;
-  color: var(--tmd-fg-subtle);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 0;
-}
-
-.welcome-cred-body {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-
-.welcome-cred-balance {
-  font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-.welcome-cred-note {
-  font-size: 11px;
-  color: var(--tmd-fg-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ── 近期会话 ── */
-
-.welcome-sessions {
-  margin-top: 28px;
-}
-
-.welcome-section-title {
-  margin: 0 0 10px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.welcome-session-group {
-  margin-bottom: 14px;
-}
-
-.welcome-session-ws {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--tmd-fg-subtle);
-  margin-bottom: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.welcome-session-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 30px;
-  padding: 0 10px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--tmd-fg);
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.welcome-session-row:hover {
-  background: var(--tmd-bg-hover);
-}
-
-.welcome-session-icon {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.welcome-session-title {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.welcome-session-time {
-  font-size: 11px;
-  color: var(--tmd-fg-faint);
-  flex-shrink: 0;
-}
-
-/* ── 共享:spin ── */
-
-.is-spinning {
-  animation: welcome-spin 1s linear infinite;
-}
-
-@keyframes welcome-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }

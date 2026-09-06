@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 文件规模铁则检查 —— 单文件 ≤500 行(见 docs/architecture/02-code-architecture.md)。
+ * 文件规模铁则检查 —— 单文件 ≤300 行(见 docs/architecture/02-code-architecture.md)。
  *
  * - 扫描 src/ 与 src-tauri/src/ 下的 .ts/.tsx/.rs/.css
  * - 豁免:文件头(前 10 行)注释含 `file-size-exempt` 标记(仅限自动生成/vendored 文件)
@@ -12,7 +12,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
 
-const LIMIT = 500;
+const LIMIT = Number(process.env.FILE_SIZE_LIMIT ?? 300);
 const ROOTS = ["src", "src-tauri/src"];
 const EXTS = new Set([".ts", ".tsx", ".rs", ".css"]);
 const EXEMPT_MARK = /file-size-exempt/;

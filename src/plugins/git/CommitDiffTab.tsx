@@ -4,12 +4,12 @@
  * 一提交一 tab:头部提交摘要 + 左列文件清单(状态字母/±行数)+ 右侧 patch。
  * 与右栏 diff 视图完全独立:数据源是 commit_view(提交 vs 首父),
  * 不经 useGitDiffs(那是 index/worktree 语义)。
- * 非 git-commit-diff kind 的 tab 返回 null —— 每 kind 由各自插件渲染。
+ * kind 路由由 kernel/tabs 注册表保证,本组件只见 git-commit-diff tab。
  */
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { useEditorTabs } from "@kernel/tabs";
+import type { EditorTab } from "@kernel/tabs";
 import { formatAbsolute } from "@kernel/relativeTime";
 import { ipc, type GitFilePatch } from "@kernel/ipc";
 import { readCommitTabPayload, type CommitTabPayload } from "./commitTab";
@@ -18,11 +18,9 @@ import { gitErrorMessage } from "./gitError";
 import { PatchLines } from "./views/PatchLines";
 import { STATUS_COLOR } from "./views/statusColor";
 
-export function CommitDiffTabContent() {
-  const { activeId, tabs } = useEditorTabs();
-  const active = tabs.find((t) => t.id === activeId);
-  const payload = active ? readCommitTabPayload(active) : null;
-  if (!active || !payload) return null;
+export function CommitDiffTabContent({ tab }: { tab: EditorTab }) {
+  const payload = readCommitTabPayload(tab);
+  if (!payload) return null;
   return <CommitDiffTab key={`${payload.cwd}:${payload.sha}`} payload={payload} />;
 }
 
