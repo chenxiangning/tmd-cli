@@ -9,7 +9,7 @@
  * - 数据(活/置顶/分页磁盘行)复用 useCliSessionGroup 装配,本组件只管交互
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Archive, ArchiveRestore, Check, Trash2 } from "lucide-react";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host } from "@kernel/host";
@@ -23,6 +23,7 @@ import {
 } from "@kernel/sessionArchive";
 import type { Workspace } from "@kernel/workspace";
 import { PAGE_INITIAL } from "./utils";
+import { DangerAction } from "./DangerAction";
 
 /** 管理行:活会话(PTY 态)或磁盘会话(文件态);key 在本组行集内唯一。 */
 type ManageRow =
@@ -49,55 +50,6 @@ export function selectRange(
   return next;
 }
 
-/**
- * 两步武装按钮:首击仅进入确认态(3s 自动解除),再击执行。
- * 与 SessionContextMenu 删除的两步确认同语义,防误删物理文件。
- */
-function DangerAction({
-  className,
-  title,
-  armedTitle,
-  children,
-  armedChildren,
-  disabled,
-  onConfirm,
-}: {
-  className: string;
-  title: string;
-  /** 确认态的 title/内容(行内按钮变文字「确认」,批量条变「确认删除?」)。 */
-  armedTitle: string;
-  children: React.ReactNode;
-  armedChildren: React.ReactNode;
-  disabled?: boolean;
-  onConfirm: () => void;
-}) {
-  const [armed, setArmed] = useState(false);
-  useEffect(() => {
-    if (!armed) return;
-    const t = window.setTimeout(() => setArmed(false), 3_000);
-    return () => clearTimeout(t);
-  }, [armed]);
-  return (
-    <button
-      type="button"
-      className={`${className}${armed ? " is-armed" : ""}`}
-      disabled={disabled}
-      title={armed ? armedTitle : title}
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (armed) {
-          setArmed(false);
-          onConfirm();
-        } else {
-          setArmed(true);
-        }
-      }}
-    >
-      {armed ? armedChildren : children}
-    </button>
-  );
-}
 
 /** 单个 CLI 分组的管理行列表(含批量条与分页)。 */
 export function ManageList({
@@ -140,7 +92,9 @@ export function ManageList({
   ];
   const orderRef = useRef(rows.map((r) => r.key));
   orderRef.current = rows.map((r) => r.key);
-  const dragRef = useRef<{ anchor: number; val: boolean } | null>(null);
+  /** 拖选锚点存 key 而非下标:拖选途中重扫(listSessions 补扫/活会话退出)重排行集时,
+   *  下标会指向别的行,key 经 indexOf 重解区间起点,天然免疫重排。 */
+  const dragRef = useRef<{ anchorKey: string; val: boolean } | null>(null);
   const lastIdxRef = useRef(-1);
 
   const idxFromPoint = (x: number, y: number): number => {
@@ -154,9 +108,9 @@ export function ManageList({
     const idx = idxFromPoint(e.clientX, e.clientY);
     if (idx < 0) return;
     e.preventDefault();
-    const key = orderRef.current[idx];
-    const val = !selected.has(key);
-    dragRef.current = { anchor: idx, val };
+    const anchorKey = orderRef.current[idx];
+    const val = !selected.has(anchorKey);
+    dragRef.current = { anchorKey, val };
     lastIdxRef.current = idx;
     setSelected((prev) => selectRange(prev, orderRef.current, idx, idx, val));
   };
@@ -165,8 +119,12 @@ export function ManageList({
     const idx = idxFromPoint(e.clientX, e.clientY);
     if (idx < 0 || idx === lastIdxRef.current) return;
     lastIdxRef.current = idx;
-    const { anchor, val } = dragRef.current;
-    setSelected((prev) => selectRange(prev, orderRef.current, anchor, idx, val));
+    const anchor = orderRef.current.indexOf(dragRef.current.anchorKey);
+    if (anchor < 0) {
+      dragRef.current = null;
+      return;
+    }
+    setSelected((prev) => selectRange(prev, orderRef.current, anchor, idx, dragRef.current!.val));
   };
 
   const setArchived = (row: ManageRow, archived: boolean) => {

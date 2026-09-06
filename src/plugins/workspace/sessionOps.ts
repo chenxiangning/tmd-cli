@@ -34,7 +34,6 @@ export async function deleteDiskSessionFull(
 ): Promise<void> {
   await removeDiskSession(profile, session);
   removeSessionTitle(profile.id, session.id);
-  removeSessionTitle(profile.id, session.id);
   unpinSession(sessionPinKey(workspaceId, profile.id, session.id));
   unarchiveSession(sessionArchiveKey(workspaceId, profile.id, session.id));
 }
