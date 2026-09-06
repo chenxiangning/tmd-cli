@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tmd-cli · 协作管道 Pipeline</title>
+<style>
+/* ════════════════════════════════════════════════════════════════════════
+   tmd-cli Dark Tokens — Pipeline Variant
+   ════════════════════════════════════════════════════════════════════════ */
+:root[data-theme="dark"] {
+  --bg0: #0d1117;
+  --bg1: #161b22;
+  --bg2: #1c2128;
+  --bg3: #21262d;
+  --bg4: #30363d;
+  --fg0: #f0f6fc;
+  --fg1: #c9d1d9;
+  --fg2: #8b949e;
+  --fg3: #6e7681;
+  --fg4: #484f58;
+  --accent: #58a6ff;
+  --accent-dim: rgba(88,166,255,0.12);
+  --success: #3fb950;
+  --success-dim: rgba(63,185,80,0.12);
+  --warn: #d29922;
+  --warn-dim: rgba(210,153,34,0.12);
+  --danger: #f85149;
+  --danger-dim: rgba(248,81,73,0.12);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+* { box-sizing: border-box; margin:0; padding:0 }
+html,body { height:100%; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:13px; line-height:1.5; color:var(--fg1); background:var(--bg0); overflow:hidden }
+
+.app { display:flex; flex-direction:column; height:100vh }
+
+/* ── Top Bar ──────────────────────────────────────────────────────────── */
+.topbar { height:40px; background:var(--bg1); border-bottom:1px solid var(--bg4); display:flex; align-items:center; padding:0 18px; gap:12px; flex-shrink:0 }
+.app-logo { font-weight:700; font-size:13px; letter-spacing:0.3px; color:var(--fg0) }
+.app-logo span { color:var(--accent) }
+.breadcrumb { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--fg2) }
+.bc-sep { color:var(--fg4) }
+.bc-active { color:var(--accent); font-weight:500 }
+.top-actions { margin-left:auto; display:flex; gap:4px }
+.tbtn { padding:5px 10px; border-radius:6px; border:none; background:transparent; color:var(--fg2); font-size:12px; cursor:pointer; transition:.12s }
+.tbtn:hover { background:var(--bg3); color:var(--fg1) }
+.tbtn.on { background:var(--accent-dim); color:var(--accent) }
+
+/* ── Pipeline Header ──────────────────────────────────────────────────── */
+.pipe-header { background:var(--bg1); border-bottom:1px solid var(--bg4); padding:16px 24px; flex-shrink:0 }
+.pipe-meta { display:flex; align-items:center; gap:16px; margin-bottom:12px }
+.pipe-badge { display:flex; align-items:center; gap:8px; padding:5px 14px; border-radius:8px; background:var(--bg2); border:1px solid var(--bg4); font-size:12px; font-weight:500 }
+.pipe-badge .dot { width:7px; height:7px; border-radius:50% }
+.pipe-badge .dot.live { background:var(--accent); box-shadow:0 0 8px var(--accent); animation:pulse-dot 1.5s ease-in-out infinite }
+.pipe-badge .dot.done { background:var(--success) }
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+.pipe-id { font-size:11px; color:var(--fg3); font-family:monospace }
+.pipe-timer { margin-left:auto; font-size:12px; color:var(--fg2); font-family:monospace }
+
+/* Progress bar */
+.pipe-progress-wrap { display:flex; align-items:center; gap:10px }
+.pipe-progress { flex:1; height:4px; background:var(--bg3); border-radius:2px; overflow:hidden }
+.pipe-progress > i { display:block; height:100%; width:0%; border-radius:2px; transition:width .8s cubic-bezier(.4,0,.2,1) }
+.pipe-progress > i.live { background:linear-gradient(90deg, var(--accent), #79c0ff); box-shadow:0 0 8px rgba(88,166,255,0.3) }
+.pipe-progress > i.done { background:var(--success) }
+.pipe-progress-text { font-size:11px; color:var(--fg3); min-width:32px; text-align:right; font-variant-numeric:tabular-nums }
+
+/* Stage summary chips */
+.pipe-chips { display:flex; gap:6px; margin-top:10px }
+.pipe-chip { font-size:11px; padding:3px 10px; border-radius:6px; background:var(--bg2); border:1px solid var(--bg4); color:var(--fg2); display:flex; align-items:center; gap:5px }
+.pipe-chip .dot { width:5px; height:5px; border-radius:50% }
+.pipe-chip.on { background:var(--accent-dim); color:var(--accent); border-color:rgba(88,166,255,0.2) }
+.pipe-chip.on .dot { background:var(--accent) }
+.pipe-chip.ok { background:var(--success-dim); color:var(--success); border-color:rgba(63,185,80,0.2) }
+.pipe-chip.ok .dot { background:var(--success) }
+
+/* ── Main Body: Pipeline Timeline ─────────────────────────────────────── */
+.body { display:flex; flex:1; min-height:0 }
+
+/* Left: Timeline */
+.timeline { flex:1; overflow:auto; padding:24px 32px; position:relative }
+.timeline::-webkit-scrollbar { width:10px }
+.timeline::-webkit-scrollbar-track { background:transparent }
+.timeline::-webkit-scrollbar-thumb { background:var(--bg4); border-radius:5px; border:2px solid var(--bg0) }
+
+/* Timeline vertical line */
+.timeline::before { content:''; position:absolute; left:51px; top:24px; bottom:24px; width:2px; background:var(--bg4); z-index:0 }
+
+/* Stage Row */
+.stage-row { position:relative; display:flex; gap:16px; margin-bottom:4px; z-index:1 }
+.stage-row:last-child { margin-bottom:0 }
+
+/* Timeline dot */
+.tl-dot { width:36px; flex-shrink:0; display:flex; justify-content:center; padding-top:14px }
+.tl-dot-inner { width:14px; height:14px; border-radius:50%; border:3px solid var(--bg4); background:var(--bg0); position:relative; z-index:2; transition:.3s }
+.tl-dot-inner.live { border-color:var(--accent); background:var(--accent); box-shadow:0 0 10px rgba(88,166,255,0.4); animation:dotPulse 2s ease-in-out infinite }
+.tl-dot-inner.done { border-color:var(--success); background:var(--success) }
+.tl-dot-inner.fail { border-color:var(--danger); background:var(--danger) }
+.tl-dot-inner.wait { border-color:var(--bg4); background:var(--bg0) }
+@keyframes dotPulse { 0%,100%{box-shadow:0 0 6px rgba(88,166,255,0.4)} 50%{box-shadow:0 0 14px rgba(88,166,255,0.6)} }
+
+/* Connector line between dots */
+.tl-connector { position:absolute; left:51px; top:28px; width:2px; height:calc(100% + 4px); background:var(--bg4); z-index:0 }
+.stage-row.done + .stage-row .tl-connector { background:var(--success) }
+.stage-row:last-child .tl-connector { display:none }
+
+/* Stage Card */
+.stage-card { flex:1; background:var(--bg1); border:1px solid var(--bg4); border-radius:12px; overflow:hidden; margin-bottom:16px; transition:all .25s }
+.stage-card:hover { border-color:var(--bg4) }
+.stage-card.is-live { border-color:rgba(88,166,255,0.25); box-shadow:0 0 20px rgba(88,166,255,0.05) }
+.stage-card.is-done { border-color:rgba(63,185,80,0.2) }
+
+/* Card Header */
+.sc-head { padding:14px 18px; display:flex; align-items:center; gap:12px; cursor:pointer; user-select:none }
+.sc-head:hover { background:var(--bg2) }
+.sc-toggle { width:16px; height:16px; display:flex; align-items:center; justify-content:center; color:var(--fg3); font-size:10px; transition:.2s; flex-shrink:0 }
+.sc-toggle.on { transform:rotate(90deg); color:var(--fg1) }
+.sc-icon { width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0 }
+.sc-icon.claude { background:linear-gradient(135deg,#d4a574,#c4925e); color:#1a1a1a }
+.sc-icon.codex  { background:linear-gradient(135deg,#58a6ff,#1f6feb); color:#fff }
+.sc-icon.grok   { background:linear-gradient(135deg,#a855f7,#7c3aed); color:#fff }
+.sc-icon.kimi   { background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff }
+.sc-title { font-weight:600; font-size:13px; flex:1 }
+.sc-title .live-badge { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent); margin-left:6px; vertical-align:middle; animation:pulse-dot 1.5s ease-in-out infinite }
+.sc-meta { display:flex; align-items:center; gap:8px }
+.sc-tag { font-size:10.5px; padding:2px 8px; border-radius:5px; background:var(--bg3); color:var(--fg2); border:1px solid var(--bg4) }
+.sc-tag.accent { background:var(--accent-dim); color:var(--accent); border-color:rgba(88,166,255,0.2) }
+.sc-tag.ok { background:var(--success-dim); color:var(--success); border-color:rgba(63,185,80,0.2) }
+.sc-tag.warn { background:var(--warn-dim); color:var(--warn); border-color:rgba(210,153,34,0.2) }
+.sc-dur { font-size:11px; color:var(--fg3); font-variant-numeric:tabular-nums }
+.sc-status { font-size:11px; font-weight:500; padding:3px 10px; border-radius:6px }
+.sc-status.live { color:var(--accent); background:var(--accent-dim) }
+.sc-status.done { color:var(--success); background:var(--success-dim) }
+.sc-status.wait { color:var(--fg3); background:var(--bg3) }
+
+/* Card Body (collapsed by default except live) */
+.sc-body { max-height:0; overflow:hidden; transition:max-height .4s cubic-bezier(.4,0,.2,1) }
+.sc-body.on { max-height:800px }
+
+/* PTY Output */
+.sc-pty { background:var(--bg0); border-top:1px solid var(--bg4); padding:14px 18px;
+  font-family:'SF Mono',Monaco,Inconsolata,'Fira Code','Courier New',monospace; font-size:11.5px; line-height:1.65;
+  color:var(--fg1); white-space:pre-wrap }
+.sc-pty .p { color:var(--accent) }
+.sc-pty .c { color:var(--fg0); font-weight:500 }
+.sc-pty .o { color:var(--fg2) }
+.sc-pty .s { color:var(--success) }
+.sc-pty .w { color:var(--warn) }
+.sc-pty .e { color:var(--danger) }
+.sc-pty .t { color:var(--fg3); user-select:none; margin-right:10px }
+.pty-cursor { display:inline-block; width:7px; height:15px; background:var(--accent); vertical-align:middle; margin-left:2px;
+  animation:cursorBlink 1s step-end infinite }
+@keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* Image strip inside stage */
+.sc-images { display:flex; gap:8px; padding:12px 18px; border-top:1px solid var(--bg4); overflow-x:auto }
+.sc-img { border-radius:8px; overflow:hidden; border:1px solid var(--bg4); flex-shrink:0; width:120px }
+.sc-img img { width:100%; height:70px; object-fit:cover; display:block }
+.sc-img-cap { padding:5px 8px; font-size:10px; color:var(--fg3); background:var(--bg2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+
+/* Approval bar */
+.sc-approve { padding:12px 18px; border-top:1px solid var(--bg4); background:var(--bg2); display:flex; gap:10px; align-items:center }
+.sc-approve-text { flex:1; font-size:12px; color:var(--fg2) }
+.sc-approve-btn { padding:6px 14px; border-radius:7px; border:none; font-size:12px; font-weight:500; cursor:pointer; transition:.15s }
+.sc-approve-btn.primary { background:var(--accent); color:#fff }
+.sc-approve-btn.primary:hover { opacity:.9 }
+.sc-approve-btn.ghost { background:transparent; color:var(--fg2); border:1px solid var(--bg4) }
+.sc-approve-btn.ghost:hover { background:var(--bg3) }
+
+/* ── Right Panel: Live Output ─────────────────────────────────────────── */
+.live-panel { width:380px; background:var(--bg1); border-left:1px solid var(--bg4); display:flex; flex-direction:column; flex-shrink:0 }
+.live-head { padding:14px 18px; border-bottom:1px solid var(--bg4); display:flex; align-items:center; justify-content:space-between }
+.live-title { font-weight:600; font-size:13px; display:flex; align-items:center; gap:8px }
+.live-title .dot { width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 6px var(--accent); animation:pulse-dot 1.5s ease-in-out infinite }
+.live-tabs { display:flex; gap:2px; padding:0 12px; border-bottom:1px solid var(--bg4) }
+.live-tab { padding:8px 14px; font-size:12px; color:var(--fg3); cursor:pointer; border-bottom:2px solid transparent; transition:.15s; background:none; border-top:none; border-left:none; border-right:none }
+.live-tab:hover { color:var(--fg1) }
+.live-tab.on { color:var(--accent); border-bottom-color:var(--accent) }
+.live-body { flex:1; overflow:auto; padding:0 }
+.live-body::-webkit-scrollbar { width:8px }
+.live-body::-webkit-scrollbar-thumb { background:var(--bg4); border-radius:4px }
+
+/* Terminal output area */
+.term-out { padding:14px 18px; font-family:'SF Mono',monospace; font-size:12px; line-height:1.65; color:var(--fg1); white-space:pre-wrap }
+.term-out .ln { display:block }
+.term-out .ln:hover { background:var(--bg2) }
+.term-out .ts { color:var(--fg4); user-select:none; margin-right:10px; font-size:10.5px }
+.term-out .p { color:var(--accent) }
+.term-out .c { color:var(--fg0) }
+.term-out .o { color:var(--fg2) }
+.term-out .s { color:var(--success) }
+.term-out .e { color:var(--danger) }
+
+/* Screenshot panel */
+.ss-panel { padding:16px }
+.ss-item { border-radius:10px; overflow:hidden; border:1px solid var(--bg4); margin-bottom:12px; background:var(--bg2) }
+.ss-item img { width:100%; display:block }
+.ss-cap { padding:8px 12px; font-size:11px; color:var(--fg3); display:flex; align-items:center; gap:6px }
+.ss-cap .dot { width:5px; height:5px; border-radius:50%; background:var(--accent) }
+
+/* ── Status Bar ───────────────────────────────────────────────────────── */
+.statusbar { height:26px; background:var(--bg1); border-top:1px solid var(--bg4); display:flex; align-items:center; padding:0 18px; gap:18px; font-size:11.5px; color:var(--fg3); flex-shrink:0 }
+.sb-item { display:flex; align-items:center; gap:6px }
+.sb-dot { width:6px; height:6px; border-radius:50% }
+.sb-dot.live { background:var(--accent); box-shadow:0 0 4px var(--accent) }
+
+/* ── Popover (template picker) ────────────────────────────────────────── */
+.popover-wrap { position:relative }
+.popover { position:absolute; bottom:calc(100% + 10px); left:-4px; width:360px; background:var(--bg2); border:1px solid var(--bg4); border-radius:14px;
+  box-shadow:var(--shadow-lg); z-index:80; overflow:hidden; opacity:0; transform:translateY(8px) scale(.97); pointer-events:none; transition:all .2s cubic-bezier(.16,1,.3,1) }
+.popover.show { opacity:1; transform:none; pointer-events:auto }
+.pop-head { padding:12px 16px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--bg4) }
+.pop-title { font-weight:600; font-size:13px }
+.pop-manage { font-size:12px; color:var(--accent); background:none; border:none; cursor:pointer; font-weight:500 }
+.pop-body { max-height:340px; overflow:auto; padding:6px }
+.tpl-item { padding:11px 14px; border-radius:10px; cursor:pointer; text-align:left; width:100%; background:none; border:1px solid transparent; color:inherit; font-family:inherit; transition:.15s; margin-bottom:4px }
+.tpl-item:hover { background:var(--bg3) }
+.tpl-item.on { background:var(--accent-dim); border-color:rgba(88,166,255,0.15) }
+.tpl-h { display:flex; align-items:center; gap:8px; margin-bottom:4px }
+.tpl-n { font-weight:600; font-size:13px }
+.tpl-tag { font-size:10px; padding:2px 7px; border-radius:4px; background:var(--bg3); color:var(--fg3) }
+.tpl-tag.custom { color:var(--accent); background:var(--accent-dim) }
+.tpl-flow { font-size:11.5px; color:var(--fg2); margin-top:3px }
+.tpl-meta { display:flex; gap:6px; margin-top:6px }
+.tpl-chip { font-size:10px; padding:2px 8px; border-radius:5px; background:var(--bg3); color:var(--fg2) }
+.pop-foot { padding:10px; border-top:1px solid var(--bg4) }
+.pop-btn { width:100%; padding:9px; border-radius:8px; border:1px solid var(--bg4); background:var(--bg3); color:var(--fg1); font-size:12px; cursor:pointer; font-weight:500 }
+.pop-btn.primary { background:var(--accent); color:#fff; border-color:var(--accent) }
+.pop-btn.new { background:transparent; border-style:dashed; margin-bottom:8px }
+
+/* Composer bar at bottom of left area */
+.composer-bar { padding:10px 18px; border-top:1px solid var(--bg4); display:flex; gap:8px; align-items:flex-end; background:var(--bg1) }
+.comp-ta { flex:1; background:var(--bg3); border:1px solid var(--bg4); border-radius:10px; padding:9px 14px; color:var(--fg1); font-size:13px; line-height:1.5; resize:none; outline:none; min-height:38px; max-height:120px; font-family:inherit }
+.comp-ta:focus { border-color:var(--accent) }
+.comp-ta::placeholder { color:var(--fg4) }
+.comp-send { width:34px; height:34px; border-radius:9px; border:none; background:var(--accent); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0 }
+.comp-send:hover { opacity:.9 }
+
+/* Pill button */
+.pill { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:7px; border:1px solid var(--bg4); background:var(--bg2); color:var(--fg2); font-size:12px; cursor:pointer; font-weight:500; transition:.15s }
+.pill:hover { background:var(--bg3) }
+.pill.on { border-color:rgba(88,166,255,0.4); color:var(--accent); background:var(--accent-dim) }
+.pill .dot { width:6px; height:6px; border-radius:50%; background:currentColor }
+
+.grow { flex:1 }
+.hidden { display:none !important }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <span class="app-logo">tmd<span>.</span>cli</span>
+    <div class="breadcrumb">
+      <span>协作模式</span>
+      <span class="bc-sep">/</span>
+      <span class="bc-active">bug-fix Pipeline</span>
+    </div>
+    <div class="top-actions">
+      <button class="tbtn on">&#128208; 流程</button>
+      <button class="tbtn">&#128187; 终端</button>
+      <button class="tbtn">&#9881;</button>
+    </div>
+  </div>
+
+  <!-- Pipeline Header -->
+  <div class="pipe-header">
+    <div class="pipe-meta">
+      <div class="pipe-badge">
+        <span class="dot live"></span>
+        <span>运行中</span>
+      </div>
+      <div class="pipe-id">run-bf-7a3f9e2</div>
+      <div class="pipe-timer">&#9201; 04:12</div>
+    </div>
+    <div class="pipe-progress-wrap">
+      <div class="pipe-progress"><i class="live" id="progBar" style="width:45%"></i></div>
+      <span class="pipe-progress-text" id="progText">45%</span>
+    </div>
+    <div class="pipe-chips">
+      <span class="pipe-chip ok"><span class="dot"></span>复现定位</span>
+      <span class="pipe-chip on"><span class="dot"></span>修复</span>
+      <span class="pipe-chip"><span class="dot"></span>回归加固</span>
+      <span class="pipe-chip"><span class="dot"></span>审查收口</span>
+      <span class="pipe-chip on"><span class="dot"></span>并行测试</span>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- Left: Timeline -->
+    <div class="timeline" id="timeline">
+
+      <!-- Stage 1: Diagnose (done) -->
+      <div class="stage-row done">
+        <div class="tl-dot"><div class="tl-dot-inner done"></div></div>
+        <div class="tl-connector"></div>
+        <div class="stage-card is-done" style="flex:1">
+          <div class="sc-head" onclick="toggleStage(this)">
+            <span class="sc-toggle on">&#9656;</span>
+            <div class="sc-icon claude">C</div>
+            <span class="sc-title">复现定位</span>
+            <div class="sc-meta">
+              <span class="sc-tag">Claude Code</span>
+              <span class="sc-tag ok">High</span>
+              <span class="sc-dur">00:12</span>
+              <span class="sc-status done">&#10003; 已完成</span>
+            </div>
+          </div>
+          <div class="sc-body on">
+            <div class="sc-pty">
+<span class="t">04:00:01</span><span class="p">$</span> <span class="c">诊断复现路径</span>
+<span class="t">04:00:02</span><span class="o">分析 session lock 机制...</span>
+<span class="t">04:00:03</span><span class="o">根因: race condition in chainTokens</span>
+<span class="t">04:00:04</span><span class="o">影响面: sharedAgentRetryStage</span>
+<span class="t">04:00:05</span><span class="o">复现步骤: 并发触发 retry + 新 request</span>
+<span class="t">04:00:06</span><span class="s">&#10003; SUMMARY: 已定位到 chainTokens竞态</span>
+<span class="t">04:00:07</span><span class="s">&#10003; 建议: 加 atomic compare-and-swap</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stage 2: Fix (live) -->
+      <div class="stage-row live">
+        <div class="tl-dot"><div class="tl-dot-inner live"></div></div>
+        <div class="tl-connector"></div>
+        <div class="stage-card is-live" style="flex:1">
+          <div class="sc-head" onclick="toggleStage(this)">
+            <span class="sc-toggle on">&#9656;</span>
+            <div class="sc-icon codex">X</div>
+            <span class="sc-title">修复 <span class="live-badge"></span></span>
+            <div class="sc-meta">
+              <span class="sc-tag accent">Codex CLI</span>
+              <span class="sc-tag">Medium</span>
+              <span class="sc-dur">03:48</span>
+              <span class="sc-status live">&#9679; 运行中</span>
+            </div>
+          </div>
+          <div class="sc-body on">
+            <div class="sc-pty" id="pty-fix">
+<span class="t">04:00:15</span><span class="p">$</span> <span class="c">cargo test</span>
+<span class="t">04:00:16</span><span class="o">running 42 tests</span>
+<span class="t">04:00:18</span><span class="o">test collab::retry ... ok</span>
+<span class="t">04:00:20</span><span class="o">test collab::chain ... ok</span>
+<span class="t">04:00:22</span><span class="o">test collab::force_stop ... ok</span>
+<span class="t">04:00:24</span><span class="s">&#10003; test result: ok. 42 passed</span>
+<span class="t">04:00:25</span><span class="p">$</span> <span class="c">git diff --stat</span>
+<span class="t">04:00:26</span><span class="o"> src/kernel/collab.rs | 12 +++++++++++</span>
+<span class="t">04:00:26</span><span class="o"> 1 file changed, 12 insertions(+)</span>
+<span class="t">04:00:27</span><span class="p">$</span> <span class="c">cargo clippy --all-targets</span>
+<span class="t">04:00:30</span><span class="o">    Finished dev [unoptimized]</span>
+<span class="t">04:00:31</span><span class="o"></span><span class="pty-cursor"></span>
+            </div>
+            <div class="sc-images">
+              <div class="sc-img">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='70'%3E%3Crect fill='%23161b22' width='120' height='70'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%236e7681' font-size='9'%3E[diff view]%3C/text%3E%3C/svg%3E" alt="diff">
+                <div class="sc-img-cap">代码变更</div>
+              </div>
+              <div class="sc-img">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='70'%3E%3Crect fill='%230d1117' width='120' height='70'/%3E%3Crect x='10' y='25' width='100' height='8' rx='2' fill='%233fb950' opacity='0.3'/%3E%3Crect x='10' y='38' width='80' height='8' rx='2' fill='%233fb950' opacity='0.3'/%3E%3Ctext x='50%25' y='55' text-anchor='middle' fill='%233fb950' font-size='8'%3E87.3%%3C/text%3E%3C/svg%3E" alt="coverage">
+                <div class="sc-img-cap">覆盖率</div>
+              </div>
+            </div>
+            <div class="sc-approve">
+              <span class="sc-approve-text">&#9888; 此节点无需批准，修复完成后自动进入「回归加固」</span>
+              <button class="sc-approve-btn ghost" onclick="event.stopPropagation()">&#9632; 中断</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stage 3: Harden (wait, with approval gate) -->
+      <div class="stage-row wait">
+        <div class="tl-dot"><div class="tl-dot-inner wait"></div></div>
+        <div class="tl-connector"></div>
+        <div class="stage-card" style="flex:1;opacity:.7">
+          <div class="sc-head" onclick="toggleStage(this)">
+            <span class="sc-toggle">&#9656;</span>
+            <div class="sc-icon claude">C</div>
+            <span class="sc-title">回归加固</span>
+            <div class="sc-meta">
+              <span class="sc-tag">Claude Code</span>
+              <span class="sc-tag">Medium</span>
+              <span class="sc-dur">--:--</span>
+              <span class="sc-status wait">等待</span>
+            </div>
+          </div>
+          <div class="sc-body">
+            <div class="sc-pty" style="color:var(--fg3)">
+等待「修复」节点完成...
+预计执行: 补边界测试 + 手测清单
+            </div>
+            <div class="sc-approve" style="background:var(--warn-dim)">
+              <span class="sc-approve-text" style="color:var(--warn)">&#9733; 此节点需人工批准后才能继续</span>
+              <button class="sc-approve-btn primary" onclick="event.stopPropagation()">批准并继续</button>
+              <button class="sc-approve-btn ghost" onclick="event.stopPropagation()">打回重规划</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stage 4: Review (wait) -->
+      <div class="stage-row wait">
+        <div class="tl-dot"><div class="tl-dot-inner wait"></div></div>
+        <div class="tl-connector"></div>
+        <div class="stage-card" style="flex:1;opacity:.7">
+          <div class="sc-head" onclick="toggleStage(this)">
+            <span class="sc-toggle">&#9656;</span>
+            <div class="sc-icon grok">G</div>
+            <span class="sc-title">审查收口</span>
+            <div class="sc-meta">
+              <span class="sc-tag">Grok CLI</span>
+              <span class="sc-tag">Medium</span>
+              <span class="sc-dur">--:--</span>
+              <span class="sc-status wait">等待</span>
+            </div>
+          </div>
+          <div class="sc-body">
+            <div class="sc-pty" style="color:var(--fg3)">
+等待「回归加固」节点完成...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Parallel: Test (live) -->
+      <div class="stage-row live">
+        <div class="tl-dot"><div class="tl-dot-inner live"></div></div>
+        <div class="tl-connector" style="display:none"></div>
+        <div class="stage-card is-live" style="flex:1">
+          <div class="sc-head" onclick="toggleStage(this)">
+            <span class="sc-toggle on">&#9656;</span>
+            <div class="sc-icon kimi">K</div>
+            <span class="sc-title">并行测试 <span class="live-badge"></span></span>
+            <div class="sc-meta">
+              <span class="sc-tag accent">Kimi CLI</span>
+              <span class="sc-tag accent">并行</span>
+              <span class="sc-dur">01:25</span>
+              <span class="sc-status live">&#9679; 运行中</span>
+            </div>
+          </div>
+          <div class="sc-body on">
+            <div class="sc-pty" id="pty-test">
+<span class="t">04:00:20</span><span class="p">$</span> <span class="c">cargo test --all-features</span>
+<span class="t">04:00:22</span><span class="o">running 156 tests</span>
+<span class="t">04:00:35</span><span class="o">test kernel::collab ... ok</span>
+<span class="t">04:00:38</span><span class="o">test plugins::composer ... ok</span>
+<span class="t">04:00:42</span><span class="s">&#10003; test result: ok. 156 passed; 0 failed</span>
+<span class="t">04:00:43</span><span class="p">$</span> <span class="c">grcov . -t html</span>
+<span class="t">04:00:50</span><span class="s">&#10003; Coverage: 87.3% (+2.1%)</span>
+<span class="t">04:00:51</span><span class="p">$</span> <span class="c">cargo bench</span>
+<span class="t">04:00:55</span><span class="o">bench collab::retry_stage ... </span><span class="pty-cursor"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Composer at bottom of timeline -->
+      <div style="margin-top:24px;margin-left:52px">
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <div class="popover-wrap">
+            <button class="pill on" id="pillBtn" onclick="togglePop()">
+              <span class="dot"></span>
+              <span id="pillText">bug-fix 运行中</span>
+            </button>
+            <div class="popover" id="pop">
+              <div class="pop-head">
+                <span class="pop-title">选择协作模板</span>
+                <button class="pop-manage">管理</button>
+              </div>
+              <div class="pop-body">
+                <button class="tpl-item on">
+                  <div class="tpl-h"><span class="tpl-n">修 Bug</span><span class="tpl-tag">内置</span></div>
+                  <div class="tpl-flow">复现定位 &#8594; 修复 &#8594; 回归加固 &#8594; 审查收口</div>
+                  <div class="tpl-meta"><span class="tpl-chip">批准点 &#215;1</span></div>
+                </button>
+                <button class="tpl-item">
+                  <div class="tpl-h"><span class="tpl-n">加功能</span><span class="tpl-tag">内置</span></div>
+                  <div class="tpl-flow">方案 &#8594; 实现 &#8594; 审查</div>
+                </button>
+                <button class="tpl-item">
+                  <div class="tpl-h"><span class="tpl-n">写文档</span><span class="tpl-tag">内置</span></div>
+                  <div class="tpl-flow">大纲 &#8594; 起草 &#8594; 润色定稿</div>
+                </button>
+              </div>
+              <div class="pop-foot">
+                <button class="pop-btn new">+ 新建模板</button>
+                <button class="pop-btn primary">启用协作</button>
+              </div>
+            </div>
+          </div>
+          <button class="tbtn">@</button>
+          <button class="tbtn">$</button>
+          <button class="tbtn">/</button>
+        </div>
+        <div class="composer-bar" style="border:1px solid var(--bg4);border-radius:10px;padding:10px 14px;background:var(--bg2)">
+          <textarea class="comp-ta" rows="2" placeholder="输入消息... 当前协作模式已启用"></textarea>
+          <button class="comp-send">&#10148;</button>
+        </div>
+      </div>
+
+      <div style="height:40px"></div>
+    </div>
+
+    <!-- Right: Live Output Panel -->
+    <div class="live-panel">
+      <div class="live-head">
+        <span class="live-title"><span class="dot"></span> 节点2 · 修复</span>
+        <button class="tbtn">&#10005;</button>
+      </div>
+      <div class="live-tabs">
+        <button class="live-tab on">PTY 输出</button>
+        <button class="live-tab">识图</button>
+        <button class="live-tab">对话</button>
+        <button class="live-tab">变更</button>
+      </div>
+      <div class="live-body">
+        <div class="term-out">
+<span class="ln"><span class="ts">04:00:15</span><span class="p">$</span> <span class="c">cargo test</span></span>
+<span class="ln"><span class="ts">04:00:16</span><span class="o">   Compiling tmd-cli v0.8.0</span></span>
+<span class="ln"><span class="ts">04:00:17</span><span class="o">    Finished test [unoptimized]</span></span>
+<span class="ln"><span class="ts">04:00:18</span><span class="o">     Running unittests src/lib.rs</span></span>
+<span class="ln"><span class="ts">04:00:18</span><span class="o"></span></span>
+<span class="ln"><span class="ts">04:00:19</span><span class="o">running 42 tests</span></span>
+<span class="ln"><span class="ts">04:00:20</span><span class="s">test collab::retry_agent_stage ... ok</span></span>
+<span class="ln"><span class="ts">04:00:21</span><span class="s">test collab::retry_collab_run ... ok</span></span>
+<span class="ln"><span class="ts">04:00:22</span><span class="s">test collab::force_stop ... ok</span></span>
+<span class="ln"><span class="ts">04:00:23</span><span class="s">test collab::chain_tokens ... ok</span></span>
+<span class="ln"><span class="ts">04:00:24</span><span class="s">test collab::approve_execute ... ok</span></span>
+<span class="ln"><span class="ts">04:00:25</span><span class="o">...</span></span>
+<span class="ln"><span class="ts">04:00:30</span><span class="s">test result: ok. 42 passed; 0 failed</span></span>
+<span class="ln"><span class="ts">04:00:31</span><span class="o"></span></span>
+<span class="ln"><span class="ts">04:00:32</span><span class="p">$</span> <span class="c">git diff --stat</span></span>
+<span class="ln"><span class="ts">04:00:33</span><span class="o"> src/kernel/collab.rs | 12 ++++++++++++</span></span>
+<span class="ln"><span class="ts">04:00:33</span><span class="o"> 1 file changed, 12 insertions(+)</span></span>
+<span class="ln"><span class="ts">04:00:34</span><span class="o"></span></span>
+<span class="ln"><span class="ts">04:00:35</span><span class="p">$</span> <span class="c">cargo clippy --all-targets</span></span>
+<span class="ln"><span class="ts">04:00:36</span><span class="o">    Checking tmd-cli v0.8.0</span></span>
+<span class="ln"><span class="ts">04:00:40</span><span class="o">    Finished dev [unoptimized]</span></span>
+<span class="ln"><span class="ts">04:00:41</span><span class="s">&#10003; 0 warnings</span></span>
+<span class="ln"><span class="ts">04:00:42</span><span class="p">$</span> <span class="c">cargo fmt -- --check</span></span>
+<span class="ln"><span class="ts">04:00:43</span><span class="s">&#10003; 格式化检查通过</span></span>
+<span class="ln"><span class="ts">04:00:44</span><span class="p">$</span> <span class="c">_</span><span class="pty-cursor"></span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="statusbar">
+    <div class="sb-item"><span class="sb-dot live"></span><span style="color:var(--accent)">协作运行中</span></div>
+    <div class="sb-item">bug-fix · 2/5</div>
+    <div class="sb-item">修复 03:48 · 并行测试 01:25</div>
+    <div class="grow"></div>
+    <div class="sb-item">Rust 1.82</div>
+    <div class="sb-item">tmd-cli v0.8.0</div>
+  </div>
+</div>
+
+<script>
+/* Toggle stage expansion */
+function toggleStage(head) {
+  const card = head.closest('.stage-card');
+  const body = card.querySelector('.sc-body');
+  const toggle = head.querySelector('.sc-toggle');
+  body.classList.toggle('on');
+  toggle.classList.toggle('on');
+}
+
+/* Template popover */
+function togglePop() {
+  document.getElementById('pop').classList.toggle('show');
+}
+document.addEventListener('click', e => {
+  const w = document.querySelector('.popover-wrap');
+  if (w && !w.contains(e.target)) document.getElementById('pop').classList.remove('show');
+});
+
+/* Progress animation */
+setInterval(() => {
+  const bar = document.getElementById('progBar');
+  const txt = document.getElementById('progText');
+  if (bar.classList.contains('done')) return;
+  const w = parseFloat(bar.style.width) || 45;
+  if (w < 70) { bar.style.width = (w + 0.2) + '%'; txt.textContent = Math.round(w) + '%'; }
+}, 1000);
+
+/* Simulate live PTY typing */
+const ptyData = {
+  'pty-fix': [
+    '<span class="t">04:00:31</span><span class="p">$</span> <span class="c">cargo clippy --all-targets</span>',
+    '<span class="t">04:00:35</span><span class="o">    Checking tmd-cli v0.8.0</span>',
+    '<span class="t">04:00:40</span><span class="o">    Finished dev [unoptimized]</span>',
+    '<span class="t">04:00:41</span><span class="s">&#10003; 0 warnings</span>',
+    '<span class="t">04:00:42</span><span class="p">$</span> <span class="c">cargo fmt --check</span>',
+    '<span class="t">04:00:43</span><span class="s">&#10003; 格式化检查通过</span>',
+  ],
+  'pty-test': [
+    '<span class="t">04:00:55</span><span class="o">bench collab::retry_stage ... 42ms</span>',
+    '<span class="t">04:00:58</span><span class="o">bench collab::chain_drive ... 38ms</span>',
+    '<span class="t">04:01:02</span><span class="s">&#10003; Benchmark 完成</span>',
+  ]
+};
+
+let tick = 0;
+setInterval(() => {
+  tick++;
+  Object.entries(ptyData).forEach(([id, lines]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const idx = tick % (lines.length + 1);
+    const base = el.dataset.base || el.innerHTML.split('<span class="pty-cursor">')[0];
+    if (!el.dataset.base) el.dataset.base = base;
+    el.innerHTML = base + lines.slice(0, idx).join('') + '<span class="pty-cursor"></span>';
+  });
+}, 3000);
+</script>
+</body>
+</html>
