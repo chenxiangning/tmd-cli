@@ -206,6 +206,13 @@ mod tests {
                 pixel_height: 0,
             })
             .expect("openpty");
+        /* 常驻子进程读端:unix 用 cat,windows 用 cmd.exe(等输入不退出) */
+        #[cfg(windows)]
+        let child = pair
+            .slave
+            .spawn_command(CommandBuilder::new("cmd.exe"))
+            .expect("spawn cmd.exe");
+        #[cfg(not(windows))]
         let child = pair
             .slave
             .spawn_command(CommandBuilder::new("cat"))
