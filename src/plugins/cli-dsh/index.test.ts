@@ -34,6 +34,8 @@ describe("cli-dsh 插件契约", () => {
     expect(profile.command).toBe("dsh");
     /* dsh 是 profile 启动器:会话即 `dsh web` 起本地 host。 */
     expect(profile.args).toEqual(["web"]);
+    /* 会话即 host:单实例语义,create 撞活会话聚焦既有(kernel 契约)。 */
+    expect(profile.singleInstance).toBe(true);
     /* 磁盘会话体是 zstd 压缩流、触发符未实证:一律不声明(不猜接口)。 */
     expect(profile.triggers).toEqual([]);
     expect(profile.listSessions).toBeUndefined();

@@ -60,6 +60,8 @@ export const cliDshPlugin: Plugin = {
       command: DSH_VARIANT.command,
       args: ["web"],
       triggers: [],
+      /* 单实例:会话即 host,同 origin 第二个 `dsh web` 必然 EADDRINUSE。 */
+      singleInstance: true,
       scriptInstall: {
         unix: "npm i -g --maxsockets=1 --fetch-retries=5 --no-audit --no-fund @deepseek-ai/dsh@latest",
         windows:

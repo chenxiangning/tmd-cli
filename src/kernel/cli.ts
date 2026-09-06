@@ -144,8 +144,13 @@ export interface CliProfile {
    * 点击语义由每项的 action/token 声明(codex "$name" insert / claude "/mcp" send)。
    */
   listMcpServers?: (cwd: string) => Promise<CliSuggestion[] | null>;
-  /** 恢复 CLI 自身会话的参数模板；缺省 = 不支持恢复。 */
+  /** 恢复 CLI 自身会话的参数模板;缺省 = 不支持恢复。 */
   resumeArgs?: (cliSessionId: string) => string[];
+  /**
+   * 单实例语义:同 profile 至多一个活会话,create 命中 = 聚焦既有不重 spawn
+   * (dsh「会话即 host」:同 origin 第二个 `dsh web` 必然 EADDRINUSE 秒退)。
+   */
+  singleInstance?: boolean;
   /**
    * 扫描该 CLI 在 cwd 下的磁盘历史会话。
    * 每个 cli-* 插件声明自己的存储约定(目录布局/slug 规则/文件格式),

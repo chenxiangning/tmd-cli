@@ -135,12 +135,28 @@ export async function probeBinary(conn: DshConnection): Promise<boolean> {
   }
 }
 
-/* ── 自拉起 host 会话登记(模块级;仅停止按钮消费)── */
+/* ── 自拉起 host 会话登记(模块级 + localStorage;webview 重载不丢,
+   重载后仍能停掉同一次应用运行里拉起的 host)── */
+
+const HOST_SESSION_KEY = "tmd.dsh.hostSession.v1";
 
 let hostSessionId: string | null = null;
 
 export function currentHostSessionId(): string | null {
-  return hostSessionId;
+  return hostSessionId ?? localStorage.getItem(HOST_SESSION_KEY);
+}
+
+function rememberHostSession(id: string): void {
+  hostSessionId = id;
+  localStorage.setItem(HOST_SESSION_KEY, id);
+}
+
+/** 取走登记(读一次即清,含落盘)。 */
+function forgetHostSession(): string | null {
+  const id = currentHostSessionId();
+  hostSessionId = null;
+  localStorage.removeItem(HOST_SESSION_KEY);
+  return id;
 }
 
 export async function startHostSession(conn: DshConnection): Promise<string> {
@@ -150,17 +166,100 @@ export async function startHostSession(conn: DshConnection): Promise<string> {
     cwd: await ipc.configHomeDir(),
     title: "DSH Host",
   });
-  hostSessionId = spawned.id;
+  rememberHostSession(spawned.id);
   return spawned.id;
 }
 
-/** 只停自拉起会话;外部 host 返回 false(调用方给提示)。 */
-export async function stopHostSession(): Promise<boolean> {
-  if (!hostSessionId) return false;
-  const id = hostSessionId;
-  hostSessionId = null;
-  await ipc.sessionKill(id);
-  return true;
+/** 仅本机 origin 允许停止;远程地址绝不代杀(codemoss is_local_host 同款)。 */
+export function isLocalHost(host: string): boolean {
+  const h = host.trim().toLowerCase();
+  return h === "127.0.0.1" || h === "localhost" || h === "::1" || h === "0.0.0.0";
+}
+
+export type DshStopOutcome = "stopped" | "remote";
+
+/**
+ * codemoss stop_host 同款:杀自spawn 会话 + 按端口停本机监听(外部/遗留
+ * host 也能停);远程 origin 拒绝,由调用方提示。 */
+export async function stopHostSession(conn: DshConnection): Promise<DshStopOutcome> {
+  if (!isLocalHost(conn.host)) return "remote";
+  const id = forgetHostSession();
+  if (id) await ipc.sessionKill(id).catch(() => undefined);
+  await (isWindowsPlatform()
+    ? terminateLocalListenerWindows(conn.port)
+    : terminateLocalListenerUnix(conn.port));
+  return "stopped";
+}
+/**
+ * codemoss ensure_host 同款:已运行 = 直接复用(不重 spawn);否则拉起并等
+ * 就绪。spawn 竞速(等就绪期间端口被别人占)天然被 waitForHostReady 的
+ * 起点探测覆盖 —— 它探的是 origin 本身,谁在服务都算数。 */
+export async function ensureHostSession(conn: DshConnection): Promise<DshHostView | null> {
+  const live = await probeHost(conn);
+  if (live) return live;
+  try {
+    await startHostSession(conn);
+  } catch {
+    /* spawn 被拒(二进制缺失等):按后续探测结果收口,报错已在会话幕布。 */
+  }
+  return waitForHostReady(conn);
+}
+
+function isWindowsPlatform(): boolean {
+  return navigator.userAgent.includes("Windows");
+}
+
+/** unix:lsof 找 LISTEN pid → TERM,非零退出补 KILL(codemoss 同款)。 */
+async function terminateLocalListenerUnix(port: number): Promise<void> {
+  const cwd = await ipc.configHomeDir();
+  const scan = await ipc.procCommunicate({
+    command: "lsof",
+    args: ["-n", "-P", "-t", `-iTCP:${port}`, "-sTCP:LISTEN"],
+    cwd,
+    timeoutMs: 8000,
+  });
+  const pids = scan.stdout.split("\n").map((l) => l.trim()).filter((l) => /^\d+$/.test(l));
+  if (pids.length === 0) return;
+  const term = await ipc.procCommunicate({
+    command: "kill",
+    args: ["-TERM", ...pids],
+    cwd,
+    timeoutMs: 8000,
+  });
+  if (term.code !== 0) {
+    await ipc.procCommunicate({
+      command: "kill",
+      args: ["-KILL", ...pids],
+      cwd,
+      timeoutMs: 8000,
+    }).catch(() => undefined);
+  }
+}
+
+/** win:netstat 找 LISTENING pid → taskkill /T /F(codemoss 同款解析)。 */
+async function terminateLocalListenerWindows(port: number): Promise<void> {
+  const cwd = await ipc.configHomeDir();
+  const scan = await ipc.procCommunicate({
+    command: "netstat",
+    args: ["-ano", "-p", "tcp"],
+    cwd,
+    timeoutMs: 8000,
+  });
+  const needle = `:${port}`;
+  const pids = new Set<string>();
+  for (const line of scan.stdout.split("\n")) {
+    const cols = line.trim().split(/\s+/);
+    if (cols.length < 5 || cols[3].toUpperCase() !== "LISTENING") continue;
+    if (cols[1].endsWith(needle)) pids.add(cols[4]);
+  }
+  for (const pid of pids) {
+    await ipc.procCommunicate({
+      command: "taskkill",
+      args: ["/PID", pid, "/T", "/F"],
+      cwd,
+      timeoutMs: 8000,
+    }).catch(() => undefined);
+  }
 }
 
 /* ── 自动启动(每次应用运行至多一次;StrictMode 双挂载安全)── */

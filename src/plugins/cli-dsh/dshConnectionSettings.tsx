@@ -28,10 +28,10 @@ export function DshConnectionSettings({
   };
 
   return (
-    <div className="pref-card">
+    <div className="border-t border-(--tmd-border)">
       <button
         type="button"
-        className="flex w-full items-center gap-2 bg-transparent p-0 text-left"
+        className="flex w-full items-center gap-2 px-4 py-3 text-left"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
@@ -43,8 +43,8 @@ export function DshConnectionSettings({
         />
       </button>
       {open && (
-        <div className="mt-3 flex flex-col gap-3">
-          <div className="pref-row">
+        <div className="flex flex-col">
+          <div className="pref-row border-t border-(--tmd-border)">
             <div>
               <div className="pref-title">自定义 DeepSeek Harness 路径</div>
               <div className="pref-desc">
@@ -59,7 +59,7 @@ export function DshConnectionSettings({
               onBlur={(e) => apply({ customBin: e.target.value.trim() })}
             />
           </div>
-          <div className="pref-row">
+          <div className="pref-row border-t border-(--tmd-border)">
             <div>
               <div className="pref-title">Host 地址</div>
               <div className="pref-desc">默认本机。改端口前先确认没有别的进程占着。</div>
@@ -82,7 +82,7 @@ export function DshConnectionSettings({
               />
             </div>
           </div>
-          <div className="pref-row">
+          <div className="pref-row border-t border-(--tmd-border)">
             <div>
               <div className="pref-title">自动启动主机</div>
               <div className="pref-desc">

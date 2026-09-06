@@ -79,6 +79,8 @@ interface SessionSpawnHost {
 export class SessionSpawnService {
   /** openDiskSession 在途单例闸:key = profileId:cliSessionId,双击去重。 */
   private openingDiskSessions = new Map<string, Promise<SessionMeta>>();
+  /** singleInstance profile 的 create 在途闸:key = profileId,双击不去重会开出两个 host。 */
+  private openingSingleInstances = new Map<string, Promise<SessionMeta>>();
 
   constructor(
     private readonly h: SessionSpawnHost,
@@ -89,6 +91,34 @@ export class SessionSpawnService {
   async create(profileId: string, cwd: string, workspaceId?: string): Promise<SessionMeta> {
     const profile = this.h.getCliProfile(profileId);
     if (!profile) throw new Error(`未知 CLI profile: ${profileId}`);
+    /* 单实例去重:已有活会话 = 聚焦既有;并发双击由在途闸收口。 */
+    if (profile.singleInstance) {
+      const existing = this.h.getSessions().find((s) => s.profileId === profileId);
+      if (existing) {
+        this.h.setActiveSession(existing.id);
+        return existing;
+      }
+      const opening = this.openingSingleInstances.get(profileId);
+      if (opening) return opening;
+      const task = (async () => {
+        try {
+          return await this.spawnNew(profileId, profile, cwd, workspaceId);
+        } finally {
+          this.openingSingleInstances.delete(profileId);
+        }
+      })();
+      this.openingSingleInstances.set(profileId, task);
+      return task;
+    }
+    return this.spawnNew(profileId, profile, cwd, workspaceId);
+  }
+
+  private async spawnNew(
+    profileId: string,
+    profile: CliProfile,
+    cwd: string,
+    workspaceId?: string,
+  ): Promise<SessionMeta> {
     const spec: SpawnSpec = {
       command: profile.command,
       args: profile.args,
