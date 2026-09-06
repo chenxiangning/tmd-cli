@@ -6,14 +6,16 @@
  * 贡献;内核不认识任何业务命令。
  *
  * 作用域模型:
- * - "global":常规分发器(window keydown capture 单点,AppShell 安装)。
- * - "terminal":终端聚焦时按键直接进 PTY,分发器收不到;只有终端作用域命令
- *   经 TerminalView 的 attachCustomKeyEventHandler 桥触发(一期仅 terminal.find,
- *   终端内自由快捷键行为与桥接入前完全一致)。
+ * - "global":常规分发器(window keydown capture 单点,AppShell 安装),终端聚焦期
+ *   照常触发 —— 命中即 capture 相位拦截,事件到不了 xterm,零 PTY 字节;⌘ 系键位
+ *   在终端生态本就不进 PTY,终端内 CLI 零感知(spec 2026-09-06-shortcuts-terminal-focus)。
+ * - "terminal":终端聚焦期由分发器优先分发(原 xterm attachCustomKeyEventHandler 桥
+ *   已并入);未命中键原样进 PTY,终端自由快捷键(readline 等)不变。
  *
  * 纪律:isComposing(IME 组词)一律放行;Escape 永不注册(保护约 20 处弹层
- * Esc 生态);同 id 重复注册与同键重复绑定直接抛错(一期固定键位,冲突即 bug);
- * 停用插件 = 重启后不激活(pluginLifecycle 范式),运行期不反注销。
+ * Esc 生态);⌘C/⌘V 永不注册(终端复制粘贴生态);同 id 重复注册与同键重复绑定
+ * 直接抛错(一期固定键位,冲突即 bug);停用插件 = 重启后不激活(pluginLifecycle
+ * 范式),运行期不反注销。
  */
 
 import { useSyncExternalStore } from "react";
@@ -151,7 +153,7 @@ export function registerCommand(cmd: CommandContribution): void {
   refreshSnapshot();
 }
 
-/** 终端桥查询:xterm attachCustomKeyEventHandler 用;只匹配 terminal 作用域命令。 */
+/** 终端作用域匹配器:分发器在终端聚焦期优先查询(原 xterm 桥已并入分发器)。 */
 export function matchTerminalCommand(e: ShortcutKeyEvent): CommandContribution | undefined {
   for (const cmd of commands.values()) {
     if (cmd.scope !== "terminal") continue;
@@ -160,25 +162,42 @@ export function matchTerminalCommand(e: ShortcutKeyEvent): CommandContribution |
   return undefined;
 }
 
-/** 终端聚焦态(TerminalView 馈入):聚焦期间 global 分发器完全静默,键照旧进 PTY。 */
+/** 终端聚焦态(TerminalView 馈入):聚焦期间 terminal 作用域优先、global 照常分发,
+ *  命中即拦截不进 PTY;未命中键原样进 PTY,终端自由快捷键不变。 */
 let terminalFocused = false;
 export function setTerminalFocused(focused: boolean): void {
   terminalFocused = focused;
+}
+
+/** 分发决策(纯函数,分发器与测试共用):终端聚焦时先查 terminal 作用域(同键跨作用域
+ *  时终端优先,如 global ⌘F 与 terminal.find),未命中再落 global;非聚焦只查 global。 */
+export function resolveCommand(e: ShortcutKeyEvent): CommandContribution | undefined {
+  if (terminalFocused) {
+    const terminal = matchTerminalCommand(e);
+    if (terminal) return terminal;
+  }
+  for (const cmd of commands.values()) {
+    if (cmd.scope === "terminal") continue;
+    if (eventMatches(cmd, e) && whenOk(cmd)) return cmd;
+  }
+  return undefined;
 }
 
 /** 安装全局分发器(AppShell 挂载期调用一次);返回退订函数。 */
 export function installShortcutDispatcher(): () => void {
   const onKey = (e: KeyboardEvent): void => {
     if (e.isComposing) return; // IME 组词期全放行
-    if (terminalFocused) return; // 终端内自由快捷键不变:只有 terminal 作用域走 xterm 桥
-    for (const cmd of commands.values()) {
-      if (eventMatches(cmd, e) && whenOk(cmd)) {
-        e.preventDefault();
-        e.stopPropagation();
-        safeRun(cmd);
-        return;
-      }
-    }
+    const cmd = resolveCommand({
+      key: e.key,
+      metaKey: e.metaKey,
+      ctrlKey: e.ctrlKey,
+      shiftKey: e.shiftKey,
+      altKey: e.altKey,
+    });
+    if (!cmd) return; // 未命中穿透:终端内自由快捷键(readline 等)原样进 PTY
+    e.preventDefault();
+    e.stopPropagation();
+    safeRun(cmd);
   };
   window.addEventListener("keydown", onKey, true);
   return () => window.removeEventListener("keydown", onKey, true);

@@ -1,13 +1,14 @@
 /**
- * 快捷键命令注册表行为契约测试。
- * 覆盖:重复 id/不可解析键位/Escape 抛错、同键冲突与 when 互斥放行、
- * match 自定义匹配、终端桥作用域隔离、when 异常穿透、formatKeybinding。
- * 模块级单例,每个用例经 vi.resetModules + 动态 import 取全新实例。
+ * 快捷键命令注册表行为契约测试:注册冲突/平台修饰键分流/match/format。
+ * 分发行为(作用域匹配/聚焦期分发决策/分发器接线)见 shortcuts.dispatch.test.ts。
+ * 模块级单例,每个用例经 vi.resetModules + 动态 import 取全新实例(加载边界用例,静态导入取不到 reset 后实例)。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type * as ShortcutsNs from "./shortcuts";
 import type { ShortcutKeyEvent } from "./shortcuts";
 
-type ShortcutsModule = typeof import("./shortcuts");
+type ShortcutsModule = typeof ShortcutsNs;
 
 let sc: ShortcutsModule;
 
@@ -90,7 +91,7 @@ describe("registerCommand", () => {
     expect(sc.getCommands().map((c) => c.id)).toEqual(["a.save", "b.save"]);
    });
 
-  it("同键不同作用域互不冲突(终端桥 vs 全局分发器)", () => {
+  it("同键不同作用域注册互不冲突(聚焦期由 resolveCommand 裁决:terminal 优先)", () => {
     sc.registerCommand({
       id: "t.find",
       title: "T",
@@ -142,45 +143,6 @@ describe("平台修饰键分流(macOS 的 Ctrl+键不被全局快捷键劫持)",
   });
 });
 
-describe("终端桥 matchTerminalCommand", () => {
-  it("只匹配 terminal 作用域;global 命令不可见", () => {
-    sc.registerCommand({
-      id: "t.find",
-      title: "搜索",
-      keybinding: "Cmd+F",
-      scope: "terminal",
-      run: () => undefined,
-    });
-    sc.registerCommand({
-      id: "g.other",
-      title: "其他",
-      keybinding: "Cmd+F",
-      when: () => false,
-      run: () => undefined,
-    });
-    expect(sc.matchTerminalCommand(keyEvent("f"))?.id).toBe("t.find");
-  });
-
-  it("未命中返回 undefined", () => {
-    expect(sc.matchTerminalCommand(keyEvent("z"))).toBeUndefined();
-  });
-});
-
-describe("when 谓词", () => {
-  it("谓词异常按不满足处理(matchTerminalCommand 返回 undefined)", () => {
-    sc.registerCommand({
-      id: "t.boom",
-      title: "B",
-      keybinding: "Cmd+B",
-      scope: "terminal",
-      when: () => {
-        throw new Error("boom");
-      },
-      run: () => undefined,
-    });
-    expect(sc.matchTerminalCommand(keyEvent("b"))).toBeUndefined();
-  });
-});
 
 describe("match 自定义匹配", () => {
   it("match 命中且不参与键位冲突检查", () => {
@@ -208,3 +170,4 @@ describe("formatKeybinding", () => {
     expect(sc.formatKeybinding("Cmd+,")).toBe("⌘,");
   });
 });
+

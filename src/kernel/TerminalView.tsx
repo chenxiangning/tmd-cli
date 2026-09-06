@@ -30,11 +30,7 @@ import { createReplayInputGate } from "@kernel/terminalInputGate";
 import { isTerminalReport } from "@kernel/terminalReports";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay, findRequestRef } from "@kernel/terminalSearch";
-import {
-  matchTerminalCommand,
-  setTerminalFocused,
-  type ShortcutKeyEvent,
-} from "@kernel/shortcuts";
+import { setTerminalFocused } from "@kernel/shortcuts";
 
 /** 从文档计算样式读终端 token → xterm theme(主题引擎已内联最新值)。 */
 function readTerminalTheme(): ITheme {
@@ -97,25 +93,9 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     term.loadAddon(search);
     /* 链接点击 → 系统浏览器(Tauri webview 内 window.open 不可靠,走 shell 插件)。 */
     term.loadAddon(new WebLinksAddon((_event, uri) => void openExternalUrl(uri)));
-    /* 终端桥:先查注册表的 terminal 作用域命令(命中 = 应用级,拦截不写 PTY),
-       未命中放行 —— 终端内自由快捷键与桥接入前完全一致。⌘F 的 readline 代价
-       注释见 shortcuts.ts 纪律段。 */
-    term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-      if (e.type !== "keydown") return true;
-      const probe: ShortcutKeyEvent = {
-        key: e.key,
-        metaKey: e.metaKey,
-        ctrlKey: e.ctrlKey,
-        shiftKey: e.shiftKey,
-        altKey: e.altKey,
-      };
-      const cmd = matchTerminalCommand(probe);
-      if (!cmd) return true;
-      void cmd.run();
-      return false;
-    });
-    /* 聚焦态馈入分发器:终端聚焦期间 global 命令完全静默(键照旧进 PTY)。
-       xterm v6 无 onFocus/onBlur 事件,借容器 focusin/focusout(冒泡可达)。 */
+    /* 聚焦态馈入分发器:聚焦期 terminal 作用域优先、global ⌘ 系键照常触发
+       (命中即拦截零 PTY 字节,未命中键原样进 PTY)——分发决策见 shortcuts.ts
+       resolveCommand。xterm v6 无 onFocus/onBlur 事件,借容器 focusin/focusout(冒泡可达)。 */
     const onFocusIn = () => setTerminalFocused(true);
     const onFocusOut = () => setTerminalFocused(false);
     container.addEventListener("focusin", onFocusIn);

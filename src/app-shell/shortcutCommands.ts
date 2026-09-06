@@ -116,8 +116,8 @@ registerCommand({
 );
 
 /* tab 顺序切换:浏览器/VS Code 惯例 Ctrl+Tab / Ctrl+Shift+Tab。
-   键位串沿用 "Cmd" 语法(mac 上 ⌘Tab 被 OS 截走,实际可触发键即 Ctrl 变体),
-   展示标签显式写 Ctrl,避免误导。 */
+   match 型 (meta||ctrl):mac 上 ⌘Tab 被 OS 截走,"Cmd+Tab" 键位串只匹配 metaKey、
+   从未生效(2026-09-06 修);Tab 非 PTY 可写键,终端内无劫持。 */
 function focusNeighborTab(offset: 1 | -1): void {
   const tabs = getTabs();
   const activeId = getActiveTabId();
@@ -129,16 +129,16 @@ function focusNeighborTab(offset: 1 | -1): void {
 registerCommand({
   id: "shell.nextTab",
   title: "下一个标签页",
-  keybinding: "Cmd+Tab",
   keybindingLabel: "Ctrl+Tab",
+  match: (e) => (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key === "Tab",
   when: () => getTabs().length >= 2,
   run: () => focusNeighborTab(1),
 });
 registerCommand({
   id: "shell.prevTab",
   title: "上一个标签页",
-  keybinding: "Cmd+Shift+Tab",
   keybindingLabel: "Ctrl+⇧Tab",
+  match: (e) => (e.metaKey || e.ctrlKey) && e.shiftKey && !e.altKey && e.key === "Tab",
   when: () => getTabs().length >= 2,
   run: () => focusNeighborTab(-1),
 });
