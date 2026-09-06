@@ -1,9 +1,19 @@
 /**
  * omp 扩展面板的目录卡 —— 安装两步确认(首击展开风险详情)+ 流式日志。
  * 安装走 ipc.cliInstallRun command 通道跑 `omp plugin install/uninstall <pkg>`,
- * 日志订阅 cli-install://omp-ext:<pkg>;卡片自治全生命周期,完成后经 onChanged
- * 通知面板重拉已装清单。已装行在 marketInstalledRow.tsx(共用件自此处导入)。
+ * 日志订阅 cli-install://<installId(name)>;卡片自治全生命周期,完成后经
+ * onChanged 通知面板重拉已装清单。已装行在 marketInstalledRow.tsx(共用件)。
  */
+
+/** 装卸事件流 id:omp-ext-<pkg 的逐字节 hex>。Tauri 事件名仅允许字母数字与
+ * `- / : _`,scoped 包名的 `@` 违禁且 emit 静默失败(前端永远收不到完成事件,
+ * 按钮永转);整体 hex 保证一一对应,免字符歧义。 */
+export function installId(name: string): string {
+  const hex = [...new TextEncoder().encode(name)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return `omp-ext-${hex}`;
+}
 
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Loader2, ShieldAlert } from "lucide-react";
@@ -52,9 +62,9 @@ export async function runPluginAction(
   onLine: (text: string) => void,
 ): Promise<boolean> {
   /* 先订阅再发命令:tauri listen 异步注册,悬空退订会漏卸订或漏早期日志。 */
-  const unlisten = await onCliInstallEvent(`omp-ext:${name}`, (e) => onLine(e.text));
+  const unlisten = await onCliInstallEvent(installId(name), (e) => onLine(e.text));
   try {
-    const ok = await ipc.cliInstallRun(`omp-ext:${name}`, {
+    const ok = await ipc.cliInstallRun(installId(name), {
       channel: "command",
       program: "omp",
       args:
