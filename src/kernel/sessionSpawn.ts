@@ -91,26 +91,7 @@ export class SessionSpawnService {
   async create(profileId: string, cwd: string, workspaceId?: string): Promise<SessionMeta> {
     const profile = this.h.getCliProfile(profileId);
     if (!profile) throw new Error(`未知 CLI profile: ${profileId}`);
-    /* 单实例去重:已有活会话 = 聚焦既有;并发双击由在途闸收口。 */
-    if (profile.singleInstance) {
-      const existing = this.h.getSessions().find((s) => s.profileId === profileId);
-      if (existing) {
-        this.h.setActiveSession(existing.id);
-        return existing;
-      }
-      const opening = this.openingSingleInstances.get(profileId);
-      if (opening) return opening;
-      const task = (async () => {
-        try {
-          return await this.spawnNew(profileId, profile, cwd, workspaceId);
-        } finally {
-          this.openingSingleInstances.delete(profileId);
-        }
-      })();
-      this.openingSingleInstances.set(profileId, task);
-      return task;
-    }
-    return this.spawnNew(profileId, profile, cwd, workspaceId);
+    return this.guarded(profileId, () => this.spawnNew(profileId, profile, cwd, workspaceId));
   }
 
   /**
@@ -119,8 +100,38 @@ export class SessionSpawnService {
    * 给,不走 profile.command/args;身份探测/秒退守望按 profile 声明自然退化。
    */
   async raw(profileId: string, spec: SpawnSpec, workspaceId?: string): Promise<SessionMeta> {
-    const spawned = await this.spawn(profileId, spec, workspaceId);
-    return this.adoptSpawned(spawned.id, profileId, undefined);
+    return this.guarded(profileId, async () => {
+      const spawned = await this.spawn(profileId, spec, workspaceId);
+      return this.adoptSpawned(spawned.id, profileId, undefined);
+    });
+  }
+
+  /**
+   * 单实例闸(菜单 create 与插件 raw 共用):已有活会话 = 聚焦既有,不再
+   * spawn;并发请求由在途闸收口 —— 否则自动启动与菜单点击两条 spawn 路在
+   * 探测窗内并发,第二个 `dsh web` 必然 EADDRINUSE。
+   */
+  private async guarded(
+    profileId: string,
+    task: () => Promise<SessionMeta>,
+  ): Promise<SessionMeta> {
+    if (!this.h.getCliProfile(profileId)?.singleInstance) return task();
+    const existing = this.h.getSessions().find((s) => s.profileId === profileId);
+    if (existing) {
+      this.h.setActiveSession(existing.id);
+      return existing;
+    }
+    const opening = this.openingSingleInstances.get(profileId);
+    if (opening) return opening;
+    const running = (async () => {
+      try {
+        return await task();
+      } finally {
+        this.openingSingleInstances.delete(profileId);
+      }
+    })();
+    this.openingSingleInstances.set(profileId, running);
+    return running;
   }
 
   private async spawnNew(

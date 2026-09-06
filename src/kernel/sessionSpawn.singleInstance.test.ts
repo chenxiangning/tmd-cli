@@ -1,11 +1,10 @@
 /**
- * 单实例会话(SessionSpawnService.create × CliProfile.singleInstance)契约测试。
+ * 单实例会话(SessionSpawnService.create/raw × CliProfile.singleInstance)契约测试。
  *
  * 背景:dsh「会话即 host」,同 origin 第二个 `dsh web` 必然 EADDRINUSE 秒退
  * (codemoss ensure_host 复用活 host 同语义)。契约:
- * - 声明 singleInstance 的 profile:create 命中活会话 = 聚焦既有,不再 spawn;
- * - 并发双击由在途闸收口,绝不出两个 host;
- * - 未声明的 profile 行为不变(允许多实例)。
+ * - 声明 singleInstance 的 profile:create/raw 命中活会话 = 聚焦既有,不再 spawn;
+ * - 并发(双击、菜单×面板自动启动)由在途闸收口,绝不出两个 host;
  * ipc 注入替身,不触真实 host(样板同 sessionSpawn.adopt.test.ts)。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -127,5 +126,32 @@ describe("singleInstance create 去重", () => {
     expect(a.id).toBe("pty-1");
     expect(b.id).toBe("pty-2");
     expect(spawnCount).toBe(2);
+  });
+});
+describe("singleInstance raw 与 create 共闸", () => {
+  const SPEC = { command: "true", args: [], cwd: "/proj", title: "t" };
+
+  it("raw 撞 create 在途:复用同一 spawn,不出第二个", async () => {
+    const { svc } = mkService(singleProfile);
+    let release!: () => void;
+    gate = new Promise<void>((r) => {
+      release = r;
+    });
+    const viaCreate = svc.create("test-host-cli", "/proj");
+    const viaRaw = svc.raw("test-host-cli", SPEC);
+    release();
+    const [a, b] = await Promise.all([viaCreate, viaRaw]);
+    expect(a.id).toBe(b.id);
+    expect(spawnCount).toBe(1);
+  });
+
+  it("raw 命中活会话:聚焦既有,不再 spawn", async () => {
+    const live = { id: "pty-live", profileId: "test-host-cli", cwd: "/proj" } as SessionMeta;
+    const { svc, h } = mkService(singleProfile);
+    h.setSessions([live]);
+    const meta = await svc.raw("test-host-cli", SPEC);
+    expect(meta.id).toBe("pty-live");
+    expect(h.setActiveSession).toHaveBeenCalledWith("pty-live");
+    expect(spawnCount).toBe(0);
   });
 });
