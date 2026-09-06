@@ -110,6 +110,6 @@ omp 自带插件体系(`omp plugin install/uninstall`,实为在 `~/.omp/plugins`
 ## 非目标(一期不做)
 
 - marketplace 通道(marketplace add / name@marketplace / user-project scope)
-- enable/disable 开关与 upgrade 按钮(enabled 徽章一期只读)
+- upgrade 按钮
 - pi CLI 同款面板(机制就绪,加第二个消费方是纯增量)
 - 幕布内热重载提示

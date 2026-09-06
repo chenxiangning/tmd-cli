@@ -1,9 +1,11 @@
+import { Package } from "lucide-react";
 import { piFamilySessions } from "../cli-shared/piFamily";
 import { readOmpDefaultStatus } from "./configStatus";
 import { fetchOmpQuota } from "./quota";
 import { ompSessionsDir, readOmpSessionEdits } from "./edits";
-import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 import { listOmpSuggestions } from "./rpcCommands";
+import { OmpExtensionMarket } from "./market";
+import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 import type { CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 
@@ -72,6 +74,13 @@ export const cliOmpPlugin: Plugin = {
   id: "cli-omp",
   meta: { name: "OMP", abbr: "OM", desc: "OMP CLI 引擎:会话扫描、配额、状态", icon: OmpGlyph, category: "engine" },
   activate(ctx) {
+    /* 二级扩展市场:插排角标滑出面板(装卸 omp 自己的 npm 扩展)。 */
+    ctx.registerMarketPanel({
+      pluginId: "cli-omp",
+      icon: Package,
+      title: "omp 扩展市场",
+      component: OmpExtensionMarket,
+    });
     ctx.registerCliProfile({
       id: "omp",
       fetchQuota: fetchOmpQuota,

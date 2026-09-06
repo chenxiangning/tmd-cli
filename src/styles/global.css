@@ -28,6 +28,8 @@
 @import "./plugin-market.css";
 @import "./plugin-market-outlet.css";
 @import "./plugin-market-cards.css";
+@import "./omp-ext-market.css";
+@import "./omp-ext-market-cards.css";
 @import "./composer-attachments.css";
 @import "./composer-anchors.css";
 @import "./markdown-preview.css";

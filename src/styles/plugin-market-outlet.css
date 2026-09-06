@@ -153,6 +153,28 @@
   place-items: center;
 }
 
+/* 二级市场角标(有注册面板的插头;占焊点对角位之外的左上槽,引擎类非 core 不冲突) */
+.pm-plug-market {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 15px;
+  height: 15px;
+  border-radius: var(--tmd-radius-sm);
+  display: grid;
+  place-items: center;
+  color: var(--tmd-fg-subtle);
+  background: var(--tmd-bg-hover);
+  cursor: pointer;
+}
+
+.pm-plug-market:hover,
+.pm-plug-market:focus-visible {
+  color: var(--tmd-accent);
+  background: var(--tmd-accent-soft);
+  outline: none;
+}
+
 .pm-outlet.is-core .pm-plug:hover {
   animation: pm-weld-shake 0.3s;
 }

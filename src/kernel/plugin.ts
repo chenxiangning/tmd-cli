@@ -11,8 +11,9 @@ import type { CliProfile } from "./cli";
 import type { SettingsSectionContribution } from "./settingsRegistry";
 import type { FilePanelContribution } from "./filePanel";
 import type { TabContentContribution } from "./tabs";
-import type { FileVisualProvider } from "./fileVisual";
+import type { MarketPanelContribution } from "./marketPanel";
 import type { CommandContribution } from "./shortcuts";
+import type { FileVisualProvider } from "./fileVisual";
 import type { SidebarAction } from "./sidebarActions";
 export type PluginCategory = "engine" | "feature" | "core";
 
@@ -75,7 +76,9 @@ export interface PluginContext {
   registerFilePanel(panel: FilePanelContribution): void;
   /** 注册中央编辑区某 kind 的 tab 内容组件(tabs 路由注册表的 ctx 通道)。 */
   registerTabContent(contribution: TabContentContribution): void;
-  /** 注册侧栏快捷动作(齿轮菜单 + 底栏钉住;sidebarActions 注册表的 ctx 通道)。 */
+  /** 注册插件市场二级面板(插头角标 + 滑出面板,内容由插件贡献;marketPanel 注册表)。 */
+  registerMarketPanel(panel: MarketPanelContribution): void;
+  /** 注册侧栏快捷动作(图标 + 点击回调,渲染归 app-shell 侧栏)。 */
   registerSidebarAction(action: SidebarAction): void;
   /** 注册文件视觉 provider(fileVisual 注册表的 ctx 通道)。 */
   registerFileVisual(provider: FileVisualProvider): void;

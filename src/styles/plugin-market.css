@@ -211,3 +211,36 @@
   color: var(--tmd-fg-subtle);
   font-size: 11px;
 }
+
+/* ── 二级市场滑出面板(内容由注册插件贡献,壳只管开合/遮罩) ── */
+.pm-ext-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 90; /* 盖过市场页与 toast(60),低于全局 overlay(100) */
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pm-ext-panel {
+  width: min(480px, 92vw);
+  height: 100%;
+  background: var(--tmd-bg-base);
+  border-left: 1px solid var(--tmd-border-strong);
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: pm-ext-slide-in 0.18s ease-out;
+}
+
+@keyframes pm-ext-slide-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

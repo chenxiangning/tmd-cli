@@ -1,10 +1,12 @@
 //! CLI 安装器 —— 参数化安装计划的执行器,stdout/stderr 逐行流式推前端。
 //!
-//! 内核不持有任何 CLI 安装配方:通道与参数(npm 包名 / 官方脚本命令)由
-//! 前端按 CliProfile 声明传入,本模块只执行两种通用通道:
+//! 内核不持有任何 CLI 安装配方:通道与参数(npm 包名 / 官方脚本命令 / 通用
+//! 命令)由前端按 CliProfile 或面板语义传入,本模块只执行三种通用通道:
 //! - npm:全局安装最新版(`npm install -g <package>`,Windows 经 cmd /c
 //!   跑 npm.cmd shim);
-//! - script:官方安装脚本(unix `bash -c '…'`;Windows PowerShell -Command)。
+//! - script:官方安装脚本(unix `bash -c '…'`;Windows PowerShell -Command);
+//! - command:通用命令直执行(program + args 原样;Windows 经 cmd /c 兼容
+//!   .cmd shim,omp plugin 装卸等前端传参)。
 //!
 //! 事件协议(Tauri event,topic = `cli-install://{id}`,id 由前端传,惯例 = 引擎 binary):
 //! - `{ stream: "stdout"|"stderr", text }` 逐行日志;
@@ -35,6 +37,8 @@ pub enum InstallPlan {
     },
     /// 官方脚本安装(unix/windows 各一条完整命令串)。
     Script { unix: String, windows: String },
+    /// 通用命令通道:program + args 由前端传入(omp plugin 装卸等),内核零配方。
+    Command { program: String, args: Vec<String> },
 }
 
 /// 推给前端的单行事件。
@@ -46,7 +50,8 @@ pub struct CliInstallEvent {
 }
 
 /// 构造安装命令(program + args)。
-/// npm:Windows 经 cmd /c 跑 npm.cmd shim;script:unix 走 bash -c,windows 走 powershell。
+/// npm:Windows 经 cmd /c 跑 npm.cmd shim;script:unix 走 bash -c,windows 走 powershell;
+/// command:unix 直 spawn,windows 经 cmd /c 兼容 .cmd shim。
 fn install_command(plan: &InstallPlan) -> (String, Vec<String>) {
     match plan {
         InstallPlan::Npm { package } => {
@@ -88,6 +93,20 @@ fn install_command(plan: &InstallPlan) -> (String, Vec<String>) {
             );
             #[cfg(not(windows))]
             ("bash".into(), vec!["-c".into(), unix.clone()])
+        }
+        InstallPlan::Command { program, args } => {
+            /* 通用命令:unix 直 spawn;Windows 经 cmd /c 兼容 .cmd shim
+             * (npm 全局 bin 与 omp 在 Windows 上都可能是 .cmd,直 spawn 找不到)。 */
+            #[cfg(windows)]
+            return {
+                let mut wrapped = Vec::with_capacity(args.len() + 2);
+                wrapped.push("/c".to_string());
+                wrapped.push(program.clone());
+                wrapped.extend(args.iter().cloned());
+                ("cmd".into(), wrapped)
+            };
+            #[cfg(not(windows))]
+            (program.clone(), args.clone())
         }
     }
 }
@@ -238,5 +257,30 @@ mod tests {
         let plan: InstallPlan =
             serde_json::from_str(r#"{"channel":"script","unix":"u","windows":"w"}"#).unwrap();
         assert!(matches!(plan, InstallPlan::Script { .. }));
+        let plan: InstallPlan = serde_json::from_str(
+            r#"{"channel":"command","program":"omp","args":["plugin","install","pi-lens"]}"#,
+        )
+        .unwrap();
+        assert!(matches!(plan, InstallPlan::Command { .. }));
+    }
+
+    /// command 通道原样透传前端参数;Windows 侧锁死 cmd /c 包装形状。
+    #[test]
+    fn command_channel_passes_through() {
+        let plan = InstallPlan::Command {
+            program: "omp".into(),
+            args: vec!["plugin".into(), "uninstall".into(), "pi-lens".into()],
+        };
+        let (program, args) = install_command(&plan);
+        #[cfg(not(windows))]
+        {
+            assert_eq!(program, "omp");
+            assert_eq!(args, vec!["plugin", "uninstall", "pi-lens"]);
+        }
+        #[cfg(windows)]
+        {
+            assert_eq!(program, "cmd");
+            assert_eq!(args, vec!["/c", "omp", "plugin", "uninstall", "pi-lens"]);
+        }
     }
 }

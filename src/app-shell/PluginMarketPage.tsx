@@ -12,9 +12,10 @@
  * 两者不一致 = dirty,展示"重启后生效"徽章。
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Globe, List, Plug, RotateCw, X } from "lucide-react";
 import { host } from "@kernel/host";
+import { getMarketPanel } from "@kernel/marketPanel";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { appRestart } from "@kernel/ipc";
 import { CATEGORY_ORDER, MergedStrip, type Row } from "./PluginMarketStrip";
@@ -43,6 +44,17 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
   const dirtyCount = rows.filter((r) => r.dirty).length;
   /* 插排视图 ⇄ 清单列表:互斥,同页只展示一份。 */
   const [view, setView] = useState<"strip" | "list">("strip");
+  /* 二级市场滑出面板:marketFor = 打开面板的插件 id(目前仅 cli-omp 注册)。 */
+  const [marketFor, setMarketFor] = useState<string | null>(null);
+  const market = marketFor ? getMarketPanel(marketFor) : undefined;
+  useEffect(() => {
+    if (!market) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMarketFor(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [market]);
 
   /* Tauri 环境进程替换不返回;浏览器 dev invoke 抛错 → 降级整页刷新(同样重走 activateAll 过滤)。 */
   const restart = () => void appRestart().catch(() => window.location.reload());
@@ -122,7 +134,11 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
         {/* ═══ 主视图:插排 ⇄ 清单互斥(key 强制重挂载,淡入过渡) ═══ */}
         {view === "strip" ? (
           <div className="pm-view" key="strip">
-            <MergedStrip groups={groups} onToggle={toggle} />
+            <MergedStrip
+              groups={groups}
+              onToggle={toggle}
+              onOpenMarket={setMarketFor}
+            />
             <div className="pm-strip-caption">
               <span>
                 <span className="pm-legend-dot" style={{ background: "var(--tmd-accent)" }} />
@@ -153,10 +169,23 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </div>
-
       <div className={`pm-toast${toast ? " show" : ""}`} role="status">
         {toast}
       </div>
+
+      {/* ═══ 二级市场滑出面板:壳只管开合/遮罩,内容全由注册插件贡献 ═══ */}
+      {market ? (
+        <div className="pm-ext-layer" onClick={() => setMarketFor(null)}>
+          <aside
+            className="pm-ext-panel"
+            role="dialog"
+            aria-label={market.title}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <market.component onClose={() => setMarketFor(null)} />
+          </aside>
+        </div>
+      ) : null}
     </div>
   );
 }

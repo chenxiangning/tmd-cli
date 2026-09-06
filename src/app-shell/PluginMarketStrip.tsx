@@ -1,6 +1,7 @@
 // 插件市场插排视图(分类常量 + 插座单元 + 合并大插排),自 PluginMarketPage.tsx 按「纯结构拆分、行为不变」拆出
 import type { ComponentType } from "react";
 import { Lock } from "lucide-react";
+import { getMarketPanel } from "@kernel/marketPanel";
 import type { Plugin, PluginCategory } from "@kernel/plugin";
 
 /** 分类展示顺序与中文名(插排分排 + 清单分节共用)。 */
@@ -31,6 +32,7 @@ function Outlet({
   on,
   dirty,
   onToggle,
+  onOpenMarket,
 }: {
   id: string;
   name: string;
@@ -46,6 +48,8 @@ function Outlet({
   /** 期望态 ≠ 启动态 → 重启后生效。 */
   dirty: boolean;
   onToggle: (id: string) => void;
+  /** 二级市场开合(有注册面板的插头才传)。 */
+  onOpenMarket?: (id: string) => void;
 }) {
   const cls = `pm-outlet${on ? "" : " is-out"}${core ? " is-core" : ""}${dirty ? " is-dirty" : ""}`;
   const tip = core
@@ -65,6 +69,32 @@ function Outlet({
               <Lock size={10} aria-hidden />
             </span>
           ) : null}
+          {(() => {
+            const market = onOpenMarket ? getMarketPanel(id) : undefined;
+            if (!market) return null;
+            const open = () => onOpenMarket?.(id);
+            return (
+              <span
+                role="button"
+                tabIndex={0}
+                className="pm-plug-market"
+                title={market.title}
+                aria-label={market.title}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  open();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" && e.key !== " ") return;
+                  e.stopPropagation();
+                  e.preventDefault();
+                  open();
+                }}
+              >
+                <market.icon size={9} />
+              </span>
+            );
+          })()}
           <span className="pm-plug-led" aria-hidden />
           <span className="pm-plug-icon" style={iconColor ? { color: iconColor } : undefined}>
             {Icon ? <Icon size={14} /> : abbr}
@@ -92,9 +122,12 @@ function Outlet({
 export function MergedStrip({
   groups,
   onToggle,
+  onOpenMarket,
 }: {
   groups: { category: PluginCategory; rows: Row[] }[];
   onToggle: (id: string) => void;
+  /** 二级市场开合(无注册面板的插头不渲染角标)。 */
+  onOpenMarket?: (id: string) => void;
 }) {
   return (
     <div className="pm-strip-scene">
@@ -125,6 +158,7 @@ export function MergedStrip({
                   on={on}
                   dirty={dirty}
                   onToggle={onToggle}
+                  onOpenMarket={onOpenMarket}
                 />
               ))}
             </div>

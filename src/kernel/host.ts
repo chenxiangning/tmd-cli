@@ -21,6 +21,7 @@ import { registerSettingsSection } from "./settingsRegistry";
 import { registerFilePanel } from "./filePanel";
 import { registerTabContent } from "./tabs";
 import { registerFileVisual } from "./fileVisual";
+import { registerMarketPanel } from "./marketPanel";
 import type { SidebarAction } from "./sidebarActions";
 import { registerCommand } from "./shortcuts";
 
@@ -30,10 +31,8 @@ class Host implements PluginContext {
   private sessions: SessionMeta[] = [];
   private activeSessionId: string | null = null;
   private listeners = new Set<() => void>();
-  /**
-   * PTY 事件退订表:spawn 时登记输出/退出两个全局监听,会话移除时成对退订。
-   * 此前 void 掉 listen 的 UnlistenFn,每次 spawn 泄漏 2 个监听器。
-   */
+  /** PTY 事件退订表:spawn 登记输出/退出两监听,会话移除成对退订
+   * (此前 void 掉 listen 的 UnlistenFn,每次 spawn 泄漏 2 个监听器)。 */
   private ptyUnlistens = new Map<string, Array<() => void>>();
   /** 窗口聚焦态(main.tsx 挂 focus/blur 监听馈入):失焦时激活会话完成也视为未查看。 */
   private windowFocused = true;
@@ -87,6 +86,7 @@ class Host implements PluginContext {
   registerSettingsSection = registerSettingsSection;
   registerFilePanel = registerFilePanel;
   registerTabContent = registerTabContent;
+  registerMarketPanel = registerMarketPanel;
   registerSidebarAction = (action: SidebarAction): void =>
     this.registry.registerSidebarAction(action);
   registerFileVisual = registerFileVisual;
