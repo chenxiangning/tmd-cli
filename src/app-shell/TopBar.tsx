@@ -29,7 +29,7 @@ function WindowControls() {
 /**
  * 头部 —— codemoss 风格 33px titlebar,横向三区与下方三栏边界对齐:
  * - 左区:与左侧栏同宽(leftWidth 实测);macOS 红绿灯 inset 在左,折叠左栏按钮钉在左区最右缘
- * - 中区:项目面包屑靠左,占据剩余宽度
+ * - 中区:会话/编辑 tab 条靠左,占据剩余宽度
  * - 右区:与右侧栏同宽(rightWidth 实测);折叠右栏按钮钉在右区最左缘,其余 icons 保持右对齐
  */
 export function TopBar({
@@ -57,15 +57,8 @@ export function TopBar({
         style={leftOpen ? { width: "calc(var(--tmd-left-aside-w) + 4px)" } : undefined}
       >
         {platform === "macos" ? <div className="titlebar-leading" aria-hidden /> : null}
-        <button
-          type="button"
-          className="titlebar-action"
-          aria-label={leftOpen ? "收起左栏" : "展开左栏"}
-          title={leftOpen ? "收起左栏" : "展开左栏"}
-          onClick={onToggleLeft}
-        >
-          {leftOpen ? <CaretLineLeft size={14} aria-hidden /> : <CaretLineRight size={14} aria-hidden />}
-        </button>
+        {/* 插件贡献的左区按钮簇(内置终端等):经 activate(ctx) 挂点登记 */}
+        <Mounts point="header.leftCluster" />
         {/* 插件市场(插排页):整页替换下方三栏,再点或页内关闭即回 */}
         <button
           type="button"
@@ -86,11 +79,18 @@ export function TopBar({
         >
           <Tray size={14} aria-hidden />
         </button>
-        {/* 插件贡献的左区按钮簇(内置终端等):经 activate(ctx) 挂点登记 */}
-        <Mounts point="header.leftCluster" />
+        <button
+          type="button"
+          className="titlebar-action"
+          aria-label={leftOpen ? "收起左栏" : "展开左栏"}
+          title={leftOpen ? "收起左栏" : "展开左栏"}
+          onClick={onToggleLeft}
+        >
+          {leftOpen ? <CaretLineLeft size={14} aria-hidden /> : <CaretLineRight size={14} aria-hidden />}
+        </button>
       </div>
       <div className="titlebar-center" data-tauri-drag-region>
-        {/* 项目面包屑:中间区域靠左(codemoss 布局) */}
+        {/* 会话/编辑 tab 条:中间区域靠左 */}
         <Mounts point="header.breadcrumb" />
         <Mounts point="header.left" />
       </div>

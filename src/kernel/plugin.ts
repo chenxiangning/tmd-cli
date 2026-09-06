@@ -41,7 +41,7 @@ export type MountPoint =
   | "header.right"
   /** 头部左区按钮簇(折叠左栏/插件市场/回到首页所在 titlebar 左区,按钮列尾追加)。 */
   | "header.leftCluster"
-  /** 头部面包屑/工作区-会话导航区。 */
+  /** 头部中区:会话标题 tab 条与编辑 tab 条。 */
   | "header.breadcrumb"
   | "leftSidebar.section"
   /** 工作区标题行右侧动作区:贡献 icon 按钮级组件(如 session-budget 的预算入口)。 */
