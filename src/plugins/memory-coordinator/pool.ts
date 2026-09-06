@@ -20,7 +20,8 @@ import {
 } from "./protocol";
 
 async function resolvedDbPath(): Promise<string> {
-  // settings.memoryDbPath 由安装编排 bootstrap 回存;缺省走上游默认解析(paths 统一实取 home)。
+  // 上游默认解析(paths 统一实取 home)。settings.memoryDbPath 回存(bootstrap
+  // 成功后)尚未实现,接 settings 前保持单一事实源,免双路径漂移。
   return memoryDbPath();
 }
 
@@ -76,14 +77,22 @@ async function recall(projectIdentity: string, query?: string, limit = 50): Prom
 async function status(): Promise<MemoryPoolStatus> {
   const dbPath = await resolvedDbPath();
   try {
-    // 先验表结构:库不存在/未迁移时 sqlite_query 返回空集,不能当「就绪 0 条」
+    // 先验文件头:sqlite.rs 是 READ_WRITE 无 CREATE 打开,库文件不存在时
+    // open 直接报错走 catch —— 不区分则新装机(库从未落盘)会掉进 locked
+    // 分支,重新变成「迁移窗口」误报(2026-09-06 评审 P1)。头 16 字节 =
+    // SQLite 魔数;0 字节(迁移半途)同样按未就绪报。
+    const head = await ipc.fsReadHead(dbPath, 16).catch(() => "");
+    if (!head.startsWith("SQLite format 3")) {
+      return { ready: false, count: 0, dbPath: null, reason: "not-installed" };
+    }
+    // 再验表结构:库存在且可读但未迁移(空库无 memories 表)同为未就绪
     const tables = await ipc.sqliteQuery(
       dbPath,
       "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='memories'",
       [],
     );
     if (Number(tables[0]?.[0] ?? 0) === 0) {
-      return { ready: false, count: 0, dbPath: null };
+      return { ready: false, count: 0, dbPath: null, reason: "not-installed" };
     }
     const rows = await ipc.sqliteQuery(
       dbPath,
@@ -92,13 +101,12 @@ async function status(): Promise<MemoryPoolStatus> {
     );
     return { ready: true, count: Number(rows[0]?.[0] ?? 0), dbPath };
   } catch {
-    return { ready: false, count: 0, dbPath: null };
+    /* 打开/查询异常 = 库被占(锁超 3s busy)或读失败,区别于「未安装」 */
+    return { ready: false, count: 0, dbPath: null, reason: "locked" };
   }
 }
 
 export const memoryPool: MemoryPool = { recall, status };
-
-/* ── 项目身份(tmd-cli 侧复刻,见 protocol.ts 注释) ── */
 
 const identityCache = new Map<string, string | null>();
 

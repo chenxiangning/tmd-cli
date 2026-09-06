@@ -46,6 +46,7 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
   const root = workspaces.list.find((w) => w.id === workspaces.activeId)?.root ?? "";
 
   const [ready, setReady] = useState<boolean | null>(null);
+  const [poolReason, setPoolReason] = useState<"not-installed" | "locked" | null>(null);
   const [identity, setIdentity] = useState<string | null>(null);
   const [counts, setCounts] = useState<{ total: number; week: number; byHarness: [string, number][] } | null>(null);
   const [lastDream, setLastDream] = useState<string | null>(null);
@@ -61,6 +62,7 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
     if (!id) return;
     const st = await memoryPool.status();
     setReady(st.ready);
+    setPoolReason(st.reason ?? null);
     if (!st.ready) return;
     const dbPath = st.dbPath ?? "";
     const items = await memoryPool.recall(id, undefined, 200);
@@ -115,6 +117,13 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
     }
   };
 
+  /* 池不可用横幅:未安装(库缺失/未迁移)与被占用(真·迁移窗口)分开表述,
+  避免全新机器上一律误报「迁移窗口」。 */
+  const poolUnavailableText =
+    poolReason === "locked"
+      ? "共享记忆库暂不可读(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。session / composer / approvals 不受影响。"
+      : "共享记忆库尚未初始化(Magic Context 未安装或未迁移),在下方安装卡完成安装与迁移即可。session / composer / approvals 不受影响。";
+
   return (
     <div className="h-full min-h-0 overflow-y-auto bg-(--tmd-bg-base) p-3 text-[12px] text-(--tmd-fg)">
       <div className="mb-3 flex min-w-0 flex-none items-center gap-2.5">
@@ -130,12 +139,11 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
       {ready === false && (
         <div
           className="mb-3 truncate rounded-lg border border-(--tmd-border) bg-(--tmd-bg-elevated) p-3 text-[11px] text-(--tmd-fg-muted)"
-          title="共享记忆库暂不可读(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。session / composer / approvals 不受影响。"
+          title={poolUnavailableText}
         >
-          共享记忆库暂不可读(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。session / composer / approvals 不受影响。
+          {poolUnavailableText}
         </div>
       )}
-
       {/* ── 启用 + 三 harness 安装/迁移(InstallCard) ── */}
       <InstallCard onInstalled={() => void reload()} />
       {/* ── 引擎配置 ── */}

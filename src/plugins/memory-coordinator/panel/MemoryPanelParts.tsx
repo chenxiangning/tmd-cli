@@ -5,9 +5,35 @@
  * + hover 移除)/ 底部工具条(控制台切换 + 诊断 + 上游治理提示)。
  */
 
+import { useCallback, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { CATEGORY_CN, type MemoryItem } from "../protocol";
+import { memoryPool } from "../pool";
 import { toggleConsoleTab } from "../console/MemoryConsole";
+
+/**
+ * 面板诊断状态 + 执行器 —— 池就绪与池不可用两态共用(不可用态同样要能
+ * 点「诊断」排障、点「控制台」进安装流程;状态提升免两处复制)。
+ */
+export function useMemoryDiag() {
+  const [diag, setDiag] = useState<string[]>([]);
+  const [diagRunning, setDiagRunning] = useState(false);
+  const runDiag = useCallback(() => {
+    setDiagRunning(true);
+    memoryPool
+      .status()
+      .then((st) => {
+        const verdict = st.ready
+          ? "✓ 共享数据库可读"
+          : st.reason === "locked"
+            ? "✗ 共享数据库不可读(被占用,疑似迁移窗口)"
+            : "✗ 共享数据库不可读(未安装或未迁移)";
+        setDiag([verdict, `✓ 检测完成 · ${st.count} 条生效记忆`]);
+      })
+      .finally(() => setDiagRunning(false));
+  }, []);
+  return { diag, diagRunning, runDiag };
+}
 
 /** 命中词高亮:按当前查询拆段包 <mark>(大小写不敏感,首处起全部命中)。 */
 export function highlight(text: string, query: string): React.ReactNode {

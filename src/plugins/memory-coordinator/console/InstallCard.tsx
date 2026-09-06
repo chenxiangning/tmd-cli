@@ -70,8 +70,27 @@ export function InstallCard({ onInstalled }: { onInstalled: () => Promise<void> 
           }
         }
         line("$ node mc-bootstrap.mjs <magic-context-dist>");
-        const mig = await orch.runBootstrap(await pluginDistDir(), line);
-        line(mig.ok ? "✓ 迁移完成" : "✗ 迁移未完成:" + mig.message.slice(0, 120));
+        let mig = await orch.runBootstrap(await pluginDistDir(), line);
+        if (!mig.ok && mig.message === "migration-locked") {
+          /* 迁移窗口状态机:任一 omp/pi 进程活着迁移即被拒。先暂停 tmd-cli
+          自家 omp 会话(宿主全权,外部会话不动,await 进程死透)再重试一次;
+          仍锁则提示用户。 */
+          const paused = await orch.pauseOwnOmpSessions();
+          if (paused > 0) {
+            line(`⏸ 检测到共享库被占用:已暂停 tmd-cli 自家 omp 会话 ${paused} 个,重试迁移…`);
+            /* kill 返回 ≠ 锁立即可用:留半秒缓冲等 SQLite 句柄释放 */
+            const settle = Promise.withResolvers<void>();
+            setTimeout(settle.resolve, 500);
+            await settle.promise;
+            mig = await orch.runBootstrap(await pluginDistDir(), line);
+          }
+          if (!mig.ok) {
+            orch.clearPauseLedger();
+            line("✗ 仍被锁:机器上还有外部 omp/pi 进程在运行,请全部退出后重新点一次安装。");
+          }
+        }
+        if (mig.ok) line("✓ 迁移完成");
+        else if (!mig.message.startsWith("migration-locked")) line("✗ 迁移未完成:" + mig.message.slice(0, 120));
         await onInstalled();
       } finally {
         setRunning(false);

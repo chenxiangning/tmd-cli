@@ -1,7 +1,8 @@
 /**
  * 安装编排 —— 非交互安装组合 + 迁移窗口状态机(PoC 定性核心流程)。
  *
- * 管线(spec §5.1,mac/linux 已实证、win 留 PoC-6):
+ * 管线(spec §5.1;2026-09-06 三平台实证,win 新装机随契约落地
+ * docs/architecture/04-windows-platform-contract.md):
  *   检测 → 安装+配置(非交互组合)→ 迁移触发(node bootstrap)→ 验证就绪。
  *
  * 关键 PoC 事实:
@@ -15,6 +16,7 @@ import { ipc, type ProcRunResult } from "@kernel/ipc";
 import { host } from "@kernel/host";
 import { BOOTSTRAP_MJS } from "./bootstrap";
 import { detectNode, detectOmpPluginInstalled, detectSharedDbReady } from "./detect";
+import { memoryDbPath } from "../paths";
 
 export interface InstallStepResult {
   ok: boolean;
@@ -27,15 +29,14 @@ async function run(cmd: string, args: string[], timeoutMs: number): Promise<Proc
 
 export class InstallOrchestrator {
   private pausedSessionIds: string[] = [];
-
-  /** 迁移窗口第一步:暂停 tmd-cli 自家的全部 omp 会话(宿主全权,外部会话不动)。 */
-  pauseOwnOmpSessions(): number {
+  /** 迁移窗口第一步:暂停 tmd-cli 自家的全部 omp 会话(宿主全权,外部会话不动)。
+   *  必须 await 进程真正退出:kill 到 SQLite 锁释放有毫秒~秒级延迟,不等待则
+   *  紧随的 bootstrap 重试仍命中锁,误导为「外部进程占用」(2026-09-06 评审)。 */
+  async pauseOwnOmpSessions(): Promise<number> {
     const sessions = host.getSessions().filter((s) => s.profileId === "omp");
-    for (const s of sessions) {
-      void ipc.sessionKill(s.id).catch(() => undefined);
-      this.pausedSessionIds.push(s.id);
-    }
-    return this.pausedSessionIds.length;
+    await Promise.allSettled(sessions.map((s) => ipc.sessionKill(s.id)));
+    this.pausedSessionIds.push(...sessions.map((s) => s.id));
+    return sessions.length;
   }
 
   /** 恢复暂停的会话记录(仅清编排账本,重启由用户/面板操作)。 */
@@ -117,14 +118,9 @@ export class InstallOrchestrator {
       lines.push(`● 上游声明需 node ≥24,当前 v${node.version}(实测可跑,风险自担)`);
     }
     const plugin = await detectOmpPluginInstalled();
-    lines.push(`${plugin ? "✓" : "✗"} omp 插件${plugin ? "已注册" : "未注册"}`);
-    const dbReady = plugin ? await detectSharedDbReady(defaultDbPathForDiagnose()) : false;
+    const dbReady = plugin ? await detectSharedDbReady(await memoryDbPath()) : false;
     lines.push(`${dbReady ? "✓" : "✗"} 共享数据库${dbReady ? "完整性正常" : "未初始化或不可读"}`);
     return lines;
   }
 }
 
-/** 诊断用默认库路径(与 pool.ts 推断一致;bootstrap 回存后以 settings 为准)。 */
-function defaultDbPathForDiagnose(): string {
-  return ".local/share/cortexkit/magic-context/context.db";
-}

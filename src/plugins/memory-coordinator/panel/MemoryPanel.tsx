@@ -19,6 +19,7 @@ import {
   MemoryListItem,
   MemoryPanelFooter,
   MemorySelectBar,
+  useMemoryDiag,
 } from "./MemoryPanelParts";
 import { useMemoryMerge } from "./useMemoryMerge";
 
@@ -29,19 +30,19 @@ export function MemoryPanel() {
   const root = workspaces.list.find((w) => w.id === workspaces.activeId)?.root ?? "";
   const [identity, setIdentity] = useState<string | null>(null);
   const [ready, setReady] = useState<boolean | null>(null);
+  const [poolReason, setPoolReason] = useState<"not-installed" | "locked" | null>(null);
   const [count, setCount] = useState(0);
   const [items, setItems] = useState<MemoryItem[]>([]);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<string>("all");
   const [source, setSource] = useState<string>("all");
+  const { diag, diagRunning, runDiag } = useMemoryDiag();
   const [loading, setLoading] = useState(false);
-  const [diag, setDiag] = useState<string[]>([]);
   const [detailOpen, setDetailOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [dbPath, setDbPath] = useState<string | null>(null);
-  const [diagRunning, setDiagRunning] = useState(false);
   const [archivingId, setArchivingId] = useState<number | null>(null);
 
   const removeItem = async (id: number) => {
@@ -58,10 +59,12 @@ export function MemoryPanel() {
     setIdentity(id);
     if (!id) {
       setReady(false);
+      setPoolReason(null);
       return;
     }
     const st = await memoryPool.status();
     setReady(st.ready);
+    setPoolReason(st.reason ?? null);
     setCount(st.count);
     setDbPath(st.dbPath);
     if (!st.ready) return;
@@ -116,19 +119,27 @@ export function MemoryPanel() {
   }
 
   if (ready === false) {
+    /* 提前返回也必须带底部工具条:控制台入口与诊断按钮只在这里,
+    否则池不可用时入口整条消失,用户既打不开控制台也无法排障
+    (2026-09-06 win 新装机实证)。 */
     return (
-      <div className="p-3">
-        <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2.5 text-[11px] leading-relaxed text-(--tmd-fg-muted)">
-          <span className="text-(--tmd-err)">池不可用</span>
-          {identity === null
-            ? " —— 当前工作区不是 git 仓库,未纳入记忆池。"
-            : " —— 共享 SQLite 暂时读不到(可能处于迁移窗口)。"}
-          <div className="mt-1 text-(--tmd-fg-faint)">会话 / 对话框 / 审批线不受影响。</div>
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="p-3">
+          <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2.5 text-[11px] leading-relaxed text-(--tmd-fg-muted)">
+            <span className="text-(--tmd-err)">池不可用</span>
+            {identity === null
+              ? " —— 当前工作区不是 git 仓库,未纳入记忆池。"
+              : poolReason === "locked"
+                ? " —— 共享 SQLite 暂时读不到(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。"
+                : " —— Magic Context 共享库尚未初始化(未安装或未迁移),点下方「控制台」完成安装/迁移。"}
+            <div className="mt-1 text-(--tmd-fg-faint)">会话 / 对话框 / 审批线不受影响。</div>
+          </div>
         </div>
+        <div className="min-h-0 flex-1" />
+        <MemoryPanelFooter consoleOpen={consoleOpen} diag={diag} diagRunning={diagRunning} onDiag={runDiag} />
       </div>
     );
   }
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <button
@@ -274,15 +285,7 @@ export function MemoryPanel() {
         consoleOpen={consoleOpen}
         diag={diag}
         diagRunning={diagRunning}
-        onDiag={() => {
-          setDiagRunning(true);
-          memoryPool
-            .status()
-            .then((st) => {
-              setDiag([st.ready ? "✓ 共享数据库可读" : "✗ 共享数据库不可读(迁移窗口)", `✓ 检测完成 · ${st.count} 条生效记忆`]);
-            })
-            .finally(() => setDiagRunning(false));
-        }}
+        onDiag={runDiag}
       />
     </div>
   );

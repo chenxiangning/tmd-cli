@@ -77,6 +77,8 @@ export interface MemoryPoolStatus {
   count: number;
   /** 共享库绝对路径(bootstrap 回存;未就绪为 null)。 */
   dbPath: string | null;
+  /** 未就绪原因:not-installed = 库缺失/未迁移;locked = 库存在但读不开(真·迁移窗口)。 */
+  reason?: "not-installed" | "locked";
 }
 
 export interface MemoryPool {
