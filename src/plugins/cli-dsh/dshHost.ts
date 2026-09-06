@@ -169,7 +169,7 @@ export async function startHostSession(
 ): Promise<string> {
   const spawned = await spawn("dsh", {
     command: dshCommand(conn),
-    args: ["web", "--no-open", "--host", conn.host, "--port", String(conn.port)],
+    args: ["web", "--host", conn.host, "--port", String(conn.port)],
     cwd: await ipc.configHomeDir(),
     title: "DSH Host",
   });

@@ -11,7 +11,6 @@ import type { CliProfile } from "./cli";
 import type { SettingsSectionContribution } from "./settingsRegistry";
 import type { FilePanelContribution } from "./filePanel";
 import type { TabContentContribution } from "./tabs";
-import type { SessionCanvasProps } from "./sessionCanvas";
 import type { MarketPanelContribution } from "./marketPanel";
 import type { CommandContribution } from "./shortcuts";
 import type { FileVisualProvider } from "./fileVisual";
@@ -87,11 +86,6 @@ export interface PluginContext {
   registerCommand(command: CommandContribution): void;
   /** 注册首页引擎卡下方专属面板(homePanels 注册表的 ctx 通道,键 = CliProfile.id)。 */
   registerHomePanel(profileId: string, panel: ComponentType): void;
-  /** 注册某 profile 会话的中央面覆盖组件(sessionCanvas 注册表的 ctx 通道)。 */
-  registerSessionCanvas(
-    profileId: string,
-    component: ComponentType<SessionCanvasProps>,
-  ): void;
   /** 内核事件总线（跨插件通信唯一通道）。 */
   events: EventBus;
 }

@@ -9,7 +9,6 @@ import type { CliProfile } from "@kernel/cli";
 import type { PluginContext } from "@kernel/plugin";
 import { cliDshPlugin, DSH_VARIANT } from "./index";
 import { DshHostPanel } from "./hostPanel";
-import { DshCanvas } from "./dshCanvas";
 
 describe("cli-dsh 插件契约", () => {
   it("分发渠道:dsh + @deepseek-ai/dsh", () => {
@@ -28,14 +27,13 @@ describe("cli-dsh 插件契约", () => {
       },
       registerSettingsSection: () => undefined,
       registerHomePanel: () => undefined,
-      registerSessionCanvas: () => undefined,
     } as unknown as PluginContext);
     if (!profile) throw new Error("activate 未注册 profile");
 
     expect(profile.id).toBe("dsh");
     expect(profile.command).toBe("dsh");
     /* dsh 是 profile 启动器:会话即 `dsh web` 起本地 host。 */
-    expect(profile.args).toEqual(["web", "--no-open"]);
+    expect(profile.args).toEqual(["web"]);
     /* 会话即 host:单实例语义,create 撞活会话聚焦既有(kernel 契约)。 */
     expect(profile.singleInstance).toBe(true);
     /* 磁盘会话体是 zstd 压缩流、触发符未实证:一律不声明(不猜接口)。 */
@@ -50,31 +48,23 @@ describe("cli-dsh 插件契约", () => {
     expect(profile.npmPackage).toBe("@deepseek-ai/dsh");
   });
 
-  it("连接面板经 registerHomePanel 上卡、中央面经 registerSessionCanvas 登记,不注册设置 section", () => {
+  it("连接面板经 ctx.registerHomePanel 上卡(键 = profile id),不再注册设置 section", () => {
     let panelId: string | undefined;
     let panel: unknown;
     let sectionRegistered = false;
-    let canvasId: string | undefined;
-    let canvas: unknown;
     cliDshPlugin.activate({
       registerCliProfile: () => undefined,
       registerHomePanel: (id: string, component: unknown) => {
         panelId = id;
         panel = component;
       },
-      registerSessionCanvas: (id: string, component: unknown) => {
-        canvasId = id;
-        canvas = component;
-      },
       registerSettingsSection: () => {
         sectionRegistered = true;
       },
     } as unknown as PluginContext);
+
     expect(panelId).toBe("dsh");
     expect(panel).toBe(DshHostPanel);
     expect(sectionRegistered).toBe(false);
-    /* dsh 无 TUI:会话中央区注册 host Web UI 内嵌面。 */
-    expect(canvasId).toBe("dsh");
-    expect(canvas).toBe(DshCanvas);
   });
 });
