@@ -76,5 +76,6 @@
 | 2026-09-06 | [左侧工作区会话分类折叠(CLI/终端/SSH 段头开关 + 折叠计数 + settings 持久化)](superpowers/specs/2026-09-06-workspace-group-collapse-design.md) | 已落地(实现随本 spec 提交) |
 | 2026-09-06 | [omp 扩展市场:cli-omp 二级插件安装/卸载](superpowers/specs/2026-09-06-omp-extension-market-design.md) | 已落地(实现随本次提交;装卸启停真窗终验中) |
 | 2026-09-06 | [快捷键终端聚焦期放开:global 不再静默 + Ctrl+Tab 死键位修复](superpowers/specs/2026-09-06-shortcuts-terminal-focus-design.md) | 已落地 |
+| 2026-09-06 | [协作画布/管线范式探索原型集(collab-paradigm A/B/C、collaboration-mode v1/v2、风格样张 ×3)](design/) | 设计原型 |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

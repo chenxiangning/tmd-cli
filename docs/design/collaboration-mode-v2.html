@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tmd-cli · 协作画布 v2</title>
+<style>
+/* ════════════════════════════════════════════════════════════════════════
+   tmd-cli Dark Tokens (vscode-dark-modern)
+   ════════════════════════════════════════════════════════════════════════ */
+:root[data-theme="dark"] {
+  --bg0: #0d1117;      /* deepest */
+  --bg1: #161b22;      /* elevated panels */
+  --bg2: #1c2128;      /* cards */
+  --bg3: #21262d;      /* inputs / hover */
+  --bg4: #30363d;      /* borders */
+  --fg0: #f0f6fc;      /* primary text */
+  --fg1: #c9d1d9;      /* body text */
+  --fg2: #8b949e;      /* muted */
+  --fg3: #6e7681;      /* faint */
+  --fg4: #484f58;      /* disabled */
+  --accent: #58a6ff;
+  --accent-dim: rgba(88,166,255,0.15);
+  --success: #3fb950;
+  --success-dim: rgba(63,185,80,0.15);
+  --warn: #d29922;
+  --warn-dim: rgba(210,153,34,0.15);
+  --danger: #f85149;
+  --danger-dim: rgba(248,81,73,0.15);
+  --terminal-bg: #0d1117;
+  --terminal-fg: #c9d1d9;
+  --ring: 0 0 0 2px var(--accent-dim);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+* { box-sizing: border-box; margin:0; padding:0 }
+html,body { height:100%; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:13px; line-height:1.5; color:var(--fg1); background:var(--bg0); overflow:hidden }
+
+/* ── App Shell ────────────────────────────────────────────────────────── */
+.app { display:flex; flex-direction:column; height:100vh }
+.topbar { height:38px; background:var(--bg1); border-bottom:1px solid var(--bg4); display:flex; align-items:center; padding:0 16px; gap:10px; flex-shrink:0; -webkit-app-region:drag }
+.topbar > * { -webkit-app-region:no-drag }
+.app-logo { font-weight:700; font-size:12px; letter-spacing:0.5px; color:var(--fg0) }
+.breadcrumb { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--fg2) }
+.breadcrumb-sep { color:var(--fg4) }
+.topbar-actions { margin-left:auto; display:flex; gap:6px }
+
+.btn-icon { width:26px; height:26px; border-radius:6px; border:none; background:transparent; color:var(--fg2); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; transition:.15s }
+.btn-icon:hover { background:var(--bg3); color:var(--fg1) }
+
+/* ── Body Layout ──────────────────────────────────────────────────────── */
+.body { display:flex; flex:1; min-height:0 }
+
+/* Left Sidebar */
+.sidebar { width:240px; background:var(--bg1); border-right:1px solid var(--bg4); display:flex; flex-direction:column; flex-shrink:0 }
+.sidebar-h { padding:10px 14px 6px; font-size:10px; font-weight:600; color:var(--fg3); text-transform:uppercase; letter-spacing:0.8px }
+.sess-list { padding:0 8px }
+.sess-item { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:8px; cursor:pointer; font-size:12px; transition:.12s; margin-bottom:2px }
+.sess-item:hover { background:var(--bg3) }
+.sess-item.on { background:var(--accent-dim); color:var(--accent) }
+.sess-dot { width:8px; height:8px; border-radius:50%; background:var(--fg4); flex-shrink:0; position:relative }
+.sess-dot::after { content:''; position:absolute; inset:-3px; border-radius:50%; border:2px solid transparent }
+.sess-dot.live { background:var(--accent) }
+.sess-dot.live::after { border-color:var(--accent-dim); animation:pulse-ring 2s ease-out infinite }
+.sess-dot.done { background:var(--success) }
+.sess-dot.wait { background:var(--fg4) }
+@keyframes pulse-ring { 0%{transform:scale(1);opacity:1} 100%{transform:scale(1.6);opacity:0} }
+.sess-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.sess-meta { margin-left:auto; font-size:10px; color:var(--fg3) }
+
+/* ── Center: Collaboration Canvas ─────────────────────────────────────── */
+.center { flex:1; display:flex; flex-direction:column; min-width:0; position:relative }
+
+/* Canvas */
+.canvas { flex:1; position:relative; overflow:auto; background: var(--bg0) }
+.canvas::-webkit-scrollbar { width:10px; height:10px }
+.canvas::-webkit-scrollbar-track { background:transparent }
+.canvas::-webkit-scrollbar-thumb { background:var(--bg4); border-radius:5px; border:2px solid var(--bg0) }
+.canvas::-webkit-scrollbar-thumb:hover { background:#484f58 }
+
+/* Subtle grid */
+.canvas::before { content:''; position:absolute; inset:0; pointer-events:none;
+  background-image: radial-gradient(circle at center, var(--bg4) 0.5px, transparent 0.5px);
+  background-size: 32px 32px; opacity:0.4 }
+
+/* Canvas Header */
+.cv-header { position:sticky; top:0; z-index:20; padding:10px 20px; display:flex; align-items:center; gap:16px;
+  background: linear-gradient(to bottom, var(--bg0) 70%, transparent); pointer-events:none }
+.cv-header > * { pointer-events:auto }
+.cv-badge { display:flex; align-items:center; gap:8px; padding:5px 14px; border-radius:8px;
+  background:var(--bg2); border:1px solid var(--bg4); font-size:12px; font-weight:500 }
+.cv-badge .dot { width:7px; height:7px; border-radius:50% }
+.cv-badge .dot.live { background:var(--accent); box-shadow:0 0 8px var(--accent) }
+.cv-badge .dot.done { background:var(--success) }
+.cv-flow { font-size:11px; color:var(--fg3); display:flex; align-items:center; gap:6px }
+.cv-flow-arrow { color:var(--fg4); font-size:10px }
+.cv-actions { margin-left:auto; display:flex; gap:6px }
+.cv-btn { padding:5px 12px; border-radius:6px; border:1px solid var(--bg4); background:var(--bg2);
+  color:var(--fg2); font-size:11px; cursor:pointer; transition:.15s }
+.cv-btn:hover { background:var(--bg3); color:var(--fg1); border-color:var(--bg4) }
+.cv-btn.primary { background:var(--accent-dim); color:var(--accent); border-color:rgba(88,166,255,0.3) }
+.cv-btn.danger { color:var(--danger); border-color:rgba(248,81,73,0.3) }
+.cv-btn.danger:hover { background:var(--danger-dim) }
+
+/* Global Progress */
+.cv-progress { position:sticky; top:48px; z-index:19; height:2px; background:var(--bg4) }
+.cv-progress > i { display:block; height:100%; width:0%; border-radius:1px; transition:width .6s cubic-bezier(.4,0,.2,1) }
+.cv-progress > i.live { background:var(--accent); box-shadow:0 0 6px var(--accent) }
+.cv-progress > i.done { background:var(--success); box-shadow:0 0 6px var(--success) }
+
+/* Flow Wrapper */
+.flow-wrap { position:relative; padding:60px 80px; min-width:max-content; min-height:max-content }
+
+/* ── Flow Node ────────────────────────────────────────────────────────── */
+.fnode { position:absolute; width:260px; z-index:5; cursor:pointer; transition:transform .25s cubic-bezier(.34,1.56,.64,1), opacity .3s }
+.fnode:hover { transform:translateY(-3px) scale(1.01) }
+.fnode.is-live { z-index:10 }
+.fnode.enter { animation:nodeEnter .5s cubic-bezier(.34,1.56,.64,1) both }
+@keyframes nodeEnter { from{opacity:0;transform:translateY(20px) scale(.95)} to{opacity:1;transform:none} }
+
+.ncard { background:var(--bg2); border:1px solid var(--bg4); border-radius:12px; overflow:hidden;
+  box-shadow:var(--shadow); transition:box-shadow .25s, border-color .25s }
+.ncard:hover { box-shadow:var(--shadow-lg) }
+.ncard::before { content:''; position:absolute; top:0; left:0; right:0; height:2.5px; border-radius:12px 12px 0 0 }
+.ncard.is-done::before { background:var(--success) }
+.ncard.is-live::before { background:var(--accent); animation:barPulse 1.5s ease-in-out infinite }
+.ncard.is-wait::before { background:var(--bg4) }
+.ncard.is-fail::before { background:var(--danger) }
+@keyframes barPulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+/* Glow effect on live */
+.fnode.is-live .ncard { border-color:rgba(88,166,255,0.3); box-shadow:0 0 20px rgba(88,166,255,0.08), var(--shadow) }
+
+.nc-head { padding:14px 16px 10px; display:flex; align-items:center; gap:10px }
+.nc-icon { width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; flex-shrink:0; box-shadow:var(--shadow-sm) }
+.nc-icon.claude { background:linear-gradient(135deg,#d4a574,#c4925e); color:#1a1a1a }
+.nc-icon.codex  { background:linear-gradient(135deg,#58a6ff,#1f6feb); color:#fff }
+.nc-icon.grok   { background:linear-gradient(135deg,#a855f7,#7c3aed); color:#fff }
+.nc-icon.kimi   { background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff }
+.nc-icon.user   { background:var(--bg4); color:var(--fg2) }
+
+.nc-title { font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.nc-title .nc-live-badge { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent);
+  margin-left:6px; vertical-align:middle; animation:pulse-dot 1.5s ease-in-out infinite }
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.nc-meta { padding:0 16px 12px; display:flex; align-items:center; gap:6px; flex-wrap:wrap }
+.nc-chip { font-size:10px; padding:2px 8px; border-radius:5px; background:var(--bg3); color:var(--fg2); border:1px solid var(--bg4) }
+.nc-chip.accent { background:var(--accent-dim); color:var(--accent); border-color:rgba(88,166,255,0.2) }
+.nc-chip.warn { background:var(--warn-dim); color:var(--warn); border-color:rgba(210,153,34,0.2) }
+.nc-chip.success { background:var(--success-dim); color:var(--success); border-color:rgba(63,185,80,0.2) }
+
+/* PTY Preview */
+.nc-pty { padding:10px 16px; background:var(--bg0); border-top:1px solid var(--bg4);
+  font-family:'SF Mono',Monaco,Inconsolata,'Fira Code','Courier New',monospace; font-size:10.5px; line-height:1.55;
+  color:#8b949e; max-height:72px; overflow:hidden; position:relative }
+.nc-pty::after { content:''; position:absolute; bottom:0; left:0; right:0; height:28px;
+  background:linear-gradient(transparent, var(--bg0)) }
+.nc-pty .pty-prompt { color:var(--accent) }
+.nc-pty .pty-cmd { color:var(--fg1) }
+.nc-pty .pty-out { color:#8b949e }
+.nc-pty .pty-ok { color:var(--success) }
+.nc-pty .pty-warn { color:var(--warn) }
+.nc-pty .pty-err { color:var(--danger) }
+.pty-line { display:block; white-space:pre; overflow:hidden; text-overflow:ellipsis }
+.pty-cursor { display:inline-block; width:7px; height:14px; background:var(--accent); vertical-align:middle; margin-left:2px;
+  animation:cursorBlink 1s step-end infinite }
+@keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* Node Actions */
+.nc-actions { padding:8px 14px; display:flex; gap:6px; border-top:1px solid var(--bg4); background:var(--bg1) }
+.nc-btn { padding:4px 10px; border-radius:6px; border:1px solid var(--bg4); background:transparent;
+  color:var(--fg2); font-size:11px; cursor:pointer; transition:all .15s }
+.nc-btn:hover { background:var(--bg3); color:var(--fg1) }
+.nc-btn.primary { border-color:rgba(88,166,255,0.3); color:var(--accent) }
+.nc-btn.primary:hover { background:var(--accent-dim) }
+.nc-btn.danger { border-color:rgba(248,81,73,0.25); color:var(--danger) }
+
+/* Expanded Node Overlay */
+.noverlay { position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); opacity:0; pointer-events:none; transition:opacity .2s }
+.noverlay.on { opacity:1; pointer-events:auto }
+.noverlay-card { width:640px; max-width:90vw; max-height:80vh; background:var(--bg2); border:1px solid var(--bg4);
+  border-radius:16px; box-shadow:var(--shadow-lg); overflow:hidden; transform:scale(.95); transition:transform .25s cubic-bezier(.34,1.56,.64,1) }
+.noverlay.on .noverlay-card { transform:scale(1) }
+.noverlay-head { padding:16px 20px; border-bottom:1px solid var(--bg4); display:flex; align-items:center; gap:12px }
+.noverlay-body { padding:0; overflow:auto; max-height:calc(80vh - 60px) }
+.noverlay-pty { padding:16px 20px; font-family:monospace; font-size:11.5px; line-height:1.6; color:var(--fg1); white-space:pre-wrap }
+.noverlay-pty .ts { color:var(--fg3); user-select:none; margin-right:8px }
+
+/* ── SVG Connections ──────────────────────────────────────────────────── */
+.flow-svg { position:absolute; inset:0; pointer-events:none; z-index:1 }
+.fpath { fill:none; stroke:var(--bg4); stroke-width:2.5; stroke-linecap:round }
+.fpath.done { stroke:var(--success); stroke-dasharray:none }
+.fpath.live { stroke:var(--accent); stroke-dasharray:8 6; animation:flowDash 1s linear infinite }
+@keyframes flowDash { to { stroke-dashoffset:-28 } }
+.fpath-label { font-size:10px; fill:var(--fg3); font-family:sans-serif }
+.fpath-label-bg { fill:var(--bg0); rx:3 }
+
+/* Arrow markers via defs */
+
+/* ── Start Node (User Input) ──────────────────────────────────────────── */
+.fnode.start .ncard { border-style:dashed; border-color:var(--bg4); background:var(--bg1) }
+.fnode.start .ncard::before { display:none }
+
+/* ── Composer ─────────────────────────────────────────────────────────── */
+.composer { border-top:1px solid var(--bg4); background:var(--bg1); flex-shrink:0; z-index:30 }
+.comp-toolbar { padding:7px 16px; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--bg4) }
+.comp-pill-wrap { position:relative }
+.comp-pill { display:inline-flex; align-items:center; gap:7px; padding:4px 12px; border-radius:7px;
+  border:1px solid var(--bg4); background:var(--bg2); color:var(--fg2); font-size:12px; cursor:pointer;
+  transition:.15s; font-weight:500 }
+.comp-pill:hover { background:var(--bg3) }
+.comp-pill.on { border-color:rgba(88,166,255,0.4); color:var(--accent); background:var(--accent-dim) }
+.comp-pill .dot { width:6px; height:6px; border-radius:50%; background:currentColor }
+.comp-pill.busy .dot { animation:pulse-dot 1.5s ease-in-out infinite }
+
+/* Popover */
+.popover { position:absolute; bottom:calc(100% + 10px); left:-4px; width:380px; background:var(--bg2);
+  border:1px solid var(--bg4); border-radius:14px; box-shadow:var(--shadow-lg); z-index:80; overflow:hidden;
+  opacity:0; transform:translateY(8px) scale(.97); pointer-events:none; transition:all .2s cubic-bezier(.16,1,.3,1) }
+.popover.show { opacity:1; transform:none; pointer-events:auto }
+.pop-head { padding:12px 16px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--bg4) }
+.pop-title { font-weight:600; font-size:13px }
+.pop-manage { font-size:12px; color:var(--accent); background:none; border:none; cursor:pointer; font-weight:500 }
+.pop-body { max-height:360px; overflow:auto; padding:6px }
+.tpl-card { padding:12px 14px; border-radius:10px; cursor:pointer; text-align:left; width:100%;
+  background:none; border:1px solid transparent; color:inherit; font-family:inherit; transition:.15s; margin-bottom:4px }
+.tpl-card:hover { background:var(--bg3) }
+.tpl-card.on { background:var(--accent-dim); border-color:rgba(88,166,255,0.2) }
+.tpl-card-head { display:flex; align-items:center; gap:8px; margin-bottom:4px }
+.tpl-name { font-weight:600; font-size:13px }
+.tpl-tag { font-size:10px; padding:2px 7px; border-radius:4px; background:var(--bg3); color:var(--fg3) }
+.tpl-tag.custom { color:var(--accent); background:var(--accent-dim) }
+.tpl-flow { font-size:11.5px; color:var(--fg2); margin-top:2px }
+.tpl-meta { display:flex; gap:6px; margin-top:6px }
+.tpl-chip { font-size:10px; padding:2px 8px; border-radius:5px; background:var(--bg3); color:var(--fg2) }
+.tpl-chip.warn { color:var(--warn); background:var(--warn-dim) }
+.pop-foot { padding:10px; border-top:1px solid var(--bg4) }
+.pop-btn { width:100%; padding:9px; border-radius:8px; border:1px solid var(--bg4);
+  background:var(--bg3); color:var(--fg1); font-size:12px; cursor:pointer; font-weight:500; transition:.15s }
+.pop-btn:hover { background:var(--bg4) }
+.pop-btn.primary { background:var(--accent); color:#fff; border-color:var(--accent) }
+.pop-btn.primary:hover { opacity:.9 }
+.pop-btn.new { background:transparent; border-style:dashed; margin-bottom:8px }
+
+.comp-body { padding:10px 16px 12px; display:flex; gap:10px; align-items:flex-end }
+.comp-ta { flex:1; background:var(--bg3); border:1px solid var(--bg4); border-radius:10px; padding:10px 14px;
+  color:var(--fg1); font-size:13px; line-height:1.5; resize:none; outline:none; min-height:40px; max-height:140px;
+  font-family:inherit; transition:border-color .15s }
+.comp-ta:focus { border-color:var(--accent) }
+.comp-ta::placeholder { color:var(--fg4) }
+.comp-send { width:34px; height:34px; border-radius:9px; border:none; background:var(--accent); color:#fff;
+  cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; transition:.15s; flex-shrink:0 }
+.comp-send:hover { opacity:.9; transform:scale(1.05) }
+
+/* ── Right Inspector ──────────────────────────────────────────────────── */
+.inspector { width:320px; background:var(--bg1); border-left:1px solid var(--bg4); display:flex; flex-direction:column; flex-shrink:0 }
+.insp-head { padding:12px 16px; border-bottom:1px solid var(--bg4); display:flex; align-items:center; justify-content:space-between }
+.insp-title { font-weight:600; font-size:13px }
+.insp-body { flex:1; overflow:auto; padding:10px 12px }
+.insp-sect { margin-bottom:16px }
+.insp-sect-h { font-size:10px; font-weight:600; color:var(--fg3); text-transform:uppercase; letter-spacing:.8px; padding:4px 8px; margin-bottom:4px }
+.insp-item { padding:8px 10px; border-radius:8px; font-size:12px; cursor:pointer; transition:.12s; border:1px solid transparent }
+.insp-item:hover { background:var(--bg3) }
+.insp-item.on { background:var(--accent-dim); border-color:rgba(88,166,255,0.15) }
+.insp-row { display:flex; align-items:center; justify-content:space-between }
+.insp-name { font-weight:500 }
+.insp-status { font-size:10px; padding:2px 7px; border-radius:4px; font-weight:500 }
+.insp-status.done { color:var(--success); background:var(--success-dim) }
+.insp-status.live { color:var(--accent); background:var(--accent-dim) }
+.insp-status.wait { color:var(--fg3); background:var(--bg3) }
+.insp-sub { font-size:10.5px; color:var(--fg3); margin-top:3px }
+
+/* Image preview in inspector */
+.img-preview { margin:8px 0; border-radius:10px; overflow:hidden; border:1px solid var(--bg4) }
+.img-preview img { width:100%; display:block }
+.img-cap { padding:7px 12px; font-size:10.5px; color:var(--fg3); background:var(--bg2); border-top:1px solid var(--bg4) }
+
+/* PTY panel */
+.pty-block { background:var(--bg0); border-radius:8px; border:1px solid var(--bg4); padding:12px 14px;
+  font-family:'SF Mono',Monaco,monospace; font-size:11px; line-height:1.6; color:var(--fg1); max-height:200px; overflow:auto }
+.pty-block .pty-p { color:var(--accent) }
+.pty-block .pty-c { color:var(--fg0) }
+.pty-block .pty-o { color:var(--fg2) }
+.pty-block .pty-s { color:var(--success) }
+.pty-block .pty-w { color:var(--warn) }
+.pty-block .pty-e { color:var(--danger) }
+
+/* ── Status Bar ───────────────────────────────────────────────────────── */
+.statusbar { height:26px; background:var(--bg1); border-top:1px solid var(--bg4); display:flex; align-items:center;
+  padding:0 16px; gap:18px; font-size:11.5px; color:var(--fg3); flex-shrink:0 }
+.sb-item { display:flex; align-items:center; gap:6px }
+.sb-dot { width:6px; height:6px; border-radius:50% }
+.sb-dot.live { background:var(--accent); box-shadow:0 0 4px var(--accent) }
+.sb-dot.done { background:var(--success) }
+
+/* ── Modal ────────────────────────────────────────────────────────────── */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:200; display:flex; align-items:center;
+  justify-content:center; backdrop-filter:blur(6px); opacity:0; pointer-events:none; transition:opacity .25s }
+.modal-overlay.on { opacity:1; pointer-events:auto }
+.modal { background:var(--bg2); border:1px solid var(--bg4); border-radius:16px; width:920px; max-width:95vw;
+  height:680px; max-height:92vh; display:flex; flex-direction:column; box-shadow:var(--shadow-lg);
+  transform:scale(.96); transition:transform .3s cubic-bezier(.34,1.56,.64,1) }
+.modal-overlay.on .modal { transform:scale(1) }
+.modal-head { padding:14px 20px; border-bottom:1px solid var(--bg4); display:flex; align-items:center; justify-content:space-between }
+.modal-title { font-weight:600; font-size:15px }
+.modal-close { background:none; border:none; color:var(--fg3); font-size:20px; cursor:pointer; width:28px; height:28px; border-radius:6px }
+.modal-close:hover { background:var(--bg3); color:var(--fg1) }
+.modal-body { flex:1; display:flex; min-height:0; overflow:hidden }
+.modal-sidebar { width:230px; border-right:1px solid var(--bg4); overflow:auto; padding:10px }
+.mod-search { width:100%; padding:7px 12px; border-radius:8px; border:1px solid var(--bg4); background:var(--bg3);
+  color:var(--fg1); font-size:12px; outline:none; margin-bottom:10px }
+.mod-search:focus { border-color:var(--accent) }
+.mod-grp { font-size:10px; font-weight:600; color:var(--fg4); text-transform:uppercase; letter-spacing:.8px; padding:8px 8px 4px }
+.mod-item { padding:9px 10px; border-radius:8px; cursor:pointer; text-align:left; width:100%; background:none;
+  border:none; color:inherit; font-family:inherit; font-size:12px; transition:.12s }
+.mod-item:hover { background:var(--bg3) }
+.mod-item.on { background:var(--accent-dim) }
+.mod-name { font-weight:500 }
+.mod-meta { font-size:10.5px; color:var(--fg3); margin-top:2px }
+.modal-editor { flex:1; overflow:auto; padding:20px }
+.ed-row { display:flex; gap:12px; margin-bottom:14px; align-items:center }
+.ed-input { flex:1; padding:8px 12px; border-radius:8px; border:1px solid var(--bg4); background:var(--bg3);
+  color:var(--fg1); font-size:13px; outline:none; transition:border-color .15s }
+.ed-input:focus { border-color:var(--accent) }
+.stage-card { border:1px solid var(--bg4); border-radius:12px; margin-bottom:14px; overflow:hidden; background:var(--bg2) }
+.stage-head { padding:12px 14px; background:var(--bg1); display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+.stage-num { font-size:11px; color:var(--fg4); font-weight:600; width:20px; text-align:center }
+.stage-title { flex:1; min-width:80px; padding:5px 10px; border-radius:6px; border:1px solid transparent;
+  background:transparent; color:var(--fg1); font-size:13px; font-weight:600; outline:none }
+.stage-title:focus { border-color:var(--accent); background:var(--bg3) }
+.stage-target { font-size:11px; padding:4px 10px; border-radius:6px; background:var(--bg3); color:var(--fg2);
+  cursor:pointer; border:1px solid var(--bg4); transition:.12s }
+.stage-target:hover { border-color:var(--bg4); background:var(--bg4) }
+.stage-toggle { display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--fg2); cursor:pointer }
+.stage-toggle .switch { width:30px; height:17px; border-radius:9px; background:var(--bg4); border:1px solid var(--bg4);
+  position:relative; transition:.2s }
+.stage-toggle .switch.on { background:var(--accent); border-color:var(--accent) }
+.stage-toggle .switch::after { content:''; position:absolute; width:13px; height:13px; border-radius:50%;
+  background:var(--fg1); top:1px; left:1px; transition:transform .2s }
+.stage-toggle .switch.on::after { transform:translateX(13px); background:#fff }
+.stage-del { background:none; border:none; color:var(--fg4); cursor:pointer; font-size:15px; padding:4px; border-radius:4px }
+.stage-del:hover { color:var(--danger); background:var(--danger-dim) }
+.stage-prompt { width:100%; min-height:70px; padding:12px 14px; background:var(--bg0); border:none;
+  color:var(--fg1); font-size:12px; line-height:1.55; resize:vertical; outline:none; font-family:inherit;
+  border-top:1px solid var(--bg4) }
+.stage-prompt::placeholder { color:var(--fg4) }
+.modal-foot { padding:14px 20px; border-top:1px solid var(--bg4); display:flex; gap:8px; justify-content:flex-end }
+.btn { padding:7px 16px; border-radius:8px; font-size:12.5px; cursor:pointer; border:1px solid var(--bg4);
+  background:transparent; color:var(--fg1); font-weight:500; transition:.15s }
+.btn:hover { background:var(--bg3) }
+.btn.primary { background:var(--accent); color:#fff; border-color:var(--accent) }
+.btn.primary:hover { opacity:.9 }
+.btn.danger { color:var(--danger); border-color:rgba(248,81,73,0.3) }
+.btn.danger:hover { background:var(--danger-dim) }
+.add-stage { width:100%; padding:10px; border-radius:10px; border:1.5px dashed var(--bg4); background:transparent;
+  color:var(--fg3); font-size:12px; cursor:pointer; transition:.15s; margin-top:8px }
+.add-stage:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-dim) }
+
+/* ── Utilities ────────────────────────────────────────────────────────── */
+.hidden { display:none !important }
+.grow { flex:1 }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <span class="app-logo">tmd-cli</span>
+    <div class="breadcrumb">
+      <span>bug-fix</span>
+      <span class="breadcrumb-sep">/</span>
+      <span style="color:var(--accent)">协作运行中</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn-icon" title="设置">&#9881;</button>
+      <button class="btn-icon" title="最小化">&#8211;</button>
+      <button class="btn-icon" title="最大化">&#9633;</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- Left Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-h">运行中</div>
+      <div class="sess-list">
+        <div class="sess-item on">
+          <span class="sess-dot live"></span>
+          <span class="sess-name">bug-fix · 修复</span>
+          <span class="sess-meta">3m</span>
+        </div>
+        <div class="sess-item">
+          <span class="sess-dot done"></span>
+          <span class="sess-name">feat · 审查</span>
+          <span class="sess-meta">done</span>
+        </div>
+      </div>
+      <div class="sidebar-h">历史</div>
+      <div class="sess-list">
+        <div class="sess-item">
+          <span class="sess-dot done"></span>
+          <span class="sess-name">docs · 润色定稿</span>
+          <span class="sess-meta">1h</span>
+        </div>
+        <div class="sess-item">
+          <span class="sess-dot done"></span>
+          <span class="sess-name">research · 结论</span>
+          <span class="sess-meta">2h</span>
+        </div>
+      </div>
+      <div class="grow"></div>
+      <div class="sidebar-h">工作区</div>
+      <div class="sess-list">
+        <div class="sess-item">
+          <span class="sess-name" style="color:var(--fg3);font-size:11px">~/code/AI/github/tmd-cli</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center: Collaboration Canvas -->
+    <main class="center">
+      <div class="canvas" id="canvas">
+        <!-- Header -->
+        <div class="cv-header">
+          <div class="cv-badge">
+            <span class="dot live"></span>
+            <span>协作运行中 · Round 1</span>
+          </div>
+          <div class="cv-flow">
+            <span>复现定位</span><span class="cv-flow-arrow">&#10142;</span>
+            <span style="color:var(--accent);font-weight:500">修复</span><span class="cv-flow-arrow">&#10142;</span>
+            <span>回归加固</span><span class="cv-flow-arrow">&#10142;</span>
+            <span>审查收口</span>
+          </div>
+          <div class="cv-actions">
+            <button class="cv-btn" onclick="toggleView()">&#128187; 终端</button>
+            <button class="cv-btn danger" onclick="stopCollab()">&#9632; 停止</button>
+          </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="cv-progress"><i class="live" id="progressBar" style="width:50%"></i></div>
+
+        <!-- Flow -->
+        <div class="flow-wrap" id="flowWrap">
+          <svg class="flow-svg" id="flowSvg" width="100%" height="100%">
+            <defs>
+              <marker id="m-arr" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="8" markerHeight="5" orient="auto">
+                <path d="M0,0 L10,3.5 L0,7 L1.5,3.5 Z" fill="var(--bg4)"/>
+              </marker>
+              <marker id="m-live" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="8" markerHeight="5" orient="auto">
+                <path d="M0,0 L10,3.5 L0,7 L1.5,3.5 Z" fill="var(--accent)"/>
+              </marker>
+              <marker id="m-done" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="8" markerHeight="5" orient="auto">
+                <path d="M0,0 L10,3.5 L0,7 L1.5,3.5 Z" fill="var(--success)"/>
+              </marker>
+              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur"/>
+                <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+              </filter>
+            </defs>
+          </svg>
+
+          <!-- Node 0: User -->
+          <div class="fnode start enter" id="n0" style="left:0;top:200px" onclick="openNode('n0')">
+            <div class="ncard">
+              <div class="nc-head">
+                <div class="nc-icon user">U</div>
+                <div class="nc-title">用户任务</div>
+              </div>
+              <div class="nc-meta">
+                <span class="nc-chip">Shared</span>
+              </div>
+              <div class="nc-pty">
+                <span class="pty-line">修复协作模式中单节点重试的竞态问题</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Node 1: Diagnose (done) -->
+          <div class="fnode enter" id="n1" style="left:0;top:0" onclick="openNode('n1')">
+            <div class="ncard is-done">
+              <div class="nc-head">
+                <div class="nc-icon claude">C</div>
+                <div class="nc-title">复现定位</div>
+              </div>
+              <div class="nc-meta">
+                <span class="nc-chip success">Claude Code</span>
+                <span class="nc-chip">High</span>
+                <span class="nc-chip warn">已批准</span>
+              </div>
+              <div class="nc-pty">
+                <span class="pty-line"><span class="pty-prompt">$</span> <span class="pty-cmd">诊断复现路径</span></span>
+                <span class="pty-line"><span class="pty-out">根因: race condition in session lock</span></span>
+                <span class="pty-line"><span class="pty-out">影响面: sharedAgentRetryStage</span></span>
+                <span class="pty-line"><span class="pty-ok">&#10003; SUMMARY: 已定位到 chainTokens竞态</span></span>
+              </div>
+              <div class="nc-actions">
+                <button class="nc-btn" onclick="event.stopPropagation()">对话记录</button>
+                <button class="nc-btn" onclick="event.stopPropagation()">变更</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Node 2: Fix (live) -->
+          <div class="fnode is-live enter" id="n2" style="left:320px;top:0" onclick="openNode('n2')">
+            <div class="ncard is-live">
+              <div class="nc-head">
+                <div class="nc-icon codex">X</div>
+                <div class="nc-title">修复 <span class="nc-live-badge"></span></div>
+              </div>
+              <div class="nc-meta">
+                <span class="nc-chip accent">Codex CLI</span>
+                <span class="nc-chip accent">Medium</span>
+                <span class="nc-chip accent">运行中</span>
+              </div>
+              <div class="nc-pty" id="pty-n2">
+                <span class="pty-line"><span class="pty-prompt">$</span> <span class="pty-cmd">cargo test</span></span>
+                <span class="pty-line"><span class="pty-out">running 42 tests</span></span>
+                <span class="pty-line"><span class="pty-out">test collab::retry ... ok</span></span>
+                <span class="pty-line"><span class="pty-out">test collab::chain ... </span><span class="pty-cursor"></span></span>
+              </div>
+              <div class="nc-actions">
+                <button class="nc-btn danger" onclick="event.stopPropagation()">重试</button>
+                <button class="nc-btn primary" onclick="event.stopPropagation()">实时对话</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Node 3: Harden (wait) -->
+          <div class="fnode enter" id="n3" style="left:640px;top:0" onclick="openNode('n3')">
+            <div class="ncard is-wait">
+              <div class="nc-head">
+                <div class="nc-icon claude">C</div>
+                <div class="nc-title">回归加固</div>
+              </div>
+              <div class="nc-meta">
+                <span class="nc-chip">Claude Code</span>
+                <span class="nc-chip">Medium</span>
+              </div>
+              <div class="nc-pty" style="color:var(--fg3)">
+                <span class="pty-line">等待「修复」节点完成...</span>
+                <span class="pty-line">预计执行: 补边界测试 + 手测清单</span>
+              </div>
+              <div class="nc-actions">
+                <button class="nc-btn" disabled style="opacity:.4">对话记录</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Node 4: Review (wait) -->
+          <div class="fnode enter" id="n4" style="left:960px;top:0" onclick="openNode('n4')">
+            <div class="ncard is-wait">
+              <div class="nc-head">
+                <div class="nc-icon grok">G</div>
+                <div class="nc-title">审查收口</div>
+              </div>
+              <div class="nc-meta">
+                <span class="nc-chip">Grok CLI</span>
+                <span class="nc-chip">Medium</span>
+              </div>
+              <div class="nc-pty" style="color:var(--fg3)">
+                <span class="pty-line">等待「回归加固」节点完成...</span>
+              </div>
+              <div class="nc-actions">
+                <button class="nc-btn" disabled style="opacity:.4">对话记录</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Parallel branch: Test -->
+          <div class="fnode enter" id="n5" style="left:320px;top:160px" onclick="openNode('n5')">
+            <div class="ncard is-live">
+              <div class="nc-head">
+                <div class="nc-icon kimi">K</div>
+                <div class="nc-title">并行测试 <span class="nc-live-badge"></span></div>
+              </div>
+              <div class="nc-meta">
+                <span class="nc-chip accent">Kimi CLI</span>
+                <span class="nc-chip accent">并行</span>
+              </div>
+              <div class="nc-pty" id="pty-n5">
+                <span class="pty-line"><span class="pty-prompt">$</span> <span class="pty-cmd">cargo test --all-features</span></span>
+                <span class="pty-line"><span class="pty-out">test result: ok. 156 passed</span></span>
+                <span class="pty-line"><span class="pty-ok">&#10003; Coverage: 87.3%</span><span class="pty-cursor"></span></span>
+              </div>
+              <div class="nc-actions">
+                <button class="nc-btn primary" onclick="event.stopPropagation()">测试报告</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Terminal fallback -->
+      <div class="canvas hidden" id="termView" style="background:var(--terminal-bg);padding:16px;font-family:monospace;font-size:13px;color:var(--terminal-fg);white-space:pre-wrap;line-height:1.6">
+<span style="color:var(--accent)">$</span> cargo test collab::retry_agent_stage
+running 1 test
+test collab::retry_agent_stage ... ok
+
+<span style="color:var(--accent)">$</span> echo "PTY bytes &#8594; pty://out/{sessionId} &#8594; xterm.js"
+PTY bytes &#8594; pty://out/{sessionId} &#8594; xterm.js
+
+<span style="color:var(--success)">&#10003;</span> 协作画布模式已启用
+      </div>
+
+      <!-- Composer -->
+      <div class="composer">
+        <div class="comp-toolbar">
+          <div class="comp-pill-wrap">
+            <button class="comp-pill busy on" id="compPill" onclick="togglePop()">
+              <span class="dot"></span>
+              <span id="pillText">协作 · bug-fix 运行中</span>
+            </button>
+            <div class="popover" id="pop">
+              <div class="pop-head">
+                <span class="pop-title">选择协作模板</span>
+                <button class="pop-manage" onclick="openModal()">&#9881; 管理</button>
+              </div>
+              <div class="pop-body">
+                <button class="tpl-card on">
+                  <div class="tpl-card-head">
+                    <span class="tpl-name">修 Bug</span>
+                    <span class="tpl-tag">内置</span>
+                  </div>
+                  <div class="tpl-flow">复现定位 &#8594; 修复 &#8594; 回归加固 &#8594; 审查收口</div>
+                  <div class="tpl-meta"><span class="tpl-chip">批准点 &#215;1</span></div>
+                </button>
+                <button class="tpl-card">
+                  <div class="tpl-card-head">
+                    <span class="tpl-name">加功能</span>
+                    <span class="tpl-tag">内置</span>
+                  </div>
+                  <div class="tpl-flow">方案 &#8594; 实现 &#8594; 审查</div>
+                  <div class="tpl-meta"><span class="tpl-chip">批准点 &#215;1</span></div>
+                </button>
+                <button class="tpl-card">
+                  <div class="tpl-card-head">
+                    <span class="tpl-name">写文档</span>
+                    <span class="tpl-tag">内置</span>
+                  </div>
+                  <div class="tpl-flow">大纲 &#8594; 起草 &#8594; 润色定稿</div>
+                  <div class="tpl-meta"><span class="tpl-chip">批准点 &#215;1</span></div>
+                </button>
+                <button class="tpl-card">
+                  <div class="tpl-card-head">
+                    <span class="tpl-name">API 设计</span>
+                    <span class="tpl-tag custom">自定义</span>
+                  </div>
+                  <div class="tpl-flow">需求 &#8594; 契约 &#8594; 实现 &#8594; 测试</div>
+                </button>
+              </div>
+              <div class="pop-foot">
+                <button class="pop-btn new" onclick="openModal()">+ 新建自定义模板</button>
+                <button class="pop-btn primary" onclick="armCollab()">启用协作</button>
+              </div>
+            </div>
+          </div>
+          <div class="grow"></div>
+          <button class="btn-icon" title="文件引用">@</button>
+          <button class="btn-icon" title="Skill">$</button>
+          <button class="btn-icon" title="命令">/</button>
+        </div>
+        <div class="comp-body">
+          <textarea class="comp-ta" rows="2" placeholder="输入消息... 当前 bug-fix 协作模式已启用"></textarea>
+          <button class="comp-send">&#10148;</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Inspector -->
+    <aside class="inspector">
+      <div class="insp-head">
+        <span class="insp-title">&#128208; 协作详情</span>
+        <button class="btn-icon">&#10005;</button>
+      </div>
+      <div class="insp-body">
+        <div class="insp-sect">
+          <div class="insp-sect-h">运行轮次</div>
+          <div style="display:flex;gap:6px;padding:0 8px">
+            <button class="cv-btn" style="font-size:10.5px;padding:4px 10px;background:var(--accent-dim);color:var(--accent)">&#9679; Round 1</button>
+            <button class="cv-btn" style="font-size:10.5px;padding:4px 10px">&#10003; Round 2</button>
+          </div>
+        </div>
+
+        <div class="insp-sect">
+          <div class="insp-sect-h">环节</div>
+          <div class="insp-item" onclick="focusNode('n1')">
+            <div class="insp-row">
+              <span class="insp-name">1. 复现定位</span>
+              <span class="insp-status done">已完成</span>
+            </div>
+            <div class="insp-sub">Claude Code · High · 12s</div>
+          </div>
+          <div class="insp-item on" onclick="focusNode('n2')">
+            <div class="insp-row">
+              <span class="insp-name">2. 修复</span>
+              <span class="insp-status live">运行中</span>
+            </div>
+            <div class="insp-sub">Codex CLI · Medium · 3m 42s</div>
+          </div>
+          <div class="insp-item" onclick="focusNode('n3')" style="opacity:.5">
+            <div class="insp-row">
+              <span class="insp-name">3. 回归加固</span>
+              <span class="insp-status wait">等待</span>
+            </div>
+          </div>
+          <div class="insp-item" onclick="focusNode('n4')" style="opacity:.5">
+            <div class="insp-row">
+              <span class="insp-name">4. 审查收口</span>
+              <span class="insp-status wait">等待</span>
+            </div>
+          </div>
+          <div class="insp-item on" onclick="focusNode('n5')">
+            <div class="insp-row">
+              <span class="insp-name">5. 并行测试</span>
+              <span class="insp-status live">运行中</span>
+            </div>
+            <div class="insp-sub">Kimi CLI · 并行 · 1m 20s</div>
+          </div>
+        </div>
+
+        <div class="insp-sect">
+          <div class="insp-sect-h">识图捕获</div>
+          <div class="img-preview">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='100'%3E%3Crect fill='%23161b22' width='280' height='100'/%3E%3Crect x='20' y='30' width='120' height='40' rx='4' fill='%2321262d'/%3E%3Crect x='150' y='30' width='110' height='40' rx='4' fill='%233fb950' opacity='0.2'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%238b949e' font-family='monospace' font-size='11'%3E[test coverage: 87.3%25]%3C/text%3E%3C/svg%3E" alt="coverage">
+            <div class="img-cap">测试覆盖率 · 节点5自动捕获</div>
+          </div>
+        </div>
+
+        <div class="insp-sect">
+          <div class="insp-sect-h">实时 PTY</div>
+          <div class="pty-block" id="inspPty">
+            <span class="pty-p">$</span> <span class="pty-c">cargo test --all-features</span>
+            <span class="pty-o">running 156 tests</span>
+            <span class="pty-s">test result: ok. 156 passed; 0 failed</span>
+            <span class="pty-o"></span>
+            <span class="pty-p">$</span> <span class="pty-c">git diff --stat</span>
+            <span class="pty-o"> src/kernel/collab.rs    | 12 ++++++++++++</span>
+            <span class="pty-o"> src/kernel/collab.rs    |  3 +++++</span>
+            <span class="pty-o"> 2 files changed, 15 insertions(+)</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="statusbar">
+    <div class="sb-item"><span class="sb-dot live"></span><span style="color:var(--accent)">协作运行中</span></div>
+    <div class="sb-item">bug-fix · 2/5</div>
+    <div class="sb-item">节点2 · 3m 42s</div>
+    <div class="sb-item">并行测试 · 1m 20s</div>
+    <div class="grow"></div>
+    <div class="sb-item">Rust 1.82</div>
+    <div class="sb-item">tmd-cli v0.8.0</div>
+  </div>
+</div>
+
+<!-- Node Detail Overlay -->
+<div class="noverlay" id="noverlay" onclick="closeNode(event)">
+  <div class="noverlay-card" onclick="event.stopPropagation()">
+    <div class="noverlay-head">
+      <div class="nc-icon codex" id="ovIcon">X</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:14px" id="ovTitle">修复</div>
+        <div style="font-size:11px;color:var(--fg3);margin-top:2px" id="ovMeta">Codex CLI · Medium · 运行中</div>
+      </div>
+      <button class="btn-icon" onclick="closeNode()" style="font-size:18px">&#10005;</button>
+    </div>
+    <div class="noverlay-body">
+      <div class="noverlay-pty" id="ovPty"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Template Modal -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <span class="modal-title">&#9881; 协作模板管理</span>
+      <button class="modal-close" onclick="closeModal()">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-sidebar">
+        <input class="mod-search" placeholder="搜索模板...">
+        <div class="mod-grp">内置</div>
+        <button class="mod-item on"><div class="mod-name">修 Bug</div><div class="mod-meta">4 环节 · 批准点 x1</div></button>
+        <button class="mod-item"><div class="mod-name">加功能</div><div class="mod-meta">3 环节 · 批准点 x1</div></button>
+        <button class="mod-item"><div class="mod-name">写文档</div><div class="mod-meta">3 环节 · 批准点 x1</div></button>
+        <button class="mod-item"><div class="mod-name">调研</div><div class="mod-meta">3 环节</div></button>
+        <div class="mod-grp">自定义</div>
+        <button class="mod-item"><div class="mod-name">API 设计</div><div class="mod-meta">4 环节</div></button>
+      </div>
+      <div class="modal-editor">
+        <div class="ed-row">
+          <input class="ed-input" value="修 Bug" style="font-weight:600">
+          <label class="stage-toggle">
+            <span class="switch on"></span>
+            <span>默认</span>
+          </label>
+        </div>
+        <input class="ed-input" value="复现定位 &#8594; 修复 &#8594; 回归加固 &#8594; 审查收口。适合日常缺陷修复。" style="margin-bottom:18px">
+
+        <div class="stage-card">
+          <div class="stage-head">
+            <span class="stage-num">1</span>
+            <input class="stage-title" value="复现定位">
+            <button class="stage-target">Claude Code &#9660;</button>
+            <button class="stage-target">High &#9660;</button>
+            <span class="nc-chip warn">需批准</span>
+            <div class="grow"></div>
+            <label class="stage-toggle">
+              <span class="switch on"></span>
+              <span>批准点</span>
+            </label>
+            <button class="stage-del">&#128465;</button>
+          </div>
+          <textarea class="stage-prompt">你是缺陷诊断环节。只读分析:复现路径、根因假设、最小改动面、验收标准。禁止改代码/写文件。输出 SUMMARY + 结构化计划,等待人工批准。</textarea>
+        </div>
+
+        <div class="stage-card">
+          <div class="stage-head">
+            <span class="stage-num">2</span>
+            <input class="stage-title" value="修复">
+            <button class="stage-target">Codex CLI &#9660;</button>
+            <button class="stage-target">Medium &#9660;</button>
+            <div class="grow"></div>
+            <label class="stage-toggle">
+              <span class="switch"></span>
+              <span>批准点</span>
+            </label>
+            <button class="stage-del">&#128465;</button>
+          </div>
+          <textarea class="stage-prompt">按已批准的诊断实施最小修复。允许改代码与跑相关测试;禁止 commit / push / deploy。结束用简短 Markdown 说明改了什么、如何验证。</textarea>
+        </div>
+
+        <div class="stage-card">
+          <div class="stage-head">
+            <span class="stage-num">3</span>
+            <input class="stage-title" value="回归加固">
+            <button class="stage-target">Claude Code &#9660;</button>
+            <button class="stage-target">Medium &#9660;</button>
+            <div class="grow"></div>
+            <label class="stage-toggle">
+              <span class="switch"></span>
+              <span>批准点</span>
+            </label>
+            <button class="stage-del">&#128465;</button>
+          </div>
+          <textarea class="stage-prompt">针对本次修复补边界/回归用例或最小手测清单;能跑则跑相关测试。禁止无关重构与 commit/push。输出覆盖点与结果。</textarea>
+        </div>
+
+        <div class="stage-card">
+          <div class="stage-head">
+            <span class="stage-num">4</span>
+            <input class="stage-title" value="审查收口">
+            <button class="stage-target">Grok CLI &#9660;</button>
+            <button class="stage-target">Medium &#9660;</button>
+            <div class="grow"></div>
+            <label class="stage-toggle">
+              <span class="switch"></span>
+              <span>批准点</span>
+            </label>
+            <button class="stage-del">&#128465;</button>
+          </div>
+          <textarea class="stage-prompt">只输出给用户的短汇总:根因、关键改动、如何验证、残留风险。禁止再开工具大扫仓、禁止改文件。</textarea>
+        </div>
+
+        <button class="add-stage">+ 添加环节</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger" onclick="closeModal()">删除模板</button>
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="closeModal()">保存模板</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   Flow graph: nodes + connections
+   ════════════════════════════════════════════════════════════════════════ */
+const G = {
+  nodes: [
+    { id:'n0', x:40,  y:220, next:['n1'], status:'done', type:'start' },
+    { id:'n1', x:40,  y:20,  next:['n2'], status:'done' },
+    { id:'n2', x:360, y:20,  next:['n3','n5'], status:'live' },
+    { id:'n3', x:680, y:20,  next:['n4'], status:'wait' },
+    { id:'n4', x:1000,y:20,  next:[],     status:'wait' },
+    { id:'n5', x:360, y:180, next:[],     status:'live' },
+  ]
+};
+
+function placeNodes() {
+  G.nodes.forEach(n => {
+    const el = document.getElementById(n.id);
+    if (el) { el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; }
+  });
+}
+
+function drawLines() {
+  const svg = document.getElementById('flowSvg');
+  const wrap = document.getElementById('flowWrap');
+  // remove old
+  svg.querySelectorAll('.fpath, .fpath-label, .fpath-label-bg').forEach(e => e.remove());
+
+  const wrapR = wrap.getBoundingClientRect();
+
+  G.nodes.forEach(n => {
+    const from = document.getElementById(n.id);
+    if (!from) return;
+    const fr = from.getBoundingClientRect();
+    const fx = fr.right - wrapR.left;
+    const fy = fr.top + fr.height/2 - wrapR.top;
+
+    n.next.forEach(tid => {
+      const to = document.getElementById(tid);
+      if (!to) return;
+      const tr = to.getBoundingClientRect();
+      const tx = tr.left - wrapR.left;
+      const ty = tr.top + tr.height/2 - wrapR.top;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      const cpx = fx + (tx-fx)*0.5;
+      const d = `M${fx},${fy} C${cpx},${fy} ${cpx},${ty} ${tx},${ty}`;
+      path.setAttribute('d', d);
+      path.classList.add('fpath');
+
+      const toNode = G.nodes.find(x => x.id === tid);
+      const isLive = n.status === 'live' || (toNode && toNode.status === 'live');
+      const isDone = n.status === 'done';
+
+      if (isDone && toNode && toNode.status !== 'wait') {
+        path.classList.add('done');
+        path.setAttribute('marker-end','url(#m-done)');
+      } else if (isLive) {
+        path.classList.add('live');
+        path.setAttribute('marker-end','url(#m-live)');
+      } else {
+        path.setAttribute('marker-end','url(#m-arr)');
+      }
+      svg.appendChild(path);
+    });
+  });
+}
+
+/* staggered entrance */
+window.addEventListener('load', () => {
+  placeNodes();
+  G.nodes.forEach((n,i) => {
+    const el = document.getElementById(n.id);
+    if (el) { el.style.animationDelay = (i * 0.1) + 's'; }
+  });
+  setTimeout(drawLines, 50);
+});
+window.addEventListener('resize', drawLines);
+
+/* ════════════════════════════════════════════════════════════════════════
+   Interactions
+   ════════════════════════════════════════════════════════════════════════ */
+function togglePop() {
+  document.getElementById('pop').classList.toggle('show');
+}
+function openModal() {
+  document.getElementById('modal').classList.add('on');
+  document.getElementById('pop').classList.remove('show');
+}
+function closeModal(e) {
+  if (!e || e.target === e.currentTarget) document.getElementById('modal').classList.remove('on');
+}
+
+let viewMode = 'collab';
+function toggleView() {
+  const cv = document.getElementById('canvas');
+  const tv = document.getElementById('termView');
+  if (viewMode === 'collab') {
+    cv.classList.add('hidden'); tv.classList.remove('hidden'); viewMode = 'term';
+  } else {
+    tv.classList.add('hidden'); cv.classList.remove('hidden'); viewMode = 'collab';
+    setTimeout(drawLines, 50);
+  }
+}
+
+function stopCollab() {
+  const bar = document.getElementById('progressBar');
+  bar.style.width = '100%'; bar.classList.remove('live'); bar.classList.add('done');
+  document.querySelector('.cv-badge .dot').classList.remove('live');
+  document.querySelector('.cv-badge .dot').classList.add('done');
+  document.querySelector('.cv-badge span:last-child').textContent = '协作已完成';
+}
+
+function focusNode(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.scrollIntoView({ behavior:'smooth', block:'center', inline:'center' });
+    el.style.transform = 'scale(1.03)';
+    setTimeout(() => el.style.transform = '', 400);
+  }
+}
+
+function openNode(id) {
+  const node = G.nodes.find(n => n.id === id);
+  if (!node) return;
+  const nEl = document.getElementById(id);
+  const card = nEl.querySelector('.ncard');
+  const pty = nEl.querySelector('.nc-pty');
+
+  const ov = document.getElementById('noverlay');
+  document.getElementById('ovTitle').textContent = card.querySelector('.nc-title').textContent;
+  document.getElementById('ovMeta').textContent = [...card.querySelectorAll('.nc-chip')].map(c=>c.textContent).join(' · ');
+  document.getElementById('ovPty').innerHTML = pty.innerHTML;
+  ov.classList.add('on');
+}
+function closeNode(e) {
+  if (!e || e.target === e.currentTarget) document.getElementById('noverlay').classList.remove('on');
+}
+
+function armCollab() {
+  document.getElementById('pop').classList.remove('show');
+  const pill = document.getElementById('compPill');
+  pill.classList.remove('busy');
+  document.getElementById('pillText').textContent = '协作 · bug-fix 已启用';
+}
+
+/* click outside closes popover */
+document.addEventListener('click', e => {
+  const w = document.querySelector('.comp-pill-wrap');
+  if (w && !w.contains(e.target)) document.getElementById('pop').classList.remove('show');
+});
+
+/* simulate PTY typing for live nodes */
+const ptyLines = [
+  { target:'pty-n2', lines:[
+    '<span class="pty-line"><span class="pty-prompt">$</span> <span class="pty-cmd">cargo test</span></span>',
+    '<span class="pty-line"><span class="pty-out">running 42 tests</span></span>',
+    '<span class="pty-line"><span class="pty-out">test collab::retry ... ok</span></span>',
+    '<span class="pty-line"><span class="pty-out">test collab::chain ... ok</span></span>',
+    '<span class="pty-line"><span class="pty-ok">&#10003; test result: ok. 42 passed</span></span>',
+  ]},
+  { target:'pty-n5', lines:[
+    '<span class="pty-line"><span class="pty-prompt">$</span> <span class="pty-cmd">cargo test --all-features</span></span>',
+    '<span class="pty-line"><span class="pty-out">running 156 tests</span></span>',
+    '<span class="pty-line"><span class="pty-s">test result: ok. 156 passed; 0 failed</span></span>',
+    '<span class="pty-line"><span class="pty-ok">&#10003; Coverage: 87.3%</span></span>',
+  ]}
+];
+
+let lineIdx = 0;
+setInterval(() => {
+  ptyLines.forEach(pt => {
+    const el = document.getElementById(pt.target);
+    if (!el) return;
+    const idx = (Math.floor(Date.now()/3000) + pt.lines.length) % (pt.lines.length + 1);
+    el.innerHTML = pt.lines.slice(0, Math.max(1, idx)).join('') +
+      '<span class="pty-line"><span class="pty-cursor"></span></span>';
+  });
+}, 2000);
+
+/* progress bar animation */
+setInterval(() => {
+  const bar = document.getElementById('progressBar');
+  if (bar.classList.contains('done')) return;
+  const w = parseFloat(bar.style.width) || 50;
+  if (w < 75) bar.style.width = (w + 0.3) + '%';
+}, 800);
+</script>
+</body>
+</html>
