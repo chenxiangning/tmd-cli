@@ -6,6 +6,7 @@
  * 交互:点击切会话;× = 摘 tab 不杀会话(PTY 继续跑,侧栏仍在,见 store 契约);
  * 右键菜单:重命名(行内输入,同侧栏契约;未落盘禁用)/ 关闭 / 关闭其他 / 关闭全部
  * (TabContextMenu,与文件 tab 同一套 icon)。未读(完成未查看)会话缀主题色圆点。
+ * tab 前置引擎品牌 logo(host.getCliProfile().renderIcon,与侧栏分组段头同源)。
  * 设计取舍见 docs/superpowers/specs/2026-09-03-session-title-tabs-design.md。
  */
 
@@ -100,6 +101,7 @@ function SessionTabBarImpl() {
                   }
                   onClick={() => host.setActiveSession(id)}
                 >
+                  {host.getCliProfile(meta.profileId)?.renderIcon?.(12)}
                   {host.isWaitingConfirm(id) ? (
                     <span className="session-tab-dot is-ask" aria-hidden />
                   ) : host.isUnread(id) ? (

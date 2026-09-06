@@ -5,6 +5,7 @@
  * contributions 挂 header.breadcrumb(order 300),与会话 tab 条(order 200)
  * 同排。激活语义双轨并存:会话 tab 管中央幕布,编辑 tab 管编辑栏,互不打断。
  * FileTabIcon / FileTab 自 EditorCenter 原样迁入(右键菜单、最大化切换、关闭)。
+ * 溢出走马灯:滚轮竖向滚动转横向 scrollLeft,滚动条 CSS 隐藏(tab-bar.css)。
  */
 
 import { memo, useState } from "react";
@@ -102,7 +103,7 @@ function FileTab({
   );
 }
 
-/** 顶栏编辑 tab 条:无 tab 不渲染(分隔线随之消失)。 */
+/** 顶栏编辑 tab 条:无 tab 不渲染。溢出走马灯滚动,无滚动条。 */
 export const EditorTabStrip = memo(function EditorTabStrip() {
   const { tabs, activeId } = useEditorTabs();
   /** tab 右键菜单目标:作用于被右键的 tab,不强制激活。 */
@@ -111,7 +112,15 @@ export const EditorTabStrip = memo(function EditorTabStrip() {
   if (tabs.length === 0) return null;
 
   return (
-    <div className="tab-bar" role="tablist" aria-label="打开的文件">
+    <div
+      className="tab-bar"
+      role="tablist"
+      aria-label="打开的文件"
+      onWheel={(e) => {
+        /* 竖向滚轮转横向滚动;不 preventDefault(外层无纵向滚动链可劫持) */
+        e.currentTarget.scrollLeft += e.deltaY + e.deltaX;
+      }}
+    >
       <div className="tab-bar-track">
         {tabs.map((t) => (
           <FileTab

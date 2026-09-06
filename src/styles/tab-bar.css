@@ -1,11 +1,10 @@
 /* ──────────────────────────────────────────────────────────
  * Editor tab strip(顶栏中央,会话 tab 条右侧)── 2026-09-06 自编辑栏表头
- * 上移,与会话 tab 同排;双激活并存(会话管幕布、编辑 tab 管编辑栏),
- * 左缘 1px 竖线分隔(仅 tab 条渲染时出现)。
- *
+ * 上移,与会话 tab 同排;双激活并存(会话管幕布、编辑 tab 管编辑栏)。
  * 视觉与会话 tab 同语言:24px 高圆角条,hover/active 背景,无描边;
  * 每个 tab 内含:文件类型 SVG icon + 文件名 + 脏标记圆点 + 最大化切换
- * + close(hover/active 显隐,同 .session-tab-remove);溢出横向滚动,无滚动条。
+ * + close(hover/active 显隐,同 .session-tab-remove);溢出横向滚动(滚轮
+ * 横向走马灯),无滚动条。与会话 tab 的间距由 .titlebar-center 的 gap 提供。
  * ────────────────────────────────────────────────────────── */
 
 .tab-bar {
@@ -14,8 +13,6 @@
   min-width: 0;
   flex: 0 1 auto;
   height: 100%;
-  padding-left: 8px;
-  border-left: 1px solid var(--tmd-border);
   overflow-x: auto;
   scrollbar-width: none;
 }

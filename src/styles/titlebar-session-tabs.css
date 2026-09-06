@@ -51,6 +51,11 @@
   color: var(--tmd-fg);
 }
 
+/* 引擎品牌 logo(tab 前置,renderIcon 注入的 svg):禁止被 label ellipsis 挤压 */
+.session-tab-switch > svg {
+  flex: 0 0 auto;
+}
+
 .session-tab-label {
   overflow: hidden;
   text-overflow: ellipsis;
