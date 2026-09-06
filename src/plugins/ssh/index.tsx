@@ -4,7 +4,7 @@
  * 注册面:
  * - overlay:SshOverlay(主机选择器 + host key/KBI/密码提示卡);
  * - filePanel:右栏 SSH 面板(连接卡/端口转发/SFTP 树);
- * - workspace.newSessionMenu:新建会话菜单的「SSH 连接」入口;
+ * - sidebarAction:SSH 面板开关入口(左下角设置簇;topbarEntry:false = 顶栏菜单与 tab 条均不进);
  * - editorCenter.tabContent:kind="ssh-file" 远端文件编辑 tab;
  * - 设置 section:主机簿 CRUD + ~/.ssh/config 导入。
  * - shortcuts:ssh.saveRemoteFile(⌘S 保存远端文件,与 files.save 靠 when 互斥)
@@ -13,11 +13,12 @@
  * 幕布全链路(缓冲/翻页/搜索/tab 条)零分叉。
  */
 
-import { Server } from "lucide-react";
+import { HardDrive } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { ipc, type SessionMeta } from "@kernel/ipc";
 import { KernelTopics } from "@kernel/events";
 import { host } from "@kernel/host";
+import { getFilePanelMode, setFilePanelMode } from "@kernel/filePanel";
 import { getActiveTab } from "@kernel/tabs";
 import { SshOverlay } from "./SshOverlay";
 import { SshPanel } from "./panel/SshPanel";
@@ -47,7 +48,7 @@ export const sshPlugin: Plugin = {
     name: "SSH 远程",
     abbr: "SSH",
     desc: "SSH 终端会话 + SFTP 远端文件 + 本地端口转发",
-    icon: Server,
+    icon: HardDrive,
     iconColor: "#8B7CF6",
     category: "feature",
   },
@@ -66,25 +67,36 @@ export const sshPlugin: Plugin = {
       when: () => getActiveTab()?.kind === "ssh-file",
       run: () => saveRequestRef.current?.(),
     });
+    /* 面板开关入口在左下角设置簇(用户裁决 2026-09-06:顶栏「⋯」菜单与 tab 条均不进);
+       onSelect 只切面板模式,不回钉顶栏。 */
     ctx.registerFilePanel({
       id: "ssh",
       label: "SSH",
-      icon: Server,
+      icon: HardDrive,
       order: 15,
       showFileSubbar: false, // ssh 自带连接/转发/SFTP 摘要段
+      topbarEntry: false,
       component: SshPanel,
+    });
+    ctx.registerSidebarAction({
+      id: "ssh-panel",
+      label: "SSH",
+      icon: HardDrive,
+      order: 25,
+      active: () => getFilePanelMode() === "ssh",
+      onSelect: () => setFilePanelMode("ssh"),
     });
     ctx.registerSettingsSection({
       id: "ssh",
       title: "SSH 远程",
       description: "SSH 主机簿与 known_hosts 信任管理。",
-      icon: <Server size={14} aria-hidden />,
+      icon: <HardDrive size={14} aria-hidden />,
       order: 40,
       tabs: [
         {
           id: "hosts",
           title: "主机",
-          icon: <Server size={14} aria-hidden />,
+          icon: <HardDrive size={14} aria-hidden />,
           order: 0,
           component: SshSettingsSection,
         },

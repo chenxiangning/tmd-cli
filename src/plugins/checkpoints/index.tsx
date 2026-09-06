@@ -11,7 +11,7 @@
  *   sessionExited → 兜底封口,最后一轮落账
  */
 
-import { History } from "lucide-react";
+import { SealCheck } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import {
   KernelTopics,
@@ -32,7 +32,7 @@ export const checkpointsPlugin: Plugin = {
     name: "批次审批",
     abbr: "CK",
     desc: "AI 改动按轮成批:审 diff、整批或按文件回退",
-    icon: History,
+    icon: SealCheck,
     iconColor: "#2FB8AD",
     category: "feature",
   },
@@ -40,7 +40,7 @@ export const checkpointsPlugin: Plugin = {
     ctx.registerFilePanel({
       id: "checkpoints",
       label: "审批线",
-      icon: History,
+      icon: SealCheck,
       component: CheckpointsPanel,
       showFileSubbar: false, // 审批线自带摘要行(审批线 · 批次规模 · 待审计数)
       order: 10,

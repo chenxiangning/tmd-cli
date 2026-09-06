@@ -15,14 +15,15 @@
  * 组件实现见同目录:WorkspaceCard / SessionList / SessionMenu / utils。
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { host, useHost } from "@kernel/host";
 import type { Plugin } from "@kernel/plugin";
 import { Mounts } from "@kernel/Mounts";
 import { addWorkspace, useWorkspaces, type Workspace } from "@kernel/workspace";
 import { pickDirectory } from "@kernel/ipc";
+import { spinRemainder } from "@kernel/spin";
 import { updateSettings, useSettingsState } from "@kernel/settings";
-import { FolderClosed, FolderOpen, FolderPlus, ListChevronsDownUp, ListChevronsUpDown } from "lucide-react";
+import { Folders, FolderOpen, FolderSimplePlus, CaretDoubleDown, CaretDoubleUp } from "@phosphor-icons/react";
 import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
 import { WorkspaceCard } from "./WorkspaceCard";
 import { PinnedSessionsSection } from "./PinnedSessions";
@@ -41,6 +42,8 @@ function WorkspaceSection() {
   } | null>(null);
   const [refreshTicks, setRefreshTicks] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
+  /** 各 key 转圈起始时刻:scanDone 兜底转满一圈(kernel/spin),数据再快也不闪断。 */
+  const spinStartRef = useRef<Record<string, number>>({});
   /** 各工作区折叠态(持久化):读写全局 settings.workspaceCollapsedMap,重启恢复。 */
   const { settings } = useSettingsState();
   const collapsedMap = settings.workspaceCollapsedMap;
@@ -86,13 +89,17 @@ function WorkspaceSection() {
   /** 刷新键 = 工作区:CLI —— tick 触发重扫,scanDone 清 spin。 */
   const bumpTick = (workspaceId: string, profileId: string) => {
     const key = `${workspaceId}:${profileId}`;
+    spinStartRef.current[key] = Date.now();
     setRefreshing((prev) => ({ ...prev, [key]: true }));
     setRefreshTicks((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
   };
 
   const scanDone = (workspaceId: string, profileId: string) => {
     const key = `${workspaceId}:${profileId}`;
-    setRefreshing((prev) => ({ ...prev, [key]: false }));
+    const clear = () => setRefreshing((prev) => ({ ...prev, [key]: false }));
+    const wait = spinRemainder(spinStartRef.current[key] ?? 0);
+    if (wait > 0) setTimeout(clear, wait);
+    else clear();
   };
 
   return (
@@ -102,7 +109,7 @@ function WorkspaceSection() {
 
       <div className="ws-caption">
         <span className="ws-caption-label">
-          <FolderClosed size={11} aria-hidden className="ws-caption-icon" />
+          <Folders size={11} aria-hidden className="ws-caption-icon" />
           工作区
         </span>
         <span className="ws-caption-actions">
@@ -134,9 +141,9 @@ function WorkspaceSection() {
             onClick={() => setAllCollapsed(!allCollapsed)}
           >
             {allCollapsed ? (
-              <ListChevronsUpDown size={13} aria-hidden />
+              <CaretDoubleUp size={13} aria-hidden />
             ) : (
-              <ListChevronsDownUp size={13} aria-hidden />
+              <CaretDoubleDown size={13} aria-hidden />
             )}
           </button>
           {/* 插件贡献的动作位(如 session-budget 的预算入口),渲染器 = kernel Mounts */}
@@ -146,7 +153,7 @@ function WorkspaceSection() {
             title="添加工作区"
             onClick={() => void handleAdd()}
           >
-            <FolderPlus size={13} aria-hidden />
+            <FolderSimplePlus size={13} aria-hidden />
           </button>
         </span>
       </div>

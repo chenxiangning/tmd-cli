@@ -10,13 +10,7 @@
 
 import { memo, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
-import {
-  Check,
-  Ellipsis,
-  FilePlus2,
-  FolderPlus,
-  RefreshCw,
-} from "lucide-react";
+import { Check, DotsThree, FilePlus, FolderSimplePlus, ArrowClockwise } from "@phosphor-icons/react";
 import {
   setFilePanelMode,
   togglePinned,
@@ -42,7 +36,9 @@ export function TopBarPanelTabs() {
   const ActiveToolbar = panels.find((p) => p.id === mode)?.toolbar;
 
   /* 外显 tab = 已钉住 + 当前激活(未钉也临时外显) */
-  const visiblePanels = panels.filter((p) => pinnedIds.has(p.id) || p.id === mode);
+  const visiblePanels = panels.filter(
+    (p) => p.topbarEntry !== false && (pinnedIds.has(p.id) || p.id === mode),
+  );
 
   const toggleOverflow = (e: ReactMouseEvent<HTMLButtonElement>) => {
     if (overflowPos) {
@@ -87,7 +83,7 @@ export function TopBarPanelTabs() {
         aria-label="更多面板"
         title="更多面板"
       >
-        <Ellipsis aria-hidden />
+        <DotsThree aria-hidden />
       </button>
 
       {overflowPos ? (
@@ -133,7 +129,9 @@ function PanelOverflowMenu({
     <>
       <div className="panel-overflow-backdrop" onClick={onClose} />
       <div className="panel-overflow-menu" style={{ left: position.x, top: position.y }} role="menu">
-        {panels.map((panel) => {
+        {panels
+          .filter((p) => p.topbarEntry !== false)
+          .map((panel) => {
           const Icon = panel.icon;
           const isActive = panel.id === mode;
           const isChecked = pinnedIds.has(panel.id);
@@ -214,7 +212,7 @@ function WorkspaceSubbar() {
           disabled={!activePanel?.newFile}
           onClick={() => activePanel?.newFile?.()}
         >
-          <FilePlus2 size={12} aria-hidden />
+          <FilePlus size={12} aria-hidden />
         </button>
         <button
           type="button"
@@ -224,7 +222,7 @@ function WorkspaceSubbar() {
           disabled={!activePanel?.newFolder}
           onClick={() => activePanel?.newFolder?.()}
         >
-          <FolderPlus size={12} aria-hidden />
+          <FolderSimplePlus size={12} aria-hidden />
         </button>
         <button
           type="button"
@@ -233,7 +231,7 @@ function WorkspaceSubbar() {
           title="刷新文件树"
           onClick={handleRefreshFiles}
         >
-          <RefreshCw
+          <ArrowClockwise
             size={12}
             aria-hidden
             className={refreshBusy ? "animate-spin" : undefined}

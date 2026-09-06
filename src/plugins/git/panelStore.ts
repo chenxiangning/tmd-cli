@@ -8,6 +8,7 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { spinRemainder } from "@kernel/spin";
 import type { GitTotals } from "@kernel/ipc";
 import { getSettingsState, updateSettings, type GitFileListLayout, type GitPanelView } from "@kernel/settings";
 
@@ -87,11 +88,36 @@ export function setGitAggregate(next: GitAggregate): void {
   emit();
 }
 
-/** ⟳ 转圈开关:GitPanel 批量刷新发起/结束时调用,按钮据此显示 loading。 */
+/** ⟳ 转圈开关:GitPanel 批量刷新发起/结束时调用,按钮据此显示 loading。
+ *  收尾经 kernel/spin 兜底:数据再快也转满一圈,防「没点上」错觉;
+ *  兜底等待期间再发起(true)会取消挂起的收尾,连续刷新不吞圈。 */
+let spinStartedAt = 0;
+let spinClearTimer: number | null = null;
 export function setGitRefreshing(refreshing: boolean): void {
-  if (state.refreshing === refreshing) return;
-  state.refreshing = refreshing;
-  emit();
+  if (refreshing) {
+    if (spinClearTimer !== null) {
+      clearTimeout(spinClearTimer);
+      spinClearTimer = null;
+    }
+    if (state.refreshing) return;
+    state.refreshing = true;
+    spinStartedAt = Date.now();
+    emit();
+    return;
+  }
+  if (!state.refreshing || spinClearTimer !== null) return;
+  const wait = spinRemainder(spinStartedAt);
+  if (wait === 0) {
+    state.refreshing = false;
+    emit();
+    return;
+  }
+  spinClearTimer = window.setTimeout(() => {
+    spinClearTimer = null;
+    if (!state.refreshing) return;
+    state.refreshing = false;
+    emit();
+  }, wait);
 }
 
 let remoteDialogNonce = 0;

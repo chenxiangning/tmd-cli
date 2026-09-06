@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspaces } from "@kernel/workspace";
 import { host } from "@kernel/host";
+import { spinRemainder } from "@kernel/spin";
 import { ipc, type GitAheadBehind, type GitRemoteRequest } from "@kernel/ipc";
 import { useGitStatus } from "./hooks/useGitStatus";
 import { useGitTotals } from "./hooks/useGitTotals";
@@ -131,14 +132,21 @@ export function GitPanel() {
       setDialog(null);
       setRemoteBusy(op);
       setNotice(null);
+      /* 转圈兜底:数据再快也转满一圈(kernel/spin),否则用户以为没点上。 */
+      const startedAt = Date.now();
+      const finishSpin = () => setRemoteBusy(null);
       ipc.gitRemoteRequest(cwd, req).then(
         () => {
-          setRemoteBusy(null);
+          const wait = spinRemainder(startedAt);
+          if (wait > 0) setTimeout(finishSpin, wait);
+          else finishSpin();
           setNotice(`${opLabel}成功。`);
           afterMutation();
         },
         (e: unknown) => {
-          setRemoteBusy(null);
+          const wait = spinRemainder(startedAt);
+          if (wait > 0) setTimeout(finishSpin, wait);
+          else finishSpin();
           setNotice(
             isAuth(e)
               ? `${opLabel}失败:凭据需要交互,请到幕布终端执行 git ${op}`

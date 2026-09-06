@@ -1,16 +1,17 @@
 /**
  * GitPanel 横条件 —— 自 GitPanel.tsx 拆出(文件规模铁则)。
- * GitRemoteBar = 聚合行(分支 → upstream · fetch/pull/push 语义图标,点击开对话框,
+ * GitRemoteBar = 聚合行(分支 → upstream · ⟳ 刷新 + fetch/pull/push 语义图标,点击开对话框,
  * behind/ahead 计数上按钮);SmartSwitchUndoBanner = 「暂存并切换」冲突还原横幅
  * (确认框自带,GitConfirmDialog 是 fixed portal,挂此处不影响层级)。
  */
 
 import { useState } from "react";
-import { CloudDownload, Download, Loader2, Upload } from "lucide-react";
+import { ArrowClockwise, CloudArrowDown, DownloadSimple, CircleNotch, UploadSimple } from "@phosphor-icons/react";
 import { ipc, type GitAheadBehind, type GitRemoteRequest } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
 import { clearSmartSwitchOrigin } from "../panelStore";
 import { GitConfirmDialog, type GitConfirmState } from "./GitConfirmDialog";
+import { bumpGitRefresh, useGitPanelState } from "../panelStore";
 
 type RemoteOp = GitRemoteRequest["op"];
 
@@ -31,6 +32,7 @@ export function GitRemoteBar({
   hasUpstream: boolean;
   onOpenDialog: (op: RemoteOp) => void;
 }) {
+  const { refreshing } = useGitPanelState();
   return (
     <div className="flex h-7 shrink-0 items-center gap-2 overflow-hidden whitespace-nowrap border-b border-(--tmd-border) px-2 text-(--tmd-fg-muted)">
       <span className="shrink-0 font-medium text-(--tmd-fg)">{branch ?? "…"}</span>
@@ -40,15 +42,25 @@ export function GitRemoteBar({
       <span className="flex-1" />
       <div className="flex items-center gap-0.5">
       <button
+        onClick={bumpGitRefresh}
+        title="刷新(重扫状态/分支/历史)"
+        className="rounded p-1 hover:bg-(--tmd-bg-hover)"
+      >
+        <ArrowClockwise
+          className={`h-3.5 w-3.5${refreshing ? " animate-spin" : ""}`}
+          aria-hidden
+        />
+      </button>
+      <button
         onClick={() => onOpenDialog("fetch")}
         disabled={remoteBusy !== null || detached}
         title="获取远端更新(fetch --all --prune,不动本地分支)"
         className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
         {remoteBusy === "fetch" ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <CircleNotch className="h-3.5 w-3.5 animate-spin" />
         ) : (
-          <CloudDownload className="h-3.5 w-3.5" />
+          <CloudArrowDown className="h-3.5 w-3.5" />
         )}
       </button>
       <button
@@ -62,9 +74,9 @@ export function GitRemoteBar({
         className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
         {remoteBusy === "pull" ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <CircleNotch className="h-3.5 w-3.5 animate-spin" />
         ) : (
-          <Download className="h-3.5 w-3.5" />
+          <DownloadSimple className="h-3.5 w-3.5" />
         )}
         {(aheadBehind?.behind ?? 0) > 0 && aheadBehind!.behind}
       </button>
@@ -81,9 +93,9 @@ export function GitRemoteBar({
         className="flex items-center gap-0.5 rounded px-1 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
         {remoteBusy === "push" ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <CircleNotch className="h-3.5 w-3.5 animate-spin" />
         ) : (
-          <Upload className="h-3.5 w-3.5" />
+          <UploadSimple className="h-3.5 w-3.5" />
         )}
         {(aheadBehind?.ahead ?? 0) > 0 && aheadBehind!.ahead}
       </button>
