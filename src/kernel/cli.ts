@@ -233,10 +233,11 @@ export interface CliProfile {
    * 多行粘贴逐行提交)。composer 是整串一次性写入 PTY,正文 + \r 同帧到达,
    * 在 kimi 0.40 实测必中:文本进了输入框但回车被吞,须再到幕布手按回车。
    * 包上标记后 CLI 走 handlePaste 通路并复位启发式,随后的 CR 正常提交 ——
-   * 与真实终端粘贴行为一致。未声明 = 维持裸文本 + CR(claude/codex/grok/qoder
-   * 等:它们的 TUI 无此启发式,注入未知转义反而有风险)。omp 初判"实测正常",
-   * 后被 win 侧偶发复现打脸(同源 pi-tui,启发式与渲染时机竞态)—— 已归入
-   * 声明阵营;新增 CLI 时先确认编辑器是否 pi-tui 系再决定是否声明。
+   * 与真实终端粘贴行为一致。未声明 = 维持裸文本 + CR。
+   * 阵营(2026-09-06 PTY 探针实测):kimi/pi/omp(pi-tui 系)+ codex(crossterm,
+   * 启动/恢复窗与斜杠弹层活跃态裸 CR 被吞,BP 后 /model 稳定执行)。grok 实测
+   * 反例:BP 块被整体吞掉不提交,必须维持裸文本 —— 新增 CLI 时两态都要探针实测
+   * (就绪态 + 启动/恢复窗),不得按家族推测。
    */
   bracketedPaste?: boolean;
 

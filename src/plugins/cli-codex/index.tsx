@@ -264,6 +264,10 @@ export const cliCodexPlugin: Plugin = {
         command: CODEX_COMMAND_SUGGESTIONS,
         skill: [],
       },
+      /* bracketedPaste:实测(PTY 探针)裸「文本+CR」单 chunk 在 codex 启动/恢复窗
+         与斜杠弹层活跃态会被编辑器吞掉回车,BP 标记后 /model 稳定执行。
+         codex 非 pi-tui 系,但 crossterm 同样启用 BP 模式(见 kernel/cli.ts)。 */
+      bracketedPaste: true,
       /* 技能真相:扫 .agents/skills + ~/.codex/skills(含 .system)+ 插件缓存;
          ~/.codex/prompts 已废弃不扫,命令走静态表 */
       listSuggestions: listCodexSuggestions,
