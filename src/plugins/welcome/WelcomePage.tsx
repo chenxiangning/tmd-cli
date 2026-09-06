@@ -12,6 +12,7 @@ import { openExternalUrl } from "@kernel/ipc";
 
 import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { host, useHost } from "@kernel/host";
+import { useHomePanels } from "@kernel/homePanels";
 import {
   engineMetas,
   type EngineMeta,
@@ -62,6 +63,7 @@ function EngineSection({
   const engineId = meta.id;
   const profile = host.getCliProfile(engineId);
   const [install, startInstall] = useEngineInstall(meta, onProbe);
+  const HomePanel = useHomePanels().get(engineId);
   /* 依赖安装完成 → 重探依赖;探针 ok 后 EngineCard 的主引擎按钮自动解锁。 */
   const requires = meta.requires ?? null;
   const [depInstall, startDepInstall] = useEngineInstall(requires, () => {
@@ -83,6 +85,7 @@ function EngineSection({
         onDepProbe={() => requires && onDepProbe(requires.binary)}
       />
       {probe.status === "ok" && <CredentialList engineId={engineId} />}
+      {HomePanel && <HomePanel />}
     </div>
   );
 }

@@ -1,12 +1,13 @@
 /**
- * DSH host 连接面板纯函数契约:连接归一/持久化 + host.describe 线格式
- * (codemoss host.rs 同款:client-request → server-response 信封)。
+ * DSH host 连接域逻辑契约:连接归一/持久化(含 customBin/autoStart 与
+ * 旧档字段补默认)+ host.describe 线格式(codemoss host.rs 同款信封)。
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_CONNECTION,
   describeRequestBody,
+  dshCommand,
   loadConnection,
   normalizeConnection,
   originOf,
@@ -28,14 +29,27 @@ afterEach(() => {
 });
 
 describe("normalizeConnection", () => {
-  it("空 host / 非法端口回默认 127.0.0.1:3080", () => {
-    expect(normalizeConnection("", "abc")).toEqual({ host: "127.0.0.1", port: 3080 });
+  it("空 host / 非法端口回默认 127.0.0.1:3080,其余字段沿用 base", () => {
+    expect(normalizeConnection("", "abc")).toEqual(DEFAULT_CONNECTION);
+    expect(
+      normalizeConnection("", "abc", {
+        host: "0.0.0.0",
+        port: 4000,
+        customBin: "/opt/dsh",
+        autoStart: false,
+      }),
+    ).toEqual({ host: "127.0.0.1", port: 3080, customBin: "/opt/dsh", autoStart: false });
   });
 
   it("端口截到 1-65535", () => {
     expect(normalizeConnection(" 0.0.0.0 ", "0").port).toBe(1);
     expect(normalizeConnection("0.0.0.0", "99999").port).toBe(65535);
-    expect(normalizeConnection("0.0.0.0", "8080")).toEqual({ host: "0.0.0.0", port: 8080 });
+    expect(normalizeConnection("0.0.0.0", "8080")).toEqual({
+      host: "0.0.0.0",
+      port: 8080,
+      customBin: "",
+      autoStart: true,
+    });
   });
 });
 
@@ -46,23 +60,42 @@ describe("loadConnection / saveConnection", () => {
     expect(loadConnection()).toEqual(DEFAULT_CONNECTION);
   });
 
-  it("存档round-trip;坏字段逐项回默认", () => {
-    saveConnection({ host: "0.0.0.0", port: 4000 });
-    expect(loadConnection()).toEqual({ host: "0.0.0.0", port: 4000 });
+  it("存档 round-trip;旧档缺字段逐项补默认", () => {
+    saveConnection({ host: "0.0.0.0", port: 4000, customBin: "/opt/dsh", autoStart: false });
+    expect(loadConnection()).toEqual({
+      host: "0.0.0.0",
+      port: 4000,
+      customBin: "/opt/dsh",
+      autoStart: false,
+    });
     localStorage.setItem(DSH_CONNECTION_KEY, JSON.stringify({ host: "", port: -3 }));
     expect(loadConnection()).toEqual(DEFAULT_CONNECTION);
+    localStorage.setItem(DSH_CONNECTION_KEY, JSON.stringify({ host: "0.0.0.0", port: 4000 }));
+    expect(loadConnection()).toEqual({ ...DEFAULT_CONNECTION, host: "0.0.0.0", port: 4000 });
   });
 });
 
-describe("host.describe 线格式", () => {
+describe("启动命令与 describe 线格式", () => {
+  it("dshCommand:自定义路径优先,空串回退 PATH 的 dsh", () => {
+    expect(dshCommand({ ...DEFAULT_CONNECTION, customBin: " /opt/dsh " })).toBe("/opt/dsh");
+    expect(dshCommand(DEFAULT_CONNECTION)).toBe("dsh");
+  });
+
   it("请求体:client-request + host.describe + 空 payload", () => {
     expect(describeRequestBody("rpc-1")).toBe(
-      JSON.stringify({ type: "client-request", rpcId: "rpc-1", method: "host.describe", payload: {} }),
+      JSON.stringify({
+        type: "client-request",
+        rpcId: "rpc-1",
+        method: "host.describe",
+        payload: {},
+      }),
     );
   });
 
   it("origin 拼接", () => {
-    expect(originOf({ host: "127.0.0.1", port: 3080 })).toBe("http://127.0.0.1:3080");
+    expect(originOf({ host: "127.0.0.1", port: 3080, customBin: "", autoStart: true })).toBe(
+      "http://127.0.0.1:3080",
+    );
   });
 });
 
@@ -81,23 +114,28 @@ describe("parseDescribeResponse", () => {
   });
 
   it("缺字段返回部分视图;value 非对象返回空视图", () => {
-    expect(parseDescribeResponse(200, {
-      type: "server-response",
-      result: { ok: true, value: { provider: "deepseek" } },
-    })).toEqual({ provider: "deepseek" });
-    expect(parseDescribeResponse(200, {
-      type: "server-response",
-      result: { ok: true, value: "plain" },
-    })).toEqual({});
+    expect(
+      parseDescribeResponse(200, {
+        type: "server-response",
+        result: { ok: true, value: { provider: "deepseek" } },
+      }),
+    ).toEqual({ provider: "deepseek" });
+    expect(
+      parseDescribeResponse(200, { type: "server-response", result: { ok: true, value: "plain" } }),
+    ).toEqual({});
   });
 
   it("ok:false / 信封错型 / 非 200 / 抛错输入 → null", () => {
-    expect(parseDescribeResponse(200, {
-      type: "server-response",
-      result: { ok: false, error: { code: "x", message: "boom" } },
-    })).toBeNull();
+    expect(
+      parseDescribeResponse(200, {
+        type: "server-response",
+        result: { ok: false, error: { code: "x", message: "boom" } },
+      }),
+    ).toBeNull();
     expect(parseDescribeResponse(200, { type: "other" })).toBeNull();
-    expect(parseDescribeResponse(502, { type: "server-response", result: { ok: true, value: {} } })).toBeNull();
+    expect(
+      parseDescribeResponse(502, { type: "server-response", result: { ok: true, value: {} } }),
+    ).toBeNull();
     expect(parseDescribeResponse(200, null)).toBeNull();
   });
 });

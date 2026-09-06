@@ -66,21 +66,7 @@ export const cliDshPlugin: Plugin = {
           "npm i -g --maxsockets=1 --fetch-retries=5 --no-audit --no-fund @deepseek-ai/dsh@latest",
       },
     });
-    ctx.registerSettingsSection({
-      id: "dsh",
-      title: "DeepSeek Harness",
-      description: "DSH 本地 host 的安装与连接引导。",
-      icon: <DshGlyph size={14} />,
-      order: 45,
-      tabs: [
-        {
-          id: "connection",
-          title: "连接",
-          icon: <DshGlyph size={14} />,
-          order: 0,
-          component: DshHostPanel,
-        },
-      ],
-    });
+    /* 连接引导面板经 homePanels 注册表上卡(键 = profile id),不占 CliProfile 字段。 */
+    ctx.registerHomePanel(DSH_VARIANT.profileId, DshHostPanel);
   },
 };

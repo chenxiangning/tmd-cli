@@ -1,13 +1,14 @@
 /**
- * cli-dsh 接线契约:分发渠道常量 + activate 注册的 profile / 设置 section 形状。
+ * cli-dsh 接线契约:分发渠道常量 + activate 注册的 profile / homePanel 形状。
  * 对接口径移植自 codemoss(加固 npm 安装 + web host 启动),此处只锁接线;
- * host.describe 线格式与面板纯函数由 hostPanel.test.ts 守护。
+ * host.describe 线格式与面板纯函数由 dshHost.test.ts 守护。
  */
 
 import { describe, expect, it } from "vitest";
 import type { CliProfile } from "@kernel/cli";
 import type { PluginContext } from "@kernel/plugin";
 import { cliDshPlugin, DSH_VARIANT } from "./index";
+import { DshHostPanel } from "./hostPanel";
 
 describe("cli-dsh 插件契约", () => {
   it("分发渠道:dsh + @deepseek-ai/dsh", () => {
@@ -25,6 +26,7 @@ describe("cli-dsh 插件契约", () => {
         profile = p;
       },
       registerSettingsSection: () => undefined,
+      registerHomePanel: () => undefined,
     } as unknown as PluginContext);
     if (!profile) throw new Error("activate 未注册 profile");
 
@@ -44,18 +46,23 @@ describe("cli-dsh 插件契约", () => {
     expect(profile.npmPackage).toBe("@deepseek-ai/dsh");
   });
 
-  it("activate 注册设置 section:连接面板单 tab", () => {
-    let section: { id: string; tabs: { id: string; component: unknown }[] } | undefined;
+  it("连接面板经 ctx.registerHomePanel 上卡(键 = profile id),不再注册设置 section", () => {
+    let panelId: string | undefined;
+    let panel: unknown;
+    let sectionRegistered = false;
     cliDshPlugin.activate({
       registerCliProfile: () => undefined,
-      registerSettingsSection: (s: unknown) => {
-        section = s as typeof section;
+      registerHomePanel: (id: string, component: unknown) => {
+        panelId = id;
+        panel = component;
+      },
+      registerSettingsSection: () => {
+        sectionRegistered = true;
       },
     } as unknown as PluginContext);
-    if (!section) throw new Error("activate 未注册设置 section");
 
-    expect(section.id).toBe("dsh");
-    expect(section.tabs.map((t) => t.id)).toEqual(["connection"]);
-    expect(section.tabs[0].component).toBeDefined();
+    expect(panelId).toBe("dsh");
+    expect(panel).toBe(DshHostPanel);
+    expect(sectionRegistered).toBe(false);
   });
 });

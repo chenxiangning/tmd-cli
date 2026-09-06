@@ -4,11 +4,15 @@
  *   {type:"client-request",rpcId,method,payload} → {type:"server-response",
  *   rpcId,result:{ok,value}|{ok,error}}(codemoss host.rs 同款),走通用
  *   quota_fetch HTTP 通道,内核零配方。
- * - 启动 = PTY 会话跑 `dsh web --host H --port P`:会话即 host,日志在幕布,
- *   杀会话即停服务。仅登记本面板拉起的会话 id;外部(终端/mossx)拉起的 host
- *   一律 adopt 不碰 —— codemoss supervisor「只 kill 自 spawn」同语义。
- * - host/port 持久化 localStorage(tmd.dsh.connection.v1,默认 127.0.0.1:3080,
- *   同 codemoss DshRuntimeSettings 默认值)。
+ * - 启动 = PTY 会话跑 `<dsh|自定义路径> web --host H --port P`:会话即 host,
+ *   日志在幕布,杀会话即停服务。仅登记本面板拉起的会话 id;外部(终端/mossx)
+ *   拉起的 host 一律 adopt 不碰 —— codemoss supervisor「只 kill 自 spawn」同语义。
+ * - 连接配置持久化 localStorage(tmd.dsh.connection.v1):host/port/customBin/
+ *   autoStart,默认 127.0.0.1:3080 / 空(PATH) / 开 —— 口径对齐 codemoss
+ *   DshRuntimeSettings(dshBin/dshHost/dshPort/dshAutoStart 默认值)。
+ * - 自动启动语义(codemoss 同款):进首页且 host 未运行时自动拉起;
+ *   拨开关不立刻启动或停止。每次应用运行至多自动尝试一次(StrictMode
+ *   双挂载安全,consumeAutoStart 一次性闸)。
  */
 
 import { ipc } from "@kernel/ipc";
@@ -18,9 +22,18 @@ export const DSH_CONNECTION_KEY = "tmd.dsh.connection.v1";
 export interface DshConnection {
   host: string;
   port: number;
+  /** 自定义 dsh 可执行路径(绝对路径或 PATH 内名字);空串 = 用 PATH 的 dsh。 */
+  customBin: string;
+  /** 自动启动主机:进首页且 host 未运行时拉起;拨开关不立刻启停。 */
+  autoStart: boolean;
 }
 
-export const DEFAULT_CONNECTION: DshConnection = { host: "127.0.0.1", port: 3080 };
+export const DEFAULT_CONNECTION: DshConnection = {
+  host: "127.0.0.1",
+  port: 3080,
+  customBin: "",
+  autoStart: true,
+};
 
 export function loadConnection(): DshConnection {
   try {
@@ -30,6 +43,8 @@ export function loadConnection(): DshConnection {
     return {
       host: typeof parsed.host === "string" && parsed.host ? parsed.host : DEFAULT_CONNECTION.host,
       port: typeof parsed.port === "number" && parsed.port > 0 ? parsed.port : DEFAULT_CONNECTION.port,
+      customBin: typeof parsed.customBin === "string" ? parsed.customBin : DEFAULT_CONNECTION.customBin,
+      autoStart: typeof parsed.autoStart === "boolean" ? parsed.autoStart : DEFAULT_CONNECTION.autoStart,
     };
   } catch {
     return { ...DEFAULT_CONNECTION };
@@ -40,14 +55,24 @@ export function saveConnection(conn: DshConnection): void {
   localStorage.setItem(DSH_CONNECTION_KEY, JSON.stringify(conn));
 }
 
-/** 归一输入:空 host 回默认;端口截到 1-65535。 */
-export function normalizeConnection(host: string, port: string): DshConnection {
+/** 归一 host/port(空 host 回默认,端口截 1-65535),其余字段沿用 base。 */
+export function normalizeConnection(
+  host: string,
+  port: string,
+  base: DshConnection = DEFAULT_CONNECTION,
+): DshConnection {
   const trimmed = host.trim();
   const parsed = Number.parseInt(port, 10);
   return {
+    ...base,
     host: trimmed || DEFAULT_CONNECTION.host,
     port: Number.isFinite(parsed) ? Math.min(65535, Math.max(1, parsed)) : DEFAULT_CONNECTION.port,
   };
+}
+
+/** 启动命令:自定义路径优先,回退 PATH 里的 dsh。 */
+export function dshCommand(conn: DshConnection): string {
+  return conn.customBin.trim() || "dsh";
 }
 
 export function originOf(conn: DshConnection): string {
@@ -100,6 +125,16 @@ export async function probeHost(conn: DshConnection): Promise<DshHostView | null
   }
 }
 
+/** dsh 可执行文件是否可用(cli_probe 支持绝对路径与 PATH 名,8s 硬超时)。 */
+export async function probeBinary(conn: DshConnection): Promise<boolean> {
+  try {
+    const res = await ipc.cliProbe(dshCommand(conn));
+    return res.found;
+  } catch {
+    return false;
+  }
+}
+
 /* ── 自拉起 host 会话登记(模块级;仅停止按钮消费)── */
 
 let hostSessionId: string | null = null;
@@ -110,7 +145,7 @@ export function currentHostSessionId(): string | null {
 
 export async function startHostSession(conn: DshConnection): Promise<string> {
   const spawned = await ipc.sessionSpawn("dsh", {
-    command: "dsh",
+    command: dshCommand(conn),
     args: ["web", "--host", conn.host, "--port", String(conn.port)],
     cwd: await ipc.configHomeDir(),
     title: "DSH Host",
@@ -126,6 +161,27 @@ export async function stopHostSession(): Promise<boolean> {
   hostSessionId = null;
   await ipc.sessionKill(id);
   return true;
+}
+
+/* ── 自动启动(每次应用运行至多一次;StrictMode 双挂载安全)── */
+
+let autoStartConsumed = false;
+
+/** 本挂载是否拥有自动启动权(首次调用 true 并占用闸门)。 */
+export function consumeAutoStart(): boolean {
+  if (autoStartConsumed) return false;
+  autoStartConsumed = true;
+  return true;
+}
+
+/** 就绪轮询:1.5s × 16 ≈ 24s(codemoss wait_until_ready 同窗口)。 */
+export async function waitForHostReady(conn: DshConnection): Promise<DshHostView | null> {
+  for (let i = 0; i < 16; i++) {
+    await delay(1500);
+    const view = await probeHost(conn);
+    if (view) return view;
+  }
+  return null;
 }
 
 /** 就绪轮询节拍(Promise.withResolvers 线性控制流)。 */

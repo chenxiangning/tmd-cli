@@ -84,6 +84,8 @@ export interface PluginContext {
   registerFileVisual(provider: FileVisualProvider): void;
   /** 注册一条快捷键命令(shortcuts 注册表的 ctx 通道;键位语义归插件,内核只做分发)。 */
   registerCommand(command: CommandContribution): void;
+  /** 注册首页引擎卡下方专属面板(homePanels 注册表的 ctx 通道,键 = CliProfile.id)。 */
+  registerHomePanel(profileId: string, panel: ComponentType): void;
   /** 内核事件总线（跨插件通信唯一通道）。 */
   events: EventBus;
 }

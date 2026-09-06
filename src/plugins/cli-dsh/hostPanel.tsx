@@ -1,21 +1,29 @@
 /**
- * DshHostPanel —— 设置页「DeepSeek Harness」连接面板(codemoss DshConnectionPanel
- * 同构)。域逻辑(探针/持久化/会话登记)在 dshHost.ts;本文件只管渲染与交互。
+ * DshHostPanel —— 首页 dsh 引擎卡下方的连接面板(codemoss DshConnectionPanel
+ * 同构,经 CliProfile.homePanel 挂载)。域逻辑(探针/持久化/会话登记)在
+ * dshHost.ts;本文件管渲染与交互:
+ * - 提示行 + 主机状态卡(状态点/供应商/模型/会话数 + 打开 Web UI/启停/重测);
+ * - 自动启动:进首页且 host 未运行时自动拉起(consumeAutoStart 一次性闸,
+ *   拨开关不立刻启停);dsh 二进制缺失时启动按钮禁用并提示;
+ * - 「连接设置」折叠区在 dshConnectionSettings.tsx。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowClockwise, ArrowSquareOut, Play, Stop } from "@phosphor-icons/react";
 import { openExternalUrl } from "@kernel/ipc";
+import { DshConnectionSettings } from "./dshConnectionSettings";
 import {
+  consumeAutoStart,
   delay,
   loadConnection,
-  saveConnection,
-  normalizeConnection,
   originOf,
+  probeBinary,
   probeHost,
+  saveConnection,
   currentHostSessionId,
   startHostSession,
   stopHostSession,
+  waitForHostReady,
   type DshConnection,
   type DshHostView,
 } from "./dshHost";
@@ -30,12 +38,11 @@ const BTN =
   "flex items-center gap-1 rounded-md border border-(--tmd-border) px-2.5 py-1 text-sm text-(--tmd-fg) hover:bg-(--tmd-bg-hover) disabled:cursor-not-allowed disabled:opacity-50";
 const BTN_PRIMARY =
   "flex items-center gap-1 rounded-md border border-(--tmd-accent) bg-(--tmd-accent) px-2.5 py-1 text-sm text-(--tmd-accent-fg) hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
-const INPUT =
-  "rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-sm text-(--tmd-fg) outline-none focus:border-(--tmd-accent)";
 
 export function DshHostPanel() {
   const [conn, setConn] = useState<DshConnection>(loadConnection);
   const [status, setStatus] = useState<HostStatus>({ kind: "probing" });
+  const [binFound, setBinFound] = useState(true);
   const [busy, setBusy] = useState(false);
   /* 探针竞态守卫:慢探测回来时不许覆盖更新的状态。 */
   const probeSeq = useRef(0);
@@ -50,19 +57,42 @@ export function DshHostPanel() {
   const refresh = useCallback(async () => {
     const seq = ++probeSeq.current;
     setStatus({ kind: "probing" });
-    const view = await probeHost(conn);
+    const [view, found] = await Promise.all([probeHost(conn), probeBinary(conn)]);
     if (!alive.current || seq !== probeSeq.current) return;
+    setBinFound(found);
     setStatus(view ? { kind: "ok", view } : { kind: "down" });
   }, [conn]);
 
+  /* 首挂载:探一次;host 未运行且自动启动开且 dsh 在 → 自动拉起并等就绪。 */
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    const auto = consumeAutoStart();
+    void (async () => {
+      const [view, found] = await Promise.all([probeHost(conn), probeBinary(conn)]);
+      if (!alive.current) return;
+      setBinFound(found);
+      let next: DshHostView | null = view;
+      if (!next && auto && conn.autoStart && found) {
+        setStatus({ kind: "starting" });
+        try {
+          await startHostSession(conn);
+        } catch {
+          /* spawn 失败:报错落在会话幕布,这里按未运行收口。 */
+        }
+        next = await waitForHostReady(conn);
+      }
+      /* 不做 seq 守卫:自动启动完成时写出的就是最新真相(StrictMode 双挂载下
+         第二次挂载的初探会先写 down,这里随后覆盖为终态)。 */
+      if (!alive.current) return;
+      setStatus(next ? { kind: "ok", view: next } : { kind: "down" });
+    })();
+    /* 挂载级自动启动只跑一次;后续重测走 refresh。 */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const applyDraft = (host: string, port: string) => {
-    const next = normalizeConnection(host, port);
+  const applyConnection = (next: DshConnection) => {
     setConn(next);
     saveConnection(next);
+    void refresh();
   };
 
   const onStart = async () => {
@@ -70,22 +100,13 @@ export function DshHostPanel() {
     setStatus({ kind: "starting" });
     try {
       await startHostSession(conn);
-      /* 就绪轮询:1.5s × 16 ≈ 24s(codemoss wait_until_ready 同窗口)。 */
-      for (let i = 0; i < 16; i++) {
-        await delay(1500);
-        if (!alive.current) return;
-        const view = await probeHost(conn);
-        if (view) {
-          setStatus({ kind: "ok", view });
-          setBusy(false);
-          return;
-        }
-      }
-      setStatus({ kind: "down" });
+      const view = await waitForHostReady(conn);
+      if (!alive.current) return;
+      setStatus(view ? { kind: "ok", view } : { kind: "down" });
     } catch {
-      setStatus({ kind: "down" });
+      if (alive.current) setStatus({ kind: "down" });
     }
-    setBusy(false);
+    if (alive.current) setBusy(false);
   };
 
   const onStop = async () => {
@@ -111,93 +132,81 @@ export function DshHostPanel() {
   const statusDetail =
     status.kind === "ok"
       ? `已连接到 ${originOf(conn)}${status.view.provider ? ` · 当前供应商 ${status.view.provider}` : ""}${status.view.model ? ` · 当前模型 ${status.view.model}` : ""}${typeof status.view.sessions === "number" ? ` · 已挂会话 ${status.view.sessions}` : ""}${selfStarted ? "" : "(非本客户端拉起,请在原处停止)"}`
-      : status.kind === "down"
-        ? `${originOf(conn)} 无响应`
-        : originOf(conn);
+      : !binFound
+        ? "未找到 dsh 可执行文件,先在上方卡片安装或填自定义路径"
+        : status.kind === "down"
+          ? `${originOf(conn)} 无响应`
+          : originOf(conn);
 
   return (
-    <div className="pref-card">
-      <div className="pref-row">
-        <div>
-          <div className="pref-title">提示</div>
-          <div className="pref-desc">
-            模型和 API Key 在 DSH Web UI 里配置,这里只负责装 CLI、起本地 host(要求
-            Node &ge; 22.19 或 &ge; 24)。启动 = 新开一个「DSH Host」终端会话跑 dsh
-            web,关掉会话即停止服务。
+    <div className="mt-2 flex flex-col gap-2">
+      <div className="pref-card">
+        <div className="pref-row">
+          <div className="min-w-0">
+            <div className="pref-title">提示</div>
+            <div className="pref-desc">
+              模型和 API Key 在 DSH Web UI 里配,这里只负责装 CLI、连本地 host(要求
+              Node &ge; 22.19 或 &ge; 24)。启动 = 新开一个「DSH Host」终端会话跑 dsh
+              web,关掉会话即停止服务。
+            </div>
           </div>
         </div>
-      </div>
-      <div className="pref-row">
-        <div className="min-w-0">
-          <div className="pref-title">
-            <span
-              aria-hidden
-              className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
-              style={{
-                background:
-                  status.kind === "ok"
-                    ? "var(--tmd-ok)"
-                    : status.kind === "down"
-                      ? "var(--tmd-err)"
-                      : "var(--tmd-warn)",
-              }}
-            />
-            {statusLabel}
+        <div className="pref-row">
+          <div className="min-w-0">
+            <div className="pref-title">
+              <span
+                aria-hidden
+                className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
+                style={{
+                  background:
+                    status.kind === "ok"
+                      ? "var(--tmd-ok)"
+                      : status.kind === "down"
+                        ? "var(--tmd-err)"
+                        : "var(--tmd-warn)",
+                }}
+              />
+              {statusLabel}
+            </div>
+            <div className="pref-desc">{statusDetail}</div>
           </div>
-          <div className="pref-desc">{statusDetail}</div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            className={BTN}
-            disabled={!connected}
-            onClick={() => void openExternalUrl(originOf(conn))}
-          >
-            <ArrowSquareOut size={13} /> 打开 Web UI
-          </button>
-          {selfStarted ? (
-            <button type="button" className={BTN} disabled={busy} onClick={() => void onStop()}>
-              <Stop size={13} /> 停止服务
-            </button>
-          ) : (
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              className={BTN_PRIMARY}
-              disabled={busy || connected}
-              title={connected ? "已有 host 在运行(外部拉起),无需启动" : undefined}
-              onClick={() => void onStart()}
+              className={BTN}
+              disabled={!connected}
+              onClick={() => void openExternalUrl(originOf(conn))}
             >
-              <Play size={13} /> 启动服务
+              <ArrowSquareOut size={13} /> 打开 Web UI
             </button>
-          )}
-          <button type="button" className={BTN} disabled={busy} onClick={() => void refresh()}>
-            <ArrowClockwise size={13} /> 重新检测
-          </button>
+            {selfStarted ? (
+              <button type="button" className={BTN} disabled={busy} onClick={() => void onStop()}>
+                <Stop size={13} /> 停止服务
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={BTN_PRIMARY}
+                disabled={busy || connected || !binFound}
+                title={
+                  connected
+                    ? "已有 host 在运行(外部拉起),无需启动"
+                    : !binFound
+                      ? "未找到 dsh 可执行文件"
+                      : undefined
+                }
+                onClick={() => void onStart()}
+              >
+                <Play size={13} /> 启动服务
+              </button>
+            )}
+            <button type="button" className={BTN} disabled={busy} onClick={() => void refresh()}>
+              <ArrowClockwise size={13} /> 重新检测
+            </button>
+          </div>
         </div>
       </div>
-      <div className="pref-row">
-        <div>
-          <div className="pref-title">连接设置</div>
-          <div className="pref-desc">改端口前先确认没有别的进程占着;失焦即保存并重测。</div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <input
-            aria-label="Host 地址"
-            className={`${INPUT} w-40 text-left`}
-            defaultValue={conn.host}
-            onBlur={(e) => applyDraft(e.target.value, String(conn.port))}
-          />
-          <input
-            aria-label="端口"
-            className={`${INPUT} w-24 text-right`}
-            type="number"
-            min={1}
-            max={65535}
-            defaultValue={conn.port}
-            onBlur={(e) => applyDraft(conn.host, e.target.value)}
-          />
-        </div>
-      </div>
+      <DshConnectionSettings conn={conn} onChange={applyConnection} />
     </div>
   );
 }
