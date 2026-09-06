@@ -61,10 +61,16 @@ export function InstalledRow({
     setRunning("uninstall");
     setLogs([]);
     const push = (text: string) => setLogs((prev) => [...prev, text]);
-    const ok = await runPluginAction(ext.name, "uninstall", push);
-    push(ok ? "—— 已卸载 ——" : "—— 失败:命令非零退出,详见上方日志 ——");
-    setRunning(null);
-    onChanged();
+    try {
+      const ok = await runPluginAction(ext.name, "uninstall", push);
+      push(ok ? "—— 已卸载 ——" : "—— 失败:命令非零退出,详见上方日志 ——");
+    } catch (e) {
+      /* 同 ExtCard.run:reject 必须落失败行并退出 running,否则永久转圈。 */
+      push(`—— 失败:${e instanceof Error ? e.message : String(e)} ——`);
+    } finally {
+      setRunning(null);
+      onChanged();
+    }
   }
 
   async function toggleEnabled() {

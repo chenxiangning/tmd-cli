@@ -55,7 +55,7 @@ pub(crate) fn wait_child_with_timeout(
             Ok(Some(status)) => return Some(Ok(status)),
             Ok(None) => {
                 if started.elapsed() >= timeout {
-                    let _ = child.kill();
+                    kill_tree(child);
                     let _ = child.wait(); /* 防 zombie */
                     return None;
                 }
@@ -63,5 +63,29 @@ pub(crate) fn wait_child_with_timeout(
             }
             Err(e) => return Some(Err(e)),
         }
+    }
+}
+
+/// 超时收尸:直接 kill 只杀直接子进程 —— Windows 下 `cmd /c npm` 的孙进程
+/// node 会存活并握住 npm 缓存锁,拖慢后续重试安装(2026-09-06 win 新装机
+/// 实证),须经 taskkill /T 追杀整棵进程树;unix 无 wrapper 场景,直接 kill。
+fn kill_tree(child: &mut std::process::Child) {
+    #[cfg(windows)]
+    {
+        /* 绝对路径防 PATH 贫瘠进程静默失效;SystemRoot 缺失(极罕)退裸名 */
+        let taskkill = std::env::var("SystemRoot")
+            .map(|root| format!("{root}\\System32\\taskkill.exe"))
+            .unwrap_or_else(|_| "taskkill".to_string());
+        let mut killer = std::process::Command::new(taskkill);
+        killer
+            .arg("/PID")
+            .arg(child.id().to_string())
+            .args(["/T", "/F"]);
+        hide_console(&mut killer);
+        let _ = killer.output();
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = child.kill();
     }
 }

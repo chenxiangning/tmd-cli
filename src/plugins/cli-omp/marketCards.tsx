@@ -97,14 +97,21 @@ export function ExtCard({
     setRunning(true);
     setLogs([]);
     const push = (text: string) => setLogs((prev) => [...prev, text]);
-    const ok = await runPluginAction(entry.name, kind, push);
-    push(
-      ok
-        ? "—— 完成。已开会的会话不热加载,重开会话生效 ——"
-        : "—— 失败:命令非零退出,详见上方日志 ——",
-    );
-    setRunning(false);
-    onChanged();
+    try {
+      const ok = await runPluginAction(entry.name, kind, push);
+      push(
+        ok
+          ? "—— 完成。已开会的会话不热加载,重开会话生效 ——"
+          : "—— 失败:命令非零退出,详见上方日志 ——",
+      );
+    } catch (e) {
+      /* cliInstallRun reject(spawn 失败/300s 超时等):不接住则 setRunning
+      永不执行,卡片永久转圈(2026-09-06 win 新装机实证)。 */
+      push(`—— 失败:${e instanceof Error ? e.message : String(e)} ——`);
+    } finally {
+      setRunning(false);
+      onChanged();
+    }
   }
 
   return (
