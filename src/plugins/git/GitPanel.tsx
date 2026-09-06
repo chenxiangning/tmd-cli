@@ -32,6 +32,7 @@ import { FetchDialog } from "./views/remoteDialogs/FetchDialog";
 import { DiffView } from "./views/DiffView";
 import { BranchView } from "./views/BranchView";
 import { HistoryView } from "./views/HistoryView";
+import { Cross } from "@phosphor-icons/react";
 import { GitRemoteBar, SmartSwitchUndoBanner } from "./views/GitPanelBars";
 
 export function GitPanel() {
@@ -187,8 +188,15 @@ export function GitPanel() {
       />
 
       {notice && (
-        <div className="shrink-0 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2 py-1 text-(--tmd-fg-muted)">
-          {notice}
+        <div className="flex shrink-0 items-start gap-1 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2 py-1 text-(--tmd-fg-muted)">
+          <span className="min-w-0 flex-1 break-words">{notice}</span>
+          <button
+            onClick={() => setNotice(null)}
+            title="关闭"
+            className="rounded p-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
+          >
+            <Cross className="h-3 w-3" aria-hidden />
+          </button>
         </div>
       )}
       {status.error && (
