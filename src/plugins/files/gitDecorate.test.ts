@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildDecorationMap } from "./gitDecorate";
+import { buildDecorationMap, mergeRepoStatusDecorations } from "./gitDecorate";
 import type { GitFileStatus } from "@kernel/ipc";
 
 const ADDED = "text-(--tmd-git-tree-added)";
@@ -61,5 +61,43 @@ describe("buildDecorationMap", () => {
     ]);
     expect(m.get("/ws/n.ts")).toBe(RENAME);
     expect(m.has("/ws/o.ts")).toBe(false);
+  });
+});
+
+describe("mergeRepoStatusDecorations(多仓合并)", () => {
+  it("跨仓合并:各仓文件与仓内祖先各自着色,聚合不越仓界、不越 workspace 根", () => {
+    const m = mergeRepoStatusDecorations([
+      { root: "/ws/a", files: [f("src/x.ts", "M")] },
+      { root: "/ws/b", files: [f("y.ts", "?")] },
+    ]);
+    expect(m.get("/ws/a/src/x.ts")).toBe(MODIFIED);
+    expect(m.get("/ws/a/src")).toBe(MODIFIED);
+    expect(m.get("/ws/b/y.ts")).toBe(ADDED);
+    expect(m.get("/ws/b")).toBe(ADDED); // 仓根按该仓聚合着色
+    expect(m.has("/ws")).toBe(false);
+    expect(m.has("/ws/a/other")).toBe(false);
+  });
+
+  it("内层仓覆盖外层声明:仓根取最近祖先仓状态", () => {
+    // 外层 /ws/a 声明内嵌目录 b 未跟踪(绿);内层 /ws/a/b 有修改 → 仓根蓝
+    const m = mergeRepoStatusDecorations([
+      { root: "/ws/a", files: [f("b", "?"), f("top.ts", "?")] },
+      { root: "/ws/a/b", files: [f("deep.ts", "M")] },
+    ]);
+    expect(m.get("/ws/a/b")).toBe(MODIFIED);
+    expect(m.get("/ws/a/b/deep.ts")).toBe(MODIFIED);
+    expect(m.get("/ws/a")).toBe(ADDED); // 外层仓根按外层自己的聚合
+  });
+
+  it("仓根色取该仓最高优先级(红 > 蓝 > 深绿);仓干净不虚构着色", () => {
+    const dirty = mergeRepoStatusDecorations([
+      { root: "/ws/a", files: [f("x.ts", "M"), f("y.ts", "D")] },
+    ]);
+    expect(dirty.get("/ws/a")).toBe(RED);
+    const clean = mergeRepoStatusDecorations([
+      { root: "/ws/a", files: [f("top.ts", "?")] },
+      { root: "/ws/a/b", files: [] },
+    ]);
+    expect(clean.has("/ws/a/b")).toBe(false);
   });
 });

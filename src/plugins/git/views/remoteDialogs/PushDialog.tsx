@@ -29,6 +29,7 @@ type PreviewCommit = GitPushPreview["commits"][number];
 export function PushDialog({
   cwd,
   branch,
+  repoName,
   submitting,
   onClose,
   onRun,
@@ -36,6 +37,7 @@ export function PushDialog({
   cwd: string;
   /** 当前分支(detached 时不打开本对话框) */
   branch: string;
+  repoName?: string;
   submitting: boolean;
   onClose: () => void;
   onRun: (req: GitRemoteRequest, opLabel: string) => void;
@@ -151,6 +153,7 @@ export function PushDialog({
     <GitDialogShell
       title="将提交推送到远端"
       icon={<UploadSimple className="h-3.5 w-3.5" aria-hidden />}
+      repoName={repoName}
       width={880}
       locked={submitting}
       onClose={onClose}

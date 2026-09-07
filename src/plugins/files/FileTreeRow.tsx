@@ -17,6 +17,7 @@ export function FileTreeRow({
   expanded,
   selected,
   decoColor,
+  repoTag,
   onClick,
   onContextMenu,
   onCopyPath,
@@ -28,6 +29,8 @@ export function FileTreeRow({
   selected: boolean;
   /** Git 变更着色(开启 diff 过滤时由 FileTree 传入);缺省走 fileVisual 色。 */
   decoColor?: string;
+  /** 仓根行标注(分支,submodule/worktree 带类型);非仓根缺省不显示。 */
+  repoTag?: string;
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onCopyPath: () => void;
@@ -89,6 +92,7 @@ export function FileTreeRow({
         <span className={`file-tree-name ${color}${decoColor ? " font-semibold" : ""}`}>
           {entry.name}
         </span>
+        {repoTag && <span className="file-tree-repotag">{repoTag}</span>}
       </button>
       <span className="file-tree-actions">
         {/* 在访达中显示 ─ 设计参考图 hover 组首位(开口文件夹 icon) */}

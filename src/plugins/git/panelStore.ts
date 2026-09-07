@@ -83,7 +83,11 @@ export function bumpGitRefresh(): void {
 /** GitPanel 拉到聚合数据后镜像(值不变不 emit,避免 5s 轮询空转重渲染)。 */
 export function setGitAggregate(next: GitAggregate): void {
   const prev = state.aggregate;
-  if (prev.fileCount === next.fileCount && prev.totals === next.totals) return;
+  if (
+    prev.totals === next.totals &&
+    prev.fileCount === next.fileCount
+  )
+    return;
   state.aggregate = next;
   emit();
 }
@@ -162,4 +166,18 @@ export function getSmartSwitchOrigin(): { cwd: string; branch: string } | null {
 
 export function clearSmartSwitchOrigin(): void {
   smartSwitchOrigin = null;
+}
+
+/* ── 多仓选中仓(workspace 维度记忆;app 运行期,不落盘)──
+ * 按工作区 key:切 workspace 不串选;记忆指向已消失的仓时,
+ * resolveRepoContext 会校验回退(repoContext.ts),此处不做失效清理。 */
+const selectedRepoByWorkspace = new Map<string, string>();
+
+export function setSelectedRepo(workspaceId: string, path: string): void {
+  selectedRepoByWorkspace.set(workspaceId, path);
+  emit();
+}
+
+export function getSelectedRepo(workspaceId: string): string | null {
+  return selectedRepoByWorkspace.get(workspaceId) ?? null;
 }

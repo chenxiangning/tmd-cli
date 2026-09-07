@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git 多仓支持 v2 · tmd-cli 客户端复刻(浅色 · 真实客户端基准)</title>
+<style>
+/* ══════════════════════════════════════════════════════════════
+ * tmd-cli 客户端复刻原型 v2-final。
+ * 基准 = 1421 dev server 真实客户端截图 + live DOM computed style(2026-09-07):
+ *   浅色 token 逐值、titlebar h33 分区宽 262/307、panel-tab 26x26 橙 active 在
+ *   titlebar 右区、ws-sidebar caption 10px + segmented 灰底、workspace row 28px、
+ *   subbar 21px/11px #999、remote-bar h28、DiffFlatList 中文三段、commit composer。
+ * 新增多仓元素(现状无,不算改动):RepoBar / 发现引导 / 骨架 / toast。
+ * ══════════════════════════════════════════════════════════════ */
+:root {
+  --font-ui: 12px;
+  --radius-sm: 6px; --radius-md: 8px;
+  --left-w: 258px; --right-w: 344px; --titlebar-h: 33px;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --ease: cubic-bezier(.25,.7,.3,1);
+}
+:root[data-theme="light"] {
+  --tmd-bg-base: #ffffff; --tmd-bg-elevated: #f8f8f8; --tmd-bg-sunken: #f8f8f8;
+  --tmd-bg-hover: #f2f2f2; --tmd-bg-active: rgba(0,95,184,.14);
+  --tmd-bg-input: #ffffff; --tmd-bg-popover: #ffffff;
+  --tmd-fg: #3b3b3b; --tmd-fg-muted: #7e7e7e; --tmd-fg-subtle: #999999; --tmd-fg-faint: #c0c0c0;
+  --tmd-border: #cecece; --tmd-border-strong: #b1b1b1;
+  --tmd-accent: #005fb8; --tmd-accent-fg: #ffffff; --tmd-accent-soft: rgba(0,95,184,.14);
+  --tmd-diff-inserted: #2ea043; --tmd-diff-removed: #f85149;
+  --tmd-git-modified: #b7791f;
+  --tmd-git-tree-modified: #0057ae; --tmd-git-tree-added: #587c0c;
+  --tmd-panel-tab-active: rgb(255,140,60);
+  --tmd-titlebar-bg: rgba(248,248,248,.85);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: var(--font-ui); color: var(--tmd-fg); background: #e4e4e4; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+svg { display: block; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: transparent; border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
+*:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--tmd-fg-faint) 70%, transparent); background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ── 原型控制条(非产品 UI)── */
+.proto-bar {
+  flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 12px; background: var(--tmd-bg-elevated); border-bottom: 1px solid var(--tmd-border);
+}
+.proto-bar .lab { color: var(--tmd-fg-subtle); }
+.proto-btn { font-size: 11px; padding: 3px 10px; border-radius: var(--radius-sm); border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); background: #fff; }
+.proto-btn.active { background: var(--tmd-accent-soft); border-color: var(--tmd-accent); color: var(--tmd-fg); }
+.proto-note { margin-left: auto; color: var(--tmd-fg-faint); }
+
+/* ── 应用骨架 ── */
+.app { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--tmd-bg-base); }
+.titlebar {
+  height: var(--titlebar-h); flex: none; display: flex; align-items: stretch; gap: 6px;
+  background: var(--tmd-titlebar-bg); border-bottom: 1px solid var(--tmd-border);
+  user-select: none; position: relative; padding-right: 12px;
+}
+.traffic { display: flex; gap: 8px; position: absolute; left: 12px; top: 10px; z-index: 5; }
+.traffic i { width: 12px; height: 12px; border-radius: 50%; }
+.traffic i:nth-child(1) { background: #ff5f57; border: .5px solid rgba(0,0,0,.12); }
+.traffic i:nth-child(2) { background: #febc2e; border: .5px solid rgba(0,0,0,.12); }
+.traffic i:nth-child(3) { background: #28c840; border: .5px solid rgba(0,0,0,.12); }
+.titlebar-zone-left {
+  width: calc(var(--left-w) + 4px); flex: none; display: flex; align-items: center; gap: 2px;
+  padding-left: 76px; border-right: 1px solid var(--tmd-border);
+}
+.titlebar-zone-left .titlebar-action:first-of-type { margin-left: auto; }
+.titlebar-center { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0 10px; }
+.titlebar-actions {
+  width: calc(var(--right-w) - 37px); flex: none; display: flex; align-items: center; gap: 2px;
+  border-left: 1px solid var(--tmd-border); padding-left: 3px;
+}
+.titlebar-action { width: 24px; height: 24px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--tmd-fg-muted); flex: none; }
+.titlebar-action:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.panel-tab { width: 26px; height: 26px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--tmd-fg-subtle); flex: none; }
+.panel-tab:hover { background: var(--tmd-bg-hover); }
+.panel-tab.is-active { color: var(--tmd-panel-tab-active); }
+.panel-tab-overflow { margin-left: auto; }
+.workspace-breadcrumb { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: var(--radius-sm); color: var(--tmd-fg-muted); flex: none; }
+.workspace-breadcrumb:hover { background: var(--tmd-bg-hover); }
+.workspace-breadcrumb .chev { color: var(--tmd-fg-faint); }
+.session-tabs { display: flex; align-items: center; gap: 2px; min-width: 0; overflow: hidden; }
+.session-tab { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: var(--radius-sm); color: var(--tmd-fg-muted); white-space: nowrap; max-width: 170px; }
+.session-tab:hover { background: var(--tmd-bg-hover); }
+.session-tab.is-active { background: var(--tmd-bg-active); color: var(--tmd-fg); }
+.session-tab-label { overflow: hidden; text-overflow: ellipsis; }
+.session-tab .cli { font-size: 10px; color: var(--tmd-fg-subtle); border: 1px solid var(--tmd-border); border-radius: 3px; padding: 0 4px; flex: none; }
+.session-tab-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tmd-accent); flex: none; }
+.body-row { flex: 1; min-height: 0; display: flex; }
+.handle-v { width: 4px; flex: none; position: relative; }
+.handle-v::after { content: ""; position: absolute; top: 0; bottom: 0; width: 1px; background: var(--tmd-border); }
+.handle-v.line-r::after { right: 0; }
+.handle-v.line-l::after { left: 0; }
+.handle-v:hover::after { background: var(--tmd-accent); }
+
+/* ── 左栏(ws-sidebar 基准:caption 10px · segmented 灰底 · row 28px)── */
+.left-aside { width: var(--left-w); flex: none; display: flex; flex-direction: column; min-height: 0; background: var(--tmd-bg-base); }
+.ws-caption { display: flex; align-items: center; gap: 6px; height: 28px; padding: 4px 6px 4px 6px; color: var(--tmd-fg-muted); }
+.ws-caption-label { display: flex; align-items: center; gap: 4px; font-size: 10px; }
+.ws-view-toggle { margin-left: auto; display: flex; gap: 1px; padding: 1px; border: 1px solid var(--tmd-border); border-radius: 5px; }
+.ws-view-toggle button { font-size: 10px; padding: 0 5px; height: 16px; border-radius: 3px; color: var(--tmd-fg-muted); }
+.ws-view-toggle button.on { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.ws-caption-btn { width: 18px; height: 18px; border-radius: 4px; display: grid; place-items: center; color: var(--tmd-fg-faint); }
+.ws-caption-btn:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg-muted); }
+.ws-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 4px; }
+.workspace-card { margin-bottom: 2px; }
+.workspace-row {
+  display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px;
+  border-radius: var(--radius-sm); color: var(--tmd-fg); cursor: pointer; user-select: none;
+}
+.workspace-row:hover { background: var(--tmd-bg-hover); }
+.workspace-row.active { background: rgba(242,242,242,.72); }
+.workspace-row .wname { font-size: 14px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.workspace-row .wact { display: none; gap: 1px; }
+.workspace-row:hover .wact { display: flex; }
+.workspace-row .wact button { width: 20px; height: 20px; border-radius: 4px; display: grid; place-items: center; color: var(--tmd-fg-faint); }
+.workspace-row .wact button:hover { color: var(--tmd-fg-muted); background: var(--tmd-bg-hover); }
+.ws-group { display: flex; align-items: center; gap: 4px; padding: 6px 6px 2px; color: var(--tmd-fg-faint); font-size: 10px; letter-spacing: .06em; }
+.thread { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px; border-radius: var(--radius-sm); color: var(--tmd-fg-muted); }
+.thread:hover { background: var(--tmd-bg-hover); }
+.thread.is-active { background: var(--tmd-bg-active); color: var(--tmd-fg); }
+.thread .t-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--tmd-fg-faint); }
+.thread .t-dot.run { background: #34d399; }
+.thread .t-dot.unread { background: var(--tmd-accent); }
+.thread .t-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.thread .t-cli { font-size: 10px; color: var(--tmd-fg-faint); border: 1px solid var(--tmd-border); border-radius: 3px; padding: 0 4px; flex: none; }
+.left-bottom { flex: none; border-top: 1px solid var(--tmd-border); display: flex; align-items: center; gap: 2px; padding: 5px 8px; }
+.left-bottom button { width: 24px; height: 24px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--tmd-fg-muted); }
+.left-bottom button:hover { background: var(--tmd-bg-hover); }
+.left-bottom .ver { margin-left: auto; color: var(--tmd-fg-faint); font-size: 11px; padding-right: 6px; }
+
+/* ── 中央 PTY + composer ── */
+.center { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pty {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 8px 12px;
+  font-family: var(--mono); font-size: 12px; line-height: 1.55;
+  background: #1e1e1e; color: #cccccc;
+  white-space: pre-wrap; word-break: break-all;
+}
+.pty .dim { color: #9a9a9a; }
+.pty .ok { color: #2ea043; }
+.pty .pref { color: #569cd6; }
+.pty .br { color: #b180d7; }
+.pty .caret { display: inline-block; width: 7px; height: 13px; background: #cccccc; vertical-align: -2px; animation: blink 1.1s step-end infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.composer { flex: none; height: 30%; display: flex; flex-direction: column; background: var(--tmd-bg-base); border-top: 1px solid var(--tmd-border); min-height: 0; }
+.composer-toolbar {
+  height: 28px; flex: none; display: flex; align-items: center; gap: 8px;
+  padding: 0 8px; border-bottom: 1px solid var(--tmd-border);
+  font-size: 11px; line-height: 1; color: var(--tmd-fg-muted); user-select: none;
+}
+.composer-toolbar .val { font-family: var(--mono); color: var(--tmd-fg); }
+.composer-toolbar .sep { color: var(--tmd-fg-faint); }
+.tb-btn { width: 24px; height: 24px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--tmd-fg-subtle); }
+.tb-btn:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.tb-btn.drawer { margin-left: auto; }
+.composer-input { flex: 1; min-height: 0; display: flex; position: relative; }
+.composer-input textarea { flex: 1; min-width: 0; resize: none; border: none; outline: none; background: transparent; color: var(--tmd-fg); font-size: 13px; line-height: 1.58; padding: 8px 12px; font-family: inherit; }
+.composer-input textarea::placeholder { color: var(--tmd-fg-faint); }
+
+/* ═══ 右栏 ═══ */
+.right-aside { width: var(--right-w); flex: none; display: flex; flex-direction: column; min-height: 0; background: var(--tmd-bg-base); position: relative; }
+.panel-body { flex: 1; min-height: 0; display: none; flex-direction: column; }
+.panel-body.visible { display: flex; }
+
+/* ═══ 新增:RepoBar 仓切换条(仅多仓 git 视图出现)═══ */
+.repobar {
+  flex: none; display: flex; align-items: center; gap: 4px;
+  padding: 5px 8px; border-bottom: 1px solid var(--tmd-border);
+  overflow-x: auto; scrollbar-width: none;
+}
+.repobar::-webkit-scrollbar { display: none; }
+.repo-chip {
+  position: relative; flex: none; display: inline-flex; align-items: center; gap: 5px;
+  height: 22px; padding: 0 9px; border-radius: 999px;
+  border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); font-size: 11px; background: var(--tmd-bg-base);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.repo-chip:hover { border-color: var(--tmd-border-strong); color: var(--tmd-fg); }
+.repo-chip.is-active { background: var(--tmd-accent-soft); border-color: var(--tmd-accent); color: var(--tmd-fg); }
+.repo-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tmd-fg-faint); flex: none; }
+.repo-chip .dot.dirty { background: var(--tmd-git-modified); }
+.repo-chip .n { font-weight: 600; }
+.repo-chip .kind { font-size: 9.5px; color: var(--tmd-fg-faint); border: 1px solid var(--tmd-border); border-radius: 3px; padding: 0 3px; }
+.repo-chip.is-active .kind { color: var(--tmd-fg-subtle); }
+.repo-chip .ab { font-size: 10px; color: var(--tmd-fg-subtle); font-variant-numeric: tabular-nums; }
+.repo-chip .ab .a { color: var(--tmd-diff-inserted); }
+.repo-chip .ab .b { color: var(--tmd-diff-removed); }
+.repo-chip::after {
+  content: attr(data-tip);
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+  min-width: 170px; padding: 7px 9px; border-radius: var(--radius-sm);
+  background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border-strong);
+  box-shadow: 0 6px 20px rgba(0,0,0,.14); color: var(--tmd-fg);
+  font-size: 11px; line-height: 1.65; white-space: pre-line; text-align: left;
+  opacity: 0; transform: translateY(-3px); pointer-events: none;
+  transition: opacity .15s var(--ease), transform .15s var(--ease);
+}
+.repo-chip:hover::after { opacity: 1; transform: translateY(0); transition-delay: .35s; }
+.repo-count { margin-left: auto; flex: none; font-size: 10px; color: var(--tmd-fg-muted); border: 1px solid var(--tmd-border); border-radius: 999px; padding: 1px 7px; white-space: nowrap; background: var(--tmd-bg-base); }
+
+/* ═══ 既有:GitRemoteBar(实测 h28 pad 0 8 gap 8)═══ */
+.remote-bar {
+  flex: none; display: flex; align-items: center; gap: 8px; height: 28px;
+  padding: 0 8px; border-bottom: 1px solid var(--tmd-border);
+  color: var(--tmd-fg-muted); overflow: hidden; white-space: nowrap;
+}
+.remote-bar .branch { flex: none; font-weight: 500; color: var(--tmd-fg); }
+.remote-bar .upstream { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--tmd-fg-faint); }
+.remote-bar .spacer { flex: 1; }
+.remote-bar .ops { display: flex; align-items: center; gap: 2px; }
+.rb-btn { display: flex; align-items: center; gap: 2px; border-radius: 4px; padding: 2px 4px; color: var(--tmd-fg-muted); font-size: 12px; }
+.rb-btn:hover:not(:disabled) { background: var(--tmd-bg-hover); }
+.rb-btn:disabled { opacity: .5; cursor: default; }
+.rb-btn.push { color: var(--tmd-accent); }
+.rb-btn .ic { padding: 0; width: 14px; height: 14px; }
+.rb-btn.refresh { padding: 4px; }
+
+/* ═══ 既有:GitToolbar 聚合(挂在 remote-bar 行尾,git 视图无 subbar)═══ */
+.agg { font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; flex: none; }
+.agg .ins { color: var(--tmd-diff-inserted); }
+.agg .sl { margin: 0 4px; color: var(--tmd-fg-faint); }
+.agg .del { color: var(--tmd-diff-removed); }
+.agg .cnt { margin-left: 6px; color: var(--tmd-fg-muted); }
+.view-btn { display: flex; align-items: center; gap: 4px; border-radius: 4px; padding: 2px 6px; font-size: 12px; font-weight: 500; color: var(--tmd-fg); }
+.view-btn:hover { background: var(--tmd-bg-hover); }
+.view-btn .cd { color: var(--tmd-fg-faint); }
+.view-menu {
+  position: absolute; z-index: 1200; min-width: 150px; padding: 4px;
+  background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border-strong);
+  border-radius: var(--radius-sm); box-shadow: 0 6px 20px rgba(0,0,0,.14);
+}
+.view-menu .mi {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 5px 8px; border-radius: 4px; font-size: 12px; color: var(--tmd-fg); text-align: left;
+}
+.view-menu .mi:hover { background: var(--tmd-bg-hover); }
+.view-menu .div { height: 1px; background: var(--tmd-border); margin: 4px 2px; }
+
+/* ═══ 既有:DiffFlatList F 终端风 ═══ */
+.diff-body { flex: 1; min-height: 0; overflow-y: auto; font-family: var(--mono); font-size: 12px; padding-bottom: 8px; }
+.git-empty { height: 96px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--tmd-fg-faint); }
+.sec-head {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 6px 12px 2px; color: var(--tmd-fg-muted);
+  cursor: pointer; user-select: none;
+}
+.sec-head .caret { font-size: 9px; color: var(--tmd-fg-faint); display: inline-block; transition: transform .18s var(--ease); }
+.sec-head.collapsed .caret { transform: rotate(-90deg); }
+.sec-head .np { color: var(--tmd-fg-faint); font-variant-numeric: tabular-nums; }
+.sec-head .spacer { flex: 1; }
+.sec-head .act { font-size: 11px; color: var(--tmd-fg-faint); font-family: inherit; }
+.sec-head .act:hover { color: var(--tmd-fg); text-decoration: underline; text-underline-offset: 2px; }
+.sec-wrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .22s var(--ease); }
+.sec-head.collapsed + .sec-wrap { grid-template-rows: 0fr; }
+.sec-wrap > .sec-inner { overflow: hidden; min-height: 0; }
+.nothing { padding: 2px 0 2px 12px; font-size: 11px; color: var(--tmd-fg-faint); }
+
+/* FRow */
+.frow {
+  display: flex; align-items: center; gap: 8px; height: 24px;
+  padding: 0 12px; cursor: pointer; user-select: none; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.frow:hover { background: var(--tmd-bg-hover); }
+.frow .ck { flex: none; width: 26px; text-align: left; color: var(--tmd-fg-muted); }
+.frow .ck.on { color: var(--tmd-fg); }
+.frow .ck.dis { color: var(--tmd-fg-faint); opacity: .6; }
+.frow .kw { flex: none; width: 14px; text-align: center; font-weight: 600; }
+.frow .kw.m { color: var(--tmd-git-modified); }
+.frow .kw.a { color: var(--tmd-diff-inserted); }
+.frow .kw.d { color: var(--tmd-diff-removed); }
+.frow .kw.r { color: var(--tmd-accent); }
+.frow .kw.u { color: var(--tmd-fg-faint); }
+.frow .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--tmd-fg); }
+.frow .dir { flex: none; max-width: 38%; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: right; color: var(--tmd-fg-faint); font-size: 11px; }
+.frow .tail { flex: none; font-size: 11px; }
+.frow .tail .nums .i { color: var(--tmd-diff-inserted); }
+.frow .tail .nums .d { color: var(--tmd-diff-removed); }
+.frow:hover .tail .nums { display: none; }
+.frow:hover .tail .nums.blank { visibility: hidden; display: block; }
+.frow .tail .acts { display: none; align-items: center; gap: 8px; }
+.frow:hover .tail .acts { display: flex; }
+.tail .abtn { font-size: 11px; color: var(--tmd-fg-faint); font-family: inherit; }
+.tail .abtn:hover { color: var(--tmd-fg); text-decoration: underline; text-underline-offset: 2px; }
+.tail .abtn.warn:hover { color: var(--tmd-diff-removed); }
+.frow .conflict { flex: none; font-size: 11px; color: var(--tmd-diff-removed); }
+
+/* 切仓骨架(新增) */
+.diff-body.is-loading .skel-wrap { display: block; }
+.diff-body.is-loading .real { visibility: hidden; }
+.skel-wrap { display: none; padding: 8px 12px; }
+.skel { height: 12px; border-radius: 4px; margin: 9px 0; background: linear-gradient(90deg, var(--tmd-bg-hover) 25%, #e7e7e7 50%, var(--tmd-bg-hover) 75%); background-size: 200% 100%; animation: shimmer 1s linear infinite; }
+.skel.w40 { width: 40%; } .skel.w62 { width: 62%; } .skel.w78 { width: 78%; } .skel.w55 { width: 55%; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* ═══ 既有:CommitComposer ═══ */
+.commitline { flex: none; border-top: 1px solid var(--tmd-border); padding: 8px; font-family: var(--mono); font-size: 12px; }
+.commitrow { display: flex; align-items: flex-start; gap: 6px; }
+.commitrow .pfx { flex: none; padding-top: 2px; color: var(--tmd-fg-muted); }
+.commitrow textarea {
+  flex: 1; min-width: 0; resize: none;
+  border: none; border-bottom: 1px solid var(--tmd-border); outline: none;
+  background: transparent; color: var(--tmd-fg);
+  font: inherit; padding: 2px; line-height: 1.5;
+}
+.commitrow textarea:focus { border-bottom-color: var(--tmd-border-strong); }
+.commitrow textarea::placeholder { color: var(--tmd-fg-faint); }
+.commitnote { margin-top: 4px; background: var(--tmd-bg-sunken); padding: 4px 8px; color: var(--tmd-diff-inserted); }
+.commitmeta { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 11px; color: var(--tmd-fg-faint); }
+.commitmeta .amend:hover { color: var(--tmd-fg-muted); }
+.commitmeta .amend .box.on { color: var(--tmd-fg); }
+.commitmeta .go {
+  display: flex; align-items: center; gap: 4px; margin-left: auto;
+  background: var(--tmd-accent); color: var(--tmd-accent-fg); padding: 2px 12px;
+}
+.commitmeta .go:hover:not(:disabled) { background: #026ec1; }
+.commitmeta .go:disabled { background: var(--tmd-bg-sunken); color: var(--tmd-fg-faint); cursor: default; }
+
+/* ═══ 既有:文件面板(subbar 21px + label 11px #999 + file-tree)═══ */
+.panel-subbar { flex: none; display: flex; align-items: center; gap: 6px; height: 21px; padding: 0 4px 0 10px; position: relative; }
+.panel-subbar-label { font-weight: 500; color: var(--tmd-fg-subtle); font-size: 11px; text-transform: uppercase; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel-subbar-action { width: 22px; height: 22px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--tmd-fg-faint); flex: none; }
+.panel-subbar-action:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg-muted); }
+.panel-subbar-action.is-active { color: var(--tmd-accent); }
+.tree-body {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 4px 4px 12px;
+  font-family: var(--mono); font-size: 12px; color: var(--tmd-fg);
+}
+.ft-row {
+  position: relative; display: flex; align-items: center; gap: 6px;
+  min-height: 28px; padding: 4px 8px; border-radius: 6px;
+  cursor: pointer; user-select: none; white-space: nowrap; width: 100%;
+}
+.ft-row:hover { background: var(--tmd-bg-hover); }
+.ft-row .icell { display: inline-flex; align-items: center; width: 27px; flex: none; }
+.ft-row .chev { color: var(--tmd-fg-muted); display: inline-flex; opacity: 0; transition: opacity .12s ease, transform .15s ease; }
+.ft-row .ficon { display: inline-flex; align-items: center; color: var(--tmd-fg-muted); transition: opacity .12s ease; }
+.ft-row:hover .chev { opacity: 1; }
+.ft-row:hover .ficon.hide-on-hover { opacity: 0; }
+.ft-row.expanded .chev { transform: rotate(90deg); }
+.ft-row .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ft-row .nm.deco { font-weight: 600; }
+.ft-row .repotag { margin-left: 6px; flex: none; font-size: 9.5px; color: var(--tmd-fg-faint); border: 1px solid var(--tmd-border); border-radius: 3px; padding: 0 4px; }
+.ft-row .facts { position: absolute; right: 8px; display: flex; gap: 2px; opacity: 0; visibility: hidden; background: var(--tmd-bg-hover); }
+.ft-row:hover .facts { opacity: 1; visibility: visible; }
+.ft-row .facts button { width: 20px; height: 20px; border-radius: 4px; display: grid; place-items: center; color: var(--tmd-fg-subtle); }
+.ft-row .facts button:hover { color: var(--tmd-fg); background: var(--tmd-bg-active); }
+.c-mod { color: var(--tmd-git-tree-modified); }
+.c-add { color: var(--tmd-git-tree-added); }
+.c-del { color: var(--tmd-diff-removed); }
+.ft-children { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .22s var(--ease); }
+.ft-children.collapsed { grid-template-rows: 0fr; }
+.ft-children > .ft-c-inner { overflow: hidden; min-height: 0; }
+.tree-hint { flex: none; padding: 6px 14px; border-top: 1px solid var(--tmd-border); color: var(--tmd-fg-faint); font-size: 10.5px; line-height: 1.6; }
+.tree-hint b { color: var(--tmd-fg-subtle); font-weight: 600; }
+
+/* ═══ 新增:非仓根发现引导 ═══ */
+.orphan-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 8px; }
+.orphan-card { border: 1px solid var(--tmd-border); border-radius: var(--radius-md); background: var(--tmd-bg-elevated); padding: 10px 12px; margin-bottom: 8px; }
+.orphan-card .t { font-weight: 600; display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+.orphan-card .t svg { color: var(--tmd-fg-muted); }
+.orphan-card .desc { color: var(--tmd-fg-muted); line-height: 1.6; }
+.orphan-card .desc .em { color: var(--tmd-fg); }
+.orphan-row {
+  display: flex; align-items: center; gap: 8px; height: 30px;
+  padding: 0 10px; border-radius: var(--radius-sm); color: var(--tmd-fg-muted); cursor: pointer;
+}
+.orphan-row:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.orphan-row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tmd-fg-faint); flex: none; }
+.orphan-row .dot.dirty { background: var(--tmd-git-modified); }
+.orphan-row .nm { font-weight: 600; color: var(--tmd-fg); flex: none; }
+.orphan-row .br { font-family: var(--mono); font-size: 11px; color: var(--tmd-fg-subtle); flex: none; }
+.orphan-row .kind { font-size: 9.5px; color: var(--tmd-fg-faint); border: 1px solid var(--tmd-border); border-radius: 3px; padding: 0 4px; flex: none; }
+.orphan-row .fill { flex: 1; }
+.orphan-row .dcount { font-size: 11px; color: var(--tmd-git-modified); flex: none; font-variant-numeric: tabular-nums; }
+.orphan-row .ab { font-size: 11px; flex: none; font-variant-numeric: tabular-nums; }
+.orphan-row .ab .a { color: var(--tmd-diff-inserted); }
+.orphan-row .ab .b { color: var(--tmd-diff-removed); }
+.orphan-row .go { flex: none; font-size: 10.5px; color: var(--tmd-accent); opacity: 0; }
+.orphan-row:hover .go { opacity: 1; }
+.orphan-foot { padding: 8px 10px; color: var(--tmd-fg-faint); font-size: 10.5px; line-height: 1.7; border-top: 1px solid var(--tmd-border); }
+.orphan-foot b { color: var(--tmd-fg-subtle); font-weight: 600; }
+
+/* 新增:toast */
+.toast {
+  position: absolute; bottom: 12px; left: 50%; transform: translate(-50%, 8px);
+  z-index: 1250; max-width: calc(100% - 24px);
+  background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border-strong);
+  border-radius: var(--radius-sm); box-shadow: 0 6px 20px rgba(0,0,0,.14);
+  padding: 6px 12px; font-size: 11.5px; color: var(--tmd-fg); white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity .2s var(--ease), transform .2s var(--ease);
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast .tk { color: var(--tmd-diff-inserted); margin-right: 5px; }
+
+/* 场景路由:single=git 视图单仓 / multi=git 视图多仓 / orphan / tree */
+body[data-scene="single"] #scene-git.visible-single, body[data-scene="multi-git"] #scene-git,
+body[data-scene="orphan"] #scene-orphan, body[data-scene="multi-tree"] #scene-tree { display: flex; }
+#repobar, #repo-count { display: none; }
+body[data-scene="multi-git"] #repobar { display: flex; }
+body[data-scene="multi-git"] #repo-count { display: inline-block; }
+</style>
+</head>
+<body data-scene="multi-git">
+
+<div class="proto-bar">
+  <span class="lab">场景</span>
+  <button class="proto-btn" data-s="single">单仓 · 现状不变</button>
+  <button class="proto-btn active" data-s="multi-git">多仓 · Git 面板</button>
+  <button class="proto-btn" data-s="multi-tree">多仓 · 文件树着色</button>
+  <button class="proto-btn" data-s="orphan">非仓根 · 发现引导</button>
+  <span class="proto-note">浅色复刻(1421 实测基准)· 新增仅 RepoBar / 引导 / 骨架 / toast</span>
+</div>
+
+<div class="app">
+
+  <header class="titlebar">
+    <span class="traffic" aria-hidden="true"><i></i><i></i><i></i></span>
+    <div class="titlebar-zone-left">
+      <button class="titlebar-action" title="侧栏开关"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><line x1="6" y1="2.5" x2="6" y2="13.5"/></svg></button>
+      <button class="titlebar-action" title="新会话"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8 3v10M3 8h10"/></svg></button>
+    </div>
+    <div class="titlebar-center">
+      <div class="workspace-breadcrumb"><span>code</span><span class="chev">›</span><span>tmd-cli</span></div>
+      <div class="session-tabs">
+        <div class="session-tab is-active"><span class="session-tab-dot"></span><span class="cli">claude</span><span class="session-tab-label">git 多仓设计</span></div>
+        <div class="session-tab"><span class="cli">omp</span><span class="session-tab-label">扩展市场联调</span></div>
+        <div class="session-tab"><span class="cli">codex</span><span class="session-tab-label">api 竞态排查</span></div>
+      </div>
+    </div>
+    <div class="titlebar-actions">
+      <button class="panel-tab" id="pt-files" title="文件"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1.5 4a1 1 0 0 1 1-1H6l1.5 2h6a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/></svg></button>
+      <button class="panel-tab is-active" id="pt-git" title="Git"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="4.5" cy="3.5" r="1.8"/><circle cx="4.5" cy="12.5" r="1.8"/><circle cx="11.5" cy="6.5" r="1.8"/><path d="M4.5 5.3v5.4M11.5 8.3c0 2-3 2.2-5.5 2.9"/></svg></button>
+      <button class="panel-tab" title="审批线"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="8" r="6"/><path d="M5.5 8.2l1.8 1.8 3.4-4"/></svg></button>
+      <button class="panel-tab" title="Memory"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 2a4 4 0 0 1 4 4c1.2.4 2 1.5 2 2.8A3.2 3.2 0 0 1 10.8 12H5.2A3.2 3.2 0 0 1 2 8.8C2 7.5 2.8 6.4 4 6a4 4 0 0 1 4-4z"/></svg></button>
+      <button class="panel-tab panel-tab-overflow" title="更多面板"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="13" cy="8" r="1.3"/></svg></button>
+    </div>
+  </header>
+
+  <div class="body-row">
+
+    <aside class="left-aside">
+      <div class="ws-caption">
+        <span class="ws-caption-label">工作区</span>
+        <div class="ws-view-toggle"><button class="on">默认</button><button>归档</button></div>
+        <button class="ws-caption-btn" title="折叠"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 10l4-4 4 4"/></svg></button>
+        <button class="ws-caption-btn" title="克隆仓库"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="4.5" cy="3.5" r="1.6"/><circle cx="4.5" cy="12.5" r="1.6"/><circle cx="11.5" cy="6.5" r="1.6"/><path d="M4.5 5.1v5.8M11.5 8.1c0 1.8-2.8 2.1-5.4 2.7"/></svg></button>
+        <button class="ws-caption-btn" title="添加工作区"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="5.5" y="5.5" width="8" height="8" rx="1"/><path d="M3 10.5H2.5a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1V4"/></svg></button>
+      </div>
+      <div class="ws-list">
+        <div class="workspace-card">
+          <div class="workspace-row active">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1.5 4a1 1 0 0 1 1-1H6l1.5 2h6a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/></svg>
+            <span class="wname">code</span>
+            <span class="wact">
+              <button title="刷新"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 1.5v3h-3"/></svg></button>
+              <button title="置顶"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M9.5 2.5l4 4-2 1-2.5 3.5-4-4L8.5 4.5zM5 11l-2.5 2.5"/></svg></button>
+            </span>
+          </div>
+          <div class="ws-group"><span>CLI</span></div>
+          <div class="thread is-active"><span class="t-dot run"></span><span class="t-name">git 多仓设计</span><span class="t-cli">claude</span></div>
+          <div class="thread"><span class="t-dot unread"></span><span class="t-name">扩展市场联调</span><span class="t-cli">omp</span></div>
+          <div class="thread"><span class="t-dot"></span><span class="t-name">api 竞态排查</span><span class="t-cli">codex</span></div>
+          <div class="ws-group"><span>终端</span></div>
+          <div class="thread"><span class="t-dot run"></span><span class="t-name">zsh · tmd-cli</span><span class="t-cli">pty</span></div>
+        </div>
+      </div>
+      <div class="left-bottom">
+        <button title="布局"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M6.5 2.5v11"/></svg></button>
+        <button title="专注"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none"/></svg></button>
+        <span class="ver">v0.9.3</span>
+        <button title="收起"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 6l4 4 4-4"/></svg></button>
+      </div>
+    </aside>
+
+    <div class="handle-v line-r"></div>
+
+    <main class="center">
+      <div class="pty"><span class="dim">➜  tmd-cli</span> <span class="br">git:(main)</span> pnpm test
+<span class="dim">RUN  v3.2.4  214 test files</span>
+<span class="ok">✓</span> src/plugins/git/commitTab.test.ts  (12 tests)
+<span class="ok">✓</span> src/plugins/files/gitDecorate.test.ts  (18 tests)
+<span class="ok">✓</span> src-tauri/src/git/repos_scan.rs  (9 tests)
+
+<span class="dim">Test Files  214 passed (214)</span>
+
+<span class="dim">➜  tmd-cli</span> <span class="br">git:(main)</span> <span class="caret"></span></div>
+      <div class="composer">
+        <div class="composer-toolbar">
+          <span class="val">claude</span><span class="sep">·</span><span>claude-sonnet-4-5</span>
+          <span class="sep">·</span><span class="val">~/code/tmd-cli</span>
+          <button class="tb-btn drawer" title="更多"><svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="13" cy="8" r="1.3"/></svg></button>
+        </div>
+        <div class="composer-input">
+          <textarea rows="3" placeholder="输入消息,(/) 命令、(@) 文件、($) 触发器…"></textarea>
+        </div>
+      </div>
+    </main>
+
+    <div class="handle-v line-l"></div>
+
+    <aside class="right-aside">
+
+      <!-- ═══ Git 面板(真实:remote-bar 在顶,无 subbar)═══ -->
+      <div class="panel-body" id="scene-git">
+        <div class="repobar" id="repobar"></div>
+        <div class="remote-bar">
+          <span class="branch" id="rb-branch"></span>
+          <span class="upstream" id="rb-upstream"></span>
+          <span class="spacer"></span>
+          <span class="agg" id="agg" title="聚合增删行数(staged + 未暂存)">
+            <span class="ins" id="agg-ins"></span><span class="sl">/</span><span class="del" id="agg-del"></span><span class="cnt" id="agg-cnt"></span>
+          </span>
+          <button class="view-btn" id="view-btn">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="4.5" cy="3.5" r="1.8"/><circle cx="4.5" cy="12.5" r="1.8"/><circle cx="11.5" cy="6.5" r="1.8"/><path d="M4.5 5.3v5.4M11.5 8.3c0 2-3 2.2-5.5 2.9"/></svg>
+            <span id="view-label">差异</span>
+            <span class="cd">▾</span>
+          </button>
+          <div class="ops">
+            <button class="rb-btn refresh" title="刷新(重扫状态/分支/历史)" id="rb-refresh"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 1.5v3h-3"/></svg></button>
+            <button class="rb-btn" title="获取远端更新(fetch --all --prune,不动本地分支)" id="rb-fetch"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M4.6 11.5a3 3 0 0 1-.4-5.97A4 4 0 0 1 12 6.5a2.5 2.5 0 0 1-.4 4.97"/><path d="M8 8.5v5M6 11.5l2 2 2-2"/></svg></button>
+            <button class="rb-btn" title="拉取远端更新" id="rb-pull"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8 2v8M4.5 7L8 10.5 11.5 7M2.5 13.5h11"/></svg><span id="rb-behind"></span></button>
+            <button class="rb-btn push" title="推送" id="rb-push"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8 10.5v-8M4.5 6L8 2.5 11.5 6M2.5 13.5h11"/></svg><span id="rb-ahead"></span></button>
+          </div>
+        </div>
+        <div class="diff-body" id="diff-body">
+          <div class="skel-wrap">
+            <div class="skel w40"></div><div class="skel w78"></div><div class="skel w62"></div>
+            <div class="skel w55"></div><div class="skel w78"></div><div class="skel w40"></div>
+          </div>
+          <div class="real" id="diff-real"></div>
+        </div>
+        <div class="commitline">
+          <div class="commitrow">
+            <span class="pfx">commit ▸</span>
+            <textarea id="commit-msg" rows="1" placeholder="提交信息…"></textarea>
+          </div>
+          <div class="commitnote" id="commit-note" style="display:none"></div>
+          <div class="commitmeta">
+            <button class="amend" id="amend-btn" title="附加 --amend:改动并入上一个提交"><span class="box" id="amend-box">[ ]</span> --amend</button>
+            <span id="cm-selected">0 selected</span>
+            <button class="go" id="commit-go" title="提交(⌘⏎)" disabled>⌘⏎ commit</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 文件面板(真实:subbar 21px + 大写 label)═══ -->
+      <div class="panel-body" id="scene-tree">
+        <div class="panel-subbar">
+          <span class="panel-subbar-label" id="tree-label">code</span>
+          <button class="panel-subbar-action is-active" title="Git 变更着色(开)"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="4.5" cy="3.5" r="1.6"/><circle cx="4.5" cy="12.5" r="1.6"/><circle cx="11.5" cy="6.5" r="1.6"/><path d="M4.5 5.1v5.8M11.5 8.1c0 1.8-2.8 2.1-5.4 2.7"/></svg></button>
+          <button class="panel-subbar-action" title="新文件"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5z"/><path d="M9 1.5V5.5h4M8 8v4M6 10h4"/></svg></button>
+          <button class="panel-subbar-action" title="新文件夹"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 4a1 1 0 0 1 1-1H6l1.5 2h6a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/><path d="M8 7.5v4M6 9.5h4"/></svg></button>
+          <button class="panel-subbar-action" title="刷新"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 1.5v3h-3"/></svg></button>
+        </div>
+        <div class="tree-body" id="tree-body"></div>
+        <div class="tree-hint">
+          多仓着色:文件按<b>最近祖先仓</b>取状态;目录聚合<b>不越仓界</b>。仓根目录名颜色 = 该仓聚合最高优先级(红 &gt; 蓝 &gt; 深绿)。点目录折叠。
+        </div>
+      </div>
+
+      <!-- ═══ 非仓根引导 ═══ -->
+      <div class="panel-body" id="scene-orphan">
+        <div class="orphan-body">
+          <div class="orphan-card">
+            <div class="t">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="4.5" cy="3.5" r="1.8"/><circle cx="4.5" cy="12.5" r="1.8"/><circle cx="11.5" cy="6.5" r="1.8"/><path d="M4.5 5.3v5.4M11.5 8.3c0 2-3 2.2-5.5 2.9"/></svg>
+              工作区根不是 Git 仓库
+            </div>
+            <div class="desc">扫描 <span class="em">~/code</span>(深度 2)发现 <span class="em">3 个仓库</span>。点击任一仓库,即以该仓为语境使用完整 Git 面板。</div>
+          </div>
+          <div id="orphan-list"></div>
+        </div>
+        <div class="orphan-foot">
+          <b>同步说明:</b>文件树着色照常工作(按各仓归属);幕布终端里的 git 命令不受影响;发现随切工作区 / ⟳ / 60s 慢巡航刷新。
+        </div>
+      </div>
+
+      <div class="toast" id="toast"></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ═══ 演示数据(契约:staged = 待提交段;wt 侧 = 未暂存段;? = 未跟踪段)═══ */
+const REPOS = [
+  {
+    name: "tmd-cli", branch: "main", upstream: "origin/main", kind: null, ahead: 2, behind: 0,
+    files: [
+      { s: "M", name: "ipc.ts", dir: "src/kernel/", ins: 64, del: 12, staged: true },
+      { s: "M", name: "GitPanel.tsx", dir: "src/plugins/git/", ins: 21, del: 9, staged: true },
+      { s: "M", name: "gitDecorate.tsx", dir: "src/plugins/files/", ins: 43, del: 31, staged: false },
+      { s: "A", name: "repos_scan.rs", dir: "src-tauri/src/git/", ins: 210, del: 0, staged: false },
+      { s: "M", name: "README.md", dir: "", ins: 2, del: 2, staged: false },
+      { s: "?", name: "git-multi-repo.html", dir: "docs/prototypes/", ins: 1152, del: 0, staged: false },
+      { s: "?", name: "notes.txt", dir: "", ins: 0, del: 0, staged: false },
+    ],
+  },
+  {
+    name: "docs-site", branch: "main", upstream: "origin/main", kind: "submodule", ahead: 0, behind: 0,
+    files: [
+      { s: "M", name: "git-multi-repo.md", dir: "docs/research/", ins: 12, del: 0, staged: false },
+    ],
+  },
+  {
+    name: "infra-scripts", branch: "dev", upstream: "origin/dev", kind: null, ahead: 0, behind: 4,
+    files: [
+      { s: "M", name: "deploy.sh", dir: "", ins: 8, del: 2, staged: true },
+      { s: "M", name: "backup.sh", dir: "", ins: 10, del: 4, staged: false },
+      { s: "D", name: "legacy-api.py", dir: "scripts/", ins: 0, del: 82, staged: false },
+      { s: "C", name: "nginx.conf", dir: "conf/", ins: 0, del: 0, staged: false },
+    ],
+  },
+];
+let selected = 0;
+const BADGE = { M: "M", A: "A", D: "D", R: "R", T: "T", C: "C", "?": "U" };
+const KW = { M: "m", A: "a", D: "d", R: "r", T: "r", C: "d", "?": "u" };
+const STATUS_DESC = { M: "已修改 (modified)", A: "新增 (new file)", D: "已删除 (deleted)", R: "重命名 (renamed)", T: "类型变更 (typechange)", C: "双方修改,冲突 (both modified)", "?": "未跟踪 (untracked)" };
+const fmt = n => n.toLocaleString("en-US");
+const sum = (files, k) => files.reduce((a, f) => a + (f[k] || 0), 0);
+
+let toastTimer = null;
+function toast(html) {
+  const t = document.getElementById("toast");
+  t.innerHTML = `<span class="tk">✓</span>` + html;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2100);
+}
+
+/* ── RepoBar(新增元素)── */
+function renderRepoBar() {
+  const bar = document.getElementById("repobar");
+  bar.innerHTML = `<span class="repo-count">${REPOS.length} 仓</span>`;
+  REPOS.forEach((r, i) => {
+    const b = document.createElement("button");
+    b.className = "repo-chip" + (i === selected ? " is-active" : "");
+    const dirty = r.files.length;
+    const ab = (r.ahead ? ` <span class="a">↑${r.ahead}</span>` : "") + (r.behind ? ` <span class="b">↓${r.behind}</span>` : "");
+    b.innerHTML = `<span class="dot${dirty ? " dirty" : ""}"></span><span class="n">${r.name}</span>`
+      + (r.kind ? `<span class="kind">${r.kind === "submodule" ? "子模块" : "worktree"}</span>` : "")
+      + `<span>${dirty || ""}</span>${ab ? `<span class="ab">${ab}</span>` : ""}`;
+    b.dataset.tip = `${r.name} · ${r.branch} → ${r.upstream}\n${dirty} 个变更 · +${sum(r.files, "ins")} / -${sum(r.files, "del")}`
+      + (r.ahead ? `\n领先 origin ${r.ahead} 个提交` : "") + (r.behind ? `\n落后 origin ${r.behind} 个提交` : "");
+    b.onclick = () => switchRepo(i);
+    bar.insertBefore(b, bar.firstChild.nextSibling);
+  });
+}
+
+function switchRepo(i) {
+  if (i === selected) return;
+  selected = i;
+  renderRepoBar();
+  const body = document.getElementById("diff-body");
+  body.classList.add("is-loading");
+  setTimeout(() => { renderGitPanel(); body.classList.remove("is-loading"); }, 240);
+}
+
+/* ── 三段分区(真实顺序:未暂存变更 → 未跟踪文件 → 待提交变更;恒渲染,空态 (nothing))── */
+function sectionsOf(repo) {
+  return [
+    { key: "un", title: "未暂存变更", rows: repo.files.filter(f => !f.staged && f.s !== "?") },
+    { key: "ut", title: "未跟踪文件", rows: repo.files.filter(f => f.s === "?") },
+    { key: "st", title: "待提交变更", rows: repo.files.filter(f => f.staged) },
+  ];
+}
+
+function renderGitPanel() {
+  const r = REPOS[selected];
+  document.getElementById("rb-branch").textContent = r.branch;
+  document.getElementById("rb-upstream").textContent = r.upstream ? "→ " + r.upstream : "";
+  document.getElementById("rb-behind").textContent = r.behind || "";
+  document.getElementById("rb-ahead").textContent = r.ahead || "";
+  document.getElementById("tree-label").textContent = r.name;
+  document.getElementById("agg-ins").textContent = "+" + fmt(sum(r.files, "ins"));
+  document.getElementById("agg-del").textContent = "-" + fmt(sum(r.files, "del"));
+  document.getElementById("agg-cnt").textContent = r.files.length;
+
+  const body = document.getElementById("diff-real");
+  body.innerHTML = "";
+  if (!r.files.length) {
+    const e = document.createElement("div");
+    e.className = "git-empty";
+    e.textContent = "工作区干净,无变更";
+    body.appendChild(e);
+  }
+  sectionsOf(r).forEach(sec => {
+    const head = document.createElement("div");
+    head.className = "sec-head";
+    head.innerHTML = `<span class="caret">▾</span><span class="t">${sec.title}</span>`
+      + (sec.rows.length ? `<span class="np">(${sec.rows.length})</span>` : "")
+      + `<span class="spacer"></span>`;
+    if (sec.key === "un" && sec.rows.length + sectionsOf(r)[1].rows.length > 0) {
+      const a = document.createElement("button");
+      a.className = "act"; a.title = "git add 全部未暂存与未跟踪文件"; a.textContent = "(全部暂存)";
+      a.onclick = ev => {
+        ev.stopPropagation();
+        const n = sectionsOf(r)[0].rows.length + sectionsOf(r)[1].rows.length;
+        r.files.forEach(f => { if (f.staged === false) f.staged = true; });
+        renderGitPanel();
+        toast(`已暂存 ${n} 个文件`);
+      };
+      head.appendChild(a);
+    }
+    if (sec.key === "st" && sec.rows.length > 0) {
+      const a = document.createElement("button");
+      a.className = "act"; a.title = "git reset 全部已暂存文件"; a.textContent = "(全部取消)";
+      a.onclick = ev => {
+        ev.stopPropagation();
+        const n = sec.rows.length;
+        sec.rows.forEach(f => { f.staged = false; });
+        renderGitPanel();
+        toast(`已取消暂存 ${n} 个文件`);
+      };
+      head.appendChild(a);
+    }
+    head.onclick = () => head.classList.toggle("collapsed");
+    body.appendChild(head);
+    const wrap = document.createElement("div"); wrap.className = "sec-wrap";
+    const inner = document.createElement("div"); inner.className = "sec-inner";
+    if (!sec.rows.length) {
+      const e = document.createElement("div"); e.className = "nothing"; e.textContent = "(nothing)";
+      inner.appendChild(e);
+    } else {
+      sec.rows.forEach(f => inner.appendChild(rowEl(f, sec.key)));
+    }
+    wrap.appendChild(inner); body.appendChild(wrap);
+  });
+  renderCommitMeta(r);
+}
+
+/* ── FRow(真实规格)── */
+function rowEl(f, side) {
+  const el = document.createElement("div");
+  el.className = "frow";
+  el.title = `${f.dir}${f.name} —— 点击在中间打开 diff${f.s === "C" ? " · 冲突,请先到幕布解决" : ""}`;
+  const conflict = f.s === "C";
+  const stagedRow = side === "st";
+  const checked = f.staged || stagedRow;
+  const numsBlank = !f.ins && !f.del;
+  const canDiscard = side === "un" && (f.s === "M" || f.s === "T");
+  const ck = document.createElement("button");
+  ck.className = "ck" + (checked ? " on" : "") + (conflict ? " dis" : "");
+  ck.textContent = conflict ? "—" : checked ? "[x]" : "[ ]";
+  ck.title = conflict ? "冲突文件:请到幕布终端解决后提交"
+    : stagedRow ? "取消暂存(git reset)" : checked ? "移出本次提交" : "纳入本次提交";
+  ck.onclick = ev => {
+    ev.stopPropagation();
+    if (conflict) return;
+    f.staged = stagedRow ? false : !f.staged;
+    renderGitPanel();
+  };
+  el.appendChild(ck);
+  const kw = document.createElement("span");
+  kw.className = "kw " + KW[f.s]; kw.title = STATUS_DESC[f.s]; kw.textContent = BADGE[f.s];
+  el.appendChild(kw);
+  const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = f.name;
+  el.appendChild(nm);
+  const dir = document.createElement("span"); dir.className = "dir"; dir.textContent = f.dir ? f.dir + "/" : "";
+  el.appendChild(dir);
+  const tail = document.createElement("span"); tail.className = "tail";
+  if (conflict) {
+    tail.innerHTML = `<span class="conflict">冲突</span>`;
+  } else {
+    tail.innerHTML = `<span class="nums${numsBlank ? " blank" : ""}"><span class="i">+${fmt(f.ins)}</span> <span class="d">−${fmt(f.del)}</span></span>`
+      + `<span class="acts">`
+      + (stagedRow
+        ? `<button class="abtn" title="取消暂存(git reset)">(取消暂存)</button>`
+        : `<button class="abtn" title="暂存(git add)">(暂存)</button>`)
+      + (canDiscard ? `<button class="abtn warn" title="放弃工作区改动(还原到暂存区;不可恢复)">(放弃)</button>` : "")
+      + `</span>`;
+    tail.querySelector(".acts .abtn").onclick = ev => {
+      ev.stopPropagation();
+      f.staged = !stagedRow;
+      renderGitPanel();
+    };
+    const dis = tail.querySelectorAll(".abtn.warn")[0];
+    if (dis) dis.onclick = ev => {
+      ev.stopPropagation();
+      const rr = REPOS[selected];
+      rr.files = rr.files.filter(x => x !== f);
+      renderGitPanel(); renderRepoBar();
+      toast(`已放弃 ${f.name} 的更改`);
+    };
+  }
+  el.appendChild(tail);
+  el.onclick = () => toast(`中央区打开 diff:${f.dir}${f.name}(${stagedRow ? "staged" : "工作区"}侧)`);
+  return el;
+}
+
+/* ── CommitComposer ── */
+let amend = false;
+function renderCommitMeta(r) {
+  const selected = r.files.filter(f => f.staged).length;
+  document.getElementById("cm-selected").textContent = `${selected} selected`;
+  const msg = document.getElementById("commit-msg").value.trim();
+  document.getElementById("commit-go").disabled = !(msg.length > 0 && (selected > 0 || amend));
+}
+document.getElementById("commit-msg").addEventListener("input", () => renderCommitMeta(REPOS[selected]));
+document.getElementById("amend-btn").onclick = () => {
+  amend = !amend;
+  document.getElementById("amend-box").textContent = amend ? "[x]" : "[ ]";
+  document.getElementById("amend-box").classList.toggle("on", amend);
+  renderCommitMeta(REPOS[selected]);
+};
+document.getElementById("commit-msg").addEventListener("keydown", ev => {
+  if ((ev.metaKey || ev.ctrlKey) && ev.key === "Enter") { ev.preventDefault(); doCommit(); }
+});
+function doCommit() {
+  const r = REPOS[selected];
+  const staged = r.files.filter(f => f.staged);
+  const msg = document.getElementById("commit-msg").value.trim();
+  const go = document.getElementById("commit-go");
+  if (!msg || (!staged.length && !amend) || go.disabled) return;
+  const note = document.getElementById("commit-note");
+  if (amend && !staged.length) {
+    note.textContent = `已 amend 进上一个提交:${msg}`;
+  } else {
+    r.files = r.files.filter(f => !f.staged);
+    r.ahead += 1;
+    note.textContent = `已提交到 ${r.branch}(${staged.length} 个文件):${msg}`;
+  }
+  note.style.display = "block";
+  document.getElementById("commit-msg").value = "";
+  renderGitPanel(); renderRepoBar();
+  setTimeout(() => { note.style.display = "none"; }, 2600);
+}
+document.getElementById("commit-go").onclick = doCommit;
+
+/* ── 远端按钮(真实:点击开对话框;原型以 toast 代演示)── */
+document.getElementById("rb-pull").onclick = () => {
+  const r = REPOS[selected];
+  if (!r.behind) return toast(`${r.branch} 已是最新(对话框内可选远端与分支)`);
+  toast(`已拉取 ${r.upstream}(快进 ${r.behind} 个提交)`);
+  r.behind = 0; renderGitPanel(); renderRepoBar();
+};
+document.getElementById("rb-push").onclick = () => {
+  const r = REPOS[selected];
+  if (!r.ahead) return toast(`推送(对话框内查看预览与选项)`);
+  toast(`已推送 ${r.branch} → ${r.upstream}(${r.ahead} 个提交)`);
+  r.ahead = 0; renderGitPanel(); renderRepoBar();
+};
+document.getElementById("rb-fetch").onclick = () => toast(`已 fetch --all --prune(不动本地分支)`);
+document.getElementById("rb-refresh").onclick = () => {
+  const body = document.getElementById("diff-body");
+  body.classList.add("is-loading");
+  setTimeout(() => { renderGitPanel(); body.classList.remove("is-loading"); }, 240);
+};
+
+/* ── 视图下拉(GitToolbar)── */
+const viewMenu = document.createElement("div");
+viewMenu.className = "view-menu";
+viewMenu.style.display = "none";
+const MENU_ITEMS = [
+  { k: "diff", label: "差异", icon: `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><line x1="4" y1="3" x2="4" y2="13"/><line x1="12" y1="3" x2="12" y2="13"/><path d="M7 5.5h4M9 3.5v4"/><path d="M2 12.5h4" opacity=".6"/></svg>` },
+  { k: "branch", label: "分支", icon: `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="4.5" cy="3.5" r="1.6"/><circle cx="4.5" cy="12.5" r="1.6"/><circle cx="11.5" cy="6.5" r="1.6"/><path d="M4.5 5.1v5.8M11.5 8.1c0 1.8-2.8 2.1-5.4 2.7"/></svg>` },
+  { k: "history", label: "历史", icon: `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.8"/></svg>` },
+  { div: true },
+  { k: "flat", label: "平铺", icon: `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><line x1="2.5" y1="5" x2="13.5" y2="5"/><line x1="2.5" y1="8" x2="13.5" y2="8"/><line x1="2.5" y1="11" x2="13.5" y2="11"/></svg>` },
+  { k: "tree", label: "树形", icon: `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 2.5v9a2 2 0 0 0 2 2h3M3 6h4M13 9.5v2a2 2 0 0 1-2 2h-1"/><circle cx="13" cy="7.5" r="1.8"/></svg>` },
+];
+MENU_ITEMS.forEach(it => {
+  if (it.div) { const d = document.createElement("div"); d.className = "div"; viewMenu.appendChild(d); return; }
+  const b = document.createElement("button");
+  b.className = "mi";
+  b.innerHTML = it.icon + `<span>${it.label}</span>`;
+  b.onclick = ev => {
+    ev.stopPropagation();
+    viewMenu.style.display = "none";
+    if (it.k === "diff") { document.getElementById("view-label").textContent = "差异"; }
+    else if (it.k === "flat" || it.k === "tree") { toast(`${it.label}布局(原型以平铺演示)`); }
+    else toast(`${it.label}视图(原型未实现,规格见 spec)`);
+  };
+  viewMenu.appendChild(b);
+});
+document.querySelector(".right-aside").appendChild(viewMenu);
+document.getElementById("view-btn").onclick = ev => {
+  ev.stopPropagation();
+  const btn = document.getElementById("view-btn");
+  const rect = btn.getBoundingClientRect();
+  const aside = document.querySelector(".right-aside").getBoundingClientRect();
+  viewMenu.style.left = Math.min(rect.left - aside.left, aside.width - 160) + "px";
+  viewMenu.style.top = (rect.bottom - aside.top + 4) + "px";
+  viewMenu.style.display = viewMenu.style.display === "none" ? "block" : "none";
+};
+document.addEventListener("click", () => { viewMenu.style.display = "none"; });
+
+/* ── 文件树(file-tree 规格)── */
+const TREE = { nm: "code", dir: true, cls: "", ch: [
+  { nm: "tmd-cli", dir: true, cls: "c-mod", tag: "仓 · main", ch: [
+    { nm: "src", dir: true, cls: "c-mod", ch: [
+      { nm: "kernel", dir: true, cls: "c-mod", ch: [{ nm: "ipc.ts", cls: "c-mod" }] },
+      { nm: "plugins", dir: true, cls: "c-mod", ch: [
+        { nm: "GitPanel.tsx", cls: "" },
+        { nm: "gitDecorate.tsx", cls: "c-mod" },
+      ] },
+    ] },
+    { nm: "docs", dir: true, cls: "c-add", ch: [
+      { nm: "prototypes", dir: true, cls: "c-add", ch: [{ nm: "git-multi-repo.html", cls: "c-add" }] },
+    ] },
+    { nm: "package.json", cls: "c-mod" },
+    { nm: "pnpm-lock.yaml", cls: "" },
+  ] },
+  { nm: "docs-site", dir: true, cls: "c-add", tag: "子模块", ch: [
+    { nm: "git-multi-repo.md", cls: "c-mod" },
+  ] },
+  { nm: "infra-scripts", dir: true, cls: "c-del", tag: "仓 · dev", ch: [
+    { nm: "backup.sh", cls: "c-mod" },
+    { nm: "scripts", dir: true, cls: "c-del", ch: [{ nm: "legacy-api.py", cls: "c-del" }] },
+  ] },
+  { nm: "README.md", cls: "" },
+] };
+const FOLD_ICON = `<span class="ficon hide-on-hover"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1.5 4a1 1 0 0 1 1-1H6l1.5 2h6a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/></svg></span>`;
+const FILE_ICON = `<span class="ficon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5z"/><path d="M9 1.5V5.5h4"/></svg></span>`;
+const CHEV = `<span class="chev"><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M6 3.5v9l6-4.5z"/></svg></span>`;
+
+function treeEl(node, depth) {
+  const row = document.createElement("div");
+  row.className = "ft-row" + (node.dir ? " expanded" : "");
+  row.style.paddingLeft = depth * 12 + 12 + "px";
+  row.innerHTML = (node.dir ? `<span class="icell">${CHEV}${FOLD_ICON}</span>` : `<span class="icell">${FILE_ICON}</span>`)
+    + `<span class="nm${node.cls ? " deco " + node.cls : ""}">${node.nm}</span>`
+    + (node.tag ? `<span class="repotag">${node.tag}</span>` : "");
+  const facts = document.createElement("span");
+  facts.className = "facts";
+  facts.innerHTML = `<button title="在访达中显示"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 8a3.2 3.2 0 0 1 3.2-3H7M9 5h1.8A3.2 3.2 0 0 1 14 8a3.2 3.2 0 0 1-3.2 3H9"/><path d="M5.5 6.5L4 8l1.5 1.5M10.5 6.5L12 8l-1.5 1.5"/></svg></button>`
+    + `<button title="复制路径"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="5.5" y="5.5" width="8" height="8" rx="1"/><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/></svg></button>`;
+  facts.querySelector("button").onclick = ev => { ev.stopPropagation(); toast(`在访达中显示:${node.nm}`); };
+  facts.querySelectorAll("button")[1].onclick = ev => { ev.stopPropagation(); toast(`已复制路径`); };
+  row.appendChild(facts);
+  let kids = null;
+  if (node.dir) {
+    kids = document.createElement("div");
+    kids.className = "ft-children";
+    const inner = document.createElement("div"); inner.className = "ft-c-inner";
+    node.ch.forEach(c => inner.appendChild(treeEl(c, depth + 1)));
+    kids.appendChild(inner);
+    row.onclick = () => {
+      const collapsed = kids.classList.toggle("collapsed");
+      row.classList.toggle("expanded", !collapsed);
+    };
+  } else {
+    row.onclick = () => toast(`打开 ${node.nm}`);
+  }
+  const box = document.createElement("div");
+  box.appendChild(row); if (kids) box.appendChild(kids);
+  return box;
+}
+function renderTree() {
+  const body = document.getElementById("tree-body");
+  body.innerHTML = "";
+  body.appendChild(treeEl(TREE, 0));
+}
+
+function renderOrphan() {
+  const list = document.getElementById("orphan-list");
+  list.innerHTML = "";
+  REPOS.forEach((r, i) => {
+    const el = document.createElement("div");
+    el.className = "orphan-row";
+    const ab = (r.ahead ? ` <span class="a">↑${r.ahead}</span>` : "") + (r.behind ? ` <span class="b">↓${r.behind}</span>` : "");
+    el.innerHTML = `<span class="dot${r.files.length ? " dirty" : ""}"></span><span class="nm">${r.name}</span>`
+      + `<span class="br">${r.branch}</span>`
+      + (r.kind ? `<span class="kind">${r.kind === "submodule" ? "子模块" : "worktree"}</span>` : "")
+      + `<span class="fill"></span>`
+      + (r.files.length ? `<span class="dcount">${r.files.length} 个变更</span>` : "")
+      + (ab ? `<span class="ab">${ab}</span>` : "")
+      + `<span class="go">进入 →</span>`;
+    el.onclick = () => { selected = i; setScene("multi-git"); toast(`已进入 ${r.name} 语境`); };
+    list.appendChild(el);
+  });
+}
+
+function setScene(s) {
+  document.body.dataset.scene = s;
+  document.querySelectorAll(".proto-btn").forEach(b => b.classList.toggle("active", b.dataset.s === s));
+  const isTree = s === "multi-tree";
+  const isGit = s === "single" || s === "multi-git";
+  document.getElementById("pt-files").classList.toggle("is-active", isTree);
+  document.getElementById("pt-git").classList.toggle("is-active", isGit);
+  document.getElementById("scene-git").classList.toggle("visible-single", s === "single");
+  if (s === "multi-git") { renderRepoBar(); renderGitPanel(); }
+  else if (isTree) { document.getElementById("tree-label").textContent = REPOS[selected].name; }
+}
+document.querySelectorAll(".proto-btn").forEach(b => b.onclick = () => setScene(b.dataset.s));
+document.getElementById("pt-files").onclick = () => setScene("multi-tree");
+document.getElementById("pt-git").onclick = () => setScene(document.body.dataset.scene === "single" ? "single" : "multi-git");
+
+renderRepoBar();
+renderGitPanel();
+renderTree();
+renderOrphan();
+setScene("multi-git");
+</script>
+</body>
+</html>

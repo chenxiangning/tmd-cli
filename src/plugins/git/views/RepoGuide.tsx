@@ -1,0 +1,94 @@
+/**
+ * RepoGuide —— 非仓根发现引导(spec 2026-09-07-git-multi-repo-design §3,原型 orphan 场景)。
+ * workspace root 非仓但扫描到子仓时,替代「当前目录不是 Git 仓库」空态:
+ * 点击任一仓即以该仓为语境进入完整 Git 面板(选中态存 panelStore,按工作区记忆)。
+ */
+
+import type { GitRepoSummary } from "@kernel/ipc";
+import { GitBranch } from "@phosphor-icons/react";
+import { useRepoChips } from "../hooks/useRepoChips";
+
+export function RepoGuide({
+  root,
+  repos,
+  truncated,
+  onSelect,
+}: {
+  root: string;
+  repos: GitRepoSummary[];
+  truncated: boolean;
+  onSelect: (path: string) => void;
+}) {
+  const chips = useRepoChips(repos, 0);
+  return (
+    <div className="flex h-full min-h-0 flex-col text-xs">
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        <div className="mb-2 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) px-3 py-2.5">
+          <div className="mb-1 flex items-center gap-1.5 font-semibold">
+            <GitBranch size={14} className="text-(--tmd-fg-muted)" aria-hidden />
+            工作区根不是 Git 仓库
+          </div>
+          <div className="leading-relaxed text-(--tmd-fg-muted)">
+            扫描 <span className="text-(--tmd-fg)">{root}</span>(深度 2)发现{" "}
+            <span className="text-(--tmd-fg)">{repos.length} 个仓库</span>
+            。点击任一仓库,即以该仓为语境使用完整 Git 面板。
+          </div>
+        </div>
+        {repos.map((r) => {
+          const chip = chips.get(r.path);
+          const dirty = chip?.dirty ?? -1;
+          const kind = r.kind === "repo" ? null : r.kind === "submodule" ? "子模块" : "工作树";
+          return (
+            <button
+              key={r.path}
+              type="button"
+              title={r.path}
+              onClick={() => onSelect(r.path)}
+              className="group flex h-[30px] w-full items-center gap-2 rounded-sm px-2.5 text-left text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+            >
+              <span
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                  dirty > 0 ? "bg-(--tmd-git-modified)" : "bg-(--tmd-fg-faint)"
+                }`}
+                aria-hidden
+              />
+              <span className="shrink-0 font-semibold text-(--tmd-fg)">{r.name}</span>
+              <span className="shrink-0 font-mono text-[11px] text-(--tmd-fg-subtle)">
+                {chip?.branch || r.branch || "—"}
+              </span>
+              {kind && (
+                <span className="shrink-0 rounded border border-(--tmd-border) px-1 text-[9.5px] text-(--tmd-fg-faint)">
+                  {kind}
+                </span>
+              )}
+              <span className="min-w-0 flex-1" />
+              {dirty > 0 && (
+                <span className="shrink-0 text-[11px] tabular-nums text-(--tmd-git-modified)">
+                  {dirty} 个变更
+                </span>
+              )}
+              {chip && chip.ahead > 0 && (
+                <span className="shrink-0 text-[11px] tabular-nums text-(--tmd-diff-inserted)">
+                  ↑{chip.ahead}
+                </span>
+              )}
+              {chip && chip.behind > 0 && (
+                <span className="shrink-0 text-[11px] tabular-nums text-(--tmd-diff-removed)">
+                  ↓{chip.behind}
+                </span>
+              )}
+              <span className="shrink-0 text-[10.5px] text-(--tmd-accent) opacity-0 transition-opacity group-hover:opacity-100">
+                进入 →
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="shrink-0 border-t border-(--tmd-border) px-2.5 py-2 text-[10.5px] leading-relaxed text-(--tmd-fg-faint)">
+        同步说明:文件树着色照常工作(按各仓归属);幕布终端里的 git 命令不受影响;发现随切工作区
+        / ⟳ / 60s 慢巡航刷新。
+        {truncated && <b className="font-semibold text-(--tmd-fg-subtle)"> 已截断,仅显示前 32 个。</b>}
+      </div>
+    </div>
+  );
+}

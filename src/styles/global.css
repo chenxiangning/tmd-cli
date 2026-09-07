@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./themes.css";
+@import "./git-panel.css";
 @import "./file-tree.css";
 @import "./file-editor.css";
 @import "./tab-bar.css";

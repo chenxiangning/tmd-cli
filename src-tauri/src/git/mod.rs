@@ -21,6 +21,7 @@ mod log;
 mod remote_args;
 mod remote_ops;
 mod remote_request;
+mod repos_scan;
 mod stash_ops;
 mod status;
 
@@ -30,13 +31,13 @@ mod tests;
 #[cfg(test)]
 mod tests_branch_menu;
 #[cfg(test)]
-mod tests_commit_view;
-#[cfg(test)]
 mod tests_common;
 #[cfg(test)]
 mod tests_flow;
 #[cfg(test)]
 mod tests_remote_dialog;
+#[cfg(test)]
+mod tests_repos_scan;
 #[cfg(test)]
 mod tests_smart_checkout;
 #[cfg(test)]
@@ -55,6 +56,7 @@ pub use compare_ops::{BranchCompareSet, BranchDiffFile};
 pub use diff::{DiffTotals, FilePatch};
 pub use error::GitError;
 pub use log::{walk as walk_log, LogEntry};
+pub use repos_scan::RepoScanResult;
 pub use status::{ahead_behind, AheadBehind, DiffStatus};
 
 /// 进程级 Repo 缓存。key = canonicalize 后的 cwd(避软链/相对路径抖动)。

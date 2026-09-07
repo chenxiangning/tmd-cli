@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 export function GitDialogShell({
   title,
   icon,
+  repoName,
   width = 560,
   locked,
   onClose,
@@ -18,6 +19,8 @@ export function GitDialogShell({
 }: {
   title: string;
   icon: ReactNode;
+  /** 当前操作仓目录名;多仓语境显示(标题行右缘),单仓缺省不显示 */
+  repoName?: string;
   width?: number;
   /** 提交中:遮罩点击与 Esc 不再关闭 */
   locked?: boolean;
@@ -50,6 +53,7 @@ export function GitDialogShell({
         <div className="flex items-center gap-1.5 text-xs font-semibold text-(--tmd-fg)">
           {icon}
           {title}
+          {repoName && <span className="git-dialog-repo" title={`当前仓库:${repoName}`}>{repoName}</span>}
         </div>
         {children}
         {footer}

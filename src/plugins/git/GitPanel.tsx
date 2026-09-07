@@ -2,7 +2,7 @@
  * GitPanel —— 右栏 Git 单视图面板(布局契约:proposal §1.3 / design §8)。
  *
  * 视图切换与刷新在顶栏 GitToolbar(filePanel toolbar 槽);状态共享走 panelStore。
- * cwd 自取活跃 workspace(外壳零改动,与 files 插件同模式)。
+ * cwd 换源:workspace root → 多仓分档选中仓(单仓档 = root,现状不变)。
  * commit 执行权唯一入口:DiffView 的「✓ 提交」按钮。
  */
 
@@ -11,34 +11,53 @@ import { useWorkspaces } from "@kernel/workspace";
 import { host } from "@kernel/host";
 import { spinRemainder } from "@kernel/spin";
 import { ipc, type GitAheadBehind, type GitRemoteRequest } from "@kernel/ipc";
+import { useGitRepos } from "./hooks/useGitRepos";
 import { useGitStatus } from "./hooks/useGitStatus";
 import { useGitTotals } from "./hooks/useGitTotals";
 import { useGitBranches } from "./hooks/useGitBranches";
 import { useGitLog } from "./hooks/useGitLog";
-import { gitErrorDisplay, isAuth } from "./gitError";
-import { GIT_PREFILL_TOPIC, type GitPrefillPayload } from "./gitEvents";
+import { resolveRepoContext } from "./repoContext";
 import {
   clearRemoteDialogRequest,
+  getSelectedRepo,
   setGitAggregate,
   setGitView,
   setGitRefreshing,
+  setSelectedRepo,
   useGitPanelState,
   getSmartSwitchOrigin,
   clearSmartSwitchOrigin,
 } from "./panelStore";
-import { PushDialog } from "./views/remoteDialogs/PushDialog";
-import { PullDialog } from "./views/remoteDialogs/PullDialog";
-import { FetchDialog } from "./views/remoteDialogs/FetchDialog";
+import { gitErrorDisplay, isAuth } from "./gitError";
+import { GIT_PREFILL_TOPIC, type GitPrefillPayload } from "./gitEvents";
+import { RemoteDialogGroup } from "./views/RemoteDialogGroup";
 import { DiffView } from "./views/DiffView";
 import { BranchView } from "./views/BranchView";
 import { HistoryView } from "./views/HistoryView";
 import { Cross } from "@phosphor-icons/react";
 import { GitRemoteBar, SmartSwitchUndoBanner } from "./views/GitPanelBars";
+import { RepoBar } from "./views/RepoBar";
+import { RepoGuide } from "./views/RepoGuide";
 
 export function GitPanel() {
   const { list, activeId } = useWorkspaces();
   const active = list.find((w) => w.id === activeId) ?? list[0];
-  const cwd = active?.root ?? null;
+  const root = active?.root ?? null;
+
+  /* 多仓分档(spec 2026-09-07-git-multi-repo-design §3):cwd 换源 = 选中仓 ?? root。
+   * 单仓档输出 selectedPath = root、零新 UI,与现状逐项一致(回归红线)。 */
+  const { repos, truncated, refresh: refreshRepos } = useGitRepos(root);
+  const remembered = active ? getSelectedRepo(active.id) : null;
+  const repoCtx = resolveRepoContext(root, repos, remembered);
+  const cwd = repoCtx.selectedPath ?? root;
+  const selectRepo = useCallback(
+    (path: string) => {
+      if (active) setSelectedRepo(active.id, path);
+    },
+    [active],
+  );
+  /** 仓 chips 轻量状态的刷新批号:发现周期外,写操作后也拉一次(dirty/↑↓ 变化)。 */
+  const [chipSeq, setChipSeq] = useState(0);
 
   const { view, layout, refreshNonce, remoteDialogRequest } = useGitPanelState();
   const [prefill, setPrefill] = useState<{ message: string; seq: number } | null>(null);
@@ -105,16 +124,17 @@ export function GitPanel() {
   const refreshBatchRef = useRef(0);
 
   const afterMutation = useCallback(() => {
-    const jobs: Promise<unknown>[] = [status.refresh(), totals.refresh(), refreshAheadBehind()];
+    const jobs: Promise<unknown>[] = [status.refresh(), totals.refresh(), refreshAheadBehind(), refreshRepos()];
     if (view === "branch") jobs.push(branches.refresh());
     if (view === "history") jobs.push(log.refresh());
     /* 全部拉取 settle 才关 ⟳ 转圈;失败也算完成,绝不留常转。 */
     const myBatch = ++refreshBatchRef.current;
+    setChipSeq((s) => s + 1);
     setGitRefreshing(true);
     void Promise.allSettled(jobs).then(() => {
       if (refreshBatchRef.current === myBatch) setGitRefreshing(false);
     });
-  }, [status, totals, refreshAheadBehind, view, branches, log]);
+  }, [status, totals, refreshAheadBehind, refreshRepos, view, branches, log]);
 
   // 顶栏 ⟳ → 全量刷新
   const lastNonceRef = useRef(refreshNonce);
@@ -160,6 +180,11 @@ export function GitPanel() {
   );
 
   if (!cwd || status.notARepo) {
+    if (repoCtx.mode === "guide") {
+      return (
+        <RepoGuide root={root!} repos={repos} truncated={truncated} onSelect={selectRepo} />
+      );
+    }
     return (
       <div className="flex h-full items-center justify-center px-4 text-center text-xs text-(--tmd-fg-faint)">
         当前目录不是 Git 仓库
@@ -177,6 +202,15 @@ export function GitPanel() {
     files.some((f) => f.status === "C") && undoOrigin != null && undoOrigin.cwd === cwd;
   return (
     <div className="flex h-full flex-col text-xs">
+      {repoCtx.showRepoBar && (
+        <RepoBar
+          repos={repos}
+          truncated={truncated}
+          selectedPath={repoCtx.selectedPath!}
+          chipSeq={chipSeq}
+          onSelect={selectRepo}
+        />
+      )}
       <GitRemoteBar
         branch={status.data?.branch}
         upstream={status.data?.upstream}
@@ -245,31 +279,15 @@ export function GitPanel() {
           />
         )}
       </div>
-      {cwd && dialog === "push" && (
-        <PushDialog
-          cwd={cwd}
-          branch={branchName}
-          submitting={remoteBusy === "push"}
-          onClose={() => setDialog(null)}
-          onRun={(req, label) => runDialog("push", req, label)}
-        />
-      )}
-      {cwd && dialog === "pull" && (
-        <PullDialog
-          cwd={cwd}
-          branch={branchName}
-          submitting={remoteBusy === "pull"}
-          onClose={() => setDialog(null)}
-          onRun={(req, label) => runDialog("pull", req, label)}
-        />
-      )}
-      {cwd && dialog === "fetch" && (
-        <FetchDialog
-          submitting={remoteBusy === "fetch"}
-          onClose={() => setDialog(null)}
-          onRun={(req, label) => runDialog("fetch", req, label)}
-        />
-      )}
+      <RemoteDialogGroup
+        cwd={cwd}
+        dialog={dialog}
+        branch={branchName}
+        repoName={repos.length >= 2 ? (cwd.split("/").filter(Boolean).pop() ?? undefined) : undefined}
+        remoteBusy={remoteBusy}
+        onClose={() => setDialog(null)}
+        onRun={runDialog}
+      />
     </div>
   );
 }

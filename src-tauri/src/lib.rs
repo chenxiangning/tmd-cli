@@ -157,6 +157,7 @@ pub fn run() {
             commands_fs::read_local_image_data_url,
             commands_fs::read_binary_file_base64,
             git::commands::git_status,
+            git::commands::git_repos_scan,
             checkpoints::commands::checkpoint_anchor,
             checkpoints::commands::checkpoint_record_edit,
             checkpoints::commands::checkpoint_seal,

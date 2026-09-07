@@ -21,6 +21,7 @@ type RunFn = (req: GitRemoteRequest, opLabel: string) => void;
 export function PullDialog({
   cwd,
   branch,
+  repoName,
   submitting,
   onClose,
   onRun,
@@ -28,6 +29,7 @@ export function PullDialog({
   cwd: string;
   /** 当前分支(detached 时为空串) */
   branch: string;
+  repoName?: string;
   submitting: boolean;
   onClose: () => void;
   onRun: RunFn;
@@ -109,7 +111,7 @@ export function PullDialog({
     <GitDialogShell
       title="拉取变更"
       icon={<DownloadSimple className="h-3.5 w-3.5" aria-hidden />}
-      locked={submitting}
+      repoName={repoName}
       onClose={onClose}
       footer={
         <DialogActions confirmLabel="拉取" submitting={submitting} onConfirm={confirm} onCancel={onClose} />

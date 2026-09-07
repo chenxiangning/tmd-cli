@@ -66,9 +66,7 @@ export function GitToolbar() {
         <CaretDown className="h-3 w-3 text-(--tmd-fg-faint)" aria-hidden />
       </button>
       {totals && (
-        <span
-          title="聚合增删行数(staged + 未暂存)"
-        >
+        <span title="聚合增删行数(staged + 未暂存;多仓 = 选中仓口径)">
           <span className="text-(--tmd-diff-inserted)">
             +{totals.insertions.toLocaleString("en-US")}
           </span>

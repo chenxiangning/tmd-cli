@@ -15,18 +15,21 @@ const EXAMPLE_TOKENS: GitOpToken[] = [
 ];
 
 export function FetchDialog({
+  repoName,
   submitting,
   onClose,
   onRun,
 }: {
+  repoName?: string;
   submitting: boolean;
   onClose: () => void;
-  onRun: (req: GitRemoteRequest, opLabel: string) => void;
+  onRun: (req: GitRemoteRequest, label: string) => void;
 }) {
   return (
     <GitDialogShell
       title="获取远端更新"
       icon={<CloudArrowDown className="h-3.5 w-3.5" aria-hidden />}
+      repoName={repoName}
       locked={submitting}
       onClose={onClose}
       footer={
