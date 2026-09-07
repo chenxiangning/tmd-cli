@@ -158,7 +158,7 @@ export function BranchContextMenu({
         role="menu"
       >
         {/* 跟踪摘要头(codemoss branch -> upstream 同款) */}
-        <div className="px-3 py-1 text-[10px] text-(--tmd-fg-faint)">
+        <div className="px-3 py-1 text-[0.625rem] text-(--tmd-fg-faint)">
           {branch.name}
           {isRemote
             ? t(" → 本地")
@@ -169,45 +169,45 @@ export function BranchContextMenu({
         </div>
         <div className="wsmenu-divider" />
         {isRemote
-          ? item(t("检出到本地"), <GitBranch size={13} />, () => {
+          ? item(t("检出到本地"), <GitBranch size="0.8125rem" />, () => {
               onClose();
               actions.checkout(branch);
             })
-          : item(t("切换"), <GitBranch size={13} />, () => {
+          : item(t("切换"), <GitBranch size="0.8125rem" />, () => {
               onClose();
               actions.checkout(branch);
             }, { disabled: isCurrent || busy, title: isCurrent ? t("已是当前分支") : undefined })}
-        {item(t("从 {branch} 新建分支...", { branch: branch.name }), <Plus size={13} />, () => {
+        {item(t("从 {branch} 新建分支...", { branch: branch.name }), <Plus size="0.8125rem" />, () => {
           onClose();
           actions.createFrom(branch);
         }, { disabled: busy })}
-        {item(t("签出并变基到 {branch}", { branch: currentName ?? "?" }), <Repeat size={13} />, () => {
+        {item(t("签出并变基到 {branch}", { branch: currentName ?? "?" }), <Repeat size="0.8125rem" />, () => {
           onClose();
           actions.checkoutRebase(branch);
         }, { disabled: historyOpDisabled, title: historyOpTitle })}
         <div className="wsmenu-divider" />
-        {item(t("与 {branch} 比较", { branch: currentName ?? "?" }), <FileText size={13} />, () => {
+        {item(t("与 {branch} 比较", { branch: currentName ?? "?" }), <FileText size="0.8125rem" />, () => {
           onClose();
           actions.compareWithCurrent(branch);
         }, {
           disabled: busy || isCurrent || !hasCurrent,
           title: isCurrent ? currentBranchTitle : !hasCurrent ? needCurrentTitle : undefined,
         })}
-        {item(t("显示与工作树的差异"), <Folders size={13} />, () => {
+        {item(t("显示与工作树的差异"), <Folders size="0.8125rem" />, () => {
           onClose();
           actions.diffWithWorktree(branch);
         }, { disabled: busy })}
         <div className="wsmenu-divider" />
-        {item(t("将 {current} 变基到 {branch}", { current: currentName ?? "?", branch: branch.name }), <ArrowClockwise size={13} />, () => {
+        {item(t("将 {current} 变基到 {branch}", { current: currentName ?? "?", branch: branch.name }), <ArrowClockwise size="0.8125rem" />, () => {
           onClose();
           actions.rebaseCurrentOnto(branch);
         }, { disabled: historyOpDisabled, title: historyOpTitle })}
-        {item(t("将 {branch} 合并到 {current} 中", { branch: branch.name, current: currentName ?? "?" }), <GitMerge size={13} />, () => {
+        {item(t("将 {branch} 合并到 {current} 中", { branch: branch.name, current: currentName ?? "?" }), <GitMerge size="0.8125rem" />, () => {
           onClose();
           actions.mergeIntoCurrent(branch);
         }, { disabled: historyOpDisabled, title: historyOpTitle })}
         <div className="wsmenu-divider" />
-        {item(t("更新"), <DownloadSimple size={13} />, () => {
+        {item(t("更新"), <DownloadSimple size="0.8125rem" />, () => {
           onClose();
           actions.pull(branch);
         }, {
@@ -218,7 +218,7 @@ export function BranchContextMenu({
               ? t("跟随上游与 pull.rebase 配置")
               : t("仅 fast-forward 该分支引用,不切分支"),
         })}
-        {item(t("获取"), <CloudArrowDown size={13} />, () => {
+        {item(t("获取"), <CloudArrowDown size="0.8125rem" />, () => {
           onClose();
           actions.fetch(branch);
         }, {
@@ -226,7 +226,7 @@ export function BranchContextMenu({
           title: !isRemote && !hasUpstream ? t("无 upstream") : t("只刷新远端引用,不动本地分支"),
         })}
         {!isRemote &&
-          item(t("推送..."), <UploadSimple size={13} />, () => {
+          item(t("推送..."), <UploadSimple size="0.8125rem" />, () => {
             onClose();
             actions.push(branch);
           }, {
@@ -235,12 +235,12 @@ export function BranchContextMenu({
           })}
         <div className="wsmenu-divider" />
         {!isRemote &&
-          item(t("重命名..."), <Pencil size={13} />, () => {
+          item(t("重命名..."), <Pencil size="0.8125rem" />, () => {
             onClose();
             actions.rename(branch);
           }, { disabled: busy })}
         {!isRemote &&
-          item(t("删除"), <Trash size={13} />, () => {
+          item(t("删除"), <Trash size="0.8125rem" />, () => {
             onClose();
             actions.remove(branch);
           }, { danger: true, disabled: isCurrent || busy, title: isCurrent ? t("不能删除当前分支") : undefined })}

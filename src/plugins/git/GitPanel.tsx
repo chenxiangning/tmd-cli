@@ -230,7 +230,7 @@ export function GitPanel() {
             title={t("关闭")}
             className="rounded p-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
           >
-            <Cross className="h-3 w-3" aria-hidden />
+            <Cross className="h-[0.75rem] w-[0.75rem]" aria-hidden />
           </button>
         </div>
       )}

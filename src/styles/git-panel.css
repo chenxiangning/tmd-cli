@@ -29,7 +29,7 @@
 .git-dialog-repo {
   margin-left: auto;
   flex: none;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 400;
   font-family: var(--font-mono, ui-monospace, monospace);
   color: var(--tmd-fg-muted);
@@ -45,7 +45,7 @@
 /* 文件树仓根行的分支标注(原型 repotag:9.5px 边框圆角) */
 .file-tree-repotag {
   flex: none;
-  font-size: 9.5px;
+  font-size: 0.59375rem;
   line-height: 1.4;
   color: var(--tmd-fg-faint);
   border: 1px solid var(--tmd-border);

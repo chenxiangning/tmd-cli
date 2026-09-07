@@ -1,13 +1,16 @@
 /**
- * 基础设置 / 外观 tab 的系统外观段 —— 语言 / 界面缩放 / 终端字号 / 终端字体 / ANSI 色板。
+ * 基础设置 / 外观 tab 的系统外观段 —— 语言 / 界面字号 / 界面缩放 / 终端字号 / 终端字体 / ANSI 色板。
  * 自 BasicAppearanceTab 拆出(300 行铁则);全部写 kernel/settings store 即时生效:
- * 语言 = 根组件重挂载,缩放 = kernel/uiZoom,字号字体 = TerminalView 订阅。
+ * 语言 = 根组件重挂载,字号 = kernel/uiFontSize,缩放 = kernel/uiZoom,终端字号字体 = TerminalView 订阅。
  */
 
 import { ArrowCounterClockwise } from "@phosphor-icons/react";
 import {
   TERMINAL_FONT_SIZE_MAX,
   TERMINAL_FONT_SIZE_MIN,
+  UI_FONT_SIZE_DEFAULT,
+  UI_FONT_SIZE_MAX,
+  UI_FONT_SIZE_MIN,
   UI_LANGUAGES,
   UI_ZOOM_MAX,
   UI_ZOOM_MIN,
@@ -84,6 +87,37 @@ export function SystemAppearanceCard() {
       </div>
       <div className="pref-row">
         <div>
+          <div className="pref-title">{t("界面字号")}</div>
+          <div className="pref-desc">{t("全客户端文字与图标大小(12–20 px);布局宽度不变,即时生效。")}</div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <input
+            type="range"
+            min={UI_FONT_SIZE_MIN}
+            max={UI_FONT_SIZE_MAX}
+            step={1}
+            value={settings.uiFontSize}
+            aria-label={t("界面字号")}
+            onChange={(e) => updateSettings({ uiFontSize: Number(e.target.value) })}
+            className="w-40 accent-(--tmd-accent)"
+          />
+          <span className="w-10 text-right text-sm tabular-nums text-(--tmd-fg-muted)">
+            {settings.uiFontSize} px
+          </span>
+          {settings.uiFontSize !== UI_FONT_SIZE_DEFAULT ? (
+            <button
+              type="button"
+              className="flex items-center gap-1 rounded-md border border-(--tmd-border) px-2 py-1 text-xs text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
+              onClick={() => updateSettings({ uiFontSize: UI_FONT_SIZE_DEFAULT })}
+            >
+              <ArrowCounterClockwise size="0.75rem" aria-hidden />
+              {t("重置")}
+            </button>
+          ) : null}
+        </div>
+      </div>
+      <div className="pref-row">
+        <div>
           <div className="pref-title">{t("界面缩放")}</div>
           <div className="pref-desc">{t("整个界面等比缩放(80%–150%);终端文字大小另由下方字号单独控制。")}</div>
         </div>
@@ -107,7 +141,7 @@ export function SystemAppearanceCard() {
               className="flex items-center gap-1 rounded-md border border-(--tmd-border) px-2 py-1 text-xs text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
               onClick={() => updateSettings({ uiZoom: 1 })}
             >
-              <ArrowCounterClockwise size={12} aria-hidden />
+              <ArrowCounterClockwise size="0.75rem" aria-hidden />
               {t("重置")}
             </button>
           ) : null}

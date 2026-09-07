@@ -7,6 +7,7 @@
 import type { SshHostConfig } from "./sshTypes";
 import {
   TERMINAL_FONT_SIZE_DEFAULT,
+  UI_FONT_SIZE_DEFAULT,
   UI_ZOOM_DEFAULT,
   type UiLanguage,
 } from "./settingsAppearance";
@@ -108,6 +109,8 @@ export interface AppSettings {
   terminalFontSize: number;
   /** 终端字体 CSS family 串;空 = 平台默认等宽栈(kernel/TerminalView 内表)。 */
   terminalFontFamily: string;
+  /** 界面字号(px,12-20,默认 16)= html 根字号;rem 文字/图标随缩放,见 kernel/uiFontSize.ts。 */
+  uiFontSize: number;
   /** 界面缩放(0.8-1.5 步进 0.05);Tauri webview setZoom,浏览器 dev 兜底 CSS zoom。 */
   uiZoom: number;
   /** 顶栏中央会话标题 tab 条开关(外观页可调,默认开启;见 kernel/sessionTabs.ts)。 */
@@ -218,6 +221,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   language: "zh",
   terminalFontSize: TERMINAL_FONT_SIZE_DEFAULT,
   terminalFontFamily: "",
+  uiFontSize: UI_FONT_SIZE_DEFAULT,
   uiZoom: UI_ZOOM_DEFAULT,
   sessionTabsEnabled: true,
   sendShortcut: "enter",

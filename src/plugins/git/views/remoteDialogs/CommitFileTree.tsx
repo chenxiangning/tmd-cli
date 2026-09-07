@@ -78,11 +78,11 @@ export function CommitFileTree({
         className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-xs text-(--tmd-fg) hover:bg-(--tmd-bg-hover)"
       >
         {isOpen ? (
-          <CaretDown className="h-3 w-3 shrink-0 text-(--tmd-fg-faint)" aria-hidden />
+          <CaretDown className="h-[0.75rem] w-[0.75rem] shrink-0 text-(--tmd-fg-faint)" aria-hidden />
         ) : (
-          <CaretRight className="h-3 w-3 shrink-0 text-(--tmd-fg-faint)" aria-hidden />
+          <CaretRight className="h-[0.75rem] w-[0.75rem] shrink-0 text-(--tmd-fg-faint)" aria-hidden />
         )}
-        <Folders className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-muted)" aria-hidden />
+        <Folders className="h-[0.875rem] w-[0.875rem] shrink-0 text-(--tmd-fg-muted)" aria-hidden />
         <span className="truncate font-mono">{node.name}</span>
       </button>,
     ];
@@ -104,14 +104,14 @@ export function CommitFileTree({
             <span className={`w-3 shrink-0 text-center font-mono font-semibold ${STATUS_COLOR[f.status] ?? ""}`}>
               {f.status}
             </span>
-            <FileText className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-muted)" aria-hidden />
+            <FileText className="h-[0.875rem] w-[0.875rem] shrink-0 text-(--tmd-fg-muted)" aria-hidden />
             <span className="min-w-0 flex-1 truncate font-mono text-(--tmd-fg)">
               {f.path.split("/").pop()}
             </span>
             {f.binary ? (
-              <span className="shrink-0 text-[10px] text-(--tmd-fg-faint)">binary</span>
+              <span className="shrink-0 text-[0.625rem] text-(--tmd-fg-faint)">binary</span>
             ) : (
-              <span className="shrink-0 font-mono text-[11px] tabular-nums">
+              <span className="shrink-0 font-mono text-[0.6875rem] tabular-nums">
                 <span className="text-(--tmd-diff-inserted)">+{f.additions}</span>
                 <span className="mx-0.5 text-(--tmd-fg-faint)">/</span>
                 <span className="text-(--tmd-diff-removed)">-{f.deletions}</span>

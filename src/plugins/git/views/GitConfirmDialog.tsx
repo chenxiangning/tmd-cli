@@ -47,7 +47,7 @@ export function GitConfirmDialog({
       >
         <div className="text-xs font-medium text-(--tmd-fg)">{state.title}</div>
         {state.detail && (
-          <div className="mt-1 text-[11px] leading-4 text-(--tmd-fg-muted)">{state.detail}</div>
+          <div className="mt-1 text-[0.6875rem] leading-4 text-(--tmd-fg-muted)">{state.detail}</div>
         )}
         <div className="mt-3 flex justify-end gap-1.5">
           <button

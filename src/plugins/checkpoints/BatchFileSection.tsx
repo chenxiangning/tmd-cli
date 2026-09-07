@@ -60,25 +60,25 @@ export function FileSection({
           onClick={() => setOpen((v) => !v)}
         >
           <CaretRight
-            size={12}
+            size="0.75rem"
             aria-hidden
             className={`flex-none text-(--tmd-fg-faint) transition-transform ${open ? "rotate-90" : ""}`}
           />
-          <span className={`grid h-[15px] w-[15px] flex-none place-items-center rounded text-[10px] font-bold ${chipCls}`}>
+          <span className={`grid h-[15px] w-[15px] flex-none place-items-center rounded text-[0.625rem] font-bold ${chipCls}`}>
             {status}
           </span>
-          <span className="min-w-0 truncate font-mono text-[11px]">
+          <span className="min-w-0 truncate font-mono text-[0.6875rem]">
             <b className="font-medium text-(--tmd-fg)">{name}</b>{" "}
             <span className="text-(--tmd-fg-faint)">{dir}</span>
           </span>
           {reverted && (
-            <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[10px] leading-[14px] text-[#a78bfa]">
+            <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[0.625rem] leading-[0.875rem] text-[#a78bfa]">
               {t("已退")}
             </span>
           )}
           {stale && (
             <span
-              className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[10px] leading-[14px] text-(--tmd-fg-faint)"
+              className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-faint)"
               title={t("工作区内容已偏离本批后像,不可回退,仅可对照")}
             >
               {t("内容已变")}
@@ -86,14 +86,14 @@ export function FileSection({
           )}
           {editCount > 0 && attribution === "events" && (
             <span
-              className="flex-none rounded border border-(--tmd-border) px-1 text-[9px] leading-[13px] text-(--tmd-fg-faint)"
+              className="flex-none rounded border border-(--tmd-border) px-1 text-[0.5625rem] leading-[0.8125rem] text-(--tmd-fg-faint)"
               title={t("AI 本轮写入该文件 {n} 次(事件流轨迹,账本可审计)", { n: editCount })}
             >
               ×{editCount}
             </span>
           )}
           {patch && (
-            <span className="flex-none font-mono text-[10px]">
+            <span className="flex-none font-mono text-[0.625rem]">
               <span className="text-(--tmd-diff-inserted)">+{patch.additions}</span>{" "}
               <span className="text-(--tmd-diff-removed)">−{patch.deletions}</span>
             </span>
@@ -103,15 +103,15 @@ export function FileSection({
           <button
             type="button"
             disabled={busy}
-            className="hidden h-5 flex-none items-center gap-1 rounded border border-(--tmd-border) px-1.5 text-[10px] text-(--tmd-fg-subtle) hover:border-[rgba(167,139,250,.5)] hover:text-[#a78bfa] group-hover:flex disabled:opacity-40"
+            className="hidden h-5 flex-none items-center gap-1 rounded border border-(--tmd-border) px-1.5 text-[0.625rem] text-(--tmd-fg-subtle) hover:border-[rgba(167,139,250,.5)] hover:text-[#a78bfa] group-hover:flex disabled:opacity-40"
             onClick={onRevert}
           >
-            <ArrowCounterClockwise size={10} aria-hidden /> {t("只回退此文件")}
+            <ArrowCounterClockwise size="0.625rem" aria-hidden /> {t("只回退此文件")}
           </button>
         )}
       </div>
       {open && patch && (
-        <pre className="overflow-x-auto bg-(--tmd-bg-base) p-2.5 font-mono text-[11px] leading-[1.6]">
+        <pre className="overflow-x-auto bg-(--tmd-bg-base) p-2.5 font-mono text-[0.6875rem] leading-[1.6]">
           {lines.map((line, i) => {
             const cls = line.startsWith("@@")
               ? "text-(--tmd-accent)/75"

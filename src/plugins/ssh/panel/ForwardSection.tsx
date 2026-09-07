@@ -21,7 +21,7 @@ export function ForwardSection({ sessionId, connected }: { sessionId: string; co
   return (
     <div className="ssh-section">
       <div className="ssh-section-head">
-        <ArrowsLeftRight size={12} aria-hidden />
+        <ArrowsLeftRight size="0.75rem" aria-hidden />
         <span>{t("端口转发")}</span>
         <button
           type="button"
@@ -30,7 +30,7 @@ export function ForwardSection({ sessionId, connected }: { sessionId: string; co
           disabled={!connected}
           onClick={() => setFormOpen((open) => !open)}
         >
-          {formOpen ? <Minus size={12} /> : <Plus size={12} />}
+          {formOpen ? <Minus size="0.75rem" /> : <Plus size="0.75rem" />}
         </button>
       </div>
       {formOpen ? (
@@ -58,7 +58,7 @@ export function ForwardSection({ sessionId, connected }: { sessionId: string; co
                 title={t("停止")}
                 onClick={() => void stopForward(sessionId, forward.id)}
               >
-                <Minus size={11} />
+                <Minus size="0.6875rem" />
               </button>
             </div>
           ))}

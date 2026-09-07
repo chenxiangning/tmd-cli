@@ -10,6 +10,7 @@ import {
   UI_LANGUAGES,
   sanitizeTerminalFontFamily,
   sanitizeTerminalFontSize,
+  sanitizeUiFontSize,
   sanitizeUiZoom,
   type UiLanguage,
 } from "./settingsAppearance";
@@ -160,6 +161,7 @@ export function sanitize(raw: unknown): AppSettings {
       : "zh",
     terminalFontSize: sanitizeTerminalFontSize(obj.terminalFontSize),
     terminalFontFamily: sanitizeTerminalFontFamily(obj.terminalFontFamily),
+    uiFontSize: sanitizeUiFontSize(obj.uiFontSize),
     uiZoom: sanitizeUiZoom(obj.uiZoom),
     sessionTabsEnabled:
       typeof obj.sessionTabsEnabled === "boolean"

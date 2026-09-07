@@ -27,7 +27,7 @@
 
 .fvp-status {
   padding: 24px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--text-muted);
   text-align: center;
 }
@@ -76,7 +76,7 @@
 }
 
 .fvp-image-info {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--text-faint);
   flex-shrink: 0;
 }
@@ -99,12 +99,12 @@
   gap: 10px;
   margin-bottom: 14px;
   color: var(--fvp-reader-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .fvp-preview-section-header strong {
   color: var(--fvp-reader-text);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 700;
 }
 
@@ -123,7 +123,7 @@
   border-radius: 10px;
   background: color-mix(in srgb, var(--surface-control) 42%, transparent);
   color: var(--fvp-reader-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 
@@ -161,7 +161,7 @@
   border-radius: 10px;
   background: color-mix(in srgb, var(--surface-card) 86%, transparent);
   color: var(--fvp-reader-text);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   transition:
     background 140ms ease,

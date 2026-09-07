@@ -174,7 +174,7 @@ function FileTree({ root }: { root: string }) {
         {loading && entries.length === 0 ? (
           <div className="file-tree-loading-row" role="status" aria-live="polite">
             <span className="file-tree-loading-spinner" aria-hidden>
-              <ArrowClockwise size={12} />
+              <ArrowClockwise size="0.75rem" />
             </span>
             <span>{t("加载中…")}</span>
           </div>

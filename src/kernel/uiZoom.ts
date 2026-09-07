@@ -11,10 +11,16 @@ import { getSettingsState, subscribeSettings } from "./settings";
 import { setWebviewZoom } from "./ipc";
 
 function applyUiZoom(factor: number): void {
-  setWebviewZoom(factor).catch(() => {
+  const fallback = () => {
     const root = document.getElementById("root");
     if (root) root.style.zoom = String(factor);
-  });
+  };
+  try {
+    /* 桩/浏览器环境 Tauri 模块可能在调用前同步抛,Promise.reject 走 catch、同步抛走 try。 */
+    setWebviewZoom(factor).catch(fallback);
+  } catch {
+    fallback();
+  }
 }
 
 let booted = false;

@@ -72,7 +72,7 @@ export function FileTreeRow({
                 className={`file-tree-chevron${expanded ? " is-open" : ""}`}
                 aria-hidden
               >
-                <CaretRight size={11} />
+                <CaretRight size="0.6875rem" />
               </span>
               <span className="file-tree-icon" aria-hidden>
                 <span
@@ -111,7 +111,7 @@ export function FileTreeRow({
           aria-label={t("在访达中显示")}
           title={t("在访达中显示")}
         >
-          <FolderOpen aria-hidden size={11} />
+          <FolderOpen aria-hidden size="0.6875rem" />
         </button>
         <button
           type="button"
@@ -128,7 +128,7 @@ export function FileTreeRow({
           aria-label={t("复制路径")}
           title={t("复制路径")}
         >
-          <Copy aria-hidden size={11} />
+          <Copy aria-hidden size="0.6875rem" />
         </button>
       </span>
     </div>

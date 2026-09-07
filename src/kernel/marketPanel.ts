@@ -17,7 +17,7 @@ export interface MarketPanelContribution {
   /** 归属插件 id(如 "cli-omp");角标只渲染在对应插头上。 */
   pluginId: string;
   /** 角标图标(@phosphor-icons-react 语义图标),调用方必传 size。 */
-  icon: ComponentType<{ size: number }>;
+  icon: ComponentType<{ size: number | string }>;
   /** 角标 hover 提示 + 面板标题。 */
   title: string;
   /** 面板内容组件;壳持有开合,关闭经 onClose 回传。 */

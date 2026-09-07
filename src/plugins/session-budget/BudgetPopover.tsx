@@ -112,7 +112,7 @@ export function BudgetPopover({
         <div className="wsbudget-head">
           <span className="wsbudget-title">会话列表显示预算</span>
           <button className="wsbudget-close" title="关闭" onClick={onClose}>
-            <Cross size={14} aria-hidden />
+            <Cross size="0.875rem" aria-hidden />
           </button>
         </div>
 

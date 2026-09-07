@@ -60,7 +60,7 @@ export function BranchNameDialog({
         }}
       >
         <div className="text-xs font-medium text-(--tmd-fg)">{state.title}</div>
-        <div className="mt-2 text-[11px] text-(--tmd-fg-muted)">
+        <div className="mt-2 text-[0.6875rem] text-(--tmd-fg-muted)">
           {state.sourceLabel}
           <span className="ml-1 font-medium text-(--tmd-fg)">{state.source}</span>
         </div>

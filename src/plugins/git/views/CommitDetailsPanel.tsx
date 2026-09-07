@@ -69,7 +69,7 @@ export function CommitDetailsPanel({
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-        <CircleNotch className="h-3.5 w-3.5 animate-spin" /> {t("加载中…")}
+        <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
       </div>
     );
   }
@@ -96,7 +96,7 @@ export function CommitDetailsPanel({
             {commit.summary || t("(空消息)")}
           </div>
           <div className="flex shrink-0 items-center gap-2 px-3 pt-1.5">
-            <span className="rounded bg-(--tmd-bg-sunken) px-1.5 py-0.5 font-mono text-[10px] text-(--tmd-fg-muted)">
+            <span className="rounded bg-(--tmd-bg-sunken) px-1.5 py-0.5 font-mono text-[0.625rem] text-(--tmd-fg-muted)">
               {commit.shortSha}
             </span>
             <span className="text-xs text-(--tmd-fg-muted)">{commit.authorName}</span>
@@ -128,14 +128,14 @@ export function CommitDetailsPanel({
                 title={f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}
               >
                 <span
-                  className={`shrink-0 rounded bg-(--tmd-bg-sunken) px-1 font-mono text-[10px] ${
+                  className={`shrink-0 rounded bg-(--tmd-bg-sunken) px-1 font-mono text-[0.625rem] ${
                     STATUS_COLOR[f.status] ?? "text-(--tmd-fg-faint)"
                   }`}
                 >
                   {f.status}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-(--tmd-fg)">{f.path}</span>
-                <span className="shrink-0 font-mono text-[10px]">
+                <span className="shrink-0 font-mono text-[0.625rem]">
                   <span className="text-(--tmd-diff-inserted)">+{f.additions}</span>
                   <span className="text-(--tmd-fg-faint)"> / </span>
                   <span className="text-(--tmd-diff-removed)">-{f.deletions}</span>
@@ -190,14 +190,14 @@ function FilePatchView({
           onClick={onBack}
           className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-(--tmd-accent) hover:bg-(--tmd-accent-soft)"
         >
-          <ArrowLeft className="h-3 w-3" /> {t("返回文件列表")}
+          <ArrowLeft className="h-[0.75rem] w-[0.75rem]" /> {t("返回文件列表")}
         </button>
         <span className="min-w-0 flex-1 truncate text-xs text-(--tmd-fg)">{path}</span>
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-2">
         {loading && (
           <div className="flex h-full items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-            <CircleNotch className="h-3.5 w-3.5 animate-spin" /> {t("加载中…")}
+            <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
           </div>
         )}
         {!loading && error && <div className="text-(--tmd-diff-removed)">{error}</div>}

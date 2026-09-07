@@ -30,7 +30,7 @@
 }
 
 .vp-title {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--tmd-fg);
 }
@@ -39,7 +39,7 @@
   padding: 1px 6px;
   border: 1px solid var(--tmd-border-strong);
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--tmd-fg-muted);
 }
 
@@ -78,7 +78,7 @@
   border-radius: 6px;
   background: transparent;
   color: var(--tmd-fg);
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: pointer;
 }
 
@@ -114,7 +114,7 @@
 
 .vp-status {
   margin-top: 8px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.5;
   color: var(--tmd-fg-muted);
 }
@@ -130,7 +130,7 @@
 }
 
 .vp-changelog-label {
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--tmd-fg-muted);
 }
@@ -168,7 +168,7 @@
 .vp-pager-ind {
   min-width: 30px;
   text-align: center;
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--tmd-fg-subtle);
   font-variant-numeric: tabular-nums;
 }
@@ -177,7 +177,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--tmd-fg);
 }
 
@@ -192,7 +192,7 @@
   margin-top: 4px;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.5;
   color: var(--tmd-fg-muted);
   white-space: pre-wrap;
@@ -224,13 +224,13 @@
 }
 
 .vp-entry-ver {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--tmd-fg);
 }
 
 .vp-date {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--tmd-fg-subtle);
 }
 
@@ -238,7 +238,7 @@
   padding: 0 5px;
   border-radius: 999px;
   background: var(--tmd-accent-soft);
-  font-size: 9px;
+  font-size: 0.5625rem;
   color: var(--tmd-accent);
 }
 
@@ -247,14 +247,14 @@
 }
 
 .vp-block-heading {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-muted);
 }
 
 .vp-items {
   margin: 2px 0 0;
   padding-left: 16px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.6;
   color: var(--tmd-fg);
 }
@@ -269,7 +269,7 @@
   border: none;
   background: transparent;
   color: var(--tmd-fg-muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   cursor: pointer;
 }
 

@@ -117,7 +117,7 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
   return (
     <div className="ssh-section ssh-sftp">
       <div className="ssh-section-head">
-        <FolderSimple size={12} aria-hidden />
+        <FolderSimple size="0.75rem" aria-hidden />
         <span>{t("远端文件")}</span>
         <button
           type="button"
@@ -126,7 +126,7 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
           disabled={!connected}
           onClick={() => void reloadAll()}
         >
-          <ArrowClockwise size={12} />
+          <ArrowClockwise size="0.75rem" />
         </button>
         <button
           type="button"
@@ -135,7 +135,7 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
           disabled={!connected}
           onClick={() => void uploadPicked(sessionId, reloadAll)}
         >
-          <UploadSimple size={12} />
+          <UploadSimple size="0.75rem" />
         </button>
         <button
           type="button"
@@ -144,7 +144,7 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
           disabled={!connected}
           onClick={() => void downloadNode(sessionId, nodes.current.get(".")!, true)}
         >
-          <DownloadSimple size={12} />
+          <DownloadSimple size="0.75rem" />
         </button>
       </div>
       {!connected ? (

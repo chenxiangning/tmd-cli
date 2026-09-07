@@ -29,7 +29,7 @@ export function FetchDialog({
   return (
     <GitDialogShell
       title={t("获取远端更新")}
-      icon={<CloudArrowDown className="h-3.5 w-3.5" aria-hidden />}
+      icon={<CloudArrowDown className="h-[0.875rem] w-[0.875rem]" aria-hidden />}
       repoName={repoName}
       locked={submitting}
       onClose={onClose}

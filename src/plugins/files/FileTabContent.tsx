@@ -148,7 +148,7 @@ function FileTabBody({ path, content }: { path: string; content: string }) {
               setStructuredEditor(next);
             }}
           >
-            {structuredEditor ? <Eye size={12} aria-hidden /> : <Pencil size={12} aria-hidden />}
+            {structuredEditor ? <Eye size="0.75rem" aria-hidden /> : <Pencil size="0.75rem" aria-hidden />}
             {structuredEditor ? t("预览") : t("编辑")}
           </button>
         ) : isMd ? (
@@ -162,7 +162,7 @@ function FileTabBody({ path, content }: { path: string; content: string }) {
               setMdEditor(next);
             }}
           >
-            {mdEditor ? <Eye size={12} aria-hidden /> : <Pencil size={12} aria-hidden />}
+            {mdEditor ? <Eye size="0.75rem" aria-hidden /> : <Pencil size="0.75rem" aria-hidden />}
             {mdEditor ? t("预览") : t("编辑")}
           </button>
         ) : null}

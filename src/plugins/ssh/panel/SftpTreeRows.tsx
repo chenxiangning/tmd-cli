@@ -39,12 +39,12 @@ export function TreeRows({
           {node.loading ? (
             <span className="ssh-tree-spin" aria-label={t("加载中")} />
           ) : isOpen ? (
-            <CaretDown size={11} />
+            <CaretDown size="0.6875rem" />
           ) : (
-            <CaretRight size={11} />
+            <CaretRight size="0.6875rem" />
           )}
         </button>
-        {isOpen ? <FolderOpen size={12} aria-hidden /> : <FolderSimple size={12} aria-hidden />}
+        {isOpen ? <FolderOpen size="0.75rem" aria-hidden /> : <FolderSimple size="0.75rem" aria-hidden />}
         <button
           type="button"
           className="ssh-tree-label"
@@ -106,7 +106,7 @@ function FileRow({
       }}
     >
       <span className="ssh-tree-toggle" aria-hidden />
-      <FileText size={12} aria-hidden />
+      <FileText size="0.75rem" aria-hidden />
       <button
         type="button"
         className="ssh-tree-label"

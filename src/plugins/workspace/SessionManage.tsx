@@ -172,7 +172,7 @@ export function ManageList({
         }`}
       >
         <span className={`wm-check${on ? " is-on" : ""}`} aria-hidden>
-          {on ? <Check size={10} /> : null}
+          {on ? <Check size="0.625rem" /> : null}
         </span>
         <span className={`thread-name${row.kind === "disk" ? " is-disk" : ""}`}>{title}</span>
         <span className="thread-meta">
@@ -196,7 +196,7 @@ export function ManageList({
               setArchived(row, !archiveViewOn);
             }}
           >
-            {archiveViewOn ? <TrayArrowUp size={12} /> : <Archive size={12} />}
+            {archiveViewOn ? <TrayArrowUp size="0.75rem" /> : <Archive size="0.75rem" />}
           </button>
           <DangerAction
             className="wm-act wm-danger"
@@ -205,7 +205,7 @@ export function ManageList({
             armedChildren={<span className="wm-danger-arm">{t("确认")}</span>}
             onConfirm={() => void runDelete(row)}
           >
-            <Trash size={12} />
+            <Trash size="0.75rem" />
           </DangerAction>
         </span>
       </div>

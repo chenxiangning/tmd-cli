@@ -48,7 +48,7 @@ export function TerminalButton() {
       title="内置终端(Option+点击新建)"
       onClick={(e) => open(e.altKey)}
     >
-      <TerminalWindow size={14} aria-hidden />
+      <TerminalWindow size="0.875rem" aria-hidden />
     </button>
   );
 }

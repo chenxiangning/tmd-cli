@@ -120,7 +120,7 @@ function WorkspaceSection() {
 
       <div className="ws-caption">
         <span className="ws-caption-label">
-          <Folders size={11} aria-hidden className="ws-caption-icon" />
+          <Folders size="0.6875rem" aria-hidden className="ws-caption-icon" />
           {t("工作区")}
         </span>
         <span className="ws-caption-actions">
@@ -152,9 +152,9 @@ function WorkspaceSection() {
             onClick={() => setAllCollapsed(!allCollapsed)}
           >
             {allCollapsed ? (
-              <CaretDoubleUp size={13} aria-hidden />
+              <CaretDoubleUp size="0.8125rem" aria-hidden />
             ) : (
-              <CaretDoubleDown size={13} aria-hidden />
+              <CaretDoubleDown size="0.8125rem" aria-hidden />
             )}
           </button>
           {/* 插件贡献的动作位(如 session-budget 的预算入口),渲染器 = kernel Mounts */}
@@ -164,7 +164,7 @@ function WorkspaceSection() {
             title={t("添加工作区")}
             onClick={() => void handleAdd()}
           >
-            <FolderSimplePlus size={13} aria-hidden />
+            <FolderSimplePlus size="0.8125rem" aria-hidden />
           </button>
         </span>
       </div>

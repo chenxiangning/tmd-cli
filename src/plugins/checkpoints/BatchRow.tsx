@@ -123,14 +123,14 @@ export function BatchRow({
         <span className="min-w-0 flex-1">
           {/* 批次标题:text-xs 基准对齐面板体系(此前继承根字号 16px,偏大) */}
           <span className="flex items-baseline gap-1.5 overflow-hidden whitespace-nowrap text-xs">
-            <span className="flex-none text-[11px] text-(--tmd-fg-faint)">#{b.index}</span>
+            <span className="flex-none text-[0.6875rem] text-(--tmd-fg-faint)">#{b.index}</span>
             <span
               className={`truncate font-medium ${st === "reverted" ? "text-(--tmd-fg-faint) line-through" : "text-(--tmd-fg)"}`}
             >
               {b.prompt.split("\n")[0]}
             </span>
           </span>
-          <span className="mt-px flex items-center gap-1.5 overflow-hidden whitespace-nowrap text-[11px] text-(--tmd-fg-faint)">
+          <span className="mt-px flex items-center gap-1.5 overflow-hidden whitespace-nowrap text-[0.6875rem] text-(--tmd-fg-faint)">
             <span className="flex-none">{t("{n} 文件", { n: b.files.length })}</span>
             {stats && (
               <span className="flex-none font-mono">
@@ -138,13 +138,13 @@ export function BatchRow({
                 <span className="text-(--tmd-diff-removed)">−{stats.del}</span>
               </span>
             )}
-            <span className={`flex-none rounded-full px-1.5 text-[10px] font-semibold leading-[14px] ${meta.chip}`} title={b.attribution === "events" ? t("归因:AI 写入事件流(账本只记 CLI 声称写过的文件)") : t("归因:窗口内 git 变更推断(该 CLI 未声明写入事件检测,可能有误差)")}>
+            <span className={`flex-none rounded-full px-1.5 text-[0.625rem] font-semibold leading-[0.875rem] ${meta.chip}`} title={b.attribution === "events" ? t("归因:AI 写入事件流(账本只记 CLI 声称写过的文件)") : t("归因:窗口内 git 变更推断(该 CLI 未声明写入事件检测,可能有误差)")}>
               {t(meta.label)}
               {st === "done" && b.doneReason ? ` · ${t(b.doneReason)}` : ""}
             </span>
             {b.attribution === "git" && !b.open && (
               <span
-                className="flex-none rounded border border-dashed border-(--tmd-border-strong) px-1 text-[9px] leading-[13px] text-(--tmd-fg-faint)"
+                className="flex-none rounded border border-dashed border-(--tmd-border-strong) px-1 text-[0.5625rem] leading-[0.8125rem] text-(--tmd-fg-faint)"
                 title={t("该 CLI 未声明写入事件检测:批次由 git 变更推断,可能混入手改")}
               >
                 {t("推断")}
@@ -152,7 +152,7 @@ export function BatchRow({
             )}
             {(b.engine || b.model) && (
               <span
-                className="min-w-0 truncate text-[10px]"
+                className="min-w-0 truncate text-[0.625rem]"
                 title={[b.engine, b.model, b.thinking ? t("思考 {level}", { level: b.thinking }) : ""].filter(Boolean).join(" · ")}
               >
                 {b.engine}
@@ -189,45 +189,45 @@ export function BatchRow({
           <button
             type="button"
             disabled={busy}
-            className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-[10px] text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
+            className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-[0.625rem] text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
             title={t("标记本批已审阅(纯标记,不影响任何文件)")}
             onClick={() => void onApprove(b.id)}
           >
-            <Check size={10} aria-hidden /> {t("通过")}
+            <Check size="0.625rem" aria-hidden /> {t("通过")}
           </button>
         )}
         {(st === "pending" || st === "approved") && revertable.length > 0 && (
           <button
             type="button"
             disabled={busy}
-            className="flex h-[21px] flex-none items-center gap-1 rounded border border-[rgba(167,139,250,.4)] px-2 text-[10px] text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
+            className="flex h-[21px] flex-none items-center gap-1 rounded border border-[rgba(167,139,250,.4)] px-2 text-[0.625rem] text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
             onClick={() => setConfirm({ batchId: b.id, paths: revertable.map((f) => f.path) })}
           >
-            <ArrowCounterClockwise size={10} aria-hidden /> {t("回退整批({n})", { n: revertable.length })}
+            <ArrowCounterClockwise size="0.625rem" aria-hidden /> {t("回退整批({n})", { n: revertable.length })}
           </button>
         )}
         {st === "reverted" && (
           <button
             type="button"
             disabled={busy}
-            className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-[10px] text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
+            className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-[0.625rem] text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
             title={t("按账本副本把这轮改动精确写回(live 已偏离批前像的文件跳过,绝不覆盖)")}
             onClick={() => setConfirm({ batchId: b.id, mode: "apply" })}
           >
-            <Lightning size={10} aria-hidden /> {t("应用回此批")}
+            <Lightning size="0.625rem" aria-hidden /> {t("应用回此批")}
           </button>
         )}
         {st === "reverted" && b.guardId && (
           <button
             type="button"
             disabled={busy}
-            className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-border) px-2 text-[10px] text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) disabled:opacity-40"
+            className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-border) px-2 text-[0.625rem] text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) disabled:opacity-40"
             onClick={() => void onUndo(b.id)}
           >
-            <ArrowUUpLeft size={10} aria-hidden /> {t("反悔 · 恢复回来")}
+            <ArrowUUpLeft size="0.625rem" aria-hidden /> {t("反悔 · 恢复回来")}
           </button>
         )}
-        <span className="truncate text-[10px] text-(--tmd-fg-faint)">
+        <span className="truncate text-[0.625rem] text-(--tmd-fg-faint)">
           {st === "open"
             ? t("进行中 —— 本轮对话结算后自动封口进入待审")
             : st === "done"

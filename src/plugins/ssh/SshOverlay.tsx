@@ -58,10 +58,10 @@ function HostPicker() {
     <div className="ssh-picker-backdrop" onClick={busy ? undefined : closeHostPicker}>
       <div className="ssh-picker" onClick={(e) => e.stopPropagation()}>
         <div className="ssh-picker-head">
-          <HardDrive size={14} aria-hidden />
+          <HardDrive size="0.875rem" aria-hidden />
           <span>{t("SSH 连接")}</span>
           <button type="button" className="ssh-picker-close" onClick={closeHostPicker}>
-            <Cross size={13} />
+            <Cross size="0.8125rem" />
           </button>
         </div>
         {hosts.length === 0 ? (
@@ -131,7 +131,7 @@ function PromptCard({ prompt }: { prompt: SshPromptEvent }) {
     return (
       <div className="ssh-prompt-card">
         <div className="ssh-prompt-title">
-          <ShieldWarning size={14} aria-hidden />
+          <ShieldWarning size="0.875rem" aria-hidden />
           <span>{prompt.storedFingerprint ? t("主机密钥已变更") : t("未知主机")}</span>
         </div>
         <div className="ssh-prompt-body">
@@ -165,7 +165,7 @@ function PromptCard({ prompt }: { prompt: SshPromptEvent }) {
   return (
     <div className="ssh-prompt-card">
       <div className="ssh-prompt-title">
-        {isPassword ? <Key size={14} aria-hidden /> : <LockKey size={14} aria-hidden />}
+        {isPassword ? <Key size="0.875rem" aria-hidden /> : <LockKey size="0.875rem" aria-hidden />}
         <span>{isPassword ? t("输入密码") : t("服务器要求输入")}</span>
       </div>
       <div className="ssh-prompt-body">

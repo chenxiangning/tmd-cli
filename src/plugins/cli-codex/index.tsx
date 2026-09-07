@@ -18,7 +18,7 @@ import { listCodexSuggestions } from "./scanSuggestions";
 const CASE_INSENSITIVE_FS = getPlatformKind() !== "linux";
 
 /** codex 用 OpenAI 六边形 glyph(codemoss EngineIcon 同源),currentColor 随主题。 */
-function CodexGlyph({ size }: { size: number }) {
+function CodexGlyph({ size }: { size: number | string }) {
   return (
     <svg
       viewBox="0 0 24 24"

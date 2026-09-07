@@ -11,7 +11,7 @@ import { useSyncExternalStore, type ComponentType } from "react";
 
 /** 动作图标的最小 props 面(兼容 @phosphor-icons-react 图标组件)。 */
 export type SidebarActionIcon = ComponentType<{
-  size?: number;
+  size?: number | string;
   className?: string;
 }>;
 

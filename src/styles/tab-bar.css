@@ -61,7 +61,7 @@
   border: none;
   background: none;
   color: var(--tmd-fg-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: pointer;
   transition: color 120ms ease;
 }

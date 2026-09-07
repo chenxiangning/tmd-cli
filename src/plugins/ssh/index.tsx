@@ -90,13 +90,13 @@ export const sshPlugin: Plugin = {
       id: "ssh",
       title: "SSH 远程",
       description: "SSH 主机簿与 known_hosts 信任管理。",
-      icon: <HardDrive size={14} aria-hidden />,
+      icon: <HardDrive size="0.875rem" aria-hidden />,
       order: 40,
       tabs: [
         {
           id: "hosts",
           title: "主机",
-          icon: <HardDrive size={14} aria-hidden />,
+          icon: <HardDrive size="0.875rem" aria-hidden />,
           order: 0,
           component: SshSettingsSection,
         },

@@ -32,7 +32,7 @@ export function cmEditorTheme(dark: boolean) {
           backgroundColor: "transparent",
           color: "var(--tmd-fg)",
           height: "100%",
-          fontSize: "12px",
+          fontSize: "0.75rem",
         },
         ".cm-scroller": {
           fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",

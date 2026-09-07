@@ -48,7 +48,7 @@ export function ComposerToolbar() {
     "grid h-6 w-6 place-items-center rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-40";
 
   return (
-    <div className="flex h-7 shrink-0 items-center gap-2 border-b border-(--tmd-border) px-2 text-[11px] leading-none text-(--tmd-fg-muted) select-none">
+    <div className="flex h-7 shrink-0 items-center gap-2 border-b border-(--tmd-border) px-2 text-[0.6875rem] leading-none text-(--tmd-fg-muted) select-none">
       <button
         className={`flex items-center gap-1 rounded-md px-1 -mx-1 transition-colors ${
           modelClickable
@@ -65,7 +65,7 @@ export function ComposerToolbar() {
           <span
             aria-label={t("默认模型(尚未读到会话实况)")}
             title={t("来自 CLI 默认配置,尚未读到会话实况")}
-            className="rounded-sm bg-(--tmd-bg-hover) px-1 text-[10px] text-(--tmd-fg-muted)"
+            className="rounded-sm bg-(--tmd-bg-hover) px-1 text-[0.625rem] text-(--tmd-fg-muted)"
           >
             {t("默认")}
           </span>
@@ -104,7 +104,7 @@ export function ComposerToolbar() {
         onClick={expandComposerStage}
         className={`${iconBtn} ml-auto text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >
-        <CaretUp size={15} />
+        <CaretUp size="0.9375rem" />
       </button>
       <button
         type="button"
@@ -114,7 +114,7 @@ export function ComposerToolbar() {
         onClick={collapseComposerStage}
         className={`${iconBtn} text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >
-        <CaretDown size={15} />
+        <CaretDown size="0.9375rem" />
       </button>
       {/* 命令抽屉直达开关(closed ↔ open);原「只读」占位(openspec/changes/composer-command-drawer) */}
       <button
@@ -130,7 +130,7 @@ export function ComposerToolbar() {
             : "text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         }`}
       >
-        <Sidebar size={15} />
+        <Sidebar size="0.9375rem" />
       </button>
     </div>
   );

@@ -175,7 +175,7 @@ export function CliSessionGroup({
        *  管理开关仅 CLI 组展开态注入(hover 显形,激活常亮)。 */}
       <GroupHeader
         label={profile.name}
-        icon={profile.renderIcon ? profile.renderIcon(12) : undefined}
+        icon={profile.renderIcon ? profile.renderIcon("0.75rem") : undefined}
         count={orderedLive.length + pinnedDisk.length + unpinnedCount}
         collapsed={collapsed}
         onToggle={toggle}

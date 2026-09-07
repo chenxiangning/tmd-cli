@@ -16,9 +16,9 @@ import { ShellSessionGroup } from "./ShellSessionGroup";
  *  bold weight 下圆胖 + 顶部翻开页细节。 */
 function FolderIcon({ expanded }: { expanded: boolean }) {
   return expanded ? (
-    <FolderOpen size={16} weight="bold" aria-hidden />
+    <FolderOpen size="1rem" weight="bold" aria-hidden />
   ) : (
-    <FolderSimple size={16} weight="bold" aria-hidden />
+    <FolderSimple size="1rem" weight="bold" aria-hidden />
   );
 }
 
@@ -93,9 +93,9 @@ export function WorkspaceCard({
             </span>
             <span className="workspace-collapse-toggle-affordance-icon" aria-hidden>
               {collapsed ? (
-                <CaretDoubleUp size={14} strokeWidth={1.8} />
+                <CaretDoubleUp size="0.875rem" strokeWidth={1.8} />
               ) : (
-                <CaretDoubleDown size={14} strokeWidth={1.8} />
+                <CaretDoubleDown size="0.875rem" strokeWidth={1.8} />
               )}
             </span>
           </button>
@@ -117,7 +117,7 @@ export function WorkspaceCard({
               }}
               onDoubleClick={(e) => e.stopPropagation()}
             >
-              <ArrowClockwise size={16} aria-hidden />
+              <ArrowClockwise size="1rem" aria-hidden />
             </button>
             <button
               className="workspace-action-btn"
@@ -128,7 +128,7 @@ export function WorkspaceCard({
               }}
               onDoubleClick={(e) => e.stopPropagation()}
             >
-              <RocketLaunch size={15} weight="duotone" aria-hidden />
+              <RocketLaunch size="0.9375rem" weight="duotone" aria-hidden />
             </button>
           </div>
         </div>

@@ -27,7 +27,7 @@ export function ShellSessionGroup({ workspace }: { workspace: Workspace }) {
     <div className="cli-group">
       <GroupHeader
         label={t("终端")}
-        icon={<TerminalWindow size={12} />}
+        icon={<TerminalWindow size="0.75rem" />}
         count={sessions.length}
         collapsed={collapsed}
         onToggle={toggle}

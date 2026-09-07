@@ -81,7 +81,7 @@ export function PushPreviewColumns({
                 <div className="truncate font-medium text-(--tmd-fg)">
                   {c.summary || t("(无提交信息)")}
                 </div>
-                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-(--tmd-fg-muted)">
+                <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem] text-(--tmd-fg-muted)">
                   <code className="font-mono">{c.shortSha}</code>
                   <em className="not-italic">{c.authorName || t("未知")}</em>
                   <time>{formatRelativeTime(c.authorWhen * 1000)}</time>
@@ -89,7 +89,7 @@ export function PushPreviewColumns({
               </button>
             ))}
             {preview?.hasMore && (
-              <div className="px-1.5 py-1 text-[11px] text-(--tmd-fg-faint)">
+              <div className="px-1.5 py-1 text-[0.6875rem] text-(--tmd-fg-faint)">
                 {t("仅展示最近 {n} 条提交。", { n: PREVIEW_LIMIT })}
               </div>
             )}
@@ -113,7 +113,7 @@ export function PushPreviewColumns({
                 <div className="truncate font-medium text-(--tmd-fg)">
                   {selected?.summary || t("(无提交信息)")}
                 </div>
-                <div className="mt-0.5 flex items-center gap-2 text-[11px]">
+                <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem]">
                   <code className="font-mono">{selected?.longSha.slice(0, 16) ?? selectedSha.slice(0, 16)}…</code>
                   <em className="not-italic">{selected?.authorName || t("未知")}</em>
                   <time>
@@ -122,7 +122,7 @@ export function PushPreviewColumns({
                 </div>
               </div>
               <div className="mt-2 flex items-center gap-1 px-1 text-xs font-medium text-(--tmd-fg)">
-                <GitBranch className="h-3.5 w-3.5" aria-hidden />
+                <GitBranch className="h-[0.875rem] w-[0.875rem]" aria-hidden />
                 {t("变更文件")}
                 <i className="ml-auto not-italic text-(--tmd-fg-muted)">{details.length}</i>
               </div>
@@ -161,9 +161,9 @@ function PreviewPane({
     <div className="flex h-64 min-h-0 flex-col rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2">
       <div className="flex shrink-0 items-center gap-1 px-1 text-xs font-medium text-(--tmd-fg)">
         {title === t("本次推送提交") ? (
-          <GitCommit className="h-3.5 w-3.5" aria-hidden />
+          <GitCommit className="h-[0.875rem] w-[0.875rem]" aria-hidden />
         ) : (
-          <FileText className="h-3.5 w-3.5" aria-hidden />
+          <FileText className="h-[0.875rem] w-[0.875rem]" aria-hidden />
         )}
         {title}
         <strong className="ml-auto font-semibold text-(--tmd-fg-muted)">

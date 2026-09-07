@@ -27,7 +27,7 @@ const PI_ICON_PATHS = [
   "M17.5 12H23v11h-5.5V12z",
 ] as const;
 
-function PiGlyph({ size }: { size: number }) {
+function PiGlyph({ size }: { size: number | string }) {
   return (
     <svg
       viewBox="0 0 24 24"

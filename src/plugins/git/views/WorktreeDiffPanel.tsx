@@ -67,7 +67,7 @@ export function WorktreeDiffPanel({
         )}
         {selected && patchLoading && (
           <div className="flex h-full items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-            <CircleNotch className="h-3.5 w-3.5 animate-spin" /> {t("加载中…")}
+            <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
           </div>
         )}
         {selected && patchError && (
@@ -88,13 +88,13 @@ export function WorktreeDiffPanel({
 
       {/* 右:文件列表 */}
       <div className="flex w-[300px] shrink-0 flex-col border-l border-(--tmd-border)">
-        <div className="shrink-0 border-b border-(--tmd-border) px-2 py-1.5 text-[10px] uppercase tracking-wider text-(--tmd-fg-faint)">
+        <div className="shrink-0 border-b border-(--tmd-border) px-2 py-1.5 text-[0.625rem] uppercase tracking-wider text-(--tmd-fg-faint)">
           {t("文件({n})", { n: files.length })}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-1">
           {loading && (
             <div className="flex items-center justify-center gap-1.5 py-3 text-(--tmd-fg-faint)">
-              <CircleNotch className="h-3.5 w-3.5 animate-spin" /> {t("加载中…")}
+              <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
             </div>
           )}
           {!loading && error && (
@@ -117,7 +117,7 @@ export function WorktreeDiffPanel({
               title={f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}
             >
               <span
-                className={`shrink-0 rounded bg-(--tmd-bg-sunken) px-1 font-mono text-[10px] ${
+                className={`shrink-0 rounded bg-(--tmd-bg-sunken) px-1 font-mono text-[0.625rem] ${
                   STATUS_COLOR[f.status] ?? "text-(--tmd-fg-faint)"
                 }`}
               >

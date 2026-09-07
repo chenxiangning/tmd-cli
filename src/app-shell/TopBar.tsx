@@ -68,7 +68,7 @@ export function TopBar({
           title={t("插件市场")}
           onClick={onToggleMarket}
         >
-          <Plug size={14} aria-hidden />
+          <Plug size="0.875rem" aria-hidden />
         </button>
         {/* 入库(回 welcome):摘掉活跃 session 指针,MainPanel 兜底渲染 welcome;session 不删可唤回 */}
         <button
@@ -78,7 +78,7 @@ export function TopBar({
           title={t("回到首页")}
           onClick={() => host.setActiveSession(null)}
         >
-          <Tray size={14} aria-hidden />
+          <Tray size="0.875rem" aria-hidden />
         </button>
         <button
           type="button"
@@ -87,7 +87,7 @@ export function TopBar({
           title={t(leftOpen ? "收起左栏" : "展开左栏")}
           onClick={onToggleLeft}
         >
-          {leftOpen ? <CaretLineLeft size={14} aria-hidden /> : <CaretLineRight size={14} aria-hidden />}
+          {leftOpen ? <CaretLineLeft size="0.875rem" aria-hidden /> : <CaretLineRight size="0.875rem" aria-hidden />}
         </button>
       </div>
       <div className="titlebar-center" data-tauri-drag-region>
@@ -107,7 +107,7 @@ export function TopBar({
           title={t(rightOpen ? "收起右栏" : "展开右栏")}
           onClick={onToggleRight}
         >
-          {rightOpen ? <CaretLineRight size={14} aria-hidden /> : <CaretLineLeft size={14} aria-hidden />}
+          {rightOpen ? <CaretLineRight size="0.875rem" aria-hidden /> : <CaretLineLeft size="0.875rem" aria-hidden />}
         </button>
         <TopBarPanelTabs />
         <Mounts point="header.right" />

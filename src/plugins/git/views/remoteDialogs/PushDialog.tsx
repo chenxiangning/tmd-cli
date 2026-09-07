@@ -153,16 +153,16 @@ export function PushDialog({
   return (
     <GitDialogShell
       title={t("将提交推送到远端")}
-      icon={<UploadSimple className="h-3.5 w-3.5" aria-hidden />}
+      icon={<UploadSimple className="h-[0.875rem] w-[0.875rem]" aria-hidden />}
       repoName={repoName}
       width={880}
       locked={submitting}
       onClose={onClose}
       footer={
         <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-(--tmd-border) pt-3">
-          <OpToggle active={tags} icon={<Tag className="h-3.5 w-3.5" aria-hidden />} label={t("推送标签")} disabled={submitting} onToggle={() => setTags((v) => !v)} />
-          <OpToggle active={runHooks} icon={<ArrowClockwise className="h-3.5 w-3.5" aria-hidden />} label={t("运行 Git 挂钩")} disabled={submitting} onToggle={() => setRunHooks((v) => !v)} />
-          <OpToggle active={forceWithLease} icon={<Repeat className="h-3.5 w-3.5" aria-hidden />} label="Force with lease" disabled={submitting} onToggle={() => setForceWithLease((v) => !v)} />
+          <OpToggle active={tags} icon={<Tag className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label={t("推送标签")} disabled={submitting} onToggle={() => setTags((v) => !v)} />
+          <OpToggle active={runHooks} icon={<ArrowClockwise className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label={t("运行 Git 挂钩")} disabled={submitting} onToggle={() => setRunHooks((v) => !v)} />
+          <OpToggle active={forceWithLease} icon={<Repeat className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label="Force with lease" disabled={submitting} onToggle={() => setForceWithLease((v) => !v)} />
           <span className="flex-1" />
           <DialogActions
             confirmLabel={t("推送")}
@@ -211,7 +211,7 @@ export function PushDialog({
       {history.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <span className="flex items-center gap-1 text-xs text-(--tmd-fg-muted)">
-            <ClockClockwise className="h-3.5 w-3.5" aria-hidden />
+            <ClockClockwise className="h-[0.875rem] w-[0.875rem]" aria-hidden />
             {t("推送历史")}
           </span>
           {history.map((h) => (
@@ -220,7 +220,7 @@ export function PushDialog({
               type="button"
               disabled={submitting}
               onClick={() => applyHistory(h)}
-              className={`flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[11px] disabled:opacity-50 ${
+              className={`flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[0.6875rem] disabled:opacity-50 ${
                 isSamePushTarget(h, { remote: remote.trim(), branch: target.trim(), gerrit })
                   ? "bg-(--tmd-accent-soft) text-(--tmd-accent)"
                   : "bg-(--tmd-bg-sunken) text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
@@ -236,11 +236,11 @@ export function PushDialog({
       {/* 远端 / 目标远端分支 */}
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div>
-          <PickerField icon={<Cloud className="h-3.5 w-3.5" aria-hidden />} label={t("远端")} />
+          <PickerField icon={<Cloud className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label={t("远端")} />
           <RemotePicker remotes={remotes} value={remote} disabled={submitting} onPick={setRemote} />
         </div>
         <div>
-          <PickerField icon={<GitBranch className="h-3.5 w-3.5" aria-hidden />} label={t("目标远端分支")} />
+          <PickerField icon={<GitBranch className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label={t("目标远端分支")} />
           <BranchCombobox
             value={target}
             placeholder={branch || "main"}

@@ -226,7 +226,7 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
           title={t("基于当前 HEAD 创建")}
           className="rounded bg-(--tmd-accent) p-1.5 text-(--tmd-accent-fg) disabled:opacity-40"
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-[0.875rem] w-[0.875rem]" />
         </button>
       </div>
 
@@ -242,7 +242,7 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
       )}
       {busy && (
         <div className="flex items-center gap-1.5 text-(--tmd-fg-faint)">
-          <CircleNotch className="h-3 w-3 animate-spin" /> {t("执行中…")}
+          <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" /> {t("执行中…")}
         </div>
       )}
 

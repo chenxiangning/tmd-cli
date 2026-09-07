@@ -88,8 +88,8 @@ function Thumb({
         className="flex h-[72px] w-24 flex-none flex-col items-center justify-center gap-1 rounded border border-dashed border-(--tmd-border) px-1 text-(--tmd-fg-faint)"
         title={t("{path}(文件已不可读)", { path })}
       >
-        <Image size={12} aria-hidden />
-        <span className="w-full truncate text-center text-[10px]">{fileName(path)}</span>
+        <Image size="0.75rem" aria-hidden />
+        <span className="w-full truncate text-center text-[0.625rem]">{fileName(path)}</span>
       </span>
     );
   }
@@ -104,7 +104,7 @@ function Thumb({
       {src ? (
         <img src={src} alt={fileName(path)} className="h-full w-full object-cover" />
       ) : (
-        <CircleNotch size={12} className="animate-spin text-(--tmd-fg-faint)" aria-hidden />
+        <CircleNotch size="0.75rem" className="animate-spin text-(--tmd-fg-faint)" aria-hidden />
       )}
     </button>
   );
@@ -138,7 +138,7 @@ function Lightbox({
         className="max-h-[92vh] max-w-[92vw] object-contain"
         onClick={(e) => e.stopPropagation()}
       />
-      <div className="absolute bottom-4 left-4 max-w-[80vw] truncate rounded bg-black/60 px-2 py-1 font-mono text-[11px] text-white/80">
+      <div className="absolute bottom-4 left-4 max-w-[80vw] truncate rounded bg-black/60 px-2 py-1 font-mono text-[0.6875rem] text-white/80">
         {name}
       </div>
     </div>,

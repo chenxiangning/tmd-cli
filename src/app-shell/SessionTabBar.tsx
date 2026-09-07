@@ -130,7 +130,7 @@ function SessionTabBarImpl() {
                     else pinSession(pinKey, "global", title !== shortId(cliSessionId) ? title : undefined);
                   }}
                 >
-                  <PinIcon size={11} />
+                  <PinIcon size="0.6875rem" />
                 </button>
                 <button
                   type="button"
@@ -142,7 +142,7 @@ function SessionTabBarImpl() {
                     requestSessionReveal(id);
                   }}
                 >
-                  <CrosshairSimple size={11} aria-hidden />
+                  <CrosshairSimple size="0.6875rem" aria-hidden />
                 </button>
                 <button
                   type="button"
@@ -151,7 +151,7 @@ function SessionTabBarImpl() {
                   title={t("从标签条移除(会话保持运行)")}
                   onClick={() => closeSessionTab(id)}
                 >
-                  <Cross size={10} aria-hidden />
+                  <Cross size="0.625rem" aria-hidden />
                 </button>
               </>
             )}

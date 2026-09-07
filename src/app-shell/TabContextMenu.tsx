@@ -74,7 +74,7 @@ export function TabContextMenu({
             }}
           >
             <span className="wsmenu-item-icon">
-              <Pencil size={13} />
+              <Pencil size="0.8125rem" />
             </span>
             <span className="wsmenu-item-label">{t("重命名")}</span>
           </button>
@@ -87,7 +87,7 @@ export function TabContextMenu({
           }}
         >
           <span className="wsmenu-item-icon">
-            <Cross size={13} />
+            <Cross size="0.8125rem" />
           </span>
           <span className="wsmenu-item-label">{t("关闭")}</span>
         </button>
@@ -99,7 +99,7 @@ export function TabContextMenu({
           }}
         >
           <span className="wsmenu-item-icon">
-            <XSquare size={13} />
+            <XSquare size="0.8125rem" />
           </span>
           <span className="wsmenu-item-label">{t("关闭其他 tab")}</span>
         </button>
@@ -111,7 +111,7 @@ export function TabContextMenu({
           }}
         >
           <span className="wsmenu-item-icon">
-            <XCircle size={13} />
+            <XCircle size="0.8125rem" />
           </span>
           <span className="wsmenu-item-label">{t("关闭全部 tab")}</span>
         </button>

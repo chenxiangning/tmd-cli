@@ -43,6 +43,7 @@ describe("初始状态与默认值", () => {
       language: "zh",
       terminalFontSize: 13,
       terminalFontFamily: "",
+      uiFontSize: 16,
       uiZoom: 1,
       sessionTabsEnabled: true,
       sendShortcut: "enter",
@@ -227,6 +228,17 @@ describe("外观域字段清洗(language/终端字体字号/界面缩放)", () =
     expect(settings.getSettingsState().settings.terminalFontSize).toBe(13);
     settings.updateSettings({ terminalFontSize: 17 });
     expect(settings.getSettingsState().settings.terminalFontSize).toBe(17);
+  });
+
+  it("uiFontSize:越界/非整数回落默认 16,合法值放行", () => {
+    settings.updateSettings({ uiFontSize: 25 });
+    expect(settings.getSettingsState().settings.uiFontSize).toBe(16);
+    settings.updateSettings({ uiFontSize: 8 });
+    expect(settings.getSettingsState().settings.uiFontSize).toBe(16);
+    settings.updateSettings({ uiFontSize: 15.5 });
+    expect(settings.getSettingsState().settings.uiFontSize).toBe(16);
+    settings.updateSettings({ uiFontSize: 18 });
+    expect(settings.getSettingsState().settings.uiFontSize).toBe(18);
   });
 
   it("terminalFontFamily:去控制字符 + trim;非字符串回落空(平台默认)", () => {

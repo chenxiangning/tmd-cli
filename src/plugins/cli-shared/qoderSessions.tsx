@@ -211,7 +211,7 @@ export async function readQoderDefaultStatus(
  * Qoder 品牌 glyph:几何 Q 字环 + 右下尾笔(stroke 环避开发填规则坑),
  * currentColor 随主题 —— 与 codex/kimi 同款的品牌中性处理,不硬编码官方色值。
  */
-export function QoderGlyph({ size }: { size: number }) {
+export function QoderGlyph({ size }: { size: number | string }) {
   return (
     <svg
       viewBox="0 0 24 24"

@@ -193,7 +193,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
           onClick={() => setDrawerOpen(false)}
           className="grid h-7 w-full cursor-pointer place-items-center rounded-md text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         >
-          <Cross size={13} />
+          <Cross size="0.8125rem" />
         </button>
         {(["all", ...sections] as const).map((key) => {
           const label = key === "all" ? t("全部") : SECTION_META[key].label;
@@ -213,13 +213,13 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
                   : "text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
               }`}
             >
-              <Icon size={13} />
+              <Icon size="0.8125rem" />
             </button>
           );
         })}
         <span
           title={t("{n} 项", { n: visible.length })}
-          className="mt-auto pt-1 text-center font-mono text-[9.5px] text-(--tmd-fg-faint)"
+          className="mt-auto pt-1 text-center font-mono text-[0.59375rem] text-(--tmd-fg-faint)"
         >
           {visible.length}
         </span>
@@ -240,7 +240,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
       {/* 发送/打开反馈 toast */}
       <div
         role="status"
-        className={`pointer-events-none absolute bottom-8 left-16 rounded-lg border border-(--tmd-border-strong) bg-(--tmd-bg-popover) px-3 py-1.5 font-mono text-[11px] text-(--tmd-fg) shadow-lg transition-all ${
+        className={`pointer-events-none absolute bottom-8 left-16 rounded-lg border border-(--tmd-border-strong) bg-(--tmd-bg-popover) px-3 py-1.5 font-mono text-[0.6875rem] text-(--tmd-fg) shadow-lg transition-all ${
           toast ? "translate-y-0 opacity-100" : "translate-y-1.5 opacity-0"
         }`}
       >

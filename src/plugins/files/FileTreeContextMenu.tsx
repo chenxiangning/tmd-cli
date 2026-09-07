@@ -87,32 +87,32 @@ export function FileTreeContextMenu({
         }}
       />
       <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }} role="menu">
-        {item(t("新建文件"), <FilePlus size={13} />, () => {
+        {item(t("新建文件"), <FilePlus size="0.8125rem" />, () => {
           onClose();
           actions.createFile(newDir);
         })}
-        {item(t("新建文件夹"), <FolderSimplePlus size={13} />, () => {
+        {item(t("新建文件夹"), <FolderSimplePlus size="0.8125rem" />, () => {
           onClose();
           actions.createFolder(newDir);
         })}
         {entry ? (
           <>
             <div className="wsmenu-divider" />
-            {item(t("重命名"), <Pencil size={13} />, () => {
+            {item(t("重命名"), <Pencil size="0.8125rem" />, () => {
               onClose();
               actions.rename(entry);
             })}
-            {item(t("复制路径"), <Copy size={13} />, () => {
+            {item(t("复制路径"), <Copy size="0.8125rem" />, () => {
               onClose();
               actions.copyPath(entry);
             })}
             <div className="wsmenu-divider" />
-            {item(t("在访达中显示"), <FolderOpen size={13} />, () => {
+            {item(t("在访达中显示"), <FolderOpen size="0.8125rem" />, () => {
               onClose();
               actions.reveal(entry);
             })}
             <div className="wsmenu-divider" />
-            {item(armed ? t("确认移到废纸篓?") : t("移到废纸篓"), <Trash size={13} />, () => {
+            {item(armed ? t("确认移到废纸篓?") : t("移到废纸篓"), <Trash size="0.8125rem" />, () => {
               if (!armed) {
                 setArmed(true);
                 return;

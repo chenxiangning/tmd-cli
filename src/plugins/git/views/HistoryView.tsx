@@ -181,7 +181,7 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
               />
               <span className="min-w-0 flex-1 truncate">
                 <span className="font-medium">{name}</span>
-                {dir && <span className="ml-1 text-[10px] text-(--tmd-fg-faint)">{dir}</span>}
+                {dir && <span className="ml-1 text-[0.625rem] text-(--tmd-fg-faint)">{dir}</span>}
               </span>
               <span
                 className={`w-3 shrink-0 text-center font-semibold ${STATUS_COLOR[row.file.status] ?? ""}`}
@@ -212,7 +212,7 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
               <span className="min-w-0 flex-1 truncate font-medium">
                 {row.commit.summary || t("(空消息)")}
               </span>
-              <span className="shrink-0 text-[10px] tabular-nums text-(--tmd-fg-faint)">
+              <span className="shrink-0 text-[0.625rem] tabular-nums text-(--tmd-fg-faint)">
                 {formatRelativeTime(row.commit.authorWhen * 1000)}
               </span>
             </button>
@@ -220,7 +220,7 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
             {isExpanded && entry?.loading && (
               <div className={ROW_CLASS} title={t("加载改动文件")}>
                 <GitGraphContinuationCell row={row.graph} />
-                <CircleNotch className="h-3 w-3 shrink-0 animate-spin text-(--tmd-fg-faint)" />
+                <CircleNotch className="h-[0.75rem] w-[0.75rem] shrink-0 animate-spin text-(--tmd-fg-faint)" />
                 <span className="text-(--tmd-fg-faint)">{t("加载中…")}</span>
               </div>
             )}
@@ -246,11 +246,11 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
 
       {log.loading && (
         <div className="flex items-center justify-center gap-1.5 py-2 text-(--tmd-fg-faint)">
-          <CircleNotch className="h-3 w-3 animate-spin" /> {t("加载中…")}
+          <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" /> {t("加载中…")}
         </div>
       )}
       {!log.hasMore && log.entries.length > 0 && (
-        <div className="py-2 text-center text-[10px] text-(--tmd-fg-faint)">{t("已到最早提交")}</div>
+        <div className="py-2 text-center text-[0.625rem] text-(--tmd-fg-faint)">{t("已到最早提交")}</div>
       )}
     </div>
   );

@@ -25,7 +25,7 @@ export function SshPanel() {
         <div className="ssh-panel-empty">
           <div>{t("还没有 SSH 会话")}</div>
           <button type="button" className="ssh-btn is-primary" onClick={() => openHostPicker()}>
-            <Plus size={12} /> {t("连接主机")}
+            <Plus size="0.75rem" /> {t("连接主机")}
           </button>
         </div>
       </div>
@@ -99,7 +99,7 @@ function SessionCard({
           title={t("测延迟")}
           onClick={() => void probeLatency(sessionId)}
         >
-          <ArrowClockwise size={11} />
+          <ArrowClockwise size="0.6875rem" />
         </button>
         <button
           type="button"
@@ -107,7 +107,7 @@ function SessionCard({
           disabled={busy || status === "connecting" || status === "reconnecting"}
           onClick={() => void reconnect()}
         >
-          <ArrowClockwise size={11} />
+          <ArrowClockwise size="0.6875rem" />
         </button>
         <button
           type="button"
@@ -115,7 +115,7 @@ function SessionCard({
           disabled={busy}
           onClick={() => void host.removeSession(sessionId)}
         >
-          <PlugCharging size={11} />
+          <PlugCharging size="0.6875rem" />
         </button>
       </div>
     </div>

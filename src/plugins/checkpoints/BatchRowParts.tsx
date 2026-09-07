@@ -50,7 +50,7 @@ export function ConfirmCard({
               target: confirm.paths ? t("{n} 个路径", { n: confirm.paths.length }) : t("整批"),
             })}
       </div>
-      <div className="mb-2 text-[11px] leading-relaxed text-(--tmd-fg-muted)">
+      <div className="mb-2 text-[0.6875rem] leading-relaxed text-(--tmd-fg-muted)">
         {apply ? (
           <>
             {t("按账本副本把这轮改动精确写回磁盘(回退的镜像);")}
@@ -133,36 +133,36 @@ export function FileRow({
         }
       >
         <span
-          className={`grid h-[14px] w-[14px] flex-none place-items-center rounded text-[10px] font-bold ${fileChipCls(f.status)}`}
+          className={`grid h-[14px] w-[14px] flex-none place-items-center rounded text-[0.625rem] font-bold ${fileChipCls(f.status)}`}
         >
           {f.status}
         </span>
         {f.editCount > 0 && b.attribution === "events" && (
           <span
-            className="flex-none rounded border border-(--tmd-border) px-1 text-[9px] leading-[13px] text-(--tmd-fg-faint)"
+            className="flex-none rounded border border-(--tmd-border) px-1 text-[0.5625rem] leading-[0.8125rem] text-(--tmd-fg-faint)"
             title={t("AI 本轮写入该文件 {n} 次(事件流轨迹,账本可审计)", { n: f.editCount })}
           >
             ×{f.editCount}
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-(--tmd-fg-muted)">
+        <span className="min-w-0 flex-1 truncate font-mono text-[0.6875rem] text-(--tmd-fg-muted)">
           <b className="font-medium text-(--tmd-fg)">{name}</b>{" "}
           <span className="text-(--tmd-fg-faint)">{dir}</span>
         </span>
         {mine && (
-          <span className="flex-none font-mono text-[10px]">
+          <span className="flex-none font-mono text-[0.625rem]">
             <span className="text-(--tmd-diff-inserted)">+{mine.additions}</span>{" "}
             <span className="text-(--tmd-diff-removed)">−{mine.deletions}</span>
           </span>
         )}
         {f.reverted && (
-          <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[10px] leading-[14px] text-[#a78bfa]">
+          <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[0.625rem] leading-[0.875rem] text-[#a78bfa]">
             {t("已退")}
           </span>
         )}
         {f.stale && (
           <span
-            className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[10px] leading-[14px] text-(--tmd-fg-faint)"
+            className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-faint)"
             title={t("工作区内容已偏离本批后像,不可回退,仅可对照")}
           >
             {t("内容已变")}
@@ -177,7 +177,7 @@ export function FileRow({
           title={t("只回退这个文件")}
           onClick={() => setConfirm({ batchId: b.id, paths: [f.path] })}
         >
-          <ArrowCounterClockwise size={11} aria-hidden />
+          <ArrowCounterClockwise size="0.6875rem" aria-hidden />
         </button>
       )}
     </div>

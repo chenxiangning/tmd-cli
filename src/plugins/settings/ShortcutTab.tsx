@@ -52,7 +52,7 @@ function keybindingText(cmd: CommandContribution): string | null {
 /** 键帽芯片:对齐主流设置页的 keycap 视觉(描边圆角小块)。 */
 function KeyCap({ label }: { label: string }) {
   return (
-    <kbd className="inline-flex shrink-0 items-center rounded-[4px] border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-0.5 font-mono text-[11px] leading-none text-(--tmd-fg-muted)">
+    <kbd className="inline-flex shrink-0 items-center rounded-[4px] border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-0.5 font-mono text-[0.6875rem] leading-none text-(--tmd-fg-muted)">
       {label}
     </kbd>
   );
@@ -65,8 +65,8 @@ export function ShortcutGroups({ groups }: { groups: CommandGroup[] }) {
       {groups.map((group) => (
         <div key={group.name} className="pref-card">
           <div className="flex items-baseline justify-between px-4 pt-3 pb-1">
-            <span className="text-[11px] tracking-widest text-(--tmd-fg-faint)">{t(group.name)}</span>
-            <span className="text-[11px] text-(--tmd-fg-faint)">{group.commands.length}</span>
+            <span className="text-[0.6875rem] tracking-widest text-(--tmd-fg-faint)">{t(group.name)}</span>
+            <span className="text-[0.6875rem] text-(--tmd-fg-faint)">{group.commands.length}</span>
           </div>
           {group.commands.map((cmd) => {
             const kb = keybindingText(cmd);

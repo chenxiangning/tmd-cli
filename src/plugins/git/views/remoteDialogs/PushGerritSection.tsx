@@ -37,7 +37,7 @@ export function PushGerritSection({
     <div className="mt-3">
       <OpToggle
         active={gerrit}
-        icon={<UploadSimple className="h-3.5 w-3.5" aria-hidden />}
+        icon={<UploadSimple className="h-[0.875rem] w-[0.875rem]" aria-hidden />}
         label="Push to Gerrit"
         disabled={submitting}
         onToggle={onToggle}
@@ -73,7 +73,7 @@ function GerritInput({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[11px] text-(--tmd-fg-muted)">{label}</span>
+      <span className="mb-1 block text-[0.6875rem] text-(--tmd-fg-muted)">{label}</span>
       <input
         value={value}
         placeholder={placeholder}

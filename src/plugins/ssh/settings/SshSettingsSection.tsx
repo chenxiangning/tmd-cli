@@ -60,10 +60,10 @@ export function SshSettingsSection() {
           className="ssh-btn is-primary"
           onClick={() => setEditing(newHost())}
         >
-          <Plus size={12} /> {t("添加主机")}
+          <Plus size="0.75rem" /> {t("添加主机")}
         </button>
         <button type="button" className="ssh-btn" onClick={() => setImportOpen(true)}>
-          <UploadSimple size={12} /> {t("从 ~/.ssh/config 导入")}
+          <UploadSimple size="0.75rem" /> {t("从 ~/.ssh/config 导入")}
         </button>
         {hosts.length > 0 && <span className="ssh-settings-count">{t("{n} 台主机", { n: hosts.length })}</span>}
       </div>
@@ -91,13 +91,13 @@ export function SshSettingsSection() {
                   title={t("重置主机密钥信任(下次连接重新确认)")}
                   onClick={() => void resetKnownHost(host)}
                 >
-                  <Key size={13} />
+                  <Key size="0.8125rem" />
                 </button>
                 <button type="button" className="ssh-icon-btn" title={t("编辑")} onClick={() => setEditing(host)}>
-                  <Pencil size={13} />
+                  <Pencil size="0.8125rem" />
                 </button>
                 <button type="button" className="ssh-icon-btn" title={t("删除")} onClick={() => removeHost(host)}>
-                  <Trash size={13} />
+                  <Trash size="0.8125rem" />
                 </button>
               </div>
             </div>

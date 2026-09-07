@@ -81,7 +81,7 @@ export function SuggestionList({ matches, pickIndex, onPick, onHoverIndex, style
       style={style}
     >
       {/* 分区标题 */}
-      <div className="shrink-0 px-3.5 pt-2 pb-1 text-[11px] tracking-widest text-(--tmd-fg-faint)">
+      <div className="shrink-0 px-3.5 pt-2 pb-1 text-[0.6875rem] tracking-widest text-(--tmd-fg-faint)">
         {t(meta.label)}
       </div>
 
@@ -113,7 +113,7 @@ export function SuggestionList({ matches, pickIndex, onPick, onHoverIndex, style
                   {m.value}
                 </span>
                 {m.description && (
-                  <span className="truncate text-[13px] text-(--tmd-fg-subtle)">{t(m.description)}</span>
+                  <span className="truncate text-[0.8125rem] text-(--tmd-fg-subtle)">{t(m.description)}</span>
                 )}
               </button>
             );

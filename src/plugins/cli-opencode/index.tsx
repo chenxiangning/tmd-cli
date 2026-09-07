@@ -25,7 +25,7 @@ import { listOpencodeSuggestions, OPENCODE_COMMAND_SUGGESTIONS } from "./command
  * opencode 品牌 glyph:vendored 自官方 favicon.svg(opencode.ai,2026-09-05)。
  * 官方为白框 + 灰色内块双色 mark → 框随 currentColor,内块用 --tmd-fg-muted。
  */
-function OpenCodeGlyph({ size }: { size: number }) {
+function OpenCodeGlyph({ size }: { size: number | string }) {
   return (
     <svg
       viewBox="0 0 512 512"

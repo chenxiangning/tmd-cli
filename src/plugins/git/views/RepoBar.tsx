@@ -45,7 +45,7 @@ export function RepoBar({
             ? t("仓数已达发现上限({n}),仅显示前 {n} 仓", { n: repos.length })
             : t("工作区内发现的 Git 仓库数")
         }
-        className="flex shrink-0 items-center pl-2 text-[10px] whitespace-nowrap text-(--tmd-fg-muted) tabular-nums"
+        className="flex shrink-0 items-center pl-2 text-[0.625rem] whitespace-nowrap text-(--tmd-fg-muted) tabular-nums"
       >
         {repos.length}
         {truncated ? "+" : ""} {t("仓")}
@@ -75,14 +75,14 @@ export function RepoBar({
               type="button"
               title={title}
               onClick={() => onSelect(r.path)}
-              className={`inline-flex h-[20px] shrink-0 items-center gap-1.5 rounded px-1.5 text-[11px] whitespace-nowrap tabular-nums transition-colors ${
+              className={`inline-flex h-[20px] shrink-0 items-center gap-1.5 rounded px-1.5 text-[0.6875rem] whitespace-nowrap tabular-nums transition-colors ${
                 active
                   ? "text-(--tmd-fg)"
                   : "text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
               }`}
             >
               <KindIcon
-                size={12}
+                size="0.75rem"
                 weight={active ? "fill" : "regular"}
                 className={`shrink-0 ${active ? "text-(--tmd-accent)" : "text-(--tmd-fg-faint)"}`}
                 aria-hidden
@@ -98,10 +98,10 @@ export function RepoBar({
                 </>
               )}
               {chip && chip.ahead > 0 && (
-                <span className="text-[10px] text-(--tmd-diff-inserted)">↑{chip.ahead}</span>
+                <span className="text-[0.625rem] text-(--tmd-diff-inserted)">↑{chip.ahead}</span>
               )}
               {chip && chip.behind > 0 && (
-                <span className="text-[10px] text-(--tmd-diff-removed)">↓{chip.behind}</span>
+                <span className="text-[0.625rem] text-(--tmd-diff-removed)">↓{chip.behind}</span>
               )}
             </button>
           </span>

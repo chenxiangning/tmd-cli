@@ -49,7 +49,7 @@ export function FileOpenActions({ cwd, file }: { cwd: string; file: GitFileStatu
         }}
         className="shrink-0 text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
       >
-        <FileText className="h-3 w-3" />
+        <FileText className="h-[0.75rem] w-[0.75rem]" />
       </button>
       <button
         type="button"
@@ -60,7 +60,7 @@ export function FileOpenActions({ cwd, file }: { cwd: string; file: GitFileStatu
         }}
         className="shrink-0 text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
       >
-        <FolderOpen className="h-3 w-3" />
+        <FolderOpen className="h-[0.75rem] w-[0.75rem]" />
       </button>
     </>
   );

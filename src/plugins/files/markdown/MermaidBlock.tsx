@@ -159,7 +159,7 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
             aria-label={t("全屏查看")}
             title={t("全屏查看")}
           >
-            <CornersOut size={14} aria-hidden />
+            <CornersOut size="0.875rem" aria-hidden />
           </button>
         </div>
       </div>

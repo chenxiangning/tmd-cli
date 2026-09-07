@@ -31,7 +31,7 @@ export {
 const KIMI_ICON_PATH =
   "M5 3h4v6.6L14.6 3H20l-6.9 8.3L20 21h-5.5L9 12.9V21H5z" as const;
 
-function KimiGlyph({ size }: { size: number }) {
+function KimiGlyph({ size }: { size: number | string }) {
   return (
     <svg
       width={size}

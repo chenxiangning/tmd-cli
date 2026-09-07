@@ -8,6 +8,9 @@ export const MESSAGES = {
   "界面缩放": "UI zoom",
   "整个界面等比缩放(80%–150%);终端文字大小另由下方字号单独控制。":
     "Scales the whole UI proportionally (80%–150%); terminal text size is controlled separately below.",
+  "界面字号": "UI font size",
+  "全客户端文字与图标大小(12–20 px);布局宽度不变,即时生效。":
+    "Text and icon size across the whole client (12–20 px); layout widths stay put, applies instantly.",
   "重置": "Reset",
   "终端字号": "Terminal font size",
   "幕布终端文字大小(10–20 px),拖动即时生效。":

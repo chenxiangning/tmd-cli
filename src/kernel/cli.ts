@@ -117,7 +117,7 @@ export interface CliProfile {
   /** 显示名。 */
   name: string;
   /** CLI 品牌图标(侧栏会话行/新建会话菜单用),尺寸由调用方给。缺省 = 无图标。 */
-  renderIcon?: (size: number) => ReactNode;
+  renderIcon?: (size: number | string) => ReactNode;
   /** 可执行命令（PATH 解析）。 */
   command: string;
   /** 固定参数。 */

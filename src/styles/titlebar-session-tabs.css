@@ -41,7 +41,7 @@
   border: none;
   background: none;
   color: var(--tmd-fg-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: pointer;
   transition: color 120ms ease;
 }
@@ -108,8 +108,8 @@
 }
 
 .session-tab-remove svg {
-  width: 10px;
-  height: 10px;
+  width: 0.625rem;
+  height: 0.625rem;
 }
 
 
@@ -157,8 +157,8 @@
 
 .session-tab-pin svg,
 .session-tab-locate svg {
-  width: 11px;
-  height: 11px;
+  width: 0.6875rem;
+  height: 0.6875rem;
   flex: 0 0 auto;
 }
 
@@ -173,7 +173,7 @@
   color: var(--tmd-fg);
   border: 1px solid var(--tmd-accent);
   border-radius: var(--tmd-radius-sm);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-family: inherit;
   padding: 0 6px;
   outline: none;

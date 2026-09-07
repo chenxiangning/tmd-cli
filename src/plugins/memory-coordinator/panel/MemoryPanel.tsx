@@ -116,7 +116,7 @@ export function MemoryPanel() {
   });
 
   if (!root) {
-    return <div className="placeholder p-4 text-center text-[11px] text-(--tmd-fg-faint)">{t("未选择工作区")}</div>;
+    return <div className="placeholder p-4 text-center text-[0.6875rem] text-(--tmd-fg-faint)">{t("未选择工作区")}</div>;
   }
 
   if (ready === false) {
@@ -126,7 +126,7 @@ export function MemoryPanel() {
     return (
       <div className="flex h-full min-h-0 flex-col">
         <div className="p-3">
-          <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2.5 text-[11px] leading-relaxed text-(--tmd-fg-muted)">
+          <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2.5 text-[0.6875rem] leading-relaxed text-(--tmd-fg-muted)">
             <span className="text-(--tmd-err)">{t("池不可用")}</span>
             {identity === null
               ? t(" —— 当前工作区不是 git 仓库,未纳入记忆池。")
@@ -148,12 +148,12 @@ export function MemoryPanel() {
         onClick={() => setDetailOpen(!detailOpen)}
       >
         <span className="h-2 w-2 flex-none rounded-full bg-(--tmd-ok)" />
-        <span className="text-[11px] text-(--tmd-fg-muted)">{t("池就绪")}</span>
-        <span className="ml-auto text-[11px] font-semibold">{t("{count} 条", { count })}</span>
-        <CaretDown size={11} className={detailOpen ? "rotate-180 transition-transform" : "transition-transform"} />
+        <span className="text-[0.6875rem] text-(--tmd-fg-muted)">{t("池就绪")}</span>
+        <span className="ml-auto text-[0.6875rem] font-semibold">{t("{count} 条", { count })}</span>
+        <CaretDown size="0.6875rem" className={detailOpen ? "rotate-180 transition-transform" : "transition-transform"} />
       </button>
       {detailOpen && (
-        <div className="mb-2 flex flex-col gap-0.5 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2 font-mono text-[10px] text-(--tmd-fg-muted)">
+        <div className="mb-2 flex flex-col gap-0.5 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2 font-mono text-[0.625rem] text-(--tmd-fg-muted)">
           <div className="truncate" title={dbPath ?? t("未解析")}>{t("库:{path}", { path: dbPath ?? t("未解析") })}</div>
           <div className="truncate" title={identity ?? t("非 git 工作区")}>{t("身份:{id}", { id: identity ?? t("非 git 工作区") })}</div>
           <div>{t("生效记忆:{count} 条 · 覆盖类目:{kinds} 类", { count, kinds: presentKinds.length })}</div>
@@ -165,12 +165,12 @@ export function MemoryPanel() {
 
       <div className="flex gap-1.5 px-1 pb-1.5">
         <div className="relative flex-1">
-          <MagnifyingGlass size={12} className="absolute left-2 top-1.5 text-(--tmd-fg-faint)" />
+          <MagnifyingGlass size="0.75rem" className="absolute left-2 top-1.5 text-(--tmd-fg-faint)" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("关键词检索(FTS)…")}
-            className="h-[26px] w-full rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) pl-7 pr-2 text-[11px] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) focus:border-(--tmd-accent)"
+            className="h-[26px] w-full rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) pl-7 pr-2 text-[0.6875rem] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) focus:border-(--tmd-accent)"
           />
         </div>
       </div>
@@ -178,7 +178,7 @@ export function MemoryPanel() {
       {presentSources.length > 1 && (
         <div className="mb-1.5 flex flex-wrap gap-1 px-1">
           <button
-            className={`h-5 rounded-full border px-2 text-[10.5px] ${
+            className={`h-5 rounded-full border px-2 text-[0.65625rem] ${
               source === "all"
                 ? "border-(--tmd-accent) bg-(--tmd-bg-active) text-(--tmd-fg)"
                 : "border-(--tmd-border) text-(--tmd-fg-subtle)"
@@ -190,7 +190,7 @@ export function MemoryPanel() {
           {presentSources.map(([srcName, n]) => (
             <button
               key={srcName}
-              className={`h-5 rounded-full border px-2 text-[10.5px] ${
+              className={`h-5 rounded-full border px-2 text-[0.65625rem] ${
                 source === srcName
                   ? "border-(--tmd-accent) bg-(--tmd-bg-active) text-(--tmd-fg)"
                   : "border-(--tmd-border) text-(--tmd-fg-subtle)"
@@ -206,7 +206,7 @@ export function MemoryPanel() {
       {presentKinds.length > 0 && (
         <div className="mb-1.5 flex flex-wrap gap-1 px-1">
           <button
-            className={`h-5 rounded-full border px-2 text-[10.5px] ${
+            className={`h-5 rounded-full border px-2 text-[0.65625rem] ${
               kind === "all"
                 ? "border-(--tmd-accent) bg-(--tmd-bg-active) text-(--tmd-fg)"
                 : "border-(--tmd-border) text-(--tmd-fg-subtle)"
@@ -218,7 +218,7 @@ export function MemoryPanel() {
           {presentKinds.map(([key, n]) => (
             <button
               key={key}
-              className={`h-5 rounded-full border px-2 text-[10.5px] ${
+              className={`h-5 rounded-full border px-2 text-[0.65625rem] ${
                 kind === key
                   ? "border-(--tmd-accent) bg-(--tmd-bg-active) text-(--tmd-fg)"
                   : "border-(--tmd-border) text-(--tmd-fg-subtle)"
@@ -234,7 +234,7 @@ export function MemoryPanel() {
       {diag.length > 0 && (
         <div className="mb-1.5 flex flex-col gap-0.5 px-1">
           {diag.map((line) => (
-            <span key={line} className="truncate text-[10.5px] text-(--tmd-fg-subtle)">
+            <span key={line} className="truncate text-[0.65625rem] text-(--tmd-fg-subtle)">
               {line}
             </span>
           ))}
@@ -256,9 +256,9 @@ export function MemoryPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-1">
         {loading ? (
-          <div className="p-3 text-center text-[11px] text-(--tmd-fg-faint)">{t("读取中…")}</div>
+          <div className="p-3 text-center text-[0.6875rem] text-(--tmd-fg-faint)">{t("读取中…")}</div>
         ) : filtered.length === 0 ? (
-          <div className="p-3 text-center text-[11px] text-(--tmd-fg-faint)">
+          <div className="p-3 text-center text-[0.6875rem] text-(--tmd-fg-faint)">
             {count === 0 ? t("当前工作区还没有记忆") : t("无匹配")}
           </div>
         ) : (

@@ -14,7 +14,7 @@
 }
 .ssh-settings-count {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-faint);
 }
 .ssh-host-list {
@@ -39,7 +39,7 @@
   min-width: 0;
 }
 .ssh-host-card-name {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--tmd-fg);
   overflow: hidden;
@@ -47,7 +47,7 @@
   white-space: nowrap;
 }
 .ssh-host-card-endpoint {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-faint);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -55,7 +55,7 @@
 }
 .ssh-auth-chip {
   flex: none;
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--tmd-fg-faint);
   border: 1px solid var(--tmd-border);
   border-radius: 4px;
@@ -98,7 +98,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   margin-bottom: 10px;
 }
@@ -111,14 +111,14 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-faint);
 }
 .ssh-form input,
 .ssh-form select,
 .ssh-form textarea {
   padding: 5px 8px;
-  font-size: 12px;
+  font-size: 0.75rem;
   border: 1px solid var(--tmd-border);
   border-radius: 6px;
   background: var(--tmd-bg-input);
@@ -157,7 +157,7 @@
   align-items: center;
   gap: 8px;
   padding: 5px 4px;
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: pointer;
 }
 .ssh-import-row:hover {
@@ -174,7 +174,7 @@
 }
 .ssh-import-endpoint {
   flex: 1;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-faint);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -182,7 +182,7 @@
 }
 .ssh-import-meta {
   flex: none;
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--tmd-fg-faint);
 }
 
@@ -200,19 +200,19 @@
   border-bottom: 1px solid var(--tmd-border);
 }
 .ssh-editor-path {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .ssh-editor-meta {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--tmd-fg-faint);
   flex: none;
 }
 .ssh-editor-banner {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: #f59e0b;
   flex: none;
 }
@@ -222,7 +222,7 @@
 }
 .ssh-editor-warn {
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: #f59e0b;
   background: color-mix(in srgb, #f59e0b 12%, transparent);
 }

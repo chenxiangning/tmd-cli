@@ -79,7 +79,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
         <div className="truncate font-medium text-(--tmd-fg)" title={payload.summary}>
           {payload.summary || t("(空消息)")}
         </div>
-        <div className="mt-0.5 flex items-center gap-2 text-[11px] text-(--tmd-fg-muted)">
+        <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem] text-(--tmd-fg-muted)">
           <span className="font-mono text-(--tmd-accent)">{payload.shortSha}</span>
           {payload.authorName && <span>{payload.authorName}</span>}
           {payload.authorWhen > 0 && <span>{formatAbsolute(payload.authorWhen * 1000)}</span>}
@@ -95,7 +95,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
         <div className="w-60 shrink-0 overflow-y-auto border-r border-(--tmd-border)">
           {entry?.loading && (
             <div className="flex items-center justify-center gap-1.5 py-3 text-(--tmd-fg-faint)">
-              <CircleNotch className="h-3 w-3 animate-spin" /> {t("加载中…")}
+              <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" /> {t("加载中…")}
             </div>
           )}
           {entry?.error && (
@@ -122,10 +122,10 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
                 </span>
                 <span className="min-w-0 flex-1 truncate">
                   <span className="font-medium">{name}</span>
-                  {dir && <span className="ml-1 text-[10px] text-(--tmd-fg-faint)">{dir}</span>}
+                  {dir && <span className="ml-1 text-[0.625rem] text-(--tmd-fg-faint)">{dir}</span>}
                 </span>
                 {!f.binary && (f.additions > 0 || f.deletions > 0) && (
-                  <span className="shrink-0 tabular-nums text-[10px] text-(--tmd-fg-faint)">
+                  <span className="shrink-0 tabular-nums text-[0.625rem] text-(--tmd-fg-faint)">
                     <span className="text-(--tmd-diff-inserted)">+{f.additions}</span>{" "}
                     <span className="text-(--tmd-diff-removed)">-{f.deletions}</span>
                   </span>
@@ -139,7 +139,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
         <div className="min-w-0 flex-1 overflow-auto">
           {patchLoading ? (
             <div className="flex items-center justify-center gap-1.5 py-6 text-(--tmd-fg-faint)">
-              <CircleNotch className="h-3.5 w-3.5 animate-spin" /> {t("加载 diff…")}
+              <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载 diff…")}
             </div>
           ) : patchError ? (
             <div className="px-3 py-3 text-(--tmd-diff-removed)">{gitErrorShort(patchError)}</div>

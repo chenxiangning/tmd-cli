@@ -88,7 +88,7 @@ export function MemoryCapsule() {
       <div className="flex min-w-0 flex-none flex-wrap items-center gap-x-2 gap-y-1 border-b border-(--tmd-border) bg-(--tmd-accent-soft) px-2.5 py-1">
         <button
           type="button"
-          className="flex h-[22px] items-center gap-1.5 rounded-full bg-(--tmd-bg-active) px-2.5 text-[11px] text-(--tmd-fg) hover:shadow-[0_0_0_1px_var(--tmd-accent)]"
+          className="flex h-[22px] items-center gap-1.5 rounded-full bg-(--tmd-bg-active) px-2.5 text-[0.6875rem] text-(--tmd-fg) hover:shadow-[0_0_0_1px_var(--tmd-accent)]"
           aria-expanded={expanded}
           onClick={() => setExpanded(!expanded)}
         >
@@ -96,11 +96,11 @@ export function MemoryCapsule() {
           <span className="font-bold text-(--tmd-accent)">{items.length}</span>
           <span>{t("条")}</span>
           <CaretDown
-            size={11}
+            size="0.6875rem"
             className={expanded ? "rotate-180 transition-transform" : "transition-transform"}
           />
         </button>
-        <span className="min-w-0 flex-1 truncate text-[10.5px] text-(--tmd-fg-subtle)">
+        <span className="min-w-0 flex-1 truncate text-[0.65625rem] text-(--tmd-fg-subtle)">
           {t("Magic Context 池 · ")}<span className="text-(--tmd-fg-faint)">{t("omp/pi 会话沉淀")}</span>
         </span>
       </div>
@@ -108,17 +108,17 @@ export function MemoryCapsule() {
       {expanded && (
         <div className="flex-none border-b border-(--tmd-border) px-2.5 pb-2 pt-1.5">
           <div className="mb-1.5 flex items-center gap-2">
-            <span className="text-[11.5px] font-semibold">{t("项目记忆")}</span>
-            <span className="text-[10.5px] text-(--tmd-fg-faint)">{t("勾选后注入为消息前缀")}</span>
+            <span className="text-[0.71875rem] font-semibold">{t("项目记忆")}</span>
+            <span className="text-[0.65625rem] text-(--tmd-fg-faint)">{t("勾选后注入为消息前缀")}</span>
             <span className="ml-auto flex flex-none gap-1.5">
               <button
-                className="h-[22px] rounded-md border border-(--tmd-border) px-2.5 text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+                className="h-[22px] rounded-md border border-(--tmd-border) px-2.5 text-[0.6875rem] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
                 onClick={() => setChecked(checked.size === items.length ? new Set() : new Set(items.map((_, i) => i)))}
               >
                 {checked.size === items.length ? t("全不选") : t("全选")}
               </button>
               <button
-                className="h-[22px] rounded-md border border-(--tmd-accent) bg-(--tmd-accent) px-2.5 text-[11px] text-(--tmd-accent-fg) disabled:opacity-45"
+                className="h-[22px] rounded-md border border-(--tmd-accent) bg-(--tmd-accent) px-2.5 text-[0.6875rem] text-(--tmd-accent-fg) disabled:opacity-45"
                 disabled={checked.size === 0}
                 onClick={inject}
               >
@@ -130,7 +130,7 @@ export function MemoryCapsule() {
             {items.map((m, i) => (
               <div
                 key={m.id}
-                className={`flex cursor-pointer items-start gap-2 rounded-md px-2 py-1 text-[11px] leading-[1.45] ${
+                className={`flex cursor-pointer items-start gap-2 rounded-md px-2 py-1 text-[0.6875rem] leading-[1.45] ${
                   checked.has(i) ? "bg-(--tmd-accent-soft) text-(--tmd-fg)" : "text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
                 }`}
                 onClick={() => {
@@ -148,11 +148,11 @@ export function MemoryCapsule() {
                   )}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="mr-1.5 rounded-[3px] border border-(--tmd-border) bg-(--tmd-bg-hover) px-1 py-px text-[10px] text-(--tmd-fg-subtle)">
+                  <span className="mr-1.5 rounded-[3px] border border-(--tmd-border) bg-(--tmd-bg-hover) px-1 py-px text-[0.625rem] text-(--tmd-fg-subtle)">
                     {t((CATEGORY_CN as Record<string, string>)[m.category] ?? m.category)}
                   </span>
                   {m.content}
-                  <span className="ml-1.5 text-[10px] text-(--tmd-fg-faint)">{m.category}</span>
+                  <span className="ml-1.5 text-[0.625rem] text-(--tmd-fg-faint)">{m.category}</span>
                 </span>
               </div>
             ))}
@@ -161,7 +161,7 @@ export function MemoryCapsule() {
       )}
 
       {injected && (
-        <div className="flex-none truncate border-b border-(--tmd-border) px-2.5 py-1 text-[10.5px] text-(--tmd-accent)">
+        <div className="flex-none truncate border-b border-(--tmd-border) px-2.5 py-1 text-[0.65625rem] text-(--tmd-accent)">
           {t("已注入 {n} 条为消息前缀,发送后 {cli} 将按项目约束执行。", { n: checkedCount, cli: profile?.name ?? t("当前 CLI") })}
         </div>
       )}

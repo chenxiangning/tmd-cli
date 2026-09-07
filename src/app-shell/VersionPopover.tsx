@@ -123,7 +123,7 @@ export function VersionPopover({
           <span className="vp-title">tmd-cli</span>
           <span className="vp-version-badge">v{currentVersion}</span>
           <button type="button" className="vp-close" aria-label={t("关闭")} onClick={onClose}>
-            <Cross size={14} />
+            <Cross size="0.875rem" />
           </button>
         </div>
 
@@ -134,11 +134,11 @@ export function VersionPopover({
             onClick={() => void check()}
             disabled={status === "checking"}
           >
-            <ArrowClockwise size={13} className={status === "checking" ? "vp-spin" : undefined} />
+            <ArrowClockwise size="0.8125rem" className={status === "checking" ? "vp-spin" : undefined} />
             {status === "checking" ? t("检查中…") : t("检查更新")}
           </button>
           <button type="button" className="vp-btn vp-btn-primary" onClick={goDownload}>
-            <DownloadSimple size={13} />
+            <DownloadSimple size="0.8125rem" />
             {t("前往下载")}
           </button>
         </div>
@@ -175,7 +175,7 @@ export function VersionPopover({
                 disabled={idx === 0}
                 onClick={() => setEntryIndex(idx - 1)}
               >
-                <CaretLeft size={13} />
+                <CaretLeft size="0.8125rem" />
               </button>
               <span className="vp-pager-ind">
                 {idx + 1} / {entryCount}
@@ -187,7 +187,7 @@ export function VersionPopover({
                 disabled={idx >= entryCount - 1}
                 onClick={() => setEntryIndex(idx + 1)}
               >
-                <CaretRight size={13} />
+                <CaretRight size="0.8125rem" />
               </button>
             </span>
           )}
@@ -221,7 +221,7 @@ export function VersionPopover({
           className="vp-releases-link"
           onClick={() => void openExternalUrl(RELEASES_PAGE_URL)}
         >
-          <ArrowSquareOut size={12} />
+          <ArrowSquareOut size="0.75rem" />
           {t("查看 GitHub Releases")}
         </button>
       </div>

@@ -23,7 +23,7 @@
 }
 
 .omp-ext-cli {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-muted);
   padding: 1px 7px;
   border: 1px solid var(--tmd-border);
@@ -63,7 +63,7 @@
 
 .omp-ext-section {
   margin-top: 8px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--tmd-fg-subtle);
   letter-spacing: 0.4px;
@@ -72,7 +72,7 @@
 .omp-ext-state {
   padding: 14px 0;
   color: var(--tmd-fg-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .omp-ext-offline {
@@ -80,7 +80,7 @@
   border: 1px dashed var(--tmd-warn);
   border-radius: var(--tmd-radius-sm);
   color: var(--tmd-warn);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 
 

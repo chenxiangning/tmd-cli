@@ -26,9 +26,9 @@
   --sidebar-row-radius: 6px;
   --sidebar-row-height-workspace: 28px;
   --sidebar-row-height-thread: 30px;
-  --sidebar-caption-font-size: 10px;
-  --sidebar-meta-font-size: 12px;
-  --sidebar-content-font-size: 14px;
+  --sidebar-caption-font-size: 0.625rem;
+  --sidebar-meta-font-size: 0.75rem;
+  --sidebar-content-font-size: 0.875rem;
 
   padding: 0 0 12px;
   font-size: var(--sidebar-content-font-size);
@@ -236,8 +236,8 @@
 }
 
 .workspace-action-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 0.9375rem;
+  height: 0.9375rem;
   stroke-width: 1.85;
   flex: 0 0 auto;
 }

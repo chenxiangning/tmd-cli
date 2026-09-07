@@ -59,9 +59,9 @@ export function GitRemoteBar({
         className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
         {remoteBusy === "fetch" ? (
-          <CircleNotch className="h-3.5 w-3.5 animate-spin" />
+          <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" />
         ) : (
-          <CloudArrowDown className="h-3.5 w-3.5" />
+          <CloudArrowDown className="h-[0.875rem] w-[0.875rem]" />
         )}
       </button>
       <button
@@ -75,9 +75,9 @@ export function GitRemoteBar({
         className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
         {remoteBusy === "pull" ? (
-          <CircleNotch className="h-3.5 w-3.5 animate-spin" />
+          <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" />
         ) : (
-          <DownloadSimple className="h-3.5 w-3.5" />
+          <DownloadSimple className="h-[0.875rem] w-[0.875rem]" />
         )}
         {(aheadBehind?.behind ?? 0) > 0 && aheadBehind!.behind}
       </button>
@@ -94,9 +94,9 @@ export function GitRemoteBar({
         className="flex items-center gap-0.5 rounded px-1 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
         {remoteBusy === "push" ? (
-          <CircleNotch className="h-3.5 w-3.5 animate-spin" />
+          <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" />
         ) : (
-          <UploadSimple className="h-3.5 w-3.5" />
+          <UploadSimple className="h-[0.875rem] w-[0.875rem]" />
         )}
         {(aheadBehind?.ahead ?? 0) > 0 && aheadBehind!.ahead}
       </button>

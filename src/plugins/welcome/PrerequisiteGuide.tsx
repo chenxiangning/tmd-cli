@@ -42,7 +42,7 @@ export function PrerequisiteGuide({
                   rel="noreferrer"
                 >
                   {t("{name} 官网", { name: requires.name })}
-                  <ArrowSquareOut size={11} aria-hidden />
+                  <ArrowSquareOut size="0.6875rem" aria-hidden />
                 </a>
               )}
             </>
@@ -72,7 +72,7 @@ export function PrerequisiteGuide({
               aria-label={t("重新探针前置依赖")}
               title={t("重新探针")}
             >
-              <ArrowClockwise size={12} aria-hidden />
+              <ArrowClockwise size="0.75rem" aria-hidden />
             </button>
           )}
         </span>

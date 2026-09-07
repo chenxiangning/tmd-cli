@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--tmd-fg);
 }
@@ -22,7 +22,7 @@
 }
 .ssh-section-empty {
   padding: 10px 0 4px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-faint);
 }
 
@@ -41,7 +41,7 @@
 .ssh-forward-addr {
   flex: 1;
   text-align: left;
-  font-size: 11px;
+  font-size: 0.6875rem;
   background: none;
   border: none;
   color: var(--tmd-fg);
@@ -62,7 +62,7 @@
   flex: 1 1 30%;
   min-width: 60px;
   padding: 4px 6px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   border: 1px solid var(--tmd-border);
   border-radius: 6px;
   background: var(--tmd-bg-input);
@@ -70,7 +70,7 @@
 }
 .ssh-form-error {
   width: 100%;
-  font-size: 10px;
+  font-size: 0.625rem;
   color: #f87171;
 }
 .ssh-btn {
@@ -78,7 +78,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   border: 1px solid var(--tmd-border);
   border-radius: 6px;
   background: none;
@@ -115,7 +115,7 @@
   padding: 0;
 }
 .ssh-tree-label {
-  font-size: 11px;
+  font-size: 0.6875rem;
   background: none;
   border: none;
   color: var(--tmd-fg);
@@ -162,7 +162,7 @@
 .ssh-menu button {
   text-align: left;
   padding: 5px 8px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   background: none;
   border: none;
   border-radius: 4px;
@@ -190,7 +190,7 @@
 }
 .ssh-transfer-label {
   flex: 1;
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--tmd-fg-faint);
   overflow: hidden;
   text-overflow: ellipsis;

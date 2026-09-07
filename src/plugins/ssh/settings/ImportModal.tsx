@@ -53,7 +53,7 @@ export function ImportModal({
     <div className="ssh-modal-backdrop" onClick={onClose}>
       <div className="ssh-modal" onClick={(e) => e.stopPropagation()}>
         <div className="ssh-modal-title">
-          <UploadSimple size={14} aria-hidden />
+          <UploadSimple size="0.875rem" aria-hidden />
           <span>{t("从 ~/.ssh/config 导入")}</span>
         </div>
         {state === "loading" ? <div className="ssh-settings-empty">{t("扫描中…")}</div> : null}

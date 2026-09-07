@@ -114,7 +114,7 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
                 key={`dir:${row.dir}`}
                 className="flex items-center gap-1 px-2 py-1 font-medium text-(--tmd-fg-muted)"
               >
-                <CaretDown className="h-3 w-3" />
+                <CaretDown className="h-[0.75rem] w-[0.75rem]" />
                 {row.dir}
               </div>
             ) : (
@@ -195,9 +195,9 @@ function FileRow({
         title={t("{path}(点击在中间打开 diff)", { path: file.path })}
         className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left"
       >
-        <FileText className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-faint)" />
+        <FileText className="h-[0.875rem] w-[0.875rem] shrink-0 text-(--tmd-fg-faint)" />
         <span className="min-w-0 flex-1 truncate">{depth > 0 ? file.path.slice(file.path.indexOf("/") + 1) : file.path}</span>
-        <span className={`font-mono text-[10px] ${STATUS_COLOR[file.status] ?? ""}`}>
+        <span className={`font-mono text-[0.625rem] ${STATUS_COLOR[file.status] ?? ""}`}>
           {displayStatus}
         </span>
       </button>
@@ -227,7 +227,7 @@ function FileRow({
         </button>
       )}
       {isConflict && (
-        <span className="shrink-0 text-[10px] text-(--tmd-diff-removed)">{t("冲突")}</span>
+        <span className="shrink-0 text-[0.625rem] text-(--tmd-diff-removed)">{t("冲突")}</span>
       )}
     </div>
   );

@@ -195,13 +195,13 @@ export function PinnedSessionsSection() {
         title={collapsed ? t("展开已置顶") : t("收起已置顶")}
         onClick={toggleCollapsed}
       >
-        <PinIcon size={11} className="pinned-sessions-header-icon" />
+        <PinIcon size="0.6875rem" className="pinned-sessions-header-icon" />
         <span className="pinned-sessions-header-label">{t("已置顶")}</span>
         <span className="pinned-sessions-header-count">· {rows.length}</span>
         {collapsed ? (
-          <CaretRight size={12} className="pinned-sessions-header-chevron" aria-hidden />
+          <CaretRight size="0.75rem" className="pinned-sessions-header-chevron" aria-hidden />
         ) : (
-          <CaretDown size={12} className="pinned-sessions-header-chevron" aria-hidden />
+          <CaretDown size="0.75rem" className="pinned-sessions-header-chevron" aria-hidden />
         )}
       </button>
 
@@ -237,7 +237,7 @@ export function PinnedSessionsSection() {
             >
               {/* 正在查看:引擎图标槽位让位给 Eye,切走还原 */}
               <span className="thread-engine-badge" title={row.profile.name}>
-                {isActive ? <Eye size={13} className="thread-viewing-eye" /> : row.profile.renderIcon?.(12)}
+                {isActive ? <Eye size="0.8125rem" className="thread-viewing-eye" /> : row.profile.renderIcon?.(12)}
               </span>
               <span className="thread-name">{titleOf(row)}</span>
               <span className="thread-meta">

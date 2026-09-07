@@ -97,20 +97,20 @@ export function MemoryListItem({
         onExpand();
       }}
     >
-      <div className="truncate text-[11px] leading-[1.5] text-(--tmd-fg)" title={m.content}>{highlight(m.content, query)}</div>
-      <div className="mt-0.5 flex gap-1.5 text-[10.5px] text-(--tmd-fg-faint)">
+      <div className="truncate text-[0.6875rem] leading-[1.5] text-(--tmd-fg)" title={m.content}>{highlight(m.content, query)}</div>
+      <div className="mt-0.5 flex gap-1.5 text-[0.65625rem] text-(--tmd-fg-faint)">
         <span>{categoryLabel(m.category)}</span>
         <span>·</span>
         <span>{m.harness || "pi"}</span>
         <span>·</span>
         <span>{new Date(m.updatedAt).toLocaleDateString("zh-CN")}</span>
         <CaretDown
-          size={11}
+          size="0.6875rem"
           className={`ml-auto transition-transform ${expanded ? "rotate-180" : ""}`}
         />
       </div>
       {expanded && (
-        <div className="mt-1.5 flex flex-col gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-base) p-2 text-[10.5px] leading-relaxed">
+        <div className="mt-1.5 flex flex-col gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-base) p-2 text-[0.65625rem] leading-relaxed">
           <div className="whitespace-pre-wrap break-words text-(--tmd-fg)">{m.content}</div>
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-(--tmd-fg-faint)">
             <span title={m.category}>{t("类目:{label}({code})", { label: categoryLabel(m.category), code: m.category })}</span>
@@ -124,7 +124,7 @@ export function MemoryListItem({
         </div>
       )}
       <button
-        className={`absolute right-1.5 top-1.5 hidden rounded px-1.5 text-[10px] group-hover:block ${
+        className={`absolute right-1.5 top-1.5 hidden rounded px-1.5 text-[0.625rem] group-hover:block ${
           archiving ? "text-(--tmd-fg-faint)" : "text-(--tmd-fg-muted) hover:text-(--tmd-err)"
         }`}
         disabled={archiving}
@@ -159,7 +159,7 @@ export function MemorySelectBar({
     <>
       <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-1.5 px-1">
         <button
-          className={`rounded-md border px-2 py-0.5 text-[10.5px] ${
+          className={`rounded-md border px-2 py-0.5 text-[0.65625rem] ${
             selectMode ? "border-(--tmd-accent) bg-(--tmd-accent-soft) text-(--tmd-fg)" : "border-(--tmd-border) text-(--tmd-fg-muted)"
           } hover:bg-(--tmd-bg-hover)`}
           onClick={onToggleSelectMode}
@@ -169,7 +169,7 @@ export function MemorySelectBar({
         {selectMode && (
           <>
             <button
-              className="flex-none rounded-md border border-(--tmd-accent) bg-(--tmd-accent) px-2 py-0.5 text-[10.5px] text-(--tmd-accent-fg) disabled:opacity-45"
+              className="flex-none rounded-md border border-(--tmd-accent) bg-(--tmd-accent) px-2 py-0.5 text-[0.65625rem] text-(--tmd-accent-fg) disabled:opacity-45"
               disabled={mergeDisabled}
               title={t("合并所选为一条(content 取首条表述,经 omp 官方管线 merge)")}
               onClick={onMerge}
@@ -180,7 +180,7 @@ export function MemorySelectBar({
         )}
       </div>
       {selectMode && (
-        <div className="mb-1.5 px-1 text-[10px] text-(--tmd-fg-faint)">
+        <div className="mb-1.5 px-1 text-[0.625rem] text-(--tmd-fg-faint)">
           {mergeNote ?? t("选 2 条以上重复记忆折叠为一条")}
         </div>
       )}
@@ -203,25 +203,25 @@ export function MemoryPanelFooter({
   return (
     <div className="flex min-w-0 flex-none items-center gap-2 border-t border-(--tmd-border) px-2 py-1.5">
       <button
-        className="flex-none rounded-md border border-(--tmd-border) px-2 py-0.5 text-[10.5px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+        className="flex-none rounded-md border border-(--tmd-border) px-2 py-0.5 text-[0.65625rem] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         onClick={toggleConsoleTab}
         title={t("打开/关闭中央编辑区的 Memory 控制台")}
       >
         {consoleOpen ? t("关闭控制台") : t("控制台")}
       </button>
       <button
-        className="flex-none rounded-md border border-(--tmd-border) px-2 py-0.5 text-[10.5px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+        className="flex-none rounded-md border border-(--tmd-border) px-2 py-0.5 text-[0.65625rem] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         onClick={onDiag}
         disabled={diagRunning}
       >
         {diagRunning ? t("诊断中…") : t("诊断")}
       </button>
       {diag.length === 0 ? (
-        <span className="min-w-0 flex-1 truncate text-[10.5px] text-(--tmd-fg-faint)" title={t("上游未暴露 CLI 触发;omp 会话内可用")}>
+        <span className="min-w-0 flex-1 truncate text-[0.65625rem] text-(--tmd-fg-faint)" title={t("上游未暴露 CLI 触发;omp 会话内可用")}>
           {t("上游治理(/ctx-dream · /ctx-aug)在 omp 会话内执行;写入与移除经 omp 官方管线")}
         </span>
       ) : (
-        <span className="min-w-0 flex-1 truncate text-[10.5px] text-(--tmd-fg-subtle)" title={diag.join("\n")}>
+        <span className="min-w-0 flex-1 truncate text-[0.65625rem] text-(--tmd-fg-subtle)" title={diag.join("\n")}>
           {diag[diag.length - 1]}
         </span>
       )}

@@ -34,7 +34,7 @@
   overflow-y: auto;
   padding: 8px 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.5;
   color: var(--tmd-fg-muted);
 }
@@ -46,7 +46,7 @@
 
 .welcome-install-done {
   padding: 6px 12px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   border-top: 1px solid var(--tmd-border);
 }
 
@@ -76,7 +76,7 @@
 .welcome-prereq-text {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.5;
   color: var(--tmd-fg-muted);
 }
@@ -110,7 +110,7 @@
 
 .welcome-section-title {
   margin: 0 0 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
@@ -119,7 +119,7 @@
 }
 
 .welcome-session-ws {
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -141,7 +141,7 @@
   border-radius: 6px;
   background: transparent;
   color: var(--tmd-fg);
-  font-size: 12px;
+  font-size: 0.75rem;
   text-align: left;
   cursor: pointer;
 }
@@ -164,7 +164,7 @@
 }
 
 .welcome-session-time {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-faint);
   flex-shrink: 0;
 }

@@ -49,7 +49,7 @@ export function SettingsPanel() {
     <div className="settings-panel" role="dialog" aria-label={t("设置")}>
       <nav className="settings-nav">
         <button type="button" className="settings-back" onClick={closeSettingsPanel}>
-          <ArrowLeft size={14} aria-hidden />
+          <ArrowLeft size="0.875rem" aria-hidden />
           {t("返回应用")}
         </button>
         {sections.map((section) => (

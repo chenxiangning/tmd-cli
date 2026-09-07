@@ -23,7 +23,7 @@
   flex-shrink: 0;
   user-select: none;
   -webkit-user-select: none;
-  font-size: 12px;
+  font-size: 0.75rem;
   -webkit-app-region: drag;
 }
 
@@ -151,8 +151,8 @@
 }
 
 .win-traffic-light svg {
-  width: 10px;
-  height: 10px;
+  width: 0.625rem;
+  height: 0.625rem;
 }
 
 /* ── Action button ── */
@@ -182,7 +182,7 @@
 }
 
 .titlebar-action svg {
-  width: 14px;
-  height: 14px;
+  width: 0.875rem;
+  height: 0.875rem;
   stroke-width: 1.75;
 }

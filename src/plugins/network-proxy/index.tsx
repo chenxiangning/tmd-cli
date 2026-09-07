@@ -19,7 +19,7 @@ import { openProxyPopover } from "./proxyPopoverStore";
 
 /** 梯子 icon(@phosphor-icons-react 无对应 icon,本地内联 SVG;icon-style props 面,
  *  兼容 Plugin.meta.icon 与 SidebarAction.icon 两处约束)。 */
-type LadderProps = { size?: number; className?: string };
+type LadderProps = { size?: number | string; className?: string };
 const LadderIcon: ComponentType<LadderProps> = ({ size = 14, className }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

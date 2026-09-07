@@ -129,7 +129,7 @@ export function OpToggle({
       }`}
     >
       <span
-        className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-[10px] leading-none ${
+        className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-[0.625rem] leading-none ${
           active
             ? "border-(--tmd-accent) bg-(--tmd-accent) text-(--tmd-accent-fg)"
             : "border-(--tmd-border)"

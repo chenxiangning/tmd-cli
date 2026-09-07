@@ -43,6 +43,13 @@
 @import "./file-preview-docs.css";
 @import "./start-failure-toast.css";
 
+/* 界面字号(uiFontSize → html 根字号)语义锚:文字随根字号缩放,布局壳不胀。
+ * Tailwind 4 间距编译为 calc(var(--spacing)*N),默认 0.25rem 会随根字号缩放;
+ * 钉成绝对 4px(= 根 16px 时的 0.25rem,默认态像素零变化),padding/gap/标准档位恒定。 */
+@theme {
+  --spacing: 4px;
+}
+
 /* ──────────────────────────────────────────────────────────
  * 全局细滚动条 —— 平时完全隐藏,悬停滚动区时浮现 4px 细条。
  * 功能保留:轨道常驻(thumb 透明),滚轮/触控板/拖拽 thumb 均可用。

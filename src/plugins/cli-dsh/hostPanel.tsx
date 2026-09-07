@@ -199,7 +199,7 @@ export function DshHostPanel() {
           <div className="flex shrink-0 items-center gap-2">
             {pending === "start" ? (
               <button type="button" className={BTN} onClick={() => void onCancelStart()}>
-                <X size={13} /> {t("取消启动")}
+                <X size="0.8125rem" /> {t("取消启动")}
               </button>
             ) : (
               <>
@@ -209,7 +209,7 @@ export function DshHostPanel() {
                     className={BTN_PRIMARY}
                     onClick={() => void openExternalUrl(originOf(conn))}
                   >
-                    <ArrowSquareOut size={13} /> {t("打开 DSH Web UI")}
+                    <ArrowSquareOut size="0.8125rem" /> {t("打开 DSH Web UI")}
                   </button>
                 )}
                 {connected && (
@@ -219,7 +219,7 @@ export function DshHostPanel() {
                     disabled={pending !== null}
                     onClick={() => void onStop()}
                   >
-                    <Stop size={13} /> {t("停止服务")}
+                    <Stop size="0.8125rem" /> {t("停止服务")}
                   </button>
                 )}
                 {status.kind === "down" && binFound && (
@@ -230,14 +230,14 @@ export function DshHostPanel() {
                       disabled={pending !== null}
                       onClick={() => void onStart()}
                     >
-                      <Play size={13} /> {t("立即启动")}
+                      <Play size="0.8125rem" /> {t("立即启动")}
                     </button>
                     <button
                       type="button"
                       className={BTN}
                       onClick={() => void openExternalUrl(originOf(conn))}
                     >
-                      <ArrowSquareOut size={13} /> {t("仍尝试打开")}
+                      <ArrowSquareOut size="0.8125rem" /> {t("仍尝试打开")}
                     </button>
                   </>
                 )}
@@ -248,7 +248,7 @@ export function DshHostPanel() {
                     disabled={pending !== null}
                     onClick={() => void refresh()}
                   >
-                    <ArrowClockwise size={13} /> {t("重新检测")}
+                    <ArrowClockwise size="0.8125rem" /> {t("重新检测")}
                   </button>
                 )}
               </>

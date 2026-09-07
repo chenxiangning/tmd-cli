@@ -48,7 +48,7 @@ export function HostModal({
     <div className="ssh-modal-backdrop" onClick={onClose}>
       <div className="ssh-modal" onClick={(e) => e.stopPropagation()}>
         <div className="ssh-modal-title">
-          <HardDrive size={14} aria-hidden />
+          <HardDrive size="0.875rem" aria-hidden />
           <span>{isNew ? t("添加 SSH 主机") : t("编辑 SSH 主机")}</span>
         </div>
         <div className="ssh-form">

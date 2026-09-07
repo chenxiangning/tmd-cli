@@ -92,7 +92,7 @@ export function InstalledRow({
         title={open ? t("收起详情") : t("展开详情")}
         onClick={() => setOpen((v) => !v)}
       >
-        <CaretDown size={12} className="omp-ext-caret" aria-hidden />
+        <CaretDown size="0.75rem" className="omp-ext-caret" aria-hidden />
         <span className="omp-ext-pkg" title={ext.name}>
           {ext.name}
         </span>
@@ -104,7 +104,7 @@ export function InstalledRow({
       <div className="omp-ext-row-action">
         {running === "toggle" ? (
           <span className="omp-ext-running">
-            <CircleNotch size={12} className="omp-ext-spin" aria-hidden />
+            <CircleNotch size="0.75rem" className="omp-ext-spin" aria-hidden />
             {ext.enabled ? t("停用中") : t("启用中")}
           </span>
         ) : (
@@ -119,7 +119,7 @@ export function InstalledRow({
         )}
         {running === "uninstall" ? (
           <span className="omp-ext-running">
-            <CircleNotch size={12} className="omp-ext-spin" aria-hidden />
+            <CircleNotch size="0.75rem" className="omp-ext-spin" aria-hidden />
             {t("卸载中")}
           </span>
         ) : armed ? (

@@ -65,11 +65,11 @@ export function GroupHeader({
             }
           }}
         >
-          <ListChecks size={12} aria-hidden />
+          <ListChecks size="0.75rem" aria-hidden />
         </span>
       )}
       <span className="cli-group-chevron" aria-hidden>
-        {collapsed ? <CaretRight size={12} /> : <CaretDown size={12} />}
+        {collapsed ? <CaretRight size="0.75rem" /> : <CaretDown size="0.75rem" />}
       </span>
     </button>
   );

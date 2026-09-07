@@ -61,21 +61,21 @@ export function TerminalSearchOverlay({
         onClick={() => query && searchRef.current?.findPrevious(query)}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
-        <CaretUp size={14} />
+        <CaretUp size="0.875rem" />
       </button>
       <button
         title={t("下一个 (Enter)")}
         onClick={() => query && searchRef.current?.findNext(query)}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
-        <CaretDown size={14} />
+        <CaretDown size="0.875rem" />
       </button>
       <button
         title={t("关闭 (Esc)")}
         onClick={onClose}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
-        <Cross size={14} />
+        <Cross size="0.875rem" />
       </button>
     </div>
   );

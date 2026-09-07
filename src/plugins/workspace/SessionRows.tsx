@@ -78,7 +78,7 @@ export function SessionNode({
   if (viewing) {
     return (
       <span className="tl-node tl-node-viewing" aria-hidden>
-        <Eye size={13} className="thread-viewing-eye" />
+        <Eye size="0.8125rem" className="thread-viewing-eye" />
       </span>
     );
   }
@@ -209,7 +209,7 @@ export function PinToggle({
         }
       }}
     >
-      <PinIcon size={12} className="thread-pin-icon" />
+      <PinIcon size="0.75rem" className="thread-pin-icon" />
     </span>
   );
 }

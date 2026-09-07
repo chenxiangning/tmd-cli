@@ -39,7 +39,7 @@ export function StartFailureNotices({
         return (
           <div className="sft-card" key={n.id}>
             <div className="sft-head">
-              <Warning size={14} className="sft-icon" aria-hidden />
+              <Warning size="0.875rem" className="sft-icon" aria-hidden />
               <span className="sft-title">{t("{name} 会话启动失败", { name })}</span>
               <button
                 type="button"
@@ -47,7 +47,7 @@ export function StartFailureNotices({
                 aria-label={t("关闭启动失败通知")}
                 onClick={() => onClose(n.id)}
               >
-                <Cross size={12} aria-hidden />
+                <Cross size="0.75rem" aria-hidden />
               </button>
             </div>
             <pre className="sft-reason">{n.reason}</pre>

@@ -98,9 +98,9 @@ export function RemotePicker({
         onClick={() => (pos ? setPos(null) : open())}
         className="flex w-full items-center gap-1.5 rounded border border-(--tmd-border) px-2 py-1.5 font-mono text-xs text-(--tmd-fg) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
-        <Cloud className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-muted)" aria-hidden />
+        <Cloud className="h-[0.875rem] w-[0.875rem] shrink-0 text-(--tmd-fg-muted)" aria-hidden />
         <span className="min-w-0 flex-1 truncate text-left">{value || "origin"}</span>
-        <CaretDown className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-faint)" aria-hidden />
+        <CaretDown className="h-[0.875rem] w-[0.875rem] shrink-0 text-(--tmd-fg-faint)" aria-hidden />
       </button>
       {pos && (
         <PickerMenu pos={pos} onClose={() => setPos(null)}>
@@ -121,9 +121,9 @@ export function RemotePicker({
                   : "text-(--tmd-fg) hover:bg-(--tmd-bg-hover)"
               }`}
             >
-              <Cloud className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-muted)" aria-hidden />
+              <Cloud className="h-[0.875rem] w-[0.875rem] shrink-0 text-(--tmd-fg-muted)" aria-hidden />
               <span className="min-w-0 flex-1 truncate text-left">{r}</span>
-              {r === value && <Check className="h-3.5 w-3.5" aria-hidden />}
+              {r === value && <Check className="h-[0.875rem] w-[0.875rem]" aria-hidden />}
             </button>
           ))}
         </PickerMenu>
@@ -193,7 +193,7 @@ export function BranchCombobox({
         onClick={() => (pos ? setPos(null) : openWith(""))}
         className="shrink-0 rounded border border-(--tmd-border) p-1.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
-        <CaretDown className="h-3.5 w-3.5" aria-hidden />
+        <CaretDown className="h-[0.875rem] w-[0.875rem]" aria-hidden />
       </button>
       {pos && (
         <PickerMenu pos={pos} onClose={() => setPos(null)}>
@@ -217,9 +217,9 @@ export function BranchCombobox({
                   : "text-(--tmd-fg) hover:bg-(--tmd-bg-hover)"
               }`}
             >
-              <GitBranch className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-muted)" aria-hidden />
+              <GitBranch className="h-[0.875rem] w-[0.875rem] shrink-0 text-(--tmd-fg-muted)" aria-hidden />
               <span className="min-w-0 flex-1 truncate text-left">{o}</span>
-              {o === value.trim() && <Check className="h-3.5 w-3.5" aria-hidden />}
+              {o === value.trim() && <Check className="h-[0.875rem] w-[0.875rem]" aria-hidden />}
             </button>
           ))}
         </PickerMenu>

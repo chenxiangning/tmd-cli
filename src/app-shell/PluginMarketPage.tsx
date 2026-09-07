@@ -98,7 +98,7 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
                 title={t("插排视图")}
                 onClick={() => setView("strip")}
               >
-                <Plug size={12} aria-hidden />
+                <Plug size="0.75rem" aria-hidden />
               </button>
               <button
                 type="button"
@@ -108,7 +108,7 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
                 title={t("列表视图")}
                 onClick={() => setView("list")}
               >
-                <List size={12} aria-hidden />
+                <List size="0.75rem" aria-hidden />
               </button>
             </div>
             <button
@@ -117,7 +117,7 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
               title={dirtyCount > 0 ? t("{n} 个插拔变更待重启生效", { n: dirtyCount }) : t("重启应用")}
               onClick={restart}
             >
-              <ArrowClockwise size={12} aria-hidden />
+              <ArrowClockwise size="0.75rem" aria-hidden />
               {t("重启应用")}{dirtyCount > 0 ? ` (${dirtyCount})` : ""}
             </button>
             <button
@@ -127,7 +127,7 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
               title={t("关闭插件市场")}
               onClick={onClose}
             >
-              <Cross size={14} aria-hidden />
+              <Cross size="0.875rem" aria-hidden />
             </button>
           </div>
         </div>
@@ -162,7 +162,7 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
         {/* ═══ 在线市场(预留) ═══ */}
         <div className="pm-section-title">{t("在线市场")}</div>
         <div className="pm-market-soon">
-          <Globe size={28} aria-hidden />
+          <Globe size="1.75rem" aria-hidden />
           <div className="pm-soon-title">{t("远程插件市场 · 建设中")}</div>
           <div>{t("未来可在此浏览、安装社区插件包 —— 新插头直接快递到你的插排")}</div>
           <button type="button" className="pm-soon-btn" disabled>

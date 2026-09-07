@@ -20,7 +20,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-faint);
-  line-height: 18px;
+  line-height: 1.125rem;
   text-align: left;
   cursor: pointer;
   transition: color 0.16s ease;
@@ -41,7 +41,7 @@
 /* 折叠态会话数徽标:弱底色胶囊,不与 uppercase 互相干扰(关掉字距/大小写继承)。 */
 .cli-group-count {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 600;
   line-height: 1;
   padding: 2px 5px;

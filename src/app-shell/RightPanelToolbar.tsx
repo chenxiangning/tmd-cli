@@ -213,7 +213,7 @@ function WorkspaceSubbar() {
           disabled={!activePanel?.newFile}
           onClick={() => activePanel?.newFile?.()}
         >
-          <FilePlus size={12} aria-hidden />
+          <FilePlus size="0.75rem" aria-hidden />
         </button>
         <button
           type="button"
@@ -223,7 +223,7 @@ function WorkspaceSubbar() {
           disabled={!activePanel?.newFolder}
           onClick={() => activePanel?.newFolder?.()}
         >
-          <FolderSimplePlus size={12} aria-hidden />
+          <FolderSimplePlus size="0.75rem" aria-hidden />
         </button>
         <button
           type="button"
@@ -233,7 +233,7 @@ function WorkspaceSubbar() {
           onClick={handleRefreshFiles}
         >
           <ArrowClockwise
-            size={12}
+            size="0.75rem"
             aria-hidden
             className={refreshBusy ? "animate-spin" : undefined}
           />

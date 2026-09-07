@@ -110,8 +110,8 @@ export function BranchCompareModal({
         {/* 头部:徽标 + 标题 + 关闭;副标题 + 统计 */}
         <div className="shrink-0 border-b border-(--tmd-border) px-4 pt-3">
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-[10px] font-medium text-(--tmd-accent)">
-              <GitDiff className="h-3 w-3" />
+            <span className="flex items-center gap-1 rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-[0.625rem] font-medium text-(--tmd-accent)">
+              <GitDiff className="h-[0.75rem] w-[0.75rem]" />
               {badge}
             </span>
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-(--tmd-fg)">
@@ -122,7 +122,7 @@ export function BranchCompareModal({
               title={t("关闭")}
               className="rounded p-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
             >
-              <Cross className="h-4 w-4" />
+              <Cross className="h-[1rem] w-[1rem]" />
             </button>
           </div>
           <div className="flex items-center gap-3 py-1.5">
@@ -138,7 +138,7 @@ export function BranchCompareModal({
         {/* 主体 */}
         {loading && (
           <div className="flex flex-1 items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-            <CircleNotch className="h-3.5 w-3.5 animate-spin" /> {t("加载中…")}
+            <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
           </div>
         )}
         {error && (
@@ -226,7 +226,7 @@ function UniqueSection({
           {label}
           <span className="font-normal text-(--tmd-fg-faint)">({branch} \ {other})</span>
         </span>
-        <span className="shrink-0 rounded-full bg-(--tmd-accent-soft) px-1.5 py-0.5 text-[10px] text-(--tmd-accent)">
+        <span className="shrink-0 rounded-full bg-(--tmd-accent-soft) px-1.5 py-0.5 text-[0.625rem] text-(--tmd-accent)">
           {t("{n} 个提交", { n: commits.length })}
         </span>
       </button>
@@ -252,7 +252,7 @@ function UniqueSection({
                 <div className="truncate text-xs font-medium text-(--tmd-fg)">
                   {c.summary || t("(空消息)")}
                 </div>
-                <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-(--tmd-fg-faint)">
+                <div className="mt-0.5 flex items-center gap-1.5 text-[0.625rem] text-(--tmd-fg-faint)">
                   <span className="font-mono">{c.shortSha}</span>
                   <span>{c.authorName}</span>
                   <span>{formatRelativeTime(c.authorWhen * 1000)}</span>

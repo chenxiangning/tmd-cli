@@ -27,7 +27,7 @@ export function SshSessionGroup({ workspace }: { workspace: Workspace }) {
     <div className="cli-group">
       <GroupHeader
         label="SSH"
-        icon={<HardDrive size={12} />}
+        icon={<HardDrive size="0.75rem" />}
         count={sessions.length}
         collapsed={collapsed}
         onToggle={toggle}

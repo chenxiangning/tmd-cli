@@ -115,15 +115,15 @@ export function FRow({
       <span className="min-w-0 flex-1 truncate text-(--tmd-fg)">{name}</span>
       <span
         dir="rtl"
-        className="max-w-[38%] shrink-0 truncate text-right text-[11px] text-(--tmd-fg-faint)"
+        className="max-w-[38%] shrink-0 truncate text-right text-[0.6875rem] text-(--tmd-fg-faint)"
       >
         {dirText}
       </span>
       {/* 数字位与动作位互斥显示(hover 换位,同原型):宽随内容,截断兜底在 dir 列 */}
       {conflict ? (
-        <span className="shrink-0 text-[11px] text-(--tmd-diff-removed)">{t("冲突")}</span>
+        <span className="shrink-0 text-[0.6875rem] text-(--tmd-diff-removed)">{t("冲突")}</span>
       ) : (
-        <span className="shrink-0 text-[11px] tabular-nums">
+        <span className="shrink-0 text-[0.6875rem] tabular-nums">
           <span className={numsBlank ? "group-hover:invisible" : "group-hover:hidden"}>
             <span className="text-(--tmd-diff-inserted)">+{nums ? fmt(nums.i) : 0}</span>{" "}
             <span className="text-(--tmd-diff-removed)">−{nums ? fmt(nums.d) : 0}</span>

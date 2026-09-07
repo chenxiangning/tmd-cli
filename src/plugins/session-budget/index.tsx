@@ -28,7 +28,7 @@ function CaptionBudgetButton() {
           );
         }}
       >
-        <TreeStructure size={13} aria-hidden />
+        <TreeStructure size="0.8125rem" aria-hidden />
       </button>
       {pos && <BudgetPopover position={pos} onClose={() => setPos(null)} />}
     </>

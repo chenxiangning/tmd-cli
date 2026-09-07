@@ -91,7 +91,7 @@ export function SessionMenuOverlay({
             }}
           >
             <span className="wsmenu-item-icon">
-              <Trash size={13} />
+              <Trash size="0.8125rem" />
             </span>
             <span className="wsmenu-item-label">{t("删除工作区")}</span>
           </button>

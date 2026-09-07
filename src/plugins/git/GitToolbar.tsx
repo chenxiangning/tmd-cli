@@ -62,9 +62,9 @@ export function GitToolbar() {
         onClick={toggleMenu}
         className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-xs font-medium hover:bg-(--tmd-bg-hover)"
       >
-        <ViewIcon className="h-3 w-3" aria-hidden />
+        <ViewIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
         {menuPos && t(VIEW_LABEL[view])}
-        <CaretDown className="h-3 w-3 text-(--tmd-fg-faint)" aria-hidden />
+        <CaretDown className="h-[0.75rem] w-[0.75rem] text-(--tmd-fg-faint)" aria-hidden />
       </button>
       {totals && (
         <span title={t("聚合增删行数(staged + 未暂存;多仓 = 选中仓口径)")}>
@@ -135,7 +135,7 @@ function ViewMenu({
           return (
             <button key={v} type="button" className={item} onClick={() => onPick(v)}>
               <span className="flex items-center gap-1.5">
-                <VIcon className="h-3 w-3" aria-hidden />
+                <VIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
                 <span>{t(VIEW_LABEL[v])}</span>
               </span>
               {current === v && <span>✓</span>}
@@ -143,13 +143,13 @@ function ViewMenu({
           );
         })}
         {sep}
-        <div className="px-3 py-1 text-[10px] text-(--tmd-fg-faint)">{t("文件列表视图")}</div>
+        <div className="px-3 py-1 text-[0.625rem] text-(--tmd-fg-faint)">{t("文件列表视图")}</div>
         {(["flat", "tree"] as const).map((l) => {
           const LIcon = LAYOUT_ICON[l];
           return (
             <button key={l} type="button" className={item} onClick={() => onPick(l)}>
               <span className="flex items-center gap-1.5">
-                <LIcon className="h-3 w-3" aria-hidden />
+                <LIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
                 <span>{l === "flat" ? t("平铺") : t("树形")}</span>
               </span>
               {layout === l && <span>✓</span>}

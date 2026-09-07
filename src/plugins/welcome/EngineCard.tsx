@@ -85,7 +85,7 @@ export function EngineCard({
     <section className="welcome-engine-card">
       <header className="welcome-engine-head">
         <span className="welcome-engine-icon" aria-hidden>
-          {profile?.renderIcon ? profile.renderIcon(22) : <XCircle size={22} />}
+          {profile?.renderIcon ? profile.renderIcon("1.375rem") : <XCircle size="1.375rem" />}
         </span>
         <span className="welcome-engine-name">{t(meta.displayName)}</span>
         {meta.docsUrl && (
@@ -96,7 +96,7 @@ export function EngineCard({
             rel="noreferrer"
           >
             {t("官方文档")}
-            <ArrowSquareOut size={11} aria-hidden />
+            <ArrowSquareOut size="0.6875rem" aria-hidden />
           </a>
         )}
         <span className="welcome-engine-status">
@@ -168,7 +168,7 @@ export function EngineCard({
             title={t("重新探针")}
           >
             <ArrowClockwise
-              size={12}
+              size="0.75rem"
               aria-hidden
               className={probe.status === "loading" ? "is-spinning" : ""}
             />

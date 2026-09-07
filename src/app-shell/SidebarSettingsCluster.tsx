@@ -66,7 +66,7 @@ function PinCheckbox({
         onToggle();
       }}
     >
-      {pinned && <Check size={10} aria-hidden />}
+      {pinned && <Check size="0.625rem" aria-hidden />}
     </button>
   );
 }
@@ -156,7 +156,7 @@ export function SidebarSettingsCluster() {
                   onClick={() => select(action)}
                 >
                   <span className="settings-menu-icon" aria-hidden>
-                    <action.icon size={14} />
+                    <action.icon size="0.875rem" />
                   </span>
                   <span className="settings-menu-label">{t(action.label)}</span>
                 </button>
@@ -179,7 +179,7 @@ export function SidebarSettingsCluster() {
             }}
           >
             <span className="settings-menu-icon" aria-hidden>
-              <Gear size={14} />
+              <Gear size="0.875rem" />
             </span>
             <span className="settings-menu-label">{t("设置")}</span>
           </button>
@@ -210,7 +210,7 @@ export function SidebarSettingsCluster() {
               title={t(action.label)}
               onClick={() => action.onSelect(anchor())}
             >
-              <action.icon size={14} />
+              <action.icon size="0.875rem" />
             </button>
           );
         })}

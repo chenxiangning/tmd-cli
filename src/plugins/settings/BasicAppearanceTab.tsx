@@ -124,7 +124,7 @@ export function BasicAppearanceTab() {
               className={`segment${settings.theme === id ? " is-active" : ""}`}
               onClick={() => updateSettings({ theme: id })}
             >
-              <Icon size={13} aria-hidden />
+              <Icon size="0.8125rem" aria-hidden />
               {t(label)}
             </button>
           ))}
@@ -155,7 +155,7 @@ export function BasicAppearanceTab() {
                     <PresetThumb preset={preset} />
                     <span className="preset-name">
                       {preset.label}
-                      <Check className="preset-check" size={13} aria-hidden />
+                      <Check className="preset-check" size="0.8125rem" aria-hidden />
                     </span>
                   </button>
                 ))}

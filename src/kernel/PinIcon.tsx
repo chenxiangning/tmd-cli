@@ -4,7 +4,7 @@
  * 的 .is-on fill 机制,stroke 型 SVG fill 即实心)。
  * 顶栏会话 tab 与侧栏行共用:自 plugins/workspace/SessionRows 沉淀进 kernel(跨层共享原语)。
  */
-export function PinIcon({ size, className }: { size: number; className?: string }) {
+export function PinIcon({ size, className }: { size: number | string; className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

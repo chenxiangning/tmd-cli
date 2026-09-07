@@ -11,7 +11,7 @@ import type { GitBranchInfo } from "@kernel/ipc";
 
 export function GroupLabel({ label }: { label: string }) {
   return (
-    <div className="sticky top-0 mt-1 border-b border-(--tmd-border) bg-(--tmd-bg-base) px-1 py-1 text-[10px] uppercase tracking-wider text-(--tmd-fg-faint)">
+    <div className="sticky top-0 mt-1 border-b border-(--tmd-border) bg-(--tmd-bg-base) px-1 py-1 text-[0.625rem] uppercase tracking-wider text-(--tmd-fg-faint)">
       {label}
     </div>
   );
@@ -60,7 +60,7 @@ export function BranchRow({
         onMenu?.(e.clientX, e.clientY);
       }}
     >
-      <GitBranch className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-faint)" />
+      <GitBranch className="h-[0.875rem] w-[0.875rem] shrink-0 text-(--tmd-fg-faint)" />
       <button
         onClick={isCurrent ? undefined : onCheckout}
         className={`min-w-0 flex-1 truncate text-left ${
@@ -75,7 +75,7 @@ export function BranchRow({
         }
       >
         {branch.name}
-        {isCurrent && <span className="ml-1 text-[10px]">{t("(当前)")}</span>}
+        {isCurrent && <span className="ml-1 text-[0.625rem]">{t("(当前)")}</span>}
       </button>
       {branch.isRemote && onCheckout && (
         <button
@@ -83,7 +83,7 @@ export function BranchRow({
           title={t("检出为本地分支并建跟踪")}
           className="shrink-0 opacity-0 group-hover:opacity-60"
         >
-          <GitBranch className="h-3.5 w-3.5" />
+          <GitBranch className="h-[0.875rem] w-[0.875rem]" />
         </button>
       )}
       {!branch.isRemote && !isCurrent && onDelete && (
@@ -95,7 +95,7 @@ export function BranchRow({
             confirmForce || armedDelete ? "text-(--tmd-diff-removed) opacity-100!" : ""
           }`}
         >
-          <Trash className="h-3.5 w-3.5" />
+          <Trash className="h-[0.875rem] w-[0.875rem]" />
         </button>
       )}
     </div>

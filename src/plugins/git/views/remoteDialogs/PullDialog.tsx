@@ -111,7 +111,7 @@ export function PullDialog({
   return (
     <GitDialogShell
       title={t("拉取变更")}
-      icon={<DownloadSimple className="h-3.5 w-3.5" aria-hidden />}
+      icon={<DownloadSimple className="h-[0.875rem] w-[0.875rem]" aria-hidden />}
       repoName={repoName}
       onClose={onClose}
       footer={
@@ -131,7 +131,7 @@ export function PullDialog({
       {/* 远端 / 目标远端分支 */}
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div>
-          <PickerField icon={<Cloud className="h-3.5 w-3.5" aria-hidden />} label={t("远端")} />
+          <PickerField icon={<Cloud className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label={t("远端")} />
           <RemotePicker
             remotes={remotes}
             value={remote}
@@ -144,7 +144,7 @@ export function PullDialog({
           />
         </div>
         <div>
-          <PickerField icon={<GitBranch className="h-3.5 w-3.5" aria-hidden />} label={t("目标远端分支")} />
+          <PickerField icon={<GitBranch className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label={t("目标远端分支")} />
           <BranchCombobox
             value={target}
             placeholder={branch || "main"}
@@ -163,7 +163,7 @@ export function PullDialog({
           onClick={() => setOptionsOpen((v) => !v)}
           className="flex w-full items-center gap-2 rounded border border-(--tmd-border) px-2 py-1.5 text-xs text-(--tmd-fg) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
         >
-          <span className="flex h-4 min-w-4 items-center justify-center rounded-sm bg-(--tmd-bg-sunken) px-1 text-[10px] text-(--tmd-fg-muted)">
+          <span className="flex h-4 min-w-4 items-center justify-center rounded-sm bg-(--tmd-bg-sunken) px-1 text-[0.625rem] text-(--tmd-fg-muted)">
             {selectedOptions.length > 0 ? selectedOptions.length : ""}
           </span>
           {t("修改选项")}
@@ -206,10 +206,10 @@ export function PullDialog({
                   else if (o === "--no-commit") setNoCommit(false);
                   else if (o === "--no-verify") setNoVerify(false);
                 }}
-                className="flex items-center gap-1 rounded-full bg-(--tmd-bg-sunken) px-2 py-0.5 font-mono text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+                className="flex items-center gap-1 rounded-full bg-(--tmd-bg-sunken) px-2 py-0.5 font-mono text-[0.6875rem] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
               >
                 {o}
-                <Cross className="h-3 w-3" aria-hidden />
+                <Cross className="h-[0.75rem] w-[0.75rem]" aria-hidden />
               </button>
             ))}
           </div>
@@ -285,7 +285,7 @@ function OptionRow({
       }`}
     >
       <span
-        className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-[10px] leading-none ${
+        className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-[0.625rem] leading-none ${
           active ? "border-(--tmd-accent) bg-(--tmd-accent) text-(--tmd-accent-fg)" : "border-(--tmd-border)"
         }`}
       >

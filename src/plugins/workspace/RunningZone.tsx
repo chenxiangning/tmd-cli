@@ -170,13 +170,13 @@ export function RunningZoneSection() {
         title={collapsed ? t("展开运行区") : t("收起运行区")}
         onClick={toggleCollapsed}
       >
-        <Pulse size={11} className="pinned-sessions-header-icon" />
+        <Pulse size="0.6875rem" className="pinned-sessions-header-icon" />
         <span className="running-zone-header-label">{t("运行区")}</span>
         <span className="pinned-sessions-header-count">· {rows.length}</span>
         {collapsed ? (
-          <CaretRight size={12} className="pinned-sessions-header-chevron" aria-hidden />
+          <CaretRight size="0.75rem" className="pinned-sessions-header-chevron" aria-hidden />
         ) : (
-          <CaretDown size={12} className="pinned-sessions-header-chevron" aria-hidden />
+          <CaretDown size="0.75rem" className="pinned-sessions-header-chevron" aria-hidden />
         )}
       </button>
 
@@ -212,7 +212,7 @@ export function RunningZoneSection() {
               {/* 正在查看:引擎图标槽位让位给 Eye,切走还原(与全局置顶区同口径) */}
               <span className="thread-engine-badge" title={row.profile.name}>
                 {isActive ? (
-                  <Eye size={13} className="thread-viewing-eye" />
+                  <Eye size="0.8125rem" className="thread-viewing-eye" />
                 ) : (
                   row.profile.renderIcon?.(12)
                 )}

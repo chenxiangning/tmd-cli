@@ -60,7 +60,7 @@ export function SessionContextMenu({
       }}
     >
       <span className="wsmenu-item-icon">
-        <PinIcon size={13} />
+        <PinIcon size="0.8125rem" />
       </span>
       <span className="wsmenu-item-label">
         {pinScope === scope ? `✓ ${label}` : label}
@@ -87,7 +87,7 @@ export function SessionContextMenu({
           }}
         >
           <span className="wsmenu-item-icon">
-            <Copy size={13} />
+            <Copy size="0.8125rem" />
           </span>
           <span className="wsmenu-item-label">{t("复制 Session ID")}</span>
         </button>
@@ -101,7 +101,7 @@ export function SessionContextMenu({
           }}
         >
           <span className="wsmenu-item-icon">
-            <Pencil size={13} />
+            <Pencil size="0.8125rem" />
           </span>
           <span className="wsmenu-item-label">{t("重命名")}</span>
         </button>
@@ -122,7 +122,7 @@ export function SessionContextMenu({
               }}
             >
               <span className="wsmenu-item-icon">
-                <Trash size={13} />
+                <Trash size="0.8125rem" />
               </span>
               <span className="wsmenu-item-label">
                 {armed ? t("确认删除?") : t("删除会话")}

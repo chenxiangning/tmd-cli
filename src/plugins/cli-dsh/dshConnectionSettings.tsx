@@ -39,7 +39,7 @@ export function DshConnectionSettings({
         <span className="pref-title">{t("连接设置")}</span>
         <span className="text-xs text-(--tmd-fg-muted)">{summary}</span>
         <CaretDown
-          size={13}
+          size="0.8125rem"
           className={`ml-auto shrink-0 transition-transform${open ? " rotate-180" : ""}`}
         />
       </button>

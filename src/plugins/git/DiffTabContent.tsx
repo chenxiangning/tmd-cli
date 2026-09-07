@@ -64,23 +64,23 @@ function DiffTab({ payload }: { payload: DiffTabPayload }) {
       <div className="shrink-0 border-b border-(--tmd-border) px-3 py-2">
         <div className="flex min-w-0 items-center gap-1.5">
           <span
-            className={`shrink-0 font-mono text-[10px] font-semibold ${STATUS_COLOR[payload.status] ?? ""}`}
+            className={`shrink-0 font-mono text-[0.625rem] font-semibold ${STATUS_COLOR[payload.status] ?? ""}`}
           >
             {displayStatus}
           </span>
           <span className="truncate font-medium text-(--tmd-fg)" title={payload.path}>
             {name}
           </span>
-          {dir && <span className="truncate text-[10px] text-(--tmd-fg-faint)">{dir}</span>}
+          {dir && <span className="truncate text-[0.625rem] text-(--tmd-fg-faint)">{dir}</span>}
           <span className="flex-1" />
           {patch && !patch.binary && (
-            <span className="shrink-0 tabular-nums text-[10px] text-(--tmd-fg-faint)">
+            <span className="shrink-0 tabular-nums text-[0.625rem] text-(--tmd-fg-faint)">
               <span className="text-(--tmd-diff-inserted)">+{patch.additions}</span>{" "}
               <span className="text-(--tmd-diff-removed)">-{patch.deletions}</span>
             </span>
           )}
         </div>
-        <div className="mt-0.5 text-[11px] text-(--tmd-fg-muted)">
+        <div className="mt-0.5 text-[0.6875rem] text-(--tmd-fg-muted)">
           {payload.staged ? t("已暂存 → HEAD") : t("工作区 → 暂存区")}
         </div>
       </div>
@@ -89,7 +89,7 @@ function DiffTab({ payload }: { payload: DiffTabPayload }) {
       <div className="min-w-0 flex-1 overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center gap-1.5 py-6 text-(--tmd-fg-faint)">
-            <CircleNotch className="h-3.5 w-3.5 animate-spin" /> {t("加载 diff…")}
+            <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载 diff…")}
           </div>
         ) : error ? (
           <div className="px-3 py-3 text-(--tmd-diff-removed)">{error.replace(/^E_[A-Z_]+:\s*/, "")}</div>

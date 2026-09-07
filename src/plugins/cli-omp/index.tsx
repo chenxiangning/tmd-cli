@@ -17,7 +17,7 @@ import type { Plugin } from "@kernel/plugin";
 const OMP_ICON_PATH =
   "M2.5 3h19v4h-19zM5.5 7h4.3v10H5.5zM13.2 7h4.3v14h-4.3z" as const;
 
-function OmpGlyph({ size }: { size: number }) {
+function OmpGlyph({ size }: { size: number | string }) {
   return (
     <svg
       viewBox="0 0 24 24"

@@ -32,7 +32,7 @@ function fmtDownloads(n: number): string {
 function RiskNote() {
   return (
     <div className="omp-ext-risknote">
-      <ShieldWarning size={12} aria-hidden />
+      <ShieldWarning size="0.75rem" aria-hidden />
       <span>
         {t(
           "该插件将以你的用户权限在 omp 进程内执行任意代码(tmd-cli 不做任何沙箱隔离),安装前请务必审查来源;新装插件对已开的会话不生效,需重开会话。",
@@ -136,7 +136,7 @@ export function ExtCard({
           className="omp-ext-risk"
           title={t("omp 插件在你的用户权限下进程内执行任意代码")}
         >
-          <ShieldWarning size={11} aria-hidden />
+          <ShieldWarning size="0.6875rem" aria-hidden />
           {t("任意代码执行")}
         </span>
         {entry.homepage ? (
@@ -149,13 +149,13 @@ export function ExtCard({
               if (entry.homepage) void openExternalUrl(entry.homepage);
             }}
           >
-            <ArrowSquareOut size={11} aria-hidden />
+            <ArrowSquareOut size="0.6875rem" aria-hidden />
             {t("来源")}
           </a>
         ) : null}
         {running ? (
           <span className="omp-ext-running">
-            <CircleNotch size={12} className="omp-ext-spin" aria-hidden />
+            <CircleNotch size="0.75rem" className="omp-ext-spin" aria-hidden />
             {installed ? t("卸载中") : t("安装中")}
           </span>
         ) : installed ? (

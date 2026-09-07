@@ -126,20 +126,20 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
       : t("共享记忆库尚未初始化(Magic Context 未安装或未迁移),在下方安装卡完成安装与迁移即可。session / composer / approvals 不受影响。");
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto bg-(--tmd-bg-base) p-3 text-[12px] text-(--tmd-fg)">
+    <div className="h-full min-h-0 overflow-y-auto bg-(--tmd-bg-base) p-3 text-[0.75rem] text-(--tmd-fg)">
       <div className="mb-3 flex min-w-0 flex-none items-center gap-2.5">
         <span className="text-sm font-semibold">{t("Memory 控制台")}</span>
         {ready !== null && (
-          <span className={`rounded-full px-2 py-px text-[10px] ${ready ? "text-(--tmd-ok)" : "text-(--tmd-err)"}`}>
+          <span className={`rounded-full px-2 py-px text-[0.625rem] ${ready ? "text-(--tmd-ok)" : "text-(--tmd-err)"}`}>
             {ready ? t("池就绪") : t("池不可用")}
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate text-[11px] text-(--tmd-fg-faint)">{t("Magic Context · 本地 SQLite")}</span>
+        <span className="min-w-0 flex-1 truncate text-[0.6875rem] text-(--tmd-fg-faint)">{t("Magic Context · 本地 SQLite")}</span>
       </div>
 
       {ready === false && (
         <div
-          className="mb-3 truncate rounded-lg border border-(--tmd-border) bg-(--tmd-bg-elevated) p-3 text-[11px] text-(--tmd-fg-muted)"
+          className="mb-3 truncate rounded-lg border border-(--tmd-border) bg-(--tmd-bg-elevated) p-3 text-[0.6875rem] text-(--tmd-fg-muted)"
           title={poolUnavailableText}
         >
           {poolUnavailableText}
@@ -149,7 +149,7 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
       <InstallCard onInstalled={() => void reload()} />
       {/* ── 引擎配置 ── */}
       {configHint && (
-        <div className="mb-2 rounded-md border border-(--tmd-warn) bg-(--tmd-bg-elevated) p-2 text-[10.5px] text-(--tmd-warn)">
+        <div className="mb-2 rounded-md border border-(--tmd-warn) bg-(--tmd-bg-elevated) p-2 text-[0.65625rem] text-(--tmd-warn)">
           {configHint}
         </div>
       )}

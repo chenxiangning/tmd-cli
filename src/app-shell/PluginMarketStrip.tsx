@@ -40,7 +40,7 @@ function Outlet({
   /** icon 缺省时的 monogram 兜底。 */
   abbr: string;
   /** 品牌字形/语义图标;缺省回退 abbr。 */
-  icon?: ComponentType<{ size: number }>;
+  icon?: ComponentType<{ size: number | string }>;
   /** 图标颜色(CSS color);缺省跟随主题 accent。 */
   iconColor?: string;
   core: boolean;
@@ -67,7 +67,7 @@ function Outlet({
         <div className="pm-plug-body">
           {core ? (
             <span className="pm-plug-weld" title={t("核心插件")}>
-              <Lock size={10} aria-hidden />
+              <Lock size="0.625rem" aria-hidden />
             </span>
           ) : null}
           {(() => {
@@ -92,13 +92,13 @@ function Outlet({
                   open();
                 }}
               >
-                <market.icon size={9} />
+                <market.icon size="0.5625rem" />
               </span>
             );
           })()}
           <span className="pm-plug-led" aria-hidden />
           <span className="pm-plug-icon" style={iconColor ? { color: iconColor } : undefined}>
-            {Icon ? <Icon size={14} /> : abbr}
+            {Icon ? <Icon size="0.875rem" /> : abbr}
           </span>
           <span className="pm-plug-name">{name}</span>
         </div>

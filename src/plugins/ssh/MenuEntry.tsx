@@ -15,7 +15,7 @@ export function MenuEntry() {
       onClick={() => openHostPicker()}
     >
       <span className="wsmenu-item-icon">
-        <HardDrive size={14} />
+        <HardDrive size="0.875rem" />
       </span>
       <span className="wsmenu-item-label">{t("SSH 连接…")}</span>
     </button>

@@ -149,14 +149,14 @@ export function CheckpointsPanel() {
   return (
     <div className="flex h-full flex-col bg-(--tmd-bg-base)">
       {/* 摘要行 —— 字号对齐面板体系(11px 为主),项目名用扁平标签非胶囊 */}
-      <div className="flex h-[30px] flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2.5 text-[11px]">
-        <span className="flex flex-none items-center gap-1.5 text-[11px] font-semibold text-(--tmd-fg)">
-          <ClockClockwise size={12} className="text-(--tmd-accent)" aria-hidden />
+      <div className="flex h-[30px] flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2.5 text-[0.6875rem]">
+        <span className="flex flex-none items-center gap-1.5 text-[0.6875rem] font-semibold text-(--tmd-fg)">
+          <ClockClockwise size="0.75rem" className="text-(--tmd-accent)" aria-hidden />
           {t("审批线")}
         </span>
         {active && (
           <span
-            className="max-w-[45%] truncate rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-px text-[10px] leading-[14px] text-(--tmd-fg-subtle)"
+            className="max-w-[45%] truncate rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-px text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-subtle)"
             title={active.root}
           >
             {active.name}
@@ -171,7 +171,7 @@ export function CheckpointsPanel() {
       {notice && (
         <button
           type="button"
-          className="flex-none border-b border-(--tmd-border) bg-(--tmd-accent)/10 px-3 py-1.5 text-left text-[11px] text-(--tmd-fg-muted) hover:underline"
+          className="flex-none border-b border-(--tmd-border) bg-(--tmd-accent)/10 px-3 py-1.5 text-left text-[0.6875rem] text-(--tmd-fg-muted) hover:underline"
           onClick={() => setNotice(null)}
         >
           {notice} · {t("点击关闭")}
@@ -184,7 +184,7 @@ export function CheckpointsPanel() {
       {state.error && !state.notARepo && cwd && sessionId && (
         <button
           type="button"
-          className="flex-none border-b border-(--tmd-border) bg-(--tmd-diff-removed)/10 px-3 py-1.5 text-left text-[11px] text-(--tmd-diff-removed) hover:underline"
+          className="flex-none border-b border-(--tmd-border) bg-(--tmd-diff-removed)/10 px-3 py-1.5 text-left text-[0.6875rem] text-(--tmd-diff-removed) hover:underline"
           onClick={() => void refreshBatches(cwd, sessionId, tmdSessionId)}
         >
           {t("审批线清单刷新失败:{error} · 点击重试", { error: state.error.replace(/^E_\w+:\s*/, "") })}
@@ -201,7 +201,7 @@ export function CheckpointsPanel() {
           <Empty text={t("非 git 工作区 —— 仅声明写入事件检测的 CLI(如 claude)可在此记账,其余 CLI 需 git 仓库")} />
         ) : state.loading && state.batches.length === 0 ? (
           <div className="flex items-center justify-center gap-2 pt-10 text-(--tmd-fg-faint)">
-            <CircleNotch size={13} className="animate-spin" aria-hidden /> {t("读取批次…")}
+            <CircleNotch size="0.8125rem" className="animate-spin" aria-hidden /> {t("读取批次…")}
           </div>
         ) : state.batches.length === 0 ? (
           state.error ? null /* 错误横幅已说明原因,不再叠加误导性空态 */ : (
@@ -233,7 +233,7 @@ export function CheckpointsPanel() {
 
 function Empty({ text }: { text: string }) {
   return (
-    <div className="px-4 pt-10 text-center text-[11px] leading-relaxed text-(--tmd-fg-faint)">
+    <div className="px-4 pt-10 text-center text-[0.6875rem] leading-relaxed text-(--tmd-fg-faint)">
       {text}
     </div>
   );

@@ -83,9 +83,9 @@ function FileTab({
         }}
       >
         {maximized ? (
-          <CornersIn size={11} aria-hidden />
+          <CornersIn size="0.6875rem" aria-hidden />
         ) : (
-          <CornersOut size={11} aria-hidden />
+          <CornersOut size="0.6875rem" aria-hidden />
         )}
       </button>
       <button
@@ -98,7 +98,7 @@ function FileTab({
           closeTab(tabId);
         }}
       >
-        <Cross size={11} aria-hidden />
+        <Cross size="0.6875rem" aria-hidden />
       </button>
     </div>
   );

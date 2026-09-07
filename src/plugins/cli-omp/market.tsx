@@ -92,7 +92,7 @@ export function OmpExtensionMarket({ onClose }: { onClose: () => void }) {
           title={t("刷新")}
           onClick={refresh}
         >
-          <ArrowClockwise size={12} aria-hidden />
+          <ArrowClockwise size="0.75rem" aria-hidden />
         </button>
         <button
           type="button"
@@ -100,7 +100,7 @@ export function OmpExtensionMarket({ onClose }: { onClose: () => void }) {
           title={t("关闭")}
           onClick={onClose}
         >
-          <Cross size={14} aria-hidden />
+          <Cross size="0.875rem" aria-hidden />
         </button>
       </header>
 
