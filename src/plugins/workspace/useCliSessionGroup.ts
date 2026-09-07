@@ -64,14 +64,15 @@ export function useCliSessionGroup({
   /* 命名覆盖层变化(重命名提交)需重渲行标题 */
   const titleOverrides = settings.sessionTitles;
   const pins = settings.sessionPins;
-  /** 归档覆盖层:默认视图隐藏归档会话;workspaceArchiveView=true 反向只看归档项。 */
+  /** 归档覆盖层:默认视图隐藏归档会话;archivedView(上方取自 workspaceArchiveView)
+   *  反向只看归档项。 */
   const archiveMap = settings.sessionArchive;
-  const isArchived = (cliSessionId: string) =>
-    archiveMap[sessionArchiveKey(workspace.id, profile.id, cliSessionId)] !== undefined;
-  /** 删除意图层(tombstone):删除被调用即全域隐藏,后台删盘失败也不复活。 */
+  /** 删除意图层(tombstone):删除被调用即在册,后台删盘失败也不复活(用户意图归 tmd-cli)。 */
   const deletedMap = settings.sessionDeleted;
   const isDeleted = (cliSessionId: string) =>
     deletedMap[sessionDeletedKey(workspace.id, profile.id, cliSessionId)] !== undefined;
+  const isArchived = (cliSessionId: string) =>
+    archiveMap[sessionArchiveKey(workspace.id, profile.id, cliSessionId)] !== undefined;
 
   const liveSessions = host
     .getSessions()
