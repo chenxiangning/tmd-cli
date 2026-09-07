@@ -8,6 +8,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ipc, type SftpEntry } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import { setActiveTab, updateTab, type EditorTab } from "@kernel/tabs";
 
 /* CodeMirror 全家按需拆包(files 插件同款):首个 ssh-file tab 才拉 chunk;
@@ -113,12 +114,15 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
         if (outcome.action === "conflict") {
           const current = outcome.entry;
           const detail = current
-            ? `远端已变更(${new Date(current.mtime).toLocaleString()}, ${current.sizeBytes} 字节)`
-            : "远端文件已被删除";
-          if (window.confirm(`${detail}。覆盖远端?`)) {
+            ? t("远端已变更({time}, {size} 字节)", {
+                time: new Date(current.mtime).toLocaleString(),
+                size: current.sizeBytes,
+              })
+            : t("远端文件已被删除");
+          if (window.confirm(t("{detail}。覆盖远端?", { detail }))) {
             await save(true);
           } else {
-            setBanner("未保存:远端有变更");
+            setBanner(t("未保存:远端有变更"));
           }
           return;
         }
@@ -127,7 +131,7 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
         );
         setDirty(false);
       } catch (e) {
-        setBanner(`保存失败:${e instanceof Error ? e.message : String(e)}`);
+        setBanner(t("保存失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
       } finally {
         setSaving(false);
       }
@@ -150,7 +154,7 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
   if (!doc || !doc.loaded) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
-        读取远端文件…
+        {t("读取远端文件…")}
       </div>
     );
   }
@@ -169,8 +173,8 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
           {payload.path}
         </span>
         <span className="ssh-editor-meta">
-          {doc.sizeBytes > 0 ? `${doc.sizeBytes} 字节` : ""}
-          {doc.truncated ? " · 仅载入头部 200KB" : ""}
+          {doc.sizeBytes > 0 ? t("{n} 字节", { n: doc.sizeBytes }) : ""}
+          {doc.truncated ? ` · ${t("仅载入头部 200KB")}` : ""}
         </span>
         {banner ? <span className="ssh-editor-banner">{banner}</span> : null}
         <button
@@ -179,19 +183,19 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
           disabled={!dirty || saving}
           onClick={() => void save()}
         >
-          {saving ? "保存中…" : "保存"}
+          {saving ? t("保存中…") : t("保存")}
         </button>
       </div>
       {doc.truncated ? (
         <div className="ssh-editor-warn">
-          文件超过 200KB,仅载入头部;保存将整文件覆写,确认后再编辑。
+          {t("文件超过 200KB,仅载入头部;保存将整文件覆写,确认后再编辑。")}
         </div>
       ) : null}
       <div className="ssh-editor-body" onClick={() => setActiveTab(tab.id)}>
         <Suspense
           fallback={
             <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
-              加载编辑器…
+              {t("加载编辑器…")}
             </div>
           }
         >

@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
+import { t } from "@kernel/i18n";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { host, useHost } from "@kernel/host";
 import { Eye } from "@phosphor-icons/react";
@@ -124,7 +125,7 @@ export function SessionStatusLabel({ sessionId }: { sessionId: string }) {
   const status = useSessionStatus(sessionId);
   if (status === "none") return null;
   const { className, text } = STATUS_LABEL[status];
-  return <span className={`thread-status-label ${className}`}>{text}</span>;
+  return <span className={`thread-status-label ${className}`}>{t(text)}</span>;
 }
 
 /**
@@ -168,14 +169,14 @@ export function DiskSessionRow({
   }
   return (
     <button
-      title={`恢复 ${profile.name} 会话 ${session.id}`}
+      title={t("恢复 {profile} 会话 {id}", { profile: profile.name, id: session.id })}
       className={`thread-row${pinned ? " is-pinned" : ""}`}
       onClick={onOpen}
       onContextMenu={onContextMenu}
     >
       {archived ? (
         <span className="tl-node tl-node-gui" aria-hidden>
-          归
+          {t("归")}
         </span>
       ) : (
         <span className="tl-node is-idle" aria-hidden />
@@ -208,13 +209,13 @@ export function PinToggle({
       className={`thread-pin-btn${on ? " is-on" : ""}`}
       role="button"
       aria-pressed={on}
-      aria-label={on ? "取消置顶" : "置顶到全局"}
+      aria-label={on ? t("取消置顶") : t("置顶到全局")}
       title={
         disabled
-          ? "会话尚未落盘,暂不可置顶"
+          ? t("会话尚未落盘,暂不可置顶")
           : on
-            ? "取消置顶"
-            : "置顶到全局(右键可置顶到工作区内)"
+            ? t("取消置顶")
+            : t("置顶到全局(右键可置顶到工作区内)")
       }
       onClick={(e) => {
         e.stopPropagation();

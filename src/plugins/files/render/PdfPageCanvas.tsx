@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
+import { t } from "@kernel/i18n";
 
 type PdfPageCanvasProps = {
   pdfDocument: PDFDocumentProxy;
@@ -55,7 +56,7 @@ export function PdfPageCanvas({ pdfDocument, pageNumber, scale }: PdfPageCanvasP
         const canvas = canvasRef.current;
         const context = canvas.getContext("2d");
         if (!context) {
-          throw new Error("Canvas 上下文不可用");
+          throw new Error(t("Canvas 上下文不可用"));
         }
         const devicePixelRatio = window.devicePixelRatio || 1;
         canvas.width = Math.floor(viewport.width * devicePixelRatio);
@@ -88,14 +89,14 @@ export function PdfPageCanvas({ pdfDocument, pageNumber, scale }: PdfPageCanvasP
   return (
     <div ref={pageRootRef} className="fvp-pdf-page" data-page-number={pageNumber}>
       <header className="fvp-pdf-page-header">
-        <span>{`第 ${pageNumber} 页`}</span>
+        <span>{t("第 {n} 页", { n: pageNumber })}</span>
       </header>
       {pageError ? (
         <div className="fvp-pdf-page-error">{pageError}</div>
       ) : shouldRender ? (
         <canvas ref={canvasRef} className="fvp-pdf-canvas" />
       ) : (
-        <div className="fvp-pdf-page-placeholder">滚动到此处渲染</div>
+        <div className="fvp-pdf-page-placeholder">{t("滚动到此处渲染")}</div>
       )}
     </div>
   );

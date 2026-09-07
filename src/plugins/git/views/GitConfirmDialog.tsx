@@ -6,6 +6,7 @@
  * 危险动作(danger)焦点固定在取消键,防回车误执行破坏性操作。
  */
 
+import { t } from "@kernel/i18n";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 
@@ -54,7 +55,7 @@ export function GitConfirmDialog({
             onClick={onClose}
             className="rounded border border-(--tmd-border) px-2.5 py-1 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
           >
-            取消
+            {t("取消")}
           </button>
           {state.alt && (
             <button
@@ -80,7 +81,7 @@ export function GitConfirmDialog({
                 : "bg-(--tmd-accent) text-(--tmd-accent-fg)"
             }`}
           >
-            {state.confirmLabel ?? "确定"}
+            {state.confirmLabel ?? t("确定")}
           </button>
         </div>
       </div>

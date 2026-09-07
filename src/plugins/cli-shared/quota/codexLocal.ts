@@ -19,6 +19,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import type { QuotaWindow } from "@kernel/quota";
 
 const ROLLOUT_TAIL_BYTES = 256 * 1024;
@@ -132,7 +133,7 @@ export async function readCodexLocalQuota(): Promise<CodexLocalQuota> {
     const quota = parseCodexRolloutTail(tail);
     if (quota) return quota;
   }
-  throw new Error("本机 codex 会话暂无额度快照(至少完成一轮对话后可见)");
+  throw new Error(t("本机 codex 会话暂无额度快照(至少完成一轮对话后可见)"));
 }
 
 /** 快照时间 → planLabel 后缀,例 "prolite · 快照 22:45"。 */
@@ -143,7 +144,7 @@ export function codexPlanLabelWithSnapshot(quota: CodexLocalQuota): string | und
     const d = new Date(quota.snapshotAt);
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
-    parts.push(`快照 ${hh}:${mm}`);
+    parts.push(t("快照 {time}", { time: `${hh}:${mm}` }));
   }
   return parts.length ? parts.join(" · ") : undefined;
 }

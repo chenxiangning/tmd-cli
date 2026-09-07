@@ -10,6 +10,7 @@
  */
 import { useCallback, useRef, useState } from "react";
 import { XCircle, ArrowSquareOut, ArrowClockwise } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import {
   ipc,
   onCliInstallEvent,
@@ -86,7 +87,7 @@ export function EngineCard({
         <span className="welcome-engine-icon" aria-hidden>
           {profile?.renderIcon ? profile.renderIcon(22) : <XCircle size={22} />}
         </span>
-        <span className="welcome-engine-name">{meta.displayName}</span>
+        <span className="welcome-engine-name">{t(meta.displayName)}</span>
         {meta.docsUrl && (
           <a
             className="welcome-engine-docs"
@@ -94,37 +95,37 @@ export function EngineCard({
             target="_blank"
             rel="noreferrer"
           >
-            官方文档
+            {t("官方文档")}
             <ArrowSquareOut size={11} aria-hidden />
           </a>
         )}
         <span className="welcome-engine-status">
           {probe.status === "loading" && (
-            <span className="welcome-pill is-loading">探针中…</span>
+            <span className="welcome-pill is-loading">{t("探针中…")}</span>
           )}
           {probe.status === "ok" && (
             <span className="welcome-pill">
-              {probe.result?.version ?? "已安装"}
+              {probe.result?.version ?? t("已安装")}
             </span>
           )}
           {probe.status === "ok" && typeof latest === "string" && outdated && (
             <span
               className="welcome-pill is-outdated"
-              title={`最新版本 ${latest},点"更新"升级`}
+              title={t('最新版本 {version},点"更新"升级', { version: latest })}
             >
               → {latest}
             </span>
           )}
           {probe.status === "ok" && typeof latest === "string" && !outdated && (
-            <span className="welcome-pill is-latest" title={`最新版本 ${latest}`}>
-              已是最新
+            <span className="welcome-pill is-latest" title={t("最新版本 {version}", { version: latest })}>
+              {t("已是最新")}
             </span>
           )}
           {probe.status === "notFound" && (
-            <span className="welcome-pill is-missing">未安装</span>
+            <span className="welcome-pill is-missing">{t("未安装")}</span>
           )}
           {probe.status === "error" && (
-            <span className="welcome-pill is-error">探针失败</span>
+            <span className="welcome-pill is-error">{t("探针失败")}</span>
           )}
         </span>
         <span className="welcome-engine-actions">
@@ -134,9 +135,9 @@ export function EngineCard({
               className="welcome-install-btn"
               onClick={onInstall}
               disabled={depBlocked}
-              title={depBlocked ? `先安装 ${depName}` : undefined}
+              title={depBlocked ? t("先安装 {name}", { name: depName }) : undefined}
             >
-              安装
+              {t("安装")}
             </button>
           )}
           {probe.status === "ok" && install.ok !== true && meta.plan && (
@@ -149,13 +150,13 @@ export function EngineCard({
               disabled={install.running || depBlocked}
               title={
                 depBlocked
-                  ? `先安装 ${depName}`
+                  ? t("先安装 {name}", { name: depName })
                   : outdated
-                    ? `更新到 ${latest}`
-                    : "重新安装/更新到最新版"
+                    ? t("更新到 {version}", { version: latest })
+                    : t("重新安装/更新到最新版")
               }
             >
-              更新
+              {t("更新")}
             </button>
           )}
           <button
@@ -163,8 +164,8 @@ export function EngineCard({
             className="welcome-icon-btn"
             onClick={onProbe}
             disabled={probe.status === "loading" || install.running}
-            aria-label="重新探针"
-            title="重新探针"
+            aria-label={t("重新探针")}
+            title={t("重新探针")}
           >
             <ArrowClockwise
               size={12}
@@ -187,7 +188,7 @@ export function EngineCard({
       )}
 
       {(install.running || install.lines.length > 0) && (
-        <InstallLog install={install} label="安装" />
+        <InstallLog install={install} label={t("安装")} />
       )}
     </section>
   );

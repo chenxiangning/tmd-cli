@@ -21,6 +21,7 @@ import { extractJsonlTitle, TITLE_HEAD_BYTES } from "../cli-shared/diskSessions"
 import { host, useHost } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import { useSettingsState } from "@kernel/settings";
+import { t } from "@kernel/i18n";
 import {
   listSessionPins,
   refreshPinTitle,
@@ -199,11 +200,11 @@ export function PinnedSessionsSection() {
         type="button"
         className={`pinned-sessions-header${collapsed ? " is-collapsed" : ""}`}
         aria-expanded={!collapsed}
-        title={collapsed ? "展开已置顶" : "收起已置顶"}
+        title={collapsed ? t("展开已置顶") : t("收起已置顶")}
         onClick={toggleCollapsed}
       >
         <PinIcon size={11} className="pinned-sessions-header-icon" />
-        <span className="pinned-sessions-header-label">已置顶</span>
+        <span className="pinned-sessions-header-label">{t("已置顶")}</span>
         <span className="pinned-sessions-header-count">· {rows.length}</span>
         {collapsed ? (
           <CaretRight size={12} className="pinned-sessions-header-chevron" aria-hidden />
@@ -234,7 +235,7 @@ export function PinnedSessionsSection() {
             <button
               key={row.key}
               className={`thread-row${isActive ? " active" : ""}`}
-              title={`${row.workspace.name} · ${row.profile.name} 会话 ${row.cliSessionId}`}
+              title={t("{workspace} · {profile} 会话 {id}", { workspace: row.workspace.name, profile: row.profile.name, id: row.cliSessionId })}
               onClick={() => openRow(row)}
               onContextMenu={(e) => {
                 e.preventDefault();
@@ -251,7 +252,7 @@ export function PinnedSessionsSection() {
                 {live ? <SessionStatusLabel sessionId={live.id} /> : null}
                 {/* 绑定的活会话正等待确认:同组内行,置顶区也亮「等待确认」标签 */}
                 {live && host.isWaitingConfirm(live.id) ? (
-                  <span className="thread-ask-badge">等待确认</span>
+                  <span className="thread-ask-badge">{t("等待确认")}</span>
                 ) : null}
                 <span className="thread-time">{row.workspace.name}</span>
                 <PinToggle on onToggle={() => unpinSession(row.key)} />

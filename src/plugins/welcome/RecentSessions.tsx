@@ -12,6 +12,7 @@ import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { formatRelativeTime } from "@kernel/relativeTime";
+import { t } from "@kernel/i18n";
 
 const SESSIONS_PER_WORKSPACE = 5;
 
@@ -60,7 +61,7 @@ export function RecentSessions() {
 
   return (
     <section className="welcome-sessions">
-      <h2 className="welcome-section-title">近期会话</h2>
+      <h2 className="welcome-section-title">{t("近期会话")}</h2>
       {groups.map((group) => (
         <div key={group.workspace.id} className="welcome-session-group">
           <div className="welcome-session-ws" title={group.workspace.root}>

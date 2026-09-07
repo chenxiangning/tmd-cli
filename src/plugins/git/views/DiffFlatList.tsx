@@ -14,6 +14,7 @@
  * - 冲突行 — 禁勾禁操作,引导到幕布终端解决。
  */
 
+import { t } from "@kernel/i18n";
 import { useMemo, useState } from "react";
 import type { GitFileStatus, GitTotals } from "@kernel/ipc";
 import { FRow } from "./DiffFlatRow";
@@ -60,17 +61,17 @@ export function DiffFlatList({
     () => [
       {
         key: "un",
-        title: "未暂存变更",
+        title: t("未暂存变更"),
         rows: files.filter((f) => f.wt && f.status !== "?"),
       },
       {
         key: "ut",
-        title: "未跟踪文件",
+        title: t("未跟踪文件"),
         rows: files.filter((f) => f.status === "?"),
       },
       {
         key: "st",
-        title: "待提交变更",
+        title: t("待提交变更"),
         rows: files.filter((f) => f.staged),
       },
     ],
@@ -116,27 +117,27 @@ export function DiffFlatList({
               {!isCollapsed && sec.key === "un" && utPaths.length + unPaths.length > 0 && (
                 <button
                   type="button"
-                  title="git add 全部未暂存与未跟踪文件"
+                  title={t("git add 全部未暂存与未跟踪文件")}
                   onClick={(e) => {
                     e.stopPropagation();
                     onStage([...unPaths, ...utPaths]);
                   }}
                   className="text-[11px] text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
                 >
-                  (全部暂存)
+                  {t("(全部暂存)")}
                 </button>
               )}
               {!isCollapsed && sec.key === "st" && stPaths.length > 0 && (
                 <button
                   type="button"
-                  title="git reset 全部已暂存文件"
+                  title={t("git reset 全部已暂存文件")}
                   onClick={(e) => {
                     e.stopPropagation();
                     onUnstage(stPaths);
                   }}
                   className="text-[11px] text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
                 >
-                  (全部取消)
+                  {t("(全部取消)")}
                 </button>
               )}
             </div>

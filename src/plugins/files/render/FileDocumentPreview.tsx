@@ -4,13 +4,14 @@
  *
  * docx:mammoth 转 HTML(2MB 闸)→ DOMPurify 消毒 → 标题大纲侧栏 + 文章视图;
  * doc(legacy):占位说明(与 codemoss 相同,mammoth 不支持二进制 doc)。
- * 与 codemoss 差异:i18n 硬编码中文;asset:// fetch 改 readBinaryFileBase64 字节通道;
+ * 与 codemoss 差异:文案走 t() 词典;asset:// fetch 改 readBinaryFileBase64 字节通道;
  * DOMPurify 静态 import(本组件整体在懒 chunk 内,不拖累主包)。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import DOMPurify from "dompurify";
 import { loadPreviewBytes } from "./previewBytes";
+import { t } from "@kernel/i18n";
 import {
   extractDocumentPreviewOutline,
   type PreviewOutlineItem,
@@ -32,7 +33,7 @@ async function loadDocxPayload(path: string): Promise<DocumentPayload> {
   if (bytes.byteLength > MAX_DOCUMENT_PREVIEW_MB * 1024 * 1024) {
     return {
       status: "error",
-      message: `文档超过 ${MAX_DOCUMENT_PREVIEW_MB}MB,不支持预览`,
+      message: t("文档超过 {n}MB,不支持预览", { n: MAX_DOCUMENT_PREVIEW_MB }),
     };
   }
   const mammoth = await import("mammoth");
@@ -88,7 +89,7 @@ export function FileDocumentPreview({ path }: { path: string }) {
   const outlinedDocument = useMemo(
     () =>
       payload.status === "ready"
-        ? extractDocumentPreviewOutline(payload.html, "未命名")
+        ? extractDocumentPreviewOutline(payload.html, t("未命名"))
         : { html: "", outline: [] },
     [payload],
   );
@@ -98,7 +99,7 @@ export function FileDocumentPreview({ path }: { path: string }) {
   }, [outlinedDocument.html]);
 
   if (payload.status === "loading") {
-    return <div className="fvp-status">加载中…</div>;
+    return <div className="fvp-status">{t("加载中…")}</div>;
   }
 
   if (payload.status === "error") {
@@ -110,11 +111,11 @@ export function FileDocumentPreview({ path }: { path: string }) {
       <div className="fvp-preview-scroll">
         <div className="fvp-document-preview fvp-document-preview--fallback">
           <header className="fvp-preview-section-header">
-            <strong>文档预览</strong>
+            <strong>{t("文档预览")}</strong>
           </header>
-          <p>旧版 .doc 是二进制格式,暂不支持预览。</p>
+          <p>{t("旧版 .doc 是二进制格式,暂不支持预览。")}</p>
           <p className="fvp-preview-budget-hint">
-            可在系统中用对应应用打开,或转换为 .docx 后再预览。
+            {t("可在系统中用对应应用打开,或转换为 .docx 后再预览。")}
           </p>
         </div>
       </div>
@@ -150,7 +151,7 @@ export function FileDocumentPreview({ path }: { path: string }) {
         />
         <div className="fvp-document-preview fvp-preview-main">
           <header className="fvp-preview-section-header">
-            <strong>文档预览</strong>
+            <strong>{t("文档预览")}</strong>
             {payload.byteLength > 0 ? (
               <span>{`${Math.round(payload.byteLength / 1024)}KB`}</span>
             ) : null}

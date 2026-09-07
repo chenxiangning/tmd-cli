@@ -12,6 +12,7 @@ import type { EditorTab } from "@kernel/tabs";
 import { ipc } from "@kernel/ipc";
 import { closeTab, getTabs, openTab } from "@kernel/tabs";
 import { useWorkspaces } from "@kernel/workspace";
+import { t } from "@kernel/i18n";
 import { type MemoryItem } from "../protocol";
 import { memoryPool, resolveProjectIdentity } from "../pool";
 import { EngineConfigCard, readEngineConfigFile, writeEngineConfigFile, type EngineConfig } from "./EngineConfigCard";
@@ -28,7 +29,7 @@ import { RecentCard, StatsCard } from "./MemoryConsoleStats";
 export function openConsoleTab(): void {
   openTab({
     id: "memory-console",
-    title: "Memory 控制台",
+    title: t("Memory 控制台"),
     path: "Magic Context",
     kind: "memory-console",
     payload: {},
@@ -97,7 +98,7 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
         await ipc.fsReadFile(p);
         if (!cancelled) setConfigHint(null);
       } catch (e) {
-        if (!cancelled) setConfigHint("引擎配置读取失败: " + String(e).slice(0, 120));
+        if (!cancelled) setConfigHint(t("引擎配置读取失败: {err}", { err: String(e).slice(0, 120) }));
       }
     })();
     return () => {
@@ -121,19 +122,19 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
   避免全新机器上一律误报「迁移窗口」。 */
   const poolUnavailableText =
     poolReason === "locked"
-      ? "共享记忆库暂不可读(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。session / composer / approvals 不受影响。"
-      : "共享记忆库尚未初始化(Magic Context 未安装或未迁移),在下方安装卡完成安装与迁移即可。session / composer / approvals 不受影响。";
+      ? t("共享记忆库暂不可读(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。session / composer / approvals 不受影响。")
+      : t("共享记忆库尚未初始化(Magic Context 未安装或未迁移),在下方安装卡完成安装与迁移即可。session / composer / approvals 不受影响。");
 
   return (
     <div className="h-full min-h-0 overflow-y-auto bg-(--tmd-bg-base) p-3 text-[12px] text-(--tmd-fg)">
       <div className="mb-3 flex min-w-0 flex-none items-center gap-2.5">
-        <span className="text-sm font-semibold">Memory 控制台</span>
+        <span className="text-sm font-semibold">{t("Memory 控制台")}</span>
         {ready !== null && (
           <span className={`rounded-full px-2 py-px text-[10px] ${ready ? "text-(--tmd-ok)" : "text-(--tmd-err)"}`}>
-            {ready ? "池就绪" : "池不可用"}
+            {ready ? t("池就绪") : t("池不可用")}
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate text-[11px] text-(--tmd-fg-faint)">Magic Context · 本地 SQLite</span>
+        <span className="min-w-0 flex-1 truncate text-[11px] text-(--tmd-fg-faint)">{t("Magic Context · 本地 SQLite")}</span>
       </div>
 
       {ready === false && (

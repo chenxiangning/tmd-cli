@@ -7,6 +7,7 @@
 
 import type { CliDiskSession } from "@kernel/cli";
 import { host } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import type { SessionMeta } from "@kernel/ipc";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
@@ -65,7 +66,7 @@ export function LiveSessionRow({
       <span className="thread-name">{title}</span>
       <span className="thread-meta">
         <SessionStatusLabel sessionId={session.id} />
-        {waiting ? <span className="thread-ask-badge">等待确认</span> : null}
+        {waiting ? <span className="thread-ask-badge">{t("等待确认")}</span> : null}
         <PinToggle on={pinned} disabled={!canPin} onToggle={onTogglePin} />
       </span>
     </button>

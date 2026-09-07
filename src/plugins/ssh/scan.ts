@@ -5,6 +5,7 @@
  */
 
 import { ipc, type SshHostConfig } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 
 export interface SshImportCandidate {
   name: string;
@@ -197,7 +198,7 @@ export async function scanSshImportCandidates(
   existingHosts: SshHostConfig[] = [],
 ): Promise<SshScanResult> {
   const homePath = (await ipc.configHomeDir()).replace(/[\\/]+$/, "");
-  if (!homePath) throw new Error("无法定位用户目录");
+  if (!homePath) throw new Error(t("无法定位用户目录"));
 
   const configContent = await readOptionalFile(`${homePath}/${SSH_CONFIG_PATH}`);
   const parsedHosts = parseSshConfig(configContent);

@@ -13,6 +13,7 @@
  */
 
 import { useState } from "react";
+import { t } from "@kernel/i18n";
 import { CircleNotch, Plus } from "@phosphor-icons/react";
 import { ipc, type GitBranchInfo, type GitBranchList } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
@@ -80,26 +81,30 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
     const target = b.isRemote ? localNameOf(b.name) : b.name;
     const isRemote = b.isRemote;
     setConfirm({
-      title: isRemote ? `检出 ${b.name} 为本地分支 ${target}?` : `切换到分支 ${b.name}?`,
+      title: isRemote
+        ? t("检出 {source} 为本地分支 {target}?", { source: b.name, target })
+        : t("切换到分支 {branch}?", { branch: b.name }),
       detail: dirty
-        ? "工作区有未提交变动:「切换」会尝试直接携带(冲突将被拒绝);「暂存并切换」先入 stash、切换后自动恢复。"
+        ? t("工作区有未提交变动:「切换」会尝试直接携带(冲突将被拒绝);「暂存并切换」先入 stash、切换后自动恢复。")
         : undefined,
-      confirmLabel: isRemote ? "检出" : "切换",
+      confirmLabel: isRemote ? t("检出") : t("切换"),
       onConfirm: () =>
         run(
           () => (isRemote ? ipc.gitCheckoutRemote(cwd, b.name) : ipc.gitCheckout(cwd, b.name)),
-          isRemote ? `已检出到本地分支 ${target}` : `已切换到 ${b.name}`,
+          isRemote
+            ? t("已检出到本地分支 {branch}", { branch: target })
+            : t("已切换到 {branch}", { branch: b.name }),
         ),
       alt: dirty
         ? {
-            label: isRemote ? "暂存并检出" : "暂存并切换",
+            label: isRemote ? t("暂存并检出") : t("暂存并切换"),
             onConfirm: () => {
               if (currentName) setSmartSwitchOrigin(cwd, currentName);
               run(
                 () => ipc.gitSmartCheckout(cwd, b.name, isRemote),
                 isRemote
-                  ? `已检出到本地分支 ${target}(改动已恢复)`
-                  : `已切换到 ${b.name}(改动已恢复)`,
+                  ? t("已检出到本地分支 {branch}(改动已恢复)", { branch: target })
+                  : t("已切换到 {branch}(改动已恢复)", { branch: b.name }),
               );
             },
           }
@@ -111,26 +116,29 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
     checkout: confirmSwitch,
     createFrom: (b) =>
       setNameDialog({
-        title: "新建分支",
+        title: t("新建分支"),
         source: b.name,
-        sourceLabel: "基于分支:",
-        inputLabel: "新分支名",
-        placeholder: "新分支名...",
-        submitLabel: "创建",
+        sourceLabel: t("基于分支:"),
+        inputLabel: t("新分支名"),
+        placeholder: t("新分支名..."),
+        submitLabel: t("创建"),
         onSubmit: (name) =>
-          run(() => ipc.gitCreateBranch(cwd, name, b.name), `已基于 ${b.name} 创建 ${name}`),
+          run(
+            () => ipc.gitCreateBranch(cwd, name, b.name),
+            t("已基于 {base} 创建 {name}", { base: b.name, name }),
+          ),
       }),
     checkoutRebase: (b) => {
       if (!currentName) return;
       setConfirm({
-        title: "签出并变基",
-        detail: `确认签出 ${b.name} 并变基到 ${currentName} 吗?冲突时仓库留在变基中间态,可在幕布终端 continue/abort。`,
-        confirmLabel: "签出并变基",
+        title: t("签出并变基"),
+        detail: t("确认签出 {branch} 并变基到 {onto} 吗?冲突时仓库留在变基中间态,可在幕布终端 continue/abort。", { branch: b.name, onto: currentName }),
+        confirmLabel: t("签出并变基"),
         onConfirm: () => {
           const onto = currentName;
           run(
             () => ipc.gitCheckout(cwd, b.name).then(() => ipc.gitRebaseBranch(cwd, onto)),
-            `已签出 ${b.name} 并变基到 ${onto}`,
+            t("已签出 {branch} 并变基到 {onto}", { branch: b.name, onto }),
           );
         },
       });
@@ -140,50 +148,65 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
     rebaseCurrentOnto: (b) => {
       if (!currentName) return;
       setConfirm({
-        title: "当前分支变基",
-        detail: `确认将当前分支 ${currentName} 变基到 ${b.name} 吗?冲突时仓库留在变基中间态,可在幕布终端 continue/abort。`,
-        confirmLabel: "变基",
+        title: t("当前分支变基"),
+        detail: t("确认将当前分支 {current} 变基到 {branch} 吗?冲突时仓库留在变基中间态,可在幕布终端 continue/abort。", { current: currentName, branch: b.name }),
+        confirmLabel: t("变基"),
         onConfirm: () =>
-          run(() => ipc.gitRebaseBranch(cwd, b.name), `已将 ${currentName} 变基到 ${b.name}`),
+          run(
+            () => ipc.gitRebaseBranch(cwd, b.name),
+            t("已将 {current} 变基到 {branch}", { current: currentName, branch: b.name }),
+          ),
       });
     },
     mergeIntoCurrent: (b) =>
       setConfirm({
-        title: "合并分支",
-        detail: `确认将 ${b.name} 合并到当前分支吗?冲突时仓库留在合并中间态,可在幕布终端处理。`,
-        confirmLabel: "合并",
+        title: t("合并分支"),
+        detail: t("确认将 {branch} 合并到当前分支吗?冲突时仓库留在合并中间态,可在幕布终端处理。", {
+          branch: b.name,
+        }),
+        confirmLabel: t("合并"),
         onConfirm: () =>
           run(
             () => ipc.gitMergeBranch(cwd, b.name),
-            `已合并 ${b.name} 到 ${currentName ?? "当前分支"}`,
+            t("已合并 {branch} 到 {current}", { branch: b.name, current: currentName ?? t("当前分支") }),
           ),
       }),
     pull: (b) =>
       run(
         () => ipc.gitPullPush(cwd, "pull", b.name),
-        b.name === currentName ? `已更新 ${b.name}` : `已 fast-forward ${b.name}`,
+        b.name === currentName
+          ? t("已更新 {branch}", { branch: b.name })
+          : t("已 fast-forward {branch}", { branch: b.name }),
       ),
-    fetch: (b) => run(() => ipc.gitPullPush(cwd, "fetch", b.name), `已获取 ${b.name} 的远端引用`),
+    fetch: (b) =>
+      run(
+        () => ipc.gitPullPush(cwd, "fetch", b.name),
+        t("已获取 {branch} 的远端引用", { branch: b.name }),
+      ),
     push: () => requestRemoteDialog("push"),
     rename: (b) =>
       setNameDialog({
-        title: "重命名分支",
+        title: t("重命名分支"),
         source: b.name,
-        sourceLabel: "原分支名:",
-        inputLabel: "新分支名",
+        sourceLabel: t("原分支名:"),
+        inputLabel: t("新分支名"),
         initial: b.name,
-        placeholder: "请输入新的分支名称",
-        submitLabel: "重命名",
+        placeholder: t("请输入新的分支名称"),
+        submitLabel: t("重命名"),
         onSubmit: (name) =>
-          run(() => ipc.gitRenameBranch(cwd, b.name, name), `已重命名 ${b.name} 为 ${name}`),
+          run(
+            () => ipc.gitRenameBranch(cwd, b.name, name),
+            t("已重命名 {from} 为 {to}", { from: b.name, to: name }),
+          ),
       }),
     remove: (b) =>
       setConfirm({
-        title: `删除分支 ${b.name}?`,
-        detail: "未合并到当前分支的删除会被拒绝;强行删除请用行内删除按钮连点两次。",
-        confirmLabel: "删除",
+        title: t("删除分支 {branch}?", { branch: b.name }),
+        detail: t("未合并到当前分支的删除会被拒绝;强行删除请用行内删除按钮连点两次。"),
+        confirmLabel: t("删除"),
         danger: true,
-        onConfirm: () => run(() => ipc.gitDeleteBranch(cwd, b.name, false), `已删除 ${b.name}`),
+        onConfirm: () =>
+          run(() => ipc.gitDeleteBranch(cwd, b.name, false), t("已删除 {branch}", { branch: b.name })),
       }),
   };
 
@@ -194,13 +217,13 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && createBranch()}
-          placeholder="新分支名..."
+          placeholder={t("新分支名...")}
           className="min-w-0 flex-1 rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-xs outline-none focus:border-(--tmd-accent)"
         />
         <button
           onClick={createBranch}
           disabled={!newName.trim() || busy}
-          title="基于当前 HEAD 创建"
+          title={t("基于当前 HEAD 创建")}
           className="rounded bg-(--tmd-accent) p-1.5 text-(--tmd-accent-fg) disabled:opacity-40"
         >
           <Plus className="h-3.5 w-3.5" />
@@ -219,11 +242,11 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
       )}
       {busy && (
         <div className="flex items-center gap-1.5 text-(--tmd-fg-faint)">
-          <CircleNotch className="h-3 w-3 animate-spin" /> 执行中…
+          <CircleNotch className="h-3 w-3 animate-spin" /> {t("执行中…")}
         </div>
       )}
 
-      <GroupLabel label={`本地 (${data?.local.length ?? 0})`} />
+      <GroupLabel label={t("本地 ({n})", { n: data?.local.length ?? 0 })} />
       {data?.local.map((b) => (
         <BranchRow
           key={b.name}
@@ -234,9 +257,9 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
           onMenu={(x, y) => setMenu({ x, y, branch: b })}
         />
       ))}
-      {loading && !data && <div className="px-2 py-1 text-(--tmd-fg-faint)">加载中…</div>}
+      {loading && !data && <div className="px-2 py-1 text-(--tmd-fg-faint)">{t("加载中…")}</div>}
 
-      <GroupLabel label={`远程 (${data?.remote.length ?? 0})`} />
+      <GroupLabel label={t("远程 ({n})", { n: data?.remote.length ?? 0 })} />
       {data?.remote.map((b) => (
         <BranchRow
           key={b.name}
@@ -272,4 +295,3 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
     </div>
   );
 }
-

@@ -13,6 +13,7 @@ import { Key, LockKey, HardDrive, ShieldWarning, Cross } from "@phosphor-icons/r
 import { ipc, type SshHostConfig, type SshPromptEvent } from "@kernel/ipc";
 import { getSettingsState } from "@kernel/settings";
 import { host } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { closeHostPicker, useSshState } from "./state";
 
 export function SshOverlay() {
@@ -58,14 +59,14 @@ function HostPicker() {
       <div className="ssh-picker" onClick={(e) => e.stopPropagation()}>
         <div className="ssh-picker-head">
           <HardDrive size={14} aria-hidden />
-          <span>SSH 连接</span>
+          <span>{t("SSH 连接")}</span>
           <button type="button" className="ssh-picker-close" onClick={closeHostPicker}>
             <Cross size={13} />
           </button>
         </div>
         {hosts.length === 0 ? (
           <div className="ssh-picker-empty">
-            还没有配置 SSH 主机。到「设置 → SSH」添加,或从 ~/.ssh/config 一键导入。
+            {t("还没有配置 SSH 主机。到「设置 → SSH」添加,或从 ~/.ssh/config 一键导入。")}
           </div>
         ) : (
           <div className="ssh-picker-list">
@@ -96,9 +97,9 @@ function HostPicker() {
 }
 
 function authLabel(config: SshHostConfig) {
-  if (config.authType === "privateKey") return "私钥";
-  if (config.authType === "keyboardInteractive") return "键盘认证";
-  return "密码";
+  if (config.authType === "privateKey") return t("私钥");
+  if (config.authType === "keyboardInteractive") return t("键盘认证");
+  return t("密码");
 }
 
 function PromptCard({ prompt }: { prompt: SshPromptEvent }) {
@@ -131,7 +132,7 @@ function PromptCard({ prompt }: { prompt: SshPromptEvent }) {
       <div className="ssh-prompt-card">
         <div className="ssh-prompt-title">
           <ShieldWarning size={14} aria-hidden />
-          <span>{prompt.storedFingerprint ? "主机密钥已变更" : "未知主机"}</span>
+          <span>{prompt.storedFingerprint ? t("主机密钥已变更") : t("未知主机")}</span>
         </div>
         <div className="ssh-prompt-body">
           <div className="ssh-prompt-line">
@@ -139,19 +140,21 @@ function PromptCard({ prompt }: { prompt: SshPromptEvent }) {
           </div>
           {prompt.storedFingerprint ? (
             <div className="ssh-prompt-warn">
-              已存指纹 {prompt.storedFingerprint} 与本次不符,可能存在中间人攻击。
-              仅在你确知服务器密钥确实更换时信任。
+              {t(
+                "已存指纹 {fp} 与本次不符,可能存在中间人攻击。仅在你确知服务器密钥确实更换时信任。",
+                { fp: prompt.storedFingerprint },
+              )}
             </div>
           ) : (
-            <div className="ssh-prompt-hint">首次连接此主机,核对指纹后信任。</div>
+            <div className="ssh-prompt-hint">{t("首次连接此主机,核对指纹后信任。")}</div>
           )}
         </div>
         <div className="ssh-prompt-actions">
           <button type="button" onClick={() => void dismiss()}>
-            拒绝
+            {t("拒绝")}
           </button>
           <button type="button" className="is-primary" onClick={() => void submit()}>
-            信任并连接
+            {t("信任并连接")}
           </button>
         </div>
       </div>
@@ -163,7 +166,7 @@ function PromptCard({ prompt }: { prompt: SshPromptEvent }) {
     <div className="ssh-prompt-card">
       <div className="ssh-prompt-title">
         {isPassword ? <Key size={14} aria-hidden /> : <LockKey size={14} aria-hidden />}
-        <span>{isPassword ? "输入密码" : "服务器要求输入"}</span>
+        <span>{isPassword ? t("输入密码") : t("服务器要求输入")}</span>
       </div>
       <div className="ssh-prompt-body">
         {prompt.instructions ? <div className="ssh-prompt-line">{prompt.instructions}</div> : null}
@@ -185,7 +188,7 @@ function PromptCard({ prompt }: { prompt: SshPromptEvent }) {
       </div>
       <div className="ssh-prompt-actions">
         <button type="button" onClick={() => void dismiss()}>
-          取消
+            {t("取消")}
         </button>
         <button
           type="button"
@@ -195,7 +198,7 @@ function PromptCard({ prompt }: { prompt: SshPromptEvent }) {
             setValue("");
           }}
         >
-          确定
+          {t("确定")}
         </button>
       </div>
     </div>

@@ -14,6 +14,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Cross } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import { isDrawerOpen, setDrawerOpen } from "../state/drawerOpen";
 import type { DrawerItem, DrawerSection } from "../drawerItems";
 import { SECTION_META, SECTION_ORDER, SECTION_TAB_ICONS } from "./drawerSections";
@@ -116,7 +117,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
       setFlashKey(key);
       window.clearTimeout(flashTimer.current);
       flashTimer.current = window.setTimeout(() => setFlashKey(null), 480);
-      showToast(`已发送到幕布:${wire}`);
+      showToast(t("已发送到幕布:{wire}", { wire }));
       window.clearTimeout(closeTimer.current);
       closeTimer.current = window.setTimeout(() => {
         /* 320ms 内被重新打开(⌘K 快速开合)则不关,防误杀新开的抽屉 */
@@ -125,7 +126,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
       }, 320);
     } else if (item.action === "open") {
       onOpen(item);
-      showToast(`已打开:${item.name}`);
+      showToast(t("已打开:{name}", { name: item.name }));
       window.clearTimeout(closeTimer.current);
       closeTimer.current = window.setTimeout(() => {
         if (isDrawerOpen()) return;
@@ -143,7 +144,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
       data-command-drawer
       ref={asideRef}
       role="dialog"
-      aria-label="命令与技能面板"
+      aria-label={t("命令与技能面板")}
       aria-hidden={!open}
       /* inert 让关闭态彻底退出焦点序列/Tab 遍历:仅 aria-hidden 挡不住
          Tab 落进屏外可聚焦控件(可聚焦元素位于 aria-hidden 内即违例) */
@@ -183,19 +184,19 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
         className="flex w-10 shrink-0 flex-col gap-1 border-r border-(--tmd-border) bg-(--tmd-bg-sunken) p-1"
         role="tablist"
         aria-orientation="vertical"
-        aria-label="分区切换"
+        aria-label={t("分区切换")}
       >
         <button
           type="button"
-          title="关闭 (Esc)"
-          aria-label="关闭"
+          title={t("关闭 (Esc)")}
+          aria-label={t("关闭")}
           onClick={() => setDrawerOpen(false)}
           className="grid h-7 w-full cursor-pointer place-items-center rounded-md text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         >
           <Cross size={13} />
         </button>
         {(["all", ...sections] as const).map((key) => {
-          const label = key === "all" ? "全部" : SECTION_META[key].label;
+          const label = key === "all" ? t("全部") : SECTION_META[key].label;
           const Icon = SECTION_TAB_ICONS[key];
           return (
             <button
@@ -217,7 +218,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
           );
         })}
         <span
-          title={`${visible.length} 项`}
+          title={t("{n} 项", { n: visible.length })}
           className="mt-auto pt-1 text-center font-mono text-[9.5px] text-(--tmd-fg-faint)"
         >
           {visible.length}

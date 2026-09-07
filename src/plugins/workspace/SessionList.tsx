@@ -27,6 +27,7 @@
 import { useState } from "react";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import type { SessionMeta } from "@kernel/ipc";
 import {
   isSessionPinned,
@@ -248,7 +249,7 @@ export function CliSessionGroup({
               className="thread-more"
               onClick={() => setLimit((l) => (l > 0 ? l * 2 : PAGE_INITIAL))}
             >
-              更多... (还有 {remaining} 条)
+              {t("更多... (还有 {n} 条)", { n: remaining })}
             </button>
           )}
           </>

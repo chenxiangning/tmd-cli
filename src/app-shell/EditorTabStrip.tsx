@@ -12,6 +12,7 @@ import { memo, useState } from "react";
 import { CornersOut, CornersIn, Cross } from "@phosphor-icons/react";
 import { baseName } from "@kernel/pathUtils";
 import { resolveFileVisual } from "@kernel/fileVisual";
+import { t } from "@kernel/i18n";
 import {
   closeAllTabs,
   closeOtherTabs,
@@ -74,8 +75,8 @@ function FileTab({
       <button
         type="button"
         className="tab-detach"
-        aria-label={maximized ? "还原" : `最大化查看 ${fileName}`}
-        title={maximized ? "还原" : "最大化查看"}
+        aria-label={maximized ? t("还原") : t("最大化查看 {file}", { file: fileName })}
+        title={t(maximized ? "还原" : "最大化查看")}
         onClick={(e) => {
           e.stopPropagation();
           toggleEditorMaximized();
@@ -90,8 +91,8 @@ function FileTab({
       <button
         type="button"
         className="tab-close"
-        aria-label={`关闭 ${fileName}`}
-        title="关闭"
+        aria-label={t("关闭 {file}", { file: fileName })}
+        title={t("关闭")}
         onClick={(e) => {
           e.stopPropagation();
           closeTab(tabId);
@@ -115,7 +116,7 @@ export const EditorTabStrip = memo(function EditorTabStrip() {
     <div
       className="tab-bar"
       role="tablist"
-      aria-label="打开的文件"
+      aria-label={t("打开的文件")}
       onWheel={(e) => {
         /* 竖向滚轮转横向滚动;不 preventDefault(外层无纵向滚动链可劫持) */
         e.currentTarget.scrollLeft += e.deltaY + e.deltaX;

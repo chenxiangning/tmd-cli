@@ -15,6 +15,7 @@
  * OAuth 凭据 → 本地 rollout 快照(零 HTTP),快照不可用降级 wham HTTP;非 OAuth → 直接 HTTP。
  */
 
+import { t } from "@kernel/i18n";
 import type { QuotaFetchContext, QuotaSnapshot } from "@kernel/quota";
 import {
   codexPlanLabelWithSnapshot,
@@ -57,11 +58,11 @@ function toSnapshot(providerId: string, vendor: VendorId, quota: {
 export async function fetchOmpQuota(ctx: QuotaFetchContext): Promise<QuotaSnapshot> {
   const ompVendor = vendorFromModel(ctx.model);
   if (!ompVendor) {
-    throw new Error("未识别当前模型,无法路由供应商");
+    throw new Error(t("未识别当前模型,无法路由供应商"));
   }
   const vendor = detectVendorByProviderId(ompVendor);
   if (!vendor) {
-    throw new Error(`omp 供应商 ${ompVendor} 暂不支持额度查询`);
+    throw new Error(t("omp 供应商 {vendor} 暂不支持额度查询", { vendor: ompVendor }));
   }
 
   const raw = await readOmpAuthCredential(ompVendor);
@@ -88,7 +89,7 @@ export async function fetchOmpQuota(ctx: QuotaFetchContext): Promise<QuotaSnapsh
   }
 
   if (!raw) {
-    throw new Error(`omp 未登录供应商 ${ompVendor} (~/.omp/agent/agent.db)`);
+    throw new Error(t("omp 未登录供应商 {vendor} (~/.omp/agent/agent.db)", { vendor: ompVendor }));
   }
   const quota = await fetchVendorQuota(vendor, cred);
   return toSnapshot(ompVendor, vendor, quota);

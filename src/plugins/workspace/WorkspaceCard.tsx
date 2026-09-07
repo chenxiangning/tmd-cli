@@ -5,6 +5,7 @@
  */
 
 import { host } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { setActiveWorkspace, type Workspace } from "@kernel/workspace";
 import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, RocketLaunch } from "@phosphor-icons/react";
 import { CliSessionGroup } from "./SessionList";
@@ -79,7 +80,7 @@ export function WorkspaceCard({
           <button
             type="button"
             className="workspace-folder-btn workspace-collapse-toggle"
-            title={collapsed ? "展开会话列表" : "折叠会话列表"}
+            title={collapsed ? t("展开会话列表") : t("折叠会话列表")}
             aria-expanded={!collapsed}
             onClick={(e) => {
               e.stopPropagation();
@@ -109,7 +110,7 @@ export function WorkspaceCard({
           <div className="workspace-actions">
             <button
               className={`workspace-action-btn${rowRefreshing ? " is-refreshing" : ""}`}
-              title="刷新会话"
+              title={t("刷新会话")}
               onClick={(e) => {
                 e.stopPropagation();
                 onRefreshWorkspace(workspace.id);
@@ -120,7 +121,7 @@ export function WorkspaceCard({
             </button>
             <button
               className="workspace-action-btn"
-              title="新建会话"
+              title={t("新建会话")}
               onClick={(e) => {
                 e.stopPropagation();
                 onShowMenu(workspace, e.clientX, e.clientY);

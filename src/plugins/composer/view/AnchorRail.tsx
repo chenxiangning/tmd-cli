@@ -13,6 +13,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { host, useHost } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import {
   getTerminalHandle,
   jumpToAnchor,
@@ -173,7 +174,7 @@ export function AnchorRail() {
       ref={railRef}
       className="composer-anchor-rail"
       role="navigation"
-      aria-label="消息锚点"
+      aria-label={t("消息锚点")}
       onMouseLeave={() => {
         setPreview(null);
         setHoverIndex(null);

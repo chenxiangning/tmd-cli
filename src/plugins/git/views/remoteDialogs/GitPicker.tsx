@@ -5,6 +5,7 @@
  * 位置按触发钮 rect 计算,下方放不下且上方够放时向上展开(估高 rows*30+28,夹 120..220)。
  */
 
+import { t } from "@kernel/i18n";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, CaretDown, Cloud, GitBranch } from "@phosphor-icons/react";
@@ -188,7 +189,7 @@ export function BranchCombobox({
       <button
         type="button"
         disabled={disabled}
-        aria-label="目标远端分支 toggle"
+        aria-label={t("目标远端分支 toggle")}
         onClick={() => (pos ? setPos(null) : openWith(""))}
         className="shrink-0 rounded border border-(--tmd-border) p-1.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
@@ -198,7 +199,7 @@ export function BranchCombobox({
         <PickerMenu pos={pos} onClose={() => setPos(null)}>
           {options.length === 0 && (
             <div className="px-2 py-1.5 text-xs text-(--tmd-fg-faint)">
-              该远端暂无可选分支,可手写输入。
+              {t("该远端暂无可选分支,可手写输入。")}
             </div>
           )}
           {shown.map((o) => (

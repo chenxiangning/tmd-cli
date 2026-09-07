@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspaces } from "@kernel/workspace";
+import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 import { spinRemainder } from "@kernel/spin";
 import { ipc, type GitAheadBehind, type GitRemoteRequest } from "@kernel/ipc";
@@ -161,7 +162,7 @@ export function GitPanel() {
           const wait = spinRemainder(startedAt);
           if (wait > 0) setTimeout(finishSpin, wait);
           else finishSpin();
-          setNotice(`${opLabel}成功。`);
+          setNotice(t("{op}成功。", { op: opLabel }));
           afterMutation();
         },
         (e: unknown) => {
@@ -170,8 +171,8 @@ export function GitPanel() {
           else finishSpin();
           setNotice(
             isAuth(e)
-              ? `${opLabel}失败:凭据需要交互,请到幕布终端执行 git ${op}`
-              : `${opLabel}失败。 ${gitErrorDisplay(e)} 可重试该操作。`,
+              ? t("{op}失败:凭据需要交互,请到幕布终端执行 git {cmd}", { op: opLabel, cmd: op })
+              : t("{op}失败。 {err} 可重试该操作。", { op: opLabel, err: gitErrorDisplay(e) }),
           );
         },
       );
@@ -187,7 +188,7 @@ export function GitPanel() {
     }
     return (
       <div className="flex h-full items-center justify-center px-4 text-center text-xs text-(--tmd-fg-faint)">
-        当前目录不是 Git 仓库
+        {t("当前目录不是 Git 仓库")}
       </div>
     );
   }
@@ -226,7 +227,7 @@ export function GitPanel() {
           <span className="min-w-0 flex-1 break-words">{notice}</span>
           <button
             onClick={() => setNotice(null)}
-            title="关闭"
+            title={t("关闭")}
             className="rounded p-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
           >
             <Cross className="h-3 w-3" aria-hidden />

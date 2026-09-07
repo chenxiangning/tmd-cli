@@ -7,6 +7,7 @@
 import { useState, type RefObject } from "react";
 import type { SearchAddon } from "@xterm/addon-search";
 import { CaretDown, CaretUp, Cross } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import { registerCommand } from "@kernel/shortcuts";
 
 /* ── 终端作用域命令桥(spec 2026-09-05-shortcuts) ──
@@ -52,25 +53,25 @@ export function TerminalSearchOverlay({
             onClose();
           }
         }}
-        placeholder="搜索终端输出"
+        placeholder={t("搜索终端输出")}
         className="w-44 bg-transparent text-xs text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint)"
       />
       <button
-        title="上一个 (Shift+Enter)"
+        title={t("上一个 (Shift+Enter)")}
         onClick={() => query && searchRef.current?.findPrevious(query)}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
         <CaretUp size={14} />
       </button>
       <button
-        title="下一个 (Enter)"
+        title={t("下一个 (Enter)")}
         onClick={() => query && searchRef.current?.findNext(query)}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
         <CaretDown size={14} />
       </button>
       <button
-        title="关闭 (Esc)"
+        title={t("关闭 (Esc)")}
         onClick={onClose}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >

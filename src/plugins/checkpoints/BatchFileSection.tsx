@@ -8,6 +8,7 @@
 
 import { useMemo, useState } from "react";
 import { CaretRight, ArrowCounterClockwise } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import type { CkptPatch } from "@kernel/ipc";
 
 export function FileSection({
@@ -72,21 +73,21 @@ export function FileSection({
           </span>
           {reverted && (
             <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[10px] leading-[14px] text-[#a78bfa]">
-              已退
+              {t("已退")}
             </span>
           )}
           {stale && (
             <span
               className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[10px] leading-[14px] text-(--tmd-fg-faint)"
-              title="工作区内容已偏离本批后像,不可回退,仅可对照"
+              title={t("工作区内容已偏离本批后像,不可回退,仅可对照")}
             >
-              内容已变
+              {t("内容已变")}
             </span>
           )}
           {editCount > 0 && attribution === "events" && (
             <span
               className="flex-none rounded border border-(--tmd-border) px-1 text-[9px] leading-[13px] text-(--tmd-fg-faint)"
-              title={`AI 本轮写入该文件 ${editCount} 次(事件流轨迹,账本可审计)`}
+              title={t("AI 本轮写入该文件 {n} 次(事件流轨迹,账本可审计)", { n: editCount })}
             >
               ×{editCount}
             </span>
@@ -105,7 +106,7 @@ export function FileSection({
             className="hidden h-5 flex-none items-center gap-1 rounded border border-(--tmd-border) px-1.5 text-[10px] text-(--tmd-fg-subtle) hover:border-[rgba(167,139,250,.5)] hover:text-[#a78bfa] group-hover:flex disabled:opacity-40"
             onClick={onRevert}
           >
-            <ArrowCounterClockwise size={10} aria-hidden /> 只回退此文件
+            <ArrowCounterClockwise size={10} aria-hidden /> {t("只回退此文件")}
           </button>
         )}
       </div>

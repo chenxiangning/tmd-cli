@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { t } from "@kernel/i18n";
 import { CircleNotch } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
 import { ipc, type GitFilePatch } from "@kernel/ipc";
@@ -80,7 +81,7 @@ function DiffTab({ payload }: { payload: DiffTabPayload }) {
           )}
         </div>
         <div className="mt-0.5 text-[11px] text-(--tmd-fg-muted)">
-          {payload.staged ? "已暂存 → HEAD" : "工作区 → 暂存区"}
+          {payload.staged ? t("已暂存 → HEAD") : t("工作区 → 暂存区")}
         </div>
       </div>
 
@@ -88,16 +89,16 @@ function DiffTab({ payload }: { payload: DiffTabPayload }) {
       <div className="min-w-0 flex-1 overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center gap-1.5 py-6 text-(--tmd-fg-faint)">
-            <CircleNotch className="h-3.5 w-3.5 animate-spin" /> 加载 diff…
+            <CircleNotch className="h-3.5 w-3.5 animate-spin" /> {t("加载 diff…")}
           </div>
         ) : error ? (
           <div className="px-3 py-3 text-(--tmd-diff-removed)">{error.replace(/^E_[A-Z_]+:\s*/, "")}</div>
         ) : patch?.binary ? (
-          <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">二进制文件,无文本 diff</div>
+          <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("二进制文件,无文本 diff")}</div>
         ) : patch ? (
           <PatchLines text={patch.patch} className="h-max min-h-full" />
         ) : (
-          <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">无 diff 数据</div>
+          <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("无 diff 数据")}</div>
         )}
       </div>
     </div>

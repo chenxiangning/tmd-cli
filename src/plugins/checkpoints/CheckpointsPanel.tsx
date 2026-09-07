@@ -10,6 +10,7 @@ import { useEffect, useReducer, useState } from "react";
 import { ClockClockwise, CircleNotch } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
+import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
 import { checkpointIdentity } from "./identity";
 import { BatchRow, type ConfirmTarget } from "./BatchRow";
@@ -78,7 +79,7 @@ export function CheckpointsPanel() {
     setBusy(true);
     try {
       await approveBatch(cwd, batchId);
-      setNotice("批次已标记通过 —— 仅记录状态,不影响任何文件");
+      setNotice(t("批次已标记通过 —— 仅记录状态,不影响任何文件"));
     } catch (e) {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
     } finally {
@@ -96,8 +97,8 @@ export function CheckpointsPanel() {
       const skipped = out.skipped.map((s) => `${s.path}(${s.reason})`).join("、");
       setNotice(
         skipped
-          ? `已回退 ${n} 个文件;跳过:${skipped}`
-          : `已回退 ${n} 个路径 · 恢复点已留存,可反悔`,
+          ? t("已回退 {n} 个文件;跳过:{skipped}", { n, skipped })
+          : t("已回退 {n} 个路径 · 恢复点已留存,可反悔", { n }),
       );
     } catch (e) {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
@@ -117,9 +118,11 @@ export function CheckpointsPanel() {
       setNotice(
         n > 0
           ? skipped
-            ? `已应用 ${n} 个文件;跳过:${skipped}`
-            : `已应用 ${n} 个文件 · 恢复点已留存,可反悔`
-          : `没有可应用的文件${skipped ? `;跳过:${skipped}` : ""}`,
+            ? t("已应用 {n} 个文件;跳过:{skipped}", { n, skipped })
+            : t("已应用 {n} 个文件 · 恢复点已留存,可反悔", { n })
+          : skipped
+            ? t("没有可应用的文件;跳过:{skipped}", { skipped })
+            : t("没有可应用的文件"),
       );
     } catch (e) {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
@@ -134,7 +137,7 @@ export function CheckpointsPanel() {
     setBusy(true);
     try {
       const out = await undoRevertBatch(cwd, batchId);
-      setNotice(`已从恢复点恢复 ${out.restored.length} 个文件,批次回到待审`);
+      setNotice(t("已从恢复点恢复 {n} 个文件,批次回到待审", { n: out.restored.length }));
     } catch (e) {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
     } finally {
@@ -149,7 +152,7 @@ export function CheckpointsPanel() {
       <div className="flex h-[30px] flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2.5 text-[11px]">
         <span className="flex flex-none items-center gap-1.5 text-[11px] font-semibold text-(--tmd-fg)">
           <ClockClockwise size={12} className="text-(--tmd-accent)" aria-hidden />
-          审批线
+          {t("审批线")}
         </span>
         {active && (
           <span
@@ -161,7 +164,7 @@ export function CheckpointsPanel() {
         )}
         <span className="flex-1" />
         <span className="flex-none text-(--tmd-fg-faint)">
-          待审 <b className="font-semibold text-(--tmd-git-modified)">{pendingCount}</b>
+          {t("待审")} <b className="font-semibold text-(--tmd-git-modified)">{pendingCount}</b>
         </span>
       </div>
 
@@ -171,7 +174,7 @@ export function CheckpointsPanel() {
           className="flex-none border-b border-(--tmd-border) bg-(--tmd-accent)/10 px-3 py-1.5 text-left text-[11px] text-(--tmd-fg-muted) hover:underline"
           onClick={() => setNotice(null)}
         >
-          {notice} · 点击关闭
+          {notice} · {t("点击关闭")}
         </button>
       )}
 
@@ -184,25 +187,25 @@ export function CheckpointsPanel() {
           className="flex-none border-b border-(--tmd-border) bg-(--tmd-diff-removed)/10 px-3 py-1.5 text-left text-[11px] text-(--tmd-diff-removed) hover:underline"
           onClick={() => void refreshBatches(cwd, sessionId, tmdSessionId)}
         >
-          审批线清单刷新失败:{state.error.replace(/^E_\w+:\s*/, "")} · 点击重试
+          {t("审批线清单刷新失败:{error} · 点击重试", { error: state.error.replace(/^E_\w+:\s*/, "") })}
         </button>
       )}
 
       {/* 时间线 */}
       <div className="min-h-0 flex-1 overflow-y-auto py-2 pr-2 pl-1">
         {!cwd ? (
-          <Empty text="暂无活跃工作区" />
+          <Empty text={t("暂无活跃工作区")} />
         ) : !sessionId ? (
-          <Empty text="审批线跟随会话生命周期 —— 当前工作区没有活会话" />
+          <Empty text={t("审批线跟随会话生命周期 —— 当前工作区没有活会话")} />
         ) : state.notARepo ? (
-          <Empty text="非 git 工作区 —— 仅声明写入事件检测的 CLI(如 claude)可在此记账,其余 CLI 需 git 仓库" />
+          <Empty text={t("非 git 工作区 —— 仅声明写入事件检测的 CLI(如 claude)可在此记账,其余 CLI 需 git 仓库")} />
         ) : state.loading && state.batches.length === 0 ? (
           <div className="flex items-center justify-center gap-2 pt-10 text-(--tmd-fg-faint)">
-            <CircleNotch size={13} className="animate-spin" aria-hidden /> 读取批次…
+            <CircleNotch size={13} className="animate-spin" aria-hidden /> {t("读取批次…")}
           </div>
         ) : state.batches.length === 0 ? (
           state.error ? null /* 错误横幅已说明原因,不再叠加误导性空态 */ : (
-            <Empty text="本会话还没有批次 —— 发送一条让 AI 改文件的消息后,这里会按轮归批" />
+            <Empty text={t("本会话还没有批次 —— 发送一条让 AI 改文件的消息后,这里会按轮归批")} />
           )
         ) : (
           state.batches.map((b, i) => (

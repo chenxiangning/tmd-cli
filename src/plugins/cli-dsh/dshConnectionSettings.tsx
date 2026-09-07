@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { CaretDown } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import { normalizeConnection, type DshConnection } from "./dshHost";
 
 const INPUT =
@@ -21,7 +22,7 @@ export function DshConnectionSettings({
   onChange: (next: DshConnection) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const summary = `${conn.host}:${conn.port} · 自动启动${conn.autoStart ? "开" : "关"}`;
+  const summary = `${conn.host}:${conn.port} · ${conn.autoStart ? t("自动启动开") : t("自动启动关")}`;
 
   const apply = (patch: Partial<DshConnection>) => {
     onChange({ ...conn, ...patch });
@@ -35,7 +36,7 @@ export function DshConnectionSettings({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
-        <span className="pref-title">连接设置</span>
+        <span className="pref-title">{t("连接设置")}</span>
         <span className="text-xs text-(--tmd-fg-muted)">{summary}</span>
         <CaretDown
           size={13}
@@ -46,13 +47,13 @@ export function DshConnectionSettings({
         <div className="flex flex-col">
           <div className="pref-row border-t border-(--tmd-border)">
             <div>
-              <div className="pref-title">自定义 DeepSeek Harness 路径</div>
+              <div className="pref-title">{t("自定义 DeepSeek Harness 路径")}</div>
               <div className="pref-desc">
-                留空用 PATH 里的 dsh;改动即保存,下次启动服务生效。
+                {t("留空用 PATH 里的 dsh;改动即保存,下次启动服务生效。")}
               </div>
             </div>
             <input
-              aria-label="自定义 DeepSeek Harness 路径"
+              aria-label={t("自定义 DeepSeek Harness 路径")}
               className={`${INPUT} w-64 text-left`}
               defaultValue={conn.customBin}
               placeholder="/usr/local/bin/dsh"
@@ -61,18 +62,18 @@ export function DshConnectionSettings({
           </div>
           <div className="pref-row border-t border-(--tmd-border)">
             <div>
-              <div className="pref-title">Host 地址</div>
-              <div className="pref-desc">默认本机。改端口前先确认没有别的进程占着。</div>
+              <div className="pref-title">{t("Host 地址")}</div>
+              <div className="pref-desc">{t("默认本机。改端口前先确认没有别的进程占着。")}</div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <input
-                aria-label="Host 地址"
+                aria-label={t("Host 地址")}
                 className={`${INPUT} w-40 text-left`}
                 defaultValue={conn.host}
                 onBlur={(e) => onChange(normalizeConnection(e.target.value, String(conn.port), conn))}
               />
               <input
-                aria-label="端口"
+                aria-label={t("端口")}
                 className={`${INPUT} w-24 text-right`}
                 type="number"
                 min={1}
@@ -84,16 +85,16 @@ export function DshConnectionSettings({
           </div>
           <div className="pref-row border-t border-(--tmd-border)">
             <div>
-              <div className="pref-title">自动启动主机</div>
+              <div className="pref-title">{t("自动启动主机")}</div>
               <div className="pref-desc">
-                下次进首页且 host 未运行时自动拉起。拨开关不会立刻启动或停止。
+                {t("下次进首页且 host 未运行时自动拉起。拨开关不会立刻启动或停止。")}
               </div>
             </div>
             <button
               type="button"
               role="switch"
               aria-checked={conn.autoStart}
-              aria-label="自动启动主机"
+              aria-label={t("自动启动主机")}
               className={`relative h-5 w-9 shrink-0 rounded-full border transition-colors${
                 conn.autoStart
                   ? " border-(--tmd-accent) bg-(--tmd-accent)"

@@ -1,6 +1,7 @@
 // 插件市场插排视图(分类常量 + 插座单元 + 合并大插排),自 PluginMarketPage.tsx 按「纯结构拆分、行为不变」拆出
 import type { ComponentType } from "react";
 import { Lock } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import { getMarketPanel } from "@kernel/marketPanel";
 import type { Plugin, PluginCategory } from "@kernel/plugin";
 
@@ -53,10 +54,10 @@ function Outlet({
 }) {
   const cls = `pm-outlet${on ? "" : " is-out"}${core ? " is-core" : ""}${dirty ? " is-dirty" : ""}`;
   const tip = core
-    ? "核心插件 · 已焊死,不可拔出"
+    ? t("核心插件 · 已焊死,不可拔出")
     : on
-      ? `点击拔出 ${id}`
-      : `点击插入 ${id}`;
+      ? t("点击拔出 {id}", { id })
+      : t("点击插入 {id}", { id });
   return (
     <div className={cls}>
       <button type="button" className="pm-plug" title={tip} aria-pressed={on && !core} onClick={() => onToggle(id)}>
@@ -65,7 +66,7 @@ function Outlet({
         </svg>
         <div className="pm-plug-body">
           {core ? (
-            <span className="pm-plug-weld" title="核心插件">
+            <span className="pm-plug-weld" title={t("核心插件")}>
               <Lock size={10} aria-hidden />
             </span>
           ) : null}
@@ -78,8 +79,8 @@ function Outlet({
                 role="button"
                 tabIndex={0}
                 className="pm-plug-market"
-                title={market.title}
-                aria-label={market.title}
+                title={t(market.title)}
+                aria-label={t(market.title)}
                 onClick={(e) => {
                   e.stopPropagation();
                   open();
@@ -112,7 +113,7 @@ function Outlet({
       </div>
       <div className="pm-outlet-label">
         {id}
-        {dirty ? " · 待重启" : ""}
+        {dirty ? t(" · 待重启") : ""}
       </div>
     </div>
   );
@@ -134,16 +135,16 @@ export function MergedStrip({
       <div className="pm-strip">
         <div className="pm-strip-brand">
           <div className="pm-brand-name">tmd-cli</div>
-          <div className="pm-brand-role">客户端 · 插排本体</div>
+          <div className="pm-brand-role">{t("客户端 · 插排本体")}</div>
           <div className="pm-master-row">
             <span className="pm-master-led" aria-hidden />
-            <span className="pm-master-label">总电源常开</span>
+            <span className="pm-master-label">{t("总电源常开")}</span>
           </div>
         </div>
         {groups.map((g) => (
           <div className="pm-cat-group" key={g.category}>
             <div className="pm-cat-label">
-              {CATEGORY_LABEL[g.category]} · {g.rows.length} 位
+              {t("{label} · {n} 位", { label: t(CATEGORY_LABEL[g.category]), n: g.rows.length })}
             </div>
             <div className="pm-cat-outlets">
               {g.rows.map(({ plugin, on, dirty }) => (

@@ -1,4 +1,5 @@
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import {
   codexUserMessageLine,
   findJsonlSessionFile,
@@ -215,7 +216,7 @@ export function extractCodexMcpServers(toml: string): CliSuggestion[] {
   if (current) found.push(current);
   return found.map((s) => ({
     value: s.name,
-    description: s.command ? `MCP · ${s.command}` : "MCP 服务器",
+    description: s.command ? `MCP · ${s.command}` : t("MCP 服务器"),
     action: "insert" as const,
     icon: "server",
     token: `$${s.name} `,

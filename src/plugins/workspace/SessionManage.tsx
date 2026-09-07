@@ -15,6 +15,7 @@ import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host } from "@kernel/host";
 import type { SessionMeta } from "@kernel/ipc";
 import { useSettingsState } from "@kernel/settings";
+import { t } from "@kernel/i18n";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import {
   archiveSession,
@@ -184,10 +185,10 @@ export function ManageList({
             disabled={cannotArchive}
             title={
               archiveViewOn
-                ? "恢复到默认视图"
+                ? t("恢复到默认视图")
                 : cannotArchive
-                  ? "会话尚未落盘,暂不可归档"
-                  : "归档(默认视图隐藏)"
+                  ? t("会话尚未落盘,暂不可归档")
+                  : t("归档(默认视图隐藏)")
             }
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
@@ -199,9 +200,9 @@ export function ManageList({
           </button>
           <DangerAction
             className="wm-act wm-danger"
-            title="删除会话(物理删除)"
-            armedTitle="再击确认物理删除"
-            armedChildren={<span className="wm-danger-arm">确认</span>}
+            title={t("删除会话(物理删除)")}
+            armedTitle={t("再击确认物理删除")}
+            armedChildren={<span className="wm-danger-arm">{t("确认")}</span>}
             onConfirm={() => void runDelete(row)}
           >
             <Trash size={12} />
@@ -223,23 +224,23 @@ export function ManageList({
       {rows.map(renderRow)}
       {selectedRows.length > 0 && (
         <div className="wm-bar">
-          <span className="wm-bar-count">已选 {selectedRows.length}</span>
+          <span className="wm-bar-count">{t("已选 {n}", { n: selectedRows.length })}</span>
           <button
             type="button"
             className="wm-bar-btn"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={() => batchToggleArchive()}
           >
-            {archiveViewOn ? "恢复" : "归档"}
+            {archiveViewOn ? t("恢复") : t("归档")}
           </button>
           <DangerAction
             className="wm-bar-btn wm-danger"
-            title="删除选中会话(物理删除)"
-            armedTitle="再击确认物理删除"
-            armedChildren="确认删除?"
+            title={t("删除选中会话(物理删除)")}
+            armedTitle={t("再击确认物理删除")}
+            armedChildren={t("确认删除?")}
             onConfirm={() => void batchDelete()}
           >
-            删除
+            {t("删除")}
           </DangerAction>
         </div>
       )}
@@ -248,7 +249,7 @@ export function ManageList({
           className="thread-more"
           onClick={() => setLimit((l) => (l > 0 ? l * 2 : PAGE_INITIAL))}
         >
-          更多... (还有 {remaining} 条)
+          {t("更多... (还有 {n} 条)", { n: remaining })}
         </button>
       )}
     </div>

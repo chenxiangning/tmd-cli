@@ -17,6 +17,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { host, useHost } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import type { Plugin } from "@kernel/plugin";
 import { Mounts } from "@kernel/Mounts";
 import { addWorkspace, useWorkspaces, type Workspace } from "@kernel/workspace";
@@ -77,7 +78,7 @@ function WorkspaceSection() {
 
   async function handleAdd() {
     try {
-      const selected = await pickDirectory("选择工作区目录");
+      const selected = await pickDirectory(t("选择工作区目录"));
       if (typeof selected === "string" && selected) {
         addWorkspace(selected);
       }
@@ -114,11 +115,11 @@ function WorkspaceSection() {
       <div className="ws-caption">
         <span className="ws-caption-label">
           <Folders size={11} aria-hidden className="ws-caption-icon" />
-          工作区
+          {t("工作区")}
         </span>
         <span className="ws-caption-actions">
           {/* 会话视图切换:默认/归档;workspace 插件内各分组经 settings 响应式过滤 */}
-          <div className="ws-view-toggle" role="radiogroup" aria-label="会话视图">
+          <div className="ws-view-toggle" role="radiogroup" aria-label={t("会话视图")}>
             <button
               type="button"
               role="radio"
@@ -126,7 +127,7 @@ function WorkspaceSection() {
               className={!archivedView ? "is-on" : ""}
               onClick={() => updateSettings({ workspaceArchiveView: false })}
             >
-              默认
+              {t("默认")}
             </button>
             <button
               type="button"
@@ -135,13 +136,13 @@ function WorkspaceSection() {
               className={archivedView ? "is-on" : ""}
               onClick={() => updateSettings({ workspaceArchiveView: true })}
             >
-              归档
+              {t("归档")}
             </button>
           </div>
           <button
             className="ws-caption-btn"
-            title={allCollapsed ? "展开全部工作区会话" : "折叠全部工作区会话"}
-            aria-label={allCollapsed ? "展开全部工作区会话" : "折叠全部工作区会话"}
+            title={allCollapsed ? t("展开全部工作区会话") : t("折叠全部工作区会话")}
+            aria-label={allCollapsed ? t("展开全部工作区会话") : t("折叠全部工作区会话")}
             onClick={() => setAllCollapsed(!allCollapsed)}
           >
             {allCollapsed ? (
@@ -154,7 +155,7 @@ function WorkspaceSection() {
           <Mounts point="leftSidebar.workspaceCaption" />
           <button
             className="ws-caption-btn"
-            title="添加工作区"
+            title={t("添加工作区")}
             onClick={() => void handleAdd()}
           >
             <FolderSimplePlus size={13} aria-hidden />
@@ -207,9 +208,9 @@ function WorkspaceSection() {
 export const workspacePlugin: Plugin = {
   id: "workspace",
   meta: {
-    name: "工作区",
+    name: t("工作区"),
     abbr: "WK",
-    desc: "左侧栏工作区/会话列表与菜单",
+    desc: t("左侧栏工作区/会话列表与菜单"),
     icon: FolderOpen,
     iconColor: "#5B8BE8",
     category: "feature",
@@ -222,7 +223,7 @@ export const workspacePlugin: Plugin = {
     /* ⌘T 打开新建会话菜单:开合态经模块级 ref 桥进组件(见文件头)。 */
     ctx.registerCommand({
       id: "workspace.newSessionMenu",
-      title: "打开新建会话菜单",
+      title: t("打开新建会话菜单"),
       keybinding: "Cmd+T",
       run: () => openNewSessionMenuRef.current?.(),
     });

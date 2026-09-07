@@ -9,6 +9,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { GitDiff } from "@phosphor-icons/react";
 import { ipc, type GitFileStatus, type GitRepoSummary } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 
 const STORAGE_KEY = "tmd.fileTree.gitDecorate.v1";
 const POLL_MS = 5000;
@@ -220,9 +221,9 @@ export function GitDecorateToggle() {
     <button
       type="button"
       className={`panel-subbar-action${on ? " is-active" : ""}`}
-      aria-label="按 Git 变更着色文件"
+      aria-label={t("按 Git 变更着色文件")}
       aria-pressed={on}
-      title={on ? "关闭 Git 变更着色" : "按 Git 变更着色文件与文件夹"}
+      title={on ? t("关闭 Git 变更着色") : t("按 Git 变更着色文件与文件夹")}
       onClick={toggleGitDecorate}
     >
       <GitDiff size={12} aria-hidden />

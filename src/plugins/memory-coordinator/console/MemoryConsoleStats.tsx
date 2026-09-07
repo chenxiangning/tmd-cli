@@ -5,9 +5,10 @@
 
 import { CATEGORY_CN, type MemoryItem } from "../protocol";
 import { consoleCardCls } from "./MemoryConsoleCards";
+import { t } from "@kernel/i18n";
 
 function categoryLabel(key: string): string {
-  return (CATEGORY_CN as Record<string, string>)[key] ?? key;
+  return t((CATEGORY_CN as Record<string, string>)[key] ?? key);
 }
 
 /** ── 统计:总数 / 本周新增 / 分 harness 条数 + 上次整理时刻 ── */
@@ -20,15 +21,15 @@ export function StatsCard({
 }) {
   return (
     <div className={`mb-3 ${consoleCardCls}`}>
-      <div className="mb-2 text-[11.5px] font-semibold">统计</div>
+      <div className="mb-2 text-[11.5px] font-semibold">{t("统计")}</div>
       <div className="mb-2 flex flex-wrap gap-6">
         <div>
           <div className="font-mono text-xl font-bold">{counts.total}</div>
-          <div className="text-[10.5px] text-(--tmd-fg-faint)">记忆总数</div>
+          <div className="text-[10.5px] text-(--tmd-fg-faint)">{t("记忆总数")}</div>
         </div>
         <div>
           <div className="font-mono text-xl font-bold">{counts.week}</div>
-          <div className="text-[10.5px] text-(--tmd-fg-faint)">本周新增</div>
+          <div className="text-[10.5px] text-(--tmd-fg-faint)">{t("本周新增")}</div>
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -45,7 +46,7 @@ export function StatsCard({
           </div>
         ))}
       </div>
-      {lastDream && <div className="mt-2 truncate text-[10.5px] text-(--tmd-fg-faint)">上次整理:{lastDream}</div>}
+      {lastDream && <div className="mt-2 truncate text-[10.5px] text-(--tmd-fg-faint)">{t("上次整理:{time}", { time: lastDream })}</div>}
     </div>
   );
 }
@@ -54,9 +55,9 @@ export function StatsCard({
 export function RecentCard({ recent }: { recent: MemoryItem[] }) {
   return (
     <div className={consoleCardCls}>
-      <div className="mb-2 text-[11.5px] font-semibold">最近沉淀</div>
+      <div className="mb-2 text-[11.5px] font-semibold">{t("最近沉淀")}</div>
       {recent.length === 0 ? (
-        <div className="text-[11px] text-(--tmd-fg-faint)">无记录</div>
+        <div className="text-[11px] text-(--tmd-fg-faint)">{t("无记录")}</div>
       ) : (
         recent.map((m) => (
           <div key={m.id} className="flex min-w-0 gap-2 border-b border-(--tmd-border) py-1 text-[11px] last:border-b-0">

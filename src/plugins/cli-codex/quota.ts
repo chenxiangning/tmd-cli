@@ -15,6 +15,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import type { QuotaSnapshot } from "@kernel/quota";
 import {
   codexPlanLabelWithSnapshot,
@@ -137,11 +138,11 @@ export async function fetchCodexQuota(): Promise<QuotaSnapshot> {
         const quota = await fetchVendorQuota(vendor, { key }, baseUrl);
         return httpSnapshot(quota, "自定义 key");
       }
-      throw new Error("codex 自定义供应商(阿里云百炼)无公开额度 API,请在控制台查看");
+      throw new Error(t("codex 自定义供应商(阿里云百炼)无公开额度 API,请在控制台查看"));
     }
-    throw new Error("codex 为官方 API key 模式,OpenAI 无套餐额度查询接口");
+    throw new Error(t("codex 为官方 API key 模式,OpenAI 无套餐额度查询接口"));
   }
 
-  throw new Error("未找到 codex 登录态 (~/.codex/auth.json)");
+  throw new Error(t("未找到 codex 登录态 (~/.codex/auth.json)"));
 }
 

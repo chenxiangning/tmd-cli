@@ -40,6 +40,10 @@ describe("初始状态与默认值", () => {
       lightThemePresetId: "vscode-light-modern",
       darkThemePresetId: "vscode-dark-modern",
       customThemePresetId: "vscode-dark-modern",
+      language: "zh",
+      terminalFontSize: 13,
+      terminalFontFamily: "",
+      uiZoom: 1,
       sessionTabsEnabled: true,
       sendShortcut: "enter",
       askSoundEnabled: true,
@@ -205,5 +209,41 @@ describe("updateSettings 合并与清洗", () => {
         customThemePresetId: "vscode-dark-modern",
       }),
     );
+  });
+});
+
+describe("外观域字段清洗(language/终端字体字号/界面缩放)", () => {
+  it("language:白名单外回落 zh", () => {
+    settings.updateSettings({ language: "fr" as never });
+    expect(settings.getSettingsState().settings.language).toBe("zh");
+    settings.updateSettings({ language: "ja" });
+    expect(settings.getSettingsState().settings.language).toBe("ja");
+  });
+
+  it("terminalFontSize:越界/非整数回落默认 13,合法值放行", () => {
+    settings.updateSettings({ terminalFontSize: 25 });
+    expect(settings.getSettingsState().settings.terminalFontSize).toBe(13);
+    settings.updateSettings({ terminalFontSize: 8 });
+    expect(settings.getSettingsState().settings.terminalFontSize).toBe(13);
+    settings.updateSettings({ terminalFontSize: 17 });
+    expect(settings.getSettingsState().settings.terminalFontSize).toBe(17);
+  });
+
+  it("terminalFontFamily:去控制字符 + trim;非字符串回落空(平台默认)", () => {
+    settings.updateSettings({ terminalFontFamily: " 'JetBrains Mono',\u0007 monospace " });
+    expect(settings.getSettingsState().settings.terminalFontFamily).toBe(
+      "'JetBrains Mono', monospace",
+    );
+    settings.updateSettings({ terminalFontFamily: 42 as never });
+    expect(settings.getSettingsState().settings.terminalFontFamily).toBe("");
+  });
+
+  it("uiZoom:取 5% 档 + 越界钳位 + 非法回落 1", () => {
+    settings.updateSettings({ uiZoom: 1.37 });
+    expect(settings.getSettingsState().settings.uiZoom).toBe(1.35);
+    settings.updateSettings({ uiZoom: 9 });
+    expect(settings.getSettingsState().settings.uiZoom).toBe(1.5);
+    settings.updateSettings({ uiZoom: "broken" as never });
+    expect(settings.getSettingsState().settings.uiZoom).toBe(1);
   });
 });

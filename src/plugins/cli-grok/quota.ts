@@ -12,6 +12,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import type { QuotaSnapshot } from "@kernel/quota";
 import {
   detectVendorByBaseUrl,
@@ -39,7 +40,9 @@ export async function fetchGrokQuota(): Promise<QuotaSnapshot> {
   }
 
   throw new Error(
-    "未找到 grok 凭据 (~/.grok/config.toml [model] api_key);官方 OAuth 登录暂无公开额度 API,请在 CLI 内查看",
+    t(
+      "未找到 grok 凭据 (~/.grok/config.toml [model] api_key);官方 OAuth 登录暂无公开额度 API,请在 CLI 内查看",
+    ),
   );
 }
 

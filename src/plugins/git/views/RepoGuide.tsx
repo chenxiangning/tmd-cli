@@ -4,6 +4,7 @@
  * 点击任一仓即以该仓为语境进入完整 Git 面板(选中态存 panelStore,按工作区记忆)。
  */
 
+import { t } from "@kernel/i18n";
 import type { GitRepoSummary } from "@kernel/ipc";
 import { GitBranch } from "@phosphor-icons/react";
 import { useRepoChips } from "../hooks/useRepoChips";
@@ -28,12 +29,14 @@ export function RepoGuide({
         <div className="mb-2 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) px-3 py-2.5">
           <div className="mb-1 flex items-center gap-1.5 font-semibold">
             <GitBranch size={14} className="text-(--tmd-fg-muted)" aria-hidden />
-            工作区根不是 Git 仓库
+            {t("工作区根不是 Git 仓库")}
           </div>
           <div className="leading-relaxed text-(--tmd-fg-muted)">
-            扫描 <span className="text-(--tmd-fg)">{root}</span>(深度 {SCAN_DEPTH})发现{" "}
-            <span className="text-(--tmd-fg)">{repos.length} 个仓库</span>
-            。点击任一仓库,即以该仓为语境使用完整 Git 面板。
+            {t("扫描 {root}(深度 {depth})发现 {count} 个仓库。点击任一仓库,即以该仓为语境使用完整 Git 面板。", {
+              root,
+              depth: SCAN_DEPTH,
+              count: repos.length,
+            })}
           </div>
         </div>
         {repos.map((r) => {
@@ -60,13 +63,13 @@ export function RepoGuide({
               </span>
               {kind && (
                 <span className="shrink-0 rounded border border-(--tmd-border) px-1 text-[9.5px] text-(--tmd-fg-faint)">
-                  {kind}
+                  {t(kind)}
                 </span>
               )}
               <span className="min-w-0 flex-1" />
               {dirty > 0 && (
                 <span className="shrink-0 text-[11px] tabular-nums text-(--tmd-git-modified)">
-                  {dirty} 个变更
+                  {t("{n} 个变更", { n: dirty })}
                 </span>
               )}
               {chip && chip.ahead > 0 && (
@@ -80,16 +83,16 @@ export function RepoGuide({
                 </span>
               )}
               <span className="shrink-0 text-[10.5px] text-(--tmd-accent) opacity-0 transition-opacity group-hover:opacity-100">
-                进入 →
+                {t("进入 →")}
               </span>
             </button>
           );
         })}
       </div>
       <div className="shrink-0 border-t border-(--tmd-border) px-2.5 py-2 text-[10.5px] leading-relaxed text-(--tmd-fg-faint)">
-        同步说明:文件树着色照常工作(按各仓归属);幕布终端里的 git 命令不受影响;发现随切工作区
+        {t("同步说明:文件树着色照常工作(按各仓归属);幕布终端里的 git 命令不受影响;发现随切工作区")}
         {/* 32 = Rust git/repos_scan.rs 的 MAX_REPOS(跨语言常量,变更需双侧同步)。 */}
-        {truncated && <b className="font-semibold text-(--tmd-fg-subtle)"> 已截断,仅显示前 32 个。</b>}
+        {truncated && <b className="font-semibold text-(--tmd-fg-subtle)">{t(" 已截断,仅显示前 32 个。")}</b>}
       </div>
     </div>
   );

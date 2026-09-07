@@ -11,6 +11,7 @@ import {
   closeSettingsPanel,
   useSettingsState,
 } from "@kernel/settings";
+import { t } from "@kernel/i18n";
 import { useSettingsSections } from "@kernel/settingsRegistry";
 
 export function SettingsPanel() {
@@ -45,11 +46,11 @@ export function SettingsPanel() {
   const ActiveTabComponent = activeTab?.component ?? null;
 
   return (
-    <div className="settings-panel" role="dialog" aria-label="设置">
+    <div className="settings-panel" role="dialog" aria-label={t("设置")}>
       <nav className="settings-nav">
         <button type="button" className="settings-back" onClick={closeSettingsPanel}>
           <ArrowLeft size={14} aria-hidden />
-          返回应用
+          {t("返回应用")}
         </button>
         {sections.map((section) => (
           <button
@@ -62,7 +63,7 @@ export function SettingsPanel() {
             }}
           >
             {section.icon}
-            {section.title}
+            {t(section.title)}
           </button>
         ))}
       </nav>
@@ -70,9 +71,9 @@ export function SettingsPanel() {
       <main className="settings-main">
         {activeSection && (
           <div className="settings-content">
-            <h1 className="settings-title">{activeSection.title}</h1>
+            <h1 className="settings-title">{t(activeSection.title)}</h1>
             {activeSection.description && (
-              <p className="settings-subtitle">{activeSection.description}</p>
+              <p className="settings-subtitle">{t(activeSection.description)}</p>
             )}
 
             {/* 单 tab section 不渲染 tab 条:孤零零一个 tab 配通栏下划线观感差,内容直接平铺。 */}
@@ -88,7 +89,7 @@ export function SettingsPanel() {
                     onClick={() => setActiveTabId(tab.id)}
                   >
                     {tab.icon}
-                    {tab.title}
+                    {t(tab.title)}
                   </button>
                 ))}
               </div>

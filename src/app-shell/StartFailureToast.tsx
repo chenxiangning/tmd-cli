@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Warning, Cross } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { KernelTopics, type SessionStartFailedEvent } from "@kernel/events";
 
 interface Notice extends SessionStartFailedEvent {
@@ -39,11 +40,11 @@ export function StartFailureNotices({
           <div className="sft-card" key={n.id}>
             <div className="sft-head">
               <Warning size={14} className="sft-icon" aria-hidden />
-              <span className="sft-title">{name} 会话启动失败</span>
+              <span className="sft-title">{t("{name} 会话启动失败", { name })}</span>
               <button
                 type="button"
                 className="sft-close"
-                aria-label="关闭启动失败通知"
+                aria-label={t("关闭启动失败通知")}
                 onClick={() => onClose(n.id)}
               >
                 <Cross size={12} aria-hidden />

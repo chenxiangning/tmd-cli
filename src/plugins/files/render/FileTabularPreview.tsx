@@ -3,7 +3,7 @@
  *
  * xlsx 库懒加载;csv 走文本(fileCache 内容),xls/xlsx 走二进制字节通道。
  * 展示上限:200 行 × 30 列 + 截断提示;多 sheet 页签切换。
- * 与 codemoss 差异:i18n 硬编码中文;数据源统一为本地 text/bytes
+ * 与 codemoss 差异:文案走 t() 词典;数据源统一为本地 text/bytes
  * (codemoss 的 asset:// fetch 改为 readBinaryFileBase64)。
  */
 
@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { WorkBook } from "xlsx";
 import { loadPreviewBytes } from "./previewBytes";
 import { isTabularBinaryPath } from "./renderProfile";
+import { t } from "@kernel/i18n";
 
 type FileTabularPreviewProps = {
   path: string;
@@ -118,7 +119,7 @@ export function FileTabularPreview({ path, text }: FileTabularPreviewProps) {
     if (!input) {
       setSheets([]);
       setActiveSheetIndex(0);
-      setParseError("表格预览不可用");
+      setParseError(t("表格预览不可用"));
       setIsParsing(false);
       return;
     }
@@ -133,14 +134,14 @@ export function FileTabularPreview({ path, text }: FileTabularPreviewProps) {
           /* Rust 侧 8MB 闸已挡;这里再校验一次,防御非 Tauri 通道的旁路数据。 */
           const bytes = await loadPreviewBytes(input.path);
           if (bytes.byteLength > MAX_TABULAR_PREVIEW_MB * 1024 * 1024) {
-            throw new Error(`文件超过 ${MAX_TABULAR_PREVIEW_MB}MB,不支持表格预览`);
+            throw new Error(t("文件超过 {n}MB,不支持表格预览", { n: MAX_TABULAR_PREVIEW_MB }));
           }
         }
         const nextSheets = await parseSheets(input);
         if (!cancelled) {
           setSheets(nextSheets);
           setActiveSheetIndex(0);
-          setParseError(nextSheets.length === 0 ? "表格为空" : null);
+          setParseError(nextSheets.length === 0 ? t("表格为空") : null);
           setIsParsing(false);
         }
       } catch (parseFailure) {
@@ -166,7 +167,7 @@ export function FileTabularPreview({ path, text }: FileTabularPreviewProps) {
   );
 
   if (isParsing) {
-    return <div className="fvp-status">加载中…</div>;
+    return <div className="fvp-status">{t("加载中…")}</div>;
   }
 
   if (parseError) {
@@ -174,7 +175,7 @@ export function FileTabularPreview({ path, text }: FileTabularPreviewProps) {
   }
 
   if (!activeSheet) {
-    return <div className="fvp-status">表格预览不可用</div>;
+    return <div className="fvp-status">{t("表格预览不可用")}</div>;
   }
 
   const hasAnyCell = activeSheet.rows.some((row) => row.some((cell) => cell.length > 0));
@@ -184,11 +185,11 @@ export function FileTabularPreview({ path, text }: FileTabularPreviewProps) {
     <div className="fvp-preview-scroll">
       <div className="fvp-tabular-preview">
         <header className="fvp-preview-section-header">
-          <strong>表格预览</strong>
-          <span>{`${activeSheet.totalRows} 行 · ${activeSheet.totalColumns} 列`}</span>
+          <strong>{t("表格预览")}</strong>
+          <span>{t("{rows} 行 · {cols} 列", { rows: activeSheet.totalRows, cols: activeSheet.totalColumns })}</span>
         </header>
         {sheets.length > 1 ? (
-          <div className="fvp-tabular-sheet-tabs" role="tablist" aria-label="工作表">
+          <div className="fvp-tabular-sheet-tabs" role="tablist" aria-label={t("工作表")}>
             {sheets.map((sheet, index) => (
               <button
                 key={sheet.name}
@@ -203,7 +204,7 @@ export function FileTabularPreview({ path, text }: FileTabularPreviewProps) {
         ) : null}
         {showTruncationHint ? (
           <div className="fvp-preview-budget-hint">
-            {`仅展示前 ${MAX_TABLE_ROWS} 行 × ${MAX_TABLE_COLUMNS} 列`}
+            {t("仅展示前 {rows} 行 × {cols} 列", { rows: MAX_TABLE_ROWS, cols: MAX_TABLE_COLUMNS })}
           </div>
         ) : null}
         {hasAnyCell ? (
@@ -225,7 +226,7 @@ export function FileTabularPreview({ path, text }: FileTabularPreviewProps) {
             </table>
           </div>
         ) : (
-          <div className="fvp-status">表格为空</div>
+          <div className="fvp-status">{t("表格为空")}</div>
         )}
       </div>
     </div>

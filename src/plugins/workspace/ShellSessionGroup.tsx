@@ -6,6 +6,7 @@
 
 import { TerminalWindow } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import type { Workspace } from "@kernel/workspace";
 import type { SessionMeta } from "@kernel/ipc";
@@ -25,7 +26,7 @@ export function ShellSessionGroup({ workspace }: { workspace: Workspace }) {
   return (
     <div className="cli-group">
       <GroupHeader
-        label="终端"
+        label={t("终端")}
         icon={<TerminalWindow size={12} />}
         count={sessions.length}
         collapsed={collapsed}
@@ -44,7 +45,7 @@ export function ShellSessionGroup({ workspace }: { workspace: Workspace }) {
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
-                if (window.confirm(`结束终端会话「${title}」?`)) {
+                if (window.confirm(t("结束终端会话「{title}」?", { title }))) {
                   void host.removeSession(session.id);
                 }
               }}

@@ -4,6 +4,7 @@
  * HEAD:refs/for/<branch>[%suffix],语义对齐 codemoss)。
  */
 
+import { t } from "@kernel/i18n";
 import { UploadSimple } from "@phosphor-icons/react";
 import { OpToggle } from "./GitDialogShell";
 
@@ -44,12 +45,12 @@ export function PushGerritSection({
       {gerrit && (
         <div className="mt-2 rounded-md border border-(--tmd-border) bg-(--tmd-bg-sunken) p-2.5">
           <div className="text-xs text-(--tmd-fg-muted)">
-            将推送到 <code className="font-mono text-(--tmd-fg)">refs/for/{target.trim() || branch}</code>。
+            {t("将推送到 {ref}。", { ref: `refs/for/${target.trim() || branch}` })}
           </div>
           <div className="mt-2 grid grid-cols-3 gap-2">
             <GerritInput label="Topic" value={topic} onChange={onTopic} disabled={submitting} />
-            <GerritInput label="Reviewers" value={reviewers} onChange={onReviewers} disabled={submitting} placeholder="用户名,逗号分隔" />
-            <GerritInput label="CC" value={cc} onChange={onCc} disabled={submitting} placeholder="用户名,逗号分隔" />
+            <GerritInput label="Reviewers" value={reviewers} onChange={onReviewers} disabled={submitting} placeholder={t("用户名,逗号分隔")} />
+            <GerritInput label="CC" value={cc} onChange={onCc} disabled={submitting} placeholder={t("用户名,逗号分隔")} />
           </div>
         </div>
       )}

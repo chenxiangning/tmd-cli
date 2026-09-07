@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowClockwise } from "@phosphor-icons/react";
 import { ipc, type DirEntry } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
 import { FileTreeRow } from "./FileTreeRow";
 import { openFileInTab } from "./openFile";
@@ -175,10 +176,10 @@ function FileTree({ root }: { root: string }) {
             <span className="file-tree-loading-spinner" aria-hidden>
               <ArrowClockwise size={12} />
             </span>
-            <span>加载中…</span>
+            <span>{t("加载中…")}</span>
           </div>
         ) : entries.length === 0 ? (
-          <div className="file-tree-empty">目录为空</div>
+          <div className="file-tree-empty">{t("目录为空")}</div>
         ) : (
           renderEntries(entries, 0)
         )}
@@ -210,16 +211,16 @@ function FileTree({ root }: { root: string }) {
         <NamePrompt
           title={
             ops.prompt.kind === "new-file"
-              ? "新建文件"
+              ? t("新建文件")
               : ops.prompt.kind === "new-folder"
-                ? "新建文件夹"
-                : "重命名"
+                ? t("新建文件夹")
+                : t("重命名")
           }
           parentPath={
             ops.prompt.kind === "rename" ? ops.prompt.entry.path : ops.prompt.dir
           }
           initialName={ops.prompt.kind === "rename" ? ops.prompt.entry.name : undefined}
-          confirmLabel={ops.prompt.kind === "rename" ? "重命名" : "创建"}
+          confirmLabel={ops.prompt.kind === "rename" ? t("重命名") : t("创建")}
           error={ops.promptError}
           onCancel={ops.closePrompt}
           onConfirm={ops.submitPrompt}

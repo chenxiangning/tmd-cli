@@ -10,6 +10,7 @@ import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import type {
@@ -600,6 +601,12 @@ export function windowMinimize(): Promise<void> {
 /** 窗口最大化/还原切换。 */
 export function windowToggleMaximize(): Promise<void> {
   return getCurrentWindow().toggleMaximize();
+}
+
+/** 界面缩放:webview 整页 zoom(mac pageZoom / win zoomFactor / gtk zoom_level)。
+ *  需 capability core:webview:allow-set-webview-zoom;浏览器环境 reject 由 kernel/uiZoom 兜底。 */
+export function setWebviewZoom(factor: number): Promise<void> {
+  return getCurrentWebview().setZoom(factor);
 }
 
 /** 关闭窗口。 */

@@ -19,6 +19,7 @@ import {
 } from "react";
 import { BracketsCurly, Check, Code, Copy, FileCode, FileText, Hash, Gear, Sigma, Terminal, type Icon } from "@phosphor-icons/react";
 import { highlightLine } from "./syntax";
+import { t } from "@kernel/i18n";
 
 /* ── 语言 badge(照抄 codemoss codeBlockLanguageIcon 的桶映射) ── */
 
@@ -113,8 +114,8 @@ function CodeBlockCopyButton({ value }: { value: string }) {
       type="button"
       className={`ghost markdown-codeblock-copy${copied ? " is-copied" : ""}`}
       onClick={handleCopy}
-      aria-label="复制代码"
-      title={copied ? "已复制" : "复制"}
+      aria-label={t("复制代码")}
+      title={copied ? t("已复制") : t("复制")}
     >
       {copied ? (
         <Check className="markdown-codeblock-copy-icon" aria-hidden="true" />
@@ -256,7 +257,7 @@ export function LazyMarkdownHeavyBlock({
       data-testid="file-markdown-heavy-placeholder"
       aria-label={label}
     >
-      加载中…
+      {t("加载中…")}
     </div>
   );
 }

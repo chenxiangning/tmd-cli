@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { t } from "@kernel/i18n";
 import type { InstallState } from "./EngineCard";
 
 export function InstallLog({
@@ -39,11 +40,11 @@ export function InstallLog({
         ))}
       </div>
       {install.ok === true && (
-        <div className="welcome-install-done is-ok">{label}完成</div>
+        <div className="welcome-install-done is-ok">{t("{label}完成", { label })}</div>
       )}
       {install.ok === false && (
         <div className="welcome-install-done is-fail">
-          {label}失败,日志见上方
+          {t("{label}失败,日志见上方", { label })}
         </div>
       )}
     </div>

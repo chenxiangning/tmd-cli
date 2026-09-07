@@ -5,6 +5,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import {
   downloadNode,
   joinRemote,
@@ -36,31 +37,31 @@ export function TreeMenu({
       } else if (action === "upload") {
         await uploadPicked(sessionId, onMutate, node.kind === "dir" ? node.path : parent);
       } else if (action === "mkdir") {
-        const name = window.prompt("新目录名");
+        const name = window.prompt(t("新目录名"));
         if (!name?.trim()) return;
         await ipc.sftpMkdir(sessionId, joinRemote(parent, name.trim()));
         onMutate();
       } else if (action === "rename") {
-        const name = window.prompt("新名称", node.name);
+        const name = window.prompt(t("新名称"), node.name);
         if (!name?.trim() || name.trim() === node.name) return;
         await ipc.sftpRename(sessionId, node.path, joinRemote(parent, name.trim()));
         onMutate();
       } else if (action === "delete") {
-        if (!window.confirm(`删除远端 ${node.path}?`)) return;
+        if (!window.confirm(t("删除远端 {path}?", { path: node.path }))) return;
         await ipc.sftpDelete(sessionId, target, true);
         onMutate();
       }
     } catch (e) {
-      window.alert(`操作失败:${e instanceof Error ? e.message : String(e)}`);
+      window.alert(t("操作失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
     }
   };
 
   const items = [
-    { id: "download", label: node.kind === "dir" ? "下载目录…" : "下载文件…" },
-    { id: "upload", label: "上传到此目录…" },
-    { id: "mkdir", label: "新建目录…" },
-    { id: "rename", label: "重命名…" },
-    { id: "delete", label: "删除", danger: true },
+    { id: "download", label: node.kind === "dir" ? t("下载目录…") : t("下载文件…") },
+    { id: "upload", label: t("上传到此目录…") },
+    { id: "mkdir", label: t("新建目录…") },
+    { id: "rename", label: t("重命名…") },
+    { id: "delete", label: t("删除"), danger: true },
   ];
   return (
     <>

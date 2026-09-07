@@ -13,6 +13,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { openExternalUrl } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import {
   extractLanguageTag,
   FileMarkdownCodeBlock,
@@ -123,7 +124,7 @@ export function useMarkdownComponents({
     table: ({ node, children }) => (
       <FileMarkdownTableBlock
         defer={progressive}
-        label="表格"
+        label={t("表格")}
         revealKey={`${documentKey}:${blockKey}:table:${node?.position?.start.line ?? 0}`}
         scrollCacheKey={`${documentKey}:${blockKey}:table-scroll:${node?.position?.start.line ?? 0}`}
       >

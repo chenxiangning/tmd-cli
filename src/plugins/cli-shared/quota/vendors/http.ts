@@ -1,6 +1,7 @@
 /* ── 公共小工具(仅 vendors/ 目录内共享,不进 barrel)─────────── */
 
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import type { QuotaWindow } from "@kernel/quota";
 
 export function asNum(v: unknown): number | undefined {
@@ -38,7 +39,7 @@ export async function httpJson(spec: {
 }): Promise<unknown> {
   const resp = await ipc.quotaFetch({ url: spec.url, method: "GET", headers: spec.headers });
   if (resp.status === 401 || resp.status === 403) {
-    throw new Error(`鉴权失败 (HTTP ${resp.status})`);
+    throw new Error(t("鉴权失败 (HTTP {status})", { status: resp.status }));
   }
   if (resp.status < 200 || resp.status >= 300) {
     const hint = JSON.stringify(resp.body)?.slice(0, 200) ?? "";

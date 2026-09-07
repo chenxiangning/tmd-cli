@@ -12,6 +12,7 @@ import { CaretDown, MagnifyingGlass } from "@phosphor-icons/react";
 import { useWorkspaces } from "@kernel/workspace";
 import { type MemoryItem } from "../protocol";
 import { useEditorTabs } from "@kernel/tabs";
+import { t } from "@kernel/i18n";
 import { archiveMemory } from "../phase2/write";
 import { memoryPool, resolveProjectIdentity } from "../pool";
 import {
@@ -115,7 +116,7 @@ export function MemoryPanel() {
   });
 
   if (!root) {
-    return <div className="placeholder p-4 text-center text-[11px] text-(--tmd-fg-faint)">未选择工作区</div>;
+    return <div className="placeholder p-4 text-center text-[11px] text-(--tmd-fg-faint)">{t("未选择工作区")}</div>;
   }
 
   if (ready === false) {
@@ -126,13 +127,13 @@ export function MemoryPanel() {
       <div className="flex h-full min-h-0 flex-col">
         <div className="p-3">
           <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2.5 text-[11px] leading-relaxed text-(--tmd-fg-muted)">
-            <span className="text-(--tmd-err)">池不可用</span>
+            <span className="text-(--tmd-err)">{t("池不可用")}</span>
             {identity === null
-              ? " —— 当前工作区不是 git 仓库,未纳入记忆池。"
+              ? t(" —— 当前工作区不是 git 仓库,未纳入记忆池。")
               : poolReason === "locked"
-                ? " —— 共享 SQLite 暂时读不到(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。"
-                : " —— Magic Context 共享库尚未初始化(未安装或未迁移),点下方「控制台」完成安装/迁移。"}
-            <div className="mt-1 text-(--tmd-fg-faint)">会话 / 对话框 / 审批线不受影响。</div>
+                ? t(" —— 共享 SQLite 暂时读不到(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。")
+                : t(" —— Magic Context 共享库尚未初始化(未安装或未迁移),点下方「控制台」完成安装/迁移。")}
+            <div className="mt-1 text-(--tmd-fg-faint)">{t("会话 / 对话框 / 审批线不受影响。")}</div>
           </div>
         </div>
         <div className="min-h-0 flex-1" />
@@ -147,17 +148,17 @@ export function MemoryPanel() {
         onClick={() => setDetailOpen(!detailOpen)}
       >
         <span className="h-2 w-2 flex-none rounded-full bg-(--tmd-ok)" />
-        <span className="text-[11px] text-(--tmd-fg-muted)">池就绪</span>
-        <span className="ml-auto text-[11px] font-semibold">{count} 条</span>
+        <span className="text-[11px] text-(--tmd-fg-muted)">{t("池就绪")}</span>
+        <span className="ml-auto text-[11px] font-semibold">{t("{count} 条", { count })}</span>
         <CaretDown size={11} className={detailOpen ? "rotate-180 transition-transform" : "transition-transform"} />
       </button>
       {detailOpen && (
         <div className="mb-2 flex flex-col gap-0.5 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2 font-mono text-[10px] text-(--tmd-fg-muted)">
-          <div className="truncate" title={dbPath ?? "未解析"}>库:{dbPath ?? "未解析"}</div>
-          <div className="truncate" title={identity ?? "非 git 工作区"}>身份:{identity ?? "非 git 工作区"}</div>
-          <div>生效记忆:{count} 条 · 覆盖类目:{presentKinds.length} 类</div>
+          <div className="truncate" title={dbPath ?? t("未解析")}>{t("库:{path}", { path: dbPath ?? t("未解析") })}</div>
+          <div className="truncate" title={identity ?? t("非 git 工作区")}>{t("身份:{id}", { id: identity ?? t("非 git 工作区") })}</div>
+          <div>{t("生效记忆:{count} 条 · 覆盖类目:{kinds} 类", { count, kinds: presentKinds.length })}</div>
           <div className="truncate text-(--tmd-fg-faint)">
-            提示:记忆由 omp/pi 会话沉淀(原生注入),其余引擎经胶囊读取;写入与治理见控制台。
+            {t("提示:记忆由 omp/pi 会话沉淀(原生注入),其余引擎经胶囊读取;写入与治理见控制台。")}
           </div>
         </div>
       )}
@@ -168,7 +169,7 @@ export function MemoryPanel() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="关键词检索(FTS)…"
+            placeholder={t("关键词检索(FTS)…")}
             className="h-[26px] w-full rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) pl-7 pr-2 text-[11px] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) focus:border-(--tmd-accent)"
           />
         </div>
@@ -184,7 +185,7 @@ export function MemoryPanel() {
             }`}
             onClick={() => setSource("all")}
           >
-            全部来源
+            {t("全部来源")}
           </button>
           {presentSources.map(([srcName, n]) => (
             <button
@@ -212,7 +213,7 @@ export function MemoryPanel() {
             }`}
             onClick={() => setKind("all")}
           >
-            全部 {items.length}
+            {t("全部 {n}", { n: items.length })}
           </button>
           {presentKinds.map(([key, n]) => (
             <button
@@ -255,10 +256,10 @@ export function MemoryPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-1">
         {loading ? (
-          <div className="p-3 text-center text-[11px] text-(--tmd-fg-faint)">读取中…</div>
+          <div className="p-3 text-center text-[11px] text-(--tmd-fg-faint)">{t("读取中…")}</div>
         ) : filtered.length === 0 ? (
           <div className="p-3 text-center text-[11px] text-(--tmd-fg-faint)">
-            {count === 0 ? "当前工作区还没有记忆" : "无匹配"}
+            {count === 0 ? t("当前工作区还没有记忆") : t("无匹配")}
           </div>
         ) : (
           filtered.map((m) => (

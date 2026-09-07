@@ -18,6 +18,8 @@
  * fetchers(kimi/minimax/zhipu/deepseek) / codex(wham 降级) / relay(中转站)。
  */
 
+import { t } from "@kernel/i18n";
+
 import { fetchOpenaiCodex } from "./codex";
 import { fetchDeepseek, fetchKimi, fetchMinimax, fetchZhipu } from "./fetchers";
 import { fetchRelay } from "./relay";
@@ -53,30 +55,30 @@ export async function fetchVendorQuota(
   const keyOrAccess = cred.key ?? cred.access;
   switch (vendor) {
     case "kimi":
-      if (!keyOrAccess) throw new Error("缺少 kimi 凭据");
+      if (!keyOrAccess) throw new Error(t("缺少 kimi 凭据"));
       return fetchKimi(keyOrAccess);
     case "minimax-cn":
     case "minimax-en":
-      if (!keyOrAccess) throw new Error("缺少 minimax API key");
+      if (!keyOrAccess) throw new Error(t("缺少 minimax API key"));
       return fetchMinimax(keyOrAccess, vendor === "minimax-cn");
     case "zhipu-cn":
     case "zhipu-en":
-      if (!keyOrAccess) throw new Error("缺少智谱 API key");
+      if (!keyOrAccess) throw new Error(t("缺少智谱 API key"));
       return fetchZhipu(keyOrAccess, vendor === "zhipu-cn");
     case "deepseek":
-      if (!keyOrAccess) throw new Error("缺少 deepseek API key");
+      if (!keyOrAccess) throw new Error(t("缺少 deepseek API key"));
       return fetchDeepseek(keyOrAccess);
     case "openai-codex":
       // 降级路径:仅当官方 OAuth 登录的本地快照不可用,或调用方无快照来源时使用。
       if (!cred.access || !cred.accountId) {
-        throw new Error("缺少 openai-codex oauth 凭据 (access/accountId)");
+        throw new Error(t("缺少 openai-codex oauth 凭据 (access/accountId)"));
       }
       return fetchOpenaiCodex(cred.access, cred.accountId);
     case "relay":
-      if (!keyOrAccess) throw new Error("缺少中转站 API key");
-      if (!baseUrl) throw new Error("中转站查询需要 base_url");
+      if (!keyOrAccess) throw new Error(t("缺少中转站 API key"));
+      if (!baseUrl) throw new Error(t("中转站查询需要 base_url"));
       return fetchRelay(baseUrl, keyOrAccess);
     case "unsupported":
-      throw new Error("该供应商(阿里云百炼 Coding Plan)无公开额度 API,请在控制台查看");
+      throw new Error(t("该供应商(阿里云百炼 Coding Plan)无公开额度 API,请在控制台查看"));
   }
 }

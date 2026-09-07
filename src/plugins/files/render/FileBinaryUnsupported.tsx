@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 
 const BINARY_HINT: Record<string, string> = {
   mp3: "音频文件", wav: "音频文件", ogg: "音频文件", flac: "音频文件",
@@ -32,8 +33,7 @@ export function FileBinaryUnsupported({ path }: { path: string }) {
   return (
     <div className="fvp-binary-unsupported">
       <p>
-        {hint ? `${hint},` : "该文件类型"}
-        {"暂不支持内置预览。"}
+        {hint ? t("{hint},暂不支持内置预览。", { hint: t(hint) }) : t("该文件类型暂不支持内置预览。")}
       </p>
       <button
         type="button"
@@ -42,7 +42,7 @@ export function FileBinaryUnsupported({ path }: { path: string }) {
           ipc.fsRevealInFileManager(path).catch(() => setRevealFailed(true));
         }}
       >
-        在文件管理器中显示
+        {t("在文件管理器中显示")}
       </button>
       {revealFailed ? (
         <p className="fvp-error">{path}</p>

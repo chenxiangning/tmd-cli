@@ -15,6 +15,7 @@ import { useSettingsState } from "@kernel/settings";
 import { NATIVE_INJECT_PROFILES, CATEGORY_CN, type MemoryItem } from "../protocol";
 import { memoryPool, resolveProjectIdentity } from "../pool";
 import { useWorkspaces } from "@kernel/workspace";
+import { t } from "@kernel/i18n";
 
 const COMPOSER_TEXTAREA_ID = "composer-textarea";
 
@@ -63,10 +64,8 @@ export function MemoryCapsule() {
     const chosen = [...checked].map((i) => items[i]);
     if (chosen.length === 0) return;
     const prefix =
-      "[项目记忆 · " +
-      chosen.length +
-      " 条]\n" +
-      chosen.map((m) => `- (${(CATEGORY_CN as Record<string, string>)[m.category] ?? m.category}) ${m.content}`).join("\n") +
+      t("[项目记忆 · {n} 条]", { n: chosen.length }) + "\n" +
+      chosen.map((m) => `- (${t((CATEGORY_CN as Record<string, string>)[m.category] ?? m.category)}) ${m.content}`).join("\n") +
       "\n";
     const textarea = document.getElementById(COMPOSER_TEXTAREA_ID) as HTMLTextAreaElement | null;
     if (!textarea) return;
@@ -93,37 +92,37 @@ export function MemoryCapsule() {
           aria-expanded={expanded}
           onClick={() => setExpanded(!expanded)}
         >
-          <span>项目记忆</span>
+          <span>{t("项目记忆")}</span>
           <span className="font-bold text-(--tmd-accent)">{items.length}</span>
-          <span>条</span>
+          <span>{t("条")}</span>
           <CaretDown
             size={11}
             className={expanded ? "rotate-180 transition-transform" : "transition-transform"}
           />
         </button>
         <span className="min-w-0 flex-1 truncate text-[10.5px] text-(--tmd-fg-subtle)">
-          Magic Context 池 · <span className="text-(--tmd-fg-faint)">omp/pi 会话沉淀</span>
+          {t("Magic Context 池 · ")}<span className="text-(--tmd-fg-faint)">{t("omp/pi 会话沉淀")}</span>
         </span>
       </div>
 
       {expanded && (
         <div className="flex-none border-b border-(--tmd-border) px-2.5 pb-2 pt-1.5">
           <div className="mb-1.5 flex items-center gap-2">
-            <span className="text-[11.5px] font-semibold">项目记忆</span>
-            <span className="text-[10.5px] text-(--tmd-fg-faint)">勾选后注入为消息前缀</span>
+            <span className="text-[11.5px] font-semibold">{t("项目记忆")}</span>
+            <span className="text-[10.5px] text-(--tmd-fg-faint)">{t("勾选后注入为消息前缀")}</span>
             <span className="ml-auto flex flex-none gap-1.5">
               <button
                 className="h-[22px] rounded-md border border-(--tmd-border) px-2.5 text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
                 onClick={() => setChecked(checked.size === items.length ? new Set() : new Set(items.map((_, i) => i)))}
               >
-                {checked.size === items.length ? "全不选" : "全选"}
+                {checked.size === items.length ? t("全不选") : t("全选")}
               </button>
               <button
                 className="h-[22px] rounded-md border border-(--tmd-accent) bg-(--tmd-accent) px-2.5 text-[11px] text-(--tmd-accent-fg) disabled:opacity-45"
                 disabled={checked.size === 0}
                 onClick={inject}
               >
-                注入
+                {t("注入")}
               </button>
             </span>
           </div>
@@ -150,7 +149,7 @@ export function MemoryCapsule() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="mr-1.5 rounded-[3px] border border-(--tmd-border) bg-(--tmd-bg-hover) px-1 py-px text-[10px] text-(--tmd-fg-subtle)">
-                    {(CATEGORY_CN as Record<string, string>)[m.category] ?? m.category}
+                    {t((CATEGORY_CN as Record<string, string>)[m.category] ?? m.category)}
                   </span>
                   {m.content}
                   <span className="ml-1.5 text-[10px] text-(--tmd-fg-faint)">{m.category}</span>
@@ -163,7 +162,7 @@ export function MemoryCapsule() {
 
       {injected && (
         <div className="flex-none truncate border-b border-(--tmd-border) px-2.5 py-1 text-[10.5px] text-(--tmd-accent)">
-          已注入 {checkedCount} 条为消息前缀,发送后 {profile?.name ?? "当前 CLI"} 将按项目约束执行。
+          {t("已注入 {n} 条为消息前缀,发送后 {cli} 将按项目约束执行。", { n: checkedCount, cli: profile?.name ?? t("当前 CLI") })}
         </div>
       )}
     </>

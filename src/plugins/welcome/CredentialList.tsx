@@ -19,6 +19,7 @@
 import { useEffect, useState } from "react";
 import { SHORT_WINDOW_LABEL, type QuotaWindow } from "@kernel/quota";
 import { formatRelativeTime, formatResetAt } from "@kernel/relativeTime";
+import { t } from "@kernel/i18n";
 import { listEngineCredentials, type EngineCredential } from "./credentials";
 
 /** 周级窗口(7天/30天)落第 2 格并用橘色条;其余(5h/1d)落第 1 格。 */
@@ -37,13 +38,21 @@ function resetShort(ms: number): string {
     d.getDate() === now.getDate();
   return sameDay
     ? `${pad(d.getHours())}:${pad(d.getMinutes())}`
-    : `${d.getMonth() + 1}月${d.getDate()}日`;
+    : t("{m}月{d}日", { m: d.getMonth() + 1, d: d.getDate() });
 }
 
 function windowTooltip(w: QuotaWindow): string {
-  const base = `${w.label}窗口 · 已使用 ${Math.round(w.displayPercent)}%`;
+  const label = SHORT_WINDOW_LABEL[w.label] ?? t(w.label);
+  const base = t("{label}窗口 · 已使用 {pct}%", {
+    label,
+    pct: Math.round(w.displayPercent),
+  });
   return w.resetsAt
-    ? `${base} · 重置于 ${formatResetAt(w.resetsAt)}(${formatRelativeTime(w.resetsAt)})`
+    ? t("{base} · 重置于 {at}({relative})", {
+        base,
+        at: formatResetAt(w.resetsAt),
+        relative: formatRelativeTime(w.resetsAt),
+      })
     : base;
 }
 
@@ -59,7 +68,7 @@ function CredWindow({ w }: { w: QuotaWindow }) {
       title={windowTooltip(w)}
     >
       <span className="welcome-cred-window-label">
-        {SHORT_WINDOW_LABEL[w.label] ?? w.label}
+        {SHORT_WINDOW_LABEL[w.label] ?? t(w.label)}
       </span>
       <span className="welcome-cred-window-bar">
         <span
@@ -76,7 +85,10 @@ function CredWindow({ w }: { w: QuotaWindow }) {
       </span>
       <span className="welcome-cred-window-reset">
         {w.resetsAt
-          ? `重置${resetShort(w.resetsAt)} · ${formatRelativeTime(w.resetsAt)}`
+          ? t("重置{time} · {relative}", {
+              time: resetShort(w.resetsAt),
+              relative: formatRelativeTime(w.resetsAt),
+            })
           : ""}
       </span>
     </div>
@@ -109,7 +121,7 @@ export function CredentialList({ engineId }: { engineId: string }) {
       {creds.map((cred) => (
         <div key={cred.providerId} className="welcome-cred">
           <div className="welcome-cred-head">
-            <span className="welcome-cred-title">{cred.title}</span>
+            <span className="welcome-cred-title">{t(cred.title)}</span>
             {cred.windows.length > 0 && cred.planLabel && (
               <span className="welcome-cred-plan">{cred.planLabel}</span>
             )}
@@ -129,7 +141,7 @@ export function CredentialList({ engineId }: { engineId: string }) {
             </div>
           ) : (
             <div className="welcome-cred-body">
-              <span className="welcome-cred-note">{cred.note ?? "已登录"}</span>
+              <span className="welcome-cred-note">{cred.note ?? t("已登录")}</span>
               {cred.planLabel && (
                 <span className="welcome-cred-plan">{cred.planLabel}</span>
               )}

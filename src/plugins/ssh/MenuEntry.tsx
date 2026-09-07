@@ -4,6 +4,7 @@
  */
 
 import { HardDrive } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import { openHostPicker } from "./state";
 
 export function MenuEntry() {
@@ -16,7 +17,7 @@ export function MenuEntry() {
       <span className="wsmenu-item-icon">
         <HardDrive size={14} />
       </span>
-      <span className="wsmenu-item-label">SSH 连接…</span>
+      <span className="wsmenu-item-label">{t("SSH 连接…")}</span>
     </button>
   );
 }

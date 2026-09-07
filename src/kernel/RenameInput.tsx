@@ -7,6 +7,7 @@
  * settled 闸:提交/取消后卸载触发的二次 blur 不得重复回调。
  */
 import { useRef, useState } from "react";
+import { t } from "@kernel/i18n";
 
 /** 行内重命名目标:以 CLI 磁盘身份为 key(与覆盖层同 key)。 */
 export interface RenameTarget {
@@ -38,7 +39,7 @@ export function RenameInput({
       className={className}
       autoFocus
       value={value}
-      placeholder="会话名称(留空清除命名)"
+      placeholder={t("会话名称(留空清除命名)")}
       onChange={(e) => setValue(e.target.value)}
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {

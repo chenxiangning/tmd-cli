@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { t } from "@kernel/i18n";
 import { createPortal } from "react-dom";
 import { CaretDown, GitDiff, GitBranch, Graph, Rows, TreeStructure } from "@phosphor-icons/react";
 import {
@@ -62,11 +63,11 @@ export function GitToolbar() {
         className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-xs font-medium hover:bg-(--tmd-bg-hover)"
       >
         <ViewIcon className="h-3 w-3" aria-hidden />
-        {menuPos && VIEW_LABEL[view]}
+        {menuPos && t(VIEW_LABEL[view])}
         <CaretDown className="h-3 w-3 text-(--tmd-fg-faint)" aria-hidden />
       </button>
       {totals && (
-        <span title="聚合增删行数(staged + 未暂存;多仓 = 选中仓口径)">
+        <span title={t("聚合增删行数(staged + 未暂存;多仓 = 选中仓口径)")}>
           <span className="text-(--tmd-diff-inserted)">
             +{totals.insertions.toLocaleString("en-US")}
           </span>
@@ -135,21 +136,21 @@ function ViewMenu({
             <button key={v} type="button" className={item} onClick={() => onPick(v)}>
               <span className="flex items-center gap-1.5">
                 <VIcon className="h-3 w-3" aria-hidden />
-                <span>{VIEW_LABEL[v]}</span>
+                <span>{t(VIEW_LABEL[v])}</span>
               </span>
               {current === v && <span>✓</span>}
             </button>
           );
         })}
         {sep}
-        <div className="px-3 py-1 text-[10px] text-(--tmd-fg-faint)">文件列表视图</div>
+        <div className="px-3 py-1 text-[10px] text-(--tmd-fg-faint)">{t("文件列表视图")}</div>
         {(["flat", "tree"] as const).map((l) => {
           const LIcon = LAYOUT_ICON[l];
           return (
             <button key={l} type="button" className={item} onClick={() => onPick(l)}>
               <span className="flex items-center gap-1.5">
                 <LIcon className="h-3 w-3" aria-hidden />
-                <span>{l === "flat" ? "平铺" : "树形"}</span>
+                <span>{l === "flat" ? t("平铺") : t("树形")}</span>
               </span>
               {layout === l && <span>✓</span>}
             </button>

@@ -19,6 +19,7 @@ import {
 } from "@kernel/filePanel";
 import { useWorkspaces } from "@kernel/workspace";
 import { deriveWorkspaceName } from "@kernel/pathUtils";
+import { t } from "@kernel/i18n";
 
 /** workspace 路径末段当 section title。例 /Users/x/CCGUI → CCGUI。 */
 function deriveWorkspaceLabel(root: string, fallbackName?: string): string {
@@ -57,7 +58,7 @@ export function TopBarPanelTabs() {
   return (
     <div className="panel-tabs-row">
       {ActiveToolbar ? <ActiveToolbar /> : null}
-      <div className="panel-tabs" role="tablist" aria-label="右侧面板">
+      <div className="panel-tabs" role="tablist" aria-label={t("右侧面板")}>
         {visiblePanels.map((panel) => {
           const Icon = panel.icon;
           const isActive = panel.id === mode;
@@ -67,8 +68,8 @@ export function TopBarPanelTabs() {
               type="button"
               className={`panel-tab${isActive ? " is-active" : ""}`}
               onClick={() => setFilePanelMode(panel.id)}
-              aria-label={panel.label}
-              title={panel.label}
+              aria-label={t(panel.label)}
+              title={t(panel.label)}
             >
               <Icon aria-hidden />
             </button>
@@ -80,8 +81,8 @@ export function TopBarPanelTabs() {
         type="button"
         className="panel-tab panel-tab-overflow"
         onClick={toggleOverflow}
-        aria-label="更多面板"
-        title="更多面板"
+        aria-label={t("更多面板")}
+        title={t("更多面板")}
       >
         <DotsThree aria-hidden />
       </button>
@@ -149,12 +150,12 @@ function PanelOverflowMenu({
               <span className="panel-overflow-item-icon" aria-hidden>
                 <Icon aria-hidden />
               </span>
-              <span className="panel-overflow-item-label">{panel.label}</span>
+              <span className="panel-overflow-item-label">{t(panel.label)}</span>
               <span
                 className={`panel-overflow-item-check${isChecked ? " is-checked" : ""}`}
                 role="checkbox"
                 aria-checked={isChecked}
-                title="钉到工具条"
+                title={t("钉到工具条")}
                 onClick={(e) => {
                   e.stopPropagation();
                   togglePinned(panel.id);
@@ -207,8 +208,8 @@ function WorkspaceSubbar() {
         <button
           type="button"
           className="panel-subbar-action"
-          aria-label="新建文件"
-          title="新建文件"
+          aria-label={t("新建文件")}
+          title={t("新建文件")}
           disabled={!activePanel?.newFile}
           onClick={() => activePanel?.newFile?.()}
         >
@@ -217,8 +218,8 @@ function WorkspaceSubbar() {
         <button
           type="button"
           className="panel-subbar-action"
-          aria-label="新建文件夹"
-          title="新建文件夹"
+          aria-label={t("新建文件夹")}
+          title={t("新建文件夹")}
           disabled={!activePanel?.newFolder}
           onClick={() => activePanel?.newFolder?.()}
         >
@@ -227,8 +228,8 @@ function WorkspaceSubbar() {
         <button
           type="button"
           className="panel-subbar-action"
-          aria-label="刷新文件树"
-          title="刷新文件树"
+          aria-label={t("刷新文件树")}
+          title={t("刷新文件树")}
           onClick={handleRefreshFiles}
         >
           <ArrowClockwise

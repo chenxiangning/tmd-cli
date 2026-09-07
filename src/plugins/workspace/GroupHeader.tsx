@@ -9,6 +9,7 @@
 
 import type { ReactNode } from "react";
 import { CaretDown, CaretRight, ListChecks } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 
 export function GroupHeader({
   label,
@@ -34,7 +35,7 @@ export function GroupHeader({
       className="cli-group-label"
       onClick={onToggle}
       aria-expanded={!collapsed}
-      title={collapsed ? "展开分组" : "折叠分组"}
+      title={collapsed ? t("展开分组") : t("折叠分组")}
     >
       {icon ? (
         <span className="cli-group-label-icon" aria-hidden>
@@ -48,8 +49,8 @@ export function GroupHeader({
           role="button"
           tabIndex={0}
           aria-pressed={manage.active}
-          aria-label="会话管理"
-          title="会话管理"
+          aria-label={t("会话管理")}
+          title={t("会话管理")}
           className={`cli-group-manage${manage.active ? " is-on" : ""}`}
           onClick={(e) => {
             e.stopPropagation();

@@ -182,3 +182,38 @@ describe("THEME_CSS_VARIABLE_KEYS", () => {
     }
   });
 });
+
+describe("终端 ANSI 16 色 token", () => {
+  it("浅色 preset:16 槽位齐全,值 = VS Code 官方浅色默认表", () => {
+    const tokens = mapPresetToTokens(presetOf("light", {}));
+    expect(tokens["--tmd-terminal-black"]).toBe("#000000");
+    expect(tokens["--tmd-terminal-red"]).toBe("#cd3131");
+    expect(tokens["--tmd-terminal-green"]).toBe("#107c10");
+    expect(tokens["--tmd-terminal-yellow"]).toBe("#949800");
+    expect(tokens["--tmd-terminal-blue"]).toBe("#0451a5");
+    expect(tokens["--tmd-terminal-bright-black"]).toBe("#666666");
+    expect(tokens["--tmd-terminal-bright-yellow"]).toBe("#b5ba00");
+    expect(tokens["--tmd-terminal-bright-white"]).toBe("#a5a5a5");
+    for (const slot of ["black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
+      "bright-black", "bright-red", "bright-green", "bright-yellow",
+      "bright-blue", "bright-magenta", "bright-cyan", "bright-white"]) {
+      expect(tokens[`--tmd-terminal-${slot}`]).toMatch(/^#[0-9a-f]{6}$/);
+    }
+  });
+
+  it("深色 preset:取 VS Code 深色默认表(brightGreen/Blue 与浅色表不同)", () => {
+    const tokens = mapPresetToTokens(presetOf("dark", {}));
+    expect(tokens["--tmd-terminal-green"]).toBe("#0dbc79");
+    expect(tokens["--tmd-terminal-bright-blue"]).toBe("#3b8eea");
+    expect(tokens["--tmd-terminal-bright-white"]).toBe("#e5e5e5");
+  });
+
+  it("preset 可用 terminal.ansi* 逐槽覆盖(VS Code 命名)", () => {
+    const tokens = mapPresetToTokens(
+      presetOf("light", { "terminal.ansiRed": "#ff0000", "terminal.ansiBrightWhite": "#123456" }),
+    );
+    expect(tokens["--tmd-terminal-red"]).toBe("#ff0000");
+    expect(tokens["--tmd-terminal-bright-white"]).toBe("#123456");
+    expect(tokens["--tmd-terminal-blue"]).toBe("#0451a5");
+  });
+});

@@ -5,7 +5,7 @@
  * (关键字 pill + 摘要 + 续行合并的原文)。超预算(120KB/3000 行)回退
  * 只展示前 240 行的 bounded 视图。代码高亮复用 markdown 管线的 highlightLine。
  * 代码高亮复用 markdown 管线的 highlightLine。
- * 与 codemoss 差异:i18n 硬编码中文。
+ * 与 codemoss 差异:文案走 t() 词典。
  * 纯解析器(parseShellPreview / parseDockerfilePreview)拆至 structuredParsers.ts
  * (文件规模铁则),此处保留 re-export 以维持既有导入契约。
  */
@@ -13,6 +13,7 @@
 import { useMemo } from "react";
 import { highlightLine } from "../markdown/syntax";
 import { resolveStructuredPreviewKind } from "./renderProfile";
+import { t } from "@kernel/i18n";
 import {
   createFileDocumentSnapshot,
   type FileDocumentSnapshot,
@@ -143,7 +144,7 @@ function BoundedStructuredFallback({
       <section className="fvp-structured-preview-section">
         <div className="fvp-structured-preview-code">
           <div className="fvp-structured-preview-code-label">
-            {`文件较大,仅展示前 ${visibleLineCount} / ${documentSnapshot.lineCount} 行`}
+            {t("文件较大,仅展示前 {visible} / {total} 行", { visible: visibleLineCount, total: documentSnapshot.lineCount })}
           </div>
           <pre>
             <code

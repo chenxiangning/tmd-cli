@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { ipc, type GitRepoSummary } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 
 const SLOW_POLL_MS = 60_000;
 
@@ -32,7 +33,7 @@ export function useRepoBranches(root: string): ReadonlyMap<string, string> {
           const next = new Map<string, string>();
           for (const r of out.repos) {
             const kind = KIND_LABEL[r.kind];
-            const tag = [kind, r.branch].filter((s): s is string => s != null && s !== "").join(" · ");
+            const tag = [kind != null ? t(kind) : null, r.branch].filter((s): s is string => s != null && s !== "").join(" · ");
             if (tag) next.set(r.path, tag);
           }
           setTags((prev) => (prev.size === next.size && [...prev].every(([k, v]) => next.get(k) === v) ? prev : next));

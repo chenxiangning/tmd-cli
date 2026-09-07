@@ -1,5 +1,6 @@
 /* ── key 型供应商 fetcher: kimi / minimax / zhipu / deepseek ──── */
 
+import { t } from "@kernel/i18n";
 import type { QuotaWindow } from "@kernel/quota";
 import { asNum, extractResetTime, httpJson, window } from "./http";
 import type { VendorQuota } from "./types";
@@ -54,7 +55,10 @@ export async function fetchMinimax(key: string, isCn: boolean): Promise<VendorQu
 
   if (body.base_resp && (body.base_resp.status_code ?? -1) !== 0) {
     throw new Error(
-      `MiniMax API 错误 (code ${body.base_resp.status_code}): ${body.base_resp.status_msg ?? "未知"}`,
+      t("MiniMax API 错误 (code {code}): {msg}", {
+        code: body.base_resp.status_code,
+        msg: body.base_resp.status_msg ?? t("未知"),
+      }),
     );
   }
 
@@ -100,10 +104,10 @@ interface ZhipuLimitBody {
 /** 智谱响应 → 窗口(纯函数,可测)。unit 3 → 5h;unit 6 → 周窗口;缺失时按 nextResetTime 启发式。 */
 export function parseZhipuLimit(body: ZhipuLimitBody): VendorQuota {
   if (body.success === false) {
-    throw new Error(`智谱 API 错误: ${body.msg ?? "未知"}`);
+    throw new Error(t("智谱 API 错误: {msg}", { msg: body.msg ?? t("未知") }));
   }
   const data = body.data;
-  if (!data) throw new Error("智谱响应缺 data 字段");
+  if (!data) throw new Error(t("智谱响应缺 data 字段"));
 
   // 对齐 CC Switch: unit 3 → 5h;unit 6 → 周窗口;缺失时按 nextResetTime 启发式
   let fiveHour: QuotaWindow | undefined;

@@ -5,7 +5,7 @@
  * portal + fixed z-1000(同 GitConfirmDialog 层级纪律);Esc/遮罩 = 取消;
  * Enter = 确认(输入框 autoFocus);空名/与原名同名禁用确认。
  */
-
+import { t } from "@kernel/i18n";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -77,7 +77,7 @@ export function BranchNameDialog({
             onClick={onClose}
             className="rounded border border-(--tmd-border) px-2.5 py-1 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
           >
-            取消
+            {t("取消")}
           </button>
           <button
             disabled={!canConfirm}

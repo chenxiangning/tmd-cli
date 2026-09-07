@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Copy, Pencil, Trash } from "@phosphor-icons/react";
 import type { SessionPinScope } from "@kernel/sessionPins";
+import { t } from "@kernel/i18n";
 import { clampMenuPosition } from "./SessionMenu";
 import { PinIcon } from "./SessionRows";
 
@@ -52,7 +53,7 @@ export function SessionContextMenu({
     <button
       className="wsmenu-item"
       disabled={pinScope === undefined}
-      title={pinScope === undefined ? "会话尚未落盘,暂不可置顶" : undefined}
+      title={pinScope === undefined ? t("会话尚未落盘,暂不可置顶") : undefined}
       onClick={() => {
         onPinScope(scope);
         onClose();
@@ -88,12 +89,12 @@ export function SessionContextMenu({
           <span className="wsmenu-item-icon">
             <Copy size={13} />
           </span>
-          <span className="wsmenu-item-label">复制 Session ID</span>
+          <span className="wsmenu-item-label">{t("复制 Session ID")}</span>
         </button>
         <button
           className="wsmenu-item"
           disabled={!canRename}
-          title={canRename ? undefined : "会话尚未落盘,暂不可命名"}
+          title={canRename ? undefined : t("会话尚未落盘,暂不可命名")}
           onClick={() => {
             onRename();
             onClose();
@@ -102,10 +103,10 @@ export function SessionContextMenu({
           <span className="wsmenu-item-icon">
             <Pencil size={13} />
           </span>
-          <span className="wsmenu-item-label">重命名</span>
+          <span className="wsmenu-item-label">{t("重命名")}</span>
         </button>
-        {pinItem("global", "置顶到全局")}
-        {pinItem("workspace", "置顶到工作区内")}
+        {pinItem("global", t("置顶到全局"))}
+        {pinItem("workspace", t("置顶到工作区内"))}
         {onDelete ? (
           <>
             <div className="wsmenu-divider" />
@@ -124,7 +125,7 @@ export function SessionContextMenu({
                 <Trash size={13} />
               </span>
               <span className="wsmenu-item-label">
-                {armed ? "确认删除?" : "删除会话"}
+                {armed ? t("确认删除?") : t("删除会话")}
               </span>
             </button>
           </>

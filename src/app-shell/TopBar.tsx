@@ -1,6 +1,7 @@
 // AppShell 头部 titlebar(三区布局 + Windows 自绘窗口控件),自 AppShell.tsx 按「纯结构拆分、行为不变」拆出
 import { Tray, Plug, CaretLineLeft, CaretLineRight } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { windowClose, windowMinimize, windowToggleMaximize } from "@kernel/ipc";
 import { Mounts } from "@kernel/Mounts";
 import { usePlatformKind } from "@kernel/platform";
@@ -12,14 +13,14 @@ function WindowControls() {
   if (platform !== "windows") return null;
   /* 浏览器 dev 无 Tauri runtime,ipc 窗口封装会抛错,必须在平台闸之后调用。 */
   return (
-    <div className="titlebar-window-controls win-traffic-lights" aria-label="窗口控制">
-      <button aria-label="最小化" title="最小化" className="win-traffic-light" onClick={() => void windowMinimize()}>
+    <div className="titlebar-window-controls win-traffic-lights" aria-label={t("窗口控制")}>
+      <button aria-label={t("最小化")} title={t("最小化")} className="win-traffic-light" onClick={() => void windowMinimize()}>
         <svg viewBox="0 0 10 10" stroke="currentColor" strokeWidth="1.5" fill="none"><line x1="1" y1="5" x2="9" y2="5" /></svg>
       </button>
-      <button aria-label="最大化" title="最大化" className="win-traffic-light" onClick={() => void windowToggleMaximize()}>
+      <button aria-label={t("最大化")} title={t("最大化")} className="win-traffic-light" onClick={() => void windowToggleMaximize()}>
         <svg viewBox="0 0 10 10" stroke="currentColor" strokeWidth="1.5" fill="none"><rect x="1" y="1" width="8" height="8" rx="1" /></svg>
       </button>
-      <button aria-label="关闭" title="关闭" className="win-traffic-light close" onClick={() => void windowClose()}>
+      <button aria-label={t("关闭")} title={t("关闭")} className="win-traffic-light close" onClick={() => void windowClose()}>
         <svg viewBox="0 0 10 10" stroke="currentColor" strokeWidth="1.5" fill="none"><line x1="1" y1="1" x2="9" y2="9" /><line x1="9" y1="1" x2="1" y2="9" /></svg>
       </button>
     </div>
@@ -63,8 +64,8 @@ export function TopBar({
         <button
           type="button"
           className={`titlebar-action${marketOpen ? " is-active" : ""}`}
-          aria-label="插件市场"
-          title="插件市场"
+          aria-label={t("插件市场")}
+          title={t("插件市场")}
           onClick={onToggleMarket}
         >
           <Plug size={14} aria-hidden />
@@ -73,8 +74,8 @@ export function TopBar({
         <button
           type="button"
           className="titlebar-action"
-          aria-label="回到首页"
-          title="回到首页"
+          aria-label={t("回到首页")}
+          title={t("回到首页")}
           onClick={() => host.setActiveSession(null)}
         >
           <Tray size={14} aria-hidden />
@@ -82,8 +83,8 @@ export function TopBar({
         <button
           type="button"
           className="titlebar-action"
-          aria-label={leftOpen ? "收起左栏" : "展开左栏"}
-          title={leftOpen ? "收起左栏" : "展开左栏"}
+          aria-label={t(leftOpen ? "收起左栏" : "展开左栏")}
+          title={t(leftOpen ? "收起左栏" : "展开左栏")}
           onClick={onToggleLeft}
         >
           {leftOpen ? <CaretLineLeft size={14} aria-hidden /> : <CaretLineRight size={14} aria-hidden />}
@@ -102,8 +103,8 @@ export function TopBar({
         <button
           type="button"
           className="titlebar-action"
-          aria-label={rightOpen ? "收起右栏" : "展开右栏"}
-          title={rightOpen ? "收起右栏" : "展开右栏"}
+          aria-label={t(rightOpen ? "收起右栏" : "展开右栏")}
+          title={t(rightOpen ? "收起右栏" : "展开右栏")}
           onClick={onToggleRight}
         >
           {rightOpen ? <CaretLineRight size={14} aria-hidden /> : <CaretLineLeft size={14} aria-hidden />}

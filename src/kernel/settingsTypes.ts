@@ -6,6 +6,11 @@
 
 import type { SshHostConfig } from "./sshTypes";
 import {
+  TERMINAL_FONT_SIZE_DEFAULT,
+  UI_ZOOM_DEFAULT,
+  type UiLanguage,
+} from "./settingsAppearance";
+import {
   DEFAULT_DARK_THEME_PRESET_ID,
   DEFAULT_LIGHT_THEME_PRESET_ID,
   type ThemePresetId,
@@ -97,6 +102,14 @@ export interface AppSettings {
   darkThemePresetId: ThemePresetId;
   /** 自定义模式当前 preset。 */
   customThemePresetId: ThemePresetId;
+  /** 界面语言:zh 源中文恒等;en/ja 查 kernel/i18n 词典,缺失回落源串。切换 = 根组件重挂载。 */
+  language: UiLanguage;
+  /** 终端字号(px,10-20,默认 13);TerminalView 订阅即时生效。 */
+  terminalFontSize: number;
+  /** 终端字体 CSS family 串;空 = 平台默认等宽栈(kernel/TerminalView 内表)。 */
+  terminalFontFamily: string;
+  /** 界面缩放(0.8-1.5 步进 0.05);Tauri webview setZoom,浏览器 dev 兜底 CSS zoom。 */
+  uiZoom: number;
   /** 顶栏中央会话标题 tab 条开关(外观页可调,默认开启;见 kernel/sessionTabs.ts)。 */
   sessionTabsEnabled: boolean;
   /** Composer 发送快捷键行为。 */
@@ -202,6 +215,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   lightThemePresetId: DEFAULT_LIGHT_THEME_PRESET_ID,
   darkThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
   customThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
+  language: "zh",
+  terminalFontSize: TERMINAL_FONT_SIZE_DEFAULT,
+  terminalFontFamily: "",
+  uiZoom: UI_ZOOM_DEFAULT,
   sessionTabsEnabled: true,
   sendShortcut: "enter",
   askSoundEnabled: true,

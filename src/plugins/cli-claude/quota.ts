@@ -12,6 +12,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import type { QuotaSnapshot } from "@kernel/quota";
 import {
   detectVendorByBaseUrl,
@@ -95,8 +96,8 @@ export async function fetchClaudeQuota(): Promise<QuotaSnapshot> {
 
   // 2. 官方登录 → Anthropic 无公开套餐额度 HTTP 面,显式报错(对齐 codex 官方 key 模式)
   if (await hasOfficialOAuth(home)) {
-    throw new Error("Anthropic 官方订阅暂无公开额度 API,请在 claude /usage 查看");
+    throw new Error(t("Anthropic 官方订阅暂无公开额度 API,请在 claude /usage 查看"));
   }
-  throw new Error("未找到 claude 凭据 (~/.claude/settings.json env)");
+  throw new Error(t("未找到 claude 凭据 (~/.claude/settings.json env)"));
 }
 

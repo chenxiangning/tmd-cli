@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useRef, useState, type ReactElement } from "react";
+import { t } from "@kernel/i18n";
 import { formatBytes, getAttachments, removeAttachmentById, reorderAttachment, subscribeAttachments, type Attachment } from "../state/attachments";
 
 interface Props {
@@ -70,7 +71,7 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
   }
 
   return (
-    <div className="tmd-attach-section" role="region" aria-label="附件">
+      <div className="tmd-attach-section" role="region" aria-label={t("附件")}>
       <div className="tmd-attach-strip" ref={stripRef}>
         {items.map((a) => (
           <div
@@ -98,7 +99,7 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
             <button
               type="button"
               className="tmd-attach-close"
-              title="移除"
+            title={t("移除")}
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -112,7 +113,7 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
       </div>
       <div className="tmd-attach-header">
         <span>
-          已附加 <b>{items.length}</b> 个文件 · 拖拽可重排
+          {t("已附加 {n} 个文件 · 拖拽可重排", { n: items.length })}
         </span>
         <button
           type="button"
@@ -122,7 +123,7 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
             /* store clear 由调用方处理 */
           }}
         >
-          全部清除 ×
+          {t("全部清除 ×")}
         </button>
       </div>
     </div>

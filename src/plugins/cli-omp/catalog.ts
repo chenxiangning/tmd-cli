@@ -8,6 +8,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 
 export interface ExtCatalogEntry {
   name: string;
@@ -236,7 +237,7 @@ export async function fetchExtCatalog(force = false): Promise<ExtCatalog> {
  */
 export function parseOmpPluginList(body: unknown): InstalledExt[] {
   const npm = (body as { npm?: unknown } | null)?.npm;
-  if (!Array.isArray(npm)) throw new Error("omp plugin list 缺少 npm 数组");
+  if (!Array.isArray(npm)) throw new Error(t("omp plugin list 缺少 npm 数组"));
   const out: InstalledExt[] = [];
   for (const raw of npm) {
     const rec = raw as {

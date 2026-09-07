@@ -20,6 +20,7 @@ import type { CliProfile } from "@kernel/cli";
 import { host, useHost } from "@kernel/host";
 import type { SessionMeta } from "@kernel/ipc";
 import { useSettingsState } from "@kernel/settings";
+import { t } from "@kernel/i18n";
 import { isSessionArchived, sessionArchiveKey } from "@kernel/sessionArchive";
 import { pinSession, sessionPinKey, toggleSessionPin, unpinSession } from "@kernel/sessionPins";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
@@ -174,11 +175,11 @@ export function RunningZoneSection() {
         type="button"
         className={`running-zone-header${collapsed ? " is-collapsed" : ""}`}
         aria-expanded={!collapsed}
-        title={collapsed ? "展开运行区" : "收起运行区"}
+        title={collapsed ? t("展开运行区") : t("收起运行区")}
         onClick={toggleCollapsed}
       >
         <Pulse size={11} className="pinned-sessions-header-icon" />
-        <span className="running-zone-header-label">运行区</span>
+        <span className="running-zone-header-label">{t("运行区")}</span>
         <span className="pinned-sessions-header-count">· {rows.length}</span>
         {collapsed ? (
           <CaretRight size={12} className="pinned-sessions-header-chevron" aria-hidden />
@@ -208,7 +209,7 @@ export function RunningZoneSection() {
             <button
               key={row.session.id}
               className={`thread-row${isActive ? " active" : ""}`}
-              title={`${row.workspace.name} · ${row.profile.name} 会话 ${row.cliSessionId ?? row.session.id}`}
+              title={t("{workspace} · {profile} 会话 {id}", { workspace: row.workspace.name, profile: row.profile.name, id: row.cliSessionId ?? row.session.id })}
               onClick={() => openRow(row)}
               onContextMenu={(e) => {
                 e.preventDefault();
@@ -227,7 +228,7 @@ export function RunningZoneSection() {
               <span className="thread-meta">
                 <SessionStatusLabel sessionId={row.session.id} />
                 {host.isWaitingConfirm(row.session.id) ? (
-                  <span className="thread-ask-badge">等待确认</span>
+                  <span className="thread-ask-badge">{t("等待确认")}</span>
                 ) : null}
                 <span className="thread-time">{row.workspace.name}</span>
                 <PinToggle

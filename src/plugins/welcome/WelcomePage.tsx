@@ -9,8 +9,10 @@
  */
 
 import { openExternalUrl } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 
 import { useCallback, useEffect, useRef, useMemo, useState } from "react";
+
 import { host, useHost } from "@kernel/host";
 import { useHomePanels } from "@kernel/homePanels";
 import {
@@ -173,7 +175,10 @@ export function WelcomePage() {
         <header className="welcome-hero">
           <h1 className="welcome-title">tmd-cli</h1>
           <p className="welcome-subtitle">
-            多 CLI 桌面客户端 —— 已就绪 {installedCount} / {visibleMetas.length} 个引擎
+            {t("多 CLI 桌面客户端 —— 已就绪 {ready} / {total} 个引擎", {
+              ready: installedCount,
+              total: visibleMetas.length,
+            })}
           </p>
           <a
             className="welcome-github-link"
@@ -184,7 +189,7 @@ export function WelcomePage() {
             }}
           >
             {GITHUB_SVG}
-            <span>GitHub 仓库</span>
+            <span>{t("GitHub 仓库")}</span>
             <span className="welcome-github-license">MIT</span>
           </a>
         </header>

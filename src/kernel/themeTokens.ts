@@ -95,6 +95,48 @@ function getColor(
   return normalizeHexColor(colors[key]) ?? fallback;
 }
 
+/** xterm ANSI 槽位名(xterm ITheme 键序:8 基色 + 8 亮色)。 */
+const ANSI_SLOT_KEYS = [
+  "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
+  "brightBlack", "brightRed", "brightGreen", "brightYellow",
+  "brightBlue", "brightMagenta", "brightCyan", "brightWhite",
+] as const;
+type AnsiSlot = (typeof ANSI_SLOT_KEYS)[number];
+
+/** preset 覆盖键(xterm 槽位 → VS Code terminal.ansi* 命名,预设可逐槽覆写)。 */
+const ANSI_PRESET_KEYS: Record<AnsiSlot, string> = {
+  black: "terminal.ansiBlack", red: "terminal.ansiRed", green: "terminal.ansiGreen",
+  yellow: "terminal.ansiYellow", blue: "terminal.ansiBlue", magenta: "terminal.ansiMagenta",
+  cyan: "terminal.ansiCyan", white: "terminal.ansiWhite",
+  brightBlack: "terminal.ansiBrightBlack", brightRed: "terminal.ansiBrightRed",
+  brightGreen: "terminal.ansiBrightGreen", brightYellow: "terminal.ansiBrightYellow",
+  brightBlue: "terminal.ansiBrightBlue", brightMagenta: "terminal.ansiBrightMagenta",
+  brightCyan: "terminal.ansiBrightCyan", brightWhite: "terminal.ansiBrightWhite",
+};
+
+/**
+ * 终端 ANSI 16 色 fallback —— VS Code 官方默认(microsoft/vscode
+ * terminalColorRegistry.ts ansiColorMap.defaults,MIT,一手值非转述)。
+ * 浅色表要点:全表深色调、bright 系不亮于 base(红/蓝/品红/青同值),杜绝亮色糊浅底。
+ */
+const TERMINAL_ANSI_FALLBACK: Record<"light" | "dark", Record<AnsiSlot, string>> = {
+  light: {
+    black: "#000000", red: "#cd3131", green: "#107c10", yellow: "#949800",
+    blue: "#0451a5", magenta: "#bc05bc", cyan: "#0598bc", white: "#555555",
+    brightBlack: "#666666", brightRed: "#cd3131", brightGreen: "#14ce14",
+    brightYellow: "#b5ba00", brightBlue: "#0451a5", brightMagenta: "#bc05bc",
+    brightCyan: "#0598bc", brightWhite: "#a5a5a5",
+  },
+  dark: {
+    black: "#000000", red: "#cd3131", green: "#0dbc79", yellow: "#e5e510",
+    blue: "#2472c8", magenta: "#bc3fbc", cyan: "#11a8cd", white: "#e5e5e5",
+    brightBlack: "#666666", brightRed: "#f14c4c", brightGreen: "#23d18b",
+    brightYellow: "#f5f543", brightBlue: "#3b8eea", brightMagenta: "#d670d6",
+    brightCyan: "#29b8db", brightWhite: "#e5e5e5",
+  },
+};
+
+
 /**
  * 单个 preset → 全量 `--tmd-*` 变量表。
  * 缺色时按 VS Code 语义链兜底(同 codemoss),保证任何残缺 preset 也能产出完整 token 集。
@@ -204,6 +246,13 @@ export function mapPresetToTokens(preset: ThemePresetDefinition): ThemeCssVariab
     "--tmd-terminal-selection":
       normalizeHexColor(colors["terminal.selectionBackground"]) ??
       withAlpha(accent, isDark ? 0.32 : 0.2),
+    // ANSI 16 色(xterm 消费;preset 可 terminal.ansi* 逐槽覆盖,缺省按外观取 VS Code 官方表)
+    ...Object.fromEntries(
+      ANSI_SLOT_KEYS.map((slot) => [
+        `--tmd-terminal-${slot.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}`,
+        getColor(colors, ANSI_PRESET_KEYS[slot], TERMINAL_ANSI_FALLBACK[appearance][slot]),
+      ]),
+    ),
   };
 }
 

@@ -6,6 +6,7 @@
  */
 
 import { ArrowSquareOut, ArrowClockwise } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import type { EngineProbeState, InstallState } from "./EngineCard";
 import { InstallLog } from "./InstallLog";
 import type { PrerequisiteMeta } from "./engineMeta";
@@ -27,11 +28,12 @@ export function PrerequisiteGuide({
     <div className="welcome-prereq">
       <div className="welcome-prereq-row">
         <span className="welcome-prereq-text">
-          {probe.status === "loading" && `探针前置依赖 ${requires.name}…`}
+          {probe.status === "loading" && t("探针前置依赖 {name}…", { name: requires.name })}
           {probe.status === "notFound" && (
             <>
-              依赖 {requires.name} 运行时 —— 先安装 {requires.name}
-              ,再安装/更新本引擎
+              {t("依赖 {name} 运行时 —— 先安装 {name},再安装/更新本引擎", {
+                name: requires.name,
+              })}
               {requires.docsUrl && (
                 <a
                   className="welcome-prereq-docs"
@@ -39,13 +41,13 @@ export function PrerequisiteGuide({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  {requires.name} 官网
+                  {t("{name} 官网", { name: requires.name })}
                   <ArrowSquareOut size={11} aria-hidden />
                 </a>
               )}
             </>
           )}
-          {probe.status === "error" && `前置依赖 ${requires.name} 探针失败`}
+          {probe.status === "error" && t("前置依赖 {name} 探针失败", { name: requires.name })}
         </span>
         <span className="welcome-prereq-actions">
           {probe.status === "notFound" && requires.plan && (
@@ -57,8 +59,8 @@ export function PrerequisiteGuide({
               title={requires.installHint}
             >
               {install.running
-                ? `正在安装 ${requires.name}…`
-                : `安装 ${requires.name}`}
+                ? t("正在安装 {name}…", { name: requires.name })
+                : t("安装 {name}", { name: requires.name })}
             </button>
           )}
           {probe.status === "error" && (
@@ -67,8 +69,8 @@ export function PrerequisiteGuide({
               className="welcome-icon-btn"
               onClick={onProbe}
               disabled={install.running}
-              aria-label="重新探针前置依赖"
-              title="重新探针"
+              aria-label={t("重新探针前置依赖")}
+              title={t("重新探针")}
             >
               <ArrowClockwise size={12} aria-hidden />
             </button>
@@ -76,7 +78,7 @@ export function PrerequisiteGuide({
         </span>
       </div>
       {(install.running || install.lines.length > 0) && (
-        <InstallLog install={install} label={`${requires.name} 安装`} />
+        <InstallLog install={install} label={t("{name} 安装", { name: requires.name })} />
       )}
     </div>
   );

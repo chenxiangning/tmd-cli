@@ -1,4 +1,5 @@
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import {
   claudeUserMessageLine,
   readUserMessagesFromFile,
@@ -166,7 +167,7 @@ export function extractClaudeMcpServers(json: string, cwd: string): CliSuggestio
   }
   return Array.from(byName, ([name, source]) => ({
     value: name,
-    description: `MCP · ${source}`,
+    description: `MCP · ${t(source)}`,
     action: "send" as const,
     icon: "server",
     token: "/mcp ",

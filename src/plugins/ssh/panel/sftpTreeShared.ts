@@ -6,6 +6,7 @@
  */
 
 import { ipc, pickDirectory, pickFile, type SftpEntry } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 
 export interface TreeNode {
   path: string;
@@ -40,24 +41,24 @@ export function basenameOf(path: string) {
 }
 
 export async function downloadNode(sessionId: string, node: TreeNode, recursive: boolean) {
-  const target = await pickDirectory("下载到本地目录");
+  const target = await pickDirectory(t("下载到本地目录"));
   if (!target) return;
   try {
     const local = node.kind === "dir" ? target : `${target}/${node.name}`;
     await ipc.sftpTransfer(sessionId, "download", node.path, local, recursive);
   } catch (e) {
-    window.alert(`下载失败:${e instanceof Error ? e.message : String(e)}`);
+    window.alert(t("下载失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
   }
 }
 
 export async function uploadPicked(sessionId: string, onMutate: () => void, remoteDir = ".") {
-  const source = await pickFile("选择要上传的文件");
+  const source = await pickFile(t("选择要上传的文件"));
   if (!source) return;
   const name = source.split(/[\\/]/).pop() ?? "upload";
   try {
     await ipc.sftpTransfer(sessionId, "upload", source, joinRemote(remoteDir, name), false);
     onMutate();
   } catch (e) {
-    window.alert(`上传失败:${e instanceof Error ? e.message : String(e)}`);
+    window.alert(t("上传失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
   }
 }

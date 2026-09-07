@@ -1,4 +1,5 @@
 import { host, useHost } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { collapseComposerStage, expandComposerStage, useComposerStage } from "@kernel/composerStage";
 import { KernelTopics } from "@kernel/events";
 import { CaretDown, CaretUp, Sidebar } from "@phosphor-icons/react";
@@ -21,10 +22,10 @@ export function ComposerToolbar() {
   const turnActive = sessionId ? host.isTurnActive(sessionId) : false;
   const modelClickable = noSession ? false : profile?.id === "omp" || !turnActive;
   const modelTitle = !noSession && modelClickable
-    ? "点击发送 /model 打开 CLI 模型选择"
+    ? t("点击发送 /model 打开 CLI 模型选择")
     : turnActive
-      ? "对话进行中,本轮结束后可点击切换模型"
-      : (status?.model ?? "未识别模型");
+      ? t("对话进行中,本轮结束后可点击切换模型")
+      : (status?.model ?? t("未识别模型"));
 
   /** 模型位点击 = 发送 /model(与抽屉 send 同路径:prepareSendPayload → writeSession)。 */
   function sendModelCommand(): void {
@@ -58,15 +59,15 @@ export function ComposerToolbar() {
         title={modelTitle}
         onClick={sendModelCommand}
       >
-        <span aria-hidden>模型</span>
+        <span aria-hidden>{t("模型")}</span>
         <span className="font-mono text-(--tmd-fg)">{status?.model ?? "—"}</span>
         {seeded && status?.model ? (
           <span
-            aria-label="默认模型(尚未读到会话实况)"
-            title="来自 CLI 默认配置,尚未读到会话实况"
+            aria-label={t("默认模型(尚未读到会话实况)")}
+            title={t("来自 CLI 默认配置,尚未读到会话实况")}
             className="rounded-sm bg-(--tmd-bg-hover) px-1 text-[10px] text-(--tmd-fg-muted)"
           >
-            默认
+            {t("默认")}
           </span>
         ) : null}
       </button>
@@ -77,15 +78,15 @@ export function ComposerToolbar() {
             !turnActive ? "cursor-pointer hover:bg-(--tmd-bg-hover)" : "cursor-not-allowed opacity-40"
           }`}
           disabled={turnActive}
-          title={turnActive ? "对话进行中,本轮结束后可点击" : "点击打开思考强度选择"}
+          title={turnActive ? t("对话进行中,本轮结束后可点击") : t("点击打开思考强度选择")}
           onClick={sendThinkingCommand}
         >
-          <span aria-hidden>思考</span>
+          <span aria-hidden>{t("思考")}</span>
           <span className="font-mono text-(--tmd-fg)">{status?.thinkingLevel ?? "—"}</span>
         </button>
       ) : (
-        <span className="flex items-center gap-1" title={status?.thinkingLevel ?? "未识别思考强度"}>
-          <span aria-hidden>思考</span>
+        <span className="flex items-center gap-1" title={status?.thinkingLevel ?? t("未识别思考强度")}>
+          <span aria-hidden>{t("思考")}</span>
           <span className="font-mono text-(--tmd-fg)">{status?.thinkingLevel ?? "—"}</span>
         </span>
       )}
@@ -98,9 +99,8 @@ export function ComposerToolbar() {
       {/* 五段式对话框高度:↑ 逐级展开 / ↓ 逐级收起(min → collapsed → compact → normal → expanded),AppShell resize composer Panel */}
       <button
         type="button"
-        title="展开对话框"
-        aria-label="展开对话框"
-        disabled={noSession || stage === "expanded"}
+        title={t("展开对话框")}
+        aria-label={t("展开对话框")}
         onClick={expandComposerStage}
         className={`${iconBtn} ml-auto text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >
@@ -108,8 +108,8 @@ export function ComposerToolbar() {
       </button>
       <button
         type="button"
-        title="收起对话框"
-        aria-label="收起对话框"
+        title={t("收起对话框")}
+        aria-label={t("收起对话框")}
         disabled={noSession || stage === "min"}
         onClick={collapseComposerStage}
         className={`${iconBtn} text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
@@ -121,7 +121,7 @@ export function ComposerToolbar() {
         type="button"
         aria-expanded={drawerOpen}
         aria-controls="command-drawer"
-        title="命令与技能(⌘K)"
+        title={t("命令与技能(⌘K)")}
         disabled={noSession}
         onClick={(e) => { e.stopPropagation(); toggleDrawer(); }}
         className={`${iconBtn} ${

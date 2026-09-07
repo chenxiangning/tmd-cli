@@ -14,6 +14,7 @@
 
 import { ipc, type ProcRunResult } from "@kernel/ipc";
 import { host } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { BOOTSTRAP_MJS } from "./bootstrap";
 import { detectNode, detectOmpPluginInstalled, detectSharedDbReady } from "./detect";
 import { memoryDbPath } from "../paths";
@@ -48,9 +49,9 @@ export class InstallOrchestrator {
   async installIntoOmp(onLine: (line: string) => void): Promise<InstallStepResult> {
     const r = await run("omp", ["plugin", "install", "@cortexkit/pi-magic-context"], 120_000);
     if (r.code !== 0) {
-      return { ok: false, message: `插件安装失败(exit ${r.code}): ${r.stderr.slice(0, 200)}` };
+      return { ok: false, message: t("插件安装失败(exit {code}): {err}", { code: r.code, err: r.stderr.slice(0, 200) }) };
     }
-    onLine("✓ omp 插件注册成功(原生 compaction / memory 由其接管)");
+    onLine(t("✓ omp 插件注册成功(原生 compaction / memory 由其接管)"));
     return { ok: true, message: "" };
   }
 
@@ -58,9 +59,9 @@ export class InstallOrchestrator {
   async installIntoPi(onLine: (line: string) => void): Promise<InstallStepResult> {
     const r = await run("pi", ["install", "npm:@cortexkit/pi-magic-context"], 120_000);
     if (r.code !== 0) {
-      return { ok: false, message: `pi 安装失败(exit ${r.code}): ${r.stderr.slice(0, 200)}` };
+      return { ok: false, message: t("pi 安装失败(exit {code}): {err}", { code: r.code, err: r.stderr.slice(0, 200) }) };
     }
-    onLine("✓ pi 插件注册成功");
+    onLine(t("✓ pi 插件注册成功"));
     return { ok: true, message: "" };
   }
 
@@ -68,7 +69,7 @@ export class InstallOrchestrator {
   async installIntoOpencode(
     configPath: string,
     readText: (p: string) => Promise<string>,
-    writeText: (p: string, t: string) => Promise<void>,
+    writeText: (p: string, text: string) => Promise<void>,
     onLine: (line: string) => void,
   ): Promise<InstallStepResult> {
     let backup: string | null = null;
@@ -85,11 +86,11 @@ export class InstallOrchestrator {
       cfg.plugin = plugins;
       cfg.compaction = { ...(typeof cfg.compaction === "object" && cfg.compaction ? cfg.compaction : {}), auto: false, prune: false };
       await writeText(configPath, JSON.stringify(cfg, null, 2) + "\n");
-      onLine("✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context)");
+      onLine(t("✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context)"));
       return { ok: true, message: "" };
     } catch (e) {
       if (backup !== null) await writeText(configPath, backup).catch(() => {});
-      return { ok: false, message: `opencode 配置更新失败(已回滚原文): ${String(e).slice(0, 140)}` };
+      return { ok: false, message: t("opencode 配置更新失败(已回滚原文): {err}", { err: String(e).slice(0, 140) }) };
     }
   }
 
@@ -102,10 +103,10 @@ export class InstallOrchestrator {
       return { ok: true, message: out };
     }
     if (out.startsWith("REFUSED migration-locked")) {
-      onLine("✗ 迁移被锁:仍有 omp/pi 进程持有共享库");
+      onLine(t("✗ 迁移被锁:仍有 omp/pi 进程持有共享库"));
       return { ok: false, message: "migration-locked" };
     }
-    onLine("✗ " + (out || "bootstrap 无输出"));
+    onLine("✗ " + (out || t("bootstrap 无输出")));
     return { ok: false, message: out };
   }
 
@@ -113,13 +114,13 @@ export class InstallOrchestrator {
   async diagnose(): Promise<string[]> {
     const lines: string[] = [];
     const node = await detectNode();
-    lines.push(`${node.available ? "✓" : "✗"} node / npx 可用${node.available ? ` (v${node.version})` : ""}`);
+    lines.push(`${node.available ? "✓" : "✗"} ${t("node / npx 可用")}${node.available ? ` (v${node.version})` : ""}`);
     if (!node.meetsUpstreamRequirement && node.available) {
-      lines.push(`● 上游声明需 node ≥24,当前 v${node.version}(实测可跑,风险自担)`);
+      lines.push(t("● 上游声明需 node ≥24,当前 v{v}(实测可跑,风险自担)", { v: node.version }));
     }
     const plugin = await detectOmpPluginInstalled();
     const dbReady = plugin ? await detectSharedDbReady(await memoryDbPath()) : false;
-    lines.push(`${dbReady ? "✓" : "✗"} 共享数据库${dbReady ? "完整性正常" : "未初始化或不可读"}`);
+    lines.push(dbReady ? t("✓ 共享数据库完整性正常") : t("✗ 共享数据库未初始化或不可读"));
     return lines;
   }
 }

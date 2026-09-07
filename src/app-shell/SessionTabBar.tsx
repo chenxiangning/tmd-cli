@@ -13,6 +13,7 @@
 import { memo, useState } from "react";
 import { Cross } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { useSettingsState } from "@kernel/settings";
 import {
@@ -67,7 +68,7 @@ function SessionTabBarImpl() {
   if (!settings.sessionTabsEnabled || ids.length === 0) return null;
 
   return (
-    <div className="session-tabs" role="tablist" aria-label="打开的会话">
+    <div className="session-tabs" role="tablist" aria-label={t("打开的会话")}>
       {ids.map((id) => {
         const meta = host.getSessions().find((s) => s.id === id);
         /* 剪除事件竞态期的防御兜底:sessionsChanged 广播前先卸载消失 tab */
@@ -96,9 +97,7 @@ function SessionTabBarImpl() {
                 <button
                   type="button"
                   className="session-tab-switch"
-                  title={
-                    host.isWaitingConfirm(id) ? `${title} · 等待确认` : title
-                  }
+                  title={host.isWaitingConfirm(id) ? t("{title} · 等待确认", { title }) : title}
                   onClick={() => host.setActiveSession(id)}
                 >
                   {host.getCliProfile(meta.profileId)?.renderIcon?.(12)}
@@ -112,8 +111,8 @@ function SessionTabBarImpl() {
                 <button
                   type="button"
                   className="session-tab-remove"
-                  aria-label={`从标签条移除:${title}`}
-                  title="从标签条移除(会话保持运行)"
+                  aria-label={t("从标签条移除:{title}", { title })}
+                  title={t("从标签条移除(会话保持运行)")}
                   onClick={() => closeSessionTab(id)}
                 >
                   <Cross size={10} aria-hidden />

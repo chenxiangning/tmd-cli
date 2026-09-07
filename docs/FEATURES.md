@@ -245,6 +245,11 @@
 - 设置面板:overlay 常驻,section/tab 经 settingsRegistry 注册表扩展;左下角齿轮菜单「设置」进入,Esc 或「返回应用」关闭
 - 外观 tab:主题跟随系统/浅色/深色/自定义 4 档 + 21 个 VS Code preset 网格(浅 9 深 12,仅自定义模式展开,点选即写 custom;内核 theme 引擎,--tmd-* token 派生)
 - 跟随系统模式监听系统深浅色切换即时换肤;主题变更同步重刷终端幕布配色
+- 语言 i18n:设置/外观三语切换(简体中文/English/日本語),全 app 文案经 kernel/i18n t() 查表,切换即整树重挂载即时生效;缺失词条回落源中文;相对时间/日期随语言走 Intl 本地化
+- 界面缩放:80%–150% 步进 5%,webview 原生 setZoom(mac pageZoom/win zoomFactor,终端 canvas 保持清晰),浏览器 dev 回落 CSS zoom;重置一键回 100%
+- 终端字号:10–20 px 滑杆(默认 13),活幕布即时重排并同步 PTY 尺寸
+- 终端字体:平台默认栈 + 常见等宽字体下拉(Menlo/Monaco/SF Mono/Cascadia/Consolas/DejaVu/JetBrains Mono/Fira Code 等,按平台过滤),document.fonts.check 探测未安装项置灰,支持自定义 CSS family 串
+- 终端 ANSI 16 色:主题 token 派生(浅/深各一套,默认采用 VS Code 官方终端配色,浅色表 bright 系不亮于 base 修复浅底看不清),preset 可用 terminal.ansi* 逐槽覆盖;外观页有 16 色板预览
 - 行为 tab:发送快捷键模式(Enter 发送 ↔ ⌘/Ctrl+Enter 发送互换)、Ask 提示音开关与音效、结束提示音、后台提醒、会话输出缓冲上限(5 万–1000 万字符,默认 50 万)
 - 设置持久化 `~/.tmd-cli/settings.json`,前端 sanitize 归一,非法值回落默认,Rust 侧原子写
 - 侧栏齿轮菜单项可钉到底栏(localStorage 持久化,上限 4,默认钉 Git Graph + 网络代理);每行右侧 pin 复选框:16px 圆角方块、选中出对号(Check 图标),钉满置灰不可再钉(menuitemcheckbox 语义,类名 settings-menu-pin 定义于 settings-cluster.css)

@@ -16,6 +16,7 @@ import {
   detectPiInstalled,
   type NodeEnv,
 } from "../install/detect";
+import { t } from "@kernel/i18n";
 import { InstallOrchestrator } from "../install/setup";
 import { pluginDistDir, userHome } from "../paths";
 
@@ -77,7 +78,7 @@ export function InstallCard({ onInstalled }: { onInstalled: () => Promise<void> 
           仍锁则提示用户。 */
           const paused = await orch.pauseOwnOmpSessions();
           if (paused > 0) {
-            line(`⏸ 检测到共享库被占用:已暂停 tmd-cli 自家 omp 会话 ${paused} 个,重试迁移…`);
+            line(t("⏸ 检测到共享库被占用:已暂停 tmd-cli 自家 omp 会话 {n} 个,重试迁移…", { n: paused }));
             /* kill 返回 ≠ 锁立即可用:留半秒缓冲等 SQLite 句柄释放 */
             const settle = Promise.withResolvers<void>();
             setTimeout(settle.resolve, 500);
@@ -86,11 +87,11 @@ export function InstallCard({ onInstalled }: { onInstalled: () => Promise<void> 
           }
           if (!mig.ok) {
             orch.clearPauseLedger();
-            line("✗ 仍被锁:机器上还有外部 omp/pi 进程在运行,请全部退出后重新点一次安装。");
+            line(t("✗ 仍被锁:机器上还有外部 omp/pi 进程在运行,请全部退出后重新点一次安装。"));
           }
         }
-        if (mig.ok) line("✓ 迁移完成");
-        else if (!mig.message.startsWith("migration-locked")) line("✗ 迁移未完成:" + mig.message.slice(0, 120));
+        if (mig.ok) line(t("✓ 迁移完成"));
+        else if (!mig.message.startsWith("migration-locked")) line(t("✗ 迁移未完成:{msg}", { msg: mig.message.slice(0, 120) }));
         await onInstalled();
       } finally {
         setRunning(false);
@@ -110,49 +111,49 @@ export function InstallCard({ onInstalled }: { onInstalled: () => Promise<void> 
   return (
     <div className="mb-3 rounded-lg border border-(--tmd-border) bg-(--tmd-bg-elevated) p-3">
       <div className="mb-2 flex flex-none items-center gap-2">
-        <span className="text-[11.5px] font-semibold">启用</span>
+        <span className="text-[11.5px] font-semibold">{t("启用")}</span>
         <button className={toggle(settings.memoryEnabled)} onClick={() => updateSettings({ memoryEnabled: !settings.memoryEnabled })}>
           <span className={knob(settings.memoryEnabled)} />
         </button>
       </div>
       <div className="mb-2 truncate text-[10.5px] text-(--tmd-fg-subtle)">
-        {settings.memoryEnabled ? "胶囊与右栏面板已启用" : "已关闭:胶囊与面板全部隐藏"}
+        {settings.memoryEnabled ? t("胶囊与右栏面板已启用") : t("已关闭:胶囊与面板全部隐藏")}
       </div>
       <div className="flex flex-col gap-1 text-[11px] text-(--tmd-fg-muted)">
         <div>
           {node === null
-            ? "检测中…"
+            ? t("检测中…")
             : node.available
-              ? `✓ node v${node.version}${node.meetsUpstreamRequirement ? "" : "(上游声明 ≥24,当前可跑)"}`
-              : "✗ 未检测到 node —— 请先安装 Node.js ≥22"}
+              ? `✓ node v${node.version}${node.meetsUpstreamRequirement ? "" : t("(上游声明 ≥24,当前可跑)")}`
+              : t("✗ 未检测到 node —— 请先安装 Node.js ≥22")}
         </div>
-        {ompInstalled !== null && <div>{ompInstalled ? "✓ omp 插件已注册" : "○ omp 插件未注册"}</div>}
-        {piInstalled !== null && <div>{piInstalled ? "✓ pi 插件已注册" : "○ pi 插件未注册"}</div>}
-        {ocInstalled !== null && <div>{ocInstalled ? "✓ opencode 插件已注册" : "○ opencode 插件未注册"}</div>}
+        {ompInstalled !== null && <div>{ompInstalled ? t("✓ omp 插件已注册") : t("○ omp 插件未注册")}</div>}
+        {piInstalled !== null && <div>{piInstalled ? t("✓ pi 插件已注册") : t("○ pi 插件未注册")}</div>}
+        {ocInstalled !== null && <div>{ocInstalled ? t("✓ opencode 插件已注册") : t("○ opencode 插件未注册")}</div>}
       </div>
       <div className="mt-1.5 flex flex-none items-center gap-2">
-        <span className="text-[10.5px] text-(--tmd-fg-faint)">安装到:</span>
-        {(["omp", "pi", "opencode"] as const).map((t) => {
-          const installed = t === "omp" ? ompInstalled : t === "pi" ? piInstalled : ocInstalled;
+        <span className="text-[10.5px] text-(--tmd-fg-faint)">{t("安装到:")}</span>
+        {(["omp", "pi", "opencode"] as const).map((eng) => {
+          const installed = eng === "omp" ? ompInstalled : eng === "pi" ? piInstalled : ocInstalled;
           return (
             <button
-              key={t}
+              key={eng}
               className={`flex-none rounded-md border px-2 py-0.5 text-[10.5px] ${
-                target === t
+                target === eng
                   ? "border-(--tmd-accent) bg-(--tmd-accent-soft) text-(--tmd-fg)"
                   : "border-(--tmd-border) text-(--tmd-fg-subtle)"
               } hover:bg-(--tmd-bg-hover)`}
-              onClick={() => setTarget(t)}
-              title={installed === null ? "检测中" : installed ? "已安装(点击可重装,幂等不破坏数据)" : "未安装"}
+              onClick={() => setTarget(eng)}
+              title={installed === null ? t("检测中") : installed ? t("已安装(点击可重装,幂等不破坏数据)") : t("未安装")}
             >
-              {t}
+              {eng}
               {installed === true && <span className="ml-1 text-(--tmd-ok)">✓</span>}
             </button>
           );
         })}
       </div>
       <div className="mt-0.5 truncate pl-1 text-[10px] text-(--tmd-fg-faint)">
-        omp/pi 经插件命令安装;opencode 改其配置并禁原生压缩;三家共用同一个记忆库(迁移幂等)。重复安装是幂等的,不会覆盖或破坏已有记忆。
+        {t("omp/pi 经插件命令安装;opencode 改其配置并禁原生压缩;三家共用同一个记忆库(迁移幂等)。重复安装是幂等的,不会覆盖或破坏已有记忆。")}
       </div>
       <div className="mt-2 flex flex-none items-center gap-2">
         <button
@@ -160,7 +161,7 @@ export function InstallCard({ onInstalled }: { onInstalled: () => Promise<void> 
           disabled={running || !node?.available}
           onClick={install}
         >
-          {running ? "安装中…" : `${targetInstalled === true ? "重新安装" : "安装到"} ${target}`}
+          {running ? t("安装中…") : targetInstalled === true ? t("重新安装 {target}", { target }) : t("安装到 {target}", { target })}
         </button>
       </div>
       {log.length > 0 && (

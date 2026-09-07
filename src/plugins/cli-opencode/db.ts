@@ -17,6 +17,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import type {
   CliDiskSession,
   CliSessionEdit,
@@ -148,7 +149,7 @@ export async function readOpencodeUserMessages(
  *  reject 由 workspace 提示。 */
 export async function deleteOpencodeSession(cliSessionId: string): Promise<void> {
   const db = await opencodeDbPath();
-  if (!db) throw new Error("opencode 数据目录不可用");
+  if (!db) throw new Error(t("opencode 数据目录不可用"));
   await ipc.sqliteExecute(db, "DELETE FROM session WHERE id = ?1", [cliSessionId]);
 }
 

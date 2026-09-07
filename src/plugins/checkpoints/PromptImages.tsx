@@ -14,6 +14,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Image, CircleNotch } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
 
 /** composer 图片附件 token:@ + 绝对路径 + 图片扩展名;后随空白/句读/结尾才判定,防误吞正文。 */
@@ -85,7 +86,7 @@ function Thumb({
     return (
       <span
         className="flex h-[72px] w-24 flex-none flex-col items-center justify-center gap-1 rounded border border-dashed border-(--tmd-border) px-1 text-(--tmd-fg-faint)"
-        title={`${path}(文件已不可读)`}
+        title={t("{path}(文件已不可读)", { path })}
       >
         <Image size={12} aria-hidden />
         <span className="w-full truncate text-center text-[10px]">{fileName(path)}</span>
@@ -97,7 +98,7 @@ function Thumb({
       type="button"
       disabled={!src}
       className="flex h-[72px] w-24 flex-none items-center justify-center overflow-hidden rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) hover:border-(--tmd-border-strong) disabled:cursor-default"
-      title={`${fileName(path)} —— 点击放大查看`}
+      title={t("{name} —— 点击放大查看", { name: fileName(path) })}
       onClick={() => src && onOpen(src, fileName(path))}
     >
       {src ? (

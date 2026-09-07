@@ -7,6 +7,7 @@
  */
 
 import { useMemo } from "react";
+import { t } from "@kernel/i18n";
 import { Cube, GitBranch, TreeStructure, type Icon } from "@phosphor-icons/react";
 import type { GitRepoSummary } from "@kernel/ipc";
 import { useRepoChips } from "../hooks/useRepoChips";
@@ -39,11 +40,15 @@ export function RepoBar({
   return (
     <div className="flex shrink-0 items-stretch border-b border-(--tmd-border)">
       <span
-        title={truncated ? `仓数已达发现上限(${repos.length}),仅显示前 ${repos.length} 仓` : "工作区内发现的 Git 仓库数"}
+        title={
+          truncated
+            ? t("仓数已达发现上限({n}),仅显示前 {n} 仓", { n: repos.length })
+            : t("工作区内发现的 Git 仓库数")
+        }
         className="flex shrink-0 items-center pl-2 text-[10px] whitespace-nowrap text-(--tmd-fg-muted) tabular-nums"
       >
         {repos.length}
-        {truncated ? "+" : ""} 仓
+        {truncated ? "+" : ""} {t("仓")}
       </span>
       <span className="repo-bar-divider self-center" aria-hidden />
       <div className="repo-bar-scroll flex min-w-0 flex-1 items-center overflow-x-auto px-1 py-[3px]">
@@ -51,13 +56,14 @@ export function RepoBar({
         const active = r.path === selectedPath;
         const chip = chips.get(r.path);
         const dirty = chip?.dirty ?? -1;
+        const kindLabel = KIND_META[r.kind].label;
         const title = [
           `${r.name} · ${chip?.branch || r.branch}`,
-          KIND_META[r.kind].label,
+          kindLabel ? t(kindLabel) : null,
           chip?.upstream ? `→ ${chip.upstream}` : null,
-          dirty >= 0 ? `${dirty} 个变更` : null,
-          chip && chip.ahead > 0 ? `领先 ${chip.ahead} 个提交` : null,
-          chip && chip.behind > 0 ? `落后 ${chip.behind} 个提交` : null,
+          dirty >= 0 ? t("{n} 个变更", { n: dirty }) : null,
+          chip && chip.ahead > 0 ? t("领先 {n} 个提交", { n: chip.ahead }) : null,
+          chip && chip.behind > 0 ? t("落后 {n} 个提交", { n: chip.behind }) : null,
         ]
           .filter((s): s is string => s != null)
           .join("\n");

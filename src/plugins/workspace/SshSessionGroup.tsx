@@ -6,6 +6,7 @@
 
 import { HardDrive } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import type { Workspace } from "@kernel/workspace";
 import type { SessionMeta } from "@kernel/ipc";
@@ -44,7 +45,7 @@ export function SshSessionGroup({ workspace }: { workspace: Workspace }) {
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
-                if (window.confirm(`断开 SSH 会话「${title}」?`)) {
+                if (window.confirm(t("断开 SSH 会话「{title}」?", { title }))) {
                   void host.removeSession(session.id);
                 }
               }}

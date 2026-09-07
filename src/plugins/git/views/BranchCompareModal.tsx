@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { t } from "@kernel/i18n";
 import { createPortal } from "react-dom";
 import { CaretDown, GitDiff, CircleNotch, Cross } from "@phosphor-icons/react";
 import { ipc, type GitBranchCompareSet, type GitBranchDiffFile, type GitLogEntry } from "@kernel/ipc";
@@ -83,15 +84,15 @@ export function BranchCompareModal({
   }, [onClose]);
 
   const badge =
-    request.mode === "compare" ? "分支对比" : "工作树差异";
+    request.mode === "compare" ? t("分支对比") : t("工作树差异");
   const title =
     request.mode === "compare"
-      ? `分支 ${request.target} 与 ${currentName ?? "?"} 差异`
-      : `工作树 与 ${request.branch} 差异`;
+      ? t("分支 {target} 与 {current} 差异", { target: request.target, current: currentName ?? "?" })
+      : t("工作树 与 {branch} 差异", { branch: request.branch });
   const subtitle =
     request.mode === "compare"
-      ? `比较基线: ${request.target}, 目标分支: ${currentName ?? "?"}`
-      : `基准分支: ${request.branch}`;
+      ? t("比较基线: {target}, 目标分支: {current}", { target: request.target, current: currentName ?? "?" })
+      : t("基准分支: {branch}", { branch: request.branch });
   const uniqueTotal =
     request.mode === "compare"
       ? (compare?.targetOnly.length ?? 0) + (compare?.currentOnly.length ?? 0)
@@ -118,7 +119,7 @@ export function BranchCompareModal({
             </span>
             <button
               onClick={onClose}
-              title="关闭"
+              title={t("关闭")}
               className="rounded p-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
             >
               <Cross className="h-4 w-4" />
@@ -128,7 +129,7 @@ export function BranchCompareModal({
             <span className="text-xs text-(--tmd-fg-muted)">{subtitle}</span>
             {uniqueTotal != null && (
               <span className="text-xs text-(--tmd-fg-faint)">
-                独有提交 <span className="font-medium text-(--tmd-fg)">{uniqueTotal}</span> 个
+                {t("独有提交 {n} 个", { n: uniqueTotal })}
               </span>
             )}
           </div>
@@ -137,7 +138,7 @@ export function BranchCompareModal({
         {/* 主体 */}
         {loading && (
           <div className="flex flex-1 items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-            <CircleNotch className="h-3.5 w-3.5 animate-spin" /> 加载中…
+            <CircleNotch className="h-3.5 w-3.5 animate-spin" /> {t("加载中…")}
           </div>
         )}
         {error && (
@@ -151,7 +152,7 @@ export function BranchCompareModal({
               <UniqueSection
                 branch={request.target}
                 other={currentName ?? "?"}
-                label={`${request.target} 独有`}
+                label={t("{branch} 独有", { branch: request.target })}
                 commits={compare.targetOnly}
                 selectedSha={selected?.longSha ?? null}
                 onSelect={setSelected}
@@ -159,7 +160,7 @@ export function BranchCompareModal({
               <UniqueSection
                 branch={currentName ?? "?"}
                 other={request.target}
-                label={`${currentName ?? "?"} 独有`}
+                label={t("{branch} 独有", { branch: currentName ?? "?" })}
                 commits={compare.currentOnly}
                 selectedSha={selected?.longSha ?? null}
                 onSelect={setSelected}
@@ -170,7 +171,7 @@ export function BranchCompareModal({
                 <CommitDetailsPanel cwd={cwd} commit={selected} />
               ) : (
                 <div className="flex flex-1 items-center justify-center text-xs text-(--tmd-fg-faint)">
-                  选择提交查看详情
+                  {t("选择提交查看详情")}
                 </div>
               )}
             </div>
@@ -213,7 +214,7 @@ function UniqueSection({
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex w-full min-w-0 items-center gap-1.5 px-2 py-1.5 text-left"
-        title={open ? "收起" : "展开"}
+        title={open ? t("收起") : t("展开")}
       >
         <CaretDown
           className={`h-3 w-3 shrink-0 text-(--tmd-fg-faint) transition-transform ${
@@ -226,14 +227,14 @@ function UniqueSection({
           <span className="font-normal text-(--tmd-fg-faint)">({branch} \ {other})</span>
         </span>
         <span className="shrink-0 rounded-full bg-(--tmd-accent-soft) px-1.5 py-0.5 text-[10px] text-(--tmd-accent)">
-          {commits.length} 个提交
+          {t("{n} 个提交", { n: commits.length })}
         </span>
       </button>
       {open && (
         <div className="border-t border-(--tmd-border) p-1">
           {commits.length === 0 && (
             <div className="px-2 py-3 text-center text-xs text-(--tmd-fg-faint)">
-              该方向无独有提交。
+              {t("该方向无独有提交。")}
             </div>
           )}
           {commits.map((c) => {
@@ -249,7 +250,7 @@ function UniqueSection({
                 }`}
               >
                 <div className="truncate text-xs font-medium text-(--tmd-fg)">
-                  {c.summary || "(空消息)"}
+                  {c.summary || t("(空消息)")}
                 </div>
                 <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-(--tmd-fg-faint)">
                   <span className="font-mono">{c.shortSha}</span>

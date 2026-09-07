@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { t } from "@kernel/i18n";
 import { Cloud, GitBranch, ClockClockwise, ArrowClockwise, Repeat, Tag, UploadSimple } from "@phosphor-icons/react";
 import { ipc, type GitCommitFile, type GitPushPreview, type GitRemoteRequest } from "@kernel/ipc";
 import { openCommitDiffTab } from "../../commitTab";
@@ -119,7 +120,7 @@ export function PushDialog({
         followTags: tags,
         gerrit: gerrit ? { topic: topic.trim() || null, reviewers: reviewers.trim() || null, cc: cc.trim() || null } : null,
       },
-      "推送",
+      t("推送"),
     );
   };
 
@@ -151,7 +152,7 @@ export function PushDialog({
 
   return (
     <GitDialogShell
-      title="将提交推送到远端"
+      title={t("将提交推送到远端")}
       icon={<UploadSimple className="h-3.5 w-3.5" aria-hidden />}
       repoName={repoName}
       width={880}
@@ -159,13 +160,13 @@ export function PushDialog({
       onClose={onClose}
       footer={
         <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-(--tmd-border) pt-3">
-          <OpToggle active={tags} icon={<Tag className="h-3.5 w-3.5" aria-hidden />} label="推送标签" disabled={submitting} onToggle={() => setTags((v) => !v)} />
-          <OpToggle active={runHooks} icon={<ArrowClockwise className="h-3.5 w-3.5" aria-hidden />} label="运行 Git 挂钩" disabled={submitting} onToggle={() => setRunHooks((v) => !v)} />
+          <OpToggle active={tags} icon={<Tag className="h-3.5 w-3.5" aria-hidden />} label={t("推送标签")} disabled={submitting} onToggle={() => setTags((v) => !v)} />
+          <OpToggle active={runHooks} icon={<ArrowClockwise className="h-3.5 w-3.5" aria-hidden />} label={t("运行 Git 挂钩")} disabled={submitting} onToggle={() => setRunHooks((v) => !v)} />
           <OpToggle active={forceWithLease} icon={<Repeat className="h-3.5 w-3.5" aria-hidden />} label="Force with lease" disabled={submitting} onToggle={() => setForceWithLease((v) => !v)} />
           <span className="flex-1" />
           <DialogActions
-            confirmLabel="推送"
-            confirmTitle={canConfirm ? undefined : "无可推送提交,已禁用推送按钮。"}
+            confirmLabel={t("推送")}
+            confirmTitle={canConfirm ? undefined : t("无可推送提交,已禁用推送按钮。")}
             confirmDisabled={!canConfirm}
             submitting={submitting}
             onConfirm={confirm}
@@ -211,7 +212,7 @@ export function PushDialog({
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <span className="flex items-center gap-1 text-xs text-(--tmd-fg-muted)">
             <ClockClockwise className="h-3.5 w-3.5" aria-hidden />
-            推送历史
+            {t("推送历史")}
           </span>
           {history.map((h) => (
             <button
@@ -235,11 +236,11 @@ export function PushDialog({
       {/* 远端 / 目标远端分支 */}
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div>
-          <PickerField icon={<Cloud className="h-3.5 w-3.5" aria-hidden />} label="远端" />
+          <PickerField icon={<Cloud className="h-3.5 w-3.5" aria-hidden />} label={t("远端")} />
           <RemotePicker remotes={remotes} value={remote} disabled={submitting} onPick={setRemote} />
         </div>
         <div>
-          <PickerField icon={<GitBranch className="h-3.5 w-3.5" aria-hidden />} label="目标远端分支" />
+          <PickerField icon={<GitBranch className="h-3.5 w-3.5" aria-hidden />} label={t("目标远端分支")} />
           <BranchCombobox
             value={target}
             placeholder={branch || "main"}

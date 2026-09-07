@@ -9,6 +9,7 @@
 import { CaretRight, Copy, FolderOpen } from "@phosphor-icons/react";
 import type { DirEntry } from "@kernel/ipc";
 import { clearDragPayload, setDragPayload } from "@kernel/internalDrag";
+import { t } from "@kernel/i18n";
 import { resolveFileVisual } from "@kernel/fileVisual";
 
 export function FileTreeRow({
@@ -107,8 +108,8 @@ export function FileTreeRow({
             ev.preventDefault();
             onContextMenu(ev);
           }}
-          aria-label="在访达中显示"
-          title="在访达中显示"
+          aria-label={t("在访达中显示")}
+          title={t("在访达中显示")}
         >
           <FolderOpen aria-hidden size={11} />
         </button>
@@ -124,8 +125,8 @@ export function FileTreeRow({
             ev.stopPropagation();
             onContextMenu(ev);
           }}
-          aria-label="复制路径"
-          title="复制路径"
+          aria-label={t("复制路径")}
+          title={t("复制路径")}
         >
           <Copy aria-hidden size={11} />
         </button>

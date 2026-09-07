@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CaretDown, CircleNotch } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import type { ProcRunResult } from "@kernel/ipc";
 import { fetchPkgDescription, type InstalledExt } from "./catalog";
 import { LogArea, runPluginAction } from "./marketCards";
@@ -63,10 +64,10 @@ export function InstalledRow({
     const push = (text: string) => setLogs((prev) => [...prev, text]);
     try {
       const ok = await runPluginAction(ext.name, "uninstall", push);
-      push(ok ? "—— 已卸载 ——" : "—— 失败:命令非零退出,详见上方日志 ——");
+      push(ok ? t("—— 已卸载 ——") : t("—— 失败:命令非零退出,详见上方日志 ——"));
     } catch (e) {
       /* 同 ExtCard.run:reject 必须落失败行并退出 running,否则永久转圈。 */
-      push(`—— 失败:${e instanceof Error ? e.message : String(e)} ——`);
+      push(t("—— 失败:{error} ——", { error: e instanceof Error ? e.message : String(e) }));
     } finally {
       setRunning(null);
       onChanged();
@@ -88,7 +89,7 @@ export function InstalledRow({
       <button
         type="button"
         className="omp-ext-row-head"
-        title={open ? "收起详情" : "展开详情"}
+        title={open ? t("收起详情") : t("展开详情")}
         onClick={() => setOpen((v) => !v)}
       >
         <CaretDown size={12} className="omp-ext-caret" aria-hidden />
@@ -97,14 +98,14 @@ export function InstalledRow({
         </span>
         <span className="omp-ext-ver">{ext.version || "?"}</span>
         <span className={`omp-ext-badge${ext.enabled ? "" : " off"}`}>
-          {ext.enabled ? "启用" : "停用"}
+          {ext.enabled ? t("启用") : t("停用")}
         </span>
       </button>
       <div className="omp-ext-row-action">
         {running === "toggle" ? (
           <span className="omp-ext-running">
             <CircleNotch size={12} className="omp-ext-spin" aria-hidden />
-            {ext.enabled ? "停用中" : "启用中"}
+            {ext.enabled ? t("停用中") : t("启用中")}
           </span>
         ) : (
           <button
@@ -113,21 +114,21 @@ export function InstalledRow({
             disabled={running !== null}
             onClick={toggleEnabled}
           >
-            {ext.enabled ? "停用" : "启用"}
+            {ext.enabled ? t("停用") : t("启用")}
           </button>
         )}
         {running === "uninstall" ? (
           <span className="omp-ext-running">
             <CircleNotch size={12} className="omp-ext-spin" aria-hidden />
-            卸载中
+            {t("卸载中")}
           </span>
         ) : armed ? (
           <span className="omp-ext-confirm">
             <button type="button" className="omp-ext-btn danger" onClick={run}>
-              确认卸载
+              {t("确认卸载")}
             </button>
             <button type="button" className="omp-ext-btn" onClick={() => setArmed(false)}>
-              取消
+              {t("取消")}
             </button>
           </span>
         ) : (
@@ -137,13 +138,13 @@ export function InstalledRow({
             disabled={running !== null}
             onClick={() => setArmed(true)}
           >
-            卸载
+            {t("卸载")}
           </button>
         )}
       </div>
       {open ? (
         <div className="omp-ext-row-detail">
-          {detail === null ? "获取描述…" : detail || "暂无描述"}
+          {detail === null ? t("获取描述…") : t(detail) || t("暂无描述")}
         </div>
       ) : null}
       <LogArea lines={logs} />

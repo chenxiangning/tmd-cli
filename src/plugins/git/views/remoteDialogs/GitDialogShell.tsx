@@ -4,6 +4,7 @@
  * DialogActions 是 取消/主按钮 的固定排法:主按钮 accent,提交中文案切「加载中…」。
  */
 
+import { t } from "@kernel/i18n";
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -53,7 +54,7 @@ export function GitDialogShell({
         <div className="flex items-center gap-1.5 text-xs font-semibold text-(--tmd-fg)">
           {icon}
           {title}
-          {repoName && <span className="git-dialog-repo" title={`当前仓库:${repoName}`}>{repoName}</span>}
+          {repoName && <span className="git-dialog-repo" title={t("当前仓库:{repoName}", { repoName })}>{repoName}</span>}
         </div>
         {children}
         {footer}
@@ -86,7 +87,7 @@ export function DialogActions({
         disabled={submitting}
         className="rounded border border-(--tmd-border) px-3 py-1.5 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
-        取消
+        {t("取消")}
       </button>
       <button
         type="button"
@@ -95,7 +96,7 @@ export function DialogActions({
         title={confirmTitle}
         className="rounded bg-(--tmd-accent) px-3 py-1.5 text-xs text-(--tmd-accent-fg) hover:opacity-90 disabled:opacity-50"
       >
-        {submitting ? "加载中…" : confirmLabel}
+        {submitting ? t("加载中…") : confirmLabel}
       </button>
     </div>
   );

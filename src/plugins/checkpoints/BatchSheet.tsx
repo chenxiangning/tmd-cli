@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, CircleNotch, ArrowCounterClockwise } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
 import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
+import { t } from "@kernel/i18n";
 import type { CkptBatch } from "@kernel/ipc";
 import { approveBatch, getCachedDiff, loadDiff, refreshBatches, refreshOpenDiff, revertBatch, useCkptVersion, useCkptBatches } from "./store";
 import { readBatchPayload } from "./batchTab";
@@ -23,10 +24,10 @@ import { Center, FileSection } from "./BatchFileSection";
 /** 轮耗时短语(锚点 → 封口);秒取整,分段到时。 */
 function formatDuration(ms: number): string {
   const s = Math.round(ms / 1000);
-  if (s < 60) return `${s} 秒`;
+  if (s < 60) return t("{s} 秒", { s });
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m} 分 ${s % 60} 秒`;
-  return `${Math.floor(m / 60)} 小时 ${m % 60} 分`;
+  if (m < 60) return t("{m} 分 {s} 秒", { m, s: s % 60 });
+  return t("{h} 小时 {m} 分", { h: Math.floor(m / 60), m: m % 60 });
 }
 
 export function BatchSheetTabContent({ tab }: { tab: EditorTab }) {
@@ -70,10 +71,10 @@ function BatchSheet({
   }, [cwd, batchId, batch?.open]);
 
   if (notARepo) {
-    return <Center>该工作区不是 git 仓库,无审批数据</Center>;
+    return <Center>{t("该工作区不是 git 仓库,无审批数据")}</Center>;
   }
   if (!batch) {
-    return <Center>批次不存在或已随会话结束(审批线生命周期 = 单个会话)</Center>;
+    return <Center>{t("批次不存在或已随会话结束(审批线生命周期 = 单个会话)")}</Center>;
   }
   return (
     <SheetBody
@@ -145,14 +146,14 @@ function SheetBody({
 
   const revertable = batch.files.filter((f) => f.live === "same");
   const stateLabel = batch.open
-    ? "进行中"
+    ? t("进行中")
     : batch.state === "done"
-      ? `已处理 · ${batch.doneReason ?? ""}`
+      ? t("已处理 · {reason}", { reason: t(batch.doneReason ?? "") })
       : batch.state === "approved"
-        ? "已通过"
+        ? t("已通过")
         : batch.state === "reverted"
-          ? "已退"
-          : "待审";
+          ? t("已退")
+          : t("待审");
 
   return (
     <div className="flex h-full flex-col">
@@ -160,9 +161,11 @@ function SheetBody({
       <div className="flex h-8 flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-3">
         <span
           className="text-[11px] text-(--tmd-fg-faint)"
-          title={`${formatAbsolute(batch.ts)} 发起${batch.tsEnd ? ` · ${formatAbsolute(batch.tsEnd)} 封口` : ""}`}
+          title={batch.tsEnd
+            ? t("{start} 发起 · {end} 封口", { start: formatAbsolute(batch.ts), end: formatAbsolute(batch.tsEnd) })
+            : t("{start} 发起", { start: formatAbsolute(batch.ts) })}
         >
-          批次 #{batch.index} · {stateLabel} · {formatRelativeTime(batch.ts)}
+          {t("批次 #{index} · {state} · {time}", { index: batch.index, state: stateLabel, time: formatRelativeTime(batch.ts) })}
         </span>
         {patches && (
           <span className="font-mono text-[11px]">
@@ -180,10 +183,10 @@ function SheetBody({
             type="button"
             disabled={busy}
             className="flex h-6 items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-[11px] text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
-            title="标记本批已审阅(纯标记,不影响任何文件)"
+            title={t("标记本批已审阅(纯标记,不影响任何文件)")}
             onClick={() => void doApprove()}
           >
-            <Check size={10} aria-hidden /> 通过
+            <Check size={10} aria-hidden /> {t("通过")}
           </button>
         )}
         {(batch.state === "pending" || batch.state === "approved") && revertable.length > 0 && (
@@ -193,7 +196,7 @@ function SheetBody({
             className="flex h-6 items-center gap-1 rounded border border-[rgba(167,139,250,.4)] px-2 text-[11px] text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
             onClick={() => setConfirmPath("all")}
           >
-            <ArrowCounterClockwise size={10} aria-hidden /> 回退整批({revertable.length})
+            <ArrowCounterClockwise size={10} aria-hidden /> {t("回退整批({n})", { n: revertable.length })}
           </button>
         )}
       </div>
@@ -201,15 +204,16 @@ function SheetBody({
       {confirmPath && (
         <div className="flex flex-none items-center gap-3 border-b border-(--tmd-border-strong) bg-(--tmd-bg-popover) px-3 py-1.5 text-[11px]">
           <span className="text-(--tmd-fg-muted)">
-            确认回退{confirmPath === "all" ? `整批(${revertable.length} 文件)` : confirmPath}?
-            恢复点自动留存。
+            {t("确认回退{target}? 恢复点自动留存。", {
+              target: confirmPath === "all" ? t("整批({n} 文件)", { n: revertable.length }) : confirmPath,
+            })}
           </span>
           <button
             type="button"
             className="rounded border border-(--tmd-border) px-2 py-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
             onClick={() => setConfirmPath(null)}
           >
-            取消
+            {t("取消")}
           </button>
           <button
             type="button"
@@ -217,7 +221,7 @@ function SheetBody({
             className="rounded border border-[rgba(167,139,250,.5)] px-2 py-0.5 text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
             onClick={() => void doRevert(confirmPath === "all" ? undefined : [confirmPath])}
           >
-            确认回退
+            {t("确认回退")}
           </button>
         </div>
       )}
@@ -226,13 +230,13 @@ function SheetBody({
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         {!patches ? (
           <div className="flex items-center justify-center gap-2 pt-10 text-(--tmd-fg-faint)">
-            <CircleNotch size={13} className="animate-spin" aria-hidden /> 生成批 diff…
+            <CircleNotch size={13} className="animate-spin" aria-hidden /> {t("生成批 diff…")}
           </div>
         ) : (
           <>
             {/* 账本随批固化的元信息:引擎/模型/思考 + 精确时刻 + 轮耗时(空段隐藏) */}
             <div className="mb-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-(--tmd-fg-faint)">
-              <span className="flex-none">用户消息</span>
+              <span className="flex-none">{t("用户消息")}</span>
               {batch.engine && (
                 <span className="flex-none rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) px-1 text-[10px] leading-[16px] text-(--tmd-fg-muted)">
                   {batch.engine}
@@ -243,7 +247,7 @@ function SheetBody({
               )}
               {batch.thinking && (
                 <span className="flex-none">
-                  思考 <span className="font-mono text-(--tmd-fg-muted)">{batch.thinking}</span>
+                  {t("思考")} <span className="font-mono text-(--tmd-fg-muted)">{batch.thinking}</span>
                 </span>
               )}
               <span className="flex-none">
@@ -251,7 +255,7 @@ function SheetBody({
                 <span className="ml-1.5">({formatRelativeTime(batch.ts)})</span>
               </span>
               {batch.tsEnd != null && batch.tsEnd > batch.ts && (
-                <span className="flex-none">耗时 {formatDuration(batch.tsEnd - batch.ts)}</span>
+                <span className="flex-none">{t("耗时 {duration}", { duration: formatDuration(batch.tsEnd - batch.ts) })}</span>
               )}
             </div>
             {/* 图片附件缩略图横排(点击放大);净文本为空(纯附件消息)不出文本块 */}
@@ -263,11 +267,11 @@ function SheetBody({
             ) : null}
 
             <div className="mb-2 mt-5 text-[11px] text-(--tmd-fg-faint)">
-              AI 修改的文件({batch.files.length}) —— 点击分区头折叠;hover 可单文件回退
+              {t("AI 修改的文件({n}) —— 点击分区头折叠;hover 可单文件回退", { n: batch.files.length })}
             </div>
             {patches.length === 0 && (
               <div className="rounded border border-dashed border-(--tmd-border) p-4 text-center text-[11px] text-(--tmd-fg-faint)">
-                本批文件当前与批后像无差异(可能已回退或已提交)
+                {t("本批文件当前与批后像无差异(可能已回退或已提交)")}
               </div>
             )}
             {batch.files.map((f) => (

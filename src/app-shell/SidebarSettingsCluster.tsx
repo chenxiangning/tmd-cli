@@ -16,6 +16,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { appVersion } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { openSettingsPanel, useSettingsState } from "@kernel/settings";
 import logoUrl from "../assets/logo.png";
@@ -56,8 +57,8 @@ function PinCheckbox({
       type="button"
       role="menuitemcheckbox"
       aria-checked={pinned}
-      aria-label={disabled ? `最多钉住 ${PINNED_MAX} 个` : "钉到底栏"}
-      title={disabled ? `最多钉住 ${PINNED_MAX} 个` : pinned ? "取消钉住" : "钉到底栏"}
+      aria-label={disabled ? t("最多钉住 {n} 个", { n: PINNED_MAX }) : t("钉到底栏")}
+      title={disabled ? t("最多钉住 {n} 个", { n: PINNED_MAX }) : pinned ? t("取消钉住") : t("钉到底栏")}
       disabled={disabled}
       className={`settings-menu-pin${pinned ? " is-checked" : ""}`}
       onClick={(e) => {
@@ -139,7 +140,7 @@ export function SidebarSettingsCluster() {
   return (
     <div className="settings-cluster" ref={rootRef}>
       {open && (
-        <div className="settings-menu" role="menu" aria-label="设置菜单">
+        <div className="settings-menu" role="menu" aria-label={t("设置菜单")}>
           {actions.map((action) => {
             const pinned = pinnedIds.includes(action.id);
             const isActive = action.active?.() ?? false;
@@ -157,7 +158,7 @@ export function SidebarSettingsCluster() {
                   <span className="settings-menu-icon" aria-hidden>
                     <action.icon size={14} />
                   </span>
-                  <span className="settings-menu-label">{action.label}</span>
+                  <span className="settings-menu-label">{t(action.label)}</span>
                 </button>
                 <PinCheckbox
                   pinned={pinned}
@@ -180,7 +181,7 @@ export function SidebarSettingsCluster() {
             <span className="settings-menu-icon" aria-hidden>
               <Gear size={14} />
             </span>
-            <span className="settings-menu-label">设置</span>
+            <span className="settings-menu-label">{t("设置")}</span>
           </button>
         </div>
       )}
@@ -189,10 +190,10 @@ export function SidebarSettingsCluster() {
         <button
           type="button"
           className={`settings-bar-btn settings-gear${open ? " is-active" : ""}`}
-          aria-label="设置"
+          aria-label={t("设置")}
           aria-expanded={open}
           aria-haspopup="menu"
-          title="设置"
+          title={t("设置")}
           onClick={() => setOpen((v) => !v)}
         >
           <img src={logoUrl} alt="" className="settings-logo" />
@@ -204,9 +205,9 @@ export function SidebarSettingsCluster() {
               key={action.id}
               type="button"
               className={`settings-bar-btn${isActive ? " is-active" : ""}`}
-              aria-label={action.label}
+              aria-label={t(action.label)}
               aria-pressed={isActive}
-              title={action.label}
+              title={t(action.label)}
               onClick={() => action.onSelect(anchor())}
             >
               <action.icon size={14} />
@@ -217,8 +218,8 @@ export function SidebarSettingsCluster() {
         <button
           type="button"
           className="settings-cluster-version"
-          aria-label="版本与更新"
-          title="版本与更新"
+          aria-label={t("版本与更新")}
+          title={t("版本与更新")}
           onClick={() => {
             const rect = rootRef.current?.getBoundingClientRect();
             /* 面板(300px)宽于侧栏:锚定簇左缘、悬于底栏上方,越界由弹窗内夹取。 */

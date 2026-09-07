@@ -9,6 +9,7 @@
  */
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { t } from "@kernel/i18n";
 import { CircleNotch } from "@phosphor-icons/react";
 import { resolveFileVisual } from "@kernel/fileVisual";
 import { formatAbsolute } from "@kernel/relativeTime";
@@ -137,13 +138,13 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
     <div ref={scrollerRef} className="h-full overflow-y-auto p-1">
       {log.entries.length === 0 && !log.loading && (
         <div className="flex h-24 items-center justify-center text-(--tmd-fg-faint)">
-          {log.error ? log.error.replace(/^E_[A-Z_]+:\s*/, "") : "暂无提交历史"}
+          {log.error ? log.error.replace(/^E_[A-Z_]+:\s*/, "") : t("暂无提交历史")}
         </div>
       )}
 
       {rows.map((row) => {
         if (row.type === "marker") {
-          const label = row.kind === "outgoing-changes" ? "传出的更改" : "传入的更改";
+          const label = row.kind === "outgoing-changes" ? t("传出的更改") : t("传入的更改");
           return (
             <div
               key={`${row.kind}:${row.graph.sha}`}
@@ -209,7 +210,7 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
             >
               <GitGraphSvgCell row={row.graph} />
               <span className="min-w-0 flex-1 truncate font-medium">
-                {row.commit.summary || "(空消息)"}
+                {row.commit.summary || t("(空消息)")}
               </span>
               <span className="shrink-0 text-[10px] tabular-nums text-(--tmd-fg-faint)">
                 {formatRelativeTime(row.commit.authorWhen * 1000)}
@@ -217,10 +218,10 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
             </button>
             {/* 展开区占位:清单加载中/失败给一行反馈,成功后由 rows 出文件行 */}
             {isExpanded && entry?.loading && (
-              <div className={ROW_CLASS} title="加载改动文件">
+              <div className={ROW_CLASS} title={t("加载改动文件")}>
                 <GitGraphContinuationCell row={row.graph} />
                 <CircleNotch className="h-3 w-3 shrink-0 animate-spin text-(--tmd-fg-faint)" />
-                <span className="text-(--tmd-fg-faint)">加载中…</span>
+                <span className="text-(--tmd-fg-faint)">{t("加载中…")}</span>
               </div>
             )}
             {isExpanded && entry?.error && (
@@ -235,7 +236,7 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
             {isExpanded && entry && !entry.loading && !entry.error && entry.files.length === 0 && (
               <div className={ROW_CLASS}>
                 <GitGraphContinuationCell row={row.graph} />
-                <span className="text-(--tmd-fg-faint)">无改动文件</span>
+                <span className="text-(--tmd-fg-faint)">{t("无改动文件")}</span>
               </div>
             )}
           </Fragment>
@@ -245,11 +246,11 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
 
       {log.loading && (
         <div className="flex items-center justify-center gap-1.5 py-2 text-(--tmd-fg-faint)">
-          <CircleNotch className="h-3 w-3 animate-spin" /> 加载中…
+          <CircleNotch className="h-3 w-3 animate-spin" /> {t("加载中…")}
         </div>
       )}
       {!log.hasMore && log.entries.length > 0 && (
-        <div className="py-2 text-center text-[10px] text-(--tmd-fg-faint)">已到最早提交</div>
+        <div className="py-2 text-center text-[10px] text-(--tmd-fg-faint)">{t("已到最早提交")}</div>
       )}
     </div>
   );

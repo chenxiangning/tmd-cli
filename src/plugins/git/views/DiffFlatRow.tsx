@@ -4,6 +4,7 @@
  * 互斥换位;状态描述表(STATUS_DESC)与徽标字母表(BADGE)随行迁移。
  */
 
+import { t } from "@kernel/i18n";
 import type { GitFileStatus } from "@kernel/ipc";
 import { STATUS_COLOR } from "./statusColor";
 import { FileOpenActions } from "./FileRowActions";
@@ -76,7 +77,11 @@ export function FRow({
   return (
     <div
       onClick={onOpen}
-      title={`${file.path} —— 点击在中间打开 diff${conflict ? " · 冲突,请先到幕布解决" : ""}`}
+      title={
+        conflict
+          ? t("{path} —— 点击在中间打开 diff · 冲突,请先到幕布解决", { path: file.path })
+          : t("{path} —— 点击在中间打开 diff", { path: file.path })
+      }
       className="group flex h-6 cursor-pointer select-none items-center gap-2 whitespace-nowrap pl-3 pr-3 hover:bg-(--tmd-bg-hover)"
     >
       <button
@@ -89,12 +94,12 @@ export function FRow({
         }}
         title={
           conflict
-            ? "冲突文件:请到幕布终端解决后提交"
+            ? t("冲突文件:请到幕布终端解决后提交")
             : stagedRow
-              ? "取消暂存(git reset)"
+              ? t("取消暂存(git reset)")
               : checked
-                ? "移出本次提交"
-                : "纳入本次提交"
+                ? t("移出本次提交")
+                : t("纳入本次提交")
         }
         className={`w-[26px] shrink-0 text-left ${conflict ? "text-(--tmd-fg-faint) opacity-60" : stagedRow || checked ? "text-(--tmd-fg)" : "text-(--tmd-fg-muted)"}`}
       >
@@ -102,7 +107,7 @@ export function FRow({
       </button>
       {/* 状态标识:单字母着色(替代长关键字短语,untracked 也有 U 可看) */}
       <span
-        title={STATUS_DESC[file.status]}
+        title={t(STATUS_DESC[file.status])}
         className={`w-[14px] shrink-0 text-center font-semibold ${STATUS_COLOR[file.status] ?? ""}`}
       >
         {BADGE[file.status]}
@@ -116,7 +121,7 @@ export function FRow({
       </span>
       {/* 数字位与动作位互斥显示(hover 换位,同原型):宽随内容,截断兜底在 dir 列 */}
       {conflict ? (
-        <span className="shrink-0 text-[11px] text-(--tmd-diff-removed)">冲突</span>
+        <span className="shrink-0 text-[11px] text-(--tmd-diff-removed)">{t("冲突")}</span>
       ) : (
         <span className="shrink-0 text-[11px] tabular-nums">
           <span className={numsBlank ? "group-hover:invisible" : "group-hover:hidden"}>
@@ -128,39 +133,39 @@ export function FRow({
             {stagedRow ? (
               <button
                 type="button"
-                title="取消暂存(git reset)"
+                title={t("取消暂存(git reset)")}
                 onClick={(e) => {
                   e.stopPropagation();
                   onUnstage();
                 }}
                 className="text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
               >
-                (取消暂存)
+                {t("(取消暂存)")}
               </button>
             ) : (
               <button
                 type="button"
-                title="暂存(git add)"
+                title={t("暂存(git add)")}
                 onClick={(e) => {
                   e.stopPropagation();
                   onStage();
                 }}
                 className="text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
               >
-                (暂存)
+                {t("(暂存)")}
               </button>
             )}
             {canDiscard && (
               <button
                 type="button"
-                title="放弃工作区改动(还原到暂存区;不可恢复)"
+                title={t("放弃工作区改动(还原到暂存区;不可恢复)")}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDiscard();
                 }}
                 className="text-(--tmd-fg-faint) hover:text-(--tmd-diff-removed) hover:underline hover:underline-offset-2"
               >
-                (放弃)
+                {t("(放弃)")}
               </button>
             )}
           </span>

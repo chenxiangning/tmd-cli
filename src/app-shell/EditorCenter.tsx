@@ -6,6 +6,7 @@
 
 import { memo } from "react";
 import { getTabContent, useEditorTabs } from "@kernel/tabs";
+import { t } from "@kernel/i18n";
 
 export const EditorCenter = memo(function EditorCenter() {
   const { tabs, activeId } = useEditorTabs();
@@ -21,7 +22,7 @@ export const EditorCenter = memo(function EditorCenter() {
           <Content key={active.id} tab={active} />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
-            选中一个文件查看
+            {t("选中一个文件查看")}
           </div>
         )}
       </div>

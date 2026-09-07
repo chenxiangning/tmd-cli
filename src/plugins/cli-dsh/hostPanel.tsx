@@ -22,6 +22,7 @@ import {
 } from "@phosphor-icons/react";
 import { openExternalUrl } from "@kernel/ipc";
 import { host } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { DshConnectionSettings } from "./dshConnectionSettings";
 import {
   consumeAutoStart,
@@ -112,7 +113,7 @@ export function DshHostPanel() {
     const view = await ensureHostSession(conn, spawnHostSession);
     if (!alive.current) return;
     setStatus(view ? { kind: "ok", view } : { kind: "down" });
-    if (!view) setError(DOWN_ERROR);
+    if (!view) setError(t(DOWN_ERROR));
     setPending(null);
   };
 
@@ -124,7 +125,7 @@ export function DshHostPanel() {
     await delay(600); // 端口释放窗口,随后重测以真实状态收口
     if (!alive.current) return;
     setPending(null);
-    if (outcome === "remote") setError(REMOTE_STOP_ERROR);
+    if (outcome === "remote") setError(t(REMOTE_STOP_ERROR));
     void refresh();
   };
 
@@ -142,36 +143,35 @@ export function DshHostPanel() {
   const view = connected ? status.view : null;
   const title =
     pending
-      ? "正在启动…"
+      ? t("正在启动…")
       : !binFound
-        ? "未安装 DSH CLI"
+        ? t("未安装 DSH CLI")
         : connected
-          ? "主机已连接"
+          ? t("主机已连接")
           : status.kind === "down"
-            ? "主机未运行"
-            : "正在探测本地 host";
+            ? t("主机未运行")
+            : t("正在探测本地 host");
   const meta = connected
     ? null
     : !binFound
-      ? "先装本地 dsh。模型和密钥仍然去 DSH Web UI 配。"
+      ? t("先装本地 dsh。模型和密钥仍然去 DSH Web UI 配。")
       : status.kind === "down"
-        ? `连不上 ${originOf(conn)}。自动启动只影响下次对话;要现在拉起请点立即启动。`
-        : "只信 host.describe,不把端口通当作已就绪。";
+        ? t("连不上 {origin}。自动启动只影响下次对话;要现在拉起请点立即启动。", { origin: originOf(conn) })
+        : t("只信 host.describe,不把端口通当作已就绪。");
   const errorText =
-    error ?? (status.kind === "down" && binFound ? DOWN_ERROR : null);
+    error ?? (status.kind === "down" && binFound ? t(DOWN_ERROR) : null);
 
   const facts: Array<[string, string]> = [];
-  if (view?.provider) facts.push(["当前供应商", view.provider]);
-  if (view?.model) facts.push(["当前模型", view.model]);
-  if (typeof view?.sessions === "number") facts.push(["已挂会话", String(view.sessions)]);
+  if (view?.provider) facts.push([t("当前供应商"), view.provider]);
+  if (view?.model) facts.push([t("当前模型"), view.model]);
+  if (typeof view?.sessions === "number") facts.push([t("已挂会话"), String(view.sessions)]);
 
   return (
     <div className="mt-2">
       <div className="pref-card">
         <div className="px-4 pt-3 text-xs leading-5 text-(--tmd-fg-muted)">
-          <span className="font-semibold text-(--tmd-fg)">提示</span>{" "}
-          模型和 API Key 在 DSH Web UI 里配,这里只负责装 CLI、连本地 host(要求 Node{" "}
-          &ge; 22.19 或 &ge; 24)。启动 = 新开一个「DSH Host」终端会话跑 dsh web,关掉会话即停止服务。
+          <span className="font-semibold text-(--tmd-fg)">{t("提示")}</span>{" "}
+          {t("模型和 API Key 在 DSH Web UI 里配,这里只负责装 CLI、连本地 host(要求 Node ≥ 22.19 或 ≥ 24)。启动 = 新开一个「DSH Host」终端会话跑 dsh web,关掉会话即停止服务。")}
         </div>
         <div className="pref-row" aria-live="polite">
           <div className="min-w-0">
@@ -190,7 +190,7 @@ export function DshHostPanel() {
               <span className="pref-title">{title}</span>
               {connected && (
                 <span className="font-mono text-xs text-(--tmd-fg-muted)">
-                  已连接到 {originOf(conn)}
+                  {t("已连接到 {origin}", { origin: originOf(conn) })}
                 </span>
               )}
             </div>
@@ -199,7 +199,7 @@ export function DshHostPanel() {
           <div className="flex shrink-0 items-center gap-2">
             {pending === "start" ? (
               <button type="button" className={BTN} onClick={() => void onCancelStart()}>
-                <X size={13} /> 取消启动
+                <X size={13} /> {t("取消启动")}
               </button>
             ) : (
               <>
@@ -209,7 +209,7 @@ export function DshHostPanel() {
                     className={BTN_PRIMARY}
                     onClick={() => void openExternalUrl(originOf(conn))}
                   >
-                    <ArrowSquareOut size={13} /> 打开 DSH Web UI
+                    <ArrowSquareOut size={13} /> {t("打开 DSH Web UI")}
                   </button>
                 )}
                 {connected && (
@@ -219,7 +219,7 @@ export function DshHostPanel() {
                     disabled={pending !== null}
                     onClick={() => void onStop()}
                   >
-                    <Stop size={13} /> 停止服务
+                    <Stop size={13} /> {t("停止服务")}
                   </button>
                 )}
                 {status.kind === "down" && binFound && (
@@ -230,14 +230,14 @@ export function DshHostPanel() {
                       disabled={pending !== null}
                       onClick={() => void onStart()}
                     >
-                      <Play size={13} /> 立即启动
+                      <Play size={13} /> {t("立即启动")}
                     </button>
                     <button
                       type="button"
                       className={BTN}
                       onClick={() => void openExternalUrl(originOf(conn))}
                     >
-                      <ArrowSquareOut size={13} /> 仍尝试打开
+                      <ArrowSquareOut size={13} /> {t("仍尝试打开")}
                     </button>
                   </>
                 )}
@@ -248,7 +248,7 @@ export function DshHostPanel() {
                     disabled={pending !== null}
                     onClick={() => void refresh()}
                   >
-                    <ArrowClockwise size={13} /> 重新检测
+                    <ArrowClockwise size={13} /> {t("重新检测")}
                   </button>
                 )}
               </>

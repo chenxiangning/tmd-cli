@@ -10,11 +10,11 @@
 import { useEffect } from "react";
 import { Check, ArrowCounterClockwise, ArrowUUpLeft, Lightning } from "@phosphor-icons/react";
 import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
+import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptPatch } from "@kernel/ipc";
 import { getCachedDiff, loadDiff, refreshOpenDiff } from "./store";
 import { openBatchTab } from "./batchTab";
 import { ConfirmCard, FileRow, type ConfirmTarget } from "./BatchRowParts";
-
 export type { ConfirmTarget } from "./BatchRowParts";
 
 const POLL_MS = 6000;
@@ -105,11 +105,14 @@ export function BatchRow({
         type="button"
         className="relative z-[1] flex w-full items-start gap-2 rounded-(--tmd-radius-sm) py-1.5 pl-1 pr-2.5 text-left hover:bg-(--tmd-bg-hover)"
         title={
-          `点击审阅该批(用户消息 + 文件 diff) · ${formatAbsolute(b.ts)} 发起` +
-          (b.tsEnd ? ` · ${formatAbsolute(b.tsEnd)} 封口` : "")
+          t("点击审阅该批(用户消息 + 文件 diff) · {ts}", {
+            ts: b.tsEnd
+              ? t("{start} 发起 · {end} 封口", { start: formatAbsolute(b.ts), end: formatAbsolute(b.tsEnd) })
+              : t("{start} 发起", { start: formatAbsolute(b.ts) }),
+          })
         }
         onClick={() =>
-          openBatchTab({ cwd, sessionId, tmdSessionId, batchId: b.id, title: `批次 #${b.index}` })
+          openBatchTab({ cwd, sessionId, tmdSessionId, batchId: b.id, title: t("批次 #{index}", { index: b.index }) })
         }
       >
         <span
@@ -128,29 +131,29 @@ export function BatchRow({
             </span>
           </span>
           <span className="mt-px flex items-center gap-1.5 overflow-hidden whitespace-nowrap text-[11px] text-(--tmd-fg-faint)">
-            <span className="flex-none">{b.files.length} 文件</span>
+            <span className="flex-none">{t("{n} 文件", { n: b.files.length })}</span>
             {stats && (
               <span className="flex-none font-mono">
                 <span className="text-(--tmd-diff-inserted)">+{stats.ins}</span>{" "}
                 <span className="text-(--tmd-diff-removed)">−{stats.del}</span>
               </span>
             )}
-            <span className={`flex-none rounded-full px-1.5 text-[10px] font-semibold leading-[14px] ${meta.chip}`} title={b.attribution === "events" ? "归因:AI 写入事件流(账本只记 CLI 声称写过的文件)" : "归因:窗口内 git 变更推断(该 CLI 未声明写入事件检测,可能有误差)"}>
-              {meta.label}
-              {st === "done" && b.doneReason ? ` · ${b.doneReason}` : ""}
+            <span className={`flex-none rounded-full px-1.5 text-[10px] font-semibold leading-[14px] ${meta.chip}`} title={b.attribution === "events" ? t("归因:AI 写入事件流(账本只记 CLI 声称写过的文件)") : t("归因:窗口内 git 变更推断(该 CLI 未声明写入事件检测,可能有误差)")}>
+              {t(meta.label)}
+              {st === "done" && b.doneReason ? ` · ${t(b.doneReason)}` : ""}
             </span>
             {b.attribution === "git" && !b.open && (
               <span
                 className="flex-none rounded border border-dashed border-(--tmd-border-strong) px-1 text-[9px] leading-[13px] text-(--tmd-fg-faint)"
-                title="该 CLI 未声明写入事件检测:批次由 git 变更推断,可能混入手改"
+                title={t("该 CLI 未声明写入事件检测:批次由 git 变更推断,可能混入手改")}
               >
-                推断
+                {t("推断")}
               </span>
             )}
             {(b.engine || b.model) && (
               <span
                 className="min-w-0 truncate text-[10px]"
-                title={[b.engine, b.model, b.thinking ? `思考 ${b.thinking}` : ""].filter(Boolean).join(" · ")}
+                title={[b.engine, b.model, b.thinking ? t("思考 {level}", { level: b.thinking }) : ""].filter(Boolean).join(" · ")}
               >
                 {b.engine}
                 {b.engine && b.model ? " · " : ""}
@@ -187,10 +190,10 @@ export function BatchRow({
             type="button"
             disabled={busy}
             className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-[10px] text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
-            title="标记本批已审阅(纯标记,不影响任何文件)"
+            title={t("标记本批已审阅(纯标记,不影响任何文件)")}
             onClick={() => void onApprove(b.id)}
           >
-            <Check size={10} aria-hidden /> 通过
+            <Check size={10} aria-hidden /> {t("通过")}
           </button>
         )}
         {(st === "pending" || st === "approved") && revertable.length > 0 && (
@@ -200,7 +203,7 @@ export function BatchRow({
             className="flex h-[21px] flex-none items-center gap-1 rounded border border-[rgba(167,139,250,.4)] px-2 text-[10px] text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
             onClick={() => setConfirm({ batchId: b.id, paths: revertable.map((f) => f.path) })}
           >
-            <ArrowCounterClockwise size={10} aria-hidden /> 回退整批({revertable.length})
+            <ArrowCounterClockwise size={10} aria-hidden /> {t("回退整批({n})", { n: revertable.length })}
           </button>
         )}
         {st === "reverted" && (
@@ -208,10 +211,10 @@ export function BatchRow({
             type="button"
             disabled={busy}
             className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-[10px] text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
-            title="按账本副本把这轮改动精确写回(live 已偏离批前像的文件跳过,绝不覆盖)"
+            title={t("按账本副本把这轮改动精确写回(live 已偏离批前像的文件跳过,绝不覆盖)")}
             onClick={() => setConfirm({ batchId: b.id, mode: "apply" })}
           >
-            <Lightning size={10} aria-hidden /> 应用回此批
+            <Lightning size={10} aria-hidden /> {t("应用回此批")}
           </button>
         )}
         {st === "reverted" && b.guardId && (
@@ -221,19 +224,19 @@ export function BatchRow({
             className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-border) px-2 text-[10px] text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) disabled:opacity-40"
             onClick={() => void onUndo(b.id)}
           >
-            <ArrowUUpLeft size={10} aria-hidden /> 反悔 · 恢复回来
+            <ArrowUUpLeft size={10} aria-hidden /> {t("反悔 · 恢复回来")}
           </button>
         )}
         <span className="truncate text-[10px] text-(--tmd-fg-faint)">
           {st === "open"
-            ? "进行中 —— 本轮对话结算后自动封口进入待审"
+            ? t("进行中 —— 本轮对话结算后自动封口进入待审")
             : st === "done"
-              ? "已处理 —— 无需操作"
+              ? t("已处理 —— 无需操作")
               : st === "approved"
-                ? "已通过 —— 仅标记,改动仍在工作区"
+                ? t("已通过 —— 仅标记,改动仍在工作区")
                 : st === "reverted"
-                  ? "已回退 · 恢复点留存"
-                  : "回退前自动打恢复点"}
+                  ? t("已回退 · 恢复点留存")
+                  : t("回退前自动打恢复点")}
         </span>
       </div>
 

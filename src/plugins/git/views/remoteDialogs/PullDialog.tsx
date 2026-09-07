@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { t } from "@kernel/i18n";
 import { CaretDown, Cloud, DownloadSimple, GitBranch, Cross } from "@phosphor-icons/react";
 import { ipc, type GitRemoteRequest } from "@kernel/ipc";
 import { DialogActions, GitDialogShell } from "./GitDialogShell";
@@ -104,17 +105,17 @@ export function PullDialog({
         followTags: false,
         gerrit: null,
       },
-      "拉取",
+      t("拉取"),
     );
 
   return (
     <GitDialogShell
-      title="拉取变更"
+      title={t("拉取变更")}
       icon={<DownloadSimple className="h-3.5 w-3.5" aria-hidden />}
       repoName={repoName}
       onClose={onClose}
       footer={
-        <DialogActions confirmLabel="拉取" submitting={submitting} onConfirm={confirm} onCancel={onClose} />
+        <DialogActions confirmLabel={t("拉取")} submitting={submitting} onConfirm={confirm} onCancel={onClose} />
       }
     >
       {/* hero:远端 -> 目标分支 + 命令预览 */}
@@ -130,7 +131,7 @@ export function PullDialog({
       {/* 远端 / 目标远端分支 */}
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div>
-          <PickerField icon={<Cloud className="h-3.5 w-3.5" aria-hidden />} label="远端" />
+          <PickerField icon={<Cloud className="h-3.5 w-3.5" aria-hidden />} label={t("远端")} />
           <RemotePicker
             remotes={remotes}
             value={remote}
@@ -143,7 +144,7 @@ export function PullDialog({
           />
         </div>
         <div>
-          <PickerField icon={<GitBranch className="h-3.5 w-3.5" aria-hidden />} label="目标远端分支" />
+          <PickerField icon={<GitBranch className="h-3.5 w-3.5" aria-hidden />} label={t("目标远端分支")} />
           <BranchCombobox
             value={target}
             placeholder={branch || "main"}
@@ -165,7 +166,7 @@ export function PullDialog({
           <span className="flex h-4 min-w-4 items-center justify-center rounded-sm bg-(--tmd-bg-sunken) px-1 text-[10px] text-(--tmd-fg-muted)">
             {selectedOptions.length > 0 ? selectedOptions.length : ""}
           </span>
-          修改选项
+          {t("修改选项")}
           <CaretDown
             className={`ml-auto h-3.5 w-3.5 text-(--tmd-fg-faint) transition-transform ${optionsOpen ? "rotate-180" : ""}`}
             aria-hidden
@@ -219,7 +220,7 @@ export function PullDialog({
       <dl className="mt-3 space-y-2 rounded-md border border-(--tmd-border) bg-(--tmd-bg-sunken) p-3">
         <div>
           <dt className="text-xs font-semibold text-(--tmd-fg)">Intent</dt>
-          <dd className="mt-0.5 text-xs leading-5 text-(--tmd-fg-muted)">{explanation.intent}</dd>
+          <dd className="mt-0.5 text-xs leading-5 text-(--tmd-fg-muted)">{t(explanation.intent)}</dd>
         </div>
         <div>
           <dt className="text-xs font-semibold text-(--tmd-fg)">Will Happen</dt>
@@ -237,8 +238,8 @@ export function PullDialog({
                   }`}
                 >
                   {row.code && <code className="mr-1 font-mono">{row.code}</code>}
-                  {row.label && <strong className="mr-1 text-(--tmd-fg)">{row.label}</strong>}
-                  {row.text}
+                  {row.label && <strong className="mr-1 text-(--tmd-fg)">{t(row.label)}</strong>}
+                  {t(row.text)}
                 </li>
               ))}
             </ul>
@@ -246,7 +247,7 @@ export function PullDialog({
         </div>
         <div>
           <dt className="text-xs font-semibold text-(--tmd-fg)">Will NOT Happen</dt>
-          <dd className="mt-0.5 text-xs leading-5 text-(--tmd-fg-muted)">{explanation.willNot}</dd>
+          <dd className="mt-0.5 text-xs leading-5 text-(--tmd-fg-muted)">{t(explanation.willNot)}</dd>
         </div>
       </dl>
 
