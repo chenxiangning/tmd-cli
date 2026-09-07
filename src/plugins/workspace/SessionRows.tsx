@@ -148,7 +148,8 @@ export function DiskSessionRow({
   return (
     <button
       data-cli-session-id={session.id}
-      title={`恢复 ${profile.name} 会话 ${session.id}`}
+      className={`thread-row${pinned ? " is-pinned" : ""}`}
+      title={t("恢复 {profile} 会话 {id}", { profile: profile.name, id: session.id })}
       onClick={onOpen}
       onContextMenu={onContextMenu}
     >
