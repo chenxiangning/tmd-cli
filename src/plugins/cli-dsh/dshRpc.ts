@@ -10,7 +10,7 @@
 import { ipc } from "@kernel/ipc";
 import type { CliDiskSession, CliSessionStatus } from "@kernel/cli";
 import type { DshConnection } from "./dshHost";
-import { originOf } from "./dshHost";
+import { originOf, waitForHostReady } from "./dshHost";
 
 /** 单次 RPC;失败一律 null(调用方按缺省处理,不猜)。 */
 async function rpc<T>(conn: DshConnection, method: string, payload: object): Promise<T | null> {
@@ -53,11 +53,16 @@ export interface DshContextBreakdown {
   messageTokens?: number;
 }
 
-/** session.list → 该 cwd 的磁盘历史会话(host 全量返回,按 cwd 过滤)。 */
+/** session.list → 该 cwd 的磁盘历史会话(host 全量返回,按 cwd 过滤)。
+ *  启动竞态补扫:侧栏扫描常早于自动拉起的 host 就绪(无「host 就绪」重扫信号),
+ *  autoStart 开 → 等就绪后补试一次;关 → 维持快速空(host 由用户自管,历史靠手动刷新)。 */
 export async function listHostSessions(
   conn: DshConnection, cwd: string,
 ): Promise<CliDiskSession[]> {
-  const value = await rpc<{ items?: DshSessionListItem[] }>(conn, "session.list", {});
+  let value = await rpc<{ items?: DshSessionListItem[] }>(conn, "session.list", {});
+  if (!value && conn.autoStart && await waitForHostReady(conn)) {
+    value = await rpc<{ items?: DshSessionListItem[] }>(conn, "session.list", {});
+  }
   const items = Array.isArray(value?.items) ? value.items : [];
   return items
     .filter((it) => typeof it.sessionId === "string" && it.cwd === cwd && it.blank !== true)
