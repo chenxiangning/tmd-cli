@@ -20,8 +20,9 @@ import {
   type MemoryDistillEngine,
   type SendShortcut,
   type SessionListBudget,
-  type SessionArchiveEntry,
+  type SessionDeletedEntry,
   type SessionPinEntry,
+  type SessionArchiveEntry,
   type SessionPinScope,
   type ThemePreference,
 } from "./settingsTypes";
@@ -91,6 +92,25 @@ function sanitizeSessionArchive(raw: unknown): Record<string, SessionArchiveEntr
     archive[key] = { archivedAt: Math.floor(archivedAt) };
   }
   return archive;
+}
+
+/**
+ * 删除意图层清洗:只收有限非负时间戳的项,按 key 序限量纳入(与归档同款确定性兜底)。
+ */
+function sanitizeSessionDeleted(raw: unknown): Record<string, SessionDeletedEntry> {
+  const deleted: Record<string, SessionDeletedEntry> = {};
+  if (!raw || typeof raw !== "object") return deleted;
+  const entries = raw as Record<string, unknown>;
+  for (const key of Object.keys(entries).sort()) {
+    if (Object.keys(deleted).length >= SESSION_PINS_MAX_ENTRIES) break;
+    const value = entries[key];
+    if (!key || !value || typeof value !== "object") continue;
+    const entry = value as Record<string, unknown>;
+    const deletedAt = typeof entry.deletedAt === "number" ? entry.deletedAt : Number.NaN;
+    if (!Number.isFinite(deletedAt) || deletedAt < 0) continue;
+    deleted[key] = { deletedAt: Math.floor(deletedAt) };
+  }
+  return deleted;
 }
 
 
@@ -241,6 +261,7 @@ export function sanitize(raw: unknown): AppSettings {
     sessionTitles: sanitizeSessionTitles(obj.sessionTitles),
     sessionPins: sanitizeSessionPins(obj.sessionPins),
     sessionArchive: sanitizeSessionArchive(obj.sessionArchive),
+    sessionDeleted: sanitizeSessionDeleted(obj.sessionDeleted),
     workspaceArchiveView:
       typeof obj.workspaceArchiveView === "boolean"
         ? obj.workspaceArchiveView

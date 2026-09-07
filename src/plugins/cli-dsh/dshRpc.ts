@@ -54,6 +54,9 @@ export interface DshContextBreakdown {
 }
 
 /** session.list → 该 cwd 的磁盘历史会话(host 全量返回,按 cwd 过滤)。
+ *  blank(被 host 预创建、从未发过消息的空壳)不过滤 —— dsh Web UI 计数含空壳,
+ *  tmd-cli 隐藏会造成两边数量对不上,且空壳垃圾(每次适配器拉起遗留一个)必须
+ *  可见才可清(2026-09-07 实测:springboot-demo 41 = 31 非空 + 10 空壳)。
  *  启动竞态补扫:侧栏扫描常早于自动拉起的 host 就绪(无「host 就绪」重扫信号),
  *  autoStart 开 → 等就绪后补试一次;关 → 维持快速空(host 由用户自管,历史靠手动刷新)。 */
 export async function listHostSessions(
@@ -65,14 +68,35 @@ export async function listHostSessions(
   }
   const items = Array.isArray(value?.items) ? value.items : [];
   return items
-    .filter((it) => typeof it.sessionId === "string" && it.cwd === cwd && it.blank !== true)
+    .filter((it) => typeof it.sessionId === "string" && it.cwd === cwd)
     .map((it) => ({
       id: it.sessionId as string,
-      title: it.projections?.values?.title || undefined,
+      title: it.projections?.values?.title || (it.blank ? "空会话" : undefined),
       modifiedAt: typeof it.updatedAt === "number" ? it.updatedAt : 0,
       /* DSH 会话无单文件路径(zstd 流在 host 侧);path 仅调试展示位 */
       path: `${originOf(conn)}/${it.sessionId}`,
     }));
+}
+
+/**
+ * 删除一个 DSH 会话(deleteSession 钩子)。host 0.1.1-rc.2 无删除 RPC(方法面
+ * session.{list,new,prompt,models,history,fork,cancel,rename,search,...},实测
+ * session.delete 404),唯一通路 = 会话盘 `~/.dsh/sessions/<slug>/session-<id>/`;
+ * host 对 session.list 活扫描磁盘,目录移除后列表立即同步,Web UI 同源跟随
+ * (实测运行中移走目录,session.list 当次即少一条)。slug 规则不猜:会话 id
+ * 全局唯一,扫一层 slug 目录定位 `session-<id>` 即可;找不到 = 已删除,幂等成功。
+ */
+export async function deleteHostSession(cliSessionId: string): Promise<void> {
+  const home = await ipc.configHomeDir().catch(() => null);
+  if (!home) return;
+  const slugs = await ipc.fsListDir(`${home}/.dsh/sessions`).catch(() => []);
+  await Promise.all(
+    slugs.filter((e) => e.isDir).map(async (slug) => {
+      const hit = (await ipc.fsListDir(slug.path).catch(() => []))
+        .find((e) => e.isDir && e.name === cliSessionId);
+      if (hit) await ipc.fsRemovePath(hit.path);
+    }),
+  );
 }
 
 /** session.models → 当前模型与思考强度(routable=false 也照读,展示实况)。 */

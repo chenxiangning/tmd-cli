@@ -78,6 +78,12 @@ export interface SessionArchiveEntry {
   archivedAt: number;
 }
 
+/** 单条删除意图(tombstone)记录:仅删除时间戳(ms);语义见 kernel/sessionDeleted.ts。
+ *  后台删盘失败时管理态仍删除并隐藏,磁盘数据保留(用户意图归 tmd-cli 所有)。 */
+export interface SessionDeletedEntry {
+  deletedAt: number;
+}
+
 /** Git 面板视图段(git 插件编辑域):差异 / 分支 / 历史。 */
 export type GitPanelView = "diff" | "branch" | "history";
 /** Git 差异文件列表布局:flat 平铺(status 原文三段分区)/ tree 目录树。 */
@@ -132,6 +138,12 @@ export interface AppSettings {
    * (领域 API 见 kernel/sessionArchive.ts)。
    */
   sessionArchive: Record<string, SessionArchiveEntry>;
+  /**
+   * 会话删除意图层(tombstone):key = `${workspaceId}:${profileId}:${cliSessionId}`,
+   * value = 删除时间戳。删除被调用即记录 —— 后台删盘失败报错时,会话仍从 tmd-cli
+   * 管理态移除并在列表隐藏,磁盘数据保留(领域 API 见 kernel/sessionDeleted.ts)。
+   */
+  sessionDeleted: Record<string, SessionDeletedEntry>;
   /**
    * 左侧栏各工作区会话列表折叠态:key = workspaceId,value = 是否折叠。
    * 缺失的工作区(首次出现)默认折叠;切换折叠/展开与「折叠全部」均写这里,
@@ -205,6 +217,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   workspaceCollapsedMap: {},
   workspaceGroupCollapsedMap: {},
   sessionArchive: {},
+  sessionDeleted: {},
   workspaceArchiveView: false,
   networkProxyEnabled: false,
   networkProxyUrl: "",

@@ -290,8 +290,24 @@ Rust `fail_session` 在幕布内呈现,两条路径互补。
    omp/pi 的 title 记录是定长 pad 覆写格式，改写有长度/并发风险；claude/codex 无原生 rename 概念，
    追加异构行有解析破坏风险。覆盖层 key = `${profileId}:${cliSessionId}`，显示优先级最高。
 3. **删除会话 = 双端统一物理删除（`fs_remove_path`，NotFound 幂等成功）**：
-   活会话先删已绑定磁盘文件/目录再 kill PTY；磁盘会话直接删。kimi 会话是目录
-   (`<uuid>/wire.jsonl`),按整目录删避免 CLI /sessions 留幽灵会话。UI 侧两步确认防误删。
+   **活会话先 kill PTY 并 await，再物理删除已绑定磁盘文件/目录** —— SIGKILL 后
+   进程不再可能按原路径重开文件；反过来删，流式中的 CLI 会在「删完到 kill 生效」
+   的缝隙里复活会话文件（2026-09-07 实测「删不掉」根因之一）。快照未命中
+   （懒落盘 CLI 首写晚于 spawn 数十秒）时以现扫 `listSessions` 按磁盘身份反查
+   兜底，再删不到即视为无盘可删。磁盘会话直接删。kimi 会话是目录
+   (`<uuid>/wire.jsonl`)，按整目录删避免 CLI /sessions 留幽灵会话。UI 侧两步确认防误删。
+   **删除意图归 tmd-cli 所有**:删除被调用 = 用户意图就是删除。后台删盘失败报错
+   不阻塞管理态清理 —— 覆盖层照清,并记 tombstone（`settings.sessionDeleted`，
+   `kernel/sessionDeleted.ts`，key 同置顶三段身份，容量 200 逐出最旧）让会话在
+   列表全域隐藏、不因重扫复活；磁盘数据保留 + console.warn 诊断。成功路径同样
+   在册（会话 id 不复用，残留 key 无害，顺带即时隐藏）。
+3b. **归档 = 应用侧覆盖层（`settings.sessionArchive`），key 与置顶同构三段身份**：
+   默认视图隐藏归档会话，「归档」视图反向只看归档项；写路径容量 200 条，满额
+   **逐出 `archivedAt` 最旧条目**（条目仅可见性时间戳，逐出零损失；曾用「拒绝新 key」
+   导致满额后归档静默无效，2026-09-07 实测修复）。归档视图分页水位与默认视图
+   **相互独立**（各从 `sessionListBudget` 配额起步、「更多」各自翻倍），共享单值会让
+   默认视图翻过的页数放大归档列表（同日修复）。删除会话时同步清命名/置顶/归档
+   三个覆盖层。
 4. **呼吸灯三态归内核 Host 结算（活动守望 1Hz）**：绿(2s 内有输出) → 蓝(静默结算时未被查看,
    组内置顶) → 点开即清(灰)。UI 只读 `host.isUnread`，不各自实现状态机。
    呼吸灯锚定**用户首写**（activityWatch 首写闸）：首写前的一切输出（spawn 横幅、
@@ -329,6 +345,15 @@ codemoss host.rs 同款),分两路:
   点击(架构契约见 specs/2026-09-07-cli-dsh-pty-adapter-design.md)。
 - resume 标记:内核 `resumeArgs` 产 `["--resume", id]`,`spawnTransform` 翻成
   适配器 `--session-id`(内核零 dsh 协议知识)。
+- **删除(dshRpc.deleteHostSession)**:host 0.1.1-rc.2 无删除 RPC(方法面
+  session.{list,new,prompt,models,history,fork,cancel,rename,search,...} 实测
+  session.delete 404),唯一通路 = 会话盘目录;host 对 session.list **活扫描磁盘**,
+  目录移除后列表当次同步(Web UI 同源跟随)。slug 规则不猜:会话 id 全局唯一,
+  扫 `~/.dsh/sessions/<slug>/` 一层定位 `session-<id>`,找不到幂等成功;
+  `fs_remove_path` 白名单已放行 `~/.dsh`。
+- **blank 空壳不过滤**:host 会在适配器接入时预创建会话,从未发消息即成空壳
+  (title 缺失以「空会话」呈现)。dsh Web UI 计数含空壳,tmd-cli 曾过滤造成
+  两边数量对不上(实测 springboot-demo 41 = 31 非空 + 10 空壳);空壳可见才可清。
 
 ## 6. 挂载点地图（谁贡献了哪块 UI）
 

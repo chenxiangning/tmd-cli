@@ -69,6 +69,22 @@ describe("sessionArchive", () => {
     expect(Object.keys(settings.getSettingsState().settings.sessionArchive)).toEqual([KEY_A]);
   });
 
+  it("容量满(200)逐出 archivedAt 最旧条目,新归档始终生效", () => {
+    for (let i = 0; i < 200; i++) {
+      vi.setSystemTime(1_000_000 + i);
+      archive.archiveSession(`ws1:claude:old-${i}`);
+    }
+    const map = settings.getSettingsState().settings.sessionArchive;
+    expect(Object.keys(map)).toHaveLength(200);
+    vi.setSystemTime(3_000_000);
+    archive.archiveSession(KEY_A);
+    const after = settings.getSettingsState().settings.sessionArchive;
+    expect(Object.keys(after)).toHaveLength(200);
+    expect(after[KEY_A]).toEqual({ archivedAt: 3_000_000 });
+    expect(after["ws1:claude:old-0"]).toBeUndefined();
+    expect(after["ws1:claude:old-1"]).toBeDefined();
+  });
+
   it("归档与置顶互不干扰(独立 map)", () => {
     archive.archiveSession(KEY_A);
     expect(settings.getSettingsState().settings.sessionPins).toEqual({});

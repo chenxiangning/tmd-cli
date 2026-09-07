@@ -104,7 +104,7 @@ export function CliSessionGroup({
   /** 删除入口:物理删除 + 清命名/置顶覆盖层(语义见 sessionOps);
    *  磁盘删除再触发本地重扫(活删除经 removeSession 的 liveCount 变化自然重扫)。 */
   const deleteLive = (session: SessionMeta) =>
-    deleteLiveSessionFull(profile, session, workspace.id, sessions ?? []);
+    deleteLiveSessionFull(profile, session, workspace.id, workspace.root, sessions ?? []);
   const deleteDisk = (session: CliDiskSession) =>
     deleteDiskSessionFull(profile, session, workspace.id).then(() =>
       setRescanTick((t) => t + 1),

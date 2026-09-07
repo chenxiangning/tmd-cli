@@ -53,6 +53,7 @@ describe("初始状态与默认值", () => {
       sessionTitles: {},
       sessionPins: {},
       sessionArchive: {},
+      sessionDeleted: {},
       workspaceArchiveView: false,
       workspaceCollapsedMap: {},
       workspaceGroupCollapsedMap: {},

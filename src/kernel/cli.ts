@@ -165,7 +165,8 @@ export interface CliProfile {
    * 单库多会话 CLI(opencode:多个会话共享一个 sqlite 文件,CliDiskSession.path
    * 是合成路径)无法用 fsRemovePath 删文件,声明此钩子走代写原语;
    * 文件/目录型 CLI(kimi/qoder 等)不声明,workspace 照旧 fsRemovePath。
-   * 成功 resolve;失败 reject 由调用方提示。
+   * 错误处理归调用方:sessionOps 捕获后按「删除意图」原则记 tombstone 并
+   * 清管理态覆盖层,不阻塞用户意图(磁盘数据保留 + console.warn 诊断)。
    */
   deleteSession?: (cliSessionId: string) => Promise<void>;
   /** 读取当前 CLI session 的模型与思考强度,只读且可缺省。 */

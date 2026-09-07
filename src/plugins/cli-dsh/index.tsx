@@ -3,7 +3,7 @@ import type { SpawnSpec } from "@kernel/ipc";
 import type { QuotaSnapshot } from "@kernel/quota";
 import { DshHostPanel } from "./hostPanel";
 import { loadConnection } from "./dshHost";
-import { listHostSessions, readHostSessionStatus, readHostDefaultStatus, readHostContextPressure } from "./dshRpc";
+import { listHostSessions, readHostSessionStatus, readHostDefaultStatus, readHostContextPressure, deleteHostSession } from "./dshRpc";
 import { ensureAdapterDeployed } from "./adapterDeploy";
 
 /**
@@ -16,8 +16,8 @@ import { ensureAdapterDeployed } from "./adapterDeploy";
  *   首页面板(hostPanel)仍可显式启停/打开 Web UI。
  * - 安装走加固 npm 通道(codemoss installer.rs 同款参数);npmPackage 仅查新版。
  *   前置 Node >=22.19 或 >=24,由 npm 通道自身依赖兜底。
- * - 会话读取不声明:DSH 会话体是 session.jsonl.zstd 压缩流,现有 fs 文本原语
- *   读不了;不猜接口(不猜接口纪律),内核零改动。
+ * - 会话读取走 host RPC 代读(dshRpc):DSH 会话体是 session.jsonl.zstd 压缩流,
+ *   fs 文本原语读不了;删除同理无 host RPC,唯一通路 = 会话盘目录(dshRpc.deleteHostSession)。
  */
 
 /** 分发渠道常量:二进制名 + npm 包。 */
@@ -91,6 +91,7 @@ export const cliDshPlugin: Plugin = {
       /* 磁盘历史会话 = host session.list 按 cwd 过滤(zstd 会话盘 fs 读不了,RPC 代读);
          resume 经 --resume 标记进 spawnTransform → 适配器 --session-id。 */
       listSessions: (cwd) => listHostSessions(loadConnection(), cwd),
+      deleteSession: (cliSessionId) => deleteHostSession(cliSessionId),
       resumeArgs: (cliSessionId) => ["--resume", cliSessionId],
       /* 工具栏「思考」位点击 = 写 /effort 进幕布开强度菜单。 */
       thinkingCommand: "/effort",

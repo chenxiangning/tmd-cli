@@ -35,3 +35,13 @@ DSH(DeepSeek Harness)是 codemoss 里已对接的本地 host 型引擎:`dsh` CLI
   - 折叠:「连接设置 127.0.0.1:3080 · 自动启动开/关」摘要头,展开 = 自定义路径 / Host 地址 / 自动启动主机三行;拨开关摘要即时翻转且持久化;
   - 设置页:左侧导航仅「基础设置 / SSH 远程」,无 DeepSeek Harness(已删)。
 - Mac/Win:安装命令 script 通道两端同串(unix bash -c / win powershell -Command 均可执行);win 侧 spawn 兼容(node 直启/sharp 修复等)属 codemoss host-RPC 形态专属,本客户端 PTY 走 portable-pty 既有路径,与其它 9 个 CLI 同机制,不重复处理。
+
+## 落地修订(2026-09-07)
+
+- **会话删除 + 空壳可见**(一期未覆盖,实测「删不掉 / 数量对不上」):
+  host 0.1.1-rc.2 无删除 RPC,删除唯一通路 = 会话盘目录
+  (`dshRpc.deleteHostSession` 扫 slug 目录定位;host 活扫描磁盘,删除即时同步,
+  无需重启);`fs_remove_path` 白名单放行 `~/.dsh`(Rust 侧一行 + 正例测试)。
+  blank 空壳(host 适配器接入时预创建的零消息会话)不再过滤,以「空会话」
+  呈现——dsh Web UI 计数含空壳,隐藏即数量对不上,可见才可清。
+  契约沉淀:`architecture/02-code-architecture.md` §5.2。

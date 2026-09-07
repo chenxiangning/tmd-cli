@@ -12,6 +12,7 @@ import { host, useHost } from "@kernel/host";
 import { resolveCliSessionQuota, useSettingsState } from "@kernel/settings";
 import { listSessionPins } from "@kernel/sessionPins";
 import { sessionArchiveKey } from "@kernel/sessionArchive";
+import { sessionDeletedKey } from "@kernel/sessionDeleted";
 import { sessionTitleKey, shortId } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
 import { compareLiveSessions } from "./utils";
@@ -43,10 +44,19 @@ export function useCliSessionGroup({
     profile.id,
     host.getCliProfiles().map((p) => p.id),
   );
-  const [limit, setLimit] = useState(initialLimit);
-  /** 预算修改响应式生效:按新配额重新起步(已展开的「更多」随之重置)。 */
+  /** 分页水位按视图独立:默认/归档各自从配额起步、「更多」各自翻倍。
+   *  曾共享单值 —— 默认视图翻页找旧会话(limit 涨到 160)后切归档视图,
+   *  归档列表一次性摊出 160 条,形同全量显示(2026-09-07 用户实测)。 */
+  const archivedView = settings.workspaceArchiveView;
+  const [limits, setLimits] = useState<[number, number]>([initialLimit, initialLimit]);
+  const limit = archivedView ? limits[1] : limits[0];
+  const setLimit = (updater: (l: number) => number) =>
+    setLimits((prev) =>
+      archivedView ? [prev[0], updater(prev[1])] : [updater(prev[0]), prev[1]],
+    );
+  /** 预算修改响应式生效:两视图按新配额重新起步(已展开的「更多」随之重置)。 */
   useEffect(() => {
-    setLimit(initialLimit);
+    setLimits([initialLimit, initialLimit]);
   }, [initialLimit]);
   /** 本地重扫信号:删除磁盘会话后立刻反映(不等外部刷新)。 */
   const [rescanTick, setRescanTick] = useState(0);
@@ -55,9 +65,12 @@ export function useCliSessionGroup({
   const pins = settings.sessionPins;
   /** 归档覆盖层:默认视图隐藏归档会话;workspaceArchiveView=true 反向只看归档项。 */
   const archiveMap = settings.sessionArchive;
-  const archivedView = settings.workspaceArchiveView;
   const isArchived = (cliSessionId: string) =>
     archiveMap[sessionArchiveKey(workspace.id, profile.id, cliSessionId)] !== undefined;
+  /** 删除意图层(tombstone):删除被调用即全域隐藏,后台删盘失败也不复活。 */
+  const deletedMap = settings.sessionDeleted;
+  const isDeleted = (cliSessionId: string) =>
+    deletedMap[sessionDeletedKey(workspace.id, profile.id, cliSessionId)] !== undefined;
 
   const liveSessions = host
     .getSessions()
@@ -102,9 +115,12 @@ export function useCliSessionGroup({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- onScanned 为稳定引用语义,不作为依赖
   }, [profile, workspace.root, liveSessions.length, refreshTick, rescanTick]);
 
+  /** 扫描源统一过 tombstone:默认/归档视图、置顶投影、标题索引共用(删除意图全域隐藏)。 */
+  const scanned = (sessions ?? []).filter((s) => !isDeleted(s.id));
+
   /** 磁盘扫描出的原生标题索引(含活会话已绑定条目,活行据此同形显示)。 */
   const diskTitleByCliId = new Map(
-    (sessions ?? [])
+    scanned
       .filter((s) => s.title)
       .map((s) => [s.id, s.title as string]),
   );
@@ -145,12 +161,13 @@ export function useCliSessionGroup({
       const cliSessionId = host.getCliSessionId(s.id);
       return (
         (cliSessionId === undefined || !pinnedOutIds.has(cliSessionId)) &&
-        (cliSessionId === undefined || !isArchived(cliSessionId))
+        (cliSessionId === undefined || !isArchived(cliSessionId)) &&
+        (cliSessionId === undefined || !isDeleted(cliSessionId))
       );
     })
     .sort((a, b) => compareLiveSessions(a, b, (id) => host.isUnread(id)));
 
-  const disk = (sessions ?? []).filter((s) => !liveCliIds.has(s.id) && !isArchived(s.id));
+  const disk = scanned.filter((s) => !liveCliIds.has(s.id) && !isArchived(s.id));
   /* 工作区置顶块:按置顶时间升序;磁盘已消失的置顶(外部删文件)自然缺席;
    * 已归档的置顶在默认视图隐藏(disk 过滤已含 archived)。 */
   const pinnedDisk = workspacePins.flatMap((p) => {
@@ -167,7 +184,7 @@ export function useCliSessionGroup({
   const unpinnedCount = unpinnedDisk.length;
 
   /** 归档视图行集:含绑定活会话的条目(默认视图其活行已隐藏,归档视图以磁盘行形回归)。 */
-  const archivedRows = (sessions ?? [])
+  const archivedRows = scanned
     .filter((s) => isArchived(s.id))
     .sort((a, b) => b.modifiedAt - a.modifiedAt);
   const archivedVisible = archivedRows.slice(0, limit);
@@ -181,7 +198,7 @@ export function useCliSessionGroup({
         ? archivedRows.length === 0
         : orderedLive.length === 0 && disk.length === 0),
     unpinnedCount: archivedView ? archivedRows.length : unpinnedCount,
-    sessions,
+    sessions: scanned,
     limit,
     setLimit,
     setRescanTick,

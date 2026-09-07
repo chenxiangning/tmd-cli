@@ -31,21 +31,30 @@ export function isSessionArchived(key: string): boolean {
   return getSettingsState().settings.sessionArchive[key] !== undefined;
 }
 
-/** 归档层容量:与置顶同款 200 条上限;写路径同限,超限新归档忽略(与 sanitize 逐出对称)。 */
+/** 归档层容量:与置顶同款 200 条上限;写路径同限,满额逐出最旧(与 sanitize 逐出对称)。 */
 const SESSION_ARCHIVE_MAX_ENTRIES = 200;
 
-/** 归档;已归档时刷新时间戳(幂等);容量满(200)时新 key 忽略(与清洗逐出对称,防静默丢旧)。 */
+/**
+ * 归档;已归档时刷新时间戳(幂等);容量满(200)时逐出 archivedAt 最旧的条目。
+ * 归档条目只是可见性覆盖层(时间戳,无内容),逐出无数据损失;曾用「拒绝新 key」,
+ * 200 条封顶后用户每次归档都静默无效(2026-09-07 实测踩坑:归档"时灵时不灵")。
+ */
 export function archiveSession(key: string): void {
   const current = getSettingsState().settings.sessionArchive;
-  if (current[key] === undefined && Object.keys(current).length >= SESSION_ARCHIVE_MAX_ENTRIES) {
-    return;
+  const next = { ...current, [key]: { archivedAt: Date.now() } };
+  if (Object.keys(next).length > SESSION_ARCHIVE_MAX_ENTRIES) {
+    let oldest: string | undefined;
+    for (const k of Object.keys(current)) {
+      if (
+        k !== key &&
+        (oldest === undefined || current[k].archivedAt < current[oldest].archivedAt)
+      ) {
+        oldest = k;
+      }
+    }
+    if (oldest !== undefined) delete next[oldest];
   }
-  updateSettings({
-    sessionArchive: {
-      ...current,
-      [key]: { archivedAt: Date.now() },
-    },
-  });
+  updateSettings({ sessionArchive: next });
 }
 
 /** 取消归档;未归档为 no-op。 */
