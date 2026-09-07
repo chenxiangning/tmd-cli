@@ -28,10 +28,17 @@ export function ComposerToolbar() {
 
   /** 模型位点击 = 发送 /model(与抽屉 send 同路径:prepareSendPayload → writeSession)。 */
   function sendModelCommand(): void {
+    sendSlash("/model");
+  }
+  /** 思考位点击 = 发送 profile.thinkingCommand(如 dsh /effort);缺省不渲染可点。 */
+  function sendThinkingCommand(): void {
+    if (profile?.thinkingCommand) sendSlash(profile.thinkingCommand);
+  }
+  function sendSlash(cmd: string): void {
     if (!sessionId || !profile) return;
-    const wire = prepareSendPayload(profile, "/model");
+    const wire = prepareSendPayload(profile, cmd);
     host.writeSession(sessionId, wire);
-    host.events.emit(KernelTopics.promptSent, { sessionId, text: "/model" });
+    host.events.emit(KernelTopics.promptSent, { sessionId, text: cmd });
   }
   const drawerOpen = useDrawerOpen();
   const stage = useComposerStage();
@@ -64,10 +71,24 @@ export function ComposerToolbar() {
         ) : null}
       </button>
       <span aria-hidden className="text-(--tmd-fg-faint)">|</span>
-      <span className="flex items-center gap-1" title={status?.thinkingLevel ?? "未识别思考强度"}>
-        <span aria-hidden>思考</span>
-        <span className="font-mono text-(--tmd-fg)">{status?.thinkingLevel ?? "—"}</span>
-      </span>
+      {profile?.thinkingCommand ? (
+        <button
+          className={`flex items-center gap-1 rounded-md px-1 -mx-1 transition-colors ${
+            !turnActive ? "cursor-pointer hover:bg-(--tmd-bg-hover)" : "cursor-not-allowed opacity-40"
+          }`}
+          disabled={turnActive}
+          title={turnActive ? "对话进行中,本轮结束后可点击" : "点击打开思考强度选择"}
+          onClick={sendThinkingCommand}
+        >
+          <span aria-hidden>思考</span>
+          <span className="font-mono text-(--tmd-fg)">{status?.thinkingLevel ?? "—"}</span>
+        </button>
+      ) : (
+        <span className="flex items-center gap-1" title={status?.thinkingLevel ?? "未识别思考强度"}>
+          <span aria-hidden>思考</span>
+          <span className="font-mono text-(--tmd-fg)">{status?.thinkingLevel ?? "—"}</span>
+        </span>
+      )}
       {sessionId ? (
         <>
           <span aria-hidden className="text-(--tmd-fg-faint)">|</span>

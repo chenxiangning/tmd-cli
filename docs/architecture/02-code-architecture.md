@@ -104,7 +104,7 @@ flowchart TB
 **依赖铁律**（代码中已成立）：
 
  - 内核 `src/kernel/` 不 import 任何 `src/plugins/`；插件清单唯一入口是 `src/plugins/index.ts` 的 `allPlugins` 数组（编译期注册）。
- - 插件之间**零直接依赖**：协作仅通过 `PluginContext` 的注册面（`registerCliProfile` / `contribute` / `events` / `registerSettingsSection` / `registerFilePanel` / `registerTabContent` / `registerSidebarAction` / `registerFileVisual`，quota 折叠为 `CliProfile.fetchQuota` 由 host 自动接线）——一切贡献经 ctx 登记，无旁路注册表；`plugins/cli-shared` 仅是无生命周期的共享格式库，不是插件。
+ - 插件之间**零直接依赖**：协作仅通过 `PluginContext` 的注册面（`registerCliProfile` / `contribute` / `events` / `registerSettingsSection` / `registerFilePanel` / `registerTabContent` / `registerMarketPanel` / `registerSidebarAction` / `registerFileVisual` / `registerHomePanel` / `registerCommand`，quota 折叠为 `CliProfile.fetchQuota` 由 host 自动接线）——一切贡献经 ctx 登记，无旁路注册表；`plugins/cli-shared` 仅是无生命周期的共享格式库，不是插件。
  - 前端触达 Rust 的唯一通道是 `src/kernel/ipc.ts`；插件不直接 import `@tauri-apps/api`。
 
 **文件规模铁则**（2026-09-02 起生效）：
@@ -123,7 +123,7 @@ sequenceDiagram
     participant M as main.tsx
     participant H as host (Host 单例)
     participant R as Rust: session_list
-    participant P as allPlugins (21 个)
+    participant P as allPlugins (22 个)
     participant C as contributions.tsx
     participant A as AppShell
 
@@ -131,7 +131,7 @@ sequenceDiagram
     Note over H: activation Promise 单例<br/>挡 StrictMode 双调用
     par 激活与恢复并行
         H->>P: 拓扑序 activate(ctx)<br/>dependsOn 未就绪则等下一轮<br/>无进展 → 抛"依赖环或缺失"
-        P-->>H: registerCliProfile ×9<br/>contribute 挂点 ×N<br/>registerSettingsSection ×N
+        P-->>H: registerCliProfile ×10<br/>contribute 挂点 ×N<br/>registerSettingsSection ×N
     and
         H->>R: ipc.sessionList()
         R-->>H: 历史 SessionMeta[]<br/>（只恢复元数据，不重 spawn PTY）
@@ -313,6 +313,22 @@ Rust `fail_session` 在幕布内呈现,两条路径互补。
 | `workspaceId` | spawn 入参 | 会话列表按工作区分组 |
 | `createdAt` | Rust 注册表 | 列表展示 |
 
+### 5.2 dsh:RPC 代读型引擎(无磁盘 JSONL 的第九家)
+
+dsh(DeepSeek Harness)会话盘是 `session.jsonl.zstd` 压缩流,fs 文本原语读不了,
+不进 5.1 表。全部磁盘语义改走 host RPC(`POST /api/<method>` client-request 信封,
+codemoss host.rs 同款),分两路:
+
+- **浏览器侧(dshRpc.ts,经通用 quota_fetch HTTP 通道)**:`listSessions`(session.list
+  按 cwd 过滤)/ `readSessionStatus`(session.models current)/ `fetchQuota`
+  (projections.contextPressure)。
+- **PTY 侧(adapter/*.cjs 适配器,spawnTransform 落盘 `<configHome>/adapters/dsh/`
+  后以 node 绝对路径 spawn)**:会话即一条 DSH 对话 —— stdin → session.prompt,
+  mux WebSocket 帧 → 投影(dsh-project 纯函数)→ ANSI 幕布;审批/提问卡
+  (askMarks `[DSH 审批]`/`[DSH 提问]` 走 askWatch 检测);底栏 footer 与交互区
+  点击(架构契约见 specs/2026-09-07-cli-dsh-pty-adapter-design.md)。
+- resume 标记:内核 `resumeArgs` 产 `["--resume", id]`,`spawnTransform` 翻成
+  适配器 `--session-id`(内核零 dsh 协议知识)。
 
 ## 6. 挂载点地图（谁贡献了哪块 UI）
 

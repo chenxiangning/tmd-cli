@@ -1,7 +1,7 @@
 # cli-dsh 插件设计 —— 第十个 CLI 引擎(DeepSeek Harness)
 
 - 日期:2026-09-06
-- 状态:已落地(同日修订:连接面板从设置搬首页,补齐 codemoss 功能点)
+- 状态:已落地(同日修订:连接面板从设置搬首页,补齐 codemoss 功能点;二期会话接入见 specs/2026-09-07-cli-dsh-pty-adapter-design.md,下文「不移植 host-RPC 会话引擎」的范围界定已被二期取代)
 
 ## 背景与目标
 

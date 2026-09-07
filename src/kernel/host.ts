@@ -35,9 +35,9 @@ class Host implements PluginContext {
   private ptyUnlistens = new Map<string, Array<() => void>>();
   /** 窗口聚焦态(main.tsx 挂 focus/blur 监听馈入):失焦时激活会话完成也视为未查看。 */
   private windowFocused = true;
-  /** CLI profile/挂载点注册表与插件生命周期:拆分件 kernel/hostRegistry.ts(文件规模铁则)。 */
+  /* CLI profile/挂载点注册表与插件生命周期:拆分件 kernel/hostRegistry.ts(文件规模铁则)。 */
   private readonly registry = new HostRegistry(() => this.notify());
-  /** 五守望 + appendOutput 主链路:拆分件 kernel/hostWatches.ts(文件规模铁则)。 */
+  /* 五守望 + appendOutput 主链路:拆分件 kernel/hostWatches.ts(文件规模铁则)。 */
   private readonly watches = new HostWatches({
     getCliProfile: (profileId) => this.registry.getCliProfile(profileId),
     findSession: (sessionId) => this.sessions.find((s) => s.id === sessionId),
@@ -120,18 +120,12 @@ class Host implements PluginContext {
     return this.sessions;
   }
 
-  getActiveSessionId(): string | null {
-    return this.activeSessionId;
-  }
+  getActiveSessionId(): string | null { return this.activeSessionId; }
 
-  getSessionStatus(sessionId: string): CliSessionStatus | undefined {
-    return this.watches.getSessionStatus(sessionId);
-  }
+  getSessionStatus(sessionId: string): CliSessionStatus | undefined { return this.watches.getSessionStatus(sessionId); }
 
-  /** 状态值来源:"seeded" = CLI 默认配置种子,"observed" = 会话文件真实观测。 */
-  getSessionStatusSource(sessionId: string): "seeded" | "observed" | undefined {
-    return this.watches.getSessionStatusSource(sessionId);
-  }
+  /** 状态值来源:"seeded" = CLI 默认种子,"observed" = 会话文件真实观测。 */
+  getSessionStatusSource(sessionId: string): "seeded" | "observed" | undefined { return this.watches.getSessionStatusSource(sessionId); }
 
   /** 活会话绑定的 CLI 磁盘身份;未绑定(探测前)为 undefined。 */
   getCliSessionId(sessionId: string): string | undefined {
@@ -167,10 +161,15 @@ class Host implements PluginContext {
   ): Promise<SessionMeta> {
     return this.sessionServices.spawn.create(profileId, cwd, workspaceId);
   }
-  /** 按任意 spec spawn 并完整装配(SessionSpawnService.raw):插件自定 PTY 会话
-   *  唯一入口;裸 ipc.sessionSpawn 不经装配,幕布永远收不到输出。 */
-  spawnRawSession(profileId: string, spec: SpawnSpec, workspaceId?: string): Promise<SessionMeta> {
-    return this.sessionServices.spawn.raw(profileId, spec, workspaceId);
+  /** 按任意 spec spawn 并完整装配(见 SessionSpawnService.raw);opts.activate=false
+   *  = 后台拉起(不抢中央区/tab,如 dsh 自动启动 host)。 */
+  spawnRawSession(
+    profileId: string,
+    spec: SpawnSpec,
+    workspaceId?: string,
+    opts?: { activate?: boolean },
+  ): Promise<SessionMeta> {
+    return this.sessionServices.spawn.raw(profileId, spec, workspaceId, opts);
   }
 
   /** 打开 CLI 磁盘历史会话(resume);实现见 kernel/sessionSpawn.ts。 */

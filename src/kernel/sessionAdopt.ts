@@ -32,6 +32,8 @@ export interface AdoptPtySessionOptions {
   profileId: string;
   /** 退出回调前置钩子(CLI 秒退守望摘幕布尾部;shell/ssh 不传)。 */
   onExit?: (sessionId: string) => void;
+  /** 缺省 true;false = 后台装配(不广播 activeSessionChanged,不抢中央区/tab)。 */
+  activate?: boolean;
 }
 
 /** 守卫分支的广播文案(抛出信息与之一致,调用方直接复用)。 */
@@ -71,7 +73,7 @@ export async function adoptPtySession(
   }
   h.trackUnlisten(sessionId, [offOutput, offExit]);
   events.emit(KernelTopics.sessionsChanged, h.getSessions());
-  events.emit(KernelTopics.activeSessionChanged, sessionId);
+  if (opts.activate !== false) events.emit(KernelTopics.activeSessionChanged, sessionId);
   h.notify();
   return h.findSession(sessionId) ?? null;
 }

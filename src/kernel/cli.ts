@@ -7,6 +7,8 @@
 
 import type { ReactNode } from "react";
 import type { QuotaFetchContext, QuotaSnapshot } from "./quota";
+import type { SpawnSpec } from "./ipc";
+import type { CliPrerequisite } from "./cliPrerequisite";
 
 export type TriggerKind = "skill" | "command" | "file";
 
@@ -172,6 +174,12 @@ export interface CliProfile {
     cliSessionId: string,
   ) => Promise<CliSessionStatus | null>;
   /**
+   * 思考位点击发送的命令(如 dsh "/effort"):声明后工具栏「思考」位可点,
+   * 点击 = 写该命令进幕布触发 CLI 的强度选择;缺省 = 只读展示(omp 等在 /model
+   * 菜单内选强度的 CLI 不声明)。与模型位 sendModelCommand 同构,内核零 dsh 语义。
+   */
+  thinkingCommand?: string;
+  /**
    * 会话文件身份自证:读 CliDiskSession.path 指向的文件(目录类插件自行拼内部路径),
    * 从文件内容提取 {id, cwd, createdAt}。内容级绑定(identityBinding)的数据源 ——
    * mtime 水位仲裁在懒落盘 CLI(omp 首条消息才 flush)+ 同 cwd 并行 spawn 下会
@@ -245,6 +253,12 @@ export interface CliProfile {
    * (就绪态 + 启动/恢复窗),不得按家族推测。
    */
   bracketedPaste?: boolean;
+  /**
+   * spawn 前动态改写 SpawnSpec:插件在运行时注入连接参数/路径等动态值。
+   * 例 dsh 适配器需要 DSH host:port(来自 localStorage),无法在 profile 声明期固定。
+   * 返回改写后的 spec;缺省 = 不改写(直接用 command/args)。
+   */
+  spawnTransform?: (spec: SpawnSpec) => SpawnSpec | Promise<SpawnSpec>;
 
   /**
    * 该 CLI 的额度抓取器(composer 状态条 QuotaChip / welcome 供应商盘点消费)。
@@ -278,22 +292,3 @@ export interface CliProfile {
   requires?: CliPrerequisite;
 }
 
-/**
- * 前置依赖(CliProfile.requires)—— 依赖自身的探针 binary 与安装通道声明,
- * 通道派生规则与主 CLI 一致(scriptInstall > commandInstall > npmPackage),
- * 见 welcome/engineMeta.ts 的 installPlanOf。
- */
-export interface CliPrerequisite {
-  /** 依赖的 binary 名(PATH 探针用),如 "bun"。 */
-  binary: string;
-  /** 展示名,如 "Bun"。 */
-  name: string;
-  /** 官方文档 URL;缺省 = 引导区不显示链接。 */
-  docsUrl?: string;
-  /** 官方脚本安装通道(优先):unix/windows 为完整命令串。 */
-  scriptInstall?: { unix: string; windows: string };
-  /** 命令通道安装(program + args 原样)。 */
-  commandInstall?: { program: string; args: string[] };
-  /** npm 包名:registry 最新版查询 + npm 通道兜底安装共用。 */
-  npmPackage?: string;
- }

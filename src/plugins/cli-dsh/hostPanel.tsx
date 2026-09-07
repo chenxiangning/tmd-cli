@@ -37,9 +37,10 @@ import {
   type DshHostView,
   type RawSessionSpawner,
 } from "./dshHost";
-/** 经内核装配链 spawn(host.spawnRawSession):幕布输出缓冲/秒退守望全链路一致。 */
+/** 经内核装配链 spawn(host.spawnRawSession):幕布输出缓冲/秒退守望全链路一致;
+ *  activate:false = host 是后台基础设施,拉起不抢首页中央区。 */
 const spawnHostSession: RawSessionSpawner = (profileId, spec) =>
-  host.spawnRawSession(profileId, spec);
+  host.spawnRawSession(profileId, spec, undefined, { activate: false });
 type HostStatus = { kind: "probing" } | { kind: "ok"; view: DshHostView } | { kind: "down" };
 
 const BTN =

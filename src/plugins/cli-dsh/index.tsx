@@ -1,20 +1,23 @@
 import type { Plugin } from "@kernel/plugin";
+import type { SpawnSpec } from "@kernel/ipc";
+import type { QuotaSnapshot } from "@kernel/quota";
 import { DshHostPanel } from "./hostPanel";
+import { loadConnection } from "./dshHost";
+import { listHostSessions, readHostSessionStatus, readHostDefaultStatus, readHostContextPressure } from "./dshRpc";
+import { ensureAdapterDeployed } from "./adapterDeploy";
 
 /**
  * DSH(DeepSeek Harness)插件 —— 第十个 CLI 引擎,对接口径移植自 codemoss:
- * - dsh 是 profile 启动器(npm 包 @deepseek-ai/dsh):`dsh web` 起本地 host,
- *   Web UI 与模型/API Key 全在 host 侧配置,本客户端只负责「装 CLI + 起 host」。
- * - 安装走加固 npm 通道(codemoss installer.rs dsh_npm_install_args 同款参数;
- *   tmd-cli script 通道 unix bash -c / win powershell -Command 均可执行);
- *   npmPackage 仅用于 registry 新版查询。前置 Node >=22.19 或 >=24
- *   (codemoss doctor.rs DSH_NODE_REQUIREMENT),由 npm 通道自身依赖兜底,
- *   门槛文案在设置面板提示行。
+ * - 会话 = PTY 跑适配器脚本(adapter/dsh-adapter.cjs):适配器是 DSH host-RPC
+ *   的第二客户端(codemoss engine/dsh 同款线格式),把对话流转成 ANSI 文本
+ *   进幕布、composer 文本经 stdin 转 session.prompt —— 会话/工作区/composer
+ *   全走 tmd-cli 自家模型,不嵌 dsh 官方 Web UI。
+ * - host 生命周期:适配器探针不通自拉起 `dsh web --no-open`(已在即 adopt);
+ *   首页面板(hostPanel)仍可显式启停/打开 Web UI。
+ * - 安装走加固 npm 通道(codemoss installer.rs 同款参数);npmPackage 仅查新版。
+ *   前置 Node >=22.19 或 >=24,由 npm 通道自身依赖兜底。
  * - 会话读取不声明:DSH 会话体是 session.jsonl.zstd 压缩流,现有 fs 文本原语
  *   读不了;不猜接口(不猜接口纪律),内核零改动。
- * - 启动/连接引导:设置面板(hostPanel.tsx),探针 host.describe + 启动/停止/
- *   打开 Web UI。启动语义 = PTY 会话跑 `dsh web`(会话即 host:进程可见、
- *   杀会话即停服务),不移植 codemoss 的 Rust supervisor(零配方红线)。
  */
 
 /** 分发渠道常量:二进制名 + npm 包。 */
@@ -45,7 +48,7 @@ export const cliDshPlugin: Plugin = {
   meta: {
     name: "DeepSeek Harness",
     abbr: "DS",
-    desc: "DSH 引擎:装 CLI、起 web host、开 Web UI",
+    desc: "DSH 引擎:装 CLI、起 web host、适配器会话内直接对话",
     icon: DshGlyph,
     iconColor: "#4D6BFE",
     category: "engine",
@@ -60,8 +63,59 @@ export const cliDshPlugin: Plugin = {
       command: DSH_VARIANT.command,
       args: ["web"],
       triggers: [],
-      /* 单实例:会话即 host,同 origin 第二个 `dsh web` 必然 EADDRINUSE。 */
-      singleInstance: true,
+      /* spawnTransform:改写为 node 跑适配器脚本(PTY 会话 = 一条 DSH 对话,
+         非 `dsh web` host):host/port 取连接配置,适配器经 adapterDeploy
+         落盘到 configHome 后以绝对路径 spawn;host 未运行由适配器自拉起。
+         多会话允许(每会话独立 workspace+session),单实例语义已废。 */
+      spawnTransform: async (spec: SpawnSpec): Promise<SpawnSpec> => {
+        const conn = loadConnection();
+        const adapterPath = await ensureAdapterDeployed();
+        /* resume 路径:args = resumeArgs 输出 ["--resume", id] → 翻成适配器 --session-id */
+        const ri = spec.args.indexOf("--resume");
+        const resumeId = ri >= 0 ? spec.args[ri + 1] : "";
+        return {
+          command: "node",
+          args: [
+            adapterPath,
+            "--host", conn.host,
+            "--port", String(conn.port),
+            "--workspace-id", spec.cwd,
+            "--workspace-path", spec.cwd,
+            ...(resumeId ? ["--session-id", resumeId] : []),
+            ...(conn.customBin ? ["--dsh-bin", conn.customBin] : []),
+          ],
+          cwd: spec.cwd,
+          env: spec.env,
+        };
+      },
+      /* 磁盘历史会话 = host session.list 按 cwd 过滤(zstd 会话盘 fs 读不了,RPC 代读);
+         resume 经 --resume 标记进 spawnTransform → 适配器 --session-id。 */
+      listSessions: (cwd) => listHostSessions(loadConnection(), cwd),
+      resumeArgs: (cliSessionId) => ["--resume", cliSessionId],
+      /* 工具栏「思考」位点击 = 写 /effort 进幕布开强度菜单。 */
+      thinkingCommand: "/effort",
+      readSessionStatus: (_cwd, cliSessionId) => readHostSessionStatus(loadConnection(), cliSessionId),
+      readDefaultStatus: () => readHostDefaultStatus(loadConnection()),
+      /* 额度位 = 会话上下文占用(session.list projections):
+         balanceText 总量,windows 呈现 system/tools/messages 分解占比。 */
+      fetchQuota: async (ctx): Promise<QuotaSnapshot> => {
+        const base: QuotaSnapshot = {
+          providerLabel: "DSH", title: "DSH 会话上下文", usedLabel: "已使用", windows: [],
+        };
+        if (!ctx.cliSessionId) return { ...base, error: "会话身份未绑定" };
+        const cp = await readHostContextPressure(loadConnection(), ctx.cliSessionId);
+        if (!cp) return { ...base, error: "host 未返回上下文投影" };
+        const pct = Math.min(100, Math.round((cp.used / cp.window) * 100));
+        const b = cp.breakdown;
+        const win = (label: string, v?: number) =>
+          v != null ? { label, displayPercent: Math.min(100, Math.round((v / cp.window) * 100)) } : null;
+        const windows = [
+          win("系统", b?.systemTokens), win("工具", b?.toolsTokens), win("消息", b?.messageTokens),
+        ].filter((w): w is NonNullable<typeof w> => w !== null);
+        return { ...base, windows, balanceText: `${pct}% · ${fmtK(cp.used)}/${fmtK(cp.window)} tok` };
+      },
+      /* 审批/提问卡片标记:适配器输出 [DSH 审批] / [DSH 提问] 时内核 askWatch 检测。 */
+      askMarks: [/\[DSH 审批\]/, /\[DSH 提问\]/],
       scriptInstall: {
         unix: "npm i -g --maxsockets=1 --fetch-retries=5 --no-audit --no-fund @deepseek-ai/dsh@latest",
         windows:
@@ -72,3 +126,9 @@ export const cliDshPlugin: Plugin = {
     ctx.registerHomePanel(DSH_VARIANT.profileId, DshHostPanel);
   },
 };
+
+
+/** token 数缩写(12.3k / 1.2M)。 */
+function fmtK(n: number): string {
+  return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n);
+}

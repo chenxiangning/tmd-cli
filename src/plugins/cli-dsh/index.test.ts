@@ -19,7 +19,7 @@ describe("cli-dsh 插件契约", () => {
     });
   });
 
-  it("activate 注册 CliProfile:web host 启动 + 加固 npm 安装通道,会话读取不声明", () => {
+  it("activate 注册 CliProfile:适配器 spawn + 审批卡标记 + 加固 npm 安装通道", () => {
     let profile: CliProfile | undefined;
     cliDshPlugin.activate({
       registerCliProfile: (p: CliProfile) => {
@@ -32,14 +32,21 @@ describe("cli-dsh 插件契约", () => {
 
     expect(profile.id).toBe("dsh");
     expect(profile.command).toBe("dsh");
-    /* dsh 是 profile 启动器:会话即 `dsh web` 起本地 host。 */
-    expect(profile.args).toEqual(["web"]);
-    /* 会话即 host:单实例语义,create 撞活会话聚焦既有(kernel 契约)。 */
-    expect(profile.singleInstance).toBe(true);
-    /* 磁盘会话体是 zstd 压缩流、触发符未实证:一律不声明(不猜接口)。 */
+    /* 会话 = PTY 跑适配器脚本(host-RPC 第二客户端),非 `dsh web` 本体。 */
+    expect(profile.spawnTransform).toBeTypeOf("function");
+    /* 审批/提问卡片:适配器输出标记经 askWatch 检测。 */
+    expect(profile.askMarks).toEqual([/\[DSH 审批\]/, /\[DSH 提问\]/]);
+    /* 多会话允许:每会话独立 DSH workspace+session,单实例语义已废。 */
+    expect(profile.singleInstance).toBeUndefined();
+    /* 触发符未实证:不声明(不猜接口)。 */
     expect(profile.triggers).toEqual([]);
-    expect(profile.listSessions).toBeUndefined();
-    expect(profile.resumeArgs).toBeUndefined();
+    /* 磁盘历史经 host RPC 代读(zstd 盘 fs 读不了);resume 标记由 spawnTransform 翻接。 */
+    expect(profile.listSessions).toBeTypeOf("function");
+    expect(profile.resumeArgs?.("session-abc")).toEqual(["--resume", "session-abc"]);
+    expect(profile.readSessionStatus).toBeTypeOf("function");
+    /* 工具栏「思考」位点击契约:发 /effort 开强度菜单。 */
+    expect(profile.thinkingCommand).toBe("/effort");
+    expect(profile.fetchQuota).toBeTypeOf("function");
     /* 加固安装参数(codemoss dsh_npm_install_args)+ npm 包仅查新版。 */
     expect(profile.scriptInstall?.unix).toContain(
       "npm i -g --maxsockets=1 --fetch-retries=5 --no-audit --no-fund @deepseek-ai/dsh@latest",

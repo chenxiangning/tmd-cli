@@ -54,10 +54,15 @@ interface QuotaProvider {
   fetch: (ctx: QuotaFetchContext) => Promise<QuotaSnapshot>;
 }
 
-/** quota 抓取上下文:model 用于多供应商 CLI(omp/pi)按模型前缀路由供应商。 */
+/** quota 抓取上下文:model 用于多供应商 CLI(omp/pi)按模型前缀路由供应商;
+ *  cwd/cliSessionId 供「会话即服务」型 CLI(dsh:额度=会话上下文占用)定位会话。 */
 export interface QuotaFetchContext {
   /** 当前会话模型(例 "kimi-code/k3");可能尚未识别。 */
   model?: string | null;
+  /** 当前会话 cwd(活动会话);无会话 = undefined。 */
+  cwd?: string;
+  /** 当前会话的 CLI 磁盘身份(未绑定 = undefined)。 */
+  cliSessionId?: string;
 }
 
 const providers = new Map<string, QuotaProvider>();

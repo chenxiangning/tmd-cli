@@ -99,10 +99,15 @@ export class SessionSpawnService {
    * 例 dsh host 面板的自定义路径/参数启动)。与 create 的差异:spec 由调用方
    * 给,不走 profile.command/args;身份探测/秒退守望按 profile 声明自然退化。
    */
-  async raw(profileId: string, spec: SpawnSpec, workspaceId?: string): Promise<SessionMeta> {
+  async raw(
+    profileId: string,
+    spec: SpawnSpec,
+    workspaceId?: string,
+    opts?: { activate?: boolean },
+  ): Promise<SessionMeta> {
     return this.guarded(profileId, async () => {
       const spawned = await this.spawn(profileId, spec, workspaceId);
-      return this.adoptSpawned(spawned.id, profileId, undefined);
+      return this.adoptSpawned(spawned.id, profileId, undefined, opts?.activate);
     });
   }
 
@@ -140,12 +145,13 @@ export class SessionSpawnService {
     cwd: string,
     workspaceId?: string,
   ): Promise<SessionMeta> {
-    const spec: SpawnSpec = {
+    let spec: SpawnSpec = {
       command: profile.command,
       args: profile.args,
       cwd,
       env: profile.env,
     };
+    if (profile.spawnTransform) spec = await profile.spawnTransform(spec);
     const spawnedAt = Date.now();
     /* 快照既有磁盘会话(id → 快照时 mtime):spawn 后 CLI 新落盘/复活的文件据此绑到活会话。
        快照失败 → null → 退化到 spawn 水位线判定(只认 spawn 后的落盘/增长),
@@ -192,12 +198,14 @@ export class SessionSpawnService {
     const opening = this.openingDiskSessions.get(key);
     if (opening) return opening;
     const args = profile.resumeArgs?.(cliSessionId) ?? profile.args;
-    const spec: SpawnSpec = {
+    let spec: SpawnSpec = {
       command: profile.command,
       args,
       cwd,
       env: profile.env,
     };
+    /* resume 同过 transform(dsh:--resume 标记 → 适配器 --session-id;契约与 spawnNew 一致) */
+    if (profile.spawnTransform) spec = await profile.spawnTransform(spec);
     const task = (async () => {
       try {
         const spawned = await this.spawn(profileId, spec, workspaceId);
@@ -235,18 +243,20 @@ export class SessionSpawnService {
     sessionId: string,
     profileId: string,
     cliSessionId?: string,
+    activate = true,
   ): Promise<SessionMeta> {
     /* 显式恢复路径的绑定也走唯一写入口:入口去重的兜底闸 —— 同一磁盘会话
        已有活 PTY 时新 PTY 照常运行,但身份不绑(账本/UI 按 tmd id 隔离,
        不与既有会话并账)。 */
     if (cliSessionId) this.h.bindIdentity(sessionId, cliSessionId);
     this.h.setSessions(await ipc.sessionList());
-    this.h.setActiveSessionId(sessionId);
+    if (activate) this.h.setActiveSessionId(sessionId);
     /* 常驻订阅从会话诞生起持续缓冲输出(与幕布是否挂载无关);
        秒退守望经 onExit 进退出回调 —— 缓冲随 removeSession 即清,摘尾须在清理前同步执行 */
     const adoptedAt = Date.now();
     const meta = await adoptPtySession(this.h, this.events, sessionId, {
       profileId,
+      activate,
       onExit: (id) => this.emitIfStartFailed(id, profileId, adoptedAt),
     });
     if (!meta) throw new Error(ADOPT_RACE_REASON);

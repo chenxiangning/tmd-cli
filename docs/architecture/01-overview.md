@@ -20,7 +20,7 @@
 React Host
 ├── kernel/       插件契约、生命周期、事件总线、IPC、PTY TerminalView
 ├── app-shell/    五区外壳、插件市场页(PluginMarketPage)与挂载点(宿主职责)
-└── plugins/      cli-* ×9(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/opencode) · workspace · session-budget · files · git · checkpoints(审批线) · composer · settings · network-proxy · ssh(远程会话) · terminal(内置终端) · memory-coordinator(记忆协调) · welcome
+└── plugins/      cli-* ×10(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/opencode/dsh) · workspace · session-budget · files · git · checkpoints(审批线) · composer · settings · network-proxy · ssh(远程会话) · terminal(内置终端) · memory-coordinator(记忆协调) · welcome
 
 Tauri Rust
 ├── pty.rs            portable-pty：spawn / read / write / resize / kill,双线程聚合泵
@@ -137,6 +137,6 @@ QuotaChip (composer 插件)
 
 ## 8. 当前实现状态
 
-已完成：配置脚手架、插件宿主与插件市场（21 个注册插件）、九 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/opencode)+ SSH 一等会话（russh 引擎，kind 路由）+ 内置终端（本地默认 shell，kind=shell 三等会话）、PTY 全生命周期与会话输出落盘翻页、输出缓冲分块化(streamSlice)、xterm 幕布、五区外壳、顶栏会话 tab 条(容量 4)、Composer 触发符/拖拽/截图/命令抽屉/消息锚点栏/Quota chip、触发补全以 CLI 为真相源(RPC 副车/磁盘扫描/全仓模糊)、bracketed-paste 发送器(pi-tui 系)、只读 session 状态工具栏、Quota 额度查询(7 类供应商 + relay 探测 + 契约单测)、welcome 首页(引擎探针/一键安装/凭据盘点/近期会话/GitHub 仓库链接)、右栏 Git 面板全量(差异/分支/历史 Graph 化(泳道拓扑 + ahead/behind 合成行)/提交 diff 中央 tab/远端 fetch-pull-push)、文件树 + 中央文件编辑器(CodeMirror)+ 文件渲染档案(图片/PDF/表格/docx/结构化/二进制占位)+ Markdown 预览(mermaid/KaTeX/图片/大纲)、审批线(checkpoints 账本:双归因/整批与按文件回退/影子对象库/用户消息图片缩略图)、SSH 右栏面板(SFTP 树/端口转发/远端文件编辑)、主题引擎(21 个 VS Code preset)、网络代理、会话置顶(双作用域)/重命名/显示预算、Ask 等待确认检测(字节流 + 屏幕态双通道)与提示音、轮次结束提示音、文件 tab 右键菜单与编辑区最大化、全局快捷键(内核注册表 + 设置可视化改键)、版本号弹窗(内嵌 CHANGELOG + 在线检查更新)、记忆协调(Magic Context 共享库,应用零直写:Memory 面板/状态栏胶囊/控制台 tab)、会话 tab 与 Git 分支右键菜单、远端操作对话框、panic 现场落…
+已完成：配置脚手架、插件宿主与插件市场（22 个注册插件）、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/opencode/dsh)+ SSH 一等会话（russh 引擎，kind 路由）+ 内置终端（本地默认 shell，kind=shell 三等会话）、PTY 全生命周期与会话输出落盘翻页、输出缓冲分块化(streamSlice)、xterm 幕布、五区外壳、顶栏会话 tab 条(容量 4)、Composer 触发符/拖拽/截图/命令抽屉/消息锚点栏/Quota chip、触发补全以 CLI 为真相源(RPC 副车/磁盘扫描/全仓模糊)、bracketed-paste 发送器(pi-tui 系)、只读 session 状态工具栏、Quota 额度查询(7 类供应商 + relay 探测 + 契约单测)、welcome 首页(引擎探针/一键安装/凭据盘点/近期会话/GitHub 仓库链接)、右栏 Git 面板全量(差异/分支/历史 Graph 化(泳道拓扑 + ahead/behind 合成行)/提交 diff 中央 tab/远端 fetch-pull-push)、文件树 + 中央文件编辑器(CodeMirror)+ 文件渲染档案(图片/PDF/表格/docx/结构化/二进制占位)+ Markdown 预览(mermaid/KaTeX/图片/大纲)、审批线(checkpoints 账本:双归因/整批与按文件回退/影子对象库/用户消息图片缩略图)、SSH 右栏面板(SFTP 树/端口转发/远端文件编辑)、主题引擎(21 个 VS Code preset)、网络代理、会话置顶(双作用域)/重命名/显示预算、Ask 等待确认检测(字节流 + 屏幕态双通道)与提示音、轮次结束提示音、文件 tab 右键菜单与编辑区最大化、全局快捷键(内核注册表 + 设置可视化改键)、版本号弹窗(内嵌 CHANGELOG + 在线检查更新)、记忆协调(Magic Context 共享库,应用零直写:Memory 面板/状态栏胶囊/控制台 tab)、会话 tab 与 Git 分支右键菜单、远端操作对话框、panic 现场落、cli-dsh PTY 适配器(第十引擎:Node 脚本桥 host-RPC → ANSI 幕布,spawnTransform 落盘分发,审批/提问卡 + 底栏 footer,详见 specs/2026-09-07-cli-dsh-pty-adapter-design.md)…
 
 后续按优先级：命令抽屉真机验收(openspec composer-command-drawer,余 5 项 `[V]`)→ CLI 交互式兼容性验证；在途契约归档(openspec/changes:ssh-plugin、git-right-panel 等)。

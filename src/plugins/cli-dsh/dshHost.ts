@@ -163,13 +163,14 @@ export type RawSessionSpawner = (
   spec: { command: string; args: string[]; cwd: string; title: string },
 ) => Promise<{ id: string }>;
 
+/** host 会话 = 后台基础设施(spawner 传 activate:false);--no-open 防自弹浏览器。 */
 export async function startHostSession(
   conn: DshConnection,
   spawn: RawSessionSpawner,
 ): Promise<string> {
   const spawned = await spawn("dsh", {
     command: dshCommand(conn),
-    args: ["web", "--host", conn.host, "--port", String(conn.port)],
+    args: ["web", "--host", conn.host, "--port", String(conn.port), "--no-open"],
     cwd: await ipc.configHomeDir(),
     title: "DSH Host",
   });

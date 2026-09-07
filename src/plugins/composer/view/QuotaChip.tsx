@@ -52,6 +52,7 @@ function useActiveQuota(): {
   const session = sessionId ? host.getSessions().find((s) => s.id === sessionId) : null;
   const profileId = session?.profileId;
   const model = sessionId ? (host.getSessionStatus(sessionId)?.model ?? null) : null;
+  const cliSessionId = sessionId ? host.getCliSessionId(sessionId) : undefined;
 
   /* 快照与路由模型同存同灭(任意 CLI 统一语义):
      - 模型切换 → 旧快照归属旧供应商,立即作废换占位并重新抓取,绝不跨模型混搭显示;
@@ -85,7 +86,7 @@ function useActiveQuota(): {
     );
     setLoading(true);
     provider
-      .fetch({ model })
+      .fetch({ model, cwd: session?.cwd, cliSessionId })
       .then((snapshot) =>
         setEntry((prev) => (prev?.model === model ? { model, snapshot } : prev)),
       )
