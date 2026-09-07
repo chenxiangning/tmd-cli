@@ -7,7 +7,7 @@
  * 1. 有基线:新文件(基线外 id)优先;其次复活文件(mtime 较快照增长 = CLI 内 /resume 追加写旧文件);
  * 2. 无基线(快照失败):只认 spawn 水位线之后的落盘/增长,pre-spawn 旧文件不得抢绑。
  *
- * 从 host.ts 拆出(文件规模铁则 ≤500 行)。
+ * 从 host.ts 拆出(文件规模铁则 ≤300 行)。
  */
 
 import type { CliDiskSession, SessionFileIdentity } from "./cli";

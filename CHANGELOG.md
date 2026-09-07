@@ -4,6 +4,26 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [Unreleased]
+
+### 新增
+
+- cli-dsh PTY 适配器一期:会话内对话 / 审批提问卡 / 底栏 footer(host-RPC 第二客户端)
+- Git 多仓支持:workspace 根多仓发现(git_repos_scan)与仓上下文切换(RepoBar / 引导 / 跨仓文件树着色)
+- 侧栏运行区:运行中 / 结束未查看会话自动聚集且单区显示
+
+### 修复
+
+- 会话删除记 tombstone 全域隐藏且先杀后删;归档满额逐出 / 归档视图独立分页;dsh 走删盘删除通路
+- dsh 适配器落盘迁入 ~/.tmd-cli/adapters/dsh:清场删除此前被 fs 白名单拒绝恒无效果
+- proc_run 收割改杀整棵进程树:Windows .cmd shim 超时后孙进程握管道致线程挂起泄漏
+- sqlite_query / sqlite_execute / fs_edit 命令族改 async + spawn_blocking:CLI 持写锁时不再冻 UI
+- git shell-out 固定 LC_ALL=C:非英文 locale 下凭据失败不再误分类
+
+### 重构
+
+- 覆盖层满额逐出 / FilePatch 提取 / with_repo 缓存段 / 行标题兜底链 / 终端呼吸灯等六处重复收敛
+
 ## [0.1.2] - 2026-09-06
 
 ### 新增

@@ -1,5 +1,5 @@
 /**
- * Composer 弹窗锚定与拖拽判定(从 Composer 拆出,单文件 ≤500 行铁则)。
+ * Composer 弹窗锚定与拖拽判定(从 Composer 拆出,单文件 ≤300 行铁则)。
  *
  * - usePopupAnchor:弹窗统一悬在对话框上方 —— portal + fixed 跳出 Panel 的
  *   overflow:hidden 裁切,锚定几何随对话框盒子实时量测(拖拽分隔条/窗口缩放均触发)。

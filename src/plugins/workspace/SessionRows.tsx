@@ -2,7 +2,7 @@
  * 会话行共享件 —— 磁盘会话行 + 活会话状态件。
  * 从 SessionList 拆出:磁盘行同时服务于 CLI 分组内的工作区置顶块与分页列表;
  * 状态件(节点/label)同时服务于分组活会话行与全局置顶区的活会话绑定行
- * (单文件 ≤500 行铁则)。行内重命名输入已沉淀进 kernel(见 @kernel/RenameInput)。
+ * (单文件 ≤300 行铁则)。行内重命名输入已沉淀进 kernel(见 @kernel/RenameInput)。
  */
 
 import { useEffect, useState } from "react";
@@ -40,7 +40,7 @@ export function PinIcon({ size, className }: { size: number; className?: string 
 const tickSubscribers = new Set<() => void>();
 let tickTimer: number | null = null;
 
-export function subscribeActivityTick(cb: () => void): () => void {
+function subscribeActivityTick(cb: () => void): () => void {
   tickSubscribers.add(cb);
   tickTimer ??= window.setInterval(() => tickSubscribers.forEach((fn) => fn()), 1000);
   return () => {
@@ -67,7 +67,7 @@ export function useSessionStatus(sessionId: string): SessionStatus {
 }
 
 /** 时间节点三态:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止 —— 呼吸灯从 meta 区移到时间轴节点位。 */
-export function ActivityDot({ sessionId }: { sessionId: string }) {
+function ActivityDot({ sessionId }: { sessionId: string }) {
   const status = useSessionStatus(sessionId);
   const state =
     status === "running"
@@ -76,6 +76,13 @@ export function ActivityDot({ sessionId }: { sessionId: string }) {
         ? "is-unread animate-breathe"
         : "is-idle";
   return <span className={`tl-node ${state}`} aria-hidden />;
+}
+
+/** 终端/SSH 活会话呼吸灯:输出即绿,无轮次/未读概念 —— 与 CLI 会话的
+ *  ActivityDot(status 状态机驱动)语义不同,4s 静默窗转灰。 */
+export function LiveOutputDot({ sessionId }: { sessionId: string }) {
+  const idle = Date.now() - host.getLastActivityAt(sessionId) > 4000;
+  return <span className={`tl-node${idle ? " is-idle" : ""}`} aria-hidden />;
 }
 
 /**

@@ -29,11 +29,11 @@ import {
   type SessionPinEntry,
 } from "@kernel/sessionPins";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
-import { sessionTitleKey, setSessionTitle, shortId } from "@kernel/sessionTitles";
+import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { CaretDown, CaretRight, Eye } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
-import { realPinSnapshot } from "./utils";
+import { orShortId, realPinSnapshot } from "./utils";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { PinIcon, PinToggle, SessionStatusLabel } from "./SessionRows";
 
@@ -149,11 +149,14 @@ export function PinnedSessionsSection() {
   };
 
 
-  /** 行标题:手动命名 > 置顶快照(短码垃圾视为无快照) > 短码。 */
+  /** 行标题:手动命名 > 置顶快照(短码垃圾视为无快照)> 短码(orShortId 锁步)。 */
   const titleOf = (row: PinnedRow): string =>
-    settings.sessionTitles[sessionTitleKey(row.profile.id, row.cliSessionId)] ??
-    realPinSnapshot(row.entry.title, row.cliSessionId) ??
-    shortId(row.cliSessionId);
+    orShortId(
+      settings.sessionTitles[sessionTitleKey(row.profile.id, row.cliSessionId)] ??
+        realPinSnapshot(row.entry.title, row.cliSessionId),
+      row.cliSessionId,
+      row.cliSessionId,
+    );
 
   /** 绑定的活会话(同工作区 + 同 CLI + 同磁盘身份);存在则点击 = 切会话。 */
   const liveOf = (row: PinnedRow) =>

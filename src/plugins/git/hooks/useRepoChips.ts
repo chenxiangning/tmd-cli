@@ -56,7 +56,7 @@ export function useRepoChips(
       }
       setChips(next);
     });
-    // eslint 无;sig 而非 repos 依赖:对象引用每次扫描都变,签名词判防抖
+    /* sig 而非 repos 依赖:对象引用每次扫描都变,签名词判防抖 */
   }, [sig, seq, repos.length]);
 
   return chips;

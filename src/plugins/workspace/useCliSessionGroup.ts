@@ -11,12 +11,12 @@ import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host, useHost } from "@kernel/host";
 import { resolveCliSessionQuota, useSettingsState } from "@kernel/settings";
 import { listSessionPins, sessionPinKey } from "@kernel/sessionPins";
-import { sessionArchiveKey } from "@kernel/sessionArchive";
-import { sessionDeletedKey } from "@kernel/sessionDeleted";
-import { sessionTitleKey, shortId } from "@kernel/sessionTitles";
+import { isSessionArchived, sessionArchiveKey } from "@kernel/sessionArchive";
+import { isSessionDeleted, sessionDeletedKey } from "@kernel/sessionDeleted";
+import { sessionTitleKey } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
 import type { SessionMeta } from "@kernel/ipc";
-import { compareLiveSessions, isRunningZoneCandidate } from "./utils";
+import { compareLiveSessions, isRunningZoneCandidate, orShortId } from "./utils";
 export function useCliSessionGroup({
   profile,
   workspace,
@@ -64,15 +64,13 @@ export function useCliSessionGroup({
   /* 命名覆盖层变化(重命名提交)需重渲行标题 */
   const titleOverrides = settings.sessionTitles;
   const pins = settings.sessionPins;
-  /** 归档覆盖层:默认视图隐藏归档会话;archivedView(上方取自 workspaceArchiveView)
-   *  反向只看归档项。 */
-  const archiveMap = settings.sessionArchive;
-  /** 删除意图层(tombstone):删除被调用即在册,后台删盘失败也不复活(用户意图归 tmd-cli)。 */
-  const deletedMap = settings.sessionDeleted;
+  /** 归档/删除覆盖层(tombstone):默认视图隐藏归档与已删会话;archivedView
+   *  反向只看归档项;删除意图全域隐藏。过滤谓词统一走覆盖层领域 API
+   *  (与 RunningZone 同口径),key 拼装在此。 */
   const isDeleted = (cliSessionId: string) =>
-    deletedMap[sessionDeletedKey(workspace.id, profile.id, cliSessionId)] !== undefined;
+    isSessionDeleted(sessionDeletedKey(workspace.id, profile.id, cliSessionId));
   const isArchived = (cliSessionId: string) =>
-    archiveMap[sessionArchiveKey(workspace.id, profile.id, cliSessionId)] !== undefined;
+    isSessionArchived(sessionArchiveKey(workspace.id, profile.id, cliSessionId));
 
   const liveSessions = host
     .getSessions()
@@ -114,7 +112,7 @@ export function useCliSessionGroup({
     return () => {
       stale = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- onScanned 为稳定引用语义,不作为依赖
+    /* onScanned 为稳定引用语义,不作为依赖。 */
   }, [profile, workspace.root, liveSessions.length, refreshTick, rescanTick]);
 
   /** 扫描源统一过 tombstone:默认/归档视图、置顶投影、标题索引共用(删除意图全域隐藏)。 */
@@ -138,7 +136,7 @@ export function useCliSessionGroup({
 
   /** 行标题解析:手动命名 > 磁盘原生标题 > 短码。 */
   const displayTitle = (cliSessionId: string | undefined, fallbackId: string): string =>
-    realTitle(cliSessionId) ?? shortId(cliSessionId ?? fallbackId);
+    orShortId(realTitle(cliSessionId), cliSessionId, fallbackId);
 
   /** 本组置顶投影:workspace scope → 组顶块;global scope → 离组进全局区。 */
   const workspacePins = listSessionPins(pins, {

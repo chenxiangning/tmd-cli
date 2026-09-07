@@ -33,6 +33,19 @@ export function realPinSnapshot(
 }
 
 /**
+ * 行标题兜底链末端:命名/磁盘/快照解析结果为空时回短码(无磁盘身份的
+ * 活会话回 fallbackId 短码)。三处消费(分组 hook / 运行区 / 全局置顶)
+ * 需锁步行为,共用防「命名 > 磁盘 > 短码」口径漂移。
+ */
+export function orShortId(
+  title: string | undefined,
+  cliSessionId: string | undefined,
+  fallbackId: string,
+): string {
+  return title ?? shortId(cliSessionId ?? fallbackId);
+}
+
+/**
  * 运行区候选判定(侧栏「运行区」自动聚集口径,工作区分组离组过滤共用此源,
  * 保证一个会话同一时刻只落在一个区域):
  * - turnActive(对话轮次进行中)在区:输出 2s 静默窗内,含「静默已过、

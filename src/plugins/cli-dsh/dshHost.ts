@@ -14,6 +14,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { getPlatformKind } from "@kernel/platform";
 
 export const DSH_CONNECTION_KEY = "tmd.dsh.connection.v1";
 
@@ -213,9 +214,8 @@ export async function ensureHostSession(
   return waitForHostReady(conn);
 }
 
-function isWindowsPlatform(): boolean {
-  return navigator.userAgent.includes("Windows");
-}
+/* 平台判定统一走 kernel/platform(UA 小写化 + unknown 兜底链),不自造。 */
+const isWindowsPlatform = () => getPlatformKind() === "windows";
 
 /** unix:lsof 找 LISTEN pid → TERM,非零退出补 KILL(codemoss 同款)。 */
 async function terminateLocalListenerUnix(port: number): Promise<void> {

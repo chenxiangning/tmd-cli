@@ -10,15 +10,9 @@ import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import type { Workspace } from "@kernel/workspace";
 import type { SessionMeta } from "@kernel/ipc";
 import { GroupHeader } from "./GroupHeader";
+import { LiveOutputDot } from "./SessionRows";
 import { useGroupCollapsed } from "./useGroupCollapsed";
-
-/** 活会话呼吸灯(ActivityDot 语义的终端版:输出即绿,无轮次概念)。 */
-function ShellActivityDot({ sessionId }: { sessionId: string }) {
-  const last = host.getLastActivityAt(sessionId);
-  const now = Date.now();
-  const idle = now - last > 4000;
-  return <span className={`tl-node${idle ? " is-idle" : ""}`} aria-hidden />;
-}
+/** 活会话呼吸灯(LiveOutputDot:输出即绿,无轮次概念)。 */
 
 export function ShellSessionGroup({ workspace }: { workspace: Workspace }) {
   useHost();
@@ -55,7 +49,7 @@ export function ShellSessionGroup({ workspace }: { workspace: Workspace }) {
                 }
               }}
             >
-              <ShellActivityDot sessionId={session.id} />
+              <LiveOutputDot sessionId={session.id} />
               <span className="thread-name">{title}</span>
             </button>
           );

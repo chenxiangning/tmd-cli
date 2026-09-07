@@ -72,7 +72,6 @@ export function WriteCard({
 
   useEffect(() => {
     if (!distillTarget && ompSessions.length > 0) setDistillTarget(ompSessions[0].id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ompSessions.length]);
 
   if (!visible) return null;

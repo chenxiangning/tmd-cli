@@ -7,6 +7,8 @@
 import type { GitRepoSummary } from "@kernel/ipc";
 import { GitBranch } from "@phosphor-icons/react";
 import { useRepoChips } from "../hooks/useRepoChips";
+import { SCAN_DEPTH } from "../hooks/useGitRepos";
+import { KIND_META } from "./RepoBar";
 
 export function RepoGuide({
   root,
@@ -29,7 +31,7 @@ export function RepoGuide({
             工作区根不是 Git 仓库
           </div>
           <div className="leading-relaxed text-(--tmd-fg-muted)">
-            扫描 <span className="text-(--tmd-fg)">{root}</span>(深度 2)发现{" "}
+            扫描 <span className="text-(--tmd-fg)">{root}</span>(深度 {SCAN_DEPTH})发现{" "}
             <span className="text-(--tmd-fg)">{repos.length} 个仓库</span>
             。点击任一仓库,即以该仓为语境使用完整 Git 面板。
           </div>
@@ -37,7 +39,7 @@ export function RepoGuide({
         {repos.map((r) => {
           const chip = chips.get(r.path);
           const dirty = chip?.dirty ?? -1;
-          const kind = r.kind === "repo" ? null : r.kind === "submodule" ? "子模块" : "工作树";
+          const kind = KIND_META[r.kind].label;
           return (
             <button
               key={r.path}
@@ -86,7 +88,7 @@ export function RepoGuide({
       </div>
       <div className="shrink-0 border-t border-(--tmd-border) px-2.5 py-2 text-[10.5px] leading-relaxed text-(--tmd-fg-faint)">
         同步说明:文件树着色照常工作(按各仓归属);幕布终端里的 git 命令不受影响;发现随切工作区
-        / ⟳ / 60s 慢巡航刷新。
+        {/* 32 = Rust git/repos_scan.rs 的 MAX_REPOS(跨语言常量,变更需双侧同步)。 */}
         {truncated && <b className="font-semibold text-(--tmd-fg-subtle)"> 已截断,仅显示前 32 个。</b>}
       </div>
     </div>

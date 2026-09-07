@@ -69,7 +69,7 @@ pub(crate) fn wait_child_with_timeout(
 /// 超时收尸:直接 kill 只杀直接子进程 —— Windows 下 `cmd /c npm` 的孙进程
 /// node 会存活并握住 npm 缓存锁,拖慢后续重试安装(2026-09-06 win 新装机
 /// 实证),须经 taskkill /T 追杀整棵进程树;unix 无 wrapper 场景,直接 kill。
-fn kill_tree(child: &mut std::process::Child) {
+pub(crate) fn kill_tree(child: &mut std::process::Child) {
     #[cfg(windows)]
     {
         /* 绝对路径防 PATH 贫瘠进程静默失效;SystemRoot 缺失(极罕)退裸名 */

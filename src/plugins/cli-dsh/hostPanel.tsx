@@ -97,7 +97,6 @@ export function DshHostPanel() {
       setPending(null);
     })();
     /* 挂载级自动启动只跑一次;后续重测走 refresh。 */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const applyConnection = (next: DshConnection) => {

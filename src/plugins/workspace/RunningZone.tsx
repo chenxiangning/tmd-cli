@@ -20,16 +20,16 @@ import type { CliProfile } from "@kernel/cli";
 import { host, useHost } from "@kernel/host";
 import type { SessionMeta } from "@kernel/ipc";
 import { useSettingsState } from "@kernel/settings";
-import { sessionArchiveKey } from "@kernel/sessionArchive";
+import { isSessionArchived, sessionArchiveKey } from "@kernel/sessionArchive";
 import { sessionPinKey, toggleSessionPin } from "@kernel/sessionPins";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
-import { sessionTitleKey, setSessionTitle, shortId } from "@kernel/sessionTitles";
+import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { Pulse, CaretDown, CaretRight, Eye } from "@phosphor-icons/react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { SessionContextMenu } from "./SessionContextMenu";
 import { SessionStatusLabel } from "./SessionRows";
-import { compareLiveSessions, isRunningZoneCandidate } from "./utils";
+import { compareLiveSessions, isRunningZoneCandidate, orShortId } from "./utils";
 
 /** 段折叠态存储 key(纯 UI 态,localStorage 即可,同全局置顶区)。 */
 const COLLAPSED_KEY = "tmd.runningSectionCollapsed";
@@ -68,11 +68,7 @@ export function RunningZoneSection() {
           settings.sessionPins
         )
           return [];
-        if (
-          settings.sessionArchive[
-            sessionArchiveKey(workspace.id, profile.id, cliSessionId)
-          ] !== undefined
-        )
+        if (isSessionArchived(sessionArchiveKey(workspace.id, profile.id, cliSessionId)))
           return [];
       }
       return isRunningZoneCandidate(
@@ -134,13 +130,16 @@ export function RunningZoneSection() {
     localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0");
   };
 
-  /** 行标题:手动命名 > 磁盘原生标题 > 短码。 */
+  /** 行标题:手动命名 > 磁盘原生标题 > 短码(orShortId 与分组/置顶区锁步)。 */
   const titleOf = (row: RunningRow): string =>
-    (row.cliSessionId !== undefined
-      ? settings.sessionTitles[sessionTitleKey(row.profile.id, row.cliSessionId)]
-      : undefined) ??
-    (row.cliSessionId !== undefined ? diskTitles[row.cliSessionId] : undefined) ??
-    shortId(row.cliSessionId ?? row.session.id);
+    orShortId(
+      row.cliSessionId !== undefined
+        ? settings.sessionTitles[sessionTitleKey(row.profile.id, row.cliSessionId)] ??
+          diskTitles[row.cliSessionId]
+        : undefined,
+      row.cliSessionId,
+      row.session.id,
+    );
 
   const openRow = (row: RunningRow) => {
     noteSessionTabTitle(row.session.id, titleOf(row));

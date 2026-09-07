@@ -55,6 +55,8 @@ pub fn commit(
     let parents_ref: Vec<&Commit> = parents.iter().collect();
     let tree = repo.find_tree(tree_oid)?;
     if input.amend {
+        // (amend, 无 head) 已在上方 parents 装配处早返回("无提交可 amend"),
+        // unwrap 有不变量护栏。
         let hc = head_commit.as_ref().unwrap();
         // amend: 新 commit 首父 ≠ 当前 tip,libgit2 拒绝经 "HEAD" 直写;
         // 先建对象(保留原 author,更新 committer),再手动把分支 ref 指过去。

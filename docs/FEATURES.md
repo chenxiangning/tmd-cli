@@ -9,6 +9,7 @@
 > 2026-09-05 opencode 接入评审补校:modifiedAt 改 time_updated(复活绑定/排序)、edits 水位改 state.time.end 同源基准 + CAST 参数(并行工具漏记/静默 0 事件)、摘 MCP 分区(codex `$name` token 兜底不适用)、命令优先级项目>全局>JSON、minimax-cn-coding-plan 别名(评审记录见 `docs/review/2026-09-05-opencode-plugin-review.md`)。
 > 2026-09-05 安装器加固:npm 通道追加 `--allow-scripts=<pkg>` —— npm 12(2026-07)起 install scripts 默认禁用且被挡只发 warn,opencode-ai 靠 postinstall 拷平台二进制,被跳即留 stub 启动器、运行必报错;`--allow-scripts` 为 npm 官方逐包放行(npm12 实证有效、npm11 仅告警不失败,已端到端验证;旧 `--ignore-scripts=false` 压不过新机制,实证无效)。
 > 2026-09-06 发版前评审补校:内置终端会话、会话/分支右键菜单、记忆协调(Memory)域、全局快捷键、版本号弹窗、会话启动失败 toast、对话框五段高度;插件计数 19→21(9 engine / 9 feature / 3 core),远端操作改走对话框。
+> 2026-09-07 体检校准:快捷键段对齐注册面实况(删未实装键位与改键 UI 陈述);插件计数 21→22(10 engine / 9 feature / 3 core,cli-dsh);补录 dsh 引擎、Git 多仓、侧栏运行区、会话 tombstone 删除与归档视图。
 
 ## 工作区会话
 
@@ -42,8 +43,7 @@
 - 置顶标题快照:只存真标题(短码兜底不入库);快照缺失或为历史短码垃圾时读磁盘解析并回填,标题链 = 手动命名 > 原生标题/快照 > 短码
 - 置顶双作用域:置顶到全局 / 置顶到工作区内,当前作用域 ✓ 标记,点击迁移或取消
 - 置顶投影:工作区置顶固定组顶不参与分页;全局置顶汇入侧栏顶部「已置顶」区
-- 全局置顶区:段折叠 localStorage 持久化;点击直达活会话否则按原工作区恢复;已删工作区/未注册 CLI 的残留置顶不渲染但数据保留;右键菜单无删除项
-- 删除会话:两步确认(首击武装再击执行),物理删除磁盘 jsonl 并顺带清理命名与置顶覆盖层
+- 删除会话:两步确认(首击武装再击执行),先杀活会话再物理删除磁盘 jsonl 并清理命名/置顶/归档覆盖层;删除意图即时在册 tombstone(settings.sessionDeleted,200 条满额逐出最旧),删盘失败列表照常隐藏不复活,磁盘数据保留并 console.warn 诊断
 - 会话列表显示预算:总数(1–100,默认 20)按 CLI 分组均分(向下取整,尾数不补),已配额组按配额(显式 0 = 不露出)
 - 预算弹窗:总数编辑行 + 每注册 CLI 一行配额;非法提交拒绝并回退;清空配额回均分;剪除已卸载 CLI 残留 key;修改即时生效
 - 预算为独立可插拔插件 session-budget:经工作区标题行挂载点贡献入口,拔出回默认分页、重插恢复预算数值
@@ -70,6 +70,9 @@
 - 内置终端会话:宿主机 shell(bash/zsh,默认登录 shell)以第三类一等会话与 CLI 会话并列;中央 tab 图标「终端·{目录简称}」、侧栏💻徽标单列;目录不可访问 / PTY 失败即销毁该 shell 会话项
 - 内置终端入口:会话头部左区「新建 tab」并列「新建终端 tab」(⌥ 快捷变体),不挤占 CLI 列表
 - 近期会话:欢迎页展示磁盘最近会话,可快速进入
+- 会话管理模式:段头开关进入,拖选多选(锚点 key 防重排错选),批量归档 / 批量删除(武装态对齐 danger token);归档容量护栏 200 条
+- 归档视图:侧栏「已归档」反向只看归档项,与默认视图各自独立分页(配额起步、「更多」翻倍);归档 = 应用侧显示语义,不写回 CLI 磁盘;直接列磁盘会话的其余消费方(欢迎页最近会话)不在过滤范围(有意边界)
+- 侧栏运行区:「已置顶」与工作区之间自动聚集段,运行中 / 结束未查看的活会话跨工作区汇入,已查看即自动回工作区分组;一个会话同一时刻只在一个区域(成员判定同源 isRunningZoneCandidate);置顶优先级最高不进区,归档全域隐藏;段折叠 localStorage 持久化,纯自动投影无持久态
 
 ## Ask 等待确认与提示音
 
@@ -196,6 +199,11 @@
 - 远端:fetch(--all --prune)/ pull(尊重 pull.rebase 配置,显 behind 计数)/ push(ahead>0 显现)统一走对话框(成功带聚合统计,push 自动建立跟踪);300s 总超时到点中止,禁终端凭据提示;ssh 未自配 core.sshCommand 时才注入 BatchMode + ConnectTimeout=10(自配不覆盖);凭据失败引导幕布终端
 - 错误契约:五类 E_* 前缀直传前端剥壳展示;非 git 目录显空态;凭据失败引导幕布终端执行
 - 后端 Repository 句柄缓存:per-cwd FIFO 上限 16,写操作成功后主动失效,下次访问重开保新鲜
+- 多仓发现:Rust `git_repos_scan` BFS 有界扫描 workspace 根(深度 2,结果截 32,truncated 标记);submodule(.gitmodules 登记)与 worktree(gitdir 指针)分档,Repository::open 防误报;发现仅 root 切换 / 60s 慢巡航 / 窗口转可见 / 显式刷新时拉取,不挂 5s 轮询
+- 仓上下文四象限:单仓(原路径零变化,回归红线)/ 多仓(RepoBar 切换条 + 选中仓聚焦)/ 引导(workspace 根非仓但有子仓,RepoGuide 列表点击进入)/ 空仓(原空态);选中记忆按 workspace 存 panelStore(应用运行期)
+- RepoBar 多仓切换条:首位「N 仓」计数 + kind 图标(分支/立方/树)+ 按变更数降序,仓间虚线分隔;选中态文字提亮加粗无底色;单仓零渲染
+- 跨仓文件树着色:git 装饰按各仓归属聚合,深度序内层覆盖外层、仓根取聚合最高优先级色;仓根行 repotag 分支标注(60s 自取)
+- 远端对话框多仓:≥2 仓时 GitDialogShell 显 repoName 徽章,fetch/pull/push 作用于选中仓
 
 ## 文件与编辑器
 
@@ -246,7 +254,7 @@
 
 ## 插件市场(插排)
 
-- 插排 / 清单双视图,21 个注册插件可视化插拔(9 engine + 9 feature + 3 core),写 settings.disabledPlugins,重启生效(运行期不热卸载)
+- 插排 / 清单双视图,22 个注册插件可视化插拔(10 engine + 9 feature + 3 core),写 settings.disabledPlugins,重启生效(运行期不热卸载)
 - core 类焊死不可拔(composer / settings / welcome);engine / feature 可拔
 - 插件市场经标题栏插头按钮开合(整页替换、会话现场不丢);页头「重启应用」按钮带待生效计数一键重启
 - 插拔变更即时标 dirty:插头标「待重启」、清单卡片标「重启后生效」徽章
@@ -261,6 +269,8 @@
 - 欢迎页脚注:GitHub 仓库链接(系统浏览器打开)+ MIT 徽标
 - 引擎卡仅展示已注册(未拔出)的 CLI 引擎,首屏显示已就绪计数
 - 凭据盘点:已登录供应商凭据与额度一览(覆盖 omp/pi/codex/claude/grok/opencode,读各 CLI 本地凭据文件;kimi/qoder 未覆盖);查不到额度显示「已登录」不报错
+- dsh 引擎(DeepSeek Harness,第 10 个 CLI 引擎):首页引擎卡下方连接引导面板(kernel/homePanels 注册表),host:port 连接 + host 探针(quota_fetch 通道 POST describe)+ 启停自有会话(单实例闸,EADDRINUSE 防撞)+ 自定义 dsh 路径 + 自动启动(默认开,进首页且 host 未运行且二进制可用才拉,每应用运行一次闸);连接设置折叠头带摘要
+- dsh PTY 适配器:会话即 host(`dsh web --host --port`),适配器脚本落盘 `~/.tmd-cli/adapters/dsh`(内容戳变化全量重写,清场删除在 fs 白名单内);会话内对话 / 审批提问卡 / 底栏 footer 走 host-RPC 第二客户端;`~/.dsh/sessions` 为 zstd 压缩流,fs 原语不可读,listSessions/resumeArgs 不声明,删除走删盘通路
 - 最近会话:磁盘最近会话快速进入,按工作区分组每区最多 5 条,扫描失败静默跳过
 
 ## SSH 远程
@@ -314,9 +324,9 @@
 - 幕布滚动回放上界 5 万行,更早历史经滚顶「加载更早的输出」按钮翻页(RIS 重置整段重写幕布)
 - panic 落盘:任意线程 panic 的时间戳/线程/源码位置追加 `~/.tmd-cli/panic.log`,超 1MB 先清空再写
 - 启动 PATH 富化:后台 fork login shell(-lc 快路径/-ilc 完整路径,超时 kill)提取,与进程 env、常见安装目录(~/.local/bin 等)去重保序合并;降级单飞重试自愈;裸命令名经 which 解析绝对路径(Windows 批处理包 cmd /c);PTY 子进程与 CLI 探针共用
-- 全局快捷键:内核注册表 + 分发器,设置弹窗可视化改键(录制 / 重置 / 冲突检测,同分组冲突禁存);未绑定动作不出现在中央菜单
-- 快捷键作用域:global(含无会话)/ pty(会话获得焦点)/ composer(输入框焦点),分发逐作用域求值
+- 全局快捷键:内核注册表 + 分发器;设置页「快捷键」tab 为全量命令清单只读展示(改键 UI 未实装,数据面已预留);未绑定动作不出现在中央菜单
+- 快捷键作用域:global(含无会话)/ terminal(会话幕布获得焦点,聚焦期 terminal 优先、global 兜底),分发逐作用域求值;⌘C/⌘V/Escape 永不注册
 - macOS 仅 ⌘ 平台分流:Ctrl+M/N/P/W 等不加全局劫持,按原义传给 PTY(shell / REPL 常规键不被吞)
-- 一期键位:⌘T 新建会话、⌘, 设置、⌘1..9 切会话、⌘W 关闭当前 tab(终端 tab 发送 EOF 退出)、⌘⇧W 关闭窗口
-- 二期键位:⌘J 对话框紧凑/正常、⌘B 侧栏、⌘⇧F 文件面板、⌘⇧G Git 面板、⌘⇧O 工作区设置、⌘⇧D 切主题、⌘⇧T 重开已关闭 tab(含 shell 复原);另有 F3 朗读光标词、⌘F 预览查找
+- 外壳键位:⌘T 新建会话、⌘, 设置、⌘1-9 切会话(match 型,无此会话穿透)、⌘W 关闭当前 tab(终端 tab 发送 EOF 退出)、⌘B/⌘⌥B 折叠左/右栏、⌘⇧H 回到首页
+- 面板与 tab 键位:⌘⇧E/⌘⇧G/⌘⇧M 切右栏面板 1/2/3、Ctrl+Tab / Ctrl+Shift+Tab tab 顺序切换(match 型 (meta|ctrl)+Tab)、⌘⌥F(match ⌃⌘F)编辑区最大化、⌘⇧X 插件市场;插件贡献:⌘K 命令抽屉、⌘J 对话框高度段、⌘S 保存(本地文件/SSH 远端文件双方 when 互斥)
 - 插件激活失败整页报错,不白屏

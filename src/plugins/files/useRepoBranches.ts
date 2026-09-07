@@ -10,6 +10,7 @@ import { ipc, type GitRepoSummary } from "@kernel/ipc";
 
 const SLOW_POLL_MS = 60_000;
 
+/* 禁跨插件 import:与 git 插件 RepoBar.KIND_META 同值互指(标签文案变更双侧同步)。 */
 const KIND_LABEL: Record<GitRepoSummary["kind"], string | null> = {
   repo: null,
   submodule: "子模块",

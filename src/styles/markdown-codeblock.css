@@ -1,4 +1,4 @@
-/* markdown 代码块 / Prism token / Mermaid / 重块占位 —— 从 markdown-preview.css 拆分(文件规模铁则 ≤500 行)。
+/* markdown 代码块 / Prism token / Mermaid / 重块占位 —— 从 markdown-preview.css 拆分(文件规模铁则 ≤300 行)。
    变量桥接在 markdown-preview.css 的 .fvp-file-markdown 作用域,本文件规则全部位于该容器内,直接复用。 */
 
 /* ── 代码(行内 + 块) ── */

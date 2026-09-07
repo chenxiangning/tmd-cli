@@ -14,6 +14,7 @@
 
 import { getSettingsState, updateSettings } from "./settings";
 import type { SessionDeletedEntry } from "./settingsTypes";
+import { evictOldest } from "./overlayEvict";
 
 export type { SessionDeletedEntry };
 
@@ -42,17 +43,6 @@ const SESSION_DELETED_MAX_ENTRIES = 200;
 export function markSessionDeleted(key: string): void {
   const current = getSettingsState().settings.sessionDeleted;
   const next = { ...current, [key]: { deletedAt: Date.now() } };
-  if (Object.keys(next).length > SESSION_DELETED_MAX_ENTRIES) {
-    let oldest: string | undefined;
-    for (const k of Object.keys(current)) {
-      if (
-        k !== key &&
-        (oldest === undefined || current[k].deletedAt < current[oldest].deletedAt)
-      ) {
-        oldest = k;
-      }
-    }
-    if (oldest !== undefined) delete next[oldest];
-  }
+  evictOldest(next, current, key, (e) => e.deletedAt, SESSION_DELETED_MAX_ENTRIES);
   updateSettings({ sessionDeleted: next });
 }

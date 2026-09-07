@@ -1,5 +1,5 @@
 /**
- * 本地 CLI 会话 spawn 与装配 —— 从 host.ts 拆出(单文件 ≤500 行铁则)。
+ * 本地 CLI 会话 spawn 与装配 —— 从 host.ts 拆出(单文件 ≤300 行铁则)。
  *
  * 职责:createSession / openDiskSession 两条 spawn 路径 + adoptSpawned 统一装配
  * (身份探测登记、常驻订阅输出/退出、置 active)。秒退守望也归此件:进程在

@@ -99,44 +99,5 @@ pub fn message(repo: &Repository, sha: &str) -> Result<String, GitError> {
 /// 提交内单文件 patch:path 按 新路径 或 rename 来源路径 匹配 delta。
 pub fn file_patch(repo: &Repository, sha: &str, path: &str) -> Result<Option<FilePatch>, GitError> {
     let diff = commit_diff(repo, sha)?;
-    let idx = diff.deltas().enumerate().find_map(|(i, d)| {
-        let hit = d.new_file().path().and_then(|p| p.to_str()) == Some(path)
-            || d.old_file().path().and_then(|p| p.to_str()) == Some(path);
-        hit.then_some(i)
-    });
-    let Some(idx) = idx else { return Ok(None) };
-
-    let delta = diff.get_delta(idx).ok_or(GitError::empty("delta 丢失"))?;
-    let kind = fold_delta(delta.status()).to_string();
-    let old_path = delta
-        .old_file()
-        .path()
-        .map(|p| p.to_string_lossy().into_owned());
-    let binary = delta.new_file().is_binary() || delta.old_file().is_binary();
-
-    if binary {
-        return Ok(Some(FilePatch {
-            path: path.into(),
-            old_path,
-            kind,
-            additions: 0,
-            deletions: 0,
-            patch: String::new(),
-            binary: true,
-        }));
-    }
-
-    let mut patch = git2::Patch::from_diff(&diff, idx)?.ok_or(GitError::empty("patch 生成失败"))?;
-    // line_stats: (context, insertions, deletions)
-    let (_ctx, adds, dels) = patch.line_stats()?;
-    let buf = patch.to_buf()?;
-    Ok(Some(FilePatch {
-        path: path.into(),
-        old_path,
-        kind,
-        additions: adds as u32,
-        deletions: dels as u32,
-        patch: String::from_utf8_lossy(&buf).into_owned(),
-        binary: false,
-    }))
+    super::diff::file_patch_from_diff(&diff, path)
 }

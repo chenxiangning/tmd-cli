@@ -14,6 +14,7 @@
 
 import { getSettingsState, updateSettings } from "./settings";
 import type { SessionArchiveEntry } from "./settingsTypes";
+import { evictOldest } from "./overlayEvict";
 
 export type { SessionArchiveEntry };
 
@@ -42,18 +43,7 @@ const SESSION_ARCHIVE_MAX_ENTRIES = 200;
 export function archiveSession(key: string): void {
   const current = getSettingsState().settings.sessionArchive;
   const next = { ...current, [key]: { archivedAt: Date.now() } };
-  if (Object.keys(next).length > SESSION_ARCHIVE_MAX_ENTRIES) {
-    let oldest: string | undefined;
-    for (const k of Object.keys(current)) {
-      if (
-        k !== key &&
-        (oldest === undefined || current[k].archivedAt < current[oldest].archivedAt)
-      ) {
-        oldest = k;
-      }
-    }
-    if (oldest !== undefined) delete next[oldest];
-  }
+  evictOldest(next, current, key, (e) => e.archivedAt, SESSION_ARCHIVE_MAX_ENTRIES);
   updateSettings({ sessionArchive: next });
 }
 

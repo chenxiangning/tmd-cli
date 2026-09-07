@@ -9,7 +9,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ipc, type GitRepoSummary } from "@kernel/ipc";
 
 const SLOW_POLL_MS = 60_000;
-const SCAN_DEPTH = 2;
+/** 发现 BFS 深度(前端传参,Rust 默认同值);RepoGuide 引导文案同步显示。 */
+export const SCAN_DEPTH = 2;
 
 interface GitReposState {
   repos: GitRepoSummary[];

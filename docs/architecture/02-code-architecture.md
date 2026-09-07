@@ -59,12 +59,13 @@ flowchart TB
             P_SSH["ssh<br/>SSH 一等会话:overlay 主机选择 + 右栏面板(SFTP 树/端口转发)<br/>+ newSessionMenu 入口 + 远端文件 tab(kind=ssh-file)+ 设置 section"]
             P_TERM["terminal<br/>内置终端:header.leftCluster 入口按钮<br/>点击聚焦最新 shell 会话/⌥新建"]
             P_OPE["cli-opencode<br/>profile: opencode<br/>SQLite 单库会话存储(sqlite 代读/代删)"]
+            P_DSH["cli-dsh<br/>profile: dsh<br/>会话即 host(PTY 适配器)+ homePanel 连接引导"]
             P_MEM["memory-coordinator<br/>Memory 面板 + 状态栏胶囊 + 控制台 tab<br/>Magic Context 共享库(应用零直写)"]
         end
     end
 
     subgraph BE["Tauri Rust 后端（src-tauri/src/）"]
-        LIB["lib.rs<br/>101 个 tauri::command 注册(git 30 + ssh 21 + checkpoints 11 + commands_fs 13 + fs_edit 6 + session 7 + quota 2 + sqlite 2 + lib.rs 直注册 9)<br/>panic 钩子落盘 panic.log"]
+        LIB["lib.rs<br/>102 个 tauri::command 注册(git 31 + ssh 21 + checkpoints 11 + commands_fs 13 + fs_edit 6 + session 7 + quota 2 + sqlite 2 + lib.rs 直注册 9)<br/>panic 钩子落盘 panic.log"]
         PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出"]
         SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
         RESOLVE["resolve.rs<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
@@ -82,7 +83,7 @@ flowchart TB
         CKPTR["checkpoints/ — 审批线账本 sidecar<br/>ledger.rs·events.rs·restore.rs·apply.rs·view.rs<br/>capture.rs·diff.rs·attribution.rs·commands.rs"]
     end
 
-    EXT["外部 CLI 子进程<br/>omp / pi / codex / claude / grok / kimi / qoder / qoder-cn / opencode（PTY slave）"]
+    EXT["外部 CLI 子进程<br/>omp / pi / codex / claude / grok / kimi / qoder / qoder-cn / opencode / dsh（PTY slave）"]
     DISK["~/.tmd-cli/<br/>settings.json · workspaces.json<br/>(活会话注册表纯内存不落盘;<br/>临时附件走系统 temp/tmd-cli)"]
     CLIDATA["CLI 自身 session 落盘<br/>OMP / Pi / Codex / Claude / Kimi / Grok / Qoder<br/>/ Opencode(SQLite 单库)"]
 
@@ -434,7 +435,7 @@ flowchart TD
 
 ## 8. Rust 后端命令面
 
-注册的 101 个 `#[tauri::command]`（git/commands.rs 30 + ssh/commands.rs 21 + checkpoints/commands.rs 11 + commands_fs.rs 13 + fs_edit.rs 6 + session_commands.rs 7 + quota.rs 2 + sqlite.rs 2 + lib.rs 直注册 9），与 `ipc.ts` 一一对应：
+注册的 102 个 `#[tauri::command]`（git/commands.rs 31 + ssh/commands.rs 21 + checkpoints/commands.rs 11 + commands_fs.rs 13 + fs_edit.rs 6 + session_commands.rs 7 + quota.rs 2 + sqlite.rs 2 + lib.rs 直注册 9），与 `ipc.ts` 一一对应：
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
@@ -444,7 +445,7 @@ flowchart TD
 | `session_log_size` / `session_history_page` | `session_commands.rs` + `session_log.rs` | 输出日志末尾偏移 / 绝对偏移前翻一页(转义+UTF-8 边界对齐) |
 | `cli_probe` | `probe.rs` | PATH 解析 + `--version`(8s 硬超时,spawn_blocking;输出带超时收集防孙进程握管道挂死) |
 | `cli_install_run` | `installer.rs` | 参数化 InstallPlan 执行(npm / script / command 三通道,配方由前端 CliProfile 声明),`cli-install://{id}` 流式日志(300s 超时);主引擎安装前的前置依赖门控在 welcome 引擎卡:`CliProfile.requires` 声明(如 omp→bun),依赖未就位则安装/更新按钮禁用并引导先装依赖 |
-| `sqlite_query` / `sqlite_execute` | `sqlite.rs` | 只读 sqlite 通用代读(READ_ONLY + 参数化绑定) / 参数化写(opencode 删除会话);CLI 私有库路径/表结构知识在插件侧(cli-shared/quota/ompAuth.ts、cli-opencode/db.ts) |
+| `sqlite_query` / `sqlite_execute` | `sqlite.rs` | 只读代读(RW 打开 + query_only 连接:重放 WAL 看到未 checkpoint 行)/ 参数化写(opencode 删除会话,foreign_keys 级联);async + spawn_blocking(cli 持写锁时不冻主线程);CLI 私有库路径/表结构知识在插件侧(cli-shared/quota/ompAuth.ts、cli-opencode/db.ts) |
 | `quota_fetch` / `quota_env_value` | `quota.rs` | 通用 HTTP 代理(15s 超时) / 只读环境变量 |
 | `platform_kind` / `app_restart` | `lib.rs` | UA 探测失败时的 OS 兜底 / 重启应用(插件启停重启生效) |
 | `fs_list_dir` | `fs.rs` | 单层列举，隐藏过滤，目录排前 |
@@ -465,6 +466,7 @@ flowchart TD
 | `checkpoint_record_edit` / `checkpoint_restore` / `checkpoint_apply` / `checkpoint_approve` / `checkpoint_undo_revert` / `checkpoint_prune` | `checkpoints/events.rs` / `restore.rs` / `apply.rs` / `view.rs` 等 | AI 写入事件流式记账(带 ts 迟到守卫;信号源 = PTY 标记或会话磁盘事件流) / 整批或单文件回退(guard 落账) / 已退批按批后像写回 / 通过标记 / 反悔恢复 / 保留策略与对象库 reachability 清理 |
 | `git_status` / `git_totals` / `git_ahead_behind` | `git/status.rs` 等 | libgit2 本地读(status 聚合/改动统计/领先落后) |
 | `git_diff_file_patch` | `git/diff.rs` | libgit2 patch 生成(前端 PatchLRU 缓存 50 条/20MB) |
+| `git_repos_scan` | `git/repos_scan.rs` | workspace 根多仓发现:BFS 有界扫描(深度前端传,默认 2;结果截 32 truncated),submodule(.gitmodules)/worktree(gitdir 指针)分档 |
 | `git_stage` / `git_unstage` / `git_discard` / `git_commit` | `git/index_ops.rs` 等 | index 写操作(discard = checkout_index,不经 fs 删除) |
 | `git_log` | `git/log.rs` | 历史分页摘要 + 每提交 ref 装饰(附注 tag peel 到提交;HEAD→本地→远端→tag 排序) |
 | `git_commit_files` / `git_commit_file_patch` | `git/commit_view.rs` | 单提交文件清单(提交 vs 首父,find_similar rename 检测) / 提交内单文件 patch —— 历史 Graph 展开与提交 diff tab |

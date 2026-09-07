@@ -30,6 +30,14 @@ pub fn file_patch(
      * 而树→index diff 的 rename delta 挂新路径 —— 收窄到单路径会拆散 rename 配对
      * (R 退化为 D/A)。全仓 diff + find_similar 是 rename 语义正确的最小实现。 */
     let diff = build_diff(repo, staged)?;
+    file_patch_from_diff(&diff, path)
+}
+
+/// diff 内单文件 patch 提取(path 按新路径 / rename 来源双侧匹配 delta)——
+/// 三处消费(工作区 staged/unstaged、提交视图、分支 vs 工作树对比)共用的
+/// 唯一正确路径:Diff::deltas() 找序号 → binary 短路 → Patch::from_diff
+/// → line_stats → to_buf。
+pub(super) fn file_patch_from_diff(diff: &Diff, path: &str) -> Result<Option<FilePatch>, GitError> {
     let idx = diff.deltas().enumerate().find_map(|(i, d)| {
         let hit = d.new_file().path().and_then(|p| p.to_str()) == Some(path)
             || d.old_file().path().and_then(|p| p.to_str()) == Some(path);
@@ -57,7 +65,7 @@ pub fn file_patch(
         }));
     }
 
-    let mut patch = git2::Patch::from_diff(&diff, idx)?.ok_or(GitError::empty("patch 生成失败"))?;
+    let mut patch = git2::Patch::from_diff(diff, idx)?.ok_or(GitError::empty("patch 生成失败"))?;
     // line_stats: (context, insertions, deletions)
     let (_ctx, adds, dels) = patch.line_stats()?;
     let buf = patch.to_buf()?;

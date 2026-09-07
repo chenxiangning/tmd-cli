@@ -1,6 +1,7 @@
 /**
  * DSH 适配器运行时落盘 —— spawnTransform 前把 adapter/*.cjs 源码写到
- * <configHome>/adapters/dsh/,spawn 用落盘绝对路径(浏览器侧 __dirname 无意义)。
+ * ~/.tmd-cli/adapters/dsh/(在 fs 删除白名单内,清场删除可生效),
+ * spawn 用落盘绝对路径(浏览器侧 __dirname 无意义)。
  * 源码经 vite ?raw 内联进 bundle,dev/prod 同源;版本戳变化才重写。
  */
 
@@ -58,10 +59,11 @@ export function ensureAdapterDeployed(): Promise<string> {
 
 async function deploy(): Promise<string> {
   const home = await ipc.configHomeDir();
-  const dir = `${home}/adapters/dsh`;
+  const dir = `${home}/.tmd-cli/adapters/dsh`;
   const stampPath = `${dir}/.stamp`;
   /* 目录逐级建(fs_create_dir 非递归);已存在报错忽略。 */
-  await ipc.fsCreateDir(`${home}/adapters`).catch(() => undefined);
+  await ipc.fsCreateDir(`${home}/.tmd-cli`).catch(() => undefined);
+  await ipc.fsCreateDir(`${home}/.tmd-cli/adapters`).catch(() => undefined);
   await ipc.fsCreateDir(dir).catch(() => undefined);
   const old = await ipc.fsReadFile(stampPath).catch(() => "");
   if (old.trim() === STAMP) return `${dir}/dsh-adapter.cjs`;

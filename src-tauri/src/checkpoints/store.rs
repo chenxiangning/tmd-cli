@@ -49,12 +49,6 @@ pub(crate) fn ws_dir(cwd: &str) -> PathBuf {
     base_dir().join(crate::hash::md5_hex(cwd.to_string()))
 }
 
-#[cfg(test)]
-pub(crate) fn ledger_file(cwd: &str) -> PathBuf {
-    ws_dir(cwd).join("ledger.jsonl")
-}
-
-#[cfg(not(test))]
 pub(crate) fn ledger_file(cwd: &str) -> PathBuf {
     ws_dir(cwd).join("ledger.jsonl")
 }

@@ -12,7 +12,9 @@
 //! 省掉等超时)。超时:timeout_ms 到点强杀。两者都不命中则等进程自然退出。
 //!
 //! 阻塞安全:调用方(lib.rs)必须 async + spawn_blocking,本模块全同步。
-//! 只杀直接子进程:被查的 CLI 起深层子进程的场景暂不存在,不做进程树追杀。
+//! 收割杀整棵进程树:Windows 下 npm shim(.cmd)是 cmd /c 包裹,只杀直接
+//! 子进程会让孙进程 node 握住 stdout 管道 → 读线程永不 EOF → join 挂起
+//! 泄漏,复用 resolve::kill_tree(taskkill /T;unix 无 wrapper 直接 kill)。
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -22,7 +24,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
-use crate::resolve::{enriched_path, hide_console, resolve_command};
+use crate::resolve::{enriched_path, hide_console, kill_tree, resolve_command};
 
 /// 单次收割的 stdout 上限:正常查询响应 ≤ 几十 KB,8MB 已是异常,触顶即杀。
 const MAX_CAPTURE_BYTES: usize = 8 * 1024 * 1024;
@@ -148,7 +150,7 @@ pub fn run(spec: &ProcRunSpec) -> Result<ProcRunResult, String> {
         Err(RecvTimeoutError::Timeout) => true,
     };
     // 收割即杀:exit_on_stdout 命中时响应已拿全;EOF 时进程多半已退,kill 幂等。
-    let _ = child.kill();
+    kill_tree(&mut child);
     let code = child.wait().ok().and_then(|s| s.code());
     let out_bytes = t_out.join().unwrap_or_default();
     let err_bytes = t_err.join().unwrap_or_default();

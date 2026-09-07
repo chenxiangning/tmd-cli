@@ -1,6 +1,6 @@
 # tmd-cli 基础架构总览
 
-- 日期：2026-09-01（2026-09-04、2026-09-06 按当前代码校准）
+- 日期：2026-09-01（2026-09-04、2026-09-06、2026-09-07 按当前代码校准）
 - 状态：骨架已落地，持续演进
 - 铁律：**模块化 + 插件化**
 
@@ -120,10 +120,10 @@ QuotaChip (composer 插件)
 |---|---|---|
 | `kernel/quota.ts` | `QuotaSnapshot{windows,balanceText,planLabel}` 契约与注册表 | 供应商差异 |
 | `cli-*/quota.ts` | 凭据来源(codex auth.json+config.toml / omp agent.db / pi auth.json+models.json)与模型→供应商路由 | HTTP 协议 |
-| `vendors/` | 6 类供应商协议:kimi / minimax-cn·en / zhipu-cn·en / deepseek / relay + codex wham(降级) | CLI 凭据格式 |
+| `vendors/` | 供应商协议:kimi / minimax-cn·en / zhipu-cn·en / deepseek / relay + codex wham(降级);dashscope(阿里云百炼)显式识别为不支持(无公开额度 API,不误入 relay 探测) | CLI 凭据格式 |
 | `codexLocal.ts` | codex 官方 OAuth 本地 rollout 快照解析(优先路径) | HTTP(零请求) |
 | `quota.rs` | 通用 HTTP 代理 + `quota_env_value` 只读环境变量 | 业务语义 |
-| `sqlite.rs` | 只读 sqlite 通用代读(READ_ONLY + 参数化):JS 无法解析 sqlite,但路径/表结构知识在插件侧(cli-shared/quota/ompAuth.ts) | HTTP/其它 CLI |
+| `sqlite.rs` | sqlite 通用代读代写(RW 打开 + query_only 连接:重放 WAL 看到未 checkpoint 行;async + spawn_blocking):JS 无法解析 sqlite,但路径/表结构知识在插件侧(cli-shared/quota/ompAuth.ts、cli-opencode/db.ts) | HTTP/其它 CLI |
 
 **关键设计决策**:
 
@@ -137,6 +137,6 @@ QuotaChip (composer 插件)
 
 ## 8. 当前实现状态
 
-已完成：配置脚手架、插件宿主与插件市场（22 个注册插件）、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/opencode/dsh)+ SSH 一等会话（russh 引擎，kind 路由）+ 内置终端（本地默认 shell，kind=shell 三等会话）、PTY 全生命周期与会话输出落盘翻页、输出缓冲分块化(streamSlice)、xterm 幕布、五区外壳、顶栏会话 tab 条(容量 4)、Composer 触发符/拖拽/截图/命令抽屉/消息锚点栏/Quota chip、触发补全以 CLI 为真相源(RPC 副车/磁盘扫描/全仓模糊)、bracketed-paste 发送器(pi-tui 系)、只读 session 状态工具栏、Quota 额度查询(7 类供应商 + relay 探测 + 契约单测)、welcome 首页(引擎探针/一键安装/凭据盘点/近期会话/GitHub 仓库链接)、右栏 Git 面板全量(差异/分支/历史 Graph 化(泳道拓扑 + ahead/behind 合成行)/提交 diff 中央 tab/远端 fetch-pull-push)、文件树 + 中央文件编辑器(CodeMirror)+ 文件渲染档案(图片/PDF/表格/docx/结构化/二进制占位)+ Markdown 预览(mermaid/KaTeX/图片/大纲)、审批线(checkpoints 账本:双归因/整批与按文件回退/影子对象库/用户消息图片缩略图)、SSH 右栏面板(SFTP 树/端口转发/远端文件编辑)、主题引擎(21 个 VS Code preset)、网络代理、会话置顶(双作用域)/重命名/显示预算、Ask 等待确认检测(字节流 + 屏幕态双通道)与提示音、轮次结束提示音、文件 tab 右键菜单与编辑区最大化、全局快捷键(内核注册表 + 设置可视化改键)、版本号弹窗(内嵌 CHANGELOG + 在线检查更新)、记忆协调(Magic Context 共享库,应用零直写:Memory 面板/状态栏胶囊/控制台 tab)、会话 tab 与 Git 分支右键菜单、远端操作对话框、panic 现场落、cli-dsh PTY 适配器(第十引擎:Node 脚本桥 host-RPC → ANSI 幕布,spawnTransform 落盘分发,审批/提问卡 + 底栏 footer,详见 specs/2026-09-07-cli-dsh-pty-adapter-design.md)…
+已完成：配置脚手架、插件宿主与插件市场（22 个注册插件）、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/opencode/dsh)+ SSH 一等会话（russh 引擎，kind 路由）+ 内置终端（本地默认 shell，kind=shell 三等会话）、PTY 全生命周期与会话输出落盘翻页、输出缓冲分块化(streamSlice)、xterm 幕布、五区外壳、顶栏会话 tab 条(容量 4)、Composer 触发符/拖拽/截图/命令抽屉/消息锚点栏/Quota chip、触发补全以 CLI 为真相源(RPC 副车/磁盘扫描/全仓模糊)、bracketed-paste 发送器(pi-tui 系)、只读 session 状态工具栏、Quota 额度查询(全供应商识别 + relay 探测 + 契约单测)、welcome 首页(引擎探针/一键安装/凭据盘点/近期会话/GitHub 仓库链接)、右栏 Git 面板全量(差异/分支/历史 Graph 化(泳道拓扑 + ahead/behind 合成行)/提交 diff 中央 tab/远端 fetch-pull-push)、Git 多仓支持(git_repos_scan 发现 + RepoBar/RepoGuide 四象限分档 + 跨仓文件树着色)、文件树 + 中央文件编辑器(CodeMirror)+ 文件渲染档案(图片/PDF/表格/docx/结构化/二进制占位)+ Markdown 预览(mermaid/KaTeX/图片/大纲)、审批线(checkpoints 账本:双归因/整批与按文件回退/影子对象库/用户消息图片缩略图)、SSH 右栏面板(SFTP 树/端口转发/远端文件编辑)、主题引擎(21 个 VS Code preset)、网络代理、会话置顶(双作用域)/重命名/显示预算、会话管理模式(批量归档/删除)+ 归档视图(独立分页)+ tombstone 删除(意图在册不复活)+ 侧栏运行区(运行中/未查看自动聚集,单一区域原则)、Ask 等待确认检测(字节流 + 屏幕态双路)、全局快捷键(kernel 注册表 + 分发器)、版本号弹窗(CHANGELOG 分页 + 在线更新检查)、网络代理、memory-coordinator(Magic Context 共享库:面板/胶囊/控制台/自动蒸馏)、cli-dsh PTY 适配器(会话内对话/审批提问卡/footer)。
 
 后续按优先级：命令抽屉真机验收(openspec composer-command-drawer,余 5 项 `[V]`)→ CLI 交互式兼容性验证；在途契约归档(openspec/changes:ssh-plugin、git-right-panel 等)。

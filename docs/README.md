@@ -76,7 +76,7 @@
 | 2026-09-06 | [左侧工作区会话分类折叠(CLI/终端/SSH 段头开关 + 折叠计数 + settings 持久化)](superpowers/specs/2026-09-06-workspace-group-collapse-design.md) | 已落地(实现随本 spec 提交) |
 | 2026-09-06 | [omp 扩展市场:cli-omp 二级插件安装/卸载](superpowers/specs/2026-09-06-omp-extension-market-design.md) | 已落地(实现随本次提交;装卸启停真窗终验中) |
 | 2026-09-06 | [快捷键终端聚焦期放开:global 不再静默 + Ctrl+Tab 死键位修复](superpowers/specs/2026-09-06-shortcuts-terminal-focus-design.md) | 已落地 |
-| 2026-09-06 | [协作画布/管线范式探索原型集(collab-paradigm A/B/C、collaboration-mode v1/v2、风格样张 ×3)](design/) | 设计原型 |
+| 2026-09-06 | [协作模式管线原型(collaboration-mode-prototype;其余探索稿已随 0.1.2 清理删除)](design/collaboration-mode-prototype.html) | 设计原型 |
 | 2026-09-06 | [Windows 平台适配契约(ConPTY 握手 / 会话 slug / 子进程收尸 / cargo test)](architecture/04-windows-platform-contract.md) | 已落地 |
 | 2026-09-06 | [会话管理模式 + 归档视图(段头开关 / 拖选多选 / 批量归档删除 / 归 徽记)](superpowers/specs/2026-09-06-session-manage-archive-design.md) | 已落地(09-07 修订:归档容量逐出 / 删除顺序 / 归档视图独立分页) |
 | 2026-09-07 | [Git 多仓支持调研(断点矩阵 / 桌面客户端共识 / 方案否决依据)](research/git-multi-repo.md) | 调研底稿 |
@@ -85,5 +85,7 @@
 | 2026-09-06 | [编辑 tab 条上移顶栏:与会话 tab 合并一行(双激活并存)](superpowers/specs/2026-09-06-editor-tabs-into-titlebar-design.md) | 已落地(实现随本 spec 提交) |
 | 2026-09-06 | [cli-dsh 插件设计:第十个 CLI 引擎(DeepSeek Harness 安装/启动引导)](superpowers/specs/2026-09-06-cli-dsh-integration-design.md) | 已落地(实现随本 spec 提交) |
 | 2026-09-07 | [cli-dsh 会话接入:PTY 适配器方案(host-RPC 第二客户端)](superpowers/specs/2026-09-07-cli-dsh-pty-adapter-design.md) | 已落地(真 host 端到端 + 桩目检通过) |
+| 2026-09-07 | [侧栏会话分区:已置顶/运行区/工作区分组契约](architecture/05-sidebar-session-zones.md) | 已落地 |
+| 2026-09-07 | [CLI 触发符与会话恢复机制矩阵(omp/pi/codex 实测)](research/cli-trigger-and-session-matrix.md) | 已完成 |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
