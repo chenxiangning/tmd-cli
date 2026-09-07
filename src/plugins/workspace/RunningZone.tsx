@@ -12,7 +12,7 @@
  *
  * 行标题:手动命名 > 磁盘原生标题(候选 (工作区,CLI) 对聚合扫描,3s 补扫一次
  * 兜自动命名晚于文件出生)> 短码。行点击切到该活会话;右键菜单无删除项
- * (删除回工作区分组操作,同全局置顶区口径);从菜单置顶即离开本区。
+ * (删除回工作区分组操作,同全局置顶区口径);行内扎点或菜单置顶即离开本区。
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -21,14 +21,14 @@ import { host, useHost } from "@kernel/host";
 import type { SessionMeta } from "@kernel/ipc";
 import { useSettingsState } from "@kernel/settings";
 import { isSessionArchived, sessionArchiveKey } from "@kernel/sessionArchive";
-import { sessionPinKey, toggleSessionPin } from "@kernel/sessionPins";
+import { pinSession, sessionPinKey, toggleSessionPin, unpinSession } from "@kernel/sessionPins";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { Pulse, CaretDown, CaretRight, Eye } from "@phosphor-icons/react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { SessionContextMenu } from "./SessionContextMenu";
-import { SessionStatusLabel } from "./SessionRows";
+import { PinToggle, SessionStatusLabel } from "./SessionRows";
 import { compareLiveSessions, isRunningZoneCandidate, orShortId } from "./utils";
 
 /** 段折叠态存储 key(纯 UI 态,localStorage 即可,同全局置顶区)。 */
@@ -141,6 +141,21 @@ export function RunningZoneSection() {
       row.session.id,
     );
 
+  /** 置顶快照真标题(手动命名 > 磁盘原生标题,无短码兜底 —— pinSession 铁律)。 */
+  const realTitleOf = (row: RunningRow): string | undefined =>
+    row.cliSessionId === undefined
+      ? undefined
+      : settings.sessionTitles[sessionTitleKey(row.profile.id, row.cliSessionId)] ??
+        diskTitles[row.cliSessionId];
+
+  /** 行内扎点:本区行按定义未置顶(离组过滤已排除),点击即置顶到全局。 */
+  const togglePin = (row: RunningRow) => {
+    if (row.cliSessionId === undefined) return;
+    const key = sessionPinKey(row.workspace.id, row.profile.id, row.cliSessionId);
+    if (key in settings.sessionPins) unpinSession(key);
+    else pinSession(key, "global", realTitleOf(row));
+  };
+
   const openRow = (row: RunningRow) => {
     noteSessionTabTitle(row.session.id, titleOf(row));
     host.setActiveSession(row.session.id);
@@ -215,6 +230,11 @@ export function RunningZoneSection() {
                   <span className="thread-ask-badge">等待确认</span>
                 ) : null}
                 <span className="thread-time">{row.workspace.name}</span>
+                <PinToggle
+                  on={false}
+                  disabled={row.cliSessionId === undefined}
+                  onToggle={() => togglePin(row)}
+                />
               </span>
             </button>
           );
