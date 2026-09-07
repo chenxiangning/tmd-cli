@@ -82,5 +82,6 @@
 | 2026-09-06 | [编辑 tab 条上移顶栏:与会话 tab 合并一行(双激活并存)](superpowers/specs/2026-09-06-editor-tabs-into-titlebar-design.md) | 已落地(实现随本 spec 提交) |
 | 2026-09-06 | [cli-dsh 插件设计:第十个 CLI 引擎(DeepSeek Harness 安装/启动引导)](superpowers/specs/2026-09-06-cli-dsh-integration-design.md) | 已落地(实现随本 spec 提交) |
 | 2026-09-07 | [cli-dsh 会话接入:PTY 适配器方案(host-RPC 第二客户端)](superpowers/specs/2026-09-07-cli-dsh-pty-adapter-design.md) | 已落地(真 host 端到端 + 桩目检通过) |
+| 2026-09-07 | [侧栏会话分区:已置顶/运行区/工作区单一区域投影](architecture/05-sidebar-session-zones.md) | 已落地(状态机契约测试 + 桩目检) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

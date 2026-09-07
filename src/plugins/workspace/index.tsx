@@ -27,6 +27,7 @@ import { Folders, FolderOpen, FolderSimplePlus, CaretDoubleDown, CaretDoubleUp }
 import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
 import { WorkspaceCard } from "./WorkspaceCard";
 import { PinnedSessionsSection } from "./PinnedSessions";
+import { RunningZoneSection } from "./RunningZone";
 
 /** ⌘T 桥:新建会话菜单开合态在 WorkspaceSection 组件内,命令却在 activate 期注册 ——
  *  模块级 ref 接收分发器触发(先例:TerminalView findRequestRef)。 */
@@ -106,6 +107,9 @@ function WorkspaceSection() {
     <div className="ws-sidebar">
       {/* 全局置顶区(codemoss Pinned 复刻):scope=global 的会话跨工作区汇总于此 */}
       <PinnedSessionsSection />
+
+      {/* 运行区:运行中/结束未查看的活会话自动聚集,已查看自动回组(单一区域原则,见 RunningZone.tsx) */}
+      <RunningZoneSection />
 
       <div className="ws-caption">
         <span className="ws-caption-label">

@@ -10,12 +10,13 @@ import { useEffect, useRef, useState } from "react";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host, useHost } from "@kernel/host";
 import { resolveCliSessionQuota, useSettingsState } from "@kernel/settings";
-import { listSessionPins } from "@kernel/sessionPins";
+import { listSessionPins, sessionPinKey } from "@kernel/sessionPins";
 import { sessionArchiveKey } from "@kernel/sessionArchive";
 import { sessionDeletedKey } from "@kernel/sessionDeleted";
 import { sessionTitleKey, shortId } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
-import { compareLiveSessions } from "./utils";
+import type { SessionMeta } from "@kernel/ipc";
+import { compareLiveSessions, isRunningZoneCandidate } from "./utils";
 export function useCliSessionGroup({
   profile,
   workspace,
@@ -153,6 +154,20 @@ export function useCliSessionGroup({
   );
   const workspacePinnedIds = new Set(workspacePins.map((p) => p.cliSessionId));
 
+  /** 运行区投影:未置顶且 运行中/结束未查看 的活会话离组,汇入侧栏「运行区」
+   *  (RunningZone.tsx;成员判定同源 isRunningZoneCandidate,单一区域原则 ——
+   *  一个会话同一时刻只在运行区或本组之一显示)。
+   *  置顶优先级最高:任一作用域置顶留在原地(组顶块/全局置顶区),不进运行区。 */
+  const zoneOut = (s: SessionMeta): boolean => {
+    const cliSessionId = host.getCliSessionId(s.id);
+    if (
+      cliSessionId !== undefined &&
+      sessionPinKey(workspace.id, profile.id, cliSessionId) in pins
+    )
+      return false;
+    return isRunningZoneCandidate(host.isTurnActive(s.id), host.isUnread(s.id));
+  };
+
   /** 活会话排序:完成未读置顶,其余 spawn 时间倒序(比较器见 utils —— 稳定键防抖动);
    *  scope=global 的活会话离组,汇入全局「已置顶」区,不在本组显示。
    *  pinnedOutIds 已按本工作区+本 CLI 过滤,存裸 cliSessionId(与磁盘过滤的 s.id 同构)。 */
@@ -162,7 +177,8 @@ export function useCliSessionGroup({
       return (
         (cliSessionId === undefined || !pinnedOutIds.has(cliSessionId)) &&
         (cliSessionId === undefined || !isArchived(cliSessionId)) &&
-        (cliSessionId === undefined || !isDeleted(cliSessionId))
+        (cliSessionId === undefined || !isDeleted(cliSessionId)) &&
+        !zoneOut(s)
       );
     })
     .sort((a, b) => compareLiveSessions(a, b, (id) => host.isUnread(id)));

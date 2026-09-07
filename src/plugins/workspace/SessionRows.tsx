@@ -40,7 +40,7 @@ export function PinIcon({ size, className }: { size: number; className?: string 
 const tickSubscribers = new Set<() => void>();
 let tickTimer: number | null = null;
 
-function subscribeActivityTick(cb: () => void): () => void {
+export function subscribeActivityTick(cb: () => void): () => void {
   tickSubscribers.add(cb);
   tickTimer ??= window.setInterval(() => tickSubscribers.forEach((fn) => fn()), 1000);
   return () => {
