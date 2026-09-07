@@ -4,6 +4,12 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [Unreleased]
+
+### 新增
+
+- 顶栏会话 tab 行内加「置顶扎点」与「定位」两枚 icon:扎点与侧栏同语义置顶到全局/取消;定位一键展开左栏并滚动高亮该会话在侧栏的位置(遵循单一区域原则:全局置顶→已置顶区、运行区候选→运行区、其余→工作区分组)
+
 ## [0.1.2] - 2026-09-07
 
 ### 新增

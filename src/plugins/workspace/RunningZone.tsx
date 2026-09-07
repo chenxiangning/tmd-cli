@@ -31,9 +31,7 @@ import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { SessionContextMenu } from "./SessionContextMenu";
 import { PinToggle, SessionStatusLabel } from "./SessionRows";
 import { compareLiveSessions, isRunningZoneCandidate, orShortId } from "./utils";
-
-/** 段折叠态存储 key(纯 UI 态,localStorage 即可,同全局置顶区)。 */
-const COLLAPSED_KEY = "tmd.runningSectionCollapsed";
+import { runningSection } from "./sectionCollapsed";
 
 interface RunningRow {
   session: SessionMeta;
@@ -46,9 +44,7 @@ export function RunningZoneSection() {
   useHost();
   const { list: workspaces } = useWorkspaces();
   const { settings } = useSettingsState();
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem(COLLAPSED_KEY) === "1",
-  );
+  const collapsed = runningSection.use();
   const [menu, setMenu] = useState<{ row: RunningRow; x: number; y: number } | null>(
     null,
   );
@@ -125,11 +121,7 @@ export function RunningZoneSection() {
 
   if (rows.length === 0) return null;
 
-  const toggleCollapsed = () => {
-    const next = !collapsed;
-    setCollapsed(next);
-    localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0");
-  };
+  const toggleCollapsed = () => runningSection.set(!collapsed);
 
   /** 行标题:手动命名 > 磁盘原生标题 > 短码(orShortId 与分组/置顶区锁步)。 */
   const titleOf = (row: RunningRow): string =>
@@ -208,6 +200,7 @@ export function RunningZoneSection() {
           return (
             <button
               key={row.session.id}
+              data-session-id={row.session.id}
               className={`thread-row${isActive ? " active" : ""}`}
               title={t("{workspace} · {profile} 会话 {id}", { workspace: row.workspace.name, profile: row.profile.name, id: row.cliSessionId ?? row.session.id })}
               onClick={() => openRow(row)}

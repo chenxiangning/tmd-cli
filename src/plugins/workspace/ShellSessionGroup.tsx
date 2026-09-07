@@ -38,6 +38,7 @@ export function ShellSessionGroup({ workspace }: { workspace: Workspace }) {
           return (
             <button
               key={session.id}
+              data-session-id={session.id}
               className={`thread-row${session.id === activeSessionId ? " active" : ""}`}
               onClick={() => {
                 noteSessionTabTitle(session.id, title);

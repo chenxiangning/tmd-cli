@@ -8,7 +8,7 @@ export function usePersistedToggle(key: string, initial: boolean) {
   useEffect(() => {
     localStorage.setItem(key, open ? "1" : "0");
   }, [key, open]);
-  return [open, () => setOpen((v) => !v)] as const;
+  return [open, () => setOpen((v) => !v), setOpen] as const;
 }
 /**
  * 测量元素宽度并直写 CSS 变量(随拖动实时更新)。

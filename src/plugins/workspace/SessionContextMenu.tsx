@@ -13,7 +13,7 @@ import { Copy, Pencil, Trash } from "@phosphor-icons/react";
 import type { SessionPinScope } from "@kernel/sessionPins";
 import { t } from "@kernel/i18n";
 import { clampMenuPosition } from "./SessionMenu";
-import { PinIcon } from "./SessionRows";
+import { PinIcon } from "@kernel/PinIcon";
 
 export function SessionContextMenu({
   position,

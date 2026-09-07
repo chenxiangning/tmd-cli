@@ -112,6 +112,56 @@
   height: 10px;
 }
 
+
+/* 置顶扎点 + 定位:与 × 同显隐节奏(hover/active 显形);已置顶常亮实心 */
+.session-tab-pin,
+.session-tab-locate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--tmd-fg-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.session-tab:hover .session-tab-pin,
+.session-tab.is-active .session-tab-pin,
+.session-tab-pin.is-on,
+.session-tab:hover .session-tab-locate,
+.session-tab.is-active .session-tab-locate {
+  opacity: 1;
+}
+
+.session-tab-pin:hover,
+.session-tab-locate:hover {
+  color: var(--tmd-fg);
+  background: var(--tmd-bg-hover);
+}
+
+/* 已扎:实心 pin(与侧栏 .thread-pin-btn.is-on 同机制,stroke 型 SVG fill 即实体) */
+.session-tab-pin.is-on {
+  color: var(--tmd-fg-muted);
+}
+
+.session-tab-pin.is-on svg {
+  fill: currentColor;
+}
+
+.session-tab-pin svg,
+.session-tab-locate svg {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+}
+
 /* 行内重命名输入(右键菜单「重命名」;复刻 .thread-rename-input 的聚焦边语义,
    尺寸随 tab:高 24px 条内嵌 18px 输入,字号与标签一致 12px)。 */
 .session-tab-rename-input {

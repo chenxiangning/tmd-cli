@@ -31,6 +31,9 @@ export const shellBarToggles: {
 /** AppShell 市场页开合函数挂载点(组件局部 state,同 bars 桥)。 */
 export const shellMarketToggle: { current: (() => void) | null } = { current: null };
 
+/** 左栏「确保展开」挂载点:顶栏 tab 定位需要左栏可见,toggle 语义不够用(AppShell 挂载期写入)。 */
+export const shellLeftEnsureOpen: { current: (() => void) | null } = { current: null };
+
 registerCommand({
   id: "shell.toggleLeftBar",
   title: "折叠/展开左栏",

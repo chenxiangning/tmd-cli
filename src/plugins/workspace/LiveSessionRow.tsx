@@ -54,6 +54,7 @@ export function LiveSessionRow({
   }
   return (
     <button
+      data-session-id={session.id}
       className={`thread-row${isActive ? " active" : ""}`}
       onClick={() => {
         noteSessionTabTitle(session.id, title);

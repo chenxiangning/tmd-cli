@@ -132,3 +132,19 @@
   color: var(--text-faint);
   flex-shrink: 0;
 }
+
+/* ===== 顶栏「定位」闪高亮(revealSession 滚动后加类,1.6s 后移除) ===== */
+.thread-row.is-reveal {
+  animation: thread-reveal-flash 1.6s ease;
+}
+
+@keyframes thread-reveal-flash {
+  0%,
+  55% {
+    background: var(--tmd-accent-soft);
+  }
+
+  100% {
+    background: transparent;
+  }
+}

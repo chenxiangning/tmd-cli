@@ -33,7 +33,7 @@ import { SidebarSettingsCluster } from "./SidebarSettingsCluster";
 import { PluginMarketPage } from "./PluginMarketPage";
 import { StartFailureToast } from "./StartFailureToast";
 import { useEditorMaximized } from "./editorMaximized";
-import { shellBarToggles, shellMarketToggle } from "./shortcutCommands";
+import { shellBarToggles, shellLeftEnsureOpen, shellMarketToggle } from "./shortcutCommands";
 import { installShortcutDispatcher } from "@kernel/shortcuts";
 import { useElementWidth, usePersistedToggle } from "./shellHooks";
 import { MainPanel } from "./MainPanel";
@@ -46,7 +46,7 @@ export function AppShell() {
   /* 激活面板 = mode 命中项,回落首个注册项(插件 activate 顺序) */
   const activeFilePanel =
     filePanels.find((p) => p.id === filePanelMode) ?? filePanels[0];
-  const [leftOpen, toggleLeft] = usePersistedToggle("shell.left", true);
+  const [leftOpen, toggleLeft, setLeftOpen] = usePersistedToggle("shell.left", true);
   const [rightOpen, toggleRight] = usePersistedToggle("shell.right", true);
   /* 插件市场页开关:打开时整页替换下方三栏(session 现场不丢,关掉即回)。 */
   const [marketOpen, setMarketOpen] = useState(false);
@@ -77,12 +77,14 @@ export function AppShell() {
     shellBarToggles.left = toggleLeft;
     shellBarToggles.right = toggleRight;
     shellMarketToggle.current = toggleMarket;
+    shellLeftEnsureOpen.current = () => setLeftOpen(true);
     return () => {
       shellBarToggles.left = null;
       shellBarToggles.right = null;
       shellMarketToggle.current = null;
+      shellLeftEnsureOpen.current = null;
     };
-  }, [toggleLeft, toggleRight, toggleMarket]);
+  }, [toggleLeft, toggleRight, toggleMarket, setLeftOpen]);
 
   return (
     <div className={`app ${platform}-desktop flex h-screen w-screen flex-col bg-(--tmd-bg-base) text-(--tmd-fg)`}>

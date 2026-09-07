@@ -24,8 +24,10 @@ import { addWorkspace, useWorkspaces, type Workspace } from "@kernel/workspace";
 import { pickDirectory } from "@kernel/ipc";
 import { spinRemainder } from "@kernel/spin";
 import { updateSettings, useSettingsState } from "@kernel/settings";
-import { Folders, FolderOpen, FolderSimplePlus, CaretDoubleDown, CaretDoubleUp } from "@phosphor-icons/react";
+import { registerSessionRevealHandler } from "@kernel/sessionReveal";
 import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
+import { Folders, FolderOpen, FolderSimplePlus, CaretDoubleDown, CaretDoubleUp } from "@phosphor-icons/react";
+import { createSessionRevealHandler } from "./revealSession";
 import { WorkspaceCard } from "./WorkspaceCard";
 import { PinnedSessionsSection } from "./PinnedSessions";
 import { RunningZoneSection } from "./RunningZone";
@@ -34,8 +36,12 @@ import { RunningZoneSection } from "./RunningZone";
  *  模块级 ref 接收分发器触发(先例:TerminalView findRequestRef)。 */
 const openNewSessionMenuRef: { current: (() => void) | null } = { current: null };
 
+
 function WorkspaceSection() {
   useHost();
+  /* 顶栏 tab「定位」:消费 kernel/sessionReveal 请求,展开并滚动到该会话行(见 revealSession.ts)。 */
+  const sidebarRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => registerSessionRevealHandler(createSessionRevealHandler(sidebarRef)), []);
   const { list, activeId } = useWorkspaces();
   const [menu, setMenu] = useState<{
     workspace: Workspace;
@@ -105,7 +111,7 @@ function WorkspaceSection() {
   };
 
   return (
-    <div className="ws-sidebar">
+    <div className="ws-sidebar" ref={sidebarRef}>
       {/* 全局置顶区(codemoss Pinned 复刻):scope=global 的会话跨工作区汇总于此 */}
       <PinnedSessionsSection />
 

@@ -142,5 +142,6 @@ export const MESSAGES = {
   "下一个标签页": "Next tab",
   "上一个标签页": "Previous tab",
   "最大化/还原编辑区": "Maximize/restore editor",
+  "在左侧栏定位会话": "Locate session in sidebar",
   "刷新当前面板": "Refresh current panel",
 } as Record<string, string>;

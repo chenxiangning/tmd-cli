@@ -2,8 +2,9 @@
  * 会话标题 tab 条 —— 顶栏中央同时展示最多 4 个打开的会话(容量见 kernel/sessionTabs)。
  *
  * 数据:kernel/sessionTabs MRU(纯事件驱动,打开次序稳定)+ host 活跃指针 +
- * settings 命名覆盖层。标题优先级:手动命名 > 打开时快照 > 短码,改名即时生效。
  * 交互:点击切会话;× = 摘 tab 不杀会话(PTY 继续跑,侧栏仍在,见 store 契约);
+ * 行内扎点 = 置顶到全局/取消(与侧栏 PinToggle 同语义,覆盖层未落盘禁用);
+ * 定位 = 展开左栏并滚动到该会话行(kernel/sessionReveal 桥 → workspace 插件消费)。
  * 右键菜单:重命名(行内输入,同侧栏契约;未落盘禁用)/ 关闭 / 关闭其他 / 关闭全部
  * (TabContextMenu,与文件 tab 同一套 icon)。未读(完成未查看)会话缀主题色圆点。
  * tab 前置引擎品牌 logo(host.getCliProfile().renderIcon,与侧栏分组段头同源)。
@@ -11,7 +12,11 @@
  */
 
 import { memo, useState } from "react";
-import { Cross } from "@phosphor-icons/react";
+import { Cross, CrosshairSimple } from "@phosphor-icons/react";
+import { PinIcon } from "@kernel/PinIcon";
+import { isSessionPinned, pinSession, sessionPinKey, unpinSession } from "@kernel/sessionPins";
+import { requestSessionReveal } from "@kernel/sessionReveal";
+import { shellLeftEnsureOpen } from "./shortcutCommands";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
@@ -75,6 +80,12 @@ function SessionTabBarImpl() {
         if (!meta) return null;
         const title = resolveTitle(id) ?? shortId(meta.id);
         const active = host.getActiveSessionId() === id;
+        const cliSessionId = host.getCliSessionId(id);
+        const pinKey =
+          cliSessionId !== undefined && meta.workspaceId
+            ? sessionPinKey(meta.workspaceId, meta.profileId, cliSessionId)
+            : undefined;
+        const pinned = pinKey !== undefined && isSessionPinned(pinKey);
         return (
           <div
             key={id}
@@ -107,6 +118,31 @@ function SessionTabBarImpl() {
                     <span className="session-tab-dot" aria-hidden />
                   ) : null}
                   <span className="session-tab-label">{title}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`session-tab-pin${pinned ? " is-on" : ""}`}
+                  aria-label={t(pinned ? "取消置顶" : "置顶到全局")}
+                  title={t(pinned ? "取消置顶" : "置顶到全局")}
+                  onClick={() => {
+                    if (!pinKey || cliSessionId === undefined) return;
+                    if (pinned) unpinSession(pinKey);
+                    else pinSession(pinKey, "global", title !== shortId(cliSessionId) ? title : undefined);
+                  }}
+                >
+                  <PinIcon size={11} />
+                </button>
+                <button
+                  type="button"
+                  className="session-tab-locate"
+                  aria-label={t("在左侧栏定位会话")}
+                  title={t("在左侧栏定位会话")}
+                  onClick={() => {
+                    shellLeftEnsureOpen.current?.();
+                    requestSessionReveal(id);
+                  }}
+                >
+                  <CrosshairSimple size={11} aria-hidden />
                 </button>
                 <button
                   type="button"

@@ -36,10 +36,9 @@ import { CaretDown, CaretRight, Eye } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
 import { orShortId, realPinSnapshot } from "./utils";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
-import { PinIcon, PinToggle, SessionStatusLabel } from "./SessionRows";
-
-/** 段折叠态存储 key(纯 UI 态,localStorage 即可,浏览器/Tauri 行为一致)。 */
-const COLLAPSED_KEY = "tmd.pinnedSectionCollapsed";
+import { PinToggle, SessionStatusLabel } from "./SessionRows";
+import { PinIcon } from "@kernel/PinIcon";
+import { pinnedSection } from "./sectionCollapsed";
 
 /** 快照缺失/短码垃圾行的磁盘解析重试:3s 起步指数退避至 24s 封顶,
  * 8 次后放弃(共 ~2.4min)。omp 懒落盘晚 spawn 35-44s 在窗口内;文件已删
@@ -61,13 +60,11 @@ export function PinnedSessionsSection() {
   useHost();
   const { list: workspaces } = useWorkspaces();
   const { settings } = useSettingsState();
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem(COLLAPSED_KEY) === "1",
-  );
   const [menu, setMenu] = useState<{ row: PinnedRow; x: number; y: number } | null>(
     null,
   );
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
+  const collapsed = pinnedSection.use();
 
   const profiles = host.getCliProfiles();
   const rows: PinnedRow[] = listSessionPins(settings.sessionPins, {
@@ -142,12 +139,7 @@ export function PinnedSessionsSection() {
   }, [unresolvedKeys]);
 
   if (rows.length === 0) return null;
-
-  const toggleCollapsed = () => {
-    const next = !collapsed;
-    setCollapsed(next);
-    localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0");
-  };
+  const toggleCollapsed = () => pinnedSection.set(!collapsed);
 
 
   /** 行标题:手动命名 > 置顶快照(短码垃圾视为无快照)> 短码(orShortId 锁步)。 */
@@ -234,6 +226,7 @@ export function PinnedSessionsSection() {
           return (
             <button
               key={row.key}
+              data-session-id={live?.id}
               className={`thread-row${isActive ? " active" : ""}`}
               title={t("{workspace} · {profile} 会话 {id}", { workspace: row.workspace.name, profile: row.profile.name, id: row.cliSessionId })}
               onClick={() => openRow(row)}
