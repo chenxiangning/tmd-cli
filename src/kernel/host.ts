@@ -172,14 +172,15 @@ class Host implements PluginContext {
     return this.sessionServices.spawn.raw(profileId, spec, workspaceId, opts);
   }
 
-  /** 打开 CLI 磁盘历史会话(resume);实现见 kernel/sessionSpawn.ts。 */
+  /** 打开 CLI 磁盘历史会话(resume;实现见 kernel/sessionSpawn.ts);opts: activate=false 后台预开(自动激活),silent=true 失败不广播。 */
   async openDiskSession(
     profileId: string,
     cwd: string,
     workspaceId: string | undefined,
     cliSessionId: string,
+    opts?: { activate?: boolean; silent?: boolean },
   ): Promise<SessionMeta> {
-    return this.sessionServices.spawn.open(profileId, cwd, workspaceId, cliSessionId);
+    return this.sessionServices.spawn.open(profileId, cwd, workspaceId, cliSessionId, opts);
   }
 
   /* 回放补观察 / 屏幕采样:委托守望组合件(语义见 kernel/askWatch.ts)。 */

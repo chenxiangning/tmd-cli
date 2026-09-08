@@ -55,6 +55,7 @@ describe("初始状态与默认值", () => {
       backgroundNotify: true,
       sessionOutputBufferLimit: 500_000,
       sessionListBudget: { total: 20, perCli: {} },
+      autoActivateSessions: { days: 2, max: 8 },
       disabledPlugins: [],
       sessionTitles: {},
       sessionPins: {},
@@ -62,7 +63,6 @@ describe("初始状态与默认值", () => {
       sessionDeleted: {},
       workspaceArchiveView: false,
       workspaceCollapsedMap: {},
-      workspaceGroupCollapsedMap: {},
       networkProxyEnabled: false,
       networkProxyUrl: "",
       memoryDbPath: "",
@@ -196,6 +196,15 @@ describe("updateSettings 合并与清洗", () => {
       total: 5,
       perCli: { claude: 3, omp: 2 },
     });
+  });
+
+  it("autoActivateSessions:越界/非整数各自回落默认,互不连坐", () => {
+    settings.updateSettings({ autoActivateSessions: { days: 31, max: 4 } });
+    expect(settings.getSettingsState().settings.autoActivateSessions).toEqual({ days: 2, max: 4 });
+    settings.updateSettings({ autoActivateSessions: { days: 3, max: 0 } });
+    expect(settings.getSettingsState().settings.autoActivateSessions).toEqual({ days: 3, max: 8 });
+    settings.updateSettings({ autoActivateSessions: {} as never });
+    expect(settings.getSettingsState().settings.autoActivateSessions).toEqual({ days: 2, max: 8 });
   });
 
   it("disabledPlugins:非字符串剔除、去重、排序(确定性)", () => {

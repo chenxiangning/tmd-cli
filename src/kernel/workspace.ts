@@ -75,11 +75,15 @@ async function persist(): Promise<void> {
   }
 }
 
+/** 首载完成的 Promise(先例 settingsReady):启动自动激活等它再扫会话。 */
+const readyGate = Promise.withResolvers<void>();
+export const workspacesReady: Promise<void> = readyGate.promise;
+
 let booted = false;
 export function ensureWorkspaceBooted(): void {
   if (booted) return;
   booted = true;
-  void loadFromDisk();
+  void loadFromDisk().finally(() => readyGate.resolve());
 }
 
 export function addWorkspace(root: string): Workspace {

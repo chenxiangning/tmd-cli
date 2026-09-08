@@ -47,6 +47,20 @@ export const SESSION_LIST_TOTAL_DEFAULT = 20;
 export const SESSION_LIST_TOTAL_MIN = 1;
 export const SESSION_LIST_TOTAL_MAX = 100;
 
+/** 启动自动激活最近会话配置:天数窗口 + 预激活进程总硬上限。 */
+export interface AutoActivateSessions {
+  /** 激活最近多少天内有活动的磁盘会话;0 = 关闭。 */
+  days: number;
+  /** 预激活进程总数硬上限(每个预激活都是一个真实 CLI 常驻进程)。 */
+  max: number;
+}
+
+/** 自动激活合法域:days 0–30 默认 2;max 1–32 默认 8。 */
+export const AUTO_ACTIVATE_DAYS_DEFAULT = 2;
+export const AUTO_ACTIVATE_DAYS_MAX = 30;
+export const AUTO_ACTIVATE_MAX_DEFAULT = 8;
+export const AUTO_ACTIVATE_MAX_LIMIT = 32;
+
 /**
  * 解析某 CLI 分组的初始露出条数。
  * 已配置 = 配额原值(可为 0:该组初始不露出历史,仅活会话 + 「更多...」);
@@ -141,6 +155,8 @@ export interface AppSettings {
   sessionOutputBufferLimit: number;
   /** 工作区会话列表显示预算(总数 + 按 CLI 配额)。 */
   sessionListBudget: SessionListBudget;
+  /** 启动时自动激活最近会话:天数窗口 + 总数硬上限;days=0 关闭(行为页可调)。 */
+  autoActivateSessions: AutoActivateSessions;
   /** 插件市场"拔出"的插件 id 列表;重启后 activateAll 跳过(插拔语义 = 重启生效)。 */
   disabledPlugins: string[];
   /**
@@ -176,12 +192,6 @@ export interface AppSettings {
    * 重启后恢复上次状态。
    */
   workspaceCollapsedMap: Record<string, boolean>;
-  /**
-   * 左侧栏工作区内各会话分类(CLI 分组 / 终端 / SSH)折叠态:
-   * key = `${workspaceId}:${groupId}`(groupId = CLI profileId 或 "shell"/"ssh"),
-   * value = 是否折叠。缺失的分类(首次出现)默认折叠;切换写这里,重启后恢复。
-   */
-  workspaceGroupCollapsedMap: Record<string, boolean>;
   /** 左侧栏会话视图:false = 默认(隐藏归档),true = 归档(只看归档)。 */
   workspaceArchiveView: boolean;
   /**
@@ -242,13 +252,16 @@ export const DEFAULT_SETTINGS: AppSettings = {
   turnEndSoundEnabled: true,
   turnEndSoundId: "default",
   backgroundNotify: true,
-  sessionOutputBufferLimit: 500_000,
   sessionListBudget: { total: SESSION_LIST_TOTAL_DEFAULT, perCli: {} },
+  sessionOutputBufferLimit: 500_000,
+  autoActivateSessions: {
+    days: AUTO_ACTIVATE_DAYS_DEFAULT,
+    max: AUTO_ACTIVATE_MAX_DEFAULT,
+  },
   disabledPlugins: [],
   sessionTitles: {},
   sessionPins: {},
   workspaceCollapsedMap: {},
-  workspaceGroupCollapsedMap: {},
   sessionArchive: {},
   sessionDeleted: {},
   workspaceArchiveView: false,

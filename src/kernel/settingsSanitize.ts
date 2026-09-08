@@ -19,11 +19,16 @@ import {
 import {
   ASK_SOUND_IDS,
   DEFAULT_SETTINGS,
+  AUTO_ACTIVATE_DAYS_DEFAULT,
+  AUTO_ACTIVATE_DAYS_MAX,
+  AUTO_ACTIVATE_MAX_DEFAULT,
+  AUTO_ACTIVATE_MAX_LIMIT,
   SESSION_LIST_TOTAL_DEFAULT,
   SESSION_LIST_TOTAL_MAX,
   SESSION_LIST_TOTAL_MIN,
   type AppSettings,
   type AskSoundId,
+  type AutoActivateSessions,
   type GitDiffMode,
   type GitFileListLayout,
   type GitPanelView,
@@ -102,6 +107,23 @@ function sanitizeSessionListBudget(raw: unknown): SessionListBudget {
     }
   }
   return { total, perCli };
+}
+
+/** 自动激活清洗:days/max 越界或非整数各自回落默认(互不连坐,手改 JSON 兜底)。 */
+function sanitizeAutoActivateSessions(raw: unknown): AutoActivateSessions {
+  const obj = (raw ?? {}) as Record<string, unknown>;
+  const daysRaw = typeof obj.days === "number" ? obj.days : Number.NaN;
+  const maxRaw = typeof obj.max === "number" ? obj.max : Number.NaN;
+  return {
+    days:
+      Number.isInteger(daysRaw) && daysRaw >= 0 && daysRaw <= AUTO_ACTIVATE_DAYS_MAX
+        ? daysRaw
+        : AUTO_ACTIVATE_DAYS_DEFAULT,
+    max:
+      Number.isInteger(maxRaw) && maxRaw >= 1 && maxRaw <= AUTO_ACTIVATE_MAX_LIMIT
+        ? maxRaw
+        : AUTO_ACTIVATE_MAX_DEFAULT,
+  };
 }
 
 /** 拔出的插件 id 清洗:仅留非空字符串,去重 + 排序(手改 JSON 兜底,确定性)。 */
@@ -199,6 +221,7 @@ export function sanitize(raw: unknown): AppSettings {
         : DEFAULT_SETTINGS.backgroundNotify,
     sessionOutputBufferLimit: sanitizeBufferLimit(obj.sessionOutputBufferLimit),
     sessionListBudget: sanitizeSessionListBudget(obj.sessionListBudget),
+    autoActivateSessions: sanitizeAutoActivateSessions(obj.autoActivateSessions),
     disabledPlugins: sanitizeDisabledPlugins(obj.disabledPlugins),
     sessionTitles: sanitizeSessionTitles(obj.sessionTitles),
     sessionPins: sanitizeSessionPins(obj.sessionPins),
@@ -209,10 +232,6 @@ export function sanitize(raw: unknown): AppSettings {
         ? obj.workspaceArchiveView
         : DEFAULT_SETTINGS.workspaceArchiveView,
     workspaceCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceCollapsedMap),
-    // 同形 Record<string, boolean>,清洗语义与工作区折叠键完全一致
-    workspaceGroupCollapsedMap: sanitizeWorkspaceCollapsedMap(
-      obj.workspaceGroupCollapsedMap,
-    ),
     networkProxyEnabled:
       typeof obj.networkProxyEnabled === "boolean"
         ? obj.networkProxyEnabled

@@ -20,6 +20,7 @@ import {
 } from "@kernel/settings";
 import { playAskSound } from "@kernel/askSound";
 import { t } from "@kernel/i18n";
+import { BehaviorAutoActivate } from "./BehaviorAutoActivate";
 
 const SEND_SHORTCUT_OPTIONS: ReadonlyArray<{
   id: SendShortcut;
@@ -47,6 +48,7 @@ export function BehaviorTab() {
     const n = Number.parseInt(raw, 10);
     if (Number.isFinite(n) && n > 0) updateSettings({ sessionOutputBufferLimit: n });
   };
+
 
   return (
     <div className="pref-card" data-testid="settings-behavior-card">
@@ -234,10 +236,10 @@ export function BehaviorTab() {
             onClick={() => updateSettings({ backgroundNotify: false })}
           >
             {t("关闭")}
-
           </button>
         </div>
       </div>
+      <BehaviorAutoActivate />
     </div>
   );
 }
