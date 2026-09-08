@@ -19,13 +19,13 @@
 - **B. 只预热元数据(标题/状态预扫)**:点击等待的大头是进程 spawn + 回放,预扫元数据治标不治本。
 - **C. 退出时记活会话清单、启动恢复上次活会话**:语义不同(「上次活着」≠「最近几天磁盘会话」),进程照开、范围更迷;可作后续独立增强。
 
-范围决策(用户拍板):分组各取(每 工作区×CLI 取最近 N 天)+ 全局按时间降序 + 总硬上限 K;设置暴露天数与总上限两个值,默认 2 天 / 8 个,天数 0 = 关闭。
+范围决策(用户拍板):分组各取(每 工作区×CLI 取最近 N 天)+ 全局按时间降序 + 总硬上限 K;设置暴露天数与总上限两个值,默认 1 天 / 5 个,天数 0 = 关闭。
 
 ## 设计
 
 ### 设置
 
-- `AppSettings.autoActivateSessions: { days: number; max: number }`,默认 `{ days: 2, max: 8 }`。
+- `AppSettings.autoActivateSessions: { days: number; max: number }`,默认 `{ days: 1, max: 5 }`。
 - sanitize(先例 `sessionListBudget`):days 合法域 0-30,max 合法域 1-32,非整数/越界/缺字段整体回落默认。
 - UI:设置 → 基础设置 → 行为 tab,一张 pref-card 两个数字输入(blur/Enter 提交,先例缓冲上限输入),零新增 CSS。
 

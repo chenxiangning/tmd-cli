@@ -55,10 +55,10 @@ export interface AutoActivateSessions {
   max: number;
 }
 
-/** 自动激活合法域:days 0–30 默认 2;max 1–32 默认 8。 */
-export const AUTO_ACTIVATE_DAYS_DEFAULT = 2;
+/** 自动激活合法域:days 0–30 默认 1;max 1–32 默认 5。 */
+export const AUTO_ACTIVATE_DAYS_DEFAULT = 1;
 export const AUTO_ACTIVATE_DAYS_MAX = 30;
-export const AUTO_ACTIVATE_MAX_DEFAULT = 8;
+export const AUTO_ACTIVATE_MAX_DEFAULT = 5;
 export const AUTO_ACTIVATE_MAX_LIMIT = 32;
 
 /**

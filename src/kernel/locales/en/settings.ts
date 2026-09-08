@@ -70,8 +70,8 @@ export const MESSAGES = {
     "On relaunch, pre-activates sessions active within the last N days in the background (0 = off). Pre-activated sessions open instantly; each one is a real process, so keep the cap in mind.",
   "自动激活天数窗口": "Auto-activation days window",
   "自动激活总数上限": "Auto-activation process cap",
-  "预激活的进程总数硬上限（1–32，默认 8）。超出后只保留各分组里最近的会话。":
-    "Hard cap on pre-activated processes (1–32, default 8). Beyond it, only the most recent sessions per group are kept.",
+  "预激活的进程总数硬上限（1–32，默认 5）。超出后只保留各分组里最近的会话。":
+    "Hard cap on pre-activated processes (1–32, default 5). Beyond it, only the most recent sessions per group are kept.",
   "默认": "Default",
   "风铃": "Chime",
   "铃声": "Bell",
