@@ -20,9 +20,49 @@ import type { CliSuggestion, TriggerKind } from "@kernel/cli";
 const DEFAULT_TIMEOUT_MS = 20_000;
 
 /**
- * 发起一次 id 关联的 JSONL RPC 查询,返回 id 匹配且 type === "response" 的整行对象。
+ * 发起一次 id 关联的 JSONL RPC 查询,返回 id 匹配且 type === "response" 的应答对象。
  * 进程失败/超时/无匹配响应 = null(调用方回退静态表)。
  */
+/**
+ * 从进程 stdout 全缓冲提取所有顶层平衡的 JSON 对象。
+ *
+ * 不按行切分:应答行可能被后续事件字节粘尾(杀树竞态)、被噪声行粘连或行尾
+ * 残留 \r,逐行 JSON.parse 都会误炸。括号深度扫描(带字符串/转义态)对上述
+ * 全部形态免疫:截断尾永远达不到深度 0 自然跳过,粘尾对象各自成段。
+ */
+export function extractJsonObjects(buf: string): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  let start = -1;
+  for (let i = 0; i < buf.length; i++) {
+    const ch = buf[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === "\\") esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') {
+      inStr = true;
+    } else if (ch === "{") {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (ch === "}") {
+      if (depth > 0 && --depth === 0 && start >= 0) {
+        try {
+          out.push(JSON.parse(buf.slice(start, i + 1)) as Record<string, unknown>);
+        } catch {
+          /* 损坏段跳过 */
+        }
+        start = -1;
+      }
+    }
+  }
+  return out;
+}
+
 export async function queryCliRpc(
   spec: Omit<Parameters<typeof ipc.procCommunicate>[0], "stdin" | "exitOnStdout" | "timeoutMs">,
   request: Record<string, unknown>,
@@ -36,17 +76,47 @@ export async function queryCliRpc(
       exitOnStdout: marker,
       timeoutMs,
     })
-    .catch(() => null);
-  if (!result || result.timedOut) return null;
-  for (const line of result.stdout.split("\n")) {
-    if (!line.includes(marker)) continue;
-    try {
-      const obj = JSON.parse(line) as Record<string, unknown>;
-      if (obj.id === marker && obj.type === "response") return obj;
-    } catch {
-      /* 噪声行,继续找 */
+    .catch((e) => {
+      /* 静默回退是契约,但失败原因必须可见:spawn 失败/IPC 拒绝只有这里有线索。 */
+      console.warn("[cliQuery] procCommunicate 失败:", spec.command, e);
+      return null;
+    });
+  if (!result) return null; /* 拒绝原因已在 catch 记录 */
+  if (result.timedOut) {
+    console.warn("[cliQuery] 副车超时:", spec.command, { stdoutBytes: result.stdout.length });
+    return null;
+  }
+  for (const obj of extractJsonObjects(result.stdout)) {
+    if ("id" in obj && obj.id === marker && "type" in obj && obj.type === "response") {
+      return obj;
     }
   }
+  /* 未认领到应答:完整现场落盘供离线诊断(临时管线,诊断收口后移除)。 */
+  const dump = JSON.stringify(
+    {
+      at: new Date().toISOString(),
+      command: spec.command,
+      args: spec.args,
+      cwd: spec.cwd,
+      method: request.type,
+      marker,
+      exitCode: result.code,
+      timedOut: result.timedOut,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    },
+    null,
+    2,
+  );
+  if (typeof ipc.fsWriteTemp === "function") {
+    void ipc
+      .fsWriteTemp(`query-dump-${Date.now()}.json`, new TextEncoder().encode(dump))
+      .catch(() => {});
+  }
+  console.warn("[cliQuery] 应答缺失:", request.type, {
+    exitCode: result.code,
+    stdoutBytes: result.stdout.length,
+  });
   return null;
 }
 
@@ -125,7 +195,13 @@ export function createRpcSuggestionSource(spec: {
       { type: spec.method },
     );
     const data = response?.data as { commands?: unknown[] } | undefined;
-    if (response?.success !== true || !Array.isArray(data?.commands)) return null;
+    if (response?.success !== true || !Array.isArray(data?.commands)) {
+      console.warn("[cliQuery] 响应形态不符:", spec.method, {
+        success: response?.success,
+        commandsType: Array.isArray(data?.commands) ? "array" : typeof data?.commands,
+      });
+      return null;
+    }
     const byKind = new Map<TriggerKind, CliSuggestion[]>([
       ["command", []],
       ["skill", []],
@@ -141,6 +217,14 @@ export function createRpcSuggestionSource(spec: {
         action: "insert",
       });
     }
+    console.info(
+      "[cliQuery] fetched:",
+      spec.spawn.command,
+      byKind.get("command")?.length ?? 0,
+      "commands,",
+      byKind.get("skill")?.length ?? 0,
+      "skills",
+    );
     return byKind;
   }
 

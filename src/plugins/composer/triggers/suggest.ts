@@ -57,7 +57,10 @@ async function declaredPlusDynamic(
 ): Promise<CliSuggestion[]> {
   const declared = profile.suggestions?.[kind] ?? [];
   if (!profile.listSuggestions) return declared;
-  const dynamic = await profile.listSuggestions(kind, cwd).catch(() => null);
+  const dynamic = await profile.listSuggestions(kind, cwd).catch((e) => {
+    console.warn("[suggest] listSuggestions 抛错:", profile.id, kind, e);
+    return null;
+  });
   return dynamic ? mergeSuggestions(declared, dynamic) : declared;
 }
 
