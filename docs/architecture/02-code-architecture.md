@@ -316,6 +316,9 @@ Rust `fail_session` 在幕布内呈现,两条路径互补。
    resume 回放、TUI 重绘、迟到异步消息）不亮灯、不标未读、不发结束音 —— 静默不是
    "用户在场"的证据。终端协议回传（焦点/鼠标/查询应答，`terminalReports.ts` 识别）
    照写 PTY 但标 synthetic，不算用户首写。
+   轮次开启闸(2026-09-08,spec 见 superpowers/specs/2026-09-08-turn-start-gate-design.md):
+   已锚定 ≠ 任意字节可开轮 —— tab 已关且无未应答写入(awaitingTurn)的已了结 CLI 会话,
+   异步噪音不开轮、不标未读;在途轮次与 ssh/shell「输出即活动」会话豁免闸门。
 5. **顶栏会话 tab 条(`kernel/sessionTabs.ts`)**:纯事件驱动 MRU —— 所有打开/聚焦路径
    收敛于 `activeSessionChanged` 广播,host 与调用点零侵入;容量 4、打开次序稳定、
    不持久化(PTY 会话不跨重启存活)。标签标题链 = 手动命名 > 打开时快照 > 短码;

@@ -19,6 +19,14 @@
  * 未读归属锚定「最后一字节到达瞬间」而非「结算瞬间」(2026-09-05 归因修正):
  * 亲眼看完回答、2s 检测窗内切走的会话不再误标未读;只看开头就切走的长轮次,
  * 最后一字节到达时没在看,仍正确标未读。
+ * 轮次开启闸(2026-09-08):已锚定 ≠ 任意字节都可开轮。tab 已关(含容量挤除)
+ * 且无未应答用户写入(awaitingTurn)的 CLI 会话,新输出不开轮 —— 实证缺陷:已查看
+ * 历史会话关 tab 后,hook/dreamer/横幅类异步字节把它重跑绿→蓝生命周期误标未读。
+ * 在途轮次不受闸影响:关 tab 时真实未完成的任务照常推进、结算照标未读;
+ * 写完即关 tab(首字节迟到)经 awaitingTurn 放行;tab 重开即恢复正常语义。
+ * 闸仅适用 CLI 会话:ssh/shell「输出即活动」是既定语义,远端长任务
+ * (如 make 静默数分钟后输出完工)关 tab 后必须照常开轮标未读,豁免闸门。
+
  *
  * 重绘抑制窗:全屏 TUI 收到 SIGWINCH 的整屏重绘(实测 omp = 560KB 突发)与
  * 「CLI 正在回答」在字节流上不可区分,但重绘必由本应用自发的 resize 触发 ——
@@ -37,12 +45,16 @@ const TURN_SILENCE_MS = 2_000;
 /** 重绘抑制窗:resize 后此窗口内的输出视为 SIGWINCH 整屏重绘,不进活动语义。 */
 const REDRAW_SUPPRESS_MS = 1_000;
 
-/** Host 侧能力注入:守望只依赖这四个谓词/回调,不反向耦合 Host。 */
+/** Host 侧能力注入:守望只依赖这五个谓词/回调,不反向耦合 Host。 */
 interface ActivityWatchHost {
   /** 该会话当前正被查看?(含窗口失焦判定,由 Host 提供) */
   isViewing(sessionId: string): boolean;
   /** 会话仍存活?(已死会话的轮次不标未读) */
   exists(sessionId: string): boolean;
+  /** 会话 tab 是否开着(sessionTabs 口径;容量挤除视同关)。轮次开启闸用。 */
+  hasOpenTab(sessionId: string): boolean;
+  /** 轮次开启闸是否适用该会话?(ssh/shell「输出即活动」语义豁免,由 Host 按 kind 判定) */
+  noiseGated(sessionId: string): boolean;
   /** 状态变化回调(Host.notify)。 */
   onChange(): void;
   /** 真实轮次结算回调(首写前的输出不结算,自然不触发)。 */
@@ -62,6 +74,8 @@ export class ActivityWatch {
   private readonly activeTurns = new Set<string>();
   /** 已锚定对话的会话(用户首写起,终生有效):锚定前输出不进呼吸灯语义。 */
   private readonly conversationStarted = new Set<string>();
+  /** 未应答的用户写入(首写置位,下一轮次结算清除):关 tab 后首字节迟到也能开轮。 */
+  private readonly awaitingTurn = new Set<string>();
   /** 每会话最后一字节到达瞬间是否正被查看(结算归因,见文件头)。 */
   private readonly lastOutputViewed = new Map<string, boolean>();
   /** 每会话最近一次自发 resize 时戳(host.resizeSession 馈入):重绘抑制窗起点。 */
@@ -75,6 +89,7 @@ export class ActivityWatch {
    */
   onUserWrite(sessionId: string): void {
     this.conversationStarted.add(sessionId);
+    this.awaitingTurn.add(sessionId);
   }
 
   /**
@@ -83,6 +98,16 @@ export class ActivityWatch {
    */
   onOutput(sessionId: string): boolean {
     if (!this.conversationStarted.has(sessionId)) return false;
+    /* 轮次开启闸:无 tab 且无未应答写入的已了结会话,新输出(异步噪音)不开轮、
+       不推进活动钟 —— 状态保持「已查看」;在途轮次不受闸影响,照常推进结算。 */
+    if (
+      !this.activeTurns.has(sessionId) &&
+      !this.awaitingTurn.has(sessionId) &&
+      !this.host.hasOpenTab(sessionId) &&
+      this.host.noiseGated(sessionId)
+    ) {
+      return false;
+    }
     const now = Date.now();
     /* 重绘抑制窗:自发 resize 后窗内的输出 = SIGWINCH 整屏重绘,不推进活动钟、
        不进轮次 —— 空闲已锚定会话被重绘打亮重跑生命周期的路径在此掐断。 */
@@ -132,6 +157,7 @@ export class ActivityWatch {
     this.unread.delete(sessionId);
     this.activeTurns.delete(sessionId);
     this.conversationStarted.delete(sessionId);
+    this.awaitingTurn.delete(sessionId);
     this.stopIfIdle();
   }
 
@@ -148,6 +174,7 @@ export class ActivityWatch {
     this.unread.clear();
     this.activeTurns.clear();
     this.conversationStarted.clear();
+    this.awaitingTurn.clear();
   }
 
   private ensureWatch(): void {
@@ -158,6 +185,7 @@ export class ActivityWatch {
       for (const id of [...this.activeTurns]) {
         if (now - (this.lastActivityAtMap.get(id) ?? 0) <= TURN_SILENCE_MS) continue;
         this.activeTurns.delete(id);
+        this.awaitingTurn.delete(id); // 本轮结算 = 应答了此前写入
         const unviewed =
           !this.host.isViewing(id) &&
           !this.lastOutputViewed.get(id) &&

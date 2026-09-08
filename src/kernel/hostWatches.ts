@@ -14,6 +14,7 @@ import { EditWatch } from "./editWatch";
 import { DiskIdentityWatch } from "./identityWatch";
 import { OutputBufferStore } from "./outputBuffers";
 import { SessionStatusWatch } from "./sessionStatus";
+import { getSessionTabs } from "./sessionTabs";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import type { SessionMeta } from "./ipc";
 
@@ -88,6 +89,14 @@ export class HostWatches {
        Node 测试环境窗口恒聚焦,退化为纯 activeSessionId 语义 */
     isViewing: (id) => this.ctx.isViewing(id),
     exists: (id) => this.ctx.hasSession(id),
+    /* 轮次开启闸:关 tab(含容量挤除)的已了结会话不被异步噪音开轮;
+       与 sessionTabs 的模块级循环仅有运行时延迟调用,安全。 */
+    hasOpenTab: (id) => getSessionTabs().includes(id),
+    /* ssh/shell「输出即活动」是既定语义(远端长任务完工要通知),闸只适用 CLI 会话 */
+    noiseGated: (id) => {
+      const kind = this.ctx.findSession(id)?.kind;
+      return kind !== "ssh" && kind !== "shell";
+    },
     onChange: () => this.ctx.notify(),
     onTurnSettled: (id, unviewed, settledAt) => {
       this.ctx.events.emit(KernelTopics.turnSettled, {
