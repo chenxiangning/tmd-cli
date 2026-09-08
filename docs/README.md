@@ -98,5 +98,7 @@
 | 2026-09-08 | [工作区会话列表视觉重构探索:扁平时间序 / 时间分桶](design/workspace-sessions-flat-visual.html) | 方案 A 已定稿(见同日 spec) |
 | 2026-09-08 | [工作区会话列表扁平化视觉重构设计](superpowers/specs/2026-09-08-workspace-sessions-flat-design.md) | 已确认(实现随本 spec 提交) |
 | 2026-09-08 | [启动自动激活最近会话设计](superpowers/specs/2026-09-08-auto-activate-recent-sessions-design.md) | 已确认(实现随本 spec 提交) |
+| 2026-09-08 | [智能体/提示词资产:需求澄清(对标 codemoss)](brainstorm/2026-09-08-assistant-assets.md) | 已收敛 |
+| 2026-09-08 | [智能体/提示词资产设计:composer 双触发 + 设置管理](superpowers/specs/2026-09-08-assistant-assets-design.md) | 已评审通过(待实现) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
