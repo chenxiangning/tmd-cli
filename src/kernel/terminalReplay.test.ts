@@ -1,5 +1,28 @@
-import { describe, expect, it } from "vitest";
-import { writeInChunks } from "./terminalReplay";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { LoadProgress } from "./terminalReplay";
+
+/** host mock:可控事件 emitter,无输出缓冲(getOutputBuffer → null)。 */
+const hoisted = vi.hoisted(() => ({
+  listeners: new Map<string, Array<(t: string) => void>>(),
+}));
+
+vi.mock("@kernel/host", () => ({
+  ptyLiveTopic: (id: string) => `pty://out/${id}`,
+  host: {
+    events: {
+      on: (topic: string, cb: (t: string) => void) => {
+        const arr = hoisted.listeners.get(topic) ?? [];
+        arr.push(cb);
+        hoisted.listeners.set(topic, arr);
+        return () => hoisted.listeners.set(topic, (hoisted.listeners.get(topic) ?? []).filter((f) => f !== cb));
+      },
+    },
+    getOutputBuffer: () => null,
+    observeReplayTail: () => undefined,
+  },
+}));
+
+import { attachTerminalStream, writeInChunks } from "./terminalReplay";
 
 /** 假终端:记录写入,回调走微任务模拟 xterm 异步解析。 */
 function fakeTerm() {
@@ -35,5 +58,74 @@ describe("writeInChunks", () => {
     await writeInChunks(term, "", (done, total) => progress.push([done, total]));
     expect(term.writes).toEqual([]);
     expect(progress).toEqual([[0, 0]]);
+  });
+});
+
+/** 向会话推一段实时输出。 */
+function emit(id: string, text: string) {
+  for (const cb of hoisted.listeners.get(`pty://out/${id}`) ?? []) cb(text);
+}
+
+/** 空操作输入闸(本组用例不涉回放重写)。 */
+const gate = { arm: () => undefined, release: () => undefined, blocked: () => false };
+
+describe("attachTerminalStream 就绪锁", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    hoisted.listeners.clear();
+  });
+
+  it("撤罩后实时字节照常写幕布,但不再重提遮罩", () => {
+    const term = fakeTerm();
+    const events: LoadProgress[] = [];
+    const off = attachTerminalStream(term, "s1", gate, (p) => events.push(p));
+
+    emit("s1", "hello");
+    vi.advanceTimersByTime(500); // 静默判就绪 → 撤罩
+    expect(events).toEqual([
+      { kind: "stream", chars: 0 },
+      { kind: "stream", chars: 5 },
+      null,
+    ]);
+
+    // 就绪后来字节(spinner / 切模型回显 / resize 重绘):写入照常,遮罩不回弹
+    emit("s1", "spinner-frame");
+    vi.advanceTimersByTime(2_000);
+    expect(term.writes).toEqual(["hello", "spinner-frame"]);
+    expect(events).toHaveLength(3);
+    off();
+  });
+
+  it("撤罩前持续输出重置静默计时,遮罩保持到安静 0.5s", () => {
+    const term = fakeTerm();
+    const events: LoadProgress[] = [];
+    const off = attachTerminalStream(term, "s2", gate, (p) => events.push(p));
+
+    for (let i = 0; i < 3; i++) {
+      emit("s2", "x");
+      vi.advanceTimersByTime(400); // 间隔 < 静默窗,不就绪
+    }
+    expect(events).not.toContain(null);
+
+    vi.advanceTimersByTime(500); // 真静默 → 撤罩
+    expect(events.at(-1)).toBeNull();
+    off();
+  });
+
+  it("持续输出超 12s 走兜底撤罩,之后不再回弹", () => {
+    const term = fakeTerm();
+    const events: LoadProgress[] = [];
+    const off = attachTerminalStream(term, "s3", gate, (p) => events.push(p));
+
+    emit("s3", "boot");
+    vi.advanceTimersByTime(12_000); // 兜底
+    expect(events.at(-1)).toBeNull();
+
+    emit("s3", "more");
+    vi.advanceTimersByTime(2_000);
+    expect(events.filter((e) => e === null)).toHaveLength(1);
+    expect(term.writes).toEqual(["boot", "more"]);
+    off();
   });
 });

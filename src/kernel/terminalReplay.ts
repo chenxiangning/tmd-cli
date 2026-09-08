@@ -6,6 +6,8 @@
  * - 有缓冲可回放 → 分块写入,进度 = 已解析块数/总块数(真实解析进度);
  * - 无缓冲/回放尽 → 流式阶段,进度 = 已接收字节相对缓冲上限的占比 + 字节计数
  *   (真实流入量),输出静默 0.5s 判就绪撤罩;12s 兜底防 CLI 不重绘卡死遮罩。
+ * 就绪锁:遮罩一旦撤下(静默/兜底)即永久就绪,后续实时字节不再重提遮罩 ——
+ * 否则生成期 spinner 持续重绘、切模型回显、resize 重绘都会把幕布反复盖住。
  * 保序:回放未竟时实时字节先攒队列,回放尽后按序补写,新老内容不交错。
  */
 
@@ -69,13 +71,15 @@ export function attachTerminalStream(
      攒队期间的字节同样计入流式进度。 */
   let liveQueue: string[] | null = [];
   let received = 0;
+  /* 就绪锁:true 后实时字节照常写幕布,但不再触碰进度态(见文件头注释)。 */
+  let ready = false;
 
 
   const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) => {
     if (liveQueue) liveQueue.push(text);
     else term.write(text);
     received += text.length;
-    if (!cancelled) {
+    if (!cancelled && !ready) {
       onProgress({ kind: "stream", chars: received });
       armQuiet();
     }
@@ -86,7 +90,9 @@ export function attachTerminalStream(
   const armQuiet = (): void => {
     clearTimeout(quietTimer);
     quietTimer = setTimeout(() => {
-      if (!cancelled) onProgress(null);
+      if (cancelled) return;
+      ready = true;
+      onProgress(null);
     }, QUIET_READY_MS);
   };
 
@@ -103,8 +109,10 @@ export function attachTerminalStream(
       const pending = liveQueue ?? [];
       liveQueue = null;
       for (const text of pending) term.write(text);
-      onProgress({ kind: "stream", chars: received });
-      armQuiet();
+      if (!ready) {
+        onProgress({ kind: "stream", chars: received });
+        armQuiet();
+      }
     });
     host.observeReplayTail(sessionId);
   } else {
@@ -114,7 +122,9 @@ export function attachTerminalStream(
   }
 
   const failsafe = setTimeout(() => {
-    if (!cancelled) onProgress(null);
+    if (cancelled || ready) return;
+    ready = true;
+    onProgress(null);
   }, PROGRESS_FAILSAFE_MS);
 
   return () => {
