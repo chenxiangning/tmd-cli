@@ -83,6 +83,13 @@ describe("智能体 CRUD 与选中", () => {
     await store.deleteAgent(agent.id);
     expect(store.selectedAgent("sess-1")).toBeNull();
   });
+
+  it("写盘失败返回 null 且内存回滚,恢复后可重存", async () => {
+    ipcMock.fsWriteFile.mockRejectedValueOnce(new Error("EIO"));
+    expect(await store.saveAgent({ name: "小张", prompt: "p" })).toBeNull();
+    expect(store.agentByName("小张")).toBeNull();
+    expect(await store.saveAgent({ name: "小张", prompt: "p" })).not.toBeNull();
+  });
 });
 
 describe("提示词加载与可见性", () => {
@@ -138,9 +145,17 @@ describe("提示词 CRUD 与作用域移动", () => {
     expect(ipcMock.files.get("/home/.tmd-cli/workspaces/ws1/prompts/mv.md")).toBe("正文");
   });
 
-  it("sanitizePromptName 剥路径分隔符,剥完为空 = 非法", async () => {
-    expect(await store.savePrompt("global", undefined, { name: "a/b", content: "x" })).toBe(true);
-    expect(store.promptSuggestions("/x").map((s) => s.value)).toEqual(["ab"]);
+  it("非法名称拒绝(路径分隔符等),不落盘;trim 后合法名照存", async () => {
+    expect(await store.savePrompt("global", undefined, { name: "a/b", content: "x" })).toBe(false);
     expect(await store.savePrompt("global", undefined, { name: "///", content: "x" })).toBe(false);
+    expect(store.promptSuggestions("/x")).toEqual([]);
+    expect(await store.savePrompt("global", undefined, { name: " 好 ", content: "x" })).toBe(true);
+    expect(store.promptSuggestions("/x").map((s) => s.value)).toEqual(["好"]);
+  });
+
+  it("写盘失败返回 false,内存不新增", async () => {
+    ipcMock.fsWriteFile.mockRejectedValueOnce(new Error("EIO"));
+    expect(await store.savePrompt("global", undefined, { name: "x", content: "c" })).toBe(false);
+    expect(store.promptSuggestions("/x")).toEqual([]);
   });
 });

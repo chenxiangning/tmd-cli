@@ -16,6 +16,31 @@ import { findActiveTrigger } from "../serialize/serialize";
 import type { SuggestionMatch } from "../triggers/suggest";
 import { lookupSuggestions } from "../triggers/suggest";
 
+/** applyPick 的纯替换计算:token 区间替换为 insertText(缺省 = char + value),返回新文本与落点 caret。 */
+export function pickReplacement(
+  value: string,
+  range: readonly [number, number],
+  specs: readonly { char: string }[],
+  match: { value: string; insertText?: string },
+): { next: string; caret: number } {
+  const spec = specs.find((s) => value.startsWith(s.char, range[0]));
+  const replacement = match.insertText ?? (spec?.char ?? "") + match.value;
+  return {
+    next: value.slice(0, range[0]) + replacement + value.slice(range[1]),
+    caret: range[0] + replacement.length,
+  };
+}
+
+/** wakeTrigger 的纯注入计算:光标处插触发符,注入后光标停在触发符之后。 */
+export function wakeInsert(value: string, caret: number, char: string): { after: string; caret: number } {
+  return { after: value.slice(0, caret) + char + value.slice(caret), caret: caret + char.length };
+}
+
+/** dismiss 的回收判定:一字未改 → 回到注入前文本;动过 → null(不回收)。 */
+export function dismissRecovery(value: string, auto: { before: string; after: string }): string | null {
+  return value === auto.after ? auto.before : null;
+}
+
 export function useComposerTriggers({
   profile,
   value,
@@ -87,9 +112,7 @@ export function useComposerTriggers({
   function applyPick(match: SuggestionMatch) {
     const range = activeRange;
     if (!range) return;
-    const spec = triggerSpecs.find((s) => value.startsWith(s.char, range[0]));
-    const replacement = match.insertText ?? (spec?.char ?? "") + match.value;
-    const next = value.slice(0, range[0]) + replacement + value.slice(range[1]);
+    const { next, caret } = pickReplacement(value, range, triggerSpecs, match);
     autoInserted.current = null;
     setValue(next);
     setMatches(null);
@@ -98,7 +121,6 @@ export function useComposerTriggers({
     requestAnimationFrame(() => {
       const ta = textareaRef.current;
       if (!ta) return;
-      const caret = range[0] + replacement.length;
       ta.focus();
       ta.setSelectionRange(caret, caret);
       setCursor(caret);
@@ -108,27 +130,27 @@ export function useComposerTriggers({
   /** 右缘唤醒图标入口:光标处注入触发符并聚焦,候选面板经既有探查自动弹出。 */
   function wakeTrigger(char: string) {
     const at = textareaRef.current?.selectionStart ?? value.length;
-    const after = value.slice(0, at) + char + value.slice(at);
+    const { after, caret } = wakeInsert(value, at, char);
     autoInserted.current = { before: value, after, caret: at };
     setValue(after);
     requestAnimationFrame(() => {
       const ta = textareaRef.current;
       if (!ta) return;
-      const caret = at + char.length;
       ta.focus();
       ta.setSelectionRange(caret, caret);
       setCursor(caret);
     });
   }
-
   /** 关闭候选面板(Esc / 失焦):唤醒注入的触发符未被消费且一字未改 → 回收。 */
   function dismiss() {
     const auto = autoInserted.current;
     autoInserted.current = null;
     setMatches(null);
     setActiveRange(null);
-    if (!auto || value !== auto.after) return;
-    setValue(auto.before);
+    if (!auto) return;
+    const recover = dismissRecovery(value, auto);
+    if (recover === null) return;
+    setValue(recover);
     requestAnimationFrame(() => {
       const ta = textareaRef.current;
       if (!ta) return;
@@ -137,7 +159,6 @@ export function useComposerTriggers({
       setCursor(auto.caret);
     });
   }
-
   return {
     triggerSpecs,
     matches,

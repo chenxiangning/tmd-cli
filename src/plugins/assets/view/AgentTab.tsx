@@ -90,7 +90,7 @@ function AgentModal({ agent, onClose }: { agent: Agent | null; onClose: () => vo
     }
     const saved = await saveAgent({ id: agent?.id, name, icon, prompt });
     if (!saved) {
-      setError(t("名称已存在"));
+      setError(t("名称已存在,或写入磁盘失败"));
       return;
     }
     onClose();

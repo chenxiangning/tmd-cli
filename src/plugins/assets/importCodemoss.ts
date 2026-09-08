@@ -10,8 +10,8 @@
  */
 
 import { ipc } from "@kernel/ipc";
-import { parsePromptFile } from "./promptMd";
-import { agentByName, saveAgent, savePrompt, sanitizePromptName } from "./store";
+import { parsePromptFile, sanitizePromptName } from "./promptMd";
+import { agentByName, saveAgent, savePrompt } from "./store";
 
 export interface ImportReport {
   agents: number;

@@ -103,7 +103,11 @@ export function PromptTab() {
                   type="button"
                   className="assets-btn"
                   disabled={p.scope === "workspace" && !activeWsId}
-                  onClick={() => void movePrompt(p, p.scope === "global" ? "workspace" : "global", activeWsId ?? undefined)}
+                  onClick={() =>
+                    void movePrompt(p, p.scope === "global" ? "workspace" : "global", activeWsId ?? undefined).then((ok) => {
+                      if (!ok) setReport(t("移动失败:目标作用域重名或写入失败"));
+                    })
+                  }
                 >
                   <ArrowsLeftRight size="0.75rem" /> {p.scope === "global" ? t("移到工作区") : t("移到全局")}
                 </button>
@@ -160,7 +164,7 @@ function PromptModal({
     }
     const ok = await savePrompt(scope, wsId, { name, description, argumentHint, content }, entry?.name);
     if (!ok) {
-      setError(t("同作用域下名称已存在(或名称含非法字符)"));
+      setError(t("名称含非法字符、同作用域重复,或写入磁盘失败"));
       return;
     }
     onClose();

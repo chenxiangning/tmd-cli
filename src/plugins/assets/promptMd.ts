@@ -54,3 +54,16 @@ function stripFrontmatter(text: string): string {
   }
   return text;
 }
+
+/* ── 文件名(文件名即显示名)── */
+
+/** 剥离版(导入侧):把路径分隔符与控制字符剥掉,trim 后可能为空。 */
+export function sanitizePromptName(name: string): string {
+  return name.replace(/[/\\\u0000-\u001f]/g, "").trim();
+}
+
+/** 校验版(UI 保存路径):非法字符直接拒绝;trim 后非空才合法。 */
+export function isValidPromptName(name: string): boolean {
+  const n = name.trim();
+  return !!n && !/[/\\\u0000-\u001f]/.test(n);
+}

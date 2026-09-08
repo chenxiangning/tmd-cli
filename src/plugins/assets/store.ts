@@ -15,7 +15,7 @@ import { useSyncExternalStore } from "react";
 import type { CliSuggestion } from "@kernel/cli";
 import { ipc } from "@kernel/ipc";
 import { getWorkspaces, workspacesReady } from "@kernel/workspace";
-import { parsePromptFile, serializePromptFile } from "./promptMd";
+import { isValidPromptName, parsePromptFile, serializePromptFile } from "./promptMd";
 
 export interface Agent {
   id: string;
@@ -121,7 +121,7 @@ async function persistAgents(): Promise<void> {
   );
 }
 
-/** 新建/编辑智能体;名称(大小写不敏感)撞车返回 null。 */
+/** 新建/编辑智能体;名称(大小写不敏感)撞车或写盘失败返回 null。 */
 export async function saveAgent(input: { id?: string; name: string; icon?: string; prompt: string }): Promise<Agent | null> {
   const name = input.name.trim();
   if (!name) return null;
@@ -133,10 +133,14 @@ export async function saveAgent(input: { id?: string; name: string; icon?: strin
     prompt: input.prompt,
     createdAt: state.agents.find((a) => a.id === input.id)?.createdAt ?? Date.now(),
   };
-  state.agents = [...state.agents.filter((a) => a.id !== agent.id), agent].sort(
-    (a, b) => a.createdAt - b.createdAt,
-  );
-  await persistAgents().catch(() => undefined);
+  const prev = state.agents;
+  state.agents = [...state.agents.filter((a) => a.id !== agent.id), agent].sort((a, b) => a.createdAt - b.createdAt);
+  try {
+    await persistAgents();
+  } catch {
+    state.agents = prev;
+    return null;
+  }
   emit();
   return agent;
 }
@@ -164,11 +168,6 @@ export function selectedAgent(sessionId: string): Agent | null {
 
 /* ── 提示词 CRUD + 作用域移动 ── */
 
-/** 文件名即显示名:禁路径分隔符与控制字符,trim 后为空 = 非法。 */
-export function sanitizePromptName(name: string): string {
-  return name.replace(/[/\\\u0000-\u001f]/g, "").trim();
-}
-
 async function ensurePromptDir(scope: PromptScope, wsId: string | undefined): Promise<string> {
   const base = await tmdHome();
   /* fsCreateDir 撞已存在即报错 = 幂等;失败忽略,写文件时自然会再暴露 */
@@ -181,15 +180,15 @@ async function ensurePromptDir(scope: PromptScope, wsId: string | undefined): Pr
   return dir;
 }
 
-/** 新建/编辑提示词(改名 = 写新文件 + 旧文件进废纸篓);同作用域撞名返回 false。 */
+/** 新建/编辑提示词(改名 = 写新文件 + 旧文件进废纸篓);非法名称 / 同作用域撞名 / 写盘失败返回 false。 */
 export async function savePrompt(
   scope: PromptScope,
   wsId: string | undefined,
   data: { name: string; description?: string; argumentHint?: string; content: string },
   oldName?: string,
 ): Promise<boolean> {
-  const name = sanitizePromptName(data.name);
-  if (!name) return false;
+  const name = data.name.trim();
+  if (!isValidPromptName(name)) return false;
   if (
     state.prompts.some(
       (p) => p.scope === scope && p.wsId === wsId && p.name !== oldName && p.name.toLowerCase() === name.toLowerCase(),
@@ -198,8 +197,12 @@ export async function savePrompt(
     return false;
   }
   const dir = await ensurePromptDir(scope, wsId);
-  await ipc.fsWriteFile(`${dir}/${name}.md`, serializePromptFile(data));
-  if (oldName && oldName !== name) await ipc.fsTrashEntry(`${dir}/${oldName}.md`).catch(() => undefined);
+  try {
+    await ipc.fsWriteFile(`${dir}/${name}.md`, serializePromptFile(data));
+    if (oldName && oldName !== name) await ipc.fsTrashEntry(`${dir}/${oldName}.md`).catch(() => undefined);
+  } catch {
+    return false;
+  }
   state.prompts = state.prompts.filter(
     (p) => !(p.scope === scope && p.wsId === wsId && (p.name === name || p.name === oldName)),
   );
