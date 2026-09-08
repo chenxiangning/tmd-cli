@@ -61,9 +61,9 @@ function readTerminalTheme(): ITheme {
   };
 }
 
-/* 导出级 memo:props 仅 { sessionId: string } 原始类型,浅比较稳定;
-   会话切换经 key={activeId} 重挂载,不受影响。内部逻辑零改动。 */
-function TerminalViewImpl({ sessionId }: { sessionId: string }) {
+/* 导出级 memo:props 全原始类型,浅比较稳定。keep-alive 语义(MainPanel):
+   tab 条内会话常驻挂载,非激活 display:none;active 切换不重挂,仅 ref 所有权迁移。 */
+function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const searchRef = useRef<SearchAddon | null>(null);
@@ -73,9 +73,8 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
   const [loadingHistory, setLoadingHistory] = useState(false);
   /* 加载进度态:null = 就绪撤罩;replay = 分块回放 %;stream = 流式接收字节(terminalReplay.ts)。 */
   const [loadProgress, setLoadProgress] = useState<LoadProgress>(null);
-
   /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答
-     (见 terminalInputGate.ts);组件按 key=sessionId 重挂载,闸随实例重生。 */
+     (见 terminalInputGate.ts);实例随会话 keep-alive 常驻,闸随实例持有。 */
   const inputGateRef = useRef(createReplayInputGate());
   /* 翻页器(实现见 terminalHistory.ts):锚点/前缀页/重入闸随实例持有,
      hasMore/loading 经 onState 回喂上面的 React state。 */
@@ -125,8 +124,6 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     container.addEventListener("focusout", onFocusOut);
     term.open(container);
     fit.fit();
-    findRequestRef.current = () => setSearchOpen(true);
-
     /* WebGL 渲染器:omp/claude 全屏重绘的性能关键。必须在 open 之后加载;
        无 WebGL 环境(部分 Linux WebKitGTK)或上下文丢失时回退 DOM 渲染,行为与之前一致。 */
     try {
@@ -146,6 +143,7 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
       setLoadingHistory(l);
     });
     pagerRef.current = pager;
+    /* 翻页器随挂载创建(keep-alive 后每会话仅挂载一次,锚点随实例常驻)。 */
 
     /* 输出装配(回放分块 + 实时保序 + 进度回调)见 kernel/terminalReplay.ts;
        输入闸语义不变:回放窗口内丢弃历史查询应答(DSR/DA/OSC 颜色会被 xterm
@@ -215,7 +213,6 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
       offFontSettings();
       container.removeEventListener("focusin", onFocusIn);
       container.removeEventListener("focusout", onFocusOut);
-      findRequestRef.current = null;
       unregisterTerminalHandle(sessionId, terminalHandle);
       offStream();
       offInput.dispose();
@@ -231,6 +228,16 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     };
   }, [sessionId]);
 
+  /* ⌘F 搜索框所有权:keep-alive 后多幕布并存,模块级 findRequestRef 单槽,
+     必须跟随激活实例 —— 激活即持有,失活/卸载仅在仍归自己时让出。 */
+  useEffect(() => {
+    if (!active) return;
+    const mine = () => setSearchOpen(true);
+    findRequestRef.current = mine;
+    return () => {
+      if (findRequestRef.current === mine) findRequestRef.current = null;
+    };
+  }, [active]);
   const closeSearch = () => {
     setSearchOpen(false);
     termRef.current?.focus();
