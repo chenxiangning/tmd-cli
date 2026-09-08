@@ -28,7 +28,7 @@ import {
 } from "@kernel/messageAnchors";
 import { subscribeThemeApplied } from "@kernel/theme";
 import { createReplayInputGate } from "@kernel/terminalInputGate";
-import { attachTerminalStream } from "@kernel/terminalReplay";
+import { attachTerminalStream, type LoadProgress } from "@kernel/terminalReplay";
 import { isTerminalReport } from "@kernel/terminalReports";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay, findRequestRef } from "@kernel/terminalSearch";
@@ -71,8 +71,9 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
   const [hasMore, setHasMore] = useState(false);
   const [atTop, setAtTop] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  /* 挂载回放进度:null = 无回放/已完成;0-100 = 分块回放进行中(遮罩进度条)。 */
-  const [replayProgress, setReplayProgress] = useState<number | null>(null);
+  /* 加载进度态:null = 就绪撤罩;replay = 分块回放 %;stream = 流式接收字节(terminalReplay.ts)。 */
+  const [loadProgress, setLoadProgress] = useState<LoadProgress>(null);
+
   /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答
      (见 terminalInputGate.ts);组件按 key=sessionId 重挂载,闸随实例重生。 */
   const inputGateRef = useRef(createReplayInputGate());
@@ -151,7 +152,7 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
        重新应答,照走 writeSession 即①陈旧应答注入活 PTY ②视同用户首写锚定对话),
        回放尽后释放。 */
     const inputGate = inputGateRef.current;
-    const offStream = attachTerminalStream(term, sessionId, inputGate, setReplayProgress);
+    const offStream = attachTerminalStream(term, sessionId, inputGate, setLoadProgress);
 
     /* 翻页锚点初始化(缓冲起点绝对偏移反推,实现见 terminalHistory.ts)。 */
     void pager.init();
@@ -243,24 +244,30 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     await pager.loadEarlier(term);
   };
   loadEarlierRef.current = loadEarlier;
-
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
-      {replayProgress !== null && (
-        /* 大缓冲回放期遮罩:xterm 分块解析期间挡空白,完成即撤(terminalReplay.ts)。 */
+      {loadProgress !== null && (
+        /* 加载遮罩:回放期显真实解析进度,流式期显真实接收量;输出静默即撤(terminalReplay.ts)。 */
         <div
           className="absolute inset-0 z-10 flex items-center justify-center"
           style={{ background: "var(--tmd-terminal-bg)" }}
         >
           <div className="flex w-56 flex-col items-center gap-2">
             <span className="text-xs text-(--tmd-fg-muted)">
-              加载会话输出… {replayProgress}%
+              {loadProgress.kind === "replay"
+                ? `加载会话输出… ${loadProgress.pct}%`
+                : `加载会话输出… 已接收 ${Math.max(1, Math.round(loadProgress.chars / 1024))}K`}
             </span>
             <div className="h-1 w-full overflow-hidden rounded-full bg-(--tmd-border)">
               <div
                 className="h-full bg-(--tmd-accent) transition-[width] duration-150"
-                style={{ width: `${replayProgress}%` }}
+                style={{
+                  width:
+                    loadProgress.kind === "replay"
+                      ? `${loadProgress.pct}%`
+                      : `${Math.min(99, Math.round(loadProgress.chars / 5000))}%`,
+                }}
               />
             </div>
           </div>
