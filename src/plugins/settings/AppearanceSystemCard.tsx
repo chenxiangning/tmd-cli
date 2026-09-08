@@ -1,7 +1,7 @@
 /**
- * 基础设置 / 外观 tab 的系统外观段 —— 语言 / 界面字号 / 界面缩放 / 终端字号 / 终端字体 / ANSI 色板。
+ * 基础设置 / 外观 tab 的系统外观段 —— 语言 / 界面字号 / 界面缩放 / 终端字号 / 终端字体。
  * 自 BasicAppearanceTab 拆出(300 行铁则);全部写 kernel/settings store 即时生效:
- * 语言 = 根组件重挂载,字号 = kernel/uiFontSize,缩放 = kernel/uiZoom,终端字号字体 = TerminalView 订阅。
+ * 语言 = 根组件重挂载,字号 = kernel/uiFontSize,缩放 = kernel/uiZoom,终端字体字号 = TerminalView 订阅。
  */
 
 import { ArrowCounterClockwise } from "@phosphor-icons/react";
@@ -24,33 +24,6 @@ import {
   isTerminalFontAvailable,
   terminalFontOptionsForPlatform,
 } from "@kernel/terminalFonts";
-
-/** ANSI 色板槽位(token 名 = xterm ITheme 键的 kebab 形,值由 themeTokens 映射)。 */
-const ANSI_TOKEN_NAMES = [
-  "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
-  "bright-black", "bright-red", "bright-green", "bright-yellow",
-  "bright-blue", "bright-magenta", "bright-cyan", "bright-white",
-] as const;
-
-/** 终端 ANSI 16 色预览:直读文档计算样式(与幕布同源 token,主题切换后随重渲染刷新)。 */
-function AnsiSwatchStrip() {
-  const styles = getComputedStyle(document.documentElement);
-  return (
-    <div className="flex flex-wrap gap-1" aria-label={t("终端 ANSI 16 色")}>
-      {ANSI_TOKEN_NAMES.map((slot) => {
-        const color = styles.getPropertyValue(`--tmd-terminal-${slot}`).trim();
-        return (
-          <span
-            key={slot}
-            title={slot}
-            className="h-4 w-4 rounded-sm border border-(--tmd-border)"
-            style={{ background: color || "transparent" }}
-          />
-        );
-      })}
-    </div>
-  );
-}
 
 export function SystemAppearanceCard() {
   const { settings } = useSettingsState();
@@ -216,13 +189,6 @@ export function SystemAppearanceCard() {
           />
         </div>
       ) : null}
-      <div className="pref-row">
-        <div>
-          <div className="pref-title">{t("终端配色")}</div>
-          <div className="pref-desc">{t("幕布终端 ANSI 16 色(随主题外观;浅色/深色各一套,默认采用 VS Code 官方终端配色)。")}</div>
-        </div>
-        <AnsiSwatchStrip />
-      </div>
     </div>
   );
 }

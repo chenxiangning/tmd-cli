@@ -1,7 +1,6 @@
 /** en 词典 · settings 域(键 = 中文源串,由文案迁移按归属写入;zh 恒等无词典)。 */
 export const MESSAGES = {
   // AppearanceSystemCard
-  "终端 ANSI 16 色": "Terminal ANSI 16 colors",
   "语言": "Language",
   "界面文案语言;切换立即生效(整个界面重新加载,会话与数据不受影响)。":
     "UI text language; switching applies immediately (the whole UI reloads; sessions and data are unaffected).",
@@ -24,9 +23,6 @@ export const MESSAGES = {
   "自定义字体": "Custom font",
   "CSS font-family 串,如 'JetBrains Mono', 'Courier New'。":
     "CSS font-family string, e.g. 'JetBrains Mono', 'Courier New'.",
-  "终端配色": "Terminal colors",
-  "幕布终端 ANSI 16 色(随主题外观;浅色/深色各一套,默认采用 VS Code 官方终端配色)。":
-    "Terminal ANSI 16 colors (follows the theme appearance; separate palettes for light/dark, VS Code official terminal colors by default).",
 
   // BasicAppearanceTab
   "跟随系统": "Follow system",

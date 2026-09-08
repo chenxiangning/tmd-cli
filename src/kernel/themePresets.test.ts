@@ -143,3 +143,50 @@ describe("与 themeTokens 的消费契约", () => {
     }
   });
 });
+
+describe("浅色主题终端可读性(2026-09-08 浅色扩充回归防线)", () => {
+  it("浅色 preset 共 19 套", () => {
+    expect(LIGHT_THEME_PRESET_IDS).toHaveLength(19);
+  });
+
+  it("每套浅色 preset 自带 terminal.ansi* 16 槽(不落全局兜底表)", () => {
+    const SLOTS = ["Black","Red","Green","Yellow","Blue","Magenta","Cyan","White",
+      "BrightBlack","BrightRed","BrightGreen","BrightYellow",
+      "BrightBlue","BrightMagenta","BrightCyan","BrightWhite"] as const;
+    for (const preset of getAllThemePresets().filter((p) => p.appearance === "light")) {
+      for (const slot of SLOTS) {
+        expect(
+          normalizeHexColor(preset.colors[`terminal.ansi${slot}`]),
+          `${preset.id} terminal.ansi${slot}`,
+        ).not.toBeNull();
+      }
+    }
+  });
+
+  it("ANSI 16 色对终端背景 WCAG 对比度全部 ≥3:1(浅底看不清的主诉防线)", () => {
+    const luminance = (hex: string) => {
+      const c = hex.slice(1);
+      const [r, g, b] = [0, 2, 4].map((i) => parseInt(c.slice(i, i + 2), 16) / 255);
+      const adj = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * adj(r) + 0.7152 * adj(g) + 0.0722 * adj(b);
+    };
+    const contrast = (a: string, b: string) => {
+      const la = luminance(a);
+      const lb = luminance(b);
+      return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    };
+    for (const preset of getAllThemePresets().filter((p) => p.appearance === "light")) {
+      const bg =
+        preset.colors["terminal.background"] ?? preset.colors["editor.background"];
+      for (const [key, value] of Object.entries(preset.colors)) {
+        if (!key.startsWith("terminal.ansi")) continue;
+        const fg = normalizeHexColor(value);
+        if (!fg) continue;
+        expect(
+          contrast(fg, bg),
+          `${preset.id} ${key}=${value} on ${bg}`,
+        ).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+});

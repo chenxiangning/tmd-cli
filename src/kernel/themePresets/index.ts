@@ -21,6 +21,16 @@ export type ThemePresetId =
   | "vscode-rose-pine-dawn"
   | "vscode-everforest-light"
   | "vscode-ayu-light"
+  | "vscode-one-half-light"
+  | "vscode-tomorrow-light"
+  | "vscode-xcode-light"
+  | "vscode-kanagawa-lotus"
+  | "vscode-vitesse-light"
+  | "vscode-eva-light"
+  | "vscode-bluloco-light"
+  | "vscode-winteriscoming-light"
+  | "vscode-alabaster"
+  | "vscode-noctis-lux"
   | "vscode-github-dark"
   | "vscode-github-dark-dimmed"
   | "vscode-one-dark-pro"
@@ -72,7 +82,17 @@ export const LIGHT_THEME_PRESET_IDS = [
   "vscode-tokyo-day",
   "vscode-rose-pine-dawn",
   "vscode-everforest-light",
-  "vscode-ayu-light"
+  "vscode-ayu-light",
+  "vscode-one-half-light",
+  "vscode-tomorrow-light",
+  "vscode-xcode-light",
+  "vscode-kanagawa-lotus",
+  "vscode-vitesse-light",
+  "vscode-eva-light",
+  "vscode-bluloco-light",
+  "vscode-winteriscoming-light",
+  "vscode-alabaster",
+  "vscode-noctis-lux"
 ] as const satisfies readonly ThemePresetId[];
 
 export const DARK_THEME_PRESET_IDS = [

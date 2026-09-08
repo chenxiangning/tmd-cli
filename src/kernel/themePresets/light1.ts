@@ -1,5 +1,7 @@
 /**
- * VS Code light 主题 preset 数据 —— 移植自 codemoss features/theme/constants/vscodeThemePresets.ts(勿手改,说明见 ./index.ts)。
+ * VS Code light 主题 preset 数据 —— 移植自 codemoss(勿手改,说明见 ./index.ts)。
+ * terminal.ansi* 16 色浅底可读适配:色相取自各主题官方终端色板(VS Code 官方浅表 /
+ * primer primitives),对比度不足处保 H/S 降 L 至 WCAG ≥3:1(2026-09-08 重派生)。
  */
 import type { ThemePresetDefinition, ThemePresetId } from "./index";
 
@@ -45,7 +47,23 @@ export const LIGHT_PRESETS_PART1 = {
       "editorGutter.deletedBackground": "#f85149",
       "textLink.foreground": "#005fb8",
       "badge.background": "#cccccc",
-      "badge.foreground": "#3b3b3b"
+      "badge.foreground": "#3b3b3b",
+      "terminal.ansiBlack": "#000000",
+      "terminal.ansiRed": "#cd3131",
+      "terminal.ansiGreen": "#107c10",
+      "terminal.ansiYellow": "#949800",
+      "terminal.ansiBlue": "#0451a5",
+      "terminal.ansiMagenta": "#bc05bc",
+      "terminal.ansiCyan": "#0598bc",
+      "terminal.ansiWhite": "#555555",
+      "terminal.ansiBrightBlack": "#666666",
+      "terminal.ansiBrightRed": "#cd3131",
+      "terminal.ansiBrightGreen": "#11ab11",
+      "terminal.ansiBrightYellow": "#959900",
+      "terminal.ansiBrightBlue": "#0451a5",
+      "terminal.ansiBrightMagenta": "#bc05bc",
+      "terminal.ansiBrightCyan": "#0598bc",
+      "terminal.ansiBrightWhite": "#939393"
     },
     "syntax": {
       "keyword": "#0000ff",
@@ -104,7 +122,23 @@ export const LIGHT_PRESETS_PART1 = {
       "editorGutter.deletedBackground": "#cd3131",
       "textLink.foreground": "#006ab1",
       "badge.background": "#c4c4c4",
-      "badge.foreground": "#333333"
+      "badge.foreground": "#333333",
+      "terminal.ansiBlack": "#000000",
+      "terminal.ansiRed": "#cd3131",
+      "terminal.ansiGreen": "#107c10",
+      "terminal.ansiYellow": "#949800",
+      "terminal.ansiBlue": "#0451a5",
+      "terminal.ansiMagenta": "#bc05bc",
+      "terminal.ansiCyan": "#0598bc",
+      "terminal.ansiWhite": "#555555",
+      "terminal.ansiBrightBlack": "#666666",
+      "terminal.ansiBrightRed": "#cd3131",
+      "terminal.ansiBrightGreen": "#11ab11",
+      "terminal.ansiBrightYellow": "#959900",
+      "terminal.ansiBrightBlue": "#0451a5",
+      "terminal.ansiBrightMagenta": "#bc05bc",
+      "terminal.ansiBrightCyan": "#0598bc",
+      "terminal.ansiBrightWhite": "#939393"
     },
     "syntax": {
       "keyword": "#0000ff",
@@ -163,7 +197,23 @@ export const LIGHT_PRESETS_PART1 = {
       "editorGutter.deletedBackground": "#cf222e",
       "textLink.foreground": "#0969da",
       "badge.background": "#d0d7de",
-      "badge.foreground": "#1f2328"
+      "badge.foreground": "#1f2328",
+      "terminal.ansiBlack": "#1f2328",
+      "terminal.ansiRed": "#cf222e",
+      "terminal.ansiGreen": "#116329",
+      "terminal.ansiYellow": "#4d2d00",
+      "terminal.ansiBlue": "#0969da",
+      "terminal.ansiMagenta": "#8250df",
+      "terminal.ansiCyan": "#1b7c83",
+      "terminal.ansiWhite": "#59636e",
+      "terminal.ansiBrightBlack": "#393f46",
+      "terminal.ansiBrightRed": "#a40e26",
+      "terminal.ansiBrightGreen": "#1a7f37",
+      "terminal.ansiBrightYellow": "#633c01",
+      "terminal.ansiBrightBlue": "#218bff",
+      "terminal.ansiBrightMagenta": "#a475f9",
+      "terminal.ansiBrightCyan": "#3192aa",
+      "terminal.ansiBrightWhite": "#818b98"
     },
     "syntax": {
       "keyword": "#cf222e",
@@ -180,5 +230,5 @@ export const LIGHT_PRESETS_PART1 = {
       "removed": "#cf222e"
     },
     "label": "GitHub Light"
-  },
+  }
 } as unknown as Record<ThemePresetId, Omit<ThemePresetDefinition, "id">>;
