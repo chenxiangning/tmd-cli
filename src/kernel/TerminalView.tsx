@@ -20,7 +20,7 @@ import "@xterm/xterm/css/xterm.css";
 import { openExternalUrl } from "@kernel/ipc";
 import { getSettingsState, subscribeSettings } from "@kernel/settings";
 import { resolveTerminalFontFamily } from "@kernel/terminalFonts";
-import { host, ptyLiveTopic } from "@kernel/host";
+import { host } from "@kernel/host";
 import {
   registerTerminalHandle,
   unregisterTerminalHandle,
@@ -28,6 +28,7 @@ import {
 } from "@kernel/messageAnchors";
 import { subscribeThemeApplied } from "@kernel/theme";
 import { createReplayInputGate } from "@kernel/terminalInputGate";
+import { attachTerminalStream } from "@kernel/terminalReplay";
 import { isTerminalReport } from "@kernel/terminalReports";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay, findRequestRef } from "@kernel/terminalSearch";
@@ -70,6 +71,8 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
   const [hasMore, setHasMore] = useState(false);
   const [atTop, setAtTop] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  /* 挂载回放进度:null = 无回放/已完成;0-100 = 分块回放进行中(遮罩进度条)。 */
+  const [replayProgress, setReplayProgress] = useState<number | null>(null);
   /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答
      (见 terminalInputGate.ts);组件按 key=sessionId 重挂载,闸随实例重生。 */
   const inputGateRef = useRef(createReplayInputGate());
@@ -143,20 +146,12 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     });
     pagerRef.current = pager;
 
-    // 先回放历史输出,再挂实时流——顺序保证字节流连续。
-    // 回放期间上输入闸:历史内容里的终端查询(DSR/DA/OSC 颜色)会被 xterm 重新应答,
-    // 应答照走 writeSession 即 ① 陈旧应答注入活 PTY ② 视同用户首写、锚定对话,
-    // 历史会话点开即误走呼吸灯绿→蓝生命周期(见 terminalInputGate.ts)。
+    /* 输出装配(回放分块 + 实时保序 + 进度回调)见 kernel/terminalReplay.ts;
+       输入闸语义不变:回放窗口内丢弃历史查询应答(DSR/DA/OSC 颜色会被 xterm
+       重新应答,照走 writeSession 即①陈旧应答注入活 PTY ②视同用户首写锚定对话),
+       回放尽后释放。 */
     const inputGate = inputGateRef.current;
-    const replay = host.getOutputBuffer(sessionId);
-    if (replay) {
-      inputGate.arm();
-      term.write(replay, () => inputGate.release());
-      /* 重挂载(webview 重载/切回)补观察:AskWatch 是纯内存态,重载即清零,
-         而静态 Ask 面板不再产生新输出 —— 不喂尾巴,等待标签与提示音永久丢失。
-         尾巴里无面板标记(早已作答)则零副作用。 */
-      host.observeReplayTail(sessionId);
-    }
+    const offStream = attachTerminalStream(term, sessionId, inputGate, setReplayProgress);
 
     /* 翻页锚点初始化(缓冲起点绝对偏移反推,实现见 terminalHistory.ts)。 */
     void pager.init();
@@ -164,10 +159,6 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     /* 滚动到顶才显示"加载更早的输出"入口 */
     setAtTop(term.buffer.active.viewportY === 0);
     const offScroll = term.onScroll((y) => setAtTop(y === 0));
-
-    const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) =>
-      term.write(text),
-    );
     /* Ask 屏幕态采样(askWatch v3):omp 等待期间 spinner 以光标寻址持续重绘,
        面板标记一旦流出字节尾窗永不复现(实测 3h 挂起面板后流 7.4MB)——
        字节流检测对此原理性无解,但屏幕上标记始终在:读底部 8 行文本喂检测器
@@ -225,7 +216,7 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
       container.removeEventListener("focusout", onFocusOut);
       findRequestRef.current = null;
       unregisterTerminalHandle(sessionId, terminalHandle);
-      offLive();
+      offStream();
       offInput.dispose();
       offScroll.dispose();
       observer.disconnect();
@@ -256,6 +247,25 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
+      {replayProgress !== null && (
+        /* 大缓冲回放期遮罩:xterm 分块解析期间挡空白,完成即撤(terminalReplay.ts)。 */
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center"
+          style={{ background: "var(--tmd-terminal-bg)" }}
+        >
+          <div className="flex w-56 flex-col items-center gap-2">
+            <span className="text-xs text-(--tmd-fg-muted)">
+              加载会话输出… {replayProgress}%
+            </span>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-(--tmd-border)">
+              <div
+                className="h-full bg-(--tmd-accent) transition-[width] duration-150"
+                style={{ width: `${replayProgress}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       {atTop && hasMore && (
         <button
           onClick={() => void loadEarlier()}
