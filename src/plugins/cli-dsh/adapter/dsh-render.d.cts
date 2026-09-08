@@ -1,0 +1,14 @@
+export function toolTitleLine(name: string, rawArgs: unknown): string;
+export function toolResultLines(name: string, output: unknown, isError: boolean): string[];
+export function todoLines(rawArgs: unknown, output: unknown): string[] | null;
+export function band(bgName: string, styledLine: string): string;
+export function spinnerFrame(i: number): string;
+export const SPINNER_INTERVAL_MS: number;
+export function tookLine(ms: number): string;
+export function userCardLines(text: string): string[];
+export function thinkingLine(text: string): string;
+export function modelListLines(groups: unknown[], currentModel: string): string[];
+export function clip(s: string, n: number): string;
+export function errMsgSafe(e: unknown): string;
+export function displayWidth(s: string): number;
+export function fitWidth(s: string, cols: number): string;

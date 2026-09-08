@@ -22,6 +22,10 @@ impl TempRepo {
         let mut cfg = repo.config().unwrap();
         cfg.set_str("user.name", "t").unwrap();
         cfg.set_str("user.email", "t@t").unwrap();
+        /* 新装机 Windows 全局常配 core.autocrlf=true:checkout 物化 CRLF,
+        对 blob 字节的 \n 断言必挂(2026-09-06 实证)。测试仓显式关闭,
+        断言所见即 blob 字节。 */
+        cfg.set_bool("core.autocrlf", false).unwrap();
         Self { dir }
     }
 

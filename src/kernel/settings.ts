@@ -18,6 +18,7 @@ import { sanitize } from "./settingsSanitize";
 import { DEFAULT_SETTINGS, type AppSettings } from "./settingsTypes";
 
 export * from "./settingsTypes";
+export * from "./settingsAppearance";
 
 interface SettingsState {
   settings: AppSettings;

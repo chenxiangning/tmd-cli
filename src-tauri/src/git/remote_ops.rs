@@ -100,7 +100,12 @@ pub fn run(
 /// 组装并执行 git 命令:非交互环境 + 总时长上限 + 双管道排空。
 pub(super) fn exec_git(repo: &Repository, cwd: &str, args: &[String]) -> Result<String, GitError> {
     let mut cmd = Command::new("git");
-    cmd.current_dir(cwd).env("GIT_TERMINAL_PROMPT", "0");
+    /* LC_ALL=C:git stderr 按英文输出,from_shell_output 的凭据特征分类
+     * 才不随用户 locale 漂移(zh_CN 等本地化消息会漏判 E_AUTH)。 */
+    cmd.current_dir(cwd)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("LC_ALL", "C")
+        .env("LANG", "C");
     crate::resolve::hide_console(&mut cmd);
 
     // 用户未自配 sshCommand 时才注入无交互兜底

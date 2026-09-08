@@ -22,6 +22,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { host } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { useComposerStage } from "@kernel/composerStage";
 import { useComposerAttachments } from "./useComposerAttachments";
 import { KernelTopics } from "@kernel/events";
@@ -170,8 +171,8 @@ export function Composer() {
           ref={ref}
           value={value}
           placeholder={settings.sendShortcut === "cmdOrCtrlEnter"
-            ? "输入消息，⌘/Ctrl+回车发送，回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。"
-            : "输入消息，回车发送，Shift+回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。"}
+            ? t("输入消息，⌘/Ctrl+回车发送，回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。")
+            : t("输入消息，回车发送，Shift+回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。")}
           className="min-h-0 flex-1 resize-none bg-transparent p-0 pr-10 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint)"
           onChange={(e) => {
             setValue(e.target.value);
@@ -275,7 +276,7 @@ export function Composer() {
         {dragOver && (
           <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-(--tmd-bg-elevated)/75">
             <div className="absolute inset-x-2 bottom-2 top-8 rounded-lg border-[1.5px] border-dashed border-(--tmd-accent)" />
-            <span className="relative text-xs text-(--tmd-accent)">释放以附加文件 / 图片</span>
+            <span className="relative text-xs text-(--tmd-accent)">{t("释放以附加文件 / 图片")}</span>
           </div>
         )}
       </div>

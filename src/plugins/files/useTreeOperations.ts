@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ipc, type DirEntry } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import { closeTab, getTabs } from "@kernel/tabs";
 import {
   cacheDeletePrefix,
@@ -188,8 +189,8 @@ export function useTreeOperations(opts: {
   const copyPath = useCallback(
     (entry: DirEntry) => {
       void copyText(entry.path).then(
-        () => showNotice("已复制路径"),
-        () => showNotice("复制失败"),
+        () => showNotice(t("已复制路径")),
+        () => showNotice(t("复制失败")),
       );
     },
     [showNotice],

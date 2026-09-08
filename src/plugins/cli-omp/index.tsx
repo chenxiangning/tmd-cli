@@ -1,4 +1,4 @@
-import { Package } from "lucide-react";
+import { Package } from "@phosphor-icons/react";
 import { piFamilySessions } from "../cli-shared/piFamily";
 import { readOmpDefaultStatus } from "./configStatus";
 import { fetchOmpQuota } from "./quota";
@@ -17,7 +17,7 @@ import type { Plugin } from "@kernel/plugin";
 const OMP_ICON_PATH =
   "M2.5 3h19v4h-19zM5.5 7h4.3v10H5.5zM13.2 7h4.3v14h-4.3z" as const;
 
-function OmpGlyph({ size }: { size: number }) {
+function OmpGlyph({ size }: { size: number | string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -86,6 +86,23 @@ export const cliOmpPlugin: Plugin = {
       fetchQuota: fetchOmpQuota,
       docsUrl: "https://github.com/oh-my-pi/pi-coding-agent",
       npmPackage: "@oh-my-pi/pi-coding-agent",
+      /* omp 官方推荐 bun 全局安装(docs/research/omp-cli-course/01-basics);
+       * npmPackage 仅保留作 registry 最新版查询。 */
+      commandInstall: {
+        program: "bun",
+        args: ["install", "-g", "@oh-my-pi/pi-coding-agent"],
+      },
+      /* omp 运行时依赖 bun:welcome 引擎卡先探针 bun,缺失时引导先装 bun,
+       * 就位前 omp 的安装/更新按钮不可点(契约见 kernel/cli.ts requires)。 */
+      requires: {
+        binary: "bun",
+        name: "Bun",
+        docsUrl: "https://bun.sh",
+        scriptInstall: {
+          unix: "curl -fsSL https://bun.sh/install | bash",
+          windows: "irm bun.sh/install.ps1|iex",
+        },
+      },
       name: "omp",
       renderIcon: (size) => <OmpGlyph size={size} />,
       command: "omp",

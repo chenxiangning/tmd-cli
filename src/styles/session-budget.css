@@ -42,7 +42,7 @@
 }
 
 .wsbudget-title {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--tmd-fg);
 }
@@ -74,7 +74,7 @@
 }
 
 .wsbudget .pref-desc {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 /* 输入框比浮层低一级:bg-popover 与 bg-input 在 dark 同为 #313131,
    不换 sunken 输入框会隐形;light 下白浮层 + 浅灰输入框同样有层次 */

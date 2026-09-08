@@ -13,7 +13,8 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ImageOff, Loader2 } from "lucide-react";
+import { Image, CircleNotch } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
 
 /** composer 图片附件 token:@ + 绝对路径 + 图片扩展名;后随空白/句读/结尾才判定,防误吞正文。 */
@@ -85,10 +86,10 @@ function Thumb({
     return (
       <span
         className="flex h-[72px] w-24 flex-none flex-col items-center justify-center gap-1 rounded border border-dashed border-(--tmd-border) px-1 text-(--tmd-fg-faint)"
-        title={`${path}(文件已不可读)`}
+        title={t("{path}(文件已不可读)", { path })}
       >
-        <ImageOff size={12} aria-hidden />
-        <span className="w-full truncate text-center text-[10px]">{fileName(path)}</span>
+        <Image size="0.75rem" aria-hidden />
+        <span className="w-full truncate text-center text-[0.625rem]">{fileName(path)}</span>
       </span>
     );
   }
@@ -97,13 +98,13 @@ function Thumb({
       type="button"
       disabled={!src}
       className="flex h-[72px] w-24 flex-none items-center justify-center overflow-hidden rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) hover:border-(--tmd-border-strong) disabled:cursor-default"
-      title={`${fileName(path)} —— 点击放大查看`}
+      title={t("{name} —— 点击放大查看", { name: fileName(path) })}
       onClick={() => src && onOpen(src, fileName(path))}
     >
       {src ? (
         <img src={src} alt={fileName(path)} className="h-full w-full object-cover" />
       ) : (
-        <Loader2 size={12} className="animate-spin text-(--tmd-fg-faint)" aria-hidden />
+        <CircleNotch size="0.75rem" className="animate-spin text-(--tmd-fg-faint)" aria-hidden />
       )}
     </button>
   );
@@ -137,7 +138,7 @@ function Lightbox({
         className="max-h-[92vh] max-w-[92vw] object-contain"
         onClick={(e) => e.stopPropagation()}
       />
-      <div className="absolute bottom-4 left-4 max-w-[80vw] truncate rounded bg-black/60 px-2 py-1 font-mono text-[11px] text-white/80">
+      <div className="absolute bottom-4 left-4 max-w-[80vw] truncate rounded bg-black/60 px-2 py-1 font-mono text-[0.6875rem] text-white/80">
         {name}
       </div>
     </div>,

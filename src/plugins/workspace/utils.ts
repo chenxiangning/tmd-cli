@@ -1,6 +1,9 @@
 import { shortId } from "@kernel/sessionTitles";
 import type { SessionMeta } from "@kernel/ipc";
 
+/** 0 配额组「更多...」首击的展开步长(正配额组从配额值起翻倍:quota → 2× → 4×)。 */
+export const PAGE_INITIAL = 10;
+
 /**
  * 活会话列表比较器:完成未读置顶,其余按 spawn 时间倒序。
  * 排序键必须是稳定身份(createdAt),绝不能用 lastActivityAt —— 它随每个输出
@@ -27,6 +30,34 @@ export function realPinSnapshot(
   cliSessionId: string,
 ): string | undefined {
   return snapshot && snapshot !== shortId(cliSessionId) ? snapshot : undefined;
+}
+
+/**
+ * 行标题兜底链末端:命名/磁盘/快照解析结果为空时回短码(无磁盘身份的
+ * 活会话回 fallbackId 短码)。三处消费(分组 hook / 运行区 / 全局置顶)
+ * 需锁步行为,共用防「命名 > 磁盘 > 短码」口径漂移。
+ */
+export function orShortId(
+  title: string | undefined,
+  cliSessionId: string | undefined,
+  fallbackId: string,
+): string {
+  return title ?? shortId(cliSessionId ?? fallbackId);
+}
+
+/**
+ * 运行区候选判定(侧栏「运行区」自动聚集口径,工作区分组离组过滤共用此源,
+ * 保证一个会话同一时刻只落在一个区域):
+ * - turnActive(对话轮次进行中)在区:输出 2s 静默窗内,含「静默已过、
+ *   1Hz 结算轮询未落账」的待决窗 —— activeTurns 恰在结算通知瞬间出站,
+ *   成员资格与通知同界,免 Date.now() 跨渲染竞态;
+ * - unread(结束未查看)在区;点开查看即出区回工作区分组;
+ * - 二者皆否(已查看/从未对话)不在区。
+ * 运行区侧另叠加置顶(任一作用域优先,置顶不进区)与归档(全域隐藏)排除,
+ * 见 RunningZone.tsx;分组侧置顶本就离组或留组顶块,无需重复排除。
+ */
+export function isRunningZoneCandidate(turnActive: boolean, unread: boolean): boolean {
+  return turnActive || unread;
 }
 
 /**

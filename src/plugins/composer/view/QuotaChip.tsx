@@ -17,8 +17,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { RefreshCw } from "lucide-react";
+import { ArrowClockwise } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { getQuotaProvider, SHORT_WINDOW_LABEL, type QuotaSnapshot } from "@kernel/quota";
 import { formatRelativeTime, formatResetAt } from "@kernel/relativeTime";
 
@@ -33,8 +34,8 @@ function formatClock(ms: number): string {
 function emptyQuotaSnapshot(profileId: string): QuotaSnapshot {
   return {
     providerLabel: profileId,
-    title: `${profileId.toUpperCase()} 额度`,
-    usedLabel: "已使用",
+    title: t("{id} 额度", { id: profileId.toUpperCase() }),
+    usedLabel: t("已使用") as "已使用" | "已剩余",
     windows: [],
   };
 }
@@ -52,6 +53,7 @@ function useActiveQuota(): {
   const session = sessionId ? host.getSessions().find((s) => s.id === sessionId) : null;
   const profileId = session?.profileId;
   const model = sessionId ? (host.getSessionStatus(sessionId)?.model ?? null) : null;
+  const cliSessionId = sessionId ? host.getCliSessionId(sessionId) : undefined;
 
   /* 快照与路由模型同存同灭(任意 CLI 统一语义):
      - 模型切换 → 旧快照归属旧供应商,立即作废换占位并重新抓取,绝不跨模型混搭显示;
@@ -76,7 +78,7 @@ function useActiveQuota(): {
     if (!provider) {
       setEntry({
         model,
-        snapshot: { ...emptyQuotaSnapshot(profileId), error: "暂不支持额度查询" },
+        snapshot: { ...emptyQuotaSnapshot(profileId), error: t("暂不支持额度查询") },
       });
       return;
     }
@@ -85,7 +87,7 @@ function useActiveQuota(): {
     );
     setLoading(true);
     provider
-      .fetch({ model })
+      .fetch({ model, cwd: session?.cwd, cliSessionId })
       .then((snapshot) =>
         setEntry((prev) => (prev?.model === model ? { model, snapshot } : prev)),
       )
@@ -146,19 +148,19 @@ function QuotaDetailPopover({
         className="quota-popover"
         style={{ left: position.x, bottom: position.bottom }}
         role="dialog"
-        aria-label={snapshot.title}
+        aria-label={t(snapshot.title)}
       >
         <div className="quota-popover-header">
-          <span>{snapshot.title}</span>
+          <span>{t(snapshot.title)}</span>
           {snapshot.planLabel ? (
-            <span className="quota-popover-plan">{snapshot.planLabel}</span>
+            <span className="quota-popover-plan">{t(snapshot.planLabel)}</span>
           ) : null}
         </div>
 
         {snapshot.windows.map((w) => (
           <div key={w.label} className="quota-popover-window">
             <div className="quota-popover-window-head">
-              <span className="quota-popover-window-label">{w.label}</span>
+              <span className="quota-popover-window-label">{t(w.label)}</span>
               <span className="quota-popover-bar">
                 <span
                   className="quota-popover-fill"
@@ -166,19 +168,19 @@ function QuotaDetailPopover({
                 />
               </span>
               <span className="quota-popover-pct">
-                {snapshot.usedLabel} {w.displayPercent}%
+                {t(snapshot.usedLabel)} {w.displayPercent}%
               </span>
             </div>
             {w.resetsAt ? (
               <div className="quota-popover-reset">
-                下次刷新: {formatResetAt(w.resetsAt)} · {formatRelativeTime(w.resetsAt)}
+                {t("下次刷新: {abs} · {rel}", { abs: formatResetAt(w.resetsAt), rel: formatRelativeTime(w.resetsAt) })}
               </div>
             ) : null}
           </div>
         ))}
 
         {snapshot.balanceText ? (
-          <div className="quota-popover-balance">余额: {snapshot.balanceText}</div>
+          <div className="quota-popover-balance">{t("余额: {amount}", { amount: snapshot.balanceText })}</div>
         ) : null}
 
         {snapshot.error ? (
@@ -186,15 +188,15 @@ function QuotaDetailPopover({
         ) : null}
 
         <div className="quota-popover-footer">
-          <span>{fetchedAt ? `更新于 ${formatClock(fetchedAt)}` : "尚未加载"}</span>
+          <span>{fetchedAt ? t("更新于 {time}", { time: formatClock(fetchedAt) }) : t("尚未加载")}</span>
           <button
             type="button"
             className="quota-popover-refresh"
             onClick={onRefresh}
-            title="重新抓取额度"
-          >
-            <RefreshCw size={11} aria-hidden className={loading ? "is-spinning" : undefined} />
-            刷新
+            title={t("重新抓取额度")}
+           >
+             <ArrowClockwise size="0.6875rem" aria-hidden className={loading ? "is-spinning" : undefined} />
+            {t("刷新")}
           </button>
         </div>
       </div>
@@ -226,10 +228,10 @@ export function QuotaChip() {
       <span
         ref={chipRef}
         className={`quota-chip${snapshot.error ? " is-error" : ""}`}
-        title="点击查看额度详情"
+        title={t("点击查看额度详情")}
         role="button"
         tabIndex={0}
-        aria-label={`${snapshot.title},点击查看详情`}
+        aria-label={t("{title},点击查看详情", { title: snapshot.title })}
         aria-expanded={open}
         onClick={(e) => {
           e.preventDefault();
@@ -243,7 +245,7 @@ export function QuotaChip() {
           }
         }}
       >
-        额度
+        {t("额度")}
         {loading && !snapshot.windows.length && !snapshot.balanceText && !snapshot.error ? (
           <span className="quota-chip-value">…</span>
         ) : snapshot.error && !snapshot.windows.length && !snapshot.balanceText ? (

@@ -14,6 +14,7 @@
  * - 冲突行 — 禁勾禁操作,引导到幕布终端解决。
  */
 
+import { t } from "@kernel/i18n";
 import { useMemo, useState } from "react";
 import type { GitFileStatus, GitTotals } from "@kernel/ipc";
 import { FRow } from "./DiffFlatRow";
@@ -60,17 +61,17 @@ export function DiffFlatList({
     () => [
       {
         key: "un",
-        title: "未暂存变更",
+        title: t("未暂存变更"),
         rows: files.filter((f) => f.wt && f.status !== "?"),
       },
       {
         key: "ut",
-        title: "未跟踪文件",
+        title: t("未跟踪文件"),
         rows: files.filter((f) => f.status === "?"),
       },
       {
         key: "st",
-        title: "待提交变更",
+        title: t("待提交变更"),
         rows: files.filter((f) => f.staged),
       },
     ],
@@ -104,7 +105,7 @@ export function DiffFlatList({
               className="flex cursor-pointer select-none items-baseline gap-2 px-3 pb-0.5 pt-1.5 text-(--tmd-fg-muted)"
             >
               <span
-                className={`text-[9px] text-(--tmd-fg-faint) ${isCollapsed ? "-rotate-90" : ""}`}
+                className={`text-[0.5625rem] text-(--tmd-fg-faint) ${isCollapsed ? "-rotate-90" : ""}`}
               >
                 ▾
               </span>
@@ -116,33 +117,33 @@ export function DiffFlatList({
               {!isCollapsed && sec.key === "un" && utPaths.length + unPaths.length > 0 && (
                 <button
                   type="button"
-                  title="git add 全部未暂存与未跟踪文件"
+                  title={t("git add 全部未暂存与未跟踪文件")}
                   onClick={(e) => {
                     e.stopPropagation();
                     onStage([...unPaths, ...utPaths]);
                   }}
-                  className="text-[11px] text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
+                  className="text-[0.6875rem] text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
                 >
-                  (全部暂存)
+                  {t("(全部暂存)")}
                 </button>
               )}
               {!isCollapsed && sec.key === "st" && stPaths.length > 0 && (
                 <button
                   type="button"
-                  title="git reset 全部已暂存文件"
+                  title={t("git reset 全部已暂存文件")}
                   onClick={(e) => {
                     e.stopPropagation();
                     onUnstage(stPaths);
                   }}
-                  className="text-[11px] text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
+                  className="text-[0.6875rem] text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
                 >
-                  (全部取消)
+                  {t("(全部取消)")}
                 </button>
               )}
             </div>
             {!isCollapsed &&
               (sec.rows.length === 0 ? (
-                <div className="py-0.5 pl-3 text-[11px] text-(--tmd-fg-faint)">(nothing)</div>
+                <div className="py-0.5 pl-3 text-[0.6875rem] text-(--tmd-fg-faint)">(nothing)</div>
               ) : (
                 sec.rows.map((f) => (
                   <FRow

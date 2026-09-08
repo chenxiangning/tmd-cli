@@ -1,5 +1,6 @@
 /* ── relay(未知中转站: Sub2API → New API 回退)──────────── */
 
+import { t } from "@kernel/i18n";
 import type { QuotaWindow } from "@kernel/quota";
 import { asNum, extractResetTime, httpJson, twoDecimals, window } from "./http";
 import type { VendorQuota } from "./types";
@@ -7,14 +8,14 @@ import type { VendorQuota } from "./types";
 function relayOrigin(baseUrl: string): string {
   const raw = baseUrl.trim().split("?")[0].replace(/\/+$/, "");
   const m = /^(https?:\/\/)([^/]+)/.exec(raw);
-  if (!m) throw new Error(`base_url 不是合法 http(s) URL: ${baseUrl}`);
+  if (!m) throw new Error(t("base_url 不是合法 http(s) URL: {url}", { url: baseUrl }));
   return `${m[1]}${m[2]}`;
 }
 
 function sub2apiUsageUrl(baseUrl: string): string {
   const raw = baseUrl.trim().split("?")[0].replace(/\/+$/, "");
   const m = /^(https?:\/\/)([^/]+)(.*)$/.exec(raw);
-  if (!m) throw new Error(`base_url 不是合法 http(s) URL: ${baseUrl}`);
+  if (!m) throw new Error(t("base_url 不是合法 http(s) URL: {url}", { url: baseUrl }));
   let path = m[3] ?? "";
   for (const suffix of ["/chat/completions", "/messages", "/responses", "/completions"]) {
     if (path.toLowerCase().endsWith(suffix)) {
@@ -88,9 +89,9 @@ async function fetchSub2api(baseUrl: string, key: string): Promise<VendorQuota> 
   if (code && code !== "ok" && code !== "success" && body.balance === undefined) {
     const lower = code.toLowerCase();
     if (lower.includes("invalid") || lower.includes("unauthorized") || lower.includes("key")) {
-      throw new Error("鉴权失败 (Sub2API)");
+      throw new Error(t("鉴权失败 (Sub2API)"));
     }
-    throw new Error(`Sub2API 响应格式不支持 (code=${code})`);
+    throw new Error(t("Sub2API 响应格式不支持 (code={code})", { code }));
   }
 
   // 窗口
@@ -143,7 +144,7 @@ async function fetchSub2api(baseUrl: string, key: string): Promise<VendorQuota> 
   const planName = (body.planName ?? body.plan_name) as string | undefined;
 
   if (windows.length === 0 && balanceNum === undefined) {
-    throw new Error("Sub2API 响应无额度数据");
+    throw new Error(t("Sub2API 响应无额度数据"));
   }
   const quota: VendorQuota = { windows: windows.slice(0, 2) };
   if (balanceNum !== undefined) quota.balanceText = `${symbol}${twoDecimals(balanceNum)}`;
@@ -157,14 +158,14 @@ async function fetchNewApi(baseUrl: string, key: string): Promise<VendorQuota> {
     headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
   })) as Record<string, unknown>;
 
-  if (body.success === false && body.data === undefined) throw new Error("鉴权失败 (New API)");
+  if (body.success === false && body.data === undefined) throw new Error(t("鉴权失败 (New API)"));
   const data = (
     body.data && typeof body.data === "object" ? body.data : body
   ) as Record<string, unknown>;
 
   // New API / One API 内部额度单位: 500_000 ≈ $1
   const quotaRaw = asNum(data.quota) ?? asNum(data.remain_quota) ?? asNum(data.remaining_quota);
-  if (quotaRaw === undefined) throw new Error("New API 响应无额度数据");
+  if (quotaRaw === undefined) throw new Error(t("New API 响应无额度数据"));
   const quota: VendorQuota = {
     windows: [],
     balanceText: `$${twoDecimals(Math.max(0, quotaRaw / 500_000))}`,

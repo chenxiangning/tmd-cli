@@ -6,6 +6,12 @@
 
 import type { SshHostConfig } from "./sshTypes";
 import {
+  TERMINAL_FONT_SIZE_DEFAULT,
+  UI_FONT_SIZE_DEFAULT,
+  UI_ZOOM_DEFAULT,
+  type UiLanguage,
+} from "./settingsAppearance";
+import {
   DEFAULT_DARK_THEME_PRESET_ID,
   DEFAULT_LIGHT_THEME_PRESET_ID,
   type ThemePresetId,
@@ -73,6 +79,22 @@ export interface SessionPinEntry {
   title: string;
 }
 
+/** 单条归档记录:仅归档时间戳(ms);归档语义见 kernel/sessionArchive.ts。 */
+export interface SessionArchiveEntry {
+  archivedAt: number;
+}
+
+/** 单条删除意图(tombstone)记录:仅删除时间戳(ms);语义见 kernel/sessionDeleted.ts。
+ *  后台删盘失败时管理态仍删除并隐藏,磁盘数据保留(用户意图归 tmd-cli 所有)。 */
+export interface SessionDeletedEntry {
+  deletedAt: number;
+}
+
+/** Git 面板视图段(git 插件编辑域):差异 / 分支 / 历史。 */
+export type GitPanelView = "diff" | "branch" | "history";
+/** Git 差异文件列表布局:flat 平铺(status 原文三段分区)/ tree 目录树。 */
+export type GitFileListLayout = "flat" | "tree";
+
 export interface AppSettings {
   theme: ThemePreference;
   /** 浅色外观使用的 preset(system/light 模式生效)。 */
@@ -81,6 +103,16 @@ export interface AppSettings {
   darkThemePresetId: ThemePresetId;
   /** 自定义模式当前 preset。 */
   customThemePresetId: ThemePresetId;
+  /** 界面语言:zh 源中文恒等;en/ja 查 kernel/i18n 词典,缺失回落源串。切换 = 根组件重挂载。 */
+  language: UiLanguage;
+  /** 终端字号(px,10-20,默认 13);TerminalView 订阅即时生效。 */
+  terminalFontSize: number;
+  /** 终端字体 CSS family 串;空 = 平台默认等宽栈(kernel/TerminalView 内表)。 */
+  terminalFontFamily: string;
+  /** 界面字号(px,12-20,默认 16)= html 根字号;rem 文字/图标随缩放,见 kernel/uiFontSize.ts。 */
+  uiFontSize: number;
+  /** 界面缩放(0.8-1.5 步进 0.05);Tauri webview setZoom,浏览器 dev 兜底 CSS zoom。 */
+  uiZoom: number;
   /** 顶栏中央会话标题 tab 条开关(外观页可调,默认开启;见 kernel/sessionTabs.ts)。 */
   sessionTabsEnabled: boolean;
   /** Composer 发送快捷键行为。 */
@@ -117,6 +149,18 @@ export interface AppSettings {
    */
   sessionPins: Record<string, SessionPinEntry>;
   /**
+   * 会话归档层:key = `${workspaceId}:${profileId}:${cliSessionId}`,value = 归档时间戳。
+   * 默认视图隐藏归档会话;「归档」视图反向只看归档项。应用侧覆盖层,不写回 CLI 磁盘
+   * (领域 API 见 kernel/sessionArchive.ts)。
+   */
+  sessionArchive: Record<string, SessionArchiveEntry>;
+  /**
+   * 会话删除意图层(tombstone):key = `${workspaceId}:${profileId}:${cliSessionId}`,
+   * value = 删除时间戳。删除被调用即记录 —— 后台删盘失败报错时,会话仍从 tmd-cli
+   * 管理态移除并在列表隐藏,磁盘数据保留(领域 API 见 kernel/sessionDeleted.ts)。
+   */
+  sessionDeleted: Record<string, SessionDeletedEntry>;
+  /**
    * 左侧栏各工作区会话列表折叠态:key = workspaceId,value = 是否折叠。
    * 缺失的工作区(首次出现)默认折叠;切换折叠/展开与「折叠全部」均写这里,
    * 重启后恢复上次状态。
@@ -128,6 +172,8 @@ export interface AppSettings {
    * value = 是否折叠。缺失的分类(首次出现)默认折叠;切换写这里,重启后恢复。
    */
   workspaceGroupCollapsedMap: Record<string, boolean>;
+  /** 左侧栏会话视图:false = 默认(隐藏归档),true = 归档(只看归档)。 */
+  workspaceArchiveView: boolean;
   /**
    * 网络代理(network-proxy 插件的编辑域):客户端自身联网(quota_fetch 等
    * Rust reqwest 请求、installer 的 curl/npm 子进程)与之后 spawn 的 PTY CLI
@@ -155,6 +201,11 @@ export interface AppSettings {
   /** 沉淀补充规则(自由文本,追加到提炼指令;如「特别记住数据库决定;忽略测试细节」)。 */
   memoryDistillRules: string;
   /**
+   * Git 面板记忆态(git 插件的编辑域):视图段 + 差异文件列表布局。
+   * 顶栏切换即写,重启恢复上次选择;布局默认平铺。
+   */
+  git: { view: GitPanelView; layout: GitFileListLayout };
+  /**
    * SSH 主机簿(ssh 插件的编辑域):终端/SFTP/端口转发共用的主机清单。
    * 凭据明文随 settings.json 落盘(用户裁决,与竞品同级;spec 已记录风险),
    * Web/远端场景不存在 —— 单机应用,不经任何同步通道外发。
@@ -167,6 +218,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   lightThemePresetId: DEFAULT_LIGHT_THEME_PRESET_ID,
   darkThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
   customThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
+  language: "zh",
+  terminalFontSize: TERMINAL_FONT_SIZE_DEFAULT,
+  terminalFontFamily: "",
+  uiFontSize: UI_FONT_SIZE_DEFAULT,
+  uiZoom: UI_ZOOM_DEFAULT,
   sessionTabsEnabled: true,
   sendShortcut: "enter",
   askSoundEnabled: true,
@@ -181,6 +237,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionPins: {},
   workspaceCollapsedMap: {},
   workspaceGroupCollapsedMap: {},
+  sessionArchive: {},
+  sessionDeleted: {},
+  workspaceArchiveView: false,
   networkProxyEnabled: false,
   networkProxyUrl: "",
   memoryDbPath: "",
@@ -190,6 +249,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   memoryDistillModel: "",
   memoryDistillEngine: "omp",
   memoryDistillRules: "",
+  git: { view: "diff", layout: "flat" },
   ssh: { hosts: [] },
 };
 

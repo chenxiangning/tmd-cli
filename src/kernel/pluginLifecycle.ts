@@ -1,7 +1,7 @@
 /**
  * 插件生命周期 —— 注册表 + 激活编排 + 插件市场数据源。
  *
- * 从 host.ts 拆出(文件规模铁则 ≤500 行);Host 以组合方式持有,
+ * 从 host.ts 拆出(文件规模铁则 ≤300 行);Host 以组合方式持有,
  * activate 时把自身作为 PluginContext 传入,插件感知的宿主仍是 Host。
  *
  * 拔插语义(插件市场):activateAll 等 settings 首载后按 disabledPlugins 过滤,

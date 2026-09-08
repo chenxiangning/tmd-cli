@@ -50,6 +50,25 @@ export interface GitAheadBehind {
   upstream: string | null;
 }
 
+/* ── 多仓发现(对齐 src-tauri/src/git/repos_scan.rs,serde camelCase)── */
+
+/** 发现的单仓摘要;kind = 普通仓 / worktree / submodule(gitdir 指针分档)。 */
+export interface GitRepoSummary {
+  /** 绝对路径(输入 root 原始形态前缀;root 是仓时首个元素即 root) */
+  path: string;
+  /** 目录名 */
+  name: string;
+  /** HEAD shorthand;detached / unborn 为空串 */
+  branch: string;
+  kind: "repo" | "worktree" | "submodule";
+}
+
+export interface GitRepoScanResult {
+  repos: GitRepoSummary[];
+  /** 结果数超上限(32)被截断 */
+  truncated: boolean;
+}
+
 export interface GitFilePatch {
   path: string;
   oldPath: string | null;

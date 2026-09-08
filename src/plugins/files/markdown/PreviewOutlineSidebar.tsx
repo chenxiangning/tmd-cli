@@ -3,10 +3,11 @@
  *
  * 折叠态 = 右上角悬浮汉堡按钮;展开态 = 浮层面板(标题树 + 钉住按钮)。
  * 层级缩进 + 折叠 disclosure(+/-)+ 激活态高亮。
- * 与 codemoss 差异:i18n 文案硬编码中文。
+ * 与 codemoss 差异:文案走 t() 词典(zh 源串即 key)。
  */
 
 import { useCallback, useState } from "react";
+import { t } from "@kernel/i18n";
 
 /** 侧栏可渲染的最小条目形状。泛型化(纯类型改造):md 大纲与 PDF/文档
  *  预览大纲复用同一组件,target 类型由调用方自带,渲染只读 id/title/level/children。 */
@@ -46,7 +47,7 @@ function PreviewOutlineEntry<T extends OutlineItemShape<T>>({
           <button
             type="button"
             className="fvp-preview-outline-disclosure"
-            aria-label={isExpanded ? "折叠章节" : "展开章节"}
+            aria-label={isExpanded ? t("折叠章节") : t("展开章节")}
             aria-expanded={isExpanded}
             onClick={(event) => {
               event.stopPropagation();
@@ -131,8 +132,8 @@ export function PreviewOutlineSidebar<T extends OutlineItemShape<T>>({
         <button
           type="button"
           className="fvp-preview-outline-float-button"
-          aria-label="显示章节大纲"
-          title="显示章节大纲"
+          aria-label={t("显示章节大纲")}
+          title={t("显示章节大纲")}
           onClick={onToggleCollapsed}
         >
           <span className="fvp-preview-outline-menu-icon" aria-hidden="true">
@@ -146,17 +147,17 @@ export function PreviewOutlineSidebar<T extends OutlineItemShape<T>>({
   }
 
   return (
-    <nav className="fvp-preview-outline" aria-label="章节大纲" onMouseLeave={onMouseLeave}>
+    <nav className="fvp-preview-outline" aria-label={t("章节大纲")} onMouseLeave={onMouseLeave}>
       <div className="fvp-preview-outline-panel">
         <header className="fvp-preview-section-header">
-          <strong>章节</strong>
+          <strong>{t("章节")}</strong>
           <div className="fvp-preview-outline-actions">
             {onTogglePinned ? (
               <button
                 type="button"
                 className={`fvp-preview-outline-icon-button fvp-preview-outline-pin-button${pinned ? " is-active" : ""}`}
-                aria-label={pinned ? "取消钉住大纲" : "钉住大纲"}
-                title={pinned ? "取消钉住大纲" : "钉住大纲"}
+                aria-label={pinned ? t("取消钉住大纲") : t("钉住大纲")}
+                title={pinned ? t("取消钉住大纲") : t("钉住大纲")}
                 aria-pressed={pinned}
                 onClick={onTogglePinned}
               >
@@ -186,7 +187,7 @@ export function PreviewOutlineSidebar<T extends OutlineItemShape<T>>({
             ))}
           </ul>
         ) : (
-          <div className="fvp-preview-outline-empty">无标题</div>
+          <div className="fvp-preview-outline-empty">{t("无标题")}</div>
         )}
       </div>
     </nav>

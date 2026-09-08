@@ -2,17 +2,18 @@
  * 会话行共享件 —— 磁盘会话行 + 活会话状态件。
  * 从 SessionList 拆出:磁盘行同时服务于 CLI 分组内的工作区置顶块与分页列表;
  * 状态件(节点/label)同时服务于分组活会话行与全局置顶区的活会话绑定行
- * (单文件 ≤500 行铁则)。行内重命名输入已沉淀进 kernel(见 @kernel/RenameInput)。
+ * (单文件 ≤300 行铁则)。行内重命名输入已沉淀进 kernel(见 @kernel/RenameInput)。
  */
 
 import { useEffect, useState } from "react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
+import { t } from "@kernel/i18n";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { host, useHost } from "@kernel/host";
-import { Eye, Pin } from "lucide-react";
+import { Eye } from "@phosphor-icons/react";
+import { PinIcon } from "@kernel/PinIcon";
 import { resolveSessionStatus, type SessionStatus } from "./utils";
-
 
 /* 共享 1Hz ticker:N 个状态件共用一个 interval(替代每件一表),0 订阅时停表。 */
 const tickSubscribers = new Set<() => void>();
@@ -45,7 +46,7 @@ export function useSessionStatus(sessionId: string): SessionStatus {
 }
 
 /** 时间节点三态:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止 —— 呼吸灯从 meta 区移到时间轴节点位。 */
-export function ActivityDot({ sessionId }: { sessionId: string }) {
+function ActivityDot({ sessionId }: { sessionId: string }) {
   const status = useSessionStatus(sessionId);
   const state =
     status === "running"
@@ -54,6 +55,13 @@ export function ActivityDot({ sessionId }: { sessionId: string }) {
         ? "is-unread animate-breathe"
         : "is-idle";
   return <span className={`tl-node ${state}`} aria-hidden />;
+}
+
+/** 终端/SSH 活会话呼吸灯:输出即绿,无轮次/未读概念 —— 与 CLI 会话的
+ *  ActivityDot(status 状态机驱动)语义不同,4s 静默窗转灰。 */
+export function LiveOutputDot({ sessionId }: { sessionId: string }) {
+  const idle = Date.now() - host.getLastActivityAt(sessionId) > 4000;
+  return <span className={`tl-node${idle ? " is-idle" : ""}`} aria-hidden />;
 }
 
 /**
@@ -70,7 +78,7 @@ export function SessionNode({
   if (viewing) {
     return (
       <span className="tl-node tl-node-viewing" aria-hidden>
-        <Eye size={13} className="thread-viewing-eye" />
+        <Eye size="0.8125rem" className="thread-viewing-eye" />
       </span>
     );
   }
@@ -95,18 +103,20 @@ export function SessionStatusLabel({ sessionId }: { sessionId: string }) {
   const status = useSessionStatus(sessionId);
   if (status === "none") return null;
   const { className, text } = STATUS_LABEL[status];
-  return <span className={`thread-status-label ${className}`}>{text}</span>;
+  return <span className={`thread-status-label ${className}`}>{t(text)}</span>;
 }
 
 /**
  * 磁盘会话行 —— 重命名态替换为输入行;行内扎点开关 hover 显形、已扎常亮。
  * 工作区置顶块与分页历史共用同一行形,保证视觉一致。
+ * archived:归档视图行 —— 时间轴圆点让位「归」字徽记(默认视图不渲染归档行)。
  */
 export function DiskSessionRow({
   profile,
   session,
   title,
   pinned,
+  archived,
   renaming,
   onOpen,
   onContextMenu,
@@ -118,6 +128,8 @@ export function DiskSessionRow({
   title: string;
   /** 工作区内置顶:行内扎点常亮,行加重量提示。 */
   pinned: boolean;
+  /** 归档视图标记:时间轴节点位显示「归」字。 */
+  archived?: boolean;
   renaming: RenameTarget | null;
   onOpen: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
@@ -135,12 +147,19 @@ export function DiskSessionRow({
   }
   return (
     <button
-      title={`恢复 ${profile.name} 会话 ${session.id}`}
+      data-cli-session-id={session.id}
       className={`thread-row${pinned ? " is-pinned" : ""}`}
+      title={t("恢复 {profile} 会话 {id}", { profile: profile.name, id: session.id })}
       onClick={onOpen}
       onContextMenu={onContextMenu}
     >
-      <span className="tl-node is-idle" aria-hidden />
+      {archived ? (
+        <span className="tl-node tl-node-gui" aria-hidden>
+          {t("归")}
+        </span>
+      ) : (
+        <span className="tl-node is-idle" aria-hidden />
+      )}
       <span className="thread-name is-disk">{title}</span>
       <span className="thread-meta">
         <PinToggle on={pinned} onToggle={onTogglePin} />
@@ -169,13 +188,13 @@ export function PinToggle({
       className={`thread-pin-btn${on ? " is-on" : ""}`}
       role="button"
       aria-pressed={on}
-      aria-label={on ? "取消置顶" : "置顶到全局"}
+      aria-label={on ? t("取消置顶") : t("置顶到全局")}
       title={
         disabled
-          ? "会话尚未落盘,暂不可置顶"
+          ? t("会话尚未落盘,暂不可置顶")
           : on
-            ? "取消置顶"
-            : "置顶到全局(右键可置顶到工作区内)"
+            ? t("取消置顶")
+            : t("置顶到全局(右键可置顶到工作区内)")
       }
       onClick={(e) => {
         e.stopPropagation();
@@ -190,7 +209,7 @@ export function PinToggle({
         }
       }}
     >
-      <Pin size={12} className="thread-pin-icon" aria-hidden />
+      <PinIcon size="0.75rem" className="thread-pin-icon" />
     </span>
   );
 }

@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import { engineConfigPath } from "../paths";
 import { listModels, type ModelEntry } from "../modelCatalog";
 
@@ -83,7 +84,7 @@ export async function writeEngineConfigFile(
 }
 
 const inputCls =
-  "h-7 flex-1 min-w-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 font-mono text-[11px] text-(--tmd-fg) outline-none focus:border-(--tmd-accent)";
+  "h-7 flex-1 min-w-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 font-mono text-[0.6875rem] text-(--tmd-fg) outline-none focus:border-(--tmd-accent)";
 const selectCls = `${inputCls} cursor-pointer`;
 const toggle = (on: boolean) =>
   `h-5 w-[30px] flex-none rounded-full border relative ${
@@ -111,13 +112,13 @@ function ModelSelect({
   const showSelect = !manual && (models.length > 0 || !value);
 
   if (loading) {
-    return <span className="truncate text-[11px] text-(--tmd-fg-faint)">拉取模型列表中…</span>;
+    return <span className="truncate text-[0.6875rem] text-(--tmd-fg-faint)">{t("拉取模型列表中…")}</span>;
   }
   if (showSelect && models.length === 0) {
     return (
       <div className="flex w-full min-w-0 flex-col gap-1">
-        <span className="truncate text-[10.5px] text-(--tmd-fg-subtle)" title="无法拉取模型列表(检查 omp 是否可用),仍可手动填写 selector">
-          无法拉取模型列表(检查 omp 是否可用),仍可手动填写 selector
+        <span className="truncate text-[0.65625rem] text-(--tmd-fg-subtle)" title={t("无法拉取模型列表(检查 omp 是否可用),仍可手动填写 selector")}>
+          {t("无法拉取模型列表(检查 omp 是否可用),仍可手动填写 selector")}
         </span>
         <input className={inputCls} value={value} onChange={(e) => onChange(e.target.value)} />
       </div>
@@ -127,11 +128,11 @@ function ModelSelect({
     <div className="flex flex-1 min-w-0 flex-col gap-1">
       {showSelect ? (
         <select className={`${selectCls} cursor-pointer`} value={value} onChange={(e) => onChange(e.target.value)}>
-          {value && !inList && <option value={value}>{value}(当前)</option>}
+          {value && !inList && <option value={value}>{t("{model}(当前)", { model: value })}</option>}
           {models.map((m) => (
             <option key={m.selector} value={m.selector}>
               {m.selector}
-              {m.reasoning ? " · 可思考" : ""}
+              {m.reasoning ? t(" · 可思考") : ""}
               {m.contextWindow ? ` · ${Math.round(m.contextWindow / 1024)}K` : ""}
             </option>
           ))}
@@ -140,10 +141,10 @@ function ModelSelect({
         <input className={inputCls} value={value} onChange={(e) => onChange(e.target.value)} />
       )}
       <button
-        className="flex-none self-start text-[10px] text-(--tmd-fg-faint) hover:text-(--tmd-fg-muted)"
+        className="flex-none self-start text-[0.625rem] text-(--tmd-fg-faint) hover:text-(--tmd-fg-muted)"
         onClick={() => setManual(!manual)}
       >
-        {manual ? "← 返回列表选择" : "手动填写 selector"}
+        {manual ? t("← 返回列表选择") : t("手动填写 selector")}
       </button>
     </div>
   );
@@ -174,8 +175,8 @@ export function EngineConfigCard({
 
   const modelRow = (label: string, hint: string, key: "historianModel" | "dreamerModel") => (
     <div className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-1">
-      <span className="w-20 flex-none pt-0.5 text-[11px] text-(--tmd-fg-muted)">
-        {label} <span className="block text-[9.5px] text-(--tmd-fg-faint)">{hint}</span>
+      <span className="w-20 flex-none pt-0.5 text-[0.6875rem] text-(--tmd-fg-muted)">
+        {label} <span className="block text-[0.59375rem] text-(--tmd-fg-faint)">{hint}</span>
       </span>
       <ModelSelect
         value={config[key]}
@@ -187,16 +188,16 @@ export function EngineConfigCard({
   );
     return (
     <div className="rounded-lg border border-(--tmd-border) bg-(--tmd-bg-elevated) p-3">
-      <div className="mb-0.5 text-[11.5px] font-semibold">引擎(上游模型分工)</div>
-      <div className="mb-2 text-[10px] text-(--tmd-fg-faint)">
-        决定 Magic Context 用哪个模型干活;保存后写入其全局配置(magic-context.jsonc),对所有项目生效。模型列表实时取自 omp 可用模型。
+      <div className="mb-0.5 text-[0.71875rem] font-semibold">{t("引擎(上游模型分工)")}</div>
+      <div className="mb-2 text-[0.625rem] text-(--tmd-fg-faint)">
+        {t("决定 Magic Context 用哪个模型干活;保存后写入其全局配置(magic-context.jsonc),对所有项目生效。模型列表实时取自 omp 可用模型。")}
       </div>
       <div className="flex flex-col gap-2">
-        {modelRow("提取引擎", "historian · 压缩历史时提炼记忆,选便宜快的", "historianModel")}
-        {modelRow("治理引擎", "dreamer · 夜间整理去重,不在前台跑", "dreamerModel")}
+        {modelRow(t("提取引擎"), t("historian · 压缩历史时提炼记忆,选便宜快的"), "historianModel")}
+        {modelRow(t("治理引擎"), t("dreamer · 夜间整理去重,不在前台跑"), "dreamerModel")}
         <div className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-1">
-          <span className="w-20 flex-none pt-0.5 text-[11px] text-(--tmd-fg-muted)">
-            检索增强 <span className="block text-[9.5px] text-(--tmd-fg-faint)">sidekick · omp 会话内 /ctx-aug</span>
+          <span className="w-20 flex-none pt-0.5 text-[0.6875rem] text-(--tmd-fg-muted)">
+            {t("检索增强")} <span className="block text-[0.59375rem] text-(--tmd-fg-faint)">{t("sidekick · omp 会话内 /ctx-aug")}</span>
           </span>
           <div className="flex flex-none flex-col gap-1">
             <button className={toggle(config.sidekickEnabled)} onClick={() => onChange({ ...config, sidekickEnabled: !config.sidekickEnabled })}>
@@ -215,25 +216,25 @@ export function EngineConfigCard({
           )}
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="w-20 flex-none text-[11px] text-(--tmd-fg-muted)">
-            向量索引 <span className="block text-[9.5px] text-(--tmd-fg-faint)">embedding</span>
+          <span className="w-20 flex-none text-[0.6875rem] text-(--tmd-fg-muted)">
+            {t("向量索引")} <span className="block text-[0.59375rem] text-(--tmd-fg-faint)">embedding</span>
           </span>
-          <span className="min-w-0 flex-1 truncate text-[10.5px] text-(--tmd-fg-subtle)" title="本地 MiniLM(上游默认;关闭则仅关键词检索)">本地 MiniLM(上游默认;关闭则仅关键词检索)</span>
+          <span className="min-w-0 flex-1 truncate text-[0.65625rem] text-(--tmd-fg-subtle)" title={t("本地 MiniLM(上游默认;关闭则仅关键词检索)")}>{t("本地 MiniLM(上游默认;关闭则仅关键词检索)")}</span>
         </div>
         {dirty && (
           <div className="mt-1 flex flex-none items-center gap-2">
             <button
-              className="flex-none rounded-md border border-(--tmd-accent) bg-(--tmd-accent) px-3 py-1 text-[11px] text-(--tmd-accent-fg) disabled:opacity-45"
+              className="flex-none rounded-md border border-(--tmd-accent) bg-(--tmd-accent) px-3 py-1 text-[0.6875rem] text-(--tmd-accent-fg) disabled:opacity-45"
               disabled={saving}
               onClick={onSave}
             >
-              {saving ? "保存中…" : "保存配置"}
+              {saving ? t("保存中…") : t("保存配置")}
             </button>
-            <span className="text-[10.5px] text-(--tmd-warn)">有未保存修改</span>
+            <span className="text-[0.65625rem] text-(--tmd-warn)">{t("有未保存修改")}</span>
           </div>
         )}
-        <div className="mt-1 truncate text-[10px] text-(--tmd-fg-faint)" title="其余项以 magic-context.jsonc 为准,未造配置">
-          其余项以 magic-context.jsonc 为准,未造配置
+        <div className="mt-1 truncate text-[0.625rem] text-(--tmd-fg-faint)" title={t("其余项以 magic-context.jsonc 为准,未造配置")}>
+          {t("其余项以 magic-context.jsonc 为准,未造配置")}
         </div>
       </div>
     </div>

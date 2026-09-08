@@ -68,6 +68,16 @@ fn flush_utf8_tail(tail: &mut [u8]) -> Option<String> {
 const OUT_AGGREGATE_WINDOW: Duration = Duration::from_millis(8);
 /// 单次聚合批次的字节上限:防恶意/失控输出在窗口内无限堆积撑爆内存。
 const OUT_AGGREGATE_MAX_BYTES: usize = 1024 * 1024;
+/// ConPTY 启动握手(仅 Windows):portable-pty 0.9 以 PSEUDOCONSOLE_INHERIT_CURSOR
+/// 建 pseudoconsole,ConPTY 会在输出侧发 DSR(ESC[6n)并扣住输出等 CPR 应答;
+/// 此刻 xterm 尚未接入(启动期 emit 无人监听,前端输入闸也会丢弃 CPR),必须在
+/// spawn 侧直接代答一次,否则终端永久黑屏(2026-09-06 win 新装机实证)。
+/// 非 Windows 无此握手,主动写入会向 shell 注入垃圾字节,必须 cfg 门控。
+#[cfg(windows)]
+fn conpty_cpr_reply(writer: &mut dyn std::io::Write) -> std::io::Result<()> {
+    writer.write_all(b"\x1b[1;1R")?;
+    writer.flush()
+}
 
 pub(crate) fn spawn(
     registry: &PtyRegistry,
@@ -139,11 +149,15 @@ pub(crate) fn spawn(
         .master
         .try_clone_reader()
         .map_err(|e| format!("clone reader 失败: {e}"))?;
-    let writer = pair
+    /* mut 仅 Windows ConPTY CPR 应答(下方 cfg(windows))用;非 Windows 构建
+    writer 只读移交 PtyHandle 的 Mutex,mut 成假需求 —— 按目标平台消警。 */
+    #[cfg_attr(not(windows), allow(unused_mut))]
+    let mut writer = pair
         .master
         .take_writer()
         .map_err(|e| format!("take writer 失败: {e}"))?;
-
+    #[cfg(windows)]
+    conpty_cpr_reply(&mut *writer).map_err(|e| format!("conpty CPR 应答失败: {e}"))?;
     /* 输出泵：PTY → Tauri event + 会话日志。xterm.js 只认事件通道。
     聚合选型:portable-pty 的 reader 只有阻塞 read(无 try_read),
     最小侵入方案是拆 channel 两段 ——
@@ -245,39 +259,5 @@ pub(crate) fn spawn(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn decode_utf8_chunk_多字节字符跨包不产生替换符() {
-        /* "输出中" 共 9 字节;切在 7 = "中" 的 3 字节被劈成 1 + 2,模拟 8KB chunk 边界 */
-        let bytes = "输出中".as_bytes();
-        let cut = 7;
-        let mut tail = Vec::new();
-        let first = decode_utf8_chunk(&mut tail, &bytes[..cut]);
-        let second = decode_utf8_chunk(&mut tail, &bytes[cut..]);
-        assert_eq!(format!("{first}{second}"), "输出中");
-        assert!(!first.contains('\u{FFFD}'));
-        assert!(tail.is_empty());
-    }
-
-    #[test]
-    fn decode_utf8_chunk_真正的坏字节才替换() {
-        let mut tail = Vec::new();
-        let text = decode_utf8_chunk(&mut tail, &[0xff, b'a']);
-        assert_eq!(text, "\u{FFFD}a");
-    }
-
-    #[test]
-    fn flush_utf8_tail_泵尾残留的不完整序列补替换符() {
-        /* "中"(UTF-8: E4 B8 AD)只到了 2 字节进程就退出:残留 tail 按 U+FFFD 补发 */
-        let mut tail = vec![0xE4, 0xB8];
-        assert_eq!(flush_utf8_tail(&mut tail), Some("\u{FFFD}".to_string()));
-    }
-
-    #[test]
-    fn flush_utf8_tail_空尾不补发() {
-        let mut tail = Vec::new();
-        assert_eq!(flush_utf8_tail(&mut tail), None);
-    }
-}
+#[path = "pty_spawn_tests.rs"]
+mod tests;

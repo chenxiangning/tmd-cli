@@ -34,7 +34,7 @@
   overflow-y: auto;
   padding: 8px 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.5;
   color: var(--tmd-fg-muted);
 }
@@ -46,7 +46,7 @@
 
 .welcome-install-done {
   padding: 6px 12px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   border-top: 1px solid var(--tmd-border);
 }
 
@@ -58,6 +58,50 @@
   color: var(--tmd-diff-removed);
 }
 
+/* ── 前置依赖引导(引擎卡内嵌:依赖未就位时引导先装依赖) ── */
+
+.welcome-prereq {
+  border-top: 1px solid var(--tmd-border);
+  background: var(--tmd-accent-soft);
+}
+
+.welcome-prereq-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 7px 14px;
+}
+
+.welcome-prereq-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--tmd-fg-muted);
+}
+
+.welcome-prereq-docs {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  color: var(--tmd-accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.welcome-prereq-docs:hover {
+  text-decoration: underline;
+}
+
+.welcome-prereq-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 /* ── 近期会话 ── */
 
 .welcome-sessions {
@@ -66,7 +110,7 @@
 
 .welcome-section-title {
   margin: 0 0 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
@@ -75,7 +119,7 @@
 }
 
 .welcome-session-ws {
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -97,7 +141,7 @@
   border-radius: 6px;
   background: transparent;
   color: var(--tmd-fg);
-  font-size: 12px;
+  font-size: 0.75rem;
   text-align: left;
   cursor: pointer;
 }
@@ -120,7 +164,7 @@
 }
 
 .welcome-session-time {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-faint);
   flex-shrink: 0;
 }

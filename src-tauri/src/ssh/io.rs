@@ -1,6 +1,4 @@
 //! SSH IO 泵 —— PTY shell 通道的双向转发。
-//! 实现 ssh_io.rs:writer 任务消费输入(数据/resize),reader 循环
-//! 把通道消息推 `pty://out/{id}` + 落会话日志;结束原因分类驱动重连或收尾。
 
 use russh::client;
 use russh::ChannelMsg;

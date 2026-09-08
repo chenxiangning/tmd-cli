@@ -76,7 +76,7 @@
   color: var(--text-muted);
 }
 
-/* 已扎:实心 pin,与未扎的轮廓态一眼可辨 */
+/* 已扎:实心 pin,与未扎的轮廓态一眼可辨(lucide Pin 为 stroke 型,fill 即实体) */
 .thread-pin-btn.is-on .thread-pin-icon {
   fill: currentColor;
 }
@@ -85,15 +85,18 @@
   flex-shrink: 0;
 }
 
-/* ===== 全局置顶区(codemoss sidebar-pinned 适配:平铺 + 段折叠) ===== */
-.pinned-sessions {
+/* ===== 全局置顶区(codemoss sidebar-pinned 适配:平铺 + 段折叠)
+   ===== 运行区(同形段:自动聚集,样式与置顶区共享) ===== */
+.pinned-sessions,
+.running-zone {
   display: flex;
   flex-direction: column;
   gap: 1px;
   margin-bottom: 4px;
 }
 
-.pinned-sessions-header {
+.pinned-sessions-header,
+.running-zone-header {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -108,7 +111,8 @@
   width: 100%;
 }
 
-.pinned-sessions-header:hover {
+.pinned-sessions-header:hover,
+.running-zone-header:hover {
   background: var(--surface-hover);
   color: var(--text-strong);
 }
@@ -127,4 +131,20 @@
 .pinned-sessions-header-chevron {
   color: var(--text-faint);
   flex-shrink: 0;
+}
+
+/* ===== 顶栏「定位」闪高亮(revealSession 滚动后加类,1.6s 后移除) ===== */
+.thread-row.is-reveal {
+  animation: thread-reveal-flash 1.6s ease;
+}
+
+@keyframes thread-reveal-flash {
+  0%,
+  55% {
+    background: var(--tmd-accent-soft);
+  }
+
+  100% {
+    background: transparent;
+  }
 }

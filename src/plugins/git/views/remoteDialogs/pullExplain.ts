@@ -4,8 +4,10 @@
  * 按 (strategy, noCommit, noVerify) 选 Intent 与 Will NOT Happen;
  * Will Happen 行 = strategy 行(或「按 Git 配置执行」)+ 可选 noCommit/noVerify 行。
  */
+import { t } from "@kernel/i18n";
 
 export type PullStrategy = "--rebase" | "--ff-only" | "--no-ff" | "--squash";
+
 
 export type EffectTone = "neutral" | "attention" | "muted";
 
@@ -18,17 +20,17 @@ export interface PullEffectRow {
   text: string;
 }
 
-interface ExplainParams {
+type ExplainParams = {
   remote: string;
   targetBranch: string;
-}
+};
 
 const INTENT: Record<Push1, (p: ExplainParams) => string> = {
-  default: (p) => `先从 ${p.remote} 拉取 ${p.targetBranch},再按当前仓库或用户的 Git 配置更新本地分支。`,
-  "--rebase": (p) => `先从 ${p.remote} 拉取 ${p.targetBranch},再把你本地新增的提交接到远端最新提交后面。`,
-  "--ff-only": (p) => `先从 ${p.remote} 拉取 ${p.targetBranch};只有本地可以直接跟上远端时才更新。`,
-  "--no-ff": (p) => `先从 ${p.remote} 拉取 ${p.targetBranch};如果 Git 最终采用 merge,就保留一个明确的合并提交。已有 rebase 配置仍可能优先生效。`,
-  "--squash": (p) => `先从 ${p.remote} 拉取 ${p.targetBranch};如果 Git 最终采用 merge,就把远端变化汇总为一组待提交改动。已有 rebase 配置仍可能优先生效。`,
+  default: (p) => t("先从 {remote} 拉取 {targetBranch},再按当前仓库或用户的 Git 配置更新本地分支。", p),
+  "--rebase": (p) => t("先从 {remote} 拉取 {targetBranch},再把你本地新增的提交接到远端最新提交后面。", p),
+  "--ff-only": (p) => t("先从 {remote} 拉取 {targetBranch};只有本地可以直接跟上远端时才更新。", p),
+  "--no-ff": (p) => t("先从 {remote} 拉取 {targetBranch};如果 Git 最终采用 merge,就保留一个明确的合并提交。已有 rebase 配置仍可能优先生效。", p),
+  "--squash": (p) => t("先从 {remote} 拉取 {targetBranch};如果 Git 最终采用 merge,就把远端变化汇总为一组待提交改动。已有 rebase 配置仍可能优先生效。", p),
 };
 type Push1 = "default" | PullStrategy;
 

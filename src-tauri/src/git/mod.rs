@@ -21,6 +21,7 @@ mod log;
 mod remote_args;
 mod remote_ops;
 mod remote_request;
+mod repos_scan;
 mod stash_ops;
 mod status;
 
@@ -30,13 +31,13 @@ mod tests;
 #[cfg(test)]
 mod tests_branch_menu;
 #[cfg(test)]
-mod tests_commit_view;
-#[cfg(test)]
 mod tests_common;
 #[cfg(test)]
 mod tests_flow;
 #[cfg(test)]
 mod tests_remote_dialog;
+#[cfg(test)]
+mod tests_repos_scan;
 #[cfg(test)]
 mod tests_smart_checkout;
 #[cfg(test)]
@@ -55,6 +56,7 @@ pub use compare_ops::{BranchCompareSet, BranchDiffFile};
 pub use diff::{DiffTotals, FilePatch};
 pub use error::GitError;
 pub use log::{walk as walk_log, LogEntry};
+pub use repos_scan::RepoScanResult;
 pub use status::{ahead_behind, AheadBehind, DiffStatus};
 
 /// 进程级 Repo 缓存。key = canonicalize 后的 cwd(避软链/相对路径抖动)。
@@ -96,36 +98,18 @@ static REPO_CACHE: LazyLock<Mutex<RepoCache>> = LazyLock::new(|| {
     })
 });
 
-/// 取/建 cwd 对应的 Repository 句柄并执行 f。
-/// 外层锁临界区仅 HashMap 操作,锁内零 git2 调用 → 无锁顺序问题。
+/// 取/建 cwd 对应的 Repository 句柄并执行 f(只读变体,委托 mut 版)。
+/// 锁序与缓存语义见 with_repo_mut;Mutex 互斥保证独占。
 pub fn with_repo<T>(
     cwd: &str,
     f: impl FnOnce(&Repository) -> Result<T, GitError>,
 ) -> Result<T, GitError> {
-    let key = canonicalize_cwd(cwd)?;
-    let arc = {
-        let cached = REPO_CACHE.lock().get(&key);
-        match cached {
-            Some(a) => a,
-            None => {
-                let arc = Arc::new(Mutex::new(Repository::discover(&key).map_err(|e| {
-                    if e.code() == git2::ErrorCode::NotFound {
-                        GitError::NotARepo(key.display().to_string())
-                    } else {
-                        GitError::Libgit2(e)
-                    }
-                })?));
-                REPO_CACHE.lock().insert(key, arc.clone());
-                arc
-            }
-        }
-    }; // 外层锁已释放,再申请内层
-    let repo = arc.lock();
-    f(&repo)
+    with_repo_mut(cwd, |repo| f(&*repo))
 }
 
-/// with_repo 的可变句柄变体 —— stash 等需要 &mut Repository 的写操作用。
-/// 与 with_repo 同款锁序(外层锁已释放再申请内层);Mutex 互斥保证独占。
+/// 取/建 cwd 对应的 Repository 可变句柄并执行 f —— stash 等写操作用。
+/// 外层锁临界区仅 HashMap 操作,锁内零 git2 调用 → 无锁顺序问题;
+/// 外层锁已释放再申请内层(锁序注释见块尾)。
 pub fn with_repo_mut<T>(
     cwd: &str,
     f: impl FnOnce(&mut Repository) -> Result<T, GitError>,

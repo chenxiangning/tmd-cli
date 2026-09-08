@@ -3,14 +3,9 @@
  * 目录行(懒展开 + 旋转指示)与文件行(点击开编辑器 tab),递归渲染。
  */
 
-import {
-  ChevronDown,
-  ChevronRight,
-  FileText,
-  FolderClosed,
-  FolderOpen,
-} from "lucide-react";
+import { CaretDown, CaretRight, FileText, FolderSimple, FolderOpen } from "@phosphor-icons/react";
 import type { SftpEntry } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import type { TreeNode } from "./sftpTreeShared";
 
 export function TreeRows({
@@ -42,14 +37,14 @@ export function TreeRows({
       >
         <button type="button" className="ssh-tree-toggle" onClick={() => void onToggle(node)}>
           {node.loading ? (
-            <span className="ssh-tree-spin" aria-label="加载中" />
+            <span className="ssh-tree-spin" aria-label={t("加载中")} />
           ) : isOpen ? (
-            <ChevronDown size={11} />
+            <CaretDown size="0.6875rem" />
           ) : (
-            <ChevronRight size={11} />
+            <CaretRight size="0.6875rem" />
           )}
         </button>
-        {isOpen ? <FolderOpen size={12} aria-hidden /> : <FolderClosed size={12} aria-hidden />}
+        {isOpen ? <FolderOpen size="0.75rem" aria-hidden /> : <FolderSimple size="0.75rem" aria-hidden />}
         <button
           type="button"
           className="ssh-tree-label"
@@ -111,7 +106,7 @@ function FileRow({
       }}
     >
       <span className="ssh-tree-toggle" aria-hidden />
-      <FileText size={12} aria-hidden />
+      <FileText size="0.75rem" aria-hidden />
       <button
         type="button"
         className="ssh-tree-label"

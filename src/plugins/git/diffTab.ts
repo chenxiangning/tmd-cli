@@ -7,6 +7,7 @@
  * path 取 `<cwd>/<文件相对路径>`:AppShell tab 标签渲染 baseName(path) → 文件名。
  */
 
+import { t } from "@kernel/i18n";
 import { openTab } from "@kernel/tabs";
 
 export const DIFF_TAB_KIND = "git-diff";
@@ -24,7 +25,9 @@ export function openDiffTab(tab: DiffTabPayload): void {
   openTab({
     id: `${DIFF_TAB_KIND}:${tab.staged ? "s" : "w"}:${tab.path}`,
     kind: DIFF_TAB_KIND,
-    title: `${tab.path} — ${tab.staged ? "已暂存" : "工作区"} diff`,
+    title: tab.staged
+      ? t("{path} — 已暂存 diff", { path: tab.path })
+      : t("{path} — 工作区 diff", { path: tab.path }),
     path: `${tab.cwd}/${tab.path}`,
     payload: { ...tab },
   });

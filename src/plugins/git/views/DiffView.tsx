@@ -7,7 +7,8 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, FileText } from "lucide-react";
+import { t } from "@kernel/i18n";
+import { CaretDown, FileText } from "@phosphor-icons/react";
 import { ipc, type GitFileStatus, type GitTotals } from "@kernel/ipc";
 import type { FileListLayout } from "../panelStore";
 import { openDiffTab } from "../diffTab";
@@ -57,9 +58,12 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
   const askDiscard = (paths: string[]) =>
     // 破坏性操作:应用内确认前置(window.confirm 在 Tauri 可能不弹即放行)
     setConfirm({
-      title: `放弃 ${paths.length === 1 ? paths[0] : `${paths.length} 个文件`} 的工作区改动?`,
-      detail: "工作区还原到暂存区内容,不可恢复;staged 保留,untracked 不动。",
-      confirmLabel: "放弃改动",
+      title:
+        paths.length === 1
+          ? t("放弃 {path} 的工作区改动?", { path: paths[0] })
+          : t("放弃 {n} 个文件的工作区改动?", { n: paths.length }),
+      detail: t("工作区还原到暂存区内容,不可恢复;staged 保留,untracked 不动。"),
+      confirmLabel: t("放弃改动"),
       danger: true,
       onConfirm: () =>
         ipc
@@ -86,7 +90,7 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
       <div className="min-h-0 flex-1 overflow-y-auto">
         {files.length === 0 && (
           <div className="flex h-24 items-center justify-center text-xs text-(--tmd-fg-faint)">
-            工作区干净,无变更
+            {t("工作区干净,无变更")}
           </div>
         )}
         {files.length > 0 && layout === "flat" && (
@@ -110,7 +114,7 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
                 key={`dir:${row.dir}`}
                 className="flex items-center gap-1 px-2 py-1 font-medium text-(--tmd-fg-muted)"
               >
-                <ChevronDown className="h-3 w-3" />
+                <CaretDown className="h-[0.75rem] w-[0.75rem]" />
                 {row.dir}
               </div>
             ) : (
@@ -179,21 +183,21 @@ function FileRow({
       <input
         type="checkbox"
         checked={checked}
+        disabled={isConflict}
         onChange={onToggleCheck}
         onClick={(e) => e.stopPropagation()}
-        disabled={isConflict}
-        title={isConflict ? "冲突文件:请到幕布终端解决后提交" : undefined}
+        title={isConflict ? t("冲突文件:请到幕布终端解决后提交") : undefined}
         className="h-3 w-3 shrink-0 accent-(--tmd-accent) disabled:opacity-40"
       />
       <button
         type="button"
         onClick={onOpen}
-        title={`${file.path}(点击在中间打开 diff)`}
+        title={t("{path}(点击在中间打开 diff)", { path: file.path })}
         className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left"
       >
-        <FileText className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-faint)" />
+        <FileText className="h-[0.875rem] w-[0.875rem] shrink-0 text-(--tmd-fg-faint)" />
         <span className="min-w-0 flex-1 truncate">{depth > 0 ? file.path.slice(file.path.indexOf("/") + 1) : file.path}</span>
-        <span className={`font-mono text-[10px] ${STATUS_COLOR[file.status] ?? ""}`}>
+        <span className={`font-mono text-[0.625rem] ${STATUS_COLOR[file.status] ?? ""}`}>
           {displayStatus}
         </span>
       </button>
@@ -216,14 +220,14 @@ function FileRow({
         <button
           type="button"
           onClick={onDiscard}
-          title="放弃工作区改动(还原到暂存区;已暂存内容保留)"
+          title={t("放弃工作区改动(还原到暂存区;已暂存内容保留)")}
           className="w-4 shrink-0 text-center opacity-0 hover:text-(--tmd-diff-removed) group-hover:opacity-60"
         >
           ↺
         </button>
       )}
       {isConflict && (
-        <span className="shrink-0 text-[10px] text-(--tmd-diff-removed)">冲突</span>
+        <span className="shrink-0 text-[0.625rem] text-(--tmd-diff-removed)">{t("冲突")}</span>
       )}
     </div>
   );

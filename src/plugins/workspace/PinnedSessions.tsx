@@ -21,6 +21,7 @@ import { extractJsonlTitle, TITLE_HEAD_BYTES } from "../cli-shared/diskSessions"
 import { host, useHost } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import { useSettingsState } from "@kernel/settings";
+import { t } from "@kernel/i18n";
 import {
   listSessionPins,
   refreshPinTitle,
@@ -29,16 +30,15 @@ import {
   type SessionPinEntry,
 } from "@kernel/sessionPins";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
-import { sessionTitleKey, setSessionTitle, shortId } from "@kernel/sessionTitles";
+import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
-import { ChevronDown, ChevronRight, Eye, Pin } from "lucide-react";
+import { CaretDown, CaretRight, Eye } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
-import { realPinSnapshot } from "./utils";
+import { orShortId, realPinSnapshot } from "./utils";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { PinToggle, SessionStatusLabel } from "./SessionRows";
-
-/** 段折叠态存储 key(纯 UI 态,localStorage 即可,浏览器/Tauri 行为一致)。 */
-const COLLAPSED_KEY = "tmd.pinnedSectionCollapsed";
+import { PinIcon } from "@kernel/PinIcon";
+import { pinnedSection } from "./sectionCollapsed";
 
 /** 快照缺失/短码垃圾行的磁盘解析重试:3s 起步指数退避至 24s 封顶,
  * 8 次后放弃(共 ~2.4min)。omp 懒落盘晚 spawn 35-44s 在窗口内;文件已删
@@ -60,13 +60,11 @@ export function PinnedSessionsSection() {
   useHost();
   const { list: workspaces } = useWorkspaces();
   const { settings } = useSettingsState();
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem(COLLAPSED_KEY) === "1",
-  );
   const [menu, setMenu] = useState<{ row: PinnedRow; x: number; y: number } | null>(
     null,
   );
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
+  const collapsed = pinnedSection.use();
 
   const profiles = host.getCliProfiles();
   const rows: PinnedRow[] = listSessionPins(settings.sessionPins, {
@@ -74,7 +72,12 @@ export function PinnedSessionsSection() {
   }).flatMap((pin) => {
     const workspace = workspaces.find((w) => w.id === pin.workspaceId);
     const profile = profiles.find((p) => p.id === pin.profileId);
-    return workspace && profile
+    // 已归档/已删除(tombstone,含后台删盘失败的残留)会话在默认视图全域隐藏
+    // (全局置顶区同理;归档/删除 key 与置顶 key 同构)
+    return workspace &&
+      profile &&
+      settings.sessionArchive[pin.key] === undefined &&
+      settings.sessionDeleted[pin.key] === undefined
       ? [{ key: pin.key, entry: pin.entry, cliSessionId: pin.cliSessionId, workspace, profile }]
       : [];
   });
@@ -136,19 +139,17 @@ export function PinnedSessionsSection() {
   }, [unresolvedKeys]);
 
   if (rows.length === 0) return null;
-
-  const toggleCollapsed = () => {
-    const next = !collapsed;
-    setCollapsed(next);
-    localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0");
-  };
+  const toggleCollapsed = () => pinnedSection.set(!collapsed);
 
 
-  /** 行标题:手动命名 > 置顶快照(短码垃圾视为无快照) > 短码。 */
+  /** 行标题:手动命名 > 置顶快照(短码垃圾视为无快照)> 短码(orShortId 锁步)。 */
   const titleOf = (row: PinnedRow): string =>
-    settings.sessionTitles[sessionTitleKey(row.profile.id, row.cliSessionId)] ??
-    realPinSnapshot(row.entry.title, row.cliSessionId) ??
-    shortId(row.cliSessionId);
+    orShortId(
+      settings.sessionTitles[sessionTitleKey(row.profile.id, row.cliSessionId)] ??
+        realPinSnapshot(row.entry.title, row.cliSessionId),
+      row.cliSessionId,
+      row.cliSessionId,
+    );
 
   /** 绑定的活会话(同工作区 + 同 CLI + 同磁盘身份);存在则点击 = 切会话。 */
   const liveOf = (row: PinnedRow) =>
@@ -191,16 +192,16 @@ export function PinnedSessionsSection() {
         type="button"
         className={`pinned-sessions-header${collapsed ? " is-collapsed" : ""}`}
         aria-expanded={!collapsed}
-        title={collapsed ? "展开已置顶" : "收起已置顶"}
+        title={collapsed ? t("展开已置顶") : t("收起已置顶")}
         onClick={toggleCollapsed}
       >
-        <Pin size={11} className="pinned-sessions-header-icon" aria-hidden />
-        <span className="pinned-sessions-header-label">已置顶</span>
+        <PinIcon size="0.6875rem" className="pinned-sessions-header-icon" />
+        <span className="pinned-sessions-header-label">{t("已置顶")}</span>
         <span className="pinned-sessions-header-count">· {rows.length}</span>
         {collapsed ? (
-          <ChevronRight size={12} className="pinned-sessions-header-chevron" aria-hidden />
+          <CaretRight size="0.75rem" className="pinned-sessions-header-chevron" aria-hidden />
         ) : (
-          <ChevronDown size={12} className="pinned-sessions-header-chevron" aria-hidden />
+          <CaretDown size="0.75rem" className="pinned-sessions-header-chevron" aria-hidden />
         )}
       </button>
 
@@ -225,8 +226,9 @@ export function PinnedSessionsSection() {
           return (
             <button
               key={row.key}
+              data-session-id={live?.id}
               className={`thread-row${isActive ? " active" : ""}`}
-              title={`${row.workspace.name} · ${row.profile.name} 会话 ${row.cliSessionId}`}
+              title={t("{workspace} · {profile} 会话 {id}", { workspace: row.workspace.name, profile: row.profile.name, id: row.cliSessionId })}
               onClick={() => openRow(row)}
               onContextMenu={(e) => {
                 e.preventDefault();
@@ -235,7 +237,7 @@ export function PinnedSessionsSection() {
             >
               {/* 正在查看:引擎图标槽位让位给 Eye,切走还原 */}
               <span className="thread-engine-badge" title={row.profile.name}>
-                {isActive ? <Eye size={13} className="thread-viewing-eye" /> : row.profile.renderIcon?.(12)}
+                {isActive ? <Eye size="0.8125rem" className="thread-viewing-eye" /> : row.profile.renderIcon?.(12)}
               </span>
               <span className="thread-name">{titleOf(row)}</span>
               <span className="thread-meta">
@@ -243,7 +245,7 @@ export function PinnedSessionsSection() {
                 {live ? <SessionStatusLabel sessionId={live.id} /> : null}
                 {/* 绑定的活会话正等待确认:同组内行,置顶区也亮「等待确认」标签 */}
                 {live && host.isWaitingConfirm(live.id) ? (
-                  <span className="thread-ask-badge">等待确认</span>
+                  <span className="thread-ask-badge">{t("等待确认")}</span>
                 ) : null}
                 <span className="thread-time">{row.workspace.name}</span>
                 <PinToggle on onToggle={() => unpinSession(row.key)} />

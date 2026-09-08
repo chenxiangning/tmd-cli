@@ -14,7 +14,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { Cross } from "@phosphor-icons/react";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { normalizeProxyUrl, proxyTransitionError, DEFAULT_PROXY_URL } from "./proxyCommit";
 import { closeProxyPopover, useProxyPopoverState } from "./proxyPopoverStore";
@@ -93,7 +93,7 @@ export function ProxyPopover() {
         <div className="pxy-head">
           <span className="pxy-title">网络代理</span>
           <button className="pxy-close" title="关闭" onClick={closeProxyPopover}>
-            <X size={14} aria-hidden />
+            <Cross size="0.875rem" aria-hidden />
           </button>
         </div>
 

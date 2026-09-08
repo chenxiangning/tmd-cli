@@ -5,8 +5,9 @@
  */
 
 import { useEffect, useState } from "react";
-import { Plus, RefreshCw, RotateCw, Unplug } from "lucide-react";
+import { Plus, ArrowClockwise, PlugCharging } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { SSH_STATUS_LABELS, openHostPicker, probeLatency, useSshSession } from "../state";
 import { ForwardSection } from "./ForwardSection";
 import { SftpTree } from "./SftpTree";
@@ -22,9 +23,9 @@ export function SshPanel() {
     return (
       <div className="ssh-panel">
         <div className="ssh-panel-empty">
-          <div>还没有 SSH 会话</div>
+          <div>{t("还没有 SSH 会话")}</div>
           <button type="button" className="ssh-btn is-primary" onClick={() => openHostPicker()}>
-            <Plus size={12} /> 连接主机
+            <Plus size="0.75rem" /> {t("连接主机")}
           </button>
         </div>
       </div>
@@ -72,7 +73,7 @@ function SessionCard({
       const old = host.getSessions().find((s) => s.id === sessionId);
       await host.createSshSession(sessionId, old?.workspaceId);
     } catch (e) {
-      window.alert(`重连失败:${e instanceof Error ? e.message : String(e)}`);
+      window.alert(t("重连失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
     } finally {
       setBusy(false);
     }
@@ -86,7 +87,7 @@ function SessionCard({
       >
         <span className={`ssh-status-dot is-${status}`} aria-hidden />
         <span className="ssh-session-label">{label}</span>
-        <span className={`ssh-session-status is-${status}`}>{SSH_STATUS_LABELS[status] ?? status}</span>
+        <span className={`ssh-session-status is-${status}`}>{t(SSH_STATUS_LABELS[status] ?? status)}</span>
         {view?.latencyMs !== undefined ? (
           <span className="ssh-session-latency">{view.latencyMs}ms</span>
         ) : null}
@@ -95,26 +96,26 @@ function SessionCard({
       <div className="ssh-session-actions">
         <button
           type="button"
-          title="测延迟"
+          title={t("测延迟")}
           onClick={() => void probeLatency(sessionId)}
         >
-          <RefreshCw size={11} />
+          <ArrowClockwise size="0.6875rem" />
         </button>
         <button
           type="button"
-          title="重新连接"
+          title={t("重新连接")}
           disabled={busy || status === "connecting" || status === "reconnecting"}
           onClick={() => void reconnect()}
         >
-          <RotateCw size={11} />
+          <ArrowClockwise size="0.6875rem" />
         </button>
         <button
           type="button"
-          title="断开连接"
+          title={t("断开连接")}
           disabled={busy}
           onClick={() => void host.removeSession(sessionId)}
         >
-          <Unplug size={11} />
+          <PlugCharging size="0.6875rem" />
         </button>
       </div>
     </div>

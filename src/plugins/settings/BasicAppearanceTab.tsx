@@ -6,19 +6,21 @@
  * 全部写入 kernel/settings store,主题引擎即时生效,无需「保存」按钮。
  */
 
-import { Check, Monitor, Moon, Palette, Sun } from "lucide-react";
+import { useState } from "react";
+import { CaretDown, CaretRight, Check, Monitor, Moon, Palette, Sun } from "@phosphor-icons/react";
 import {
   updateSettings,
   useSettingsState,
   type ThemePreference,
 } from "@kernel/settings";
+import { t } from "@kernel/i18n";
 import {
   getAllThemePresets,
   type ThemePresetDefinition,
 } from "@kernel/themePresets";
 import { resolveEffectiveAppearance } from "@kernel/theme";
 import { mixHexColors, normalizeHexColor, withAlpha } from "@kernel/themeTokens";
-
+import { SystemAppearanceCard } from "./AppearanceSystemCard";
 const THEME_MODES: ReadonlyArray<{
   id: ThemePreference;
   label: string;
@@ -57,7 +59,12 @@ export function BasicAppearanceTab() {
   const presets = getAllThemePresets();
   const activePreset = presets.find((p) => p.id === settings.customThemePresetId) ?? presets[0];
   const appearanceLabel = (appearance: "light" | "dark") =>
-    appearance === "light" ? "浅色" : "深色";
+    t(appearance === "light" ? "浅色" : "深色");
+  /* 分组折叠态(浅色/深色),会话局部,默认全展开 */
+  const [collapsedGroups, setCollapsedGroups] = useState<{ light: boolean; dark: boolean }>({
+    light: false,
+    dark: false,
+  });
   /* hint 里的外观词必须是「当前实际生效外观」:system → matchMedia 解析结果。 */
   const resolved = resolveEffectiveAppearance(
     settings,
@@ -66,24 +73,28 @@ export function BasicAppearanceTab() {
 
   const themeHint =
     settings.theme === "system"
-      ? `当前跟随系统使用 ${appearanceLabel(resolved)} 外观。`
+      ? t("当前跟随系统使用 {appearance} 外观。", { appearance: appearanceLabel(resolved) })
       : settings.theme === "custom"
-        ? `当前使用自定义主题(${activePreset.label},${appearanceLabel(resolved)})。`
-        : `当前固定使用 ${appearanceLabel(resolved)} 外观。`;
+        ? t("当前使用自定义主题({preset},{appearance})。", {
+            preset: activePreset.label,
+            appearance: appearanceLabel(resolved),
+          })
+        : t("当前固定使用 {appearance} 外观。", { appearance: appearanceLabel(resolved) });
 
   return (
+    <>
     <div
       className={`pref-card${settings.theme === "custom" ? " is-custom" : ""}`}
       data-testid="settings-theme-card"
     >
       <div className="pref-row">
         <div>
-          <div className="pref-title">会话标题 tab 条</div>
+          <div className="pref-title">{t("会话标题 tab 条")}</div>
           <div className="pref-desc">
-            顶栏中央同时展示最多 4 个已打开的会话,点击切换;关闭后仍可从左侧栏进入会话。
+            {t("顶栏中央同时展示最多 4 个已打开的会话，点击切换；关闭后仍可从左侧栏进入会话。")}
           </div>
         </div>
-        <div className="segmented" role="radiogroup" aria-label="会话标题 tab 条">
+        <div className="segmented" role="radiogroup" aria-label={t("会话标题 tab 条")}>
           <button
             type="button"
             role="radio"
@@ -91,7 +102,7 @@ export function BasicAppearanceTab() {
             className={`segment${settings.sessionTabsEnabled ? " is-active" : ""}`}
             onClick={() => updateSettings({ sessionTabsEnabled: true })}
           >
-            开启
+            {t("开启")}
           </button>
           <button
             type="button"
@@ -100,16 +111,16 @@ export function BasicAppearanceTab() {
             className={`segment${!settings.sessionTabsEnabled ? " is-active" : ""}`}
             onClick={() => updateSettings({ sessionTabsEnabled: false })}
           >
-            关闭
+            {t("关闭")}
           </button>
         </div>
       </div>
       <div className="pref-row">
         <div>
-          <div className="pref-title">主题</div>
+          <div className="pref-title">{t("主题")}</div>
           <div className="pref-desc">{themeHint}</div>
         </div>
-        <div className="segmented" role="radiogroup" aria-label="主题">
+        <div className="segmented" role="radiogroup" aria-label={t("主题")}>
           {THEME_MODES.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -119,8 +130,8 @@ export function BasicAppearanceTab() {
               className={`segment${settings.theme === id ? " is-active" : ""}`}
               onClick={() => updateSettings({ theme: id })}
             >
-              <Icon size={13} aria-hidden />
-              {label}
+              <Icon size="0.8125rem" aria-hidden />
+              {t(label)}
             </button>
           ))}
         </div>
@@ -129,9 +140,22 @@ export function BasicAppearanceTab() {
       <div className="preset-section">
         {(["light", "dark"] as const).map((appearance) => (
           <div key={appearance}>
-            <div className="preset-group-label">
-              {appearance === "light" ? "浅色主题" : "深色主题"}
-            </div>
+            <button
+              type="button"
+              className="preset-group-label"
+              aria-expanded={!collapsedGroups[appearance]}
+              onClick={() =>
+                setCollapsedGroups((c) => ({ ...c, [appearance]: !c[appearance] }))
+              }
+            >
+              {collapsedGroups[appearance] ? (
+                <CaretRight size="0.75rem" aria-hidden />
+              ) : (
+                <CaretDown size="0.75rem" aria-hidden />
+              )}
+              {appearance === "light" ? t("浅色主题") : t("深色主题")}
+            </button>
+            {!collapsedGroups[appearance] && (
             <div className="preset-grid">
               {presets
                 .filter((p) => p.appearance === appearance)
@@ -150,14 +174,17 @@ export function BasicAppearanceTab() {
                     <PresetThumb preset={preset} />
                     <span className="preset-name">
                       {preset.label}
-                      <Check className="preset-check" size={13} aria-hidden />
+                      <Check className="preset-check" size="0.8125rem" aria-hidden />
                     </span>
                   </button>
                 ))}
             </div>
+            )}
           </div>
         ))}
       </div>
     </div>
+    <SystemAppearanceCard />
+    </>
   );
 }

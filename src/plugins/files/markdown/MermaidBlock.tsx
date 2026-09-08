@@ -15,7 +15,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { Maximize2 } from "lucide-react";
+import { CornersOut } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import { hashStableString } from "./markdownDocument";
 import { highlightLine } from "./syntax";
 import { MermaidFullscreenViewer } from "./MermaidFullscreenViewer";
@@ -130,7 +131,7 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
         <div
           className="fvp-file-markdown-mermaid-tabs"
           role="tablist"
-          aria-label="Mermaid 预览方式"
+          aria-label={t("Mermaid 预览方式")}
         >
           <button
             type="button"
@@ -139,7 +140,7 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
             className={`fvp-file-markdown-mermaid-tab${activeTab === "source" ? " is-active" : ""}`}
             onClick={() => handleActiveTabChange("source")}
           >
-            源码
+            {t("源码")}
           </button>
           <button
             type="button"
@@ -148,17 +149,17 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
             className={`fvp-file-markdown-mermaid-tab${activeTab === "render" ? " is-active" : ""}`}
             onClick={() => handleActiveTabChange("render")}
           >
-            渲染
+            {t("渲染")}
           </button>
           <button
             type="button"
             className="fvp-file-markdown-mermaid-fullscreen"
             onClick={() => setIsFullscreenOpen(true)}
             disabled={activeTab !== "render" || !visibleSvg}
-            aria-label="全屏查看"
-            title="全屏查看"
+            aria-label={t("全屏查看")}
+            title={t("全屏查看")}
           >
-            <Maximize2 size={14} aria-hidden />
+            <CornersOut size="0.875rem" aria-hidden />
           </button>
         </div>
       </div>
@@ -184,10 +185,10 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
           />
         ) : renderState.status === "error" ? (
           <div className="fvp-file-markdown-mermaid-status fvp-file-markdown-mermaid-error">
-            渲染失败:{renderState.message}
+            {t("渲染失败:{message}", { message: renderState.message })}
           </div>
         ) : (
-          <div className="fvp-file-markdown-mermaid-status">渲染中…</div>
+          <div className="fvp-file-markdown-mermaid-status">{t("渲染中…")}</div>
         )}
       </div>
 

@@ -9,9 +9,10 @@
 
 import { useMemo, useState } from "react";
 import { formatKeybinding, useCommands, type CommandContribution } from "@kernel/shortcuts";
+import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 
-/** 前缀无法映射到任何插件 id 时的兜底组名。 */
+
 const SHELL_GROUP_NAME = "外壳与终端";
 
 interface CommandGroup {
@@ -51,7 +52,7 @@ function keybindingText(cmd: CommandContribution): string | null {
 /** 键帽芯片:对齐主流设置页的 keycap 视觉(描边圆角小块)。 */
 function KeyCap({ label }: { label: string }) {
   return (
-    <kbd className="inline-flex shrink-0 items-center rounded-[4px] border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-0.5 font-mono text-[11px] leading-none text-(--tmd-fg-muted)">
+    <kbd className="inline-flex shrink-0 items-center rounded-[4px] border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-0.5 font-mono text-[0.6875rem] leading-none text-(--tmd-fg-muted)">
       {label}
     </kbd>
   );
@@ -64,18 +65,18 @@ export function ShortcutGroups({ groups }: { groups: CommandGroup[] }) {
       {groups.map((group) => (
         <div key={group.name} className="pref-card">
           <div className="flex items-baseline justify-between px-4 pt-3 pb-1">
-            <span className="text-[11px] tracking-widest text-(--tmd-fg-faint)">{group.name}</span>
-            <span className="text-[11px] text-(--tmd-fg-faint)">{group.commands.length}</span>
+            <span className="text-[0.6875rem] tracking-widest text-(--tmd-fg-faint)">{t(group.name)}</span>
+            <span className="text-[0.6875rem] text-(--tmd-fg-faint)">{group.commands.length}</span>
           </div>
           {group.commands.map((cmd) => {
             const kb = keybindingText(cmd);
             return (
               <div key={cmd.id} className="pref-row" title={cmd.id}>
-                <div className="pref-title">{cmd.title}</div>
+                <div className="pref-title">{t(cmd.title)}</div>
                 {kb ? (
                   <KeyCap label={kb} />
                 ) : (
-                  <span className="shrink-0 text-xs text-(--tmd-fg-faint)">未绑定</span>
+                  <span className="shrink-0 text-xs text-(--tmd-fg-faint)">{t("未绑定")}</span>
                 )}
               </div>
             );
@@ -125,12 +126,12 @@ export function ShortcutTab() {
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="搜索命令、键位或 id…"
+        placeholder={t("搜索命令、键位或 id…")}
         className="h-8 w-full rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-3 text-xs text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) focus:border-(--tmd-accent)"
       />
       {groups.length === 0 ? (
         <div className="pref-card px-4 py-6 text-center text-xs text-(--tmd-fg-faint)">
-          没有匹配的命令
+          {t("没有匹配的命令")}
         </div>
       ) : (
         <ShortcutGroups groups={groups} />

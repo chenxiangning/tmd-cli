@@ -12,7 +12,7 @@
 
 import { useSyncExternalStore, type ComponentType } from "react";
 
-/** 面板图标的最小 props 面(兼容 lucide-react 图标组件)。 */
+/** 面板图标的最小 props 面(兼容 @phosphor-icons-react 图标组件)。 */
 export type FilePanelIcon = ComponentType<{
   size?: number | string;
   className?: string;
@@ -45,6 +45,13 @@ export interface FilePanelContribution {
   order?: number;
   /** 注册即钉到 toolbar;缺省 true。 */
   pinnedByDefault?: boolean;
+  /** 是否进顶栏(「⋯ 更多面板」菜单 + tab 条);缺省 true。false = 两处均不列,
+   *  开关入口由插件自管(如 ssh 走左下角设置簇 sidebarAction)——外壳不硬编码
+   *  任何面板 id,入口归属由注册方声明。 */
+  topbarEntry?: boolean;
+  /** 面板专属动作按钮(可选):渲染在 workspace 文件操作行(subbar)动作区末尾。
+   *  状态归插件组件自管(模块级 store),外壳只渲染不认识语义。 */
+  actions?: ComponentType;
 }
 
 /* ── 钉住清单持久化 ──

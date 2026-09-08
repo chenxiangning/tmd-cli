@@ -8,10 +8,11 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Search } from "lucide-react";
+import { CaretDown, MagnifyingGlass } from "@phosphor-icons/react";
 import { useWorkspaces } from "@kernel/workspace";
 import { type MemoryItem } from "../protocol";
 import { useEditorTabs } from "@kernel/tabs";
+import { t } from "@kernel/i18n";
 import { archiveMemory } from "../phase2/write";
 import { memoryPool, resolveProjectIdentity } from "../pool";
 import {
@@ -19,6 +20,7 @@ import {
   MemoryListItem,
   MemoryPanelFooter,
   MemorySelectBar,
+  useMemoryDiag,
 } from "./MemoryPanelParts";
 import { useMemoryMerge } from "./useMemoryMerge";
 
@@ -29,19 +31,19 @@ export function MemoryPanel() {
   const root = workspaces.list.find((w) => w.id === workspaces.activeId)?.root ?? "";
   const [identity, setIdentity] = useState<string | null>(null);
   const [ready, setReady] = useState<boolean | null>(null);
+  const [poolReason, setPoolReason] = useState<"not-installed" | "locked" | null>(null);
   const [count, setCount] = useState(0);
   const [items, setItems] = useState<MemoryItem[]>([]);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<string>("all");
   const [source, setSource] = useState<string>("all");
+  const { diag, diagRunning, runDiag } = useMemoryDiag();
   const [loading, setLoading] = useState(false);
-  const [diag, setDiag] = useState<string[]>([]);
   const [detailOpen, setDetailOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [dbPath, setDbPath] = useState<string | null>(null);
-  const [diagRunning, setDiagRunning] = useState(false);
   const [archivingId, setArchivingId] = useState<number | null>(null);
 
   const removeItem = async (id: number) => {
@@ -58,10 +60,12 @@ export function MemoryPanel() {
     setIdentity(id);
     if (!id) {
       setReady(false);
+      setPoolReason(null);
       return;
     }
     const st = await memoryPool.status();
     setReady(st.ready);
+    setPoolReason(st.reason ?? null);
     setCount(st.count);
     setDbPath(st.dbPath);
     if (!st.ready) return;
@@ -112,23 +116,31 @@ export function MemoryPanel() {
   });
 
   if (!root) {
-    return <div className="placeholder p-4 text-center text-[11px] text-(--tmd-fg-faint)">未选择工作区</div>;
+    return <div className="placeholder p-4 text-center text-[0.6875rem] text-(--tmd-fg-faint)">{t("未选择工作区")}</div>;
   }
 
   if (ready === false) {
+    /* 提前返回也必须带底部工具条:控制台入口与诊断按钮只在这里,
+    否则池不可用时入口整条消失,用户既打不开控制台也无法排障
+    (2026-09-06 win 新装机实证)。 */
     return (
-      <div className="p-3">
-        <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2.5 text-[11px] leading-relaxed text-(--tmd-fg-muted)">
-          <span className="text-(--tmd-err)">池不可用</span>
-          {identity === null
-            ? " —— 当前工作区不是 git 仓库,未纳入记忆池。"
-            : " —— 共享 SQLite 暂时读不到(可能处于迁移窗口)。"}
-          <div className="mt-1 text-(--tmd-fg-faint)">会话 / 对话框 / 审批线不受影响。</div>
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="p-3">
+          <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2.5 text-[0.6875rem] leading-relaxed text-(--tmd-fg-muted)">
+            <span className="text-(--tmd-err)">{t("池不可用")}</span>
+            {identity === null
+              ? t(" —— 当前工作区不是 git 仓库,未纳入记忆池。")
+              : poolReason === "locked"
+                ? t(" —— 共享 SQLite 暂时读不到(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。")
+                : t(" —— Magic Context 共享库尚未初始化(未安装或未迁移),点下方「控制台」完成安装/迁移。")}
+            <div className="mt-1 text-(--tmd-fg-faint)">{t("会话 / 对话框 / 审批线不受影响。")}</div>
+          </div>
         </div>
+        <div className="min-h-0 flex-1" />
+        <MemoryPanelFooter consoleOpen={consoleOpen} diag={diag} diagRunning={diagRunning} onDiag={runDiag} />
       </div>
     );
   }
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <button
@@ -136,29 +148,29 @@ export function MemoryPanel() {
         onClick={() => setDetailOpen(!detailOpen)}
       >
         <span className="h-2 w-2 flex-none rounded-full bg-(--tmd-ok)" />
-        <span className="text-[11px] text-(--tmd-fg-muted)">池就绪</span>
-        <span className="ml-auto text-[11px] font-semibold">{count} 条</span>
-        <ChevronDown size={11} className={detailOpen ? "rotate-180 transition-transform" : "transition-transform"} />
+        <span className="text-[0.6875rem] text-(--tmd-fg-muted)">{t("池就绪")}</span>
+        <span className="ml-auto text-[0.6875rem] font-semibold">{t("{count} 条", { count })}</span>
+        <CaretDown size="0.6875rem" className={detailOpen ? "rotate-180 transition-transform" : "transition-transform"} />
       </button>
       {detailOpen && (
-        <div className="mb-2 flex flex-col gap-0.5 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2 font-mono text-[10px] text-(--tmd-fg-muted)">
-          <div className="truncate" title={dbPath ?? "未解析"}>库:{dbPath ?? "未解析"}</div>
-          <div className="truncate" title={identity ?? "非 git 工作区"}>身份:{identity ?? "非 git 工作区"}</div>
-          <div>生效记忆:{count} 条 · 覆盖类目:{presentKinds.length} 类</div>
+        <div className="mb-2 flex flex-col gap-0.5 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2 font-mono text-[0.625rem] text-(--tmd-fg-muted)">
+          <div className="truncate" title={dbPath ?? t("未解析")}>{t("库:{path}", { path: dbPath ?? t("未解析") })}</div>
+          <div className="truncate" title={identity ?? t("非 git 工作区")}>{t("身份:{id}", { id: identity ?? t("非 git 工作区") })}</div>
+          <div>{t("生效记忆:{count} 条 · 覆盖类目:{kinds} 类", { count, kinds: presentKinds.length })}</div>
           <div className="truncate text-(--tmd-fg-faint)">
-            提示:记忆由 omp/pi 会话沉淀(原生注入),其余引擎经胶囊读取;写入与治理见控制台。
+            {t("提示:记忆由 omp/pi 会话沉淀(原生注入),其余引擎经胶囊读取;写入与治理见控制台。")}
           </div>
         </div>
       )}
 
       <div className="flex gap-1.5 px-1 pb-1.5">
         <div className="relative flex-1">
-          <Search size={12} className="absolute left-2 top-1.5 text-(--tmd-fg-faint)" />
+          <MagnifyingGlass size="0.75rem" className="absolute left-2 top-1.5 text-(--tmd-fg-faint)" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="关键词检索(FTS)…"
-            className="h-[26px] w-full rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) pl-7 pr-2 text-[11px] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) focus:border-(--tmd-accent)"
+            placeholder={t("关键词检索(FTS)…")}
+            className="h-[26px] w-full rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) pl-7 pr-2 text-[0.6875rem] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) focus:border-(--tmd-accent)"
           />
         </div>
       </div>
@@ -166,19 +178,19 @@ export function MemoryPanel() {
       {presentSources.length > 1 && (
         <div className="mb-1.5 flex flex-wrap gap-1 px-1">
           <button
-            className={`h-5 rounded-full border px-2 text-[10.5px] ${
+            className={`h-5 rounded-full border px-2 text-[0.65625rem] ${
               source === "all"
                 ? "border-(--tmd-accent) bg-(--tmd-bg-active) text-(--tmd-fg)"
                 : "border-(--tmd-border) text-(--tmd-fg-subtle)"
             }`}
             onClick={() => setSource("all")}
           >
-            全部来源
+            {t("全部来源")}
           </button>
           {presentSources.map(([srcName, n]) => (
             <button
               key={srcName}
-              className={`h-5 rounded-full border px-2 text-[10.5px] ${
+              className={`h-5 rounded-full border px-2 text-[0.65625rem] ${
                 source === srcName
                   ? "border-(--tmd-accent) bg-(--tmd-bg-active) text-(--tmd-fg)"
                   : "border-(--tmd-border) text-(--tmd-fg-subtle)"
@@ -194,19 +206,19 @@ export function MemoryPanel() {
       {presentKinds.length > 0 && (
         <div className="mb-1.5 flex flex-wrap gap-1 px-1">
           <button
-            className={`h-5 rounded-full border px-2 text-[10.5px] ${
+            className={`h-5 rounded-full border px-2 text-[0.65625rem] ${
               kind === "all"
                 ? "border-(--tmd-accent) bg-(--tmd-bg-active) text-(--tmd-fg)"
                 : "border-(--tmd-border) text-(--tmd-fg-subtle)"
             }`}
             onClick={() => setKind("all")}
           >
-            全部 {items.length}
+            {t("全部 {n}", { n: items.length })}
           </button>
           {presentKinds.map(([key, n]) => (
             <button
               key={key}
-              className={`h-5 rounded-full border px-2 text-[10.5px] ${
+              className={`h-5 rounded-full border px-2 text-[0.65625rem] ${
                 kind === key
                   ? "border-(--tmd-accent) bg-(--tmd-bg-active) text-(--tmd-fg)"
                   : "border-(--tmd-border) text-(--tmd-fg-subtle)"
@@ -222,7 +234,7 @@ export function MemoryPanel() {
       {diag.length > 0 && (
         <div className="mb-1.5 flex flex-col gap-0.5 px-1">
           {diag.map((line) => (
-            <span key={line} className="truncate text-[10.5px] text-(--tmd-fg-subtle)">
+            <span key={line} className="truncate text-[0.65625rem] text-(--tmd-fg-subtle)">
               {line}
             </span>
           ))}
@@ -244,10 +256,10 @@ export function MemoryPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-1">
         {loading ? (
-          <div className="p-3 text-center text-[11px] text-(--tmd-fg-faint)">读取中…</div>
+          <div className="p-3 text-center text-[0.6875rem] text-(--tmd-fg-faint)">{t("读取中…")}</div>
         ) : filtered.length === 0 ? (
-          <div className="p-3 text-center text-[11px] text-(--tmd-fg-faint)">
-            {count === 0 ? "当前工作区还没有记忆" : "无匹配"}
+          <div className="p-3 text-center text-[0.6875rem] text-(--tmd-fg-faint)">
+            {count === 0 ? t("当前工作区还没有记忆") : t("无匹配")}
           </div>
         ) : (
           filtered.map((m) => (
@@ -274,15 +286,7 @@ export function MemoryPanel() {
         consoleOpen={consoleOpen}
         diag={diag}
         diagRunning={diagRunning}
-        onDiag={() => {
-          setDiagRunning(true);
-          memoryPool
-            .status()
-            .then((st) => {
-              setDiag([st.ready ? "✓ 共享数据库可读" : "✗ 共享数据库不可读(迁移窗口)", `✓ 检测完成 · ${st.count} 条生效记忆`]);
-            })
-            .finally(() => setDiagRunning(false));
-        }}
+        onDiag={runDiag}
       />
     </div>
   );

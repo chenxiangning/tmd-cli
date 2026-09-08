@@ -12,6 +12,7 @@ import type { EditorTab } from "@kernel/tabs";
 import { ipc } from "@kernel/ipc";
 import { closeTab, getTabs, openTab } from "@kernel/tabs";
 import { useWorkspaces } from "@kernel/workspace";
+import { t } from "@kernel/i18n";
 import { type MemoryItem } from "../protocol";
 import { memoryPool, resolveProjectIdentity } from "../pool";
 import { EngineConfigCard, readEngineConfigFile, writeEngineConfigFile, type EngineConfig } from "./EngineConfigCard";
@@ -28,7 +29,7 @@ import { RecentCard, StatsCard } from "./MemoryConsoleStats";
 export function openConsoleTab(): void {
   openTab({
     id: "memory-console",
-    title: "Memory 控制台",
+    title: t("Memory 控制台"),
     path: "Magic Context",
     kind: "memory-console",
     payload: {},
@@ -46,6 +47,7 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
   const root = workspaces.list.find((w) => w.id === workspaces.activeId)?.root ?? "";
 
   const [ready, setReady] = useState<boolean | null>(null);
+  const [poolReason, setPoolReason] = useState<"not-installed" | "locked" | null>(null);
   const [identity, setIdentity] = useState<string | null>(null);
   const [counts, setCounts] = useState<{ total: number; week: number; byHarness: [string, number][] } | null>(null);
   const [lastDream, setLastDream] = useState<string | null>(null);
@@ -61,6 +63,7 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
     if (!id) return;
     const st = await memoryPool.status();
     setReady(st.ready);
+    setPoolReason(st.reason ?? null);
     if (!st.ready) return;
     const dbPath = st.dbPath ?? "";
     const items = await memoryPool.recall(id, undefined, 200);
@@ -95,7 +98,7 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
         await ipc.fsReadFile(p);
         if (!cancelled) setConfigHint(null);
       } catch (e) {
-        if (!cancelled) setConfigHint("引擎配置读取失败: " + String(e).slice(0, 120));
+        if (!cancelled) setConfigHint(t("引擎配置读取失败: {err}", { err: String(e).slice(0, 120) }));
       }
     })();
     return () => {
@@ -115,32 +118,38 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
     }
   };
 
+  /* 池不可用横幅:未安装(库缺失/未迁移)与被占用(真·迁移窗口)分开表述,
+  避免全新机器上一律误报「迁移窗口」。 */
+  const poolUnavailableText =
+    poolReason === "locked"
+      ? t("共享记忆库暂不可读(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。session / composer / approvals 不受影响。")
+      : t("共享记忆库尚未初始化(Magic Context 未安装或未迁移),在下方安装卡完成安装与迁移即可。session / composer / approvals 不受影响。");
+
   return (
-    <div className="h-full min-h-0 overflow-y-auto bg-(--tmd-bg-base) p-3 text-[12px] text-(--tmd-fg)">
+    <div className="h-full min-h-0 overflow-y-auto bg-(--tmd-bg-base) p-3 text-[0.75rem] text-(--tmd-fg)">
       <div className="mb-3 flex min-w-0 flex-none items-center gap-2.5">
-        <span className="text-sm font-semibold">Memory 控制台</span>
+        <span className="text-sm font-semibold">{t("Memory 控制台")}</span>
         {ready !== null && (
-          <span className={`rounded-full px-2 py-px text-[10px] ${ready ? "text-(--tmd-ok)" : "text-(--tmd-err)"}`}>
-            {ready ? "池就绪" : "池不可用"}
+          <span className={`rounded-full px-2 py-px text-[0.625rem] ${ready ? "text-(--tmd-ok)" : "text-(--tmd-err)"}`}>
+            {ready ? t("池就绪") : t("池不可用")}
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate text-[11px] text-(--tmd-fg-faint)">Magic Context · 本地 SQLite</span>
+        <span className="min-w-0 flex-1 truncate text-[0.6875rem] text-(--tmd-fg-faint)">{t("Magic Context · 本地 SQLite")}</span>
       </div>
 
       {ready === false && (
         <div
-          className="mb-3 truncate rounded-lg border border-(--tmd-border) bg-(--tmd-bg-elevated) p-3 text-[11px] text-(--tmd-fg-muted)"
-          title="共享记忆库暂不可读(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。session / composer / approvals 不受影响。"
+          className="mb-3 truncate rounded-lg border border-(--tmd-border) bg-(--tmd-bg-elevated) p-3 text-[0.6875rem] text-(--tmd-fg-muted)"
+          title={poolUnavailableText}
         >
-          共享记忆库暂不可读(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。session / composer / approvals 不受影响。
+          {poolUnavailableText}
         </div>
       )}
-
       {/* ── 启用 + 三 harness 安装/迁移(InstallCard) ── */}
       <InstallCard onInstalled={() => void reload()} />
       {/* ── 引擎配置 ── */}
       {configHint && (
-        <div className="mb-2 rounded-md border border-(--tmd-warn) bg-(--tmd-bg-elevated) p-2 text-[10.5px] text-(--tmd-warn)">
+        <div className="mb-2 rounded-md border border-(--tmd-warn) bg-(--tmd-bg-elevated) p-2 text-[0.65625rem] text-(--tmd-warn)">
           {configHint}
         </div>
       )}

@@ -35,6 +35,12 @@ pub(crate) fn build_enriched_path(login_shell: Option<&str>) -> String {
             &mut dirs,
             std::path::Path::new(&home).join(".grok").join("bin"),
         );
+        /* bun 官方脚本固定装 ~/.bun/bin(unix/Windows 同根)—— 装完 bun 不重启
+         * 应用时本进程 PATH 不含此目录,探针与 `bun install -g` 子进程都靠此兜底 */
+        push_unique_dir(
+            &mut dirs,
+            std::path::Path::new(&home).join(".bun").join("bin"),
+        );
         /* hermes npm 全局 prefix:omp/kimi 等 CLI 引擎只落这里(~/.local/bin 无符号链接),
          * login shell 3s 超时时丢此目录 = omp/kimi 误报未安装(2026-09-02 实证) */
         push_unique_dir(
@@ -84,6 +90,13 @@ mod tests {
         assert!(
             path.split(sep).any(|d| d == hermes.to_string_lossy()),
             "缺 hermes 兜底目录: {path}"
+        );
+        /* 回归守卫(omp 前置依赖 bun):bun 官方脚本装 ~/.bun/bin,装完不重启
+         * 应用时本进程 PATH 不含它,探针与安装子进程都靠此兜底。 */
+        let bun_bin = std::path::Path::new(&home).join(".bun").join("bin");
+        assert!(
+            path.split(sep).any(|d| d == bun_bin.to_string_lossy()),
+            "缺 .bun/bin 兜底目录: {path}"
         );
     }
 

@@ -5,7 +5,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { t } from "@kernel/i18n";
+import { CircleNotch } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
 
@@ -62,7 +63,7 @@ export function CommitComposer({
         setAmend(false);
         setBusy(false);
         setError(null);
-        setNote(`已提交 ${sha.slice(0, 7)}`);
+        setNote(t("已提交 {sha}", { sha: sha.slice(0, 7) }));
         onCommitted();
       },
       (e: unknown) => {
@@ -89,7 +90,7 @@ export function CommitComposer({
               submit();
             }
           }}
-          placeholder="提交信息…"
+          placeholder={t("提交信息…")}
           rows={1}
           className="w-full resize-none border-0 border-b border-(--tmd-border) bg-transparent px-0.5 py-0.5 outline-none focus:border-(--tmd-border-strong) placeholder:text-(--tmd-fg-faint)"
         />
@@ -104,10 +105,10 @@ export function CommitComposer({
           {note}
         </div>
       )}
-      <div className="mt-1.5 flex items-center gap-2.5 text-[11px] text-(--tmd-fg-faint)">
+      <div className="mt-1.5 flex items-center gap-2.5 text-[0.6875rem] text-(--tmd-fg-faint)">
         <button
           type="button"
-          title="附加 --amend:改动并入上一个提交"
+          title={t("附加 --amend:改动并入上一个提交")}
           onClick={() => setAmend((v) => !v)}
           className="cursor-pointer select-none hover:text-(--tmd-fg-muted)"
         >
@@ -119,10 +120,10 @@ export function CommitComposer({
           type="button"
           onClick={submit}
           disabled={!canCommit || busy}
-          title="提交(⌘⏎)"
+          title={t("提交(⌘⏎)")}
           className="flex items-center gap-1 bg-(--tmd-accent) px-3 py-0.5 text-(--tmd-accent-fg) disabled:cursor-default disabled:bg-(--tmd-bg-sunken) disabled:text-(--tmd-fg-faint)"
         >
-          {busy && <Loader2 className="h-3 w-3 animate-spin" />}
+          {busy && <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" />}
           ⌘⏎ commit
         </button>
       </div>

@@ -4,12 +4,13 @@
  * dataURL 优先(ipc.readLocalImageDataUrl,Rust 白名单+20MB 闸),失败回退
  * asset:// 直载(ipc.assetUrl)。信息行展示 尺寸 · 体积。
  * 与 codemoss 差异:体积不 fetch(imageSrc 是 data: 时 CSP connect-src 不放行,
- * 直接按 base64 长度推算;asset:// 回退时省略)。i18n 硬编码中文。
+ * 直接按 base64 长度推算;asset:// 回退时省略)。文案走 t() 词典。
  */
 
 import { useCallback, useEffect, useState, type SyntheticEvent } from "react";
 import { assetUrl, ipc } from "@kernel/ipc";
 import { dataUrlByteLength } from "./previewBytes";
+import { t } from "@kernel/i18n";
 
 /* 与 composer/state/attachments.ts 的 formatBytes 是刻意不同的两份实现:
    本处紧凑无空格("1.5MB",图片信息条窄槽位);彼处带单位空格("1.5 KB",
@@ -78,7 +79,7 @@ export function FileImagePreview({ path }: { path: string }) {
 
   const handleImageError = useCallback(() => {
     setImageInfo(null);
-    setImageLoadError("图片加载失败");
+    setImageLoadError(t("图片加载失败"));
   }, []);
 
   return (
@@ -106,7 +107,7 @@ export function FileImagePreview({ path }: { path: string }) {
       ) : imageLoadError ? (
         <span className="fvp-image-info fvp-error">{imageLoadError}</span>
       ) : (
-        <div className="fvp-status">加载中…</div>
+        <div className="fvp-status">{t("加载中…")}</div>
       )}
     </div>
   );

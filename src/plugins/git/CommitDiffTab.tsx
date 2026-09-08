@@ -8,7 +8,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { t } from "@kernel/i18n";
+import { CircleNotch } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
 import { formatAbsolute } from "@kernel/relativeTime";
 import { ipc, type GitFilePatch } from "@kernel/ipc";
@@ -76,15 +77,15 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
       {/* 提交头 */}
       <div className="shrink-0 border-b border-(--tmd-border) px-3 py-2">
         <div className="truncate font-medium text-(--tmd-fg)" title={payload.summary}>
-          {payload.summary || "(空消息)"}
+          {payload.summary || t("(空消息)")}
         </div>
-        <div className="mt-0.5 flex items-center gap-2 text-[11px] text-(--tmd-fg-muted)">
+        <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem] text-(--tmd-fg-muted)">
           <span className="font-mono text-(--tmd-accent)">{payload.shortSha}</span>
           {payload.authorName && <span>{payload.authorName}</span>}
           {payload.authorWhen > 0 && <span>{formatAbsolute(payload.authorWhen * 1000)}</span>}
           <span className="flex-1" />
           {entry && !entry.loading && (
-            <span className="tabular-nums text-(--tmd-fg-faint)">{files.length} 文件</span>
+            <span className="tabular-nums text-(--tmd-fg-faint)">{t("{n} 文件", { n: files.length })}</span>
           )}
         </div>
       </div>
@@ -94,7 +95,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
         <div className="w-60 shrink-0 overflow-y-auto border-r border-(--tmd-border)">
           {entry?.loading && (
             <div className="flex items-center justify-center gap-1.5 py-3 text-(--tmd-fg-faint)">
-              <Loader2 className="h-3 w-3 animate-spin" /> 加载中…
+              <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" /> {t("加载中…")}
             </div>
           )}
           {entry?.error && (
@@ -121,10 +122,10 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
                 </span>
                 <span className="min-w-0 flex-1 truncate">
                   <span className="font-medium">{name}</span>
-                  {dir && <span className="ml-1 text-[10px] text-(--tmd-fg-faint)">{dir}</span>}
+                  {dir && <span className="ml-1 text-[0.625rem] text-(--tmd-fg-faint)">{dir}</span>}
                 </span>
                 {!f.binary && (f.additions > 0 || f.deletions > 0) && (
-                  <span className="shrink-0 tabular-nums text-[10px] text-(--tmd-fg-faint)">
+                  <span className="shrink-0 tabular-nums text-[0.625rem] text-(--tmd-fg-faint)">
                     <span className="text-(--tmd-diff-inserted)">+{f.additions}</span>{" "}
                     <span className="text-(--tmd-diff-removed)">-{f.deletions}</span>
                   </span>
@@ -138,19 +139,19 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
         <div className="min-w-0 flex-1 overflow-auto">
           {patchLoading ? (
             <div className="flex items-center justify-center gap-1.5 py-6 text-(--tmd-fg-faint)">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> 加载 diff…
+              <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载 diff…")}
             </div>
           ) : patchError ? (
             <div className="px-3 py-3 text-(--tmd-diff-removed)">{gitErrorShort(patchError)}</div>
           ) : patch?.binary ? (
-            <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">二进制文件,无文本 diff</div>
+            <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("二进制文件,无文本 diff")}</div>
           ) : patch ? (
             <PatchLines text={patch.patch} className="h-max min-h-full" />
           ) : selected ? (
-            <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">无 patch 数据</div>
+            <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("无 patch 数据")}</div>
           ) : (
             <div className="flex h-full items-center justify-center text-(--tmd-fg-faint)">
-              选择左侧文件查看 diff
+              {t("选择左侧文件查看 diff")}
             </div>
           )}
         </div>

@@ -7,6 +7,8 @@
 
 import type { ReactNode } from "react";
 import type { QuotaFetchContext, QuotaSnapshot } from "./quota";
+import type { SpawnSpec } from "./ipc";
+import type { CliPrerequisite } from "./cliPrerequisite";
 
 export type TriggerKind = "skill" | "command" | "file";
 
@@ -115,7 +117,7 @@ export interface CliProfile {
   /** 显示名。 */
   name: string;
   /** CLI 品牌图标(侧栏会话行/新建会话菜单用),尺寸由调用方给。缺省 = 无图标。 */
-  renderIcon?: (size: number) => ReactNode;
+  renderIcon?: (size: number | string) => ReactNode;
   /** 可执行命令（PATH 解析）。 */
   command: string;
   /** 固定参数。 */
@@ -144,8 +146,13 @@ export interface CliProfile {
    * 点击语义由每项的 action/token 声明(codex "$name" insert / claude "/mcp" send)。
    */
   listMcpServers?: (cwd: string) => Promise<CliSuggestion[] | null>;
-  /** 恢复 CLI 自身会话的参数模板；缺省 = 不支持恢复。 */
+  /** 恢复 CLI 自身会话的参数模板;缺省 = 不支持恢复。 */
   resumeArgs?: (cliSessionId: string) => string[];
+  /**
+   * 单实例语义:同 profile 至多一个活会话,create 命中 = 聚焦既有不重 spawn
+   * (dsh「会话即 host」:同 origin 第二个 `dsh web` 必然 EADDRINUSE 秒退)。
+   */
+  singleInstance?: boolean;
   /**
    * 扫描该 CLI 在 cwd 下的磁盘历史会话。
    * 每个 cli-* 插件声明自己的存储约定(目录布局/slug 规则/文件格式),
@@ -158,7 +165,8 @@ export interface CliProfile {
    * 单库多会话 CLI(opencode:多个会话共享一个 sqlite 文件,CliDiskSession.path
    * 是合成路径)无法用 fsRemovePath 删文件,声明此钩子走代写原语;
    * 文件/目录型 CLI(kimi/qoder 等)不声明,workspace 照旧 fsRemovePath。
-   * 成功 resolve;失败 reject 由调用方提示。
+   * 错误处理归调用方:sessionOps 捕获后按「删除意图」原则记 tombstone 并
+   * 清管理态覆盖层,不阻塞用户意图(磁盘数据保留 + console.warn 诊断)。
    */
   deleteSession?: (cliSessionId: string) => Promise<void>;
   /** 读取当前 CLI session 的模型与思考强度,只读且可缺省。 */
@@ -166,6 +174,12 @@ export interface CliProfile {
     cwd: string,
     cliSessionId: string,
   ) => Promise<CliSessionStatus | null>;
+  /**
+   * 思考位点击发送的命令(如 dsh "/effort"):声明后工具栏「思考」位可点,
+   * 点击 = 写该命令进幕布触发 CLI 的强度选择;缺省 = 只读展示(omp 等在 /model
+   * 菜单内选强度的 CLI 不声明)。与模型位 sendModelCommand 同构,内核零 dsh 语义。
+   */
+  thinkingCommand?: string;
   /**
    * 会话文件身份自证:读 CliDiskSession.path 指向的文件(目录类插件自行拼内部路径),
    * 从文件内容提取 {id, cwd, createdAt}。内容级绑定(identityBinding)的数据源 ——
@@ -233,12 +247,19 @@ export interface CliProfile {
    * 多行粘贴逐行提交)。composer 是整串一次性写入 PTY,正文 + \r 同帧到达,
    * 在 kimi 0.40 实测必中:文本进了输入框但回车被吞,须再到幕布手按回车。
    * 包上标记后 CLI 走 handlePaste 通路并复位启发式,随后的 CR 正常提交 ——
-   * 与真实终端粘贴行为一致。未声明 = 维持裸文本 + CR(claude/codex/grok/qoder
-   * 等:它们的 TUI 无此启发式,注入未知转义反而有风险)。omp 初判"实测正常",
-   * 后被 win 侧偶发复现打脸(同源 pi-tui,启发式与渲染时机竞态)—— 已归入
-   * 声明阵营;新增 CLI 时先确认编辑器是否 pi-tui 系再决定是否声明。
+   * 与真实终端粘贴行为一致。未声明 = 维持裸文本 + CR。
+   * 阵营(2026-09-06 PTY 探针实测):kimi/pi/omp(pi-tui 系)+ codex(crossterm,
+   * 启动/恢复窗与斜杠弹层活跃态裸 CR 被吞,BP 后 /model 稳定执行)。grok 实测
+   * 反例:BP 块被整体吞掉不提交,必须维持裸文本 —— 新增 CLI 时两态都要探针实测
+   * (就绪态 + 启动/恢复窗),不得按家族推测。
    */
   bracketedPaste?: boolean;
+  /**
+   * spawn 前动态改写 SpawnSpec:插件在运行时注入连接参数/路径等动态值。
+   * 例 dsh 适配器需要 DSH host:port(来自 localStorage),无法在 profile 声明期固定。
+   * 返回改写后的 spec;缺省 = 不改写(直接用 command/args)。
+   */
+  spawnTransform?: (spec: SpawnSpec) => SpawnSpec | Promise<SpawnSpec>;
 
   /**
    * 该 CLI 的额度抓取器(composer 状态条 QuotaChip / welcome 供应商盘点消费)。
@@ -259,4 +280,16 @@ export interface CliProfile {
    * 安装命令经通用 IPC 原语执行,Rust 不持有任何 CLI 配方。
    */
   scriptInstall?: { unix: string; windows: string };
+  /**
+   * 命令通道安装(program + args 原样):介于 script 与 npm 之间的通用通道,
+   * 例 omp 经 `bun install -g` 全局安装。安装命令经通用 IPC 原语执行,内核零配方。
+   */
+  commandInstall?: { program: string; args: string[] };
+  /**
+   * 前置依赖声明:安装/更新本 CLI 前必须就位的运行时(如 omp 依赖 bun)。
+   * welcome 引擎卡先探针依赖;缺失时引导先装依赖,就位前本引擎的
+   * 安装/更新按钮不可点。依赖的探针/安装走同一套通用原语(cli_probe / cli_install_run)。
+   */
+  requires?: CliPrerequisite;
 }
+

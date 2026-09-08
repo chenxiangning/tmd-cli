@@ -48,7 +48,7 @@
   border-top: 1px solid var(--tmd-border);
   background: var(--tmd-bg-base);
   color: var(--tmd-fg-muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1;
   user-select: none;
 }
@@ -79,7 +79,7 @@
   border: 1px solid var(--tmd-border);
   background: transparent;
   color: var(--tmd-fg-muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1;
   cursor: pointer;
   transition:
@@ -118,14 +118,14 @@
 }
 
 .nprompt-title {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--tmd-fg);
 }
 
 .nprompt-parent {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-faint);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -143,7 +143,7 @@
   border: 1px solid var(--tmd-border-strong);
   background: var(--tmd-bg-base);
   color: var(--tmd-fg);
-  font-size: 12px;
+  font-size: 0.75rem;
   outline: none;
 }
 
@@ -153,7 +153,7 @@
 
 .nprompt-error {
   margin-top: 8px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: #f87171;
   overflow-wrap: anywhere;
 }
@@ -172,7 +172,7 @@
   border: 1px solid var(--tmd-border);
   background: transparent;
   color: var(--tmd-fg-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: pointer;
   transition:
     background-color 140ms ease,
@@ -217,7 +217,7 @@
   border: 1px solid var(--tmd-border);
   background: var(--tmd-bg-elevated);
   color: var(--tmd-fg);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.3;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
   pointer-events: none;

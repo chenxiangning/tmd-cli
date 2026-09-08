@@ -65,9 +65,7 @@ pub fn prune(cwd: &str, keep: usize, ttl_days: u32) -> Result<usize, CkptError> 
         .cloned()
         .collect();
     let dropped = entries.len() - kept.len();
-    if dropped == 0 {
-        // 条目没变仍可能需要清对象(历史遗留孤儿);不提前返回
-    }
+    // dropped == 0 也继续:条目没变仍可能需要清对象(历史遗留孤儿),不提前返回。
     rewrite_ledger(cwd, &kept)?;
 
     // 悬空 states 一并清理

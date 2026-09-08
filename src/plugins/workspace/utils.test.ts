@@ -12,7 +12,12 @@
  */
 import { describe, expect, it } from "vitest";
 import { shortId } from "@kernel/sessionTitles";
-import { compareLiveSessions, realPinSnapshot, resolveSessionStatus } from "./utils";
+import {
+  compareLiveSessions,
+  isRunningZoneCandidate,
+  realPinSnapshot,
+  resolveSessionStatus,
+} from "./utils";
 import type { SessionMeta } from "@kernel/ipc";
 
 const meta = (id: string, createdAt?: number): SessionMeta => ({
@@ -92,5 +97,19 @@ describe("resolveSessionStatus", () => {
   it("出窗后按已查看与否分流:unread / viewed", () => {
     expect(resolveSessionStatus(NOW - 5000, true, NOW)).toBe("unread");
     expect(resolveSessionStatus(NOW - 5000, false, NOW)).toBe("viewed");
+  });
+});
+
+describe("isRunningZoneCandidate", () => {
+  /** 契约:运行区成员资格 = turnActive(轮次进行中,含结算待决窗)|| unread(结束未查看)。
+   *  运行区(RunningZone)与工作区分组离组过滤(zoneOut)共用此判定,单向出区回组:
+   *  已查看与从未对话不在区。该谓词是「一个会话同一时刻只在一个区域」原则的锁步源。 */
+  it("轮次进行中在区,含结算待决窗", () => {
+    expect(isRunningZoneCandidate(true, false)).toBe(true);
+  });
+
+  it("结束未查看在区,点开即出区", () => {
+    expect(isRunningZoneCandidate(false, true)).toBe(true);
+    expect(isRunningZoneCandidate(false, false)).toBe(false);
   });
 });

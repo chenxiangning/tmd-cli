@@ -11,11 +11,37 @@
  *   env 不再注入(启动 apply 读字段恒定)。
  */
 
-import { Network } from "lucide-react";
+import type { ComponentType } from "react";
 import type { Plugin } from "@kernel/plugin";
 import { getSettingsState } from "@kernel/settings";
 import { ProxyPopover } from "./ProxyPopover";
 import { openProxyPopover } from "./proxyPopoverStore";
+
+/** 梯子 icon(@phosphor-icons-react 无对应 icon,本地内联 SVG;icon-style props 面,
+ *  兼容 Plugin.meta.icon 与 SidebarAction.icon 两处约束)。 */
+type LadderProps = { size?: number | string; className?: string };
+const LadderIcon: ComponentType<LadderProps> = ({ size = 14, className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    aria-hidden
+  >
+    <path d="M6 4l-3 16" />
+    <path d="M18 4l3 16" />
+    <path d="M6 9h12" />
+    <path d="M6 14h12" />
+    <path d="M4.5 19h15" />
+  </svg>
+);
+
 
 export const networkProxyPlugin: Plugin = {
   id: "network-proxy",
@@ -23,7 +49,7 @@ export const networkProxyPlugin: Plugin = {
     name: "网络代理",
     abbr: "NP",
     desc: "客户端与 CLI 子进程统一走 http(s)/socks5 代理",
-    icon: Network,
+    icon: LadderIcon,
     iconColor: "#45B8C8",
     category: "feature",
   },
@@ -32,7 +58,7 @@ export const networkProxyPlugin: Plugin = {
     ctx.registerSidebarAction({
       id: "system-proxy",
       label: "网络代理",
-      icon: Network,
+      icon: LadderIcon,
       order: 30,
       active: () => getSettingsState().settings.networkProxyEnabled,
       onSelect: (anchor) => openProxyPopover(anchor.x, anchor.y),

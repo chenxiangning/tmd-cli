@@ -8,10 +8,13 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { spinRemainder } from "@kernel/spin";
 import type { GitTotals } from "@kernel/ipc";
+import { getSettingsState, updateSettings, type GitFileListLayout, type GitPanelView } from "@kernel/settings";
 
-export type GitViewMode = "diff" | "branch" | "history";
-export type FileListLayout = "tree" | "flat";
+/** 视图段与文件列表布局的持久化契约归内核 settings(git 编辑域),此处只留插件侧旧名别名。 */
+export type GitViewMode = GitPanelView;
+export type FileListLayout = GitFileListLayout;
 
 export interface GitAggregate {
   totals: GitTotals | null;
@@ -33,7 +36,7 @@ interface GitPanelState {
 
 const state: GitPanelState = {
   view: "diff",
-  layout: "tree",
+  layout: "flat",
   refreshNonce: 0,
   refreshing: false,
   aggregate: { totals: null, fileCount: 0 },
@@ -49,11 +52,25 @@ function emit(): void {
 
 export function setGitView(view: GitViewMode): void {
   state.view = view;
+  persistPanelPrefs({ view });
   emit();
 }
 
 export function setGitLayout(layout: FileListLayout): void {
   state.layout = layout;
+  persistPanelPrefs({ layout });
+  emit();
+}
+
+/** 视图/布局切换即写 settings(git 编辑域,settings.json 落盘);setter 是唯一写入口,水合不回写。 */
+function persistPanelPrefs(patch: Partial<{ view: GitViewMode; layout: FileListLayout }>): void {
+  updateSettings({ git: { ...getSettingsState().settings.git, ...patch } });
+}
+
+/** 启动水合:插件 activate 时(设置已就绪)把落盘偏好搬进内存 store,不回写。 */
+export function hydrateGitPanelPrefs(): void {
+  state.view = getSettingsState().settings.git.view;
+  state.layout = getSettingsState().settings.git.layout;
   emit();
 }
 
@@ -66,16 +83,45 @@ export function bumpGitRefresh(): void {
 /** GitPanel 拉到聚合数据后镜像(值不变不 emit,避免 5s 轮询空转重渲染)。 */
 export function setGitAggregate(next: GitAggregate): void {
   const prev = state.aggregate;
-  if (prev.fileCount === next.fileCount && prev.totals === next.totals) return;
+  if (
+    prev.totals === next.totals &&
+    prev.fileCount === next.fileCount
+  )
+    return;
   state.aggregate = next;
   emit();
 }
 
-/** ⟳ 转圈开关:GitPanel 批量刷新发起/结束时调用,按钮据此显示 loading。 */
+/** ⟳ 转圈开关:GitPanel 批量刷新发起/结束时调用,按钮据此显示 loading。
+ *  收尾经 kernel/spin 兜底:数据再快也转满一圈,防「没点上」错觉;
+ *  兜底等待期间再发起(true)会取消挂起的收尾,连续刷新不吞圈。 */
+let spinStartedAt = 0;
+let spinClearTimer: number | null = null;
 export function setGitRefreshing(refreshing: boolean): void {
-  if (state.refreshing === refreshing) return;
-  state.refreshing = refreshing;
-  emit();
+  if (refreshing) {
+    if (spinClearTimer !== null) {
+      clearTimeout(spinClearTimer);
+      spinClearTimer = null;
+    }
+    if (state.refreshing) return;
+    state.refreshing = true;
+    spinStartedAt = Date.now();
+    emit();
+    return;
+  }
+  if (!state.refreshing || spinClearTimer !== null) return;
+  const wait = spinRemainder(spinStartedAt);
+  if (wait === 0) {
+    state.refreshing = false;
+    emit();
+    return;
+  }
+  spinClearTimer = window.setTimeout(() => {
+    spinClearTimer = null;
+    if (!state.refreshing) return;
+    state.refreshing = false;
+    emit();
+  }, wait);
 }
 
 let remoteDialogNonce = 0;
@@ -120,4 +166,18 @@ export function getSmartSwitchOrigin(): { cwd: string; branch: string } | null {
 
 export function clearSmartSwitchOrigin(): void {
   smartSwitchOrigin = null;
+}
+
+/* ── 多仓选中仓(workspace 维度记忆;app 运行期,不落盘)──
+ * 按工作区 key:切 workspace 不串选;记忆指向已消失的仓时,
+ * resolveRepoContext 会校验回退(repoContext.ts),此处不做失效清理。 */
+const selectedRepoByWorkspace = new Map<string, string>();
+
+export function setSelectedRepo(workspaceId: string, path: string): void {
+  selectedRepoByWorkspace.set(workspaceId, path);
+  emit();
+}
+
+export function getSelectedRepo(workspaceId: string): string | null {
+  return selectedRepoByWorkspace.get(workspaceId) ?? null;
 }

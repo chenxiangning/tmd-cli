@@ -13,7 +13,8 @@
  * 分区常量拆至 drawerSections.ts,条目列表拆至 DrawerItemList.tsx(文件规模铁则)。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Cross } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import { isDrawerOpen, setDrawerOpen } from "../state/drawerOpen";
 import type { DrawerItem, DrawerSection } from "../drawerItems";
 import { SECTION_META, SECTION_ORDER, SECTION_TAB_ICONS } from "./drawerSections";
@@ -116,7 +117,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
       setFlashKey(key);
       window.clearTimeout(flashTimer.current);
       flashTimer.current = window.setTimeout(() => setFlashKey(null), 480);
-      showToast(`已发送到幕布:${wire}`);
+      showToast(t("已发送到幕布:{wire}", { wire }));
       window.clearTimeout(closeTimer.current);
       closeTimer.current = window.setTimeout(() => {
         /* 320ms 内被重新打开(⌘K 快速开合)则不关,防误杀新开的抽屉 */
@@ -125,7 +126,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
       }, 320);
     } else if (item.action === "open") {
       onOpen(item);
-      showToast(`已打开:${item.name}`);
+      showToast(t("已打开:{name}", { name: item.name }));
       window.clearTimeout(closeTimer.current);
       closeTimer.current = window.setTimeout(() => {
         if (isDrawerOpen()) return;
@@ -143,7 +144,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
       data-command-drawer
       ref={asideRef}
       role="dialog"
-      aria-label="命令与技能面板"
+      aria-label={t("命令与技能面板")}
       aria-hidden={!open}
       /* inert 让关闭态彻底退出焦点序列/Tab 遍历:仅 aria-hidden 挡不住
          Tab 落进屏外可聚焦控件(可聚焦元素位于 aria-hidden 内即违例) */
@@ -183,19 +184,19 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
         className="flex w-10 shrink-0 flex-col gap-1 border-r border-(--tmd-border) bg-(--tmd-bg-sunken) p-1"
         role="tablist"
         aria-orientation="vertical"
-        aria-label="分区切换"
+        aria-label={t("分区切换")}
       >
         <button
           type="button"
-          title="关闭 (Esc)"
-          aria-label="关闭"
+          title={t("关闭 (Esc)")}
+          aria-label={t("关闭")}
           onClick={() => setDrawerOpen(false)}
           className="grid h-7 w-full cursor-pointer place-items-center rounded-md text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         >
-          <X size={13} />
+          <Cross size="0.8125rem" />
         </button>
         {(["all", ...sections] as const).map((key) => {
-          const label = key === "all" ? "全部" : SECTION_META[key].label;
+          const label = key === "all" ? t("全部") : SECTION_META[key].label;
           const Icon = SECTION_TAB_ICONS[key];
           return (
             <button
@@ -212,13 +213,13 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
                   : "text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
               }`}
             >
-              <Icon size={13} />
+              <Icon size="0.8125rem" />
             </button>
           );
         })}
         <span
-          title={`${visible.length} 项`}
-          className="mt-auto pt-1 text-center font-mono text-[9.5px] text-(--tmd-fg-faint)"
+          title={t("{n} 项", { n: visible.length })}
+          className="mt-auto pt-1 text-center font-mono text-[0.59375rem] text-(--tmd-fg-faint)"
         >
           {visible.length}
         </span>
@@ -239,7 +240,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
       {/* 发送/打开反馈 toast */}
       <div
         role="status"
-        className={`pointer-events-none absolute bottom-8 left-16 rounded-lg border border-(--tmd-border-strong) bg-(--tmd-bg-popover) px-3 py-1.5 font-mono text-[11px] text-(--tmd-fg) shadow-lg transition-all ${
+        className={`pointer-events-none absolute bottom-8 left-16 rounded-lg border border-(--tmd-border-strong) bg-(--tmd-bg-popover) px-3 py-1.5 font-mono text-[0.6875rem] text-(--tmd-fg) shadow-lg transition-all ${
           toast ? "translate-y-0 opacity-100" : "translate-y-1.5 opacity-0"
         }`}
       >

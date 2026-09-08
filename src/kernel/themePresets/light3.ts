@@ -1,7 +1,8 @@
 /**
- * VS Code light 主题 preset 数据 —— 移植自 codemoss features/theme/constants/vscodeThemePresets.ts(勿手改,说明见 ./index.ts)。
+ * VS Code light 主题 preset 数据 —— 移植自 codemoss(勿手改,说明见 ./index.ts)。
+ * terminal.ansi* 16 色浅底可读适配:色相取自各主题官方终端色板(Rosé Pine 官方 kitty /
+ * everforest 官方 vim / ayu 官方 vscode),对比度不足处保 H/S 降 L 至 WCAG ≥3:1。
  */
-/* 本文件自 light2.ts 拆出(文件规模铁则收紧至 300 行):承接 rose-pine-dawn/everforest-light/ayu-light 三个 preset。 */
 import type { ThemePresetDefinition, ThemePresetId } from "./index";
 
 export const LIGHT_PRESETS_PART3 = {
@@ -46,7 +47,23 @@ export const LIGHT_PRESETS_PART3 = {
       "editorGutter.deletedBackground": "#b4637a",
       "textLink.foreground": "#286983",
       "badge.background": "#dfdad9",
-      "badge.foreground": "#575279"
+      "badge.foreground": "#575279",
+      "terminal.ansiBlack": "#575279",
+      "terminal.ansiRed": "#b4637a",
+      "terminal.ansiGreen": "#286983",
+      "terminal.ansiYellow": "#c77b15",
+      "terminal.ansiBlue": "#56949f",
+      "terminal.ansiMagenta": "#907aa9",
+      "terminal.ansiCyan": "#d1716c",
+      "terminal.ansiWhite": "#575279",
+      "terminal.ansiBrightBlack": "#8f8a9e",
+      "terminal.ansiBrightRed": "#b4637a",
+      "terminal.ansiBrightGreen": "#286983",
+      "terminal.ansiBrightYellow": "#c77b15",
+      "terminal.ansiBrightBlue": "#56949f",
+      "terminal.ansiBrightMagenta": "#907aa9",
+      "terminal.ansiBrightCyan": "#d1716c",
+      "terminal.ansiBrightWhite": "#575279"
     },
     "syntax": {
       "keyword": "#286983",
@@ -105,7 +122,23 @@ export const LIGHT_PRESETS_PART3 = {
       "editorGutter.deletedBackground": "#f85552",
       "textLink.foreground": "#3a94c5",
       "badge.background": "#d8d3ba",
-      "badge.foreground": "#5c6a72"
+      "badge.foreground": "#5c6a72",
+      "terminal.ansiBlack": "#5c6a72",
+      "terminal.ansiRed": "#f85451",
+      "terminal.ansiGreen": "#849601",
+      "terminal.ansiYellow": "#b98400",
+      "terminal.ansiBlue": "#3a94c5",
+      "terminal.ansiMagenta": "#dd5fb5",
+      "terminal.ansiCyan": "#339f76",
+      "terminal.ansiWhite": "#849182",
+      "terminal.ansiBrightBlack": "#5c6a72",
+      "terminal.ansiBrightRed": "#f85451",
+      "terminal.ansiBrightGreen": "#849601",
+      "terminal.ansiBrightYellow": "#b98400",
+      "terminal.ansiBrightBlue": "#3a94c5",
+      "terminal.ansiBrightMagenta": "#dd5fb5",
+      "terminal.ansiBrightCyan": "#339f76",
+      "terminal.ansiBrightWhite": "#849182"
     },
     "syntax": {
       "keyword": "#8da101",
@@ -164,7 +197,23 @@ export const LIGHT_PRESETS_PART3 = {
       "editorGutter.deletedBackground": "#f07171",
       "textLink.foreground": "#55b4d4",
       "badge.background": "#d9d9d9",
-      "badge.foreground": "#5c6773"
+      "badge.foreground": "#5c6773",
+      "terminal.ansiBlack": "#000000",
+      "terminal.ansiRed": "#ef6163",
+      "terminal.ansiGreen": "#5aa137",
+      "terminal.ansiYellow": "#c08500",
+      "terminal.ansiBlue": "#1c98d8",
+      "terminal.ansiMagenta": "#a176cb",
+      "terminal.ansiCyan": "#3ca17f",
+      "terminal.ansiWhite": "#909090",
+      "terminal.ansiBrightBlack": "#686868",
+      "terminal.ansiBrightRed": "#ee6262",
+      "terminal.ansiBrightGreen": "#769d00",
+      "terminal.ansiBrightYellow": "#bf8500",
+      "terminal.ansiBrightBlue": "#1998d9",
+      "terminal.ansiBrightMagenta": "#a37acc",
+      "terminal.ansiBrightCyan": "#3aa17f",
+      "terminal.ansiBrightWhite": "#909090"
     },
     "syntax": {
       "keyword": "#a626a4",

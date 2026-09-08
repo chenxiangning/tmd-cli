@@ -37,30 +37,37 @@ fn column_value(row: &rusqlite::Row, idx: usize) -> Result<SqliteValue, rusqlite
 }
 
 /// 只读查询 db_path 的 sqlite 库,参数化执行 sql,返回全部行(逐列标量化)。
-/// 库不存在 = Ok(vec![]);打开/语法/绑定错误 = Err(带上下文的中文消息)。
+/// async + spawn_blocking 纪律(cli_probe/fs 系同款):RW 打开重放 WAL +
+/// busy_timeout 3s 都是阻塞 IO,CLI 进程持写锁时同步执行会冻住主线程。
 #[tauri::command]
-pub fn sqlite_query(
+pub(crate) async fn sqlite_query(
     db_path: String,
     sql: String,
     params: Vec<String>,
 ) -> Result<Vec<Vec<SqliteValue>>, String> {
-    if !std::path::Path::new(&db_path).exists() {
+    crate::commands_fs::spawn_fs(move || sqlite_query_blocking(&db_path, &sql, params)).await
+}
+
+pub(crate) fn sqlite_query_blocking(
+    db_path: &str,
+    sql: &str,
+    params: Vec<String>,
+) -> Result<Vec<Vec<SqliteValue>>, String> {
+    if !std::path::Path::new(db_path).exists() {
         return Ok(Vec::new());
     }
     // 读写打开 + query_only:WAL 库的未 checkpoint 数据只在 -wal 里,
     // READ_ONLY 连接无法重放 WAL 会看不到最新行(memory 池 0 条的根因);
     // query_only 在连接层保证语句级只读,重放与 shm 交互需要写句柄。
-    let conn = rusqlite::Connection::open_with_flags(
-        &db_path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
-    )
-    .map_err(|e| format!("open sqlite: {e}"))?;
+    let conn =
+        rusqlite::Connection::open_with_flags(db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)
+            .map_err(|e| format!("open sqlite: {e}"))?;
     conn.busy_timeout(std::time::Duration::from_millis(3000))
         .map_err(|e| format!("set sqlite busy timeout: {e}"))?;
     conn.pragma_update(None, "query_only", true)
         .map_err(|e| format!("enable sqlite query_only: {e}"))?;
     let mut stmt = conn
-        .prepare(&sql)
+        .prepare(sql)
         .map_err(|e| format!("prepare sqlite: {e}"))?;
     let mut rows = stmt
         .query(rusqlite::params_from_iter(params.iter()))
@@ -86,19 +93,30 @@ pub fn sqlite_query(
 ///   (如单库 CLI 删会话行的级联清理),插件侧无需自带子表删除序;
 /// - 3s busy 超时,避免与 CLI 进程的写锁碰撞直接 SQLITE_BUSY。
 ///
-/// 低频用户动作(如「删除会话」),同步命令开销可忽略。
+/// 低频用户动作(如「删除会话」),但写锁碰撞时 busy_timeout 3s 同样阻塞,
+/// 与读通道同套 async + spawn_blocking 纪律。
 #[tauri::command]
-pub fn sqlite_execute(db_path: String, sql: String, params: Vec<String>) -> Result<(), String> {
-    let conn = rusqlite::Connection::open_with_flags(
-        &db_path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
-    )
-    .map_err(|e| format!("open sqlite (rw): {e}"))?;
+pub(crate) async fn sqlite_execute(
+    db_path: String,
+    sql: String,
+    params: Vec<String>,
+) -> Result<(), String> {
+    crate::commands_fs::spawn_fs(move || sqlite_execute_blocking(&db_path, &sql, params)).await
+}
+
+pub(crate) fn sqlite_execute_blocking(
+    db_path: &str,
+    sql: &str,
+    params: Vec<String>,
+) -> Result<(), String> {
+    let conn =
+        rusqlite::Connection::open_with_flags(db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)
+            .map_err(|e| format!("open sqlite (rw): {e}"))?;
     conn.busy_timeout(std::time::Duration::from_millis(3000))
         .map_err(|e| format!("set sqlite busy timeout: {e}"))?;
     conn.pragma_update(None, "foreign_keys", true)
         .map_err(|e| format!("enable sqlite foreign_keys: {e}"))?;
-    conn.execute(&sql, rusqlite::params_from_iter(params.iter()))
+    conn.execute(sql, rusqlite::params_from_iter(params.iter()))
         .map_err(|e| format!("execute sqlite: {e}"))?;
     Ok(())
 }
@@ -118,27 +136,19 @@ mod tests {
         conn.execute("INSERT INTO t VALUES ('x')", []).unwrap();
         drop(conn);
 
-        let rows = sqlite_query(
-            db.to_string_lossy().to_string(),
-            "SELECT a FROM t".into(),
-            vec![],
-        )
-        .unwrap();
+        let rows = sqlite_query_blocking(&db.to_string_lossy(), "SELECT a FROM t", vec![]).unwrap();
         assert_eq!(rows, vec![vec![SqliteValue::Text("x".into())]]);
 
         // 写语句在只读连接上必须被拒
-        let err = sqlite_query(
-            db.to_string_lossy().to_string(),
-            "INSERT INTO t VALUES ('y')".into(),
-            vec![],
-        )
-        .unwrap_err();
+        let err =
+            sqlite_query_blocking(&db.to_string_lossy(), "INSERT INTO t VALUES ('y')", vec![])
+                .unwrap_err();
         assert!(err.contains("sqlite"), "{err}");
 
         // 参数化绑定
-        let rows = sqlite_query(
-            db.to_string_lossy().to_string(),
-            "SELECT a FROM t WHERE a = ?1".into(),
+        let rows = sqlite_query_blocking(
+            &db.to_string_lossy(),
+            "SELECT a FROM t WHERE a = ?1",
             vec!["x".into()],
         )
         .unwrap();
@@ -164,12 +174,7 @@ mod tests {
             .unwrap();
         // writer 保持打开(数据停留在 -wal,未 checkpoint)
 
-        let rows = sqlite_query(
-            db.to_string_lossy().to_string(),
-            "SELECT c FROM m".into(),
-            vec![],
-        )
-        .unwrap();
+        let rows = sqlite_query_blocking(&db.to_string_lossy(), "SELECT c FROM m", vec![]).unwrap();
         assert_eq!(rows, vec![vec![SqliteValue::Text("fresh".into())]]);
 
         drop(writer);
@@ -178,9 +183,9 @@ mod tests {
 
     #[test]
     fn missing_db_returns_empty() {
-        let rows = sqlite_query(
-            "/nonexistent/tmd-cli-should-not-exist.db".into(),
-            "SELECT 1".into(),
+        let rows = sqlite_query_blocking(
+            "/nonexistent/tmd-cli-should-not-exist.db",
+            "SELECT 1",
             vec![],
         )
         .unwrap();
@@ -209,24 +214,24 @@ mod tests {
         drop(conn);
 
         // 参数化删除父行:FK 级联清子行(opencode 单库会话删除的形态)
-        sqlite_execute(
-            db.to_string_lossy().to_string(),
-            "DELETE FROM parent WHERE id = ?1".into(),
+        sqlite_execute_blocking(
+            &db.to_string_lossy(),
+            "DELETE FROM parent WHERE id = ?1",
             vec!["p1".into()],
         )
         .unwrap();
-        let rows = sqlite_query(
-            db.to_string_lossy().to_string(),
-            "SELECT (SELECT count(*) FROM parent) + (SELECT count(*) FROM child)".into(),
+        let rows = sqlite_query_blocking(
+            &db.to_string_lossy(),
+            "SELECT (SELECT count(*) FROM parent) + (SELECT count(*) FROM child)",
             vec![],
         )
         .unwrap();
         assert_eq!(rows, vec![vec![SqliteValue::Int(0)]]);
 
         // 库不存在 = Err(写目标必须存在,不静默建库)
-        let err = sqlite_execute(
-            "/nonexistent/tmd-cli-exec-missing.db".into(),
-            "DELETE FROM t".into(),
+        let err = sqlite_execute_blocking(
+            "/nonexistent/tmd-cli-exec-missing.db",
+            "DELETE FROM t",
             vec![],
         )
         .unwrap_err();

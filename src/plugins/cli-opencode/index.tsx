@@ -23,9 +23,9 @@ import { listOpencodeSuggestions, OPENCODE_COMMAND_SUGGESTIONS } from "./command
 
 /**
  * opencode 品牌 glyph:vendored 自官方 favicon.svg(opencode.ai,2026-09-05)。
- * 官方为白框 + 灰色内块双色 mark → 框随 currentColor,内块用 --tmd-fg-muted。
+ * 官方为白框 + 灰色内块双色 mark → 框全对比度随主题(浅黑/深白),内块用 --tmd-fg-muted。
  */
-function OpenCodeGlyph({ size }: { size: number }) {
+function OpenCodeGlyph({ size }: { size: number | string }) {
   return (
     <svg
       viewBox="0 0 512 512"
@@ -35,7 +35,7 @@ function OpenCodeGlyph({ size }: { size: number }) {
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        fill="currentColor"
+        fill="var(--tmd-fg)"
         d="M384 416H128V96H384V416ZM320 160H192V352H320V160Z"
       />
       <rect x="192" y="224" width="128" height="128" fill="var(--tmd-fg-muted)" />

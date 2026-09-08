@@ -26,7 +26,7 @@
   margin-left: auto;
   white-space: nowrap;
   color: var(--tmd-fg-subtle);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 
 .tmd-attach-clear {
@@ -97,7 +97,7 @@
   color: var(--tmd-fg-subtle);
 }
 .tmd-attach-info {
-  font-size: 11px;
+  font-size: 0.6875rem;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -115,7 +115,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.15s ease;
@@ -133,7 +133,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--tmd-accent-fg);
 }
 .tmd-kind-image { background: linear-gradient(135deg, #5b9bd5, #007acc); }

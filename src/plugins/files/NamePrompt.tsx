@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { t } from "@kernel/i18n";
 
 export function NamePrompt({
   title,
@@ -56,7 +57,7 @@ export function NamePrompt({
           ref={inputRef}
           className="nprompt-input"
           value={name}
-          placeholder="输入名称"
+          placeholder={t("输入名称")}
           spellCheck={false}
           aria-label={title}
           onChange={(e) => setName(e.target.value)}
@@ -73,7 +74,7 @@ export function NamePrompt({
         {error ? <div className="nprompt-error">⚠ {error}</div> : null}
         <div className="nprompt-actions">
           <button type="button" className="nprompt-btn" onClick={onCancel}>
-            取消
+            {t("取消")}
           </button>
           <button
             type="button"

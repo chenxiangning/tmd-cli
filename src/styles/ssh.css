@@ -27,7 +27,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   border-bottom: 1px solid var(--tmd-border);
 }
@@ -42,7 +42,7 @@
 .ssh-picker-empty,
 .ssh-settings-empty {
   padding: 22px 14px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--tmd-fg-faint);
   text-align: center;
 }
@@ -72,18 +72,18 @@
 }
 .ssh-picker-item-name {
   grid-area: name;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--tmd-fg);
 }
 .ssh-picker-item-endpoint {
   grid-area: endpoint;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-faint);
 }
 .ssh-picker-item-auth {
   grid-area: auth;
   align-self: center;
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--tmd-fg-faint);
   border: 1px solid var(--tmd-border);
   border-radius: 4px;
@@ -91,7 +91,7 @@
 }
 .ssh-picker-error {
   padding: 6px 10px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: #f87171;
 }
 /* ── 提示卡(host key / KBI / 密码)── */
@@ -116,7 +116,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   margin-bottom: 6px;
 }
@@ -126,22 +126,22 @@
   gap: 6px;
 }
 .ssh-prompt-line {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-faint);
   word-break: break-all;
 }
 .ssh-prompt-warn {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: #f59e0b;
 }
 .ssh-prompt-hint {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-faint);
 }
 .ssh-prompt-input {
   width: 100%;
   padding: 6px 8px;
-  font-size: 12px;
+  font-size: 0.75rem;
   border: 1px solid var(--tmd-border);
   border-radius: 6px;
   background: var(--tmd-bg-input);
@@ -156,7 +156,7 @@
 .ssh-prompt-actions button,
 .ssh-modal-actions button {
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   border: 1px solid var(--tmd-border);
   border-radius: 6px;
   background: none;
@@ -186,7 +186,7 @@
   align-items: center;
   gap: 10px;
   padding: 30px 10px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--tmd-fg-faint);
 }
 .ssh-session-list {
@@ -234,7 +234,7 @@
   50% { opacity: 0.35; }
 }
 .ssh-session-label {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--tmd-fg);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -243,7 +243,7 @@
 .ssh-session-status,
 .ssh-session-latency {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--tmd-fg-faint);
   flex: none;
 }
@@ -253,7 +253,7 @@
 .ssh-session-status.is-failed { color: var(--tmd-err); }
 .ssh-session-message {
   margin-top: 4px;
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--tmd-err);
   word-break: break-all;
 }

@@ -58,8 +58,8 @@
 
 
 .panel-tab svg {
-  width: 14px;
-  height: 14px;
+  width: 0.875rem;
+  height: 0.875rem;
   stroke-width: 1.75;
 }
 
@@ -100,7 +100,7 @@
   padding: 6px 10px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--tmd-fg);
   user-select: none;
   transition: background 120ms ease;
@@ -129,8 +129,8 @@
 }
 
 .panel-overflow-item-icon svg {
-  width: 14px;
-  height: 14px;
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 .panel-overflow-item-label {
@@ -178,7 +178,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--tmd-fg-subtle);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -210,15 +210,19 @@
   background: var(--tmd-bg-hover);
   color: var(--tmd-fg);
 }
+/* 面板专属动作按钮激活态(如文件树 Git 变更着色开关) */
+.panel-subbar-action.is-active {
+  color: var(--tmd-accent);
+}
 
 .panel-subbar-action svg {
-  width: 12px;
-  height: 12px;
+  width: 0.75rem;
+  height: 0.75rem;
   stroke-width: 1.75;
 }
 .panel-overflow-item-check svg {
-  width: 11px;
-  height: 11px;
+  width: 0.6875rem;
+  height: 0.6875rem;
   color: rgb(23, 23, 23);
   stroke-width: 3;
 }

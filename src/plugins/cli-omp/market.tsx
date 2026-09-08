@@ -10,7 +10,8 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { RotateCw, X } from "lucide-react";
+import { ArrowClockwise, Cross } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import { ipc, type CliProbeResult } from "@kernel/ipc";
 import {
   fetchExtCatalog,
@@ -78,7 +79,7 @@ export function OmpExtensionMarket({ onClose }: { onClose: () => void }) {
   return (
     <div className="omp-ext">
       <header className="omp-ext-head">
-        <span className="omp-ext-title">omp 扩展</span>
+        <span className="omp-ext-title">{t("omp 扩展")}</span>
         {probe?.found && probe.version ? (
           <span className="omp-ext-cli">
             omp {probe.version.replace(/^omp\//, "")}
@@ -88,47 +89,47 @@ export function OmpExtensionMarket({ onClose }: { onClose: () => void }) {
         <button
           type="button"
           className="omp-ext-iconbtn"
-          title="刷新"
+          title={t("刷新")}
           onClick={refresh}
         >
-          <RotateCw size={12} aria-hidden />
+          <ArrowClockwise size="0.75rem" aria-hidden />
         </button>
         <button
           type="button"
           className="omp-ext-iconbtn"
-          title="关闭"
+          title={t("关闭")}
           onClick={onClose}
         >
-          <X size={14} aria-hidden />
+          <Cross size="0.875rem" aria-hidden />
         </button>
       </header>
 
       {!probe ? (
-        <div className="omp-ext-state">检测 omp…</div>
+        <div className="omp-ext-state">{t("检测 omp…")}</div>
       ) : !probe.found ? (
         <div className="omp-ext-state">
-          未检测到 omp CLI —— 到「欢迎页」引擎卡先安装 omp,再回来管理扩展
+          {t("未检测到 omp CLI —— 到「欢迎页」引擎卡先安装 omp,再回来管理扩展")}
         </div>
       ) : (
         <>
           <div className="omp-ext-body">
             {catalog?.offline ? (
               <div className="omp-ext-offline">
-                实时目录拉取失败,展示离线精选目录
+                {t("实时目录拉取失败,展示离线精选目录")}
               </div>
             ) : null}
 
             <div className="omp-ext-section">
-              已安装({installed?.length ?? "…"})
+              {t("已安装({n})", { n: installed?.length ?? "…" })}
             </div>
             {installedError ? (
               <div className="omp-ext-state">
-                无法解析已装清单:{installedError}
+                {t("无法解析已装清单:{error}", { error: installedError })}
               </div>
             ) : installed === null ? (
-              <div className="omp-ext-state">读取已装清单…</div>
+              <div className="omp-ext-state">{t("读取已装清单…")}</div>
             ) : installed.length === 0 ? (
-              <div className="omp-ext-state">还没有安装任何扩展</div>
+              <div className="omp-ext-state">{t("还没有安装任何扩展")}</div>
             ) : (
               installed.map((ext) => (
                 <InstalledRow
@@ -142,10 +143,11 @@ export function OmpExtensionMarket({ onClose }: { onClose: () => void }) {
             )}
 
             <div className="omp-ext-section">
-              热门扩展{catalog?.offline ? "(离线精选)" : ""}
+              {t("热门扩展")}
+              {catalog?.offline ? t("(离线精选)") : ""}
             </div>
             {catalog === null ? (
-              <div className="omp-ext-state">加载目录…</div>
+              <div className="omp-ext-state">{t("加载目录…")}</div>
             ) : (
               catalog.entries.map((entry) => (
                 <ExtCard
@@ -159,8 +161,9 @@ export function OmpExtensionMarket({ onClose }: { onClose: () => void }) {
           </div>
 
           <footer className="omp-ext-foot">
-            扩展以当前用户权限在 omp 进程内执行任意代码;装卸/启停即时改磁盘,
-            已开的 omp 会话不热加载,重开会话生效。
+            {t(
+              "扩展以当前用户权限在 omp 进程内执行任意代码;装卸/启停即时改磁盘,已开的 omp 会话不热加载,重开会话生效。",
+            )}
           </footer>
         </>
       )}

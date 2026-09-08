@@ -18,7 +18,8 @@ import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { openExternalUrl } from "@kernel/ipc";
-import { getPlatformKind } from "@kernel/platform";
+import { getSettingsState, subscribeSettings } from "@kernel/settings";
+import { resolveTerminalFontFamily } from "@kernel/terminalFonts";
 import { host, ptyLiveTopic } from "@kernel/host";
 import {
   registerTerminalHandle,
@@ -32,15 +33,30 @@ import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay, findRequestRef } from "@kernel/terminalSearch";
 import { setTerminalFocused } from "@kernel/shortcuts";
 
-/** 从文档计算样式读终端 token → xterm theme(主题引擎已内联最新值)。 */
+/** 从文档计算样式读终端 token → xterm theme(主题引擎已内联最新值)。
+ *  ANSI 16 色与 bg/fg/cursor/selection 同源(--tmd-terminal-* 见 themeTokens.ts)。 */
 function readTerminalTheme(): ITheme {
   const styles = getComputedStyle(document.documentElement);
   const read = (name: string) => styles.getPropertyValue(name).trim() || undefined;
+  const ansi = {
+    black: read("--tmd-terminal-black"), red: read("--tmd-terminal-red"),
+    green: read("--tmd-terminal-green"), yellow: read("--tmd-terminal-yellow"),
+    blue: read("--tmd-terminal-blue"), magenta: read("--tmd-terminal-magenta"),
+    cyan: read("--tmd-terminal-cyan"), white: read("--tmd-terminal-white"),
+    brightBlack: read("--tmd-terminal-bright-black"), brightRed: read("--tmd-terminal-bright-red"),
+    brightGreen: read("--tmd-terminal-bright-green"),
+    brightYellow: read("--tmd-terminal-bright-yellow"),
+    brightBlue: read("--tmd-terminal-bright-blue"),
+    brightMagenta: read("--tmd-terminal-bright-magenta"),
+    brightCyan: read("--tmd-terminal-bright-cyan"),
+    brightWhite: read("--tmd-terminal-bright-white"),
+  } as const;
   return {
     background: read("--tmd-terminal-bg"),
     foreground: read("--tmd-terminal-fg"),
     cursor: read("--tmd-terminal-cursor"),
     selectionBackground: read("--tmd-terminal-selection"),
+    ...ansi,
   };
 }
 
@@ -68,17 +84,12 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     const container = containerRef.current;
     if (!container) return;
 
-    /* 终端等宽字体按平台区分:mac 用 Menlo 系,Windows 用 Cascadia/Consolas,Linux 用 DejaVu/Liberation。 */
-    const fontFamily =
-      getPlatformKind() === "windows"
-        ? "'Cascadia Mono', Consolas, 'Courier New', monospace"
-        : getPlatformKind() === "linux"
-          ? "'DejaVu Sans Mono', 'Liberation Mono', monospace"
-          : "Menlo, Monaco, 'Courier New', monospace";
+    /* 字号/字体吃 settings(外观页即时改);平台默认栈解析见 kernel/terminalFonts.ts。 */
+    const fontSettings = getSettingsState().settings;
     const term = new Terminal({
       cursorBlink: true,
-      fontSize: 13,
-      fontFamily,
+      fontSize: fontSettings.terminalFontSize,
+      fontFamily: resolveTerminalFontFamily(fontSettings.terminalFontFamily),
       /* 默认 1000 行太浅;翻页加载历史后单场可达数万行,放大到 5 万 */
       scrollback: 50_000,
       theme: readTerminalTheme(),
@@ -89,6 +100,14 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     });
     const fit = new FitAddon();
     const search = new SearchAddon();
+    /* 外观页改字号/字体 → 活幕布即时重排(fit 后同步 PTY 尺寸,同窗口 resize 语义)。 */
+    const offFontSettings = subscribeSettings(() => {
+      const s = getSettingsState().settings;
+      term.options.fontSize = s.terminalFontSize;
+      term.options.fontFamily = resolveTerminalFontFamily(s.terminalFontFamily);
+      fit.fit();
+      host.resizeSession(sessionId, term.cols, term.rows);
+    });
     term.loadAddon(fit);
     term.loadAddon(search);
     /* 链接点击 → 系统浏览器(Tauri webview 内 window.open 不可靠,走 shell 插件)。 */
@@ -201,6 +220,7 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     return () => {
       clearInterval(askProbe);
       offTheme();
+      offFontSettings();
       container.removeEventListener("focusin", onFocusIn);
       container.removeEventListener("focusout", onFocusOut);
       findRequestRef.current = null;

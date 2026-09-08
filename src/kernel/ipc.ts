@@ -10,6 +10,7 @@ import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import type {
@@ -49,6 +50,7 @@ import type {
   GitLogEntry,
   GitPushPreview,
   GitRemoteRequest,
+  GitRepoScanResult,
   GitTotals,
 } from "./gitContract";
 
@@ -267,6 +269,10 @@ export const ipc = {
   readBinaryFileBase64: (path: string) => invoke<string>("read_binary_file_base64", { path }),
   /* ── git(右栏面板;cwd 由调用方从活跃 workspace 取)── */
   gitStatus: (cwd: string) => invoke<GitDiffStatus>("git_status", { cwd }),
+  /** 多仓发现:root 下 BFS 找 .git(深度上限 maxDepth,前端默认 2);
+   *  结果按 path 排序,root 是仓时首个即 root;超 32 截断(truncated)。 */
+  gitReposScan: (root: string, maxDepth: number) =>
+    invoke<GitRepoScanResult>("git_repos_scan", { root, maxDepth }),
 
   /* ── checkpoints(批次审批/回退;契约对齐 src-tauri/src/checkpoints/*,serde camelCase)
    * E_* 前缀:E_NOT_A_REPO / E_EMPTY / E_STORE / E_GIT2 / E_IO ── */
@@ -595,6 +601,12 @@ export function windowMinimize(): Promise<void> {
 /** 窗口最大化/还原切换。 */
 export function windowToggleMaximize(): Promise<void> {
   return getCurrentWindow().toggleMaximize();
+}
+
+/** 界面缩放:webview 整页 zoom(mac pageZoom / win zoomFactor / gtk zoom_level)。
+ *  需 capability core:webview:allow-set-webview-zoom;浏览器环境 reject 由 kernel/uiZoom 兜底。 */
+export function setWebviewZoom(factor: number): Promise<void> {
+  return getCurrentWebview().setZoom(factor);
 }
 
 /** 关闭窗口。 */

@@ -9,7 +9,7 @@
  * 本文件不需要改动 —— 设置面板是注册表驱动的开放结构。
  */
 
-import { Command, Keyboard, Monitor, Settings } from "lucide-react";
+import { Command, Keyboard, Monitor, Gear } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { SettingsPanel } from "./SettingsPanel";
 import { BasicAppearanceTab } from "./BasicAppearanceTab";
@@ -22,7 +22,7 @@ export const settingsPlugin: Plugin = {
     name: "设置",
     abbr: "ST",
     desc: "设置面板与主题/行为配置",
-    icon: Settings,
+    icon: Gear,
     iconColor: "#9AA5B1",
     category: "core",
   },
@@ -32,27 +32,27 @@ export const settingsPlugin: Plugin = {
       id: "basic",
       title: "基础设置",
       description: "外观、行为和环境的基础配置。",
-      icon: <Settings size={14} aria-hidden />,
+      icon: <Gear size="0.875rem" aria-hidden />,
       order: 0,
       tabs: [
         {
           id: "appearance",
           title: "外观",
-          icon: <Monitor size={14} aria-hidden />,
+          icon: <Monitor size="0.875rem" aria-hidden />,
           order: 0,
           component: BasicAppearanceTab,
         },
         {
           id: "behavior",
           title: "行为",
-          icon: <Keyboard size={14} aria-hidden />,
+          icon: <Keyboard size="0.875rem" aria-hidden />,
           order: 1,
           component: BehaviorTab,
         },
         {
           id: "shortcuts",
           title: "快捷键",
-          icon: <Command size={14} aria-hidden />,
+          icon: <Command size="0.875rem" aria-hidden />,
           order: 2,
           component: ShortcutTab,
         },

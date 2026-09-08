@@ -13,8 +13,9 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Globe, List, Plug, RotateCw, X } from "lucide-react";
+import { Globe, List, Plug, ArrowClockwise, Cross } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { getMarketPanel } from "@kernel/marketPanel";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { appRestart } from "@kernel/ipc";
@@ -74,8 +75,8 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
     updateSettings({ disabledPlugins: next });
     showToast(
       row.on
-        ? `已拔出 ${id} —— 重启后从插排断电`
-        : `已插入 ${id} —— 重启后生效`,
+        ? t("已拔出 {id} —— 重启后从插排断电", { id })
+        : t("已插入 {id} —— 重启后生效", { id }),
     );
   }
 
@@ -83,50 +84,50 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
     <div className="pm-page">
       <div className="pm-inner">
         <div className="pm-head">
-          <span className="pm-title">插件市场</span>
+          <span className="pm-title">{t("插件市场")}</span>
           <span className="pm-sub">
-            客户端是插排,插件是插头 —— 插上即用,拔掉即停
+            {t("客户端是插排,插件是插头 —— 插上即用,拔掉即停")}
           </span>
           <div className="pm-head-actions">
-            <div className="pm-view-toggle" role="tablist" aria-label="视图切换">
+            <div className="pm-view-toggle" role="tablist" aria-label={t("视图切换")}>
               <button
                 type="button"
                 role="tab"
                 aria-selected={view === "strip"}
                 className={view === "strip" ? "active" : ""}
-                title="插排视图"
+                title={t("插排视图")}
                 onClick={() => setView("strip")}
               >
-                <Plug size={12} aria-hidden />
+                <Plug size="0.75rem" aria-hidden />
               </button>
               <button
                 type="button"
                 role="tab"
                 aria-selected={view === "list"}
                 className={view === "list" ? "active" : ""}
-                title="列表视图"
+                title={t("列表视图")}
                 onClick={() => setView("list")}
               >
-                <List size={12} aria-hidden />
+                <List size="0.75rem" aria-hidden />
               </button>
             </div>
             <button
               type="button"
               className={`pm-restart${dirtyCount > 0 ? " dirty" : ""}`}
-              title={dirtyCount > 0 ? `${dirtyCount} 个插拔变更待重启生效` : "重启应用"}
+              title={dirtyCount > 0 ? t("{n} 个插拔变更待重启生效", { n: dirtyCount }) : t("重启应用")}
               onClick={restart}
             >
-              <RotateCw size={12} aria-hidden />
-              重启应用{dirtyCount > 0 ? ` (${dirtyCount})` : ""}
+              <ArrowClockwise size="0.75rem" aria-hidden />
+              {t("重启应用")}{dirtyCount > 0 ? ` (${dirtyCount})` : ""}
             </button>
             <button
               type="button"
               className="pm-close"
-              aria-label="关闭插件市场"
-              title="关闭插件市场"
+              aria-label={t("关闭插件市场")}
+              title={t("关闭插件市场")}
               onClick={onClose}
             >
-              <X size={14} aria-hidden />
+              <Cross size="0.875rem" aria-hidden />
             </button>
           </div>
         </div>
@@ -142,14 +143,14 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
             <div className="pm-strip-caption">
               <span>
                 <span className="pm-legend-dot" style={{ background: "var(--tmd-accent)" }} />
-                已插入(运行中)
+                {t("已插入(运行中)")}
               </span>
               <span>
                 <span className="pm-legend-dot" style={{ background: "var(--tmd-fg-faint)" }} />
-                已拔出(重启后生效)
+                {t("已拔出(重启后生效)")}
               </span>
-              <span>焊死的核心插件不可拔</span>
-              <span>点击插头即可插拔</span>
+              <span>{t("焊死的核心插件不可拔")}</span>
+              <span>{t("点击插头即可插拔")}</span>
             </div>
           </div>
         ) : (
@@ -159,13 +160,13 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
         )}
 
         {/* ═══ 在线市场(预留) ═══ */}
-        <div className="pm-section-title">在线市场</div>
+        <div className="pm-section-title">{t("在线市场")}</div>
         <div className="pm-market-soon">
-          <Globe size={28} aria-hidden />
-          <div className="pm-soon-title">远程插件市场 · 建设中</div>
-          <div>未来可在此浏览、安装社区插件包 —— 新插头直接快递到你的插排</div>
+          <Globe size="1.75rem" aria-hidden />
+          <div className="pm-soon-title">{t("远程插件市场 · 建设中")}</div>
+          <div>{t("未来可在此浏览、安装社区插件包 —— 新插头直接快递到你的插排")}</div>
           <button type="button" className="pm-soon-btn" disabled>
-            即将上线
+            {t("即将上线")}
           </button>
         </div>
       </div>

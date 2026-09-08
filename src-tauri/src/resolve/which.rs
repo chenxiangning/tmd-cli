@@ -85,19 +85,28 @@ fn is_executable(path: &std::path::Path) -> bool {
         .unwrap_or(false)
 }
 
-#[cfg(not(unix))]
-fn is_executable(path: &std::path::Path) -> bool {
-    path.is_file()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /* unix 语义:PATH 冒号分隔,查可执行位 */
+    #[cfg(unix)]
     #[test]
     fn resolve_command_在_path_中找到可执行文件并返回绝对路径() {
         let r = resolve_command("ls", "/bin:/usr/bin");
         assert_eq!(r.program, "/bin/ls");
+        assert!(r.prefix_args.is_empty());
+    }
+
+    /* windows 语义:System32 里 cmd.exe 直查命中,无批处理包装 */
+    #[cfg(windows)]
+    #[test]
+    fn resolve_command_windows_按_pathext_命中_system32() {
+        let sys32 = std::env::var("SystemRoot")
+            .map(|root| format!("{root}\\System32"))
+            .expect("SystemRoot");
+        let r = resolve_command("cmd.exe", &sys32);
+        assert!(r.program.to_lowercase().ends_with("cmd.exe"));
         assert!(r.prefix_args.is_empty());
     }
 

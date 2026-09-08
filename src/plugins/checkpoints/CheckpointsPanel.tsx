@@ -7,9 +7,10 @@
  */
 
 import { useEffect, useReducer, useState } from "react";
-import { History, Loader2 } from "lucide-react";
+import { ClockClockwise, CircleNotch } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
+import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
 import { checkpointIdentity } from "./identity";
 import { BatchRow, type ConfirmTarget } from "./BatchRow";
@@ -78,7 +79,7 @@ export function CheckpointsPanel() {
     setBusy(true);
     try {
       await approveBatch(cwd, batchId);
-      setNotice("批次已标记通过 —— 仅记录状态,不影响任何文件");
+      setNotice(t("批次已标记通过 —— 仅记录状态,不影响任何文件"));
     } catch (e) {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
     } finally {
@@ -96,8 +97,8 @@ export function CheckpointsPanel() {
       const skipped = out.skipped.map((s) => `${s.path}(${s.reason})`).join("、");
       setNotice(
         skipped
-          ? `已回退 ${n} 个文件;跳过:${skipped}`
-          : `已回退 ${n} 个路径 · 恢复点已留存,可反悔`,
+          ? t("已回退 {n} 个文件;跳过:{skipped}", { n, skipped })
+          : t("已回退 {n} 个路径 · 恢复点已留存,可反悔", { n }),
       );
     } catch (e) {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
@@ -117,9 +118,11 @@ export function CheckpointsPanel() {
       setNotice(
         n > 0
           ? skipped
-            ? `已应用 ${n} 个文件;跳过:${skipped}`
-            : `已应用 ${n} 个文件 · 恢复点已留存,可反悔`
-          : `没有可应用的文件${skipped ? `;跳过:${skipped}` : ""}`,
+            ? t("已应用 {n} 个文件;跳过:{skipped}", { n, skipped })
+            : t("已应用 {n} 个文件 · 恢复点已留存,可反悔", { n })
+          : skipped
+            ? t("没有可应用的文件;跳过:{skipped}", { skipped })
+            : t("没有可应用的文件"),
       );
     } catch (e) {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
@@ -134,7 +137,7 @@ export function CheckpointsPanel() {
     setBusy(true);
     try {
       const out = await undoRevertBatch(cwd, batchId);
-      setNotice(`已从恢复点恢复 ${out.restored.length} 个文件,批次回到待审`);
+      setNotice(t("已从恢复点恢复 {n} 个文件,批次回到待审", { n: out.restored.length }));
     } catch (e) {
       setNotice(String(e).replace(/^E_\w+:\s*/, ""));
     } finally {
@@ -146,14 +149,14 @@ export function CheckpointsPanel() {
   return (
     <div className="flex h-full flex-col bg-(--tmd-bg-base)">
       {/* 摘要行 —— 字号对齐面板体系(11px 为主),项目名用扁平标签非胶囊 */}
-      <div className="flex h-[30px] flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2.5 text-[11px]">
-        <span className="flex flex-none items-center gap-1.5 text-[11px] font-semibold text-(--tmd-fg)">
-          <History size={12} className="text-(--tmd-accent)" aria-hidden />
-          审批线
+      <div className="flex h-[30px] flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2.5 text-[0.6875rem]">
+        <span className="flex flex-none items-center gap-1.5 text-[0.6875rem] font-semibold text-(--tmd-fg)">
+          <ClockClockwise size="0.75rem" className="text-(--tmd-accent)" aria-hidden />
+          {t("审批线")}
         </span>
         {active && (
           <span
-            className="max-w-[45%] truncate rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-px text-[10px] leading-[14px] text-(--tmd-fg-subtle)"
+            className="max-w-[45%] truncate rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-px text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-subtle)"
             title={active.root}
           >
             {active.name}
@@ -161,17 +164,17 @@ export function CheckpointsPanel() {
         )}
         <span className="flex-1" />
         <span className="flex-none text-(--tmd-fg-faint)">
-          待审 <b className="font-semibold text-(--tmd-git-modified)">{pendingCount}</b>
+          {t("待审")} <b className="font-semibold text-(--tmd-git-modified)">{pendingCount}</b>
         </span>
       </div>
 
       {notice && (
         <button
           type="button"
-          className="flex-none border-b border-(--tmd-border) bg-(--tmd-accent)/10 px-3 py-1.5 text-left text-[11px] text-(--tmd-fg-muted) hover:underline"
+          className="flex-none border-b border-(--tmd-border) bg-(--tmd-accent)/10 px-3 py-1.5 text-left text-[0.6875rem] text-(--tmd-fg-muted) hover:underline"
           onClick={() => setNotice(null)}
         >
-          {notice} · 点击关闭
+          {notice} · {t("点击关闭")}
         </button>
       )}
 
@@ -181,28 +184,28 @@ export function CheckpointsPanel() {
       {state.error && !state.notARepo && cwd && sessionId && (
         <button
           type="button"
-          className="flex-none border-b border-(--tmd-border) bg-(--tmd-diff-removed)/10 px-3 py-1.5 text-left text-[11px] text-(--tmd-diff-removed) hover:underline"
+          className="flex-none border-b border-(--tmd-border) bg-(--tmd-diff-removed)/10 px-3 py-1.5 text-left text-[0.6875rem] text-(--tmd-diff-removed) hover:underline"
           onClick={() => void refreshBatches(cwd, sessionId, tmdSessionId)}
         >
-          审批线清单刷新失败:{state.error.replace(/^E_\w+:\s*/, "")} · 点击重试
+          {t("审批线清单刷新失败:{error} · 点击重试", { error: state.error.replace(/^E_\w+:\s*/, "") })}
         </button>
       )}
 
       {/* 时间线 */}
       <div className="min-h-0 flex-1 overflow-y-auto py-2 pr-2 pl-1">
         {!cwd ? (
-          <Empty text="暂无活跃工作区" />
+          <Empty text={t("暂无活跃工作区")} />
         ) : !sessionId ? (
-          <Empty text="审批线跟随会话生命周期 —— 当前工作区没有活会话" />
+          <Empty text={t("审批线跟随会话生命周期 —— 当前工作区没有活会话")} />
         ) : state.notARepo ? (
-          <Empty text="非 git 工作区 —— 仅声明写入事件检测的 CLI(如 claude)可在此记账,其余 CLI 需 git 仓库" />
+          <Empty text={t("非 git 工作区 —— 仅声明写入事件检测的 CLI(如 claude)可在此记账,其余 CLI 需 git 仓库")} />
         ) : state.loading && state.batches.length === 0 ? (
           <div className="flex items-center justify-center gap-2 pt-10 text-(--tmd-fg-faint)">
-            <Loader2 size={13} className="animate-spin" aria-hidden /> 读取批次…
+            <CircleNotch size="0.8125rem" className="animate-spin" aria-hidden /> {t("读取批次…")}
           </div>
         ) : state.batches.length === 0 ? (
           state.error ? null /* 错误横幅已说明原因,不再叠加误导性空态 */ : (
-            <Empty text="本会话还没有批次 —— 发送一条让 AI 改文件的消息后,这里会按轮归批" />
+            <Empty text={t("本会话还没有批次 —— 发送一条让 AI 改文件的消息后,这里会按轮归批")} />
           )
         ) : (
           state.batches.map((b, i) => (
@@ -230,7 +233,7 @@ export function CheckpointsPanel() {
 
 function Empty({ text }: { text: string }) {
   return (
-    <div className="px-4 pt-10 text-center text-[11px] leading-relaxed text-(--tmd-fg-faint)">
+    <div className="px-4 pt-10 text-center text-[0.6875rem] leading-relaxed text-(--tmd-fg-faint)">
       {text}
     </div>
   );

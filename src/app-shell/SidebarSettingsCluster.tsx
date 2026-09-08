@@ -6,28 +6,29 @@
  *   │ (注册表动作…)        □ │  ← 右侧复选框 = pin 到底栏
  *   │ 设置                    │
  *   └────────────────────────┘
- *   [logo] [pinned…]      v0.1.1  ← 底栏
+ *   [logo] [pinned…]      v0.1.2  ← 底栏
  *
  * 动作数据源 = kernel/sidebarActions 注册表(插件 activate 时自注册),
  * 本组件只渲染注册表与钉住状态,不认识任何具体动作 —— 与右栏面板同纪律。
  * 「设置」行是壳自有入口(openSettingsPanel),钉住/pin 上限 4 同 codemoss。
- * 版本号取 Tauri app version,浏览器 dev 环境回退 "0.1.1"。
+ * 版本号取 Tauri app version,浏览器 dev 环境回退 "0.1.2"。
  */
 
 import { useEffect, useRef, useState } from "react";
 import { appVersion } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { openSettingsPanel, useSettingsState } from "@kernel/settings";
 import logoUrl from "../assets/logo.png";
-import { Check, Settings } from "lucide-react";
+import { Check, Gear } from "@phosphor-icons/react";
 import { VersionPopover } from "./VersionPopover";
 
 /** 底栏空间有限,最多外显 4 个快捷入口(同 codemoss SIDEBAR_SETTINGS_PINNED_MAX)。 */
 const PINNED_MAX = 4;
 const PINNED_STORAGE_KEY = "shell.settingsPinned.v1";
-/** 默认 pinned 的动作 id ─ 对齐参考截图(Git Graph + 网络代理 已钉在齿轮旁)。
+/** 默认 pinned 的动作 id ─ 对齐参考截图(网络代理已钉在齿轮旁)。
  *  id 由各插件注册时声明;插件拔出 = 动作消失,钉住项自动隐藏,插回恢复。 */
-const DEFAULT_PINNED: string[] = ["git-graph", "system-proxy"];
+const DEFAULT_PINNED: string[] = ["system-proxy"];
 
 function loadPinned(): string[] {
   try {
@@ -56,8 +57,8 @@ function PinCheckbox({
       type="button"
       role="menuitemcheckbox"
       aria-checked={pinned}
-      aria-label={disabled ? `最多钉住 ${PINNED_MAX} 个` : "钉到底栏"}
-      title={disabled ? `最多钉住 ${PINNED_MAX} 个` : pinned ? "取消钉住" : "钉到底栏"}
+      aria-label={disabled ? t("最多钉住 {n} 个", { n: PINNED_MAX }) : t("钉到底栏")}
+      title={disabled ? t("最多钉住 {n} 个", { n: PINNED_MAX }) : pinned ? t("取消钉住") : t("钉到底栏")}
       disabled={disabled}
       className={`settings-menu-pin${pinned ? " is-checked" : ""}`}
       onClick={(e) => {
@@ -65,7 +66,7 @@ function PinCheckbox({
         onToggle();
       }}
     >
-      {pinned && <Check size={10} aria-hidden />}
+      {pinned && <Check size="0.625rem" aria-hidden />}
     </button>
   );
 }
@@ -73,7 +74,7 @@ function PinCheckbox({
 export function SidebarSettingsCluster() {
   const [open, setOpen] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<string[]>(loadPinned);
-  const [version, setVersion] = useState("0.1.1");
+  const [version, setVersion] = useState("0.1.2");
   const [aboutOpen, setAboutOpen] = useState(false);
   const [aboutAnchor, setAboutAnchor] = useState({ x: 0, y: 0 });
   /* 订阅设置仅作重渲染触发:动作的 active 是渲染期求值的 getter,
@@ -85,7 +86,7 @@ export function SidebarSettingsCluster() {
   useEffect(() => {
     appVersion()
       .then(setVersion)
-      .catch(() => setVersion("0.1.1")); // 纯浏览器 dev(vite)下无 Tauri runtime
+      .catch(() => setVersion("0.1.2")); // 纯浏览器 dev(vite)下无 Tauri runtime
   }, []);
 
   /* 点击外部 / Esc 关菜单。 */
@@ -139,7 +140,7 @@ export function SidebarSettingsCluster() {
   return (
     <div className="settings-cluster" ref={rootRef}>
       {open && (
-        <div className="settings-menu" role="menu" aria-label="设置菜单">
+        <div className="settings-menu" role="menu" aria-label={t("设置菜单")}>
           {actions.map((action) => {
             const pinned = pinnedIds.includes(action.id);
             const isActive = action.active?.() ?? false;
@@ -155,9 +156,9 @@ export function SidebarSettingsCluster() {
                   onClick={() => select(action)}
                 >
                   <span className="settings-menu-icon" aria-hidden>
-                    <action.icon size={14} />
+                    <action.icon size="0.875rem" />
                   </span>
-                  <span className="settings-menu-label">{action.label}</span>
+                  <span className="settings-menu-label">{t(action.label)}</span>
                 </button>
                 <PinCheckbox
                   pinned={pinned}
@@ -178,9 +179,9 @@ export function SidebarSettingsCluster() {
             }}
           >
             <span className="settings-menu-icon" aria-hidden>
-              <Settings size={14} />
+              <Gear size="0.875rem" />
             </span>
-            <span className="settings-menu-label">设置</span>
+            <span className="settings-menu-label">{t("设置")}</span>
           </button>
         </div>
       )}
@@ -189,10 +190,10 @@ export function SidebarSettingsCluster() {
         <button
           type="button"
           className={`settings-bar-btn settings-gear${open ? " is-active" : ""}`}
-          aria-label="设置"
+          aria-label={t("设置")}
           aria-expanded={open}
           aria-haspopup="menu"
-          title="设置"
+          title={t("设置")}
           onClick={() => setOpen((v) => !v)}
         >
           <img src={logoUrl} alt="" className="settings-logo" />
@@ -204,12 +205,12 @@ export function SidebarSettingsCluster() {
               key={action.id}
               type="button"
               className={`settings-bar-btn${isActive ? " is-active" : ""}`}
-              aria-label={action.label}
+              aria-label={t(action.label)}
               aria-pressed={isActive}
-              title={action.label}
+              title={t(action.label)}
               onClick={() => action.onSelect(anchor())}
             >
-              <action.icon size={14} />
+              <action.icon size="0.875rem" />
             </button>
           );
         })}
@@ -217,8 +218,8 @@ export function SidebarSettingsCluster() {
         <button
           type="button"
           className="settings-cluster-version"
-          aria-label="版本与更新"
-          title="版本与更新"
+          aria-label={t("版本与更新")}
+          title={t("版本与更新")}
           onClick={() => {
             const rect = rootRef.current?.getBoundingClientRect();
             /* 面板(300px)宽于侧栏:锚定簇左缘、悬于底栏上方,越界由弹窗内夹取。 */

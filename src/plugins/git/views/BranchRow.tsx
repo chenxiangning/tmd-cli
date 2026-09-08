@@ -5,12 +5,13 @@
  */
 
 import { useState } from "react";
-import { GitBranch, GitBranchPlus, Trash2 } from "lucide-react";
+import { t } from "@kernel/i18n";
+import { GitBranch, Trash } from "@phosphor-icons/react";
 import type { GitBranchInfo } from "@kernel/ipc";
 
 export function GroupLabel({ label }: { label: string }) {
   return (
-    <div className="sticky top-0 mt-1 border-b border-(--tmd-border) bg-(--tmd-bg-base) px-1 py-1 text-[10px] uppercase tracking-wider text-(--tmd-fg-faint)">
+    <div className="sticky top-0 mt-1 border-b border-(--tmd-border) bg-(--tmd-bg-base) px-1 py-1 text-[0.625rem] uppercase tracking-wider text-(--tmd-fg-faint)">
       {label}
     </div>
   );
@@ -59,7 +60,7 @@ export function BranchRow({
         onMenu?.(e.clientX, e.clientY);
       }}
     >
-      <GitBranch className="h-3.5 w-3.5 shrink-0 text-(--tmd-fg-faint)" />
+      <GitBranch className="h-[0.875rem] w-[0.875rem] shrink-0 text-(--tmd-fg-faint)" />
       <button
         onClick={isCurrent ? undefined : onCheckout}
         className={`min-w-0 flex-1 truncate text-left ${
@@ -67,34 +68,34 @@ export function BranchRow({
         }`}
         title={
           branch.isRemote
-            ? "点击检出为本地分支并建跟踪;右键更多操作"
+            ? t("点击检出为本地分支并建跟踪;右键更多操作")
             : branch.upstream
-              ? `上游:${branch.upstream};右键更多操作`
-              : "右键更多操作"
+              ? t("上游:{upstream};右键更多操作", { upstream: branch.upstream })
+              : t("右键更多操作")
         }
       >
         {branch.name}
-        {isCurrent && <span className="ml-1 text-[10px]">(当前)</span>}
+        {isCurrent && <span className="ml-1 text-[0.625rem]">{t("(当前)")}</span>}
       </button>
       {branch.isRemote && onCheckout && (
         <button
           onClick={onCheckout}
-          title="检出为本地分支并建跟踪"
+          title={t("检出为本地分支并建跟踪")}
           className="shrink-0 opacity-0 group-hover:opacity-60"
         >
-          <GitBranchPlus className="h-3.5 w-3.5" />
+          <GitBranch className="h-[0.875rem] w-[0.875rem]" />
         </button>
       )}
       {!branch.isRemote && !isCurrent && onDelete && (
         <button
           onClick={handleDelete}
           onDoubleClick={() => setConfirmForce(true)}
-          title={confirmForce ? "再次点击强制删除(未合并)" : "删除;未合并时点两次后强制"}
+          title={confirmForce ? t("再次点击强制删除(未合并)") : t("删除;未合并时点两次后强制")}
           className={`shrink-0 opacity-0 group-hover:opacity-60 ${
             confirmForce || armedDelete ? "text-(--tmd-diff-removed) opacity-100!" : ""
           }`}
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash className="h-[0.875rem] w-[0.875rem]" />
         </button>
       )}
     </div>

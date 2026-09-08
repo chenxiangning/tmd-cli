@@ -19,6 +19,7 @@ import {
   type SendShortcut,
 } from "@kernel/settings";
 import { playAskSound } from "@kernel/askSound";
+import { t } from "@kernel/i18n";
 
 const SEND_SHORTCUT_OPTIONS: ReadonlyArray<{
   id: SendShortcut;
@@ -51,10 +52,10 @@ export function BehaviorTab() {
     <div className="pref-card" data-testid="settings-behavior-card">
       <div className="pref-row">
         <div>
-          <div className="pref-title">发送快捷键</div>
-          <div className="pref-desc">选择消息发送与换行的按键行为。</div>
+          <div className="pref-title">{t("发送快捷键")}</div>
+          <div className="pref-desc">{t("选择消息发送与换行的按键行为。")}</div>
         </div>
-        <div className="segmented" role="radiogroup" aria-label="发送快捷键">
+        <div className="segmented" role="radiogroup" aria-label={t("发送快捷键")}>
           {SEND_SHORTCUT_OPTIONS.map(({ id, label }) => (
             <button
               key={id}
@@ -64,17 +65,16 @@ export function BehaviorTab() {
               className={`segment${settings.sendShortcut === id ? " is-active" : ""}`}
               onClick={() => updateSettings({ sendShortcut: id })}
             >
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
       </div>
       <div className="pref-row">
         <div>
-          <div className="pref-title">会话输出缓冲上限</div>
+          <div className="pref-title">{t("会话输出缓冲上限")}</div>
           <div className="pref-desc">
-            单会话保留的终端输出字符数（5万–1000万，默认 50
-            万）。切回会话的回放深度由它决定；更早历史可在幕布顶部继续翻页加载。
+            {t("单会话保留的终端输出字符数（5万–1000万，默认 50 万）。切回会话的回放深度由它决定；更早历史可在幕布顶部继续翻页加载。")}
           </div>
         </div>
         <input
@@ -93,12 +93,12 @@ export function BehaviorTab() {
       </div>
       <div className="pref-row">
         <div>
-          <div className="pref-title">Ask 提示音</div>
+          <div className="pref-title">{t("Ask 提示音")}</div>
           <div className="pref-desc">
-            CLI 弹出提问/权限确认面板时播放提示音，离开屏幕也能第一时间知道。
+            {t("CLI 弹出提问/权限确认面板时播放提示音，离开屏幕也能第一时间知道。")}
           </div>
         </div>
-        <div className="segmented" role="radiogroup" aria-label="Ask 提示音">
+        <div className="segmented" role="radiogroup" aria-label={t("Ask 提示音")}>
           <button
             type="button"
             role="radio"
@@ -106,7 +106,7 @@ export function BehaviorTab() {
             className={`segment${settings.askSoundEnabled ? " is-active" : ""}`}
             onClick={() => updateSettings({ askSoundEnabled: true })}
           >
-            开启
+            {t("开启")}
           </button>
           <button
             type="button"
@@ -115,20 +115,20 @@ export function BehaviorTab() {
             className={`segment${!settings.askSoundEnabled ? " is-active" : ""}`}
             onClick={() => updateSettings({ askSoundEnabled: false })}
           >
-            关闭
+            {t("关闭")}
           </button>
         </div>
       </div>
       {settings.askSoundEnabled ? (
         <div className="pref-row">
           <div>
-            <div className="pref-title">提示音</div>
-            <div className="pref-desc">选择 Ask 提示音音效，「试听」立即播放。</div>
+            <div className="pref-title">{t("提示音")}</div>
+            <div className="pref-desc">{t("选择 Ask 提示音音效，「试听」立即播放。")}</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <select
               value={settings.askSoundId}
-              aria-label="提示音音效"
+              aria-label={t("提示音音效")}
               onChange={(e) =>
                 updateSettings({ askSoundId: e.target.value as AskSoundId })
               }
@@ -136,7 +136,7 @@ export function BehaviorTab() {
             >
               {ASK_SOUND_OPTIONS.map(({ id, label }) => (
                 <option key={id} value={id}>
-                  {label}
+                  {t(label)}
                 </option>
               ))}
             </select>
@@ -145,19 +145,19 @@ export function BehaviorTab() {
               className="segment is-active"
               onClick={() => playAskSound(settings.askSoundId)}
             >
-              试听
+              {t("试听")}
             </button>
           </div>
         </div>
       ) : null}
       <div className="pref-row">
         <div>
-          <div className="pref-title">结束提示音</div>
+          <div className="pref-title">{t("结束提示音")}</div>
           <div className="pref-desc">
-            一轮对话结束且未被查看时播放（结算后静默 3 秒确认，中途来新输出不响）。
+            {t("一轮对话结束且未被查看时播放（结算后静默 3 秒确认，中途来新输出不响）。")}
           </div>
         </div>
-        <div className="segmented" role="radiogroup" aria-label="结束提示音">
+        <div className="segmented" role="radiogroup" aria-label={t("结束提示音")}>
           <button
             type="button"
             role="radio"
@@ -165,7 +165,7 @@ export function BehaviorTab() {
             className={`segment${settings.turnEndSoundEnabled ? " is-active" : ""}`}
             onClick={() => updateSettings({ turnEndSoundEnabled: true })}
           >
-            开启
+            {t("开启")}
           </button>
           <button
             type="button"
@@ -174,20 +174,20 @@ export function BehaviorTab() {
             className={`segment${!settings.turnEndSoundEnabled ? " is-active" : ""}`}
             onClick={() => updateSettings({ turnEndSoundEnabled: false })}
           >
-            关闭
+            {t("关闭")}
           </button>
         </div>
       </div>
       {settings.turnEndSoundEnabled ? (
         <div className="pref-row">
           <div>
-            <div className="pref-title">结束音效</div>
-            <div className="pref-desc">选择轮次结束提示音音效，「试听」立即播放。</div>
+            <div className="pref-title">{t("结束音效")}</div>
+            <div className="pref-desc">{t("选择轮次结束提示音音效，「试听」立即播放。")}</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <select
               value={settings.turnEndSoundId}
-              aria-label="结束音效"
+              aria-label={t("结束音效")}
               onChange={(e) =>
                 updateSettings({ turnEndSoundId: e.target.value as AskSoundId })
               }
@@ -195,7 +195,7 @@ export function BehaviorTab() {
             >
               {ASK_SOUND_OPTIONS.map(({ id, label }) => (
                 <option key={id} value={id}>
-                  {label}
+                  {t(label)}
                 </option>
               ))}
             </select>
@@ -204,19 +204,19 @@ export function BehaviorTab() {
               className="segment is-active"
               onClick={() => playAskSound(settings.turnEndSoundId)}
             >
-              试听
+              {t("试听")}
             </button>
           </div>
         </div>
       ) : null}
       <div className="pref-row">
         <div>
-          <div className="pref-title">后台提醒</div>
+          <div className="pref-title">{t("后台提醒")}</div>
           <div className="pref-desc">
-            窗口失焦时，当前会话完成一轮对话也标记未读并播放结束提示音；切回窗口即恢复已读。
+            {t("窗口失焦时，当前会话完成一轮对话也标记未读并播放结束提示音；切回窗口即恢复已读。")}
           </div>
         </div>
-        <div className="segmented" role="radiogroup" aria-label="后台提醒">
+        <div className="segmented" role="radiogroup" aria-label={t("后台提醒")}>
           <button
             type="button"
             role="radio"
@@ -224,7 +224,7 @@ export function BehaviorTab() {
             className={`segment${settings.backgroundNotify ? " is-active" : ""}`}
             onClick={() => updateSettings({ backgroundNotify: true })}
           >
-            开启
+            {t("开启")}
           </button>
           <button
             type="button"
@@ -233,7 +233,8 @@ export function BehaviorTab() {
             className={`segment${!settings.backgroundNotify ? " is-active" : ""}`}
             onClick={() => updateSettings({ backgroundNotify: false })}
           >
-            关闭
+            {t("关闭")}
+
           </button>
         </div>
       </div>

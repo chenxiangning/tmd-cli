@@ -43,7 +43,7 @@ export function parsePatch(text: string): PatchRow[] {
 }
 
 const ROW_CLS: Record<PatchRow["kind"], string> = {
-  hunk: "my-1 border-y border-(color:--tmd-border) bg-(color:--tmd-bg-hover)/40 px-1 text-[10px] text-(--tmd-accent)",
+  hunk: "my-1 border-y border-(color:--tmd-border) bg-(color:--tmd-bg-hover)/40 px-1 text-[0.625rem] text-(--tmd-accent)",
   add: "bg-(color:--tmd-diff-inserted)/12 text-(--tmd-diff-inserted)",
   del: "bg-(color:--tmd-diff-removed)/12 text-(--tmd-diff-removed)",
   ctx: "text-(--tmd-fg-muted)",
@@ -53,7 +53,7 @@ const ROW_CLS: Record<PatchRow["kind"], string> = {
 export function PatchLines({ text, className = "max-h-72" }: { text: string; className?: string }) {
   const rows = useMemo(() => parsePatch(text), [text]);
   return (
-    <pre className={`${className} overflow-auto px-3 py-1 font-mono text-[11px] leading-tight`}>
+    <pre className={`${className} overflow-auto px-3 py-1 font-mono text-[0.6875rem] leading-tight`}>
       {rows.map((row, i) => (
         /* content-visibility:auto:数千行的 lockfile/生成代码 diff,
            视口外行跳过布局与绘制,展开不再卡顿 */

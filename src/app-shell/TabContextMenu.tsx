@@ -9,7 +9,8 @@
  */
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Pencil, SquareX, X, XCircle } from "lucide-react";
+import { Pencil, XSquare, Cross, XCircle } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 
 /** 菜单约 180 宽:以点击点为左上,在视口内夹取;高度按项数(3 项 120 / 4 项 150)。 */
 function clampPosition(
@@ -66,16 +67,16 @@ export function TabContextMenu({
           <button
             className="wsmenu-item"
             disabled={canRename === false}
-            title={canRename === false ? "会话尚未落盘,暂不可命名" : undefined}
+            title={canRename === false ? t("会话尚未落盘,暂不可命名") : undefined}
             onClick={() => {
               onRename();
               onClose();
             }}
           >
             <span className="wsmenu-item-icon">
-              <Pencil size={13} />
+              <Pencil size="0.8125rem" />
             </span>
-            <span className="wsmenu-item-label">重命名</span>
+            <span className="wsmenu-item-label">{t("重命名")}</span>
           </button>
         ) : null}
         <button
@@ -86,9 +87,9 @@ export function TabContextMenu({
           }}
         >
           <span className="wsmenu-item-icon">
-            <X size={13} />
+            <Cross size="0.8125rem" />
           </span>
-          <span className="wsmenu-item-label">关闭</span>
+          <span className="wsmenu-item-label">{t("关闭")}</span>
         </button>
         <button
           className="wsmenu-item"
@@ -98,9 +99,9 @@ export function TabContextMenu({
           }}
         >
           <span className="wsmenu-item-icon">
-            <SquareX size={13} />
+            <XSquare size="0.8125rem" />
           </span>
-          <span className="wsmenu-item-label">关闭其他 tab</span>
+          <span className="wsmenu-item-label">{t("关闭其他 tab")}</span>
         </button>
         <button
           className="wsmenu-item"
@@ -110,9 +111,9 @@ export function TabContextMenu({
           }}
         >
           <span className="wsmenu-item-icon">
-            <XCircle size={13} />
+            <XCircle size="0.8125rem" />
           </span>
-          <span className="wsmenu-item-label">关闭全部 tab</span>
+          <span className="wsmenu-item-label">{t("关闭全部 tab")}</span>
         </button>
       </div>
     </>,

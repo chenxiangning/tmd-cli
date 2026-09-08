@@ -6,7 +6,8 @@
  * ConfirmTarget 类型唯一定义于此,BatchRow re-export 维持既有导入契约。
  */
 
-import { RotateCcw } from "lucide-react";
+import { ArrowCounterClockwise } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptBatchFile } from "@kernel/ipc";
 import { getCachedDiff } from "./store";
 import { openBatchTab } from "./batchTab";
@@ -44,21 +45,23 @@ export function ConfirmCard({
     <div className="ml-8 mb-2 rounded-(--tmd-radius-sm) border border-(--tmd-border-strong) bg-(--tmd-bg-popover) p-2.5">
       <div className="mb-1 text-xs font-semibold">
         {apply
-          ? "应用回此批"
-          : `回退${confirm.paths ? `${confirm.paths.length} 个路径` : "整批"}`}
+          ? t("应用回此批")
+          : t("回退{target}", {
+              target: confirm.paths ? t("{n} 个路径", { n: confirm.paths.length }) : t("整批"),
+            })}
       </div>
-      <div className="mb-2 text-[11px] leading-relaxed text-(--tmd-fg-muted)">
+      <div className="mb-2 text-[0.6875rem] leading-relaxed text-(--tmd-fg-muted)">
         {apply ? (
           <>
-            按账本副本把这轮改动精确写回磁盘(回退的镜像);
-            <span className="text-(--tmd-diff-inserted)">执行前已自动打恢复点,可反悔</span>。
-            live 已偏离批前像的文件按 diff 精准重放,改动重叠才跳过。
+            {t("按账本副本把这轮改动精确写回磁盘(回退的镜像);")}
+            <span className="text-(--tmd-diff-inserted)">{t("执行前已自动打恢复点,可反悔")}</span>。
+            {t("live 已偏离批前像的文件按 diff 精准重放,改动重叠才跳过。")}
           </>
         ) : (
           <>
-            改动将还原到这轮消息发出之前;
-            <span className="text-(--tmd-diff-inserted)">回退前已自动打恢复点,可反悔</span>。
-            共改文件按 diff 精准擦除(只擦本批改动),重叠才跳过。
+            {t("改动将还原到这轮消息发出之前;")}
+            <span className="text-(--tmd-diff-inserted)">{t("回退前已自动打恢复点,可反悔")}</span>。
+            {t("共改文件按 diff 精准擦除(只擦本批改动),重叠才跳过。")}
           </>
         )}
       </div>
@@ -68,7 +71,7 @@ export function ConfirmCard({
           className="h-6 rounded border border-(--tmd-border) px-2 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
           onClick={() => setConfirm(null)}
         >
-          取消
+          {t("取消")}
         </button>
         <button
           type="button"
@@ -82,7 +85,7 @@ export function ConfirmCard({
             apply ? void onApply(batchId) : void onRevert(batchId, confirm.paths)
           }
         >
-          {apply ? "确认应用" : "确认回退"}
+          {apply ? t("确认应用") : t("确认回退")}
         </button>
       </div>
     </div>
@@ -117,52 +120,52 @@ export function FileRow({
       <button
         type="button"
         className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left"
-        title="点击在编辑区查看该文件 diff"
+        title={t("点击在编辑区查看该文件 diff")}
         onClick={() =>
           openBatchTab({
             cwd,
             sessionId,
             tmdSessionId,
             batchId: b.id,
-            title: `批次 #${b.index}`,
+            title: t("批次 #{index}", { index: b.index }),
             focusPath: f.path,
           })
         }
       >
         <span
-          className={`grid h-[14px] w-[14px] flex-none place-items-center rounded text-[10px] font-bold ${fileChipCls(f.status)}`}
+          className={`grid h-[14px] w-[14px] flex-none place-items-center rounded text-[0.625rem] font-bold ${fileChipCls(f.status)}`}
         >
           {f.status}
         </span>
         {f.editCount > 0 && b.attribution === "events" && (
           <span
-            className="flex-none rounded border border-(--tmd-border) px-1 text-[9px] leading-[13px] text-(--tmd-fg-faint)"
-            title={`AI 本轮写入该文件 ${f.editCount} 次(事件流轨迹,账本可审计)`}
+            className="flex-none rounded border border-(--tmd-border) px-1 text-[0.5625rem] leading-[0.8125rem] text-(--tmd-fg-faint)"
+            title={t("AI 本轮写入该文件 {n} 次(事件流轨迹,账本可审计)", { n: f.editCount })}
           >
             ×{f.editCount}
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-(--tmd-fg-muted)">
+        <span className="min-w-0 flex-1 truncate font-mono text-[0.6875rem] text-(--tmd-fg-muted)">
           <b className="font-medium text-(--tmd-fg)">{name}</b>{" "}
           <span className="text-(--tmd-fg-faint)">{dir}</span>
         </span>
         {mine && (
-          <span className="flex-none font-mono text-[10px]">
+          <span className="flex-none font-mono text-[0.625rem]">
             <span className="text-(--tmd-diff-inserted)">+{mine.additions}</span>{" "}
             <span className="text-(--tmd-diff-removed)">−{mine.deletions}</span>
           </span>
         )}
         {f.reverted && (
-          <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[10px] leading-[14px] text-[#a78bfa]">
-            已退
+          <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[0.625rem] leading-[0.875rem] text-[#a78bfa]">
+            {t("已退")}
           </span>
         )}
         {f.stale && (
           <span
-            className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[10px] leading-[14px] text-(--tmd-fg-faint)"
-            title="工作区内容已偏离本批后像,不可回退,仅可对照"
+            className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-faint)"
+            title={t("工作区内容已偏离本批后像,不可回退,仅可对照")}
           >
-            内容已变
+            {t("内容已变")}
           </span>
         )}
       </button>
@@ -171,10 +174,10 @@ export function FileRow({
           type="button"
           disabled={busy}
           className="hidden h-[19px] w-[19px] flex-none place-items-center rounded text-(--tmd-fg-subtle) group-hover:grid hover:bg-[#a78bfa]/15 hover:text-[#a78bfa] disabled:opacity-40"
-          title="只回退这个文件"
+          title={t("只回退这个文件")}
           onClick={() => setConfirm({ batchId: b.id, paths: [f.path] })}
         >
-          <RotateCcw size={11} aria-hidden />
+          <ArrowCounterClockwise size="0.6875rem" aria-hidden />
         </button>
       )}
     </div>

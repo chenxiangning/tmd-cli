@@ -9,9 +9,9 @@
 
 import { useSyncExternalStore, type ComponentType } from "react";
 
-/** 动作图标的最小 props 面(兼容 lucide-react 图标组件)。 */
+/** 动作图标的最小 props 面(兼容 @phosphor-icons-react 图标组件)。 */
 export type SidebarActionIcon = ComponentType<{
-  size?: number;
+  size?: number | string;
   className?: string;
 }>;
 
@@ -20,7 +20,7 @@ export interface SidebarAction {
   id: string;
   /** 菜单行/底栏按钮标签。 */
   label: string;
-  /** 语义图标(lucide 或自绘),渲染时传 size。 */
+  /** 语义图标(@phosphor-icons-react 或自绘),渲染时传 size。 */
   icon: SidebarActionIcon;
   /** 菜单内排序,小的在前。 */
   order?: number;

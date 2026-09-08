@@ -4,12 +4,14 @@
  * DialogActions 是 取消/主按钮 的固定排法:主按钮 accent,提交中文案切「加载中…」。
  */
 
+import { t } from "@kernel/i18n";
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 export function GitDialogShell({
   title,
   icon,
+  repoName,
   width = 560,
   locked,
   onClose,
@@ -18,6 +20,8 @@ export function GitDialogShell({
 }: {
   title: string;
   icon: ReactNode;
+  /** 当前操作仓目录名;多仓语境显示(标题行右缘),单仓缺省不显示 */
+  repoName?: string;
   width?: number;
   /** 提交中:遮罩点击与 Esc 不再关闭 */
   locked?: boolean;
@@ -50,6 +54,7 @@ export function GitDialogShell({
         <div className="flex items-center gap-1.5 text-xs font-semibold text-(--tmd-fg)">
           {icon}
           {title}
+          {repoName && <span className="git-dialog-repo" title={t("当前仓库:{repoName}", { repoName })}>{repoName}</span>}
         </div>
         {children}
         {footer}
@@ -82,7 +87,7 @@ export function DialogActions({
         disabled={submitting}
         className="rounded border border-(--tmd-border) px-3 py-1.5 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
-        取消
+        {t("取消")}
       </button>
       <button
         type="button"
@@ -91,7 +96,7 @@ export function DialogActions({
         title={confirmTitle}
         className="rounded bg-(--tmd-accent) px-3 py-1.5 text-xs text-(--tmd-accent-fg) hover:opacity-90 disabled:opacity-50"
       >
-        {submitting ? "加载中…" : confirmLabel}
+        {submitting ? t("加载中…") : confirmLabel}
       </button>
     </div>
   );
@@ -124,7 +129,7 @@ export function OpToggle({
       }`}
     >
       <span
-        className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-[10px] leading-none ${
+        className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-[0.625rem] leading-none ${
           active
             ? "border-(--tmd-accent) bg-(--tmd-accent) text-(--tmd-accent-fg)"
             : "border-(--tmd-border)"

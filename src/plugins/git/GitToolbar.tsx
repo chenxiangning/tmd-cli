@@ -1,13 +1,13 @@
 /**
- * GitToolbar —— 顶栏嵌入段(对齐 codemoss:视图下拉 + ⟳,与面板 tabs 同行)。
+ * GitToolbar —— 顶栏嵌入段(对齐 codemoss:视图下拉,与面板 tabs 同行;刷新 ⟳ 在 GitRemoteBar 行)。
  * 经 filePanel 的 toolbar 槽注册;状态共享走 panelStore。
  */
 
 import { useEffect, useRef, useState } from "react";
+import { t } from "@kernel/i18n";
 import { createPortal } from "react-dom";
-import { ChevronDown, RefreshCw } from "lucide-react";
+import { CaretDown, GitDiff, GitBranch, Graph, Rows, TreeStructure } from "@phosphor-icons/react";
 import {
-  bumpGitRefresh,
   setGitLayout,
   setGitView,
   useGitPanelState,
@@ -21,8 +21,20 @@ const VIEW_LABEL: Record<GitViewMode, string> = {
   history: "历史",
 };
 
+/** 视图/列表布局的行前图标(顶栏按钮 + 下拉菜单共用)。 */
+const VIEW_ICON: Record<GitViewMode, typeof GitDiff> = {
+  diff: GitDiff,
+  branch: GitBranch,
+  history: Graph,
+};
+const LAYOUT_ICON: Record<FileListLayout, typeof Rows> = {
+  flat: Rows,
+  tree: TreeStructure,
+};
+
 export function GitToolbar() {
-  const { view, layout, refreshing, aggregate } = useGitPanelState();
+  const { view, layout, aggregate } = useGitPanelState();
+  const ViewIcon = VIEW_ICON[view];
   const totals = aggregate.totals;
   const viewBtnRef = useRef<HTMLButtonElement>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -50,13 +62,12 @@ export function GitToolbar() {
         onClick={toggleMenu}
         className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-xs font-medium hover:bg-(--tmd-bg-hover)"
       >
-        {VIEW_LABEL[view]}
-        <ChevronDown className="h-3 w-3 text-(--tmd-fg-faint)" aria-hidden />
+        <ViewIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+        {menuPos && t(VIEW_LABEL[view])}
+        <CaretDown className="h-[0.75rem] w-[0.75rem] text-(--tmd-fg-faint)" aria-hidden />
       </button>
       {totals && (
-        <span
-          title="聚合增删行数(staged + 未暂存)"
-        >
+        <span title={t("聚合增删行数(staged + 未暂存;多仓 = 选中仓口径)")}>
           <span className="text-(--tmd-diff-inserted)">
             +{totals.insertions.toLocaleString("en-US")}
           </span>
@@ -67,18 +78,6 @@ export function GitToolbar() {
           <span className="ml-1.5 text-(--tmd-fg-muted)">{aggregate.fileCount}</span>
         </span>
       )}
-      <button
-        type="button"
-        title="刷新"
-        onClick={bumpGitRefresh}
-        className="rounded p-1 hover:bg-(--tmd-bg-hover)"
-      >
-        <RefreshCw
-          className={`h-3.5 w-3.5${refreshing ? " animate-spin" : ""}`}
-          aria-hidden
-        />
-      </button>
-
       {menuPos && (
         <ViewMenu
           current={view}
@@ -131,20 +130,32 @@ function ViewMenu({
         style={{ left: position.x, top: position.y, minWidth: 176 }}
         role="menu"
       >
-        {(Object.keys(VIEW_LABEL) as GitViewMode[]).map((v) => (
-          <button key={v} type="button" className={item} onClick={() => onPick(v)}>
-            <span>{VIEW_LABEL[v]}</span>
-            {current === v && <span>✓</span>}
-          </button>
-        ))}
+        {(Object.keys(VIEW_LABEL) as GitViewMode[]).map((v) => {
+          const VIcon = VIEW_ICON[v];
+          return (
+            <button key={v} type="button" className={item} onClick={() => onPick(v)}>
+              <span className="flex items-center gap-1.5">
+                <VIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+                <span>{t(VIEW_LABEL[v])}</span>
+              </span>
+              {current === v && <span>✓</span>}
+            </button>
+          );
+        })}
         {sep}
-        <div className="px-3 py-1 text-[10px] text-(--tmd-fg-faint)">文件列表视图</div>
-        {(["flat", "tree"] as const).map((l) => (
-          <button key={l} type="button" className={item} onClick={() => onPick(l)}>
-            <span>{l === "flat" ? "平铺" : "树形"}</span>
-            {layout === l && <span>✓</span>}
-          </button>
-        ))}
+        <div className="px-3 py-1 text-[0.625rem] text-(--tmd-fg-faint)">{t("文件列表视图")}</div>
+        {(["flat", "tree"] as const).map((l) => {
+          const LIcon = LAYOUT_ICON[l];
+          return (
+            <button key={l} type="button" className={item} onClick={() => onPick(l)}>
+              <span className="flex items-center gap-1.5">
+                <LIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+                <span>{l === "flat" ? t("平铺") : t("树形")}</span>
+              </span>
+              {layout === l && <span>✓</span>}
+            </button>
+          );
+        })}
       </div>
     </>,
     document.body,

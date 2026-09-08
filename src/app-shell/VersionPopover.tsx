@@ -12,8 +12,9 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Download, ExternalLink, RefreshCw, X } from "lucide-react";
+import { CaretLeft, CaretRight, DownloadSimple, ArrowSquareOut, ArrowClockwise, Cross } from "@phosphor-icons/react";
 import { openExternalUrl } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import {
   CHANGELOG_ENTRIES,
   RELEASES_PAGE_URL,
@@ -115,14 +116,14 @@ export function VersionPopover({
         ref={popoverRef}
         className="vp-panel"
         role="dialog"
-        aria-label="版本与更新"
+        aria-label={t("版本与更新")}
         style={pos ? { left: pos.left, top: pos.top } : { visibility: "hidden" }}
       >
         <div className="vp-header">
           <span className="vp-title">tmd-cli</span>
           <span className="vp-version-badge">v{currentVersion}</span>
-          <button type="button" className="vp-close" aria-label="关闭" onClick={onClose}>
-            <X size={14} />
+          <button type="button" className="vp-close" aria-label={t("关闭")} onClick={onClose}>
+            <Cross size="0.875rem" />
           </button>
         </div>
 
@@ -133,19 +134,19 @@ export function VersionPopover({
             onClick={() => void check()}
             disabled={status === "checking"}
           >
-            <RefreshCw size={13} className={status === "checking" ? "vp-spin" : undefined} />
-            {status === "checking" ? "检查中…" : "检查更新"}
+            <ArrowClockwise size="0.8125rem" className={status === "checking" ? "vp-spin" : undefined} />
+            {status === "checking" ? t("检查中…") : t("检查更新")}
           </button>
           <button type="button" className="vp-btn vp-btn-primary" onClick={goDownload}>
-            <Download size={13} />
-            前往下载
+            <DownloadSimple size="0.8125rem" />
+            {t("前往下载")}
           </button>
         </div>
 
         {status === "outdated" && release && (
           <div className="vp-outdated">
             <div className="vp-outdated-line">
-              发现新版本
+              {t("发现新版本")}
               <span className="vp-outdated-ver">v{release.version}</span>
               {release.publishedAt && (
                 <span className="vp-date">{release.publishedAt.slice(0, 10)}</span>
@@ -158,23 +159,23 @@ export function VersionPopover({
           <div className="vp-status vp-status-err">{checkError}</div>
         )}
         {status !== "outdated" && status !== "error" && (
-          <div className="vp-status">{STATUS_TEXT[status]}</div>
+          <div className="vp-status">{t(STATUS_TEXT[status])}</div>
         )}
 
         <div className="vp-divider" />
 
         <div className="vp-changelog-bar">
-          <span className="vp-changelog-label">更新记录</span>
+          <span className="vp-changelog-label">{t("更新记录")}</span>
           {entryCount > 1 && (
             <span className="vp-pager">
               <button
                 type="button"
                 className="vp-pager-btn"
-                aria-label="上一版本"
+                aria-label={t("上一版本")}
                 disabled={idx === 0}
                 onClick={() => setEntryIndex(idx - 1)}
               >
-                <ChevronLeft size={13} />
+                <CaretLeft size="0.8125rem" />
               </button>
               <span className="vp-pager-ind">
                 {idx + 1} / {entryCount}
@@ -182,11 +183,11 @@ export function VersionPopover({
               <button
                 type="button"
                 className="vp-pager-btn"
-                aria-label="下一版本"
+                aria-label={t("下一版本")}
                 disabled={idx >= entryCount - 1}
                 onClick={() => setEntryIndex(idx + 1)}
               >
-                <ChevronRight size={13} />
+                <CaretRight size="0.8125rem" />
               </button>
             </span>
           )}
@@ -198,7 +199,7 @@ export function VersionPopover({
                 <span className="vp-entry-ver">v{entry.version}</span>
                 {entry.date && <span className="vp-date">{entry.date}</span>}
                 {entry.version === currentVersion && (
-                  <span className="vp-current-badge">当前</span>
+                  <span className="vp-current-badge">{t("当前")}</span>
                 )}
               </div>
               {entry.blocks.map((b, i) => (
@@ -220,8 +221,8 @@ export function VersionPopover({
           className="vp-releases-link"
           onClick={() => void openExternalUrl(RELEASES_PAGE_URL)}
         >
-          <ExternalLink size={12} />
-          查看 GitHub Releases
+          <ArrowSquareOut size="0.75rem" />
+          {t("查看 GitHub Releases")}
         </button>
       </div>
     </>,

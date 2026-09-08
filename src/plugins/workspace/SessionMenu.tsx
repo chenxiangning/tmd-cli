@@ -6,9 +6,10 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { host } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { Mounts } from "@kernel/Mounts";
 import { removeWorkspace, type Workspace } from "@kernel/workspace";
-import { RefreshCw, Trash2 } from "lucide-react";
+import { ArrowClockwise, Trash } from "@phosphor-icons/react";
 
 /** 新建会话菜单定位:以点击点为左上,按估算尺寸在视口内夹取(codemoss 同款)。 */
 export function clampMenuPosition(x: number, y: number): { x: number; y: number } {
@@ -52,7 +53,7 @@ export function SessionMenuOverlay({
     <>
       <div className="wsmenu-backdrop" onClick={onClose} />
       <div className="wsmenu" style={{ left: position.x, top: position.y }}>
-        <div className="wsmenu-group-title">新建会话</div>
+        <div className="wsmenu-group-title">{t("新建会话")}</div>
         {profiles.map((p) => (
           <div className="wsmenu-item-row" key={p.id}>
             <button
@@ -68,10 +69,10 @@ export function SessionMenuOverlay({
             </button>
             <button
               className={`wsmenu-item-refresh${refreshing[p.id] ? " is-refreshing" : ""}`}
-              title={`刷新 ${p.name} 会话列表`}
+              title={t("刷新 {profile} 会话列表", { profile: p.name })}
               onClick={() => onRefresh(p.id)}
             >
-              <RefreshCw />
+              <ArrowClockwise />
             </button>
           </div>
         ))}
@@ -80,7 +81,7 @@ export function SessionMenuOverlay({
         <Mounts point="workspace.newSessionMenu" />
 
         <div className="wsmenu-divider" />
-        <div className="wsmenu-group-title">工作区操作</div>
+        <div className="wsmenu-group-title">{t("工作区操作")}</div>
         {canRemove && (
           <button
             className="wsmenu-item is-danger"
@@ -90,9 +91,9 @@ export function SessionMenuOverlay({
             }}
           >
             <span className="wsmenu-item-icon">
-              <Trash2 size={13} />
+              <Trash size="0.8125rem" />
             </span>
-            <span className="wsmenu-item-label">删除工作区</span>
+            <span className="wsmenu-item-label">{t("删除工作区")}</span>
           </button>
         )}
       </div>

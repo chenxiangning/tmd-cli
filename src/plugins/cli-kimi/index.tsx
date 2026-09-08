@@ -26,21 +26,20 @@ export {
 
 /**
  * Kimi 品牌 glyph:几何 K 字monogram(codemoss EngineIcon 同源策略),
- * currentColor 随主题 —— 与 codex 同款的品牌中性处理,不硬编码官方色值。
+ * 全对比度随主题(浅黑/深白,用户指定)。
  */
 const KIMI_ICON_PATH =
   "M5 3h4v6.6L14.6 3H20l-6.9 8.3L20 21h-5.5L9 12.9V21H5z" as const;
 
-function KimiGlyph({ size }: { size: number }) {
+function KimiGlyph({ size }: { size: number | string }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="currentColor"
       aria-hidden
     >
-      <path d={KIMI_ICON_PATH} />
+      <path d={KIMI_ICON_PATH} fill="var(--tmd-fg)" />
     </svg>
   );
 }

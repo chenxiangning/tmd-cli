@@ -1,10 +1,8 @@
 /**
  * 宿主 —— 插件注册表 + 挂载点注册表 + 会话服务的装配点。
  * 内核不 import 任何插件;插件清单在 src/plugins/index.ts,main.tsx 启动激活。
- *
- * 文件规模铁则拆分(300 行):五守望与 appendOutput 主链路在 hostWatches.ts,
- * ssh/shell/spawn 会话服务接线在 hostSessionServices.ts;本文件留注册表、
- * 查询门面与 PTY 生命周期的公开语义。
+ * 文件规模铁则拆分:守望主链路在 hostWatches.ts,ssh/shell/spawn 接线在
+ * hostSessionServices.ts;本文件留注册表、查询门面与 PTY 生命周期公开语义。
  */
 
 import { useSyncExternalStore } from "react";
@@ -14,7 +12,7 @@ import { HostRegistry } from "./hostRegistry";
 import { HostWatches } from "./hostWatches";
 import { createSessionServices } from "./hostSessionServices";
 
-import { ipc, type SshHostConfig, type SessionMeta } from "./ipc";
+import { ipc, type SshHostConfig, type SessionMeta, type SpawnSpec } from "./ipc";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";
 import { registerSettingsSection } from "./settingsRegistry";
@@ -24,6 +22,7 @@ import { registerFileVisual } from "./fileVisual";
 import { registerMarketPanel } from "./marketPanel";
 import type { SidebarAction } from "./sidebarActions";
 import { registerCommand } from "./shortcuts";
+import { registerHomePanel } from "./homePanels";
 
 class Host implements PluginContext {
   readonly events = new EventBus();
@@ -36,9 +35,9 @@ class Host implements PluginContext {
   private ptyUnlistens = new Map<string, Array<() => void>>();
   /** 窗口聚焦态(main.tsx 挂 focus/blur 监听馈入):失焦时激活会话完成也视为未查看。 */
   private windowFocused = true;
-  /** CLI profile/挂载点注册表与插件生命周期:拆分件 kernel/hostRegistry.ts(文件规模铁则)。 */
+  /* CLI profile/挂载点注册表与插件生命周期:拆分件 kernel/hostRegistry.ts(文件规模铁则)。 */
   private readonly registry = new HostRegistry(() => this.notify());
-  /** 五守望 + appendOutput 主链路:拆分件 kernel/hostWatches.ts(文件规模铁则)。 */
+  /* 五守望 + appendOutput 主链路:拆分件 kernel/hostWatches.ts(文件规模铁则)。 */
   private readonly watches = new HostWatches({
     getCliProfile: (profileId) => this.registry.getCliProfile(profileId),
     findSession: (sessionId) => this.sessions.find((s) => s.id === sessionId),
@@ -81,8 +80,7 @@ class Host implements PluginContext {
   contribute(point: MountPoint, contribution: MountContribution): void {
     this.registry.contribute(point, contribution);
   }
-  /* 注册表通道自驱动通知(或 activate 期登记),纯委托即可;sidebarAction 的
-     无键位命令镜像逻辑在 hostRegistry(注释亦随迁)。 */
+  /* 注册表通道纯委托即可;sidebarAction 的无键位命令镜像逻辑在 hostRegistry(注释亦随迁)。 */
   registerSettingsSection = registerSettingsSection;
   registerFilePanel = registerFilePanel;
   registerTabContent = registerTabContent;
@@ -91,7 +89,7 @@ class Host implements PluginContext {
     this.registry.registerSidebarAction(action);
   registerFileVisual = registerFileVisual;
   registerCommand = registerCommand;
-
+  registerHomePanel = registerHomePanel;
   // ---- 插件生命周期(委托 kernel/hostRegistry) ----------------------------
 
   activateAll(plugins: Plugin[]): Promise<void> {
@@ -122,18 +120,12 @@ class Host implements PluginContext {
     return this.sessions;
   }
 
-  getActiveSessionId(): string | null {
-    return this.activeSessionId;
-  }
+  getActiveSessionId(): string | null { return this.activeSessionId; }
 
-  getSessionStatus(sessionId: string): CliSessionStatus | undefined {
-    return this.watches.getSessionStatus(sessionId);
-  }
+  getSessionStatus(sessionId: string): CliSessionStatus | undefined { return this.watches.getSessionStatus(sessionId); }
 
-  /** 状态值来源:"seeded" = CLI 默认配置种子,"observed" = 会话文件真实观测。 */
-  getSessionStatusSource(sessionId: string): "seeded" | "observed" | undefined {
-    return this.watches.getSessionStatusSource(sessionId);
-  }
+  /** 状态值来源:"seeded" = CLI 默认种子,"observed" = 会话文件真实观测。 */
+  getSessionStatusSource(sessionId: string): "seeded" | "observed" | undefined { return this.watches.getSessionStatusSource(sessionId); }
 
   /** 活会话绑定的 CLI 磁盘身份;未绑定(探测前)为 undefined。 */
   getCliSessionId(sessionId: string): string | undefined {
@@ -169,6 +161,16 @@ class Host implements PluginContext {
   ): Promise<SessionMeta> {
     return this.sessionServices.spawn.create(profileId, cwd, workspaceId);
   }
+  /** 按任意 spec spawn 并完整装配(见 SessionSpawnService.raw);opts.activate=false
+   *  = 后台拉起(不抢中央区/tab,如 dsh 自动启动 host)。 */
+  spawnRawSession(
+    profileId: string,
+    spec: SpawnSpec,
+    workspaceId?: string,
+    opts?: { activate?: boolean },
+  ): Promise<SessionMeta> {
+    return this.sessionServices.spawn.raw(profileId, spec, workspaceId, opts);
+  }
 
   /** 打开 CLI 磁盘历史会话(resume);实现见 kernel/sessionSpawn.ts。 */
   async openDiskSession(
@@ -202,25 +204,22 @@ class Host implements PluginContext {
   isUnread(sessionId: string): boolean {
     return this.watches.isUnread(sessionId);
   }
+  /** 对话轮次进行中判定(呼吸灯蓝态的进行时段;轮次结算即 false)。 */
+  isTurnActive = (sessionId: string): boolean =>
+    this.watches.isTurnActive(sessionId);
 
   /** 等待确认判定(会话列表「等待确认」标签;用户写入即清)。 */
   isWaitingConfirm = (sessionId: string): boolean =>
     this.watches.isWaiting(sessionId);
 
-  /** 测试专用:假时钟换届时重置活动守望与 Ask 守望(与 resetStatusTimerForTest 同因)。 */
   resetActivityWatchForTest(): void {
     this.watches.resetActivityWatchForTest();
   }
 
-  /** 会话至今的全部(尾部)输出,供 xterm 重挂载回放(压实语义见 OutputBufferStore.get)。 */
   getOutputBuffer(sessionId: string): string {
     return this.watches.getOutputBuffer(sessionId);
   }
 
-  /**
-   * 缓冲的 UTF-8 字节数(增量维护,O(1) 读取)。
-   * 供 TerminalView 翻页锚点反推缓冲起点的绝对日志偏移。
-   */
   getOutputBufferBytes(sessionId: string): number {
     return this.watches.getOutputBufferBytes(sessionId);
   }

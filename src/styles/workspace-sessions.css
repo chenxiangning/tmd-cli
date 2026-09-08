@@ -215,7 +215,7 @@
   background: rgba(5, 150, 105, 0.12);
   border: 1px solid rgba(5, 150, 105, 0.5);
   color: #059669;
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1;
   white-space: nowrap;
   flex-shrink: 0;
@@ -224,7 +224,7 @@
 /* 会话状态校准 label(SessionStatusLabel):呼吸灯暗示的文字明示,活会话专属,纯文字不闪烁。
    配色:深绿 = 运行时(浅色主题加深);锚定蓝 = 会话结束-未查看;灰 = 会话结束-已查看。 */
 .thread-status-label {
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1;
   white-space: nowrap;
   flex-shrink: 0;

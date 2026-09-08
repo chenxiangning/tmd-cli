@@ -6,8 +6,8 @@
  * tab 内文件切换不再回头改 payload。
  */
 
+import { t } from "@kernel/i18n";
 import { openTab } from "@kernel/tabs";
-
 export const COMMIT_TAB_KIND = "git-commit-diff";
 
 export interface CommitTabPayload {
@@ -28,7 +28,7 @@ export function openCommitDiffTab(tab: CommitTabPayload): void {
     {
       id: `${COMMIT_TAB_KIND}:${tab.sha}`,
       kind: COMMIT_TAB_KIND,
-      title: `${tab.shortSha} ${tab.summary || "(空消息)"}`,
+      title: `${tab.shortSha} ${tab.summary || t("(空消息)")}`,
       // AppShell tab 标签渲染 baseName(path) → 取 `<cwd>/<短sha>` 当标签文案
       path: `${tab.cwd}/${tab.shortSha}`,
       payload: { ...tab },

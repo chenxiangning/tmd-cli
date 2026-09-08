@@ -12,6 +12,7 @@ import { cliPiPlugin } from "./cli-pi";
 import { cliKimiPlugin } from "./cli-kimi";
 import { cliQoderPlugin } from "./cli-qoder";
 import { cliQoderCnPlugin } from "./cli-qoder-cn";
+import { cliDshPlugin } from "./cli-dsh";
 import { cliOpencodePlugin } from "./cli-opencode";
 import { composerPlugin } from "./composer";
 import { filesPlugin } from "./files";
@@ -35,6 +36,7 @@ export const allPlugins: Plugin[] = [
   cliGrokPlugin,
   cliQoderPlugin,
   cliQoderCnPlugin,
+  cliDshPlugin,
   cliOpencodePlugin,
   sessionBudgetPlugin,
   workspacePlugin,

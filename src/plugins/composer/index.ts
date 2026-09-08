@@ -8,9 +8,10 @@
  * - 快捷键(spec 2026-09-05):⌘K 开合命令抽屉;发送与抽屉 plugin 区条目以无键位命令暴露
  */
 
-import { SquarePen } from "lucide-react";
+import { PenNib } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import type { Plugin } from "@kernel/plugin";
+import { t } from "@kernel/i18n";
 import { Composer, composerSendRef } from "./view/Composer";
 import { ComposerToolbar } from "./view/ComposerToolbar";
 import { toggleDrawer } from "./state/drawerOpen";
@@ -36,10 +37,10 @@ function toggleDrawerIgnoreRepeat(): void {
 export const composerPlugin: Plugin = {
   id: "composer",
   meta: {
-    name: "输入区",
+    name: t("输入区"),
     abbr: "CP",
-    desc: "Composer:富文本输入、附件、建议",
-    icon: SquarePen,
+    desc: t("Composer:富文本输入、附件、建议"),
+    icon: PenNib,
     iconColor: "#A78BFA",
     category: "core",
   },
@@ -60,7 +61,7 @@ export const composerPlugin: Plugin = {
     window.addEventListener("blur", rearmDrawerKey);
     ctx.registerCommand({
       id: "composer.toggleDrawer",
-      title: "打开/关闭命令抽屉",
+      title: t("打开/关闭命令抽屉"),
       keybinding: "Cmd+K",
       when: () => !!host.getActiveSessionId(),
       run: toggleDrawerIgnoreRepeat,
@@ -68,13 +69,13 @@ export const composerPlugin: Plugin = {
     /* 发送消息:无键位仅暴露(设置清单数据面);发送行为完全归 Composer 既有路径 */
     ctx.registerCommand({
       id: "composer.send",
-      title: "发送消息",
+      title: t("发送消息"),
       run: () => composerSendRef.current?.(),
     });
     /* 切换输入区高度段:⌘J 在收起(min)与常规(normal)间往返,对齐 VS Code ⌘J 切底部面板;其余段按一次落到 min,再按回 normal */
     ctx.registerCommand({
       id: "composer.toggleStage",
-      title: "切换输入区高度段",
+      title: t("切换输入区高度段"),
       keybinding: "Cmd+J",
       when: () => !!host.getActiveSessionId(),
       run: () => setComposerStage(getComposerStage() === "min" ? "normal" : "min"),

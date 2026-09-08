@@ -1,0 +1,55 @@
+/* Git 面板专属样式(多仓增量):RepoBar 滚动条隐藏 + 对话框仓徽章 + 文件树仓标注。
+ * tailwind 任意变体对 ::-webkit-scrollbar 生成不稳,滚动条隐藏走此处(2026-09-07 实测)。 */
+
+/* 仓切换条:横向滚动保留、滚动条视觉隐藏 */
+.repo-bar-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.repo-bar-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* 仓切换条:仓间虚线分隔(2px 竖线自绘虚线段,border-strong 保证浅色主题可见) */
+.repo-bar-divider {
+  flex: none;
+  align-self: center;
+  width: 2px;
+  height: 12px;
+  margin: 0 6px;
+  border-radius: 1px;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--tmd-border-strong) 0 3px,
+    transparent 3px 7px
+  );
+}
+
+/* 远端对话框标题行的当前仓徽章 */
+.git-dialog-repo {
+  margin-left: auto;
+  flex: none;
+  font-size: 0.625rem;
+  font-weight: 400;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--tmd-fg-muted);
+  border: 1px solid var(--tmd-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 文件树仓根行的分支标注(原型 repotag:9.5px 边框圆角) */
+.file-tree-repotag {
+  flex: none;
+  font-size: 0.59375rem;
+  line-height: 1.4;
+  color: var(--tmd-fg-faint);
+  border: 1px solid var(--tmd-border);
+  border-radius: 3px;
+  padding: 0 4px;
+  white-space: nowrap;
+}

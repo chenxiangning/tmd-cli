@@ -6,7 +6,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { t } from "@kernel/i18n";
+import { CircleNotch } from "@phosphor-icons/react";
 import { ipc, type GitBranchDiffFile, type GitFilePatch } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
 import { PatchLines } from "./PatchLines";
@@ -61,12 +62,12 @@ export function WorktreeDiffPanel({
       <div className="min-w-0 flex-1 overflow-auto">
         {!selected && !loading && (
           <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
-            选择文件查看差异
+            {t("选择文件查看差异")}
           </div>
         )}
         {selected && patchLoading && (
           <div className="flex h-full items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> 加载中…
+            <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
           </div>
         )}
         {selected && patchError && (
@@ -77,23 +78,23 @@ export function WorktreeDiffPanel({
         )}
         {selected && !patchLoading && !patchError && patch && patch.patch.length === 0 && (
           <div className="p-3 text-(--tmd-fg-faint)">
-            {patch.binary ? "二进制文件,无文本差异" : "无内容差异"}
+            {patch.binary ? t("二进制文件,无文本差异") : t("无内容差异")}
           </div>
         )}
         {selected && !patchLoading && !patchError && !patch && (
-          <div className="p-3 text-(--tmd-fg-faint)">该文件相对 {branch} 无差异</div>
+          <div className="p-3 text-(--tmd-fg-faint)">{t("该文件相对 {branch} 无差异", { branch })}</div>
         )}
       </div>
 
       {/* 右:文件列表 */}
       <div className="flex w-[300px] shrink-0 flex-col border-l border-(--tmd-border)">
-        <div className="shrink-0 border-b border-(--tmd-border) px-2 py-1.5 text-[10px] uppercase tracking-wider text-(--tmd-fg-faint)">
-          文件({files.length})
+        <div className="shrink-0 border-b border-(--tmd-border) px-2 py-1.5 text-[0.625rem] uppercase tracking-wider text-(--tmd-fg-faint)">
+          {t("文件({n})", { n: files.length })}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-1">
           {loading && (
             <div className="flex items-center justify-center gap-1.5 py-3 text-(--tmd-fg-faint)">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> 加载中…
+              <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
             </div>
           )}
           {!loading && error && (
@@ -101,7 +102,7 @@ export function WorktreeDiffPanel({
           )}
           {!loading && !error && files.length === 0 && (
             <div className="px-2 py-3 text-center text-(--tmd-fg-faint)">
-              工作树与该分支没有差异
+              {t("工作树与该分支没有差异")}
             </div>
           )}
           {files.map((f) => (
@@ -116,7 +117,7 @@ export function WorktreeDiffPanel({
               title={f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}
             >
               <span
-                className={`shrink-0 rounded bg-(--tmd-bg-sunken) px-1 font-mono text-[10px] ${
+                className={`shrink-0 rounded bg-(--tmd-bg-sunken) px-1 font-mono text-[0.625rem] ${
                   STATUS_COLOR[f.status] ?? "text-(--tmd-fg-faint)"
                 }`}
               >

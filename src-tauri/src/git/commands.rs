@@ -8,9 +8,9 @@ use git2::Repository;
 
 use super::{
     ahead_behind as ahead_behind_impl, branch_ops, commit as commit_impl, commit_view, compare_ops,
-    diff, index_ops, remote_ops, stash_ops, status as status_impl, walk_log, with_repo,
+    diff, index_ops, remote_ops, repos_scan, stash_ops, status as status_impl, walk_log, with_repo,
     with_repo_mut, AheadBehind, BranchCompareSet, BranchDiffFile, BranchList, CommitFile,
-    CommitInput, DiffStatus, DiffTotals, FilePatch, GitError, LogEntry,
+    CommitInput, DiffStatus, DiffTotals, FilePatch, GitError, LogEntry, RepoScanResult,
 };
 
 /// 读命令模板:spawn_blocking 包 with_repo;JoinError 只在 panic/取消时出现。
@@ -46,6 +46,14 @@ pub async fn git_status(cwd: String) -> Result<DiffStatus, String> {
     run(cwd, status_impl::compute).await
 }
 
+/// 多仓发现(workspace 根 BFS;不走 with_repo 缓存 —— 见 repos_scan.rs)。
+#[tauri::command]
+pub async fn git_repos_scan(root: String, max_depth: u32) -> Result<RepoScanResult, String> {
+    tauri::async_runtime::spawn_blocking(move || repos_scan::scan(&root, max_depth))
+        .await
+        .map_err(|e| format!("E_GIT2: 任务调度失败: {e}"))?
+        .map_err(String::from)
+}
 #[tauri::command]
 pub async fn git_ahead_behind(cwd: String) -> Result<AheadBehind, String> {
     run(cwd, ahead_behind_impl).await

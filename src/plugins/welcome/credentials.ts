@@ -9,6 +9,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import type { QuotaWindow } from "@kernel/quota";
 import {
   detectVendorByBaseUrl,
@@ -113,7 +114,7 @@ async function listOmpCredentials(): Promise<EngineCredential[]> {
   for (const providerId of providers) {
     const vendor = detectVendorByProviderId(providerId);
     if (!vendor) {
-      out.push({ providerId, title: providerId, windows: [], note: "暂不支持该供应商" });
+      out.push({ providerId, title: providerId, windows: [], note: t("暂不支持该供应商") });
       continue;
     }
     if (vendor === "openai-codex") {
@@ -127,13 +128,13 @@ async function listOmpCredentials(): Promise<EngineCredential[]> {
           planLabel: codexPlanLabelWithSnapshot(local),
         });
       } catch {
-        out.push({ providerId, title: VENDOR_TITLE["openai-codex"], windows: [], note: "已登录" });
+        out.push({ providerId, title: VENDOR_TITLE["openai-codex"], windows: [], note: t("已登录") });
       }
       continue;
     }
     const raw = await readOmpAuthCredential(providerId);
     if (!raw) {
-      out.push({ providerId, title: VENDOR_TITLE[vendor], windows: [], note: "凭据缺失" });
+      out.push({ providerId, title: VENDOR_TITLE[vendor], windows: [], note: t("凭据缺失") });
       continue;
     }
     out.push(await toCredential(providerId, vendor, parseCredentialData(raw)));
@@ -187,7 +188,7 @@ async function listCodexCredentials(): Promise<EngineCredential[]> {
         providerId: "openai-codex",
         title: VENDOR_TITLE["openai-codex"],
         windows: [],
-        note: "已登录(ChatGPT 订阅)",
+        note: t("已登录(ChatGPT 订阅)"),
       },
     ];
   }
@@ -219,7 +220,7 @@ async function listClaudeCredentials(): Promise<EngineCredential[]> {
         providerId: "anthropic",
         title: "Claude 官方订阅",
         windows: [],
-        note: "已登录;官方订阅额度请在 CLI 内 /usage 查看",
+        note: t("已登录;官方订阅额度请在 CLI 内 /usage 查看"),
       },
     ];
   }
@@ -253,12 +254,12 @@ async function listOpencodeCredentials(): Promise<EngineCredential[]> {
   for (const { providerId, key } of entries) {
     const vendor = detectVendorByProviderId(providerId);
     if (!vendor) {
-      out.push({ providerId, title: providerId, windows: [], note: "已登录" });
+      out.push({ providerId, title: providerId, windows: [], note: t("已登录") });
       continue;
     }
     /* oauth 型无 key(如 openai ChatGPT 档):查不了额度,按已登录展示。 */
     if (!key) {
-      out.push({ providerId, title: VENDOR_TITLE[vendor], windows: [], note: "已登录" });
+      out.push({ providerId, title: VENDOR_TITLE[vendor], windows: [], note: t("已登录") });
       continue;
     }
     out.push(await toCredential(providerId, vendor, { key }));

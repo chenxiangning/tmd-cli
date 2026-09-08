@@ -7,7 +7,8 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, Cloud, Download, GitBranch, X } from "lucide-react";
+import { t } from "@kernel/i18n";
+import { CaretDown, Cloud, DownloadSimple, GitBranch, Cross } from "@phosphor-icons/react";
 import { ipc, type GitRemoteRequest } from "@kernel/ipc";
 import { DialogActions, GitDialogShell } from "./GitDialogShell";
 import { GitOpTokens, type GitOpToken } from "./GitOpTokens";
@@ -21,6 +22,7 @@ type RunFn = (req: GitRemoteRequest, opLabel: string) => void;
 export function PullDialog({
   cwd,
   branch,
+  repoName,
   submitting,
   onClose,
   onRun,
@@ -28,6 +30,7 @@ export function PullDialog({
   cwd: string;
   /** 当前分支(detached 时为空串) */
   branch: string;
+  repoName?: string;
   submitting: boolean;
   onClose: () => void;
   onRun: RunFn;
@@ -102,17 +105,17 @@ export function PullDialog({
         followTags: false,
         gerrit: null,
       },
-      "拉取",
+      t("拉取"),
     );
 
   return (
     <GitDialogShell
-      title="拉取变更"
-      icon={<Download className="h-3.5 w-3.5" aria-hidden />}
-      locked={submitting}
+      title={t("拉取变更")}
+      icon={<DownloadSimple className="h-[0.875rem] w-[0.875rem]" aria-hidden />}
+      repoName={repoName}
       onClose={onClose}
       footer={
-        <DialogActions confirmLabel="拉取" submitting={submitting} onConfirm={confirm} onCancel={onClose} />
+        <DialogActions confirmLabel={t("拉取")} submitting={submitting} onConfirm={confirm} onCancel={onClose} />
       }
     >
       {/* hero:远端 -> 目标分支 + 命令预览 */}
@@ -128,7 +131,7 @@ export function PullDialog({
       {/* 远端 / 目标远端分支 */}
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div>
-          <PickerField icon={<Cloud className="h-3.5 w-3.5" aria-hidden />} label="远端" />
+          <PickerField icon={<Cloud className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label={t("远端")} />
           <RemotePicker
             remotes={remotes}
             value={remote}
@@ -141,7 +144,7 @@ export function PullDialog({
           />
         </div>
         <div>
-          <PickerField icon={<GitBranch className="h-3.5 w-3.5" aria-hidden />} label="目标远端分支" />
+          <PickerField icon={<GitBranch className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label={t("目标远端分支")} />
           <BranchCombobox
             value={target}
             placeholder={branch || "main"}
@@ -160,11 +163,11 @@ export function PullDialog({
           onClick={() => setOptionsOpen((v) => !v)}
           className="flex w-full items-center gap-2 rounded border border-(--tmd-border) px-2 py-1.5 text-xs text-(--tmd-fg) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
         >
-          <span className="flex h-4 min-w-4 items-center justify-center rounded-sm bg-(--tmd-bg-sunken) px-1 text-[10px] text-(--tmd-fg-muted)">
+          <span className="flex h-4 min-w-4 items-center justify-center rounded-sm bg-(--tmd-bg-sunken) px-1 text-[0.625rem] text-(--tmd-fg-muted)">
             {selectedOptions.length > 0 ? selectedOptions.length : ""}
           </span>
-          修改选项
-          <ChevronDown
+          {t("修改选项")}
+          <CaretDown
             className={`ml-auto h-3.5 w-3.5 text-(--tmd-fg-faint) transition-transform ${optionsOpen ? "rotate-180" : ""}`}
             aria-hidden
           />
@@ -203,10 +206,10 @@ export function PullDialog({
                   else if (o === "--no-commit") setNoCommit(false);
                   else if (o === "--no-verify") setNoVerify(false);
                 }}
-                className="flex items-center gap-1 rounded-full bg-(--tmd-bg-sunken) px-2 py-0.5 font-mono text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+                className="flex items-center gap-1 rounded-full bg-(--tmd-bg-sunken) px-2 py-0.5 font-mono text-[0.6875rem] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
               >
                 {o}
-                <X className="h-3 w-3" aria-hidden />
+                <Cross className="h-[0.75rem] w-[0.75rem]" aria-hidden />
               </button>
             ))}
           </div>
@@ -217,7 +220,7 @@ export function PullDialog({
       <dl className="mt-3 space-y-2 rounded-md border border-(--tmd-border) bg-(--tmd-bg-sunken) p-3">
         <div>
           <dt className="text-xs font-semibold text-(--tmd-fg)">Intent</dt>
-          <dd className="mt-0.5 text-xs leading-5 text-(--tmd-fg-muted)">{explanation.intent}</dd>
+          <dd className="mt-0.5 text-xs leading-5 text-(--tmd-fg-muted)">{t(explanation.intent)}</dd>
         </div>
         <div>
           <dt className="text-xs font-semibold text-(--tmd-fg)">Will Happen</dt>
@@ -235,8 +238,8 @@ export function PullDialog({
                   }`}
                 >
                   {row.code && <code className="mr-1 font-mono">{row.code}</code>}
-                  {row.label && <strong className="mr-1 text-(--tmd-fg)">{row.label}</strong>}
-                  {row.text}
+                  {row.label && <strong className="mr-1 text-(--tmd-fg)">{t(row.label)}</strong>}
+                  {t(row.text)}
                 </li>
               ))}
             </ul>
@@ -244,7 +247,7 @@ export function PullDialog({
         </div>
         <div>
           <dt className="text-xs font-semibold text-(--tmd-fg)">Will NOT Happen</dt>
-          <dd className="mt-0.5 text-xs leading-5 text-(--tmd-fg-muted)">{explanation.willNot}</dd>
+          <dd className="mt-0.5 text-xs leading-5 text-(--tmd-fg-muted)">{t(explanation.willNot)}</dd>
         </div>
       </dl>
 
@@ -282,7 +285,7 @@ function OptionRow({
       }`}
     >
       <span
-        className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-[10px] leading-none ${
+        className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-[0.625rem] leading-none ${
           active ? "border-(--tmd-accent) bg-(--tmd-accent) text-(--tmd-accent-fg)" : "border-(--tmd-border)"
         }`}
       >

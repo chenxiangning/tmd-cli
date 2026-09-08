@@ -16,6 +16,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import changelogRaw from "../../CHANGELOG.md?raw";
 
 export const RELEASES_PAGE_URL = "https://github.com/chenxiangning/tmd-cli/releases";
@@ -94,23 +95,23 @@ export function parseAtomLatest(xml: string): ReleaseInfo | null {
 export async function checkLatestRelease(): Promise<UpdateCheckResult> {
   /* 浏览器 dev(vite 直开)无 Tauri runtime,invoke 不存在 —— 单独提示,不冒充网络错误。 */
   if (typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window)) {
-    return { release: null, error: "当前为浏览器 dev 环境(无 Tauri runtime),无法发起检查;请在应用窗口内使用。" };
+    return { release: null, error: t("当前为浏览器 dev 环境(无 Tauri runtime),无法发起检查;请在应用窗口内使用。") };
   }
   try {
     const res = await ipc.quotaFetch({ url: RELEASES_ATOM_URL, text: true });
     if (res.status !== 200) {
-      return { release: null, error: `更新源返回 HTTP ${res.status},请稍后重试。` };
+      return { release: null, error: t("更新源返回 HTTP {status},请稍后重试。", { status: res.status }) };
     }
     const release = parseAtomLatest(typeof res.body === "string" ? res.body : "");
     if (!release) {
-      return { release: null, error: "更新源响应格式异常,未解析到发布版本。" };
+      return { release: null, error: t("更新源响应格式异常,未解析到发布版本。") };
     }
     return { release, error: null };
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e);
     return {
       release: null,
-      error: `网络请求失败:${reason}。若网络需代理,请先在设置菜单「网络代理」中开启后重试。`,
+      error: t("网络请求失败:{reason}。若网络需代理,请先在设置菜单「网络代理」中开启后重试。", { reason }),
     };
   }
 }

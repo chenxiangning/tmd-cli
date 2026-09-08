@@ -27,6 +27,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import {
   isOpencodeMagicContextInstalled,
   resolveSubagentEntry,
@@ -83,8 +84,9 @@ async function viaOmp(instruction: string, cwd: string, opts?: DistillOptions): 
     if (!(await isOpencodeMagicContextInstalled())) {
       return {
         ok: false,
-        detail:
+        detail: t(
           "missing-plugin: opencode magic-context 未安装,d 路过 opencode 需先安装 @cortexkit/opencode-magic-context",
+        ),
       };
     }
     const result = await ipc.procCommunicate({
@@ -102,7 +104,7 @@ async function viaOmp(instruction: string, cwd: string, opts?: DistillOptions): 
   if (!subagentEntry) {
     return {
       ok: false,
-      detail: "missing-subagent-entry: magic-context subagent-entry.js 未找到,d 路 v2 需此文件",
+      detail: t("missing-subagent-entry: magic-context subagent-entry.js 未找到,d 路 v2 需此文件"),
     };
   }
   const result = await ipc.procCommunicate({
@@ -128,7 +130,7 @@ export async function rememberFacts(
   cwd: string,
   opts?: DistillOptions,
 ): Promise<WriteOutcome> {
-  if (facts.length === 0) return { ok: false, detail: "无内容" };
+  if (facts.length === 0) return { ok: false, detail: t("无内容") };
   const list = facts.map((f, i) => `${i + 1}. category="${f.category}" content="${sanitize(f.content)}"`).join("\n");
   const instruction =
     `请调用 ctx_memory 工具,action=write,将以下 ${facts.length} 条记忆逐条写入 ` +

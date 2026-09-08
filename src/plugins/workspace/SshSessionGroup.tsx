@@ -4,23 +4,16 @@
  * 分类折叠:段头即开关(useGroupCollapsed,key = `ws:ssh`),折叠态显活会话数。
  */
 
-import { Server } from "lucide-react";
+import { HardDrive } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
+import { t } from "@kernel/i18n";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import type { Workspace } from "@kernel/workspace";
 import type { SessionMeta } from "@kernel/ipc";
 import { GroupHeader } from "./GroupHeader";
+import { LiveOutputDot } from "./SessionRows";
 import { useGroupCollapsed } from "./useGroupCollapsed";
-
-/** 活会话呼吸灯(ActivityDot 语义的 SSH 版:输出即绿,无轮次概念)。 */
-function SshActivityDot({ sessionId }: { sessionId: string }) {
-  const last = host.getLastActivityAt(sessionId);
-  const now = Date.now();
-  const idle = now - last > 4000;
-  return (
-    <span className={`tl-node${idle ? " is-idle" : ""}`} aria-hidden />
-  );
-}
+/** 活会话呼吸灯(LiveOutputDot:输出即绿,无轮次概念)。 */
 
 export function SshSessionGroup({ workspace }: { workspace: Workspace }) {
   useHost();
@@ -34,7 +27,7 @@ export function SshSessionGroup({ workspace }: { workspace: Workspace }) {
     <div className="cli-group">
       <GroupHeader
         label="SSH"
-        icon={<Server size={12} />}
+        icon={<HardDrive size="0.75rem" />}
         count={sessions.length}
         collapsed={collapsed}
         onToggle={toggle}
@@ -45,6 +38,7 @@ export function SshSessionGroup({ workspace }: { workspace: Workspace }) {
           return (
             <button
               key={session.id}
+              data-session-id={session.id}
               className={`thread-row${session.id === activeSessionId ? " active" : ""}`}
               onClick={() => {
                 noteSessionTabTitle(session.id, title);
@@ -52,12 +46,12 @@ export function SshSessionGroup({ workspace }: { workspace: Workspace }) {
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
-                if (window.confirm(`断开 SSH 会话「${title}」?`)) {
+                if (window.confirm(t("断开 SSH 会话「{title}」?", { title }))) {
                   void host.removeSession(session.id);
                 }
               }}
             >
-              <SshActivityDot sessionId={session.id} />
+              <LiveOutputDot sessionId={session.id} />
               <span className="thread-name">{title}</span>
               <span className="thread-meta">
                 <span className="thread-ask-badge" style={{ opacity: 0.7 }}>

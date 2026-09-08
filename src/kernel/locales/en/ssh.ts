@@ -1,0 +1,131 @@
+/** en 词典 · ssh 域(键 = 中文源串,由文案迁移按归属写入;zh 恒等无词典)。 */
+export const MESSAGES = {
+  /* 注册面(meta/命令/设置 section:定义处不调 t,消费点在外壳,主会话迁移) */
+  "SSH 远程": "SSH remote",
+  "SSH 终端会话 + SFTP 远端文件 + 本地端口转发":
+    "SSH terminal sessions + SFTP remote files + local port forwarding",
+  "保存远端文件": "Save remote file",
+  "SSH 主机簿与 known_hosts 信任管理。": "SSH host book and known_hosts trust management.",
+  "主机": "Hosts",
+
+  /* 入口与主机选择器 */
+  "SSH 连接…": "SSH connection…",
+  "SSH 连接": "SSH connection",
+  "还没有配置 SSH 主机。到「设置 → SSH」添加,或从 ~/.ssh/config 一键导入。":
+    "No SSH hosts configured yet. Add one in Settings → SSH, or import from ~/.ssh/config in one click.",
+  "私钥": "Private key",
+  "键盘认证": "Keyboard-interactive",
+  "密码": "Password",
+
+  /* 认证提示卡 */
+  "主机密钥已变更": "Host key has changed",
+  "未知主机": "Unknown host",
+  "已存指纹 {fp} 与本次不符,可能存在中间人攻击。仅在你确知服务器密钥确实更换时信任。":
+    "The stored fingerprint {fp} does not match this connection, which may indicate a man-in-the-middle attack. Trust it only if you know the server key has really changed.",
+  "首次连接此主机,核对指纹后信任。": "First connection to this host. Verify the fingerprint before trusting.",
+  "拒绝": "Reject",
+  "信任并连接": "Trust and connect",
+  "输入密码": "Enter password",
+  "服务器要求输入": "Server requests input",
+  "取消": "Cancel",
+  "确定": "Confirm",
+
+  /* 面板 · 连接卡 */
+  "还没有 SSH 会话": "No SSH sessions yet",
+  "连接主机": "Connect to host",
+  "连接中": "Connecting",
+  "已连接": "Connected",
+  "重连中": "Reconnecting",
+  "已断开": "Disconnected",
+  "连接失败": "Connection failed",
+  "重连失败:{msg}": "Reconnect failed: {msg}",
+  "测延迟": "Test latency",
+  "重新连接": "Reconnect",
+  "断开连接": "Disconnect",
+
+  /* 面板 · 端口转发 */
+  "端口转发": "Port forwarding",
+  "新建转发": "New forward",
+  "将远端服务映射到本地 127.0.0.1": "Map remote services to local 127.0.0.1",
+  "点击复制本地地址": "Click to copy the local address",
+  "停止": "Stop",
+  "远端主机与端口(1-65535)必填": "Remote host and port (1-65535) are required",
+  "本地端口须在 1-65535 或留空自动分配": "Local port must be 1-65535, or empty for auto-assign",
+  "本地端口 {port} 已被占用": "Local port {port} is already in use",
+  "远端主机(默认 127.0.0.1)": "Remote host (default 127.0.0.1)",
+  "远端端口": "Remote port",
+  "本地端口(留空自动)": "Local port (empty = auto)",
+  "建立转发": "Create forward",
+
+  /* 面板 · SFTP 树 */
+  "远端文件": "Remote files",
+  "刷新": "Refresh",
+  "上传文件": "Upload file",
+  "下载根目录": "Download root directory",
+  "连接建立后可浏览与编辑远端文件": "Browse and edit remote files once connected",
+  "读取远端目录失败:{msg}": "Failed to read remote directory: {msg}",
+  "新目录名": "New directory name",
+  "新名称": "New name",
+  "删除远端 {path}?": "Delete remote {path}?",
+  "操作失败:{msg}": "Operation failed: {msg}",
+  "下载目录…": "Download directory…",
+  "下载文件…": "Download file…",
+  "上传到此目录…": "Upload to this directory…",
+  "新建目录…": "New directory…",
+  "重命名…": "Rename…",
+  "删除": "Delete",
+  "加载中": "Loading",
+  "下载到本地目录": "Download to local directory",
+  "下载失败:{msg}": "Download failed: {msg}",
+  "选择要上传的文件": "Choose a file to upload",
+  "上传失败:{msg}": "Upload failed: {msg}",
+
+  /* 远端文件编辑 */
+  "远端已变更({time}, {size} 字节)": "Remote file has changed ({time}, {size} bytes)",
+  "远端文件已被删除": "Remote file has been deleted",
+  "{detail}。覆盖远端?": "{detail}. Overwrite remote?",
+  "未保存:远端有变更": "Not saved: remote has changes",
+  "保存失败:{msg}": "Save failed: {msg}",
+  "读取远端文件…": "Reading remote file…",
+  "{n} 字节": "{n} bytes",
+  "仅载入头部 200KB": "only the first 200KB loaded",
+  "保存中…": "Saving…",
+  "保存": "Save",
+  "文件超过 200KB,仅载入头部;保存将整文件覆写,确认后再编辑。":
+    "File is over 200KB; only the head is loaded. Saving overwrites the whole file — confirm before editing.",
+  "加载编辑器…": "Loading editor…",
+
+  /* 设置 · 主机簿 */
+  "主机地址与用户名必填": "Host address and username are required",
+  "相同 host:port@user 的主机已存在": "A host with the same host:port@user already exists",
+  "添加 SSH 主机": "Add SSH host",
+  "编辑 SSH 主机": "Edit SSH host",
+  "名称": "Name",
+  "可选": "Optional",
+  "主机地址 *": "Host address *",
+  "端口": "Port",
+  "用户名 *": "Username *",
+  "认证方式": "Authentication",
+  "键盘交互(MFA)": "Keyboard-interactive (MFA)",
+  "(留空保留)": "(leave empty to keep)",
+  "私钥内容": "Private key content",
+  "私钥路径(内容为空时读取)": "Private key path (read when content is empty)",
+  "私钥口令": "Private key passphrase",
+  "代理(可选)": "Proxy (optional)",
+  "不使用": "None",
+  "从 ~/.ssh/config 导入": "Import from ~/.ssh/config",
+  "扫描中…": "Scanning…",
+  "~/.ssh/config 里没有可导入的主机段": "No importable host blocks in ~/.ssh/config",
+  "已存在": "Already exists",
+  "导入选中": "Import selected",
+  "删除主机「{name}」?已开的会话不受影响。": "Delete host \"{name}\"? Open sessions are unaffected.",
+  "添加主机": "Add host",
+  "{n} 台主机": "{n} hosts",
+  "还没有 SSH 主机。手动添加,或从 ~/.ssh/config 一键导入。":
+    "No SSH hosts yet. Add one manually, or import from ~/.ssh/config in one click.",
+  "重置主机密钥信任(下次连接重新确认)": "Reset host key trust (re-confirm on next connect)",
+  "编辑": "Edit",
+
+  /* 扫描 */
+  "无法定位用户目录": "Cannot locate the user directory",
+} as Record<string, string>;

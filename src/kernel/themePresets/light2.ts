@@ -1,7 +1,8 @@
 /**
- * VS Code light 主题 preset 数据 —— 移植自 codemoss features/theme/constants/vscodeThemePresets.ts(勿手改,说明见 ./index.ts)。
+ * VS Code light 主题 preset 数据 —— 移植自 codemoss(勿手改,说明见 ./index.ts)。
+ * terminal.ansi* 16 色浅底可读适配:色相取自各主题官方终端色板(Solarized 官方配色 /
+ * Catppuccin 官方 kitty / Tokyo Night 官方 day),对比度不足处保 H/S 降 L 至 WCAG ≥3:1。
  */
-/* 本文件自 light1.ts/light2.ts 拆出(文件规模铁则收紧至 300 行):承接 solarized-light/catppuccin-latte/tokyo-day 三个 preset。 */
 import type { ThemePresetDefinition, ThemePresetId } from "./index";
 
 export const LIGHT_PRESETS_PART2 = {
@@ -46,7 +47,23 @@ export const LIGHT_PRESETS_PART2 = {
       "editorGutter.deletedBackground": "#dc322f",
       "textLink.foreground": "#268bd2",
       "badge.background": "#e0d8be",
-      "badge.foreground": "#586e75"
+      "badge.foreground": "#586e75",
+      "terminal.ansiBlack": "#073642",
+      "terminal.ansiRed": "#dc322f",
+      "terminal.ansiGreen": "#839600",
+      "terminal.ansiYellow": "#b38700",
+      "terminal.ansiBlue": "#268bd2",
+      "terminal.ansiMagenta": "#d33682",
+      "terminal.ansiCyan": "#299d95",
+      "terminal.ansiWhite": "#657b83",
+      "terminal.ansiBrightBlack": "#586e75",
+      "terminal.ansiBrightRed": "#cb4b16",
+      "terminal.ansiBrightGreen": "#839600",
+      "terminal.ansiBrightYellow": "#b38700",
+      "terminal.ansiBrightBlue": "#268bd2",
+      "terminal.ansiBrightMagenta": "#d33682",
+      "terminal.ansiBrightCyan": "#299d95",
+      "terminal.ansiBrightWhite": "#7f9193"
     },
     "syntax": {
       "keyword": "#859900",
@@ -105,7 +122,23 @@ export const LIGHT_PRESETS_PART2 = {
       "editorGutter.deletedBackground": "#d20f39",
       "textLink.foreground": "#1e66f5",
       "badge.background": "#ccd0da",
-      "badge.foreground": "#4c4f69"
+      "badge.foreground": "#4c4f69",
+      "terminal.ansiBlack": "#5c5f77",
+      "terminal.ansiRed": "#d20f39",
+      "terminal.ansiGreen": "#3f9d2a",
+      "terminal.ansiYellow": "#c07b19",
+      "terminal.ansiBlue": "#1e66f5",
+      "terminal.ansiMagenta": "#e44dbc",
+      "terminal.ansiCyan": "#179299",
+      "terminal.ansiWhite": "#84899e",
+      "terminal.ansiBrightBlack": "#6c6f85",
+      "terminal.ansiBrightRed": "#d20f39",
+      "terminal.ansiBrightGreen": "#3f9d2a",
+      "terminal.ansiBrightYellow": "#c07b19",
+      "terminal.ansiBrightBlue": "#1e66f5",
+      "terminal.ansiBrightMagenta": "#e44dbc",
+      "terminal.ansiBrightCyan": "#179299",
+      "terminal.ansiBrightWhite": "#8289a0"
     },
     "syntax": {
       "keyword": "#8839ef",
@@ -164,7 +197,23 @@ export const LIGHT_PRESETS_PART2 = {
       "editorGutter.deletedBackground": "#c64343",
       "textLink.foreground": "#2e7de9",
       "badge.background": "#c4c8d8",
-      "badge.foreground": "#343b58"
+      "badge.foreground": "#343b58",
+      "terminal.ansiBlack": "#7e8086",
+      "terminal.ansiRed": "#f52561",
+      "terminal.ansiGreen": "#587539",
+      "terminal.ansiYellow": "#8c6c3e",
+      "terminal.ansiBlue": "#2e7de9",
+      "terminal.ansiMagenta": "#9854f1",
+      "terminal.ansiCyan": "#007197",
+      "terminal.ansiWhite": "#6172b0",
+      "terminal.ansiBrightBlack": "#767dab",
+      "terminal.ansiBrightRed": "#ff003e",
+      "terminal.ansiBrightGreen": "#5c8524",
+      "terminal.ansiBrightYellow": "#a27629",
+      "terminal.ansiBrightBlue": "#1a7bff",
+      "terminal.ansiBrightMagenta": "#9e58ff",
+      "terminal.ansiBrightCyan": "#007ea8",
+      "terminal.ansiBrightWhite": "#3760bf"
     },
     "syntax": {
       "keyword": "#343b58",
@@ -181,5 +230,5 @@ export const LIGHT_PRESETS_PART2 = {
       "removed": "#c64343"
     },
     "label": "Tokyo Day"
-  },
+  }
 } as unknown as Record<ThemePresetId, Omit<ThemePresetDefinition, "id">>;

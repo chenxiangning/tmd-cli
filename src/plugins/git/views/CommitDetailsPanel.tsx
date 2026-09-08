@@ -9,7 +9,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { t } from "@kernel/i18n";
+import { ArrowLeft, CircleNotch } from "@phosphor-icons/react";
 import { ipc, type GitCommitFile, type GitFilePatch, type GitLogEntry } from "@kernel/ipc";
 import { formatAbsolute } from "@kernel/relativeTime";
 import { gitErrorDisplay } from "../gitError";
@@ -68,7 +69,7 @@ export function CommitDetailsPanel({
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" /> 加载中…
+        <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
       </div>
     );
   }
@@ -92,10 +93,10 @@ export function CommitDetailsPanel({
       ) : (
         <>
           <div className="shrink-0 px-3 pt-3 text-sm font-semibold text-(--tmd-fg)">
-            {commit.summary || "(空消息)"}
+            {commit.summary || t("(空消息)")}
           </div>
           <div className="flex shrink-0 items-center gap-2 px-3 pt-1.5">
-            <span className="rounded bg-(--tmd-bg-sunken) px-1.5 py-0.5 font-mono text-[10px] text-(--tmd-fg-muted)">
+            <span className="rounded bg-(--tmd-bg-sunken) px-1.5 py-0.5 font-mono text-[0.625rem] text-(--tmd-fg-muted)">
               {commit.shortSha}
             </span>
             <span className="text-xs text-(--tmd-fg-muted)">{commit.authorName}</span>
@@ -109,14 +110,14 @@ export function CommitDetailsPanel({
             </div>
           )}
           <div className="shrink-0 px-3 pt-2 text-xs text-(--tmd-fg-muted)">
-            {detail.files.length} 个文件 ·{" "}
+            {detail.files.length} {t("个文件")} ·{" "}
             <span className="text-(--tmd-diff-inserted)">++{totalAdds}</span> /{" "}
             <span className="text-(--tmd-diff-removed)">--{totalDels}</span>
           </div>
           <div className="mx-3 mb-3 mt-1.5 min-h-0 flex-1 overflow-y-auto rounded border border-(--tmd-border)">
             {detail.files.length === 0 && (
               <div className="px-2 py-3 text-center text-xs text-(--tmd-fg-faint)">
-                该提交没有变更文件
+                {t("该提交没有变更文件")}
               </div>
             )}
             {detail.files.map((f) => (
@@ -127,14 +128,14 @@ export function CommitDetailsPanel({
                 title={f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}
               >
                 <span
-                  className={`shrink-0 rounded bg-(--tmd-bg-sunken) px-1 font-mono text-[10px] ${
+                  className={`shrink-0 rounded bg-(--tmd-bg-sunken) px-1 font-mono text-[0.625rem] ${
                     STATUS_COLOR[f.status] ?? "text-(--tmd-fg-faint)"
                   }`}
                 >
                   {f.status}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-(--tmd-fg)">{f.path}</span>
-                <span className="shrink-0 font-mono text-[10px]">
+                <span className="shrink-0 font-mono text-[0.625rem]">
                   <span className="text-(--tmd-diff-inserted)">+{f.additions}</span>
                   <span className="text-(--tmd-fg-faint)"> / </span>
                   <span className="text-(--tmd-diff-removed)">-{f.deletions}</span>
@@ -189,14 +190,14 @@ function FilePatchView({
           onClick={onBack}
           className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-(--tmd-accent) hover:bg-(--tmd-accent-soft)"
         >
-          <ArrowLeft className="h-3 w-3" /> 返回文件列表
+          <ArrowLeft className="h-[0.75rem] w-[0.75rem]" /> {t("返回文件列表")}
         </button>
         <span className="min-w-0 flex-1 truncate text-xs text-(--tmd-fg)">{path}</span>
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-2">
         {loading && (
           <div className="flex h-full items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> 加载中…
+            <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
           </div>
         )}
         {!loading && error && <div className="text-(--tmd-diff-removed)">{error}</div>}
@@ -205,11 +206,11 @@ function FilePatchView({
         )}
         {!loading && !error && patch && patch.patch.length === 0 && (
           <div className="text-(--tmd-fg-faint)">
-            {patch.binary ? "二进制文件,无文本差异" : "无内容差异"}
+            {patch.binary ? t("二进制文件,无文本差异") : t("无内容差异")}
           </div>
         )}
         {!loading && !error && !patch && (
-          <div className="text-(--tmd-fg-faint)">该文件在此提交中无差异</div>
+          <div className="text-(--tmd-fg-faint)">{t("该文件在此提交中无差异")}</div>
         )}
       </div>
     </>

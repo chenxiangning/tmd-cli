@@ -1,5 +1,5 @@
 /* ──────────────────────────────────────────────────────────
- * Welcome 页 · 供应商/额度子区(自 welcome.css 拆分,500 行铁则)。
+ * Welcome 页 · 供应商/额度子区(自 welcome.css 拆分,300 行铁则)。
  *
  * 颜色零硬编码,全部消费 --tmd-* token。
  * ────────────────────────────────────────────────────────── */
@@ -30,7 +30,7 @@
 }
 
 .welcome-cred-title {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -38,7 +38,7 @@
 }
 
 .welcome-cred-plan {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-muted);
   white-space: nowrap;
   flex-shrink: 0;
@@ -66,7 +66,7 @@
 }
 
 .welcome-cred-window-label {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-muted);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
@@ -95,7 +95,7 @@
 
 .welcome-cred-window-pct {
   width: 30px; /* 定宽 → 条右缘跨行对齐 */
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-muted);
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -106,7 +106,7 @@
 .welcome-cred-window-reset {
   flex: 0 1 104px; /* 基准 104 定宽槽保跨行对齐;窄窗收缩为省略号,不撑爆轨道 */
   min-width: 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-subtle);
   white-space: nowrap;
   overflow: hidden;
@@ -121,12 +121,12 @@
 }
 
 .welcome-cred-balance {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .welcome-cred-note {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-muted);
   white-space: nowrap;
   overflow: hidden;

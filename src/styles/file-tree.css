@@ -12,10 +12,10 @@
  * ────────────────────────────────────────────────────────── */
 
 .file-tree-panel {
-  --file-tree-caption-font-size: 10px;
-  --file-tree-meta-font-size: 11px;
-  --file-tree-content-font-size: 12px;
-  --file-tree-title-font-size: 14px;
+  --file-tree-caption-font-size: 0.625rem;
+  --file-tree-meta-font-size: 0.6875rem;
+  --file-tree-content-font-size: 0.75rem;
+  --file-tree-title-font-size: 0.875rem;
 
   display: flex;
   flex: 1;
@@ -88,15 +88,15 @@
 /* codemoss 风格图标容器:16x16 SVG 区域,SVG 内部固定色 */
 .file-tree-icon-svg {
   display: inline-flex;
-  width: 16px;
-  height: 16px;
+  width: 1rem;
+  height: 1rem;
   align-items: center;
   justify-content: center;
 }
 
 .file-tree-icon-svg > svg {
-  width: 16px;
-  height: 16px;
+  width: 1rem;
+  height: 1rem;
   display: block;
 }
 
@@ -136,7 +136,7 @@
   align-items: center;
   justify-content: center;
   color: var(--tmd-fg-muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1;
   opacity: 0;
   transform: rotate(0deg);
@@ -220,8 +220,8 @@
 }
 
 .file-tree-action svg {
-  width: 11px;
-  height: 11px;
+  width: 0.6875rem;
+  height: 0.6875rem;
   display: block;
 }
 

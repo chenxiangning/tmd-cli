@@ -16,6 +16,8 @@ fn allowed_remove_roots() -> Vec<std::path::PathBuf> {
     let home = crate::session::home_dir();
     let mut roots: Vec<std::path::PathBuf> = [
         ".omp",
+        // dsh 会话盘(host 无删除 RPC,会话删除走本原语移除 <slug>/session-<id> 目录)
+        ".dsh",
         ".pi",
         ".claude",
         ".codex",
@@ -114,5 +116,31 @@ mod tests {
         remove_path(root.join("y.txt").to_str().unwrap()).unwrap();
         assert!(!root.join("y.txt").exists());
         let _ = fs::remove_dir_all(&root);
+    }
+    #[test]
+    fn 白名单覆盖各家_cli_会话盘() {
+        // 每家 CLI 的会话删除都依赖本原语放行对应 home 目录;
+        // 新增引擎时在此补一行,防止编辑踩掉既有项(2026-09-07 .omp 被覆盖实测)。
+        let roots = allowed_remove_roots();
+        for dir in [
+            ".omp",
+            ".dsh",
+            ".pi",
+            ".claude",
+            ".codex",
+            ".kimi",
+            ".kimi-code",
+            ".grok",
+            ".qoder",
+            ".qoder-cn",
+        ] {
+            let p = crate::session::home_dir().join(dir);
+            let canonical = p.canonicalize().unwrap_or(p);
+            assert!(
+                roots.iter().any(|root| root == &canonical),
+                "{} 必须在删除白名单内",
+                dir
+            );
+        }
     }
 }

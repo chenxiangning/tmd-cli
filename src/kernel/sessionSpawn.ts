@@ -1,5 +1,5 @@
 /**
- * 本地 CLI 会话 spawn 与装配 —— 从 host.ts 拆出(单文件 ≤500 行铁则)。
+ * 本地 CLI 会话 spawn 与装配 —— 从 host.ts 拆出(单文件 ≤300 行铁则)。
  *
  * 职责:createSession / openDiskSession 两条 spawn 路径 + adoptSpawned 统一装配
  * (身份探测登记、常驻订阅输出/退出、置 active)。秒退守望也归此件:进程在
@@ -79,6 +79,8 @@ interface SessionSpawnHost {
 export class SessionSpawnService {
   /** openDiskSession 在途单例闸:key = profileId:cliSessionId,双击去重。 */
   private openingDiskSessions = new Map<string, Promise<SessionMeta>>();
+  /** singleInstance profile 的 create 在途闸:key = profileId,双击不去重会开出两个 host。 */
+  private openingSingleInstances = new Map<string, Promise<SessionMeta>>();
 
   constructor(
     private readonly h: SessionSpawnHost,
@@ -89,12 +91,67 @@ export class SessionSpawnService {
   async create(profileId: string, cwd: string, workspaceId?: string): Promise<SessionMeta> {
     const profile = this.h.getCliProfile(profileId);
     if (!profile) throw new Error(`未知 CLI profile: ${profileId}`);
-    const spec: SpawnSpec = {
+    return this.guarded(profileId, () => this.spawnNew(profileId, profile, cwd, workspaceId));
+  }
+
+  /**
+   * 按任意 spec spawn 并完整装配(通用原语,shell 之外的插件自定 PTY 会话用,
+   * 例 dsh host 面板的自定义路径/参数启动)。与 create 的差异:spec 由调用方
+   * 给,不走 profile.command/args;身份探测/秒退守望按 profile 声明自然退化。
+   */
+  async raw(
+    profileId: string,
+    spec: SpawnSpec,
+    workspaceId?: string,
+    opts?: { activate?: boolean },
+  ): Promise<SessionMeta> {
+    return this.guarded(profileId, async () => {
+      const spawned = await this.spawn(profileId, spec, workspaceId);
+      return this.adoptSpawned(spawned.id, profileId, undefined, opts?.activate);
+    });
+  }
+
+  /**
+   * 单实例闸(菜单 create 与插件 raw 共用):已有活会话 = 聚焦既有,不再
+   * spawn;并发请求由在途闸收口 —— 否则自动启动与菜单点击两条 spawn 路在
+   * 探测窗内并发,第二个 `dsh web` 必然 EADDRINUSE。
+   */
+  private async guarded(
+    profileId: string,
+    task: () => Promise<SessionMeta>,
+  ): Promise<SessionMeta> {
+    if (!this.h.getCliProfile(profileId)?.singleInstance) return task();
+    const existing = this.h.getSessions().find((s) => s.profileId === profileId);
+    if (existing) {
+      this.h.setActiveSession(existing.id);
+      return existing;
+    }
+    const opening = this.openingSingleInstances.get(profileId);
+    if (opening) return opening;
+    const running = (async () => {
+      try {
+        return await task();
+      } finally {
+        this.openingSingleInstances.delete(profileId);
+      }
+    })();
+    this.openingSingleInstances.set(profileId, running);
+    return running;
+  }
+
+  private async spawnNew(
+    profileId: string,
+    profile: CliProfile,
+    cwd: string,
+    workspaceId?: string,
+  ): Promise<SessionMeta> {
+    let spec: SpawnSpec = {
       command: profile.command,
       args: profile.args,
       cwd,
       env: profile.env,
     };
+    if (profile.spawnTransform) spec = await profile.spawnTransform(spec);
     const spawnedAt = Date.now();
     /* 快照既有磁盘会话(id → 快照时 mtime):spawn 后 CLI 新落盘/复活的文件据此绑到活会话。
        快照失败 → null → 退化到 spawn 水位线判定(只认 spawn 后的落盘/增长),
@@ -141,12 +198,14 @@ export class SessionSpawnService {
     const opening = this.openingDiskSessions.get(key);
     if (opening) return opening;
     const args = profile.resumeArgs?.(cliSessionId) ?? profile.args;
-    const spec: SpawnSpec = {
+    let spec: SpawnSpec = {
       command: profile.command,
       args,
       cwd,
       env: profile.env,
     };
+    /* resume 同过 transform(dsh:--resume 标记 → 适配器 --session-id;契约与 spawnNew 一致) */
+    if (profile.spawnTransform) spec = await profile.spawnTransform(spec);
     const task = (async () => {
       try {
         const spawned = await this.spawn(profileId, spec, workspaceId);
@@ -184,18 +243,20 @@ export class SessionSpawnService {
     sessionId: string,
     profileId: string,
     cliSessionId?: string,
+    activate = true,
   ): Promise<SessionMeta> {
     /* 显式恢复路径的绑定也走唯一写入口:入口去重的兜底闸 —— 同一磁盘会话
        已有活 PTY 时新 PTY 照常运行,但身份不绑(账本/UI 按 tmd id 隔离,
        不与既有会话并账)。 */
     if (cliSessionId) this.h.bindIdentity(sessionId, cliSessionId);
     this.h.setSessions(await ipc.sessionList());
-    this.h.setActiveSessionId(sessionId);
+    if (activate) this.h.setActiveSessionId(sessionId);
     /* 常驻订阅从会话诞生起持续缓冲输出(与幕布是否挂载无关);
        秒退守望经 onExit 进退出回调 —— 缓冲随 removeSession 即清,摘尾须在清理前同步执行 */
     const adoptedAt = Date.now();
     const meta = await adoptPtySession(this.h, this.events, sessionId, {
       profileId,
+      activate,
       onExit: (id) => this.emitIfStartFailed(id, profileId, adoptedAt),
     });
     if (!meta) throw new Error(ADOPT_RACE_REASON);

@@ -25,8 +25,8 @@ interface PluginMeta {
   desc: string;
   /** 插头/卡片的 monogram 缩写(≤2 字符),如 "CC"。icon 缺省时的兜底。 */
   abbr: string;
-  /** 插头/卡片徽标组件(CLI 品牌字形或 lucide 语义图标),调用方必传 size;缺省回退 abbr。 */
-  icon?: ComponentType<{ size: number }>;
+  /** 插头/卡片徽标组件(CLI 品牌字形或 @phosphor-icons-react 语义图标),调用方必传 size;缺省回退 abbr。 */
+  icon?: ComponentType<{ size: number | string }>;
   /** 徽标颜色(CSS color),施加在容器上经 currentColor 传导;缺省跟随主题 accent。 */
   iconColor?: string;
   /** 分类:插排页分排依据;"core" = 焊死不可拔。 */
@@ -41,7 +41,7 @@ export type MountPoint =
   | "header.right"
   /** 头部左区按钮簇(折叠左栏/插件市场/回到首页所在 titlebar 左区,按钮列尾追加)。 */
   | "header.leftCluster"
-  /** 头部面包屑/工作区-会话导航区。 */
+  /** 头部中区:会话标题 tab 条与编辑 tab 条。 */
   | "header.breadcrumb"
   | "leftSidebar.section"
   /** 工作区标题行右侧动作区:贡献 icon 按钮级组件(如 session-budget 的预算入口)。 */
@@ -84,6 +84,8 @@ export interface PluginContext {
   registerFileVisual(provider: FileVisualProvider): void;
   /** 注册一条快捷键命令(shortcuts 注册表的 ctx 通道;键位语义归插件,内核只做分发)。 */
   registerCommand(command: CommandContribution): void;
+  /** 注册首页引擎卡下方专属面板(homePanels 注册表的 ctx 通道,键 = CliProfile.id)。 */
+  registerHomePanel(profileId: string, panel: ComponentType): void;
   /** 内核事件总线（跨插件通信唯一通道）。 */
   events: EventBus;
 }

@@ -6,9 +6,10 @@
  * 并兜底 text/plain 允许拖到外部应用。
  */
 
-import { ChevronRight, Copy, FolderOpen } from "lucide-react";
+import { CaretRight, Copy, FolderOpen } from "@phosphor-icons/react";
 import type { DirEntry } from "@kernel/ipc";
 import { clearDragPayload, setDragPayload } from "@kernel/internalDrag";
+import { t } from "@kernel/i18n";
 import { resolveFileVisual } from "@kernel/fileVisual";
 
 export function FileTreeRow({
@@ -16,6 +17,8 @@ export function FileTreeRow({
   depth,
   expanded,
   selected,
+  decoColor,
+  repoTag,
   onClick,
   onContextMenu,
   onCopyPath,
@@ -25,13 +28,17 @@ export function FileTreeRow({
   depth: number;
   expanded: boolean;
   selected: boolean;
+  /** Git 变更着色(开启 diff 过滤时由 FileTree 传入);缺省走 fileVisual 色。 */
+  decoColor?: string;
+  /** 仓根行标注(分支,submodule/worktree 带类型);非仓根缺省不显示。 */
+  repoTag?: string;
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onCopyPath: () => void;
   onReveal: () => void;
 }) {
   const hint = resolveFileVisual(entry.name, entry.isDir, expanded);
-  const color = hint.colorClass ?? "text-(--tmd-fg)";
+  const color = decoColor ?? hint.colorClass ?? "text-(--tmd-fg)";
 
   /* 文件/文件夹拖到 composer:写 kernel 共享 payload,composer drop 时读 */
   function handleDragStart(e: React.DragEvent<HTMLButtonElement>) {
@@ -65,7 +72,7 @@ export function FileTreeRow({
                 className={`file-tree-chevron${expanded ? " is-open" : ""}`}
                 aria-hidden
               >
-                <ChevronRight size={11} />
+                <CaretRight size="0.6875rem" />
               </span>
               <span className="file-tree-icon" aria-hidden>
                 <span
@@ -83,9 +90,10 @@ export function FileTreeRow({
             </span>
           )}
         </span>
-        <span className={`file-tree-name ${color}`}>
+        <span className={`file-tree-name ${color}${decoColor ? " font-semibold" : ""}`}>
           {entry.name}
         </span>
+        {repoTag && <span className="file-tree-repotag">{repoTag}</span>}
       </button>
       <span className="file-tree-actions">
         {/* 在访达中显示 ─ 设计参考图 hover 组首位(开口文件夹 icon) */}
@@ -98,13 +106,12 @@ export function FileTreeRow({
           }}
           onContextMenu={(ev) => {
             ev.preventDefault();
-            ev.stopPropagation();
             onContextMenu(ev);
           }}
-          aria-label="在访达中显示"
-          title="在访达中显示"
+          aria-label={t("在访达中显示")}
+          title={t("在访达中显示")}
         >
-          <FolderOpen aria-hidden size={11} />
+          <FolderOpen aria-hidden size="0.6875rem" />
         </button>
         <button
           type="button"
@@ -118,10 +125,10 @@ export function FileTreeRow({
             ev.stopPropagation();
             onContextMenu(ev);
           }}
-          aria-label="复制路径"
-          title="复制路径"
+          aria-label={t("复制路径")}
+          title={t("复制路径")}
         >
-          <Copy aria-hidden size={11} />
+          <Copy aria-hidden size="0.6875rem" />
         </button>
       </span>
     </div>

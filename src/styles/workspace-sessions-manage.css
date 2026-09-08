@@ -1,0 +1,198 @@
+
+/* ===== 会话管理(管理模式:复选框行 + 拖选 + 批量条;归档视图) ===== */
+
+/* 「归」字徽记:归档视图磁盘行的时间轴节点位(同 tl-node-viewing 的 15px 骑线盒)。 */
+.thread-row .tl-node.tl-node-gui {
+  left: -7px;
+  width: 15px;
+  height: 15px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  line-height: 1;
+  color: var(--text-faint);
+}
+
+/* 管理行列表:拖选期间禁原生文本选择。 */
+.wm-list {
+  user-select: none;
+}
+
+/* 管理行 = div 版 thread-row:指针交互全在容器上,行本身不开会话。 */
+.wm-row {
+  cursor: default;
+}
+
+.wm-row.is-selected {
+  background: color-mix(in srgb, var(--tmd-accent) 14%, transparent);
+}
+
+.wm-row.is-selected:hover {
+  background: color-mix(in srgb, var(--tmd-accent) 18%, transparent);
+}
+
+/* 复选框指示器(选中态实心 accent 方块 + 对勾);纯指示,命中归行容器。 */
+.wm-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  margin-right: 4px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 3px;
+  color: transparent;
+  flex-shrink: 0;
+}
+
+.wm-check.is-on {
+  background: var(--tmd-accent);
+  border-color: var(--tmd-accent);
+  color: #fff;
+}
+
+/* 行尾动作钮(归档/删除):hover 显形,与扎点开关同节奏。 */
+.wm-act {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  min-width: 16px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  color: var(--text-faint);
+  opacity: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 0 1px;
+  transition:
+    opacity 0.12s ease,
+    background-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.wm-row:hover .wm-act,
+.wm-act.is-armed {
+  opacity: 1;
+}
+
+.wm-act:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+/* 删除钮武装态:红底反白,与右键菜单删除确认同语义同 token(--danger-strong)。 */
+.wm-danger.is-armed {
+  background: var(--danger-strong);
+  color: var(--tmd-accent-fg);
+}
+
+.wm-danger-arm {
+  font-size: 0.625rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* 批量条:选中数 + 归档/恢复 + 删除(两步)。 */
+.wm-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  margin-left: var(--workspace-tree-rail-x);
+  width: calc(100% - var(--workspace-tree-rail-x));
+  box-sizing: border-box;
+}
+
+.wm-bar-count {
+  font-size: var(--sidebar-meta-font-size);
+  color: var(--text-muted);
+  flex: 1;
+  white-space: nowrap;
+}
+
+.wm-bar-btn {
+  border: 1px solid var(--tmd-border);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-size: var(--sidebar-meta-font-size);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wm-bar-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.wm-bar-btn.is-armed {
+  background: var(--danger-strong);
+  border-color: var(--danger-strong);
+  color: var(--tmd-accent-fg);
+}
+
+/* 段头「会话管理」开关:默认隐藏,段头 hover 显形,激活常亮。 */
+.cli-group-manage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  color: var(--text-faint);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.12s ease;
+}
+
+.cli-group-label:hover .cli-group-manage,
+.cli-group-manage:focus-visible,
+.cli-group-manage.is-on {
+  opacity: 1;
+}
+
+.cli-group-manage:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.cli-group-manage.is-on {
+  color: var(--tmd-accent);
+}
+
+/* 工作区 caption 右侧「默认|归档」视图切换(迷你 segmented)。 */
+.ws-view-toggle {
+  display: flex;
+  gap: 1px;
+  padding: 1px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 5px;
+  margin-right: 2px;
+}
+
+.ws-view-toggle button {
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  border-radius: 3px;
+  padding: 0 5px;
+  font-size: 0.625rem;
+  line-height: 1rem;
+  cursor: pointer;
+}
+
+.ws-view-toggle button:hover {
+  color: var(--text-strong);
+}
+
+.ws-view-toggle button.is-on {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}

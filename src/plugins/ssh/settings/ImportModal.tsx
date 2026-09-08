@@ -4,8 +4,9 @@
  */
 
 import { useEffect, useState } from "react";
-import { Upload } from "lucide-react";
+import { UploadSimple } from "@phosphor-icons/react";
 import { getSettingsState } from "@kernel/settings";
+import { t } from "@kernel/i18n";
 import { scanSshImportCandidates, type SshImportCandidate } from "../scan";
 
 export function ImportModal({
@@ -52,14 +53,14 @@ export function ImportModal({
     <div className="ssh-modal-backdrop" onClick={onClose}>
       <div className="ssh-modal" onClick={(e) => e.stopPropagation()}>
         <div className="ssh-modal-title">
-          <Upload size={14} aria-hidden />
-          <span>从 ~/.ssh/config 导入</span>
+          <UploadSimple size="0.875rem" aria-hidden />
+          <span>{t("从 ~/.ssh/config 导入")}</span>
         </div>
-        {state === "loading" ? <div className="ssh-settings-empty">扫描中…</div> : null}
+        {state === "loading" ? <div className="ssh-settings-empty">{t("扫描中…")}</div> : null}
         {state === "error" ? <div className="ssh-form-error">{error}</div> : null}
         {state === "ready" ? (
           candidates.length === 0 ? (
-            <div className="ssh-settings-empty">~/.ssh/config 里没有可导入的主机段</div>
+            <div className="ssh-settings-empty">{t("~/.ssh/config 里没有可导入的主机段")}</div>
           ) : (
             <div className="ssh-import-list">
               {candidates.map((candidate) => (
@@ -75,7 +76,7 @@ export function ImportModal({
                     {candidate.host}:{candidate.port} · {candidate.username || "—"}
                   </span>
                   <span className="ssh-import-meta">
-                    {candidate.duplicate ? "已存在" : candidate.authType === "privateKey" ? "私钥" : "密码"}
+                    {candidate.duplicate ? t("已存在") : candidate.authType === "privateKey" ? t("私钥") : t("密码")}
                   </span>
                 </label>
               ))}
@@ -84,7 +85,7 @@ export function ImportModal({
         ) : null}
         <div className="ssh-modal-actions">
           <button type="button" onClick={onClose}>
-            取消
+            {t("取消")}
           </button>
           <button
             type="button"
@@ -92,7 +93,7 @@ export function ImportModal({
             disabled={state !== "ready"}
             onClick={() => onImport(candidates.filter((c) => picked.has(c.name) && !c.duplicate))}
           >
-            导入选中
+            {t("导入选中")}
           </button>
         </div>
       </div>

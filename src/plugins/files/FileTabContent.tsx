@@ -9,8 +9,9 @@
  */
 
 import { Suspense, lazy, useEffect, useState, useSyncExternalStore } from "react";
-import { Eye, Pencil } from "lucide-react";
+import { Eye, Pencil } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
+import { t } from "@kernel/i18n";
 import {
   getFileCacheVersion,
   loadFile,
@@ -101,14 +102,14 @@ function FileTabBody({ path, content }: { path: string; content: string }) {
      状态文字两种模式连续显示。 */
   const doc = useFileDocument(path, content);
   const status =
-    doc.error ?? (doc.saving ? "保存中…" : doc.dirty ? "● 未保存的更改 · ⌘S 保存" : "已保存");
+    doc.error ?? (doc.saving ? t("保存中…") : doc.dirty ? t("● 未保存的更改 · ⌘S 保存") : t("已保存"));
 
   const showEditor = !structuredKind ? (!isMd || mdEditor) : structuredEditor;
   return (
     <div className="file-editor-shell">
       <div className="file-editor-body">
         {showEditor ? (
-          <Suspense fallback={LOADING}>
+          <Suspense fallback={<LOADING />}>
             <FileCodeEditor
               path={path}
               value={doc.content}
@@ -119,12 +120,12 @@ function FileTabBody({ path, content }: { path: string; content: string }) {
           </Suspense>
         ) : isMd ? (
           /* md 预览自带滚动容器(fvp-markdown-preview-frame/scroll,章节浮窗锚点依赖它) */
-          <Suspense fallback={LOADING}>
+          <Suspense fallback={<LOADING />}>
             <FileMarkdownPreview value={content} sourceFilePath={path} />
           </Suspense>
         ) : (
           <div className="fvp-preview-scroll">
-            <Suspense fallback={LOADING}>
+            <Suspense fallback={<LOADING />}>
               <FileStructuredPreview filePath={path} value={content} />
             </Suspense>
           </div>
@@ -140,29 +141,29 @@ function FileTabBody({ path, content }: { path: string; content: string }) {
           <button
             type="button"
             className="file-mode-toggle"
-            title={structuredEditor ? "预览" : "编辑"}
+            title={structuredEditor ? t("预览") : t("编辑")}
             onClick={() => {
               const next = !structuredEditor;
               structuredEditMode.set(path, next);
               setStructuredEditor(next);
             }}
           >
-            {structuredEditor ? <Eye size={12} aria-hidden /> : <Pencil size={12} aria-hidden />}
-            {structuredEditor ? "预览" : "编辑"}
+            {structuredEditor ? <Eye size="0.75rem" aria-hidden /> : <Pencil size="0.75rem" aria-hidden />}
+            {structuredEditor ? t("预览") : t("编辑")}
           </button>
         ) : isMd ? (
           <button
             type="button"
             className="file-mode-toggle"
-            title={mdEditor ? "预览" : "编辑"}
+            title={mdEditor ? t("预览") : t("编辑")}
             onClick={() => {
               const next = !mdEditor;
               mdEditMode.set(path, next);
               setMdEditor(next);
             }}
           >
-            {mdEditor ? <Eye size={12} aria-hidden /> : <Pencil size={12} aria-hidden />}
-            {mdEditor ? "预览" : "编辑"}
+            {mdEditor ? <Eye size="0.75rem" aria-hidden /> : <Pencil size="0.75rem" aria-hidden />}
+            {mdEditor ? t("预览") : t("编辑")}
           </button>
         ) : null}
       </div>
@@ -170,9 +171,9 @@ function FileTabBody({ path, content }: { path: string; content: string }) {
   );
 }
 
-const LOADING = (
+const LOADING = () => (
   <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
-    加载中…
+    {t("加载中…")}
   </div>
 );
 
@@ -192,21 +193,21 @@ export function FileTabContent({ tab }: { tab: EditorTab }) {
   }
   if (profile.kind === "pdf") {
     return (
-      <Suspense fallback={LOADING}>
+      <Suspense fallback={<LOADING />}>
         <FilePdfPreview path={path} />
       </Suspense>
     );
   }
   if (profile.kind === "document") {
     return (
-      <Suspense fallback={LOADING}>
+      <Suspense fallback={<LOADING />}>
         <FileDocumentPreview path={path} />
       </Suspense>
     );
   }
   if (profile.kind === "tabular" && isTabularBinaryPath(path)) {
     return (
-      <Suspense fallback={LOADING}>
+      <Suspense fallback={<LOADING />}>
         <FileTabularPreview path={path} text={null} />
       </Suspense>
     );
@@ -221,11 +222,11 @@ export function FileTabContent({ tab }: { tab: EditorTab }) {
       </div>
     );
   }
-  if (!payload.loaded) return LOADING;
+  if (!payload.loaded) return <LOADING />;
 
   if (profile.kind === "tabular") {
     return (
-      <Suspense fallback={LOADING}>
+      <Suspense fallback={<LOADING />}>
         <FileTabularPreview path={path} text={payload.content ?? ""} />
       </Suspense>
     );

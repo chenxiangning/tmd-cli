@@ -7,7 +7,8 @@
  * - 打开位置:kernel ipc.fsRevealInFileManager(Rust fs_reveal_in_file_manager)。
  */
 
-import { FileText, FolderOpen } from "lucide-react";
+import { t } from "@kernel/i18n";
+import { FileText, FolderOpen } from "@phosphor-icons/react";
 import { openTab } from "@kernel/tabs";
 import { baseName } from "@kernel/pathUtils";
 import { ipc, type GitFileStatus } from "@kernel/ipc";
@@ -41,25 +42,25 @@ export function FileOpenActions({ cwd, file }: { cwd: string; file: GitFileStatu
     <>
       <button
         type="button"
-        title="打开文件"
+        title={t("打开文件")}
         onClick={(e) => {
           e.stopPropagation();
           openWorktreeFile(cwd, file.path);
         }}
         className="shrink-0 text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
       >
-        <FileText className="h-3 w-3" />
+        <FileText className="h-[0.75rem] w-[0.75rem]" />
       </button>
       <button
         type="button"
-        title="打开文件位置"
+        title={t("打开文件位置")}
         onClick={(e) => {
           e.stopPropagation();
           ipc.fsRevealInFileManager(abs).catch((err) => console.warn(gitErrorDisplay(err)));
         }}
         className="shrink-0 text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
       >
-        <FolderOpen className="h-3 w-3" />
+        <FolderOpen className="h-[0.75rem] w-[0.75rem]" />
       </button>
     </>
   );

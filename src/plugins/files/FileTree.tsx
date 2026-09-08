@@ -7,14 +7,17 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { ArrowClockwise } from "@phosphor-icons/react";
 import { ipc, type DirEntry } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
 import { FileTreeRow } from "./FileTreeRow";
 import { openFileInTab } from "./openFile";
 import { useTreeOperations } from "./useTreeOperations";
 import { FileTreeContextMenu } from "./FileTreeContextMenu";
 import { NamePrompt } from "./NamePrompt";
+import { useGitDecorations } from "./gitDecorate";
+import { useRepoBranches } from "./useRepoBranches";
 
 /** 当前挂载 FileTree 的动作句柄:注册表 refresh/newFile/newFolder 槽据此转发。 */
 let activeTreeHandles: {
@@ -32,6 +35,8 @@ function FileTree({ root }: { root: string }) {
   const [expanded, setExpanded] = useState<Record<string, DirEntry[]>>({});
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const gitColors = useGitDecorations(root);
+  const repoTags = useRepoBranches(root);
 
   const reloadRoot = useCallback(async () => {
     setLoading(true);
@@ -143,6 +148,8 @@ function FileTree({ root }: { root: string }) {
             depth={depth}
             expanded={isOpen}
             selected={selectedPath === e.path}
+            decoColor={gitColors.get(e.path)}
+            repoTag={repoTags.get(e.path)}
             onClick={() => toggle(e)}
             onContextMenu={rowMenu(e)}
             onCopyPath={() => ops.copyPath(e)}
@@ -167,12 +174,12 @@ function FileTree({ root }: { root: string }) {
         {loading && entries.length === 0 ? (
           <div className="file-tree-loading-row" role="status" aria-live="polite">
             <span className="file-tree-loading-spinner" aria-hidden>
-              <RefreshCw size={12} />
+              <ArrowClockwise size="0.75rem" />
             </span>
-            <span>加载中…</span>
+            <span>{t("加载中…")}</span>
           </div>
         ) : entries.length === 0 ? (
-          <div className="file-tree-empty">目录为空</div>
+          <div className="file-tree-empty">{t("目录为空")}</div>
         ) : (
           renderEntries(entries, 0)
         )}
@@ -204,16 +211,16 @@ function FileTree({ root }: { root: string }) {
         <NamePrompt
           title={
             ops.prompt.kind === "new-file"
-              ? "新建文件"
+              ? t("新建文件")
               : ops.prompt.kind === "new-folder"
-                ? "新建文件夹"
-                : "重命名"
+                ? t("新建文件夹")
+                : t("重命名")
           }
           parentPath={
             ops.prompt.kind === "rename" ? ops.prompt.entry.path : ops.prompt.dir
           }
           initialName={ops.prompt.kind === "rename" ? ops.prompt.entry.name : undefined}
-          confirmLabel={ops.prompt.kind === "rename" ? "重命名" : "创建"}
+          confirmLabel={ops.prompt.kind === "rename" ? t("重命名") : t("创建")}
           error={ops.promptError}
           onCancel={ops.closePrompt}
           onConfirm={ops.submitPrompt}

@@ -4,8 +4,9 @@
  */
 
 import { useEffect, useState } from "react";
-import { ArrowRightLeft, Minus, Plus } from "lucide-react";
+import { ArrowsLeftRight, Minus, Plus } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import { refreshForwards, useSshSession } from "../state";
 
 export function ForwardSection({ sessionId, connected }: { sessionId: string; connected: boolean }) {
@@ -20,23 +21,23 @@ export function ForwardSection({ sessionId, connected }: { sessionId: string; co
   return (
     <div className="ssh-section">
       <div className="ssh-section-head">
-        <ArrowRightLeft size={12} aria-hidden />
-        <span>端口转发</span>
+        <ArrowsLeftRight size="0.75rem" aria-hidden />
+        <span>{t("端口转发")}</span>
         <button
           type="button"
           className="ssh-icon-btn"
-          title="新建转发"
+          title={t("新建转发")}
           disabled={!connected}
           onClick={() => setFormOpen((open) => !open)}
         >
-          {formOpen ? <Minus size={12} /> : <Plus size={12} />}
+          {formOpen ? <Minus size="0.75rem" /> : <Plus size="0.75rem" />}
         </button>
       </div>
       {formOpen ? (
         <ForwardForm sessionId={sessionId} onDone={() => setFormOpen(false)} />
       ) : null}
       {forwards.length === 0 ? (
-        <div className="ssh-section-empty">将远端服务映射到本地 127.0.0.1</div>
+        <div className="ssh-section-empty">{t("将远端服务映射到本地 127.0.0.1")}</div>
       ) : (
         <div className="ssh-forward-list">
           {forwards.map((forward) => (
@@ -44,7 +45,7 @@ export function ForwardSection({ sessionId, connected }: { sessionId: string; co
               <button
                 type="button"
                 className="ssh-forward-addr"
-                title="点击复制本地地址"
+                title={t("点击复制本地地址")}
                 onClick={() => void navigator.clipboard.writeText(`${forward.localHost}:${forward.localPort}`)}
               >
                 {forward.localHost}:{forward.localPort}
@@ -54,10 +55,10 @@ export function ForwardSection({ sessionId, connected }: { sessionId: string; co
               <button
                 type="button"
                 className="ssh-icon-btn"
-                title="停止"
+                title={t("停止")}
                 onClick={() => void stopForward(sessionId, forward.id)}
               >
-                <Minus size={11} />
+                <Minus size="0.6875rem" />
               </button>
             </div>
           ))}
@@ -86,18 +87,18 @@ function ForwardForm({ sessionId, onDone }: { sessionId: string; onDone: () => v
   const submit = async () => {
     const port = Number(remotePort.trim());
     if (!remoteHost.trim() || !Number.isInteger(port) || port < 1 || port > 65535) {
-      setError("远端主机与端口(1-65535)必填");
+      setError(t("远端主机与端口(1-65535)必填"));
       return;
     }
     const local = localPort.trim() ? Number(localPort.trim()) : null;
     if (local !== null && (!Number.isInteger(local) || local < 1 || local > 65535)) {
-      setError("本地端口须在 1-65535 或留空自动分配");
+      setError(t("本地端口须在 1-65535 或留空自动分配"));
       return;
     }
     if (local !== null) {
       const free = await ipc.sshForwardCheckPort(local);
       if (!free) {
-        setError(`本地端口 ${local} 已被占用`);
+        setError(t("本地端口 {port} 已被占用", { port: local }));
         return;
       }
     }
@@ -118,24 +119,24 @@ function ForwardForm({ sessionId, onDone }: { sessionId: string; onDone: () => v
     <div className="ssh-forward-form">
       <input
         value={remoteHost}
-        placeholder="远端主机(默认 127.0.0.1)"
+        placeholder={t("远端主机(默认 127.0.0.1)")}
         onChange={(e) => setRemoteHost(e.target.value)}
       />
       <input
         value={remotePort}
-        placeholder="远端端口"
+        placeholder={t("远端端口")}
         inputMode="numeric"
         onChange={(e) => setRemotePort(e.target.value)}
       />
       <input
         value={localPort}
-        placeholder="本地端口(留空自动)"
+        placeholder={t("本地端口(留空自动)")}
         inputMode="numeric"
         onChange={(e) => setLocalPort(e.target.value)}
       />
       {error ? <div className="ssh-form-error">{error}</div> : null}
       <button type="button" className="ssh-btn is-primary" disabled={busy} onClick={() => void submit()}>
-        建立转发
+        {t("建立转发")}
       </button>
     </div>
   );

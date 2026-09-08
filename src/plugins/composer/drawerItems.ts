@@ -12,6 +12,7 @@
 import type { ComponentType } from "react";
 import { host } from "@kernel/host";
 import { getFilePanels, setFilePanelMode, type FilePanelIcon } from "@kernel/filePanel";
+import { t } from "@kernel/i18n";
 import { openSettingsPanel } from "@kernel/settings";
 import type { CommandContribution } from "@kernel/shortcuts";
 import type { CliProfile, CliSuggestion, SuggestionAction } from "@kernel/cli";
@@ -162,7 +163,7 @@ export function pluginDrawerCommands(): CommandContribution[] {
     .filter((s) => s.enabled && s.plugin.meta.category === "feature")
     .map<CommandContribution>((s) => ({
       id: `composer.drawer.${s.plugin.id}`,
-      title: `打开 ${s.plugin.meta.name}`,
+      title: t("打开 {name}", { name: s.plugin.meta.name }),
       run: () => {
         if (getFilePanels().some((p) => p.id === s.plugin.id)) setFilePanelMode(s.plugin.id);
         else openSettingsPanel();

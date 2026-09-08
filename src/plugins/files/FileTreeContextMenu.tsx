@@ -10,14 +10,8 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import {
-  Copy,
-  FilePlus2,
-  FolderOpen,
-  FolderPlus,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import { Copy, FilePlus, FolderOpen, FolderSimplePlus, Pencil, Trash } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import type { DirEntry } from "@kernel/ipc";
 import type { TreeMenuState } from "./useTreeOperations";
 
@@ -93,32 +87,32 @@ export function FileTreeContextMenu({
         }}
       />
       <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }} role="menu">
-        {item("新建文件", <FilePlus2 size={13} />, () => {
+        {item(t("新建文件"), <FilePlus size="0.8125rem" />, () => {
           onClose();
           actions.createFile(newDir);
         })}
-        {item("新建文件夹", <FolderPlus size={13} />, () => {
+        {item(t("新建文件夹"), <FolderSimplePlus size="0.8125rem" />, () => {
           onClose();
           actions.createFolder(newDir);
         })}
         {entry ? (
           <>
             <div className="wsmenu-divider" />
-            {item("重命名", <Pencil size={13} />, () => {
+            {item(t("重命名"), <Pencil size="0.8125rem" />, () => {
               onClose();
               actions.rename(entry);
             })}
-            {item("复制路径", <Copy size={13} />, () => {
+            {item(t("复制路径"), <Copy size="0.8125rem" />, () => {
               onClose();
               actions.copyPath(entry);
             })}
             <div className="wsmenu-divider" />
-            {item("在访达中显示", <FolderOpen size={13} />, () => {
+            {item(t("在访达中显示"), <FolderOpen size="0.8125rem" />, () => {
               onClose();
               actions.reveal(entry);
             })}
             <div className="wsmenu-divider" />
-            {item(armed ? "确认移到废纸篓?" : "移到废纸篓", <Trash2 size={13} />, () => {
+            {item(armed ? t("确认移到废纸篓?") : t("移到废纸篓"), <Trash size="0.8125rem" />, () => {
               if (!armed) {
                 setArmed(true);
                 return;

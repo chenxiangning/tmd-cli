@@ -1,5 +1,6 @@
 // 插件市场清单列表视图(按分类分节的卡片网格),自 PluginMarketPage.tsx 按「纯结构拆分、行为不变」拆出
 import type { PluginCategory } from "@kernel/plugin";
+import { t } from "@kernel/i18n";
 import { CATEGORY_LABEL, type Row } from "./PluginMarketStrip";
 
 /** 清单列表:与插排视图互斥,同页只展示一份。 */
@@ -15,9 +16,9 @@ export function PluginMarketList({
       {groups.map((g) => (
         <section key={g.category}>
           <div className="pm-section-title">
-            {CATEGORY_LABEL[g.category]}
+            {t(CATEGORY_LABEL[g.category])}
             <span className="pm-count">
-              {g.rows.filter((r) => r.on).length}/{g.rows.length} 已插入
+              {t("{on}/{total} 已插入", { on: g.rows.filter((r) => r.on).length, total: g.rows.length })}
             </span>
           </div>
           <div className="pm-card-grid">
@@ -30,24 +31,24 @@ export function PluginMarketList({
                     className="pm-card-icon"
                     style={plugin.meta.iconColor ? { color: plugin.meta.iconColor } : undefined}
                   >
-                    {Icon ? <Icon size={15} /> : plugin.meta.abbr}
+                    {Icon ? <Icon size="0.9375rem" /> : plugin.meta.abbr}
                   </div>
                   <div className="pm-card-main">
                     <div className="pm-card-name">
-                      {plugin.meta.name}
+                      {t(plugin.meta.name)}
                       <span className="pm-card-id">{plugin.id}</span>
                     </div>
-                    <div className="pm-card-desc">{plugin.meta.desc}</div>
+                    <div className="pm-card-desc">{t(plugin.meta.desc)}</div>
                     <div className="pm-card-foot">
-                      {core ? <span className="pm-badge core">核心 · 焊死</span> : null}
-                      {dirty ? <span className="pm-badge dirty">重启后生效</span> : null}
+                      {core ? <span className="pm-badge core">{t("核心 · 焊死")}</span> : null}
+                      {dirty ? <span className="pm-badge dirty">{t("重启后生效")}</span> : null}
                       <button
                         type="button"
                         className={`pm-toggle-btn${on ? " on" : ""}`}
                         disabled={core}
                         onClick={() => onToggle(plugin.id)}
                       >
-                        {core ? "常插" : on ? "拔出" : "插入"}
+                        {core ? t("常插") : on ? t("拔出") : t("插入")}
                       </button>
                     </div>
                   </div>

@@ -7,6 +7,14 @@
 import { sanitizeSshSettings } from "./sshSettings";
 import { isThemePresetId, type ThemePresetId } from "./themePresets";
 import {
+  UI_LANGUAGES,
+  sanitizeTerminalFontFamily,
+  sanitizeTerminalFontSize,
+  sanitizeUiFontSize,
+  sanitizeUiZoom,
+  type UiLanguage,
+} from "./settingsAppearance";
+import {
   ASK_SOUND_IDS,
   DEFAULT_SETTINGS,
   SESSION_LIST_TOTAL_DEFAULT,
@@ -14,69 +22,30 @@ import {
   SESSION_LIST_TOTAL_MIN,
   type AppSettings,
   type AskSoundId,
+  type GitFileListLayout,
+  type GitPanelView,
   type MemoryCapsuleMode,
   type MemoryDistillEngine,
   type SendShortcut,
   type SessionListBudget,
-  type SessionPinEntry,
-  type SessionPinScope,
   type ThemePreference,
 } from "./settingsTypes";
+import {
+  sanitizeSessionArchive,
+  sanitizeSessionDeleted,
+  sanitizeSessionPins,
+  sanitizeSessionTitles,
+} from "./settingsSanitizeSessions";
 
-/** 手动命名覆盖层上限:500 条(超出按 key 序丢弃,确定性兜底);标题 1–200 字符。 */
-const SESSION_TITLES_MAX_ENTRIES = 500;
-const SESSION_TITLE_MAX_LENGTH = 200;
-
-/** 会话命名清洗:只收非空 key + 非空字符串值,截断超长标题,按 key 序限量纳入。 */
-function sanitizeSessionTitles(raw: unknown): Record<string, string> {
-  const titles: Record<string, string> = {};
-  if (!raw || typeof raw !== "object") return titles;
-  const entries = raw as Record<string, unknown>;
-  for (const key of Object.keys(entries).sort()) {
-    if (Object.keys(titles).length >= SESSION_TITLES_MAX_ENTRIES) break;
-    const value = entries[key];
-    if (!key || typeof value !== "string") continue;
-    const trimmed = value.trim();
-    if (!trimmed) continue;
-    titles[key] = trimmed.slice(0, SESSION_TITLE_MAX_LENGTH);
-  }
-  return titles;
-}
-/** 置顶层上限:200 条(超出按 key 序丢弃,确定性兜底);标题快照 ≤200 字符(可为空串)。 */
-const SESSION_PINS_MAX_ENTRIES = 200;
-const SESSION_PIN_SCOPES: readonly SessionPinScope[] = ["global", "workspace"];
-
-/** 置顶清洗:只收合法 scope + 有限非负时间戳的项,标题截断,按 key 序限量纳入。 */
-function sanitizeSessionPins(raw: unknown): Record<string, SessionPinEntry> {
-  const pins: Record<string, SessionPinEntry> = {};
-  if (!raw || typeof raw !== "object") return pins;
-  const entries = raw as Record<string, unknown>;
-  for (const key of Object.keys(entries).sort()) {
-    if (Object.keys(pins).length >= SESSION_PINS_MAX_ENTRIES) break;
-    const value = entries[key];
-    if (!key || !value || typeof value !== "object") continue;
-    const entry = value as Record<string, unknown>;
-    if (!SESSION_PIN_SCOPES.includes(entry.scope as SessionPinScope)) continue;
-    const pinnedAt = typeof entry.pinnedAt === "number" ? entry.pinnedAt : Number.NaN;
-    if (!Number.isFinite(pinnedAt) || pinnedAt < 0) continue;
-    pins[key] = {
-      scope: entry.scope as SessionPinScope,
-      pinnedAt: Math.floor(pinnedAt),
-      title:
-        typeof entry.title === "string"
-          ? entry.title.trim().slice(0, SESSION_TITLE_MAX_LENGTH)
-          : "",
-    };
-  }
-  return pins;
-}
+/** 工作区折叠图上限(与置顶/归档同款确定性兜底口径)。 */
+const WORKSPACE_COLLAPSED_MAX_ENTRIES = 200;
 
 /** 工作区折叠态清洗:只收 boolean 值,按 key 序限量纳入(与置顶同款确定性兜底)。 */
 function sanitizeWorkspaceCollapsedMap(raw: unknown): Record<string, boolean> {
   const map: Record<string, boolean> = {};
   if (!raw || typeof raw !== "object") return map;
   const entries = raw as Record<string, unknown>;
-  for (const key of Object.keys(entries).sort().slice(0, SESSION_PINS_MAX_ENTRIES)) {
+  for (const key of Object.keys(entries).sort().slice(0, WORKSPACE_COLLAPSED_MAX_ENTRIES)) {
     if (typeof entries[key] === "boolean") map[key] = entries[key] as boolean;
   }
   return map;
@@ -88,6 +57,9 @@ const SEND_SHORTCUTS: readonly SendShortcut[] = ["enter", "cmdOrCtrlEnter"];
 const MEMORY_CAPSULE_MODES: readonly MemoryCapsuleMode[] = ["manual", "auto", "off"];
 
 const MEMORY_DISTILL_ENGINES = ["omp", "pi", "opencode"] as const;
+
+const GIT_PANEL_VIEWS: readonly GitPanelView[] = ["diff", "branch", "history"];
+const GIT_PANEL_LAYOUTS: readonly GitFileListLayout[] = ["flat", "tree"];
 
 /** 缓冲上限合法域:5万–1000万字符;非法/缺失回落默认。 */
 function sanitizeBufferLimit(value: unknown): number {
@@ -153,6 +125,20 @@ function sanitizeNetworkProxyUrl(raw: unknown): string {
     .slice(0, NETWORK_PROXY_URL_MAX_LENGTH);
 }
 
+/** Git 面板记忆态清洗:视图/布局白名单外的值逐项回落默认(视图 diff / 布局平铺)。 */
+function sanitizeGitPanel(raw: unknown): AppSettings["git"] {
+  const d = DEFAULT_SETTINGS.git;
+  if (!raw || typeof raw !== "object") return d;
+  // 同 sanitize():外部 JSON 收窄为索引面,逐字段白名单校验后才取值
+  const rec = raw as Record<string, unknown>;
+  return {
+    view: GIT_PANEL_VIEWS.includes(rec.view as GitPanelView) ? (rec.view as GitPanelView) : d.view,
+    layout: GIT_PANEL_LAYOUTS.includes(rec.layout as GitFileListLayout)
+      ? (rec.layout as GitFileListLayout)
+      : d.layout,
+  };
+}
+
 /** 外部数据 → 合法 AppSettings;非法/缺失字段回落默认值。 */
 export function sanitize(raw: unknown): AppSettings {
   const obj = (raw ?? {}) as Record<string, unknown>;
@@ -170,6 +156,13 @@ export function sanitize(raw: unknown): AppSettings {
     customThemePresetId: isThemePresetId(obj.customThemePresetId as string)
       ? (obj.customThemePresetId as ThemePresetId)
       : DEFAULT_SETTINGS.customThemePresetId,
+    language: UI_LANGUAGES.includes(obj.language as UiLanguage)
+      ? (obj.language as UiLanguage)
+      : "zh",
+    terminalFontSize: sanitizeTerminalFontSize(obj.terminalFontSize),
+    terminalFontFamily: sanitizeTerminalFontFamily(obj.terminalFontFamily),
+    uiFontSize: sanitizeUiFontSize(obj.uiFontSize),
+    uiZoom: sanitizeUiZoom(obj.uiZoom),
     sessionTabsEnabled:
       typeof obj.sessionTabsEnabled === "boolean"
         ? obj.sessionTabsEnabled
@@ -200,6 +193,12 @@ export function sanitize(raw: unknown): AppSettings {
     disabledPlugins: sanitizeDisabledPlugins(obj.disabledPlugins),
     sessionTitles: sanitizeSessionTitles(obj.sessionTitles),
     sessionPins: sanitizeSessionPins(obj.sessionPins),
+    sessionArchive: sanitizeSessionArchive(obj.sessionArchive),
+    sessionDeleted: sanitizeSessionDeleted(obj.sessionDeleted),
+    workspaceArchiveView:
+      typeof obj.workspaceArchiveView === "boolean"
+        ? obj.workspaceArchiveView
+        : DEFAULT_SETTINGS.workspaceArchiveView,
     workspaceCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceCollapsedMap),
     // 同形 Record<string, boolean>,清洗语义与工作区折叠键完全一致
     workspaceGroupCollapsedMap: sanitizeWorkspaceCollapsedMap(
@@ -222,5 +221,6 @@ export function sanitize(raw: unknown): AppSettings {
       : "omp",
     memoryDistillRules: typeof obj.memoryDistillRules === "string" ? obj.memoryDistillRules.slice(0, 500) : "",
     ssh: sanitizeSshSettings(obj.ssh),
+    git: sanitizeGitPanel(obj.git),
   };
 }

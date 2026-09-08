@@ -57,7 +57,7 @@
   border-radius: var(--tmd-radius-sm);
   display: grid;
   place-items: center;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   background: var(--tmd-accent-soft);
@@ -70,7 +70,7 @@
 }
 
 .pm-plug-name {
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -213,7 +213,7 @@
 
 .pm-outlet-label {
   margin-top: 5px;
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--tmd-fg-faint);
   white-space: nowrap;
 }
@@ -225,7 +225,7 @@
 .pm-strip-caption {
   margin-top: 10px;
   color: var(--tmd-fg-subtle);
-  font-size: 11px;
+  font-size: 0.6875rem;
   display: flex;
   gap: 16px;
   flex-wrap: wrap;

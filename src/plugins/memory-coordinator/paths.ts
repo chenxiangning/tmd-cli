@@ -2,27 +2,20 @@
  * 跨平台路径解析 —— Magic Context 相关的用户级路径唯一来源。
  *
  * 实证(PoC 报告):三平台路径同为 home 相对(POSIX 风格,win 也是),
- * 由上游 getMagicContextStorageResolution 决定;tmd-cli 不硬编码机器路径,
- * home 经 `node -p os.homedir()` 实取(进程 env 可靠,无剥层猜测 —— 曾因
- * configHomeDir 剥层拼接导致「文件不存在」误报)。
+ * 由上游 getMagicContextStorageResolution 决定;tmd-cli 不硬编码机器路径。
+ * home 经 ipc.configHomeDir() 实取(Rust dirs::home_dir,进程级缓存):
+ * 曾走 `node -p os.homedir()`,但全新机器 node 可能未装,整条记忆链会在
+ * 首启时静默失效回退空串(2026-09-06 win 新装机实证);Rust 侧无此依赖。
  */
 
 import { ipc } from "@kernel/ipc";
 
 let homePromise: Promise<string> | null = null;
 
-/** 用户 home 目录(node 子进程实取,进程级缓存;失败回退空串由调用方提示)。 */
+/** 用户 home 目录(Rust dirs::home_dir 实取,进程级缓存;失败回退空串由调用方提示)。 */
 export function userHome(): Promise<string> {
   if (!homePromise) {
-    homePromise = ipc
-      .procCommunicate({
-        command: "node",
-        args: ["-p", "require('os').homedir()"],
-        cwd: ".",
-        timeoutMs: 8_000,
-      })
-      .then((r) => (r.code === 0 ? r.stdout.trim() : ""))
-      .catch(() => "");
+    homePromise = ipc.configHomeDir().catch(() => "");
   }
   return homePromise;
 }

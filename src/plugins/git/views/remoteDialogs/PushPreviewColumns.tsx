@@ -4,7 +4,8 @@
  * (摘要行 + 变更文件树,点击开中央提交 diff tab)。PreviewPane 为双栏共用外壳。
  */
 
-import { FileText, GitBranch, GitCommitHorizontal } from "lucide-react";
+import { t } from "@kernel/i18n";
+import { FileText, GitBranch, GitCommit } from "@phosphor-icons/react";
 import type { GitCommitFile, GitPushPreview } from "@kernel/ipc";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { CommitFileTree } from "./CommitFileTree";
@@ -48,7 +49,7 @@ export function PushPreviewColumns({
   return (
     <div className="mt-3 grid grid-cols-2 gap-3">
       <PreviewPane
-        title="本次推送提交"
+        title={t("本次推送提交")}
         count={commits.length}
         loading={previewLoading}
         error={previewError}
@@ -56,9 +57,12 @@ export function PushPreviewColumns({
       >
         {isNewTarget && !previewLoading && !previewError ? (
           <div className="px-1 py-2 text-xs leading-5 text-(--tmd-fg-muted)">
-            <div className="font-medium text-(--tmd-fg)">新分支首次推送</div>
+            <div className="font-medium text-(--tmd-fg)">{t("新分支首次推送")}</div>
             <div className="mt-1">
-              本地未找到目标引用 {remote.trim() || "origin"}/{target.trim() || branch},将按新分支首次推送处理:创建远端分支并推送当前分支提交。
+              {t(
+                "本地未找到目标引用 {ref},将按新分支首次推送处理:创建远端分支并推送当前分支提交。",
+                { ref: `${remote.trim() || "origin"}/${target.trim() || branch}` },
+              )}
             </div>
           </div>
         ) : (
@@ -75,18 +79,18 @@ export function PushPreviewColumns({
                 }`}
               >
                 <div className="truncate font-medium text-(--tmd-fg)">
-                  {c.summary || "(无提交信息)"}
+                  {c.summary || t("(无提交信息)")}
                 </div>
-                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-(--tmd-fg-muted)">
+                <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem] text-(--tmd-fg-muted)">
                   <code className="font-mono">{c.shortSha}</code>
-                  <em className="not-italic">{c.authorName || "未知"}</em>
+                  <em className="not-italic">{c.authorName || t("未知")}</em>
                   <time>{formatRelativeTime(c.authorWhen * 1000)}</time>
                 </div>
               </button>
             ))}
             {preview?.hasMore && (
-              <div className="px-1.5 py-1 text-[11px] text-(--tmd-fg-faint)">
-                仅展示最近 {PREVIEW_LIMIT} 条提交。
+              <div className="px-1.5 py-1 text-[0.6875rem] text-(--tmd-fg-faint)">
+                {t("仅展示最近 {n} 条提交。", { n: PREVIEW_LIMIT })}
               </div>
             )}
           </div>
@@ -94,32 +98,32 @@ export function PushPreviewColumns({
       </PreviewPane>
 
       <PreviewPane
-        title="选中提交详情"
+        title={t("选中提交详情")}
         count={details?.length ?? 0}
         loading={detailsLoading}
         error={detailsError}
         hasMore={false}
       >
         {!selectedSha ? (
-          <div className="px-1 py-2 text-xs text-(--tmd-fg-faint)">请选择一条提交查看详情。</div>
+          <div className="px-1 py-2 text-xs text-(--tmd-fg-faint)">{t("请选择一条提交查看详情。")}</div>
         ) : (
           details && (
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="px-1 text-xs leading-5 text-(--tmd-fg-muted)">
                 <div className="truncate font-medium text-(--tmd-fg)">
-                  {selected?.summary || "(无提交信息)"}
+                  {selected?.summary || t("(无提交信息)")}
                 </div>
-                <div className="mt-0.5 flex items-center gap-2 text-[11px]">
+                <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem]">
                   <code className="font-mono">{selected?.longSha.slice(0, 16) ?? selectedSha.slice(0, 16)}…</code>
-                  <em className="not-italic">{selected?.authorName || "未知"}</em>
+                  <em className="not-italic">{selected?.authorName || t("未知")}</em>
                   <time>
                     {new Date((selected?.authorWhen ?? 0) * 1000).toLocaleString()}
                   </time>
                 </div>
               </div>
               <div className="mt-2 flex items-center gap-1 px-1 text-xs font-medium text-(--tmd-fg)">
-                <GitBranch className="h-3.5 w-3.5" aria-hidden />
-                变更文件
+                <GitBranch className="h-[0.875rem] w-[0.875rem]" aria-hidden />
+                {t("变更文件")}
                 <i className="ml-auto not-italic text-(--tmd-fg-muted)">{details.length}</i>
               </div>
               <div className="mt-1 min-h-0 flex-1 overflow-auto rounded border border-(--tmd-border) p-1">
@@ -156,20 +160,20 @@ function PreviewPane({
   return (
     <div className="flex h-64 min-h-0 flex-col rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2">
       <div className="flex shrink-0 items-center gap-1 px-1 text-xs font-medium text-(--tmd-fg)">
-        {title === "本次推送提交" ? (
-          <GitCommitHorizontal className="h-3.5 w-3.5" aria-hidden />
+        {title === t("本次推送提交") ? (
+          <GitCommit className="h-[0.875rem] w-[0.875rem]" aria-hidden />
         ) : (
-          <FileText className="h-3.5 w-3.5" aria-hidden />
+          <FileText className="h-[0.875rem] w-[0.875rem]" aria-hidden />
         )}
         {title}
         <strong className="ml-auto font-semibold text-(--tmd-fg-muted)">
-          {title === "本次推送提交" && hasMore ? `${count}+` : count}
+          {title === t("本次推送提交") && hasMore ? `${count}+` : count}
         </strong>
       </div>
       <div className="mt-1 flex min-h-0 flex-1 flex-col">
         {loading ? (
           <div className="px-1 py-2 text-xs text-(--tmd-fg-faint)">
-            {title === "本次推送提交" ? "正在加载推送预览提交..." : "正在加载提交详情..."}
+            {title === t("本次推送提交") ? t("正在加载推送预览提交...") : t("正在加载提交详情...")}
           </div>
         ) : error ? (
           <div className="px-1 py-2 text-xs leading-5 text-(--tmd-diff-removed)">{error}</div>

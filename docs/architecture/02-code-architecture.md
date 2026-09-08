@@ -21,7 +21,7 @@ flowchart TB
         subgraph KERNEL["kernel/（内核，不 import 任何插件）"]
             HOST["host.ts — Host 单例<br/>插件注册表 / 挂载点表 / 会话服务<br/>输出环形缓冲 / 呼吸灯<br/>(拆分件:hostRegistry · hostSessionServices · hostWatches)"]
             PLUGIN["plugin.ts<br/>Plugin · PluginContext · MountPoint"]
-            CLI["cli.ts<br/>CliProfile · CliSessionStatus<br/>session 状态读取契约"]
+            CLI["cli.ts<br/>CliProfile · CliPrerequisite(前置依赖)<br/>session 状态读取契约"]
             EVENTS["events.ts<br/>EventBus + KernelTopics"]
             TABS["tabs.ts<br/>编辑器 tab 全局 store"]
             WS["workspace.ts<br/>工作区 store（内存态）"]
@@ -32,8 +32,9 @@ flowchart TB
             SA["sidebarActions.ts<br/>侧栏快捷动作注册表"]
             FP["filePanel.ts<br/>右栏面板注册表(通用 tab store,<br/>不预知业务面板)"]
             WATCH["守望组(host 拆分件)<br/>activityWatch·askWatch·editWatch·identityWatch<br/>+ askSound·turnSound"]
-            THEME["theme.ts + themeTokens.ts + themePresets/<br/>主题引擎:21 个 VS Code preset → --tmd-*"]
-            SETT["settings.ts + settingsTypes/settingsSanitize<br/>+ settingsRegistry.ts<br/>全局设置 store 唯一事实源(~/.tmd-cli/settings.json)<br/>设置 section 注册表(面板经注册表渲染)"]
+            THEME["theme.ts + themeTokens.ts + themePresets/<br/>主题引擎:21 个 VS Code preset → --tmd-*<br/>+ 终端 ANSI 16 色 token(VS Code 官方浅/深表兜底)"]
+            SETT["settings.ts + settingsTypes/settingsSanitize(+Sessions)<br/>+ settingsAppearance + settingsRegistry.ts<br/>全局设置 store 唯一事实源(~/.tmd-cli/settings.json)<br/>设置 section 注册表(面板经注册表渲染)"]
+            I18N["i18n.ts + locales/&lt;en|ja&gt;/ 域词典 + terminalFonts.ts + uiZoom.ts<br/>gettext 式 t()(zh 源串为键,切换=根树重挂载)<br/>界面缩放引擎(webview setZoom→CSS zoom 兜底)"]
             MA["messageAnchors.ts<br/>用户消息锚点内核(2s 轮询,0 订阅停表)"]
             QUA["quota.ts<br/>QuotaProvider 注册点"]
             SESN["会话面组:sessionTabs · sessionPins · sessionTitles · sessionStatus<br/>diskIdentity · composerStage · gitContract · internalDrag · dropGuard<br/>+ sshSettings/sshTypes · platform · pathUtils · relativeTime<br/>+ shortcuts(全局快捷键) · sessionSpawn/sessionAdopt(spawn 编排)"]
@@ -53,23 +54,24 @@ flowchart TB
             P_GIT["git<br/>右栏 Git 面板<br/>(filePanel 注册表)"]
             P_COMPOSER["composer<br/>富输入 + composer.statusBar 工具栏"]
             P_SETTINGS["settings<br/>overlay 设置面板<br/>+ 设置 section 注册表"]
-            P_WELCOME["welcome<br/>editorCenter.welcome 首页<br/>引擎探针/安装/凭据盘点/近期会话"]
+            P_WELCOME["welcome<br/>editorCenter.welcome 首页<br/>引擎探针/前置依赖门控安装/凭据盘点/近期会话"]
             P_CKPT["checkpoints<br/>审批线:右栏时间线 + 中央批审阅单<br/>账本/diff/还原在 Rust checkpoints/"]
             P_NP["network-proxy<br/>网络代理浮层(overlay)<br/>生效率 Rust proxy.rs env 注入"]
             P_SSH["ssh<br/>SSH 一等会话:overlay 主机选择 + 右栏面板(SFTP 树/端口转发)<br/>+ newSessionMenu 入口 + 远端文件 tab(kind=ssh-file)+ 设置 section"]
             P_TERM["terminal<br/>内置终端:header.leftCluster 入口按钮<br/>点击聚焦最新 shell 会话/⌥新建"]
             P_OPE["cli-opencode<br/>profile: opencode<br/>SQLite 单库会话存储(sqlite 代读/代删)"]
+            P_DSH["cli-dsh<br/>profile: dsh<br/>会话即 host(PTY 适配器)+ homePanel 连接引导"]
             P_MEM["memory-coordinator<br/>Memory 面板 + 状态栏胶囊 + 控制台 tab<br/>Magic Context 共享库(应用零直写)"]
         end
     end
 
     subgraph BE["Tauri Rust 后端（src-tauri/src/）"]
-        LIB["lib.rs<br/>101 个 tauri::command 注册(git 30 + ssh 21 + checkpoints 11 + commands_fs 13 + fs_edit 6 + session 7 + quota 2 + sqlite 2 + lib.rs 直注册 9)<br/>panic 钩子落盘 panic.log"]
+        LIB["lib.rs<br/>102 个 tauri::command 注册(git 31 + ssh 21 + checkpoints 11 + commands_fs 13 + fs_edit 6 + session 7 + quota 2 + sqlite 2 + lib.rs 直注册 9)<br/>panic 钩子落盘 panic.log"]
         PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出"]
         SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
         RESOLVE["resolve.rs<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
         PROBE["probe.rs<br/>CLI 探针 found/path/version(8s 超时)"]
-        INST["installer.rs<br/>参数化安装执行器(InstallPlan:npm/script)<br/>配方由前端 CliProfile 声明"]
+        INST["installer.rs<br/>参数化安装执行器(InstallPlan:npm/script/command)<br/>配方由前端 CliProfile 声明"]
         SQL["sqlite.rs<br/>只读 sqlite 通用代读(参数化)<br/>CLI 私有库知识在插件侧"]
         SESS["session.rs — SessionRegistry<br/>活会话纯内存表(不落盘)<br/>workspaces.json 持久化"]
         FS["fs.rs<br/>list_dir / read_file / read_head / read_tail<br/>collect_files / write_temp / remove_path(白名单)<br/>read_local_image_data_url(md 预览)"]
@@ -82,7 +84,7 @@ flowchart TB
         CKPTR["checkpoints/ — 审批线账本 sidecar<br/>ledger.rs·events.rs·restore.rs·apply.rs·view.rs<br/>capture.rs·diff.rs·attribution.rs·commands.rs"]
     end
 
-    EXT["外部 CLI 子进程<br/>omp / pi / codex / claude / grok / kimi / qoder / qoder-cn / opencode（PTY slave）"]
+    EXT["外部 CLI 子进程<br/>omp / pi / codex / claude / grok / kimi / qoder / qoder-cn / opencode / dsh（PTY slave）"]
     DISK["~/.tmd-cli/<br/>settings.json · workspaces.json<br/>(活会话注册表纯内存不落盘;<br/>临时附件走系统 temp/tmd-cli)"]
     CLIDATA["CLI 自身 session 落盘<br/>OMP / Pi / Codex / Claude / Kimi / Grok / Qoder<br/>/ Opencode(SQLite 单库)"]
 
@@ -104,7 +106,7 @@ flowchart TB
 **依赖铁律**（代码中已成立）：
 
  - 内核 `src/kernel/` 不 import 任何 `src/plugins/`；插件清单唯一入口是 `src/plugins/index.ts` 的 `allPlugins` 数组（编译期注册）。
- - 插件之间**零直接依赖**：协作仅通过 `PluginContext` 的注册面（`registerCliProfile` / `contribute` / `events` / `registerSettingsSection` / `registerFilePanel` / `registerTabContent` / `registerSidebarAction` / `registerFileVisual`，quota 折叠为 `CliProfile.fetchQuota` 由 host 自动接线）——一切贡献经 ctx 登记，无旁路注册表；`plugins/cli-shared` 仅是无生命周期的共享格式库，不是插件。
+ - 插件之间**零直接依赖**：协作仅通过 `PluginContext` 的注册面（`registerCliProfile` / `contribute` / `events` / `registerSettingsSection` / `registerFilePanel` / `registerTabContent` / `registerMarketPanel` / `registerSidebarAction` / `registerFileVisual` / `registerHomePanel` / `registerCommand`，quota 折叠为 `CliProfile.fetchQuota` 由 host 自动接线）——一切贡献经 ctx 登记，无旁路注册表；`plugins/cli-shared` 仅是无生命周期的共享格式库，不是插件。
  - 前端触达 Rust 的唯一通道是 `src/kernel/ipc.ts`；插件不直接 import `@tauri-apps/api`。
 
 **文件规模铁则**（2026-09-02 起生效）：
@@ -123,7 +125,7 @@ sequenceDiagram
     participant M as main.tsx
     participant H as host (Host 单例)
     participant R as Rust: session_list
-    participant P as allPlugins (21 个)
+    participant P as allPlugins (22 个)
     participant C as contributions.tsx
     participant A as AppShell
 
@@ -131,7 +133,7 @@ sequenceDiagram
     Note over H: activation Promise 单例<br/>挡 StrictMode 双调用
     par 激活与恢复并行
         H->>P: 拓扑序 activate(ctx)<br/>dependsOn 未就绪则等下一轮<br/>无进展 → 抛"依赖环或缺失"
-        P-->>H: registerCliProfile ×9<br/>contribute 挂点 ×N<br/>registerSettingsSection ×N
+        P-->>H: registerCliProfile ×10<br/>contribute 挂点 ×N<br/>registerSettingsSection ×N
     and
         H->>R: ipc.sessionList()
         R-->>H: 历史 SessionMeta[]<br/>（只恢复元数据，不重 spawn PTY）
@@ -290,8 +292,24 @@ Rust `fail_session` 在幕布内呈现,两条路径互补。
    omp/pi 的 title 记录是定长 pad 覆写格式，改写有长度/并发风险；claude/codex 无原生 rename 概念，
    追加异构行有解析破坏风险。覆盖层 key = `${profileId}:${cliSessionId}`，显示优先级最高。
 3. **删除会话 = 双端统一物理删除（`fs_remove_path`，NotFound 幂等成功）**：
-   活会话先删已绑定磁盘文件/目录再 kill PTY；磁盘会话直接删。kimi 会话是目录
-   (`<uuid>/wire.jsonl`),按整目录删避免 CLI /sessions 留幽灵会话。UI 侧两步确认防误删。
+   **活会话先 kill PTY 并 await，再物理删除已绑定磁盘文件/目录** —— SIGKILL 后
+   进程不再可能按原路径重开文件；反过来删，流式中的 CLI 会在「删完到 kill 生效」
+   的缝隙里复活会话文件（2026-09-07 实测「删不掉」根因之一）。快照未命中
+   （懒落盘 CLI 首写晚于 spawn 数十秒）时以现扫 `listSessions` 按磁盘身份反查
+   兜底，再删不到即视为无盘可删。磁盘会话直接删。kimi 会话是目录
+   (`<uuid>/wire.jsonl`)，按整目录删避免 CLI /sessions 留幽灵会话。UI 侧两步确认防误删。
+   **删除意图归 tmd-cli 所有**:删除被调用 = 用户意图就是删除。后台删盘失败报错
+   不阻塞管理态清理 —— 覆盖层照清,并记 tombstone（`settings.sessionDeleted`，
+   `kernel/sessionDeleted.ts`，key 同置顶三段身份，容量 200 逐出最旧）让会话在
+   列表全域隐藏、不因重扫复活；磁盘数据保留 + console.warn 诊断。成功路径同样
+   在册（会话 id 不复用，残留 key 无害，顺带即时隐藏）。
+3b. **归档 = 应用侧覆盖层（`settings.sessionArchive`），key 与置顶同构三段身份**：
+   默认视图隐藏归档会话，「归档」视图反向只看归档项；写路径容量 200 条，满额
+   **逐出 `archivedAt` 最旧条目**（条目仅可见性时间戳，逐出零损失；曾用「拒绝新 key」
+   导致满额后归档静默无效，2026-09-07 实测修复）。归档视图分页水位与默认视图
+   **相互独立**（各从 `sessionListBudget` 配额起步、「更多」各自翻倍），共享单值会让
+   默认视图翻过的页数放大归档列表（同日修复）。删除会话时同步清命名/置顶/归档
+   三个覆盖层。
 4. **呼吸灯三态归内核 Host 结算（活动守望 1Hz）**：绿(2s 内有输出) → 蓝(静默结算时未被查看,
    组内置顶) → 点开即清(灰)。UI 只读 `host.isUnread`，不各自实现状态机。
    呼吸灯锚定**用户首写**（activityWatch 首写闸）：首写前的一切输出（spawn 横幅、
@@ -313,6 +331,31 @@ Rust `fail_session` 在幕布内呈现,两条路径互补。
 | `workspaceId` | spawn 入参 | 会话列表按工作区分组 |
 | `createdAt` | Rust 注册表 | 列表展示 |
 
+### 5.2 dsh:RPC 代读型引擎(无磁盘 JSONL 的第九家)
+
+dsh(DeepSeek Harness)会话盘是 `session.jsonl.zstd` 压缩流,fs 文本原语读不了,
+不进 5.1 表。全部磁盘语义改走 host RPC(`POST /api/<method>` client-request 信封,
+codemoss host.rs 同款),分两路:
+
+- **浏览器侧(dshRpc.ts,经通用 quota_fetch HTTP 通道)**:`listSessions`(session.list
+  按 cwd 过滤)/ `readSessionStatus`(session.models current)/ `fetchQuota`
+  (projections.contextPressure)。
+- **PTY 侧(adapter/*.cjs 适配器,spawnTransform 落盘 `<configHome>/adapters/dsh/`
+  后以 node 绝对路径 spawn)**:会话即一条 DSH 对话 —— stdin → session.prompt,
+  mux WebSocket 帧 → 投影(dsh-project 纯函数)→ ANSI 幕布;审批/提问卡
+  (askMarks `[DSH 审批]`/`[DSH 提问]` 走 askWatch 检测);底栏 footer 与交互区
+  点击(架构契约见 specs/2026-09-07-cli-dsh-pty-adapter-design.md)。
+- resume 标记:内核 `resumeArgs` 产 `["--resume", id]`,`spawnTransform` 翻成
+  适配器 `--session-id`(内核零 dsh 协议知识)。
+- **删除(dshRpc.deleteHostSession)**:host 0.1.1-rc.2 无删除 RPC(方法面
+  session.{list,new,prompt,models,history,fork,cancel,rename,search,...} 实测
+  session.delete 404),唯一通路 = 会话盘目录;host 对 session.list **活扫描磁盘**,
+  目录移除后列表当次同步(Web UI 同源跟随)。slug 规则不猜:会话 id 全局唯一,
+  扫 `~/.dsh/sessions/<slug>/` 一层定位 `session-<id>`,找不到幂等成功;
+  `fs_remove_path` 白名单已放行 `~/.dsh`。
+- **blank 空壳不过滤**:host 会在适配器接入时预创建会话,从未发消息即成空壳
+  (title 缺失以「空会话」呈现)。dsh Web UI 计数含空壳,tmd-cli 曾过滤造成
+  两边数量对不上(实测 springboot-demo 41 = 31 非空 + 10 空壳);空壳可见才可清。
 
 ## 6. 挂载点地图（谁贡献了哪块 UI）
 
@@ -393,7 +436,7 @@ flowchart TD
 
 ## 8. Rust 后端命令面
 
-注册的 101 个 `#[tauri::command]`（git/commands.rs 30 + ssh/commands.rs 21 + checkpoints/commands.rs 11 + commands_fs.rs 13 + fs_edit.rs 6 + session_commands.rs 7 + quota.rs 2 + sqlite.rs 2 + lib.rs 直注册 9），与 `ipc.ts` 一一对应：
+注册的 102 个 `#[tauri::command]`（git/commands.rs 31 + ssh/commands.rs 21 + checkpoints/commands.rs 11 + commands_fs.rs 13 + fs_edit.rs 6 + session_commands.rs 7 + quota.rs 2 + sqlite.rs 2 + lib.rs 直注册 9），与 `ipc.ts` 一一对应：
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
@@ -402,8 +445,8 @@ flowchart TD
 | `session_write` / `session_resize` / `session_kill` | `session_commands.rs` → `pty.rs` | writer 直写 / master.resize / child.kill(写路径 spawn_blocking 防全局锁卡 UI) |
 | `session_log_size` / `session_history_page` | `session_commands.rs` + `session_log.rs` | 输出日志末尾偏移 / 绝对偏移前翻一页(转义+UTF-8 边界对齐) |
 | `cli_probe` | `probe.rs` | PATH 解析 + `--version`(8s 硬超时,spawn_blocking;输出带超时收集防孙进程握管道挂死) |
-| `cli_install_run` | `installer.rs` | 参数化 InstallPlan 执行(npm / script 双通道,配方由前端 CliProfile 声明),`cli-install://{id}` 流式日志(300s 超时) |
-| `sqlite_query` / `sqlite_execute` | `sqlite.rs` | 只读 sqlite 通用代读(READ_ONLY + 参数化绑定) / 参数化写(opencode 删除会话);CLI 私有库路径/表结构知识在插件侧(cli-shared/quota/ompAuth.ts、cli-opencode/db.ts) |
+| `cli_install_run` | `installer.rs` | 参数化 InstallPlan 执行(npm / script / command 三通道,配方由前端 CliProfile 声明),`cli-install://{id}` 流式日志(300s 超时);主引擎安装前的前置依赖门控在 welcome 引擎卡:`CliProfile.requires` 声明(如 omp→bun),依赖未就位则安装/更新按钮禁用并引导先装依赖 |
+| `sqlite_query` / `sqlite_execute` | `sqlite.rs` | 只读代读(RW 打开 + query_only 连接:重放 WAL 看到未 checkpoint 行)/ 参数化写(opencode 删除会话,foreign_keys 级联);async + spawn_blocking(cli 持写锁时不冻主线程);CLI 私有库路径/表结构知识在插件侧(cli-shared/quota/ompAuth.ts、cli-opencode/db.ts) |
 | `quota_fetch` / `quota_env_value` | `quota.rs` | 通用 HTTP 代理(15s 超时) / 只读环境变量 |
 | `platform_kind` / `app_restart` | `lib.rs` | UA 探测失败时的 OS 兜底 / 重启应用(插件启停重启生效) |
 | `fs_list_dir` | `fs.rs` | 单层列举，隐藏过滤，目录排前 |
@@ -424,6 +467,7 @@ flowchart TD
 | `checkpoint_record_edit` / `checkpoint_restore` / `checkpoint_apply` / `checkpoint_approve` / `checkpoint_undo_revert` / `checkpoint_prune` | `checkpoints/events.rs` / `restore.rs` / `apply.rs` / `view.rs` 等 | AI 写入事件流式记账(带 ts 迟到守卫;信号源 = PTY 标记或会话磁盘事件流) / 整批或单文件回退(guard 落账) / 已退批按批后像写回 / 通过标记 / 反悔恢复 / 保留策略与对象库 reachability 清理 |
 | `git_status` / `git_totals` / `git_ahead_behind` | `git/status.rs` 等 | libgit2 本地读(status 聚合/改动统计/领先落后) |
 | `git_diff_file_patch` | `git/diff.rs` | libgit2 patch 生成(前端 PatchLRU 缓存 50 条/20MB) |
+| `git_repos_scan` | `git/repos_scan.rs` | workspace 根多仓发现:BFS 有界扫描(深度前端传,默认 2;结果截 32 truncated),submodule(.gitmodules)/worktree(gitdir 指针)分档 |
 | `git_stage` / `git_unstage` / `git_discard` / `git_commit` | `git/index_ops.rs` 等 | index 写操作(discard = checkout_index,不经 fs 删除) |
 | `git_log` | `git/log.rs` | 历史分页摘要 + 每提交 ref 装饰(附注 tag peel 到提交;HEAD→本地→远端→tag 排序) |
 | `git_commit_files` / `git_commit_file_patch` | `git/commit_view.rs` | 单提交文件清单(提交 vs 首父,find_similar rename 检测) / 提交内单文件 patch —— 历史 Graph 展开与提交 diff tab |

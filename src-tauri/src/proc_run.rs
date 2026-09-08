@@ -8,11 +8,16 @@
 //! 会在处理排队请求前退出 → 响应丢失。因此 stdin 写入后**保持打开**(句柄
 //! 存活到收割),由 kill 收尸时随进程一并终结 —— 绝不主动 close 触发 EOF。
 //!
-//! exit_on_stdout:stdout 累计缓冲里出现该子串即提前杀进程返回(响应已到达,
-//! 省掉等超时)。超时:timeout_ms 到点强杀。两者都不命中则等进程自然退出。
+//! exit_on_stdout:stdout 出现该子串 = 应答头部到达(读线程继续排空管道),
+//! 主线程宽限 500ms 后杀树收割 —— marker 在应答头部而非尾部,命中即杀会
+//! 斩断应答尾部(2026-09-08 omp 实证:16KB 块界 + 扩展噪声把应答推入后续
+//! 读取块,提前 return + SIGKILL 令尾部 ~7KB 随管道消亡,JSON 永不完整)。
+//! 超时:timeout_ms 到点强杀。
 //!
 //! 阻塞安全:调用方(lib.rs)必须 async + spawn_blocking,本模块全同步。
-//! 只杀直接子进程:被查的 CLI 起深层子进程的场景暂不存在,不做进程树追杀。
+//! 收割杀整棵进程树:Windows 下 npm shim(.cmd)是 cmd /c 包裹,只杀直接
+//! 子进程会让孙进程 node 握住 stdout 管道 → 读线程永不 EOF → join 挂起
+//! 泄漏,复用 resolve::kill_tree(taskkill /T;unix 无 wrapper 直接 kill)。
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -22,7 +27,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
-use crate::resolve::{enriched_path, hide_console, resolve_command};
+use crate::resolve::{enriched_path, hide_console, kill_tree, resolve_command};
 
 /// 单次收割的 stdout 上限:正常查询响应 ≤ 几十 KB,8MB 已是异常,触顶即杀。
 const MAX_CAPTURE_BYTES: usize = 8 * 1024 * 1024;
@@ -102,6 +107,7 @@ pub fn run(spec: &ProcRunSpec) -> Result<ProcRunResult, String> {
     let t_out = std::thread::spawn(move || {
         let mut buf: Vec<u8> = Vec::with_capacity(8 * 1024);
         let mut chunk = [0u8; 16 * 1024];
+        let mut matched = false;
         if let Some(out) = stdout.as_mut() {
             loop {
                 match out.read(&mut chunk) {
@@ -109,9 +115,11 @@ pub fn run(spec: &ProcRunSpec) -> Result<ProcRunResult, String> {
                     Ok(n) => {
                         buf.extend_from_slice(&chunk[..n]);
                         if let Some(needle) = &needle {
-                            if find(&buf, needle) {
+                            // marker 在应答头部:命中后必须继续排空管道,应答尾部
+                            // 由主线程宽限后收割杀树收尾,此处绝不提前 return。
+                            if !matched && find(&buf, needle) {
+                                matched = true;
                                 let _ = tx.send(Signal::Matched);
-                                return buf;
                             }
                         }
                         if buf.len() > MAX_CAPTURE_BYTES {
@@ -147,8 +155,13 @@ pub fn run(spec: &ProcRunSpec) -> Result<ProcRunResult, String> {
         Ok(Signal::Matched) | Ok(Signal::Eof) | Err(RecvTimeoutError::Disconnected) => false,
         Err(RecvTimeoutError::Timeout) => true,
     };
-    // 收割即杀:exit_on_stdout 命中时响应已拿全;EOF 时进程多半已退,kill 幂等。
-    let _ = child.kill();
+    // marker 命中只说明应答头部到达:宽限一拍让 omp 把应答尾部写完,再收割
+    // 杀树(杀树令管道 EOF,读线程随之收工 join)。宽限成本 = 每查询一次
+    // 500ms,消费方有 TTL 缓存,无感。
+    if !timed_out {
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    kill_tree(&mut child);
     let code = child.wait().ok().and_then(|s| s.code());
     let out_bytes = t_out.join().unwrap_or_default();
     let err_bytes = t_err.join().unwrap_or_default();
@@ -242,5 +255,37 @@ mod tests {
     fn missing_binary_is_error() {
         let r = run(&spec("tmd-definitely-not-exists", &[], 2_000));
         assert!(r.is_err());
+    }
+    /* 真实 omp RPC 副车端到端(stdin 请求 + exitOnStdout marker 提前收割)。
+     * 依赖本机装有 omp;仅本地诊断用,CI 无 omp 时忽略。 */
+    #[test]
+    fn omp_rpc_sidecar_real_probe() {
+        if std::env::var("TMD_REAL_SIDECAR_PROBE").is_err() {
+            eprintln!("TMD_REAL_SIDECAR_PROBE=1 才跑(依赖本机 omp)");
+            return;
+        }
+        let marker = format!("tmd-real-{}", std::process::id());
+        let mut s = spec("omp", &["--mode", "rpc", "--no-session"], 25_000);
+        s.cwd = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+        s.stdin = Some(format!(
+            "{{\"type\":\"get_available_commands\",\"id\":\"{marker}\"}}\n"
+        ));
+        s.exit_on_stdout = Some(marker.clone());
+        let r = run(&s).expect("run ok");
+        assert!(!r.timed_out, "timed_out; stderr={}", r.stderr);
+        // 严格断言:marker 所在行必须是完整可解析的应答(尾部不被收割斩断)。
+        let line = r
+            .stdout
+            .lines()
+            .find(|l| l.contains(marker.as_str()))
+            .expect("marker 行存在");
+        let v: serde_json::Value = serde_json::from_str(line).expect("应答行必须是完整 JSON");
+        assert_eq!(v["success"], serde_json::json!(true));
+        assert!(
+            v["data"]["commands"]
+                .as_array()
+                .is_some_and(|a| !a.is_empty()),
+            "commands 非空"
+        );
     }
 }

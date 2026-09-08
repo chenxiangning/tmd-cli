@@ -7,14 +7,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Download,
-  FolderClosed,
-  RefreshCw,
-  Upload,
-} from "lucide-react";
+import { DownloadSimple, FolderSimple, ArrowClockwise, UploadSimple } from "@phosphor-icons/react";
 import { ipc, type SftpEntry, type SftpTransferState } from "@kernel/ipc";
 import { openTab } from "@kernel/tabs";
+import { t } from "@kernel/i18n";
 import { useSshTransfers } from "../state";
 import {
   basenameOf,
@@ -83,7 +79,7 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
         node.expanded = true;
       } catch (e) {
         node.children = [];
-        window.alert(`读取远端目录失败:${e instanceof Error ? e.message : String(e)}`);
+        window.alert(t("读取远端目录失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
       } finally {
         node.loading = false;
         rerender();
@@ -121,38 +117,38 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
   return (
     <div className="ssh-section ssh-sftp">
       <div className="ssh-section-head">
-        <FolderClosed size={12} aria-hidden />
-        <span>远端文件</span>
+        <FolderSimple size="0.75rem" aria-hidden />
+        <span>{t("远端文件")}</span>
         <button
           type="button"
           className="ssh-icon-btn"
-          title="刷新"
+          title={t("刷新")}
           disabled={!connected}
           onClick={() => void reloadAll()}
         >
-          <RefreshCw size={12} />
+          <ArrowClockwise size="0.75rem" />
         </button>
         <button
           type="button"
           className="ssh-icon-btn"
-          title="上传文件"
+          title={t("上传文件")}
           disabled={!connected}
           onClick={() => void uploadPicked(sessionId, reloadAll)}
         >
-          <Upload size={12} />
+          <UploadSimple size="0.75rem" />
         </button>
         <button
           type="button"
           className="ssh-icon-btn"
-          title="下载根目录"
+          title={t("下载根目录")}
           disabled={!connected}
           onClick={() => void downloadNode(sessionId, nodes.current.get(".")!, true)}
         >
-          <Download size={12} />
+          <DownloadSimple size="0.75rem" />
         </button>
       </div>
       {!connected ? (
-        <div className="ssh-section-empty">连接建立后可浏览与编辑远端文件</div>
+        <div className="ssh-section-empty">{t("连接建立后可浏览与编辑远端文件")}</div>
       ) : (
         <div className="ssh-sftp-tree">
           <TreeRows
@@ -198,7 +194,7 @@ function TransferRow({ transfer, sessionId }: { transfer: SftpTransferState; ses
       <button
         type="button"
         className="ssh-icon-btn"
-        title="取消"
+        title={t("取消")}
         onClick={() => void ipc.sftpTransferCancel(sessionId, transfer.id)}
       >
         ×

@@ -5,7 +5,7 @@
  * devicePixelRatio 缩放、页窗口上限 200 页、缩放 0.75-3(步进 0.1)、
  * 文档 outline 侧栏(点击跳页并平移页窗口)。
  * 与 codemoss 差异:数据源从 asset:// fetch 改为 readBinaryFileBase64 字节通道
- * (getDocument({ data })),免 asset 作用域问题;i18n 硬编码中文。
+ * (getDocument({ data })),免 asset 作用域问题;文案走 t() 词典。
  * 单页 canvas 渲染组件拆至 PdfPageCanvas.tsx(文件规模铁则)。
  */
 
@@ -14,6 +14,7 @@ import { getDocument, type PDFDocumentProxy } from "pdfjs-dist";
 import { ensurePdfPreviewWorker } from "./pdfRuntime";
 import { PdfPageCanvas } from "./PdfPageCanvas";
 import { loadPreviewBytes } from "./previewBytes";
+import { t } from "@kernel/i18n";
 import {
   extractPdfPreviewOutline,
   type PreviewOutlineItem,
@@ -101,7 +102,7 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
 
     void (async () => {
       try {
-        const nextOutlineItems = await extractPdfPreviewOutline(pdfDocument, "未命名");
+        const nextOutlineItems = await extractPdfPreviewOutline(pdfDocument, t("未命名"));
         if (!cancelled) {
           setOutlineItems(nextOutlineItems);
         }
@@ -176,7 +177,7 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
   }, [visiblePageNumbers]);
 
   if (isRuntimeLoading) {
-    return <div className="fvp-status">加载中…</div>;
+    return <div className="fvp-status">{t("加载中…")}</div>;
   }
 
   if (runtimeError) {
@@ -184,7 +185,7 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
   }
 
   if (!pdfDocument) {
-    return <div className="fvp-status">无法加载 PDF 预览</div>;
+    return <div className="fvp-status">{t("无法加载 PDF 预览")}</div>;
   }
 
   return (
@@ -200,23 +201,23 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
         <div ref={previewRootRef} className="fvp-pdf-preview fvp-preview-main">
           <header className="fvp-preview-section-header">
             <div className="fvp-preview-section-title">
-              <strong>PDF 预览</strong>
-              <span>{`共 ${numPages} 页`}</span>
+              <strong>{t("PDF 预览")}</strong>
+              <span>{t("共 {n} 页", { n: numPages })}</span>
             </div>
-            <div className="fvp-preview-toolbar" role="toolbar" aria-label="PDF 缩放工具栏">
+            <div className="fvp-preview-toolbar" role="toolbar" aria-label={t("PDF 缩放工具栏")}>
               {outlineItems.length > 0 ? (
                 <button
                   type="button"
                   className="fvp-preview-toolbar-button"
                   onClick={() => setIsOutlineCollapsed((current) => !current)}
                 >
-                  {isOutlineCollapsed ? "展开目录" : "收起目录"}
+                  {isOutlineCollapsed ? t("展开目录") : t("收起目录")}
                 </button>
               ) : null}
               <button
                 type="button"
                 className="fvp-preview-toolbar-button"
-                aria-label="缩小"
+                aria-label={t("缩小")}
                 disabled={pdfScale <= MIN_PDF_SCALE}
                 onClick={() =>
                   setPdfScale((current) =>
@@ -229,7 +230,7 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
               <button
                 type="button"
                 className="fvp-preview-toolbar-button fvp-preview-toolbar-value"
-                aria-label="重置缩放"
+                aria-label={t("重置缩放")}
                 onClick={() => setPdfScale(DEFAULT_PDF_SCALE)}
               >
                 {`${Math.round(pdfScale * 100)}%`}
@@ -237,7 +238,7 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
               <button
                 type="button"
                 className="fvp-preview-toolbar-button"
-                aria-label="放大"
+                aria-label={t("放大")}
                 disabled={pdfScale >= MAX_PDF_SCALE}
                 onClick={() =>
                   setPdfScale((current) =>
@@ -251,7 +252,11 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
           </header>
           {isPageCountTruncated ? (
             <div className="fvp-preview-budget-hint">
-              {`文档共 ${numPages} 页,当前展示第 ${normalizedPageWindowStart} 页起的 ${visiblePageCount} 页`}
+              {t("文档共 {total} 页,当前展示第 {start} 页起的 {count} 页", {
+                total: numPages,
+                start: normalizedPageWindowStart,
+                count: visiblePageCount,
+              })}
             </div>
           ) : null}
           <div className="fvp-pdf-pages">

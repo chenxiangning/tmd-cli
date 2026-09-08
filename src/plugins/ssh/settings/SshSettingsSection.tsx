@@ -6,9 +6,10 @@
  */
 
 import { useState } from "react";
-import { KeyRound, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { Key, Pencil, Plus, Trash, UploadSimple } from "@phosphor-icons/react";
 import { ipc, type SshHostConfig } from "@kernel/ipc";
 import { getSettingsState, updateSettings } from "@kernel/settings";
+import { t } from "@kernel/i18n";
 import type { SshImportCandidate } from "../scan";
 import { HostModal } from "./HostModal";
 import { ImportModal } from "./ImportModal";
@@ -25,7 +26,7 @@ export function SshSettingsSection() {
   };
 
   const removeHost = (config: SshHostConfig) => {
-    if (!window.confirm(`删除主机「${config.name || config.host}」?已开的会话不受影响。`)) return;
+    if (!window.confirm(t("删除主机「{name}」?已开的会话不受影响。", { name: config.name || config.host }))) return;
     updateSettings({ ssh: { hosts: hosts.filter((h) => h.id !== config.id) } });
   };
 
@@ -59,16 +60,16 @@ export function SshSettingsSection() {
           className="ssh-btn is-primary"
           onClick={() => setEditing(newHost())}
         >
-          <Plus size={12} /> 添加主机
+          <Plus size="0.75rem" /> {t("添加主机")}
         </button>
         <button type="button" className="ssh-btn" onClick={() => setImportOpen(true)}>
-          <Upload size={12} /> 从 ~/.ssh/config 导入
+          <UploadSimple size="0.75rem" /> {t("从 ~/.ssh/config 导入")}
         </button>
-        {hosts.length > 0 && <span className="ssh-settings-count">{hosts.length} 台主机</span>}
+        {hosts.length > 0 && <span className="ssh-settings-count">{t("{n} 台主机", { n: hosts.length })}</span>}
       </div>
       {hosts.length === 0 ? (
         <div className="ssh-settings-empty">
-          还没有 SSH 主机。手动添加,或从 ~/.ssh/config 一键导入。
+          {t("还没有 SSH 主机。手动添加,或从 ~/.ssh/config 一键导入。")}
         </div>
       ) : (
         <div className="ssh-host-list">
@@ -87,16 +88,16 @@ export function SshSettingsSection() {
                 <button
                   type="button"
                   className="ssh-icon-btn"
-                  title="重置主机密钥信任(下次连接重新确认)"
+                  title={t("重置主机密钥信任(下次连接重新确认)")}
                   onClick={() => void resetKnownHost(host)}
                 >
-                  <KeyRound size={13} />
+                  <Key size="0.8125rem" />
                 </button>
-                <button type="button" className="ssh-icon-btn" title="编辑" onClick={() => setEditing(host)}>
-                  <Pencil size={13} />
+                <button type="button" className="ssh-icon-btn" title={t("编辑")} onClick={() => setEditing(host)}>
+                  <Pencil size="0.8125rem" />
                 </button>
-                <button type="button" className="ssh-icon-btn" title="删除" onClick={() => removeHost(host)}>
-                  <Trash2 size={13} />
+                <button type="button" className="ssh-icon-btn" title={t("删除")} onClick={() => removeHost(host)}>
+                  <Trash size="0.8125rem" />
                 </button>
               </div>
             </div>
@@ -129,9 +130,9 @@ function newHost(): SshHostConfig {
 }
 
 function authLabel(host: SshHostConfig) {
-  if (host.authType === "privateKey") return "私钥";
-  if (host.authType === "keyboardInteractive") return "键盘认证";
-  return "密码";
+  if (host.authType === "privateKey") return t("私钥");
+  if (host.authType === "keyboardInteractive") return t("键盘认证");
+  return t("密码");
 }
 
 async function resetKnownHost(host: SshHostConfig) {

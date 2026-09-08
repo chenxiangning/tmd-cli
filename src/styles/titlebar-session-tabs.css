@@ -41,7 +41,7 @@
   border: none;
   background: none;
   color: var(--tmd-fg-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: pointer;
   transition: color 120ms ease;
 }
@@ -49,6 +49,11 @@
 .session-tab-switch:hover,
 .session-tab.is-active .session-tab-switch {
   color: var(--tmd-fg);
+}
+
+/* 引擎品牌 logo(tab 前置,renderIcon 注入的 svg):禁止被 label ellipsis 挤压 */
+.session-tab-switch > svg {
+  flex: 0 0 auto;
 }
 
 .session-tab-label {
@@ -103,8 +108,73 @@
 }
 
 .session-tab-remove svg {
-  width: 10px;
-  height: 10px;
+  width: 0.625rem;
+  height: 0.625rem;
+}
+
+
+/* 置顶扎点 + 定位:与 × 同显隐节奏(hover/active 显形);已置顶常亮实心 */
+.session-tab-pin,
+.session-tab-locate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--tmd-fg-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.session-tab:hover .session-tab-pin,
+.session-tab.is-active .session-tab-pin,
+.session-tab-pin.is-on,
+.session-tab:hover .session-tab-locate,
+.session-tab.is-active .session-tab-locate {
+  opacity: 1;
+}
+
+.session-tab-pin:hover,
+.session-tab-locate:hover {
+  color: var(--tmd-fg);
+  background: var(--tmd-bg-hover);
+}
+
+/* 已扎:实心 pin(与侧栏 .thread-pin-btn.is-on 同机制,stroke 型 SVG fill 即实体) */
+.session-tab-pin.is-on {
+  color: var(--tmd-fg-muted);
+}
+
+.session-tab-pin.is-on svg {
+  fill: currentColor;
+}
+
+/* 未落盘(无 cliSessionId/无归属工作区):置顶不可用,置灰禁指针;
+   三连选择器盖过上方 hover/active 显形规则(同权重靠后,显形规则特异性同级)。 */
+.session-tab .session-tab-pin:disabled,
+.session-tab:hover .session-tab-pin:disabled,
+.session-tab.is-active .session-tab-pin:disabled {
+  color: var(--tmd-fg-faint);
+  opacity: 0.4;
+  cursor: default;
+}
+
+.session-tab-pin:disabled:hover {
+  color: var(--tmd-fg-faint);
+  background: none;
+}
+
+.session-tab-pin svg,
+.session-tab-locate svg {
+  width: 0.6875rem;
+  height: 0.6875rem;
+  flex: 0 0 auto;
 }
 
 /* 行内重命名输入(右键菜单「重命名」;复刻 .thread-rename-input 的聚焦边语义,
@@ -118,7 +188,7 @@
   color: var(--tmd-fg);
   border: 1px solid var(--tmd-accent);
   border-radius: var(--tmd-radius-sm);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-family: inherit;
   padding: 0 6px;
   outline: none;

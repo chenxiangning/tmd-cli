@@ -1,7 +1,7 @@
 /**
  * 活动守望 + 完成未读状态机(呼吸灯三态结算)。
  *
- * 从 host.ts 拆出(单文件 ≤500 行铁则)。Host 组合持有;UI 只读 host.isUnread,
+ * 从 host.ts 拆出(单文件 ≤300 行铁则)。Host 组合持有;UI 只读 host.isUnread,
  * 不各自实现状态机。
  *
  * 对话锚定(首写闸):呼吸灯只认用户发起的对话。会话在用户首写前不进任何
@@ -107,6 +107,10 @@ export class ActivityWatch {
   /** 完成未读判定(会话列表蓝呼吸灯)。 */
   isUnread(sessionId: string): boolean {
     return this.unread.has(sessionId);
+  }
+  /** 对话轮次进行中判定(输出进站起,静默超阈结算止)。 */
+  isTurnActive(sessionId: string): boolean {
+    return this.activeTurns.has(sessionId);
   }
 
   /** 点开查看 = 已读(蓝 → 灰)。 */

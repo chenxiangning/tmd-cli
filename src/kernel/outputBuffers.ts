@@ -1,5 +1,5 @@
 /**
- * 会话输出环形缓冲存储 —— 从 host.ts 拆出(单文件 ≤500 行铁则)。
+ * 会话输出环形缓冲存储 —— 从 host.ts 拆出(单文件 ≤300 行铁则)。
  *
  * 每会话分块缓冲:append 只 push 不拼接(高频路径零复制);totalBytes 随 chunk
  * 增量维护,供 TerminalView 翻页锚点反推,消除挂载时全量 TextEncoder 编码。
