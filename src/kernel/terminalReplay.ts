@@ -101,7 +101,7 @@ export function attachTerminalStream(
     inputGate.arm();
     onProgress({ kind: "replay", pct: 0 });
     void writeInChunks(term, replay, (done, total) => {
-      if (!cancelled) onProgress({ kind: "replay", pct: Math.round((done / total) * 100) });
+      if (!cancelled && !ready) onProgress({ kind: "replay", pct: Math.round((done / total) * 100) });
     }).then(() => {
       /* 卸载竞态不冻结输入闸(随组件重挂载重生,闸门泄漏才致命);其余全部忽略。 */
       inputGate.release();

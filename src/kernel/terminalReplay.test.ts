@@ -4,6 +4,8 @@ import type { LoadProgress } from "./terminalReplay";
 /** host mock:可控事件 emitter,无输出缓冲(getOutputBuffer → null)。 */
 const hoisted = vi.hoisted(() => ({
   listeners: new Map<string, Array<(t: string) => void>>(),
+  /** 会话输出缓冲(id → 内容):回放分支用例预置,缺省空 = 无缓冲。 */
+  buffers: new Map<string, string>(),
 }));
 
 vi.mock("@kernel/host", () => ({
@@ -17,7 +19,7 @@ vi.mock("@kernel/host", () => ({
         return () => hoisted.listeners.set(topic, (hoisted.listeners.get(topic) ?? []).filter((f) => f !== cb));
       },
     },
-    getOutputBuffer: () => null,
+    getOutputBuffer: (id: string) => hoisted.buffers.get(id) ?? null,
     observeReplayTail: () => undefined,
   },
 }));
@@ -126,6 +128,21 @@ describe("attachTerminalStream 就绪锁", () => {
     vi.advanceTimersByTime(2_000);
     expect(events.filter((e) => e === null)).toHaveLength(1);
     expect(term.writes).toEqual(["boot", "more"]);
+    off();
+  });
+
+  it("回放中途撤罩后,剩余回放块不再重提遮罩", async () => {
+    hoisted.buffers.set("s4", "chunk-a chunk-b"); // 有缓冲 → 走回放分支
+    const term = fakeTerm();
+    const events: LoadProgress[] = [];
+    const off = attachTerminalStream(term, "s4", gate, (p) => events.push(p));
+
+    emit("s4", "live"); // 回放窗口内到达实时字节:入队迟到补写,并重置静默表
+    await vi.advanceTimersByTimeAsync(500); // 实时侧静默判就绪 → 撤罩;回放块写完
+    expect(events).toContain(null);
+    expect(events.indexOf(null)).toBe(events.length - 1); // 撤罩后零重提(修前回弹 replay% 卡死遮罩)
+    expect(term.writes.join("")).toContain("chunk-a chunk-b"); // 回放不丢字节
+    expect(term.writes.at(-1)).toBe("live"); // 迟到实时字节按序补写
     off();
   });
 });
