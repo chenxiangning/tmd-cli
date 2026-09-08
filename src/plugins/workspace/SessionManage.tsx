@@ -1,5 +1,5 @@
 /**
- * 会话管理模式 —— CLI 分组内的批量管理面(GroupHeader 开关进入,per-group)。
+ * 会话管理模式 —— CLI 分组内的批量管理面(工作区行「会话管理」开关统一切换,per-group)。
  * - 行 = div(非 button,避免交互件嵌套):复选框 + 标题 + 行尾归档/删除按钮
  * - 多选:左键按下锚定行,按住滑动 → 锚点状态向扫过的行扩散(mail 式拖选),
  *   点按 = 单行 toggle;命中测试用 elementFromPoint,免受按钮/文本节点干扰
@@ -174,7 +174,7 @@ export function ManageList({
         <span className={`wm-check${on ? " is-on" : ""}`} aria-hidden>
           {on ? <Check size="0.625rem" /> : null}
         </span>
-        <span className={`thread-name${row.kind === "disk" ? " is-disk" : ""}`}>{title}</span>
+        <span className="thread-name">{title}</span>
         <span className="thread-meta">
           {row.kind === "disk" ? (
             <span className="thread-time">{formatRelativeTime(row.session.modifiedAt)}</span>
@@ -221,6 +221,11 @@ export function ManageList({
       onPointerCancel={() => (dragRef.current = null)}
       onPointerLeave={() => (dragRef.current = null)}
     >
+      {/* 段头退役后的归属识别:管理态组顶 profile 行(纯展示,不参与拖选)。 */}
+      <div className="wm-profile" aria-hidden>
+        {profile.renderIcon?.("0.75rem")}
+        <span>{profile.name}</span>
+      </div>
       {rows.map(renderRow)}
       {selectedRows.length > 0 && (
         <div className="wm-bar">

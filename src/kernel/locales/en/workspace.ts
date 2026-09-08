@@ -34,9 +34,7 @@ export const MESSAGES = {
   "结束终端会话「{title}」?": "End terminal session \"{title}\"?",
   "断开 SSH 会话「{title}」?": "Disconnect SSH session \"{title}\"?",
 
-  // ── GroupHeader ──
-  "展开分组": "Expand group",
-  "折叠分组": "Collapse group",
+  // ── WorkspaceCard 行动作组 ──
   "会话管理": "Session management",
 
   // ── SessionRows · DiskSessionRow / PinToggle ──

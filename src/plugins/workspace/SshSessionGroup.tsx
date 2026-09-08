@@ -1,7 +1,7 @@
 /**
  * SSH 会话分组 —— kind === "ssh" 的活会话(无磁盘历史/置顶/Ask 概念)。
  * 标题取 SessionMeta.title(主机名);右键 = 断开会话(引擎发 pty://exit 收尾)。
- * 分类折叠:段头即开关(useGroupCollapsed,key = `ws:ssh`),折叠态显活会话数。
+ * 扁平化(2026-09-08):分组段头/折叠退役,行首 HardDrive 图标区分会话种类。
  */
 
 import { HardDrive } from "@phosphor-icons/react";
@@ -10,14 +10,11 @@ import { t } from "@kernel/i18n";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import type { Workspace } from "@kernel/workspace";
 import type { SessionMeta } from "@kernel/ipc";
-import { GroupHeader } from "./GroupHeader";
 import { LiveOutputDot } from "./SessionRows";
-import { useGroupCollapsed } from "./useGroupCollapsed";
 /** 活会话呼吸灯(LiveOutputDot:输出即绿,无轮次概念)。 */
 
 export function SshSessionGroup({ workspace }: { workspace: Workspace }) {
   useHost();
-  const { collapsed, toggle } = useGroupCollapsed(workspace.id, "ssh");
   const sessions: SessionMeta[] = host
     .getSessions()
     .filter((s) => s.workspaceId === workspace.id && s.kind === "ssh");
@@ -25,42 +22,37 @@ export function SshSessionGroup({ workspace }: { workspace: Workspace }) {
   const activeSessionId = host.getActiveSessionId();
   return (
     <div className="cli-group">
-      <GroupHeader
-        label="SSH"
-        icon={<HardDrive size="0.75rem" />}
-        count={sessions.length}
-        collapsed={collapsed}
-        onToggle={toggle}
-      />
-      {!collapsed &&
-        sessions.map((session) => {
-          const title = session.title ?? session.id.slice(0, 8);
-          return (
-            <button
-              key={session.id}
-              data-session-id={session.id}
-              className={`thread-row${session.id === activeSessionId ? " active" : ""}`}
-              onClick={() => {
-                noteSessionTabTitle(session.id, title);
-                host.setActiveSession(session.id);
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                if (window.confirm(t("断开 SSH 会话「{title}」?", { title }))) {
-                  void host.removeSession(session.id);
-                }
-              }}
-            >
-              <LiveOutputDot sessionId={session.id} />
-              <span className="thread-name">{title}</span>
-              <span className="thread-meta">
-                <span className="thread-ask-badge" style={{ opacity: 0.7 }}>
-                  SSH
-                </span>
+      {sessions.map((session) => {
+        const title = session.title ?? session.id.slice(0, 8);
+        return (
+          <button
+            key={session.id}
+            data-session-id={session.id}
+            className={`thread-row${session.id === activeSessionId ? " active" : ""}`}
+            onClick={() => {
+              noteSessionTabTitle(session.id, title);
+              host.setActiveSession(session.id);
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              if (window.confirm(t("断开 SSH 会话「{title}」?", { title }))) {
+                void host.removeSession(session.id);
+              }
+            }}
+          >
+            <LiveOutputDot sessionId={session.id} />
+            <span className="thread-engine-badge" title="SSH" aria-hidden>
+              <HardDrive size="0.75rem" />
+            </span>
+            <span className="thread-name">{title}</span>
+            <span className="thread-meta">
+              <span className="thread-ask-badge" style={{ opacity: 0.7 }}>
+                SSH
               </span>
-            </button>
-          );
-        })}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

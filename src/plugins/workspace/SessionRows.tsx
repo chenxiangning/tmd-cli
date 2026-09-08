@@ -160,7 +160,10 @@ export function DiskSessionRow({
       ) : (
         <span className="tl-node is-idle" aria-hidden />
       )}
-      <span className="thread-name is-disk">{title}</span>
+      <span className="thread-engine-badge" title={profile.name} aria-hidden>
+        {profile.renderIcon?.("0.75rem")}
+      </span>
+      <span className="thread-name">{title}</span>
       <span className="thread-meta">
         <PinToggle on={pinned} onToggle={onTogglePin} />
         <span className="thread-time">{formatRelativeTime(session.modifiedAt)}</span>

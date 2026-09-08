@@ -5,7 +5,7 @@
  * 磁盘会话物理删除助手已拆至 sessionOps.ts(普通视图与管理模式共用)。
  */
 
-import type { CliDiskSession } from "@kernel/cli";
+import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import type { SessionMeta } from "@kernel/ipc";
@@ -21,6 +21,7 @@ export type MenuTarget =
 
 export function LiveSessionRow({
   session,
+  profile,
   isActive,
   title,
   pinned,
@@ -32,6 +33,8 @@ export function LiveSessionRow({
   onRenameCommit,
 }: {
   session: SessionMeta;
+  /** 行首供应商图标(renderIcon 0.75rem,扁平化后替代分组段头的引擎识别)。 */
+  profile: CliProfile;
   isActive: boolean;
   title: string;
   pinned: boolean;
@@ -63,6 +66,9 @@ export function LiveSessionRow({
       onContextMenu={onContextMenu}
     >
       <SessionNode sessionId={session.id} viewing={isActive} />
+      <span className="thread-engine-badge" title={profile.name} aria-hidden>
+        {profile.renderIcon?.("0.75rem")}
+      </span>
       {/* 身份统一:绑定磁盘身份后与磁盘条目同形显示(标题/命名/短码) */}
       <span className="thread-name">{title}</span>
       <span className="thread-meta">

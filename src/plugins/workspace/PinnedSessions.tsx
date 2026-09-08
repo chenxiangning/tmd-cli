@@ -17,9 +17,8 @@ import { useEffect, useRef, useState } from "react";
 import type { CliProfile } from "@kernel/cli";
 /* 经 cli-shared 消费 jsonl 标题行型(无生命周期格式库,插件零直接依赖铁律
  * 下的合法通道,同 welcome/credentials.ts 的依赖声明)。 */
-import { extractJsonlTitle, TITLE_HEAD_BYTES } from "../cli-shared/diskSessions";
+import { readHeadTitle } from "../cli-shared/diskSessions";
 import { host, useHost } from "@kernel/host";
-import { ipc } from "@kernel/ipc";
 import { useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 import {
@@ -109,13 +108,7 @@ export function PinnedSessionsSection() {
         const hit = list.find((s) => s.id === row.cliSessionId);
         /* listSessions 已带真标题的 CLI(opencode 的 SELECT title)直接用;
          * 无列表标题的(omp/pi jsonl)照旧读文件头解析。 */
-        const title = hit?.title
-          ? hit.title
-          : hit
-            ? extractJsonlTitle(
-                await ipc.fsReadHead(hit.path, TITLE_HEAD_BYTES).catch(() => ""),
-              )
-            : undefined;
+        const title = hit?.title ? hit.title : hit ? await readHeadTitle(hit.path) : undefined;
         if (stale) return;
         if (title) refreshPinTitle(row.key, title);
       }

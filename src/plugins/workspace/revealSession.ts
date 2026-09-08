@@ -4,8 +4,7 @@
  * 单一区域原则决定展开目标(见 docs/architecture/05-sidebar-session-zones.md):
  * - scope=global 置顶 → 已置顶区(远程展开段折叠);
  * - 运行区候选(未置顶且 运行中/结束未查看)→ 运行区;
- * - 其余(无 pin / scope=workspace 留组)→ 工作区卡片 + 所属分类段(CLI profileId
- *   或 "ssh"/"shell",与 useGroupCollapsed 键同构)。
+ * - 其余(无 pin / scope=workspace 留组)→ 工作区卡片(扁平化后分组恒展开,无段头补丁)。
  * 展开经 settings / 段 store 落地后,rAF 轮询(上限 600ms)等行渲染进树再滚动居中 +
  * is-reveal 闪高亮(1.6s 后移除,样式见 workspace-sessions-extras.css)。
  * 行锚点:活行 data-session-id / 磁盘行 data-cli-session-id(SessionRows 三行装配)。
@@ -45,18 +44,12 @@ export function createSessionRevealHandler(
       /* 运行区候选(置顶优先级更高,已由上面分支排除) */
       runningSection.set(false);
     } else if (meta.workspaceId) {
-      /* 组内行:无 pin / scope=workspace 留组顶块或活行 */
-      const groupId =
-        meta.kind === "ssh" ? "ssh" : meta.kind === "shell" ? "shell" : meta.profileId;
-      const patch: Partial<typeof st> = {};
+      /* 组内行:无 pin / scope=workspace 留组顶块或活行;分组恒展开,只需展开工作区卡片 */
       if (st.workspaceCollapsedMap[meta.workspaceId] ?? true) {
-        patch.workspaceCollapsedMap = { ...st.workspaceCollapsedMap, [meta.workspaceId]: false };
+        updateSettings({
+          workspaceCollapsedMap: { ...st.workspaceCollapsedMap, [meta.workspaceId]: false },
+        });
       }
-      const gKey = `${meta.workspaceId}:${groupId}`;
-      if (st.workspaceGroupCollapsedMap[gKey] ?? true) {
-        patch.workspaceGroupCollapsedMap = { ...st.workspaceGroupCollapsedMap, [gKey]: false };
-      }
-      if (patch.workspaceCollapsedMap || patch.workspaceGroupCollapsedMap) updateSettings(patch);
     }
 
     /* 展开落地时机不定(重渲染 + 0.18s 网格过渡 + 慢机):rAF 轮询到行出现即定位,

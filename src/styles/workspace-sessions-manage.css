@@ -1,9 +1,9 @@
 
 /* ===== 会话管理(管理模式:复选框行 + 拖选 + 批量条;归档视图) ===== */
 
-/* 「归」字徽记:归档视图磁盘行的时间轴节点位(同 tl-node-viewing 的 15px 骑线盒)。 */
+/* 「归」字徽记:归档视图磁盘行的时间轴节点位(同 tl-node-viewing 的 15px 骑线盒,中心对齐树线)。 */
 .thread-row .tl-node.tl-node-gui {
-  left: -7px;
+  left: -7.5px;
   width: 15px;
   height: 15px;
   border-radius: 0;
@@ -104,8 +104,8 @@
   align-items: center;
   gap: 4px;
   padding: 3px 8px;
-  margin-left: var(--workspace-tree-rail-x);
-  width: calc(100% - var(--workspace-tree-rail-x));
+  margin-left: var(--workspace-tree-indent);
+  width: calc(100% - var(--workspace-tree-indent));
   box-sizing: border-box;
 }
 
@@ -138,33 +138,22 @@
   color: var(--tmd-accent-fg);
 }
 
-/* 段头「会话管理」开关:默认隐藏,段头 hover 显形,激活常亮。 */
-.cli-group-manage {
+/* 管理态组顶 profile 识别行(段头退役后的归属标识,纯展示)。 */
+.wm-profile {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
+  gap: 4px;
+  padding: 4px 8px 2px;
+  margin-left: var(--workspace-tree-indent);
+  font-size: var(--sidebar-caption-font-size);
+  font-weight: 600;
   color: var(--text-faint);
-  opacity: 0;
-  cursor: pointer;
-  transition: opacity 0.12s ease;
+  letter-spacing: 0.04em;
 }
 
-.cli-group-label:hover .cli-group-manage,
-.cli-group-manage:focus-visible,
-.cli-group-manage.is-on {
-  opacity: 1;
-}
-
-.cli-group-manage:hover {
-  background: var(--surface-hover);
-  color: var(--text-strong);
-}
-
-.cli-group-manage.is-on {
-  color: var(--tmd-accent);
+.wm-profile svg {
+  width: 0.75rem;
+  height: 0.75rem;
 }
 
 /* 工作区 caption 右侧「默认|归档」视图切换(迷你 segmented)。 */

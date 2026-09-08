@@ -213,7 +213,9 @@
 
 .workspace-row:hover .workspace-actions,
 .workspace-row:focus-within .workspace-actions,
-.workspace-row.active .workspace-actions {
+.workspace-row.active .workspace-actions,
+/* 开关态常亮:管理开关激活时动作组不随 hover 退出而收起(状态须可见) */
+.workspace-actions:has(.workspace-action-btn.is-on) {
   max-width: 160px;
   opacity: 1;
 }
@@ -245,6 +247,11 @@
 .workspace-action-btn:hover {
   background: var(--surface-hover-strong);
   color: var(--text-strong);
+}
+
+/* 开关型动作钮(会话管理/归档视图)激活态:accent 常亮 */
+.workspace-action-btn.is-on {
+  color: var(--tmd-accent);
 }
 
 /* 刷新会话 in-flight:图标转圈(同 wsmenu-item-refresh 的反馈语义) */

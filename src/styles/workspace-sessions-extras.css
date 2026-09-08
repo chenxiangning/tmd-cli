@@ -24,7 +24,7 @@
   color: var(--text-faint);
   font-size: var(--sidebar-caption-font-size);
   padding: 4px 8px;
-  margin-left: var(--workspace-tree-rail-x);
+  margin-left: var(--workspace-tree-indent);
   text-align: left;
   cursor: pointer;
   border-radius: 4px;

@@ -20,8 +20,8 @@
  *
  * 活会话行与磁盘删除助手拆至 LiveSessionRow.tsx,分组数据装配拆至
  * useCliSessionGroup.ts(文件规模铁则)。
- * 分类折叠:段头即开关(GroupHeader),折叠态经 useGroupCollapsed 写
- * settings.workspaceGroupCollapsedMap 持久化,重启恢复;折叠计数 = 展开后可见总数。
+ * 扁平化(2026-09-08 spec):分组段头与折叠退役,会话行直接平铺于工作区下,
+ * 行首供应商图标区分引擎;分组仅作数据装配边界(分页/置顶投影/归档过滤)。
  */
 
 import { useState } from "react";
@@ -46,8 +46,7 @@ import { LiveSessionRow, type MenuTarget } from "./LiveSessionRow";
 import { deleteDiskSessionFull, deleteLiveSessionFull } from "./sessionOps";
 import { ManageList } from "./SessionManage";
 import { useCliSessionGroup } from "./useCliSessionGroup";
-import { GroupHeader } from "./GroupHeader";
-import { useGroupCollapsed } from "./useGroupCollapsed";
+
 import { PAGE_INITIAL } from "./utils";
 
 /**
@@ -59,6 +58,7 @@ export function CliSessionGroup({
   workspace,
   refreshTick,
   onScanned,
+  manage,
 }: {
   profile: CliProfile;
   workspace: Workspace;
@@ -66,6 +66,8 @@ export function CliSessionGroup({
   refreshTick: number;
   /** 扫描完成回调(驱动菜单刷新按钮的 spin 停止)。 */
   onScanned: () => void;
+  /** 会话管理模式:工作区行「会话管理」开关统一切换(prop 下发,per-group ManageList)。 */
+  manage: boolean;
 }) {
   const {
     archivedView,
@@ -80,15 +82,11 @@ export function CliSessionGroup({
     pinnedDisk,
     visible,
     remaining,
-    unpinnedCount,
     realTitle,
     displayTitle,
   } = useCliSessionGroup({ profile, workspace, refreshTick, onScanned });
-  const { collapsed, toggle } = useGroupCollapsed(workspace.id, profile.id);
   const [menu, setMenu] = useState<MenuTarget | null>(null);
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
-  /** 会话管理模式(per-group):GroupHeader 开关进入,行内复选框 + 批量操作。 */
-  const [manage, setManage] = useState(false);
 
   const copyText = (text: string) => {
     void navigator.clipboard?.writeText(text).catch(() => undefined);
@@ -171,39 +169,23 @@ export function CliSessionGroup({
 
   return (
     <div className="cli-group">
-      {/* 分类段头 = 折叠开关;计数仅折叠态显示(展开后可见总数:活 + 工作区置顶 + 未置顶磁盘);
-       *  管理开关仅 CLI 组展开态注入(hover 显形,激活常亮)。 */}
-      <GroupHeader
-        label={profile.name}
-        icon={profile.renderIcon ? profile.renderIcon("0.75rem") : undefined}
-        count={orderedLive.length + pinnedDisk.length + unpinnedCount}
-        collapsed={collapsed}
-        onToggle={toggle}
-        manage={
-          collapsed ? undefined : { active: manage, onToggle: () => setManage((v) => !v) }
-        }
-      />
-
-      {/* 折叠:仅段头 + 计数;展开:管理模式(批量面)或普通时间轴。
-       *  key 随视图切换重建,管理行选中态不跨视图携带。 */}
-      {!collapsed &&
-        (manage ? (
-          <ManageList
-            key={archivedView ? "archived" : "default"}
-            profile={profile}
-            workspace={workspace}
-            orderedLive={orderedLive}
-            pinnedDisk={pinnedDisk}
-            visible={visible}
-            remaining={remaining}
-            setLimit={setLimit}
-            activeSessionId={activeSessionId}
-            displayTitle={displayTitle}
-            onDeleteLive={deleteLive}
-            onDeleteDisk={deleteDisk}
-          />
-        ) : (
-          <>
+      {manage ? (
+        <ManageList
+          key={archivedView ? "archived" : "default"}
+          profile={profile}
+          workspace={workspace}
+          orderedLive={orderedLive}
+          pinnedDisk={pinnedDisk}
+          visible={visible}
+          remaining={remaining}
+          setLimit={setLimit}
+          activeSessionId={activeSessionId}
+          displayTitle={displayTitle}
+          onDeleteLive={deleteLive}
+          onDeleteDisk={deleteDisk}
+        />
+      ) : (
+        <>
           {/* 工作区置顶块(置顶时间升序,行内扎点常亮) */}
           {renderDiskRows(pinnedDisk, true)}
 
@@ -214,6 +196,7 @@ export function CliSessionGroup({
             return (
               <LiveSessionRow
                 key={s.id}
+                profile={profile}
                 session={s}
                 isActive={s.id === activeSessionId}
                 title={title}
@@ -252,9 +235,8 @@ export function CliSessionGroup({
               {t("更多... (还有 {n} 条)", { n: remaining })}
             </button>
           )}
-          </>
-        ))}
-
+        </>
+      )}
 
       {/* 行右键菜单 */}
       {menu && (

@@ -1,13 +1,14 @@
 /**
  * 单个工作区卡片(codemoss WorkspaceCard 复刻):行 + 折叠会话树。
  * 工作区行:双态文件夹图标(hover 换 chevrons)+ 名称 + Default badge
- *   + hover 显形动作组(切到主区/刷新会话/新建会话菜单),右键同「+」。
+ *   + hover 显形动作组(会话管理/归档视图/刷新会话/新建会话菜单),右键同「+」。
  */
 
+import { useState } from "react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { setActiveWorkspace, type Workspace } from "@kernel/workspace";
-import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, RocketLaunch } from "@phosphor-icons/react";
+import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, RocketLaunch, ListChecks } from "@phosphor-icons/react";
 import { CliSessionGroup } from "./SessionList";
 import { SshSessionGroup } from "./SshSessionGroup";
 import { ShellSessionGroup } from "./ShellSessionGroup";
@@ -50,7 +51,8 @@ export function WorkspaceCard({
   const profiles = host.getCliProfiles();
   const scanKey = (profileId: string) => `${workspace.id}:${profileId}`;
   const rowRefreshing = profiles.some((p) => refreshing[scanKey(p.id)] ?? false);
-
+  /** 会话管理模式(本工作区全部 CLI 组统一切换,prop 下发);入口 = 行头开关(归档视图入口在 caption「默认|归档」radio)。 */
+  const [manage, setManage] = useState(false);
   return (
     <div className={`workspace-card${isActive ? " is-active" : ""}`}>
       <div
@@ -109,6 +111,18 @@ export function WorkspaceCard({
 
           <div className="workspace-actions">
             <button
+              className={`workspace-action-btn${manage ? " is-on" : ""}`}
+              title={t("会话管理")}
+              aria-pressed={manage}
+              onClick={(e) => {
+                e.stopPropagation();
+                setManage((v) => !v);
+              }}
+              onDoubleClick={(e) => e.stopPropagation()}
+            >
+              <ListChecks size="0.9375rem" aria-hidden />
+            </button>
+            <button
               className={`workspace-action-btn${rowRefreshing ? " is-refreshing" : ""}`}
               title={t("刷新会话")}
               onClick={(e) => {
@@ -145,6 +159,7 @@ export function WorkspaceCard({
               profile={p}
               workspace={workspace}
               refreshTick={refreshTicks[scanKey(p.id)] ?? 0}
+              manage={manage}
               onScanned={() => onScanDone(workspace.id, p.id)}
             />
           ))}
