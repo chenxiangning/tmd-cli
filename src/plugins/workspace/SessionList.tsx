@@ -5,8 +5,7 @@
  * 状态表达(kernel host 活动守望结算,见 kernel/host.ts / activityWatch.ts;
  * 呼吸灯锚定用户首写 —— 首写前的一切输出(spawn 横幅/resume 回放/TUI 重绘)
  * 不亮灯、不结算未读,见 activityWatch 首写闸):
- * - 左侧节点:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止;正在查看的
- *   会话圆点让位给 Eye 图标,切走/关闭还原(SessionNode)
+ * - 左侧节点:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止(ActivityDot)
  * - meta 区状态 label(SessionStatusLabel):运行时 / 会话结束-未查看 /
  *   会话结束-已查看;从未对话不出签,磁盘行无此概念
  * 行右键菜单:复制 Session ID / 重命名(应用侧覆盖层,见 kernel/sessionTitles.ts)

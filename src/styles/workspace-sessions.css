@@ -1,7 +1,7 @@
 /**
  * 会话列表样式(自 workspace-sidebar.css 拆分) — 会话行 / 供应商图标 / 状态节点。
  * 扁平化(2026-09-08 spec):分组段头与时间轴轨道退役,会话行直接平铺于工作区下
- * (8px 缩进);选中态 = accent-soft 底 + 2px 左竖条;行首供应商图标区分引擎。
+ * (8px 缩进);选中态 = accent-soft 底;行首供应商图标区分引擎。
  */
 
 /* ===== 会话树容器(codemoss .workspace-children) ===== */
@@ -116,7 +116,7 @@
   box-shadow: 0 0 0 2px var(--tmd-accent-soft);
 }
 
-/* 闲置灰点隐藏(扁平化后纯噪音):只留 运行(绿呼吸)/未读(蓝呼吸)/查看中(Eye)/归档徽记 信号位;
+/* 闲置灰点隐藏(扁平化后纯噪音):只留 运行(绿呼吸)/未读(蓝呼吸)/归档徽记 信号位;
    圆点绝对定位,隐藏无布局位移。 */
 .tl-node.is-idle {
   display: none;
@@ -131,31 +131,9 @@
     0 0 0 4px color-mix(in srgb, var(--tmd-accent) 10%, transparent);
 }
 
-/* 正在查看:圆点让位 Eye 图标,同槽位(15px 盒);切走/关闭还原圆点。
-   特异性须压过 .thread-row.active .tl-node(0-3-0)的 accent 背景 + 双环,
-   否则背景方块吞掉 Eye(viewing 仅在 active 行出现,并列三段选择器 + 位置靠后取胜)。 */
-.thread-row .tl-node.tl-node-viewing {
-  left: -7px;
-  width: 15px;
-  height: 15px;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* 正在查看 Eye:置顶区与工作区行同形同色(size 13),主题前景 token,深浅主题自适应;
-   自定义色走图标装饰变量(kernel/iconDecor.ts)。 */
-.thread-viewing-eye {
-  color: var(--icon-decor-eye, var(--text-strong));
-}
-
 /* 树线坐标(仅工作区树内;置顶区/运行区节点槽位不动):竖线 = 行坐标 x=0,
-   状态圆点(7px)/查看眼(15px)中心对齐骑线。 */
+   状态圆点(7px)中心对齐骑线。 */
 .workspace-children .tl-node { left: -3.5px; }
-.workspace-children .thread-row .tl-node.tl-node-viewing { left: -7.5px; }
 
 .thread-row:hover {
   background: var(--surface-hover);
@@ -165,8 +143,6 @@
 .thread-row.active {
   background: var(--tmd-accent-soft);
   color: var(--text-strong);
-  /* 左竖条选中语义:inset 阴影不引发布局位移;全列表唯一高亮行 */
-  box-shadow: inset 2px 0 0 var(--tmd-accent);
 }
 
 .thread-row.active:hover {

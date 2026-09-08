@@ -70,11 +70,10 @@ export function sanitizeSessionTabsMax(raw: unknown): number {
     : SESSION_TABS_LIMIT_DEFAULT;
 }
 
-/** ── 图标装饰(icon decor)域 ── 8 个界面图标的独立颜色/呼吸闪烁;CSS 变量约定见 kernel/iconDecor.ts */
+/** ── 图标装饰(icon decor)域 ── 7 个界面图标的独立颜色/呼吸闪烁;CSS 变量约定见 kernel/iconDecor.ts */
 
 /** 可装饰图标 id 白名单:面板键 = filePanel 注册 id 加 panel- 前缀,动作键 = sidebarActions id。 */
 export const ICON_DECOR_IDS = [
-  "eye",
   "newchat",
   "ssh-panel",
   "system-proxy",
@@ -93,7 +92,6 @@ export interface IconDecorItem {
 
 /** 出厂默认:newchat 呼吸开(转正 2026-09-08 手加效果),其余全默认。 */
 export const DEFAULT_ICON_DECOR: Record<IconDecorId, IconDecorItem> = {
-  eye: {},
   newchat: { blink: true },
   "ssh-panel": {},
   "system-proxy": {},

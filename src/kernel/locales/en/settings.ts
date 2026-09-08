@@ -99,7 +99,6 @@ export const MESSAGES = {
   "图标装饰": "Icon decorations",
   "逐图标自定义颜色与呼吸闪烁;有开关两态的图标仅作用于点亮色。":
     "Per-icon color and breathing glow; for icons with on/off states only the lit color is themed.",
-  "会话查看眼": "Session viewing eye",
   "SSH 入口": "SSH entry",
   "网络代理": "Network proxy",
   "文件面板": "Files panel",

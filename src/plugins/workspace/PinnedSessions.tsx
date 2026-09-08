@@ -7,8 +7,8 @@
  * - 行标题:手动命名覆盖层 > 置顶快照 > 短码;快照缺失或为短码垃圾(历史缺陷
  *   把 shortId 存成了快照)时读磁盘解析真标题并回填快照(节流重试,见下);
  * - 行点击:绑定的活会话 → 切到该会话;否则按原工作区恢复磁盘会话;
- * - 绑定活会话的行:meta 区亮状态 label(运行时/会话结束-未查看/已查看),
- *   正在查看时左侧引擎图标让位给 Eye,切走还原(与组内行同口径);
+ * - 绑定活会话的行:meta 区亮状态 label(运行时/会话结束-未查看/已查看,
+ *   与组内行同口径);
  * - 右键菜单无删除项:全局区不持有磁盘文件路径,删除回工作区分组操作
  *   (先「置顶到工作区内」迁移回组,或「取消置顶」后组内删除)。
  */
@@ -31,7 +31,7 @@ import {
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
-import { CaretDown, CaretRight, Eye } from "@phosphor-icons/react";
+import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
 import { orShortId, realPinSnapshot } from "./utils";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
@@ -228,9 +228,8 @@ export function PinnedSessionsSection() {
                 setMenu({ row, x: e.clientX, y: e.clientY });
               }}
             >
-              {/* 正在查看:引擎图标槽位让位给 Eye,切走还原 */}
               <span className="thread-engine-badge" title={row.profile.name}>
-                {isActive ? <Eye size="0.8125rem" className="thread-viewing-eye" /> : row.profile.renderIcon?.(12)}
+                {row.profile.renderIcon?.(12)}
               </span>
               <span className="thread-name">{titleOf(row)}</span>
               <span className="thread-meta">

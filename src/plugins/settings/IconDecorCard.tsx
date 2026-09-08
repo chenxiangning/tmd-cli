@@ -1,5 +1,5 @@
 /**
- * 基础设置 / 外观 tab 的图标装饰卡 —— 8 个界面图标的独立颜色与呼吸闪烁(可折叠)。
+ * 基础设置 / 外观 tab 的图标装饰卡 —— 7 个界面图标的独立颜色与呼吸闪烁(可折叠)。
  * 键清单是 UI 知识(键 = kernel/iconDecor.ts 的 CSS 变量约定 id);全部写 kernel/settings
  * store 即时生效,应用由 kernel/iconDecor.ts 同步到 <html>,预览图标即时反映自定义色。
  */
@@ -10,7 +10,6 @@ import {
   Brain,
   CaretDown,
   CaretRight,
-  Eye,
   Folder,
   GitBranch,
   HardDrive,
@@ -56,7 +55,6 @@ const ICON_DECOR_ITEMS: ReadonlyArray<{
   label: string;
   icon: ComponentType<{ size?: number | string }>;
 }> = [
-  { id: "eye", label: "会话查看眼", icon: Eye },
   { id: "newchat", label: "新建会话", icon: RocketLaunch },
   { id: "ssh-panel", label: "SSH 入口", icon: HardDrive },
   { id: "system-proxy", label: "网络代理", icon: LadderIcon },

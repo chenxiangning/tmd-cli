@@ -29,22 +29,21 @@ beforeEach(async () => {
 });
 
 describe("图标装饰设置", () => {
-  it("出厂默认:newchat 呼吸开,其余全默认,8 键齐全", () => {
+  it("出厂默认:newchat 呼吸开,其余全默认,7 键齐全", () => {
     const d = settings.getSettingsState().settings.iconDecor;
     expect(d.newchat).toEqual({ blink: true });
-    expect(d.eye).toEqual({});
-    expect(Object.keys(d)).toHaveLength(8);
+    expect(Object.keys(d)).toHaveLength(7);
   });
 
   it("合法补丁合并生效:色与闪烁互相独立,其余键不动", () => {
     settings.updateSettings({
       iconDecor: {
         ...settings.getSettingsState().settings.iconDecor,
-        eye: { color: "#FF8C3C", blink: true },
+        "ssh-panel": { color: "#FF8C3C", blink: true },
       },
     });
     const d = settings.getSettingsState().settings.iconDecor;
-    expect(d.eye).toEqual({ color: "#ff8c3c", blink: true });
+    expect(d["ssh-panel"]).toEqual({ color: "#ff8c3c", blink: true });
     expect(d.newchat).toEqual({ blink: true });
     expect(d["panel-git"]).toEqual({});
   });
@@ -53,7 +52,7 @@ describe("图标装饰设置", () => {
     const raw = {
       ...settings.getSettingsState().settings.iconDecor,
       newchat: { blink: "yes" },
-      eye: { color: "red" },
+      "ssh-panel": { color: "red" },
       "panel-git": { color: "#00FF00", blink: false },
       junk: { color: "#000000" },
     } as Record<string, unknown>;
@@ -62,7 +61,7 @@ describe("图标装饰设置", () => {
     });
     const d = settings.getSettingsState().settings.iconDecor;
     expect(d.newchat).toEqual({ blink: true });
-    expect(d.eye).toEqual({});
+    expect(d["ssh-panel"]).toEqual({});
     expect(d["panel-git"]).toEqual({ color: "#00ff00", blink: false });
     expect((d as unknown as Record<string, unknown>).junk).toBeUndefined();
   });

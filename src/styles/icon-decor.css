@@ -18,8 +18,7 @@
 }
 
 /* ── 无两态图标:恒呼吸 ── */
-html[data-icon-blink~="newchat"] .workspace-action-btn.is-newchat svg,
-html[data-icon-blink~="eye"] .thread-viewing-eye {
+html[data-icon-blink~="newchat"] .workspace-action-btn.is-newchat svg {
   animation: icon-decor-breathe 5s ease-in-out infinite;
 }
 
@@ -42,7 +41,6 @@ html[data-icon-blink~="system-proxy"] .settings-menu-row[data-action-id="system-
 /* reduced-motion 只关本呼吸,不碰其它动画(如 is-refreshing 转圈) */
 @media (prefers-reduced-motion: reduce) {
   html[data-icon-blink~="newchat"] .workspace-action-btn.is-newchat svg,
-  html[data-icon-blink~="eye"] .thread-viewing-eye,
   html[data-icon-blink~="panel-files"] .panel-tab[data-panel-id="files"] svg,
   html[data-icon-blink~="panel-git"] .panel-tab[data-panel-id="git"] svg,
   html[data-icon-blink~="panel-checkpoints"] .panel-tab[data-panel-id="checkpoints"] svg,

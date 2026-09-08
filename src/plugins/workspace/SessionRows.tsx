@@ -11,7 +11,6 @@ import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { host, useHost } from "@kernel/host";
-import { Eye } from "@phosphor-icons/react";
 import { PinIcon } from "@kernel/PinIcon";
 import { resolveSessionStatus, type SessionStatus } from "./utils";
 
@@ -46,7 +45,7 @@ export function useSessionStatus(sessionId: string): SessionStatus {
 }
 
 /** 时间节点三态:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止 —— 呼吸灯从 meta 区移到时间轴节点位。 */
-function ActivityDot({ sessionId }: { sessionId: string }) {
+export function ActivityDot({ sessionId }: { sessionId: string }) {
   const status = useSessionStatus(sessionId);
   const state =
     status === "running"
@@ -62,27 +61,6 @@ function ActivityDot({ sessionId }: { sessionId: string }) {
 export function LiveOutputDot({ sessionId }: { sessionId: string }) {
   const idle = Date.now() - host.getLastActivityAt(sessionId) > 4000;
   return <span className={`tl-node${idle ? " is-idle" : ""}`} aria-hidden />;
-}
-
-/**
- * 左侧节点槽位:正在查看(viewing = active)时圆点让位给 Eye 图标,
- * 切走/关闭会话即还原圆点 —— 「查看中」语义压过状态灯。
- */
-export function SessionNode({
-  sessionId,
-  viewing,
-}: {
-  sessionId: string;
-  viewing: boolean;
-}) {
-  if (viewing) {
-    return (
-      <span className="tl-node tl-node-viewing" aria-hidden>
-        <Eye size="0.8125rem" className="thread-viewing-eye" />
-      </span>
-    );
-  }
-  return <ActivityDot sessionId={sessionId} />;
 }
 
 /** 三态 label 文案与配色类(纯文字不闪烁 —— 呼吸只属于左侧圆点,文字态以颜色区分)。 */

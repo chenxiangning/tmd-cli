@@ -11,7 +11,7 @@ import { t } from "@kernel/i18n";
 import type { SessionMeta } from "@kernel/ipc";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
-import { PinToggle, SessionNode, SessionStatusLabel } from "./SessionRows";
+import { PinToggle, ActivityDot, SessionStatusLabel } from "./SessionRows";
 
 /** 右键菜单目标:活会话(PTY 态)或磁盘会话(文件态)。 */
 export type MenuTarget =
@@ -65,7 +65,7 @@ export function LiveSessionRow({
       }}
       onContextMenu={onContextMenu}
     >
-      <SessionNode sessionId={session.id} viewing={isActive} />
+      <ActivityDot sessionId={session.id} />
       <span className="thread-engine-badge" title={profile.name} aria-hidden>
         {profile.renderIcon?.("0.75rem")}
       </span>

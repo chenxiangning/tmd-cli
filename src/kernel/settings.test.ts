@@ -75,7 +75,6 @@ describe("初始状态与默认值", () => {
       ssh: { hosts: [] },
       git: { view: "diff", layout: "flat", diffMode: "unified" },
       iconDecor: {
-        eye: {},
         newchat: { blink: true },
         "ssh-panel": {},
         "system-proxy": {},

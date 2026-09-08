@@ -27,10 +27,10 @@
 
 1. **段头退役**:`GroupHeader` / `useGroupCollapsed` / `settings.workspaceGroupCollapsedMap` 全部拆除(CI/终端/SSH 三组);分组恒展开。`revealSession` 不再补分组展开补丁。词典死键(展开分组/折叠分组)同步清理。
 2. **行形统一**:所有会话行 0.875rem 同字重;`.thread-name.is-disk` 的等宽 0.75rem muted 降级规则删除;行首新增供应商图标槽(复用 `.thread-engine-badge`,CLI 行用 profile.renderIcon,终端/SSH 行用 TerminalWindow/HardDrive)。
-3. **选中态**:`.thread-row.active` = `--tmd-accent-soft` 底 + `inset 2px 0 0` 左竖条,全列表唯一高亮行。
-3b. **闲置灰点隐藏**(同日追加,用户目检反馈):`.tl-node.is-idle` display:none —— 灰静止点纯噪音;信号位只留 运行(绿呼吸)/未读(蓝呼吸)/查看中(Eye)/归档徽记;圆点绝对定位,隐藏无布局位移。
-3c. **树形参考线回归**(同日追加,用户目检反馈 + Claude 侧栏参考图):`.workspace-children::before` 竖线(x=容器 16px,居文件夹图标中心,上探扎进文件夹行)+ 每行 `.thread-row::before` ╭ 形弯钩(border-left+bottom+6px 半径)拐向行首图标;状态圆点/查看眼/归档徽记骑线(作用域 `.workspace-children`,置顶区/运行区节点槽位不动);行缩进随之 8→16px(`--workspace-tree-indent`,更多…/wm-bar/wm-profile 同源)。末行收边靠 inner overflow 裁剪,不做 └ 收尾(ponytail:要曲尾需「最后行」判定,等用户提了再补)。
-4. **时间轴轨道移除**:`.workspace-children::before` 贯穿竖线删除;`--workspace-tree-rail-x`(19.5px)更名 `--workspace-tree-indent`(8px),消费点 = thread-row / thread-more / wm-bar 三处;状态圆点/眼睛/「归」徽记的绝对定位在新缩进下不裁切(inner overflow:hidden,x≥1px)。
+3. **选中态**:`.thread-row.active` = `--tmd-accent-soft` 底,全列表唯一高亮行。~~+ `inset 2px 0 0` 左竖条~~ —— **同日撤销(用户目检:底色高亮已足,左竖条冗余)**。
+3b. **闲置灰点隐藏**(同日追加,用户目检反馈):`.tl-node.is-idle` display:none —— 灰静止点纯噪音;信号位只留 运行(绿呼吸)/未读(蓝呼吸)/归档徽记(~~查看中(Eye)~~ 同日撤销:选中底色已承载「正在看」语义,Eye 图标视觉污染);圆点绝对定位,隐藏无布局位移。
+3c. **树形参考线回归**(同日追加,用户目检反馈 + Claude 侧栏参考图):`.workspace-children::before` 竖线(x=容器 16px,居文件夹图标中心,上探扎进文件夹行)+ 每行 `.thread-row::before` ╭ 形弯钩(border-left+bottom+6px 半径)拐向行首图标;状态圆点/归档徽记骑线(作用域 `.workspace-children`,置顶区/运行区节点槽位不动);行缩进随之 8→16px(`--workspace-tree-indent`,更多…/wm-bar/wm-profile 同源)。末行收边靠 inner overflow 裁剪,不做 └ 收尾(ponytail:要曲尾需「最后行」判定,等用户提了再补)。
+4. **时间轴轨道移除**:`.workspace-children::before` 贯穿竖线删除;`--workspace-tree-rail-x`(19.5px)更名 `--workspace-tree-indent`(8px),消费点 = thread-row / thread-more / wm-bar 三处;状态圆点/「归」徽记的绝对定位在新缩进下不裁切(inner overflow:hidden,x≥1px)。
 5. **会话管理入口上移**:WorkspaceCard 行动作组新增「会话管理」开关(hover 显形,激活常亮且锁定动作组展开):
    - ~~「归档」(Archive):切换 `settings.workspaceArchiveView`~~ —— **同日撤销(用户目检:与 caption「默认|归档」radio 冗余)**,归档视图唯一入口 = caption 分段开关。
    - 终端/SSH 组无管理概念,不接入。

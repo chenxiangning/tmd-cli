@@ -26,7 +26,7 @@ import { pinSession, sessionPinKey, toggleSessionPin, unpinSession } from "@kern
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
-import { Pulse, CaretDown, CaretRight, Eye } from "@phosphor-icons/react";
+import { Pulse, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { SessionContextMenu } from "./SessionContextMenu";
 import { PinToggle, SessionStatusLabel } from "./SessionRows";
@@ -209,13 +209,8 @@ export function RunningZoneSection() {
                 setMenu({ row, x: e.clientX, y: e.clientY });
               }}
             >
-              {/* 正在查看:引擎图标槽位让位给 Eye,切走还原(与全局置顶区同口径) */}
               <span className="thread-engine-badge" title={row.profile.name}>
-                {isActive ? (
-                  <Eye size="0.8125rem" className="thread-viewing-eye" />
-                ) : (
-                  row.profile.renderIcon?.(12)
-                )}
+                {row.profile.renderIcon?.(12)}
               </span>
               <span className="thread-name">{titleOf(row)}</span>
               <span className="thread-meta">
