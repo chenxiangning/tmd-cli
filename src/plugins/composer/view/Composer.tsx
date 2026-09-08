@@ -26,7 +26,7 @@ import { composerSendTransforms, composerWakeRef } from "@kernel/composerExt";
 import { t } from "@kernel/i18n";
 import { useComposerStage } from "@kernel/composerStage";
 import { useComposerAttachments } from "./useComposerAttachments";
-import { KernelTopics } from "@kernel/events";
+import { emitPromptSent, readPromptGate } from "../promptGate";
 import { Mounts } from "@kernel/Mounts";
 import { useSettingsState } from "@kernel/settings";
 import { getTerminalHandle } from "@kernel/messageAnchors";
@@ -128,9 +128,10 @@ export function Composer() {
     /* 发送变换(composerExt 契约):仅用户自然语言消息走;抽屉/工具栏命令发送不经此 */
     const payload = prepareSendPayload(profile, value,
       composerSendTransforms().map((fn) => (text: string) => fn(text, sid)));
+    const gate = readPromptGate(sid); // 轮次闸写前现读:writeSession 作答即清 ask 等待态
     host.writeSession(sid, payload);
-    /* 锚点快照信号(checkpoints 消费):仅此处与抽屉发送 emit —— 幕布击键同走 writeSession,不能当 prompt */
-    host.events.emit(KernelTopics.promptSent, { sessionId: sid, text: trimmed.slice(0, 400) });
+    /* 锚点快照信号(checkpoints 消费)过轮次闸:ask 作答/轮中斜杠命令不开轮不广播;幕布击键同走 writeSession,不能当 prompt */
+    emitPromptSent(gate, sid, trimmed);
     setValue("");
     clearAttachments();
     setMatches(null);

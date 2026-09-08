@@ -1,7 +1,6 @@
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { collapseComposerStage, expandComposerStage, useComposerStage } from "@kernel/composerStage";
-import { KernelTopics } from "@kernel/events";
 import { CaretDown, CaretUp, Sidebar } from "@phosphor-icons/react";
 import { QuotaChip } from "./QuotaChip";
 import { toggleDrawer, useDrawerOpen } from "../state/drawerOpen";
@@ -39,7 +38,8 @@ export function ComposerToolbar() {
     if (!sessionId || !profile) return;
     const wire = prepareSendPayload(profile, cmd);
     host.writeSession(sessionId, wire);
-    host.events.emit(KernelTopics.promptSent, { sessionId, text: cmd });
+    /* 不广播 promptSent:/model 与思考命令是 CLI 控制命令,永不开对话轮;起锚只会
+       空耗轮次号 —— 轮中切模型曾把在途轮 19 个文件错归 "/model" 批(2026-09-08 实证) */
   }
   const drawerOpen = useDrawerOpen();
   const stage = useComposerStage();

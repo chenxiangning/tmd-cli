@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import type { CliProfile } from "@kernel/cli";
 import { host } from "@kernel/host";
-import { KernelTopics } from "@kernel/events";
+import { emitPromptSent, readPromptGate } from "../promptGate";
 import { openSettingsPanel } from "@kernel/settings";
 import { setFilePanelMode } from "@kernel/filePanel";
 import { prepareSendPayload } from "../serialize/serialize";
@@ -71,8 +71,9 @@ export function useComposerDrawer({
     if (!sid || !profile) return "";
     const text = drawerWireText(item);
     const wire = prepareSendPayload(profile, text);
+    const gate = readPromptGate(sid); // 轮次闸写前现读:ask 作答/轮中斜杠命令不开轮不广播
     host.writeSession(sid, wire);
-    host.events.emit(KernelTopics.promptSent, { sessionId: sid, text: text.slice(0, 400) });
+    emitPromptSent(gate, sid, text);
     return wire.replace(/\r$/, "");
   }
 
