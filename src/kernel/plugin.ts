@@ -53,6 +53,8 @@ export type MountPoint =
   | "editorCenter.welcome"
   /** 幕布下方富 composer 输入区。 */
   | "editorCenter.composer"
+  /** composer 输入区右缘竖向图标列(assets 唤醒入口等)。 */
+  | "composer.inputRail"
   /** composer 底部状态条(+ 模型/能力/发送)。 */
   | "composer.statusBar";
 
