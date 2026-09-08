@@ -4,7 +4,7 @@ import {
   claudeUserMessageLine,
   readUserMessagesFromFile,
 } from "../cli-shared/userMessages";
-import { extractJsonlTitle } from "../cli-shared/diskSessions";
+import { readHeadTitle } from "../cli-shared/diskSessions";
 import { parseClaudeFamilySessionHead } from "../cli-shared/sessionIdentity";
 import type { CliDiskSession, CliProfile, CliSessionStatus, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
@@ -59,17 +59,13 @@ async function listClaudeSessions(cwd: string): Promise<CliDiskSession[]> {
     // 6b844d1a-d84e-44c3-8385-1e1770d0ffb0.jsonl —— 文件名即 sessionId,直接喂 --resume
     const m = f.name.match(/^([0-9a-f-]{36})\.jsonl$/);
     if (!m) continue;
-    /* claude 无 title 记录:summary 行或首条用户消息都在文件前段,32KB 窗口实证够用;
-       目录本身已按 cwd 分区,每个文件都值得读头。 */
-    const head = await ipc.fsReadHead(f.path, CLAUDE_TITLE_HEAD_BYTES).catch(() => "");
-    const title = head ? extractJsonlTitle(head) : undefined;
+    /* claude 无 title 记录:标题走共享两段式读头;目录已按 cwd 分区,每个文件都值得读。 */
+    const title = await readHeadTitle(f.path);
     sessions.push({ id: m[1], modifiedAt: f.modifiedAt, path: f.path, title });
   }
   return sessions;
 }
 
-/** 标题提取的头部窗口:summary 行/首条用户消息前的 file-history-snapshot 可能膨胀,给足余量。 */
-const CLAUDE_TITLE_HEAD_BYTES = 32 * 1024;
 
 const STATUS_TAIL_BYTES = 256 * 1024;
 

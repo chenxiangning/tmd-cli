@@ -14,10 +14,13 @@ import { ipc } from "@kernel/ipc";
 /** 标题展示最大长度:超出截断补省略号。 */
 const TITLE_MAX_CHARS = 60;
 /**
- * 标题提取的头部读取量:omp/pi 的 title 记录恒在首行,8KB 足够;
- * claude/codex 无 title 记录、要扫到首条用户消息,由各插件自己给更大的窗口。
+ * 标题读头窗口(两段式):首条用户消息常是大段粘贴,单行可达十几 KB 到几 MB,
+ * 浅窗会把该行截成坏行 → 兜底失效显示短码。浅窗 32KB 保扫描基线成本,不中再对
+ * 少数文件补深窗一次(实测本机四族兜底覆盖 88-96%;残留为贴图 base64/空会话,
+ * 本就无文本可取,短码是诚实兜底)。
  */
-export const TITLE_HEAD_BYTES = 8 * 1024;
+const TITLE_HEAD_BYTES = 32 * 1024;
+const TITLE_HEAD_BYTES_DEEP = 256 * 1024;
 
 /** 外部 JSON 逐层收窄:取 object 的 string 字段,缺失/异型返回 undefined。 */
 function stringField(obj: unknown, key: string): string | undefined {
@@ -121,16 +124,31 @@ export function extractJsonlTitle(head: string): string | undefined {
   return sessionFieldTitle ?? summaryTitle ?? firstUserTitle;
 }
 
+/**
+ * 读头取标题:浅窗不中再深窗补一次。omp/pi/claude/codex/qoder 的 listSessions
+ * 与 workspace 置顶标题统一走此入口,读头窗口知识收敛在此,不再各家自带。
+ */
+export async function readHeadTitle(path: string): Promise<string | undefined> {
+  const shallow = await ipc.fsReadHead(path, TITLE_HEAD_BYTES).catch(() => "");
+  if (shallow) {
+    const title = extractJsonlTitle(shallow);
+    if (title) return title;
+  }
+  const deep = await ipc.fsReadHead(path, TITLE_HEAD_BYTES_DEEP).catch(() => "");
+  return deep ? extractJsonlTitle(deep) : undefined;
+}
+
 export async function scanJsonlSessions(dir: string): Promise<CliDiskSession[]> {
   const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
-  const sessions: CliDiskSession[] = [];
-  for (const f of files) {
-    // 2026-09-01T04-20-58-618Z_01a05b32-ea7a-738c-8a48-0d03dfef6824.jsonl
-    const m = f.name.match(/_([0-9a-f-]{36})\.jsonl$/);
-    if (!m) continue;
-    const head = await ipc.fsReadHead(f.path, TITLE_HEAD_BYTES).catch(() => "");
-    const title = head ? extractJsonlTitle(head) : undefined;
-    sessions.push({ id: m[1], modifiedAt: f.modifiedAt, path: f.path, title });
-  }
-  return sessions;
+  /* 读头彼此独立,并发一次发出:会话库几百个文件时顺序 await 是可感知的卡顿源。 */
+  const sessions = await Promise.all(
+    files.map(async (f) => {
+      // 2026-09-01T04-20-58-618Z_01a05b32-ea7a-738c-8a48-0d03dfef6824.jsonl
+      const m = f.name.match(/_([0-9a-f-]{36})\.jsonl$/);
+      if (!m) return null;
+      const title = await readHeadTitle(f.path);
+      return { id: m[1], modifiedAt: f.modifiedAt, path: f.path, title };
+    }),
+  );
+  return sessions.filter((s) => s !== null);
 }

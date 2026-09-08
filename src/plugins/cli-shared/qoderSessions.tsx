@@ -10,7 +10,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
-import { extractJsonlTitle } from "./diskSessions";
+import { readHeadTitle } from "./diskSessions";
 import type { CliDiskSession, CliProfile, CliSessionStatus } from "@kernel/cli";
 import { qoderUserMessageLine, readUserMessagesFromFile } from "./userMessages";
 import { parseClaudeFamilySessionHead } from "./sessionIdentity";
@@ -34,8 +34,6 @@ async function qoderSessionsDir(
   return `${home}/${dataDirName}/projects/${qoderProjectSlug(cwd)}`;
 }
 
-/** 标题提取的头部窗口:qoder 无 title/summary 记录,首条用户消息前可能有 snapshot 行,给足余量。 */
-const QODER_TITLE_HEAD_BYTES = 32 * 1024;
 
 /**
  * `/` 命令候选 —— 全部实证,不猜:前 5 个取自国际版会话文件内 skill_listing 附件
@@ -67,8 +65,7 @@ export async function listQoderSessions(
   for (const f of files) {
     const m = f.name.match(/^([0-9a-f-]{36})\.jsonl$/);
     if (!m) continue;
-    const head = await ipc.fsReadHead(f.path, QODER_TITLE_HEAD_BYTES).catch(() => "");
-    const title = head ? extractJsonlTitle(head) : undefined;
+    const title = await readHeadTitle(f.path);
     sessions.push({ id: m[1], modifiedAt: f.modifiedAt, path: f.path, title });
   }
   return sessions;
