@@ -218,7 +218,7 @@ export class SessionSpawnService {
     const task = (async () => {
       try {
         const spawned = await this.spawn(profileId, spec, workspaceId, opts?.silent);
-        return await this.adoptSpawned(spawned.id, profileId, cliSessionId, activate);
+        return await this.adoptSpawned(spawned.id, profileId, cliSessionId, activate, opts?.silent);
       } finally {
         this.openingDiskSessions.delete(key);
       }
@@ -257,6 +257,7 @@ export class SessionSpawnService {
     profileId: string,
     cliSessionId?: string,
     activate = true,
+    silent?: boolean,
   ): Promise<SessionMeta> {
     /* 显式恢复路径的绑定也走唯一写入口:入口去重的兜底闸 —— 同一磁盘会话
        已有活 PTY 时新 PTY 照常运行,但身份不绑(账本/UI 按 tmd id 隔离,
@@ -270,7 +271,8 @@ export class SessionSpawnService {
     const meta = await adoptPtySession(this.h, this.events, sessionId, {
       profileId,
       activate,
-      onExit: (id) => this.emitIfStartFailed(id, profileId, adoptedAt),
+      silent,
+      onExit: (id) => this.emitIfStartFailed(id, profileId, adoptedAt, silent),
     });
     if (!meta) throw new Error(ADOPT_RACE_REASON);
     this.h.statusEnsurePolling();
@@ -280,10 +282,11 @@ export class SessionSpawnService {
     return meta;
   }
 
-  /** 启动窗口内退出 = 启动失败:摘幕布尾部广播 sessionStartFailed(Toast 呈现)。 */
-  private emitIfStartFailed(sessionId: string, profileId: string, adoptedAt: number): void {
+  /** 启动窗口内退出 = 启动失败:摘幕布尾部广播 sessionStartFailed(Toast 呈现);silent(自动激活预开)仅 console.warn,防启动时刻 toast 风暴。 */
+  private emitIfStartFailed(sessionId: string, profileId: string, adoptedAt: number, silent?: boolean): void {
     if (Date.now() - adoptedAt > START_FAIL_WINDOW_MS) return;
     if (!this.h.getSessions().some((s) => s.id === sessionId)) return;
+    if (silent) return console.warn("预开会话启动失败(静默):", profileId);
     this.events.emit(KernelTopics.sessionStartFailed, {
       sessionId,
       profileId,
