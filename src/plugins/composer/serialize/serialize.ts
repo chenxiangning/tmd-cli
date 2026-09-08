@@ -8,7 +8,7 @@
  * Step 3 只做组装,不接 trigger 翻译(Step 4 再做)。
  */
 
-import type { CliProfile, CliTriggerSpec } from "@kernel/cli";
+import type { CliProfile } from "@kernel/cli";
 
 /**
  * 在 text 里找出现在光标位置之上(整段都算)"最靠近光标"的 trigger token。
@@ -16,29 +16,21 @@ import type { CliProfile, CliTriggerSpec } from "@kernel/cli";
  *
  * @returns { spec, range:[startIndex, endIndex) } 或 null
  */
-export function findActiveTrigger(
+export function findActiveTrigger<T extends { char: string }>(
   text: string,
   cursor: number,
-  triggers: readonly CliTriggerSpec[],
-): { spec: CliTriggerSpec; range: [number, number] } | null {
+  triggers: readonly T[],
+): { spec: T; range: [number, number] } | null {
   const before = text.slice(0, cursor);
   for (const spec of triggers) {
     const char = spec.char;
-    // 找最后一个 char,后面没到空格/换行
-    let lastIdx = -1;
-    for (let i = before.length - 1; i >= 0; i--) {
-      if (before[i] === char) {
-        lastIdx = i;
-        break;
-      }
-      if (/\s/.test(before[i])) break;
-    }
+    if (!char) continue;
+    /* 多字符触发符("!!" "##"):取光标前最后一次出现,触发符到光标之间
+       含空白即无效 —— 与旧单字符逐字回扫(遇空白 break)语义等价 */
+    const lastIdx = before.lastIndexOf(char);
     if (lastIdx < 0) continue;
-    const endIdx = cursor;
-    const token = before.slice(lastIdx);
-    // 必须以 char 开头(避免找到 @ 之前的字符)
-    if (token[0] !== char) continue;
-    return { spec, range: [lastIdx, endIdx] };
+    if (/\s/.test(before.slice(lastIdx + char.length))) continue;
+    return { spec, range: [lastIdx, cursor] };
   }
   return null;
 }
@@ -79,8 +71,12 @@ export function translatePrompt(profile: CliProfile, text: string): string {
 export function prepareSendPayload(
   profile: CliProfile,
   text: string,
+  transforms: readonly ((text: string) => string)[] = [],
 ): string {
-  const wire = translatePrompt(profile, text);
+  let wire = translatePrompt(profile, text);
+  /* 发送变换(composerExt 契约,如 assets 智能体角色块尾拼):translate 之后、
+     包装之前执行 —— 块内容不被 $skill 翻译误伤,也不污染 bracketedPaste 标记 */
+  for (const fn of transforms) wire = fn(wire);
   if (profile.bracketedPaste) return `\x1b[200~${wire}\x1b[201~\r`;
   return wire + "\r";
 }

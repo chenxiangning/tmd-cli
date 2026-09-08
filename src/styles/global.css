@@ -42,6 +42,7 @@
 @import "./file-preview-structured.css";
 @import "./file-preview-docs.css";
 @import "./start-failure-toast.css";
+@import "./assets.css";
 
 /* 界面字号(uiFontSize → html 根字号)语义锚:文字随根字号缩放,布局壳不胀。
  * Tailwind 4 间距编译为 calc(var(--spacing)*N),默认 0.25rem 会随根字号缩放;

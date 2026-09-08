@@ -62,8 +62,11 @@ export function SuggestionList({ matches, pickIndex, onPick, onHoverIndex, style
   }, [pickIndex, matches]);
 
   if (matches.length === 0) return null;
-  const kind = matches[0]?.kind ?? "command";
-  const meta = KIND_META[kind] ?? KIND_META.command;
+  const first = matches[0];
+  /* ext 触发源(assets 等)自带分区标题与触发符前缀;CLI 触发符按 kind 查表 */
+  const meta = first?.group
+    ? { label: first.group, char: first.char ?? "" }
+    : (KIND_META[first?.kind ?? "command"] ?? KIND_META.command);
 
   function syncScrollState() {
     const el = listRef.current;

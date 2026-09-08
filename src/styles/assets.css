@@ -1,0 +1,247 @@
+/* assets 插件 —— 唤醒图标 / 智能体徽章 / 设置双 tab(布局容器 .composer-input-rail
+   与锚点栏几何在 composer-anchors.css) */
+
+/* ── composer 右缘唤醒图标 ── */
+.assets-wake-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--tmd-border);
+  border-radius: 6px;
+  background: var(--tmd-bg-elevated);
+  color: var(--tmd-fg-faint);
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.assets-wake-btn:hover {
+  color: var(--tmd-accent);
+  border-color: var(--tmd-accent);
+}
+
+/* ── composer.statusBar 智能体徽章 ── */
+.assets-agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 1px solid var(--tmd-accent);
+  border-radius: 999px;
+  background: var(--tmd-accent-soft);
+  color: var(--tmd-accent);
+  font-size: 0.6875rem;
+  line-height: 1.2;
+}
+.assets-agent-badge-name {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.assets-agent-badge-clear {
+  display: flex;
+  align-items: center;
+  padding: 1px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.assets-agent-badge-clear:hover {
+  color: var(--tmd-fg);
+}
+
+/* ── 设置 tab 共用 ── */
+.assets-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+.assets-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.assets-count {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-faint);
+}
+.assets-report {
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-subtle);
+}
+.assets-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 6px;
+  background: var(--tmd-bg-elevated);
+  color: var(--tmd-fg);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.12s ease;
+}
+.assets-btn:hover:not(:disabled) {
+  border-color: var(--tmd-border-strong);
+}
+.assets-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.assets-btn.is-primary {
+  background: var(--tmd-accent);
+  border-color: var(--tmd-accent);
+  color: var(--tmd-accent-fg);
+}
+.assets-btn.is-danger:hover:not(:disabled) {
+  border-color: #f85149;
+  color: #f85149;
+}
+.assets-select,
+.assets-search {
+  padding: 4px 8px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 6px;
+  background: var(--tmd-bg-base);
+  color: var(--tmd-fg);
+  font-size: 0.75rem;
+}
+.assets-search {
+  flex: 1;
+  min-width: 8rem;
+}
+.assets-tab > .assets-empty {
+  border: 1px dashed var(--tmd-border);
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 0.75rem;
+  color: var(--tmd-fg-faint);
+}
+
+/* ── 卡片列表 ── */
+.assets-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.assets-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: border-color 0.12s ease;
+}
+.assets-card:hover {
+  border-color: var(--tmd-border-strong);
+}
+.assets-card-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  color: var(--tmd-fg-subtle);
+}
+.assets-card-main {
+  flex: 1;
+  min-width: 0;
+}
+.assets-card-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--tmd-fg);
+}
+.assets-card-desc {
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.assets-card-hint {
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-subtle);
+}
+.assets-scope-chip {
+  flex: none;
+  font-size: 0.625rem;
+  font-weight: 400;
+  color: var(--tmd-fg-faint);
+  border: 1px solid var(--tmd-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.assets-card-actions {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
+/* ── 模态 ── */
+.assets-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 92;
+  background: rgba(0, 0, 0, 0.32);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 10vh;
+}
+.assets-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(30rem, 92vw);
+  max-height: 76vh;
+  overflow-y: auto;
+  border: 1px solid var(--tmd-border);
+  border-radius: 10px;
+  background: var(--tmd-bg-popover);
+  padding: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+.assets-modal-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--tmd-fg);
+}
+.assets-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-subtle);
+}
+.assets-field input,
+.assets-field textarea {
+  padding: 6px 8px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 6px;
+  background: var(--tmd-bg-base);
+  color: var(--tmd-fg);
+  font-size: 0.75rem;
+  font-family: inherit;
+  resize: vertical;
+}
+.assets-error {
+  font-size: 0.6875rem;
+  color: #f85149;
+}
+.assets-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}

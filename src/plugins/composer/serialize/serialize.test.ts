@@ -54,6 +54,33 @@ describe("findActiveTrigger", () => {
   });
 });
 
+describe("findActiveTrigger(多字符触发符,composerExt 资产源)", () => {
+  const BANG_BANG = { char: "!!" };
+  const HASH_HASH = { char: "##" };
+
+  it("双字符触发符:命中并给出双字符区间", () => {
+    const text = "用 !!fix-bug";
+    const hit = findActiveTrigger(text, text.length, [BANG_BANG]);
+    expect(hit?.spec).toBe(BANG_BANG);
+    expect(hit?.range).toEqual([2, text.length]);
+  });
+
+  it("单 ! 不构成 token(多字符 lastIndexOf 语义)", () => {
+    expect(findActiveTrigger("强调 ! 一下", 6, [BANG_BANG])).toBeNull();
+    expect(findActiveTrigger("!a !b", 5, [BANG_BANG])).toBeNull();
+  });
+
+  it("token 含空白即失效,与单字符语义一致", () => {
+    expect(findActiveTrigger("!!a 后续", 5, [BANG_BANG])).toBeNull();
+  });
+
+  it("!! 与 ## 共存:各命中各的", () => {
+    const hit = findActiveTrigger("##小张", 4, [BANG_BANG, HASH_HASH]);
+    expect(hit?.spec).toBe(HASH_HASH);
+    expect(hit?.range).toEqual([0, 4]);
+  });
+});
+
 describe("translatePrompt", () => {
   it("所有 trigger 均无 translate 钩子 → 原文透传", () => {
     expect(translatePrompt(profileOf([SLASH, AT]), "/help @a.ts")).toBe("/help @a.ts");
@@ -118,5 +145,21 @@ describe("prepareSendPayload", () => {
 
   it("bracketedPaste 未声明 = 裸文本注入(其余 TUI 无粘贴爆发启发式,不盲加转义)", () => {
     expect(prepareSendPayload(profileOf([SLASH]), "hello")).not.toContain("\x1b[200~");
+  });
+
+  it("发送变换链:translate 之后、CR 包装之前按注册序执行", () => {
+    const transforms = [
+      (text: string) => text + "\n\n块A",
+      (text: string) => text + "\n\n块B",
+    ];
+    expect(prepareSendPayload(profileOf([SLASH]), "hello", transforms)).toBe(
+      "hello\n\n块A\n\n块B\r",
+    );
+  });
+
+  it("发送变换与 translate 同管线:$skill 先翻译再变换", () => {
+    expect(prepareSendPayload(profileOf([DOLLAR]), "$think", [(t2) => t2 + "!"])).toBe(
+      "/skill:think!\r",
+    );
   });
 });

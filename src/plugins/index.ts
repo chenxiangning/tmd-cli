@@ -26,7 +26,7 @@ import { welcomePlugin } from "./welcome";
 import { networkProxyPlugin } from "./network-proxy";
 import { checkpointsPlugin } from "./checkpoints";
 import { memoryCoordinatorPlugin } from "./memory-coordinator";
-
+import { assetsPlugin } from "./assets";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -50,4 +50,5 @@ export const allPlugins: Plugin[] = [
   terminalPlugin,
   welcomePlugin,
   memoryCoordinatorPlugin,
+  assetsPlugin,
 ];
