@@ -21,6 +21,8 @@ import {
   DEFAULT_SETTINGS,
   AUTO_ACTIVATE_DAYS_DEFAULT,
   AUTO_ACTIVATE_DAYS_MAX,
+  AUTO_ACTIVATE_PER_GROUP_DEFAULT,
+  AUTO_ACTIVATE_PER_GROUP_LIMIT,
   AUTO_ACTIVATE_MAX_DEFAULT,
   AUTO_ACTIVATE_MAX_LIMIT,
   SESSION_LIST_TOTAL_DEFAULT,
@@ -109,16 +111,21 @@ function sanitizeSessionListBudget(raw: unknown): SessionListBudget {
   return { total, perCli };
 }
 
-/** 自动激活清洗:days/max 越界或非整数各自回落默认(互不连坐,手改 JSON 兜底)。 */
+/** 自动激活清洗:days/perGroup/max 越界或非整数各自回落默认(互不连坐,手改 JSON 兜底)。 */
 function sanitizeAutoActivateSessions(raw: unknown): AutoActivateSessions {
   const obj = (raw ?? {}) as Record<string, unknown>;
   const daysRaw = typeof obj.days === "number" ? obj.days : Number.NaN;
+  const perGroupRaw = typeof obj.perGroup === "number" ? obj.perGroup : Number.NaN;
   const maxRaw = typeof obj.max === "number" ? obj.max : Number.NaN;
   return {
     days:
       Number.isInteger(daysRaw) && daysRaw >= 0 && daysRaw <= AUTO_ACTIVATE_DAYS_MAX
         ? daysRaw
         : AUTO_ACTIVATE_DAYS_DEFAULT,
+    perGroup:
+      Number.isInteger(perGroupRaw) && perGroupRaw >= 1 && perGroupRaw <= AUTO_ACTIVATE_PER_GROUP_LIMIT
+        ? perGroupRaw
+        : AUTO_ACTIVATE_PER_GROUP_DEFAULT,
     max:
       Number.isInteger(maxRaw) && maxRaw >= 1 && maxRaw <= AUTO_ACTIVATE_MAX_LIMIT
         ? maxRaw

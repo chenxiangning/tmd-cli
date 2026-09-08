@@ -47,18 +47,22 @@ export const SESSION_LIST_TOTAL_DEFAULT = 20;
 export const SESSION_LIST_TOTAL_MIN = 1;
 export const SESSION_LIST_TOTAL_MAX = 100;
 
-/** 启动自动激活最近会话配置:天数窗口 + 预激活进程总硬上限。 */
+/** 启动自动激活最近会话配置:天数窗口 + 每组配额 + 预激活进程总硬上限。 */
 export interface AutoActivateSessions {
   /** 激活最近多少天内有活动的磁盘会话;0 = 关闭。 */
   days: number;
+  /** 每个 工作区×CLI 组按时间序预载的最新条数(组的第一条必中)。 */
+  perGroup: number;
   /** 预激活进程总数硬上限(每个预激活都是一个真实 CLI 常驻进程)。 */
   max: number;
 }
 
-/** 自动激活合法域:days 0–30 默认 1;max 1–32 默认 5。 */
+/** 自动激活合法域:days 0–30 默认 1;perGroup 1–8 默认 1;max 1–32 默认 16。 */
 export const AUTO_ACTIVATE_DAYS_DEFAULT = 1;
 export const AUTO_ACTIVATE_DAYS_MAX = 30;
-export const AUTO_ACTIVATE_MAX_DEFAULT = 5;
+export const AUTO_ACTIVATE_PER_GROUP_DEFAULT = 1;
+export const AUTO_ACTIVATE_PER_GROUP_LIMIT = 8;
+export const AUTO_ACTIVATE_MAX_DEFAULT = 16;
 export const AUTO_ACTIVATE_MAX_LIMIT = 32;
 
 /**
@@ -155,7 +159,7 @@ export interface AppSettings {
   sessionOutputBufferLimit: number;
   /** 工作区会话列表显示预算(总数 + 按 CLI 配额)。 */
   sessionListBudget: SessionListBudget;
-  /** 启动时自动激活最近会话:天数窗口 + 总数硬上限;days=0 关闭(行为页可调)。 */
+  /** 启动时自动激活最近会话:天数窗口 + 每组配额 + 总数硬上限;days=0 关闭(行为页可调)。 */
   autoActivateSessions: AutoActivateSessions;
   /** 插件市场"拔出"的插件 id 列表;重启后 activateAll 跳过(插拔语义 = 重启生效)。 */
   disabledPlugins: string[];
@@ -256,6 +260,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionOutputBufferLimit: 500_000,
   autoActivateSessions: {
     days: AUTO_ACTIVATE_DAYS_DEFAULT,
+    perGroup: AUTO_ACTIVATE_PER_GROUP_DEFAULT,
     max: AUTO_ACTIVATE_MAX_DEFAULT,
   },
   disabledPlugins: [],

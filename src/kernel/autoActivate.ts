@@ -2,10 +2,11 @@
  * 启动自动激活最近会话 —— 后台预开 PTY,兑现「点击秒开」。
  *
  * 语义(见 docs/superpowers/specs/2026-09-08-auto-activate-recent-sessions-design.md):
- * 启动后对各 工作区×CLI 分组扫 listSessions,取最近 days 天有活动的磁盘会话,
- * 全局按 modifiedAt 降序截到 max 条,低并发后台 openDiskSession(activate:false)。
- * 预开的进程不占 tab、不抢焦点(activeSessionChanged 不广播);用户点击时命中
- * SessionSpawnService.open() 的身份去重分支,直接聚焦既有进程。
+ * 启动后对各 工作区×CLI 分组扫 listSessions,每组按 modifiedAt 降序取窗口内
+ * 最新 perGroup 条(每组的「第一条」必中),全局再按降序截到 max 条,低并发
+ * 后台 openDiskSession(activate:false)。预开的进程不占 tab、不抢焦点
+ * (activeSessionChanged 不广播);用户点击时命中 SessionSpawnService.open()
+ * 的身份去重分支,直接聚焦既有进程。
  *
  * 约束:
  * - profile 必须同时声明 listSessions + resumeArgs;缺 resumeArgs 自动激活会退化成
@@ -30,7 +31,7 @@ export interface AutoActivateCandidate {
 }
 
 /**
- * 收集纯函数(测试面):窗口过滤 + 降序排序 + max 截断。
+ * 收集纯函数(测试面):每组窗口过滤 → 组内降序取 perGroup 条 → 全局降序截 max。
  * 每组 = 一个 工作区×profile 的磁盘扫描结果;缺 resumeArgs / singleInstance 的组不进池。
  */
 export function pickAutoActivateCandidates(
@@ -40,23 +41,25 @@ export function pickAutoActivateCandidates(
     sessions: readonly CliDiskSession[];
   }>,
   now: number,
-  cfg: { days: number; max: number },
+  cfg: { days: number; perGroup: number; max: number },
 ): AutoActivateCandidate[] {
   if (cfg.days <= 0) return [];
   const floor = now - cfg.days * 86_400_000;
   const pool: AutoActivateCandidate[] = [];
   for (const g of groups) {
     if (!g.profile.resumeArgs || g.profile.singleInstance) continue;
-    for (const s of g.sessions) {
-      if (s.modifiedAt >= floor) {
-        pool.push({
-          profileId: g.profile.id,
-          cwd: g.workspace.root,
-          workspaceId: g.workspace.id,
-          cliSessionId: s.id,
-          modifiedAt: s.modifiedAt,
-        });
-      }
+    const recent = g.sessions
+      .filter((s) => s.modifiedAt >= floor)
+      .sort((a, b) => b.modifiedAt - a.modifiedAt)
+      .slice(0, cfg.perGroup);
+    for (const s of recent) {
+      pool.push({
+        profileId: g.profile.id,
+        cwd: g.workspace.root,
+        workspaceId: g.workspace.id,
+        cliSessionId: s.id,
+        modifiedAt: s.modifiedAt,
+      });
     }
   }
   pool.sort((a, b) => b.modifiedAt - a.modifiedAt);

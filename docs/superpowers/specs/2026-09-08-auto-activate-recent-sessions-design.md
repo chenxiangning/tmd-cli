@@ -19,15 +19,15 @@
 - **B. 只预热元数据(标题/状态预扫)**:点击等待的大头是进程 spawn + 回放,预扫元数据治标不治本。
 - **C. 退出时记活会话清单、启动恢复上次活会话**:语义不同(「上次活着」≠「最近几天磁盘会话」),进程照开、范围更迷;可作后续独立增强。
 
-范围决策(用户拍板):分组各取(每 工作区×CLI 取最近 N 天)+ 全局按时间降序 + 总硬上限 K;设置暴露天数与总上限两个值,默认 1 天 / 5 个,天数 0 = 关闭。
+范围决策(用户拍板,同日修订):**每组配额**——每 工作区×CLI 组按时间序取最近窗口内最新 perGroup 条(每组的「第一条」必中),全局再按时间降序截总硬上限;设置暴露 天数/每组条数/总上限 三个值,默认 1 天 / 每组 1 条 / 总 16 个,天数 0 = 关闭。(初版为全局 top-N,实测会漏掉多工作区/多 CLI 下某组的第一条,违背「点第一条必秒开」预期,改为每组保底。)
 
 ## 设计
 
 ### 设置
 
-- `AppSettings.autoActivateSessions: { days: number; max: number }`,默认 `{ days: 1, max: 5 }`。
-- sanitize(先例 `sessionListBudget`):days 合法域 0-30,max 合法域 1-32,非整数/越界/缺字段整体回落默认。
-- UI:设置 → 基础设置 → 行为 tab,一张 pref-card 两个数字输入(blur/Enter 提交,先例缓冲上限输入),零新增 CSS。
+- `AppSettings.autoActivateSessions: { days: number; perGroup: number; max: number }`,默认 `{ days: 1, perGroup: 1, max: 16 }`。
+- sanitize(先例 `sessionListBudget`):days 0-30 / perGroup 1-8 / max 1-32,逐字段越界回落默认(互不连坐)。
+- UI:设置 → 基础设置 → 行为 tab,一张 pref-card 三个数字输入(blur/Enter 提交,先例缓冲上限输入),days=0 时后两行隐藏,零新增 CSS。
 
 ### 触发点与就绪
 
@@ -38,8 +38,17 @@
 ### 收集与截断(kernel/autoActivate.ts)
 
 - 候选源:每 workspace × 每 profile,**必须同时声明 `listSessions` 与 `resumeArgs`**——缺 resumeArgs 的 profile 跳过,否则 `open()` 会退化为 `profile.args` 开全新会话,违背「恢复」语义。
-- 过滤:`modifiedAt >= Date.now() - days * 86400_000`;全局按 modifiedAt 降序排序,截到 `max` 条。
+- 过滤:`modifiedAt >= Date.now() - days * 86400_000`;**组内**按 modifiedAt 降序取 `perGroup` 条后入池,全局再按 modifiedAt 降序截到 `max` 条。
 - 跳过 `singleInstance` profile(dsh「会话即 host」,自动拉起归它自己的 autoStart 链路管)。
+
+### 打开加载进度(kernel/terminalReplay.ts,同日落地)
+
+- 点开任何会话必显真实进度遮罩:有输出缓冲 → 分块回放,进度 = 已解析块/总块;无缓冲或回放尽 → 流式阶段,进度 = 已接收字符数(条按相对输出缓冲上限占比),输出静默 0.5s 判就绪撤罩,12s 兜底。
+- 保序:回放未竟时实时字节攒队列,回放尽后按序补写;输入闸语义不变(回放窗口丢弃历史查询应答)。
+
+### 退出清场(Rust,同日落地)
+
+- 自动激活每代新增若干 resume 子进程,而应用退出原本不杀 PTY 子进程 → 孤儿常驻累积(实测两代 13 个)。`PtyRegistry::kill_all` + `RunEvent::Exit` 钩子,退出即清场;webview 重载不触发,会话跨重载存活语义不变。
 
 ### 执行
 
