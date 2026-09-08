@@ -174,6 +174,11 @@ export const MESSAGES = {
   "选择左侧文件查看 diff": "Select a file on the left to view its diff",
   "{path} — 已暂存 diff": "{path} — staged diff",
   "{path} — 工作区 diff": "{path} — working tree diff",
+  "diff 展示模式": "Diff view mode",
+  "单栏": "Unified",
+  "双栏": "Split",
+  全文: "Full",
+  全文查看: "View full file",
 
   /* 消费点在面板外的模块顶层数据(命令名 / 插件描述):词典先行,迁移待消费方 */
   "获取远端更新(fetch)": "Fetch remote updates (fetch)",

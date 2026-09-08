@@ -17,7 +17,9 @@ import { readCommitTabPayload, type CommitTabPayload } from "./commitTab";
 import { useCommitFiles } from "./hooks/useCommitFiles";
 import { gitErrorMessage } from "./gitError";
 import { PatchLines } from "./views/PatchLines";
+import { DiffModeToggle } from "./views/DiffModeToggle";
 import { STATUS_COLOR } from "./views/statusColor";
+import { useGitPanelState } from "./panelStore";
 
 export function CommitDiffTabContent({ tab }: { tab: EditorTab }) {
   const payload = readCommitTabPayload(tab);
@@ -28,6 +30,7 @@ export function CommitDiffTabContent({ tab }: { tab: EditorTab }) {
 function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
   const { entries, ensure } = useCommitFiles(payload.cwd);
   useEffect(() => ensure(payload.sha), [ensure, payload.sha]);
+  const { diffMode } = useGitPanelState();
   const entry = entries[payload.sha];
   const files = entry?.files ?? [];
 
@@ -47,6 +50,8 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
   const [patch, setPatch] = useState<GitFilePatch | null>(null);
   const [patchLoading, setPatchLoading] = useState(false);
   const [patchError, setPatchError] = useState<string | null>(null);
+  /* 全文查看:per-tab 本地态,默认关;切文件即复位(见文件行 onClick)。 */
+  const [fullView, setFullView] = useState(false);
   const tokenRef = useRef(0);
   useEffect(() => {
     if (!selected) {
@@ -58,7 +63,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
     const myToken = ++tokenRef.current;
     setPatchLoading(true);
     setPatchError(null);
-    ipc.gitCommitFilePatch(payload.cwd, payload.sha, selected).then(
+    ipc.gitCommitFilePatch(payload.cwd, payload.sha, selected, fullView).then(
       (p) => {
         if (myToken !== tokenRef.current) return;
         setPatch(p);
@@ -70,7 +75,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
         setPatchLoading(false);
       },
     );
-  }, [payload.cwd, payload.sha, selected]);
+  }, [payload.cwd, payload.sha, selected, fullView]);
 
   return (
     <div className="flex h-full min-h-0 flex-col text-xs">
@@ -87,6 +92,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
           {entry && !entry.loading && (
             <span className="tabular-nums text-(--tmd-fg-faint)">{t("{n} 文件", { n: files.length })}</span>
           )}
+          <DiffModeToggle fullView={fullView} onToggleFullView={() => setFullView((v) => !v)} />
         </div>
       </div>
 
@@ -109,7 +115,10 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
               <button
                 key={`${f.status}:${f.oldPath ?? ""}:${f.path}`}
                 type="button"
-                onClick={() => setSelected(f.path)}
+                onClick={() => {
+                  setSelected(f.path);
+                  setFullView(false); /* 全文查看只管当前文件,下个文件重新开 */
+                }}
                 title={f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}
                 className={`flex w-full items-center gap-1.5 px-2 py-1 text-left hover:bg-(--tmd-bg-hover) ${
                   activeFile ? "bg-(--tmd-bg-active)" : ""
@@ -146,7 +155,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
           ) : patch?.binary ? (
             <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("二进制文件,无文本 diff")}</div>
           ) : patch ? (
-            <PatchLines text={patch.patch} className="h-max min-h-full" />
+            <PatchLines text={patch.patch} className="h-max min-h-full" mode={diffMode} />
           ) : selected ? (
             <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("无 patch 数据")}</div>
           ) : (

@@ -141,13 +141,53 @@ fn diff_patch_contains_changes() {
     super::evict_cwd(t.path());
 
     t.write("a.txt", "line1\nline2\nline3\n");
-    let patch = super::with_repo(t.path(), |r| super::diff::file_patch(r, "a.txt", false))
-        .unwrap()
-        .unwrap();
+    let patch = super::with_repo(t.path(), |r| {
+        super::diff::file_patch(r, "a.txt", false, false)
+    })
+    .unwrap()
+    .unwrap();
     assert_eq!(patch.kind, "M");
     assert_eq!(patch.additions, 1);
     assert_eq!(patch.deletions, 0);
     assert!(patch.patch.contains("+line3"));
+}
+
+#[test]
+fn diff_patch_full_context_covers_whole_file() {
+    // 「全文查看」:full=true 整文件进单 hunk;full=false 标准 3 行上下文够不到文件头。
+    let t = TempRepo::new();
+    t.write("a.txt", "l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n");
+    super::with_repo(t.path(), |r| {
+        super::commit::commit(
+            r,
+            vec!["a.txt".into()],
+            super::CommitInput {
+                message: "init".into(),
+                amend: false,
+            },
+        )
+    })
+    .unwrap();
+    super::evict_cwd(t.path());
+
+    t.write("a.txt", "l1\nl2\nl3\nl4\nL5\nl6\nl7\nl8\nl9\nl10\n");
+    let focused = super::with_repo(t.path(), |r| {
+        super::diff::file_patch(r, "a.txt", false, false)
+    })
+    .unwrap()
+    .unwrap();
+    assert!(!focused.patch.contains("\n l1\n")); // 3 行上下文够不到文件头
+    let full = super::with_repo(t.path(), |r| {
+        super::diff::file_patch(r, "a.txt", false, true)
+    })
+    .unwrap()
+    .unwrap();
+    assert!(full.patch.contains("\n l1\n") && full.patch.contains("\n l10\n"));
+    assert!(full.patch.contains("-l5") && full.patch.contains("+L5"));
+    assert_eq!(
+        (full.additions, full.deletions),
+        (focused.additions, focused.deletions)
+    );
 }
 
 #[test]

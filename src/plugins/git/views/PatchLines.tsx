@@ -1,47 +1,16 @@
 /**
- * unified patch 行渲染 —— 状态机分类:首个 @@ 前的文件元数据头整段丢弃,
- * @@ 渲染为细分隔条,+/-/上下文逐行着色。
- * 从 DiffView 抽出:提交 diff tab(编辑器区大视口)复用同一渲染,
- * 只有滚动容器尺寸不同(className 传入 max-h-72 / h-full)。
+ * unified patch 渲染 —— unified 单栏(旧/新双行号槽 + 行着色)与
+ * split 双栏(左旧右新,del×add 按下标配对,空侧斜纹占位)两模式。
+ * 解析与配对纯逻辑在 patchModel.ts(codemoss DiffBlock 同构);
+ * 滚动容器尺寸由 className 传入(max-h-72 / h-full,各挂载点不同)。
  */
 
 import { useMemo } from "react";
 
-type PatchRow = { kind: "hunk" | "add" | "del" | "ctx" | "meta"; text: string };
+import type { GitDiffMode } from "@kernel/settings";
+import { buildSplitRows, parsePatch, type PatchRow, type SplitRow } from "./patchModel";
 
-/**
- * 单 delta patch(git2::Patch::to_buf)= 单文件段:首个 @@ 前的行全是
- * 元数据头(diff --git / index / --- / +++ / mode / rename …),整段丢弃。
- * 状态机而非逐行前缀猜测:正文里以 +/-/@@ 开头的代码行不受误伤。
- */
-export function parsePatch(text: string): PatchRow[] {
-  const lines = text.split("\n");
-  if (lines.at(-1) === "") lines.pop(); // 尾随换行的 split 残影
-  const rows: PatchRow[] = [];
-  let inHunk = false;
-  for (const line of lines) {
-    if (line.startsWith("@@")) {
-      inHunk = true;
-      rows.push({ kind: "hunk", text: line });
-    } else if (inHunk) {
-      rows.push({
-        kind: line.startsWith("+")
-          ? "add"
-          : line.startsWith("-")
-            ? "del"
-            : line.startsWith("\\")
-              ? "meta" // "\ No newline at end of file":末尾换行语义,保留
-              : "ctx",
-        text: line,
-      });
-    }
-  }
-  /* 无 @@ 的合法 patch(纯 mode 变更 / 子模块指针):没有"正文"可言,
-     整段按 meta 呈现,避免 tab 空白且无任何说明。 */
-  if (!inHunk) return lines.map((line) => ({ kind: "meta" as const, text: line }));
-  return rows;
-}
-
+/** 行底色/字色:单栏整行用,双栏按格用。 */
 const ROW_CLS: Record<PatchRow["kind"], string> = {
   hunk: "my-1 border-y border-(color:--tmd-border) bg-(color:--tmd-bg-hover)/40 px-1 text-[0.625rem] text-(--tmd-accent)",
   add: "bg-(color:--tmd-diff-inserted)/12 text-(--tmd-diff-inserted)",
@@ -50,20 +19,79 @@ const ROW_CLS: Record<PatchRow["kind"], string> = {
   meta: "italic text-(--tmd-fg-faint)",
 };
 
-export function PatchLines({ text, className = "max-h-72" }: { text: string; className?: string }) {
+const GUTTER_CLS =
+  "min-w-[2.5rem] shrink-0 select-none pr-1.5 text-right tabular-nums text-(--tmd-fg-faint)";
+const CONTENT_CLS = "min-w-0 flex-1 whitespace-pre-wrap break-all pl-2";
+
+/** 单栏行号槽:旧/新两列,无号留空保对齐。 */
+function Gutter({ oldLine, newLine }: { oldLine: number | null; newLine: number | null }) {
+  return (
+    <>
+      <span className={GUTTER_CLS}>{oldLine ?? ""}</span>
+      <span className={GUTTER_CLS}>{newLine ?? ""}</span>
+    </>
+  );
+}
+function UnifiedRow({ row }: { row: PatchRow }) {
+  if (row.kind === "hunk") return <div className={ROW_CLS.hunk}>{row.text}</div>;
+  return (
+    <div className={`flex [content-visibility:auto] [contain-intrinsic-size:auto_1em] ${ROW_CLS[row.kind]}`}>
+      <Gutter oldLine={row.oldLine} newLine={row.newLine} />
+      <span className={CONTENT_CLS}>{row.text}</span>
+    </div>
+  );
+}
+
+/** 双栏半格:有行 → 本侧行号(左旧右新) + 正文;空侧 → 斜纹占位。 */
+function SplitCell({ row, side }: { row: PatchRow | null; side: "left" | "right" }) {
+  const border = side === "left" ? "border-r border-(color:--tmd-border)" : "";
+  if (!row) return <div className={`diff-split-empty ${border}`} aria-hidden />;
+  const num = side === "left" ? row.oldLine : row.newLine;
+  return (
+    <div className={`flex ${ROW_CLS[row.kind]} ${border}`}>
+      <span className={GUTTER_CLS}>{num ?? ""}</span>
+      <span className={CONTENT_CLS}>{row.text}</span>
+    </div>
+  );
+}
+
+function SplitRows({ rows }: { rows: SplitRow[] }) {
+  return (
+    <>
+      {rows.map((row, i) =>
+        row.kind === "header" ? (
+          <div key={i} className={row.row.kind === "hunk" ? ROW_CLS.hunk : `px-1 ${ROW_CLS.meta}`}>
+            {row.row.text}
+          </div>
+        ) : (
+          <div key={i} className="grid grid-cols-2 [content-visibility:auto] [contain-intrinsic-size:auto_1em]">
+            <SplitCell row={row.left} side="left" />
+            <SplitCell row={row.right} side="right" />
+          </div>
+        ),
+      )}
+    </>
+  );
+}
+
+export function PatchLines({
+  text,
+  className = "max-h-72",
+  mode = "unified",
+}: {
+  text: string;
+  className?: string;
+  mode?: GitDiffMode;
+}) {
   const rows = useMemo(() => parsePatch(text), [text]);
+  const splitRows = useMemo(() => (mode === "split" ? buildSplitRows(rows) : null), [mode, rows]);
   return (
     <pre className={`${className} overflow-auto px-3 py-1 font-mono text-[0.6875rem] leading-tight`}>
-      {rows.map((row, i) => (
-        /* content-visibility:auto:数千行的 lockfile/生成代码 diff,
-           视口外行跳过布局与绘制,展开不再卡顿 */
-        <div
-          key={i}
-          className={`whitespace-pre-wrap break-all [content-visibility:auto] [contain-intrinsic-size:auto 1em] ${ROW_CLS[row.kind]}`}
-        >
-          {row.text}
-        </div>
-      ))}
+      {splitRows ? (
+        <SplitRows rows={splitRows} />
+      ) : (
+        rows.map((row, i) => <UnifiedRow key={i} row={row} />)
+      )}
     </pre>
   );
 }

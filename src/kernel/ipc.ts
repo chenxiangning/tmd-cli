@@ -340,8 +340,9 @@ export const ipc = {
   gitTotals: (cwd: string) => invoke<GitTotals>("git_totals", { cwd }),
   /** 低频:ahead/behind 仅在 fetch/切分支/手动刷新后拉,勿挂轮询。 */
   gitAheadBehind: (cwd: string) => invoke<GitAheadBehind>("git_ahead_behind", { cwd }),
-  gitDiffFilePatch: (cwd: string, path: string, staged: boolean) =>
-    invoke<GitFilePatch | null>("git_diff_file_patch", { cwd, path, staged }),
+  /** full = 「全文查看」整文件上下文(单文件按需,勿默认开)。 */
+  gitDiffFilePatch: (cwd: string, path: string, staged: boolean, full: boolean) =>
+    invoke<GitFilePatch | null>("git_diff_file_patch", { cwd, path, staged, full }),
   gitStage: (cwd: string, paths: string[]) =>
     invoke<void>("git_stage", { cwd, paths }),
   gitUnstage: (cwd: string, paths: string[]) =>
@@ -358,8 +359,8 @@ export const ipc = {
   gitCommitFiles: (cwd: string, sha: string) =>
     invoke<GitCommitFile[]>("git_commit_files", { cwd, sha }),
   /** 提交内单文件 patch;path 按 新路径/rename 来源 匹配。 */
-  gitCommitFilePatch: (cwd: string, sha: string, path: string) =>
-    invoke<GitFilePatch | null>("git_commit_file_patch", { cwd, sha, path }),
+  gitCommitFilePatch: (cwd: string, sha: string, path: string, full: boolean) =>
+    invoke<GitFilePatch | null>("git_commit_file_patch", { cwd, sha, path, full }),
   /** 提交完整 message(首行+正文;分支对比详情面板)。 */
   gitCommitMessage: (cwd: string, sha: string) =>
     invoke<string>("git_commit_message", { cwd, sha }),

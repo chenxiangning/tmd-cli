@@ -24,7 +24,11 @@ pub struct CommitFile {
 }
 
 /// 提交(sha)对首父的 tree↔tree diff。sha 非法或提交不存在 → E_GIT2。
-fn commit_diff<'r>(repo: &'r Repository, sha: &str) -> Result<git2::Diff<'r>, GitError> {
+fn commit_diff<'r>(
+    repo: &'r Repository,
+    sha: &str,
+    full: bool,
+) -> Result<git2::Diff<'r>, GitError> {
     let oid = Oid::from_str(sha)?;
     let commit = repo.find_commit(oid)?;
     let tree = commit.tree()?;
@@ -35,7 +39,9 @@ fn commit_diff<'r>(repo: &'r Repository, sha: &str) -> Result<git2::Diff<'r>, Gi
         None
     };
     let mut opts = DiffOptions::new();
-    opts.context_lines(3).interhunk_lines(0);
+    // full = 「全文查看」整文件上下文(与 diff.rs build_diff 同口径),清单路径恒 false
+    opts.context_lines(if full { u32::MAX } else { 3 })
+        .interhunk_lines(0);
     let mut diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), Some(&mut opts))?;
     diff.find_similar(None)?; // rename/copy 检测(默认 50% 相似度,同 diff.rs)
     Ok(diff)
@@ -58,7 +64,7 @@ fn delta_display_path(delta: &git2::DiffDelta) -> String {
 
 /// 提交文件清单(含逐文件 ± 行数;binary 不计行)。
 pub fn files(repo: &Repository, sha: &str) -> Result<Vec<CommitFile>, GitError> {
-    let diff = commit_diff(repo, sha)?;
+    let diff = commit_diff(repo, sha, false)?;
     let mut out = Vec::new();
     for (idx, delta) in diff.deltas().enumerate() {
         let binary = delta.new_file().is_binary() || delta.old_file().is_binary();
@@ -97,7 +103,12 @@ pub fn message(repo: &Repository, sha: &str) -> Result<String, GitError> {
 }
 
 /// 提交内单文件 patch:path 按 新路径 或 rename 来源路径 匹配 delta。
-pub fn file_patch(repo: &Repository, sha: &str, path: &str) -> Result<Option<FilePatch>, GitError> {
-    let diff = commit_diff(repo, sha)?;
+pub fn file_patch(
+    repo: &Repository,
+    sha: &str,
+    path: &str,
+    full: bool,
+) -> Result<Option<FilePatch>, GitError> {
+    let diff = commit_diff(repo, sha, full)?;
     super::diff::file_patch_from_diff(&diff, path)
 }

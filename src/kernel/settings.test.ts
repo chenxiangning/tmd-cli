@@ -73,7 +73,7 @@ describe("初始状态与默认值", () => {
       memoryDistillEngine: "omp",
       memoryDistillRules: "",
       ssh: { hosts: [] },
-      git: { view: "diff", layout: "flat" },
+      git: { view: "diff", layout: "flat", diffMode: "unified" },
       iconDecor: {
         eye: {},
         newchat: { blink: true },

@@ -24,6 +24,7 @@ import {
   SESSION_LIST_TOTAL_MIN,
   type AppSettings,
   type AskSoundId,
+  type GitDiffMode,
   type GitFileListLayout,
   type GitPanelView,
   type MemoryCapsuleMode,
@@ -62,6 +63,7 @@ const MEMORY_DISTILL_ENGINES = ["omp", "pi", "opencode"] as const;
 
 const GIT_PANEL_VIEWS: readonly GitPanelView[] = ["diff", "branch", "history"];
 const GIT_PANEL_LAYOUTS: readonly GitFileListLayout[] = ["flat", "tree"];
+const GIT_DIFF_MODES: readonly GitDiffMode[] = ["unified", "split"];
 
 /** 缓冲上限合法域:5万–1000万字符;非法/缺失回落默认。 */
 function sanitizeBufferLimit(value: unknown): number {
@@ -127,7 +129,7 @@ function sanitizeNetworkProxyUrl(raw: unknown): string {
     .slice(0, NETWORK_PROXY_URL_MAX_LENGTH);
 }
 
-/** Git 面板记忆态清洗:视图/布局白名单外的值逐项回落默认(视图 diff / 布局平铺)。 */
+/** Git 面板记忆态清洗:视图/布局/diff 模式白名单外的值逐项回落默认。 */
 function sanitizeGitPanel(raw: unknown): AppSettings["git"] {
   const d = DEFAULT_SETTINGS.git;
   if (!raw || typeof raw !== "object") return d;
@@ -138,6 +140,9 @@ function sanitizeGitPanel(raw: unknown): AppSettings["git"] {
     layout: GIT_PANEL_LAYOUTS.includes(rec.layout as GitFileListLayout)
       ? (rec.layout as GitFileListLayout)
       : d.layout,
+    diffMode: GIT_DIFF_MODES.includes(rec.diffMode as GitDiffMode)
+      ? (rec.diffMode as GitDiffMode)
+      : d.diffMode,
   };
 }
 

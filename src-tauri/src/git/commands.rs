@@ -64,8 +64,9 @@ pub async fn git_diff_file_patch(
     cwd: String,
     path: String,
     staged: bool,
+    full: bool,
 ) -> Result<Option<FilePatch>, String> {
-    run(cwd, move |r| diff::file_patch(r, &path, staged)).await
+    run(cwd, move |r| diff::file_patch(r, &path, staged, full)).await
 }
 
 /// 聚合 ±行数 —— 独立低频命令:写操作后/手动刷新时拉,
@@ -109,14 +110,15 @@ pub async fn git_commit_files(cwd: String, sha: String) -> Result<Vec<CommitFile
     run(cwd, move |r| commit_view::files(r, &sha)).await
 }
 
-/// 提交内单文件 patch(path 按 新路径/rename 来源匹配)。
+/// 提交内单文件 patch(path 按 新路径/rename 来源匹配);full = 全文查看整文件上下文。
 #[tauri::command]
 pub async fn git_commit_file_patch(
     cwd: String,
     sha: String,
     path: String,
+    full: bool,
 ) -> Result<Option<FilePatch>, String> {
-    run(cwd, move |r| commit_view::file_patch(r, &sha, &path)).await
+    run(cwd, move |r| commit_view::file_patch(r, &sha, &path, full)).await
 }
 
 /// 提交完整 message(分支对比详情面板)。

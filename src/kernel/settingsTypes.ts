@@ -98,6 +98,8 @@ export interface SessionDeletedEntry {
 export type GitPanelView = "diff" | "branch" | "history";
 /** Git 差异文件列表布局:flat 平铺(status 原文三段分区)/ tree 目录树。 */
 export type GitFileListLayout = "flat" | "tree";
+/** Git 文件 diff 展示模式(git 插件编辑域):unified 单栏 / split 双栏左右对照。 */
+export type GitDiffMode = "unified" | "split";
 
 export interface AppSettings {
   theme: ThemePreference;
@@ -212,7 +214,7 @@ export interface AppSettings {
    * Git 面板记忆态(git 插件的编辑域):视图段 + 差异文件列表布局。
    * 顶栏切换即写,重启恢复上次选择;布局默认平铺。
    */
-  git: { view: GitPanelView; layout: GitFileListLayout };
+  git: { view: GitPanelView; layout: GitFileListLayout; diffMode: GitDiffMode };
   /**
    * SSH 主机簿(ssh 插件的编辑域):终端/SFTP/端口转发共用的主机清单。
    * 凭据明文随 settings.json 落盘(用户裁决,与竞品同级;spec 已记录风险),
@@ -232,8 +234,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   uiFontSize: UI_FONT_SIZE_DEFAULT,
   uiZoom: UI_ZOOM_DEFAULT,
   iconDecor: DEFAULT_ICON_DECOR,
-  sessionTabsEnabled: true,
   sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT,
+  sessionTabsEnabled: true,
   sendShortcut: "enter",
   askSoundEnabled: true,
   askSoundId: "default",
@@ -259,7 +261,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   memoryDistillModel: "",
   memoryDistillEngine: "omp",
   memoryDistillRules: "",
-  git: { view: "diff", layout: "flat" },
+  git: { view: "diff", layout: "flat", diffMode: "unified" },
   ssh: { hosts: [] },
 };
 

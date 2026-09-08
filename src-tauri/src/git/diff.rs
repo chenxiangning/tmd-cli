@@ -25,11 +25,12 @@ pub fn file_patch(
     repo: &Repository,
     path: &str,
     staged: bool,
+    full: bool,
 ) -> Result<Option<FilePatch>, GitError> {
     /* 不做单文件 pathspec 收窄:libgit2 的 head→index rename 在 status 挂旧路径,
      * 而树→index diff 的 rename delta 挂新路径 —— 收窄到单路径会拆散 rename 配对
      * (R 退化为 D/A)。全仓 diff + find_similar 是 rename 语义正确的最小实现。 */
-    let diff = build_diff(repo, staged)?;
+    let diff = build_diff(repo, staged, full)?;
     file_patch_from_diff(&diff, path)
 }
 
@@ -80,13 +81,15 @@ pub(super) fn file_patch_from_diff(diff: &Diff, path: &str) -> Result<Option<Fil
     }))
 }
 
-fn build_diff<'r>(repo: &'r Repository, staged: bool) -> Result<Diff<'r>, GitError> {
+fn build_diff<'r>(repo: &'r Repository, staged: bool, full: bool) -> Result<Diff<'r>, GitError> {
     let mut opts = DiffOptions::new();
     opts.include_untracked(true)
         .show_untracked_content(true) // untracked 整文件按 Added 计行(stats/patch 抽屉)
         .recurse_untracked_dirs(true)
         .include_ignored(false)
-        .context_lines(3)
+        // full = 「全文查看」:整文件进单个 hunk(用户按文件显式点开,代价 = 文件体积);
+        // 否则标准 3 行上下文。untracked 本就整文件 Added,full 对它是恒等。
+        .context_lines(if full { u32::MAX } else { 3 })
         .interhunk_lines(0);
     let mut diff = if staged {
         // unborn HEAD(首个提交前):无 head tree → None 空 tree,index 全量视为 Added
@@ -129,7 +132,7 @@ pub fn totals_of(repo: &Repository) -> Result<DiffTotals, GitError> {
     let mut deletions = 0u32;
     let mut files = Vec::new();
     for staged in [true, false] {
-        let diff = build_diff(repo, staged)?;
+        let diff = build_diff(repo, staged, false)?;
         for (idx, delta) in diff.deltas().enumerate() {
             let new_path = delta.new_file().path();
             let old_path = delta.old_file().path();

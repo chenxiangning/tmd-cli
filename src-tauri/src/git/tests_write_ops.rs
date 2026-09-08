@@ -88,15 +88,19 @@ fn rename_状态与_old_path_全链路() {
     // patch 按前端契约(拿 status 的 path 查):请求新路径命中 rename delta,kind=R;
     // file_patch 双向匹配(new/old_file),旧路径请求也仍命中 —— 两条都是回归线
     // (锁住 file_patch 不做单文件 pathspec 收窄:收窄会拆散 rename 配对)。
-    let patch = super::with_repo(t.path(), |r| super::diff::file_patch(r, "b.txt", true))
-        .unwrap()
-        .unwrap();
+    let patch = super::with_repo(t.path(), |r| {
+        super::diff::file_patch(r, "b.txt", true, false)
+    })
+    .unwrap()
+    .unwrap();
     assert_eq!(patch.kind, "R");
     assert_eq!(patch.path, "b.txt");
     assert_eq!(patch.old_path.as_deref(), Some("a.txt"));
-    let patch_old = super::with_repo(t.path(), |r| super::diff::file_patch(r, "a.txt", true))
-        .unwrap()
-        .unwrap();
+    let patch_old = super::with_repo(t.path(), |r| {
+        super::diff::file_patch(r, "a.txt", true, false)
+    })
+    .unwrap()
+    .unwrap();
     assert_eq!(patch_old.kind, "R");
 }
 /// 公共前置:单提交 repo + 远端引用 origin/feat 指向 HEAD(本地无同名分支)。

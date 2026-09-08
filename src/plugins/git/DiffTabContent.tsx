@@ -15,7 +15,9 @@ import { ipc, type GitFilePatch } from "@kernel/ipc";
 import { readDiffTabPayload, type DiffTabPayload } from "./diffTab";
 import { gitErrorMessage } from "./gitError";
 import { PatchLines } from "./views/PatchLines";
+import { DiffModeToggle } from "./views/DiffModeToggle";
 import { STATUS_COLOR } from "./views/statusColor";
+import { useGitPanelState } from "./panelStore";
 
 export function DiffTabContent({ tab }: { tab: EditorTab }) {
   const payload = readDiffTabPayload(tab);
@@ -32,13 +34,17 @@ function DiffTab({ payload }: { payload: DiffTabPayload }) {
   const [patch, setPatch] = useState<GitFilePatch | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { diffMode } = useGitPanelState();
   const tokenRef = useRef(0);
+  /* 全文查看:per-tab 本地态 —— 默认关;tab 按文件锚定(key 重挂载),
+     换文件自然复位,用户想看才点开(拉全上下文 patch,代价随文件体积)。 */
+  const [fullView, setFullView] = useState(false);
 
   useEffect(() => {
     const myToken = ++tokenRef.current;
     setLoading(true);
     setError(null);
-    ipc.gitDiffFilePatch(payload.cwd, payload.path, payload.staged).then(
+    ipc.gitDiffFilePatch(payload.cwd, payload.path, payload.staged, fullView).then(
       (p) => {
         if (myToken !== tokenRef.current) return;
         setPatch(p);
@@ -50,7 +56,7 @@ function DiffTab({ payload }: { payload: DiffTabPayload }) {
         setLoading(false);
       },
     );
-  }, [payload.cwd, payload.path, payload.staged]);
+  }, [payload.cwd, payload.path, payload.staged, fullView]);
 
   const name = payload.path.split("/").pop() ?? payload.path;
   const dir = payload.path.includes("/")
@@ -79,6 +85,7 @@ function DiffTab({ payload }: { payload: DiffTabPayload }) {
               <span className="text-(--tmd-diff-removed)">-{patch.deletions}</span>
             </span>
           )}
+          <DiffModeToggle fullView={fullView} onToggleFullView={() => setFullView((v) => !v)} />
         </div>
         <div className="mt-0.5 text-[0.6875rem] text-(--tmd-fg-muted)">
           {payload.staged ? t("已暂存 → HEAD") : t("工作区 → 暂存区")}
@@ -96,7 +103,7 @@ function DiffTab({ payload }: { payload: DiffTabPayload }) {
         ) : patch?.binary ? (
           <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("二进制文件,无文本 diff")}</div>
         ) : patch ? (
-          <PatchLines text={patch.patch} className="h-max min-h-full" />
+          <PatchLines text={patch.patch} className="h-max min-h-full" mode={diffMode} />
         ) : (
           <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("无 diff 数据")}</div>
         )}

@@ -10,7 +10,7 @@
 import { useSyncExternalStore } from "react";
 import { spinRemainder } from "@kernel/spin";
 import type { GitTotals } from "@kernel/ipc";
-import { getSettingsState, updateSettings, type GitFileListLayout, type GitPanelView } from "@kernel/settings";
+import { getSettingsState, updateSettings, type GitDiffMode, type GitFileListLayout, type GitPanelView } from "@kernel/settings";
 
 /** 视图段与文件列表布局的持久化契约归内核 settings(git 编辑域),此处只留插件侧旧名别名。 */
 export type GitViewMode = GitPanelView;
@@ -23,9 +23,11 @@ export interface GitAggregate {
 
 export type RemoteDialogOp = "push" | "pull" | "fetch";
 
+
 interface GitPanelState {
   view: GitViewMode;
   layout: FileListLayout;
+  diffMode: GitDiffMode;
   refreshNonce: number;
   /** 顶栏 ⟳ 转圈:批量刷新发起置 true,全部 settle 后清除。 */
   refreshing: boolean;
@@ -37,6 +39,7 @@ interface GitPanelState {
 const state: GitPanelState = {
   view: "diff",
   layout: "flat",
+  diffMode: "unified",
   refreshNonce: 0,
   refreshing: false,
   aggregate: { totals: null, fileCount: 0 },
@@ -62,8 +65,16 @@ export function setGitLayout(layout: FileListLayout): void {
   emit();
 }
 
-/** 视图/布局切换即写 settings(git 编辑域,settings.json 落盘);setter 是唯一写入口,水合不回写。 */
-function persistPanelPrefs(patch: Partial<{ view: GitViewMode; layout: FileListLayout }>): void {
+export function setGitDiffMode(diffMode: GitDiffMode): void {
+  state.diffMode = diffMode;
+  persistPanelPrefs({ diffMode });
+  emit();
+}
+
+/** 视图/布局/diff 模式切换即写 settings(git 编辑域,settings.json 落盘);setter 是唯一写入口,水合不回写。 */
+function persistPanelPrefs(
+  patch: Partial<{ view: GitViewMode; layout: FileListLayout; diffMode: GitDiffMode }>,
+): void {
   updateSettings({ git: { ...getSettingsState().settings.git, ...patch } });
 }
 
@@ -71,6 +82,7 @@ function persistPanelPrefs(patch: Partial<{ view: GitViewMode; layout: FileListL
 export function hydrateGitPanelPrefs(): void {
   state.view = getSettingsState().settings.git.view;
   state.layout = getSettingsState().settings.git.layout;
+  state.diffMode = getSettingsState().settings.git.diffMode;
   emit();
 }
 
