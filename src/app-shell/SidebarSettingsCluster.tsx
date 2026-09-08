@@ -148,6 +148,7 @@ export function SidebarSettingsCluster() {
               <div
                 key={action.id}
                 className={`settings-menu-row${isActive ? " is-active" : ""}`}
+                data-action-id={action.id}
               >
                 <button
                   type="button"
@@ -205,6 +206,7 @@ export function SidebarSettingsCluster() {
               key={action.id}
               type="button"
               className={`settings-bar-btn${isActive ? " is-active" : ""}`}
+              data-action-id={action.id}
               aria-label={t(action.label)}
               aria-pressed={isActive}
               title={t(action.label)}

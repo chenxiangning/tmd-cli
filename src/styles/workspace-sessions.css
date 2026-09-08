@@ -132,9 +132,10 @@
   justify-content: center;
 }
 
-/* 正在查看 Eye:置顶区与工作区行同形同色(size 13),主题前景 token,深浅主题自适应。 */
+/* 正在查看 Eye:置顶区与工作区行同形同色(size 13),主题前景 token,深浅主题自适应;
+   自定义色走图标装饰变量(kernel/iconDecor.ts)。 */
 .thread-viewing-eye {
-  color: var(--text-strong);
+  color: var(--icon-decor-eye, var(--text-strong));
 }
 
 .thread-row:hover {

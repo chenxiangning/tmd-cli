@@ -23,6 +23,7 @@ import {
 import { resolveEffectiveAppearance } from "@kernel/theme";
 import { mixHexColors, normalizeHexColor, withAlpha } from "@kernel/themeTokens";
 import { SystemAppearanceCard } from "./AppearanceSystemCard";
+import { IconDecorCard } from "./IconDecorCard";
 const THEME_MODES: ReadonlyArray<{
   id: ThemePreference;
   label: string;
@@ -206,6 +207,7 @@ export function BasicAppearanceTab() {
       </div>
     </div>
     <SystemAppearanceCard />
+    <IconDecorCard />
     </>
   );
 }

@@ -258,3 +258,8 @@
   }
 }
 
+/* 新建会话:颜色吃图标装饰变量;呼吸闪烁由 html[data-icon-blink] 统一驱动(styles/icon-decor.css) */
+.workspace-action-btn.is-newchat svg {
+  color: var(--icon-decor-newchat, currentColor);
+}
+

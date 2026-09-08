@@ -10,6 +10,9 @@ import {
   TERMINAL_FONT_SIZE_DEFAULT,
   UI_FONT_SIZE_DEFAULT,
   UI_ZOOM_DEFAULT,
+  DEFAULT_ICON_DECOR,
+  type IconDecorId,
+  type IconDecorItem,
   type UiLanguage,
 } from "./settingsAppearance";
 import {
@@ -114,6 +117,8 @@ export interface AppSettings {
   uiFontSize: number;
   /** 界面缩放(0.8-1.5 步进 0.05);Tauri webview setZoom,浏览器 dev 兜底 CSS zoom。 */
   uiZoom: number;
+  /** 图标装饰:8 个界面图标的独立颜色/呼吸闪烁(外观页可调;应用层 kernel/iconDecor.ts)。 */
+  iconDecor: Record<IconDecorId, IconDecorItem>;
   /** 顶栏中央会话标题 tab 条开关(外观页可调,默认开启;见 kernel/sessionTabs.ts)。 */
   sessionTabsEnabled: boolean;
   /** 会话标题 tab 条容量(1-10,默认 4;外观页可调,缩容即时修剪)。 */
@@ -226,6 +231,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   terminalFontFamily: "",
   uiFontSize: UI_FONT_SIZE_DEFAULT,
   uiZoom: UI_ZOOM_DEFAULT,
+  iconDecor: DEFAULT_ICON_DECOR,
   sessionTabsEnabled: true,
   sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT,
   sendShortcut: "enter",

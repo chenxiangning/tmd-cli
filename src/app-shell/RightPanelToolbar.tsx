@@ -67,6 +67,7 @@ export function TopBarPanelTabs() {
               key={panel.id}
               type="button"
               className={`panel-tab${isActive ? " is-active" : ""}`}
+              data-panel-id={panel.id}
               onClick={() => setFilePanelMode(panel.id)}
               aria-label={t(panel.label)}
               title={t(panel.label)}
@@ -140,6 +141,7 @@ function PanelOverflowMenu({
             <div
               key={panel.id}
               className={`panel-overflow-item${isActive ? " is-active" : ""}`}
+              data-panel-id={panel.id}
               role="menuitem"
               onClick={() => {
                 setFilePanelMode(panel.id);

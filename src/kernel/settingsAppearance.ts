@@ -69,3 +69,58 @@ export function sanitizeSessionTabsMax(raw: unknown): number {
     ? n
     : SESSION_TABS_LIMIT_DEFAULT;
 }
+
+/** ── 图标装饰(icon decor)域 ── 8 个界面图标的独立颜色/呼吸闪烁;CSS 变量约定见 kernel/iconDecor.ts */
+
+/** 可装饰图标 id 白名单:面板键 = filePanel 注册 id 加 panel- 前缀,动作键 = sidebarActions id。 */
+export const ICON_DECOR_IDS = [
+  "eye",
+  "newchat",
+  "ssh-panel",
+  "system-proxy",
+  "panel-files",
+  "panel-git",
+  "panel-checkpoints",
+  "panel-memory",
+] as const;
+export type IconDecorId = (typeof ICON_DECOR_IDS)[number];
+
+/** 单图标装饰:color 缺省 = 出厂配色;blink 缺省 = 出厂(仅 newchat 开)。 */
+export interface IconDecorItem {
+  color?: string;
+  blink?: boolean;
+}
+
+/** 出厂默认:newchat 呼吸开(转正 2026-09-08 手加效果),其余全默认。 */
+export const DEFAULT_ICON_DECOR: Record<IconDecorId, IconDecorItem> = {
+  eye: {},
+  newchat: { blink: true },
+  "ssh-panel": {},
+  "system-proxy": {},
+  "panel-files": {},
+  "panel-git": {},
+  "panel-checkpoints": {},
+  "panel-memory": {},
+};
+
+const ICON_DECOR_COLOR_RE = /^#[0-9a-f]{6}$/i;
+
+/** 图标装饰清洗:键白名单外剔除,color 非 #rrggbb 丢弃,blink 非布尔回落出厂,空 item 剔除。 */
+export function sanitizeIconDecor(raw: unknown): Record<IconDecorId, IconDecorItem> {
+  const obj = typeof raw === "object" && raw !== null ? (raw as Record<string, Record<string, unknown>>) : null;
+  const out = {} as Record<IconDecorId, IconDecorItem>;
+  for (const id of ICON_DECOR_IDS) {
+    const item = typeof obj?.[id] === "object" && obj[id] !== null ? obj[id] : {};
+    const entry: IconDecorItem = {};
+    if (typeof item.color === "string" && ICON_DECOR_COLOR_RE.test(item.color)) {
+      entry.color = item.color.toLowerCase();
+    }
+    if (typeof item.blink === "boolean") {
+      entry.blink = item.blink;
+    } else if (DEFAULT_ICON_DECOR[id].blink === true) {
+      entry.blink = true;
+    }
+    out[id] = entry;
+  }
+  return out;
+}

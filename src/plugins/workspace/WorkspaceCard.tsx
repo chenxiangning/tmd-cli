@@ -120,7 +120,7 @@ export function WorkspaceCard({
               <ArrowClockwise size="1rem" aria-hidden />
             </button>
             <button
-              className="workspace-action-btn"
+              className="workspace-action-btn is-newchat"
               title={t("新建会话")}
               onClick={(e) => {
                 e.stopPropagation();

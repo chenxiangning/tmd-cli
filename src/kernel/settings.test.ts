@@ -74,6 +74,16 @@ describe("初始状态与默认值", () => {
       memoryDistillRules: "",
       ssh: { hosts: [] },
       git: { view: "diff", layout: "flat" },
+      iconDecor: {
+        eye: {},
+        newchat: { blink: true },
+        "ssh-panel": {},
+        "system-proxy": {},
+        "panel-files": {},
+        "panel-git": {},
+        "panel-checkpoints": {},
+        "panel-memory": {},
+      },
     });
     expect(s.loaded).toBe(false);
     expect(s.panelOpen).toBe(false);

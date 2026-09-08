@@ -85,4 +85,19 @@ export const MESSAGES = {
   "外观": "Appearance",
   "行为": "Behavior",
   "快捷键": "Shortcuts",
+
+  // IconDecorCard
+  "图标装饰": "Icon decorations",
+  "逐图标自定义颜色与呼吸闪烁;有开关两态的图标仅作用于点亮色。":
+    "Per-icon color and breathing glow; for icons with on/off states only the lit color is themed.",
+  "会话查看眼": "Session viewing eye",
+  "SSH 入口": "SSH entry",
+  "网络代理": "Network proxy",
+  "文件面板": "Files panel",
+  "Git 面板": "Git panel",
+  "审批线面板": "Checkpoints panel",
+  "Memory 面板": "Memory panel",
+  "颜色": "Color",
+  "闪烁": "Breathing",
+  "恢复默认": "Reset to default",
 } as Record<string, string>;
