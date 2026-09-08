@@ -11,7 +11,7 @@
  * 无大纲侧边栏;渐进渲染保留(大文件分片揭示),bounded 投影不保留。
  */
 
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -28,8 +28,9 @@ import {
 import { ImageFullscreenViewer } from "./ImageFullscreenViewer";
 import { PreviewOutlineSidebar } from "./PreviewOutlineSidebar";
 import { useMarkdownOutline } from "./useMarkdownOutline";
-import { hasDocumentScopedMarkdownFeatures } from "./markdownPreviewHelpers";
+import { hasDocumentScopedMarkdownFeatures, normalizeMarkdownAnchorKey } from "./markdownPreviewHelpers";
 import { BlockMarkdown, useMarkdownComponents } from "./useMarkdownComponents";
+import { flattenPreviewOutlineItems } from "./outline";
 
 const PROGRESSIVE_INITIAL_LINES = 360;
 const PROGRESSIVE_CHUNK_LINES = 720;
@@ -168,11 +169,29 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
     return plugins as Parameters<typeof ReactMarkdown>[0]["rehypePlugins"];
   }, [katexReady]);
 
+  const handleAnchorNavigate = useCallback(
+    (anchor: string) => {
+      if (!anchor) {
+        return;
+      }
+      /* 站内锚点按标题宽松匹配大纲条目,复用大纲点击的滚动与渐进兜底。 */
+      const anchorKey = normalizeMarkdownAnchorKey(anchor);
+      const item = flattenPreviewOutlineItems(outline).find(
+        (outlineItem) => normalizeMarkdownAnchorKey(outlineItem.title) === anchorKey,
+      );
+      if (item) {
+        handleSelectOutlineItem(item);
+      }
+    },
+    [outline, handleSelectOutlineItem],
+  );
+
   const { getBlockMarkdownComponents } = useMarkdownComponents({
     documentKey,
     progressive,
     sourceFilePath,
     onImageFullscreen: setImageFullscreen,
+    onAnchorNavigate: handleAnchorNavigate,
   });
 
   return (

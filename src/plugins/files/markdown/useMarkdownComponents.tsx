@@ -3,7 +3,8 @@
  * (文件规模铁则)。
  * BlockMarkdown:每 block 的 ReactMarkdown 包 memo(渐进揭示推进时父组件重渲染,
  * props 引用不变的已挂载块整体跳过重渲染与重解析);
- * useMarkdownComponents:a 外链走系统浏览器 / img 相对路径解析 + 点击全屏 /
+ * useMarkdownComponents:a 链接受控分流(外链系统浏览器 / #锚点文档内滚动 /
+ * 本地路径开文件 tab,webview 默认导航一律拦下)/ img 相对路径解析 + 点击全屏 /
  * pre 按语言分派(mermaid/math/Prism)/ table 横向滚动 —— 工厂结果按 blockKey
  * 缓存复用,保证 BlockMarkdown memo 的 components 引用稳定。
  */
@@ -13,6 +14,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { openExternalUrl } from "@kernel/ipc";
+import { openFileInTab } from "../openFile";
 import { t } from "@kernel/i18n";
 import {
   extractLanguageTag,
@@ -23,7 +25,7 @@ import {
 } from "./markdownBlocks";
 import { FileMarkdownMermaidBlock } from "./MermaidBlock";
 import { LocalImage } from "./LocalImage";
-import { resolveImageRenderSource } from "./markdownImages";
+import { resolveImageRenderSource, resolveMarkdownLinkTarget } from "./markdownImages";
 import {
   createMermaidBlockKey,
   extractCodeFromPre,
@@ -66,28 +68,45 @@ export function useMarkdownComponents({
   progressive,
   sourceFilePath,
   onImageFullscreen,
+  onAnchorNavigate,
 }: {
   documentKey: string;
   progressive: boolean;
   sourceFilePath: string | null;
   onImageFullscreen: (image: { src: string; alt: string }) => void;
+  /** `#锚点` 点击回调(锚点原文,未解码);缺省时锚点点击只拦不跳。 */
+  onAnchorNavigate?: (anchor: string) => void;
 }) {
   const handleAnchorClick = useCallback((event: MouseEvent, href?: string) => {
     if (!href) {
       return;
     }
+    /* 任何带 href 的链接先拦下默认导航:webview 内相对/锚点导航会把整个应用
+       页面带走(点击 md 内链「崩溃重启」的根因),所有分支只走受控打开路径。 */
+    event.preventDefault();
+    event.stopPropagation();
     const isExternal =
       href.startsWith("http://") ||
       href.startsWith("https://") ||
       href.startsWith("mailto:");
-    if (!isExternal) {
+    if (isExternal) {
+      /* 系统浏览器打开(浏览器 dev 回退 window.open,封装在 ipc 层)。 */
+      void openExternalUrl(href);
       return;
     }
-    event.preventDefault();
-    event.stopPropagation();
-    /* 系统浏览器打开(浏览器 dev 回退 window.open,封装在 ipc 层)。 */
-    void openExternalUrl(href);
-  }, []);
+    if (href.startsWith("#")) {
+      /* 文档内锚点:由预览层按标题匹配大纲条目滚动。 */
+      onAnchorNavigate?.(href.slice(1));
+      return;
+    }
+    /* 其余按本地文件路径处理(相对源文件解析)进文件 tab;非本地 scheme
+       (javascript:/vscode: 等)解析返回 null,静默忽略。HTML <a> 经
+       rehype-raw 同样落到本组件,天然同规则。 */
+    const target = resolveMarkdownLinkTarget(href, sourceFilePath);
+    if (target) {
+      openFileInTab(target.path);
+    }
+  }, [onAnchorNavigate, sourceFilePath]);
 
   const createMarkdownComponents = useCallback((blockStartLine: number, blockKey: string): Components => ({
     a: ({ href, children, node: _node, ...props }) => (

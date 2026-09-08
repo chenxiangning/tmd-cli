@@ -65,3 +65,15 @@ export function createMermaidBlockKey(
   const endLine = (node?.position?.end.line ?? 1) + blockStartLine - 1;
   return `${startLine}:${endLine}:${hashStableString(value)}`;
 }
+
+/** 链接锚点与大纲标题的宽松匹配键:解码 + 小写 + 去空白/标点/符号,
+ *  GitHub 风格 slug(`composer-工具栏设计`)与中文直书(`Composer 工具栏设计`)能对上。 */
+export function normalizeMarkdownAnchorKey(value: string) {
+  let decoded = value;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    /* 非法编码保留原值。 */
+  }
+  return decoded.toLowerCase().replace(/[\p{P}\p{S}\s]+/gu, "");
+}
