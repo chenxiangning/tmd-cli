@@ -52,10 +52,12 @@ fn platform_kind() -> &'static str {
     std::env::consts::OS
 }
 
-/// 重启应用(插件市场"拔插 = 重启生效"的一键入口;进程替换,永不返回)。
+/// 重启应用(插件市场"拔插 = 重启生效"的一键入口)。
+/// 必须走 request_restart 经事件循环触发 ExitRequested/Exit,RunEvent::Exit
+/// 的 kill_all 才会执行;直调 restart() 在主线程会跳过事件直接重启,PTY 成孤儿。
 #[tauri::command]
 fn app_restart(app: AppHandle) {
-    app.restart();
+    app.request_restart();
 }
 
 #[tauri::command]
