@@ -30,6 +30,14 @@ export const MESSAGES = {
   "读取批次…": "Loading batches…",
   "本会话还没有批次 —— 发送一条让 AI 改文件的消息后,这里会按轮归批":
     "No batches in this session yet — send a message that asks the AI to change files, and changes will be grouped by turn here",
+  // TimelinePanel(审批线面板「时间线」页签)
+  "时间线": "Timeline",
+  "定位幕布": "Locate in terminal",
+  "展开全文": "Show full text",
+  "时间线跟随会话生命周期 —— 当前没有活跃会话":
+    "The timeline follows the session lifecycle — no active session right now",
+  "本会话还没有用户消息 —— 发送一条后,这里按时间记录":
+    "No user messages in this session yet — send one and it will be listed here in order",
   // BatchRow / STATE_META(定义处保留中文,消费点 t(meta.label))
   "进行中": "In progress",
   "已处理": "Done",

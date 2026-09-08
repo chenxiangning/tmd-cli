@@ -7,13 +7,14 @@
  */
 
 import { useEffect, useReducer, useState } from "react";
-import { ClockClockwise, CircleNotch } from "@phosphor-icons/react";
+import { ClockClockwise, ClockCounterClockwise, CircleNotch } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
 import { checkpointIdentity } from "./identity";
 import { BatchRow, type ConfirmTarget } from "./BatchRow";
+import { TimelineCount, TimelinePanel } from "./TimelinePanel";
 import {
   applyBatch,
   approveBatch,
@@ -55,6 +56,8 @@ export function CheckpointsPanel() {
 
   const state = useCkptBatches(cwd, sessionId);
   const [confirm, setConfirm] = useState<ConfirmTarget | null>(null);
+  /* 页签:审批线 | 时间线(时间线是独立组件,与审批线零共享逻辑) */
+  const [view, setView] = useState<"batch" | "timeline">("batch");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -150,25 +153,32 @@ export function CheckpointsPanel() {
     <div className="flex h-full flex-col bg-(--tmd-bg-base)">
       {/* 摘要行 —— 字号对齐面板体系(11px 为主),项目名用扁平标签非胶囊 */}
       <div className="flex h-[30px] flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2.5 text-[0.6875rem]">
-        <span className="flex flex-none items-center gap-1.5 text-[0.6875rem] font-semibold text-(--tmd-fg)">
-          <ClockClockwise size="0.75rem" className="text-(--tmd-accent)" aria-hidden />
-          {t("审批线")}
-        </span>
+        <div className="flex flex-none items-center gap-0.5">
+          <button type="button" onClick={() => setView("batch")} className={segCls(view === "batch")}>
+            <ClockClockwise size="0.6875rem" aria-hidden />
+            {t("审批线")}
+          </button>
+          <button type="button" onClick={() => setView("timeline")} className={segCls(view === "timeline")}>
+            <ClockCounterClockwise size="0.6875rem" aria-hidden />
+            {t("时间线")}
+          </button>
+        </div>
         {active && (
-          <span
-            className="max-w-[45%] truncate rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-px text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-subtle)"
-            title={active.root}
-          >
+          <span className="max-w-[45%] truncate text-[0.625rem] text-(--tmd-fg-faint)" title={active.root}>
             {active.name}
           </span>
         )}
         <span className="flex-1" />
-        <span className="flex-none text-(--tmd-fg-faint)">
-          {t("待审")} <b className="font-semibold text-(--tmd-git-modified)">{pendingCount}</b>
-        </span>
+        {view === "batch" ? (
+          <span className="flex-none text-(--tmd-fg-faint)">
+            {t("待审")} <b className="font-semibold text-(--tmd-git-modified)">{pendingCount}</b>
+          </span>
+        ) : (
+          <TimelineCount />
+        )}
       </div>
 
-      {notice && (
+      {view === "batch" && notice && (
         <button
           type="button"
           className="flex-none border-b border-(--tmd-border) bg-(--tmd-accent)/10 px-3 py-1.5 text-left text-[0.6875rem] text-(--tmd-fg-muted) hover:underline"
@@ -181,7 +191,7 @@ export function CheckpointsPanel() {
       {/* 清单刷新失败:必须与「没有批次」可区分 —— 此前错误被吞进空态,
           一次瞬时失败(git 并发/IPC 抖动)就会显示成「本会话还没有批次」。
           点击横幅重拉;失败期间已保留旧清单,时间线照常可读可操作。 */}
-      {state.error && !state.notARepo && cwd && sessionId && (
+      {view === "batch" && state.error && !state.notARepo && cwd && sessionId && (
         <button
           type="button"
           className="flex-none border-b border-(--tmd-border) bg-(--tmd-diff-removed)/10 px-3 py-1.5 text-left text-[0.6875rem] text-(--tmd-diff-removed) hover:underline"
@@ -191,7 +201,7 @@ export function CheckpointsPanel() {
         </button>
       )}
 
-      {/* 时间线 */}
+      {view === "batch" ? (
       <div className="min-h-0 flex-1 overflow-y-auto py-2 pr-2 pl-1">
         {!cwd ? (
           <Empty text={t("暂无活跃工作区")} />
@@ -227,6 +237,9 @@ export function CheckpointsPanel() {
           ))
         )}
       </div>
+      ) : (
+        <TimelinePanel />
+      )}
     </div>
   );
 }
@@ -237,4 +250,11 @@ function Empty({ text }: { text: string }) {
       {text}
     </div>
   );
+}
+
+/** segmented 页签按钮态 —— 平滑紧凑:无外框无底槽,选中仅软底色(无内阴影)。 */
+function segCls(on: boolean): string {
+  return `flex items-center gap-1 rounded px-1.5 text-[0.6875rem] leading-[1.125rem] ${
+    on ? "bg-(--tmd-bg-hover) font-semibold text-(--tmd-fg)" : "text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
+  }`;
 }
