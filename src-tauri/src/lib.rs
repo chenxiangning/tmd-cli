@@ -24,7 +24,7 @@ mod sqlite;
 mod ssh;
 
 use pty::PtyRegistry;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 pub(crate) struct AppState {
     pty: PtyRegistry,
@@ -230,6 +230,13 @@ pub fn run() {
             ssh::commands::ssh_forward_check_port,
             config_write_settings,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            /* 退出清场:杀掉全部 PTY 子进程,防孤儿常驻(见 PtyRegistry::kill_all)。
+            webview 重载不触发此事件,会话跨重载存活的语义不变。 */
+            if let tauri::RunEvent::Exit = event {
+                app.state::<AppState>().pty.kill_all();
+            }
+        });
 }
