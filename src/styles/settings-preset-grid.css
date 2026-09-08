@@ -13,9 +13,21 @@
 }
 
 .preset-group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
   color: var(--tmd-fg-muted);
   font-weight: 600;
   margin: 8px 0;
+  cursor: pointer;
+}
+
+.preset-group-label:hover {
+  color: var(--tmd-fg);
 }
 
 .preset-grid {

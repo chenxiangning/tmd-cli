@@ -6,7 +6,8 @@
  * 全部写入 kernel/settings store,主题引擎即时生效,无需「保存」按钮。
  */
 
-import { Check, Monitor, Moon, Palette, Sun } from "@phosphor-icons/react";
+import { useState } from "react";
+import { CaretDown, CaretRight, Check, Monitor, Moon, Palette, Sun } from "@phosphor-icons/react";
 import {
   updateSettings,
   useSettingsState,
@@ -59,6 +60,11 @@ export function BasicAppearanceTab() {
   const activePreset = presets.find((p) => p.id === settings.customThemePresetId) ?? presets[0];
   const appearanceLabel = (appearance: "light" | "dark") =>
     t(appearance === "light" ? "浅色" : "深色");
+  /* 分组折叠态(浅色/深色),会话局部,默认全展开 */
+  const [collapsedGroups, setCollapsedGroups] = useState<{ light: boolean; dark: boolean }>({
+    light: false,
+    dark: false,
+  });
   /* hint 里的外观词必须是「当前实际生效外观」:system → matchMedia 解析结果。 */
   const resolved = resolveEffectiveAppearance(
     settings,
@@ -134,9 +140,22 @@ export function BasicAppearanceTab() {
       <div className="preset-section">
         {(["light", "dark"] as const).map((appearance) => (
           <div key={appearance}>
-            <div className="preset-group-label">
+            <button
+              type="button"
+              className="preset-group-label"
+              aria-expanded={!collapsedGroups[appearance]}
+              onClick={() =>
+                setCollapsedGroups((c) => ({ ...c, [appearance]: !c[appearance] }))
+              }
+            >
+              {collapsedGroups[appearance] ? (
+                <CaretRight size="0.75rem" aria-hidden />
+              ) : (
+                <CaretDown size="0.75rem" aria-hidden />
+              )}
               {appearance === "light" ? t("浅色主题") : t("深色主题")}
-            </div>
+            </button>
+            {!collapsedGroups[appearance] && (
             <div className="preset-grid">
               {presets
                 .filter((p) => p.appearance === appearance)
@@ -160,6 +179,7 @@ export function BasicAppearanceTab() {
                   </button>
                 ))}
             </div>
+            )}
           </div>
         ))}
       </div>
