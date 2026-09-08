@@ -6,7 +6,9 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { bootSessionTabs, closeAllSessionTabs, closeOtherSessionTabs, closeSessionTab, getSessionTabTitle, getSessionTabs, noteSessionTabTitle, resetSessionTabsForTest, SESSION_TABS_MAX } from "./sessionTabs";
+import { bootSessionTabs, closeAllSessionTabs, closeOtherSessionTabs, closeSessionTab, getSessionTabTitle, getSessionTabs, noteSessionTabTitle, resetSessionTabsForTest } from "./sessionTabs";
+import { updateSettings } from "./settings";
+import { SESSION_TABS_LIMIT_DEFAULT } from "./settingsAppearance";
 import { EventBus, KernelTopics } from "./events";
 import type { SessionMeta } from "./ipc";
 
@@ -25,7 +27,10 @@ function boot() {
 const open = (events: EventBus, id: string) =>
   events.emit(KernelTopics.activeSessionChanged, id);
 
-beforeEach(() => resetSessionTabsForTest());
+beforeEach(() => {
+  resetSessionTabsForTest();
+  updateSettings({ sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT });
+});
 
 describe("打开次序与容量", () => {
   it("新会话追加队尾,重复聚焦保持原位不重排", () => {
@@ -37,13 +42,22 @@ describe("打开次序与容量", () => {
     expect(getSessionTabs()).toEqual(["a", "b", "c"]);
   });
 
-  it(`超过 ${SESSION_TABS_MAX} 个挤掉最早打开的 tab`, () => {
+  it(`超过默认容量 ${SESSION_TABS_LIMIT_DEFAULT} 个挤掉最早打开的 tab`, () => {
     const { events } = boot();
     for (const id of ["a", "b", "c", "d"]) open(events, id);
     open(events, "e");
     expect(getSessionTabs()).toEqual(["b", "c", "d", "e"]);
     open(events, "f");
     expect(getSessionTabs()).toEqual(["c", "d", "e", "f"]);
+  });
+
+  it("容量随设置缩小时即时修剪,保留最近打开;后续打开按新容量挤除", () => {
+    const { events } = boot();
+    for (const id of ["a", "b", "c", "d"]) open(events, id);
+    updateSettings({ sessionTabsMax: 2 });
+    expect(getSessionTabs()).toEqual(["c", "d"]);
+    open(events, "e");
+    expect(getSessionTabs()).toEqual(["d", "e"]);
   });
 
   it("回到首页(null)与非法负载不动 tab", () => {

@@ -9,6 +9,8 @@
 import { useState } from "react";
 import { CaretDown, CaretRight, Check, Monitor, Moon, Palette, Sun } from "@phosphor-icons/react";
 import {
+  SESSION_TABS_LIMIT_MAX,
+  SESSION_TABS_LIMIT_MIN,
   updateSettings,
   useSettingsState,
   type ThemePreference,
@@ -91,28 +93,47 @@ export function BasicAppearanceTab() {
         <div>
           <div className="pref-title">{t("会话标题 tab 条")}</div>
           <div className="pref-desc">
-            {t("顶栏中央同时展示最多 4 个已打开的会话，点击切换；关闭后仍可从左侧栏进入会话。")}
+            {t("顶栏中央展示已打开的会话，点击切换；关闭后仍可从左侧栏进入会话。")}
           </div>
         </div>
-        <div className="segmented" role="radiogroup" aria-label={t("会话标题 tab 条")}>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={settings.sessionTabsEnabled}
-            className={`segment${settings.sessionTabsEnabled ? " is-active" : ""}`}
-            onClick={() => updateSettings({ sessionTabsEnabled: true })}
-          >
-            {t("开启")}
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={!settings.sessionTabsEnabled}
-            className={`segment${!settings.sessionTabsEnabled ? " is-active" : ""}`}
-            onClick={() => updateSettings({ sessionTabsEnabled: false })}
-          >
-            {t("关闭")}
-          </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {settings.sessionTabsEnabled ? (
+            <>
+              <input
+                type="range"
+                min={SESSION_TABS_LIMIT_MIN}
+                max={SESSION_TABS_LIMIT_MAX}
+                step={1}
+                value={settings.sessionTabsMax}
+                aria-label={t("会话标题 tab 条容量")}
+                onChange={(e) => updateSettings({ sessionTabsMax: Number(e.target.value) })}
+                className="w-28 accent-(--tmd-accent)"
+              />
+              <span className="w-4 text-right text-sm tabular-nums text-(--tmd-fg-muted)">
+                {settings.sessionTabsMax}
+              </span>
+            </>
+          ) : null}
+          <div className="segmented" role="radiogroup" aria-label={t("会话标题 tab 条")}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={settings.sessionTabsEnabled}
+              className={`segment${settings.sessionTabsEnabled ? " is-active" : ""}`}
+              onClick={() => updateSettings({ sessionTabsEnabled: true })}
+            >
+              {t("开启")}
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!settings.sessionTabsEnabled}
+              className={`segment${!settings.sessionTabsEnabled ? " is-active" : ""}`}
+              onClick={() => updateSettings({ sessionTabsEnabled: false })}
+            >
+              {t("关闭")}
+            </button>
+          </div>
         </div>
       </div>
       <div className="pref-row">

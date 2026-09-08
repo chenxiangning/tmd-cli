@@ -46,6 +46,7 @@ describe("初始状态与默认值", () => {
       uiFontSize: 16,
       uiZoom: 1,
       sessionTabsEnabled: true,
+      sessionTabsMax: 4,
       sendShortcut: "enter",
       askSoundEnabled: true,
       askSoundId: "default",
@@ -85,6 +86,14 @@ describe("会话标题 tab 开关", () => {
     expect(settings.getSettingsState().settings.sessionTabsEnabled).toBe(false);
     settings.updateSettings({ sessionTabsEnabled: "no" as never });
     expect(settings.getSettingsState().settings.sessionTabsEnabled).toBe(true);
+  });
+  it("容量补丁合法域 1-10 生效,非法回落 4", () => {
+    settings.updateSettings({ sessionTabsMax: 8 });
+    expect(settings.getSettingsState().settings.sessionTabsMax).toBe(8);
+    settings.updateSettings({ sessionTabsMax: 0 });
+    expect(settings.getSettingsState().settings.sessionTabsMax).toBe(4);
+    settings.updateSettings({ sessionTabsMax: "6" as never });
+    expect(settings.getSettingsState().settings.sessionTabsMax).toBe(6);
   });
 });
 

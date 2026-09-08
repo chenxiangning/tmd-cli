@@ -23,6 +23,11 @@ export const UI_ZOOM_MAX = 1.5;
 export const UI_ZOOM_STEP = 0.05;
 export const UI_ZOOM_DEFAULT = 1;
 
+/** 会话标题 tab 条容量合法域(1-10);默认 4。 */
+export const SESSION_TABS_LIMIT_MIN = 1;
+export const SESSION_TABS_LIMIT_MAX = 10;
+export const SESSION_TABS_LIMIT_DEFAULT = 4;
+
 /** 终端字体 family 串长度上限(自定义输入兜底)。 */
 const TERMINAL_FONT_FAMILY_MAX_LENGTH = 200;
 
@@ -55,4 +60,12 @@ export function sanitizeUiZoom(raw: unknown): number {
   if (!Number.isFinite(n)) return UI_ZOOM_DEFAULT;
   const stepped = Math.round(n / UI_ZOOM_STEP) * UI_ZOOM_STEP;
   return Math.min(UI_ZOOM_MAX, Math.max(UI_ZOOM_MIN, Math.round(stepped * 100) / 100));
+}
+
+/** 会话 tab 条容量清洗:数值化 + 整数合法域,越界回落默认 4。 */
+export function sanitizeSessionTabsMax(raw: unknown): number {
+  const n = typeof raw === "number" ? raw : Number(raw);
+  return Number.isInteger(n) && n >= SESSION_TABS_LIMIT_MIN && n <= SESSION_TABS_LIMIT_MAX
+    ? n
+    : SESSION_TABS_LIMIT_DEFAULT;
 }

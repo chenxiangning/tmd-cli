@@ -1,5 +1,5 @@
 /**
- * 会话标题 tab 条 store —— 顶栏中央「打开的会话」MRU(容量 4)。
+ * 会话标题 tab 条 store —— 顶栏中央「打开的会话」MRU(容量可配,settings.sessionTabsMax)。
  *
  * 纯事件驱动:所有打开/聚焦路径(spawn、恢复磁盘会话、侧栏点活、删除后隐式切换)
  * 最终都收敛到 KernelTopics.activeSessionChanged 广播,这里订阅即可拿到「打开」事实,
@@ -17,9 +17,13 @@ import { useSyncExternalStore } from "react";
 import { host } from "./host";
 import { KernelTopics, type EventBus } from "./events";
 import type { SessionMeta } from "./ipc";
+import { getSettingsState, subscribeSettings } from "./settings";
 
-/** tab 条容量:同时展示的打开会话数上限(用户定向:4 个)。 */
-export const SESSION_TABS_MAX = 4;
+/** 容量来源 settings.sessionTabsMax(1-10,默认 4);缩容即时修剪,保留最近打开。 */
+subscribeSettings(() => {
+  const max = getSettingsState().settings.sessionTabsMax;
+  if (state.ids.length > max) commit(state.ids.slice(state.ids.length - max));
+});
 
 interface SessionTabsState {
   /** 打开次序(早 → 晚)的活会话 tab id(tmd PTY id,非 CLI 磁盘 id)。 */
@@ -46,8 +50,8 @@ function commit(ids: readonly string[]): void {
 function trackOpen(id: string): void {
   if (state.ids.includes(id)) return;
   const next =
-    state.ids.length >= SESSION_TABS_MAX
-      ? [...state.ids.slice(state.ids.length - SESSION_TABS_MAX + 1), id]
+    state.ids.length >= getSettingsState().settings.sessionTabsMax
+      ? [...state.ids.slice(state.ids.length - getSettingsState().settings.sessionTabsMax + 1), id]
       : [...state.ids, id];
   commit(next);
 }

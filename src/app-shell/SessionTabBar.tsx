@@ -1,5 +1,5 @@
 /**
- * 会话标题 tab 条 —— 顶栏中央同时展示最多 4 个打开的会话(容量见 kernel/sessionTabs)。
+ * 会话标题 tab 条 —— 顶栏中央展示打开的会话(容量可配 settings.sessionTabsMax,见 kernel/sessionTabs)。
  *
  * 数据:kernel/sessionTabs MRU(纯事件驱动,打开次序稳定)+ host 活跃指针 +
  * 交互:点击切会话;× = 摘 tab 不杀会话(PTY 继续跑,侧栏仍在,见 store 契约);

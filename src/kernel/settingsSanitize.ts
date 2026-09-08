@@ -11,6 +11,7 @@ import {
   sanitizeTerminalFontFamily,
   sanitizeTerminalFontSize,
   sanitizeUiFontSize,
+  sanitizeSessionTabsMax,
   sanitizeUiZoom,
   type UiLanguage,
 } from "./settingsAppearance";
@@ -167,6 +168,7 @@ export function sanitize(raw: unknown): AppSettings {
       typeof obj.sessionTabsEnabled === "boolean"
         ? obj.sessionTabsEnabled
         : DEFAULT_SETTINGS.sessionTabsEnabled,
+    sessionTabsMax: sanitizeSessionTabsMax(obj.sessionTabsMax),
     sendShortcut: SEND_SHORTCUTS.includes(obj.sendShortcut as SendShortcut)
       ? (obj.sendShortcut as SendShortcut)
       : DEFAULT_SETTINGS.sendShortcut,

@@ -6,6 +6,7 @@
 
 import type { SshHostConfig } from "./sshTypes";
 import {
+  SESSION_TABS_LIMIT_DEFAULT,
   TERMINAL_FONT_SIZE_DEFAULT,
   UI_FONT_SIZE_DEFAULT,
   UI_ZOOM_DEFAULT,
@@ -115,6 +116,8 @@ export interface AppSettings {
   uiZoom: number;
   /** 顶栏中央会话标题 tab 条开关(外观页可调,默认开启;见 kernel/sessionTabs.ts)。 */
   sessionTabsEnabled: boolean;
+  /** 会话标题 tab 条容量(1-10,默认 4;外观页可调,缩容即时修剪)。 */
+  sessionTabsMax: number;
   /** Composer 发送快捷键行为。 */
   sendShortcut: SendShortcut;
   /** Ask/确认面板提示音开关(行为页可调,默认开启)。 */
@@ -224,6 +227,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   uiFontSize: UI_FONT_SIZE_DEFAULT,
   uiZoom: UI_ZOOM_DEFAULT,
   sessionTabsEnabled: true,
+  sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT,
   sendShortcut: "enter",
   askSoundEnabled: true,
   askSoundId: "default",
