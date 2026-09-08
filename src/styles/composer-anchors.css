@@ -18,7 +18,9 @@
   width: 40px;
   display: flex;
   flex-direction: column;
-  justify-content: space-evenly;
+  /* 紧凑堆叠(10px 命中区 + 3px 间隙 = ROW_PX 13):锚点少时贴顶排列,不摊满整栏。 */
+  justify-content: flex-start;
+  gap: 3px;
   align-items: flex-end;
   z-index: 20;
   pointer-events: none;
