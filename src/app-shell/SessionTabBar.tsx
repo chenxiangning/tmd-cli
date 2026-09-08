@@ -78,7 +78,10 @@ function SessionTabBarImpl() {
         const meta = host.getSessions().find((s) => s.id === id);
         /* 剪除事件竞态期的防御兜底:sessionsChanged 广播前先卸载消失 tab */
         if (!meta) return null;
-        const title = resolveTitle(id) ?? shortId(meta.id);
+        const resolved = resolveTitle(id);
+        const title = resolved ?? shortId(meta.id);
+        /* pin 快照只存真实标题(手动命名/快照/meta 标题);短码兜底不入库,与侧栏 PinToggle 同语义 */
+        const pinSnapshot = resolved !== shortId(meta.id) ? resolved : undefined;
         const active = host.getActiveSessionId() === id;
         const cliSessionId = host.getCliSessionId(id);
         const pinKey =
@@ -111,7 +114,7 @@ function SessionTabBarImpl() {
                   title={host.isWaitingConfirm(id) ? t("{title} · 等待确认", { title }) : title}
                   onClick={() => host.setActiveSession(id)}
                 >
-                  {host.getCliProfile(meta.profileId)?.renderIcon?.(12)}
+                  {host.getCliProfile(meta.profileId)?.renderIcon?.("0.75rem")}
                   {host.isWaitingConfirm(id) ? (
                     <span className="session-tab-dot is-ask" aria-hidden />
                   ) : host.isUnread(id) ? (
@@ -124,10 +127,11 @@ function SessionTabBarImpl() {
                   className={`session-tab-pin${pinned ? " is-on" : ""}`}
                   aria-label={t(pinned ? "取消置顶" : "置顶到全局")}
                   title={t(pinned ? "取消置顶" : "置顶到全局")}
+                  disabled={!pinKey}
                   onClick={() => {
-                    if (!pinKey || cliSessionId === undefined) return;
+                    if (!pinKey) return;
                     if (pinned) unpinSession(pinKey);
-                    else pinSession(pinKey, "global", title !== shortId(cliSessionId) ? title : undefined);
+                    else pinSession(pinKey, "global", pinSnapshot);
                   }}
                 >
                   <PinIcon size="0.6875rem" />

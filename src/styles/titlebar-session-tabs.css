@@ -155,6 +155,21 @@
   fill: currentColor;
 }
 
+/* 未落盘(无 cliSessionId/无归属工作区):置顶不可用,置灰禁指针;
+   三连选择器盖过上方 hover/active 显形规则(同权重靠后,显形规则特异性同级)。 */
+.session-tab .session-tab-pin:disabled,
+.session-tab:hover .session-tab-pin:disabled,
+.session-tab.is-active .session-tab-pin:disabled {
+  color: var(--tmd-fg-faint);
+  opacity: 0.4;
+  cursor: default;
+}
+
+.session-tab-pin:disabled:hover {
+  color: var(--tmd-fg-faint);
+  background: none;
+}
+
 .session-tab-pin svg,
 .session-tab-locate svg {
   width: 0.6875rem;

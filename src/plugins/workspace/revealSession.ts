@@ -6,8 +6,8 @@
  * - 运行区候选(未置顶且 运行中/结束未查看)→ 运行区;
  * - 其余(无 pin / scope=workspace 留组)→ 工作区卡片 + 所属分类段(CLI profileId
  *   或 "ssh"/"shell",与 useGroupCollapsed 键同构)。
- * 展开经 settings / 段 store 落地后,等网格过渡(workspace-children 0.18s)渲染
- * 完再滚动居中 + is-reveal 闪高亮(1.6s 后移除,样式见 workspace-sessions-extras.css)。
+ * 展开经 settings / 段 store 落地后,rAF 轮询(上限 600ms)等行渲染进树再滚动居中 +
+ * is-reveal 闪高亮(1.6s 后移除,样式见 workspace-sessions-extras.css)。
  * 行锚点:活行 data-session-id / 磁盘行 data-cli-session-id(SessionRows 三行装配)。
  * 定位目标恒为活会话(tab 条只收活会话),归档等无行场景静默放弃。
  */
@@ -18,9 +18,6 @@ import { getSettingsState, updateSettings } from "@kernel/settings";
 import { sessionPinKey } from "@kernel/sessionPins";
 import { pinnedSection, runningSection } from "./sectionCollapsed";
 import { isRunningZoneCandidate } from "./utils";
-
-/** 滚动延时:覆盖段展开的重渲染 + workspace-children 网格过渡(0.18s)。 */
-const SCROLL_DELAY_MS = 260;
 
 export function createSessionRevealHandler(
   sidebarRef: RefObject<HTMLElement | null>,
@@ -62,18 +59,24 @@ export function createSessionRevealHandler(
       if (patch.workspaceCollapsedMap || patch.workspaceGroupCollapsedMap) updateSettings(patch);
     }
 
-    window.setTimeout(() => {
+    /* 展开落地时机不定(重渲染 + 0.18s 网格过渡 + 慢机):rAF 轮询到行出现即定位,
+     * 快路径一帧命中,上限 600ms 兜底;目标行恒为活会话,超时视为无行场景静默放弃。 */
+    const startedAt = performance.now();
+    const tryReveal = () => {
       const root = sidebarRef.current;
-      if (!root) return;
       const el =
-        root.querySelector<HTMLElement>(`[data-session-id="${sessionId}"]`) ??
+        root?.querySelector<HTMLElement>(`[data-session-id="${sessionId}"]`) ??
         (cliSessionId !== undefined
-          ? root.querySelector<HTMLElement>(`[data-cli-session-id="${cliSessionId}"]`)
+          ? root?.querySelector<HTMLElement>(`[data-cli-session-id="${cliSessionId}"]`)
           : null);
-      if (!el) return;
-      el.scrollIntoView({ block: "center" });
-      el.classList.add("is-reveal");
-      window.setTimeout(() => el.classList.remove("is-reveal"), 1600);
-    }, SCROLL_DELAY_MS);
+      if (el) {
+        el.scrollIntoView({ block: "center" });
+        el.classList.add("is-reveal");
+        window.setTimeout(() => el.classList.remove("is-reveal"), 1600);
+        return;
+      }
+      if (performance.now() - startedAt < 600) window.requestAnimationFrame(tryReveal);
+    };
+    window.requestAnimationFrame(tryReveal);
   };
 }
