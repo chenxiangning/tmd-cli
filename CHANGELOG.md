@@ -4,6 +4,24 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.1.3] - 2026-09-08
+
+### 新增
+
+- 启动自动激活最近 N 天会话,后台预开 PTY,点击秒开
+- 审批线面板新增会话时间线页签
+- Git 文件 diff 单栏/双栏切换与全文查看
+- 图标装饰设置:8 个界面图标独立颜色与呼吸闪烁
+- 会话标题 tab 条容量可配置(1-10),关闭时隐藏容量滑杆
+
+### 修复
+
+- 关 tab 的已了结 CLI 会话加轮次开启闸,异步噪音不再误标未读
+
+### 清理
+
+- 移除 cli 副车诊断落盘临时管线,保留缺失警告
+
 ## [0.1.2] - 2026-09-08
 
 ### 新增
@@ -93,5 +111,6 @@
 - SSH 一等会话:远程终端 + SFTP 文件树 + 端口转发
 - 插件市场、设置面板、网络代理
 
+[0.1.3]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.3
 [0.1.2]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.2
 [0.1.1]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.1

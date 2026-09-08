@@ -1,6 +1,6 @@
 [package]
 name = "tmd-cli"
-version = "0.1.2"
+version = "0.1.3"
 description = "Plugin-based multi-CLI desktop client"
 authors = ["Chen Xiangning"]
 license = "MIT"
