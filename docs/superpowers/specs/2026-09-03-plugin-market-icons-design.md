@@ -33,22 +33,25 @@ export interface PluginMeta {
 
 ## 图标映射(定稿)
 
-### CLI 引擎 · 8 位 —— 复用已有品牌字形,按官方品牌色着色(修订)
+### CLI 引擎 · 10 位 —— 品牌色直接烘焙进字形组件(2026-09-08 二次修订)
 
-字形组件不内部改色,统一经 meta.iconColor 施加(容器 currentColor 传导):
+用户决策反转首版「市场页着色、侧栏单色」:fill 不再用 currentColor,侧栏分组段头 /
+会话 tab / 置顶与运行区 / 欢迎页 / 预算弹层等全部消费点彩色生效。
 
-| 插件 | 组件 | iconColor | 依据 |
+| 插件 | 组件 | 字形填色 | 依据 |
 |---|---|---|---|
-| cli-omp | `OmpGlyph` | —(字形自带粉紫→蓝渐变) | 上游 hero 标志 |
-| cli-pi | `PiGlyph` | —(跟随主题;官方品牌色无权威来源,暂缺) | — |
-| cli-kimi | `KimiGlyph` | `#1783FF` | Moonshot 官方 Branding-Guide k-only-light.svg 实测 |
-| cli-codex | `CodexGlyph` | `var(--tmd-fg)` | OpenAI 单色品牌:浅色黑/深色白 |
-| cli-claude | `ClaudeGlyph` | —(字形自带品牌橙 #D97757) | vendored 官方日芒标志 |
-| cli-grok | `GrokGlyph` | `var(--tmd-fg)` | xAI 单色品牌:浅色黑/深色白 |
-| cli-qoder | `QoderGlyph` | `var(--tmd-fg)` | 官方 favicon 实测单色 #0F0D0C(浅)/反白(深) |
-| cli-qoder-cn | `QoderGlyph` | `var(--tmd-fg)` | 同上 |
+| cli-omp | `OmpGlyph` | 粉紫→蓝渐变(自带) | 上游 hero 标志 |
+| cli-pi | `PiGlyph` | `var(--tmd-fg)` 全对比度 | 用户指定(2026-09-08 定稿:浅黑/深白) |
+| cli-kimi | `KimiGlyph` | `var(--tmd-fg)` 全对比度 | 用户指定(2026-09-08 定稿:浅黑/深白) |
+| cli-codex | `CodexGlyph` | `var(--tmd-fg)` 全对比度 | 用户指定;与 grok/qoder/opencode 同策略 |
+| cli-claude | `ClaudeGlyph` | `#D97757`(自带) | vendored 官方日芒标志 |
+| cli-grok | `GrokGlyph` | `var(--tmd-fg)` 全对比度 | xAI 官方单色:浅色黑 / 深色白 |
+| cli-qoder / cli-qoder-cn | `QoderGlyph` | `var(--tmd-fg)` 全对比度 | 官方 favicon 单色 #0F0D0C(浅)/ 反白(深) |
+| cli-dsh | `DshGlyph` | `#4D6BFE` | DeepSeek 品牌蓝 |
+| cli-opencode | `OpenCodeGlyph` | 框 `var(--tmd-fg)` + 内块 `--tmd-fg-muted` | vendored 官方 favicon 双灰 mark |
 
-注:品牌色只作用于插件市场页(meta 层);侧栏会话行/欢迎页等处 renderIcon 仍跟随主题色,维持全局单色语言。
+注:`meta.iconColor` 保留为市场页容器色(lucide 功能插件仍靠它经 currentColor 着色);
+CLI 侧该字段与字形烘焙值保持一致,仅作兜底语义。
 
 ### 界面功能 + 核心系统 · 9 位 —— lucide 语义图标 + 独立彩色
 
