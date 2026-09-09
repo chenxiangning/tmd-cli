@@ -38,7 +38,27 @@ const OMP_ROLES = [
   "memory",
 ];
 const OMP_THINKING = ["auto", "off", "minimal", "low", "medium", "high", "max"];
-const OMP_WEB_PROVIDERS = ["exa", "perplexity", "gemini", "anthropic"];
+/* 网络搜索 provider 候选:按鉴权方式分组标注(事实 = omp-cli-course 第 7 课 23 provider 清单);
+   排序:免 key → OAuth 登录 → 需 API key。 */
+const OMP_WEB_PROVIDERS = [
+  { value: "duckduckgo", hint: t("免 key") },
+  { value: "startpage", hint: t("免 key") },
+  { value: "google", hint: t("免 key") },
+  { value: "ecosia", hint: t("免 key") },
+  { value: "mojeek", hint: t("免 key") },
+  { value: "gemini", hint: t("OAuth 登录") },
+  { value: "anthropic", hint: t("OAuth 登录") },
+  { value: "codex", hint: t("OAuth 登录") },
+  { value: "xai", hint: t("OAuth 登录") },
+  { value: "kimi", hint: t("OAuth 登录") },
+  { value: "perplexity", hint: t("需 API key") },
+  { value: "exa", hint: t("需 API key") },
+  { value: "zai", hint: t("需 API key") },
+  { value: "tavily", hint: t("需 API key") },
+  { value: "brave", hint: t("需 API key") },
+  { value: "jina", hint: t("需 API key") },
+  { value: "kagi", hint: t("需 API key") },
+];
 const OMP_MEMORY_BACKENDS = ["off", "local", "mnemopi"];
 
 /** 模型目录 = omp models 登录实况 + models.yml 已配置并集(装配与缓存见 configCatalog)。 */

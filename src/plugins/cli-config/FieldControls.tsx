@@ -1,33 +1,44 @@
 /**
  * cli-config 复合控件:密钥显隐 / 键值映射表(modelMap) / 有序串链(orderedList)。
- * 全部下拉走 StyledSelect;modelMap 值列在 field.catalog 存在时升级 ModelPicker。
+ * 全部下拉走 StyledSelect;modelMap 值列在 field.catalog 存在时升级 ModelPicker;
+ * 回退链(multi)候选渲染在 ChainPicker.tsx。
  */
-
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, CaretDown, CaretUp, Eye, EyeClosed, Plus, Trash } from "@phosphor-icons/react";
+import { ArrowDown, ArrowUp, Eye, EyeClosed, Plus, Trash } from "@phosphor-icons/react";
 import type {
   CliConfigField,
   CliConfigValues,
   CliModelCatalogProvider,
+  CliSelectOption,
 } from "@kernel/cliConfigRegistry";
 import { StyledSelect } from "@kernel/StyledSelect";
 import { t } from "@kernel/i18n";
 import { ModelPicker, splitModelValue } from "./ModelPicker";
+import { ChainPicker } from "./ChainPicker";
 
 export const strVal = (v: CliConfigValues[string] | undefined): string =>
   typeof v === "string" ? v : "";
 
-/** 候选并上当前值(磁盘里有、候选里没有也要能显示)。 */
-export function optionsWithCurrent(
+/** 候选规整为 StyledSelect 选项(字符串 → {value};函数版收当前表单值)。 */
+export function toOptions(
   options: CliConfigField["options"],
-  current: string,
   values?: CliConfigValues,
-): string[] {
+): CliSelectOption[] {
   const resolved =
     typeof options === "function" ? options(values ?? {}) : (options ?? []);
-  const base = Array.isArray(resolved) ? resolved : [];
-  return current && !base.includes(current) ? [current, ...base] : base;
+  return (Array.isArray(resolved) ? resolved : []).map((o) =>
+    typeof o === "string" ? { value: o } : o,
+  );
 }
+
+export function withCurrent(options: CliSelectOption[], current: string): CliSelectOption[] {
+  const has = (o: CliSelectOption) => (typeof o === "string" ? o : o.value) === current;
+  return current && !options.some(has) ? [{ value: current }, ...options] : options;
+}
+
+/** StyledSelect 入参规整(联合 → 纯对象)。 */
+export const normOptions = (list: CliSelectOption[]): { value: string; label?: string; hint?: string }[] =>
+  list.map((o) => (typeof o === "string" ? { value: o } : o));
 
 /** field.catalog 加载钩子:每表单实例一次。 */
 export function useCatalog(field: CliConfigField): CliModelCatalogProvider[] | null {
@@ -96,31 +107,52 @@ export function ModelMapInput({
   return (
     <div className="cli-cfg-kv">
       {value.map(([k, raw], i) => {
-        return (
-          <div key={`${k}:${i}`} className="cli-cfg-kv-row">
-            {field.keyOptions ? (
-              <StyledSelect
-                className="is-key"
-                value={k}
-                options={field.keyOptions.map((o) => ({ value: o }))}
-                onChange={(v) => patch(i, [v, raw])}
-              />
-            ) : (
-              <input
-                className="cli-cfg-input is-key"
-                value={k}
-                placeholder={t("键")}
-                onChange={(e) => patch(i, [e.target.value, raw])}
-              />
-            )}
-            {field.catalog && field.multi ? (
+        const keyCtl = field.keyOptions ? (
+          <StyledSelect
+            className="is-key"
+            value={k}
+            options={field.keyOptions.map((o) => ({ value: o }))}
+            onChange={(v) => patch(i, [v, raw])}
+          />
+        ) : (
+          <input
+            className="cli-cfg-input is-key"
+            value={k}
+            placeholder={t("键")}
+            onChange={(e) => patch(i, [e.target.value, raw])}
+          />
+        );
+        const delBtn = (
+          <button
+            type="button"
+            className="cli-cfg-icon-btn"
+            aria-label={t("删除")}
+            onClick={() => onSet(value.filter((_, j) => j !== i))}
+          >
+            <Trash size={13} />
+          </button>
+        );
+        /* multi(回退链):角色一行、候选若干行、添加候选收尾 —— 纵向分组对齐 */
+        if (field.multi) {
+          return (
+            <div key={`${k}:${i}`} className="cli-cfg-kv-group">
+              <div className="cli-cfg-kv-head">
+                {keyCtl}
+                {delBtn}
+              </div>
               <ChainPicker
                 value={raw}
                 catalog={catalog}
                 suffixes={field.suffixOptions}
                 onChange={(v) => patch(i, [k, v])}
               />
-            ) : field.catalog ? (
+            </div>
+          );
+        }
+        return (
+          <div key={`${k}:${i}`} className="cli-cfg-kv-row">
+            {keyCtl}
+            {field.catalog ? (
               <ModelPicker
                 value={raw}
                 catalog={catalog}
@@ -131,9 +163,7 @@ export function ModelMapInput({
               <div className="cli-cfg-kv-value">
                 <StyledSelect
                   value={raw}
-                  options={optionsWithCurrent(field.options, raw, values).map((o) => ({
-                    value: o,
-                  }))}
+                  options={normOptions(withCurrent(toOptions(field.options, values), raw))}
                   onChange={(v) => patch(i, [k, v])}
                 />
               </div>
@@ -144,14 +174,7 @@ export function ModelMapInput({
                 onChange={(e) => patch(i, [k, e.target.value])}
               />
             )}
-            <button
-              type="button"
-              className="cli-cfg-icon-btn"
-              aria-label={t("删除")}
-              onClick={() => onSet(value.filter((_, j) => j !== i))}
-            >
-              <Trash size={13} />
-            </button>
+            {delBtn}
           </div>
         );
       })}
@@ -184,7 +207,7 @@ export function OrderedListInput({
     [next[i], next[j]] = [next[j], next[i]];
     onSet(next);
   };
-  const candidates = optionsWithCurrent(field.options, "");
+  const candidates = toOptions(field.options);
   return (
     <div className="cli-cfg-kv">
       {value.map((item, i) => (
@@ -192,7 +215,7 @@ export function OrderedListInput({
           {field.options ? (
             <StyledSelect
               value={item}
-              options={optionsWithCurrent(field.options, item).map((o) => ({ value: o }))}
+              options={normOptions(withCurrent(toOptions(field.options), item))}
               onChange={(v) => patch(i, v)}
             />
           ) : (
@@ -233,63 +256,12 @@ export function OrderedListInput({
       <button
         type="button"
         className="cli-cfg-add"
-        onClick={() => onSet([...value, candidates[0] ?? ""])}
+        onClick={() =>
+          onSet([...value, strVal(typeof candidates[0] === "string" ? candidates[0] : candidates[0]?.value ?? "")])}
       >
         <Plus size={12} /> {t("添加候选")}
       </button>
     </div>
   );
 }
-
-/** 有序模型链:值 = 逗号分隔的 "provider/model[:suffix]" 序列,每项两级选择器。 */
-function ChainPicker({
-  value,
-  catalog,
-  suffixes,
-  onChange,
-}: {
-  value: string;
-  catalog: CliModelCatalogProvider[] | null;
-  suffixes?: string[];
-  onChange: (v: string) => void;
-}) {
-  /* 保留空串项:新加的候选要显示成可配置的空选择器;落盘前 save 端会过滤空值 */
-  const items = value.split(",").map((s) => s.trim());
-  const commit = (next: string[]) => onChange(next.join(","));
-  const patch = (i: number, item: string) => commit(items.map((x, j) => (j === i ? item : x)));
-  const move = (i: number, dir: -1 | 1) => {
-    const j = i + dir;
-    if (j < 0 || j >= items.length) return;
-    const next = [...items];
-    [next[i], next[j]] = [next[j], next[i]];
-    commit(next);
-  };
-  return (
-    <div className="cli-cfg-kv cli-cfg-chain">
-      {items.map((item, i) => (
-        <div key={`${item}:${i}`} className="cli-cfg-kv-row">
-          <ModelPicker value={item} catalog={catalog} suffixes={suffixes} onChange={(v) => patch(i, v)} />
-          <span className="cli-cfg-chain-ctl">
-            <button type="button" className="cli-cfg-icon-btn" aria-label={t("上移")} disabled={i === 0}
-              onClick={() => move(i, -1)}>
-              <CaretUp size={12} />
-            </button>
-            <button type="button" className="cli-cfg-icon-btn" aria-label={t("下移")} disabled={i === items.length - 1}
-              onClick={() => move(i, 1)}>
-              <CaretDown size={12} />
-            </button>
-            <button type="button" className="cli-cfg-icon-btn" aria-label={t("删除")}
-              onClick={() => commit(items.filter((_, j) => j !== i).filter(Boolean))}>
-              <Trash size={13} />
-            </button>
-          </span>
-        </div>
-      ))}
-      <button type="button" className="cli-cfg-add" onClick={() => commit([...items, ""])}>
-        <Plus size={12} /> {t("添加候选")}
-      </button>
-    </div>
-  );
-}
-
 export { splitModelValue };

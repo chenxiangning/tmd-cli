@@ -87,25 +87,6 @@
   min-width: 0;
   display: flex;
 }
-
-/* 两级/三级模型选择器:供应商 → 模型(:强度);触发器内徽标隐藏(弹层保留) */
-.cli-cfg-modelpicker {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(5.5rem, 1fr) minmax(7rem, 1.4fr) minmax(4rem, 0.6fr);
-  gap: 6px;
-}
-
-.cli-cfg-modelpicker .styled-select-hint {
-  display: none;
-}
-
-.cli-cfg-modelpicker .styled-select-value {
-  font-family: var(--tmd-font-mono, ui-monospace, Menlo, monospace);
-  font-size: 0.6875rem;
-}
-
 /* 行内小图标钮(删/移/眼睛) */
 .cli-cfg-icon-btn {
   flex: none;

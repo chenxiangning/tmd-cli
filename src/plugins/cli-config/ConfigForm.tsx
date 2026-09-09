@@ -7,7 +7,13 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import type { CliConfigEntry, CliConfigField, CliConfigValues, CliModelCatalogProvider } from "@kernel/cliConfigRegistry";
+import type {
+  CliConfigEntry,
+  CliConfigField,
+  CliConfigValues,
+  CliModelCatalogProvider,
+  CliSelectOption,
+} from "@kernel/cliConfigRegistry";
 import { StyledSelect } from "@kernel/StyledSelect";
 import { t } from "@kernel/i18n";
 import { ModelPicker } from "./ModelPicker";
@@ -15,7 +21,8 @@ import {
   ModelMapInput,
   OrderedListInput,
   SecretInput,
-  optionsWithCurrent,
+  normOptions,
+  withCurrent,
   strVal,
   useCatalog,
 } from "./FieldControls";
@@ -134,8 +141,11 @@ function FieldRow({
   );
 }
 
-function useFieldOptions(field: CliConfigField, values: CliConfigValues): string[] {
-  const [asyncOpts, setAsyncOpts] = useState<string[] | null>(null);
+function useFieldOptions(
+  field: CliConfigField,
+  values: CliConfigValues,
+): CliSelectOption[] {
+  const [asyncOpts, setAsyncOpts] = useState<CliSelectOption[] | null>(null);
   const mountValues = useRef(values);
   useEffect(() => {
     if (typeof field.options !== "function") return;
@@ -151,9 +161,10 @@ function useFieldOptions(field: CliConfigField, values: CliConfigValues): string
   }, [field]);
   if (typeof field.options === "function") {
     const resolved = field.options(values);
-    return resolved instanceof Promise ? (asyncOpts ?? []) : resolved;
+    const arr = resolved instanceof Promise ? (asyncOpts ?? []) : resolved;
+    return arr.map((o) => (typeof o === "string" ? { value: o } : o));
   }
-  return field.options ?? [];
+  return (field.options ?? []).map((o) => (typeof o === "string" ? { value: o } : o));
 }
 
 function FieldControl({
@@ -166,7 +177,7 @@ function FieldControl({
 }: {
   field: CliConfigField;
   value: CliConfigValues[string] | undefined;
-  options: string[];
+  options: CliSelectOption[];
   catalog: CliModelCatalogProvider[] | null;
   values: CliConfigValues;
   onSet: (v: CliConfigValues[string]) => void;
@@ -217,7 +228,7 @@ function FieldControl({
       return (
         <StyledSelect
           value={s}
-          options={optionsWithCurrent(field.options, s, values).map((o) => ({ value: o }))}
+          options={normOptions(withCurrent(options, s))}
           onChange={onSet}
         />
       );
@@ -226,7 +237,7 @@ function FieldControl({
         <input
           className="cli-cfg-input"
           value={s}
-          placeholder={options[0] ?? ""}
+          placeholder={strVal(typeof options[0] === "string" ? options[0] : options[0]?.value ?? "")}
           onChange={(e) => onSet(e.target.value)}
         />
       );

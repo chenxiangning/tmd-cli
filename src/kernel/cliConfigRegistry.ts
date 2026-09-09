@@ -36,7 +36,7 @@ export interface CliConfigField {
   /** modelMap 专用:值 = 有序多个模型引用(如回退链),每个候选用两级选择器。 */
   multi?: boolean;
   /** select 候选;函数版收当前表单值(级联:服务商→模型;磁盘候选 load 后刷新)。 */
-  options?: string[] | ((values: CliConfigValues) => string[] | Promise<string[]>);
+  options?: CliSelectOption[] | ((values: CliConfigValues) => CliSelectOption[] | Promise<CliSelectOption[]>);
   /** modelMap:键下拉候选(如 omp 角色名);缺省 = 自由文本键。 */
   keyOptions?: string[];
   /** modelMap:值 = 模型[:后缀] 时,后缀下拉候选(如思考强度);缺省 = 值整体单输入。 */

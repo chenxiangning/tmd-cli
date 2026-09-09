@@ -1,0 +1,59 @@
+/* cli-config 模型选择器与回退链分组样式(自 controls 拆出,控 300 行) */
+
+
+/* 两级/三级模型选择器:供应商 → 模型(:强度);触发器内徽标隐藏(弹层保留) */
+.cli-cfg-modelpicker {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 1fr) minmax(7rem, 1.4fr) minmax(4rem, 0.6fr);
+  gap: 6px;
+}
+
+/* multi 分组(回退链):角色头行 + 候选行 + 添加候选,纵向对齐 */
+.cli-cfg-kv-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0;
+}
+
+.cli-cfg-kv-group + .cli-cfg-kv-group {
+  border-top: 1px solid var(--tmd-border);
+}
+
+.cli-cfg-kv-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cli-cfg-kv-head .cli-cfg-icon-btn {
+  margin-left: auto;
+}
+
+.cli-cfg-kv-group .cli-cfg-chain .cli-cfg-kv-row {
+  padding-left: 0;
+}
+
+.cli-cfg-chain .cli-cfg-add {
+  align-self: flex-start;
+}
+
+.cli-cfg-chain .cli-cfg-chain-ctl {
+  margin-left: auto;
+}
+
+.cli-cfg-chain .cli-cfg-modelpicker {
+  flex: 1 1 auto;
+}
+
+.cli-cfg-modelpicker .styled-select-hint {
+  display: none;
+}
+
+.cli-cfg-modelpicker .styled-select-value {
+  font-family: var(--tmd-font-mono, ui-monospace, Menlo, monospace);
+  font-size: 0.6875rem;
+}
+

@@ -29,6 +29,7 @@
 @import "./styled-select.css";
 @import "./cli-config.css";
 @import "./cli-config-controls.css";
+@import "./cli-config-picker.css";
 @import "./welcome.css";
 @import "./welcome-install.css";
 @import "./welcome-creds.css";
