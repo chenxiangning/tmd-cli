@@ -2,7 +2,7 @@
  * Mermaid 代码块 —— 照抄 codemoss FileMarkdownMermaidBlock。
  *
  * Source/Render 双 tab(会话内缓存选择);主题跟随 documentElement data-theme;
- * 全屏经 MermaidFullscreenViewer(viewerjs)。
+ * 全屏经 FullscreenViewer(viewerjs)。
  * 渲染管线与缓存(懒 import mermaid / SVG LRU / 主题探测)见 useMermaidRender.ts。
  */
 
@@ -19,7 +19,7 @@ import { CornersOut } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { hashStableString } from "./markdownDocument";
 import { highlightLine } from "./syntax";
-import { MermaidFullscreenViewer } from "./MermaidFullscreenViewer";
+import { FullscreenViewer, resolveMermaidViewerSrc } from "./FullscreenViewer";
 import { preloadViewerjs } from "./viewerRuntime";
 import {
   detectMermaidTheme,
@@ -192,10 +192,12 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
         )}
       </div>
 
-      <MermaidFullscreenViewer
+      <FullscreenViewer
         open={isFullscreenOpen}
-        svg={visibleSvg ?? ""}
+        src={visibleSvg ?? ""}
         onClose={() => setIsFullscreenOpen(false)}
+        resolveSrc={resolveMermaidViewerSrc}
+        navigation={false}
       />
     </div>
   );
