@@ -195,14 +195,6 @@ export function createRpcSuggestionSource(spec: {
         action: "insert",
       });
     }
-    console.info(
-      "[cliQuery] fetched:",
-      spec.spawn.command,
-      byKind.get("command")?.length ?? 0,
-      "commands,",
-      byKind.get("skill")?.length ?? 0,
-      "skills",
-    );
     return byKind;
   }
 
