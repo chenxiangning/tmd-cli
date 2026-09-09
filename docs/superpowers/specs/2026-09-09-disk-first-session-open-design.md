@@ -1,8 +1,8 @@
 # 磁盘会话先行回放 + 进程惰性拉起设计(走法 1)
 
 - 日期:2026-09-09
-- 状态:待评审(v2,已吸收对抗评审 7 项发现,见 `docs/review/2026-09-09-disk-first-session-open-review.md`;拍板后实施)
-- 关联:动机与实测见 `docs/research/memory-usage-analysis.md`;落地验证后下掉 `2026-09-08-auto-activate-recent-sessions-design.md`。
+- 状态:已落地 —— `165b4d4`(主实现 + 拆自动激活)+ `966271a`/`848ee7b`(白屏时序修复:墓碑帧/连接遮罩保持到 CLI 首帧画完,清屏序列 `\x1b[2J` 后 300ms 一次切换)。真机内存验收:冷启零预付 ≈0.5GB,22 分钟活跃态(实开 8 会话)整树 2.15GB,对照旧架构 3h 6.7GB→11.86GB 轨迹;WebContent 1.4GB → 330MB。
+- 关联:动机与实测见 `docs/research/memory-usage-analysis.md`;评审记录 `docs/review/2026-09-09-disk-first-session-open-review.md`;`2026-09-08-auto-activate-recent-sessions-design.md` 已废除。
 
 ## 背景与目标
 

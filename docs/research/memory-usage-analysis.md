@@ -1,6 +1,6 @@
 # 客户端内存占用分析与优化预案
 
-- 状态:已收敛为正式 spec —— [2026-09-09-disk-first-session-open-design.md](../superpowers/specs/2026-09-09-disk-first-session-open-design.md)(本文件保留作动机/实测/复盘底稿)
+- 状态:已落地(`165b4d4`/`966271a`/`848ee7b`)—— 正式 spec [2026-09-09-disk-first-session-open-design.md](../superpowers/specs/2026-09-09-disk-first-session-open-design.md);本文件保留作动机/实测/复盘底稿
 
 ## 结论
 
