@@ -154,6 +154,23 @@ fn archive_dedupes_by_content_and_prunes_to_keep() {
 }
 
 #[test]
+fn archive_dedupes_by_content_across_version_names() {
+    let t = TempRoot::new();
+    // 1.0.0 内容 c1 先归档
+    t.write_plugin("p", &manifest("p", "1.0.0"), "v1");
+    archive_current(&t.0, "p").unwrap();
+    // 升 2.0.0 后又回退(老版 bug 时代会以 2.0.0 名义把 c1 再归档出孤儿条目)
+    fs::write(t.0.join("p/index.js"), "v2").unwrap();
+    fs::write(t.0.join("p/plugin.json"), manifest("p", "2.0.0")).unwrap();
+    archive_current(&t.0, "p").unwrap();
+    fs::write(t.0.join("p/index.js"), "v1").unwrap();
+    let archived = archive_current(&t.0, "p").unwrap();
+    assert_eq!(archived, None); // 同内容(即使版本段不同名)不再重复归档
+    let kept = collect_stamps(&t.0, &t.0.join("p/.versions"), false);
+    assert_eq!(kept.len(), 2); // v1、v2 各一份
+}
+
+#[test]
 fn rollback_archives_current_then_restores() {
     let t = TempRoot::new();
     t.write_plugin("p", &manifest("p", "1.0.0"), "v1");
@@ -169,6 +186,24 @@ fn rollback_archives_current_then_restores() {
     assert!(t.0.join("p/.versions").join(v2).is_file());
     // 回退不存在的版本 → 报错
     assert!(rollback(&t.0, "p", "9.9.9-deadbeef.js").is_err());
+}
+
+#[test]
+fn rollback_aligns_manifest_version() {
+    let t = TempRoot::new();
+    t.write_plugin("p", &manifest("p", "1.0.0"), "v1");
+    archive_current(&t.0, "p").unwrap();
+    // 升 2.0.0(bundle 与 plugin.json 一起前进)再归档
+    fs::write(t.0.join("p/index.js"), "v2").unwrap();
+    fs::write(t.0.join("p/plugin.json"), manifest("p", "2.0.0")).unwrap();
+    archive_current(&t.0, "p").unwrap();
+    // 回退 1.0.0 → plugin.json 版本号同步回退,其余字段保留
+    let v1 = t.version_name("p", "1.0.0", "v1");
+    rollback(&t.0, "p", &v1).unwrap();
+    let v: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(t.0.join("p/plugin.json")).unwrap()).unwrap();
+    assert_eq!(v["version"], "1.0.0");
+    assert_eq!(v["name"], "t");
 }
 
 #[test]

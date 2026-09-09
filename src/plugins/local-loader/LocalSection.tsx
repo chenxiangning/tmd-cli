@@ -64,7 +64,18 @@ function Row({
     !rec.error && !rec.removed && !!rec.contentHash && !isContentTrusted(rec.id, rec.contentHash)
       ? rec.activatedHash !== rec.contentHash || !rec.activatedHash
       : false;
-  const versions = [...rec.versions].sort((a, b) => b.modified_ms - a.modified_ms);
+  /* 按内容 hash 去重,保留首次归档(版本号段最可信);老版回退不对齐 manifest 时期产生的
+     「0.2.0-<0.1.0hash>」错位条目不再显示(Rust 归档层已同步按内容去重防新增)。 */
+  const seen = new Set<string>();
+  const versions = [...rec.versions]
+    .sort((a, b) => a.modified_ms - b.modified_ms)
+    .filter((v) => {
+      const key = v.sha256.slice(0, 8);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => b.modified_ms - a.modified_ms);
 
   const del = () => {
     if (!window.confirm(t("把插件 {id} 移入系统废纸篓?(重启后卸载,可从废纸篓找回)", { id: rec.id })))
@@ -107,7 +118,7 @@ function Row({
             disabled={busy}
             onClick={() => setShowVersions((v) => !v)}
           >
-            {t("版本历史")}({rec.versions.length})
+            {t("版本历史")}({versions.length})
           </button>
         )}
         <button type="button" className="lp-btn" disabled={busy} title={t("移入废纸篓")} onClick={del}>

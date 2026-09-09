@@ -193,15 +193,6 @@ pub fn read_plugin_file(root: &Path, id: &str, name: &str) -> Result<String, Str
     read_limited(root, &p)
 }
 
-/// 读版本库单文件(.versions/<file>)。
-pub fn read_version_file(root: &Path, id: &str, file: &str) -> Result<String, String> {
-    if !valid_name(file) {
-        return Err(format!("非法版本文件名: {file}"));
-    }
-    let p = resolve_dir(root, id)?.join(".versions").join(file);
-    read_limited(root, &p)
-}
-
 fn read_limited(root: &Path, p: &Path) -> Result<String, String> {
     if links_symlink_under(root, p) {
         return Err("拒绝读取符号链接".into());
@@ -222,74 +213,9 @@ pub fn trash_plugin(root: &Path, id: &str) -> Result<(), String> {
     crate::fs_edit::trash_entry(&dir.to_string_lossy())
 }
 
-fn manifest_entry_version(root: &Path, id: &str) -> Result<(String, String), String> {
-    let manifest = read_manifest(root, &resolve_dir(root, id)?.join("plugin.json"), id)?;
-    let entry = manifest
-        .get("entry")
-        .and_then(|x| x.as_str())
-        .unwrap_or("index.js")
-        .to_string();
-    if !valid_name(&entry) {
-        return Err(format!("非法入口名: {entry}"));
-    }
-    let version = manifest
-        .get("version")
-        .and_then(|x| x.as_str())
-        .unwrap_or("0.0.0")
-        .to_string();
-    Ok((entry, version))
-}
-
-fn version_file_name(version: &str, sha256: &str) -> String {
-    let v: String = version
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.') {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect();
-    format!("{v}-{}.js", &sha256[..8])
-}
-
-/// 把当前入口 bundle 归档进 .versions(同内容按指纹去重),淘汰到保留上限。
-/// 返回归档文件名;内容未变化(已存在同指纹文件)返回 None。
-pub fn archive_current(root: &Path, id: &str) -> Result<Option<String>, String> {
-    let dir = resolve_dir(root, id)?;
-    let (entry, version) = manifest_entry_version(root, id)?;
-    let content = read_limited(root, &dir.join(&entry))?;
-    let sha256 = crate::hash::sha256_hex(&content);
-    let name = version_file_name(&version, &sha256);
-    let vdir = dir.join(".versions");
-    if vdir.join(&name).is_file() {
-        return Ok(None); // 同内容已归档
-    }
-    fs::create_dir_all(&vdir).map_err(|e| format!("创建版本库失败: {e}"))?;
-    fs::write(vdir.join(&name), content).map_err(|e| format!("归档失败: {e}"))?;
-    prune_versions(root, &vdir)?;
-    Ok(Some(name))
-}
-
-fn prune_versions(root: &Path, vdir: &Path) -> Result<(), String> {
-    let mut stamps = collect_stamps(root, vdir, false);
-    stamps.sort_by_key(|s| s.modified_ms);
-    while stamps.len() > VERSIONS_KEEP {
-        let victim = stamps.remove(0);
-        fs::remove_file(vdir.join(&victim.name)).map_err(|e| format!("淘汰旧版本失败: {e}"))?;
-    }
-    Ok(())
-}
-
-/// 回退:先把当前版归档进版本库(永不丢当前版),再把指定版本换回入口。
-pub fn rollback(root: &Path, id: &str, file: &str) -> Result<(), String> {
-    archive_current(root, id)?;
-    let dir = resolve_dir(root, id)?;
-    let (entry, _) = manifest_entry_version(root, id)?;
-    let content = read_version_file(root, id, file)?;
-    fs::write(dir.join(&entry), content).map_err(|e| format!("回退写入失败: {e}"))
-}
+#[path = "plugins_versions.rs"]
+mod versions;
+pub(crate) use versions::*;
 
 #[path = "plugins_cmds.rs"]
 mod cmds;
