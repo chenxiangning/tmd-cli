@@ -12,14 +12,8 @@ import { t } from "@kernel/i18n";
 import { pickDirectory } from "@kernel/ipc";
 import { useWorkspaces } from "@kernel/workspace";
 import { importCodemossPrompts, importPromptDir, type ImportReport } from "../importCodemoss";
-import {
-  deletePrompt,
-  movePrompt,
-  savePrompt,
-  useAssets,
-  type PromptEntry,
-  type PromptScope,
-} from "../store";
+import { deletePrompt, movePrompt, savePrompt } from "../promptStore";
+import { useAssets, type PromptEntry, type PromptScope } from "../store";
 
 type ScopeFilter = "all" | PromptScope;
 

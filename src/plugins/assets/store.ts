@@ -9,13 +9,14 @@
  *
  * activate 时 loadAssets 一次(等 workspacesReady,工作区级目录才齐);设置页写操作
  * 落盘并同步内存;composer 触发源/发送变换只读内存。外部手改文件不 watch,重开生效。
+ * 提示词 CRUD 与消费面拆在 promptStore.ts(文件规模铁则),共享下方 state/emit/tmdHome。
  */
 
 import { useSyncExternalStore } from "react";
 import type { CliSuggestion } from "@kernel/cli";
 import { ipc } from "@kernel/ipc";
 import { getWorkspaces, workspacesReady } from "@kernel/workspace";
-import { isValidPromptName, parsePromptFile, serializePromptFile } from "./promptMd";
+import { parsePromptFile } from "./promptMd";
 
 export interface Agent {
   id: string;
@@ -44,11 +45,13 @@ export interface AssetsState {
   selectedBySession: Record<string, string>;
 }
 
-const state: AssetsState = { loaded: false, agents: [], prompts: [], selectedBySession: {} };
+/* ── 插件内共享(promptStore.ts 直接消费;插件外只走下方公开 API)── */
+
+export const state: AssetsState = { loaded: false, agents: [], prompts: [], selectedBySession: {} };
 const listeners = new Set<() => void>();
 let snapshot: AssetsState = state;
 
-function emit(): void {
+export function emit(): void {
   snapshot = {
     loaded: state.loaded,
     agents: [...state.agents],
@@ -60,7 +63,7 @@ function emit(): void {
 
 let cachedHome = "";
 /** tmd 家目录(~/.tmd-cli);settings.json/workspaces.json 同层的平铺惯例。 */
-async function tmdHome(): Promise<string> {
+export async function tmdHome(): Promise<string> {
   if (!cachedHome) cachedHome = `${await ipc.configHomeDir()}/.tmd-cli`;
   return cachedHome;
 }
@@ -145,19 +148,51 @@ export async function saveAgent(input: { id?: string; name: string; icon?: strin
   return agent;
 }
 
-export async function deleteAgent(id: string): Promise<void> {
+/** 删除智能体;写盘失败回滚内存并返回 false(调用处提示,同 saveAgent 模式)。 */
+export async function deleteAgent(id: string): Promise<boolean> {
+  const prevAgents = state.agents;
+  const prevSelected = { ...state.selectedBySession };
   state.agents = state.agents.filter((a) => a.id !== id);
   for (const [sid, aid] of Object.entries(state.selectedBySession)) {
     if (aid === id) delete state.selectedBySession[sid];
   }
-  await persistAgents().catch(() => undefined);
+  try {
+    await persistAgents();
+  } catch {
+    state.agents = prevAgents;
+    state.selectedBySession = prevSelected;
+    emit();
+    return false;
+  }
   emit();
+  return true;
 }
 
-/** 会话级智能体选择(持久化进 agents.json);null = 取消。 */
-export async function selectAgent(sessionId: string, agentId: string | null): Promise<void> {
+/** 会话级智能体选择(持久化进 agents.json);null = 取消;写盘失败回滚并返回 false。 */
+export async function selectAgent(sessionId: string, agentId: string | null): Promise<boolean> {
+  const prev = state.selectedBySession[sessionId];
   if (agentId) state.selectedBySession[sessionId] = agentId;
   else delete state.selectedBySession[sessionId];
+  try {
+    await persistAgents();
+  } catch {
+    if (prev) state.selectedBySession[sessionId] = prev;
+    else delete state.selectedBySession[sessionId];
+    emit();
+    return false;
+  }
+  emit();
+  return true;
+}
+
+/** 会话集合变化 → 剪除 selectedBySession 死 id(防 agents.json 单调增长;先例 kernel/sessionTabs.ts)。 */
+export async function pruneSelectedSessions(live: ReadonlySet<string>): Promise<void> {
+  const before = Object.keys(state.selectedBySession).length;
+  for (const sid of Object.keys(state.selectedBySession)) {
+    if (!live.has(sid)) delete state.selectedBySession[sid];
+  }
+  if (Object.keys(state.selectedBySession).length === before) return;
+  /* 后台清理无 UI 落点:吞写盘错误,下次 sessionsChanged / 加载后再试 */
   await persistAgents().catch(() => undefined);
   emit();
 }
@@ -166,114 +201,7 @@ export function selectedAgent(sessionId: string): Agent | null {
   return state.agents.find((a) => a.id === state.selectedBySession[sessionId]) ?? null;
 }
 
-/* ── 提示词 CRUD + 作用域移动 ── */
-
-async function ensurePromptDir(scope: PromptScope, wsId: string | undefined): Promise<string> {
-  const base = await tmdHome();
-  /* fsCreateDir 撞已存在即报错 = 幂等;失败忽略,写文件时自然会再暴露 */
-  if (scope === "workspace") {
-    await ipc.fsCreateDir(`${base}/workspaces`).catch(() => undefined);
-    await ipc.fsCreateDir(`${base}/workspaces/${wsId}`).catch(() => undefined);
-  }
-  const dir = scope === "global" ? `${base}/prompts` : `${base}/workspaces/${wsId}/prompts`;
-  await ipc.fsCreateDir(dir).catch(() => undefined);
-  return dir;
-}
-
-/** 新建/编辑提示词(改名 = 写新文件 + 旧文件进废纸篓);非法名称 / 同作用域撞名 / 写盘失败返回 false。 */
-export async function savePrompt(
-  scope: PromptScope,
-  wsId: string | undefined,
-  data: { name: string; description?: string; argumentHint?: string; content: string },
-  oldName?: string,
-): Promise<boolean> {
-  const name = data.name.trim();
-  if (!isValidPromptName(name)) return false;
-  if (
-    state.prompts.some(
-      (p) => p.scope === scope && p.wsId === wsId && p.name !== oldName && p.name.toLowerCase() === name.toLowerCase(),
-    )
-  ) {
-    return false;
-  }
-  const dir = await ensurePromptDir(scope, wsId);
-  try {
-    await ipc.fsWriteFile(`${dir}/${name}.md`, serializePromptFile(data));
-    if (oldName && oldName !== name) await ipc.fsTrashEntry(`${dir}/${oldName}.md`).catch(() => undefined);
-  } catch {
-    return false;
-  }
-  state.prompts = state.prompts.filter(
-    (p) => !(p.scope === scope && p.wsId === wsId && (p.name === name || p.name === oldName)),
-  );
-  state.prompts.push({
-    name,
-    scope,
-    wsId,
-    description: data.description,
-    argumentHint: data.argumentHint,
-    content: data.content,
-  });
-  emit();
-  return true;
-}
-
-export async function deletePrompt(entry: PromptEntry): Promise<void> {
-  const dir = await ensurePromptDir(entry.scope, entry.wsId);
-  await ipc.fsTrashEntry(`${dir}/${entry.name}.md`).catch(() => undefined);
-  /* 按身份字段(scope + wsId + name)匹配,不依赖调用方传来的就是内存里同一对象 */
-  state.prompts = state.prompts.filter(
-    (p) => !(p.scope === entry.scope && p.wsId === entry.wsId && p.name === entry.name),
-  );
-  emit();
-}
-
-/** 移到对侧作用域(目标工作区 = wsId 参数);撞名返回 false 不动。 */
-export async function movePrompt(entry: PromptEntry, target: PromptScope, targetWsId?: string): Promise<boolean> {
-  const moved = await savePrompt(target, target === "workspace" ? targetWsId : undefined, entry);
-  if (!moved) return false;
-  await deletePrompt(entry);
-  return true;
-}
-
-/* ── composer 消费面(只读内存) ── */
-
-function wsIdForCwd(cwd: string): string | null {
-  return getWorkspaces().find((w) => w.root === cwd)?.id ?? null;
-}
-
-/** 可见提示词:工作区级(当前 cwd 所属工作区)在前、全局在后;同名工作区覆盖全局。 */
-function visiblePrompts(cwd: string): PromptEntry[] {
-  const wsId = wsIdForCwd(cwd);
-  const seen = new Set<string>();
-  const out: PromptEntry[] = [];
-  const ordered = [...state.prompts].sort(
-    (a, b) => (a.scope === "workspace" ? 0 : 1) - (b.scope === "workspace" ? 0 : 1) || a.name.localeCompare(b.name),
-  );
-  for (const p of ordered) {
-    if (p.scope === "workspace" && p.wsId !== wsId) continue;
-    const key = p.name.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(p);
-  }
-  return out;
-}
-
-export function promptSuggestions(cwd: string): CliSuggestion[] {
-  return visiblePrompts(cwd).map((p) => ({
-    value: p.name,
-    description: [p.description, p.argumentHint ? `参数: ${p.argumentHint}` : ""]
-      .filter(Boolean)
-      .join(" · ") || undefined,
-  }));
-}
-
-/** insertText 解析:与 promptSuggestions 同一份可见性/覆盖规则,按名取正文。 */
-export function promptContent(name: string, cwd: string): string {
-  const key = name.toLowerCase();
-  return visiblePrompts(cwd).find((p) => p.name.toLowerCase() === key)?.content ?? "";
-}
+/* ── composer 消费面(智能体侧;提示词侧在 promptStore.ts)── */
 
 export function agentSuggestions(): CliSuggestion[] {
   return state.agents.map((a) => ({

@@ -41,7 +41,7 @@ vi.mock("@kernel/workspace", () => ({
   workspacesReady: Promise.resolve(),
 }));
 
-type StoreModule = typeof import("./store");
+type StoreModule = typeof import("./store") & typeof import("./promptStore");
 
 let store: StoreModule;
 
@@ -50,7 +50,8 @@ beforeEach(async () => {
   ipcMock.files.clear();
   vi.resetModules();
   // 动态 import 例外:被测模块是模块级单例,必须借 resetModules 取全新实例
-  store = await import("./store");
+  // promptStore 与 store 共享同一 state 单源(静态依赖同实例),合并句柄免逐调用点改名
+  store = { ...(await import("./store")), ...(await import("./promptStore")) };
   await store.loadAssets();
 });
 
@@ -64,7 +65,7 @@ describe("智能体 CRUD 与选中", () => {
     };
     expect(Object.values(raw.agents).map((a) => a.name)).toEqual(["小张"]);
     vi.resetModules();
-    store = await import("./store");
+    store = { ...(await import("./store")), ...(await import("./promptStore")) };
     await store.loadAssets();
     expect(store.agentByName("小张")?.prompt).toBe("产品交互大神");
     expect(store.selectedAgent("sess-1")?.name).toBe("小张");
@@ -89,6 +90,33 @@ describe("智能体 CRUD 与选中", () => {
     expect(await store.saveAgent({ name: "小张", prompt: "p" })).toBeNull();
     expect(store.agentByName("小张")).toBeNull();
     expect(await store.saveAgent({ name: "小张", prompt: "p" })).not.toBeNull();
+  });
+
+  it("deleteAgent 写盘失败返回 false 且内存回滚", async () => {
+    const agent = (await store.saveAgent({ name: "小张", prompt: "p" }))!;
+    ipcMock.fsWriteFile.mockRejectedValueOnce(new Error("EIO"));
+    expect(await store.deleteAgent(agent.id)).toBe(false);
+    expect(store.agentByName("小张")?.id).toBe(agent.id);
+  });
+
+  it("selectAgent 写盘失败返回 false 且选中回滚", async () => {
+    const agent = (await store.saveAgent({ name: "小张", prompt: "p" }))!;
+    ipcMock.fsWriteFile.mockRejectedValueOnce(new Error("EIO"));
+    expect(await store.selectAgent("sess-1", agent.id)).toBe(false);
+    expect(store.selectedAgent("sess-1")).toBeNull();
+  });
+
+  it("pruneSelectedSessions 剪除死会话 id 并落盘", async () => {
+    const agent = (await store.saveAgent({ name: "小张", prompt: "p" }))!;
+    await store.selectAgent("sess-1", agent.id);
+    await store.selectAgent("sess-2", agent.id);
+    await store.pruneSelectedSessions(new Set(["sess-1"]));
+    expect(store.selectedAgent("sess-1")?.name).toBe("小张");
+    expect(store.selectedAgent("sess-2")).toBeNull();
+    const raw = JSON.parse(ipcMock.files.get("/home/.tmd-cli/agents.json")!) as {
+      selectedBySession: Record<string, string>;
+    };
+    expect(Object.keys(raw.selectedBySession)).toEqual(["sess-1"]);
   });
 });
 

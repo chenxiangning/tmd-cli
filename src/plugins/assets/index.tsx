@@ -13,18 +13,20 @@
 
 import { Quotes, Robot } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
+import { KernelTopics } from "@kernel/events";
+import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import {
   registerComposerSendTransform,
   registerComposerTriggerSource,
 } from "@kernel/composerExt";
 import { assetsSendTransform } from "./agentBlock";
+import { promptContent, promptSuggestions } from "./promptStore";
 import {
   agentByName,
   agentSuggestions,
   loadAssets,
-  promptContent,
-  promptSuggestions,
+  pruneSelectedSessions,
   selectAgent,
 } from "./store";
 import { AgentBadge } from "./view/AgentBadge";
@@ -43,8 +45,11 @@ export const assetsPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx) {
-    void loadAssets();
+    /* 会话移除(手动关 tab / 进程退出都经 sessionsChanged)→ 剪除选中表死 id;加载后先剪一轮存量 */
+    const prune = () => pruneSelectedSessions(new Set(host.getSessions().map((s) => s.id)));
+    void loadAssets().then(prune);
     const offs = [
+      ctx.events.on(KernelTopics.sessionsChanged, prune),
       registerComposerTriggerSource({
         char: "!!",
         label: t("提示词"),
@@ -62,6 +67,10 @@ export const assetsPlugin: Plugin = {
       }),
       registerComposerSendTransform(assetsSendTransform),
     ];
+    /* 反注册钩先设:下方贡献注册中途抛错也不留半注册状态 */
+    this.deactivate = () => {
+      for (const off of offs) off();
+    };
     ctx.contribute("composer.inputRail", { order: 0, component: WakeIcons });
     ctx.contribute("composer.statusBar", { order: 20, component: AgentBadge });
     ctx.registerSettingsSection({
@@ -87,8 +96,5 @@ export const assetsPlugin: Plugin = {
         },
       ],
     });
-    this.deactivate = () => {
-      for (const off of offs) off();
-    };
   },
 };

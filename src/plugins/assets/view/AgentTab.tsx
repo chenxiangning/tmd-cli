@@ -17,7 +17,7 @@ export function AgentTab() {
 
   const remove = async (agent: Agent) => {
     if (!window.confirm(t("删除智能体「{name}」?已选中的会话会自动取消。", { name: agent.name }))) return;
-    await deleteAgent(agent.id);
+    if (!(await deleteAgent(agent.id))) setReport(t("删除失败:写入磁盘未成功"));
   };
 
   const importFromCodemoss = async () => {

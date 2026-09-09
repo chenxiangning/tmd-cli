@@ -38,7 +38,7 @@ vi.mock("@kernel/workspace", () => ({
   workspacesReady: Promise.resolve(),
 }));
 
-type StoreModule = typeof import("./store");
+type StoreModule = typeof import("./store") & typeof import("./promptStore");
 type ImportModule = typeof import("./importCodemoss");
 
 let store: StoreModule;
@@ -49,7 +49,8 @@ beforeEach(async () => {
   ipcMock.files.clear();
   vi.resetModules();
   // 动态 import 例外:被测模块是模块级单例,必须借 resetModules 取全新实例
-  store = await import("./store");
+  // promptStore 与 store 共享同一 state 单源,合并句柄免逐调用点改名
+  store = { ...(await import("./store")), ...(await import("./promptStore")) };
   importer = await import("./importCodemoss");
   await store.loadAssets();
 });
