@@ -11,6 +11,7 @@
 import { KernelTopics, type EventBus, type SessionStartFailedEvent } from "./events";
 import { ipc, type SessionMeta, type SpawnSpec, type SpawnedSession } from "./ipc";
 import { adoptPtySession, ADOPT_RACE_REASON } from "./sessionAdopt";
+import { prefetchDiskTail } from "./diskReplay";
 import type { CliProfile } from "./cli";
 
 /** spawn 后多久内退出视为「启动失败」。node 系 CLI 冷启动数秒,窗口取宽些。 */
@@ -179,6 +180,8 @@ export class SessionSpawnService {
     workspaceId: string | undefined,
     cliSessionId: string,
   ): Promise<SessionMeta> {
+    /* 磁盘先行回放:预取先于一切派发(happens-before,此刻指针仍指上一代,见 diskReplay.ts) */
+    prefetchDiskTail(profileId, cwd, cliSessionId);
     const profile = this.h.getCliProfile(profileId);
     if (!profile) throw new Error(`未知 CLI profile: ${profileId}`);
     // 身份去重:该磁盘会话已有活 PTY → 聚焦既有会话,同一会话绝不出两条
@@ -196,7 +199,11 @@ export class SessionSpawnService {
        同一 CLI 磁盘会话会开出两个 PTY,cliSessionIds 后写覆盖先写 */
     const key = `${profileId}:${cliSessionId}`;
     const opening = this.openingDiskSessions.get(key);
-    if (opening) return opening;
+    if (opening) {
+      /* 双击复用在途 Promise,完成后补聚焦(否则第二次点击无响应) */
+      void opening.then((m) => this.h.setActiveSession(m.id)).catch(() => undefined);
+      return opening;
+    }
     const args = profile.resumeArgs?.(cliSessionId) ?? profile.args;
     let spec: SpawnSpec = {
       command: profile.command,
@@ -218,7 +225,7 @@ export class SessionSpawnService {
     return task;
   }
 
-  /** spawn 统一收口:被拒(命令不存在/IPC 错)时幕布不存在,直接广播原因再抛。 */
+  /** spawn 统一收口:被拒(命令不存在/IPC 错)时幕布不存在,广播原因再抛。 */
   private async spawn(
     profileId: string,
     spec: SpawnSpec,
@@ -246,8 +253,7 @@ export class SessionSpawnService {
     activate = true,
   ): Promise<SessionMeta> {
     /* 显式恢复路径的绑定也走唯一写入口:入口去重的兜底闸 —— 同一磁盘会话
-       已有活 PTY 时新 PTY 照常运行,但身份不绑(账本/UI 按 tmd id 隔离,
-       不与既有会话并账)。 */
+       已有活 PTY 时新 PTY 照常运行,但身份不绑(账本/UI 按 tmd id 隔离,不与既有会话并账)。*/
     if (cliSessionId) this.h.bindIdentity(sessionId, cliSessionId);
     this.h.setSessions(await ipc.sessionList());
     if (activate) this.h.setActiveSessionId(sessionId);

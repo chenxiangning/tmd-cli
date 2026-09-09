@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工作区会话列表视觉重构 · 设计探索</title>
+<style>
+  /* ===== 取自客户端浅色主题实测值(2026-09-08,127.0.0.1:1421 getComputedStyle) ===== */
+  :root {
+    --bg-app: #f8f8f8;
+    --bg-base: #ffffff;
+    --surface-hover: #f2f2f2;
+    --accent: #005fb8;
+    --accent-soft: rgba(0, 95, 184, 0.14);
+    --text-strong: #3b3b3b;
+    --text-quiet: #3b3b3b;
+    --text-muted: #7e7e7e;
+    --text-faint: #999999;
+    --border: #cecece;
+    --run-green: #059669;
+    --run-green-soft: rgba(5, 150, 105, 0.25);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Segoe UI", sans-serif;
+    background: #ececec;
+    color: var(--text-strong);
+    font-size: 14px;
+    padding: 24px;
+  }
+
+  /* ===== 页面头部 ===== */
+  .page-head { max-width: 1320px; margin: 0 auto 20px; }
+  .page-head h1 { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
+  .pains { display: flex; gap: 10px; flex-wrap: wrap; }
+  .pain-chip {
+    background: #fdecec; color: #c42b2b; border: 1px solid #f3c2c2;
+    border-radius: 6px; padding: 6px 10px; font-size: 12px; line-height: 1.5;
+  }
+  .pain-chip b { font-weight: 600; }
+
+  /* ===== 三栏布局 ===== */
+  .columns { display: flex; gap: 20px; max-width: 1320px; margin: 0 auto; align-items: flex-start; }
+  .col { flex: 1; min-width: 0; }
+  .col-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .col-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5; }
+
+  /* ===== 侧栏仿真 ===== */
+  .sidebar {
+    width: 100%; background: var(--bg-app);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 6px 12px; overflow: hidden;
+  }
+
+  /* —— 工作区行(三栏共用) —— */
+  .ws-row {
+    display: flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 8px; border-radius: 6px;
+    font-size: 13px; font-weight: 500; color: var(--text-strong);
+    cursor: pointer; position: relative;
+  }
+  .ws-row:hover { background: var(--surface-hover); }
+  .sidebar {
+    width: 244px; margin: 0 auto; background: var(--bg-app);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 6px 12px; overflow: hidden;
+  }
+  .ws-children { margin-top: 2px; position: relative; }
+
+  /* ============================================================
+     栏 1:现状还原(时间轴轨道 + CLI 分组段头 + 双态行)
+     ============================================================ */
+  .cur-children { padding-left: 0; position: relative; }
+  .cur-children::before { /* 贯穿竖线 x=20 */
+    content: ""; position: absolute; left: 19.5px; top: -14px; bottom: 6px;
+    width: 1px; background: rgba(126,126,126,.3);
+  }
+  .cur-group {
+    position: relative; display: flex; align-items: center; gap: 4px;
+    margin-left: 19.5px; padding: 2px 5px 0 12px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--text-faint); line-height: 18px;
+  }
+  .cur-group .g-icon {
+    position: absolute; left: -5.5px; top: 50%; transform: translateY(-50%);
+    width: 12px; height: 12px; border-radius: 99px; background: var(--bg-app);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; font-weight: 700;
+  }
+  .cur-group .g-count {
+    font-size: 10px; padding: 1px 5px; border-radius: 99px;
+    background: var(--surface-hover); color: var(--text-quiet);
+  }
+  .cur-row {
+    position: relative; display: flex; align-items: center; gap: 2px;
+    min-height: 30px; padding: 2px 0 2px 8px; margin-left: 19.5px;
+    width: calc(100% - 19.5px);
+    border-radius: 6px; font-size: 14px; color: var(--text-quiet); cursor: pointer;
+  }
+  .cur-row:hover { background: var(--surface-hover); }
+  .cur-row.active { background: rgba(242,242,242,.72); color: var(--text-strong); }
+  .cur-row .t-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cur-row.disk .t-name {
+    font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--text-muted);
+  }
+  .cur-row .t-time { font-size: 12px; color: var(--text-faint); opacity: .72; padding-right: 4px; }
+  /* 时间轴节点 */
+  .tl { position: absolute; left: -3px; top: 50%; transform: translateY(-50%);
+    width: 7px; height: 7px; border-radius: 99px; background: #b9b9b9; }
+  .tl.run { background: #34d399; box-shadow: 0 0 0 2px var(--run-green-soft); animation: breathe 1.6s infinite; }
+  .tl.unread { background: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); animation: breathe 1.6s infinite; }
+  .cur-row.active .tl { background: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 4px rgba(0,95,184,.08); }
+  @keyframes breathe { 50% { opacity: .45; } }
+  .ask-badge {
+    height: 16px; padding: 0 6px; border-radius: 99px; font-size: 10px; line-height: 16px;
+    background: rgba(5,150,105,.12); border: 1px solid rgba(5,150,105,.5); color: #059669;
+    white-space: nowrap;
+  }
+  .st-run { font-size: 10px; color: var(--run-green); white-space: nowrap; }
+  .st-unread { font-size: 10px; color: var(--accent); white-space: nowrap; }
+
+  /* ============================================================
+     栏 2/3:提案公共 —— 扁平行(无轨道,缩进 12px)
+     ============================================================ */
+  .flat-children { padding-left: 12px; display: flex; flex-direction: column; gap: 1px; margin-top: 2px; }
+  .f-row {
+    position: relative; display: flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 8px; border-radius: 6px;
+    font-size: 13px; color: var(--text-quiet); cursor: pointer;
+  }
+  .f-row:hover { background: var(--surface-hover); }
+  .f-row.selected { background: var(--accent-soft); }
+  .f-row.selected::before {
+    content: ""; position: absolute; left: 0; top: 6px; bottom: 6px;
+    width: 2px; border-radius: 2px; background: var(--accent);
+  }
+  .f-row .dot { width: 6px; height: 6px; border-radius: 99px; flex-shrink: 0; background: #c4c4c4; }
+  .f-row .dot.run { background: var(--run-green); animation: breathe 1.6s infinite; }
+  .f-row .dot.unread { background: var(--accent); }
+  .f-row.selected .dot { background: var(--accent); }
+  .f-row .eye { width: 12px; flex-shrink: 0; font-size: 11px; color: var(--text-strong); }
+  /* 供应商图标:原型用字母徽章占位,落地用各 CLI 插件 glyph */
+  .f-row .p-icon {
+    width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: #fff;
+  }
+  .flag::after {
+    content: attr(data-flag); flex-shrink: 0; margin: 0 4px 0 2px;
+    font-size: 11px; color: #c42b2b; font-weight: 700;
+  }
+  /* 方案 B:时间分桶段头 */
+  .bucket {
+    font-size: 11px; font-weight: 600; color: var(--text-muted);
+    padding: 8px 8px 2px; letter-spacing: 0.02em;
+  }
+  .bucket:first-child { padding-top: 2px; }
+
+  /* 品牌色(原型近似) */
+  .b-claude { background: #d97757; }
+  .b-codex { background: #10a37f; }
+  .b-kimi { background: #1a64f0; }
+  .b-omp { background: #7c3aed; }
+  .b-qoder { background: #0ea5e9; }
+  .b-term { background: #525252; }
+  .b-ssh { background: #b45309; }
+
+  /* ===== 注解与页脚 ===== */
+  .notes { max-width: 1320px; margin: 24px auto 0; display: flex; gap: 20px; }
+  .note-card {
+    flex: 1; background: var(--bg-base); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; font-size: 12px; line-height: 1.8;
+  }
+  .note-card h3 { font-size: 13px; margin-bottom: 6px; }
+  .note-card li { margin-left: 16px; }
+  .note-card .q { color: #b45309; font-weight: 600; }
+  kbd { background: var(--surface-hover); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>工作区会话列表 · 视觉重构探索(2026-09-08)</h1>
+  <div class="pains">
+    <div class="pain-chip"><b>痛点①</b> 对话标题比上级分组标题还大还亮,层级倒挂</div>
+    <div class="pain-chip"><b>痛点②</b> 同级对话有的高亮有的灰、字号还不一致,扫读困难</div>
+    <div class="pain-chip"><b>痛点③</b> 供应商分组多一层;诉求:按时间平铺 + 行首供应商 icon(AIchat 式)</div>
+  </div>
+</div>
+
+<div class="columns">
+
+  <!-- ═══════════ 栏 1:现状还原 ═══════════ -->
+  <div class="col">
+    <div class="col-title">现状(还原)</div>
+    <div class="col-sub">时间轴轨道 + CLI 分组段头;live 行 14px / 磁盘行 12px 等宽灰</div>
+    <div class="sidebar">
+      <div class="ws-row"><span class="folder">📁</span><span class="name">tmd-cli</span><span class="chev">▾</span></div>
+      <div class="ws-children cur-children">
+        <div class="cur-group"><span class="g-icon b-claude" style="color:#fff">C</span>Claude<span class="g-count">4</span></div>
+        <div class="cur-row active flag" data-flag="①"><span class="tl"></span><span class="t-name">工作区会话 ui 展示现在需要做…</span><span class="st-run">运行中</span></div>
+        <div class="cur-row"><span class="tl unread"></span><span class="t-name">图标装饰设置卡取色器联调</span><span class="st-unread">未读</span></div>
+        <div class="cur-row disk flag" data-flag="②"><span class="tl"></span><span class="t-name">a95c8d4b · fix(settings)</span><span class="t-time">3天</span></div>
+        <div class="cur-row disk"><span class="tl"></span><span class="t-name">42ed114 · 全局界面字号</span><span class="t-time">4天</span></div>
+        <div class="cur-group"><span class="g-icon b-kimi" style="color:#fff">K</span>Kimi<span class="g-count">3</span></div>
+        <div class="cur-row"><span class="tl run"></span><span class="t-name">hermes 全局 node_modules 恢…</span><span class="ask-badge">等待确认</span></div>
+        <div class="cur-row disk"><span class="tl"></span><span class="t-name">01a07c83 · 浏览器桩目检</span><span class="t-time">1天</span></div>
+        <div class="cur-row disk"><span class="tl"></span><span class="t-name">01a03922 · segmented control</span><span class="t-time">5天</span></div>
+        <div class="cur-group flag" data-flag="③"><span class="g-icon b-codex" style="color:#fff">C</span>Codex<span class="g-count">2</span></div>
+        <div class="cur-row disk"><span class="tl"></span><span class="t-name">9f2e… · cargo clippy 修复</span><span class="t-time">6天</span></div>
+        <div class="cur-row disk"><span class="tl"></span><span class="t-name">7b1a… · ConPTY 握手</span><span class="t-time">7天</span></div>
+      </div>
+      <div class="ws-row" style="margin-top:6px"><span class="folder">📁</span><span class="name">hermes</span><span class="chev">▸</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 栏 2:方案 A 扁平时间序 ═══════════ -->
+  <div class="col">
+    <div class="col-title">方案 A · 扁平时间序(AIchat 式)</div>
+    <div class="col-sub">去掉供应商分组;全部会话按时间倒序平铺,行首 14px 供应商 icon,行尾相对时间</div>
+    <div class="sidebar">
+      <div class="ws-row"><span class="folder">📁</span><span class="name">tmd-cli</span><span class="chev">▾</span></div>
+      <div class="flat-children">
+        <div class="f-row selected"><span class="eye">👁</span><span class="p-icon b-claude">C</span><span class="t-name">工作区会话 ui 展示现在需要做…</span><span class="st-run">运行中</span></div>
+        <div class="f-row"><span class="dot run"></span><span class="p-icon b-kimi">K</span><span class="t-name">hermes 全局 node_modules 恢…</span><span class="ask-badge">等待确认</span></div>
+        <div class="f-row"><span class="dot unread"></span><span class="p-icon b-claude">C</span><span class="t-name">图标装饰设置卡取色器联调</span><span class="t-time">2小时</span></div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-kimi">K</span><span class="t-name">浏览器桩目检 lottery 排查</span><span class="t-time">1天</span></div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-omp">O</span><span class="t-name">双装遮蔽 which -a 排查</span><span class="t-time">1天</span></div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-claude">C</span><span class="t-name">fix(settings) segmented control</span><span class="t-time">3天</span></div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-claude">C</span><span class="t-name">全局界面字号 px→rem 迁移</span><span class="t-time">4天</span></div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-qoder">Q</span><span class="t-name">插件市场徽标对齐</span><span class="t-time">5天</span></div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-codex">C</span><span class="t-name">cargo clippy 警告清理</span><span class="t-time">6天</span></div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-term">›</span><span class="t-name unnamed">终端 · zsh</span><span class="t-time">6天</span></div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-ssh">S</span><span class="t-name">prod 服务器日志排查</span><span class="t-time">7天</span></div>
+      </div>
+      <div class="ws-row" style="margin-top:6px"><span class="folder">📁</span><span class="name">hermes</span><span class="chev">▸</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 栏 3:方案 B 时间分桶 ═══════════ -->
+  <div class="col">
+    <div class="col-title">方案 B · 时间分桶(GPT 式)</div>
+    <div class="col-sub">同样扁平 + icon,但按「今天 / 昨天 / 7 天内 / 更早」分段,扫读锚点更强</div>
+    <div class="sidebar">
+      <div class="ws-row"><span class="folder">📁</span><span class="name">tmd-cli</span><span class="chev">▾</span></div>
+      <div class="flat-children">
+        <div class="bucket">今天</div>
+        <div class="f-row selected"><span class="eye">👁</span><span class="p-icon b-claude">C</span><span class="t-name">工作区会话 ui 展示现在需要做…</span><span class="st-run">运行中</span></div>
+        <div class="f-row"><span class="dot run"></span><span class="p-icon b-kimi">K</span><span class="t-name">hermes 全局 node_modules 恢…</span><span class="ask-badge">等待确认</span></div>
+        <div class="f-row"><span class="dot unread"></span><span class="p-icon b-claude">C</span><span class="t-name">图标装饰设置卡取色器联调</span><span class="t-time">14:02</span></div>
+        <div class="bucket">昨天</div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-kimi">K</span><span class="t-name">浏览器桩目检 lottery 排查</span><span class="t-time">昨天</span></div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-omp">O</span><span class="t-name">双装遮蔽 which -a 排查</span><span class="t-time">昨天</span></div>
+        <div class="bucket">7 天内</div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-claude">C</span><span class="t-name">fix(settings) segmented control</span><span class="t-time">3天</span></div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-claude">C</span><span class="t-name">全局界面字号 px→rem 迁移</span><span class="t-time">4天</span></div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-qoder">Q</span><span class="t-name">插件市场徽标对齐</span><span class="t-time">5天</span></div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-codex">C</span><span class="t-name">cargo clippy 警告清理</span><span class="t-time">6天</span></div>
+        <div class="bucket">更早</div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-term">›</span><span class="t-name unnamed">终端 · zsh</span><span class="t-time">6天</span></div>
+        <div class="f-row"><span class="dot"></span><span class="p-icon b-ssh">S</span><span class="t-name">prod 服务器日志排查</span><span class="t-time">7天</span></div>
+      </div>
+      <div class="ws-row" style="margin-top:6px"><span class="folder">📁</span><span class="name">hermes</span><span class="chev">▸</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="notes">
+  <div class="note-card">
+    <h3>两方案共同的设计决策</h3>
+    <li><b>层级收敛为两层</b>:工作区 → 会话。供应商不再是分组维度,退化为行首 14px icon(落地用各 CLI 插件 glyph,原型为字母徽章占位)。</li>
+    <li><b>字号统一</b>:所有会话行 13px 同字重,不再区分 live 14px / 磁盘 12px 等宽 —— 痛点② 的根治;未命名会话仅颜色降一档(muted),字号不降级。</li>
+    <li><b>选中态唯一高亮</b>:accent-soft 底 + 2px 左竖条 + 查看中眼睛,整列表只有一行亮 —— 痛点① 的根治。</li>
+    <li><b>状态语义保留</b>:6px 圆点(绿呼吸=运行中 / 蓝=未读 / 灰=静止),「等待确认」胶囊不变;时间轴贯穿竖线随扁平化移除。</li>
+    <li><b>终端 / SSH 同样平铺</b>:icon 区分会话种类,不再单设分组。</li>
+  </div>
+  <div class="note-card">
+    <h3>待定问题(看完原型拍板)</h3>
+    <li><span class="q">Q1</span> A 还是 B?A 更省垂直空间,B 的时间锚点更强(用户原话引用的是 AIchat 平铺,A 更贴近)。</li>
+    <li><span class="q">Q2</span> 全局「置顶区」「运行区」保持现状不动,还是也并入扁平?本原型假设不动。</li>
+    <li><span class="q">Q3</span> 原 CLI 分组段头上的「会话管理」入口(批量归档/删除)迁到哪:工作区行 hover 齿轮,还是段头保留一个「管理」链接?</li>
+    <li><span class="q">Q4</span> 归档视图、分页「加载更多」沿用现状,仅换行形 —— 是否同意?</li>
+    <li><span class="q">Q5</span> 折叠持久化粒度:CLI 分组折叠设置项随分组移除而废止,只留工作区级折叠 —— 是否同意?</li>
+  </div>
+</div>
+
+</body>
+</html>

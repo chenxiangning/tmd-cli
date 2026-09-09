@@ -22,10 +22,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { host } from "@kernel/host";
+import { composerSendTransforms, composerWakeRef } from "@kernel/composerExt";
 import { t } from "@kernel/i18n";
 import { useComposerStage } from "@kernel/composerStage";
 import { useComposerAttachments } from "./useComposerAttachments";
-import { KernelTopics } from "@kernel/events";
+import { emitPromptSent, readPromptGate } from "../promptGate";
 import { Mounts } from "@kernel/Mounts";
 import { useSettingsState } from "@kernel/settings";
 import { getTerminalHandle } from "@kernel/messageAnchors";
@@ -33,6 +34,7 @@ import { useWorkspaces } from "@kernel/workspace";
 import { readDragPayload } from "@kernel/internalDrag";
 import { prepareSendPayload } from "../serialize/serialize";
 import { SuggestionList } from "./SuggestionList";
+import { DragOverlay } from "./DragOverlay";
 import { shouldSendOnEnter } from "./enterAction";
 import { useActiveProfile } from "../state/useActiveProfile";
 import { CommandDrawer } from "./CommandDrawer";
@@ -87,8 +89,9 @@ export function Composer() {
     pickIndex,
     setPickIndex,
     setMatches,
-    setActiveRange,
     applyPick,
+    wakeTrigger,
+    dismiss,
   } = useComposerTriggers({
     profile,
     value,
@@ -103,7 +106,11 @@ export function Composer() {
      ⌘K 开合已收编为 composer.toggleDrawer 命令(注册见插件入口);发送路径零改动 */
   useEffect(() => {
     composerSendRef.current = () => sendCurrent();
-    return () => { composerSendRef.current = null; };
+    composerWakeRef.current = wakeTrigger;
+    return () => {
+      composerSendRef.current = null;
+      composerWakeRef.current = null;
+    };
   });
 
   function sendCurrent() {
@@ -117,11 +124,14 @@ export function Composer() {
     if (trimmed.startsWith("/commit ")) {
       host.events.emit("git://composer-prefill", { message: trimmed.slice(8).trim() });
     }
-    const payload = prepareSendPayload(profile, value);
     const sid = host.getActiveSessionId()!;
+    /* 发送变换(composerExt 契约):仅用户自然语言消息走;抽屉/工具栏命令发送不经此 */
+    const payload = prepareSendPayload(profile, value,
+      composerSendTransforms().map((fn) => (text: string) => fn(text, sid)));
+    const gate = readPromptGate(sid); // 轮次闸写前现读:writeSession 作答即清 ask 等待态
     host.writeSession(sid, payload);
-    /* 锚点快照信号(checkpoints 消费):仅此处与抽屉发送 emit —— 幕布击键同走 writeSession,不能当 prompt */
-    host.events.emit(KernelTopics.promptSent, { sessionId: sid, text: trimmed.slice(0, 400) });
+    /* 锚点快照信号(checkpoints 消费)过轮次闸:ask 作答/轮中斜杠命令不开轮不广播;幕布击键同走 writeSession,不能当 prompt */
+    emitPromptSent(gate, sid, trimmed);
     setValue("");
     clearAttachments();
     setMatches(null);
@@ -171,8 +181,8 @@ export function Composer() {
           ref={ref}
           value={value}
           placeholder={settings.sendShortcut === "cmdOrCtrlEnter"
-            ? t("输入消息，⌘/Ctrl+回车发送，回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。")
-            : t("输入消息，回车发送，Shift+回车换行。可用 / 命令 / $ skill / @ 文件引用。拖入文件或 ⌘V 粘贴图片会自动插入引用。")}
+            ? t("输入消息,⌘/Ctrl+回车发送,回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。")
+            : t("输入消息,回车发送,Shift+回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。")}
           className="min-h-0 flex-1 resize-none bg-transparent p-0 pr-10 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint)"
           onChange={(e) => {
             setValue(e.target.value);
@@ -187,8 +197,7 @@ export function Composer() {
              面板内部点击不触发此 blur(面板容器 onMouseDown preventDefault 保焦) */
           onBlur={(e) => {
             if (!composerRef.current?.contains(e.relatedTarget as Node | null)) {
-              setMatches(null);
-              setActiveRange(null);
+              dismiss();
             }
           }}
           onKeyDown={(e) => {
@@ -214,8 +223,7 @@ export function Composer() {
               }
               if (e.key === "Escape") {
                 e.preventDefault();
-                setMatches(null);
-                setActiveRange(null);
+                dismiss();
                 return;
               }
             }
@@ -251,6 +259,10 @@ export function Composer() {
           }}
           onPaste={handlePaste}
         />
+        {/* 资产唤醒入口(assets 插件贡献):右缘竖向图标列,几何见 composer-anchors.css */}
+        <div className="composer-input-rail">
+          <Mounts point="composer.inputRail" />
+        </div>
         {/* 对话锚点栏:右缘 dash 导航,数据/跳转走 kernel messageAnchors */}
         <AnchorRail />
         </>
@@ -271,14 +283,7 @@ export function Composer() {
           />,
           document.body,
         )}
-        {/* 拖拽悬停遮罩:对齐 composer-design.html 的 .drag-over(accent 内环 + 虚线框 + 提示)。
-           pointer-events-none 让 drop 穿透到根容器;inset 顶部留 32px 避开状态栏 */}
-        {dragOver && (
-          <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-(--tmd-bg-elevated)/75">
-            <div className="absolute inset-x-2 bottom-2 top-8 rounded-lg border-[1.5px] border-dashed border-(--tmd-accent)" />
-            <span className="relative text-xs text-(--tmd-accent)">{t("释放以附加文件 / 图片")}</span>
-          </div>
-        )}
+        {dragOver && <DragOverlay />}
       </div>
       {previewSrc && (
         <div

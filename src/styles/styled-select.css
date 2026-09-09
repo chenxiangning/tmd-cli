@@ -1,0 +1,167 @@
+/* StyledSelect —— 设置页统一下拉(替代原生 select 弹层)
+ * 观感对齐 composer 弹层范式:触发器 = 圆角 pill(开合 chevron 翻转);
+ * 弹层 = 悬浮卡片(大圆角/软阴影),选项行宽松,选中对勾右对齐。
+ * 颜色全走 --tmd-* 设计变量,深浅主题自适应。 */
+
+.styled-select {
+  position: relative;
+  min-width: 0;
+}
+
+/* ---- 触发器 pill ---- */
+.styled-select-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 7px;
+  background: var(--tmd-bg-input);
+  color: var(--tmd-fg);
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.styled-select-btn:hover:not(:disabled) {
+  border-color: var(--tmd-border-strong);
+  background: var(--tmd-bg-hover);
+}
+
+.styled-select-btn.is-open {
+  border-color: var(--tmd-accent);
+  box-shadow: 0 0 0 2px var(--tmd-accent-soft);
+}
+
+.styled-select-btn:focus-visible {
+  outline: none;
+  border-color: var(--tmd-accent);
+}
+
+.styled-select-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.styled-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.styled-select-value.is-placeholder {
+  color: var(--tmd-fg-muted);
+}
+
+.styled-select-hint {
+  flex: none;
+  font-size: 0.625rem;
+  color: var(--tmd-fg-muted);
+}
+
+.styled-select-btn > svg {
+  flex: none;
+  color: var(--tmd-fg-muted);
+  transition: transform 0.15s ease;
+}
+
+.styled-select-btn.is-open > svg {
+  transform: rotate(180deg);
+}
+
+/* ---- 弹层卡片 ---- */
+.styled-select-pop {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 100%;
+  width: max-content;
+  max-width: 360px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 10px;
+  background: var(--tmd-bg-elevated);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 12px 32px rgba(0, 0, 0, 0.16);
+  overflow: hidden;
+}
+
+.styled-select-search {
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-bottom: 1px solid var(--tmd-border);
+  background: transparent;
+  color: var(--tmd-fg);
+  font-size: 0.75rem;
+  outline: none;
+}
+
+.styled-select-search::placeholder {
+  color: var(--tmd-fg-subtle);
+}
+
+.styled-select-list {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.styled-select-empty {
+  padding: 12px;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--tmd-fg-muted);
+}
+
+/* ---- 选项行:标签在左,对勾右对齐 ---- */
+.styled-select-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tmd-fg);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.styled-select-opt:hover:not(:disabled) {
+  background: var(--tmd-bg-hover);
+}
+
+.styled-select-opt:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.styled-select-opt.is-active {
+  color: var(--tmd-accent);
+  font-weight: 500;
+}
+
+.styled-select-opt-check {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  color: var(--tmd-accent);
+}
+
+.styled-select-opt-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

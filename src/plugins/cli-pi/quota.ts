@@ -1,8 +1,7 @@
 /**
  * pi CLI 额度 provider ── 凭据适配层。
  *
- * 凭据源与路由规则见 piLocalConfig.ts / piRoute.ts(文件规模铁则拆出,
- * 此处 re-export 维持既有导入契约)。
+ * 凭据源与路由规则见 piLocalConfig.ts / piRoute.ts(文件规模铁则拆出)。
  *
  * 兼容凭据引用: `$ENV_VAR` 从环境变量取值;`!command` 不执行 shell,显式报不支持。
  * HTTP 调用全部走 cli-shared/quota/vendors.ts 共同能力。
@@ -10,20 +9,14 @@
 
 import { ipc } from "@kernel/ipc";
 import type { QuotaFetchContext, QuotaSnapshot } from "@kernel/quota";
+import { fetchCodexQuotaWithSnapshot } from "../cli-shared/quota/codexLocal";
 import {
   fetchVendorQuota,
-  VENDOR_TITLE,
+  toQuotaSnapshot,
   type VendorCredential,
 } from "../cli-shared/quota/vendors";
-import {
-  codexPlanLabelWithSnapshot,
-  readCodexLocalQuota,
-} from "../cli-shared/quota/codexLocal";
 import { readPiLocalConfig } from "./piLocalConfig";
 import { resolvePiRoute } from "./piRoute";
-
-export { parseJsonc, piAgentDir, type PiLocalConfig } from "./piLocalConfig";
-export { providersForModelId, resolvePiRoute } from "./piRoute";
 
 /* ── 凭据引用解析($ENV_VAR)────────────────────────────── */
 
@@ -67,38 +60,9 @@ export async function fetchPiQuota(ctx: QuotaFetchContext): Promise<QuotaSnapsho
   // 快照不可用降级 wham HTTP;非 OAuth 凭据直接走 HTTP。
   if (route.vendor === "openai-codex") {
     const cred = await resolveCredentialRefs(route.providerId, route.credential);
-    if (cred.access && cred.accountId) {
-      try {
-        const local = await readCodexLocalQuota();
-        return {
-          providerLabel: route.providerId,
-          title: VENDOR_TITLE["openai-codex"],
-          usedLabel: "已使用",
-          windows: local.windows,
-          planLabel: codexPlanLabelWithSnapshot(local),
-        };
-      } catch {
-        // 本地无快照(如从未在本机对话过)→ 降级 wham HTTP
-      }
-    }
-    const quota = await fetchVendorQuota("openai-codex", cred);
-    return {
-      providerLabel: route.providerId,
-      title: VENDOR_TITLE["openai-codex"],
-      usedLabel: "已使用",
-      windows: quota.windows,
-      balanceText: quota.balanceText,
-      planLabel: quota.planLabel,
-    };
+    return fetchCodexQuotaWithSnapshot(cred, route.providerId);
   }
   const cred = await resolveCredentialRefs(route.providerId, route.credential);
   const quota = await fetchVendorQuota(route.vendor, cred, route.baseUrl);
-  return {
-    providerLabel: route.providerId,
-    title: VENDOR_TITLE[route.vendor] ?? `${route.providerId} 额度`,
-    usedLabel: "已使用",
-    windows: quota.windows,
-    balanceText: quota.balanceText,
-    planLabel: quota.planLabel,
-  };
+  return toQuotaSnapshot(route.providerId, route.vendor, quota);
 }

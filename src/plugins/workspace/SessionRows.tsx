@@ -11,7 +11,6 @@ import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { host, useHost } from "@kernel/host";
-import { Eye } from "@phosphor-icons/react";
 import { PinIcon } from "@kernel/PinIcon";
 import { resolveSessionStatus, type SessionStatus } from "./utils";
 
@@ -46,7 +45,7 @@ export function useSessionStatus(sessionId: string): SessionStatus {
 }
 
 /** 时间节点三态:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止 —— 呼吸灯从 meta 区移到时间轴节点位。 */
-function ActivityDot({ sessionId }: { sessionId: string }) {
+export function ActivityDot({ sessionId }: { sessionId: string }) {
   const status = useSessionStatus(sessionId);
   const state =
     status === "running"
@@ -58,31 +57,13 @@ function ActivityDot({ sessionId }: { sessionId: string }) {
 }
 
 /** 终端/SSH 活会话呼吸灯:输出即绿,无轮次/未读概念 —— 与 CLI 会话的
- *  ActivityDot(status 状态机驱动)语义不同,4s 静默窗转灰。 */
+ *  ActivityDot(status 状态机驱动)语义不同,4s 静默窗闲置隐藏(1Hz ticker 驱动
+ *  隐判定,不依赖无关 host 事件触发重渲)。 */
 export function LiveOutputDot({ sessionId }: { sessionId: string }) {
+  const [, tick] = useState(0);
+  useEffect(() => subscribeActivityTick(() => tick((n) => n + 1)), []);
   const idle = Date.now() - host.getLastActivityAt(sessionId) > 4000;
   return <span className={`tl-node${idle ? " is-idle" : ""}`} aria-hidden />;
-}
-
-/**
- * 左侧节点槽位:正在查看(viewing = active)时圆点让位给 Eye 图标,
- * 切走/关闭会话即还原圆点 —— 「查看中」语义压过状态灯。
- */
-export function SessionNode({
-  sessionId,
-  viewing,
-}: {
-  sessionId: string;
-  viewing: boolean;
-}) {
-  if (viewing) {
-    return (
-      <span className="tl-node tl-node-viewing" aria-hidden>
-        <Eye size="0.8125rem" className="thread-viewing-eye" />
-      </span>
-    );
-  }
-  return <ActivityDot sessionId={sessionId} />;
 }
 
 /** 三态 label 文案与配色类(纯文字不闪烁 —— 呼吸只属于左侧圆点,文字态以颜色区分)。 */
@@ -160,7 +141,10 @@ export function DiskSessionRow({
       ) : (
         <span className="tl-node is-idle" aria-hidden />
       )}
-      <span className="thread-name is-disk">{title}</span>
+      <span className="thread-engine-badge" title={profile.name} aria-hidden>
+        {profile.renderIcon?.("0.75rem")}
+      </span>
+      <span className="thread-name">{title}</span>
       <span className="thread-meta">
         <PinToggle on={pinned} onToggle={onTogglePin} />
         <span className="thread-time">{formatRelativeTime(session.modifiedAt)}</span>

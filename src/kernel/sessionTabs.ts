@@ -1,5 +1,5 @@
 /**
- * 会话标题 tab 条 store —— 顶栏中央「打开的会话」MRU(容量 4)。
+ * 会话标题 tab 条 store —— 顶栏中央「打开的会话」MRU(容量可配,settings.sessionTabsMax)。
  *
  * 纯事件驱动:所有打开/聚焦路径(spawn、恢复磁盘会话、侧栏点活、删除后隐式切换)
  * 最终都收敛到 KernelTopics.activeSessionChanged 广播,这里订阅即可拿到「打开」事实,
@@ -8,18 +8,24 @@
  * - 关闭 = 摘 tab 不杀会话(PTY 继续跑,侧栏仍在);摘活跃 tab 时切到剩余 tab 中
  *   最近打开的一个,摘尽回 welcome(与「回到首页」同语义);
  * - 存活跟随:sessionsChanged 剪除已消失的 id(会话被删 / CLI 进程退出);
- * - 标题快照:打开点击处本就持有解析好的标题,noteSessionTabTitle 随手喂入兜底;
- *   渲染优先级:手动命名(settings.sessionTitles)> 快照 > 短码,改名即时生效。
+ * - 标题快照:打开点击处随手喂入;磁盘真标题落定处(分组 hook/运行区)回喂,
+ *   兜「打开早于自动命名落盘」—— tab 标签跟随自动命名,手动命名优先级更高;
+ * - 首条用户消息保底(promptSent 事件):磁盘 AI 命名晚于文件出生 35s+(omp 懒落盘
+ *   实证),保底标题线上即时可得;磁盘原生标题后到自然覆盖(行链 disk > 保底)。
  * - 不持久化:PTY 会话不跨应用重启存活,持久化只能恢复死 id。
  */
 
-import { useSyncExternalStore } from "react";
+import { createSubscribable } from "./subscribable";
 import { host } from "./host";
-import { KernelTopics, type EventBus } from "./events";
+import { KernelTopics, type EventBus, type PromptSentEvent } from "./events";
 import type { SessionMeta } from "./ipc";
+import { getSettingsState, subscribeSettings } from "./settings";
 
-/** tab 条容量:同时展示的打开会话数上限(用户定向:4 个)。 */
-export const SESSION_TABS_MAX = 4;
+/** 容量来源 settings.sessionTabsMax(1-10,默认 4);缩容即时修剪,保留最近打开。 */
+subscribeSettings(() => {
+  const max = getSettingsState().settings.sessionTabsMax;
+  if (state.ids.length > max) commit(state.ids.slice(state.ids.length - max));
+});
 
 interface SessionTabsState {
   /** 打开次序(早 → 晚)的活会话 tab id(tmd PTY id,非 CLI 磁盘 id)。 */
@@ -27,14 +33,13 @@ interface SessionTabsState {
 }
 
 const state: SessionTabsState = { ids: [] };
-/** 标题快照:key = tmd 会话 id。仅兜底展示,跟随存活剪除,不持久化。 */
 const titleHints = new Map<string, string>();
-const listeners = new Set<() => void>();
-let snapshot: SessionTabsState = state;
+/** 首条用户消息保底标题:key = tmd 会话 id。纯内存,存活剪除同 titleHints。 */
+const baselines = new Map<string, string>();
+const store = createSubscribable<SessionTabsState>(state);
 
 function emit(): void {
-  snapshot = { ids: state.ids };
-  listeners.forEach((fn) => fn());
+  store.commit({ ids: state.ids });
 }
 
 function commit(ids: readonly string[]): void {
@@ -46,8 +51,8 @@ function commit(ids: readonly string[]): void {
 function trackOpen(id: string): void {
   if (state.ids.includes(id)) return;
   const next =
-    state.ids.length >= SESSION_TABS_MAX
-      ? [...state.ids.slice(state.ids.length - SESSION_TABS_MAX + 1), id]
+    state.ids.length >= getSettingsState().settings.sessionTabsMax
+      ? [...state.ids.slice(state.ids.length - getSettingsState().settings.sessionTabsMax + 1), id]
       : [...state.ids, id];
   commit(next);
 }
@@ -55,8 +60,10 @@ function trackOpen(id: string): void {
 /** 会话集合变化 → 剪除已消失的 tab 与标题快照(会话被删 / 进程退出)。 */
 function pruneTo(sessions: readonly SessionMeta[]): void {
   const live = new Set(sessions.map((s) => s.id));
-  for (const id of [...titleHints.keys()]) {
-    if (!live.has(id)) titleHints.delete(id);
+  for (const map of [titleHints, baselines]) {
+    for (const id of [...map.keys()]) {
+      if (!live.has(id)) map.delete(id);
+    }
   }
   if (state.ids.some((id) => !live.has(id))) {
     commit(state.ids.filter((id) => live.has(id)));
@@ -87,12 +94,36 @@ export function bootSessionTabs(events: EventBus, injected?: SessionTabsDeps): v
   events.on<SessionMeta[]>(KernelTopics.sessionsChanged, (sessions) =>
     pruneTo(sessions ?? []),
   );
+  events.on<PromptSentEvent>(KernelTopics.promptSent, (p) => {
+    if (p && typeof p.sessionId === "string") captureBaseline(p.sessionId, p.text ?? "");
+  });
 }
 
-/** 打开点击处随手喂标题快照(渲染优先级:手动命名 > 快照 > 短码)。空串忽略。 */
+/** 采集保底标题:取首行,斜杠命令(CLI 控制命令,同 omp 命名跳过口径)与空行不采;
+ *  已有真快照(打开喂入/磁盘回喂)不覆盖 —— 短码已被 noteSessionTabTitle 拒收,
+ *  titleHints 里只可能是真标题,此判据可靠。截 200 与 settingsSanitizeSessions 同口径。 */
+function captureBaseline(id: string, text: string): void {
+  if (titleHints.has(id)) return;
+  const first = (text.split(/\r?\n/)[0] ?? "").replace(/\r$/, "").trim().slice(0, 200);
+  if (!first || first.startsWith("/")) return;
+  baselines.set(id, first);
+  noteSessionTabTitle(id, first);
+  /* 行组件不订 tab store:composer 先 writeSession(notify)后 promptSent,重渲已
+   * 发生而 baselines 未落 —— 这里补推一次,行标题保底即时上屏。 */
+  host.notify();
+}
+
+/** 行标题保底读取(活会话行:手动命名 > 磁盘原生标题 > 保底 > 短码)。 */
+export function getSessionBaseline(id: string): string | undefined {
+  return baselines.get(id);
+}
+
+/** 喂标题快照(打开点击处 + 磁盘真标题落定处回喂)。空串忽略,同值幂等;
+ *  短码形态(头4…尾4,行点击兜底历史喂入的垃圾)拒收 —— 快照只装真标题。 */
 export function noteSessionTabTitle(id: string, title: string): void {
   const trimmed = title.trim();
   if (!trimmed || titleHints.get(id) === trimmed) return;
+  if (/^.{4}….{4}$/.test(trimmed)) return;
   titleHints.set(id, trimmed);
   emit();
 }
@@ -133,20 +164,14 @@ export function closeAllSessionTabs(): void {
 }
 
 export function getSessionTabs(): readonly string[] {
-  return snapshot.ids;
+  return store.snapshot.ids;
 }
 
 /** React 组件订阅 tab 条变化(useSyncExternalStore,免引入状态库)。
  *  返回快照对象本身(引用随每次 emit 更新):标题快照 noteSessionTabTitle
  *  只改旁表不动 ids 数组,靠快照对象换引用驱动标签重渲染。 */
 export function useSessionTabs(): SessionTabsState {
-  return useSyncExternalStore(
-    (fn) => {
-      listeners.add(fn);
-      return () => listeners.delete(fn);
-    },
-    () => snapshot,
-  );
+  return store.useStore();
 }
 
 /** 测试专用:清空状态与接线(vitest 复用同一模块实例)。 */
@@ -155,4 +180,5 @@ export function resetSessionTabsForTest(): void {
   deps = hostDeps;
   commit([]);
   titleHints.clear();
+  baselines.clear();
 }

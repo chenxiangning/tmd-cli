@@ -11,6 +11,8 @@ import { useEffect, useState } from "react";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { engineConfigPath } from "../paths";
+// cli-shared 消费声明:本 feature 插件经共享层消费 CLI 配置 JSONC 格式知识(见 jsonc.ts 头注)。
+import { parseJsoncOrNull } from "../../cli-shared/jsonc";
 import { listModels, type ModelEntry } from "../modelCatalog";
 
 export interface EngineConfig {
@@ -19,19 +21,6 @@ export interface EngineConfig {
   sidekickModel: string;
   sidekickEnabled: boolean;
   embeddingEnabled: boolean;
-}
-
-
-/** jsonc → JSON:剥行注释与块注释后 parse(容错,失败回 null)。 */
-export function parseJsonc(text: string): Record<string, unknown> | null {
-  try {
-    const stripped = text
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/(^|[^:"'\\])\/\/.*$/gm, "$1");
-    return JSON.parse(stripped) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
 }
 
 function pickModel(block: unknown): string {
@@ -56,7 +45,7 @@ export function readEngineConfig(raw: Record<string, unknown> | null): EngineCon
 
 /** 引擎配置 → 可写回的 jsonc 文本(per-harness:pi 为基座,omp 回退 pi,opencode 独立)。 */
 export function serializeEngineConfig(config: EngineConfig, original: string | null): string {
-  const base = parseJsonc(original ?? "") ?? {};
+  const base = parseJsoncOrNull(original ?? "") ?? {};
   const withModel = (block: unknown, model: string): unknown => ({
     ...(typeof block === "object" && block ? (block as Record<string, unknown>) : {}),
     pi: { ...(((block as Record<string, unknown>)?.pi as object) ?? {}), model },
@@ -72,7 +61,7 @@ export function serializeEngineConfig(config: EngineConfig, original: string | n
 export async function readEngineConfigFile(): Promise<{ config: EngineConfig; original: string }> {
   const p = await engineConfigPath();
   const original = await ipc.fsReadFile(p).catch(() => "");
-  return { config: readEngineConfig(parseJsonc(original)), original };
+  return { config: readEngineConfig(parseJsoncOrNull(original)), original };
 }
 
 export async function writeEngineConfigFile(

@@ -56,6 +56,20 @@
   color: rgb(255, 140, 60); /* 橙色 ─ 跟用户截图一致 */
 }
 
+/* 图标装饰:per-panel 点亮色(缺省回落写死橙;见 kernel/iconDecor.ts) */
+.panel-tab.is-active[data-panel-id="files"] {
+  color: var(--icon-decor-panel-files, rgb(255, 140, 60));
+}
+.panel-tab.is-active[data-panel-id="git"] {
+  color: var(--icon-decor-panel-git, rgb(255, 140, 60));
+}
+.panel-tab.is-active[data-panel-id="checkpoints"] {
+  color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60));
+}
+.panel-tab.is-active[data-panel-id="memory"] {
+  color: var(--icon-decor-panel-memory, rgb(255, 140, 60));
+}
+
 
 .panel-tab svg {
   width: 0.875rem;
@@ -126,6 +140,18 @@
 
 .panel-overflow-item.is-active .panel-overflow-item-icon {
   color: rgb(255, 140, 60);
+}
+.panel-overflow-item.is-active[data-panel-id="files"] .panel-overflow-item-icon {
+  color: var(--icon-decor-panel-files, rgb(255, 140, 60));
+}
+.panel-overflow-item.is-active[data-panel-id="git"] .panel-overflow-item-icon {
+  color: var(--icon-decor-panel-git, rgb(255, 140, 60));
+}
+.panel-overflow-item.is-active[data-panel-id="checkpoints"] .panel-overflow-item-icon {
+  color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60));
+}
+.panel-overflow-item.is-active[data-panel-id="memory"] .panel-overflow-item-icon {
+  color: var(--icon-decor-panel-memory, rgb(255, 140, 60));
 }
 
 .panel-overflow-item-icon svg {

@@ -6,18 +6,18 @@
  *   │ (注册表动作…)        □ │  ← 右侧复选框 = pin 到底栏
  *   │ 设置                    │
  *   └────────────────────────┘
- *   [logo] [pinned…]      v0.1.2  ← 底栏
+ *   [logo] [pinned…]      v0.1.3  ← 底栏
  *
  * 动作数据源 = kernel/sidebarActions 注册表(插件 activate 时自注册),
  * 本组件只渲染注册表与钉住状态,不认识任何具体动作 —— 与右栏面板同纪律。
  * 「设置」行是壳自有入口(openSettingsPanel),钉住/pin 上限 4 同 codemoss。
- * 版本号取 Tauri app version,浏览器 dev 环境回退 "0.1.2"。
+ * 版本号取 Tauri app version,浏览器 dev 环境回退 "0.1.3"。
  */
 
 import { useEffect, useRef, useState } from "react";
 import { appVersion } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
-import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
+import { defaultPinnedActionIds, useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { openSettingsPanel, useSettingsState } from "@kernel/settings";
 import logoUrl from "../assets/logo.png";
 import { Check, Gear } from "@phosphor-icons/react";
@@ -26,19 +26,18 @@ import { VersionPopover } from "./VersionPopover";
 /** 底栏空间有限,最多外显 4 个快捷入口(同 codemoss SIDEBAR_SETTINGS_PINNED_MAX)。 */
 const PINNED_MAX = 4;
 const PINNED_STORAGE_KEY = "shell.settingsPinned.v1";
-/** 默认 pinned 的动作 id ─ 对齐参考截图(网络代理已钉在齿轮旁)。
- *  id 由各插件注册时声明;插件拔出 = 动作消失,钉住项自动隐藏,插回恢复。 */
-const DEFAULT_PINNED: string[] = ["system-proxy"];
 
+/** 钉住列表:localStorage 优先;空/损坏回落注册表内声明 defaultPinned 的动作
+ *  (默认钉住归插件自声明,壳不持 id 名册;本函数在插件激活后才执行,注册表已就绪)。 */
 function loadPinned(): string[] {
   try {
     const raw = localStorage.getItem(PINNED_STORAGE_KEY);
     const parsed = JSON.parse(raw ?? "[]");
-    if (!Array.isArray(parsed)) return [...DEFAULT_PINNED];
+    if (!Array.isArray(parsed)) return defaultPinnedActionIds();
     const ids = parsed.filter((v): v is string => typeof v === "string");
-    return ids.length > 0 ? ids.slice(0, PINNED_MAX) : [...DEFAULT_PINNED];
+    return ids.length > 0 ? ids.slice(0, PINNED_MAX) : defaultPinnedActionIds();
   } catch {
-    return [...DEFAULT_PINNED];
+    return defaultPinnedActionIds();
   }
 }
 
@@ -74,7 +73,7 @@ function PinCheckbox({
 export function SidebarSettingsCluster() {
   const [open, setOpen] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<string[]>(loadPinned);
-  const [version, setVersion] = useState("0.1.2");
+  const [version, setVersion] = useState("0.1.3");
   const [aboutOpen, setAboutOpen] = useState(false);
   const [aboutAnchor, setAboutAnchor] = useState({ x: 0, y: 0 });
   /* 订阅设置仅作重渲染触发:动作的 active 是渲染期求值的 getter,
@@ -86,7 +85,7 @@ export function SidebarSettingsCluster() {
   useEffect(() => {
     appVersion()
       .then(setVersion)
-      .catch(() => setVersion("0.1.2")); // 纯浏览器 dev(vite)下无 Tauri runtime
+      .catch(() => setVersion("0.1.3")); // 纯浏览器 dev(vite)下无 Tauri runtime
   }, []);
 
   /* 点击外部 / Esc 关菜单。 */
@@ -148,6 +147,7 @@ export function SidebarSettingsCluster() {
               <div
                 key={action.id}
                 className={`settings-menu-row${isActive ? " is-active" : ""}`}
+                data-action-id={action.id}
               >
                 <button
                   type="button"
@@ -193,7 +193,9 @@ export function SidebarSettingsCluster() {
           aria-label={t("设置")}
           aria-expanded={open}
           aria-haspopup="menu"
-          title={t("设置")}
+          data-hint={t("设置")}
+          data-hint-cmd="shell.openSettings"
+          title=""
           onClick={() => setOpen((v) => !v)}
         >
           <img src={logoUrl} alt="" className="settings-logo" />
@@ -205,6 +207,7 @@ export function SidebarSettingsCluster() {
               key={action.id}
               type="button"
               className={`settings-bar-btn${isActive ? " is-active" : ""}`}
+              data-action-id={action.id}
               aria-label={t(action.label)}
               aria-pressed={isActive}
               title={t(action.label)}

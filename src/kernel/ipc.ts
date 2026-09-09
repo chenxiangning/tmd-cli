@@ -98,6 +98,10 @@ export interface WorkspaceMeta {
   name: string;
   root: string;
   createdAt: number;
+  /** 所属工作区分组 id(分组定义在 settings.json;空 = 未分组)。 */
+  groupId?: string | null;
+  /** 显示名覆盖;空 = 显示目录名。 */
+  alias?: string | null;
 }
 
 export interface WorkspacesFile {
@@ -236,6 +240,13 @@ export const ipc = {
   /** 幕布往前翻页:before 绝对偏移之前最多 maxBytes 字节的原始输出。 */
   sessionHistoryPage: (id: string, before: number, maxBytes: number) =>
     invoke<HistoryPage>("session_history_page", { id, before, maxBytes }),
+  /** 身份绑定时刻回写「CLI 会话 → 当前代日志」指针(磁盘先行回放寻址)。 */
+  sessionLinkLog: (profileId: string, cwd: string, cliSessionId: string, logId: string) =>
+    invoke<void>("session_link_log", { profileId, cwd, cliSessionId, logId }),
+  /** 冷开磁盘会话:解指针读上一代日志尾;null = 无指针/日志,调用方回落现状路径。
+      返回页的 startOffset/hasMore 是文件相对假偏移,只准消费 text。 */
+  sessionDiskTail: (profileId: string, cwd: string, cliSessionId: string, maxBytes: number) =>
+    invoke<HistoryPage | null>("session_disk_tail", { profileId, cwd, cliSessionId, maxBytes }),
   fsListDir: (path: string) => invoke<DirEntry[]>("fs_list_dir", { path }),
   /** 项目文件索引(composer @ 补全候选):递归 + gitignore/.ignore/.fdignore,
    *  跳 dotfiles/node_modules,返回 root 相对 posix 路径(排序稳定);cap = 上限。
@@ -340,8 +351,9 @@ export const ipc = {
   gitTotals: (cwd: string) => invoke<GitTotals>("git_totals", { cwd }),
   /** 低频:ahead/behind 仅在 fetch/切分支/手动刷新后拉,勿挂轮询。 */
   gitAheadBehind: (cwd: string) => invoke<GitAheadBehind>("git_ahead_behind", { cwd }),
-  gitDiffFilePatch: (cwd: string, path: string, staged: boolean) =>
-    invoke<GitFilePatch | null>("git_diff_file_patch", { cwd, path, staged }),
+  /** full = 「全文查看」整文件上下文(单文件按需,勿默认开)。 */
+  gitDiffFilePatch: (cwd: string, path: string, staged: boolean, full: boolean) =>
+    invoke<GitFilePatch | null>("git_diff_file_patch", { cwd, path, staged, full }),
   gitStage: (cwd: string, paths: string[]) =>
     invoke<void>("git_stage", { cwd, paths }),
   gitUnstage: (cwd: string, paths: string[]) =>
@@ -358,8 +370,8 @@ export const ipc = {
   gitCommitFiles: (cwd: string, sha: string) =>
     invoke<GitCommitFile[]>("git_commit_files", { cwd, sha }),
   /** 提交内单文件 patch;path 按 新路径/rename 来源 匹配。 */
-  gitCommitFilePatch: (cwd: string, sha: string, path: string) =>
-    invoke<GitFilePatch | null>("git_commit_file_patch", { cwd, sha, path }),
+  gitCommitFilePatch: (cwd: string, sha: string, path: string, full: boolean) =>
+    invoke<GitFilePatch | null>("git_commit_file_patch", { cwd, sha, path, full }),
   /** 提交完整 message(首行+正文;分支对比详情面板)。 */
   gitCommitMessage: (cwd: string, sha: string) =>
     invoke<string>("git_commit_message", { cwd, sha }),
@@ -396,7 +408,6 @@ export const ipc = {
   /** 工作树对分支的单文件 patch(path 按 新路径/rename 来源 匹配)。 */
   gitBranchWorktreePatch: (cwd: string, branch: string, path: string) =>
     invoke<GitFilePatch | null>("git_branch_worktree_patch", { cwd, branch, path }),
-  gitFetch: (cwd: string) => invoke<string>("git_fetch", { cwd }),
   /** pull/push/fetch 统一入口;branch 缺省作用于当前分支(fetch 缺省 = --all --prune)。
    *  pull 非当前分支 = 仅 fast-forward 上游引用;fetch 带分支 = 刷新该分支上游引用。 */
   gitPullPush: (cwd: string, op: "pull" | "push" | "fetch", branch?: string) =>
@@ -488,9 +499,6 @@ export const ipc = {
       cwd,
       workspaceId: workspaceId ?? null,
     }),
-  /** 会话当前状态(webview 重载后重建面板状态用)。 */
-  sshSessionStatus: (sessionId: string) =>
-    invoke<string>("ssh_session_status", { sessionId }),
   /** 提示应答:hostKey 传 trustHostKey;kbi/password 传 answer。 */
   sshPromptAnswer: (promptId: string, answer?: string, trustHostKey?: boolean) =>
     invoke<void>("ssh_prompt_answer", {
@@ -510,8 +518,6 @@ export const ipc = {
   /* ── SFTP ── */
   sftpList: (sessionId: string, path?: string) =>
     invoke<SftpEntry[]>("ssh_sftp_list", { sessionId, path: path ?? null }),
-  sftpStat: (sessionId: string, path: string) =>
-    invoke<SftpEntry | null>("ssh_sftp_stat", { sessionId, path }),
   sftpReadText: (sessionId: string, path: string, offset?: number, maxBytes?: number) =>
     invoke<SftpReadText>("ssh_sftp_read_text", {
       sessionId,
@@ -561,8 +567,6 @@ export const ipc = {
     }),
   sftpTransferCancel: (sessionId: string, transferId: string) =>
     invoke<void>("ssh_sftp_transfer_cancel", { sessionId, transferId }),
-  sftpTransferStatus: (sessionId: string, transferId: string) =>
-    invoke<SftpTransferState>("ssh_sftp_transfer_status", { sessionId, transferId }),
 
   /* ── SSH 本地端口转发(-L)── */
   sshForwardStart: (

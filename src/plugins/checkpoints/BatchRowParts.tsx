@@ -42,7 +42,7 @@ export function ConfirmCard({
 }) {
   const apply = confirm.mode === "apply";
   return (
-    <div className="ml-8 mb-2 rounded-(--tmd-radius-sm) border border-(--tmd-border-strong) bg-(--tmd-bg-popover) p-2.5">
+    <div className="ml-4 mb-2 rounded-(--tmd-radius-sm) border border-(--tmd-border-strong) bg-(--tmd-bg-popover) p-2.5">
       <div className="mb-1 text-xs font-semibold">
         {apply
           ? t("应用回此批")

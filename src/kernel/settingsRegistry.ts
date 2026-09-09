@@ -8,7 +8,7 @@
  */
 
 import type { ComponentType, ReactNode } from "react";
-import { useSyncExternalStore } from "react";
+import { createSubscribable } from "./subscribable";
 
 interface SettingsTabContribution {
   /** section 内唯一,如 "appearance"。 */
@@ -33,8 +33,7 @@ export interface SettingsSectionContribution {
 }
 
 const sections = new Map<string, SettingsSectionContribution>();
-const listeners = new Set<() => void>();
-let snapshot: SettingsSectionContribution[] = [];
+const store = createSubscribable<SettingsSectionContribution[]>([]);
 
 function sorted(): SettingsSectionContribution[] {
   return [...sections.values()].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -49,16 +48,9 @@ export function registerSettingsSection(section: SettingsSectionContribution): v
     ...section,
     tabs: [...section.tabs].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
   });
-  snapshot = sorted();
-  listeners.forEach((fn) => fn());
+  store.commit(sorted());
 }
 
 export function useSettingsSections(): SettingsSectionContribution[] {
-  return useSyncExternalStore(
-    (fn) => {
-      listeners.add(fn);
-      return () => listeners.delete(fn);
-    },
-    () => snapshot,
-  );
+  return store.useStore();
 }

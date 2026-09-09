@@ -10,6 +10,7 @@ import { MESSAGES as composer } from "./composer";
 import { MESSAGES as ssh } from "./ssh";
 import { MESSAGES as memory } from "./memory";
 import { MESSAGES as misc } from "./misc";
+import { MESSAGES as assets } from "./assets";
 
 export const JA_MESSAGES: Record<string, string> = {
   ...common,
@@ -22,5 +23,6 @@ export const JA_MESSAGES: Record<string, string> = {
   ...composer,
   ...ssh,
   ...memory,
+  ...assets,
   ...misc,
 };

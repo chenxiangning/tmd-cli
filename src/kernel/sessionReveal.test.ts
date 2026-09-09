@@ -27,6 +27,14 @@ describe("sessionReveal", () => {
     expect(seen).toEqual(["b", "c"]);
     off();
   });
+  it("无 handler 期多次请求:全量按序补派发,不丢中间请求", () => {
+    const seen: string[] = [];
+    requestSessionReveal("x");
+    requestSessionReveal("y");
+    const off = registerSessionRevealHandler((id) => seen.push(id));
+    expect(seen).toEqual(["x", "y"]);
+    off();
+  });
 
   it("退订后请求回到暂存,新注册方接手", () => {
     const seen: string[] = [];

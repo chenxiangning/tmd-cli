@@ -41,7 +41,7 @@ export const ADOPT_RACE_REASON = "会话在装配期间被移除(进程启动后
 
 /**
  * spawn 共用装配:常驻订阅输出与退出、竞态守卫、广播会话表。
- * 返回 null = 守卫分支命中(已广播 sessionStartFailed),调用方应抛出。
+ * 返回 null = 守卫分支命中(已广播 sessionStartFailed)。
  */
 export async function adoptPtySession(
   h: SessionAdoptHost,

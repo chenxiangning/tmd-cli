@@ -8,7 +8,7 @@
  * - RightPanelToolbar: 内部组件,仅在右侧 aside 渲染 WorkspaceSubbar。
  */
 
-import { memo, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { memo, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { Check, DotsThree, FilePlus, FolderSimplePlus, ArrowClockwise } from "@phosphor-icons/react";
 import {
@@ -17,14 +17,9 @@ import {
   useFilePanel,
   type FilePanelContribution,
 } from "@kernel/filePanel";
-import { useWorkspaces } from "@kernel/workspace";
-import { deriveWorkspaceName } from "@kernel/pathUtils";
+import { useWorkspaces, workspaceDisplayName } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 
-/** workspace 路径末段当 section title。例 /Users/x/CCGUI → CCGUI。 */
-function deriveWorkspaceLabel(root: string, fallbackName?: string): string {
-  return (fallbackName ?? (deriveWorkspaceName(root) || "WORKSPACE")).toUpperCase();
-}
 
 /* ──────────────────────────────────────────────────────────
  * TopBar 用 panel tabs 组件 ─ 由 header.right 挂点提供。
@@ -67,6 +62,7 @@ export function TopBarPanelTabs() {
               key={panel.id}
               type="button"
               className={`panel-tab${isActive ? " is-active" : ""}`}
+              data-panel-id={panel.id}
               onClick={() => setFilePanelMode(panel.id)}
               aria-label={t(panel.label)}
               title={t(panel.label)}
@@ -140,6 +136,7 @@ function PanelOverflowMenu({
             <div
               key={panel.id}
               className={`panel-overflow-item${isActive ? " is-active" : ""}`}
+              data-panel-id={panel.id}
               role="menuitem"
               onClick={() => {
                 setFilePanelMode(panel.id);
@@ -179,7 +176,8 @@ function WorkspaceSubbar() {
   const { list, activeId } = useWorkspaces();
   const active = list.find((w) => w.id === activeId) ?? list[0];
   const root = active?.root;
-  const label = useMemo(() => (root ? deriveWorkspaceLabel(root) : ""), [root]);
+  /* 不用 useMemo:alias 原地变更(list 项引用不变)会滞 stale;取名字符串操作本就廉价。 */
+  const label = active ? workspaceDisplayName(active).toUpperCase() : "";
   /* 刷新/新建文件/新建文件夹:调激活面板注册的对应槽;刷新 in-flight 转圈。 */
   const { mode, panels } = useFilePanel();
   const activePanel = panels.find((p) => p.id === mode);

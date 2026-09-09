@@ -14,9 +14,10 @@ import { EditWatch } from "./editWatch";
 import { DiskIdentityWatch } from "./identityWatch";
 import { OutputBufferStore } from "./outputBuffers";
 import { SessionStatusWatch } from "./sessionStatus";
+import { getSessionTabs } from "./sessionTabs";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import type { SessionMeta } from "./ipc";
-
+import { noteLogBinding } from "./diskReplay";
 /** 幕布实时输出 topic(TerminalView 订阅,与 appendOutput 共用)。 */
 export function ptyLiveTopic(sessionId: string): string {
   return `kernel.pty.live.${sessionId}`;
@@ -88,6 +89,14 @@ export class HostWatches {
        Node 测试环境窗口恒聚焦,退化为纯 activeSessionId 语义 */
     isViewing: (id) => this.ctx.isViewing(id),
     exists: (id) => this.ctx.hasSession(id),
+    /* 轮次开启闸:关 tab(含容量挤除)的已了结会话不被异步噪音开轮;
+       与 sessionTabs 的模块级循环仅有运行时延迟调用,安全。 */
+    hasOpenTab: (id) => getSessionTabs().includes(id),
+    /* ssh/shell「输出即活动」是既定语义(远端长任务完工要通知),闸只适用 CLI 会话 */
+    noiseGated: (id) => {
+      const kind = this.ctx.findSession(id)?.kind;
+      return kind !== "ssh" && kind !== "shell";
+    },
     onChange: () => this.ctx.notify(),
     onTurnSettled: (id, unviewed, settledAt) => {
       this.ctx.events.emit(KernelTopics.turnSettled, {
@@ -108,9 +117,8 @@ export class HostWatches {
   /**
    * 绑定表唯一写入口:一个 CLI 磁盘身份只准一个活会话持有。身份守望的
    * claimed 过滤是快照式(await 期间会过期),此处是绑定落表的同步终审
-   * (实证:四会话共绑一老会话,ptys 各自 resume 了同一磁盘会话)。
-   * 抢绑失败 = 新会话保持未绑定(fail-closed):账本按 tmd id 隔离,
-   * UI 不去重,不与既有会话并账。
+   * (实证:四会话共绑一老会话,ptys 各自 resume 了同一磁盘会话)。抢绑失败
+   * = 新会话保持未绑定(fail-closed):账本按 tmd id 隔离,UI 不去重不并账。
    */
   bindIdentity(sessionId: string, cliSessionId: string): boolean {
     const rival = [...this.cliSessionIds.entries()].some(
@@ -118,6 +126,10 @@ export class HostWatches {
     );
     if (rival) return false;
     this.cliSessionIds.set(sessionId, cliSessionId);
+    /* 磁盘先行回放:绑定成功即覆写「CLI 会话 → 当前代日志」指针(冷开寻址上一代)。
+       收口在唯一写入口,显式恢复(openDiskSession)与探测绑定(identityWatch)两路共用 */
+    const meta = this.ctx.findSession(sessionId);
+    if (meta) noteLogBinding(meta.profileId, meta.cwd, cliSessionId, sessionId);
     return true;
   }
 
@@ -154,9 +166,17 @@ export class HostWatches {
   observeReplayTail(sessionId: string): void {
     this.askWatch.observeReplayTail(sessionId);
   }
-
+  /** 磁盘日志尾巴恢复(boot;语义见 kernel/askWatchFeed.ts restoreTail)。 */
+  restoreTail(sessionId: string, tail: string, extraMarks?: RegExp[]): void {
+    this.askWatch.restoreTail(sessionId, tail, extraMarks);
+  }
   observeAskScreen(sessionId: string, screenText: string): void {
     this.askWatch.onScreenSample(sessionId, screenText);
+  }
+
+  /** 磁盘尾恢复(走法 1 冷开回放;带写后闸,语义见 askWatchFeed.restoreDiskTail)。 */
+  restoreDiskTail(sessionId: string, tail: string): void {
+    this.askWatch.restoreDiskTail(sessionId, tail);
   }
 
   /** 用户写入的守望扇出:对话锚定(呼吸灯首写闸)+ EditWatch 去重集清空 + Ask 作答解除。

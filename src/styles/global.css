@@ -7,10 +7,10 @@
 @import "./right-panel-toolbar.css";
 @import "./quota.css";
 @import "./workspace-sidebar.css";
+@import "./icon-decor.css";
 @import "./workspace-sessions.css";
 @import "./workspace-sessions-extras.css";
 @import "./workspace-sessions-manage.css";
-@import "./workspace-sessions-groups.css";
 @import "./workspace-menu.css";
 @import "./session-budget.css";
 @import "./ssh.css";
@@ -22,8 +22,14 @@
 @import "./panel-handle.css";
 @import "./settings-cluster.css";
 @import "./settings-version-popover.css";
+@import "./Tooltip.css";
 @import "./settings-panel.css";
+@import "./settings-shortcuts.css";
 @import "./settings-preset-grid.css";
+@import "./styled-select.css";
+@import "./cli-config.css";
+@import "./cli-config-controls.css";
+@import "./cli-config-picker.css";
 @import "./welcome.css";
 @import "./welcome-install.css";
 @import "./welcome-creds.css";
@@ -42,6 +48,7 @@
 @import "./file-preview-structured.css";
 @import "./file-preview-docs.css";
 @import "./start-failure-toast.css";
+@import "./assets.css";
 
 /* 界面字号(uiFontSize → html 根字号)语义锚:文字随根字号缩放,布局壳不胀。
  * Tailwind 4 间距编译为 calc(var(--spacing)*N),默认 0.25rem 会随根字号缩放;

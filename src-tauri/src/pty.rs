@@ -132,6 +132,15 @@ impl PtyRegistry {
         handle.child.kill().map_err(|e| format!("kill 失败: {e}"))
     }
 
+    /// 应用退出时清场:逐个 kill 全部存活子进程。缺它则 PTY 子进程成孤儿
+    /// 常驻(自动激活每次启动新增一代 resume 进程,泄漏随启动次数累积)。
+    pub fn kill_all(&self) {
+        let mut sessions = self.sessions.lock();
+        for (_, mut handle) in sessions.drain() {
+            let _ = handle.child.kill();
+        }
+    }
+
     /// 会话全量输出的绝对末尾偏移(= 累计写入字节数);无日志返回 None。
     pub fn session_log_end(&self, id: &str) -> Option<u64> {
         self.logs.lock().get(id).map(|m| m.written)

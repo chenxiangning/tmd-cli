@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>会话时间线 · 方案 B:独立右栏面板 + 工作区作用域(对齐客户端设计系统)</title>
+<style>
+  /* ── 客户端 token(src/styles/themes.css dark + themeTokens.ts)── */
+  :root {
+    --bg-base: #1f1f1f;
+    --bg-elevated: #181818;
+    --bg-hover: #242424;
+    --bg-active: rgba(0,120,212,0.24);
+    --bg-input: #313131;
+    --fg: #cccccc;
+    --fg-muted: #919191;
+    --fg-subtle: #797979;
+    --fg-faint: #565656;
+    --border: #3c3c3c;
+    --border-strong: #595959;
+    --accent: #0078d4;
+    --accent-soft: rgba(0,120,212,0.24);
+    --run: #34d399;
+    --modified: #e5c07b;
+    --inserted: #2ea043;
+    --removed: #f85149;
+    --panel-tab-active: rgb(255,140,60);
+    --radius-sm: 6px;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #111; color: var(--fg);
+    font: 13px/1.5 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    padding: 28px 20px 60px;
+  }
+  .page { max-width: 1440px; margin: 0 auto; }
+  h1 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .lede { color: var(--fg-muted); font-size: 12px; margin-bottom: 18px; }
+  .lede b { color: var(--fg); }
+
+  .window { border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; background: var(--bg-base); }
+
+  .titlebar {
+    height: 33px; display: flex; align-items: center; gap: 10px;
+    background: var(--bg-elevated); border-bottom: 1px solid var(--border);
+    padding: 0 10px 0 12px; flex: none;
+  }
+  .lights { display: flex; gap: 8px; flex: none; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; }
+  .lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .tabs { display: flex; gap: 4px; align-items: flex-end; align-self: flex-end; }
+  .tab {
+    display: flex; align-items: center; gap: 6px; height: 27px; padding: 0 12px;
+    font-size: 12px; color: var(--fg-subtle); border-radius: 6px 6px 0 0; white-space: nowrap;
+  }
+  .tab.on { background: var(--bg-base); color: var(--fg); border: 1px solid var(--border); border-bottom-color: var(--bg-base); }
+  .tab .glyph { font-size: 10px; font-weight: 700; color: #b180d7; }
+  .tb-right { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+  .tb-ic {
+    width: 26px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-sm);
+    color: var(--fg-subtle); font-size: 13px;
+  }
+  .tb-ic.on { color: var(--panel-tab-active); }
+  .tb-ic svg { width: 14px; height: 14px; }
+
+  .body { display: flex; height: 720px; }
+
+  .sidebar { width: 230px; flex: none; border-right: 1px solid var(--border); background: var(--bg-elevated); padding: 8px 6px; opacity: .55; pointer-events: none; }
+  .sb-sec { font-size: 10px; color: var(--fg-faint); padding: 8px 6px 3px; }
+  .sb-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-muted); padding: 3px 6px; border-radius: 4px; }
+  .sb-row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--run); flex: none; }
+  .sb-row.dim .dot { background: var(--fg-faint); }
+  .sb-row .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sb-row .ago { margin-left: auto; font-size: 10px; color: var(--fg-faint); flex: none; }
+
+  .center { flex: 1; min-width: 0; background: var(--bg-base); padding: 14px 18px; font-family: var(--mono); font-size: 12px; line-height: 1.7; overflow: hidden; position: relative; }
+  .center .dim { color: var(--fg-faint); }
+  .center .out { color: var(--fg-subtle); }
+  .echo { border-left: 2px solid var(--accent); background: var(--bg-hover); padding: 2px 8px; margin: 6px 0; color: var(--fg); border-radius: 0 4px 4px 0; transition: box-shadow .3s; }
+  .echo .pin { color: var(--accent); margin-right: 6px; }
+  .echo.flash { box-shadow: 0 0 0 2px var(--accent); }
+  .center .hint { position: absolute; right: 12px; top: 10px; font-size: 10px; color: var(--fg-faint); font-family: -apple-system, "PingFang SC", sans-serif; }
+
+  /* ── 右栏:独立「时间线」面板 ── */
+  .panel { width: 340px; flex: none; border-left: 1px solid var(--border); background: var(--bg-base); display: flex; flex-direction: column; }
+  .panel-head {
+    height: 30px; flex: none; display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--border); background: var(--bg-elevated); padding: 0 10px; font-size: 11px;
+  }
+  .panel-head .ttl { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--fg); flex: none; }
+  .panel-head .ttl svg { width: 12px; height: 12px; color: var(--accent); }
+  .seg { display: flex; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px; gap: 2px; }
+  .seg button {
+    border: 0; background: none; color: var(--fg-subtle); font-size: 10px; line-height: 16px;
+    padding: 0 7px; border-radius: 4px; cursor: pointer; font-family: inherit;
+  }
+  .seg button.on { background: var(--bg-hover); color: var(--fg); box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .panel-meta { margin-left: auto; flex: none; color: var(--fg-faint); font-size: 11px; white-space: nowrap; }
+  .panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 6px 10px; }
+
+  /* 会话分节(工作区态) */
+  .sec { margin-bottom: 4px; border-radius: var(--radius-sm); border: 1px solid transparent; }
+  .sec.current { border-color: var(--border); background: rgba(0,120,212,.06); }
+  .sec-head { display: flex; align-items: center; gap: 6px; padding: 5px 6px; font-size: 11px; cursor: pointer; }
+  .sec-head .glyph { font-size: 9px; font-weight: 700; color: #b180d7; flex: none; }
+  .sec-head .glyph.claude { color: #d97757; }
+  .sec-head .run { width: 6px; height: 6px; border-radius: 50%; background: var(--run); flex: none; }
+  .sec-head .run.idle { background: var(--fg-faint); }
+  .sec-head .st { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); font-weight: 600; }
+  .sec-head .cur { flex: none; font-size: 9px; color: var(--accent); border: 1px solid var(--accent); border-radius: 3px; padding: 0 4px; line-height: 14px; }
+  .sec-head .cnt { flex: none; color: var(--fg-faint); font-size: 10px; }
+
+  /* 紧凑消息行 */
+  .mrow { display: flex; align-items: center; gap: 7px; padding: 3px 6px 3px 18px; font-size: 11px; cursor: pointer; border-radius: 4px; }
+  .mrow:hover { background: var(--bg-hover); }
+  .mrow .ago { flex: none; width: 56px; color: var(--fg-faint); font-size: 10px; }
+  .mrow .txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-muted); }
+  .mrow:hover .txt { color: var(--fg); }
+  .mrow .att { flex: none; display: flex; gap: 4px; }
+  .mrow .ab { font-size: 9px; line-height: 14px; border-radius: 3px; padding: 0 4px; background: var(--bg-input); color: var(--fg-subtle); display: flex; align-items: center; gap: 3px; }
+  .mrow .ab svg { width: 9px; height: 9px; }
+  .sec .more { margin: 2px 6px 4px 18px; font-size: 10px; color: var(--accent); cursor: pointer; }
+
+  /* 本会话态:附件行内展开(缩略图横排,同方案 A 语义) */
+  .mrow.open { display: block; padding: 5px 6px 5px 18px; }
+  .mrow.open .line1 { display: flex; align-items: center; gap: 7px; }
+  .mrow.open .full { margin-top: 4px; font-size: 12px; line-height: 1.55; color: var(--fg); white-space: pre-wrap; border-left: 2px solid var(--accent); background: var(--bg-hover); border-radius: 0 4px 4px 0; padding: 6px 9px; }
+  .thumbs { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .thumb { width: 96px; height: 72px; border-radius: 6px; border: 1px solid var(--border); position: relative; overflow: hidden; cursor: zoom-in; }
+  .thumb .cap { position: absolute; left: 0; right: 0; bottom: 0; font-size: 9px; padding: 1px 5px; color: rgba(255,255,255,.92); background: linear-gradient(transparent, rgba(0,0,0,.55)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ph { position: absolute; inset: 0; }
+  .ph::before { content: ""; position: absolute; left: 8%; top: 12%; right: 8%; height: 10%; border-radius: 3px; background: rgba(255,255,255,.35); }
+  .ph::after { content: ""; position: absolute; left: 8%; top: 30%; right: 30%; bottom: 12%; border-radius: 3px;
+    background: repeating-linear-gradient(rgba(255,255,255,.22) 0 3px, transparent 3px 8px); }
+  .g1 { background: linear-gradient(135deg, #2b4a6f, #4daafc); }
+  .g2 { background: linear-gradient(135deg, #4a2b6f, #b180d7); }
+
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.72); display: none; place-items: center; z-index: 50; }
+  .lightbox.open { display: grid; }
+  .lightbox .big { width: min(760px, 80vw); aspect-ratio: 4/3; border-radius: 8px; border: 1px solid var(--border-strong); position: relative; overflow: hidden; }
+  .lightbox .lb-cap { text-align: center; margin-top: 10px; font-size: 12px; color: var(--fg-muted); font-family: var(--mono); }
+
+  .notes { margin-top: 26px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-elevated); padding: 16px 18px; }
+  .notes h2 { font-size: 13px; margin-bottom: 8px; }
+  .notes li { font-size: 12px; color: var(--fg-muted); margin: 4px 0 4px 18px; }
+  .notes li b { color: var(--fg); }
+  .notes code { font-family: var(--mono); font-size: 11px; background: var(--bg-input); border-radius: 3px; padding: 0 4px; color: var(--fg); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>方案 B —— 时间线独立成右栏面板,作用域可切「本会话 | 本工作区」</h1>
+  <p class="lede">tab 从审批线内部提到<b>面板层</b>(顶栏右区 panel-tabs,与审批线并存)。卖点是<b>工作区态</b>:全部并行会话按节铺开,一眼扫清「哪个窗体在干什么」;点非当前会话的条目 = 激活该会话 tab + 定位幕布扎点。</p>
+
+  <div class="window">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="tabs">
+        <div class="tab on"><span class="glyph">TT</span>Analyze session state…</div>
+        <div class="tab"><span class="glyph">TT</span>Redesign git diff…</div>
+      </div>
+      <div class="tb-right">
+        <span class="tb-ic" title="Git 面板"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="4" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="8" r="2"/><path d="M4 6v4M4 4c4 0 6 2 6 3"/></svg></span>
+        <span class="tb-ic" title="审批线"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 3v6l-5 3-5-3V5z"/><path d="M5.5 8l2 2 3.5-4"/></svg></span>
+        <span class="tb-ic on" title="时间线(当前面板)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg></span>
+        <span class="tb-ic" title="切换右栏"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M10 3v10"/></svg></span>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="sidebar">
+        <div class="sb-sec">已置顶 · 2</div>
+        <div class="sb-row"><span class="dot"></span><span class="t">Redesign git diff…</span><span class="ago">运行时</span></div>
+        <div class="sb-row"><span class="dot"></span><span class="t">Analyze session…</span><span class="ago">运行时</span></div>
+        <div class="sb-sec">工作区 · tmd-cli</div>
+        <div class="sb-row dim"><span class="dot"></span><span class="t">Extend light th…</span><span class="ago">25 分钟前</span></div>
+        <div class="sb-row dim"><span class="dot"></span><span class="t">请求发布版本</span><span class="ago">25 分钟前</span></div>
+        <div class="sb-row dim"><span class="dot"></span><span class="t">Fix bottom bar…</span><span class="ago">18 小时前</span></div>
+      </div>
+
+      <div class="center" id="curtain">
+        <span class="hint">点工作区态里「非当前会话」的条目 → 先激活对应 tab,再定位扎点</span>
+        <div class="dim">─ turn #18 · 进行中 ──────────────</div>
+        <div class="echo" id="echoA"><span class="pin">⌖</span>修「关 tab 后 noise turn 计未读」……</div>
+        <div class="out">Working… ⠋</div>
+        <div class="dim">─ turn #17 · 已结算 ──────────────</div>
+        <div class="echo" id="echoB"><span class="pin">⌖</span>把 2s 结算窗的竞态画成时序图。</div>
+        <div class="out">…done…</div>
+      </div>
+
+      <!-- 右栏:时间线面板(独立) -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="ttl">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg>
+            时间线
+          </span>
+          <div class="seg" id="scopeSeg">
+            <button data-scope="session">本会话</button>
+            <button class="on" data-scope="workspace">本工作区</button>
+          </div>
+          <span class="panel-meta" id="headMeta">3 会话 · 27 条</span>
+        </div>
+
+        <!-- 工作区态(默认):按会话分节 -->
+        <div class="panel-body" id="viewWorkspace">
+          <div class="sec current">
+            <div class="sec-head">
+              <span class="glyph">TT</span><span class="run"></span>
+              <span class="st">Analyze session state lifecycle bug</span>
+              <span class="cur">当前</span><span class="cnt">13</span>
+            </div>
+            <div class="mrow" data-echo="echoA">
+              <span class="ago">3 分钟前</span>
+              <span class="txt">修「关 tab 后 noise turn 计未读」:post-close 只 suppress turn-STARTS……</span>
+              <span class="att"><span class="ab"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.2"/><path d="M3 12l3.5-3.5 2.5 2.5 2-2 2 2.5"/></svg>2</span><span class="ab"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 1.5h5.5L13 5v9.5H4z"/></svg>1</span></span>
+            </div>
+            <div class="mrow" data-echo="echoB">
+              <span class="ago">31 分钟前</span>
+              <span class="txt">把 2s 结算窗的竞态画成时序图,我要确认失败窗。</span>
+              <span class="att"></span>
+            </div>
+            <div class="mrow">
+              <span class="ago">1 小时前</span>
+              <span class="txt">queued prompt 在 turn1 结算后才启动,抑止语义怎么算?</span>
+              <span class="att"></span>
+            </div>
+            <span class="more">查看全部 13 条 ▾</span>
+          </div>
+
+          <div class="sec">
+            <div class="sec-head">
+              <span class="glyph">TT</span><span class="run"></span>
+              <span class="st">Redesign git diff split view</span>
+              <span class="cnt">9</span>
+            </div>
+            <div class="mrow">
+              <span class="ago">25 分钟前</span>
+              <span class="txt">diff 单栏/双栏切换放在 diff tab 头部,别进设置。</span>
+              <span class="att"></span>
+            </div>
+            <div class="mrow">
+              <span class="ago">25 分钟前</span>
+              <span class="txt">双栏默认宽度不够时回落单栏,阈值 960px。</span>
+              <span class="att"><span class="ab"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 1.5h5.5L13 5v9.5H4z"/></svg>2</span></span>
+            </div>
+            <div class="mrow">
+              <span class="ago">2 小时前</span>
+              <span class="txt">参考 VS Code 的 inline diff 着色,行内差异要高亮。</span>
+              <span class="att"><span class="ab"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.2"/><path d="M3 12l3.5-3.5 2.5 2.5 2-2 2 2.5"/></svg>1</span></span>
+            </div>
+            <span class="more">查看全部 9 条 ▾</span>
+          </div>
+
+          <div class="sec">
+            <div class="sec-head">
+              <span class="glyph claude">◆</span><span class="run idle"></span>
+              <span class="st">Fix bottom bar overflow</span>
+              <span class="cnt">5</span>
+            </div>
+            <div class="mrow">
+              <span class="ago">18 小时前</span>
+              <span class="txt">底栏 7d 额度文案溢出,缩成胶囊 + title 悬浮。</span>
+              <span class="att"></span>
+            </div>
+            <div class="mrow">
+              <span class="ago">19 小时前</span>
+              <span class="txt">先复现:把窗口拖到 1100px 宽看断点。</span>
+              <span class="att"><span class="ab"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.2"/><path d="M3 12l3.5-3.5 2.5 2.5 2-2 2 2.5"/></svg>1</span></span>
+            </div>
+            <span class="more">查看全部 5 条 ▾</span>
+          </div>
+        </div>
+
+        <!-- 本会话态:紧凑列表,点行展开全文 + 附件 -->
+        <div class="panel-body" id="viewSession" hidden>
+          <div class="mrow open">
+            <div class="line1">
+              <span class="ago">3 分钟前</span>
+              <span class="txt" style="white-space:normal;color:var(--fg)">修「关 tab 后 noise turn 计未读」……(当前轮 · 进行中)</span>
+            </div>
+            <div class="full">post-close 只 suppress turn-STARTS,在途 turn 正常完结;omp 队列提交是即时的,链式成立。失败窗 = turn 间静默 &gt;2s。</div>
+            <div class="thumbs">
+              <div class="thumb" data-name="session-state-mock.png"><div class="ph g1"></div><span class="cap">session-state-mock.png</span></div>
+              <div class="thumb" data-name="unread-flow.png"><div class="ph g2"></div><span class="cap">unread-flow.png</span></div>
+            </div>
+          </div>
+          <div class="mrow"><span class="ago">31 分钟前</span><span class="txt">把 2s 结算窗的竞态画成时序图,我要确认失败窗。</span></div>
+          <div class="mrow"><span class="ago">1 小时前</span><span class="txt">queued prompt 在 turn1 结算后才启动,抑止语义怎么算?</span></div>
+          <div class="mrow"><span class="ago">1 小时前</span><span class="txt">But wait — should suppression apply to non-closed background sessions too? 先不改,只保 close case。</span></div>
+          <div class="mrow"><span class="ago">2 小时前</span><span class="txt">「未读」语义重定义:只标由我的工作引发、完成后我没看到的轮次。</span></div>
+          <div class="mrow"><span class="ago">3 小时前</span><span class="txt">调查:trackOpen/setActiveSession 带 tab 时清 suppression。</span><span class="att"><span class="ab"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 1.5h5.5L13 5v9.5H4z"/></svg>2</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>与方案 A 的差异 / 代价</h2>
+    <ul>
+      <li><b>直击痛点</b>:「多会话并行分不清窗体」要的是<b>跨会话总览</b> —— A 只能逐窗聚焦后看;B 的工作区态一屏扫全部。</li>
+      <li><b>语义更干净</b>:审批线保持纯批次语义(审批/回退),消息流不混进去;时间线是自己的面板插件(如 <code>session-timeline</code>),经 <code>activate(ctx)</code> 注册面板,合规。</li>
+      <li><b>点击闭环升级</b>:非当前会话条目 = 激活该会话 tab(trackOpen 已有)→ 再 <code>anchorJump</code> 定位扎点;当前会话条目与 A 一致。</li>
+      <li><b>代价 1</b>:多占一个面板位(顶栏右区 panel-tabs 多一个图标);审批线与时间线不能同屏。</li>
+      <li><b>代价 2</b>:工作区态几乎必须做 <b>JSONL 历史回补</b>(否则只能看本次运行期发过消息的会话),依赖各 CLI 插件适配器;缺适配的会话只显示运行期数据,不猜。</li>
+      <li><b>本会话态</b> = A 的紧凑版(单行截断,点行展开全文 + 附件),两态共用条目组件。</li>
+    </ul>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <div>
+    <div class="big" id="lbImg"><div class="ph g1"></div></div>
+    <div class="lb-cap" id="lbCap"></div>
+  </div>
+</div>
+
+<script>
+  // 作用域切换:本会话 | 本工作区
+  const seg = document.getElementById('scopeSeg');
+  const vw = document.getElementById('viewWorkspace');
+  const vs = document.getElementById('viewSession');
+  const headMeta = document.getElementById('headMeta');
+  seg.addEventListener('click', (e) => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+    const ws = btn.dataset.scope === 'workspace';
+    vw.hidden = !ws; vs.hidden = ws;
+    headMeta.textContent = ws ? '3 会话 · 27 条' : '13 条';
+  });
+
+  // 当前会话条目 → 定位幕布扎点(非当前会话:先激活 tab 再定位,原型仅闪烁演示)
+  document.querySelectorAll('.mrow[data-echo]').forEach(row => {
+    row.addEventListener('click', () => {
+      const echo = document.getElementById(row.dataset.echo); if (!echo) return;
+      echo.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      echo.classList.add('flash'); setTimeout(() => echo.classList.remove('flash'), 900);
+    });
+  });
+
+  // lightbox
+  const lb = document.getElementById('lightbox');
+  const lbImg = document.getElementById('lbImg');
+  const lbCap = document.getElementById('lbCap');
+  document.querySelectorAll('.thumb').forEach(t => {
+    t.addEventListener('click', (e) => {
+      e.stopPropagation();
+      lbImg.innerHTML = t.querySelector('.ph').outerHTML;
+      lbCap.textContent = t.dataset.name;
+      lb.classList.add('open');
+    });
+  });
+  lb.addEventListener('click', () => lb.classList.remove('open'));
+  addEventListener('keydown', (e) => { if (e.key === 'Escape') lb.classList.remove('open'); });
+</script>
+</body>
+</html>

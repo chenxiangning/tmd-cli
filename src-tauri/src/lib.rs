@@ -18,13 +18,14 @@ mod quota;
 mod resolve;
 mod session;
 mod session_commands;
+mod session_disk_log;
 mod session_log;
 mod settings;
 mod sqlite;
 mod ssh;
 
 use pty::PtyRegistry;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 pub(crate) struct AppState {
     pty: PtyRegistry,
@@ -52,10 +53,12 @@ fn platform_kind() -> &'static str {
     std::env::consts::OS
 }
 
-/// 重启应用(插件市场"拔插 = 重启生效"的一键入口;进程替换,永不返回)。
+/// 重启应用(插件市场"拔插 = 重启生效"的一键入口)。
+/// 必须走 request_restart 经事件循环触发 ExitRequested/Exit,RunEvent::Exit
+/// 的 kill_all 才会执行;直调 restart() 在主线程会跳过事件直接重启,PTY 成孤儿。
 #[tauri::command]
 fn app_restart(app: AppHandle) {
-    app.restart();
+    app.request_restart();
 }
 
 #[tauri::command]
@@ -137,6 +140,8 @@ pub fn run() {
             session_commands::session_resize,
             session_commands::session_kill,
             session_commands::session_log_size,
+            session_commands::session_link_log,
+            session_commands::session_disk_tail,
             session_commands::session_history_page,
             commands_fs::fs_list_dir,
             commands_fs::fs_read_file,
@@ -191,7 +196,6 @@ pub fn run() {
             git::commands::git_branch_compare,
             git::commands::git_branch_worktree_files,
             git::commands::git_branch_worktree_patch,
-            git::commands::git_fetch,
             git::commands::git_pull_push,
             git::commands::git_remotes,
             git::commands::git_push_preview,
@@ -209,13 +213,11 @@ pub fn run() {
             config_read_settings,
             ssh::commands::ssh_session_create,
             ssh::commands::ssh_session_reconnect,
-            ssh::commands::ssh_session_status,
             ssh::commands::ssh_prompt_answer,
             ssh::commands::ssh_prompt_cancel,
             ssh::commands::ssh_latency,
             ssh::commands::ssh_known_hosts_reset,
             ssh::commands::ssh_sftp_list,
-            ssh::commands::ssh_sftp_stat,
             ssh::commands::ssh_sftp_read_text,
             ssh::commands::ssh_sftp_write_text,
             ssh::commands::ssh_sftp_mkdir,
@@ -223,13 +225,19 @@ pub fn run() {
             ssh::commands::ssh_sftp_delete,
             ssh::commands::ssh_sftp_transfer,
             ssh::commands::ssh_sftp_transfer_cancel,
-            ssh::commands::ssh_sftp_transfer_status,
             ssh::commands::ssh_forward_start,
             ssh::commands::ssh_forward_stop,
             ssh::commands::ssh_forward_list,
             ssh::commands::ssh_forward_check_port,
             config_write_settings,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            /* 退出清场:杀掉全部 PTY 子进程,防孤儿常驻(见 PtyRegistry::kill_all)。
+            webview 重载不触发此事件,会话跨重载存活的语义不变。 */
+            if let tauri::RunEvent::Exit = event {
+                app.state::<AppState>().pty.kill_all();
+            }
+        });
 }

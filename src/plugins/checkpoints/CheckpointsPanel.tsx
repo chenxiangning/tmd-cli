@@ -7,13 +7,14 @@
  */
 
 import { useEffect, useReducer, useState } from "react";
-import { ClockClockwise, CircleNotch } from "@phosphor-icons/react";
+import { ClockClockwise, ClockCounterClockwise, CircleNotch } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
 import { checkpointIdentity } from "./identity";
 import { BatchRow, type ConfirmTarget } from "./BatchRow";
+import { TimelineCount, TimelinePanel } from "./TimelinePanel";
 import {
   applyBatch,
   approveBatch,
@@ -30,15 +31,15 @@ const POLL_MS = 6000;
 export function CheckpointsPanel() {
   const { list, activeId } = useWorkspaces();
   const active = list.find((w) => w.id === activeId) ?? list[0];
-  const cwd = active?.root ?? null;
-  /* 会话严格绑定:只认当前活跃会话(审批线生命周期 = 单个会话);不再要求
-     session.cwd === 工作区 root —— 锚点写入用 session.cwd,Rust 侧按键
-     精确匹配,跨工作区查询天然返回空,而会话 cwd 是工作区子目录时旧守卫
-     会把本可命中的批次整批隐藏。
-     读写都以 CLI 磁盘身份为准(账本按其落盘),身份统一经 identity.ts 仲裁:
-     cli 身份被多个活会话争持(绑定竞态)时先创建者保留、后到者回退 tmd id,
-     新会话不再看到老会话的审批线;首条 prompt 时身份常未绑上(锚点暂记
-     tmd id 名下),查询把 tmd id 作为副键一并命中,后端自动回填。 */
+  /* 会话严格绑定:只认当前活跃会话(审批线生命周期 = 单个会话)。
+     读写同键:锚点按 session.cwd 落账(index.tsx captureAnchor),查询也必须
+     用 session.cwd —— 点选他工作区会话并不切 activeId(仅工作区卡片点击才切),
+     用活跃工作区根会查错账本;活跃工作区恰好非 git 时谎报 E_NOT_A_REPO
+     (2026-09-09 实证:er-qi 活跃 + 选中 tmd-cli 会话 → 审批线空态,账目其实在
+     tmd-cli 账本)。无会话时回落活跃工作区根(sealDeadTurns 强退恢复需 cwd)。
+     身份统一经 identity.ts 仲裁:cli 身份被多个活会话争持(绑定竞态)时先创建者
+     保留、后到者回退 tmd id;首条 prompt 时身份常未绑上(锚点暂记 tmd id 名下),
+     查询把 tmd id 作为副键一并命中,后端自动回填。 */
   const [, bumpRender] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
     const offs = [
@@ -50,11 +51,16 @@ export function CheckpointsPanel() {
 
   const activeSessionId = host.getActiveSessionId();
   const identity = activeSessionId ? checkpointIdentity(activeSessionId) : null;
-  const sessionId = identity && cwd ? identity.key : null;
+  const cwd = identity?.cwd ?? active?.root ?? null;
+  const sessionId = identity?.key ?? null;
   const tmdSessionId = activeSessionId ?? undefined;
+  /* 徽标与查询同口径:会话 cwd 落在哪个工作区根下就显示哪个,防错配误导。 */
+  const shown = cwd ? (list.find((w) => cwd === w.root || cwd.startsWith(`${w.root}/`)) ?? active) : active;
 
   const state = useCkptBatches(cwd, sessionId);
   const [confirm, setConfirm] = useState<ConfirmTarget | null>(null);
+  /* 页签:审批线 | 时间线(时间线是独立组件,与审批线零共享逻辑) */
+  const [view, setView] = useState<"batch" | "timeline">("batch");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -150,25 +156,32 @@ export function CheckpointsPanel() {
     <div className="flex h-full flex-col bg-(--tmd-bg-base)">
       {/* 摘要行 —— 字号对齐面板体系(11px 为主),项目名用扁平标签非胶囊 */}
       <div className="flex h-[30px] flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2.5 text-[0.6875rem]">
-        <span className="flex flex-none items-center gap-1.5 text-[0.6875rem] font-semibold text-(--tmd-fg)">
-          <ClockClockwise size="0.75rem" className="text-(--tmd-accent)" aria-hidden />
-          {t("审批线")}
-        </span>
-        {active && (
-          <span
-            className="max-w-[45%] truncate rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-px text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-subtle)"
-            title={active.root}
-          >
-            {active.name}
+        <div className="flex flex-none items-center gap-0.5">
+          <button type="button" onClick={() => setView("batch")} className={segCls(view === "batch")}>
+            <ClockClockwise size="0.6875rem" aria-hidden />
+            {t("审批线")}
+          </button>
+          <button type="button" onClick={() => setView("timeline")} className={segCls(view === "timeline")}>
+            <ClockCounterClockwise size="0.6875rem" aria-hidden />
+            {t("时间线")}
+          </button>
+        </div>
+        {shown && (
+          <span className="max-w-[45%] truncate text-[0.625rem] text-(--tmd-fg-faint)" title={shown.root}>
+            {shown.name}
           </span>
         )}
         <span className="flex-1" />
-        <span className="flex-none text-(--tmd-fg-faint)">
-          {t("待审")} <b className="font-semibold text-(--tmd-git-modified)">{pendingCount}</b>
-        </span>
+        {view === "batch" ? (
+          <span className="flex-none text-(--tmd-fg-faint)">
+            {t("待审")} <b className="font-semibold text-(--tmd-git-modified)">{pendingCount}</b>
+          </span>
+        ) : (
+          <TimelineCount />
+        )}
       </div>
 
-      {notice && (
+      {view === "batch" && notice && (
         <button
           type="button"
           className="flex-none border-b border-(--tmd-border) bg-(--tmd-accent)/10 px-3 py-1.5 text-left text-[0.6875rem] text-(--tmd-fg-muted) hover:underline"
@@ -181,7 +194,7 @@ export function CheckpointsPanel() {
       {/* 清单刷新失败:必须与「没有批次」可区分 —— 此前错误被吞进空态,
           一次瞬时失败(git 并发/IPC 抖动)就会显示成「本会话还没有批次」。
           点击横幅重拉;失败期间已保留旧清单,时间线照常可读可操作。 */}
-      {state.error && !state.notARepo && cwd && sessionId && (
+      {view === "batch" && state.error && !state.notARepo && cwd && sessionId && (
         <button
           type="button"
           className="flex-none border-b border-(--tmd-border) bg-(--tmd-diff-removed)/10 px-3 py-1.5 text-left text-[0.6875rem] text-(--tmd-diff-removed) hover:underline"
@@ -191,8 +204,8 @@ export function CheckpointsPanel() {
         </button>
       )}
 
-      {/* 时间线 */}
-      <div className="min-h-0 flex-1 overflow-y-auto py-2 pr-2 pl-1">
+      {view === "batch" ? (
+      <div className="min-h-0 flex-1 overflow-y-auto py-2 pr-1 pl-0.5">
         {!cwd ? (
           <Empty text={t("暂无活跃工作区")} />
         ) : !sessionId ? (
@@ -227,6 +240,9 @@ export function CheckpointsPanel() {
           ))
         )}
       </div>
+      ) : (
+        <TimelinePanel />
+      )}
     </div>
   );
 }
@@ -237,4 +253,11 @@ function Empty({ text }: { text: string }) {
       {text}
     </div>
   );
+}
+
+/** segmented 页签按钮态 —— 平滑紧凑:无外框无底槽,选中仅软底色(无内阴影)。 */
+function segCls(on: boolean): string {
+  return `flex items-center gap-1 rounded px-1.5 text-[0.6875rem] leading-[1.125rem] ${
+    on ? "bg-(--tmd-bg-hover) font-semibold text-(--tmd-fg)" : "text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
+  }`;
 }

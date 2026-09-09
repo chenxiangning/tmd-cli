@@ -202,3 +202,56 @@
   color: var(--tmd-fg);
   font-weight: 600;
 }
+
+/* 图标装饰卡:行 = 预览图标(即所得,吃自定义色)+ 名称 + 取色/闪烁/恢复 */
+.icon-decor-row {
+  align-items: center;
+}
+.icon-decor-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.icon-decor-preview {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+.icon-decor-color {
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+.icon-decor-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--tmd-fg-muted);
+  cursor: pointer;
+}
+.icon-decor-reset:hover:not(:disabled) {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+.icon-decor-reset:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+

@@ -6,9 +6,13 @@
 
 import type { SshHostConfig } from "./sshTypes";
 import {
+  SESSION_TABS_LIMIT_DEFAULT,
   TERMINAL_FONT_SIZE_DEFAULT,
   UI_FONT_SIZE_DEFAULT,
   UI_ZOOM_DEFAULT,
+  DEFAULT_ICON_DECOR,
+  type IconDecorId,
+  type IconDecorItem,
   type UiLanguage,
 } from "./settingsAppearance";
 import {
@@ -42,6 +46,7 @@ export interface SessionListBudget {
 export const SESSION_LIST_TOTAL_DEFAULT = 20;
 export const SESSION_LIST_TOTAL_MIN = 1;
 export const SESSION_LIST_TOTAL_MAX = 100;
+
 
 /**
  * 解析某 CLI 分组的初始露出条数。
@@ -94,6 +99,11 @@ export interface SessionDeletedEntry {
 export type GitPanelView = "diff" | "branch" | "history";
 /** Git 差异文件列表布局:flat 平铺(status 原文三段分区)/ tree 目录树。 */
 export type GitFileListLayout = "flat" | "tree";
+/** Git 文件 diff 展示模式(git 插件编辑域):unified 单栏 / split 双栏左右对照。 */
+export type GitDiffMode = "unified" | "split";
+
+/** 工作区分组定义(workspace 插件编辑域):数组顺序即侧栏显示顺序。 */
+export interface WorkspaceGroup { id: string; name: string }
 
 export interface AppSettings {
   theme: ThemePreference;
@@ -113,8 +123,12 @@ export interface AppSettings {
   uiFontSize: number;
   /** 界面缩放(0.8-1.5 步进 0.05);Tauri webview setZoom,浏览器 dev 兜底 CSS zoom。 */
   uiZoom: number;
+  /** 图标装饰:7 个界面图标的独立颜色/呼吸闪烁(外观页可调;应用层 kernel/iconDecor.ts)。 */
+  iconDecor: Record<IconDecorId, IconDecorItem>;
   /** 顶栏中央会话标题 tab 条开关(外观页可调,默认开启;见 kernel/sessionTabs.ts)。 */
   sessionTabsEnabled: boolean;
+  /** 会话标题 tab 条容量(1-10,默认 4;外观页可调,缩容即时修剪)。 */
+  sessionTabsMax: number;
   /** Composer 发送快捷键行为。 */
   sendShortcut: SendShortcut;
   /** Ask/确认面板提示音开关(行为页可调,默认开启)。 */
@@ -147,6 +161,8 @@ export interface AppSettings {
    * 两作用域互斥由单 map 结构保证(一个 key 同时只属于一个 scope);
    * title 为置顶时刻的标题快照,供全局区免磁盘扫描直接显示(手动命名覆盖层优先于快照)。
    */
+  /** 快捷键改写覆盖层:key=命令 id,value=键位串/`""`(解绑);match 型不入;改动即写即生效。 */
+  shortcutOverrides: Record<string, string>;
   sessionPins: Record<string, SessionPinEntry>;
   /**
    * 会话归档层:key = `${workspaceId}:${profileId}:${cliSessionId}`,value = 归档时间戳。
@@ -166,11 +182,9 @@ export interface AppSettings {
    * 重启后恢复上次状态。
    */
   workspaceCollapsedMap: Record<string, boolean>;
-  /**
-   * 左侧栏工作区内各会话分类(CLI 分组 / 终端 / SSH)折叠态:
-   * key = `${workspaceId}:${groupId}`(groupId = CLI profileId 或 "shell"/"ssh"),
-   * value = 是否折叠。缺失的分类(首次出现)默认折叠;切换写这里,重启后恢复。
-   */
+  /** 工作区分组清单(workspace 插件编辑域);数组顺序即显示顺序,空 = 无分组。 */
+  workspaceGroups: WorkspaceGroup[];
+  /** 左侧栏分组组头折叠态:key = groupId;缺失 = 展开;删组残留无害。 */
   workspaceGroupCollapsedMap: Record<string, boolean>;
   /** 左侧栏会话视图:false = 默认(隐藏归档),true = 归档(只看归档)。 */
   workspaceArchiveView: boolean;
@@ -196,15 +210,15 @@ export interface AppSettings {
   memoryAutoDistill: boolean;
   /** 沉淀提炼模型(空 = 跟随引擎默认)。 */
   memoryDistillModel: string;
-  /** 沉淀代写引擎(omp/pi/opencode:谁的会话代执行 ctx_memory 写入)。 */
-  memoryDistillEngine: MemoryDistillEngine;
+  /** 沉淀代写引擎标识(自由串;合法值与回落归 memory-coordinator 插件解释,空 = 插件默认)。 */
+  memoryDistillEngine: string;
   /** 沉淀补充规则(自由文本,追加到提炼指令;如「特别记住数据库决定;忽略测试细节」)。 */
   memoryDistillRules: string;
   /**
    * Git 面板记忆态(git 插件的编辑域):视图段 + 差异文件列表布局。
    * 顶栏切换即写,重启恢复上次选择;布局默认平铺。
    */
-  git: { view: GitPanelView; layout: GitFileListLayout };
+  git: { view: GitPanelView; layout: GitFileListLayout; diffMode: GitDiffMode };
   /**
    * SSH 主机簿(ssh 插件的编辑域):终端/SFTP/端口转发共用的主机清单。
    * 凭据明文随 settings.json 落盘(用户裁决,与竞品同级;spec 已记录风险),
@@ -223,6 +237,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   terminalFontFamily: "",
   uiFontSize: UI_FONT_SIZE_DEFAULT,
   uiZoom: UI_ZOOM_DEFAULT,
+  iconDecor: DEFAULT_ICON_DECOR,
+  sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT,
   sessionTabsEnabled: true,
   sendShortcut: "enter",
   askSoundEnabled: true,
@@ -230,12 +246,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   turnEndSoundEnabled: true,
   turnEndSoundId: "default",
   backgroundNotify: true,
-  sessionOutputBufferLimit: 500_000,
   sessionListBudget: { total: SESSION_LIST_TOTAL_DEFAULT, perCli: {} },
+  sessionOutputBufferLimit: 500_000,
   disabledPlugins: [],
   sessionTitles: {},
   sessionPins: {},
+  shortcutOverrides: {},
   workspaceCollapsedMap: {},
+  workspaceGroups: [],
   workspaceGroupCollapsedMap: {},
   sessionArchive: {},
   sessionDeleted: {},
@@ -247,13 +265,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   memoryCapsuleMode: "manual",
   memoryAutoDistill: false,
   memoryDistillModel: "",
-  memoryDistillEngine: "omp",
+  memoryDistillEngine: "",
   memoryDistillRules: "",
-  git: { view: "diff", layout: "flat" },
+  git: { view: "diff", layout: "flat", diffMode: "unified" },
   ssh: { hosts: [] },
 };
 
 /** 记忆胶囊注入策略(manual 手动勾选注入 / auto 新会话自动展开 / off 关闭)。 */
 export type MemoryCapsuleMode = "manual" | "auto" | "off";
-
-export type MemoryDistillEngine = "omp" | "pi" | "opencode"; // 三 harness 均注册 ctx_memory

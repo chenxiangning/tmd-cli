@@ -7,8 +7,8 @@
  * - 行标题:手动命名覆盖层 > 置顶快照 > 短码;快照缺失或为短码垃圾(历史缺陷
  *   把 shortId 存成了快照)时读磁盘解析真标题并回填快照(节流重试,见下);
  * - 行点击:绑定的活会话 → 切到该会话;否则按原工作区恢复磁盘会话;
- * - 绑定活会话的行:meta 区亮状态 label(运行时/会话结束-未查看/已查看),
- *   正在查看时左侧引擎图标让位给 Eye,切走还原(与组内行同口径);
+ * - 绑定活会话的行:meta 区亮状态 label(运行时/会话结束-未查看/已查看,
+ *   与组内行同口径);
  * - 右键菜单无删除项:全局区不持有磁盘文件路径,删除回工作区分组操作
  *   (先「置顶到工作区内」迁移回组,或「取消置顶」后组内删除)。
  */
@@ -17,9 +17,8 @@ import { useEffect, useRef, useState } from "react";
 import type { CliProfile } from "@kernel/cli";
 /* 经 cli-shared 消费 jsonl 标题行型(无生命周期格式库,插件零直接依赖铁律
  * 下的合法通道,同 welcome/credentials.ts 的依赖声明)。 */
-import { extractJsonlTitle, TITLE_HEAD_BYTES } from "../cli-shared/diskSessions";
+import { readHeadTitle } from "../cli-shared/diskSessions";
 import { host, useHost } from "@kernel/host";
-import { ipc } from "@kernel/ipc";
 import { useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 import {
@@ -31,21 +30,19 @@ import {
 } from "@kernel/sessionPins";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
-import { useWorkspaces, type Workspace } from "@kernel/workspace";
-import { CaretDown, CaretRight, Eye } from "@phosphor-icons/react";
+import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/workspace";
+import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
-import { orShortId, realPinSnapshot } from "./utils";
+import {
+  orShortId,
+  realPinSnapshot,
+  TITLE_RESOLVE_MAX_ATTEMPTS,
+  titleRetryDelay,
+} from "./utils";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { PinToggle, SessionStatusLabel } from "./SessionRows";
 import { PinIcon } from "@kernel/PinIcon";
 import { pinnedSection } from "./sectionCollapsed";
-
-/** 快照缺失/短码垃圾行的磁盘解析重试:3s 起步指数退避至 24s 封顶,
- * 8 次后放弃(共 ~2.4min)。omp 懒落盘晚 spawn 35-44s 在窗口内;文件已删
- * 的置顶不再永续扫描(此前固定 3s interval 无限轮询)。 */
-const TITLE_RESOLVE_RETRY_MS = 3_000;
-const TITLE_RESOLVE_MAX_BACKOFF_MS = 24_000;
-const TITLE_RESOLVE_MAX_ATTEMPTS = 8;
 
 /** 解析成功的全局置顶行:身份 + 所属工作区/CLI 均已就位。 */
 interface PinnedRow {
@@ -109,13 +106,7 @@ export function PinnedSessionsSection() {
         const hit = list.find((s) => s.id === row.cliSessionId);
         /* listSessions 已带真标题的 CLI(opencode 的 SELECT title)直接用;
          * 无列表标题的(omp/pi jsonl)照旧读文件头解析。 */
-        const title = hit?.title
-          ? hit.title
-          : hit
-            ? extractJsonlTitle(
-                await ipc.fsReadHead(hit.path, TITLE_HEAD_BYTES).catch(() => ""),
-              )
-            : undefined;
+        const title = hit?.title ? hit.title : hit ? await readHeadTitle(hit.path) : undefined;
         if (stale) return;
         if (title) refreshPinTitle(row.key, title);
       }
@@ -123,13 +114,9 @@ export function PinnedSessionsSection() {
     const schedule = () => {
       if (stale || attempts >= TITLE_RESOLVE_MAX_ATTEMPTS) return;
       attempts += 1;
-      const delay = Math.min(
-        TITLE_RESOLVE_RETRY_MS * 2 ** (attempts - 1),
-        TITLE_RESOLVE_MAX_BACKOFF_MS,
-      );
       timer = window.setTimeout(() => {
         void attempt().then(schedule);
-      }, delay);
+      }, titleRetryDelay(attempts));
     };
     void attempt().then(schedule);
     return () => {
@@ -176,7 +163,8 @@ export function PinnedSessionsSection() {
         row.workspace.id,
         row.cliSessionId,
       )
-      .then((meta) => noteSessionTabTitle(meta.id, titleOf(row)));
+      .then((meta) => noteSessionTabTitle(meta.id, titleOf(row)))
+      .catch(() => undefined);
   };
 
   const commitRename = (value: string | null) => {
@@ -217,7 +205,7 @@ export function PinnedSessionsSection() {
             return (
               <div key={row.key} className="thread-row is-renaming">
                 <span className="thread-engine-badge" title={row.profile.name}>
-                  {row.profile.renderIcon?.(12)}
+                  {row.profile.renderIcon?.("0.75rem")}
                 </span>
                 <RenameInput target={renaming} onCommit={commitRename} />
               </div>
@@ -228,16 +216,15 @@ export function PinnedSessionsSection() {
               key={row.key}
               data-session-id={live?.id}
               className={`thread-row${isActive ? " active" : ""}`}
-              title={t("{workspace} · {profile} 会话 {id}", { workspace: row.workspace.name, profile: row.profile.name, id: row.cliSessionId })}
+              title={t("{workspace} · {profile} 会话 {id}", { workspace: workspaceDisplayName(row.workspace), profile: row.profile.name, id: row.cliSessionId })}
               onClick={() => openRow(row)}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setMenu({ row, x: e.clientX, y: e.clientY });
               }}
             >
-              {/* 正在查看:引擎图标槽位让位给 Eye,切走还原 */}
               <span className="thread-engine-badge" title={row.profile.name}>
-                {isActive ? <Eye size="0.8125rem" className="thread-viewing-eye" /> : row.profile.renderIcon?.(12)}
+                {row.profile.renderIcon?.("0.75rem")}
               </span>
               <span className="thread-name">{titleOf(row)}</span>
               <span className="thread-meta">
@@ -247,7 +234,7 @@ export function PinnedSessionsSection() {
                 {live && host.isWaitingConfirm(live.id) ? (
                   <span className="thread-ask-badge">{t("等待确认")}</span>
                 ) : null}
-                <span className="thread-time">{row.workspace.name}</span>
+                <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
                 <PinToggle on onToggle={() => unpinSession(row.key)} />
               </span>
             </button>

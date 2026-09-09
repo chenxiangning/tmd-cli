@@ -77,6 +77,32 @@
   gap: 2px;
 }
 
+/* ===== 工作区分组组头(codemoss .workspace-group-header 复刻:箭头 + 组名,无计数) ===== */
+.ws-group-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 4px 0 4px 6px;
+  font-size: var(--sidebar-caption-font-size);
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.ws-group-header:hover {
+  color: var(--text-strong);
+}
+
+.ws-group-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ===== 工作区行(codemoss .workspace-card/.workspace-row) ===== */
 .workspace-card {
   position: relative;
@@ -213,7 +239,9 @@
 
 .workspace-row:hover .workspace-actions,
 .workspace-row:focus-within .workspace-actions,
-.workspace-row.active .workspace-actions {
+.workspace-row.active .workspace-actions,
+/* 开关态常亮:管理开关激活时动作组不随 hover 退出而收起(状态须可见) */
+.workspace-actions:has(.workspace-action-btn.is-on) {
   max-width: 160px;
   opacity: 1;
 }
@@ -247,6 +275,11 @@
   color: var(--text-strong);
 }
 
+/* 开关型动作钮(会话管理/归档视图)激活态:accent 常亮 */
+.workspace-action-btn.is-on {
+  color: var(--tmd-accent);
+}
+
 /* 刷新会话 in-flight:图标转圈(同 wsmenu-item-refresh 的反馈语义) */
 .workspace-action-btn.is-refreshing svg {
   animation: ws-action-spin 0.85s linear infinite;
@@ -256,5 +289,10 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* 新建会话:颜色吃图标装饰变量;呼吸闪烁由 html[data-icon-blink] 统一驱动(styles/icon-decor.css) */
+.workspace-action-btn.is-newchat svg {
+  color: var(--icon-decor-newchat, currentColor);
 }
 

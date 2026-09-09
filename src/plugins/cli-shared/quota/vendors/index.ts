@@ -19,11 +19,12 @@
  */
 
 import { t } from "@kernel/i18n";
+import type { QuotaSnapshot } from "@kernel/quota";
 
 import { fetchOpenaiCodex } from "./codex";
 import { fetchDeepseek, fetchKimi, fetchMinimax, fetchZhipu } from "./fetchers";
 import { fetchRelay } from "./relay";
-import type { VendorCredential, VendorId, VendorQuota } from "./types";
+import { VENDOR_TITLE, type VendorCredential, type VendorId, type VendorQuota } from "./types";
 
 /* ── barrel:公共 API 面与原 vendors.ts 完全一致 ─────────── */
 
@@ -38,6 +39,23 @@ export {
   type VendorId,
   type VendorQuota,
 } from "./types";
+
+/** vendor 查询结果 → 额度卡片快照(全部 CLI 插件同一塑形口径)。 */
+export function toQuotaSnapshot(
+  providerLabel: string,
+  vendor: VendorId,
+  quota: VendorQuota,
+  fallbackTitle?: string,
+): QuotaSnapshot {
+  return {
+    providerLabel,
+    title: VENDOR_TITLE[vendor] ?? fallbackTitle ?? `${providerLabel} 额度`,
+    usedLabel: "已使用",
+    windows: quota.windows,
+    balanceText: quota.balanceText,
+    planLabel: quota.planLabel,
+  };
+}
 
 /* ── 统一入口 ─────────────────────────────────────────── */
 

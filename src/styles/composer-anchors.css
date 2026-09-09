@@ -10,11 +10,26 @@
  * 全部色值吃 --tmd-* token,随主题 preset 联动。
  * ────────────────────────────────────────────────────────── */
 
-.composer-anchor-rail {
+/* composer.inputRail 挂载点容器:右缘竖向图标列(assets 唤醒入口)。
+   与锚点栏共用 40px 右缘车道;图标按钮样式归 assets.css。 */
+.composer-input-rail {
   position: absolute;
   right: 0;
   top: 34px;
-  bottom: 10px;
+  width: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  padding-right: 6px;
+  z-index: 21;
+}
+
+.composer-anchor-rail {
+  position: absolute;
+  right: 0;
+  /* 起点让位 inputRail 图标列(34 + 图标列约 56px) */
+  top: 92px;
   width: 40px;
   display: flex;
   flex-direction: column;

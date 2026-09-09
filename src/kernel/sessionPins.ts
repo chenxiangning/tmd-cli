@@ -17,17 +17,12 @@ import {
   type SessionPinEntry,
   type SessionPinScope,
 } from "./settings";
+import { sessionOverlayKey } from "./overlayEvict";
 
 export type { SessionPinEntry, SessionPinScope };
 
 /** 置顶 key:`${workspaceId}:${profileId}:${cliSessionId}` —— 三段身份缺一不可。 */
-export function sessionPinKey(
-  workspaceId: string,
-  profileId: string,
-  cliSessionId: string,
-): string {
-  return `${workspaceId}:${profileId}:${cliSessionId}`;
-}
+export const sessionPinKey = sessionOverlayKey;
 
 /** 解析置顶 key;非法结构返回 null(手改 JSON 兜底)。 */
 export function parseSessionPinKey(

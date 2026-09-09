@@ -5,7 +5,7 @@ import {
   findJsonlSessionFile,
   readUserMessagesFromFile,
 } from "../cli-shared/userMessages";
-import { extractJsonlTitle } from "../cli-shared/diskSessions";
+import { readHeadTitle } from "../cli-shared/diskSessions";
 import { pathsEqual } from "@kernel/pathUtils";
 import { getPlatformKind } from "@kernel/platform";
 import { readCodexSessionEdits } from "./edits";
@@ -13,6 +13,7 @@ import { fetchCodexQuota } from "./quota";
 import type { CliDiskSession, CliSessionStatus, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { listCodexSuggestions } from "./scanSuggestions";
+import { codexConfigEntry } from "./configGui";
 
 /* macOS APFS / Windows NTFS 默认大小写不敏感,cwd 严格相等会在大小写/分隔符差异时漏配。 */
 const CASE_INSENSITIVE_FS = getPlatformKind() !== "linux";
@@ -107,19 +108,13 @@ async function listCodexSessions(cwd: string): Promise<CliDiskSession[]> {
     // codex resume/fork 会在新日期目录写同 id 的新 rollout 文件:
     // 按 id 去重,保留最新 mtime(rollouts 已按 mtime 倒序,先见即最新)
     if (sessions.some((s) => s.id === meta.id)) continue;
-    // codex 无 title 概念:标题 = 首条 role:user 的 response_item 文本。
-    // meta 行带完整 system prompt(可达数十 KB),首条用户消息位置深,
-    // 只对通过 cwd 过滤的本工作区会话读大窗口(4KB meta 窗照旧先筛,成本可控)。
-    const titleHead = await ipc
-      .fsReadHead(f.path, CODEX_TITLE_HEAD_BYTES)
-      .catch(() => "");
-    const title = titleHead ? extractJsonlTitle(titleHead) : undefined;
+    // codex 无 title 概念:标题 = 首条 role:user 的 response_item 文本,走共享两段式读头
+    // (meta 行带完整 system prompt 可达数十 KB,深窗覆盖;4KB meta 窗照旧先筛,成本可控)。
+    const title = await readHeadTitle(f.path);
     sessions.push({ id: meta.id, modifiedAt: f.modifiedAt, path: f.path, title });
   }
   return sessions;
 }
-/** 标题提取的头部窗口:system prompt/skills 指令膨胀后首条用户消息可能在数十 KB 处。 */
-const CODEX_TITLE_HEAD_BYTES = 128 * 1024;
  
 async function readCodexSessionStatus(
   cwd: string,
@@ -242,10 +237,12 @@ export const cliCodexPlugin: Plugin = {
     name: "Codex CLI",
     abbr: "CX",
     desc: "Codex CLI 引擎:rollout 扫描、配额",
-    iconColor: "#000",
+    icon: CodexGlyph,
+    iconColor: "var(--tmd-fg)",
     category: "engine",
   },
   activate(ctx) {
+    ctx.registerCliConfig({ ...codexConfigEntry, icon: (size) => <CodexGlyph size={size} /> });
     ctx.registerCliProfile({
       id: "codex",
       fetchQuota: fetchCodexQuota,

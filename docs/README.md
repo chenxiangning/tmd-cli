@@ -73,7 +73,7 @@
 | 2026-09-06 | [版本号点击弹窗:更新记录 + 在线更新检查](superpowers/specs/2026-09-06-update-check-changelog-design.md) | 已落地(实现随本 spec 提交) |
 | 2026-09-06 | [发版前代码评审(死代码/P1 缺陷/P2 修复)](review/2026-09-06-prerelease-code-review.md) | 已落地(修复全绿,缓修 4 项见文末) |
 | 2026-09-06 | [d 路修订评审:subagent 入口传 flag 才能让 ctx_memory 工具注册](review/2026-09-06-d-path-flag-fix.md) | 通过(d 路 v2 落地在 §8 续项;依据 PoC-7 二次实证) |
-| 2026-09-06 | [左侧工作区会话分类折叠(CLI/终端/SSH 段头开关 + 折叠计数 + settings 持久化)](superpowers/specs/2026-09-06-workspace-group-collapse-design.md) | 已落地(实现随本 spec 提交) |
+| 2026-09-06 | [左侧工作区会话分类折叠(CLI/终端/SSH 段头开关 + 折叠计数 + settings 持久化)](superpowers/specs/2026-09-06-workspace-group-collapse-design.md) | 已被 09-08 扁平化取代(段头/折叠退役) |
 | 2026-09-06 | [omp 扩展市场:cli-omp 二级插件安装/卸载](superpowers/specs/2026-09-06-omp-extension-market-design.md) | 已落地(实现随本次提交;装卸启停真窗终验中) |
 | 2026-09-06 | [快捷键终端聚焦期放开:global 不再静默 + Ctrl+Tab 死键位修复](superpowers/specs/2026-09-06-shortcuts-terminal-focus-design.md) | 已落地 |
 | 2026-09-06 | [协作模式管线原型(collaboration-mode-prototype;其余探索稿已随 0.1.2 清理删除)](design/collaboration-mode-prototype.html) | 设计原型 |
@@ -86,8 +86,31 @@
 | 2026-09-06 | [cli-dsh 插件设计:第十个 CLI 引擎(DeepSeek Harness 安装/启动引导)](superpowers/specs/2026-09-06-cli-dsh-integration-design.md) | 已落地(实现随本 spec 提交) |
 | 2026-09-07 | [cli-dsh 会话接入:PTY 适配器方案(host-RPC 第二客户端)](superpowers/specs/2026-09-07-cli-dsh-pty-adapter-design.md) | 已落地(真 host 端到端 + 桩目检通过) |
 | 2026-09-07 | [侧栏会话分区:已置顶/运行区/工作区分组契约](architecture/05-sidebar-session-zones.md) | 已落地 |
+| 2026-09-09 | [磁盘先行回放:会话打开零预付进程](architecture/06-disk-first-session-open.md) | 已落地 |
 | 2026-09-07 | [CLI 触发符与会话恢复机制矩阵(omp/pi/codex 实测)](research/cli-trigger-and-session-matrix.md) | 已完成 |
 | 2026-09-07 | [设置外观四件套:i18n / 终端字体字号 / 界面缩放 / 终端 ANSI 配色](superpowers/specs/2026-09-07-appearance-i18n-terminal-theme-design.md) | 已落地(全量文案迁移 + 浏览器桩目检通过) |
 | 2026-09-08 | [全局界面字号:文字级缩放适配所有模块](superpowers/specs/2026-09-08-global-ui-font-size-design.md) | 已落地(全库 px→rem 等值迁移 + 桩目检通过) |
+| 2026-09-08 | [Git 文件 diff 单栏/双栏视图设计](superpowers/specs/2026-09-08-git-diff-split-view-design.md) | 已落地(双栏配对 + 全文查看,全链验证绿) |
+| 2026-09-08 | [会话时间线(审批线面板「时间线」页签)设计](superpowers/specs/2026-09-08-session-timeline-design.md) | 已落地(桩目检通过) |
+| 2026-09-08 | [会话时间线原型 方案 A:审批线面板页内 tab](design/session-timeline-scheme-a.html) | 设计定稿(扁平化后与落地一致) |
+| 2026-09-08 | [会话时间线原型 方案 B:独立面板 + 工作区作用域](design/session-timeline-scheme-b.html) | 设计原型(二期候选) |
+| 2026-09-08 | [图标装饰设置:7 个界面图标的独立颜色与呼吸闪烁](superpowers/specs/2026-09-08-icon-decor-design.md) | 已确认(实现随本 spec 提交) |
+| 2026-09-08 | [会话状态机:轮次开启闸(关 tab 噪音不误标未读,在途任务照标)](superpowers/specs/2026-09-08-turn-start-gate-design.md) | 已落地(实现随本 spec 提交) |
+| 2026-09-08 | [工作区会话列表视觉重构探索:扁平时间序 / 时间分桶](design/workspace-sessions-flat-visual.html) | 方案 A 已定稿(见同日 spec) |
+| 2026-09-08 | [工作区会话列表扁平化视觉重构设计](superpowers/specs/2026-09-08-workspace-sessions-flat-design.md) | 已确认(实现随本 spec 提交) |
+| 2026-09-08 | [启动自动激活最近会话设计](superpowers/specs/2026-09-08-auto-activate-recent-sessions-design.md) | 已移除(2026-09-09 由磁盘先行回放取代,见 09-09 spec) |
+| 2026-09-08 | [午后提交全量代码审核(15 笔,2 高/1 P1/20 P2)](review/2026-09-08-postnoon-commits-review.md) | 已完成(报告;高级发现已修复) |
+| 2026-09-08 | [智能体/提示词资产:需求澄清(对标 codemoss)](brainstorm/2026-09-08-assistant-assets.md) | 已收敛 |
+| 2026-09-08 | [智能体/提示词资产设计:composer 双触发 + 设置管理](superpowers/specs/2026-09-08-assistant-assets-design.md) | 已落地(实现随 fa24fa3 提交;差异与遗漏标记见 spec 文末实现对照) |
+| 2026-09-08 | [早晚场提交代码审核(19 笔,1 高/5 P1/15 P2)](review/2026-09-08-evening-commits-review.md) | 已完成(报告;高与 P1 已修复,桩目检通过) |
+| 2026-09-09 | [0.1.3 发布区全量代码审查(48 提交,三路并行)](review/2026-09-09-0.1.3-release-review.md) | 已完成(报告;P0 口径已修正,整改清单待拍板) |
+| 2026-09-09 | [工作区别名:显示名覆盖(行内重命名)](superpowers/specs/2026-09-09-workspace-alias-design.md) | 待评审(设计定稿,确认后实现) |
+| 2026-09-09 | [工作区分组:侧栏分组 + 设置页管理 + 右键移动(参考 codemoss)](superpowers/specs/2026-09-09-workspace-groups-design.md) | 已落地(3d22cc7;实现随 spec 同提交) |
+| 2026-09-09 | [快捷键改键 + 悬浮提示键位(对标 codemoss)](superpowers/specs/2026-09-09-shortcuts-remap-tooltip-design.md) | 已落地(f6f334a + 9a758f5;实现随 spec 同提交) |
+| 2026-09-09 | [CLI 独立配置:图形化编辑各 CLI 本地配置(交互原型)](design/cli-config-gui.html) | 已落地(提案 openspec/changes/cli-gui-config/,实现随提案同提交) |
+| 2026-09-09 | [客户端内存占用分析与优化预案(含 codemoss 架构对照:看/跑解耦)](research/memory-usage-analysis.md) | 已落地(9e49ffd 起) |
+| 2026-09-09 | [磁盘会话先行回放 + 进程惰性拉起设计(走法 1)](superpowers/specs/2026-09-09-disk-first-session-open-design.md) | 已落地(9e49ffd/515cd4d/55a7d87/beb927a) |
+| 2026-09-09 | [磁盘会话先行回放 spec 对抗评审(7 发现全处置)](review/2026-09-09-disk-first-session-open-review.md) | 已完成(修订已实施) |
+| 2026-09-09 | [磁盘先行回放整体任务终审(4×P1+7×P2 当日全修复)](review/2026-09-09-disk-first-final-audit.md) | 已完成(含 rebase 历史手术记录) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

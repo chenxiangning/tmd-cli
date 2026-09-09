@@ -1,0 +1,245 @@
+/* ──────────────────────────────────────────────────────────
+ * CLI 独立配置 —— 控件细节(switch / secret / modelMap 表 / 有序链 /
+ * 两级模型选择器)。壳与布局在 cli-config.css;下拉弹层在 styled-select.css;
+ * 颜色全走 --tmd-* 设计变量。
+ * ────────────────────────────────────────────────────────── */
+
+.cli-cfg-switch {
+  position: relative;
+  width: 2rem;
+  height: 1.125rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--tmd-border-strong);
+  cursor: pointer;
+  flex: none;
+  transition: background 0.15s;
+}
+
+.cli-cfg-switch::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: var(--tmd-bg-elevated);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  transition: left 0.15s;
+}
+
+.cli-cfg-switch.is-on {
+  background: var(--tmd-accent);
+}
+
+.cli-cfg-switch.is-on::after {
+  left: calc(100% - 1rem - 2px);
+}
+
+/* 密钥:输入框 + 眼睛 */
+.cli-cfg-secret {
+  position: relative;
+  width: min(22rem, 100%);
+}
+
+.cli-cfg-secret .cli-cfg-input {
+  width: 100%;
+  padding-right: 2rem;
+}
+
+.cli-cfg-secret .cli-cfg-icon-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* modelMap 键值表 + orderedList 有序链(同一套行样式) */
+.cli-cfg-kv {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.cli-cfg-kv-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.cli-cfg-kv-row .cli-cfg-input {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cli-cfg-kv-row .cli-cfg-input.is-key,
+.cli-cfg-kv-row .styled-select.is-key {
+  flex: 0 0 7.5rem;
+}
+
+.cli-cfg-kv-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+/* 行内小图标钮(删/移/眼睛) */
+.cli-cfg-icon-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  background: none;
+  border: none;
+  color: var(--tmd-fg-subtle);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.cli-cfg-icon-btn:hover:not(:disabled) {
+  color: var(--tmd-err, #d64545);
+}
+
+.cli-cfg-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.cli-cfg-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px dashed var(--tmd-border-strong);
+  border-radius: 999px;
+  background: none;
+  color: var(--tmd-fg-muted);
+  font-size: 0.6875rem;
+  cursor: pointer;
+}
+
+.cli-cfg-add:hover {
+  color: var(--tmd-accent);
+  border-color: var(--tmd-accent);
+}
+
+/* 保存条 + toast */
+.cli-cfg-savebar {
+  position: sticky;
+  bottom: 12px;
+  margin-top: 14px;
+  margin-left: auto;
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--tmd-bg-popover);
+  border: 1px solid var(--tmd-border-strong);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.14);
+  font-size: 0.75rem;
+  z-index: 5;
+}
+
+.cli-cfg-dirty {
+  color: var(--tmd-accent);
+}
+
+.cli-cfg-btn {
+  padding: 5px 14px;
+  border-radius: 7px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border: 1px solid var(--tmd-border-strong);
+  background: var(--tmd-bg-elevated);
+  color: var(--tmd-fg);
+}
+
+.cli-cfg-btn:hover {
+  background: var(--tmd-bg-hover);
+}
+
+.cli-cfg-btn.is-primary {
+  background: var(--tmd-accent);
+  border-color: var(--tmd-accent);
+  color: var(--tmd-accent-fg);
+  font-weight: 600;
+}
+
+.cli-cfg-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.cli-cfg-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  background: var(--tmd-bg-popover);
+  color: var(--tmd-fg);
+  border: 1px solid var(--tmd-border-strong);
+  font-size: 0.75rem;
+  padding: 8px 16px;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.18);
+  z-index: 40;
+}
+
+/* 错误态 */
+.cli-cfg-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--tmd-warn-border, var(--tmd-border-strong));
+  background: var(--tmd-warn-bg, var(--tmd-bg-sunken));
+  border-radius: var(--tmd-radius-md);
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
+.cli-cfg-error p {
+  color: var(--tmd-fg-muted);
+  margin-top: 2px;
+}
+
+.cli-cfg-link {
+  background: none;
+  border: none;
+  color: var(--tmd-accent);
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 4px;
+}
+
+/* 原始编辑模式 */
+.cli-cfg-raw {
+  position: relative;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  overflow: hidden;
+  height: min(28rem, 60vh);
+  display: flex;
+  flex-direction: column;
+}
+
+.cli-cfg-raw .cm-editor {
+  height: 100%;
+  font-size: 0.75rem;
+}
+
+.cli-cfg-raw .cli-cfg-savebar {
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+  margin: 0;
+}

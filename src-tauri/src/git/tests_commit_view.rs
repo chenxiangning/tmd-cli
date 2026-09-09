@@ -47,7 +47,7 @@ fn commit_files_list_and_patch() {
 
     // 单文件 patch:-v1 → +v2;清单外路径 → None
     let patch = super::with_repo(t.path(), |r| {
-        super::commit_view::file_patch(r, &second, "a.txt")
+        super::commit_view::file_patch(r, &second, "a.txt", false)
     })
     .unwrap()
     .unwrap();
@@ -55,7 +55,7 @@ fn commit_files_list_and_patch() {
     assert!(patch.patch.contains("-v1"));
     assert!(patch.patch.contains("+v2"));
     let miss = super::with_repo(t.path(), |r| {
-        super::commit_view::file_patch(r, &second, "b.txt")
+        super::commit_view::file_patch(r, &second, "b.txt", false)
     })
     .unwrap();
     assert!(miss.is_none());
@@ -87,7 +87,7 @@ fn commit_files_detect_rename() {
     assert_eq!(files[0].old_path.as_deref(), Some("a.txt"));
     // rename 来源路径可查 patch
     let patch = super::with_repo(t.path(), |r| {
-        super::commit_view::file_patch(r, &sha, "a.txt")
+        super::commit_view::file_patch(r, &sha, "a.txt", false)
     })
     .unwrap()
     .unwrap();

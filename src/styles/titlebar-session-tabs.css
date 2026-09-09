@@ -1,6 +1,6 @@
 /* Custom titlebar —— Session title tabs(会话切换 tab + 未读/待确认圆点 + 行内重命名),自 titlebar.css 按「规则逐字搬迁、顺序不变」拆出 */
 
-/* ── Session title tabs(顶栏中央,面包屑右侧;≤4 个,溢出收 ellipsis 不撑破顶栏)── */
+/* ── Session title tabs(顶栏中央,面包屑右侧;容量走 settings.sessionTabsMax,溢出收 ellipsis 不撑破顶栏)── */
 .session-tabs {
   display: flex;
   align-items: center;

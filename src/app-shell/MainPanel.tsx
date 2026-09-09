@@ -8,6 +8,7 @@ import {
   useComposerStage,
 } from "@kernel/composerStage";
 import { Mounts } from "@kernel/Mounts";
+import { useSessionTabs } from "@kernel/sessionTabs";
 import { TerminalView } from "@kernel/TerminalView";
 
 /**
@@ -19,6 +20,10 @@ export function MainPanel() {
   /* SSH / 内置终端会话无 composer:幕布即输入面(触发符/审批线等都是 CLI 语义)。 */
   const activeId = host.getActiveSessionId();
   const activeKind = host.getSessions().find((s) => s.id === activeId)?.kind;
+  /* 保活集合 = tab 条 ids(+ activeId 不在条内的兜底),见下方 keep-alive 注释。 */
+  const { ids: tabIds } = useSessionTabs();
+  const kept =
+    activeId && !tabIds.includes(activeId) ? [...tabIds, activeId] : tabIds;
   /* 对话框五段式高度:composer 插件工具栏的 ↑↓ 写 kernel composerStage,这里消费。
      实测本库命令式 setLayout/panelRef.resize 在嵌套 group 下会被静默回滚,不可用;
      separator 键盘路径(每键 5%)走库自身状态更新,可靠 —— 借它驱动:
@@ -49,7 +54,19 @@ export function MainPanel() {
   return (
     <PanelGroup orientation="vertical" id="tmd.main.vertical" groupRef={groupRef}>
       <Panel defaultSize={70} minSize={30} id="canvas">
-        <TerminalView key={activeId} sessionId={activeId} />
+        {/* keep-alive:tab 条内会话全部保持挂载,非激活 display:none —— 切 tab
+            零重放零遮罩(TerminalView 重挂载 = 全量回放输出缓冲 + 0.5s 静默撤罩)。
+            tab 条容量(sessionTabsMax)即保活上限,挤除即卸载;activeId 不在条内
+            的边缘路径补挂。 */}
+        {kept.map((id) => (
+          <div
+            key={id}
+            className="h-full w-full"
+            style={{ display: id === activeId ? undefined : "none" }}
+          >
+            <TerminalView sessionId={id} active={id === activeId} />
+          </div>
+        ))}
       </Panel>
       {activeKind === "ssh" || activeKind === "shell" ? null : stage === "min" ? (
         /* min 段:composer 退出 Panel 体系,挂裸 div —— 内容仅工具栏条(Composer 隐藏输入区),

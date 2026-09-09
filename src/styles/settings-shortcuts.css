@@ -1,0 +1,93 @@
+/* ──────────────────────────────────────────────────────────
+ * 快捷键 tab —— codemoss 双栏(命令清单 + 录制详情)。
+ * 从 settings-panel.css 拆出(300 行铁则);颜色全走 --tmd-* 设计变量。
+ * ────────────────────────────────────────────────────────── */
+
+/* 覆盖 pref-row 的 cursor 与 padding,button 用法需要清默认 button 描边/背景 */
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--tmd-fg);
+  cursor: pointer;
+  font: inherit;
+}
+.shortcut-row + .shortcut-row {
+  border-top: 1px solid var(--tmd-border);
+}
+.shortcut-row:hover {
+  background: var(--tmd-bg-hover);
+}
+.shortcut-row.is-selected {
+  background: var(--tmd-accent-soft);
+  box-shadow: inset 2px 0 0 0 var(--tmd-accent);
+}
+
+/* 录制区方框:未录制 = 灰底虚线提示;录制中 = 主色脉动;内置禁用 = 全置灰。 */
+.shortcut-recorder {
+  display: block;
+  width: 100%;
+  min-height: 80px;
+  padding: 16px;
+  border: 1px dashed var(--tmd-border-strong);
+  border-radius: var(--tmd-radius-md);
+  background: var(--tmd-bg-input);
+  color: var(--tmd-fg-muted);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+.shortcut-recorder:hover:not(:disabled) {
+  border-color: var(--tmd-accent);
+  color: var(--tmd-fg);
+}
+.shortcut-recorder.is-recording {
+  border-style: solid;
+  border-color: var(--tmd-accent);
+  background: var(--tmd-accent-soft);
+  color: var(--tmd-fg);
+  animation: shortcut-recorder-pulse 1.4s ease-in-out infinite;
+}
+.shortcut-recorder.is-disabled,
+.shortcut-recorder:disabled {
+  border-style: solid;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.shortcut-recorder-prompt {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+@keyframes shortcut-recorder-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--tmd-accent-soft); }
+  50% { box-shadow: 0 0 0 6px transparent; }
+}
+
+.shortcut-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-sm);
+  background: var(--tmd-bg-input);
+  color: var(--tmd-fg-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.shortcut-reset:hover:not(:disabled) {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+.shortcut-reset:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

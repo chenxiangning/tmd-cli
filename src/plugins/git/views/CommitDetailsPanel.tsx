@@ -170,7 +170,7 @@ function FilePatchView({
     const token = ++tokenRef.current;
     setLoading(true);
     ipc
-      .gitCommitFilePatch(cwd, commit.longSha, path)
+      .gitCommitFilePatch(cwd, commit.longSha, path, false)
       .then((data) => {
         if (token !== tokenRef.current) return;
         setPatch(data);

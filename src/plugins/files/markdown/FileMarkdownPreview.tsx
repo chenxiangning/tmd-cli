@@ -25,7 +25,7 @@ import {
   getCachedRehypeKatex,
   loadKatexAssets,
 } from "./markdownMath";
-import { ImageFullscreenViewer } from "./ImageFullscreenViewer";
+import { FullscreenViewer, resolveImageViewerSrc } from "./FullscreenViewer";
 import { PreviewOutlineSidebar } from "./PreviewOutlineSidebar";
 import { useMarkdownOutline } from "./useMarkdownOutline";
 import { hasDocumentScopedMarkdownFeatures, normalizeMarkdownAnchorKey } from "./markdownPreviewHelpers";
@@ -216,11 +216,13 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
           data-markdown-render-strategy={compiledDocument.renderStrategy}
           data-testid="file-markdown-preview"
         >
-          <ImageFullscreenViewer
+          <FullscreenViewer
             open={!!imageFullscreen}
             src={imageFullscreen?.src ?? ""}
             alt={imageFullscreen?.alt}
             onClose={() => setImageFullscreen(null)}
+            resolveSrc={resolveImageViewerSrc}
+            navigation
           />
           {compiledDocument.frontmatterFields.length > 0 ? (
             <section className="fvp-file-markdown-frontmatter" data-testid="file-markdown-frontmatter">

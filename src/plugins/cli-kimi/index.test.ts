@@ -4,15 +4,15 @@
  * fixture 形状实证自本机 ~/.kimi-code(kimi-code 0.40.1)与 ~/.kimi(0.34.0)真实数据。
  */
 import { describe, expect, it } from "vitest";
+import { parseKimiConfigStatus } from "./index";
 import {
   extractKimiTitle,
   kimiStateTitle,
   kimiUserMessageLine,
   matchKimiStatePath,
   normalizeKimiTitle,
-  parseKimiConfigStatus,
   parseKimiState,
-} from "./index";
+} from "./kimiSessions";
 
 /** 老 home(~/.kimi 1.1 协议)wire.jsonl 真实行型。 */
 const turnBegin = (text: string, ts = 1769513122.2860181) =>

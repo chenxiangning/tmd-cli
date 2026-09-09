@@ -9,7 +9,9 @@ import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { Mounts } from "@kernel/Mounts";
 import { removeWorkspace, type Workspace } from "@kernel/workspace";
-import { ArrowClockwise, Trash } from "@phosphor-icons/react";
+import { useSettingsState } from "@kernel/settings";
+import { assignToGroup } from "./groups";
+import { ArrowClockwise, Check, PencilSimple, Trash } from "@phosphor-icons/react";
 
 /** 新建会话菜单定位:以点击点为左上,按估算尺寸在视口内夹取(codemoss 同款)。 */
 export function clampMenuPosition(x: number, y: number): { x: number; y: number } {
@@ -30,6 +32,7 @@ export function SessionMenuOverlay({
   position,
   refreshing,
   onRefresh,
+  onRename,
   onClose,
 }: {
   workspace: Workspace;
@@ -37,6 +40,7 @@ export function SessionMenuOverlay({
   position: { x: number; y: number };
   refreshing: Record<string, boolean>;
   onRefresh: (profileId: string) => void;
+  onRename: () => void;
   onClose: () => void;
 }) {
   const profiles = host.getCliProfiles();
@@ -48,6 +52,9 @@ export function SessionMenuOverlay({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+  const { settings } = useSettingsState();
+  const groups = settings.workspaceGroups;
+  const currentGroupId = groups.some((g) => g.id === workspace.groupId) ? workspace.groupId! : null;
 
   return createPortal(
     <>
@@ -80,8 +87,40 @@ export function SessionMenuOverlay({
         {/* 扩展入口:插件贡献的会话类型(如 ssh 插件的「SSH 连接」)。 */}
         <Mounts point="workspace.newSessionMenu" />
 
+        {/* 移动到组(codemoss assign-workspace-group 同款):仅存在组时出现,当前组打勾。 */}
+        {groups.length > 0 && (
+          <>
+            <div className="wsmenu-divider" />
+            <div className="wsmenu-group-title">{t("移动到组")}</div>
+            {[{ id: null, name: t("未分组") }, ...groups].map((g) => (
+              <button
+                key={g.id ?? "ungrouped"}
+                className="wsmenu-item"
+                onClick={() => {
+                  assignToGroup(workspace.id, g.id);
+                  onClose();
+                }}
+              >
+                <span className="wsmenu-item-icon">
+                  {currentGroupId === (g.id ?? null) && <Check size="0.8125rem" />}
+                </span>
+                <span className="wsmenu-item-label">{g.name}</span>
+              </button>
+            ))}
+          </>
+        )}
+
         <div className="wsmenu-divider" />
         <div className="wsmenu-group-title">{t("工作区操作")}</div>
+        <button
+          className="wsmenu-item"
+          onClick={onRename}
+        >
+          <span className="wsmenu-item-icon">
+            <PencilSimple size="0.8125rem" />
+          </span>
+          <span className="wsmenu-item-label">{t("设置别名")}</span>
+        </button>
         {canRemove && (
           <button
             className="wsmenu-item is-danger"

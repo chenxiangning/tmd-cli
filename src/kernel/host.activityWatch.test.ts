@@ -42,6 +42,7 @@ vi.mock("./ipc", () => ({
 }));
 
 import { host } from "./host";
+import { bootSessionTabs, resetSessionTabsForTest } from "./sessionTabs";
 
 const PROFILE_ID = "test-omp-activity";
 const CWD = "/proj-activity";
@@ -63,6 +64,8 @@ describe("结算归因修正 + 重绘抑制窗", () => {
     ptyOutputCbs.clear();
     host.resetStatusTimerForTest();
     host.resetActivityWatchForTest();
+    resetSessionTabsForTest();
+    bootSessionTabs(host.events); // 真实运行 main.tsx 接线;测试借它让会话持有 tab
     if (!host.getCliProfile(PROFILE_ID)) host.registerCliProfile(profile);
   });
 

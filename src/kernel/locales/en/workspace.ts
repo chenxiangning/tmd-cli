@@ -34,9 +34,7 @@ export const MESSAGES = {
   "结束终端会话「{title}」?": "End terminal session \"{title}\"?",
   "断开 SSH 会话「{title}」?": "Disconnect SSH session \"{title}\"?",
 
-  // ── GroupHeader ──
-  "展开分组": "Expand group",
-  "折叠分组": "Collapse group",
+  // ── WorkspaceCard 行动作组 ──
   "会话管理": "Session management",
 
   // ── SessionRows · DiskSessionRow / PinToggle ──
@@ -69,6 +67,8 @@ export const MESSAGES = {
   "刷新 {profile} 会话列表": "Refresh {profile} session list",
   "工作区操作": "Workspace actions",
   "删除工作区": "Delete workspace",
+  "设置别名": "Set alias",
+  "别名(留空清除)": "Alias (leave empty to clear)",
 
   // ── SessionManage (管理模式批量条 / 行按钮) ──
   "更多... (还有 {n} 条)": "More... ({n} remaining)",
@@ -81,4 +81,26 @@ export const MESSAGES = {
   "删除": "Delete",
   "恢复": "Restore",
   "确认": "Confirm",
+
+  // ── 工作区分组(groups / 侧栏组头 / SessionMenu 移动到组 / GroupSettingsTab) ──
+  "工作区分组": "Workspace groups",
+  "组织左侧栏工作区的分组:新建、重命名、排序与删除。":
+    "Groups that organize workspaces in the left sidebar: create, rename, reorder, delete.",
+  "分组管理": "Group management",
+  "移动到组": "Move to group",
+  "未分组": "Ungrouped",
+  "组名过长(上限 60 字)": "Group name too long (max 60 chars)",
+  "组名不能为空": "Group name is required",
+  "「未分组」是保留名,不能用作组名": "\"Ungrouped\" is a reserved name and cannot be used",
+  "组名已存在": "Group name already exists",
+  "新建分组": "New group",
+  "分组用于组织左侧栏的工作区;「未分组」是保留名。删除组后,组内工作区自动落回未分组。":
+    "Groups organize workspaces in the left sidebar; \"Ungrouped\" is a reserved name. Deleting a group moves its workspaces back to Ungrouped.",
+  "组名": "Group name",
+  "新建": "Create",
+  "上移": "Move up",
+  "下移": "Move down",
+  "删除组": "Delete group",
+  "删除组「{name}」?组内工作区将移到未分组。":
+    "Delete group \"{name}\"? Its workspaces will move to Ungrouped.",
 } as Record<string, string>;

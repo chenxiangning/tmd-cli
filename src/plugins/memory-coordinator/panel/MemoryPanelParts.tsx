@@ -11,6 +11,7 @@ import { CATEGORY_CN, type MemoryItem } from "../protocol";
 import { memoryPool } from "../pool";
 import { toggleConsoleTab } from "../console/MemoryConsole";
 import { t } from "@kernel/i18n";
+import { getSettingsState } from "@kernel/settings";
 
 /**
  * 面板诊断状态 + 执行器 —— 池就绪与池不可用两态共用(不可用态同样要能
@@ -103,7 +104,8 @@ export function MemoryListItem({
         <span>·</span>
         <span>{m.harness || "pi"}</span>
         <span>·</span>
-        <span>{new Date(m.updatedAt).toLocaleDateString("zh-CN")}</span>
+        {/* 语言切换整树重挂载(kernel/i18n),非响应式读当前语言即可 */}
+        <span>{new Date(m.updatedAt).toLocaleDateString(getSettingsState().settings.language)}</span>
         <CaretDown
           size="0.6875rem"
           className={`ml-auto transition-transform ${expanded ? "rotate-180" : ""}`}

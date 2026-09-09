@@ -20,6 +20,7 @@ import {
   type UiLanguage,
 } from "@kernel/settings";
 import { LANGUAGE_LABELS, t } from "@kernel/i18n";
+import { StyledSelect } from "@kernel/StyledSelect";
 import {
   isTerminalFontAvailable,
   terminalFontOptionsForPlatform,
@@ -147,27 +148,27 @@ export function SystemAppearanceCard() {
           <div className="pref-desc">{t("等宽字体;未安装的字体置灰,可选「自定义」填 CSS family。")}</div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <select
+          <StyledSelect
             value={fontSelectValue}
-            aria-label={t("终端字体")}
-            onChange={(e) => {
-              const v = e.target.value;
+            ariaLabel={t("终端字体")}
+            className="w-48"
+            onChange={(v) => {
               updateSettings({
                 terminalFontFamily:
                   v === "auto" ? "" : v === "custom" ? settings.terminalFontFamily || "monospace" : v,
               });
             }}
-            className="w-48 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-sm text-(--tmd-fg) outline-none"
-          >
-            <option value="auto">{t("平台默认")}</option>
-            {fontOptions.map((opt) => (
-              <option key={opt.family} value={opt.family} disabled={!isTerminalFontAvailable(opt.family)}>
-                {opt.label}
-                {isTerminalFontAvailable(opt.family) ? "" : ` (${t("未安装")})`}
-              </option>
-            ))}
-            <option value="custom">{t("自定义…")}</option>
-          </select>
+            options={[
+              { value: "auto", label: t("平台默认") },
+              ...fontOptions.map((opt) => ({
+                value: opt.family,
+                label: opt.label,
+                disabled: !isTerminalFontAvailable(opt.family),
+                hint: isTerminalFontAvailable(opt.family) ? undefined : t("未安装"),
+              })),
+              { value: "custom", label: t("自定义…") },
+            ]}
+          />
         </div>
       </div>
       {fontSelectValue === "custom" ? (

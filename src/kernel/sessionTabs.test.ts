@@ -6,7 +6,9 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { bootSessionTabs, closeAllSessionTabs, closeOtherSessionTabs, closeSessionTab, getSessionTabTitle, getSessionTabs, noteSessionTabTitle, resetSessionTabsForTest, SESSION_TABS_MAX } from "./sessionTabs";
+import { bootSessionTabs, closeAllSessionTabs, closeOtherSessionTabs, closeSessionTab, getSessionBaseline, getSessionTabTitle, getSessionTabs, noteSessionTabTitle, resetSessionTabsForTest } from "./sessionTabs";
+import { updateSettings } from "./settings";
+import { SESSION_TABS_LIMIT_DEFAULT } from "./settingsAppearance";
 import { EventBus, KernelTopics } from "./events";
 import type { SessionMeta } from "./ipc";
 
@@ -25,7 +27,10 @@ function boot() {
 const open = (events: EventBus, id: string) =>
   events.emit(KernelTopics.activeSessionChanged, id);
 
-beforeEach(() => resetSessionTabsForTest());
+beforeEach(() => {
+  resetSessionTabsForTest();
+  updateSettings({ sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT });
+});
 
 describe("打开次序与容量", () => {
   it("新会话追加队尾,重复聚焦保持原位不重排", () => {
@@ -37,13 +42,22 @@ describe("打开次序与容量", () => {
     expect(getSessionTabs()).toEqual(["a", "b", "c"]);
   });
 
-  it(`超过 ${SESSION_TABS_MAX} 个挤掉最早打开的 tab`, () => {
+  it(`超过默认容量 ${SESSION_TABS_LIMIT_DEFAULT} 个挤掉最早打开的 tab`, () => {
     const { events } = boot();
     for (const id of ["a", "b", "c", "d"]) open(events, id);
     open(events, "e");
     expect(getSessionTabs()).toEqual(["b", "c", "d", "e"]);
     open(events, "f");
     expect(getSessionTabs()).toEqual(["c", "d", "e", "f"]);
+  });
+
+  it("容量随设置缩小时即时修剪,保留最近打开;后续打开按新容量挤除", () => {
+    const { events } = boot();
+    for (const id of ["a", "b", "c", "d"]) open(events, id);
+    updateSettings({ sessionTabsMax: 2 });
+    expect(getSessionTabs()).toEqual(["c", "d"]);
+    open(events, "e");
+    expect(getSessionTabs()).toEqual(["d", "e"]);
   });
 
   it("回到首页(null)与非法负载不动 tab", () => {
@@ -150,5 +164,50 @@ describe("批量摘 tab(右键菜单)", () => {
     closeAllSessionTabs();
     expect(getSessionTabs()).toEqual([]);
     expect(deps.setActiveSession).toHaveBeenCalledWith(null);
+  });
+});
+
+describe("首条用户消息保底", () => {
+  it("promptSent 即时上屏:tab 快照与行保底同源,取首行去 \r", () => {
+    const { events } = boot();
+    open(events, "a");
+    events.emit(KernelTopics.promptSent, { sessionId: "a", text: "帮我看看这个性能问题\r\n第二行" });
+    expect(getSessionTabTitle("a")).toBe("帮我看看这个性能问题");
+    expect(getSessionBaseline("a")).toBe("帮我看看这个性能问题");
+  });
+
+  it("斜杠命令与空文本不采集", () => {
+    const { events } = boot();
+    open(events, "a");
+    events.emit(KernelTopics.promptSent, { sessionId: "a", text: "/compact" });
+    events.emit(KernelTopics.promptSent, { sessionId: "b", text: " \r\n  " });
+    expect(getSessionBaseline("a")).toBeUndefined();
+    expect(getSessionBaseline("b")).toBeUndefined();
+    expect(getSessionTabTitle("a")).toBeUndefined();
+  });
+
+  it("已有真快照不覆盖;AI 标题后到回喂仍覆盖保底快照", () => {
+    const { events } = boot();
+    open(events, "a");
+    noteSessionTabTitle("a", "磁盘真标题");
+    events.emit(KernelTopics.promptSent, { sessionId: "a", text: "新消息" });
+    expect(getSessionTabTitle("a")).toBe("磁盘真标题");
+    expect(getSessionBaseline("a")).toBeUndefined();
+    noteSessionTabTitle("a", "AI 智能标题");
+    expect(getSessionTabTitle("a")).toBe("AI 智能标题");
+  });
+
+  it("短码形态拒收为快照(行点击兜底历史喂入的垃圾)", () => {
+    noteSessionTabTitle("a", "18d3…e414");
+    expect(getSessionTabTitle("a")).toBeUndefined();
+  });
+
+  it("会话剪除连保底一起清", () => {
+    const { events } = boot();
+    open(events, "a");
+    events.emit(KernelTopics.promptSent, { sessionId: "a", text: "标题" });
+    events.emit(KernelTopics.sessionsChanged, []);
+    expect(getSessionBaseline("a")).toBeUndefined();
+    expect(getSessionTabTitle("a")).toBeUndefined();
   });
 });

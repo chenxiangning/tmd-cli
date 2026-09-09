@@ -21,6 +21,7 @@ vi.mock("./settings", () => ({
   getSettingsState: () => ({
     settings: { disabledPlugins: ["p-disabled"] },
   }),
+  subscribeSettings: () => () => {},
   settingsReady: Promise.resolve(),
 }));
 

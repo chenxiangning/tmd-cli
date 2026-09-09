@@ -17,6 +17,8 @@ import {
   isRunningZoneCandidate,
   realPinSnapshot,
   resolveSessionStatus,
+  TITLE_RESOLVE_MAX_ATTEMPTS,
+  titleRetryDelay,
 } from "./utils";
 import type { SessionMeta } from "@kernel/ipc";
 
@@ -111,5 +113,20 @@ describe("isRunningZoneCandidate", () => {
   it("结束未查看在区,点开即出区", () => {
     expect(isRunningZoneCandidate(false, true)).toBe(true);
     expect(isRunningZoneCandidate(false, false)).toBe(false);
+  });
+});
+
+describe("titleRetryDelay", () => {
+  /* 自动命名补扫节奏契约(分组 hook / 运行区 / 全局置顶三处锁步):
+   * 3s 起步指数退避至 24s 封顶,8 次总预算 ~2.4min —— omp 懒落盘晚 spawn
+   * 35-44s、AI 命名更晚必须落在窗口内;永不命名的 CLI 到次数学止不永续轮询。 */
+  it("3s 起步指数退避,24s 封顶", () => {
+    expect([1, 2, 3, 4, 5].map(titleRetryDelay)).toEqual([3_000, 6_000, 12_000, 24_000, 24_000]);
+  });
+
+  it("满次数总预算覆盖懒落盘 + AI 命名窗口", () => {
+    const total = Array.from({ length: TITLE_RESOLVE_MAX_ATTEMPTS }, (_, i) => titleRetryDelay(i + 1)).reduce((a, b) => a + b, 0);
+    expect(total).toBeGreaterThanOrEqual(120_000);
+    expect(total).toBeLessThan(180_000);
   });
 });

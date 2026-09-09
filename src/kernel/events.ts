@@ -52,6 +52,8 @@ export const KernelTopics = {
    * 一条用户 prompt 已写入 PTY。payload: { sessionId, text }
    * 常量归内核,emit 归 composer —— 发送语义是 composer 的知识
    * (幕布击键同样走 writeSession,不能当 prompt)。消费方:checkpoints 插件打锚点快照。
+   * 仅「开启新对话轮次」的发送才广播:composer/promptGate 轮次闸把守,
+   * ask 作答与轮中控制命令(如 /model 切模型)不开轮、不广播。
    */
   promptSent: "kernel.sessions.prompt",
 } as const;

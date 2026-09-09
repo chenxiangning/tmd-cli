@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { getSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
+import { resolveDistillEngine } from "../modelCatalog";
 import { mergeMemories } from "../phase2/write";
 import { memoryPool, resolveProjectIdentity } from "../pool";
 import type { MemoryItem } from "../protocol";
@@ -37,7 +38,7 @@ export function useMemoryMerge({
     setMergeNote(t("合并中…(经 omp 官方管线,可能需数十秒)"));
     const ids = chosen.map((m) => m.id);
     void mergeMemories(ids, chosen[0].content, root, {
-      engine: getSettingsState().settings.memoryDistillEngine,
+      engine: resolveDistillEngine(getSettingsState().settings.memoryDistillEngine),
       model: getSettingsState().settings.memoryDistillModel || undefined,
     }).then(async (out) => {
       setMerging(false);

@@ -15,6 +15,7 @@ import type { MarketPanelContribution } from "./marketPanel";
 import type { CommandContribution } from "./shortcuts";
 import type { FileVisualProvider } from "./fileVisual";
 import type { SidebarAction } from "./sidebarActions";
+import type { CliConfigEntry } from "./cliConfigRegistry";
 export type PluginCategory = "engine" | "feature" | "core";
 
 /** 插件展示元数据 —— 插件市场(插排页)消费,与激活逻辑无关。 */
@@ -53,6 +54,8 @@ export type MountPoint =
   | "editorCenter.welcome"
   /** 幕布下方富 composer 输入区。 */
   | "editorCenter.composer"
+  /** composer 输入区右缘竖向图标列(assets 唤醒入口等)。 */
+  | "composer.inputRail"
   /** composer 底部状态条(+ 模型/能力/发送)。 */
   | "composer.statusBar";
 
@@ -86,6 +89,8 @@ export interface PluginContext {
   registerCommand(command: CommandContribution): void;
   /** 注册首页引擎卡下方专属面板(homePanels 注册表的 ctx 通道,键 = CliProfile.id)。 */
   registerHomePanel(profileId: string, panel: ComponentType): void;
+  /** 注册一份引擎的图形化配置面(cliConfigRegistry 的 ctx 通道;渲染归 cli-config 插件)。 */
+  registerCliConfig(entry: CliConfigEntry): void;
   /** 内核事件总线（跨插件通信唯一通道）。 */
   events: EventBus;
 }

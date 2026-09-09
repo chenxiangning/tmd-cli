@@ -9,7 +9,7 @@
 
 import { ipc } from "@kernel/ipc";
 import type { CliSessionStatus } from "@kernel/cli";
-import { piAgentDir } from "./quota";
+import { piAgentDir } from "./piLocalConfig";
 
 /** 纯解析:settings.json 对象 → 默认模型/思考强度;字段级类型守卫,不盲目断言。 */
 export function parsePiSettingsStatus(settings: unknown): CliSessionStatus | null {

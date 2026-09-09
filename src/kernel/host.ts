@@ -23,6 +23,7 @@ import { registerMarketPanel } from "./marketPanel";
 import type { SidebarAction } from "./sidebarActions";
 import { registerCommand } from "./shortcuts";
 import { registerHomePanel } from "./homePanels";
+import { registerCliConfig } from "./cliConfigRegistry";
 
 class Host implements PluginContext {
   readonly events = new EventBus();
@@ -90,6 +91,7 @@ class Host implements PluginContext {
   registerFileVisual = registerFileVisual;
   registerCommand = registerCommand;
   registerHomePanel = registerHomePanel;
+  registerCliConfig = registerCliConfig;
   // ---- 插件生命周期(委托 kernel/hostRegistry) ----------------------------
 
   activateAll(plugins: Plugin[]): Promise<void> {
@@ -172,7 +174,7 @@ class Host implements PluginContext {
     return this.sessionServices.spawn.raw(profileId, spec, workspaceId, opts);
   }
 
-  /** 打开 CLI 磁盘历史会话(resume);实现见 kernel/sessionSpawn.ts。 */
+  /** 打开 CLI 磁盘历史会话(resume;实现见 kernel/sessionSpawn.ts)。 */
   async openDiskSession(
     profileId: string,
     cwd: string,
@@ -182,12 +184,12 @@ class Host implements PluginContext {
     return this.sessionServices.spawn.open(profileId, cwd, workspaceId, cliSessionId);
   }
 
-  /* 回放补观察 / 屏幕采样:委托守望组合件(语义见 kernel/askWatch.ts)。 */
-  observeReplayTail = (sessionId: string): void =>
-    this.watches.observeReplayTail(sessionId);
-  observeAskScreen = (sessionId: string, screenText: string): void =>
-    this.watches.observeAskScreen(sessionId, screenText);
-
+  /* 回放补观察 / 屏幕采样 / 磁盘日志尾恢复:委托守望组合件(语义见 kernel/askWatch.ts 与 askWatchFeed.ts)。 */
+  observeReplayTail = (sessionId: string): void => this.watches.observeReplayTail(sessionId);
+  observeAskScreen = (sessionId: string, screenText: string): void => this.watches.observeAskScreen(sessionId, screenText);
+  restoreTail = (sessionId: string, tail: string, extraMarks?: RegExp[]): void => this.watches.restoreTail(sessionId, tail, extraMarks);
+  /** 磁盘尾恢复(走法 1 冷开回放;带写后闸,语义见 askWatchFeed.restoreDiskTail)。 */
+  restoreDiskTail = (sessionId: string, tail: string): void => this.watches.restoreDiskTail(sessionId, tail);
   /** 用户输入的唯一写入口:PTY 写入 + 对话锚定(呼吸灯首写闸)+ Ask 作答解除。 */
   writeSession(sessionId: string, data: string, synthetic = false): void {
     void ipc.sessionWrite(sessionId, data);
@@ -281,10 +283,8 @@ class Host implements PluginContext {
   private version = 0;
   getVersion = (): number => this.version;
 
-  private notify(): void {
-    this.version += 1;
-    this.listeners.forEach((fn) => fn());
-  }
+  /** 版本推进 + 订阅重渲;kernel 内标题旁路(如会话保底标题落定)也经此推一次刷新。 */
+  notify(): void { this.version += 1; this.listeners.forEach((fn) => fn()); }
 }
 
 /** 全局唯一宿主实例。 */

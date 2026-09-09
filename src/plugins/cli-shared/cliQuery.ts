@@ -91,28 +91,6 @@ export async function queryCliRpc(
       return obj;
     }
   }
-  /* 未认领到应答:完整现场落盘供离线诊断(临时管线,诊断收口后移除)。 */
-  const dump = JSON.stringify(
-    {
-      at: new Date().toISOString(),
-      command: spec.command,
-      args: spec.args,
-      cwd: spec.cwd,
-      method: request.type,
-      marker,
-      exitCode: result.code,
-      timedOut: result.timedOut,
-      stdout: result.stdout,
-      stderr: result.stderr,
-    },
-    null,
-    2,
-  );
-  if (typeof ipc.fsWriteTemp === "function") {
-    void ipc
-      .fsWriteTemp(`query-dump-${Date.now()}.json`, new TextEncoder().encode(dump))
-      .catch(() => {});
-  }
   console.warn("[cliQuery] 应答缺失:", request.type, {
     exitCode: result.code,
     stdoutBytes: result.stdout.length,
@@ -217,14 +195,6 @@ export function createRpcSuggestionSource(spec: {
         action: "insert",
       });
     }
-    console.info(
-      "[cliQuery] fetched:",
-      spec.spawn.command,
-      byKind.get("command")?.length ?? 0,
-      "commands,",
-      byKind.get("skill")?.length ?? 0,
-      "skills",
-    );
     return byKind;
   }
 

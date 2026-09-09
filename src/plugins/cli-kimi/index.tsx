@@ -13,17 +13,6 @@ import {
   readKimiUserMessages,
 } from "./kimiSessions";
 
-/* 磁盘会话存储扫描与 wire/state 纯函数拆至 kimiSessions.ts(文件规模铁则);
-   此处 re-export 维持既有导入契约(index.test.ts 从 ./index 直取)。 */
-export {
-  extractKimiTitle,
-  kimiStateTitle,
-  kimiUserMessageLine,
-  matchKimiStatePath,
-  normalizeKimiTitle,
-  parseKimiState,
-} from "./kimiSessions";
-
 /**
  * Kimi 品牌 glyph:几何 K 字monogram(codemoss EngineIcon 同源策略),
  * 全对比度随主题(浅黑/深白,用户指定)。
@@ -119,7 +108,7 @@ export const cliKimiPlugin: Plugin = {
     abbr: "KI",
     desc: "Kimi Code CLI 引擎:kimi-code 会话桶、config 状态",
     icon: KimiGlyph,
-    iconColor: "#1783FF",
+    iconColor: "var(--tmd-fg)",
     category: "engine",
   },
   activate(ctx) {

@@ -16,6 +16,7 @@ import type { SessionMeta } from "@kernel/ipc";
 const order: string[] = [];
 const mocks = vi.hoisted(() => ({
   removeSession: vi.fn(),
+  getSessions: vi.fn(),
   getCliSessionId: vi.fn(),
   fsRemovePath: vi.fn(),
   removeSessionTitle: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock("@kernel/host", () => ({
   host: {
     getCliSessionId: (id: string) => mocks.getCliSessionId(id),
     removeSession: mocks.removeSession,
+    getSessions: mocks.getSessions,
   },
 }));
 vi.mock("@kernel/ipc", () => ({ ipc: { fsRemovePath: mocks.fsRemovePath } }));
@@ -64,6 +66,7 @@ const diskEntry = (id: string, path: string): CliDiskSession => ({
 beforeEach(() => {
   order.length = 0;
   vi.clearAllMocks();
+  mocks.getSessions.mockReturnValue([]);
   mocks.removeSession.mockImplementation(async (id: string) => {
     order.push(`kill:${id}`);
   });
@@ -163,5 +166,17 @@ describe("deleteDiskSessionFull", () => {
     expect(mocks.unpinSession).toHaveBeenCalledWith("pin-key");
     expect(mocks.unarchiveSession).toHaveBeenCalledWith("archive-key");
     expect(mocks.markSessionDeleted).toHaveBeenCalledWith("delete-key");
+  });
+  it("先杀后删:绑定活会话的磁盘行删除同走 kill → rm(跨 profile/他名不误杀)", async () => {
+    mocks.getSessions.mockReturnValue([
+      { id: "pty-9", profileId: "omp" },
+      { id: "pty-x", profileId: "omp" },
+      { id: "pty-y", profileId: "claude" },
+    ] as SessionMeta[]);
+    mocks.getCliSessionId.mockImplementation(
+      (id: string) => ({ "pty-9": "cli-d", "pty-x": "other", "pty-y": "cli-d" })[id],
+    );
+    await deleteDiskSessionFull(mkProfile(), diskEntry("cli-d", "/repo/.omp/d.jsonl"), "ws1");
+    expect(order).toEqual(["kill:pty-9", "rm:/repo/.omp/d.jsonl"]);
   });
 });

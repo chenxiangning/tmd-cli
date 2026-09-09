@@ -14,7 +14,7 @@
 
 import type { CliSessionEdit } from "@kernel/cli";
 import { normalizeEditPath } from "@kernel/editWatch";
-import { piAgentDir } from "./quota";
+import { piAgentDir } from "./piLocalConfig";
 import { parseEditEventsFromText } from "../cli-shared/sessionEdits";
 import { readPiFamilySessionEdits } from "../cli-shared/piFamily";
 

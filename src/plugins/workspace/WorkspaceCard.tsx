@@ -1,13 +1,15 @@
 /**
  * 单个工作区卡片(codemoss WorkspaceCard 复刻):行 + 折叠会话树。
  * 工作区行:双态文件夹图标(hover 换 chevrons)+ 名称 + Default badge
- *   + hover 显形动作组(切到主区/刷新会话/新建会话菜单),右键同「+」。
+ *   + hover 显形动作组(会话管理/归档视图/刷新会话/新建会话菜单),右键同「+」。
  */
 
+import { useState } from "react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
-import { setActiveWorkspace, type Workspace } from "@kernel/workspace";
-import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, RocketLaunch } from "@phosphor-icons/react";
+import { setActiveWorkspace, setWorkspaceAlias, workspaceDisplayName, type Workspace } from "@kernel/workspace";
+import { RenameInput } from "@kernel/RenameInput";
+import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, RocketLaunch, ListChecks } from "@phosphor-icons/react";
 import { CliSessionGroup } from "./SessionList";
 import { SshSessionGroup } from "./SshSessionGroup";
 import { ShellSessionGroup } from "./ShellSessionGroup";
@@ -29,6 +31,8 @@ export function WorkspaceCard({
   collapsed,
   onToggleCollapsed,
   refreshTicks,
+  renaming,
+  onRenameEnd,
   refreshing,
   onRefreshWorkspace,
   onScanDone,
@@ -39,6 +43,9 @@ export function WorkspaceCard({
   /** 折叠态由 WorkspaceSection 持有(受控):caption「折叠全部」按钮据此全局切换。 */
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  /** 行内别名重命名态(父级 WorkspaceSection 受控单例)。 */
+  renaming: boolean;
+  onRenameEnd: () => void;
   refreshTicks: Record<string, number>;
   /** 各工作区:CLI 扫描在途表 —— 本工作区任一 CLI 扫描中,行刷新按钮转圈。 */
   refreshing: Record<string, boolean>;
@@ -50,7 +57,8 @@ export function WorkspaceCard({
   const profiles = host.getCliProfiles();
   const scanKey = (profileId: string) => `${workspace.id}:${profileId}`;
   const rowRefreshing = profiles.some((p) => refreshing[scanKey(p.id)] ?? false);
-
+  /** 会话管理模式(本工作区全部 CLI 组统一切换,prop 下发);入口 = 行头开关(归档视图入口在 caption「默认|归档」radio)。 */
+  const [manage, setManage] = useState(false);
   return (
     <div className={`workspace-card${isActive ? " is-active" : ""}`}>
       <div
@@ -70,6 +78,8 @@ export function WorkspaceCard({
           onShowMenu(workspace, e.clientX, e.clientY);
         }}
         onKeyDown={(e) => {
+          /* 行内嵌按钮(折叠/管理/刷新/新建)自己吃 Enter/Space,行不得截胡。 */
+          if ((e.target as HTMLElement).closest("button")) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             setActiveWorkspace(workspace.id);
@@ -100,7 +110,20 @@ export function WorkspaceCard({
             </span>
           </button>
 
-          <span className="workspace-name-text">{workspace.name}</span>
+          {renaming ? (
+            <RenameInput
+              target={{ current: workspaceDisplayName(workspace) }}
+              placeholder={t("别名(留空清除)")}
+              onCommit={(value) => {
+                if (value !== null) setWorkspaceAlias(workspace.id, value);
+                onRenameEnd();
+              }}
+            />
+          ) : (
+            <span className="workspace-name-text" title={workspace.root}>
+              {workspaceDisplayName(workspace)}
+            </span>
+          )}
           {workspace.id === "default" && (
             <span className="default-workspace-badge" aria-label="Default Workspace">
               Default
@@ -108,6 +131,18 @@ export function WorkspaceCard({
           )}
 
           <div className="workspace-actions">
+            <button
+              className={`workspace-action-btn${manage ? " is-on" : ""}`}
+              title={t("会话管理")}
+              aria-pressed={manage}
+              onClick={(e) => {
+                e.stopPropagation();
+                setManage((v) => !v);
+              }}
+              onDoubleClick={(e) => e.stopPropagation()}
+            >
+              <ListChecks size="0.9375rem" aria-hidden />
+            </button>
             <button
               className={`workspace-action-btn${rowRefreshing ? " is-refreshing" : ""}`}
               title={t("刷新会话")}
@@ -120,7 +155,7 @@ export function WorkspaceCard({
               <ArrowClockwise size="1rem" aria-hidden />
             </button>
             <button
-              className="workspace-action-btn"
+              className="workspace-action-btn is-newchat"
               title={t("新建会话")}
               onClick={(e) => {
                 e.stopPropagation();
@@ -137,6 +172,7 @@ export function WorkspaceCard({
       <div
         className={`workspace-children ${collapsed ? "is-collapsed" : "is-expanded"}`}
         aria-hidden={collapsed}
+        inert={collapsed}
       >
         <div className="workspace-children-inner">
           {profiles.map((p) => (
@@ -145,6 +181,7 @@ export function WorkspaceCard({
               profile={p}
               workspace={workspace}
               refreshTick={refreshTicks[scanKey(p.id)] ?? 0}
+              manage={manage}
               onScanned={() => onScanDone(workspace.id, p.id)}
             />
           ))}

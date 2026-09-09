@@ -34,6 +34,7 @@ vi.mock("./ipc", () => ({
 }));
 
 import { host } from "./host";
+import { bootSessionTabs, closeSessionTab, resetSessionTabsForTest } from "./sessionTabs";
 
 const PROFILE_ID = "test-omp";
 const CWD = "/proj";
@@ -72,6 +73,8 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
     disk = [];
     resetStatusTimer();
     host.resetActivityWatchForTest();
+    resetSessionTabsForTest();
+    bootSessionTabs(host.events); // 真实运行 main.tsx 接线;测试借它让会话持有 tab
     if (!host.getCliProfile(PROFILE_ID)) host.registerCliProfile(profile);
   });
 
@@ -148,5 +151,57 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
 
     await host.removeSession(a.id);
     expect(host.isUnread(a.id)).toBe(false);
+  });
+
+  it("已了结会话关 tab 后:异步噪音不开轮、不推进活动钟(保持已查看)", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    userPrompt(a.id);
+    fireOutput(a.id);
+    await vi.advanceTimersByTimeAsync(3000); // 结算:正在查看 → 不标未读
+    expect(host.isUnread(a.id)).toBe(false);
+    const settledAt = host.getLastActivityAt(a.id);
+
+    closeSessionTab(a.id); // 摘 tab,会话保持运行
+    fireOutput(a.id, "async banner"); // hook/dreamer/更新横幅类异步字节
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(host.isTurnActive(a.id)).toBe(false); // 轮次未开
+    expect(host.getLastActivityAt(a.id)).toBe(settledAt); // 活动钟未推进
+    expect(host.isUnread(a.id)).toBe(false); // 保持已查看
+  });
+
+  it("在途轮次关 tab:输出照常推进,结算照标未读", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await host.createSession(PROFILE_ID, CWD); // 后者活跃
+    userPrompt(a.id);
+    fireOutput(a.id); // 轮次在途
+    closeSessionTab(a.id);
+    fireOutput(a.id, "answer continues"); // 在途轮次不受闸影响
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(host.isUnread(a.id)).toBe(true);
+  });
+
+  it("写完即关 tab:首字节迟到也开轮,结算后噪音被闸挡", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await host.createSession(PROFILE_ID, CWD);
+    userPrompt(a.id);
+    closeSessionTab(a.id);
+    fireOutput(a.id, "late first byte"); // awaitingTurn 放行
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(host.isUnread(a.id)).toBe(true);
+
+    fireOutput(a.id, "noise after settle"); // awaitingTurn 已随结算清除
+    expect(host.isTurnActive(a.id)).toBe(false);
+  });
+
+  it("关 tab 后重新点开:轮次语义恢复", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await host.createSession(PROFILE_ID, CWD);
+    userPrompt(a.id);
+    fireOutput(a.id);
+    await vi.advanceTimersByTimeAsync(3000);
+    closeSessionTab(a.id);
+    host.setActiveSession(a.id); // 重新点开 = tab 恢复(activeSessionChanged → trackOpen)
+    fireOutput(a.id, "new output");
+    expect(host.isTurnActive(a.id)).toBe(true);
   });
 });

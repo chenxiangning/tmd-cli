@@ -20,7 +20,7 @@ import "@xterm/xterm/css/xterm.css";
 import { openExternalUrl } from "@kernel/ipc";
 import { getSettingsState, subscribeSettings } from "@kernel/settings";
 import { resolveTerminalFontFamily } from "@kernel/terminalFonts";
-import { host, ptyLiveTopic } from "@kernel/host";
+import { host } from "@kernel/host";
 import {
   registerTerminalHandle,
   unregisterTerminalHandle,
@@ -28,6 +28,7 @@ import {
 } from "@kernel/messageAnchors";
 import { subscribeThemeApplied } from "@kernel/theme";
 import { createReplayInputGate } from "@kernel/terminalInputGate";
+import { attachTerminalStream, type LoadProgress } from "@kernel/terminalReplay";
 import { isTerminalReport } from "@kernel/terminalReports";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay, findRequestRef } from "@kernel/terminalSearch";
@@ -60,9 +61,9 @@ function readTerminalTheme(): ITheme {
   };
 }
 
-/* 导出级 memo:props 仅 { sessionId: string } 原始类型,浅比较稳定;
-   会话切换经 key={activeId} 重挂载,不受影响。内部逻辑零改动。 */
-function TerminalViewImpl({ sessionId }: { sessionId: string }) {
+/* 导出级 memo:props 全原始类型,浅比较稳定。keep-alive 语义(MainPanel):
+   tab 条内会话常驻挂载,非激活 display:none;active 切换不重挂,仅 ref 所有权迁移。 */
+function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const searchRef = useRef<SearchAddon | null>(null);
@@ -70,8 +71,11 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
   const [hasMore, setHasMore] = useState(false);
   const [atTop, setAtTop] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  /* 加载进度态:null = 就绪撤罩(terminalReplay.ts);streamReadyRef = 幕布流就绪相位(onReady 置位),askProbe 停采判据(评审 F5/P1-2)。 */
+  const [loadProgress, setLoadProgress] = useState<LoadProgress>(null);
+  const streamReadyRef = useRef(false);
   /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答
-     (见 terminalInputGate.ts);组件按 key=sessionId 重挂载,闸随实例重生。 */
+     (见 terminalInputGate.ts);实例随会话 keep-alive 常驻,闸随实例持有。 */
   const inputGateRef = useRef(createReplayInputGate());
   /* 翻页器(实现见 terminalHistory.ts):锚点/前缀页/重入闸随实例持有,
      hasMore/loading 经 onState 回喂上面的 React state。 */
@@ -121,8 +125,6 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     container.addEventListener("focusout", onFocusOut);
     term.open(container);
     fit.fit();
-    findRequestRef.current = () => setSearchOpen(true);
-
     /* WebGL 渲染器:omp/claude 全屏重绘的性能关键。必须在 open 之后加载;
        无 WebGL 环境(部分 Linux WebKitGTK)或上下文丢失时回退 DOM 渲染,行为与之前一致。 */
     try {
@@ -142,21 +144,11 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
       setLoadingHistory(l);
     });
     pagerRef.current = pager;
-
-    // 先回放历史输出,再挂实时流——顺序保证字节流连续。
-    // 回放期间上输入闸:历史内容里的终端查询(DSR/DA/OSC 颜色)会被 xterm 重新应答,
-    // 应答照走 writeSession 即 ① 陈旧应答注入活 PTY ② 视同用户首写、锚定对话,
-    // 历史会话点开即误走呼吸灯绿→蓝生命周期(见 terminalInputGate.ts)。
-    const inputGate = inputGateRef.current;
-    const replay = host.getOutputBuffer(sessionId);
-    if (replay) {
-      inputGate.arm();
-      term.write(replay, () => inputGate.release());
-      /* 重挂载(webview 重载/切回)补观察:AskWatch 是纯内存态,重载即清零,
-         而静态 Ask 面板不再产生新输出 —— 不喂尾巴,等待标签与提示音永久丢失。
-         尾巴里无面板标记(早已作答)则零副作用。 */
-      host.observeReplayTail(sessionId);
-    }
+    /* 翻页器随挂载创建(keep-alive 后每会话仅挂载一次);输出装配见 terminalReplay.ts。 */
+    streamReadyRef.current = false;
+    const offStream = attachTerminalStream(term, sessionId, inputGateRef.current, setLoadProgress, () => {
+      streamReadyRef.current = true;
+    });
 
     /* 翻页锚点初始化(缓冲起点绝对偏移反推,实现见 terminalHistory.ts)。 */
     void pager.init();
@@ -164,16 +156,13 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     /* 滚动到顶才显示"加载更早的输出"入口 */
     setAtTop(term.buffer.active.viewportY === 0);
     const offScroll = term.onScroll((y) => setAtTop(y === 0));
-
-    const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) =>
-      term.write(text),
-    );
     /* Ask 屏幕态采样(askWatch v3):omp 等待期间 spinner 以光标寻址持续重绘,
        面板标记一旦流出字节尾窗永不复现(实测 3h 挂起面板后流 7.4MB)——
        字节流检测对此原理性无解,但屏幕上标记始终在:读底部 8 行文本喂检测器
-       (命中判定在 askWatch 内,含 CLI 声明标记)。读 baseY 起的活动屏幕
-       (非 viewport),用户上翻历史不影响判定。 */
+       (非 viewport),用户上翻历史不影响判定。就绪前(回放/流式相位)停采:
+       磁盘回放的墓碑帧不进屏幕通道,Ask 恢复只走 restoreTail(评审 F5)。 */
     const askProbe = setInterval(() => {
+      if (!streamReadyRef.current) return; /* 就绪前墓碑帧不进屏幕通道 */
       const buf = term.buffer.active;
       const bottom = Math.min(buf.length, buf.baseY + term.rows);
       let screenTail = "";
@@ -186,7 +175,7 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
        照写 PTY 但标 synthetic —— 它们不是用户输入,不得锚定对话,
        否则点一下终端/滚一轮就会点亮无对话会话的呼吸灯 */
     const offInput = term.onData((data) => {
-      if (inputGate.blocked()) return;
+      if (inputGateRef.current.blocked()) return;
       host.writeSession(sessionId, data, isTerminalReport(data));
     });
     /* 对话锚点:向内核注册本幕布的跳转/定位能力(composer 锚点栏经此中转)。 */
@@ -223,9 +212,8 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
       offFontSettings();
       container.removeEventListener("focusin", onFocusIn);
       container.removeEventListener("focusout", onFocusOut);
-      findRequestRef.current = null;
       unregisterTerminalHandle(sessionId, terminalHandle);
-      offLive();
+      offStream();
       offInput.dispose();
       offScroll.dispose();
       observer.disconnect();
@@ -239,6 +227,16 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     };
   }, [sessionId]);
 
+  /* ⌘F 搜索框所有权:keep-alive 后多幕布并存,模块级 findRequestRef 单槽,
+     必须跟随激活实例 —— 激活即持有,失活/卸载仅在仍归自己时让出。 */
+  useEffect(() => {
+    if (!active) return;
+    const mine = () => setSearchOpen(true);
+    findRequestRef.current = mine;
+    return () => {
+      if (findRequestRef.current === mine) findRequestRef.current = null;
+    };
+  }, [active]);
   const closeSearch = () => {
     setSearchOpen(false);
     termRef.current?.focus();
@@ -252,10 +250,35 @@ function TerminalViewImpl({ sessionId }: { sessionId: string }) {
     await pager.loadEarlier(term);
   };
   loadEarlierRef.current = loadEarlier;
-
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
+      {loadProgress !== null && (
+        /* 加载遮罩:回放期显真实解析进度,流式期显真实接收量;输出静默即撤(terminalReplay.ts)。 */
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center"
+          style={{ background: "var(--tmd-terminal-bg)" }}
+        >
+          <div className="flex w-56 flex-col items-center gap-2">
+            <span className="text-xs text-(--tmd-fg-muted)">
+              {loadProgress.kind === "replay"
+                ? `加载会话输出… ${loadProgress.pct}%`
+                : `加载会话输出… 已接收 ${Math.max(1, Math.round(loadProgress.chars / 1024))}K`}
+            </span>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-(--tmd-border)">
+              <div
+                className="h-full bg-(--tmd-accent) transition-[width] duration-150"
+                style={{
+                  width:
+                    loadProgress.kind === "replay"
+                      ? `${loadProgress.pct}%`
+                      : `${Math.min(99, Math.round(loadProgress.chars / 5000))}%`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       {atTop && hasMore && (
         <button
           onClick={() => void loadEarlier()}

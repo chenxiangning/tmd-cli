@@ -17,6 +17,12 @@ export interface ModelEntry {
 }
 
 export type ModelEngine = "omp" | "pi" | "opencode";
+const MODEL_ENGINES: readonly ModelEngine[] = ["omp", "pi", "opencode"];
+
+/** settings.memoryDistillEngine(kernel 存自由串)→ 可执行引擎;未知/空回落 omp。 */
+export function resolveDistillEngine(raw: string): ModelEngine {
+  return (MODEL_ENGINES as readonly string[]).includes(raw) ? (raw as ModelEngine) : "omp";
+}
 
 const cache = new Map<ModelEngine, ModelEntry[]>();
 const cacheAt = new Map<ModelEngine, number>();

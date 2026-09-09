@@ -33,8 +33,9 @@ export const MESSAGES = {
   "当前使用自定义主题({preset},{appearance})。": "Using custom theme ({preset}, {appearance}).",
   "当前固定使用 {appearance} 外观。": "Fixed to {appearance} appearance.",
   "会话标题 tab 条": "Session title tabs",
-  "顶栏中央同时展示最多 4 个已打开的会话，点击切换；关闭后仍可从左侧栏进入会话。":
-    "Shows up to 4 open sessions in the center of the title bar; click to switch. Closed sessions remain reachable from the left sidebar.",
+  "顶栏中央展示已打开的会话，点击切换；关闭后仍可从左侧栏进入会话。":
+    "Show open sessions in the center of the title bar; click to switch. Closed sessions remain reachable from the left sidebar.",
+  "会话标题 tab 条容量": "Session tab capacity",
   "开启": "On",
   "关闭": "Off",
   "主题": "Theme",
@@ -72,8 +73,21 @@ export const MESSAGES = {
   // ShortcutTab
   "外壳与终端": "Shell & terminal",
   "未绑定": "Not bound",
+  "未设置": "Not set",
   "搜索命令、键位或 id…": "Search commands, keys, or id…",
   "没有匹配的命令": "No matching commands",
+  "已修改": "Modified",
+  "内置": "Built-in",
+  "此命令为内置键位,不可改": "This command has a built-in binding and cannot be changed",
+  "点击录制新的快捷键": "Click to record a new shortcut",
+  "录制中…": "Recording…",
+  "按 Esc 取消 · Backspace 解绑": "Press Esc to cancel · Backspace to unbind",
+  "Escape 不可绑定": "Escape cannot be bound",
+  "需含 ⌘/Ctrl/Shift/Alt 之一": "Requires ⌘/Ctrl/Shift/Alt",
+  "键位格式错误": "Invalid key syntax",
+  "与 {id} 占用,无法使用": "Conflicts with {id}; cannot use",
+  "恢复默认": "Reset to default",
+  "全部重置": "Reset all",
 
   // SettingsPanel / index.tsx
   "设置": "Settings",
@@ -84,4 +98,17 @@ export const MESSAGES = {
   "外观": "Appearance",
   "行为": "Behavior",
   "快捷键": "Shortcuts",
+
+  // IconDecorCard
+  "图标装饰": "Icon decorations",
+  "逐图标自定义颜色与呼吸闪烁;有开关两态的图标仅作用于点亮色。":
+    "Per-icon color and breathing glow; for icons with on/off states only the lit color is themed.",
+  "SSH 入口": "SSH entry",
+  "网络代理": "Network proxy",
+  "文件面板": "Files panel",
+  "Git 面板": "Git panel",
+  "审批线面板": "Checkpoints panel",
+  "Memory 面板": "Memory panel",
+  "颜色": "Color",
+  "闪烁": "Breathing",
 } as Record<string, string>;

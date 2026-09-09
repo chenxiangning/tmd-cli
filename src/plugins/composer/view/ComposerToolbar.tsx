@@ -1,7 +1,6 @@
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { collapseComposerStage, expandComposerStage, useComposerStage } from "@kernel/composerStage";
-import { KernelTopics } from "@kernel/events";
 import { CaretDown, CaretUp, Sidebar } from "@phosphor-icons/react";
 import { QuotaChip } from "./QuotaChip";
 import { toggleDrawer, useDrawerOpen } from "../state/drawerOpen";
@@ -39,7 +38,8 @@ export function ComposerToolbar() {
     if (!sessionId || !profile) return;
     const wire = prepareSendPayload(profile, cmd);
     host.writeSession(sessionId, wire);
-    host.events.emit(KernelTopics.promptSent, { sessionId, text: cmd });
+    /* 不广播 promptSent:/model 与思考命令是 CLI 控制命令,永不开对话轮;起锚只会
+       空耗轮次号 —— 轮中切模型曾把在途轮 19 个文件错归 "/model" 批(2026-09-08 实证) */
   }
   const drawerOpen = useDrawerOpen();
   const stage = useComposerStage();
@@ -119,11 +119,13 @@ export function ComposerToolbar() {
       {/* 命令抽屉直达开关(closed ↔ open);原「只读」占位(openspec/changes/composer-command-drawer) */}
       <button
         type="button"
-        aria-expanded={drawerOpen}
+        aria-label={t("命令与技能(⌘K)")}
         aria-controls="command-drawer"
-        title={t("命令与技能(⌘K)")}
+        title=""
+        data-hint={t("命令与技能")}
+        data-hint-cmd="composer.toggleDrawer"
         disabled={noSession}
-        onClick={(e) => { e.stopPropagation(); toggleDrawer(); }}
+        onClick={toggleDrawer}
         className={`${iconBtn} ${
           drawerOpen
             ? "bg-(--tmd-accent-soft) text-(--tmd-accent)"

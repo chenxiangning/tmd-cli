@@ -5,7 +5,7 @@
  * 仅计时器路径(回调里无法借道 appendOutput)在内部 notify。
  */
 
-import { ASK_MARKER_RE } from "./askDetect";
+import { ASK_MARKER_RE, ASK_REARM_SUPPRESS_MS } from "./askDetect";
 import { AskWatch } from "./askWatchCore";
 
 export interface AskWatchFeedCtx {
@@ -23,6 +23,8 @@ export interface AskWatchFeedCtx {
 
 export class AskWatchFeed {
   private readonly watch: AskWatch;
+  /** 最近用户写入时刻(restoreTail 写后闸判据;会话移除时随 watch 一并清理)。 */
+  private readonly lastWriteAt = new Map<string, number>();
 
   constructor(private readonly ctx: AskWatchFeedCtx) {
     this.watch = new AskWatch(
@@ -72,14 +74,35 @@ export class AskWatchFeed {
   observeReplayTail(sessionId: string): void {
     /* 已有状态(等待/候选)的会话不重复喂:重挂载频繁,复喂同一尾巴会把
        bytesIn 无谓推高并把候选漂移基线反复清零,4KB 漂移约束被架空(评审实测) */
-    if (this.watch.hasState(sessionId)) return;
-    /* 2048 > RAW_TAIL_CHARS(1024):喂入量大于内部尾窗,页脚语义不受影响 */
-    const tail = this.ctx.bufferTail(sessionId, 2048);
-    if (tail) this.onOutput(sessionId, tail);
+    this.restoreTail(sessionId, this.ctx.bufferTail(sessionId, 2048));
   }
 
-  /** 用户写入 = 作答(host.writeSession);返回 true = 状态翻转,host 据此重渲染。 */
+  /**
+   * 尾巴恢复喂入(回放补观察 / boot 磁盘日志恢复共用)。webview 全量重载后
+   * 内存态清零,而 Rust 侧 PTY 与静态 Ask 面板照常存活:面板不再产生带标记的
+   * 新字节,关 tab 的会话既无屏幕采样(要挂载)也无可回放缓冲(已清空)——
+   * 磁盘日志尾巴是唯一幸存证据。标记仍在尾 → 立候选,漂移确认后升级;
+   * 早已作答的尾巴无标记,零副作用。extraMarks:恢复路径会话可能尚未入
+   * host.sessions 表,askMarks 查不到,由调用方按 profileId 显式携带。
+   */
+  restoreTail(sessionId: string, tail: string, extraMarks?: RegExp[]): void {
+    if (this.watch.hasState(sessionId)) return;
+    /* 2048 > RAW_TAIL_CHARS(1024):喂入量大于内部尾窗,页脚语义不受影响 */
+    if (tail) this.watch.onOutput(sessionId, tail, undefined, extraMarks ?? this.ctx.askMarks(sessionId));
+  }
+
+  /** 磁盘尾恢复专用(走法 1 冷开回放):带写后闸 —— 尾巴是上一代残迹,
+      回放窗内作答后到达属残影,不得立候选(评审 F4)。lastWriteAt 本件自持。 */
+  restoreDiskTail(sessionId: string, tail: string): void {
+    const lastWrite = this.lastWriteAt.get(sessionId);
+    if (lastWrite !== undefined && Date.now() - lastWrite < ASK_REARM_SUPPRESS_MS) return;
+    this.restoreTail(sessionId, tail);
+  }
+
+  /** 用户写入 = 作答(host.writeSession);返回 true = 状态翻转,host 据此重渲染。
+      同时记录时间戳,供 restoreTail 写后闸判定(见上)。 */
   onUserWrite(sessionId: string): boolean {
+    this.lastWriteAt.set(sessionId, Date.now());
     return this.watch.onUserWrite(sessionId);
   }
 
@@ -88,8 +111,9 @@ export class AskWatchFeed {
     return this.watch.isWaiting(sessionId);
   }
 
-  /** 会话移除:等待/候选/尾巴残留一并清除。 */
+  /** 会话移除:等待/候选/尾巴残留/写后闸时刻一并清除。 */
   onSessionRemoved(sessionId: string): void {
+    this.lastWriteAt.delete(sessionId);
     this.watch.onSessionRemoved(sessionId);
   }
 

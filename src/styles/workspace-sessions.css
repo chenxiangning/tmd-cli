@@ -1,26 +1,53 @@
 /**
- * 会话时间轴样式(从 workspace-sidebar.css 拆分) — 会话列表/CLI 分组/时间节点。
- * FLUX 时间轴流:贯穿竖线 + 状态节点圆点,作用域 .ws-sidebar。
+ * 会话列表样式(自 workspace-sidebar.css 拆分) — 会话行 / 供应商图标 / 状态节点。
+ * 扁平化(2026-09-08 spec):分组段头与时间轴轨道退役,会话行直接平铺于工作区下
+ * (8px 缩进);选中态 = accent-soft 底;行首供应商图标区分引擎。
  */
 
-/* ===== 会话树容器(codemoss .workspace-children + 贯穿竖线) ===== */
+/* ===== 会话树容器(codemoss .workspace-children) ===== */
 .workspace-children {
-  --workspace-tree-rail: color-mix(in srgb, var(--text-muted) 30%, transparent);
-  /* 轨道水平位:竖线中心须穿过文件夹图标中心(x=20)= 工作区行 margin-left(4)
-     + header padding-left(8) + 图标半宽(8);线宽 1px,left 取 19.5 让中心落 20。
-     行/分组标签/更多…的 margin-left 全部消费本变量,与轨道同进退。 */
-  --workspace-tree-rail-x: 19.5px;
+  /* 行缩进:会话行 / 更多… / 管理批量条的 margin-left 统一消费本变量(与树线 x 同位)。
+     20px = 行 margin-left 4 + 头 padding-left 8 + 文件夹按钮 16/2,即文件夹图标中心。 */
+  --workspace-tree-indent: 20px;
   position: relative;
   display: grid;
   margin: 2px 0 0;
   opacity: 1;
   transform: translateY(0);
-  /* 不裁剪:树线顶部要上探 16px 扎进文件夹行;行内容裁剪由 inner 的 overflow 负责。 */
+  /* 不裁剪:树线顶部要上探扎进文件夹行;行内容裁剪由 inner 的 overflow 负责。 */
   transition:
     grid-template-rows 0.18s cubic-bezier(0.2, 0, 0, 1),
     opacity 0.16s ease,
     transform 0.18s cubic-bezier(0.2, 0, 0, 1),
     margin-top 0.18s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ══ 树形参考线(2026-09-08 追加,参考 Claude 侧栏):竖线 x=容器 20px(居文件夹图标中心),
+   每行 ╭ 形弯钩从线拐向行首供应商图标;行间缝隙由竖线兜底,钩子只画拐弯段。
+   仅 .workspace-children 内生效 —— 置顶区/运行区复用 .thread-row 但无此线,不受波及。 ══ */
+.workspace-children::before {
+  content: "";
+  position: absolute;
+  top: -8px; /* 上探扎进文件夹行底部 */
+  bottom: 7px;
+  /* 19.5px:1px 线宽居中于图标中心 20px(同 tl-node -3.5px 半像素居中惯例)。 */
+  left: 19.5px;
+  width: 1px;
+  background: var(--border-subtle);
+  pointer-events: none;
+}
+
+.workspace-children .thread-row::before {
+  content: "";
+  position: absolute;
+  left: 0; /* = 竖线行坐标(缩进与线同位) */
+  top: calc(50% - 6px);
+  width: 15px; /* 拐到行首图标前(badge glyph 中心 17px) */
+  height: 6px;
+  border-left: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  border-bottom-left-radius: 6px;
+  pointer-events: none;
 }
 
 .workspace-children.is-collapsed {
@@ -41,19 +68,6 @@
   z-index: 1;
 }
 
-/* 容器级贯穿竖线(连续性由它保证,行只画弯钩)。
-   top: -16px = 工作区行高一半(14px)+ margin-top(2px):
-   线顶与文件夹图标垂直中心对齐,线从文件夹正下方垂出。 */
-.workspace-children::before {
-  content: "";
-  position: absolute;
-  left: var(--workspace-tree-rail-x);
-  top: -16px;
-  bottom: 6px;
-  width: 1px;
-  background: var(--workspace-tree-rail);
-  pointer-events: none;
-}
 
 /* ===== 会话行(codemoss .thread-row) ===== */
 .thread-row {
@@ -73,13 +87,12 @@
     color 0.16s ease;
   background: transparent;
   border: none;
-  width: calc(100% - var(--workspace-tree-rail-x));
-  margin-left: var(--workspace-tree-rail-x);
+  width: calc(100% - var(--workspace-tree-indent));
+  margin-left: var(--workspace-tree-indent);
   text-align: left;
 }
 
-/* ══ 时间节点(FLUX 时间轴):落在贯穿竖线上的状态圆点 ══
-   行左缘 = 竖线位(margin-left 10px = rail-x),dot 左移半宽即骑线。
+/* ══ 状态节点:行左缘圆点(时间轴轨道退役后保留原槽位,相对行左 -3px) ══
    绿 = 对话中(呼吸 + halo);蓝 = 完成未读(呼吸);灰 = 静止磁盘历史。 */
 .tl-node {
   position: absolute;
@@ -105,7 +118,10 @@
   box-shadow: 0 0 0 2px var(--tmd-accent-soft);
 }
 
+/* 闲置灰点隐藏(扁平化后纯噪音):只留 运行(绿呼吸)/未读(蓝呼吸)/归档徽记 信号位;
+   圆点绝对定位,隐藏无布局位移。 */
 .tl-node.is-idle {
+  display: none;
   animation: none;
 }
 
@@ -117,25 +133,9 @@
     0 0 0 4px color-mix(in srgb, var(--tmd-accent) 10%, transparent);
 }
 
-/* 正在查看:圆点让位 Eye 图标,同槽位骑线(15px 盒居中于竖线位);切走/关闭还原圆点。
-   特异性须压过 .thread-row.active .tl-node(0-3-0)的 accent 背景 + 双环,
-   否则背景方块吞掉 Eye(viewing 仅在 active 行出现,并列三段选择器 + 位置靠后取胜)。 */
-.thread-row .tl-node.tl-node-viewing {
-  left: -7px;
-  width: 15px;
-  height: 15px;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* 正在查看 Eye:置顶区与工作区行同形同色(size 13),主题前景 token,深浅主题自适应。 */
-.thread-viewing-eye {
-  color: var(--text-strong);
-}
+/* 树线坐标(仅工作区树内;置顶区/运行区节点槽位不动):竖线 = 行坐标 x=0,
+   状态圆点(7px)中心对齐骑线。 */
+.workspace-children .tl-node { left: -3.5px; }
 
 .thread-row:hover {
   background: var(--surface-hover);
@@ -143,12 +143,12 @@
 }
 
 .thread-row.active {
-  background: color-mix(in srgb, var(--surface-hover) 72%, transparent);
+  background: var(--tmd-accent-soft);
   color: var(--text-strong);
 }
 
 .thread-row.active:hover {
-  background: color-mix(in srgb, var(--surface-hover) 72%, transparent);
+  background: var(--tmd-accent-soft);
 }
 
 /* CLI 引擎 logo(codemoss .thread-engine-badge) */
@@ -178,12 +178,6 @@
   line-height: 1.3;
   font-weight: 400;
   margin-right: 6px;
-}
-
-.thread-name.is-disk {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: var(--sidebar-meta-font-size);
-  color: var(--text-muted);
 }
 
 .thread-meta {

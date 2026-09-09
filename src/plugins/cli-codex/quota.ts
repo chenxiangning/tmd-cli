@@ -17,14 +17,11 @@
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import type { QuotaSnapshot } from "@kernel/quota";
-import {
-  codexPlanLabelWithSnapshot,
-  readCodexLocalQuota,
-  type CodexLocalQuota,
-} from "../cli-shared/quota/codexLocal";
+import { fetchCodexQuotaWithSnapshot } from "../cli-shared/quota/codexLocal";
 import {
   detectVendorByBaseUrl,
   fetchVendorQuota,
+  toQuotaSnapshot,
   type VendorQuota,
 } from "../cli-shared/quota/vendors";
 
@@ -86,25 +83,11 @@ function chatGptOAuth(auth: CodexAuth | null): { access: string; accountId: stri
     : null;
 }
 
-function localSnapshot(quota: CodexLocalQuota): QuotaSnapshot {
-  return {
-    providerLabel: "codex",
-    title: "Codex 账号额度",
-    usedLabel: "已使用",
-    windows: quota.windows,
-    planLabel: codexPlanLabelWithSnapshot(quota),
-  };
-}
-
 function httpSnapshot(quota: VendorQuota, planPrefix?: string): QuotaSnapshot {
-  return {
-    providerLabel: "codex",
-    title: "Codex 账号额度",
-    usedLabel: "已使用",
-    windows: quota.windows,
-    balanceText: quota.balanceText,
+  return toQuotaSnapshot("codex", "openai-codex", {
+    ...quota,
     planLabel: [planPrefix, quota.planLabel].filter(Boolean).join(" · ") || undefined,
-  };
+  });
 }
 
 export async function fetchCodexQuota(): Promise<QuotaSnapshot> {
@@ -114,12 +97,7 @@ export async function fetchCodexQuota(): Promise<QuotaSnapshot> {
   // 1. 官方 OAuth 登录 → CLI 本地快照;失败降级 wham HTTP
   const oauth = chatGptOAuth(auth);
   if (oauth) {
-    try {
-      return localSnapshot(await readCodexLocalQuota());
-    } catch {
-      const quota = await fetchVendorQuota("openai-codex", oauth);
-      return httpSnapshot(quota);
-    }
+    return fetchCodexQuotaWithSnapshot(oauth, "codex");
   }
 
   // 2. 自定义 key 模式 → config.toml base_url 检测供应商 → HTTP

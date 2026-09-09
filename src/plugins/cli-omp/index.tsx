@@ -1,6 +1,7 @@
 import { Package } from "@phosphor-icons/react";
 import { piFamilySessions } from "../cli-shared/piFamily";
 import { readOmpDefaultStatus } from "./configStatus";
+import { ompConfigEntry } from "./configGui";
 import { fetchOmpQuota } from "./quota";
 import { ompSessionsDir, readOmpSessionEdits } from "./edits";
 import { listOmpSuggestions } from "./rpcCommands";
@@ -74,6 +75,8 @@ export const cliOmpPlugin: Plugin = {
   id: "cli-omp",
   meta: { name: "OMP", abbr: "OM", desc: "OMP CLI 引擎:会话扫描、配额、状态", icon: OmpGlyph, category: "engine" },
   activate(ctx) {
+    /* 图形化配置面:贡献经 ctx 登记,渲染归 cli-config 插件。 */
+    ctx.registerCliConfig({ ...ompConfigEntry, icon: (size) => <OmpGlyph size={size} /> });
     /* 二级扩展市场:插排角标滑出面板(装卸 omp 自己的 npm 扩展)。 */
     ctx.registerMarketPanel({
       pluginId: "cli-omp",

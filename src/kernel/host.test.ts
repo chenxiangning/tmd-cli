@@ -39,6 +39,8 @@ vi.mock("./ipc", () => ({
   onPtyExit: vi.fn(async () => () => undefined),
 }));
 
+import { ipc } from "./ipc";
+import { KernelTopics } from "./events";
 import { host } from "./host";
 
 const PROFILE_ID = "test-omp";
@@ -225,5 +227,37 @@ describe("detectDiskIdentity 快照与复活", () => {
     /* 本会话的全新文件与另一会话的 resume 复活同时出现 → 必须绑新文件 */
     disk = [diskSession("t7-new", 300), diskSession("t7-old", 200)];
     expect(await advanceUntilBound(a.id)).toBe("t7-new");
+  });
+});
+
+describe("openDiskSession 去重聚焦与失败广播(走法 1 契约)", () => {
+  beforeEach(() => {
+    sessions.length = 0;
+    disk = [];
+    listImpl = async () => disk;
+    if (!host.getCliProfile(PROFILE_ID)) host.registerCliProfile(profile);
+  });
+
+  it("双击同一磁盘会话:复用同一进程聚焦,不重复 spawn", async () => {
+    const actives: unknown[] = [];
+    const off = host.events.on(KernelTopics.activeSessionChanged, (p) => actives.push(p));
+    const meta = await host.openDiskSession(PROFILE_ID, CWD, undefined, "aa-1");
+    expect(host.getSessions().some((s) => s.id === meta.id)).toBe(true);
+    /* 点击 = 再走 open,去重命中同一进程并聚焦(不重复广播之外的 spawn) */
+    const again = await host.openDiskSession(PROFILE_ID, CWD, undefined, "aa-1");
+    expect(again.id).toBe(meta.id);
+    expect(actives).toEqual([meta.id]);
+    off();
+  });
+
+  it("spawn 失败:上抛并广播 sessionStartFailed(Toast 呈现)", async () => {
+    const failures: unknown[] = [];
+    const off = host.events.on(KernelTopics.sessionStartFailed, (p) => failures.push(p));
+    vi.mocked(ipc.sessionSpawn).mockRejectedValueOnce(new Error("boom2"));
+    await expect(host.openDiskSession(PROFILE_ID, CWD, undefined, "aa-3")).rejects.toThrow(
+      "boom2",
+    );
+    expect(failures).toHaveLength(1);
+    off();
   });
 });

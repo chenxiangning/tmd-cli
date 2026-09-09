@@ -53,3 +53,15 @@
   padding: 0 4px;
   white-space: nowrap;
 }
+
+/* diff 双栏空侧占位:斜纹(token 着色,明暗自适应,对齐 codemoss 视觉契约)。 */
+.diff-split-empty {
+  background-color: var(--tmd-bg-sunken);
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 5px,
+    var(--tmd-bg-hover) 5px,
+    var(--tmd-bg-hover) 6px
+  );
+}

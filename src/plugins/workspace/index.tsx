@@ -5,14 +5,14 @@
  *   + hover 显形动作组(切到主区/刷新会话/新建会话菜单),右键同「+」
  * - caption 动作区:折叠/展开全部工作区会话(受控 collapsedMap,卡片行内
  *   toggle 与全局按钮同源)+ 插件贡献位(leftSidebar.workspaceCaption)+ 添加工作区
- * - 会话时间轴:贯穿竖线 + 状态节点圆点(绿=对话中 / 蓝=完成未读 / 灰=静止);
- *   行 = 节点 + 名称 + meta(磁盘会话显示相对时间),固定在 CLI 分组内,按时间倒序
+ * - 会话列表扁平化(2026-09-08):无分组段头,会话行平铺于工作区下,行首供应商
+ *   图标区分引擎;状态节点圆点(绿=对话中 / 蓝=完成未读,静止闲置即隐藏)保留
  * - 磁盘历史分页:初始条数 = 显示预算解析配额(见 SessionList);
  *   预算编辑入口由 session-budget 插件经 leftSidebar.workspaceCaption
  *   挂载点贡献,本插件不感知预算 UI(拔出该插件 = 回默认分页)
  * - 新建会话菜单:portal + fixed 定位(点击点夹取),CLI 行 + 行右侧刷新
  * - 数据源:活会话 = 内核 PTY 注册表;历史 = 各 CLI 插件 listSessions
- * 组件实现见同目录:WorkspaceCard / SessionList / SessionMenu / utils。
+ * 组件实现见同目录:WorkspaceList(分组渲染) / WorkspaceCard / SessionList / SessionMenu / groups(分组语义) / utils。
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -28,7 +28,9 @@ import { registerSessionRevealHandler } from "@kernel/sessionReveal";
 import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
 import { Folders, FolderOpen, FolderSimplePlus, CaretDoubleDown, CaretDoubleUp } from "@phosphor-icons/react";
 import { createSessionRevealHandler } from "./revealSession";
-import { WorkspaceCard } from "./WorkspaceCard";
+import { WorkspaceList } from "./WorkspaceList";
+import { useGroupedWorkspaces } from "./groups";
+import { WorkspaceGroupsTab } from "./GroupSettingsTab";
 import { PinnedSessionsSection } from "./PinnedSessions";
 import { RunningZoneSection } from "./RunningZone";
 
@@ -41,13 +43,22 @@ function WorkspaceSection() {
   useHost();
   /* 顶栏 tab「定位」:消费 kernel/sessionReveal 请求,展开并滚动到该会话行(见 revealSession.ts)。 */
   const sidebarRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => registerSessionRevealHandler(createSessionRevealHandler(sidebarRef)), []);
+  useEffect(() => {
+    const reveal = createSessionRevealHandler(sidebarRef);
+    const unregister = registerSessionRevealHandler(reveal);
+    return () => {
+      unregister();
+      reveal.cancel();
+    };
+  }, []);
   const { list, activeId } = useWorkspaces();
   const [menu, setMenu] = useState<{
     workspace: Workspace;
     x: number;
     y: number;
   } | null>(null);
+  /** 行内别名重命名中的工作区 id(单例:同时至多一行在改)。 */
+  const [renamingId, setRenamingId] = useState<string | null>(null);
   const [refreshTicks, setRefreshTicks] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
   /** 各 key 转圈起始时刻:scanDone 兜底转满一圈(kernel/spin),数据再快也不闪断。 */
@@ -66,6 +77,13 @@ function WorkspaceSection() {
   const setCollapsed = (id: string, v: boolean) =>
     updateSettings({
       workspaceCollapsedMap: { ...collapsedMap, [id]: v },
+    });
+  /** 组头折叠态(持久化):缺失 = 展开;组定义/派生见 ./groups。 */
+  const groupCollapsedMap = settings.workspaceGroupCollapsedMap;
+  const grouped = useGroupedWorkspaces();
+  const toggleGroup = (id: string) =>
+    updateSettings({
+      workspaceGroupCollapsedMap: { ...groupCollapsedMap, [id]: !groupCollapsedMap[id] },
     });
   /** ⌘T 入口:无点击锚点,菜单开在左栏顶部;工作区取活动者,缺省首个,皆无则不动。 */
   const openMenu = () => {
@@ -169,29 +187,29 @@ function WorkspaceSection() {
         </span>
       </div>
 
-      {list.map((ws) => (
-        <WorkspaceCard
-          key={ws.id}
-          workspace={ws}
-          isActive={ws.id === activeId}
-          collapsed={isCollapsed(ws.id)}
-          onToggleCollapsed={() =>
-            setCollapsed(ws.id, !isCollapsed(ws.id))
-          }
-          refreshTicks={refreshTicks}
-          refreshing={refreshing}
-          onRefreshWorkspace={(wsId) =>
-            host.getCliProfiles().forEach((p) => {
-              /* 无 listSessions 的 profile 没有扫描完成回调,跳过以免刷新按钮永远转圈 */
-              if (p.listSessions) bumpTick(wsId, p.id);
-            })
-          }
-          onScanDone={scanDone}
-          onShowMenu={(workspace, x, y) =>
-            setMenu({ workspace, ...clampMenuPosition(x, y) })
-          }
-        />
-      ))}
+      {/* 分组渲染(参考 codemoss):未分组无头置顶 + 命名组头折叠;实现见 WorkspaceList。 */}
+      <WorkspaceList
+        grouped={grouped}
+        groupCollapsedMap={groupCollapsedMap}
+        onToggleGroup={toggleGroup}
+        activeId={activeId}
+        isCollapsed={isCollapsed}
+        onToggleCollapsed={(id) => setCollapsed(id, !isCollapsed(id))}
+        renamingId={renamingId}
+        onRenameEnd={() => setRenamingId(null)}
+        refreshTicks={refreshTicks}
+        refreshing={refreshing}
+        onRefreshWorkspace={(wsId) =>
+          host.getCliProfiles().forEach((p) => {
+            /* 无 listSessions 的 profile 没有扫描完成回调,跳过以免刷新按钮永远转圈 */
+            if (p.listSessions) bumpTick(wsId, p.id);
+          })
+        }
+        onScanDone={scanDone}
+        onShowMenu={(workspace, x, y) =>
+          setMenu({ workspace, ...clampMenuPosition(x, y) })
+        }
+      />
 
       {menu && (
         <SessionMenuOverlay
@@ -204,6 +222,10 @@ function WorkspaceSection() {
               .map((p) => [p.id, refreshing[`${menu.workspace.id}:${p.id}`] ?? false]),
           )}
           onRefresh={(profileId) => bumpTick(menu.workspace.id, profileId)}
+          onRename={() => {
+            setRenamingId(menu.workspace.id);
+            setMenu(null);
+          }}
           onClose={() => setMenu(null)}
         />
       )}
@@ -232,6 +254,23 @@ export const workspacePlugin: Plugin = {
       title: t("打开新建会话菜单"),
       keybinding: "Cmd+T",
       run: () => openNewSessionMenuRef.current?.(),
+    });
+    /* 「工作区分组」设置 section:组 CRUD 管理入口(语义在 ./groups)。 */
+    ctx.registerSettingsSection({
+      id: "workspace-groups",
+      title: t("工作区分组"),
+      description: t("组织左侧栏工作区的分组:新建、重命名、排序与删除。"),
+      icon: <Folders size="0.875rem" aria-hidden />,
+      order: 12,
+      tabs: [
+        {
+          id: "groups",
+          title: t("分组管理"),
+          icon: <Folders size="0.875rem" aria-hidden />,
+          order: 0,
+          component: WorkspaceGroupsTab,
+        },
+      ],
     });
   },
 };

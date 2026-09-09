@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
-import { listModels, type ModelEngine } from "../modelCatalog";
+import { listModels, resolveDistillEngine } from "../modelCatalog";
 import { rememberFacts, distillSessionTail } from "../phase2/write";
 
 /** 控制台共用输入框样式(与主文件同源,勿分叉)。 */
@@ -152,7 +152,7 @@ export function WriteCard({
                 const out = await distillSessionTail(tail, target.cwd, {
                   model: settings.memoryDistillModel || undefined,
                   extraRules: settings.memoryDistillRules || undefined,
-                  engine: settings.memoryDistillEngine,
+                  engine: resolveDistillEngine(settings.memoryDistillEngine),
                 });
                 setDistillState(out.ok ? t("提炼完成") : t("失败: {detail}", { detail: out.detail }));
                 onWritten();
@@ -179,7 +179,7 @@ export function WriteCard({
 /** ── 沉淀设置:自动沉淀开关 + 提炼配置(自动与手动共用) ── */
 export function DistillSettingsCard() {
   const { settings } = useSettingsState();
-  const distillEngine = settings.memoryDistillEngine as ModelEngine;
+  const distillEngine = resolveDistillEngine(settings.memoryDistillEngine);
   const [distillModels, setDistillModels] = useState<{ selector: string }[]>([]);
   const [distillModelsLoading, setDistillModelsLoading] = useState(true);
 
@@ -222,8 +222,8 @@ export function DistillSettingsCard() {
           <span className="w-20 flex-none text-[0.6875rem] text-(--tmd-fg-muted)" title={t("由哪个引擎的会话代为执行写入(三家插件都注册 ctx_memory,写的是同一个记忆库)")}>{t("代写引擎")}</span>
           <select
             className={`${consoleInputCls} cursor-pointer`}
-            value={settings.memoryDistillEngine}
-            onChange={(e) => updateSettings({ memoryDistillEngine: e.target.value as never })}
+            value={resolveDistillEngine(settings.memoryDistillEngine)}
+            onChange={(e) => updateSettings({ memoryDistillEngine: e.target.value })}
           >
             <option value="omp">{t("omp(默认)")}</option>
             <option value="pi">pi</option>

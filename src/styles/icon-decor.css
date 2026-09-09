@@ -1,0 +1,54 @@
+/*
+ * 图标装饰(icon decor)—— 呼吸闪烁消费规则。
+ *
+ * 颜色变量(--icon-decor-<id>)在各图标样式原地消费(workspace-sessions.css /
+ * workspace-sidebar.css / right-panel-toolbar.css / settings-cluster.css);
+ * 本文件只承担:闪烁动画(id → 选择器表)+ keyframes + reduced-motion 关停。
+ * id 语义与清洗见 kernel/iconDecor.ts / settingsAppearance.ts。
+ */
+
+@keyframes icon-decor-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ── 无两态图标:恒呼吸 ── */
+html[data-icon-blink~="newchat"] .workspace-action-btn.is-newchat svg {
+  animation: icon-decor-breathe 5s ease-in-out infinite;
+}
+
+/* ── titlebar 面板 tab(overflow 菜单为瞬态浮层,只吃颜色不吃闪烁)── */
+html[data-icon-blink~="panel-files"] .panel-tab[data-panel-id="files"] svg,
+html[data-icon-blink~="panel-git"] .panel-tab[data-panel-id="git"] svg,
+html[data-icon-blink~="panel-checkpoints"] .panel-tab[data-panel-id="checkpoints"] svg,
+html[data-icon-blink~="panel-memory"] .panel-tab[data-panel-id="memory"] svg {
+  animation: icon-decor-breathe 5s ease-in-out infinite;
+}
+
+/* ── 侧栏动作:底栏钉住钮 + 设置菜单行图标 ── */
+html[data-icon-blink~="ssh-panel"] .settings-bar-btn[data-action-id="ssh-panel"],
+html[data-icon-blink~="ssh-panel"] .settings-menu-row[data-action-id="ssh-panel"] .settings-menu-icon,
+html[data-icon-blink~="system-proxy"] .settings-bar-btn[data-action-id="system-proxy"],
+html[data-icon-blink~="system-proxy"] .settings-menu-row[data-action-id="system-proxy"] .settings-menu-icon {
+  animation: icon-decor-breathe 5s ease-in-out infinite;
+}
+
+/* reduced-motion 只关本呼吸,不碰其它动画(如 is-refreshing 转圈) */
+@media (prefers-reduced-motion: reduce) {
+  html[data-icon-blink~="newchat"] .workspace-action-btn.is-newchat svg,
+  html[data-icon-blink~="panel-files"] .panel-tab[data-panel-id="files"] svg,
+  html[data-icon-blink~="panel-git"] .panel-tab[data-panel-id="git"] svg,
+  html[data-icon-blink~="panel-checkpoints"] .panel-tab[data-panel-id="checkpoints"] svg,
+  html[data-icon-blink~="panel-memory"] .panel-tab[data-panel-id="memory"] svg,
+  html[data-icon-blink~="ssh-panel"] .settings-bar-btn[data-action-id="ssh-panel"],
+  html[data-icon-blink~="ssh-panel"] .settings-menu-row[data-action-id="ssh-panel"] .settings-menu-icon,
+  html[data-icon-blink~="system-proxy"] .settings-bar-btn[data-action-id="system-proxy"],
+  html[data-icon-blink~="system-proxy"] .settings-menu-row[data-action-id="system-proxy"] .settings-menu-icon {
+    animation: none;
+  }
+}

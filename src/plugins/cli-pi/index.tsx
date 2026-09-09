@@ -4,6 +4,7 @@ import { fetchPiQuota } from "./quota";
 import { piSessionsDir, readPiSessionEdits } from "./edits";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 import { listPiSuggestions } from "./rpcCommands";
+import { piConfigEntry } from "./configGui";
 import type { CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 
@@ -63,6 +64,7 @@ export const cliPiPlugin: Plugin = {
   id: "cli-pi",
   meta: { name: "Pi", abbr: "PI", desc: "Pi CLI 引擎:会话扫描、配额、状态", icon: PiGlyph, category: "engine" },
   activate(ctx) {
+    ctx.registerCliConfig({ ...piConfigEntry, icon: (size) => <PiGlyph size={size} /> });
     ctx.registerCliProfile({
       id: "pi",
       fetchQuota: fetchPiQuota,

@@ -177,3 +177,59 @@ describe("ensureWorkspaceBooted 加载契约", () => {
     expect(ws.getActiveWorkspace()?.id).toBe("default");
   });
 });
+
+describe("setWorkspaceAlias / workspaceDisplayName", () => {
+  it("设置别名:trim 落库并持久化,展示名覆盖目录名", () => {
+    const w = ws.addWorkspace("/repo/demo");
+    ws.setWorkspaceAlias(w.id, "  支付后端  ");
+    const stored = ws.getWorkspaces().find((x) => x.id === w.id);
+    expect(stored?.alias).toBe("支付后端");
+    expect(stored && ws.workspaceDisplayName(stored)).toBe("支付后端");
+    expect(ipcMock.configWriteWorkspaces).toHaveBeenCalledWith(
+      expect.objectContaining({
+        list: [expect.objectContaining({ id: w.id, alias: "支付后端" })],
+      }),
+    );
+  });
+
+  it("空串清除别名,展示名回归目录名", () => {
+    const w = ws.addWorkspace("/repo/demo");
+    ws.setWorkspaceAlias(w.id, "支付后端");
+    ws.setWorkspaceAlias(w.id, "   ");
+    const stored = ws.getWorkspaces().find((x) => x.id === w.id);
+    expect(stored?.alias).toBeNull();
+    expect(stored && ws.workspaceDisplayName(stored)).toBe("demo");
+  });
+
+  it("无别名展示目录名;同值重复设置不再持久化", () => {
+    const w = ws.addWorkspace("/repo/demo");
+    const stored = ws.getWorkspaces().find((x) => x.id === w.id);
+    expect(stored && ws.workspaceDisplayName(stored)).toBe("demo");
+    ws.setWorkspaceAlias(w.id, "A");
+    ipcMock.configWriteWorkspaces.mockClear();
+    ws.setWorkspaceAlias(w.id, "A");
+    expect(ipcMock.configWriteWorkspaces).not.toHaveBeenCalled();
+  });
+
+  it("不存在的工作区 id 静默忽略", () => {
+    ws.setWorkspaceAlias("ghost", "x");
+    expect(ipcMock.configWriteWorkspaces).not.toHaveBeenCalled();
+  });
+
+  it("加载契约:旧数据无 alias 字段照常,有别名透传展示名", async () => {
+    ipcMock.configReadWorkspaces.mockResolvedValue({
+      list: [
+        { id: "w1", name: "proj", root: "/repo/proj", createdAt: 1 },
+        { id: "w2", name: "pay", root: "/repo/pay", createdAt: 2, alias: "支付后端" },
+      ],
+      activeId: "w1",
+    });
+    ws.ensureWorkspaceBooted();
+    await waitBooted();
+    const w1 = ws.getWorkspaces().find((x) => x.id === "w1");
+    const w2 = ws.getWorkspaces().find((x) => x.id === "w2");
+    expect(w1?.alias).toBeUndefined();
+    expect(w1 && ws.workspaceDisplayName(w1)).toBe("proj");
+    expect(w2 && ws.workspaceDisplayName(w2)).toBe("支付后端");
+  });
+});

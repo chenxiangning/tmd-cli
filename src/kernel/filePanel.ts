@@ -10,7 +10,8 @@
  * 钉住清单按面板 id 持久化 localStorage(key tmd.filePanel.pinned.v1),重启原样恢复。
  */
 
-import { useSyncExternalStore, type ComponentType } from "react";
+import type { ComponentType } from "react";
+import { createSubscribable } from "./subscribable";
 
 /** 面板图标的最小 props 面(兼容 @phosphor-icons-react 图标组件)。 */
 export type FilePanelIcon = ComponentType<{
@@ -100,14 +101,11 @@ const state: FilePanelState = {
   pinnedIds: new Set(),
 };
 
-const listeners = new Set<() => void>();
-function emit() {
-  listeners.forEach((fn) => fn());
-}
-let snapshot: FilePanelState = state;
-function refreshSnapshot(): FilePanelState {
-  snapshot = { panels: state.panels, mode: state.mode, pinnedIds: new Set(state.pinnedIds) };
-  return snapshot;
+const store = createSubscribable<FilePanelState>(state);
+
+/** 提交当前 state 为新快照并通知订阅者。 */
+function commit(): void {
+  store.commit({ panels: state.panels, mode: state.mode, pinnedIds: new Set(state.pinnedIds) });
 }
 
 /** 注册右栏面板(插件 activate 内调用)。重复 id 抛错,与 registerCliProfile 同纪律。 */
@@ -123,15 +121,13 @@ export function registerFilePanel(panel: FilePanelContribution): void {
     state.pinnedIds = new Set([...state.pinnedIds, panel.id]);
   }
   if (!state.mode) state.mode = panel.id;
-  refreshSnapshot();
-  emit();
+  commit();
 }
 
 export function setFilePanelMode(id: string): void {
   if (state.mode === id) return;
   state.mode = id;
-  refreshSnapshot();
-  emit();
+  commit();
 }
 
 export function togglePinned(id: string): void {
@@ -140,8 +136,7 @@ export function togglePinned(id: string): void {
   else next.add(id);
   state.pinnedIds = next;
   persistPinnedIds(next);
-  refreshSnapshot();
-  emit();
+  commit();
 }
 
 export function getFilePanels(): readonly FilePanelContribution[] {
@@ -157,11 +152,5 @@ export function getPinnedPanelIds(): readonly string[] {
 }
 
 export function useFilePanel(): FilePanelState {
-  return useSyncExternalStore(
-    (fn) => {
-      listeners.add(fn);
-      return () => listeners.delete(fn);
-    },
-    () => snapshot,
-  );
+  return store.useStore();
 }

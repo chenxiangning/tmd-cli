@@ -11,7 +11,9 @@ import {
   sanitizeTerminalFontFamily,
   sanitizeTerminalFontSize,
   sanitizeUiFontSize,
+  sanitizeSessionTabsMax,
   sanitizeUiZoom,
+  sanitizeIconDecor,
   type UiLanguage,
 } from "./settingsAppearance";
 import {
@@ -22,13 +24,14 @@ import {
   SESSION_LIST_TOTAL_MIN,
   type AppSettings,
   type AskSoundId,
+  type GitDiffMode,
   type GitFileListLayout,
   type GitPanelView,
   type MemoryCapsuleMode,
-  type MemoryDistillEngine,
   type SendShortcut,
   type SessionListBudget,
   type ThemePreference,
+  type WorkspaceGroup,
 } from "./settingsTypes";
 import {
   sanitizeSessionArchive,
@@ -36,6 +39,7 @@ import {
   sanitizeSessionPins,
   sanitizeSessionTitles,
 } from "./settingsSanitizeSessions";
+import { sanitizeShortcutOverrides } from "./settingsSanitizeShortcuts";
 
 /** 工作区折叠图上限(与置顶/归档同款确定性兜底口径)。 */
 const WORKSPACE_COLLAPSED_MAX_ENTRIES = 200;
@@ -51,15 +55,34 @@ function sanitizeWorkspaceCollapsedMap(raw: unknown): Record<string, boolean> {
   return map;
 }
 
+/** 分组清单上限(与折叠图同款确定性兜底口径)。 */
+const WORKSPACE_GROUPS_MAX = 100;
+
+/** 工作区分组清洗:id/name 须为非空字符串,name trim 后为空丢弃,超长截断。 */
+function sanitizeWorkspaceGroups(raw: unknown): WorkspaceGroup[] {
+  if (!Array.isArray(raw)) return [];
+  const groups: WorkspaceGroup[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (groups.length >= WORKSPACE_GROUPS_MAX) break;
+    if (!item || typeof item !== "object") continue;
+    const { id, name } = item as Record<string, unknown>;
+    if (typeof id !== "string" || !id || seen.has(id)) continue;
+    if (typeof name !== "string" || !name.trim()) continue;
+    seen.add(id);
+    groups.push({ id, name: name.trim().slice(0, 60) });
+  }
+  return groups;
+}
+
 const THEME_PREFERENCES: readonly ThemePreference[] = ["system", "light", "dark", "custom"];
 const SEND_SHORTCUTS: readonly SendShortcut[] = ["enter", "cmdOrCtrlEnter"];
 
 const MEMORY_CAPSULE_MODES: readonly MemoryCapsuleMode[] = ["manual", "auto", "off"];
 
-const MEMORY_DISTILL_ENGINES = ["omp", "pi", "opencode"] as const;
-
 const GIT_PANEL_VIEWS: readonly GitPanelView[] = ["diff", "branch", "history"];
 const GIT_PANEL_LAYOUTS: readonly GitFileListLayout[] = ["flat", "tree"];
+const GIT_DIFF_MODES: readonly GitDiffMode[] = ["unified", "split"];
 
 /** 缓冲上限合法域:5万–1000万字符;非法/缺失回落默认。 */
 function sanitizeBufferLimit(value: unknown): number {
@@ -125,7 +148,7 @@ function sanitizeNetworkProxyUrl(raw: unknown): string {
     .slice(0, NETWORK_PROXY_URL_MAX_LENGTH);
 }
 
-/** Git 面板记忆态清洗:视图/布局白名单外的值逐项回落默认(视图 diff / 布局平铺)。 */
+/** Git 面板记忆态清洗:视图/布局/diff 模式白名单外的值逐项回落默认。 */
 function sanitizeGitPanel(raw: unknown): AppSettings["git"] {
   const d = DEFAULT_SETTINGS.git;
   if (!raw || typeof raw !== "object") return d;
@@ -136,6 +159,9 @@ function sanitizeGitPanel(raw: unknown): AppSettings["git"] {
     layout: GIT_PANEL_LAYOUTS.includes(rec.layout as GitFileListLayout)
       ? (rec.layout as GitFileListLayout)
       : d.layout,
+    diffMode: GIT_DIFF_MODES.includes(rec.diffMode as GitDiffMode)
+      ? (rec.diffMode as GitDiffMode)
+      : d.diffMode,
   };
 }
 
@@ -163,10 +189,12 @@ export function sanitize(raw: unknown): AppSettings {
     terminalFontFamily: sanitizeTerminalFontFamily(obj.terminalFontFamily),
     uiFontSize: sanitizeUiFontSize(obj.uiFontSize),
     uiZoom: sanitizeUiZoom(obj.uiZoom),
+    iconDecor: sanitizeIconDecor(obj.iconDecor),
     sessionTabsEnabled:
       typeof obj.sessionTabsEnabled === "boolean"
         ? obj.sessionTabsEnabled
         : DEFAULT_SETTINGS.sessionTabsEnabled,
+    sessionTabsMax: sanitizeSessionTabsMax(obj.sessionTabsMax),
     sendShortcut: SEND_SHORTCUTS.includes(obj.sendShortcut as SendShortcut)
       ? (obj.sendShortcut as SendShortcut)
       : DEFAULT_SETTINGS.sendShortcut,
@@ -195,15 +223,14 @@ export function sanitize(raw: unknown): AppSettings {
     sessionPins: sanitizeSessionPins(obj.sessionPins),
     sessionArchive: sanitizeSessionArchive(obj.sessionArchive),
     sessionDeleted: sanitizeSessionDeleted(obj.sessionDeleted),
+    shortcutOverrides: sanitizeShortcutOverrides(obj.shortcutOverrides),
     workspaceArchiveView:
       typeof obj.workspaceArchiveView === "boolean"
         ? obj.workspaceArchiveView
         : DEFAULT_SETTINGS.workspaceArchiveView,
     workspaceCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceCollapsedMap),
-    // 同形 Record<string, boolean>,清洗语义与工作区折叠键完全一致
-    workspaceGroupCollapsedMap: sanitizeWorkspaceCollapsedMap(
-      obj.workspaceGroupCollapsedMap,
-    ),
+    workspaceGroups: sanitizeWorkspaceGroups(obj.workspaceGroups),
+    workspaceGroupCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceGroupCollapsedMap),
     networkProxyEnabled:
       typeof obj.networkProxyEnabled === "boolean"
         ? obj.networkProxyEnabled
@@ -216,9 +243,8 @@ export function sanitize(raw: unknown): AppSettings {
       : "manual",
     memoryAutoDistill: typeof obj.memoryAutoDistill === "boolean" ? obj.memoryAutoDistill : false,
     memoryDistillModel: typeof obj.memoryDistillModel === "string" ? obj.memoryDistillModel.slice(0, 200) : "",
-    memoryDistillEngine: (MEMORY_DISTILL_ENGINES as readonly string[]).includes(obj.memoryDistillEngine as string)
-      ? (obj.memoryDistillEngine as MemoryDistillEngine)
-      : "omp",
+    memoryDistillEngine:
+      typeof obj.memoryDistillEngine === "string" ? obj.memoryDistillEngine.slice(0, 40) : "",
     memoryDistillRules: typeof obj.memoryDistillRules === "string" ? obj.memoryDistillRules.slice(0, 500) : "",
     ssh: sanitizeSshSettings(obj.ssh),
     git: sanitizeGitPanel(obj.git),

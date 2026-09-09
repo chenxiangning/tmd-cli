@@ -1,7 +1,7 @@
 # tmd-cli 代码级架构（当前实现）
 
-- 日期：2026-09-01（2026-09-04、2026-09-06 按当前代码校准）
-- 状态：对应主干当前代码（v0.1.1 发版前现状）
+- 日期：2026-09-01（2026-09-04、2026-09-06、2026-09-09 按当前代码校准）
+- 状态：对应主干当前代码（v0.1.3）
 - 前置阅读：[01-overview.md](01-overview.md)（设计决策层）；本文是**代码事实层**——每个节点都能在仓库里找到对应文件/符号。
 
 ## 1. 全景分层
@@ -316,6 +316,17 @@ Rust `fail_session` 在幕布内呈现,两条路径互补。
    resume 回放、TUI 重绘、迟到异步消息）不亮灯、不标未读、不发结束音 —— 静默不是
    "用户在场"的证据。终端协议回传（焦点/鼠标/查询应答，`terminalReports.ts` 识别）
    照写 PTY 但标 synthetic，不算用户首写。
+   轮次开启闸(2026-09-08,spec 见 superpowers/specs/2026-09-08-turn-start-gate-design.md):
+   已锚定 ≠ 任意字节可开轮 —— tab 已关且无未应答写入(awaitingTurn)的已了结 CLI 会话,
+   异步噪音不开轮、不标未读;在途轮次与 ssh/shell「输出即活动」会话豁免闸门。
+4b. **Ask 等待检测三通道 + 重载恢复(ebdccc1)**:①字节流(host.appendOutput 主链,
+   1024B 尾窗 + 末 5 行页脚窗 + 内核 y-N/插件 askMarks 正则)②幕布屏幕采样
+   (TerminalView 1Hz,需挂载)③回放补观察(重挂载喂内存缓冲尾)。候选确认制:
+   首击立候选 → 守望 1Hz 漂移确认(≥1.2s 且漂移 ≤16KB)→ 升级 waiting;写后 8s
+   抑制窗,静默 2s 自愈。webview 全量重载(HMR/⌘R)清空内存态 + 输出缓冲 + tab 条,
+   关 tab 会话三通道全灭 → `kernel/askWatchRestore.ts` 在 profiles 就绪后读各活会话
+   磁盘日志尾 2048B 喂 `feed.restoreTail`(extraMarks 按 profileId 显式携带,??
+   ctx.askMarks 回落),恢复后台会话的 Ask 提示。
 5. **顶栏会话 tab 条(`kernel/sessionTabs.ts`)**:纯事件驱动 MRU —— 所有打开/聚焦路径
    收敛于 `activeSessionChanged` 广播,host 与调用点零侵入;容量 4、打开次序稳定、
    不持久化(PTY 会话不跨重启存活)。标签标题链 = 手动命名 > 打开时快照 > 短码;
@@ -361,15 +372,17 @@ codemoss host.rs 同款),分两路:
 
 ```mermaid
 flowchart LR
-    subgraph MOUNT["MountPoint（plugin.ts 定义的 10 个挂点)"]
+    subgraph MOUNT["MountPoint（plugin.ts 定义的 12 个挂点)"]
         direction TB
         HB["header.breadcrumb"]
         HLR["header.left / header.right"]
+        HLC["header.leftCluster"]
         LS1["leftSidebar.section"]
         LS2["leftSidebar.workspaceCaption"]
         ECW["editorCenter.welcome"]
         ECC["editorCenter.composer"]
         CSB["composer.statusBar"]
+        CIR["composer.inputRail"]
         OV["overlay"]
         WSM["workspace.newSessionMenu"]
     end
@@ -473,12 +486,12 @@ flowchart TD
 | `git_commit_files` / `git_commit_file_patch` | `git/commit_view.rs` | 单提交文件清单(提交 vs 首父,find_similar rename 检测) / 提交内单文件 patch —— 历史 Graph 展开与提交 diff tab |
 | `git_branches` / `git_checkout` / `git_create_branch` / `git_delete_branch` | `git/branch_ops.rs` | 分支操作(全 libgit2) |
 | `git_checkout_remote` / `git_smart_checkout` / `git_smart_checkout_undo` / `git_merge_branch` / `git_rebase_branch` / `git_rename_branch` / `git_branch_compare` / `git_branch_worktree_files` / `git_branch_worktree_patch` | `git/branch_ops.rs` / `compare_ops.rs` / `stash_ops.rs` | 分支右键菜单:检出远端 / 脏工作区「暂存并切换」(stash -u → 切换 → pop)与撤销 / 合并 / 变基 / 重命名 / 与当前对比(worktree 文件清单 + patch) |
-| `git_fetch` / `git_pull_push` | `git/remote_ops.rs` | 远端操作 shell-out(300s 总超时,GIT_TERMINAL_PROMPT=0,管道排空不 join) |
+| `git_pull_push` | `git/remote_ops.rs` | 远端操作 shell-out(300s 总超时,GIT_TERMINAL_PROMPT=0,管道排空不 join) |
 | `git_remotes` / `git_push_preview` / `git_remote_request` / `git_commit_message` | `git/remote_ops.rs` / `commit_view.rs` | 远端对话框:远端下拉 / 推送预览(新分支首推识别) / fetch-pull-push 结构化请求(聚合统计) / 提交完整 message(分支对比详情) |
-| `ssh_session_create` / `ssh_session_reconnect` / `ssh_session_status` | `ssh/commands.rs` + `session.rs`/`auth.rs` | SSH 一等会话建立/重连/状态轮询(认证矩阵 password/PEM+passphrase/KBI 多轮;known_hosts 首连信任卡 120s 超时;重连续取原配置收尾重建,凭据不出后端) |
+| `ssh_session_create` / `ssh_session_reconnect` | `ssh/commands.rs` + `session.rs`/`auth.rs` | SSH 一等会话建立/重连(认证矩阵 password/PEM+passphrase/KBI 多轮;known_hosts 首连信任卡 120s 超时;重连续取原配置收尾重建,凭据不出后端;会话状态经事件推送,无轮询命令) |
 | `ssh_prompt_answer` / `ssh_prompt_cancel` / `ssh_latency` / `ssh_known_hosts_reset` | `ssh/commands.rs` + `control.rs`/`known_hosts.rs` | 交互提示应答(KBI 上限 5 轮,密码类自动代答) / 延迟探测 / 信任重置 |
-| `ssh_sftp_list` / `ssh_sftp_stat` / `ssh_sftp_read_text` / `ssh_sftp_write_text` / `ssh_sftp_mkdir` / `ssh_sftp_rename` / `ssh_sftp_delete` | `ssh/sftp.rs`(+`sftp_path.rs`) | SFTP 远端文件原语(与终端同连接 subsystem,不重认证;写回带 mtime+size 乐观并发) |
-| `ssh_sftp_transfer` / `ssh_sftp_transfer_cancel` / `ssh_sftp_transfer_status` | `ssh/sftp_transfer.rs`(+`sftp_transfer_state.rs`) | 递归上传/下载:进度事件 + 取消 + 代际失效 |
+| `ssh_sftp_list` / `ssh_sftp_read_text` / `ssh_sftp_write_text` / `ssh_sftp_mkdir` / `ssh_sftp_rename` / `ssh_sftp_delete` | `ssh/sftp.rs`(+`sftp_path.rs`) | SFTP 远端文件原语(与终端同连接 subsystem,不重认证;写回带 mtime+size 乐观并发) |
+| `ssh_sftp_transfer` / `ssh_sftp_transfer_cancel` | `ssh/sftp_transfer.rs`(+`sftp_transfer_state.rs`) | 递归上传/下载:进度事件 + 取消 + 代际失效(进度全走事件,无状态轮询命令) |
 | `ssh_forward_start` / `ssh_forward_stop` / `ssh_forward_list` / `ssh_forward_check_port` | `ssh/forward.rs` | 本地端口转发(-L,127.0.0.1 绑定,端口留空自动分配 49152+,占用预检,会话关闭级联停止) |
 | `config_home_dir` / `config_default_workspace_root` | `session.rs` | 返回配置和默认工作区路径 |
 | `config_read_settings` / `config_write_settings` | `settings.rs` | `~/.tmd-cli/settings.json` 全局设置读写 |

@@ -1,0 +1,259 @@
+/* ──────────────────────────────────────────────────────────
+ * CLI 独立配置(设置面板)—— 引擎子 tab / 配置源 chips / 表单壳 /
+ * 保存条 / 错误态 / 原始编辑。控件细节样式在 cli-config-controls.css。
+ * 颜色零硬编码,全部 --tmd-* 设计变量(同 settings-panel.css 纪律)。
+ * ────────────────────────────────────────────────────────── */
+
+.cli-cfg {
+  margin-top: 20px;
+}
+
+/* 引擎子 tab 条(单 tab section 无原生 tab 条,自带给齐 settings-tab 观感) */
+.cli-cfg-engines {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--tmd-border);
+  margin-bottom: 14px;
+}
+
+.cli-cfg-engine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px 8px;
+  font-size: 0.8125rem;
+  color: var(--tmd-fg-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.cli-cfg-engine:hover {
+  color: var(--tmd-fg);
+}
+
+.cli-cfg-engine.is-active {
+  color: var(--tmd-accent);
+  border-bottom-color: var(--tmd-accent);
+  font-weight: 600;
+}
+
+/* 配置源 + 路径 + 模式切换行 */
+.cli-cfg-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: var(--tmd-bg-sunken);
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  font-size: 0.75rem;
+  color: var(--tmd-fg-muted);
+}
+
+.cli-cfg-sources {
+  display: flex;
+  gap: 6px;
+}
+
+.cli-cfg-src {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--tmd-border-strong);
+  border-radius: 999px;
+  background: none;
+  color: var(--tmd-fg-muted);
+  font-size: 0.6875rem;
+  cursor: pointer;
+}
+
+.cli-cfg-src.is-active {
+  background: var(--tmd-accent-soft);
+  border-color: var(--tmd-accent);
+  color: var(--tmd-accent);
+  font-weight: 600;
+}
+
+.cli-cfg-src-new {
+  color: var(--tmd-fg-faint);
+  font-size: 0.625rem;
+}
+
+.cli-cfg-path {
+  font-family: var(--tmd-font-mono, ui-monospace, Menlo, monospace);
+  font-size: 0.6875rem;
+  color: var(--tmd-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.cli-cfg-mode {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--tmd-accent);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.cli-cfg-note {
+  margin: -6px 2px 10px;
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-subtle);
+  line-height: 1.5;
+}
+
+.cli-cfg-empty {
+  padding: 24px 2px;
+  font-size: 0.8125rem;
+  color: var(--tmd-fg-subtle);
+}
+
+/* 表单行(对齐 pref-row 语义,控件右列更宽) */
+.cli-cfg-form {
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  padding: 4px 16px 14px;
+}
+
+.cli-cfg-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.cli-cfg-row + .cli-cfg-row {
+  border-top: 1px solid var(--tmd-border);
+}
+
+.cli-cfg-row-text {
+  min-width: 0;
+  flex: 0 1 44%;
+}
+
+.cli-cfg-row-title {
+  font-size: 0.8125rem;
+  color: var(--tmd-fg);
+}
+
+
+/* 新手说明:可展开;正文 pre-line 保住两段式排版 */
+.cli-cfg-detail {
+  margin-top: 4px;
+}
+
+.cli-cfg-detail summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 0.6875rem;
+  color: var(--tmd-accent);
+  user-select: none;
+  list-style: none;
+}
+
+.cli-cfg-detail summary::-webkit-details-marker {
+  display: none;
+}
+
+.cli-cfg-detail summary::before {
+  content: "▸";
+  font-size: 0.625rem;
+  transition: transform 0.12s ease;
+}
+
+.cli-cfg-detail[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.cli-cfg-detail-body {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--tmd-bg-sunken);
+  font-size: 0.6875rem;
+  line-height: 1.7;
+  color: var(--tmd-fg-subtle);
+}
+
+.cli-cfg-detail-body p + p {
+  margin-top: 6px;
+}
+
+.cli-cfg-detail-body strong {
+  color: var(--tmd-fg);
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+/* 模型链:每项两级选择器 + 上移/下移/删除控制列 */
+.cli-cfg-chain-ctl {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* 控件列:右对齐;下拉/输入统一宽度,开关靠右 */
+.cli-cfg-row > .styled-select,
+.cli-cfg-row > .cli-cfg-input,
+.cli-cfg-row > .cli-cfg-secret {
+  width: min(22rem, 56%);
+  flex: none;
+}
+
+.cli-cfg-row > .cli-cfg-switch {
+  margin-left: auto;
+}
+
+/* kv/链行吃满剩余宽度;文本列收窄让位 */
+.cli-cfg-row:has(.cli-cfg-kv) .cli-cfg-row-text {
+  flex: 0 1 30%;
+}
+
+.cli-cfg-row > .cli-cfg-kv {
+  flex: 1 1 auto;
+}
+
+.cli-cfg-input {
+  width: min(22rem, 100%);
+  padding: 5px 9px;
+  font-size: 0.8125rem;
+  color: var(--tmd-fg);
+  background: var(--tmd-bg-input);
+  border: 1px solid var(--tmd-border-strong);
+  border-radius: 6px;
+  outline: none;
+}
+
+.cli-cfg-input:focus {
+  border-color: var(--tmd-accent);
+}
+
+/* 高级折叠 */
+.cli-cfg-advanced {
+  margin: 8px 0 4px;
+}
+
+.cli-cfg-advanced > summary {
+  font-size: 0.75rem;
+  color: var(--tmd-accent);
+  cursor: pointer;
+  padding: 6px 0;
+  user-select: none;
+}
+
+.cli-cfg-advanced .cli-cfg-row:first-of-type {
+  border-top: 1px solid var(--tmd-border);
+}

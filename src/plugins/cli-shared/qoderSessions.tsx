@@ -6,14 +6,17 @@
  * jsonl 为 claude fork 行型:用户行 origin.kind=human 判别,assistant 行 message.model 落盘,
  * 错误帧 isApiErrorMessage=true 且 model=<synthetic>;思考强度只在 settings.json,不落会话。
  *
- * 变体差异只有常量(dataDirName/command),由各插件目录自己声明 —— 两分发版分叉时改动局部化。
+ * 变体差异只有常量(profileId/command/dataDir/docsUrl/npmPackage 与展示文案),由各插件
+ * 目录声明后喂 makeQoderPlugin 工厂 —— 两分发版分叉时改动局部化。
  */
 
 import { ipc } from "@kernel/ipc";
-import { extractJsonlTitle } from "./diskSessions";
+import type { Plugin } from "@kernel/plugin";
+import { readHeadTitle } from "./diskSessions";
 import type { CliDiskSession, CliProfile, CliSessionStatus } from "@kernel/cli";
 import { qoderUserMessageLine, readUserMessagesFromFile } from "./userMessages";
 import { parseClaudeFamilySessionHead } from "./sessionIdentity";
+import { listQoderSuggestions } from "./qoderSuggestions";
 
 /**
  * cwd → projects 子目录 slug。
@@ -34,8 +37,6 @@ async function qoderSessionsDir(
   return `${home}/${dataDirName}/projects/${qoderProjectSlug(cwd)}`;
 }
 
-/** 标题提取的头部窗口:qoder 无 title/summary 记录,首条用户消息前可能有 snapshot 行,给足余量。 */
-const QODER_TITLE_HEAD_BYTES = 32 * 1024;
 
 /**
  * `/` 命令候选 —— 全部实证,不猜:前 5 个取自国际版会话文件内 skill_listing 附件
@@ -67,8 +68,7 @@ export async function listQoderSessions(
   for (const f of files) {
     const m = f.name.match(/^([0-9a-f-]{36})\.jsonl$/);
     if (!m) continue;
-    const head = await ipc.fsReadHead(f.path, QODER_TITLE_HEAD_BYTES).catch(() => "");
-    const title = head ? extractJsonlTitle(head) : undefined;
+    const title = await readHeadTitle(f.path);
     sessions.push({ id: m[1], modifiedAt: f.modifiedAt, path: f.path, title });
   }
   return sessions;
@@ -222,4 +222,62 @@ export function QoderGlyph({ size }: { size: number | string }) {
       <path fill="var(--tmd-fg)" d="M17.9 16.9 21.8 20.8 20.9 21.7 17 17.8Z" />
     </svg>
   );
+}
+
+/** 双分发版的差异面:插件身份 + 展示文案 + 分发渠道常量,其余接线完全同构。 */
+export interface QoderVariantSpec {
+  /** 插件 id(cli-qoder / cli-qoder-cn)。 */
+  id: string;
+  /** 展示元数据:name/abbr/desc(icon/iconColor/category 两版一致,工厂内固定)。 */
+  meta: { name: string; abbr: string; desc: string };
+  profileId: string;
+  command: string;
+  dataDir: string;
+  docsUrl: string;
+  npmPackage: string;
+}
+
+/** 由分发渠道常量构造完整 Qoder 插件;两版插件目录只剩常量声明。 */
+export function makeQoderPlugin(variant: QoderVariantSpec): Plugin {
+  return {
+    id: variant.id,
+    meta: {
+      name: variant.meta.name,
+      abbr: variant.meta.abbr,
+      desc: variant.meta.desc,
+      icon: QoderGlyph,
+      iconColor: "var(--tmd-fg)",
+      category: "engine",
+    },
+    activate(ctx) {
+      ctx.registerCliProfile({
+        id: variant.profileId,
+        docsUrl: variant.docsUrl,
+        npmPackage: variant.npmPackage,
+        name: variant.command,
+        renderIcon: (size) => <QoderGlyph size={size} />,
+        command: variant.command,
+        args: [],
+        triggers: [
+          { char: "/", kind: "command" },
+          {
+            char: "$",
+            kind: "skill",
+            translate: (token: string) => `/${token.replace(/^\$/, "")}`,
+          },
+        ],
+        suggestions: QODER_COMMAND_SUGGESTIONS,
+        /* 命令/技能真相:扫 .qoder/commands 与 .qoder/skills + .agents/skills 兼容层 */
+        listSuggestions: listQoderSuggestions,
+        resumeArgs: (sessionId) => ["--resume", sessionId],
+        listSessions: (cwd) => listQoderSessions(variant.dataDir, cwd),
+        readSessionStatus: (cwd, cliSessionId) =>
+          readQoderSessionStatus(variant.dataDir, cwd, cliSessionId),
+        readSessionFileIdentity: readQoderSessionIdentity,
+        readSessionUserMessages: (cwd, cliSessionId, full) =>
+          readQoderUserMessages(variant.dataDir, cwd, cliSessionId, full),
+        readDefaultStatus: () => readQoderDefaultStatus(variant.dataDir),
+      });
+    },
+  };
 }

@@ -17,8 +17,8 @@ pub(crate) const TRANSFER_BUFFER_BYTES: usize = 64 * 1024;
 /// SFTP 事件通道(`ssh://sftp`),载荷 {kind, transfer}。
 pub(crate) const SFTP_EVENT: &str = "ssh://sftp";
 
-/// 操作入口 re-export:保持 super::sftp::{list, stat, …} 引用路径不变。
-pub use super::sftp_ops::{list, read_text, stat};
+/// 操作入口 re-export:保持 super::sftp::{list, …} 引用路径不变。
+pub use super::sftp_ops::{list, read_text};
 pub(crate) use super::sftp_write::ensure_remote_dir;
 pub use super::sftp_write::{delete, mkdir, rename, write_text};
 

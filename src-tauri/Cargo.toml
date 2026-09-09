@@ -1,6 +1,6 @@
 [package]
 name = "tmd-cli"
-version = "0.1.2"
+version = "0.1.3"
 description = "Plugin-based multi-CLI desktop client"
 authors = ["Chen Xiangning"]
 license = "MIT"
@@ -48,7 +48,8 @@ tokio = { version = "1", features = ["rt", "sync", "time", "net", "io-util", "fs
 russh-sftp = "2.3"
 # known_hosts 指纹 SHA256 展示。
 sha2 = "0.10"
-# 产物体积与运行性能:lto 全量链接优化 + 单 codegen unit 提升内联,strip 去符号表。
+# 产物体积与运行性能:lto 全量链接优化 + 单 codegen unit 提升内联,strip 去符号表,
+# opt-level=z 体积优先(GUI 交互场景实测无感,二进制约再省一成;若热路径变慢回调到 "s"/3)。
 # 不用 panic=abort:它把任何异步任务 panic(如 wry 自定义协议竞态,2026-09-03
 # 崩溃)放大成整进程 SIGABRT;unwind 下 tokio 捕获任务 panic,命令层已有
 # JoinError→Err 纪律,代价仅 ~2% 体积。见 lib.rs install_panic_logger。
@@ -56,3 +57,4 @@ sha2 = "0.10"
 lto = true
 codegen-units = 1
 strip = true
+opt-level = "z"

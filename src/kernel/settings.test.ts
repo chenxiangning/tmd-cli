@@ -46,6 +46,7 @@ describe("初始状态与默认值", () => {
       uiFontSize: 16,
       uiZoom: 1,
       sessionTabsEnabled: true,
+      sessionTabsMax: 4,
       sendShortcut: "enter",
       askSoundEnabled: true,
       askSoundId: "default",
@@ -59,8 +60,10 @@ describe("初始状态与默认值", () => {
       sessionPins: {},
       sessionArchive: {},
       sessionDeleted: {},
+      shortcutOverrides: {},
       workspaceArchiveView: false,
       workspaceCollapsedMap: {},
+      workspaceGroups: [],
       workspaceGroupCollapsedMap: {},
       networkProxyEnabled: false,
       networkProxyUrl: "",
@@ -69,10 +72,19 @@ describe("初始状态与默认值", () => {
       memoryCapsuleMode: "manual",
       memoryAutoDistill: false,
       memoryDistillModel: "",
-      memoryDistillEngine: "omp",
+      memoryDistillEngine: "",
       memoryDistillRules: "",
       ssh: { hosts: [] },
-      git: { view: "diff", layout: "flat" },
+      git: { view: "diff", layout: "flat", diffMode: "unified" },
+      iconDecor: {
+        newchat: { blink: true },
+        "ssh-panel": {},
+        "system-proxy": {},
+        "panel-files": {},
+        "panel-git": {},
+        "panel-checkpoints": {},
+        "panel-memory": {},
+      },
     });
     expect(s.loaded).toBe(false);
     expect(s.panelOpen).toBe(false);
@@ -85,6 +97,14 @@ describe("会话标题 tab 开关", () => {
     expect(settings.getSettingsState().settings.sessionTabsEnabled).toBe(false);
     settings.updateSettings({ sessionTabsEnabled: "no" as never });
     expect(settings.getSettingsState().settings.sessionTabsEnabled).toBe(true);
+  });
+  it("容量补丁合法域 1-10 生效,非法回落 4", () => {
+    settings.updateSettings({ sessionTabsMax: 8 });
+    expect(settings.getSettingsState().settings.sessionTabsMax).toBe(8);
+    settings.updateSettings({ sessionTabsMax: 0 });
+    expect(settings.getSettingsState().settings.sessionTabsMax).toBe(4);
+    settings.updateSettings({ sessionTabsMax: "6" as never });
+    expect(settings.getSettingsState().settings.sessionTabsMax).toBe(6);
   });
 });
 

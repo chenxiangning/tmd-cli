@@ -8,12 +8,12 @@
 import type { Terminal } from "@xterm/xterm";
 import { ipc } from "@kernel/ipc";
 import { host } from "@kernel/host";
-import type { createReplayInputGate } from "@kernel/terminalInputGate";
+import type { ReplayInputGate } from "@kernel/terminalInputGate";
 
 /** 每次翻页向日志读取的历史字节数(512KB)。 */
 const HISTORY_PAGE_BYTES = 512 * 1024;
 
-type InputGate = ReturnType<typeof createReplayInputGate>;
+
 
 export class TerminalHistoryPager {
   /** 翻页锚点:当前幕布内容起点在全量输出中的绝对字节偏移。 */
@@ -27,7 +27,7 @@ export class TerminalHistoryPager {
 
   constructor(
     private readonly sessionId: string,
-    private readonly inputGate: InputGate,
+    private readonly inputGate: ReplayInputGate,
     /** hasMore/loading 变化回喂(TerminalView 的 setHasMore/setLoadingHistory)。 */
     private readonly onState: (hasMore: boolean, loading: boolean) => void,
   ) {}

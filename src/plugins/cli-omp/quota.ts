@@ -17,18 +17,14 @@
 
 import { t } from "@kernel/i18n";
 import type { QuotaFetchContext, QuotaSnapshot } from "@kernel/quota";
-import {
-  codexPlanLabelWithSnapshot,
-  readCodexLocalQuota,
-} from "../cli-shared/quota/codexLocal";
+import { fetchCodexQuotaWithSnapshot } from "../cli-shared/quota/codexLocal";
 import { readOmpAuthCredential } from "../cli-shared/quota/ompAuth";
 import {
   detectVendorByProviderId,
   fetchVendorQuota,
-  VENDOR_TITLE,
+  toQuotaSnapshot,
   vendorFromModel,
   type VendorCredential,
-  type VendorId,
 } from "../cli-shared/quota/vendors";
 
 /** agent.db data JSON 边界解析:object + 字段 typeof 守卫,不信手断言。 */
@@ -38,21 +34,6 @@ function parseCredentialData(raw: string): VendorCredential {
   const map = parsed as Record<string, unknown>; // typeof 已收窄为 object,字段逐一守卫
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
   return { key: str(map.key), access: str(map.access), accountId: str(map.accountId) };
-}
-
-function toSnapshot(providerId: string, vendor: VendorId, quota: {
-  windows: QuotaSnapshot["windows"];
-  balanceText?: string;
-  planLabel?: string;
-}): QuotaSnapshot {
-  return {
-    providerLabel: providerId,
-    title: VENDOR_TITLE[vendor] ?? `${providerId} 额度`,
-    usedLabel: "已使用",
-    windows: quota.windows,
-    balanceText: quota.balanceText,
-    planLabel: quota.planLabel,
-  };
 }
 
 export async function fetchOmpQuota(ctx: QuotaFetchContext): Promise<QuotaSnapshot> {
@@ -70,28 +51,13 @@ export async function fetchOmpQuota(ctx: QuotaFetchContext): Promise<QuotaSnapsh
 
   // codex 供应商:OAuth → 本地快照优先,降级 wham;非 OAuth/未登录 → wham 显式报错
   if (vendor === "openai-codex") {
-    if (cred.access && cred.accountId) {
-      try {
-        const local = await readCodexLocalQuota();
-        return {
-          providerLabel: ompVendor,
-          title: VENDOR_TITLE["openai-codex"],
-          usedLabel: "已使用",
-          windows: local.windows,
-          planLabel: codexPlanLabelWithSnapshot(local),
-        };
-      } catch {
-        // 本地无快照 → 降级 wham HTTP
-      }
-    }
-    const quota = await fetchVendorQuota("openai-codex", cred);
-    return toSnapshot(ompVendor, vendor, quota);
+    return fetchCodexQuotaWithSnapshot(cred, ompVendor);
   }
 
   if (!raw) {
     throw new Error(t("omp 未登录供应商 {vendor} (~/.omp/agent/agent.db)", { vendor: ompVendor }));
   }
   const quota = await fetchVendorQuota(vendor, cred);
-  return toSnapshot(ompVendor, vendor, quota);
+  return toQuotaSnapshot(ompVendor, vendor, quota);
 }
 
