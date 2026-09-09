@@ -72,10 +72,21 @@ export class AskWatchFeed {
   observeReplayTail(sessionId: string): void {
     /* 已有状态(等待/候选)的会话不重复喂:重挂载频繁,复喂同一尾巴会把
        bytesIn 无谓推高并把候选漂移基线反复清零,4KB 漂移约束被架空(评审实测) */
+    this.restoreTail(sessionId, this.ctx.bufferTail(sessionId, 2048));
+  }
+
+  /**
+   * 尾巴恢复喂入(回放补观察 / boot 磁盘日志恢复共用)。webview 全量重载后
+   * 内存态清零,而 Rust 侧 PTY 与静态 Ask 面板照常存活:面板不再产生带标记的
+   * 新字节,关 tab 的会话既无屏幕采样(要挂载)也无可回放缓冲(已清空)——
+   * 磁盘日志尾巴是唯一幸存证据。标记仍在尾 → 立候选,漂移确认后升级;
+   * 早已作答的尾巴无标记,零副作用。extraMarks:恢复路径会话可能尚未入
+   * host.sessions 表,askMarks 查不到,由调用方按 profileId 显式携带。
+   */
+  restoreTail(sessionId: string, tail: string, extraMarks?: RegExp[]): void {
     if (this.watch.hasState(sessionId)) return;
     /* 2048 > RAW_TAIL_CHARS(1024):喂入量大于内部尾窗,页脚语义不受影响 */
-    const tail = this.ctx.bufferTail(sessionId, 2048);
-    if (tail) this.onOutput(sessionId, tail);
+    if (tail) this.watch.onOutput(sessionId, tail, undefined, extraMarks ?? this.ctx.askMarks(sessionId));
   }
 
   /** 用户写入 = 作答(host.writeSession);返回 true = 状态翻转,host 据此重渲染。 */

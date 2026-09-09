@@ -9,6 +9,7 @@ import { AppShell } from "@shell/AppShell";
 import { registerDefaultContributions } from "@shell/contributions";
 import { host } from "@kernel/host";
 import { bootAskSound } from "@kernel/askSound";
+import { bootAskRestore } from "@kernel/askWatchRestore";
 import { bootTurnSound } from "@kernel/turnSound";
 import { bootDropGuard } from "@kernel/dropGuard";
 import { bootSessionTabs } from "@kernel/sessionTabs";
@@ -46,6 +47,7 @@ function App() {
         registerDefaultContributions(host);
         setReady(true);
         bootAutoActivate(); /* 启动后台预开最近会话(等 workspacesReady,不占首屏) */
+        bootAskRestore(); /* Ask 等待状态开机恢复(profiles 就绪后才有 askMarks,见 kernel/askWatchRestore.ts) */
       })
       .catch((e: unknown) => setError(String(e)));
     return () => {

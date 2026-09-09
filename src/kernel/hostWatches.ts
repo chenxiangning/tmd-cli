@@ -163,7 +163,10 @@ export class HostWatches {
   observeReplayTail(sessionId: string): void {
     this.askWatch.observeReplayTail(sessionId);
   }
-
+  /** 磁盘日志尾巴恢复(boot;语义见 kernel/askWatchFeed.ts restoreTail)。 */
+  restoreTail(sessionId: string, tail: string, extraMarks?: RegExp[]): void {
+    this.askWatch.restoreTail(sessionId, tail, extraMarks);
+  }
   observeAskScreen(sessionId: string, screenText: string): void {
     this.askWatch.onScreenSample(sessionId, screenText);
   }

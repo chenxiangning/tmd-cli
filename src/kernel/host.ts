@@ -183,11 +183,10 @@ class Host implements PluginContext {
     return this.sessionServices.spawn.open(profileId, cwd, workspaceId, cliSessionId, opts);
   }
 
-  /* 回放补观察 / 屏幕采样:委托守望组合件(语义见 kernel/askWatch.ts)。 */
-  observeReplayTail = (sessionId: string): void =>
-    this.watches.observeReplayTail(sessionId);
-  observeAskScreen = (sessionId: string, screenText: string): void =>
-    this.watches.observeAskScreen(sessionId, screenText);
+  /* 回放补观察 / 屏幕采样 / 磁盘日志尾恢复:委托守望组合件(语义见 kernel/askWatch.ts 与 askWatchFeed.ts)。 */
+  observeReplayTail = (sessionId: string): void => this.watches.observeReplayTail(sessionId);
+  observeAskScreen = (sessionId: string, screenText: string): void => this.watches.observeAskScreen(sessionId, screenText);
+  restoreTail = (sessionId: string, tail: string, extraMarks?: RegExp[]): void => this.watches.restoreTail(sessionId, tail, extraMarks);
 
   /** 用户输入的唯一写入口:PTY 写入 + 对话锚定(呼吸灯首写闸)+ Ask 作答解除。 */
   writeSession(sessionId: string, data: string, synthetic = false): void {
