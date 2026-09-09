@@ -39,6 +39,7 @@
 
 - `settingsTypes.ts`:`iconDecor: Record<IconDecorId, { color?: string; blink?: boolean }>`(`IconDecorId` = 上表 7 键联合);默认 `{ newchat: { blink: true } }`。
 - `settingsAppearance.ts`:`sanitizeIconDecor(raw)`——键白名单、color 必须 `/^#[0-9a-f]{6}$/i` 否则丢弃、blink 仅收 boolean、空 item 剔除、整体非对象回落默认。装配进 `settingsSanitize.ts` 的 `sanitize()`。
+- 迁移说明:8 键收 7 键(f2cbf1a)后,旧用户 settings.json 残留的 `iconDecor.eye` 由 sanitize 键白名单静默丢弃,无害、无需迁移逻辑。
 - 删除 `workspace-sidebar.css` 写死的 `ws-action-breathe` 规则,`newchat` 呼吸统一走新机制(默认值承接)。
 
 ## 应用层与样式消费
