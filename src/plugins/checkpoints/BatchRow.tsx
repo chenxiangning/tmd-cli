@@ -98,12 +98,12 @@ export function BatchRow({
 
   return (
     <div className="relative mb-1.5">
-      {!last && <span className="absolute bottom-1 left-[9px] top-6 w-px bg-(--tmd-border)" aria-hidden />}
+      {!last && <span className="absolute bottom-1 left-[7px] top-6 w-px bg-(--tmd-border)" aria-hidden />}
 
       {/* 批头 → 审阅单 */}
       <button
         type="button"
-        className="relative z-[1] flex w-full items-start gap-2 rounded-(--tmd-radius-sm) py-1.5 pl-1 pr-2.5 text-left hover:bg-(--tmd-bg-hover)"
+        className="relative z-[1] flex w-full items-start gap-1.5 rounded-(--tmd-radius-sm) py-1.5 pl-0.5 pr-1.5 text-left hover:bg-(--tmd-bg-hover)"
         title={
           t("点击审阅该批(用户消息 + 文件 diff) · {ts}", {
             ts: b.tsEnd
@@ -168,7 +168,7 @@ export function BatchRow({
       </button>
 
       {/* 文件行 → 审阅单深链 */}
-      <div className="ml-8 mt-px">
+      <div className="ml-4 mt-px">
         {b.files.map((f) => (
           <FileRow
             key={f.path}
@@ -184,7 +184,7 @@ export function BatchRow({
       </div>
 
       {/* 批尾动作 */}
-      <div className="ml-8 mb-2 mt-0.5 flex items-center gap-1.5">
+      <div className="ml-4 mb-2 mt-0.5 flex items-center gap-1.5">
         {st === "pending" && (
           <button
             type="button"

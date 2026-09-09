@@ -205,7 +205,7 @@ export function CheckpointsPanel() {
       )}
 
       {view === "batch" ? (
-      <div className="min-h-0 flex-1 overflow-y-auto py-2 pr-2 pl-1">
+      <div className="min-h-0 flex-1 overflow-y-auto py-2 pr-1 pl-0.5">
         {!cwd ? (
           <Empty text={t("暂无活跃工作区")} />
         ) : !sessionId ? (
