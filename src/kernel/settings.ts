@@ -14,8 +14,9 @@
 
 import { useSyncExternalStore } from "react";
 import { ipc } from "./ipc";
-import { sanitize } from "./settingsSanitize";
 import { DEFAULT_SETTINGS, type AppSettings } from "./settingsTypes";
+import { sanitize } from "./settingsSanitize";
+import { setShortcutOverrides } from "./shortcutOverrides";
 
 export * from "./settingsTypes";
 export * from "./settingsAppearance";
@@ -69,6 +70,7 @@ async function load(): Promise<void> {
   }
   state.settings = sanitize(raw);
   state.loaded = true;
+  setShortcutOverrides(state.settings.shortcutOverrides);
   emit();
 }
 
@@ -86,6 +88,7 @@ export function ensureSettingsBooted(): void {
 /** 合并补丁并持久化。唯一写入口。 */
 export function updateSettings(patch: Partial<AppSettings>): void {
   state.settings = sanitize({ ...state.settings, ...patch });
+  setShortcutOverrides(state.settings.shortcutOverrides);
   emit();
   void persist();
 }

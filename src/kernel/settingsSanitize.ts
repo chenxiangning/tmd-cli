@@ -46,6 +46,7 @@ import {
   sanitizeSessionPins,
   sanitizeSessionTitles,
 } from "./settingsSanitizeSessions";
+import { sanitizeShortcutOverrides } from "./settingsSanitizeShortcuts";
 
 /** 工作区折叠图上限(与置顶/归档同款确定性兜底口径)。 */
 const WORKSPACE_COLLAPSED_MAX_ENTRIES = 200;
@@ -252,6 +253,7 @@ export function sanitize(raw: unknown): AppSettings {
     sessionPins: sanitizeSessionPins(obj.sessionPins),
     sessionArchive: sanitizeSessionArchive(obj.sessionArchive),
     sessionDeleted: sanitizeSessionDeleted(obj.sessionDeleted),
+    shortcutOverrides: sanitizeShortcutOverrides(obj.shortcutOverrides),
     workspaceArchiveView:
       typeof obj.workspaceArchiveView === "boolean"
         ? obj.workspaceArchiveView

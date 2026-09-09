@@ -20,6 +20,11 @@
 
 import { useSyncExternalStore } from "react";
 import { getPlatformKind } from "./platform";
+import {
+  getEffectiveKeybinding,
+  isShortcutRecording,
+  useShortcutOverridesVersion,
+} from "./shortcutOverrides";
 
 /** 分发器/终端桥共用的最小按键面(xterm 桥传入的是其 KeyboardEvent 子集)。 */
 export interface ShortcutKeyEvent {
@@ -64,7 +69,7 @@ function refreshSnapshot(): void {
 }
 
 /** 解析键位串;无法解析(无修饰键/空键名)返回 null —— 调用方按注册错误处理。 */
-function parseKeybinding(kb: string): {
+export function parseKeybinding(kb: string): {
   key: string;
   meta: boolean;
   shift: boolean;
@@ -88,8 +93,9 @@ function parseKeybinding(kb: string): {
 
 function eventMatches(cmd: CommandContribution, e: ShortcutKeyEvent): boolean {
   if (cmd.match) return cmd.match(e);
-  if (!cmd.keybinding) return false;
-  const parsed = parseKeybinding(cmd.keybinding);
+  const effective = getEffectiveKeybinding(cmd.id);
+  if (!effective) return false;
+  const parsed = parseKeybinding(effective);
   if (!parsed) return false;
   /* 平台严格分流(见 CommandContribution.keybinding):macOS 仅 metaKey、
      其他平台仅 ctrlKey;unknown 宽松兜底(二者任一)。 */
@@ -187,6 +193,7 @@ export function resolveCommand(e: ShortcutKeyEvent): CommandContribution | undef
 export function installShortcutDispatcher(): () => void {
   const onKey = (e: KeyboardEvent): void => {
     if (e.isComposing) return; // IME 组词期全放行
+    if (isShortcutRecording()) return; // 录制期 ShortcutTab 接管,分发器透传
     const cmd = resolveCommand({
       key: e.key,
       metaKey: e.metaKey,
@@ -209,6 +216,8 @@ export function getCommands(): readonly CommandContribution[] {
 }
 
 export function useCommands(): CommandContribution[] {
+  // 改键变更后 useShortcutOverridesVersion() 返回值变 → 重新调 snapshot getter 拿到最新命令。
+  useShortcutOverridesVersion();
   return useSyncExternalStore(
     (fn) => {
       listeners.add(fn);
@@ -230,4 +239,18 @@ export function formatKeybinding(kb: string): string {
       return t === "," ? "," : t.toUpperCase();
     })
     .join("");
+}
+
+/** 键位串 → 键帽分段("Cmd+Shift+E" → ["⌘","⇧","E"]);tooltip/清单逐键渲染用。 */
+export function keybindingChips(kb: string): string[] {
+  return kb
+    .split("+")
+    .map((p) => {
+      const t = p.trim();
+      if (t === "Cmd") return "⌘";
+      if (t === "Shift") return "⇧";
+      if (t === "Alt") return "⌥";
+      return t === "," ? "," : t.toUpperCase();
+    })
+    .filter(Boolean);
 }

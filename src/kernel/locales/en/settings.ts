@@ -84,6 +84,18 @@ export const MESSAGES = {
   "未绑定": "Not bound",
   "搜索命令、键位或 id…": "Search commands, keys, or id…",
   "没有匹配的命令": "No matching commands",
+  "已修改": "Modified",
+  "内置": "Built-in",
+  "此命令为内置键位,不可改": "This command has a built-in binding and cannot be changed",
+  "点击录制新的快捷键": "Click to record a new shortcut",
+  "录制中…": "Recording…",
+  "按 Esc 取消 · Backspace 解绑": "Press Esc to cancel · Backspace to unbind",
+  "Escape 不可绑定": "Escape cannot be bound",
+  "需含 ⌘/Ctrl/Shift/Alt 之一": "Requires ⌘/Ctrl/Shift/Alt",
+  "键位格式错误": "Invalid key syntax",
+  "与 {id} 占用,无法使用": "Conflicts with {id}; cannot use",
+  "恢复默认": "Reset to default",
+  "全部重置": "Reset all",
 
   // SettingsPanel / index.tsx
   "设置": "Settings",
@@ -107,5 +119,4 @@ export const MESSAGES = {
   "Memory 面板": "Memory panel",
   "颜色": "Color",
   "闪烁": "Breathing",
-  "恢复默认": "Reset to default",
 } as Record<string, string>;

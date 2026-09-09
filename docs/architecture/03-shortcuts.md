@@ -40,3 +40,11 @@ interface CommandContribution {
 - 无键位暴露(改键预留):panel.refresh / panel.newFile / panel.newFolder(作用于激活面板槽,槽缺失穿透)、git.fetch / git.pull / git.push(经 panelStore.requestRemoteDialog,when 限定 git 面板激活)。
 - 设置清单 UI 约定:键位用键帽芯片(kbd 描边小块),未绑定弱化字;顶部搜索框匹配标题/id/键位标签;组标题右侧计数;行 title 显示命令 id。
 - 双修饰键(如 ⌃⌘F)键位语法表达不了:用 `match` 自定义匹配 + `keybindingLabel` 展示,不参与静态键冲突检查。
+
+## 改键覆盖层(2026-09-09,spec:docs/superpowers/specs/2026-09-09-shortcuts-remap-tooltip-design.md)
+
+1. **数据**:`settings.shortcutOverrides: Record<命令id, 键位串|"">`,空串=显式解绑、缺 key=走默认;清洗在 `kernel/settingsSanitizeShortcuts.ts`(语法白名单、容量 200、修饰键序统一 Cmd→Shift→Alt、主键小写)。
+2. **生效**:`kernel/shortcutOverrides.ts` 是唯一消费面 —— `getEffectiveKeybinding`(分发器 eventMatches/清单/tooltip 全走 effective)、`validateOverride`(录制期校验:禁 Escape、必含修饰键、同作用域同键冲突拒绝、双方 when 互斥放行、跨作用域同键允许)、`setShortcutRecording`(录制期分发器停摆闸)、`formatKeyEvent`(KeyboardEvent→键位串)。设置改动即写即生效,免重启。
+3. **match 型命令不可改**:键位语法表达不了区间/双修饰,设置 UI 置灰「内置」。
+4. **UI**:设置「快捷键」tab = codemoss 双栏 —— 左:搜索+分组清单(键帽芯片/未设置/已修改+单项重置);右:大键帽 + 点击录制(Esc 取消、Backspace 解绑、冲突红字)+ 全部重置。
+5. **悬浮提示**:`kernel/Tooltip.tsx` HintProvider 委托监听 `data-hint`(文案)/`data-hint-cmd`(命令 id,追加 effective 键帽),目标带 `title=""` 抑原生气泡;键位随改键即时更新。

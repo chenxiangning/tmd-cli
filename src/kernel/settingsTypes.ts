@@ -180,6 +180,8 @@ export interface AppSettings {
    * 两作用域互斥由单 map 结构保证(一个 key 同时只属于一个 scope);
    * title 为置顶时刻的标题快照,供全局区免磁盘扫描直接显示(手动命名覆盖层优先于快照)。
    */
+  /** 快捷键改写覆盖层:key=命令 id,value=键位串/`""`(解绑);match 型不入;改动即写即生效。 */
+  shortcutOverrides: Record<string, string>;
   sessionPins: Record<string, SessionPinEntry>;
   /**
    * 会话归档层:key = `${workspaceId}:${profileId}:${cliSessionId}`,value = 归档时间戳。
@@ -273,6 +275,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   disabledPlugins: [],
   sessionTitles: {},
   sessionPins: {},
+  shortcutOverrides: {},
   workspaceCollapsedMap: {},
   workspaceGroups: [],
   workspaceGroupCollapsedMap: {},

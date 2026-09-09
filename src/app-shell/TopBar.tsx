@@ -65,17 +65,20 @@ export function TopBar({
           type="button"
           className={`titlebar-action${marketOpen ? " is-active" : ""}`}
           aria-label={t("插件市场")}
-          title={t("插件市场")}
+          data-hint={t("插件市场")}
+          data-hint-cmd="shell.openMarket"
+          title=""
           onClick={onToggleMarket}
         >
           <Plug size="0.875rem" aria-hidden />
         </button>
-        {/* 入库(回 welcome):摘掉活跃 session 指针,MainPanel 兜底渲染 welcome;session 不删可唤回 */}
         <button
           type="button"
           className="titlebar-action"
           aria-label={t("回到首页")}
-          title={t("回到首页")}
+          data-hint={t("回到首页")}
+          data-hint-cmd="shell.goHome"
+          title=""
           onClick={() => host.setActiveSession(null)}
         >
           <Tray size="0.875rem" aria-hidden />
@@ -84,7 +87,9 @@ export function TopBar({
           type="button"
           className="titlebar-action"
           aria-label={t(leftOpen ? "收起左栏" : "展开左栏")}
-          title={t(leftOpen ? "收起左栏" : "展开左栏")}
+          data-hint={t(leftOpen ? "收起左栏" : "展开左栏")}
+          data-hint-cmd="shell.toggleLeftBar"
+          title=""
           onClick={onToggleLeft}
         >
           {leftOpen ? <CaretLineLeft size="0.875rem" aria-hidden /> : <CaretLineRight size="0.875rem" aria-hidden />}
@@ -104,7 +109,9 @@ export function TopBar({
           type="button"
           className="titlebar-action"
           aria-label={t(rightOpen ? "收起右栏" : "展开右栏")}
-          title={t(rightOpen ? "收起右栏" : "展开右栏")}
+          data-hint={t(rightOpen ? "收起右栏" : "展开右栏")}
+          data-hint-cmd="shell.toggleRightBar"
+          title=""
           onClick={onToggleRight}
         >
           {rightOpen ? <CaretLineRight size="0.875rem" aria-hidden /> : <CaretLineLeft size="0.875rem" aria-hidden />}

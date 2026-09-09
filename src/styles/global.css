@@ -22,7 +22,9 @@
 @import "./panel-handle.css";
 @import "./settings-cluster.css";
 @import "./settings-version-popover.css";
+@import "./Tooltip.css";
 @import "./settings-panel.css";
+@import "./settings-shortcuts.css";
 @import "./settings-preset-grid.css";
 @import "./welcome.css";
 @import "./welcome-install.css";

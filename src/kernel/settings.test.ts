@@ -61,6 +61,7 @@ describe("初始状态与默认值", () => {
       sessionPins: {},
       sessionArchive: {},
       sessionDeleted: {},
+      shortcutOverrides: {},
       workspaceArchiveView: false,
       workspaceCollapsedMap: {},
       workspaceGroups: [],

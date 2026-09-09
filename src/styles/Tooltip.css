@@ -1,0 +1,57 @@
+/* ──────────────────────────────────────────────────────────
+ * Hint(自定义悬浮提示)—— 委托式 data-hint / data-hint-cmd 渲染。
+ * 深色气泡 + 可选键帽;位置 top/bottom 自适应,左右贴视口边收敛。
+ * 颜色全走 --tmd-* 设计变量;深色气泡 = 反转语义(bg-elevated + 边框)。
+ * ────────────────────────────────────────────────────────── */
+
+.hint-bubble {
+  position: fixed;
+  z-index: 200;
+  max-width: 320px;
+  padding: 6px 10px;
+  border-radius: var(--tmd-radius-md);
+  background: var(--tmd-bg-elevated);
+  border: 1px solid var(--tmd-border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  color: var(--tmd-fg);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.hint-bubble.is-top {
+  transform: translateY(-6px);
+}
+.hint-bubble.is-bottom {
+  transform: translateY(6px);
+}
+.hint-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hint-keys {
+  display: inline-flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+/* 键帽(与 ShortcutTab / codemoss 同款):灰底小胶囊 + 等宽字符 */
+.kbd-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--tmd-bg-hover);
+  border: 1px solid var(--tmd-border);
+  color: var(--tmd-fg);
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  font-size: 0.6875rem;
+  line-height: 1;
+}

@@ -193,7 +193,9 @@ export function SidebarSettingsCluster() {
           aria-label={t("设置")}
           aria-expanded={open}
           aria-haspopup="menu"
-          title={t("设置")}
+          data-hint={t("设置")}
+          data-hint-cmd="shell.openSettings"
+          title=""
           onClick={() => setOpen((v) => !v)}
         >
           <img src={logoUrl} alt="" className="settings-logo" />

@@ -119,11 +119,13 @@ export function ComposerToolbar() {
       {/* 命令抽屉直达开关(closed ↔ open);原「只读」占位(openspec/changes/composer-command-drawer) */}
       <button
         type="button"
-        aria-expanded={drawerOpen}
+        aria-label={t("命令与技能(⌘K)")}
         aria-controls="command-drawer"
-        title={t("命令与技能(⌘K)")}
+        title=""
+        data-hint={t("命令与技能")}
+        data-hint-cmd="composer.toggleDrawer"
         disabled={noSession}
-        onClick={(e) => { e.stopPropagation(); toggleDrawer(); }}
+        onClick={toggleDrawer}
         className={`${iconBtn} ${
           drawerOpen
             ? "bg-(--tmd-accent-soft) text-(--tmd-accent)"

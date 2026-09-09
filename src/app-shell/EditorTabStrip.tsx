@@ -92,7 +92,9 @@ function FileTab({
         type="button"
         className="tab-close"
         aria-label={t("关闭 {file}", { file: fileName })}
-        title={t("关闭")}
+        data-hint={t("关闭 {file}", { file: fileName })}
+        data-hint-cmd="shell.closeTab"
+        title=""
         onClick={(e) => {
           e.stopPropagation();
           closeTab(tabId);
