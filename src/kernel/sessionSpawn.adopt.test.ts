@@ -139,27 +139,4 @@ describe("SessionSpawnService.adoptSpawned", () => {
     ]);
   });
 
-  it("silent 预开秒退:不广播 sessionStartFailed,仅 console.warn 兜底", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const { svc, fired } = mkService();
-    await svc.open("test-cli", "/proj", undefined, "cli-1", { silent: true });
-    exitCbs.get("pty-1")?.(); // 20s 窗口内退出 = 启动失败,但 silent 不广播
-    expect(fired).not.toContainEqual(expect.objectContaining({ topic: KernelTopics.sessionStartFailed }));
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
-  });
-
-  it("silent 预开装配竞态:成对退订但守卫不广播,仅告警", async () => {
-    listed = [];
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const { svc, fired } = mkService();
-    await expect(
-      svc.open("test-cli", "/proj", undefined, "cli-1", { silent: true }),
-    ).rejects.toThrow(ADOPT_RACE_REASON);
-    expect(offs).toHaveLength(2);
-    expect(offs.every((off) => off.mock.calls.length === 1)).toBe(true);
-    expect(fired).not.toContainEqual(expect.objectContaining({ topic: KernelTopics.sessionStartFailed }));
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
-  });
 });

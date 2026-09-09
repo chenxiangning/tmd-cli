@@ -17,7 +17,7 @@ import { SessionStatusWatch } from "./sessionStatus";
 import { getSessionTabs } from "./sessionTabs";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import type { SessionMeta } from "./ipc";
-
+import { noteLogBinding } from "./diskReplay";
 /** 幕布实时输出 topic(TerminalView 订阅,与 appendOutput 共用)。 */
 export function ptyLiveTopic(sessionId: string): string {
   return `kernel.pty.live.${sessionId}`;
@@ -48,6 +48,9 @@ export class HostWatches {
     claimedIds: () => new Set(this.cliSessionIds.values()),
     onBound: (sessionId, cliSessionId) => {
       this.bindIdentity(sessionId, cliSessionId);
+      /* 磁盘先行回放:身份探测绑定同样覆写指针(冷开寻址上一代日志) */
+      const boundMeta = this.ctx.findSession(sessionId);
+      if (boundMeta) noteLogBinding(boundMeta.profileId, boundMeta.cwd, cliSessionId, sessionId);
       void this.statusWatch.refresh(sessionId);
       this.ctx.notify();
     },
@@ -117,9 +120,8 @@ export class HostWatches {
   /**
    * 绑定表唯一写入口:一个 CLI 磁盘身份只准一个活会话持有。身份守望的
    * claimed 过滤是快照式(await 期间会过期),此处是绑定落表的同步终审
-   * (实证:四会话共绑一老会话,ptys 各自 resume 了同一磁盘会话)。
-   * 抢绑失败 = 新会话保持未绑定(fail-closed):账本按 tmd id 隔离,
-   * UI 不去重,不与既有会话并账。
+   * (实证:四会话共绑一老会话,ptys 各自 resume 了同一磁盘会话)。抢绑失败
+   * = 新会话保持未绑定(fail-closed):账本按 tmd id 隔离,UI 不去重不并账。
    */
   bindIdentity(sessionId: string, cliSessionId: string): boolean {
     const rival = [...this.cliSessionIds.entries()].some(
@@ -127,6 +129,10 @@ export class HostWatches {
     );
     if (rival) return false;
     this.cliSessionIds.set(sessionId, cliSessionId);
+    /* 磁盘先行回放:绑定成功即覆写「CLI 会话 → 当前代日志」指针(冷开寻址上一代)。
+       收口在唯一写入口,显式恢复(openDiskSession)与探测绑定(identityWatch)两路共用 */
+    const meta = this.ctx.findSession(sessionId);
+    if (meta) noteLogBinding(meta.profileId, meta.cwd, cliSessionId, sessionId);
     return true;
   }
 
@@ -169,6 +175,11 @@ export class HostWatches {
   }
   observeAskScreen(sessionId: string, screenText: string): void {
     this.askWatch.onScreenSample(sessionId, screenText);
+  }
+
+  /** 磁盘尾恢复(走法 1 冷开回放;带写后闸,语义见 askWatchFeed.restoreDiskTail)。 */
+  restoreDiskTail(sessionId: string, tail: string): void {
+    this.askWatch.restoreDiskTail(sessionId, tail);
   }
 
   /** 用户写入的守望扇出:对话锚定(呼吸灯首写闸)+ EditWatch 去重集清空 + Ask 作答解除。

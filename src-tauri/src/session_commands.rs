@@ -137,3 +137,29 @@ pub async fn session_history_page(
     .await
     .map_err(|e| format!("session_history_page join 失败: {e}"))?
 }
+
+/// 身份绑定时刻回写「CLI 会话 → 当前代日志」指针(磁盘先行回放寻址用,无条件覆写)。
+#[tauri::command]
+pub fn session_link_log(
+    profile_id: String,
+    cwd: String,
+    cli_session_id: String,
+    log_id: String,
+) -> Result<(), String> {
+    crate::session_disk_log::write_log_pointer(&profile_id, &cwd, &cli_session_id, &log_id)
+}
+
+/// 冷开磁盘会话:解指针读上一代日志尾(离线读,无 LogMeta;None = 无指针/日志,前端回落现状)。
+#[tauri::command]
+pub async fn session_disk_tail(
+    profile_id: String,
+    cwd: String,
+    cli_session_id: String,
+    max_bytes: u64,
+) -> Result<Option<session_log::HistoryPage>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::session_disk_log::read_disk_tail(&profile_id, &cwd, &cli_session_id, max_bytes)
+    })
+    .await
+    .map_err(|e| format!("session_disk_tail join 失败: {e}"))?
+}

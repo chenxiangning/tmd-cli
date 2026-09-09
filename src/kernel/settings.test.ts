@@ -55,7 +55,6 @@ describe("初始状态与默认值", () => {
       backgroundNotify: true,
       sessionOutputBufferLimit: 500_000,
       sessionListBudget: { total: 20, perCli: {} },
-      autoActivateSessions: { days: 1, perGroup: 1, max: 16 },
       disabledPlugins: [],
       sessionTitles: {},
       sessionPins: {},
@@ -198,16 +197,6 @@ describe("updateSettings 合并与清洗", () => {
       total: 5,
       perCli: { claude: 3, omp: 2 },
     });
-  });
-
-  it("autoActivateSessions:越界/非整数各自回落默认,互不连坐", () => {
-    const get = () => settings.getSettingsState().settings.autoActivateSessions;
-    settings.updateSettings({ autoActivateSessions: { days: 31, perGroup: 1, max: 4 } });
-    expect(get()).toEqual({ days: 1, perGroup: 1, max: 4 });
-    settings.updateSettings({ autoActivateSessions: { days: 3, perGroup: 9, max: 0 } });
-    expect(get()).toEqual({ days: 3, perGroup: 1, max: 16 });
-    settings.updateSettings({ autoActivateSessions: {} as never });
-    expect(get()).toEqual({ days: 1, perGroup: 1, max: 16 });
   });
 
   it("disabledPlugins:非字符串剔除、去重、排序(确定性)", () => {

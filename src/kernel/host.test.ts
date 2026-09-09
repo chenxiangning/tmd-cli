@@ -230,7 +230,7 @@ describe("detectDiskIdentity 快照与复活", () => {
   });
 });
 
-describe("openDiskSession activate/silent(启动自动激活契约)", () => {
+describe("openDiskSession 去重聚焦与失败广播(走法 1 契约)", () => {
   beforeEach(() => {
     sessions.length = 0;
     disk = [];
@@ -238,29 +238,21 @@ describe("openDiskSession activate/silent(启动自动激活契约)", () => {
     if (!host.getCliProfile(PROFILE_ID)) host.registerCliProfile(profile);
   });
 
-  it("activate:false 后台预开:活表有会话,不广播 activeSessionChanged;点击命中去重即聚焦", async () => {
+  it("双击同一磁盘会话:复用同一进程聚焦,不重复 spawn", async () => {
     const actives: unknown[] = [];
     const off = host.events.on(KernelTopics.activeSessionChanged, (p) => actives.push(p));
-    const meta = await host.openDiskSession(PROFILE_ID, CWD, undefined, "aa-1", {
-      activate: false,
-    });
+    const meta = await host.openDiskSession(PROFILE_ID, CWD, undefined, "aa-1");
     expect(host.getSessions().some((s) => s.id === meta.id)).toBe(true);
-    expect(actives).toEqual([]);
-    /* 点击 = 再走 open,去重命中同一进程并聚焦(兑现「秒开」) */
+    /* 点击 = 再走 open,去重命中同一进程并聚焦(不重复广播之外的 spawn) */
     const again = await host.openDiskSession(PROFILE_ID, CWD, undefined, "aa-1");
     expect(again.id).toBe(meta.id);
     expect(actives).toEqual([meta.id]);
     off();
   });
 
-  it("silent:true spawn 失败:上抛但不广播 sessionStartFailed;缺省仍广播", async () => {
+  it("spawn 失败:上抛并广播 sessionStartFailed(Toast 呈现)", async () => {
     const failures: unknown[] = [];
     const off = host.events.on(KernelTopics.sessionStartFailed, (p) => failures.push(p));
-    vi.mocked(ipc.sessionSpawn).mockRejectedValueOnce(new Error("boom"));
-    await expect(
-      host.openDiskSession(PROFILE_ID, CWD, undefined, "aa-2", { silent: true }),
-    ).rejects.toThrow("boom");
-    expect(failures).toEqual([]);
     vi.mocked(ipc.sessionSpawn).mockRejectedValueOnce(new Error("boom2"));
     await expect(host.openDiskSession(PROFILE_ID, CWD, undefined, "aa-3")).rejects.toThrow(
       "boom2",

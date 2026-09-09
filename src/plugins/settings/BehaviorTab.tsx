@@ -20,7 +20,6 @@ import {
 } from "@kernel/settings";
 import { playAskSound } from "@kernel/askSound";
 import { t } from "@kernel/i18n";
-import { BehaviorAutoActivate } from "./BehaviorAutoActivate";
 
 const SEND_SHORTCUT_OPTIONS: ReadonlyArray<{
   id: SendShortcut;
@@ -239,7 +238,6 @@ export function BehaviorTab() {
           </button>
         </div>
       </div>
-      <BehaviorAutoActivate />
     </div>
   );
 }

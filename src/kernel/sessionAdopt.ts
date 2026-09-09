@@ -34,8 +34,6 @@ export interface AdoptPtySessionOptions {
   onExit?: (sessionId: string) => void;
   /** 缺省 true;false = 后台装配(不广播 activeSessionChanged,不抢中央区/tab)。 */
   activate?: boolean;
-  /** 静默装配(启动自动激活预开):守卫分支不广播 sessionStartFailed,防启动 toast 风暴。 */
-  silent?: boolean;
 }
 
 /** 守卫分支的广播文案(抛出信息与之一致,调用方直接复用)。 */
@@ -43,7 +41,7 @@ export const ADOPT_RACE_REASON = "会话在装配期间被移除(进程启动后
 
 /**
  * spawn 共用装配:常驻订阅输出与退出、竞态守卫、广播会话表。
- * 返回 null = 守卫分支命中(已广播 sessionStartFailed;opts.silent 时仅 console.warn)。
+ * 返回 null = 守卫分支命中(已广播 sessionStartFailed)。
  */
 export async function adoptPtySession(
   h: SessionAdoptHost,
@@ -66,15 +64,11 @@ export async function adoptPtySession(
      已删则成对退订;会话既已不在,按启动失败广播(StartFailureToast 路径) */
   if (!h.findSession(sessionId)) {
     [offOutput, offExit].forEach((off) => off());
-    if (opts.silent) {
-      console.warn("会话装配竞态(静默):", opts.profileId);
-    } else {
-      events.emit(KernelTopics.sessionStartFailed, {
-        sessionId,
-        profileId: opts.profileId,
-        reason: ADOPT_RACE_REASON,
-      });
-    }
+    events.emit(KernelTopics.sessionStartFailed, {
+      sessionId,
+      profileId: opts.profileId,
+      reason: ADOPT_RACE_REASON,
+    });
     return null;
   }
   h.trackUnlisten(sessionId, [offOutput, offExit]);

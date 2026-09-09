@@ -240,6 +240,13 @@ export const ipc = {
   /** 幕布往前翻页:before 绝对偏移之前最多 maxBytes 字节的原始输出。 */
   sessionHistoryPage: (id: string, before: number, maxBytes: number) =>
     invoke<HistoryPage>("session_history_page", { id, before, maxBytes }),
+  /** 身份绑定时刻回写「CLI 会话 → 当前代日志」指针(磁盘先行回放寻址)。 */
+  sessionLinkLog: (profileId: string, cwd: string, cliSessionId: string, logId: string) =>
+    invoke<void>("session_link_log", { profileId, cwd, cliSessionId, logId }),
+  /** 冷开磁盘会话:解指针读上一代日志尾;null = 无指针/日志,调用方回落现状路径。
+      返回页的 startOffset/hasMore 是文件相对假偏移,只准消费 text。 */
+  sessionDiskTail: (profileId: string, cwd: string, cliSessionId: string, maxBytes: number) =>
+    invoke<HistoryPage | null>("session_disk_tail", { profileId, cwd, cliSessionId, maxBytes }),
   fsListDir: (path: string) => invoke<DirEntry[]>("fs_list_dir", { path }),
   /** 项目文件索引(composer @ 补全候选):递归 + gitignore/.ignore/.fdignore,
    *  跳 dotfiles/node_modules,返回 root 相对 posix 路径(排序稳定);cap = 上限。

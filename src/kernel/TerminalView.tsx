@@ -71,8 +71,10 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
   const [hasMore, setHasMore] = useState(false);
   const [atTop, setAtTop] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  /* 加载进度态:null = 就绪撤罩;replay = 分块回放 %;stream = 流式接收字节(terminalReplay.ts)。 */
+  /* 加载进度态:null = 就绪撤罩;replay = 分块回放 %;stream = 流式接收(terminalReplay.ts)。
+     ref 镜像供 askProbe 闭包读相位(就绪前停采,评审 F5)。 */
   const [loadProgress, setLoadProgress] = useState<LoadProgress>(null);
+  const loadProgressRef = useRef<LoadProgress>(null);
   /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答
      (见 terminalInputGate.ts);实例随会话 keep-alive 常驻,闸随实例持有。 */
   const inputGateRef = useRef(createReplayInputGate());
@@ -143,14 +145,11 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       setLoadingHistory(l);
     });
     pagerRef.current = pager;
-    /* 翻页器随挂载创建(keep-alive 后每会话仅挂载一次,锚点随实例常驻)。 */
-
-    /* 输出装配(回放分块 + 实时保序 + 进度回调)见 kernel/terminalReplay.ts;
-       输入闸语义不变:回放窗口内丢弃历史查询应答(DSR/DA/OSC 颜色会被 xterm
-       重新应答,照走 writeSession 即①陈旧应答注入活 PTY ②视同用户首写锚定对话),
-       回放尽后释放。 */
-    const inputGate = inputGateRef.current;
-    const offStream = attachTerminalStream(term, sessionId, inputGate, setLoadProgress);
+    /* 翻页器随挂载创建(keep-alive 后每会话仅挂载一次);输出装配见 terminalReplay.ts。 */
+    const offStream = attachTerminalStream(term, sessionId, inputGateRef.current, (p) => {
+      loadProgressRef.current = p;
+      setLoadProgress(p);
+    });
 
     /* 翻页锚点初始化(缓冲起点绝对偏移反推,实现见 terminalHistory.ts)。 */
     void pager.init();
@@ -161,9 +160,10 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     /* Ask 屏幕态采样(askWatch v3):omp 等待期间 spinner 以光标寻址持续重绘,
        面板标记一旦流出字节尾窗永不复现(实测 3h 挂起面板后流 7.4MB)——
        字节流检测对此原理性无解,但屏幕上标记始终在:读底部 8 行文本喂检测器
-       (命中判定在 askWatch 内,含 CLI 声明标记)。读 baseY 起的活动屏幕
-       (非 viewport),用户上翻历史不影响判定。 */
+       (非 viewport),用户上翻历史不影响判定。就绪前(回放/流式相位)停采:
+       磁盘回放的墓碑帧不进屏幕通道,Ask 恢复只走 restoreTail(评审 F5)。 */
     const askProbe = setInterval(() => {
+      if (loadProgressRef.current !== null) return; /* 墓碑帧不进屏幕通道 */
       const buf = term.buffer.active;
       const bottom = Math.min(buf.length, buf.baseY + term.rows);
       let screenTail = "";
@@ -176,7 +176,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
        照写 PTY 但标 synthetic —— 它们不是用户输入,不得锚定对话,
        否则点一下终端/滚一轮就会点亮无对话会话的呼吸灯 */
     const offInput = term.onData((data) => {
-      if (inputGate.blocked()) return;
+      if (inputGateRef.current.blocked()) return;
       host.writeSession(sessionId, data, isTerminalReport(data));
     });
     /* 对话锚点:向内核注册本幕布的跳转/定位能力(composer 锚点栏经此中转)。 */

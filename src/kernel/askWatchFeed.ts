@@ -5,7 +5,7 @@
  * 仅计时器路径(回调里无法借道 appendOutput)在内部 notify。
  */
 
-import { ASK_MARKER_RE } from "./askDetect";
+import { ASK_MARKER_RE, ASK_REARM_SUPPRESS_MS } from "./askDetect";
 import { AskWatch } from "./askWatchCore";
 
 export interface AskWatchFeedCtx {
@@ -23,6 +23,8 @@ export interface AskWatchFeedCtx {
 
 export class AskWatchFeed {
   private readonly watch: AskWatch;
+  /** 最近用户写入时刻(restoreTail 写后闸判据;会话移除时随 watch 一并清理)。 */
+  private readonly lastWriteAt = new Map<string, number>();
 
   constructor(private readonly ctx: AskWatchFeedCtx) {
     this.watch = new AskWatch(
@@ -89,8 +91,18 @@ export class AskWatchFeed {
     if (tail) this.watch.onOutput(sessionId, tail, undefined, extraMarks ?? this.ctx.askMarks(sessionId));
   }
 
-  /** 用户写入 = 作答(host.writeSession);返回 true = 状态翻转,host 据此重渲染。 */
+  /** 磁盘尾恢复专用(走法 1 冷开回放):带写后闸 —— 尾巴是上一代残迹,
+      回放窗内作答后到达属残影,不得立候选(评审 F4)。lastWriteAt 本件自持。 */
+  restoreDiskTail(sessionId: string, tail: string): void {
+    const lastWrite = this.lastWriteAt.get(sessionId);
+    if (lastWrite !== undefined && Date.now() - lastWrite < ASK_REARM_SUPPRESS_MS) return;
+    this.restoreTail(sessionId, tail);
+  }
+
+  /** 用户写入 = 作答(host.writeSession);返回 true = 状态翻转,host 据此重渲染。
+      同时记录时间戳,供 restoreTail 写后闸判定(见上)。 */
   onUserWrite(sessionId: string): boolean {
+    this.lastWriteAt.set(sessionId, Date.now());
     return this.watch.onUserWrite(sessionId);
   }
 

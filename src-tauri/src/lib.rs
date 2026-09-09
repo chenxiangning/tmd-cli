@@ -18,6 +18,7 @@ mod quota;
 mod resolve;
 mod session;
 mod session_commands;
+mod session_disk_log;
 mod session_log;
 mod settings;
 mod sqlite;
@@ -139,6 +140,8 @@ pub fn run() {
             session_commands::session_resize,
             session_commands::session_kill,
             session_commands::session_log_size,
+            session_commands::session_link_log,
+            session_commands::session_disk_tail,
             session_commands::session_history_page,
             commands_fs::fs_list_dir,
             commands_fs::fs_read_file,

@@ -11,6 +11,7 @@
 import { KernelTopics, type EventBus, type SessionStartFailedEvent } from "./events";
 import { ipc, type SessionMeta, type SpawnSpec, type SpawnedSession } from "./ipc";
 import { adoptPtySession, ADOPT_RACE_REASON } from "./sessionAdopt";
+import { prefetchDiskTail } from "./diskReplay";
 import type { CliProfile } from "./cli";
 
 /** spawn 后多久内退出视为「启动失败」。node 系 CLI 冷启动数秒,窗口取宽些。 */
@@ -178,20 +179,19 @@ export class SessionSpawnService {
     cwd: string,
     workspaceId: string | undefined,
     cliSessionId: string,
-    opts?: { activate?: boolean; silent?: boolean },
   ): Promise<SessionMeta> {
-    const activate = opts?.activate !== false;
+    /* 磁盘先行回放:预取先于一切派发(happens-before,此刻指针仍指上一代,见 diskReplay.ts) */
+    prefetchDiskTail(profileId, cwd, cliSessionId);
     const profile = this.h.getCliProfile(profileId);
     if (!profile) throw new Error(`未知 CLI profile: ${profileId}`);
     // 身份去重:该磁盘会话已有活 PTY → 聚焦既有会话,同一会话绝不出两条
-    // (后台预开 activate=false 时去重命中不抢焦点,自动激活靠它兑现「点击秒开」)
     const existing = this.h
       .getSessions()
       .find(
         (s) => s.profileId === profileId && this.h.getCliSessionId(s.id) === cliSessionId,
       );
     if (existing) {
-      if (activate) this.h.setActiveSession(existing.id);
+      this.h.setActiveSession(existing.id);
       return existing;
     }
     /* 在途单例闸(与 PluginLifecycle.activation 同构):快速双击历史行时,
@@ -200,10 +200,8 @@ export class SessionSpawnService {
     const key = `${profileId}:${cliSessionId}`;
     const opening = this.openingDiskSessions.get(key);
     if (opening) {
-      /* 后台预开在途时用户点击:复用在途 Promise,完成后补聚焦(否则点击无响应) */
-      if (activate) {
-        void opening.then((m) => this.h.setActiveSession(m.id)).catch(() => undefined);
-      }
+      /* 双击复用在途 Promise,完成后补聚焦(否则第二次点击无响应) */
+      void opening.then((m) => this.h.setActiveSession(m.id)).catch(() => undefined);
       return opening;
     }
     const args = profile.resumeArgs?.(cliSessionId) ?? profile.args;
@@ -217,8 +215,8 @@ export class SessionSpawnService {
     if (profile.spawnTransform) spec = await profile.spawnTransform(spec);
     const task = (async () => {
       try {
-        const spawned = await this.spawn(profileId, spec, workspaceId, opts?.silent);
-        return await this.adoptSpawned(spawned.id, profileId, cliSessionId, activate, opts?.silent);
+        const spawned = await this.spawn(profileId, spec, workspaceId);
+        return await this.adoptSpawned(spawned.id, profileId, cliSessionId);
       } finally {
         this.openingDiskSessions.delete(key);
       }
@@ -227,23 +225,19 @@ export class SessionSpawnService {
     return task;
   }
 
-  /** spawn 统一收口:被拒(命令不存在/IPC 错)时幕布不存在,广播原因再抛;
-      silent(启动自动激活)= 不广播,失败由调用方 console.warn 兜底。 */
+  /** spawn 统一收口:被拒(命令不存在/IPC 错)时幕布不存在,广播原因再抛。 */
   private async spawn(
     profileId: string,
     spec: SpawnSpec,
     workspaceId?: string,
-    silent?: boolean,
   ): Promise<SpawnedSession> {
     return await ipc.sessionSpawn(profileId, spec, workspaceId).catch((e: unknown) => {
-      if (!silent) {
-        const event: SessionStartFailedEvent = {
-          sessionId: null,
-          profileId,
-          reason: e instanceof Error ? e.message : String(e),
-        };
-        this.events.emit(KernelTopics.sessionStartFailed, event);
-      }
+      const event: SessionStartFailedEvent = {
+        sessionId: null,
+        profileId,
+        reason: e instanceof Error ? e.message : String(e),
+      };
+      this.events.emit(KernelTopics.sessionStartFailed, event);
       throw e;
     });
   }
@@ -257,11 +251,9 @@ export class SessionSpawnService {
     profileId: string,
     cliSessionId?: string,
     activate = true,
-    silent?: boolean,
   ): Promise<SessionMeta> {
     /* 显式恢复路径的绑定也走唯一写入口:入口去重的兜底闸 —— 同一磁盘会话
-       已有活 PTY 时新 PTY 照常运行,但身份不绑(账本/UI 按 tmd id 隔离,
-       不与既有会话并账)。 */
+       已有活 PTY 时新 PTY 照常运行,但身份不绑(账本/UI 按 tmd id 隔离,不与既有会话并账)。*/
     if (cliSessionId) this.h.bindIdentity(sessionId, cliSessionId);
     this.h.setSessions(await ipc.sessionList());
     if (activate) this.h.setActiveSessionId(sessionId);
@@ -271,8 +263,7 @@ export class SessionSpawnService {
     const meta = await adoptPtySession(this.h, this.events, sessionId, {
       profileId,
       activate,
-      silent,
-      onExit: (id) => this.emitIfStartFailed(id, profileId, adoptedAt, silent),
+      onExit: (id) => this.emitIfStartFailed(id, profileId, adoptedAt),
     });
     if (!meta) throw new Error(ADOPT_RACE_REASON);
     this.h.statusEnsurePolling();
@@ -282,11 +273,10 @@ export class SessionSpawnService {
     return meta;
   }
 
-  /** 启动窗口内退出 = 启动失败:摘幕布尾部广播 sessionStartFailed(Toast 呈现);silent(自动激活预开)仅 console.warn,防启动时刻 toast 风暴。 */
-  private emitIfStartFailed(sessionId: string, profileId: string, adoptedAt: number, silent?: boolean): void {
+  /** 启动窗口内退出 = 启动失败:摘幕布尾部广播 sessionStartFailed(Toast 呈现)。 */
+  private emitIfStartFailed(sessionId: string, profileId: string, adoptedAt: number): void {
     if (Date.now() - adoptedAt > START_FAIL_WINDOW_MS) return;
     if (!this.h.getSessions().some((s) => s.id === sessionId)) return;
-    if (silent) return console.warn("预开会话启动失败(静默):", profileId);
     this.events.emit(KernelTopics.sessionStartFailed, {
       sessionId,
       profileId,

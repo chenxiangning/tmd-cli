@@ -3,17 +3,21 @@
  *
  * 为什么存在:整段 write 数百 KB 会堵 xterm 解析数秒(幕布全空);冷开会话
  * 要等 CLI 启动 + resume 重放流入,同样数秒空白。两者统一遮罩进度:
- * - 有缓冲可回放 → 分块写入,进度 = 已解析块数/总块数(真实解析进度);
- * - 无缓冲/回放尽 → 流式阶段,进度 = 已接收字节相对缓冲上限的占比 + 字节计数
- *   (真实流入量),输出静默 0.5s 判就绪撤罩;12s 兜底防 CLI 不重绘卡死遮罩。
- * 就绪锁:遮罩一旦撤下(静默/兜底)即永久就绪,后续实时字节不再重提遮罩 ——
+ * - 有内存缓冲可回放 → 分块写入,进度 = 已解析块数/总块数(真实解析进度);
+ * - 无缓冲但有磁盘尾预取(冷开磁盘会话,diskReplay)→ 回放上一代日志尾,
+ *   回放尽即就绪撤罩 —— 墓碑帧本身就是内容,不等静默(CLI 首字节 1-3s 后才到);
+ * - 无缓冲/回放尽 → 流式阶段,进度 = 已接收字符计数,输出静默 0.5s 判就绪撤罩;
+ *   12s 兜底防 CLI 不重绘卡死遮罩。
+ * 就绪锁:遮罩一旦撤下(回放尽/静默/兜底)即永久就绪,后续实时字节不再重提遮罩 ——
  * 否则生成期 spinner 持续重绘、切模型回显、resize 重绘都会把幕布反复盖住。
- * 保序:回放未竟时实时字节先攒队列,回放尽后按序补写,新老内容不交错。
+ * 保序(异步接缝,评审 F3):liveQueue 从挂载起攒队 —— 磁盘尾是异步源,promise
+ * 未决期间实时字节严禁直写幕布(否则先写新内容、回放后到即交错);回放尽后按序补写。
  */
 
 import type { Terminal } from "@xterm/xterm";
 import { host, ptyLiveTopic } from "@kernel/host";
 import type { ReplayInputGate } from "@kernel/terminalInputGate";
+import { consumeDiskTail } from "./diskReplay";
 
 /** 单块字符数:足够小使进度平滑,又不至于回调过频。 */
 const REPLAY_CHUNK_CHARS = 128 * 1024;
@@ -79,7 +83,8 @@ export function attachTerminalStream(
     if (liveQueue) liveQueue.push(text);
     else term.write(text);
     received += text.length;
-    if (!cancelled && !ready) {
+    /* 攒队期间进度归回放分支驱动;直写期才走流式进度 */
+    if (!cancelled && !ready && !liveQueue) {
       onProgress({ kind: "stream", chars: received });
       armQuiet();
     }
@@ -96,11 +101,12 @@ export function attachTerminalStream(
     }, QUIET_READY_MS);
   };
 
-  const replay = host.getOutputBuffer(sessionId);
-  if (replay) {
+  const memoryReplay = host.getOutputBuffer(sessionId);
+  const diskTail = memoryReplay ? null : consumeDiskTail(host.getCliSessionId(sessionId));
+  if (memoryReplay) {
     inputGate.arm();
     onProgress({ kind: "replay", pct: 0 });
-    void writeInChunks(term, replay, (done, total) => {
+    void writeInChunks(term, memoryReplay, (done, total) => {
       if (!cancelled && !ready) onProgress({ kind: "replay", pct: Math.round((done / total) * 100) });
     }).then(() => {
       /* 卸载竞态不冻结输入闸(随组件重挂载重生,闸门泄漏才致命);其余全部忽略。 */
@@ -115,6 +121,39 @@ export function attachTerminalStream(
       }
     });
     host.observeReplayTail(sessionId);
+  } else if (diskTail) {
+    /* 磁盘先行回放(冷开磁盘会话):尾巴到手前 liveQueue 持续攒队(F3);
+       回放尽即就绪撤罩 —— 墓碑帧即内容,不等静默(F1p);随后 restoreTail 恢复 Ask 徽章 */
+    onProgress({ kind: "replay", pct: 0 });
+    void diskTail.then((page) => {
+      if (cancelled) return;
+      const tail = page?.text ?? "";
+      const flushQueued = (): void => {
+        const queued = liveQueue ?? [];
+        liveQueue = null;
+        for (const text of queued) term.write(text);
+      };
+      if (!tail) {
+        /* 无指针/日志/IPC 失败:攒下的字节按序放行,回落现状直流式 */
+        flushQueued();
+        if (!ready) {
+          onProgress({ kind: "stream", chars: received });
+          armQuiet();
+        }
+        return;
+      }
+      inputGate.arm();
+      void writeInChunks(term, tail, (done, total) => {
+        if (!cancelled && !ready) onProgress({ kind: "replay", pct: Math.round((done / total) * 100) });
+      }).then(() => {
+        inputGate.release();
+        if (cancelled) return;
+        flushQueued();
+        ready = true;
+        onProgress(null);
+        host.restoreDiskTail(sessionId, tail);
+      });
+    });
   } else {
     liveQueue = null;
     onProgress({ kind: "stream", chars: 0 });

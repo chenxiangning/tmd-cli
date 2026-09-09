@@ -43,7 +43,7 @@ pub struct HistoryPage {
 
 /// Claude Code 同款项目目录命名:路径分隔符与盘符冒号 → '-'。
 /// `/Users/x/code/tmd-cli` → `-Users-x-code-tmd-cli`
-fn project_slug(cwd: &str) -> String {
+pub(crate) fn project_slug(cwd: &str) -> String {
     cwd.replace(['/', '\\', ':'], "-")
 }
 

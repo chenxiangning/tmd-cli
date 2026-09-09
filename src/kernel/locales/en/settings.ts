@@ -65,15 +65,6 @@ export const MESSAGES = {
   "后台提醒": "Background notifications",
   "窗口失焦时，当前会话完成一轮对话也标记未读并播放结束提示音；切回窗口即恢复已读。":
     "While the window is unfocused, a finished turn still marks the session unread and plays the turn-end sound; focusing the window clears it.",
-  "启动时自动激活会话": "Auto-activate sessions on startup",
-  "重新打开应用时，后台预激活最近 N 天内有活动的会话（0 = 关闭）。预激活的会话点开即达，无需等待启动；每个会话都是一个真实进程，请配合上限使用。":
-    "On relaunch, pre-activates sessions active within the last N days in the background (0 = off). Pre-activated sessions open instantly; each one is a real process, so keep the cap in mind.",
-  "自动激活总数上限": "Auto-activation process cap",
-  "每组预载条数": "Preload count per group",
-  "每个 工作区×CLI 组按时间序预载的最新条数（1–8，默认 1）。设为 1 可保证每组的最新一条点击秒开。":
-    "Newest sessions preloaded per workspace × CLI group by recency (1–8, default 1). Set to 1 to guarantee the latest session of every group opens instantly.",
-  "预激活的进程总数硬上限（1–32，默认 16）。超出后按时间降序只保留最近的会话。":
-    "Hard cap on pre-activated processes (1–32, default 16). Beyond it, only the most recent sessions are kept.",
   "默认": "Default",
   "风铃": "Chime",
   "铃声": "Bell",

@@ -6,6 +6,14 @@ const hoisted = vi.hoisted(() => ({
   listeners: new Map<string, Array<(t: string) => void>>(),
   /** 会话输出缓冲(id → 内容):回放分支用例预置,缺省空 = 无缓冲。 */
   buffers: new Map<string, string>(),
+  /** 会话 → CLI 磁盘身份(磁盘尾分支标签解析)。 */
+  cliIds: new Map<string, string>(),
+  /** restoreTail 调用记录(磁盘回放尽的徽章恢复)。 */
+  restored: [] as Array<[string, string]>,
+  /** 红线观测:磁盘回放期间 appendOutput 零调用(历史字节不入守望主链路)。 */
+  appendOutputCalls: [] as string[],
+  /** 磁盘尾桩:{ cliId, promise } = 预取命中;null = 未预取/错配。 */
+  diskTail: null as { cliId: string; promise: Promise<{ text: string } | null> } | null,
 }));
 
 vi.mock("@kernel/host", () => ({
@@ -20,8 +28,16 @@ vi.mock("@kernel/host", () => ({
       },
     },
     getOutputBuffer: (id: string) => hoisted.buffers.get(id) ?? null,
+    getCliSessionId: (id: string) => hoisted.cliIds.get(id),
     observeReplayTail: () => undefined,
+    restoreDiskTail: (id: string, tail: string) => hoisted.restored.push([id, tail]),
+    appendOutput: (_id: string, text: string) => hoisted.appendOutputCalls.push(text),
   },
+}));
+
+vi.mock("./diskReplay", () => ({
+  consumeDiskTail: (cliId: string | undefined) =>
+    hoisted.diskTail && cliId === hoisted.diskTail.cliId ? hoisted.diskTail.promise : null,
 }));
 
 import { attachTerminalStream, writeInChunks } from "./terminalReplay";
@@ -139,10 +155,67 @@ describe("attachTerminalStream 就绪锁", () => {
 
     emit("s4", "live"); // 回放窗口内到达实时字节:入队迟到补写,并重置静默表
     await vi.advanceTimersByTimeAsync(500); // 实时侧静默判就绪 → 撤罩;回放块写完
+
     expect(events).toContain(null);
     expect(events.indexOf(null)).toBe(events.length - 1); // 撤罩后零重提(修前回弹 replay% 卡死遮罩)
     expect(term.writes.join("")).toContain("chunk-a chunk-b"); // 回放不丢字节
     expect(term.writes.at(-1)).toBe("live"); // 迟到实时字节按序补写
+    off();
+  });
+});
+
+/** 磁盘先行回放分支(spec 2026-09-09-disk-first-session-open)。 */
+describe("attachTerminalStream 磁盘先行回放", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    hoisted.buffers.clear();
+    hoisted.cliIds.clear();
+    hoisted.restored.length = 0;
+    hoisted.appendOutputCalls.length = 0;
+    hoisted.diskTail = null;
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("尾巴回放尽即撤罩(不等静默),restoreTail 携尾,攒队字节按序补写", async () => {
+    hoisted.cliIds.set("s1", "cli-1");
+    hoisted.diskTail = { cliId: "cli-1", promise: Promise.resolve({ text: "TAIL" }) };
+    const term = fakeTerm();
+    const events: LoadProgress[] = [];
+    const off = attachTerminalStream(term, "s1", gate, (p) => events.push(p));
+    emit("s1", "LIVE1"); // promise 未决期:进队列,严禁直写(F3)
+    expect(term.writes).not.toContain("LIVE1");
+    await vi.advanceTimersByTimeAsync(5);
+    expect(term.writes.join("")).toContain("TAIL");
+    expect(term.writes.at(-1)).toBe("LIVE1"); // 回放尽按序补写
+    expect(hoisted.restored).toEqual([["s1", "TAIL"]]); // Ask 徽章磁盘恢复
+    expect(hoisted.appendOutputCalls).toEqual([]); // 红线:磁盘尾巴不入守望主链路
+    expect(events.at(-1)).toBeNull();
+    off();
+  });
+
+  it("无尾(未预取/失败/null):攒队放行,回落现状流式静默判就绪", async () => {
+    hoisted.cliIds.set("s1", "cli-1");
+    hoisted.diskTail = { cliId: "cli-1", promise: Promise.resolve(null) };
+    const term = fakeTerm();
+    const events: LoadProgress[] = [];
+    const off = attachTerminalStream(term, "s1", gate, (p) => events.push(p));
+    emit("s1", "A");
+    await vi.advanceTimersByTimeAsync(5);
+    expect(term.writes).toContain("A"); // 攒队字节不丢
+    await vi.advanceTimersByTimeAsync(500);
+    expect(events).toContain(null); // 静默 0.5s 撤罩(现状语义)
+    expect(hoisted.restored).toEqual([]);
+    off();
+  });
+
+  it("身份错配不消费:内存缓冲与磁盘尾皆无时零回放", async () => {
+    hoisted.cliIds.set("s1", "cli-1");
+    hoisted.diskTail = { cliId: "cli-9", promise: Promise.resolve({ text: "OTHER" }) };
+    const term = fakeTerm();
+    const off = attachTerminalStream(term, "s1", gate, () => undefined);
+    await vi.advanceTimersByTimeAsync(5);
+    expect(term.writes).toEqual([]);
+    expect(hoisted.restored).toEqual([]);
     off();
   });
 });
