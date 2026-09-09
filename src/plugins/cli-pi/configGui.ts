@@ -132,21 +132,18 @@ export const piConfigEntry: Omit<CliConfigEntry, "icon"> = {
     {
       id: "defaultModel",
       label: t("默认模型"),
-      hint: t("defaultProvider/defaultModel:供应商 → 模型;候选 = auth.json 已登录供应商实况"),
       kind: "select",
       catalog: piModelCatalog,
     },
     {
       id: "defaultThinkingLevel",
       label: t("默认思考强度"),
-      hint: t("defaultThinkingLevel:留空 = 不写入磁盘,CLI 用内置默认"),
       kind: "select",
       options: ["", ...PI_THINKING],
     },
     {
       id: "theme",
       label: t("CLI 主题"),
-      hint: t("theme:pi TUI 配色;dark = CLI 内置默认(不写入磁盘)"),
       kind: "select",
       options: PI_THEMES,
     },

@@ -147,12 +147,6 @@
   color: var(--tmd-fg);
 }
 
-.cli-cfg-row-hint {
-  margin-top: 2px;
-  font-size: 0.6875rem;
-  line-height: 1.5;
-  color: var(--tmd-fg-subtle);
-}
 
 /* 新手说明:可展开;正文 pre-line 保住两段式排版 */
 .cli-cfg-detail {
@@ -182,7 +176,6 @@
 
 .cli-cfg-detail[open] summary::before {
   transform: rotate(90deg);
-  background: var(--tmd-bg-sunken);
 }
 
 .cli-cfg-detail-body {
@@ -193,7 +186,23 @@
   font-size: 0.6875rem;
   line-height: 1.7;
   color: var(--tmd-fg-subtle);
-  white-space: pre-line;
+}
+
+.cli-cfg-detail-body p + p {
+  margin-top: 6px;
+}
+
+.cli-cfg-detail-body strong {
+  color: var(--tmd-fg);
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+/* 模型链:每项两级选择器 + 上移/下移/删除控制列 */
+.cli-cfg-chain-ctl {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
 /* 控件列:右对齐;下拉/输入统一宽度,开关靠右 */

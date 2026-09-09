@@ -35,6 +35,7 @@
 - [x] `CliConfigField.detail` 契约 + ConfigForm 行内可展开「说明」(details/summary,pre-line 两段式)
 - [x] `cli-omp/configDetails.ts`:13 个字段全覆盖(解决什么问题/影响什么),事实依据 = omp-cli-course 第 5/6/7/9 课 + `omp --help` 实测
 - [x] 数据测试:每字段 detail 非空且含两段式标记;桩目检展开态/主题 token/高级区 4 项
+- [x] 追加:回退链值升级为有序多候选(每项两级选择器 + 上移/下移/删除,`multi` 契约);行内小字 hint 全清,键路径知识并入说明;说明正文段落化(粗体引导 + 分段)
 
 ## 4. 验证
 

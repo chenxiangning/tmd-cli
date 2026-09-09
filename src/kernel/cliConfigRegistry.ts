@@ -30,9 +30,11 @@ export interface CliConfigField {
   /** 表单值对象里的键(插件 load/save 自决与磁盘键的映射)。 */
   id: string;
   label: string;
-  /** 磁盘键路径提示行(如 modelRoles.default),纯展示。 */
-  hint?: string;
   kind: CliConfigFieldKind;
+  /** 新手向长说明:解决什么问题、影响什么;存在时行内可展开,按 \n 分段。 */
+  detail?: string;
+  /** modelMap 专用:值 = 有序多个模型引用(如回退链),每个候选用两级选择器。 */
+  multi?: boolean;
   /** select 候选;函数版收当前表单值(级联:服务商→模型;磁盘候选 load 后刷新)。 */
   options?: string[] | ((values: CliConfigValues) => string[] | Promise<string[]>);
   /** modelMap:键下拉候选(如 omp 角色名);缺省 = 自由文本键。 */
@@ -44,8 +46,6 @@ export interface CliConfigField {
   catalog?: () => Promise<CliModelCatalogProvider[]>;
   /** 收进「高级」折叠区。 */
   advanced?: boolean;
-  /** 新手向长说明:解决什么问题、影响什么;存在时行内可展开。 */
-  detail?: string;
 }
 
 export interface CliConfigValues {

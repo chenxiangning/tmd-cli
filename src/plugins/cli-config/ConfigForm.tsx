@@ -110,11 +110,22 @@ function FieldRow({
     <div className="cli-cfg-row">
       <div className="cli-cfg-row-text">
         <div className="cli-cfg-row-title">{t(field.label)}</div>
-        {field.hint && <div className="cli-cfg-row-hint">{t(field.hint)}</div>}
         {field.detail && (
           <details className="cli-cfg-detail">
             <summary>{t("说明")}</summary>
-            <p className="cli-cfg-detail-body">{t(field.detail)}</p>
+            <div className="cli-cfg-detail-body">
+              {field.detail.split("\n").map((para, i) => {
+                const sep = para.indexOf(":");
+                const lead = sep > 0 && sep < 12 ? para.slice(0, sep) : "";
+                const rest = lead ? para.slice(sep + 1) : para;
+                return (
+                  <p key={i}>
+                    {lead && <strong>{t(lead)}:</strong>}
+                    {t(rest)}
+                  </p>
+                );
+              })}
+            </div>
           </details>
         )}
       </div>
