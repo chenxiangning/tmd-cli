@@ -137,7 +137,7 @@ export interface AppSettings {
   uiFontSize: number;
   /** 界面缩放(0.8-1.5 步进 0.05);Tauri webview setZoom,浏览器 dev 兜底 CSS zoom。 */
   uiZoom: number;
-  /** 图标装饰:8 个界面图标的独立颜色/呼吸闪烁(外观页可调;应用层 kernel/iconDecor.ts)。 */
+  /** 图标装饰:7 个界面图标的独立颜色/呼吸闪烁(外观页可调;应用层 kernel/iconDecor.ts)。 */
   iconDecor: Record<IconDecorId, IconDecorItem>;
   /** 顶栏中央会话标题 tab 条开关(外观页可调,默认开启;见 kernel/sessionTabs.ts)。 */
   sessionTabsEnabled: boolean;

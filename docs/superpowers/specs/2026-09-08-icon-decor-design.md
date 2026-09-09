@@ -46,9 +46,9 @@
 
 - 新 `kernel/iconDecor.ts`:`bootIconDecor()`(同 `uiFontSize.ts` 模式,幂等)——订阅 settings:设了色的键 `setProperty('--icon-decor-<键>', color)`,未设则 `removeProperty`;blink 开的键拼成 `<html data-icon-blink="键1 键2">`;`main.tsx` boot 一行。
 - 新 `src/styles/icon-decor.css` 集中消费规则:
-  - `eye`/`newchat`:恒 `color: var(--icon-decor-<键>, <现值>)`;
+  - `newchat`:恒 `color: var(--icon-decor-<键>, <现值>)`;
   - 两态 6 键:仅 `is-active` 分支吃 `var(--icon-decor-<键>, rgb(255,140,60))`,替换 `right-panel-toolbar.css` / `settings-cluster.css` 里的写死橙;idle 分支不动;
-  - 闪烁:`html[data-icon-blink~="<键>"] <选择器> { animation: icon-decor-breathe 5s ease-in-out infinite; }`(8 条,共享一份 keyframes),附 `prefers-reduced-motion` 关停(覆盖今日 rocket 规则的先例)。
+  - 闪烁:`html[data-icon-blink~="<键>"] <选择器> { animation: icon-decor-breathe 5s ease-in-out infinite; }`(7 条,共享一份 keyframes),附 `prefers-reduced-motion` 关停(覆盖今日 rocket 规则的先例)。
 - 壳补两个通用 DOM 钩子(透传注册表 id,零插件语义):`SidebarSettingsCluster` 菜单行/钉住钮加 `data-action-id`;`RightPanelToolbar` 面板 tab 与 overflow 项加 `data-panel-id`。
 
 ## 设置 UI(settings 插件)

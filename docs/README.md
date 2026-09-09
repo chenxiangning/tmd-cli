@@ -93,7 +93,7 @@
 | 2026-09-08 | [会话时间线(审批线面板「时间线」页签)设计](superpowers/specs/2026-09-08-session-timeline-design.md) | 已落地(桩目检通过) |
 | 2026-09-08 | [会话时间线原型 方案 A:审批线面板页内 tab](design/session-timeline-scheme-a.html) | 设计定稿(扁平化后与落地一致) |
 | 2026-09-08 | [会话时间线原型 方案 B:独立面板 + 工作区作用域](design/session-timeline-scheme-b.html) | 设计原型(二期候选) |
-| 2026-09-08 | [图标装饰设置:8 个界面图标的独立颜色与呼吸闪烁](superpowers/specs/2026-09-08-icon-decor-design.md) | 已确认(实现随本 spec 提交) |
+| 2026-09-08 | [图标装饰设置:7 个界面图标的独立颜色与呼吸闪烁](superpowers/specs/2026-09-08-icon-decor-design.md) | 已确认(实现随本 spec 提交) |
 | 2026-09-08 | [会话状态机:轮次开启闸(关 tab 噪音不误标未读,在途任务照标)](superpowers/specs/2026-09-08-turn-start-gate-design.md) | 已落地(实现随本 spec 提交) |
 | 2026-09-08 | [工作区会话列表视觉重构探索:扁平时间序 / 时间分桶](design/workspace-sessions-flat-visual.html) | 方案 A 已定稿(见同日 spec) |
 | 2026-09-08 | [工作区会话列表扁平化视觉重构设计](superpowers/specs/2026-09-08-workspace-sessions-flat-design.md) | 已确认(实现随本 spec 提交) |
