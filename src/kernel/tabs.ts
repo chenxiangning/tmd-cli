@@ -11,7 +11,8 @@
  * 不内置缓存文件内容 —— 内容由插件自己负责(open 时新拉)。
  */
 
-import { useSyncExternalStore, type ComponentType } from "react";
+import type { ComponentType } from "react";
+import { createSubscribable } from "./subscribable";
 
 export interface EditorTab {
   /** 全局唯一 tab id。 */
@@ -34,18 +35,16 @@ interface TabState {
 }
 
 const state: TabState = { tabs: [], activeId: null };
-const listeners = new Set<() => void>();
-function emit() {
+const store = createSubscribable<TabState>(state);
+
+/** 提交当前 state 为新快照并通知。activeId 兜底修正在快照之后落 state,
+ *  快照保留修正前的值(原有时序,下次提交才进快照)。 */
+function commit(): void {
+  store.replace({ tabs: [...state.tabs], activeId: state.activeId });
   state.activeId = state.tabs.some((t) => t.id === state.activeId)
     ? state.activeId
     : state.tabs[0]?.id ?? null;
-  listeners.forEach((fn) => fn());
-}
-/** useSyncExternalStore 的 snapshot — 返回新引用,让 React 检测变化。 */
-let snapshot: TabState = state;
-function refreshSnapshot(): TabState {
-  snapshot = { tabs: [...state.tabs], activeId: state.activeId };
-  return snapshot;
+  store.notify();
 }
 
 export function openTab(tab: EditorTab, opts?: { refresh?: boolean }): void {
@@ -62,27 +61,23 @@ export function openTab(tab: EditorTab, opts?: { refresh?: boolean }): void {
     state.tabs.push(tab);
     state.activeId = tab.id;
    }
-  refreshSnapshot();
-  emit();
+  commit();
 }
 
 export function closeTab(id: string): void {
    state.tabs = state.tabs.filter((t) => t.id !== id);
-  refreshSnapshot();
-  emit();
+  commit();
 }
 
 /** 关闭除 id 外的全部 tab;id 不存在时等同关闭全部。 */
 export function closeOtherTabs(id: string): void {
   state.tabs = state.tabs.filter((t) => t.id === id);
-  refreshSnapshot();
-  emit();
+  commit();
 }
 
 export function closeAllTabs(): void {
   state.tabs = [];
-  refreshSnapshot();
-  emit();
+  commit();
 }
 
 /**
@@ -97,15 +92,13 @@ export function updateTab(
   if (!tab) return;
   if (patch.title !== undefined) tab.title = patch.title;
   if (patch.dirty !== undefined) tab.dirty = patch.dirty;
-  refreshSnapshot();
-  emit();
+  commit();
 }
 
 export function setActiveTab(id: string | null): void {
   if (state.activeId === id) return;
    state.activeId = id;
-  refreshSnapshot();
-  emit();
+  commit();
 }
 
 export function getTabs(): readonly EditorTab[] {
@@ -152,11 +145,5 @@ export function getTabContent(
 }
 
 export function useEditorTabs(): TabState {
-  return useSyncExternalStore(
-    (fn) => {
-      listeners.add(fn);
-      return () => listeners.delete(fn);
-    },
-        () => snapshot,
-  );
+  return store.useStore();
 }

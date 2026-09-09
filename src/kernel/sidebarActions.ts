@@ -7,7 +7,8 @@
  * 插件拔出 = 动作从注册表消失,钉住项自动隐藏,重新插入后原样恢复。
  */
 
-import { useSyncExternalStore, type ComponentType } from "react";
+import type { ComponentType } from "react";
+import { createSubscribable } from "./subscribable";
 
 /** 动作图标的最小 props 面(兼容 @phosphor-icons-react 图标组件)。 */
 export type SidebarActionIcon = ComponentType<{
@@ -35,15 +36,7 @@ export interface SidebarAction {
 
 const state: { actions: readonly SidebarAction[] } = { actions: [] };
 
-const listeners = new Set<() => void>();
-function emit() {
-  listeners.forEach((fn) => fn());
-}
-let snapshot = state;
-function refreshSnapshot() {
-  snapshot = { actions: state.actions };
-  return snapshot;
-}
+const store = createSubscribable(state);
 
 /** 注册侧栏动作(插件 activate 内调用)。重复 id 抛错,与 registerFilePanel 同纪律。 */
 export function registerSidebarAction(action: SidebarAction): void {
@@ -53,8 +46,7 @@ export function registerSidebarAction(action: SidebarAction): void {
   state.actions = [...state.actions, action].sort(
     (a, b) => (a.order ?? 0) - (b.order ?? 0),
   );
-  refreshSnapshot();
-  emit();
+  store.commit({ actions: state.actions });
 }
 
 /** 默认钉住的动作 id(读注册表;壳层渲染晚于插件激活,调用点拿得到全量)。 */
@@ -63,11 +55,5 @@ export function defaultPinnedActionIds(): string[] {
 }
 
 export function useSidebarActions(): readonly SidebarAction[] {
-  return useSyncExternalStore(
-    (fn) => {
-      listeners.add(fn);
-      return () => listeners.delete(fn);
-    },
-    () => snapshot.actions,
-  );
+  return store.useStore((s) => s.actions);
 }

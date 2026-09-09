@@ -15,7 +15,7 @@
  * - 不持久化:PTY 会话不跨应用重启存活,持久化只能恢复死 id。
  */
 
-import { useSyncExternalStore } from "react";
+import { createSubscribable } from "./subscribable";
 import { host } from "./host";
 import { KernelTopics, type EventBus, type PromptSentEvent } from "./events";
 import type { SessionMeta } from "./ipc";
@@ -36,12 +36,10 @@ const state: SessionTabsState = { ids: [] };
 const titleHints = new Map<string, string>();
 /** 首条用户消息保底标题:key = tmd 会话 id。纯内存,存活剪除同 titleHints。 */
 const baselines = new Map<string, string>();
-const listeners = new Set<() => void>();
-let snapshot: SessionTabsState = state;
+const store = createSubscribable<SessionTabsState>(state);
 
 function emit(): void {
-  snapshot = { ids: state.ids };
-  listeners.forEach((fn) => fn());
+  store.commit({ ids: state.ids });
 }
 
 function commit(ids: readonly string[]): void {
@@ -166,20 +164,14 @@ export function closeAllSessionTabs(): void {
 }
 
 export function getSessionTabs(): readonly string[] {
-  return snapshot.ids;
+  return store.snapshot.ids;
 }
 
 /** React 组件订阅 tab 条变化(useSyncExternalStore,免引入状态库)。
  *  返回快照对象本身(引用随每次 emit 更新):标题快照 noteSessionTabTitle
  *  只改旁表不动 ids 数组,靠快照对象换引用驱动标签重渲染。 */
 export function useSessionTabs(): SessionTabsState {
-  return useSyncExternalStore(
-    (fn) => {
-      listeners.add(fn);
-      return () => listeners.delete(fn);
-    },
-    () => snapshot,
-  );
+  return store.useStore();
 }
 
 /** 测试专用:清空状态与接线(vitest 复用同一模块实例)。 */

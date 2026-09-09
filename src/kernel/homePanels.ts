@@ -6,11 +6,10 @@
  */
 
 import type { ComponentType } from "react";
-import { useSyncExternalStore } from "react";
+import { createSubscribable } from "./subscribable";
 
 const panels = new Map<string, ComponentType>();
-const listeners = new Set<() => void>();
-let snapshot: ReadonlyMap<string, ComponentType> = new Map();
+const store = createSubscribable<ReadonlyMap<string, ComponentType>>(new Map());
 
 /** 注册一个首页引擎面板(键 = 该插件的 CliProfile.id)。重复 id 视为冲突。 */
 export function registerHomePanel(profileId: string, panel: ComponentType): void {
@@ -18,20 +17,9 @@ export function registerHomePanel(profileId: string, panel: ComponentType): void
     throw new Error(`首页引擎面板重复注册: ${profileId}`);
   }
   panels.set(profileId, panel);
-  snapshot = new Map(panels);
-  listeners.forEach((fn) => fn());
-}
-
-export function getHomePanel(profileId: string): ComponentType | undefined {
-  return snapshot.get(profileId);
+  store.commit(new Map(panels));
 }
 
 export function useHomePanels(): ReadonlyMap<string, ComponentType> {
-  return useSyncExternalStore(
-    (fn) => {
-      listeners.add(fn);
-      return () => listeners.delete(fn);
-    },
-    () => snapshot,
-  );
+  return store.useStore();
 }

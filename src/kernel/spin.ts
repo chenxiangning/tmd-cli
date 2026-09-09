@@ -5,7 +5,7 @@
  */
 
 /** 最短转圈毫秒数(一圈)。 */
-export const MIN_SPIN_MS = 1000;
+const MIN_SPIN_MS = 1000;
 
 /** 距 startedAt 还差多久转满一圈;已满返回 0(调用方据此同步收尾或 setTimeout)。 */
 export function spinRemainder(startedAt: number): number {
