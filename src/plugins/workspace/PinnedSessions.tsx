@@ -33,18 +33,16 @@ import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
-import { orShortId, realPinSnapshot } from "./utils";
+import {
+  orShortId,
+  realPinSnapshot,
+  TITLE_RESOLVE_MAX_ATTEMPTS,
+  titleRetryDelay,
+} from "./utils";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { PinToggle, SessionStatusLabel } from "./SessionRows";
 import { PinIcon } from "@kernel/PinIcon";
 import { pinnedSection } from "./sectionCollapsed";
-
-/** 快照缺失/短码垃圾行的磁盘解析重试:3s 起步指数退避至 24s 封顶,
- * 8 次后放弃(共 ~2.4min)。omp 懒落盘晚 spawn 35-44s 在窗口内;文件已删
- * 的置顶不再永续扫描(此前固定 3s interval 无限轮询)。 */
-const TITLE_RESOLVE_RETRY_MS = 3_000;
-const TITLE_RESOLVE_MAX_BACKOFF_MS = 24_000;
-const TITLE_RESOLVE_MAX_ATTEMPTS = 8;
 
 /** 解析成功的全局置顶行:身份 + 所属工作区/CLI 均已就位。 */
 interface PinnedRow {
@@ -116,13 +114,9 @@ export function PinnedSessionsSection() {
     const schedule = () => {
       if (stale || attempts >= TITLE_RESOLVE_MAX_ATTEMPTS) return;
       attempts += 1;
-      const delay = Math.min(
-        TITLE_RESOLVE_RETRY_MS * 2 ** (attempts - 1),
-        TITLE_RESOLVE_MAX_BACKOFF_MS,
-      );
       timer = window.setTimeout(() => {
         void attempt().then(schedule);
-      }, delay);
+      }, titleRetryDelay(attempts));
     };
     void attempt().then(schedule);
     return () => {

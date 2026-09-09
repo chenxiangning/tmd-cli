@@ -81,3 +81,16 @@ export function resolveSessionStatus(
   if (unread) return "unread";
   return "viewed";
 }
+
+/**
+ * 自动命名补扫节奏(三处锁步:分组 hook / 运行区 / 全局置顶):omp/claude 等
+ * AI 标题晚于会话文件出生数秒~数十秒才落盘(omp 实证懒落盘晚 spawn 35-44s,
+ * 命名生成更晚),单次 3s 补扫常扑空 —— 3s 起步指数退避至 24s 封顶,8 次后
+ * 放弃(共 ~2.4min);永不命名的 CLI(codex/qoder)到次数学止,不永续轮询。
+ */
+export const TITLE_RESOLVE_MAX_ATTEMPTS = 8;
+
+/** 第 attempt 次(1 起)补扫前的等待毫秒:3s → 6s → 12s → 24s 封顶。 */
+export function titleRetryDelay(attempt: number): number {
+  return Math.min(3_000 * 2 ** (attempt - 1), 24_000);
+}

@@ -10,8 +10,8 @@
  * - 本区纯自动投影,无持久态:成员资格完全由内核 activityWatch 状态派生,
  *   段折叠是唯一 UI 态(localStorage,同全局置顶区)。
  *
- * 行标题:手动命名 > 磁盘原生标题(候选 (工作区,CLI) 对聚合扫描,3s 补扫一次
- * 兜自动命名晚于文件出生)> 短码。行点击切到该活会话;右键菜单无删除项
+ * 行标题:手动命名 > 磁盘原生标题(候选 (工作区,CLI) 对聚合扫描,缺标题时
+ * 指数退避补扫兜自动命名晚于文件出生)> 短码。行点击切到该活会话;右键菜单无删除项
  * (删除回工作区分组操作,同全局置顶区口径);行内扎点或菜单置顶即离开本区。
  */
 
@@ -31,7 +31,13 @@ import { Pulse, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { SessionContextMenu } from "./SessionContextMenu";
 import { PinToggle, SessionStatusLabel } from "./SessionRows";
-import { compareLiveSessions, isRunningZoneCandidate, orShortId } from "./utils";
+import {
+  compareLiveSessions,
+  isRunningZoneCandidate,
+  orShortId,
+  TITLE_RESOLVE_MAX_ATTEMPTS,
+  titleRetryDelay,
+} from "./utils";
 import { runningSection } from "./sectionCollapsed";
 
 interface RunningRow {
@@ -82,29 +88,33 @@ export function RunningZoneSection() {
       compareLiveSessions(a.session, b.session, (id) => host.isUnread(id)),
     );
 
-  /* 磁盘原生标题缓存:候选 (工作区, CLI) 对聚合扫描,候选集变化即扫;
-   * 3s 后补扫一次(自动命名晚于文件出生 ~1s,同 useCliSessionGroup 跳变补扫)。 */
+  /* 磁盘原生标题缓存:候选 (工作区, CLI) 对聚合扫描;有行缺真标题(自动命名晚于
+   * 文件出生数秒~数十秒落盘)才按指数退避补扫,全部落定即停(三处锁步见 utils)。 */
   const [diskTitles, setDiskTitles] = useState<Record<string, string>>({});
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
-  const scanSig = rows
-    .map((r) => `${r.workspace.id}:${r.profile.id}:${r.cliSessionId ?? "-"}`)
-    .join("|");
+  const missingTitleSig = rows
+    .filter(
+      (r) =>
+        r.cliSessionId !== undefined &&
+        r.profile.listSessions !== undefined &&
+        diskTitles[r.cliSessionId] === undefined &&
+        settings.sessionTitles[sessionTitleKey(r.profile.id, r.cliSessionId)] === undefined,
+    )
+    .map((r) => r.cliSessionId).join("|");
   useEffect(() => {
+    if (!missingTitleSig) return;
     let stale = false;
+    let attempts = 0;
+    let timer: number | undefined;
     const scan = () => {
       const pairs = new Map<string, { profile: CliProfile; root: string }>();
       for (const r of rowsRef.current) {
         if (r.cliSessionId === undefined || !r.profile.listSessions) continue;
-        pairs.set(`${r.workspace.id}:${r.profile.id}`, {
-          profile: r.profile,
-          root: r.workspace.root,
-        });
+        pairs.set(`${r.workspace.id}:${r.profile.id}`, { profile: r.profile, root: r.workspace.root });
       }
       void Promise.all(
-        [...pairs.values()].map(({ profile, root }) =>
-          profile.listSessions!(root).catch(() => []),
-        ),
+        [...pairs.values()].map(({ profile, root }) => profile.listSessions!(root).catch(() => [])),
       ).then((lists) => {
         if (stale) return;
         const next: Record<string, string> = {};
@@ -112,15 +122,21 @@ export function RunningZoneSection() {
           for (const d of list) if (d.title) next[d.id] = d.title;
         }
         setDiskTitles(next);
+        /* 真标题落定随手喂 tab 快照:tab 标签跟随自动命名(手动命名优先,不受影响) */
+        for (const r of rowsRef.current)
+          if (r.cliSessionId !== undefined && next[r.cliSessionId])
+            noteSessionTabTitle(r.session.id, next[r.cliSessionId]);
+        attempts += 1;
+        if (attempts < TITLE_RESOLVE_MAX_ATTEMPTS)
+          timer = window.setTimeout(scan, titleRetryDelay(attempts));
       });
     };
     scan();
-    const catchUp = window.setTimeout(scan, 3_000);
     return () => {
       stale = true;
-      window.clearTimeout(catchUp);
+      window.clearTimeout(timer);
     };
-  }, [scanSig]);
+  }, [missingTitleSig]);
 
   if (rows.length === 0) return null;
 

@@ -8,7 +8,8 @@
  * - 关闭 = 摘 tab 不杀会话(PTY 继续跑,侧栏仍在);摘活跃 tab 时切到剩余 tab 中
  *   最近打开的一个,摘尽回 welcome(与「回到首页」同语义);
  * - 存活跟随:sessionsChanged 剪除已消失的 id(会话被删 / CLI 进程退出);
- * - 标题快照:打开点击处本就持有解析好的标题,noteSessionTabTitle 随手喂入兜底;
+ * - 标题快照:打开点击处随手喂入;磁盘真标题落定处(分组 hook/运行区)回喂,
+ *   兜「打开早于自动命名落盘」—— tab 标签跟随自动命名,手动命名优先级更高;
  *   渲染优先级:手动命名(settings.sessionTitles)> 快照 > 短码,改名即时生效。
  * - 不持久化:PTY 会话不跨应用重启存活,持久化只能恢复死 id。
  */
@@ -93,7 +94,7 @@ export function bootSessionTabs(events: EventBus, injected?: SessionTabsDeps): v
   );
 }
 
-/** 打开点击处随手喂标题快照(渲染优先级:手动命名 > 快照 > 短码)。空串忽略。 */
+/** 喂标题快照(打开点击处 + 磁盘真标题落定处回喂)。空串忽略,同值幂等。 */
 export function noteSessionTabTitle(id: string, title: string): void {
   const trimmed = title.trim();
   if (!trimmed || titleHints.get(id) === trimmed) return;

@@ -13,10 +13,17 @@ import { resolveCliSessionQuota, useSettingsState } from "@kernel/settings";
 import { listSessionPins, sessionPinKey } from "@kernel/sessionPins";
 import { isSessionArchived, sessionArchiveKey } from "@kernel/sessionArchive";
 import { isSessionDeleted, sessionDeletedKey } from "@kernel/sessionDeleted";
+import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
 import type { SessionMeta } from "@kernel/ipc";
-import { compareLiveSessions, isRunningZoneCandidate, orShortId } from "./utils";
+import {
+  compareLiveSessions,
+  isRunningZoneCandidate,
+  orShortId,
+  TITLE_RESOLVE_MAX_ATTEMPTS,
+  titleRetryDelay,
+} from "./utils";
 export function useCliSessionGroup({
   profile,
   workspace,
@@ -75,6 +82,9 @@ export function useCliSessionGroup({
   const liveSessions = host
     .getSessions()
     .filter((s) => s.workspaceId === workspace.id && s.profileId === profile.id);
+  /** 扫描回调喂 tab 快照用最新活会话表(effect 闭包防陈旧)。 */
+  const liveRef = useRef(liveSessions);
+  liveRef.current = liveSessions;
   const activeSessionId = host.getActiveSessionId();
   /** 活会话已绑定的磁盘身份:磁盘行据此过滤,同一会话全局只出现一次。 */
   const liveCliIds = new Set(
@@ -84,15 +94,14 @@ export function useCliSessionGroup({
   );
 
   /* 身份绑定跳变 → 磁盘重扫:omp 实证懒落盘晚于 spawn 35s+,spawn 时点的扫描看不到
-   * 文件与标题;绑定成功即文件已出生,立即补扫,并延迟再补一次(自动命名晚 birth ~1s)。 */
+   * 文件与标题;绑定成功即文件已出生,立即补扫。标题迟到的后续追赶由下方缺标题
+   * 退避补扫接管(自动命名晚于文件出生数秒~数十秒,单次补扫常扑空)。 */
   const boundCount = liveCliIds.size;
   const prevBoundCount = useRef(boundCount);
   useEffect(() => {
     if (boundCount === prevBoundCount.current) return;
     prevBoundCount.current = boundCount;
     setRescanTick((t) => t + 1);
-    const catchUp = setTimeout(() => setRescanTick((t) => t + 1), 3_000);
-    return () => clearTimeout(catchUp);
   }, [boundCount]);
 
   useEffect(() => {
@@ -101,7 +110,15 @@ export function useCliSessionGroup({
     void profile
       .listSessions(workspace.root)
       .then((list) => {
-        if (!stale) setSessions(list);
+        if (stale) return;
+        setSessions(list);
+        /* 磁盘真标题落定随手喂 tab 快照:tab 标签跟随自动命名(手动命名优先,不受影响) */
+        const titles = new Map(list.filter((d) => d.title).map((d) => [d.id, d.title as string]));
+        for (const s of liveRef.current) {
+          const cliId = host.getCliSessionId(s.id);
+          const title = cliId !== undefined ? titles.get(cliId) : undefined;
+          if (title) noteSessionTabTitle(s.id, title);
+        }
       })
       .catch(() => {
         if (!stale) setSessions([]);
@@ -124,6 +141,31 @@ export function useCliSessionGroup({
       .filter((s) => s.title)
       .map((s) => [s.id, s.title as string]),
   );
+  /* 缺真标题的活会话(手动命名除外)→ 指数退避重扫追赶自动命名落盘,
+   * 全部落定即停(titleRetryDelay,同运行区 / 全局置顶锁步)。 */
+  const missingTitleSig = profile.listSessions
+    ? [...liveCliIds]
+        .filter(
+          (id) =>
+            !diskTitleByCliId.has(id) &&
+            titleOverrides[sessionTitleKey(profile.id, id)] === undefined,
+        )
+        .sort()
+        .join("|")
+    : "";
+  useEffect(() => {
+    if (!missingTitleSig) return;
+    let attempts = 0;
+    let timer: number | undefined;
+    const bump = () => {
+      setRescanTick((t) => t + 1);
+      attempts += 1;
+      if (attempts < TITLE_RESOLVE_MAX_ATTEMPTS)
+        timer = window.setTimeout(bump, titleRetryDelay(attempts + 1));
+    };
+    timer = window.setTimeout(bump, titleRetryDelay(1));
+    return () => window.clearTimeout(timer);
+  }, [missingTitleSig]);
 
   /** 真标题:手动命名 > 磁盘原生标题。短码兜底不是标题 —— 置顶快照只收这里的结果。 */
   const realTitle = (cliSessionId: string | undefined): string | undefined => {
