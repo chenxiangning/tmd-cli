@@ -85,13 +85,18 @@ export function useMarkdownComponents({
        页面带走(点击 md 内链「崩溃重启」的根因),所有分支只走受控打开路径。 */
     event.preventDefault();
     event.stopPropagation();
+    /* scheme 大小写不敏感(HTTPS:// 也走外链);protocol-relative(//host/x)
+       按 https 补 scheme —— 两类先前会落进本地路径分支静默丢。 */
+    const lower = href.toLowerCase();
+    const protocolRelative = href.startsWith("//");
     const isExternal =
-      href.startsWith("http://") ||
-      href.startsWith("https://") ||
-      href.startsWith("mailto:");
+      protocolRelative ||
+      lower.startsWith("http://") ||
+      lower.startsWith("https://") ||
+      lower.startsWith("mailto:");
     if (isExternal) {
       /* 系统浏览器打开(浏览器 dev 回退 window.open,封装在 ipc 层)。 */
-      void openExternalUrl(href);
+      void openExternalUrl(protocolRelative ? `https:${href}` : href);
       return;
     }
     if (href.startsWith("#")) {
