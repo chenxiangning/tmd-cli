@@ -57,8 +57,8 @@ export function ActivityDot({ sessionId }: { sessionId: string }) {
 }
 
 /** 终端/SSH 活会话呼吸灯:输出即绿,无轮次/未读概念 —— 与 CLI 会话的
- *  ActivityDot(status 状态机驱动)语义不同,4s 静默窗转灰(1Hz ticker 驱动
- *  转灰,不依赖无关 host 事件触发重渲)。 */
+ *  ActivityDot(status 状态机驱动)语义不同,4s 静默窗闲置隐藏(1Hz ticker 驱动
+ *  隐判定,不依赖无关 host 事件触发重渲)。 */
 export function LiveOutputDot({ sessionId }: { sessionId: string }) {
   const [, tick] = useState(0);
   useEffect(() => subscribeActivityTick(() => tick((n) => n + 1)), []);
