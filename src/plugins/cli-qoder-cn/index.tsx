@@ -1,14 +1,4 @@
-import {
-  QODER_COMMAND_SUGGESTIONS,
-  QoderGlyph,
-  listQoderSessions,
-  readQoderDefaultStatus,
-  readQoderSessionIdentity,
-  readQoderSessionStatus,
-  readQoderUserMessages,
-} from "../cli-shared/qoderSessions";
-import { listQoderSuggestions } from "../cli-shared/qoderSuggestions";
-import type { Plugin } from "@kernel/plugin";
+import { makeQoderPlugin } from "../cli-shared/qoderSessions";
 
 /**
  * Qoder CLI(国内版)插件(本机 qoderclicn 1.1.28 实证,2026-09-02):
@@ -25,44 +15,10 @@ export const QODER_CN_VARIANT = {
   dataDir: ".qoder-cn",
 } as const;
 
-export const cliQoderCnPlugin: Plugin = {
+export const cliQoderCnPlugin = makeQoderPlugin({
   id: "cli-qoder-cn",
-  meta: {
-    name: "Qoder CN",
-    abbr: "QC",
-    desc: "Qoder CLI 国内版引擎:磁盘会话、模型状态",
-    icon: QoderGlyph,
-    iconColor: "var(--tmd-fg)",
-    category: "engine",
-  },
-  activate(ctx) {
-    ctx.registerCliProfile({
-      id: QODER_CN_VARIANT.profileId,
-      docsUrl: "https://docs.qoder.cn",
-      npmPackage: "@qodercn-ai/qoderclicn",
-      name: QODER_CN_VARIANT.command,
-      renderIcon: (size) => <QoderGlyph size={size} />,
-      command: QODER_CN_VARIANT.command,
-      args: [],
-      triggers: [
-        { char: "/", kind: "command" },
-        {
-          char: "$",
-          kind: "skill",
-          translate: (token: string) => `/${token.replace(/^\$/, "")}`,
-        },
-      ],
-      suggestions: QODER_COMMAND_SUGGESTIONS,
-      /* 命令/技能真相:扫 .qoder/commands 与 .qoder/skills + .agents/skills 兼容层 */
-      listSuggestions: listQoderSuggestions,
-      resumeArgs: (sessionId) => ["--resume", sessionId],
-      listSessions: (cwd) => listQoderSessions(QODER_CN_VARIANT.dataDir, cwd),
-      readSessionStatus: (cwd, cliSessionId) =>
-        readQoderSessionStatus(QODER_CN_VARIANT.dataDir, cwd, cliSessionId),
-      readSessionFileIdentity: readQoderSessionIdentity,
-      readSessionUserMessages: (cwd, cliSessionId, full) =>
-        readQoderUserMessages(QODER_CN_VARIANT.dataDir, cwd, cliSessionId, full),
-      readDefaultStatus: () => readQoderDefaultStatus(QODER_CN_VARIANT.dataDir),
-    });
-  },
-};
+  meta: { name: "Qoder CN", abbr: "QC", desc: "Qoder CLI 国内版引擎:磁盘会话、模型状态" },
+  docsUrl: "https://docs.qoder.cn",
+  npmPackage: "@qodercn-ai/qoderclicn",
+  ...QODER_CN_VARIANT,
+});
