@@ -104,6 +104,6 @@
 | 2026-09-08 | [早晚场提交代码审核(19 笔,1 高/5 P1/15 P2)](review/2026-09-08-evening-commits-review.md) | 已完成(报告;高与 P1 已修复,桩目检通过) |
 | 2026-09-09 | [0.1.3 发布区全量代码审查(48 提交,三路并行)](review/2026-09-09-0.1.3-release-review.md) | 已完成(报告;P0 口径已修正,整改清单待拍板) |
 | 2026-09-09 | [工作区别名:显示名覆盖(行内重命名)](superpowers/specs/2026-09-09-workspace-alias-design.md) | 待评审(设计定稿,确认后实现) |
-| 2026-09-09 | [工作区分组:侧栏分组 + 设置页管理 + 右键移动(参考 codemoss)](superpowers/specs/2026-09-09-workspace-groups-design.md) | 已确认(实现随本 spec 提交) |
+| 2026-09-09 | [工作区分组:侧栏分组 + 设置页管理 + 右键移动(参考 codemoss)](superpowers/specs/2026-09-09-workspace-groups-design.md) | 已落地(3d22cc7;实现随 spec 同提交) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
