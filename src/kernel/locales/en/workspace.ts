@@ -89,6 +89,7 @@ export const MESSAGES = {
   "分组管理": "Group management",
   "移动到组": "Move to group",
   "未分组": "Ungrouped",
+  "组名过长(上限 60 字)": "Group name too long (max 60 chars)",
   "组名不能为空": "Group name is required",
   "「未分组」是保留名,不能用作组名": "\"Ungrouped\" is a reserved name and cannot be used",
   "组名已存在": "Group name already exists",

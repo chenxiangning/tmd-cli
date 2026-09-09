@@ -54,7 +54,7 @@ export function SessionMenuOverlay({
   }, [onClose]);
   const { settings } = useSettingsState();
   const groups = settings.workspaceGroups;
-  const currentGroupId = workspace.groupId ?? null;
+  const currentGroupId = groups.some((g) => g.id === workspace.groupId) ? workspace.groupId! : null;
 
   return createPortal(
     <>

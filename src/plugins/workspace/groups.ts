@@ -28,6 +28,8 @@ export function validateGroupName(
   const trimmed = name.trim();
   if (!trimmed) return t("组名不能为空");
   if (RESERVED_GROUP_NAMES[trimmed.toLowerCase()]) return t("「未分组」是保留名,不能用作组名");
+  /* 60 字与 settingsSanitize 截断同口径:超长当场拒绝,不落「重启后静默变短」。 */
+  if (trimmed.length > 60) return t("组名过长(上限 60 字)");
   const dup = groups().some(
     (g) => g.id !== excludeId && g.name.toLowerCase() === trimmed.toLowerCase(),
   );

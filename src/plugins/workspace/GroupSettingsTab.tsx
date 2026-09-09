@@ -53,10 +53,11 @@ export function WorkspaceGroupsTab() {
         <div className="flex items-center gap-2">
           <input
             className={inputCls}
+            /* IME 组词期 Enter 放行(仓内纪律,见 kernel/shortcuts.ts) */
+            onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && add()}
             placeholder={t("组名")}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()}
           />
           <button type="button" className={btnCls} onClick={add}>
             <Plus size="0.75rem" /> {t("新建")}
@@ -71,7 +72,7 @@ export function WorkspaceGroupsTab() {
             value={drafts[g.id] ?? g.name}
             onChange={(e) => setDrafts({ ...drafts, [g.id]: e.target.value })}
             onBlur={() => commitRename(g.id)}
-            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+            onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && (e.target as HTMLInputElement).blur()}
           />
           <div className="flex items-center gap-1">
             <button

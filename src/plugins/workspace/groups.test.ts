@@ -61,18 +61,20 @@ describe("groupWorkspaces 派生", () => {
 
 describe("组名校验与创建", () => {
   it("空名 / 保留名(大小写不敏感) / 重名 拒绝", () => {
-    expect(createGroup(uniq("前端"))).toBeNull();
+    const taken = uniq("前端");
+    expect(createGroup(taken)).toBeNull();
     expect(validateGroupName("  ")).toBe("组名不能为空");
     expect(validateGroupName("未分组")).toBe("「未分组」是保留名,不能用作组名");
     expect(validateGroupName("UNGROUPEd")).toBe("「未分组」是保留名,不能用作组名");
-    expect(validateGroupName("前端-1")).toBe("组名已存在");
-    expect(createGroup("前端-1")).toBe("组名已存在");
+    expect(validateGroupName(`${"长".repeat(61)}`)).toBe("组名过长(上限 60 字)");
+    expect(validateGroupName(taken)).toBe("组名已存在");
+    expect(createGroup(taken)).toBe("组名已存在");
   });
 
   it("创建成功:trim 后落库,数组序即显示序", () => {
-    expect(createGroup(`  ${uniq("后端")}  `)).toBeNull();
-    const groups = getSettingsState().settings.workspaceGroups;
-    expect(groups.at(-1)?.name).toBe("后端-2");
+    const name = uniq("后端");
+    expect(createGroup(`  ${name}  `)).toBeNull();
+    expect(getSettingsState().settings.workspaceGroups.at(-1)?.name).toBe(name);
   });
 });
 
@@ -83,8 +85,9 @@ describe("renameGroup", () => {
     const [a, b] = getSettingsState().settings.workspaceGroups;
     expect(renameGroup(a.id, a.name)).toBeNull();
     expect(renameGroup(b.id, a.name)).toBe("组名已存在");
-    expect(renameGroup(b.id, uniq("丙"))).toBeNull();
-    expect(getSettingsState().settings.workspaceGroups[1].name).toBe("丙-5");
+    const renamed = uniq("丙");
+    expect(renameGroup(b.id, renamed)).toBeNull();
+    expect(getSettingsState().settings.workspaceGroups[1].name).toBe(renamed);
   });
 });
 
@@ -92,14 +95,15 @@ describe("moveGroup", () => {
   it("相邻换位;越界 no-op", () => {
     createGroup(uniq("一"));
     createGroup(uniq("二"));
+    const [first, second] = getSettingsState().settings.workspaceGroups.map((g) => g.name);
     const ids = () => getSettingsState().settings.workspaceGroups.map((g) => g.name);
     const [a] = getSettingsState().settings.workspaceGroups;
     moveGroup(a.id, "down");
-    expect(ids()).toEqual(["二-7", "一-6"]);
+    expect(ids()).toEqual([second, first]);
     moveGroup(a.id, "down");
-    expect(ids()).toEqual(["二-7", "一-6"]);
+    expect(ids()).toEqual([second, first]);
     moveGroup(a.id, "up");
-    expect(ids()).toEqual(["一-6", "二-7"]);
+    expect(ids()).toEqual([first, second]);
   });
 });
 
