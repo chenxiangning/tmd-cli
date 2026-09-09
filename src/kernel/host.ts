@@ -282,10 +282,8 @@ class Host implements PluginContext {
   private version = 0;
   getVersion = (): number => this.version;
 
-  private notify(): void {
-    this.version += 1;
-    this.listeners.forEach((fn) => fn());
-  }
+  /** 版本推进 + 订阅重渲;kernel 内标题旁路(如会话保底标题落定)也经此推一次刷新。 */
+  notify(): void { this.version += 1; this.listeners.forEach((fn) => fn()); }
 }
 
 /** 全局唯一宿主实例。 */

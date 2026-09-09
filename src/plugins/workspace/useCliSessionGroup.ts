@@ -13,7 +13,7 @@ import { resolveCliSessionQuota, useSettingsState } from "@kernel/settings";
 import { listSessionPins, sessionPinKey } from "@kernel/sessionPins";
 import { isSessionArchived, sessionArchiveKey } from "@kernel/sessionArchive";
 import { isSessionDeleted, sessionDeletedKey } from "@kernel/sessionDeleted";
-import { noteSessionTabTitle } from "@kernel/sessionTabs";
+import { getSessionBaseline, noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
 import type { SessionMeta } from "@kernel/ipc";
@@ -176,9 +176,9 @@ export function useCliSessionGroup({
     );
   };
 
-  /** 行标题解析:手动命名 > 磁盘原生标题 > 短码。 */
+  /** 行标题解析:手动命名 > 磁盘原生标题 > 首条用户消息保底 > 短码。 */
   const displayTitle = (cliSessionId: string | undefined, fallbackId: string): string =>
-    orShortId(realTitle(cliSessionId), cliSessionId, fallbackId);
+    orShortId(realTitle(cliSessionId) ?? getSessionBaseline(fallbackId), cliSessionId, fallbackId);
 
   /** 本组置顶投影:workspace scope → 组顶块;global scope → 离组进全局区。 */
   const workspacePins = listSessionPins(pins, {

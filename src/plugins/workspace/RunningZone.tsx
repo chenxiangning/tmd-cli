@@ -24,7 +24,7 @@ import { t } from "@kernel/i18n";
 import { isSessionArchived, sessionArchiveKey } from "@kernel/sessionArchive";
 import { isSessionDeleted, sessionDeletedKey } from "@kernel/sessionDeleted";
 import { pinSession, sessionPinKey, toggleSessionPin, unpinSession } from "@kernel/sessionPins";
-import { noteSessionTabTitle } from "@kernel/sessionTabs";
+import { getSessionBaseline, noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { Pulse, CaretDown, CaretRight } from "@phosphor-icons/react";
@@ -142,13 +142,13 @@ export function RunningZoneSection() {
 
   const toggleCollapsed = () => runningSection.set(!collapsed);
 
-  /** 行标题:手动命名 > 磁盘原生标题 > 短码(orShortId 与分组/置顶区锁步)。 */
+  /** 行标题:手动命名 > 磁盘原生标题 > 首条用户消息保底 > 短码(与分组/置顶区锁步)。 */
   const titleOf = (row: RunningRow): string =>
     orShortId(
-      row.cliSessionId !== undefined
+      (row.cliSessionId !== undefined
         ? settings.sessionTitles[sessionTitleKey(row.profile.id, row.cliSessionId)] ??
           diskTitles[row.cliSessionId]
-        : undefined,
+        : undefined) ?? getSessionBaseline(row.session.id),
       row.cliSessionId,
       row.session.id,
     );

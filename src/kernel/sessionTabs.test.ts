@@ -6,7 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { bootSessionTabs, closeAllSessionTabs, closeOtherSessionTabs, closeSessionTab, getSessionTabTitle, getSessionTabs, noteSessionTabTitle, resetSessionTabsForTest } from "./sessionTabs";
+import { bootSessionTabs, closeAllSessionTabs, closeOtherSessionTabs, closeSessionTab, getSessionBaseline, getSessionTabTitle, getSessionTabs, noteSessionTabTitle, resetSessionTabsForTest } from "./sessionTabs";
 import { updateSettings } from "./settings";
 import { SESSION_TABS_LIMIT_DEFAULT } from "./settingsAppearance";
 import { EventBus, KernelTopics } from "./events";
@@ -164,5 +164,50 @@ describe("批量摘 tab(右键菜单)", () => {
     closeAllSessionTabs();
     expect(getSessionTabs()).toEqual([]);
     expect(deps.setActiveSession).toHaveBeenCalledWith(null);
+  });
+});
+
+describe("首条用户消息保底", () => {
+  it("promptSent 即时上屏:tab 快照与行保底同源,取首行去 \r", () => {
+    const { events } = boot();
+    open(events, "a");
+    events.emit(KernelTopics.promptSent, { sessionId: "a", text: "帮我看看这个性能问题\r\n第二行" });
+    expect(getSessionTabTitle("a")).toBe("帮我看看这个性能问题");
+    expect(getSessionBaseline("a")).toBe("帮我看看这个性能问题");
+  });
+
+  it("斜杠命令与空文本不采集", () => {
+    const { events } = boot();
+    open(events, "a");
+    events.emit(KernelTopics.promptSent, { sessionId: "a", text: "/compact" });
+    events.emit(KernelTopics.promptSent, { sessionId: "b", text: " \r\n  " });
+    expect(getSessionBaseline("a")).toBeUndefined();
+    expect(getSessionBaseline("b")).toBeUndefined();
+    expect(getSessionTabTitle("a")).toBeUndefined();
+  });
+
+  it("已有真快照不覆盖;AI 标题后到回喂仍覆盖保底快照", () => {
+    const { events } = boot();
+    open(events, "a");
+    noteSessionTabTitle("a", "磁盘真标题");
+    events.emit(KernelTopics.promptSent, { sessionId: "a", text: "新消息" });
+    expect(getSessionTabTitle("a")).toBe("磁盘真标题");
+    expect(getSessionBaseline("a")).toBeUndefined();
+    noteSessionTabTitle("a", "AI 智能标题");
+    expect(getSessionTabTitle("a")).toBe("AI 智能标题");
+  });
+
+  it("短码形态拒收为快照(行点击兜底历史喂入的垃圾)", () => {
+    noteSessionTabTitle("a", "18d3…e414");
+    expect(getSessionTabTitle("a")).toBeUndefined();
+  });
+
+  it("会话剪除连保底一起清", () => {
+    const { events } = boot();
+    open(events, "a");
+    events.emit(KernelTopics.promptSent, { sessionId: "a", text: "标题" });
+    events.emit(KernelTopics.sessionsChanged, []);
+    expect(getSessionBaseline("a")).toBeUndefined();
+    expect(getSessionTabTitle("a")).toBeUndefined();
   });
 });

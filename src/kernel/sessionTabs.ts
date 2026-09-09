@@ -10,13 +10,14 @@
  * - 存活跟随:sessionsChanged 剪除已消失的 id(会话被删 / CLI 进程退出);
  * - 标题快照:打开点击处随手喂入;磁盘真标题落定处(分组 hook/运行区)回喂,
  *   兜「打开早于自动命名落盘」—— tab 标签跟随自动命名,手动命名优先级更高;
- *   渲染优先级:手动命名(settings.sessionTitles)> 快照 > 短码,改名即时生效。
+ * - 首条用户消息保底(promptSent 事件):磁盘 AI 命名晚于文件出生 35s+(omp 懒落盘
+ *   实证),保底标题线上即时可得;磁盘原生标题后到自然覆盖(行链 disk > 保底)。
  * - 不持久化:PTY 会话不跨应用重启存活,持久化只能恢复死 id。
  */
 
 import { useSyncExternalStore } from "react";
 import { host } from "./host";
-import { KernelTopics, type EventBus } from "./events";
+import { KernelTopics, type EventBus, type PromptSentEvent } from "./events";
 import type { SessionMeta } from "./ipc";
 import { getSettingsState, subscribeSettings } from "./settings";
 
@@ -32,8 +33,9 @@ interface SessionTabsState {
 }
 
 const state: SessionTabsState = { ids: [] };
-/** 标题快照:key = tmd 会话 id。仅兜底展示,跟随存活剪除,不持久化。 */
 const titleHints = new Map<string, string>();
+/** 首条用户消息保底标题:key = tmd 会话 id。纯内存,存活剪除同 titleHints。 */
+const baselines = new Map<string, string>();
 const listeners = new Set<() => void>();
 let snapshot: SessionTabsState = state;
 
@@ -60,8 +62,10 @@ function trackOpen(id: string): void {
 /** 会话集合变化 → 剪除已消失的 tab 与标题快照(会话被删 / 进程退出)。 */
 function pruneTo(sessions: readonly SessionMeta[]): void {
   const live = new Set(sessions.map((s) => s.id));
-  for (const id of [...titleHints.keys()]) {
-    if (!live.has(id)) titleHints.delete(id);
+  for (const map of [titleHints, baselines]) {
+    for (const id of [...map.keys()]) {
+      if (!live.has(id)) map.delete(id);
+    }
   }
   if (state.ids.some((id) => !live.has(id))) {
     commit(state.ids.filter((id) => live.has(id)));
@@ -92,12 +96,36 @@ export function bootSessionTabs(events: EventBus, injected?: SessionTabsDeps): v
   events.on<SessionMeta[]>(KernelTopics.sessionsChanged, (sessions) =>
     pruneTo(sessions ?? []),
   );
+  events.on<PromptSentEvent>(KernelTopics.promptSent, (p) => {
+    if (p && typeof p.sessionId === "string") captureBaseline(p.sessionId, p.text ?? "");
+  });
 }
 
-/** 喂标题快照(打开点击处 + 磁盘真标题落定处回喂)。空串忽略,同值幂等。 */
+/** 采集保底标题:取首行,斜杠命令(CLI 控制命令,同 omp 命名跳过口径)与空行不采;
+ *  已有真快照(打开喂入/磁盘回喂)不覆盖 —— 短码已被 noteSessionTabTitle 拒收,
+ *  titleHints 里只可能是真标题,此判据可靠。截 200 与 settingsSanitizeSessions 同口径。 */
+function captureBaseline(id: string, text: string): void {
+  if (titleHints.has(id)) return;
+  const first = (text.split(/\r?\n/)[0] ?? "").replace(/\r$/, "").trim().slice(0, 200);
+  if (!first || first.startsWith("/")) return;
+  baselines.set(id, first);
+  noteSessionTabTitle(id, first);
+  /* 行组件不订 tab store:composer 先 writeSession(notify)后 promptSent,重渲已
+   * 发生而 baselines 未落 —— 这里补推一次,行标题保底即时上屏。 */
+  host.notify();
+}
+
+/** 行标题保底读取(活会话行:手动命名 > 磁盘原生标题 > 保底 > 短码)。 */
+export function getSessionBaseline(id: string): string | undefined {
+  return baselines.get(id);
+}
+
+/** 喂标题快照(打开点击处 + 磁盘真标题落定处回喂)。空串忽略,同值幂等;
+ *  短码形态(头4…尾4,行点击兜底历史喂入的垃圾)拒收 —— 快照只装真标题。 */
 export function noteSessionTabTitle(id: string, title: string): void {
   const trimmed = title.trim();
   if (!trimmed || titleHints.get(id) === trimmed) return;
+  if (/^.{4}….{4}$/.test(trimmed)) return;
   titleHints.set(id, trimmed);
   emit();
 }
@@ -160,4 +188,5 @@ export function resetSessionTabsForTest(): void {
   deps = hostDeps;
   commit([]);
   titleHints.clear();
+  baselines.clear();
 }
