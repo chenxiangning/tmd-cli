@@ -6,6 +6,7 @@
 import { CATEGORY_CN, type MemoryItem } from "../protocol";
 import { consoleCardCls } from "./MemoryConsoleCards";
 import { t } from "@kernel/i18n";
+import { getSettingsState } from "@kernel/settings";
 
 function categoryLabel(key: string): string {
   return t((CATEGORY_CN as Record<string, string>)[key] ?? key);
@@ -62,7 +63,8 @@ export function RecentCard({ recent }: { recent: MemoryItem[] }) {
         recent.map((m) => (
           <div key={m.id} className="flex min-w-0 gap-2 border-b border-(--tmd-border) py-1 text-[0.6875rem] last:border-b-0">
             <span className="flex-none font-mono text-[0.65625rem] text-(--tmd-fg-faint)">
-              {new Date(m.updatedAt).toLocaleDateString("zh-CN")}
+              {/* 语言切换整树重挂载(kernel/i18n),非响应式读当前语言即可 */}
+              {new Date(m.updatedAt).toLocaleDateString(getSettingsState().settings.language)}
             </span>
             <span className="flex-none text-[0.65625rem] text-(--tmd-fg-subtle)">
               {categoryLabel(m.category)}
