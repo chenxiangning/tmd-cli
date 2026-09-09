@@ -29,6 +29,8 @@ export function findActiveTrigger<T extends { char: string }>(
        含空白即无效 —— 与旧单字符逐字回扫(遇空白 break)语义等价 */
     const lastIdx = before.lastIndexOf(char);
     if (lastIdx < 0) continue;
+    /* 前置字符为词字符(字母/数字/_)时不触发:foo!!bar、user@host 之类词内命中不弹候选 */
+    if (lastIdx > 0 && /\w/.test(before[lastIdx - 1])) continue;
     if (/\s/.test(before.slice(lastIdx + char.length))) continue;
     return { spec, range: [lastIdx, cursor] };
   }

@@ -74,6 +74,11 @@ describe("findActiveTrigger(多字符触发符,composerExt 资产源)", () => {
     expect(findActiveTrigger("!!a 后续", 5, [BANG_BANG])).toBeNull();
   });
 
+  it("前置字符为词字符时不触发(词内 !! 不弹候选)", () => {
+    expect(findActiveTrigger("foo!!bar", 8, [BANG_BANG])).toBeNull();
+    expect(findActiveTrigger("中文!!bar", 7, [BANG_BANG])).not.toBeNull();
+  });
+
   it("!! 与 ## 共存:各命中各的", () => {
     const hit = findActiveTrigger("##小张", 4, [BANG_BANG, HASH_HASH]);
     expect(hit?.spec).toBe(HASH_HASH);
