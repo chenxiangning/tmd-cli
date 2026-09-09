@@ -9,7 +9,7 @@ import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { Mounts } from "@kernel/Mounts";
 import { removeWorkspace, type Workspace } from "@kernel/workspace";
-import { ArrowClockwise, Trash } from "@phosphor-icons/react";
+import { ArrowClockwise, PencilSimple, Trash } from "@phosphor-icons/react";
 
 /** 新建会话菜单定位:以点击点为左上,按估算尺寸在视口内夹取(codemoss 同款)。 */
 export function clampMenuPosition(x: number, y: number): { x: number; y: number } {
@@ -30,6 +30,7 @@ export function SessionMenuOverlay({
   position,
   refreshing,
   onRefresh,
+  onRename,
   onClose,
 }: {
   workspace: Workspace;
@@ -37,6 +38,7 @@ export function SessionMenuOverlay({
   position: { x: number; y: number };
   refreshing: Record<string, boolean>;
   onRefresh: (profileId: string) => void;
+  onRename: () => void;
   onClose: () => void;
 }) {
   const profiles = host.getCliProfiles();
@@ -82,6 +84,15 @@ export function SessionMenuOverlay({
 
         <div className="wsmenu-divider" />
         <div className="wsmenu-group-title">{t("工作区操作")}</div>
+        <button
+          className="wsmenu-item"
+          onClick={onRename}
+        >
+          <span className="wsmenu-item-icon">
+            <PencilSimple size="0.8125rem" />
+          </span>
+          <span className="wsmenu-item-label">{t("设置别名")}</span>
+        </button>
         {canRemove && (
           <button
             className="wsmenu-item is-danger"

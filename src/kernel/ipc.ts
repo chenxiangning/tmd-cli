@@ -98,6 +98,8 @@ export interface WorkspaceMeta {
   name: string;
   root: string;
   createdAt: number;
+  /** 显示名覆盖;空 = 显示目录名。 */
+  alias?: string | null;
 }
 
 export interface WorkspacesFile {

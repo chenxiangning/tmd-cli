@@ -67,6 +67,8 @@ export const MESSAGES = {
   "刷新 {profile} 会话列表": "Refresh {profile} session list",
   "工作区操作": "Workspace actions",
   "删除工作区": "Delete workspace",
+  "设置别名": "Set alias",
+  "别名(留空清除)": "Alias (leave empty to clear)",
 
   // ── SessionManage (管理模式批量条 / 行按钮) ──
   "更多... (还有 {n} 条)": "More... ({n} remaining)",

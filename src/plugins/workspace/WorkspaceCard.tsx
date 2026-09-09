@@ -7,7 +7,8 @@
 import { useState } from "react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
-import { setActiveWorkspace, type Workspace } from "@kernel/workspace";
+import { setActiveWorkspace, setWorkspaceAlias, workspaceDisplayName, type Workspace } from "@kernel/workspace";
+import { RenameInput } from "@kernel/RenameInput";
 import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, RocketLaunch, ListChecks } from "@phosphor-icons/react";
 import { CliSessionGroup } from "./SessionList";
 import { SshSessionGroup } from "./SshSessionGroup";
@@ -30,6 +31,8 @@ export function WorkspaceCard({
   collapsed,
   onToggleCollapsed,
   refreshTicks,
+  renaming,
+  onRenameEnd,
   refreshing,
   onRefreshWorkspace,
   onScanDone,
@@ -40,6 +43,9 @@ export function WorkspaceCard({
   /** 折叠态由 WorkspaceSection 持有(受控):caption「折叠全部」按钮据此全局切换。 */
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  /** 行内别名重命名态(父级 WorkspaceSection 受控单例)。 */
+  renaming: boolean;
+  onRenameEnd: () => void;
   refreshTicks: Record<string, number>;
   /** 各工作区:CLI 扫描在途表 —— 本工作区任一 CLI 扫描中,行刷新按钮转圈。 */
   refreshing: Record<string, boolean>;
@@ -104,7 +110,20 @@ export function WorkspaceCard({
             </span>
           </button>
 
-          <span className="workspace-name-text">{workspace.name}</span>
+          {renaming ? (
+            <RenameInput
+              target={{ current: workspaceDisplayName(workspace) }}
+              placeholder={t("别名(留空清除)")}
+              onCommit={(value) => {
+                if (value !== null) setWorkspaceAlias(workspace.id, value);
+                onRenameEnd();
+              }}
+            />
+          ) : (
+            <span className="workspace-name-text" title={workspace.root}>
+              {workspaceDisplayName(workspace)}
+            </span>
+          )}
           {workspace.id === "default" && (
             <span className="default-workspace-badge" aria-label="Default Workspace">
               Default

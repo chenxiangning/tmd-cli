@@ -43,6 +43,9 @@ pub struct WorkspaceMeta {
     pub name: String,
     pub root: String,
     pub created_at: u64,
+    /// 显示名覆盖(显示层语义,身份仍看 id/root;None/缺省 = 显示目录名)。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alias: Option<String>,
 }
 
 /// workspaces.json 顶层结构。

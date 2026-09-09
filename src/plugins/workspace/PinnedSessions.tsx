@@ -30,7 +30,7 @@ import {
 } from "@kernel/sessionPins";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
-import { useWorkspaces, type Workspace } from "@kernel/workspace";
+import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/workspace";
 import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
 import {
@@ -216,7 +216,7 @@ export function PinnedSessionsSection() {
               key={row.key}
               data-session-id={live?.id}
               className={`thread-row${isActive ? " active" : ""}`}
-              title={t("{workspace} · {profile} 会话 {id}", { workspace: row.workspace.name, profile: row.profile.name, id: row.cliSessionId })}
+              title={t("{workspace} · {profile} 会话 {id}", { workspace: workspaceDisplayName(row.workspace), profile: row.profile.name, id: row.cliSessionId })}
               onClick={() => openRow(row)}
               onContextMenu={(e) => {
                 e.preventDefault();
@@ -234,7 +234,7 @@ export function PinnedSessionsSection() {
                 {live && host.isWaitingConfirm(live.id) ? (
                   <span className="thread-ask-badge">{t("等待确认")}</span>
                 ) : null}
-                <span className="thread-time">{row.workspace.name}</span>
+                <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
                 <PinToggle on onToggle={() => unpinSession(row.key)} />
               </span>
             </button>

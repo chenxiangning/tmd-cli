@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { host, useHost } from "@kernel/host";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
-import { useWorkspaces, type Workspace } from "@kernel/workspace";
+import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/workspace";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { t } from "@kernel/i18n";
 
@@ -65,7 +65,7 @@ export function RecentSessions() {
       {groups.map((group) => (
         <div key={group.workspace.id} className="welcome-session-group">
           <div className="welcome-session-ws" title={group.workspace.root}>
-            {group.workspace.name}
+            {workspaceDisplayName(group.workspace)}
           </div>
           {group.items.map(({ profile, session }) => (
             <button

@@ -55,6 +55,8 @@ function WorkspaceSection() {
     x: number;
     y: number;
   } | null>(null);
+  /** 行内别名重命名中的工作区 id(单例:同时至多一行在改)。 */
+  const [renamingId, setRenamingId] = useState<string | null>(null);
   const [refreshTicks, setRefreshTicks] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
   /** 各 key 转圈起始时刻:scanDone 兜底转满一圈(kernel/spin),数据再快也不闪断。 */
@@ -181,6 +183,8 @@ function WorkspaceSection() {
           key={ws.id}
           workspace={ws}
           isActive={ws.id === activeId}
+          renaming={renamingId === ws.id}
+          onRenameEnd={() => setRenamingId(null)}
           collapsed={isCollapsed(ws.id)}
           onToggleCollapsed={() =>
             setCollapsed(ws.id, !isCollapsed(ws.id))
@@ -211,6 +215,10 @@ function WorkspaceSection() {
               .map((p) => [p.id, refreshing[`${menu.workspace.id}:${p.id}`] ?? false]),
           )}
           onRefresh={(profileId) => bumpTick(menu.workspace.id, profileId)}
+          onRename={() => {
+            setRenamingId(menu.workspace.id);
+            setMenu(null);
+          }}
           onClose={() => setMenu(null)}
         />
       )}

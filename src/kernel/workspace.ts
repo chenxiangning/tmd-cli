@@ -20,6 +20,8 @@ export interface Workspace {
   root: string;
   /** 创建时间 ms epoch。 */
   createdAt: number;
+  /** 显示名覆盖(trim 后落库);空/缺省 = 显示目录名。 */
+  alias?: string | null;
 }
 
 interface WorkspaceState {
@@ -110,6 +112,21 @@ export function setActiveWorkspace(id: string | null): void {
   state.activeId = id;
   void persist();
   emit();
+}
+
+/** 设置显示别名(trim;空串清除为 null = 回归目录名);不存在的工作区 id 静默忽略。 */
+export function setWorkspaceAlias(id: string, raw: string): void {
+  const target = state.list.find((w) => w.id === id);
+  const alias = raw.trim() || null;
+  if (!target || (target.alias ?? null) === alias) return;
+  target.alias = alias;
+  void persist();
+  emit();
+}
+
+/** 全部展示位的唯一取名口:别名非空取别名,否则目录名。 */
+export function workspaceDisplayName(ws: Workspace): string {
+  return ws.alias?.trim() || ws.name;
 }
 
 export function getActiveWorkspace(): Workspace | null {
