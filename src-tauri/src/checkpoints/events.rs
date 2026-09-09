@@ -39,15 +39,13 @@ pub fn record_edit(
     path: &str,
     ts: Option<i64>,
 ) -> Result<bool, CkptError> {
-    // 路径纪律:仓库相对、拒绝绝对/父级逃逸(事件正则来自 CLI 输出,不可信)
-    if path.is_empty()
-        || path.starts_with('/')
-        || std::path::Path::new(path)
-            .components()
-            .any(|c| matches!(c, std::path::Component::ParentDir))
-    {
+    // 路径纪律(唯一闸 canonicalize_event_path):工作区内相对路径逐字旧则、
+    // 原文存储;工作区外绝对路径(含 ~/ 展开)词法归一后入账 —— 2026-09-10 起
+    // 审批线覆盖 cwd 之外的 AI 写入,无前像禁回退在封口/restore 两侧兑现。
+    let Some(path) = super::canonicalize_event_path(path) else {
         return Ok(false);
-    }
+    };
+    let path = path.as_str();
     let _g = lock_ledger();
     let entries = load_ledger(cwd);
     let Some(anchor) = entries
@@ -172,10 +170,11 @@ pub(super) fn edit_open_paths(
         .map(|e| {
             let status = if fs::read(root.join(&e.path)).is_err() {
                 "D".to_string()
-            } else if e.before_oid.is_empty() {
+            } else if e.before_oid.is_empty() && !super::is_external_path(&e.path) {
                 "A".to_string()
             } else {
-                // 前像自足副本在而磁盘内容等值 = 写了又写回;仍列出(轮未封口,轨迹可见)
+                // 前像自足副本在而磁盘内容等值 = 写了又写回;仍列出(轮未封口,轨迹可见)。
+                // 工作区外无前像不记 A —— 语义对齐封口的禁回退编码(M,非新建)
                 "M".to_string()
             };
             (e.path.clone(), status)
@@ -229,7 +228,12 @@ pub(super) fn build_events_turn_files(
         if before.as_deref() == after.as_deref() {
             continue; // 写了又写回原样:无净变更不入批(轨迹留在 edit 行)
         }
-        let existed_before = before.is_some();
+        // 工作区外首轮无前像(事件写后观测,锚点基线不覆盖 cwd 之外):保守记
+        // existed_before = true + before_oid 留空 —— restore 据此显式禁回退
+        // (防误删用户既有文件);后像与差异照常固化(可见 / 可应用),次轮起
+        // 跨轮前像链(latest_turn_after)供应前像,回退能力恢复。
+        let external_no_before = before.is_none() && super::is_external_path(path);
+        let existed_before = before.is_some() || external_no_before;
         let status = match (existed_before, existed_after) {
             (false, true) => "A",
             (true, false) => "D",

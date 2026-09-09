@@ -7,8 +7,9 @@
  *   events 归因,审批线回退 git 窗口推断(旧行为)。
  * - 按行匹配(标记完整出现在一行内),行缓冲跨分片拼接;ANSI 剥离复用
  *   askWatch 的 stripAnsi。
- * - 路径归一:剥引号/空白与 "./" 前缀;绝对路径限会话 cwd 之内相对化;
- *   `~`、父级逃逸、空串一律丢弃(标记文本不可信,Rust 侧 record_edit 再守一道)。
+ * - 路径归一:剥引号/空白与 "./" 前缀;绝对路径限会话 cwd 之内相对化,cwd
+ *   之外与 `~` 形式原样上抛(工作区外入账);父级逃逸、空串一律丢弃
+ *   (标记文本不可信,规范化与拒绝由 Rust record_edit 单闸终审)。
  * - 轮内去重:同轮同路径只报一次;用户写入(writeSession,幕布击键含)即开新轮清集。
  *
  * 误报纪律:宁可漏报不可误报 —— 手改文件绝不能因检测噪声混入 AI 批次
@@ -41,22 +42,28 @@ function splitLines(buf: string): { lines: string[]; rest: string } {
 }
 
 /**
- * 标记捕获的路径文本 → 仓库相对路径;不可信(逃逸/家目录/空)返回 null。
- * 导出供测试。
+ * 标记捕获的路径文本 → 账本路径(工作区内相对 / 工作区外绝对或 ~ 形式);
+ * 不可信(逃逸/空/盘符)返回 null。导出供测试。
+ *
+ * 合同(2026-09-10 起):cwd 外绝对路径与 ~/ 形式不再丢弃,原样上抛 ——
+ * 审批线覆盖工作区外的 AI 写入;归一(~ 展开 / .. 消除)与终审拒收由
+ * Rust canonicalize_event_path 单闸执行,此处只做剥离与 cwd 内相对化。
  */
 export function normalizeEditPath(raw: string, cwd: string): string | null {
   let p = raw.trim().replace(/^["'`]|["'`]$/g, "").trim();
   if (!p || p === "." || p === "..") return null;
-  if (p.startsWith("~/")) return null; // CLI 展开的 home 路径不在工作区内
   if (p.startsWith("./") || p.startsWith(".\\")) p = p.slice(2);
   if (p.startsWith("/")) {
-    // 绝对路径:仅当落在会话 cwd 内才相对化(含 cwd 为软链前缀等简单情形)
+    // 绝对路径:cwd 之内相对化(工作区内账本仍记相对,含 cwd 为软链前缀等
+    // 简单情形);之外原样上抛(工作区外入账,Rust 终审)
     const prefix = cwd.endsWith("/") ? cwd : cwd + "/";
-    if (!p.startsWith(prefix)) return null;
+    if (!p.startsWith(prefix)) return p;
     p = p.slice(prefix.length);
   }
-  if (!p || p.startsWith("/") || p.startsWith("~")) return null;
-  // 父级逃逸(含 Windows 盘符残留)拒绝
+  if (!p) return null;
+  if (p === "~" || p.startsWith("~/")) return p; // 上抛,Rust 展开 home
+  if (p.startsWith("/") || p.startsWith("~")) return null; // ~other 形式拒
+  // 父级逃逸(含 Windows 盘符残留)拒绝 —— 工作区内相对路径纪律与初版一致
   if (p.split("/").some((seg) => seg === ".." || seg === "")) return null;
   if (/^[a-zA-Z]:/.test(p)) return null;
   return p;

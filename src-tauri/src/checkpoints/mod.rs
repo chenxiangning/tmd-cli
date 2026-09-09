@@ -26,6 +26,7 @@ mod error;
 mod events;
 mod ledger;
 mod patch;
+mod path;
 mod prune;
 mod restore;
 mod review;
@@ -48,6 +49,8 @@ pub use prune::prune;
 pub use restore::{restore_batch, RestoreOutcome};
 pub use review::{approve_batch, undo_revert};
 pub use view::derive_batches;
+
+pub(crate) use path::{canonicalize_event_path, is_external_path};
 
 use serde::{Deserialize, Serialize};
 
@@ -149,10 +152,10 @@ pub struct LedgerEntry {
     /// 旧账本条目缺省 = "git"(当时的唯一模式)。
     #[serde(default)]
     pub attribution: String,
-    /// edit 行专用:事件目标路径(仓库相对)
+    /// edit 行专用:事件目标路径(工作区内相对 / 工作区外绝对,经
+    /// canonicalize_event_path 单闸归一)
     #[serde(default)]
     pub path: String,
-    /// edit 行专用:轮内首击时抓的批前像(sidecar blob,自足副本 —— 不依赖
     /// 用户 git 对象存活;anchor 基线解析不到 = 空串,seal 时按无前像处理)
     #[serde(default)]
     pub before_oid: String,
@@ -194,6 +197,8 @@ pub struct BatchFile {
     pub stale: bool,
     /// 本轮 AI 写入事件计数(events 归因的轨迹;git 归因 = 0)
     pub edit_count: u32,
+    /// 工作区外首轮无前像(批前像不可知):禁回退,仅可查看 / 应用
+    pub no_baseline: bool,
 }
 
 /// list 推导出的批次。id = 起始 anchor 的条目 id(稳定);index = 账本轮次。

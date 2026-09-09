@@ -12,6 +12,7 @@ import type {
   CliUserMessage,
   SessionFileIdentity,
 } from "@kernel/cli";
+import { normalizeEditPath } from "@kernel/editWatch";
 
 /** sqlite 行值 → number(INTEGER 列);异型返回 undefined。 */
 function num(v: unknown): number | undefined {
@@ -110,8 +111,9 @@ export function opencodeUserMessageRows(rows: unknown[][]): CliUserMessage[] {
   return out;
 }
 
-/** 工具部件 data JSON + 行 time_created → 写入事件;非已完成的 write/edit 返回 null。 */
-export function parseOpencodeToolEdit(data: unknown, rowTs: number | undefined): CliSessionEdit | null {
+/** 工具部件 data JSON + 行 time_created → 写入事件;非已完成的 write/edit 返回 null。
+    传 cwd 时经 normalizeEditPath 归一(cwd 内相对化,cwd 外/~ 上抛,逃逸拒)。 */
+export function parseOpencodeToolEdit(data: unknown, rowTs: number | undefined, cwd?: string): CliSessionEdit | null {
   if (!data || typeof data !== "object") return null;
   const obj = data as Record<string, unknown>;
   if (obj.type !== "tool") return null;
@@ -123,10 +125,12 @@ export function parseOpencodeToolEdit(data: unknown, rowTs: number | undefined):
   const input = stateObj.input;
   const filePath = jsonString(input, "filePath");
   if (!filePath) return null;
+  const path = cwd ? normalizeEditPath(filePath, cwd) : filePath;
+  if (!path) return null;
   const time = stateObj.time;
   const end =
     time && typeof time === "object"
       ? (time as Record<string, unknown>).end
       : undefined;
-  return { path: filePath, ts: num(end) ?? rowTs ?? 0 };
+  return { path, ts: num(end) ?? rowTs ?? 0 };
 }

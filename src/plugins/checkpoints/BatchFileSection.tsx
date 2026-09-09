@@ -6,10 +6,10 @@
  * 另含居中占位 Center(非 git 仓库 / 批次消失文案)。
  */
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { CaretRight, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import type { CkptPatch } from "@kernel/ipc";
+import type { CkptBatch, CkptBatchFile, CkptPatch } from "@kernel/ipc";
 
 export function FileSection({
   path,
@@ -17,6 +17,7 @@ export function FileSection({
   stale,
   reverted,
   editCount,
+  noBaseline,
   attribution,
   canRevert,
   patch,
@@ -30,6 +31,8 @@ export function FileSection({
   reverted: boolean;
   /** 本轮 AI 写入事件计数(events 归因轨迹;git 归因 = 0 不展示) */
   editCount: number;
+  /** 工作区外首轮无前像:禁回退徽标,回退入口由父级摘除 */
+  noBaseline: boolean;
   attribution: "events" | "git";
   canRevert: boolean;
   patch: CkptPatch | null;
@@ -84,6 +87,14 @@ export function FileSection({
               {t("内容已变")}
             </span>
           )}
+          {noBaseline && (
+            <span
+              className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-faint)"
+              title={t("工作区外文件,首轮批前像不可知 —— 禁回退(防误删既有文件);次轮起可正常回退")}
+            >
+              {t("无前像")}
+            </span>
+          )}
           {editCount > 0 && attribution === "events" && (
             <span
               className="flex-none rounded border border-(--tmd-border) px-1 text-[0.5625rem] leading-[0.8125rem] text-(--tmd-fg-faint)"
@@ -129,6 +140,64 @@ export function FileSection({
         </pre>
       )}
     </div>
+  );
+}
+
+/** 批文件分区列表:工作区内在前;工作区外文件(绝对路径)独立分组,
+    首轮批前像不可知 —— 禁回退(徽标明示),次轮起跨轮前像链恢复。 */
+export function FileSections({
+  batch,
+  patches,
+  flash,
+  busy,
+  onRevertPath,
+}: {
+  batch: CkptBatch;
+  patches: CkptPatch[];
+  flash: string | null;
+  busy: boolean;
+  onRevertPath: (path: string) => void;
+}) {
+  const external = batch.files.filter((f) => f.path.startsWith("/"));
+  const groups: [header: string | null, files: CkptBatchFile[]][] = [
+    [null, batch.files.filter((f) => !f.path.startsWith("/"))],
+    ...(external.length > 0
+      ? [[t("工作区外({n}) —— 首轮批前像不可知,禁回退;次轮起可正常回退", { n: external.length }), external] as [string, CkptBatchFile[]]]
+      : []),
+  ];
+  return (
+    <>
+      <div className="mb-2 mt-5 text-[0.6875rem] text-(--tmd-fg-faint)">
+        {t("AI 修改的文件({n}) —— 点击分区头折叠;hover 可单文件回退", { n: batch.files.length })}
+      </div>
+      {patches.length === 0 && (
+        <div className="rounded border border-dashed border-(--tmd-border) p-4 text-center text-[0.6875rem] text-(--tmd-fg-faint)">
+          {t("本批文件当前与批后像无差异(可能已回退或已提交)")}
+        </div>
+      )}
+      {groups.map(([header, files]) => (
+        <Fragment key={header ?? "internal"}>
+          {header && <div className="mb-2 mt-4 text-[0.6875rem] text-(--tmd-fg-faint)">{header}</div>}
+          {files.map((f) => (
+            <FileSection
+              key={f.path}
+              path={f.path}
+              status={f.status}
+              stale={f.stale}
+              reverted={f.reverted}
+              editCount={f.editCount}
+              noBaseline={f.noBaseline}
+              attribution={batch.attribution}
+              canRevert={batch.state === "pending" && f.live === "same" && !f.noBaseline}
+              patch={patches.find((p) => p.path === f.path) ?? null}
+              flashed={flash === f.path}
+              busy={busy}
+              onRevert={() => onRevertPath(f.path)}
+            />
+          ))}
+        </Fragment>
+      ))}
+    </>
   );
 }
 

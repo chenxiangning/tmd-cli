@@ -158,6 +158,8 @@ export interface CkptBatchFile {
   stale: boolean;
   /** 本轮 AI 写入事件计数(events 归因轨迹;git 归因 = 0) */
   editCount: number;
+  /** 工作区外首轮无前像(批前像不可知):禁回退,仅可查看 / 应用 */
+  noBaseline: boolean;
 }
 
 /** 锚点时刻的引擎状态快照(账本随批固化;空串 = 未知,UI 隐藏该段)。 */

@@ -23,13 +23,13 @@ describe("normalizeEditPath", () => {
     expect(normalizeEditPath(" src/a.ts ", CWD)).toBe("src/a.ts");
   });
 
-  it("cwd 内绝对路径相对化;cwd 外拒绝", () => {
+  it("cwd 内绝对路径相对化;cwd 外绝对路径原样上抛(工作区外入账)", () => {
     expect(normalizeEditPath(`${CWD}/src/a.ts`, CWD)).toBe("src/a.ts");
-    expect(normalizeEditPath("/etc/passwd", CWD)).toBeNull();
+    expect(normalizeEditPath("/etc/passwd", CWD)).toBe("/etc/passwd");
   });
 
-  it("不可信路径拒绝:家目录 / 父级逃逸 / 空 / 盘符", () => {
-    expect(normalizeEditPath("~/x/a.ts", CWD)).toBeNull();
+  it("~ 形式上抛 Rust 展开;不可信路径拒绝:父级逃逸 / 空 / 盘符", () => {
+    expect(normalizeEditPath("~/x/a.ts", CWD)).toBe("~/x/a.ts");
     expect(normalizeEditPath("../outside.ts", CWD)).toBeNull();
     expect(normalizeEditPath("a/../../b.ts", CWD)).toBeNull();
     expect(normalizeEditPath("", CWD)).toBeNull();
