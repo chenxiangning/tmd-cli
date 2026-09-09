@@ -1,45 +1,68 @@
-/** restoreTail 写后闸(评审 F4)—— 刚作答的会话,尾巴里的面板标记是已答残影,
- *  恢复喂入会在写后抑制窗外立新候选,静默期漂移确认后升级假 waiting。 */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AskWatchFeed } from "./askWatchFeed";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AskWatchFeed, type AskWatchFeedCtx } from "./askWatchFeed";
 
-function makeFeed() {
+/* 带通用标记(y/n)的输出,供内核兜底正则命中 */
+const ASK_MARK = "Allow this action? (y/n)";
+const RESTORE_TAIL = `x\r\n${ASK_MARK}\r\n`;
+
+function makeFeed(): AskWatchFeed {
   return new AskWatchFeed({
-    sessionKind: () => "cli",
-    askMarks: () => [/Ask \d+ questions?/],
+    sessionKind: () => undefined,
+    bufferTail: () => RESTORE_TAIL,
+    askMarks: () => undefined,
     emitAsked: () => undefined,
     notify: () => undefined,
-    bufferTail: () => "",
-  });
+  } satisfies AskWatchFeedCtx);
 }
 
-const TAIL_WITH_MARK = "上一轮输出\nAsk 1 questions\n";
-
-describe("restoreTail 写后闸", () => {
+describe("AskWatch 磁盘尾恢复闸(restoreDiskTail,走法 1 冷开回放)", () => {
   beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
 
-  it("写后抑制窗内不喂尾:面板残影不立候选不升级", async () => {
+  it("无近期写入:尾巴带 Ask 标记 → 立候选,漂移确认后升级 waiting(碑帧徽章恢复)", () => {
     const feed = makeFeed();
-    feed.onUserWrite("s");
-    feed.restoreTail("s", TAIL_WITH_MARK);
-    await vi.advanceTimersByTimeAsync(2_000);
-    expect(feed.isWaiting("s")).toBe(false);
+    feed.restoreDiskTail("s1", RESTORE_TAIL);
+    expect(feed.isWaiting("s1")).toBe(false);
+    vi.advanceTimersByTime(2000);
+    expect(feed.isWaiting("s1")).toBe(true);
   });
 
-  it("无近期写入正常喂尾:标记尾巴经漂移确认升级 waiting", async () => {
+  it("回放窗内用户写入(写后 8s 闸):残影尾巴不升级(F4)", () => {
     const feed = makeFeed();
-    feed.restoreTail("s", TAIL_WITH_MARK);
-    await vi.advanceTimersByTimeAsync(2_000);
-    expect(feed.isWaiting("s")).toBe(true);
+    feed.onUserWrite("s1");
+    feed.restoreDiskTail("s1", RESTORE_TAIL);
+    vi.advanceTimersByTime(2000);
+    expect(feed.isWaiting("s1")).toBe(false);
   });
 
-  it("抑制窗过后喂尾恢复正常", async () => {
+  it("写入超过 8s 后闸过期:尾巴标记正常升级", () => {
     const feed = makeFeed();
-    feed.onUserWrite("s");
-    await vi.advanceTimersByTimeAsync(8_100);
-    feed.restoreTail("s", TAIL_WITH_MARK);
-    await vi.advanceTimersByTimeAsync(2_000);
-    expect(feed.isWaiting("s")).toBe(true);
+    feed.onUserWrite("s1");
+    vi.advanceTimersByTime(8_100);
+    feed.restoreDiskTail("s1", RESTORE_TAIL);
+    vi.advanceTimersByTime(2000);
+    expect(feed.isWaiting("s1")).toBe(true);
+  });
+
+  it("会话移除清理写后闸时刻:同 id 复用不受旧闸压制", () => {
+    const feed = makeFeed();
+    feed.onUserWrite("s1");
+    feed.onSessionRemoved("s1");
+    feed.restoreDiskTail("s1", RESTORE_TAIL);
+    vi.advanceTimersByTime(2000);
+    expect(feed.isWaiting("s1")).toBe(true);
+  });
+});
+
+describe("AskWatch 无闸恢复(restoreTail:boot/重挂载补观察)", () => {
+  beforeEach(() => vi.useFakeTimers());
+
+  it("已有无关 waiting 的会话不受恢复影响", () => {
+    const feed = makeFeed();
+    feed.onOutput("other", `${ASK_MARK}\r\n`, 30);
+    vi.advanceTimersByTime(2000);
+    expect(feed.isWaiting("other")).toBe(true);
+    feed.restoreTail("other", RESTORE_TAIL);
+    vi.advanceTimersByTime(2000);
+    expect(feed.isWaiting("other")).toBe(true);
   });
 });

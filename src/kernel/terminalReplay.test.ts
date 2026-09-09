@@ -41,6 +41,7 @@ vi.mock("./diskReplay", () => ({
 }));
 
 import { attachTerminalStream, writeInChunks } from "./terminalReplay";
+import { createReplayInputGate } from "./terminalInputGate";
 
 /** 假终端:记录写入,回调走微任务模拟 xterm 异步解析。 */
 function fakeTerm() {
@@ -257,5 +258,41 @@ describe("attachTerminalStream 磁盘先行回放", () => {
     expect(term.writes).toEqual([]);
     expect(hoisted.restored).toEqual([]);
     off();
+  });
+  it("CLR 被 PTY 切成两个事件:滚动窗接住,仍 300ms 一次切换", async () => {
+    hoisted.cliIds.set("s1", "cli-1");
+    hoisted.diskTail = { cliId: "cli-1", promise: Promise.resolve({ text: "TAIL" }) };
+    const term = fakeTerm(); const off = attachTerminalStream(term, "s1", gate, () => undefined);
+    emit("s1", "booting\x1b[2"); // 清屏序列前半(事件边界劈开)
+    emit("s1", "JFRAME");
+    await vi.advanceTimersByTimeAsync(300);
+    expect(term.writes.join("")).toContain("FRAME");
+    off();
+  });
+
+  it("CLR 早于磁盘尾决议(竞态):迟到的墓碑帧不盖活帧、不喂 Ask(P1-3)", async () => {
+    const { promise: tailPromise, resolve: resolveTail } = Promise.withResolvers<{ text: string } | null>();
+    hoisted.diskTail = { cliId: "cli-1", promise: tailPromise };
+    const term = fakeTerm();
+    const off = attachTerminalStream(term, "s1", gate, () => undefined);
+    emit("s1", "\x1b[H\x1b[2JLIVE-FRAME"); // CLR 在磁盘 promise 未决期到达
+    await vi.advanceTimersByTimeAsync(300); // finishDisk:活帧落,ready
+    expect(term.writes.join("")).toContain("LIVE-FRAME");
+    resolveTail({ text: "TAIL" }); // 磁盘尾迟到
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(term.writes.join("")).not.toContain("TAIL"); // 墓碑帧不得盖回
+    expect(hoisted.restored).toEqual([]); // 残影不喂 Ask
+    off();
+  });
+
+  it("回放中途卸载:输入闸释放不泄漏(泄漏 = 该 tab 键盘永久失灵)", async () => {
+    hoisted.cliIds.set("s1", "cli-1");
+    hoisted.diskTail = { cliId: "cli-1", promise: Promise.resolve({ text: "T".repeat(200 * 1024) }) }; // 两块,留卸载窗
+    const term = fakeTerm(); const realGate = createReplayInputGate();
+    const off = attachTerminalStream(term, "s1", realGate, () => undefined);
+    await vi.advanceTimersByTimeAsync(5); // 回放链启动
+    off(); // 中途卸载
+    await vi.advanceTimersByTimeAsync(50); // 剩余回放 promise 链走完
+    expect(realGate.blocked()).toBe(false);
   });
 });

@@ -79,6 +79,7 @@ export function attachTerminalStream(
   sessionId: string,
   inputGate: ReplayInputGate,
   onProgress: (p: LoadProgress) => void,
+  onReady?: () => void,
 ): () => void {
   let cancelled = false;
   let quietTimer: ReturnType<typeof setTimeout> | undefined;
@@ -118,6 +119,7 @@ export function attachTerminalStream(
     quietTimer = setTimeout(() => {
       if (cancelled) return;
       ready = true;
+      onReady?.();
       onProgress(null);
     }, QUIET_READY_MS);
   };
@@ -143,6 +145,10 @@ export function attachTerminalStream(
     });
     host.observeReplayTail(sessionId);
   } else if (diskTail) {
+    /* 磁盘先行:首开/指针缺失共用这个分支(prefetch 错配/无 cliSessionId 回落直流)。
+       就绪编排与内存分支不同:回放完成只撤罩,活流继续攒队,等攒队里出现清屏序列
+       (\x1b[2J——TUI 全屏重绘的通用前奏)再延 300ms 让首帧画完,一次切换——墓碑帧
+       全程可见,CLI 启动期的清屏擦不出白屏。无尾时同理保持「正在连接…」遮罩。 */
     onProgress({ kind: "replay", pct: 0 });
     const flushQueuedNow = (): void => {
       const queued = liveQueue ?? [];
@@ -152,18 +158,17 @@ export function attachTerminalStream(
     const finishDisk = (): void => {
       clearTimeout(diskFlushTimer);
       diskChunkSink = null;
-      inputGate.release();
       if (cancelled) return;
       flushQueuedNow();
       ready = true;
+      onReady?.();
       onProgress(null);
     };
     void diskTail.then((page) => {
-      if (cancelled) return;
+      /* ready 守卫(评审 P1-3):CLR 在未决期到达则 finishDisk 已落活帧,
+         迟到的磁盘尾不得再盖回墓碑帧 */
+      if (cancelled || ready) return;
       const tail = page?.text ?? "";
-      /* 磁盘分支接管就绪编排:12s 全局 failsafe 会在慢启动 CLI(omp 实测 25s)
-         的启动期提前置 ready 卡死攒队,此处撤销,由 30s 磁盘兜底顶替 */
-      clearTimeout(failsafe);
       if (!tail) {
         /* 首开/指针缺失:无字节可回放。保持流式进度遮罩(「正在连接…」),
            活流继续攒队,等 CLR 首帧画完一次切换;30s 兜底放行 */
@@ -176,18 +181,26 @@ export function attachTerminalStream(
       void writeInChunks(term, tail, (done, total) => {
         if (!cancelled && !ready) onProgress({ kind: "replay", pct: Math.round((done / total) * 100) });
       }).then(() => {
+        /* 回放尽即放闸——含 cancel 路径(闸随组件常驻,泄漏 = 该 tab 键盘永久失灵);
+           放闸后活流起落期的击键照常进 PTY 管道,与既有回放窗语义一致 */
+        inputGate.release();
         if (cancelled) return;
         onProgress(null); /* 撤罩:墓碑帧可见;ready/flush 留给 CLR 观测或兜底 */
         host.restoreDiskTail(sessionId, tail);
         diskFlushTimer = setTimeout(() => finishDisk(), DISK_FLUSH_FAILSAFE_MS);
       });
     });
-    /* CLR 观测:攒队里出现清屏序列(含 \x1b[H\x1b[2J 组合的后半)即排 flush */
+    /* CLR 观测:滚动 8B 窗接住被 PTY 切进两个事件的清屏序列(\x1b[H\x1b[2J 组合 7B) */
+    let clrWindow = "";
     diskChunkSink = (text) => {
       if (ready || clrSeen) return;
-      if (text.includes("\x1b[2J")) {
+      const scan = clrWindow + text;
+      if (scan.includes("\x1b[2J")) {
         clrSeen = true;
+        clearTimeout(diskFlushTimer);
         diskFlushTimer = setTimeout(() => finishDisk(), DISK_FLUSH_AFTER_CLR_MS);
+      } else {
+        clrWindow = scan.slice(-8);
       }
     };
   } else {
@@ -196,10 +209,12 @@ export function attachTerminalStream(
     armQuiet();
   }
 
+  /* 12s 兜底:防 CLI 不重绘导致遮罩永挂(内存回放/直流通路;磁盘编排自带 30s 兜底) */
   if (!diskTail) {
     failsafe = setTimeout(() => {
       if (cancelled || ready) return;
       ready = true;
+      onReady?.();
       onProgress(null);
     }, PROGRESS_FAILSAFE_MS);
   }

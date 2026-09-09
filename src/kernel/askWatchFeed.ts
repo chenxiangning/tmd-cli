@@ -111,8 +111,9 @@ export class AskWatchFeed {
     return this.watch.isWaiting(sessionId);
   }
 
-  /** 会话移除:等待/候选/尾巴残留一并清除。 */
+  /** 会话移除:等待/候选/尾巴残留/写后闸时刻一并清除。 */
   onSessionRemoved(sessionId: string): void {
+    this.lastWriteAt.delete(sessionId);
     this.watch.onSessionRemoved(sessionId);
   }
 

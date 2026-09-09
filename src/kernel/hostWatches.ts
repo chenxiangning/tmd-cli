@@ -48,9 +48,6 @@ export class HostWatches {
     claimedIds: () => new Set(this.cliSessionIds.values()),
     onBound: (sessionId, cliSessionId) => {
       this.bindIdentity(sessionId, cliSessionId);
-      /* 磁盘先行回放:身份探测绑定同样覆写指针(冷开寻址上一代日志) */
-      const boundMeta = this.ctx.findSession(sessionId);
-      if (boundMeta) noteLogBinding(boundMeta.profileId, boundMeta.cwd, cliSessionId, sessionId);
       void this.statusWatch.refresh(sessionId);
       this.ctx.notify();
     },

@@ -18,11 +18,19 @@ use crate::session_log::{read_history_page, HistoryPage};
 const DISK_TAIL_MAX: u64 = 1024 * 1024;
 
 /// 指针/日志所在目录,与会话日志同目录(路径构成见 session_log::session_log_path)。
-fn log_dir(profile_id: &str, cwd: &str) -> PathBuf {
-    crate::session::config_dir()
+fn log_dir(profile_id: &str, cwd: &str) -> Result<PathBuf, String> {
+    let (profile_slug, cwd_slug) = (
+        crate::session_log::project_slug(profile_id),
+        crate::session_log::project_slug(cwd),
+    );
+    /* slug 后仍为裸 "." / ".." 才构成穿越("foo..bar" 是合法目录名,不误伤) */
+    if profile_slug == "." || profile_slug == ".." || cwd_slug == "." || cwd_slug == ".." {
+        return Err(format!("非法路径组件: {profile_id} | {cwd}"));
+    }
+    Ok(crate::session::config_dir()
         .join("session")
-        .join(crate::session_log::project_slug(profile_id))
-        .join(crate::session_log::project_slug(cwd))
+        .join(profile_slug)
+        .join(cwd_slug))
 }
 
 /// 路径组件白名单校验:uuid 形态(空串/分隔符/`..` 一律拒绝)。
@@ -44,7 +52,7 @@ pub(crate) fn write_log_pointer(
     cli_session_id: &str,
     log_id: &str,
 ) -> Result<(), String> {
-    write_log_pointer_into(&log_dir(profile_id, cwd), cli_session_id, log_id)
+    write_log_pointer_into(&log_dir(profile_id, cwd)?, cli_session_id, log_id)
 }
 
 pub(crate) fn write_log_pointer_into(
@@ -66,7 +74,7 @@ pub(crate) fn read_disk_tail(
     cli_session_id: &str,
     max_bytes: u64,
 ) -> Result<Option<HistoryPage>, String> {
-    read_disk_tail_from(&log_dir(profile_id, cwd), cli_session_id, max_bytes)
+    read_disk_tail_from(&log_dir(profile_id, cwd)?, cli_session_id, max_bytes)
 }
 
 pub(crate) fn read_disk_tail_from(
@@ -165,6 +173,14 @@ mod tests {
             assert!(read_disk_tail_from(&dir, bad, 512).is_err());
         }
         assert!(read_disk_tail_from(&dir, "cli-1", 512).unwrap().is_none());
+    }
+
+    #[test]
+    fn 裸dotdot的profile或cwd被log_dir拒绝() {
+        assert!(write_log_pointer("..", "/tmp", "cli-1", "uuid").is_err());
+        assert!(read_disk_tail("omp", "..", "cli-1", 512).is_err());
+        /* 合法目录名含 ".." 子串不误伤 */
+        assert!(log_dir("omp", "/code/foo..bar").is_ok());
     }
 
     #[test]
