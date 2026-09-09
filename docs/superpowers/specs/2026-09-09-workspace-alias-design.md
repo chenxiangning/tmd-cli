@@ -1,7 +1,7 @@
 # 工作区别名:显示名覆盖(行内重命名)
 
 日期:2026-09-09
-状态:待评审(设计定稿,确认后实现)
+状态:已落地(commit 9ed4911)
 
 ## 背景与目标
 
@@ -77,3 +77,11 @@ export function workspaceDisplayName(ws: Workspace): string;
 2. Rust 侧 `cargo test`(serde 往返含旧格式无 alias)。
 3. 前端全链:`pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build`。
 4. `pnpm tauri:dev` 目检:菜单设置别名 → 卡片/钉住/运行区/welcome/git 标签同步切换;清空别名回归目录名;重启后别名仍在。
+
+## 实现对照(落地后回写)
+
+- `alias` 落为**可选字段**(`alias?: string | null`),`loadFromDisk` 不归一化——与同文件 `groupId` 先例一致,旧数据兼容由单测钉住。
+- `RightPanelToolbar` 不再维持 `deriveWorkspaceLabel(root)`:激活工作区对象直取 `workspaceDisplayName` 后大写化;因 store 原地变更(列表项引用不变),`useMemo` 会滞 stale,标签改为每次渲染直接计算,`deriveWorkspaceLabel` 与 `deriveWorkspaceName` 导入随之删除。
+- `RenameInput` 除 `target` 收窄外,另加可选 `placeholder`(默认会话文案,工作区传「别名(留空清除)」)。
+- 目检走 1421 vite dev + 浏览器桩(双同名工作区),验证菜单入口、行内重命名、trim 提交、持久化载荷、title 原路径;Escape/清除路径由 `workspace.test.ts` 5 条用例锁 store 语义。
+- 落地时并行会话的工作区分组特性尚在途:本提交经 hash-object 手术只含别名 hunks(14 文件 +141/-21),分组 WIP 未动。
