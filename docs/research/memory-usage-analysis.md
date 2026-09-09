@@ -1,6 +1,6 @@
 # 客户端内存占用分析与优化预案
 
-- 状态:已落地(`165b4d4`/`966271a`/`848ee7b`)—— 正式 spec [2026-09-09-disk-first-session-open-design.md](../superpowers/specs/2026-09-09-disk-first-session-open-design.md);本文件保留作动机/实测/复盘底稿
+- 状态:已落地(`9e49ffd`/`515cd4d`/`55a7d87`（另终审修复 `beb927a`）)—— 正式 spec [2026-09-09-disk-first-session-open-design.md](../superpowers/specs/2026-09-09-disk-first-session-open-design.md);本文件保留作动机/实测/复盘底稿
 
 ## 结论
 
@@ -145,6 +145,6 @@ codemoss(`/Users/chenxiangning/code/AI/github/codemoss`,ccgui 0.9.5)的会话秒
 ## 待拍板清单
 
 1. ~~走法 1 语义确认~~ → **已拍板:点击即后台 spawn**(2026-09-09)。
-2. ~~自动激活去留~~ → **已拍板:整体下掉,已拆除**(165b4d4)。
+2. ~~自动激活去留~~ → **已拍板:整体下掉,已拆除**(9e49ffd)。
 3. ~~辅线(停解析/降频/滚回降配)~~ → **已整体废弃**(2026-09-09 二轮拍板,见辅线节)。
 4. ~~止血档调设置~~ → **失效**:自动激活已拆,止血无对象。
