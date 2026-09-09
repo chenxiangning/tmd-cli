@@ -115,5 +115,6 @@
 | 2026-09-10 | [本地插件:用户磁盘插件目录 + 运行时动态加载](superpowers/specs/2026-09-10-local-plugins-design.md) | 已实现未提交(origin 三分内置/本地/市场,~/.tmd-cli/plugins/,Blob 装载,turnSettled 对话即变,SHA-256 信任闸,版本库回退,零影响承诺) |
 | 2026-09-10 | [Ask 提醒不及时/后台不出现:写后抑制窗误伤根因评审与修复](review/2026-09-10-ask-watch-write-gate-review.md) | 已完成(修复随记录同在工作树) |
 | 2026-09-10 | [checkpoints 工作区外文件入账设计](superpowers/specs/2026-09-10-checkpoints-external-files-design.md) | 已落地(当日实施) |
+| 2026-09-10 | [README/README_EN 双语刷新(10 CLI/25 注册插件/本机插件/CLI 独立配置/v0.1.4 产物矩阵,5 张新截图)](../README_EN.md) | 已落地 |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
