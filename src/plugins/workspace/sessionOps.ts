@@ -53,6 +53,17 @@ export async function deleteDiskSessionFull(
   session: CliDiskSession,
   workspaceId: string,
 ): Promise<void> {
+  /* 先杀后删(与 deleteLiveSessionFull 同一时序契约):被删磁盘会话可能正以
+   * 活会话身份运行(归档视图/管理模式里它以磁盘行形出现)——只删盘不杀,
+   * 流式中的 CLI 会把文件重新写出来,分组被 tombstone 隐藏而进程成幽灵。 */
+  await Promise.all(
+    host
+      .getSessions()
+      .filter(
+        (s) => s.profileId === profile.id && host.getCliSessionId(s.id) === session.id,
+      )
+      .map((s) => host.removeSession(s.id)),
+  );
   await removeDiskSessionBestEffort(profile, session);
   clearOverlaysAndMark(workspaceId, profile.id, session.id);
 }

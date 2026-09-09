@@ -22,6 +22,7 @@ import type { SessionMeta } from "@kernel/ipc";
 import { useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 import { isSessionArchived, sessionArchiveKey } from "@kernel/sessionArchive";
+import { isSessionDeleted, sessionDeletedKey } from "@kernel/sessionDeleted";
 import { pinSession, sessionPinKey, toggleSessionPin, unpinSession } from "@kernel/sessionPins";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
@@ -59,13 +60,15 @@ export function RunningZoneSection() {
       if (!workspace || !profile) return [];
       const cliSessionId = host.getCliSessionId(session.id);
       if (cliSessionId !== undefined) {
-        // 置顶优先:任一作用域置顶不进运行区;归档会话全域隐藏(键与置顶键同构)
+        // 置顶优先:任一作用域置顶不进运行区;归档/删除(tombstone)会话全域隐藏
         if (
           sessionPinKey(workspace.id, profile.id, cliSessionId) in
           settings.sessionPins
         )
           return [];
         if (isSessionArchived(sessionArchiveKey(workspace.id, profile.id, cliSessionId)))
+          return [];
+        if (isSessionDeleted(sessionDeletedKey(workspace.id, profile.id, cliSessionId)))
           return [];
       }
       return isRunningZoneCandidate(
@@ -191,7 +194,7 @@ export function RunningZoneSection() {
             return (
               <div key={row.session.id} className="thread-row is-renaming">
                 <span className="thread-engine-badge" title={row.profile.name}>
-                  {row.profile.renderIcon?.(12)}
+                  {row.profile.renderIcon?.("0.75rem")}
                 </span>
                 <RenameInput target={renaming} onCommit={commitRename} />
               </div>
@@ -210,7 +213,7 @@ export function RunningZoneSection() {
               }}
             >
               <span className="thread-engine-badge" title={row.profile.name}>
-                {row.profile.renderIcon?.(12)}
+                {row.profile.renderIcon?.("0.75rem")}
               </span>
               <span className="thread-name">{titleOf(row)}</span>
               <span className="thread-meta">
