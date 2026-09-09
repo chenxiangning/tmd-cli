@@ -63,6 +63,11 @@ const ICON_DECOR_ITEMS: ReadonlyArray<{
   { id: "panel-checkpoints", label: "审批线面板", icon: SealCheck },
   { id: "panel-memory", label: "Memory 面板", icon: Brain },
 ];
+type _ItemsCoverAllKeys = Exclude<IconDecorId, (typeof ICON_DECOR_ITEMS)[number]["id"]> extends never
+  ? true
+  : never;
+/** 编译期穷尽钉:kernel 键表加键而本清单漏行时,上行类型塌缩为 never、此处报错(删键方向由 id 类型天然钉住)。 */
+export const _itemsCoverAllKeys: _ItemsCoverAllKeys = true;
 
 /** 取色器空值占位(无自定义色时的中性灰)。 */
 const COLOR_PLACEHOLDER = "#808080";
