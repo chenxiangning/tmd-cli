@@ -23,6 +23,7 @@ import { getActiveWorkspace } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import type { CliConfigEntry, CliConfigSource, CliConfigValues } from "@kernel/cliConfigRegistry";
 import { fetchOmpModelCatalog } from "./configCatalog";
+import { OMP_FIELD_DETAILS } from "./configDetails";
 
 /** 已知角色(实施校准点:以 `omp config get modelRoles` 为准;自定义角色可手输)。 */
 const OMP_ROLES = [
@@ -142,7 +143,12 @@ export const ompConfigEntry: Omit<CliConfigEntry, "icon"> = {
   load: loadOmpConfig,
   save: saveOmpConfig,
   rawEditor: "yaml",
-  fields: [
+  fields: buildFields(),
+};
+
+/** schema + 新手说明装配(说明文案在 configDetails.ts)。 */
+function buildFields(): CliConfigEntry["fields"] {
+  return withDetails([
     {
       id: "roles",
       label: t("模型角色路由"),
@@ -234,5 +240,9 @@ export const ompConfigEntry: Omit<CliConfigEntry, "icon"> = {
       options: ["always", "manual"],
       advanced: true,
     },
-  ],
-};
+  ]);
+}
+
+function withDetails(fields: CliConfigEntry["fields"]): CliConfigEntry["fields"] {
+  return fields.map((f) => ({ ...f, detail: OMP_FIELD_DETAILS[f.id] }));
+}

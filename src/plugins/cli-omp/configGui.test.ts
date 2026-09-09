@@ -3,7 +3,7 @@
  * fixture = 本机 ~/.omp/agent/config.yml 真实快照 + models.yml 目录解析。
  */
 import { describe, expect, it } from "vitest";
-import { loadOmpConfig, saveOmpConfig } from "./configGui";
+import { loadOmpConfig, ompConfigEntry, saveOmpConfig } from "./configGui";
 import { parseModelCatalog } from "./configCatalog";
 import type { CliConfigValues } from "@kernel/cliConfigRegistry";
 
@@ -140,5 +140,15 @@ describe("save:字节保真", () => {
     expect(out).toContain("modelRoles:");
     expect(out).toContain("fallbackChains:");
     expect(loadOmpConfig(out).roles).toEqual(loadOmpConfig(CONFIG).roles);
+  });
+});
+
+describe("schema 新手说明", () => {
+  it("每个字段都有非空 detail(两段式:解决什么/影响什么)", () => {
+    for (const f of ompConfigEntry.fields) {
+      expect(f.detail, `字段 ${f.id} 缺 detail`).toBeTruthy();
+      expect(f.detail).toContain("解决什么问题");
+      expect(f.detail).toContain("影响什么");
+    }
   });
 });

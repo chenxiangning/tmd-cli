@@ -44,6 +44,8 @@ export interface CliConfigField {
   catalog?: () => Promise<CliModelCatalogProvider[]>;
   /** 收进「高级」折叠区。 */
   advanced?: boolean;
+  /** 新手向长说明:解决什么问题、影响什么;存在时行内可展开。 */
+  detail?: string;
 }
 
 export interface CliConfigValues {

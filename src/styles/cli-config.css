@@ -154,6 +154,48 @@
   color: var(--tmd-fg-subtle);
 }
 
+/* 新手说明:可展开;正文 pre-line 保住两段式排版 */
+.cli-cfg-detail {
+  margin-top: 4px;
+}
+
+.cli-cfg-detail summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 0.6875rem;
+  color: var(--tmd-accent);
+  user-select: none;
+  list-style: none;
+}
+
+.cli-cfg-detail summary::-webkit-details-marker {
+  display: none;
+}
+
+.cli-cfg-detail summary::before {
+  content: "▸";
+  font-size: 0.625rem;
+  transition: transform 0.12s ease;
+}
+
+.cli-cfg-detail[open] summary::before {
+  transform: rotate(90deg);
+  background: var(--tmd-bg-sunken);
+}
+
+.cli-cfg-detail-body {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--tmd-bg-sunken);
+  font-size: 0.6875rem;
+  line-height: 1.7;
+  color: var(--tmd-fg-subtle);
+  white-space: pre-line;
+}
+
 /* 控件列:右对齐;下拉/输入统一宽度,开关靠右 */
 .cli-cfg-row > .styled-select,
 .cli-cfg-row > .cli-cfg-input,

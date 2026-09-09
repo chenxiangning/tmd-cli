@@ -30,6 +30,12 @@
 - [x] 修复 StyledSelect Esc 穿透关面板(React 合成层拦截);触发器不渲染徽标(仅选项内)
 - [x] 评审三路 findings 全修(omp 空键毁文件/codex 静默丢写/内核引号+# 与 flow-map 与行内注释/有序链连带删/读失败三态/保存基线重同步)
 
+## 4.6 阶段 1.5:omp 配置项新手说明(2026-09-09)
+
+- [x] `CliConfigField.detail` 契约 + ConfigForm 行内可展开「说明」(details/summary,pre-line 两段式)
+- [x] `cli-omp/configDetails.ts`:13 个字段全覆盖(解决什么问题/影响什么),事实依据 = omp-cli-course 第 5/6/7/9 课 + `omp --help` 实测
+- [x] 数据测试:每字段 detail 非空且含两段式标记;桩目检展开态/主题 token/高级区 4 项
+
 ## 4. 验证
 
 - [x] 全套前端门禁:typecheck / test / check:arch-boundary / check:file-size / build

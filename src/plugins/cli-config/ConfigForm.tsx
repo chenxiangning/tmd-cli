@@ -111,6 +111,12 @@ function FieldRow({
       <div className="cli-cfg-row-text">
         <div className="cli-cfg-row-title">{t(field.label)}</div>
         {field.hint && <div className="cli-cfg-row-hint">{t(field.hint)}</div>}
+        {field.detail && (
+          <details className="cli-cfg-detail">
+            <summary>{t("说明")}</summary>
+            <p className="cli-cfg-detail-body">{t(field.detail)}</p>
+          </details>
+        )}
       </div>
       <FieldControl field={field} value={value} options={options} catalog={catalog} values={values} onSet={onSet} />
     </div>
