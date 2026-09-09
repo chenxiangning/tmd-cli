@@ -26,6 +26,9 @@
 @import "./settings-panel.css";
 @import "./settings-shortcuts.css";
 @import "./settings-preset-grid.css";
+@import "./styled-select.css";
+@import "./cli-config.css";
+@import "./cli-config-controls.css";
 @import "./welcome.css";
 @import "./welcome-install.css";
 @import "./welcome-creds.css";

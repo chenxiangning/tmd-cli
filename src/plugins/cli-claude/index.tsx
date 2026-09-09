@@ -10,6 +10,7 @@ import type { CliDiskSession, CliProfile, CliSessionStatus, CliSuggestion } from
 import type { Plugin } from "@kernel/plugin";
 import { fetchClaudeQuota } from "./quota";
 import { listClaudeSuggestions } from "./scanSuggestions";
+import { claudeConfigEntry } from "./configGui";
 
 /**
  * claude 品牌 glyph:官方日芒标志(simple-icons claude 矢量路径 vendored,
@@ -210,6 +211,7 @@ export const cliClaudePlugin: Plugin = {
     category: "engine",
   },
   activate(ctx) {
+    ctx.registerCliConfig({ ...claudeConfigEntry, icon: (size) => <ClaudeGlyph size={size} /> });
     /* 命令/技能真相:listSuggestions 磁盘扫描(commands/*.md + SKILL.md +
        插件缓存,项目级优先),静态内置表兜底 —— 不再 activate 时 hydrate。 */
     const profile: CliProfile = {

@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLI 独立配置 · 交互原型(tmd-cli 设置面板)</title>
+<style>
+  /* 对齐 tmd-cli 浅色主题语义(--tmd-* 变量,accent 取用户客户端暖橙) */
+  :root {
+    --tmd-bg-base: #f6f5f2;
+    --tmd-bg-elevated: #ffffff;
+    --tmd-bg-hover: #f0efec;
+    --tmd-bg-active: #faf0e6;
+    --tmd-bg-input: #ffffff;
+    --tmd-fg: #24292f;
+    --tmd-fg-muted: #6b7280;
+    --tmd-fg-subtle: #9aa0a6;
+    --tmd-border: #e5e2dc;
+    --tmd-border-strong: #cfcbc2;
+    --tmd-accent: #d97a32;
+    --tmd-accent-fg: #ffffff;
+    --tmd-accent-soft: #faf0e6;
+    --tmd-warn-bg: #fdf6ec;
+    --tmd-warn-border: #f0d9b5;
+    --tmd-warn-fg: #92610f;
+    --tmd-ok: #2f9e44;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Segoe UI", sans-serif;
+    font-size: 13px; color: var(--tmd-fg); background: var(--tmd-bg-base);
+    display: flex; align-items: center; justify-content: center; padding: 18px;
+  }
+  /* ── 设置面板壳(全屏 overlay 的桌面态) ─────────────────── */
+  .panel {
+    width: 1060px; height: 700px; background: var(--tmd-bg-elevated);
+    border: 1px solid var(--tmd-border); border-radius: 12px;
+    box-shadow: 0 18px 48px rgba(0,0,0,.14); display: flex; flex-direction: column; overflow: hidden;
+  }
+  .panel-head {
+    display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+    border-bottom: 1px solid var(--tmd-border); font-size: 13px; font-weight: 600;
+  }
+  .panel-head .back {
+    display: inline-flex; align-items: center; gap: 5px; color: var(--tmd-fg-muted);
+    font-weight: 500; cursor: pointer; padding: 4px 8px; border-radius: 6px;
+  }
+  .panel-head .back:hover { background: var(--tmd-bg-hover); }
+  .panel-head .hint { margin-left: auto; font-size: 11px; color: var(--tmd-fg-subtle); font-weight: 400; }
+  .panel-body { flex: 1; display: flex; min-height: 0; }
+  /* ── 左导航 section 列表 ── */
+  .nav { width: 208px; border-right: 1px solid var(--tmd-border); padding: 10px 8px; background: #fbfaf8; }
+  .nav .group-label { font-size: 10px; color: var(--tmd-fg-subtle); padding: 8px 10px 4px; letter-spacing: .04em; }
+  .nav-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px;
+    color: var(--tmd-fg-muted); cursor: pointer; margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+  .nav-item.active { background: var(--tmd-accent-soft); color: var(--tmd-accent); font-weight: 600; }
+  .nav-item .ico { width: 14px; height: 14px; border-radius: 4px; background: currentColor; opacity: .75; flex: none; }
+  .nav-item .tag-new {
+    margin-left: auto; font-size: 9px; padding: 1px 5px; border-radius: 4px;
+    background: var(--tmd-accent); color: var(--tmd-accent-fg); font-weight: 600;
+  }
+  /* ── 右内容区 ── */
+  .content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .content-head { padding: 18px 22px 0; }
+  .content-head h1 { font-size: 16px; font-weight: 700; }
+  .content-head p { font-size: 12px; color: var(--tmd-fg-muted); margin-top: 4px; line-height: 1.5; }
+  .tabs { display: flex; gap: 2px; padding: 12px 22px 0; border-bottom: 1px solid var(--tmd-border); }
+  .tab {
+    display: flex; align-items: center; gap: 6px; padding: 7px 12px 8px; font-size: 12.5px;
+    color: var(--tmd-fg-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--tmd-fg); }
+  .tab.active { color: var(--tmd-accent); border-bottom-color: var(--tmd-accent); font-weight: 600; }
+  .tab .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .tab .dot.omp { background: linear-gradient(135deg, #c084fc, #3b82f6); }
+  .tab .dot.pi  { background: #10b981; }
+  .tab .dot.cla { background: #d97706; }
+  .tab .dot.cod { background: #111827; }
+  .tab .missing { font-size: 10px; color: var(--tmd-fg-subtle); }
+  .scroll { flex: 1; overflow-y: auto; padding: 14px 22px 90px; }
+  /* ── 文件行 ── */
+  .file-row {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin-bottom: 12px;
+    background: var(--tmd-bg-base); border: 1px solid var(--tmd-border); border-radius: var(--radius);
+    font-size: 11.5px; color: var(--tmd-fg-muted);
+  }
+  .file-row code { color: var(--tmd-fg); font-family: "SF Mono", Menlo, monospace; font-size: 11px; }
+  .file-row .chip { background: #eef7ef; color: var(--tmd-ok); border-radius: 4px; padding: 1px 6px; font-size: 10px; }
+  .file-row .link { margin-left: auto; color: var(--tmd-accent); cursor: pointer; font-size: 11.5px; }
+  /* ── 卡片与表单 ── */
+  .card { border: 1px solid var(--tmd-border); border-radius: var(--radius); margin-bottom: 12px; }
+  .card-title { font-size: 12px; font-weight: 600; padding: 10px 14px 2px; }
+  .card-inner { padding: 8px 14px 12px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 7px 0; }
+  .row + .row { border-top: 1px dashed #f0eee9; }
+  .row label.main { width: 200px; flex: none; font-size: 12.5px; }
+  .row .desc { font-size: 11px; color: var(--tmd-fg-subtle); margin-top: 2px; line-height: 1.45; }
+  .row .ctl { flex: 1; display: flex; align-items: center; gap: 8px; max-width: 420px; }
+  select, input[type=text], input[type=password] {
+    width: 100%; padding: 5px 9px; font-size: 12.5px; color: var(--tmd-fg);
+    background: var(--tmd-bg-input); border: 1px solid var(--tmd-border-strong); border-radius: 6px; outline: none;
+  }
+  select:focus, input:focus { border-color: var(--tmd-accent); box-shadow: 0 0 0 2px var(--tmd-accent-soft); }
+  .secret-wrap { position: relative; flex: 1; }
+  .secret-wrap input { padding-right: 34px; font-family: Menlo, monospace; font-size: 11px; }
+  .eye {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%); cursor: pointer;
+    color: var(--tmd-fg-subtle); font-size: 11px; user-select: none;
+  }
+  .toggle { position: relative; width: 32px; height: 18px; border-radius: 9px; background: #d5d2ca; cursor: pointer; transition: background .15s; flex: none; }
+  .toggle::after { content: ""; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .toggle.on { background: var(--tmd-accent); }
+  .toggle.on::after { left: 16px; }
+  details.adv { margin-top: 6px; }
+  details.adv summary { font-size: 11.5px; color: var(--tmd-accent); cursor: pointer; list-style: none; }
+  details.raw summary { font-size: 11.5px; color: var(--tmd-fg-muted); cursor: pointer; }
+  details.raw pre {
+    margin-top: 8px; padding: 10px 12px; background: #f7f6f3; border: 1px solid var(--tmd-border);
+    border-radius: 6px; font-family: "SF Mono", Menlo, monospace; font-size: 10.5px; line-height: 1.55;
+    color: #444; overflow-x: auto; max-height: 220px;
+  }
+  .warn {
+    display: flex; gap: 8px; padding: 9px 12px; margin-bottom: 12px; border-radius: var(--radius);
+    background: var(--tmd-warn-bg); border: 1px solid var(--tmd-warn-border); color: var(--tmd-warn-fg);
+    font-size: 11.5px; line-height: 1.5;
+  }
+  .note { font-size: 11px; color: var(--tmd-fg-subtle); line-height: 1.5; padding: 2px 2px 0; }
+  .foot-note { margin-top: 4px; }
+  /* ── omp 专业版:配置源 / 角色表 / 回退链 / 原始编辑 ── */
+  .src-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border: 1px solid var(--tmd-border-strong); border-radius: 14px; cursor: pointer; font-size: 11px; color: var(--tmd-fg-muted); }
+  .src-chip.active { background: var(--tmd-accent-soft); border-color: var(--tmd-accent); color: var(--tmd-accent); font-weight: 600; }
+  .src-chip i { font-style: normal; color: var(--tmd-fg-subtle); font-size: 10px; }
+  .card-title .mini { font-weight: 400; color: var(--tmd-fg-subtle); font-size: 10.5px; margin-left: 6px; }
+  .role-table { border: 1px solid var(--tmd-border); border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+  .role-head, .role-row { display: grid; grid-template-columns: 110px 1fr 120px 24px; gap: 8px; align-items: center; padding: 6px 10px; }
+  .role-head { background: #f7f6f3; font-size: 10.5px; color: var(--tmd-fg-subtle); }
+  .role-row + .role-row { border-top: 1px dashed #f0eee9; }
+  .role-del { cursor: pointer; color: var(--tmd-fg-subtle); text-align: center; }
+  .role-del:hover { color: #d64545; }
+  .btn.tiny { padding: 2px 10px; font-size: 11px; }
+  .chain { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chain-item { display: inline-flex; align-items: center; gap: 6px; padding: 3px 6px 3px 10px; background: var(--tmd-bg-base); border: 1px solid var(--tmd-border); border-radius: 14px; font-size: 11px; font-family: "SF Mono", Menlo, monospace; }
+  .chain-item b { cursor: pointer; color: var(--tmd-fg-subtle); font-weight: 400; padding: 0 2px; }
+  .chain-item b:hover { color: var(--tmd-accent); }
+  .chain-add { display: inline-flex; align-items: center; padding: 3px 10px; border: 1px dashed var(--tmd-border-strong); border-radius: 14px; font-size: 11px; color: var(--tmd-fg-subtle); cursor: pointer; }
+  .chain-add:hover { color: var(--tmd-accent); border-color: var(--tmd-accent); }
+  .raw-editor { border: 1px solid var(--tmd-border-strong); border-radius: var(--radius); overflow: hidden; }
+  .raw-bar { padding: 6px 12px; background: #f7f6f3; border-bottom: 1px solid var(--tmd-border); font-size: 11px; color: var(--tmd-fg-muted); display: flex; justify-content: space-between; }
+  .raw-hint { color: var(--tmd-fg-subtle); }
+  .raw-editor pre { margin: 0; padding: 12px 14px; background: #fbfaf8; font-family: "SF Mono", Menlo, monospace; font-size: 11px; line-height: 1.6; color: #3a3a37; min-height: 260px; outline: none; }
+  /* ── 底部保存条 ── */
+  .savebar {
+    position: absolute; right: 26px; bottom: 22px; display: none; align-items: center; gap: 10px;
+    padding: 9px 12px 9px 16px; background: var(--tmd-bg-elevated); border: 1px solid var(--tmd-border-strong);
+    border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.13); font-size: 12px;
+  }
+  .savebar.show { display: flex; }
+  .savebar .dirty-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--tmd-accent); }
+  .savebar .count { color: var(--tmd-fg-muted); }
+  .btn { padding: 5px 14px; border-radius: 7px; font-size: 12px; cursor: pointer; border: 1px solid var(--tmd-border-strong); background: var(--tmd-bg-elevated); color: var(--tmd-fg); }
+  .btn:hover { background: var(--tmd-bg-hover); }
+  .btn.primary { background: var(--tmd-accent); border-color: var(--tmd-accent); color: var(--tmd-accent-fg); font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.06); }
+  /* ── toast ── */
+  .toast {
+    position: absolute; left: 50%; top: 64px; transform: translateX(-50%) translateY(-8px);
+    background: #24312a; color: #e8f5ec; font-size: 12px; padding: 8px 16px; border-radius: 8px;
+    opacity: 0; pointer-events: none; transition: all .2s; box-shadow: 0 8px 20px rgba(0,0,0,.2);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .panel-wrap { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .mono { font-family: "SF Mono", Menlo, monospace; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="panel">
+  <div class="panel-head">
+    <span class="back">‹ 返回应用</span>
+    <span>设置</span>
+    <span class="hint">原型 · 交互示意,数据为本机真实配置快照</span>
+  </div>
+  <div class="panel-body">
+    <div class="nav">
+      <div class="group-label">设置</div>
+      <div class="nav-item"><span class="ico"></span>基础设置</div>
+      <div class="nav-item"><span class="ico"></span>智能体 / 提示词</div>
+      <div class="nav-item active"><span class="ico"></span>CLI 独立配置<span class="tag-new">新</span></div>
+      <div class="nav-item"><span class="ico"></span>SSH 远程</div>
+      <div class="nav-item"><span class="ico"></span>工作区分组</div>
+    </div>
+    <div class="content">
+      <div class="content-head">
+        <h1>CLI 独立配置</h1>
+        <p>图形化编辑各 CLI 的本地配置文件 —— 不用记命令、不用手改磁盘文件;保存即写回原文件,未知内容原样保留。</p>
+      </div>
+      <div class="tabs">
+        <div class="tab active" data-t="omp"><span class="dot omp"></span>OMP</div>
+        <div class="tab" data-t="pi"><span class="dot pi"></span>pi</div>
+        <div class="tab" data-t="claude"><span class="dot cla"></span>Claude Code</div>
+        <div class="tab" data-t="codex"><span class="dot cod"></span>Codex</div>
+        <div class="tab missing">(已安装引擎自动出现,未注册配置能力的引擎不显示)</div>
+      </div>
+
+      <div class="scroll">
+        <!-- ════════ OMP(专业版)════════ -->
+        <div class="tabpane" id="pane-omp">
+          <div class="file-row">
+            <span>配置源</span>
+            <span class="src-chip active" data-src="global">全局 ~/.omp/agent/config.yml</span>
+            <span class="src-chip" data-src="project">项目级 .omp/config.yml <i>未创建</i></span>
+            <span class="chip">已托管 17 项</span>
+            <span class="link" id="raw-toggle">原始编辑</span>
+          </div>
+          <p class="note" id="src-note" style="margin:-6px 0 10px">全局配置:~/.omp/agent/config.yml;项目级 overlay 与 --config 叠加在其上,数组段整体替换。</p>
+
+          <div id="omp-gui">
+            <div class="card">
+              <div class="card-title">模型角色路由 modelRoles<span class="mini">内置角色 + 自定义;值 = provider/model:思考强度</span></div>
+              <div class="card-inner">
+                <div class="role-table" id="role-table">
+                  <div class="role-head"><span>角色</span><span>模型</span><span>思考强度</span><span></span></div>
+                  <div class="role-row">
+                    <select class="watch"><option selected>default</option><option>smol</option><option>slow</option><option>plan</option><option>advisor</option><option>commit</option><option>reasoning</option><option>自定义…</option></select>
+                    <select class="watch"><option selected>zhipu-coding-plan/glm-5.3-flash</option><option>minimax-code-cn/MiniMax-M3</option><option>kimi-code/k3</option><option>my-relay/grok-4.6</option><option>qwen-cn/qwen3.8-max</option><option>anthropic/claude-haiku-4.5</option></select>
+                    <select class="watch"><option>继承全局</option><option>auto</option><option>off</option><option>minimal</option><option>low</option><option>medium</option><option>high</option><option selected>max</option></select>
+                    <span class="role-del">×</span>
+                  </div>
+                  <div class="role-row">
+                    <select class="watch"><option>default</option><option selected>smol</option><option>slow</option><option>plan</option><option>advisor</option><option>commit</option><option>reasoning</option><option>自定义…</option></select>
+                    <select class="watch"><option>zhipu-coding-plan/glm-5.3-flash</option><option selected>minimax-code-cn/MiniMax-M3</option><option>kimi-code/k3</option><option>my-relay/grok-4.6</option><option>qwen-cn/qwen3.8-max</option><option>anthropic/claude-haiku-4.5</option></select>
+                    <select class="watch"><option>继承全局</option><option>auto</option><option>off</option><option>minimal</option><option>low</option><option>medium</option><option selected>high</option><option>max</option></select>
+                    <span class="role-del">×</span>
+                  </div>
+                  <div class="role-row">
+                    <select class="watch"><option>default</option><option>smol</option><option>slow</option><option>plan</option><option selected>advisor</option><option>commit</option><option>reasoning</option><option>自定义…</option></select>
+                    <select class="watch"><option>zhipu-coding-plan/glm-5.3-flash</option><option>minimax-code-cn/MiniMax-M3</option><option>kimi-code/k3</option><option>my-relay/grok-4.6</option><option>qwen-cn/qwen3.8-max</option><option selected>anthropic/claude-haiku-4.5</option></select>
+                    <select class="watch"><option selected>继承全局</option><option>auto</option><option>off</option><option>minimal</option><option>low</option><option>medium</option><option>high</option><option>max</option></select>
+                    <span class="role-del">×</span>
+                  </div>
+                </div>
+                <button class="btn tiny" id="role-add">+ 添加角色</button>
+                <p class="note" style="margin-top:6px">default/smol/slow/plan 另有启动 flag 与环境变量;advisor/commit/reasoning 仅配置生效。角色枚举以 omp config get modelRoles 实测校准。</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">回退链 retry.fallbackChains<span class="mini">主模型撞墙按序切换,冷却自动切回</span></div>
+              <div class="card-inner">
+                <div class="row">
+                  <label class="main">自动回退<div class="desc">retry.modelFallback(默认开)</div></label>
+                  <div class="ctl"><span class="toggle watch on" data-on="1"></span></div>
+                </div>
+                <div class="row">
+                  <label class="main">default 链<div class="desc">按角色配链;可加多条</div></label>
+                  <div class="ctl chain">
+                    <span class="chain-item">minimax-code-cn/MiniMax-M3:high <b class="up">↑</b><b class="down">↓</b><b class="rm">×</b></span>
+                    <span class="chain-add" data-candidate="anthropic/claude-haiku-4.5">+ 候选</span>
+                  </div>
+                </div>
+                <p class="note">数组是整体替换语义:项目级配置写链会覆盖全局链,不是追加。</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">思考与生成</div>
+              <div class="card-inner">
+                <div class="row">
+                  <label class="main">全局思考强度<div class="desc">defaultThinkingLevel;角色后缀优先于此</div></label>
+                  <div class="ctl"><select class="watch"><option selected>auto</option><option>off</option><option>minimal</option><option>low</option><option>medium</option><option>high</option><option>max</option></select></div>
+                </div>
+                <div class="row">
+                  <label class="main">符号风格<div class="desc">symbolPreset</div></label>
+                  <div class="ctl"><select class="watch"><option selected>unicode</option><option>ascii</option></select></div>
+                </div>
+                <div class="row">
+                  <label class="main">prewalk<div class="desc">prewalk.enabled:计划确定后自动切 smol 便宜模型跑实现</div></label>
+                  <div class="ctl"><span class="toggle watch" data-on="0"></span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">能力开关</div>
+              <div class="card-inner">
+                <div class="row">
+                  <label class="main">自动压缩历史<div class="desc">compaction.enabled</div></label>
+                  <div class="ctl"><span class="toggle watch" data-on="0"></span></div>
+                </div>
+                <div class="row">
+                  <label class="main">记忆后端<div class="desc">memory.backend:mnemopi = 本地 SQLite 向量检索</div></label>
+                  <div class="ctl"><select class="watch"><option selected>off</option><option>local</option><option>mnemopi</option></select></div>
+                </div>
+                <div class="row">
+                  <label class="main">checkpoint / rewind<div class="desc">checkpoint.enabled(默认关)</div></label>
+                  <div class="ctl"><span class="toggle watch" data-on="0"></span></div>
+                </div>
+                <div class="row">
+                  <label class="main">安全扫描<div class="desc">security.enabled(默认关)</div></label>
+                  <div class="ctl"><span class="toggle watch" data-on="0"></span></div>
+                </div>
+                <details class="adv">
+                  <summary>高级:流式规则 ttsr</summary>
+                  <div class="row" style="margin-top:4px">
+                    <label class="main">启用<div class="desc">ttsr.enabled(默认开)</div></label>
+                    <div class="ctl"><span class="toggle watch on" data-on="1"></span></div>
+                  </div>
+                  <div class="row">
+                    <label class="main">打断模式<div class="desc">ttsr.interruptMode</div></label>
+                    <div class="ctl"><select class="watch"><option selected>always</option><option>never</option></select></div>
+                  </div>
+                  <div class="row">
+                    <label class="main">防重触发<div class="desc">ttsr.repeatMode / repeatGap(按 turn 数)</div></label>
+                    <div class="ctl"><select class="watch" style="max-width:130px"><option selected>cooldown</option><option>off</option></select><input type="text" class="watch" value="3" style="max-width:70px"></div>
+                  </div>
+                </details>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">网络搜索 webSearch</div>
+              <div class="card-inner">
+                <div class="row">
+                  <label class="main">搜索链<div class="desc">webSearch.providerChain,按序尝试</div></label>
+                  <div class="ctl chain">
+                    <span class="chain-item">exa <b class="up">↑</b><b class="down">↓</b><b class="rm">×</b></span>
+                    <span class="chain-item">perplexity <b class="up">↑</b><b class="down">↓</b><b class="rm">×</b></span>
+                    <span class="chain-add" data-candidate="gemini">+ 候选</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p class="note foot-note">providers 可见性(path-scope 清单)、MCP 服务器、auth-broker 多账号轮换留 v2。保存为行级补丁,未托管段与注释原样保留;改动对新会话生效。</p>
+          </div>
+
+          <div id="omp-raw" style="display:none">
+            <div class="raw-editor">
+              <div class="raw-bar"><span>~/.omp/agent/config.yml · YAML</span><span class="raw-hint">完整逃生舱:全部键直观可编;保存同样留 .bak-tmd 备份</span></div>
+              <pre class="watch" contenteditable="true" spellcheck="false">modelRoles:
+  smol: minimax-code-cn/MiniMax-M3:high
+  default: zhipu-coding-plan/glm-5.3-flash:max
+symbolPreset: unicode
+setupVersion: 2
+retry:
+  modelFallback: true
+  fallbackChains:
+    default:
+      - minimax-code-cn/MiniMax-M3:high
+defaultThinkingLevel: auto
+dev:
+  autoqaConsent: granted
+memory:
+  backend: "off"
+compaction:
+  enabled: false</pre>
+            </div>
+            <p class="note" style="margin-top:8px">实现用现成 CodeMirror 组件(kernel/cmEditor,files 编辑器同源):YAML 高亮 + 脏检查,与 GUI 模式共用同一保存/备份通道。</p>
+          </div>
+        </div>
+
+        <!-- ════════ pi ════════ -->
+        <div class="tabpane" id="pane-pi" style="display:none">
+          <div class="file-row">
+            <span>配置文件</span><code>~/.pi/agent/settings.json</code>
+            <span class="chip">已托管 4 项</span>
+          </div>
+          <div class="card">
+            <div class="card-title">默认模型与思考</div>
+            <div class="card-inner">
+              <div class="row">
+                <label class="main">默认服务商<div class="desc">defaultProvider;候选来自 models.json 的 providers</div></label>
+                <div class="ctl"><select class="watch"><option selected>kimi-coding</option><option>deepseek</option><option>minimax-cn</option><option>zai-coding-cn</option><option>openai-codex</option></select></div>
+              </div>
+              <div class="row">
+                <label class="main">默认模型<div class="desc">defaultModel;随服务商过滤</div></label>
+                <div class="ctl"><select class="watch"><option selected>k3</option><option>kimi-for-coding</option></select></div>
+              </div>
+              <div class="row">
+                <label class="main">思考强度<div class="desc">defaultThinkingLevel</div></label>
+                <div class="ctl"><select class="watch"><option>off</option><option>minimal</option><option>low</option><option>medium</option><option selected>high</option></select></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">外观</div>
+            <div class="card-inner">
+              <div class="row">
+                <label class="main">主题<div class="desc">theme:pi 自身 TUI 主题</div></label>
+                <div class="ctl"><select class="watch"><option selected>light</option><option>dark</option><option>auto</option></select></div>
+              </div>
+            </div>
+          </div>
+          <p class="note foot-note">packages(扩展包)的装卸属于「插件市场」,此处不重复管理;auth.json / models.json 里的密钥编辑在引擎卡凭据区,v2 接入。</p>
+        </div>
+
+        <!-- ════════ Claude Code ════════ -->
+        <div class="tabpane" id="pane-claude" style="display:none">
+          <div class="file-row">
+            <span>配置文件</span><code>~/.claude/settings.json</code>
+            <span class="chip">已托管 9 项</span>
+          </div>
+          <div class="card">
+            <div class="card-title">模型</div>
+            <div class="card-inner">
+              <div class="row">
+                <label class="main">默认模型<div class="desc">model(顶层键)</div></label>
+                <div class="ctl"><input type="text" class="watch" value="fable"></div>
+              </div>
+              <div class="row">
+                <label class="main">始终思考<div class="desc">alwaysThinkingEnabled</div></label>
+                <div class="ctl"><span class="toggle watch on" data-on="1"></span></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">服务商接入(env)</div>
+            <div class="card-inner">
+              <div class="row">
+                <label class="main">API 地址<div class="desc">env.ANTHROPIC_BASE_URL</div></label>
+                <div class="ctl"><input type="text" class="watch" value="https://api.kimi.com/coding/"></div>
+              </div>
+              <div class="row">
+                <label class="main">API Key<div class="desc">env.ANTHROPIC_API_KEY;仅写入磁盘,不回显明文</div></label>
+                <div class="ctl secret-wrap"><input type="password" class="watch" value="sk-kimi-17YDNofoXfJf6YSF4LbVSmO7nUfhbbvTgSIqs1qewvneIKTYV2V4a2D9fGT4rBaJ"><span class="eye">显示</span></div>
+              </div>
+              <div class="row">
+                <label class="main">主模型覆盖<div class="desc">env.ANTHROPIC_MODEL</div></label>
+                <div class="ctl"><input type="text" class="watch" value="kimi-for-coding"></div>
+              </div>
+              <details class="adv">
+                <summary>高级:细分档模型覆盖(env.ANTHROPIC_DEFAULT_*)</summary>
+                <div class="row" style="margin-top:4px">
+                  <label class="main">Opus 档<div class="desc">ANTHROPIC_DEFAULT_OPUS_MODEL</div></label>
+                  <div class="ctl"><input type="text" class="watch" value="k3"></div>
+                </div>
+                <div class="row">
+                  <label class="main">Sonnet 档<div class="desc">ANTHROPIC_DEFAULT_SONNET_MODEL</div></label>
+                  <div class="ctl"><input type="text" class="watch" value="k3"></div>
+                </div>
+                <div class="row">
+                  <label class="main">Haiku 档<div class="desc">ANTHROPIC_DEFAULT_HAIKU_MODEL</div></label>
+                  <div class="ctl"><input type="text" class="watch" value="k3"></div>
+                </div>
+                <div class="row">
+                  <label class="main">请求超时(ms)<div class="desc">API_TIMEOUT_MS</div></label>
+                  <div class="ctl"><input type="text" class="watch" value="3000000"></div>
+                </div>
+              </details>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">杂项</div>
+            <div class="card-inner">
+              <div class="row">
+                <label class="main">提交署名<div class="desc">includeCoAuthoredBy:关闭则 git 提交不带 Co-Authored-By</div></label>
+                <div class="ctl"><span class="toggle watch" data-on="0"></span></div>
+              </div>
+            </div>
+          </div>
+          <p class="note foot-note">hooks / permissions / enabledPlugins 等结构化段此处不改,保存时 JSON 合并写回、原键序保留。</p>
+        </div>
+
+        <!-- ════════ Codex ════════ -->
+        <div class="tabpane" id="pane-codex" style="display:none">
+          <div class="file-row">
+            <span>配置文件</span><code>~/.codex/config.toml</code>
+            <span class="chip">已托管 6 项</span>
+          </div>
+          <div class="warn">⚠ config.toml 的 [projects] / [mcp_servers] / [plugins] / [desktop] 等段由 Codex 自管理。GUI 只编辑顶部平面键;保存是<b>行级补丁</b>,注释与全部未知段落原样保留。</div>
+          <div class="card">
+            <div class="card-title">模型</div>
+            <div class="card-inner">
+              <div class="row">
+                <label class="main">模型<div class="desc">model</div></label>
+                <div class="ctl"><input type="text" class="watch" value="MiniMax-M3"></div>
+              </div>
+              <div class="row">
+                <label class="main">服务商<div class="desc">model_provider(引用 [model_providers.*] 段名)</div></label>
+                <div class="ctl"><input type="text" class="watch" value="custom"></div>
+              </div>
+              <div class="row">
+                <label class="main">推理力度<div class="desc">model_reasoning_effort</div></label>
+                <div class="ctl"><select class="watch"><option>minimal</option><option>low</option><option>medium</option><option selected>high</option></select></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">网络与存储</div>
+            <div class="card-inner">
+              <div class="row">
+                <label class="main">网页搜索<div class="desc">web_search</div></label>
+                <div class="ctl"><select class="watch"><option selected>disabled</option><option>cached</option><option>enabled</option></select></div>
+              </div>
+              <div class="row">
+                <label class="main">禁用响应存储<div class="desc">disable_response_storage</div></label>
+                <div class="ctl"><span class="toggle watch on" data-on="1"></span></div>
+              </div>
+              <div class="row">
+                <label class="main">服务档位<div class="desc">service_tier</div></label>
+                <div class="ctl"><select class="watch"><option selected>default</option><option>flex</option><option>priority</option></select></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-wrap">
+    <div class="savebar" id="savebar">
+      <span class="dirty-dot"></span><span>有未保存更改</span><span class="count" id="dirty-count">2 项</span>
+      <button class="btn" id="discard">放弃</button>
+      <button class="btn primary" id="save">保存到磁盘</button>
+    </div>
+    <div class="toast" id="toast">已写入 ~/.omp/agent/config.yml(已留备份 config.yml.bak-tmd)· 改动对新会话生效</div>
+  </div>
+</div>
+
+<script>
+  // tab 切换
+  const tabs = document.querySelectorAll('.tab[data-t]');
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.remove('active')); t.classList.add('active');
+    document.querySelectorAll('.tabpane').forEach(p => p.style.display = 'none');
+    document.getElementById('pane-' + t.dataset.t).style.display = '';
+    hideSavebar();
+  }));
+  // 脏跟踪 + 保存条
+  let dirty = 0;
+  const savebar = document.getElementById('savebar'), toast = document.getElementById('toast');
+  function markDirty() {
+    dirty++; document.getElementById('dirty-count').textContent = dirty + ' 项'; savebar.classList.add('show');
+  }
+  // 事件委托:动态行(角色表 / 回退链)与静态控件统一处理
+  document.addEventListener('click', (e) => {
+    const eye = e.target.closest('.eye');
+    if (eye) { const i = eye.parentElement.querySelector('input'); const show = i.type === 'password';
+      i.type = show ? 'text' : 'password'; eye.textContent = show ? '隐藏' : '显示'; return; }
+    const tg = e.target.closest('.toggle');
+    if (tg) { tg.classList.toggle('on'); tg.dataset.on = tg.classList.contains('on') ? '1' : '0'; markDirty(); return; }
+    const del = e.target.closest('.role-del');
+    if (del) { del.closest('.role-row').remove(); markDirty(); return; }
+    const mv = e.target.closest('.chain-item .up, .chain-item .down');
+    if (mv) { const it = mv.closest('.chain-item');
+      const sib = mv.classList.contains('up') ? it.previousElementSibling : it.nextElementSibling;
+      if (sib && sib.classList.contains('chain-item')) { mv.classList.contains('up') ? sib.before(it) : sib.after(it); markDirty(); } return; }
+    if (e.target.closest('.chain-item .rm')) { e.target.closest('.chain-item').remove(); markDirty(); return; }
+    if (e.target.closest('#role-add')) {
+      const t = document.querySelector('#role-table .role-row').cloneNode(true);
+      t.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+      document.getElementById('role-table').appendChild(t); markDirty(); return;
+    }
+    const add = e.target.closest('.chain-add');
+    if (add) { const item = document.createElement('span'); item.className = 'chain-item';
+      item.innerHTML = add.dataset.candidate + ' <b class="up">↑</b><b class="down">↓</b><b class="rm">×</b>';
+      add.before(item); markDirty(); return; }
+    const src = e.target.closest('.src-chip');
+    if (src) { document.querySelectorAll('.src-chip').forEach(c => c.classList.remove('active')); src.classList.add('active');
+      document.getElementById('src-note').textContent = src.dataset.src === 'project'
+        ? '项目级 overlay:数组段整体覆盖全局(最常见坑);首次保存时创建 .omp/config.yml'
+        : '全局配置:~/.omp/agent/config.yml;项目级 overlay 与 --config 叠加在其上,数组段整体替换。'; return; }
+    if (e.target.closest('#raw-toggle')) {
+      const gui = document.getElementById('omp-gui'), raw = document.getElementById('omp-raw');
+      const toRaw = raw.style.display === 'none';
+      gui.style.display = toRaw ? 'none' : ''; raw.style.display = toRaw ? '' : 'none';
+      e.target.textContent = toRaw ? '返回 GUI' : '原始编辑'; hideSavebar(); return; }
+  });
+  const markWatch = (e) => { if (e.target.closest && e.target.closest('.watch')) markDirty(); };
+  document.addEventListener('input', markWatch);
+  document.addEventListener('change', markWatch);
+  function hideSavebar() { savebar.classList.remove('show'); dirty = 0; }
+  document.getElementById('discard').addEventListener('click', hideSavebar);
+  document.getElementById('save').addEventListener('click', () => {
+    hideSavebar(); toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2600);
+  });
+</script>
+</body>
+</html>

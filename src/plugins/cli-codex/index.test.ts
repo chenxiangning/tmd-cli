@@ -17,6 +17,7 @@ function activateCapturingProfile(): CliProfile {
     registerCliProfile: (profile: CliProfile) => captured.push(profile),
     registerTabContent: () => {},
     registerCommand: () => {},
+    registerCliConfig: () => {},
   } as unknown as PluginContext);
   const profile = captured[0];
   if (!profile) throw new Error("activate 未注册任何 profile");

@@ -20,6 +20,7 @@ import {
 } from "@kernel/settings";
 import { playAskSound } from "@kernel/askSound";
 import { t } from "@kernel/i18n";
+import { StyledSelect } from "@kernel/StyledSelect";
 
 const SEND_SHORTCUT_OPTIONS: ReadonlyArray<{
   id: SendShortcut;
@@ -127,20 +128,12 @@ export function BehaviorTab() {
             <div className="pref-desc">{t("选择 Ask 提示音音效，「试听」立即播放。")}</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <select
+            <StyledSelect
               value={settings.askSoundId}
-              aria-label={t("提示音音效")}
-              onChange={(e) =>
-                updateSettings({ askSoundId: e.target.value as AskSoundId })
-              }
-              className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-sm text-(--tmd-fg) outline-none"
-            >
-              {ASK_SOUND_OPTIONS.map(({ id, label }) => (
-                <option key={id} value={id}>
-                  {t(label)}
-                </option>
-              ))}
-            </select>
+              ariaLabel={t("提示音音效")}
+              onChange={(v) => updateSettings({ askSoundId: v as AskSoundId })}
+              options={ASK_SOUND_OPTIONS.map(({ id, label }) => ({ value: id, label: t(label) }))}
+            />
             <button
               type="button"
               className="segment is-active"
@@ -186,20 +179,12 @@ export function BehaviorTab() {
             <div className="pref-desc">{t("选择轮次结束提示音音效，「试听」立即播放。")}</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <select
+            <StyledSelect
               value={settings.turnEndSoundId}
-              aria-label={t("结束音效")}
-              onChange={(e) =>
-                updateSettings({ turnEndSoundId: e.target.value as AskSoundId })
-              }
-              className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-sm text-(--tmd-fg) outline-none"
-            >
-              {ASK_SOUND_OPTIONS.map(({ id, label }) => (
-                <option key={id} value={id}>
-                  {t(label)}
-                </option>
-              ))}
-            </select>
+              ariaLabel={t("结束音效")}
+              onChange={(v) => updateSettings({ turnEndSoundId: v as AskSoundId })}
+              options={ASK_SOUND_OPTIONS.map(({ id, label }) => ({ value: id, label: t(label) }))}
+            />
             <button
               type="button"
               className="segment is-active"

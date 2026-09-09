@@ -40,6 +40,7 @@ function activateCollectingKinds(): Set<string> {
     registerHomePanel: () => {},
     registerSidebarAction: () => {},
     registerFileVisual: () => {},
+    registerCliConfig: () => {},
     events: { on: () => () => {}, off: () => {}, emit: () => {} },
   } as unknown as PluginContext;
   for (const plugin of allPlugins) {

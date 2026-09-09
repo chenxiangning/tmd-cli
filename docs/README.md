@@ -106,6 +106,7 @@
 | 2026-09-09 | [工作区别名:显示名覆盖(行内重命名)](superpowers/specs/2026-09-09-workspace-alias-design.md) | 待评审(设计定稿,确认后实现) |
 | 2026-09-09 | [工作区分组:侧栏分组 + 设置页管理 + 右键移动(参考 codemoss)](superpowers/specs/2026-09-09-workspace-groups-design.md) | 已落地(3d22cc7;实现随 spec 同提交) |
 | 2026-09-09 | [快捷键改键 + 悬浮提示键位(对标 codemoss)](superpowers/specs/2026-09-09-shortcuts-remap-tooltip-design.md) | 已落地(f6f334a + 9a758f5;实现随 spec 同提交) |
+| 2026-09-09 | [CLI 独立配置:图形化编辑各 CLI 本地配置(交互原型)](design/cli-config-gui.html) | 已落地(提案 openspec/changes/cli-gui-config/,实现随提案同提交) |
 | 2026-09-09 | [客户端内存占用分析与优化预案(含 codemoss 架构对照:看/跑解耦)](research/memory-usage-analysis.md) | 已落地(165b4d4 起) |
 | 2026-09-09 | [磁盘会话先行回放 + 进程惰性拉起设计(走法 1)](superpowers/specs/2026-09-09-disk-first-session-open-design.md) | 已落地(165b4d4/966271a/848ee7b) |
 | 2026-09-09 | [磁盘会话先行回放 spec 对抗评审(7 发现全处置)](review/2026-09-09-disk-first-session-open-review.md) | 已完成(修订已实施) |

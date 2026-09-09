@@ -23,6 +23,7 @@ import { registerMarketPanel } from "./marketPanel";
 import type { SidebarAction } from "./sidebarActions";
 import { registerCommand } from "./shortcuts";
 import { registerHomePanel } from "./homePanels";
+import { registerCliConfig } from "./cliConfigRegistry";
 
 class Host implements PluginContext {
   readonly events = new EventBus();
@@ -90,6 +91,7 @@ class Host implements PluginContext {
   registerFileVisual = registerFileVisual;
   registerCommand = registerCommand;
   registerHomePanel = registerHomePanel;
+  registerCliConfig = registerCliConfig;
   // ---- 插件生命周期(委托 kernel/hostRegistry) ----------------------------
 
   activateAll(plugins: Plugin[]): Promise<void> {
