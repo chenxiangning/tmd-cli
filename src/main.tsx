@@ -21,6 +21,8 @@ import { bootUiFontSize } from "@kernel/uiFontSize";
 import { bootUiZoom } from "@kernel/uiZoom";
 import { bootIconDecor } from "@kernel/iconDecor";
 import { allPlugins } from "@plugins/index";
+import { installPluginShims } from "@kernel/pluginSdk";
+import { bootLocalPlugins, activateBootLocals } from "@kernel/localPlugins";
 import "./styles/global.css";
 
 function App() {
@@ -41,12 +43,25 @@ function App() {
     window.addEventListener("focus", syncFocus);
     window.addEventListener("blur", syncFocus);
     syncFocus();
+    installPluginShims(); /* 本地插件 shim 实例表:任何外部 bundle import 之前必须就位 */
+    /* 本地插件扫描与内置激活并行(内置激活时序零变化);扫描完成后在 setReady 之后晚激活,
+       单插件 activate 卡死不再阻塞首屏。 */
+    const localPromise = bootLocalPlugins(new Set(allPlugins.map((p) => p.id)));
     host
       .activateAll(allPlugins)
       .then(() => {
         registerDefaultContributions(host);
         setReady(true);
         bootAskRestore(); /* Ask 等待状态开机恢复(profiles 就绪后才有 askMarks,见 kernel/askWatchRestore.ts) */
+        return localPromise;
+      })
+      .then(async (locals) => {
+        /* 拓扑晚激活 + 单插件失败隔离全在 activateBootLocals;任何意外不得翻成全局错误页。 */
+        try {
+          await activateBootLocals(locals);
+        } catch (e) {
+          console.error("[local-plugins] 晚激活异常(已隔离):", e);
+        }
       })
       .catch((e: unknown) => setError(String(e)));
     return () => {

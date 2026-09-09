@@ -19,6 +19,7 @@ import { t } from "@kernel/i18n";
 import { getMarketPanel } from "@kernel/marketPanel";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { appRestart } from "@kernel/ipc";
+import { Mounts } from "@kernel/Mounts";
 import { CATEGORY_ORDER, MergedStrip, type Row } from "./PluginMarketStrip";
 import { PluginMarketList } from "./PluginMarketList";
 
@@ -158,6 +159,8 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
             <PluginMarketList groups={groups} onToggle={toggle} />
           </div>
         )}
+        {/* ═══ 本地插件分区(归 local-loader 插件贡献,经 market.local 挂点) ═══ */}
+        <Mounts point="market.local" />
 
         {/* ═══ 在线市场(预留) ═══ */}
         <div className="pm-section-title">{t("在线市场")}</div>

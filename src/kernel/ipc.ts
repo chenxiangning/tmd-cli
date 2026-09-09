@@ -25,6 +25,23 @@ import type {
   SshSessionEvent,
 } from "./sshTypes";
 
+/** 本地插件文件戳(plugins.rs 契约):文件名 + 内容 MD5 + 大小 + mtime(版本库排序)。 */
+export interface LocalPluginFileStamp {
+  name: string;
+  /** 内容 SHA-256(信任闸判据,抗碰撞;AI 有 shell,md5 会被选择前缀碰撞伪造)。 */
+  sha256: string;
+  size: number;
+  modified_ms: number;
+}
+/** 本地插件扫描条目:坏目录以 error 条目返回(不静默丢,前端落「加载失败」)。 */
+export interface LocalPluginScanEntry {
+  id: string;
+  manifest?: Record<string, unknown>;
+  files: LocalPluginFileStamp[];
+  versions: LocalPluginFileStamp[];
+  error?: string;
+}
+
 export type {
   SftpEntry,
   SftpEventPayload,
@@ -475,6 +492,23 @@ export const ipc = {
     invoke<boolean>("cli_install_run", { id, plan }),
   /** 字符串 MD5(小写 hex)。kimi 会话目录按 MD5(cwd) 命名,前端据此拼会话路径。 */
   md5Hex: (text: string) => invoke<string>("md5_hex", { text }),
+
+  /* ── 本地插件原语(plugins.rs;路径白名单在 Rust 侧锁死 ~/.tmd-cli/plugins)── */
+  /** 扫描插件目录:manifest 原始 JSON + 顶层文件戳(md5)+ .versions 版本库清单。 */
+  pluginScan: () => invoke<LocalPluginScanEntry[]>("plugin_scan"),
+  /** 读插件目录顶层单文件(entry/style;16MB 上限)。 */
+  pluginReadFile: (id: string, name: string) =>
+    invoke<string>("plugin_read_file", { id, name }),
+  /** 读版本库单文件(.versions/<file>)。 */
+  pluginReadVersion: (id: string, file: string) =>
+    invoke<string>("plugin_read_version", { id, file }),
+  /** 当前入口归档进版本库(同内容按 hash 去重);返回归档文件名或 null。 */
+  pluginArchive: (id: string) => invoke<string | null>("plugin_archive", { id }),
+  /** 回退:先归档当前版,再把指定版本换回入口。 */
+  pluginRollback: (id: string, file: string) =>
+    invoke<void>("plugin_rollback", { id, file }),
+  /** 卸载本地插件:目录整体移入系统废纸篓(路径 Rust 侧锁死,前端只传 id)。 */
+  pluginDelete: (id: string) => invoke<void>("plugin_delete", { id }),
 
   /* ── SSH(对齐 src-tauri/src/ssh/commands.rs;输出/翻页走上方 session_* 按 kind 路由)── */
   /** 创建 SSH 会话:立即返回 id,连接/认证后台完成(ssh://event / ssh://prompt)。 */

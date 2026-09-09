@@ -19,7 +19,7 @@ import type { CliConfigEntry } from "./cliConfigRegistry";
 export type PluginCategory = "engine" | "feature" | "core";
 
 /** 插件展示元数据 —— 插件市场(插排页)消费,与激活逻辑无关。 */
-interface PluginMeta {
+export interface PluginMeta {
   /** 显示名,如 "Claude Code"。 */
   name: string;
   /** 一句话能力描述,市场页卡片用。 */
@@ -34,8 +34,8 @@ interface PluginMeta {
   category: PluginCategory;
 }
 
-/** 外壳暴露的挂载点。
- *  准入纪律:只声明外壳真的渲染 <Mounts> 的位点 —— 无渲染方/无贡献方的
+/**
+ * 挂载点 union(插件经 ctx.contribute 贡献 UI 的合法位置;
  *  僵尸声明一经发现即删(曾清理 footer.left/right、leftRail/rightRail)。 */
 export type MountPoint =
   | "header.left"
@@ -57,7 +57,9 @@ export type MountPoint =
   /** composer 输入区右缘竖向图标列(assets 唤醒入口等)。 */
   | "composer.inputRail"
   /** composer 底部状态条(+ 模型/能力/发送)。 */
-  | "composer.statusBar";
+  | "composer.statusBar"
+  /** 插件市场页「本地插件」分区(管理 UI 归 local-loader 插件贡献,kernel 不染业务)。 */
+  | "market.local";
 
 export interface MountContribution {
   /** 同挂载点内排序，小的在前。 */

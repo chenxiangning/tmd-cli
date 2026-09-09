@@ -59,6 +59,12 @@ export class HostRegistry {
     return this.lifecycle.activateAll(plugins, ctx);
   }
 
+  /** 晚激活通道(本地插件;委托 lifecycle,成功后 notify 驱动外壳重渲染)。 */
+  async activateLate(plugin: Plugin, ctx: PluginContext): Promise<void> {
+    await this.lifecycle.activateLate(plugin, ctx);
+    this.notify();
+  }
+
   getCliProfiles(): CliProfile[] {
     return [...this.cliProfiles.values()];
   }

@@ -117,7 +117,8 @@ class Host implements PluginContext {
   }
   /** 插件是否已激活(委托 registry):拔插语义查询,门控应配合 dependsOn 声明。 */
   isPluginActive = (id: string): boolean => this.registry.isPluginActive(id);
-
+  /** 晚激活通道(本地插件「待启用→确认」免重启;委托 registry)。 */
+  activateLate = (plugin: Plugin): Promise<void> => this.registry.activateLate(plugin, this);
   getSessions(): SessionMeta[] {
     return this.sessions;
   }
