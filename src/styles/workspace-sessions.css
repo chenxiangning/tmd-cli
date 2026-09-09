@@ -6,8 +6,9 @@
 
 /* ===== 会话树容器(codemoss .workspace-children) ===== */
 .workspace-children {
-  /* 行缩进:会话行 / 更多… / 管理批量条的 margin-left 统一消费本变量(与树线 x 同位)。 */
-  --workspace-tree-indent: 16px;
+  /* 行缩进:会话行 / 更多… / 管理批量条的 margin-left 统一消费本变量(与树线 x 同位)。
+     20px = 行 margin-left 4 + 头 padding-left 8 + 文件夹按钮 16/2,即文件夹图标中心。 */
+  --workspace-tree-indent: 20px;
   position: relative;
   display: grid;
   margin: 2px 0 0;
@@ -21,7 +22,7 @@
     margin-top 0.18s cubic-bezier(0.2, 0, 0, 1);
 }
 
-/* ══ 树形参考线(2026-09-08 追加,参考 Claude 侧栏):竖线 x=容器 16px(居文件夹图标中心),
+/* ══ 树形参考线(2026-09-08 追加,参考 Claude 侧栏):竖线 x=容器 20px(居文件夹图标中心),
    每行 ╭ 形弯钩从线拐向行首供应商图标;行间缝隙由竖线兜底,钩子只画拐弯段。
    仅 .workspace-children 内生效 —— 置顶区/运行区复用 .thread-row 但无此线,不受波及。 ══ */
 .workspace-children::before {
@@ -29,7 +30,8 @@
   position: absolute;
   top: -8px; /* 上探扎进文件夹行底部 */
   bottom: 7px;
-  left: 16px;
+  /* 19.5px:1px 线宽居中于图标中心 20px(同 tl-node -3.5px 半像素居中惯例)。 */
+  left: 19.5px;
   width: 1px;
   background: var(--border-subtle);
   pointer-events: none;
