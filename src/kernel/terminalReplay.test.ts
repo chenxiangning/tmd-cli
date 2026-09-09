@@ -176,7 +176,7 @@ describe("attachTerminalStream 磁盘先行回放", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it("尾巴回放尽即撤罩(不等静默),restoreTail 携尾,攒队字节按序补写", async () => {
+  it("回放尽撤罩显墓碑帧,活流攒队不发;CLR 到达后 300ms 一次 flush 无白屏", async () => {
     hoisted.cliIds.set("s1", "cli-1");
     hoisted.diskTail = { cliId: "cli-1", promise: Promise.resolve({ text: "TAIL" }) };
     const term = fakeTerm();
@@ -185,11 +185,32 @@ describe("attachTerminalStream 磁盘先行回放", () => {
     emit("s1", "LIVE1"); // promise 未决期:进队列,严禁直写(F3)
     expect(term.writes).not.toContain("LIVE1");
     await vi.advanceTimersByTimeAsync(5);
-    expect(term.writes.join("")).toContain("TAIL");
-    expect(term.writes.at(-1)).toBe("LIVE1"); // 回放尽按序补写
+    expect(term.writes.join("")).toContain("TAIL"); // 墓碑帧可见
+    expect(events).toContain(null); // 回放尽撤罩
     expect(hoisted.restored).toEqual([["s1", "TAIL"]]); // Ask 徽章磁盘恢复
     expect(hoisted.appendOutputCalls).toEqual([]); // 红线:磁盘尾巴不入守望主链路
+    emit("s1", "Still starting\x1b[2J"); // CLI 启动流:无 CLR 前照常攒(防清屏白屏)
+    await vi.advanceTimersByTimeAsync(200);
+    expect(term.writes).not.toContain("Still starting");
+    emit("s1", "\x1b[H\x1b[2JFRAME"); // 清屏 + 首屏
+    await vi.advanceTimersByTimeAsync(300);
+    expect(term.writes.join("")).toContain("FRAME"); // CLR+300ms 一次 flush
+    expect(term.writes.some((w) => w.includes("LIVE1"))).toBe(true); // 攒队字节按序补写
     expect(events.at(-1)).toBeNull();
+    off();
+  });
+
+  it("无 CLR 的纯文本 CLI:30s 兜底放行攒队", async () => {
+    hoisted.cliIds.set("s1", "cli-1");
+    hoisted.diskTail = { cliId: "cli-1", promise: Promise.resolve({ text: "TAIL" }) };
+    const term = fakeTerm();
+    const off = attachTerminalStream(term, "s1", gate, () => undefined);
+    await vi.advanceTimersByTimeAsync(5);
+    emit("s1", "PLAIN-LINE");
+    await vi.advanceTimersByTimeAsync(29_000);
+    expect(term.writes).not.toContain("PLAIN-LINE"); // 兜底未到,墓碑帧保持
+    await vi.advanceTimersByTimeAsync(1_100);
+    expect(term.writes.some((w) => w.includes("PLAIN-LINE"))).toBe(true); // 30s 兜底放行
     off();
   });
 

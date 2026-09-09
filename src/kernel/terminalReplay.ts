@@ -5,13 +5,19 @@
  * 要等 CLI 启动 + resume 重放流入,同样数秒空白。两者统一遮罩进度:
  * - 有内存缓冲可回放 → 分块写入,进度 = 已解析块数/总块数(真实解析进度);
  * - 无缓冲但有磁盘尾预取(冷开磁盘会话,diskReplay)→ 回放上一代日志尾,
- *   回放尽即就绪撤罩 —— 墓碑帧本身就是内容,不等静默(CLI 首字节 1-3s 后才到);
+ *   回放尽即撤罩 —— 墓碑帧本身就是内容,不等静默;
  * - 无缓冲/回放尽 → 流式阶段,进度 = 已接收字符计数,输出静默 0.5s 判就绪撤罩;
  *   12s 兜底防 CLI 不重绘卡死遮罩。
  * 就绪锁:遮罩一旦撤下(回放尽/静默/兜底)即永久就绪,后续实时字节不再重提遮罩 ——
  * 否则生成期 spinner 持续重绘、切模型回显、resize 重绘都会把幕布反复盖住。
  * 保序(异步接缝,评审 F3):liveQueue 从挂载起攒队 —— 磁盘尾是异步源,promise
  * 未决期间实时字节严禁直写幕布(否则先写新内容、回放后到即交错);回放尽后按序补写。
+ *
+ * 磁盘分支的 flush 编排(真机实测 2026-09-09):若回放尽立即放行攒队,CLI 启动期的
+ * HOME+CLR 清屏会把墓碑帧擦成数秒到数十秒白屏(omp loadExtensions/discoverSkills
+ * 期间零输出)。故回放尽只撤罩(墓碑帧可见),活流继续攒;攒队出现清屏序列
+ * (\x1b[2J —— 终端协议层 TUI 全屏重绘的通用前奏,零引擎语义)后 300ms 一次 flush,
+ * CLI 画好首屏的瞬间从墓碑帧无缝切换;纯文本/REPL 型 CLI 无清屏,30s 兜底放行。
  */
 
 import type { Terminal } from "@xterm/xterm";
@@ -25,6 +31,10 @@ const REPLAY_CHUNK_CHARS = 128 * 1024;
 const QUIET_READY_MS = 500;
 /** 遮罩兜底:CLI 不重绘(忽略 SIGWINCH)时最长展示时长。 */
 const PROGRESS_FAILSAFE_MS = 12_000;
+/** 磁盘分支:观测到清屏序列后再攒这么久,让首屏重绘一次到位,不闪半屏。 */
+const DISK_FLUSH_AFTER_CLR_MS = 300;
+/** 磁盘分支兜底:纯文本/REPL 型 CLI 无全屏重绘,此时长后照常放行攒队。 */
+const DISK_FLUSH_FAILSAFE_MS = 30_000;
 
 /**
  * 加载进度态(null = 撤罩):
@@ -77,11 +87,19 @@ export function attachTerminalStream(
   let received = 0;
   /* 就绪锁:true 后实时字节照常写幕布,但不再触碰进度态(见文件头注释)。 */
   let ready = false;
-
+  /* 磁盘分支:CLR 观测回调与 flush 计时(cleanup 需跨作用域清理,故提到这里)。 */
+  let diskChunkSink: ((text: string) => void) | null = null;
+  let diskFlushTimer: ReturnType<typeof setTimeout> | undefined;
+  let clrSeen = false;
+  let failsafe: ReturnType<typeof setTimeout> | undefined;
 
   const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) => {
-    if (liveQueue) liveQueue.push(text);
-    else term.write(text);
+    if (liveQueue) {
+      liveQueue.push(text);
+      diskChunkSink?.(text);
+    } else {
+      term.write(text);
+    }
     received += text.length;
     /* 攒队期间进度归回放分支驱动;直写期才走流式进度 */
     if (!cancelled && !ready && !liveQueue) {
@@ -122,20 +140,27 @@ export function attachTerminalStream(
     });
     host.observeReplayTail(sessionId);
   } else if (diskTail) {
-    /* 磁盘先行回放(冷开磁盘会话):尾巴到手前 liveQueue 持续攒队(F3);
-       回放尽即就绪撤罩 —— 墓碑帧即内容,不等静默(F1p);随后 restoreTail 恢复 Ask 徽章 */
     onProgress({ kind: "replay", pct: 0 });
+    const flushQueuedNow = (): void => {
+      const queued = liveQueue ?? [];
+      liveQueue = null;
+      for (const text of queued) term.write(text);
+    };
+    const finishDisk = (): void => {
+      clearTimeout(diskFlushTimer);
+      diskChunkSink = null;
+      inputGate.release();
+      if (cancelled) return;
+      flushQueuedNow();
+      ready = true;
+      onProgress(null);
+    };
     void diskTail.then((page) => {
       if (cancelled) return;
       const tail = page?.text ?? "";
-      const flushQueued = (): void => {
-        const queued = liveQueue ?? [];
-        liveQueue = null;
-        for (const text of queued) term.write(text);
-      };
       if (!tail) {
         /* 无指针/日志/IPC 失败:攒下的字节按序放行,回落现状直流式 */
-        flushQueued();
+        flushQueuedNow();
         if (!ready) {
           onProgress({ kind: "stream", chars: received });
           armQuiet();
@@ -146,30 +171,43 @@ export function attachTerminalStream(
       void writeInChunks(term, tail, (done, total) => {
         if (!cancelled && !ready) onProgress({ kind: "replay", pct: Math.round((done / total) * 100) });
       }).then(() => {
-        inputGate.release();
         if (cancelled) return;
-        flushQueued();
-        ready = true;
-        onProgress(null);
+        onProgress(null); /* 撤罩:墓碑帧可见;ready/flush 留给 CLR 观测或兜底 */
         host.restoreDiskTail(sessionId, tail);
+        /* 磁盘分支接管就绪编排:12s 全局 failsafe 会在慢启动 CLI(omp 实测 25s)
+           的启动期提前置 ready 卡死攒队,此处撤销,由 30s 磁盘兜底顶替 */
+        clearTimeout(failsafe);
+        diskFlushTimer = setTimeout(() => finishDisk(), DISK_FLUSH_FAILSAFE_MS);
       });
     });
+    /* CLR 观测:攒队里出现清屏序列(含 \x1b[H\x1b[2J 组合的后半)即排 flush */
+    diskChunkSink = (text) => {
+      if (ready || clrSeen) return;
+      if (text.includes("\x1b[2J")) {
+        clrSeen = true;
+        diskFlushTimer = setTimeout(() => finishDisk(), DISK_FLUSH_AFTER_CLR_MS);
+      }
+    };
   } else {
     liveQueue = null;
     onProgress({ kind: "stream", chars: 0 });
     armQuiet();
   }
 
-  const failsafe = setTimeout(() => {
-    if (cancelled || ready) return;
-    ready = true;
-    onProgress(null);
-  }, PROGRESS_FAILSAFE_MS);
+  if (!diskTail) {
+    failsafe = setTimeout(() => {
+      if (cancelled || ready) return;
+      ready = true;
+      onProgress(null);
+    }, PROGRESS_FAILSAFE_MS);
+  }
 
   return () => {
     cancelled = true;
     liveQueue = null;
+    diskChunkSink = null;
     clearTimeout(quietTimer);
+    clearTimeout(diskFlushTimer);
     clearTimeout(failsafe);
     offLive();
   };
