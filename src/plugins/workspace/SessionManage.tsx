@@ -167,9 +167,24 @@ export function ManageList({
       <div
         key={row.key}
         data-mrow={idx}
+        tabIndex={0}
+        role="checkbox"
+        aria-checked={on}
         className={`thread-row wm-row${on ? " is-selected" : ""}${
           row.kind === "live" && row.session.id === activeSessionId ? " active" : ""
         }`}
+        onKeyDown={(e) => {
+          /* 行内按钮自吃 Enter/Space;行体空格/回车切换本行选中。 */
+          if ((e.target as HTMLElement).closest("button")) return;
+          if (e.key !== " " && e.key !== "Enter") return;
+          e.preventDefault();
+          setSelected((prev) => {
+            const next = new Set(prev);
+            if (on) next.delete(row.key);
+            else next.add(row.key);
+            return next;
+          });
+        }}
       >
         <span className={`wm-check${on ? " is-on" : ""}`} aria-hidden>
           {on ? <Check size="0.625rem" /> : null}

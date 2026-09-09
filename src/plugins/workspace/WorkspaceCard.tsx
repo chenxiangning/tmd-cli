@@ -72,6 +72,8 @@ export function WorkspaceCard({
           onShowMenu(workspace, e.clientX, e.clientY);
         }}
         onKeyDown={(e) => {
+          /* 行内嵌按钮(折叠/管理/刷新/新建)自己吃 Enter/Space,行不得截胡。 */
+          if ((e.target as HTMLElement).closest("button")) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             setActiveWorkspace(workspace.id);
@@ -151,6 +153,7 @@ export function WorkspaceCard({
       <div
         className={`workspace-children ${collapsed ? "is-collapsed" : "is-expanded"}`}
         aria-hidden={collapsed}
+        inert={collapsed}
       >
         <div className="workspace-children-inner">
           {profiles.map((p) => (
