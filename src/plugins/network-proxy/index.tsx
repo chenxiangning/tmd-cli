@@ -60,6 +60,7 @@ export const networkProxyPlugin: Plugin = {
       label: "网络代理",
       icon: LadderIcon,
       order: 30,
+      defaultPinned: true,
       active: () => getSettingsState().settings.networkProxyEnabled,
       onSelect: (anchor) => openProxyPopover(anchor.x, anchor.y),
     });

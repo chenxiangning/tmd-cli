@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { appVersion } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
-import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
+import { defaultPinnedActionIds, useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { openSettingsPanel, useSettingsState } from "@kernel/settings";
 import logoUrl from "../assets/logo.png";
 import { Check, Gear } from "@phosphor-icons/react";
@@ -26,19 +26,18 @@ import { VersionPopover } from "./VersionPopover";
 /** 底栏空间有限,最多外显 4 个快捷入口(同 codemoss SIDEBAR_SETTINGS_PINNED_MAX)。 */
 const PINNED_MAX = 4;
 const PINNED_STORAGE_KEY = "shell.settingsPinned.v1";
-/** 默认 pinned 的动作 id ─ 对齐参考截图(网络代理已钉在齿轮旁)。
- *  id 由各插件注册时声明;插件拔出 = 动作消失,钉住项自动隐藏,插回恢复。 */
-const DEFAULT_PINNED: string[] = ["system-proxy"];
 
+/** 钉住列表:localStorage 优先;空/损坏回落注册表内声明 defaultPinned 的动作
+ *  (默认钉住归插件自声明,壳不持 id 名册;本函数在插件激活后才执行,注册表已就绪)。 */
 function loadPinned(): string[] {
   try {
     const raw = localStorage.getItem(PINNED_STORAGE_KEY);
     const parsed = JSON.parse(raw ?? "[]");
-    if (!Array.isArray(parsed)) return [...DEFAULT_PINNED];
+    if (!Array.isArray(parsed)) return defaultPinnedActionIds();
     const ids = parsed.filter((v): v is string => typeof v === "string");
-    return ids.length > 0 ? ids.slice(0, PINNED_MAX) : [...DEFAULT_PINNED];
+    return ids.length > 0 ? ids.slice(0, PINNED_MAX) : defaultPinnedActionIds();
   } catch {
-    return [...DEFAULT_PINNED];
+    return defaultPinnedActionIds();
   }
 }
 

@@ -24,6 +24,8 @@ export interface SidebarAction {
   icon: SidebarActionIcon;
   /** 菜单内排序,小的在前。 */
   order?: number;
+  /** 底栏默认钉住(壳层无用户钉住数据时回落用;归属插件自声明)。 */
+  defaultPinned?: boolean;
   /** 激活态(开关/面板已开类动作);渲染期求值,缺省 = 恒不激活。
    *  响应性随宿主组件重渲染(设置变更等),不自建订阅。 */
   active?: () => boolean;
@@ -53,6 +55,11 @@ export function registerSidebarAction(action: SidebarAction): void {
   );
   refreshSnapshot();
   emit();
+}
+
+/** 默认钉住的动作 id(读注册表;壳层渲染晚于插件激活,调用点拿得到全量)。 */
+export function defaultPinnedActionIds(): string[] {
+  return state.actions.filter((a) => a.defaultPinned).map((a) => a.id);
 }
 
 export function useSidebarActions(): readonly SidebarAction[] {
