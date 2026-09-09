@@ -40,7 +40,7 @@ git 插件的文件 diff(中央「工作区 diff」tab 与「提交 diff」tab)�
 
 ## 验证
 
-- `parsePatch`/`buildSplitRows` 单测:行号计数、del/add 配对、余量留空、hunk/meta 头行、无 `@@` 的 meta 兜底(沿用 patchLines.test.ts 并扩)。
+- `parsePatch`/`buildSplitRows` 单测:行号计数、del/add 配对、余量留空、hunk/meta 头行、无 `@@` 的 meta 兜底(原计划的 patchLines.test.ts 落地时拆为 patchModel.test.ts + PatchLines.test.tsx 两文件)。
 - `settings.fields.test.ts`/`settings.test.ts` 的 git 域形状钉更新(diffMode 进默认与白名单 sanitize)。
 - `pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build` 全绿。
 - 浏览器桩(1421 + `__TAURI_INTERNALS__` 桩 git_status/git_diff_file_patch)目检:单栏带行号、双栏配对与斜纹、切换写盘重启保留。

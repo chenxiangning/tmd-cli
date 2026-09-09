@@ -30,7 +30,7 @@
 3. **选中态**:`.thread-row.active` = `--tmd-accent-soft` 底,全列表唯一高亮行。~~+ `inset 2px 0 0` 左竖条~~ —— **同日撤销(用户目检:底色高亮已足,左竖条冗余)**。
 3b. **闲置灰点隐藏**(同日追加,用户目检反馈):`.tl-node.is-idle` display:none —— 灰静止点纯噪音;信号位只留 运行(绿呼吸)/未读(蓝呼吸)/归档徽记(~~查看中(Eye)~~ 同日撤销:选中底色已承载「正在看」语义,Eye 图标视觉污染);圆点绝对定位,隐藏无布局位移。
 3c. **树形参考线回归**(同日追加,用户目检反馈 + Claude 侧栏参考图):`.workspace-children::before` 竖线(x=容器 16px,居文件夹图标中心,上探扎进文件夹行)+ 每行 `.thread-row::before` ╭ 形弯钩(border-left+bottom+6px 半径)拐向行首图标;状态圆点/归档徽记骑线(作用域 `.workspace-children`,置顶区/运行区节点槽位不动);行缩进随之 8→16px(`--workspace-tree-indent`,更多…/wm-bar/wm-profile 同源)。末行收边靠 inner overflow 裁剪,不做 └ 收尾(ponytail:要曲尾需「最后行」判定,等用户提了再补)。
-4. **时间轴轨道移除**:`.workspace-children::before` 贯穿竖线删除;`--workspace-tree-rail-x`(19.5px)更名 `--workspace-tree-indent`(8px),消费点 = thread-row / thread-more / wm-bar 三处;状态圆点/「归」徽记的绝对定位在新缩进下不裁切(inner overflow:hidden,x≥1px)。
+4. **时间轴轨道移除**(部分已被 3c 推翻):~~`.workspace-children::before` 贯穿竖线删除~~ —— 同日 3c 竖线以树形参考线形态回归;**`--workspace-tree-rail-x`(19.5px)更名 `--workspace-tree-indent`**(~~8px~~ 3c 起 16px),消费点 = thread-row / thread-more / wm-bar 三处;状态圆点/「归」徽记的绝对定位在新缩进下不裁切(inner overflow:hidden,x≥1px)。
 5. **会话管理入口上移**:WorkspaceCard 行动作组新增「会话管理」开关(hover 显形,激活常亮且锁定动作组展开):
    - ~~「归档」(Archive):切换 `settings.workspaceArchiveView`~~ —— **同日撤销(用户目检:与 caption「默认|归档」radio 冗余)**,归档视图唯一入口 = caption 分段开关。
    - 终端/SSH 组无管理概念,不接入。
@@ -39,5 +39,5 @@
 ## 验证
 
 - `pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build` 全绿。
-- 浏览器桩目检(浅色主题,1421 + Tauri 桩):① 工作区下无分组段头、行首供应商 icon、字号统一;② 选中行 accent-soft + 左竖条;③ 工作区行开关进管理态:复选行 + profile 识别行 + 拖选批量归档/删除;④ 归档开关切视图、「归」徽记行形不变;⑤ 终端/SSH 行平铺显示。
+- 浏览器桩目检(浅色主题,1421 + Tauri 桩):① 工作区下无分组段头、行首供应商 icon、字号统一;② 选中行 accent-soft(~~+ 左竖条~~ 同日撤销,见要点 3);③ 工作区行开关进管理态:复选行 + profile 识别行 + 拖选批量归档/删除;④ 归档开关切视图、「归」徽记行形不变;⑤ 终端/SSH 行平铺显示。
 - 存量测试:settings.test.ts 去掉 workspaceGroupCollapsedMap 断言;selectRange 等管理态单测不动。
