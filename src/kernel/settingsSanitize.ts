@@ -35,7 +35,6 @@ import {
   type GitFileListLayout,
   type GitPanelView,
   type MemoryCapsuleMode,
-  type MemoryDistillEngine,
   type SendShortcut,
   type SessionListBudget,
   type ThemePreference,
@@ -65,8 +64,6 @@ const THEME_PREFERENCES: readonly ThemePreference[] = ["system", "light", "dark"
 const SEND_SHORTCUTS: readonly SendShortcut[] = ["enter", "cmdOrCtrlEnter"];
 
 const MEMORY_CAPSULE_MODES: readonly MemoryCapsuleMode[] = ["manual", "auto", "off"];
-
-const MEMORY_DISTILL_ENGINES = ["omp", "pi", "opencode"] as const;
 
 const GIT_PANEL_VIEWS: readonly GitPanelView[] = ["diff", "branch", "history"];
 const GIT_PANEL_LAYOUTS: readonly GitFileListLayout[] = ["flat", "tree"];
@@ -251,9 +248,8 @@ export function sanitize(raw: unknown): AppSettings {
       : "manual",
     memoryAutoDistill: typeof obj.memoryAutoDistill === "boolean" ? obj.memoryAutoDistill : false,
     memoryDistillModel: typeof obj.memoryDistillModel === "string" ? obj.memoryDistillModel.slice(0, 200) : "",
-    memoryDistillEngine: (MEMORY_DISTILL_ENGINES as readonly string[]).includes(obj.memoryDistillEngine as string)
-      ? (obj.memoryDistillEngine as MemoryDistillEngine)
-      : "omp",
+    memoryDistillEngine:
+      typeof obj.memoryDistillEngine === "string" ? obj.memoryDistillEngine.slice(0, 40) : "",
     memoryDistillRules: typeof obj.memoryDistillRules === "string" ? obj.memoryDistillRules.slice(0, 500) : "",
     ssh: sanitizeSshSettings(obj.ssh),
     git: sanitizeGitPanel(obj.git),

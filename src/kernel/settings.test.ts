@@ -70,7 +70,7 @@ describe("初始状态与默认值", () => {
       memoryCapsuleMode: "manual",
       memoryAutoDistill: false,
       memoryDistillModel: "",
-      memoryDistillEngine: "omp",
+      memoryDistillEngine: "",
       memoryDistillRules: "",
       ssh: { hosts: [] },
       git: { view: "diff", layout: "flat", diffMode: "unified" },

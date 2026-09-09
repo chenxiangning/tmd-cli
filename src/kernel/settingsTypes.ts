@@ -220,8 +220,8 @@ export interface AppSettings {
   memoryAutoDistill: boolean;
   /** 沉淀提炼模型(空 = 跟随引擎默认)。 */
   memoryDistillModel: string;
-  /** 沉淀代写引擎(omp/pi/opencode:谁的会话代执行 ctx_memory 写入)。 */
-  memoryDistillEngine: MemoryDistillEngine;
+  /** 沉淀代写引擎标识(自由串;合法值与回落归 memory-coordinator 插件解释,空 = 插件默认)。 */
+  memoryDistillEngine: string;
   /** 沉淀补充规则(自由文本,追加到提炼指令;如「特别记住数据库决定;忽略测试细节」)。 */
   memoryDistillRules: string;
   /**
@@ -277,7 +277,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   memoryCapsuleMode: "manual",
   memoryAutoDistill: false,
   memoryDistillModel: "",
-  memoryDistillEngine: "omp",
+  memoryDistillEngine: "",
   memoryDistillRules: "",
   git: { view: "diff", layout: "flat", diffMode: "unified" },
   ssh: { hosts: [] },
@@ -285,5 +285,3 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 /** 记忆胶囊注入策略(manual 手动勾选注入 / auto 新会话自动展开 / off 关闭)。 */
 export type MemoryCapsuleMode = "manual" | "auto" | "off";
-
-export type MemoryDistillEngine = "omp" | "pi" | "opencode"; // 三 harness 均注册 ctx_memory

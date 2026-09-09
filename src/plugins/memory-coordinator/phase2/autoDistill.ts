@@ -11,6 +11,7 @@
 
 import { host } from "@kernel/host";
 import { getSettingsState } from "@kernel/settings";
+import { resolveDistillEngine } from "../modelCatalog";
 import { distillSessionTail } from "./write";
 
 /** 已沉淀过的会话(幂等:一次会话生命周期只触发一次)。 */
@@ -51,7 +52,7 @@ function onSessionExited(sessionId: string): void {
         const out = await distillSessionTail(tail, meta.cwd, {
           model: cfg.memoryDistillModel || undefined,
           extraRules: cfg.memoryDistillRules || undefined,
-          engine: cfg.memoryDistillEngine,
+          engine: resolveDistillEngine(cfg.memoryDistillEngine),
         });
         console.info("[mem-auto] distill 完成 ok=", out.ok, "detail=", out.detail.slice(0, 120));
       } else {
