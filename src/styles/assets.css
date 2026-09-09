@@ -21,15 +21,12 @@
   border-color: var(--tmd-accent);
 }
 
-/* ── composer.statusBar 智能体徽章 ── */
+/* ── composer.statusBar 智能体徽章:扁平文字态(无描边/无底胶囊) ── */
 .assets-agent-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 6px;
-  border: 1px solid var(--tmd-accent);
-  border-radius: 999px;
-  background: var(--tmd-accent-soft);
+  padding: 2px 0;
   color: var(--tmd-accent);
   font-size: 0.6875rem;
   line-height: 1.2;

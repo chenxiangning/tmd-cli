@@ -19,7 +19,11 @@ export function AgentBadge() {
   if (!agent || !sid) return null;
   return (
     <span className="assets-agent-badge" title={t("本会话智能体:发送时在消息尾拼角色块")}>
-      {agent.icon ? <span aria-hidden>{agent.icon}</span> : <Robot size="0.75rem" aria-hidden />}
+      {agent.icon && /\p{Extended_Pictographic}/u.test(agent.icon) ? (
+        <span aria-hidden>{agent.icon}</span>
+      ) : (
+        <Robot size="0.75rem" aria-hidden />
+      )}
       <span className="assets-agent-badge-name">{agent.name}</span>
       <button
         type="button"
