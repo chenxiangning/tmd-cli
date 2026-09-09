@@ -119,7 +119,7 @@ export const cliKimiPlugin: Plugin = {
     abbr: "KI",
     desc: "Kimi Code CLI 引擎:kimi-code 会话桶、config 状态",
     icon: KimiGlyph,
-    iconColor: "#1783FF",
+    iconColor: "var(--tmd-fg)",
     category: "engine",
   },
   activate(ctx) {
