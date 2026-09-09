@@ -151,16 +151,17 @@ pub fn run(spec: &ProcRunSpec) -> Result<ProcRunResult, String> {
     }
 
     let deadline = Instant::now() + Duration::from_millis(spec.timeout_ms);
+    // marker 命中只说明应答头部到达:宽限一拍让 omp 把应答尾部写完,再收割
+    // 杀树(杀树令管道 EOF,读线程随之收工 join)。EOF/Disconnected 时读线程
+    // 已收工,纯等待无收益,立即收割;超时分支直接进杀树,语义不变。
     let timed_out = match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
-        Ok(Signal::Matched) | Ok(Signal::Eof) | Err(RecvTimeoutError::Disconnected) => false,
+        Ok(Signal::Matched) => {
+            std::thread::sleep(Duration::from_millis(500));
+            false
+        }
+        Ok(Signal::Eof) | Err(RecvTimeoutError::Disconnected) => false,
         Err(RecvTimeoutError::Timeout) => true,
     };
-    // marker 命中只说明应答头部到达:宽限一拍让 omp 把应答尾部写完,再收割
-    // 杀树(杀树令管道 EOF,读线程随之收工 join)。宽限成本 = 每查询一次
-    // 500ms,消费方有 TTL 缓存,无感。
-    if !timed_out {
-        std::thread::sleep(Duration::from_millis(500));
-    }
     kill_tree(&mut child);
     let code = child.wait().ok().and_then(|s| s.code());
     let out_bytes = t_out.join().unwrap_or_default();
