@@ -86,6 +86,7 @@
 | 2026-09-06 | [cli-dsh 插件设计:第十个 CLI 引擎(DeepSeek Harness 安装/启动引导)](superpowers/specs/2026-09-06-cli-dsh-integration-design.md) | 已落地(实现随本 spec 提交) |
 | 2026-09-07 | [cli-dsh 会话接入:PTY 适配器方案(host-RPC 第二客户端)](superpowers/specs/2026-09-07-cli-dsh-pty-adapter-design.md) | 已落地(真 host 端到端 + 桩目检通过) |
 | 2026-09-07 | [侧栏会话分区:已置顶/运行区/工作区分组契约](architecture/05-sidebar-session-zones.md) | 已落地 |
+| 2026-09-09 | [磁盘先行回放:会话打开零预付进程](architecture/06-disk-first-session-open.md) | 已落地 |
 | 2026-09-07 | [CLI 触发符与会话恢复机制矩阵(omp/pi/codex 实测)](research/cli-trigger-and-session-matrix.md) | 已完成 |
 | 2026-09-07 | [设置外观四件套:i18n / 终端字体字号 / 界面缩放 / 终端 ANSI 配色](superpowers/specs/2026-09-07-appearance-i18n-terminal-theme-design.md) | 已落地(全量文案迁移 + 浏览器桩目检通过) |
 | 2026-09-08 | [全局界面字号:文字级缩放适配所有模块](superpowers/specs/2026-09-08-global-ui-font-size-design.md) | 已落地(全库 px→rem 等值迁移 + 桩目检通过) |
@@ -110,5 +111,6 @@
 | 2026-09-09 | [客户端内存占用分析与优化预案(含 codemoss 架构对照:看/跑解耦)](research/memory-usage-analysis.md) | 已落地(165b4d4 起) |
 | 2026-09-09 | [磁盘会话先行回放 + 进程惰性拉起设计(走法 1)](superpowers/specs/2026-09-09-disk-first-session-open-design.md) | 已落地(165b4d4/966271a/848ee7b) |
 | 2026-09-09 | [磁盘会话先行回放 spec 对抗评审(7 发现全处置)](review/2026-09-09-disk-first-session-open-review.md) | 已完成(修订已实施) |
+| 2026-09-09 | [磁盘先行回放整体任务终审(4×P1+7×P2 当日全修复)](review/2026-09-09-disk-first-final-audit.md) | 已完成(含 rebase 历史手术记录) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
