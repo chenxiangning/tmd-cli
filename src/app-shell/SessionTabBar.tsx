@@ -165,7 +165,7 @@ function SessionTabBarImpl() {
       {menu ? (
         <TabContextMenu
           position={{ x: menu.x, y: menu.y }}
-          canRename={host.getCliSessionId(menu.id) !== null}
+          canRename={host.getCliSessionId(menu.id) != null}
           onRename={() => {
             const meta = host.getSessions().find((s) => s.id === menu.id);
             const cliSessionId = host.getCliSessionId(menu.id);
