@@ -12,7 +12,7 @@
 - 单一区域原则的锁步机制:运行区(`RunningZone.tsx`)与工作区分组离组过滤(`useCliSessionGroup.ts` 的 `zoneOut`)共用上述谓词——进区即离组,出区即回组,两处任何一侧单独改动即违契约。
 - 置顶优先:sessionPins 任一作用域(global/workspace)置顶不进运行区;global 留已置顶区、workspace 留组顶块。从运行区右键置顶即离开本区。
 - 排除项:归档会话全域隐藏不进区(与全局置顶区同口径);置顶/归档排除仅对已绑定磁盘身份的会话生效,未绑定者按状态正常进出区。
-- 运行区行:标题 = 手动命名 > 磁盘原生标题(候选 (工作区,CLI) 对聚合扫描 + 3s 补扫兜自动命名晚于文件出生)> 短码;正在查看时引擎图标让位 Eye;右键 = 复制 ID / 重命名 / 双作用域置顶,**无删除项**(与已置顶区同口径,删除回工作区分组操作);段折叠态 localStorage `tmd.runningSectionCollapsed`。
+- 运行区行:标题 = 手动命名 > 磁盘原生标题(候选 (工作区,CLI) 对聚合扫描 + 3s 补扫兜自动命名晚于文件出生)> 短码;右键 = 复制 ID / 重命名 / 双作用域置顶,**无删除项**(与已置顶区同口径,删除回工作区分组操作);段折叠态 localStorage `tmd.runningSectionCollapsed`。
 - 样式:段头与行形复用已置顶区槽位类,`workspace-sessions-extras.css` 仅选择器并列扩展(`.running-zone*`),零新增样式块。
 
 ## 关键文件

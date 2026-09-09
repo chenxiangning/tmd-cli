@@ -1,7 +1,7 @@
 # tmd-cli 代码级架构（当前实现）
 
-- 日期：2026-09-01（2026-09-04、2026-09-06 按当前代码校准）
-- 状态：对应主干当前代码（v0.1.1 发版前现状）
+- 日期：2026-09-01（2026-09-04、2026-09-06、2026-09-09 按当前代码校准）
+- 状态：对应主干当前代码（v0.1.3）
 - 前置阅读：[01-overview.md](01-overview.md)（设计决策层）；本文是**代码事实层**——每个节点都能在仓库里找到对应文件/符号。
 
 ## 1. 全景分层
@@ -364,15 +364,17 @@ codemoss host.rs 同款),分两路:
 
 ```mermaid
 flowchart LR
-    subgraph MOUNT["MountPoint（plugin.ts 定义的 10 个挂点)"]
+    subgraph MOUNT["MountPoint（plugin.ts 定义的 12 个挂点)"]
         direction TB
         HB["header.breadcrumb"]
         HLR["header.left / header.right"]
+        HLC["header.leftCluster"]
         LS1["leftSidebar.section"]
         LS2["leftSidebar.workspaceCaption"]
         ECW["editorCenter.welcome"]
         ECC["editorCenter.composer"]
         CSB["composer.statusBar"]
+        CIR["composer.inputRail"]
         OV["overlay"]
         WSM["workspace.newSessionMenu"]
     end
