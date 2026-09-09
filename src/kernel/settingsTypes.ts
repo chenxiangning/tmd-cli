@@ -119,6 +119,9 @@ export type GitFileListLayout = "flat" | "tree";
 /** Git 文件 diff 展示模式(git 插件编辑域):unified 单栏 / split 双栏左右对照。 */
 export type GitDiffMode = "unified" | "split";
 
+/** 工作区分组定义(workspace 插件编辑域):数组顺序即侧栏显示顺序。 */
+export interface WorkspaceGroup { id: string; name: string }
+
 export interface AppSettings {
   theme: ThemePreference;
   /** 浅色外观使用的 preset(system/light 模式生效)。 */
@@ -196,6 +199,10 @@ export interface AppSettings {
    * 重启后恢复上次状态。
    */
   workspaceCollapsedMap: Record<string, boolean>;
+  /** 工作区分组清单(workspace 插件编辑域);数组顺序即显示顺序,空 = 无分组。 */
+  workspaceGroups: WorkspaceGroup[];
+  /** 左侧栏分组组头折叠态:key = groupId;缺失 = 展开;删组残留无害。 */
+  workspaceGroupCollapsedMap: Record<string, boolean>;
   /** 左侧栏会话视图:false = 默认(隐藏归档),true = 归档(只看归档)。 */
   workspaceArchiveView: boolean;
   /**
@@ -267,6 +274,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionTitles: {},
   sessionPins: {},
   workspaceCollapsedMap: {},
+  workspaceGroups: [],
+  workspaceGroupCollapsedMap: {},
   sessionArchive: {},
   sessionDeleted: {},
   workspaceArchiveView: false,

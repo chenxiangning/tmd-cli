@@ -38,6 +38,7 @@ import {
   type SendShortcut,
   type SessionListBudget,
   type ThemePreference,
+  type WorkspaceGroup,
 } from "./settingsTypes";
 import {
   sanitizeSessionArchive,
@@ -58,6 +59,26 @@ function sanitizeWorkspaceCollapsedMap(raw: unknown): Record<string, boolean> {
     if (typeof entries[key] === "boolean") map[key] = entries[key] as boolean;
   }
   return map;
+}
+
+/** 分组清单上限(与折叠图同款确定性兜底口径)。 */
+const WORKSPACE_GROUPS_MAX = 100;
+
+/** 工作区分组清洗:id/name 须为非空字符串,name trim 后为空丢弃,超长截断。 */
+function sanitizeWorkspaceGroups(raw: unknown): WorkspaceGroup[] {
+  if (!Array.isArray(raw)) return [];
+  const groups: WorkspaceGroup[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (groups.length >= WORKSPACE_GROUPS_MAX) break;
+    if (!item || typeof item !== "object") continue;
+    const { id, name } = item as Record<string, unknown>;
+    if (typeof id !== "string" || !id || seen.has(id)) continue;
+    if (typeof name !== "string" || !name.trim()) continue;
+    seen.add(id);
+    groups.push({ id, name: name.trim().slice(0, 60) });
+  }
+  return groups;
 }
 
 const THEME_PREFERENCES: readonly ThemePreference[] = ["system", "light", "dark", "custom"];
@@ -236,6 +257,8 @@ export function sanitize(raw: unknown): AppSettings {
         ? obj.workspaceArchiveView
         : DEFAULT_SETTINGS.workspaceArchiveView,
     workspaceCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceCollapsedMap),
+    workspaceGroups: sanitizeWorkspaceGroups(obj.workspaceGroups),
+    workspaceGroupCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceGroupCollapsedMap),
     networkProxyEnabled:
       typeof obj.networkProxyEnabled === "boolean"
         ? obj.networkProxyEnabled

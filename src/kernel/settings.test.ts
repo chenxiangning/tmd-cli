@@ -63,6 +63,8 @@ describe("初始状态与默认值", () => {
       sessionDeleted: {},
       workspaceArchiveView: false,
       workspaceCollapsedMap: {},
+      workspaceGroups: [],
+      workspaceGroupCollapsedMap: {},
       networkProxyEnabled: false,
       networkProxyUrl: "",
       memoryDbPath: "",

@@ -20,6 +20,8 @@ export interface Workspace {
   root: string;
   /** 创建时间 ms epoch。 */
   createdAt: number;
+  /** 所属工作区分组 id(分组定义在 settings.json;空 = 未分组)。 */
+  groupId?: string | null;
   /** 显示名覆盖(trim 后落库);空/缺省 = 显示目录名。 */
   alias?: string | null;
 }
@@ -110,6 +112,15 @@ export function removeWorkspace(id: string): void {
 export function setActiveWorkspace(id: string | null): void {
   if (state.activeId === id) return;
   state.activeId = id;
+  void persist();
+  emit();
+}
+
+/** 调整工作区分组归属(null = 未分组);不存在的工作区 id 静默忽略。 */
+export function assignWorkspaceGroup(id: string, groupId: string | null): void {
+  const target = state.list.find((w) => w.id === id);
+  if (!target || (target.groupId ?? null) === groupId) return;
+  target.groupId = groupId;
   void persist();
   emit();
 }

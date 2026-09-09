@@ -17,6 +17,7 @@ import { getSettingsState, updateSettings } from "@kernel/settings";
 import { sessionPinKey } from "@kernel/sessionPins";
 import { pinnedSection, runningSection } from "./sectionCollapsed";
 import { isRunningZoneCandidate } from "./utils";
+import { getWorkspaces } from "@kernel/workspace";
 
 /** 返回的 handler 带 cancel():卸载时调用,终止在途 rAF 轮询;新请求亦取代旧轮询。 */
 export function createSessionRevealHandler(
@@ -54,6 +55,13 @@ export function createSessionRevealHandler(
       if (st.workspaceCollapsedMap[meta.workspaceId] ?? true) {
         updateSettings({
           workspaceCollapsedMap: { ...st.workspaceCollapsedMap, [meta.workspaceId]: false },
+        });
+      }
+      /* 分组落地(2026-09-09):目标工作区所在组若折叠,一并展开(与卡片折叠同通道)。 */
+      const gid = getWorkspaces().find((w) => w.id === meta.workspaceId)?.groupId;
+      if (gid && st.workspaceGroupCollapsedMap[gid]) {
+        updateSettings({
+          workspaceGroupCollapsedMap: { ...st.workspaceGroupCollapsedMap, [gid]: false },
         });
       }
     }

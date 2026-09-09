@@ -98,6 +98,8 @@ export interface WorkspaceMeta {
   name: string;
   root: string;
   createdAt: number;
+  /** 所属工作区分组 id(分组定义在 settings.json;空 = 未分组)。 */
+  groupId?: string | null;
   /** 显示名覆盖;空 = 显示目录名。 */
   alias?: string | null;
 }
