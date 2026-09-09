@@ -122,7 +122,7 @@ export function staticProfileDrawerItems(profile: CliProfile): DrawerItem[] {
   return items;
 }
 
-/* ---------- 插件:内核注册表(feature 类),纯函数可测 ---------- */
+/* ---------- 插件:内核注册表(feature/local 类),纯函数可测 ---------- */
 
 interface PluginStateLike {
   plugin: { id: string; meta: { name: string; desc: string; category: string } };
@@ -134,7 +134,7 @@ export function pluginDrawerItems(
   panels: readonly { id: string; icon: FilePanelIcon }[],
 ): DrawerItem[] {
   return states
-    .filter((s) => s.enabled && s.plugin.meta.category === "feature")
+    .filter((s) => s.enabled && (s.plugin.meta.category === "feature" || s.plugin.meta.category === "local"))
     .map<DrawerItem>((s) => {
       const panel = panels.find((p) => p.id === s.plugin.id);
       return {
@@ -153,14 +153,14 @@ export function pluginDrawerItems(
 
 /**
  * 抽屉 plugin 区可执行条目 → 无键位命令(仅进注册表,设置清单以「未绑定」呈现)。
- * 准入与 pluginDrawerItems 一致(启用 ∩ feature,lockstep);run 即条目 open 语义:
+ * 准入与 pluginDrawerItems 一致(启用 ∩ feature/local,lockstep);run 即条目 open 语义:
  * 命中右栏面板开面板,无面板兜底开设置。插件启停 = 重启生效,
  * 故插件 activate 期一次性注册与抽屉实况恒一致。
  */
 export function pluginDrawerCommands(): CommandContribution[] {
   return host
     .listPluginStates()
-    .filter((s) => s.enabled && s.plugin.meta.category === "feature")
+    .filter((s) => s.enabled && (s.plugin.meta.category === "feature" || s.plugin.meta.category === "local"))
     .map<CommandContribution>((s) => ({
       id: `composer.drawer.${s.plugin.id}`,
       title: t("打开 {name}", { name: s.plugin.meta.name }),

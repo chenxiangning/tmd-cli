@@ -10,8 +10,70 @@ export const CATEGORY_LABEL: Record<PluginCategory, string> = {
   engine: "CLI 引擎",
   feature: "界面功能",
   core: "核心系统",
+  local: "本机插件",
 };
-export const CATEGORY_ORDER: readonly PluginCategory[] = ["engine", "feature", "core"];
+export const CATEGORY_ORDER: readonly PluginCategory[] = ["engine", "feature", "core", "local"];
+/** 插排品牌区文案;缺省 = tmd-cli 主插排。 */
+export interface StripBrand {
+  name: string;
+  role: string;
+  master: string;
+}
+
+/** 合并大插排:品牌区 + 各分类分区(虚线分隔 + 区内小标签)。 */
+export function MergedStrip({
+  groups,
+  onToggle,
+  onOpenMarket,
+  brand,
+}: {
+  groups: { category: PluginCategory; rows: Row[] }[];
+  onToggle: (id: string) => void;
+  /** 二级市场开合(无注册面板的插头不渲染角标)。 */
+  onOpenMarket?: (id: string) => void;
+  /** 本机插件等次级插排传入独立品牌区。 */
+  brand?: StripBrand;
+}) {
+  const b = brand ?? { name: "tmd-cli", role: t("客户端 · 插排本体"), master: t("总电源常开") };
+  return (
+    <div className="pm-strip-scene">
+      <div className="pm-strip">
+        <div className="pm-strip-brand">
+          <div className="pm-brand-name">{b.name}</div>
+          <div className="pm-brand-role">{b.role}</div>
+          <div className="pm-master-row">
+            <span className="pm-master-led" aria-hidden />
+            <span className="pm-master-label">{b.master}</span>
+          </div>
+        </div>
+        {groups.map((g) => (
+          <div className="pm-cat-group" key={g.category}>
+            <div className="pm-cat-label">
+              {t("{label} · {n} 位", { label: t(CATEGORY_LABEL[g.category]), n: g.rows.length })}
+            </div>
+            <div className="pm-cat-outlets">
+              {g.rows.map(({ plugin, on, dirty }) => (
+                <Outlet
+                  key={plugin.id}
+                  id={plugin.id}
+                  name={plugin.meta.name}
+                  abbr={plugin.meta.abbr}
+                  icon={plugin.meta.icon}
+                  iconColor={plugin.meta.iconColor}
+                  core={plugin.meta.category === "core"}
+                  on={on}
+                  dirty={dirty}
+                  onToggle={onToggle}
+                  onOpenMarket={onOpenMarket}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export interface Row {
   plugin: Plugin;
@@ -119,53 +181,3 @@ function Outlet({
   );
 }
 
-/** 合并大插排:tmd-cli 品牌区 + 各分类分区(虚线分隔 + 区内小标签)。 */
-export function MergedStrip({
-  groups,
-  onToggle,
-  onOpenMarket,
-}: {
-  groups: { category: PluginCategory; rows: Row[] }[];
-  onToggle: (id: string) => void;
-  /** 二级市场开合(无注册面板的插头不渲染角标)。 */
-  onOpenMarket?: (id: string) => void;
-}) {
-  return (
-    <div className="pm-strip-scene">
-      <div className="pm-strip">
-        <div className="pm-strip-brand">
-          <div className="pm-brand-name">tmd-cli</div>
-          <div className="pm-brand-role">{t("客户端 · 插排本体")}</div>
-          <div className="pm-master-row">
-            <span className="pm-master-led" aria-hidden />
-            <span className="pm-master-label">{t("总电源常开")}</span>
-          </div>
-        </div>
-        {groups.map((g) => (
-          <div className="pm-cat-group" key={g.category}>
-            <div className="pm-cat-label">
-              {t("{label} · {n} 位", { label: t(CATEGORY_LABEL[g.category]), n: g.rows.length })}
-            </div>
-            <div className="pm-cat-outlets">
-              {g.rows.map(({ plugin, on, dirty }) => (
-                <Outlet
-                  key={plugin.id}
-                  id={plugin.id}
-                  name={plugin.meta.name}
-                  abbr={plugin.meta.abbr}
-                  icon={plugin.meta.icon}
-                  iconColor={plugin.meta.iconColor}
-                  core={plugin.meta.category === "core"}
-                  on={on}
-                  dirty={dirty}
-                  onToggle={onToggle}
-                  onOpenMarket={onOpenMarket}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}

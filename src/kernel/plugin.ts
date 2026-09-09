@@ -16,7 +16,7 @@ import type { CommandContribution } from "./shortcuts";
 import type { FileVisualProvider } from "./fileVisual";
 import type { SidebarAction } from "./sidebarActions";
 import type { CliConfigEntry } from "./cliConfigRegistry";
-export type PluginCategory = "engine" | "feature" | "core";
+export type PluginCategory = "engine" | "feature" | "core" | "local";
 
 /** 插件展示元数据 —— 插件市场(插排页)消费,与激活逻辑无关。 */
 export interface PluginMeta {

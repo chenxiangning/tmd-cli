@@ -12,7 +12,7 @@ export const localLoaderPlugin: Plugin = {
     name: "本地插件",
     abbr: "LP",
     desc: "管理 ~/.tmd-cli/plugins/ 本地插件:对话造插件、免重启装载、版本回退",
-    category: "feature",
+    category: "local",
   },
   activate(ctx) {
     ctx.contribute("market.local", { component: LocalPluginsSection });
