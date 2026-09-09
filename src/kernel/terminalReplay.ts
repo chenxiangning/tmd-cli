@@ -4,20 +4,21 @@
  * 为什么存在:整段 write 数百 KB 会堵 xterm 解析数秒(幕布全空);冷开会话
  * 要等 CLI 启动 + resume 重放流入,同样数秒空白。两者统一遮罩进度:
  * - 有内存缓冲可回放 → 分块写入,进度 = 已解析块数/总块数(真实解析进度);
- * - 无缓冲但有磁盘尾预取(冷开磁盘会话,diskReplay)→ 回放上一代日志尾,
- *   回放尽即撤罩 —— 墓碑帧本身就是内容,不等静默;
- * - 无缓冲/回放尽 → 流式阶段,进度 = 已接收字符计数,输出静默 0.5s 判就绪撤罩;
- *   12s 兜底防 CLI 不重绘卡死遮罩。
+ * - 无缓冲但属磁盘会话冷开(diskReplay 单槽存在)→ 磁盘先行回放或启动等待:
+ *   · 指针命中 → 回放上一代日志尾,回放尽即撤罩 —— 墓碑帧本身就是内容;
+ *   · 首开/指针缺失(无字节可回放)→ 保持流式进度遮罩(「正在连接…」),
+ *     直到 CLI 画出第一帧;
+ *   两种情形活流都先攒队,攒队出现清屏序列(\x1b[2J —— 终端协议层 TUI 全屏
+ *   重绘的通用前奏,零引擎语义)后 300ms 一次 flush:CLI 首屏画好的瞬间
+ *   无缝切换,全程无「启动清屏擦掉画面 → 白屏等初始化」空窗(真机实测 omp
+ *   启动期 loadExtensions/discoverSkills 零输出 10-25s);纯文本/REPL 型 CLI
+ *   无清屏序列,30s 兜底照常放行;
+ * - 新会话/无预取(无槽) → 流式阶段,进度 = 已接收字符计数,输出静默 0.5s
+ *   判就绪撤罩;12s 兜底防 CLI 不重绘卡死遮罩。
  * 就绪锁:遮罩一旦撤下(回放尽/静默/兜底)即永久就绪,后续实时字节不再重提遮罩 ——
  * 否则生成期 spinner 持续重绘、切模型回显、resize 重绘都会把幕布反复盖住。
  * 保序(异步接缝,评审 F3):liveQueue 从挂载起攒队 —— 磁盘尾是异步源,promise
- * 未决期间实时字节严禁直写幕布(否则先写新内容、回放后到即交错);回放尽后按序补写。
- *
- * 磁盘分支的 flush 编排(真机实测 2026-09-09):若回放尽立即放行攒队,CLI 启动期的
- * HOME+CLR 清屏会把墓碑帧擦成数秒到数十秒白屏(omp loadExtensions/discoverSkills
- * 期间零输出)。故回放尽只撤罩(墓碑帧可见),活流继续攒;攒队出现清屏序列
- * (\x1b[2J —— 终端协议层 TUI 全屏重绘的通用前奏,零引擎语义)后 300ms 一次 flush,
- * CLI 画好首屏的瞬间从墓碑帧无缝切换;纯文本/REPL 型 CLI 无清屏,30s 兜底放行。
+ * 未决期间实时字节严禁直写幕布(否则先写新内容、回放后到即交错)。
  */
 
 import type { Terminal } from "@xterm/xterm";
@@ -87,10 +88,12 @@ export function attachTerminalStream(
   let received = 0;
   /* 就绪锁:true 后实时字节照常写幕布,但不再触碰进度态(见文件头注释)。 */
   let ready = false;
-  /* 磁盘分支:CLR 观测回调与 flush 计时(cleanup 需跨作用域清理,故提到这里)。 */
+  /* 磁盘分支:CLR 观测回调与 flush 计时(cleanup 需跨作用域清理,故提到这里);
+     diskStreamPhase = 首开无尾时的流式进度阶段(攒队不放行,遮罩显示启动进度)。 */
   let diskChunkSink: ((text: string) => void) | null = null;
   let diskFlushTimer: ReturnType<typeof setTimeout> | undefined;
   let clrSeen = false;
+  let diskStreamPhase = false;
   let failsafe: ReturnType<typeof setTimeout> | undefined;
 
   const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) => {
@@ -101,10 +104,10 @@ export function attachTerminalStream(
       term.write(text);
     }
     received += text.length;
-    /* 攒队期间进度归回放分支驱动;直写期才走流式进度 */
-    if (!cancelled && !ready && !liveQueue) {
+    if (!cancelled && !ready && (!liveQueue || diskStreamPhase)) {
       onProgress({ kind: "stream", chars: received });
-      armQuiet();
+      /* 磁盘首开攒队期不起静默表 —— 遮罩只随 finishDisk 撤 */
+      if (!liveQueue) armQuiet();
     }
   });
 
@@ -158,13 +161,15 @@ export function attachTerminalStream(
     void diskTail.then((page) => {
       if (cancelled) return;
       const tail = page?.text ?? "";
+      /* 磁盘分支接管就绪编排:12s 全局 failsafe 会在慢启动 CLI(omp 实测 25s)
+         的启动期提前置 ready 卡死攒队,此处撤销,由 30s 磁盘兜底顶替 */
+      clearTimeout(failsafe);
       if (!tail) {
-        /* 无指针/日志/IPC 失败:攒下的字节按序放行,回落现状直流式 */
-        flushQueuedNow();
-        if (!ready) {
-          onProgress({ kind: "stream", chars: received });
-          armQuiet();
-        }
+        /* 首开/指针缺失:无字节可回放。保持流式进度遮罩(「正在连接…」),
+           活流继续攒队,等 CLR 首帧画完一次切换;30s 兜底放行 */
+        diskStreamPhase = true;
+        onProgress({ kind: "stream", chars: received });
+        diskFlushTimer = setTimeout(() => finishDisk(), DISK_FLUSH_FAILSAFE_MS);
         return;
       }
       inputGate.arm();
@@ -174,9 +179,6 @@ export function attachTerminalStream(
         if (cancelled) return;
         onProgress(null); /* 撤罩:墓碑帧可见;ready/flush 留给 CLR 观测或兜底 */
         host.restoreDiskTail(sessionId, tail);
-        /* 磁盘分支接管就绪编排:12s 全局 failsafe 会在慢启动 CLI(omp 实测 25s)
-           的启动期提前置 ready 卡死攒队,此处撤销,由 30s 磁盘兜底顶替 */
-        clearTimeout(failsafe);
         diskFlushTimer = setTimeout(() => finishDisk(), DISK_FLUSH_FAILSAFE_MS);
       });
     });

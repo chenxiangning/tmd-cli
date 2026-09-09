@@ -214,7 +214,7 @@ describe("attachTerminalStream 磁盘先行回放", () => {
     off();
   });
 
-  it("无尾(未预取/失败/null):攒队放行,回落现状流式静默判就绪", async () => {
+  it("首开无尾(指针缺失):遮罩保持到首帧,活流攒队,CLR 后一次切换", async () => {
     hoisted.cliIds.set("s1", "cli-1");
     hoisted.diskTail = { cliId: "cli-1", promise: Promise.resolve(null) };
     const term = fakeTerm();
@@ -222,10 +222,29 @@ describe("attachTerminalStream 磁盘先行回放", () => {
     const off = attachTerminalStream(term, "s1", gate, (p) => events.push(p));
     emit("s1", "A");
     await vi.advanceTimersByTimeAsync(5);
-    expect(term.writes).toContain("A"); // 攒队字节不丢
+    expect(term.writes).not.toContain("A"); // 攒队不放行(防启动清屏白屏)
+    expect(events.some((e) => e?.kind === "stream")).toBe(true); // 「正在连接…」流式进度
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events).not.toContain(null); // 静默不撤罩,遮罩保持到首帧
+    emit("s1", "\x1b[H\x1b[2JFRAME");
+    await vi.advanceTimersByTimeAsync(300);
+    expect(term.writes.join("")).toContain("FRAME");
+    expect(term.writes.some((w) => w.includes("A"))).toBe(true); // 攒队字节按序补写
+    expect(events.at(-1)).toBeNull(); // 首帧切换后撤罩
+    expect(hoisted.restored).toEqual([]); // 无尾不恢复徽章
+    off();
+  });
+
+  it("新会话/无预取槽:直流通路,流式静默 0.5s 判就绪", async () => {
+    hoisted.cliIds.set("s1", "cli-1");
+    /* hoisted.diskTail 保持 null = 无槽(createSession 路径),不建 slot */
+    const term = fakeTerm();
+    const events: LoadProgress[] = [];
+    const off = attachTerminalStream(term, "s1", gate, (p) => events.push(p));
+    emit("s1", "A");
+    expect(term.writes).toContain("A"); // 直流,不攒队
     await vi.advanceTimersByTimeAsync(500);
-    expect(events).toContain(null); // 静默 0.5s 撤罩(现状语义)
-    expect(hoisted.restored).toEqual([]);
+    expect(events).toContain(null); // 静默 0.5s 撤罩(新会话现状语义)
     off();
   });
 
