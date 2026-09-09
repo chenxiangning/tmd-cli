@@ -41,7 +41,14 @@ function WorkspaceSection() {
   useHost();
   /* 顶栏 tab「定位」:消费 kernel/sessionReveal 请求,展开并滚动到该会话行(见 revealSession.ts)。 */
   const sidebarRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => registerSessionRevealHandler(createSessionRevealHandler(sidebarRef)), []);
+  useEffect(() => {
+    const reveal = createSessionRevealHandler(sidebarRef);
+    const unregister = registerSessionRevealHandler(reveal);
+    return () => {
+      unregister();
+      reveal.cancel();
+    };
+  }, []);
   const { list, activeId } = useWorkspaces();
   const [menu, setMenu] = useState<{
     workspace: Workspace;

@@ -18,10 +18,13 @@ import { sessionPinKey } from "@kernel/sessionPins";
 import { pinnedSection, runningSection } from "./sectionCollapsed";
 import { isRunningZoneCandidate } from "./utils";
 
+/** 返回的 handler 带 cancel():卸载时调用,终止在途 rAF 轮询;新请求亦取代旧轮询。 */
 export function createSessionRevealHandler(
   sidebarRef: RefObject<HTMLElement | null>,
-): (sessionId: string) => void {
-  return (sessionId: string) => {
+): ((sessionId: string) => void) & { cancel: () => void } {
+  /* 代次闸:每次新请求或 cancel 递增,旧轮询下一帧自检即停(不上取消句柄表) */
+  let generation = 0;
+  const handler = (sessionId: string) => {
     const meta = host.getSessions().find((s) => s.id === sessionId);
     if (!meta) return;
     const st = getSettingsState().settings;
@@ -54,8 +57,10 @@ export function createSessionRevealHandler(
 
     /* 展开落地时机不定(重渲染 + 0.18s 网格过渡 + 慢机):rAF 轮询到行出现即定位,
      * 快路径一帧命中,上限 600ms 兜底;目标行恒为活会话,超时视为无行场景静默放弃。 */
+    const gen = ++generation;
     const startedAt = performance.now();
     const tryReveal = () => {
+      if (gen !== generation) return;
       const root = sidebarRef.current;
       const el =
         root?.querySelector<HTMLElement>(`[data-session-id="${sessionId}"]`) ??
@@ -72,4 +77,8 @@ export function createSessionRevealHandler(
     };
     window.requestAnimationFrame(tryReveal);
   };
+  handler.cancel = () => {
+    generation++;
+  };
+  return handler;
 }
