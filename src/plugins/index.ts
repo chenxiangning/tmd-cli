@@ -28,6 +28,7 @@ import { checkpointsPlugin } from "./checkpoints";
 import { memoryCoordinatorPlugin } from "./memory-coordinator";
 import { assetsPlugin } from "./assets";
 import { cliConfigPlugin } from "./cli-config";
+import { localLoaderPlugin } from "./local-loader";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -53,4 +54,5 @@ export const allPlugins: Plugin[] = [
   memoryCoordinatorPlugin,
   assetsPlugin,
   cliConfigPlugin,
+  localLoaderPlugin,
 ];

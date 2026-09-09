@@ -1,9 +1,9 @@
 /**
  * 界面缩放引擎 —— settings.uiZoom → webview 整页缩放(VS Code zoomLevel 同思路)。
  *
- * Tauri 环境走 ipc.setWebviewZoom(原生 pageZoom/zoomFactor:canvas 按 CSS px 重排,
- * 终端 WebGL 层保持清晰);浏览器 dev/桩环境 reject 时回落 #root CSS zoom
- * (合成层放大,非整数倍 canvas 略糊 —— 仅 dev 目检用,真窗走原生路径)。
+ * Tauri 环境走 ipc.setWebviewZoom(原生 pageZoom/zoomFactor:文本按 CSS px 重排,
+ * 终端 xterm DOM 文本层保持清晰);浏览器 dev/桩环境 reject 时回落 #root CSS zoom
+ * (合成层放大,非整数倍文本层略糊 —— 仅 dev 目检用,真窗走原生路径)。
  * main.tsx 调 bootUiZoom(),幂等。
  */
 

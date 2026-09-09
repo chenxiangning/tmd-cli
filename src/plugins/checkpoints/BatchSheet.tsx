@@ -19,7 +19,7 @@ import type { CkptBatch } from "@kernel/ipc";
 import { approveBatch, getCachedDiff, loadDiff, refreshBatches, refreshOpenDiff, revertBatch, useCkptVersion, useCkptBatches } from "./store";
 import { readBatchPayload } from "./batchTab";
 import { extractPromptImages, PromptImages } from "./PromptImages";
-import { Center, FileSection } from "./BatchFileSection";
+import { Center, FileSections } from "./BatchFileSection";
 
 /** 轮耗时短语(锚点 → 封口);秒取整,分段到时。 */
 function formatDuration(ms: number): string {
@@ -144,7 +144,7 @@ function SheetBody({
     }
   }
 
-  const revertable = batch.files.filter((f) => f.live === "same");
+  const revertable = batch.files.filter((f) => f.live === "same" && !f.noBaseline);
   const stateLabel = batch.open
     ? t("进行中")
     : batch.state === "done"
@@ -266,30 +266,13 @@ function SheetBody({
               </div>
             ) : null}
 
-            <div className="mb-2 mt-5 text-[0.6875rem] text-(--tmd-fg-faint)">
-              {t("AI 修改的文件({n}) —— 点击分区头折叠;hover 可单文件回退", { n: batch.files.length })}
-            </div>
-            {patches.length === 0 && (
-              <div className="rounded border border-dashed border-(--tmd-border) p-4 text-center text-[0.6875rem] text-(--tmd-fg-faint)">
-                {t("本批文件当前与批后像无差异(可能已回退或已提交)")}
-              </div>
-            )}
-            {batch.files.map((f) => (
-              <FileSection
-                key={f.path}
-                path={f.path}
-                status={f.status}
-                stale={f.stale}
-                reverted={f.reverted}
-                editCount={f.editCount}
-                attribution={batch.attribution}
-                canRevert={batch.state === "pending" && f.live === "same"}
-                patch={patches.find((p) => p.path === f.path) ?? null}
-                flashed={flash === f.path}
-                busy={busy}
-                onRevert={() => setConfirmPath(f.path)}
-              />
-            ))}
+            <FileSections
+              batch={batch}
+              patches={patches}
+              flash={flash}
+              busy={busy}
+              onRevertPath={(p) => setConfirmPath(p)}
+            />
           </>
         )}
       </div>

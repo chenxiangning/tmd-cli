@@ -180,12 +180,13 @@ export class HostWatches {
   }
 
   /** 用户写入的守望扇出:对话锚定(呼吸灯首写闸)+ EditWatch 去重集清空 + Ask 作答解除。
+      synthetic 回传(焦点/鼠标/查询应答,terminalReports.ts)不是作答,三守望一概不碰 ——
+      否则点一下终端/切一次 tab 就清候选并重启 8s 抑制窗,亮标被无限推迟(实测根因)。
       返回 true = Ask 等待态翻转,Host 据此重渲染。 */
   onUserWrite(sessionId: string, synthetic: boolean): boolean {
-    if (!synthetic) {
-      this.activity.onUserWrite(sessionId);
-      this.editWatch.onUserWrite(sessionId); // 新一轮:EditWatch 去重集清空
-    }
+    if (synthetic) return false;
+    this.activity.onUserWrite(sessionId);
+    this.editWatch.onUserWrite(sessionId); // 新一轮:EditWatch 去重集清空
     return this.askWatch.onUserWrite(sessionId);
   }
 

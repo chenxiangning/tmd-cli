@@ -41,6 +41,8 @@ describe("初始状态与默认值", () => {
       darkThemePresetId: "vscode-dark-modern",
       customThemePresetId: "vscode-dark-modern",
       language: "zh",
+      localPluginTrust: {},
+      localPluginsDisabled: false,
       terminalFontSize: 13,
       terminalFontFamily: "",
       uiFontSize: 16,

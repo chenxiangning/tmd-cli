@@ -80,6 +80,10 @@ pub fn derive_batches(
                         reverted,
                         live: live_state,
                         edit_count: tf.edit_count,
+                        // 工作区外首轮无前像:禁回退标记(UI 隐藏回退入口,restore 后端再守)
+                        no_baseline: tf.existed_before
+                            && tf.before_oid.is_empty()
+                            && super::is_external_path(&tf.path),
                     });
                 }
                 (files, false, Some(t.seal_ts))
@@ -116,6 +120,14 @@ pub fn derive_batches(
                         status: untrack_char(&st),
                         live: "same".into(),
                         edit_count: edit_count_of(&p),
+                        // open 轮同封口编码:工作区外无前像(edit 行前像空)= 禁回退
+                        no_baseline: super::is_external_path(&p)
+                            && entries.iter().any(|e| {
+                                e.kind == "edit"
+                                    && e.id == a.id
+                                    && e.path == p
+                                    && e.before_oid.is_empty()
+                            }),
                     })
                     .collect();
                 (files, true, None)
@@ -185,7 +197,9 @@ fn classify_turn_file(
         Some(sidecar.find_blob(oid)?.content().to_vec())
     };
     let live_bytes = fs::read(root.join(&tf.path)).ok();
-    if user.is_none() {
+    // 工作区外文件:不在用户仓库 dirty/committed 语义内(永远不在 live 集),
+    // 同非 git 工作区两档分类 —— 否则同容会被误判 committed,批被提前推 done
+    if user.is_none() || super::is_external_path(&tf.path) {
         // 非 git 工作区:提交态不可推导,只有 same(可回退/应用)/ changed 两档
         return Ok(if after.as_deref() == live_bytes.as_deref() {
             "same".into()

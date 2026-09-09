@@ -109,7 +109,7 @@ export function FileRow({
   busy: boolean;
   setConfirm: (v: ConfirmTarget | null) => void;
 }) {
-  const canRevert = b.state === "pending" && f.live === "same";
+  const canRevert = b.state === "pending" && f.live === "same" && !f.noBaseline;
   const segs = f.path.split("/");
   const name = segs.pop() ?? f.path;
   const dir = segs.length ? segs.join("/") + "/" : "";
@@ -166,6 +166,14 @@ export function FileRow({
             title={t("工作区内容已偏离本批后像,不可回退,仅可对照")}
           >
             {t("内容已变")}
+          </span>
+        )}
+        {f.noBaseline && (
+          <span
+            className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-faint)"
+            title={t("工作区外文件,首轮批前像不可知 —— 禁回退(防误删既有文件);次轮起可正常回退")}
+          >
+            {t("无前像")}
           </span>
         )}
       </button>

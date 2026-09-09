@@ -126,6 +126,15 @@ pub fn restore_batch(
             });
             continue;
         }
+        // 工作区外无前像(首轮事件写后观测,批前像不可知):显式禁回退 ——
+        // 无前像无法区分「批内新建」与「覆盖既有文件」,回退可能误删用户文件。
+        if tf.existed_before && tf.before_oid.is_empty() && super::is_external_path(path) {
+            skipped.push(SkipEntry {
+                path: path.clone(),
+                reason: "工作区外批前像不可知,禁回退".into(),
+            });
+            continue;
+        }
         // 内容失配/已提交判定:live 必须与批后像逐字节一致(或同样不存在)
         let after = if tf.after_oid.is_empty() {
             None

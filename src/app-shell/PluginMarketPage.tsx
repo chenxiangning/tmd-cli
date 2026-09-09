@@ -5,8 +5,8 @@
  * (activateAll 组装时过滤);运行中不热卸载(避免 PTY/事件订阅泄漏)。
  * 核心插件(meta.category === "core")焊死不可拔。
  *
- * 布局:一条大插排内部分区(分类虚线分隔 + 区内标签);清单列表与插排互斥
- * 切换(页头视图开关,同页只展示一份,淡入过渡);插拔动画不受影响。
+ * 布局:两块插排 —— 内置插件一块(分类虚线分隔 + 区内标签),本机插件(local 类)单独
+ * 一块次级插排;清单列表与插排互斥切换(页头视图开关,同页只展示一份,淡入过渡)。
  *
  * 数据源:host.listPluginStates()(启动态) × settings.disabledPlugins(期望态),
  * 两者不一致 = dirty,展示"重启后生效"徽章。
@@ -19,6 +19,7 @@ import { t } from "@kernel/i18n";
 import { getMarketPanel } from "@kernel/marketPanel";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { appRestart } from "@kernel/ipc";
+import { Mounts } from "@kernel/Mounts";
 import { CATEGORY_ORDER, MergedStrip, type Row } from "./PluginMarketStrip";
 import { PluginMarketList } from "./PluginMarketList";
 
@@ -42,6 +43,9 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
     category,
     rows: rows.filter((r) => r.plugin.meta.category === category),
   })).filter((g) => g.rows.length > 0);
+  /* 内置/本机拆两块插排:local 类单独拎出(本机插件插排),插拔语义不变。 */
+  const builtinGroups = groups.filter((g) => g.category !== "local");
+  const localGroups = groups.filter((g) => g.category === "local");
   const dirtyCount = rows.filter((r) => r.dirty).length;
   /* 插排视图 ⇄ 清单列表:互斥,同页只展示一份。 */
   const [view, setView] = useState<"strip" | "list">("strip");
@@ -135,11 +139,7 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
         {/* ═══ 主视图:插排 ⇄ 清单互斥(key 强制重挂载,淡入过渡) ═══ */}
         {view === "strip" ? (
           <div className="pm-view" key="strip">
-            <MergedStrip
-              groups={groups}
-              onToggle={toggle}
-              onOpenMarket={setMarketFor}
-            />
+            <MergedStrip groups={builtinGroups} onToggle={toggle} onOpenMarket={setMarketFor} />
             <div className="pm-strip-caption">
               <span>
                 <span className="pm-legend-dot" style={{ background: "var(--tmd-accent)" }} />
@@ -152,12 +152,26 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
               <span>{t("焊死的核心插件不可拔")}</span>
               <span>{t("点击插头即可插拔")}</span>
             </div>
+            {localGroups.length > 0 && (
+              <MergedStrip
+                groups={localGroups}
+                onToggle={toggle}
+                onOpenMarket={setMarketFor}
+                brand={{
+                  name: t("本机插件"),
+                  role: t("本地插排 · 免重启装载"),
+                  master: t("对话即变 · 自动重扫"),
+                }}
+              />
+            )}
           </div>
         ) : (
           <div className="pm-view" key="list">
             <PluginMarketList groups={groups} onToggle={toggle} />
           </div>
         )}
+        {/* ═══ 本地插件分区(归 local-loader 插件贡献,经 market.local 挂点) ═══ */}
+        <Mounts point="market.local" />
 
         {/* ═══ 在线市场(预留) ═══ */}
         <div className="pm-section-title">{t("在线市场")}</div>

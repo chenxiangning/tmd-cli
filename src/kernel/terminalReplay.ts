@@ -96,8 +96,14 @@ export function attachTerminalStream(
   let clrSeen = false;
   let diskStreamPhase = false;
   let failsafe: ReturnType<typeof setTimeout> | undefined;
-
+  /* 启动 live 闸:挂载即 arm,从挂载到 streamReady 期间挡掉 onData 直通;
+     根因:pi-tui 启动期对 xterm DA/DSR/kitty 应答的 StdinBuffer 50ms flush
+     把前缀与终结字节拆成两段 data 事件,终结 c/R/u 落入 input handler
+     注入 focused 的「初始化对话框」(2026-09-10 win omp-cli 实证)。
+     计数闸与 replay/翻页窗并存(replay 窗见 130/180 行),配对释放。 */
+  inputGate.arm();
   const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) => {
+
     if (liveQueue) {
       liveQueue.push(text);
       diskChunkSink?.(text);
@@ -119,6 +125,7 @@ export function attachTerminalStream(
     quietTimer = setTimeout(() => {
       if (cancelled) return;
       ready = true;
+      inputGate.release();
       onReady?.();
       onProgress(null);
     }, QUIET_READY_MS);
@@ -161,6 +168,7 @@ export function attachTerminalStream(
       if (cancelled) return;
       flushQueuedNow();
       ready = true;
+      inputGate.release();
       onReady?.();
       onProgress(null);
     };
@@ -214,6 +222,7 @@ export function attachTerminalStream(
     failsafe = setTimeout(() => {
       if (cancelled || ready) return;
       ready = true;
+      inputGate.release();
       onReady?.();
       onProgress(null);
     }, PROGRESS_FAILSAFE_MS);
@@ -226,6 +235,8 @@ export function attachTerminalStream(
     clearTimeout(quietTimer);
     clearTimeout(diskFlushTimer);
     clearTimeout(failsafe);
+    /* 启动 live 闸兜底释放,严守 arm/release 配对 */
+    inputGate.release();
     offLive();
   };
 }

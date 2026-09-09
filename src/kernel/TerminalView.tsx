@@ -3,7 +3,8 @@
  *
  * 生命周期:挂载 → 回放内核输出缓冲(切回不黑屏)→ 订阅实时总线。
  * 输入路径:xterm onData 直写 PTY;富 composer 实装后汇入同一条 write 通道。
- * 渲染层:WebGL addon 承载全屏 TUI 高频重绘,不可用/上下文丢失自动回退 DOM 渲染器。
+ * 渲染层:xterm 内建 DOM 渲染器(WKWebView + WebglAddon glyph atlas 长时间运行后
+ * 会因 WebKit texSubImage2D 缺陷静默损坏成马赛克——已弃用)。
  * 点缀层:Cmd/Ctrl+F 搜索、可点击链接 —— 纯 xterm 插件,不触碰字节流。
  *
  * 文件规模铁则拆分(300 行):历史翻页器在 terminalHistory.ts,
@@ -13,7 +14,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Terminal, type ITheme } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
-import { WebglAddon } from "@xterm/addon-webgl";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
@@ -125,16 +125,15 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     container.addEventListener("focusout", onFocusOut);
     term.open(container);
     fit.fit();
-    /* WebGL 渲染器:omp/claude 全屏重绘的性能关键。必须在 open 之后加载;
-       无 WebGL 环境(部分 Linux WebKitGTK)或上下文丢失时回退 DOM 渲染,行为与之前一致。 */
-    try {
-      const webgl = new WebglAddon();
-      webgl.onContextLoss(() => webgl.dispose());
-      term.loadAddon(webgl);
-    } catch {
-      /* 保持 DOM 渲染器 */
-    }
-
+    /* 渲染器 = xterm 内建 DOM(WKWebView 弃用 WebGL 方案):
+       此前 loadAddon(new WebglAddon()) 的 glyph atlas 长时间运行后
+       会被 WebKit 的 texSubImage2D 大纹理子上传 bug 损坏成马赛克
+       (atlas 越大越易触发,且 onContextLoss 不触发静默损坏——大仙
+       反馈"运行时间长,渲染乱码"即此)。addon-canvas 停更在 xterm 5 时代,
+       装不上 ^6。DOM 渲染器作为 xterm 核心兜底,Linux WebKitGTK 等无
+       WebGL 环境原本就在跑此路径。
+       ponytail: 若全屏 TUI 重绘性能实测不达标,复评
+       (webgl 上游 WebKit 修复 或 addon-canvas 适配 v6)。*/
     termRef.current = term;
     searchRef.current = search;
 

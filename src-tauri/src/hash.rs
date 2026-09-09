@@ -21,9 +21,31 @@ pub fn md5_hex(text: String) -> String {
     format!("{:x}", hasher.finalize())
 }
 
+/// UTF-8 字符串 → 小写十六进制 SHA-256(64 字符)。本地插件信任 hash 用强哈希:
+/// AI 有 shell,md5 选择前缀碰撞(fastcoll)可伪造信任,sha256 当前不可行。
+pub fn sha256_hex(text: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(text.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
 #[cfg(test)]
 mod tests {
     use super::md5_hex;
+    use super::sha256_hex;
+
+    #[test]
+    fn sha256_fips180_标准向量() {
+        assert_eq!(
+            sha256_hex("abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        assert_eq!(
+            sha256_hex(""),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
 
     #[test]
     fn rfc1321_标准向量() {

@@ -167,7 +167,7 @@ export async function deleteOpencodeSession(cliSessionId: string): Promise<void>
  * 查询失败 = null(调用方保水位线重试)。
  */
 export async function readOpencodeSessionEdits(
-  _cwd: string,
+  cwd: string,
   cliSessionId: string,
   sinceTs: number,
 ): Promise<CliSessionEdit[] | null> {
@@ -194,7 +194,7 @@ export async function readOpencodeSessionEdits(
   const out: CliSessionEdit[] = [];
   for (const row of rows) {
     try {
-      const edit = parseOpencodeToolEdit(JSON.parse(String(row[0])), undefined);
+      const edit = parseOpencodeToolEdit(JSON.parse(String(row[0])), undefined, cwd);
       if (edit && edit.ts > sinceTs) out.push(edit);
     } catch {
       /* 单行 JSON 损坏跳过,不影响同批其余事件 */

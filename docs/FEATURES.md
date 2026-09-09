@@ -341,7 +341,7 @@
 - 文件预览为条件第四栏:有打开的文件 tab 才出现,夹于幕布与右栏之间,宽度可拖
 - 顶栏「回到首页」:一键摘掉活跃会话指针回欢迎页,会话不删可再唤回
 - 右栏面板 tab 可钉住,溢出收进「⋯」菜单(菜单行点击激活并顺带钉住,复选框仅切钉住不收菜单;激活未钉面板临时外显;Esc/背板关闭)
-- 幕布:⌘/Ctrl+F 呼出搜索框(即时命中,Enter 下一个/Shift+Enter 上一个,Esc 或 × 关闭并归还焦点);链接点击走系统浏览器;WebGL 渲染上下文丢失自动回退 DOM 渲染
+- 幕布:⌘/Ctrl+F 呼出搜索框(即时命中,Enter 下一个/Shift+Enter 上一个,Esc 或 × 关闭并归还焦点);链接点击走系统浏览器;渲染层为 xterm 内建 DOM(2026-09-10 起弃用 WebGL:WKWebView atlas 长时间运行后静默损坏)
 - 幕布字体按平台:macOS Menlo 系 / Windows Cascadia Mono·Consolas / Linux DejaVu Sans Mono·Liberation Mono,13px,光标闪烁
 - 幕布滚动回放上界 5 万行,更早历史经滚顶「加载更早的输出」按钮翻页(RIS 重置整段重写幕布)
 - panic 落盘:任意线程 panic 的时间戳/线程/源码位置追加 `~/.tmd-cli/panic.log`,超 1MB 先清空再写

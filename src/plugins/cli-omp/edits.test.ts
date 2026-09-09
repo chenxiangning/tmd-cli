@@ -67,11 +67,13 @@ describe("parseOmpEditEvents", () => {
     expect(parseOmpEditEvents(broken, 0, CWD)).toHaveLength(1);
   });
 
-  it("家目录缩写与逃逸路径拒绝(宁漏勿误)", () => {
+  it("~ 形式上抛入账(工作区外),逃逸路径拒绝(宁漏勿误)", () => {
     const hostile =
       `{"type":"message","timestamp":"2026-09-03T13:45:20.263Z","message":{"role":"toolResult",` +
       `"toolName":"edit","content":[{"type":"text","text":"[~/outside.md#AB12]\\n[../escape.md#AB13]"}]}}`;
-    expect(parseOmpEditEvents(hostile, 0, CWD)).toEqual([]);
+    expect(parseOmpEditEvents(hostile, 0, CWD)).toEqual([
+      { path: "~/outside.md", ts: Date.parse("2026-09-03T13:45:20.263Z") },
+    ]);
   });
 });
 

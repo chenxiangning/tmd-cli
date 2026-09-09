@@ -11,7 +11,7 @@
  * - 撤销:候选存在,距上次命中流出超 16KB 仍无复现 → 回到空闲;
  * - 清除:用户写入(作答,尾巴/候选一并重置)/ 静默自愈 / 会话移除。
  * 一个未回答的提问期间无论重绘多少次只触发一次;作答后的下一个提问再触发
- * (抑制窗内只延迟,面板持续重绘、窗过后即升级)。
+ * (抑制窗内只延迟;omp 静态面板字节候选会被漂移先行撤销,由屏幕通道窗后兜底)。
  */
 
 import {
@@ -163,18 +163,21 @@ export class AskWatch {
   }
 
   /**
-   * 用户写入(host.writeSession 唯一调用方)= 作答,等待解除。
-   * 尾巴与候选一并重置:旧提问字面量不得借写入回显的短 chunk 复燃。
-   * 返回 true = 状态实际翻转,host 据此重渲染摘标签。
+   * 用户写入(仅非 synthetic 真实击键)= 作答:尾巴/候选/屏幕起算一并重置。
+   * 仅真作答(写入时确有等待态)才上 8s 写后闸;普通发消息后是新提问非残影(实测根因)。
    */
   onUserWrite(sessionId: string): boolean {
+    const answered =
+      this.waiting.has(sessionId) ||
+      this.waitingByScreen.has(sessionId) ||
+      this.candidates.has(sessionId) ||
+      this.screenSince.has(sessionId);
     this.tails.delete(sessionId);
     this.candidates.delete(sessionId);
     this.lastOutputAt.delete(sessionId);
-    this.screenSince.delete(sessionId); /* 作答后屏幕残影靠抑制窗挡,起算点一并清 */
-    this.lastWriteAt.set(sessionId, Date.now());
-    const flipped =
-      this.waiting.delete(sessionId) || this.waitingByScreen.delete(sessionId);
+    this.screenSince.delete(sessionId);
+    if (answered) this.lastWriteAt.set(sessionId, Date.now());
+    const flipped = this.waiting.delete(sessionId) || this.waitingByScreen.delete(sessionId);
     this.stopWatchIfIdle();
     return flipped;
   }

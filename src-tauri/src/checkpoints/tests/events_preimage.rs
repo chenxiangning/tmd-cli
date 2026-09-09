@@ -66,9 +66,9 @@ fn events_路径逃逸拒绝_git_归因会话事件丢弃() {
     ws.write("a.txt", "v1\n");
     ws.commit_all("init");
 
-    // 路径纪律:绝对路径 / 父级逃逸不记账
+    // 路径纪律:相对父级逃逸 / 空不记账(绝对路径自 2026-09-10 起合法入账 ——
+    // 审批线覆盖工作区外写入,无前像禁回退,见 tests/events_external.rs)
     anchor_events(&ws, "cli-1", "tmd-1", "p");
-    assert!(!edit(&ws, "cli-1", "tmd-1", "/etc/passwd"));
     assert!(!edit(&ws, "cli-1", "tmd-1", "../outside.txt"));
     assert!(!edit(&ws, "cli-1", "tmd-1", ""));
 

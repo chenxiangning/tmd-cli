@@ -84,4 +84,27 @@ export class PluginLifecycle {
   isPluginActive(id: string): boolean {
     return this.plugins.has(id);
   }
+
+  /**
+   * 晚激活(本地插件「待启用→确认」/重新扫描免重启通道):
+   * 以首轮已激活集合为依赖底座;重复 id / 依赖缺失 / 被拔插件一律拒绝。
+   * activate 抛错隔离归装载侧 safe wrapper(localPlugins),此处保持裸调用与首轮同语义。
+   * notify 由 HostRegistry 在调用成功后触发(与注册表变更同路径)。
+   */
+  async activateLate(plugin: Plugin, ctx: PluginContext): Promise<void> {
+    await this.activation;
+    /* 同步占位防并发双激活(has 检查在 await 前的交错窗口会双双过闸,activate 跑两次=贡献双注册)。 */
+    if (this.plugins.has(plugin.id)) throw new Error(`插件已激活: ${plugin.id}`);
+    if (this.disabledPluginIds.has(plugin.id))
+      throw new Error(`插件已拔出,重启后仍可恢复: ${plugin.id}`);
+    const missing = (plugin.dependsOn ?? []).filter((d) => !this.plugins.has(d));
+    if (missing.length > 0) throw new Error(`依赖缺失: ${missing.join(", ")}`);
+    this.plugins.set(plugin.id, plugin);
+    try {
+      await plugin.activate(ctx);
+    } catch (e) {
+      this.plugins.delete(plugin.id); // 占位回滚(内置链路的裸 activate 才会走到这)
+      throw e;
+    }
+  }
 }

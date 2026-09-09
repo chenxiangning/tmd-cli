@@ -20,6 +20,7 @@ static SEQ: AtomicU64 = AtomicU64::new(0);
 mod dead;
 mod events;
 mod events_apply;
+mod events_external;
 mod events_isolation;
 mod events_preimage;
 mod parallel;

@@ -133,6 +133,25 @@ function sanitizeDisabledPlugins(raw: unknown): string[] {
   return [...ids].sort();
 }
 
+/** 本地插件信任表清洗:id → 非空字符串数组;坏 id/坏项丢弃,确定性按 key 序。 */
+function sanitizeLocalPluginTrust(raw: unknown): Record<string, string[]> {
+  const map: Record<string, string[]> = {};
+  if (!raw || typeof raw !== "object") return map;
+  const entries = raw as Record<string, unknown>;
+  for (const id of Object.keys(entries).sort()) {
+    if (!id || !Array.isArray(entries[id])) continue;
+    const hashes = [
+      ...new Set(
+        (entries[id] as unknown[]).filter(
+          (h): h is string => typeof h === "string" && h.length > 0,
+        ),
+      ),
+    ];
+    if (hashes.length > 0) map[id] = hashes;
+  }
+  return map;
+}
+
 /** 网络代理地址长度上限(env 注入侧的确定性兜底)。 */
 const NETWORK_PROXY_URL_MAX_LENGTH = 500;
 
@@ -219,6 +238,8 @@ export function sanitize(raw: unknown): AppSettings {
     sessionOutputBufferLimit: sanitizeBufferLimit(obj.sessionOutputBufferLimit),
     sessionListBudget: sanitizeSessionListBudget(obj.sessionListBudget),
     disabledPlugins: sanitizeDisabledPlugins(obj.disabledPlugins),
+    localPluginsDisabled: obj.localPluginsDisabled === true,
+    localPluginTrust: sanitizeLocalPluginTrust(obj.localPluginTrust),
     sessionTitles: sanitizeSessionTitles(obj.sessionTitles),
     sessionPins: sanitizeSessionPins(obj.sessionPins),
     sessionArchive: sanitizeSessionArchive(obj.sessionArchive),

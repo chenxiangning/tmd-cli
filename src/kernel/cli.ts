@@ -73,7 +73,7 @@ export interface CliUserMessage {
  * 从该 CLI 自己的会话 JSONL 提取,天然按会话隔离,并行会话零串扰。
  */
 export interface CliSessionEdit {
-  /** 写入文件路径(cwd 相对;cwd 内绝对亦可,消费侧归一)。 */
+  /** 写入文件路径(cwd 内记相对;cwd 外绝对或 ~/ 形式原样上抛,Rust 单闸终审归一)。 */
   path: string;
   /** 写入发生时刻 ms epoch(取自 CLI 自记的时间戳,非观测时刻)。 */
   ts: number;

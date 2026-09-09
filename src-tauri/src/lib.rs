@@ -9,6 +9,7 @@ mod fs_walk;
 mod git;
 mod hash;
 mod installer;
+mod plugins;
 mod probe;
 mod proc_run;
 mod proxy;
@@ -173,6 +174,12 @@ pub fn run() {
             checkpoints::commands::checkpoint_apply,
             checkpoints::commands::checkpoint_approve,
             checkpoints::commands::checkpoint_undo_revert,
+            plugins::plugin_scan,
+            plugins::plugin_read_file,
+            plugins::plugin_read_version,
+            plugins::plugin_archive,
+            plugins::plugin_rollback,
+            plugins::plugin_delete,
             checkpoints::commands::checkpoint_prune,
             git::commands::git_totals,
             git::commands::git_ahead_behind,

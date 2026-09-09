@@ -94,7 +94,7 @@ export function BatchRow({
   const st = batchState(b);
   const meta = STATE_META[st];
   const stats = batchStats(getCachedDiff(cwd, b.id));
-  const revertable = b.files.filter((f) => f.live === "same");
+  const revertable = b.files.filter((f) => f.live === "same" && !f.noBaseline);
 
   return (
     <div className="relative mb-1.5">

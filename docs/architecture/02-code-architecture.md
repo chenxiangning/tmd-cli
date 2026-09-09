@@ -26,7 +26,7 @@ flowchart TB
             TABS["tabs.ts<br/>编辑器 tab 全局 store"]
             WS["workspace.ts<br/>工作区 store（内存态）"]
             IPC["ipc.ts<br/>invoke/listen 薄封装（唯一触 Rust 入口）<br/>+ Tauri API 统一收口(窗口/对话框/外链)"]
-            TV["TerminalView.tsx<br/>xterm.js 幕布(WebGL/搜索/翻页)"]
+            TV["TerminalView.tsx<br/>xterm.js 幕布(DOM 渲染/搜索/翻页)"]
             SS["streamSlice.ts<br/>字节流尾部安全截断"]
             FV["fileVisual.ts<br/>文件视觉 provider 注册点"]
             SA["sidebarActions.ts<br/>侧栏快捷动作注册表"]
