@@ -70,6 +70,14 @@ describe("屏幕态通道(onScreenSample,幕布 1Hz 采样)", () => {
     expect(watch.onScreenSample("sc2", true)).toBe("asked"); // 连续多问延迟亮标
   });
 
+  it("普通发送(无等待态)后出现的新面板:屏幕通道不上闸(不及时根因回归)", async () => {
+    watch.onUserWrite("sc5"); // 普通发消息:无 ask 状态,不上闸
+    await vi.advanceTimersByTimeAsync(2_000); // 2s 后新面板上屏
+    expect(watch.onScreenSample("sc5", true)).toBeNull(); // 立即记起算
+    await vi.advanceTimersByTimeAsync(1_300);
+    expect(watch.onScreenSample("sc5", true)).toBe("asked"); // 防抖满即置位
+  });
+
   it("字节流置位的等待被屏幕消失自愈(CLI 自行继续,spinner 使流静默永不达成)", async () => {
     fire("sc3", OMP_ASK);
     await pastConfirm();

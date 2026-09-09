@@ -112,5 +112,6 @@
 | 2026-09-09 | [磁盘会话先行回放 + 进程惰性拉起设计(走法 1)](superpowers/specs/2026-09-09-disk-first-session-open-design.md) | 已落地(9e49ffd/515cd4d/55a7d87/beb927a) |
 | 2026-09-09 | [磁盘会话先行回放 spec 对抗评审(7 发现全处置)](review/2026-09-09-disk-first-session-open-review.md) | 已完成(修订已实施) |
 | 2026-09-09 | [磁盘先行回放整体任务终审(4×P1+7×P2 当日全修复)](review/2026-09-09-disk-first-final-audit.md) | 已完成(含 rebase 历史手术记录) |
+| 2026-09-10 | [Ask 提醒不及时/后台不出现:写后抑制窗误伤根因评审与修复](review/2026-09-10-ask-watch-write-gate-review.md) | 已完成(修复随记录同在工作树) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

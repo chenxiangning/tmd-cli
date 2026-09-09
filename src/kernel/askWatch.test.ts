@@ -181,12 +181,28 @@ describe("AskWatch 标记检测与状态迁移(候选确认制)", () => {
   });
 
   it("静态残影在写后抑制窗内不被静默确认升级", async () => {
-    watch.onUserWrite("s21"); // 作答:记写入时刻
+    fire("s21", OMP_ASK);
+    await pastConfirm();
+    fire("s21", OMP_ASK); // 升级等待
+    watch.onUserWrite("s21"); // 真作答(写入时确有等待态):上闸
     expect(fire("s21", OMP_ASK)).toBe(false); // 残影立候选
     await vi.advanceTimersByTimeAsync(7_000); // 窗内:确认期满也不升级
     expect(watch.isWaiting("s21")).toBe(false);
     await vi.advanceTimersByTimeAsync(2_000); // 窗过:与复现路径同语义,延迟升级
     expect(watch.isWaiting("s21")).toBe(true);
+  });
+
+  it("普通发送(写入时无等待态)后的新提问不上闸:~2s 亮标(不及时根因回归)", async () => {
+    watch.onUserWrite("s22"); // 普通发消息:无 ask 状态,不上闸
+    await vi.advanceTimersByTimeAsync(2_000);
+    fire("s22", OMP_ASK); // 新提问到达(距写入 2s < 8s)
+    /* omp 等待期 spinner 细水长流(~313B/100ms):确认时漂移远未达 16KB */
+    for (let i = 0; i < 25; i++) {
+      await vi.advanceTimersByTimeAsync(100);
+      fire("s22", ".".repeat(313));
+    }
+    /* 守望漂移确认 ~2s 升级;旧行为:上闸 8s + 漂移 ~5.3s 先行撤销 → 永不亮标 */
+    expect(watch.isWaiting("s22")).toBe(true);
   });
 
   it("用户作答清除;残影重绘被写后抑制窗挡住,不再复燃(bug 1 回归)", async () => {

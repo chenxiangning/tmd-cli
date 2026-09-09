@@ -172,4 +172,20 @@ describe("host 接线:检测进主链路,状态对 UI 可读", () => {
     await host.removeSession(s.id);
     expect(host.isWaitingConfirm(s.id)).toBe(false);
   });
+
+  it("synthetic 终端回传(焦点/鼠标/查询应答)不清 Ask 状态、不上抑制闸", async () => {
+    const s = await host.createSession(PROFILE_ID, CWD);
+    /* 候选期:synthetic 回传不清候选 */
+    ptyOutputCbs.get(s.id)!(OMP_ASK);
+    host.writeSession(s.id, "\x1b[O", true); // 焦点离开
+    host.writeSession(s.id, "\x1b[<0;10;5M", true); // SGR 鼠标点击
+    await vi.advanceTimersByTimeAsync(2_500); // 守望漂移确认:候选仍在 → 升级
+    expect(host.isWaitingConfirm(s.id)).toBe(true);
+    /* 等待期:synthetic 回传不摘标签;真实击键才是作答 */
+    host.writeSession(s.id, "\x1b[I", true); // 焦点回来
+    expect(host.isWaitingConfirm(s.id)).toBe(true);
+    host.writeSession(s.id, "\r");
+    expect(host.isWaitingConfirm(s.id)).toBe(false);
+    await host.removeSession(s.id);
+  });
 });
