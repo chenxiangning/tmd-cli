@@ -31,15 +31,15 @@ const POLL_MS = 6000;
 export function CheckpointsPanel() {
   const { list, activeId } = useWorkspaces();
   const active = list.find((w) => w.id === activeId) ?? list[0];
-  const cwd = active?.root ?? null;
-  /* 会话严格绑定:只认当前活跃会话(审批线生命周期 = 单个会话);不再要求
-     session.cwd === 工作区 root —— 锚点写入用 session.cwd,Rust 侧按键
-     精确匹配,跨工作区查询天然返回空,而会话 cwd 是工作区子目录时旧守卫
-     会把本可命中的批次整批隐藏。
-     读写都以 CLI 磁盘身份为准(账本按其落盘),身份统一经 identity.ts 仲裁:
-     cli 身份被多个活会话争持(绑定竞态)时先创建者保留、后到者回退 tmd id,
-     新会话不再看到老会话的审批线;首条 prompt 时身份常未绑上(锚点暂记
-     tmd id 名下),查询把 tmd id 作为副键一并命中,后端自动回填。 */
+  /* 会话严格绑定:只认当前活跃会话(审批线生命周期 = 单个会话)。
+     读写同键:锚点按 session.cwd 落账(index.tsx captureAnchor),查询也必须
+     用 session.cwd —— 点选他工作区会话并不切 activeId(仅工作区卡片点击才切),
+     用活跃工作区根会查错账本;活跃工作区恰好非 git 时谎报 E_NOT_A_REPO
+     (2026-09-09 实证:er-qi 活跃 + 选中 tmd-cli 会话 → 审批线空态,账目其实在
+     tmd-cli 账本)。无会话时回落活跃工作区根(sealDeadTurns 强退恢复需 cwd)。
+     身份统一经 identity.ts 仲裁:cli 身份被多个活会话争持(绑定竞态)时先创建者
+     保留、后到者回退 tmd id;首条 prompt 时身份常未绑上(锚点暂记 tmd id 名下),
+     查询把 tmd id 作为副键一并命中,后端自动回填。 */
   const [, bumpRender] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
     const offs = [
@@ -51,8 +51,11 @@ export function CheckpointsPanel() {
 
   const activeSessionId = host.getActiveSessionId();
   const identity = activeSessionId ? checkpointIdentity(activeSessionId) : null;
-  const sessionId = identity && cwd ? identity.key : null;
+  const cwd = identity?.cwd ?? active?.root ?? null;
+  const sessionId = identity?.key ?? null;
   const tmdSessionId = activeSessionId ?? undefined;
+  /* 徽标与查询同口径:会话 cwd 落在哪个工作区根下就显示哪个,防错配误导。 */
+  const shown = cwd ? (list.find((w) => cwd === w.root || cwd.startsWith(`${w.root}/`)) ?? active) : active;
 
   const state = useCkptBatches(cwd, sessionId);
   const [confirm, setConfirm] = useState<ConfirmTarget | null>(null);
@@ -163,9 +166,9 @@ export function CheckpointsPanel() {
             {t("时间线")}
           </button>
         </div>
-        {active && (
-          <span className="max-w-[45%] truncate text-[0.625rem] text-(--tmd-fg-faint)" title={active.root}>
-            {active.name}
+        {shown && (
+          <span className="max-w-[45%] truncate text-[0.625rem] text-(--tmd-fg-faint)" title={shown.root}>
+            {shown.name}
           </span>
         )}
         <span className="flex-1" />
