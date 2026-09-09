@@ -236,7 +236,8 @@ export const cliCodexPlugin: Plugin = {
     name: "Codex CLI",
     abbr: "CX",
     desc: "Codex CLI 引擎:rollout 扫描、配额",
-    iconColor: "#000",
+    icon: CodexGlyph,
+    iconColor: "var(--tmd-fg)",
     category: "engine",
   },
   activate(ctx) {
