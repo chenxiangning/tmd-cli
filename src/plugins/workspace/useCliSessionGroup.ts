@@ -195,8 +195,6 @@ export function useCliSessionGroup({
     .sort((a, b) => b.modifiedAt - a.modifiedAt);
   const visible = unpinnedDisk.slice(0, limit);
   const remaining = unpinnedDisk.length - visible.length;
-  /** 折叠态计数口径:未置顶磁盘历史条数(与 visible/remaining 同源)。 */
-  const unpinnedCount = unpinnedDisk.length;
 
   /** 归档视图行集:含绑定活会话的条目(默认视图其活行已隐藏,归档视图以磁盘行形回归)。 */
   const archivedRows = scanned
@@ -212,16 +210,13 @@ export function useCliSessionGroup({
       (archivedView
         ? archivedRows.length === 0
         : orderedLive.length === 0 && disk.length === 0),
-    unpinnedCount: archivedView ? archivedRows.length : unpinnedCount,
     sessions: scanned,
-    limit,
     setLimit,
     setRescanTick,
     titleOverrides,
     pins,
     activeSessionId,
     orderedLive: archivedView ? [] : orderedLive,
-    disk,
     pinnedDisk: archivedView ? [] : pinnedDisk,
     visible: archivedView ? archivedVisible : visible,
     remaining: archivedView ? archivedRows.length - archivedVisible.length : remaining,

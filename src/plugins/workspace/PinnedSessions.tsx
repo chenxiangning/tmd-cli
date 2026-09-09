@@ -169,7 +169,8 @@ export function PinnedSessionsSection() {
         row.workspace.id,
         row.cliSessionId,
       )
-      .then((meta) => noteSessionTabTitle(meta.id, titleOf(row)));
+      .then((meta) => noteSessionTabTitle(meta.id, titleOf(row)))
+      .catch(() => undefined);
   };
 
   const commitRename = (value: string | null) => {
@@ -210,7 +211,7 @@ export function PinnedSessionsSection() {
             return (
               <div key={row.key} className="thread-row is-renaming">
                 <span className="thread-engine-badge" title={row.profile.name}>
-                  {row.profile.renderIcon?.(12)}
+                  {row.profile.renderIcon?.("0.75rem")}
                 </span>
                 <RenameInput target={renaming} onCommit={commitRename} />
               </div>
@@ -229,7 +230,7 @@ export function PinnedSessionsSection() {
               }}
             >
               <span className="thread-engine-badge" title={row.profile.name}>
-                {row.profile.renderIcon?.(12)}
+                {row.profile.renderIcon?.("0.75rem")}
               </span>
               <span className="thread-name">{titleOf(row)}</span>
               <span className="thread-meta">

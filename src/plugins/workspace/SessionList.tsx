@@ -151,6 +151,7 @@ export function CliSessionGroup({
             .then((meta) =>
               noteSessionTabTitle(meta.id, displayTitle(s.id, s.id)),
             )
+            .catch(() => undefined)
         }
         onContextMenu={(e) => {
           e.preventDefault();
