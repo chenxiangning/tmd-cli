@@ -8,7 +8,7 @@
  * 展开经 settings / 段 store 落地后,rAF 轮询(上限 600ms)等行渲染进树再滚动居中 +
  * is-reveal 闪高亮(1.6s 后移除,样式见 workspace-sessions-extras.css)。
  * 行锚点:活行 data-session-id / 磁盘行 data-cli-session-id(SessionRows 三行装配)。
- * 定位目标恒为活会话(tab 条只收活会话),归档等无行场景静默放弃。
+ * 定位目标恒为活会话(tab 条只收活会话);归档视图会隐活行,组内分支先切回默认视图。
  */
 
 import type { RefObject } from "react";
@@ -47,7 +47,10 @@ export function createSessionRevealHandler(
       /* 运行区候选(置顶优先级更高,已由上面分支排除) */
       runningSection.set(false);
     } else if (meta.workspaceId) {
-      /* 组内行:无 pin / scope=workspace 留组顶块或活行;分组恒展开,只需展开工作区卡片 */
+      /* 组内行:无 pin / scope=workspace 留组顶块或活行;分组恒展开,只需展开工作区卡片。
+       * 归档视图组内只摆归档行(活行/顶块清空),定位目标恒为活会话:
+       * 切回默认视图让行回归 —— 比 toast 直白,行真的出现且用户感知视图为何变了。 */
+      if (st.workspaceArchiveView) updateSettings({ workspaceArchiveView: false });
       if (st.workspaceCollapsedMap[meta.workspaceId] ?? true) {
         updateSettings({
           workspaceCollapsedMap: { ...st.workspaceCollapsedMap, [meta.workspaceId]: false },
