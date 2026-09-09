@@ -82,6 +82,7 @@ export const MESSAGES = {
   // ShortcutTab
   "外壳与终端": "Shell & terminal",
   "未绑定": "Not bound",
+  "未设置": "Not set",
   "搜索命令、键位或 id…": "Search commands, keys, or id…",
   "没有匹配的命令": "No matching commands",
   "已修改": "Modified",

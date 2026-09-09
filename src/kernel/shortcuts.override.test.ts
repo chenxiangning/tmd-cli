@@ -75,7 +75,7 @@ describe("isShortcutRemappable", () => {
     });
     expect(ov.isShortcutRemappable("g.m")).toBe(false);
   });
-  it("无 keybinding → false", () => {
+  it("无 keybinding(非 match)→ false:未绑定命令按「内置」置灰(提交语义,见 isShortcutRemappable 注释)", () => {
     sc.registerCommand({ id: "g.t", title: "T", run: () => undefined });
     expect(ov.isShortcutRemappable("g.t")).toBe(false);
   });
@@ -180,5 +180,88 @@ describe("formatKeyEvent 录制期按键面转化", () => {
   });
   it("未知控制键 + 无修饰 → 空串", () => {
     expect(ov.formatKeyEvent(keyEvent("MediaPlayPause", { metaKey: false, ctrlKey: false }))).toBe("");
+  });
+});
+
+describe("validateOverride 对 match 型区间", () => {
+  it("改录进 ⌘1-9 区间 → 冲突(合成事件反演命中)", () => {
+    sc.registerCommand({
+      id: "g.tabs",
+      title: "T",
+      match: (e: ShortcutKeyEvent) => e.metaKey && /^[1-9]$/.test(e.key),
+      run: () => undefined,
+    });
+    sc.registerCommand({ id: "g.t", title: "T", run: () => undefined });
+    expect(ov.validateOverride("g.t", "Cmd+3")).toEqual({
+      ok: false,
+      reason: "conflict",
+      detail: "g.tabs",
+    });
+  });
+  it("区间外的键不受影响", () => {
+    sc.registerCommand({
+      id: "g.tabs",
+      title: "T",
+      match: (e: ShortcutKeyEvent) => e.metaKey && /^[1-9]$/.test(e.key),
+      run: () => undefined,
+    });
+    sc.registerCommand({ id: "g.t", title: "T", run: () => undefined });
+    expect(ov.validateOverride("g.t", "Cmd+0")).toEqual({ ok: true });
+  });
+});
+
+describe("分发器消费 effective(override 即时生效)", () => {
+  it("override 后:旧键穿透、新键命中", () => {
+    sc.registerCommand({ id: "g.b", title: "B", keybinding: "Cmd+B", run: () => undefined });
+    ov.setShortcutOverrides({ "g.b": "Cmd+Shift+K" });
+    expect(sc.resolveCommand(keyEvent("b"))).toBeUndefined();
+    expect(sc.resolveCommand(keyEvent("k", { shiftKey: true }))?.id).toBe("g.b");
+  });
+
+  it("解绑(空串)后:默认键穿透进 PTY", () => {
+    sc.registerCommand({ id: "g.b", title: "B", keybinding: "Cmd+B", run: () => undefined });
+    ov.setShortcutOverrides({ "g.b": "" });
+    expect(sc.resolveCommand(keyEvent("b"))).toBeUndefined();
+  });
+
+  it("未绑定命令录键后:新键经分发命中", () => {
+    sc.registerCommand({ id: "g.u", title: "U", run: () => undefined });
+    ov.setShortcutOverrides({ "g.u": "Cmd+Shift+U" });
+    expect(sc.resolveCommand(keyEvent("u", { shiftKey: true }))?.id).toBe("g.u");
+  });
+
+  it("录制闸开启:dispatcher 早返回,键不拦截、run 不触发", () => {
+    let onKey: ((e: KeyboardEvent) => void) | undefined;
+    vi.stubGlobal("window", {
+      addEventListener: (_t: string, fn: (e: KeyboardEvent) => void) => {
+        onKey = fn;
+      },
+      removeEventListener: () => undefined,
+    });
+    sc.installShortcutDispatcher();
+    let ran = false;
+    sc.registerCommand({ id: "g.b", title: "B", keybinding: "Cmd+B", run: () => (ran = true) });
+    ov.setShortcutRecording(true);
+    let prevented = false;
+    onKey!({
+      isComposing: false,
+      key: "b",
+      metaKey: true,
+      ctrlKey: false,
+      shiftKey: false,
+      altKey: false,
+      preventDefault: () => (prevented = true),
+      stopPropagation: () => undefined,
+    } as never);
+    expect(ran).toBe(false);
+    expect(prevented).toBe(false);
+    ov.setShortcutRecording(false);
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("formatKeyEvent 空格", () => {
+  it("e.key === ' ' → space 命名键", () => {
+    expect(ov.formatKeyEvent(keyEvent(" "))).toBe("Cmd+space");
   });
 });

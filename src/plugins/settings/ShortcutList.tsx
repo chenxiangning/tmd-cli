@@ -88,8 +88,8 @@ function CommandListItem({
 }) {
   const overrides = getShortcutOverridesSnapshot();
   const hasOverride = cmd.id in overrides;
-  // 仅 match 型(⌘1-9 等区间键)不可改写;无默认键位的命令允许录制,不挂徽章
-  const builtin = cmd.match !== undefined && !isShortcutRemappable(cmd.id);
+  // 不可改写(match 型区间键,或无默认键位)挂「内置」徽章,详情面板同步置灰
+  const builtin = !isShortcutRemappable(cmd.id);
   const label = effectiveLabel(cmd);
   return (
     <button
