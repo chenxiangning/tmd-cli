@@ -17,7 +17,7 @@ import type { QuotaSnapshot } from "@kernel/quota";
 import {
   detectVendorByBaseUrl,
   fetchVendorQuota,
-  VENDOR_TITLE,
+  toQuotaSnapshot,
 } from "../cli-shared/quota/vendors";
 
 interface ClaudeEnvCredentials {
@@ -84,14 +84,7 @@ export async function fetchClaudeQuota(): Promise<QuotaSnapshot> {
   if (cred.baseUrl && cred.apiKey) {
     const vendor = detectVendorByBaseUrl(cred.baseUrl);
     const quota = await fetchVendorQuota(vendor, { key: cred.apiKey }, cred.baseUrl);
-    return {
-      providerLabel: "claude",
-      title: VENDOR_TITLE[vendor] ?? "Claude 账号额度",
-      usedLabel: "已使用",
-      windows: quota.windows,
-      balanceText: quota.balanceText,
-      planLabel: quota.planLabel,
-    };
+    return toQuotaSnapshot("claude", vendor, quota, "Claude 账号额度");
   }
 
   // 2. 官方登录 → Anthropic 无公开套餐额度 HTTP 面,显式报错(对齐 codex 官方 key 模式)

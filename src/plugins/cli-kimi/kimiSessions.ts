@@ -17,7 +17,7 @@
  *   (实测报 "created under a different directory"),listSessions 按 cwd 过滤 +
  *   openDiskSession 以 workspace.root 起进程,天然满足。
  * 纯函数(normalizeKimiTitle / parseKimiState / kimiStateTitle / matchKimiStatePath /
- * kimiUserMessageLine / extractKimiTitle)由 index.tsx re-export 维持既有导入契约。
+ * kimiUserMessageLine / extractKimiTitle)由 index.test.ts 从本文件直引测试。
  */
 
 import { ipc } from "@kernel/ipc";

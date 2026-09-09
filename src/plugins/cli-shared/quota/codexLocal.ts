@@ -20,7 +20,8 @@
 
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
-import type { QuotaWindow } from "@kernel/quota";
+import type { QuotaSnapshot, QuotaWindow } from "@kernel/quota";
+import { fetchVendorQuota, toQuotaSnapshot, type VendorCredential } from "./vendors";
 
 const ROLLOUT_TAIL_BYTES = 256 * 1024;
 /** 最多回扫的 rollout 文件数(按 mtime 倒序;最新文件可能尚无额度事件)。 */
@@ -147,4 +148,28 @@ export function codexPlanLabelWithSnapshot(quota: CodexLocalQuota): string | und
     parts.push(t("快照 {time}", { time: `${hh}:${mm}` }));
   }
   return parts.length ? parts.join(" · ") : undefined;
+}
+
+/**
+ * codex 供应商分级收口(cli-pi / cli-omp / cli-codex 同一策略):
+ * OAuth 凭据(access+accountId)→ 本地 rollout 快照优先(零 HTTP),
+ * 快照不可用降级 wham HTTP;非 OAuth 凭据直接走 wham(缺凭据由 fetchVendorQuota 显式报错)。
+ */
+export async function fetchCodexQuotaWithSnapshot(
+  cred: VendorCredential,
+  providerLabel: string,
+): Promise<QuotaSnapshot> {
+  if (cred.access && cred.accountId) {
+    try {
+      const local = await readCodexLocalQuota();
+      return toQuotaSnapshot(providerLabel, "openai-codex", {
+        windows: local.windows,
+        planLabel: codexPlanLabelWithSnapshot(local),
+      });
+    } catch {
+      // 本地无快照(如从未在本机对话过)→ 降级 wham HTTP
+    }
+  }
+  const quota = await fetchVendorQuota("openai-codex", cred);
+  return toQuotaSnapshot(providerLabel, "openai-codex", quota);
 }

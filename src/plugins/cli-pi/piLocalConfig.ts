@@ -8,55 +8,13 @@
  *   裸模型 id → provider 反查(session jsonl 只有 modelId 没有 provider 时用)。
  * - models.json (JSONC): Record<providerId, { baseUrl, apiKey, models }>
  *   中转站 baseUrl 与 apiKey 的真实来源(auth.json 无中转站条目)。
- * parseJsonc / piAgentDir / PiLocalConfig 由 quota.ts re-export 维持既有导入契约。
+ * parseJsonc 已上移 ../cli-shared/jsonc.ts(cli-pi + memory-coordinator 联合消费先例)。
  */
 
 import { ipc } from "@kernel/ipc";
+import { parseJsonc } from "../cli-shared/jsonc";
 
 const AGENT_DIR_ENV = "PI_CODING_AGENT_DIR";
-
-/* ── JSONC 解析(models.json 带注释)────────────────────── */
-
-/**
- * 最小 JSONC 归一:剥离 // 与 块注释、尾逗号,字符串字面量原样保留。
- * pi models.json 实证只有这两种非标准语法,不引入第三方解析器。
- */
-export function parseJsonc(raw: string): unknown {
-  let out = "";
-  let inString = false;
-  let escaped = false;
-  for (let i = 0; i < raw.length; i++) {
-    const ch = raw[i];
-    const next = raw[i + 1];
-    if (inString) {
-      out += ch;
-      if (escaped) escaped = false;
-      else if (ch === "\\") escaped = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') {
-      inString = true;
-      out += ch;
-      continue;
-    }
-    if (ch === "/" && next === "/") {
-      while (i < raw.length && raw[i] !== "\n") i++;
-      out += "\n";
-      continue;
-    }
-    if (ch === "/" && next === "*") {
-      i += 2;
-      while (i < raw.length && !(raw[i] === "*" && raw[i + 1] === "/")) i++;
-      i++;
-      continue;
-    }
-    out += ch;
-  }
-  // 尾逗号: , 后直接跟 } 或 ](允许中间空白)
-  const noTrailing = out.replace(/,(\s*[}\]])/g, "$1");
-  return JSON.parse(noTrailing);
-}
 
 /* ── 磁盘读取(薄 IO)────────────────────────────────────── */
 

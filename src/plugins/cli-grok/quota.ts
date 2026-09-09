@@ -17,7 +17,7 @@ import type { QuotaSnapshot } from "@kernel/quota";
 import {
   detectVendorByBaseUrl,
   fetchVendorQuota,
-  VENDOR_TITLE,
+  toQuotaSnapshot,
 } from "../cli-shared/quota/vendors";
 import { resolveGrokDefaultProfile } from "../cli-shared/grokConfig";
 
@@ -29,14 +29,7 @@ export async function fetchGrokQuota(): Promise<QuotaSnapshot> {
   if (profile.baseUrl && profile.apiKey) {
     const vendor = detectVendorByBaseUrl(profile.baseUrl);
     const quota = await fetchVendorQuota(vendor, { key: profile.apiKey }, profile.baseUrl);
-    return {
-      providerLabel: "grok",
-      title: VENDOR_TITLE[vendor] ?? "Grok 账号额度",
-      usedLabel: "已使用",
-      windows: quota.windows,
-      balanceText: quota.balanceText,
-      planLabel: quota.planLabel,
-    };
+    return toQuotaSnapshot("grok", vendor, quota, "Grok 账号额度");
   }
 
   throw new Error(

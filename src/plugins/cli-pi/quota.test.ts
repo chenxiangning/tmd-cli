@@ -13,13 +13,10 @@ vi.mock("@kernel/ipc", () => ({
 }));
 
 import { vendorFromModel } from "../cli-shared/quota/vendors";
-import {
-  parseJsonc,
-  providersForModelId,
-  resolveCredentialRefs,
-  resolvePiRoute,
-  type PiLocalConfig,
-} from "./quota";
+import { parseJsonc } from "../cli-shared/jsonc";
+import { type PiLocalConfig } from "./piLocalConfig";
+import { providersForModelId, resolvePiRoute } from "./piRoute";
+import { resolveCredentialRefs } from "./quota";
 
 const BASE: PiLocalConfig = { auth: {}, store: {}, modelsJson: {} };
 
