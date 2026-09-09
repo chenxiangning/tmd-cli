@@ -199,14 +199,6 @@ impl SshRegistry {
         self.sessions.lock().contains_key(session_id)
     }
 
-    pub(crate) fn status(&self, session_id: &str) -> String {
-        self.sessions
-            .lock()
-            .get(session_id)
-            .map(|entry| entry.runtime.status())
-            .unwrap_or_else(|| STATUS_DISCONNECTED.to_string())
-    }
-
     /// 广播状态事件(写运行时状态 + 发事件,一次一致)。
     pub(crate) fn broadcast_status(
         &self,

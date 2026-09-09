@@ -231,16 +231,6 @@ pub async fn git_branch_worktree_patch(
 }
 
 #[tauri::command]
-pub async fn git_fetch(cwd: String) -> Result<String, String> {
-    // 经 with_repo 持内层锁:与轮询 status 互斥,消 torn-state 窗口
-    let cwd2 = cwd.clone();
-    run(cwd, move |r| {
-        remote_ops::run(r, &cwd2, remote_ops::RemoteOp::Fetch, None)
-    })
-    .await
-}
-
-#[tauri::command]
 pub async fn git_pull_push(
     cwd: String,
     op: String,

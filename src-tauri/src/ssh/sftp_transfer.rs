@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use super::sftp::{broadcast_transfer, global_sftp};
 use super::sftp_download::run_download;
-pub use super::sftp_transfer_state::{cancel_transfer, transfer_status, SftpTransferState};
+pub use super::sftp_transfer_state::{cancel_transfer, SftpTransferState};
 use super::sftp_transfer_state::{finish, last_or, register};
 use super::sftp_upload::run_upload;
 

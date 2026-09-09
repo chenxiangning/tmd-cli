@@ -401,7 +401,6 @@ export const ipc = {
   /** 工作树对分支的单文件 patch(path 按 新路径/rename 来源 匹配)。 */
   gitBranchWorktreePatch: (cwd: string, branch: string, path: string) =>
     invoke<GitFilePatch | null>("git_branch_worktree_patch", { cwd, branch, path }),
-  gitFetch: (cwd: string) => invoke<string>("git_fetch", { cwd }),
   /** pull/push/fetch 统一入口;branch 缺省作用于当前分支(fetch 缺省 = --all --prune)。
    *  pull 非当前分支 = 仅 fast-forward 上游引用;fetch 带分支 = 刷新该分支上游引用。 */
   gitPullPush: (cwd: string, op: "pull" | "push" | "fetch", branch?: string) =>
@@ -493,9 +492,6 @@ export const ipc = {
       cwd,
       workspaceId: workspaceId ?? null,
     }),
-  /** 会话当前状态(webview 重载后重建面板状态用)。 */
-  sshSessionStatus: (sessionId: string) =>
-    invoke<string>("ssh_session_status", { sessionId }),
   /** 提示应答:hostKey 传 trustHostKey;kbi/password 传 answer。 */
   sshPromptAnswer: (promptId: string, answer?: string, trustHostKey?: boolean) =>
     invoke<void>("ssh_prompt_answer", {
@@ -515,8 +511,6 @@ export const ipc = {
   /* ── SFTP ── */
   sftpList: (sessionId: string, path?: string) =>
     invoke<SftpEntry[]>("ssh_sftp_list", { sessionId, path: path ?? null }),
-  sftpStat: (sessionId: string, path: string) =>
-    invoke<SftpEntry | null>("ssh_sftp_stat", { sessionId, path }),
   sftpReadText: (sessionId: string, path: string, offset?: number, maxBytes?: number) =>
     invoke<SftpReadText>("ssh_sftp_read_text", {
       sessionId,
@@ -566,8 +560,6 @@ export const ipc = {
     }),
   sftpTransferCancel: (sessionId: string, transferId: string) =>
     invoke<void>("ssh_sftp_transfer_cancel", { sessionId, transferId }),
-  sftpTransferStatus: (sessionId: string, transferId: string) =>
-    invoke<SftpTransferState>("ssh_sftp_transfer_status", { sessionId, transferId }),
 
   /* ── SSH 本地端口转发(-L)── */
   sshForwardStart: (

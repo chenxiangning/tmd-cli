@@ -64,15 +64,6 @@ pub fn cancel_transfer(session_id: &str, transfer_id: &str) -> Result<(), String
     Ok(())
 }
 
-pub fn transfer_status(session_id: &str, transfer_id: &str) -> Result<SftpTransferState, String> {
-    let key = format!("{}:{}", session_id.trim(), transfer_id.trim());
-    TRANSFERS
-        .lock()
-        .get(&key)
-        .map(|slot| slot.last.clone())
-        .ok_or_else(|| "SFTP 传输不存在或已结束".to_string())
-}
-
 /// 登记新传输(queued),返回取消句柄供任务持有。
 pub(crate) fn register(state: SftpTransferState) -> (String, Arc<std::sync::atomic::AtomicBool>) {
     let key = format!("{}:{}", state.session_id.trim(), state.id);
@@ -134,18 +125,18 @@ mod tests {
     #[test]
     fn register_report_finish_lifecycle() {
         let (key, cancelled) = register(sample("upload"));
-        assert!(transfer_status("s1", "t1").is_ok());
+        assert_eq!(last_or(&key, sample("upload")).status, "queued");
         let mut state = sample("upload");
         state.status = "running".into();
         state.bytes_done = 42;
         report(&key, &state);
-        assert_eq!(transfer_status("s1", "t1").unwrap().bytes_done, 42);
+        assert_eq!(last_or(&key, sample("upload")).bytes_done, 42);
         state.status = "done".into();
         finish(&key, state);
-        assert_eq!(transfer_status("s1", "t1").unwrap().status, "done");
+        assert_eq!(last_or(&key, sample("upload")).status, "done");
         cancelled.store(true, Ordering::SeqCst);
         cancel_session_transfers("s1");
-        assert!(transfer_status("s1", "t1").is_err());
+        assert!(TRANSFERS.lock().get(&key).is_none());
     }
 
     #[test]

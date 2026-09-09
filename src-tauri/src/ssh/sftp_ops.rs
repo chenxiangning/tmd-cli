@@ -7,8 +7,7 @@ use russh_sftp::client::SftpSession;
 
 use super::sftp::{global_sftp, ssh_registry, SftpEntry, SftpReadText};
 use super::sftp_path::{
-    is_not_found_error, is_session_closed_error, join_remote_path, normalize_remote_path,
-    remote_basename,
+    is_session_closed_error, join_remote_path, normalize_remote_path, remote_basename,
 };
 use super::SshRegistry;
 
@@ -81,18 +80,6 @@ async fn list_once(
         (true, false) => a.name.cmp(&b.name),
     });
     Ok(entries)
-}
-
-pub async fn stat(session_id: &str, path: &str) -> Result<Option<SftpEntry>, String> {
-    let registry = ssh_registry();
-    let target = normalize_remote_path(path);
-    let cached = global_sftp().session_for(&registry, session_id).await?;
-    let session = cached.lock().await;
-    match remote_entry(&session, &target).await {
-        Ok(entry) => Ok(Some(entry)),
-        Err(error) if is_not_found_error(&error) => Ok(None),
-        Err(error) => Err(error),
-    }
 }
 
 /// 读远端文本(分页 offset + 上限;截断页尾部不完整 UTF-8 序列丢弃,下页重读)。

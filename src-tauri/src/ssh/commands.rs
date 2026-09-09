@@ -111,11 +111,6 @@ pub async fn ssh_session_reconnect(
 }
 
 #[tauri::command]
-pub fn ssh_session_status(state: State<'_, AppState>, session_id: String) -> String {
-    state.ssh.status(&session_id)
-}
-
-#[tauri::command]
 pub fn ssh_prompt_answer(
     state: State<'_, AppState>,
     prompt_id: String,
@@ -155,11 +150,6 @@ pub async fn ssh_sftp_list(
     path: Option<String>,
 ) -> Result<Vec<SftpEntry>, String> {
     super::sftp::list(&session_id, path).await
-}
-
-#[tauri::command]
-pub async fn ssh_sftp_stat(session_id: String, path: String) -> Result<Option<SftpEntry>, String> {
-    super::sftp::stat(&session_id, &path).await
 }
 
 #[tauri::command]
@@ -226,14 +216,6 @@ pub fn ssh_sftp_transfer(
 #[tauri::command]
 pub fn ssh_sftp_transfer_cancel(session_id: String, transfer_id: String) -> Result<(), String> {
     sftp_transfer::cancel_transfer(&session_id, &transfer_id)
-}
-
-#[tauri::command]
-pub fn ssh_sftp_transfer_status(
-    session_id: String,
-    transfer_id: String,
-) -> Result<SftpTransferState, String> {
-    sftp_transfer::transfer_status(&session_id, &transfer_id)
 }
 
 // ---- 本地端口转发 ----
