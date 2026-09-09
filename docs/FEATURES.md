@@ -12,6 +12,7 @@
 > 2026-09-07 体检校准:快捷键段对齐注册面实况(删未实装键位与改键 UI 陈述);插件计数 21→22(10 engine / 9 feature / 3 core,cli-dsh);补录 dsh 引擎、Git 多仓、侧栏运行区、会话 tombstone 删除与归档视图。
 > 2026-09-08 顶栏 tab 条与界面字号补校:会话 tab 行内置顶扎点与定位、右键菜单对码(重命名/关闭一套)、等待确认呼吸圆点与四级标题链;编辑 tab 条上移顶栏双激活;顶栏改三区结构(项目面包屑移除);新增界面字号设置(html 根字号 rem 体系纯文字级缩放);运行区行内置顶。
 > 2026-09-09 0.1.3 补校:会话列表扁平化(段头与折叠退役、行首供应商图标、树形参考线、灰点隐藏、管理入口上移工作区行)、启动自动激活、幕布加载进度条与大缓冲分块回放、审批线时间线页签、Git diff 双栏与全文查看、图标装饰设置、tab 条容量可配。
+> 2026-09-10 0.1.4 补校:本地插件系统(~/.tmd-cli/plugins 磁盘装载、对话即变热加载、SHA-256 信任闸 + API 纪元闸、版本历史回退)与插排页本机插件独立成排;checkpoints 工作区外写入事件入账;插件计数 22→23(10 engine / 9 feature / 3 core / 1 local)。
 
 ## 工作区会话
 
@@ -276,12 +277,21 @@
 
 ## 插件市场(插排)
 
-- 插排 / 清单双视图,22 个注册插件可视化插拔(10 engine + 9 feature + 3 core),写 settings.disabledPlugins,重启生效(运行期不热卸载)
-- core 类焊死不可拔(composer / settings / welcome);engine / feature 可拔
+- 插排 / 清单双视图,23 个注册插件可视化插拔(10 engine + 9 feature + 3 core + 1 local),写 settings.disabledPlugins,重启生效(运行期不热卸载)
+- core 类焊死不可拔(composer / settings / welcome);engine / feature / local 可拔
+- 插排页双插排:内置插件一块(分类虚线分隔),本机插件(local 类)独立次级插排(品牌区「本机插件 · 免重启装载」)
 - 插件市场经标题栏插头按钮开合(整页替换、会话现场不丢);页头「重启应用」按钮带待生效计数一键重启
 - 插拔变更即时标 dirty:插头标「待重启」、清单卡片标「重启后生效」徽章
+- 本地插件管理条:复制插件开发提示词 / 重新扫描 / 禁用全部(在线市场占位区上方,经 local-loader 插件分区)
 - 底部预留「在线市场 · 建设中」占位区(远程插件包,尚未开放)
-- 插件徽标:CLI 引擎用品牌字形,功能插件用 lucide 语义图标独立彩色(设计定稿见 superpowers/specs/2026-09-03)
+
+## 本地插件
+
+- 装载:`~/.tmd-cli/plugins/<id>/`(plugin.json 声明 id/name/version/apiVersion/permissions,入口默认 index.js);扫描落登记表,坏目录以「加载失败」条目呈现不静默丢
+- 门禁:入口内容 SHA-256 信任闸(首见内容「待启用」待确认,确认后才 activate)+ API 纪元闸(apiVersion ≠ 客户端拒载);core 分类禁用(焊死层属内置)
+- 能力面:permissions 声明 mounts/settings/commands,挂点 UI/命令/设置分区经 activate(ctx) 注册面登记,与内置插件同纪律
+- 版本库:`.versions/{version}-{hash8}.js` 每次信任确认归档内容快照(保留 5 份 mtime 淘汰),回退即换回 bundle 并对齐 manifest 版本号;版本历史按内容 hash 去重
+- 准入联动:composer 抽屉与命令面板同步纳入本地插件贡献(与 feature 类同通道)
 
 ## 欢迎页
 
