@@ -121,10 +121,7 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition:
-    background-color 0.16s ease,
-    color 0.16s ease;
-  overflow-x: hidden;
+  transition: background-color 0.16s ease, color 0.16s ease;
   position: relative;
   padding: 0;
 }
@@ -138,19 +135,49 @@
   display: flex;
   align-items: center;
   min-height: var(--sidebar-row-height-workspace);
-  width: 100%;
+  width: auto;
+  flex: 1;
+  min-width: 0;
   padding: 2px 0 2px 8px;
   gap: 6px;
   color: var(--text-muted);
   border-radius: var(--sidebar-row-radius);
-  transition:
-    background-color 0.16s ease,
-    color 0.16s ease;
+  transition: background-color 0.16s ease, color 0.16s ease;
 }
 
 .workspace-header-content:hover {
   background: var(--surface-hover);
   color: var(--text-strong);
+}
+/* 激活热区(原生 button):hover bg 由 header-content 提供 */
+.workspace-row-main {
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* 行右侧动作组:hover/focus/active 展开;激活热区与动作组是 DOM 兄弟,无嵌套交互 */
+.workspace-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-width 0.2s ease, opacity 0.2s ease;
+}
+/* 管理开关激活时动作组常亮(状态须可见) */
+.workspace-row:hover .workspace-actions,
+.workspace-row:focus-within .workspace-actions,
+.workspace-row.active .workspace-actions,
+.workspace-actions:has(.workspace-action-btn.is-on) {
+  max-width: 160px;
+  opacity: 1;
 }
 
 .workspace-row.active .workspace-header-content:hover {
@@ -223,7 +250,6 @@
   line-height: 1;
 }
 
-
 .workspace-action-btn {
   width: 22px;
   height: 22px;
@@ -235,10 +261,7 @@
   background: transparent;
   color: var(--text-muted);
   border-radius: 6px;
-  cursor: pointer;
-  transition:
-    background-color 0.16s ease,
-    color 0.16s ease;
+  transition: background-color 0.16s ease, color 0.16s ease;
 }
 
 .workspace-action-btn svg {
