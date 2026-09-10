@@ -223,6 +223,9 @@
 }
 
 .pm-ext-panel {
+  /* 替换为原生 <dialog> 后,UA 给 dialog 的 color:canvastext 默认生效;
+     不显式中和会顶替深色主题下市场内容靠继承取色的文字。 */
+  color: inherit;
   width: min(480px, 92vw);
   height: 100%;
   background: var(--tmd-bg-base);

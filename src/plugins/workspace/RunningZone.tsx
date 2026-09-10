@@ -216,34 +216,35 @@ export function RunningZoneSection() {
             );
           }
           return (
-            <button
-              key={row.session.id}
-              data-session-id={row.session.id}
-              className={`thread-row${isActive ? " active" : ""}`}
-              title={t("{workspace} · {profile} 会话 {id}", { workspace: workspaceDisplayName(row.workspace), profile: row.profile.name, id: row.cliSessionId ?? row.session.id })}
-              onClick={() => openRow(row)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setMenu({ row, x: e.clientX, y: e.clientY });
-              }}
-            >
-              <span className="thread-engine-badge" title={row.profile.name}>
-                {row.profile.renderIcon?.("0.75rem")}
-              </span>
-              <span className="thread-name">{titleOf(row)}</span>
-              <span className="thread-meta">
-                <SessionStatusLabel sessionId={row.session.id} />
-                {host.isWaitingConfirm(row.session.id) ? (
-                  <span className="thread-ask-badge">{t("等待确认")}</span>
-                ) : null}
-                <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
-                <PinToggle
-                  on={false}
-                  disabled={row.cliSessionId === undefined}
-                  onToggle={() => togglePin(row)}
-                />
-              </span>
-            </button>
+            <span className="thread-row-host" key={row.session.id}>
+              <button
+                data-session-id={row.session.id}
+                className={`thread-row${isActive ? " active" : ""}`}
+                title={t("{workspace} · {profile} 会话 {id}", { workspace: workspaceDisplayName(row.workspace), profile: row.profile.name, id: row.cliSessionId ?? row.session.id })}
+                onClick={() => openRow(row)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ row, x: e.clientX, y: e.clientY });
+                }}
+              >
+                <span className="thread-engine-badge" title={row.profile.name}>
+                  {row.profile.renderIcon?.("0.75rem")}
+                </span>
+                <span className="thread-name">{titleOf(row)}</span>
+                <span className="thread-meta">
+                  <SessionStatusLabel sessionId={row.session.id} />
+                  {host.isWaitingConfirm(row.session.id) ? (
+                    <span className="thread-ask-badge">{t("等待确认")}</span>
+                  ) : null}
+                  <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
+                </span>
+              </button>
+              <PinToggle
+                on={false}
+                disabled={row.cliSessionId === undefined}
+                onToggle={() => togglePin(row)}
+              />
+            </span>
           );
         })}
 

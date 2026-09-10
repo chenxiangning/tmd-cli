@@ -11,10 +11,10 @@ import type { UserMessageAnchor } from "@kernel/messageAnchors";
 export const PREVIEW_TITLE_CHARS = 60;
 /** 预览卡描述字符上限(余行 160 字)。 */
 export const PREVIEW_DESC_CHARS = 160;
-/** 单条 dash 视口高度(含 4px gap;与 composer-anchor-item 视觉同步)。 */
-export const ROW_PX = 26;
-/** 跳锚未命中闪烁时长。 */
-export const MISS_FLASH_MS = 600;
+/** 单条 dash 视口高度(10px 命中区 + 3px 间隙,与 composer-anchors.css gap:3px / .composer-anchor-item height:10px 对齐)。 */
+export const ROW_PX = 13;
+/** 跳锚未命中闪烁时长(与 CSS composer-anchor-miss 动画 1.2s 一致,JS 在动画结束移除类)。 */
+export const MISS_FLASH_MS = 1200;
 /** hover dash 邻近渐变半径(codemoss is-proximity-0..3 同款)。 */
 export const PROXIMITY_RANGE = 3;
 interface VisibleAnchor {

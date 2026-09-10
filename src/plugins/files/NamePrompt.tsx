@@ -61,7 +61,7 @@ export function NamePrompt({
   return createPortal(
     <dialog
       open
-      className="nprompt-backdrop w-full h-full m-0 p-0 border-0 bg-transparent"
+      className="nprompt-backdrop w-full h-full max-w-none max-h-none m-0 p-0 border-0 bg-transparent"
       aria-label={title}
     >
       <div className="nprompt-card">

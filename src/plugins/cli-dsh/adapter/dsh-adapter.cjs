@@ -195,6 +195,9 @@ async function spawnHostAndWait() {
   let tokenSeen = false;
   try {
     hostChild = spawn(bin, ["web", "--host", args.host, "--port", String(args.port), "--no-open"], { stdio: ["ignore", "pipe", "pipe"] });
+    /* stderr 管道无消费者 = dsh 子进程 verbose 日志/panic 写满 ~64KB 后阻塞假死;
+       至少 resume 排空,日志另由 launch token 那条 stdout 主链兜底。 */
+    hostChild.stderr.resume();
     hostChild.stdout.on("data", async (chunk) => {
       if (tokenSeen) return;
       const m = String(chunk).match(/[?&]token=([A-Za-z0-9_-]+)/);

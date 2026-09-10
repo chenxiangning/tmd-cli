@@ -229,32 +229,33 @@ export function PinnedSessionsSection() {
             );
           }
           return (
-            <button
-              key={row.key}
-              data-session-id={live?.id}
-              className={`thread-row${isActive ? " active" : ""}`}
-              title={t("{workspace} · {profile} 会话 {id}", { workspace: workspaceDisplayName(row.workspace), profile: row.profile.name, id: row.cliSessionId })}
-              onClick={() => openRow(row)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setMenu({ row, x: e.clientX, y: e.clientY });
-              }}
-            >
-              <span className="thread-engine-badge" title={row.profile.name}>
-                {row.profile.renderIcon?.("0.75rem")}
-              </span>
-              <span className="thread-name">{titleOf(row)}</span>
-              <span className="thread-meta">
-                {/* 绑定活会话:状态校准 label(与组内行同口径,实时刷新) */}
-                {live ? <SessionStatusLabel sessionId={live.id} /> : null}
-                {/* 绑定的活会话正等待确认:同组内行,置顶区也亮「等待确认」标签 */}
-                {live && host.isWaitingConfirm(live.id) ? (
-                  <span className="thread-ask-badge">{t("等待确认")}</span>
-                ) : null}
-                <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
-                <PinToggle on onToggle={() => unpinSession(row.key)} />
-              </span>
-            </button>
+            <span className="thread-row-host" key={row.key}>
+              <button
+                data-session-id={live?.id}
+                className={`thread-row${isActive ? " active" : ""}`}
+                title={t("{workspace} · {profile} 会话 {id}", { workspace: workspaceDisplayName(row.workspace), profile: row.profile.name, id: row.cliSessionId })}
+                onClick={() => openRow(row)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ row, x: e.clientX, y: e.clientY });
+                }}
+              >
+                <span className="thread-engine-badge" title={row.profile.name}>
+                  {row.profile.renderIcon?.("0.75rem")}
+                </span>
+                <span className="thread-name">{titleOf(row)}</span>
+                <span className="thread-meta">
+                  {/* 绑定活会话:状态校准 label(与组内行同口径,实时刷新) */}
+                  {live ? <SessionStatusLabel sessionId={live.id} /> : null}
+                  {/* 绑定的活会话正等待确认:同组内行,置顶区也亮「等待确认」标签 */}
+                  {live && host.isWaitingConfirm(live.id) ? (
+                    <span className="thread-ask-badge">{t("等待确认")}</span>
+                  ) : null}
+                  <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
+                </span>
+              </button>
+              <PinToggle on onToggle={() => unpinSession(row.key)} />
+            </span>
           );
         })}
 
