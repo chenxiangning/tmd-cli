@@ -1,0 +1,5 @@
+# pnpm 供应链硬化(react-doctor/require-pnpm-hardening)
+# 注:本仓库 pnpm 10.x,pnpm-workspace.yaml 即配置归位;非 workspace 仓库同样生效。
+minimumReleaseAge: 10080 # 新发布版本须满 7 天(分钟)才纳入解析,防抢鲜投毒
+blockExoticSubdeps: true # 禁 git/url/tarball 等非常规来源的子依赖
+trustPolicy: no-downgrade # 拒绝低于已发布历史的版本,防降级劫持
