@@ -85,11 +85,17 @@ export function GitRemoteBar({
         onClick={() => onOpenDialog("push")}
         disabled={remoteBusy !== null || detached}
         title={
-          (aheadBehind?.ahead ?? 0) > 0
-            ? t("推送 {n} 个提交(对话框内可预览)", { n: aheadBehind!.ahead })
-            : hasUpstream
-              ? t("推送(对话框内查看预览与选项)")
-              : t("推送新分支并建立 upstream")
+          (aheadBehind?.ahead ?? 0) > 0 ? (
+            hasUpstream ? (
+              t("推送 {n} 个提交(对话框内可预览)", { n: aheadBehind!.ahead })
+            ) : (
+              t("推送 {n} 个提交并建立 upstream", { n: aheadBehind!.ahead })
+            )
+          ) : hasUpstream ? (
+            t("推送(对话框内查看预览与选项)")
+          ) : (
+            t("推送新分支并建立 upstream")
+          )
         }
         className="flex items-center gap-0.5 rounded px-1 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
