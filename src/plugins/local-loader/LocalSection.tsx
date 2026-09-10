@@ -82,7 +82,7 @@ function Row({
       return;
     onBusy(
       (async () => {
-        await ipc.pluginDelete(rec.id).catch(() => {});
+        await ipc.pluginDelete(rec.id);
         await rescanLocalPlugins();
       })(),
     );
@@ -154,18 +154,24 @@ export function LocalPluginsSection() {
   const { settings } = useSettingsState();
   const [busy, setBusy] = useState<Promise<void> | null>(null);
   const [copied, setCopied] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  /* 动作失败统一落一行错误文案(回退/删除/剪贴板),不再静默吞 */
   const wrap = (p: Promise<void>) => {
     setBusy(p);
-    void p.finally(() => setBusy(null));
+    setActionError(null);
+    p.catch((e) => setActionError(e instanceof Error ? e.message : String(e))).finally(() =>
+      setBusy(null),
+    );
   };
 
   const copyPrompt = () => {
-    void import("./devPrompt").then(({ DEV_PROMPT }) =>
-      navigator.clipboard.writeText(DEV_PROMPT).then(() => {
+    void import("./devPrompt")
+      .then(({ DEV_PROMPT }) => navigator.clipboard.writeText(DEV_PROMPT))
+      .then(() => {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 2000);
-      }),
-    );
+      })
+      .catch(() => setActionError(t("剪贴板写入失败")));
   };
 
   const toggleAll = () =>
@@ -198,6 +204,11 @@ export function LocalPluginsSection() {
           </button>
         </div>
       </div>
+      {actionError && (
+        <div className="lp-action-err">
+          {t("操作失败")}: {actionError}
+        </div>
+      )}
       {settings.localPluginsDisabled ? (
         <div className="lp-empty">{t("本地插件已全部禁用 —— 插件文件与版本库原样保留")}</div>
       ) : records.length === 0 ? (

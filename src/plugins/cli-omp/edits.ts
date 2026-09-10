@@ -103,8 +103,8 @@ function editEventsOf(entry: Record<string, unknown>, cwd: string): CliSessionEd
           if (m) raws.add(m[1]);
         }
       }
-  }
-}
+      }
+    }
   /* 同一写入的多种路径形态(write 的 resolvedPath 与 hashline 头)归一后去重 */
   const paths = new Set<string>();
   for (const r of raws) {

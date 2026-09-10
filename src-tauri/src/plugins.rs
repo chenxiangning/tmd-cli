@@ -26,6 +26,13 @@ pub struct PluginFileStamp {
     pub modified_ms: u64,
 }
 
+/// 读单文件的原子出证:内容 + 原始字节 SHA-256(信任闸闭环,见 read_plugin_file)。
+#[derive(Serialize, Debug, PartialEq)]
+pub struct PluginFileContent {
+    pub content: String,
+    pub sha256: String,
+}
+
 /// 一个插件目录的扫描结果;坏目录不跳过而以 error 条目返回,前端落「加载失败」。
 #[derive(Serialize, Debug, PartialEq)]
 pub struct PluginScanEntry {
@@ -54,7 +61,10 @@ fn valid_name(s: &str) -> bool {
     {
         return false;
     }
-    !WINDOWS_RESERVED.contains(&s.to_ascii_lowercase().as_str())
+    let lower = s.to_ascii_lowercase();
+    // 保留设备名查全名与首段(con.txt 在 Windows 上同样指向设备)
+    let stem = lower.split('.').next().unwrap_or(&lower);
+    !WINDOWS_RESERVED.contains(&lower.as_str()) && !WINDOWS_RESERVED.contains(&stem)
 }
 
 fn resolve_dir(root: &Path, id: &str) -> Result<PathBuf, String> {
@@ -97,13 +107,13 @@ fn stamp(_root: &Path, path: &Path, name: String) -> Result<PluginFileStamp, Str
         .unwrap_or(0);
     Ok(PluginFileStamp {
         name,
-        sha256: crate::hash::sha256_hex(&String::from_utf8_lossy(&bytes)),
+        sha256: crate::hash::sha256_hex_bytes(&bytes),
         size: meta.len(),
         modified_ms,
     })
 }
 
-fn collect_stamps(root: &Path, dir: &Path, skip_dirs: bool) -> Vec<PluginFileStamp> {
+fn collect_stamps(root: &Path, dir: &Path) -> Vec<PluginFileStamp> {
     let mut out: Vec<PluginFileStamp> = Vec::new();
     let Ok(rd) = fs::read_dir(dir) else {
         return out;
@@ -111,9 +121,6 @@ fn collect_stamps(root: &Path, dir: &Path, skip_dirs: bool) -> Vec<PluginFileSta
     for ent in rd.flatten() {
         let p = ent.path();
         if links_symlink_under(root, &p) {
-            continue;
-        }
-        if p.is_dir() && skip_dirs {
             continue;
         }
         if p.is_file() {
@@ -155,8 +162,11 @@ pub fn scan_plugins(root: &Path) -> Result<Vec<PluginScanEntry>, String> {
             Ok(manifest) => PluginScanEntry {
                 id: id.clone(),
                 manifest: Some(manifest),
-                files: collect_stamps(root, &dir, true),
-                versions: collect_stamps(root, &dir.join(".versions"), false),
+                files: collect_stamps(root, &dir),
+                versions: collect_stamps(root, &dir.join(".versions"))
+                    .into_iter()
+                    .filter(|s| versions::version_of_file_name(&s.name).is_some())
+                    .collect(),
                 error: None,
             },
             Err(e) => PluginScanEntry {
@@ -185,15 +195,26 @@ fn read_manifest(root: &Path, path: &Path, dir_id: &str) -> Result<serde_json::V
 }
 
 /// 读插件目录顶层单文件(entry)。文件名白名单字符,拒绝任何路径分隔与符号链接。
-pub fn read_plugin_file(root: &Path, id: &str, name: &str) -> Result<String, String> {
+/// 返回内容 + 原始字节 SHA-256(单次读取原子出证):前端信任闸核对此哈希与扫描戳
+/// 一致才 import,消除「扫描定戳后文件被换、装载读到另一份内容」的双读断裂。
+pub fn read_plugin_file(root: &Path, id: &str, name: &str) -> Result<PluginFileContent, String> {
     if !valid_name(name) {
         return Err(format!("非法文件名: {name}"));
     }
     let p = resolve_dir(root, id)?.join(name);
-    read_limited(root, &p)
+    let bytes = read_limited_bytes(root, &p)?;
+    Ok(PluginFileContent {
+        content: String::from_utf8_lossy(&bytes).into_owned(),
+        sha256: crate::hash::sha256_hex_bytes(&bytes),
+    })
 }
 
 fn read_limited(root: &Path, p: &Path) -> Result<String, String> {
+    let bytes = read_limited_bytes(root, p)?;
+    String::from_utf8(bytes).map_err(|_| "文件不是合法 UTF-8".into())
+}
+
+fn read_limited_bytes(root: &Path, p: &Path) -> Result<Vec<u8>, String> {
     if links_symlink_under(root, p) {
         return Err("拒绝读取符号链接".into());
     }
@@ -201,7 +222,7 @@ fn read_limited(root: &Path, p: &Path) -> Result<String, String> {
     if meta.len() > MAX_READ_BYTES {
         return Err(format!("文件超过 16MB 上限({}字节)", meta.len()));
     }
-    fs::read_to_string(p).map_err(|e| format!("读取失败: {e}"))
+    fs::read(p).map_err(|e| format!("读取失败: {e}"))
 }
 
 /// 卸载本地插件:插件目录整体移入系统废纸篓(路径 Rust 侧锁死,前端只传 id,不传路径)。

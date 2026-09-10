@@ -1,5 +1,5 @@
 /**
- * 本地插件装载件:shim 生成 / specifier 重写 / 清单与导出校验 / activate 安全包装。
+ * 本地插件装载件:shim 生成 / specifier 重写 / 清单与导出校验。
  * 纯函数为主;importBundle 是唯一副作用出口(blob URL + 动态 import)。
  * 设计契约见 docs/superpowers/specs/2026-09-10-local-plugins-design.md。
  */
@@ -11,12 +11,6 @@ export const SHIM_SPECIFIERS = ["react", "react-dom", "react/jsx-runtime", "tmd-
 /** 当前内核 API 纪元:注册面破坏性变更时 bump,旧插件装载即拒(先立机制后立变更)。 */
 export const LOCAL_PLUGIN_API_VERSION = 1;
 
-declare global {
-  interface Window {
-    /** 内核在 boot 早期(main.tsx)挂载的 shim 模块实例表:react/react-dom/jsx-runtime/tmd-sdk。 */
-    __TMD_SHIMS?: Record<string, Record<string, unknown>>;
-  }
-}
 
 /** ESM 具名导出必须静态声明:按模块 key 动态拼 shim 文本;default 键走默认导出(非法标识符特例)。 */
 export function buildShimText(keys: string[]): string {
@@ -110,24 +104,3 @@ export function synthesizeMeta(manifest: Record<string, unknown>): PluginMeta {
   };
 }
 
-/**
- * activate 安全包装:失败记录且不向上抛 —— pluginLifecycle 的激活循环裸 await,
- * 一个插件炸会 reject 共享 Promise 导致 setReady 不执行(白屏);local 插件必须隔离。
- */
-export function wrapSafePlugin(
-  plugin: Plugin,
-  onError: (message: string) => void,
-  onSuccess?: () => void,
-): Plugin {
-  return {
-    ...plugin,
-    activate: async (ctx) => {
-      try {
-        await plugin.activate(ctx);
-        onSuccess?.();
-      } catch (e) {
-        onError(`激活失败: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    },
-  };
-}

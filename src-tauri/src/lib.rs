@@ -176,7 +176,6 @@ pub fn run() {
             checkpoints::commands::checkpoint_undo_revert,
             plugins::plugin_scan,
             plugins::plugin_read_file,
-            plugins::plugin_read_version,
             plugins::plugin_archive,
             plugins::plugin_rollback,
             plugins::plugin_delete,

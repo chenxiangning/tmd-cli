@@ -53,7 +53,11 @@ function App() {
         registerDefaultContributions(host);
         setReady(true);
         bootAskRestore(); /* Ask 等待状态开机恢复(profiles 就绪后才有 askMarks,见 kernel/askWatchRestore.ts) */
-        return localPromise;
+        /* 扫描自身意外失败也不翻全局错误页(与晚激活同一隔离承诺) */
+        return localPromise.catch((e) => {
+          console.error("[local-plugins] 扫描异常(已隔离):", e);
+          return [];
+        });
       })
       .then(async (locals) => {
         /* 拓扑晚激活 + 单插件失败隔离全在 activateBootLocals;任何意外不得翻成全局错误页。 */

@@ -8,13 +8,11 @@ pub(crate) async fn plugin_scan() -> Result<Vec<PluginScanEntry>, String> {
 }
 
 #[tauri::command]
-pub(crate) async fn plugin_read_file(id: String, name: String) -> Result<String, String> {
+pub(crate) async fn plugin_read_file(
+    id: String,
+    name: String,
+) -> Result<PluginFileContent, String> {
     crate::commands_fs::spawn_fs(move || read_plugin_file(&plugins_root(), &id, &name)).await
-}
-
-#[tauri::command]
-pub(crate) async fn plugin_read_version(id: String, file: String) -> Result<String, String> {
-    crate::commands_fs::spawn_fs(move || read_version_file(&plugins_root(), &id, &file)).await
 }
 
 #[tauri::command]

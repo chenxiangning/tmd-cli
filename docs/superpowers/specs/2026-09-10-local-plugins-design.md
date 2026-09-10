@@ -71,7 +71,7 @@ bundle 约定:
 
 **选定:Rust 通用原语扫描读文 + 前端 Blob URL 动态 import + 加载期 specifier 重写。**
 
-链路:`plugin_scan()`(Rust:扫 `~/.tmd-cli/plugins/*/plugin.json`,返回 manifest 列表 **+ 各文件内容 SHA-256 + .versions 文件清单**(`.versions/` 本身不作为插件 id 扫描),通用原语零业务知识)→ 前端逐个 `plugin_read_bundle(id)` 拿 bundle 文本 → 正则把白名单裸 specifier 重写为 shim blob URL → `URL.createObjectURL` + `import(blobUrl)` → 校验导出与 manifest 一致 → 得到 `Plugin`。
+链路:`plugin_scan()`(Rust:扫 `~/.tmd-cli/plugins/*/plugin.json`,返回 manifest 列表 **+ 各文件内容 SHA-256 + .versions 文件清单**(`.versions/` 本身不作为插件 id 扫描;指纹为原始字节哈希),通用原语零业务知识)→ 前端逐个 `plugin_read_file(id, entry)` —— **单次读取原子返回 `{content, sha256}`** → 前端核对该哈希与扫描定戳一致才继续(信任闸闭环:执行的字节必须就是用户确认的那个内容,消除「扫描定戳后文件被换、装载读到另一份」的双读断裂,2026-09-10 评审 blocker 修复)→ 正则把白名单裸 specifier 重写为 shim blob URL → `URL.createObjectURL` + `import(blobUrl)` → 校验导出与 manifest 一致 → 得到 `Plugin`。
 
 **装载校验五条(任一不过即「加载失败」条目,不 import)**:① id 与内置插件 id 冲突 → 拒绝(allPlugins 合并 Map 同 key 会静默顶掉内置插件,必须前置拦截);② id 与目录名不一致 → 拒绝;③ apiVersion 与客户端不符 → 拒绝(「插件需要 API 纪元 X / 客户端 Y」);④ bundle 超 16MB → 拒绝;⑤ 导出缺失/形状不符 → 拒绝。bundle 引用了 shim 未提供的导出(如内核改名后旧插件)→ ESM 链接期报错,`import()` 抛出被 catch,同样落「加载失败」条目——兼容性破坏天然不炸客户端。
 

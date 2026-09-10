@@ -95,12 +95,24 @@
 }
 
 .lp-badge-warn {
-  color: #b45309;
+  color: var(--tmd-warn);
 }
 
 .lp-badge-err {
-  color: #dc2626;
+  color: var(--tmd-err);
   word-break: break-all;
+}
+
+.lp-perms {
+  font-size: 0.6875rem;
+  color: color-mix(in srgb, var(--tmd-fg) 55%, transparent);
+}
+
+.lp-action-err {
+  font-size: 0.6875rem;
+  color: var(--tmd-err);
+  word-break: break-all;
+  padding: 0 0.25rem;
 }
 
 .lp-actions {

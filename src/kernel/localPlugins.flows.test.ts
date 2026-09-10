@@ -10,16 +10,19 @@ import type { Plugin } from "./plugin";
 /* vi.mock 工厂在顶层变量初始化前执行:一切被工厂引用的桩必须住进 vi.hoisted。 */
 const hoisted = vi.hoisted(() => {
   const bundleModules = new Map<string, unknown>();
+  const activeIds = new Set<string>();
   return {
     scan: vi.fn(),
     readFile: vi.fn(),
-    readVersion: vi.fn(),
     archive: vi.fn(async () => null),
     rollback: vi.fn(async () => {}),
     activateLate: vi.fn(async (p: Plugin) => {
-      /* 对齐真实 lifecycle:activateLate 会调用 wrapper 的 activate(onSuccess 据此落戳)。 */
+      /* 对齐真实 lifecycle:已激活即拒(占位防双激活);activate 抛错向上传播(占位回滚)。 */
+      if (activeIds.has(p.id)) throw new Error(`插件已激活: ${p.id}`);
       await p.activate({} as never);
+      activeIds.add(p.id);
     }),
+    activeIds,
     importBundle: vi.fn(async (text: string, _id: string) => {
       const mod = bundleModules.get(text);
       if (!mod) throw new Error(`未注册的假 bundle: ${text.slice(0, 30)}`);
@@ -29,7 +32,9 @@ const hoisted = vi.hoisted(() => {
   };
 });
 const scanMock = hoisted.scan as Mock<() => Promise<LocalPluginScanEntry[]>>;
-const readFileMock = hoisted.readFile as Mock<(id: string, name: string) => Promise<string>>;
+const readFileMock = hoisted.readFile as Mock<
+  (id: string, name: string) => Promise<{ content: string; sha256: string }>
+>;
 const archiveMock = hoisted.archive as Mock<(id: string) => Promise<string | null>>;
 const rollbackMock = hoisted.rollback as Mock<(id: string, file: string) => Promise<void>>;
 const activateLateMock = hoisted.activateLate as Mock<(p: Plugin) => Promise<void>>;
@@ -42,7 +47,6 @@ vi.mock("./ipc", () => ({
   ipc: {
     pluginScan: hoisted.scan,
     pluginReadFile: hoisted.readFile,
-    pluginReadVersion: hoisted.readVersion,
     pluginArchive: hoisted.archive,
     pluginRollback: hoisted.rollback,
   },
@@ -71,6 +75,7 @@ vi.mock("./host", async () => {
   return {
     host: {
       activateLate: (p: Plugin) => hoisted.activateLate(p) as Promise<void>,
+      isPluginActive: (id: string) => hoisted.activeIds.has(id),
       events: new EventBus(),
     },
   };
@@ -90,8 +95,8 @@ import {
   rollbackLocalPlugin,
   __resetLocalPluginsForTests,
 } from "./localPlugins";
-/** bundle 文本注册表:stage 登记,单一 readFile 实现按它应答(避免 mockImplementation 互相覆盖)。 */
-const bundleTexts = new Map<string, string>();
+/** bundle 登记表:stage 登记,单一 readFile 实现按它应答(避免 mockImplementation 互相覆盖)。 */
+const bundleTexts = new Map<string, { text: string; sha256: string }>();
 
 function mkPluginModule(id: string, activate?: () => void) {
   const plugin: Plugin = {
@@ -113,8 +118,9 @@ function mkEntry(id: string, md5 = `md5-${id}`): LocalPluginScanEntry {
 
 function stage(id: string, md5?: string, activate?: () => void) {
   const entry = mkEntry(id, md5);
-  const text = `bundle:${id}:${md5 ?? `md5-${id}`}`;
-  bundleTexts.set(`${id}/index.js`, text);
+  const hash = entry.files[0]!.sha256;
+  const text = `bundle:${id}:${hash}`;
+  bundleTexts.set(`${id}/index.js`, { text, sha256: hash });
   bundleModules.set(text, mkPluginModule(id, activate));
   return entry;
 }
@@ -122,12 +128,12 @@ function stage(id: string, md5?: string, activate?: () => void) {
 beforeEach(() => {
   mockSettings = { localPluginsDisabled: false, localPluginTrust: {}, disabledPlugins: [] };
   scanMock.mockReset();
-  readFileMock.mockReset();
   readFileMock.mockImplementation(async (rid, name) => {
-    const text = bundleTexts.get(`${rid}/${name}`);
-    if (text) return text;
+    const f = bundleTexts.get(`${rid}/${name}`);
+    if (f) return { content: f.text, sha256: f.sha256 };
     throw new Error(`unexpected read ${rid}/${name}`);
   });
+  hoisted.activeIds.clear();
   archiveMock.mockClear();
   rollbackMock.mockClear();
   activateLateMock.mockClear();
@@ -153,11 +159,13 @@ describe("confirmLocalPlugin 信任闸", () => {
     /* 字母序 a-child 在前,依赖 b-parent;正确实现必须先激活 b-parent。 */
     scanMock.mockResolvedValue([stage("a-child", undefined), stage("b-parent")]);
     /* a-child dependsOn b-parent:mkEntry 不带 dependsOn,用 bundle 模块的 dependsOn 注入 */
-    readFileMock.mockImplementation(async (rid) => `bundle:${rid}:md5-${rid}`);
+    readFileMock.mockImplementation(async (rid) => ({
+      content: `bundle:${rid}:md5-${rid}`,
+      sha256: `md5-${rid}`,
+    }));
     bundleModules.set("bundle:a-child:md5-a-child", {
       default: {
         id: "a-child",
-        meta: { name: "a", abbr: "AC", desc: "", category: "feature" },
         dependsOn: ["b-parent"],
         activate: () => {},
       },

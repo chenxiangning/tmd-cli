@@ -88,7 +88,7 @@ export class PluginLifecycle {
   /**
    * 晚激活(本地插件「待启用→确认」/重新扫描免重启通道):
    * 以首轮已激活集合为依赖底座;重复 id / 依赖缺失 / 被拔插件一律拒绝。
-   * activate 抛错隔离归装载侧 safe wrapper(localPlugins),此处保持裸调用与首轮同语义。
+   * activate 抛错原样上抛(占位回滚),由晚激活调用方(boot 拓扑/重扫/确认)各自捕获隔离。
    * notify 由 HostRegistry 在调用成功后触发(与注册表变更同路径)。
    */
   async activateLate(plugin: Plugin, ctx: PluginContext): Promise<void> {

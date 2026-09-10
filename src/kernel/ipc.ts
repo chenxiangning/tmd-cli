@@ -25,7 +25,7 @@ import type {
   SshSessionEvent,
 } from "./sshTypes";
 
-/** 本地插件文件戳(plugins.rs 契约):文件名 + 内容 MD5 + 大小 + mtime(版本库排序)。 */
+/** 本地插件文件戳(plugins.rs 契约):文件名 + 内容 SHA-256 + 大小 + mtime(版本库排序)。 */
 export interface LocalPluginFileStamp {
   name: string;
   /** 内容 SHA-256(信任闸判据,抗碰撞;AI 有 shell,md5 会被选择前缀碰撞伪造)。 */
@@ -496,14 +496,12 @@ export const ipc = {
   md5Hex: (text: string) => invoke<string>("md5_hex", { text }),
 
   /* ── 本地插件原语(plugins.rs;路径白名单在 Rust 侧锁死 ~/.tmd-cli/plugins)── */
-  /** 扫描插件目录:manifest 原始 JSON + 顶层文件戳(md5)+ .versions 版本库清单。 */
+  /** 扫描插件目录:manifest 原始 JSON + 顶层文件戳(SHA-256)+ .versions 版本库清单。 */
   pluginScan: () => invoke<LocalPluginScanEntry[]>("plugin_scan"),
-  /** 读插件目录顶层单文件(entry/style;16MB 上限)。 */
+  /** 读插件目录顶层单文件(entry/style;16MB 上限)。读+哈希原子出证:前端核对此哈希
+   *  与扫描戳一致才 import(信任闸闭环,消除「扫描后文件被换」双读断裂)。 */
   pluginReadFile: (id: string, name: string) =>
-    invoke<string>("plugin_read_file", { id, name }),
-  /** 读版本库单文件(.versions/<file>)。 */
-  pluginReadVersion: (id: string, file: string) =>
-    invoke<string>("plugin_read_version", { id, file }),
+    invoke<{ content: string; sha256: string }>("plugin_read_file", { id, name }),
   /** 当前入口归档进版本库(同内容按 hash 去重);返回归档文件名或 null。 */
   pluginArchive: (id: string) => invoke<string | null>("plugin_archive", { id }),
   /** 回退:先归档当前版,再把指定版本换回入口。 */

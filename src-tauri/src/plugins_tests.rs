@@ -109,6 +109,7 @@ fn rejects_traversal_in_id_and_file() {
     assert!(rollback(&t.0, "../x", "f.js").is_err());
     assert!(!valid_name("CON")); // Windows 保留设备名拒绝
     assert!(!valid_name("Nul"));
+    assert!(!valid_name("con.txt")); // 保留名带扩展名同样拒绝
 }
 
 #[test]
@@ -149,7 +150,7 @@ fn archive_dedupes_by_content_and_prunes_to_keep() {
         // 单调递增 mtime,保证淘汰序稳定
         std::thread::sleep(std::time::Duration::from_millis(2));
     }
-    let kept = collect_stamps(&t.0, &t.0.join("p/.versions"), false);
+    let kept = collect_stamps(&t.0, &t.0.join("p/.versions"));
     assert_eq!(kept.len(), VERSIONS_KEEP);
 }
 
@@ -166,7 +167,7 @@ fn archive_dedupes_by_content_across_version_names() {
     fs::write(t.0.join("p/index.js"), "v1").unwrap();
     let archived = archive_current(&t.0, "p").unwrap();
     assert_eq!(archived, None); // 同内容(即使版本段不同名)不再重复归档
-    let kept = collect_stamps(&t.0, &t.0.join("p/.versions"), false);
+    let kept = collect_stamps(&t.0, &t.0.join("p/.versions"));
     assert_eq!(kept.len(), 2); // v1、v2 各一份
 }
 
@@ -214,4 +215,17 @@ fn trash_plugin_moves_to_trash_and_locks_prefix() {
     assert!(!t.0.join("p").exists()); // 已移出(废纸篓)
     assert!(trash_plugin(&t.0, "p").is_err()); // 再删 → 目录不存在
     assert!(trash_plugin(&t.0, "../outside").is_err()); // 前缀锁死
+}
+
+#[test]
+fn scan_versions_filters_non_version_files() {
+    let t = TempRoot::new();
+    t.write_plugin("p", &manifest("p", "1.0.0"), "v1");
+    archive_current(&t.0, "p").unwrap();
+    // 杂物文件不进版本清单(不成为回退候选)
+    fs::write(t.0.join("p/.versions/notes.txt"), "junk").unwrap();
+    let out = scan_plugins(&t.0).unwrap();
+    let versions = &out[0].versions;
+    assert_eq!(versions.len(), 1);
+    assert!(version_of_file_name(&versions[0].name).is_some());
 }

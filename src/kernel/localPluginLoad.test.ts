@@ -1,5 +1,5 @@
 /**
- * localPluginLoad 纯件契约测试:specifier 重写 / shim 文本 / manifest 校验 / 导出校验 / 安全包装。
+ * localPluginLoad 纯件契约测试:specifier 重写 / shim 文本 / manifest 校验 / 导出校验。
  */
 import { describe, expect, it } from "vitest";
 import type { Plugin } from "./plugin";
@@ -9,7 +9,6 @@ import {
   synthesizeMeta,
   validateManifest,
   validatePluginExport,
-  wrapSafePlugin,
 } from "./localPluginLoad";
 
 const shimUrl = (spec: string) => `blob:shim-${spec}`;
@@ -113,31 +112,3 @@ describe("synthesizeMeta 由 manifest 合成 PluginMeta", () => {
   });
 });
 
-describe("wrapSafePlugin activate 安全包装", () => {
-  it("activate 抛错被记录且不向上抛(boot 共享 Promise 不被 reject)", async () => {
-    const errors: string[] = [];
-    const bad: Plugin = {
-      id: "bad",
-      meta: { name: "bad", abbr: "BA", desc: "", category: "feature" },
-      activate: () => {
-        throw new Error("炸了");
-      },
-    };
-    const wrapped = wrapSafePlugin(bad, (msg) => errors.push(msg));
-    await expect(wrapped.activate({} as never)).resolves.toBeUndefined();
-    expect(errors[0]).toContain("炸了");
-  });
-
-  it("正常插件原样透传", async () => {
-    let called = false;
-    const good: Plugin = {
-      id: "good",
-      meta: { name: "g", abbr: "GO", desc: "", category: "feature" },
-      activate: () => {
-        called = true;
-      },
-    };
-    await wrapSafePlugin(good, () => {}).activate({} as never);
-    expect(called).toBe(true);
-  });
-});

@@ -154,8 +154,8 @@ export function pluginDrawerItems(
 /**
  * 抽屉 plugin 区可执行条目 → 无键位命令(仅进注册表,设置清单以「未绑定」呈现)。
  * 准入与 pluginDrawerItems 一致(启用 ∩ feature/local,lockstep);run 即条目 open 语义:
- * 命中右栏面板开面板,无面板兜底开设置。插件启停 = 重启生效,
- * 故插件 activate 期一次性注册与抽屉实况恒一致。
+ * 命中右栏面板开面板,无面板兜底开设置。插件启停 = 重启生效;本地插件的晚激活
+ * (activateLate)不回填 manifest,其抽屉条目/无键位命令同样等重启后注册 —— 已知缺口。
  */
 export function pluginDrawerCommands(): CommandContribution[] {
   return host

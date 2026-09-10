@@ -77,8 +77,6 @@ export function MergedStrip({
 
 export interface Row {
   plugin: Plugin;
-  /** 启动态(本次激活与否)。 */
-  bootOn: boolean;
   /** 期望态(disabledPlugins 反相)。 */
   on: boolean;
   dirty: boolean;

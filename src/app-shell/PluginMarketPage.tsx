@@ -36,7 +36,7 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
 
   const rows: Row[] = states.map(({ plugin, enabled }) => {
     const on = !disabled.has(plugin.id);
-    return { plugin, bootOn: enabled, on, dirty: on !== enabled };
+    return { plugin, on, dirty: on !== enabled };
   });
   /* 按分类分排:固定顺序,空类不渲染(防御:现网三类均非空)。 */
   const groups = CATEGORY_ORDER.map((category) => ({

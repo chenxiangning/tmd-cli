@@ -18,7 +18,7 @@ export interface LocalPluginRecord {
   versions: LocalPluginFileStamp[];
   /** 加载失败原因(扫描/manifest/导出/链接期错误)。 */
   error: string | null;
-  /** 激活失败原因(activate 抛错被 safe wrapper 隔离捕获)。 */
+  /** 激活失败原因(activate 抛错由晚激活调用方捕获;内容变更重扫时丢弃)。 */
   activateError: string | null;
   /** 已激活内容 hash;null = 未激活(待启用/被拔/未信任)。 */
   activatedHash: string | null;

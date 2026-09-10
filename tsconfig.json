@@ -16,7 +16,8 @@
     "paths": {
       "@kernel/*": ["./src/kernel/*"],
       "@shell/*": ["./src/app-shell/*"],
-      "@plugins/*": ["./src/plugins/*"]
+      "@plugins/*": ["./src/plugins/*"],
+      "tmd-sdk": ["./src/kernel/pluginSdk.ts"]
     }
   },
   "include": ["src"]

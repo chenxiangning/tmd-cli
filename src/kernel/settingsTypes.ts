@@ -149,7 +149,7 @@ export interface AppSettings {
   disabledPlugins: string[];
   /** 本地插件总开关:true 时 boot 不装载任何 `~/.tmd-cli/plugins/` 插件(一键还原干净内置态)。 */
   localPluginsDisabled: boolean;
-  /** 本地插件信任表:id → 已确认过的 bundle 内容 MD5 列表;信任绑定内容而非 id(回退到确认过的版本免再确认)。 */
+  /** 本地插件信任表:id → 已确认过的 bundle 内容 SHA-256 列表;信任绑定内容而非 id(回退到确认过的版本免再确认)。 */
   localPluginTrust: Record<string, string[]>;
   /**
    * 会话手动命名覆盖层:key = `${profileId}:${cliSessionId}`,value = 用户起的标题。

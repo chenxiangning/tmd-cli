@@ -123,7 +123,9 @@ export function attachTerminalStream(
   const armQuiet = (): void => {
     clearTimeout(quietTimer);
     quietTimer = setTimeout(() => {
-      if (cancelled) return;
+      /* ready 幂等守卫:12s 兜底先触发后,挂起的静默表不得再放一次闸(重复 release
+         会跨窗 pop 掉翻页器的 arm,重写期 xterm 自动应答漏进活 PTY)。 */
+      if (cancelled || ready) return;
       ready = true;
       inputGate.release();
       onReady?.();
@@ -165,7 +167,7 @@ export function attachTerminalStream(
     const finishDisk = (): void => {
       clearTimeout(diskFlushTimer);
       diskChunkSink = null;
-      if (cancelled) return;
+      if (cancelled || ready) return; /* ready 幂等:CLR 兜底已就绪后,迟到的 30s 表不得二次 release */
       flushQueuedNow();
       ready = true;
       inputGate.release();

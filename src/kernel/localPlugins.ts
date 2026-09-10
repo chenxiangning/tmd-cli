@@ -1,7 +1,6 @@
 /**
- * 本地插件装载编排:扫描→diff(SHA-256)→装载→信任闸→晚激活;对话即变(turnSettled 自动重扫)。
- * 状态表存取在 localPluginStore(插排页本地分区数据源);内置区仍由 pluginLifecycle.listPluginStates 渲染。
- * 信任绑定内容 hash 而非 id(settings.localPluginTrust);判据 = SHA-256(AI 有 shell,md5 可被选择前缀碰撞伪造)。
+ * 本地插件装载编排:扫描→diff(SHA-256)→读回核哈希→装载→信任闸→晚激活;对话即变(turnSettled 自动重扫)。
+ * 状态表在 localPluginStore;信任绑定内容 hash(settings.localPluginTrust,SHA-256 判据)。
  * 设计契约见 docs/superpowers/specs/2026-09-10-local-plugins-design.md。
  */
 import { KernelTopics } from "./events";
@@ -12,7 +11,6 @@ import {
   synthesizeMeta,
   validateManifest,
   validatePluginExport,
-  wrapSafePlugin,
 } from "./localPluginLoad";
 import type { Plugin } from "./plugin";
 import { getSettingsState, settingsReady, updateSettings } from "./settings";
@@ -53,6 +51,10 @@ function entryNameOf(manifest: Record<string, unknown>): string {
 /** 扫描条目 → 记录(manifest 校验在此完成;坏条目不 import)。 */
 function scanToRecord(entry: LocalPluginScanEntry): LocalPluginRecord {
   const prev = records.get(entry.id);
+  const manifest = entry.manifest;
+  const contentHash = manifest
+    ? (entry.files.find((f) => f.name === entryNameOf(manifest))?.sha256 ?? null)
+    : null;
   const rec: LocalPluginRecord = {
     id: entry.id,
     origin: "local",
@@ -60,41 +62,51 @@ function scanToRecord(entry: LocalPluginScanEntry): LocalPluginRecord {
     meta: entry.manifest ? synthesizeMeta(entry.manifest) : null,
     versions: entry.versions,
     error: entry.error ?? null,
-    activateError: prev?.activateError ?? null,
+    /* 激活失败是「内容」的属性:内容变了旧错误即过时,不继承。 */
+    activateError:
+      prev?.activateError != null && prev.contentHash !== null && prev.contentHash === contentHash
+        ? prev.activateError
+        : null,
     activatedHash: prev?.activatedHash ?? null,
     removed: false,
-    contentHash: null,
+    contentHash,
   };
-  if (rec.error || !entry.manifest) return rec;
-  const verr = validateManifest(entry.manifest, builtinIds);
+  if (rec.error || !manifest) return rec;
+  const verr = validateManifest(manifest, builtinIds);
   if (verr) {
     rec.error = verr;
     return rec;
   }
-  const entryName = entryNameOf(entry.manifest);
-  rec.contentHash = entry.files.find((f) => f.name === entryName)?.sha256 ?? null;
-  if (!rec.contentHash) rec.error = `入口缺失或超过 16MB 上限: ${entryName}`;
+  if (!rec.contentHash) rec.error = `入口缺失或超过 16MB 上限: ${entryNameOf(manifest)}`;
   return rec;
 }
 
-/** 装载(带按内容指纹的缓存):校验已过 → 读 bundle → import → 导出校验 → safe 包装。 */
+/** 装载(带按内容指纹的缓存):校验已过 → 读 bundle(读+哈希原子出证)→ 内容核对 → import → 导出校验。 */
 async function ensureLoaded(rec: LocalPluginRecord): Promise<Plugin | null> {
   const key = `${rec.id}:${rec.contentHash}`;
   const cached = loadedPlugins.get(key);
   if (cached) return cached;
   if (!rec.manifest || !rec.contentHash) return null;
-  let text: string;
+  let file: { content: string; sha256: string };
   try {
-    text = await ipc.pluginReadFile(rec.id, entryNameOf(rec.manifest));
+    file = await ipc.pluginReadFile(rec.id, entryNameOf(rec.manifest));
   } catch (e) {
     rec.error = msg(e);
     return null;
   }
+  /* 信任闸闭环:读回哈希 ≠ 扫描定戳 = 文件被换过(AI 仍写或恶意替换),拒装。 */
+  if (file.sha256 !== rec.contentHash) {
+    rec.error = "入口内容与扫描时不一致,已拒绝装载,请重新扫描";
+    return null;
+  }
   let mod: Record<string, unknown>;
   try {
-    mod = await importBundle(text, rec.id);
+    mod = await importBundle(file.content, rec.id);
   } catch (e) {
-    rec.error = `装载失败: ${msg(e)}`;
+    const m = msg(e);
+    rec.error = m.includes("module specifier")
+      ? `装载失败: ${m}(specifier 重写仅支持 from "…" 与 import("…") 两种形态,副作用导入 import "…" 不支持)`
+      : `装载失败: ${m}`;
     return null;
   }
   const verr = validatePluginExport(mod, rec.id);
@@ -103,26 +115,18 @@ async function ensureLoaded(rec: LocalPluginRecord): Promise<Plugin | null> {
     return null;
   }
   const raw = (mod.default ?? mod.plugin) as Plugin;
-  const plugin = wrapSafePlugin(
-    { ...raw, meta: raw.meta ?? synthesizeMeta(rec.manifest) },
-    (m) => {
-      const cur = records.get(rec.id);
-      if (cur) {
-        cur.activateError = m;
-        emit();
-      }
-    },
-    () => {
-      // activate 真跑成功才落「已激活」戳 —— 不乐观假设,杜绝假「运行中」徽章
-      const cur = records.get(rec.id);
-      if (cur && cur.activatedHash !== cur.contentHash) {
-        cur.activatedHash = cur.contentHash;
-        emit();
-      }
-    },
-  );
+  const plugin = { ...raw, meta: raw.meta ?? synthesizeMeta(rec.manifest) };
   loadedPlugins.set(key, plugin);
   return plugin;
+}
+
+/** 激活成功落戳(唯一落点):activatedHash 定格 + 清激活错误。 */
+function markActivated(id: string): void {
+  const rec = records.get(id);
+  if (rec) {
+    rec.activatedHash = rec.contentHash;
+    rec.activateError = null;
+  }
 }
 
 /** 记录可激活(过信任闸 + 未被拔出 + 无加载错误 + 有内容戳)。 */
@@ -163,7 +167,7 @@ export async function bootLocalPlugins(builtins: ReadonlySet<string>): Promise<P
     records.set(rec.id, rec);
     if (!activatable(rec)) continue;
     const plugin = await ensureLoaded(rec);
-    if (plugin) ready.push(plugin); // activatedHash 由 wrapper onSuccess 在真实激活后落
+    if (plugin) ready.push(plugin); // activatedHash 由 activateBootLocals 真实激活后落(markActivated)
   }
   emit();
   return ready;
@@ -183,8 +187,16 @@ export async function activateBootLocals(plugins: Plugin[]): Promise<void> {
       const missing = (p.dependsOn ?? []).filter((d) => !builtinIds.has(d) && !done.has(d));
       if (missing.length > 0) continue;
       pending.delete(id);
+      /* 已激活(StrictMode 双跑)只补戳;activate 抛错上抛(占位已回滚),落记录 continue。 */
+      if (host.isPluginActive(id)) {
+        markActivated(id);
+        done.add(id);
+        progressed = true;
+        continue;
+      }
       try {
         await host.activateLate(p);
+        markActivated(id);
         done.add(id);
       } catch (e) {
         const rec = records.get(id);
@@ -229,7 +241,7 @@ async function doRescan(): Promise<void> {
     if (!plugin) continue;
     try {
       await host.activateLate(plugin);
-      rec.activatedHash = rec.contentHash;
+      markActivated(rec.id);
     } catch (e) {
       rec.activateError = msg(e);
     }
@@ -240,10 +252,7 @@ async function doRescan(): Promise<void> {
   emit();
 }
 
-/**
- * 信任闸确认:信任当前内容指纹 + 归档进版本库 + (未激活则)立即晚激活免重启。
- * 已激活插件确认更新 = 归档 + 信任,重启生效(无摘除柄,运行期不替换)。
- */
+/** 信任闸确认:信任当前内容指纹 + 归档版本库 + 未激活则立即晚激活免重启;已激活 = 重启生效。 */
 export async function confirmLocalPlugin(id: string): Promise<void> {
   const rec = records.get(id);
   if (!rec?.contentHash) return;
@@ -266,7 +275,7 @@ export async function confirmLocalPlugin(id: string): Promise<void> {
   }
   try {
     await host.activateLate(plugin);
-    rec.activatedHash = rec.contentHash;
+    markActivated(rec.id);
   } catch (e) {
     rec.activateError = msg(e);
   }
