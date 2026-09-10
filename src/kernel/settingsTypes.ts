@@ -131,6 +131,8 @@ export interface AppSettings {
   sessionTabsMax: number;
   /** Composer 发送快捷键行为。 */
   sendShortcut: SendShortcut;
+  /** Composer 输入历史(ghost 补全 + 空输入 ↑↓ 召回)开关,默认开。 */
+  promptHistoryEnabled: boolean;
   /** Ask/确认面板提示音开关(行为页可调,默认开启)。 */
   askSoundEnabled: boolean;
   /** Ask 提示音效 id。 */
@@ -245,6 +247,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT,
   sessionTabsEnabled: true,
   sendShortcut: "enter",
+  promptHistoryEnabled: true,
   askSoundEnabled: true,
   askSoundId: "default",
   turnEndSoundEnabled: true,

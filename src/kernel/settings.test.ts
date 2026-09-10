@@ -50,6 +50,7 @@ describe("初始状态与默认值", () => {
       sessionTabsEnabled: true,
       sessionTabsMax: 4,
       sendShortcut: "enter",
+      promptHistoryEnabled: true,
       askSoundEnabled: true,
       askSoundId: "default",
       turnEndSoundEnabled: true,

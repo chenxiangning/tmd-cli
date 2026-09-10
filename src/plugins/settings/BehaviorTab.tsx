@@ -1,10 +1,12 @@
 /**
- * 基础设置 / 行为 tab —— 发送快捷键 + 会话输出缓冲上限 + Ask 提示音 + 结束提示音 + 后台提醒。
+ * 基础设置 / 行为 tab —— 发送快捷键 + 输入历史(补全开关 + 管理区)+ 会话输出缓冲上限
+ * + Ask 提示音 + 结束提示音 + 后台提醒。
  *
  * segmented 两选项:
  * - Enter 发送(默认,Shift+Enter 换行)
  * - ⌘/Ctrl+Enter 发送(Enter 换行)
- * 缓冲上限:数字输入,blur/Enter 提交,合法域 5万–1000万 字符(kernel/settings sanitize 兜底)。
+ * 输入历史(2026-09-10,参考 codemoss):「历史输入补全」开关写入 settings;
+ * 「输入历史」折叠管理区在行为卡片下方(计数/逐条删/清空),组件 PromptHistoryManager。
  * Ask 提示音:CLI 弹确认面板即响;结束提示音:一轮对话结束且未被查看,延迟确认后响。
  * 后台提醒:窗口失焦时激活会话完成也计未读(标蓝 + 结束音)。
  * 写入 kernel/settings store 即时生效,无需保存按钮。
@@ -19,6 +21,7 @@ import {
   type SendShortcut,
 } from "@kernel/settings";
 import { playAskSound } from "@kernel/askSound";
+import { PromptHistoryManager } from "./PromptHistoryManager";
 import { t } from "@kernel/i18n";
 import { StyledSelect } from "@kernel/StyledSelect";
 
@@ -50,6 +53,7 @@ export function BehaviorTab() {
   const { settings } = useSettingsState();
 
   return (
+    <>
     <div className="pref-card" data-testid="settings-behavior-card">
       <div className="pref-row">
         <div>
@@ -69,6 +73,32 @@ export function BehaviorTab() {
               {t(label)}
             </button>
           ))}
+        </div>
+      </div>
+      <div className="pref-row">
+        <div>
+          <div className="pref-title">{t("历史输入补全")}</div>
+          <div className="pref-desc">{t("输入时按 Tab 接受历史补全建议;输入框为空时按 ↑↓ 翻阅历史。")}</div>
+        </div>
+        <div className="segmented" role="radiogroup" aria-label={t("历史输入补全")}>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={settings.promptHistoryEnabled}
+            className={`segment${settings.promptHistoryEnabled ? " is-active" : ""}`}
+            onClick={() => updateSettings({ promptHistoryEnabled: true })}
+          >
+            {t("开启")}
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!settings.promptHistoryEnabled}
+            className={`segment${!settings.promptHistoryEnabled ? " is-active" : ""}`}
+            onClick={() => updateSettings({ promptHistoryEnabled: false })}
+          >
+            {t("关闭")}
+          </button>
         </div>
       </div>
       <div className="pref-row">
@@ -224,5 +254,7 @@ export function BehaviorTab() {
         </div>
       </div>
     </div>
+      <PromptHistoryManager />
+    </>
   );
 }

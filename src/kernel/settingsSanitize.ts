@@ -231,6 +231,10 @@ export function sanitize(raw: unknown): AppSettings {
     turnEndSoundId: ASK_SOUND_IDS.includes(obj.turnEndSoundId as AskSoundId)
       ? (obj.turnEndSoundId as AskSoundId)
       : DEFAULT_SETTINGS.turnEndSoundId,
+    promptHistoryEnabled:
+      typeof obj.promptHistoryEnabled === "boolean"
+        ? obj.promptHistoryEnabled
+        : DEFAULT_SETTINGS.promptHistoryEnabled,
     backgroundNotify:
       typeof obj.backgroundNotify === "boolean"
         ? obj.backgroundNotify
