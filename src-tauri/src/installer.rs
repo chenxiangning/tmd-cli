@@ -74,12 +74,14 @@ fn install_command(plan: &InstallPlan, npm_prefix: Option<&str>) -> (String, Vec
                 Some(p) => vec!["--prefix".into(), p.to_string()],
                 None => vec![],
             };
+            /* Windows 路径分隔符归一:cfg 分支里各消费 prefix_args,不可二次赋值。 */
+            #[cfg(windows)]
+            let prefix_args: Vec<String> = prefix_args
+                .into_iter()
+                .map(|a| a.replace('/', "\\"))
+                .collect();
             #[cfg(windows)]
             {
-                prefix_args = prefix_args
-                    .into_iter()
-                    .map(|a| a.replace('/', "\\"))
-                    .collect();
                 return (
                     "cmd".into(),
                     [
