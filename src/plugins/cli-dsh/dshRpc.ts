@@ -1,26 +1,26 @@
 /**
- * DSH host-RPC 浏览器侧客户端(域逻辑,无 UI)—— 线格式同 codemoss host.rs:
- * POST {origin}/api/<method> {type:"client-request",rpcId,method,payload}
- *   → {type:"server-response",rpcId,result:{ok:true,value}|{ok:false,error}}。
- * HTTP 走通用 quota_fetch 通道(R3:插件不 import @tauri-apps/*)。
- * 用途:listSessions/resumeArgs/readSessionStatus 等 CliProfile 钩子的数据源
- * (DSH 会话盘是 zstd 压缩流,fs 文本原语读不了,只能经 host RPC 代读)。
+ * DSH host-RPC 浏览器侧客户端(域逻辑,无 UI)—— 0.1.2 typert gateway 线格式:
+ * POST {origin}/api/<namespace>/<method> {type:"client-request",rpcId,method,
+ * payload:{args}} → {type:"server-response",rpcId,result:{ok,value}|{ok:false,error}}。
+ * HTTP 走通用 quota_fetch 通道(R3:插件不 import @tauri-apps/*);全部请求
+ * 需 BrowserAuth cookie(authHeaders 注入,0.1.2 新增门禁)。
+ * 用途:listSessions/resumeArgs/readSessionStatus 等 CliProfile 钩子的数据源。
  */
-
 import { ipc } from "@kernel/ipc";
 import type { CliDiskSession, CliSessionStatus } from "@kernel/cli";
-import type { DshConnection } from "./dshHost";
-import { originOf, waitForHostReady } from "./dshHost";
+import type { DshConnection } from "./dshConnection";
+import { authHeaders, originOf } from "./dshConnection";
+import { waitForHostReady } from "./dshHost";
 
 /** 单次 RPC;失败一律 null(调用方按缺省处理,不猜)。 */
-async function rpc<T>(conn: DshConnection, method: string, payload: object): Promise<T | null> {
+async function rpc<T>(conn: DshConnection, method: string, args: object): Promise<T | null> {
   try {
     const res = await ipc.quotaFetch({
       url: `${originOf(conn)}/api/${method}`,
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders(conn) },
       body: JSON.stringify({
-        type: "client-request", rpcId: `tmd-${Date.now()}`, method, payload,
+        type: "client-request", rpcId: `tmd-${Date.now()}`, method, payload: { args: args || {} },
       }),
     });
     const env = res.body as {
@@ -38,7 +38,14 @@ interface DshSessionListItem {
   sessionId?: string;
   cwd?: string;
   updatedAt?: number;
-  projections?: { values?: { title?: string; contextPressure?: DshContextPressure; contextBreakdown?: DshContextBreakdown } };
+  projections?: {
+    values?: {
+      title?: string;
+      contextPressure?: DshContextPressure;
+      contextBreakdown?: DshContextBreakdown;
+      modelSelection?: { next?: { provider?: string; model?: string }; lastUsed?: { provider?: string; model?: string } };
+    };
+  };
   blank?: boolean;
 }
 
@@ -62,9 +69,9 @@ export interface DshContextBreakdown {
 export async function listHostSessions(
   conn: DshConnection, cwd: string,
 ): Promise<CliDiskSession[]> {
-  let value = await rpc<{ items?: DshSessionListItem[] }>(conn, "session.list", {});
+  let value = await rpc<{ items?: DshSessionListItem[] }>(conn, "session/list", { _request: {} });
   if (!value && conn.autoStart && await waitForHostReady(conn)) {
-    value = await rpc<{ items?: DshSessionListItem[] }>(conn, "session.list", {});
+    value = await rpc<{ items?: DshSessionListItem[] }>(conn, "session/list", { _request: {} });
   }
   const items = Array.isArray(value?.items) ? value.items : [];
   return items
@@ -79,9 +86,9 @@ export async function listHostSessions(
 }
 
 /**
- * 删除一个 DSH 会话(deleteSession 钩子)。host 0.1.1-rc.2 无删除 RPC(方法面
- * session.{list,new,prompt,models,history,fork,cancel,rename,search,...},实测
- * session.delete 404),唯一通路 = 会话盘 `~/.dsh/sessions/<slug>/session-<id>/`;
+ * 删除一个 DSH 会话(deleteSession 钩子)。host 0.1.2-rc.1 仍无删除 RPC(0.1.2
+ * typert 清单无 session/delete;0.1.1 实测 session.delete 404),唯一通路 =
+ * 会话盘 `~/.dsh/sessions/<slug>/session-<id>/`;
  * host 对 session.list 活扫描磁盘,目录移除后列表立即同步,Web UI 同源跟随
  * (实测运行中移走目录,session.list 当次即少一条)。slug 规则不猜:会话 id
  * 全局唯一,扫一层 slug 目录定位 `session-<id>` 即可;找不到 = 已删除,幂等成功。
@@ -99,33 +106,31 @@ export async function deleteHostSession(cliSessionId: string): Promise<void> {
   );
 }
 
-/** session.models → 当前模型与思考强度(routable=false 也照读,展示实况)。 */
+/** session/list 自项 modelSelection → 当前模型与思考强度。 */
 export async function readHostSessionStatus(
   conn: DshConnection, cliSessionId: string,
 ): Promise<CliSessionStatus | null> {
-  const value = await rpc<{
-    current?: { provider?: string; model?: string; reasoningEffort?: string };
-  }>(conn, "session.models", { sessionId: cliSessionId });
-  const cur = value?.current;
+  const value = await rpc<{ items?: DshSessionListItem[] }>(conn, "session/list", { _request: {} });
+  const it = (value?.items || []).find((s) => s.sessionId === cliSessionId);
+  const ms = it?.projections?.values?.modelSelection;
+  const cur = ms?.next ?? ms?.lastUsed;
   if (!cur?.model) return null;
-  return {
-    model: cur.provider ? `${cur.provider}/${cur.model}` : cur.model,
-    thinkingLevel: typeof cur.reasoningEffort === "string" ? cur.reasoningEffort : undefined,
-  };
+  return { model: cur.provider ? `${cur.provider}/${cur.model}` : cur.model };
 }
 
-/** host.describe → 默认状态种子(host 全局 provider/model,新会话未建时的展示位)。 */
+/** session/modelCatalog 默认路由 → 状态种子(0.1.2 起 host.describe 删除)。 */
 export async function readHostDefaultStatus(conn: DshConnection): Promise<CliSessionStatus | null> {
-  const value = await rpc<{ provider?: string; model?: string }>(conn, "host.describe", {});
-  if (!value?.model) return null;
-  return { model: value.provider ? `${value.provider}/${value.model}` : value.model };
+  const value = await rpc<{ default?: { provider?: string; model?: string } }>(conn, "session/modelCatalog", {});
+  const def = value?.default;
+  if (!def?.model) return null;
+  return { model: def.provider ? `${def.provider}/${def.model}` : def.model };
 }
 
 /** session.list 定位单会话的上下文投影(pressure + 分解,额度弹窗消费)。 */
 export async function readHostContextPressure(
   conn: DshConnection, cliSessionId: string,
 ): Promise<{ used: number; window: number; breakdown?: DshContextBreakdown } | null> {
-  const value = await rpc<{ items?: DshSessionListItem[] }>(conn, "session.list", {});
+  const value = await rpc<{ items?: DshSessionListItem[] }>(conn, "session/list", { _request: {} });
   const it = (value?.items || []).find((s) => s.sessionId === cliSessionId);
   const cp = it?.projections?.values?.contextPressure;
   if (!cp || typeof cp.projectedTokens !== "number" || typeof cp.contextWindow !== "number" || cp.contextWindow <= 0) return null;

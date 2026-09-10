@@ -693,11 +693,17 @@ export interface QuotaFetchSpec {
   body?: string;
   /** true = 响应按原始文本返回(body 为字符串),跳过 JSON 解析(如 atom/xml 源)。 */
   text?: boolean;
+  /** true = 不跟随重定向(3xx 原样返回),供鉴权 cookie 交换等场景。 */
+  noRedirect?: boolean;
+  /** true = 响应携带 headers(多值 map,set-cookie 等多值头不丢)。 */
+  includeHeaders?: boolean;
 }
 
 export interface QuotaFetchResponse {
   status: number;
   body: unknown;
+  /** 请求声明 includeHeaders 时才存在;键为小写头名。 */
+  headers?: Record<string, string[]>;
 }
 
 /** 安装事件 payload(对齐 installer.rs CliInstallEvent)。 */

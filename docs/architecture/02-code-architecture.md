@@ -345,12 +345,23 @@ Rust `fail_session` 在幕布内呈现,两条路径互补。
 ### 5.2 dsh:RPC 代读型引擎(无磁盘 JSONL 的第九家)
 
 dsh(DeepSeek Harness)会话盘是 `session.jsonl.zstd` 压缩流,fs 文本原语读不了,
-不进 5.1 表。全部磁盘语义改走 host RPC(`POST /api/<method>` client-request 信封,
+不进 5.1 表。全部磁盘语义改走 host RPC(`POST /api/<method>`,载荷 =
+ `{type:"client-request",rpcId,method,payload:{args:{...}}}` client-request 信封,
 codemoss host.rs 同款),分两路:
 
-- **浏览器侧(dshRpc.ts,经通用 quota_fetch HTTP 通道)**:`listSessions`(session.list
-  按 cwd 过滤)/ `readSessionStatus`(session.models current)/ `fetchQuota`
-  (projections.contextPressure)。
+- **0.1.2 契约**(rc.1,typerpc 中间件):全部请求须带 BrowserAuth cookie
+  (`dsh-auth-<x>`,自拉起时 host 打印一次性 launch token,GET `/?token=` 303
+  set-cookie 换取;origin 变更即弃凭据),方法面 = session.{list,prompt,cancel,
+  selectModel,history,models} + agentPreset.select + commands/execute +
+  settings.{describe,set};旧 host.describe / session.new 已删除。响应一律
+  server-response 信封 `{type,rpcId,result:{ok,value}|{ok:false,error:{code,...}}}`;
+  事件流 = WS `/api/events.mux`(帧 `{seq,sessionId,stream,data}`,stream 从
+  `.entry.` 改 `.projection.`,批帧折进 `data`,快照帧 `data:{values}`)。
+- **浏览器侧(dshConnection.ts 配置域 / dshHost.ts 进程域 / dshRpc.ts 经通用
+  quota_fetch HTTP 通道,quota_fetch 支持 noRedirect+includeHeaders)**:
+  `listHostSessions`(session/list 按 cwd 过滤)/ `readSessionStatus`
+  (session/models current)/ `fetchQuota`(projections.contextPressure);
+  探针 = settings/describe 的 namespaces 里的 agent-default-model。
 - **PTY 侧(adapter/*.cjs 适配器,spawnTransform 落盘 `<configHome>/adapters/dsh/`
   后以 node 绝对路径 spawn)**:会话即一条 DSH 对话 —— stdin → session.prompt,
   mux WebSocket 帧 → 投影(dsh-project 纯函数)→ ANSI 幕布;审批/提问卡
@@ -358,9 +369,9 @@ codemoss host.rs 同款),分两路:
   点击(架构契约见 specs/2026-09-07-cli-dsh-pty-adapter-design.md)。
 - resume 标记:内核 `resumeArgs` 产 `["--resume", id]`,`spawnTransform` 翻成
   适配器 `--session-id`(内核零 dsh 协议知识)。
-- **删除(dshRpc.deleteHostSession)**:host 0.1.1-rc.2 无删除 RPC(方法面
-  session.{list,new,prompt,models,history,fork,cancel,rename,search,...} 实测
-  session.delete 404),唯一通路 = 会话盘目录;host 对 session.list **活扫描磁盘**,
+- **删除(dshRpc.deleteHostSession)**:host 0.1.2-rc.1 仍无删除 RPC(0.1.2
+  typert 清单无 session/delete;0.1.1 实测 session.delete 404),唯一通路 = 会话盘目录;
+  host 对 session.list **活扫描磁盘**,
   目录移除后列表当次同步(Web UI 同源跟随)。slug 规则不猜:会话 id 全局唯一,
   扫 `~/.dsh/sessions/<slug>/` 一层定位 `session-<id>`,找不到幂等成功;
   `fs_remove_path` 白名单已放行 `~/.dsh`。

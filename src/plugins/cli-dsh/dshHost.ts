@@ -1,87 +1,20 @@
 /**
- * DSH host 连接域逻辑(无 UI,hostPanel 的可测试内核):
- * - 探针 = host.describe RPC:POST {origin}/api/host.describe(codemoss host.rs
- *   同款线格式),走通用 quota_fetch HTTP 通道,内核零配方。
- * - 启动 = PTY 会话跑 `<dsh|自定义路径> web --host H --port P`:会话即 host,
- *   日志在幕布,杀会话即停服务。仅登记本面板拉起的会话 id;外部(终端/mossx)
- *   拉起的 host 一律 adopt 不碰 —— codemoss supervisor「只 kill 自 spawn」同语义。
- * - 连接配置持久化 localStorage(tmd.dsh.connection.v1):host/port/customBin/
- *   autoStart,默认 127.0.0.1:3080 / 空(PATH) / 开 —— 口径对齐 codemoss
- *   DshRuntimeSettings(dshBin/dshHost/dshPort/dshAutoStart 默认值)。
- * - 自动启动语义(codemoss 同款):进首页且 host 未运行时自动拉起;
- *   拨开关不立刻启动或停止。每次应用运行至多自动尝试一次(StrictMode
- *   双挂载安全,consumeAutoStart 一次性闸)。
+ * DSH host 进程域(无 UI,hostPanel 的可测试内核):探针(settings/describe)、
+ * 自拉起/adopt/停机、launch token 凭据链、就绪轮询。连接配置域在 dshConnection.ts。
  */
 
-import { ipc } from "@kernel/ipc";
+import { ipc, onPtyOutput } from "@kernel/ipc";
 import { getPlatformKind } from "@kernel/platform";
+import {
+  authHeaders,
+  dshCommand,
+  isLocalHost,
+  loadConnection,
+  originOf,
+  saveConnection,
+  type DshConnection,
+} from "./dshConnection";
 
-export const DSH_CONNECTION_KEY = "tmd.dsh.connection.v1";
-
-export interface DshConnection {
-  host: string;
-  port: number;
-  /** 自定义 dsh 可执行路径(绝对路径或 PATH 内名字);空串 = 用 PATH 的 dsh。 */
-  customBin: string;
-  /** 自动启动主机:进首页且 host 未运行时拉起;拨开关不立刻启停。 */
-  autoStart: boolean;
-}
-
-export const DEFAULT_CONNECTION: DshConnection = {
-  host: "127.0.0.1",
-  port: 3080,
-  customBin: "",
-  autoStart: true,
-};
-
-export function loadConnection(): DshConnection {
-  try {
-    const raw = localStorage.getItem(DSH_CONNECTION_KEY);
-    if (!raw) return { ...DEFAULT_CONNECTION };
-    const parsed = JSON.parse(raw) as Partial<DshConnection>;
-    return {
-      host: typeof parsed.host === "string" && parsed.host ? parsed.host : DEFAULT_CONNECTION.host,
-      port: typeof parsed.port === "number" && parsed.port > 0 ? parsed.port : DEFAULT_CONNECTION.port,
-      customBin: typeof parsed.customBin === "string" ? parsed.customBin : DEFAULT_CONNECTION.customBin,
-      autoStart: typeof parsed.autoStart === "boolean" ? parsed.autoStart : DEFAULT_CONNECTION.autoStart,
-    };
-  } catch {
-    return { ...DEFAULT_CONNECTION };
-  }
-}
-
-export function saveConnection(conn: DshConnection): void {
-  localStorage.setItem(DSH_CONNECTION_KEY, JSON.stringify(conn));
-}
-
-/** 归一 host/port(空 host 回默认,端口截 1-65535),其余字段沿用 base。 */
-export function normalizeConnection(
-  host: string,
-  port: string,
-  base: DshConnection = DEFAULT_CONNECTION,
-): DshConnection {
-  const trimmed = host.trim();
-  const parsed = Number.parseInt(port, 10);
-  return {
-    ...base,
-    host: trimmed || DEFAULT_CONNECTION.host,
-    port: Number.isFinite(parsed) ? Math.min(65535, Math.max(1, parsed)) : DEFAULT_CONNECTION.port,
-  };
-}
-
-/** 启动命令:自定义路径优先,回退 PATH 里的 dsh。 */
-export function dshCommand(conn: DshConnection): string {
-  return conn.customBin.trim() || "dsh";
-}
-
-export function originOf(conn: DshConnection): string {
-  return `http://${conn.host}:${conn.port}`;
-}
-
-/** host.describe 请求体(codemoss host.rs 线格式)。 */
-export function describeRequestBody(rpcId: string): string {
-  return JSON.stringify({ type: "client-request", rpcId, method: "host.describe", payload: {} });
-}
 
 /** describe 视图:只透传已知字段,未知形状不猜。 */
 export interface DshHostView {
@@ -90,37 +23,44 @@ export interface DshHostView {
   sessions?: number;
 }
 
-/** server-response 信封 → 视图;非 200 / 非 server-response / ok:false → null。 */
+/** 探针结果:401 = host 活着但缺凭据(与「没起来」必须可分,adopt 语义靠它)。 */
+export interface ProbeResult {
+  view: DshHostView | null;
+  unauthorized: boolean;
+}
+
+/** server-response 信封 → 视图;非 server-response / ok:false → null。 */
 export function parseDescribeResponse(status: number, body: unknown): DshHostView | null {
   if (status !== 200) return null;
-  const envelope = body as {
-    type?: string;
-    result?: { ok?: boolean; value?: Record<string, unknown> };
-  } | null;
-  if (!envelope || envelope.type !== "server-response" || !envelope.result?.ok) return null;
-  /* 200 + ok 即 host 存活;字段不可读(非对象/缺字段)归为空视图,不判死。 */
-  const value = envelope.result.value;
+  /* settings/describe:provider/model 在 namespaces[ns=agent-default-model].value。 */
+  if (typeof body !== "object" || body === null || !("type" in body) || body.type !== "server-response") return null;
+  if (!("result" in body) || typeof body.result !== "object" || body.result === null) return null;
+  if (!("ok" in body.result) || body.result.ok !== true) return null;
+  if (!("value" in body.result) || typeof body.result.value !== "object" || body.result.value === null) return {};
+  if (!("namespaces" in body.result.value) || !Array.isArray(body.result.value.namespaces)) return {};
   const view: DshHostView = {};
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    if (typeof record.provider === "string") view.provider = record.provider;
-    if (typeof record.model === "string") view.model = record.model;
-    if (typeof record.sessions === "number") view.sessions = record.sessions;
+  for (const entry of body.result.value.namespaces) {
+    if (typeof entry !== "object" || entry === null || !("ns" in entry) || entry.ns !== "agent-default-model") continue;
+    if (!("value" in entry) || typeof entry.value !== "object" || entry.value === null) continue;
+    if ("provider" in entry.value && typeof entry.value.provider === "string") view.provider = entry.value.provider;
+    if ("model" in entry.value && typeof entry.value.model === "string") view.model = entry.value.model;
   }
   return view;
 }
 
-export async function probeHost(conn: DshConnection): Promise<DshHostView | null> {
+/** 探针 = settings/describe(0.1.2 起 host.describe 删除)。连接级错误归 down。 */
+export async function probeHost(conn: DshConnection): Promise<ProbeResult> {
   try {
     const res = await ipc.quotaFetch({
-      url: `${originOf(conn)}/api/host.describe`,
+      url: `${originOf(conn)}/api/settings/describe`,
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: describeRequestBody(`tmd-${Date.now()}`),
+      headers: { "content-type": "application/json", ...authHeaders(conn) },
+      body: JSON.stringify({ type: "client-request", rpcId: `tmd-${Date.now()}`, method: "settings/describe", payload: { args: {} } }),
     });
-    return parseDescribeResponse(res.status, res.body);
+    if (res.status === 401) return { view: null, unauthorized: true };
+    return { view: parseDescribeResponse(res.status, res.body), unauthorized: false };
   } catch {
-    return null;
+    return { view: null, unauthorized: false };
   }
 }
 
@@ -164,7 +104,11 @@ export type RawSessionSpawner = (
   spec: { command: string; args: string[]; cwd: string; title: string },
 ) => Promise<{ id: string }>;
 
-/** host 会话 = 后台基础设施(spawner 传 activate:false);--no-open 防自弹浏览器。 */
+/**
+ * host 会话 = 后台基础设施(spawner 传 activate:false);--no-open 防自弹浏览器。
+ * 0.1.2 起 host 打印一次性 launch token:spawn 后订阅 PTY 输出抓 token 换
+ * cookie 落盘(20s 封顶;探针就绪判定依赖 cookie 先行落盘)。
+ */
 export async function startHostSession(
   conn: DshConnection,
   spawn: RawSessionSpawner,
@@ -176,14 +120,53 @@ export async function startHostSession(
     title: "DSH Host",
   });
   rememberHostSession(spawned.id);
+  await captureLaunchToken(conn, spawned.id);
   return spawned.id;
 }
 
-/** 仅本机 origin 允许停止;远程地址绝不代杀(codemoss is_local_host 同款)。 */
-export function isLocalHost(host: string): boolean {
-  const h = host.trim().toLowerCase();
-  return h === "127.0.0.1" || h === "localhost" || h === "::1" || h === "0.0.0.0";
+/** PTY 输出抓 `[?&]token=` → 换 cookie → 落盘;20s 未见到 token 静默放弃。 */
+async function captureLaunchToken(conn: DshConnection, sessionId: string): Promise<void> {
+  await new Promise<void>((resolve) => {
+    let buf = "";
+    let done = false;
+    let unlisten: (() => void) | null = null;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      unlisten?.();
+      resolve();
+    };
+    void onPtyOutput(sessionId, (text: string) => {
+      if (done) return;
+      buf += text;
+      const m = buf.match(/[?&]token=([A-Za-z0-9_-]+)/);
+      if (!m) return;
+      void exchangeAndSave(conn, m[1]).finally(finish);
+    }).then((off) => {
+      unlisten = off;
+      if (done) off();
+    });
+    setTimeout(finish, 20_000);
+  });
 }
+
+/** launch token → 303 set-cookie(经 quota_fetch 不跟随重定向+回带头)。 */
+async function exchangeAndSave(conn: DshConnection, token: string): Promise<void> {
+  try {
+    const res = await ipc.quotaFetch({
+      url: `${originOf(conn)}/?token=${encodeURIComponent(token)}`,
+      method: "GET",
+      noRedirect: true,
+      includeHeaders: true,
+      text: true, /* 303 的 body 不是 JSON,不声明会被 quota_fetch 当 JSON 解析抛错 */
+    });
+    const raw = res.headers?.["set-cookie"]?.[0];
+    const cookie = raw?.split(";")[0];
+    if (res.status !== 303 || !cookie) return;
+    saveConnection({ ...loadConnection(), cookie, launchToken: token });
+  } catch { /* 交换失败 = 后续探针 401,走 ensure 的重启收口 */ }
+}
+
 
 export type DshStopOutcome = "stopped" | "remote";
 
@@ -199,19 +182,29 @@ export async function stopHostSession(conn: DshConnection): Promise<DshStopOutco
     : terminateLocalListenerUnix(conn.port));
   return "stopped";
 }
-/** codemoss ensure_host 同款:已运行直接复用;否则拉起并等就绪(谁在服务都算数)。 */
+/**
+ * codemoss ensure_host 同款:已运行直接复用;否则拉起并等就绪。
+ * 0.1.2 新语义:401 = 外部 host 且无凭据 —— 本机则停掉监听换代自启
+ * (凭据归我们管),远程无法代管,直接报未运行。
+ */
 export async function ensureHostSession(
   conn: DshConnection,
   spawn: RawSessionSpawner,
 ): Promise<DshHostView | null> {
   const live = await probeHost(conn);
-  if (live) return live;
+  if (live.view) return live.view;
+  if (live.unauthorized) {
+    if (!isLocalHost(conn.host)) return null;
+    await stopHostSession(conn);
+    await delay(600);
+  }
   try {
     await startHostSession(conn, spawn);
   } catch {
     /* spawn 被拒(二进制缺失等):按后续探测结果收口,报错已在会话幕布。 */
   }
-  return waitForHostReady(conn);
+  /* spawn 后 cookie 刚落盘:必须重读连接配置,拿旧 conn 探测只会 401。 */
+  return waitForHostReady(loadConnection());
 }
 
 /* 平台判定统一走 kernel/platform(UA 小写化 + unknown 兜底链),不自造。 */
@@ -285,8 +278,9 @@ export function consumeAutoStart(): boolean {
 export async function waitForHostReady(conn: DshConnection): Promise<DshHostView | null> {
   for (let i = 0; i < 16; i++) {
     await delay(1500);
-    const view = await probeHost(conn);
-    if (view) return view;
+    const probe = await probeHost(conn);
+    if (probe.view) return probe.view;
+    if (probe.unauthorized) return null; /* 无凭据的 host 等不来授权,快速失败 */
   }
   return null;
 }

@@ -2,7 +2,7 @@ import type { Plugin } from "@kernel/plugin";
 import type { SpawnSpec } from "@kernel/ipc";
 import type { QuotaSnapshot } from "@kernel/quota";
 import { DshHostPanel } from "./hostPanel";
-import { loadConnection } from "./dshHost";
+import { loadConnection } from "./dshConnection";
 import { listHostSessions, readHostSessionStatus, readHostDefaultStatus, readHostContextPressure, deleteHostSession } from "./dshRpc";
 import { ensureAdapterDeployed } from "./adapterDeploy";
 
@@ -82,6 +82,9 @@ export const cliDshPlugin: Plugin = {
             "--workspace-id", spec.cwd,
             "--workspace-path", spec.cwd,
             ...(resumeId ? ["--session-id", resumeId] : []),
+            /* 0.1.2 起 host 全请求要 BrowserAuth cookie;面板拉起 host 后落盘,
+             * 无 cookie 时适配器自拉起路径自行抓 token 换取。 */
+            ...(conn.cookie ? ["--cookie", conn.cookie] : []),
             ...(conn.customBin ? ["--dsh-bin", conn.customBin] : []),
           ],
           cwd: spec.cwd,

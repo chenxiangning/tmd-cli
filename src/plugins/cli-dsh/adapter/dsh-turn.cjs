@@ -5,7 +5,7 @@
  * - spinner 整轮常驻(turn/start 起、turn/end 停),绝不按 chunk 起停
  *   (「loading 一会有一会没」根因);内容写入经 dsh-stream 擦/归位底栏,
  *   杜绝 `Working... 50.8s 1: package…` 撞行。
- * - MiniMax 实证把 </mm:think> 吐进 text-delta → dsh-think 流式剥离。
+ * - MiniMax 实证把 </mm:think> 吐进正文流 → dsh-think 流式剥离。
  * - turn/end 结算:Took + token 统计行;空闲底栏 = 上下文计量 `mc: X (Y%) · idle`。
  * deps: { print, stream, spinner, think, render, T, pending, usageOf,
  *         onEndStats(u), closeZones(why) }

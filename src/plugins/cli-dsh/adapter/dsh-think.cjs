@@ -1,6 +1,6 @@
 /**
  * 思考标签剥离器 —— 实证:MiniMax-M3 在工具步之间把 `</mm:think>` 等思考标签
- * 当 text-delta 吐出(截图 `</mm:think></mm:think>Now I have...` 泄漏进正文)。
+ * 当正文吐出(截图 `</mm:think></mm:think>Now I have...` 泄漏进正文)。
  * 有状态流式过滤:跨 chunk 缓冲,吞掉完整标签(名含 think 的任意标签 + 常见
  * 变体),正文原样透出;flush 时把未成标签的残段吐出防吞正文。
  */

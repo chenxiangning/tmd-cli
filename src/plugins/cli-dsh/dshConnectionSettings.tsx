@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { CaretDown } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { normalizeConnection, type DshConnection } from "./dshHost";
+import { normalizeConnection, type DshConnection } from "./dshConnection";
 
 const INPUT =
   "rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-sm text-(--tmd-fg) outline-none focus:border-(--tmd-accent)";

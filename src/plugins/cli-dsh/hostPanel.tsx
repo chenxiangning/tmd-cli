@@ -28,16 +28,19 @@ import {
   consumeAutoStart,
   delay,
   ensureHostSession,
-  loadConnection,
-  originOf,
   probeBinary,
   probeHost,
-  saveConnection,
   stopHostSession,
-  type DshConnection,
   type DshHostView,
   type RawSessionSpawner,
 } from "./dshHost";
+import {
+  loadConnection,
+  originOf,
+  saveConnection,
+  webUiUrl,
+  type DshConnection,
+} from "./dshConnection";
 /** 经内核装配链 spawn(host.spawnRawSession):幕布输出缓冲/秒退守望全链路一致;
  *  activate:false = host 是后台基础设施,拉起不抢首页中央区。 */
 const spawnHostSession: RawSessionSpawner = (profileId, spec) =>
@@ -50,6 +53,7 @@ const BTN_PRIMARY =
   "flex items-center gap-1 rounded-md border border-(--tmd-accent) bg-(--tmd-accent) px-2.5 py-1 text-sm text-(--tmd-accent-fg) hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
 const DOWN_ERROR = "连不上本地 host。确认 dsh web 已启动,或点立即启动。";
 const REMOTE_STOP_ERROR = "只能停掉本机 DSH host。远程地址不会被关闭。";
+const UNAUTHORIZED_ERROR = "host 在运行但拒绝本端凭据(疑似外部拉起)。点立即启动换代重启。";
 
 export function DshHostPanel() {
   const [conn, setConn] = useState<DshConnection>(loadConnection);
@@ -72,10 +76,11 @@ export function DshHostPanel() {
     const seq = ++probeSeq.current;
     setPending("check");
     setError(null);
-    const [view, found] = await Promise.all([probeHost(conn), probeBinary(conn)]);
+    const [probe, found] = await Promise.all([probeHost(conn), probeBinary(conn)]);
     if (!alive.current || seq !== probeSeq.current) return;
     setBinFound(found);
-    setStatus(view ? { kind: "ok", view } : { kind: "down" });
+    setError(probe.unauthorized ? t(UNAUTHORIZED_ERROR) : null);
+    setStatus(probe.view ? { kind: "ok", view: probe.view } : { kind: "down" });
     setPending(null);
   }, [conn]);
 
@@ -83,10 +88,10 @@ export function DshHostPanel() {
   useEffect(() => {
     const auto = consumeAutoStart();
     void (async () => {
-      const [view, found] = await Promise.all([probeHost(conn), probeBinary(conn)]);
+      const [probe, found] = await Promise.all([probeHost(conn), probeBinary(conn)]);
       if (!alive.current) return;
       setBinFound(found);
-      let next: DshHostView | null = view;
+      let next: DshHostView | null = probe.view;
       if (!next && auto && conn.autoStart && found) {
         setPending("start");
         next = await ensureHostSession(conn, spawnHostSession);
@@ -207,7 +212,7 @@ export function DshHostPanel() {
                   <button
                     type="button"
                     className={BTN_PRIMARY}
-                    onClick={() => void openExternalUrl(originOf(conn))}
+                    onClick={() => void openExternalUrl(webUiUrl(conn))}
                   >
                     <ArrowSquareOut size="0.8125rem" /> {t("打开 DSH Web UI")}
                   </button>
@@ -235,7 +240,7 @@ export function DshHostPanel() {
                     <button
                       type="button"
                       className={BTN}
-                      onClick={() => void openExternalUrl(originOf(conn))}
+                      onClick={() => void openExternalUrl(webUiUrl(conn))}
                     >
                       <ArrowSquareOut size="0.8125rem" /> {t("仍尝试打开")}
                     </button>

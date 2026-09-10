@@ -39,7 +39,7 @@ describe("审批卡", () => {
     cards.showApproval("r1", APPROVAL);
     cards.onKey("down");
     cards.onLine("");
-    expect(respondApproval).toHaveBeenCalledWith("http://x", "r1", "s1", "a1", "rejected");
+    expect(respondApproval).toHaveBeenCalledWith("http://x", "r1", "rejected");
     expect(pending.size).toBe(0);
   });
   it("raw y 即时允许且 pending 清账", () => {
@@ -47,14 +47,14 @@ describe("审批卡", () => {
     pending.set("r1", APPROVAL);
     cards.showApproval("r1", APPROVAL);
     expect(cards.onChar("y")).toBe(true);
-    expect(respondApproval).toHaveBeenCalledWith("http://x", "r1", "s1", "a1", "allowed-once");
+    expect(respondApproval).toHaveBeenCalledWith("http://x", "r1", "allowed-once");
     expect(cards.onLine("y")).toBe(false); /* 已结算:二次作答不消费 */
   });
   it("Esc = 拒绝", () => {
     const { cards, respondApproval } = harness();
     cards.showApproval("r2", APPROVAL);
     cards.onKey("esc");
-    expect(respondApproval).toHaveBeenCalledWith("http://x", "r2", "s1", "a1", "rejected");
+    expect(respondApproval).toHaveBeenCalledWith("http://x", "r2", "rejected");
   });
 });
 
@@ -67,7 +67,7 @@ describe("提问卡", () => {
     cards.onKey("down");
     cards.onLine("");
     /* 官方 answers 数组线格式(对象 map 会被 host zod 拒 → 轮次永挂) */
-    expect(respondQuestion).toHaveBeenCalledWith("http://x", "r1", "s1", [
+    expect(respondQuestion).toHaveBeenCalledWith("http://x", "r1", [
       { id: "q1", selected: ["绿"] },
     ]);
   });
@@ -75,7 +75,7 @@ describe("提问卡", () => {
     const { cards, respondQuestion } = harness();
     cards.showQuestion("r1", QUESTION);
     expect(cards.onChar("2")).toBe(true);
-    expect(respondQuestion).toHaveBeenCalledWith("http://x", "r1", "s1", [
+    expect(respondQuestion).toHaveBeenCalledWith("http://x", "r1", [
       { id: "q1", selected: ["蓝"] },
     ]);
   });
@@ -90,7 +90,7 @@ describe("提问卡", () => {
     } as PendingInfo;
     cards.showQuestion("r9", two);
     cards.onChar("1"); /* 第一题 x */
-    expect(respondQuestion).toHaveBeenCalledWith("http://x", "r9", "s1", [
+    expect(respondQuestion).toHaveBeenCalledWith("http://x", "r9", [
       { id: "qa", selected: ["x"] },
       { id: "qb", selected: [] },
     ]);
@@ -101,7 +101,7 @@ describe("提问卡", () => {
     cards.showQuestion("r1", QUESTION);
     cards.closeFor("会话输出到达");
     expect(cards.onLine("1:3")).toBe(true);
-    expect(respondQuestion).toHaveBeenCalledWith("http://x", "r1", "s1", [
+    expect(respondQuestion).toHaveBeenCalledWith("http://x", "r1", [
       { id: "q1", selected: ["绿"] },
     ]);
   });
@@ -111,7 +111,7 @@ describe("提问卡", () => {
     cards.showQuestion("r1", QUESTION);
     cards.closeFor("会话输出到达");
     expect(cards.onLine("我想重新回答")).toBe(true);
-    expect(respondQuestion).toHaveBeenCalledWith("http://x", "r1", "s1", [
+    expect(respondQuestion).toHaveBeenCalledWith("http://x", "r1", [
       { id: "q1", selected: [], custom: "我想重新回答" },
     ]);
   });
