@@ -123,3 +123,4 @@
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
 | 2026-09-10 | [Composer 输入历史(召回 + ghost 补全 + 管理区)需求澄清](brainstorm/2026-09-10-composer-prompt-history.md) | 已落地(kernel/promptHistory + composer 三拆件 + settings 新字段;当日实施并目检) |
+| 2026-09-10 | [Composer 输入历史落地自评审(2 个 P2 当场修复 + 3 个 P3 缓修)](review/2026-09-10-composer-prompt-history-review.md) | 已完成(合成事件展开丢原型方法事故记录;验证全绿) |

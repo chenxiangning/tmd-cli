@@ -168,7 +168,7 @@ export function Composer() {
           placeholder={settings.sendShortcut === "cmdOrCtrlEnter"
             ? t("输入消息,⌘/Ctrl+回车发送,回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。")
             : t("输入消息,回车发送,Shift+回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。")}
-          className="absolute inset-0 resize-none bg-transparent p-0 pr-10 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint)"
+          className="absolute inset-0 resize-none bg-transparent p-0 pr-10 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) [scrollbar-width:none] [&::-webkit-scrollbar]:w-0"
           onChange={(e) => {
             setValue(e.target.value);
             setCursor(e.target.selectionStart);
@@ -256,7 +256,7 @@ export function Composer() {
           onCompositionEnd={() => setImeComposing(false)}
           onScroll={(e) => { if (mirrorRef.current) mirrorRef.current.scrollTop = e.currentTarget.scrollTop; }}
         />
-        {!imeComposing && completion.suffix && cursor === value.length &&
+        {!imeComposing && !matches && completion.suffix && cursor === value.length &&
           <PromptGhostMirror mirrorRef={mirrorRef} value={value} suffix={completion.suffix} />}
         </div>
         {/* 资产唤醒入口(assets 插件贡献):右缘竖向图标列,几何见 composer-anchors.css */}
