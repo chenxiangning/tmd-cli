@@ -94,8 +94,11 @@ import {
   bootLocalPlugins,
   getLocalPluginRecords,
   rescanLocalPlugins,
+  trustToken,
   __resetLocalPluginsForTests,
 } from "./localPlugins";
+/** 信任种子速记:manifestHash 缺省(null)的令牌。 */
+const tk = (hash: string): string => trustToken(hash, null);
 /** bundle 登记表:stage 登记,单一 readFile 实现按它应答(避免 mockImplementation 互相覆盖)。 */
 const bundleTexts = new Map<string, { text: string; sha256: string }>();
 
@@ -110,7 +113,7 @@ function mkPluginModule(id: string, activate?: () => void) {
 function mkEntry(id: string, md5 = `md5-${id}`): LocalPluginScanEntry {
   return {
     id,
-    manifest: { id, name: id, category: "feature", apiVersion: 1, version: "1.0.0" },
+    manifest: { id, name: id, category: "feature", apiVersion: 2, version: "1.0.0" },
     files: [{ name: "index.js", sha256: md5, size: 10, modified_ms: 1 }],
     versions: [],
   };
@@ -154,7 +157,7 @@ describe("bootLocalPlugins 启动装载", () => {
 
   it("未信任插件只落「待启用」记录不进激活清单;已信任插件装载并返回", async () => {
     scanMock.mockResolvedValue([stage("p-new"), stage("p-trusted")]);
-    mockSettings.localPluginTrust = { "p-trusted": ["md5-p-trusted"] };
+    mockSettings.localPluginTrust = { "p-trusted": [tk("md5-p-trusted")] };
     const plugins = await bootLocalPlugins(new Set());
     await activateBootLocals(plugins); // 模拟 main 的晚激活阶段(activate 跑过才有「运行中」戳)
     expect(plugins.map((p) => p.id)).toEqual(["p-trusted"]);
@@ -165,7 +168,7 @@ describe("bootLocalPlugins 启动装载", () => {
 
   it("与内置 id 冲突 → 加载失败条目,不 import", async () => {
     scanMock.mockResolvedValue([stage("git")]);
-    mockSettings.localPluginTrust = { git: ["md5-git"] };
+    mockSettings.localPluginTrust = { git: [tk("md5-git")] };
     const plugins = await bootLocalPlugins(new Set(["git"]));
     expect(plugins).toEqual([]);
     expect(getLocalPluginRecords()[0].error).toContain("内置");
@@ -180,7 +183,7 @@ describe("bootLocalPlugins 启动装载", () => {
       }),
       stage("p-good"),
     ]);
-    mockSettings.localPluginTrust = { "p-bad": ["md5-p-bad"], "p-good": ["md5-p-good"] };
+    mockSettings.localPluginTrust = { "p-bad": [tk("md5-p-bad")], "p-good": [tk("md5-p-good")] };
     const plugins = await bootLocalPlugins(new Set());
     expect(plugins.map((p) => p.id)).toEqual(["p-bad", "p-good"]);
     /* 拓扑晚激活单插件失败隔离:错误落记录,不落 activatedHash,其余插件照常 */
@@ -195,8 +198,8 @@ describe("bootLocalPlugins 启动装载", () => {
     boom = false;
     scanMock.mockResolvedValue([stage("p-bad", "md5-p-bad-v2"), stage("p-good")]);
     mockSettings.localPluginTrust = {
-      "p-bad": ["md5-p-bad", "md5-p-bad-v2"],
-      "p-good": ["md5-p-good"],
+      "p-bad": [tk("md5-p-bad"), tk("md5-p-bad-v2")],
+      "p-good": [tk("md5-p-good")],
     };
     await rescanLocalPlugins();
     const fixed = getLocalPluginRecords().find((r) => r.id === "p-bad");
@@ -207,7 +210,7 @@ describe("bootLocalPlugins 启动装载", () => {
   it("扫描戳与读回哈希不一致 → 拒装不 import(信任闸闭环,防扫描后文件被换)", async () => {
     const entry = stage("p-evil");
     scanMock.mockResolvedValue([entry]);
-    mockSettings.localPluginTrust = { "p-evil": ["md5-p-evil"] };
+    mockSettings.localPluginTrust = { "p-evil": [tk("md5-p-evil")] };
     /* 读回的 sha256 与扫描戳不符:模拟扫描后入口文件被替换 */
     readFileMock.mockImplementation(async () => ({ content: "bundle:p-evil:EVIL", sha256: "evil" }));
     const plugins = await bootLocalPlugins(new Set());
@@ -218,7 +221,7 @@ describe("bootLocalPlugins 启动装载", () => {
 
   it("boot 晚激活对已激活插件幂等(StrictMode 双跑不落假错误)", async () => {
     scanMock.mockResolvedValue([stage("p-a")]);
-    mockSettings.localPluginTrust = { "p-a": ["md5-p-a"] };
+    mockSettings.localPluginTrust = { "p-a": [tk("md5-p-a")] };
     const plugins = await bootLocalPlugins(new Set());
     await activateBootLocals(plugins);
     await activateBootLocals(plugins); // 第二跑:isPluginActive 命中 → 补戳,不触发 activateLate
@@ -232,7 +235,7 @@ describe("bootLocalPlugins 启动装载", () => {
       { id: "p-broken", files: [], versions: [], error: "plugin.json 非法 JSON" },
       stage("p-pulled"),
     ]);
-    mockSettings.localPluginTrust = { "p-pulled": ["md5-p-pulled"] };
+    mockSettings.localPluginTrust = { "p-pulled": [tk("md5-p-pulled")] };
     mockSettings.disabledPlugins = ["p-pulled"];
     const plugins = await bootLocalPlugins(new Set());
     expect(plugins).toEqual([]);
@@ -245,7 +248,7 @@ describe("bootLocalPlugins 启动装载", () => {
 describe("rescanLocalPlugins 重扫", () => {
   it("幂等:同内容重扫零 import 零激活", async () => {
     scanMock.mockResolvedValue([stage("p-a")]);
-    mockSettings.localPluginTrust = { "p-a": ["md5-p-a"] };
+    mockSettings.localPluginTrust = { "p-a": [tk("md5-p-a")] };
     const plugins = await bootLocalPlugins(new Set());
     await activateBootLocals(plugins);
     const imports = importBundleMock.mock.calls.length;
@@ -267,7 +270,7 @@ describe("rescanLocalPlugins 重扫", () => {
     scanMock.mockResolvedValue([]);
     await bootLocalPlugins(new Set());
     scanMock.mockResolvedValue([stage("p-late")]);
-    mockSettings.localPluginTrust = { "p-late": ["md5-p-late"] };
+    mockSettings.localPluginTrust = { "p-late": [tk("md5-p-late")] };
     host.events.emit(KernelTopics.turnSettled, { sessionId: "s", unviewed: false, settledAt: 0 });
     /* 自动重扫经单飞闸复用同一 Promise:直接 await 一次 rescan 即等其收尾。 */
     await rescanLocalPlugins();
@@ -277,12 +280,12 @@ describe("rescanLocalPlugins 重扫", () => {
 
   it("已激活插件内容变更:只换徽章不重新激活", async () => {
     scanMock.mockResolvedValue([stage("p-a")]);
-    mockSettings.localPluginTrust = { "p-a": ["md5-p-a"] };
+    mockSettings.localPluginTrust = { "p-a": [tk("md5-p-a")] };
     const plugins = await bootLocalPlugins(new Set());
     await activateBootLocals(plugins);
     const callsAfterBoot = activateLateMock.mock.calls.length;
     scanMock.mockResolvedValue([stage("p-a", "md5-p-a-v2")]);
-    mockSettings.localPluginTrust = { "p-a": ["md5-p-a", "md5-p-a-v2"] };
+    mockSettings.localPluginTrust = { "p-a": [tk("md5-p-a"), tk("md5-p-a-v2")] };
     await rescanLocalPlugins();
     const rec = getLocalPluginRecords().find((r) => r.id === "p-a");
     expect(rec?.contentHash).toBe("md5-p-a-v2");

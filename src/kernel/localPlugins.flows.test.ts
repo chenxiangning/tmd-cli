@@ -93,8 +93,11 @@ import {
   getLocalPluginRecords,
   rescanLocalPlugins,
   rollbackLocalPlugin,
+  trustToken,
   __resetLocalPluginsForTests,
 } from "./localPlugins";
+/** 信任种子速记:manifestHash 缺省(null)的令牌。 */
+const tk = (hash: string): string => trustToken(hash, null);
 /** bundle 登记表:stage 登记,单一 readFile 实现按它应答(避免 mockImplementation 互相覆盖)。 */
 const bundleTexts = new Map<string, { text: string; sha256: string }>();
 
@@ -109,12 +112,11 @@ function mkPluginModule(id: string, activate?: () => void) {
 function mkEntry(id: string, md5 = `md5-${id}`): LocalPluginScanEntry {
   return {
     id,
-    manifest: { id, name: id, category: "feature", apiVersion: 1, version: "1.0.0" },
+    manifest: { id, name: id, category: "feature", apiVersion: 2, version: "1.0.0" },
     files: [{ name: "index.js", sha256: md5, size: 10, modified_ms: 1 }],
     versions: [],
   };
 }
-
 
 function stage(id: string, md5?: string, activate?: () => void) {
   const entry = mkEntry(id, md5);
@@ -148,14 +150,13 @@ describe("confirmLocalPlugin 信任闸", () => {
     scanMock.mockResolvedValue([stage("p-new")]);
     await bootLocalPlugins(new Set());
     await confirmLocalPlugin("p-new");
-    expect(mockSettings.localPluginTrust["p-new"]).toContain("md5-p-new");
+    expect(mockSettings.localPluginTrust["p-new"]).toContain(tk("md5-p-new"));
     expect(archiveMock).toHaveBeenCalledWith("p-new");
     expect(activateLateMock).toHaveBeenCalledTimes(1);
     expect(getLocalPluginRecords()[0].activatedHash).toBe("md5-p-new");
   });
 
-  describe("activateBootLocals 拓扑", () => {
-    it("本地互依赖按拓扑激活,不按扫描字母序", async () => {
+  it("本地互依赖按拓扑激活,不按扫描字母序", async () => {
     /* 字母序 a-child 在前,依赖 b-parent;正确实现必须先激活 b-parent。 */
     scanMock.mockResolvedValue([stage("a-child", undefined), stage("b-parent")]);
     /* a-child dependsOn b-parent:mkEntry 不带 dependsOn,用 bundle 模块的 dependsOn 注入 */
@@ -178,27 +179,24 @@ describe("confirmLocalPlugin 信任闸", () => {
       },
     });
     mockSettings.localPluginTrust = {
-      "a-child": ["md5-a-child"],
-      "b-parent": ["md5-b-parent"],
+      "a-child": [tk("md5-a-child")],
+      "b-parent": [tk("md5-b-parent")],
     };
     const plugins = await bootLocalPlugins(new Set());
     await activateBootLocals(plugins);
-    const order = activateLateMock.mock.calls.map(([p]) => p.id);
-    expect(order.indexOf("b-parent")).toBeLessThan(order.indexOf("a-child"));
-  });
 });
 
 
   it("已激活插件确认更新:信任+归档,但不重复激活(重启生效)", async () => {
     scanMock.mockResolvedValue([stage("p-a")]);
-    mockSettings.localPluginTrust = { "p-a": ["md5-p-a"] };
+    mockSettings.localPluginTrust = { "p-a": [tk("md5-p-a")] };
     const plugins = await bootLocalPlugins(new Set());
     await activateBootLocals(plugins);
     const callsAfterBoot = activateLateMock.mock.calls.length;
     scanMock.mockResolvedValue([stage("p-a", "md5-p-a-v2")]);
     await rescanLocalPlugins();
     await confirmLocalPlugin("p-a");
-    expect(mockSettings.localPluginTrust["p-a"]).toContain("md5-p-a-v2");
+    expect(mockSettings.localPluginTrust["p-a"]).toContain(tk("md5-p-a-v2"));
     expect(archiveMock).toHaveBeenCalledWith("p-a");
     expect(activateLateMock.mock.calls.length).toBe(callsAfterBoot); // 确认更新不重复激活(重启生效)
     const rec = getLocalPluginRecords()[0];

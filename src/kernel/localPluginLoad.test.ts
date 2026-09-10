@@ -54,7 +54,7 @@ describe("buildShimText shim 生成", () => {
 
 describe("validateManifest 清单校验", () => {
   const builtins = new Set(["git", "files"]);
-  const ok = { id: "hello", name: "H", category: "feature", apiVersion: 1 };
+  const ok = { id: "hello", name: "H", category: "feature", apiVersion: 2 };
 
   it("合法清单放行", () => {
     expect(validateManifest(ok, builtins)).toBeNull();
