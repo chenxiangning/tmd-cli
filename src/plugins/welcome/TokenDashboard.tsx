@@ -72,6 +72,8 @@ export function TokenDashboard() {
     );
   }
 
+  /* 预计算过滤(非 filter().map() 链):零消耗引擎整行隐藏。 */
+  const engineRows = agg.byEngine.filter((e) => e.hasUsage);
   const grandTotal = agg.daily.reduce((s, d) => s + d.totalIn + d.totalOut, 0);
   const lastDay = agg.daily[agg.daily.length - 1];
   const weekPeak = Math.max(...agg.daily.map((d) => d.totalIn + d.totalOut), 1);
@@ -103,7 +105,7 @@ export function TokenDashboard() {
       ) : (
         <div className="tokens-grid">
           <div className="col">
-            {agg.byEngine.filter((e) => e.hasUsage).map((e) => {
+            {engineRows.map((e) => {
               const total = e.totalIn + e.totalOut;
               return (
                 <div key={e.profileId} className="trow">
