@@ -155,7 +155,8 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
               <span>{t("焊死的核心插件不可拔")}</span>
               <span>{t("点击插头即可插拔")}</span>
             </div>
-            {localGroups.length > 0 && (
+            {/* 本机插排与页尾分区同源:分区无本地插件(无未移除记录)时整条不渲染。 */}
+            {localInstalled > 0 && (
               <MergedStrip
                 groups={localGroups}
                 onToggle={toggle}
