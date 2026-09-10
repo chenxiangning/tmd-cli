@@ -26,7 +26,6 @@ export function MergedStrip({
   onToggle,
   onOpenMarket,
   brand,
-  count,
 }: {
   groups: { category: PluginCategory; rows: Row[] }[];
   onToggle: (id: string) => void;
@@ -34,8 +33,6 @@ export function MergedStrip({
   onOpenMarket?: (id: string) => void;
   /** 本机插件等次级插排传入独立品牌区。 */
   brand?: StripBrand;
-  /** 分类计数覆盖:本机插排数「已装本地插件」,不数插排上的管理器插头自身。 */
-  count?: number;
 }) {
   const b = brand ?? { name: "tmd-cli", role: t("客户端 · 插排本体"), master: t("总电源常开") };
   return (
@@ -52,7 +49,7 @@ export function MergedStrip({
         {groups.map((g) => (
           <div className="pm-cat-group" key={g.category}>
             <div className="pm-cat-label">
-              {t("{label} · {n} 位", { label: t(CATEGORY_LABEL[g.category]), n: count ?? g.rows.length })}
+              {t("{label} · {n} 位", { label: t(CATEGORY_LABEL[g.category]), n: g.rows.length })}
             </div>
             <div className="pm-cat-outlets">
               {g.rows.map(({ plugin, on, dirty }) => (
