@@ -63,71 +63,76 @@ export function WorkspaceCard({
   const [manage, setManage] = useState(false);
   return (
     <div className={`workspace-card${isActive ? " is-active" : ""}`}>
-      <div
-        className="workspace-row"
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onShowMenu(workspace, e.clientX, e.clientY);
-        }}
-      >
-        <button
-          type="button"
-          className="workspace-folder-btn workspace-collapse-toggle"
-          title={collapsed ? t("展开会话列表") : t("折叠会话列表")}
-          aria-expanded={!collapsed}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleCollapsed();
-          }}
-          onDoubleClick={(e) => e.stopPropagation()}
-        >
-          <span className="workspace-collapse-toggle-folder-icon" aria-hidden>
-            <FolderIcon expanded={!collapsed} />
-          </span>
-          <span className="workspace-collapse-toggle-affordance-icon" aria-hidden>
-            {collapsed ? (
-              <CaretDoubleUp size="0.875rem" strokeWidth={1.8} />
-            ) : (
-              <CaretDoubleDown size="0.875rem" strokeWidth={1.8} />
-            )}
-          </span>
-        </button>
-
-        {renaming ? (
-          <span className="workspace-header-content workspace-row-main">
-            <RenameInput
-              target={{ current: workspaceDisplayName(workspace) }}
-              placeholder={t("别名(留空清除)")}
-              onCommit={(value) => {
-                if (value !== null) setWorkspaceAlias(workspace.id, value);
-                onRenameEnd();
-              }}
-            />
-          </span>
-        ) : (
+      <div className={`workspace-row${isActive ? " active" : ""}`}>
+        <div className="workspace-header-content">
           <button
             type="button"
-            className="workspace-header-content workspace-row-main"
-            title={workspace.root}
-            onClick={(e) => {
-              if (e.detail > 1) return;
-              setActiveWorkspace(workspace.id);
-            }}
-            onDoubleClick={(e) => {
+            className="workspace-folder-btn workspace-collapse-toggle"
+            title={collapsed ? t("展开会话列表") : t("折叠会话列表")}
+            aria-expanded={!collapsed}
+            onContextMenu={(e) => {
               e.preventDefault();
+              onShowMenu(workspace, e.clientX, e.clientY);
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
               onToggleCollapsed();
             }}
+            onDoubleClick={(e) => e.stopPropagation()}
           >
-            <span className="workspace-name-text" title={workspace.root}>
-              {workspaceDisplayName(workspace)}
+            <span className="workspace-collapse-toggle-folder-icon" aria-hidden>
+              <FolderIcon expanded={!collapsed} />
             </span>
-            {workspace.id === "default" && (
-              <span className="default-workspace-badge" aria-label="Default Workspace">
-                Default
-              </span>
-            )}
+            <span className="workspace-collapse-toggle-affordance-icon" aria-hidden>
+              {collapsed ? (
+                <CaretDoubleUp size="0.875rem" strokeWidth={1.8} />
+              ) : (
+                <CaretDoubleDown size="0.875rem" strokeWidth={1.8} />
+              )}
+            </span>
           </button>
-        )}
+
+          {renaming ? (
+            <span className="workspace-header-content-inner">
+              <RenameInput
+                target={{ current: workspaceDisplayName(workspace) }}
+                placeholder={t("别名(留空清除)")}
+                onCommit={(value) => {
+                  if (value !== null) setWorkspaceAlias(workspace.id, value);
+                  onRenameEnd();
+                }}
+              />
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="workspace-row-main"
+              title={workspace.root}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                onShowMenu(workspace, e.clientX, e.clientY);
+              }}
+              onClick={(e) => {
+                if (e.detail > 1) return;
+                setActiveWorkspace(workspace.id);
+              }}
+              onDoubleClick={(e) => {
+                e.preventDefault();
+                onToggleCollapsed();
+              }}
+            >
+              <span className="workspace-name-text" title={workspace.root}>
+                {workspaceDisplayName(workspace)}
+              </span>
+            </button>
+          )}
+          {workspace.id === "default" && !renaming && (
+            <span className="default-workspace-badge" aria-label="Default Workspace">
+              Default
+            </span>
+          )}
+        </div>
+
 
         <div className="workspace-actions">
           <button
