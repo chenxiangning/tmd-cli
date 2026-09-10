@@ -12,9 +12,7 @@ export const localLoaderPlugin: Plugin = {
     name: "本地插件",
     abbr: "LP",
     desc: "管理 ~/.tmd-cli/plugins/ 本地插件:对话造插件、免重启装载、版本回退",
-    /* feature 而非 local:管理器是普通内置功能插头;「本机插件」的量是磁盘记录,
-     * 不是插排插头 —— 单独插排会让「0 位却有 1 个插头」永远对不上(2026-09-10)。 */
-    category: "feature",
+    category: "local",
   },
   activate(ctx) {
     ctx.contribute("market.local", { component: LocalPluginsSection });
