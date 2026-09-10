@@ -27,7 +27,7 @@
 | 2026-09-01 | [omp CLI 学习笔记(14 课主课 + prompts/ 用户速查)](research/omp-cli-course/README.md) | 已完结 |
 | 2026-09-03 | [omp 最近版本升级记录(v18.0.7-18.1.6)](research/omp-cli-course/releases.md) | 持续更新 |
 | 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-06 校准) |
-| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-07 校准:删除意图 tombstone/会话删除顺序/归档容量与分页/dsh 删除与空壳契约) |
+| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-07 校准:删除意图 tombstone/会话删除顺序/归档容量与分页/dsh 删除与空壳契约;**09-10 校准**:dsh 5.2 改以 0.1.2 斜杠方法面 + /api/remote.mux 双流实测契约,补 react-doctor 治理原则 9 表) |
 | 2026-09-01 | [Composer 工具栏设计](superpowers/specs/2026-09-01-composer-toolbar-design.md) | 已确认 |
 | 2026-09-01 | [Composer 富输入框设计原型](design/composer-design.html) | 已落地 |
 | 2026-09-01~02 | [UI 原型:composer 工具栏 / 欢迎页额度 / 设置面板 / 消息锚点栏 / git 文件列表 ×3 / 批审阅面板 / 插排](prototypes/) | 设计定稿配套 |
@@ -118,6 +118,7 @@
 | 2026-09-10 | [README/README_EN 双语刷新(10 CLI/25 注册插件/本机插件/CLI 独立配置/v0.1.4 产物矩阵,5 张新截图)](../README_EN.md) | 已落地 |
 | 2026-09-10 | [0.1.4 周期全量代码评审(1 blocker + 1 major + 15 minor)](review/2026-09-10-0.1.4-cycle-review.md) | 已完成并全部修复(信任闸闭环 + 激活状态机修正,验证全绿) |
 | 2026-09-10 | [codemoss(ccgui-next) 插件系统 vs tmd-cli 插件架构对比评审](review/2026-09-10-codemoss-plugin-architecture-comparison.md) | 已完成(六维对照 + 互鉴清单;两侧事实均实读核实) |
-| 2026-09-10 | [插件强化契约(权限门面/贡献记账/崩溃熔断)](architecture/07-plugin-hardening.md) | 已落地(ee94119 起) |
+| 2026-09-10 | [首页重设计 方案 A 命令甲板 / B 工作区门户 / C 引擎仪表盘](design/home-redesign-a-command-deck.html) ([B](design/home-redesign-b-workspace-portal.html) / [C](design/home-redesign-c-engine-grid.html)) | 设计原型(三案差异:主角=动作/项目/工具;待拍板进入 spec) |
+| 2026-09-10 | [react-doctor 治理链 + dsh 0.1.2 适配评审](review/2026-09-10-react-doctor-refactor-review.md) | 已落地(本日审完即修;P1×3/P2×3 全部修完,验证全绿;P3×7 缓修) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

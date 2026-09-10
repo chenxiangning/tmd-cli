@@ -346,24 +346,35 @@ Rust `fail_session` 在幕布内呈现,两条路径互补。
 
 dsh(DeepSeek Harness)会话盘是 `session.jsonl.zstd` 压缩流,fs 文本原语读不了,
 不进 5.1 表。全部磁盘语义改走 host RPC(`POST /api/<method>`,载荷 =
- `{type:"client-request",rpcId,method,payload:{args:{...}}}` client-request 信封,
-codemoss host.rs 同款),分两路:
+ `{type:"client-request",rpcId,method,payload:{args:{request:{...}}}}`
+斜杠方法面信封,codemoss host.rs 同款)。
 
-- **0.1.2 契约**(rc.1,typerpc 中间件):全部请求须带 BrowserAuth cookie
-  (`dsh-auth-<x>`,自拉起时 host 打印一次性 launch token,GET `/?token=` 303
-  set-cookie 换取;origin 变更即弃凭据),方法面 = session.{list,prompt,cancel,
-  selectModel,history,models} + agentPreset.select + commands/execute +
-  settings.{describe,set};旧 host.describe / session.new 已删除。响应一律
-  server-response 信封 `{type,rpcId,result:{ok,value}|{ok:false,error:{code,...}}}`;
-  事件流 = WS `/api/events.mux`(帧 `{seq,sessionId,stream,data}`,stream 从
-  `.entry.` 改 `.projection.`,批帧折进 `data`,快照帧 `data:{values}`)。
+- **0.1.2 契约**(实测,以代码为准;rc.1 起定型):全部请求须带 BrowserAuth
+  cookie(`dsh-auth-<x>`,自拉起时 host 打印一次性 launch token,GET
+  `/?token=` 303 set-cookie 换取;origin 变更即弃凭据);方法面 =
+  `session/list` · `session/create` · `session/cancel` · `session/modelCatalog`
+  · `session/follow`(mux 流) · `agentPresets/select` · `commands/execute` ·
+  `settings/describe` · `settings/set`;**0.1.2 起删除 host.describe /
+  session.history / session.models / session.new**(history 与 models 改由
+  session/list 自项 `items[].projections` 提供,不再单查)。响应一律 server-response
+  信封 `{type,rpcId,result:{ok,value}|{ok:false,error:{code,...}}}`。
+- **mux = WS `/api/remote.mux` 双流**(dsh-adapter.cjs:38 `MUX_URL`):
+  - 客户端 open 帧 `{type:"open", streamId, endpoint:"session/follow"|"$events", sessionId?}`
+    订阅会话事件/全局通知;
+  - 服务端帧 `{type:"item"|"open-ok"|"error"|"end", streamId, value|error}`;
+  - 会话事件分两源:session/follow 流帧 → 投影(dsh-project 纯函数)→
+    ANSI 幕布;`$events` 流承载 host 级事件(审批/提问卡 askWatch 标记);
+  - 0.1.2 起**取消 0.1.1 的 `/api/events.mux` 单流形态**,旧 client 同名 socket
+    在 0.1.2 host 直接拒接。
 - **浏览器侧(dshConnection.ts 配置域 / dshHost.ts 进程域 / dshRpc.ts 经通用
   quota_fetch HTTP 通道,quota_fetch 支持 noRedirect+includeHeaders)**:
   `listHostSessions`(session/list 按 cwd 过滤)/ `readSessionStatus`
-  (session/models current)/ `fetchQuota`(projections.contextPressure);
+  (session/list `items[].projections.modelSelection`)/ `fetchQuota`
+  (projections.contextPressure);
   探针 = settings/describe 的 namespaces 里的 agent-default-model。
 - **PTY 侧(adapter/*.cjs 适配器,spawnTransform 落盘 `<configHome>/adapters/dsh/`
-  后以 node 绝对路径 spawn)**:会话即一条 DSH 对话 —— stdin → session.prompt,
+  后以 node 绝对路径 spawn)**:会话即一条 DSH 对话 —— stdin → session/prompt(经
+  session/create 取 id 后),
   mux WebSocket 帧 → 投影(dsh-project 纯函数)→ ANSI 幕布;审批/提问卡
   (askMarks `[DSH 审批]`/`[DSH 提问]` 走 askWatch 检测);底栏 footer 与交互区
   点击(架构契约见 specs/2026-09-07-cli-dsh-pty-adapter-design.md)。
@@ -378,7 +389,6 @@ codemoss host.rs 同款),分两路:
 - **blank 空壳不过滤**:host 会在适配器接入时预创建会话,从未发消息即成空壳
   (title 缺失以「空会话」呈现)。dsh Web UI 计数含空壳,tmd-cli 曾过滤造成
   两边数量对不上(实测 springboot-demo 41 = 31 非空 + 10 空壳);空壳可见才可清。
-
 ## 6. 挂载点地图（谁贡献了哪块 UI）
 
 ```mermaid
@@ -582,6 +592,7 @@ sessionExited → checkpoint_seal(兜底,最后一轮落账)
 | 会话状态只读 | `CliProfile.readSessionStatus` 负责 CLI 私有 JSONL 解析；Host 只缓存/刷新，Composer 通过 `composer.statusBar` 展示 |
 | 会话固定一个 CLI | `SessionMeta.profileId` 创建后不变；resume 用同 profile 重 spawn |
 | 幂等/防御 | `activateAll` Promise 并发闸；`registerDefaultContributions` registered 标志；`registerCliProfile` 重复即抛错 |
+| 组件治理(react-doctor 0.9.13) | 当前 710 文件得分 100/100;约束:`only-export-components`(组件文件只留组件,纯函数/常量提同级 *Model.ts)、嵌套交互治理(button 不可嵌 button → 拆 DOM 兄弟 host span,hover/焦点显形吃宿主选择器)、渲染期写 ref → useEffect、自制 `<aside role=dialog>` → 原生 `<dialog open>` 时显式中和 UA `color: canvastext` + `max-width/max-height` 钳制(至少 `color: inherit` 与 `max-w-none max-h-none`);`doctor.config.json` 豁免须带证据注释 |
 
 ## 10. 已知缺口（代码现状，非设计意图）
 
