@@ -18,6 +18,7 @@ import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { getMarketPanel } from "@kernel/marketPanel";
 import { updateSettings, useSettingsState } from "@kernel/settings";
+import { useLocalPluginRecords } from "@kernel/localPlugins";
 import { appRestart } from "@kernel/ipc";
 import { Mounts } from "@kernel/Mounts";
 import { CATEGORY_ORDER, MergedStrip, type Row } from "./PluginMarketStrip";
@@ -46,6 +47,8 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
   /* 内置/本机拆两块插排:local 类单独拎出(本机插件插排),插拔语义不变。 */
   const builtinGroups = groups.filter((g) => g.category !== "local");
   const localGroups = groups.filter((g) => g.category === "local");
+  /* 本机插排计数 = 已装本地插件(未移除记录);插排上的插头是管理器自身,不计入。 */
+  const localInstalled = useLocalPluginRecords().filter((r) => !r.removed).length;
   const dirtyCount = rows.filter((r) => r.dirty).length;
   /* 插排视图 ⇄ 清单列表:互斥,同页只展示一份。 */
   const [view, setView] = useState<"strip" | "list">("strip");
@@ -156,7 +159,7 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
               <MergedStrip
                 groups={localGroups}
                 onToggle={toggle}
-                onOpenMarket={setMarketFor}
+                count={localInstalled}
                 brand={{
                   name: t("本机插件"),
                   role: t("本地插排 · 免重启装载"),
