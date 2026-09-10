@@ -117,5 +117,7 @@
 | 2026-09-10 | [checkpoints 工作区外文件入账设计](superpowers/specs/2026-09-10-checkpoints-external-files-design.md) | 已落地(当日实施) |
 | 2026-09-10 | [README/README_EN 双语刷新(10 CLI/25 注册插件/本机插件/CLI 独立配置/v0.1.4 产物矩阵,5 张新截图)](../README_EN.md) | 已落地 |
 | 2026-09-10 | [0.1.4 周期全量代码评审(1 blocker + 1 major + 15 minor)](review/2026-09-10-0.1.4-cycle-review.md) | 已完成并全部修复(信任闸闭环 + 激活状态机修正,验证全绿) |
+| 2026-09-10 | [codemoss(ccgui-next) 插件系统 vs tmd-cli 插件架构对比评审](review/2026-09-10-codemoss-plugin-architecture-comparison.md) | 已完成(六维对照 + 互鉴清单;两侧事实均实读核实) |
+| 2026-09-10 | [插件强化契约(权限门面/贡献记账/崩溃熔断)](architecture/07-plugin-hardening.md) | 已落地(ee94119 起) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
