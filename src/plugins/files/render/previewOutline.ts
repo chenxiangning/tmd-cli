@@ -117,14 +117,17 @@ async function mapPdfOutlineItems(
   untitledLabel: string,
 ): Promise<PreviewOutlineItem[]> {
   const mappedItems = await Promise.all(items.map(async (item, index) => {
-    const children = await mapPdfOutlineItems(
-      pdfDocument,
-      item.items ?? [],
-      level + 1,
-      `${pathPrefix}-${index}`,
-      untitledLabel,
-    );
-    const pageNumber = await resolvePdfDestinationPageNumber(pdfDocument, item.dest);
+    /* 子树与页码解析互不依赖,并发;条目间并发由外层 Promise.all 承担。 */
+    const [children, pageNumber] = await Promise.all([
+      mapPdfOutlineItems(
+        pdfDocument,
+        item.items ?? [],
+        level + 1,
+        `${pathPrefix}-${index}`,
+        untitledLabel,
+      ),
+      resolvePdfDestinationPageNumber(pdfDocument, item.dest),
+    ]);
     const fallbackTarget = children[0]?.target ?? null;
 
     if (!pageNumber && !fallbackTarget) {

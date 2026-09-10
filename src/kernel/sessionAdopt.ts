@@ -49,17 +49,20 @@ export async function adoptPtySession(
   sessionId: string,
   opts: AdoptPtySessionOptions,
 ): Promise<SessionMeta | null> {
-  const offOutput = await onPtyOutput(sessionId, (text) => {
-    /* 存活守卫:退订前在途的迟到输出不得复活已删会话的缓冲/呼吸灯状态 */
-    if (!h.findSession(sessionId)) return;
-    h.appendOutput(sessionId, text);
-  });
-  const offExit = await onPtyExit(sessionId, () => {
-    /* 秒退守望等钩子须在 removeSession 清缓冲前同步执行 */
-    opts.onExit?.(sessionId);
-    void h.removeSession(sessionId);
-    events.emit(KernelTopics.sessionExited, sessionId);
-  });
+  /* 双订阅互不依赖,并行注册;缝隙竞态由下方存活复查统一兜底(退订恒成对)。 */
+  const [offOutput, offExit] = await Promise.all([
+    onPtyOutput(sessionId, (text) => {
+      /* 存活守卫:退订前在途的迟到输出不得复活已删会话的缓冲/呼吸灯状态 */
+      if (!h.findSession(sessionId)) return;
+      h.appendOutput(sessionId, text);
+    }),
+    onPtyExit(sessionId, () => {
+      /* 秒退守望等钩子须在 removeSession 清缓冲前同步执行 */
+      opts.onExit?.(sessionId);
+      void h.removeSession(sessionId);
+      events.emit(KernelTopics.sessionExited, sessionId);
+    }),
+  ]);
   /* removeSession 插进两次订阅 await 之间 → 退订表查不到会漏退订:复查存活,
      已删则成对退订;会话既已不在,按启动失败广播(StartFailureToast 路径) */
   if (!h.findSession(sessionId)) {

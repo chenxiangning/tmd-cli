@@ -2,6 +2,7 @@
  * PushDialog 预览双栏 —— 自 PushDialog.tsx 拆出(文件规模铁则)。
  * 左栏 = 本次推送提交清单(新分支首推送说明态);右栏 = 选中提交详情
  * (摘要行 + 变更文件树,点击开中央提交 diff tab)。PreviewPane 为双栏共用外壳。
+ * 左右栏内容体分别拆为 PushCommitList / PushDetailContent(复杂度铁则)。
  */
 
 import { t } from "@kernel/i18n";
@@ -55,46 +56,17 @@ export function PushPreviewColumns({
         error={previewError}
         hasMore={preview?.hasMore ?? false}
       >
-        {isNewTarget && !previewLoading && !previewError ? (
-          <div className="px-1 py-2 text-xs leading-5 text-(--tmd-fg-muted)">
-            <div className="font-medium text-(--tmd-fg)">{t("新分支首次推送")}</div>
-            <div className="mt-1">
-              {t(
-                "本地未找到目标引用 {ref},将按新分支首次推送处理:创建远端分支并推送当前分支提交。",
-                { ref: `${remote.trim() || "origin"}/${target.trim() || branch}` },
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-auto">
-            {commits.map((c) => (
-              <button
-                key={c.longSha}
-                type="button"
-                onClick={() => onSelectSha(c.longSha)}
-                className={`rounded px-1.5 py-1 text-left text-xs ${
-                  selectedSha === c.longSha
-                    ? "bg-(--tmd-accent-soft)"
-                    : "hover:bg-(--tmd-bg-hover)"
-                }`}
-              >
-                <div className="truncate font-medium text-(--tmd-fg)">
-                  {c.summary || t("(无提交信息)")}
-                </div>
-                <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem] text-(--tmd-fg-muted)">
-                  <code className="font-mono">{c.shortSha}</code>
-                  <em className="not-italic">{c.authorName || t("未知")}</em>
-                  <time>{formatRelativeTime(c.authorWhen * 1000)}</time>
-                </div>
-              </button>
-            ))}
-            {preview?.hasMore && (
-              <div className="px-1.5 py-1 text-[0.6875rem] text-(--tmd-fg-faint)">
-                {t("仅展示最近 {n} 条提交。", { n: PREVIEW_LIMIT })}
-              </div>
-            )}
-          </div>
-        )}
+        <PushCommitList
+          branch={branch}
+          remote={remote}
+          target={target}
+          preview={preview}
+          previewLoading={previewLoading}
+          previewError={previewError}
+          isNewTarget={isNewTarget}
+          selectedSha={selectedSha}
+          onSelectSha={onSelectSha}
+        />
       </PreviewPane>
 
       <PreviewPane
@@ -104,40 +76,133 @@ export function PushPreviewColumns({
         error={detailsError}
         hasMore={false}
       >
-        {!selectedSha ? (
-          <div className="px-1 py-2 text-xs text-(--tmd-fg-faint)">{t("请选择一条提交查看详情。")}</div>
-        ) : (
-          details && (
-            <div className="flex min-h-0 flex-1 flex-col">
-              <div className="px-1 text-xs leading-5 text-(--tmd-fg-muted)">
-                <div className="truncate font-medium text-(--tmd-fg)">
-                  {selected?.summary || t("(无提交信息)")}
-                </div>
-                <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem]">
-                  <code className="font-mono">{selected?.longSha.slice(0, 16) ?? selectedSha.slice(0, 16)}…</code>
-                  <em className="not-italic">{selected?.authorName || t("未知")}</em>
-                  <time>
-                    {new Date((selected?.authorWhen ?? 0) * 1000).toLocaleString()}
-                  </time>
-                </div>
-              </div>
-              <div className="mt-2 flex items-center gap-1 px-1 text-xs font-medium text-(--tmd-fg)">
-                <GitBranch className="h-[0.875rem] w-[0.875rem]" aria-hidden />
-                {t("变更文件")}
-                <i className="ml-auto not-italic text-(--tmd-fg-muted)">{details.length}</i>
-              </div>
-              <div className="mt-1 min-h-0 flex-1 overflow-auto rounded border border-(--tmd-border) p-1">
-                <CommitFileTree
-                  rootName={cwd.split("/").filter(Boolean).pop() ?? ""}
-                  files={details}
-                  selectedPath={null}
-                  onSelect={(f) => onFileSelect(f, selected)}
-                />
-              </div>
-            </div>
-          )
-        )}
+        <PushDetailContent
+          cwd={cwd}
+          selectedSha={selectedSha}
+          selected={selected}
+          details={details}
+          onFileSelect={onFileSelect}
+        />
       </PreviewPane>
+    </div>
+  );
+}
+
+/** 左栏内容:新分支首推送说明态,或本次推送提交清单。 */
+function PushCommitList({
+  branch,
+  remote,
+  target,
+  preview,
+  previewLoading,
+  previewError,
+  isNewTarget,
+  selectedSha,
+  onSelectSha,
+}: {
+  branch: string;
+  remote: string;
+  target: string;
+  preview: GitPushPreview | null;
+  previewLoading: boolean;
+  previewError: string | null;
+  isNewTarget: boolean;
+  selectedSha: string | null;
+  onSelectSha: (sha: string) => void;
+}) {
+  const commits = preview?.commits ?? [];
+  if (isNewTarget && !previewLoading && !previewError) {
+    return (
+      <div className="px-1 py-2 text-xs leading-5 text-(--tmd-fg-muted)">
+        <div className="font-medium text-(--tmd-fg)">{t("新分支首次推送")}</div>
+        <div className="mt-1">
+          {t(
+            "本地未找到目标引用 {ref},将按新分支首次推送处理:创建远端分支并推送当前分支提交。",
+            { ref: `${remote.trim() || "origin"}/${target.trim() || branch}` },
+          )}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-auto">
+      {commits.map((c) => (
+        <button
+          key={c.longSha}
+          type="button"
+          onClick={() => onSelectSha(c.longSha)}
+          className={`rounded px-1.5 py-1 text-left text-xs ${
+            selectedSha === c.longSha
+              ? "bg-(--tmd-accent-soft)"
+              : "hover:bg-(--tmd-bg-hover)"
+          }`}
+        >
+          <div className="truncate font-medium text-(--tmd-fg)">
+            {c.summary || t("(无提交信息)")}
+          </div>
+          <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem] text-(--tmd-fg-muted)">
+            <code className="font-mono">{c.shortSha}</code>
+            <em className="not-italic">{c.authorName || t("未知")}</em>
+            <time>{formatRelativeTime(c.authorWhen * 1000)}</time>
+          </div>
+        </button>
+      ))}
+      {preview?.hasMore && (
+        <div className="px-1.5 py-1 text-[0.6875rem] text-(--tmd-fg-faint)">
+          {t("仅展示最近 {n} 条提交。", { n: PREVIEW_LIMIT })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 右栏内容:未选中提示,或选中提交摘要行 + 变更文件树。 */
+function PushDetailContent({
+  cwd,
+  selectedSha,
+  selected,
+  details,
+  onFileSelect,
+}: {
+  cwd: string;
+  selectedSha: string | null;
+  selected: PreviewCommit | null;
+  details: GitCommitFile[] | null;
+  onFileSelect: (f: GitCommitFile, commit: PreviewCommit | null) => void;
+}) {
+  if (!selectedSha) {
+    return (
+      <div className="px-1 py-2 text-xs text-(--tmd-fg-faint)">{t("请选择一条提交查看详情。")}</div>
+    );
+  }
+  if (!details) return null;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="px-1 text-xs leading-5 text-(--tmd-fg-muted)">
+        <div className="truncate font-medium text-(--tmd-fg)">
+          {selected?.summary || t("(无提交信息)")}
+        </div>
+        <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem]">
+          <code className="font-mono">{selected?.longSha.slice(0, 16) ?? selectedSha.slice(0, 16)}…</code>
+          <em className="not-italic">{selected?.authorName || t("未知")}</em>
+          <time>
+            {new Date((selected?.authorWhen ?? 0) * 1000).toLocaleString()}
+          </time>
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-1 px-1 text-xs font-medium text-(--tmd-fg)">
+        <GitBranch className="h-[0.875rem] w-[0.875rem]" aria-hidden />
+        {t("变更文件")}
+        <i className="ml-auto not-italic text-(--tmd-fg-muted)">{details.length}</i>
+      </div>
+      <div className="mt-1 min-h-0 flex-1 overflow-auto rounded border border-(--tmd-border) p-1">
+        <CommitFileTree
+          rootName={cwd.split("/").filter(Boolean).pop() ?? ""}
+          files={details}
+          selectedPath={null}
+          onSelect={(f) => onFileSelect(f, selected)}
+        />
+      </div>
     </div>
   );
 }

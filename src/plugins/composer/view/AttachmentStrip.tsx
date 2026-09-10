@@ -20,6 +20,28 @@ interface Props {
   onPreviewImage: (a: Attachment) => void;
 }
 
+/* 附件卡拖拽/悬停高亮(不捕获组件响应值,提模块级纯函数) */
+function handleDragStart(e: React.DragEvent<HTMLDivElement>, id: string): void {
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", id);
+  (e.currentTarget as HTMLElement).classList.add("tmd-attach-dragging");
+}
+function handleDragOver(e: React.DragEvent<HTMLDivElement>): void {
+  e.preventDefault();
+  (e.currentTarget as HTMLElement).classList.add("tmd-attach-drop-target");
+}
+function handleDragLeave(e: React.DragEvent<HTMLDivElement>): void {
+  (e.currentTarget as HTMLElement).classList.remove("tmd-attach-drop-target");
+}
+function handleDrop(e: React.DragEvent<HTMLDivElement>, toId: string): void {
+  e.preventDefault();
+  (e.currentTarget as HTMLElement).classList.remove("tmd-attach-drop-target");
+  const fromId = e.dataTransfer.getData("text/plain");
+  if (!fromId || fromId === toId) return;
+  const list = getAttachments();
+  const toIdx = list.findIndex((a) => a.id === toId);
+  if (toIdx >= 0) reorderAttachment(fromId, toIdx);
+}
 export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactElement | null {
   const [, setTick] = useState(0);
   const stripRef = useRef<HTMLDivElement>(null);
@@ -44,30 +66,9 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
     }
   }
 
-  function handleDragStart(e: React.DragEvent<HTMLDivElement>, id: string): void {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", id);
-    (e.currentTarget as HTMLElement).classList.add("tmd-attach-dragging");
-  }
   function handleDragEnd(e: React.DragEvent<HTMLDivElement>): void {
     (e.currentTarget as HTMLElement).classList.remove("tmd-attach-dragging");
     stripRef.current?.querySelectorAll(".tmd-attach-drop-target").forEach((n) => n.classList.remove("tmd-attach-drop-target"));
-  }
-  function handleDragOver(e: React.DragEvent<HTMLDivElement>): void {
-    e.preventDefault();
-    (e.currentTarget as HTMLElement).classList.add("tmd-attach-drop-target");
-  }
-  function handleDragLeave(e: React.DragEvent<HTMLDivElement>): void {
-    (e.currentTarget as HTMLElement).classList.remove("tmd-attach-drop-target");
-  }
-  function handleDrop(e: React.DragEvent<HTMLDivElement>, toId: string): void {
-    e.preventDefault();
-    (e.currentTarget as HTMLElement).classList.remove("tmd-attach-drop-target");
-    const fromId = e.dataTransfer.getData("text/plain");
-    if (!fromId || fromId === toId) return;
-    const list = getAttachments();
-    const toIdx = list.findIndex((a) => a.id === toId);
-    if (toIdx >= 0) reorderAttachment(fromId, toIdx);
   }
 
   return (
@@ -76,6 +77,8 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
         {items.map((a) => (
           <div
             key={a.id}
+            role="button"
+            tabIndex={0}
             className={`tmd-attach tmd-attach-${a.kind}`}
             title={a.path}
             draggable
@@ -85,6 +88,18 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, a.id)}
             onClick={() => handlePreview(a)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handlePreview(a);
+              }
+            }}
+            onKeyUp={(e) => {
+              if (e.key === " ") {
+                e.preventDefault();
+                handlePreview(a);
+              }
+            }}
           >
             {a.kind === "image" && a.thumbDataUrl ? (
               <div className="tmd-attach-thumb" style={{ backgroundImage: `url("${a.thumbDataUrl}")` }} />
@@ -96,18 +111,26 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
             <div className="tmd-attach-meta">
               <div className="tmd-attach-info">{formatBytes(a.size)}</div>
             </div>
-            <button
-              type="button"
+            <span
+              role="button"
+              tabIndex={0}
               className="tmd-attach-close"
-            title={t("移除")}
+              title={t("移除")}
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 handleRemove(a.id);
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  handleRemove(a.id);
+                }
+              }}
             >
               ×
-            </button>
+            </span>
           </div>
         ))}
       </div>

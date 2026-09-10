@@ -104,7 +104,10 @@ export function parseSshConfig(content: string): ParsedSshHost[] {
     const value = rest.join(" ").trim();
     if (key === "host") {
       flush();
-      aliases = rest.map((item) => item.trim()).filter(Boolean);
+      aliases = rest.flatMap((item) => {
+        const v = item.trim();
+        return v ? [v] : [];
+      });
       continue;
     }
     if (aliases.length > 0 && key && value) {
@@ -213,12 +216,15 @@ export async function scanSshImportCandidates(
   } catch {
     /* ~/.ssh 不存在:仅 config 候选。 */
   }
-  for (const keyPath of keyFiles) {
-    const content = await readOptionalFile(keyPath);
-    if (isPrivateKeyContent(content)) {
-      keyContentByPath.set(normalizePath(keyPath), content.trim());
-    }
-  }
+  /* 各私钥读取互不依赖,并行拉取后按路径入账(Map 键唯一,与写入顺序无关)。 */
+  await Promise.all(
+    keyFiles.map(async (keyPath) => {
+      const content = await readOptionalFile(keyPath);
+      if (isPrivateKeyContent(content)) {
+        keyContentByPath.set(normalizePath(keyPath), content.trim());
+      }
+    }),
+  );
 
   const existingKeys = new Set(existingHosts.map(sshHostIdentityKey));
   const candidates = parsedHosts.map((host) => {

@@ -62,7 +62,7 @@ export function PullDialog({
 
   /* 默认目标分支:当前分支在候选 → 保持;否则该远端第一个叶子。 */
   const leafsOf = (r: string) =>
-    candidates.filter((c) => c.startsWith(`${r}/`)).map((c) => c.slice(r.length + 1));
+    candidates.flatMap((c) => (c.startsWith(`${r}/`) ? [c.slice(r.length + 1)] : []));
   useEffect(() => {
     if (candidates.length === 0) return;
     if (candidates.includes(`${remote}/${target}`)) return;

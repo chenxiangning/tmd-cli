@@ -37,7 +37,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
   const [activeIndex, setActiveIndex] = useState(-1);
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const asideRef = useRef<HTMLElement>(null);
+  const asideRef = useRef<HTMLDialogElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const toastTimer = useRef<number | undefined>(undefined);
   const closeTimer = useRef<number | undefined>(undefined);
@@ -139,11 +139,11 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
   }
 
   return (
-    <aside
+    <dialog
+      open
       id="command-drawer"
       data-command-drawer
       ref={asideRef}
-      role="dialog"
       aria-label={t("命令与技能面板")}
       aria-hidden={!open}
       /* inert 让关闭态彻底退出焦点序列/Tab 遍历:仅 aria-hidden 挡不住
@@ -173,7 +173,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
       /* 统一悬在对话框上方(portal + fixed,坐标 Composer 量测传入);
          高度自适应内容,maxHeight 封顶后内部滚动。隐藏态加 opacity-0:
          portal 无 overflow 裁切,纯 translate-x-[105%] 会把面板甩出视口。 */
-      className={`fixed z-50 flex w-[300px] max-w-[88%] flex-row outline-none
+      className={`m-0 p-0 fixed z-50 flex w-[300px] max-w-[88%] flex-row outline-none
         rounded-xl border border-(--tmd-border) bg-(--tmd-bg-popover) shadow-[0_16px_40px_rgba(0,0,0,0.4)]
         transition-[transform,opacity] duration-[260ms] ease-[cubic-bezier(0.32,0.72,0.24,1)]
         motion-reduce:transition-none ${open ? "translate-x-0 opacity-100" : "translate-x-[105%] opacity-0"}`}
@@ -246,6 +246,6 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
       >
         {toast}
       </div>
-    </aside>
+    </dialog>
   );
 }

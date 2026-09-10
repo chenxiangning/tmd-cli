@@ -89,9 +89,11 @@ export class DiskIdentityWatch {
     /* unmatched = 文件读出了身份但不属于我(cwd 不符/归属兄弟)→ 强拒绝,等下一个文件;
        unreadable = 读不出身份或证据不足以唯一仲裁 → 才允许退回水位线仲裁。 */
     if (profile.readSessionFileIdentity) {
-      const siblingSpawns = [...this.pending]
-        .filter(([id, p]) => id !== sessionId && p.profileId === pending.profileId && p.cwd === pending.cwd)
-        .map(([, p]) => p.spawnedAt);
+      const siblingSpawns = [...this.pending].flatMap(([id, p]) =>
+        id !== sessionId && p.profileId === pending.profileId && p.cwd === pending.cwd
+          ? [p.spawnedAt]
+          : [],
+      );
       const matched = await pickContentIdentity(
         listFreshCandidates(list, pending.before, pending.spawnedAt, claimed),
         pending.cwd,

@@ -16,7 +16,7 @@ import { PI_COMMAND_SUGGESTIONS, PI_SKILL_SUGGESTIONS } from "../cli-pi";
 import { CODEX_COMMAND_SUGGESTIONS, extractCodexMcpServers } from "../cli-codex";
 import { GROK_COMMAND_SUGGESTIONS } from "../cli-grok";
 import { KIMI_COMMAND_SUGGESTIONS } from "../cli-kimi";
-import { QODER_COMMAND_SUGGESTIONS } from "../cli-shared/qoderSessions";
+import { QODER_COMMAND_SUGGESTIONS } from "../cli-shared/qoderSessionModel";
 import { OPENCODE_COMMAND_SUGGESTIONS } from "../cli-opencode/commands";
 import type { CliSuggestion } from "@kernel/cli";
 

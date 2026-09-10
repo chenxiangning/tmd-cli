@@ -179,6 +179,7 @@ export function SystemAppearanceCard() {
           </div>
           <input
             type="text"
+            aria-label={t("自定义字体")}
             defaultValue={settings.terminalFontFamily}
             placeholder="'JetBrains Mono', monospace"
             onBlur={(e) => updateSettings({ terminalFontFamily: e.target.value })}

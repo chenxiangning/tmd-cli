@@ -11,7 +11,7 @@
  * 搜索浮层与 terminal.find 命令桥在 terminalSearch.tsx。
  */
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Terminal, type ITheme } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
@@ -31,7 +31,8 @@ import { createReplayInputGate } from "@kernel/terminalInputGate";
 import { attachTerminalStream, type LoadProgress } from "@kernel/terminalReplay";
 import { isTerminalReport } from "@kernel/terminalReports";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
-import { TerminalSearchOverlay, findRequestRef } from "@kernel/terminalSearch";
+import { TerminalSearchOverlay } from "@kernel/terminalSearch";
+import { findRequestRef } from "@kernel/terminalFindBridge";
 import { setTerminalFocused } from "@kernel/shortcuts";
 
 /** 从文档计算样式读终端 token → xterm theme(主题引擎已内联最新值)。
@@ -74,14 +75,19 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
   /* 加载进度态:null = 就绪撤罩(terminalReplay.ts);streamReadyRef = 幕布流就绪相位(onReady 置位),askProbe 停采判据(评审 F5/P1-2)。 */
   const [loadProgress, setLoadProgress] = useState<LoadProgress>(null);
   const streamReadyRef = useRef(false);
-  /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答
-     (见 terminalInputGate.ts);实例随会话 keep-alive 常驻,闸随实例持有。 */
-  const inputGateRef = useRef(createReplayInputGate());
-  /* 翻页器(实现见 terminalHistory.ts):锚点/前缀页/重入闸随实例持有,
-     hasMore/loading 经 onState 回喂上面的 React state。 */
   const pagerRef = useRef<TerminalHistoryPager | null>(null);
-  /* loadEarlier 经 ref 暴露给锚点跳转注册表:handle 在 effect 里注册一次,
-     经 ref 取最新闭包,避免 loadingHistory 状态闭包过期。 */
+  /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答
+     (见 terminalInputGate.ts);实例随会话 keep-alive 常驻,闸随实例持有。
+     惰性初值:useState 初始化器只在首帧执行一次,不随每轮渲染重算。 */
+  const [inputGate] = useState(createReplayInputGate);
+  /* 翻页器(实现见 terminalHistory.ts):锚点/前缀页/重入闸随实例持有,hasMore/loading 经 onState 回喂。 */
+  /** 往前翻一页:实例内恒稳定,锚点注册表与"加载更早"按钮共用同一闭包。 */
+  const loadEarlier = useCallback(async () => {
+    const term = termRef.current;
+    const pager = pagerRef.current;
+    if (!term || !pager) return;
+    await pager.loadEarlier(term);
+  }, []);
   const loadEarlierRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
@@ -138,14 +144,14 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     searchRef.current = search;
 
     /* 翻页器随挂载创建(会话切换经 key 重挂载,锚点随实例重生)。 */
-    const pager = new TerminalHistoryPager(sessionId, inputGateRef.current, (h, l) => {
+    const pager = new TerminalHistoryPager(sessionId, inputGate, (h, l) => {
       setHasMore(h);
       setLoadingHistory(l);
     });
     pagerRef.current = pager;
     /* 翻页器随挂载创建(keep-alive 后每会话仅挂载一次);输出装配见 terminalReplay.ts。 */
     streamReadyRef.current = false;
-    const offStream = attachTerminalStream(term, sessionId, inputGateRef.current, setLoadProgress, () => {
+    const offStream = attachTerminalStream(term, sessionId, inputGate, setLoadProgress, () => {
       streamReadyRef.current = true;
     });
 
@@ -174,7 +180,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
        照写 PTY 但标 synthetic —— 它们不是用户输入,不得锚定对话,
        否则点一下终端/滚一轮就会点亮无对话会话的呼吸灯 */
     const offInput = term.onData((data) => {
-      if (inputGateRef.current.blocked()) return;
+      if (inputGate.blocked()) return;
       host.writeSession(sessionId, data, isTerminalReport(data));
     });
     /* 对话锚点:向内核注册本幕布的跳转/定位能力(composer 锚点栏经此中转)。 */
@@ -224,7 +230,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       setHasMore(false);
       setLoadingHistory(false);
     };
-  }, [sessionId]);
+  }, [sessionId, inputGate]);
 
   /* ⌘F 搜索框所有权:keep-alive 后多幕布并存,模块级 findRequestRef 单槽,
      必须跟随激活实例 —— 激活即持有,失活/卸载仅在仍归自己时让出。 */
@@ -241,14 +247,10 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     termRef.current?.focus();
   };
 
-  /** 往前翻一页(整段重写语义见 terminalHistory.ts)。 */
-  const loadEarlier = async () => {
-    const term = termRef.current;
-    const pager = pagerRef.current;
-    if (!term || !pager) return;
-    await pager.loadEarlier(term);
-  };
-  loadEarlierRef.current = loadEarlier;
+  /* loadEarlier 实例内恒稳定(useCallback 无依赖),ref 转交放 effect 避免渲染期写。 */
+  useEffect(() => {
+    loadEarlierRef.current = loadEarlier;
+  }, [loadEarlier]);
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />

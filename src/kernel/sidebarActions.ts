@@ -58,7 +58,7 @@ export function removeSidebarAction(id: string): void {
 
 /** 默认钉住的动作 id(读注册表;壳层渲染晚于插件激活,调用点拿得到全量)。 */
 export function defaultPinnedActionIds(): string[] {
-  return state.actions.filter((a) => a.defaultPinned).map((a) => a.id);
+  return state.actions.flatMap((a) => (a.defaultPinned ? [a.id] : []));
 }
 
 export function useSidebarActions(): readonly SidebarAction[] {

@@ -8,7 +8,7 @@
  * 解析失败不做兜底(调用方显错误态)。第二家 YAML 消费出现即归此层。
  */
 
-const indentOf = (line: string): number => line.match(/^ */)![0].length;
+const indentOf = (line: string): number => line.match(/^ */)?.[0].length ?? 0;
 
 /** 注释/空行不算块成员,但块内遇到时继续向下走。 */
 const isFiller = (line: string): boolean => /^\s*(#|$)/.test(line);

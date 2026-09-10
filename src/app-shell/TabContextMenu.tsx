@@ -56,6 +56,7 @@ export function TabContextMenu({
     <>
       <div
         className="wsmenu-backdrop"
+        role="presentation"
         onClick={onClose}
         onContextMenu={(e) => {
           e.preventDefault();

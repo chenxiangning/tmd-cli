@@ -15,7 +15,7 @@
  * 组件实现见同目录:WorkspaceList(分组渲染) / WorkspaceCard / SessionList / SessionMenu / groups(分组语义) / utils。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import type { Plugin } from "@kernel/plugin";
@@ -25,7 +25,8 @@ import { pickDirectory } from "@kernel/ipc";
 import { spinRemainder } from "@kernel/spin";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { registerSessionRevealHandler } from "@kernel/sessionReveal";
-import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
+import { SessionMenuOverlay } from "./SessionMenu";
+import { clampMenuPosition } from "./utils";
 import { Folders, FolderOpen, FolderSimplePlus, CaretDoubleDown, CaretDoubleUp } from "@phosphor-icons/react";
 import { createSessionRevealHandler } from "./revealSession";
 import { WorkspaceList } from "./WorkspaceList";
@@ -38,6 +39,19 @@ import { RunningZoneSection } from "./RunningZone";
  *  模块级 ref 接收分发器触发(先例:TerminalView findRequestRef)。 */
 const openNewSessionMenuRef: { current: (() => void) | null } = { current: null };
 
+
+/** 添加工作区:系统目录选择器 → kernel 注册;失败 warn 诊断不静默。 */
+async function handleAddWorkspace() {
+  try {
+    const selected = await pickDirectory(t("选择工作区目录"));
+    if (typeof selected === "string" && selected) {
+      addWorkspace(selected);
+    }
+  } catch (err) {
+    // 权限被拒/插件未注册等不再静默,方便定位
+    console.warn("workspace: 选择目录失败", err);
+  }
+}
 
 function WorkspaceSection() {
   useHost();
@@ -85,32 +99,22 @@ function WorkspaceSection() {
     updateSettings({
       workspaceGroupCollapsedMap: { ...groupCollapsedMap, [id]: !groupCollapsedMap[id] },
     });
-  /** ⌘T 入口:无点击锚点,菜单开在左栏顶部;工作区取活动者,缺省首个,皆无则不动。 */
-  const openMenu = () => {
+  /** ⌘T 入口:无点击锚点,菜单开在左栏顶部;工作区取活动者,缺省首个,皆无则不动。
+   *  useCallback 钉住引用:下方 ref 同步 effect 以它为依赖,每轮重建会反复重同步。 */
+  const openMenu = useCallback(() => {
     const ws = list.find((w) => w.id === activeId) ?? list[0];
     if (!ws) return;
     setMenu({ workspace: ws, ...clampMenuPosition(16, 60) });
-  };
+  }, [list, activeId]);
 
-  /* 开函数随渲染重建,效果依其重同步 ref;卸载置空(插件拔出后 ⌘T 成 no-op)。 */
+  /* 开函数引用稳定(仅 list/activeId 变化才重建),效果依其重同步 ref;
+   * 卸载置空(插件拔出后 ⌘T 成 no-op)。 */
   useEffect(() => {
     openNewSessionMenuRef.current = openMenu;
     return () => {
       openNewSessionMenuRef.current = null;
     };
   }, [openMenu]);
-
-  async function handleAdd() {
-    try {
-      const selected = await pickDirectory(t("选择工作区目录"));
-      if (typeof selected === "string" && selected) {
-        addWorkspace(selected);
-      }
-    } catch (err) {
-      // 权限被拒/插件未注册等不再静默,方便定位
-      console.warn("workspace: 选择目录失败", err);
-    }
-  }
 
   /** 刷新键 = 工作区:CLI —— tick 触发重扫,scanDone 清 spin。 */
   const bumpTick = (workspaceId: string, profileId: string) => {
@@ -180,7 +184,7 @@ function WorkspaceSection() {
           <button
             className="ws-caption-btn"
             title={t("添加工作区")}
-            onClick={() => void handleAdd()}
+            onClick={() => void handleAddWorkspace()}
           >
             <FolderSimplePlus size="0.8125rem" aria-hidden />
           </button>

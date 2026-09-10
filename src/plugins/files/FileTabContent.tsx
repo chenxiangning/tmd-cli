@@ -89,6 +89,41 @@ function useDarkTheme(): boolean {
   return dark;
 }
 
+/** 工具条状态文案:错误 > 保存中 > 脏 > 已保存。 */
+function statusText(doc: { error: string | null; saving: boolean; dirty: boolean }): string {
+  if (doc.error) return doc.error;
+  if (doc.saving) return t("保存中…");
+  if (doc.dirty) return t("● 未保存的更改 · ⌘S 保存");
+  return t("已保存");
+}
+
+/** 工具条错误/脏标记着色。 */
+function toolbarCls(error: string | null, dirty: boolean): string {
+  return `file-editor-toolbar${error ? " is-error" : dirty ? " is-dirty" : ""}`;
+}
+
+/** 编辑/预览切换钮(单钮两态,md 与结构化文件共用;偏好随路径持久由调用方落)。 */
+function ModeToggleButton({
+  editor,
+  onToggle,
+}: {
+  editor: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="file-mode-toggle"
+      title={editor ? t("预览") : t("编辑")}
+      onClick={() => onToggle(!editor)}
+    >
+      {editor ? <Eye size="0.75rem" aria-hidden /> : <Pencil size="0.75rem" aria-hidden />}
+      {editor ? t("预览") : t("编辑")}
+    </button>
+  );
+}
+
+
 /** 单文件主体:key={path} —— 文档状态、md/结构化切换偏好随文件切换整体重建。 */
 function FileTabBody({ path, content }: { path: string; content: string }) {
   const isMd = MARKDOWN_FILE_RE.test(path);
@@ -101,8 +136,7 @@ function FileTabBody({ path, content }: { path: string; content: string }) {
   /* 文档钩子常驻(含 md 预览态):⌘S 在预览下也能保存未落盘草稿,
      状态文字两种模式连续显示。 */
   const doc = useFileDocument(path, content);
-  const status =
-    doc.error ?? (doc.saving ? t("保存中…") : doc.dirty ? t("● 未保存的更改 · ⌘S 保存") : t("已保存"));
+  const status = statusText(doc);
 
   const showEditor = !structuredKind ? (!isMd || mdEditor) : structuredEditor;
   return (
@@ -133,38 +167,26 @@ function FileTabBody({ path, content }: { path: string; content: string }) {
       </div>
       {/* 矮工具条:状态文字在左,编辑/预览切换钮在右(md 与结构化文件才有) */}
       <div
-        className={`file-editor-toolbar${doc.error ? " is-error" : doc.dirty ? " is-dirty" : ""}`}
+        className={toolbarCls(doc.error, doc.dirty)}
         role="status"
       >
         <span className="file-editor-toolbar-status">{status}</span>
         {structuredKind ? (
-          <button
-            type="button"
-            className="file-mode-toggle"
-            title={structuredEditor ? t("预览") : t("编辑")}
-            onClick={() => {
-              const next = !structuredEditor;
+          <ModeToggleButton
+            editor={structuredEditor}
+            onToggle={(next) => {
               structuredEditMode.set(path, next);
               setStructuredEditor(next);
             }}
-          >
-            {structuredEditor ? <Eye size="0.75rem" aria-hidden /> : <Pencil size="0.75rem" aria-hidden />}
-            {structuredEditor ? t("预览") : t("编辑")}
-          </button>
+          />
         ) : isMd ? (
-          <button
-            type="button"
-            className="file-mode-toggle"
-            title={mdEditor ? t("预览") : t("编辑")}
-            onClick={() => {
-              const next = !mdEditor;
+          <ModeToggleButton
+            editor={mdEditor}
+            onToggle={(next) => {
               mdEditMode.set(path, next);
               setMdEditor(next);
             }}
-          >
-            {mdEditor ? <Eye size="0.75rem" aria-hidden /> : <Pencil size="0.75rem" aria-hidden />}
-            {mdEditor ? t("预览") : t("编辑")}
-          </button>
+          />
         ) : null}
       </div>
     </div>

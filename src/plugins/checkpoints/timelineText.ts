@@ -7,7 +7,7 @@
  * 文件(用户定向);纯函数便于单测(timelineText.test.ts)。
  */
 
-import { extractPromptImages } from "./PromptImages";
+import { extractPromptImages } from "./promptImagesExtract";
 
 /** composer 注入的任意附件 token:@ + 绝对路径。终止符类目同 IMAGE_TOKEN_RE 但
     去掉「.」:扩展名前的点绝不能当边界(否则惰性匹配把 /a/b.ts 截成 /a/b);
@@ -27,8 +27,9 @@ export interface TimelineParts {
 export function extractTimelineParts(raw: string): TimelineParts {
   const img = extractPromptImages(raw);
   const files = new Set<string>();
+  const imageSet = new Set(img.images);
   for (const m of raw.matchAll(FILE_TOKEN_RE)) {
-    if (!img.images.includes(m[1])) files.add(m[1]);
+    if (!imageSet.has(m[1])) files.add(m[1]);
   }
   if (files.size === 0) return { text: img.text, images: img.images, files: [] };
   /* img.text 里图片 token 已剥,本趟 replace 只命中文件 token;

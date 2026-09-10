@@ -33,7 +33,7 @@ export function ProxyPopover() {
   const [error, setError] = useState<string | null>(null);
   /* 落位前的实测坐标;null = 尚未量好,先隐身防闪跳。 */
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -81,12 +81,13 @@ export function ProxyPopover() {
 
   return createPortal(
     <>
-      <div className="wsmenu-backdrop" onClick={closeProxyPopover} />
-      <div
+      <div className="wsmenu-backdrop" role="presentation" onClick={closeProxyPopover} />
+      <dialog
         ref={popoverRef}
-        className="pxy-popover"
+        /* 自制弹层换原生 dialog(非模态 open,不调 showModal);m-0 p-0 中和 UA 默认边距留白。 */
+        open
+        className="pxy-popover m-0 p-0"
         style={pos ? { left: pos.left, top: pos.top } : { visibility: "hidden" }}
-        role="dialog"
         aria-label="网络代理"
         data-testid="network-proxy-popover"
       >
@@ -146,7 +147,7 @@ export function ProxyPopover() {
             支持 http(s) / socks5 / socks5h。开关即时生效;已在跑的旧会话需手动重启后走代理。
           </p>
         </div>
-      </div>
+      </dialog>
     </>,
     document.body,
   );

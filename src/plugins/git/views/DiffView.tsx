@@ -6,7 +6,7 @@
  * 已暂存且工作区无叠加改动)。
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { t } from "@kernel/i18n";
 import { CaretDown, FileText } from "@phosphor-icons/react";
 import { ipc, type GitFileStatus, type GitTotals } from "@kernel/ipc";
@@ -33,15 +33,16 @@ interface Props {
 export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Props) {
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const [confirm, setConfirm] = useState<GitConfirmState | null>(null);
-
-  // 文件消失(已提交/还原)时同步掉勾选
-  useEffect(() => {
+  /* 文件消失(已提交/还原)时同步掉勾选:渲染期 prev-files 对比调校(非 effect)。 */
+  const [prevFiles, setPrevFiles] = useState(files);
+  if (prevFiles !== files) {
+    setPrevFiles(files);
     const live = new Set(files.map((f) => f.path));
     setChecked((prev) => {
       const next = new Set([...prev].filter((p) => live.has(p)));
       return next.size === prev.size ? prev : next;
     });
-  }, [files]);
+  }
 
   const toggleCheck = (path: string) =>
     setChecked((prev) => {
@@ -82,7 +83,7 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
 
   // 树形专用(平铺走 DiffFlatList 的三段分区)
   const rows = useMemo(() => (layout === "tree" ? buildTree(files) : []), [files, layout]);
-  const stagedPaths = useMemo(() => files.filter((f) => f.staged).map((f) => f.path), [files]);
+  const stagedPaths = useMemo(() => files.flatMap((f) => (f.staged ? [f.path] : [])), [files]);
 
   return (
     <div className="flex h-full flex-col">
@@ -182,6 +183,7 @@ function FileRow({
     >
       <input
         type="checkbox"
+        aria-label={t("选择 {path}", { path: file.path })}
         checked={checked}
         disabled={isConflict}
         onChange={onToggleCheck}

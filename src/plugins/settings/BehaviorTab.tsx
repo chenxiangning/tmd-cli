@@ -40,15 +40,14 @@ const ASK_SOUND_LABELS: Record<AskSoundId, string> = {
 
 const ASK_SOUND_OPTIONS: ReadonlyArray<{ id: AskSoundId; label: string }> =
   ASK_SOUND_IDS.map((id) => ({ id, label: ASK_SOUND_LABELS[id] }));
+/** 数字输入提交:非法输入静默丢弃,合法域由 kernel/settings sanitize 兜底。 */
+const commitBufferLimit = (raw: string) => {
+  const n = Number.parseInt(raw, 10);
+  if (Number.isFinite(n) && n > 0) updateSettings({ sessionOutputBufferLimit: n });
+};
 
 export function BehaviorTab() {
   const { settings } = useSettingsState();
-
-  const commitBufferLimit = (raw: string) => {
-    const n = Number.parseInt(raw, 10);
-    if (Number.isFinite(n) && n > 0) updateSettings({ sessionOutputBufferLimit: n });
-  };
-
 
   return (
     <div className="pref-card" data-testid="settings-behavior-card">
@@ -82,6 +81,7 @@ export function BehaviorTab() {
         <input
           key={settings.sessionOutputBufferLimit}
           type="number"
+          aria-label={t("会话输出缓冲上限")}
           min={50_000}
           max={10_000_000}
           step={50_000}

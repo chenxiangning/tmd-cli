@@ -189,17 +189,17 @@ export function wrapSettings(grants: ReadonlySet<string>): Record<string, unknow
   const mod = settingsModule as unknown as Record<string, unknown>;
   const read = grants.has("settings.read");
   const write = grants.has("settings.write");
-  const internal = SETTINGS_INTERNAL_KEYS as readonly string[];
-  const readKeys = SETTINGS_READ_KEYS as readonly string[];
-  const writeKeys = SETTINGS_WRITE_KEYS as readonly string[];
+  const internal = new Set<string>(SETTINGS_INTERNAL_KEYS as readonly string[]);
+  const readKeys = new Set<string>(SETTINGS_READ_KEYS as readonly string[]);
+  const writeKeys = new Set<string>(SETTINGS_WRITE_KEYS as readonly string[]);
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(mod)) {
-    if (internal.includes(key)) continue;
-    if (readKeys.includes(key)) {
+    if (internal.has(key)) continue;
+    if (readKeys.has(key)) {
       if (read) out[key] = value;
       continue;
     }
-    if (writeKeys.includes(key)) {
+    if (writeKeys.has(key)) {
       if (write) out[key] = value;
       continue;
     }

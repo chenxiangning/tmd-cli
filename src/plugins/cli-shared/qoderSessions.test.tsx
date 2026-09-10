@@ -20,7 +20,7 @@ import {
   extractQoderSessionStatus,
   parseQoderSettingsStatus,
   qoderProjectSlug,
-} from "./qoderSessions";
+} from "./qoderSessionModel";
 
 describe("qoderProjectSlug", () => {
   it("与 claude 同规则:常规路径非字母数字逐字符替换", () => {

@@ -171,6 +171,7 @@ export function PinToggle({
     <span
       className={`thread-pin-btn${on ? " is-on" : ""}`}
       role="button"
+      tabIndex={0}
       aria-pressed={on}
       aria-label={on ? t("取消置顶") : t("置顶到全局")}
       title={

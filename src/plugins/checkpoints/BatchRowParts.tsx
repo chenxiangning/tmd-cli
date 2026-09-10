@@ -19,7 +19,7 @@ export interface ConfirmTarget {
   mode?: "revert" | "apply";
 }
 
-export function fileChipCls(st: string): string {
+function fileChipCls(st: string): string {
   if (st === "A") return "bg-(--tmd-diff-inserted)/15 text-(--tmd-diff-inserted)";
   if (st === "D") return "bg-(--tmd-diff-removed)/15 text-(--tmd-diff-removed)";
   return "bg-(--tmd-git-modified)/15 text-(--tmd-git-modified)";

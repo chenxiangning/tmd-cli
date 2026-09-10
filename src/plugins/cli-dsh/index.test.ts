@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import type { CliProfile } from "@kernel/cli";
 import type { PluginContext } from "@kernel/plugin";
-import { cliDshPlugin, DSH_VARIANT } from "./index";
+import { cliDshPlugin, DSH_VARIANT } from "./plugin";
 import { DshHostPanel } from "./hostPanel";
 
 describe("cli-dsh 插件契约", () => {

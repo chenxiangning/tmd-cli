@@ -5,27 +5,42 @@
  * 推送历史(会话内存)/ 远端 + 目标远端分支 / Push to Gerrit(见 PushGerritSection)/
  * 推送标签 / 运行 Git 挂钩 / Force with lease / 取消-推送。
  * 预览/详情数据 hooks 见 usePushPreview(预览 180ms 防抖;详情按选中 sha 拉取)。
+ * hero tokens/推送历史/远端选择区拆至 pushDialogParts.tsx(降分支 + 文件规模铁则)。
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { t } from "@kernel/i18n";
-import { Cloud, GitBranch, ClockClockwise, ArrowClockwise, Repeat, Tag, UploadSimple } from "@phosphor-icons/react";
+import { ArrowClockwise, Repeat, Tag, UploadSimple } from "@phosphor-icons/react";
 import { ipc, type GitCommitFile, type GitPushPreview, type GitRemoteRequest } from "@kernel/ipc";
 import { openCommitDiffTab } from "../../commitTab";
-import { BranchCombobox, PickerField, RemotePicker } from "./GitPicker";
+import { GitOpTokens } from "./GitOpTokens";
 import { DialogActions, GitDialogShell, OpToggle } from "./GitDialogShell";
-import { GitOpTokens, type GitOpToken } from "./GitOpTokens";
 import { PushPreviewColumns } from "./PushPreviewColumns";
 import { PushGerritSection } from "./PushGerritSection";
 import { useCommitDetails, usePushPreview } from "./usePushPreview";
-import {
-  isSamePushTarget,
-  loadPushHistory,
-  rememberPushTarget,
-  type PushTargetEntry,
-} from "./pushHistory";
+import { loadPushHistory, rememberPushTarget, type PushTargetEntry } from "./pushHistory";
+import { PushHistoryRows, TargetPickers } from "./pushDialogParts";
+import { buildPushHeroTokens, useSyncTargetToLeafs } from "./pushDialogModel";
 
 type PreviewCommit = GitPushPreview["commits"][number];
+
+/** 推送前置校验:远端/目标非空 + 预览就绪且无错 + 有可推送提交。 */
+function canConfirmPush(
+  remote: string,
+  target: string,
+  previewLoading: boolean,
+  previewError: string | null,
+  commitCount: number,
+): boolean {
+  return (
+    remote.trim().length > 0 &&
+    target.trim().length > 0 &&
+    !previewLoading &&
+    previewError == null &&
+    commitCount > 0
+  );
+}
+
 
 export function PushDialog({
   cwd,
@@ -78,26 +93,14 @@ export function PushDialog({
 
   /* 目标分支候选:该远端下的叶子名。当前分支不在候选时取第一个叶子。 */
   const leafs = useMemo(
-    () =>
-      candidates
-        .filter((c) => c.startsWith(`${remote}/`))
-        .map((c) => c.slice(remote.length + 1)),
+    () => candidates.flatMap((c) => (c.startsWith(`${remote}/`) ? [c.slice(remote.length + 1)] : [])),
     [candidates, remote],
   );
-  /* 目标仅在候选集变化或远端切换时纠正一次;依赖刻意不含 target,
-   * 否则手输目标分支会被立即拉回候选首项。 */
-  useEffect(() => {
-    if (leafs.length > 0 && !leafs.includes(target.trim())) setTarget(leafs[0]);
-  }, [leafs]);
+  useSyncTargetToLeafs(leafs, target, setTarget);
 
   const commits = preview?.commits ?? [];
   const isNewTarget = preview != null && !preview.targetFound;
-  const canConfirm =
-    remote.trim().length > 0 &&
-    target.trim().length > 0 &&
-    !previewLoading &&
-    previewError == null &&
-    commits.length > 0;
+  const canConfirm = canConfirmPush(remote, target, previewLoading, previewError, commits.length);
 
   const applyHistory = useCallback((entry: PushTargetEntry) => {
     setRemote(entry.remote);
@@ -141,14 +144,7 @@ export function PushDialog({
     [cwd, onClose],
   );
 
-  const targetSummary = gerrit ? `refs/for/${target.trim() || branch}` : target.trim() || branch;
-  const heroTokens: GitOpToken[] = [
-    { kind: "branch", value: branch || "HEAD" },
-    { kind: "operator", value: "->" },
-    { kind: "remote", value: remote.trim() || "origin" },
-    { kind: "operator", value: ":", separatorBefore: "" },
-    { kind: "branch", value: targetSummary, separatorBefore: "" },
-  ];
+  const heroTokens = buildPushHeroTokens(branch, remote, target, gerrit);
 
   return (
     <GitDialogShell
@@ -208,48 +204,26 @@ export function PushDialog({
       />
 
       {/* 推送历史 */}
-      {history.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <span className="flex items-center gap-1 text-xs text-(--tmd-fg-muted)">
-            <ClockClockwise className="h-[0.875rem] w-[0.875rem]" aria-hidden />
-            {t("推送历史")}
-          </span>
-          {history.map((h) => (
-            <button
-              key={`${h.remote}\0${h.branch}\0${h.gerrit}`}
-              type="button"
-              disabled={submitting}
-              onClick={() => applyHistory(h)}
-              className={`flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[0.6875rem] disabled:opacity-50 ${
-                isSamePushTarget(h, { remote: remote.trim(), branch: target.trim(), gerrit })
-                  ? "bg-(--tmd-accent-soft) text-(--tmd-accent)"
-                  : "bg-(--tmd-bg-sunken) text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
-              }`}
-            >
-              {h.remote} -&gt; {h.branch}
-              {h.gerrit && <span className="not-italic text-(--tmd-accent)">Gerrit</span>}
-            </button>
-          ))}
-        </div>
-      )}
+      <PushHistoryRows
+        history={history}
+        remote={remote}
+        target={target}
+        gerrit={gerrit}
+        submitting={submitting}
+        onApply={applyHistory}
+      />
 
       {/* 远端 / 目标远端分支 */}
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <div>
-          <PickerField icon={<Cloud className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label={t("远端")} />
-          <RemotePicker remotes={remotes} value={remote} disabled={submitting} onPick={setRemote} />
-        </div>
-        <div>
-          <PickerField icon={<GitBranch className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label={t("目标远端分支")} />
-          <BranchCombobox
-            value={target}
-            placeholder={branch || "main"}
-            options={leafs}
-            disabled={submitting}
-            onChange={setTarget}
-          />
-        </div>
-      </div>
+      <TargetPickers
+        remotes={remotes}
+        remote={remote}
+        onRemote={setRemote}
+        target={target}
+        leafs={leafs}
+        branch={branch}
+        submitting={submitting}
+        onTarget={setTarget}
+      />
 
       {/* Push to Gerrit */}
       <PushGerritSection

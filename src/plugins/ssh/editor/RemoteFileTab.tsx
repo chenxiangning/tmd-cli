@@ -10,15 +10,13 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { ipc, type SftpEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { setActiveTab, updateTab, type EditorTab } from "@kernel/tabs";
+import { saveRequestRef } from "./saveRequestRef";
 
 /* CodeMirror 全家按需拆包(files 插件同款):首个 ssh-file tab 才拉 chunk;
    与 files 的 lazy import 指向同一模块,chunk 共享。 */
 const Editor = lazy(() =>
   import("@kernel/cmEditor/FileCodeEditor").then((m) => ({ default: m.FileCodeEditor })),
 );
-
-/** ssh.saveRemoteFile 命令桥:挂载中的远端文件 tab 实例经此接收保存触发(先例 TerminalView.findRequestRef)。 */
-export const saveRequestRef: { current: (() => void) | null } = { current: null };
 
 interface RemoteDoc {
   content: string;
@@ -140,15 +138,15 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
   );
 
   /* 保存请求桥:⌘S 命令(ssh.saveRemoteFile)注册口经此触发最新 save;卸载即摘除,
-     非远端文件 tab 下 when 不满足,键穿透。 */
+     非远端文件 tab 下 when 不满足,键穿透。ref 转交在 effect 内(渲染期写禁)。 */
   const saveRef = useRef(save);
-  saveRef.current = save;
   useEffect(() => {
+    saveRef.current = save;
     saveRequestRef.current = () => void saveRef.current();
     return () => {
       saveRequestRef.current = null;
     };
-  }, []);
+  }, [save]);
 
   if (!payload) return null;
   if (!doc || !doc.loaded) {
@@ -191,7 +189,7 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
           {t("文件超过 200KB,仅载入头部;保存将整文件覆写,确认后再编辑。")}
         </div>
       ) : null}
-      <div className="ssh-editor-body" onClick={() => setActiveTab(tab.id)}>
+      <div className="ssh-editor-body" role="presentation" onClick={() => setActiveTab(tab.id)}>
         <Suspense
           fallback={
             <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">

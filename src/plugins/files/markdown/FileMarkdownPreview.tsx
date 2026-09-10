@@ -25,7 +25,8 @@ import {
   getCachedRehypeKatex,
   loadKatexAssets,
 } from "./markdownMath";
-import { FullscreenViewer, resolveImageViewerSrc } from "./FullscreenViewer";
+import { FullscreenViewer } from "./FullscreenViewer";
+import { resolveImageViewerSrc } from "./viewerSrcModel";
 import { PreviewOutlineSidebar } from "./PreviewOutlineSidebar";
 import { useMarkdownOutline } from "./useMarkdownOutline";
 import { hasDocumentScopedMarkdownFeatures, normalizeMarkdownAnchorKey } from "./markdownPreviewHelpers";

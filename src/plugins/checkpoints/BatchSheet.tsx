@@ -7,28 +7,20 @@
  * 旧审阅单显示"已随会话结束"。
  * 动作同面板:回退唯一(整批/单文件,带确认),done 无操作。
  * 非 ckpt-batch kind 的 tab 返回 null —— 每种 kind 的渲染由各自插件负责。
- * 文件分区与居中占位拆至 BatchFileSection.tsx(文件规模铁则)。
+ * 文件分区与居中占位拆至 BatchFileSection.tsx,工具条/确认条/消息卡拆至
+ * batchSheetParts.tsx(no-high-complexity 降分支 + 文件规模铁则)。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, CircleNotch, ArrowCounterClockwise } from "@phosphor-icons/react";
+import { CircleNotch } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
-import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
 import { t } from "@kernel/i18n";
 import type { CkptBatch } from "@kernel/ipc";
 import { approveBatch, getCachedDiff, loadDiff, refreshBatches, refreshOpenDiff, revertBatch, useCkptVersion, useCkptBatches } from "./store";
 import { readBatchPayload } from "./batchTab";
-import { extractPromptImages, PromptImages } from "./PromptImages";
+import { extractPromptImages } from "./promptImagesExtract";
 import { Center, FileSections } from "./BatchFileSection";
-
-/** 轮耗时短语(锚点 → 封口);秒取整,分段到时。 */
-function formatDuration(ms: number): string {
-  const s = Math.round(ms / 1000);
-  if (s < 60) return t("{s} 秒", { s });
-  const m = Math.floor(s / 60);
-  if (m < 60) return t("{m} 分 {s} 秒", { m, s: s % 60 });
-  return t("{h} 小时 {m} 分", { h: Math.floor(m / 60), m: m % 60 });
-}
+import { SheetConfirmBar, SheetPromptCard, SheetToolbar } from "./batchSheetParts";
 
 export function BatchSheetTabContent({ tab }: { tab: EditorTab }) {
   const payload = readBatchPayload(tab);
@@ -145,85 +137,27 @@ function SheetBody({
   }
 
   const revertable = batch.files.filter((f) => f.live === "same" && !f.noBaseline);
-  const stateLabel = batch.open
-    ? t("进行中")
-    : batch.state === "done"
-      ? t("已处理 · {reason}", { reason: t(batch.doneReason ?? "") })
-      : batch.state === "approved"
-        ? t("已通过")
-        : batch.state === "reverted"
-          ? t("已退")
-          : t("待审");
 
   return (
     <div className="flex h-full flex-col">
       {/* 工具条 */}
-      <div className="flex h-8 flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-3">
-        <span
-          className="text-[0.6875rem] text-(--tmd-fg-faint)"
-          title={batch.tsEnd
-            ? t("{start} 发起 · {end} 封口", { start: formatAbsolute(batch.ts), end: formatAbsolute(batch.tsEnd) })
-            : t("{start} 发起", { start: formatAbsolute(batch.ts) })}
-        >
-          {t("批次 #{index} · {state} · {time}", { index: batch.index, state: stateLabel, time: formatRelativeTime(batch.ts) })}
-        </span>
-        {patches && (
-          <span className="font-mono text-[0.6875rem]">
-            <span className="text-(--tmd-diff-inserted)">
-              +{patches.reduce((s, p) => s + p.additions, 0)}
-            </span>{" "}
-            <span className="text-(--tmd-diff-removed)">
-              −{patches.reduce((s, p) => s + p.deletions, 0)}
-            </span>
-          </span>
-        )}
-        <span className="flex-1" />
-        {batch.state === "pending" && (
-          <button
-            type="button"
-            disabled={busy}
-            className="flex h-6 items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-[0.6875rem] text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
-            title={t("标记本批已审阅(纯标记,不影响任何文件)")}
-            onClick={() => void doApprove()}
-          >
-            <Check size="0.625rem" aria-hidden /> {t("通过")}
-          </button>
-        )}
-        {(batch.state === "pending" || batch.state === "approved") && revertable.length > 0 && (
-          <button
-            type="button"
-            disabled={busy}
-            className="flex h-6 items-center gap-1 rounded border border-[rgba(167,139,250,.4)] px-2 text-[0.6875rem] text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
-            onClick={() => setConfirmPath("all")}
-          >
-            <ArrowCounterClockwise size="0.625rem" aria-hidden /> {t("回退整批({n})", { n: revertable.length })}
-          </button>
-        )}
-      </div>
+      <SheetToolbar
+        batch={batch}
+        patches={patches}
+        busy={busy}
+        revertableCount={revertable.length}
+        onApprove={() => void doApprove()}
+        onRevertAll={() => setConfirmPath("all")}
+      />
 
       {confirmPath && (
-        <div className="flex flex-none items-center gap-3 border-b border-(--tmd-border-strong) bg-(--tmd-bg-popover) px-3 py-1.5 text-[0.6875rem]">
-          <span className="text-(--tmd-fg-muted)">
-            {t("确认回退{target}? 恢复点自动留存。", {
-              target: confirmPath === "all" ? t("整批({n} 文件)", { n: revertable.length }) : confirmPath,
-            })}
-          </span>
-          <button
-            type="button"
-            className="rounded border border-(--tmd-border) px-2 py-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
-            onClick={() => setConfirmPath(null)}
-          >
-            {t("取消")}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            className="rounded border border-[rgba(167,139,250,.5)] px-2 py-0.5 text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
-            onClick={() => void doRevert(confirmPath === "all" ? undefined : [confirmPath])}
-          >
-            {t("确认回退")}
-          </button>
-        </div>
+        <SheetConfirmBar
+          target={confirmPath}
+          revertableCount={revertable.length}
+          busy={busy}
+          onCancel={() => setConfirmPath(null)}
+          onConfirm={() => void doRevert(confirmPath === "all" ? undefined : [confirmPath])}
+        />
       )}
 
       {/* 审阅单 */}
@@ -234,38 +168,7 @@ function SheetBody({
           </div>
         ) : (
           <>
-            {/* 账本随批固化的元信息:引擎/模型/思考 + 精确时刻 + 轮耗时(空段隐藏) */}
-            <div className="mb-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.6875rem] text-(--tmd-fg-faint)">
-              <span className="flex-none">{t("用户消息")}</span>
-              {batch.engine && (
-                <span className="flex-none rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) px-1 text-[0.625rem] leading-[1rem] text-(--tmd-fg-muted)">
-                  {batch.engine}
-                </span>
-              )}
-              {batch.model && (
-                <span className="flex-none font-mono text-(--tmd-fg-muted)">{batch.model}</span>
-              )}
-              {batch.thinking && (
-                <span className="flex-none">
-                  {t("思考")} <span className="font-mono text-(--tmd-fg-muted)">{batch.thinking}</span>
-                </span>
-              )}
-              <span className="flex-none">
-                {formatAbsolute(batch.ts)}
-                <span className="ml-1.5">({formatRelativeTime(batch.ts)})</span>
-              </span>
-              {batch.tsEnd != null && batch.tsEnd > batch.ts && (
-                <span className="flex-none">{t("耗时 {duration}", { duration: formatDuration(batch.tsEnd - batch.ts) })}</span>
-              )}
-            </div>
-            {/* 图片附件缩略图横排(点击放大);净文本为空(纯附件消息)不出文本块 */}
-            <PromptImages images={promptContent.images} />
-            {promptContent.text ? (
-              <div className="whitespace-pre-wrap break-words rounded-r border-l-2 border-(--tmd-accent) bg-(--tmd-bg-hover) px-3.5 py-2.5 text-[0.8125rem] leading-relaxed text-(--tmd-fg)">
-                {promptContent.text}
-              </div>
-            ) : null}
-
+            <SheetPromptCard batch={batch} prompt={promptContent} />
             <FileSections
               batch={batch}
               patches={patches}

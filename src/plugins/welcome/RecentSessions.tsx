@@ -37,6 +37,13 @@ async function scanWorkspace(
   items.sort((a, b) => b.session.modifiedAt - a.session.modifiedAt);
   return { workspace, items: items.slice(0, SESSIONS_PER_WORKSPACE) };
 }
+/** 点击会话 → host.openDiskSession 直接续上(无组件捕获,模块级纯函数)。 */
+async function openSession(profile: CliProfile, workspace: Workspace, session: CliDiskSession) {
+  const title = session.title ?? session.id.slice(0, 8);
+  const meta = await host.openDiskSession(profile.id, workspace.root, workspace.id, session.id);
+  noteSessionTabTitle(meta.id, title);
+}
+
 
 export function RecentSessions() {
   useHost(); /* profile 注册完成后重扫 */
@@ -57,6 +64,7 @@ export function RecentSessions() {
     };
   }, [workspaces]);
 
+
   if (!groups || groups.length === 0) return null;
 
   return (
@@ -72,17 +80,7 @@ export function RecentSessions() {
               key={`${profile.id}:${session.id}`}
               type="button"
               className="welcome-session-row"
-              onClick={() => {
-                const title = session.title ?? session.id.slice(0, 8);
-                void host
-                  .openDiskSession(
-                    profile.id,
-                    group.workspace.root,
-                    group.workspace.id,
-                    session.id,
-                  )
-                  .then((meta) => noteSessionTabTitle(meta.id, title));
-              }}
+              onClick={() => void openSession(profile, group.workspace, session)}
             >
               <span className="welcome-session-icon" aria-hidden>
                 {profile.renderIcon?.(14)}

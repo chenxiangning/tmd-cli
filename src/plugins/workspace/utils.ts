@@ -4,6 +4,15 @@ import type { SessionMeta } from "@kernel/ipc";
 /** 0 配额组「更多...」首击的展开步长(正配额组从配额值起翻倍:quota → 2× → 4×)。 */
 export const PAGE_INITIAL = 10;
 
+/** 新建会话菜单定位:以点击点为左上,按估算尺寸在视口内夹取(codemoss 同款)。
+ *  供 SessionMenu/SessionContextMenu 与 index.tsx 的 ⌘T 入口共用。 */
+export function clampMenuPosition(x: number, y: number): { x: number; y: number } {
+  return {
+    x: Math.min(x, window.innerWidth - 328 - 12),
+    y: Math.min(y, window.innerHeight - 420 - 12),
+  };
+}
+
 /**
  * 活会话列表比较器:完成未读置顶,其余按 spawn 时间倒序。
  * 排序键必须是稳定身份(createdAt),绝不能用 lastActivityAt —— 它随每个输出

@@ -25,6 +25,7 @@ import { host } from "@kernel/host";
 import { composerSendTransforms, composerWakeRef } from "@kernel/composerExt";
 import { t } from "@kernel/i18n";
 import { useComposerStage } from "@kernel/composerStage";
+import { useComposerTriggers } from "./useComposerTriggers";
 import { useComposerAttachments } from "./useComposerAttachments";
 import { emitPromptSent, readPromptGate } from "../promptGate";
 import { Mounts } from "@kernel/Mounts";
@@ -44,11 +45,7 @@ import { useAttachDragProps, usePopupAnchor } from "./composerChrome";
 import { AnchorRail } from "./AnchorRail";
 import { clearAttachments } from "../state/attachments";
 import { useComposerDrawer } from "./useComposerDrawer";
-import { useComposerTriggers } from "./useComposerTriggers";
-
-/* composer.send 命令桥 —— 发送闭包长在组件实例上,命令 run 经此触达
-   (TerminalView findRequestRef 先例:命令注册在插件 activate 期,实例经模块级 ref 交接) */
-export const composerSendRef: { current: (() => void) | null } = { current: null };
+import { composerSendRef } from "./composerSendRef";
 
 export function Composer() {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -207,12 +204,12 @@ export function Composer() {
             const composing = e.nativeEvent.isComposing;
             if (e.key === "ArrowDown" && matches && !composing) {
               e.preventDefault();
-              setPickIndex((i) => (matches.length ? (i + 1) % matches.length : 0));
+              setPickIndex((i: number) => (matches.length ? (i + 1) % matches.length : 0));
               return;
             }
             if (e.key === "ArrowUp" && matches && !composing) {
               e.preventDefault();
-              setPickIndex((i) => (matches.length ? (i - 1 + matches.length) % matches.length : 0));
+              setPickIndex((i: number) => (matches.length ? (i - 1 + matches.length) % matches.length : 0));
               return;
             }
             if (matches && !composing) {
@@ -287,6 +284,7 @@ export function Composer() {
       </div>
       {previewSrc && (
         <div
+          role="presentation"
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm"
           onClick={() => setPreviewSrc(null)}
         >

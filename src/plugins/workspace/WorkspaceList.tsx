@@ -59,29 +59,28 @@ export function WorkspaceList({
   return (
     <>
       {grouped.ungrouped.map(renderCard)}
-      {grouped.named
-        .filter(({ workspaces }) => workspaces.length > 0)
-        .map(({ group, workspaces }) => {
-          const collapsed = groupCollapsedMap[group.id] ?? false;
-          return (
-            <div className="ws-group" key={group.id}>
-              <button
-                type="button"
-                className="ws-group-header"
-                aria-expanded={!collapsed}
-                onClick={() => onToggleGroup(group.id)}
-              >
-                {collapsed ? (
-                  <CaretRight size="0.6875rem" aria-hidden />
-                ) : (
-                  <CaretDown size="0.6875rem" aria-hidden />
-                )}
-                <span className="ws-group-name">{group.name}</span>
-              </button>
-              {!collapsed && workspaces.map(renderCard)}
-            </div>
-          );
-        })}
+      {grouped.named.flatMap(({ group, workspaces }) => {
+        if (workspaces.length === 0) return [];
+        const collapsed = groupCollapsedMap[group.id] ?? false;
+        return [
+          <div className="ws-group" key={group.id}>
+            <button
+              type="button"
+              className="ws-group-header"
+              aria-expanded={!collapsed}
+              onClick={() => onToggleGroup(group.id)}
+            >
+              {collapsed ? (
+                <CaretRight size="0.6875rem" aria-hidden />
+              ) : (
+                <CaretDown size="0.6875rem" aria-hidden />
+              )}
+              <span className="ws-group-name">{group.name}</span>
+            </button>
+            {!collapsed && workspaces.map(renderCard)}
+          </div>,
+        ];
+      })}
     </>
   );
 }

@@ -12,7 +12,7 @@ import { createPortal } from "react-dom";
 import { Copy, Pencil, Trash } from "@phosphor-icons/react";
 import type { SessionPinScope } from "@kernel/sessionPins";
 import { t } from "@kernel/i18n";
-import { clampMenuPosition } from "./SessionMenu";
+import { clampMenuPosition } from "./utils";
 import { PinIcon } from "@kernel/PinIcon";
 
 export function SessionContextMenu({
@@ -70,8 +70,10 @@ export function SessionContextMenu({
 
   return createPortal(
     <>
+      {/* 透明背板:纯点外关闭(左键/右键皆关),role=presentation 豁免静态元素交互规则 */}
       <div
         className="wsmenu-backdrop"
+        role="presentation"
         onClick={onClose}
         onContextMenu={(e) => {
           e.preventDefault();

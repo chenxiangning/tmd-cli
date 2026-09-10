@@ -140,6 +140,18 @@ export const LocalImage = memo(function LocalImage({
       decoding="async"
       {...props}
       src={resolvedSrc}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                (onClick as unknown as (ev: React.KeyboardEvent<HTMLImageElement>) => void)(e);
+              }
+            }
+          : undefined
+      }
       onError={handleError}
       onLoad={handleLoad}
       onClick={onClick}

@@ -99,28 +99,37 @@ export function useComposerAttachments(
     /* token 聚合后单次插入:逐个 insertAtCursor 会基于同一次渲染的闭包 value
        连续 setValue,React 批处理下只剩最后一个 @path,其余附件被 token
        同步 effect 静默删除。 */
-    const tokens: string[] = [];
-    for (const f of accepted) {
-      try {
-        const buf = new Uint8Array(await f.arrayBuffer());
-        const path = await ipc.fsWriteTemp(f.name || "attachment", buf);
-        const kind = classifyAttachment(f.name, f.type);
-        let thumbDataUrl: string | null = null;
-        let previewDataUrl: string | null = null;
-        if (kind === "image") {
-          const thumb = await makeImageThumb(f);
-          if (thumb) {
-            thumbDataUrl = thumb.thumb;
-            previewDataUrl = thumb.full;
+    /* 各文件 IO(读 buffer/写临时盘/缩略图)互不依赖,并行执行;
+       addAttachment 的注册顺序有语义(附件条按它排序),移出并行段后在
+       flatMap 里按原顺序同步登记,顺序语义与串行版一致。 */
+    const prepared = await Promise.all(
+      accepted.map(async (f) => {
+        try {
+          const buf = new Uint8Array(await f.arrayBuffer());
+          const path = await ipc.fsWriteTemp(f.name || "attachment", buf);
+          const kind = classifyAttachment(f.name, f.type);
+          let thumbDataUrl: string | null = null;
+          let previewDataUrl: string | null = null;
+          if (kind === "image") {
+            const thumb = await makeImageThumb(f);
+            if (thumb) {
+              thumbDataUrl = thumb.thumb;
+              previewDataUrl = thumb.full;
+            }
           }
+          return { name: f.name, size: f.size, path, kind, thumbDataUrl, previewDataUrl };
+        } catch (err) {
+          /* 单文件失败不阻塞其余文件,与改造前行为对齐 */
+          console.warn("composer: 附件写入失败", f.name, err);
+          return null;
         }
-        const att = addAttachment({ path, name: f.name, size: f.size, kind, thumbDataUrl, previewDataUrl });
-        tokens.push(`@${att.path} `);
-      } catch (err) {
-        /* 单文件失败不阻塞其余文件,与改造前行为对齐 */
-        console.warn("composer: 附件写入失败", f.name, err);
-      }
-    }
+      }),
+    );
+    const tokens = prepared.flatMap((p) => {
+      if (!p) return [];
+      const att = addAttachment(p);
+      return [`@${att.path} `];
+    });
     if (tokens.length > 0) insert(tokens.join(""));
   }
 

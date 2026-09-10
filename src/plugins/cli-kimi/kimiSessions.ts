@@ -180,26 +180,32 @@ async function listModernKimiSessions(
   cwd: string,
 ): Promise<CliDiskSession[]> {
   const files = await ipc.fsCollectFiles(root, ".json").catch(() => []);
+  /* state.json 读取互不依赖,并发一次发出;单文件坏/读失败 catch 成 null 跳过,
+     容错语义不变;LIMIT 截断与落表保持 files 原序。 */
+  const probed = await Promise.all(
+    files.map(async (f) => {
+      const m = matchKimiStatePath(f.path);
+      if (!m) return null;
+      const text = await ipc.fsReadFile(f.path).catch(() => null);
+      const state = text ? parseKimiState(text) : null;
+      /* 归档会话 kimi 自己的 picker 也默认隐藏;cwd 缺失(首回合未落盘)= 还归属不明 */
+      if (!state || state.archived || !state.cwd || !sameDir(state.cwd, cwd)) return null;
+      return { m, modifiedAt: f.modifiedAt, state };
+    }),
+  );
   const sessions: CliDiskSession[] = [];
   const wirePaths = new Map(wirePathById);
-  for (const f of files) {
+  for (const hit of probed) {
+    if (!hit) continue;
     if (sessions.length >= KIMI_SCAN_LIMIT) break;
-    const m = matchKimiStatePath(f.path);
-    if (!m) continue;
-    const text = await ipc.fsReadFile(f.path).catch(() => null);
-    const state = text ? parseKimiState(text) : null;
-    /* 归档会话 kimi 自己的 picker 也默认隐藏;cwd 缺失(首回合未落盘)= 还归属不明 */
-    if (!state || state.archived || !state.cwd || !sameDir(state.cwd, cwd)) {
-      continue;
-    }
-    wirePaths.set(m.id, `${m.dir}/agents/main/wire.jsonl`);
+    wirePaths.set(hit.m.id, `${hit.m.dir}/agents/main/wire.jsonl`);
     sessions.push({
-      id: m.id,
-      modifiedAt: f.modifiedAt,
+      id: hit.m.id,
+      modifiedAt: hit.modifiedAt,
       /* path 约定"磁盘路径":kimi 会话是目录,CliDiskSession.path 指向目录,
          删除(fs_remove_path)按整目录删,与 CLI 自删的 rm -rf 语义一致 */
-      path: m.dir,
-      title: kimiStateTitle(state),
+      path: hit.m.dir,
+      title: kimiStateTitle(hit.state),
     });
   }
   wirePathById = wirePaths;
@@ -212,20 +218,29 @@ async function listLegacyKimiSessions(
   dirHash: string,
 ): Promise<CliDiskSession[]> {
   const files = await ipc.fsCollectFiles(root, ".jsonl").catch(() => []);
-  const sessions: CliDiskSession[] = [];
-  const wirePaths = new Map(wirePathById);
-  for (const f of files) {
+  const matched = files.flatMap((f) => {
     const m = f.path.match(
       /[\\/]([0-9a-f]{32})[\\/]([0-9a-f-]{36})[\\/]wire\.jsonl$/,
     );
-    if (!m || m[1] !== dirHash) continue;
+    return m && m[1] === dirHash
+      ? [{ id: m[2], hash: m[1], modifiedAt: f.modifiedAt, path: f.path }]
+      : [];
+  });
+  /* wire.jsonl 读头互不依赖,并发一次发出;单文件读失败 catch 成 ""(无标题),
+     容错语义不变;LIMIT 截断与落表保持 files 原序。 */
+  const heads = await Promise.all(
+    matched.map((entry) => ipc.fsReadHead(entry.path, 8 * 1024).catch(() => "")),
+  );
+  const sessions: CliDiskSession[] = [];
+  const wirePaths = new Map(wirePathById);
+  for (const [i, entry] of matched.entries()) {
     if (sessions.length >= KIMI_SCAN_LIMIT) break;
-    wirePaths.set(m[2], f.path);
-    const head = await ipc.fsReadHead(f.path, 8 * 1024).catch(() => "");
+    wirePaths.set(entry.id, entry.path);
+    const head = heads[i];
     sessions.push({
-      id: m[2],
-      modifiedAt: f.modifiedAt,
-      path: `${root}/${m[1]}/${m[2]}`,
+      id: entry.id,
+      modifiedAt: entry.modifiedAt,
+      path: `${root}/${entry.hash}/${entry.id}`,
       title: head ? extractKimiTitle(head) : undefined,
     });
   }

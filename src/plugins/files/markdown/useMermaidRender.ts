@@ -99,7 +99,7 @@ export function useMermaidRenderState({
     status: "idle",
   });
   const lastSuccessfulSvgRef = useRef<string | null>(null);
-  const idRef = useRef(createStableRuntimeId("file-mermaid"));
+  const [idPrefix] = useState(() => createStableRuntimeId("file-mermaid"));
 
   useEffect(() => {
     if (activeTab !== "render") {
@@ -135,7 +135,7 @@ export function useMermaidRenderState({
             "ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif",
         });
 
-        const id = `${idRef.current}-${hashStableString(renderCacheKey)}`;
+        const id = `${idPrefix}-${hashStableString(renderCacheKey)}`;
         // 渲染前给不安全的 flowchart 标签补引号;Source tab 保持原文。
         const renderSource = normalizeMermaidSource(value);
         const { svg } = await mermaid.render(id, renderSource);

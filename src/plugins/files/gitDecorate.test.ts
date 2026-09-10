@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildDecorationMap, mergeRepoStatusDecorations } from "./gitDecorate";
+import { buildDecorationMap, mergeRepoStatusDecorations } from "./gitDecorateModel";
 import type { GitFileStatus } from "@kernel/ipc";
 
 const ADDED = "text-(--tmd-git-tree-added)";

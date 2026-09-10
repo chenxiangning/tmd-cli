@@ -12,6 +12,11 @@ import { clearDragPayload, setDragPayload } from "@kernel/internalDrag";
 import { t } from "@kernel/i18n";
 import { resolveFileVisual } from "@kernel/fileVisual";
 
+/** 无论 drop 是否成功,结束都清 payload,防止跨拖拽残留(无捕获,提模块级)。 */
+function handleDragEnd() {
+  clearDragPayload();
+}
+
 export function FileTreeRow({
   entry,
   depth,
@@ -46,10 +51,6 @@ export function FileTreeRow({
     /* 兜底:也写 text/plain,允许拖到外部应用 */
     e.dataTransfer.setData("text/plain", entry.path);
     setDragPayload({ path: entry.path, isDir: entry.isDir, name: entry.name });
-  }
-  function handleDragEnd() {
-    /* 无论 drop 是否成功,结束都清 payload,防止跨拖拽残留 */
-    clearDragPayload();
   }
 
   return (

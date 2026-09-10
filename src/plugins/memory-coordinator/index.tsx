@@ -12,7 +12,7 @@
 import { Brain } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { MemoryPanel } from "./panel/MemoryPanel";
-import { MemoryConsole, openConsoleTab } from "./console/MemoryConsole";
+import { MemoryConsole } from "./console/MemoryConsole";
 import { MemoryCapsule } from "./capsule/MemoryCapsule";
 import { attachAutoDistill } from "./phase2/autoDistill";
 
@@ -52,5 +52,3 @@ export const memoryCoordinatorPlugin: Plugin = {
     detachAutoDistill = null;
   },
 };
-
-export { openConsoleTab };

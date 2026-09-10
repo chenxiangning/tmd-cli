@@ -5,7 +5,7 @@
  */
 
 import { t } from "@kernel/i18n";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useEffectEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 export function GitDialogShell({
@@ -29,27 +29,37 @@ export function GitDialogShell({
   children: ReactNode;
   footer: ReactNode;
 }) {
+  /* Esc 关闭(locked 时忽略);onClose 包 useEffectEvent:父层每轮重建回调
+     不该触发重订阅,effect 内永远读最新引用。 */
+  const onEscClose = useEffectEvent(() => onClose());
   useEffect(() => {
     if (locked) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onEscClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [locked, onClose]);
+  }, [locked]);
 
+  /* 自制弹层换原生 dialog(非模态 open,不调 showModal,保留原 Esc/点背板关闭):
+     两段式 —— 外层 role=presentation 遮罩 div 承担点背板关闭(target===currentTarget
+     判定,a11y 规则认可的 backdrop-dismiss 写法),内层 <dialog> 卡片无鼠标处理器;
+     relative + m-0 + max-w/h-none 中和 UA 的 absolute 定位/居中 margin/最大尺寸;
+     原手写 role=dialog/aria-modal 删除(原生隐含)。 */
   return createPortal(
     <div
+      role="presentation"
       className="fixed inset-0 z-1000 flex items-start justify-center overflow-auto bg-black/60 p-6"
-      onClick={locked ? undefined : onClose}
+      onClick={(e) => {
+        if (locked) return;
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
+      <dialog
+        open
         aria-label={title}
         style={{ width }}
-        className="max-w-[calc(100vw-48px)] rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-4 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        className="relative m-0 h-fit max-h-none max-w-[calc(100vw-48px)] rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-4 text-left text-(--tmd-fg) shadow-2xl"
       >
         <div className="flex items-center gap-1.5 text-xs font-semibold text-(--tmd-fg)">
           {icon}
@@ -58,7 +68,7 @@ export function GitDialogShell({
         </div>
         {children}
         {footer}
-      </div>
+      </dialog>
     </div>,
     document.body,
   );

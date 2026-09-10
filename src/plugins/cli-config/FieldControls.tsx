@@ -1,60 +1,23 @@
 /**
  * cli-config 复合控件:密钥显隐 / 键值映射表(modelMap) / 有序串链(orderedList)。
  * 全部下拉走 StyledSelect;modelMap 值列在 field.catalog 存在时升级 ModelPicker;
- * 回退链(multi)候选渲染在 ChainPicker.tsx。
+ * 回退链(multi)候选渲染在 ChainPicker.tsx;纯函数/钩子在 FieldControlsModel.ts。
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowDown, ArrowUp, Eye, EyeClosed, Plus, Trash } from "@phosphor-icons/react";
-import type {
-  CliConfigField,
-  CliConfigValues,
-  CliModelCatalogProvider,
-  CliSelectOption,
-} from "@kernel/cliConfigRegistry";
+import type { CliConfigField, CliConfigValues } from "@kernel/cliConfigRegistry";
 import { StyledSelect } from "@kernel/StyledSelect";
 import { t } from "@kernel/i18n";
-import { ModelPicker, splitModelValue } from "./ModelPicker";
+import { ModelPicker } from "./ModelPicker";
 import { ChainPicker } from "./ChainPicker";
-
-export const strVal = (v: CliConfigValues[string] | undefined): string =>
-  typeof v === "string" ? v : "";
-
-/** 候选规整为 StyledSelect 选项(字符串 → {value};函数版收当前表单值)。 */
-export function toOptions(
-  options: CliConfigField["options"],
-  values?: CliConfigValues,
-): CliSelectOption[] {
-  const resolved =
-    typeof options === "function" ? options(values ?? {}) : (options ?? []);
-  return (Array.isArray(resolved) ? resolved : []).map((o) =>
-    typeof o === "string" ? { value: o } : o,
-  );
-}
-
-export function withCurrent(options: CliSelectOption[], current: string): CliSelectOption[] {
-  const has = (o: CliSelectOption) => (typeof o === "string" ? o : o.value) === current;
-  return current && !options.some(has) ? [{ value: current }, ...options] : options;
-}
-
-/** StyledSelect 入参规整(联合 → 纯对象)。 */
-export const normOptions = (list: CliSelectOption[]): { value: string; label?: string; hint?: string }[] =>
-  list.map((o) => (typeof o === "string" ? { value: o } : o));
-
-/** field.catalog 加载钩子:每表单实例一次。 */
-export function useCatalog(field: CliConfigField): CliModelCatalogProvider[] | null {
-  const [catalog, setCatalog] = useState<CliModelCatalogProvider[] | null>(null);
-  useEffect(() => {
-    if (!field.catalog) return;
-    let cancelled = false;
-    void field.catalog().then((c) => {
-      if (!cancelled) setCatalog(c);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [field]);
-  return field.catalog ? catalog : null;
-}
+import {
+  normOptions,
+  rowKey,
+  strVal,
+  toOptions,
+  useCatalog,
+  withCurrent,
+} from "./FieldControlsModel";
 
 /** 密钥输入:默认掩码,眼睛切换明文。 */
 export function SecretInput({
@@ -74,6 +37,7 @@ export function SecretInput({
         type={show ? "text" : "password"}
         className="cli-cfg-input"
         value={value}
+        aria-label={t("密钥")}
         autoComplete="off"
         onChange={(e) => onChange(e.target.value)}
       />
@@ -102,6 +66,7 @@ export function ModelMapInput({
   values: CliConfigValues;
 }) {
   const catalog = useCatalog(field);
+  const seen = new Map<string, number>();
   const patch = (i: number, row: [string, string]) =>
     onSet(value.map((r, j) => (j === i ? row : r)));
   return (
@@ -135,7 +100,7 @@ export function ModelMapInput({
         /* multi(回退链):角色一行、候选若干行、添加候选收尾 —— 纵向分组对齐 */
         if (field.multi) {
           return (
-            <div key={`${k}:${i}`} className="cli-cfg-kv-group">
+            <div key={rowKey(k, seen)} className="cli-cfg-kv-group">
               <div className="cli-cfg-kv-head">
                 {keyCtl}
                 {delBtn}
@@ -150,7 +115,7 @@ export function ModelMapInput({
           );
         }
         return (
-          <div key={`${k}:${i}`} className="cli-cfg-kv-row">
+          <div key={rowKey(k, seen)} className="cli-cfg-kv-row">
             {keyCtl}
             {field.catalog ? (
               <ModelPicker
@@ -171,6 +136,7 @@ export function ModelMapInput({
               <input
                 className="cli-cfg-input"
                 value={raw}
+                aria-label={t("值")}
                 onChange={(e) => patch(i, [k, e.target.value])}
               />
             )}
@@ -207,11 +173,12 @@ export function OrderedListInput({
     [next[i], next[j]] = [next[j], next[i]];
     onSet(next);
   };
+  const seen = new Map<string, number>();
   const candidates = toOptions(field.options);
   return (
     <div className="cli-cfg-kv">
       {value.map((item, i) => (
-        <div key={`${item}:${i}`} className="cli-cfg-kv-row">
+        <div key={rowKey(item, seen)} className="cli-cfg-kv-row">
           {field.options ? (
             <StyledSelect
               value={item}
@@ -222,6 +189,7 @@ export function OrderedListInput({
             <input
               className="cli-cfg-input"
               value={item}
+              aria-label={t("候选")}
               onChange={(e) => patch(i, e.target.value)}
             />
           )}
@@ -264,4 +232,3 @@ export function OrderedListInput({
     </div>
   );
 }
-export { splitModelValue };

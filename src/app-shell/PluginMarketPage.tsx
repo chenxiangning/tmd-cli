@@ -21,8 +21,14 @@ import { updateSettings, useSettingsState } from "@kernel/settings";
 import { useLocalPluginRecords } from "@kernel/localPlugins";
 import { appRestart } from "@kernel/ipc";
 import { Mounts } from "@kernel/Mounts";
-import { CATEGORY_ORDER, MergedStrip, type Row } from "./PluginMarketStrip";
+import { CATEGORY_ORDER } from "./pluginMarketCategories";
+import { MergedStrip, type Row } from "./PluginMarketStrip";
 import { PluginMarketList } from "./PluginMarketList";
+
+/* Tauri 环境进程替换不返回;浏览器 dev invoke 抛错 → 降级整页刷新(同样重走 activateAll 过滤)。 */
+function restart() {
+  void appRestart().catch(() => window.location.reload());
+}
 
 export function PluginMarketPage({ onClose }: { onClose: () => void }) {
   /* 启动态清单:activateAll 完成后不再变化,取一次快照即可。 */
@@ -39,11 +45,11 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
     const on = !disabled.has(plugin.id);
     return { plugin, on, dirty: on !== enabled };
   });
-  /* 按分类分排:固定顺序,空类不渲染(防御:现网三类均非空)。 */
-  const groups = CATEGORY_ORDER.map((category) => ({
-    category,
-    rows: rows.filter((r) => r.plugin.meta.category === category),
-  })).filter((g) => g.rows.length > 0);
+  /* 按分类分排:固定顺序,空类不渲染(防御:现网三类均非空);单趟 flatMap 产出。 */
+  const groups = CATEGORY_ORDER.flatMap((category) => {
+    const groupRows = rows.filter((r) => r.plugin.meta.category === category);
+    return groupRows.length > 0 ? [{ category, rows: groupRows }] : [];
+  });
   /* 内置/本机拆两块插排:local 类单独拎出(本机插件插排),插拔语义不变。 */
   const builtinGroups = groups.filter((g) => g.category !== "local");
   const localGroups = groups.filter((g) => g.category === "local");
@@ -64,8 +70,6 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [market]);
 
-  /* Tauri 环境进程替换不返回;浏览器 dev invoke 抛错 → 降级整页刷新(同样重走 activateAll 过滤)。 */
-  const restart = () => void appRestart().catch(() => window.location.reload());
 
   function showToast(text: string) {
     setToast(text);
@@ -194,15 +198,19 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
 
       {/* ═══ 二级市场滑出面板:壳只管开合/遮罩,内容全由注册插件贡献 ═══ */}
       {market ? (
-        <div className="pm-ext-layer" onClick={() => setMarketFor(null)}>
-          <aside
-            className="pm-ext-panel"
-            role="dialog"
+        <div className="pm-ext-layer" role="presentation" onClick={() => setMarketFor(null)}>
+          {/* 自制弹层换原生 dialog(非模态 open,不调 showModal,保留原 ESC/点外关闭);
+              relative 压住 UA 的 position:absolute(否则脱离 flex 右贴布局),
+              m-0 p-0 border-0 中和 UA 默认边距/留白/边框,.pm-ext-panel 自身的
+              border-left 等声明优先级更高不受影响。 */}
+          <dialog
+            open
+            className="pm-ext-panel relative m-0 p-0 border-0"
             aria-label={market.title}
             onClick={(e) => e.stopPropagation()}
           >
             <market.component onClose={() => setMarketFor(null)} />
-          </aside>
+          </dialog>
         </div>
       ) : null}
     </div>

@@ -13,13 +13,9 @@ import { useSettingsState } from "@kernel/settings";
 import { assignToGroup } from "./groups";
 import { ArrowClockwise, Check, PencilSimple, Trash } from "@phosphor-icons/react";
 
-/** 新建会话菜单定位:以点击点为左上,按估算尺寸在视口内夹取(codemoss 同款)。 */
-export function clampMenuPosition(x: number, y: number): { x: number; y: number } {
-  return {
-    x: Math.min(x, window.innerWidth - 328 - 12),
-    y: Math.min(y, window.innerHeight - 420 - 12),
-  };
-}
+
+/* 菜单定位夹取函数 clampMenuPosition 已迁至 ./utils(only-export-components:
+ * 组件文件只导出组件),消费方:index.tsx / SessionContextMenu.tsx。 */
 
 /**
  * 新建会话下拉菜单(codemoss SidebarWorkspaceMenuOverlay 复刻):
@@ -58,7 +54,8 @@ export function SessionMenuOverlay({
 
   return createPortal(
     <>
-      <div className="wsmenu-backdrop" onClick={onClose} />
+      {/* 透明背板:纯点外关闭,role=presentation 豁免静态元素交互规则 */}
+      <div className="wsmenu-backdrop" role="presentation" onClick={onClose} />
       <div className="wsmenu" style={{ left: position.x, top: position.y }}>
         <div className="wsmenu-group-title">{t("新建会话")}</div>
         {profiles.map((p) => (

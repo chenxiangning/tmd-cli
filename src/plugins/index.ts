@@ -12,7 +12,7 @@ import { cliPiPlugin } from "./cli-pi";
 import { cliKimiPlugin } from "./cli-kimi";
 import { cliQoderPlugin } from "./cli-qoder";
 import { cliQoderCnPlugin } from "./cli-qoder-cn";
-import { cliDshPlugin } from "./cli-dsh";
+import { cliDshPlugin } from "./cli-dsh/plugin";
 import { cliOpencodePlugin } from "./cli-opencode";
 import { composerPlugin } from "./composer";
 import { filesPlugin } from "./files";

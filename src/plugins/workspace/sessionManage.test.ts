@@ -5,7 +5,7 @@
  * - from > to(向上拖)与越界下标(行集收缩后的陈旧锚点)均确定性行事
  */
 import { describe, expect, it } from "vitest";
-import { selectRange } from "./SessionManage";
+import { selectRange } from "./selectRange";
 
 const ORDER = ["a", "b", "c", "d", "e"];
 

@@ -5,72 +5,13 @@
  * 检索增强(sidekick);embedding 为上游默认,未造开关。
  * 模型选择:下拉数据来自 `omp models list --json` 拉取(关联数据,用户免填);
  * 列表不可用时降级手动输入。jsonc 剥注释解析,写回保持 per-harness 形态。
+ * 读/序列化/文件读写拆至 engineConfigModel.ts(only-export-components 铁则)。
  */
 
 import { useEffect, useState } from "react";
-import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
-import { engineConfigPath } from "../paths";
-// cli-shared 消费声明:本 feature 插件经共享层消费 CLI 配置 JSONC 格式知识(见 jsonc.ts 头注)。
-import { parseJsoncOrNull } from "../../cli-shared/jsonc";
+import type { EngineConfig } from "./engineConfigModel";
 import { listModels, type ModelEntry } from "../modelCatalog";
-
-export interface EngineConfig {
-  historianModel: string;
-  dreamerModel: string;
-  sidekickModel: string;
-  sidekickEnabled: boolean;
-  embeddingEnabled: boolean;
-}
-
-function pickModel(block: unknown): string {
-  if (block && typeof block === "object") {
-    const omp = (block as Record<string, unknown>).omp as Record<string, unknown> | undefined;
-    const pi = (block as Record<string, unknown>).pi as Record<string, unknown> | undefined;
-    const any = (omp ?? pi) as Record<string, unknown> | undefined;
-    return typeof any?.model === "string" ? any.model : "";
-  }
-  return "";
-}
-
-export function readEngineConfig(raw: Record<string, unknown> | null): EngineConfig {
-  return {
-    historianModel: pickModel(raw?.historian),
-    dreamerModel: pickModel(raw?.dreamer),
-    sidekickModel: pickModel(raw?.sidekick),
-    sidekickEnabled: raw?.sidekick !== undefined,
-    embeddingEnabled: true,
-  };
-}
-
-/** 引擎配置 → 可写回的 jsonc 文本(per-harness:pi 为基座,omp 回退 pi,opencode 独立)。 */
-export function serializeEngineConfig(config: EngineConfig, original: string | null): string {
-  const base = parseJsoncOrNull(original ?? "") ?? {};
-  const withModel = (block: unknown, model: string): unknown => ({
-    ...(typeof block === "object" && block ? (block as Record<string, unknown>) : {}),
-    pi: { ...(((block as Record<string, unknown>)?.pi as object) ?? {}), model },
-    omp: { ...(((block as Record<string, unknown>)?.omp as object) ?? {}), model },
-    opencode: { model },
-  });
-  base.historian = withModel(base.historian, config.historianModel);
-  base.dreamer = withModel(base.dreamer, config.dreamerModel);
-  if (config.sidekickEnabled) base.sidekick = withModel(base.sidekick, config.sidekickModel);
-  return JSON.stringify(base, null, 2) + "\n";
-}
-
-export async function readEngineConfigFile(): Promise<{ config: EngineConfig; original: string }> {
-  const p = await engineConfigPath();
-  const original = await ipc.fsReadFile(p).catch(() => "");
-  return { config: readEngineConfig(parseJsoncOrNull(original)), original };
-}
-
-export async function writeEngineConfigFile(
-  config: EngineConfig,
-  original: string | null,
-): Promise<void> {
-  const p = await engineConfigPath();
-  await ipc.fsWriteFile(p, serializeEngineConfig(config, original));
-}
 
 const inputCls =
   "h-7 flex-1 min-w-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 font-mono text-[0.6875rem] text-(--tmd-fg) outline-none focus:border-(--tmd-accent)";
@@ -89,11 +30,13 @@ function ModelSelect({
   value,
   models,
   loading,
+  ariaLabel,
   onChange,
 }: {
   value: string;
   models: ModelEntry[];
   loading: boolean;
+  ariaLabel: string;
   onChange: (v: string) => void;
 }) {
   const [manual, setManual] = useState(false);
@@ -109,14 +52,14 @@ function ModelSelect({
         <span className="truncate text-[0.65625rem] text-(--tmd-fg-subtle)" title={t("无法拉取模型列表(检查 omp 是否可用),仍可手动填写 selector")}>
           {t("无法拉取模型列表(检查 omp 是否可用),仍可手动填写 selector")}
         </span>
-        <input className={inputCls} value={value} onChange={(e) => onChange(e.target.value)} />
+        <input className={inputCls} value={value} aria-label={ariaLabel} onChange={(e) => onChange(e.target.value)} />
       </div>
     );
   }
   return (
     <div className="flex flex-1 min-w-0 flex-col gap-1">
       {showSelect ? (
-        <select className={`${selectCls} cursor-pointer`} value={value} onChange={(e) => onChange(e.target.value)}>
+        <select className={`${selectCls} cursor-pointer`} value={value} aria-label={ariaLabel} onChange={(e) => onChange(e.target.value)}>
           {value && !inList && <option value={value}>{t("{model}(当前)", { model: value })}</option>}
           {models.map((m) => (
             <option key={m.selector} value={m.selector}>
@@ -127,7 +70,7 @@ function ModelSelect({
           ))}
         </select>
       ) : (
-        <input className={inputCls} value={value} onChange={(e) => onChange(e.target.value)} />
+        <input className={inputCls} value={value} aria-label={ariaLabel} onChange={(e) => onChange(e.target.value)} />
       )}
       <button
         className="flex-none self-start text-[0.625rem] text-(--tmd-fg-faint) hover:text-(--tmd-fg-muted)"
@@ -171,11 +114,12 @@ export function EngineConfigCard({
         value={config[key]}
         models={models}
         loading={modelsLoading}
+        ariaLabel={label}
         onChange={(v) => onChange({ ...config, [key]: v })}
       />
     </div>
   );
-    return (
+  return (
     <div className="rounded-lg border border-(--tmd-border) bg-(--tmd-bg-elevated) p-3">
       <div className="mb-0.5 text-[0.71875rem] font-semibold">{t("引擎(上游模型分工)")}</div>
       <div className="mb-2 text-[0.625rem] text-(--tmd-fg-faint)">
@@ -189,7 +133,11 @@ export function EngineConfigCard({
             {t("检索增强")} <span className="block text-[0.59375rem] text-(--tmd-fg-faint)">{t("sidekick · omp 会话内 /ctx-aug")}</span>
           </span>
           <div className="flex flex-none flex-col gap-1">
-            <button className={toggle(config.sidekickEnabled)} onClick={() => onChange({ ...config, sidekickEnabled: !config.sidekickEnabled })}>
+            <button
+              className={toggle(config.sidekickEnabled)}
+              aria-label={t("检索增强")}
+              onClick={() => onChange({ ...config, sidekickEnabled: !config.sidekickEnabled })}
+            >
               <span className={knob(config.sidekickEnabled)} />
             </button>
           </div>
@@ -199,6 +147,7 @@ export function EngineConfigCard({
                 value={config.sidekickModel}
                 models={models}
                 loading={modelsLoading}
+                ariaLabel={t("检索增强")}
                 onChange={(v) => onChange({ ...config, sidekickModel: v })}
               />
             </div>

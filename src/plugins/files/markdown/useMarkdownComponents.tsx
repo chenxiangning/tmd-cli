@@ -17,12 +17,12 @@ import { openExternalUrl } from "@kernel/ipc";
 import { openFileInTab } from "../openFile";
 import { t } from "@kernel/i18n";
 import {
-  extractLanguageTag,
   FileMarkdownCodeBlock,
   FileMarkdownMathBlock,
   FileMarkdownTableBlock,
   LazyMarkdownHeavyBlock,
 } from "./markdownBlocks";
+import { extractLanguageTag } from "./languageTag";
 import { FileMarkdownMermaidBlock } from "./MermaidBlock";
 import { LocalImage } from "./LocalImage";
 import { resolveImageRenderSource, resolveMarkdownLinkTarget } from "./markdownImages";

@@ -7,9 +7,10 @@
  *   phase "done:ok" → 重探 + 收尾;"done:fail" → 红字收尾,日志保留可翻。
  * - 前置依赖(profile.requires,如 omp → bun):依赖未就位时主引擎的
  *   安装/更新按钮禁用,卡片内引导先装依赖(独立安装日志);依赖探针 ok 后恢复。
+ * 探针动作拆至 engineProbe.ts,头部 pills/动作簇拆至 EngineCardParts.tsx
+ * (only-export-components + no-high-complexity 降分支)。
  */
 import { useCallback, useRef, useState } from "react";
-import { XCircle, ArrowSquareOut, ArrowClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import {
   ipc,
@@ -23,6 +24,7 @@ import type { EngineMeta } from "./engineMeta";
 import { isOutdated } from "./latestVersion";
 import { InstallLog } from "./InstallLog";
 import { PrerequisiteGuide } from "./PrerequisiteGuide";
+import { EngineActions, EngineHead, EngineStatusPills } from "./EngineCardParts";
 
 /** 日志滚动上限(行)。npm 全量输出数千行,只留尾部。 */
 const LOG_LINE_LIMIT = 200;
@@ -83,98 +85,20 @@ export function EngineCard({
 
   return (
     <section className="welcome-engine-card">
-      <header className="welcome-engine-head">
-        <span className="welcome-engine-icon" aria-hidden>
-          {profile?.renderIcon ? profile.renderIcon("1.375rem") : <XCircle size="1.375rem" />}
-        </span>
-        <span className="welcome-engine-name">{t(meta.displayName)}</span>
-        {meta.docsUrl && (
-          <a
-            className="welcome-engine-docs"
-            href={meta.docsUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t("官方文档")}
-            <ArrowSquareOut size="0.6875rem" aria-hidden />
-          </a>
-        )}
-        <span className="welcome-engine-status">
-          {probe.status === "loading" && (
-            <span className="welcome-pill is-loading">{t("探针中…")}</span>
-          )}
-          {probe.status === "ok" && (
-            <span className="welcome-pill">
-              {probe.result?.version ?? t("已安装")}
-            </span>
-          )}
-          {probe.status === "ok" && typeof latest === "string" && outdated && (
-            <span
-              className="welcome-pill is-outdated"
-              title={t('最新版本 {version},点"更新"升级', { version: latest })}
-            >
-              → {latest}
-            </span>
-          )}
-          {probe.status === "ok" && typeof latest === "string" && !outdated && (
-            <span className="welcome-pill is-latest" title={t("最新版本 {version}", { version: latest })}>
-              {t("已是最新")}
-            </span>
-          )}
-          {probe.status === "notFound" && (
-            <span className="welcome-pill is-missing">{t("未安装")}</span>
-          )}
-          {probe.status === "error" && (
-            <span className="welcome-pill is-error">{t("探针失败")}</span>
-          )}
-        </span>
-        <span className="welcome-engine-actions">
-          {probe.status === "notFound" && !install.running && meta.plan && (
-            <button
-              type="button"
-              className="welcome-install-btn"
-              onClick={onInstall}
-              disabled={depBlocked}
-              title={depBlocked ? t("先安装 {name}", { name: depName }) : undefined}
-            >
-              {t("安装")}
-            </button>
-          )}
-          {probe.status === "ok" && install.ok !== true && meta.plan && (
-            <button
-              type="button"
-              className={
-                outdated ? "welcome-icon-btn has-update" : "welcome-icon-btn"
-              }
-              onClick={onInstall}
-              disabled={install.running || depBlocked}
-              title={
-                depBlocked
-                  ? t("先安装 {name}", { name: depName })
-                  : outdated
-                    ? t("更新到 {version}", { version: latest })
-                    : t("重新安装/更新到最新版")
-              }
-            >
-              {t("更新")}
-            </button>
-          )}
-          <button
-            type="button"
-            className="welcome-icon-btn"
-            onClick={onProbe}
-            disabled={probe.status === "loading" || install.running}
-            aria-label={t("重新探针")}
-            title={t("重新探针")}
-          >
-            <ArrowClockwise
-              size="0.75rem"
-              aria-hidden
-              className={probe.status === "loading" ? "is-spinning" : ""}
-            />
-          </button>
-        </span>
-      </header>
+      <EngineHead profile={profile} displayName={meta.displayName} docsUrl={meta.docsUrl}>
+        <EngineStatusPills probe={probe} latest={latest} outdated={outdated} />
+        <EngineActions
+          probe={probe}
+          latest={latest}
+          outdated={outdated}
+          install={install}
+          plan={meta.plan}
+          depBlocked={depBlocked}
+          depName={depName}
+          onProbe={onProbe}
+          onInstall={onInstall}
+        />
+      </EngineHead>
 
       {/* 前置依赖引导:未就位时引导先装依赖(独立安装日志);探针 ok 后整块消失。 */}
       {meta.requires && depProbe && depProbe.status !== "ok" && (
@@ -268,14 +192,4 @@ export function useEngineInstall(
   }, [target?.binary, target?.plan, onDone]);
 
   return [state, start];
-}
-
-/** 单引擎探针动作(供 WelcomePage 调用)。 */
-export async function probeEngine(binary: string): Promise<EngineProbeState> {
-  try {
-    const result = await ipc.cliProbe(binary);
-    return { status: result.found ? "ok" : "notFound", result };
-  } catch {
-    return { status: "error", result: null };
-  }
 }

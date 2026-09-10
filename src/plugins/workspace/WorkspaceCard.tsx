@@ -87,8 +87,9 @@ export function WorkspaceCard({
         }}
       >
         <div className="workspace-header-content">
-          <button
-            type="button"
+          <span
+            role="button"
+            tabIndex={0}
             className="workspace-folder-btn workspace-collapse-toggle"
             title={collapsed ? t("展开会话列表") : t("折叠会话列表")}
             aria-expanded={!collapsed}
@@ -97,6 +98,13 @@ export function WorkspaceCard({
               onToggleCollapsed();
             }}
             onDoubleClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+                e.preventDefault();
+                onToggleCollapsed();
+              }
+            }}
           >
             <span className="workspace-collapse-toggle-folder-icon" aria-hidden>
               <FolderIcon expanded={!collapsed} />
@@ -108,7 +116,7 @@ export function WorkspaceCard({
                 <CaretDoubleDown size="0.875rem" strokeWidth={1.8} />
               )}
             </span>
-          </button>
+          </span>
 
           {renaming ? (
             <RenameInput
@@ -131,7 +139,9 @@ export function WorkspaceCard({
           )}
 
           <div className="workspace-actions">
-            <button
+            <span
+              role="button"
+              tabIndex={0}
               className={`workspace-action-btn${manage ? " is-on" : ""}`}
               title={t("会话管理")}
               aria-pressed={manage}
@@ -140,10 +150,19 @@ export function WorkspaceCard({
                 setManage((v) => !v);
               }}
               onDoubleClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setManage((v) => !v);
+                }
+              }}
             >
               <ListChecks size="0.9375rem" aria-hidden />
-            </button>
-            <button
+            </span>
+            <span
+              role="button"
+              tabIndex={0}
               className={`workspace-action-btn${rowRefreshing ? " is-refreshing" : ""}`}
               title={t("刷新会话")}
               onClick={(e) => {
@@ -151,10 +170,19 @@ export function WorkspaceCard({
                 onRefreshWorkspace(workspace.id);
               }}
               onDoubleClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onRefreshWorkspace(workspace.id);
+                }
+              }}
             >
               <ArrowClockwise size="1rem" aria-hidden />
-            </button>
-            <button
+            </span>
+            <span
+              role="button"
+              tabIndex={0}
               className="workspace-action-btn is-newchat"
               title={t("新建会话")}
               onClick={(e) => {
@@ -162,9 +190,17 @@ export function WorkspaceCard({
                 onShowMenu(workspace, e.clientX, e.clientY);
               }}
               onDoubleClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  /* 键盘激活无指点坐标:原生按钮回车 click 的 clientX/Y 同为 0 */
+                  onShowMenu(workspace, 0, 0);
+                }
+              }}
             >
               <RocketLaunch size="0.9375rem" weight="duotone" aria-hidden />
-            </button>
+            </span>
           </div>
         </div>
       </div>

@@ -27,7 +27,7 @@ export function ImportModal({
       .then((result) => {
         if (cancelled) return;
         setCandidates(result.candidates);
-        setPicked(new Set(result.candidates.filter((c) => !c.duplicate).map((c) => c.name)));
+        setPicked(new Set(result.candidates.flatMap((c) => (c.duplicate ? [] : [c.name]))));
         setState("ready");
       })
       .catch((e: unknown) => {

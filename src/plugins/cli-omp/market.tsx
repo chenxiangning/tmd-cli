@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowClockwise, Cross } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { ipc, type CliProbeResult } from "@kernel/ipc";
+import { ipc, type CliProbeResult, type ProcRunResult } from "@kernel/ipc";
 import {
   fetchExtCatalog,
   parseOmpPluginList,
@@ -21,6 +21,107 @@ import {
 } from "./catalog";
 import { ExtCard } from "./marketCards";
 import { InstalledRow } from "./marketInstalledRow";
+
+/** 面板头:标题 + omp 版本 pill + 刷新/关闭(自 OmpExtensionMarket 拆出降分支)。 */
+function ExtMarketHead({
+  probe,
+  onRefresh,
+  onClose,
+}: {
+  probe: CliProbeResult | null;
+  onRefresh: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <header className="omp-ext-head">
+      <span className="omp-ext-title">{t("omp 扩展")}</span>
+      {probe?.found && probe.version ? (
+        <span className="omp-ext-cli">
+          omp {probe.version.replace(/^omp\//, "")}
+        </span>
+      ) : null}
+      <span className="omp-ext-head-space" />
+      <button type="button" className="omp-ext-iconbtn" title={t("刷新")} onClick={onRefresh}>
+        <ArrowClockwise size="0.75rem" aria-hidden />
+      </button>
+      <button type="button" className="omp-ext-iconbtn" title={t("关闭")} onClick={onClose}>
+        <Cross size="0.875rem" aria-hidden />
+      </button>
+    </header>
+  );
+}
+
+/** 面板体:离线横幅 + 已装清单 + 热门目录(自 OmpExtensionMarket 拆出降分支)。 */
+function ExtMarketBody({
+  catalog,
+  installed,
+  installedError,
+  runOmp,
+  onRefreshInstalled,
+}: {
+  catalog: ExtCatalog | null;
+  installed: InstalledExt[] | null;
+  installedError: string | null;
+  runOmp: (args: string[]) => Promise<ProcRunResult>;
+  onRefreshInstalled: () => void;
+}) {
+  /* 已装描述解析:目录命中(精选表为中文,实时表为 npm 原文)优先;未命中
+     空串,行展开时自行拉 registry 兜底。 */
+  const descByName = new Map(
+    (catalog?.entries ?? []).map((e) => [e.name, e.description]),
+  );
+  const installedNames = new Set((installed ?? []).map((i) => i.name));
+
+  return (
+    <div className="omp-ext-body">
+      {catalog?.offline ? (
+        <div className="omp-ext-offline">
+          {t("实时目录拉取失败,展示离线精选目录")}
+        </div>
+      ) : null}
+
+      <div className="omp-ext-section">
+        {t("已安装({n})", { n: installed?.length ?? "…" })}
+      </div>
+      {installedError ? (
+        <div className="omp-ext-state">
+          {t("无法解析已装清单:{error}", { error: installedError })}
+        </div>
+      ) : installed === null ? (
+        <div className="omp-ext-state">{t("读取已装清单…")}</div>
+      ) : installed.length === 0 ? (
+        <div className="omp-ext-state">{t("还没有安装任何扩展")}</div>
+      ) : (
+        installed.map((ext) => (
+          <InstalledRow
+            key={ext.name}
+            ext={ext}
+            description={descByName.get(ext.name) ?? ""}
+            runOmp={runOmp}
+            onChanged={onRefreshInstalled}
+          />
+        ))
+      )}
+
+      <div className="omp-ext-section">
+        {t("热门扩展")}
+        {catalog?.offline ? t("(离线精选)") : ""}
+      </div>
+      {catalog === null ? (
+        <div className="omp-ext-state">{t("加载目录…")}</div>
+      ) : (
+        catalog.entries.map((entry) => (
+          <ExtCard
+            key={entry.name}
+            entry={entry}
+            installed={installedNames.has(entry.name)}
+            onChanged={onRefreshInstalled}
+          />
+        ))
+      )}
+    </div>
+  );
+}
 
 export function OmpExtensionMarket({ onClose }: { onClose: () => void }) {
   const [probe, setProbe] = useState<CliProbeResult | null>(null);
@@ -69,41 +170,9 @@ export function OmpExtensionMarket({ onClose }: { onClose: () => void }) {
     void fetchExtCatalog(true).then(setCatalog);
   }, [refreshInstalled]);
 
-  /* 已装描述解析:目录命中(精选表为中文,实时表为 npm 原文)优先;未命中
-     空串,行展开时自行拉 registry 兜底。 */
-  const descByName = new Map(
-    (catalog?.entries ?? []).map((e) => [e.name, e.description]),
-  );
-  const installedNames = new Set((installed ?? []).map((i) => i.name));
-
   return (
     <div className="omp-ext">
-      <header className="omp-ext-head">
-        <span className="omp-ext-title">{t("omp 扩展")}</span>
-        {probe?.found && probe.version ? (
-          <span className="omp-ext-cli">
-            omp {probe.version.replace(/^omp\//, "")}
-          </span>
-        ) : null}
-        <span className="omp-ext-head-space" />
-        <button
-          type="button"
-          className="omp-ext-iconbtn"
-          title={t("刷新")}
-          onClick={refresh}
-        >
-          <ArrowClockwise size="0.75rem" aria-hidden />
-        </button>
-        <button
-          type="button"
-          className="omp-ext-iconbtn"
-          title={t("关闭")}
-          onClick={onClose}
-        >
-          <Cross size="0.875rem" aria-hidden />
-        </button>
-      </header>
-
+      <ExtMarketHead probe={probe} onRefresh={refresh} onClose={onClose} />
       {!probe ? (
         <div className="omp-ext-state">{t("检测 omp…")}</div>
       ) : !probe.found ? (
@@ -112,54 +181,13 @@ export function OmpExtensionMarket({ onClose }: { onClose: () => void }) {
         </div>
       ) : (
         <>
-          <div className="omp-ext-body">
-            {catalog?.offline ? (
-              <div className="omp-ext-offline">
-                {t("实时目录拉取失败,展示离线精选目录")}
-              </div>
-            ) : null}
-
-            <div className="omp-ext-section">
-              {t("已安装({n})", { n: installed?.length ?? "…" })}
-            </div>
-            {installedError ? (
-              <div className="omp-ext-state">
-                {t("无法解析已装清单:{error}", { error: installedError })}
-              </div>
-            ) : installed === null ? (
-              <div className="omp-ext-state">{t("读取已装清单…")}</div>
-            ) : installed.length === 0 ? (
-              <div className="omp-ext-state">{t("还没有安装任何扩展")}</div>
-            ) : (
-              installed.map((ext) => (
-                <InstalledRow
-                  key={ext.name}
-                  ext={ext}
-                  description={descByName.get(ext.name) ?? ""}
-                  runOmp={runOmp}
-                  onChanged={refreshInstalled}
-                />
-              ))
-            )}
-
-            <div className="omp-ext-section">
-              {t("热门扩展")}
-              {catalog?.offline ? t("(离线精选)") : ""}
-            </div>
-            {catalog === null ? (
-              <div className="omp-ext-state">{t("加载目录…")}</div>
-            ) : (
-              catalog.entries.map((entry) => (
-                <ExtCard
-                  key={entry.name}
-                  entry={entry}
-                  installed={installedNames.has(entry.name)}
-                  onChanged={refreshInstalled}
-                />
-              ))
-            )}
-          </div>
-
+          <ExtMarketBody
+            catalog={catalog}
+            installed={installed}
+            installedError={installedError}
+            runOmp={runOmp}
+            onRefreshInstalled={refreshInstalled}
+          />
           <footer className="omp-ext-foot">
             {t(
               "扩展以当前用户权限在 omp 进程内执行任意代码;装卸/启停即时改磁盘,已开的 omp 会话不热加载,重开会话生效。",

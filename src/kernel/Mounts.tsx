@@ -26,14 +26,28 @@ class MountErrorBoundary extends React.Component<{ children: React.ReactNode }, 
   }
 }
 
+/* 挂点 key:贡献对象身份 → 稳定串(贡献对象随插件激活常驻注册表,对象身份即
+   稳定标识;index 作 key 会在注册表中部增删时错位复用 ErrorBoundary 子树)。 */
+const mountKeys = new WeakMap<object, string>();
+let mountKeySeq = 0;
+
+function mountKey(contribution: object): string {
+  let key = mountKeys.get(contribution);
+  if (!key) {
+    key = `mount-${++mountKeySeq}`;
+    mountKeys.set(contribution, key);
+  }
+  return key;
+}
+
 export function Mounts({ point }: { point: MountPoint }) {
   useHost();
   return (
     <>
-      {host.getMount(point).map((c, i) => {
+      {host.getMount(point).map((c) => {
         const Comp = c.component;
         return (
-          <MountErrorBoundary key={i}>
+          <MountErrorBoundary key={mountKey(c)}>
             <Comp />
           </MountErrorBoundary>
         );

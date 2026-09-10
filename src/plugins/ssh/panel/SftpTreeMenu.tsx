@@ -65,7 +65,7 @@ export function TreeMenu({
   ];
   return (
     <>
-      <div className="ssh-menu-backdrop" onClick={onClose} onContextMenu={(e) => e.preventDefault()} />
+      <div className="ssh-menu-backdrop" role="presentation" onClick={onClose} onContextMenu={(e) => e.preventDefault()} />
       <div className="ssh-menu" style={{ left: state.x, top: state.y }}>
         {items.map((item) => (
           <button

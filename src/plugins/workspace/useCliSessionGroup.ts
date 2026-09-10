@@ -6,7 +6,7 @@
  * 纯数据装配,不含 JSX;菜单/重命名/删除等交互留在 SessionList 组件内。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host, useHost } from "@kernel/host";
 import { resolveCliSessionQuota, useSettingsState } from "@kernel/settings";
@@ -82,9 +82,11 @@ export function useCliSessionGroup({
   const liveSessions = host
     .getSessions()
     .filter((s) => s.workspaceId === workspace.id && s.profileId === profile.id);
-  /** 扫描回调喂 tab 快照用最新活会话表(effect 闭包防陈旧)。 */
   const liveRef = useRef(liveSessions);
-  liveRef.current = liveSessions;
+  /* 提交后同步(渲染期禁写 ref.current);扫描回调读到的即最新活会话表。 */
+  useEffect(() => {
+    liveRef.current = liveSessions;
+  });
   const activeSessionId = host.getActiveSessionId();
   /** 活会话已绑定的磁盘身份:磁盘行据此过滤,同一会话全局只出现一次。 */
   const liveCliIds = new Set(
@@ -104,6 +106,10 @@ export function useCliSessionGroup({
     setRescanTick((t) => t + 1);
   }, [boundCount]);
 
+  /* onScanned 经 useEffectEvent 包装:回调始终读最新引用且不进依赖 —— 扫描完成的
+   * 语义是「事件」,父级每轮重建回调箭头(WorkspaceCard 行内 () => onScanDone(...))
+   * 不该重触发磁盘扫描。 */
+  const onScannedEvent = useEffectEvent(onScanned);
   useEffect(() => {
     let stale = false;
     if (!profile.listSessions) return;
@@ -113,7 +119,9 @@ export function useCliSessionGroup({
         if (stale) return;
         setSessions(list);
         /* 磁盘真标题落定随手喂 tab 快照:tab 标签跟随自动命名(手动命名优先,不受影响) */
-        const titles = new Map(list.filter((d) => d.title).map((d) => [d.id, d.title as string]));
+        const titles = new Map(
+          list.flatMap((d): [string, string][] => (d.title ? [[d.id, d.title]] : [])),
+        );
         for (const s of liveRef.current) {
           const cliId = host.getCliSessionId(s.id);
           const title = cliId !== undefined ? titles.get(cliId) : undefined;
@@ -124,12 +132,11 @@ export function useCliSessionGroup({
         if (!stale) setSessions([]);
       })
       .finally(() => {
-        if (!stale) onScanned();
+        if (!stale) onScannedEvent();
       });
     return () => {
       stale = true;
     };
-    /* onScanned 为稳定引用语义,不作为依赖。 */
   }, [profile, workspace.root, liveSessions.length, refreshTick, rescanTick]);
 
   /** 扫描源统一过 tombstone:默认/归档视图、置顶投影、标题索引共用(删除意图全域隐藏)。 */
@@ -137,9 +144,7 @@ export function useCliSessionGroup({
 
   /** 磁盘扫描出的原生标题索引(含活会话已绑定条目,活行据此同形显示)。 */
   const diskTitleByCliId = new Map(
-    scanned
-      .filter((s) => s.title)
-      .map((s) => [s.id, s.title as string]),
+    scanned.flatMap((s): [string, string][] => (s.title ? [[s.id, s.title]] : [])),
   );
   /* 缺真标题的活会话(手动命名除外)→ 指数退避重扫追赶自动命名落盘,
    * 全部落定即停(titleRetryDelay,同运行区 / 全局置顶锁步)。 */

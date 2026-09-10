@@ -43,14 +43,28 @@ export function NamePrompt({
     if (trimmed) onConfirm(trimmed);
   };
 
+  /* 点背板关闭:document 级监听 + closest 判卡片区(dialog 元素挂 JSX handler
+     会命中 no-noninteractive-element-interactions;cancelRef 防监听闭包吃旧值)。 */
+  const cancelRef = useRef(onCancel);
+  useEffect(() => {
+    cancelRef.current = onCancel;
+  }, [onCancel]);
+  useEffect(() => {
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (e.target instanceof Element && e.target.closest(".nprompt-card")) return;
+      cancelRef.current();
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, []);
+
   return createPortal(
-    <div className="nprompt-backdrop" onMouseDown={onCancel}>
-      <div
-        className="nprompt-card"
-        role="dialog"
-        aria-label={title}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
+    <dialog
+      open
+      className="nprompt-backdrop w-full h-full m-0 p-0 border-0 bg-transparent"
+      aria-label={title}
+    >
+      <div className="nprompt-card">
         <div className="nprompt-title">{title}</div>
         {parentPath ? <div className="nprompt-parent">{parentPath}</div> : null}
         <input
@@ -86,7 +100,7 @@ export function NamePrompt({
           </button>
         </div>
       </div>
-    </div>,
+    </dialog>,
     document.body,
   );
 }

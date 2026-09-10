@@ -44,19 +44,24 @@ export async function importCodemossAgents(): Promise<ImportReport> {
   } catch {
     return report;
   }
-  for (const entry of Object.values(parsed.agents ?? {})) {
-    if (typeof entry?.name !== "string" || !entry.name.trim()) {
-      report.skipped++;
-      continue;
-    }
-    const saved = await saveAgent({
-      name: uniqueAgentName(entry.name.trim()),
-      icon: typeof entry.icon === "string" ? entry.icon : undefined,
-      prompt: typeof entry.prompt === "string" ? entry.prompt : "",
-    });
-    if (saved) report.agents++;
-    else report.skipped++;
-  }
+  /* 逐条顺序写入(reduce Promise 链保序):uniqueAgentName 查重依赖先前已保存项。 */
+  await Object.values(parsed.agents ?? {}).reduce<Promise<void>>(
+    (chain, entry) =>
+      chain.then(async () => {
+        if (typeof entry?.name !== "string" || !entry.name.trim()) {
+          report.skipped++;
+          return;
+        }
+        const saved = await saveAgent({
+          name: uniqueAgentName(entry.name.trim()),
+          icon: typeof entry.icon === "string" ? entry.icon : undefined,
+          prompt: typeof entry.prompt === "string" ? entry.prompt : "",
+        });
+        if (saved) report.agents++;
+        else report.skipped++;
+      }),
+    Promise.resolve(),
+  );
   return report;
 }
 
@@ -70,21 +75,26 @@ export async function importCodemossPrompts(): Promise<ImportReport> {
 export async function importPromptDir(dir: string): Promise<ImportReport> {
   const report = emptyReport();
   const entries = await ipc.fsWalkFiles(dir, 2000).catch(() => [] as string[]);
-  for (const entry of entries) {
-    if (entry.includes("/") || !entry.endsWith(".md")) continue;
-    const name = sanitizePromptName(entry.slice(0, -".md".length));
-    if (!name) {
-      report.skipped++;
-      continue;
-    }
-    const text = await ipc.fsReadFile(`${dir}/${entry}`).catch(() => "");
-    if (!text.trim()) {
-      report.skipped++;
-      continue;
-    }
-    const saved = await savePrompt("global", undefined, { name, ...parsePromptFile(text) });
-    if (saved) report.prompts++;
-    else report.skipped++;
-  }
+  /* 逐条顺序写入(reduce Promise 链保序):撞名判定依赖先前已保存项。 */
+  await entries.reduce<Promise<void>>(
+    (chain, entry) =>
+      chain.then(async () => {
+        if (entry.includes("/") || !entry.endsWith(".md")) return;
+        const name = sanitizePromptName(entry.slice(0, -".md".length));
+        if (!name) {
+          report.skipped++;
+          return;
+        }
+        const text = await ipc.fsReadFile(`${dir}/${entry}`).catch(() => "");
+        if (!text.trim()) {
+          report.skipped++;
+          return;
+        }
+        const saved = await savePrompt("global", undefined, { name, ...parsePromptFile(text) });
+        if (saved) report.prompts++;
+        else report.skipped++;
+      }),
+    Promise.resolve(),
+  );
   return report;
 }

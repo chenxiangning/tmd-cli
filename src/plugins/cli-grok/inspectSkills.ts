@@ -25,15 +25,19 @@ async function fetchGrokSkills(cwd: string): Promise<CliSuggestion[] | null> {
   const inspect = await queryCliRawJson({ command: "grok", args: ["inspect", "--json"], cwd });
   const skills = (inspect as { skills?: GrokInspectSkill[] } | null)?.skills;
   if (!Array.isArray(skills)) return null;
-  return skills
-    .filter((s) => s.userInvocable !== false && s.name)
-    .map((s) => ({
-      /* 裸 name(非 invocableAs):profile.translate 发送时翻 /skills <name>,
-         与静态表/抽屉插入语义一致;撞名限定名场景交给 grok 自己解析 */
-      value: s.name!,
-      description: s.description,
-      action: "insert" as const,
-    }));
+  return skills.flatMap((s) =>
+    s.userInvocable !== false && s.name
+      ? [
+          {
+            /* 裸 name(非 invocableAs):profile.translate 发送时翻 /skills <name>,
+               与静态表/抽屉插入语义一致;撞名限定名场景交给 grok 自己解析 */
+            value: s.name,
+            description: s.description,
+            action: "insert" as const,
+          },
+        ]
+      : [],
+  );
 }
 
 const cached = new CachedCliQuery(fetchGrokSkills, TTL_MS);

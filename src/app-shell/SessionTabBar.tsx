@@ -90,11 +90,12 @@ function SessionTabBarImpl() {
             : undefined;
         const pinned = pinKey !== undefined && isSessionPinned(pinKey);
         return (
+          /* tab 语义挂在内层 switch 原生 button 上(它是真正的激活控件);
+             外层只做容器(右键菜单 + 布局),不再是交互祖先 —— pin/定位/移除按钮
+             与之并列,消除嵌套交互。视觉不变(样式全在类名上)。 */
           <div
             key={id}
             className={`session-tab${active ? " is-active" : ""}`}
-            role="tab"
-            aria-selected={active}
             onContextMenu={(e) => {
               e.preventDefault();
               setMenu({ x: e.clientX, y: e.clientY, id });
@@ -110,6 +111,8 @@ function SessionTabBarImpl() {
               <>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={active}
                   className="session-tab-switch"
                   title={host.isWaitingConfirm(id) ? t("{title} · 等待确认", { title }) : title}
                   onClick={() => host.setActiveSession(id)}

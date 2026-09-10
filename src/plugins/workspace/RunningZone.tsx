@@ -52,9 +52,7 @@ export function RunningZoneSection() {
   const { list: workspaces } = useWorkspaces();
   const { settings } = useSettingsState();
   const collapsed = runningSection.use();
-  const [menu, setMenu] = useState<{ row: RunningRow; x: number; y: number } | null>(
-    null,
-  );
+  const [menu, setMenu] = useState<{ row: RunningRow; x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
 
   const profiles = host.getCliProfiles();
@@ -88,11 +86,12 @@ export function RunningZoneSection() {
       compareLiveSessions(a.session, b.session, (id) => host.isUnread(id)),
     );
 
-  /* 磁盘原生标题缓存:候选 (工作区, CLI) 对聚合扫描;有行缺真标题(自动命名晚于
-   * 文件出生数秒~数十秒落盘)才按指数退避补扫,全部落定即停(三处锁步见 utils)。 */
+  /* 磁盘原生标题缓存:有行缺真标题才按指数退避补扫,全部落定即停(三处锁步见 utils)。 */
   const [diskTitles, setDiskTitles] = useState<Record<string, string>>({});
   const rowsRef = useRef(rows);
-  rowsRef.current = rows;
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
   const missingTitleSig = rows
     .filter(
       (r) =>

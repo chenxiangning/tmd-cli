@@ -34,7 +34,7 @@ export function InstallLog({
       )}
       <div className="welcome-install-log" ref={logRef}>
         {install.lines.map((line, i) => (
-          <div key={i} className="welcome-install-line">
+          <div key={`${i}:${line}`} className="welcome-install-line">
             {line}
           </div>
         ))}

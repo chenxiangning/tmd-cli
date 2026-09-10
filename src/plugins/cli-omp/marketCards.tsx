@@ -2,24 +2,16 @@
  * omp 扩展面板的目录卡 —— 安装两步确认(首击展开风险详情)+ 流式日志。
  * 安装走 ipc.cliInstallRun command 通道跑 `omp plugin install/uninstall <pkg>`,
  * 日志订阅 cli-install://<installId(name)>;卡片自治全生命周期,完成后经
- * onChanged 通知面板重拉已装清单。已装行在 marketInstalledRow.tsx(共用件)。
+ * onChanged 通知面板重拉已装清单。已装行在 marketInstalledRow.tsx(共用件),
+ * 装卸执行与事件流 id 在 marketInstallModel.ts(only-export-components 拆分)。
  */
-
-/** 装卸事件流 id:omp-ext-<pkg 的逐字节 hex>。Tauri 事件名仅允许字母数字与
- * `- / : _`,scoped 包名的 `@` 违禁且 emit 静默失败(前端永远收不到完成事件,
- * 按钮永转);整体 hex 保证一一对应,免字符歧义。 */
-export function installId(name: string): string {
-  const hex = [...new TextEncoder().encode(name)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return `omp-ext-${hex}`;
-}
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowSquareOut, CircleNotch, ShieldWarning } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { ipc, onCliInstallEvent, openExternalUrl } from "@kernel/ipc";
+import { openExternalUrl } from "@kernel/ipc";
 import type { ExtCatalogEntry } from "./catalog";
+import { runPluginAction } from "./marketInstallModel";
 
 /** 周下载量展示:1.2万 / 5.7k / 312;0 不展示。 */
 function fmtDownloads(n: number): string {
@@ -57,27 +49,88 @@ export function LogArea({ lines }: { lines: string[] }) {
   );
 }
 
-/** 卡片/已装行共用的装卸执行:流式日志 + 完成/失败落一行,返回是否成功。 */
-export async function runPluginAction(
-  name: string,
-  kind: "install" | "uninstall",
-  onLine: (text: string) => void,
-): Promise<boolean> {
-  /* 先订阅再发命令:tauri listen 异步注册,悬空退订会漏卸订或漏早期日志。 */
-  const unlisten = await onCliInstallEvent(installId(name), (e) => onLine(e.text));
-  try {
-    const ok = await ipc.cliInstallRun(installId(name), {
-      channel: "command",
-      program: "omp",
-      args:
-        kind === "install"
-          ? ["plugin", "install", name]
-          : ["plugin", "uninstall", name],
-    });
-    return ok;
-  } finally {
-    unlisten();
-  }
+/** 目录卡头:包名 + 版本/周下载/精选徽标(自 ExtCard 拆出降分支)。 */
+function ExtCardHead({ entry }: { entry: ExtCatalogEntry }) {
+  return (
+    <div className="omp-ext-card-head">
+      <span className="omp-ext-pkg" title={entry.name}>
+        {entry.name}
+      </span>
+      {entry.version ? (
+        <span className="omp-ext-ver">v{entry.version}</span>
+      ) : null}
+      {entry.weeklyDownloads > 0 ? (
+        <span className="omp-ext-dl">{t("{n}/周", { n: fmtDownloads(entry.weeklyDownloads) })}</span>
+      ) : null}
+      {entry.curated ? <span className="omp-ext-cur">{t("精选")}</span> : null}
+    </div>
+  );
+}
+
+/** 目录卡脚:风险标注 + 来源链接 + 安装钮(running/已装/武装/空闲四态,自 ExtCard 拆出降分支)。 */
+function ExtCardFoot({
+  entry,
+  running,
+  installed,
+  armed,
+  onConfirm,
+  onArm,
+  onDisarm,
+}: {
+  entry: ExtCatalogEntry;
+  running: boolean;
+  installed: boolean;
+  armed: boolean;
+  onConfirm: () => void;
+  onArm: () => void;
+  onDisarm: () => void;
+}) {
+  return (
+    <div className="omp-ext-card-foot">
+      <span
+        className="omp-ext-risk"
+        title={t("omp 插件在你的用户权限下进程内执行任意代码")}
+      >
+        <ShieldWarning size="0.6875rem" aria-hidden />
+        {t("任意代码执行")}
+      </span>
+      {entry.homepage ? (
+        <a
+          className="omp-ext-link"
+          href={entry.homepage}
+          onClick={(e) => {
+            /* webview 内 target=_blank 不开系统浏览器,走 shell open。 */
+            e.preventDefault();
+            if (entry.homepage) void openExternalUrl(entry.homepage);
+          }}
+        >
+          <ArrowSquareOut size="0.6875rem" aria-hidden />
+          {t("来源")}
+        </a>
+      ) : null}
+      {running ? (
+        <span className="omp-ext-running">
+          <CircleNotch size="0.75rem" className="omp-ext-spin" aria-hidden />
+          {installed ? t("卸载中") : t("安装中")}
+        </span>
+      ) : installed ? (
+        <span className="omp-ext-done">{t("已安装")}</span>
+      ) : armed ? (
+        <span className="omp-ext-confirm">
+          <button type="button" className="omp-ext-btn danger" onClick={onConfirm}>
+            {t("确认安装")}
+          </button>
+          <button type="button" className="omp-ext-btn" onClick={onDisarm}>
+            {t("取消")}
+          </button>
+        </span>
+      ) : (
+        <button type="button" className="omp-ext-btn" onClick={onArm}>
+          {t("安装")}
+        </button>
+      )}
+    </div>
+  );
 }
 
 /** 目录卡:安装 = 两步确认(首击展开风险详情,无回弹);已装置灰。 */
@@ -118,63 +171,17 @@ export function ExtCard({
 
   return (
     <div className={`omp-ext-card${running ? " is-running" : ""}`}>
-      <div className="omp-ext-card-head">
-        <span className="omp-ext-pkg" title={entry.name}>
-          {entry.name}
-        </span>
-        {entry.version ? (
-          <span className="omp-ext-ver">v{entry.version}</span>
-        ) : null}
-        {entry.weeklyDownloads > 0 ? (
-          <span className="omp-ext-dl">{t("{n}/周", { n: fmtDownloads(entry.weeklyDownloads) })}</span>
-        ) : null}
-        {entry.curated ? <span className="omp-ext-cur">{t("精选")}</span> : null}
-      </div>
+      <ExtCardHead entry={entry} />
       <div className="omp-ext-desc">{t(entry.description) || t("暂无描述")}</div>
-      <div className="omp-ext-card-foot">
-        <span
-          className="omp-ext-risk"
-          title={t("omp 插件在你的用户权限下进程内执行任意代码")}
-        >
-          <ShieldWarning size="0.6875rem" aria-hidden />
-          {t("任意代码执行")}
-        </span>
-        {entry.homepage ? (
-          <a
-            className="omp-ext-link"
-            href={entry.homepage}
-            onClick={(e) => {
-              /* webview 内 target=_blank 不开系统浏览器,走 shell open。 */
-              e.preventDefault();
-              if (entry.homepage) void openExternalUrl(entry.homepage);
-            }}
-          >
-            <ArrowSquareOut size="0.6875rem" aria-hidden />
-            {t("来源")}
-          </a>
-        ) : null}
-        {running ? (
-          <span className="omp-ext-running">
-            <CircleNotch size="0.75rem" className="omp-ext-spin" aria-hidden />
-            {installed ? t("卸载中") : t("安装中")}
-          </span>
-        ) : installed ? (
-          <span className="omp-ext-done">{t("已安装")}</span>
-        ) : armed ? (
-          <span className="omp-ext-confirm">
-            <button type="button" className="omp-ext-btn danger" onClick={() => run("install")}>
-              {t("确认安装")}
-            </button>
-            <button type="button" className="omp-ext-btn" onClick={() => setArmed(false)}>
-              {t("取消")}
-            </button>
-          </span>
-        ) : (
-          <button type="button" className="omp-ext-btn" onClick={() => setArmed(true)}>
-            {t("安装")}
-          </button>
-        )}
-      </div>
+      <ExtCardFoot
+        entry={entry}
+        running={running}
+        installed={installed}
+        armed={armed}
+        onConfirm={() => run("install")}
+        onArm={() => setArmed(true)}
+        onDisarm={() => setArmed(false)}
+      />
       {armed && !running ? <RiskNote /> : null}
       <LogArea lines={logs} />
     </div>

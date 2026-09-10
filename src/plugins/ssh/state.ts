@@ -89,13 +89,13 @@ const dynamicUnlistens = new Map<string, Array<() => void>>();
 /** 会话诞生时接线(状态/提示两条会话粒度通道)。幂等。 */
 export async function watchSshSession(sessionId: string) {
   if (dynamicUnlistens.has(sessionId)) return;
-  const offEvent = await onSshSessionEvent(sessionId, (event) =>
-    applySessionEvent(sessionId, event),
-  );
-  const offPrompt = await onSshPrompt(sessionId, (prompt) => {
-    sessionView(sessionId).prompt = prompt;
-    notify();
-  });
+  const [offEvent, offPrompt] = await Promise.all([
+    onSshSessionEvent(sessionId, (event) => applySessionEvent(sessionId, event)),
+    onSshPrompt(sessionId, (prompt) => {
+      sessionView(sessionId).prompt = prompt;
+      notify();
+    }),
+  ]);
   dynamicUnlistens.set(sessionId, [offEvent, offPrompt]);
 }
 

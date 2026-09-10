@@ -51,7 +51,10 @@ function byPriority(a: MemoryItem, b: MemoryItem): number {
 async function recall(projectIdentity: string, query?: string, limit = 50): Promise<MemoryItem[]> {
   const dbPath = await resolvedDbPath();
   // 宽检索:多词按 OR 组合(FTS porter 词干;单词语义不变)
-  const q = query?.trim().split(/\s+/).filter(Boolean).map((w) => w.replace(/["'*]/g, "")).filter(Boolean).join(" OR ") || undefined;
+  const q = query?.trim().split(/\s+/).flatMap((w) => {
+    const v = w.replace(/["'*]/g, "");
+    return v ? [v] : [];
+  }).join(" OR ") || undefined;
   const rows = q
     ? await ipc.sqliteQuery(
         dbPath,

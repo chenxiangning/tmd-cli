@@ -23,42 +23,8 @@ import {
   terminalRegistryVersion,
   type UserMessageAnchor,
 } from "@kernel/messageAnchors";
+import { sampleAnchors, PREVIEW_TITLE_CHARS, PREVIEW_DESC_CHARS, ROW_PX, MISS_FLASH_MS, PROXIMITY_RANGE } from "./sampleAnchors";
 
-/** dash 行高(视觉线 2px + 命中区 10px + 间隙 3px),可视容量 = 栏高 / ROW_PX。 */
-const ROW_PX = 13;
-const PREVIEW_TITLE_CHARS = 60;
-const PREVIEW_DESC_CHARS = 160;
-const MISS_FLASH_MS = 1200;
-/** 邻近渐变的最大距离:is-proximity-0..3。 */
-const PROXIMITY_RANGE = 3;
-
-interface VisibleAnchor {
-  anchor: UserMessageAnchor;
-  /** 在完整列表里的序号(预览卡 N. 标题来源)。 */
-  index: number;
-}
-
-/**
- * 分桶抽样(纯函数,可测):锚点数超容量时均分 maxVisible 桶,每桶取中点;
- * active 落在哪个桶,该桶就强制显示 active(codemoss 同款算法)。
- */
-export function sampleAnchors(
-  anchors: readonly UserMessageAnchor[],
-  maxVisible: number,
-  activeId: string | null,
-): VisibleAnchor[] {
-  if (anchors.length <= maxVisible) {
-    return anchors.map((anchor, index) => ({ anchor, index }));
-  }
-  const activeIndex = activeId ? anchors.findIndex((a) => a.id === activeId) : -1;
-  return Array.from({ length: maxVisible }, (_, bucket) => {
-    const start = Math.floor((bucket * anchors.length) / maxVisible);
-    const end = Math.max(start + 1, Math.floor(((bucket + 1) * anchors.length) / maxVisible));
-    const pick =
-      activeIndex >= start && activeIndex < end ? activeIndex : Math.floor((start + end - 1) / 2);
-    return { anchor: anchors[pick]!, index: pick };
-  });
-}
 
 /** 预览卡文案(codemoss deriveAnchorPreviewCopy 规则):首行截 60 字做标题,余行合并截 160 字。 */
 function previewCopy(text: string): { title: string; desc: string } {
@@ -114,7 +80,7 @@ export function AnchorRail() {
   /* TerminalView 按 session key 重挂载,注册表版本驱动重取 handle */
   const registryTick = useSyncExternalStore(subscribeTerminalRegistry, terminalRegistryVersion);
 
-  const railRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLElement>(null);
   const [maxVisible, setMaxVisible] = useState(32);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
@@ -170,10 +136,9 @@ export function AnchorRail() {
   };
 
   return (
-    <div
+    <nav
       ref={railRef}
       className="composer-anchor-rail"
-      role="navigation"
       aria-label={t("消息锚点")}
       onMouseLeave={() => {
         setPreview(null);
@@ -210,6 +175,6 @@ export function AnchorRail() {
         );
       })}
       {preview && <AnchorPreviewCard preview={preview} />}
-    </div>
+    </nav>
   );
 }

@@ -1,9 +1,8 @@
 /**
  * 用户消息图片件 —— 审批线详情(BatchSheet)消息卡的附件渲染。
  *
- * - extractPromptImages:从消息文本中剥离 composer 注入的图片附件 token
- *   (@绝对路径.图片扩展名;与 kernel/messageAnchors ATTACH_TOKEN_RE 同族收窄),
- *   返回去重图片列表 + 净文本(纯附件消息净文本为空,调用方不再渲染文本块);
+ * - extractPromptImages:附件 token 剥离纯函数,拆至 ./promptImagesExtract
+ *   (only-export-components;时间线 timelineText 复用同一剥离);
  * - PromptImages:缩略图横排(96×72 cover),ipc.readLocalImageDataUrl 转
  *   data URL(Rust 白名单 + 20MB 闸);temp 已清理 → 置灰文件名 chip,不可点;
  * - 点击缩略图 → portal lightbox 放大查看(Esc/点背板关闭,复用缩略图已解析
@@ -17,38 +16,6 @@ import { Image, CircleNotch } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
 
-/** composer 图片附件 token:@ + 绝对路径 + 图片扩展名;后随空白/句读/结尾才判定,防误吞正文。 */
-const IMAGE_TOKEN_RE =
-  /@(\/[^\s@]+?\.(?:png|jpe?g|gif|webp|bmp|avif|svg))(?=$|[\s,.;:!?)\]}　，。、；：！？」』])/gi;
-
-export interface PromptImagesExtract {
-  /** 去重后的图片绝对路径(按出现顺序)。 */
-  images: string[];
-  /** 剥离图片 token 后的净文本(空白折叠;纯附件消息为空串)。 */
-  text: string;
-}
-
-export function extractPromptImages(prompt: string): PromptImagesExtract {
-  const images: string[] = [];
-  const seen = new Set<string>();
-  for (const m of prompt.matchAll(IMAGE_TOKEN_RE)) {
-    const path = m[1];
-    if (!seen.has(path)) {
-      seen.add(path);
-      images.push(path);
-    }
-  }
-  if (images.length === 0) return { images, text: prompt };
-  const text = prompt
-    .replace(IMAGE_TOKEN_RE, " ")
-    .replace(/[ \t]+/g, " ")
-    .split("\n")
-    .map((line) => line.trim())
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-  return { images, text };
-}
 
 /** 路径末段文件名(chip 与 lightbox caption 用)。 */
 function fileName(path: string): string {
@@ -130,6 +97,7 @@ function Lightbox({
   return createPortal(
     <div
       className="fixed inset-0 z-1000 flex items-center justify-center bg-black/80"
+      role="presentation"
       onClick={onClose}
     >
       <img

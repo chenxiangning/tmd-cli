@@ -4,107 +4,89 @@
  * Phase 1 只读:移除与治理操作随 Phase 2 经 d 路(omp 代写 ctx_memory)接入。
  * 检索:FTS5 关键词(memories_fts MATCH);语义向量检索随 Phase 2 评估。
  * 列表行与底部工具条拆至 MemoryPanelParts.tsx,合并所选逻辑拆至
- * useMemoryMerge.ts(文件规模铁则)。
+ * useMemoryMerge.ts,头部摘要与过滤 chips 拆至 MemoryPanelFilters.tsx
+ * (文件规模铁则 + no-high-complexity 降分支)。
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { CaretDown, MagnifyingGlass } from "@phosphor-icons/react";
+import { useEffect, useMemo } from "react";
+import { MagnifyingGlass } from "@phosphor-icons/react";
 import { useWorkspaces } from "@kernel/workspace";
 import { type MemoryItem } from "../protocol";
 import { useEditorTabs } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
-import { archiveMemory } from "../phase2/write";
-import { memoryPool, resolveProjectIdentity } from "../pool";
 import {
-  categoryLabel,
   MemoryListItem,
   MemoryPanelFooter,
   MemorySelectBar,
   useMemoryDiag,
 } from "./MemoryPanelParts";
+import { MemoryFilterChips, MemoryHead } from "./MemoryPanelFilters";
 import { useMemoryMerge } from "./useMemoryMerge";
+import { useMemoryPanelState } from "./useMemoryPanelState";
+
+/** 检索谓词(FTS 关键词 + 类目 + 来源三重过滤;模块级纯函数,降组件分支)。 */
+function matchesFilter(m: MemoryItem, kind: string, source: string, q: string): boolean {
+  return (
+    (kind === "all" || m.category === kind) &&
+    (source === "all" || (m.harness || "pi") === source) &&
+    (!q || m.content.toLowerCase().includes(q) || m.category.toLowerCase().includes(q))
+  );
+}
+
+/** 池不可用态:提前返回也必须带底部工具条(控制台入口与诊断按钮只在这里)。 */
+function PoolUnavailableView({
+  identity,
+  poolReason,
+  children,
+}: {
+  identity: string | null;
+  poolReason: "not-installed" | "locked" | null;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="p-3">
+        <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2.5 text-[0.6875rem] leading-relaxed text-(--tmd-fg-muted)">
+          <span className="text-(--tmd-err)">{t("池不可用")}</span>
+          {identity === null
+            ? t(" —— 当前工作区不是 git 仓库,未纳入记忆池。")
+            : poolReason === "locked"
+              ? t(" —— 共享 SQLite 暂时读不到(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。")
+              : t(" —— Magic Context 共享库尚未初始化(未安装或未迁移),点下方「控制台」完成安装/迁移。")}
+          <div className="mt-1 text-(--tmd-fg-faint)">{t("会话 / 对话框 / 审批线不受影响。")}</div>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1" />
+      {children}
+    </div>
+  );
+}
 
 export function MemoryPanel() {
   const editorTabs = useEditorTabs();
   const consoleOpen = editorTabs.tabs.some((t) => t.id === "memory-console" && t.id === editorTabs.activeId);
   const workspaces = useWorkspaces();
   const root = workspaces.list.find((w) => w.id === workspaces.activeId)?.root ?? "";
-  const [identity, setIdentity] = useState<string | null>(null);
-  const [ready, setReady] = useState<boolean | null>(null);
-  const [poolReason, setPoolReason] = useState<"not-installed" | "locked" | null>(null);
-  const [count, setCount] = useState(0);
-  const [items, setItems] = useState<MemoryItem[]>([]);
-  const [query, setQuery] = useState("");
-  const [kind, setKind] = useState<string>("all");
-  const [source, setSource] = useState<string>("all");
+  const { state, patch, reload, removeItem } = useMemoryPanelState(root);
+  const {
+    identity, ready, poolReason, count, items, query, kind, source,
+    loading, detailOpen, expandedId, selectMode, selected, dbPath, archivingId,
+  } = state;
+  const setQuery = (v: string) => patch({ query: v });
+  const setKind = (v: string) => patch({ kind: v });
+  const setSource = (v: string) => patch({ source: v });
+  const setDetailOpen = (v: boolean) => patch({ detailOpen: v });
+  const setExpandedId = (v: number | null) => patch({ expandedId: v });
+  const setSelectMode = (v: boolean) => patch({ selectMode: v });
+  const setSelected = (v: Set<number>) => patch({ selected: v });
+
   const { diag, diagRunning, runDiag } = useMemoryDiag();
-  const [loading, setLoading] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [selectMode, setSelectMode] = useState(false);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [dbPath, setDbPath] = useState<string | null>(null);
-  const [archivingId, setArchivingId] = useState<number | null>(null);
-
-  const removeItem = async (id: number) => {
-    if (!root) return;
-    setArchivingId(id);
-    const out = await archiveMemory(id, root);
-    setArchivingId(null);
-    if (out.ok) setItems((list) => list.filter((m) => m.id !== id));
-  };
-
-  const reload = useCallback(async () => {
-    if (!root) return;
-    const id = await resolveProjectIdentity(root);
-    setIdentity(id);
-    if (!id) {
-      setReady(false);
-      setPoolReason(null);
-      return;
-    }
-    const st = await memoryPool.status();
-    setReady(st.ready);
-    setPoolReason(st.reason ?? null);
-    setCount(st.count);
-    setDbPath(st.dbPath);
-    if (!st.ready) return;
-    setLoading(true);
-    const list = await memoryPool.recall(id, undefined, 200);
-    setItems(list);
-    setLoading(false);
-  }, [root]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
 
   const q = query.trim().toLowerCase();
   const filtered = useMemo(
-    () =>
-      items.filter(
-        (m) =>
-          (kind === "all" || m.category === kind) &&
-          (source === "all" || (m.harness || "pi") === source) &&
-          (!q || m.content.toLowerCase().includes(q) || m.category.toLowerCase().includes(q)),
-      ),
+    () => items.filter((m) => matchesFilter(m, kind, source, q)),
     [items, kind, source, q],
   );
-
-  const presentKinds = useMemo(() => {
-    const byCat = new Map<string, number>();
-    for (const m of items) byCat.set(m.category, (byCat.get(m.category) ?? 0) + 1);
-    return [...byCat.entries()].sort((a, b) => b[1] - a[1]);
-  }, [items]);
-
-  const presentSources = useMemo(() => {
-    const bySrc = new Map<string, number>();
-    for (const m of items) {
-      const k = m.harness || "pi";
-      bySrc.set(k, (bySrc.get(k) ?? 0) + 1);
-    }
-    return [...bySrc.entries()].sort((a, b) => b[1] - a[1]);
-  }, [items]);
 
   const { merging, mergeNote, startMerge } = useMemoryMerge({
     root,
@@ -115,53 +97,42 @@ export function MemoryPanel() {
     setSelectMode,
   });
 
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  /* 两分支共用的底部工具条(duplicate-jsx 消重):元素对象可安全复用,
+     同一轮渲染只会落进其中一个返回分支。 */
+  const footer = (
+    <MemoryPanelFooter
+      consoleOpen={consoleOpen}
+      diag={diag}
+      diagRunning={diagRunning}
+      onDiag={runDiag}
+    />
+  );
   if (!root) {
     return <div className="placeholder p-4 text-center text-[0.6875rem] text-(--tmd-fg-faint)">{t("未选择工作区")}</div>;
   }
 
   if (ready === false) {
-    /* 提前返回也必须带底部工具条:控制台入口与诊断按钮只在这里,
-    否则池不可用时入口整条消失,用户既打不开控制台也无法排障
-    (2026-09-06 win 新装机实证)。 */
+    /* 2026-09-06 win 新装机实证:池不可用时入口整条消失,用户既打不开控制台也无法排障。 */
     return (
-      <div className="flex h-full min-h-0 flex-col">
-        <div className="p-3">
-          <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2.5 text-[0.6875rem] leading-relaxed text-(--tmd-fg-muted)">
-            <span className="text-(--tmd-err)">{t("池不可用")}</span>
-            {identity === null
-              ? t(" —— 当前工作区不是 git 仓库,未纳入记忆池。")
-              : poolReason === "locked"
-                ? t(" —— 共享 SQLite 暂时读不到(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。")
-                : t(" —— Magic Context 共享库尚未初始化(未安装或未迁移),点下方「控制台」完成安装/迁移。")}
-            <div className="mt-1 text-(--tmd-fg-faint)">{t("会话 / 对话框 / 审批线不受影响。")}</div>
-          </div>
-        </div>
-        <div className="min-h-0 flex-1" />
-        <MemoryPanelFooter consoleOpen={consoleOpen} diag={diag} diagRunning={diagRunning} onDiag={runDiag} />
-      </div>
+      <PoolUnavailableView identity={identity} poolReason={poolReason}>
+        {footer}
+      </PoolUnavailableView>
     );
   }
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <button
-        className="mb-2 flex w-full items-center gap-2 px-1 pt-1 text-left"
-        onClick={() => setDetailOpen(!detailOpen)}
-      >
-        <span className="h-2 w-2 flex-none rounded-full bg-(--tmd-ok)" />
-        <span className="text-[0.6875rem] text-(--tmd-fg-muted)">{t("池就绪")}</span>
-        <span className="ml-auto text-[0.6875rem] font-semibold">{t("{count} 条", { count })}</span>
-        <CaretDown size="0.6875rem" className={detailOpen ? "rotate-180 transition-transform" : "transition-transform"} />
-      </button>
-      {detailOpen && (
-        <div className="mb-2 flex flex-col gap-0.5 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2 font-mono text-[0.625rem] text-(--tmd-fg-muted)">
-          <div className="truncate" title={dbPath ?? t("未解析")}>{t("库:{path}", { path: dbPath ?? t("未解析") })}</div>
-          <div className="truncate" title={identity ?? t("非 git 工作区")}>{t("身份:{id}", { id: identity ?? t("非 git 工作区") })}</div>
-          <div>{t("生效记忆:{count} 条 · 覆盖类目:{kinds} 类", { count, kinds: presentKinds.length })}</div>
-          <div className="truncate text-(--tmd-fg-faint)">
-            {t("提示:记忆由 omp/pi 会话沉淀(原生注入),其余引擎经胶囊读取;写入与治理见控制台。")}
-          </div>
-        </div>
-      )}
+      <MemoryHead
+        detailOpen={detailOpen}
+        onToggle={() => setDetailOpen(!detailOpen)}
+        identity={identity}
+        dbPath={dbPath}
+        count={count}
+        items={items}
+      />
 
       <div className="flex gap-1.5 px-1 pb-1.5">
         <div className="relative flex-1">
@@ -175,61 +146,13 @@ export function MemoryPanel() {
         </div>
       </div>
 
-      {presentSources.length > 1 && (
-        <div className="mb-1.5 flex flex-wrap gap-1 px-1">
-          <button
-            className={`h-5 rounded-full border px-2 text-[0.65625rem] ${
-              source === "all"
-                ? "border-(--tmd-accent) bg-(--tmd-bg-active) text-(--tmd-fg)"
-                : "border-(--tmd-border) text-(--tmd-fg-subtle)"
-            }`}
-            onClick={() => setSource("all")}
-          >
-            {t("全部来源")}
-          </button>
-          {presentSources.map(([srcName, n]) => (
-            <button
-              key={srcName}
-              className={`h-5 rounded-full border px-2 text-[0.65625rem] ${
-                source === srcName
-                  ? "border-(--tmd-accent) bg-(--tmd-bg-active) text-(--tmd-fg)"
-                  : "border-(--tmd-border) text-(--tmd-fg-subtle)"
-              }`}
-              onClick={() => setSource(srcName)}
-            >
-              {srcName} {n}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {presentKinds.length > 0 && (
-        <div className="mb-1.5 flex flex-wrap gap-1 px-1">
-          <button
-            className={`h-5 rounded-full border px-2 text-[0.65625rem] ${
-              kind === "all"
-                ? "border-(--tmd-accent) bg-(--tmd-bg-active) text-(--tmd-fg)"
-                : "border-(--tmd-border) text-(--tmd-fg-subtle)"
-            }`}
-            onClick={() => setKind("all")}
-          >
-            {t("全部 {n}", { n: items.length })}
-          </button>
-          {presentKinds.map(([key, n]) => (
-            <button
-              key={key}
-              className={`h-5 rounded-full border px-2 text-[0.65625rem] ${
-                kind === key
-                  ? "border-(--tmd-accent) bg-(--tmd-bg-active) text-(--tmd-fg)"
-                  : "border-(--tmd-border) text-(--tmd-fg-subtle)"
-              }`}
-              onClick={() => setKind(kind === key ? "all" : key)}
-            >
-              {categoryLabel(key)} {n}
-            </button>
-          ))}
-        </div>
-      )}
+      <MemoryFilterChips
+        items={items}
+        source={source}
+        onSource={setSource}
+        kind={kind}
+        onKind={setKind}
+      />
 
       {diag.length > 0 && (
         <div className="mb-1.5 flex flex-col gap-0.5 px-1">
@@ -282,12 +205,7 @@ export function MemoryPanel() {
         )}
       </div>
 
-      <MemoryPanelFooter
-        consoleOpen={consoleOpen}
-        diag={diag}
-        diagRunning={diagRunning}
-        onDiag={runDiag}
-      />
+      {footer}
     </div>
   );
 }

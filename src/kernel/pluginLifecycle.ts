@@ -60,11 +60,10 @@ export class PluginLifecycle {
     }
     // 幂等：已激活的插件直接跳过（热更新场景）；
     // registerCliProfile 的重复检查仍然保留，用于拦截两个不同插件抢同一 id 的真冲突。
-    const pending = new Map(
-      plugins
-        .filter((p) => activatable.has(p.id) && !this.plugins.has(p.id))
-        .map((p) => [p.id, p]),
-    );
+    const pending = new Map<string, Plugin>();
+    for (const p of plugins) {
+      if (activatable.has(p.id) && !this.plugins.has(p.id)) pending.set(p.id, p);
+    }
     while (pending.size > 0) {
       let progressed = false;
       for (const [id, plugin] of pending) {

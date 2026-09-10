@@ -48,6 +48,11 @@ import { useCliSessionGroup } from "./useCliSessionGroup";
 
 import { PAGE_INITIAL } from "./utils";
 
+/** 复制文本到剪贴板(失败静默,不弹错)。 */
+function copyText(text: string) {
+  void navigator.clipboard?.writeText(text).catch(() => undefined);
+}
+
 /**
  * 单个 CLI 的会话分组 —— 工作区置顶块 + 活会话 + 磁盘历史分页。
  * 活会话 spawn/exit 改变 liveCount、外部 refreshTick 变化,均触发重扫。
@@ -86,10 +91,6 @@ export function CliSessionGroup({
   } = useCliSessionGroup({ profile, workspace, refreshTick, onScanned });
   const [menu, setMenu] = useState<MenuTarget | null>(null);
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
-
-  const copyText = (text: string) => {
-    void navigator.clipboard?.writeText(text).catch(() => undefined);
-  };
 
   /** 重命名提交:null=取消;空串=清除命名回归磁盘标题。 */
   const commitRename = (value: string | null) => {

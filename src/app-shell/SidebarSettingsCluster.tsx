@@ -126,9 +126,13 @@ export function SidebarSettingsCluster() {
     return { x: (rect?.right ?? 0) + 8, y: rect?.top ?? 0 };
   };
 
-  const pinnedActions = pinnedIds
-    .map((id) => actions.find((a) => a.id === id))
-    .filter((a): a is SidebarAction => Boolean(a));
+  /* 循环查表先建索引:find/includes 的 O(n) 扫描降为 O(1)。 */
+  const actionById = new Map(actions.map((a) => [a.id, a]));
+  const pinnedSet = new Set(pinnedIds);
+  const pinnedActions = pinnedIds.flatMap((id) => {
+    const a = actionById.get(id);
+    return a ? [a] : [];
+  });
   const atPinLimit = pinnedIds.length >= PINNED_MAX;
 
   const select = (action: SidebarAction) => {
@@ -141,7 +145,7 @@ export function SidebarSettingsCluster() {
       {open && (
         <div className="settings-menu" role="menu" aria-label={t("设置菜单")}>
           {actions.map((action) => {
-            const pinned = pinnedIds.includes(action.id);
+            const pinned = pinnedSet.has(action.id);
             const isActive = action.active?.() ?? false;
             return (
               <div

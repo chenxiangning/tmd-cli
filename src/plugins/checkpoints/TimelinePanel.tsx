@@ -37,7 +37,10 @@ const MISS_FLASH_MS = 900;
 
 export function TimelinePanel() {
   const [, bumpRender] = useReducer((x: number) => x + 1, 0);
-  useEffect(() => host.events.on(KernelTopics.activeSessionChanged, bumpRender), []);
+  useEffect(() => {
+    const off = host.events.on(KernelTopics.activeSessionChanged, bumpRender);
+    return () => off();
+  }, []);
 
   const sessionId = host.getActiveSessionId();
   const anchors = useSyncExternalStore(messageAnchors.subscribe, () =>
@@ -48,15 +51,16 @@ export function TimelinePanel() {
   const [live, setLive] = useState(false);
   useEffect(() => {
     setLive(false);
-    const offs = [
-      host.events.on<PromptSentEvent>(KernelTopics.promptSent, (e) => {
-        if (e.sessionId === sessionId) setLive(true);
-      }),
-      host.events.on<TurnSettledEvent>(KernelTopics.turnSettled, (e) => {
-        if (e.sessionId === sessionId) setLive(false);
-      }),
-    ];
-    return () => offs.forEach((off) => off());
+    const offSent = host.events.on<PromptSentEvent>(KernelTopics.promptSent, (e) => {
+      if (e.sessionId === sessionId) setLive(true);
+    });
+    const offSettled = host.events.on<TurnSettledEvent>(KernelTopics.turnSettled, (e) => {
+      if (e.sessionId === sessionId) setLive(false);
+    });
+    return () => {
+      offSent();
+      offSettled();
+    };
   }, [sessionId]);
 
   const [missId, setMissId] = useState<string | null>(null);

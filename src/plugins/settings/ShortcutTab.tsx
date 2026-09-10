@@ -13,8 +13,21 @@ import { getShortcutOverridesSnapshot, useShortcutOverridesVersion } from "@kern
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 import { updateSettings } from "@kernel/settings";
-import { CommandList, filterCommands, groupCommandsByIdPrefix } from "./ShortcutList";
+import { CommandList } from "./ShortcutList";
+import { filterCommands, groupCommandsByIdPrefix } from "./shortcutListModel";
 import { DetailPanel } from "./ShortcutDetail";
+
+/** 单项重置:删除该命令的覆盖,回到默认键位。 */
+function resetOne(id: string): void {
+  const overrides = { ...getShortcutOverridesSnapshot() };
+  delete overrides[id];
+  updateSettings({ shortcutOverrides: overrides });
+}
+
+/** 全部重置:清空覆盖表。 */
+function resetAll(): void {
+  updateSettings({ shortcutOverrides: {} });
+}
 
 export function ShortcutTab() {
   const commands = useCommands();
@@ -46,15 +59,6 @@ export function ShortcutTab() {
     () => commands.find((c) => c.id === selectedId) ?? null,
     [commands, selectedId],
   );
-
-  function resetOne(id: string): void {
-    const overrides = { ...getShortcutOverridesSnapshot() };
-    delete overrides[id];
-    updateSettings({ shortcutOverrides: overrides });
-  }
-  function resetAll(): void {
-    updateSettings({ shortcutOverrides: {} });
-  }
 
   return (
     <div className="flex flex-col gap-3">

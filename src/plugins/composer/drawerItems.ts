@@ -133,11 +133,11 @@ export function pluginDrawerItems(
   states: readonly PluginStateLike[],
   panels: readonly { id: string; icon: FilePanelIcon }[],
 ): DrawerItem[] {
-  return states
-    .filter((s) => s.enabled && (s.plugin.meta.category === "feature" || s.plugin.meta.category === "local"))
-    .map<DrawerItem>((s) => {
-      const panel = panels.find((p) => p.id === s.plugin.id);
-      return {
+  return states.flatMap<DrawerItem>((s) => {
+    if (!s.enabled || (s.plugin.meta.category !== "feature" && s.plugin.meta.category !== "local")) return [];
+    const panel = panels.find((p) => p.id === s.plugin.id);
+    return [
+      {
         section: "plugin",
         name: s.plugin.meta.name,
         description: s.plugin.meta.desc,
@@ -145,8 +145,9 @@ export function pluginDrawerItems(
         iconNode: panel?.icon,
         panelId: panel?.id,
         openSettings: !panel,
-      };
-    });
+      },
+    ];
+  });
 }
 
 /* ---------- plugin 区条目 → 无键位命令(spec「插件动作全量暴露」,消费侧映射) ---------- */
@@ -158,17 +159,19 @@ export function pluginDrawerItems(
  * (activateLate)不回填 manifest,其抽屉条目/无键位命令同样等重启后注册 —— 已知缺口。
  */
 export function pluginDrawerCommands(): CommandContribution[] {
-  return host
-    .listPluginStates()
-    .filter((s) => s.enabled && (s.plugin.meta.category === "feature" || s.plugin.meta.category === "local"))
-    .map<CommandContribution>((s) => ({
-      id: `composer.drawer.${s.plugin.id}`,
-      title: t("打开 {name}", { name: s.plugin.meta.name }),
-      run: () => {
-        if (getFilePanels().some((p) => p.id === s.plugin.id)) setFilePanelMode(s.plugin.id);
-        else openSettingsPanel();
+  return host.listPluginStates().flatMap<CommandContribution>((s) => {
+    if (!s.enabled || (s.plugin.meta.category !== "feature" && s.plugin.meta.category !== "local")) return [];
+    return [
+      {
+        id: `composer.drawer.${s.plugin.id}`,
+        title: t("打开 {name}", { name: s.plugin.meta.name }),
+        run: () => {
+          if (getFilePanels().some((p) => p.id === s.plugin.id)) setFilePanelMode(s.plugin.id);
+          else openSettingsPanel();
+        },
       },
-    }));
+    ];
+  });
 }
 
 /* ---------- 总入口 ---------- */
@@ -190,16 +193,16 @@ export async function resolveProfileDrawerItems(
   profile: CliProfile,
   cwd: string,
 ): Promise<DrawerItem[]> {
-  const items: DrawerItem[] = [];
-  for (const kind of ["command", "skill"] as const) {
-    if (!profile.triggers.some((t) => t.kind === kind)) continue;
-    const dynamic = await fetchKind(profile, kind, cwd);
-    items.push(
-      ...toItems(mergeSuggestions(profile.suggestions?.[kind] ?? [], dynamic), kind, (s) =>
-        staticToken(kind, s),
-      ),
-    );
-  }
+  /* 声明的动态 kind 并行抓取(互不依赖);结果按声明顺序拼接,顺序语义不变 */
+  const kinds = (["command", "skill"] as const).filter((kind) =>
+    profile.triggers.some((t) => t.kind === kind),
+  );
+  const fetched = await Promise.all(kinds.map((kind) => fetchKind(profile, kind, cwd)));
+  const items = kinds.flatMap((kind, i) =>
+    toItems(mergeSuggestions(profile.suggestions?.[kind] ?? [], fetched[i] ?? []), kind, (s) =>
+      staticToken(kind, s),
+    ),
+  );
   if (profile.listMcpServers) {
     const servers = await fetchKind(profile, "mcp", cwd);
     items.push(...toItems(servers, "mcp", (s) => `$${s.value} `));

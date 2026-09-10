@@ -124,44 +124,70 @@ function PanelOverflowMenu({
 
   return createPortal(
     <>
-      <div className="panel-overflow-backdrop" onClick={onClose} />
+      <div className="panel-overflow-backdrop" role="presentation" onClick={onClose} />
       <div className="panel-overflow-menu" style={{ left: position.x, top: position.y }} role="menu">
-        {panels
-          .filter((p) => p.topbarEntry !== false)
-          .map((panel) => {
+        {/* 单趟 flatMap:topbarEntry === false 的面板不进溢出菜单。 */}
+        {panels.flatMap((panel) => {
+          if (panel.topbarEntry === false) return [];
           const Icon = panel.icon;
           const isActive = panel.id === mode;
           const isChecked = pinnedIds.has(panel.id);
-          return (
+          return [
             <div
               key={panel.id}
               className={`panel-overflow-item${isActive ? " is-active" : ""}`}
               data-panel-id={panel.id}
-              role="menuitem"
-              onClick={() => {
-                setFilePanelMode(panel.id);
-                if (!isChecked) togglePinned(panel.id);
-                onClose();
-              }}
             >
-              <span className="panel-overflow-item-icon" aria-hidden>
-                <Icon aria-hidden />
-              </span>
-              <span className="panel-overflow-item-label">{t(panel.label)}</span>
+              {/* 激活动作 = 原生 button 占满图标+标签区(内联样式复刻原 flex 布局);
+                  钉选复选框是并列兄弟,不嵌套在交互元素内(嵌套会丢焦点语义)。 */}
+              <button
+                type="button"
+                role="menuitem"
+                style={{
+                  flex: "1 1 auto",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  minWidth: 0,
+                  padding: 0,
+                  border: "none",
+                  background: "none",
+                  font: "inherit",
+                  color: "inherit",
+                  cursor: "inherit",
+                  textAlign: "left",
+                }}
+                onClick={() => {
+                  setFilePanelMode(panel.id);
+                  if (!isChecked) togglePinned(panel.id);
+                  onClose();
+                }}
+              >
+                <span className="panel-overflow-item-icon" aria-hidden>
+                  <Icon aria-hidden />
+                </span>
+                <span className="panel-overflow-item-label">{t(panel.label)}</span>
+              </button>
               <span
                 className={`panel-overflow-item-check${isChecked ? " is-checked" : ""}`}
                 role="checkbox"
                 aria-checked={isChecked}
+                tabIndex={0}
                 title={t("钉到工具条")}
                 onClick={(e) => {
                   e.stopPropagation();
                   togglePinned(panel.id);
                 }}
+                onKeyDown={(e) => {
+                  if (e.key !== " " && e.key !== "Enter") return;
+                  e.preventDefault();
+                  togglePinned(panel.id);
+                }}
               >
                 {isChecked ? <Check aria-hidden /> : null}
               </span>
-            </div>
-          );
+            </div>,
+          ];
         })}
       </div>
     </>,

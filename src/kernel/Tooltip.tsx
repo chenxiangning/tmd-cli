@@ -81,9 +81,12 @@ export function HintProvider({ children }: { children: React.ReactNode }) {
   const hideTimer = useRef<number | null>(null);
   const activeEl = useRef<HTMLElement | null>(null);
   const origTitle = useRef<string | null>(null);
-  // handler 经 ref 读最新 state:监听器只在挂载时绑一次,不随气泡显隐拆挂
   const stateRef = useRef<PopoverState | null>(null);
-  stateRef.current = state;
+  /* handler 经 ref 读最新 state:监听器只在挂载时绑一次,不随气泡显隐拆挂;
+     ref 转交放 effect,避免渲染期写(React 渲染须纯)。 */
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     function clearTimers(): void {

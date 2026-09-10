@@ -7,6 +7,83 @@ import { toggleDrawer, useDrawerOpen } from "../state/drawerOpen";
 import { useActiveProfile } from "../state/useActiveProfile";
 import { prepareSendPayload } from "../serialize/serialize";
 
+/** 模型位:模型名 + seeded 徽标,点击发 /model(复杂度拆件)。 */
+function ModelSlot({
+  model,
+  seeded,
+  clickable,
+  title,
+  onSend,
+}: {
+  model: string | undefined;
+  seeded: boolean;
+  clickable: boolean;
+  title: string;
+  onSend: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`flex items-center gap-1 rounded-md px-1 -mx-1 transition-colors ${
+        clickable
+          ? "cursor-pointer hover:bg-(--tmd-bg-hover)"
+          : "disabled:cursor-not-allowed disabled:opacity-40"
+      }`}
+      disabled={!clickable}
+      title={title}
+      onClick={onSend}
+    >
+      <span aria-hidden>{t("模型")}</span>
+      <span className="font-mono text-(--tmd-fg)">{model ?? "—"}</span>
+      {seeded && model ? (
+        <span
+          aria-label={t("默认模型(尚未读到会话实况)")}
+          title={t("来自 CLI 默认配置,尚未读到会话实况")}
+          className="rounded-sm bg-(--tmd-bg-hover) px-1 text-[0.625rem] text-(--tmd-fg-muted)"
+        >
+          {t("默认")}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+/** 思考位:有 thinkingCommand 渲染按钮(轮中禁用),否则纯展示(复杂度拆件)。 */
+function ThinkingSlot({
+  level,
+  hasCommand,
+  turnActive,
+  onSend,
+}: {
+  level: string | undefined;
+  hasCommand: boolean;
+  turnActive: boolean;
+  onSend: () => void;
+}) {
+  if (!hasCommand) {
+    return (
+      <span className="flex items-center gap-1" title={level ?? t("未识别思考强度")}>
+        <span aria-hidden>{t("思考")}</span>
+        <span className="font-mono text-(--tmd-fg)">{level ?? "—"}</span>
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className={`flex items-center gap-1 rounded-md px-1 -mx-1 transition-colors ${
+        !turnActive ? "cursor-pointer hover:bg-(--tmd-bg-hover)" : "cursor-not-allowed opacity-40"
+      }`}
+      disabled={turnActive}
+      title={turnActive ? t("对话进行中,本轮结束后可点击") : t("点击打开思考强度选择")}
+      onClick={onSend}
+    >
+      <span aria-hidden>{t("思考")}</span>
+      <span className="font-mono text-(--tmd-fg)">{level ?? "—"}</span>
+    </button>
+  );
+}
+
 export function ComposerToolbar() {
   useHost();
   const sessionId = host.getActiveSessionId();
@@ -49,47 +126,20 @@ export function ComposerToolbar() {
 
   return (
     <div className="flex h-7 shrink-0 items-center gap-2 border-b border-(--tmd-border) px-2 text-[0.6875rem] leading-none text-(--tmd-fg-muted) select-none">
-      <button
-        className={`flex items-center gap-1 rounded-md px-1 -mx-1 transition-colors ${
-          modelClickable
-            ? "cursor-pointer hover:bg-(--tmd-bg-hover)"
-            : "disabled:cursor-not-allowed disabled:opacity-40"
-        }`}
-        disabled={!modelClickable}
+      <ModelSlot
+        model={status?.model}
+        seeded={seeded}
+        clickable={modelClickable}
         title={modelTitle}
-        onClick={sendModelCommand}
-      >
-        <span aria-hidden>{t("模型")}</span>
-        <span className="font-mono text-(--tmd-fg)">{status?.model ?? "—"}</span>
-        {seeded && status?.model ? (
-          <span
-            aria-label={t("默认模型(尚未读到会话实况)")}
-            title={t("来自 CLI 默认配置,尚未读到会话实况")}
-            className="rounded-sm bg-(--tmd-bg-hover) px-1 text-[0.625rem] text-(--tmd-fg-muted)"
-          >
-            {t("默认")}
-          </span>
-        ) : null}
-      </button>
+        onSend={sendModelCommand}
+      />
       <span aria-hidden className="text-(--tmd-fg-faint)">|</span>
-      {profile?.thinkingCommand ? (
-        <button
-          className={`flex items-center gap-1 rounded-md px-1 -mx-1 transition-colors ${
-            !turnActive ? "cursor-pointer hover:bg-(--tmd-bg-hover)" : "cursor-not-allowed opacity-40"
-          }`}
-          disabled={turnActive}
-          title={turnActive ? t("对话进行中,本轮结束后可点击") : t("点击打开思考强度选择")}
-          onClick={sendThinkingCommand}
-        >
-          <span aria-hidden>{t("思考")}</span>
-          <span className="font-mono text-(--tmd-fg)">{status?.thinkingLevel ?? "—"}</span>
-        </button>
-      ) : (
-        <span className="flex items-center gap-1" title={status?.thinkingLevel ?? t("未识别思考强度")}>
-          <span aria-hidden>{t("思考")}</span>
-          <span className="font-mono text-(--tmd-fg)">{status?.thinkingLevel ?? "—"}</span>
-        </span>
-      )}
+      <ThinkingSlot
+        level={status?.thinkingLevel}
+        hasCommand={!!profile?.thinkingCommand}
+        turnActive={turnActive}
+        onSend={sendThinkingCommand}
+      />
       {sessionId ? (
         <>
           <span aria-hidden className="text-(--tmd-fg-faint)">|</span>

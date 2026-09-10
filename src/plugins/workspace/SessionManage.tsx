@@ -24,6 +24,7 @@ import {
 } from "@kernel/sessionArchive";
 import type { Workspace } from "@kernel/workspace";
 import { PAGE_INITIAL } from "./utils";
+import { selectRange } from "./selectRange";
 import { DangerAction } from "./DangerAction";
 
 /** 管理行:活会话(PTY 态)或磁盘会话(文件态);key 在本组行集内唯一。 */
@@ -31,24 +32,11 @@ type ManageRow =
   | { kind: "live"; key: string; session: SessionMeta; cliSessionId: string | undefined }
   | { kind: "disk"; key: string; session: CliDiskSession };
 
-/** 拖选范围扩散:把 order[from..to] 按 val 增删,范围外保持不变;export 供单测。 */
-export function selectRange(
-  prev: Set<string>,
-  order: string[],
-  from: number,
-  to: number,
-  val: boolean,
-): Set<string> {
-  const next = new Set(prev);
-  const lo = Math.min(from, to);
-  const hi = Math.max(from, to);
-  for (let i = lo; i <= hi; i++) {
-    const key = order[i];
-    if (key === undefined) continue;
-    if (val) next.add(key);
-    else next.delete(key);
-  }
-  return next;
+/** 命中测试:坐标 → 行下标(查不到回 -1)。不捕获响应值,提模块级。 */
+function idxFromPoint(x: number, y: number): number {
+  const row = document.elementFromPoint(x, y)?.closest("[data-mrow]");
+  const idx = row ? Number(row.getAttribute("data-mrow")) : Number.NaN;
+  return Number.isInteger(idx) ? idx : -1;
 }
 
 
@@ -91,41 +79,37 @@ export function ManageList({
     ),
     ...visible.map((s) => ({ kind: "disk", key: s.id, session: s }) as ManageRow),
   ];
-  const orderRef = useRef(rows.map((r) => r.key));
-  orderRef.current = rows.map((r) => r.key);
+  /* 行序直接取当轮 rows(事件处理器随渲染重建,读到的恒为最新行集;
+   * 旧 orderRef 每轮重算初值 + 渲染期写 current,ref 徒增一层)。 */
+  const order = rows.map((r) => r.key);
   /** 拖选锚点存 key 而非下标:拖选途中重扫(listSessions 补扫/活会话退出)重排行集时,
    *  下标会指向别的行,key 经 indexOf 重解区间起点,天然免疫重排。 */
   const dragRef = useRef<{ anchorKey: string; val: boolean } | null>(null);
   const lastIdxRef = useRef(-1);
 
-  const idxFromPoint = (x: number, y: number): number => {
-    const row = document.elementFromPoint(x, y)?.closest("[data-mrow]");
-    const idx = row ? Number(row.getAttribute("data-mrow")) : Number.NaN;
-    return Number.isInteger(idx) ? idx : -1;
-  };
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const idx = idxFromPoint(e.clientX, e.clientY);
     if (idx < 0) return;
     e.preventDefault();
-    const anchorKey = orderRef.current[idx];
+    const anchorKey = order[idx];
     const val = !selected.has(anchorKey);
     dragRef.current = { anchorKey, val };
     lastIdxRef.current = idx;
-    setSelected((prev) => selectRange(prev, orderRef.current, idx, idx, val));
+    setSelected((prev) => selectRange(prev, order, idx, idx, val));
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (!dragRef.current) return;
     const idx = idxFromPoint(e.clientX, e.clientY);
     if (idx < 0 || idx === lastIdxRef.current) return;
     lastIdxRef.current = idx;
-    const anchor = orderRef.current.indexOf(dragRef.current.anchorKey);
+    const anchor = order.indexOf(dragRef.current.anchorKey);
     if (anchor < 0) {
       dragRef.current = null;
       return;
     }
-    setSelected((prev) => selectRange(prev, orderRef.current, anchor, idx, dragRef.current!.val));
+    setSelected((prev) => selectRange(prev, order, anchor, idx, dragRef.current!.val));
   };
 
   const setArchived = (row: ManageRow, archived: boolean) => {
@@ -153,7 +137,8 @@ export function ManageList({
     setSelected(new Set());
   };
   const batchDelete = async () => {
-    for (const r of selectedRows) await runDelete(r);
+    /* 各行删除互不依赖,并发;每行完成即自行清本行选中。 */
+    await Promise.all(selectedRows.map((r) => runDelete(r)));
   };
 
   const renderRow = (row: ManageRow, idx: number) => {

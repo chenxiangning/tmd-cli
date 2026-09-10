@@ -23,11 +23,10 @@ import {
 
 import {
   EngineCard,
-  probeEngine,
   useEngineInstall,
   type EngineProbeState,
-  type InstallState,
 } from "./EngineCard";
+import { probeEngine } from "./engineProbe";
 import { CredentialList } from "./CredentialList";
 import { fetchLatestVersion } from "./latestVersion";
 import { RecentSessions } from "./RecentSessions";
@@ -217,6 +216,3 @@ export function WelcomePage() {
     </div>
   );
 }
-
-/** 安装状态类型 re-export(EngineSection 外部不直接用,保持类型对齐)。 */
-export type { InstallState };

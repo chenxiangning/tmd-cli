@@ -49,10 +49,14 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
   const dirty = content !== saved;
 
   const contentRef = useRef(content);
-  contentRef.current = content;
   const savedRef = useRef(saved);
-  savedRef.current = saved;
   const savingRef = useRef(false);
+  /* ref 镜像在 effect 内同步(渲染期写 ref 违反 React 渲染纯性,react-doctor 强报)。 */
+  useEffect(() => {
+    contentRef.current = content;
+    savedRef.current = saved;
+  }, [content, saved]);
+
 
   /* 磁盘内容外变(刷新按钮 reloadFile 重读):无未保存草稿时静默跟进新内容;
      有草稿则以编辑态为准,不覆盖用户输入。行尾标记同步更新。 */
@@ -97,18 +101,18 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
         setError(String(e));
       },
     );
-  }, [path, init]);
+  }, [path]);
 
   /* 保存请求桥:⌘S 命令(files.save)注册口经此触发最新 save;卸载即摘除,
      非文件 tab 下 when 不满足,键穿透。 */
   const saveRef = useRef(save);
-  saveRef.current = save;
   useEffect(() => {
+    saveRef.current = save;
     saveRequestRef.current = () => saveRef.current();
     return () => {
       saveRequestRef.current = null;
     };
-  }, []);
+  }, [save]);
 
   /* 脏标记同步到 tab(圆点)。卸载不清理:切走的脏 tab 仍需保持圆点。 */
   useEffect(() => {

@@ -12,6 +12,7 @@ import { t } from "@kernel/i18n";
 import { CircleNotch } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
 import { ipc, type GitFilePatch } from "@kernel/ipc";
+import type { GitDiffMode } from "@kernel/settings";
 import { readDiffTabPayload, type DiffTabPayload } from "./diffTab";
 import { gitErrorMessage } from "./gitError";
 import { PatchLines } from "./views/PatchLines";
@@ -31,32 +32,11 @@ export function DiffTabContent({ tab }: { tab: EditorTab }) {
 }
 
 function DiffTab({ payload }: { payload: DiffTabPayload }) {
-  const [patch, setPatch] = useState<GitFilePatch | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { diffMode } = useGitPanelState();
-  const tokenRef = useRef(0);
   /* 全文查看:per-tab 本地态 —— 默认关;tab 按文件锚定(key 重挂载),
      换文件自然复位,用户想看才点开(拉全上下文 patch,代价随文件体积)。 */
   const [fullView, setFullView] = useState(false);
-
-  useEffect(() => {
-    const myToken = ++tokenRef.current;
-    setLoading(true);
-    setError(null);
-    ipc.gitDiffFilePatch(payload.cwd, payload.path, payload.staged, fullView).then(
-      (p) => {
-        if (myToken !== tokenRef.current) return;
-        setPatch(p);
-        setLoading(false);
-      },
-      (e: unknown) => {
-        if (myToken !== tokenRef.current) return;
-        setError(gitErrorMessage(e));
-        setLoading(false);
-      },
-    );
-  }, [payload.cwd, payload.path, payload.staged, fullView]);
+  const { patch, loading, error } = useFilePatch(payload, fullView);
 
   const name = payload.path.split("/").pop() ?? payload.path;
   const dir = payload.path.includes("/")
@@ -93,21 +73,67 @@ function DiffTab({ payload }: { payload: DiffTabPayload }) {
       </div>
 
       {/* patch 区 */}
-      <div className="min-w-0 flex-1 overflow-auto">
-        {loading ? (
-          <div className="flex items-center justify-center gap-1.5 py-6 text-(--tmd-fg-faint)">
-            <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载 diff…")}
-          </div>
-        ) : error ? (
-          <div className="px-3 py-3 text-(--tmd-diff-removed)">{error.replace(/^E_[A-Z_]+:\s*/, "")}</div>
-        ) : patch?.binary ? (
-          <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("二进制文件,无文本 diff")}</div>
-        ) : patch ? (
-          <PatchLines text={patch.patch} className="h-max min-h-full" mode={diffMode} />
-        ) : (
-          <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("无 diff 数据")}</div>
-        )}
-      </div>
+      <FilePatchBody patch={patch} loading={loading} error={error} diffMode={diffMode as GitDiffMode} />
+    </div>
+  );
+}
+
+/** 每次挂载即拉最新 patch,不做缓存;token 防 cwd/切 tab 竞态。 */
+function useFilePatch(
+  payload: DiffTabPayload,
+  fullView: boolean,
+): { patch: GitFilePatch | null; loading: boolean; error: string | null } {
+  const [patch, setPatch] = useState<GitFilePatch | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const tokenRef = useRef(0);
+  useEffect(() => {
+    const myToken = ++tokenRef.current;
+    setLoading(true);
+    setError(null);
+    ipc.gitDiffFilePatch(payload.cwd, payload.path, payload.staged, fullView).then(
+      (p) => {
+        if (myToken !== tokenRef.current) return;
+        setPatch(p);
+        setLoading(false);
+      },
+      (e: unknown) => {
+        if (myToken !== tokenRef.current) return;
+        setError(gitErrorMessage(e));
+        setLoading(false);
+      },
+    );
+  }, [payload.cwd, payload.path, payload.staged, fullView]);
+  return { patch, loading, error };
+}
+
+/** patch 区:加载/错误/二进制/正文四态。 */
+function FilePatchBody({
+  patch,
+  loading,
+  error,
+  diffMode,
+}: {
+  patch: GitFilePatch | null;
+  loading: boolean;
+  error: string | null;
+  diffMode: GitDiffMode;
+}) {
+  return (
+    <div className="min-w-0 flex-1 overflow-auto">
+      {loading ? (
+        <div className="flex items-center justify-center gap-1.5 py-6 text-(--tmd-fg-faint)">
+          <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载 diff…")}
+        </div>
+      ) : error ? (
+        <div className="px-3 py-3 text-(--tmd-diff-removed)">{error.replace(/^E_[A-Z_]+:\s*/, "")}</div>
+      ) : patch?.binary ? (
+        <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("二进制文件,无文本 diff")}</div>
+      ) : patch ? (
+        <PatchLines text={patch.patch} className="h-max min-h-full" mode={diffMode} />
+      ) : (
+        <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("无 diff 数据")}</div>
+      )}
     </div>
   );
 }

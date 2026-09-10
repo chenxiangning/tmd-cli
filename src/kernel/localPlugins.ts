@@ -112,15 +112,20 @@ export async function bootLocalPlugins(builtins: ReadonlySet<string>): Promise<P
   if (getSettingsState().settings.localPluginsDisabled) return [];
   const entries = await ipc.pluginScan().catch(() => null);
   if (!entries) return [];
-  const ready: Plugin[] = [];
+  /* boot 可重入(测试/未来的手动重载):先清旧登记,避免已从磁盘消失的插件留僵尸记录。 */
   records.clear();
-  for (const entry of entries) {
-    const rec = scanToRecord(entry, builtinIds);
-    records.set(rec.id, rec);
-    if (!activatable(rec)) continue;
-    const plugin = await ensureLoaded(rec);
-    if (plugin) ready.push(plugin); // activatedHash 由 activateBootLocals 真实激活后落(markActivated)
-  }
+  /* 装载互不依赖,并发读+import(内容指纹缓存兜底);records 登记仍按 entries
+     原序(各 lambda 同步前缀依次执行),ready 保持原序。 */
+  const loaded = await Promise.all(
+    entries.map(async (entry) => {
+      const rec = scanToRecord(entry, builtinIds);
+      records.set(rec.id, rec);
+      if (!activatable(rec)) return null;
+      // activatedHash 由 activateBootLocals 真实激活后落(markActivated)
+      return ensureLoaded(rec);
+    }),
+  );
+  const ready = loaded.filter((p): p is Plugin => p !== null);
   emit();
   return ready;
 }

@@ -36,11 +36,15 @@ export function providersForModelId(
     Array.isArray(models) &&
     models.some((m) => m && typeof m === "object" && "id" in m && m.id === modelId);
   const out: string[] = [];
+  const seen = new Set<string>();
   for (const [pid, cfg] of Object.entries(config.store)) {
-    if (cfg && typeof cfg === "object" && hasModel(cfg.models)) out.push(pid);
+    if (cfg && typeof cfg === "object" && hasModel(cfg.models)) {
+      seen.add(pid);
+      out.push(pid);
+    }
   }
   for (const [pid, cfg] of Object.entries(config.modelsJson)) {
-    if (!out.includes(pid) && cfg && typeof cfg === "object" && hasModel(cfg.models)) out.push(pid);
+    if (!seen.has(pid) && cfg && typeof cfg === "object" && hasModel(cfg.models)) out.push(pid);
   }
   return out;
 }

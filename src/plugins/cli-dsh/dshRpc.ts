@@ -74,15 +74,19 @@ export async function listHostSessions(
     value = await rpc<{ items?: DshSessionListItem[] }>(conn, "session/list", { _request: {} });
   }
   const items = Array.isArray(value?.items) ? value.items : [];
-  return items
-    .filter((it) => typeof it.sessionId === "string" && it.cwd === cwd)
-    .map((it) => ({
-      id: it.sessionId as string,
-      title: it.projections?.values?.title || (it.blank ? "空会话" : undefined),
-      modifiedAt: typeof it.updatedAt === "number" ? it.updatedAt : 0,
-      /* DSH 会话无单文件路径(zstd 流在 host 侧);path 仅调试展示位 */
-      path: `${originOf(conn)}/${it.sessionId}`,
-    }));
+  return items.flatMap((it) =>
+    typeof it.sessionId === "string" && it.cwd === cwd
+      ? [
+          {
+            id: it.sessionId,
+            title: it.projections?.values?.title || (it.blank ? "空会话" : undefined),
+            modifiedAt: typeof it.updatedAt === "number" ? it.updatedAt : 0,
+            /* DSH 会话无单文件路径(zstd 流在 host 侧);path 仅调试展示位 */
+            path: `${originOf(conn)}/${it.sessionId}`,
+          },
+        ]
+      : [],
+  );
 }
 
 /**
@@ -98,11 +102,17 @@ export async function deleteHostSession(cliSessionId: string): Promise<void> {
   if (!home) return;
   const slugs = await ipc.fsListDir(`${home}/.dsh/sessions`).catch(() => []);
   await Promise.all(
-    slugs.filter((e) => e.isDir).map(async (slug) => {
-      const hit = (await ipc.fsListDir(slug.path).catch(() => []))
-        .find((e) => e.isDir && e.name === cliSessionId);
-      if (hit) await ipc.fsRemovePath(hit.path);
-    }),
+    slugs.flatMap((slug) =>
+      slug.isDir
+        ? [
+            (async () => {
+              const hit = (await ipc.fsListDir(slug.path).catch(() => []))
+                .find((e) => e.isDir && e.name === cliSessionId);
+              if (hit) await ipc.fsRemovePath(hit.path);
+            })(),
+          ]
+        : [],
+    ),
   );
 }
 

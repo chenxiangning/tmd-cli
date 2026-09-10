@@ -11,7 +11,15 @@
 import { useState } from "react";
 import { Gauge, TreeStructure } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
-import { BudgetPopover, clampBudgetPosition } from "./BudgetPopover";
+import { BudgetPopover } from "./BudgetPopover";
+
+/** 弹窗定位:以锚点为左上,按估算尺寸在视口内夹取(同 clampMenuPosition 思路)。 */
+function clampBudgetPosition(x: number, y: number): { x: number; y: number } {
+  return {
+    x: Math.min(x, window.innerWidth - 340 - 12),
+    y: Math.min(y, window.innerHeight - 480 - 12),
+  };
+}
 
 /** 工作区标题行入口:按钮 + 弹窗自持状态(挂载点组件,无外部 props)。 */
 function CaptionBudgetButton() {

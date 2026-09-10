@@ -11,6 +11,28 @@ import { host, useHost } from "@kernel/host";
 
 /** 在途创建 Promise(shell 会话 spawn 装配未落地期间再点直接忽略)。 */
 let creating: Promise<unknown> | null = null;
+/** 打开/聚焦终端:聚焦最新(createdAt 最大)的 shell 会话,无则新建;forceNew 强制新建。 */
+function open(forceNew: boolean) {
+  if (creating) return;
+  if (!forceNew) {
+    const latest = host
+      .getSessions()
+      .filter((s) => s.kind === "shell")
+      .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))[0];
+    if (latest) {
+      host.setActiveSession(latest.id);
+      return;
+    }
+  }
+  /* 失败已广播 sessionStartFailed(StartFailureToast 呈现),这里吞掉即可 */
+  creating = host
+    .createShellSession()
+    .catch(() => undefined)
+    .finally(() => {
+      creating = null;
+    });
+}
+
 
 export function TerminalButton() {
   useHost(); /* 活跃指针/会话表变化驱动激活态与聚焦语义 */
@@ -18,27 +40,6 @@ export function TerminalButton() {
   const isActive =
     host.getSessions().find((s) => s.id === activeId)?.kind === "shell";
 
-  const open = (forceNew: boolean) => {
-    if (creating) return;
-    if (!forceNew) {
-      /* 聚焦最新(createdAt 最大)的 shell 会话;无则落到新建 */
-      const latest = host
-        .getSessions()
-        .filter((s) => s.kind === "shell")
-        .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))[0];
-      if (latest) {
-        host.setActiveSession(latest.id);
-        return;
-      }
-    }
-    /* 失败已广播 sessionStartFailed(StartFailureToast 呈现),这里吞掉即可 */
-    creating = host
-      .createShellSession()
-      .catch(() => undefined)
-      .finally(() => {
-        creating = null;
-      });
-  };
 
   return (
     <button

@@ -9,7 +9,7 @@
  * 单页 canvas 渲染组件拆至 PdfPageCanvas.tsx(文件规模铁则)。
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef } from "react";
 import { getDocument, type PDFDocumentProxy } from "pdfjs-dist";
 import { ensurePdfPreviewWorker } from "./pdfRuntime";
 import { PdfPageCanvas } from "./PdfPageCanvas";
@@ -31,30 +31,44 @@ const PDF_SCALE_STEP = 0.1;
 type FilePdfPreviewProps = {
   path: string;
 };
+/* 预览器九项状态是同一台加载状态机(换 path 时整体复位),收进 useReducer,
+   一次逻辑更新一次提交,不再九路 setState 各自触发渲染。 */
+const initialPdfPreviewState = {
+  pdfDocument: null as PDFDocumentProxy | null,
+  numPages: 0,
+  runtimeError: null as string | null,
+  isRuntimeLoading: true,
+  outlineItems: [] as PreviewOutlineItem[],
+  activeOutlineItemId: null as string | null,
+  pageWindowStart: 1,
+  isOutlineCollapsed: false,
+  pdfScale: DEFAULT_PDF_SCALE,
+};
+type PdfPreviewState = typeof initialPdfPreviewState;
+type PdfPreviewAction = { type: "loaded"; pdfDocument: PDFDocumentProxy; numPages: number } | { type: "load-failed"; error: string } | { type: "outline-loaded"; items: PreviewOutlineItem[] } | { type: "select-outline-item"; id: string; pageWindowStart: number } | { type: "toggle-outline-collapsed" } | { type: "set-scale"; scale: number } | { type: "reset" };
+
+function pdfPreviewReducer(state: PdfPreviewState, action: PdfPreviewAction): PdfPreviewState {
+  switch (action.type) {
+    /* reset = 换 path 重新进入加载相位(旧版 effect 首行 setIsRuntimeLoading(true)):
+       加载完成/失败才会落回 false,加载期不得误报「无法加载 PDF 预览」。 */
+    case "reset": return { ...initialPdfPreviewState, isRuntimeLoading: true };
+    case "loaded": return { ...state, pdfDocument: action.pdfDocument, numPages: action.numPages, runtimeError: null, isRuntimeLoading: false };
+    case "load-failed": return { ...initialPdfPreviewState, runtimeError: action.error };
+    case "outline-loaded": return { ...state, outlineItems: action.items };
+    case "select-outline-item": return { ...state, activeOutlineItemId: action.id, pageWindowStart: action.pageWindowStart };
+    case "toggle-outline-collapsed": return { ...state, isOutlineCollapsed: !state.isOutlineCollapsed };
+    case "set-scale": return { ...state, pdfScale: action.scale };
+  }
+}
 
 export function FilePdfPreview({ path }: FilePdfPreviewProps) {
   const previewRootRef = useRef<HTMLDivElement | null>(null);
   const pendingScrollPageNumberRef = useRef<number | null>(null);
-  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
-  const [numPages, setNumPages] = useState(0);
-  const [runtimeError, setRuntimeError] = useState<string | null>(null);
-  const [isRuntimeLoading, setIsRuntimeLoading] = useState(false);
-  const [outlineItems, setOutlineItems] = useState<PreviewOutlineItem[]>([]);
-  const [activeOutlineItemId, setActiveOutlineItemId] = useState<string | null>(null);
-  const [pageWindowStart, setPageWindowStart] = useState(1);
-  const [isOutlineCollapsed, setIsOutlineCollapsed] = useState(false);
-  const [pdfScale, setPdfScale] = useState(DEFAULT_PDF_SCALE);
+  const [state, dispatch] = useReducer(pdfPreviewReducer, initialPdfPreviewState);
+  const { pdfDocument, numPages, runtimeError, isRuntimeLoading, outlineItems, activeOutlineItemId, pageWindowStart, isOutlineCollapsed, pdfScale } = state;
 
   useEffect(() => {
-    setPdfDocument(null);
-    setNumPages(0);
-    setRuntimeError(null);
-    setIsRuntimeLoading(true);
-    setOutlineItems([]);
-    setActiveOutlineItemId(null);
-    setPageWindowStart(1);
-    setIsOutlineCollapsed(false);
-    setPdfScale(DEFAULT_PDF_SCALE);
+    dispatch({ type: "reset" });
 
     let disposed = false;
     let loadedDocument: PDFDocumentProxy | null = null;
@@ -70,16 +84,10 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
           await nextDocument.destroy();
           return;
         }
-        setPdfDocument(nextDocument);
-        setNumPages(nextDocument.numPages);
-        setRuntimeError(null);
-        setIsRuntimeLoading(false);
+        dispatch({ type: "loaded", pdfDocument: nextDocument, numPages: nextDocument.numPages });
       } catch (loadError) {
         if (disposed) return;
-        setPdfDocument(null);
-        setNumPages(0);
-        setRuntimeError(loadError instanceof Error ? loadError.message : String(loadError));
-        setIsRuntimeLoading(false);
+        dispatch({ type: "load-failed", error: loadError instanceof Error ? loadError.message : String(loadError) });
       }
     })();
 
@@ -93,8 +101,6 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
 
   useEffect(() => {
     if (!pdfDocument) {
-      setOutlineItems([]);
-      setActiveOutlineItemId(null);
       return;
     }
 
@@ -104,11 +110,11 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
       try {
         const nextOutlineItems = await extractPdfPreviewOutline(pdfDocument, t("未命名"));
         if (!cancelled) {
-          setOutlineItems(nextOutlineItems);
+          dispatch({ type: "outline-loaded", items: nextOutlineItems });
         }
       } catch {
         if (!cancelled) {
-          setOutlineItems([]);
+          dispatch({ type: "outline-loaded", items: [] });
         }
       }
     })();
@@ -153,9 +159,8 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
       maxPageWindowStart,
     );
 
-    setActiveOutlineItemId(item.id);
+    dispatch({ type: "select-outline-item", id: item.id, pageWindowStart: nextWindowStart });
     pendingScrollPageNumberRef.current = nextPageNumber;
-    setPageWindowStart(nextWindowStart);
 
     if (
       nextWindowStart === normalizedPageWindowStart &&
@@ -209,7 +214,7 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
                 <button
                   type="button"
                   className="fvp-preview-toolbar-button"
-                  onClick={() => setIsOutlineCollapsed((current) => !current)}
+                  onClick={() => dispatch({ type: "toggle-outline-collapsed" })}
                 >
                   {isOutlineCollapsed ? t("展开目录") : t("收起目录")}
                 </button>
@@ -219,11 +224,7 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
                 className="fvp-preview-toolbar-button"
                 aria-label={t("缩小")}
                 disabled={pdfScale <= MIN_PDF_SCALE}
-                onClick={() =>
-                  setPdfScale((current) =>
-                    Math.max(MIN_PDF_SCALE, Math.round((current - PDF_SCALE_STEP) * 100) / 100),
-                  )
-                }
+                onClick={() => dispatch({ type: "set-scale", scale: Math.max(MIN_PDF_SCALE, Math.round((pdfScale - PDF_SCALE_STEP) * 100) / 100) })}
               >
                 -
               </button>
@@ -231,7 +232,7 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
                 type="button"
                 className="fvp-preview-toolbar-button fvp-preview-toolbar-value"
                 aria-label={t("重置缩放")}
-                onClick={() => setPdfScale(DEFAULT_PDF_SCALE)}
+                onClick={() => dispatch({ type: "set-scale", scale: DEFAULT_PDF_SCALE })}
               >
                 {`${Math.round(pdfScale * 100)}%`}
               </button>
@@ -240,11 +241,7 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
                 className="fvp-preview-toolbar-button"
                 aria-label={t("放大")}
                 disabled={pdfScale >= MAX_PDF_SCALE}
-                onClick={() =>
-                  setPdfScale((current) =>
-                    Math.min(MAX_PDF_SCALE, Math.round((current + PDF_SCALE_STEP) * 100) / 100),
-                  )
-                }
+                onClick={() => dispatch({ type: "set-scale", scale: Math.min(MAX_PDF_SCALE, Math.round((pdfScale + PDF_SCALE_STEP) * 100) / 100) })}
               >
                 +
               </button>

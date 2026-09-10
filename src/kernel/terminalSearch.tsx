@@ -1,28 +1,13 @@
 /**
- * 终端搜索浮层与 terminal.find 命令桥 —— 自 TerminalView.tsx 拆出(文件规模铁则收紧至 300 行)。
- * 承担:⌘F 搜索 UI(上一个/下一个/关闭)与 terminal 作用域命令登记;
- * 纯 xterm SearchAddon 点缀,不触碰字节流。
+ * 终端搜索浮层 —— 自 TerminalView.tsx 拆出(文件规模铁则收紧至 300 行)。
+ * 承担:⌘F 搜索 UI(上一个/下一个/关闭);纯 xterm SearchAddon 点缀,不触碰字节流。
+ * terminal.find 命令桥与模块级 findRequestRef 在 terminalFindBridge.ts。
  */
 
-import { useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { SearchAddon } from "@xterm/addon-search";
 import { CaretDown, CaretUp, Cross } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { registerCommand } from "@kernel/shortcuts";
-
-/* ── 终端作用域命令桥(spec 2026-09-05-shortcuts) ──
- * 终端内自由快捷键一律不变:键照旧进 PTY,只有 terminal 作用域命令经
- * attachCustomKeyEventHandler 桥触发。一期唯一成员 terminal.find(⌘F,行为
- * 与桥接入前完全一致);搜索 UI 归内核终端本体,故命令在此登记,组件实例
- * 经 findRequestRef 接收触发。 */
-export const findRequestRef: { current: (() => void) | null } = { current: null };
-registerCommand({
-  id: "terminal.find",
-  title: "终端搜索",
-  keybinding: "Cmd+F",
-  scope: "terminal",
-  run: () => findRequestRef.current?.(),
-});
 
 export function TerminalSearchOverlay({
   searchRef,
@@ -32,11 +17,15 @@ export function TerminalSearchOverlay({
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   return (
     <div className="absolute right-3 top-2 z-10 flex items-center gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) px-2 py-1 shadow-lg">
       <input
-        autoFocus
+        ref={inputRef}
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);

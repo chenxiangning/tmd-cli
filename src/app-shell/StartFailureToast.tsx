@@ -7,7 +7,7 @@
  * 12s 自动消失,多则叠放(最多 3 条),手点 X 可立即关。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Warning, Cross } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
@@ -22,7 +22,34 @@ const NOTICE_TTL_MS = 12_000;
 /** 同时叠放上限,超出挤掉最旧。 */
 const NOTICE_MAX = 3;
 
-/** 纯呈现面(测试用 renderToStaticMarkup 断言;订阅/计时在 StartFailureToast)。 */
+/** 单条通知卡:自持 TTL 定时器,effect cleanup 直接 clearTimeout(卸载即销)。
+    静态渲染(renderToStaticMarkup)不跑 effect,测试看到的标记不变。 */
+function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }) {
+  useEffect(() => {
+    const timer = setTimeout(() => onClose(n.id), NOTICE_TTL_MS);
+    return () => clearTimeout(timer);
+  }, [n.id, onClose]);
+  const name = (n.profileId && host.getCliProfile(n.profileId)?.name) ?? n.profileId ?? "CLI";
+  return (
+    <div className="sft-card">
+      <div className="sft-head">
+        <Warning size="0.875rem" className="sft-icon" aria-hidden />
+        <span className="sft-title">{t("{name} 会话启动失败", { name })}</span>
+        <button
+          type="button"
+          className="sft-close"
+          aria-label={t("关闭启动失败通知")}
+          onClick={() => onClose(n.id)}
+        >
+          <Cross size="0.75rem" aria-hidden />
+        </button>
+      </div>
+      <pre className="sft-reason">{n.reason}</pre>
+    </div>
+  );
+}
+
+/** 纯呈现面(测试用 renderToStaticMarkup 断言;订阅在 StartFailureToast)。 */
 export function StartFailureNotices({
   notices,
   onClose,
@@ -33,69 +60,33 @@ export function StartFailureNotices({
   if (notices.length === 0) return null;
   return (
     <div className="sft-stack" role="alert">
-      {notices.map((n) => {
-        const name =
-          (n.profileId && host.getCliProfile(n.profileId)?.name) ?? n.profileId ?? "CLI";
-        return (
-          <div className="sft-card" key={n.id}>
-            <div className="sft-head">
-              <Warning size="0.875rem" className="sft-icon" aria-hidden />
-              <span className="sft-title">{t("{name} 会话启动失败", { name })}</span>
-              <button
-                type="button"
-                className="sft-close"
-                aria-label={t("关闭启动失败通知")}
-                onClick={() => onClose(n.id)}
-              >
-                <Cross size="0.75rem" aria-hidden />
-              </button>
-            </div>
-            <pre className="sft-reason">{n.reason}</pre>
-          </div>
-        );
-      })}
+      {notices.map((n) => (
+        <NoticeCard key={n.id} n={n} onClose={onClose} />
+      ))}
     </div>
   );
 }
 
 export function StartFailureToast() {
   const [notices, setNotices] = useState<readonly Notice[]>([]);
-  const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  const seq = useRef(0);
 
   useEffect(() => {
-    let seq = 0;
-    const dismiss = (id: number) => {
-      const t = timers.current.get(id);
-      if (t) clearTimeout(t);
-      timers.current.delete(id);
-      setNotices((list) => list.filter((n) => n.id !== id));
-    };
     const off = host.events.on<SessionStartFailedEvent>(
       KernelTopics.sessionStartFailed,
       (e) => {
-        const id = ++seq;
+        const id = ++seq.current;
         setNotices((list) => [...list.slice(-(NOTICE_MAX - 1)), { ...e, id }]);
-        timers.current.set(id, setTimeout(() => dismiss(id), NOTICE_TTL_MS));
       },
     );
-    return () => {
-      off();
-      timers.current.forEach((t) => clearTimeout(t));
-      timers.current.clear();
-    };
+    return () => off();
   }, []);
 
-  return (
-    <StartFailureNotices
-      notices={notices}
-      onClose={(id) =>
-        setNotices((list) => {
-          const t = timers.current.get(id);
-          if (t) clearTimeout(t);
-          timers.current.delete(id);
-          return list.filter((n) => n.id !== id);
-        })
-      }
-    />
-  );
+  /* 纯 updater:定时器由 NoticeCard 的 effect cleanup 在卸载时自销,这里只过滤列表。 */
+  const close = useCallback((id: number) => {
+    setNotices((list) => list.filter((n) => n.id !== id));
+  }, []);
+
+  return <StartFailureNotices notices={notices} onClose={close} />;
 }
+

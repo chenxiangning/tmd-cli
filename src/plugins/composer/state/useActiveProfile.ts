@@ -10,9 +10,11 @@ import type { CliProfile } from "@kernel/cli";
 export function useActiveProfile(): CliProfile | null {
   useHost();
   const [profile, setProfile] = useState<CliProfile | null>(() => currentProfile());
+  const sessionId = host.getActiveSessionId();
+  const hostVersion = host.getVersion();
   useEffect(() => {
     setProfile(currentProfile());
-  }, [host.getActiveSessionId(), host.getVersion()]);
+  }, [sessionId, hostVersion]);
   return profile;
 }
 

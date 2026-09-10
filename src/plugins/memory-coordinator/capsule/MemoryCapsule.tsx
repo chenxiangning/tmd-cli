@@ -128,9 +128,10 @@ export function MemoryCapsule() {
           </div>
           <div className="flex max-h-36 flex-col gap-0.5 overflow-y-auto">
             {items.map((m, i) => (
-              <div
+              <button
                 key={m.id}
-                className={`flex cursor-pointer items-start gap-2 rounded-md px-2 py-1 text-[0.6875rem] leading-[1.45] ${
+                type="button"
+                className={`flex cursor-pointer items-start gap-2 rounded-md px-2 py-1 text-left text-[0.6875rem] leading-[1.45] ${
                   checked.has(i) ? "bg-(--tmd-accent-soft) text-(--tmd-fg)" : "text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
                 }`}
                 onClick={() => {
@@ -154,7 +155,7 @@ export function MemoryCapsule() {
                   {m.content}
                   <span className="ml-1.5 text-[0.625rem] text-(--tmd-fg-faint)">{m.category}</span>
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         </div>

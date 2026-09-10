@@ -32,6 +32,9 @@ const LAYOUT_ICON: Record<FileListLayout, typeof Rows> = {
   tree: TreeStructure,
 };
 
+/** 菜单分组分隔线(常量 JSX 提模块级,不随渲染重建)。 */
+const MENU_SEPARATOR = <div className="my-1 border-t border-(--tmd-border)" />;
+
 export function GitToolbar() {
   const { view, layout, aggregate } = useGitPanelState();
   const ViewIcon = VIEW_ICON[view];
@@ -121,10 +124,9 @@ function ViewMenu({
 
   const item =
     "flex w-full items-center justify-between px-3 py-1.5 text-left text-xs hover:bg-(--tmd-bg-hover)";
-  const sep = <div className="my-1 border-t border-(--tmd-border)" />;
   return createPortal(
     <>
-      <div className="panel-overflow-backdrop" onClick={onClose} />
+      <div className="panel-overflow-backdrop" role="presentation" onClick={onClose} />
       <div
         className="panel-overflow-menu"
         style={{ left: position.x, top: position.y, minWidth: 176 }}
@@ -142,7 +144,7 @@ function ViewMenu({
             </button>
           );
         })}
-        {sep}
+        {MENU_SEPARATOR}
         <div className="px-3 py-1 text-[0.625rem] text-(--tmd-fg-faint)">{t("文件列表视图")}</div>
         {(["flat", "tree"] as const).map((l) => {
           const LIcon = LAYOUT_ICON[l];

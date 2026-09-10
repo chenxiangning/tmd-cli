@@ -7,7 +7,7 @@
  * 行为:Enter/blur 提交,Escape 取消;空值 = 清除手动命名(回归磁盘原生标题)。
  * settled 闸:提交/取消后卸载触发的二次 blur 不得重复回调。
  */
-import { useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { t } from "@kernel/i18n";
 
 /** 行内重命名目标:以 CLI 磁盘身份为 key(与覆盖层同 key)。 */
@@ -31,31 +31,36 @@ export function RenameInput({
   /** value=null 为取消;否则为最终输入(可能为空串 = 清除命名)。 */
   onCommit: (value: string | null) => void;
 }) {
-  const [value, setValue] = useState(target.current);
+  /* 非受控:defaultValue 只取挂载期 target.current,事件里经 inputRef 读最新值,
+     语义与原 useState(target.current) 一致,但不复制 prop 进 state。 */
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const settled = useRef(false);
   const finish = (result: string | null) => {
     if (settled.current) return;
     settled.current = true;
     onCommit(result);
   };
+  /* 挂载即聚焦(autofocus 属性是 react-doctor no-autofocus 反模式)。 */
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
   return (
     <input
       className={className}
-      autoFocus
-      value={value}
-        placeholder={placeholder ?? t("会话名称(留空清除命名)")}
-      onChange={(e) => setValue(e.target.value)}
+      ref={inputRef}
+      defaultValue={target.current}
+      placeholder={placeholder ?? t("会话名称(留空清除命名)")}
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           e.preventDefault();
-          finish(value);
+          finish(inputRef.current?.value ?? "");
         } else if (e.key === "Escape") {
           e.preventDefault();
           finish(null);
         }
       }}
-      onBlur={() => finish(value)}
+      onBlur={() => finish(inputRef.current?.value ?? "")}
     />
   );
 }

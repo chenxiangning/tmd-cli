@@ -199,7 +199,7 @@ export class AskWatch {
     if (this.timer !== null) return;
     this.timer = setInterval(() => {
       const now = Date.now();
-      const asked: string[] = [];
+      const asked = new Set<string>();
       for (const [id, candidate] of [...this.candidates]) {
         /* 漂移超阈 = 标记已被实质输出推走(回放/响应体),候选就地撤销;
            撤销后 onOutput 的字节缺口路径不再持有引用,无需二次清理 */
@@ -215,11 +215,11 @@ export class AskWatch {
         }
         this.candidates.delete(id);
         this.waiting.add(id);
-        asked.push(id);
+        asked.add(id);
       }
       const healed: string[] = [];
       for (const id of [...this.waiting]) {
-        if (asked.includes(id)) continue;
+        if (asked.has(id)) continue;
         if (now - (this.lastOutputAt.get(id) ?? 0) < ASK_HEAL_SILENCE_MS) continue;
         const tail = this.tails.get(id);
         if (tail && this.markerHit(id, footerWindow(stripAnsi(tail.rawTail)))) continue;

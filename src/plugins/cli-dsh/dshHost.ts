@@ -253,14 +253,17 @@ async function terminateLocalListenerWindows(port: number): Promise<void> {
     if (cols.length < 5 || cols[3].toUpperCase() !== "LISTENING") continue;
     if (cols[1].endsWith(needle)) pids.add(cols[4]);
   }
-  for (const pid of pids) {
-    await ipc.procCommunicate({
-      command: "taskkill",
-      args: ["/PID", pid, "/T", "/F"],
-      cwd,
-      timeoutMs: 8000,
-    }).catch(() => undefined);
-  }
+  /* 各 pid 的 taskkill 互不依赖,并发;pids 常为 1 个,失败逐个吞掉。 */
+  await Promise.all(
+    [...pids].map((pid) =>
+      ipc.procCommunicate({
+        command: "taskkill",
+        args: ["/PID", pid, "/T", "/F"],
+        cwd,
+        timeoutMs: 8000,
+      }).catch(() => undefined),
+    ),
+  );
 }
 
 /* ── 自动启动(每次应用运行至多一次;StrictMode 双挂载安全)── */
