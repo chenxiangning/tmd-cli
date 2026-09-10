@@ -27,7 +27,8 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "build:mac-arm64": "node scripts/build-mac.mjs aarch64-apple-darwin",
-    "release:mac-local": "zsh scripts/release-mac-local.sh"
+    "release:mac-local": "zsh scripts/release-mac-local.sh",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",

@@ -18,26 +18,20 @@
  * 命令抽屉与触发器下拉拆至 useComposerDrawer.ts / useComposerTriggers.ts
  * (文件规模铁则)。
  */
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { host } from "@kernel/host";
 import { composerWakeRef } from "@kernel/composerExt";
 import { t } from "@kernel/i18n";
 import { useComposerStage } from "@kernel/composerStage";
 import { useComposerTriggers } from "./useComposerTriggers";
 import { useComposerAttachments } from "./useComposerAttachments";
-import { Mounts } from "@kernel/Mounts";
 import { useSettingsState } from "@kernel/settings";
-import { getTerminalHandle } from "@kernel/messageAnchors";
-import { useWorkspaces } from "@kernel/workspace";
+import { Mounts } from "@kernel/Mounts";
 import { readDragPayload } from "@kernel/internalDrag";
-import { SuggestionList } from "./SuggestionList";
+import { useWorkspaces } from "@kernel/workspace";
 import { DragOverlay } from "./DragOverlay";
-import { shouldSendOnEnter } from "./enterAction";
 import { useActiveProfile } from "../state/useActiveProfile";
 import { CommandDrawer } from "./CommandDrawer";
-import { resolveArrowIntent } from "./arrowIntent";
 import { AttachmentStrip } from "./AttachmentStrip";
 import { useAttachDragProps, usePopupAnchor } from "./composerChrome";
 import { AnchorRail } from "./AnchorRail";
@@ -46,6 +40,9 @@ import { composerSendRef } from "./composerSendRef";
 import { PromptGhostMirror } from "./PromptGhostMirror";
 import { useComposerSend } from "./useComposerSend";
 import { usePromptCompletion, usePromptHistoryNav } from "./usePromptHistory";
+import { composerTextareaKeyDown } from "./composerTextareaKeys";
+import { SuggestionPortal, PreviewOverlay } from "./composerOverlays";
+
 
 export function Composer() {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -143,21 +140,16 @@ export function Composer() {
         {!inputHidden && (
         <AttachmentStrip onRemove={removeTokenForAttachment} onPreviewImage={(a) => setPreviewSrc(a.previewDataUrl || a.thumbDataUrl)} />
         )}
-        {matches && activeRange && boxRect && createPortal(
-          <SuggestionList
-            style={{
-              left: boxRect.left + 12,
-              width: boxRect.width - 24,
-              bottom: popupBottom,
-              maxHeight: popupMaxHeight,
-            }}
-            matches={matches}
-            pickIndex={pickIndex}
-            onPick={applyPick}
-            onHoverIndex={setPickIndex}
-          />,
-          document.body,
-        )}
+        <SuggestionPortal
+          matches={matches}
+          activeRange={activeRange}
+          boxRect={boxRect}
+          popupBottom={popupBottom}
+          popupMaxHeight={popupMaxHeight}
+          pickIndex={pickIndex}
+          setPickIndex={setPickIndex}
+          applyPick={applyPick}
+        />
         {!inputHidden && (
         <>
         <div className="relative min-h-0 flex-1">
@@ -185,72 +177,23 @@ export function Composer() {
               dismiss();
             }
           }}
-          onKeyDown={(e) => {
-            /* 判定顺序契约见 openspec design §6(本功能扩展):IME → 下拉 →
-               ghost Tab → 历史 → 非空/移交。
-               IME 组词期全部放行给输入法:↑↓ 属候选窗导航,Enter 属候选上屏,
-               此处拦截会把组词文本错替换成下拉首项 */
-            const composing = e.nativeEvent.isComposing;
-            if (e.key === "ArrowDown" && matches && !composing) {
-              e.preventDefault();
-              setPickIndex((i: number) => (matches.length ? (i + 1) % matches.length : 0));
-              return;
-            }
-            if (e.key === "ArrowUp" && matches && !composing) {
-              e.preventDefault();
-              setPickIndex((i: number) => (matches.length ? (i - 1 + matches.length) % matches.length : 0));
-              return;
-            }
-            if (matches && !composing) {
-              if (e.key === "Enter" || e.key === "Tab") {
-                e.preventDefault();
-                if (matches[pickIndex]) applyPick(matches[pickIndex]);
-                return;
-              }
-              if (e.key === "Escape") {
-                e.preventDefault();
-                dismiss();
-                return;
-              }
-            }
-            /* ghost 补全:无下拉时 Tab 才轮到;光标在末尾才有 ghost */
-            if (e.key === "Tab" && completion.suffix && !composing && cursor === value.length) {
-              e.preventDefault();
-              const full = completion.accept();
-              if (full !== null) { setValue(full); setCursor(full.length); }
-              return;
-            }
-            /* 输入历史召回:开启且有历史时空输入 ↑ 起翻;消费不了才落回移交 */
-            if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !matches && handleHistoryNav(e.nativeEvent)) return;
-            /* 空输入 ↑↓ → 焦点移交幕布(方向键语义归 CLI);契约:openspec design §6 */
-            if (
-              (e.key === "ArrowUp" || e.key === "ArrowDown") &&
-              resolveArrowIntent({
-                key: e.key,
-                value,
-                hasMatches: !!matches,
-                isComposing: e.nativeEvent.isComposing,
-              }) === "handoff"
-            ) {
-              e.preventDefault();
-              const sid = host.getActiveSessionId();
-              if (sid) getTerminalHandle(sid)?.focus();
-              return;
-            }
-            if (e.key === "Enter" &&
-              shouldSendOnEnter(
-                {
-                  shiftKey: e.shiftKey,
-                  metaKey: e.metaKey,
-                  ctrlKey: e.ctrlKey,
-                  isComposing: e.nativeEvent.isComposing,
-                },
-                settings.sendShortcut,
-              )) {
-              e.preventDefault();
-              sendCurrent();
-            }
-          }}
+          onKeyDown={(e) =>
+            composerTextareaKeyDown(e, {
+              matches,
+              pickIndex,
+              setPickIndex,
+              applyPick,
+              dismiss,
+              completion,
+              cursor,
+              value,
+              handleHistoryNav,
+              sendShortcut: settings.sendShortcut,
+              sendCurrent,
+              setValue,
+              setCursor,
+            })
+          }
           onPaste={handlePaste}
           onCompositionStart={() => setImeComposing(true)}
           onCompositionEnd={() => setImeComposing(false)}
@@ -285,15 +228,8 @@ export function Composer() {
         )}
         {dragOver && <DragOverlay />}
       </div>
-      {previewSrc && (
-        <div
-          role="presentation"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm"
-          onClick={() => setPreviewSrc(null)}
-        >
-          <img src={previewSrc} alt="preview" className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl" />
-        </div>
-      )}
+      <PreviewOverlay src={previewSrc} onClose={() => setPreviewSrc(null)} />
     </div>
   );
 }
+

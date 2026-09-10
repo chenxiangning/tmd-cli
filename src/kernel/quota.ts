@@ -20,6 +20,11 @@ export const SHORT_WINDOW_LABEL: Record<string, string> = {
   "30天": "30d",
 };
 
+/** 周级窗口(7天/30天)判定(welcome 额度区与行内块条共用,禁止各写一份)。 */
+export function isWeeklyWindow(label: string): boolean {
+  return label === "7天" || label === "30天";
+}
+
 export interface QuotaWindow {
   /** 显示标签: 例 "5小时" / "7天"。 */
   label: string;

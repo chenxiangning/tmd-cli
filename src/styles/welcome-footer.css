@@ -1,0 +1,72 @@
+/* ──────────────────────────────────────────────────────────
+ * Welcome 页 · 页脚(RESUME + QUOTA)
+ * (自 welcome.css 按 300 行铁则分片;颜色零硬编码,--tmd-* token)。
+ * ────────────────────────────────────────────────────────── */
+
+.welcome-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-top: 1px solid var(--tmd-border);
+  margin-top: 10px;
+}
+
+.welcome-footer .col { padding: 10px 4px 4px; }
+.welcome-footer .col + .col { border-left: 1px solid var(--tmd-border); padding-left: 16px; }
+
+.welcome-footer h3 {
+  margin: 0 0 6px;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--tmd-fg-faint);
+}
+
+/* RESUME 行 */
+.welcome-resume-row {
+  display: grid;
+  grid-template-columns: 1rem 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  font-size: 0.75rem;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.welcome-resume-row:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.welcome-resume-row .t { color: var(--tmd-fg); overflow: hidden; text-overflow: ellipsis; }
+.welcome-resume-row .w { color: var(--tmd-fg-faint); font-size: 0.6875rem; }
+.welcome-resume-row .a { color: var(--tmd-fg-faint); font-size: 0.6875rem; }
+.welcome-resume-empty { font-size: 0.75rem; color: var(--tmd-fg-faint); padding: 2px 6px; }
+
+/* QUOTA 行 */
+.welcome-quota-row {
+  display: grid;
+  grid-template-columns: 9rem 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-muted);
+  white-space: nowrap;
+}
+
+.welcome-quota-row .qn { overflow: hidden; text-overflow: ellipsis; }
+.welcome-quota-row .qp { text-align: right; }
+.welcome-quota-row .qp.hot { color: var(--tmd-err); }
+.welcome-quota-row .err { color: var(--tmd-err); }
+.welcome-quota-empty { font-size: 0.75rem; color: var(--tmd-fg-faint); padding: 2px 6px; }
+
+@media (max-width: 720px) {
+  .welcome-footer { grid-template-columns: 1fr; }
+  .welcome-footer .col + .col { border-left: none; border-top: 1px solid var(--tmd-border); padding-left: 4px; }
+}

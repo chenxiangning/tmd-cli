@@ -14,10 +14,11 @@ import { openExternalUrl } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { webUiUrl, type DshConnection } from "./dshConnection";
 
+/* 精致小按钮:细边、紧凑内距、小字号(与引擎行的 welcome-ab 视觉对齐)。 */
 export const BTN =
-  "flex items-center gap-1 rounded-md border border-(--tmd-border) px-2.5 py-1 text-sm text-(--tmd-fg) hover:bg-(--tmd-bg-hover) disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center gap-1 rounded border border-(--tmd-border) px-1.5 py-0.5 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg) disabled:cursor-not-allowed disabled:opacity-50";
 export const BTN_PRIMARY =
-  "flex items-center gap-1 rounded-md border border-(--tmd-accent) bg-(--tmd-accent) px-2.5 py-1 text-sm text-(--tmd-accent-fg) hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center gap-1 rounded border border-(--tmd-accent) bg-(--tmd-accent) px-1.5 py-0.5 text-xs text-(--tmd-accent-fg) hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
 
 /** 已连接事实行;空数组不渲染(与拆分前 connected && length>0 同效)。 */
 export function HostFactsRow({ facts }: { facts: Array<[string, string]> }) {
@@ -61,7 +62,7 @@ export function HostActions({
   if (pending === "start") {
     return (
       <button type="button" className={BTN} onClick={() => void onCancelStart()}>
-        <X size="0.8125rem" /> {t("取消启动")}
+        <X size="0.6875rem" /> {t("取消启动")}
       </button>
     );
   }
@@ -73,7 +74,7 @@ export function HostActions({
           className={BTN_PRIMARY}
           onClick={() => void openExternalUrl(webUiUrl(conn))}
         >
-          <ArrowSquareOut size="0.8125rem" /> {t("打开 DSH Web UI")}
+          <ArrowSquareOut size="0.6875rem" /> {t("打开 DSH Web UI")}
         </button>
       )}
       {connected && (
@@ -83,7 +84,7 @@ export function HostActions({
           disabled={pending !== null}
           onClick={() => void onStop()}
         >
-          <Stop size="0.8125rem" /> {t("停止服务")}
+          <Stop size="0.6875rem" /> {t("停止服务")}
         </button>
       )}
       {down && binFound && (
@@ -94,14 +95,14 @@ export function HostActions({
             disabled={pending !== null}
             onClick={() => void onStart()}
           >
-            <Play size="0.8125rem" /> {t("立即启动")}
+            <Play size="0.6875rem" /> {t("立即启动")}
           </button>
           <button
             type="button"
             className={BTN}
             onClick={() => void openExternalUrl(webUiUrl(conn))}
           >
-            <ArrowSquareOut size="0.8125rem" /> {t("仍尝试打开")}
+            <ArrowSquareOut size="0.6875rem" /> {t("仍尝试打开")}
           </button>
         </>
       )}
@@ -112,7 +113,7 @@ export function HostActions({
           disabled={pending !== null}
           onClick={() => void onRefresh()}
         >
-          <ArrowClockwise size="0.8125rem" /> {t("重新检测")}
+          <ArrowClockwise size="0.6875rem" /> {t("重新检测")}
         </button>
       )}
     </>

@@ -107,7 +107,9 @@ export function engineMetaOf(profile: CliProfile): EngineMeta {
   };
 }
 
-/** 全部已注册引擎(顺序 = profile 注册顺序 = allPlugins 顺序)。 */
+/** 全部已注册引擎(注册顺序,唯 dsh 沉底:基础设施型引擎,host 面板最长,
+ *  放末尾不打断引擎行列表的阅读动线)。 */
 export function engineMetas(): EngineMeta[] {
-  return host.getCliProfiles().map(engineMetaOf);
+  const metas = host.getCliProfiles().map(engineMetaOf);
+  return [...metas.filter((m) => m.id !== "dsh"), ...metas.filter((m) => m.id === "dsh")];
 }

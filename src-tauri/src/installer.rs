@@ -52,7 +52,7 @@ pub struct CliInstallEvent {
 /// 构造安装命令(program + args)。
 /// npm:Windows 经 cmd /c 跑 npm.cmd shim;script:unix 走 bash -c,windows 走 powershell;
 /// command:unix 直 spawn,windows 经 cmd /c 兼容 .cmd shim。
-fn install_command(plan: &InstallPlan) -> (String, Vec<String>) {
+fn install_command(plan: &InstallPlan, npm_prefix: Option<&str>) -> (String, Vec<String>) {
     match plan {
         InstallPlan::Npm { package } => {
             let pkg = format!("{package}@latest");
@@ -65,22 +65,40 @@ fn install_command(plan: &InstallPlan) -> (String, Vec<String>) {
              * 新机制,实证无效)。npm ≤11 对未知旗标仅 warn 不失败(11.6.2
              * 实证),可无条件追加。 */
             let allow = format!("--allow-scripts={package}");
+            /* 双副本遮蔽修复:探针命中的副本可能不在 npm 默认 prefix(用户 PATH
+             * 中 hermes/nvm/官方安装器等排在 npm prefix 之前,npm install -g
+             * 写 prefix 副本,探针仍见旧副本 —— 2026-09-11 本机实证 kimi/
+             * opencode)。命中副本若是 node 全局布局(<X>/bin/<bin> 且
+             * <X>/lib/node_modules 存在),加 --prefix <X> 就地更新。 */
+            let prefix_args: Vec<String> = match npm_prefix {
+                Some(p) => vec!["--prefix".into(), p.to_string()],
+                None => vec![],
+            };
             #[cfg(windows)]
-            return (
-                "cmd".into(),
-                vec![
-                    "/c".into(),
-                    "npm".into(),
-                    "install".into(),
-                    "-g".into(),
-                    pkg,
-                    allow,
-                ],
-            );
+            {
+                prefix_args = prefix_args
+                    .into_iter()
+                    .map(|a| a.replace('/', "\\"))
+                    .collect();
+                return (
+                    "cmd".into(),
+                    [
+                        vec!["/c".into(), "npm".into(), "install".into(), "-g".into()],
+                        prefix_args,
+                        vec![pkg, allow],
+                    ]
+                    .concat(),
+                );
+            }
             #[cfg(not(windows))]
             (
                 "npm".into(),
-                vec!["install".into(), "-g".into(), pkg, allow],
+                [
+                    vec!["install".into(), "-g".into()],
+                    prefix_args,
+                    vec![pkg, allow],
+                ]
+                .concat(),
             )
         }
         InstallPlan::Script { unix, windows } => {
@@ -111,6 +129,29 @@ fn install_command(plan: &InstallPlan) -> (String, Vec<String>) {
     }
 }
 
+/// npm 通道就地更新目标推导:探针 binary 命中的绝对路径若位于
+/// `<X>/bin/<binary>`(unix)且 `<X>/lib/node_modules` 存在(node 全局布局),
+/// 返回 Some(X);否则 None(保持 npm 默认 prefix)。探针失败/未装 = None。
+fn probe_npm_prefix(binary: &str) -> Option<String> {
+    let result = crate::probe::probe_cli(binary);
+    let path = result.path?;
+    /* unix 布局:<X>/bin/<binary>;Windows npm 全局是 <X>/<binary>.cmd(无 bin 段),
+     * 布局不同,暂不对齐(Windows 单副本场景居多)。 */
+    let dir = std::path::Path::new(&path).parent()?;
+    if dir.file_name()?.to_str()? != "bin" {
+        return None;
+    }
+    let prefix = dir.parent()?.to_str()?.to_string();
+    if std::path::Path::new(&prefix)
+        .join("lib/node_modules")
+        .is_dir()
+    {
+        Some(prefix)
+    } else {
+        None
+    }
+}
+
 /// 执行安装:spawn → 双线程逐行泵 stdout/stderr → 事件流 → 等退出。
 /// 返回 Ok(成功?) — exit code 0 = true。命令构建失败/超时返回 Err。
 pub fn run_install(app: &AppHandle, id: &str, plan: &InstallPlan) -> Result<bool, String> {
@@ -125,7 +166,12 @@ pub fn run_install(app: &AppHandle, id: &str, plan: &InstallPlan) -> Result<bool
         );
     };
 
-    let (program, args) = install_command(plan);
+    /* npm 通道:探针命中副本的就地 --prefix 对齐(推导失败 = None,走 npm 默认 prefix)。 */
+    let npm_prefix = match plan {
+        InstallPlan::Npm { .. } => probe_npm_prefix(id),
+        _ => None,
+    };
+    let (program, args) = install_command(plan, npm_prefix.as_deref());
     emit("phase", "start".into());
     emit("stdout", format!("$ {} {}", program, args.join(" ")));
 

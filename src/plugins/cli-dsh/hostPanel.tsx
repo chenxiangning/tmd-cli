@@ -48,10 +48,10 @@ export function DshHostPanel() {
   const [conn, setConn] = useState<DshConnection>(loadConnection);
   const [status, setStatus] = useState<HostStatus>({ kind: "probing" });
   const [binFound, setBinFound] = useState(true);
-  /* 在途动作:启动中可取消;其余按钮互斥禁用。 */
   const [pending, setPending] = useState<"start" | "stop" | "check" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  /* 探针竞态守卫:慢探测回来时不许覆盖更新的状态。 */
+  /* 启动信息折叠:标题行(状态+按钮)常驻,提示/facts 收进折叠区;down/error 自动展开。 */
+  const [open, setOpen] = useState(false);
   const probeSeq = useRef(0);
   const alive = useRef(true);
   useEffect(() => {
@@ -140,30 +140,61 @@ export function DshHostPanel() {
     error ?? (status.kind === "down" && binFound ? t(DOWN_ERROR) : null);
   const facts = hostFacts(view);
 
+  /* 整卡折叠:无条件默认收起为一行摘要(状态点+标题+origin+▸),点开才是完整面板。 */
+  const expanded = open;
+
+  if (!expanded) {
+    return (
+      <div className="mt-2">
+        <button
+          type="button"
+          aria-expanded={false}
+          className="flex w-full cursor-pointer flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md px-2 py-1.5 text-left text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
+          onClick={() => setOpen(true)}
+        >
+          <span
+            aria-hidden
+            className="inline-block h-2 w-2 shrink-0 rounded-full"
+            style={{ background: dotColor(connected, status.kind === "down") }}
+          />
+          <span className={`font-semibold ${status.kind === "down" ? "text-(--tmd-err)" : "text-(--tmd-fg)"}`}>DSH host</span>
+          <span className={status.kind === "down" ? "text-(--tmd-err)" : undefined}>{title}</span>
+          {connected && (
+            <span className="font-mono">{originOf(conn)}</span>
+          )}
+          <span aria-hidden>▸</span>
+        </button>
+      </div>
+    );
+  }
+
+
   return (
-    <div className="mt-2">
-      <div className="pref-card">
-        <div className="px-4 pt-3 text-xs leading-5 text-(--tmd-fg-muted)">
-          <span className="font-semibold text-(--tmd-fg)">{t("提示")}</span>{" "}
-          {t("模型和 API Key 在 DSH Web UI 里配,这里只负责装 CLI、连本地 host(要求 Node ≥ 22.19 或 ≥ 24)。启动 = 新开一个「DSH Host」终端会话跑 dsh web,关掉会话即停止服务。")}
-        </div>
-        <div className="pref-row" aria-live="polite">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <span
-                aria-hidden
-                className="inline-block h-2 w-2 shrink-0 rounded-full"
-                style={{ background: dotColor(connected, status.kind === "down") }}
-              />
-              <span className="pref-title">{title}</span>
-              {connected && (
-                <span className="font-mono text-xs text-(--tmd-fg-muted)">
-                  {t("已连接到 {origin}", { origin: originOf(conn) })}
-                </span>
-              )}
-            </div>
-            {meta && <div className="pref-desc">{meta}</div>}
-          </div>
+    <div className="mt-1">
+      <div className="pref-card !mt-0 !border-0">
+        {/* 标题行常驻:状态点 + 标题 + 动作按钮;点左侧文字区重新收起。 */}
+        <div className="pref-row">
+          <button
+            type="button"
+            aria-expanded={true}
+            className="flex min-w-0 cursor-pointer items-center gap-2 text-left"
+            onClick={() => setOpen(false)}
+          >
+            <span
+              aria-hidden
+              className="inline-block h-2 w-2 shrink-0 rounded-full"
+              style={{ background: dotColor(connected, status.kind === "down") }}
+            />
+            <span className="pref-title">{title}</span>
+            {connected && (
+              <span className="font-mono text-xs text-(--tmd-fg-muted)">
+                {t("已连接到 {origin}", { origin: originOf(conn) })}
+              </span>
+            )}
+            <span aria-hidden className="text-xs text-(--tmd-fg-faint)">
+              ▾
+            </span>
+          </button>
           <div className="flex shrink-0 items-center gap-2">
             <HostActions
               pending={pending}
@@ -177,6 +208,11 @@ export function DshHostPanel() {
               onRefresh={refresh}
             />
           </div>
+        </div>
+        {meta && <div className="pref-desc px-4">{meta}</div>}
+        <div className="px-4 pt-3 text-xs leading-5 text-(--tmd-fg-muted)">
+          <span className="font-semibold text-(--tmd-fg)">{t("提示")}</span>{" "}
+          {t("模型和 API Key 在 DSH Web UI 里配,这里只负责装 CLI、连本地 host(要求 Node ≥ 22.19 或 ≥ 24)。启动 = 新开一个「DSH Host」终端会话跑 dsh web,关掉会话即停止服务。")}
         </div>
         {connected && <HostFactsRow facts={facts} />}
         {errorText && (

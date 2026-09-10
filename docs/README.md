@@ -118,9 +118,12 @@
 | 2026-09-10 | [README/README_EN 双语刷新(10 CLI/25 注册插件/本机插件/CLI 独立配置/v0.1.4 产物矩阵,5 张新截图)](../README_EN.md) | 已落地 |
 | 2026-09-10 | [0.1.4 周期全量代码评审(1 blocker + 1 major + 15 minor)](review/2026-09-10-0.1.4-cycle-review.md) | 已完成并全部修复(信任闸闭环 + 激活状态机修正,验证全绿) |
 | 2026-09-10 | [codemoss(ccgui-next) 插件系统 vs tmd-cli 插件架构对比评审](review/2026-09-10-codemoss-plugin-architecture-comparison.md) | 已完成(六维对照 + 互鉴清单;两侧事实均实读核实) |
-| 2026-09-10 | [首页重设计 方案 A 命令甲板 / B 工作区门户 / C 引擎仪表盘](design/home-redesign-a-command-deck.html) ([B](design/home-redesign-b-workspace-portal.html) / [C](design/home-redesign-c-engine-grid.html)) | 设计原型(三案差异:主角=动作/项目/工具;待拍板进入 spec) |
+| 2026-09-10 | [首页重设计 · 终端窗体全动作行(定稿方案)](design/home-redesign-s-full-actions.html) | 已定稿(探索批 A-R/T-W 已废弃删除;spec 见同日 superpowers/specs) |
+| 2026-09-11 | [首页终端窗体重设计(全动作行):welcome 整页重构 + 行内动作簇 + 新会话直达](superpowers/specs/2026-09-11-home-terminal-redesign-design.md) | 已确认(实现随本 spec 提交) |
 | 2026-09-10 | [react-doctor 治理链 + dsh 0.1.2 适配评审](review/2026-09-10-react-doctor-refactor-review.md) | 已落地(本日审完即修;P1×3/P2×3 全部修完,验证全绿;P3×7 缓修) |
-
-变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
 | 2026-09-10 | [Composer 输入历史(召回 + ghost 补全 + 管理区)需求澄清](brainstorm/2026-09-10-composer-prompt-history.md) | 已落地(kernel/promptHistory + composer 三拆件 + settings 新字段;当日实施并目检) |
 | 2026-09-10 | [Composer 输入历史落地自评审(2 个 P2 当场修复 + 3 个 P3 缓修)](review/2026-09-10-composer-prompt-history-review.md) | 已完成(合成事件展开丢原型方法事故记录;验证全绿) |
+| 2026-09-11 | [首页 token 用量 dashboard 设计原型(按引擎 + 近 7 日趋势)](design/token-usage-dashboard.html) | 已定稿(方案 B;vision 6 轮回归通过) |
+| 2026-09-11 | [首页 token 用量 dashboard 设计(welcome 新增 TokenDashboard,本地 JSONL usage 聚合)](superpowers/specs/2026-09-11-token-dashboard-design.md) | 已落地(TokenDashboard + tokens 聚合层 + 单测;零消耗隐藏、量标柱尖) |
+
+变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

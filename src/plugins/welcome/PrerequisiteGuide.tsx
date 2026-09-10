@@ -53,7 +53,7 @@ export function PrerequisiteGuide({
           {probe.status === "notFound" && requires.plan && (
             <button
               type="button"
-              className="welcome-install-btn"
+              className="welcome-ab go"
               onClick={onInstall}
               disabled={install.running}
               title={requires.installHint}
@@ -66,7 +66,7 @@ export function PrerequisiteGuide({
           {probe.status === "error" && (
             <button
               type="button"
-              className="welcome-icon-btn"
+              className="welcome-ab"
               onClick={onProbe}
               disabled={install.running}
               aria-label={t("重新探针前置依赖")}

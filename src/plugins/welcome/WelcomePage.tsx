@@ -1,93 +1,34 @@
 /**
- * 欢迎页 —— 无活跃 session 时的中央幕布首页(嵌入页,非弹窗)。
+ * 欢迎页 —— 无活跃 session 时的中央幕布首页(终端窗体;原型
+ * docs/design/home-redesign-s-full-actions.html)。
  *
- * 区块:
- * 1. 引擎卡 ×N(engineMetas() 派生自已注册 profile):探针 + 安装 + 已登录供应商/额度;
- * 2. 近期会话:工作区分组,点击直接续上。
- *
- * 状态集中在页级:探针结果/安装状态按引擎 id 存 Record,卡片纯渲染。
+ * 结构:窗体标题条 / prompt 行(工作区选择,右侧 engines/updates 统计)/
+ * 引擎全动作行 ×N / 页脚(RESUME + QUOTA)。状态集中在页级:探针/最新版/凭据盘点
+ * 按引擎 id 存 Record,行纯渲染;凭据详情点击行内 ● 展开,homePanel 常驻行下。
+ * 键盘:↑↓ 移游标、⏎ 以所选工作区启动游标引擎新会话(组件局部,不进命令注册表)。
  */
 
-import { openExternalUrl } from "@kernel/ipc";
+import { ipc, openExternalUrl } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 
-import { useCallback, useEffect, useRef, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { host, useHost } from "@kernel/host";
-import { useHomePanels } from "@kernel/homePanels";
-import {
-  engineMetas,
-  type EngineMeta,
-  type PrerequisiteMeta,
-} from "./engineMeta";
-
-import {
-  EngineCard,
-  useEngineInstall,
-  type EngineProbeState,
-} from "./EngineCard";
+import { useWorkspaces, workspaceDisplayName } from "@kernel/workspace";
+import { engineMetas, type PrerequisiteMeta } from "./engineMeta";
+import { type EngineProbeState } from "./EngineCard";
 import { probeEngine } from "./engineProbe";
-import { CredentialList } from "./CredentialList";
-import { fetchLatestVersion } from "./latestVersion";
-import { RecentSessions } from "./RecentSessions";
+import { listEngineCredentials, type EngineCredential } from "./credentials";
+import { fetchLatestVersion, isOutdated } from "./latestVersion";
+import { EngineSection } from "./EngineSection";
+import { WelcomeFooter } from "./WelcomeFooter";
+import { TokenDashboard } from "./TokenDashboard";
 
-const GITHUB_SVG = (
-  <svg width="1rem" height="1rem" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
-  </svg>
-);
+const GITHUB_URL = "https://github.com/chenxiangning/tmd-cli";
 
 function buildInitialProbes(): Record<string, EngineProbeState> {
   return Object.fromEntries(
     engineMetas().map((m) => [m.id, { status: "loading" as const, result: null }]),
-  );
-}
-
-/** 单引擎状态容器(探针 + 安装 hook 必须组件化,故每引擎一个子组件)。 */
-function EngineSection({
-  meta,
-  probe,
-  depProbe,
-  latest,
-  onProbe,
-  onDepProbe,
-}: {
-  meta: EngineMeta;
-  probe: EngineProbeState;
-  /** 前置依赖探针状态(meta.requires 存在时由页级传入)。 */
-  depProbe?: EngineProbeState;
-  latest: string | null | undefined;
-  onProbe: () => void;
-  /** 重探前置依赖(参数 = 依赖 binary)。 */
-  onDepProbe: (binary: string) => void;
-}) {
-  const engineId = meta.id;
-  const profile = host.getCliProfile(engineId);
-  const [install, startInstall] = useEngineInstall(meta, onProbe);
-  const HomePanel = useHomePanels().get(engineId);
-  /* 依赖安装完成 → 重探依赖;探针 ok 后 EngineCard 的主引擎按钮自动解锁。 */
-  const requires = meta.requires ?? null;
-  const [depInstall, startDepInstall] = useEngineInstall(requires, () => {
-    if (requires) onDepProbe(requires.binary);
-  });
-  return (
-    <div>
-      <EngineCard
-        meta={meta}
-        profile={profile}
-        probe={probe}
-        latest={latest}
-        install={install}
-        onProbe={onProbe}
-        onInstall={startInstall}
-        depProbe={depProbe}
-        depInstall={depInstall}
-        onDepInstall={startDepInstall}
-        onDepProbe={() => requires && onDepProbe(requires.binary)}
-      />
-      {probe.status === "ok" && <CredentialList engineId={engineId} />}
-      {HomePanel && <HomePanel />}
-    </div>
   );
 }
 
@@ -104,7 +45,23 @@ export function WelcomePage() {
      重探/安装后最新版不变,无需重拉。undefined=拉取中,null=失败(静默)。 */
   const [latest, setLatest] = useState<Record<string, string | null>>({});
   const latestFetchedRef = useRef<Set<string>>(new Set());
-  /* 只展示 profile 已注册的引擎:cli 插件被拔出(禁用)时不激活、不注册,卡片随之消失。
+  /* 凭据盘点(页级一次拉全部引擎):行内凭据列 / 展开详情 / 页脚 QUOTA 共用。 */
+  const [credsMap, setCredsMap] = useState<Record<string, EngineCredential[]>>({});
+  /* 行展开集(点击 ● 切换;凭据详情展开语义)。 */
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  /* 键盘游标(visibleMetas 下标)。 */
+  const [cursor, setCursor] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const { list: workspaces } = useWorkspaces();
+  const home = useHomeDir();
+  const [wsId, setWsId] = useState<string | null>(null);
+  const ws = useMemo(
+    () => workspaces.find((w) => w.id === wsId) ?? workspaces[0] ?? null,
+    [workspaces, wsId],
+  );
+
+  /* 只展示 profile 已注册的引擎:cli 插件被拔出(禁用)时不激活、不注册,行随之消失。
      useMemo 锚定注册集指纹而非 version:host 任意 notify(后台会话的 PTY 输出、
      身份绑定等)都会 bump version,锚 version 会让对话期间每 500ms 重探全部引擎
      (探针页反复闪烁);指纹只在注册集真正变化时改变。 */
@@ -164,55 +121,179 @@ export function WelcomePage() {
     }
   }, [visibleMetas]);
 
+  /* 凭据盘点:引擎集变化时每引擎拉一次(listEngineCredentials 内部已容错,
+     此处 catch 是最后防线:单引擎失败不产生 unhandled rejection)。 */
+  useEffect(() => {
+    let alive = true;
+    for (const meta of visibleMetas) {
+      void listEngineCredentials(meta.id)
+        .then((list) => {
+          if (alive) setCredsMap((prev) => ({ ...prev, [meta.id]: list }));
+        })
+        .catch(() => undefined);
+    }
+    return () => {
+      alive = false;
+    };
+  }, [visibleMetas]);
+
   const installedCount = visibleMetas.filter(
     (m) => probes[m.id]?.status === "ok",
   ).length;
+  const outdatedCount = visibleMetas.filter(
+    (m) =>
+      probes[m.id]?.status === "ok" &&
+      isOutdated(probes[m.id]?.result?.version, latest[m.id] ?? null),
+  ).length;
+
+  const toggleExpand = useCallback((engineId: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(engineId)) next.delete(engineId);
+      else next.add(engineId);
+      return next;
+    });
+  }, []);
+
+  /* 以 prompt 行选中工作区启动引擎新会话;spawn 被拒原因已由内核广播
+     sessionStartFailed(toast 呈现),此处只吞 rejection(对齐 SessionMenu 先例)。 */
+  const spawnSession = useCallback(
+    (engineId: string) => {
+      if (!ws) return;
+      void host.createSession(engineId, ws.root, ws.id).catch(() => undefined);
+    },
+    [ws],
+  );
+
+  /* 键盘游标:↑↓ 移动(滚动跟随),⏎ 启动游标引擎新会话(仅已安装)。 */
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown" && e.key !== "Enter") return;
+      /* 工作区 select 聚焦时让位于原生键盘行为。 */
+      if ((e.target as HTMLElement).tagName === "SELECT") return;
+      e.preventDefault();
+      if (e.key === "Enter") {
+        const meta = visibleMetas[cursor];
+        if (meta && probes[meta.id]?.status === "ok") spawnSession(meta.id);
+        return;
+      }
+      const delta = e.key === "ArrowDown" ? 1 : -1;
+      const next = Math.min(Math.max(cursor + delta, 0), visibleMetas.length - 1);
+      if (next === cursor) return;
+      setCursor(next);
+      scrollRef.current
+        ?.querySelectorAll(".welcome-row")
+        ?.[next]
+        ?.scrollIntoView({ block: "nearest" });
+    },
+    [visibleMetas, cursor, probes, spawnSession],
+  );
 
   return (
     <div className="welcome-page">
-      <div className="welcome-scroll">
-        <header className="welcome-hero">
-          <h1 className="welcome-title">tmd-cli</h1>
-          <p className="welcome-subtitle">
-            {t("多 CLI 桌面客户端 —— 已就绪 {ready} / {total} 个引擎", {
-              ready: installedCount,
-              total: visibleMetas.length,
-            })}
-          </p>
+      {/* 终端式首页:↑↓/⏎ 自定义游标(本容器 onKeyDown),listbox/option 语义对应行游标。 */}
+      <div
+        className="welcome-scroll welcome-mono"
+        ref={scrollRef}
+        role="listbox"
+        aria-label={t("引擎选择器")}
+        tabIndex={0}
+        onKeyDown={onKeyDown}
+      >
+        <header className="welcome-tbar">
+          <span>tmd-cli — {t("引擎选择器")}</span>
+          <span className="welcome-hintline">
+            {t("↑↓ 选引擎 · ⏎ 以所选工作区启动新会话 · 点击 ● 展开凭据额度")}
+          </span>
           <a
-            className="welcome-github-link"
-            href="https://github.com/chenxiangning/tmd-cli"
+            className="welcome-tbar-right"
+            href={GITHUB_URL}
             onClick={(e) => {
               e.preventDefault();
-              void openExternalUrl("https://github.com/chenxiangning/tmd-cli");
+              void openExternalUrl(GITHUB_URL);
             }}
           >
-            {GITHUB_SVG}
-            <span>{t("GitHub 仓库")}</span>
-            <span className="welcome-github-license">MIT</span>
+            {t("GitHub 仓库")} · MIT
           </a>
         </header>
 
-        <div className="welcome-engines">
-          {visibleMetas.map((meta) => (
-            <EngineSection
-              key={meta.id}
-              meta={meta}
-              probe={
-                probes[meta.id] ?? { status: "loading", result: null }
-              }
-              depProbe={
-                meta.requires ? depProbes[meta.requires.binary] : undefined
-              }
-              latest={latest[meta.id]}
-              onProbe={() => void runProbe(meta.id)}
-              onDepProbe={(binary) => void runDepProbe(binary)}
-            />
-          ))}
+        <div className="welcome-frame">
+
+          <div className="welcome-promptline">
+            <span className="prompt">
+              <span className="path">{ws ? shortenHome(ws.root, home) : "~"}</span> ❯
+            </span>
+            <select
+              className="welcome-ws-select"
+              value={ws?.id ?? ""}
+              onChange={(e) => setWsId(e.target.value)}
+              title={t("新会话的工作区")}
+              aria-label={t("工作区")}
+            >
+              {workspaces.map((w) => (
+                <option key={w.id} value={w.id} title={w.root}>
+                  {workspaceDisplayName(w)}
+                </option>
+              ))}
+            </select>
+            <span className="welcome-statusline">
+              <span>
+                engines{" "}
+                <b className={installedCount === visibleMetas.length ? "ok" : "warn"}>
+                  {installedCount}/{visibleMetas.length}
+                </b>
+              </span>
+              {outdatedCount > 0 && (
+                <span>updates <b className="warn">{outdatedCount}</b></span>
+              )}
+            </span>
+          </div>
+
+          <div className="welcome-rows">
+            {visibleMetas.map((meta, index) => (
+              <EngineSection
+                key={meta.id}
+                meta={meta}
+                probe={probes[meta.id] ?? { status: "loading", result: null }}
+                depProbe={meta.requires ? depProbes[meta.requires.binary] : undefined}
+                latest={latest[meta.id]}
+                creds={credsMap[meta.id]}
+                expanded={expanded.has(meta.id)}
+                onToggleExpand={() => toggleExpand(meta.id)}
+                cursor={visibleMetas[cursor]?.id === meta.id}
+                onCursor={() => setCursor(index)}
+                onProbe={() => void runProbe(meta.id)}
+                onDepProbe={(binary) => void runDepProbe(binary)}
+                onNewSession={() => spawnSession(meta.id)}
+              />
+            ))}
+          </div>
+
+          <WelcomeFooter credsMap={credsMap} />
+          <TokenDashboard />
         </div>
 
-        <RecentSessions />
       </div>
     </div>
   );
+}
+
+/** 显示用缩略:home 前缀 → ~(home 目录异步拉一次;拉不到原样显示)。 */
+function useHomeDir(): string | null {
+  const [home, setHome] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void ipc
+      .configHomeDir()
+      .then((h) => alive && setHome(h))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return home;
+}
+
+function shortenHome(p: string, home: string | null): string {
+  return home && p.startsWith(home) ? `~${p.slice(home.length)}` : p;
 }

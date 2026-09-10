@@ -1,5 +1,6 @@
 /**
- * 引擎已登录供应商列表 —— welcome 页引擎卡下方的额度子区。
+ * 引擎凭据详情行 —— 终端行展开区渲染的供应商额度子区(受控:creds 由
+ * WelcomePage 页级盘点统一拉取传入,本组件零自请求)。
  *
  * 布局(v4,原型 docs/prototypes/welcome-quota-oneline.html):
  * - 每供应商 1 行 = 2 列网格: [定宽标题列] [窗口列],标题列定宽保证窗口列跨行同 x 起点;
@@ -11,21 +12,15 @@
  * - 完整时刻(含日期)在 title tooltip,行内只放短格式。
  *
  * 显示规则:
- * - 无任何凭据 → 不渲染(不显示"未登录"噪音,引擎卡本身已有安装状态);
+ * - 无任何凭据 → 不渲染(不显示"未登录"噪音,引擎行本身已有安装状态);
  * - 余额型 → 标题列 + balanceText(套餐名跟在余额后);
  * - 查不到额度 → 标题列 + note 小字。
  */
 
-import { useEffect, useState } from "react";
-import { SHORT_WINDOW_LABEL, type QuotaWindow } from "@kernel/quota";
+import { SHORT_WINDOW_LABEL, isWeeklyWindow, type QuotaWindow } from "@kernel/quota";
 import { formatRelativeTime, formatResetAt } from "@kernel/relativeTime";
 import { t } from "@kernel/i18n";
-import { listEngineCredentials, type EngineCredential } from "./credentials";
-
-/** 周级窗口(7天/30天)落第 2 格并用橘色条;其余(5h/1d)落第 1 格。 */
-function isWeeklyWindow(label: string): boolean {
-  return label === "7天" || label === "30天";
-}
+import type { EngineCredential } from "./credentials";
 
 /** 重置时刻短格式: 当天 → "18:30";跨天 → "9月8日"(完整时刻走 tooltip)。 */
 function resetShort(ms: number): string {
@@ -95,26 +90,8 @@ function CredWindow({ w }: { w: QuotaWindow }) {
   );
 }
 
-export function CredentialList({ engineId }: { engineId: string }) {
-  const [creds, setCreds] = useState<EngineCredential[] | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    void listEngineCredentials(engineId)
-      .then((list) => {
-        if (alive) setCreds(list);
-      })
-      .catch(() => {
-        /* 单文件损坏等已由 parseJsonLoose 兜住;此处是最后防线:
-           凭据区整体失败也不产生 unhandled rejection */
-        if (alive) setCreds([]);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [engineId]);
-
-  if (!creds || creds.length === 0) return null;
+export function CredentialRows({ creds }: { creds: EngineCredential[] }) {
+  if (creds.length === 0) return null;
 
   return (
     <div className="welcome-creds">

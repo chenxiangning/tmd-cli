@@ -35,6 +35,10 @@ In one sentence: **CLI output is presented as-is; the input side gets the rich e
 
 ![Main window](docs/images/screenshot-main.png)
 
+**Git panel** — one view, three sections (diff / branch / history) in the right rail: per-file change list with +/- stats, pick files + write a message + commit in one pass (amend and empty-commit guards), one-click remote fetch / pull / push; history rendered as a graph with lane topology
+
+![Git panel](docs/images/screenshot-git-panel.png)
+
 **New-session menu** — lists 10 registered CLI engines + SSH connection, per-item refresh; session "move to group" management lives in the same menu
 
 ![New session menu](docs/images/screenshot-new-session.png)
