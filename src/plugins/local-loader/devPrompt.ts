@@ -30,6 +30,7 @@ permissions 能力声明(最小授权,只列真正需要的;不声明 = 纯 UI �
 activate(ctx) 可用的注册面(与内置插件完全同规则):
 - ctx.contribute(point, { component }) 挂 UI,point 可选:"header.right"(标题栏右区)、"composer.statusBar"(输入框状态条)、"leftSidebar.section"(左栏)、"editorCenter.welcome"(首页)等。
 - ctx.registerCommand({ id, title, run }) 注册快捷键命令(id 约定 "<插件id>.<动作>")。
+- 除挂 UI 外同样可用:ctx.registerFilePanel(右栏面板)、ctx.registerSettingsSection(设置分区)、ctx.registerTabContent(中央 tab)、ctx.registerSidebarAction(侧栏动作)、ctx.registerCommand(见下)。
 - 有 "events" 权限时:ctx.events.on(topic, handler) 订阅内核事件总线;ctx.events.emit(topic, payload) 广播。
 - 有对应权限时,从 "tmd-sdk" 导入:ipc(Tauri 命令面,按类别裁剪)、settings(设置门面)、host(宿主编排门面)。
 
