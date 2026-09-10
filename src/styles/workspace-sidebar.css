@@ -110,7 +110,8 @@
 
 .workspace-row {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: stretch;
   width: calc(100% - 4px);
   margin-left: 4px;
   margin-right: 0;
@@ -222,29 +223,6 @@
   line-height: 1;
 }
 
-/* 行右侧动作组:hover/focus/active 时展开(codemoss .workspace-actions) */
-.workspace-actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: 0 0 auto;
-  max-width: 0;
-  overflow: hidden;
-  opacity: 0;
-  transition:
-    max-width 0.2s ease,
-    opacity 0.2s ease;
-}
-
-.workspace-row:hover .workspace-actions,
-.workspace-row:focus-within .workspace-actions,
-.workspace-row.active .workspace-actions,
-/* 开关态常亮:管理开关激活时动作组不随 hover 退出而收起(状态须可见) */
-.workspace-actions:has(.workspace-action-btn.is-on) {
-  max-width: 160px;
-  opacity: 1;
-}
 
 .workspace-action-btn {
   width: 22px;

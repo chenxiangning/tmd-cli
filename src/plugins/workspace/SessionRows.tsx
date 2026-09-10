@@ -127,35 +127,38 @@ export function DiskSessionRow({
     );
   }
   return (
-    <button
-      data-cli-session-id={session.id}
-      className={`thread-row${pinned ? " is-pinned" : ""}`}
-      title={t("恢复 {profile} 会话 {id}", { profile: profile.name, id: session.id })}
-      onClick={onOpen}
-      onContextMenu={onContextMenu}
-    >
-      {archived ? (
-        <span className="tl-node tl-node-gui" aria-hidden>
-          {t("归")}
+    <span className="thread-row-host">
+      <button
+        data-cli-session-id={session.id}
+        className={`thread-row${pinned ? " is-pinned" : ""}`}
+        title={t("恢复 {profile} 会话 {id}", { profile: profile.name, id: session.id })}
+        onClick={onOpen}
+        onContextMenu={onContextMenu}
+      >
+        {archived ? (
+          <span className="tl-node tl-node-gui" aria-hidden>
+            {t("归")}
+          </span>
+        ) : (
+          <span className="tl-node is-idle" aria-hidden />
+        )}
+        <span className="thread-engine-badge" title={profile.name} aria-hidden>
+          {profile.renderIcon?.("0.75rem")}
         </span>
-      ) : (
-        <span className="tl-node is-idle" aria-hidden />
-      )}
-      <span className="thread-engine-badge" title={profile.name} aria-hidden>
-        {profile.renderIcon?.("0.75rem")}
-      </span>
-      <span className="thread-name">{title}</span>
-      <span className="thread-meta">
-        <PinToggle on={pinned} onToggle={onTogglePin} />
-        <span className="thread-time">{formatRelativeTime(session.modifiedAt)}</span>
-      </span>
-    </button>
+        <span className="thread-name">{title}</span>
+        <span className="thread-meta">
+          <span className="thread-time">{formatRelativeTime(session.modifiedAt)}</span>
+        </span>
+      </button>
+      {/* 置顶钮与行按钮 DOM 分离(嵌套交互治理):hover 显形改吃宿主 hover。 */}
+      <PinToggle on={pinned} onToggle={onTogglePin} />
+    </span>
   );
 }
 
 /**
- * 行内扎点开关 —— hover 显形 / 已扎常亮;span 承载(行本身是 button,禁嵌套 button)。
- * 点击切换:未扎 → 置顶到全局;已扎(任一作用域)→ 取消置顶。置顶到工作区内仍走右键菜单。
+ * 行内扎点开关 —— hover 显形 / 已扎常亮;真 button 承载(与行按钮为兄弟,
+ * 不再嵌套在行激活热区内;hover/焦点显形经 .thread-row-host 前缀选择器)。
  */
 export function PinToggle({
   on,
@@ -168,10 +171,9 @@ export function PinToggle({
   onToggle: () => void;
 }) {
   return (
-    <span
+    <button
+      type="button"
       className={`thread-pin-btn${on ? " is-on" : ""}`}
-      role="button"
-      tabIndex={0}
       aria-pressed={on}
       aria-label={on ? t("取消置顶") : t("置顶到全局")}
       title={
@@ -181,20 +183,14 @@ export function PinToggle({
             ? t("取消置顶")
             : t("置顶到全局(右键可置顶到工作区内)")
       }
+      disabled={disabled}
       onClick={(e) => {
         e.stopPropagation();
-        if (!disabled) onToggle();
-      }}
-      onKeyDown={(e) => {
-        /* 行是 button:Enter/Space 已冒泡触发开行,这里拦下避免双重激活。 */
-        if (e.key === "Enter" || e.key === " ") {
-          e.stopPropagation();
-          e.preventDefault();
-          if (!disabled) onToggle();
-        }
+        onToggle();
       }}
     >
       <PinIcon size="0.75rem" className="thread-pin-icon" />
-    </span>
+    </button>
   );
 }
+

@@ -77,60 +77,43 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
         {items.map((a) => (
           <div
             key={a.id}
-            role="button"
-            tabIndex={0}
-            className={`tmd-attach tmd-attach-${a.kind}`}
-            title={a.path}
+            className="tmd-attach-wrap"
             draggable
             onDragStart={(e) => handleDragStart(e, a.id)}
             onDragEnd={handleDragEnd}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, a.id)}
-            onClick={() => handlePreview(a)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handlePreview(a);
-              }
-            }}
-            onKeyUp={(e) => {
-              if (e.key === " ") {
-                e.preventDefault();
-                handlePreview(a);
-              }
-            }}
           >
-            {a.kind === "image" && a.thumbDataUrl ? (
-              <div className="tmd-attach-thumb" style={{ backgroundImage: `url("${a.thumbDataUrl}")` }} />
-            ) : (
-              <div className="tmd-attach-thumb tmd-attach-icon">
-                <span className={`tmd-kind-icon tmd-kind-${a.kind}`}>{badgeText(a.kind)}</span>
+            <button
+              type="button"
+              className={`tmd-attach tmd-attach-${a.kind}`}
+              title={a.path}
+              onClick={() => handlePreview(a)}
+            >
+              {a.kind === "image" && a.thumbDataUrl ? (
+                <div className="tmd-attach-thumb" style={{ backgroundImage: `url("${a.thumbDataUrl}")` }} />
+              ) : (
+                <div className="tmd-attach-thumb tmd-attach-icon">
+                  <span className={`tmd-kind-icon tmd-kind-${a.kind}`}>{badgeText(a.kind)}</span>
+                </div>
+              )}
+              <div className="tmd-attach-meta">
+                <div className="tmd-attach-info">{formatBytes(a.size)}</div>
               </div>
-            )}
-            <div className="tmd-attach-meta">
-              <div className="tmd-attach-info">{formatBytes(a.size)}</div>
-            </div>
-            <span
-              role="button"
-              tabIndex={0}
+            </button>
+            <button
+              type="button"
               className="tmd-attach-close"
               title={t("移除")}
+              aria-label={t("移除 {name}", { name: a.name })}
               onClick={(e) => {
                 e.stopPropagation();
-                e.preventDefault();
                 handleRemove(a.id);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  handleRemove(a.id);
-                }
               }}
             >
               ×
-            </span>
+            </button>
           </div>
         ))}
       </div>

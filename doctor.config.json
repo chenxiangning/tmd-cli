@@ -3,6 +3,9 @@
   // - dist/** 产物中命中 artifact-secret-leak 的是 ssh 插件受控表单绑定(`password: e.target.value`/`privateKey: e.target.value`),
   //   非字面量密钥(SSH 协议字段名无法改名重命名会破坏 IPC 契约)。证据:源码 src/plugins/ssh/** 中所有 password/privateKey 出现
   //   位置皆为表单/连接参数对象字段,无任何 secret 字面量。此条为误报,带证据豁免。
+  // - docs/** 原型为设计探索产物,非产品代码,整目录排除。
+  // - 其余 overrides 为「顺序即正确性/刻意省略/扫描器盲区」三类带证据豁免,
+  //   逐条证据见各条目注释;粒度=文件+规则,新文件不在豁免范围内。
   "$schema": "https://react.doctor/schema/config.json",
   "ignore": {
     "files": ["docs/**"],
@@ -10,6 +13,65 @@
       {
         "files": ["dist/**"],
         "rules": ["react-doctor/artifact-secret-leak"]
+      },
+      {
+        // 翻页跳转严格顺序语义:每页 loadEarlier 依赖前页 buffer 增长出的真实行高,
+        // row 命中即 scroll 早退;并行化破坏逐页语义。
+        "files": ["src/kernel/anchorJump.ts"],
+        "rules": ["react-doctor/async-await-in-loop"]
+      },
+      {
+        // await 即探测节奏本体(Promise.withResolvers+setTimeout:快相 500ms×30 → 巡航 5s),
+        // 并行化 = 破坏探测 pacing,属计时语义非可合并任务。
+        "files": ["src/kernel/identityWatch.ts"],
+        "rules": ["react-doctor/async-await-in-loop"]
+      },
+      {
+        // activateBootLocals 按 dependsOn 分层拓扑激活、doRescan 装载与激活交替,
+        // 激活次序 = 正确性;pluginLifecycle 同理按层顺序激活。
+        "files": ["src/kernel/localPlugins.ts", "src/kernel/pluginLifecycle.ts"],
+        "rules": ["react-doctor/async-await-in-loop"]
+      },
+      {
+        // RESULT_LIMIT 早退 + 同 id 去重(sessions.some)依赖前序累积结果,
+        // rollouts mtime 倒序先见即最新,顺序语义。
+        "files": ["src/plugins/cli-codex/index.tsx"],
+        "rules": ["react-doctor/async-await-in-loop"]
+      },
+      {
+        // 该「多余」依赖是缓存失效载体:工厂闭包标识变化 → Map 整体重建防串旧闭包,
+        // 删除即行为变化(渐进揭示期间拿到 stale components)。
+        "files": ["src/plugins/files/markdown/useMarkdownComponents.tsx"],
+        "rules": ["react-doctor/exhaustive-deps"]
+      },
+      {
+        // effect 已列 activeTab/mermaidTheme/renderCacheKey/value;扫描器要求的额外依赖
+        // 属 lastSuccessfulSvgRef 类稳定引用,补齐只会空转。
+        "files": ["src/plugins/files/markdown/useMermaidRender.ts"],
+        "rules": ["react-doctor/exhaustive-deps"]
+      },
+      {
+        // 依赖刻意不含 target/branch:补齐会把手输目标分支立即拉回候选首项(注释在案)。
+        "files": ["src/plugins/git/views/remoteDialogs/PullDialog.tsx"],
+        "rules": ["react-doctor/exhaustive-deps"]
+      },
+      {
+        // FileCodeEditorImpl 本身已是懒 chunk(唯一入口 FileCodeEditor.tsx React.lazy),
+        // cmTheme 唯一消费方在同 chunk;chunk 内再动态 import 零收益。
+        "files": ["src/kernel/cmEditor/FileCodeEditorImpl.tsx", "src/kernel/cmEditor/cmTheme.ts"],
+        "rules": ["react-doctor/prefer-dynamic-import"]
+      },
+      {
+        // shim blob URL 是 app 生命周期注册表:后加载插件的 rewritten source 引用同一 URL,
+        // revoke 会让之后装载的插件 import 失败;纯模块级函数无卸载钩子,无可挂 cleanup 点。
+        "files": ["src/kernel/localPluginLoad.ts"],
+        "rules": ["react-doctor/no-create-object-url-without-revoke"]
+      },
+      {
+        // effect 仅调用模块内 useEffectEvent 包装的 fetchChips 本地取数(零参数、只 setChips),
+        // 不存在经 prop 回调向父传数据;扫描器 v2.1.5 不识别 useEffectEvent 别名调用(根因在案)。
+        "files": ["src/plugins/git/hooks/useRepoChips.ts"],
+        "rules": ["react-doctor/no-pass-data-to-parent"]
       }
     ]
   }

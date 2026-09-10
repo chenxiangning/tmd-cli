@@ -1,15 +1,16 @@
 /**
  * 单个工作区卡片(codemoss WorkspaceCard 复刻):行 + 折叠会话树。
- * 工作区行:双态文件夹图标(hover 换 chevrons)+ 名称 + Default badge
- *   + hover 显形动作组(会话管理/归档视图/刷新会话/新建会话菜单),右键同「+」。
+ * 工作区行:双态文件夹图标(hover 换 chevrons)+ 名称 + Default badge;
+ * 行内动作(会话管理/刷新/新建/折叠)收进行尾 ⋯ 菜单 —— 激活热区(主按钮)
+ * 与动作按钮 DOM 分离,消除嵌套交互(html-no-nested-interactive 治理)。
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { setActiveWorkspace, setWorkspaceAlias, workspaceDisplayName, type Workspace } from "@kernel/workspace";
 import { RenameInput } from "@kernel/RenameInput";
-import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, RocketLaunch, ListChecks } from "@phosphor-icons/react";
+import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, RocketLaunch, ListChecks, DotsThree } from "@phosphor-icons/react";
 import { CliSessionGroup } from "./SessionList";
 import { SshSessionGroup } from "./SshSessionGroup";
 import { ShellSessionGroup } from "./ShellSessionGroup";
@@ -47,7 +48,7 @@ export function WorkspaceCard({
   renaming: boolean;
   onRenameEnd: () => void;
   refreshTicks: Record<string, number>;
-  /** 各工作区:CLI 扫描在途表 —— 本工作区任一 CLI 扫描中,行刷新按钮转圈。 */
+  /** 各工作区:CLI 扫描在途表 —— 本工作区任一 CLI 扫描中,菜单刷新项转圈。 */
   refreshing: Record<string, boolean>;
   onRefreshWorkspace: (workspaceId: string) => void;
   /** 组扫描完成上报:清菜单刷新按钮的 spin。 */
@@ -57,68 +58,68 @@ export function WorkspaceCard({
   const profiles = host.getCliProfiles();
   const scanKey = (profileId: string) => `${workspace.id}:${profileId}`;
   const rowRefreshing = profiles.some((p) => refreshing[scanKey(p.id)] ?? false);
-  /** 会话管理模式(本工作区全部 CLI 组统一切换,prop 下发);入口 = 行头开关(归档视图入口在 caption「默认|归档」radio)。 */
+  /** 会话管理模式(本工作区全部 CLI 组统一切换,prop 下发);入口收编 ⋯ 菜单。 */
   const [manage, setManage] = useState(false);
+  /** ⋯ 菜单开合;点外/Esc 关闭(document 级监听,同 NamePrompt 背板方案)。 */
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (e.target instanceof Element && e.target.closest(".workspace-more-menu, .workspace-more-btn")) return;
+      setMoreOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMoreOpen(false);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [moreOpen]);
+
+  const closeMore = () => setMoreOpen(false);
+  const openEngineMenu = (x: number, y: number) => {
+    closeMore();
+    onShowMenu(workspace, x, y);
+  };
+
   return (
     <div className={`workspace-card${isActive ? " is-active" : ""}`}>
       <div
-        className={`workspace-row${isActive ? " active" : ""}`}
-        role="button"
-        tabIndex={0}
-        onClick={(e) => {
-          if (e.detail > 1) return;
-          setActiveWorkspace(workspace.id);
-        }}
-        onDoubleClick={(e) => {
-          e.preventDefault();
-          onToggleCollapsed();
-        }}
+        className="workspace-row"
         onContextMenu={(e) => {
           e.preventDefault();
           onShowMenu(workspace, e.clientX, e.clientY);
         }}
-        onKeyDown={(e) => {
-          /* 行内嵌按钮(折叠/管理/刷新/新建)自己吃 Enter/Space,行不得截胡。 */
-          if ((e.target as HTMLElement).closest("button")) return;
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setActiveWorkspace(workspace.id);
-          }
-        }}
       >
-        <div className="workspace-header-content">
-          <span
-            role="button"
-            tabIndex={0}
-            className="workspace-folder-btn workspace-collapse-toggle"
-            title={collapsed ? t("展开会话列表") : t("折叠会话列表")}
-            aria-expanded={!collapsed}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleCollapsed();
-            }}
-            onDoubleClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.stopPropagation();
-                e.preventDefault();
-                onToggleCollapsed();
-              }
-            }}
-          >
-            <span className="workspace-collapse-toggle-folder-icon" aria-hidden>
-              <FolderIcon expanded={!collapsed} />
-            </span>
-            <span className="workspace-collapse-toggle-affordance-icon" aria-hidden>
-              {collapsed ? (
-                <CaretDoubleUp size="0.875rem" strokeWidth={1.8} />
-              ) : (
-                <CaretDoubleDown size="0.875rem" strokeWidth={1.8} />
-              )}
-            </span>
+        <button
+          type="button"
+          className="workspace-folder-btn workspace-collapse-toggle"
+          title={collapsed ? t("展开会话列表") : t("折叠会话列表")}
+          aria-expanded={!collapsed}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleCollapsed();
+          }}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          <span className="workspace-collapse-toggle-folder-icon" aria-hidden>
+            <FolderIcon expanded={!collapsed} />
           </span>
+          <span className="workspace-collapse-toggle-affordance-icon" aria-hidden>
+            {collapsed ? (
+              <CaretDoubleUp size="0.875rem" strokeWidth={1.8} />
+            ) : (
+              <CaretDoubleDown size="0.875rem" strokeWidth={1.8} />
+            )}
+          </span>
+        </button>
 
-          {renaming ? (
+        {renaming ? (
+          <span className="workspace-header-content workspace-row-main">
             <RenameInput
               target={{ current: workspaceDisplayName(workspace) }}
               placeholder={t("别名(留空清除)")}
@@ -127,82 +128,94 @@ export function WorkspaceCard({
                 onRenameEnd();
               }}
             />
-          ) : (
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="workspace-header-content workspace-row-main"
+            title={workspace.root}
+            onClick={(e) => {
+              if (e.detail > 1) return;
+              setActiveWorkspace(workspace.id);
+            }}
+            onDoubleClick={(e) => {
+              e.preventDefault();
+              onToggleCollapsed();
+            }}
+          >
             <span className="workspace-name-text" title={workspace.root}>
               {workspaceDisplayName(workspace)}
             </span>
-          )}
-          {workspace.id === "default" && (
-            <span className="default-workspace-badge" aria-label="Default Workspace">
-              Default
-            </span>
-          )}
+            {workspace.id === "default" && (
+              <span className="default-workspace-badge" aria-label="Default Workspace">
+                Default
+              </span>
+            )}
+          </button>
+        )}
 
-          <div className="workspace-actions">
-            <span
-              role="button"
-              tabIndex={0}
-              className={`workspace-action-btn${manage ? " is-on" : ""}`}
-              title={t("会话管理")}
-              aria-pressed={manage}
-              onClick={(e) => {
-                e.stopPropagation();
-                setManage((v) => !v);
-              }}
-              onDoubleClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setManage((v) => !v);
-                }
-              }}
+        <button
+          type="button"
+          className={`workspace-action-btn workspace-more-btn${moreOpen ? " is-on" : ""}`}
+          title={t("工作区操作")}
+          aria-haspopup="menu"
+          aria-expanded={moreOpen}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMoreOpen((v) => !v);
+          }}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          <DotsThree size="0.9375rem" weight="bold" aria-hidden />
+        </button>
+
+        {moreOpen && (
+          <div className="workspace-more-menu" role="menu" aria-label={t("工作区操作")}>
+            <button
+              type="button"
+              role="menuitem"
+              className={`workspace-more-item${manage ? " is-on" : ""}`}
+              onClick={() => setManage((v) => !v)}
             >
               <ListChecks size="0.9375rem" aria-hidden />
-            </span>
-            <span
-              role="button"
-              tabIndex={0}
-              className={`workspace-action-btn${rowRefreshing ? " is-refreshing" : ""}`}
-              title={t("刷新会话")}
-              onClick={(e) => {
-                e.stopPropagation();
-                onRefreshWorkspace(workspace.id);
-              }}
-              onDoubleClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  onRefreshWorkspace(workspace.id);
-                }
-              }}
+              {t("会话管理")}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="workspace-more-item"
+              onClick={() => onRefreshWorkspace(workspace.id)}
             >
-              <ArrowClockwise size="1rem" aria-hidden />
-            </span>
-            <span
-              role="button"
-              tabIndex={0}
-              className="workspace-action-btn is-newchat"
-              title={t("新建会话")}
-              onClick={(e) => {
-                e.stopPropagation();
-                onShowMenu(workspace, e.clientX, e.clientY);
-              }}
-              onDoubleClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  /* 键盘激活无指点坐标:原生按钮回车 click 的 clientX/Y 同为 0 */
-                  onShowMenu(workspace, 0, 0);
-                }
-              }}
+              <ArrowClockwise size="1rem" className={rowRefreshing ? "is-refreshing" : ""} aria-hidden />
+              {t("刷新会话")}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="workspace-more-item"
+              onClick={(e) => openEngineMenu(e.clientX, e.clientY)}
             >
               <RocketLaunch size="0.9375rem" weight="duotone" aria-hidden />
-            </span>
+              {t("新建会话")}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="workspace-more-item"
+              onClick={() => {
+                closeMore();
+                onToggleCollapsed();
+              }}
+            >
+              {collapsed ? (
+                <CaretDoubleUp size="0.9375rem" strokeWidth={1.8} aria-hidden />
+              ) : (
+                <CaretDoubleDown size="0.9375rem" strokeWidth={1.8} aria-hidden />
+              )}
+              {collapsed ? t("展开会话列表") : t("折叠会话列表")}
+            </button>
           </div>
-        </div>
+        )}
       </div>
 
       <div
