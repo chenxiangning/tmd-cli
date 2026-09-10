@@ -34,6 +34,11 @@ export function registerMarketPanel(panel: MarketPanelContribution): void {
   panels.set(panel.pluginId, panel);
 }
 
+/** 撤销通道(激活失败回滚/熔断摘除):pluginId 未注册时静默(幂等)。 */
+export function removeMarketPanel(pluginId: string): void {
+  panels.delete(pluginId);
+}
+
 /** 查询某插头的二级市场面板;未注册返回 undefined(插头不渲染角标)。 */
 export function getMarketPanel(
   pluginId: string,

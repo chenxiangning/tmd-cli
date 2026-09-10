@@ -124,6 +124,14 @@ export function registerFilePanel(panel: FilePanelContribution): void {
   commit();
 }
 
+/** 撤销通道(激活失败回滚/熔断摘除):钉住清单保留原 id(重启用原样恢复,同拔出语义)。 */
+export function removeFilePanel(id: string): void {
+  if (!state.panels.some((p) => p.id === id)) return;
+  state.panels = state.panels.filter((p) => p.id !== id);
+  if (state.mode === id) state.mode = state.panels[0]?.id ?? "";
+  commit();
+}
+
 export function setFilePanelMode(id: string): void {
   if (state.mode === id) return;
   state.mode = id;

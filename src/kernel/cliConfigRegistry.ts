@@ -97,6 +97,12 @@ export function registerCliConfig(entry: CliConfigEntry): void {
   store.commit(sorted());
 }
 
+/** 撤销通道(激活失败回滚/熔断摘除):id 未存在时静默(幂等)。 */
+export function removeCliConfig(id: string): void {
+  if (!entries.delete(id)) return;
+  store.commit(sorted());
+}
+
 export function useCliConfigEntries(): CliConfigEntry[] {
   return store.useStore();
 }

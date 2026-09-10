@@ -71,6 +71,11 @@ export function registerQuotaProvider(p: QuotaProvider): void {
   providers.set(p.profileId, p);
 }
 
+/** 撤销通道(cli profile 回滚/摘除时随迁):provider 表与 profile 表成对增删。 */
+export function removeQuotaProvider(profileId: string): void {
+  providers.delete(profileId);
+}
+
 export function getQuotaProvider(profileId: string): QuotaProvider | null {
   return providers.get(profileId) ?? null;
 }

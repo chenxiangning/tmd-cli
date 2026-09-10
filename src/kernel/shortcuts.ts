@@ -159,6 +159,12 @@ export function registerCommand(cmd: CommandContribution): void {
   refreshSnapshot();
 }
 
+/** 撤销通道(激活失败回滚/熔断摘除):键位随删除自动释放(冲突检测读活表)。 */
+export function removeCommand(id: string): void {
+  if (!commands.delete(id)) return;
+  refreshSnapshot();
+}
+
 /** 终端作用域匹配器:分发器在终端聚焦期优先查询(原 xterm 桥已并入分发器)。 */
 export function matchTerminalCommand(e: ShortcutKeyEvent): CommandContribution | undefined {
   for (const cmd of commands.values()) {

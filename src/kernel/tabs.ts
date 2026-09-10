@@ -144,6 +144,11 @@ export function getTabContent(
   return tabContents.get(kind);
 }
 
+/** 撤销通道(激活失败回滚/熔断摘除):kind 未注册时静默(幂等)。 */
+export function removeTabContent(kind: string): void {
+  tabContents.delete(kind);
+}
+
 export function useEditorTabs(): TabState {
   return store.useStore();
 }

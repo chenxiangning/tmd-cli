@@ -6,7 +6,6 @@
  */
 
 import type { ComponentType } from "react";
-import type { EventBus } from "./events";
 import type { CliProfile } from "./cli";
 import type { SettingsSectionContribution } from "./settingsRegistry";
 import type { FilePanelContribution } from "./filePanel";
@@ -16,6 +15,32 @@ import type { CommandContribution } from "./shortcuts";
 import type { FileVisualProvider } from "./fileVisual";
 import type { SidebarAction } from "./sidebarActions";
 import type { CliConfigEntry } from "./cliConfigRegistry";
+/**
+ * 本地插件能力类别(manifest.permissions 合法值)。
+ * 无 permissions 字段 = 纯 UI 插件:只有 React 原语与 ctx 注册面,ipc/host/settings 整体缺席。
+ * 威胁模型边界:JS 层包装是「劝阻」不是「围栏」—— 同域 bundle 可蓄意绕过;
+ * 真围栏(Rust 侧命令级插件身份)是 v2 议题,见 openspec/changes/plugin-hardening。
+ */
+export const PLUGIN_PERMISSIONS = [
+  "ipc.terminal",
+  "ipc.exec",
+  "ipc.fs.read",
+  "ipc.fs.write",
+  "ipc.config",
+  "ipc.git",
+  "ipc.checkpoints",
+  "ipc.net",
+  "ipc.sql",
+  "ipc.ssh",
+  "ipc.util",
+  "settings.read",
+  "settings.write",
+  "host",
+  "events",
+] as const;
+
+export type PluginPermission = (typeof PLUGIN_PERMISSIONS)[number];
+
 export type PluginCategory = "engine" | "feature" | "core" | "local";
 
 /** 插件展示元数据 —— 插件市场(插排页)消费,与激活逻辑无关。 */
@@ -94,7 +119,13 @@ export interface PluginContext {
   /** 注册一份引擎的图形化配置面(cliConfigRegistry 的 ctx 通道;渲染归 cli-config 插件)。 */
   registerCliConfig(entry: CliConfigEntry): void;
   /** 内核事件总线（跨插件通信唯一通道）。 */
-  events: EventBus;
+  events: PluginEventBus;
+}
+
+/** 事件总线结构面(EventBus 按此结构满足;本地插件 events 未授权时以同形拒绝桩顶替)。 */
+export interface PluginEventBus {
+  on<T>(topic: string, handler: (payload: T) => void): () => void;
+  emit<T>(topic: string, payload: T): void;
 }
 
 export interface Plugin {
@@ -104,6 +135,9 @@ export interface Plugin {
   readonly meta: PluginMeta;
   /** 依赖的其它插件 id，内核保证先激活依赖。 */
   readonly dependsOn?: readonly string[];
-  activate(ctx: PluginContext): void | Promise<void>;
+  /** 能力授权集(本地插件由 manifest.permissions 合成;缺省 = 内置插件不受限)。
+   *  空数组 = 纯 UI 插件:仅 React 原语与注册面,ipc/host/settings/events 全拒。 */
+  readonly permissions?: readonly string[];
+  activate(ctx: PluginContext): void | Promise<void> | (() => void);
   deactivate?(): void;
 }

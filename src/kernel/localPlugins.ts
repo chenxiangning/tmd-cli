@@ -5,13 +5,21 @@
  */
 import { KernelTopics } from "./events";
 import { host } from "./host";
-import { ipc, type LocalPluginScanEntry } from "./ipc";
+import { ipc } from "./ipc";
 import {
   importBundle,
+  sdkShimKey,
   synthesizeMeta,
-  validateManifest,
   validatePluginExport,
 } from "./localPluginLoad";
+import {
+  activatable,
+  entryNameOf,
+  markActivated,
+  scanToRecord,
+  trustToken,
+} from "./localPluginScan";
+import { installPluginSdkShim } from "./pluginSdk";
 import type { Plugin } from "./plugin";
 import { getSettingsState, settingsReady, updateSettings } from "./settings";
 import {
@@ -23,6 +31,8 @@ import {
 
 export { getLocalPluginRecords, subscribeLocalPlugins, useLocalPluginRecords } from "./localPluginStore";
 export type { LocalPluginRecord } from "./localPluginStore";
+/** 公开 API 保持原位(信任闸已拆至 localPluginScan,此处转发;消费方路径不变)。 */
+export { isContentTrusted, trustToken } from "./localPluginScan";
 
 /** 已装载模块缓存:key = `${id}:${contentHash}`,diff 幂等的载体(同内容零 import)。 */
 const loadedPlugins = new Map<string, Plugin>();
@@ -34,52 +44,6 @@ function msg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-/** 该 id 的该内容 hash 是否已被用户确认过(信任闸按内容,不按插件名)。 */
-export function isContentTrusted(id: string, hash: string | null): boolean {
-  return hash !== null && getSettingsState().settings.localPluginTrust[id]?.includes(hash) === true;
-}
-
-function isDisabled(id: string): boolean {
-  return getSettingsState().settings.disabledPlugins.includes(id);
-}
-
-function entryNameOf(manifest: Record<string, unknown>): string {
-  const e = manifest.entry;
-  return typeof e === "string" && e ? e : "index.js";
-}
-
-/** 扫描条目 → 记录(manifest 校验在此完成;坏条目不 import)。 */
-function scanToRecord(entry: LocalPluginScanEntry): LocalPluginRecord {
-  const prev = records.get(entry.id);
-  const manifest = entry.manifest;
-  const contentHash = manifest
-    ? (entry.files.find((f) => f.name === entryNameOf(manifest))?.sha256 ?? null)
-    : null;
-  const rec: LocalPluginRecord = {
-    id: entry.id,
-    origin: "local",
-    manifest: entry.manifest ?? null,
-    meta: entry.manifest ? synthesizeMeta(entry.manifest) : null,
-    versions: entry.versions,
-    error: entry.error ?? null,
-    /* 激活失败是「内容」的属性:内容变了旧错误即过时,不继承。 */
-    activateError:
-      prev?.activateError != null && prev.contentHash !== null && prev.contentHash === contentHash
-        ? prev.activateError
-        : null,
-    activatedHash: prev?.activatedHash ?? null,
-    removed: false,
-    contentHash,
-  };
-  if (rec.error || !manifest) return rec;
-  const verr = validateManifest(manifest, builtinIds);
-  if (verr) {
-    rec.error = verr;
-    return rec;
-  }
-  if (!rec.contentHash) rec.error = `入口缺失或超过 16MB 上限: ${entryNameOf(manifest)}`;
-  return rec;
-}
 
 /** 装载(带按内容指纹的缓存):校验已过 → 读 bundle(读+哈希原子出证)→ 内容核对 → import → 导出校验。 */
 async function ensureLoaded(rec: LocalPluginRecord): Promise<Plugin | null> {
@@ -101,7 +65,10 @@ async function ensureLoaded(rec: LocalPluginRecord): Promise<Plugin | null> {
   }
   let mod: Record<string, unknown>;
   try {
-    mod = await importBundle(file.content, rec.id);
+    /* 装载前一刻按 manifest.permissions 装配 tmd-sdk 实例(key 带内容 hash,热更即新实例)。 */
+    const sdkKey = sdkShimKey(rec.id, rec.contentHash);
+    installPluginSdkShim(sdkKey, rec.permissions ?? []);
+    mod = await importBundle(file.content, sdkKey);
   } catch (e) {
     const m = msg(e);
     rec.error = m.includes("module specifier")
@@ -115,28 +82,13 @@ async function ensureLoaded(rec: LocalPluginRecord): Promise<Plugin | null> {
     return null;
   }
   const raw = (mod.default ?? mod.plugin) as Plugin;
-  const plugin = { ...raw, meta: raw.meta ?? synthesizeMeta(rec.manifest) };
+  const plugin = {
+    ...raw,
+    meta: raw.meta ?? synthesizeMeta(rec.manifest),
+    permissions: rec.permissions ?? [],
+  };
   loadedPlugins.set(key, plugin);
   return plugin;
-}
-
-/** 激活成功落戳(唯一落点):activatedHash 定格 + 清激活错误。 */
-function markActivated(id: string): void {
-  const rec = records.get(id);
-  if (rec) {
-    rec.activatedHash = rec.contentHash;
-    rec.activateError = null;
-  }
-}
-
-/** 记录可激活(过信任闸 + 未被拔出 + 无加载错误 + 有内容戳)。 */
-function activatable(rec: LocalPluginRecord): boolean {
-  return (
-    !rec.error &&
-    rec.contentHash !== null &&
-    isContentTrusted(rec.id, rec.contentHash) &&
-    !isDisabled(rec.id)
-  );
 }
 
 function subscribeTurnSettled(): void {
@@ -163,7 +115,7 @@ export async function bootLocalPlugins(builtins: ReadonlySet<string>): Promise<P
   const ready: Plugin[] = [];
   records.clear();
   for (const entry of entries) {
-    const rec = scanToRecord(entry);
+    const rec = scanToRecord(entry, builtinIds);
     records.set(rec.id, rec);
     if (!activatable(rec)) continue;
     const plugin = await ensureLoaded(rec);
@@ -233,7 +185,7 @@ async function doRescan(): Promise<void> {
   const seen = new Set<string>();
   for (const entry of entries) {
     seen.add(entry.id);
-    const rec = scanToRecord(entry);
+    const rec = scanToRecord(entry, builtinIds);
     records.set(rec.id, rec);
     if (rec.activatedHash) continue; // 已激活:仅更新内容戳(变更徽章),重启生效,不重载
     if (!activatable(rec)) continue;
@@ -258,9 +210,10 @@ export async function confirmLocalPlugin(id: string): Promise<void> {
   if (!rec?.contentHash) return;
   const s = getSettingsState().settings;
   const list = s.localPluginTrust[id] ?? [];
-  if (!list.includes(rec.contentHash)) {
+  const token = trustToken(rec.contentHash, rec.manifestHash);
+  if (!list.includes(token)) {
     updateSettings({
-      localPluginTrust: { ...s.localPluginTrust, [id]: [...list, rec.contentHash] },
+      localPluginTrust: { ...s.localPluginTrust, [id]: [...list, token] },
     });
   }
   await ipc.pluginArchive(id).catch(() => null); // 归档失败不阻断确认(版本库是增强件)

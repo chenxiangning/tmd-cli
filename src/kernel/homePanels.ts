@@ -20,6 +20,12 @@ export function registerHomePanel(profileId: string, panel: ComponentType): void
   store.commit(new Map(panels));
 }
 
+/** 撤销通道(激活失败回滚/熔断摘除):profileId 未注册时静默(幂等)。 */
+export function removeHomePanel(profileId: string): void {
+  if (!panels.delete(profileId)) return;
+  store.commit(new Map(panels));
+}
+
 export function useHomePanels(): ReadonlyMap<string, ComponentType> {
   return store.useStore();
 }

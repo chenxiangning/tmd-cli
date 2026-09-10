@@ -3,13 +3,15 @@
  * 纯函数为主;importBundle 是唯一副作用出口(blob URL + 动态 import)。
  * 设计契约见 docs/superpowers/specs/2026-09-10-local-plugins-design.md。
  */
+import { PLUGIN_PERMISSIONS } from "./plugin";
 import type { Plugin, PluginMeta } from "./plugin";
 
 /** 裸 specifier 白名单:插件 bundle 唯一合法的外部 import 面。 */
 export const SHIM_SPECIFIERS = ["react", "react-dom", "react/jsx-runtime", "tmd-sdk"] as const;
 
-/** 当前内核 API 纪元:注册面破坏性变更时 bump,旧插件装载即拒(先立机制后立变更)。 */
-export const LOCAL_PLUGIN_API_VERSION = 1;
+/** 当前内核 API 纪元:注册面破坏性变更时 bump,旧插件装载即拒。
+ *  v2(2026-09-10):manifest.permissions 生效,SDK 收窄为按授权装配 —— v1 插件一律重装。 */
+export const LOCAL_PLUGIN_API_VERSION = 2;
 
 
 /** ESM 具名导出必须静态声明:按模块 key 动态拼 shim 文本;default 键走默认导出(非法标识符特例)。 */
@@ -51,9 +53,26 @@ export function rewriteSpecifiers(
   return out;
 }
 
-/** bundle 文本 → 模块命名空间。specifier 是运行时 blob URL,静态 import 不可能(spec 装载机制节)。 */
-export async function importBundle(text: string, _id: string): Promise<Record<string, unknown>> {
-  const rewritten = rewriteSpecifiers(text, shimUrl);
+/** tmd-sdk 的按插件寻址 shim key(权限实例逐插件装配;sdkKey 携带内容 hash 免模块缓存串味)。 */
+export function sdkShimKey(id: string, contentHash: string): string {
+  return `tmd-sdk:${id}:${contentHash}`;
+}
+
+/** manifest.permissions → 授权清单(未声明 = 纯 UI:空数组;非法形状已在 validateManifest 拒)。 */
+export function manifestPermissions(manifest: Record<string, unknown>): string[] {
+  const perms = manifest.permissions;
+  if (!Array.isArray(perms)) return [];
+  return perms.filter(
+    (p): p is string => typeof p === "string" && (PLUGIN_PERMISSIONS as readonly string[]).includes(p),
+  );
+}
+
+/** bundle 文本 → 模块命名空间。specifier 是运行时 blob URL,静态 import 不可能(spec 装载机制节)。
+ *  sdkKey = 装载前 installPluginSdkShim 装配的 tmd-sdk 实例寻址(含内容 hash,热更即新实例)。 */
+export async function importBundle(text: string, sdkKey: string): Promise<Record<string, unknown>> {
+  const rewritten = rewriteSpecifiers(text, (spec) =>
+    spec === "tmd-sdk" ? shimUrl(`tmd-sdk:${sdkKey}`) : shimUrl(spec),
+  );
   const url = URL.createObjectURL(new Blob([rewritten], { type: "text/javascript" }));
   try {
     return (await import(/* @vite-ignore */ url)) as Record<string, unknown>;
@@ -72,6 +91,13 @@ export function validateManifest(
   if (builtinIds.has(id)) return `插件 id 与内置插件冲突: ${id}`;
   if (manifest.apiVersion !== LOCAL_PLUGIN_API_VERSION) {
     return `API 纪元不匹配: 插件 ${String(manifest.apiVersion)} / 客户端 ${LOCAL_PLUGIN_API_VERSION}`;
+  }
+  if (manifest.permissions !== undefined) {
+    const perms = manifest.permissions;
+    const bad =
+      !Array.isArray(perms) ||
+      perms.some((p) => !(PLUGIN_PERMISSIONS as readonly string[]).includes(p as string));
+    if (bad) return `非法 permissions(须为 PLUGIN_PERMISSIONS 子集): ${JSON.stringify(perms)}`;
   }
   if (manifest.category === "core") return "本地插件不允许 core 分类(焊死层属内置)";
   const entry = manifest.entry;

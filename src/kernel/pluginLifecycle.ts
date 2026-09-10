@@ -10,6 +10,13 @@
 
 import { getSettingsState, settingsReady } from "./settings";
 import type { Plugin, PluginContext } from "./plugin";
+import {
+  makeAttributedCtx,
+  pushCleanup,
+  undoContributions,
+  type ContributionUndo,
+} from "./contributionLedger";
+import { isQuarantined } from "./pluginQuarantine";
 
 export class PluginLifecycle {
   private plugins = new Map<string, Plugin>();
@@ -19,6 +26,8 @@ export class PluginLifecycle {
   private manifest: Plugin[] = [];
   /** 启动时被"拔出"(禁用)的插件 id 集合。 */
   private disabledPluginIds: ReadonlySet<string> = new Set();
+  /** HostRegistry 撤销通道注入(激活失败回滚/熔断摘除走同一账本)。 */
+  constructor(private readonly undo: ContributionUndo) {}
 
   activateAll(plugins: Plugin[], ctx: PluginContext): Promise<void> {
     if (!this.activation) {
@@ -61,7 +70,13 @@ export class PluginLifecycle {
       for (const [id, plugin] of pending) {
         const ready = (plugin.dependsOn ?? []).every((d) => this.plugins.has(d));
         if (!ready) continue;
-        await plugin.activate(ctx);
+        try {
+          const done = await plugin.activate(makeAttributedCtx(ctx, plugin, this.undo));
+          if (typeof done === "function") pushCleanup(id, done);
+        } catch (e) {
+          undoContributions(id); // boot 链路同样零残留(原样上抛由调用方定夺)
+          throw e;
+        }
         this.plugins.set(id, plugin);
         pending.delete(id);
         progressed = true;
@@ -93,6 +108,7 @@ export class PluginLifecycle {
    */
   async activateLate(plugin: Plugin, ctx: PluginContext): Promise<void> {
     await this.activation;
+    if (isQuarantined(plugin.id)) throw new Error(`插件已熔断,重启后恢复: ${plugin.id}`);
     /* 同步占位防并发双激活(has 检查在 await 前的交错窗口会双双过闸,activate 跑两次=贡献双注册)。 */
     if (this.plugins.has(plugin.id)) throw new Error(`插件已激活: ${plugin.id}`);
     if (this.disabledPluginIds.has(plugin.id))
@@ -101,10 +117,18 @@ export class PluginLifecycle {
     if (missing.length > 0) throw new Error(`依赖缺失: ${missing.join(", ")}`);
     this.plugins.set(plugin.id, plugin);
     try {
-      await plugin.activate(ctx);
+      const done = await plugin.activate(makeAttributedCtx(ctx, plugin, this.undo));
+      if (typeof done === "function") pushCleanup(plugin.id, done);
     } catch (e) {
-      this.plugins.delete(plugin.id); // 占位回滚(内置链路的裸 activate 才会走到这)
+      this.plugins.delete(plugin.id);
+      undoContributions(plugin.id); // 贡献回滚:半截插件零残留(占位回滚之上补的一环)
       throw e;
     }
+  }
+
+  /** 熔断摘除(pluginQuarantine 阈值触发):撤销全部贡献并移出激活表;重启恢复。 */
+  revoke(id: string): void {
+    if (!this.plugins.delete(id)) return;
+    undoContributions(id);
   }
 }
