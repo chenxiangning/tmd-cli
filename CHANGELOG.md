@@ -6,6 +6,29 @@
 
 ## [未发布]
 
+## [0.1.5] - 2026-09-11
+
+### 新增
+
+- 首页终端窗体重设计:无会话首页整页重构为终端窗体形态——prompt 行(工作区选择 + engines/updates 统计)+ 引擎全动作行(新会话/安装|更新|重装/重探/官方文档全动作内联)+ RESUME/QUOTA 页脚;键盘 ↑↓ 移游标、⏎ 直启新会话(原型 docs/design/home-redesign-s-full-actions.html)
+- 首页 token 用量 dashboard:RESUME/QUOTA 之下新增「tokens — 用量」区,左列按引擎用量条(量值标柱尖)、右列近 7 日双段趋势柱(输出/输入+缓存),顶部统计条(今日/7 日/消耗会话/pi 系费用);数据纯本地,自各 CLI 会话 JSONL 提取(omp/pi 短名 + claude `_tokens` 后缀 + codex token_count 末次快照),零消耗引擎不显示
+- composer 输入历史:Tab 接受 ghost 补全、空输入 ↑↓ 召回翻页、设置页管理区(可开关);IME 组词期补全自动禁用
+- 设置:`pnpm doctor` 脚本接入 react-doctor 代码体检
+
+### 修复
+
+- installer 双副本遮蔽:npm install -g 命中的副本不在探针所见路径时(--prefix 遮蔽,hermes/nvm/官方安装器场景),按 node 全局布局加 --prefix 就地更新,「更新成功但版本不变」根治(本机 kimi/opencode 实证)
+- dsh 适配 0.1.2+ 协议换代,打通凭据链与会话对话
+- git 无 upstream 分支 ahead 降级统计唯一提交数,推送按钮恢复数字与计数标题
+- 本机插件插排计数改为已装本地插件数,与页尾本地分区同源
+- 插件强化:manifest 权限门面、贡献回滚栈与崩溃熔断;信任闸读回哈希闭环与激活失败状态机修正
+- composer 输入历史自评审:ghost 长文本对齐与下拉并存两处 P2
+
+### 变更
+
+- react-doctor 全库治理 45→100 分:a11y(真实 button/listbox-option 语义)、组件复杂度拆件(composer 键盘分发/浮层、welcome 引擎行拆件)、300 行铁则回规;CI 接入 react-doctor 工作流
+- pnpm 供应链硬化:新依赖须满 7 天观察期并禁非常规来源
+
 ## [0.1.4] - 2026-09-10
 
 ### 新增
