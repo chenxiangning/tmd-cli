@@ -66,7 +66,7 @@ export function TerminalCopyMenu({
   const top = Math.max(8, Math.min(pos.y, window.innerHeight - 88));
   return (
     <>
-      <div className="fixed inset-0 z-40" onMouseDown={() => setPos(null)} />
+      <div className="fixed inset-0 z-40" role="presentation" onMouseDown={() => setPos(null)} />
       <div
         className="fixed z-50 w-32 overflow-hidden rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) py-1 shadow-lg"
         style={{ left, top }}
