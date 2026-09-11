@@ -83,22 +83,27 @@ describe("resolveSessionStatus", () => {
   const NOW = 10_000;
 
   it("从未对话(lastActivityAt = 0,首写闸未锚定)→ none,不出签不亮灯", () => {
-    expect(resolveSessionStatus(0, false, NOW)).toBe("none");
-    expect(resolveSessionStatus(0, true, NOW)).toBe("none");
+    expect(resolveSessionStatus(0, false, NOW, false)).toBe("none");
+    expect(resolveSessionStatus(0, true, NOW, false)).toBe("none");
   });
 
   it("2s 活动窗内 → running;恰好 2s 出窗即不再是进行中", () => {
-    expect(resolveSessionStatus(NOW - 1999, false, NOW)).toBe("running");
-    expect(resolveSessionStatus(NOW - 2000, false, NOW)).not.toBe("running");
+    expect(resolveSessionStatus(NOW - 1999, false, NOW, false)).toBe("running");
+    expect(resolveSessionStatus(NOW - 2000, false, NOW, false)).not.toBe("running");
   });
 
   it("进行中压过未读:新输出即回 running(与 host 清未读双保险)", () => {
-    expect(resolveSessionStatus(NOW - 500, true, NOW)).toBe("running");
+    expect(resolveSessionStatus(NOW - 500, true, NOW, false)).toBe("running");
+  });
+
+  it("turnActive 压过活动钟出窗:思考期 spinner 自绘冻结活动钟,标签不得提前翻结束", () => {
+    expect(resolveSessionStatus(NOW - 5000, false, NOW, true)).toBe("running");
+    expect(resolveSessionStatus(0, false, NOW, true)).toBe("none"); // 首写闸仍优先
   });
 
   it("出窗后按已查看与否分流:unread / viewed", () => {
-    expect(resolveSessionStatus(NOW - 5000, true, NOW)).toBe("unread");
-    expect(resolveSessionStatus(NOW - 5000, false, NOW)).toBe("viewed");
+    expect(resolveSessionStatus(NOW - 5000, true, NOW, false)).toBe("unread");
+    expect(resolveSessionStatus(NOW - 5000, false, NOW, false)).toBe("viewed");
   });
 });
 

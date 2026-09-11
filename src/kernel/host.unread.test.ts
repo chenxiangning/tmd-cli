@@ -87,9 +87,11 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
     ptyOutputCbs.get(sessionId)?.(text);
   }
 
-  /** 模拟用户发起一轮对话(真实路径:幕布按键/Composer 发送 → host.writeSession)。 */
+  /** 模拟用户发起一轮对话(真实路径:幕布按键/Composer 发送 → host.writeSession)。
+   *  写入后推进假时钟跨过应答回显窗(400ms):真实流程里 CLI 应答首帧恒晚于回显窗。 */
   function userPrompt(sessionId: string): void {
     host.writeSession(sessionId, "prompt\r");
+    vi.advanceTimersByTime(500);
   }
 
   /* 真实 omp 空闲自绘帧(取自 ~/.tmd-cli/session/omp/… 日志尾部):OSC 标题重写
@@ -246,5 +248,24 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
     userPrompt(a.id); // 用户再发起
     fireOutput(a.id, "new output");
     expect(host.isTurnActive(a.id)).toBe(true);
+  });
+  it("思考期不被假结算(P0):spinner 自绘期保持运行中,应答到达后照常结算", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await host.createSession(PROFILE_ID, CWD); // 后者活跃,a 在后台
+    host.writeSession(a.id, "prompt\r");
+    fireOutput(a.id, "hi"); // 回显窗内的换帧:开轮但不算应答证据
+    for (let i = 0; i < 200; i++) {
+      /* omp 思考期:≈10Hz spinner 原地自绘(骨架恒定复现,被空闲重绘闸判静默) */
+      fireOutput(a.id, IDLE_FRAMES[i % IDLE_FRAMES.length]);
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    expect(host.isTurnActive(a.id)).toBe(true); // 未被 2s 假结算吞掉 awaitingTurn
+
+    fireOutput(a.id, "real answer"); // 回显窗外的应答内容:恢复结算资格
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(host.isTurnActive(a.id)).toBe(false); // 真静默后正常结算
+    expect(host.isUnread(a.id)).toBe(true); // a 在后台 → 标未读
+    fireOutput(a.id, "noise after settle"); // 结算后噪音闸照旧
+    expect(host.isTurnActive(a.id)).toBe(false);
   });
 });

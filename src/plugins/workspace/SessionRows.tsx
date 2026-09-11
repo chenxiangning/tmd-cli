@@ -41,6 +41,7 @@ export function useSessionStatus(sessionId: string): SessionStatus {
     host.getLastActivityAt(sessionId),
     host.isUnread(sessionId),
     Date.now(),
+    host.isTurnActive(sessionId),
   );
 }
 

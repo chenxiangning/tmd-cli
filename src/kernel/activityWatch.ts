@@ -45,6 +45,13 @@
  * 引入新字符(流式续字、计时 tick)。轮次进行中同样适用:回答由内容帧推钟,
  * 穿插的重复自绘帧不再吊住结算。长静默工具调用若只重绘恒定页脚,标签会提前
  * 翻「会话结束」,输出恢复即回绿 —— 自纠,可接受。
+ * 思考期守卫(2026-09-11,P0 回归):空闲重绘闸使 spinner 自绘期 = 活动静默,
+ * 若此刻尚无任何应答内容 omp 思考期恰是如此,唯一开轮输出是用户自己的回显 ——
+ * 2s 假结算会吞掉 awaitingTurn,随后真实应答被轮次开启闸永久拦截,标签卡死
+ * 「会话结束-已查看」直到用户再写入。守卫:结算时若该会话(闸内语义)仍无
+ * 「回显窗外的内容分片」,跳过结算、保留轮次;首个真实应答到达后恢复照常结算,
+ * 结算后噪音闸(2026-09-08/09-11 契约)不受影响。回显窗 = 写入后 400ms 内的
+ * 内容分片视作输入回显/TUI 换帧,不算应答证据。
  */
 
 /** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅内部持有。 */
@@ -52,6 +59,9 @@ type TimerHandle = ReturnType<typeof setInterval>;
 
 /** 输出静默轮次阈值:静默超此值即结算一轮对话。 */
 const TURN_SILENCE_MS = 2_000;
+/** 应答回显窗:写入后此窗内的内容分片视作输入回显/TUI 换帧,不算应答证据
+ *  (思考期守卫判据,见文件头);真实应答首帧因模型 TTFB 恒晚于此窗。 */
+const ANSWER_ECHO_MS = 400;
 
 /** 空闲重绘判定:每会话最近 N 个非空可见骨架的 FIFO(实测 omp 空闲帧在 4 种
  *  骨架间循环,6 容得下页脚/标题/边框各变体;真实内容帧几乎不可能在 6 帧窗内
@@ -98,6 +108,10 @@ export class ActivityWatch {
   private readonly lastOutputViewed = new Map<string, boolean>();
   /** 每会话最近一次自发 resize 时戳(host.resizeSession 馈入):重绘抑制窗起点。 */
   private readonly lastResizeAt = new Map<string, number>();
+  /** 每会话最近一次用户写入时戳:回显窗起点(思考期守卫判据,见文件头)。 */
+  private readonly lastWriteAt = new Map<string, number>();
+  /** 自上次写入以来是否见过回显窗外的内容分片:思考期结算守卫判据。 */
+  private readonly answeredSinceWrite = new Set<string>();
   /** 每会话最近非空可见骨架 FIFO(空闲重绘闸判据,见文件头)。 */
   private readonly skeletons = new Map<string, string[]>();
 
@@ -109,7 +123,9 @@ export class ActivityWatch {
    */
   onUserWrite(sessionId: string): void {
     this.conversationStarted.add(sessionId);
+    this.lastWriteAt.set(sessionId, Date.now());
     this.awaitingTurn.add(sessionId);
+    this.answeredSinceWrite.delete(sessionId);
     /* 新提问 = 新基线:清骨架窗,防跨轮次逐字符全等的真实输出被误判重绘 */
     this.skeletons.delete(sessionId);
   }
@@ -146,6 +162,9 @@ export class ActivityWatch {
     /* 重绘抑制窗:自发 resize 后窗内的输出 = SIGWINCH 整屏重绘,不推进活动钟、
        不进轮次 —— 空闲已锚定会话被重绘打亮重跑生命周期的路径在此掐断。 */
     if (now - (this.lastResizeAt.get(sessionId) ?? 0) < REDRAW_SUPPRESS_MS) return false;
+    /* 回显窗外的内容分片 = 应答证据(思考期结算守卫判据,见文件头)。 */
+    if (now - (this.lastWriteAt.get(sessionId) ?? 0) > ANSWER_ECHO_MS)
+      this.answeredSinceWrite.add(sessionId);
     this.lastActivityAtMap.set(sessionId, now);
     this.lastOutputViewed.set(sessionId, this.host.isViewing(sessionId));
     this.activeTurns.add(sessionId);
@@ -189,6 +208,8 @@ export class ActivityWatch {
     this.lastOutputViewed.delete(sessionId);
     this.lastResizeAt.delete(sessionId);
     this.skeletons.delete(sessionId);
+    this.lastWriteAt.delete(sessionId);
+    this.answeredSinceWrite.delete(sessionId);
     this.unread.delete(sessionId);
     this.activeTurns.delete(sessionId);
     this.conversationStarted.delete(sessionId);
@@ -211,6 +232,8 @@ export class ActivityWatch {
     this.activeTurns.clear();
     this.conversationStarted.clear();
     this.awaitingTurn.clear();
+    this.lastWriteAt.clear();
+    this.answeredSinceWrite.clear();
   }
 
   private ensureWatch(): void {
@@ -220,6 +243,16 @@ export class ActivityWatch {
       let changed = false;
       for (const id of [...this.activeTurns]) {
         if (now - (this.lastActivityAtMap.get(id) ?? 0) <= TURN_SILENCE_MS) continue;
+        /* 思考期守卫:写入后尚无回显窗外的内容分片 = CLI 仍在处理本次提问
+           (spinner 自绘被空闲重绘闸判静默所致的假结算)。此刻结算会吞掉
+           awaitingTurn,真实应答从此被轮次开启闸永久拦截 —— 标签卡死
+           「会话结束-已查看」。跳过结算,保留轮次与 awaitingTurn。 */
+        if (
+          this.awaitingTurn.has(id) &&
+          !this.answeredSinceWrite.has(id) &&
+          this.host.noiseGated(id)
+        )
+          continue;
         this.activeTurns.delete(id);
         this.awaitingTurn.delete(id); // 本轮结算 = 应答了此前写入
         const unviewed =

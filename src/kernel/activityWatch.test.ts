@@ -30,6 +30,7 @@ describe("轮次开启闸", () => {
     const { watch, viewing } = makeWatch();
     viewing.add("s");
     watch.onUserWrite("s");
+    vi.advanceTimersByTime(500); // 跨过回显窗:后续内容分片算应答证据
     watch.onOutput("s");
     vi.advanceTimersByTime(3000); // 结算:正在查看 → 已查看
     const settledAt = watch.lastActivityAt("s");
@@ -60,6 +61,7 @@ describe("轮次开启闸", () => {
     const { watch, viewing } = makeWatch();
     viewing.add("s");
     watch.onUserWrite("s");
+    vi.advanceTimersByTime(500);
     watch.onOutput("s", "answer body");
     vi.advanceTimersByTime(3000); // viewed 结算(tab 仍开着)
     expect(watch.isTurnActive("s")).toBe(false);
@@ -91,6 +93,7 @@ describe("空闲重绘闸", () => {
     const { watch, viewing } = makeWatch();
     viewing.add("s");
     watch.onUserWrite("s");
+    vi.advanceTimersByTime(500);
     expect(watch.onOutput("s", "answer body")).toBe(true); // 内容分片:开轮回绿
     const answeredAt = watch.lastActivityAt("s");
 
@@ -106,6 +109,7 @@ describe("空闲重绘闸", () => {
   it("纯控制序列分片(骨架为空)不算活动", () => {
     const { watch } = makeWatch();
     watch.onUserWrite("s");
+    vi.advanceTimersByTime(500);
     watch.onOutput("s", "answer body");
     vi.advanceTimersByTime(3000);
     expect(watch.onOutput("s", stripAnsi("\u001b[3;4H\u001b[?25h \u00b7\u2026"))).toBe(false);
@@ -116,6 +120,7 @@ describe("空闲重绘闸", () => {
     const { watch, viewing } = makeWatch();
     viewing.add("s");
     watch.onUserWrite("s");
+    vi.advanceTimersByTime(500);
     watch.onOutput("s", "answer body");
     vi.advanceTimersByTime(100);
     watch.onOutput("s", IDLE_VISIBLE); // 首见骨架:入窗
@@ -129,6 +134,7 @@ describe("空闲重绘闸", () => {
     vi.advanceTimersByTime(3000);
     expect(watch.isUnread("s")).toBe(false); // 状态保持已查看
     watch.onUserWrite("s"); // 用户再次发起对话
+    vi.advanceTimersByTime(500);
     watch.onOutput("s", "next turn output"); // 真轮次:照常开轮
     expect(watch.isTurnActive("s")).toBe(true);
     vi.advanceTimersByTime(3000);
@@ -157,5 +163,30 @@ describe("空闲重绘闸", () => {
     const { watch } = makeWatch();
     watch.onUserWrite("s");
     expect(watch.onOutput("s")).toBe(true);
+  });
+
+  it("思考期守卫:spinner 自绘期不结算、不吞 awaitingTurn,应答内容恢复后照常结算(P0 回归)", () => {
+    const { watch, viewing } = makeWatch();
+    viewing.add("s");
+    watch.onUserWrite("s");
+    watch.onOutput("s", "hi"); // 回显窗内的换帧:开轮但不算应答证据
+    watch.onOutput("s", IDLE_VISIBLE); // 提交重绘突发:spinner 首帧与回显同批(<400ms)
+    expect(watch.isTurnActive("s")).toBe(true);
+    vi.advanceTimersByTime(500);
+
+    /* omp 思考期:10Hz spinner 自绘 × 30s。实证缺陷:2s 后被假结算吞掉
+       awaitingTurn,整轮回答期间标签卡死「会话结束-已查看」 */
+    for (let i = 0; i < 300; i++) {
+      watch.onOutput("s", IDLE_VISIBLE);
+      vi.advanceTimersByTime(100);
+    }
+    expect(watch.isTurnActive("s")).toBe(true);
+
+    watch.onOutput("s", "real answer body"); // 回显窗外的应答内容:恢复结算资格
+    vi.advanceTimersByTime(3000); // 真静默:正常结算,吞 awaitingTurn
+    expect(watch.isTurnActive("s")).toBe(false);
+    expect(watch.onOutput("s", "hook banner")).toBe(false); // 结算后噪音闸照旧(08 契约)
+    vi.advanceTimersByTime(3000);
+    expect(watch.isUnread("s")).toBe(false); // 正在查看 → 已查看
   });
 });

@@ -77,9 +77,11 @@ describe("结算归因修正 + 重绘抑制窗", () => {
     ptyOutputCbs.get(sessionId)?.(text);
   }
 
-  /** 模拟用户发起一轮对话(真实路径:幕布按键/Composer 发送 → host.writeSession)。 */
+  /** 模拟用户发起一轮对话(真实路径:幕布按键/Composer 发送 → host.writeSession)。
+   *  写入后推进假时钟跨过应答回显窗(400ms):真实流程里 CLI 应答首帧恒晚于回显窗。 */
   function userPrompt(sessionId: string): void {
     host.writeSession(sessionId, "prompt\r");
+    vi.advanceTimersByTime(500);
   }
 
   it("看完回答才切走(末字节到达时正在查看)→ 不标未读", async () => {
