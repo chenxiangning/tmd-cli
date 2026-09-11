@@ -44,14 +44,14 @@
  * 原地重绘的骨架在会话内恒定复现(实测空闲 36 帧仅 4 种骨架),真实输出每帧
  * 引入新字符(流式续字、计时 tick)。轮次进行中同样适用:回答由内容帧推钟,
  * 穿插的重复自绘帧不再吊住结算。长静默工具调用若只重绘恒定页脚,标签会提前
- * 翻「会话结束」,输出恢复即回绿 —— 自纠,可接受。
+ * 翻「会话结束」;守卫只覆盖首问思考期,首答之后的此类轮中静默仍会提前翻
+ * 结束且恢复需用户新写入(轮次开启闸既有限制),见思考期守卫段。
  * 思考期守卫(2026-09-11,P0 回归):空闲重绘闸使 spinner 自绘期 = 活动静默,
- * 若此刻尚无任何应答内容 omp 思考期恰是如此,唯一开轮输出是用户自己的回显 ——
- * 2s 假结算会吞掉 awaitingTurn,随后真实应答被轮次开启闸永久拦截,标签卡死
- * 「会话结束-已查看」直到用户再写入。守卫:结算时若该会话(闸内语义)仍无
- * 「回显窗外的内容分片」,跳过结算、保留轮次;首个真实应答到达后恢复照常结算,
- * 结算后噪音闸(2026-09-08/09-11 契约)不受影响。回显窗 = 写入后 400ms 内的
- * 内容分片视作输入回显/TUI 换帧,不算应答证据。
+ * 而 omp 思考期唯一开轮输出是用户回显 —— 2s 假结算吞 awaitingTurn,真实应答
+ * 从此被轮次开启闸永久拦截,标签卡死「会话结束-已查看」。守卫:结算时若仍无
+ * 「回显窗外的内容分片」(写入后 400ms 内 = 回显/换帧,不算应答),跳过结算、
+ * 保留轮次;真实应答到达后照常结算,结算后噪音闸不受影响。spinner 活性界:
+ * 自绘分片停歇 >2s 不再豁免 —— 即时报错后归静默的 TUI 照常结算,不永挂运行时。
  */
 
 /** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅内部持有。 */
@@ -112,6 +112,8 @@ export class ActivityWatch {
   private readonly lastWriteAt = new Map<string, number>();
   /** 自上次写入以来是否见过回显窗外的内容分片:思考期结算守卫判据。 */
   private readonly answeredSinceWrite = new Set<string>();
+  /** 每会话最近一次被空闲重绘闸拦下的自绘分片时戳:守卫的 spinner 活性界。 */
+  private readonly lastGatedFrameAt = new Map<string, number>();
   /** 每会话最近非空可见骨架 FIFO(空闲重绘闸判据,见文件头)。 */
   private readonly skeletons = new Map<string, string[]>();
 
@@ -146,6 +148,7 @@ export class ActivityWatch {
       this.host.noiseGated(sessionId) &&
       this.isIdleRedraw(sessionId, visibleText)
     ) {
+      this.lastGatedFrameAt.set(sessionId, Date.now());
       return false;
     }
     /* 轮次开启闸:无未应答写入且轮次已了结的 CLI 会话,新输出(异步噪音)不开轮、
@@ -210,6 +213,7 @@ export class ActivityWatch {
     this.skeletons.delete(sessionId);
     this.lastWriteAt.delete(sessionId);
     this.answeredSinceWrite.delete(sessionId);
+    this.lastGatedFrameAt.delete(sessionId);
     this.unread.delete(sessionId);
     this.activeTurns.delete(sessionId);
     this.conversationStarted.delete(sessionId);
@@ -234,6 +238,7 @@ export class ActivityWatch {
     this.awaitingTurn.clear();
     this.lastWriteAt.clear();
     this.answeredSinceWrite.clear();
+    this.lastGatedFrameAt.clear();
   }
 
   private ensureWatch(): void {
@@ -250,7 +255,8 @@ export class ActivityWatch {
         if (
           this.awaitingTurn.has(id) &&
           !this.answeredSinceWrite.has(id) &&
-          this.host.noiseGated(id)
+          this.host.noiseGated(id) &&
+          now - (this.lastGatedFrameAt.get(id) ?? 0) < TURN_SILENCE_MS
         )
           continue;
         this.activeTurns.delete(id);

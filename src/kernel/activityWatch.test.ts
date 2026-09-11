@@ -189,4 +189,18 @@ describe("空闲重绘闸", () => {
     vi.advanceTimersByTime(3000);
     expect(watch.isUnread("s")).toBe(false); // 正在查看 → 已查看
   });
+  it("守卫活性界:回显窗内完结的轮次(即时报错)在自绘停歇后照常结算(P1 回归)", () => {
+    const { watch } = makeWatch();
+    watch.onUserWrite("s");
+    watch.onOutput("s", "err: quota exceeded"); // 全部内容落在回显窗内:不算应答
+    vi.advanceTimersByTime(300);
+    for (let i = 0; i < 20; i++) {
+      /* TUI 短暂自绘 2s 后彻底归静默(即时报错类) */
+      watch.onOutput("s", IDLE_VISIBLE);
+      vi.advanceTimersByTime(100);
+    }
+    vi.advanceTimersByTime(3000); // 自绘停歇 + 活性界(2s)过期
+    expect(watch.isTurnActive("s")).toBe(false); // 照常结算,不永挂运行时
+    expect(watch.isUnread("s")).toBe(true); // 后台即时报错不丢未读
+  });
 });
