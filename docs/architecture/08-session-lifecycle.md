@@ -1,6 +1,6 @@
 # 08 会话生命周期状态机(activityWatch)契约
 
-- 日期:2026-09-11(首版)
+- 日期:2026-09-11(首版;同日晚修订:证据分级模型,见 spec 2026-09-11-activity-watch-evidence-model-design.md)
 - 状态:生效中 —— 本文件是该状态机的唯一完整契约入口;02-code-architecture §4 只留摘要。
 
 ## 0. 定位与核心哲学
@@ -66,12 +66,14 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
 |序|闸|治什么|判据|钉它的测试|
 |---|---|---|---|---|
 |1|首写闸|spawn 横幅/resume 回放误亮|`conversationStarted` 未置位即挡|host.turnSettled.test.ts|
-|2|空闲重绘闸|空闲 spinner/状态栏原地自绘吊住结算、永挂「运行时」|剥 ANSI 可见骨架(`[\p{L}\p{N}]`)在最近 6 帧窗内复现,或骨架为空;ssh/shell 豁免|activityWatch.test.ts「空闲重绘闸」组|
+|2|家具分类(content/tick/static)|空闲 spinner/状态栏/时钟原地自绘伪装活动:吊住结算(永挂运行时)或重跑生命周期|剥 ANSI 仅取**字母骨架**:首见 = content(推活动钟,可开轮);复现且数字串变动 = tick(推证据钟,实测 omp 回合期页脚每秒跳「9s→10s」);复现且数字相同或骨架空 = static(只记活性时戳)。ssh/shell 豁免|activityWatch.test.ts「空闲重绘闸」组 + activityWatch.evidence.test.ts|
 |3|轮次开启闸|已了结老会话被异步噪音重跑生命周期|`!activeTurns && !awaitingTurn && noiseGated` 即挡|activityWatch.test.ts + host.unread.test.ts「实证缺陷」|
 |4|重绘抑制窗|本应用自发 resize 引发 SIGWINCH 整屏重绘(实测 omp 560KB 突发)|`resizeSession` 时戳后 1s 窗内输出不进活动语义|host.activityWatch.test.ts|
 |结算|归因|看完回答 2s 窗内切走被误标未读|末字节到达瞬间 `isViewing` 快照|host.activityWatch.test.ts|
+|守卫|未应答写入被假结算吞掉(awaiting 丢失 → 真应答被闸 3 拦死)|`awaiting && !answered &&`(静态家具 2s 内出现过( spinner 还在转)‖ 无任何家具且距写入 <120s(无 spinner/footer CLI 的思考期宽限))→ 跳过结算|activityWatch.evidence.test.ts「空轮宽限」「宽限上限」|
 
-用户新提问(`onUserWrite`)清骨架窗,防跨轮次逐字符全等的真实输出被闸 2 误判。
+用户新提问(`onUserWrite`)清骨架窗与数字串基线,防跨轮次逐字符全等的真实输出被闸 2 误判;
+静默判定 = 距最后 content/tick 证据 >2s(静态家具不参与,空闲页脚永续自绘不得吊住结算)。
 
 ## 4. 事故账本(为什么「经常被改坏」)
 
@@ -84,6 +86,7 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
 |09-11|同症状复发:**tab 常驻开启**的老会话照样被重跑|初版闸把 `hasOpenTab` 当开轮豁免;老会话 tab 一挂几天,异步字节(含每分钟变的相对时间戳 = 新骨架,闸 2 拦不住)整闸绕开|删 hasOpenTab 豁免(I2),开轮只认 awaitingTurn/activeTurns|**UI 状态不是因果** —— 同一缺陷类第 4 块补丁前,先质疑豁免条件本身|
 |09-11|侧栏标签永挂「运行时」、三态全失效|omp 空闲期状态栏 ≈2.8KB/s 持续自绘,轮次永不静默结算|空闲重绘闸(骨架复现判据)|「有输出」≠「在对话」要靠内容熵区分|
 |09-11|历史会话点开即走完呼吸灯|回放期 xterm 重新应答历史内容里的终端查询,应答被视同首写锚定|terminalInputGate + synthetic 标记(I8)|锚定入口必须只通真实用户输入|
+|09-11|同日三连修(空闲重绘闸 → P0 spinner 期假结算 → 思考期守卫)暴露特判互咬,根治为证据分级模型|六层特判闸各自定义「什么算输出/静默」,一个闸改变前提即动摇别的闸的推理|字母骨架三级分类 + content/tick 证据钟 + 守卫并项,12 张 Map 并为每会话单状态对象(spec 2026-09-11-activity-watch-evidence-model-design.md)|**补丁咬补丁时收敛模型,不加第七层** —— 真实 omp 字节流采集回放是验收基准|
 
 ## 5. 修改规则(review 清单)
 
@@ -104,8 +107,9 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
   Ask 场景有独立徽章兜底。
 - resize 抑制窗内恰好完整到达的 <1s 短回答:漏提醒一次(需用户正在改尺寸同时成立)。
 - CLI 答案中途静音 >2s 分段:后段不再重复标(首轮通知已在)。
-- 用户写入后 CLI 彻底无输出:awaitingTurn 不清,后来字节仍放行开轮(「有输入未获应答」可辩护)。
-- webview 重载后锚定态归零:老会话要重新有用户写入才进灯语义(I1 的既定延伸)。
+- 用户写入后 CLI 彻底无输出:不进结算循环(轮次未开启),awaiting 不清,后来字节仍放行开轮(「有输入未获应答」可辩护)。
+- 无家具 CLI 的未应答轮次由 120s 宽限兜底,到期照常结算;超长静默思考的真实案例出现前不按 profile 配置。
+- 应答开始后静态家具中轮静默(恒定 spinner 自绘)与空闲页脚字节不可分:仍会提前翻,用户新写入自愈(既定边界)。
 
 ## 7. 验证
 

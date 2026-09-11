@@ -133,5 +133,6 @@
 | 2026-09-11 | [WSL 工作区 M1 设计:kind 路由 + UNC 现有原语复用](superpowers/specs/2026-09-11-wsl-workspace-m1-design.md) | 设计定稿·实施就绪(Windows 冒烟探针=验收门;openspec/changes/wsl-workspace-m1) |
 | 2026-09-11 | [WSL 支持交互原型 ×3(连接与远程调用 / 会话列表管理 / 文件工作区)](prototypes/) | 设计原型(调研结论:Workspace kind/distro + wsl.exe spawn 包装 + UNC 喂现有 fs 原语;git M1 降级) |
 | 2026-09-11 | [后台会话「等待确认」不出现:字节通道结构性漏检评审与屏幕镜像修复](review/2026-09-11-ask-background-mirror-review.md) | 已完成(修复随记录同在工作树;真实日志回放实证 + 桩目检徽章上屏) |
+| 2026-09-11 | [活动守望证据分级模型:轮次状态机根治重构(content/tick/static 三级分类 + 证据钟 + 空轮宽限)](superpowers/specs/2026-09-11-activity-watch-evidence-model-design.md) | 已落地(真实 omp 字节流回放验收;08 契约同步修订) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

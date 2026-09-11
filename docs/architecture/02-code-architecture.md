@@ -315,7 +315,8 @@ Rust `fail_session` 在幕布内呈现,两条路径互补。
    完整契约(四态模型 / 八条不变量 / 闸门矩阵 / 事故账本 / 修改规则)见本目录
    `08-session-lifecycle.md` —— 改 `kernel/activityWatch.ts` 前必读,本节只留摘要:
    呼吸灯锚定**用户首写**(首写前输出不进灯语义);轮次开启闸(2026-09-11 收紧)只认
-   awaitingTurn/在途轮次,tab 开关与闸无关;空闲重绘闸以可见骨架复现识别 spinner 自绘;
+   awaitingTurn/在途轮次,tab 开关与闸无关;输出分片按「字母骨架+数字串」三级分类
+   (content/tick/static,2026-09-11 证据分级模型),静默 = content+tick 证据停 >2s;
    resize 后 1s 抑制窗掐 SIGWINCH 重绘;终端协议回传标 synthetic 不算首写。
 4b. **Ask 等待检测三通道 + 重载恢复(ebdccc1)**:①字节流(host.appendOutput 主链,
    1024B 尾窗 + 末 5 行页脚窗 + 内核 y-N/插件 askMarks 正则)②幕布屏幕采样
