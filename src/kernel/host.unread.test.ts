@@ -138,7 +138,7 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
     expect(host.isUnread(a.id)).toBe(false);
   });
 
-  it("未读会话来新输出 → 立即回到进行中(清未读)", async () => {
+  it("未读会话用户再发起对话 → 立即回到进行中(清未读)", async () => {
     const a = await host.createSession(PROFILE_ID, CWD);
     await host.createSession(PROFILE_ID, CWD);
     userPrompt(a.id);
@@ -146,8 +146,10 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
     await vi.advanceTimersByTimeAsync(3000);
     expect(host.isUnread(a.id)).toBe(true);
 
+    userPrompt(a.id); // 用户再发起:awaitingTurn 放行
     fireOutput(a.id, "new turn");
     expect(host.isUnread(a.id)).toBe(false);
+    expect(host.isTurnActive(a.id)).toBe(true);
   });
 
   it("输出间隔 ≤2s 视为同一轮:不提前结算未读", async () => {
@@ -216,14 +218,32 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
     expect(host.isTurnActive(a.id)).toBe(false);
   });
 
-  it("关 tab 后重新点开:轮次语义恢复", async () => {
+  it("实证缺陷(2026-09-11):tab 常驻开启的已查看老会话,异步噪音不重跑生命周期", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD); // 创建即查看,tab 从此常开
+    userPrompt(a.id);
+    fireOutput(a.id);
+    await vi.advanceTimersByTimeAsync(3000); // 结算且已查看 → 灰
+    expect(host.isUnread(a.id)).toBe(false);
+    const settledAt = host.getLastActivityAt(a.id);
+
+    fireOutput(a.id, "hook banner"); // hook/dreamer/横幅类异步字节:不开轮
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(host.isTurnActive(a.id)).toBe(false);
+    expect(host.getLastActivityAt(a.id)).toBe(settledAt);
+    expect(host.isUnread(a.id)).toBe(false); // 状态保持已查看
+  });
+
+  it("已了结会话重新点开:噪音仍不开轮;再写入才恢复轮次", async () => {
     const a = await host.createSession(PROFILE_ID, CWD);
     await host.createSession(PROFILE_ID, CWD);
     userPrompt(a.id);
     fireOutput(a.id);
     await vi.advanceTimersByTimeAsync(3000);
     closeSessionTab(a.id);
-    host.setActiveSession(a.id); // 重新点开 = tab 恢复(activeSessionChanged → trackOpen)
+    host.setActiveSession(a.id); // 重新点开:查看语义恢复,开轮闸不因 tab 放行
+    fireOutput(a.id, "noise"); // 无未应答写入:不开轮(2026-09-11 收紧)
+    expect(host.isTurnActive(a.id)).toBe(false);
+    userPrompt(a.id); // 用户再发起
     fireOutput(a.id, "new output");
     expect(host.isTurnActive(a.id)).toBe(true);
   });

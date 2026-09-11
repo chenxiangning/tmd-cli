@@ -19,14 +19,16 @@
  * 未读归属锚定「最后一字节到达瞬间」而非「结算瞬间」(2026-09-05 归因修正):
  * 亲眼看完回答、2s 检测窗内切走的会话不再误标未读;只看开头就切走的长轮次,
  * 最后一字节到达时没在看,仍正确标未读。
- * 轮次开启闸(2026-09-08):已锚定 ≠ 任意字节都可开轮。tab 已关(含容量挤除)
- * 且无未应答用户写入(awaitingTurn)的 CLI 会话,新输出不开轮 —— 实证缺陷:已查看
- * 历史会话关 tab 后,hook/dreamer/横幅类异步字节把它重跑绿→蓝生命周期误标未读。
- * 在途轮次不受闸影响:关 tab 时真实未完成的任务照常推进、结算照标未读;
- * 写完即关 tab(首字节迟到)经 awaitingTurn 放行;tab 重开即恢复正常语义。
- * 闸仅适用 CLI 会话:ssh/shell「输出即活动」是既定语义,远端长任务
- * (如 make 静默数分钟后输出完工)关 tab 后必须照常开轮标未读,豁免闸门。
-
+ * 轮次开启闸(2026-09-08 立,2026-09-11 收紧):已锚定 ≠ 任意字节都可开轮。
+ * 无未应答用户写入(awaitingTurn)且轮次已了结的 CLI 会话,一切新输出不开轮 ——
+ * 实证缺陷:已查看历史会话被 hook/dreamer/横幅/状态栏相对时间戳类异步字节重跑
+ * 绿→蓝生命周期误标未读。初版以「tab 已关」为闸条件,但会话 tab 常驻开启
+ * (老会话不清就是几天),异步字节照常绕闸 —— tab 开着 ≠ 正在查看,不构成
+ * 开轮理由;开轮只认用户发起的对话(awaitingTurn)与在途轮次。在途轮次不受
+ * 闸影响:关 tab 时真实未完成的任务照常推进、结算照标未读;写完即关 tab
+ * (首字节迟到)经 awaitingTurn 放行。闸仅适用 CLI 会话:ssh/shell「输出即
+ * 活动」是既定语义,远端长任务(如 make 静默数分钟后输出完工)必须照常开轮
+ * 标未读,豁免闸门。
  *
  * 重绘抑制窗:全屏 TUI 收到 SIGWINCH 的整屏重绘(实测 omp = 560KB 突发)与
  * 「CLI 正在回答」在字节流上不可区分,但重绘必由本应用自发的 resize 触发 ——
@@ -69,8 +71,6 @@ interface ActivityWatchHost {
   isViewing(sessionId: string): boolean;
   /** 会话仍存活?(已死会话的轮次不标未读) */
   exists(sessionId: string): boolean;
-  /** 会话 tab 是否开着(sessionTabs 口径;容量挤除视同关)。轮次开启闸用。 */
-  hasOpenTab(sessionId: string): boolean;
   /** 轮次开启闸是否适用该会话?(ssh/shell「输出即活动」语义豁免,由 Host 按 kind 判定) */
   noiseGated(sessionId: string): boolean;
   /** 状态变化回调(Host.notify)。 */
@@ -132,12 +132,12 @@ export class ActivityWatch {
     ) {
       return false;
     }
-    /* 轮次开启闸:无 tab 且无未应答写入的已了结会话,新输出(异步噪音)不开轮、
-       不推进活动钟 —— 状态保持「已查看」;在途轮次不受闸影响,照常推进结算。 */
+    /* 轮次开启闸:无未应答写入且轮次已了结的 CLI 会话,新输出(异步噪音)不开轮、
+       不推进活动钟 —— 状态保持「已查看」;tab 开关与闸无关(常驻 tab ≠ 正在
+       查看)。在途轮次与 awaitingTurn 放行,照常推进结算。 */
     if (
       !this.activeTurns.has(sessionId) &&
       !this.awaitingTurn.has(sessionId) &&
-      !this.host.hasOpenTab(sessionId) &&
       this.host.noiseGated(sessionId)
     ) {
       return false;

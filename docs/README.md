@@ -104,7 +104,7 @@
 | 2026-09-08 | [智能体/提示词资产设计:composer 双触发 + 设置管理](superpowers/specs/2026-09-08-assistant-assets-design.md) | 已落地(实现随 fa24fa3 提交;差异与遗漏标记见 spec 文末实现对照) |
 | 2026-09-08 | [早晚场提交代码审核(19 笔,1 高/5 P1/15 P2)](review/2026-09-08-evening-commits-review.md) | 已完成(报告;高与 P1 已修复,桩目检通过) |
 | 2026-09-09 | [0.1.3 发布区全量代码审查(48 提交,三路并行)](review/2026-09-09-0.1.3-release-review.md) | 已完成(报告;P0 口径已修正,整改清单待拍板) |
-| 2026-09-09 | [工作区别名:显示名覆盖(行内重命名)](superpowers/specs/2026-09-09-workspace-alias-design.md) | 待评审(设计定稿,确认后实现) |
+| 2026-09-09 | [工作区别名:显示名覆盖(行内重命名)](superpowers/specs/2026-09-09-workspace-alias-design.md) | 已落地(commit 9ed4911;实现随 spec 同提交) |
 | 2026-09-09 | [工作区分组:侧栏分组 + 设置页管理 + 右键移动(参考 codemoss)](superpowers/specs/2026-09-09-workspace-groups-design.md) | 已落地(3d22cc7;实现随 spec 同提交) |
 | 2026-09-09 | [快捷键改键 + 悬浮提示键位(对标 codemoss)](superpowers/specs/2026-09-09-shortcuts-remap-tooltip-design.md) | 已落地(f6f334a + 9a758f5;实现随 spec 同提交) |
 | 2026-09-09 | [CLI 独立配置:图形化编辑各 CLI 本地配置(交互原型)](design/cli-config-gui.html) | 已落地(提案 openspec/changes/cli-gui-config/,实现随提案同提交) |
@@ -125,5 +125,8 @@
 | 2026-09-10 | [Composer 输入历史落地自评审(2 个 P2 当场修复 + 3 个 P3 缓修)](review/2026-09-10-composer-prompt-history-review.md) | 已完成(合成事件展开丢原型方法事故记录;验证全绿) |
 | 2026-09-11 | [首页 token 用量 dashboard 设计原型(按引擎 + 近 7 日趋势)](design/token-usage-dashboard.html) | 已定稿(方案 B;vision 6 轮回归通过) |
 | 2026-09-11 | [首页 token 用量 dashboard 设计(welcome 新增 TokenDashboard,本地 JSONL usage 聚合)](superpowers/specs/2026-09-11-token-dashboard-design.md) | 已落地(TokenDashboard + tokens 聚合层 + 单测;零消耗隐藏、量标柱尖) |
+| 2026-09-11 | [CLI 独立配置:供应商渠道(Provider Channels,claude+codex 真切换 + ccswitch 手动导入)](superpowers/specs/2026-09-11-cli-provider-channels-design.md) | 待评审(设计定稿,未提交;OMP/PI 与 API Key/自定义/OAuth 留 V2+) |
+| 2026-09-11 | [会话档案馆设计:跨引擎会话检索 + 零进程只读回放 + 日志保留策略](superpowers/specs/2026-09-11-session-archive-design.md) | 暂缓(09-11 价值复核不排期;M1 元数据档案+保留策略 → M2 FTS5 trigram 全文 → M3 跨源出口,待触发重启) |
+| 2026-09-11 | [会话生命周期状态机契约:四态模型 / 八条不变量 / 闸门矩阵 / 七次事故账本](architecture/08-session-lifecycle.md) | 生效中(核心基础;改 activityWatch 前必读) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

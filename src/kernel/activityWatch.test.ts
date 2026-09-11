@@ -1,44 +1,40 @@
 /**
- * 轮次开启闸单元测试(2026-09-08)—— 直接构造 ActivityWatch 钉谓词矩阵;
- * host 级集成路径(真 sessionTabs 接线)见 host.unread.test.ts。
+ * 轮次开启闸单元测试(2026-09-08 立,2026-09-11 收紧)—— 直接构造 ActivityWatch
+ * 钉谓词矩阵;host 级集成路径(真 sessionTabs 接线)见 host.unread.test.ts。
  *
- * 契约:tab 已关且无未应答写入的已了结 CLI 会话,新输出(异步噪音)不开轮;
- * ssh/shell「输出即活动」语义豁免闸门 —— 远端长任务(make 静默数分钟后
- * 输出完工)关 tab 后必须照常开轮、结算标未读。
+ * 契约:无未应答写入且轮次已了结的 CLI 会话,一切新输出(异步噪音)不开轮
+ * —— tab 开关与闸无关;ssh/shell「输出即活动」语义豁免闸门 —— 远端长任务
+ * (make 静默数分钟后输出完工)必须照常开轮、结算标未读。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ActivityWatch } from "./activityWatch";
 import { stripAnsi } from "./askDetect";
 
 function makeWatch(opts: { gated?: boolean } = {}) {
-  const openTabs = new Set<string>();
   const viewing = new Set<string>();
   const watch = new ActivityWatch({
     isViewing: (id) => viewing.has(id),
     exists: () => true,
-    hasOpenTab: (id) => openTabs.has(id),
     noiseGated: () => opts.gated ?? true,
     onChange: () => undefined,
     onTurnSettled: () => undefined,
   });
-  return { watch, openTabs, viewing };
+  return { watch, viewing };
 }
 
 describe("轮次开启闸", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it("关 tab 的已了结会话:噪音不开轮、不推进活动钟、不标未读", () => {
-    const { watch, openTabs, viewing } = makeWatch();
-    openTabs.add("s");
+  it("已了结会话:异步噪音不开轮、不推进活动钟、不标未读", () => {
+    const { watch, viewing } = makeWatch();
     viewing.add("s");
     watch.onUserWrite("s");
     watch.onOutput("s");
     vi.advanceTimersByTime(3000); // 结算:正在查看 → 已查看
     const settledAt = watch.lastActivityAt("s");
 
-    openTabs.delete("s"); // 关 tab(会话保持运行)
-    viewing.delete("s");
+    viewing.delete("s"); // 切走(会话 tab 状态与闸无关)
     expect(watch.onOutput("s")).toBe(false); // 异步噪音被闸挡
     vi.advanceTimersByTime(3000);
     expect(watch.isTurnActive("s")).toBe(false);
@@ -46,20 +42,31 @@ describe("轮次开启闸", () => {
     expect(watch.isUnread("s")).toBe(false);
   });
 
-  it("ssh/shell 豁免:关 tab 后长任务完工输出照常开轮、结算标未读", () => {
-    const { watch, openTabs, viewing } = makeWatch({ gated: false });
-    openTabs.add("sh");
+  it("ssh/shell 豁免:了结后长任务完工输出照常开轮、结算标未读", () => {
+    const { watch, viewing } = makeWatch({ gated: false });
     viewing.add("sh");
     watch.onUserWrite("sh"); // make\r
     watch.onOutput("sh"); // 初期输出,用户在看
     vi.advanceTimersByTime(3000); // viewed 结算
 
-    openTabs.delete("sh"); // 关 tab
     viewing.delete("sh");
     watch.onOutput("sh"); // 编译静默后输出完工(豁免闸门)
     expect(watch.isTurnActive("sh")).toBe(true);
     vi.advanceTimersByTime(3000);
     expect(watch.isUnread("sh")).toBe(true); // 完工通知不丢
+  });
+
+  it("实证缺陷:已查看老会话(tab 常驻开着)被新骨架异步噪音重跑生命周期", () => {
+    const { watch, viewing } = makeWatch();
+    viewing.add("s");
+    watch.onUserWrite("s");
+    watch.onOutput("s", "answer body");
+    vi.advanceTimersByTime(3000); // viewed 结算(tab 仍开着)
+    expect(watch.isTurnActive("s")).toBe(false);
+    watch.onOutput("s", "hook banner"); // 异步噪音(tab 开着):不开轮
+    expect(watch.isTurnActive("s")).toBe(false);
+    vi.advanceTimersByTime(3000);
+    expect(watch.isUnread("s")).toBe(false); // 状态保持已查看
   });
 });
 
@@ -81,8 +88,7 @@ describe("空闲重绘闸", () => {
   });
 
   it("spinner 原地自绘:复现骨架不推活动钟,轮次照常结算", () => {
-    const { watch, openTabs, viewing } = makeWatch();
-    openTabs.add("s");
+    const { watch, viewing } = makeWatch();
     viewing.add("s");
     watch.onUserWrite("s");
     expect(watch.onOutput("s", "answer body")).toBe(true); // 内容分片:开轮回绿
@@ -98,8 +104,7 @@ describe("空闲重绘闸", () => {
   });
 
   it("纯控制序列分片(骨架为空)不算活动", () => {
-    const { watch, openTabs } = makeWatch();
-    openTabs.add("s");
+    const { watch } = makeWatch();
     watch.onUserWrite("s");
     watch.onOutput("s", "answer body");
     vi.advanceTimersByTime(3000);
@@ -107,30 +112,31 @@ describe("空闲重绘闸", () => {
     expect(watch.isTurnActive("s")).toBe(false);
   });
 
-  it("空闲期真实新输出(新骨架)照常开轮、未查看标未读", () => {
-    const { watch, openTabs, viewing } = makeWatch();
-    openTabs.add("s");
+  it("空闲期真实新输出:须有未应答写入才开轮、未查看标未读", () => {
+    const { watch, viewing } = makeWatch();
     viewing.add("s");
     watch.onUserWrite("s");
     watch.onOutput("s", "answer body");
     vi.advanceTimersByTime(100);
-    watch.onOutput("s", IDLE_VISIBLE); // 首见骨架:入窗放行
+    watch.onOutput("s", IDLE_VISIBLE); // 首见骨架:入窗
     watch.onOutput("s", IDLE_VISIBLE); // 复现:被闸
     vi.advanceTimersByTime(3000); // viewed 结算
     expect(watch.isTurnActive("s")).toBe(false);
 
     viewing.delete("s"); // 用户切走
-    watch.onOutput("s", IDLE_VISIBLE); // 自绘:不重开轮
+    watch.onOutput("s", "spontaneous output"); // 无未应答写入:噪音不开轮
     expect(watch.isTurnActive("s")).toBe(false);
-    watch.onOutput("s", "next turn output"); // 真输出:重开轮
+    vi.advanceTimersByTime(3000);
+    expect(watch.isUnread("s")).toBe(false); // 状态保持已查看
+    watch.onUserWrite("s"); // 用户再次发起对话
+    watch.onOutput("s", "next turn output"); // 真轮次:照常开轮
     expect(watch.isTurnActive("s")).toBe(true);
     vi.advanceTimersByTime(3000);
     expect(watch.isUnread("s")).toBe(true);
   });
 
   it("用户新提问清骨架窗:跨轮次逐字符全等的输出不被误判重绘", () => {
-    const { watch, openTabs } = makeWatch();
-    openTabs.add("s");
+    const { watch } = makeWatch();
     watch.onUserWrite("s");
     watch.onOutput("s", "yes");
     vi.advanceTimersByTime(3000);
@@ -139,8 +145,7 @@ describe("空闲重绘闸", () => {
   });
 
   it("ssh/shell 豁免:重复骨架仍算活动(输出即活动语义)", () => {
-    const { watch, openTabs } = makeWatch({ gated: false });
-    openTabs.add("sh");
+    const { watch } = makeWatch({ gated: false });
     watch.onUserWrite("sh");
     expect(watch.onOutput("sh", "done")).toBe(true);
     vi.advanceTimersByTime(3000);
@@ -149,8 +154,7 @@ describe("空闲重绘闸", () => {
   });
 
   it("省略可见文本 = 不参与重绘判定(既有直调方语义不变)", () => {
-    const { watch, openTabs } = makeWatch();
-    openTabs.add("s");
+    const { watch } = makeWatch();
     watch.onUserWrite("s");
     expect(watch.onOutput("s")).toBe(true);
   });

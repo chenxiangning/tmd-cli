@@ -114,6 +114,7 @@ describe("结算归因修正 + 重绘抑制窗", () => {
     expect(host.isUnread(a.id)).toBe(true);
     host.setActiveSession(a.id); // 点开已读
     expect(host.isUnread(a.id)).toBe(false);
+    userPrompt(a.id); // 新轮次待应答:闸放行,本用例只钉 resize 抑制窗本身
     const settledAt = host.getLastActivityAt(a.id);
 
     host.resizeSession(a.id, 120, 40); // 自发 resize(真实 SIGWINCH 重绘的触发源)
@@ -134,6 +135,7 @@ describe("结算归因修正 + 重绘抑制窗", () => {
 
     host.resizeSession(a.id, 120, 40);
     await vi.advanceTimersByTimeAsync(1100); // 出抑制窗
+    userPrompt(a.id); // 用户再发起:awaitingTurn 开轮(闸不再认 tab)
     host.setActiveSession(b.id); // 切走:末字节到达时不在看
     fireOutput(a.id, "real answer");
     await vi.advanceTimersByTimeAsync(3000);
