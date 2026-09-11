@@ -7,6 +7,7 @@
 import { host } from "@kernel/host";
 import { useHomePanels } from "@kernel/homePanels";
 import type { EngineMeta } from "./engineMeta";
+import { resolveInstallPlan } from "./engineMeta";
 import type { EngineCredential } from "./credentials";
 import { EngineCard, useEngineInstall, type EngineProbeState } from "./EngineCard";
 
@@ -43,7 +44,13 @@ export function EngineSection({
 }) {
   const engineId = meta.id;
   const profile = host.getCliProfile(engineId);
-  const [install, startInstall] = useEngineInstall(meta, onProbe);
+  /* 探针命中副本决定更新通道(双副本遮蔽修复):npm 拥有的副本就地 npm
+     更新,其余走声明通道。未装(notFound)保持声明通道原样。 */
+  const effectiveMeta: EngineMeta =
+    probe.status === "ok" && probe.result
+      ? { ...meta, plan: resolveInstallPlan(meta, probe.result) }
+      : meta;
+  const [install, startInstall] = useEngineInstall(effectiveMeta, onProbe);
   const HomePanel = useHomePanels().get(engineId);
   /* 依赖安装完成 → 重探依赖;探针 ok 后 EngineCard 的主引擎按钮自动解锁。 */
   const requires = meta.requires ?? null;

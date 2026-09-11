@@ -82,7 +82,7 @@ fn install_command(plan: &InstallPlan, npm_prefix: Option<&str>) -> (String, Vec
                 .collect();
             #[cfg(windows)]
             {
-                return (
+                (
                     "cmd".into(),
                     [
                         vec!["/c".into(), "npm".into(), "install".into(), "-g".into()],
@@ -90,7 +90,7 @@ fn install_command(plan: &InstallPlan, npm_prefix: Option<&str>) -> (String, Vec
                         vec![pkg, allow],
                     ]
                     .concat(),
-                );
+                )
             }
             #[cfg(not(windows))]
             (
@@ -131,29 +131,6 @@ fn install_command(plan: &InstallPlan, npm_prefix: Option<&str>) -> (String, Vec
     }
 }
 
-/// npm 通道就地更新目标推导:探针 binary 命中的绝对路径若位于
-/// `<X>/bin/<binary>`(unix)且 `<X>/lib/node_modules` 存在(node 全局布局),
-/// 返回 Some(X);否则 None(保持 npm 默认 prefix)。探针失败/未装 = None。
-fn probe_npm_prefix(binary: &str) -> Option<String> {
-    let result = crate::probe::probe_cli(binary);
-    let path = result.path?;
-    /* unix 布局:<X>/bin/<binary>;Windows npm 全局是 <X>/<binary>.cmd(无 bin 段),
-     * 布局不同,暂不对齐(Windows 单副本场景居多)。 */
-    let dir = std::path::Path::new(&path).parent()?;
-    if dir.file_name()?.to_str()? != "bin" {
-        return None;
-    }
-    let prefix = dir.parent()?.to_str()?.to_string();
-    if std::path::Path::new(&prefix)
-        .join("lib/node_modules")
-        .is_dir()
-    {
-        Some(prefix)
-    } else {
-        None
-    }
-}
-
 /// 执行安装:spawn → 双线程逐行泵 stdout/stderr → 事件流 → 等退出。
 /// 返回 Ok(成功?) — exit code 0 = true。命令构建失败/超时返回 Err。
 pub fn run_install(app: &AppHandle, id: &str, plan: &InstallPlan) -> Result<bool, String> {
@@ -168,9 +145,10 @@ pub fn run_install(app: &AppHandle, id: &str, plan: &InstallPlan) -> Result<bool
         );
     };
 
-    /* npm 通道:探针命中副本的就地 --prefix 对齐(推导失败 = None,走 npm 默认 prefix)。 */
+    /* npm 通道:探针命中副本的就地 --prefix 对齐(非 npm 副本 = None,走 npm
+     * 默认 prefix)。前缀识别在 probe_cli 内完成(npm_prefix 字段),此处零重复。 */
     let npm_prefix = match plan {
-        InstallPlan::Npm { .. } => probe_npm_prefix(id),
+        InstallPlan::Npm { .. } => crate::probe::probe_cli(id).npm_prefix,
         _ => None,
     };
     let (program, args) = install_command(plan, npm_prefix.as_deref());

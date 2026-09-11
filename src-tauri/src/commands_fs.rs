@@ -20,6 +20,7 @@ pub(crate) async fn cli_probe(command: String) -> probe::CliProbeResult {
             found: false,
             path: None,
             version: None,
+            npm_prefix: None,
         })
 }
 

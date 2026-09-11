@@ -116,6 +116,15 @@ export const cliKimiPlugin: Plugin = {
       id: "kimi",
       docsUrl: "https://moonshotai.github.io/kimi-code/",
       npmPackage: "@moonshot-ai/kimi-code",
+      /* 官方原生通道(install.ps1/install.sh 写 ~/.kimi-code/bin)。kimi 双分发:
+       * npm TS 版与原生版并存时,PATH 前位的原生副本会遮蔽 npm 副本,npm 通道
+       * 永远更不动探针命中的那份 —— 声明脚本通道后更新/安装走官方原生分发,
+       * 与探针命中副本同源,版本才同步(win 实证 0.32.0 遮蔽 0.42.0)。
+       * npmPackage 保留作 registry 最新版查询。 */
+      scriptInstall: {
+        unix: "curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash",
+        windows: "irm https://code.kimi.com/kimi-code/install.ps1 | iex",
+      },
       name: "kimi",
       renderIcon: (size) => <KimiGlyph size={size} />,
       command: "kimi",

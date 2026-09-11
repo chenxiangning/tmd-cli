@@ -26,7 +26,7 @@ Tauri Rust
 ├── pty.rs            portable-pty：spawn / read / write / resize / kill,双线程聚合泵
 ├── session_log.rs    会话输出落盘(64MB 旋转) + 幕布翻页读取
 ├── resolve/          PATH 富化 / 裸命令名 → 绝对路径(mod/path_cache/which,pty·probe·installer 共用)
-├── probe.rs          CLI 探针(found/path/version,8s 超时)
+├── probe.rs          CLI 探针(found/path/version/npmPrefix,8s 超时;npmPrefix = 命中副本的 npm prefix,双副本就地更新判据)
 ├── installer.rs      参数化安装执行器(InstallPlan:npm/script 双通道,配方由前端 CliProfile 声明),流式日志事件
 ├── sqlite.rs         通用只读 sqlite 查询(参数化绑定;CLI 私有库路径/表结构知识在插件侧)
 ├── quota.rs          通用 HTTP 代理 + 只读环境变量

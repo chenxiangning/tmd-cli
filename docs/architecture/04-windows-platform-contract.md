@@ -34,6 +34,7 @@ portable-pty 0.9 以 `PSEUDOCONSOLE_INHERIT_CURSOR` 建 pseudoconsole:ConPTY 启
 - Windows npm 全局 CLI 是 `.cmd/.bat` shim,`CreateProcessW` 不能直跑:pty/probe 按 PATHEXT 补扩展名,installer/npm 通道经 `cmd /c` 包裹;**应用自身的进程拉起同样受此约束**(hub/脚本直跑 `pnpm` 会得到 os error 193)。
 - 超时收尸必须杀整棵树:`wait_child_with_timeout` 在 Windows 经 `taskkill /PID <pid> /T /F`(直接 kill 只杀 `cmd /c npm` 的 cmd,孙进程 node 握住 npm 缓存锁拖慢重试);unix 直接 kill。
 - 回归锚点:`installer_tests.rs::npm_command_pins_latest` / `command_channel_passes_through` 的 Windows 分支。
+- 双副本遮蔽(2026-09-11 win 实证):Windows npm 全局 shim 落在 prefix 根(`<X>\<bin>.cmd`,无 unix 的 `bin` 段),`probe.rs::npm_prefix_of` 据父目录 + `<X>\node_modules` 识别所属 prefix;官方原生副本(如 `.kimi-code\bin\kimi.exe`)无 node_modules → 非 npm 拥有。更新不变量 = 更新谁由探针命中的副本决定:welcome `resolveInstallPlan` 对 npm 拥有的副本走 npm 通道(安装器 `--prefix` 就地更新),声明 script 的引擎(官方原生分发,claude/kimi)不被 npm 覆盖。回归锚点:`probe.rs::npm_prefix_of_matches_platform_global_layout` / `engineMeta.test.ts::resolveInstallPlan 探针感知`。
 
 ## 契约 4:cargo test 在 Windows 需要延迟加载 comctl32
 

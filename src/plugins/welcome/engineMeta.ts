@@ -10,7 +10,7 @@
 
 import { host } from "@kernel/host";
 import type { CliProfile } from "@kernel/cli";
-import type { CliInstallPlan } from "@kernel/ipc";
+import type { CliInstallPlan, CliProbeResult } from "@kernel/ipc";
 
 export interface EngineMeta {
   /** CliProfile.id(omp / pi / codex / claude ...)。 */
@@ -64,6 +64,24 @@ export function installPlanOf(channels: InstallChannels): CliInstallPlan | null 
     return { channel: "npm", package: channels.npmPackage };
   }
   return null;
+}
+
+/** 探针感知的安装计划解析:更新谁由探针命中的副本决定(2026-09-11 双副本
+ * 遮蔽修复,npm 布局识别在内核 probe_cli,npmPrefix 随探针返回)。
+ * - 命中副本为 npm 拥有(npmPrefix 非空)且声明通道非 script → npm 计划,
+ *   安装器加 --prefix 就地更新探针看到的那份(omp 声明 bun 通道但 PATH 前位
+ *   是 npm 副本时,bun 更新永远更不到探针命中的副本);
+ * - 其余(未装/非 npm 副本/声明 script)→ 声明计划(script > command > npm):
+ *   声明 script 的引擎走官方原生分发(claude/kimi),只有官方脚本管得了
+ *   原生副本,npm 覆盖会写一份探针看不到的新副本。 */
+export function resolveInstallPlan(
+  meta: Pick<EngineMeta, "plan" | "npmPackage">,
+  probe: CliProbeResult | null | undefined,
+): CliInstallPlan | null {
+  if (meta.plan?.channel !== "script" && meta.npmPackage && probe?.npmPrefix) {
+    return { channel: "npm", package: meta.npmPackage };
+  }
+  return meta.plan;
 }
 
 /** 安装方式提示(按钮旁说明):按通道派生,与 installPlanOf 同序。 */

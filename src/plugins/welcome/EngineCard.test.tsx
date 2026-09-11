@@ -46,7 +46,13 @@ const IDLE_INSTALL: InstallState = { running: false, ok: null, lines: [] };
 function probeOk(version: string): EngineProbeState {
   return {
     status: "ok",
-    result: { command: "omp", found: true, path: "/usr/local/bin/omp", version },
+    result: {
+      command: "omp",
+      found: true,
+      path: "/usr/local/bin/omp",
+      version,
+      npmPrefix: null,
+    },
   };
 }
 
@@ -124,7 +130,7 @@ describe("EngineCard 前置依赖门控(omp → bun)", () => {
   function depOk(version: string): EngineProbeState {
     return {
       status: "ok",
-      result: { command: "bun", found: true, path: "~/.bun/bin/bun", version },
+      result: { command: "bun", found: true, path: "~/.bun/bin/bun", version, npmPrefix: null },
     };
   }
 

@@ -72,6 +72,7 @@ fn scan_flags_manifest_mismatch_and_bad_json() {
 
 #[test]
 fn scan_skips_symlinked_plugin_dir() {
+    #[cfg(unix)]
     let t = TempRoot::new();
     #[cfg(unix)]
     {

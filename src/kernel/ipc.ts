@@ -718,6 +718,8 @@ export interface CliProbeResult {
   found: boolean;
   path: string | null;
   version: string | null;
+  /** 命中副本位于 npm 全局布局内时的所属 prefix;非 npm 副本 = null。 */
+  npmPrefix: string | null;
 }
 
 /** 订阅某引擎的安装事件流。返回退订函数。 */
