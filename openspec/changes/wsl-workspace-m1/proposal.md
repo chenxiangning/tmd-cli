@@ -2,7 +2,7 @@
 
 ## Why
 
-ml-pipeline 等 Linux-only 工作负载需要 tmd-cli 直连 WSL 发行版。2026-09-11 完成四链路调研(scout 报告沉淀记忆 #82)+ 三件套交互原型(`docs/prototypes/wsl-{1-connect,2-sessions,3-workspace}.html`,浅色真值令牌,交互点清单在各文件头注释)。技术路线已扫清、改动面已钉死,缺的是正式 spec 收敛与实施任务分解。排在 P0 横评广播之后:广播会把 spawn 路由与列组件惯例踩热,WSL 直接复用。
+ml-pipeline 等 Linux-only 工作负载需要 tmd-cli 直连 WSL 发行版。2026-09-11 完成四链路调研(scout 报告沉淀记忆 #82)+ 三件套交互原型(`docs/prototypes/wsl-{1-connect,2-sessions,3-workspace}.html`,浅色真值令牌,交互点清单在各文件头注释)。正式 spec 已定稿:`docs/superpowers/specs/2026-09-11-wsl-workspace-m1-design.md`(实施就绪;Windows 冒烟探针 0.2 为验收门)。排在 P0 横评广播之后收尾:广播会把 spawn 路由与列组件惯例踩热,WSL 直接复用。
 
 ## What Changes
 

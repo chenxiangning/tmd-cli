@@ -4,7 +4,7 @@
 
 ## 0. spec 收敛(实施前)
 
-- [ ] 0.1 写 `docs/superpowers/specs/2026-09-XX-wsl-workspace-m1-design.md`:四段齐(日期+状态头/背景与目标/方案取舍[选定 kind:"wsl"+bash -lc 包装 vs 否决 ssh-host 套壳 vs 否决全量 WSL 抽象,各附理由]/验证);钉死 M1 边界 = proposal「明确降级/遗留」六条;docs/README 登记 spec + 三原型补登(05fc3f6 后原型仍未入索引,顺带清账)
+- [x] 0.1 写 `docs/superpowers/specs/2026-09-11-wsl-workspace-m1-design.md`(16f295a):四段齐;M1 边界 = proposal「明确降级/遗留」六条 + spec §4 降级矩阵;docs/README 登记 spec(原型行由并行会话补登)
 - [ ] 0.2 真 Windows 机冒烟探针(一次性脚本,不入仓):`wsl.exe -l -v --running` JSON 化输出稳定性、`--cd` Linux/Windows 路径双形态行为、UNC `\\wsl.localhost` 与 `\\wsl$\` 老写法可达性、9P 列目录实测延迟量级 → 结论写进 spec「验证」节
 - [ ] 0.3 spec 评审通过后才进 1.x
 
