@@ -271,7 +271,7 @@ export class AskWatch {
     return this.waiting.has(sessionId) || this.waitingByScreen.has(sessionId);
   }
 
-  /** 测试专用:全态归零,防跨用例残留。 */
+  /** 测试专用:全态归零,防跨用例残留(含写后闸时刻:用例 id 复用 + 假时钟回拨会让上用例抑制窗变永久闸)。 */
   resetForTest(): void {
     if (this.timer !== null) {
       clearInterval(this.timer);
@@ -282,6 +282,7 @@ export class AskWatch {
     this.waiting.clear();
     this.lastOutputAt.clear();
     this.bytesIn.clear();
+    this.lastWriteAt.clear();
     this.waitingByScreen.clear();
     this.screenSince.clear();
     this.marksBySession.clear();

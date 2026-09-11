@@ -10,6 +10,7 @@ import { KernelTopics, type EventBus } from "./events";
 import { getSettingsState } from "./settings";
 import { ActivityWatch } from "./activityWatch";
 import { AskWatchFeed } from "./askWatch";
+import { AskScreenMirror } from "./askScreenMirror";
 import { stripAnsi } from "./askDetect";
 import { EditWatch } from "./editWatch";
 import { DiskIdentityWatch } from "./identityWatch";
@@ -40,7 +41,8 @@ export interface HostWatchesCtx {
 const OUTPUT_BUFFER_LIMIT = 500_000;
 
 export class HostWatches {
-  /** 待绑定磁盘身份的会话探测(快相位 500ms×30 → 巡航 5s,预算 10min);实现见 kernel/identityWatch.ts。 */
+  /* 屏幕态镜像:后台(幕布未挂载)CLI 会话的 Ask 屏幕采样源,补盲语义见 askScreenMirror.ts。 */
+  readonly screenMirror = new AskScreenMirror((id, text) => this.observeAskScreen(id, text));
   private readonly identityWatch = new DiskIdentityWatch({
     getCliProfile: (profileId) => this.ctx.getCliProfile(profileId),
     sessionAlive: (sessionId) => this.ctx.hasSession(sessionId),
@@ -139,6 +141,8 @@ export class HostWatches {
     /* 上限读设置项 sessionOutputBufferLimit(行为页可调),异常值已被 sanitize 拦截。 */
     const limit =
       getSettingsState().settings.sessionOutputBufferLimit || OUTPUT_BUFFER_LIMIT;
+    const session = this.ctx.findSession(sessionId);
+    if (!session || (session.kind ?? "cli") === "cli") this.screenMirror.feed(sessionId, text);
     const chunkBytes = this.outputBuffers.append(sessionId, text, limit);
     this.ctx.events.emit(ptyLiveTopic(sessionId), text);
 
@@ -150,7 +154,6 @@ export class HostWatches {
     const asked = this.askWatch.onOutput(sessionId, text, chunkBytes);
     const visible = stripAnsi(text);
     if (asked || this.activity.onOutput(sessionId, visible)) this.ctx.notify();
-    const session = this.ctx.findSession(sessionId);
     const marks = session
       ? this.ctx.getCliProfile(session.profileId)?.editMarks
       : undefined;
@@ -278,12 +281,14 @@ export class HostWatches {
     this.activity.onSessionRemoved(sessionId);
     this.askWatch.onSessionRemoved(sessionId);
     this.editWatch.onSessionRemoved(sessionId); // 无条件清:非激活会话移除同样不得泄漏检测态
+    this.screenMirror.remove(sessionId);
   }
 
   /** 测试专用:假时钟换届时重置活动守望与 Ask 守望(与 resetStatusTimerForTest 同因)。 */
   resetActivityWatchForTest(): void {
     this.activity.resetForTest();
     this.askWatch.resetForTest();
+    this.screenMirror.resetForTest();
   }
 
   /** 测试专用:假时钟换届时重置巡航计时器(真实运行单例连续,无需调用)。 */

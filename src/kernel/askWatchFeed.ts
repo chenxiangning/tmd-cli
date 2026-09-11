@@ -118,8 +118,9 @@ export class AskWatchFeed {
     this.watch.onSessionRemoved(sessionId);
   }
 
-  /** 测试专用:假时钟换届时重置(与 resetStatusTimerForTest 同因)。 */
+  /** 测试专用:假时钟换届时重置(与 resetStatusTimerForTest 同因;含写后闸时刻)。 */
   resetForTest(): void {
     this.watch.resetForTest();
+    this.lastWriteAt.clear();
   }
 }

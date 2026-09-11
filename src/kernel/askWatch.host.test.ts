@@ -2,6 +2,8 @@
  * AskWatch host 接线测试 —— 自 askWatch.test.ts 拆出(文件规模铁则收紧至 300 行)。
  * 覆盖:appendOutput 检测 → isWaitingConfirm/askDetected 事件、writeSession 作答清除、
  * 静默自愈、回放补观察(observeReplayTail)、removeSession 清理。
+ * 本文件专钉「字节通道」状态机契约 —— 屏幕镜像通道会被同样的样例字节置位,
+ * 故整体屏蔽;镜像(后台补盲 + 幕布互斥 + readopt 补底)契约见 askScreenMirror.host.test.ts。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionMeta } from "./ipc";
@@ -28,6 +30,15 @@ vi.mock("./ipc", () => ({
   onPtyExit: vi.fn(async () => () => undefined),
 }));
 
+/* 屏幕镜像失能桩:字节通道语义隔离(见文件头)。 */
+vi.mock("./askScreenMirror", () => ({
+  AskScreenMirror: class {
+    feed() {}
+    async backfillFromDisk() {}
+    remove() {}
+    resetForTest() {}
+  },
+}));
 import { host } from "./host";
 import { KernelTopics } from "./events";
 

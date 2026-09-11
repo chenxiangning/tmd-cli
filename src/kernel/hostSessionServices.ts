@@ -87,11 +87,20 @@ export function createSessionServices(
       },
       events,
     ),
-    /* webview 重载后活 PTY 重新接管(语义见 kernel/sessionAdopt.ts readoptSessions)。 */
-    readopt: () =>
-      readoptSessions(
+    /* webview 重载后活 PTY 重新接管(语义见 kernel/sessionAdopt.ts readoptSessions)。
+       接管后给活 CLI 会话的屏幕镜像补磁盘日志尾:重载前已挂起的 Ask 面板无须等
+       下一次整帧重绘即可见(补盲语义见 askScreenMirror.ts)。 */
+    readopt: async () => {
+      await readoptSessions(
         { ...base, setSessions: (sessions) => ctx.setSessions(sessions) },
         events,
-      ),
+      );
+      await Promise.all(
+        ctx
+          .getSessions()
+          .filter((s) => (s.kind ?? "cli") === "cli")
+          .map((s) => watches.screenMirror.backfillFromDisk(s.id)),
+      );
+    },
   };
 }
