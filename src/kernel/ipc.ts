@@ -245,6 +245,28 @@ export interface ProcRunResult {
   /** true = 超时强杀;false = exitOnStdout 命中或进程自然退出。 */
   timedOut: boolean;
 }
+
+/* ── wsl_info 契约(对齐 src-tauri/src/wsl.rs;wsl.exe 诊断输出 UTF-16LE 由 Rust 侧解码)── */
+
+export interface WslDistro {
+  name: string;
+  version: number;
+  /** "Running" | "Stopped"(wsl.exe 原样词面)。 */
+  state: string;
+  /** wslconfig 默认发行版。 */
+  default: boolean;
+}
+
+export interface WslInfo {
+  /** false = 非 Windows 或 wsl.exe 不可用/无发行版。 */
+  available: boolean;
+  wslVersion: string | null;
+  distros: WslDistro[];
+  /** 默认发行版 $HOME(发行版全停时 null)。 */
+  linuxHome: string | null;
+  /** 默认发行版登录用户。 */
+  linuxUser: string | null;
+}
 export const ipc = {
   sessionSpawn: (profileId: string, spec: SpawnSpec, workspaceId?: string) =>
     invoke<SpawnedSession>("session_spawn", { profileId, spec, workspaceId: workspaceId ?? null }),
@@ -492,6 +514,9 @@ export const ipc = {
    *  日志经 cli-install://{id} 事件推,id 惯例 = 引擎 binary。 */
   cliInstallRun: (id: string, plan: CliInstallPlan) =>
     invoke<boolean>("cli_install_run", { id, plan }),
+  /** 一键安装 CLI(计划由 CliProfile 安装元数据派生:scriptInstall 优先,否则 npm);
+   *  日志经 cli-install://{id} 事件推,id 惯例 = 引擎 binary。 */
+  wslInfo: () => invoke<WslInfo>("wsl_info"),
   /** 字符串 MD5(小写 hex)。kimi 会话目录按 MD5(cwd) 命名,前端据此拼会话路径。 */
   md5Hex: (text: string) => invoke<string>("md5_hex", { text }),
 

@@ -31,6 +31,8 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   procCommunicate: "ipc.exec",
   cliProbe: "ipc.exec",
   cliInstallRun: "ipc.exec",
+  /* WSL 发行版枚举(内部跑 wsl.exe 诊断命令;插件经 wslInfo 只读)。 */
+  wslInfo: "ipc.exec",
 
   /* 文件系统读。 */
   fsListDir: "ipc.fs.read",

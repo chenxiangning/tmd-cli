@@ -1,0 +1,203 @@
+/* WSL 主机卡(welcome.footer 挂点;src/plugins/wsl/index.tsx)。
+   等宽终端窗体语境下的一体化面板:折叠头一行摘要,展开态发行版行 + 添加弹层。 */
+
+.wsl-card {
+  margin-top: 18px;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  background: var(--tmd-bg-elevated);
+  overflow: visible;
+}
+
+.wsl-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--tmd-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--tmd-radius-md);
+}
+.wsl-card-head:hover {
+  background: var(--tmd-bg-hover);
+}
+.wsl-card-status {
+  margin-left: auto;
+  color: var(--tmd-fg-muted);
+}
+.wsl-ok {
+  color: var(--tmd-ok);
+}
+.wsl-def {
+  color: var(--tmd-accent);
+}
+
+.wsl-card-body {
+  padding: 2px 10px 10px;
+  border-top: 1px dashed var(--tmd-border);
+}
+
+.wsl-distro-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 2px;
+}
+.wsl-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tmd-fg-faint);
+  flex: none;
+}
+.wsl-dot.ok {
+  background: var(--tmd-ok);
+}
+.wsl-distro-name {
+  font-weight: 600;
+}
+.wsl-distro-ver,
+.wsl-distro-state {
+  color: var(--tmd-fg-subtle);
+}
+.wsl-distro-state {
+  margin-left: auto;
+}
+
+.wsl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-sm);
+  background: var(--tmd-bg-input);
+  color: var(--tmd-fg);
+  font: inherit;
+  cursor: pointer;
+}
+.wsl-btn:hover:not(:disabled) {
+  background: var(--tmd-bg-hover);
+}
+.wsl-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.wsl-btn.primary {
+  background: var(--tmd-accent);
+  border-color: var(--tmd-accent);
+  color: var(--tmd-accent-fg);
+}
+.wsl-btn.primary:hover:not(:disabled) {
+  background: var(--tmd-accent);
+  filter: brightness(1.1);
+}
+.wsl-btn.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--tmd-accent);
+}
+.wsl-showall {
+  margin: 2px 0;
+}
+
+.wsl-facts {
+  margin: 6px 0;
+  color: var(--tmd-fg-subtle);
+}
+
+.wsl-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.wsl-hint {
+  margin-top: 8px;
+  color: var(--tmd-fg-subtle);
+  line-height: 1.5;
+}
+
+/* 添加 WSL 工作区弹层 */
+.wsl-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wsl-dialog {
+  width: 400px;
+  max-width: calc(100vw - 48px);
+  background: var(--tmd-bg-popover);
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+  padding: 0 14px 14px;
+}
+.wsl-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  padding: 10px 0 8px;
+}
+.wsl-dialog-x {
+  border: none;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.wsl-dialog-x:hover {
+  color: var(--tmd-fg);
+}
+.wsl-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+}
+.wsl-field > span {
+  flex: none;
+  width: 4.5em;
+  color: var(--tmd-fg-muted);
+}
+.wsl-field select,
+.wsl-field input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-sm);
+  background: var(--tmd-bg-input);
+  color: var(--tmd-fg);
+  font: inherit;
+}
+.wsl-unc-preview {
+  margin: 4px 0;
+  padding: 4px 8px;
+  border-radius: var(--tmd-radius-sm);
+  background: var(--tmd-bg-sunken);
+  color: var(--tmd-fg-subtle);
+  word-break: break-all;
+}
+.wsl-err {
+  margin: 4px 0;
+  color: var(--tmd-err);
+}
+.wsl-dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}

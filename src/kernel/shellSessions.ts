@@ -11,6 +11,7 @@ import { KernelTopics, type EventBus, type SessionStartFailedEvent } from "./eve
 import { ipc, type SessionMeta, type SpawnedSession } from "./ipc";
 import { adoptPtySession, ADOPT_RACE_REASON } from "./sessionAdopt";
 import { getPlatformKind } from "./platform";
+import { parseWslUnc, wslShellSpec } from "./wsl";
 import { getActiveWorkspace, getWorkspaces } from "./workspace";
 
 /** host 侧最小依赖面(与 SshSessionHost 同形;箭头函数惰性绑定避免构造顺序耦合)。 */
@@ -58,14 +59,17 @@ export class ShellSessionService {
       });
       throw new Error(reason);
     }
-    const shell = defaultShell();
+    const unc = parseWslUnc(workspace.root);
+    const shell = unc
+      ? await wslShellSpec(unc.distro, unc.linuxPath, "wsl-bash")
+      : { ...defaultShell(), cwd: workspace.root, kind: "shell" as const };
     const spawned = await ipc
       .sessionSpawn(
         "shell",
         {
           command: shell.command,
           args: shell.args,
-          cwd: workspace.root,
+          cwd: shell.cwd,
           kind: "shell",
           title: shell.title,
         },

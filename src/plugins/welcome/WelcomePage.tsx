@@ -14,6 +14,7 @@ import { t } from "@kernel/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { host, useHost } from "@kernel/host";
+import { Mounts } from "@kernel/Mounts";
 import { useWorkspaces, workspaceDisplayName } from "@kernel/workspace";
 import { engineMetas, type PrerequisiteMeta } from "./engineMeta";
 import { type EngineProbeState } from "./EngineCard";
@@ -216,7 +217,6 @@ export function WelcomePage() {
             {t("GitHub 仓库")} · MIT
           </a>
         </header>
-
         <div className="welcome-frame">
 
           <div className="welcome-promptline">
@@ -268,11 +268,11 @@ export function WelcomePage() {
               />
             ))}
           </div>
-
           <WelcomeFooter credsMap={credsMap} />
           <TokenDashboard />
+          {/* 页尾跨引擎面板(WSL 主机卡等插件贡献;welcome.footer 挂点) */}
+          <Mounts point="welcome.footer" />
         </div>
-
       </div>
     </div>
   );

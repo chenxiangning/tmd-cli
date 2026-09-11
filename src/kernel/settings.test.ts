@@ -78,6 +78,7 @@ describe("初始状态与默认值", () => {
       memoryDistillEngine: "",
       memoryDistillRules: "",
       ssh: { hosts: [] },
+      wsl: { defaultDistro: "" },
       git: { view: "diff", layout: "flat", diffMode: "unified" },
       iconDecor: {
         newchat: { blink: true },

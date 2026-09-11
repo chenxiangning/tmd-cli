@@ -272,6 +272,15 @@ export function sanitize(raw: unknown): AppSettings {
       typeof obj.memoryDistillEngine === "string" ? obj.memoryDistillEngine.slice(0, 40) : "",
     memoryDistillRules: typeof obj.memoryDistillRules === "string" ? obj.memoryDistillRules.slice(0, 500) : "",
     ssh: sanitizeSshSettings(obj.ssh),
+    wsl: {
+      defaultDistro:
+        typeof obj.wsl === "object" &&
+        obj.wsl !== null &&
+        "defaultDistro" in obj.wsl &&
+        typeof obj.wsl.defaultDistro === "string"
+          ? obj.wsl.defaultDistro.slice(0, 100)
+          : "",
+    },
     git: sanitizeGitPanel(obj.git),
   };
 }

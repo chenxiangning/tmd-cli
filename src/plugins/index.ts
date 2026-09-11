@@ -29,6 +29,7 @@ import { memoryCoordinatorPlugin } from "./memory-coordinator";
 import { assetsPlugin } from "./assets";
 import { cliConfigPlugin } from "./cli-config";
 import { localLoaderPlugin } from "./local-loader";
+import { wslPlugin } from "./wsl";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -55,4 +56,5 @@ export const allPlugins: Plugin[] = [
   assetsPlugin,
   cliConfigPlugin,
   localLoaderPlugin,
+  wslPlugin,
 ];

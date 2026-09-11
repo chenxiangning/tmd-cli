@@ -231,6 +231,11 @@ export interface AppSettings {
    * Web/远端场景不存在 —— 单机应用,不经任何同步通道外发。
    */
   ssh: { hosts: SshHostConfig[] };
+  /**
+   * WSL 主机偏好(wsl 插件的编辑域):defaultDistro = 用户指定的默认发行版
+   * (wslconfig /setdefault 同步写);空串 = 跟随 wslconfig 自身默认。
+   */
+  wsl: { defaultDistro: string };
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -278,6 +283,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   memoryDistillRules: "",
   git: { view: "diff", layout: "flat", diffMode: "unified" },
   ssh: { hosts: [] },
+  wsl: { defaultDistro: "" },
 };
 
 /** 记忆胶囊注入策略(manual 手动勾选注入 / auto 新会话自动展开 / off 关闭)。 */

@@ -24,6 +24,7 @@ mod session_log;
 mod settings;
 mod sqlite;
 mod ssh;
+mod wsl;
 
 use pty::PtyRegistry;
 use tauri::{AppHandle, Manager};
@@ -135,6 +136,7 @@ pub fn run() {
             app_restart,
             commands_fs::cli_probe,
             commands_fs::cli_install_run,
+            wsl::wsl_info,
             session_commands::session_spawn,
             session_commands::session_list,
             session_commands::session_write,
