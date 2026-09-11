@@ -112,11 +112,27 @@ export function WslCard() {
 
   const refresh = useCallback(() => {
     setLoading(true);
-    void ipc
-      .wslInfo()
-      .then((r) => setInfo(r))
-      .catch(() => setInfo(null))
-      .finally(() => setLoading(false));
+    /* 非 Windows 开发机(mac/Linux)的 UI 预览桩:仅 DEV 构建 + wsl_info 报不可用时
+       注入假数据,让界面改动可在 mac 上目检;生产构建与 Windows 真机零影响。 */
+    const devFallback: WslInfo = {
+      available: true,
+      wslVersion: "WSL 2.4.13(dev 预览桩)",
+      distros: [
+        { name: "Ubuntu-24.04", version: 2, state: "Running", default: true },
+        { name: "Debian-12", version: 2, state: "Stopped", default: false },
+      ],
+      linuxHome: "/home/chen",
+      linuxUser: "chen",
+    };
+    void (async () => {
+      let r: WslInfo | null = null;
+      try {
+        r = await ipc.wslInfo();
+      } catch {
+        /* 纯浏览器 dev 无 Tauri runtime:同步抛/拒绝都落这里 */
+      }
+      setInfo(r && r.available ? r : import.meta.env.DEV ? devFallback : null);
+    })().finally(() => setLoading(false));
   }, []);
   useEffect(refresh, [refresh]);
 
