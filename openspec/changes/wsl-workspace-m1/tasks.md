@@ -6,7 +6,7 @@
 
 - [x] 0.1 写 `docs/superpowers/specs/2026-09-11-wsl-workspace-m1-design.md`(16f295a):四段齐;M1 边界 = proposal「明确降级/遗留」六条 + spec §4 降级矩阵;docs/README 登记 spec(原型行由并行会话补登)
 - [ ] 0.2 真 Windows 机冒烟探针(一次性脚本,不入仓):`wsl.exe -l -v --running` JSON 化输出稳定性、`--cd` Linux/Windows 路径双形态行为、UNC `\\wsl.localhost` 与 `\\wsl$\` 老写法可达性、9P 列目录实测延迟量级 → 结论写进 spec「验证」节
-- [ ] 0.3 spec 评审通过后才进 1.x
+- [x] 0.3 spec 评审通过(2026-09-11 大仙指令「整利索到可执行状态」= 授权开工);1.x 放行,唯 1.2/4.3 实机项等 Windows 机到位
 
 ## 1. Rust 原语(src-tauri)
 

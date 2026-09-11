@@ -1,6 +1,6 @@
 # 任务分解:横评广播
 
-前置:spec `docs/superpowers/specs/2026-09-11-collab-broadcast-design.md` 已评审通过(三个拍板点:上限 4 路 / 分屏态 composer 隐藏打字直进焦点列 / dsh 不参与)。
+前置已完成:spec 评审通过(2026-09-11 大仙指令「整利索到可执行状态」= 三个拍板点认可:上限 4 路 / 分屏态 composer 隐藏打字直进焦点列 / dsh 不参与)。索引状态已翻(c74f89d)。
 
 ## 1. kernel:broadcast store + 草稿桥
 
