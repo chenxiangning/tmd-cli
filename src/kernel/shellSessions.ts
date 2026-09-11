@@ -22,7 +22,8 @@ interface ShellSessionHost {
   removeSession(sessionId: string): Promise<void>;
   /** 登记输出/退出退订对(会话移除时成对退订)。 */
   trackUnlisten(sessionId: string, offs: Array<() => void>): void;
-  /** 活会话表(事件广播载荷)。 */
+  /** 装配即激活(canonical:指针 + 已读标记 + 广播 + 通知;shell 无后台创建场景)。 */
+  setActiveSession(id: string): void;
   getSessions(): SessionMeta[];
   /** 外壳重渲染通知(Host.notify)。 */
   notify(): void;
@@ -88,6 +89,9 @@ export class ShellSessionService {
     await this.h.refreshSessions();
     const meta = await adoptPtySession(this.h, this.events, spawned.id, { profileId: "shell" });
     if (!meta) throw new Error(ADOPT_RACE_REASON);
+    /* 装配即激活:否则 activeId 悬空,welcome 盖在终端上(登录跳转/首点终端都是这个坑)。
+       adoptPtySession 只广播事件(tab 条进),指针语义在 host.setActiveSession。 */
+    this.h.setActiveSession(meta.id);
     return meta;
   }
 }

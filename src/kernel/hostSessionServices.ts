@@ -56,6 +56,7 @@ export function createSessionServices(
     trackUnlisten: (sessionId: string, offs: Array<() => void>) =>
       ctx.trackUnlisten(sessionId, offs),
     getSessions: () => ctx.getSessions(),
+    setActiveSession: (id: string) => ctx.setActiveSession(id),
     notify: () => ctx.notify(),
   };
   return {
@@ -68,7 +69,7 @@ export function createSessionServices(
         setSessions: (sessions) => ctx.setSessions(sessions),
         findSession: base.findSession,
         setActiveSessionId: (id) => ctx.setActiveSessionId(id),
-        setActiveSession: (id) => ctx.setActiveSession(id),
+        setActiveSession: (id: string) => ctx.setActiveSession(id),
         bindIdentity: (sessionId, cliSessionId) =>
           watches.bindIdentity(sessionId, cliSessionId),
         getCliSessionId: (sessionId) => watches.getCliSessionId(sessionId),
