@@ -33,6 +33,7 @@ import { isTerminalReport } from "@kernel/terminalReports";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay } from "@kernel/terminalSearch";
 import { findRequestRef } from "@kernel/terminalFindBridge";
+import { TerminalCopyMenu } from "@kernel/terminalCopyMenu";
 import { setTerminalFocused } from "@kernel/shortcuts";
 
 /** 从文档计算样式读终端 token → xterm theme(主题引擎已内联最新值)。
@@ -76,9 +77,8 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
   const [loadProgress, setLoadProgress] = useState<LoadProgress>(null);
   const streamReadyRef = useRef(false);
   const pagerRef = useRef<TerminalHistoryPager | null>(null);
-  /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答
-     (见 terminalInputGate.ts);实例随会话 keep-alive 常驻,闸随实例持有。
-     惰性初值:useState 初始化器只在首帧执行一次,不随每轮渲染重算。 */
+  /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答(见 terminalInputGate.ts);
+     实例随会话 keep-alive 常驻,闸随实例持有;惰性初值 = useState 初始化器只在首帧执行一次。 */
   const [inputGate] = useState(createReplayInputGate);
   /* 翻页器(实现见 terminalHistory.ts):锚点/前缀页/重入闸随实例持有,hasMore/loading 经 onState 回喂。 */
   /** 往前翻一页:实例内恒稳定,锚点注册表与"加载更早"按钮共用同一闭包。 */
@@ -143,7 +143,6 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     termRef.current = term;
     searchRef.current = search;
 
-    /* 翻页器随挂载创建(会话切换经 key 重挂载,锚点随实例重生)。 */
     const pager = new TerminalHistoryPager(sessionId, inputGate, (h, l) => {
       setHasMore(h);
       setLoadingHistory(l);
@@ -292,6 +291,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       {searchOpen && (
         <TerminalSearchOverlay searchRef={searchRef} onClose={closeSearch} />
       )}
+      <TerminalCopyMenu termRef={termRef} sessionId={sessionId} active={active} />
     </div>
   );
 }

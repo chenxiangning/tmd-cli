@@ -25,7 +25,7 @@ interface CommandContribution {
 ## 铁律
 
 1. **分发器单点**:AppShell 挂载期 `installShortcutDispatcher()` 安装 window keydown capture;命中 = preventDefault + run,未命中穿透。
-2. **终端聚焦期统一分发(09-06 修订,原「终端是黑洞」)**:分发器聚焦时先查 terminal 作用域、再查 global(`resolveCommand`);命中 = capture 相位 `preventDefault + stopPropagation`,事件到不了 xterm,零 PTY 字节;未命中键原样进 PTY(终端自由快捷键/readline 不变)。⌘ 系键位在终端生态本就不进 PTY,终端内 CLI 零感知;全平台放开(非 mac ⌘ 映射 Ctrl,Ctrl+W/K 等被覆盖为已接受取舍);⌘C/⌘V 永不注册。
+2. **终端聚焦期统一分发(09-06 修订,原「终端是黑洞」)**:分发器聚焦时先查 terminal 作用域、再查 global(`resolveCommand`);命中 = capture 相位 `preventDefault + stopPropagation`,事件到不了 xterm,零 PTY 字节;未命中键原样进 PTY(终端自由快捷键/readline 不变)。⌘ 系键位在终端生态本就不进 PTY,终端内 CLI 零感知;全平台放开(非 mac ⌘ 映射 Ctrl,Ctrl+W/K 等被覆盖为已接受取舍)。⌘V 永不注册;⌘C 例外(2026-09-11):Windows 用户 Ctrl+C 直穿 PTY 会误中断 CLI 对话,注册为 terminal.copyMenu —— 聚焦期弹「复制/停止终端」小菜单(命令桥 `terminalCopyMenuBridge.ts`,浮层 `terminalCopyMenu.tsx`,停止项补发 \x03 保持原字节语义),非聚焦期照旧浏览器复制。
 3. **Escape 永不注册**;IME `isComposing` 全放行;约 20 处弹层 Esc 生态不受影响。
 4. **同键共存的条件**:同作用域双方都有 `when` 且语义互斥(先例:⌘S 按激活 tab kind 分家为 files.save / ssh.saveRemoteFile);否则注册即抛错。跨作用域同键允许,聚焦期 terminal 优先(resolveCommand)。
 5. **组件局部状态经模块级 ref 桥**接命令(先例:TerminalView `findRequestRef`、ssh `saveRequestRef`、app-shell `shellBarToggles`)。
@@ -37,6 +37,7 @@ interface CommandContribution {
 - 设置面板「基础设置 → 快捷键」tab:`useCommands()` 只读清单,按 id 前缀分组,`formatKeybinding` 展示;AppSettings 零新字段。
 - sidebarActions 经 host 委托处泛化镜像为 `sidebar.<id>` 无键位命令;composer 抽屉 feature 条目镜像为 `composer.drawer.<pluginId>`。
 - 壳级命令(shell.* / panel 焦点)在 `src/app-shell/shortcutCommands.ts` 模块级注册——外壳自身功能归外壳,不入 kernel。
+- terminal.copyMenu / terminal.find(幕布归内核)在 `kernel/terminalCopyMenuBridge.ts` / `kernel/terminalFindBridge.ts` 模块级注册;浮层 UI 在 terminalCopyMenu.tsx / terminalSearch.tsx,激活实例经模块级 ref 桶接收触发。
 - 无键位暴露(改键预留):panel.refresh / panel.newFile / panel.newFolder(作用于激活面板槽,槽缺失穿透)、git.fetch / git.pull / git.push(经 panelStore.requestRemoteDialog,when 限定 git 面板激活)。
 - 设置清单 UI 约定:键位用键帽芯片(kbd 描边小块),未绑定弱化字;顶部搜索框匹配标题/id/键位标签;组标题右侧计数;行 title 显示命令 id。
 - 双修饰键(如 ⌃⌘F)键位语法表达不了:用 `match` 自定义匹配 + `keybindingLabel` 展示,不参与静态键冲突检查。

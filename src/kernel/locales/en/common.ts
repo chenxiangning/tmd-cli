@@ -132,6 +132,8 @@ export const MESSAGES = {
   "上一个 (Shift+Enter)": "Previous (Shift+Enter)",
   "下一个 (Enter)": "Next (Enter)",
   "关闭 (Esc)": "Close (Esc)",
+  "终端复制/停止菜单": "Terminal copy/stop menu",
+  "停止终端": "Stop terminal",
 
   // ── 外壳命令标题(定义处保留中文,设置页快捷键清单渲染点包 t)──
   "折叠/展开左栏": "Toggle left panel",
