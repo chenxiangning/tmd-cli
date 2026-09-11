@@ -67,6 +67,15 @@
 - 分屏中会话被外部删除(归档批量删/进程退出):插件订阅 `kernel.sessions.changed`,把 broadcast store 里已从活表消失的列剪除;剪空自动退分屏。
 - 弹层勾选引擎含 `singleInstance` profile(dsh):`createSession` 的 guarded 会聚焦既有会话而不 spawn 新进程——广播循环对"返回的 id 已有活会话且非本次新建"的列打 toast 提示"该引擎单实例,已聚焦既有会话,题面未广播",不静默丢题。
 
+## 边界与兼容(同日 WSL 调研的接缝)
+
+WSL 支持调研(2026-09-11,`docs/prototypes/wsl-{1,2,3}.html`)与广播共用 spawn 唯一收口(`session_spawn → pty_spawn.rs`),结论是广播**零新代码继承 WSL**,但须钉死四条边界:
+
+- 列的 cwd 一律继承当前会话/工作区 cwd,走现成 kind 路由 / `spawnTransform`;当前是 WSL 工作区则 N 列全在 distro 内,**不设计混合列**(本地引擎 × WSL 引擎同屏 = 题面文件上下文不一致,语义不成立)。
+- 选引擎弹层不做「distro 内已安装」探针(探针是 Windows 侧 PATH 语义):未装 → spawn 被拒 → 走既有 `sessionStartFailed` toast,失败路径原样兜住。
+- 广播会话磁盘身份落 distro(UNC `\\wsl.localhost\...` 喂现有 fs 原语),`identityTrack`/listSessions 复用 cli-shared 链路——与 WSL 调研「UNC 喂现有原语零改动」结论一致;9P 延迟只影响历史回放,不影响广播(PTY 流式,不读文件)。
+- 分屏列组件(列头 + `TerminalView` 列)实现时保持独立文件,未来鱼骨 DAG 的节点 PTY 全屏(09-06 原型态④)可直接复用——这是两个设计的正当汇合点,但不是现在做抽象的理由,v1 不做通用列协议。
+
 ## 验证
 
 - 单测:`kernel/broadcast.ts` store 语义(空 ids 即非分屏、removeColumn 剪空自动 close、focusId 悬挂时回落首列);插件侧广播喂入循环 mock 断言每路 `prepareSendPayload` + `writeSession` 各一次、`recordPrompt` 恰一次。
