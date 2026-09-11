@@ -6,8 +6,8 @@
  * 呼吸灯锚定用户首写 —— 首写前的一切输出(spawn 横幅/resume 回放/TUI 重绘)
  * 不亮灯、不结算未读,见 activityWatch 首写闸):
  * - 左侧节点:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止(ActivityDot)
- * - meta 区状态 label(SessionStatusLabel):运行时 / 会话结束-未查看 /
- *   会话结束-已查看;从未对话不出签,磁盘行无此概念
+ * - meta 区状态 label(SessionStatusLabel):运行时 / 空闲-未查看 /
+ *   空闲;从未对话不出签,磁盘行无此概念
  * 行右键菜单:复制 Session ID / 重命名(应用侧覆盖层,见 kernel/sessionTitles.ts)
  * / 置顶到全局 / 置顶到工作区内(双作用域,见 kernel/sessionPins.ts)
  * / 删除会话(两步确认,双端统一物理删除磁盘 jsonl)。

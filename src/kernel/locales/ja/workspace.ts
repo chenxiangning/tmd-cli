@@ -50,8 +50,8 @@ export const MESSAGES = {
 
   // ── SessionStatusLabel 三态 ──
   "运行时": "実行中",
-  "会话结束-未查看": "ターン終了 · 未確認",
-  "会话结束-已查看": "ターン終了 · 確認済み",
+  "空闲-未查看": "アイドル · 未確認",
+  "空闲": "アイドル",
 
   // ── LiveSessionRow / PinnedSessions / RunningZone badge ──
   "等待确认": "確認待ち",

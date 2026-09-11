@@ -78,7 +78,7 @@ export function isRunningZoneCandidate(turnActive: boolean, unread: boolean): bo
  * - viewed:会话结束且已查看
  * - none:从未对话 —— 不亮灯、不出 label
  * 优先级:进行中压过未读(新输出即清未读,双保险);turnActive 压过活动钟
- * 出窗(空闲重绘闸冻结活动钟时,标签不得提前翻「会话结束」,2026-09-11 P0)。
+ * 出窗(空闲重绘闸冻结活动钟时,标签不得提前翻「空闲」,2026-09-11 P0)。
  */
 export type SessionStatus = "running" | "unread" | "viewed" | "none";
 

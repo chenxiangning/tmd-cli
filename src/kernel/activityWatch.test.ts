@@ -175,7 +175,7 @@ describe("空闲重绘闸", () => {
     vi.advanceTimersByTime(500);
 
     /* omp 思考期:10Hz spinner 自绘 × 30s。实证缺陷:2s 后被假结算吞掉
-       awaitingTurn,整轮回答期间标签卡死「会话结束-已查看」 */
+           awaitingTurn,整轮回答期间标签卡死「空闲」 */
     for (let i = 0; i < 300; i++) {
       watch.onOutput("s", IDLE_VISIBLE);
       vi.advanceTimersByTime(100);

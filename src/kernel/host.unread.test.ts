@@ -114,7 +114,7 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
       await vi.advanceTimersByTimeAsync(100);
     }
     expect(host.isTurnActive(a.id)).toBe(false);
-    expect(host.isUnread(a.id)).toBe(true); // 正常结算为「会话结束-未查看」
+    expect(host.isUnread(a.id)).toBe(true); // 正常结算为「空闲-未查看」
   });
 
   it("对话结束且未被查看 → 标未读;点开查看即清", async () => {

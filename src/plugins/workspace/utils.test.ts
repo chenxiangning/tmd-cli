@@ -8,7 +8,7 @@
  * realPinSnapshot 负责把它识别为"无快照"。
  *
  * 会话状态校准(resolveSessionStatus):状态 label 与呼吸灯共用同一状态机 ——
- * 运行时 / 会话结束-未查看 / 会话结束-已查看 / 从未对话不出签;进行中压过未读。
+ * 运行时 / 空闲-未查看 / 空闲 / 从未对话不出签;进行中压过未读。
  */
 import { describe, expect, it } from "vitest";
 import { shortId } from "@kernel/sessionTitles";

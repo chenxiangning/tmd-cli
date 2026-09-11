@@ -73,8 +73,8 @@ const STATUS_LABEL: Record<
   { className: string; text: string }
 > = {
   running: { className: "is-run", text: "运行时" },
-  unread: { className: "is-unread", text: "会话结束-未查看" },
-  viewed: { className: "is-viewed", text: "会话结束-已查看" },
+  unread: { className: "is-unread", text: "空闲-未查看" },
+  viewed: { className: "is-viewed", text: "空闲" },
 };
 
 /**
