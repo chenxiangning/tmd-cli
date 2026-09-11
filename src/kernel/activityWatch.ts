@@ -263,11 +263,11 @@ export class ActivityWatch {
         if (!s.active) continue;
         /* 静默 = content 与 tick 证据都停 >2s;静态家具不参与(空闲页脚永续自绘)。 */
         if (now - Math.max(s.lastContentAt, s.lastTickAt) <= TURN_SILENCE_MS) continue;
-        /* 未应答写入守卫:spinner 仍在转(静态家具新鲜),或轮内从未有过家具
-           (无 spinner/footer 的 CLI)且距写入未超宽限 —— 二者都说明 CLI 大概率
-           还在处理本次提问,此刻结算会吞 awaiting,真实应答从此被轮次开启闸
-           拦死。跳过结算,保留轮次与 awaiting。 */
+        /* 未应答写入守卫(仅 CLI;ssh/shell 不守,快命令 2s 照常结算):
+           spinner 仍在转(静态家具新鲜)或轮内从未有家具且写入 <120s(宽限)——
+           CLI 大概率仍在处理提问,此刻结算会吞 awaiting、真应答被闸 3 拦死。 */
         if (
+          this.host.noiseGated(id) &&
           s.awaiting &&
           !s.answered &&
           (now - s.lastStaticAt < TURN_SILENCE_MS ||

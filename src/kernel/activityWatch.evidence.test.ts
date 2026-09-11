@@ -66,6 +66,21 @@ describe("证据分级模型", () => {
     expect(watch.isTurnActive("s")).toBe(false);
   });
 
+  it("ssh/shell 快命令:回显窗内完结不被宽限扣住,2s 照常结算(豁免会话不守卫)", () => {
+    const viewing = new Set<string>();
+    const watch = new ActivityWatch({
+      isViewing: (id) => viewing.has(id),
+      exists: () => true,
+      noiseGated: () => false, // ssh/shell:输出即活动,不参与分类与守卫
+      onChange: () => undefined,
+      onTurnSettled: () => undefined,
+    });
+    watch.onUserWrite("sh");
+    watch.onOutput("sh", "file-a\nfile-b"); // 输出全部落在回显窗内:answered 仍 false
+    vi.advanceTimersByTime(3000);
+    expect(watch.isTurnActive("sh")).toBe(false); // 旧宽限若不限定 gated 会扣 120s
+  });
+
   it("宽限上限:无家具轮次写入 120s 后照常结算,不永挂运行时", () => {
     const { watch, viewing } = makeWatch();
     watch.onUserWrite("s");
