@@ -223,8 +223,10 @@ describe("updateSettings 合并与清洗", () => {
     expect(settings.getSettingsState().settings.disabledPlugins).toEqual(["git"]);
   });
 
-  it("持久化收到的是清洗后的完整 settings", () => {
+  it("持久化收到的是清洗后的完整 settings", async () => {
     settings.updateSettings({ theme: "light" });
+    /* persist 现为先拉盘合并再写(双实例丢更新防护),写盘晚一个微任务 */
+    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalled());
     expect(ipcMock.configWriteSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         theme: "light",
