@@ -251,8 +251,8 @@ export interface ProcRunResult {
 export interface WslDistro {
   name: string;
   version: number;
-  /** "Running" | "Stopped"(wsl.exe 原样词面)。 */
-  state: string;
+  /** 运行中(wsl -l -v --running 名单求交;状态列是本地化文案,不读)。 */
+  running: boolean;
   /** wslconfig 默认发行版。 */
   default: boolean;
 }

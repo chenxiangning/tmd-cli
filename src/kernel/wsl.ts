@@ -79,19 +79,3 @@ export async function wslShellSpec(distro: string, linuxCwd: string, title: stri
     title,
   };
 }
-
-/** 在 WSL 内跑一条一次性 shell 命令(探针/盘点用)。返回 stdout(UTF-8 透传)。 */
-export async function wslExec(
-  distro: string,
-  shCommand: string,
-  timeoutMs = 8000,
-): Promise<{ ok: boolean; stdout: string; code: number | null }> {
-  const res = await ipc.procCommunicate({
-    command: "wsl.exe",
-    args: ["-d", distro, "-e", "sh", "-c", shCommand],
-    cwd: await windowsCwdFallback(),
-    closeStdin: true, // 一次性命令:等 EOF 不关会挂到超时(2026-09-06 d 路实证)
-    timeoutMs,
-  });
-  return { ok: !res.timedOut && res.code === 0, stdout: res.stdout, code: res.code };
-}

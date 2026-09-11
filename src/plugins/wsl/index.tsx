@@ -2,7 +2,7 @@
  * WSL 主机卡 —— welcome 页尾(welcome.footer 挂点)的发行版面板。
  *
  * P1 范围(原型 docs/prototypes/wsl-1-connect.html 的连接/发行版段):
- * 发行版枚举(wsl_info)、设默认(wslconfig /setdefault)、添加 WSL 工作区
+ * 发行版枚举(wsl_info)、设默认(wsl.exe --set-default)、添加 WSL 工作区
  * (UNC 路径进 workspace 表;spawn 包装由 kernel/wsl.ts 在会话创建时透明完成)。
  * 引擎探针子表与 UNC 会话扫描属 P2。非 Windows / wsl.exe 缺失 = 整卡不渲染。
  */
@@ -61,7 +61,7 @@ function AddWslWorkspaceDialog({
           <select value={distro} onChange={(e) => setDistro(e.target.value)}>
             {distros.map((d) => (
               <option key={d.name} value={d.name}>
-                {d.name}({d.state === "Running" ? t("运行中") : t("已停止")})
+                {d.name}({d.running ? t("运行中") : t("已停止")})
               </option>
             ))}
           </select>
@@ -118,8 +118,8 @@ export function WslCard() {
       available: true,
       wslVersion: "WSL 2.4.13(dev 预览桩)",
       distros: [
-        { name: "Ubuntu-24.04", version: 2, state: "Running", default: true },
-        { name: "Debian-12", version: 2, state: "Stopped", default: false },
+        { name: "Ubuntu-24.04", version: 2, running: true, default: true },
+        { name: "Debian-12", version: 2, running: false, default: false },
       ],
       linuxHome: "/home/chen",
       linuxUser: "chen",
@@ -143,17 +143,23 @@ export function WslCard() {
     ? (info?.distros ?? []).filter((d) => d.name === pinnedDistro)
     : (info?.distros ?? []);
   const hiddenCount = (info?.distros.length ?? 0) - shown.length;
-  const running = shown.filter((d) => d.state.toLowerCase() === "running").length;
+  const running = shown.filter((d) => d.running).length;
 
   const setDefault = async (name: string) => {
     try {
-      await ipc.procCommunicate({
+      const r = await ipc.procCommunicate({
         command: "wsl.exe",
-        args: ["/setdefault", name],
+        /* wsl.exe 只认 --set-default(/setdefault 是 wslconfig 的语法);
+           失败非零退出码必须查,不能静默写 settings。 */
+        args: ["--set-default", name],
         cwd: await ipc.configHomeDir(),
         closeStdin: true,
-        timeoutMs: 8000,
+        timeoutMs: 10_000,
       });
+      if (r.timedOut || (r.code !== null && r.code !== 0)) {
+        console.warn("wsl: 设默认发行版失败(code=%s):%s", r.code, r.stderr);
+        return;
+      }
       updateSettings({ wsl: { defaultDistro: name } });
       refresh();
     } catch (e) {
@@ -189,13 +195,13 @@ export function WslCard() {
           {shown.map((d) => (
             <div className="wsl-distro-row" key={d.name}>
               <span
-                className={`wsl-dot ${d.state.toLowerCase() === "running" ? "ok" : ""}`}
+                className={`wsl-dot ${d.running ? "ok" : ""}`}
                 aria-hidden
               />
               <span className="wsl-distro-name">{d.name}</span>
               <span className="wsl-distro-ver">WSL {d.version}</span>
               <span className="wsl-distro-state">
-                {d.state.toLowerCase() === "running" ? t("运行中") : t("已停止")}
+                {d.running ? t("运行中") : t("已停止")}
               </span>
               <button
                 type="button"
