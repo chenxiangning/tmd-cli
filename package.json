@@ -45,6 +45,7 @@
     "@codemirror/state": "^6.7.2",
     "@codemirror/view": "^6.43.10",
     "@lezer/highlight": "^1.2.3",
+    "@lobehub/icons-static-svg": "^1.95.0",
     "@phosphor-icons/react": "^2.1.10",
     "@tauri-apps/api": "^2.9.0",
     "@tauri-apps/plugin-dialog": "^2.7.3",
