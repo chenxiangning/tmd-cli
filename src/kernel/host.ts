@@ -31,8 +31,7 @@ class Host implements PluginContext {
   private sessions: SessionMeta[] = [];
   private activeSessionId: string | null = null;
   private listeners = new Set<() => void>();
-  /** PTY 事件退订表:spawn 登记输出/退出两监听,会话移除成对退订
-   * (此前 void 掉 listen 的 UnlistenFn,每次 spawn 泄漏 2 个监听器)。 */
+  /** PTY 事件退订表:spawn 登记输出/退出两监听,会话移除成对退订(此前 void 掉监听句柄,每次 spawn 泄漏 2 个)。 */
   private ptyUnlistens = new Map<string, Array<() => void>>();
   /** 窗口聚焦态(main.tsx 挂 focus/blur 监听馈入):失焦时激活会话完成也视为未查看。 */
   private windowFocused = true;
@@ -156,6 +155,7 @@ class Host implements PluginContext {
   async createShellSession(workspaceId?: string): Promise<SessionMeta> {
     return this.sessionServices.shell.create(workspaceId);
   }
+  readoptSessions = (): Promise<void> => this.sessionServices.readopt(); /* webview 重载后活 PTY 重新接管:会话表合并+常驻订阅重建(语义见 kernel/sessionAdopt.ts) */
 
   async createSession(
     profileId: string,

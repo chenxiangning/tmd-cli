@@ -52,6 +52,7 @@ function App() {
       .then(() => {
         registerDefaultContributions(host);
         setReady(true);
+        void host.readoptSessions(); /* webview 重载后活 PTY 重新接管:重建监听/会话表(先于 ask 恢复,见 kernel/sessionAdopt.ts) */
         bootAskRestore(); /* Ask 等待状态开机恢复(profiles 就绪后才有 askMarks,见 kernel/askWatchRestore.ts) */
         /* 扫描自身意外失败也不翻全局错误页(与晚激活同一隔离承诺) */
         return localPromise.catch((e) => {

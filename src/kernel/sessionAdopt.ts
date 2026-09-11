@@ -12,7 +12,7 @@
  */
 
 import { KernelTopics, type EventBus } from "./events";
-import { onPtyExit, onPtyOutput, type SessionMeta } from "./ipc";
+import { ipc, onPtyExit, onPtyOutput, type SessionMeta } from "./ipc";
 
 /** host 侧最小依赖面(三服务的 ctx 均满足;箭头函数惰性绑定避免构造顺序耦合)。 */
 export interface SessionAdoptHost {
@@ -79,4 +79,43 @@ export async function adoptPtySession(
   if (opts.activate !== false) events.emit(KernelTopics.activeSessionChanged, sessionId);
   h.notify();
   return h.findSession(sessionId) ?? null;
+}
+
+/** re-adopt 在途单例闸:boot 接线(含 React StrictMode 双调)并发收口;完成后
+ *  清零,重入由 findSession 去重兜底幂等。 */
+let readoptInflight: Promise<void> | null = null;
+
+/** 重载接管的最小依赖面:SessionAdoptHost 全量 + 会话表写入(Rust 注册表合并)。 */
+export interface ReadoptHost extends SessionAdoptHost {
+  setSessions(sessions: SessionMeta[]): void;
+}
+
+/**
+ * webview 重载后活 PTY 重新接管 —— webview reload 清空前端一切态,而 Rust 侧
+ * PTY 与会话注册表(重载不灭)照常存活:pty://out 常驻监听随 webview 消亡后
+ * 无人重建,活会话幽灵化(侧栏无行,ask/呼吸灯/未读全盲;askWatchRestore 只能
+ * 一次性恢复「重载时刻已挂起」的面板)。boot 经此把 Rust 注册表合并入会话表并
+ * 对缺失会话重建常驻订阅,检测/标签/未读全链路复活。app 冷启动 Rust 表为空 =
+ * 零操作;activate:false 不抢 tab(重载后 tab 条本就为空,行回侧栏由用户点开)。
+ * 订阅前瞬间的进程退出会错过 pty://exit 而残留僵尸行(Rust session_list 已滤
+ * 死会话,窗口毫秒级,接受;行可手动删除)。
+ */
+export function readoptSessions(h: ReadoptHost, events: EventBus): Promise<void> {
+  readoptInflight ??= (async () => {
+    const remote = await ipc.sessionList();
+    const missing = remote.filter((m) => !h.findSession(m.id));
+    if (missing.length === 0) return;
+    h.setSessions([...h.getSessions(), ...missing]);
+    await Promise.all(
+      missing.map((m) =>
+        adoptPtySession(h, events, m.id, {
+          profileId: m.profileId,
+          activate: false,
+        }),
+      ),
+    );
+  })().finally(() => {
+    readoptInflight = null;
+  });
+  return readoptInflight;
 }

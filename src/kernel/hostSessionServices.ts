@@ -9,6 +9,7 @@ import type { EventBus } from "./events";
 import { SessionSpawnService } from "./sessionSpawn";
 import { ShellSessionService } from "./shellSessions";
 import { SshSessionService } from "./sshSessions";
+import { readoptSessions } from "./sessionAdopt";
 import type { HostWatches } from "./hostWatches";
 import type { CliProfile } from "./cli";
 import type { SessionMeta } from "./ipc";
@@ -36,6 +37,8 @@ export interface HostSessionServices {
   ssh: SshSessionService;
   shell: ShellSessionService;
   spawn: SessionSpawnService;
+  /** webview 重载后活 PTY 重新接管(会话表合并 + 常驻订阅重建)。 */
+  readopt: () => Promise<void>;
 }
 
 export function createSessionServices(
@@ -83,5 +86,11 @@ export function createSessionServices(
       },
       events,
     ),
+    /* webview 重载后活 PTY 重新接管(语义见 kernel/sessionAdopt.ts readoptSessions)。 */
+    readopt: () =>
+      readoptSessions(
+        { ...base, setSessions: (sessions) => ctx.setSessions(sessions) },
+        events,
+      ),
   };
 }
