@@ -106,6 +106,10 @@ export const MESSAGES = {
   "会话尚未落盘,暂不可命名": "Session not yet persisted; cannot rename",
   "关闭其他 tab": "Close other tabs",
   "关闭全部 tab": "Close all tabs",
+  "平铺显示": "Tile Display",
+  "取消平铺": "Exit Tile",
+  "广播开关:开启后发送进平铺全部幕布": "Broadcast toggle: sends go to all tiled terminals when on",
+  "广播已开启:发送将进入平铺全部幕布": "Broadcast on: your messages now go to all tiled terminals",
 
   // ── 编辑区空态 ──
   "选中一个文件查看": "Select a file to view",

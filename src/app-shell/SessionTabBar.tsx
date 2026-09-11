@@ -5,8 +5,8 @@
  * 交互:点击切会话;× = 摘 tab 不杀会话(PTY 继续跑,侧栏仍在,见 store 契约);
  * 行内扎点 = 置顶到全局/取消(与侧栏 PinToggle 同语义,覆盖层未落盘禁用);
  * 定位 = 展开左栏并滚动到该会话行(kernel/sessionReveal 桥 → workspace 插件消费)。
- * 右键菜单:重命名(行内输入,同侧栏契约;未落盘禁用)/ 关闭 / 关闭其他 / 关闭全部
- * (TabContextMenu,与文件 tab 同一套 icon)。未读(完成未查看)会话缀主题色圆点。
+ * 右键菜单:重命名(行内输入,同侧栏契约;未落盘禁用)/ 平铺显示(全局开关,打开的
+ * tab 全部并排同屏,参照 codeg tile)/ 关闭 / 关闭其他 / 关闭全部
  * tab 前置引擎品牌 logo(host.getCliProfile().renderIcon,与侧栏分组段头同源)。
  * 设计取舍见 docs/superpowers/specs/2026-09-03-session-title-tabs-design.md。
  */
@@ -26,6 +26,7 @@ import {
   closeOtherSessionTabs,
   closeSessionTab,
   getSessionTabTitle,
+  toggleSessionTile,
   useSessionTabs,
 } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle, shortId } from "@kernel/sessionTitles";
@@ -34,7 +35,7 @@ import { TabContextMenu } from "./TabContextMenu";
 function SessionTabBarImpl() {
   useHost(); /* 活跃指针 / 会话存活 / 身份绑定 / 未读标记变化 */
   const { settings } = useSettingsState(); /* 开关 + 手动命名覆盖层 */
-  const { ids } = useSessionTabs();
+  const { ids, tile } = useSessionTabs();
   /** 右键菜单目标:null 关闭。 */
   const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   /** 行内重命名目标:tmd 会话 id + 磁盘身份 key(重命名态替换 tab 标签为输入框)。 */
@@ -169,6 +170,8 @@ function SessionTabBarImpl() {
         <TabContextMenu
           position={{ x: menu.x, y: menu.y }}
           canRename={host.getCliSessionId(menu.id) != null}
+          onToggleTile={toggleSessionTile}
+          tileActive={tile}
           onRename={() => {
             const meta = host.getSessions().find((s) => s.id === menu.id);
             const cliSessionId = host.getCliSessionId(menu.id);

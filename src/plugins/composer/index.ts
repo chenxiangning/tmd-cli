@@ -14,6 +14,7 @@ import type { Plugin } from "@kernel/plugin";
 import { t } from "@kernel/i18n";
 import { Composer } from "./view/Composer";
 import { composerSendRef } from "./view/composerSendRef";
+import { TileBroadcastButton } from "./view/TileBroadcastButton";
 import { ComposerToolbar } from "./view/ComposerToolbar";
 import { toggleDrawer } from "./state/drawerOpen";
 import { pluginDrawerCommands } from "./drawerItems";
@@ -50,6 +51,8 @@ export const composerPlugin: Plugin = {
       order: 0,
       component: Composer,
     });
+    /* 平铺广播:仅平铺态出现的 inputRail 图标(自门控,非平铺不渲染) */
+    ctx.contribute("composer.inputRail", { order: 40, component: TileBroadcastButton });
     ctx.contribute("composer.statusBar", {
       order: 0,
       component: ComposerToolbar,

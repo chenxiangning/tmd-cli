@@ -4,15 +4,22 @@
  * 发送管线:git 预填联动 → translate 变换 → 轮次闸写前现读 → writeSession →
  * promptSent 广播 → 输入历史记录(2026-09-10)→ 清空输入/附件/下拉。
  * 每次渲染产出新闭包,经 composerSendRef 活读(⌘K 等命令路径同源)。
+ *
+ * 平铺广播分支(broadcastModeRef 开 + 平铺态 + kept 目标 ≥2):同一题面逐路过
+ * 各自 profile 的完整管线喂给全部幕布(含活跃),题面入史恰一次;任一条件不满足
+ * 原样走单发(布尔短路,零额外开销)。
  */
 
 import { host } from "@kernel/host";
 import { composerSendTransforms } from "@kernel/composerExt";
 import type { CliProfile } from "@kernel/cli";
+import { getSessionTabs, getSessionTile } from "@kernel/sessionTabs";
 import { emitPromptSent, readPromptGate } from "../promptGate";
 import { prepareSendPayload } from "../serialize/serialize";
 import { clearAttachments } from "../state/attachments";
 import { recordPrompt } from "@kernel/promptHistory";
+import { broadcastModeRef } from "./broadcastMode";
+import { resolveBroadcastTargets } from "./broadcastTargets";
 
 export function useComposerSend({
   profile,
@@ -35,6 +42,28 @@ export function useComposerSend({
     const trimmed = value.trim();
     if (trimmed.startsWith("/commit ")) {
       host.events.emit("git://composer-prefill", { message: trimmed.slice(8).trim() });
+    }
+    /* 平铺广播:开关开 + 平铺态 + 目标 ≥2 才走;逐路完整管线(translate/bracketed
+       差异、发送变换、轮次闸 promptSent 全继承);收尾与单发同款。不满足落回单发。 */
+    if (broadcastModeRef.current && getSessionTile()) {
+      const targets = resolveBroadcastTargets(
+        getSessionTabs(), host.getActiveSessionId(), host.getSessions(),
+        (pid) => host.getCliProfile(pid),
+      );
+      if (targets.length >= 2) {
+        for (const { id, profile: p } of targets) {
+          const payload = prepareSendPayload(p, value,
+            composerSendTransforms().map((fn) => (text: string) => fn(text, id)));
+          const gate = readPromptGate(id);
+          host.writeSession(id, payload);
+          emitPromptSent(gate, id, trimmed);
+        }
+        recordPrompt(trimmed);
+        setValue("");
+        clearAttachments();
+        clearMatches();
+        return;
+      }
     }
     const sid = host.getActiveSessionId()!;
     /* 发送变换(composerExt 契约):仅用户自然语言消息走;抽屉/工具栏命令发送不经此 */
