@@ -1,6 +1,6 @@
 # 08 会话生命周期状态机(activityWatch)契约
 
-- 日期:2026-09-11(首版;同日晚修订:证据分级模型,见 spec 2026-09-11-activity-watch-evidence-model-design.md)
+- 日期:2026-09-11(首版;同日晚修订:证据分级模型,见 spec 2026-09-11-activity-watch-evidence-model-design.md;同夜独立评审后守卫塌缩为未应答写入天花板,闸 4 前置)
 - 状态:生效中 —— 本文件是该状态机的唯一完整契约入口;02-code-architecture §4 只留摘要。
 
 ## 0. 定位与核心哲学
@@ -49,9 +49,11 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
   turnSettled。锚定 = PTY 寿命级(纯内存,随 webview/PTY 消亡,重载后回 none 是既定语义)。
 - **I2 开轮只认因果**:CLI 会话开新轮 ⟺ `awaitingTurn`(有未应答用户写入)或本就在途。
   tab 开关、窗口焦点、会话是否被选中**都不是**开轮条件(2026-09-11 收紧的直接产物)。
-- **I3 归因锚定末字节**:结算时未读归属看「最后一字节到达瞬间」是否被查看,不看结算瞬间。
+- **I3 归因锚定末内容帧**:结算时未读归属看「最后 content 帧瞬间」是否被查看,不看结算瞬间
+  (家具帧不更新快照 —— 空闲页脚自绘期改变查看态不影响归属)。
 - **I4 闸拦即幂等**:噪音被任何一层闸挡下时,活动钟/三态/轮次全部不动,状态保持已查看 ——
-  闸的实现是 `return false` 早退,绝不允许「挡了但偷偷推钟」。
+  闸的实现是 `return false` 早退,绝不允许「挡了但偷偷推钟」。重绘抑制窗排在分类之前,
+  被抑制的重绘帧连骨架 FIFO 副作用都不留。
 - **I5 通知权不被 UI 剥夺**:在途轮次(含关 tab、容量挤除、webview 重载后 readopt)照常
   推进、照常结算标未读。写完即关 tab 的首字节迟到经 awaitingTurn 放行。
 - **I6 ssh/shell 豁免**:「输出即活动」是既定语义(远端长任务完工必须通知),轮次开启闸与
@@ -62,17 +64,16 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
   但不进 `onUserWrite`;回放期由 terminalInputGate 直接丢弃。
 
 ## 3. 闸门矩阵(onOutput 判定顺序)
-
 |序|闸|治什么|判据|钉它的测试|
 |---|---|---|---|---|
 |1|首写闸|spawn 横幅/resume 回放误亮|`conversationStarted` 未置位即挡|host.turnSettled.test.ts|
-|2|家具分类(content/tick/static)|空闲 spinner/状态栏/时钟原地自绘伪装活动:吊住结算(永挂运行时)或重跑生命周期|剥 ANSI 仅取**字母骨架**:首见 = content(推活动钟,可开轮);复现且数字串变动 = tick(推证据钟,实测 omp 回合期页脚每秒跳「9s→10s」);复现且数字相同或骨架空 = static(只记活性时戳)。ssh/shell 豁免|activityWatch.test.ts「空闲重绘闸」组 + activityWatch.evidence.test.ts|
-|3|轮次开启闸|已了结老会话被异步噪音重跑生命周期|`!activeTurns && !awaitingTurn && noiseGated` 即挡|activityWatch.test.ts + host.unread.test.ts「实证缺陷」|
-|4|重绘抑制窗|本应用自发 resize 引发 SIGWINCH 整屏重绘(实测 omp 560KB 突发)|`resizeSession` 时戳后 1s 窗内输出不进活动语义|host.activityWatch.test.ts|
-|结算|归因|看完回答 2s 窗内切走被误标未读|末字节到达瞬间 `isViewing` 快照|host.activityWatch.test.ts|
-|守卫|未应答写入被假结算吞掉(awaiting 丢失 → 真应答被闸 3 拦死)|`awaiting && !answered &&`(静态家具 2s 内出现过( spinner 还在转)‖ 无任何家具且距写入 <120s(无 spinner/footer CLI 的思考期宽限))→ 跳过结算|activityWatch.evidence.test.ts「空轮宽限」「宽限上限」|
+|2|重绘抑制窗|本应用自发 resize 引发 SIGWINCH 整屏重绘(实测 omp 560KB 突发)|`resizeSession` 时戳后 1s 窗内输出不进活动语义,连分类副作用都免|host.activityWatch.test.ts|
+|3|家具分类(content/tick/static)|空闲 spinner/状态栏/时钟原地自绘伪装活动:吊住结算(永挂运行时)或重跑生命周期|剥 ANSI 仅取**字母骨架**:首见 = content(推活动钟,可开轮);复现且数字串变动 = tick(推证据钟,实测 omp 回合期页脚每秒跳「9s→10s」);复现且数字相同或骨架空 = static(不推任何钟)。分类输入是 PTY 分片(非逻辑帧);省略 visibleText 的分片跳过分类照走后续闸。ssh/shell 豁免|activityWatch.test.ts「空闲重绘闸」组 + activityWatch.evidence.test.ts|
+|4|轮次开启闸|已了结老会话被异步噪音重跑生命周期|`!activeTurns && !awaitingTurn && noiseGated` 即挡|activityWatch.test.ts + host.unread.test.ts「实证缺陷」|
+|结算|归因|看完回答 2s 窗内切走被误标未读|最后 content 帧瞬间 `isViewing` 快照|host.activityWatch.test.ts|
+|天花板|未应答写入被假结算吞掉(awaiting 丢失 → 真应答被闸 4 拦死)|`noiseGated && awaiting && !answered && 距写入 <120s` → 跳过结算;到期必结算(spinner 永续自绘的即时报错轮、写入丢失都由天花板收口)|activityWatch.test.ts「守卫天花板」+ activityWatch.evidence.test.ts「tick 持轮」「取舍钉板」|
 
-用户新提问(`onUserWrite`)清骨架窗与数字串基线,防跨轮次逐字符全等的真实输出被闸 2 误判;
+用户新提问(`onUserWrite`)清骨架窗与数字串基线,防跨轮次逐字符全等的真实输出被闸 3 误判;
 静默判定 = 距最后 content/tick 证据 >2s(静态家具不参与,空闲页脚永续自绘不得吊住结算)。
 
 ## 4. 事故账本(为什么「经常被改坏」)
@@ -87,6 +88,7 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
 |09-11|侧栏标签永挂「运行时」、三态全失效|omp 空闲期状态栏 ≈2.8KB/s 持续自绘,轮次永不静默结算|空闲重绘闸(骨架复现判据)|「有输出」≠「在对话」要靠内容熵区分|
 |09-11|历史会话点开即走完呼吸灯|回放期 xterm 重新应答历史内容里的终端查询,应答被视同首写锚定|terminalInputGate + synthetic 标记(I8)|锚定入口必须只通真实用户输入|
 |09-11|同日三连修(空闲重绘闸 → P0 spinner 期假结算 → 思考期守卫)暴露特判互咬,根治为证据分级模型|六层特判闸各自定义「什么算输出/静默」,一个闸改变前提即动摇别的闸的推理|字母骨架三级分类 + content/tick 证据钟 + 守卫并项,12 张 Map 并为每会话单状态对象(spec 2026-09-11-activity-watch-evidence-model-design.md)|**补丁咬补丁时收敛模型,不加第七层** —— 真实 omp 字节流采集回放是验收基准|
+|09-11|独立评审 P1:回显窗内完结的轮次(/help、即时报错)+ spinner 永续自绘 ⇒ 守卫恒真,120s 宽限也兜不住,永挂运行时(继承缺陷,非重构引入)|守卫按「家具活性」分支,而 omp 页脚自绘永续刷新活性;三分支(家具新鲜/陈旧/从未见)在字节上覆盖全部形态,逻辑上必然塌缩|守卫塌缩为单一「未应答写入天花板」:写入后 120s 内不结算未应答轮次,到期必结算;P1 回归测试重写为天花板语义(前提「自绘会停歇」的 CLI 形态不存在)|**守卫分支若覆盖全部输入,它就是一条规则** —— 同日 F5(单帧家具废宽限)同根同修|
 
 ## 5. 修改规则(review 清单)
 
@@ -107,13 +109,20 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
   Ask 场景有独立徽章兜底。
 - resize 抑制窗内恰好完整到达的 <1s 短回答:漏提醒一次(需用户正在改尺寸同时成立)。
 - CLI 答案中途静音 >2s 分段:后段不再重复标(首轮通知已在)。
+- 未应答轮次统一由 120s 天花板兜底:思考期(spinner 转/无家具/家具停转)全在保护窗内,
+  到期必结算;回显窗内完结的即时报错轮(/help 类)最长挂 120s 才翻空闲。
+- awaiting 期异步噪音内容(hook/后台完工行)会置 answered 拆掉天花板保护:思考期遭遇
+  噪音即提前结算,真应答晚到被闸 4 拦,不自愈(与「提前翻」同源,字节不可分;取舍
+  钉板用例守着)。
+- 分类器输入是 PTY 分片而非逻辑帧:同一家具帧被 read 边界拆分时,子串骨架瞬时误判
+  content,最多推迟结算数秒(闸 4 兜底,无未读污染)。
+- 纯数字应答(极罕见)字母骨架为空判家具,未读归属退化为字节时序。
 - 用户写入后 CLI 彻底无输出:不进结算循环(轮次未开启),awaiting 不清,后来字节仍放行开轮(「有输入未获应答」可辩护)。
-- 无家具 CLI 的未应答轮次由 120s 宽限兜底,到期照常结算;超长静默思考的真实案例出现前不按 profile 配置。
-- 应答开始后静态家具中轮静默(恒定 spinner 自绘)与空闲页脚字节不可分:仍会提前翻,用户新写入自愈(既定边界)。
 
 ## 7. 验证
 
 - 契约测试:`src/kernel/activityWatch.test.ts`(谓词矩阵)、
+  `src/kernel/activityWatch.evidence.test.ts`(证据分级模型场景矩阵)、
   `src/kernel/host.unread.test.ts`(host 集成 + 真 sessionTabs 接线 + 09-11 实证缺陷)、
   `src/kernel/host.activityWatch.test.ts`(归因/抑制窗)、`src/kernel/host.turnSettled.test.ts`(首写闸)。
 - 改闸后必跑上述四件 + 全量 `pnpm test`;行为级目检走 1421 桩配方(scratchpad 2026-09-08

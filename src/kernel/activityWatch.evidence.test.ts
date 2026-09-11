@@ -1,8 +1,7 @@
 /**
- * 证据分级模型场景矩阵(2026-09-11 重构)—— 三级分类(content / tick / static)、
- * 静默 = content+tick 证据钟、未应答写入守卫(spinner 活性 + 空轮宽限)。
- * 旧契约(轮次开启闸/空闲重绘闸/思考期守卫 P0/P1)钉在 activityWatch.test.ts,
- * 该文件零改动全绿是行为兼容的硬证据。
+ * 证据分级模型场景矩阵(2026-09-11 重构;同日评审后守卫塌缩为「未应答写入
+ * 天花板」:写入后 120s 内不结算未应答轮次,家具活性不再参与守卫)。
+ * 旧契约(轮次开启闸/空闲重绘闸/思考期守卫 P0)钉在 activityWatch.test.ts。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ActivityWatch } from "./activityWatch";
@@ -26,21 +25,40 @@ const tickFrame = (sec: number) => stripAnsi(`\u001b[1;1H ⠙ ${sec}s · 模型 
 /* 字母与数字都恒定(版本号类)= 死的家具。 */
 const STATIC_FURNITURE = stripAnsi("\u001b[1;1H ⠹ tmd v1.2.3 · 就绪");
 
+/* omp 空闲页脚实测帧:字母骨架恒定(提交重绘首帧即 content,复现即 static)。 */
+const IDLE_VISIBLE = stripAnsi("\u001b[1;1H ⠙ 9s · 模型 GLM");
+
 describe("证据分级模型", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it("tick 家具持轮:elapsed 每秒变动时 30s 不结算,停跳后照常结算(omp 工具执行期)", () => {
+  it("tick 家具持轮:elapsed 每秒变动时不结算;停跳后由未应答天花板兜底(omp 工具执行期)", () => {
     const { watch } = makeWatch();
     watch.onUserWrite("s");
-    watch.onOutput("s", "question echoed"); // 回显:开轮
+    watch.onOutput("s", "question echoed"); // 回显:开轮,但不算应答证据
     for (let sec = 9; sec <= 39; sec++) {
       watch.onOutput("s", tickFrame(sec));
       vi.advanceTimersByTime(1000);
       expect(watch.isTurnActive("s")).toBe(true);
     }
-    vi.advanceTimersByTime(3000); // 计数停跳 + 静默超阈
+    vi.advanceTimersByTime(5000); // 计数停跳 + 静默超阈:未应答守卫仍扣住
+    expect(watch.isTurnActive("s")).toBe(true);
+    vi.advanceTimersByTime(120_000); // 写入 +120s 天花板:必结算,不永挂
     expect(watch.isTurnActive("s")).toBe(false);
+  });
+
+  it("取舍钉板:awaiting 期异步噪音内容置 answered 拆掉守卫,思考期遭遇噪音即提前结算(08 §6)", () => {
+    const { watch } = makeWatch();
+    watch.onUserWrite("s");
+    watch.onOutput("s", IDLE_VISIBLE); // 提交重绘同批:开轮(spinner 首帧)
+    vi.advanceTimersByTime(500);
+    for (let i = 0; i < 10; i++) {
+      watch.onOutput("s", IDLE_VISIBLE); // 思考期 spinner 自绘
+      vi.advanceTimersByTime(100);
+    }
+    watch.onOutput("s", "hook: build finished"); // 异步噪音:回显窗外新骨架 → answered
+    vi.advanceTimersByTime(3000);
+    expect(watch.isTurnActive("s")).toBe(false); // 守卫被拆;真应答晚到会被闸 3 拦(不自愈)
   });
 
   it("静态家具不持轮:版本号类恒定自绘吊不住已应答轮次的结算", () => {

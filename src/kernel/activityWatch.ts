@@ -37,15 +37,15 @@ type TimerHandle = ReturnType<typeof setInterval>;
 /** 输出静默轮次阈值:距最后 content/tick 证据超此值即结算一轮对话。 */
 const TURN_SILENCE_MS = 2_000;
 /** 应答回显窗:写入后此窗内的内容分片视作输入回显/TUI 换帧,不算应答证据;
- *  真实应答首帧因模型 TTFB 恒晚于此窗。 */
+ *  模型生成类应答首帧恒晚于此窗;本地瞬时响应(/help、即时报错)可整体落在
+ *  窗内 —— 不视作应答,由守卫天花板兜底结算。 */
 const ANSWER_ECHO_MS = 400;
 /** 家具骨架窗:每会话最近 N 个字母骨架 FIFO(实测 omp 空闲帧在 4 种骨架间循环,
  *  6 容得下页脚/标题/边框各变体;真实内容帧几乎不可能在 6 帧窗内逐字符全等复现)。 */
 const IDLE_SKELETON_WINDOW = 6;
 /** 重绘抑制窗:resize 后此窗口内的输出视为 SIGWINCH 整屏重绘,不进活动语义。 */
 const REDRAW_SUPPRESS_MS = 1_000;
-/** 空轮宽限:轮内从未见过家具(无 spinner 无 footer 的 CLI)时,写入后此窗内
- *  不结算未应答轮次。
+/** 未应答写入天花板:写入后此窗内不结算未应答轮次(思考期保护),到期必结算。
  *  ponytail: 120s 拍脑袋上限 —— 覆盖最慢模型 TTFB + 长思考;若出现真实 CLI
  *  静默思考超 2 分钟的案例,改成按 profile 配置。 */
 const WRITE_GRACE_MS = 120_000;
@@ -73,19 +73,15 @@ interface SessionWatch {
   awaiting: boolean;
   /** 写后是否见过回显窗外内容分片(应答证据)。 */
   answered: boolean;
-  /** 写后是否见过任何家具分片(空轮宽限判据)。 */
-  chromeSeen: boolean;
   /** 完成未读。 */
   unread: boolean;
   /** 最后 content 帧时戳(活动钟,呼吸灯)。 */
   lastContentAt: number;
   /** 最后 tick 帧时戳(证据钟,参与静默判定)。 */
   lastTickAt: number;
-  /** 最后 static 帧时戳(守卫的 spinner 活性)。 */
-  lastStaticAt: number;
-  /** 最后用户写入时戳(回显窗与宽限起点)。 */
+  /** 最后用户写入时戳(回显窗与未应答天花板起点)。 */
   lastWriteAt: number;
-  /** 最后一字节到达瞬间是否正被查看(未读归因)。 */
+  /** 最后 content 帧瞬间是否正被查看(未读归因)。 */
   lastOutputViewed: boolean;
   /** 呼吸灯 notify 节流(500ms 最多一次外壳重渲染)。 */
   lastNotifyAt: number;
@@ -125,11 +121,9 @@ export class ActivityWatch {
         active: false,
         awaiting: false,
         answered: false,
-        chromeSeen: false,
         unread: false,
         lastContentAt: 0,
         lastTickAt: 0,
-        lastStaticAt: 0,
         lastWriteAt: 0,
         lastOutputViewed: false,
         lastNotifyAt: 0,
@@ -151,7 +145,6 @@ export class ActivityWatch {
     s.lastWriteAt = Date.now();
     s.awaiting = true;
     s.answered = false;
-    s.chromeSeen = false;
     /* 新提问 = 新基线:清骨架窗,防跨轮次逐字符全等的真实输出被误判家具 */
     s.skeletons.length = 0;
   }
@@ -166,21 +159,20 @@ export class ActivityWatch {
     const s = this.sessions.get(sessionId);
     if (!s || !s.anchored) return false; // 首写闸:锚定前零语义(I1)
     const now = Date.now();
+    /* 重绘抑制窗:自发 resize 后窗内 = SIGWINCH 整屏重绘,连分类副作用都免
+       (骨架 FIFO 不被重绘尾行占据,I4 幂等)。 */
+    if (now - s.lastResizeAt < REDRAW_SUPPRESS_MS) return false;
     if (visibleText !== undefined && this.host.noiseGated(sessionId)) {
       const kind = this.classify(s, visibleText);
       if (kind !== "content") {
-        /* 家具:不推活动钟、不开轮、不通知(I4 幂等),只记活性供静默/守卫判定 */
-        s.chromeSeen = true;
+        /* 家具:不推活动钟、不开轮、不通知;tick 推证据钟(static 只是被扣下)。 */
         if (kind === "tick") s.lastTickAt = now;
-        else s.lastStaticAt = now;
         return false;
       }
     }
     /* 轮次开启闸:无未应答写入且轮次已了结的新输出 = 异步噪音(I2)。tab 开关与
        闸无关;在途轮次与 awaiting 放行。 */
     if (!s.active && !s.awaiting && this.host.noiseGated(sessionId)) return false;
-    /* 重绘抑制窗:自发 resize 后窗内 = SIGWINCH 整屏重绘,不进活动语义。 */
-    if (now - s.lastResizeAt < REDRAW_SUPPRESS_MS) return false;
     /* 回显窗外的内容分片 = 应答证据。 */
     if (now - s.lastWriteAt > ANSWER_ECHO_MS) s.answered = true;
     s.lastContentAt = now;
@@ -263,15 +255,15 @@ export class ActivityWatch {
         if (!s.active) continue;
         /* 静默 = content 与 tick 证据都停 >2s;静态家具不参与(空闲页脚永续自绘)。 */
         if (now - Math.max(s.lastContentAt, s.lastTickAt) <= TURN_SILENCE_MS) continue;
-        /* 未应答写入守卫(仅 CLI;ssh/shell 不守,快命令 2s 照常结算):
-           spinner 仍在转(静态家具新鲜)或轮内从未有家具且写入 <120s(宽限)——
-           CLI 大概率仍在处理提问,此刻结算会吞 awaiting、真应答被闸 3 拦死。 */
+        /* 未应答写入天花板(仅 CLI;ssh/shell 不守,快命令 2s 照常结算):
+           写入后 WRITE_GRACE_MS 内「没等到应答」与「还在思考」字节不可分,
+           统一保住 awaiting 不被假结算吞掉(真应答从此被轮次开启闸拦死);
+           天花板保证 spinner 永续自绘(omp /help)与写入丢失必结算,不永挂。 */
         if (
           this.host.noiseGated(id) &&
           s.awaiting &&
           !s.answered &&
-          (now - s.lastStaticAt < TURN_SILENCE_MS ||
-            (!s.chromeSeen && now - s.lastWriteAt < WRITE_GRACE_MS))
+          now - s.lastWriteAt < WRITE_GRACE_MS
         )
           continue;
         s.active = false;
