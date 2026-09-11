@@ -73,6 +73,8 @@ export interface CliConfigEntry {
   /** 配置源列表(单源插件给一项);至少一项。 */
   sources: () => Promise<CliConfigSource[]>;
   fields: CliConfigField[];
+  /** 字段表单下方的附加面板(供应商渠道等);泛型扩展位,内核不知具体语义。 */
+  providerPanel?: () => ReactNode;
   /** 原始编辑逃生舱的语言名(如 "yaml");缺省 = 无原始模式。 */
   rawEditor?: string;
   /** rawText → 表单值(解析失败抛错,UI 显错误态)。 */

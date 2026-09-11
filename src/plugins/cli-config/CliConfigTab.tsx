@@ -130,6 +130,11 @@ function EnginePane({ engine, dark }: { engine: CliConfigEntry; dark: boolean })
         mode={mode}
         dark={dark}
       />
+      {engine.providerPanel && (
+        <div className="cli-cfg-provider-panel">
+          {engine.providerPanel()}
+        </div>
+      )}
     </>
   );
 }
