@@ -6,7 +6,7 @@
  *   │ (注册表动作…)        □ │  ← 右侧复选框 = pin 到底栏
  *   │ 设置                    │
  *   └────────────────────────┘
- *   [logo] [pinned…]      v0.1.4  ← 底栏
+ *   [logo] [pinned…] [− 100% +]  v0.1.4  ← 底栏(缩放组 = 设置页同款 uiZoom 的便捷入口)
  *
  * 动作数据源 = kernel/sidebarActions 注册表(插件 activate 时自注册),
  * 本组件只渲染注册表与钉住状态,不认识任何具体动作 —— 与右栏面板同纪律。
@@ -18,7 +18,15 @@ import { useEffect, useRef, useState } from "react";
 import { appVersion } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { defaultPinnedActionIds, useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
-import { openSettingsPanel, useSettingsState } from "@kernel/settings";
+import {
+  UI_ZOOM_DEFAULT,
+  UI_ZOOM_MAX,
+  UI_ZOOM_MIN,
+  UI_ZOOM_STEP,
+  openSettingsPanel,
+  updateSettings,
+  useSettingsState,
+} from "@kernel/settings";
 import logoUrl from "../assets/logo.png";
 import { Check, Gear } from "@phosphor-icons/react";
 import { VersionPopover } from "./VersionPopover";
@@ -76,9 +84,9 @@ export function SidebarSettingsCluster() {
   const [version, setVersion] = useState("0.1.4");
   const [aboutOpen, setAboutOpen] = useState(false);
   const [aboutAnchor, setAboutAnchor] = useState({ x: 0, y: 0 });
-  /* 订阅设置仅作重渲染触发:动作的 active 是渲染期求值的 getter,
-     设置变更(如代理开关)时本簇重渲、getter 重新取值;壳不读任何具体字段。 */
-  useSettingsState();
+  /* 订阅设置:动作的 active 是渲染期求值的 getter,设置变更(如代理开关)时本簇
+     重渲、getter 重新取值;壳仅读 uiZoom 供底栏缩放组展示(写经 updateSettings)。 */
+  const { settings } = useSettingsState();
   const actions = useSidebarActions();
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -221,6 +229,37 @@ export function SidebarSettingsCluster() {
             </button>
           );
         })}
+        {/* 界面缩放便捷入口:− / 当前档位(点按重置 100%)+ / +;越界档由
+            kernel 设置层 sanitize 钳位(0.8–1.5,5% 一档),这里不重复钳。 */}
+        <div className="settings-zoom" role="group" aria-label={t("界面缩放")}>
+          <button
+            type="button"
+            className="settings-bar-btn"
+            aria-label={t("缩小")}
+            disabled={settings.uiZoom <= UI_ZOOM_MIN}
+            onClick={() => updateSettings({ uiZoom: settings.uiZoom - UI_ZOOM_STEP })}
+          >
+            −
+          </button>
+          <button
+            type="button"
+            className="settings-zoom-value"
+            aria-label={t("重置缩放")}
+            title={t("重置缩放")}
+            onClick={() => updateSettings({ uiZoom: UI_ZOOM_DEFAULT })}
+          >
+            {Math.round(settings.uiZoom * 100)}%
+          </button>
+          <button
+            type="button"
+            className="settings-bar-btn"
+            aria-label={t("放大")}
+            disabled={settings.uiZoom >= UI_ZOOM_MAX}
+            onClick={() => updateSettings({ uiZoom: settings.uiZoom + UI_ZOOM_STEP })}
+          >
+            +
+          </button>
+        </div>
         <span className="settings-cluster-spacer" />
         <button
           type="button"
