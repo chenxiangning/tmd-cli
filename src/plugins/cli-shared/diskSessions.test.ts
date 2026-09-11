@@ -23,6 +23,29 @@ describe("extractJsonlTitle", () => {
     expect(extractJsonlTitle(head)).toBe("Explain cd not changing prompt");
   });
 
+  it("omp:title 记录为纯问号(旧版 CLI 落盘的编码损坏标题)跳过,落到首条用户消息", () => {
+    const head = [
+      '{"type":"title","v":1,"title":"?????","source":"auto"}',
+      '{"type":"title","v":1,"title":"修复会话列表乱码","source":"auto"}',
+      '{"type":"message","message":{"role":"user","content":[{"type":"text","text":"不应被采用"}]}}',
+    ].join("\n");
+    expect(extractJsonlTitle(head)).toBe("修复会话列表乱码");
+  });
+
+  it("标题混有问号但有可读词则保留(如「什么是 HTTP?」)", () => {
+    const head = '{"type":"title","v":1,"title":"什么是 HTTP?","source":"auto"}';
+    expect(extractJsonlTitle(head)).toBe("什么是 HTTP?");
+  });
+
+  it("替换符/符号垃圾标题跳过:后续无有效 title 即回退首条用户消息", () => {
+    const head = [
+      '{"type":"title","v":1,"title":"������","source":"auto"}',
+      '{"type":"title","v":1,"title":"...","source":"auto"}',
+      '{"type":"message","message":{"role":"user","content":[{"type":"text","text":"帮我排查标题乱码"}]}}',
+    ].join("\n");
+    expect(extractJsonlTitle(head)).toBe("帮我排查标题乱码");
+  });
+
   it("pi:无 title 记录时取 session 行内 title 字段", () => {
     const head = [
       '{"type":"session","version":3,"id":"u","timestamp":"t","cwd":"/p","title":"可以聊。不过我这边不能直接访问"}',

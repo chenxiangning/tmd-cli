@@ -43,11 +43,15 @@ function firstText(content: unknown): string | undefined {
   return undefined;
 }
 
-/** 标题归一:折叠空白 + 截断;XML 包装(<command-…/<system-reminder>…)不是用户语义,丢弃。 */
+/** 标题归一:折叠空白 + 截断;XML 包装(<command-…/<system-reminder>…)不是用户语义,丢弃。
+ * 无可读词(纯 ?/�/符号)同值丢弃:CLI 侧编码损坏或旧版模型垃圾输出落盘的标题,
+ * 不能永久顶在会话列表上 —— 跳过后继 title 记录/消息兜底(同 omp words===0 拒收口径,
+ * 2026-09-11 win 用户「标题全是问号」排查:本地英文 tiny 模型给中文起名采样出 ?????)。 */
 function normalizeTitle(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   const collapsed = raw.replace(/\s+/g, " ").trim();
   if (!collapsed || collapsed.startsWith("<")) return undefined;
+  if (!/\p{L}|\p{N}/u.test(collapsed)) return undefined;
   return collapsed.length > TITLE_MAX_CHARS
     ? `${collapsed.slice(0, TITLE_MAX_CHARS)}…`
     : collapsed;
