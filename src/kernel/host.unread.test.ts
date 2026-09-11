@@ -92,6 +92,29 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
     host.writeSession(sessionId, "prompt\r");
   }
 
+  /* 真实 omp 空闲自绘帧(取自 ~/.tmd-cli/session/omp/… 日志尾部):OSC 标题重写
+     + 光标寻址原地重绘,骨架恒定复现。回归 2026-09-11 实证 bug —— 此类字节
+     曾吊住活动钟,轮次永不结算,侧栏标签永挂「运行时」。 */
+  const IDLE_FRAMES = [
+    "\u001b[0m\u001b[K\u001b[3;4H\u001b[?25h\u001b[?7h\u001b]0;⠹ Fix ask detection\u0007\u001b[?25l\u001b[?7l\u001b[1;1H\u001b[0m\u001b[K ⠹ · 与…  TOD\u001b[3;4H",
+    "\u001b[0m\u001b[K\u001b[3;4H\u001b[?25h\u001b[?7h\u001b]0;⠼ Fix ask detection\u0007\u001b[?25l\u001b[?7l\u001b[1;1H\u001b[0m\u001b[K ⠼ · 与…  TOD\u001b[3;4H",
+  ];
+
+  it("空闲 spinner 自绘字节不吊住结算:轮次照常结束并标未读", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await host.createSession(PROFILE_ID, CWD); // 后者活跃,a 在后台
+    userPrompt(a.id);
+    fireOutput(a.id, "answer text");
+
+    // 回答结束后 CLI 以 ≈10Hz 持续自绘 20s(旧行为:活动钟被吊住,永挂运行时)
+    for (let i = 0; i < 200; i++) {
+      fireOutput(a.id, IDLE_FRAMES[i % IDLE_FRAMES.length]);
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    expect(host.isTurnActive(a.id)).toBe(false);
+    expect(host.isUnread(a.id)).toBe(true); // 正常结算为「会话结束-未查看」
+  });
+
   it("对话结束且未被查看 → 标未读;点开查看即清", async () => {
     const a = await host.createSession(PROFILE_ID, CWD);
     const b = await host.createSession(PROFILE_ID, CWD);

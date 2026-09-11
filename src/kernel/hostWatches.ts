@@ -10,6 +10,7 @@ import { KernelTopics, type EventBus } from "./events";
 import { getSettingsState } from "./settings";
 import { ActivityWatch } from "./activityWatch";
 import { AskWatchFeed } from "./askWatch";
+import { stripAnsi } from "./askDetect";
 import { EditWatch } from "./editWatch";
 import { DiskIdentityWatch } from "./identityWatch";
 import { OutputBufferStore } from "./outputBuffers";
@@ -147,9 +148,12 @@ export class HostWatches {
 
     /* AskWatch 升级 → askDetected(提示音)+ 标签;ActivityWatch 回绿;
        EditWatch 检测 AI 写入标记 → fileEditDetected(审批线归因)。
-       notify 单次:ask 升级与回绿共享同一渲染节拍。 */
+       notify 单次:ask 升级与回绿共享同一渲染节拍。
+       可见文本 = 剥 ANSI 后原文,供 activityWatch 空闲重绘闸判骨架复现
+       (见该文件头);未锚定会话白算一次 regex,换取调用点单一、无状态泄漏。 */
     const asked = this.askWatch.onOutput(sessionId, text, chunkBytes);
-    if (asked || this.activity.onOutput(sessionId)) this.ctx.notify();
+    const visible = stripAnsi(text);
+    if (asked || this.activity.onOutput(sessionId, visible)) this.ctx.notify();
     const session = this.ctx.findSession(sessionId);
     const marks = session
       ? this.ctx.getCliProfile(session.profileId)?.editMarks

@@ -34,6 +34,15 @@
  * 取舍:窗内恰好完整到达的短回答(<1s)会被整段吞掉漏一次提醒 —— 需要
  * 「用户正在改尺寸」与「整个回答 <1s」同时成立,概率极低;回答稍长只晚亮 1s。
  * 旧取舍(宁可保守放行)面向「无任何因果信息」时代,现已由 resize 因果取代。
+ *
+ * 空闲重绘闸(2026-09-11):SIGWINCH 之外的第二种重绘 —— CLI 空闲期状态栏/
+ * spinner 以光标寻址持续原地自绘(实测 omp ≈2.8KB/s),照常推活动钟则轮次永不
+ * 静默结算,侧栏标签永挂「运行时」、完成未读/已查看三态全部失效。判据 = 可见
+ * 骨架重复:分片剥 ANSI 后仅留 \p{L}\p{N}(spinner braille glyph 与标点被排除),
+ * 原地重绘的骨架在会话内恒定复现(实测空闲 36 帧仅 4 种骨架),真实输出每帧
+ * 引入新字符(流式续字、计时 tick)。轮次进行中同样适用:回答由内容帧推钟,
+ * 穿插的重复自绘帧不再吊住结算。长静默工具调用若只重绘恒定页脚,标签会提前
+ * 翻「会话结束」,输出恢复即回绿 —— 自纠,可接受。
  */
 
 /** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅内部持有。 */
@@ -41,6 +50,15 @@ type TimerHandle = ReturnType<typeof setInterval>;
 
 /** 输出静默轮次阈值:静默超此值即结算一轮对话。 */
 const TURN_SILENCE_MS = 2_000;
+
+/** 空闲重绘判定:每会话最近 N 个非空可见骨架的 FIFO(实测 omp 空闲帧在 4 种
+ *  骨架间循环,6 容得下页脚/标题/边框各变体;真实内容帧几乎不可能在 6 帧窗内
+ *  逐字符全等复现)。 */
+const IDLE_SKELETON_WINDOW = 6;
+
+/** 可见骨架:剥 ANSI 后仅留字母/数字(任意文字体系),剔除 spinner braille
+ *  glyph、标点、空白 —— 原地重绘帧唯一变化的正是这些。 */
+const SKELETON_RE = /[^\p{L}\p{N}]/gu;
 
 /** 重绘抑制窗:resize 后此窗口内的输出视为 SIGWINCH 整屏重绘,不进活动语义。 */
 const REDRAW_SUPPRESS_MS = 1_000;
@@ -80,6 +98,8 @@ export class ActivityWatch {
   private readonly lastOutputViewed = new Map<string, boolean>();
   /** 每会话最近一次自发 resize 时戳(host.resizeSession 馈入):重绘抑制窗起点。 */
   private readonly lastResizeAt = new Map<string, number>();
+  /** 每会话最近非空可见骨架 FIFO(空闲重绘闸判据,见文件头)。 */
+  private readonly skeletons = new Map<string, string[]>();
 
   constructor(private readonly host: ActivityWatchHost) {}
 
@@ -90,14 +110,28 @@ export class ActivityWatch {
   onUserWrite(sessionId: string): void {
     this.conversationStarted.add(sessionId);
     this.awaitingTurn.add(sessionId);
+    /* 新提问 = 新基线:清骨架窗,防跨轮次逐字符全等的真实输出被误判重绘 */
+    this.skeletons.delete(sessionId);
   }
 
   /**
    * 新输出入站。返回 true = 节流窗口已开,Host 应 notify() 一次外壳刷新;
    * 未锚定会话恒 false(灯不变,无需外壳重渲染;幕布渲染走 ptyLiveTopic)。
+   * `visibleText` = 该分片剥 ANSI 后的可见文本(hostWatches 经 stripAnsi 馈入),
+   * 供空闲重绘闸判骨架复现;省略 = 不参与判定(既有直调方语义不变)。
    */
-  onOutput(sessionId: string): boolean {
+  onOutput(sessionId: string, visibleText?: string): boolean {
     if (!this.conversationStarted.has(sessionId)) return false;
+    /* 空闲重绘闸:骨架恒定复现(或纯控制序列)的分片 = 状态栏/spinner 原地
+       自绘,不是对话产出,不推活动钟、不开轮次。ssh/shell「输出即活动」豁免
+       (与轮次开启闸同圈)。 */
+    if (
+      visibleText !== undefined &&
+      this.host.noiseGated(sessionId) &&
+      this.isIdleRedraw(sessionId, visibleText)
+    ) {
+      return false;
+    }
     /* 轮次开启闸:无 tab 且无未应答写入的已了结会话,新输出(异步噪音)不开轮、
        不推进活动钟 —— 状态保持「已查看」;在途轮次不受闸影响,照常推进结算。 */
     if (
@@ -154,6 +188,7 @@ export class ActivityWatch {
     this.lastActivityNotify.delete(sessionId);
     this.lastOutputViewed.delete(sessionId);
     this.lastResizeAt.delete(sessionId);
+    this.skeletons.delete(sessionId);
     this.unread.delete(sessionId);
     this.activeTurns.delete(sessionId);
     this.conversationStarted.delete(sessionId);
@@ -171,6 +206,7 @@ export class ActivityWatch {
     this.lastActivityNotify.clear();
     this.lastOutputViewed.clear();
     this.lastResizeAt.clear();
+    this.skeletons.clear();
     this.unread.clear();
     this.activeTurns.clear();
     this.conversationStarted.clear();
@@ -197,6 +233,19 @@ export class ActivityWatch {
       this.stopIfIdle();
       if (changed) this.host.onChange();
     }, 1000);
+  }
+
+  /** 分片是否空闲重绘:可见骨架(仅 \p{L}\p{N})为空或复现于最近窗口。
+   *  非重绘分片顺带入窗(骨架非空才记)。 */
+  private isIdleRedraw(sessionId: string, visibleText: string): boolean {
+    const skeleton = visibleText.replace(SKELETON_RE, "");
+    if (skeleton === "") return true;
+    const seen = this.skeletons.get(sessionId) ?? [];
+    if (seen.includes(skeleton)) return true;
+    seen.push(skeleton);
+    if (seen.length > IDLE_SKELETON_WINDOW) seen.shift();
+    this.skeletons.set(sessionId, seen);
+    return false;
   }
 
   private stopIfIdle(): void {
