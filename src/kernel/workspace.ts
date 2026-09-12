@@ -7,9 +7,10 @@
  * 会话数据源: 各 CLI 插件 listSessions 扫自己的磁盘存储,本模块不持有映射。
  */
 
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { ipc } from "./ipc";
 import { deriveWorkspaceName } from "./pathUtils";
+import { isOrphanOriginWorkspace, useWorkspaceOrigins } from "./workspaceOrigins";
 
 export interface Workspace {
   /** 全局唯一 id(短随机字符串)。 */
@@ -107,7 +108,7 @@ export function addWorkspace(root: string, wsl?: { distro: string; hostId: strin
 export function removeWorkspace(id: string): void {
   state.list = state.list.filter((w) => w.id !== id);
   if (state.activeId === id) {
-    state.activeId = state.list[0]?.id ?? null;
+    state.activeId = visibleList(state.list)[0]?.id ?? null;
   }
   void persist();
   emit();
@@ -145,21 +146,31 @@ export function workspaceDisplayName(ws: Workspace): string {
 }
 
 export function getActiveWorkspace(): Workspace | null {
-  return state.list.find((w) => w.id === state.activeId) ?? null;
+  return visibleList(state.list).find((w) => w.id === state.activeId) ?? null;
 }
 
-/** 工作区全表快照(会话锚点等非 React 消费方)。 */
+/** 工作区展示视图快照(会话锚点等非 React 消费方):孤儿来源工作区已剔除。 */
 export function getWorkspaces(): Workspace[] {
-  return state.list;
+  return visibleList(state.list);
+}
+
+/** 展示视图 = 全表剔除孤儿(来源插件被拔出后无人认领的工作区;数据留盘,
+ *  插件插回即恢复)。origin 注册表变化不触发本模块 emit:React 侧经
+ *  useWorkspaceOrigins 订阅驱动重算,非 React 侧调用即读现值。 */
+function visibleList(src: readonly Workspace[]): Workspace[] {
+  return src.filter((w) => !isOrphanOriginWorkspace(w));
 }
 
 export function useWorkspaces(): WorkspaceState {
   ensureWorkspaceBooted();
-  return useSyncExternalStore(
+  const snap = useSyncExternalStore(
     (fn) => {
       listeners.add(fn);
       return () => listeners.delete(fn);
     },
     () => snapshot,
   );
+  /* origins 引用变化(来源插件注册/注销)即重算可见集。 */
+  const origins = useWorkspaceOrigins();
+  return useMemo(() => ({ list: visibleList(snap.list), activeId: snap.activeId }), [snap, origins]);
 }

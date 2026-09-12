@@ -21,10 +21,7 @@ import { t } from "@kernel/i18n";
 import type { Plugin } from "@kernel/plugin";
 import { Mounts } from "@kernel/Mounts";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
-import {
-  findWorkspaceOrigin,
-  useWorkspaceOrigins,
-} from "@kernel/workspaceOrigins";
+import { findWorkspaceOrigin, useWorkspaceOrigins } from "@kernel/workspaceOrigins";
 import { spinRemainder } from "@kernel/spin";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { registerSessionRevealHandler } from "@kernel/sessionReveal";

@@ -76,6 +76,13 @@ export function findWorkspaceOrigin(ws: Workspace): WorkspaceOrigin | null {
   return origins.find((o) => o.matches(ws)) ?? null;
 }
 
+/** 来源插件已拔出后的孤儿工作区:带来源元数据(ws.wsl,kernel 透传 schema 字段)
+ *  但无任何已注册来源认领 —— 来源插件被禁用(重启生效)后,面板应隐藏该工作区,
+ *  而非伪装成本地目录工作区继续显示。数据仍留在盘上,插件插回即恢复。 */
+export function isOrphanOriginWorkspace(ws: Workspace): boolean {
+  return !!ws.wsl && !origins.some((o) => o.matches(ws));
+}
+
 /** React 订阅端(面板随插件注册/注销重渲)。 */
 export function useWorkspaceOrigins(): readonly WorkspaceOrigin[] {
   return store.useStore().origins;

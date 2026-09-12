@@ -233,3 +233,45 @@ describe("setWorkspaceAlias / workspaceDisplayName", () => {
     expect(w2 && ws.workspaceDisplayName(w2)).toBe("支付后端");
   });
 });
+
+describe("孤儿来源工作区过滤(来源插件拔出后隐藏)", () => {
+  /* 动态 import 例外:与文件头同一理由 —— 来源注册表是模块级单例,
+     必须借 beforeEach 的 resetModules 取与 ws 同代的新实例。 */
+  let reg: typeof import("./workspaceOrigins");
+  beforeEach(async () => {
+    reg = await import("./workspaceOrigins");
+  });
+
+  const wslMeta = { distro: "Ubuntu", hostId: null };
+
+  it("无来源认领:带 wsl 元数据的工作区不入展示视图,本机 UNC 形态不受影响", () => {
+    const orphan = ws.addWorkspace("/home/cxn", wslMeta);
+    const unc = ws.addWorkspace("\\\\wsl.localhost\\Ubuntu\\home\\proj");
+    ws.setActiveWorkspace(orphan.id);
+    expect(ws.getWorkspaces().map((w) => w.id)).toEqual([unc.id]);
+    expect(ws.getActiveWorkspace()).toBeNull();
+    /* 数据留盘:持久化仍是全表(含孤儿) */
+    expect(ipcMock.configWriteWorkspaces).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        list: expect.arrayContaining([
+          expect.objectContaining({ id: orphan.id }),
+          expect.objectContaining({ id: unc.id }),
+        ]),
+      }),
+    );
+  });
+
+  it("来源注册后可见,注销即回孤儿(插拔往返)", () => {
+    const w = ws.addWorkspace("/home/cxn", wslMeta);
+    ws.setActiveWorkspace(w.id);
+    const off = reg.registerWorkspaceOrigin({
+      id: "wsl",
+      label: "WSL",
+      matches: (x) => !!x.wsl,
+    });
+    expect(ws.getWorkspaces().map((x) => x.id)).toContain(w.id);
+    expect(ws.getActiveWorkspace()?.id).toBe(w.id);
+    off();
+    expect(ws.getWorkspaces()).toHaveLength(0);
+  });
+});
