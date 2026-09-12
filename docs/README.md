@@ -27,7 +27,7 @@
 | 2026-09-01 | [omp CLI 学习笔记(14 课主课 + prompts/ 用户速查)](research/omp-cli-course/README.md) | 已完结 |
 | 2026-09-03 | [omp 最近版本升级记录(v18.0.7-18.1.6)](research/omp-cli-course/releases.md) | 持续更新 |
 | 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-06 校准) |
-| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-07 校准:删除意图 tombstone/会话删除顺序/归档容量与分页/dsh 删除与空壳契约) |
+| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-07 校准:删除意图 tombstone/会话删除顺序/归档容量与分页/dsh 删除与空壳契约;**09-10 校准**:dsh 5.2 改以 0.1.2 斜杠方法面 + /api/remote.mux 双流实测契约,补 react-doctor 治理原则 9 表) |
 | 2026-09-01 | [Composer 工具栏设计](superpowers/specs/2026-09-01-composer-toolbar-design.md) | 已确认 |
 | 2026-09-01 | [Composer 富输入框设计原型](design/composer-design.html) | 已落地 |
 | 2026-09-01~02 | [UI 原型:composer 工具栏 / 欢迎页额度 / 设置面板 / 消息锚点栏 / git 文件列表 ×3 / 批审阅面板 / 插排](prototypes/) | 设计定稿配套 |
@@ -104,7 +104,7 @@
 | 2026-09-08 | [智能体/提示词资产设计:composer 双触发 + 设置管理](superpowers/specs/2026-09-08-assistant-assets-design.md) | 已落地(实现随 fa24fa3 提交;差异与遗漏标记见 spec 文末实现对照) |
 | 2026-09-08 | [早晚场提交代码审核(19 笔,1 高/5 P1/15 P2)](review/2026-09-08-evening-commits-review.md) | 已完成(报告;高与 P1 已修复,桩目检通过) |
 | 2026-09-09 | [0.1.3 发布区全量代码审查(48 提交,三路并行)](review/2026-09-09-0.1.3-release-review.md) | 已完成(报告;P0 口径已修正,整改清单待拍板) |
-| 2026-09-09 | [工作区别名:显示名覆盖(行内重命名)](superpowers/specs/2026-09-09-workspace-alias-design.md) | 待评审(设计定稿,确认后实现) |
+| 2026-09-09 | [工作区别名:显示名覆盖(行内重命名)](superpowers/specs/2026-09-09-workspace-alias-design.md) | 已落地(commit 9ed4911;实现随 spec 同提交) |
 | 2026-09-09 | [工作区分组:侧栏分组 + 设置页管理 + 右键移动(参考 codemoss)](superpowers/specs/2026-09-09-workspace-groups-design.md) | 已落地(3d22cc7;实现随 spec 同提交) |
 | 2026-09-09 | [快捷键改键 + 悬浮提示键位(对标 codemoss)](superpowers/specs/2026-09-09-shortcuts-remap-tooltip-design.md) | 已落地(f6f334a + 9a758f5;实现随 spec 同提交) |
 | 2026-09-09 | [CLI 独立配置:图形化编辑各 CLI 本地配置(交互原型)](design/cli-config-gui.html) | 已落地(提案 openspec/changes/cli-gui-config/,实现随提案同提交) |
@@ -116,5 +116,24 @@
 | 2026-09-10 | [Ask 提醒不及时/后台不出现:写后抑制窗误伤根因评审与修复](review/2026-09-10-ask-watch-write-gate-review.md) | 已完成(修复随记录同在工作树) |
 | 2026-09-10 | [checkpoints 工作区外文件入账设计](superpowers/specs/2026-09-10-checkpoints-external-files-design.md) | 已落地(当日实施) |
 | 2026-09-10 | [README/README_EN 双语刷新(10 CLI/25 注册插件/本机插件/CLI 独立配置/v0.1.4 产物矩阵,5 张新截图)](../README_EN.md) | 已落地 |
+| 2026-09-10 | [0.1.4 周期全量代码评审(1 blocker + 1 major + 15 minor)](review/2026-09-10-0.1.4-cycle-review.md) | 已完成并全部修复(信任闸闭环 + 激活状态机修正,验证全绿) |
+| 2026-09-10 | [codemoss(ccgui-next) 插件系统 vs tmd-cli 插件架构对比评审](review/2026-09-10-codemoss-plugin-architecture-comparison.md) | 已完成(六维对照 + 互鉴清单;两侧事实均实读核实) |
+| 2026-09-10 | [首页重设计 · 终端窗体全动作行(定稿方案)](design/home-redesign-s-full-actions.html) | 已定稿(探索批 A-R/T-W 已废弃删除;spec 见同日 superpowers/specs) |
+| 2026-09-11 | [首页终端窗体重设计(全动作行):welcome 整页重构 + 行内动作簇 + 新会话直达](superpowers/specs/2026-09-11-home-terminal-redesign-design.md) | 已确认(实现随本 spec 提交) |
+| 2026-09-10 | [react-doctor 治理链 + dsh 0.1.2 适配评审](review/2026-09-10-react-doctor-refactor-review.md) | 已落地(本日审完即修;P1×3/P2×3 全部修完,验证全绿;P3×7 缓修) |
+| 2026-09-10 | [Composer 输入历史(召回 + ghost 补全 + 管理区)需求澄清](brainstorm/2026-09-10-composer-prompt-history.md) | 已落地(kernel/promptHistory + composer 三拆件 + settings 新字段;当日实施并目检) |
+| 2026-09-10 | [Composer 输入历史落地自评审(2 个 P2 当场修复 + 3 个 P3 缓修)](review/2026-09-10-composer-prompt-history-review.md) | 已完成(合成事件展开丢原型方法事故记录;验证全绿) |
+| 2026-09-11 | [首页 token 用量 dashboard 设计原型(按引擎 + 近 7 日趋势)](design/token-usage-dashboard.html) | 已定稿(方案 B;vision 6 轮回归通过) |
+| 2026-09-11 | [首页 token 用量 dashboard 设计(welcome 新增 TokenDashboard,本地 JSONL usage 聚合)](superpowers/specs/2026-09-11-token-dashboard-design.md) | 已落地(TokenDashboard + tokens 聚合层 + 单测;零消耗隐藏、量标柱尖) |
+| 2026-09-11 | [CLI 独立配置:供应商渠道(Provider Channels,claude+codex 真切换 + ccswitch 手动导入)](superpowers/specs/2026-09-11-cli-provider-channels-design.md) | 待评审(设计定稿,未提交;OMP/PI 与 API Key/自定义/OAuth 留 V2+) |
+| 2026-09-11 | [会话档案馆设计:跨引擎会话检索 + 零进程只读回放 + 日志保留策略](superpowers/specs/2026-09-11-session-archive-design.md) | 暂缓(09-11 价值复核不排期;M1 元数据档案+保留策略 → M2 FTS5 trigram 全文 → M3 跨源出口,待触发重启) |
+| 2026-09-11 | [会话生命周期状态机契约:四态模型 / 八条不变量 / 闸门矩阵 / 七次事故账本](architecture/08-session-lifecycle.md) | 生效中(核心基础;改 activityWatch 前必读) |
+| 2026-09-11 | [横评广播:同一 prompt 并行喂 N 个引擎 + 活幕布真并排(鱼骨 DAG 的 1/10 兑现)](superpowers/specs/2026-09-11-collab-broadcast-design.md) | 已废弃(实施后验收否决广播编排;分屏红利改「会话 tab 平铺显示」落地,spec 留档备鱼骨重启) |
+| 2026-09-11 | [横评广播交互原型(浅色 4 态:入口 / 选引擎 / 分屏 / 失败终态)](design/collab-broadcast-prototype.html) | 设计原型(随 spec 废弃留档) |
+| 2026-09-11 | [WSL 工作区 M1 设计:kind 路由 + UNC 现有原语复用](superpowers/specs/2026-09-11-wsl-workspace-m1-design.md) | 已落地(2026-09-12 十六轮实施验收,双形态真机通过;契约沉淀 architecture/09-wsl-contract.md) |
+| 2026-09-11 | [WSL 支持交互原型 ×3(连接与远程调用 / 会话列表管理 / 文件工作区)](prototypes/) | 设计原型(调研结论:Workspace kind/distro + wsl.exe spawn 包装 + UNC 喂现有 fs 原语;git M1 降级) |
+| 2026-09-11 | [后台会话「等待确认」不出现:字节通道结构性漏检评审与屏幕镜像修复](review/2026-09-11-ask-background-mirror-review.md) | 已完成(修复随记录同在工作树;真实日志回放实证 + 桩目检徽章上屏) |
+| 2026-09-11 | [活动守望证据分级模型:轮次状态机根治重构(content/tick/static 三级分类 + 证据钟 + 空轮宽限)](superpowers/specs/2026-09-11-activity-watch-evidence-model-design.md) | 已落地(真实 omp 字节流回放验收;08 契约同步修订) |
+| 2026-09-12 | [WSL 支持契约:发行版建模 / 双通道 spawn / 远程内省 / 分组身份 / 降级矩阵](architecture/09-wsl-contract.md) | 生效中(openspec/changes/wsl-workspace-m1 收口;改 wsl 插件/远程会话链路前必读) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

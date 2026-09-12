@@ -13,6 +13,9 @@
  * - 首条用户消息保底(promptSent 事件):磁盘 AI 命名晚于文件出生 35s+(omp 懒落盘
  *   实证),保底标题线上即时可得;磁盘原生标题后到自然覆盖(行链 disk > 保底)。
  * - 不持久化:PTY 会话不跨应用重启存活,持久化只能恢复死 id。
+ * - 平铺显示(tile):打开的 tab 全部并排同屏(参照 codeg tile display);
+ *   全局开关 localStorage 持久(会话不持久,开关比它活得久),容量挤除/会话消失
+ *   时平铺集合随 ids 收敛。
  */
 
 import { createSubscribable } from "./subscribable";
@@ -30,20 +33,42 @@ subscribeSettings(() => {
 interface SessionTabsState {
   /** 打开次序(早 → 晚)的活会话 tab id(tmd PTY id,非 CLI 磁盘 id)。 */
   ids: readonly string[];
+  /** 平铺显示开关(全局,localStorage 持久):开启且 ids ≥2 时幕布并排全部 tab。 */
+  tile: boolean;
 }
 
-const state: SessionTabsState = { ids: [] };
+const TILE_KEY = "tmd.sessionTabs.tile";
+const readTile = (): boolean => {
+  try {
+    return localStorage.getItem(TILE_KEY) === "true";
+  } catch {
+    return false; // 无 localStorage 环境(Node 测试)退化为关
+  }
+};
+
+const state: SessionTabsState = { ids: [], tile: readTile() };
 const titleHints = new Map<string, string>();
 /** 首条用户消息保底标题:key = tmd 会话 id。纯内存,存活剪除同 titleHints。 */
 const baselines = new Map<string, string>();
 const store = createSubscribable<SessionTabsState>(state);
 
 function emit(): void {
-  store.commit({ ids: state.ids });
+  store.commit({ ids: state.ids, tile: state.tile });
 }
 
 function commit(ids: readonly string[]): void {
   state.ids = ids;
+  emit();
+}
+
+/** 平铺开关(toggle 语义;localStorage 尽力持久,失败静默)。 */
+export function toggleSessionTile(): void {
+  state.tile = !state.tile;
+  try {
+    localStorage.setItem(TILE_KEY, String(state.tile));
+  } catch {
+    /* 无存储环境仅内存态 */
+  }
   emit();
 }
 
@@ -167,6 +192,11 @@ export function getSessionTabs(): readonly string[] {
   return store.snapshot.ids;
 }
 
+/** 平铺开关非 React 读取(渲染期现读/测试断言)。 */
+export function getSessionTile(): boolean {
+  return store.snapshot.tile;
+}
+
 /** React 组件订阅 tab 条变化(useSyncExternalStore,免引入状态库)。
  *  返回快照对象本身(引用随每次 emit 更新):标题快照 noteSessionTabTitle
  *  只改旁表不动 ids 数组,靠快照对象换引用驱动标签重渲染。 */
@@ -178,6 +208,7 @@ export function useSessionTabs(): SessionTabsState {
 export function resetSessionTabsForTest(): void {
   booted = false;
   deps = hostDeps;
+  state.tile = false;
   commit([]);
   titleHints.clear();
   baselines.clear();

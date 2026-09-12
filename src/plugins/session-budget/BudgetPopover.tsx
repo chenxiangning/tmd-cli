@@ -39,13 +39,6 @@ function wireCommit(commit: (input: HTMLInputElement) => void) {
   };
 }
 
-/** 弹窗定位:以锚点为左上,按估算尺寸在视口内夹取(同 clampMenuPosition 思路)。 */
-export function clampBudgetPosition(x: number, y: number): { x: number; y: number } {
-  return {
-    x: Math.min(x, window.innerWidth - 340 - 12),
-    y: Math.min(y, window.innerHeight - 480 - 12),
-  };
-}
 
 export function BudgetPopover({
   position,
@@ -103,7 +96,7 @@ export function BudgetPopover({
 
   return createPortal(
     <>
-      <div className="wsmenu-backdrop" onClick={onClose} />
+      <div className="wsmenu-backdrop" role="presentation" onClick={onClose} />
       <div
         className="wsbudget"
         style={{ left: position.x, top: position.y }}

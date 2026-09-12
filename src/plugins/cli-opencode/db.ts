@@ -51,7 +51,7 @@ export {
 const USER_MSG_TAIL = 40;
 
 /** opencode.db 路径;数据目录解析失败 = null(调用方按能力缺失降级)。 */
-export async function opencodeDbPath(): Promise<string | null> {
+async function opencodeDbPath(): Promise<string | null> {
   const dir = await opencodeDataDir();
   return dir ? `${dir}/opencode.db` : null;
 }

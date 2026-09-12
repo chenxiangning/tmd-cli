@@ -63,6 +63,7 @@ function mkService(findAlive: (id: string) => boolean = () => true) {
     removeSession: vi.fn(async () => {}),
     trackUnlisten: vi.fn(),
     getSessions: vi.fn((): SessionMeta[] => []),
+    setActiveSession: vi.fn(),
     notify: vi.fn(),
   };
   const events = new EventBus();
@@ -110,6 +111,12 @@ describe("ShellSessionService", () => {
       { topic: KernelTopics.sessionsChanged, payload: h.getSessions() },
       { topic: KernelTopics.activeSessionChanged, payload: "s1" },
     ]);
+    expect(h.setActiveSession).toHaveBeenCalledWith("s1");
+    /* 守卫判活依据 = 刷新后的会话表:漏刷则新会话恒判「装配期间被移除」 */
+    expect(h.refreshSessions).toHaveBeenCalledTimes(1);
+    expect(h.refreshSessions.mock.invocationCallOrder[0]).toBeLessThan(
+      h.trackUnlisten.mock.invocationCallOrder[0],
+    );
   });
 
   it("exit 清场:removeSession + sessionExited 广播;已删会话的迟到输出不复活缓冲", async () => {

@@ -1,53 +1,24 @@
 /**
  * 全屏查看器 —— 原 Mermaid/ImageFullscreenViewer 双生子合并。
- *
  * createPortal 到 document.body,逃出任何 overflow:hidden 祖先;
  * viewerjs modal 模式不自动 show,必须显式 viewer.show();
  * 主题切换经 MutationObserver(data-theme/data-theme-preset)触发 viewer.update()。
- * 差异点经 props 注入:
+ * src 解析(image→dataURL / mermaid→Base64)拆至 viewerSrcModel.ts
+ * (only-export-components)。差异点经 props 注入:
  * - resolveSrc:源串 → viewerjs 可加载 src
  * - navigation:true = image 变体(navbar/prev/next);false = mermaid 单图(zIndex 1300)
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type Viewer from "viewerjs";
-import { ipc } from "@kernel/ipc";
 import {
   destroyActiveViewer,
   getActiveViewer,
   preloadViewerStyles,
   preloadViewerjs,
   setActiveViewer,
-  svgToDataUrl,
 } from "./viewerRuntime";
-
-const DIRECT_LOADABLE_PREFIX = /^(?:https?:|data:|blob:|asset:)/i;
-
-/** viewerjs 可直接加载的 src 原样放行;本地路径走 Tauri 桥转 dataURL,失败回退原始 src。 */
-export async function resolveImageViewerSrc(src: string): Promise<string> {
-  if (!src || DIRECT_LOADABLE_PREFIX.test(src)) {
-    return src;
-  }
-  try {
-    const dataUrl = await ipc.readLocalImageDataUrl(src);
-    return dataUrl || src;
-  } catch {
-    return src;
-  }
-}
-
-// 单槽缓存即可:同时只有一个全屏 viewer 存活,跨块切换重算一次 btoa 可忽略
-let mermaidSourceCache: { svg: string; dataUrl: string } | null = null;
-
-/** Mermaid SVG → XML-safe Base64 data URL(缓存最近一次转换)。 */
-export function resolveMermaidViewerSrc(svg: string): Promise<string> {
-  if (mermaidSourceCache?.svg !== svg) {
-    mermaidSourceCache = { svg, dataUrl: svgToDataUrl(svg) };
-  }
-  return Promise.resolve(mermaidSourceCache.dataUrl);
-}
-
 
 export function FullscreenViewer({
   open,
@@ -68,10 +39,32 @@ export function FullscreenViewer({
 }) {
   const imgRef = useRef<HTMLImageElement | null>(null);
   const onCloseRef = useRef(onClose);
+  /* viewer 句柄随 ref 供主题观察器跨 effect 读取;viewerSeq 触发观察器随 viewer 重建。 */
+  const viewerRef = useRef<Viewer | null>(null);
+  const [viewerSeq, setViewerSeq] = useState(0);
 
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+
+  /* 主题切换 → viewer 重算配色(观察器独立 effect:同步创建同步清理,
+     生命周期可追溯;原与 async 建 viewer 混在一个 effect 里,扫描器无法
+     穿透 IIFE 追 cleanup)。观察器创建时机仍在 viewer.show() 之后,同旧版。 */
+  useEffect(() => {
+    if (!viewerSeq) return;
+    const themeObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.attributeName === "data-theme" || mutation.attributeName === "data-theme-preset") {
+          try {
+            viewerRef.current?.update();
+          } catch { /* viewer 可能已销毁 */ }
+          break;
+        }
+      }
+    });
+    themeObserver.observe(document.documentElement, { attributes: true });
+    return () => themeObserver.disconnect();
+  }, [viewerSeq]);
 
   useEffect(() => {
     if (!open || !src) {
@@ -80,8 +73,6 @@ export function FullscreenViewer({
     void preloadViewerStyles();
 
     let cancelled = false;
-    let viewer: Viewer | null = null;
-    let themeObserver: MutationObserver | null = null;
 
     (async () => {
       await preloadViewerStyles();
@@ -106,7 +97,7 @@ export function FullscreenViewer({
         window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
       try {
-        viewer = new ViewerCtor(imgRef.current, {
+        viewerRef.current = new ViewerCtor(imgRef.current, {
           container: document.body,
           inline: false,
           title: false,
@@ -128,7 +119,8 @@ export function FullscreenViewer({
           },
           shown() {
             if (cancelled) return;
-            setActiveViewer(viewer);
+            setActiveViewer(viewerRef.current);
+            setViewerSeq((n) => n + 1);
           },
           hidden() {
             if (cancelled) return;
@@ -142,33 +134,22 @@ export function FullscreenViewer({
 
       if (cancelled) {
         try {
-          viewer.destroy();
+          viewerRef.current.destroy();
         } catch { /* ignore */ }
         return;
       }
-      viewer.show();
-
-      themeObserver = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          if (mutation.attributeName === "data-theme" || mutation.attributeName === "data-theme-preset") {
-            try {
-              viewer?.update();
-            } catch { /* viewer 可能已销毁 */ }
-            break;
-          }
-        }
-      });
-      themeObserver.observe(document.documentElement, { attributes: true });
+      viewerRef.current.show();
     })();
 
     return () => {
       cancelled = true;
-      themeObserver?.disconnect();
+      const viewer = viewerRef.current;
       if (viewer) {
         try {
           viewer.destroy();
         } catch { /* ignore */ }
       }
+      viewerRef.current = null;
       if (getActiveViewer() === viewer) {
         setActiveViewer(null);
       }

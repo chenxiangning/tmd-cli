@@ -13,6 +13,7 @@ import { ipc, type SessionMeta, type SpawnSpec, type SpawnedSession } from "./ip
 import { adoptPtySession, ADOPT_RACE_REASON } from "./sessionAdopt";
 import { prefetchDiskTail } from "./diskReplay";
 import type { CliProfile } from "./cli";
+import { applySpecWrappers } from "./ptyAdapters";
 
 /** spawn 后多久内退出视为「启动失败」。node 系 CLI 冷启动数秒,窗口取宽些。 */
 const START_FAIL_WINDOW_MS = 20_000;
@@ -152,7 +153,12 @@ export class SessionSpawnService {
       cwd,
       env: profile.env,
     };
-    if (profile.spawnTransform) spec = await profile.spawnTransform(spec);
+    /* 来源类工作区(如 UNC cwd = WSL 发行版)的包装经 ptyAdapters 注册表注入;
+       与 spawnTransform 互斥 —— 自带 transform 的 profile(dsh)完全接管进程形态
+       (工作区 root 对它只是 cwd 标签),再包一层会把适配器进程塞进错误命名空间。 */
+    spec = profile.spawnTransform
+      ? await profile.spawnTransform(spec)
+      : await applySpecWrappers(spec);
     const spawnedAt = Date.now();
     /* 快照既有磁盘会话(id → 快照时 mtime):spawn 后 CLI 新落盘/复活的文件据此绑到活会话。
        快照失败 → null → 退化到 spawn 水位线判定(只认 spawn 后的落盘/增长),
@@ -211,8 +217,10 @@ export class SessionSpawnService {
       cwd,
       env: profile.env,
     };
-    /* resume 同过 transform(dsh:--resume 标记 → 适配器 --session-id;契约与 spawnNew 一致) */
-    if (profile.spawnTransform) spec = await profile.spawnTransform(spec);
+    /* resume 同过 transform(契约与 spawnNew 一致;来源包装互斥的裁决同源) */
+    spec = profile.spawnTransform
+      ? await profile.spawnTransform(spec)
+      : await applySpecWrappers(spec);
     const task = (async () => {
       try {
         const spawned = await this.spawn(profileId, spec, workspaceId);

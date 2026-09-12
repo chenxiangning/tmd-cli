@@ -70,8 +70,8 @@ flowchart TB
         PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出"]
         SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
         RESOLVE["resolve.rs<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
-        PROBE["probe.rs<br/>CLI 探针 found/path/version(8s 超时)"]
-        INST["installer.rs<br/>参数化安装执行器(InstallPlan:npm/script/command)<br/>配方由前端 CliProfile 声明"]
+        PROBE["probe.rs<br/>CLI 探针 found/path/version/npmPrefix(8s 超时)"]
+        INST["installer.rs<br/>参数化安装执行器(InstallPlan:npm/script/command)<br/>配方由前端 CliProfile 声明;npm 通道按 npmPrefix 就地更新"]
         SQL["sqlite.rs<br/>只读 sqlite 通用代读(参数化)<br/>CLI 私有库知识在插件侧"]
         SESS["session.rs — SessionRegistry<br/>活会话纯内存表(不落盘)<br/>workspaces.json 持久化"]
         FS["fs.rs<br/>list_dir / read_file / read_head / read_tail<br/>collect_files / write_temp / remove_path(白名单)<br/>read_local_image_data_url(md 预览)"]
@@ -312,13 +312,13 @@ Rust `fail_session` 在幕布内呈现,两条路径互补。
    三个覆盖层。
 4. **呼吸灯三态归内核 Host 结算（活动守望 1Hz）**：绿(2s 内有输出) → 蓝(静默结算时未被查看,
    组内置顶) → 点开即清(灰)。UI 只读 `host.isUnread`，不各自实现状态机。
-   呼吸灯锚定**用户首写**（activityWatch 首写闸）：首写前的一切输出（spawn 横幅、
-   resume 回放、TUI 重绘、迟到异步消息）不亮灯、不标未读、不发结束音 —— 静默不是
-   "用户在场"的证据。终端协议回传（焦点/鼠标/查询应答，`terminalReports.ts` 识别）
-   照写 PTY 但标 synthetic，不算用户首写。
-   轮次开启闸(2026-09-08,spec 见 superpowers/specs/2026-09-08-turn-start-gate-design.md):
-   已锚定 ≠ 任意字节可开轮 —— tab 已关且无未应答写入(awaitingTurn)的已了结 CLI 会话,
-   异步噪音不开轮、不标未读;在途轮次与 ssh/shell「输出即活动」会话豁免闸门。
+   完整契约(四态模型 / 八条不变量 / 闸门矩阵 / 事故账本 / 修改规则)见本目录
+   `08-session-lifecycle.md` —— 改 `kernel/activityWatch.ts` 前必读,本节只留摘要:
+   呼吸灯锚定**用户首写**(首写前输出不进灯语义);轮次开启闸(2026-09-11 收紧)只认
+   awaitingTurn/在途轮次,tab 开关与闸无关;输出分片按「字母骨架+数字串」三级分类
+   (content/tick/static,2026-09-11 证据分级模型),静默 = content+tick 证据停 >2s;
+   未应答写入有 120s 天花板保护(思考期不假结算,到期必结算);
+   resize 后 1s 抑制窗掐 SIGWINCH 重绘;终端协议回传标 synthetic 不算首写。
 4b. **Ask 等待检测三通道 + 重载恢复(ebdccc1)**:①字节流(host.appendOutput 主链,
    1024B 尾窗 + 末 5 行页脚窗 + 内核 y-N/插件 askMarks 正则)②幕布屏幕采样
    (TerminalView 1Hz,需挂载)③回放补观察(重挂载喂内存缓冲尾)。候选确认制:
@@ -345,29 +345,50 @@ Rust `fail_session` 在幕布内呈现,两条路径互补。
 ### 5.2 dsh:RPC 代读型引擎(无磁盘 JSONL 的第九家)
 
 dsh(DeepSeek Harness)会话盘是 `session.jsonl.zstd` 压缩流,fs 文本原语读不了,
-不进 5.1 表。全部磁盘语义改走 host RPC(`POST /api/<method>` client-request 信封,
-codemoss host.rs 同款),分两路:
+不进 5.1 表。全部磁盘语义改走 host RPC(`POST /api/<method>`,载荷 =
+ `{type:"client-request",rpcId,method,payload:{args:{request:{...}}}}`
+斜杠方法面信封,codemoss host.rs 同款)。
 
-- **浏览器侧(dshRpc.ts,经通用 quota_fetch HTTP 通道)**:`listSessions`(session.list
-  按 cwd 过滤)/ `readSessionStatus`(session.models current)/ `fetchQuota`
-  (projections.contextPressure)。
+- **0.1.2 契约**(实测,以代码为准;rc.1 起定型):全部请求须带 BrowserAuth
+  cookie(`dsh-auth-<x>`,自拉起时 host 打印一次性 launch token,GET
+  `/?token=` 303 set-cookie 换取;origin 变更即弃凭据);方法面 =
+  `session/list` · `session/create` · `session/cancel` · `session/modelCatalog`
+  · `session/follow`(mux 流) · `agentPresets/select` · `commands/execute` ·
+  `settings/describe` · `settings/set`;**0.1.2 起删除 host.describe /
+  session.history / session.models / session.new**(history 与 models 改由
+  session/list 自项 `items[].projections` 提供,不再单查)。响应一律 server-response
+  信封 `{type,rpcId,result:{ok,value}|{ok:false,error:{code,...}}}`。
+- **mux = WS `/api/remote.mux` 双流**(dsh-adapter.cjs:38 `MUX_URL`):
+  - 客户端 open 帧 `{type:"open", streamId, endpoint:"session/follow"|"$events", sessionId?}`
+    订阅会话事件/全局通知;
+  - 服务端帧 `{type:"item"|"open-ok"|"error"|"end", streamId, value|error}`;
+  - 会话事件分两源:session/follow 流帧 → 投影(dsh-project 纯函数)→
+    ANSI 幕布;`$events` 流承载 host 级事件(审批/提问卡 askWatch 标记);
+  - 0.1.2 起**取消 0.1.1 的 `/api/events.mux` 单流形态**,旧 client 同名 socket
+    在 0.1.2 host 直接拒接。
+- **浏览器侧(dshConnection.ts 配置域 / dshHost.ts 进程域 / dshRpc.ts 经通用
+  quota_fetch HTTP 通道,quota_fetch 支持 noRedirect+includeHeaders)**:
+  `listHostSessions`(session/list 按 cwd 过滤)/ `readSessionStatus`
+  (session/list `items[].projections.modelSelection`)/ `fetchQuota`
+  (projections.contextPressure);
+  探针 = settings/describe 的 namespaces 里的 agent-default-model。
 - **PTY 侧(adapter/*.cjs 适配器,spawnTransform 落盘 `<configHome>/adapters/dsh/`
-  后以 node 绝对路径 spawn)**:会话即一条 DSH 对话 —— stdin → session.prompt,
+  后以 node 绝对路径 spawn)**:会话即一条 DSH 对话 —— stdin → session/prompt(经
+  session/create 取 id 后),
   mux WebSocket 帧 → 投影(dsh-project 纯函数)→ ANSI 幕布;审批/提问卡
   (askMarks `[DSH 审批]`/`[DSH 提问]` 走 askWatch 检测);底栏 footer 与交互区
   点击(架构契约见 specs/2026-09-07-cli-dsh-pty-adapter-design.md)。
 - resume 标记:内核 `resumeArgs` 产 `["--resume", id]`,`spawnTransform` 翻成
   适配器 `--session-id`(内核零 dsh 协议知识)。
-- **删除(dshRpc.deleteHostSession)**:host 0.1.1-rc.2 无删除 RPC(方法面
-  session.{list,new,prompt,models,history,fork,cancel,rename,search,...} 实测
-  session.delete 404),唯一通路 = 会话盘目录;host 对 session.list **活扫描磁盘**,
+- **删除(dshRpc.deleteHostSession)**:host 0.1.2-rc.1 仍无删除 RPC(0.1.2
+  typert 清单无 session/delete;0.1.1 实测 session.delete 404),唯一通路 = 会话盘目录;
+  host 对 session.list **活扫描磁盘**,
   目录移除后列表当次同步(Web UI 同源跟随)。slug 规则不猜:会话 id 全局唯一,
   扫 `~/.dsh/sessions/<slug>/` 一层定位 `session-<id>`,找不到幂等成功;
   `fs_remove_path` 白名单已放行 `~/.dsh`。
 - **blank 空壳不过滤**:host 会在适配器接入时预创建会话,从未发消息即成空壳
   (title 缺失以「空会话」呈现)。dsh Web UI 计数含空壳,tmd-cli 曾过滤造成
   两边数量对不上(实测 springboot-demo 41 = 31 非空 + 10 空壳);空壳可见才可清。
-
 ## 6. 挂载点地图（谁贡献了哪块 UI）
 
 ```mermaid
@@ -457,8 +478,8 @@ flowchart TD
 | `session_list` | `session_commands.rs` | 活会话纯内存注册表(进程重启即空;历史恢复走各 CLI 磁盘扫描;SSH 会话独立分组) |
 | `session_write` / `session_resize` / `session_kill` | `session_commands.rs` → `pty.rs` | writer 直写 / master.resize / child.kill(写路径 spawn_blocking 防全局锁卡 UI) |
 | `session_log_size` / `session_history_page` | `session_commands.rs` + `session_log.rs` | 输出日志末尾偏移 / 绝对偏移前翻一页(转义+UTF-8 边界对齐) |
-| `cli_probe` | `probe.rs` | PATH 解析 + `--version`(8s 硬超时,spawn_blocking;输出带超时收集防孙进程握管道挂死) |
-| `cli_install_run` | `installer.rs` | 参数化 InstallPlan 执行(npm / script / command 三通道,配方由前端 CliProfile 声明),`cli-install://{id}` 流式日志(300s 超时);主引擎安装前的前置依赖门控在 welcome 引擎卡:`CliProfile.requires` 声明(如 omp→bun),依赖未就位则安装/更新按钮禁用并引导先装依赖 |
+| `cli_probe` | `probe.rs` | PATH 解析 + `--version`(8s 硬超时,spawn_blocking;输出带超时收集防孙进程握管道挂死);返回增发 `npmPrefix`:命中副本位于 npm 全局布局(unix `<X>/bin/<bin>` + `<X>/lib/node_modules`,win `<X>\<bin>.cmd` + `<X>\node_modules`)时返回其 prefix,官方原生副本(如 `.kimi-code\bin`)为 null |
+| `cli_install_run` | `installer.rs` | 参数化 InstallPlan 执行(npm / script / command 三通道,配方由前端 CliProfile 声明),`cli-install://{id}` 流式日志(300s 超时);npm 通道按探针 `npmPrefix` 加 `--prefix` 就地更新探针命中的副本(双副本遮蔽修复);主引擎安装通道由 welcome 按探针解析(`resolveInstallPlan`:npm 拥有的副本且声明通道非 script → npm,否则声明通道),前置依赖门控在引擎卡:`CliProfile.requires` 声明(如 omp→bun),依赖未就位则安装/更新按钮禁用并引导先装依赖 |
 | `sqlite_query` / `sqlite_execute` | `sqlite.rs` | 只读代读(RW 打开 + query_only 连接:重放 WAL 看到未 checkpoint 行)/ 参数化写(opencode 删除会话,foreign_keys 级联);async + spawn_blocking(cli 持写锁时不冻主线程);CLI 私有库路径/表结构知识在插件侧(cli-shared/quota/ompAuth.ts、cli-opencode/db.ts) |
 | `quota_fetch` / `quota_env_value` | `quota.rs` | 通用 HTTP 代理(15s 超时) / 只读环境变量 |
 | `platform_kind` / `app_restart` | `lib.rs` | UA 探测失败时的 OS 兜底 / 重启应用(插件启停重启生效) |
@@ -571,6 +592,7 @@ sessionExited → checkpoint_seal(兜底,最后一轮落账)
 | 会话状态只读 | `CliProfile.readSessionStatus` 负责 CLI 私有 JSONL 解析；Host 只缓存/刷新，Composer 通过 `composer.statusBar` 展示 |
 | 会话固定一个 CLI | `SessionMeta.profileId` 创建后不变；resume 用同 profile 重 spawn |
 | 幂等/防御 | `activateAll` Promise 并发闸；`registerDefaultContributions` registered 标志；`registerCliProfile` 重复即抛错 |
+| 组件治理(react-doctor 0.9.13) | 当前 710 文件得分 100/100;约束:`only-export-components`(组件文件只留组件,纯函数/常量提同级 *Model.ts)、嵌套交互治理(button 不可嵌 button → 拆 DOM 兄弟 host span,hover/焦点显形吃宿主选择器)、渲染期写 ref → useEffect、自制 `<aside role=dialog>` → 原生 `<dialog open>` 时显式中和 UA `color: canvastext` + `max-width/max-height` 钳制(至少 `color: inherit` 与 `max-w-none max-h-none`);`doctor.config.json` 豁免须带证据注释 |
 
 ## 10. 已知缺口（代码现状，非设计意图）
 

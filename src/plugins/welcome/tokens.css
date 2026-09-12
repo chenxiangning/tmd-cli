@@ -1,0 +1,95 @@
+/* ──────────────────────────────────────────────────────────
+ * Welcome 页 · tokens 用量 dashboard(引擎用量行 + 近 7 日趋势)
+ * (原型 docs/design/token-usage-dashboard.html;颜色零硬编码,--tmd-* token)
+ * ────────────────────────────────────────────────────────── */
+
+.tokens {
+  border-top: 1px solid var(--tmd-border);
+  padding: 10px 4px 12px;
+  /* 局部派生:弱化版 ok(输入/缓存段),自 --tmd-ok 派生,零硬编码。 */
+  --tmd-ok-dim: color-mix(in srgb, var(--tmd-ok) 30%, transparent);
+}
+
+.tokens-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; }
+.tokens-head h3 {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--tmd-fg-faint);
+}
+.tokens-stats { margin-left: auto; display: flex; gap: 18px; font-size: 0.6875rem; }
+.tokens-stats .k { color: var(--tmd-fg-faint); }
+.tokens-stats .v { color: var(--tmd-fg); }
+.tokens-stats .v.hot { color: var(--tmd-warn); }
+
+.tokens-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.tokens-grid .col { min-width: 0; padding-right: 16px; }
+.tokens-grid .col + .col {
+  border-left: 1px solid var(--tmd-border); padding-left: 16px; padding-right: 0;
+}
+
+/* 引擎用量行:名 / 占比条 / 量 / 占比 —— 对齐 QUOTA 行语言 */
+.trow {
+  display: grid;
+  grid-template-columns: 9rem 1fr 2.5rem;
+  gap: 8px;
+  align-items: center;
+  line-height: 1.9;
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-muted);
+  white-space: nowrap;
+}
+.trow .en { display: flex; gap: 6px; align-items: center; overflow: hidden; }
+.trow .en .nm { overflow: hidden; text-overflow: ellipsis; }
+/* 柱轨:细条居中,量值叠在轨右侧(零消耗行整行隐藏,无 — 态)。 */
+.trow .bar { position: relative; height: 1.6em; }
+.trow .bar .strip { display: block; position: absolute; left: 0; top: 50%; height: 8px; transform: translateY(-50%); border-radius: 1px; }
+.trow .bar .strip.in { background: var(--tmd-ok-dim); width: var(--w, 0%); }
+.trow .bar .strip.out { background: var(--tmd-ok); width: var(--ow, 0%); }
+.trow .bar .bv {
+  position: absolute;
+  left: min(calc(var(--w, 0%) + 6px), calc(100% - 3.5rem));
+  top: 50%; transform: translateY(-50%);
+  color: var(--tmd-fg);
+  padding: 0 2px;
+}
+.trow .pct { text-align: right; color: var(--tmd-fg-faint); }
+
+/* 近 7 日趋势柱 */
+.trend { display: flex; align-items: flex-end; gap: 10px; height: 116px; padding-top: 4px; }
+.trend .day {
+  flex: 1; display: flex; flex-direction: column; justify-content: flex-end;
+  height: 100%; gap: 6px; min-width: 0;
+}
+.trend .day .stack {
+  position: relative; display: flex; flex-direction: column;
+  justify-content: flex-end; flex: 1; min-height: 0;
+}
+.trend .day .stack i { display: block; position: absolute; left: 0; bottom: 0; }
+.trend .day .stack .in {
+  background: var(--tmd-ok-dim); width: 100%;
+  border-top: 2px solid var(--tmd-ok); border-radius: 1px;
+}
+.trend .day .stack .out { background: var(--tmd-ok); height: 35%; width: var(--w, 100%); border-radius: 1px; }
+.trend .day .lab { font-size: 0.75rem; color: var(--tmd-fg-muted); text-align: center; white-space: nowrap; padding: 2px 0; }
+.trend .day.today .lab { color: var(--tmd-fg); font-weight: 600; }
+
+.trend-foot { display: flex; gap: 16px; margin-top: 6px; font-size: 0.6875rem; color: var(--tmd-fg-faint); }
+.trend-foot .sw { display: inline-block; width: 8px; height: 8px; margin-right: 4px; vertical-align: -1px; }
+
+.tokens-empty { font-size: 0.75rem; color: var(--tmd-fg-faint); padding: 2px 6px; }
+.tokens .note { margin-top: 8px; font-size: 0.6875rem; color: var(--tmd-fg-faint); opacity: 0.85; }
+.tokens .note button {
+  border: none; background: none; padding: 0; color: var(--tmd-fg-muted);
+  font: inherit; text-decoration: underline; cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .tokens-grid { grid-template-columns: 1fr; }
+  .tokens-grid .col + .col {
+    border-left: none; border-top: 1px solid var(--tmd-border); padding-left: 0; padding-top: 8px;
+  }
+  .tokens-stats { display: none; }
+}

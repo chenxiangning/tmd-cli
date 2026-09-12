@@ -7,7 +7,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { listHostSessions, deleteHostSession } from "./dshRpc";
-import type { DshConnection } from "./dshHost";
+import type { DshConnection } from "./dshConnection";
 
 const ipcMocks = vi.hoisted(() => ({
   quotaFetch: vi.fn(),
@@ -21,14 +21,15 @@ vi.mock("@kernel/ipc", () => ({ ipc: ipcMocks }));
 vi.mock("./dshHost", () => ({
   originOf: (conn: { host: string; port: number }) => `http://${conn.host}:${conn.port}`,
   waitForHostReady: waitMocks.waitForHostReady,
+  authHeaders: (conn: { cookie?: string }) => (conn.cookie ? { cookie: conn.cookie } : {}),
 }));
-
+/* rpc 经 authHeaders(mock)读 conn.cookie;此文件不测回读逻辑(在 dshHost.test)。 */
 afterEach(() => {
   for (const m of Object.values(ipcMocks)) m.mockReset();
   waitMocks.waitForHostReady.mockReset();
 });
 
-const CONN: DshConnection = { host: "127.0.0.1", port: 3080, customBin: "", autoStart: true };
+const CONN: DshConnection = { host: "127.0.0.1", port: 3080, customBin: "", autoStart: true, cookie: "dsh-auth-x=v1.a" };
 
 /** host-RPC 信封(200 + server-response ok)。 */
 const ok = (items: unknown[]) => ({
@@ -100,7 +101,7 @@ describe("listHostSessions 启动竞态补扫", () => {
     expect(ipcMocks.quotaFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("首次即成功:不等待", async () => {
+  it("首次即成功:不等待;线格式 = session/list + {_request} + cookie 头", async () => {
     ipcMocks.quotaFetch.mockResolvedValueOnce(ok([ITEM("/ws")]));
     waitMocks.waitForHostReady.mockResolvedValue({ provider: "p" });
 
@@ -108,6 +109,14 @@ describe("listHostSessions 启动竞态补扫", () => {
 
     expect(rows).toHaveLength(1);
     expect(waitMocks.waitForHostReady).not.toHaveBeenCalled();
+    const call = ipcMocks.quotaFetch.mock.calls[0][0] as {
+      url: string;
+      headers: Record<string, string>;
+      body: string;
+    };
+    expect(call.url).toBe("http://127.0.0.1:3080/api/session/list");
+    expect(call.headers.cookie).toBe("dsh-auth-x=v1.a");
+    expect(JSON.parse(call.body).payload).toEqual({ args: { _request: {} } });
   });
 });
 

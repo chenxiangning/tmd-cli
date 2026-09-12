@@ -53,6 +53,14 @@ interface DiskIdentityContext {
   onBound: (sessionId: string, cliSessionId: string) => void;
 }
 
+/** 定时等待(递归探测的节拍;无循环等待)。 */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** 快相位探测间隔(30 × 500ms = 首条消息典型落盘窗口)。 */
+const DETECT_FAST_MS = 500;
+
 export class DiskIdentityWatch {
   private readonly pending = new Map<string, PendingIdentity>();
 
@@ -89,9 +97,11 @@ export class DiskIdentityWatch {
     /* unmatched = 文件读出了身份但不属于我(cwd 不符/归属兄弟)→ 强拒绝,等下一个文件;
        unreadable = 读不出身份或证据不足以唯一仲裁 → 才允许退回水位线仲裁。 */
     if (profile.readSessionFileIdentity) {
-      const siblingSpawns = [...this.pending]
-        .filter(([id, p]) => id !== sessionId && p.profileId === pending.profileId && p.cwd === pending.cwd)
-        .map(([, p]) => p.spawnedAt);
+      const siblingSpawns = [...this.pending].flatMap(([id, p]) =>
+        id !== sessionId && p.profileId === pending.profileId && p.cwd === pending.cwd
+          ? [p.spawnedAt]
+          : [],
+      );
       const matched = await pickContentIdentity(
         listFreshCandidates(list, pending.before, pending.spawnedAt, claimed),
         pending.cwd,
@@ -150,22 +160,33 @@ export class DiskIdentityWatch {
   }
 
   private async detect(sessionId: string): Promise<void> {
-    for (let i = 0; i < 30; i++) {
-      const { promise, resolve } = Promise.withResolvers<void>();
-      setTimeout(resolve, 500);
-      await promise;
-      if (!this.pending.has(sessionId)) return; // 已绑定或会话已死
-      await this.tryBind(sessionId);
-    }
-    while (
-      this.pending.has(sessionId) &&
-      Date.now() - this.pending.get(sessionId)!.spawnedAt < CRUISE_BUDGET_MS
-    ) {
-      const { promise, resolve } = Promise.withResolvers<void>();
-      setTimeout(resolve, CRUISE_MS);
-      await promise;
-      if (!this.pending.has(sessionId)) return; // 已绑定或会话已死
-      await this.tryBind(sessionId);
-    }
+    /* 快相(30 × 500ms)+ 慢相巡航(预算内),递归替代轮询循环。 */
+    await this.detectRounds(sessionId, 0, 30, DETECT_FAST_MS);
+    const entry = this.pending.get(sessionId);
+    if (!entry) return;
+    await this.detectCruise(sessionId, entry.spawnedAt + CRUISE_BUDGET_MS);
+  }
+
+  private async detectRounds(
+    sessionId: string,
+    round: number,
+    limit: number,
+    intervalMs: number,
+  ): Promise<void> {
+    if (round >= limit) return;
+    await sleep(intervalMs);
+    if (!this.pending.has(sessionId)) return; // 已绑定或会话已死
+    await this.tryBind(sessionId);
+    if (!this.pending.has(sessionId)) return;
+    await this.detectRounds(sessionId, round + 1, limit, intervalMs);
+  }
+
+  private async detectCruise(sessionId: string, deadlineMs: number): Promise<void> {
+    const entry = this.pending.get(sessionId);
+    if (!entry || Date.now() >= deadlineMs) return;
+    await sleep(CRUISE_MS);
+    if (!this.pending.has(sessionId)) return; // 已绑定或会话已死
+    await this.tryBind(sessionId);
+    await this.detectCruise(sessionId, deadlineMs);
   }
 }

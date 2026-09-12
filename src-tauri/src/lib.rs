@@ -24,7 +24,9 @@ mod session_log;
 mod settings;
 mod sqlite;
 mod ssh;
-
+mod wsl;
+mod wsl_remote;
+mod wsl_remote_ops;
 use pty::PtyRegistry;
 use tauri::{AppHandle, Manager};
 
@@ -124,6 +126,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        /* 应用内自动更新(updater latest.json 通道)与安装后重启;前端经
+        kernel/ipc 薄包装调用 check/download_and_install/relaunch。 */
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(AppState {
             pty: PtyRegistry::default(),
             sessions,
@@ -135,7 +141,14 @@ pub fn run() {
             app_restart,
             commands_fs::cli_probe,
             commands_fs::cli_install_run,
+            wsl::wsl_info,
+            wsl_remote::wsl_remote_info,
             session_commands::session_spawn,
+            wsl_remote_ops::wsl_list_dir,
+            wsl_remote_ops::wsl_probe_engines,
+            wsl_remote_ops::wsl_read_file_text,
+            wsl_remote_ops::wsl_exec,
+            ssh::commands::ssh_prompts_pending,
             session_commands::session_list,
             session_commands::session_write,
             session_commands::session_resize,
@@ -176,7 +189,6 @@ pub fn run() {
             checkpoints::commands::checkpoint_undo_revert,
             plugins::plugin_scan,
             plugins::plugin_read_file,
-            plugins::plugin_read_version,
             plugins::plugin_archive,
             plugins::plugin_rollback,
             plugins::plugin_delete,

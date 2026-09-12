@@ -1,26 +1,13 @@
 /**
  * ModelPicker —— 「供应商 → 模型(:思考后缀)」两级/三级选择器。
  *
- * 值格式不变:"provider/model[:suffix]";候选目录由插件从 CLI
- * 登录态/目录文件实况组装(field.catalog),UI 不内置模型表 ——
- * 设置(目录来源)与选择(两级挑选)分离。
+ * 设置(目录来源)与选择(两级挑选)分离;值串拆分 splitModelValue 在 FieldControlsModel.ts。
  */
 
 import type { CliModelCatalogProvider } from "@kernel/cliConfigRegistry";
 import { StyledSelect } from "@kernel/StyledSelect";
 import { t } from "@kernel/i18n";
-
-export function splitModelValue(value: string): { provider: string; model: string; suffix: string } {
-  const slash = value.indexOf("/");
-  const provider = slash < 0 ? "" : value.slice(0, slash);
-  const rest = slash < 0 ? value : value.slice(slash + 1);
-  const colon = rest.indexOf(":");
-  return {
-    provider,
-    model: colon < 0 ? rest : rest.slice(0, colon),
-    suffix: colon < 0 ? "" : rest.slice(colon + 1),
-  };
-}
+import { splitModelValue } from "./FieldControlsModel";
 
 export function ModelPicker({
   value,

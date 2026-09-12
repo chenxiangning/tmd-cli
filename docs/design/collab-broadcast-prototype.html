@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tmd-cli · 横评广播原型(2026-09-11 spec 配套)</title>
+<style>
+:root{
+  /* 基准 = 1421 真客户端浅色主题实采(2026-09-11):非深色! */
+  --bg:#ffffff; --bg-el:#f3f3f3; --bg-hover:#f2f2f2; --bg-sunken:#ececec;
+  --fg:#3b3b3b; --fg-muted:#7e7e7e; --fg-subtle:#999; --fg-faint:#c0c0c0;
+  --accent:#005fb8; --accent-soft:rgba(0,95,184,.14); --accent-fg:#fff;
+  --border:#cecece; --warn:#a16207; --ok:#2f8f4e; --fail:#c42b1c;
+  --term-bg:#ffffff; --term-fg:#3b3b3b;
+  --claude:#D97757; --codex:#3b3b3b; --grok:#111; --kimi:#22c55e; --omp:#b04ad9; --dsh:#4D6BFE;
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,monospace;
+  font-size:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:0.8125rem/1.45 var(--ui);color:var(--fg);background:#d8d8d8;padding:22px 0 40px}
+.journey{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:99;display:flex;gap:6px;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border:1px solid var(--border);border-radius:9px;padding:6px 8px;box-shadow:0 4px 18px rgba(0,0,0,.14)}
+.journey .label{font-size:0.6875rem;color:var(--fg-muted);align-self:center;padding:0 6px 0 2px}
+.journey button{font:inherit;font-size:0.6875rem;border:1px solid transparent;background:none;color:var(--fg-muted);border-radius:6px;padding:3px 9px;cursor:pointer}
+.journey button.active{background:var(--accent);color:#fff}
+
+.win{width:1120px;height:640px;margin:34px auto 8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:none;box-shadow:0 10px 40px rgba(0,0,0,.18);position:relative}
+.win.on{display:flex;flex-direction:column}
+
+/* ── titlebar:panel-tabs 在右区(真客户端布局),左区面包屑 ── */
+.titlebar{height:33px;flex:none;display:flex;align-items:center;gap:10px;padding:0 10px;border-bottom:1px solid var(--border);background:var(--bg-el)}
+.traffic{display:flex;gap:7px}.traffic i{width:11px;height:11px;border-radius:50%}
+.logo{font-weight:700;font-size:0.75rem;letter-spacing:.02em}.logo i{color:var(--accent);font-style:normal}
+.crumb{font-size:0.6875rem;color:var(--fg-subtle);display:flex;gap:5px;align-items:center}
+.crumb b{color:var(--fg);font-weight:500}
+.ptabs{margin-left:auto;display:flex;gap:3px;align-items:center}
+.ptab{font-size:0.625rem;padding:3px 10px;border-radius:5px;color:var(--fg-muted);background:var(--bg);border:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.ptab.on{color:#b45309;border-color:#e3b341;background:#fff8e6}
+.body{flex:1;display:flex;min-height:0}
+
+/* ── sidebar 244px ── */
+.side{width:244px;flex:none;border-right:1px solid var(--border);background:var(--bg-el);padding:8px 6px;font-size:0.6875rem;color:var(--fg-muted);overflow:hidden}
+.grp{display:flex;align-items:center;gap:5px;padding:4px 6px;color:var(--fg-subtle);font-size:0.625rem;text-transform:uppercase;letter-spacing:.04em}
+.srow{display:flex;align-items:center;gap:6px;padding:4px 6px 4px 14px;border-radius:5px}
+.srow.on{background:var(--accent-soft);color:var(--fg)}
+.srow .st{width:6px;height:6px;border-radius:50%;background:var(--fg-faint);flex:none}
+.srow .st.ask{background:var(--warn);animation:pulse 1.2s infinite}
+.srow .st.busy{background:var(--accent)}
+.srow .tt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.srow .eng{width:14px;height:14px;flex:none}
+
+/* ── 中央 ── */
+.center{flex:1;display:flex;flex-direction:column;min-width:0}
+.canvas{flex:1;min-height:0;position:relative;background:var(--term-bg)}
+.term{position:absolute;inset:0;padding:10px 12px;font:0.6875rem/1.5 var(--mono);color:var(--term-fg);white-space:pre-wrap;overflow:hidden}
+.term .dim{color:var(--fg-subtle)}.term .acc{color:var(--accent)}.term .ok{color:var(--ok)}.term .warn{color:var(--warn)}
+.caret{display:inline-block;width:6px;height:12px;background:var(--fg);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+
+/* composer */
+.composer{flex:none;border-top:1px solid var(--border);background:var(--bg)}
+.ctbar{height:26px;display:flex;align-items:center;gap:8px;padding:0 8px;font-size:0.6875rem;color:var(--fg-muted);border-bottom:1px solid var(--border)}
+.ctbar b{color:var(--fg);font-weight:500}
+.ctbar .sep{color:var(--fg-faint)}
+.ctbar .grow{flex:1}
+.cinput{display:flex;gap:8px;padding:8px 10px;align-items:flex-end}
+.cinput textarea{flex:1;resize:none;border:1px solid var(--border);border-radius:7px;background:var(--bg);font:inherit;color:var(--fg);padding:7px 9px;height:56px}
+.cinput textarea:focus{outline:1.5px solid var(--accent);outline-offset:-1px}
+.rail{display:flex;flex-direction:column;gap:4px}
+.rail button{width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--bg);cursor:pointer;display:grid;place-items:center;font-size:0.75rem;color:var(--fg-muted)}
+.rail button.bc.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+
+/* 选引擎弹层 */
+.pop{position:absolute;right:14px;bottom:96px;width:320px;background:var(--bg);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 36px rgba(0,0,0,.18);z-index:20;display:none;overflow:hidden}
+.pop.on{display:block}
+.pop h4{font-size:0.75rem;font-weight:600;padding:10px 12px 6px;display:flex;align-items:center}
+.pop h4 .cnt{margin-left:auto;font-weight:400;font-size:0.625rem;color:var(--fg-subtle)}
+.englist{max-height:236px;overflow:auto;padding:0 6px 4px}
+.eng{display:flex;align-items:center;gap:8px;padding:6px;border-radius:7px;cursor:pointer;font-size:0.75rem}
+.eng:hover{background:var(--bg-hover)}
+.eng .ck{width:14px;height:14px;border:1.5px solid var(--fg-faint);border-radius:4px;flex:none;display:grid;place-items:center;color:#fff;font-size:0.5625rem}
+.eng.sel .ck{background:var(--accent);border-color:var(--accent)}
+.eng .glyph{width:16px;height:16px;flex:none}
+.eng .meta{margin-left:auto;font-size:0.625rem;color:var(--fg-subtle)}
+.eng.pre .meta{color:var(--accent)}
+.eng.dis{opacity:.45;pointer-events:none}
+.eng .single{font-size:0.5625rem;color:var(--warn);border:1px solid var(--warn);border-radius:4px;padding:0 3px}
+.pop .foot{display:flex;gap:8px;padding:8px 12px;border-top:1px solid var(--border);align-items:center}
+.pop .foot .hint{font-size:0.625rem;color:var(--fg-subtle);flex:1}
+.btn{font:inherit;font-size:0.6875rem;border-radius:7px;padding:5px 12px;border:1px solid var(--border);background:var(--bg);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.primary.dis{background:var(--fg-faint);border-color:var(--fg-faint);pointer-events:none}
+
+/* 分屏 */
+.split{position:absolute;inset:0;display:flex}
+.col{flex:1;min-width:0;display:flex;flex-direction:column;border-left:1px solid var(--border);background:var(--term-bg)}
+.col:first-child{border-left:none}
+.col.focused{box-shadow:inset 0 0 0 2px var(--accent)}
+.colhead{height:26px;flex:none;display:flex;align-items:center;gap:6px;padding:0 8px;background:var(--bg-el);border-bottom:1px solid var(--border);font-size:0.6875rem;color:var(--fg-muted)}
+.colhead .glyph{width:13px;height:13px;flex:none}
+.colhead .nm{color:var(--fg);font-weight:500}
+.colhead .st{width:7px;height:7px;border-radius:50%;background:var(--fg-faint)}
+.colhead .st.busy{background:var(--accent)}.colhead .st.ask{background:var(--warn);animation:pulse 1.2s infinite}.colhead .st.done{background:var(--ok)}
+.colhead .st.dead{background:var(--fail)}
+.colhead .tm{margin-left:auto;font-size:0.625rem;color:var(--fg-subtle);font-family:var(--mono)}
+.colhead .x{border:none;background:none;color:var(--fg-faint);cursor:pointer;font-size:0.8125rem;padding:0 2px;line-height:1}
+.colhead .x:hover{color:var(--fail)}
+.colterm{flex:1;overflow:hidden;padding:8px 10px;font:0.6875rem/1.55 var(--mono);white-space:pre-wrap}
+.colterm .dim{color:var(--fg-subtle)}.colterm .acc{color:var(--accent)}.colterm .ok{color:var(--ok)}.colterm .warn{color:var(--warn)}.colterm .q{color:#6b21a8}
+.splitexit{position:absolute;top:34px;right:12px;z-index:9;display:flex;gap:6px;align-items:center;background:rgba(255,255,255,.9);border:1px solid var(--border);border-radius:7px;padding:3px 8px;font-size:0.625rem;color:var(--fg-muted)}
+kbd{font:600 0.5625rem var(--mono);background:var(--bg-sunken);border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--fg)}
+
+/* toast */
+.toasts{position:absolute;bottom:14px;right:14px;z-index:30;display:flex;flex-direction:column;gap:8px;width:300px}
+.toast{background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--fail);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.16);padding:8px 10px;font-size:0.6875rem}
+.toast .th{display:flex;gap:6px;align-items:center;font-weight:600}
+.toast .tb{color:var(--fg-muted);margin-top:3px;font-family:var(--mono);font-size:0.625rem;white-space:pre-wrap}
+.toast.info{border-left-color:var(--warn)}.toast.info .th{color:var(--warn)}
+.tag{display:inline-flex;align-items:center;font-size:0.625rem;color:var(--fg-subtle);gap:4px}
+@keyframes blink{50%{opacity:0}}
+@keyframes pulse{50%{opacity:.35}}
+.note{width:1120px;margin:0 auto;font-size:0.6875rem;color:#666;line-height:1.7}
+.note b{color:#222}
+</style>
+</head>
+<body>
+
+<div class="journey">
+  <span class="label">横评广播全旅程</span>
+  <button class="active" onclick="go(1)">① 普通会话 + 入口</button>
+  <button onclick="go(2)">② 选引擎弹层</button>
+  <button onclick="go(3)">③ 广播分屏</button>
+  <button onclick="go(4)">④ 部分失败 + 终态</button>
+</div>
+
+<!-- ══════════ ① 普通会话 ══════════ -->
+<div class="win on" id="w1">
+  <div class="titlebar">
+    <span class="traffic"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span>
+    <span class="logo">tmd<i>.</i>cli</span>
+    <div class="crumb"><span>tmd-cli</span><span>/</span><b>协作模式重梳理</b></div>
+    <div class="ptabs"><span class="ptab on">omp · 重新梳理协作模式</span><span class="ptab">claude · 供应商设置</span></div>
+  </div>
+  <div class="body">
+    <div class="side">
+      <div class="grp">▾ 工作区 · tmd-cli</div>
+      <div class="srow on"><span class="st busy"></span><svg class="eng" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="#b04ad9" stroke-width="2"/><circle cx="8" cy="8" r="2.4" fill="#b04ad9"/></svg><span class="tt">重新梳理协作模式</span></div>
+      <div class="srow"><span class="st ask"></span><svg class="eng" viewBox="0 0 16 16"><path d="M8 1l1.8 4.4L14 7l-3.6 2.2L9.2 14 8 11 6.8 14l-1.2-4.8L2 7l4.2-1.6z" fill="#D97757"/></svg><span class="tt">供应商渠道实现</span></div>
+      <div class="srow"><span class="st"></span><svg class="eng" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="3" fill="none" stroke="#3b3b3b" stroke-width="2"/></svg><span class="tt">checkpoints 评审</span></div>
+    </div>
+    <div class="center">
+      <div class="canvas">
+        <div class="term"><span class="dim">▸ omp 0.15.x · glm-5.3-flash · thinking max</span>
+<span class="dim">▸ 会话已就绪</span>
+
+<span class="acc">❯</span> 把横评广播的 spec 写出来
+  分析 docs/design 原型与 09-11 复核结论,收敛成 spec 四段……
+<span class="ok">✓</span> spec 落盘 docs/superpowers/specs/2026-09-11-collab-broadcast-design.md
+
+<span class="acc">❯</span><span class="caret"></span></div>
+      </div>
+      <div class="composer">
+        <div class="ctbar"><span>模型 <b>glm-5.3-flash</b></span><span class="sep">|</span><span>思考 <b>max</b></span><span class="sep">|</span><span class="grow"></span><span class="tag">⌘K 命令</span></div>
+        <div class="cinput">
+          <textarea>这道题各家方案对比一下:分屏态如何管理 N 路会话生命周期?</textarea>
+          <div class="rail">
+            <button title="附件">+</button>
+            <button class="bc" onclick="go(2)" title="横评广播:同一 prompt 并行喂多个引擎">⚡</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="toasts" style="display:none"></div>
+</div>
+
+<!-- ══════════ ② 选引擎弹层 ══════════ -->
+<div class="win" id="w2">
+  <div class="titlebar">
+    <span class="traffic"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span>
+    <span class="logo">tmd<i>.</i>cli</span>
+    <div class="crumb"><span>tmd-cli</span><span>/</span><b>协作模式重梳理</b><span>/</span><span>横评广播</span></div>
+    <div class="ptabs"><span class="ptab on">omp · 重新梳理协作模式</span><span class="ptab">claude · 供应商设置</span></div>
+  </div>
+  <div class="body">
+    <div class="side">
+      <div class="grp">▾ 工作区 · tmd-cli</div>
+      <div class="srow on"><span class="st busy"></span><svg class="eng" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="#b04ad9" stroke-width="2"/><circle cx="8" cy="8" r="2.4" fill="#b04ad9"/></svg><span class="tt">重新梳理协作模式</span></div>
+    </div>
+    <div class="center">
+      <div class="canvas">
+        <div class="term"><span class="dim">▸ omp 0.15.x · glm-5.3-flash · thinking max</span>
+
+<span class="acc">❯</span> 这道题各家方案对比一下:分屏态如何管理 N 路会话生命周期?
+<span class="acc">❯</span><span class="caret"></span></div>
+        <div class="pop on">
+          <h4>⚡ 横评广播 · 选择引擎<span class="cnt">2/4 已选(上限 4)</span></h4>
+          <div class="englist">
+            <div class="eng sel" onclick="ck(this)"><span class="ck">✓</span><svg class="glyph" viewBox="0 0 16 16"><path d="M8 1l1.8 4.4L14 7l-3.6 2.2L9.2 14 8 11 6.8 14l-1.2-4.8L2 7l4.2-1.6z" fill="#D97757"/></svg><span>Claude Code</span><span class="meta pre">sonnet-4.6</span></div>
+            <div class="eng sel" onclick="ck(this)"><span class="ck">✓</span><svg class="glyph" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="3" fill="none" stroke="#3b3b3b" stroke-width="2"/></svg><span>Codex CLI</span><span class="meta">gpt-5.3</span></div>
+            <div class="eng" onclick="ck(this)"><span class="ck"></span><svg class="glyph" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="#b04ad9" stroke-width="2"/><circle cx="8" cy="8" r="2.4" fill="#b04ad9"/></svg><span>omp</span><span class="meta">当前会话 · 默认已选</span></div>
+            <div class="eng" onclick="ck(this)"><span class="ck"></span><svg class="glyph" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="6" fill="none" stroke="#22c55e" stroke-width="2"/></svg><span>Kimi CLI</span><span class="meta">k2</span></div>
+            <div class="eng" onclick="ck(this)"><span class="ck"></span><svg class="glyph" viewBox="0 0 16 16"><path d="M2 12L8 3l6 9z" fill="none" stroke="#111" stroke-width="2"/></svg><span>Grok CLI</span><span class="meta">grok-4</span></div>
+            <div class="eng dis"><span class="ck"></span><svg class="glyph" viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" rx="2" fill="#4D6BFE"/></svg><span>dsh</span><span class="single">单实例·不参与</span></div>
+            <div class="eng dis"><span class="ck"></span><svg class="glyph" viewBox="0 0 16 16"><rect x="2" y="4" width="12" height="9" rx="2" fill="none" stroke="#3b3b3b" stroke-width="1.6"/><rect x="5" y="6" width="3" height="3" fill="#3b3b3b"/></svg><span>qoder</span><span class="meta">未安装</span></div>
+          </div>
+          <div class="foot">
+            <span class="hint">题面 = 输入框草稿;发送后并行拉起,各引擎干净上下文</span>
+            <button class="btn" onclick="go(1)">取消</button>
+            <button class="btn primary" onclick="go(3)">广播 2 路</button>
+          </div>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="ctbar"><span>模型 <b>glm-5.3-flash</b></span><span class="sep">|</span><span>思考 <b>max</b></span><span class="grow"></span></div>
+        <div class="cinput">
+          <textarea>这道题各家方案对比一下:分屏态如何管理 N 路会话生命周期?</textarea>
+          <div class="rail"><button>+</button><button class="bc on" title="横评广播已开启">⚡</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ③ 广播分屏 ══════════ -->
+<div class="win" id="w3">
+  <div class="titlebar">
+    <span class="traffic"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span>
+    <span class="logo">tmd<i>.</i>cli</span>
+    <div class="crumb"><span>tmd-cli</span><span>/</span><b>协作模式重梳理</b><span>/</span><span>横评广播 4 路</span></div>
+    <div class="ptabs"><span class="ptab">claude · 供应商设置</span></div>
+  </div>
+  <div class="body">
+    <div class="side">
+      <div class="grp">▾ 工作区 · tmd-cli</div>
+      <div class="srow"><span class="st busy"></span><svg class="eng" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="#b04ad9" stroke-width="2"/><circle cx="8" cy="8" r="2.4" fill="#b04ad9"/></svg><span class="tt">重新梳理协作模式</span></div>
+      <div class="srow on"><span class="st busy"></span><svg class="eng" viewBox="0 0 16 16"><path d="M8 1l1.8 4.4L14 7l-3.6 2.2L9.2 14 8 11 6.8 14l-1.2-4.8L2 7l4.2-1.6z" fill="#D97757"/></svg><span class="tt">[广播] 分屏态生命周期</span></div>
+      <div class="srow"><span class="st ask"></span><svg class="eng" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="3" fill="none" stroke="#3b3b3b" stroke-width="2"/></svg><span class="tt">[广播] 分屏态生命周期</span></div>
+      <div class="srow"><span class="st"></span><svg class="eng" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="6" fill="none" stroke="#22c55e" stroke-width="2"/></svg><span class="tt">[广播] 分屏态生命周期</span></div>
+      <div class="srow"><span class="st"></span><svg class="eng" viewBox="0 0 16 16"><path d="M2 12L8 3l6 9z" fill="none" stroke="#111" stroke-width="2"/></svg><span class="tt">[广播] 分屏态生命周期</span></div>
+    </div>
+    <div class="center">
+      <div class="canvas">
+        <div class="splitexit"><kbd>⌥←</kbd><kbd>⌥→</kbd> 切列 · <span style="cursor:pointer;color:var(--accent)" onclick="go(1)">退出分屏 ⌥W</span></div>
+        <div class="split">
+          <div class="col focused">
+            <div class="colhead"><svg class="glyph" viewBox="0 0 16 16"><path d="M8 1l1.8 4.4L14 7l-3.6 2.2L9.2 14 8 11 6.8 14l-1.2-4.8L2 7l4.2-1.6z" fill="#D97757"/></svg><span class="nm">Claude Code</span><span class="st busy"></span><span class="tm">2m14s</span><button class="x">✕</button></div>
+            <div class="colterm"><span class="q">❯ 这道题各家方案对比一下:分屏…</span>
+先读 collab-broadcast spec,再对
+照 MainPanel keep-alive 实现。
+
+<span class="dim">● Read src/app-shell/MainPanel.tsx</span>
+<span class="dim">● Read src/kernel/sessionTabs.ts</span>
+
+结论倾向:broadcast store 独立于
+tab 条,列生命周期只动布局不动会
+话。继续核对 removeSession 链路…
+<span class="caret"></span></div>
+          </div>
+          <div class="col">
+            <div class="colhead"><svg class="glyph" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="3" fill="none" stroke="#3b3b3b" stroke-width="2"/></svg><span class="nm">Codex CLI</span><span class="st ask"></span><span class="tm">3m02s</span><button class="x">✕</button></div>
+            <div class="colterm"><span class="q">❯ 这道题各家方案对比一下:分屏…</span>
+<span class="warn">┌─ 需要你确认 ─────────────┐</span>
+<span class="warn">│ 允许在只读沙箱里跑        │</span>
+<span class="warn">│ cargo test 验证方案?      │</span>
+<span class="warn">│ [y] 允许   [n] 拒绝       │</span>
+<span class="warn">└───────────────────────────┘</span>
+<span class="dim">(列头黄点 = ask 待确认,⌥→ 移</span>
+<span class="dim"> 到这里直接敲键盘作答)</span></div>
+          </div>
+          <div class="col">
+            <div class="colhead"><svg class="glyph" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="6" fill="none" stroke="#22c55e" stroke-width="2"/></svg><span class="nm">Kimi CLI</span><span class="st done"></span><span class="tm">1m47s</span><button class="x">✕</button></div>
+            <div class="colterm"><span class="q">❯ 这道题各家方案对比一下:分屏…</span>
+<span class="ok">✓ 答毕(绿点)</span>
+方案要点:
+ 1. 分屏态 = 展示层布尔,不入会话
+    元数据;退出即回单幕布
+ 2. N 路复用 spawn 在途闸,天然并
+    发安全
+ 3. 关列不杀会话 → 归档语义零侵
+    蚀
+输入新消息可续聊<span class="caret"></span></div>
+          </div>
+          <div class="col">
+            <div class="colhead"><svg class="glyph" viewBox="0 0 16 16"><path d="M2 12L8 3l6 9z" fill="none" stroke="#111" stroke-width="2"/></svg><span class="nm">Grok CLI</span><span class="st"></span><span class="tm">8s</span><button class="x">✕</button></div>
+            <div class="colterm"><span class="dim">▸ grok 1.2.0 · grok-4</span>
+<span class="dim">▸ 已拉起,首答生成中…</span>
+<span class="dim">  (广播后 8 秒;列与列独立滚动、</span>
+<span class="dim">   独立输入,互不抢焦点)</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- 分屏态 composer 隐藏:打字直进焦点列(幕布即输入面,同 shell 语义) -->
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ④ 部分失败 + 终态 ══════════ -->
+<div class="win" id="w4">
+  <div class="titlebar">
+    <span class="traffic"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span>
+    <span class="logo">tmd<i>.</i>cli</span>
+    <div class="crumb"><span>tmd-cli</span><span>/</span><b>协作模式重梳理</b><span>/</span><span>横评广播 3/4 路</span></div>
+    <div class="ptabs"></div>
+  </div>
+  <div class="body">
+    <div class="side">
+      <div class="grp">▾ 工作区 · tmd-cli</div>
+      <div class="srow"><span class="st"></span><svg class="eng" viewBox="0 0 16 16"><path d="M8 1l1.8 4.4L14 7l-3.6 2.2L9.2 14 8 11 6.8 14l-1.2-4.8L2 7l4.2-1.6z" fill="#D97757"/></svg><span class="tt">[广播] 分屏态生命周期</span></div>
+      <div class="srow"><span class="st"></span><svg class="eng" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="3" fill="none" stroke="#3b3b3b" stroke-width="2"/></svg><span class="tt">[广播] 分屏态生命周期</span></div>
+      <div class="srow"><span class="st"></span><svg class="eng" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="6" fill="none" stroke="#22c55e" stroke-width="2"/></svg><span class="tt">[广播] 分屏态生命周期</span></div>
+      <div class="grp" style="margin-top:8px">广播终态说明</div>
+      <div style="padding:2px 8px;line-height:1.6;font-size:0.625rem;color:var(--fg-subtle)">失败路不留列;存活路已并入 tab 条,摘列/关窗都只摘布局不杀会话。题面已入 composer 历史恰一次。</div>
+    </div>
+    <div class="center">
+      <div class="canvas">
+        <div class="splitexit"><span style="cursor:pointer;color:var(--accent)" onclick="go(1)">退出分屏 ⌥W</span></div>
+        <div class="split">
+          <div class="col">
+            <div class="colhead"><svg class="glyph" viewBox="0 0 16 16"><path d="M8 1l1.8 4.4L14 7l-3.6 2.2L9.2 14 8 11 6.8 14l-1.2-4.8L2 7l4.2-1.6z" fill="#D97757"/></svg><span class="nm">Claude Code</span><span class="st done"></span><span class="tm">4m12s</span><button class="x">✕</button></div>
+            <div class="colterm"><span class="ok">✓ 结论:广播态与 tab 条解耦正</span>
+<span class="ok">  确;补充一点——focusId 悬挂必须</span>
+<span class="ok">  回落首列,否则关焦点列后键盘路</span>
+<span class="ok">  径断裂。</span>
+<span class="dim">已收口,可 ⌘W 摘列或续聊。</span></div>
+          </div>
+          <div class="col">
+            <div class="colhead"><svg class="glyph" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="3" fill="none" stroke="#3b3b3b" stroke-width="2"/></svg><span class="nm">Codex CLI</span><span class="st done"></span><span class="tm">5m47s</span><button class="x">✕</button></div>
+            <div class="colterm"><span class="ok">✓ 方案:PanelGroup 嵌套方向切换,</span>
+<span class="ok">  列宽默认等分可拖;分屏是 canvas</span>
+<span class="ok">  段内部形态,不动外层三栏。</span></div>
+          </div>
+          <div class="col">
+            <div class="colhead"><svg class="glyph" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="6" fill="none" stroke="#22c55e" stroke-width="2"/></svg><span class="nm">Kimi CLI</span><span class="st dead"></span><span class="tm">—</span><button class="x">✕</button></div>
+            <div class="colterm"><span class="dim" style="color:var(--fail)">进程已退出(外部 kill)。</span>
+<span class="dim">列头红点 = 死态;摘列走现有
+removeSession 清场,会话若已
+落盘可从侧栏 resume 找回。</span></div>
+          </div>
+        </div>
+        <div class="toasts">
+          <div class="toast">
+            <div class="th"><span style="color:var(--fail)">✕</span> grok 启动失败</div>
+            <div class="tb">command not found: grok
+(spawn 被拒 → sessionStartFailed toast;
+存活 3 路照常分屏)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+<b>与 spec 的对应</b>:① 入口 = composer 右缘 inputRail ⚡ 按钮(不常驻像素;⌘⇧A 键位留给鱼骨,本期不注册)。② 弹层候选 = host.getCliProfiles(),当前会话 profile 预选、上限 4;singleInstance(dsh)置灰标注,未安装置灰。③ 分屏 = canvas 段水平 PanelGroup,列头在幕布之外(铁律),composer 隐藏、打字直进焦点列;关列不杀会话。④ 失败路 = 现有 sessionStartFailed toast 逐条兜底;会话外部死亡 = 列头死态。<br>
+<b>刻意没画</b>(v1 不做):模板/批准点/上下文链式投喂(鱼骨遗产)、附件广播、只读 SUMMARY 对比列、横评组持久化。
+</div>
+
+<script>
+function go(n){
+  for(let i=1;i<=4;i++){
+    document.getElementById('w'+i).classList.toggle('on',i===n);
+    document.querySelectorAll('.journey button')[i-1].classList.toggle('active',i===n);
+  }
+}
+function ck(el){
+  if(el.classList.contains('dis'))return;
+  el.classList.toggle('sel');
+  el.querySelector('.ck').textContent=el.classList.contains('sel')?'✓':'';
+  const sel=[...document.querySelectorAll('#w2 .eng.sel')].length;
+  document.querySelector('#w2 .cnt').textContent=sel+'/4 已选(上限 4)';
+  const btn=document.querySelector('#w2 .btn.primary');
+  btn.textContent='广播 '+sel+' 路';
+  btn.classList.toggle('dis',sel<2);
+}
+document.addEventListener('keydown',e=>{if(e.key==='1')go(1);if(e.key==='2')go(2);if(e.key==='3')go(3);if(e.key==='4')go(4);});
+</script>
+</body>
+</html>

@@ -59,10 +59,12 @@ export async function deleteDiskSessionFull(
   await Promise.all(
     host
       .getSessions()
-      .filter(
-        (s) => s.profileId === profile.id && host.getCliSessionId(s.id) === session.id,
-      )
-      .map((s) => host.removeSession(s.id)),
+      .flatMap((s) =>
+        (s.profileId === profile.id || s.engine === profile.id) &&
+        host.getCliSessionId(s.id) === session.id
+          ? [host.removeSession(s.id)]
+          : [],
+      ),
   );
   await removeDiskSessionBestEffort(profile, session);
   clearOverlaysAndMark(workspaceId, profile.id, session.id);

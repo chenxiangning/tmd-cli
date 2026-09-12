@@ -72,7 +72,7 @@ async function fileExists(path: string): Promise<boolean> {
 }
 
 /** 配置源:全局 + 活跃工作区项目级 overlay;顺带刷新模型候选目录。 */
-export async function ompConfigSources(): Promise<CliConfigSource[]> {
+async function ompConfigSources(): Promise<CliConfigSource[]> {
   const dir = await ompAgentDir();
   const globalPath = `${dir}/config.yml`;
   const list: CliConfigSource[] = [

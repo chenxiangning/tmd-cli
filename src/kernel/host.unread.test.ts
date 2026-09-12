@@ -87,10 +87,35 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
     ptyOutputCbs.get(sessionId)?.(text);
   }
 
-  /** 模拟用户发起一轮对话(真实路径:幕布按键/Composer 发送 → host.writeSession)。 */
+  /** 模拟用户发起一轮对话(真实路径:幕布按键/Composer 发送 → host.writeSession)。
+   *  写入后推进假时钟跨过应答回显窗(400ms):真实流程里 CLI 应答首帧恒晚于回显窗。 */
   function userPrompt(sessionId: string): void {
     host.writeSession(sessionId, "prompt\r");
+    vi.advanceTimersByTime(500);
   }
+
+  /* 真实 omp 空闲自绘帧(取自 ~/.tmd-cli/session/omp/… 日志尾部):OSC 标题重写
+     + 光标寻址原地重绘,骨架恒定复现。回归 2026-09-11 实证 bug —— 此类字节
+     曾吊住活动钟,轮次永不结算,侧栏标签永挂「运行时」。 */
+  const IDLE_FRAMES = [
+    "\u001b[0m\u001b[K\u001b[3;4H\u001b[?25h\u001b[?7h\u001b]0;⠹ Fix ask detection\u0007\u001b[?25l\u001b[?7l\u001b[1;1H\u001b[0m\u001b[K ⠹ · 与…  TOD\u001b[3;4H",
+    "\u001b[0m\u001b[K\u001b[3;4H\u001b[?25h\u001b[?7h\u001b]0;⠼ Fix ask detection\u0007\u001b[?25l\u001b[?7l\u001b[1;1H\u001b[0m\u001b[K ⠼ · 与…  TOD\u001b[3;4H",
+  ];
+
+  it("空闲 spinner 自绘字节不吊住结算:轮次照常结束并标未读", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await host.createSession(PROFILE_ID, CWD); // 后者活跃,a 在后台
+    userPrompt(a.id);
+    fireOutput(a.id, "answer text");
+
+    // 回答结束后 CLI 以 ≈10Hz 持续自绘 20s(旧行为:活动钟被吊住,永挂运行时)
+    for (let i = 0; i < 200; i++) {
+      fireOutput(a.id, IDLE_FRAMES[i % IDLE_FRAMES.length]);
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    expect(host.isTurnActive(a.id)).toBe(false);
+    expect(host.isUnread(a.id)).toBe(true); // 正常结算为「空闲-未查看」
+  });
 
   it("对话结束且未被查看 → 标未读;点开查看即清", async () => {
     const a = await host.createSession(PROFILE_ID, CWD);
@@ -115,7 +140,7 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
     expect(host.isUnread(a.id)).toBe(false);
   });
 
-  it("未读会话来新输出 → 立即回到进行中(清未读)", async () => {
+  it("未读会话用户再发起对话 → 立即回到进行中(清未读)", async () => {
     const a = await host.createSession(PROFILE_ID, CWD);
     await host.createSession(PROFILE_ID, CWD);
     userPrompt(a.id);
@@ -123,8 +148,10 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
     await vi.advanceTimersByTimeAsync(3000);
     expect(host.isUnread(a.id)).toBe(true);
 
+    userPrompt(a.id); // 用户再发起:awaitingTurn 放行
     fireOutput(a.id, "new turn");
     expect(host.isUnread(a.id)).toBe(false);
+    expect(host.isTurnActive(a.id)).toBe(true);
   });
 
   it("输出间隔 ≤2s 视为同一轮:不提前结算未读", async () => {
@@ -193,15 +220,52 @@ describe("完成未读状态机(呼吸灯蓝态)", () => {
     expect(host.isTurnActive(a.id)).toBe(false);
   });
 
-  it("关 tab 后重新点开:轮次语义恢复", async () => {
+  it("实证缺陷(2026-09-11):tab 常驻开启的已查看老会话,异步噪音不重跑生命周期", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD); // 创建即查看,tab 从此常开
+    userPrompt(a.id);
+    fireOutput(a.id);
+    await vi.advanceTimersByTimeAsync(3000); // 结算且已查看 → 灰
+    expect(host.isUnread(a.id)).toBe(false);
+    const settledAt = host.getLastActivityAt(a.id);
+
+    fireOutput(a.id, "hook banner"); // hook/dreamer/横幅类异步字节:不开轮
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(host.isTurnActive(a.id)).toBe(false);
+    expect(host.getLastActivityAt(a.id)).toBe(settledAt);
+    expect(host.isUnread(a.id)).toBe(false); // 状态保持已查看
+  });
+
+  it("已了结会话重新点开:噪音仍不开轮;再写入才恢复轮次", async () => {
     const a = await host.createSession(PROFILE_ID, CWD);
     await host.createSession(PROFILE_ID, CWD);
     userPrompt(a.id);
     fireOutput(a.id);
     await vi.advanceTimersByTimeAsync(3000);
     closeSessionTab(a.id);
-    host.setActiveSession(a.id); // 重新点开 = tab 恢复(activeSessionChanged → trackOpen)
+    host.setActiveSession(a.id); // 重新点开:查看语义恢复,开轮闸不因 tab 放行
+    fireOutput(a.id, "noise"); // 无未应答写入:不开轮(2026-09-11 收紧)
+    expect(host.isTurnActive(a.id)).toBe(false);
+    userPrompt(a.id); // 用户再发起
     fireOutput(a.id, "new output");
     expect(host.isTurnActive(a.id)).toBe(true);
+  });
+  it("思考期不被假结算(P0):spinner 自绘期保持运行中,应答到达后照常结算", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    await host.createSession(PROFILE_ID, CWD); // 后者活跃,a 在后台
+    host.writeSession(a.id, "prompt\r");
+    fireOutput(a.id, "hi"); // 回显窗内的换帧:开轮但不算应答证据
+    for (let i = 0; i < 200; i++) {
+      /* omp 思考期:≈10Hz spinner 原地自绘(骨架恒定复现,被空闲重绘闸判静默) */
+      fireOutput(a.id, IDLE_FRAMES[i % IDLE_FRAMES.length]);
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    expect(host.isTurnActive(a.id)).toBe(true); // 未被 2s 假结算吞掉 awaitingTurn
+
+    fireOutput(a.id, "real answer"); // 回显窗外的应答内容:恢复结算资格
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(host.isTurnActive(a.id)).toBe(false); // 真静默后正常结算
+    expect(host.isUnread(a.id)).toBe(true); // a 在后台 → 标未读
+    fireOutput(a.id, "noise after settle"); // 结算后噪音闸照旧
+    expect(host.isTurnActive(a.id)).toBe(false);
   });
 });

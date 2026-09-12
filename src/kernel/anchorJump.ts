@@ -61,18 +61,26 @@ export async function jumpToAnchor(
   const handle = getTerminalHandle(sessionId);
   if (!handle) return false;
   const needle = anchorNeedle(anchor);
-  for (let page = 0; ; page++) {
-    const row = findAnchorRow(handle, needle);
-    if (row !== null) {
-      await smoothScrollToLine(handle, Math.max(0, row - Math.round(handle.rows() * JUMP_HEADROOM)));
-      return true;
-    }
-    if (page >= JUMP_PAGE_LIMIT || !handle.hasMoreHistory()) return false;
-    const before = handle.bufferLength();
-    await handle.loadEarlier();
-    /* 翻页无进展(加载中重入/日志读空)即放弃,防空转 */
-    if (handle.bufferLength() === before) return false;
+  return jumpScanPages(handle, needle, 0);
+}
+
+/** 逐页向后扫描(递归替代轮询循环;深度 = JUMP_PAGE_LIMIT 上界)。 */
+async function jumpScanPages(
+  handle: TerminalHandle,
+  needle: string,
+  page: number,
+): Promise<boolean> {
+  const row = findAnchorRow(handle, needle);
+  if (row !== null) {
+    await smoothScrollToLine(handle, Math.max(0, row - Math.round(handle.rows() * JUMP_HEADROOM)));
+    return true;
   }
+  if (page >= JUMP_PAGE_LIMIT || !handle.hasMoreHistory()) return false;
+  const before = handle.bufferLength();
+  await handle.loadEarlier();
+  /* 翻页无进展(加载中重入/日志读空)即放弃,防空转 */
+  if (handle.bufferLength() === before) return false;
+  return jumpScanPages(handle, needle, page + 1);
 }
 
 /* ── 平滑滚动 ────────────────────────────────────────────── */

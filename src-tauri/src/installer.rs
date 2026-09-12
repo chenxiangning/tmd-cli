@@ -52,7 +52,7 @@ pub struct CliInstallEvent {
 /// 构造安装命令(program + args)。
 /// npm:Windows 经 cmd /c 跑 npm.cmd shim;script:unix 走 bash -c,windows 走 powershell;
 /// command:unix 直 spawn,windows 经 cmd /c 兼容 .cmd shim。
-fn install_command(plan: &InstallPlan) -> (String, Vec<String>) {
+fn install_command(plan: &InstallPlan, npm_prefix: Option<&str>) -> (String, Vec<String>) {
     match plan {
         InstallPlan::Npm { package } => {
             let pkg = format!("{package}@latest");
@@ -65,22 +65,42 @@ fn install_command(plan: &InstallPlan) -> (String, Vec<String>) {
              * 新机制,实证无效)。npm ≤11 对未知旗标仅 warn 不失败(11.6.2
              * 实证),可无条件追加。 */
             let allow = format!("--allow-scripts={package}");
+            /* 双副本遮蔽修复:探针命中的副本可能不在 npm 默认 prefix(用户 PATH
+             * 中 hermes/nvm/官方安装器等排在 npm prefix 之前,npm install -g
+             * 写 prefix 副本,探针仍见旧副本 —— 2026-09-11 本机实证 kimi/
+             * opencode)。命中副本若是 node 全局布局(<X>/bin/<bin> 且
+             * <X>/lib/node_modules 存在),加 --prefix <X> 就地更新。 */
+            let prefix_args: Vec<String> = match npm_prefix {
+                Some(p) => vec!["--prefix".into(), p.to_string()],
+                None => vec![],
+            };
+            /* Windows 路径分隔符归一:cfg 分支里各消费 prefix_args,不可二次赋值。 */
             #[cfg(windows)]
-            return (
-                "cmd".into(),
-                vec![
-                    "/c".into(),
-                    "npm".into(),
-                    "install".into(),
-                    "-g".into(),
-                    pkg,
-                    allow,
-                ],
-            );
+            let prefix_args: Vec<String> = prefix_args
+                .into_iter()
+                .map(|a| a.replace('/', "\\"))
+                .collect();
+            #[cfg(windows)]
+            {
+                (
+                    "cmd".into(),
+                    [
+                        vec!["/c".into(), "npm".into(), "install".into(), "-g".into()],
+                        prefix_args,
+                        vec![pkg, allow],
+                    ]
+                    .concat(),
+                )
+            }
             #[cfg(not(windows))]
             (
                 "npm".into(),
-                vec!["install".into(), "-g".into(), pkg, allow],
+                [
+                    vec!["install".into(), "-g".into()],
+                    prefix_args,
+                    vec![pkg, allow],
+                ]
+                .concat(),
             )
         }
         InstallPlan::Script { unix, windows } => {
@@ -125,7 +145,13 @@ pub fn run_install(app: &AppHandle, id: &str, plan: &InstallPlan) -> Result<bool
         );
     };
 
-    let (program, args) = install_command(plan);
+    /* npm 通道:探针命中副本的就地 --prefix 对齐(非 npm 副本 = None,走 npm
+     * 默认 prefix)。前缀识别在 probe_cli 内完成(npm_prefix 字段),此处零重复。 */
+    let npm_prefix = match plan {
+        InstallPlan::Npm { .. } => crate::probe::probe_cli(id).npm_prefix,
+        _ => None,
+    };
+    let (program, args) = install_command(plan, npm_prefix.as_deref());
     emit("phase", "start".into());
     emit("stdout", format!("$ {} {}", program, args.join(" ")));
 

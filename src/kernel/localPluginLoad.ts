@@ -1,22 +1,18 @@
 /**
- * 本地插件装载件:shim 生成 / specifier 重写 / 清单与导出校验 / activate 安全包装。
+ * 本地插件装载件:shim 生成 / specifier 重写 / 清单与导出校验。
  * 纯函数为主;importBundle 是唯一副作用出口(blob URL + 动态 import)。
  * 设计契约见 docs/superpowers/specs/2026-09-10-local-plugins-design.md。
  */
+import { PLUGIN_PERMISSIONS } from "./plugin";
 import type { Plugin, PluginMeta } from "./plugin";
 
 /** 裸 specifier 白名单:插件 bundle 唯一合法的外部 import 面。 */
-export const SHIM_SPECIFIERS = ["react", "react-dom", "react/jsx-runtime", "tmd-sdk"] as const;
+const SHIM_SPECIFIERS = ["react", "react-dom", "react/jsx-runtime", "tmd-sdk"] as const;
 
-/** 当前内核 API 纪元:注册面破坏性变更时 bump,旧插件装载即拒(先立机制后立变更)。 */
-export const LOCAL_PLUGIN_API_VERSION = 1;
+/** 当前内核 API 纪元:注册面破坏性变更时 bump,旧插件装载即拒。
+ *  v2(2026-09-10):manifest.permissions 生效,SDK 收窄为按授权装配 —— v1 插件一律重装。 */
+const LOCAL_PLUGIN_API_VERSION = 2;
 
-declare global {
-  interface Window {
-    /** 内核在 boot 早期(main.tsx)挂载的 shim 模块实例表:react/react-dom/jsx-runtime/tmd-sdk。 */
-    __TMD_SHIMS?: Record<string, Record<string, unknown>>;
-  }
-}
 
 /** ESM 具名导出必须静态声明:按模块 key 动态拼 shim 文本;default 键走默认导出(非法标识符特例)。 */
 export function buildShimText(keys: string[]): string {
@@ -37,7 +33,8 @@ export function shimUrl(spec: string): string {
   const text =
     `const m = window.__TMD_SHIMS[${JSON.stringify(spec)}];\n` +
     buildShimText(Object.keys(source));
-  const url = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
+  /* data URL 免 createObjectURL/revoke 配对:shim 文本仅白名单键声明,体量小。 */
+  const url = `data:text/javascript;base64,${btoa(unescape(encodeURIComponent(text)))}`;
   shimUrlCache.set(spec, url);
   return url;
 }
@@ -57,9 +54,26 @@ export function rewriteSpecifiers(
   return out;
 }
 
-/** bundle 文本 → 模块命名空间。specifier 是运行时 blob URL,静态 import 不可能(spec 装载机制节)。 */
-export async function importBundle(text: string, _id: string): Promise<Record<string, unknown>> {
-  const rewritten = rewriteSpecifiers(text, shimUrl);
+/** tmd-sdk 的按插件寻址 shim key(权限实例逐插件装配;sdkKey 携带内容 hash 免模块缓存串味)。 */
+export function sdkShimKey(id: string, contentHash: string): string {
+  return `tmd-sdk:${id}:${contentHash}`;
+}
+
+/** manifest.permissions → 授权清单(未声明 = 纯 UI:空数组;非法形状已在 validateManifest 拒)。 */
+export function manifestPermissions(manifest: Record<string, unknown>): string[] {
+  const perms = manifest.permissions;
+  if (!Array.isArray(perms)) return [];
+  return perms.filter(
+    (p): p is string => typeof p === "string" && (PLUGIN_PERMISSIONS as readonly string[]).includes(p),
+  );
+}
+
+/** bundle 文本 → 模块命名空间。specifier 是运行时 blob URL,静态 import 不可能(spec 装载机制节)。
+ *  sdkKey = 装载前 installPluginSdkShim 装配的 tmd-sdk 实例寻址(含内容 hash,热更即新实例)。 */
+export async function importBundle(text: string, sdkKey: string): Promise<Record<string, unknown>> {
+  const rewritten = rewriteSpecifiers(text, (spec) =>
+    spec === "tmd-sdk" ? shimUrl(`tmd-sdk:${sdkKey}`) : shimUrl(spec),
+  );
   const url = URL.createObjectURL(new Blob([rewritten], { type: "text/javascript" }));
   try {
     return (await import(/* @vite-ignore */ url)) as Record<string, unknown>;
@@ -78,6 +92,13 @@ export function validateManifest(
   if (builtinIds.has(id)) return `插件 id 与内置插件冲突: ${id}`;
   if (manifest.apiVersion !== LOCAL_PLUGIN_API_VERSION) {
     return `API 纪元不匹配: 插件 ${String(manifest.apiVersion)} / 客户端 ${LOCAL_PLUGIN_API_VERSION}`;
+  }
+  if (manifest.permissions !== undefined) {
+    const perms = manifest.permissions;
+    const bad =
+      !Array.isArray(perms) ||
+      perms.some((p) => !(PLUGIN_PERMISSIONS as readonly string[]).includes(p as string));
+    if (bad) return `非法 permissions(须为 PLUGIN_PERMISSIONS 子集): ${JSON.stringify(perms)}`;
   }
   if (manifest.category === "core") return "本地插件不允许 core 分类(焊死层属内置)";
   const entry = manifest.entry;
@@ -110,24 +131,3 @@ export function synthesizeMeta(manifest: Record<string, unknown>): PluginMeta {
   };
 }
 
-/**
- * activate 安全包装:失败记录且不向上抛 —— pluginLifecycle 的激活循环裸 await,
- * 一个插件炸会 reject 共享 Promise 导致 setReady 不执行(白屏);local 插件必须隔离。
- */
-export function wrapSafePlugin(
-  plugin: Plugin,
-  onError: (message: string) => void,
-  onSuccess?: () => void,
-): Plugin {
-  return {
-    ...plugin,
-    activate: async (ctx) => {
-      try {
-        await plugin.activate(ctx);
-        onSuccess?.();
-      } catch (e) {
-        onError(`激活失败: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    },
-  };
-}

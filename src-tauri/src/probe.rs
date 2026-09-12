@@ -36,6 +36,10 @@ pub struct CliProbeResult {
     pub path: Option<String>,
     /// `--version` 输出的第一行 trimmed(`found=true` 时非空)。
     pub version: Option<String>,
+    /// 命中副本位于 npm 全局布局内时的所属 prefix;非 npm 副本 = None。
+    /// 双副本遮蔽场景(用户 PATH 中其它 prefix 排在 npm 默认之前)下,
+    /// 安装器据它加 `--prefix` 就地更新探针命中的那份副本(2026-09-11)。
+    pub npm_prefix: Option<String>,
 }
 
 /// 探针入口。`command` 是裸 binary 名,允许包含 `/` 或 `\`(绝对路径)。
@@ -57,12 +61,41 @@ pub fn probe_cli(command: &str) -> CliProbeResult {
      * CreateProcess 无法直跑批处理);unix 原样。 */
     let resolved = resolve_command(&absolute, "");
     let version = run_version(&resolved.program, &resolved.prefix_args);
+    let npm_prefix = npm_prefix_of(&absolute);
 
     CliProbeResult {
         command: command.to_string(),
         found: true,
         path: Some(absolute),
         version,
+        npm_prefix,
+    }
+}
+
+/// npm 全局布局识别:命中副本位于某 npm prefix 内 → 返回该 prefix。
+/// 双副本遮蔽"就地更新"的判据,安装器(npm 通道 --prefix)与探针结果共用。
+/// - unix:`<X>/bin/<binary>` 且 `<X>/lib/node_modules` 存在;
+/// - Windows:npm 全局 shim 直接落在 prefix 根(无 bin 段,如
+///   `%APPDATA%\npm\omp.cmd`),故 prefix = 命中文件父目录,且
+///   `<X>\node_modules` 存在。官方原生副本(如 .kimi-code\bin)无
+///   node_modules → None,不会被误判为 npm 管理。
+pub(crate) fn npm_prefix_of(hit: &str) -> Option<String> {
+    let dir = std::path::Path::new(hit).parent()?;
+    #[cfg(unix)]
+    {
+        if dir.file_name()?.to_str()? != "bin" {
+            return None;
+        }
+        let prefix = dir.parent()?.to_str()?.to_string();
+        std::path::Path::new(&prefix)
+            .join("lib/node_modules")
+            .is_dir()
+            .then_some(prefix)
+    }
+    #[cfg(not(unix))]
+    {
+        let prefix = dir.to_str()?.to_string();
+        dir.join("node_modules").is_dir().then_some(prefix)
     }
 }
 
@@ -156,6 +189,7 @@ fn empty_result(command: &str) -> CliProbeResult {
         found: false,
         path: None,
         version: None,
+        npm_prefix: None,
     }
 }
 
@@ -185,6 +219,7 @@ mod tests {
             found: false,
             path: None,
             version: None,
+            npm_prefix: None,
         };
         let json = serde_json::to_string(&r).unwrap();
         assert!(json.contains("\"found\":false"));
@@ -201,5 +236,40 @@ mod tests {
         let r = probe_cli("bash");
         assert!(r.found, "bash 未命中:PATH 查找链断裂");
         assert!(r.version.is_some());
+    }
+
+    #[test]
+    fn npm_prefix_of_matches_platform_global_layout() {
+        let root = std::env::temp_dir().join(format!("tmd-probe-np-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        /* 双平台各自的真实 npm 全局布局:unix <X>/bin/<bin> + lib/node_modules,
+         * Windows <X>\<bin> + node_modules(shim 与包同层,无 bin 段)。 */
+        #[cfg(unix)]
+        let (bin_dir, modules_rel) = (root.join("np/bin"), "np/lib/node_modules");
+        #[cfg(not(unix))]
+        let (bin_dir, modules_rel) = (root.join("np"), "np/node_modules");
+        std::fs::create_dir_all(&bin_dir).unwrap();
+        std::fs::create_dir_all(root.join(modules_rel)).unwrap();
+        let hit = bin_dir.join("omp");
+        std::fs::write(&hit, "").unwrap();
+        assert_eq!(
+            npm_prefix_of(hit.to_str().unwrap()).as_deref(),
+            Some(root.join("np").to_str().unwrap()),
+            "npm 全局布局内的副本应识别出 prefix"
+        );
+
+        /* 非 npm 布局(无 node_modules,如官方原生副本 .kimi-code\bin)→ None。 */
+        let bare = root.join("plain");
+        std::fs::create_dir_all(&bare).unwrap();
+        let native = bare.join("kimi.exe");
+        std::fs::write(&native, "").unwrap();
+        assert_eq!(npm_prefix_of(native.to_str().unwrap()), None);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn npm_prefix_of_rejects_non_path_input() {
+        /* 无父目录/不可表达路径不 panic(探针侧纯函数,输入来自磁盘枚举)。 */
+        assert_eq!(npm_prefix_of(""), None);
     }
 }

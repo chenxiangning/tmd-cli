@@ -1,6 +1,6 @@
 [package]
 name = "tmd-cli"
-version = "0.1.4"
+version = "0.1.6"
 description = "Plugin-based multi-CLI desktop client"
 authors = ["Chen Xiangning"]
 license = "MIT"
@@ -28,6 +28,10 @@ git2 = { version = "0.20", default-features = false, features = ["vendored-libgi
 parking_lot = "0.12"
 dirs = "6"
 tauri-plugin-dialog = "2"
+# 应用内自动更新:GitHub latest.json 通道(minisign 签名产物)+ 重启安装;
+# 前端经 kernel/ipc 薄包装消费(架构铁律 R3),签名密钥见 ~/.tauri/tmd-cli.key。
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 # reqwest 0.13 起 rustls 为默认 TLS 后端;旧 "rustls-tls" feature 已移除
 reqwest = { version = "0.13", features = ["json", "rustls", "socks"] }
 # 只读 omp agent.db(auth_credentials 表)取供应商凭据;bundled 免系统 sqlite 依赖。

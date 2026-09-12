@@ -42,15 +42,19 @@ async function sendPrompt(ctx, text, mode = "queue") {
   print.nl();
   for (const l of render.userCardLines((mode === "steer" ? "⟶ " : "") + text)) print.print(l);
   if (mode === "queue") ctx.onSend();
-  const r = await rpcCall(ctx.ORIGIN, "session.prompt", {
-    sessionId: ctx.dshSessionId, mode, content: [{ type: "text", text }],
+  const r = await rpcCall(ctx.ORIGIN, "session/prompt", {
+    request: {
+      requestId: `tmd-${Date.now()}`, sessionId: ctx.dshSessionId, mode,
+      content: [{ type: "text", text }],
+      clientTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    },
   });
   if (!r.ok) print.error(`发送失败: ${errMsg(r.error)}`);
 }
 
 /** /context:上下文占用明细(session.list 自项 projections)。 */
 async function doContext(ctx) {
-  const r = await rpcCall(ctx.ORIGIN, "session.list", {});
+  const r = await rpcCall(ctx.ORIGIN, "session/list", { _request: {} });
   const it = (r.ok ? r.value?.items || [] : []).find((s) => s.sessionId === ctx.dshSessionId);
   const v = it?.projections?.values;
   if (!v?.contextPressure) { print.status("host 未返回上下文投影"); return; }
@@ -65,15 +69,15 @@ async function doContext(ctx) {
 }
 
 async function doCancel(ctx) {
-  const r = await rpcCall(ctx.ORIGIN, "session.cancel", { sessionId: ctx.dshSessionId });
+  const r = await rpcCall(ctx.ORIGIN, "session/cancel", { request: { sessionId: ctx.dshSessionId } });
   if (!r.ok) print.error(`取消失败: ${errMsg(r.error)}`);
 }
 
 async function doModel(ctx, sel) {
   const parts = sel.split("/");
   const [provider, model] = parts.length === 2 ? parts : ["", parts[0]];
-  const r = await rpcCall(ctx.ORIGIN, "session.selectModel", {
-    sessionId: ctx.dshSessionId, provider, model,
+  const r = await rpcCall(ctx.ORIGIN, "session/selectModel", {
+    request: { sessionId: ctx.dshSessionId, provider, model },
   });
   if (!r.ok) print.error(`切换失败: ${errMsg(r.error)}`);
   else {
@@ -84,7 +88,7 @@ async function doModel(ctx, sel) {
 
 /** 模型列表:omp model-selector 同款(groups 线格式,codemoss flatten_llm_models 同解析)。 */
 async function doModels(ctx) {
-  const r = await rpcCall(ctx.ORIGIN, "llm.models", {});
+  const r = await rpcCall(ctx.ORIGIN, "session/modelCatalog", {});
   if (!r.ok) { print.error(`拉取失败: ${errMsg(r.error)}`); return; }
   const groups = r.value?.groups || [];
   print.nl();
@@ -98,7 +102,7 @@ async function doModels(ctx) {
 
 async function doCommand(ctx, line) {
   const r = await rpcCall(ctx.ORIGIN, "commands/execute", {
-    args: { agentId: ctx.dshSessionId, line, images: [] },
+    agentId: ctx.dshSessionId, line, images: [],
   });
   if (!r.ok) print.error(`命令失败: ${errMsg(r.error)}`);
   else {
@@ -107,11 +111,12 @@ async function doCommand(ctx, line) {
     else print.status(`命令已执行: ${line}`);
   }
 }
-/** 历史回放:session.history events[] 里的 user/message 与 assistant/message。 */
-async function loadHistory(ctx) {
-  const r = await rpcCall(ctx.ORIGIN, "session.history", { sessionId: ctx.dshSessionId, maxMessages: 200 });
-  const events = r.ok ? r.value?.events : null;
-  if (!Array.isArray(events) || !events.length) return;
+/** 历史回放:follow 快照 records[] 里的 user/message 与 assistant/message
+ *  (0.1.2 起 session.history 删除;快照随 mux 打开自动到达,新会话快照只有
+ *  系统事件,此函数自然空转)。纯渲染,无 RPC。 */
+function renderHistory(records) {
+  if (!Array.isArray(records) || !records.length) return;
+  const events = records;
   print.nl();
   print.print(T.fg("dim", "─── 历史 ───"));
   for (const wrap of events) {
@@ -161,4 +166,4 @@ function printHelp() {
 
 function errMsg(e) { return typeof e === "string" ? e : e?.message || JSON.stringify(e); }
 
-module.exports = { handleStdin, loadHistory, printBanner, printHelp };
+module.exports = { handleStdin, renderHistory, printBanner, printHelp };

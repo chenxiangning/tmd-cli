@@ -1,5 +1,5 @@
 // AppShell 持久化开关与元素宽度测量 hook,自 AppShell.tsx 按「纯结构拆分、行为不变」拆出
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 export function usePersistedToggle(key: string, initial: boolean) {
   const [open, setOpen] = useState(
@@ -16,34 +16,25 @@ export function usePersistedToggle(key: string, initial: boolean) {
  * 元素卸载时移除变量 —— 消费端 var() 无回退即 computed-value 无效,退化 auto(= 旧 0=未测量语义)。
  */
 export function useElementWidth(cssVar: string) {
-  const observerRef = useRef<ResizeObserver | null>(null);
-  const lastWidthRef = useRef(-1);
-  const ref = useCallback(
-    (el: HTMLElement | null) => {
-      observerRef.current?.disconnect();
-      observerRef.current = null;
-      if (!el) {
-        lastWidthRef.current = -1;
-        document.documentElement.style.removeProperty(cssVar);
-        return;
-      }
-      const ro = new ResizeObserver((entries) => {
-        const w = Math.round(entries[0]?.contentRect.width ?? 0);
-        if (w === lastWidthRef.current) return;
-        lastWidthRef.current = w;
-        document.documentElement.style.setProperty(cssVar, `${w}px`);
-      });
-      ro.observe(el);
-      observerRef.current = ro;
-    },
-    [cssVar],
-  );
-  useEffect(
-    () => () => {
-      observerRef.current?.disconnect();
+  const [el, setEl] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!el) {
       document.documentElement.style.removeProperty(cssVar);
-    },
-    [cssVar],
-  );
-  return ref;
+      return;
+    }
+    let lastWidth = -1;
+    const ro = new ResizeObserver((entries) => {
+      const w = Math.round(entries[0]?.contentRect.width ?? 0);
+      if (w === lastWidth) return;
+      lastWidth = w;
+      document.documentElement.style.setProperty(cssVar, `${w}px`);
+    });
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty(cssVar);
+    };
+  }, [el, cssVar]);
+  /* setEl 引用恒定,直接当 callback ref 用(attach/detach 即 el/null)。 */
+  return setEl;
 }

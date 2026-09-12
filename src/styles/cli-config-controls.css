@@ -152,6 +152,10 @@
 }
 
 .cli-cfg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
   padding: 5px 14px;
   border-radius: 7px;
   font-size: 0.75rem;

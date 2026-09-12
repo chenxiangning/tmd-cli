@@ -154,6 +154,10 @@ pub struct SshPromptEvent {
 /// 一个 SSH 会话条目:主机配置快照(重连用)+ 运行时 + 会话日志句柄。
 pub(crate) struct SshSessionEntry {
     pub(crate) host: transport::SshHostWire,
+    /// PTY 内初始命令(None = 交互 shell;远程 WSL 会话 = wsl.exe 包装串,重连透传)。
+    pub(crate) command: Option<String>,
+    /// 引擎档案 id(远程 WSL CLI 会话;重连透传,前端 composer/Ask 据此取 CLI profile)。
+    pub(crate) engine: Option<String>,
     pub(crate) runtime: Arc<SshSessionRuntime>,
     pub(crate) cols: AtomicUsize,
     pub(crate) rows: AtomicUsize,
@@ -164,7 +168,10 @@ pub(crate) struct SshSessionEntry {
 
 /// 待应答提示:连接任务在后台等待 oneshot 应答。
 /// 邮箱式 —— 状态机全程在连接任务内,提示种类只对前端有意义(hostKey/kbi/password)。
+/// event/session_id 留档供前端重连后对账拉取(webview reload 会丢事件,先例:转发对账)。
 pub(crate) struct PendingPrompt {
+    pub(crate) session_id: String,
+    pub(crate) event: SshPromptEvent,
     pub(crate) responder: tokio::sync::oneshot::Sender<PromptAnswer>,
 }
 

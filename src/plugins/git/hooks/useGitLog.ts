@@ -18,11 +18,21 @@ export interface GitLogState {
   refresh: () => Promise<void>;
 }
 
+interface PageState {
+  cwd: string | null;
+  entries: GitLogEntry[];
+  hasMore: boolean;
+  error: string | null;
+}
+
+/** cwd 切换后的空页视图(旧 cwd 数据不展示、不参与 append)。 */
+const EMPTY_PAGE: Omit<PageState, "cwd"> = { entries: [], hasMore: true, error: null };
+
 export function useGitLog(cwd: string | null, active: boolean): GitLogState {
-  const [entries, setEntries] = useState<GitLogEntry[]>([]);
+  /* 分页数据与 cwd 同槽:cwd 一变即派生为空页,旧数据随下次写入整体覆盖,
+     无需 cwd 重置 effect(原三件套 setEntries/setHasMore/setError)。 */
+  const [page, setPage] = useState<PageState>({ cwd, ...EMPTY_PAGE });
   const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const tokenRef = useRef(0);
 
   const load = useCallback(
@@ -31,16 +41,26 @@ export function useGitLog(cwd: string | null, active: boolean): GitLogState {
       const myToken = ++tokenRef.current;
       setLoading(true);
       return ipc.gitLog(cwd, PAGE_SIZE, offset).then(
-        (page) => {
+        (next) => {
           if (myToken !== tokenRef.current) return;
-          setEntries((prev) => (replace ? page : [...prev, ...page]));
-          setHasMore(page.length === PAGE_SIZE);
+          setPage((prev) => ({
+            cwd,
+            entries: replace ? next : [...(prev.cwd === cwd ? prev.entries : []), ...next],
+            hasMore: next.length === PAGE_SIZE,
+            error: null,
+          }));
           setLoading(false);
-          setError(null);
         },
         (e: unknown) => {
           if (myToken !== tokenRef.current) return;
-          setError(gitErrorMessage(e));
+          /* 错误路径同样要过 cwd 闸:切仓后首次拉取失败不得解封旧仓 entries/hasMore
+             (成功路径 48 行与 loadMore 均有闸,此处曾漏——A 仓列表会出现在 B 仓错误横幅下)。 */
+          setPage((prev) => ({
+            cwd,
+            entries: prev.cwd === cwd ? prev.entries : [],
+            hasMore: prev.cwd === cwd ? prev.hasMore : true,
+            error: gitErrorMessage(e),
+          }));
           setLoading(false);
         },
       );
@@ -49,24 +69,14 @@ export function useGitLog(cwd: string | null, active: boolean): GitLogState {
   );
 
   const refresh = useCallback(() => load(0, true), [load]);
+  const view = page.cwd === cwd ? page : EMPTY_PAGE;
   const loadMore = useCallback(() => {
-    if (!loading && hasMore) load(entries.length, false);
-  }, [entries.length, hasMore, load, loading]);
-
-  /* cwd 重置 effect 必须先于取数 effect 声明:两 effect 按声明序执行,
-     先 bump 掉旧 cwd 在途响应,refresh 发出的新请求 token 才不被污染。
-     反序时 mount/history 激活态切 workspace 会先发新请求再作废它 →
-     loading 永远 true,历史视图只能靠切视图自救。 */
-  useEffect(() => {
-    tokenRef.current += 1; // 作废旧 cwd 在途 loadMore 响应
-    setEntries([]);
-    setHasMore(true);
-    setError(null);
-  }, [cwd]);
+    if (!loading && view.hasMore) load(view.entries.length, false);
+  }, [view.entries.length, view.hasMore, load, loading]);
 
   useEffect(() => {
     if (active) refresh();
   }, [active, refresh]);
 
-  return { entries, loading, hasMore, error, loadMore, refresh };
+  return { entries: view.entries, loading, hasMore: view.hasMore, error: view.error, loadMore, refresh };
 }

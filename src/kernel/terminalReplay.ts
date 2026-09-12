@@ -96,11 +96,10 @@ export function attachTerminalStream(
   let clrSeen = false;
   let diskStreamPhase = false;
   let failsafe: ReturnType<typeof setTimeout> | undefined;
-  /* 启动 live 闸:挂载即 arm,从挂载到 streamReady 期间挡掉 onData 直通;
-     根因:pi-tui 启动期对 xterm DA/DSR/kitty 应答的 StdinBuffer 50ms flush
-     把前缀与终结字节拆成两段 data 事件,终结 c/R/u 落入 input handler
-     注入 focused 的「初始化对话框」(2026-09-10 win omp-cli 实证)。
-     计数闸与 replay/翻页窗并存(replay 窗见 130/180 行),配对释放。 */
+  /* 启动闸:挂载即 arm,从挂载到 streamReady 期间只弃用户形态输入、放行整段
+     终端协议回传 —— 回放/翻页窗同一策略(见 terminalInputGate.ts):活查询的
+     应答远端正在等,启动窗与回放窗都可能接到活查询(局域网下连接先于幕布
+     挂载完成时,CPR 落缓冲走回放分支,2026-09-12 白屏二轮实证)。 */
   inputGate.arm();
   const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) => {
 
@@ -123,7 +122,9 @@ export function attachTerminalStream(
   const armQuiet = (): void => {
     clearTimeout(quietTimer);
     quietTimer = setTimeout(() => {
-      if (cancelled) return;
+      /* ready 幂等守卫:12s 兜底先触发后,挂起的静默表不得再放一次闸(重复 release
+         会跨窗 pop 掉翻页器的 arm,重写期 xterm 自动应答漏进活 PTY)。 */
+      if (cancelled || ready) return;
       ready = true;
       inputGate.release();
       onReady?.();
@@ -165,7 +166,7 @@ export function attachTerminalStream(
     const finishDisk = (): void => {
       clearTimeout(diskFlushTimer);
       diskChunkSink = null;
-      if (cancelled) return;
+      if (cancelled || ready) return; /* ready 幂等:CLR 兜底已就绪后,迟到的 30s 表不得二次 release */
       flushQueuedNow();
       ready = true;
       inputGate.release();

@@ -20,12 +20,9 @@ import { ModelPicker } from "./ModelPicker";
 import {
   ModelMapInput,
   OrderedListInput,
-  SecretInput,
-  normOptions,
-  withCurrent,
-  strVal,
-  useCatalog,
-} from "./FieldControls";
+  } from "./FieldControls";
+import { SecretInput } from "@kernel/SecretInput";
+import { normOptions, strVal, useCatalog, withCurrent } from "./FieldControlsModel";
 
 export function ConfigForm({
   engine,
@@ -121,12 +118,12 @@ function FieldRow({
           <details className="cli-cfg-detail">
             <summary>{t("说明")}</summary>
             <div className="cli-cfg-detail-body">
-              {field.detail.split("\n").map((para, i) => {
+              {field.detail.split("\n").map((para) => {
                 const sep = para.indexOf(":");
                 const lead = sep > 0 && sep < 12 ? para.slice(0, sep) : "";
                 const rest = lead ? para.slice(sep + 1) : para;
                 return (
-                  <p key={i}>
+                  <p key={para}>
                     {lead && <strong>{t(lead)}:</strong>}
                     {t(rest)}
                   </p>
@@ -189,6 +186,7 @@ function FieldControl({
         <button
           type="button"
           role="switch"
+          aria-label={t(field.label)}
           aria-checked={value === true}
           className={`cli-cfg-switch${value === true ? " is-on" : ""}`}
           onClick={() => onSet(value !== true)}

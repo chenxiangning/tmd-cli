@@ -51,6 +51,12 @@ export function registerSettingsSection(section: SettingsSectionContribution): v
   store.commit(sorted());
 }
 
+/** 撤销通道(激活失败回滚/熔断摘除):id 未存在时静默(幂等)。 */
+export function removeSettingsSection(id: string): void {
+  if (!sections.delete(id)) return;
+  store.commit(sorted());
+}
+
 export function useSettingsSections(): SettingsSectionContribution[] {
   return store.useStore();
 }

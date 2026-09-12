@@ -160,6 +160,9 @@
   left: 4px;
   width: 15px;
   height: 15px;
+  border: 0;
+  padding: 0;
+  font: inherit;
   border-radius: var(--tmd-radius-sm);
   display: grid;
   place-items: center;

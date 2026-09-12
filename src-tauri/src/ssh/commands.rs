@@ -14,8 +14,10 @@ use crate::session::SessionMeta;
 use crate::AppState;
 
 /// 创建 SSH 会话:立即注册会话表并返回 id,连接/认证在后台完成
-/// (状态经 ssh://event/{id},提示经 ssh://prompt/{id})。
+/// (状态经 ssh://event/{id},提示经 ssh://prompt/{id})。engine_profile =
+/// 远程 WSL CLI 的引擎档案 id(仅随 command 出现;composer/Ask 据此取 profile)。
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // 扁平参数直通 tauri IPC 契约(先例:checkpoints/commands.rs)
 pub async fn ssh_session_create(
     app: AppHandle,
     state: State<'_, AppState>,
@@ -24,6 +26,8 @@ pub async fn ssh_session_create(
     workspace_id: Option<String>,
     cols: Option<u16>,
     rows: Option<u16>,
+    command: Option<String>,
+    engine_profile: Option<String>,
 ) -> Result<crate::pty::SpawnedSession, String> {
     let host = host.normalized()?;
     let id = crate::pty::uuid_v4();
@@ -55,8 +59,11 @@ pub async fn ssh_session_create(
         );
     }
 
+    /* engine_profile 由调用方传真实 profile id(前端引擎清单),后端原样登记不猜。 */
     let entry = Arc::new(super::SshSessionEntry {
         host: host.clone(),
+        command,
+        engine: engine_profile.clone(),
         runtime: Arc::new(super::SshSessionRuntime::new()),
         cols: std::sync::atomic::AtomicUsize::new(usize::from(cols)),
         rows: std::sync::atomic::AtomicUsize::new(usize::from(rows)),
@@ -81,6 +88,7 @@ pub async fn ssh_session_create(
         } else {
             host.name.trim().to_string()
         }),
+        engine: engine_profile,
     });
 
     let registry = Arc::clone(&state.ssh);
@@ -101,13 +109,28 @@ pub async fn ssh_session_reconnect(
     cwd: String,
     workspace_id: Option<String>,
 ) -> Result<crate::pty::SpawnedSession, String> {
-    let host = {
+    let (host, command, engine) = {
         let sessions = state.ssh.sessions.lock();
         let entry = sessions.get(&session_id).ok_or("SSH 会话不存在或已结束")?;
-        entry.host.clone()
+        (
+            entry.host.clone(),
+            entry.command.clone(),
+            entry.engine.clone(),
+        )
     };
     control::kill(&app, &state.ssh, &session_id)?;
-    ssh_session_create(app, state, host, cwd, workspace_id, None, None).await
+    ssh_session_create(
+        app,
+        state,
+        host,
+        cwd,
+        workspace_id,
+        None,
+        None,
+        command,
+        engine,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -136,6 +159,29 @@ pub async fn ssh_latency(state: State<'_, AppState>, session_id: String) -> Resu
 }
 
 // ---- known_hosts ----
+
+/// 未决提示对账(webview reload/接线竞态兜底):前端 watch 接线后拉取一次,
+/// 事件丢失的提示卡在此补上(先例:refreshForwards 转发对账)。
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SshPendingPrompt {
+    pub session_id: String,
+    pub prompt: super::SshPromptEvent,
+}
+
+#[tauri::command]
+pub fn ssh_prompts_pending(state: State<'_, AppState>) -> Vec<SshPendingPrompt> {
+    state
+        .ssh
+        .prompts
+        .lock()
+        .values()
+        .map(|p| SshPendingPrompt {
+            session_id: p.session_id.clone(),
+            prompt: p.event.clone(),
+        })
+        .collect()
+}
 
 #[tauri::command]
 pub fn ssh_known_hosts_reset(host: String, port: u16) -> Result<bool, String> {

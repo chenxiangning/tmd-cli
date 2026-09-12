@@ -11,7 +11,78 @@ import { CaretRight, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptBatchFile, CkptPatch } from "@kernel/ipc";
 
-export function FileSection({
+/** 分区头徽标簇:已退/内容已变/无前像/AI 写入计数(自 FileSection 拆出降分支)。 */
+function FileSectionBadges({
+  reverted,
+  stale,
+  noBaseline,
+  editCount,
+  attribution,
+}: {
+  reverted: boolean;
+  stale: boolean;
+  noBaseline: boolean;
+  editCount: number;
+  attribution: "events" | "git";
+}) {
+  return (
+    <>
+      {reverted && (
+        <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[0.625rem] leading-[0.875rem] text-[#a78bfa]">
+          {t("已退")}
+        </span>
+      )}
+      {stale && (
+        <span
+          className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-faint)"
+          title={t("工作区内容已偏离本批后像,不可回退,仅可对照")}
+        >
+          {t("内容已变")}
+        </span>
+      )}
+      {noBaseline && (
+        <span
+          className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-faint)"
+          title={t("工作区外文件,首轮批前像不可知 —— 禁回退(防误删既有文件);次轮起可正常回退")}
+        >
+          {t("无前像")}
+        </span>
+      )}
+      {editCount > 0 && attribution === "events" && (
+        <span
+          className="flex-none rounded border border-(--tmd-border) px-1 text-[0.5625rem] leading-[0.8125rem] text-(--tmd-fg-faint)"
+          title={t("AI 本轮写入该文件 {n} 次(事件流轨迹,账本可审计)", { n: editCount })}
+        >
+          ×{editCount}
+        </span>
+      )}
+    </>
+  );
+}
+
+/** unified diff 行着色:@@ 头/增/删/上下文(自 FileSection 拆出降分支)。 */
+function FileSectionDiff({ lines }: { lines: string[] }) {
+  return (
+    <pre className="overflow-x-auto bg-(--tmd-bg-base) p-2.5 font-mono text-[0.6875rem] leading-[1.6]">
+      {lines.map((line, i) => {
+        const cls = line.startsWith("@@")
+          ? "text-(--tmd-accent)/75"
+          : line.startsWith("+")
+            ? "bg-(--tmd-diff-inserted)/10 text-(--tmd-diff-inserted)"
+            : line.startsWith("-")
+              ? "bg-(--tmd-diff-removed)/10 text-(--tmd-diff-removed)"
+              : "text-(--tmd-fg-subtle)";
+        return (
+          <span key={i} className={`${cls} block whitespace-pre`}>
+            {line || " "}
+          </span>
+        );
+      })}
+    </pre>
+  );
+}
+
+function FileSection({
   path,
   status,
   stale,
@@ -74,35 +145,13 @@ export function FileSection({
             <b className="font-medium text-(--tmd-fg)">{name}</b>{" "}
             <span className="text-(--tmd-fg-faint)">{dir}</span>
           </span>
-          {reverted && (
-            <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[0.625rem] leading-[0.875rem] text-[#a78bfa]">
-              {t("已退")}
-            </span>
-          )}
-          {stale && (
-            <span
-              className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-faint)"
-              title={t("工作区内容已偏离本批后像,不可回退,仅可对照")}
-            >
-              {t("内容已变")}
-            </span>
-          )}
-          {noBaseline && (
-            <span
-              className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-faint)"
-              title={t("工作区外文件,首轮批前像不可知 —— 禁回退(防误删既有文件);次轮起可正常回退")}
-            >
-              {t("无前像")}
-            </span>
-          )}
-          {editCount > 0 && attribution === "events" && (
-            <span
-              className="flex-none rounded border border-(--tmd-border) px-1 text-[0.5625rem] leading-[0.8125rem] text-(--tmd-fg-faint)"
-              title={t("AI 本轮写入该文件 {n} 次(事件流轨迹,账本可审计)", { n: editCount })}
-            >
-              ×{editCount}
-            </span>
-          )}
+          <FileSectionBadges
+            reverted={reverted}
+            stale={stale}
+            noBaseline={noBaseline}
+            editCount={editCount}
+            attribution={attribution}
+          />
           {patch && (
             <span className="flex-none font-mono text-[0.625rem]">
               <span className="text-(--tmd-diff-inserted)">+{patch.additions}</span>{" "}
@@ -121,24 +170,7 @@ export function FileSection({
           </button>
         )}
       </div>
-      {open && patch && (
-        <pre className="overflow-x-auto bg-(--tmd-bg-base) p-2.5 font-mono text-[0.6875rem] leading-[1.6]">
-          {lines.map((line, i) => {
-            const cls = line.startsWith("@@")
-              ? "text-(--tmd-accent)/75"
-              : line.startsWith("+")
-                ? "bg-(--tmd-diff-inserted)/10 text-(--tmd-diff-inserted)"
-                : line.startsWith("-")
-                  ? "bg-(--tmd-diff-removed)/10 text-(--tmd-diff-removed)"
-                  : "text-(--tmd-fg-subtle)";
-            return (
-              <span key={i} className={`${cls} block whitespace-pre`}>
-                {line || " "}
-              </span>
-            );
-          })}
-        </pre>
-      )}
+      {open && patch && <FileSectionDiff lines={lines} />}
     </div>
   );
 }

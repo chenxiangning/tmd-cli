@@ -168,7 +168,7 @@ pub(super) fn edit_open_paths(
         .iter()
         .filter(|e| e.kind == "edit" && e.id == anchor.id)
         .map(|e| {
-            let status = if fs::read(root.join(&e.path)).is_err() {
+            let status = if !root.join(&e.path).try_exists().unwrap_or(false) {
                 "D".to_string()
             } else if e.before_oid.is_empty() && !super::is_external_path(&e.path) {
                 "A".to_string()

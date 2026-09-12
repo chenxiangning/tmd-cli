@@ -92,12 +92,18 @@ export async function pickContentIdentity(
   read: (path: string) => Promise<SessionFileIdentity | null>,
   siblingSpawns: readonly number[] = [],
 ): Promise<ContentIdentityResult> {
+  /* 逐候选读自证互不依赖,并发一次发出;评分仍按候选原序走(平局让更旧者胜)。 */
+  const probed = await Promise.all(
+    candidates.map(async (candidate) => ({
+      candidate,
+      identity: await read(candidate.path).catch(() => null),
+    })),
+  );
   let anyReadable = false;
   let soleEligibleNoTs: CliDiskSession | null = null;
   let eligibleNoTsCount = 0;
   let best: { id: string; score: number } | null = null;
-  for (const candidate of candidates) {
-    const identity = await read(candidate.path).catch(() => null);
+  for (const { candidate, identity } of probed) {
     if (!identity?.id) continue;
     if (identity.id !== candidate.id) continue;
     anyReadable = true;

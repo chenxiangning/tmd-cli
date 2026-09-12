@@ -22,7 +22,8 @@ import { getFilePanelMode, setFilePanelMode } from "@kernel/filePanel";
 import { getActiveTab } from "@kernel/tabs";
 import { SshOverlay } from "./SshOverlay";
 import { SshPanel } from "./panel/SshPanel";
-import { RemoteFileTab, saveRequestRef } from "./editor/RemoteFileTab";
+import { RemoteFileTab } from "./editor/RemoteFileTab";
+import { saveRequestRef } from "./editor/saveRequestRef";
 import { SshSettingsSection } from "./settings/SshSettingsSection";
 import { refreshForwards, unwatchSshSession, watchSshSession, wireSshEvents } from "./state";
 import { MenuEntry } from "./MenuEntry";
@@ -32,11 +33,18 @@ import { MenuEntry } from "./MenuEntry";
 void (async () => {
   try {
     const sessions = await ipc.sessionList();
-    for (const session of sessions) {
-      if (session.kind !== "ssh") continue;
-      await watchSshSession(session.id);
-      await refreshForwards(session.id);
+    /* 会话间互不依赖,并发接线;单会话内先订阅后对账转发。 */
+    const jobs: Promise<void>[] = [];
+    for (const s of sessions) {
+      if (s.kind !== "ssh") continue;
+      jobs.push(
+        (async () => {
+          await watchSshSession(s.id);
+          await refreshForwards(s.id);
+        })(),
+      );
     }
+    await Promise.all(jobs);
   } catch {
     /* 纯浏览器 dev(无 Tauri runtime)时静默。 */
   }

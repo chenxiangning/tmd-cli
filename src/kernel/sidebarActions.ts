@@ -11,7 +11,7 @@ import type { ComponentType } from "react";
 import { createSubscribable } from "./subscribable";
 
 /** 动作图标的最小 props 面(兼容 @phosphor-icons-react 图标组件)。 */
-export type SidebarActionIcon = ComponentType<{
+type SidebarActionIcon = ComponentType<{
   size?: number | string;
   className?: string;
 }>;
@@ -49,9 +49,16 @@ export function registerSidebarAction(action: SidebarAction): void {
   store.commit({ actions: state.actions });
 }
 
+/** 撤销通道(激活失败回滚/熔断摘除):id 未存在时静默(幂等)。 */
+export function removeSidebarAction(id: string): void {
+  if (!state.actions.some((a) => a.id === id)) return;
+  state.actions = state.actions.filter((a) => a.id !== id);
+  store.commit({ actions: state.actions });
+}
+
 /** 默认钉住的动作 id(读注册表;壳层渲染晚于插件激活,调用点拿得到全量)。 */
 export function defaultPinnedActionIds(): string[] {
-  return state.actions.filter((a) => a.defaultPinned).map((a) => a.id);
+  return state.actions.flatMap((a) => (a.defaultPinned ? [a.id] : []));
 }
 
 export function useSidebarActions(): readonly SidebarAction[] {

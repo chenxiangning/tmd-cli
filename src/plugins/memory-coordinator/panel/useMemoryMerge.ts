@@ -37,6 +37,7 @@ export function useMemoryMerge({
     setMerging(true);
     setMergeNote(t("合并中…(经 omp 官方管线,可能需数十秒)"));
     const ids = chosen.map((m) => m.id);
+    const idSet = new Set(ids);
     void mergeMemories(ids, chosen[0].content, root, {
       engine: resolveDistillEngine(getSettingsState().settings.memoryDistillEngine),
       model: getSettingsState().settings.memoryDistillModel || undefined,
@@ -47,8 +48,9 @@ export function useMemoryMerge({
         return;
       }
       await reload();
-      const still = (await memoryPool.recall((await resolveProjectIdentity(root)) ?? "", undefined, 200))
-        .filter((m) => ids.includes(m.id));
+      const projectId = await resolveProjectIdentity(root);
+      const after = projectId ? await memoryPool.recall(projectId, undefined, 200) : [];
+      const still = after.filter((m) => idSet.has(m.id));
       if (still.length > 0) {
         setMergeNote(t("引擎回复成功但 {n} 条仍在(模型可能未执行合并):{detail}", { n: still.length, detail: out.detail.slice(0, 80) }));
       } else {
@@ -56,6 +58,10 @@ export function useMemoryMerge({
         setSelected(new Set());
         setSelectMode(false);
       }
+    }).catch((e: unknown) => {
+      /* reject 路径兜底:merging 卡 true 会永久禁掉合并钮(正常失败走 {ok:false})。 */
+      setMerging(false);
+      setMergeNote(t("失败: {detail}", { detail: e instanceof Error ? e.message : String(e) }));
     });
   };
 

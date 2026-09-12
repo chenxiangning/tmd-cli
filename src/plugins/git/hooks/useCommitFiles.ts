@@ -3,10 +3,10 @@
  *
  * Graph 展开与提交 diff tab 共用:ensure(sha) 幂等,fetchedRef 去重
  * (在途/已成的 sha 不再请求);失败移出去重集,下次展开自动重试;
- * cwd 切换整体作废。
+ * cwd 切换整体作废(entries 与 cwd 同槽派生为空,旧 cwd 在途响应落盘即弃)。
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ipc, type GitCommitFile } from "@kernel/ipc";
 import { gitErrorMessage } from "../gitError";
 
@@ -16,45 +16,48 @@ interface CommitFilesEntry {
   error: string | null;
 }
 
-export function useCommitFiles(cwd: string | null) {
-  const [entries, setEntries] = useState<Record<string, CommitFilesEntry>>({});
-  const fetchedRef = useRef(new Set<string>());
-  const tokenRef = useRef(0);
+interface Cache {
+  cwd: string | null;
+  entries: Record<string, CommitFilesEntry>;
+}
 
-  // cwd 切换:整体作废(路径空间已变)
-  useEffect(() => {
-    tokenRef.current += 1;
-    fetchedRef.current.clear();
-    setEntries({});
-  }, [cwd]);
+const EMPTY_ENTRIES: Record<string, CommitFilesEntry> = {};
+
+export function useCommitFiles(cwd: string | null) {
+  const [cache, setCache] = useState<Cache>({ cwd, entries: {} });
+  /* 去重集与 cwd 同槽:cwd 变了旧 sha 集自然作废(懒换代,写 ref 只在 ensure 内)。 */
+  const fetchedRef = useRef<{ cwd: string | null; set: Set<string> }>({ cwd, set: new Set() });
+  const tokenRef = useRef(0);
 
   const ensure = useCallback(
     (sha: string) => {
       if (!cwd || sha.startsWith("scm-graph-")) return;
-      if (fetchedRef.current.has(sha)) return;
-      fetchedRef.current.add(sha);
+      if (fetchedRef.current.cwd !== cwd) fetchedRef.current = { cwd, set: new Set() };
+      if (fetchedRef.current.set.has(sha)) return;
+      fetchedRef.current.set.add(sha);
       const myToken = ++tokenRef.current;
-      setEntries((prev) => ({
-        ...prev,
-        [sha]: { files: prev[sha]?.files ?? [], loading: true, error: null },
-      }));
+      /* 写入一律经 prev.cwd 闸:旧 cwd 迟到的响应直接弃,不污染新 cwd 缓存 */
+      const put = (entry: (prev: Record<string, CommitFilesEntry>) => CommitFilesEntry) =>
+        setCache((prev) =>
+          prev.cwd === cwd
+            ? { cwd, entries: { ...prev.entries, [sha]: entry(prev.entries) } }
+            : prev,
+        );
+      put((prev) => ({ files: prev[sha]?.files ?? [], loading: true, error: null }));
       ipc.gitCommitFiles(cwd, sha).then(
         (files) => {
           if (myToken !== tokenRef.current) return;
-          setEntries((prev) => ({ ...prev, [sha]: { files, loading: false, error: null } }));
+          put(() => ({ files, loading: false, error: null }));
         },
         (e: unknown) => {
           if (myToken !== tokenRef.current) return;
-          fetchedRef.current.delete(sha);
-          setEntries((prev) => ({
-            ...prev,
-            [sha]: { files: [], loading: false, error: gitErrorMessage(e) },
-          }));
+          if (fetchedRef.current.cwd === cwd) fetchedRef.current.set.delete(sha);
+          put(() => ({ files: [], loading: false, error: gitErrorMessage(e) }));
         },
       );
     },
     [cwd],
   );
 
-  return { entries, ensure };
+  return { entries: cache.cwd === cwd ? cache.entries : EMPTY_ENTRIES, ensure };
 }

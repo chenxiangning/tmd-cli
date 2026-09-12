@@ -10,6 +10,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ipc } from "@kernel/ipc";
 import { updateTab } from "@kernel/tabs";
+import { t } from "@kernel/i18n";
+import { isRemoteFileUri } from "@kernel/fileSources";
 import {
   cacheRefreshContent,
   draftDelete,
@@ -49,10 +51,14 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
   const dirty = content !== saved;
 
   const contentRef = useRef(content);
-  contentRef.current = content;
   const savedRef = useRef(saved);
-  savedRef.current = saved;
   const savingRef = useRef(false);
+  /* ref 镜像在 effect 内同步(渲染期写 ref 违反 React 渲染纯性,react-doctor 强报)。 */
+  useEffect(() => {
+    contentRef.current = content;
+    savedRef.current = saved;
+  }, [content, saved]);
+
 
   /* 磁盘内容外变(刷新按钮 reloadFile 重读):无未保存草稿时静默跟进新内容;
      有草稿则以编辑态为准,不覆盖用户输入。行尾标记同步更新。 */
@@ -76,6 +82,11 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
 
   const save = useCallback(() => {
     if (savingRef.current) return;
+    if (isRemoteFileUri(path)) {
+      /* 远程 M1 无写回通道;编辑器已 readOnly,此处兜底 ⌘S 直呼 */
+      setError(t("远程文件暂不支持写入(M1)"));
+      return;
+    }
     const text = contentRef.current;
     if (text === savedRef.current) return;
     savingRef.current = true;
@@ -97,18 +108,18 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
         setError(String(e));
       },
     );
-  }, [path, init]);
+  }, [path]);
 
   /* 保存请求桥:⌘S 命令(files.save)注册口经此触发最新 save;卸载即摘除,
      非文件 tab 下 when 不满足,键穿透。 */
   const saveRef = useRef(save);
-  saveRef.current = save;
   useEffect(() => {
+    saveRef.current = save;
     saveRequestRef.current = () => saveRef.current();
     return () => {
       saveRequestRef.current = null;
     };
-  }, []);
+  }, [save]);
 
   /* 脏标记同步到 tab(圆点)。卸载不清理:切走的脏 tab 仍需保持圆点。 */
   useEffect(() => {

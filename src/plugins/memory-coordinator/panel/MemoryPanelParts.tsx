@@ -1,17 +1,20 @@
 /**
  * Memory 面板拆件 —— 自 MemoryPanel.tsx 拆出(文件规模铁则)。
  *
- * 命中词高亮 / 类目中文 label / 记忆列表行(截断摘要 + 展开详情 + 选择态
- * + hover 移除)/ 底部工具条(控制台切换 + 诊断 + 上游治理提示)。
+ * 面板诊断 hook / 记忆列表行(截断摘要 + 展开详情 + 选择态 + hover 移除)/
+ * 选择模式工具条 / 底部工具条(控制台切换 + 诊断 + 上游治理提示)。
+ * 高亮与类目 label 拆至 memoryText.tsx;就绪头部与过滤 chips 在
+ * MemoryPanelFilters.tsx(only-export-components 铁则)。
  */
 
 import { useCallback, useState } from "react";
 import { CaretDown } from "@phosphor-icons/react";
-import { CATEGORY_CN, type MemoryItem } from "../protocol";
+import { type MemoryItem } from "../protocol";
 import { memoryPool } from "../pool";
-import { toggleConsoleTab } from "../console/MemoryConsole";
+import { toggleConsoleTab } from "../console/consoleTab";
 import { t } from "@kernel/i18n";
 import { getSettingsState } from "@kernel/settings";
+import { categoryLabel, highlight } from "./memoryText";
 
 /**
  * 面板诊断状态 + 执行器 —— 池就绪与池不可用两态共用(不可用态同样要能
@@ -37,33 +40,6 @@ export function useMemoryDiag() {
   return { diag, diagRunning, runDiag };
 }
 
-/** 命中词高亮:按当前查询拆段包 <mark>(大小写不敏感,首处起全部命中)。 */
-export function highlight(text: string, query: string): React.ReactNode {
-  const q = query.trim();
-  if (!q) return text;
-  const lower = text.toLowerCase();
-  const ql = q.toLowerCase();
-  const parts: React.ReactNode[] = [];
-  let i = 0;
-  let n = 0;
-  while (i < text.length) {
-    const hit = lower.indexOf(ql, i);
-    if (hit < 0 || n > 50) {
-      parts.push(text.slice(i));
-      break;
-    }
-    if (hit > i) parts.push(text.slice(i, hit));
-    parts.push(<mark key={hit} className="rounded-sm bg-(--tmd-accent-soft) px-px">{text.slice(hit, hit + q.length)}</mark>);
-    i = hit + q.length;
-    n += 1;
-  }
-  return parts;
-}
-
-export function categoryLabel(key: string): string {
-  return t((CATEGORY_CN as Record<string, string>)[key] ?? key);
-}
-
 export function MemoryListItem({
   m,
   query,
@@ -85,46 +61,66 @@ export function MemoryListItem({
   onExpand: () => void;
   onRemove: () => void;
 }) {
+  const activate = () => {
+    if (selectMode) {
+      onSelect();
+      return;
+    }
+    onExpand();
+  };
   return (
     <div
       className={`group relative rounded-md px-2 py-1.5 hover:bg-(--tmd-bg-hover) ${
         selected ? "bg-(--tmd-accent-soft)" : ""
-      } ${selectMode ? "cursor-pointer" : ""}`}
-      onClick={() => {
-        if (selectMode) {
-          onSelect();
-          return;
-        }
-        onExpand();
-      }}
+      }`}
     >
-      <div className="truncate text-[0.6875rem] leading-[1.5] text-(--tmd-fg)" title={m.content}>{highlight(m.content, query)}</div>
-      <div className="mt-0.5 flex gap-1.5 text-[0.65625rem] text-(--tmd-fg-faint)">
-        <span>{categoryLabel(m.category)}</span>
-        <span>·</span>
-        <span>{m.harness || "pi"}</span>
-        <span>·</span>
-        {/* 语言切换整树重挂载(kernel/i18n),非响应式读当前语言即可 */}
-        <span>{new Date(m.updatedAt).toLocaleDateString(getSettingsState().settings.language)}</span>
-        <CaretDown
-          size="0.6875rem"
-          className={`ml-auto transition-transform ${expanded ? "rotate-180" : ""}`}
-        />
-      </div>
-      {expanded && (
-        <div className="mt-1.5 flex flex-col gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-base) p-2 text-[0.65625rem] leading-relaxed">
-          <div className="whitespace-pre-wrap break-words text-(--tmd-fg)">{m.content}</div>
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-(--tmd-fg-faint)">
-            <span title={m.category}>{t("类目:{label}({code})", { label: categoryLabel(m.category), code: m.category })}</span>
-            <span>{t("来源:{harness}", { harness: m.harness || "pi" })}</span>
-            <span>{t("状态:{status}", { status: m.status })}</span>
-            <span>{t("重要度:{v}", { v: m.importance ?? "—" })}</span>
-            <span>ID:{m.id}</span>
-            <span>{t("创建:{time}", { time: new Date(m.createdAt).toLocaleString("zh-CN") })}</span>
-            <span>{t("更新:{time}", { time: new Date(m.updatedAt).toLocaleString("zh-CN") })}</span>
-          </div>
+      {/* 可点击行:div[role=button] + 键盘激活(Enter/Space);移除按钮同级绝对定位,避免交互嵌套 */}
+      <div
+        role="button"
+        tabIndex={0}
+        className={selectMode ? "cursor-pointer" : ""}
+        onClick={activate}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            activate();
+          }
+        }}
+        onKeyUp={(e) => {
+          if (e.key === " ") {
+            e.preventDefault();
+            activate();
+          }
+        }}
+      >
+        <div className="truncate text-[0.6875rem] leading-[1.5] text-(--tmd-fg)" title={m.content}>{highlight(m.content, query)}</div>
+        <div className="mt-0.5 flex gap-1.5 text-[0.65625rem] text-(--tmd-fg-faint)">
+          <span>{categoryLabel(m.category)}</span>
+          <span>·</span>
+          <span>{m.harness || "pi"}</span>
+          <span>·</span>
+          {/* 语言切换整树重挂载(kernel/i18n),非响应式读当前语言即可 */}
+          <span>{new Date(m.updatedAt).toLocaleDateString(getSettingsState().settings.language)}</span>
+          <CaretDown
+            size="0.6875rem"
+            className={`ml-auto transition-transform ${expanded ? "rotate-180" : ""}`}
+          />
         </div>
-      )}
+        {expanded && (
+          <div className="mt-1.5 flex flex-col gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-base) p-2 text-[0.65625rem] leading-relaxed">
+            <div className="whitespace-pre-wrap break-words text-(--tmd-fg)">{m.content}</div>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-(--tmd-fg-faint)">
+              <span title={m.category}>{t("类目:{label}({code})", { label: categoryLabel(m.category), code: m.category })}</span>
+              <span>{t("来源:{harness}", { harness: m.harness || "pi" })}</span>
+              <span>{t("状态:{status}", { status: m.status })}</span>
+              <span>{t("重要度:{v}", { v: m.importance ?? "—" })}</span>
+              <span>ID:{m.id}</span>
+              <span>{t("创建:{time}", { time: new Date(m.createdAt).toLocaleString("zh-CN") })}</span>
+              <span>{t("更新:{time}", { time: new Date(m.updatedAt).toLocaleString("zh-CN") })}</span>
+            </div>
+          </div>
+        )}
+      </div>
       <button
         className={`absolute right-1.5 top-1.5 hidden rounded px-1.5 text-[0.625rem] group-hover:block ${
           archiving ? "text-(--tmd-fg-faint)" : "text-(--tmd-fg-muted) hover:text-(--tmd-err)"

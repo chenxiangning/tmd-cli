@@ -6,6 +6,7 @@ import { CaretDown, CaretUp, Plus, Trash } from "@phosphor-icons/react";
 import type { CliModelCatalogProvider } from "@kernel/cliConfigRegistry";
 import { t } from "@kernel/i18n";
 import { ModelPicker } from "./ModelPicker";
+import { rowKey } from "./FieldControlsModel";
 
 export function ChainPicker({
   value,
@@ -19,6 +20,7 @@ export function ChainPicker({
   onChange: (v: string) => void;
 }) {
   const items = value.split(",").map((s) => s.trim());
+  const seen = new Map<string, number>();
   const commit = (next: string[]) => onChange(next.join(","));
   const patch = (i: number, item: string) => commit(items.map((x, j) => (j === i ? item : x)));
   const move = (i: number, dir: -1 | 1) => {
@@ -31,7 +33,7 @@ export function ChainPicker({
   return (
     <div className="cli-cfg-kv cli-cfg-chain">
       {items.map((item, i) => (
-        <div key={`${item}:${i}`} className="cli-cfg-kv-row">
+        <div key={rowKey(item, seen)} className="cli-cfg-kv-row">
           <ModelPicker value={item} catalog={catalog} suffixes={suffixes} onChange={(v) => patch(i, v)} />
           <span className="cli-cfg-chain-ctl">
             <button type="button" className="cli-cfg-icon-btn" aria-label={t("上移")} disabled={i === 0}

@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { installPlanOf } from "./engineMeta";
+import { installPlanOf, resolveInstallPlan } from "./engineMeta";
 
 describe("installPlanOf 通道优先级", () => {
   it("scriptInstall 优先于 command 与 npm", () => {
@@ -40,5 +40,51 @@ describe("installPlanOf 通道优先级", () => {
       package: "x",
     });
     expect(installPlanOf({})).toBeNull();
+  });
+});
+
+describe("resolveInstallPlan 探针感知", () => {
+  const ompMeta = {
+    plan: installPlanOf({
+      npmPackage: "@oh-my-pi/pi-coding-agent",
+      commandInstall: {
+        program: "bun",
+        args: ["install", "-g", "@oh-my-pi/pi-coding-agent"],
+      },
+    }),
+    npmPackage: "@oh-my-pi/pi-coding-agent",
+  };
+
+  it("命中 npm 拥有的副本 → npm 计划就地更新(omp 双副本场景)", () => {
+    expect(
+      resolveInstallPlan(ompMeta, {
+        command: "omp",
+        found: true,
+        path: "C:\\Users\\x\\AppData\\Roaming\\npm\\omp.cmd",
+        version: "omp/18.1.6",
+        npmPrefix: "C:\\Users\\x\\AppData\\Roaming\\npm",
+      }),
+    ).toEqual({ channel: "npm", package: "@oh-my-pi/pi-coding-agent" });
+  });
+
+  it("命中非 npm 副本 / 未装 → 声明通道原样(bun-only 机器不变)", () => {
+    const native = { npmPrefix: null };
+    expect(resolveInstallPlan(ompMeta, { ...native } as never)).toEqual(ompMeta.plan);
+    expect(resolveInstallPlan(ompMeta, null)).toEqual(ompMeta.plan);
+  });
+
+  it("声明 script 的引擎不被 npm 覆盖(官方脚本才管得了原生副本)", () => {
+    const kimiMeta = {
+      plan: installPlanOf({
+        npmPackage: "@moonshot-ai/kimi-code",
+        scriptInstall: { unix: "u", windows: "w" },
+      }),
+      npmPackage: "@moonshot-ai/kimi-code",
+    };
+    expect(
+      resolveInstallPlan(kimiMeta, {
+        npmPrefix: "C:\\npm",
+      } as never),
+    ).toEqual(kimiMeta.plan);
   });
 });

@@ -7,7 +7,7 @@ vi.mock("@kernel/ipc", () => ({
   openExternalUrl: vi.fn(),
 }));
 
-import { installId } from "./marketCards";
+import { installId } from "./marketInstallModel";
 
 describe("installId(装卸事件流 id)", () => {
   it("scoped 包名产出的 id 只含 Tauri 事件名合法字符(字母数字与 - _)", () => {

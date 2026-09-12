@@ -15,7 +15,7 @@
 
 import { ipc } from "@kernel/ipc";
 import type { CliSuggestion } from "@kernel/cli";
-import { frontmatterDescription } from "./frontmatter";
+import { frontmatterDescription } from "@kernel/frontmatter";
 
 /** 单目录扫描上限:技能目录不会有几千项,给异常目录(误传仓库根)设闸。 */
 const SCAN_CAP = 2000;
@@ -25,23 +25,36 @@ const SCAN_CAP = 2000;
  * 目录读取失败 = 该目录跳过(不拖垮其余目录)。
  */
 export async function scanSkillDirs(dirs: readonly string[]): Promise<CliSuggestion[]> {
+  /* 目录 walk 与文件读取互不依赖,两级并发;目录读失败 catch 成 [](该目录跳过),
+     文件读失败 catch 成 ""(无描述),容错语义不变;先到先得由最后按
+     dirs×entries 原序落表保证。 */
+  const perDir = await Promise.all(
+    dirs.map(async (dir) => {
+      const entries = await ipc.fsWalkFiles(dir, SCAN_CAP).catch(() => [] as string[]);
+      return entries.flatMap((entry) => {
+        const parsed = classifySkillEntry(entry);
+        return parsed ? [{ parsed, path: `${dir}/${entry}` }] : [];
+      });
+    }),
+  );
+  const loaded = await Promise.all(
+    perDir.flat().map(async (c) => ({
+      ...c,
+      text: await ipc.fsReadFile(c.path).catch(() => ""),
+    })),
+  );
   /* 动态去重表:同名技能先到先得(目录优先级由调用方顺序表达),
      Map 保序 = 候选出现顺序稳定 */
   const byValue = new Map<string, CliSuggestion>();
-  for (const dir of dirs) {
-    const entries = await ipc.fsWalkFiles(dir, SCAN_CAP).catch(() => []);
-    for (const entry of entries) {
-      const parsed = classifySkillEntry(entry);
-      if (!parsed || byValue.has(parsed.name)) continue;
-      const text = await ipc.fsReadFile(`${dir}/${entry}`).catch(() => "");
-      const description = text ? frontmatterDescription(text) : undefined;
-      byValue.set(parsed.name, {
-        value: parsed.name,
-        description: description || parsed.dirName,
-        action: "insert",
-        icon: "think",
-      });
-    }
+  for (const { parsed, text } of loaded) {
+    if (byValue.has(parsed.name)) continue;
+    const description = text ? frontmatterDescription(text) : undefined;
+    byValue.set(parsed.name, {
+      value: parsed.name,
+      description: description || parsed.dirName,
+      action: "insert",
+      icon: "think",
+    });
   }
   return [...byValue.values()];
 }

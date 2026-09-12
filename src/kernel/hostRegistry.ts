@@ -6,20 +6,30 @@
  */
 
 import { PluginLifecycle } from "./pluginLifecycle";
-import { registerQuotaProvider } from "./quota";
-import { registerSidebarAction, type SidebarAction } from "./sidebarActions";
-import { registerCommand } from "./shortcuts";
+import { setQuarantineHandler } from "./pluginQuarantine";
+import { registerQuotaProvider, removeQuotaProvider } from "./quota";
+import { registerSidebarAction, removeSidebarAction, type SidebarAction } from "./sidebarActions";
+import { registerCommand, removeCommand } from "./shortcuts";
 import type { CliProfile } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";
 
 export class HostRegistry {
   private cliProfiles = new Map<string, CliProfile>();
   private mounts = new Map<MountPoint, MountContribution[]>();
-  private lifecycle = new PluginLifecycle();
+  private lifecycle = new PluginLifecycle({
+    removeCliProfile: (id) => this.removeCliProfile(id),
+    removeMount: (point, contribution) => this.removeMount(point, contribution),
+    removeSidebarActionById: (id) => this.removeSidebarActionById(id),
+  });
 
   /** notify:注册表内容变化后的外壳重渲染通知(Host.notify)。 */
-  constructor(private readonly notify: () => void) {}
-
+  constructor(private readonly notify: () => void) {
+    /* 熔断摘除接线:贡献撤销在 lifecycle,外壳重渲染在本件(与注册表变更同路径)。 */
+    setQuarantineHandler((id) => {
+      this.lifecycle.revoke(id);
+      this.notify();
+    });
+  }
   registerCliProfile(profile: CliProfile): void {
     if (this.cliProfiles.has(profile.id)) {
       throw new Error(`CLI profile 重复注册: ${profile.id}`);
@@ -52,6 +62,32 @@ export class HostRegistry {
       title: action.label,
       run: () => action.onSelect({ x: 8, y: window.innerHeight - 8 }),
     });
+  }
+
+  // ---- 撤销通道(激活失败回滚/熔断摘除,contributionLedger 经 PluginLifecycle 调用)----
+
+  /** profile 与其 quota provider 成对逆除;id 未存在时静默(幂等)。 */
+  removeCliProfile(id: string): void {
+    if (!this.cliProfiles.delete(id)) return;
+    removeQuotaProvider(id);
+    this.notify();
+  }
+
+  /** 按注册时的贡献对象引用逆除挂点贡献;未存在时静默(幂等)。 */
+  removeMount(point: MountPoint, contribution: MountContribution): void {
+    const list = this.mounts.get(point);
+    if (!list) return;
+    const next = list.filter((c) => c !== contribution);
+    if (next.length === list.length) return;
+    this.mounts.set(point, next);
+    this.notify();
+  }
+
+  /** 侧栏动作与其镜像命令(sidebar.<id>)成对逆除;未存在时静默(幂等)。 */
+  removeSidebarActionById(id: string): void {
+    removeSidebarAction(id);
+    removeCommand(`sidebar.${id}`);
+    this.notify();
   }
 
   /** 插件激活编排(委托 kernel/pluginLifecycle);ctx 为 Host 自身(PluginContext)。 */

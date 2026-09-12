@@ -10,6 +10,7 @@
 //! - 所有 index 操作必须经 fresh_index(index.read(true)),防外部终端 git add 后 stale。
 //! - 写操作由 commands 层成功后 evict_cwd,不暴露 invalidate IPC。
 
+mod ahead;
 mod branch_ops;
 mod commit;
 mod commit_view;
@@ -49,6 +50,7 @@ use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
+pub use ahead::{ahead_behind, AheadBehind};
 pub use branch_ops::BranchList;
 pub use commit::CommitInput;
 pub use commit_view::CommitFile;
@@ -57,7 +59,7 @@ pub use diff::{DiffTotals, FilePatch};
 pub use error::GitError;
 pub use log::{walk as walk_log, LogEntry};
 pub use repos_scan::RepoScanResult;
-pub use status::{ahead_behind, AheadBehind, DiffStatus};
+pub use status::DiffStatus;
 
 /// 进程级 Repo 缓存。key = canonicalize 后的 cwd(避软链/相对路径抖动)。
 /// FIFO 上限 16:长跑 app 跨多 workspace 不无限积压 Repository 句柄。

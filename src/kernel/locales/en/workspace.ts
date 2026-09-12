@@ -50,8 +50,8 @@ export const MESSAGES = {
 
   // ── SessionStatusLabel 三态 ──
   "运行时": "Running",
-  "会话结束-未查看": "Turn ended · unread",
-  "会话结束-已查看": "Turn ended · viewed",
+  "空闲-未查看": "Idle · unread",
+  "空闲": "Idle",
 
   // ── LiveSessionRow / PinnedSessions / RunningZone badge ──
   "等待确认": "Awaiting confirmation",

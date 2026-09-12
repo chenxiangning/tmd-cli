@@ -56,26 +56,31 @@ export function LiveSessionRow({
     );
   }
   return (
-    <button
-      data-session-id={session.id}
-      className={`thread-row${isActive ? " active" : ""}`}
-      onClick={() => {
-        noteSessionTabTitle(session.id, title);
-        host.setActiveSession(session.id);
-      }}
-      onContextMenu={onContextMenu}
-    >
-      <ActivityDot sessionId={session.id} />
-      <span className="thread-engine-badge" title={profile.name} aria-hidden>
-        {profile.renderIcon?.("0.75rem")}
-      </span>
-      {/* 身份统一:绑定磁盘身份后与磁盘条目同形显示(标题/命名/短码) */}
-      <span className="thread-name">{title}</span>
-      <span className="thread-meta">
-        <SessionStatusLabel sessionId={session.id} />
-        {waiting ? <span className="thread-ask-badge">{t("等待确认")}</span> : null}
-        <PinToggle on={pinned} disabled={!canPin} onToggle={onTogglePin} />
-      </span>
-    </button>
+    /* 嵌套交互治理:PinToggle 是真 button,不能嵌在行激活 button 内;
+       把行 host 升为 .thread-row-host 包裹,PinToggle 作 DOM 兄弟,
+       hover/焦点显形吃 host。 */
+    <span className="thread-row-host">
+      <button
+        data-session-id={session.id}
+        className={`thread-row${isActive ? " active" : ""}`}
+        onClick={() => {
+          noteSessionTabTitle(session.id, title);
+          host.setActiveSession(session.id);
+        }}
+        onContextMenu={onContextMenu}
+      >
+        <ActivityDot sessionId={session.id} />
+        <span className="thread-engine-badge" title={profile.name} aria-hidden>
+          {profile.renderIcon?.("0.75rem")}
+        </span>
+        {/* 身份统一:绑定磁盘身份后与磁盘条目同形显示(标题/命名/短码) */}
+        <span className="thread-name">{title}</span>
+        <span className="thread-meta">
+          <SessionStatusLabel sessionId={session.id} />
+          {waiting ? <span className="thread-ask-badge">{t("等待确认")}</span> : null}
+        </span>
+      </button>
+      <PinToggle on={pinned} disabled={!canPin} onToggle={onTogglePin} />
+    </span>
   );
 }

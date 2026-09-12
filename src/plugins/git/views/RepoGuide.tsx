@@ -9,7 +9,7 @@ import type { GitRepoSummary } from "@kernel/ipc";
 import { GitBranch } from "@phosphor-icons/react";
 import { useRepoChips } from "../hooks/useRepoChips";
 import { SCAN_DEPTH } from "../hooks/useGitRepos";
-import { KIND_META } from "./RepoBar";
+import { KIND_META } from "./repoKindMeta";
 
 export function RepoGuide({
   root,

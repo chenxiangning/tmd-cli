@@ -52,56 +52,132 @@ export function GitRemoteBar({
           aria-hidden
         />
       </button>
-      <button
-        onClick={() => onOpenDialog("fetch")}
-        disabled={remoteBusy !== null || detached}
-        title={t("获取远端更新(fetch --all --prune,不动本地分支)")}
-        className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
-      >
-        {remoteBusy === "fetch" ? (
-          <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" />
-        ) : (
-          <CloudArrowDown className="h-[0.875rem] w-[0.875rem]" />
-        )}
-      </button>
-      <button
-        onClick={() => onOpenDialog("pull")}
-        disabled={remoteBusy !== null || detached}
-        title={
-          (aheadBehind?.behind ?? 0) > 0
-            ? t("拉取远端更新(落后 {n} 个提交)", { n: aheadBehind!.behind })
-            : t("拉取远端更新(对话框内可选远端与分支)")
-        }
-        className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
-      >
-        {remoteBusy === "pull" ? (
-          <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" />
-        ) : (
-          <DownloadSimple className="h-[0.875rem] w-[0.875rem]" />
-        )}
-        {(aheadBehind?.behind ?? 0) > 0 && aheadBehind!.behind}
-      </button>
-      <button
-        onClick={() => onOpenDialog("push")}
-        disabled={remoteBusy !== null || detached}
-        title={
-          (aheadBehind?.ahead ?? 0) > 0
-            ? t("推送 {n} 个提交(对话框内可预览)", { n: aheadBehind!.ahead })
-            : hasUpstream
-              ? t("推送(对话框内查看预览与选项)")
-              : t("推送新分支并建立 upstream")
-        }
-        className="flex items-center gap-0.5 rounded px-1 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
-      >
-        {remoteBusy === "push" ? (
-          <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" />
-        ) : (
-          <UploadSimple className="h-[0.875rem] w-[0.875rem]" />
-        )}
-        {(aheadBehind?.ahead ?? 0) > 0 && aheadBehind!.ahead}
-      </button>
+      <RemoteOpButtons
+        remoteBusy={remoteBusy}
+        detached={detached}
+        aheadBehind={aheadBehind}
+        hasUpstream={hasUpstream}
+        onOpenDialog={onOpenDialog}
+      />
       </div>
     </div>
+  );
+}
+
+/** fetch/pull/push 语义图标按钮组(busy 转圈、behind/ahead 计数上按钮);
+    自 GitRemoteBar 拆出降复杂度;三个按钮再各自成组件(复杂度铁则)。 */
+function RemoteOpButtons(props: {
+  remoteBusy: RemoteOp | null;
+  detached: boolean;
+  aheadBehind: GitAheadBehind | null;
+  hasUpstream: boolean;
+  onOpenDialog: (op: RemoteOp) => void;
+}) {
+  return (
+    <>
+      <FetchOpButton {...props} />
+      <PullOpButton {...props} />
+      <PushOpButton {...props} />
+    </>
+  );
+}
+
+function FetchOpButton({
+  remoteBusy,
+  detached,
+  onOpenDialog,
+}: {
+  remoteBusy: RemoteOp | null;
+  detached: boolean;
+  onOpenDialog: (op: RemoteOp) => void;
+}) {
+  return (
+    <button
+      onClick={() => onOpenDialog("fetch")}
+      disabled={remoteBusy !== null || detached}
+      title={t("获取远端更新(fetch --all --prune,不动本地分支)")}
+      className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+    >
+      {remoteBusy === "fetch" ? (
+        <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" />
+      ) : (
+        <CloudArrowDown className="h-[0.875rem] w-[0.875rem]" />
+      )}
+    </button>
+  );
+}
+
+function PullOpButton({
+  remoteBusy,
+  detached,
+  aheadBehind,
+  onOpenDialog,
+}: {
+  remoteBusy: RemoteOp | null;
+  detached: boolean;
+  aheadBehind: GitAheadBehind | null;
+  onOpenDialog: (op: RemoteOp) => void;
+}) {
+  return (
+    <button
+      onClick={() => onOpenDialog("pull")}
+      disabled={remoteBusy !== null || detached}
+      title={
+        (aheadBehind?.behind ?? 0) > 0
+          ? t("拉取远端更新(落后 {n} 个提交)", { n: aheadBehind!.behind })
+          : t("拉取远端更新(对话框内可选远端与分支)")
+      }
+      className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+    >
+      {remoteBusy === "pull" ? (
+        <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" />
+      ) : (
+        <DownloadSimple className="h-[0.875rem] w-[0.875rem]" />
+      )}
+      {(aheadBehind?.behind ?? 0) > 0 && aheadBehind!.behind}
+    </button>
+  );
+}
+
+function PushOpButton({
+  remoteBusy,
+  detached,
+  aheadBehind,
+  hasUpstream,
+  onOpenDialog,
+}: {
+  remoteBusy: RemoteOp | null;
+  detached: boolean;
+  aheadBehind: GitAheadBehind | null;
+  hasUpstream: boolean;
+  onOpenDialog: (op: RemoteOp) => void;
+}) {
+  return (
+    <button
+      onClick={() => onOpenDialog("push")}
+      disabled={remoteBusy !== null || detached}
+      title={
+        (aheadBehind?.ahead ?? 0) > 0 ? (
+          hasUpstream ? (
+            t("推送 {n} 个提交(对话框内可预览)", { n: aheadBehind!.ahead })
+          ) : (
+            t("推送 {n} 个提交并建立 upstream", { n: aheadBehind!.ahead })
+          )
+        ) : hasUpstream ? (
+          t("推送(对话框内查看预览与选项)")
+        ) : (
+          t("推送新分支并建立 upstream")
+        )
+      }
+      className="flex items-center gap-0.5 rounded px-1 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+    >
+      {remoteBusy === "push" ? (
+        <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" />
+      ) : (
+        <UploadSimple className="h-[0.875rem] w-[0.875rem]" />
+      )}
+      {(aheadBehind?.ahead ?? 0) > 0 && aheadBehind!.ahead}
+    </button>
   );
 }
 

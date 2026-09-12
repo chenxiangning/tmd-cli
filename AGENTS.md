@@ -42,7 +42,7 @@
 - 跨层 import 一律走别名 `@kernel` `@shell` `@plugins`(`tsconfig.json` / `vite.config.ts` 双处已配),不写长相对路径。
 - PTY 幕布硬约束:`PTY bytes → pty://out/{sessionId} → xterm.js` 原样透传,**严禁**在幕布侧做消息气泡 / Markdown / Diff 二次渲染;一切增强(状态栏、引用、Git、文件树)发生在幕布之外。
 - 内核不理解任何 CLI 私有格式;读取各家 session JSONL 只能经该 CLI 插件声明的适配器,缺失显示 `—`,不做猜测兜底。CLI 私有库的 Rust 代读只能走通用原语(如只读 `sqliteQuery`),路径/表结构知识留插件侧。
-- CLI 私有格式的跨插件共享沉淀进 `src/plugins/cli-shared/`(无生命周期共享格式库,非插件、不入 `allPlugins`):它是「跨插件契约进 kernel」与「内核不理解 CLI 私有格式」两条规则的缝隙层,准入标准 = ≥2 个 cli-* 插件消费同一磁盘/HTTP 格式知识,或 1 个 cli-* + feature 插件(welcome / workspace / composer)联合消费(文件头注释声明先例);同族变体共享声明(glyph/静态表,如 qoder 双插件)视同满足。feature 插件经它消费 CLI 格式须在 import 处注释声明。
+- CLI 私有格式的跨插件共享沉淀进 `src/plugins/cli-shared/`(无生命周期共享格式库,非插件、不入 `allPlugins`):它是「跨插件契约进 kernel」与「内核不理解 CLI 私有格式」两条规则的缝隙层,准入标准 = ≥2 个 cli-* 插件消费同一磁盘/HTTP 格式知识,或 1 个 cli-* + feature 插件(welcome / workspace / composer / memory-coordinator 等 feature 插件)联合消费(文件头注释声明先例);同族变体共享声明(glyph/静态表,如 qoder 双插件)视同满足。feature 插件经它消费 CLI 格式须在 import 处注释声明。
 
 ## 2. 验证(交付前必跑)
 

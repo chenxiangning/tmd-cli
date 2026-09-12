@@ -573,7 +573,8 @@ function closeTab(key) {
   tabs = tabs.filter(t => t.key !== key);
   if (activeTab === key) activeTab = tabs.length ? tabs[tabs.length - 1].key : null;
   renderTabs();
-  if (activeTab) renderSheet(tabs.find(t => t.key === activeTab).batch); else viewHost.innerHTML = `<div class="empty">从右侧审批线点批次或文件,在这里审阅该轮改动</div>`;
+  const next = tabs.find(t => t.key === activeTab);
+  if (next) renderSheet(next.batch); else viewHost.innerHTML = `<div class="empty">从右侧审批线点批次或文件,在这里审阅该轮改动</div>`;
   renderTL();
 }
 
@@ -707,7 +708,8 @@ function confirmRevert(host, b, files, single) {
 
 function renderAll() {
   renderTL(); renderTabs();
-  if (activeTab) renderSheet(tabs.find(t => t.key === activeTab).batch);
+  const cur = tabs.find(t => t.key === activeTab);
+  if (cur) renderSheet(cur.batch);
   else viewHost.innerHTML = `<div class="empty">从右侧审批线点批次或文件,在这里审阅该轮改动</div>`;
 }
 

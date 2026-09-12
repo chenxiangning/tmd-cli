@@ -4,6 +4,15 @@ import type { SessionMeta } from "@kernel/ipc";
 /** 0 配额组「更多...」首击的展开步长(正配额组从配额值起翻倍:quota → 2× → 4×)。 */
 export const PAGE_INITIAL = 10;
 
+/** 新建会话菜单定位:以点击点为左上,按估算尺寸在视口内夹取(codemoss 同款)。
+ *  供 SessionMenu/SessionContextMenu 与 index.tsx 的 ⌘T 入口共用。 */
+export function clampMenuPosition(x: number, y: number): { x: number; y: number } {
+  return {
+    x: Math.min(x, window.innerWidth - 328 - 12),
+    y: Math.min(y, window.innerHeight - 420 - 12),
+  };
+}
+
 /**
  * 活会话列表比较器:完成未读置顶,其余按 spawn 时间倒序。
  * 排序键必须是稳定身份(createdAt),绝不能用 lastActivityAt —— 它随每个输出
@@ -63,11 +72,13 @@ export function isRunningZoneCandidate(turnActive: boolean, unread: boolean): bo
 /**
  * 活会话状态(内核 activityWatch 口径;首写闸:用户首写前的输出不算对话,
  * lastActivityAt 保持 0):
- * - running:对话进行中(2s 内有输出,与活动时间窗同阈值)
+ * - running:对话进行中 —— turnActive(轮次在途,含思考期 spinner 静默)或
+ *   2s 内有输出(与活动时间窗同阈值)
  * - unread:会话结束且未查看(完成未读)
  * - viewed:会话结束且已查看
  * - none:从未对话 —— 不亮灯、不出 label
- * 优先级:进行中压过未读(新输出即清未读,双保险)。
+ * 优先级:进行中压过未读(新输出即清未读,双保险);turnActive 压过活动钟
+ * 出窗(空闲重绘闸冻结活动钟时,标签不得提前翻「空闲」,2026-09-11 P0)。
  */
 export type SessionStatus = "running" | "unread" | "viewed" | "none";
 
@@ -75,9 +86,10 @@ export function resolveSessionStatus(
   lastActivityAt: number,
   unread: boolean,
   now: number,
+  turnActive: boolean,
 ): SessionStatus {
   if (lastActivityAt === 0) return "none";
-  if (now - lastActivityAt < 2000) return "running";
+  if (turnActive || now - lastActivityAt < 2000) return "running";
   if (unread) return "unread";
   return "viewed";
 }

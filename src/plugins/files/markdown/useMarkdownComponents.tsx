@@ -9,7 +9,7 @@
  * 缓存复用,保证 BlockMarkdown memo 的 components 引用稳定。
  */
 
-import { memo, useCallback, useMemo, type MouseEvent } from "react";
+import { memo, type MouseEvent, useCallback, useRef } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -17,12 +17,12 @@ import { openExternalUrl } from "@kernel/ipc";
 import { openFileInTab } from "../openFile";
 import { t } from "@kernel/i18n";
 import {
-  extractLanguageTag,
   FileMarkdownCodeBlock,
   FileMarkdownMathBlock,
   FileMarkdownTableBlock,
   LazyMarkdownHeavyBlock,
 } from "./markdownBlocks";
+import { extractLanguageTag } from "./languageTag";
 import { FileMarkdownMermaidBlock } from "./MermaidBlock";
 import { LocalImage } from "./LocalImage";
 import { resolveImageRenderSource, resolveMarkdownLinkTarget } from "./markdownImages";
@@ -207,21 +207,28 @@ export function useMarkdownComponents({
      render 时拿到同一 components 引用,配合 BlockMarkdown memo 跳过重渲染。
      工厂闭包依赖任一变化 → createMarkdownComponents 标识变化 → Map 整体重建,
      即自动清缓存,不会串旧闭包。 */
-  const markdownComponentsByBlockKey = useMemo(
-    () => new Map<string, Components>(),
-    [createMarkdownComponents],
+  /* components 工厂结果按 blockKey 缓存复用:同一 block 在渐进揭示推进期间反复
+     render 时拿到同一 components 引用,配合 BlockMarkdown memo 跳过重渲染。
+     工厂闭包依赖任一变化 → 惰性换新缓存(回调内判工厂标识,无 effect 可漏依赖)。 */
+  const cacheRef = useRef<{ factory: typeof createMarkdownComponents; map: Map<string, Components> } | null>(
+    null,
   );
   const getBlockMarkdownComponents = useCallback(
     (blockStartLine: number, blockKey: string): Components => {
-      const cachedComponents = markdownComponentsByBlockKey.get(blockKey);
+      let cache = cacheRef.current;
+      if (!cache || cache.factory !== createMarkdownComponents) {
+        cache = { factory: createMarkdownComponents, map: new Map<string, Components>() };
+        cacheRef.current = cache;
+      }
+      const cachedComponents = cache.map.get(blockKey);
       if (cachedComponents) {
         return cachedComponents;
       }
       const components = createMarkdownComponents(blockStartLine, blockKey);
-      markdownComponentsByBlockKey.set(blockKey, components);
+      cache.map.set(blockKey, components);
       return components;
     },
-    [createMarkdownComponents, markdownComponentsByBlockKey],
+    [createMarkdownComponents],
   );
 
   return { getBlockMarkdownComponents };

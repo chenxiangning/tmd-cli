@@ -23,6 +23,11 @@ const GUTTER_CLS =
   "min-w-[2.5rem] shrink-0 select-none pr-1.5 text-right tabular-nums text-(--tmd-fg-faint)";
 const CONTENT_CLS = "min-w-0 flex-1 whitespace-pre-wrap break-all pl-2";
 
+/** diff 行稳定 key:种类 + 旧/新行号 + 内容(同号重行以内容区分,索引 key 清零用)。 */
+function patchRowKey(row: PatchRow): string {
+  return `${row.kind}:${row.oldLine ?? "-"}:${row.newLine ?? "-"}:${row.text}`;
+}
+
 /** 单栏行号槽:旧/新两列,无号留空保对齐。 */
 function Gutter({ oldLine, newLine }: { oldLine: number | null; newLine: number | null }) {
   return (
@@ -58,13 +63,16 @@ function SplitCell({ row, side }: { row: PatchRow | null; side: "left" | "right"
 function SplitRows({ rows }: { rows: SplitRow[] }) {
   return (
     <>
-      {rows.map((row, i) =>
+      {rows.map((row) =>
         row.kind === "header" ? (
-          <div key={i} className={row.row.kind === "hunk" ? ROW_CLS.hunk : `px-1 ${ROW_CLS.meta}`}>
+          <div key={patchRowKey(row.row)} className={row.row.kind === "hunk" ? ROW_CLS.hunk : `px-1 ${ROW_CLS.meta}`}>
             {row.row.text}
           </div>
         ) : (
-          <div key={i} className="grid grid-cols-2 [content-visibility:auto] [contain-intrinsic-size:auto_1em]">
+          <div
+            key={`${row.left ? patchRowKey(row.left) : "empty"}|${row.right ? patchRowKey(row.right) : "empty"}`}
+            className="grid grid-cols-2 [content-visibility:auto] [contain-intrinsic-size:auto_1em]"
+          >
             <SplitCell row={row.left} side="left" />
             <SplitCell row={row.right} side="right" />
           </div>
@@ -90,7 +98,7 @@ export function PatchLines({
       {splitRows ? (
         <SplitRows rows={splitRows} />
       ) : (
-        rows.map((row, i) => <UnifiedRow key={i} row={row} />)
+        rows.map((row) => <UnifiedRow key={patchRowKey(row)} row={row} />)
       )}
     </pre>
   );

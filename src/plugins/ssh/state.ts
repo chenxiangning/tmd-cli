@@ -89,14 +89,26 @@ const dynamicUnlistens = new Map<string, Array<() => void>>();
 /** 会话诞生时接线(状态/提示两条会话粒度通道)。幂等。 */
 export async function watchSshSession(sessionId: string) {
   if (dynamicUnlistens.has(sessionId)) return;
-  const offEvent = await onSshSessionEvent(sessionId, (event) =>
-    applySessionEvent(sessionId, event),
-  );
-  const offPrompt = await onSshPrompt(sessionId, (prompt) => {
-    sessionView(sessionId).prompt = prompt;
-    notify();
-  });
+  const [offEvent, offPrompt] = await Promise.all([
+    onSshSessionEvent(sessionId, (event) => applySessionEvent(sessionId, event)),
+    onSshPrompt(sessionId, (prompt) => {
+      sessionView(sessionId).prompt = prompt;
+      notify();
+    }),
+  ]);
   dynamicUnlistens.set(sessionId, [offEvent, offPrompt]);
+  /* 订阅前事件已发过的竞态兜底:拉一次未决提示对账(连接任务在认证前就可能发
+     hostkey prompt,经 sessionsChanged 广播接线常输给这条事件)。 */
+  try {
+    const pending = await ipc.sshPromptsPending();
+    const hit = pending.find((p) => p.sessionId === sessionId);
+    if (hit && dynamicUnlistens.has(sessionId) && sessionView(sessionId).prompt === null) {
+      sessionView(sessionId).prompt = hit.prompt;
+      notify();
+    }
+  } catch {
+    /* 纯浏览器 dev 无 Tauri runtime:静默。 */
+  }
 }
 
 /** 会话移除时退订并清镜像(pty://exit 消费方调用)。 */

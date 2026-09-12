@@ -1,10 +1,10 @@
 // AppShell 头部 titlebar(三区布局 + Windows 自绘窗口控件),自 AppShell.tsx 按「纯结构拆分、行为不变」拆出
 import { Tray, Plug, CaretLineLeft, CaretLineRight } from "@phosphor-icons/react";
-import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { windowClose, windowMinimize, windowToggleMaximize } from "@kernel/ipc";
 import { Mounts } from "@kernel/Mounts";
 import { usePlatformKind } from "@kernel/platform";
+import { toggleHomeSession } from "./shortcutCommands";
 import { TopBarPanelTabs } from "./RightPanelToolbar";
 
 /** macOS 用原生左侧 traffic lights,Windows 自绘右侧按钮组;窗口控制经 kernel/ipc 薄封装。 */
@@ -49,6 +49,13 @@ export function TopBar({
   onToggleMarket: () => void;
 }) {
   const platform = usePlatformKind();
+  /* 回首页按钮 = 固定身份的纯 toggle:永远显示「回到首页」,点一下开首页,
+     再点一下切回打开首页之前的会话(toggle 记忆在 shortcutCommands);
+     市场覆盖层盖着首页,回首页前先收掉,否则切换在底下发生屏上无变化。 */
+  const goHome = () => {
+    if (marketOpen) onToggleMarket();
+    toggleHomeSession();
+  };
   return (
     <header className="titlebar" data-tauri-drag-region>
       {/* 左区域:与左侧栏同宽,折叠左栏按钮钉在左区最右缘(+4px 吞掉分隔手柄,与栏边界对齐) */}
@@ -79,7 +86,7 @@ export function TopBar({
           data-hint={t("回到首页")}
           data-hint-cmd="shell.goHome"
           title=""
-          onClick={() => host.setActiveSession(null)}
+          onClick={goHome}
         >
           <Tray size="0.875rem" aria-hidden />
         </button>

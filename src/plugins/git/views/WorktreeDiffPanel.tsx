@@ -26,27 +26,28 @@ export function WorktreeDiffPanel({
   loading: boolean;
   error: string | null;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [patch, setPatch] = useState<GitFilePatch | null>(null);
+  /* 点选与 branch 同槽:branch 一切换旧点选自然失效(派生,无复位 effect);
+     patch 响应也带 branch+path 键,迟到响应落盘不展示。 */
+  const [picked, setPicked] = useState<{ branch: string; path: string } | null>(null);
+  const selected = picked?.branch === branch ? picked.path : null;
+  const [patchRes, setPatchRes] = useState<{ key: string; patch: GitFilePatch | null } | null>(
+    null,
+  );
   const [patchLoading, setPatchLoading] = useState(false);
   const [patchError, setPatchError] = useState<string | null>(null);
   const tokenRef = useRef(0);
 
   useEffect(() => {
-    setSelected(null);
-    setPatch(null);
-  }, [branch]);
-
-  useEffect(() => {
     if (!selected) return;
     const token = ++tokenRef.current;
+    const reqKey = `${branch}\0${selected}`;
     setPatchLoading(true);
     setPatchError(null);
     ipc
       .gitBranchWorktreePatch(cwd, branch, selected)
       .then((data: GitFilePatch | null) => {
         if (token !== tokenRef.current) return;
-        setPatch(data);
+        setPatchRes({ key: reqKey, patch: data });
         setPatchLoading(false);
       })
       .catch((e: unknown) => {
@@ -56,35 +57,19 @@ export function WorktreeDiffPanel({
       });
   }, [cwd, branch, selected]);
 
+  const patch =
+    patchRes && selected && patchRes.key === `${branch}\0${selected}` ? patchRes.patch : null;
+
   return (
     <div className="flex min-h-0 flex-1">
-      {/* 左:diff 详情 */}
-      <div className="min-w-0 flex-1 overflow-auto">
-        {!selected && !loading && (
-          <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
-            {t("选择文件查看差异")}
-          </div>
-        )}
-        {selected && patchLoading && (
-          <div className="flex h-full items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-            <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
-          </div>
-        )}
-        {selected && patchError && (
-          <div className="p-3 text-(--tmd-diff-removed)">{patchError}</div>
-        )}
-        {selected && !patchLoading && !patchError && patch && patch.patch.length > 0 && (
-          <PatchLines text={patch.patch} />
-        )}
-        {selected && !patchLoading && !patchError && patch && patch.patch.length === 0 && (
-          <div className="p-3 text-(--tmd-fg-faint)">
-            {patch.binary ? t("二进制文件,无文本差异") : t("无内容差异")}
-          </div>
-        )}
-        {selected && !patchLoading && !patchError && !patch && (
-          <div className="p-3 text-(--tmd-fg-faint)">{t("该文件相对 {branch} 无差异", { branch })}</div>
-        )}
-      </div>
+      <WorktreePatchPane
+        branch={branch}
+        selected={selected}
+        loading={loading}
+        patch={patch}
+        patchLoading={patchLoading}
+        patchError={patchError}
+      />
 
       {/* 右:文件列表 */}
       <div className="flex w-[300px] shrink-0 flex-col border-l border-(--tmd-border)">
@@ -108,7 +93,7 @@ export function WorktreeDiffPanel({
           {files.map((f) => (
             <button
               key={f.path}
-              onClick={() => setSelected(f.path)}
+              onClick={() => setPicked({ branch, path: f.path })}
               className={`flex w-full min-w-0 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs ${
                 selected === f.path
                   ? "bg-(--tmd-accent-soft)"
@@ -129,5 +114,82 @@ export function WorktreeDiffPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+/** 左:diff 详情(未选中/加载/错误/有 patch/空 patch/无差异 六态)。 */
+function WorktreePatchPane({
+  branch,
+  selected,
+  loading,
+  patch,
+  patchLoading,
+  patchError,
+}: {
+  branch: string;
+  selected: string | null;
+  loading: boolean;
+  patch: GitFilePatch | null;
+  patchLoading: boolean;
+  patchError: string | null;
+}) {
+  return (
+    <div className="min-w-0 flex-1 overflow-auto">
+      <WorktreePatchBody
+        branch={branch}
+        selected={selected}
+        loading={loading}
+        patch={patch}
+        patchLoading={patchLoading}
+        patchError={patchError}
+      />
+    </div>
+  );
+}
+
+/** 六态主体:未选中/加载/错误/有 patch/空 patch/无差异(自 WorktreePatchPane 拆出降复杂度)。 */
+function WorktreePatchBody({
+  branch,
+  selected,
+  loading,
+  patch,
+  patchLoading,
+  patchError,
+}: {
+  branch: string;
+  selected: string | null;
+  loading: boolean;
+  patch: GitFilePatch | null;
+  patchLoading: boolean;
+  patchError: string | null;
+}) {
+  if (!selected) {
+    if (loading) return null;
+    return (
+      <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
+        {t("选择文件查看差异")}
+      </div>
+    );
+  }
+  if (patchLoading) {
+    return (
+      <div className="flex h-full items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
+        <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
+      </div>
+    );
+  }
+  if (patchError) {
+    return <div className="p-3 text-(--tmd-diff-removed)">{patchError}</div>;
+  }
+  if (patch && patch.patch.length > 0) return <PatchLines text={patch.patch} />;
+  if (patch) {
+    return (
+      <div className="p-3 text-(--tmd-fg-faint)">
+        {patch.binary ? t("二进制文件,无文本差异") : t("无内容差异")}
+      </div>
+    );
+  }
+  return (
+    <div className="p-3 text-(--tmd-fg-faint)">{t("该文件相对 {branch} 无差异", { branch })}</div>
   );
 }

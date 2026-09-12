@@ -18,10 +18,17 @@ import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { getMarketPanel } from "@kernel/marketPanel";
 import { updateSettings, useSettingsState } from "@kernel/settings";
+import { useLocalPluginRecords } from "@kernel/localPlugins";
 import { appRestart } from "@kernel/ipc";
 import { Mounts } from "@kernel/Mounts";
-import { CATEGORY_ORDER, MergedStrip, type Row } from "./PluginMarketStrip";
+import { CATEGORY_ORDER } from "./pluginMarketCategories";
+import { MergedStrip, type Row } from "./PluginMarketStrip";
 import { PluginMarketList } from "./PluginMarketList";
+
+/* Tauri 环境进程替换不返回;浏览器 dev invoke 抛错 → 降级整页刷新(同样重走 activateAll 过滤)。 */
+function restart() {
+  void appRestart().catch(() => window.location.reload());
+}
 
 export function PluginMarketPage({ onClose }: { onClose: () => void }) {
   /* 启动态清单:activateAll 完成后不再变化,取一次快照即可。 */
@@ -36,16 +43,18 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
 
   const rows: Row[] = states.map(({ plugin, enabled }) => {
     const on = !disabled.has(plugin.id);
-    return { plugin, bootOn: enabled, on, dirty: on !== enabled };
+    return { plugin, on, dirty: on !== enabled };
   });
-  /* 按分类分排:固定顺序,空类不渲染(防御:现网三类均非空)。 */
-  const groups = CATEGORY_ORDER.map((category) => ({
-    category,
-    rows: rows.filter((r) => r.plugin.meta.category === category),
-  })).filter((g) => g.rows.length > 0);
+  /* 按分类分排:固定顺序,空类不渲染(防御:现网三类均非空);单趟 flatMap 产出。 */
+  const groups = CATEGORY_ORDER.flatMap((category) => {
+    const groupRows = rows.filter((r) => r.plugin.meta.category === category);
+    return groupRows.length > 0 ? [{ category, rows: groupRows }] : [];
+  });
   /* 内置/本机拆两块插排:local 类单独拎出(本机插件插排),插拔语义不变。 */
   const builtinGroups = groups.filter((g) => g.category !== "local");
   const localGroups = groups.filter((g) => g.category === "local");
+  /* 本机插排计数 = 已装本地插件(未移除记录);插排上的插头是管理器自身,不计入。 */
+  const localInstalled = useLocalPluginRecords().filter((r) => !r.removed).length;
   const dirtyCount = rows.filter((r) => r.dirty).length;
   /* 插排视图 ⇄ 清单列表:互斥,同页只展示一份。 */
   const [view, setView] = useState<"strip" | "list">("strip");
@@ -61,8 +70,6 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [market]);
 
-  /* Tauri 环境进程替换不返回;浏览器 dev invoke 抛错 → 降级整页刷新(同样重走 activateAll 过滤)。 */
-  const restart = () => void appRestart().catch(() => window.location.reload());
 
   function showToast(text: string) {
     setToast(text);
@@ -152,11 +159,12 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
               <span>{t("焊死的核心插件不可拔")}</span>
               <span>{t("点击插头即可插拔")}</span>
             </div>
-            {localGroups.length > 0 && (
+            {/* 本机插排与页尾分区同源:分区无本地插件(无未移除记录)时整条不渲染。 */}
+            {localInstalled > 0 && (
               <MergedStrip
                 groups={localGroups}
                 onToggle={toggle}
-                onOpenMarket={setMarketFor}
+                count={localInstalled}
                 brand={{
                   name: t("本机插件"),
                   role: t("本地插排 · 免重启装载"),
@@ -190,15 +198,19 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
 
       {/* ═══ 二级市场滑出面板:壳只管开合/遮罩,内容全由注册插件贡献 ═══ */}
       {market ? (
-        <div className="pm-ext-layer" onClick={() => setMarketFor(null)}>
-          <aside
-            className="pm-ext-panel"
-            role="dialog"
+        <div className="pm-ext-layer" role="presentation" onClick={() => setMarketFor(null)}>
+          {/* 自制弹层换原生 dialog(非模态 open,不调 showModal,保留原 ESC/点外关闭);
+              relative 压住 UA 的 position:absolute(否则脱离 flex 右贴布局),
+              m-0 p-0 border-0 中和 UA 默认边距/留白/边框,.pm-ext-panel 自身的
+              border-left 等声明优先级更高不受影响。 */}
+          <dialog
+            open
+            className="pm-ext-panel relative m-0 p-0 border-0"
             aria-label={market.title}
             onClick={(e) => e.stopPropagation()}
           >
             <market.component onClose={() => setMarketFor(null)} />
-          </aside>
+          </dialog>
         </div>
       ) : null}
     </div>

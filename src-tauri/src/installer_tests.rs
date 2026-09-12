@@ -6,7 +6,7 @@ fn npm_command_pins_latest() {
     let plan = InstallPlan::Npm {
         package: "@qoder-ai/qodercli".into(),
     };
-    let (program, args) = install_command(&plan);
+    let (program, args) = install_command(&plan, None);
     /* Windows 经 cmd /c 跑 npm.cmd shim,unix 直跑 npm */
     #[cfg(windows)]
     {
@@ -44,7 +44,7 @@ fn script_command_uses_platform_entry() {
         unix: "curl -fsSL https://example.com/install.sh | bash".into(),
         windows: "irm https://example.com/install.ps1 | iex".into(),
     };
-    let (_program, args) = install_command(&plan);
+    let (_program, args) = install_command(&plan, None);
     #[cfg(not(windows))]
     assert_eq!(
         args,
@@ -78,7 +78,7 @@ fn command_channel_passes_through() {
         program: "omp".into(),
         args: vec!["plugin".into(), "uninstall".into(), "pi-lens".into()],
     };
-    let (program, args) = install_command(&plan);
+    let (program, args) = install_command(&plan, None);
     #[cfg(not(windows))]
     {
         assert_eq!(program, "omp");

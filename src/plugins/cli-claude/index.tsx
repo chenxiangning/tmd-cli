@@ -11,6 +11,8 @@ import type { Plugin } from "@kernel/plugin";
 import { fetchClaudeQuota } from "./quota";
 import { listClaudeSuggestions } from "./scanSuggestions";
 import { claudeConfigEntry } from "./configGui";
+import { applyClaudeChannel } from "./channelApply";
+import { ProviderChannelsCard } from "@plugins/cli-shared/providerChannels";
 
 /**
  * claude 品牌 glyph:官方日芒标志(simple-icons claude 矢量路径 vendored,
@@ -55,16 +57,23 @@ async function listClaudeSessions(cwd: string): Promise<CliDiskSession[]> {
   const dir = await claudeSessionsDir(cwd);
   if (!dir) return [];
   const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
-  const sessions: CliDiskSession[] = [];
-  for (const f of files) {
-    // 6b844d1a-d84e-44c3-8385-1e1770d0ffb0.jsonl —— 文件名即 sessionId,直接喂 --resume
-    const m = f.name.match(/^([0-9a-f-]{36})\.jsonl$/);
-    if (!m) continue;
-    /* claude 无 title 记录:标题走共享两段式读头;目录已按 cwd 分区,每个文件都值得读。 */
-    const title = await readHeadTitle(f.path);
-    sessions.push({ id: m[1], modifiedAt: f.modifiedAt, path: f.path, title });
-  }
-  return sessions;
+  /* 读头互不依赖,并发一次发出(同 scanJsonlSessions);结果保持 files 原序。 */
+  return Promise.all(
+    files.flatMap((f) => {
+      // 6b844d1a-d84e-44c3-8385-1e1770d0ffb0.jsonl —— 文件名即 sessionId,直接喂 --resume
+      const m = f.name.match(/^([0-9a-f-]{36})\.jsonl$/);
+      if (!m) return [];
+      /* claude 无 title 记录:标题走共享两段式读头;目录已按 cwd 分区,每个文件都值得读。 */
+      return [
+        readHeadTitle(f.path).then((title) => ({
+          id: m[1],
+          modifiedAt: f.modifiedAt,
+          path: f.path,
+          title,
+        })),
+      ];
+    }),
+  );
 }
 
 
@@ -211,7 +220,7 @@ export const cliClaudePlugin: Plugin = {
     category: "engine",
   },
   activate(ctx) {
-    ctx.registerCliConfig({ ...claudeConfigEntry, icon: (size) => <ClaudeGlyph size={size} /> });
+    ctx.registerCliConfig({ ...claudeConfigEntry, icon: (size) => <ClaudeGlyph size={size} />, providerPanel: () => <ProviderChannelsCard engineId="claude" applyChannel={applyClaudeChannel} /> });
     /* 命令/技能真相:listSuggestions 磁盘扫描(commands/*.md + SKILL.md +
        插件缓存,项目级优先),静态内置表兜底 —— 不再 activate 时 hydrate。 */
     const profile: CliProfile = {

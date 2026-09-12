@@ -6,7 +6,7 @@
  */
 
 import { useSyncExternalStore } from "react";
-export function createSectionToggle(key: string) {
+function createSectionToggle(key: string) {
   /* 惰性首读:模块 import 发生在 node 测试环境(无 localStorage),渲染时才落值。 */
   let collapsed: boolean | null = null;
   const listeners = new Set<() => void>();

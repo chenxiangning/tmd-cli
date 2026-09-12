@@ -35,6 +35,10 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
 
 ![主界面](docs/images/screenshot-main.png)
 
+**Git 面板** —— 右栏单视图三段(差异 / 分支 / 历史):变更文件逐条列出(+/- 统计),勾选 + 写消息一键提交(支持 amend 与空提交防线),远端 fetch / pull / push 一键执行;历史视图 Graph 化泳道拓扑
+
+![Git 面板](docs/images/screenshot-git-panel.png)
+
 **新建会话菜单** —— 按已注册 CLI 列出 10 个引擎 + SSH 连接,单项刷新;会话「移动到组」分组管理收在同一菜单
 
 ![新建会话菜单](docs/images/screenshot-new-session.png)

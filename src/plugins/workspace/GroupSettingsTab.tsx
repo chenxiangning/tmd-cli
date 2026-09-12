@@ -68,6 +68,7 @@ export function WorkspaceGroupsTab() {
       {groups.map((g, idx) => (
         <div className="pref-row" key={g.id}>
           <input
+            aria-label={t("重命名 {name}", { name: g.name })}
             className={inputCls}
             value={drafts[g.id] ?? g.name}
             onChange={(e) => setDrafts({ ...drafts, [g.id]: e.target.value })}

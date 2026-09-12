@@ -6,7 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { bootSessionTabs, closeAllSessionTabs, closeOtherSessionTabs, closeSessionTab, getSessionBaseline, getSessionTabTitle, getSessionTabs, noteSessionTabTitle, resetSessionTabsForTest } from "./sessionTabs";
+import { bootSessionTabs, closeAllSessionTabs, closeOtherSessionTabs, closeSessionTab, getSessionBaseline, getSessionTabTitle, getSessionTabs, getSessionTile, noteSessionTabTitle, resetSessionTabsForTest, toggleSessionTile } from "./sessionTabs";
 import { updateSettings } from "./settings";
 import { SESSION_TABS_LIMIT_DEFAULT } from "./settingsAppearance";
 import { EventBus, KernelTopics } from "./events";
@@ -209,5 +209,25 @@ describe("首条用户消息保底", () => {
     events.emit(KernelTopics.sessionsChanged, []);
     expect(getSessionBaseline("a")).toBeUndefined();
     expect(getSessionTabTitle("a")).toBeUndefined();
+  });
+});
+
+describe("平铺显示开关", () => {
+  it("toggle 双态翻转;ids 不受影响", () => {
+    const { events } = boot();
+    open(events, "a");
+    expect(getSessionTile()).toBe(false);
+    toggleSessionTile();
+    expect(getSessionTile()).toBe(true);
+    toggleSessionTile();
+    expect(getSessionTile()).toBe(false);
+    expect(getSessionTabs()).toEqual(["a"]);
+  });
+
+  it("reset 复位为关", () => {
+    toggleSessionTile();
+    expect(getSessionTile()).toBe(true);
+    resetSessionTabsForTest();
+    expect(getSessionTile()).toBe(false);
   });
 });

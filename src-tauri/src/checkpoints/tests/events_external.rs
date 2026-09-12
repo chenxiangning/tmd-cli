@@ -70,6 +70,9 @@ fn 外部路径归一_绝对与波浪展开_相对纪律不变() {
     assert_eq!(canonicalize_event_path("~/x/y.json"), Some(want));
     assert_eq!(canonicalize_event_path("~"), None);
     assert_eq!(canonicalize_event_path("~root/x"), None);
+    // Windows 盘符形态两态都拒(Rust 单闸终审,不依赖前端已拒)
+    assert_eq!(canonicalize_event_path("C:\\Users\\x\\a.txt"), None);
+    assert_eq!(canonicalize_event_path("C:/Users/x/a.txt"), None);
 }
 
 #[test]

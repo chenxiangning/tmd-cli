@@ -55,12 +55,12 @@ function HostPicker() {
   };
 
   return createPortal(
-    <div className="ssh-picker-backdrop" onClick={busy ? undefined : closeHostPicker}>
+    <div className="ssh-picker-backdrop" role="presentation" onClick={busy ? undefined : closeHostPicker}>
       <div className="ssh-picker" onClick={(e) => e.stopPropagation()}>
         <div className="ssh-picker-head">
           <HardDrive size="0.875rem" aria-hidden />
           <span>{t("SSH 连接")}</span>
-          <button type="button" className="ssh-picker-close" onClick={closeHostPicker}>
+          <button type="button" className="ssh-picker-close" aria-label={t("关闭")} onClick={closeHostPicker}>
             <Cross size="0.8125rem" />
           </button>
         </div>

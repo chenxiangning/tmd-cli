@@ -1,3 +1,9 @@
+/**
+ * 会话 JSONL 状态读取共享(pi 族适配器 piFamily 的内部件,经其服务 omp/pi):
+ * 定位会话文件 → 尾窗读(256KB)→ 模型/供应商字段探测(字段键由各家声明)。
+ * 准入先例:piFamily(omp/pi);解析与 IPC 均无单插件语义。
+ */
+
 import { ipc } from "@kernel/ipc";
 import type { CliSessionStatus } from "@kernel/cli";
 
@@ -25,7 +31,15 @@ export async function readJsonlSessionStatus(
 
   const tail = await ipc.fsReadTail(file.path, STATUS_TAIL_BYTES).catch(() => "");
   if (!tail) return null;
+  return parseJsonlStatusTail(tail, modelKeys, providerKeys);
+}
 
+/** 尾窗文本 → 模型/思考强度(内容级解析,本地读与远程读取共用)。 */
+export function parseJsonlStatusTail(
+  tail: string,
+  modelKeys: readonly string[],
+  providerKeys: readonly string[] = [],
+): CliSessionStatus | null {
   let model: string | undefined;
   let provider: string | undefined;
   let thinkingLevel: string | undefined;

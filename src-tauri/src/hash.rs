@@ -1,5 +1,4 @@
-//! 哈希原语 —— 目前只有 MD5,给 kimi CLI 的老版会话目录定位用。
-//!
+//! 哈希原语 —— MD5(kimi 老版会话目录定位)与 SHA-256(本地插件信任闸判据)。
 //! 背景:kimi ≤0.34 把会话落盘在 `~/.kimi/sessions/<MD5(cwd)>/<uuid>/wire.jsonl`,
 //! 会话文件内不记录 cwd,MD5(cwd) 是 cwd → 会话目录的唯一映射(0.34 实证,
 //! `printf '<path>' | md5` 与真实目录名一致)。0.40 迁移到 ~/.kimi-code 后新布局
@@ -21,19 +20,24 @@ pub fn md5_hex(text: String) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-/// UTF-8 字符串 → 小写十六进制 SHA-256(64 字符)。本地插件信任 hash 用强哈希:
-/// AI 有 shell,md5 选择前缀碰撞(fastcoll)可伪造信任,sha256 当前不可行。
+/// UTF-8 字符串 → 小写十六进制 SHA-256(64 字符)。版本库内容指纹用(kimi 之外的通用文本面)。
 pub fn sha256_hex(text: &str) -> String {
+    sha256_hex_bytes(text.as_bytes())
+}
+
+/// 字节序列 → 小写十六进制 SHA-256(64 字符)。信任闸判据用字节哈希:
+/// AI 有 shell,md5 选择前缀碰撞(fastcoll)可伪造信任,sha256 当前不可行;
+/// 直接哈希原始字节(非 lossy 文本),与扫描戳构成同一内容身份。
+pub fn sha256_hex_bytes(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
-    hasher.update(text.as_bytes());
+    hasher.update(bytes);
     format!("{:x}", hasher.finalize())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::md5_hex;
-    use super::sha256_hex;
+    use super::{md5_hex, sha256_hex, sha256_hex_bytes};
 
     #[test]
     fn sha256_fips180_标准向量() {
@@ -47,6 +51,11 @@ mod tests {
         );
     }
 
+    #[test]
+    fn sha256_bytes_与文本哈希对合法_utf8_一致() {
+        assert_eq!(sha256_hex_bytes(b"abc"), sha256_hex("abc"));
+        assert_eq!(sha256_hex_bytes(b""), sha256_hex(""));
+    }
     #[test]
     fn rfc1321_标准向量() {
         assert_eq!(md5_hex("".into()), "d41d8cd98f00b204e9800998ecf8427e");

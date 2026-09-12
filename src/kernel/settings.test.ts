@@ -50,6 +50,7 @@ describe("初始状态与默认值", () => {
       sessionTabsEnabled: true,
       sessionTabsMax: 4,
       sendShortcut: "enter",
+      promptHistoryEnabled: true,
       askSoundEnabled: true,
       askSoundId: "default",
       turnEndSoundEnabled: true,
@@ -64,6 +65,7 @@ describe("初始状态与默认值", () => {
       sessionDeleted: {},
       shortcutOverrides: {},
       workspaceArchiveView: false,
+  workspaceOriginFilter: "",
       workspaceCollapsedMap: {},
       workspaceGroups: [],
       workspaceGroupCollapsedMap: {},
@@ -77,6 +79,7 @@ describe("初始状态与默认值", () => {
       memoryDistillEngine: "",
       memoryDistillRules: "",
       ssh: { hosts: [] },
+      wsl: { defaultDistro: "", remoteHostId: "" },
       git: { view: "diff", layout: "flat", diffMode: "unified" },
       iconDecor: {
         newchat: { blink: true },
@@ -222,8 +225,10 @@ describe("updateSettings 合并与清洗", () => {
     expect(settings.getSettingsState().settings.disabledPlugins).toEqual(["git"]);
   });
 
-  it("持久化收到的是清洗后的完整 settings", () => {
+  it("持久化收到的是清洗后的完整 settings", async () => {
     settings.updateSettings({ theme: "light" });
+    /* persist 现为先拉盘合并再写(双实例丢更新防护),写盘晚一个微任务 */
+    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalled());
     expect(ipcMock.configWriteSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         theme: "light",

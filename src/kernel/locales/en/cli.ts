@@ -1,4 +1,8 @@
-/** en 词典 · cli 域(键 = 中文源串,由文案迁移按归属写入;zh 恒等无词典)。 */
+/** en 词典 · cli 域(键 = 中文源串;zh 恒等无词典)。
+ *  已知债务:provider/凭据/市场词条(omp agent.db、kimi-code、minimax、codex oauth
+ *  等)是各 cli-* 插件私有知识,待经 i18n.registerMessages 随插件迁出(kernel 不收纳
+ *  单插件词条);新词条一律进插件词典,勿再加于此。
+ */
 export const MESSAGES = {
   /* omp 扩展市场面板 */
   "omp 扩展": "omp extensions",

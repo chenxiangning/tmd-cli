@@ -12,7 +12,7 @@ import { cliPiPlugin } from "./cli-pi";
 import { cliKimiPlugin } from "./cli-kimi";
 import { cliQoderPlugin } from "./cli-qoder";
 import { cliQoderCnPlugin } from "./cli-qoder-cn";
-import { cliDshPlugin } from "./cli-dsh";
+import { cliDshPlugin } from "./cli-dsh/plugin";
 import { cliOpencodePlugin } from "./cli-opencode";
 import { composerPlugin } from "./composer";
 import { filesPlugin } from "./files";
@@ -29,6 +29,7 @@ import { memoryCoordinatorPlugin } from "./memory-coordinator";
 import { assetsPlugin } from "./assets";
 import { cliConfigPlugin } from "./cli-config";
 import { localLoaderPlugin } from "./local-loader";
+import { wslPlugin } from "./wsl";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -55,4 +56,5 @@ export const allPlugins: Plugin[] = [
   assetsPlugin,
   cliConfigPlugin,
   localLoaderPlugin,
+  wslPlugin,
 ];

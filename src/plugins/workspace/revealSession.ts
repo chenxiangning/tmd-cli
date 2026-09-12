@@ -32,7 +32,7 @@ export function createSessionRevealHandler(
     const cliSessionId = host.getCliSessionId(sessionId);
     const pinKey =
       meta.workspaceId && cliSessionId !== undefined
-        ? sessionPinKey(meta.workspaceId, meta.profileId, cliSessionId)
+        ? sessionPinKey(meta.workspaceId, meta.engine ?? meta.profileId, cliSessionId)
         : undefined;
     const pin = pinKey ? st.sessionPins[pinKey] : undefined;
 
@@ -41,8 +41,9 @@ export function createSessionRevealHandler(
       pinnedSection.set(false);
     } else if (
       !pin &&
-      meta.kind !== "ssh" &&
       meta.kind !== "shell" &&
+      /* 引擎会话(kind=ssh + engine)按 CLI 语义处理(运行区候选);纯 SSH 终端不在运行区 */
+      (meta.kind !== "ssh" || !!meta.engine) &&
       isRunningZoneCandidate(host.isTurnActive(sessionId), host.isUnread(sessionId))
     ) {
       /* 运行区候选(置顶优先级更高,已由上面分支排除) */

@@ -10,14 +10,16 @@ import { KernelTopics, type EventBus } from "./events";
 import { getSettingsState } from "./settings";
 import { ActivityWatch } from "./activityWatch";
 import { AskWatchFeed } from "./askWatch";
+import { AskScreenMirror } from "./askScreenMirror";
+import { stripAnsi } from "./askDetect";
 import { EditWatch } from "./editWatch";
 import { DiskIdentityWatch } from "./identityWatch";
+import { IdentityLedger } from "./identityLedger";
 import { OutputBufferStore } from "./outputBuffers";
 import { SessionStatusWatch } from "./sessionStatus";
-import { getSessionTabs } from "./sessionTabs";
+import { refreshRemoteStatus } from "./remoteStatusRefresh";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import type { SessionMeta } from "./ipc";
-import { noteLogBinding } from "./diskReplay";
 /** 幕布实时输出 topic(TerminalView 订阅,与 appendOutput 共用)。 */
 export function ptyLiveTopic(sessionId: string): string {
   return `kernel.pty.live.${sessionId}`;
@@ -40,12 +42,13 @@ export interface HostWatchesCtx {
 const OUTPUT_BUFFER_LIMIT = 500_000;
 
 export class HostWatches {
-  /** 待绑定磁盘身份的会话探测(快相位 500ms×30 → 巡航 5s,预算 10min);实现见 kernel/identityWatch.ts。 */
+  /* 屏幕态镜像:后台(幕布未挂载)CLI 会话的 Ask 屏幕采样源,补盲语义见 askScreenMirror.ts。 */
+  readonly screenMirror = new AskScreenMirror((id, text) => this.observeAskScreen(id, text));
   private readonly identityWatch = new DiskIdentityWatch({
     getCliProfile: (profileId) => this.ctx.getCliProfile(profileId),
     sessionAlive: (sessionId) => this.ctx.hasSession(sessionId),
-    isBound: (sessionId) => this.cliSessionIds.has(sessionId),
-    claimedIds: () => new Set(this.cliSessionIds.values()),
+    isBound: (sessionId) => this.ledger.has(sessionId),
+    claimedIds: () => this.ledger.claimedIds(),
     onBound: (sessionId, cliSessionId) => {
       this.bindIdentity(sessionId, cliSessionId);
       void this.statusWatch.refresh(sessionId);
@@ -58,9 +61,10 @@ export class HostWatches {
     findSession: (sessionId) => this.ctx.findSession(sessionId),
     hasSession: (sessionId) => this.ctx.hasSession(sessionId),
     getCliProfile: (profileId) => this.ctx.getCliProfile(profileId),
-    getCliSessionId: (sessionId) => this.cliSessionIds.get(sessionId),
+    getCliSessionId: (sessionId) => this.ledger.get(sessionId),
     isPendingIdentity: (sessionId) => this.identityWatch.has(sessionId),
     tryBindIdentity: (sessionId) => this.identityWatch.tryBind(sessionId),
+    refreshRemote: (sessionId) => this.remoteStatus(sessionId),
     notify: () => this.ctx.notify(),
   });
   /** 每会话 PTY 输出环形缓冲:xterm 重挂载回放("切回不黑屏");存储细节见 kernel/outputBuffers.ts。 */
@@ -78,20 +82,26 @@ export class HostWatches {
   });
   /** AI 写入文件守望(events 归因主信号,见 kernel/editWatch.ts;纯内存,随 PTY 消亡) */
   private readonly editWatch = new EditWatch();
-  /**
-   * 活会话 → CLI 磁盘身份绑定(omp/pi 的 jsonl uuid、codex 的 rollout id)。
-   * 纯前端内存,随 PTY 消亡 —— 这是活会话的身份属性,不是持久化映射。
-   * 用途:UI 按身份去重(同一会话在活区/磁盘区只出现一次)。
-   */
-  private cliSessionIds = new Map<string, string>();
+  /** 活会话 → CLI 磁盘身份账本(唯一写入口/去重语义见 kernel/identityLedger.ts)。 */
+  private readonly ledger = new IdentityLedger((sessionId) => this.ctx.findSession(sessionId));
+  /** 远程引擎会话状态观测(deps 惰性绑定,见 kernel/remoteStatusRefresh.ts)。 */
+  private readonly remoteStatus = (sessionId: string) =>
+    refreshRemoteStatus(
+      {
+        findSession: (id) => this.ctx.findSession(id),
+        getCliProfile: (profileId) => this.ctx.getCliProfile(profileId),
+        getCliSessionId: (id) => this.ledger.get(id),
+        bindIdentity: (id, cid) => this.bindIdentity(id, cid),
+        applyObserved: (id, status) => this.statusWatch.applyObserved(id, status),
+        notify: () => this.ctx.notify(),
+      },
+      sessionId,
+    );
   private readonly activity = new ActivityWatch({
     /* 后台提醒开启时,窗口失焦的激活会话不算"正在查看"(完成照标蓝/响结束音);
        Node 测试环境窗口恒聚焦,退化为纯 activeSessionId 语义 */
     isViewing: (id) => this.ctx.isViewing(id),
     exists: (id) => this.ctx.hasSession(id),
-    /* 轮次开启闸:关 tab(含容量挤除)的已了结会话不被异步噪音开轮;
-       与 sessionTabs 的模块级循环仅有运行时延迟调用,安全。 */
-    hasOpenTab: (id) => getSessionTabs().includes(id),
     /* ssh/shell「输出即活动」是既定语义(远端长任务完工要通知),闸只适用 CLI 会话 */
     noiseGated: (id) => {
       const kind = this.ctx.findSession(id)?.kind;
@@ -111,46 +121,36 @@ export class HostWatches {
 
   /** 活会话绑定的 CLI 磁盘身份;未绑定(探测前)为 undefined。 */
   getCliSessionId(sessionId: string): string | undefined {
-    return this.cliSessionIds.get(sessionId);
+    return this.ledger.get(sessionId);
   }
 
-  /**
-   * 绑定表唯一写入口:一个 CLI 磁盘身份只准一个活会话持有。身份守望的
-   * claimed 过滤是快照式(await 期间会过期),此处是绑定落表的同步终审
-   * (实证:四会话共绑一老会话,ptys 各自 resume 了同一磁盘会话)。抢绑失败
-   * = 新会话保持未绑定(fail-closed):账本按 tmd id 隔离,UI 不去重不并账。
-   */
+  /** 绑定终审与磁盘回放指针语义见 IdentityLedger.bind(唯一写入口)。 */
   bindIdentity(sessionId: string, cliSessionId: string): boolean {
-    const rival = [...this.cliSessionIds.entries()].some(
-      ([id, cid]) => id !== sessionId && cid === cliSessionId,
-    );
-    if (rival) return false;
-    this.cliSessionIds.set(sessionId, cliSessionId);
-    /* 磁盘先行回放:绑定成功即覆写「CLI 会话 → 当前代日志」指针(冷开寻址上一代)。
-       收口在唯一写入口,显式恢复(openDiskSession)与探测绑定(identityWatch)两路共用 */
-    const meta = this.ctx.findSession(sessionId);
-    if (meta) noteLogBinding(meta.profileId, meta.cwd, cliSessionId, sessionId);
-    return true;
+    return this.ledger.bind(sessionId, cliSessionId);
   }
 
   /** 测试专用:直通绑定终审闸(共绑一磁盘身份的回归入口)。 */
   bindIdentityForTest(sessionId: string, cliSessionId: string): boolean {
-    return this.bindIdentity(sessionId, cliSessionId);
+    return this.ledger.bind(sessionId, cliSessionId);
   }
 
   appendOutput(sessionId: string, text: string): void {
     /* 上限读设置项 sessionOutputBufferLimit(行为页可调),异常值已被 sanitize 拦截。 */
     const limit =
       getSettingsState().settings.sessionOutputBufferLimit || OUTPUT_BUFFER_LIMIT;
+    const session = this.ctx.findSession(sessionId);
+    if (!session || (session.kind ?? "cli") === "cli") this.screenMirror.feed(sessionId, text);
     const chunkBytes = this.outputBuffers.append(sessionId, text, limit);
     this.ctx.events.emit(ptyLiveTopic(sessionId), text);
 
     /* AskWatch 升级 → askDetected(提示音)+ 标签;ActivityWatch 回绿;
        EditWatch 检测 AI 写入标记 → fileEditDetected(审批线归因)。
-       notify 单次:ask 升级与回绿共享同一渲染节拍。 */
+       notify 单次:ask 升级与回绿共享同一渲染节拍。
+       可见文本 = 剥 ANSI 后原文,供 activityWatch 空闲重绘闸判骨架复现
+       (见该文件头);未锚定会话白算一次 regex,换取调用点单一、无状态泄漏。 */
     const asked = this.askWatch.onOutput(sessionId, text, chunkBytes);
-    if (asked || this.activity.onOutput(sessionId)) this.ctx.notify();
-    const session = this.ctx.findSession(sessionId);
+    const visible = stripAnsi(text);
+    if (asked || this.activity.onOutput(sessionId, visible)) this.ctx.notify();
     const marks = session
       ? this.ctx.getCliProfile(session.profileId)?.editMarks
       : undefined;
@@ -261,8 +261,12 @@ export class HostWatches {
     this.statusWatch.ensurePolling();
   }
 
+  /** 状态观测分派:远程引擎会话(来源工作区 + 引擎远程适配)走远端磁盘通道,
+   *  其余走本机会话文件观测(远程身份绑定语义见 kernel/remoteStatusRefresh.ts)。 */
   statusRefresh(sessionId: string): void {
-    void this.statusWatch.refresh(sessionId);
+    void this.remoteStatus(sessionId).then((remote) => {
+      if (!remote) return this.statusWatch.refresh(sessionId);
+    });
   }
 
   statusSeed(sessionId: string): void {
@@ -271,19 +275,21 @@ export class HostWatches {
 
   /** 会话移除:五守望与缓冲/身份账本残留一并清除。 */
   onSessionRemoved(sessionId: string): void {
-    this.cliSessionIds.delete(sessionId);
+    this.ledger.remove(sessionId);
     this.identityWatch.remove(sessionId);
     this.statusWatch.remove(sessionId);
     this.outputBuffers.remove(sessionId);
     this.activity.onSessionRemoved(sessionId);
     this.askWatch.onSessionRemoved(sessionId);
     this.editWatch.onSessionRemoved(sessionId); // 无条件清:非激活会话移除同样不得泄漏检测态
+    this.screenMirror.remove(sessionId);
   }
 
   /** 测试专用:假时钟换届时重置活动守望与 Ask 守望(与 resetStatusTimerForTest 同因)。 */
   resetActivityWatchForTest(): void {
     this.activity.resetForTest();
     this.askWatch.resetForTest();
+    this.screenMirror.resetForTest();
   }
 
   /** 测试专用:假时钟换届时重置巡航计时器(真实运行单例连续,无需调用)。 */

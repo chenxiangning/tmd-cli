@@ -1,124 +1,187 @@
 /**
- * 活动守望 + 完成未读状态机(呼吸灯三态结算)。
+ * 活动守望 + 完成未读状态机(呼吸灯三态结算)—— 证据分级模型。
  *
- * 从 host.ts 拆出(单文件 ≤300 行铁则)。Host 组合持有;UI 只读 host.isUnread,
- * 不各自实现状态机。
+ * 完整契约(不变量/闸门矩阵/事故账本)见 docs/architecture/08-session-lifecycle.md;
+ * 本文件是唯一实现,UI 一律经 host 门面读取,禁止各自实现状态机。
  *
- * 对话锚定(首写闸):呼吸灯只认用户发起的对话。会话在用户首写前不进任何
- * 灯语义 —— 期间一切输出(spawn 横幅、历史 resume 回放、TUI 重绘、迟到的
- * 异步消息)不刷新活动钟、不进轮次、不标未读、不发 turnSettled;
- * host.writeSession 的真实用户输入(终端协议回传除外,见 terminalReports.ts)
- * 是唯一出口,锚定后会话终生有效。
+ * ## 模型
  *
- * 旧版"宽限期"(spawn 入宽限,静默 2s 也出宽)被证明不准:resume 后的迟到
- * 消息 / SIGWINCH 重绘都发生在静默退出之后,无对话的历史会话照样误走绿→蓝
- * + 结束音。静默不是"用户在场"的证据,首写才是。
+ * PTY 字节没有机器可读的轮次边界,唯一可靠因果是用户写入(awaitingTurn)与已凭写入
+ * 开启的在途轮次(active)。输出分片按「字母骨架 + 数字串」三级分类(仅 CLI 会话,
+ * ssh/shell「输出即活动」经 noiseGated 豁免):
  *
- * 结算规则(1Hz):输出静默 >2s = 一轮对话结束;结束时未被查看(≠ activeSessionId)
- * 才标未读(蓝),正在看的会话完成不打扰;新输出回绿;点开即清(灰)。
- * 未读归属锚定「最后一字节到达瞬间」而非「结算瞬间」(2026-09-05 归因修正):
- * 亲眼看完回答、2s 检测窗内切走的会话不再误标未读;只看开头就切走的长轮次,
- * 最后一字节到达时没在看,仍正确标未读。
- * 轮次开启闸(2026-09-08):已锚定 ≠ 任意字节都可开轮。tab 已关(含容量挤除)
- * 且无未应答用户写入(awaitingTurn)的 CLI 会话,新输出不开轮 —— 实证缺陷:已查看
- * 历史会话关 tab 后,hook/dreamer/横幅类异步字节把它重跑绿→蓝生命周期误标未读。
- * 在途轮次不受闸影响:关 tab 时真实未完成的任务照常推进、结算照标未读;
- * 写完即关 tab(首字节迟到)经 awaitingTurn 放行;tab 重开即恢复正常语义。
- * 闸仅适用 CLI 会话:ssh/shell「输出即活动」是既定语义,远端长任务
- * (如 make 静默数分钟后输出完工)关 tab 后必须照常开轮标未读,豁免闸门。
-
+ * - content  字母骨架首见(新词新字母)= 真实流式产出:推活动钟,可开轮;
+ * - tick     骨架复现且数字串变动 = 活着的家具(elapsed 计数/时钟/token 计数,
+ *            实测 omp 回合期页脚每秒跳「9s→10s」):推证据钟,不开轮;
+ * - static   骨架复现且数字串相同(或骨架为空)= 死的家具(spinner 原地转、状态栏
+ *            重绘,实测 omp 空闲 ≈2.8KB/s 自绘 36 帧仅 4 种骨架):只记活性时戳。
  *
- * 重绘抑制窗:全屏 TUI 收到 SIGWINCH 的整屏重绘(实测 omp = 560KB 突发)与
- * 「CLI 正在回答」在字节流上不可区分,但重绘必由本应用自发的 resize 触发 ——
- * host.resizeSession 记时戳,锚定会话在 resize 后 1s 窗内的输出不进活动语义。
- * 取舍:窗内恰好完整到达的短回答(<1s)会被整段吞掉漏一次提醒 —— 需要
- * 「用户正在改尺寸」与「整个回答 <1s」同时成立,概率极低;回答稍长只晚亮 1s。
- * 旧取舍(宁可保守放行)面向「无任何因果信息」时代,现已由 resize 因果取代。
+ * 骨架仅取字母(\p{L}):braille spinner glyph 属符号类,数字跳动类家具(墙钟、
+ * 版本号、计数器)整体不伪装内容。轮次结算(1s tick):静默 = 距最后 content/tick
+ * 证据 >2s,且不被守卫扣住。守卫只保护未应答的用户写入:
+ *
+ *     awaiting && !answered && (
+ *       静态家具 2s 内出现过        // spinner 还在转:思考期不假结算(P0 语义)
+ *       || 无家具 && 写后 <120s     // 无 spinner/footer 的 CLI 思考期宽限
+ *     )
+ *
+ * 其余闸门:首写闸(锚定前输出零语义,resume 回放/横幅不亮灯)、轮次开启闸
+ * (无未应答写入且轮次已了结的新输出 = 异步噪音,不开轮不推钟)、重绘抑制窗
+ * (自发 resize 后 1s 内 = SIGWINCH 整屏重绘)。未读归属锚定「最后一字节到达
+ * 瞬间」是否正被查看,不看结算瞬间。
  */
 
 /** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅内部持有。 */
 type TimerHandle = ReturnType<typeof setInterval>;
 
-/** 输出静默轮次阈值:静默超此值即结算一轮对话。 */
+/** 输出静默轮次阈值:距最后 content/tick 证据超此值即结算一轮对话。 */
 const TURN_SILENCE_MS = 2_000;
-
+/** 应答回显窗:写入后此窗内的内容分片视作输入回显/TUI 换帧,不算应答证据;
+ *  模型生成类应答首帧恒晚于此窗;本地瞬时响应(/help、即时报错)可整体落在
+ *  窗内 —— 不视作应答,由守卫天花板兜底结算。 */
+const ANSWER_ECHO_MS = 400;
+/** 家具骨架窗:每会话最近 N 个字母骨架 FIFO(实测 omp 空闲帧在 4 种骨架间循环,
+ *  6 容得下页脚/标题/边框各变体;真实内容帧几乎不可能在 6 帧窗内逐字符全等复现)。 */
+const IDLE_SKELETON_WINDOW = 6;
 /** 重绘抑制窗:resize 后此窗口内的输出视为 SIGWINCH 整屏重绘,不进活动语义。 */
 const REDRAW_SUPPRESS_MS = 1_000;
+/** 未应答写入天花板:写入后此窗内不结算未应答轮次(思考期保护),到期必结算。
+ *  ponytail: 120s 拍脑袋上限 —— 覆盖最慢模型 TTFB + 长思考;若出现真实 CLI
+ *  静默思考超 2 分钟的案例,改成按 profile 配置。 */
+const WRITE_GRACE_MS = 120_000;
+
+/** 可见骨架:剥 ANSI 后仅留字母(任意文字体系)。spinner braille glyph、标点、
+ *  空白、数字全部剔除 —— 家具帧唯一常态变化的正是这些。 */
+const SKELETON_RE = /[^\p{L}]/gu;
+/** 数字串:剥掉一切非数字,剩余拼接(elapsed「9s→10s」、时钟「09:59→10:00」、
+ *  token「1.2k→1.3k」都在此变动;版本号等静态数字恒定)。 */
+const DIGITS_RE = /\D+/gu;
+
+/** 骨架窗条目:字母骨架 + 最近一次同骨架分片的数字串(tick/static 判据)。 */
+interface SkeletonEntry {
+  letters: string;
+  digits: string;
+}
+
+/** 每会话守望状态(单对象持有,随 PTY 消亡)。 */
+interface SessionWatch {
+  /** 已锚定对话(用户首写起,PTY 寿命级)。 */
+  anchored: boolean;
+  /** 在途轮次:输出进站起,结算止。 */
+  active: boolean;
+  /** 未应答的用户写入:首写置位,本轮结算清除。 */
+  awaiting: boolean;
+  /** 写后是否见过回显窗外内容分片(应答证据)。 */
+  answered: boolean;
+  /** 完成未读。 */
+  unread: boolean;
+  /** 最后 content 帧时戳(活动钟,呼吸灯)。 */
+  lastContentAt: number;
+  /** 最后 tick 帧时戳(证据钟,参与静默判定)。 */
+  lastTickAt: number;
+  /** 最后用户写入时戳(回显窗与未应答天花板起点)。 */
+  lastWriteAt: number;
+  /** 最后 content 帧瞬间是否正被查看(未读归因)。 */
+  lastOutputViewed: boolean;
+  /** 呼吸灯 notify 节流(500ms 最多一次外壳重渲染)。 */
+  lastNotifyAt: number;
+  /** 最近一次自发 resize 时戳(重绘抑制窗起点)。 */
+  lastResizeAt: number;
+  /** 最近字母骨架 FIFO(家具判据)。 */
+  skeletons: SkeletonEntry[];
+}
 
 /** Host 侧能力注入:守望只依赖这五个谓词/回调,不反向耦合 Host。 */
 interface ActivityWatchHost {
-  /** 该会话当前正被查看?(含窗口失焦判定,由 Host 提供) */
+  /** 会话是否正被查看(结算归因)。 */
   isViewing(sessionId: string): boolean;
-  /** 会话仍存活?(已死会话的轮次不标未读) */
+  /** 会话是否仍存在(结算时防幽灵标未读)。 */
   exists(sessionId: string): boolean;
-  /** 会话 tab 是否开着(sessionTabs 口径;容量挤除视同关)。轮次开启闸用。 */
-  hasOpenTab(sessionId: string): boolean;
-  /** 轮次开启闸是否适用该会话?(ssh/shell「输出即活动」语义豁免,由 Host 按 kind 判定) */
+  /** 是否受轮次开启闸/家具分类约束(CLI 会话 true;ssh/shell「输出即活动」false)。 */
   noiseGated(sessionId: string): boolean;
-  /** 状态变化回调(Host.notify)。 */
+  /** 状态变化通知(外壳重渲染)。 */
   onChange(): void;
-  /** 真实轮次结算回调(首写前的输出不结算,自然不触发)。 */
-  onTurnSettled(sessionId: string, unviewed: boolean, settledAt: number): void;
+  /** 一轮对话结算(结束提示音/checkpoints 封口/本地插件对话即变消费)。 */
+  onTurnSettled(sessionId: string, unviewed: boolean, at: number): void;
 }
 
 export class ActivityWatch {
   /** 活动守望计时器:无进行中轮次时停表(0 轮次不空转)。 */
   private timer: TimerHandle | null = null;
-  /** 每会话最近输出时间:驱动呼吸灯。 */
-  private readonly lastActivityAtMap = new Map<string, number>();
-  /** 呼吸灯 notify 节流记录(每会话 500ms 最多一次外壳重渲染)。 */
-  private readonly lastActivityNotify = new Map<string, number>();
-  /** 完成未读集合:纯内存态,随 PTY 消亡。 */
-  private readonly unread = new Set<string>();
-  /** 进行中的对话轮次:输出进站,守望判静默超时后出站结算。 */
-  private readonly activeTurns = new Set<string>();
-  /** 已锚定对话的会话(用户首写起,终生有效):锚定前输出不进呼吸灯语义。 */
-  private readonly conversationStarted = new Set<string>();
-  /** 未应答的用户写入(首写置位,下一轮次结算清除):关 tab 后首字节迟到也能开轮。 */
-  private readonly awaitingTurn = new Set<string>();
-  /** 每会话最后一字节到达瞬间是否正被查看(结算归因,见文件头)。 */
-  private readonly lastOutputViewed = new Map<string, boolean>();
-  /** 每会话最近一次自发 resize 时戳(host.resizeSession 馈入):重绘抑制窗起点。 */
-  private readonly lastResizeAt = new Map<string, number>();
+  /** 每会话状态。 */
+  private readonly sessions = new Map<string, SessionWatch>();
 
   constructor(private readonly host: ActivityWatchHost) {}
+  /** 取会话状态,惰性建档(首写/resize 前不占内存;PTY 消亡整体清除)。 */
+  private state(sessionId: string): SessionWatch {
+    let s = this.sessions.get(sessionId);
+    if (!s) {
+      s = {
+        anchored: false,
+        active: false,
+        awaiting: false,
+        answered: false,
+        unread: false,
+        lastContentAt: 0,
+        lastTickAt: 0,
+        lastWriteAt: 0,
+        lastOutputViewed: false,
+        lastNotifyAt: 0,
+        lastResizeAt: 0,
+        skeletons: [],
+      };
+      this.sessions.set(sessionId, s);
+    }
+    return s;
+  }
 
   /**
    * 用户首写 = 锚定对话,后续输出(回显/应答)按对话语义结算。
    * 终端协议回传(焦点/鼠标/查询应答)不经过此入口,见 host.writeSession。
    */
   onUserWrite(sessionId: string): void {
-    this.conversationStarted.add(sessionId);
-    this.awaitingTurn.add(sessionId);
+    const s = this.state(sessionId);
+    s.anchored = true;
+    s.lastWriteAt = Date.now();
+    s.awaiting = true;
+    s.answered = false;
+    /* 新提问 = 新基线:清骨架窗,防跨轮次逐字符全等的真实输出被误判家具 */
+    s.skeletons.length = 0;
   }
 
   /**
    * 新输出入站。返回 true = 节流窗口已开,Host 应 notify() 一次外壳刷新;
-   * 未锚定会话恒 false(灯不变,无需外壳重渲染;幕布渲染走 ptyLiveTopic)。
+   * 未锚定会话与家具分片恒 false(灯不变;幕布渲染走 ptyLiveTopic)。
+   * `visibleText` = 该分片剥 ANSI 后的可见文本(hostWatches 经 stripAnsi 馈入),
+   * 供家具分类;省略 = 不参与分类(既有直调方语义不变)。
    */
-  onOutput(sessionId: string): boolean {
-    if (!this.conversationStarted.has(sessionId)) return false;
-    /* 轮次开启闸:无 tab 且无未应答写入的已了结会话,新输出(异步噪音)不开轮、
-       不推进活动钟 —— 状态保持「已查看」;在途轮次不受闸影响,照常推进结算。 */
-    if (
-      !this.activeTurns.has(sessionId) &&
-      !this.awaitingTurn.has(sessionId) &&
-      !this.host.hasOpenTab(sessionId) &&
-      this.host.noiseGated(sessionId)
-    ) {
-      return false;
-    }
+  onOutput(sessionId: string, visibleText?: string): boolean {
+    const s = this.sessions.get(sessionId);
+    if (!s || !s.anchored) return false; // 首写闸:锚定前零语义(I1)
     const now = Date.now();
-    /* 重绘抑制窗:自发 resize 后窗内的输出 = SIGWINCH 整屏重绘,不推进活动钟、
-       不进轮次 —— 空闲已锚定会话被重绘打亮重跑生命周期的路径在此掐断。 */
-    if (now - (this.lastResizeAt.get(sessionId) ?? 0) < REDRAW_SUPPRESS_MS) return false;
-    this.lastActivityAtMap.set(sessionId, now);
-    this.lastOutputViewed.set(sessionId, this.host.isViewing(sessionId));
-    this.activeTurns.add(sessionId);
-    this.unread.delete(sessionId);
+    /* 重绘抑制窗:自发 resize 后窗内 = SIGWINCH 整屏重绘,连分类副作用都免
+       (骨架 FIFO 不被重绘尾行占据,I4 幂等)。 */
+    if (now - s.lastResizeAt < REDRAW_SUPPRESS_MS) return false;
+    if (visibleText !== undefined && this.host.noiseGated(sessionId)) {
+      const kind = this.classify(s, visibleText);
+      if (kind !== "content") {
+        /* 家具:不推活动钟、不开轮、不通知;tick 推证据钟(static 只是被扣下)。 */
+        if (kind === "tick") s.lastTickAt = now;
+        return false;
+      }
+    }
+    /* 轮次开启闸:无未应答写入且轮次已了结的新输出 = 异步噪音(I2)。tab 开关与
+       闸无关;在途轮次与 awaiting 放行。 */
+    if (!s.active && !s.awaiting && this.host.noiseGated(sessionId)) return false;
+    /* 回显窗外的内容分片 = 应答证据。 */
+    if (now - s.lastWriteAt > ANSWER_ECHO_MS) s.answered = true;
+    s.lastContentAt = now;
+    s.lastOutputViewed = this.host.isViewing(sessionId);
+    s.active = true;
+    s.unread = false;
     this.ensureWatch();
-    if (now - (this.lastActivityNotify.get(sessionId) ?? 0) > 500) {
-      this.lastActivityNotify.set(sessionId, now);
+    if (now - s.lastNotifyAt > 500) {
+      s.lastNotifyAt = now;
       return true;
     }
     return false;
@@ -126,38 +189,32 @@ export class ActivityWatch {
 
   /** 自发 resize 入站(host.resizeSession 唯一调用方):开重绘抑制窗。 */
   onResized(sessionId: string): void {
-    this.lastResizeAt.set(sessionId, Date.now());
+    this.state(sessionId).lastResizeAt = Date.now();
   }
 
   /** 完成未读判定(会话列表蓝呼吸灯)。 */
   isUnread(sessionId: string): boolean {
-    return this.unread.has(sessionId);
+    return this.sessions.get(sessionId)?.unread ?? false;
   }
   /** 对话轮次进行中判定(输出进站起,静默超阈结算止)。 */
   isTurnActive(sessionId: string): boolean {
-    return this.activeTurns.has(sessionId);
+    return this.sessions.get(sessionId)?.active ?? false;
   }
 
   /** 点开查看 = 已读(蓝 → 灰)。 */
   markViewed(sessionId: string): void {
-    this.unread.delete(sessionId);
+    const s = this.sessions.get(sessionId);
+    if (s) s.unread = false;
   }
 
   /** 会话最近输出时间戳(无输出为 0;未锚定会话不推进,灯恒灰)。 */
   lastActivityAt(sessionId: string): number {
-    return this.lastActivityAtMap.get(sessionId) ?? 0;
+    return this.sessions.get(sessionId)?.lastContentAt ?? 0;
   }
 
-  /** 会话移除:未读/轮次/锚定残留一并清除;无可守望即停表。 */
+  /** 会话移除:状态对象整体清除;无可守望即停表。 */
   onSessionRemoved(sessionId: string): void {
-    this.lastActivityAtMap.delete(sessionId);
-    this.lastActivityNotify.delete(sessionId);
-    this.lastOutputViewed.delete(sessionId);
-    this.lastResizeAt.delete(sessionId);
-    this.unread.delete(sessionId);
-    this.activeTurns.delete(sessionId);
-    this.conversationStarted.delete(sessionId);
-    this.awaitingTurn.delete(sessionId);
+    this.sessions.delete(sessionId);
     this.stopIfIdle();
   }
 
@@ -167,14 +224,26 @@ export class ActivityWatch {
       clearInterval(this.timer);
       this.timer = null;
     }
-    this.lastActivityAtMap.clear();
-    this.lastActivityNotify.clear();
-    this.lastOutputViewed.clear();
-    this.lastResizeAt.clear();
-    this.unread.clear();
-    this.activeTurns.clear();
-    this.conversationStarted.clear();
-    this.awaitingTurn.clear();
+    this.sessions.clear();
+  }
+
+  /** 分片三级分类(副作用:首见骨架入窗;复现骨架更新数字串)。
+   *  仅字母骨架为空 = 纯控制序列/braille,归 static。 */
+  private classify(s: SessionWatch, visibleText: string): "content" | "tick" | "static" {
+    const letters = visibleText.replace(SKELETON_RE, "");
+    if (letters === "") return "static";
+    const digits = visibleText.replace(DIGITS_RE, "");
+    const hit = s.skeletons.find((e) => e.letters === letters);
+    if (!hit) {
+      s.skeletons.push({ letters, digits });
+      if (s.skeletons.length > IDLE_SKELETON_WINDOW) s.skeletons.shift();
+      return "content";
+    }
+    if (hit.digits !== digits) {
+      hit.digits = digits;
+      return "tick";
+    }
+    return "static";
   }
 
   private ensureWatch(): void {
@@ -182,16 +251,27 @@ export class ActivityWatch {
     this.timer = setInterval(() => {
       const now = Date.now();
       let changed = false;
-      for (const id of [...this.activeTurns]) {
-        if (now - (this.lastActivityAtMap.get(id) ?? 0) <= TURN_SILENCE_MS) continue;
-        this.activeTurns.delete(id);
-        this.awaitingTurn.delete(id); // 本轮结算 = 应答了此前写入
+      for (const [id, s] of this.sessions) {
+        if (!s.active) continue;
+        /* 静默 = content 与 tick 证据都停 >2s;静态家具不参与(空闲页脚永续自绘)。 */
+        if (now - Math.max(s.lastContentAt, s.lastTickAt) <= TURN_SILENCE_MS) continue;
+        /* 未应答写入天花板(仅 CLI;ssh/shell 不守,快命令 2s 照常结算):
+           写入后 WRITE_GRACE_MS 内「没等到应答」与「还在思考」字节不可分,
+           统一保住 awaiting 不被假结算吞掉(真应答从此被轮次开启闸拦死);
+           天花板保证 spinner 永续自绘(omp /help)与写入丢失必结算,不永挂。 */
+        if (
+          this.host.noiseGated(id) &&
+          s.awaiting &&
+          !s.answered &&
+          now - s.lastWriteAt < WRITE_GRACE_MS
+        )
+          continue;
+        s.active = false;
+        s.awaiting = false; // 本轮结算 = 应答了此前写入
         const unviewed =
-          !this.host.isViewing(id) &&
-          !this.lastOutputViewed.get(id) &&
-          this.host.exists(id);
-        if (unviewed) this.unread.add(id);
-        this.host.onTurnSettled(id, unviewed, this.lastActivityAtMap.get(id) ?? now);
+          !this.host.isViewing(id) && !s.lastOutputViewed && this.host.exists(id);
+        if (unviewed) s.unread = true;
+        this.host.onTurnSettled(id, unviewed, s.lastContentAt);
         changed = true;
       }
       this.stopIfIdle();
@@ -200,9 +280,11 @@ export class ActivityWatch {
   }
 
   private stopIfIdle(): void {
-    if (this.activeTurns.size === 0 && this.timer !== null) {
-      clearInterval(this.timer);
-      this.timer = null;
+    if (this.timer === null) return;
+    for (const s of this.sessions.values()) {
+      if (s.active) return;
     }
+    clearInterval(this.timer);
+    this.timer = null;
   }
 }

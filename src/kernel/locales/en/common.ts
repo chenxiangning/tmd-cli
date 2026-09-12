@@ -50,6 +50,15 @@ export const MESSAGES = {
   "检查更新": "Check for updates",
   "前往下载": "Go to download",
   "发现新版本": "New version found",
+  "自动更新": "Auto update",
+  "下载中 {percent}%": "Downloading {percent}%",
+  "下载中…": "Downloading…",
+  "安装中…": "Installing…",
+  "即将重启…": "Restarting…",
+  "更新检查超时": "Update check timed out",
+  "自动更新失败:{reason}": "Auto update failed: {reason}",
+  "当前为浏览器 dev 环境(无 Tauri runtime),无法自动更新。":
+    "Browser dev environment (no Tauri runtime): auto update unavailable.",
   "更新记录": "Changelog",
   "上一版本": "Previous version",
   "下一版本": "Next version",
@@ -106,6 +115,10 @@ export const MESSAGES = {
   "会话尚未落盘,暂不可命名": "Session not yet persisted; cannot rename",
   "关闭其他 tab": "Close other tabs",
   "关闭全部 tab": "Close all tabs",
+  "平铺显示": "Tile Display",
+  "取消平铺": "Exit Tile",
+  "广播开关:开启后发送进平铺全部幕布": "Broadcast toggle: sends go to all tiled terminals when on",
+  "广播已开启:发送将进入平铺全部幕布": "Broadcast on: your messages now go to all tiled terminals",
 
   // ── 编辑区空态 ──
   "选中一个文件查看": "Select a file to view",
@@ -132,6 +145,8 @@ export const MESSAGES = {
   "上一个 (Shift+Enter)": "Previous (Shift+Enter)",
   "下一个 (Enter)": "Next (Enter)",
   "关闭 (Esc)": "Close (Esc)",
+  "终端复制/停止菜单": "Terminal copy/stop menu",
+  "停止终端": "Stop terminal",
 
   // ── 外壳命令标题(定义处保留中文,设置页快捷键清单渲染点包 t)──
   "折叠/展开左栏": "Toggle left panel",
@@ -147,4 +162,37 @@ export const MESSAGES = {
   "最大化/还原编辑区": "Maximize/restore editor",
   "在左侧栏定位会话": "Locate session in sidebar",
   "刷新当前面板": "Refresh current panel",
+
+  // ── 本地插件(插排页 local-loader 分区)──
+  "加载失败": "Load failed",
+  "已移除 · 重启后卸载": "Removed · unload after restart",
+  "目录异常": "Directory error",
+  "运行中": "Running",
+  "已更新 · 重启生效": "Updated · applies after restart",
+  "已更新 · 待启用": "Updated · enable required",
+  "待启用": "Pending enable",
+  "把插件 {id} 移入系统废纸篓?(重启后卸载,可从废纸篓找回)":
+    "Move plugin {id} to system trash? (Unloads after restart; recoverable from trash)",
+  "v{v} · 本地": "v{v} · Local",
+  "权限": "Permissions",
+  "确认更新": "Confirm update",
+  "启用": "Enable",
+  "版本历史": "Version history",
+  "移入废纸篓": "Move to trash",
+  "回退到此版": "Roll back to this version",
+  "本地插件": "Local plugins",
+  "已禁用全部本地插件(插件文件保留,随时可再开)":
+    "All local plugins disabled (files kept, re-enable anytime)",
+  "放在 ~/.tmd-cli/plugins/ 的插件,免重启装载": "Plugins in ~/.tmd-cli/plugins/ load without restart",
+  "已复制": "Copied",
+  "复制插件开发提示词": "Copy plugin dev prompt",
+  "重新扫描": "Rescan",
+  "启用全部本地插件": "Enable all local plugins",
+  "禁用全部本地插件": "Disable all local plugins",
+  "本地插件已全部禁用 —— 插件文件与版本库原样保留":
+    "All local plugins disabled — files and version history kept as-is",
+  "还没有本地插件 —— 点「复制插件开发提示词」,在任意会话里粘贴给 AI,让它把插件写进 ~/.tmd-cli/plugins/ 即可":
+    'No local plugins yet — click "Copy plugin dev prompt" and paste it to the AI in any session; it writes the plugin into ~/.tmd-cli/plugins/',
+  "操作失败": "Action failed",
+  "剪贴板写入失败": "Failed to write clipboard",
 } as Record<string, string>;

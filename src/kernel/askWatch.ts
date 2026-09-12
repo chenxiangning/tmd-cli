@@ -26,9 +26,15 @@
  * 字节尾窗后永不复现(实测 3h 挂起面板后流 7.4MB),字节流对此原理性无解;
  * TerminalView 1Hz 采样幕布底部 8 行喂 onScreenSample —— 屏幕可见标记 ⟺ 等待,
  * 消失即自愈(覆盖 CLI 未等写入自行继续)。字节流与屏幕态并集判定、互认边沿。
+ * 屏幕态镜像(v3.1):幕布采样依赖 TerminalView 挂载,tab 未打开的后台会话
+ * 原先无人采样(用户实测「等待确认只有打开 tab 才出现」;且整帧重绘把标记埋在
+ * 帧中部,字节通道逐 chunk 尾窗评估结构性漏检 —— 真实日志回放实证零命中)。
+ * askScreenMirror.ts 给每条活 CLI 会话养 headless xterm 镜像补后台采样,
+ * readopt 后磁盘日志尾补底重建重载前现势;幕布在场时让位真实采样。
  *
  * 文件规模铁则拆分(300 行):检测原语/阈值 askDetect.ts,状态机 askWatchCore.ts,
- * host 接线 askWatchFeed.ts;本文件为入口,re-export 保持 import 契约不变。
+ * host 接线 askWatchFeed.ts,后台镜像 askScreenMirror.ts;本文件为入口,
+ * re-export 保持 import 契约不变。
  */
 
 export { ASK_MARKER_RE, stripAnsi } from "./askDetect";

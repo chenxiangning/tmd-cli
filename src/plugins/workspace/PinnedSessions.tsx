@@ -7,7 +7,7 @@
  * - 行标题:手动命名覆盖层 > 置顶快照 > 短码;快照缺失或为短码垃圾(历史缺陷
  *   把 shortId 存成了快照)时读磁盘解析真标题并回填快照(节流重试,见下);
  * - 行点击:绑定的活会话 → 切到该会话;否则按原工作区恢复磁盘会话;
- * - 绑定活会话的行:meta 区亮状态 label(运行时/会话结束-未查看/已查看,
+ * - 绑定活会话的行:meta 区亮状态 label(运行时/空闲-未查看/空闲,
  *   与组内行同口径);
  * - 右键菜单无删除项:全局区不持有磁盘文件路径,删除回工作区分组操作
  *   (先「置顶到工作区内」迁移回组,或「取消置顶」后组内删除)。
@@ -53,6 +53,18 @@ interface PinnedRow {
   profile: CliProfile;
 }
 
+/** 绑定的活会话(同工作区 + 同 CLI + 同磁盘身份);存在则点击 = 切会话。 */
+function liveOf(row: PinnedRow) {
+  return host
+    .getSessions()
+    .find(
+      (s) =>
+        s.workspaceId === row.workspace.id &&
+        (s.profileId === row.profile.id || s.engine === row.profile.id) &&
+        host.getCliSessionId(s.id) === row.cliSessionId,
+    );
+}
+
 export function PinnedSessionsSection() {
   useHost();
   const { list: workspaces } = useWorkspaces();
@@ -82,14 +94,17 @@ export function PinnedSessionsSection() {
   /* 快照缺失或为短码垃圾(历史缺陷)的置顶行:读磁盘解析真标题并经 refreshPinTitle
    * 回填 settings —— 回填后全局区恢复免磁盘扫描;解析不到(文件未落盘)节流重试。 */
   const rowsRef = useRef(rows);
-  rowsRef.current = rows;
+  /* 提交后同步最新行集(渲染期禁写 ref.current);attempt 闭包经 ref 读防陈旧。 */
+  useEffect(() => {
+    rowsRef.current = rows;
+  });
   const unresolvedKeys = rows
-    .filter(
-      (r) =>
-        !settings.sessionTitles[sessionTitleKey(r.profile.id, r.cliSessionId)] &&
-        !realPinSnapshot(r.entry.title, r.cliSessionId),
+    .flatMap((r) =>
+      !settings.sessionTitles[sessionTitleKey(r.profile.id, r.cliSessionId)] &&
+      !realPinSnapshot(r.entry.title, r.cliSessionId)
+        ? [r.key]
+        : [],
     )
-    .map((r) => r.key)
     .join("|");
 
   useEffect(() => {
@@ -99,16 +114,29 @@ export function PinnedSessionsSection() {
     let timer: number | undefined;
     let attempts = 0;
     const attempt = async () => {
-      for (const row of rowsRef.current) {
-        if (!keys.has(row.key) || !row.profile.listSessions) continue;
-        const list = await row.profile.listSessions(row.workspace.root).catch(() => []);
-        if (stale) return;
-        const hit = list.find((s) => s.id === row.cliSessionId);
-        /* listSessions 已带真标题的 CLI(opencode 的 SELECT title)直接用;
-         * 无列表标题的(omp/pi jsonl)照旧读文件头解析。 */
-        const title = hit?.title ? hit.title : hit ? await readHeadTitle(hit.path) : undefined;
-        if (stale) return;
-        if (title) refreshPinTitle(row.key, title);
+      /* 各行解析互不依赖(不同工作区/CLI 的磁盘扫描),并行聚合后统一回填;
+       * stale 后再回填会污染新挂载的 effect 代,故 await 后判一次。 */
+      const targets = rowsRef.current.flatMap((row) => {
+        const listSessions = row.profile.listSessions;
+        return keys.has(row.key) && listSessions ? [{ row, listSessions }] : [];
+      });
+      const resolved = await Promise.all(
+        targets.map(async ({ row, listSessions }) => {
+          const list = await listSessions(row.workspace.root).catch(() => []);
+          const hit = list.find((s) => s.id === row.cliSessionId);
+          /* listSessions 已带真标题的 CLI(opencode 的 SELECT title)直接用;
+           * 无列表标题的(omp/pi jsonl)照旧读文件头解析。 */
+          const title = hit?.title
+            ? hit.title
+            : hit
+              ? await readHeadTitle(hit.path)
+              : undefined;
+          return { key: row.key, title };
+        }),
+      );
+      if (stale) return;
+      for (const { key, title } of resolved) {
+        if (title) refreshPinTitle(key, title);
       }
     };
     const schedule = () => {
@@ -137,17 +165,6 @@ export function PinnedSessionsSection() {
       row.cliSessionId,
       row.cliSessionId,
     );
-
-  /** 绑定的活会话(同工作区 + 同 CLI + 同磁盘身份);存在则点击 = 切会话。 */
-  const liveOf = (row: PinnedRow) =>
-    host
-      .getSessions()
-      .find(
-        (s) =>
-          s.workspaceId === row.workspace.id &&
-          s.profileId === row.profile.id &&
-          host.getCliSessionId(s.id) === row.cliSessionId,
-      );
 
   const openRow = (row: PinnedRow) => {
     const live = liveOf(row);
@@ -212,32 +229,33 @@ export function PinnedSessionsSection() {
             );
           }
           return (
-            <button
-              key={row.key}
-              data-session-id={live?.id}
-              className={`thread-row${isActive ? " active" : ""}`}
-              title={t("{workspace} · {profile} 会话 {id}", { workspace: workspaceDisplayName(row.workspace), profile: row.profile.name, id: row.cliSessionId })}
-              onClick={() => openRow(row)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setMenu({ row, x: e.clientX, y: e.clientY });
-              }}
-            >
-              <span className="thread-engine-badge" title={row.profile.name}>
-                {row.profile.renderIcon?.("0.75rem")}
-              </span>
-              <span className="thread-name">{titleOf(row)}</span>
-              <span className="thread-meta">
-                {/* 绑定活会话:状态校准 label(与组内行同口径,实时刷新) */}
-                {live ? <SessionStatusLabel sessionId={live.id} /> : null}
-                {/* 绑定的活会话正等待确认:同组内行,置顶区也亮「等待确认」标签 */}
-                {live && host.isWaitingConfirm(live.id) ? (
-                  <span className="thread-ask-badge">{t("等待确认")}</span>
-                ) : null}
-                <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
-                <PinToggle on onToggle={() => unpinSession(row.key)} />
-              </span>
-            </button>
+            <span className="thread-row-host" key={row.key}>
+              <button
+                data-session-id={live?.id}
+                className={`thread-row${isActive ? " active" : ""}`}
+                title={t("{workspace} · {profile} 会话 {id}", { workspace: workspaceDisplayName(row.workspace), profile: row.profile.name, id: row.cliSessionId })}
+                onClick={() => openRow(row)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ row, x: e.clientX, y: e.clientY });
+                }}
+              >
+                <span className="thread-engine-badge" title={row.profile.name}>
+                  {row.profile.renderIcon?.("0.75rem")}
+                </span>
+                <span className="thread-name">{titleOf(row)}</span>
+                <span className="thread-meta">
+                  {/* 绑定活会话:状态校准 label(与组内行同口径,实时刷新) */}
+                  {live ? <SessionStatusLabel sessionId={live.id} /> : null}
+                  {/* 绑定的活会话正等待确认:同组内行,置顶区也亮「等待确认」标签 */}
+                  {live && host.isWaitingConfirm(live.id) ? (
+                    <span className="thread-ask-badge">{t("等待确认")}</span>
+                  ) : null}
+                  <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
+                </span>
+              </button>
+              <PinToggle on onToggle={() => unpinSession(row.key)} />
+            </span>
           );
         })}
 

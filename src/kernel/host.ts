@@ -31,8 +31,7 @@ class Host implements PluginContext {
   private sessions: SessionMeta[] = [];
   private activeSessionId: string | null = null;
   private listeners = new Set<() => void>();
-  /** PTY 事件退订表:spawn 登记输出/退出两监听,会话移除成对退订
-   * (此前 void 掉 listen 的 UnlistenFn,每次 spawn 泄漏 2 个监听器)。 */
+  /** PTY 事件退订表:spawn 登记输出/退出两监听,会话移除成对退订(此前 void 掉监听句柄,每次 spawn 泄漏 2 个)。 */
   private ptyUnlistens = new Map<string, Array<() => void>>();
   /** 窗口聚焦态(main.tsx 挂 focus/blur 监听馈入):失焦时激活会话完成也视为未查看。 */
   private windowFocused = true;
@@ -142,20 +141,21 @@ class Host implements PluginContext {
 
   // ---- 会话服务(kernel 固有职责:PTY 生命周期) ---------------------------
 
-  /** 创建/重连 SSH 一等会话(实现见 kernel/sshSessions.ts);幕布与 PTY 同构,无 profile。 */
-  async createSshSession(host: SshHostConfig, workspaceId?: string): Promise<SessionMeta>;
+  /** 创建/重连 SSH 一等会话(实现见 kernel/sshSessions.ts);幕布与 PTY 同构。
+   *  command = PTY 内初始命令(远程 WSL 会话);engineProfileId = WSL CLI 的引擎
+   *  档案 id(SessionMeta.engine,composer/Ask 据此取 CLI profile,kind 仍为 ssh);
+   *  cliSessionId = 远程磁盘历史行恢复的已知身份(去重聚焦/显式绑定,同本地 openDiskSession)。 */
+  async createSshSession(host: SshHostConfig, workspaceId?: string, command?: string, engineProfileId?: string, cliSessionId?: string): Promise<SessionMeta>;
   async createSshSession(reconnectOf: string, workspaceId?: string): Promise<SessionMeta>;
-  async createSshSession(
-    host: SshHostConfig | string,
-    workspaceId?: string,
-  ): Promise<SessionMeta> {
-    return this.sessionServices.ssh.create(host, workspaceId);
+  async createSshSession(host: SshHostConfig | string, workspaceId?: string, command?: string, engineProfileId?: string, cliSessionId?: string): Promise<SessionMeta> {
+    return this.sessionServices.ssh.create(host, workspaceId, command, engineProfileId, cliSessionId);
   }
 
   /** 新建内置终端会话(实现见 kernel/shellSessions.ts);本地默认 shell,幕布即输入面。 */
   async createShellSession(workspaceId?: string): Promise<SessionMeta> {
     return this.sessionServices.shell.create(workspaceId);
   }
+  readoptSessions = (): Promise<void> => this.sessionServices.readopt(); /* webview 重载后活 PTY 重新接管:会话表合并+常驻订阅重建(语义见 kernel/sessionAdopt.ts) */
 
   async createSession(
     profileId: string,

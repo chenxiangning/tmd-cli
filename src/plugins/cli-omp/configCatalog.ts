@@ -6,7 +6,7 @@
 import { ipc } from "@kernel/ipc";
 import type { CliModelCatalogProvider } from "@kernel/cliConfigRegistry";
 
-const indentOf = (line: string): number => line.match(/^ */)![0].length;
+const indentOf = (line: string): number => line.match(/^ */)?.[0].length ?? 0;
 
 /**
  * models.yml → 供应商目录(行级状态机,只认 omp 的 2 空格形态):

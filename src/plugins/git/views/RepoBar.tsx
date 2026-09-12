@@ -1,22 +1,16 @@
 /**
  * RepoBar —— 多仓切换条(spec 2026-09-07-git-multi-repo-design §3)。
  * 无胶囊平铺单元:kind 小图标 + 仓名 + dirty 点/数 + ↑↓,仓间虚线分隔;
- * 选中态 = 文字色提亮 + 加粗 + 图标 fill(无底色块)。排序 = 变更数降序
  * (chips 未到沉底)。超宽横滚但滚动条视觉隐藏(.repo-bar-scroll,git-panel.css)。
  * 仅多仓模式渲染(GitPanel 分档),单仓零出现(回归红线)。
+ * kind 图标/标签表拆至 repoKindMeta.ts(only-export-components,RepoGuide 同消费)。
  */
 
 import { useMemo } from "react";
 import { t } from "@kernel/i18n";
-import { Cube, GitBranch, TreeStructure, type Icon } from "@phosphor-icons/react";
 import type { GitRepoSummary } from "@kernel/ipc";
 import { useRepoChips } from "../hooks/useRepoChips";
-
-export const KIND_META: Record<GitRepoSummary["kind"], { icon: Icon; label: string | null }> = {
-  repo: { icon: GitBranch, label: null },
-  submodule: { icon: Cube, label: "子模块" },
-  worktree: { icon: TreeStructure, label: "工作树" },
-};
+import { KIND_META } from "./repoKindMeta";
 
 export function RepoBar({
   repos,

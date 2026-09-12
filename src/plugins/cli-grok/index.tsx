@@ -145,22 +145,27 @@ async function listGrokSessions(cwd: string): Promise<CliDiskSession[]> {
   const dir = await grokSessionsDir(cwd);
   if (!dir) return [];
   const entries = await ipc.fsListDir(dir).catch(() => []);
-  const sessions: CliDiskSession[] = [];
-  for (const entry of entries) {
-    // 会话目录 = UUID 命名;summary.json.lock 等杂项天然被正则排除。
-    if (!entry.isDir || !SESSION_ID_RE.test(entry.name)) continue;
-    const raw = await ipc
-      .fsReadFile(`${dir}/${entry.name}/summary.json`)
-      .catch(() => null);
-    const summary = raw ? parseGrokSummary(raw) : null;
-    sessions.push({
-      id: entry.name,
-      title: summary?.title,
-      modifiedAt: summary?.updatedAt ?? 0,
-      path: `${dir}/${entry.name}`,
-    });
-  }
-  return sessions;
+  /* summary.json 读取互不依赖,并发;结果保持 entries 原序,单文件失败容错不变。 */
+  return Promise.all(
+    entries.flatMap((entry) => {
+      // 会话目录 = UUID 命名;summary.json.lock 等杂项天然被正则排除。
+      if (!entry.isDir || !SESSION_ID_RE.test(entry.name)) return [];
+      return [
+        (async (): Promise<CliDiskSession> => {
+          const raw = await ipc
+            .fsReadFile(`${dir}/${entry.name}/summary.json`)
+            .catch(() => null);
+          const summary = raw ? parseGrokSummary(raw) : null;
+          return {
+            id: entry.name,
+            title: summary?.title,
+            modifiedAt: summary?.updatedAt ?? 0,
+            path: `${dir}/${entry.name}`,
+          };
+        })(),
+      ];
+    }),
+  );
 }
 
 async function readGrokSessionStatus(

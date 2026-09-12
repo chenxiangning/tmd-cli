@@ -6,7 +6,7 @@
 import { t } from "@kernel/i18n";
 import { CloudArrowDown } from "@phosphor-icons/react";
 import type { GitRemoteRequest } from "@kernel/ipc";
-import { DialogActions, GitDialogShell } from "./GitDialogShell";
+import { DialogActions, DialogShell } from "@kernel/DialogShell";
 import { GitOpTokens, OpSectionLabel, type GitOpToken } from "./GitOpTokens";
 
 const EXAMPLE_TOKENS: GitOpToken[] = [
@@ -27,7 +27,7 @@ export function FetchDialog({
   onRun: (req: GitRemoteRequest, label: string) => void;
 }) {
   return (
-    <GitDialogShell
+    <DialogShell
       title={t("获取远端更新")}
       icon={<CloudArrowDown className="h-[0.875rem] w-[0.875rem]" aria-hidden />}
       repoName={repoName}
@@ -73,7 +73,7 @@ export function FetchDialog({
           <GitOpTokens tokens={EXAMPLE_TOKENS} />
         </div>
       </div>
-    </GitDialogShell>
+    </DialogShell>
   );
 }
 

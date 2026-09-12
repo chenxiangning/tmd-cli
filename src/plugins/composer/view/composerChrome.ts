@@ -9,7 +9,7 @@
 
 import { useEffect, useState, type RefObject } from "react";
 
-export interface PopupAnchor {
+interface PopupAnchor {
   boxRect: DOMRect | null;
   /** 面板底缘 = 对话框顶缘上方 8px(fixed bottom 值)。 */
   popupBottom: number;

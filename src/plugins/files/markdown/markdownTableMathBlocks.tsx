@@ -14,11 +14,12 @@ import {
 } from "react";
 import { hashStableString } from "./markdownDocument";
 import { renderLatexFormula } from "./markdownMath";
+import DOMPurify from "dompurify";
 import {
-  extractLanguageTag,
   FileMarkdownCodeBlock,
   LazyMarkdownHeavyBlock,
 } from "./markdownBlocks";
+import { extractLanguageTag } from "./languageTag";
 
 
 const MAX_CACHED_TABLE_SCROLL_POSITIONS = 160;
@@ -130,11 +131,14 @@ export function FileMarkdownMathBlock({
     if (cachedRender !== undefined && cachedRender !== null) {
       return cachedRender;
     }
-    const nextRender = renderLatexFormula(value);
-    if (nextRender !== null) {
-      writeCachedKatexRender(renderCacheKey, nextRender);
+    const nextRender = DOMPurify.sanitize(renderLatexFormula(value) ?? "", {
+      USE_PROFILES: { html: true, mathMl: true, svg: true },
+    });
+    const sanitized = nextRender.length > 0 ? nextRender : null;
+    if (sanitized !== null) {
+      writeCachedKatexRender(renderCacheKey, sanitized);
     }
-    return nextRender;
+    return sanitized;
   }, [renderCacheKey, value]);
 
   if (!renderedHtml) {

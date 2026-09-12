@@ -32,6 +32,25 @@ interface TreeMenuActions {
   trash: (entry: DirEntry) => void;
 }
 
+/** 菜单行构造(无捕获纯函数,提模块级避免每渲染重建闭包)。 */
+function item(
+  label: string,
+  icon: ReactNode,
+  onPick: () => void,
+  extra?: { danger?: boolean; armed?: boolean },
+) {
+  return (
+    <button
+      type="button"
+      className={`wsmenu-item${extra?.danger ? " is-danger" : ""}${extra?.armed ? " is-armed" : ""}`}
+      onClick={onPick}
+    >
+      <span className="wsmenu-item-icon">{icon}</span>
+      <span className="wsmenu-item-label">{label}</span>
+    </button>
+  );
+}
+
 export function FileTreeContextMenu({
   state,
   root,
@@ -60,26 +79,11 @@ export function FileTreeContextMenu({
   /* 新建落点:目录行=目录内;文件行=其父目录;空白区=树根。 */
   const newDir = entry ? (entry.isDir ? entry.path : parentOf(entry.path, root)) : root;
 
-  const item = (
-    label: string,
-    icon: ReactNode,
-    onPick: () => void,
-    extra?: { danger?: boolean; armed?: boolean },
-  ) => (
-    <button
-      type="button"
-      className={`wsmenu-item${extra?.danger ? " is-danger" : ""}${extra?.armed ? " is-armed" : ""}`}
-      onClick={onPick}
-    >
-      <span className="wsmenu-item-icon">{icon}</span>
-      <span className="wsmenu-item-label">{label}</span>
-    </button>
-  );
-
   return createPortal(
     <>
       <div
         className="wsmenu-backdrop"
+        role="presentation"
         onClick={onClose}
         onContextMenu={(e) => {
           e.preventDefault();

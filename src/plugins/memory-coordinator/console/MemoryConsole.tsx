@@ -7,15 +7,15 @@
  * 各功能区卡片拆至 MemoryConsoleCards.tsx(文件规模铁则)。
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer } from "react";
 import type { EditorTab } from "@kernel/tabs";
 import { ipc } from "@kernel/ipc";
-import { closeTab, getTabs, openTab } from "@kernel/tabs";
 import { useWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { type MemoryItem } from "../protocol";
 import { memoryPool, resolveProjectIdentity } from "../pool";
-import { EngineConfigCard, readEngineConfigFile, writeEngineConfigFile, type EngineConfig } from "./EngineConfigCard";
+import { EngineConfigCard } from "./EngineConfigCard";
+import { readEngineConfigFile, writeEngineConfigFile, type EngineConfig } from "./engineConfigModel";
 import { engineConfigPath } from "../paths";
 import { InstallCard } from "./InstallCard";
 import {
@@ -25,49 +25,56 @@ import {
 } from "./MemoryConsoleCards";
 import { RecentCard, StatsCard } from "./MemoryConsoleStats";
 
-/** 面板/入口打开控制台(唯一定义,避免循环依赖)。 */
-export function openConsoleTab(): void {
-  openTab({
-    id: "memory-console",
-    title: t("Memory 控制台"),
-    path: "Magic Context",
-    kind: "memory-console",
-    payload: {},
-  });
-}
+/* ── 面板状态机(reducer 模块级;各卡共同消费一份池/引擎状态) ── */
+type ConsoleState = {
+  ready: boolean | null;
+  poolReason: "not-installed" | "locked" | null;
+  identity: string | null;
+  counts: { total: number; week: number; byHarness: [string, number][] } | null;
+  lastDream: string | null;
+  recent: MemoryItem[];
+  engine: EngineConfig | null;
+  engineDirty: boolean;
+  engineSaving: boolean;
+  configHint: string | null;
+};
 
-/** 已打开则关闭,未打开则打开(面板底部切换按钮)。 */
-export function toggleConsoleTab(): void {
-  if (getTabs().some((t) => t.id === "memory-console")) closeTab("memory-console");
-  else openConsoleTab();
+const initialConsoleState: ConsoleState = {
+  ready: null,
+  poolReason: null,
+  identity: null,
+  counts: null,
+  lastDream: null,
+  recent: [],
+  engine: null,
+  engineDirty: false,
+  engineSaving: false,
+  configHint: null,
+};
+
+type ConsoleAction = { type: "patch"; patch: Partial<ConsoleState> };
+
+function consoleReducer(state: ConsoleState, action: ConsoleAction): ConsoleState {
+  return { ...state, ...action.patch };
 }
 
 export function MemoryConsole(_props: { tab: EditorTab }) {
   const workspaces = useWorkspaces();
   const root = workspaces.list.find((w) => w.id === workspaces.activeId)?.root ?? "";
 
-  const [ready, setReady] = useState<boolean | null>(null);
-  const [poolReason, setPoolReason] = useState<"not-installed" | "locked" | null>(null);
-  const [identity, setIdentity] = useState<string | null>(null);
-  const [counts, setCounts] = useState<{ total: number; week: number; byHarness: [string, number][] } | null>(null);
-  const [lastDream, setLastDream] = useState<string | null>(null);
-  const [recent, setRecent] = useState<MemoryItem[]>([]);
-  const [engine, setEngine] = useState<EngineConfig | null>(null);
-  const [engineDirty, setEngineDirty] = useState(false);
-  const [engineSaving, setEngineSaving] = useState(false);
+  const [st, dispatch] = useReducer(consoleReducer, initialConsoleState);
+  const patch = useCallback((p: Partial<ConsoleState>) => dispatch({ type: "patch", patch: p }), []);
 
   const reload = useCallback(async () => {
     if (!root) return;
     const id = await resolveProjectIdentity(root);
-    setIdentity(id);
+    patch({ identity: id });
     if (!id) return;
-    const st = await memoryPool.status();
-    setReady(st.ready);
-    setPoolReason(st.reason ?? null);
-    if (!st.ready) return;
-    const dbPath = st.dbPath ?? "";
+    const pool = await memoryPool.status();
+    patch({ ready: pool.ready, poolReason: pool.reason ?? null });
+    if (!pool.ready) return;
+    const dbPath = pool.dbPath ?? "";
     const items = await memoryPool.recall(id, undefined, 200);
-    setRecent(items.slice(0, 12));
     const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
     const week = items.filter((m) => m.createdAt >= weekAgo).length;
     const byHarness = new Map<string, number>();
@@ -75,53 +82,52 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
       const k = m.harness || "pi";
       byHarness.set(k, (byHarness.get(k) ?? 0) + 1);
     }
-    setCounts({ total: st.count, week, byHarness: [...byHarness.entries()] });
+    patch({ recent: items.slice(0, 12), counts: { total: pool.count, week, byHarness: [...byHarness.entries()] } });
     try {
       const rows = await ipc.sqliteQuery(dbPath, "SELECT max(finished_at) FROM dream_runs", []);
       const ts = Number(rows[0]?.[0] ?? 0);
-      setLastDream(ts > 0 ? new Date(ts).toLocaleString("zh-CN") : null);
+      patch({ lastDream: ts > 0 ? new Date(ts).toLocaleString("zh-CN") : null });
     } catch {
-      setLastDream(null);
+      patch({ lastDream: null });
     }
-  }, [root]);
+  }, [root, patch]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  const [configHint, setConfigHint] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const p = await engineConfigPath();
         await ipc.fsReadFile(p);
-        if (!cancelled) setConfigHint(null);
+        if (!cancelled) patch({ configHint: null });
       } catch (e) {
-        if (!cancelled) setConfigHint(t("引擎配置读取失败: {err}", { err: String(e).slice(0, 120) }));
+        if (!cancelled) patch({ configHint: t("引擎配置读取失败: {err}", { err: String(e).slice(0, 120) }) });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [patch]);
 
   const saveEngine = async () => {
-    if (!engine) return;
-    setEngineSaving(true);
+    if (!st.engine) return;
+    patch({ engineSaving: true });
     try {
       const { original } = await readEngineConfigFile();
-      await writeEngineConfigFile(engine, original);
-      setEngineDirty(false);
+      await writeEngineConfigFile(st.engine, original);
+      patch({ engineDirty: false });
     } finally {
-      setEngineSaving(false);
+      patch({ engineSaving: false });
     }
   };
 
   /* 池不可用横幅:未安装(库缺失/未迁移)与被占用(真·迁移窗口)分开表述,
   避免全新机器上一律误报「迁移窗口」。 */
   const poolUnavailableText =
-    poolReason === "locked"
+    st.poolReason === "locked"
       ? t("共享记忆库暂不可读(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。session / composer / approvals 不受影响。")
       : t("共享记忆库尚未初始化(Magic Context 未安装或未迁移),在下方安装卡完成安装与迁移即可。session / composer / approvals 不受影响。");
 
@@ -129,15 +135,15 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
     <div className="h-full min-h-0 overflow-y-auto bg-(--tmd-bg-base) p-3 text-[0.75rem] text-(--tmd-fg)">
       <div className="mb-3 flex min-w-0 flex-none items-center gap-2.5">
         <span className="text-sm font-semibold">{t("Memory 控制台")}</span>
-        {ready !== null && (
-          <span className={`rounded-full px-2 py-px text-[0.625rem] ${ready ? "text-(--tmd-ok)" : "text-(--tmd-err)"}`}>
-            {ready ? t("池就绪") : t("池不可用")}
+        {st.ready !== null && (
+          <span className={`rounded-full px-2 py-px text-[0.625rem] ${st.ready ? "text-(--tmd-ok)" : "text-(--tmd-err)"}`}>
+            {st.ready ? t("池就绪") : t("池不可用")}
           </span>
         )}
         <span className="min-w-0 flex-1 truncate text-[0.6875rem] text-(--tmd-fg-faint)">{t("Magic Context · 本地 SQLite")}</span>
       </div>
 
-      {ready === false && (
+      {st.ready === false && (
         <div
           className="mb-3 truncate rounded-lg border border-(--tmd-border) bg-(--tmd-bg-elevated) p-3 text-[0.6875rem] text-(--tmd-fg-muted)"
           title={poolUnavailableText}
@@ -148,21 +154,18 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
       {/* ── 启用 + 三 harness 安装/迁移(InstallCard) ── */}
       <InstallCard onInstalled={() => void reload()} />
       {/* ── 引擎配置 ── */}
-      {configHint && (
+      {st.configHint && (
         <div className="mb-2 rounded-md border border-(--tmd-warn) bg-(--tmd-bg-elevated) p-2 text-[0.65625rem] text-(--tmd-warn)">
-          {configHint}
+          {st.configHint}
         </div>
       )}
-      {engine && (
+      {st.engine && (
         <div className="mb-3">
           <EngineConfigCard
-            config={engine}
-            dirty={engineDirty}
-            saving={engineSaving}
-            onChange={(next) => {
-              setEngine(next);
-              setEngineDirty(true);
-            }}
+            config={st.engine}
+            dirty={st.engineDirty}
+            saving={st.engineSaving}
+            onChange={(next) => patch({ engine: next, engineDirty: true })}
             onSave={() => void saveEngine()}
           />
         </div>
@@ -172,16 +175,16 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
       <ReadSettingsCard />
 
       {/* ── 写入(d 路) ── */}
-      <WriteCard root={root} visible={Boolean(ready && identity)} onWritten={() => void reload()} />
+      <WriteCard root={root} visible={Boolean(st.ready && st.identity)} onWritten={() => void reload()} />
 
       {/* ── 沉淀设置(自动沉淀开关 + 提炼配置;自动与手动共用) ── */}
       <DistillSettingsCard />
 
       {/* ── 统计 ── */}
-      {counts && identity && <StatsCard counts={counts} lastDream={lastDream} />}
+      {st.counts && st.identity && <StatsCard counts={st.counts} lastDream={st.lastDream} />}
 
       {/* ── 最近沉淀 ── */}
-      {counts && identity && <RecentCard recent={recent} />}
+      {st.counts && st.identity && <RecentCard recent={st.recent} />}
     </div>
   );
 }

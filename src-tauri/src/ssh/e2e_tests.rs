@@ -64,7 +64,7 @@ async fn ssh_engine_end_to_end() {
     }
 
     /* PTY shell:写命令,读输出(带超时轮询)。 */
-    let channel = session::open_shell_channel_for_test(&handle, 80, 24)
+    let channel = session::open_shell_channel_for_test(&handle, 80, 24, None)
         .await
         .expect("shell 通道");
     let (mut reader, writer) = channel.split();
@@ -130,6 +130,8 @@ async fn ssh_engine_end_to_end() {
             "e2e".into(),
             Arc::new(SshSessionEntry {
                 host: host.clone(),
+                command: None,
+                engine: None,
                 runtime,
                 cols: std::sync::atomic::AtomicUsize::new(80),
                 rows: std::sync::atomic::AtomicUsize::new(24),

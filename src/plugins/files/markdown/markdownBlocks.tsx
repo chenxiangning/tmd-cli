@@ -19,6 +19,7 @@ import {
 } from "react";
 import { BracketsCurly, Check, Code, Copy, FileCode, FileText, Hash, Gear, Sigma, Terminal, type Icon } from "@phosphor-icons/react";
 import { highlightLine } from "./syntax";
+import { extractLanguageTag } from "./languageTag";
 import { t } from "@kernel/i18n";
 
 /* ── 语言 badge(照抄 codemoss codeBlockLanguageIcon 的桶映射) ── */
@@ -128,14 +129,6 @@ function CodeBlockCopyButton({ value }: { value: string }) {
 
 /* ── 代码块 ── */
 
-export function extractLanguageTag(className?: string) {
-  if (!className) {
-    return null;
-  }
-  const match = className.match(/language-([\w-]+)/i);
-  return match?.[1] ?? null;
-}
-
 export function FileMarkdownCodeBlock({
   className,
   value,
@@ -204,23 +197,27 @@ export function LazyMarkdownHeavyBlock({
   revealKey?: string | null;
 }) {
   const [isVisible, setIsVisible] = useState(() => !defer || isHeavyBlockRevealed(revealKey));
+  /* revealKey 变化且新块已在跨渲染缓存:渲染期 prev-key 对比直接揭示,
+     取代原 sync-effect(那会让 isVisible 经 effect 链多一拍提交)。 */
+  const [prevRevealKey, setPrevRevealKey] = useState(revealKey);
+  if (prevRevealKey !== revealKey) {
+    setPrevRevealKey(revealKey);
+    if (defer && isHeavyBlockRevealed(revealKey)) {
+      setIsVisible(true);
+    }
+  }
   const rootRef = useRef<HTMLDivElement | null>(null);
   const revealBlock = useCallback(() => {
     markHeavyBlockRevealed(revealKey);
     setIsVisible(true);
   }, [revealKey]);
 
+  /* 可见即写跨渲染缓存:纯外部同步(无 setState),不构成 effect 链。 */
   useEffect(() => {
     if (isVisible) {
       markHeavyBlockRevealed(revealKey);
     }
   }, [isVisible, revealKey]);
-
-  useEffect(() => {
-    if (defer && isHeavyBlockRevealed(revealKey)) {
-      setIsVisible(true);
-    }
-  }, [defer, revealKey]);
 
   useEffect(() => {
     if (!defer || isVisible) {

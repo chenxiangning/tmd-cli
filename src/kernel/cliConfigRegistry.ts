@@ -24,7 +24,7 @@ export interface CliModelCatalogProvider {
 }
 
 /** 控件类型:基础四件 + 两个复合(modelMap 键值映射表 / orderedList 有序串链)。 */
-export type CliConfigFieldKind = "text" | "select" | "toggle" | "secret" | "modelMap" | "orderedList";
+type CliConfigFieldKind = "text" | "select" | "toggle" | "secret" | "modelMap" | "orderedList";
 
 export interface CliConfigField {
   /** 表单值对象里的键(插件 load/save 自决与磁盘键的映射)。 */
@@ -73,6 +73,8 @@ export interface CliConfigEntry {
   /** 配置源列表(单源插件给一项);至少一项。 */
   sources: () => Promise<CliConfigSource[]>;
   fields: CliConfigField[];
+  /** 字段表单下方的附加面板(供应商渠道等);泛型扩展位,内核不知具体语义。 */
+  providerPanel?: () => ReactNode;
   /** 原始编辑逃生舱的语言名(如 "yaml");缺省 = 无原始模式。 */
   rawEditor?: string;
   /** rawText → 表单值(解析失败抛错,UI 显错误态)。 */
@@ -94,6 +96,12 @@ export function registerCliConfig(entry: CliConfigEntry): void {
     throw new Error(`CLI 配置重复注册: ${entry.id}`);
   }
   entries.set(entry.id, entry);
+  store.commit(sorted());
+}
+
+/** 撤销通道(激活失败回滚/熔断摘除):id 未存在时静默(幂等)。 */
+export function removeCliConfig(id: string): void {
+  if (!entries.delete(id)) return;
   store.commit(sorted());
 }
 

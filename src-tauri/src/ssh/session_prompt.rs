@@ -60,6 +60,8 @@ pub(crate) async fn ask_user(
     registry.prompts.lock().insert(
         prompt_id.clone(),
         Arc::new(PendingPrompt {
+            session_id: session_id.to_string(),
+            event: event.clone(),
             responder: responder_tx,
         }),
     );

@@ -32,6 +32,7 @@ pub async fn session_spawn(
             pid: spawned.pid,
             kind,
             title,
+            engine: None,
         });
         Ok(spawned)
     })

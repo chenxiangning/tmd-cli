@@ -32,7 +32,7 @@ function jsonString(obj: unknown, key: string): string | undefined {
 }
 
 /** 合成会话路径:<dbPath>#<sessionId>(readSessionFileIdentity 拆包消费)。 */
-export function opencodeSessionPath(dbPath: string, sessionId: string): string {
+function opencodeSessionPath(dbPath: string, sessionId: string): string {
   return `${dbPath}#${sessionId}`;
 }
 

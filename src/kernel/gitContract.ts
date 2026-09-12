@@ -30,7 +30,7 @@ export interface GitDiffStatus {
 
 /** 每文件单侧 ±行数(staged 标记侧别:tree→index / index→workdir)。
  *  binary 不入列;untracked 整文件计入 wt 侧;聚合值恒等于逐项求和。 */
-export interface GitFileTotal {
+interface GitFileTotal {
   path: string;
   staged: boolean;
   insertions: number;
@@ -124,7 +124,7 @@ export interface GitBranchList {
 /* ── 远端对话框(请求结构对齐 remote_ops.rs RemoteRequest,serde camelCase)── */
 
 /** Gerrit 推送附加项;reviewers/cc 为逗号分隔用户名。 */
-export interface GerritExtra {
+interface GerritExtra {
   topic: string | null;
   reviewers: string | null;
   cc: string | null;

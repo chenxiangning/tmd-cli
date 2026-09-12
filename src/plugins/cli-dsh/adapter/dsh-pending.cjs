@@ -11,7 +11,7 @@ const T = require("./dsh-theme.cjs");
 function createPendingCards(deps) {
   const { print, render, zone, menu, pending, ORIGIN } = deps;
   const { respondApproval, respondQuestion, respondQuestionCancel } = deps;
-  let cur = null; /* {rpcId, info, state:dsh-menu 状态} */
+  let cur = null; /* {rpcId(=waterfall eventId), info, state:dsh-menu 状态} */
 
   function headerOf(info) {
     if (info.kind === "approval") {
@@ -75,7 +75,7 @@ function createPendingCards(deps) {
 
   function answerApproval(rpcId, info, outcome) {
     print.status(`应答: ${outcome === "allowed-once" ? "允许" : "拒绝"}`);
-    void respondApproval(ORIGIN, rpcId, info.sessionId, info.approvalId, outcome);
+    void respondApproval(ORIGIN, rpcId, outcome);
     resumeSpinner();
   }
 
@@ -87,7 +87,7 @@ function createPendingCards(deps) {
       selected: i === qIdx && pick.label != null ? [pick.label] : [],
       ...(i === qIdx && pick.custom != null ? { custom: pick.custom } : {}),
     }));
-    void respondQuestion(ORIGIN, rpcId, info.sessionId, answers);
+    void respondQuestion(ORIGIN, rpcId, answers);
     resumeSpinner();
   }
 

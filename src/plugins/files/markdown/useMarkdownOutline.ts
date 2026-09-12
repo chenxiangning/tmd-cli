@@ -38,13 +38,16 @@ export function useMarkdownOutline({
   const [activeOutlineItemId, setActiveOutlineItemId] = useState<string | null>(null);
   const [isOutlinePinned, setIsOutlinePinned] = useState(false);
   const [isOutlineCollapsed, setIsOutlineCollapsed] = useState(true);
-
-  /* 换文档:大纲复位为折叠+不钉住(codemoss Router 同款重置)。 */
-  useEffect(() => {
+  /* 换文档:大纲复位为折叠+不钉住(codemoss Router 同款重置)。
+     渲染期 prev-cacheKey 对比直接调校,省去 effect 方案两次提交间的 stale 中间帧。 */
+  const [prevCacheKey, setPrevCacheKey] = useState(cacheKey);
+  if (prevCacheKey !== cacheKey) {
+    setPrevCacheKey(cacheKey);
     setActiveOutlineItemId(null);
     setIsOutlinePinned(false);
     setIsOutlineCollapsed(true);
-  }, [cacheKey]);
+  }
+
 
   /* 渲染后按顺序给标题挂锚点 id(querySelectorAll 顺序 = 大纲扁平序)。 */
   useEffect(() => {
@@ -99,14 +102,12 @@ export function useMarkdownOutline({
   }, [isOutlinePinned, outline]);
 
   const handleToggleOutlinePinned = useCallback(() => {
-    setIsOutlinePinned((current) => {
-      const nextPinned = !current;
-      if (nextPinned) {
-        setIsOutlineCollapsed(false);
-      }
-      return nextPinned;
-    });
-  }, []);
+    /* 直接读 state 算下一态(无 functional updater,自然无 impure-updater 问题;
+       勿用 ref 镜像——换文档复位只重置 state,镜像会漂移出错误下一态)。 */
+    const nextPinned = !isOutlinePinned;
+    setIsOutlinePinned(nextPinned);
+    if (nextPinned) setIsOutlineCollapsed(false);
+  }, [isOutlinePinned]);
 
   const handleToggleOutlineCollapsed = useCallback(() => {
     setIsOutlineCollapsed((current) => !current);

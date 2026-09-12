@@ -35,12 +35,18 @@ export function FileImagePreview({ path }: { path: string }) {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [imageLoadError, setImageLoadError] = useState<string | null>(null);
   const [imageInfo, setImageInfo] = useState<ImageInfo | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
+  /* 换文件复位:渲染期 prev-path 对比直接调校 state,删掉 effect 复位
+     (effect 方案在两次提交间会让用户看到一帧旧图的 stale 画面)。 */
+  const [prevPath, setPrevPath] = useState(path);
+  if (prevPath !== path) {
+    setPrevPath(path);
     setImageSrc(null);
     setImageInfo(null);
     setImageLoadError(null);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
 
     ipc.readLocalImageDataUrl(path).then(
       (dataUrl) => {

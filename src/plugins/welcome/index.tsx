@@ -6,6 +6,7 @@
  */
 
 import { House } from "@phosphor-icons/react";
+import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 import type { Plugin } from "@kernel/plugin";
 import { WelcomePage } from "./WelcomePage";
 
@@ -14,7 +15,7 @@ export const welcomePlugin: Plugin = {
   meta: {
     name: "欢迎页",
     abbr: "WL",
-    desc: "无会话首页:引擎卡片、凭据、最近会话",
+    desc: "无会话首页:引擎全动作行、凭据额度、续作",
     icon: House,
     iconColor: "#E36BD4",
     category: "core",

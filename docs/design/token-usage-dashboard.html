@@ -1,0 +1,170 @@
+<!doctype html>
+<!--
+  token 用量 dashboard 设计原型(2026-09-11)
+  位置:首页终端窗体 RESUME/QUOTA 页脚之下的整幅空带(用户截图红框区)。
+  仅设计探索用,非实现;实现时颜色一律消费 --tmd-* token(此处硬编码为取色近似)。
+  方案 B:引擎用量行(左)+ 近 7 日趋势(右),行语言复用 QUOTA 行。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>tokens — 用量 dashboard 原型</title>
+<style>
+  :root {
+    --faint: #6b6b6b;       /* ≈ --tmd-fg-faint */
+    --border: #262626;      /* ≈ --tmd-border */
+    --ok: #4ade80;          /* ≈ --tmd-ok */
+    --ok-dim: color-mix(in srgb, var(--ok) 30%, transparent);
+    --warn: #fbbf24;        /* ≈ --tmd-warn */
+    --err: #f87171;         /* ≈ --tmd-err */
+    --accent: #60a5fa;      /* ≈ --tmd-accent */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px; background: #000;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px; color: var(--fg);
+  }
+  /* ── 终端窗体框架(还原首页下半部) ─────────────────── */
+  .window {
+    max-width: 1180px; margin: 0 auto; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  .tbar {
+    padding: 8px 16px; font-size: 12px; color: var(--faint);
+    border-bottom: 1px solid var(--border);
+  }
+  .tbar b { color: var(--fg); font-weight: 400; }
+  /* ── 页脚(RESUME | QUOTA,弱化为上下文) ───────────── */
+  .footer { display: grid; grid-template-columns: 1fr 1fr; }
+  .footer .col { padding: 10px 16px 8px; min-width: 0; }
+  .footer .col + .col { border-left: 1px solid var(--border); }
+  h3 {
+    margin: 0 0 6px; font-size: 11px; font-weight: 400;
+    color: var(--faint); letter-spacing: 0.02em;
+  }
+  .ctx { color: var(--faint); opacity: 0.85; line-height: 1.7; }
+  .ctx .dim { opacity: 0.9; }
+  /* ── TOKENS 区(本设计主体) ────────────────────────── */
+  .tokens { border-top: 1px solid var(--border); padding: 10px 16px 12px; }
+  .tokens-head {
+    display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px;
+  }
+  .tokens-head h3 { margin: 0; }
+  .tokens-stats { margin-left: auto; display: flex; gap: 18px; font-size: 11px; }
+  .tokens-stats .k { color: var(--faint); }
+  .tokens-stats .v { color: var(--fg); }
+  .tokens-stats .v.hot { color: var(--warn); }
+  .tokens-grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .tokens-grid .col { min-width: 0; padding-right: 16px; }
+  .tokens-grid .col + .col { border-left: 1px solid var(--border); padding-left: 16px; padding-right: 0; }
+  /* 引擎用量行:名 / 占比条 / 量 / 占比 —— 对齐 QUOTA 行语言 */
+  .trow {
+    display: grid; grid-template-columns: 9rem 1fr 4.5rem 2.5rem;
+    gap: 8px; align-items: center; line-height: 1.9;
+  }
+  .trow .en {
+    display: flex; gap: 6px; align-items: center;
+    overflow: hidden; white-space: nowrap;
+  }
+  .trow .en .ic { color: var(--faint); flex: 0 0 1em; text-align: center; }
+  .trow .en .nm { overflow: hidden; text-overflow: ellipsis; }
+  .trow .bar {
+    height: 8px; background: transparent; position: relative; overflow: hidden;
+  }
+  .trow .bar i { display: block; position: absolute; left: 0; right: auto; top: 0; bottom: 0; }
+  .trow .bar .out { background: var(--ok); height: 35%; top: auto; width: var(--w, 100%); }
+  .trow .bar .in { background: var(--ok-dim); width: var(--w, 100%); }
+  .trow .pct { text-align: right; color: var(--faint); }
+  .trow.empty .en, .trow.empty .num, .trow.empty .pct { color: var(--faint); }
+  .trow.empty .dash { color: var(--faint); }
+  .trend { display: flex; align-items: flex-end; gap: 10px; height: 116px; padding-top: 4px; }
+  .trend .day { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; gap: 6px; min-width: 0; }
+  .trend .day .stack { position: relative; display: flex; flex-direction: column; justify-content: flex-end; flex: 1; min-height: 0; }
+  .trend .day .stack i { display: block; position: absolute; left: 0; bottom: 0; }
+  .trend .day .stack .in { background: color-mix(in srgb, var(--ok) 22%, transparent); width: 100%; border-top: 2px solid var(--ok); border-radius: 1px; }
+  .trend .day .stack .out { background: var(--ok); height: 35%; width: var(--w, 100%); border-radius: 1px; }
+  .trend .day .lab { font-size: 12px; color: #d4d4d4; text-align: center; white-space: nowrap; padding: 2px 0; }
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="tbar"><b>tmd-cli — 引擎选择器</b>(上下文:页脚之上省略)</div>
+
+  <div class="footer">
+    <div class="col">
+      <h3>resume — 续作</h3>
+      <div class="ctx">
+        <div class="dim">▸ Execute welcome page refactor… &nbsp;tmd-cli 1 分钟前</div>
+        <div class="dim">▸ Fix UI quota and collapsible… tmd-cli 1 分钟前</div>
+        <div class="dim">▸ 继续分析模型切换原因 &nbsp;&nbsp;&nbsp;&nbsp;tmd-cli 3 小时前</div>
+      </div>
+    </div>
+    <div class="col">
+        <div class="dim">KIMI 套餐额度 &nbsp;&nbsp;5h ▨ 0% 7d ▉▉ 96% &nbsp;重置 1 小时后</div>
+        <div class="dim">MiniMax 套餐额度 &nbsp;5h ▨ 2% 7d ▉ 53% &nbsp;重置 2 小时后</div>
+        <div class="dim">智谱 套餐额度 &nbsp;&nbsp;&nbsp;5h ▨ 8% 7d ▏9% &nbsp;重置 5 小时后</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 新增:tokens 区(红框位置) ═══ -->
+  <div class="tokens">
+    <div class="tokens-head">
+      <h3>tokens — 用量</h3>
+      <div class="tokens-stats">
+        <span><span class="k">今日</span> <span class="v">1.4M tok</span></span>
+        <span><span class="k">7 日</span> <span class="v">9.8M tok</span></span>
+        <span><span class="k">消耗会话</span> <span class="v">23</span></span>
+        <span><span class="k">pi 系费用</span> <span class="v hot">$1.07</span></span>
+      </div>
+    </div>
+    <div class="tokens-grid">
+      <div class="col">
+        <div class="trow">
+          <span class="en"><span class="ic">▞</span><span class="nm">omp</span></span>
+          <span class="bar"><i class="out" style="--w:6%"></i><i class="in" style="--w:33%"></i></span>
+          <span class="num">3.2M</span><span class="pct">33%</span>
+        </div>
+        <div class="trow">
+          <span class="en"><span class="ic">▚</span><span class="nm">pi</span></span>
+          <span class="bar"><i class="out" style="--w:5%"></i><i class="in" style="--w:20%"></i></span>
+          <span class="num">2.0M</span><span class="pct">20%</span>
+        </div>
+        <div class="trow">
+          <span class="en"><span class="ic">✳</span><span class="nm">claude</span></span>
+          <span class="bar"><i class="out" style="--w:4%"></i><i class="in" style="--w:16%"></i></span>
+          <span class="num">1.6M</span><span class="pct">16%</span>
+        </div>
+        <div class="trow empty">
+          <span class="en"><span class="ic">K</span><span class="nm">kimi</span></span>
+          <span class="bar"></span>
+          <span class="num dash">—</span><span class="pct dash">—</span>
+        </div>
+        <div class="trow empty">
+          <span class="en"><span class="ic">Ø</span><span class="nm">grok · qoder · …</span></span>
+          <span class="bar"></span>
+          <span class="num dash">—</span><span class="pct dash">—</span>
+        </div>
+      </div>
+      <div class="col">
+        <div class="trend">
+          <div class="day"><div class="stack"><i class="out" style="--w:6%"></i><i class="in" style="height:33%"></i></div><div class="lab">9/05</div></div>
+          <div class="day"><div class="stack"><i class="out" style="--w:5%"></i><i class="in" style="height:66%"></i></div><div class="lab">9/06</div></div>
+          <div class="day"><div class="stack"><i class="out" style="--w:4%"></i><i class="in" style="height:50%"></i></div><div class="lab">9/07</div></div>
+          <div class="day"><div class="stack"><i class="out" style="--w:5%"></i><i class="in" style="height:100%"></i></div><div class="lab">9/08</div></div>
+          <div class="day"><div class="stack"><i class="out" style="--w:4%"></i><i class="in" style="height:78%"></i></div><div class="lab">9/09</div></div>
+          <div class="day"><div class="stack"><i class="out" style="--w:3%"></i><i class="in" style="height:39%"></i></div><div class="lab">9/10</div></div>
+          <div class="day today"><div class="stack"><i class="out" style="--w:6%"></i><i class="in" style="height:78%"></i></div><div class="lab">今日</div></div>
+        </div>
+        <div class="trend-foot">
+          <span><span class="sw" style="background:var(--ok)"></span>输出</span>
+          <span><span class="sw" style="background:var(--ok-dim)"></span>输入+缓存</span>
+        </div>
+      </div>
+    </div>
+    <div class="note">数据源 = 本地各 CLI 会话 JSONL 的 usage 行,仅统计近 7 日有活动的会话;无 usage 行型的引擎(kimi/grok/qoder/opencode)显示 —;codex 取会话末次累计快照。</div>
+  </div>
+</div>
+</body>
+</html>

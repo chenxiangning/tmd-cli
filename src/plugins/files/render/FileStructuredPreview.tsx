@@ -40,15 +40,15 @@ function ShellPreview({ value, className }: { value: string; className: string }
           <code>{shebang}</code>
         </section>
       ) : null}
-      {sections.map((section, index) => (
+      {sections.map((section, sectionIndex) => (
         <section
-          key={`shell-${index}`}
+          key={`${sectionIndex}:${JSON.stringify(section)}`}
           className="fvp-structured-preview-section"
         >
           {section.notes.length > 0 ? (
             <div className="fvp-structured-preview-notes">
               {section.notes.map((note, noteIndex) => (
-                <p key={`note-${index}-${noteIndex}`}>{note}</p>
+                <p key={`${sectionIndex}-${noteIndex}:${note}`}>{note}</p>
               ))}
             </div>
           ) : null}
@@ -77,13 +77,13 @@ function DockerfilePreview({ value, className }: { value: string; className: str
     <div className={className} data-testid="file-structured-preview">
       {sections.map((section, sectionIndex) => (
         <section
-          key={`docker-${sectionIndex}`}
+          key={`${sectionIndex}:${JSON.stringify(section)}`}
           className="fvp-structured-preview-section"
         >
           {section.notes.length > 0 ? (
             <div className="fvp-structured-preview-notes">
               {section.notes.map((note, noteIndex) => (
-                <p key={`docker-note-${sectionIndex}-${noteIndex}`}>{note}</p>
+                <p key={`${sectionIndex}-${noteIndex}:${note}`}>{note}</p>
               ))}
             </div>
           ) : null}
@@ -91,7 +91,7 @@ function DockerfilePreview({ value, className }: { value: string; className: str
             <div className="fvp-structured-preview-stack">
               {section.instructions.map((instruction, instructionIndex) => (
                 <article
-                  key={`docker-instruction-${sectionIndex}-${instructionIndex}`}
+                  key={`${sectionIndex}-${instructionIndex}:${instruction.raw}`}
                   className="fvp-structured-preview-card"
                 >
                   <div className="fvp-structured-preview-card-header">

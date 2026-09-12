@@ -52,19 +52,25 @@
   overflow-x: auto;
 }
 
-/* ── 单卡:横向小片 ── */
-.tmd-attach {
+/* 嵌套交互治理:拖拽宿主 div(position 供 × 落位)与两颗真 button 分离 */
+.tmd-attach-wrap {
   position: relative;
+  flex: none;
+}
+
+.tmd-attach {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: none;
   height: 48px;
   /* 右侧留 × 的落位 */
   padding: 0 24px 0 4px;
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-elevated);
+  color: inherit;
+  font: inherit;
+  text-align: left;
   overflow: hidden;
   cursor: grab;
   transition: border-color 0.15s ease, transform 0.15s ease;
@@ -122,7 +128,7 @@
   border: 0;
   padding: 0;
 }
-.tmd-attach:hover .tmd-attach-close { opacity: 1; }
+.tmd-attach-wrap:hover .tmd-attach-close { opacity: 1; }
 .tmd-attach-close:hover { background: var(--danger); }
 
 /* ── 类型图标(非图片时,填满 32px 缩略块) ── */

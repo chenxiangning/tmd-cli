@@ -23,9 +23,8 @@ export function prunePerCli(
   perCli: Record<string, number>,
   registeredIds: readonly string[],
 ): Record<string, number> {
-  return Object.fromEntries(
-    Object.entries(perCli).filter(([id]) => registeredIds.includes(id)),
-  );
+  const registered = new Set(registeredIds);
+  return Object.fromEntries(Object.entries(perCli).filter(([id]) => registered.has(id)));
 }
 
 /** 已分配配额之和(按剪除残留后的基底计,残留 key 不得抬高占用)。 */

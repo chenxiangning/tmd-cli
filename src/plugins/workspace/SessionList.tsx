@@ -6,8 +6,8 @@
  * 呼吸灯锚定用户首写 —— 首写前的一切输出(spawn 横幅/resume 回放/TUI 重绘)
  * 不亮灯、不结算未读,见 activityWatch 首写闸):
  * - 左侧节点:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止(ActivityDot)
- * - meta 区状态 label(SessionStatusLabel):运行时 / 会话结束-未查看 /
- *   会话结束-已查看;从未对话不出签,磁盘行无此概念
+ * - meta 区状态 label(SessionStatusLabel):运行时 / 空闲-未查看 /
+ *   空闲;从未对话不出签,磁盘行无此概念
  * 行右键菜单:复制 Session ID / 重命名(应用侧覆盖层,见 kernel/sessionTitles.ts)
  * / 置顶到全局 / 置顶到工作区内(双作用域,见 kernel/sessionPins.ts)
  * / 删除会话(两步确认,双端统一物理删除磁盘 jsonl)。
@@ -45,8 +45,14 @@ import { LiveSessionRow, type MenuTarget } from "./LiveSessionRow";
 import { deleteDiskSessionFull, deleteLiveSessionFull } from "./sessionOps";
 import { ManageList } from "./SessionManage";
 import { useCliSessionGroup } from "./useCliSessionGroup";
+import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 
 import { PAGE_INITIAL } from "./utils";
+
+/** 复制文本到剪贴板(失败静默,不弹错)。 */
+function copyText(text: string) {
+  void navigator.clipboard?.writeText(text).catch(() => undefined);
+}
 
 /**
  * 单个 CLI 的会话分组 —— 工作区置顶块 + 活会话 + 磁盘历史分页。
@@ -86,10 +92,6 @@ export function CliSessionGroup({
   } = useCliSessionGroup({ profile, workspace, refreshTick, onScanned });
   const [menu, setMenu] = useState<MenuTarget | null>(null);
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
-
-  const copyText = (text: string) => {
-    void navigator.clipboard?.writeText(text).catch(() => undefined);
-  };
 
   /** 重命名提交:null=取消;空串=清除命名回归磁盘标题。 */
   const commitRename = (value: string | null) => {
@@ -145,14 +147,19 @@ export function CliSessionGroup({
         pinned={pinned}
         archived={archivedView}
         renaming={renaming?.cliSessionId === s.id ? renaming : null}
-        onOpen={() =>
+        onOpen={() => {
+          /* 来源工作区的远程磁盘会话:远程 resume 由来源插件接管(如 WSL 的
+             SSH 包装 + 引擎 --resume),不走本地 openDiskSession。 */
+          if (findWorkspaceOrigin(workspace)?.openRemoteDiskSession?.(workspace, profile, s.id)) {
+            return;
+          }
           void host
             .openDiskSession(profile.id, workspace.root, workspace.id, s.id)
             .then((meta) =>
               noteSessionTabTitle(meta.id, displayTitle(s.id, s.id)),
             )
-            .catch(() => undefined)
-        }
+            .catch(() => undefined);
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           setMenu({ kind: "disk", session: s, x: e.clientX, y: e.clientY });

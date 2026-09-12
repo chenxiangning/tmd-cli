@@ -44,9 +44,78 @@ function emit(): void {
   listeners.forEach((fn) => fn());
 }
 
+type RecordLike = Record<string, Record<string, unknown>>;
+
+/** 带 ts 的记录字段:同 key 冲突取时间戳较新者。 */
+const MERGE_TS_FIELDS = {
+  sessionArchive: "archivedAt",
+  sessionDeleted: "deletedAt",
+  sessionPins: "pinnedAt",
+} as const;
+
+/** 无 ts 的记录字段:并集,本实例值优先。 */
+const MERGE_PLAIN_FIELDS = [
+  "sessionTitles",
+  "workspaceCollapsedMap",
+  "workspaceGroupCollapsedMap",
+  "localPluginTrust",
+] as const;
+
+/** per-key 合并:盘上条目全收,本实例 key 覆盖(带 ts 时较新者胜)。 */
+function mergeEntries(memory: RecordLike, disk: RecordLike, tsField: string | null): RecordLike {
+  const out: RecordLike = { ...disk };
+  for (const key of Object.keys(memory)) {
+    const mine = memory[key];
+    const theirs = out[key];
+    if (theirs === undefined || tsField === null) {
+      out[key] = mine;
+      continue;
+    }
+    const a = typeof mine[tsField] === "number" ? (mine[tsField] as number) : -1;
+    const b = typeof theirs[tsField] === "number" ? (theirs[tsField] as number) : -1;
+    if (a >= b) out[key] = mine;
+  }
+  return out;
+}
+
+/**
+ * 双实例丢更新防护:dev 版与打包版可能并存(2026-09-11 实证),共享
+ * settings.json 且写盘是全文件覆盖、后写者赢 —— 陈旧实例一次写盘即抹掉
+ * 另一实例刚写的归档/置顶等标记(表现为「归档无效且无提示」)。persist
+ * 前拉盘上最新做记录层合并:标记类字段按 key 并集,标量仍以本实例为准。
+ * 残留缝:他实例的取消归档/取消置顶会被本实例陈旧内存复活(根除需
+ * tombstone,量级不值, ponytail: 出现再补)。合并只作用于写盘 payload,
+ * 不回写内存态 —— 他窗标记不实时串进本窗,重载生效。
+ */
+function mergeDiskIntoPayload(memory: AppSettings, raw: unknown): AppSettings {
+  const disk = sanitize(raw);
+  const out = { ...memory } as unknown as Record<string, unknown>;
+  for (const [field, tsField] of Object.entries(MERGE_TS_FIELDS)) {
+    out[field] = mergeEntries(
+      memory[field as keyof AppSettings] as unknown as RecordLike,
+      disk[field as keyof AppSettings] as unknown as RecordLike,
+      tsField,
+    );
+  }
+  for (const field of MERGE_PLAIN_FIELDS) {
+    out[field] = mergeEntries(
+      memory[field] as unknown as RecordLike,
+      disk[field] as unknown as RecordLike,
+      null,
+    );
+  }
+  return out as unknown as AppSettings;
+}
+
 async function persist(): Promise<void> {
   try {
-    await ipc.configWriteSettings(state.settings);
+    let payload = state.settings;
+    try {
+      payload = mergeDiskIntoPayload(state.settings, await ipc.configReadSettings());
+    } catch {
+      /* 盘不可读(他实例锁文件等):按本实例状态原样写,行为同旧 */
+    }
+    await ipc.configWriteSettings(payload);
   } catch {
     // 浏览器 dev:降级 localStorage
     try {

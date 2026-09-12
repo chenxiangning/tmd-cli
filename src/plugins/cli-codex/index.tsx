@@ -14,6 +14,8 @@ import type { CliDiskSession, CliSessionStatus, CliSuggestion } from "@kernel/cl
 import type { Plugin } from "@kernel/plugin";
 import { listCodexSuggestions } from "./scanSuggestions";
 import { codexConfigEntry } from "./configGui";
+import { applyCodexChannel } from "./channelApply";
+import { ProviderChannelsCard } from "@plugins/cli-shared/providerChannels";
 
 /* macOS APFS / Windows NTFS 默认大小写不敏感,cwd 严格相等会在大小写/分隔符差异时漏配。 */
 const CASE_INSENSITIVE_FS = getPlatformKind() !== "linux";
@@ -242,7 +244,7 @@ export const cliCodexPlugin: Plugin = {
     category: "engine",
   },
   activate(ctx) {
-    ctx.registerCliConfig({ ...codexConfigEntry, icon: (size) => <CodexGlyph size={size} /> });
+    ctx.registerCliConfig({ ...codexConfigEntry, icon: (size) => <CodexGlyph size={size} />, providerPanel: () => <ProviderChannelsCard engineId="codex" applyChannel={applyCodexChannel} /> });
     ctx.registerCliProfile({
       id: "codex",
       fetchQuota: fetchCodexQuota,

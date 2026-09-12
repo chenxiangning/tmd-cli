@@ -91,6 +91,52 @@ describe("sessionArchive", () => {
   });
 });
 
+describe("满表回归(2026-09-11 用户实盘:200 条后批量归档静默无效)", () => {
+  /** 仿用户实盘种子:id 区间、archivedAt 窗口(95 秒内 200 条)取真实数据形状。 */
+  const seedFullTable = () => {
+    const table: Record<string, { archivedAt: number }> = {};
+    for (let i = 0; i < 200; i++) {
+      const id = `01a0${(0x5b32 + i * 0x17).toString(16).padStart(4, "0")}-0000-0000-0000-000000000000`;
+      table[`ws-mtiwe7vz:omp:${id}`] = { archivedAt: 1_778_000_000_000 + i * 400 };
+    }
+    return table;
+  };
+
+  it("表满 200 时再归档新会话仍生效(换出最旧)", () => {
+    settings.updateSettings({ sessionArchive: seedFullTable() });
+    const missing = "ws-mtiwe7vz:omp:01a07308-3115-711f-a57e-85f58e0600eb";
+    archive.archiveSession(missing);
+    expect(archive.isSessionArchived(missing)).toBe(true);
+  });
+
+  it("表满 200 时批量归档 19 条全部生效(时钟递增,换出 19 条最旧)", () => {
+    settings.updateSettings({ sessionArchive: seedFullTable() });
+    const batch = Array.from(
+      { length: 19 },
+      (_, i) => `ws-mtiwe7vz:omp:01a07${(0x300 + i).toString(16)}-1111-1111-1111-111111111111`,
+    );
+    /* 时钟随 mark 递增,且拨到真实纪元刻度(晚于种子 ts):新 mark 时间戳
+     * 恒新于表内,逐出只命中旧条目 —— 与真实墙钟形态一致。 */
+    batch.forEach((k, i) => {
+      vi.setSystemTime(1_778_100_000_000 + i);
+      archive.archiveSession(k);
+    });
+    for (const k of batch) expect(archive.isSessionArchived(k)).toBe(true);
+    expect(Object.keys(settings.getSettingsState().settings.sessionArchive)).toHaveLength(200);
+  });
+
+  it("时钟停滞(同毫秒批量)时后 mark 换出先 mark:新条目至少保留最后一条且总数守恒", () => {
+    settings.updateSettings({ sessionArchive: seedFullTable() });
+    const batch = Array.from(
+      { length: 19 },
+      (_, i) => `ws-mtiwe7vz:omp:01a07${(0x300 + i).toString(16)}-2222-2222-2222-222222222222`,
+    );
+    batch.forEach((k) => archive.archiveSession(k));
+    expect(Object.keys(settings.getSettingsState().settings.sessionArchive)).toHaveLength(200);
+    expect(archive.isSessionArchived(batch[18])).toBe(true);
+  });
+});
+
 describe("settings 清洗", () => {
   it("sessionArchive:只收合法时间戳项,非法/缺失回落空 map", () => {
     const raw = {

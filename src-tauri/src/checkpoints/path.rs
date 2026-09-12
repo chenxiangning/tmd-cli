@@ -9,7 +9,8 @@
 //! 事件文本来自 CLI 输出 / 会话 JSONL,不可信:本闸之后不再设第二道检查。
 //! `root.join(绝对路径)` = 绝对路径本身,账本全部 IO 点(apply/restore/diff/
 //! seal/guard)对外部路径因此天然正确,无需逐点改造。
-//! (Windows 盘符绝对路径不在本闸覆盖:前端 normalizeEditPath 已拒盘符。)
+//! (Windows 盘符形态在本闸显式拒收:若放行,工作区内分支会把它当相对路径存,
+//! root.join 在 Windows 上被盘符路径整体替换为绝对路径,工作区内外判定失效、防误删失守。)
 
 /// 路径是否工作区外(绝对)。
 pub(crate) fn is_external_path(p: &str) -> bool {
@@ -19,6 +20,10 @@ pub(crate) fn is_external_path(p: &str) -> bool {
 /// 事件路径 → 账本存储形态;不可信 / 不可解析返回 None。
 pub(crate) fn canonicalize_event_path(raw: &str) -> Option<String> {
     if raw.is_empty() {
+        return None;
+    }
+    // Windows 盘符形态(C:\… / C:/…)两态都不收:单闸终审,不依赖前端已拒
+    if raw.len() >= 2 && raw.as_bytes()[1] == b':' && raw.as_bytes()[0].is_ascii_alphabetic() {
         return None;
     }
     // ~/ 展开为绝对路径;裸 ~ 与 ~other 形式不可解析,拒

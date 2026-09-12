@@ -4,7 +4,9 @@
  * fixture 形状实证自本机 ~/.kimi-code(kimi-code 0.40.1)与 ~/.kimi(0.34.0)真实数据。
  */
 import { describe, expect, it } from "vitest";
-import { parseKimiConfigStatus } from "./index";
+import { cliKimiPlugin, parseKimiConfigStatus } from "./index";
+import type { CliProfile } from "@kernel/cli";
+import type { PluginContext } from "@kernel/plugin";
 import {
   extractKimiTitle,
   kimiStateTitle,
@@ -255,5 +257,28 @@ describe("parseKimiConfigStatus", () => {
     expect(parseKimiConfigStatus('[thinking]\neffort = "medium"')).toEqual({
       thinkingLevel: "medium",
     });
+  });
+});
+
+describe("cli-kimi profile 注册契约", () => {
+  function activateCapturingProfile(): CliProfile {
+    const captured: CliProfile[] = [];
+    cliKimiPlugin.activate({
+      registerCliProfile: (profile: CliProfile) => captured.push(profile),
+      registerCliConfig: () => {},
+    } as unknown as PluginContext);
+    const profile = captured[0];
+    if (!profile) throw new Error("activate 未注册任何 profile");
+    return profile;
+  }
+
+  it("安装通道 = 官方原生脚本,且 npmPackage 保留作 registry 版本查询", () => {
+    const profile = activateCapturingProfile();
+    /* kimi 双分发:npm TS 版与原生版并存时原生副本遮蔽 npm 副本,npm 通道
+     * 更不动探针命中的那份(win 实证 0.32.0 遮蔽 0.42.0);通道必须走官方
+     * 原生分发才能与探针同源同步。 */
+    expect(profile.scriptInstall?.unix).toContain("code.kimi.com/kimi-code/install.sh");
+    expect(profile.scriptInstall?.windows).toContain("code.kimi.com/kimi-code/install.ps1");
+    expect(profile.npmPackage).toBe("@moonshot-ai/kimi-code");
   });
 });

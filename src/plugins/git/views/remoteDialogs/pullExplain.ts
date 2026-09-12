@@ -9,9 +9,9 @@ import { t } from "@kernel/i18n";
 export type PullStrategy = "--rebase" | "--ff-only" | "--no-ff" | "--squash";
 
 
-export type EffectTone = "neutral" | "attention" | "muted";
+type EffectTone = "neutral" | "attention" | "muted";
 
-export interface PullEffectRow {
+interface PullEffectRow {
   /** 选项 code(如 --no-commit);strategy=default 行显示加粗「按 Git 配置执行」 */
   code: string | null;
   /** default 行的加粗标签 */

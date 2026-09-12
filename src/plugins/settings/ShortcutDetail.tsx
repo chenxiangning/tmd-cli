@@ -17,7 +17,7 @@ import {
 } from "@kernel/shortcutOverrides";
 import { t } from "@kernel/i18n";
 import { updateSettings } from "@kernel/settings";
-import { effectiveLabel } from "./ShortcutList";
+import { effectiveLabel } from "./shortcutListModel";
 
 /** 大键帽(详情面板录制态显示区)。 */
 function BigKeyCap({ label }: { label: string }) {
@@ -28,25 +28,22 @@ function BigKeyCap({ label }: { label: string }) {
   );
 }
 
+/** 录制错误:标注归属命令,切换命令后旧错误自然失效(渲染期派生,不靠 prop 同步 effect)。 */
+type RecorderError = { cmdId: string; message: string } | null;
+
 /** 录制区:点击进入录制态;录制期接管一次 keydown capture;
  *  成功 → updateSettings;失败 → 行内红字并保持录制态继续录;
  *  Esc/Backspace 退出 / 解绑。 */
-function Recorder({
-  cmd,
-  error,
-  setError,
-}: {
-  cmd: CommandContribution;
-  error: string | null;
-  setError: (e: string | null) => void;
-}) {
+function Recorder({ cmd }: { cmd: CommandContribution }) {
   const [recording, setRecording] = useState(false);
+  const [error, setError] = useState<RecorderError>(null);
+  // 渲染期派生:切换命令后旧命令的错误不再展示
+  const shownError = error?.cmdId === cmd.id ? error.message : null;
 
   useEffect(() => {
     if (!recording) return;
     // 60s 超时:闸门自闭 + 本组件同步退出录制态(防一键两吃)
     setShortcutRecording(true, () => setRecording(false));
-    setError(null);
     const onKey = (e: KeyboardEvent) => {
       // Esc 退出
       if (e.key === "Escape") {
@@ -85,7 +82,7 @@ function Recorder({
           syntax: t("键位格式错误"),
           conflict: t("与 {id} 占用,无法使用", { id: result.detail ?? "" }),
         };
-        setError(reasonText[result.reason]);
+        setError({ cmdId: cmd.id, message: reasonText[result.reason] });
         return;
       }
       const overrides = { ...getShortcutOverridesSnapshot(), [cmd.id]: value };
@@ -98,7 +95,7 @@ function Recorder({
       window.removeEventListener("keydown", onKey, true);
       setShortcutRecording(false);
     };
-  }, [recording, cmd.id, setError]);
+  }, [recording, cmd.id]);
 
   const remappable = isShortcutRemappable(cmd.id);
   const label = effectiveLabel(cmd);
@@ -108,7 +105,10 @@ function Recorder({
       <button
         type="button"
         data-testid={`shortcut-recorder-${cmd.id}`}
-        onClick={() => setRecording(true)}
+        onClick={() => {
+          setError(null); // 重新录制前清掉旧错(事件处清理,不进 effect)
+          setRecording(true);
+        }}
         disabled={!remappable || recording}
         className={`shortcut-recorder${recording ? " is-recording" : ""}${
           !remappable ? " is-disabled" : ""
@@ -127,12 +127,12 @@ function Recorder({
           {t("按 Esc 取消 · Backspace 解绑")}
         </p>
       ) : null}
-      {error ? (
+      {shownError ? (
         <p
           data-testid={`shortcut-recorder-error-${cmd.id}`}
           className="mt-1 text-[0.6875rem] text-(--tmd-err)"
         >
-          {error}
+          {shownError}
         </p>
       ) : null}
       {label ? <BigKeyCap label={label} /> : null}
@@ -140,7 +140,7 @@ function Recorder({
   );
 }
 
-/** 右侧详情面板(选中命令名 + 大键帽 + 描述 + 录制区 + 重置)。 */
+/** 右侧详情面板(选中命令名 + 大键帽 + 描述 + 录制区 + 重置);错误态归 Recorder 自持。 */
 export function DetailPanel({
   cmd,
   onReset,
@@ -148,9 +148,6 @@ export function DetailPanel({
   cmd: CommandContribution;
   onReset: () => void;
 }) {
-  const [error, setError] = useState<string | null>(null);
-  // 切命令时清错
-  useEffect(() => setError(null), [cmd.id]);
   const hasOverride = cmd.id in getShortcutOverridesSnapshot();
   return (
     <div className="pref-card sticky top-0 flex flex-col gap-3 p-4" data-testid={`shortcut-detail-${cmd.id}`}>
@@ -158,7 +155,7 @@ export function DetailPanel({
         <div className="pref-title">{t(cmd.title)}</div>
         <div className="text-[0.6875rem] text-(--tmd-fg-faint) font-mono">{cmd.id}</div>
       </div>
-      <Recorder cmd={cmd} error={error} setError={setError} />
+      <Recorder cmd={cmd} />
       <div className="flex items-center gap-2">
         <button
           type="button"

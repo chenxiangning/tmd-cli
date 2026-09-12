@@ -29,6 +29,10 @@ pub struct SessionMeta {
     /// 会话展示标题(SSH 会话 = 主机名;CLI 会话由磁盘会话/命名覆盖层供给,缺省 None)。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    /// 引擎档案 id(仅 SSH 会话:WSL CLI 会话在远端跑某引擎,composer/Ask 据此
+    /// 取 CLI profile;kind 仍为 "ssh",传输语义不变)。普通 SSH/本地会话 = None。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine: Option<String>,
 }
 
 fn default_session_kind() -> String {
@@ -49,6 +53,20 @@ pub struct WorkspaceMeta {
     /// 显示名覆盖(显示层语义,身份仍看 id/root;None/缺省 = 显示目录名)。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alias: Option<String>,
+    /// WSL 工作区元数据(None/缺省 = 本地目录工作区):distro = 发行版名;
+    /// host_id = 远程 SSH 主机 id(settings.ssh.hosts;None = 本机 wsl.exe,
+    /// root 为 \\wsl.localhost UNC 形态)。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wsl: Option<WorkspaceWslMeta>,
+}
+
+/// WSL 工作区元数据(WorkspaceMeta.wsl)。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceWslMeta {
+    pub distro: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host_id: Option<String>,
 }
 
 /// workspaces.json 顶层结构。

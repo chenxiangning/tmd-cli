@@ -20,6 +20,19 @@ const DICTIONARIES: Record<Exclude<UiLanguage, "zh">, Record<string, string>> = 
   ja: JA_MESSAGES,
 };
 
+/**
+ * 插件词典注册面 ── 插件域文案(kernel/locales 不收纳单插件词条)由插件随
+ * activate 自带并注册;同键后到覆盖(zh 恒等无词典)。activate 先于首帧渲染,
+ * 语言切换走整树重挂载,注册一次即全程生效。
+ */
+export function registerMessages(dicts: {
+  en?: Record<string, string>;
+  ja?: Record<string, string>;
+}): void {
+  if (dicts.en) Object.assign(DICTIONARIES.en, dicts.en);
+  if (dicts.ja) Object.assign(DICTIONARIES.ja, dicts.ja);
+}
+
 /** 查词典 + 插值;缺失键回落源中文串(zh 或未迁移文案的兜底语义)。 */
 export function t(
   key: string,

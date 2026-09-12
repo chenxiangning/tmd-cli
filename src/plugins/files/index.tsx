@@ -20,7 +20,8 @@ import { FileTabContent } from "./FileTabContent";
 import { defaultFileVisualProvider } from "./fileVisual";
 import { reloadFile } from "./editor/fileCache";
 import { saveRequestRef } from "./editor/useFileDocument";
-import { ActiveWorkspaceFileTree, getActiveTreeHandles } from "./FileTree";
+import { ActiveWorkspaceFileTree } from "./FileTree";
+import { getActiveTreeHandles } from "./treeHandles";
 import { GitDecorateToggle } from "./gitDecorate";
 
 export const filesPlugin: Plugin = {

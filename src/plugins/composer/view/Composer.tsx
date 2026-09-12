@@ -18,37 +18,31 @@
  * 命令抽屉与触发器下拉拆至 useComposerDrawer.ts / useComposerTriggers.ts
  * (文件规模铁则)。
  */
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { host } from "@kernel/host";
-import { composerSendTransforms, composerWakeRef } from "@kernel/composerExt";
+import { composerWakeRef } from "@kernel/composerExt";
 import { t } from "@kernel/i18n";
 import { useComposerStage } from "@kernel/composerStage";
+import { useComposerTriggers } from "./useComposerTriggers";
 import { useComposerAttachments } from "./useComposerAttachments";
-import { emitPromptSent, readPromptGate } from "../promptGate";
-import { Mounts } from "@kernel/Mounts";
 import { useSettingsState } from "@kernel/settings";
-import { getTerminalHandle } from "@kernel/messageAnchors";
-import { useWorkspaces } from "@kernel/workspace";
+import { Mounts } from "@kernel/Mounts";
 import { readDragPayload } from "@kernel/internalDrag";
-import { prepareSendPayload } from "../serialize/serialize";
-import { SuggestionList } from "./SuggestionList";
+import { useWorkspaces } from "@kernel/workspace";
 import { DragOverlay } from "./DragOverlay";
-import { shouldSendOnEnter } from "./enterAction";
 import { useActiveProfile } from "../state/useActiveProfile";
 import { CommandDrawer } from "./CommandDrawer";
-import { resolveArrowIntent } from "./arrowIntent";
 import { AttachmentStrip } from "./AttachmentStrip";
 import { useAttachDragProps, usePopupAnchor } from "./composerChrome";
 import { AnchorRail } from "./AnchorRail";
-import { clearAttachments } from "../state/attachments";
 import { useComposerDrawer } from "./useComposerDrawer";
-import { useComposerTriggers } from "./useComposerTriggers";
+import { composerSendRef } from "./composerSendRef";
+import { PromptGhostMirror } from "./PromptGhostMirror";
+import { useComposerSend } from "./useComposerSend";
+import { usePromptCompletion, usePromptHistoryNav } from "./usePromptHistory";
+import { composerTextareaKeyDown } from "./composerTextareaKeys";
+import { SuggestionPortal, PreviewOverlay } from "./composerOverlays";
 
-/* composer.send 命令桥 —— 发送闭包长在组件实例上,命令 run 经此触达
-   (TerminalView findRequestRef 先例:命令注册在插件 activate 期,实例经模块级 ref 交接) */
-export const composerSendRef: { current: (() => void) | null } = { current: null };
 
 export function Composer() {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -113,30 +107,17 @@ export function Composer() {
     };
   });
 
-  function sendCurrent() {
-    if (!value.trim()) return;
-    if (!profile || !host.getActiveSessionId()) return;
-    /* git 联动:`/commit <msg>` → 预填 git 面板提交框。
-     * 契约源头:src/plugins/git/gitEvents.ts(GIT_PREFILL_TOPIC);
-     * 插件间不互相 import,topic 字符串即契约(事件总线惯例)。
-     * 仅预填 —— 文本照常发给 CLI,commit 执行权永在 git 面板按钮。 */
-    const trimmed = value.trim();
-    if (trimmed.startsWith("/commit ")) {
-      host.events.emit("git://composer-prefill", { message: trimmed.slice(8).trim() });
-    }
-    const sid = host.getActiveSessionId()!;
-    /* 发送变换(composerExt 契约):仅用户自然语言消息走;抽屉/工具栏命令发送不经此 */
-    const payload = prepareSendPayload(profile, value,
-      composerSendTransforms().map((fn) => (text: string) => fn(text, sid)));
-    const gate = readPromptGate(sid); // 轮次闸写前现读:writeSession 作答即清 ask 等待态
-    host.writeSession(sid, payload);
-    /* 锚点快照信号(checkpoints 消费)过轮次闸:ask 作答/轮中斜杠命令不开轮不广播;幕布击键同走 writeSession,不能当 prompt */
-    emitPromptSent(gate, sid, trimmed);
-    setValue("");
-    clearAttachments();
-    setMatches(null);
-  }
-
+  /* 输入历史(2026-09-10):ghost 补全 + 空输入 ↑↓ 召回,开关在设置/行为。
+     IME 组合期禁 ghost(传 "");召回落文本走 setValue+光标复位 */
+  const [imeComposing, setImeComposing] = useState(false);
+  const mirrorRef = useRef<HTMLDivElement>(null);
+  const completion = usePromptCompletion(imeComposing ? "" : value, settings.promptHistoryEnabled);
+  const { handleKeyDown: handleHistoryNav } = usePromptHistoryNav({
+    textareaRef: ref, value, setValue, setCursor, enabled: settings.promptHistoryEnabled,
+  });
+  const sendCurrent = useComposerSend({
+    profile, value, setValue, clearMatches: () => setMatches(null),
+  });
 
   /* 弹窗悬停锚定 + 拖拽判定(实现见 composerChrome.ts) */
   const { boxRect, popupBottom, popupMaxHeight } = usePopupAnchor(composerRef);
@@ -159,23 +140,19 @@ export function Composer() {
         {!inputHidden && (
         <AttachmentStrip onRemove={removeTokenForAttachment} onPreviewImage={(a) => setPreviewSrc(a.previewDataUrl || a.thumbDataUrl)} />
         )}
-        {matches && activeRange && boxRect && createPortal(
-          <SuggestionList
-            style={{
-              left: boxRect.left + 12,
-              width: boxRect.width - 24,
-              bottom: popupBottom,
-              maxHeight: popupMaxHeight,
-            }}
-            matches={matches}
-            pickIndex={pickIndex}
-            onPick={applyPick}
-            onHoverIndex={setPickIndex}
-          />,
-          document.body,
-        )}
+        <SuggestionPortal
+          matches={matches}
+          activeRange={activeRange}
+          boxRect={boxRect}
+          popupBottom={popupBottom}
+          popupMaxHeight={popupMaxHeight}
+          pickIndex={pickIndex}
+          setPickIndex={setPickIndex}
+          applyPick={applyPick}
+        />
         {!inputHidden && (
         <>
+        <div className="relative min-h-0 flex-1">
         <textarea
           id="composer-textarea"
           ref={ref}
@@ -183,7 +160,7 @@ export function Composer() {
           placeholder={settings.sendShortcut === "cmdOrCtrlEnter"
             ? t("输入消息,⌘/Ctrl+回车发送,回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。")
             : t("输入消息,回车发送,Shift+回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。")}
-          className="min-h-0 flex-1 resize-none bg-transparent p-0 pr-10 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint)"
+          className="absolute inset-0 resize-none bg-transparent p-0 pr-10 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) [scrollbar-width:none] [&::-webkit-scrollbar]:w-0"
           onChange={(e) => {
             setValue(e.target.value);
             setCursor(e.target.selectionStart);
@@ -200,65 +177,31 @@ export function Composer() {
               dismiss();
             }
           }}
-          onKeyDown={(e) => {
-            /* 判定顺序契约见 openspec design §6:IME → 下拉 → 非空 → 移交。
-               IME 组词期全部放行给输入法:↑↓ 属候选窗导航,Enter 属候选上屏,
-               此处拦截会把组词文本错替换成下拉首项 */
-            const composing = e.nativeEvent.isComposing;
-            if (e.key === "ArrowDown" && matches && !composing) {
-              e.preventDefault();
-              setPickIndex((i) => (matches.length ? (i + 1) % matches.length : 0));
-              return;
-            }
-            if (e.key === "ArrowUp" && matches && !composing) {
-              e.preventDefault();
-              setPickIndex((i) => (matches.length ? (i - 1 + matches.length) % matches.length : 0));
-              return;
-            }
-            if (matches && !composing) {
-              if (e.key === "Enter" || e.key === "Tab") {
-                e.preventDefault();
-                if (matches[pickIndex]) applyPick(matches[pickIndex]);
-                return;
-              }
-              if (e.key === "Escape") {
-                e.preventDefault();
-                dismiss();
-                return;
-              }
-            }
-            /* 空输入 ↑↓ → 焦点移交幕布(部分 CLI 终端里方向键有历史/选择语义);
-               判定顺序契约见 openspec design §6:IME → 下拉 → 非空 → 移交 */
-            if (
-              (e.key === "ArrowUp" || e.key === "ArrowDown") &&
-              resolveArrowIntent({
-                key: e.key,
-                value,
-                hasMatches: !!matches,
-                isComposing: e.nativeEvent.isComposing,
-              }) === "handoff"
-            ) {
-              e.preventDefault();
-              const sid = host.getActiveSessionId();
-              if (sid) getTerminalHandle(sid)?.focus();
-              return;
-            }
-            if (e.key === "Enter" &&
-              shouldSendOnEnter(
-                {
-                  shiftKey: e.shiftKey,
-                  metaKey: e.metaKey,
-                  ctrlKey: e.ctrlKey,
-                  isComposing: e.nativeEvent.isComposing,
-                },
-                settings.sendShortcut,
-              )) {
-              e.preventDefault();
-              sendCurrent();
-            }
-          }}
+          onKeyDown={(e) =>
+            composerTextareaKeyDown(e, {
+              matches,
+              pickIndex,
+              setPickIndex,
+              applyPick,
+              dismiss,
+              completion,
+              cursor,
+              value,
+              handleHistoryNav,
+              sendShortcut: settings.sendShortcut,
+              sendCurrent,
+              setValue,
+              setCursor,
+            })
+          }
           onPaste={handlePaste}
+          onCompositionStart={() => setImeComposing(true)}
+          onCompositionEnd={() => setImeComposing(false)}
+          onScroll={(e) => { if (mirrorRef.current) mirrorRef.current.scrollTop = e.currentTarget.scrollTop; }}
         />
+        {!imeComposing && !matches && completion.suffix && cursor === value.length &&
+          <PromptGhostMirror mirrorRef={mirrorRef} value={value} suffix={completion.suffix} />}
+        </div>
         {/* 资产唤醒入口(assets 插件贡献):右缘竖向图标列,几何见 composer-anchors.css */}
         <div className="composer-input-rail">
           <Mounts point="composer.inputRail" />
@@ -285,14 +228,8 @@ export function Composer() {
         )}
         {dragOver && <DragOverlay />}
       </div>
-      {previewSrc && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm"
-          onClick={() => setPreviewSrc(null)}
-        >
-          <img src={previewSrc} alt="preview" className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl" />
-        </div>
-      )}
+      <PreviewOverlay src={previewSrc} onClose={() => setPreviewSrc(null)} />
     </div>
   );
 }
+

@@ -46,7 +46,7 @@ export function SettingsPanel() {
   const ActiveTabComponent = activeTab?.component ?? null;
 
   return (
-    <div className="settings-panel" role="dialog" aria-label={t("设置")}>
+    <dialog open className="settings-panel w-full h-full m-0 p-0 border-0 bg-transparent" aria-label={t("设置")}>
       <nav className="settings-nav">
         <button type="button" className="settings-back" onClick={closeSettingsPanel}>
           <ArrowLeft size="0.875rem" aria-hidden />
@@ -99,6 +99,6 @@ export function SettingsPanel() {
           </div>
         )}
       </main>
-    </div>
+    </dialog>
   );
 }

@@ -1,7 +1,11 @@
 /* ──────────────────────────────────────────────────────────
- * Welcome 页 —— 无会话首页(嵌入中央幕布,非弹窗)。
+ * Welcome 页 —— 终端窗体首页(原型 docs/design/home-redesign-s-full-actions.html)。
  *
- * 颜色零硬编码,全部消费 --tmd-* token。
+ * 结构:窗体标题条 / prompt 行(工作区 select + 右侧 engines/updates 统计)/
+ * 引擎全动作行 / 页脚(RESUME + QUOTA)。等宽字体域。
+ * 颜色零硬编码,全部消费 --tmd-* token;唯一例外:7d 块条橘色沿用
+ * welcome-creds 周窗口先例 rgb(255,140,60)。
+ * 页脚样式在 welcome-footer.css(300 行铁则分片)。
  * ────────────────────────────────────────────────────────── */
 
 .welcome-page {
@@ -15,243 +19,199 @@
 .welcome-scroll {
   height: 100%;
   overflow-y: auto;
-  padding: 32px 40px 48px;
-  max-width: 760px;
-  margin: 0 auto;
+  padding: 10px 16px 24px;
+  outline: none;
 }
 
-/* ── Hero ── */
+.welcome-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
 
-.welcome-hero {
+/* ── 窗体标题条 ── */
+
+.welcome-tbar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px 14px;
-  margin-bottom: 24px;
-}
-
-.welcome-title {
-  margin: 0;
-  font-size: 1.375rem;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.welcome-subtitle {
-  margin: 0;
+  gap: 8px;
+  padding: 2px 2px 10px;
   font-size: 0.75rem;
   color: var(--tmd-fg-muted);
-  flex: 1 1 220px;
-  min-width: 0;
 }
 
-.welcome-github-link {
+.welcome-tbar-right {
+  color: var(--tmd-fg-faint);
+  font-size: 0.6875rem;
+  text-decoration: none;
+}
+
+.welcome-tbar-right:hover { color: var(--tmd-fg); }
+/* 点击跳转后焦点残留的蓝色虚线环去掉(hover 已有色变反馈)。 */
+.welcome-tbar-right:focus { outline: none; }
+
+.welcome-frame {
+  padding: 0;
+}
+
+/* ── 状态行 ── */
+
+.welcome-statusline {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--tmd-fg-muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* ── prompt 行:工作区 select ── */
+
+.welcome-promptline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.welcome-promptline .prompt { color: var(--tmd-ok); white-space: nowrap; }
+.welcome-promptline .path { color: var(--tmd-syntax-keyword); }
+
+.welcome-ws-select {
+  appearance: none;
+  background: transparent;
+  border: 1px dashed var(--tmd-border-strong);
+  border-radius: 5px;
+  color: var(--tmd-fg);
+  font: inherit;
+  font-family: inherit;
+  padding: 2px 22px 2px 8px;
+  cursor: pointer;
+  max-width: 22rem;
+  text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 4 4-4' fill='%23797979'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+}
+
+.welcome-ws-select:hover { border-color: var(--tmd-accent); }
+.welcome-ws-select:focus { outline: none; border-color: var(--tmd-accent); border-style: solid; }
+
+.welcome-hintline {
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-faint);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* 标题条手动刷新(SWR 缓存后回首页不重拉,此为唯一手动入口);提示行
+   margin-left:auto 把 提示+刷新+GitHub 整组推向右缘。 */
+.welcome-refresh {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  margin-left: auto;
-  flex-shrink: 0;
-  padding: 4px 10px 4px 12px;
-  border: 1px solid var(--tmd-border);
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--tmd-fg);
-  text-decoration: none;
-  background-color: var(--tmd-bg-sunken);
-  transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+  padding: 1px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--tmd-fg-faint);
 }
 
-.welcome-github-link:hover {
-  border-color: var(--tmd-accent);
-  color: var(--tmd-accent);
-  background-color: var(--tmd-bg-hover);
-}
+.welcome-refresh:hover { color: var(--tmd-fg); }
+.welcome-refresh:focus { outline: none; }
+.welcome-refresh:disabled { cursor: default; }
 
-.welcome-github-link svg {
-  flex: none;
-  opacity: 0.9;
-}
-
-.welcome-github-license {
-  padding: 1px 7px;
-  border-radius: 999px;
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: var(--tmd-accent);
-  background-color: var(--tmd-accent-soft);
-}
-
-.welcome-engines {
-  display: flex;
-  flex-direction: column;
+.welcome-row-main {
+  display: grid;
+  grid-template-columns: 9.5rem 10.5rem 1fr auto;
   gap: 10px;
+  align-items: center;
+  padding: 5px 8px;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
-.welcome-engine-card {
-  border: 1px solid var(--tmd-border);
-  border-radius: var(--tmd-radius-md);
-  background: var(--tmd-bg-elevated);
+.welcome-row-main:hover { background: var(--tmd-bg-hover); }
+/* 键盘/点击游标:左侧 2px 竖条(不用整行铺色)。 */
+.welcome-row { border-left: 2px solid transparent; }
+.welcome-row.cur { border-left-color: var(--tmd-accent); }
+
+.welcome-row-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
   overflow: hidden;
 }
 
-.welcome-engine-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 10px;
-  min-height: 46px;
-  padding: 6px 14px;
-}
+.welcome-row-name .icon { display: inline-flex; align-items: center; flex-shrink: 0; }
+.welcome-row-name .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 
-.welcome-engine-icon {
-  display: flex;
-  align-items: center;
-  color: var(--tmd-fg);
-}
+.welcome-row-ver { color: var(--tmd-fg-muted); overflow: hidden; text-overflow: ellipsis; }
+.welcome-row-ver .new { color: var(--tmd-warn); }
+.welcome-row-ver.missing { color: var(--tmd-err); }
 
-.welcome-engine-name {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
 
-.welcome-engine-docs {
+
+/* 行内不再放配额块条:同套餐会在多引擎行重复,右下角 QUOTA 汇总统一呈现。
+   .welcome-blk 保留给页脚 QuotaBar。 */
+
+/* 块字符风进度条(斜纹底 + 填充)*/
+.welcome-blk {
+  position: relative;
+  display: inline-block;
+  width: 3.5rem;
+  height: 0.5rem;
+  vertical-align: -1px;
+  margin: 0 3px;
+  background: repeating-linear-gradient(45deg, var(--tmd-border) 0 2px, transparent 2px 4px);
+}
+.welcome-blk > i { position: absolute; top: 0; bottom: 0; left: 0; background: var(--tmd-accent); }
+.welcome-blk.weekly > i { background: rgb(255, 140, 60); }
+.welcome-blk.hot > i { background: var(--tmd-err); }
+
+.welcome-row-cred { font-size: 0.6875rem; color: var(--tmd-ok); text-align: right; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.welcome-row-cred.err { color: var(--tmd-err); }
+.welcome-row-cred.mut { color: var(--tmd-fg-faint); }
+
+.welcome-row-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+
+/* 行内动作按钮(文本簇,替代旧 icon-only) */
+.welcome-ab {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 0.6875rem;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 5px;
+  background: transparent;
   color: var(--tmd-fg-muted);
-  text-decoration: none;
+  font-size: 0.6875rem;
+  font-family: inherit;
   white-space: nowrap;
-  flex-shrink: 0;
+  cursor: pointer;
 }
 
-.welcome-engine-docs:hover {
-  color: var(--tmd-fg);
-  text-decoration: underline;
-}
+.welcome-ab:hover:not(:disabled) { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.welcome-ab:disabled { opacity: 0.45; cursor: not-allowed; }
+.welcome-ab.pri { color: var(--tmd-warn); border-color: var(--tmd-warn); }
+.welcome-ab.pri:hover:not(:disabled) { background: var(--tmd-accent-soft); color: var(--tmd-warn); }
+.welcome-ab.go { color: var(--tmd-ok); border-color: var(--tmd-ok); }
+.welcome-ab.go:hover:not(:disabled) { background: var(--tmd-bg-hover); }
+.welcome-ab.doc { border-color: transparent; color: var(--tmd-accent); }
+.welcome-ab.doc:hover:not(:disabled) { background: transparent; text-decoration: underline; }
 
-.welcome-engine-status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  margin-left: auto;
-  min-width: 0;
-}
+/* ── 行展开区(凭据 + homePanel)── */
 
-.welcome-engine-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-/* 版本/状态 pill(同 discovery 行卡语义) */
-
-.welcome-pill {
-  display: inline-block;
-  height: 20px;
-  line-height: 1.125rem;
-  padding: 0 9px;
-  border-radius: 999px;
+.welcome-row-detail {
+  border-top: 1px dashed var(--tmd-border);
   background: var(--tmd-bg-sunken);
-  color: var(--tmd-fg);
-  font-size: 0.6875rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
 }
 
-.welcome-pill.is-loading {
-  color: var(--tmd-fg-muted);
-  background: transparent;
-  border: 1px dashed var(--tmd-border);
-}
-
-.welcome-pill.is-missing {
-  color: var(--tmd-fg-muted);
-  background: transparent;
-  border: 1px solid var(--tmd-border);
-}
-
-.welcome-pill.is-error {
-  color: var(--tmd-diff-removed);
-  background: transparent;
-  border: 1px solid var(--tmd-diff-removed);
-}
-
-/* 落后最新版:强调色箭头 pill,引导点"更新" */
-
-.welcome-pill.is-outdated {
-  color: var(--tmd-accent);
-  background: var(--tmd-accent-soft);
-  border: 1px solid var(--tmd-accent);
-}
-
-/* 已是最新:弱化提示,不抢主版本 pill 的视觉权重 */
-
-.welcome-pill.is-latest {
-  color: var(--tmd-fg-faint);
-  background: transparent;
-}
-
-.welcome-icon-btn.has-update {
-  color: var(--tmd-accent);
-  border-color: var(--tmd-accent);
-}
-
-.welcome-icon-btn.has-update:hover:not(:disabled) {
-  color: var(--tmd-accent);
-  background: var(--tmd-accent-soft);
-}
-
-/* 按钮 */
-
-.welcome-install-btn {
-  height: 24px;
-  padding: 0 12px;
-  border: none;
-  border-radius: 6px;
-  background: var(--tmd-accent);
-  color: var(--tmd-accent-fg);
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
-.welcome-install-btn:hover {
-  filter: brightness(1.1);
-}
-
-.welcome-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 26px;
-  height: 24px;
-  padding: 0 7px;
-  border: 1px solid var(--tmd-border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--tmd-fg-muted);
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
-.welcome-icon-btn:hover:not(:disabled) {
-  background: var(--tmd-bg-hover);
-  color: var(--tmd-fg);
-}
-
-.welcome-icon-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* ── 窄窗口:凭据列退让 ── */
+@media (max-width: 720px) {
+  .welcome-row-main {
+    grid-template-columns: 7.5rem 8.5rem 1fr auto;
+  }
+  .welcome-row-cred { display: none; }
+  .welcome-scroll { padding: 12px 10px 24px; }
 }

@@ -46,18 +46,29 @@ export function BranchNameDialog({
     state.onSubmit(trimmed);
   };
 
+  /* Esc 关闭走 window 监听(同 GitDialogShell 纪律);Enter 确认挂在输入框上。 */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  /* 自制弹层换原生 dialog(非模态 open,保留 Esc/点背板关闭);relative + m-0
+     中和 UA absolute 定位/居中 margin;背板点击关闭用 target===currentTarget 判定。 */
   return createPortal(
     <div
+      role="presentation"
       className="fixed inset-0 z-1000 flex items-center justify-center bg-black/60"
-      onClick={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div
-        className="w-80 rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-3 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-          if (e.key === "Enter") submit();
-        }}
+      <dialog
+        open
+        aria-label={state.title}
+        className="relative m-0 w-80 max-w-[calc(100vw-48px)] rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-3 text-left text-(--tmd-fg) shadow-2xl"
       >
         <div className="text-xs font-medium text-(--tmd-fg)">{state.title}</div>
         <div className="mt-2 text-[0.6875rem] text-(--tmd-fg-muted)">
@@ -68,6 +79,9 @@ export function BranchNameDialog({
           ref={inputRef}
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
           placeholder={state.placeholder}
           spellCheck={false}
           className="mt-2 w-full rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-xs outline-none focus:border-(--tmd-accent)"
@@ -87,7 +101,7 @@ export function BranchNameDialog({
             {state.submitLabel}
           </button>
         </div>
-      </div>
+      </dialog>
     </div>,
     document.body,
   );

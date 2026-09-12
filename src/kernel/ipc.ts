@@ -4,6 +4,8 @@
  * Git 契约类型在 ./gitContract、SSH/SFTP 契约在 ./sshTypes(此处转发导出,消费方路径不变)。
  * file-size-exempt:R3 规定 @tauri-apps/* 唯一 import 点是本文件,fs/git/checkpoints/ssh
  * 四域 invoke 封装必须集中于此;契约类型已外拆,剩余为不可分散的命令面。
+ * 另有 wsl_* 命令族:语义归 wsl 来源插件(kernel 零 WSL 语义,解释权在插件),
+ * 因 R3 同样必须经本文件 invoke,故与四域并列集中;权限面归 ipc.exec 泛化类。
  */
 
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
@@ -13,6 +15,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
+import { check, type Update, type DownloadEvent } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import type {
   SftpEntry,
   SftpEventPayload,
@@ -25,7 +29,7 @@ import type {
   SshSessionEvent,
 } from "./sshTypes";
 
-/** 本地插件文件戳(plugins.rs 契约):文件名 + 内容 MD5 + 大小 + mtime(版本库排序)。 */
+/** 本地插件文件戳(plugins.rs 契约):文件名 + 内容 SHA-256 + 大小 + mtime(版本库排序)。 */
 export interface LocalPluginFileStamp {
   name: string;
   /** 内容 SHA-256(信任闸判据,抗碰撞;AI 有 shell,md5 会被选择前缀碰撞伪造)。 */
@@ -108,6 +112,9 @@ export interface SessionMeta {
   kind?: "cli" | "ssh" | "shell";
   /** 会话展示标题(SSH = 主机名;CLI 走磁盘会话/命名覆盖层,缺省无)。 */
   title?: string;
+  /** 引擎档案 id(仅 SSH 会话:WSL CLI 会话远端跑某引擎,composer/Ask 据此取
+   *  CLI profile;kind 仍为 "ssh")。普通 SSH/本地会话无此字段。 */
+  engine?: string;
 }
 
 export interface WorkspaceMeta {
@@ -121,7 +128,7 @@ export interface WorkspaceMeta {
   alias?: string | null;
 }
 
-export interface WorkspacesFile {
+interface WorkspacesFile {
   list: WorkspaceMeta[];
   activeId?: string | null;
 }
@@ -133,7 +140,7 @@ export interface DirEntry {
 }
 
 /** 带修改时间的文件条目 —— fsCollectFiles 返回,供 CLI 磁盘会话扫描。 */
-export interface FileStamp {
+interface FileStamp {
   name: string;
   path: string;
   modifiedAt: number;
@@ -203,12 +210,12 @@ export interface CkptPatch {
   binary: boolean;
 }
 
-export interface CkptSkipEntry {
+interface CkptSkipEntry {
   path: string;
   reason: string;
 }
 
-export interface CkptRestoreOutcome {
+interface CkptRestoreOutcome {
   restored: string[];
   deleted: string[];
   skipped: CkptSkipEntry[];
@@ -220,7 +227,7 @@ export interface CkptRestoreOutcome {
 
 /* ── proc_communicate 契约(对齐 src-tauri/src/proc_run.rs,serde camelCase)── */
 
-export interface ProcRunSpec {
+interface ProcRunSpec {
   /** 程序名(PATH 解析与 PTY 同源)或绝对路径。 */
   command: string;
   args: string[];
@@ -245,6 +252,54 @@ export interface ProcRunResult {
   /** true = 超时强杀;false = exitOnStdout 命中或进程自然退出。 */
   timedOut: boolean;
 }
+
+/* ── wsl_info 契约(wsl 来源插件私有,经通用通道集中于此;对齐 src-tauri/src/wsl.rs,UTF-16LE 由 Rust 解码)── */
+
+export interface WslDistro {
+  name: string;
+  version: number;
+  /** 运行中(wsl -l -v --running 名单求交;状态列是本地化文案,不读)。 */
+  running: boolean;
+  /** wslconfig 默认发行版。 */
+  default: boolean;
+}
+
+export interface WslInfo {
+  /** false = 非 Windows 或 wsl.exe 不可用/无发行版。 */
+  available: boolean;
+  wslVersion: string | null;
+  distros: WslDistro[];
+  /** 默认发行版 $HOME(发行版全停时 null)。 */
+  linuxHome: string | null;
+  /** 默认发行版登录用户。 */
+  linuxUser: string | null;
+}
+
+/** WSL 目录条目(wsl_list_dir)。 */
+export interface WslDirEntry {
+  name: string;
+  isDir: boolean;
+}
+
+/** WSL 内引擎探针行(wsl_probe_engines;path=null = 未检出)。 */
+export interface WslEngineProbe {
+  bin: string;
+  path: string | null;
+}
+
+/** WSL 内文件文本(wsl_read_file_text;content=null = 超过 maxBytes 未读,truncated=true)。 */
+interface WslRemoteFileText {
+  size: number;
+  content: string | null;
+  truncated: boolean;
+}
+
+/** 未决 SSH 提示对账行(ssh_prompts_pending)。 */
+interface SshPendingPromptWire {
+  sessionId: string;
+  prompt: SshPromptEvent;
+}
+
 export const ipc = {
   sessionSpawn: (profileId: string, spec: SpawnSpec, workspaceId?: string) =>
     invoke<SpawnedSession>("session_spawn", { profileId, spec, workspaceId: workspaceId ?? null }),
@@ -492,18 +547,39 @@ export const ipc = {
    *  日志经 cli-install://{id} 事件推,id 惯例 = 引擎 binary。 */
   cliInstallRun: (id: string, plan: CliInstallPlan) =>
     invoke<boolean>("cli_install_run", { id, plan }),
-  /** 字符串 MD5(小写 hex)。kimi 会话目录按 MD5(cwd) 命名,前端据此拼会话路径。 */
+  /** 本机 WSL 诊断:发行版表/版本/运行态(wsl 插件消费;契约对齐 src-tauri/src/wsl.rs)。 */
+  wslInfo: () => invoke<WslInfo>("wsl_info"),
+  /** 远程 WSL 探测:经 SSH 连 Windows 宿主跑 wsl.exe 诊断(平台无关;mac 客户端可直连)。 */
+  wslRemoteInfo: (host: SshHostConfig) => invoke<WslInfo>("wsl_remote_info", { host }),
+  /** WSL 目录懒加载:host 缺省 = 本机 wsl.exe(仅 Windows),否则经 SSH 远程执行。 */
+  wslListDir: (distro: string, path: string, host?: SshHostConfig) =>
+    invoke<WslDirEntry[]>("wsl_list_dir", { distro, path, host: host ?? null }),
+  /** WSL 内引擎探针(bins 来自 cli profile 清单,内核零引擎知识)。 */
+  wslProbeEngines: (distro: string, bins: string[], host?: SshHostConfig) =>
+    invoke<WslEngineProbe[]>("wsl_probe_engines", { distro, bins, host: host ?? null }),
+  /** WSL 内脚本执行(来源 remoteExec 协议的传输层;非零退出返回空串不报错)。 */
+  wslExec: (distro: string, script: string, host?: SshHostConfig) =>
+    invoke<string>("wsl_exec", { distro, script, host: host ?? null }),
+  /** WSL 内文件文本读取(远程工作区文件树 → 本地渲染管线;host 缺省 = 本机,仅 Windows)。 */
+  wslReadFileText: (distro: string, path: string, maxBytes: number, host?: SshHostConfig) =>
+    invoke<WslRemoteFileText>("wsl_read_file_text", {
+      distro,
+      path,
+      maxBytes,
+      host: host ?? null,
+    }),
+  /** 未决 SSH 提示对账(接线竞态/webview reload 兜底,先例 refreshForwards)。 */
+  sshPromptsPending: () => invoke<SshPendingPromptWire[]>("ssh_prompts_pending"),
+  /** 字符串 MD5(小写 hex;通用原语,消费方的用途注记归各插件)。 */
   md5Hex: (text: string) => invoke<string>("md5_hex", { text }),
 
   /* ── 本地插件原语(plugins.rs;路径白名单在 Rust 侧锁死 ~/.tmd-cli/plugins)── */
-  /** 扫描插件目录:manifest 原始 JSON + 顶层文件戳(md5)+ .versions 版本库清单。 */
+  /** 扫描插件目录:manifest 原始 JSON + 顶层文件戳(SHA-256)+ .versions 版本库清单。 */
   pluginScan: () => invoke<LocalPluginScanEntry[]>("plugin_scan"),
-  /** 读插件目录顶层单文件(entry/style;16MB 上限)。 */
+  /** 读插件目录顶层单文件(entry/style;16MB 上限)。读+哈希原子出证:前端核对此哈希
+   *  与扫描戳一致才 import(信任闸闭环,消除「扫描后文件被换」双读断裂)。 */
   pluginReadFile: (id: string, name: string) =>
-    invoke<string>("plugin_read_file", { id, name }),
-  /** 读版本库单文件(.versions/<file>)。 */
-  pluginReadVersion: (id: string, file: string) =>
-    invoke<string>("plugin_read_version", { id, file }),
+    invoke<{ content: string; sha256: string }>("plugin_read_file", { id, name }),
   /** 当前入口归档进版本库(同内容按 hash 去重);返回归档文件名或 null。 */
   pluginArchive: (id: string) => invoke<string | null>("plugin_archive", { id }),
   /** 回退:先归档当前版,再把指定版本换回入口。 */
@@ -511,15 +587,16 @@ export const ipc = {
     invoke<void>("plugin_rollback", { id, file }),
   /** 卸载本地插件:目录整体移入系统废纸篓(路径 Rust 侧锁死,前端只传 id)。 */
   pluginDelete: (id: string) => invoke<void>("plugin_delete", { id }),
-
-  /* ── SSH(对齐 src-tauri/src/ssh/commands.rs;输出/翻页走上方 session_* 按 kind 路由)── */
-  /** 创建 SSH 会话:立即返回 id,连接/认证后台完成(ssh://event / ssh://prompt)。 */
+  /** 创建 SSH 会话:立即返回 id,连接/认证后台完成(ssh://event / ssh://prompt)。
+   *  command 可选 = PTY 内初始命令(远程 WSL 会话:wsl.exe 包装串;缺省 = 交互 shell)。 */
   sshSessionCreate: (
     host: SshHostConfig,
     cwd: string,
     workspaceId?: string,
     cols?: number,
     rows?: number,
+    command?: string,
+    engineProfile?: string,
   ) =>
     invoke<SpawnedSession>("ssh_session_create", {
       host,
@@ -527,6 +604,8 @@ export const ipc = {
       workspaceId: workspaceId ?? null,
       cols: cols ?? null,
       rows: rows ?? null,
+      command: command ?? null,
+      engineProfile: engineProfile ?? null,
     }),
   /** 重连 SSH 会话:后端取原主机配置(凭据不出后端)收尾旧会话后同配置新建,新会话新 id。 */
   sshSessionReconnect: (sessionId: string, cwd: string, workspaceId?: string) =>
@@ -659,6 +738,28 @@ export function appVersion(): Promise<string> {
   return getVersion();
 }
 
+/* ── 应用内自动更新(tauri-plugin-updater / process 薄包装)────────
+ * 通道 = GitHub Releases latest.json(minisign 签名产物,endpoint 与
+ * pubkey 在 tauri.conf.json plugins.updater)。能力检测:浏览器 dev 无
+ * Tauri runtime,调用方以 hasNativeUpdater 分流。 */
+
+export type { Update, DownloadEvent };
+
+/** 浏览器 dev(无 Tauri runtime)恒 false;应用内恒 true。 */
+export function hasNativeUpdater(): boolean {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+/** 查询更新通道:有可用更新返回句柄(此后 downloadAndInstall),无更新返回 null。 */
+export function updaterCheck(): Promise<Update | null> {
+  return check();
+}
+
+/** 安装已下载的更新并重启应用(updater 下载落临时目录,install 交换后 relaunch 生效)。 */
+export function relaunchApp(): Promise<void> {
+  return relaunch();
+}
+
 /** 重启应用(插件市场"拔插 = 重启生效"的一键入口;浏览器 dev 无 Tauri runtime,调用方需兜底)。 */
 export function appRestart(): Promise<void> {
   return invoke<void>("app_restart");
@@ -688,18 +789,24 @@ export function assetUrl(path: string): string {
   return convertFileSrc(path);
 }
 
-export interface QuotaFetchSpec {
+interface QuotaFetchSpec {
   url: string;
   method?: string;
   headers?: Record<string, string>;
   body?: string;
   /** true = 响应按原始文本返回(body 为字符串),跳过 JSON 解析(如 atom/xml 源)。 */
   text?: boolean;
+  /** true = 不跟随重定向(3xx 原样返回),供鉴权 cookie 交换等场景。 */
+  noRedirect?: boolean;
+  /** true = 响应携带 headers(多值 map,set-cookie 等多值头不丢)。 */
+  includeHeaders?: boolean;
 }
 
-export interface QuotaFetchResponse {
+interface QuotaFetchResponse {
   status: number;
   body: unknown;
+  /** 请求声明 includeHeaders 时才存在;键为小写头名。 */
+  headers?: Record<string, string[]>;
 }
 
 /** 安装事件 payload(对齐 installer.rs CliInstallEvent)。 */
@@ -714,6 +821,8 @@ export interface CliProbeResult {
   found: boolean;
   path: string | null;
   version: string | null;
+  /** 命中副本位于 npm 全局布局内时的所属 prefix;非 npm 副本 = null。 */
+  npmPrefix: string | null;
 }
 
 /** 订阅某引擎的安装事件流。返回退订函数。 */

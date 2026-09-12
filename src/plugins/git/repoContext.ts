@@ -8,7 +8,7 @@
 
 import type { GitRepoSummary } from "@kernel/ipc";
 
-export type GitRepoMode =
+type GitRepoMode =
   /** root 是仓且唯一:与现状逐像素一致 */
   | "single"
   /** 已有选中仓(root 是仓默认 root;非仓根经引导/记忆点选) */

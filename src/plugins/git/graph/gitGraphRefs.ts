@@ -72,7 +72,7 @@ export function normalizeRef(value: string) {
   return ref;
 }
 
-export function commitHasRef(commit: GitGraphCommit, ref: string) {
+function commitHasRef(commit: GitGraphCommit, ref: string) {
   const normalizedRef = normalizeRef(ref);
   if (!normalizedRef) return false;
   return (commit.refs ?? []).some((rawRef) => normalizeRef(rawRef) === normalizedRef);

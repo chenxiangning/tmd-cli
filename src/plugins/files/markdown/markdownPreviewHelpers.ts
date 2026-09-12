@@ -15,7 +15,7 @@ export type PreviewPreNode = {
   }>;
 };
 
-export type MarkdownPositionTreeNode = Element | undefined;
+type MarkdownPositionTreeNode = Element | undefined;
 
 const HEAVY_CODE_BLOCK_LINE_THRESHOLD = 80;
 const HEAVY_CODE_BLOCK_BYTE_THRESHOLD = 12_000;

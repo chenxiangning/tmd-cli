@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { sampleAnchors } from "./AnchorRail";
+import { sampleAnchors } from "./sampleAnchors";
 import type { UserMessageAnchor } from "@kernel/messageAnchors";
 
 const anchors = (n: number): UserMessageAnchor[] =>

@@ -13,7 +13,7 @@
 
 type StructuredPreviewKind = "shell" | "dockerfile";
 
-type FileRenderKind =
+export type FileRenderKind =
   | "image"
   | "markdown"
   | "structured"

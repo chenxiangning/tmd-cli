@@ -129,6 +129,7 @@ describe("首写闸:首写前输出不点亮呼吸灯", () => {
     const a = await host.createSession(PROFILE_ID, CWD);
     await host.createSession(PROFILE_ID, CWD);
     host.writeSession(a.id, "hi\r");
+    await vi.advanceTimersByTimeAsync(500); // 跨过应答回显窗:后续内容算应答证据
     fireOutput(a.id, "answer");
     await vi.advanceTimersByTimeAsync(3000);
     expect(host.isUnread(a.id)).toBe(true);
@@ -162,6 +163,7 @@ describe("turnSettled 结算事件(结束音数据源)", () => {
     const b = await host.createSession(PROFILE_ID, CWD); // 查看
     host.writeSession(a.id, "q\r");
     host.writeSession(b.id, "q\r");
+    await vi.advanceTimersByTimeAsync(500); // 跨过应答回显窗:后续内容算应答证据
     ptyOutputCbs.get(a.id)?.("answer-a");
     ptyOutputCbs.get(b.id)?.("answer-b");
     await vi.advanceTimersByTimeAsync(3000);

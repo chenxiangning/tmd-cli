@@ -6,7 +6,7 @@
  * 工作区级归属当前活跃工作区(kernel/workspace activeId)。
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowsLeftRight, DownloadSimple, FolderOpen, Pencil, Plus, Trash } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { pickDirectory } from "@kernel/ipc";
@@ -44,10 +44,19 @@ export function PromptTab() {
     showReport(await importPromptDir(dir).catch(() => null), t("导入失败:目录不可读"));
   };
 
+  const importFromCodemoss = async () => {
+    showReport(await importCodemossPrompts(), t("导入失败:~/.codex/prompts 不可读"));
+  };
+
+  const movePromptAcross = async (p: PromptEntry) => {
+    const ok = await movePrompt(p, p.scope === "global" ? "workspace" : "global", activeWsId ?? undefined);
+    if (!ok) setReport(t("移动失败:目标作用域重名或写入失败"));
+  };
+
   return (
     <div className="assets-tab">
       <div className="assets-toolbar">
-        <select className="assets-select" value={filter} onChange={(e) => setFilter(e.target.value as ScopeFilter)}>
+        <select className="assets-select" aria-label={t("作用域筛选")} value={filter} onChange={(e) => setFilter(e.target.value as ScopeFilter)}>
           <option value="all">{t("全部")}</option>
           <option value="global">{t("全局")}</option>
           <option value="workspace">{t("工作区")}</option>
@@ -64,7 +73,7 @@ export function PromptTab() {
         <button
           type="button"
           className="assets-btn"
-          onClick={() => void importCodemossPrompts().then((r) => showReport(r, t("导入失败:~/.codex/prompts 不可读")))}
+          onClick={() => void importFromCodemoss()}
         >
           <DownloadSimple size="0.75rem" /> {t("从 codemoss 导入")}
         </button>
@@ -97,11 +106,7 @@ export function PromptTab() {
                   type="button"
                   className="assets-btn"
                   disabled={p.scope === "workspace" && !activeWsId}
-                  onClick={() =>
-                    void movePrompt(p, p.scope === "global" ? "workspace" : "global", activeWsId ?? undefined).then((ok) => {
-                      if (!ok) setReport(t("移动失败:目标作用域重名或写入失败"));
-                    })
-                  }
+                  onClick={() => void movePromptAcross(p)}
                 >
                   <ArrowsLeftRight size="0.75rem" /> {p.scope === "global" ? t("移到工作区") : t("移到全局")}
                 </button>
@@ -145,6 +150,11 @@ function PromptModal({
   const [content, setContent] = useState(entry?.content ?? "");
   const [scope, setScope] = useState<PromptScope>(entry?.scope ?? "global");
   const [error, setError] = useState("");
+  /* 挂载即聚焦首个输入(autofocus 属性是 react-doctor no-autofocus 反模式)。 */
+  const nameRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    nameRef.current?.focus();
+  }, []);
 
   const submit = async () => {
     if (!name.trim()) {
@@ -170,7 +180,7 @@ function PromptModal({
         <div className="assets-modal-title">{entry ? t("编辑提示词") : t("新建提示词")}</div>
         <label className="assets-field">
           <span>{t("名称(!! 触发时的调用名)")}</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          <input ref={nameRef} value={name} onChange={(e) => setName(e.target.value)} />
         </label>
         <label className="assets-field">
           <span>{t("描述(可空)")}</span>

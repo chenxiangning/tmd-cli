@@ -67,16 +67,19 @@ async function deploy(): Promise<string> {
   await ipc.fsCreateDir(dir).catch(() => undefined);
   const old = await ipc.fsReadFile(stampPath).catch(() => "");
   if (old.trim() === STAMP) return `${dir}/dsh-adapter.cjs`;
-  /* 清场:删除不在清单里的旧 .cjs(重构删过件,残留会被旧 require 路径迷惑)。 */
+  /* 清场:删除不在清单里的旧 .cjs(重构删过件,残留会被旧 require 路径迷惑)。
+     清场必须先于写入收口,且写 stamp 前清场/写入须全落地 —— 步骤间有依赖,
+     用 reduce Promise 链保序(单步失败语义与 for-await 一致:中断后续)。 */
   const entries = await ipc.fsListDir(dir).catch(() => []);
-  for (const e of entries) {
-    if (e.name.endsWith(".cjs") && !(e.name in FILES)) {
-      await ipc.fsRemovePath(`${dir}/${e.name}`).catch(() => undefined);
-    }
-  }
-  for (const [name, src] of Object.entries(FILES)) {
-    await ipc.fsWriteFile(`${dir}/${name}`, src);
-  }
+  const stale = entries.filter((e) => e.name.endsWith(".cjs") && !(e.name in FILES));
+  await stale.reduce<Promise<void>>(
+    (p, e) => p.then(() => ipc.fsRemovePath(`${dir}/${e.name}`).catch(() => undefined)),
+    Promise.resolve(),
+  );
+  await Object.entries(FILES).reduce<Promise<void>>(
+    (p, [name, src]) => p.then(() => ipc.fsWriteFile(`${dir}/${name}`, src)),
+    Promise.resolve(),
+  );
   await ipc.fsWriteFile(stampPath, STAMP);
   return `${dir}/dsh-adapter.cjs`;
 }

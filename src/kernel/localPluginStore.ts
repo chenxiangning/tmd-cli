@@ -14,11 +14,15 @@ export interface LocalPluginRecord {
   meta: PluginMeta | null;
   /** 当前磁盘入口内容 SHA-256(null = 入口缺失/校验失败)。 */
   contentHash: string | null;
+  /** manifest 内容 SHA-256(信任闸双绑定的另一半;null = manifest 文件缺失)。 */
+  manifestHash: string | null;
+  /** 已声明权限(纯 UI 插件 = 空数组;manifest 缺失 = null)。 */
+  permissions: string[] | null;
   /** 版本库清单(.versions/)。 */
   versions: LocalPluginFileStamp[];
   /** 加载失败原因(扫描/manifest/导出/链接期错误)。 */
   error: string | null;
-  /** 激活失败原因(activate 抛错被 safe wrapper 隔离捕获)。 */
+  /** 激活失败原因(activate 抛错由晚激活调用方捕获;内容变更重扫时丢弃)。 */
   activateError: string | null;
   /** 已激活内容 hash;null = 未激活(待启用/被拔/未信任)。 */
   activatedHash: string | null;

@@ -1,10 +1,12 @@
 /**
- * 基础设置 / 行为 tab —— 发送快捷键 + 会话输出缓冲上限 + Ask 提示音 + 结束提示音 + 后台提醒。
+ * 基础设置 / 行为 tab —— 发送快捷键 + 输入历史(补全开关 + 管理区)+ 会话输出缓冲上限
+ * + Ask 提示音 + 结束提示音 + 后台提醒。
  *
  * segmented 两选项:
  * - Enter 发送(默认,Shift+Enter 换行)
  * - ⌘/Ctrl+Enter 发送(Enter 换行)
- * 缓冲上限:数字输入,blur/Enter 提交,合法域 5万–1000万 字符(kernel/settings sanitize 兜底)。
+ * 输入历史(2026-09-10,参考 codemoss):「历史输入补全」开关写入 settings;
+ * 「输入历史」折叠管理区在行为卡片下方(计数/逐条删/清空),组件 PromptHistoryManager。
  * Ask 提示音:CLI 弹确认面板即响;结束提示音:一轮对话结束且未被查看,延迟确认后响。
  * 后台提醒:窗口失焦时激活会话完成也计未读(标蓝 + 结束音)。
  * 写入 kernel/settings store 即时生效,无需保存按钮。
@@ -19,6 +21,7 @@ import {
   type SendShortcut,
 } from "@kernel/settings";
 import { playAskSound } from "@kernel/askSound";
+import { PromptHistoryManager } from "./PromptHistoryManager";
 import { t } from "@kernel/i18n";
 import { StyledSelect } from "@kernel/StyledSelect";
 
@@ -40,17 +43,17 @@ const ASK_SOUND_LABELS: Record<AskSoundId, string> = {
 
 const ASK_SOUND_OPTIONS: ReadonlyArray<{ id: AskSoundId; label: string }> =
   ASK_SOUND_IDS.map((id) => ({ id, label: ASK_SOUND_LABELS[id] }));
+/** 数字输入提交:非法输入静默丢弃,合法域由 kernel/settings sanitize 兜底。 */
+const commitBufferLimit = (raw: string) => {
+  const n = Number.parseInt(raw, 10);
+  if (Number.isFinite(n) && n > 0) updateSettings({ sessionOutputBufferLimit: n });
+};
 
 export function BehaviorTab() {
   const { settings } = useSettingsState();
 
-  const commitBufferLimit = (raw: string) => {
-    const n = Number.parseInt(raw, 10);
-    if (Number.isFinite(n) && n > 0) updateSettings({ sessionOutputBufferLimit: n });
-  };
-
-
   return (
+    <>
     <div className="pref-card" data-testid="settings-behavior-card">
       <div className="pref-row">
         <div>
@@ -74,6 +77,32 @@ export function BehaviorTab() {
       </div>
       <div className="pref-row">
         <div>
+          <div className="pref-title">{t("历史输入补全")}</div>
+          <div className="pref-desc">{t("输入时按 Tab 接受历史补全建议;输入框为空时按 ↑↓ 翻阅历史。")}</div>
+        </div>
+        <div className="segmented" role="radiogroup" aria-label={t("历史输入补全")}>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={settings.promptHistoryEnabled}
+            className={`segment${settings.promptHistoryEnabled ? " is-active" : ""}`}
+            onClick={() => updateSettings({ promptHistoryEnabled: true })}
+          >
+            {t("开启")}
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!settings.promptHistoryEnabled}
+            className={`segment${!settings.promptHistoryEnabled ? " is-active" : ""}`}
+            onClick={() => updateSettings({ promptHistoryEnabled: false })}
+          >
+            {t("关闭")}
+          </button>
+        </div>
+      </div>
+      <div className="pref-row">
+        <div>
           <div className="pref-title">{t("会话输出缓冲上限")}</div>
           <div className="pref-desc">
             {t("单会话保留的终端输出字符数（5万–1000万，默认 50 万）。切回会话的回放深度由它决定；更早历史可在幕布顶部继续翻页加载。")}
@@ -82,6 +111,7 @@ export function BehaviorTab() {
         <input
           key={settings.sessionOutputBufferLimit}
           type="number"
+          aria-label={t("会话输出缓冲上限")}
           min={50_000}
           max={10_000_000}
           step={50_000}
@@ -224,5 +254,7 @@ export function BehaviorTab() {
         </div>
       </div>
     </div>
+      <PromptHistoryManager />
+    </>
   );
 }

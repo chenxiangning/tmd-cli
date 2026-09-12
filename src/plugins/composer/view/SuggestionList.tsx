@@ -92,6 +92,8 @@ export function SuggestionList({ matches, pickIndex, onPick, onHoverIndex, style
       <div className="relative min-h-0 flex-1">
         <div
           ref={listRef}
+          role="listbox"
+          aria-label={t(meta.label)}
           onScroll={syncScrollState}
           className="h-full overflow-y-auto px-1 pb-1.5"
         >
@@ -99,14 +101,16 @@ export function SuggestionList({ matches, pickIndex, onPick, onHoverIndex, style
             const active = i === pickIndex;
             return (
               <button
-                key={`${m.value}-${i}`}
+                type="button"
+                key={m.value}
+                role="option"
+                aria-selected={active}
                 ref={(el) => { itemRefs.current[i] = el; }}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   onPick(m);
                 }}
                 onMouseEnter={() => onHoverIndex(i)}
-                aria-selected={active}
                 className={`flex w-full items-baseline gap-3 rounded-lg px-2.5 py-1.5 text-left ${
                   active ? "bg-(--tmd-bg-active)" : "hover:bg-(--tmd-bg-hover)/60"
                 }`}

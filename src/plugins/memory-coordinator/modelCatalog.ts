@@ -16,7 +16,7 @@ export interface ModelEntry {
   reasoning: boolean;
 }
 
-export type ModelEngine = "omp" | "pi" | "opencode";
+type ModelEngine = "omp" | "pi" | "opencode";
 const MODEL_ENGINES: readonly ModelEngine[] = ["omp", "pi", "opencode"];
 
 /** settings.memoryDistillEngine(kernel 存自由串)→ 可执行引擎;未知/空回落 omp。 */

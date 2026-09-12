@@ -10,7 +10,7 @@
 
 import { useSyncExternalStore } from "react";
 
-export interface Subscribable<S> {
+interface Subscribable<S> {
   /** 当前快照;两次变更之间引用稳定。 */
   readonly snapshot: S;
   /** 换快照并通知订阅者(常规提交)。 */

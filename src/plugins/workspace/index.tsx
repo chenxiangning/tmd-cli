@@ -7,37 +7,41 @@
  *   toggle 与全局按钮同源)+ 插件贡献位(leftSidebar.workspaceCaption)+ 添加工作区
  * - 会话列表扁平化(2026-09-08):无分组段头,会话行平铺于工作区下,行首供应商
  *   图标区分引擎;状态节点圆点(绿=对话中 / 蓝=完成未读,静止闲置即隐藏)保留
- * - 磁盘历史分页:初始条数 = 显示预算解析配额(见 SessionList);
- *   预算编辑入口由 session-budget 插件经 leftSidebar.workspaceCaption
- *   挂载点贡献,本插件不感知预算 UI(拔出该插件 = 回默认分页)
- * - 新建会话菜单:portal + fixed 定位(点击点夹取),CLI 行 + 行右侧刷新
+ * - 磁盘历史分页:初始条数 = 显示预算解析配额(见 SessionList);预算编辑入口
+ *   由 session-budget 插件经 leftSidebar.workspaceCaption 贡献,本插件不感知
+ * - 新建会话菜单:portal + fixed 定位;来源工作区的引擎过滤/启动适配走
+ *   workspaceOrigins 协议(本插件零来源知识,拔来源插件即回内建形态)
  * - 数据源:活会话 = 内核 PTY 注册表;历史 = 各 CLI 插件 listSessions
- * 组件实现见同目录:WorkspaceList(分组渲染) / WorkspaceCard / SessionList / SessionMenu / groups(分组语义) / utils。
+ * 组件实现见同目录:WorkspaceList / WorkspaceCard / SessionList / SessionMenu / groups / utils。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import type { Plugin } from "@kernel/plugin";
 import { Mounts } from "@kernel/Mounts";
-import { addWorkspace, useWorkspaces, type Workspace } from "@kernel/workspace";
-import { pickDirectory } from "@kernel/ipc";
+import { useWorkspaces, type Workspace } from "@kernel/workspace";
+import {
+  findWorkspaceOrigin,
+  useWorkspaceOrigins,
+} from "@kernel/workspaceOrigins";
 import { spinRemainder } from "@kernel/spin";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { registerSessionRevealHandler } from "@kernel/sessionReveal";
-import { SessionMenuOverlay, clampMenuPosition } from "./SessionMenu";
+import { SessionMenuOverlay } from "./SessionMenu";
+import { clampMenuPosition } from "./utils";
 import { Folders, FolderOpen, FolderSimplePlus, CaretDoubleDown, CaretDoubleUp } from "@phosphor-icons/react";
 import { createSessionRevealHandler } from "./revealSession";
 import { WorkspaceList } from "./WorkspaceList";
-import { useGroupedWorkspaces } from "./groups";
+import { groupWorkspaces } from "./groups";
 import { WorkspaceGroupsTab } from "./GroupSettingsTab";
 import { PinnedSessionsSection } from "./PinnedSessions";
 import { RunningZoneSection } from "./RunningZone";
+import { WorkspaceAddDialog } from "./WorkspaceAddDialog";
 
 /** ⌘T 桥:新建会话菜单开合态在 WorkspaceSection 组件内,命令却在 activate 期注册 ——
  *  模块级 ref 接收分发器触发(先例:TerminalView findRequestRef)。 */
 const openNewSessionMenuRef: { current: (() => void) | null } = { current: null };
-
 
 function WorkspaceSection() {
   useHost();
@@ -52,6 +56,18 @@ function WorkspaceSection() {
     };
   }, []);
   const { list, activeId } = useWorkspaces();
+  /** 添加工作区弹层(本地目录 tab 内建;来源 tab 经 workspaceOrigins 贡献)。 */
+  const [adding, setAdding] = useState(false);
+  const { settings } = useSettingsState();
+  /** 来源过滤(settings 持久化;来源清单由 workspaceOrigins 注册表供给)。 */
+  const originFilter = settings.workspaceOriginFilter;
+  const origins = useWorkspaceOrigins();
+  const filtered = useMemo(() => {
+    if (originFilter === "") return list;
+    if (originFilter === "local") return list.filter((ws) => !findWorkspaceOrigin(ws));
+    const origin = origins.find((o) => o.id === originFilter);
+    return origin ? list.filter((ws) => origin.matches(ws)) : [];
+  }, [list, origins, originFilter]);
   const [menu, setMenu] = useState<{
     workspace: Workspace;
     x: number;
@@ -64,7 +80,6 @@ function WorkspaceSection() {
   /** 各 key 转圈起始时刻:scanDone 兜底转满一圈(kernel/spin),数据再快也不闪断。 */
   const spinStartRef = useRef<Record<string, number>>({});
   /** 各工作区折叠态(持久化):读写全局 settings.workspaceCollapsedMap,重启恢复。 */
-  const { settings } = useSettingsState();
   const collapsedMap = settings.workspaceCollapsedMap;
   /** 会话视图:默认(隐藏归档)/ 归档(只看归档),持久化。 */
   const archivedView = settings.workspaceArchiveView;
@@ -80,37 +95,30 @@ function WorkspaceSection() {
     });
   /** 组头折叠态(持久化):缺失 = 展开;组定义/派生见 ./groups。 */
   const groupCollapsedMap = settings.workspaceGroupCollapsedMap;
-  const grouped = useGroupedWorkspaces();
+  const grouped = useMemo(
+    () => groupWorkspaces(filtered, settings.workspaceGroups),
+    [filtered, settings.workspaceGroups],
+  );
   const toggleGroup = (id: string) =>
     updateSettings({
       workspaceGroupCollapsedMap: { ...groupCollapsedMap, [id]: !groupCollapsedMap[id] },
     });
-  /** ⌘T 入口:无点击锚点,菜单开在左栏顶部;工作区取活动者,缺省首个,皆无则不动。 */
-  const openMenu = () => {
+  /** ⌘T 入口:无点击锚点,菜单开在左栏顶部;工作区取活动者,缺省首个,皆无则不动。
+   *  useCallback 钉住引用:下方 ref 同步 effect 以它为依赖,每轮重建会反复重同步。 */
+  const openMenu = useCallback(() => {
     const ws = list.find((w) => w.id === activeId) ?? list[0];
     if (!ws) return;
     setMenu({ workspace: ws, ...clampMenuPosition(16, 60) });
-  };
+  }, [list, activeId]);
 
-  /* 开函数随渲染重建,效果依其重同步 ref;卸载置空(插件拔出后 ⌘T 成 no-op)。 */
+  /* 开函数引用稳定(仅 list/activeId 变化才重建),效果依其重同步 ref;
+   * 卸载置空(插件拔出后 ⌘T 成 no-op)。 */
   useEffect(() => {
     openNewSessionMenuRef.current = openMenu;
     return () => {
       openNewSessionMenuRef.current = null;
     };
   }, [openMenu]);
-
-  async function handleAdd() {
-    try {
-      const selected = await pickDirectory(t("选择工作区目录"));
-      if (typeof selected === "string" && selected) {
-        addWorkspace(selected);
-      }
-    } catch (err) {
-      // 权限被拒/插件未注册等不再静默,方便定位
-      console.warn("workspace: 选择目录失败", err);
-    }
-  }
 
   /** 刷新键 = 工作区:CLI —— tick 触发重扫,scanDone 清 spin。 */
   const bumpTick = (workspaceId: string, profileId: string) => {
@@ -142,26 +150,39 @@ function WorkspaceSection() {
           {t("工作区")}
         </span>
         <span className="ws-caption-actions">
-          {/* 会话视图切换:默认/归档;workspace 插件内各分组经 settings 响应式过滤 */}
-          <div className="ws-view-toggle" role="radiogroup" aria-label={t("会话视图")}>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={!archivedView}
-              className={!archivedView ? "is-on" : ""}
-              onClick={() => updateSettings({ workspaceArchiveView: false })}
-            >
-              {t("默认")}
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={archivedView}
-              className={archivedView ? "is-on" : ""}
-              onClick={() => updateSettings({ workspaceArchiveView: true })}
-            >
-              {t("归档")}
-            </button>
+          {/* 视图切换:默认/本地/〈来源 chips〉/归档 单按钮组(来源段由
+              workspaceOrigins 注册表供给,来源插件启用才有)。 */}
+          <div className="ws-view-toggle" role="radiogroup" aria-label={t("工作区视图")}>
+            {(
+              [
+                ["default", "默认"],
+                ["local", "本地"],
+                ...origins.map((o) => [o.id, o.label] as const),
+                ["archived", "归档"],
+              ] as const
+            ).map(([value, label]) => {
+              const active = archivedView
+                ? value === "archived"
+                : value === (originFilter || "default");
+              const pick = () =>
+                updateSettings(
+                  value === "archived"
+                    ? { workspaceArchiveView: true, workspaceOriginFilter: "" }
+                    : { workspaceArchiveView: false, workspaceOriginFilter: value === "default" ? "" : value },
+                );
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  className={active ? "is-on" : ""}
+                  onClick={pick}
+                >
+                  {t(label)}
+                </button>
+              );
+            })}
           </div>
           <button
             className="ws-caption-btn"
@@ -180,7 +201,7 @@ function WorkspaceSection() {
           <button
             className="ws-caption-btn"
             title={t("添加工作区")}
-            onClick={() => void handleAdd()}
+            onClick={() => setAdding(true)}
           >
             <FolderSimplePlus size="0.8125rem" aria-hidden />
           </button>
@@ -210,6 +231,8 @@ function WorkspaceSection() {
           setMenu({ workspace, ...clampMenuPosition(x, y) })
         }
       />
+
+      {adding && <WorkspaceAddDialog onClose={() => setAdding(false)} />}
 
       {menu && (
         <SessionMenuOverlay

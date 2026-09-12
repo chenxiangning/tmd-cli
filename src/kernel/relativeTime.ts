@@ -14,14 +14,24 @@ function currentLocaleTag(): string {
   return DATE_LOCALES[getSettingsState().settings.language] ?? "zh-CN";
 }
 
+/* 格式化器模块级缓存:界面语言只有 DATE_LOCALES 三种且 formatter 无状态,
+   字面量表各建一次供热路径复用(react-doctor js-hoist-intl 只认模块级直接 new);
+   locale 仍按调用时设置解析,行为不变。 */
+const RESET_AT_FORMATTERS: Record<string, Intl.DateTimeFormat> = {
+  "zh-CN": new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+  "en-US": new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+  "ja-JP": new Intl.DateTimeFormat("ja-JP", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+};
+
+const RELATIVE_FORMATTERS: Record<string, Intl.RelativeTimeFormat> = {
+  "zh-CN": new Intl.RelativeTimeFormat("zh-CN", { numeric: "auto" }),
+  "en-US": new Intl.RelativeTimeFormat("en-US", { numeric: "auto" }),
+  "ja-JP": new Intl.RelativeTimeFormat("ja-JP", { numeric: "auto" }),
+};
+
 /** ms epoch → "9月5日 14:30" / "Sep 5, 2:30 PM"(额度窗口下次重置时间)。 */
 export function formatResetAt(ms: number): string {
-  return new Intl.DateTimeFormat(currentLocaleTag(), {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(ms));
+  return RESET_AT_FORMATTERS[currentLocaleTag()].format(new Date(ms));
 }
 
 /** ms epoch → "2026-09-03 14:32:05"(账本/审计场景的精确时刻,秒级、可排序,语言无关)。 */
@@ -68,7 +78,7 @@ export function formatRelativeTime(targetMs: number): string {
     if (unit.unit === "second") return past ? "刚刚" : sec === 0 ? "现在" : `${sec} 秒后`;
     return `${value} ${UNIT_LABELS[unit.unit]}${past ? "前" : "后"}`;
   }
-  return new Intl.RelativeTimeFormat(currentLocaleTag(), { numeric: "auto" }).format(
+  return RELATIVE_FORMATTERS[currentLocaleTag()].format(
     past ? -value : value,
     unit.unit as Intl.RelativeTimeFormatUnit,
   );

@@ -98,7 +98,7 @@ function resolveLocalImagePath(src: string, sourceFilePath?: string | null) {
 
 const HREF_SCHEME_REGEX = /^([A-Za-z][A-Za-z0-9+.-]*):/;
 
-export type MarkdownLinkTarget = {
+type MarkdownLinkTarget = {
   /** 解析后的本地绝对路径(%20 等已解码)。 */
   path: string;
   /** `#` 锚点(已解码;匹配方再经 normalizeMarkdownAnchorKey 归一)。无锚点为空串。 */

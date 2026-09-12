@@ -5,12 +5,12 @@
  * (单文件 ≤300 行铁则)。行内重命名输入已沉淀进 kernel(见 @kernel/RenameInput)。
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 import { formatRelativeTime } from "@kernel/relativeTime";
-import { host, useHost } from "@kernel/host";
+import { host } from "@kernel/host";
 import { PinIcon } from "@kernel/PinIcon";
 import { resolveSessionStatus, type SessionStatus } from "./utils";
 
@@ -32,16 +32,37 @@ function subscribeActivityTick(cb: () => void): () => void {
 
 export type { SessionStatus };
 
-/** 1Hz 重渲 + host 守望口径 → 当前状态(状态机见 utils.resolveSessionStatus)。 */
-export function useSessionStatus(sessionId: string): SessionStatus {
-  useHost();
+/** 1Hz 兜底重渲(仅状态真变时)+ 宿主守望口径 → 当前状态(状态机见
+ *  utils.resolveSessionStatus)。状态值渲染期现算:notify 驱动父行重渲染即
+ *  即时生效(父级已订阅 host,本处不再重复订阅);ticker 只在无 notify 的
+ *  静默期兜底,且状态不变不重渲 —— 恒定负载不再随状态行数放大。 */
+function useSessionStatus(sessionId: string): SessionStatus {
   const [, tick] = useState(0);
-  useEffect(() => subscribeActivityTick(() => tick((n) => n + 1)), []);
-  return resolveSessionStatus(
+  const status = resolveSessionStatus(
     host.getLastActivityAt(sessionId),
     host.isUnread(sessionId),
     Date.now(),
+    host.isTurnActive(sessionId),
   );
+  /* 最近一帧状态的镜像:effect 写入(渲染期写 ref 违反并发语义),ticker 比对用 */
+  const lastRef = useRef(status);
+  useEffect(() => {
+    lastRef.current = status;
+  });
+  useEffect(
+    () =>
+      subscribeActivityTick(() => {
+        const next = resolveSessionStatus(
+          host.getLastActivityAt(sessionId),
+          host.isUnread(sessionId),
+          Date.now(),
+          host.isTurnActive(sessionId),
+        );
+        if (next !== lastRef.current) tick((n) => n + 1);
+      }),
+    [sessionId],
+  );
+  return status;
 }
 
 /** 时间节点三态:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止 —— 呼吸灯从 meta 区移到时间轴节点位。 */
@@ -57,12 +78,24 @@ export function ActivityDot({ sessionId }: { sessionId: string }) {
 }
 
 /** 终端/SSH 活会话呼吸灯:输出即绿,无轮次/未读概念 —— 与 CLI 会话的
- *  ActivityDot(status 状态机驱动)语义不同,4s 静默窗闲置隐藏(1Hz ticker 驱动
- *  隐判定,不依赖无关 host 事件触发重渲)。 */
+ *  ActivityDot(status 状态机驱动)语义不同,4s 静默窗闲置隐藏(1Hz ticker
+ *  驱动隐判定,不依赖无关 host 事件触发重渲);闲置翻转才重渲,恒定零负载。 */
 export function LiveOutputDot({ sessionId }: { sessionId: string }) {
   const [, tick] = useState(0);
-  useEffect(() => subscribeActivityTick(() => tick((n) => n + 1)), []);
   const idle = Date.now() - host.getLastActivityAt(sessionId) > 4000;
+  /* 闲置标记镜像:effect 写入(渲染期写 ref 违反并发语义),ticker 比对用 */
+  const idleRef = useRef(idle);
+  useEffect(() => {
+    idleRef.current = idle;
+  });
+  useEffect(
+    () =>
+      subscribeActivityTick(() => {
+        const next = Date.now() - host.getLastActivityAt(sessionId) > 4000;
+        if (next !== idleRef.current) tick((n) => n + 1);
+      }),
+    [sessionId],
+  );
   return <span className={`tl-node${idle ? " is-idle" : ""}`} aria-hidden />;
 }
 
@@ -72,8 +105,8 @@ const STATUS_LABEL: Record<
   { className: string; text: string }
 > = {
   running: { className: "is-run", text: "运行时" },
-  unread: { className: "is-unread", text: "会话结束-未查看" },
-  viewed: { className: "is-viewed", text: "会话结束-已查看" },
+  unread: { className: "is-unread", text: "空闲-未查看" },
+  viewed: { className: "is-viewed", text: "空闲" },
 };
 
 /**
@@ -127,35 +160,38 @@ export function DiskSessionRow({
     );
   }
   return (
-    <button
-      data-cli-session-id={session.id}
-      className={`thread-row${pinned ? " is-pinned" : ""}`}
-      title={t("恢复 {profile} 会话 {id}", { profile: profile.name, id: session.id })}
-      onClick={onOpen}
-      onContextMenu={onContextMenu}
-    >
-      {archived ? (
-        <span className="tl-node tl-node-gui" aria-hidden>
-          {t("归")}
+    <span className="thread-row-host">
+      <button
+        data-cli-session-id={session.id}
+        className={`thread-row${pinned ? " is-pinned" : ""}`}
+        title={t("恢复 {profile} 会话 {id}", { profile: profile.name, id: session.id })}
+        onClick={onOpen}
+        onContextMenu={onContextMenu}
+      >
+        {archived ? (
+          <span className="tl-node tl-node-gui" aria-hidden>
+            {t("归")}
+          </span>
+        ) : (
+          <span className="tl-node is-idle" aria-hidden />
+        )}
+        <span className="thread-engine-badge" title={profile.name} aria-hidden>
+          {profile.renderIcon?.("0.75rem")}
         </span>
-      ) : (
-        <span className="tl-node is-idle" aria-hidden />
-      )}
-      <span className="thread-engine-badge" title={profile.name} aria-hidden>
-        {profile.renderIcon?.("0.75rem")}
-      </span>
-      <span className="thread-name">{title}</span>
-      <span className="thread-meta">
-        <PinToggle on={pinned} onToggle={onTogglePin} />
-        <span className="thread-time">{formatRelativeTime(session.modifiedAt)}</span>
-      </span>
-    </button>
+        <span className="thread-name">{title}</span>
+        <span className="thread-meta">
+          <span className="thread-time">{formatRelativeTime(session.modifiedAt)}</span>
+        </span>
+      </button>
+      {/* 置顶钮与行按钮 DOM 分离(嵌套交互治理):hover 显形改吃宿主 hover。 */}
+      <PinToggle on={pinned} onToggle={onTogglePin} />
+    </span>
   );
 }
 
 /**
- * 行内扎点开关 —— hover 显形 / 已扎常亮;span 承载(行本身是 button,禁嵌套 button)。
- * 点击切换:未扎 → 置顶到全局;已扎(任一作用域)→ 取消置顶。置顶到工作区内仍走右键菜单。
+ * 行内扎点开关 —— hover 显形 / 已扎常亮;真 button 承载(与行按钮为兄弟,
+ * 不再嵌套在行激活热区内;hover/焦点显形经 .thread-row-host 前缀选择器)。
  */
 export function PinToggle({
   on,
@@ -168,9 +204,9 @@ export function PinToggle({
   onToggle: () => void;
 }) {
   return (
-    <span
+    <button
+      type="button"
       className={`thread-pin-btn${on ? " is-on" : ""}`}
-      role="button"
       aria-pressed={on}
       aria-label={on ? t("取消置顶") : t("置顶到全局")}
       title={
@@ -180,20 +216,14 @@ export function PinToggle({
             ? t("取消置顶")
             : t("置顶到全局(右键可置顶到工作区内)")
       }
+      disabled={disabled}
       onClick={(e) => {
         e.stopPropagation();
-        if (!disabled) onToggle();
-      }}
-      onKeyDown={(e) => {
-        /* 行是 button:Enter/Space 已冒泡触发开行,这里拦下避免双重激活。 */
-        if (e.key === "Enter" || e.key === " ") {
-          e.stopPropagation();
-          e.preventDefault();
-          if (!disabled) onToggle();
-        }
+        onToggle();
       }}
     >
       <PinIcon size="0.75rem" className="thread-pin-icon" />
-    </span>
+    </button>
   );
 }
+

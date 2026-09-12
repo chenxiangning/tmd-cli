@@ -24,6 +24,10 @@ import { resolveEffectiveAppearance } from "@kernel/theme";
 import { mixHexColors, normalizeHexColor, withAlpha } from "@kernel/themeTokens";
 import { SystemAppearanceCard } from "./AppearanceSystemCard";
 import { IconDecorCard } from "./IconDecorCard";
+
+/** 浅色/深色的展示名。 */
+const appearanceLabel = (appearance: "light" | "dark") =>
+  t(appearance === "light" ? "浅色" : "深色");
 const THEME_MODES: ReadonlyArray<{
   id: ThemePreference;
   label: string;
@@ -61,8 +65,6 @@ export function BasicAppearanceTab() {
   const { settings } = useSettingsState();
   const presets = getAllThemePresets();
   const activePreset = presets.find((p) => p.id === settings.customThemePresetId) ?? presets[0];
-  const appearanceLabel = (appearance: "light" | "dark") =>
-    t(appearance === "light" ? "浅色" : "深色");
   /* 分组折叠态(浅色/深色),会话局部,默认全展开 */
   const [collapsedGroups, setCollapsedGroups] = useState<{ light: boolean; dark: boolean }>({
     light: false,
@@ -179,9 +181,8 @@ export function BasicAppearanceTab() {
             </button>
             {!collapsedGroups[appearance] && (
             <div className="preset-grid">
-              {presets
-                .filter((p) => p.appearance === appearance)
-                .map((preset) => (
+              {presets.flatMap((preset) =>
+                preset.appearance === appearance ? [
                   <button
                     key={preset.id}
                     type="button"
@@ -198,8 +199,9 @@ export function BasicAppearanceTab() {
                       {preset.label}
                       <Check className="preset-check" size="0.8125rem" aria-hidden />
                     </span>
-                  </button>
-                ))}
+                  </button>,
+                ] : [],
+              )}
             </div>
             )}
           </div>

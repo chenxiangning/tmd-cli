@@ -55,9 +55,9 @@ function createMenuHost(deps) {
     const i = full.indexOf("/");
     const provider = i > 0 ? full.slice(0, i) : "";
     const model = i > 0 ? full.slice(i + 1) : full;
-    const payload = { sessionId: ctx.dshSessionId, provider, model };
-    if (effort) payload.reasoningEffort = effort;
-    const r = await rpcCall(ORIGIN, "session.selectModel", payload);
+    const r = await rpcCall(ORIGIN, "session/selectModel", {
+      request: { sessionId: ctx.dshSessionId, provider, model, ...(effort ? { reasoningEffort: effort } : {}) },
+    });
     if (!r.ok) print.error(`切换失败: ${render.errMsgSafe(r.error)}`);
     else {
       /* 响应 selected 是生效实况(含 host 补的默认 effort) */
@@ -69,8 +69,8 @@ function createMenuHost(deps) {
   }
 
   async function selectPreset(id) {
-    const r = await rpcCall(ORIGIN, "agentPreset.select", {
-      sessionId: ctx.dshSessionId, agentPreset: id,
+    const r = await rpcCall(ORIGIN, "agentPresets/select", {
+      agentId: ctx.dshSessionId, agentPreset: id,
     });
     if (!r.ok) print.error(`模式切换失败: ${render.errMsgSafe(r.error)}`);
     else { ctx.agentPreset = id; print.status(`模式已切换: ${id}`); }
@@ -78,7 +78,7 @@ function createMenuHost(deps) {
 
   async function fetchCatalog() {
     if (!catalog) {
-      const r = await rpcCall(ORIGIN, "session.models", { sessionId: ctx.dshSessionId });
+      const r = await rpcCall(ORIGIN, "session/modelCatalog", {});
       if (!r.ok) return null;
       catalog = r.value?.groups || [];
     }

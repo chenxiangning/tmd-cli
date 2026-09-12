@@ -16,12 +16,12 @@ import { getSettingsState, updateSettings, type GitDiffMode, type GitFileListLay
 export type GitViewMode = GitPanelView;
 export type FileListLayout = GitFileListLayout;
 
-export interface GitAggregate {
+interface GitAggregate {
   totals: GitTotals | null;
   fileCount: number;
 }
 
-export type RemoteDialogOp = "push" | "pull" | "fetch";
+type RemoteDialogOp = "push" | "pull" | "fetch";
 
 
 interface GitPanelState {

@@ -120,27 +120,34 @@ export function HostModal({
               </div>
             </>
           ) : null}
-          <label>
-            {t("代理(可选)")}
+          {/* 代理三控件并排,label 只配说明文本,控件各自 aria-label(视觉同 label 版式)。 */}
+          <div className="flex flex-col gap-[3px] text-[0.6875rem] text-(--tmd-fg-faint)">
+            <span>{t("代理(可选)")}</span>
             <div className="ssh-form-row">
-              <select value={draft.proxy?.type ?? ""} onChange={(e) => setProxyType(set, draft, e.target.value)}>
+              <select
+                aria-label={t("代理类型")}
+                value={draft.proxy?.type ?? ""}
+                onChange={(e) => setProxyType(set, draft, e.target.value)}
+              >
                 <option value="">{t("不使用")}</option>
                 <option value="http">HTTP</option>
                 <option value="socks5">SOCKS5</option>
               </select>
               <input
+                aria-label={t("代理地址")}
                 value={draft.proxy?.url ?? ""}
                 placeholder="127.0.0.1"
                 onChange={(e) => setProxyField(set, draft, "url", e.target.value)}
               />
               <input
+                aria-label={t("代理端口")}
                 value={draft.proxy?.port ?? ""}
                 inputMode="numeric"
                 placeholder={t("端口")}
                 onChange={(e) => setProxyField(set, draft, "port", Number(e.target.value) || 0)}
               />
             </div>
-          </label>
+          </div>
         </div>
         <div className="ssh-modal-actions">
           <button type="button" onClick={onClose}>

@@ -131,6 +131,8 @@ export interface AppSettings {
   sessionTabsMax: number;
   /** Composer 发送快捷键行为。 */
   sendShortcut: SendShortcut;
+  /** Composer 输入历史(ghost 补全 + 空输入 ↑↓ 召回)开关,默认开。 */
+  promptHistoryEnabled: boolean;
   /** Ask/确认面板提示音开关(行为页可调,默认开启)。 */
   askSoundEnabled: boolean;
   /** Ask 提示音效 id。 */
@@ -149,7 +151,7 @@ export interface AppSettings {
   disabledPlugins: string[];
   /** 本地插件总开关:true 时 boot 不装载任何 `~/.tmd-cli/plugins/` 插件(一键还原干净内置态)。 */
   localPluginsDisabled: boolean;
-  /** 本地插件信任表:id → 已确认过的 bundle 内容 MD5 列表;信任绑定内容而非 id(回退到确认过的版本免再确认)。 */
+  /** 本地插件信任表:id → 已确认过的 bundle 内容 SHA-256 列表;信任绑定内容而非 id(回退到确认过的版本免再确认)。 */
   localPluginTrust: Record<string, string[]>;
   /**
    * 会话手动命名覆盖层:key = `${profileId}:${cliSessionId}`,value = 用户起的标题。
@@ -192,6 +194,8 @@ export interface AppSettings {
   workspaceGroupCollapsedMap: Record<string, boolean>;
   /** 左侧栏会话视图:false = 默认(隐藏归档),true = 归档(只看归档)。 */
   workspaceArchiveView: boolean;
+  /** 侧栏工作区来源过滤:空 = 全部;local = 本地;wsl = WSL(含远程)。 */
+  workspaceOriginFilter: string;
   /**
    * 网络代理(network-proxy 插件的编辑域):客户端自身联网(quota_fetch 等
    * Rust reqwest 请求、installer 的 curl/npm 子进程)与之后 spawn 的 PTY CLI
@@ -229,6 +233,13 @@ export interface AppSettings {
    * Web/远端场景不存在 —— 单机应用,不经任何同步通道外发。
    */
   ssh: { hosts: SshHostConfig[] };
+  /**
+   * WSL 主机偏好(wsl 插件的编辑域):defaultDistro = 用户指定的默认发行版
+   * (wslconfig /set-default 同步写);空串 = 跟随 wslconfig 自身默认。
+   * remoteHostId = 远程 WSL 的 SSH 主机(settings.ssh.hosts 条目 id);空串 = 只用本机。
+   * (2026-09-12 退场:卡内「本机|远程」mode 段控拔除,两段按可用性共存。)
+   */
+  wsl: { defaultDistro: string; remoteHostId: string };
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -245,6 +256,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT,
   sessionTabsEnabled: true,
   sendShortcut: "enter",
+  promptHistoryEnabled: true,
   askSoundEnabled: true,
   askSoundId: "default",
   turnEndSoundEnabled: true,
@@ -264,6 +276,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionArchive: {},
   sessionDeleted: {},
   workspaceArchiveView: false,
+  workspaceOriginFilter: "",
   networkProxyEnabled: false,
   networkProxyUrl: "",
   memoryDbPath: "",
@@ -275,6 +288,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   memoryDistillRules: "",
   git: { view: "diff", layout: "flat", diffMode: "unified" },
   ssh: { hosts: [] },
+  wsl: { defaultDistro: "", remoteHostId: "" },
 };
 
 /** 记忆胶囊注入策略(manual 手动勾选注入 / auto 新会话自动展开 / off 关闭)。 */

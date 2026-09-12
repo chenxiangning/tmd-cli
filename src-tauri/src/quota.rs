@@ -15,6 +15,10 @@ pub struct QuotaRequest {
     /// true = 响应按原始文本返回(body 为 JSON 字符串值),跳过 JSON 解析。
     /// 供非 JSON 源使用(如 GitHub releases.atom 更新源)。
     pub text: Option<bool>,
+    /// true = 不跟随重定向(3xx 原样返回),供鉴权 cookie 交换等场景。
+    pub no_redirect: Option<bool>,
+    /// true = 响应携带 headers(多值 map,set-cookie 等多值头不丢)。
+    pub include_headers: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -22,14 +26,20 @@ pub struct QuotaRequest {
 pub struct QuotaResponse {
     pub status: u16,
     pub body: serde_json::Value,
+    /// 请求方声明 include_headers 时才填充;键为小写头名,值保留多值序。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub headers: Option<HashMap<String, Vec<String>>>,
 }
 
 /// 通用 HTTP proxy ─ 把任意 HTTP 请求转成命令调用,响应 JSON 返回。
 /// 失败时返回 Err(string),由前端展示。
 #[tauri::command]
 pub async fn quota_fetch(spec: QuotaRequest) -> Result<QuotaResponse, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
+    let mut builder = reqwest::Client::builder().timeout(std::time::Duration::from_secs(15));
+    if spec.no_redirect.unwrap_or(false) {
+        builder = builder.redirect(reqwest::redirect::Policy::none());
+    }
+    let client = builder
         .build()
         .map_err(|e| format!("http client build: {e}"))?;
 
@@ -56,6 +66,19 @@ pub async fn quota_fetch(spec: QuotaRequest) -> Result<QuotaResponse, String> {
     let resp = req.send().await.map_err(|e| format!("http send: {e}"))?;
 
     let status = resp.status().as_u16();
+    let headers = if spec.include_headers.unwrap_or(false) {
+        let mut map: HashMap<String, Vec<String>> = HashMap::new();
+        for (k, v) in resp.headers() {
+            if let Ok(s) = v.to_str() {
+                map.entry(k.as_str().to_ascii_lowercase())
+                    .or_default()
+                    .push(s.to_string());
+            }
+        }
+        Some(map)
+    } else {
+        None
+    };
     let body_text = resp
         .text()
         .await
@@ -72,7 +95,11 @@ pub async fn quota_fetch(spec: QuotaRequest) -> Result<QuotaResponse, String> {
         })?
     };
 
-    Ok(QuotaResponse { status, body })
+    Ok(QuotaResponse {
+        status,
+        body,
+        headers,
+    })
 }
 
 /// 读取 quota provider 使用的环境变量。仅返回非空值,不执行 shell 命令。

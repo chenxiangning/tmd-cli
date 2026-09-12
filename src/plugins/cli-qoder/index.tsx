@@ -1,4 +1,4 @@
-import { makeQoderPlugin } from "../cli-shared/qoderSessions";
+import { makeQoderPlugin } from "../cli-shared/qoderPlugin";
 
 /**
  * Qoder CLI(国际版)插件(本机 qodercli 1.1.33 实证,2026-09-02):

@@ -52,6 +52,19 @@ const piSessions = piFamilySessions({
   sessionsDir: piSessionsDir,
   modelKeys: ["modelId", "model"],
   providerKeys: ["provider", "providerId"],
+  /* 远程形态(WSL 发行版):slug(piSessionSlug 同规:去前导 /、\/: 全映射 -、
+     -- 包裹)在 shell 侧现算 —— 工作区 root 落库是 ~ 形态(AddWslTab 惯例,
+     wsl.exe --cd 会展开),先归一成绝对路径,否则 slug 恒失配找不到会话目录。 */
+  remoteSessionsDirSh: (cwd) => {
+    const shq = (v: string) => `'${v.replace(/'/g, `'\\''`)}'`;
+    return [
+      `c=${shq(cwd.replace(/\\/g, "/"))}`,
+      'case "$c" in "~"|"~"/*) c="$HOME${c#"~"}" ;; esac',
+      's="${c#/}"',
+      "s=$(printf '%s' \"$s\" | tr '/\\:' ---)",
+      'd="$HOME/.pi/agent/sessions/--${s}--"',
+    ].join("\n");
+  },
 });
 
 /**

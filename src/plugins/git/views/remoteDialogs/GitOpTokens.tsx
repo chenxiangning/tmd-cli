@@ -6,7 +6,7 @@
 
 import type { ReactNode } from "react";
 
-export type GitOpTokenKind = "command" | "operator" | "remote" | "branch" | "option";
+type GitOpTokenKind = "command" | "operator" | "remote" | "branch" | "option";
 
 export interface GitOpToken {
   kind: GitOpTokenKind;

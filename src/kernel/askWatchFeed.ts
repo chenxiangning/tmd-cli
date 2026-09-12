@@ -100,7 +100,8 @@ export class AskWatchFeed {
   }
 
   /** 用户写入 = 作答(host.writeSession);返回 true = 状态翻转,host 据此重渲染。
-      同时记录时间戳,供 restoreTail 写后闸判定(见上)。 */
+      此处 lastWriteAt 无条件记时是有意的:它只喂 restoreDiskTail 的残影闸(磁盘尾回放),
+      与 askWatchCore 的「真作答才上 8s 抑制闸」是两套语义,不随 ebb979d 改动。 */
   onUserWrite(sessionId: string): boolean {
     this.lastWriteAt.set(sessionId, Date.now());
     return this.watch.onUserWrite(sessionId);
@@ -117,8 +118,9 @@ export class AskWatchFeed {
     this.watch.onSessionRemoved(sessionId);
   }
 
-  /** 测试专用:假时钟换届时重置(与 resetStatusTimerForTest 同因)。 */
+  /** 测试专用:假时钟换届时重置(与 resetStatusTimerForTest 同因;含写后闸时刻)。 */
   resetForTest(): void {
     this.watch.resetForTest();
+    this.lastWriteAt.clear();
   }
 }

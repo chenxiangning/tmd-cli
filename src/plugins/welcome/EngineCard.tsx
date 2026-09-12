@@ -1,16 +1,19 @@
 /**
- * 单引擎卡片 —— 探针状态 + 一键安装(indeterminate 进度条 + 流式日志)。
+ * 单引擎行 —— 终端窗体首页的行主体:探针状态 + 配额块条 + 凭据状态 +
+ * 全动作簇(新会话 / 安装|更新|重装 / 重探 / 官方文档)+ 一键安装
+ * (indeterminate 进度条 + 流式日志)。
  *
  * 数据流:
  * - mount → ipc.cliProbe(binary) 探一次;安装完成后自动重探;
  * - 安装:订阅 cli-install://{engine} 事件流 → 日志追加(上限 200 行滚动);
  *   phase "done:ok" → 重探 + 收尾;"done:fail" → 红字收尾,日志保留可翻。
  * - 前置依赖(profile.requires,如 omp → bun):依赖未就位时主引擎的
- *   安装/更新按钮禁用,卡片内引导先装依赖(独立安装日志);依赖探针 ok 后恢复。
+ *   安装/更新按钮禁用,行下引导先装依赖(独立安装日志);依赖探针 ok 后恢复。
+ * - 凭据行内只显 ● auth n;点击展开行下详情(CredentialList + homePanel)。
+ * 探针动作拆至 engineProbe.ts,行内单元件拆至 EngineCardParts.tsx
+ * (only-export-components + no-high-complexity 降分支)。
  */
-import { useCallback, useRef, useState } from "react";
-import { XCircle, ArrowSquareOut, ArrowClockwise } from "@phosphor-icons/react";
-import { t } from "@kernel/i18n";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import {
   ipc,
   onCliInstallEvent,
@@ -20,9 +23,12 @@ import {
 } from "@kernel/ipc";
 import type { CliProfile } from "@kernel/cli";
 import type { EngineMeta } from "./engineMeta";
+import type { EngineCredential } from "./credentials";
 import { isOutdated } from "./latestVersion";
 import { InstallLog } from "./InstallLog";
 import { PrerequisiteGuide } from "./PrerequisiteGuide";
+import { CredentialRows } from "./CredentialList";
+import { RowActions, RowCred, RowHead, RowVersion } from "./EngineCardParts";
 
 /** 日志滚动上限(行)。npm 全量输出数千行,只留尾部。 */
 const LOG_LINE_LIMIT = 200;
@@ -41,7 +47,7 @@ export interface InstallState {
 }
 
 /** 可安装目标 —— EngineMeta 与 PrerequisiteMeta 的共有形状,安装钩子复用同一套。 */
-export interface InstallTarget {
+interface InstallTarget {
   /** binary 名;安装事件 topic 的 id 惯例 = cli-install://{binary}。 */
   binary: string;
   /** 参数化安装计划;null = 未声明安装通道(start 直接 no-op)。 */
@@ -60,6 +66,13 @@ export function EngineCard({
   depInstall,
   onDepInstall,
   onDepProbe,
+  creds,
+  expanded,
+  onToggleExpand,
+  cursor,
+  onCursor,
+  onNewSession,
+  homePanel,
 }: {
   meta: EngineMeta;
   profile: CliProfile | undefined;
@@ -75,106 +88,59 @@ export function EngineCard({
   depInstall: InstallState;
   onDepInstall: () => void;
   onDepProbe: () => void;
+  /** 页级凭据盘点结果(WelcomePage 统一拉取,行内配额/凭据列消费)。 */
+  creds: EngineCredential[] | undefined;
+  /** 行下详情区展开态(凭据列表 + homePanel)。 */
+  expanded: boolean;
+  onToggleExpand: () => void;
+  /** 键盘游标停在本行。 */
+  cursor: boolean;
+  /** 点击行主体 = 游标移到本行。 */
+  onCursor: () => void;
+  onNewSession: () => void;
+  /** 行下常驻附加内容(homePanel 插座产物,如 dsh host 引导;由 WelcomePage 组装)。 */
+  homePanel?: ReactNode;
 }) {
   const outdated = isOutdated(probe.result?.version, latest ?? null);
   /* 依赖门控:声明了依赖且未就位(探针中/未装/探针失败)→ 安装/更新不可点。 */
   const depBlocked = !!meta.requires && (!depProbe || depProbe.status !== "ok");
   const depName = meta.requires?.name ?? "";
 
+  /* 行主体点击 = 移游标:listbox/option 语义(容器为 listbox),键盘路径
+     由容器级 ↑↓/⏎ 全权承担(WelcomePage onKeyDown);行内 ● 与动作按钮
+     保持原生 button,不能整体包 <button>(嵌套交互元素非法)。 */
   return (
-    <section className="welcome-engine-card">
-      <header className="welcome-engine-head">
-        <span className="welcome-engine-icon" aria-hidden>
-          {profile?.renderIcon ? profile.renderIcon("1.375rem") : <XCircle size="1.375rem" />}
-        </span>
-        <span className="welcome-engine-name">{t(meta.displayName)}</span>
-        {meta.docsUrl && (
-          <a
-            className="welcome-engine-docs"
-            href={meta.docsUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t("官方文档")}
-            <ArrowSquareOut size="0.6875rem" aria-hidden />
-          </a>
-        )}
-        <span className="welcome-engine-status">
-          {probe.status === "loading" && (
-            <span className="welcome-pill is-loading">{t("探针中…")}</span>
-          )}
-          {probe.status === "ok" && (
-            <span className="welcome-pill">
-              {probe.result?.version ?? t("已安装")}
-            </span>
-          )}
-          {probe.status === "ok" && typeof latest === "string" && outdated && (
-            <span
-              className="welcome-pill is-outdated"
-              title={t('最新版本 {version},点"更新"升级', { version: latest })}
-            >
-              → {latest}
-            </span>
-          )}
-          {probe.status === "ok" && typeof latest === "string" && !outdated && (
-            <span className="welcome-pill is-latest" title={t("最新版本 {version}", { version: latest })}>
-              {t("已是最新")}
-            </span>
-          )}
-          {probe.status === "notFound" && (
-            <span className="welcome-pill is-missing">{t("未安装")}</span>
-          )}
-          {probe.status === "error" && (
-            <span className="welcome-pill is-error">{t("探针失败")}</span>
-          )}
-        </span>
-        <span className="welcome-engine-actions">
-          {probe.status === "notFound" && !install.running && meta.plan && (
-            <button
-              type="button"
-              className="welcome-install-btn"
-              onClick={onInstall}
-              disabled={depBlocked}
-              title={depBlocked ? t("先安装 {name}", { name: depName }) : undefined}
-            >
-              {t("安装")}
-            </button>
-          )}
-          {probe.status === "ok" && install.ok !== true && meta.plan && (
-            <button
-              type="button"
-              className={
-                outdated ? "welcome-icon-btn has-update" : "welcome-icon-btn"
-              }
-              onClick={onInstall}
-              disabled={install.running || depBlocked}
-              title={
-                depBlocked
-                  ? t("先安装 {name}", { name: depName })
-                  : outdated
-                    ? t("更新到 {version}", { version: latest })
-                    : t("重新安装/更新到最新版")
-              }
-            >
-              {t("更新")}
-            </button>
-          )}
-          <button
-            type="button"
-            className="welcome-icon-btn"
-            onClick={onProbe}
-            disabled={probe.status === "loading" || install.running}
-            aria-label={t("重新探针")}
-            title={t("重新探针")}
-          >
-            <ArrowClockwise
-              size="0.75rem"
-              aria-hidden
-              className={probe.status === "loading" ? "is-spinning" : ""}
-            />
-          </button>
-        </span>
-      </header>
+    <div className={`welcome-row${cursor ? " cur" : ""}`}>
+      <div
+        className="welcome-row-main"
+        role="option"
+        aria-selected={cursor}
+        tabIndex={-1}
+        onClick={onCursor}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onCursor();
+          }
+        }}
+      >
+        <RowHead profile={profile} displayName={meta.displayName} />
+        <RowVersion probe={probe} latest={latest} outdated={outdated} />
+        <RowCred creds={creds} expanded={expanded} onToggle={onToggleExpand} />
+        <RowActions
+          probe={probe}
+          latest={latest}
+          outdated={outdated}
+          install={install}
+          plan={meta.plan}
+          depBlocked={depBlocked}
+          depName={depName}
+          docsUrl={meta.docsUrl}
+          onProbe={onProbe}
+          onInstall={onInstall}
+          onNewSession={onNewSession}
+        />
+      </div>
 
       {/* 前置依赖引导:未就位时引导先装依赖(独立安装日志);探针 ok 后整块消失。 */}
       {meta.requires && depProbe && depProbe.status !== "ok" && (
@@ -188,13 +154,19 @@ export function EngineCard({
       )}
 
       {(install.running || install.lines.length > 0) && (
-        <InstallLog install={install} label={t("安装")} />
+        <InstallLog install={install} label={meta.displayName} />
       )}
-    </section>
+
+      {expanded && creds && creds.length > 0 && (
+        <div className="welcome-row-detail">
+          <CredentialRows creds={creds} />
+        </div>
+      )}
+      {homePanel}
+    </div>
   );
 }
-
-/* ── 状态钩子(供 WelcomePage 集中管理) ─────────────────── */
+/* ── 状态钩子(供 WelcomePage 集中管理)─────────────────── */
 
 export function useEngineInstall(
   target: InstallTarget | null,
@@ -268,14 +240,4 @@ export function useEngineInstall(
   }, [target?.binary, target?.plan, onDone]);
 
   return [state, start];
-}
-
-/** 单引擎探针动作(供 WelcomePage 调用)。 */
-export async function probeEngine(binary: string): Promise<EngineProbeState> {
-  try {
-    const result = await ipc.cliProbe(binary);
-    return { status: result.found ? "ok" : "notFound", result };
-  } catch {
-    return { status: "error", result: null };
-  }
 }

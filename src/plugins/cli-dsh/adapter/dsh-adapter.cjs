@@ -2,9 +2,11 @@
 /**
  * DSH PTY 适配器 —— 桥接 DSH host-RPC 与 tmd-cli 的 PTY 协议。
  * 拆分:dsh-print(输出门面)/ dsh-stream(底栏所有权)/ dsh-turn(轮次渲染)/
- * dsh-rpc(HTTP)/ dsh-project(mux 投影)/ dsh-commands(命令)/ dsh-menu*(交互区)。
- * 线格式照抄 codemoss engine/dsh:mux = /api/events.mux。
- * host 未运行自拉起 `dsh web --no-open`(单实例语义:已在即 adopt)。
+ * dsh-rpc(HTTP+认证)/ dsh-project(remote.mux 投影)/ dsh-commands(命令)/
+ * dsh-menu*(交互区)。
+ * 0.1.2 线格式:mux = /api/remote.mux 双流(session/follow 会话事件 + $events
+ * waterfall);RPC 走 {args} 载荷;全部请求需 BrowserAuth cookie —— 凭据链:
+ * --cookie 直用 → --token 换 → 自拉起 host 时从其 stdout 抓 token 换。
  * 退出码:0=正常, 1=启动失败, 2=参数错误。
  */
 
@@ -12,9 +14,9 @@ const { spawn } = require("child_process");
 const print = require("./dsh-print.cjs");
 const T = require("./dsh-theme.cjs");
 const render = require("./dsh-render.cjs");
-const { rpcCall, respondApproval, respondQuestion, respondQuestionCancel } = require("./dsh-rpc.cjs");
+const { rpcCall, exchangeToken, setAuthCookie, getAuthCookie, setEventsClientId, respondApproval, respondQuestion, respondQuestionCancel } = require("./dsh-rpc.cjs");
 const { projectFrame } = require("./dsh-project.cjs");
-const { handleStdin, loadHistory, printBanner } = require("./dsh-commands.cjs");
+const { handleStdin, renderHistory, printBanner } = require("./dsh-commands.cjs");
 const { createKeyReader } = require("./dsh-keys.cjs");
 const { createMenuHost } = require("./dsh-menuhost.cjs");
 const { createPendingCards } = require("./dsh-pending.cjs");
@@ -29,15 +31,20 @@ const { createThinkStripper } = require("./dsh-think.cjs");
 
 const args = parseArgs(process.argv.slice(2));
 if (!args.host || !args.port || !args["workspace-id"]) {
-  process.stderr.write("用法: dsh-adapter.cjs --host <h> --port <p> --workspace-id <id> [--workspace-path <p>] [--session-id <id>] [--dsh-bin <bin>]\n");
+  process.stderr.write("用法: dsh-adapter.cjs --host <h> --port <p> --workspace-id <id> [--workspace-path <p>] [--session-id <id>] [--dsh-bin <bin>] [--cookie <c>] [--token <t>]\n");
   process.exit(2);
 }
 const ORIGIN = `http://${args.host}:${args.port}`;
-const MUX_URL = `ws://${args.host}:${args.port}/api/events.mux`;
+const MUX_URL = `ws://${args.host}:${args.port}/api/remote.mux`;
 const HOST_READY_MS = 20_000;
 const HOST_POLL_MS = 250;
+const STREAM_EVENTS = "events";
+const STREAM_FOLLOW = "follow";
 
 let dshSessionId = null;
+/* 当前 attempt 是否已有活增量(text/reasoning-delta):有则跳过 durable
+ * assistant/message 的正文/思考投影,防双渲染(投影层注释见 dsh-project)。 */
+let attemptStreamed = false;
 let ws = null;
 let hostChild = null;
 let closing = false;
@@ -57,35 +64,43 @@ if (process.stdout.isTTY) process.stdout.on("resize", () => stream.resize());
 const think = createThinkStripper();
 
 async function main() {
+  if (args.cookie) setAuthCookie(args.cookie);
   print.status("连接 DSH host...");
-  let desc = await rpcCall(ORIGIN, "host.describe", {});
+  let desc = await probeHost();
+  if (!desc.ok && desc.status === 401 && args.token) {
+    const c = await exchangeToken(ORIGIN, args.token);
+    if (c) { setAuthCookie(c); desc = await probeHost(); }
+  }
   if (!desc.ok) {
+    if (desc.status === 401) {
+      print.error("host 已在运行但缺访问凭据(cookie/token 缺失或失效)。请在 DSH 面板「停止服务」后重开本会话。");
+      process.exit(1);
+    }
     print.status("host 未运行,自拉起 dsh web...");
     await spawnHostAndWait();
-    desc = await rpcCall(ORIGIN, "host.describe", {});
+    desc = await probeHost();
     if (!desc.ok) { print.error(`Host 不可达: ${render.errMsgSafe(desc.error)}`); process.exit(1); }
   }
-  const v = desc.value || {};
-  currentModel = (v.provider && v.model) ? `${v.provider}/${v.model}` : (v.model || "");
-  print.status(`已连接 DSH ${v.version || ""} · 模型: ${currentModel || "?"}`.trimEnd());
+  /* 默认模型/强度:modelCatalog.default(0.1.2 起 host.describe 删除)。
+   * 会话级实况由 follow 快照 projections + syncSessionProjections 校准。 */
+  const mc = await rpcCall(ORIGIN, "session/modelCatalog", {});
+  if (mc.ok) {
+    const d = mc.value?.default || {};
+    currentModel = d.provider ? `${d.provider}/${d.model}` : (d.model || "");
+    if (d.reasoningEffort) currentEffort = d.reasoningEffort;
+  }
+  print.status(`已连接 DSH · 模型: ${currentModel || "?"}`);
 
-  const wsRes = await rpcCall(ORIGIN, "workspace.create", { path: args["workspace-path"] || args["workspace-id"] });
+  const wsRes = await rpcCall(ORIGIN, "workspace/create", { request: { path: args["workspace-path"] || args["workspace-id"] } });
   if (!wsRes.ok) { print.error(`工作区注册失败: ${render.errMsgSafe(wsRes.error)}`); process.exit(1); }
   const workspaceId = wsRes.value.workspace.workspaceId;
 
-  const sessRes = await rpcCall(ORIGIN, "session.create", {
-    workspaceId, ...(args["session-id"] ? { sessionId: args["session-id"] } : {}),
+  const sessRes = await rpcCall(ORIGIN, "session/create", {
+    request: { workspaceId, ...(args["session-id"] ? { sessionId: args["session-id"] } : {}) },
   });
   if (!sessRes.ok) { print.error(`会话创建失败: ${render.errMsgSafe(sessRes.error)}`); process.exit(1); }
   dshSessionId = sessRes.value.sessionId;
   print.status(`会话已就绪: ${dshSessionId}`);
-  /* 会话级实况校准:session.models 的 current 是本会话生效值(describe 是全局默认) */
-  const sm = await rpcCall(ORIGIN, "session.models", { sessionId: dshSessionId });
-  if (sm.ok && sm.value?.current?.model) {
-    const c = sm.value.current;
-    currentModel = c.provider ? `${c.provider}/${c.model}` : c.model;
-    if (c.reasoningEffort) currentEffort = c.reasoningEffort;
-  }
   /* 模式实况 + 上下文窗口:session.list 自项 projections。 */
   turn = createTurnEngine({
     print, stream, spinner, think, render, T, pending,
@@ -150,65 +165,120 @@ async function main() {
   });
   keyReader = keys;
 
-  if (args["session-id"]) await loadHistory(commandCtx);
-  printBanner(commandCtx);
   turn.goIdle();
 }
 
-/** 读 session.list 自项投影:agentPreset + contextPressure → 底栏上下文计量。 */
+/** 就绪探针:settings/describe(0.1.2 起 host.describe 删除,零参端点最轻)。 */
+function probeHost() {
+  return rpcCall(ORIGIN, "settings/describe", {});
+}
+
+/** 读 session.list 自项投影:agentPreset/modelSelection/contextPressure → 底栏。 */
 async function syncSessionProjections() {
-  const sl = await rpcCall(ORIGIN, "session.list", {});
+  const sl = await rpcCall(ORIGIN, "session/list", { _request: {} });
   const self = (sl.ok ? sl.value?.items || [] : []).find((s) => s.sessionId === dshSessionId);
   if (!self) return;
-  if (typeof self.agentPreset === "string" && self.agentPreset) agentPreset = self.agentPreset;
-  const cp = self.projections?.values?.contextPressure;
+  const pv = self.projections?.values || {};
+  if (typeof pv.agentPreset === "string" && pv.agentPreset) agentPreset = pv.agentPreset;
+  const ms = pv.modelSelection?.next || pv.modelSelection?.lastUsed;
+  if (ms?.provider && ms?.model) currentModel = `${ms.provider}/${ms.model}`;
+  const cp = pv.contextPressure;
   if (cp && turn) turn.setContext(cp.pressureTokens || 0, cp.contextWindow || 0);
 }
 
-/** Esc 取消轮次:发 session.cancel;"⚠ 已取消"由 host 的 turn/end 帧统一打(防重)。 */
+/** Esc 取消轮次:发 session/cancel;"⚠ 已取消"由 host 的 turn/end 帧统一打(防重)。 */
 async function doCancelTurn() {
-  const r = await rpcCall(ORIGIN, "session.cancel", { sessionId: dshSessionId });
+  const r = await rpcCall(ORIGIN, "session/cancel", { request: { sessionId: dshSessionId } });
   if (!r.ok) print.error(`取消失败: ${render.errMsgSafe(r.error)}`);
 }
 
+/** 自拉起 host 并等就绪;stdout 抓一次性 launch token 换 cookie(0.1.2 门禁)。 */
 async function spawnHostAndWait() {
   const bin = args["dsh-bin"] || "dsh";
+  let tokenSeen = false;
   try {
-    hostChild = spawn(bin, ["web", "--host", args.host, "--port", String(args.port), "--no-open"], { stdio: "ignore" });
+    hostChild = spawn(bin, ["web", "--host", args.host, "--port", String(args.port), "--no-open"], { stdio: ["ignore", "pipe", "pipe"] });
+    /* stderr 管道无消费者 = dsh 子进程 verbose 日志/panic 写满 ~64KB 后阻塞假死;
+       至少 resume 排空,日志另由 launch token 那条 stdout 主链兜底。 */
+    hostChild.stderr.resume();
+    hostChild.stdout.on("data", async (chunk) => {
+      if (tokenSeen) return;
+      const m = String(chunk).match(/[?&]token=([A-Za-z0-9_-]+)/);
+      if (!m) return;
+      tokenSeen = true;
+      const c = await exchangeToken(ORIGIN, m[1]);
+      if (c) setAuthCookie(c);
+    });
     hostChild.on("error", () => {});
   } catch { /* 端口被占 = host 已在 */ }
   const deadline = Date.now() + HOST_READY_MS;
   while (Date.now() < deadline) {
-    const d = await rpcCall(ORIGIN, "host.describe", {});
+    const d = await probeHost();
     if (d.ok) return;
+    /* 401 且我方无凭据来源 = host 是外部拉起的:再怎么轮询也不会有 cookie,快速失败 */
+    if (d.status === 401 && !args.cookie && !args.token && !tokenSeen) {
+      throw new Error("host 已在运行但本适配器无凭据;请在 DSH 面板启动 host 后重开会话");
+    }
     await new Promise((r) => setTimeout(r, HOST_POLL_MS));
   }
-  throw new Error("host 拉起超时");
+  throw new Error(tokenSeen ? "host 拉起超时(token 已见,cookie 交换可能失败)" : "host 拉起超时(未见 launch token)");
 }
 
 function connectMux() {
-  ws = new WebSocket(MUX_URL);
-  ws.addEventListener("open", () => print.status("Mux 已连接"));
+  const cookie = getAuthCookie();
+  ws = new WebSocket(MUX_URL, cookie ? { headers: { cookie } } : undefined);
+  ws.addEventListener("open", () => {
+    print.status("Mux 已连接");
+    /* 双流:follow = 本会话事件(首帧快照即历史;$events = 审批/提问 waterfall。 */
+    ws.send(JSON.stringify({ type: "open", streamId: STREAM_EVENTS, endpoint: "$events", payload: { args: {} } }));
+    /* assistantStream: true = 流式 opt-in:follow 追加 assistant-stream 活帧
+     * (start/chunk{text|reasoning delta}/end),正文逐 delta 到达;
+     * durable assistant/message 仍随后沉降,applyAction 按 attempt 去重。 */
+    ws.send(JSON.stringify({
+      type: "open", streamId: STREAM_FOLLOW, endpoint: "session/follow",
+      payload: { args: { request: { address: { kind: "session", sessionId: dshSessionId }, maxMessages: 200, assistantStream: true } } },
+    }));
+  });
   ws.addEventListener("message", (ev) => {
-    let raw;
-    try { raw = JSON.parse(String(ev.data)); } catch { return; }
-    for (const a of projectFrame(raw)) applyAction(a);
+    let msg;
+    try { msg = JSON.parse(String(ev.data)); } catch { return; }
+    if (msg.type !== "item") return; /* end/error = 流终结,由 close 统一收口 */
+    const channel = msg.streamId === STREAM_EVENTS ? "events" : "follow";
+    for (const a of projectFrame(msg.value, channel, dshSessionId)) applyAction(a);
   });
   ws.addEventListener("close", () => { if (!closing) print.error("Mux 断开"); cleanup(); process.exit(0); });
   ws.addEventListener("error", () => { if (!closing) print.error("Mux 错误"); cleanup(); process.exit(1); });
 }
 
-/** 帧动作入口:非本会话丢弃;审批/提问先亮卡(卡片即等待指示器),其余内容事件收交互区。 */
+/** 帧动作入口:events-ready 登记 clientId;快照灌历史+投影;非本会话丢弃;
+ *  审批/提问先亮卡(卡片即等待指示器),其余内容事件收交互区。 */
 function applyAction(a) {
+  if (a.kind === "events-ready") {
+    if (a.clientId) setEventsClientId(a.clientId);
+    return;
+  }
   if (a.sid && a.sid !== dshSessionId) return;
+  if (a.kind === "attempt-start") { attemptStreamed = false; return; }
+  if (a.kind === "text-delta" || a.kind === "reasoning-delta") attemptStreamed = true;
+  /* attempt 已有活增量:durable assistant/message 的正文/思考不再渲染
+     (usage 字段幂等合并,tool 行 durable 侧本就独立投影,均放行)。 */
+  if (attemptStreamed && (a.kind === "text" || a.kind === "reasoning")) return;
+  if (a.kind === "snapshot") {
+    renderHistory(a.records);
+    const pv = a.projections?.values || {};
+    if (typeof pv.agentPreset === "string" && pv.agentPreset) agentPreset = pv.agentPreset;
+    const cp = pv.contextPressure;
+    if (cp && turn) turn.setContext(cp.pressureTokens || 0, cp.contextWindow || 0);
+    return;
+  }
   if (a.kind === "approval" || a.kind === "question") {
     turn.handle(a); /* 收底栏/停 spinner */
     const info = a.kind === "approval"
-      ? { kind: "approval", sessionId: a.sid, approvalId: a.approvalId, toolName: a.toolName, message: a.message }
+      ? { kind: "approval", sessionId: a.sid, toolName: a.toolName, message: a.message }
       : { kind: "question", sessionId: a.sid, questions: a.questions };
-    pending.set(a.rpcId, info);
-    if (a.kind === "approval") cardsRef.showApproval(a.rpcId, info);
-    else cardsRef.showQuestion(a.rpcId, info);
+    pending.set(a.eventId, info);
+    if (a.kind === "approval") cardsRef.showApproval(a.eventId, info);
+    else cardsRef.showQuestion(a.eventId, info);
     return;
   }
   if (menuOpen && menuHostRef) menuHostRef.closeFor("会话输出到达");

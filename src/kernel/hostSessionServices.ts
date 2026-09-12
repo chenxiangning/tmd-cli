@@ -9,12 +9,13 @@ import type { EventBus } from "./events";
 import { SessionSpawnService } from "./sessionSpawn";
 import { ShellSessionService } from "./shellSessions";
 import { SshSessionService } from "./sshSessions";
+import { readoptSessions } from "./sessionAdopt";
 import type { HostWatches } from "./hostWatches";
 import type { CliProfile } from "./cli";
 import type { SessionMeta } from "./ipc";
 
 /** 三张服务 ctx 的并集,由 Host 以惰性箭头注入(同各服务文件头纪律)。 */
-export interface HostSessionServicesCtx {
+interface HostSessionServicesCtx {
   /** 从 Rust 注册表刷新活会话表。 */
   refreshSessions(): Promise<void>;
   getSessions(): SessionMeta[];
@@ -32,10 +33,12 @@ export interface HostSessionServicesCtx {
   notify(): void;
 }
 
-export interface HostSessionServices {
+interface HostSessionServices {
   ssh: SshSessionService;
   shell: ShellSessionService;
   spawn: SessionSpawnService;
+  /** webview 重载后活 PTY 重新接管(会话表合并 + 常驻订阅重建)。 */
+  readopt: () => Promise<void>;
 }
 
 export function createSessionServices(
@@ -53,10 +56,19 @@ export function createSessionServices(
     trackUnlisten: (sessionId: string, offs: Array<() => void>) =>
       ctx.trackUnlisten(sessionId, offs),
     getSessions: () => ctx.getSessions(),
+    setActiveSession: (id: string) => ctx.setActiveSession(id),
     notify: () => ctx.notify(),
   };
   return {
-    ssh: new SshSessionService(base, events),
+    ssh: new SshSessionService(
+      {
+        ...base,
+        getCliSessionId: (sessionId) => watches.getCliSessionId(sessionId),
+        bindIdentity: (sessionId, cliSessionId) =>
+          watches.bindIdentity(sessionId, cliSessionId),
+      },
+      events,
+    ),
     shell: new ShellSessionService(base, events),
     spawn: new SessionSpawnService(
       {
@@ -64,8 +76,8 @@ export function createSessionServices(
         getSessions: base.getSessions,
         setSessions: (sessions) => ctx.setSessions(sessions),
         findSession: base.findSession,
-        setActiveSessionId: (id) => ctx.setActiveSessionId(id),
-        setActiveSession: (id) => ctx.setActiveSession(id),
+        setActiveSessionId: (id: string) => ctx.setActiveSessionId(id),
+        setActiveSession: (id: string) => ctx.setActiveSession(id),
         bindIdentity: (sessionId, cliSessionId) =>
           watches.bindIdentity(sessionId, cliSessionId),
         getCliSessionId: (sessionId) => watches.getCliSessionId(sessionId),
@@ -83,5 +95,19 @@ export function createSessionServices(
       },
       events,
     ),
+    /* webview 重载后活 PTY 重新接管(语义见 kernel/sessionAdopt.ts readoptSessions)。
+       接管后给活 CLI 会话的屏幕镜像补磁盘日志尾:重载前已挂起的 Ask 面板无须等
+       下一次整帧重绘即可见(补盲语义见 askScreenMirror.ts)。 */
+    readopt: async () => {
+      await readoptSessions(
+        { ...base, setSessions: (sessions) => ctx.setSessions(sessions) },
+        events,
+      );
+      const mirrorJobs: Promise<void>[] = [];
+      for (const s of ctx.getSessions()) {
+        if ((s.kind ?? "cli") === "cli") mirrorJobs.push(watches.screenMirror.backfillFromDisk(s.id));
+      }
+      await Promise.all(mirrorJobs);
+    },
   };
 }

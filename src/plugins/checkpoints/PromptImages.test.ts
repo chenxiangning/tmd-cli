@@ -4,7 +4,7 @@
  * 裸路径(无 @ 前缀)一律保留在原文;图片列表按出现顺序去重。
  */
 import { describe, expect, it } from "vitest";
-import { extractPromptImages } from "./PromptImages";
+import { extractPromptImages } from "./promptImagesExtract";
 
 describe("extractPromptImages", () => {
   it("图片 token 剥离为附件,净文本保留指令", () => {

@@ -19,7 +19,8 @@ import { CornersOut } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { hashStableString } from "./markdownDocument";
 import { highlightLine } from "./syntax";
-import { FullscreenViewer, resolveMermaidViewerSrc } from "./FullscreenViewer";
+import { FullscreenViewer } from "./FullscreenViewer";
+import { resolveMermaidViewerSrc } from "./viewerSrcModel";
 import { preloadViewerjs } from "./viewerRuntime";
 import {
   detectMermaidTheme,
@@ -47,7 +48,8 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
     () => readCachedMermaidTabs(documentKey)[blockKey] ?? "source",
   );
   const mermaidTheme = detectMermaidTheme();
-  const renderCacheKey = `${documentKey}:${blockKey}:${mermaidTheme}:${hashStableString(value)}`;
+  const contentKey = `${documentKey}:${blockKey}:${hashStableString(value)}`;
+  const renderCacheKey = `${contentKey}:${mermaidTheme}`;
   const { renderState, lastSuccessfulSvgRef } = useMermaidRenderState({
     activeTab,
     mermaidTheme,
@@ -64,10 +66,14 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
       ? renderState.svg
       : cachedSvgForActiveRender ?? lastSuccessfulSvgRef.current;
 
-  useEffect(() => {
+  /* 换文档/换块/内容变化:渲染期 prev-key 对比直接复位 tab 与占位高度
+     (原 effect 复位会在两次提交间闪一帧旧 tab;key 覆盖三要素且与缓存键同源)。 */
+  const [prevIdentityKey, setPrevIdentityKey] = useState(contentKey);
+  if (prevIdentityKey !== contentKey) {
+    setPrevIdentityKey(contentKey);
     setActiveTab(readCachedMermaidTabs(documentKey)[blockKey] ?? "source");
     setStableBodyMinHeight(0);
-  }, [blockKey, documentKey, value]);
+  }
 
   const handleActiveTabChange = useCallback((nextActiveTab: MermaidBlockTab) => {
     writeCachedMermaidTab(documentKey, blockKey, nextActiveTab);
@@ -126,44 +132,12 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
 
   return (
     <div className="fvp-file-markdown-codeblock fvp-file-markdown-mermaid">
-      <div className="fvp-file-markdown-codeblock-label">
-        <span>Mermaid</span>
-        <div
-          className="fvp-file-markdown-mermaid-tabs"
-          role="tablist"
-          aria-label={t("Mermaid 预览方式")}
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "source"}
-            className={`fvp-file-markdown-mermaid-tab${activeTab === "source" ? " is-active" : ""}`}
-            onClick={() => handleActiveTabChange("source")}
-          >
-            {t("源码")}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "render"}
-            className={`fvp-file-markdown-mermaid-tab${activeTab === "render" ? " is-active" : ""}`}
-            onClick={() => handleActiveTabChange("render")}
-          >
-            {t("渲染")}
-          </button>
-          <button
-            type="button"
-            className="fvp-file-markdown-mermaid-fullscreen"
-            onClick={() => setIsFullscreenOpen(true)}
-            disabled={activeTab !== "render" || !visibleSvg}
-            aria-label={t("全屏查看")}
-            title={t("全屏查看")}
-          >
-            <CornersOut size="0.875rem" aria-hidden />
-          </button>
-        </div>
-      </div>
-
+      <MermaidTabBar
+        activeTab={activeTab}
+        canFullscreen={activeTab === "render" && !!visibleSvg}
+        onTab={handleActiveTabChange}
+        onFullscreen={() => setIsFullscreenOpen(true)}
+      />
       <div
         ref={bodyRef}
         className="fvp-file-markdown-mermaid-body"
@@ -202,3 +176,52 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
     </div>
   );
 });
+
+/** Mermaid 块头:标签 + 源码/渲染 tab + 全屏钮(自主体拆出降分支)。 */
+function MermaidTabBar({
+  activeTab,
+  canFullscreen,
+  onTab,
+  onFullscreen,
+}: {
+  activeTab: MermaidBlockTab;
+  canFullscreen: boolean;
+  onTab: (tab: MermaidBlockTab) => void;
+  onFullscreen: () => void;
+}) {
+  return (
+    <div className="fvp-file-markdown-codeblock-label">
+      <span>Mermaid</span>
+      <div className="fvp-file-markdown-mermaid-tabs" role="tablist" aria-label={t("Mermaid 预览方式")}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "source"}
+          className={`fvp-file-markdown-mermaid-tab${activeTab === "source" ? " is-active" : ""}`}
+          onClick={() => onTab("source")}
+        >
+          {t("源码")}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "render"}
+          className={`fvp-file-markdown-mermaid-tab${activeTab === "render" ? " is-active" : ""}`}
+          onClick={() => onTab("render")}
+        >
+          {t("渲染")}
+        </button>
+        <button
+          type="button"
+          className="fvp-file-markdown-mermaid-fullscreen"
+          onClick={onFullscreen}
+          disabled={!canFullscreen}
+          aria-label={t("全屏查看")}
+          title={t("全屏查看")}
+        >
+          <CornersOut size="0.875rem" aria-hidden />
+        </button>
+      </div>
+    </div>
+  );
+}

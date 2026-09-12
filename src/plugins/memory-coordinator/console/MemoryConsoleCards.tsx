@@ -15,7 +15,7 @@ import { listModels, resolveDistillEngine } from "../modelCatalog";
 import { rememberFacts, distillSessionTail } from "../phase2/write";
 
 /** 控制台共用输入框样式(与主文件同源,勿分叉)。 */
-export const consoleInputCls =
+const consoleInputCls =
   "h-7 flex-1 min-w-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 font-mono text-[0.6875rem] text-(--tmd-fg) outline-none focus:border-(--tmd-accent)";
 /** 控制台共用卡片容器样式。 */
 export const consoleCardCls =
@@ -33,6 +33,7 @@ export function ReadSettingsCard() {
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
         <span className="w-20 flex-none text-[0.6875rem] text-(--tmd-fg-muted)">{t("胶囊注入")}</span>
         <select
+          aria-label={t("胶囊注入")}
           className={consoleInputCls}
           value={settings.memoryCapsuleMode}
           onChange={(e) => updateSettings({ memoryCapsuleMode: e.target.value as never })}
@@ -70,10 +71,18 @@ export function WriteCard({
     .getSessions()
     .filter((s2) => s2.profileId === "omp")
     .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+  /* 默认选中最近一条 omp 会话:渲染期派生(替代 setState-on-mount effect),
+     用户手选后以手选为准。 */
+  const effectiveTarget = distillTarget ?? ompSessions[0]?.id ?? null;
 
-  useEffect(() => {
-    if (!distillTarget && ompSessions.length > 0) setDistillTarget(ompSessions[0].id);
-  }, [ompSessions.length]);
+  const writeManual = async () => {
+    const out = await rememberFacts([{ category: "CONSTRAINTS", content: newContent.trim() }], root, {
+      model: settings.memoryDistillModel || undefined,
+    });
+    setNewContent("");
+    setDistillState(out.ok ? t("已写入") : t("失败: {detail}", { detail: out.detail }));
+    onWritten();
+  };
 
   if (!visible) return null;
 
@@ -90,17 +99,7 @@ export function WriteCard({
           value={newContent}
           onChange={(e) => setNewContent(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && newContent.trim()) {
-              void rememberFacts([{ category: "CONSTRAINTS", content: newContent.trim() }], root, {
-                  model: settings.memoryDistillModel || undefined,
-                }).then(
-                (out) => {
-                  setNewContent("");
-                  setDistillState(out.ok ? t("已写入") : t("失败: {detail}", { detail: out.detail }));
-                  onWritten();
-                },
-              );
-            }
+            if (e.key === "Enter" && newContent.trim()) void writeManual();
           }}
         />
       </div>
@@ -110,7 +109,7 @@ export function WriteCard({
       <div className="mt-2 flex flex-none items-center gap-2 overflow-x-auto">
         <select
           className="h-7 min-w-0 max-w-[220px] flex-1 cursor-pointer rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 text-[0.6875rem] text-(--tmd-fg) outline-none focus:border-(--tmd-accent)"
-          value={distillTarget ?? ""}
+          value={effectiveTarget ?? ""}
           onChange={(e) => setDistillTarget(e.target.value || null)}
           title={t("选择要沉淀的 omp 会话(取其最近 10 条用户消息提炼入库)")}
         >
@@ -124,9 +123,9 @@ export function WriteCard({
         </select>
         <button
           className="flex-none rounded-md border border-(--tmd-border) px-2.5 py-1 text-[0.6875rem] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg) disabled:opacity-45"
-          disabled={!distillTarget || distillRunning}
+          disabled={!effectiveTarget || distillRunning}
           onClick={() => {
-            const target = ompSessions.find((s) => s.id === distillTarget);
+            const target = ompSessions.find((s) => s.id === effectiveTarget);
             if (!target) return;
             setDistillRunning(true);
             setDistillState(t("提炼中…(omp 模型逐条写入)"));
@@ -200,6 +199,7 @@ export function DistillSettingsCard() {
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
         <span className="w-20 flex-none text-[0.6875rem] text-(--tmd-fg-muted)">{t("自动沉淀")}</span>
         <button
+          aria-label={t("自动沉淀")}
           className={`relative h-5 w-[30px] flex-none rounded-full border ${
             settings.memoryAutoDistill
               ? "border-(--tmd-accent) bg-(--tmd-accent-soft)"
@@ -221,6 +221,7 @@ export function DistillSettingsCard() {
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <span className="w-20 flex-none text-[0.6875rem] text-(--tmd-fg-muted)" title={t("由哪个引擎的会话代为执行写入(三家插件都注册 ctx_memory,写的是同一个记忆库)")}>{t("代写引擎")}</span>
           <select
+            aria-label={t("代写引擎")}
             className={`${consoleInputCls} cursor-pointer`}
             value={resolveDistillEngine(settings.memoryDistillEngine)}
             onChange={(e) => updateSettings({ memoryDistillEngine: e.target.value })}

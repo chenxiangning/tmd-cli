@@ -40,7 +40,8 @@ function emptyQuotaSnapshot(profileId: string): QuotaSnapshot {
   };
 }
 
-/** 当前激活 session 的 CLI quota。 */
+/** 当前激活 session 的 CLI quota。供应商额度是账号级(HTTP 按模型查询),
+ *  远程引擎会话同样回填(凭据取本机登录态,同一供应商账号即代表)。 */
 function useActiveQuota(): {
   snapshot: QuotaSnapshot | null;
   loading: boolean;
@@ -51,7 +52,7 @@ function useActiveQuota(): {
   useHost();
   const sessionId = host.getActiveSessionId();
   const session = sessionId ? host.getSessions().find((s) => s.id === sessionId) : null;
-  const profileId = session?.profileId;
+  const profileId = session?.engine ?? session?.profileId;
   const model = sessionId ? (host.getSessionStatus(sessionId)?.model ?? null) : null;
   const cliSessionId = sessionId ? host.getCliSessionId(sessionId) : undefined;
 
@@ -108,7 +109,7 @@ function useActiveQuota(): {
         setFetchedAt(Date.now());
         setLoading(false);
       });
-  }, [profileId, model, session?.workspaceId, tick]);
+  }, [profileId, model, session?.workspaceId, session?.cwd, cliSessionId, tick]);
 
   return { snapshot: entry?.snapshot ?? null, loading, fetchedAt, refresh };
 }
@@ -143,11 +144,13 @@ function QuotaDetailPopover({
 
   return createPortal(
     <>
-      <div className="panel-overflow-backdrop" onClick={onClose} />
-      <div
-        className="quota-popover"
+      <div className="panel-overflow-backdrop" role="presentation" onClick={onClose} />
+      <dialog
+        open
+        /* 自制弹层换原生 dialog(非模态 open,不调 showModal);m-0 中和 UA 居中边距。
+           padding/背景/边框由 .quota-popover 自管,类选择器压过 UA 元素默认样式。 */
+        className="quota-popover m-0"
         style={{ left: position.x, bottom: position.bottom }}
-        role="dialog"
         aria-label={t(snapshot.title)}
       >
         <div className="quota-popover-header">
@@ -199,7 +202,7 @@ function QuotaDetailPopover({
             {t("刷新")}
           </button>
         </div>
-      </div>
+      </dialog>
     </>,
     document.body,
   );
@@ -209,7 +212,8 @@ export function QuotaChip() {
   const { snapshot, loading, fetchedAt, refresh } = useActiveQuota();
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ x: number; bottom: number } | null>(null);
-  const chipRef = useRef<HTMLSpanElement>(null);
+  const chipRef = useRef<HTMLButtonElement>(null);
+
 
   if (!snapshot) return null;
 
@@ -225,24 +229,17 @@ export function QuotaChip() {
 
   return (
     <>
-      <span
+      <button
+        type="button"
         ref={chipRef}
         className={`quota-chip${snapshot.error ? " is-error" : ""}`}
         title={t("点击查看额度详情")}
-        role="button"
-        tabIndex={0}
         aria-label={t("{title},点击查看详情", { title: snapshot.title })}
         aria-expanded={open}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           toggle();
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            toggle();
-          }
         }}
       >
         {t("额度")}
@@ -266,7 +263,7 @@ export function QuotaChip() {
             ) : null}
           </>
         )}
-      </span>
+      </button>
       {open && position ? (
         <QuotaDetailPopover
           snapshot={snapshot}

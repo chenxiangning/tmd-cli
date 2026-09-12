@@ -71,7 +71,7 @@ function unquote(raw: string): string {
   return /^".*"$/.test(v) || /^'.*'$/.test(v) ? v.slice(1, -1) : v;
 }
 
-function getToml(lines: string[], key: string): string {
+export function getToml(lines: string[], key: string): string {
   for (let i = 0; i < topLevelEnd(lines); i++) {
     const m = lines[i].match(new RegExp(`^${key}\\s*=\\s*(.*)$`));
     if (m) return unquote(m[1]);
@@ -79,7 +79,7 @@ function getToml(lines: string[], key: string): string {
   return "";
 }
 
-function setToml(lines: string[], key: string, value: string | boolean | null): string[] {
+export function setToml(lines: string[], key: string, value: string | boolean | null): string[] {
   const out = [...lines];
   const end = topLevelEnd(out);
   if (value === null) {

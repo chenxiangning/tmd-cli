@@ -231,6 +231,10 @@ export function sanitize(raw: unknown): AppSettings {
     turnEndSoundId: ASK_SOUND_IDS.includes(obj.turnEndSoundId as AskSoundId)
       ? (obj.turnEndSoundId as AskSoundId)
       : DEFAULT_SETTINGS.turnEndSoundId,
+    promptHistoryEnabled:
+      typeof obj.promptHistoryEnabled === "boolean"
+        ? obj.promptHistoryEnabled
+        : DEFAULT_SETTINGS.promptHistoryEnabled,
     backgroundNotify:
       typeof obj.backgroundNotify === "boolean"
         ? obj.backgroundNotify
@@ -249,6 +253,10 @@ export function sanitize(raw: unknown): AppSettings {
       typeof obj.workspaceArchiveView === "boolean"
         ? obj.workspaceArchiveView
         : DEFAULT_SETTINGS.workspaceArchiveView,
+    workspaceOriginFilter:
+      typeof obj.workspaceOriginFilter === "string" && obj.workspaceOriginFilter.length <= 32
+        ? obj.workspaceOriginFilter
+        : "",
     workspaceCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceCollapsedMap),
     workspaceGroups: sanitizeWorkspaceGroups(obj.workspaceGroups),
     workspaceGroupCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceGroupCollapsedMap),
@@ -268,6 +276,22 @@ export function sanitize(raw: unknown): AppSettings {
       typeof obj.memoryDistillEngine === "string" ? obj.memoryDistillEngine.slice(0, 40) : "",
     memoryDistillRules: typeof obj.memoryDistillRules === "string" ? obj.memoryDistillRules.slice(0, 500) : "",
     ssh: sanitizeSshSettings(obj.ssh),
+    wsl: {
+      defaultDistro:
+        typeof obj.wsl === "object" &&
+        obj.wsl !== null &&
+        "defaultDistro" in obj.wsl &&
+        typeof obj.wsl.defaultDistro === "string"
+          ? obj.wsl.defaultDistro.slice(0, 100)
+          : "",
+      remoteHostId:
+        typeof obj.wsl === "object" &&
+        obj.wsl !== null &&
+        "remoteHostId" in obj.wsl &&
+        typeof obj.wsl.remoteHostId === "string"
+          ? obj.wsl.remoteHostId.slice(0, 100)
+          : "",
+    },
     git: sanitizeGitPanel(obj.git),
   };
 }

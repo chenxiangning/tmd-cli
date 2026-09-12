@@ -25,11 +25,11 @@ export type PiAuthEntry = {
 };
 
 /** models-store.json 实证只有 models 列表(baseUrl 只存在于 models.json)。 */
-export type PiStoreProvider = {
+type PiStoreProvider = {
   models?: Array<{ id?: string }>;
 };
 
-export type PiModelsJsonProvider = {
+type PiModelsJsonProvider = {
   baseUrl?: string;
   apiKey?: string;
   models?: Array<{ id?: string }>;

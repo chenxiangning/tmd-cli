@@ -59,7 +59,7 @@ export function makeOverlay<E>(settingsKey: OverlaySettingsKey, tsField: keyof E
 }
 
 /** 就地修改 next:超上限时逐出 current 里(排除 newKey)tsOf 最旧的条目。 */
-export function evictOldest<T>(
+function evictOldest<T>(
   next: Record<string, T>,
   current: Record<string, T>,
   newKey: string,

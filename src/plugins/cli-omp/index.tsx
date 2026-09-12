@@ -2,6 +2,7 @@ import { Package } from "@phosphor-icons/react";
 import { piFamilySessions } from "../cli-shared/piFamily";
 import { readOmpDefaultStatus } from "./configStatus";
 import { ompConfigEntry } from "./configGui";
+import { OmpProviderAuthPanel } from "./OmpProviderAuthPanel";
 import { fetchOmpQuota } from "./quota";
 import { ompSessionsDir, readOmpSessionEdits } from "./edits";
 import { listOmpSuggestions } from "./rpcCommands";
@@ -47,7 +48,25 @@ function OmpGlyph({ size }: { size: number | string }) {
  * omp 磁盘会话四件套(扫描/状态/身份自证/用户消息)走 pi 族共享适配器;
  * 目录 slug 规则在 ./edits.ts(与 pi 分叉),写入事件同在 ./edits.ts。
  */
-const ompSessions = piFamilySessions({ sessionsDir: ompSessionsDir });
+const ompSessions = piFamilySessions({
+  sessionsDir: ompSessionsDir,
+  /* 远程形态(WSL 发行版):slug 依赖远程 $HOME(ompSessionSlug 的 home 内分支),
+     在 shell 里自算 —— cwd 恒为 posix,Windows 盘符分支不适用。工作区 root 落库
+     是 ~ 形态(AddWslTab 惯例,wsl.exe --cd 会展开),先归一成绝对路径再分支,
+     否则恒掉进 home 外分支找不到会话目录(远程历史/状态回填全空)。 */
+  remoteSessionsDirSh: (cwd) => {
+    const shq = (v: string) => `'${v.replace(/'/g, `'\\''`)}'`;
+    return [
+      "h=$HOME",
+      `c=${shq(cwd.replace(/\\/g, "/"))}`,
+      'case "$c" in "~"|"~"/*) c="$h${c#"~"}" ;; esac',
+      'case "$c" in "$h") d="$h/.omp/agent/sessions" ;;',
+      '"$h"/*) d="$h/.omp/agent/sessions/$(printf "%s" "${c#"$h"}" | tr / -)" ;;',
+      '*) d="$h/.omp/agent/sessions/-$(printf "%s" "$c" | tr / -)-" ;;',
+      "esac",
+    ].join("\n");
+  },
+});
 
 /**
  * omp 命令/技能候选(action 初判见 openspec/changes/composer-command-drawer)。
@@ -76,7 +95,7 @@ export const cliOmpPlugin: Plugin = {
   meta: { name: "OMP", abbr: "OM", desc: "OMP CLI 引擎:会话扫描、配额、状态", icon: OmpGlyph, category: "engine" },
   activate(ctx) {
     /* 图形化配置面:贡献经 ctx 登记,渲染归 cli-config 插件。 */
-    ctx.registerCliConfig({ ...ompConfigEntry, icon: (size) => <OmpGlyph size={size} /> });
+    ctx.registerCliConfig({ ...ompConfigEntry, icon: (size) => <OmpGlyph size={size} />, providerPanel: () => <OmpProviderAuthPanel /> });
     /* 二级扩展市场:插排角标滑出面板(装卸 omp 自己的 npm 扩展)。 */
     ctx.registerMarketPanel({
       pluginId: "cli-omp",

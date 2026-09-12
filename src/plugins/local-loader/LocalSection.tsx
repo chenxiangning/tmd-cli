@@ -14,6 +14,9 @@ import {
   useLocalPluginRecords,
   type LocalPluginRecord,
 } from "@kernel/localPlugins";
+import { PERMISSION_LABELS } from "@kernel/pluginPermissions";
+import type { PluginPermission } from "@kernel/plugin";
+import { getQuarantineReason, useQuarantinedPlugins } from "@kernel/pluginQuarantine";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 
 function hash8(hash: string | null): string {
@@ -27,6 +30,10 @@ function fmtTime(ms: number): string {
 }
 
 function StatusBadge({ rec }: { rec: LocalPluginRecord }) {
+  const quarantined = useQuarantinedPlugins().has(rec.id);
+  const reason = getQuarantineReason(rec.id);
+  if (quarantined)
+    return <span className="lp-badge lp-badge-err">{t("已熔断")}{reason ? `:${reason}` : ""}</span>;
   if (rec.error)
     return <span className="lp-badge lp-badge-err">{t("加载失败")}:{rec.error}</span>;
   if (rec.activateError)
@@ -37,7 +44,7 @@ function StatusBadge({ rec }: { rec: LocalPluginRecord }) {
     return <span className="lp-badge lp-badge-on">{t("运行中")}</span>;
   /* 内容已变:已信任 → 重启生效;未信任 → 待启用(要点一次确认) */
   if (rec.activatedHash && rec.activatedHash !== rec.contentHash)
-    return isContentTrusted(rec.id, rec.contentHash) ? (
+    return isContentTrusted(rec.id, rec.contentHash, rec.manifestHash) ? (
       <span className="lp-badge lp-badge-warn">{t("已更新 · 重启生效")}</span>
     ) : (
       <span className="lp-badge lp-badge-warn">{t("已更新 · 待启用")}</span>
@@ -56,12 +63,13 @@ function Row({
 }) {
   const [showVersions, setShowVersions] = useState(false);
   const version = String(rec.manifest?.version ?? "0.0.0");
-  const permissions = Array.isArray(rec.manifest?.permissions)
-    ? (rec.manifest?.permissions as string[]).join(" / ")
-    : "";
+  const permissions = rec.permissions ?? [];
+  const permText = permissions
+    .map((p) => PERMISSION_LABELS[p as PluginPermission] ?? p)
+    .join(" / ");
   /* 确认按钮只在「有新内容且未信任且未移除」时出现;已信任的新内容属重启生效,无需按钮 */
   const needsConfirm =
-    !rec.error && !rec.removed && !!rec.contentHash && !isContentTrusted(rec.id, rec.contentHash)
+    !rec.error && !rec.removed && !!rec.contentHash && !isContentTrusted(rec.id, rec.contentHash, rec.manifestHash)
       ? rec.activatedHash !== rec.contentHash || !rec.activatedHash
       : false;
   /* 按内容 hash 去重,保留首次归档(版本号段最可信);老版回退不对齐 manifest 时期产生的
@@ -82,7 +90,7 @@ function Row({
       return;
     onBusy(
       (async () => {
-        await ipc.pluginDelete(rec.id).catch(() => {});
+        await ipc.pluginDelete(rec.id);
         await rescanLocalPlugins();
       })(),
     );
@@ -98,7 +106,7 @@ function Row({
           </span>
         </span>
         <StatusBadge rec={rec} />
-        {permissions && <span className="lp-perms">{t("权限")}: {permissions}</span>}
+        {permissions.length > 0 && <span className="lp-perms">{t("权限")}: {permText}</span>}
       </div>
       <div className="lp-actions">
         {needsConfirm && !rec.removed && (
@@ -154,18 +162,24 @@ export function LocalPluginsSection() {
   const { settings } = useSettingsState();
   const [busy, setBusy] = useState<Promise<void> | null>(null);
   const [copied, setCopied] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  /* 动作失败统一落一行错误文案(回退/删除/剪贴板),不再静默吞 */
   const wrap = (p: Promise<void>) => {
     setBusy(p);
-    void p.finally(() => setBusy(null));
+    setActionError(null);
+    p.catch((e) => setActionError(e instanceof Error ? e.message : String(e))).finally(() =>
+      setBusy(null),
+    );
   };
 
   const copyPrompt = () => {
-    void import("./devPrompt").then(({ DEV_PROMPT }) =>
-      navigator.clipboard.writeText(DEV_PROMPT).then(() => {
+    void import("./devPrompt")
+      .then(({ DEV_PROMPT }) => navigator.clipboard.writeText(DEV_PROMPT))
+      .then(() => {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 2000);
-      }),
-    );
+      })
+      .catch(() => setActionError(t("剪贴板写入失败")));
   };
 
   const toggleAll = () =>
@@ -198,6 +212,11 @@ export function LocalPluginsSection() {
           </button>
         </div>
       </div>
+      {actionError && (
+        <div className="lp-action-err">
+          {t("操作失败")}: {actionError}
+        </div>
+      )}
       {settings.localPluginsDisabled ? (
         <div className="lp-empty">{t("本地插件已全部禁用 —— 插件文件与版本库原样保留")}</div>
       ) : records.length === 0 ? (

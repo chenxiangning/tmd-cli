@@ -1,18 +1,11 @@
-// 插件市场插排视图(分类常量 + 插座单元 + 合并大插排),自 PluginMarketPage.tsx 按「纯结构拆分、行为不变」拆出
+// 插件市场插排视图(插座单元 + 合并大插排),自 PluginMarketPage.tsx 按「纯结构拆分、行为不变」拆出
 import type { ComponentType } from "react";
 import { Lock } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { getMarketPanel } from "@kernel/marketPanel";
 import type { Plugin, PluginCategory } from "@kernel/plugin";
+import { CATEGORY_LABEL } from "./pluginMarketCategories";
 
-/** 分类展示顺序与中文名(插排分排 + 清单分节共用)。 */
-export const CATEGORY_LABEL: Record<PluginCategory, string> = {
-  engine: "CLI 引擎",
-  feature: "界面功能",
-  core: "核心系统",
-  local: "本机插件",
-};
-export const CATEGORY_ORDER: readonly PluginCategory[] = ["engine", "feature", "core", "local"];
 /** 插排品牌区文案;缺省 = tmd-cli 主插排。 */
 export interface StripBrand {
   name: string;
@@ -26,6 +19,7 @@ export function MergedStrip({
   onToggle,
   onOpenMarket,
   brand,
+  count,
 }: {
   groups: { category: PluginCategory; rows: Row[] }[];
   onToggle: (id: string) => void;
@@ -33,6 +27,8 @@ export function MergedStrip({
   onOpenMarket?: (id: string) => void;
   /** 本机插件等次级插排传入独立品牌区。 */
   brand?: StripBrand;
+  /** 分类计数覆盖:本机插排数「已装本地插件」,不数插排上的管理器插头自身。 */
+  count?: number;
 }) {
   const b = brand ?? { name: "tmd-cli", role: t("客户端 · 插排本体"), master: t("总电源常开") };
   return (
@@ -49,7 +45,7 @@ export function MergedStrip({
         {groups.map((g) => (
           <div className="pm-cat-group" key={g.category}>
             <div className="pm-cat-label">
-              {t("{label} · {n} 位", { label: t(CATEGORY_LABEL[g.category]), n: g.rows.length })}
+              {t("{label} · {n} 位", { label: t(CATEGORY_LABEL[g.category]), n: count ?? g.rows.length })}
             </div>
             <div className="pm-cat-outlets">
               {g.rows.map(({ plugin, on, dirty }) => (
@@ -77,8 +73,6 @@ export function MergedStrip({
 
 export interface Row {
   plugin: Plugin;
-  /** 启动态(本次激活与否)。 */
-  bootOn: boolean;
   /** 期望态(disabledPlugins 反相)。 */
   on: boolean;
   dirty: boolean;
@@ -122,24 +116,42 @@ function Outlet({
       : t("点击插入 {id}", { id });
   return (
     <div className={cls}>
-      <button type="button" className="pm-plug" title={tip} aria-pressed={on && !core} onClick={() => onToggle(id)}>
+      {/* 插头本体 = 纯定位容器(原 button 的全部样式都在 .pm-plug 类上,div 外观一致);
+          交互由本体内部整面透明热区按钮承担,市场角标(可聚焦控件)与热区并列,
+          不嵌套在交互元素内(嵌套会让后代丢失自身语义与焦点行为)。 */}
+      <div className="pm-plug">
         <svg className="pm-cord" viewBox="0 0 60 46" aria-hidden>
           <path d={`M30 46 C 30 20, ${on ? 18 : 44} 26, 30 -6`} />
         </svg>
         <div className="pm-plug-body">
-          {core ? (
-            <span className="pm-plug-weld" title={t("核心插件")}>
-              <Lock size="0.625rem" aria-hidden />
-            </span>
-          ) : null}
+          <button
+            type="button"
+            title={tip}
+            aria-pressed={on && !core}
+            onClick={() => onToggle(id)}
+            style={{
+              position: "absolute",
+              inset: 0,
+              padding: 0,
+              border: "none",
+              background: "none",
+              borderRadius: "inherit",
+              cursor: "inherit",
+            }}
+          >
+            {core ? (
+              <span className="pm-plug-weld" title={t("核心插件")}>
+                <Lock size="0.625rem" aria-hidden />
+              </span>
+            ) : null}
+          </button>
           {(() => {
             const market = onOpenMarket ? getMarketPanel(id) : undefined;
             if (!market) return null;
             const open = () => onOpenMarket?.(id);
             return (
-              <span
-                role="button"
-                tabIndex={0}
+              <button
+                type="button"
                 className="pm-plug-market"
                 title={t(market.title)}
                 aria-label={t(market.title)}
@@ -147,18 +159,13 @@ function Outlet({
                   e.stopPropagation();
                   open();
                 }}
-                onKeyDown={(e) => {
-                  if (e.key !== "Enter" && e.key !== " ") return;
-                  e.stopPropagation();
-                  e.preventDefault();
-                  open();
-                }}
               >
                 <market.icon size="0.5625rem" />
-              </span>
+              </button>
             );
           })()}
-          <span className="pm-plug-led" aria-hidden />
+          {/* 纯装饰灯:放行点击穿透到热区(与嵌在 button 内的原行为一致)。 */}
+          <span className="pm-plug-led" style={{ pointerEvents: "none" }} aria-hidden />
           <span className="pm-plug-icon" style={iconColor ? { color: iconColor } : undefined}>
             {Icon ? <Icon size="0.875rem" /> : abbr}
           </span>
@@ -168,7 +175,7 @@ function Outlet({
           <span className="pm-prong" />
           <span className="pm-prong" />
         </div>
-      </button>
+      </div>
       <div className="pm-socket" aria-hidden>
         <span className="pm-socket-hole" />
         <span className="pm-socket-hole" />

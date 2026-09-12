@@ -25,6 +25,55 @@
   z-index: 21;
 }
 
+/* 平铺广播开关(composer.inputRail 贡献,仅平铺态渲染):与唤醒图标同形,
+   未开 = 灰描边;开 = accent 实心(发送路径改广播,再点回单发) */
+.composer-broadcast-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--tmd-border);
+  border-radius: 6px;
+  background: var(--tmd-bg-elevated);
+  color: var(--tmd-fg-faint);
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.composer-broadcast-btn:hover {
+  color: var(--tmd-accent);
+  border-color: var(--tmd-accent);
+}
+.composer-broadcast-btn.is-on {
+  background: var(--tmd-accent);
+  border-color: var(--tmd-accent);
+  color: var(--tmd-accent-fg);
+}
+
+/* 开关开启提示:按钮左侧滑出,2.2s 自隐(与 pm-toast 同款节奏) */
+.composer-broadcast-toast {
+  position: absolute;
+  right: 30px;
+  /* rail 列尾 = 开关按钮(最后一个贡献),bottom 对齐其下缘 */
+  bottom: 0;
+  padding: 3px 8px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 6px;
+  background: var(--tmd-bg-popover);
+  color: var(--tmd-fg);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  animation: broadcast-toast-in 0.18s ease-out;
+  pointer-events: none;
+}
+@keyframes broadcast-toast-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 .composer-anchor-rail {
   position: absolute;
   right: 0;

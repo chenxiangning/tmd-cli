@@ -4,10 +4,10 @@
  * 写操作后(seq bump)、挂载时拉取;失败仓给缺省(数字不显示)。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { ipc, type GitRepoSummary } from "@kernel/ipc";
 
-export interface RepoChipState {
+interface RepoChipState {
   branch: string;
   dirty: number;
   ahead: number;
@@ -28,7 +28,9 @@ export function useRepoChips(
   const tokenRef = useRef(0);
   const sig = signature(repos);
 
-  useEffect(() => {
+  /* repos 经 useEffectEvent 读最新引用:effect 依赖只留签名键 sig/seq/长度
+     (对象引用每次扫描都变,直接进依赖会按引用重拉);EffectEvent 稳定不入依赖。 */
+  const fetchChips = useEffectEvent(() => {
     const myToken = ++tokenRef.current;
     if (repos.length === 0) {
       setChips(new Map());
@@ -56,7 +58,10 @@ export function useRepoChips(
       }
       setChips(next);
     });
-    /* sig 而非 repos 依赖:对象引用每次扫描都变,签名词判防抖 */
+  });
+
+  useEffect(() => {
+    fetchChips();
   }, [sig, seq, repos.length]);
 
   return chips;

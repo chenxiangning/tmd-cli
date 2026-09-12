@@ -27,6 +27,12 @@ function drawerWireText(item: DrawerItem): string {
   return item.section === "skill" ? `$${item.name}` : `/${item.name}`;
 }
 
+/** plugin 区条目 open 语义:命中右栏面板开面板,无面板兜底开设置(不捕获响应值,纯函数)。 */
+function openFromDrawer(item: DrawerItem): void {
+  if (item.panelId) setFilePanelMode(item.panelId);
+  else openSettingsPanel();
+}
+
 export function useComposerDrawer({
   profile,
   cwd,
@@ -82,10 +88,6 @@ export function useComposerDrawer({
     if (textareaRef.current) insertAtCursor(textareaRef.current, value, setValue, setCursor, token);
   }
 
-  function openFromDrawer(item: DrawerItem): void {
-    if (item.panelId) setFilePanelMode(item.panelId);
-    else openSettingsPanel();
-  }
 
   return { drawerOpen, drawerItems, sendFromDrawer, insertFromDrawer, openFromDrawer };
 }

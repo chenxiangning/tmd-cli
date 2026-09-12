@@ -38,14 +38,6 @@ pub struct DiffStatus {
     pub files: Vec<FileStatus>,
 }
 
-#[derive(Serialize, Clone, Debug, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct AheadBehind {
-    pub ahead: i32,
-    pub behind: i32,
-    pub upstream: Option<String>,
-}
-
 pub fn compute(repo: &Repository) -> Result<DiffStatus, GitError> {
     let (branch, head_sha, upstream) = match repo.head() {
         Ok(head) => {
@@ -122,37 +114,6 @@ pub fn compute(repo: &Repository) -> Result<DiffStatus, GitError> {
         head_sha,
         upstream,
         files,
-    })
-}
-
-/// 低频命令:fetch 完成 / 分支切换 / 手动刷新后调用。unborn 返回零值。
-pub fn ahead_behind(repo: &Repository) -> Result<AheadBehind, GitError> {
-    let head = match repo.head() {
-        Ok(h) => h,
-        Err(e) if e.code() == ErrorCode::UnbornBranch => return Ok(AheadBehind::default()),
-        Err(e) => return Err(e.into()),
-    };
-    if !head.is_branch() {
-        return Ok(AheadBehind::default());
-    }
-    let branch = git2::Branch::wrap(head);
-    let up = match branch.upstream() {
-        Ok(u) => u,
-        Err(_) => return Ok(AheadBehind::default()),
-    };
-    let local_oid = branch
-        .get()
-        .target()
-        .ok_or(GitError::empty("head 无 target"))?;
-    let up_oid = up
-        .get()
-        .target()
-        .ok_or(GitError::empty("upstream 无 target"))?;
-    let (ahead, behind) = repo.graph_ahead_behind(local_oid, up_oid)?;
-    Ok(AheadBehind {
-        ahead: ahead as i32,
-        behind: behind as i32,
-        upstream: up.name()?.map(str::to_string),
     })
 }
 

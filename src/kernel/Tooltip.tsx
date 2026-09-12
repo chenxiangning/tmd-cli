@@ -7,6 +7,8 @@
  *
  * 触发:mouseenter/focusin ~300ms 显示,~120ms 隐藏;mouseleave/focusout 立即清;
  * Esc 关闭;scroll/resize 重定位;靠近视口上下边自动翻向。
+ * 残留清理:目标被卸载/隐藏后收不到 mouseout/focusout(分离元素不冒泡到 document),
+ * 指针/焦点落到无提示元素、目标断连后的 scroll/resize、窗口失焦时一并清除。
  * 屏蔽:目标自带原生 `title` 显示(用 `data-hint` 替换);`data-hint-disabled="true"` 抑制。
  * 失败:命中后清空目标原生 title 防双层气泡(还原逻辑在 targetLost 里恢复)。
  */
@@ -81,9 +83,12 @@ export function HintProvider({ children }: { children: React.ReactNode }) {
   const hideTimer = useRef<number | null>(null);
   const activeEl = useRef<HTMLElement | null>(null);
   const origTitle = useRef<string | null>(null);
-  // handler 经 ref 读最新 state:监听器只在挂载时绑一次,不随气泡显隐拆挂
   const stateRef = useRef<PopoverState | null>(null);
-  stateRef.current = state;
+  /* handler 经 ref 读最新 state:监听器只在挂载时绑一次,不随气泡显隐拆挂;
+     ref 转交放 effect,避免渲染期写(React 渲染须纯)。 */
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     function clearTimers(): void {
@@ -108,6 +113,7 @@ export function HintProvider({ children }: { children: React.ReactNode }) {
     }
 
     function show(el: HTMLElement, target: HintTarget): void {
+      if (!el.isConnected) return; // 定时器到期时目标已卸载:不上屏,防孤儿气泡
       if (activeEl.current === el) return;
       restoreTitle();
       activeEl.current = el;
@@ -137,7 +143,12 @@ export function HintProvider({ children }: { children: React.ReactNode }) {
       const t = e.target as HTMLElement | null;
       if (!t) return;
       const el = t.closest<HTMLElement>("[data-hint]");
-      if (!el) return;
+      if (!el) {
+        // 气泡在场而指针/焦点落到无提示元素:目标多半已被卸载/隐藏(移除的
+        // 元素不再向 document 派发 mouseout/focusout),补一次延迟隐藏防残留。
+        if (stateRef.current) scheduleHide();
+        return;
+      }
       const target = readHintAttrs(el);
       if (!target) return;
       scheduleShow(el, target);
@@ -154,7 +165,12 @@ export function HintProvider({ children }: { children: React.ReactNode }) {
     }
     function onScrollOrResize(): void {
       const s = stateRef.current;
-      if (s) setState(popoverFromTarget(s.target));
+      if (!s) return;
+      if (!s.target.el.isConnected) {
+        dismiss();
+        return;
+      }
+      setState(popoverFromTarget(s.target));
     }
     document.addEventListener("mouseover", onEnter);
     document.addEventListener("mouseout", onLeave);
@@ -163,6 +179,7 @@ export function HintProvider({ children }: { children: React.ReactNode }) {
     document.addEventListener("keydown", onKey);
     window.addEventListener("scroll", onScrollOrResize, true);
     window.addEventListener("resize", onScrollOrResize);
+    window.addEventListener("blur", dismiss);
     return () => {
       dismiss();
       document.removeEventListener("mouseover", onEnter);
@@ -172,6 +189,7 @@ export function HintProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("scroll", onScrollOrResize, true);
       window.removeEventListener("resize", onScrollOrResize);
+      window.removeEventListener("blur", dismiss);
     };
   }, []);
 

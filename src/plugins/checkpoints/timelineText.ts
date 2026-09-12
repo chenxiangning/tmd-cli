@@ -7,7 +7,7 @@
  * 文件(用户定向);纯函数便于单测(timelineText.test.ts)。
  */
 
-import { extractPromptImages } from "./PromptImages";
+import { extractPromptImages } from "./promptImagesExtract";
 
 /** composer 注入的任意附件 token:@ + 绝对路径。终止符类目同 IMAGE_TOKEN_RE 但
     去掉「.」:扩展名前的点绝不能当边界(否则惰性匹配把 /a/b.ts 截成 /a/b);
@@ -15,7 +15,7 @@ import { extractPromptImages } from "./PromptImages";
     (句号会吞进路径,干脆不匹配,原文保留)。 */
 const FILE_TOKEN_RE = /@(\/[^\s@]*?[^\s@.,;:!?)\]}　，。、；：！？」』])(?=$|[\s,;:!?)\]}　，。、；：！？」』])/g;
 
-export interface TimelineParts {
+interface TimelineParts {
   /** 净文本:图片与文件 token 全部剥离;空串 = 纯附件消息(调用方不渲染文本块)。 */
   text: string;
   /** 图片绝对路径(去重,复用 extractPromptImages)。 */
@@ -27,8 +27,9 @@ export interface TimelineParts {
 export function extractTimelineParts(raw: string): TimelineParts {
   const img = extractPromptImages(raw);
   const files = new Set<string>();
+  const imageSet = new Set(img.images);
   for (const m of raw.matchAll(FILE_TOKEN_RE)) {
-    if (!img.images.includes(m[1])) files.add(m[1]);
+    if (!imageSet.has(m[1])) files.add(m[1]);
   }
   if (files.size === 0) return { text: img.text, images: img.images, files: [] };
   /* img.text 里图片 token 已剥,本趟 replace 只命中文件 token;

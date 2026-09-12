@@ -3,14 +3,12 @@
  * 统计(总数 / 本周新增 / 分 harness 条数 + 上次整理时刻)与最近沉淀(最新 12 条)。
  */
 
-import { CATEGORY_CN, type MemoryItem } from "../protocol";
+import { categoryLabel } from "../panel/memoryText";
 import { consoleCardCls } from "./MemoryConsoleCards";
 import { t } from "@kernel/i18n";
 import { getSettingsState } from "@kernel/settings";
+import type { MemoryItem } from "../protocol";
 
-function categoryLabel(key: string): string {
-  return t((CATEGORY_CN as Record<string, string>)[key] ?? key);
-}
 
 /** ── 统计:总数 / 本周新增 / 分 harness 条数 + 上次整理时刻 ── */
 export function StatsCard({

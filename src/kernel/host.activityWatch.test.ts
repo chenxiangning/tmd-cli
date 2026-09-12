@@ -77,9 +77,11 @@ describe("结算归因修正 + 重绘抑制窗", () => {
     ptyOutputCbs.get(sessionId)?.(text);
   }
 
-  /** 模拟用户发起一轮对话(真实路径:幕布按键/Composer 发送 → host.writeSession)。 */
+  /** 模拟用户发起一轮对话(真实路径:幕布按键/Composer 发送 → host.writeSession)。
+   *  写入后推进假时钟跨过应答回显窗(400ms):真实流程里 CLI 应答首帧恒晚于回显窗。 */
   function userPrompt(sessionId: string): void {
     host.writeSession(sessionId, "prompt\r");
+    vi.advanceTimersByTime(500);
   }
 
   it("看完回答才切走(末字节到达时正在查看)→ 不标未读", async () => {
@@ -114,6 +116,7 @@ describe("结算归因修正 + 重绘抑制窗", () => {
     expect(host.isUnread(a.id)).toBe(true);
     host.setActiveSession(a.id); // 点开已读
     expect(host.isUnread(a.id)).toBe(false);
+    userPrompt(a.id); // 新轮次待应答:闸放行,本用例只钉 resize 抑制窗本身
     const settledAt = host.getLastActivityAt(a.id);
 
     host.resizeSession(a.id, 120, 40); // 自发 resize(真实 SIGWINCH 重绘的触发源)
@@ -134,6 +137,7 @@ describe("结算归因修正 + 重绘抑制窗", () => {
 
     host.resizeSession(a.id, 120, 40);
     await vi.advanceTimersByTimeAsync(1100); // 出抑制窗
+    userPrompt(a.id); // 用户再发起:awaitingTurn 开轮(闸不再认 tab)
     host.setActiveSession(b.id); // 切走:末字节到达时不在看
     fireOutput(a.id, "real answer");
     await vi.advanceTimersByTimeAsync(3000);

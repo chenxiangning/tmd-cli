@@ -22,14 +22,14 @@ export function resolveTerminalFontFamily(custom: string): string {
 }
 
 /** 下拉候选:label 展示名 / family 写入 settings 的 CSS 串 / platform 限定。 */
-export interface TerminalFontOption {
+interface TerminalFontOption {
   label: string;
   family: string;
   platforms?: ReadonlyArray<"macos" | "windows" | "linux">;
 }
 
 /** 常见等宽字体清单:平台专属在前,跨平台可装字体(JetBrains Mono 等)殿后。 */
-export const TERMINAL_FONT_OPTIONS: readonly TerminalFontOption[] = [
+const TERMINAL_FONT_OPTIONS: readonly TerminalFontOption[] = [
   { label: "Menlo", family: "Menlo, monospace", platforms: ["macos"] },
   { label: "Monaco", family: "Monaco, monospace", platforms: ["macos"] },
   { label: "SF Mono", family: "'SF Mono', ui-monospace, monospace", platforms: ["macos"] },

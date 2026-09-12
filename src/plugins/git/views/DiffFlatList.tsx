@@ -97,23 +97,24 @@ export function DiffFlatList({
         const isCollapsed = collapsed[sec.key];
         return (
           <div key={sec.key}>
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => toggle(sec.key)}
-              onKeyDown={(e) => e.key === "Enter" && toggle(sec.key)}
-              className="flex cursor-pointer select-none items-baseline gap-2 px-3 pb-0.5 pt-1.5 text-(--tmd-fg-muted)"
-            >
-              <span
-                className={`text-[0.5625rem] text-(--tmd-fg-faint) ${isCollapsed ? "-rotate-90" : ""}`}
+            {/* 头行:左段折叠开关(原生 button,键盘天然可达),
+                右段批量动作按钮与之平级 —— 不再嵌进可点容器(嵌套交互违规) */}
+            <div className="flex items-baseline gap-2 px-3 pb-0.5 pt-1.5 text-(--tmd-fg-muted)">
+              <button
+                type="button"
+                onClick={() => toggle(sec.key)}
+                className="flex min-w-0 flex-1 cursor-pointer select-none items-baseline gap-2 text-left [font:inherit] text-(--tmd-fg-muted)"
               >
-                ▾
-              </span>
-              <span className="whitespace-nowrap">{sec.title}</span>
-              {sec.rows.length > 0 && (
-                <span className="text-(--tmd-fg-faint)">({sec.rows.length})</span>
-              )}
-              <span className="flex-1" />
+                <span
+                  className={`text-[0.5625rem] text-(--tmd-fg-faint) ${isCollapsed ? "-rotate-90" : ""}`}
+                >
+                  ▾
+                </span>
+                <span className="whitespace-nowrap">{sec.title}</span>
+                {sec.rows.length > 0 && (
+                  <span className="text-(--tmd-fg-faint)">({sec.rows.length})</span>
+                )}
+              </button>
               {!isCollapsed && sec.key === "un" && utPaths.length + unPaths.length > 0 && (
                 <button
                   type="button"

@@ -9,7 +9,7 @@
  */
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Pencil, XSquare, Cross, XCircle } from "@phosphor-icons/react";
+import { Pencil, XSquare, Cross, XCircle, SquaresFour } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 
 /** 菜单约 180 宽:以点击点为左上,在视口内夹取;高度按项数(3 项 120 / 4 项 150)。 */
@@ -32,6 +32,8 @@ export function TabContextMenu({
   onCloseOthers,
   onCloseAll,
   onClose,
+  onToggleTile,
+  tileActive,
 }: {
   position: { x: number; y: number };
   /** 提供则首项显示「重命名」;canRename=false 时禁用(会话未落盘不可命名)。 */
@@ -41,8 +43,15 @@ export function TabContextMenu({
   onCloseOthers: () => void;
   onCloseAll: () => void;
   onClose: () => void;
+  /** 提供则显示「平铺显示/取消平铺」切换项(会话 tab 条用,全局开关)。 */
+  onToggleTile?: () => void;
+  tileActive?: boolean;
 }) {
-  const pos = clampPosition(position.x, position.y, onRename ? 150 : 120);
+  const pos = clampPosition(
+    position.x,
+    position.y,
+    120 + (onRename ? 30 : 0) + (onToggleTile ? 30 : 0),
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -56,6 +65,7 @@ export function TabContextMenu({
     <>
       <div
         className="wsmenu-backdrop"
+        role="presentation"
         onClick={onClose}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -77,6 +87,22 @@ export function TabContextMenu({
               <Pencil size="0.8125rem" />
             </span>
             <span className="wsmenu-item-label">{t("重命名")}</span>
+          </button>
+        ) : null}
+        {onToggleTile ? (
+          <button
+            className="wsmenu-item"
+            onClick={() => {
+              onToggleTile();
+              onClose();
+            }}
+          >
+            <span className="wsmenu-item-icon">
+              <SquaresFour size="0.8125rem" />
+            </span>
+            <span className="wsmenu-item-label">
+              {tileActive ? t("取消平铺") : t("平铺显示")}
+            </span>
           </button>
         ) : null}
         <button

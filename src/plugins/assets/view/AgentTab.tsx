@@ -4,7 +4,7 @@
  * (~/.ccgui/agent.json 合并,撞名加 (N) 后缀)。编辑弹窗与列表同文件(规模内)。
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DownloadSimple, Pencil, Plus, Robot, Trash } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { importCodemossAgents } from "../importCodemoss";
@@ -78,10 +78,16 @@ export function AgentTab() {
 }
 
 function AgentModal({ agent, onClose }: { agent: Agent | null; onClose: () => void }) {
+  const nameRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(agent?.name ?? "");
   const [icon, setIcon] = useState(agent?.icon ?? "");
   const [prompt, setPrompt] = useState(agent?.prompt ?? "");
   const [error, setError] = useState("");
+
+  /* 挂载即聚焦名称框(替代已删的 autoFocus)。 */
+  useEffect(() => {
+    nameRef.current?.focus();
+  }, []);
 
   const submit = async () => {
     if (!name.trim()) {
@@ -102,7 +108,7 @@ function AgentModal({ agent, onClose }: { agent: Agent | null; onClose: () => vo
         <div className="assets-modal-title">{agent ? t("编辑智能体") : t("新建智能体")}</div>
         <label className="assets-field">
           <span>{t("名称")}</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("如:小张")} autoFocus />
+          <input ref={nameRef} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("如:小张")} />
         </label>
         <label className="assets-field">
           <span>{t("图标(单个 emoji,可空)")}</span>

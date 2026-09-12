@@ -17,7 +17,7 @@
 import { ipc, type HistoryPage } from "./ipc";
 
 /** 回放尾窗口:覆盖「最终帧 + 一屏滚回」;更早历史走既有磁盘翻页管线。 */
-export const REPLAY_TAIL_BYTES = 512 * 1024;
+const REPLAY_TAIL_BYTES = 512 * 1024;
 
 let slot: { cliSessionId: string; promise: Promise<HistoryPage | null> } | null = null;
 
