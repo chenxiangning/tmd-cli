@@ -1,18 +1,20 @@
 /**
- * 版本弹窗 —— 点击侧栏底栏版本号弹出:更新记录(内嵌 CHANGELOG)+ 在线检查。
+ * 版本弹窗 —— 点击侧栏底栏版本号弹出:自动更新 + 更新记录(内嵌 CHANGELOG)+ 在线检查。
  *
  * 数据纪律:
  * - 更新记录 = 打包内嵌的 CHANGELOG.md(updateCheck.CHANGELOG_ENTRIES),离线可看;
  * - 检查更新 = GitHub releases/latest 经 kernel quotaFetch,手动触发,失败静默显示
- *   失败态;发现新版后「前往下载」跳系统浏览器(产物未签名,无应用内安装,
- *   升级路径见 docs/superpowers/specs/2026-09-06-update-check-changelog-design.md)。
+ *   失败态;发现新版后「前往下载」跳系统浏览器(升级路径演进见
+ *   docs/superpowers/specs/2026-09-06-update-check-changelog-design.md);
+ * - 自动更新 = tauri-plugin-updater latest.json 签名通道(autoUpdate.ts,codemoss
+ *   同款),一键下载 + 安装 + 重启,负责「装」;atom 检查负责「发现」,两通道互补。
  * 呈现:portal 挂 body + 全屏透明 backdrop,backdrop / Escape / X 关闭;
  * useLayoutEffect 实测尺寸落位(锚点上方右对齐,视口夹取),与 ProxyPopover 同款。
  */
 
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { CaretLeft, CaretRight, DownloadSimple, ArrowSquareOut, ArrowClockwise, Cross } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, ArrowSquareOut, Cross } from "@phosphor-icons/react";
 import { openExternalUrl } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import {
@@ -23,77 +25,16 @@ import {
   type ChangelogEntry,
   type ReleaseInfo,
 } from "./updateCheck";
+import {
+  AutoUpdateSection,
+  CheckActions,
+  CheckResultView,
+  type CheckStatus,
+} from "./VersionPopoverParts";
 
 /** 视口安全边距与浮层-锚点垂直间距(px)。 */
 const VIEWPORT_MARGIN = 12;
 const ANCHOR_GAP = 8;
-
-type CheckStatus = "idle" | "checking" | "latest" | "outdated" | "error";
-
-
-/** 非 error 态的一行提示;outdated 走高亮横幅,error 走红色原因行。 */
-const STATUS_TEXT: Record<"idle" | "checking" | "latest", string> = {
-  idle: "点击「检查更新」查询 GitHub 最新发布版本。",
-  checking: "正在检查更新…",
-  latest: "已是最新版本。",
-};
-
-/** 检查/下载动作行。 */
-function CheckActions({
-  checking,
-  onCheck,
-  onDownload,
-}: {
-  checking: boolean;
-  onCheck: () => void;
-  onDownload: () => void;
-}) {
-  return (
-    <div className="vp-actions">
-      <button type="button" className="vp-btn" onClick={onCheck} disabled={checking}>
-        <ArrowClockwise size="0.8125rem" className={checking ? "vp-spin" : undefined} />
-        {checking ? t("检查中…") : t("检查更新")}
-      </button>
-      <button type="button" className="vp-btn vp-btn-primary" onClick={onDownload}>
-        <DownloadSimple size="0.8125rem" />
-        {t("前往下载")}
-      </button>
-    </div>
-  );
-}
-
-/** 检查结果区:outdated 高亮横幅 / error 原因行 / 其余一行提示(三态互斥)。 */
-function CheckResultView({
-  status,
-  release,
-  checkError,
-}: {
-  status: CheckStatus;
-  release: ReleaseInfo | null;
-  checkError: string | null;
-}) {
-  if (status === "outdated" && release) {
-    return (
-      <div className="vp-outdated">
-        <div className="vp-outdated-line">
-          {t("发现新版本")}
-          <span className="vp-outdated-ver">v{release.version}</span>
-          {release.publishedAt && (
-            <span className="vp-date">{release.publishedAt.slice(0, 10)}</span>
-          )}
-        </div>
-        {release.notes && <div className="vp-notes">{release.notes}</div>}
-      </div>
-    );
-  }
-  if (status === "error" && checkError) {
-    return <div className="vp-status vp-status-err">{checkError}</div>;
-  }
-  if (status !== "outdated" && status !== "error") {
-    return <div className="vp-status">{t(STATUS_TEXT[status])}</div>;
-  }
-  return null;
-}
 
 /** 更新记录:分页条 + 当前页条目(block key 取内容指纹,不用数组下标)。 */
 function ChangelogPanel({
@@ -265,6 +206,9 @@ export function VersionPopover({
             <Cross size="0.875rem" />
           </button>
         </div>
+
+        {/* 自动更新(签名通道,一键下载安装重启)置顶为主操作 */}
+        <AutoUpdateSection />
 
         <CheckActions
           checking={status === "checking"}

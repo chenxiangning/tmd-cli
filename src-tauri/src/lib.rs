@@ -126,6 +126,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        /* 应用内自动更新(updater latest.json 通道)与安装后重启;前端经
+        kernel/ipc 薄包装调用 check/download_and_install/relaunch。 */
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(AppState {
             pty: PtyRegistry::default(),
             sessions,

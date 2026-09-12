@@ -23,6 +23,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -30,5 +31,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM5MkZEM0JFQ0YwOUMzQjcKUldTM3d3d25QdnRNdk9SUnkxQlM2eERQa2NFUURkcU8xbWZMNTk1cHNmRmIwNHY5aGVXQWlaSm15Cg==",
+      "endpoints": [
+        "https://github.com/chenxiangning/tmd-cli/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

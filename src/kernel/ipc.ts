@@ -15,6 +15,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
+import { check, type Update, type DownloadEvent } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import type {
   SftpEntry,
   SftpEventPayload,
@@ -734,6 +736,28 @@ export function windowClose(): Promise<void> {
 /** 应用版本号(关于/设置页脚展示)。 */
 export function appVersion(): Promise<string> {
   return getVersion();
+}
+
+/* ── 应用内自动更新(tauri-plugin-updater / process 薄包装)────────
+ * 通道 = GitHub Releases latest.json(minisign 签名产物,endpoint 与
+ * pubkey 在 tauri.conf.json plugins.updater)。能力检测:浏览器 dev 无
+ * Tauri runtime,调用方以 hasNativeUpdater 分流。 */
+
+export type { Update, DownloadEvent };
+
+/** 浏览器 dev(无 Tauri runtime)恒 false;应用内恒 true。 */
+export function hasNativeUpdater(): boolean {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+/** 查询更新通道:有可用更新返回句柄(此后 downloadAndInstall),无更新返回 null。 */
+export function updaterCheck(): Promise<Update | null> {
+  return check();
+}
+
+/** 安装已下载的更新并重启应用(updater 下载落临时目录,install 交换后 relaunch 生效)。 */
+export function relaunchApp(): Promise<void> {
+  return relaunch();
 }
 
 /** 重启应用(插件市场"拔插 = 重启生效"的一键入口;浏览器 dev 无 Tauri runtime,调用方需兜底)。 */

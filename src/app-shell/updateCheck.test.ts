@@ -9,6 +9,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  CHANGELOG_ENTRIES,
   checkLatestRelease,
   extractSemver,
   isNewerVersion,
@@ -211,5 +212,36 @@ describe("checkLatestRelease", () => {
     const { release, error } = await checkLatestRelease();
     expect(release).toBeNull();
     expect(error).toContain("http send: timeout");
+  });
+});
+
+describe("CHANGELOG_ENTRIES(打包内嵌管线,更新记录弹窗数据面)", () => {
+  const entries = CHANGELOG_ENTRIES;
+
+  it("内嵌 CHANGELOG 解析出全部版本小节且顺序为最新在前", () => {
+    expect(entries.length).toBeGreaterThanOrEqual(7);
+    expect(entries[0]?.version).toBe("0.1.6");
+    for (let i = 1; i < entries.length; i++) {
+      const prev = extractSemver(entries[i - 1]?.version ?? "");
+      const cur = extractSemver(entries[i]?.version ?? "");
+      expect(prev).not.toBeNull();
+      expect(cur).not.toBeNull();
+      expect(isNewerVersion(prev ?? "", cur ?? "")).toBe(true);
+    }
+  });
+
+  it("每个版本小节都渲染得出内容:至少一个块且块内至少一条", () => {
+    for (const entry of entries) {
+      expect(entry.blocks.length, `v${entry.version} 无内容块`).toBeGreaterThan(0);
+      for (const block of entry.blocks) {
+        expect(block.items.length, `v${entry.version} 的「${block.heading}」块为空`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("当前发版版本(0.1.6)在记录中且带日期", () => {
+    const head = entries[0];
+    expect(head?.version).toBe("0.1.6");
+    expect(head?.date).toBe("2026-09-12");
   });
 });

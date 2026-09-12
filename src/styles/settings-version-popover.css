@@ -97,6 +97,22 @@
   color: var(--tmd-accent-fg);
 }
 
+/* 自动更新下载进度条:按钮区下细条,随字节累计推进 */
+.vp-progress {
+  height: 4px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--tmd-border);
+}
+
+.vp-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tmd-accent);
+  transition: width 0.15s ease-out;
+}
+
 .vp-btn-primary:hover:enabled {
   background: var(--tmd-accent);
   opacity: 0.9;

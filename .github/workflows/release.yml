@@ -15,7 +15,10 @@ concurrency:
   cancel-in-progress: false
 
 # GITHUB_TOKEN 仅授予 contents 写:tauri-action 建 Draft Release / 上传产物所需,
-# 不给更高权限;签名/公证凭据(APPLE_* / TAURI_SIGNING_*)仍不引入。
+# 不给更高权限;公证凭据(APPLE_*)不引入。TAURI_SIGNING_* 为 updater 通道的
+# minisign 私钥(本地 ~/.tauri/tmd-cli.key,空密码)——注入后 tauri-action 自动
+# 产出 .tar.gz/.sig 签名产物与 latest.json,应用内「自动更新」依赖它;secret
+# 未配置时构建仍成功,只是更新通道无最新产物(前端落错误态,可前往下载兜底)。
 permissions:
   contents: write
 
@@ -98,6 +101,9 @@ jobs:
         env:
           # 内置仓库令牌,专供发布上传(建 Draft Release 挂产物);与签名无关。
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # updater 通道 minisign 私钥:注入后自动产出签名产物 + latest.json;
+          # 私钥内容经 repo secret TAURI_SIGNING_PRIVATE_KEY 配置(空密码)。
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         with:
           tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
           releaseName: ${{ startsWith(github.ref, 'refs/tags/v') && format('tmd-cli {0}', github.ref_name) || '' }}
