@@ -4,8 +4,43 @@
  */
 import { ArrowClockwise, DownloadSimple } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { openExternalUrl } from "@kernel/ipc";
 import type { ReleaseInfo } from "./updateCheck";
+import { parseInlineMarkdown } from "./inlineMarkdown";
 import { runAutoUpdate, useAutoUpdate, type AutoUpdateStage } from "./autoUpdate";
+
+/** 条目行内 Markdown 渲染(解析在 ./inlineMarkdown)。key 取 类型+内容+同内容
+ *  序号:静态内容下稳定、不重不漏;链接拦默认行为走系统浏览器(webview 内跳转
+ *  会带走应用)。 */
+export function InlineMarkdown({ text }: { text: string }) {
+  const seen = new Map<string, number>();
+  return (
+    <>
+      {parseInlineMarkdown(text).map((seg) => {
+        const base = `${seg.type}:${seg.value}${seg.type === "link" ? `:${seg.href}` : ""}`;
+        const n = (seen.get(base) ?? 0) + 1;
+        seen.set(base, n);
+        const key = n === 1 ? base : `${base}#${n}`;
+        if (seg.type === "code") return <code key={key}>{seg.value}</code>;
+        if (seg.type === "bold") return <strong key={key}>{seg.value}</strong>;
+        if (seg.type === "link")
+          return (
+            <a
+              key={key}
+              href={seg.href}
+              onClick={(e) => {
+                e.preventDefault();
+                void openExternalUrl(seg.href);
+              }}
+            >
+              {seg.value}
+            </a>
+          );
+        return <span key={key}>{seg.value}</span>;
+      })}
+    </>
+  );
+}
 
 export type CheckStatus = "idle" | "checking" | "latest" | "outdated" | "error";
 
@@ -16,7 +51,8 @@ const STATUS_TEXT: Record<"idle" | "checking" | "latest", string> = {
   latest: "已是最新版本。",
 };
 
-/** 检查/下载动作行(atom 通道:发现 + 详情;安装执行在自动更新区)。 */
+/** 检查/下载按钮(atom 通道:发现 + 详情;安装执行在自动更新按钮)。
+ *  只出按钮不带行容器,由调用方与自动更新按钮并排进同一个 vp-actions。 */
 export function CheckActions({
   checking,
   onCheck,
@@ -27,16 +63,16 @@ export function CheckActions({
   onDownload: () => void;
 }) {
   return (
-    <div className="vp-actions">
+    <>
       <button type="button" className="vp-btn" onClick={onCheck} disabled={checking}>
         <ArrowClockwise size="0.8125rem" className={checking ? "vp-spin" : undefined} />
         {checking ? t("检查中…") : t("检查更新")}
       </button>
-      <button type="button" className="vp-btn vp-btn-primary" onClick={onDownload}>
+      <button type="button" className="vp-btn" onClick={onDownload}>
         <DownloadSimple size="0.8125rem" />
         {t("前往下载")}
       </button>
-    </div>
+    </>
   );
 }
 
@@ -83,11 +119,11 @@ function autoStageLabel(stage: AutoUpdateStage, percent: number | null): string 
 }
 
 /**
- * 自动更新区 —— 一键「检查 + 下载 + 安装 + 重启」(tauri-plugin-updater
- * latest.json 签名通道,codemoss 同款)。按钮态随阶段切换,下载中显进度条;
- * latest / error 各占一行提示。
+ * 自动更新按钮 —— 一键「检查 + 下载 + 安装 + 重启」(tauri-plugin-updater
+ * latest.json 签名通道,codemoss 同款)。按钮态随阶段切换,是弹窗唯一主操作;
+ * 进度条与结果行由 AutoUpdateStatus 出,两件共用 useAutoUpdate 快照。
  */
-export function AutoUpdateSection() {
+export function AutoUpdateButton() {
   const auto = useAutoUpdate();
   const busy =
     auto.stage === "checking" ||
@@ -95,20 +131,23 @@ export function AutoUpdateSection() {
     auto.stage === "installing" ||
     auto.stage === "restarting";
   return (
+    <button
+      type="button"
+      className="vp-btn vp-btn-primary"
+      onClick={runAutoUpdate}
+      disabled={busy}
+    >
+      <DownloadSimple size="0.8125rem" />
+      {busy ? autoStageLabel(auto.stage, auto.percent) : t("自动更新")}
+    </button>
+  );
+}
+
+/** 自动更新的过程与结果:下载进度条 / latest 一行提示 / error 红色原因行。 */
+export function AutoUpdateStatus() {
+  const auto = useAutoUpdate();
+  return (
     <>
-      <div className="vp-actions">
-        <button
-          type="button"
-          className="vp-btn vp-btn-primary"
-          onClick={runAutoUpdate}
-          disabled={busy}
-        >
-          <DownloadSimple size="0.8125rem" />
-          {busy
-            ? autoStageLabel(auto.stage, auto.percent)
-            : t("自动更新")}
-        </button>
-      </div>
       {auto.stage === "downloading" && (
         <div
           className="vp-progress"

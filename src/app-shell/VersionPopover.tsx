@@ -26,9 +26,11 @@ import {
   type ReleaseInfo,
 } from "./updateCheck";
 import {
-  AutoUpdateSection,
+  AutoUpdateButton,
+  AutoUpdateStatus,
   CheckActions,
   CheckResultView,
+  InlineMarkdown,
   type CheckStatus,
 } from "./VersionPopoverParts";
 
@@ -97,7 +99,9 @@ function ChangelogPanel({
                 {b.heading && <div className="vp-block-heading">{b.heading}</div>}
                 <ul className="vp-items">
                   {b.items.map((item) => (
-                    <li key={item}>{item}</li>
+                    <li key={item}>
+                      <InlineMarkdown text={item} />
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -162,6 +166,9 @@ export function VersionPopover({
 
   const check = async () => {
     const gen = ++checkGen.current;
+    /* 即时反馈:按钮进 spinner + 禁用,提示行换「正在检查更新…」;网络慢时不再像点了没反应。 */
+    setStatus("checking");
+    setCheckError(null);
     const result = await checkLatestRelease();
     /* 代次守卫:慢的旧响应晚到时整包丢弃(含错误态清理)。 */
     if (gen !== checkGen.current) return;
@@ -207,14 +214,16 @@ export function VersionPopover({
           </button>
         </div>
 
-        {/* 自动更新(签名通道,一键下载安装重启)置顶为主操作 */}
-        <AutoUpdateSection />
-
-        <CheckActions
-          checking={status === "checking"}
-          onCheck={() => void check()}
-          onDownload={goDownload}
-        />
+        {/* 动作行:三键一排,自动更新(签名通道,一键下载安装重启)是唯一主操作 */}
+        <div className="vp-actions">
+          <AutoUpdateButton />
+          <CheckActions
+            checking={status === "checking"}
+            onCheck={() => void check()}
+            onDownload={goDownload}
+          />
+        </div>
+        <AutoUpdateStatus />
         <CheckResultView status={status} release={release} checkError={checkError} />
 
         <div className="vp-divider" />
