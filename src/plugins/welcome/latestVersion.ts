@@ -19,12 +19,16 @@ const cache = new Map<string, { at: number; version: string }>();
 /**
  * 查 npm registry 上某包的最新版本(dist-tags.latest)。
  * scoped 包 encodeURIComponent 后 `@openai/codex` → `%40openai%2Fcodex`,registry 接受。
+ * opts.force = 标题条手动刷新:跳过 TTL 直连 registry(结果照常回填缓存)。
  */
 export async function fetchLatestVersion(
   npmPackage: string,
+  opts?: { force?: boolean },
 ): Promise<string | null> {
-  const hit = cache.get(npmPackage);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.version;
+  if (!opts?.force) {
+    const hit = cache.get(npmPackage);
+    if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.version;
+  }
   try {
     const res = await ipc.quotaFetch({
       url: `https://registry.npmjs.org/${encodeURIComponent(npmPackage)}/latest`,

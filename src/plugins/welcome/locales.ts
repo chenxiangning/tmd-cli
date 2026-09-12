@@ -12,6 +12,7 @@ const MESSAGES_EN = {
   "新会话的工作区": "Workspace for the new session",
   "↑↓ 选引擎 · ⏎ 以所选工作区启动新会话 · 点击 ● 展开凭据额度":
     "↑↓ pick engine · ⏎ new session in selected workspace · click ● to expand credentials & quota",
+  "刷新首页数据": "Refresh home data",
   "移动游标": "move cursor",
   "启动新会话": "start new session",
   "展开凭据与额度": "expand credentials & quota",
@@ -99,6 +100,7 @@ const MESSAGES_JA = {
   "新会话的工作区": "新規セッションのワークスペース",
   "↑↓ 选引擎 · ⏎ 以所选工作区启动新会话 · 点击 ● 展开凭据额度":
     "↑↓ エンジン選択 · ⏎ 選択ワークスペースで新規セッション · ● クリックで認証情報と使用量を表示",
+  "刷新首页数据": "ホームデータを更新",
   "移动游标": "カーソル移動",
   "启动新会话": "新規セッション開始",
   "展开凭据与额度": "認証情報と使用量を展開",

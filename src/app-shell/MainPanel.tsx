@@ -23,8 +23,11 @@ export function MainPanel() {
   const activeId = host.getActiveSessionId();
   const activeMeta = host.getSessions().find((s) => s.id === activeId);
   const activeKind = activeMeta?.kind;
+  /* 无活跃 session 时 welcome 层接管,composer 随会话层一起隐藏(见下方 keep-alive 注释)。 */
   const showComposer =
-    activeKind !== "shell" && (activeKind !== "ssh" || !!activeMeta?.engine);
+    !!activeId &&
+    activeKind !== "shell" &&
+    (activeKind !== "ssh" || !!activeMeta?.engine);
   /* 保活集合 = tab 条 ids(+ activeId 不在条内的兜底),见下方 keep-alive 注释。 */
   const { ids: tabIds, tile } = useSessionTabs();
   const kept =
@@ -53,14 +56,14 @@ export function MainPanel() {
     }
   }, [stage, activeId, groupRef]);
 
-  /* 无活跃 session:整页渲染 welcome(引擎探针/安装 + 近期会话),
-     terminal 与 composer 一并替换 —— 首页即初始形态。 */
-  if (!activeId) {
-    return <Mounts point="editorCenter.welcome" />;
-  }
-
+  /* 会话现场与 welcome 互为兄弟层(display 切换),不整页替换:替换式会把 tab 条内
+     全部 TerminalView 连 xterm 实例一起卸载,切回时全量回放输出缓冲(大会话
+     秒级「加载会话输出」遮罩);隐藏式切换零回放,与 tab 条内 keep-alive 同语义。
+     composer 同层保留,回首页隐藏(草稿态随挂载存活)。 */
   return (
-    <PanelGroup orientation="vertical" id="tmd.main.vertical" groupRef={groupRef}>
+    <div className="relative h-full w-full">
+      <div className="h-full w-full" style={{ display: activeId ? undefined : "none" }}>
+        <PanelGroup orientation="vertical" id="tmd.main.vertical" groupRef={groupRef}>
       <Panel defaultSize={70} minSize={30} id="canvas">
         {tiling ? (
           /* 平铺:tab 条全部会话并排同屏,点列 = switchTab(setActiveSession,
@@ -111,6 +114,13 @@ export function MainPanel() {
           </>
         )
       ) : null}
-    </PanelGroup>
+        </PanelGroup>
+      </div>
+      {!activeId && (
+        <div className="absolute inset-0">
+          <Mounts point="editorCenter.welcome" />
+        </div>
+      )}
+    </div>
   );
 }

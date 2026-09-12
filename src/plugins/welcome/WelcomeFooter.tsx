@@ -4,8 +4,8 @@
  * title 去重聚合的套餐水位)。数据源与消费面见 WelcomePage。
  */
 
-import { useEffect, useState } from "react";
-import { host, useHost } from "@kernel/host";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { host } from "@kernel/host";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/workspace";
@@ -51,6 +51,10 @@ function openItem(item: ResumeItem): void {
     .then((meta) => noteSessionTabTitle(meta.id, title))
     .catch(() => undefined);
 }
+
+/* 模块级缓存(跨挂载存活):resume 列表 = 全工作区×全 profile 磁盘扫描,
+   welcome 反复重挂不该每次白屏等扫盘 —— 缓存先上屏,后台重扫落定覆盖。 */
+let resumeCache: ResumeItem[] | null = null;
 
 /* ── QUOTA 聚合 ─────────────────────────────────────────── */
 
@@ -113,14 +117,20 @@ export function WelcomeFooter({
 }: {
   credsMap: Record<string, EngineCredential[]>;
 }) {
-  useHost(); /* profile 注册完成后重扫 */
+  /* 订阅快照 = profile 集指纹:仅插件拔插时重渲染;宿主其余通知(切换会话/
+     输出/状态)与本页无关 —— welcome 常驻挂载后不为它们付整页渲染。 */
+  useSyncExternalStore(
+    host.subscribe,
+    () => host.getCliProfiles().map((p) => p.id).join("|"),
+  );
   const { list: workspaces } = useWorkspaces();
-  const [items, setItems] = useState<ResumeItem[] | null>(null);
+  const [items, setItems] = useState<ResumeItem[] | null>(resumeCache);
 
   useEffect(() => {
     if (workspaces.length === 0) return;
     let alive = true;
     void scanAll(workspaces, host.getCliProfiles()).then((list) => {
+      resumeCache = list;
       if (alive) setItems(list);
     });
     return () => {

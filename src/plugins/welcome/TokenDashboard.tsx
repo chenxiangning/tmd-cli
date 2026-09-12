@@ -5,9 +5,9 @@
  * usage 聚合,纯本地零网络。空态/部分数据语义见 spec 2026-09-11。
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { t } from "@kernel/i18n";
-import { host, useHost } from "@kernel/host";
+import { host } from "@kernel/host";
 import { useWorkspaces } from "@kernel/workspace";
 import type { TokenAgg } from "./tokens";
 import { collectTokenUsage } from "./tokens";
@@ -20,6 +20,10 @@ function fmtTok(n: number): string {
   return String(n);
 }
 
+/* 模块级缓存(跨挂载存活):用量聚合 = 本地 JSONL 全量扫描,welcome 反复重挂
+   不该每次从空态等扫盘 —— 缓存先上屏,后台重扫落定覆盖(重试按钮照常强制重拉)。 */
+let aggCache: TokenAgg | null = null;
+
 /** 趋势柱 lab:今日显「今日」,其余 M/D。 */
 function dayLab(dayKey: string, today: boolean): string {
   if (today) return t("今日");
@@ -28,19 +32,25 @@ function dayLab(dayKey: string, today: boolean): string {
 }
 
 export function TokenDashboard() {
-  useHost(); /* profile 注册完成后重扫(与 WelcomeFooter 同模式) */
+  /* 订阅快照 = profile 集指纹:仅插件拔插时重渲染;宿主其余通知(切换会话/
+     输出/状态)与本页无关 —— welcome 常驻挂载后不为它们付整页渲染。 */
+  useSyncExternalStore(
+    host.subscribe,
+    () => host.getCliProfiles().map((p) => p.id).join("|"),
+  );
   const { list: workspaces } = useWorkspaces();
-  const [agg, setAgg] = useState<TokenAgg | null>(null);
+  const [agg, setAgg] = useState<TokenAgg | null>(aggCache);
   const [failed, setFailed] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
 
-  /* 挂载即拉一次;重试按钮 ++reloadTick 重拉。 */
+  /* 挂载即拉一次(缓存命中也后台重扫,保持新鲜);重试按钮 ++reloadTick 重拉。 */
   useEffect(() => {
     if (workspaces.length === 0) return;
     let alive = true;
     setFailed(false);
     collectTokenUsage(host.getCliProfiles(), workspaces)
       .then((r) => {
+        aggCache = r?.agg ?? aggCache;
         if (alive) setAgg(r?.agg ?? null);
       })
       .catch(() => {

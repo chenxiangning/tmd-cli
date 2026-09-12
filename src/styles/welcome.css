@@ -39,7 +39,6 @@
 }
 
 .welcome-tbar-right {
-  margin-left: auto;
   color: var(--tmd-fg-faint);
   font-size: 0.6875rem;
   text-decoration: none;
@@ -103,6 +102,22 @@
   margin-left: auto;
   white-space: nowrap;
 }
+
+/* 标题条手动刷新(SWR 缓存后回首页不重拉,此为唯一手动入口);提示行
+   margin-left:auto 把 提示+刷新+GitHub 整组推向右缘。 */
+.welcome-refresh {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--tmd-fg-faint);
+}
+
+.welcome-refresh:hover { color: var(--tmd-fg); }
+.welcome-refresh:focus { outline: none; }
+.welcome-refresh:disabled { cursor: default; }
 
 .welcome-row-main {
   display: grid;

@@ -8,46 +8,57 @@
  * 键盘:↑↓ 移游标、⏎ 以所选工作区启动游标引擎新会话(组件局部,不进命令注册表)。
  */
 
-import { ipc, openExternalUrl } from "@kernel/ipc";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+
 import { t } from "@kernel/i18n";
-
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-import { host, useHost } from "@kernel/host";
+import { host } from "@kernel/host";
 import { Mounts } from "@kernel/Mounts";
 import { useWorkspaces, workspaceDisplayName } from "@kernel/workspace";
+import { shortenHome, useHomeDir } from "./homeDir";
 import { engineMetas, type PrerequisiteMeta } from "./engineMeta";
 import { type EngineProbeState } from "./EngineCard";
 import { probeEngine } from "./engineProbe";
 import { listEngineCredentials, type EngineCredential } from "./credentials";
 import { fetchLatestVersion, isOutdated } from "./latestVersion";
+import {
+  buildInitialProbes,
+  credsCache,
+  depProbeCache,
+  latestCache,
+  latestFetched,
+  probeCache,
+} from "./pageCache";
 import { EngineSection } from "./EngineSection";
 import { WelcomeFooter } from "./WelcomeFooter";
+import { WelcomeTbar } from "./WelcomeTbar";
 import { TokenDashboard } from "./TokenDashboard";
 
-const GITHUB_URL = "https://github.com/chenxiangning/tmd-cli";
-
-function buildInitialProbes(): Record<string, EngineProbeState> {
-  return Object.fromEntries(
-    engineMetas().map((m) => [m.id, { status: "loading" as const, result: null }]),
-  );
-}
-
 export function WelcomePage() {
-  useHost(); /* 订阅宿主:profile 注册/注销(启动激活、插件市场开关)时重渲染 */
+  /* 订阅快照 = 注册集指纹:仅 profile 注册/注销(启动激活、插件市场开关)时
+     重渲染。宿主其余通知(输出/状态/标题/切换会话)与本页无关 —— welcome 自
+     keep-alive 常驻挂载后,不再为它们付整页渲染(display:none 下 React 照跑)。 */
+  const registrationKey = useSyncExternalStore(
+    host.subscribe,
+    () => engineMetas().map((m) => m.id).join("|"),
+  );
   const [probes, setProbes] = useState<Record<string, EngineProbeState>>(
     buildInitialProbes,
   );
   /* 前置依赖探针状态(按 binary 索引;多个引擎可共享同一依赖,如 bun)。 */
   const [depProbes, setDepProbes] = useState<Record<string, EngineProbeState>>(
-    {},
+    () => ({ ...Object.fromEntries(depProbeCache) }),
   );
-  /* 最新版本:每引擎只拉一次(ref 去重),与探针解耦 —
+  /* 最新版本:每引擎每次应用运行只拉一次(模块级去重),与探针解耦 —
      重探/安装后最新版不变,无需重拉。undefined=拉取中,null=失败(静默)。 */
-  const [latest, setLatest] = useState<Record<string, string | null>>({});
-  const latestFetchedRef = useRef<Set<string>>(new Set());
+  const [latest, setLatest] = useState<Record<string, string | null>>(
+    () => ({ ...Object.fromEntries(latestCache) }),
+  );
   /* 凭据盘点(页级一次拉全部引擎):行内凭据列 / 展开详情 / 页脚 QUOTA 共用。 */
-  const [credsMap, setCredsMap] = useState<Record<string, EngineCredential[]>>({});
+  const [credsMap, setCredsMap] = useState<Record<string, EngineCredential[]>>(
+    () => ({ ...Object.fromEntries(credsCache) }),
+  );
+  /* 手动刷新计数:>0 时最新版/凭据 effect 绕过去重重拉(探针由 refreshAll 直推)。 */
+  const [refreshTick, setRefreshTick] = useState(0);
   /* 行展开集(点击 ● 切换;凭据详情展开语义)。 */
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   /* 键盘游标(visibleMetas 下标)。 */
@@ -62,15 +73,8 @@ export function WelcomePage() {
     [workspaces, wsId],
   );
 
-  /* 只展示 profile 已注册的引擎:cli 插件被拔出(禁用)时不激活、不注册,行随之消失。
-     useMemo 锚定注册集指纹而非 version:host 任意 notify(后台会话的 PTY 输出、
-     身份绑定等)都会 bump version,锚 version 会让对话期间每 500ms 重探全部引擎
-     (探针页反复闪烁);指纹只在注册集真正变化时改变。 */
-  const registrationKey = engineMetas().map((m) => m.id).join("|");
-  const visibleMetas = useMemo(
-    () => engineMetas(),
-    [registrationKey],
-  );
+  /* 只展示 profile 已注册的引擎:cli 插件被拔出(禁用)时不激活、不注册,行随之消失。 */
+  const visibleMetas = useMemo(() => engineMetas(), [registrationKey]);
   /* 去重后的前置依赖集:引擎自身探针之外,requires 声明的依赖也要探 ——
      未就位时引擎的安装/更新按钮被门控(见 EngineCard depBlocked)。 */
   const requires = useMemo(() => {
@@ -83,24 +87,31 @@ export function WelcomePage() {
     return [...byBinary.values()];
   }, [visibleMetas]);
 
-  const runProbe = useCallback(async (engineId: string) => {
+  const runProbe = useCallback(async (engineId: string, force = false) => {
     const meta = engineMetas().find((m) => m.id === engineId);
     if (!meta) return;
-    setProbes((prev) => ({
-      ...prev,
-      [engineId]: { status: "loading", result: null },
-    }));
+    /* 有缓存且非手动刷新 = 重验:静默跑,值落定才覆盖(不落 loading,回首页无闪烁)。 */
+    if (force || !probeCache.has(engineId)) {
+      setProbes((prev) => ({
+        ...prev,
+        [engineId]: { status: "loading", result: null },
+      }));
+    }
     const next = await probeEngine(meta.binary);
+    probeCache.set(engineId, next);
     setProbes((prev) => ({ ...prev, [engineId]: next }));
   }, []);
 
   /* 前置依赖探针动作(按 binary)。 */
-  const runDepProbe = useCallback(async (binary: string) => {
-    setDepProbes((prev) => ({
-      ...prev,
-      [binary]: { status: "loading", result: null },
-    }));
+  const runDepProbe = useCallback(async (binary: string, force = false) => {
+    if (force || !depProbeCache.has(binary)) {
+      setDepProbes((prev) => ({
+        ...prev,
+        [binary]: { status: "loading", result: null },
+      }));
+    }
     const next = await probeEngine(binary);
+    depProbeCache.set(binary, next);
     setDepProbes((prev) => ({ ...prev, [binary]: next }));
   }, []);
 
@@ -110,25 +121,35 @@ export function WelcomePage() {
     for (const req of requires) void runDepProbe(req.binary);
   }, [runProbe, runDepProbe, visibleMetas, requires]);
 
-  /* 可见引擎集确定后,每引擎拉一次最新版本。 */
+  /* 可见引擎集确定后,每引擎拉一次最新版本(模块级 latest 去重:每次应用运行
+     一次;失败不占名额,下次回首页重试)。手动刷新(refreshTick > 0)绕过去重
+     与 5 分钟 TTL 强制重拉。 */
   useEffect(() => {
+    const force = refreshTick > 0;
     for (const meta of visibleMetas) {
       if (!meta.npmPackage) continue;
-      if (latestFetchedRef.current.has(meta.id)) continue;
-      latestFetchedRef.current.add(meta.id);
-      void fetchLatestVersion(meta.npmPackage).then((version) =>
-        setLatest((prev) => ({ ...prev, [meta.id]: version })),
-      );
+      if (!force && latestFetched.has(meta.id)) continue;
+      latestFetched.add(meta.id);
+      void fetchLatestVersion(meta.npmPackage, { force }).then((version) => {
+        if (version === null) {
+          latestFetched.delete(meta.id);
+          return;
+        }
+        latestCache.set(meta.id, version);
+        setLatest((prev) => ({ ...prev, [meta.id]: version }));
+      });
     }
-  }, [visibleMetas]);
+  }, [visibleMetas, refreshTick]);
 
-  /* 凭据盘点:引擎集变化时每引擎拉一次(listEngineCredentials 内部已容错,
-     此处 catch 是最后防线:单引擎失败不产生 unhandled rejection)。 */
+  /* 凭据盘点:引擎集变化时每引擎拉一次(供应商额度 HTTP,缓存先上屏后台刷新;
+     listEngineCredentials 内部已容错,此处 catch 是最后防线:单引擎失败不产生
+     unhandled rejection)。手动刷新经 refreshTick 重跑。 */
   useEffect(() => {
     let alive = true;
     for (const meta of visibleMetas) {
       void listEngineCredentials(meta.id)
         .then((list) => {
+          credsCache.set(meta.id, list);
           if (alive) setCredsMap((prev) => ({ ...prev, [meta.id]: list }));
         })
         .catch(() => undefined);
@@ -136,7 +157,15 @@ export function WelcomePage() {
     return () => {
       alive = false;
     };
-  }, [visibleMetas]);
+  }, [visibleMetas, refreshTick]);
+
+  /* 手动全量刷新(标题条按钮):重探全部引擎与前置依赖(落 loading 可见),
+     最新版/凭据经 refreshTick 重跑 effect 静默续拉。 */
+  const refreshAll = useCallback(() => {
+    for (const meta of visibleMetas) void runProbe(meta.id, true);
+    for (const req of requires) void runDepProbe(req.binary, true);
+    setRefreshTick((n) => n + 1);
+  }, [visibleMetas, requires, runProbe, runDepProbe]);
 
   const installedCount = visibleMetas.filter(
     (m) => probes[m.id]?.status === "ok",
@@ -146,6 +175,7 @@ export function WelcomePage() {
       probes[m.id]?.status === "ok" &&
       isOutdated(probes[m.id]?.result?.version, latest[m.id] ?? null),
   ).length;
+  const refreshing = visibleMetas.some((m) => probes[m.id]?.status === "loading");
 
   const toggleExpand = useCallback((engineId: string) => {
     setExpanded((prev) => {
@@ -201,22 +231,7 @@ export function WelcomePage() {
         tabIndex={0}
         onKeyDown={onKeyDown}
       >
-        <header className="welcome-tbar">
-          <span>tmd-cli — {t("引擎选择器")}</span>
-          <span className="welcome-hintline">
-            {t("↑↓ 选引擎 · ⏎ 以所选工作区启动新会话 · 点击 ● 展开凭据额度")}
-          </span>
-          <a
-            className="welcome-tbar-right"
-            href={GITHUB_URL}
-            onClick={(e) => {
-              e.preventDefault();
-              void openExternalUrl(GITHUB_URL);
-            }}
-          >
-            {t("GitHub 仓库")} · MIT
-          </a>
-        </header>
+        <WelcomeTbar refreshing={refreshing} onRefresh={refreshAll} />
         <div className="welcome-frame">
 
           <div className="welcome-promptline">
@@ -262,7 +277,7 @@ export function WelcomePage() {
                 onToggleExpand={() => toggleExpand(meta.id)}
                 cursor={visibleMetas[cursor]?.id === meta.id}
                 onCursor={() => setCursor(index)}
-                onProbe={() => void runProbe(meta.id)}
+                onProbe={() => void runProbe(meta.id, true)}
                 onDepProbe={(binary) => void runDepProbe(binary)}
                 onNewSession={() => spawnSession(meta.id)}
               />
@@ -276,24 +291,4 @@ export function WelcomePage() {
       </div>
     </div>
   );
-}
-
-/** 显示用缩略:home 前缀 → ~(home 目录异步拉一次;拉不到原样显示)。 */
-function useHomeDir(): string | null {
-  const [home, setHome] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    void ipc
-      .configHomeDir()
-      .then((h) => alive && setHome(h))
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return home;
-}
-
-function shortenHome(p: string, home: string | null): string {
-  return home && p.startsWith(home) ? `~${p.slice(home.length)}` : p;
 }
