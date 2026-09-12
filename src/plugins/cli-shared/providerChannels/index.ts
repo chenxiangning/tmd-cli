@@ -8,10 +8,11 @@
  * 本目录消费方:
  *   - src/plugins/cli-claude(channelApply 备份壳/类型 + registerCliConfig providerPanel)
  *   - src/plugins/cli-codex(同上)
- *   - src/plugins/cli-config/providerChannels(UI 卡片,格式知识经此消费)
+ *   - src/plugins/cli-config(「CLI 独立配置」页经 providerPanel 挂载列表卡)
  *
- * 本目录是叶子格式库:只 import @kernel,不 import 任何插件;
- * 列表/对话框 UI 在 cli-config/providerChannels(页面所有者)。
+ * 格式/存储为叶子库(只 import @kernel);列表/行/对话框 UI 也归本目录
+ * (2026-09-12 自 cli-config 迁入:三家 cli-* 消费,≥2 cli 准入满足;
+ * UI 件另依赖 kernel DialogShell / SecretInput 通用原语)。
  *
  * ## 零内核字
  *
@@ -45,3 +46,5 @@ export {
   type CcSwitchDbRow,
   type CcSwitchRawEntry,
 } from "./ccswitch";
+export { ProviderChannelsCard } from "./ProviderChannelsCard";
+export type { ProviderChannelsCardProps } from "./ProviderChannelsCard";

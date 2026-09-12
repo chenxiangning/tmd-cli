@@ -1,5 +1,5 @@
-/** en 词典 · memory 域(键 = 中文源串,由文案迁移按归属写入;zh 恒等无词典)。 */
-export const MESSAGES = {
+/** memory 域 en 词典(memory-coordinator 插件自带;键 = 中文源串)。 */
+export const MESSAGES_EN = {
   /* ── 右栏 Memory 面板 ── */
   "未选择工作区": "No workspace selected",
   "池不可用": "Pool unavailable",
@@ -204,3 +204,5 @@ export const MESSAGES = {
   "Memory 协调器": "Memory coordinator",
   "Magic Context 记忆池:多引擎共享项目记忆,胶囊注入与池检索": "Magic Context memory pool: shared project memories across engines, capsule injection and pool search",
 } as Record<string, string>;
+
+/** ja 词典 · memory 域(键 = 中文源串,由文案迁移按归属写入;zh 恒等无词典)。 */

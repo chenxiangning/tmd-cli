@@ -119,9 +119,6 @@ export function wslRemoteSpawnCommand(
 
 /* —— 来源与文件 URI(2026-09-12 自 workspace/files 插件收拢)—— */
 
-/** 工作区来源 id(settings.workspaceOriginFilter 持久化值)。 */
-export const WSL_ORIGIN_ID = "wsl";
-
 /** 来源判定:WSL 工作区(显式元数据,或 Windows 本机 UNC 形态)。 */
 export function isWslWorkspace(ws: Workspace): boolean {
   return !!ws.wsl || ws.root.startsWith("\\\\wsl.localhost\\\\");

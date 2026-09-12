@@ -7,7 +7,7 @@
 
 import { t } from "@kernel/i18n";
 import { CloudIcon, PencilIcon, TrashIcon } from "@phosphor-icons/react";
-import type { Channel } from "@plugins/cli-shared/providerChannels";
+import type { Channel } from "./types";
 
 export function ChannelRow({
   channel,

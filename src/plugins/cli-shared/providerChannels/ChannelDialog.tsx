@@ -1,18 +1,16 @@
 /**
  * 渠道添加/编辑对话框 —— 见 docs/superpowers/specs/2026-09-11-cli-provider-channels-design.md。
  *
- * 复用 git 远端对话框的 GitDialogShell(通用弹层骨架,无 git 语义),沿用仓库先例的
- * title/footer 排法,避免重新发明 dialog 容器;这是有意的跨插件 UI 复用(git → cli-config)。
- *
- * 归属:cli-config 插件(本页 UI 所有者)。
+ * 复用 kernel DialogShell(通用弹层骨架)与 SecretInput,避免重新发明 dialog 容器。
+ * 归属:cli-shared/providerChannels(消费 = cli-config/claude/codex 三家)。
  */
 
 import { useEffect, useRef, useState } from "react";
 import { CloudIcon } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { GitDialogShell, DialogActions } from "@plugins/git/views/remoteDialogs/GitDialogShell";
-import { SecretInput } from "../FieldControls";
-import type { Channel } from "@plugins/cli-shared/providerChannels";
+import { DialogShell, DialogActions } from "@kernel/DialogShell";
+import { SecretInput } from "@kernel/SecretInput";
+import type { Channel } from "./types";
 
 export interface ChannelFormValue {
   name: string;
@@ -49,7 +47,7 @@ export function ChannelDialog({
   }, []);
 
   return (
-    <GitDialogShell
+    <DialogShell
       title={initial ? t("编辑渠道") : t("添加渠道")}
       icon={<CloudIcon className="size-4" weight="fill" aria-hidden />}
       locked={submitting}
@@ -117,6 +115,6 @@ export function ChannelDialog({
           />
         </label>
       </div>
-    </GitDialogShell>
+    </DialogShell>
   );
 }

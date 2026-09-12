@@ -12,7 +12,7 @@
 import { ipc } from "@kernel/ipc";
 /* 经 cli-shared 消费 opencode 磁盘布局(合法通道,准入先例见其文件头)。 */
 import { opencodeConfigDir } from "../cli-shared/opencodeDisk";
-import { frontmatterDescription } from "../cli-shared/frontmatter";
+import { frontmatterDescription } from "@kernel/frontmatter";
 import type { CliSuggestion } from "@kernel/cli";
 import { opencodeJsonCommandSuggestions, readOpencodeConfig } from "./config";
 

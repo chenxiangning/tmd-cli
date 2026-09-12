@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { frontmatterDescription, parseFrontmatter } from "./frontmatter";
+import { frontmatterDescription, parseFrontmatter } from "@kernel/frontmatter";
 
 describe("parseFrontmatter", () => {
   it("单行 key: value 与引号剥离(claude open-spec 实证形态)", () => {

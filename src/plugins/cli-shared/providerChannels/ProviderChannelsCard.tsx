@@ -1,25 +1,16 @@
 /**
- * 供应商渠道列表卡(图2-3)—— row click 切换(apply 成功才回写 current),
+ * 供应商渠道列表卡(图2-3)—— 归属 cli-shared(providerChannels;消费 =
+ * cli-config/claude/codex 三家,满足 1 cli + feature 与 ≥2 cli 双准入),
+ * row click 切换(apply 成功才回写 current),
  * Switch 同步;current 行删除禁用。归属 cli-config(本页 UI 所有者),
  * 格式/存储走 @plugins/cli-shared/providerChannels。spec: 2026-09-11-cli-provider-channels-design.md。
  */
 import { useCallback, useEffect, useState } from "react";
 import { DownloadSimpleIcon, PlusIcon } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import {
-  loadChannelDoc,
-  saveChannelDoc,
-  setCurrent,
-  removeChannel,
-  upsertChannel,
-  genChannelId,
-  readCcSwitchV2,
-  readCcSwitchV3,
-  normalizeProvider,
-  dedupeCcSwitchImport,
-  probeCcSwitch,
-} from "@plugins/cli-shared/providerChannels";
-import type { Channel, ChannelDoc, SupportedEngineId } from "@plugins/cli-shared/providerChannels";
+import { genChannelId, loadChannelDoc, removeChannel, saveChannelDoc, setCurrent, upsertChannel } from "./store";
+import { dedupeCcSwitchImport, normalizeProvider, probeCcSwitch, readCcSwitchV2, readCcSwitchV3 } from "./ccswitch";
+import type { Channel, ChannelDoc, SupportedEngineId } from "./types";
 import { ipc } from "@kernel/ipc";
 import { ChannelDialog, type ChannelFormValue } from "./ChannelDialog";
 import { ChannelRow } from "./ChannelRow";

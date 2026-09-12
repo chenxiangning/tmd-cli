@@ -9,6 +9,8 @@ import {
 } from "./db";
 import { opencodeDefaultModel, readOpencodeConfig } from "./config";
 import { listOpencodeSuggestions, OPENCODE_COMMAND_SUGGESTIONS } from "./commands";
+/* 候选表随公共出口再导出:composer 契约测试与其余 cli-* 同构走出口(不摸内部文件)。 */
+export { OPENCODE_COMMAND_SUGGESTIONS } from "./commands";
 
 /**
  * opencode CLI 插件(anomalyco/opencode,本机 1.18.25 实证,2026-09-05):

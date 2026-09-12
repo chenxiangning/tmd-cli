@@ -1,5 +1,5 @@
-/** ja 词典 · memory 域(键 = 中文源串,由文案迁移按归属写入;zh 恒等无词典)。 */
-export const MESSAGES = {
+/** memory 域 ja 词典(memory-coordinator 插件自带;键 = 中文源串)。 */
+export const MESSAGES_JA = {
   /* ── 右栏 Memory 面板 ── */
   "未选择工作区": "ワークスペース未選択",
   "池不可用": "プール利用不可",

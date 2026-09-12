@@ -1,14 +1,16 @@
 /**
- * GitDialogShell —— 远端操作对话框共享骨架(portal + 遮罩 + 标题行 + 底部动作区)。
- * 提交中禁关(backdrop 点击/Esc 忽略);宽度按对话框传入(推送宽,拉取/获取窄)。
- * DialogActions 是 取消/主按钮 的固定排法:主按钮 accent,提交中文案切「加载中…」。
+ * DialogShell —— 对话框共享骨架(kernel 通用 UI 原语,同 StyledSelect 先例):
+ * portal + 遮罩 + 标题行 + 底部动作区。提交中禁关(backdrop 点击/Esc 忽略);
+ * 宽度按调用方传入。DialogActions 是 取消/主按钮 的固定排法:主按钮 accent,
+ * 提交中文案切「加载中…」。OpToggle = ✓ 指示器选项开关行。
+ * 消费:git 远端操作对话框族、cli-config 渠道对话框、cli-omp 供应商/密钥弹层。
  */
 
 import { t } from "@kernel/i18n";
 import { useEffect, useEffectEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
-export function GitDialogShell({
+export function DialogShell({
   title,
   icon,
   repoName,

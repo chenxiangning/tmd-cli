@@ -1,6 +1,7 @@
 /**
- * Markdown frontmatter 最小解析 ── SKILL.md / commands/*.md 扫描共用
- * (skillDirs / mdCommands 消费;CLI 私有知识进 cli-shared 的惯例同 grokConfig)。
+ * Markdown frontmatter 最小解析(通用原语,同 yamlBlocks 先例;零 CLI 语义)。
+ * 消费:cli-shared skillDirs/mdCommands(技能与命令扫描)、cli-opencode
+ * commands、assets/promptMd(prompt 模板)。
  *
  * 各 CLI(claude/qoder/codex/kimi/grok)的技能与命令定义都是
  * `---` 包围的 YAML 头 + markdown 正文,这里只取单行 `key: value` 形态的

@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { t } from "@kernel/i18n";
 import { CaretDown, Cloud, DownloadSimple, GitBranch, Cross } from "@phosphor-icons/react";
 import { ipc, type GitRemoteRequest } from "@kernel/ipc";
-import { DialogActions, GitDialogShell } from "./GitDialogShell";
+import { DialogActions, DialogShell } from "@kernel/DialogShell";
 import { GitOpTokens, type GitOpToken } from "./GitOpTokens";
 import { BranchCombobox, PickerField, RemotePicker } from "./GitPicker";
 import { resolvePullExplanation, type PullStrategy } from "./pullExplain";
@@ -109,7 +109,7 @@ export function PullDialog({
     );
 
   return (
-    <GitDialogShell
+    <DialogShell
       title={t("拉取变更")}
       icon={<DownloadSimple className="h-[0.875rem] w-[0.875rem]" aria-hidden />}
       repoName={repoName}
@@ -258,7 +258,7 @@ export function PullDialog({
           <GitOpTokens tokens={commandTokens} />
         </div>
       </div>
-    </GitDialogShell>
+    </DialogShell>
   );
 }
 

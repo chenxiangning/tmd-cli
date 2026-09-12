@@ -15,7 +15,7 @@
 
 import { ipc } from "@kernel/ipc";
 import type { CliSuggestion } from "@kernel/cli";
-import { frontmatterDescription } from "./frontmatter";
+import { frontmatterDescription } from "@kernel/frontmatter";
 
 /** 单目录扫描上限:技能目录不会有几千项,给异常目录(误传仓库根)设闸。 */
 const SCAN_CAP = 2000;

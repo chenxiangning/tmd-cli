@@ -71,11 +71,6 @@ export function registerWorkspaceOrigin(origin: WorkspaceOrigin): () => void {
   };
 }
 
-/** 已注册来源(侧栏过滤 chip 列表来源,顺序 = 注册序)。 */
-export function listWorkspaceOrigins(): readonly WorkspaceOrigin[] {
-  return origins;
-}
-
 /** 工作区归属的来源(首个 matches 命中;无 = 本地目录工作区)。 */
 export function findWorkspaceOrigin(ws: Workspace): WorkspaceOrigin | null {
   return origins.find((o) => o.matches(ws)) ?? null;

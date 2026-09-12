@@ -14,7 +14,7 @@ import { ArrowClockwise, Repeat, Tag, UploadSimple } from "@phosphor-icons/react
 import { ipc, type GitCommitFile, type GitPushPreview, type GitRemoteRequest } from "@kernel/ipc";
 import { openCommitDiffTab } from "../../commitTab";
 import { GitOpTokens } from "./GitOpTokens";
-import { DialogActions, GitDialogShell, OpToggle } from "./GitDialogShell";
+import { DialogActions, DialogShell, OpToggle } from "@kernel/DialogShell";
 import { PushPreviewColumns } from "./PushPreviewColumns";
 import { PushGerritSection } from "./PushGerritSection";
 import { useCommitDetails, usePushPreview } from "./usePushPreview";
@@ -147,7 +147,7 @@ export function PushDialog({
   const heroTokens = buildPushHeroTokens(branch, remote, target, gerrit);
 
   return (
-    <GitDialogShell
+    <DialogShell
       title={t("将提交推送到远端")}
       icon={<UploadSimple className="h-[0.875rem] w-[0.875rem]" aria-hidden />}
       repoName={repoName}
@@ -239,6 +239,6 @@ export function PushDialog({
         onReviewers={setReviewers}
         onCc={setCc}
       />
-    </GitDialogShell>
+    </DialogShell>
   );
 }

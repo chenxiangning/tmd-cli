@@ -3,8 +3,7 @@
  * 全部下拉走 StyledSelect;modelMap 值列在 field.catalog 存在时升级 ModelPicker;
  * 回退链(multi)候选渲染在 ChainPicker.tsx;纯函数/钩子在 FieldControlsModel.ts。
  */
-import { useState } from "react";
-import { ArrowDown, ArrowUp, Eye, EyeClosed, Plus, Trash } from "@phosphor-icons/react";
+import { ArrowDown, ArrowUp, Plus, Trash } from "@phosphor-icons/react";
 import type { CliConfigField, CliConfigValues } from "@kernel/cliConfigRegistry";
 import { StyledSelect } from "@kernel/StyledSelect";
 import { t } from "@kernel/i18n";
@@ -19,39 +18,6 @@ import {
   withCurrent,
 } from "./FieldControlsModel";
 
-/** 密钥输入:默认掩码,眼睛切换明文。 */
-export function SecretInput({
-  id,
-  value,
-  onChange,
-}: {
-  id: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const [show, setShow] = useState(false);
-  return (
-    <div className="cli-cfg-secret">
-      <input
-        id={id}
-        type={show ? "text" : "password"}
-        className="cli-cfg-input"
-        value={value}
-        aria-label={t("密钥")}
-        autoComplete="off"
-        onChange={(e) => onChange(e.target.value)}
-      />
-      <button
-        type="button"
-        className="cli-cfg-icon-btn"
-        aria-label={show ? t("隐藏") : t("显示")}
-        onClick={() => setShow(!show)}
-      >
-        {show ? <Eye size={13} /> : <EyeClosed size={13} />}
-      </button>
-    </div>
-  );
-}
 
 /** 键值映射表:值列 = 目录两级选择器 / 候选下拉 / 自由文本;键可下拉可自由。 */
 export function ModelMapInput({

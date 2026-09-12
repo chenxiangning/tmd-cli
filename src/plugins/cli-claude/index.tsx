@@ -12,7 +12,7 @@ import { fetchClaudeQuota } from "./quota";
 import { listClaudeSuggestions } from "./scanSuggestions";
 import { claudeConfigEntry } from "./configGui";
 import { applyClaudeChannel } from "./channelApply";
-import { ProviderChannelsCard } from "@plugins/cli-config/providerChannels";
+import { ProviderChannelsCard } from "@plugins/cli-shared/providerChannels";
 
 /**
  * claude 品牌 glyph:官方日芒标志(simple-icons claude 矢量路径 vendored,

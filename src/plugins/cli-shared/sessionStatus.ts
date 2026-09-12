@@ -1,3 +1,9 @@
+/**
+ * 会话 JSONL 状态读取共享(pi 族适配器 piFamily 的内部件,经其服务 omp/pi):
+ * 定位会话文件 → 尾窗读(256KB)→ 模型/供应商字段探测(字段键由各家声明)。
+ * 准入先例:piFamily(omp/pi);解析与 IPC 均无单插件语义。
+ */
+
 import { ipc } from "@kernel/ipc";
 import type { CliSessionStatus } from "@kernel/cli";
 

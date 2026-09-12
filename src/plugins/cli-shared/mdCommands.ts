@@ -13,7 +13,7 @@
 
 import { ipc } from "@kernel/ipc";
 import type { CliSuggestion } from "@kernel/cli";
-import { frontmatterDescription, parseFrontmatter } from "./frontmatter";
+import { frontmatterDescription, parseFrontmatter } from "@kernel/frontmatter";
 
 /** 单目录扫描上限(防误传仓库根)。 */
 const SCAN_CAP = 2000;

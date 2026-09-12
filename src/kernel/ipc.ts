@@ -4,6 +4,8 @@
  * Git 契约类型在 ./gitContract、SSH/SFTP 契约在 ./sshTypes(此处转发导出,消费方路径不变)。
  * file-size-exempt:R3 规定 @tauri-apps/* 唯一 import 点是本文件,fs/git/checkpoints/ssh
  * 四域 invoke 封装必须集中于此;契约类型已外拆,剩余为不可分散的命令面。
+ * 另有 wsl_* 命令族:语义归 wsl 来源插件(kernel 零 WSL 语义,解释权在插件),
+ * 因 R3 同样必须经本文件 invoke,故与四域并列集中;权限面归 ipc.exec 泛化类。
  */
 
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
@@ -249,7 +251,7 @@ export interface ProcRunResult {
   timedOut: boolean;
 }
 
-/* ── wsl_info 契约(对齐 src-tauri/src/wsl.rs;wsl.exe 诊断输出 UTF-16LE 由 Rust 侧解码)── */
+/* ── wsl_info 契约(wsl 来源插件私有,经通用通道集中于此;对齐 src-tauri/src/wsl.rs,UTF-16LE 由 Rust 解码)── */
 
 export interface WslDistro {
   name: string;
@@ -543,8 +545,7 @@ export const ipc = {
    *  日志经 cli-install://{id} 事件推,id 惯例 = 引擎 binary。 */
   cliInstallRun: (id: string, plan: CliInstallPlan) =>
     invoke<boolean>("cli_install_run", { id, plan }),
-  /** 一键安装 CLI(计划由 CliProfile 安装元数据派生:scriptInstall 优先,否则 npm);
-   *  日志经 cli-install://{id} 事件推,id 惯例 = 引擎 binary。 */
+  /** 本机 WSL 诊断:发行版表/版本/运行态(wsl 插件消费;契约对齐 src-tauri/src/wsl.rs)。 */
   wslInfo: () => invoke<WslInfo>("wsl_info"),
   /** 远程 WSL 探测:经 SSH 连 Windows 宿主跑 wsl.exe 诊断(平台无关;mac 客户端可直连)。 */
   wslRemoteInfo: (host: SshHostConfig) => invoke<WslInfo>("wsl_remote_info", { host }),
@@ -567,7 +568,7 @@ export const ipc = {
     }),
   /** 未决 SSH 提示对账(接线竞态/webview reload 兜底,先例 refreshForwards)。 */
   sshPromptsPending: () => invoke<SshPendingPromptWire[]>("ssh_prompts_pending"),
-  /** 字符串 MD5(小写 hex)。kimi 会话目录按 MD5(cwd) 命名,前端据此拼会话路径。 */
+  /** 字符串 MD5(小写 hex;通用原语,消费方的用途注记归各插件)。 */
   md5Hex: (text: string) => invoke<string>("md5_hex", { text }),
 
   /* ── 本地插件原语(plugins.rs;路径白名单在 Rust 侧锁死 ~/.tmd-cli/plugins)── */

@@ -41,10 +41,10 @@ export const wslPlugin: Plugin = {
     const offWrap = registerSpecWrapper(wrapWslSpec);
     const offShell = registerShellSpecProvider({
       appliesTo: isWslWorkspace,
-      build: async (ws, title) => {
+      build: async (ws) => {
         const unc = parseWslUnc(ws.root);
         if (!unc) throw new Error(t("工作区 root 不是 WSL UNC 路径"));
-        return wslShellSpec(unc.distro, unc.linuxPath, title);
+        return wslShellSpec(unc.distro, unc.linuxPath, "wsl-bash");
       },
     });
     return () => {

@@ -41,7 +41,8 @@ export async function applySpecWrappers(spec: SpawnSpec): Promise<SpawnSpec> {
 export interface ShellSpecProvider {
   /** 该提供者服务哪些工作区(首个命中者接管内置终端 spec 构建)。 */
   appliesTo(ws: Workspace): boolean;
-  build(ws: Workspace, title: string): Promise<SpawnSpec>;
+  /** 标题等展示语义由提供者自决(kernel 不注入来源专属串)。 */
+  build(ws: Workspace): Promise<SpawnSpec>;
 }
 
 let shellProviders: ShellSpecProvider[] = [];

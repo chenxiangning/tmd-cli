@@ -6,8 +6,8 @@
 
 import { useState } from "react";
 import { t } from "@kernel/i18n";
-import { GitDialogShell, DialogActions } from "@plugins/git/views/remoteDialogs/GitDialogShell";
-import { SecretInput } from "@plugins/cli-config/FieldControls";
+import { DialogShell, DialogActions } from "@kernel/DialogShell";
+import { SecretInput } from "@kernel/SecretInput";
 import { addOmpCustomProvider } from "./modelsConfig";
 
 const API_OPTIONS = [
@@ -55,7 +55,7 @@ export function OmpCustomProviderDialog({
   };
 
   return (
-    <GitDialogShell
+    <DialogShell
       title={t("添加供应商")}
       icon={null}
       width={560}
@@ -133,6 +133,6 @@ export function OmpCustomProviderDialog({
           />
         </label>
       </div>
-    </GitDialogShell>
+    </DialogShell>
   );
 }

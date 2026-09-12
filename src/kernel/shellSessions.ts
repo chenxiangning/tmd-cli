@@ -63,7 +63,7 @@ export class ShellSessionService {
        全不命中走默认本地 shell。 */
     const shellProvider = findShellSpecProvider(workspace);
     const shell = shellProvider
-      ? await shellProvider.build(workspace, "wsl-bash")
+      ? await shellProvider.build(workspace)
       : { ...defaultShell(), cwd: workspace.root, kind: "shell" as const };
     const spawned = await ipc
       .sessionSpawn(

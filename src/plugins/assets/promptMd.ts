@@ -9,11 +9,11 @@
  *
  *   正文($NAME 大写占位符原样保留,插入后手填)
  *
- * 字段解析复用 cli-shared/frontmatter(通用 YAML-like 单行 key: value 解析,
+ * 字段解析复用 @kernel/frontmatter(通用 YAML-like 单行 key: value 解析,
  * 非 CLI 私有格式知识);正文切片自管(parseFrontmatter 不返回 body)。
  */
 
-import { parseFrontmatter } from "../cli-shared/frontmatter";
+import { parseFrontmatter } from "@kernel/frontmatter";
 
 export interface PromptData {
   description?: string;

@@ -1,5 +1,6 @@
 /**
- * 供应商额度 HTTP 适配层 ── 共同能力,全部 CLI 插件共享。
+ * 供应商额度 HTTP 适配层 ── 共同能力,全部 CLI 插件 + welcome 凭据盘共享
+ * (welcome/credentials*.ts 联合消费,先例依 1 cli-* + feature 联合准入)。
  *
  * 契约对齐 codemoss src-tauri/src/coding_plan_quota/(providers.rs / relay.rs / pi_usage.rs):
  * - kimi:        GET https://api.kimi.com/coding/v1/usages        (Bearer)

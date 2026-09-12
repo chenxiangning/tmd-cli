@@ -101,7 +101,8 @@ function b64ToUtf8(b64: string): string {
  * readStatus 尾窗走同一解析。协议:空串 = 无数据(grep 无匹配/目录为空)。
  * 目录头抓 32KB(与本地扫描浅窗同口径),按 mtime 倒序截前 50 条限传输。
  */
-export function piFamilyRemoteSessions(store: PiFamilyStore) {
+/** 仅 piFamilySessions 内部装配使用;外部经 profile.remoteSessions 消费。 */
+function piFamilyRemoteSessions(store: PiFamilyStore) {
   const dirSh = store.remoteSessionsDirSh;
   if (!dirSh) return undefined;
   const modelKeys = store.modelKeys ?? ["model"];

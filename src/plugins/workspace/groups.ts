@@ -7,11 +7,10 @@
  * 数组序)、无 worktree 分支、无 copiesFolder。
  */
 
-import { getSettingsState, updateSettings, useSettingsState } from "@kernel/settings";
+import { getSettingsState, updateSettings } from "@kernel/settings";
 import type { WorkspaceGroup } from "@kernel/settingsTypes";
 import { t } from "@kernel/i18n";
-import { assignWorkspaceGroup, getWorkspaces, useWorkspaces, type Workspace } from "@kernel/workspace";
-import { useMemo } from "react";
+import { assignWorkspaceGroup, getWorkspaces, type Workspace } from "@kernel/workspace";
 
 /** 未分组保留名(大小写不敏感):禁用作组名(codemoss 同款 "Ungrouped" 保留)。 */
 const RESERVED_GROUP_NAMES: Record<string, true> = { 未分组: true, ungrouped: true };
@@ -104,15 +103,5 @@ export function groupWorkspaces(
     ungrouped,
     named: groupList.map((group) => ({ group, workspaces: buckets.get(group.id) ?? [] })),
   };
-}
-
-/** React 版派生:侧栏/菜单消费。 */
-export function useGroupedWorkspaces(): GroupedWorkspaces {
-  const { list } = useWorkspaces();
-  const { settings } = useSettingsState();
-  return useMemo(
-    () => groupWorkspaces(list, settings.workspaceGroups),
-    [list, settings.workspaceGroups],
-  );
 }
 

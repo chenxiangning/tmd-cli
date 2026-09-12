@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { PlusIcon } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { GitDialogShell, DialogActions } from "@plugins/git/views/remoteDialogs/GitDialogShell";
+import { DialogShell, DialogActions } from "@kernel/DialogShell";
 
 export function KeyDialog({
   name,
@@ -20,7 +20,7 @@ export function KeyDialog({
 }) {
   const [key, setKey] = useState("");
   return (
-    <GitDialogShell
+    <DialogShell
       title={t("设置 Key — {name}", { name })}
       icon={<PlusIcon className="size-4" weight="fill" aria-hidden />}
       locked={saving}
@@ -47,6 +47,6 @@ export function KeyDialog({
           />
         </label>
       </div>
-    </GitDialogShell>
+    </DialogShell>
   );
 }

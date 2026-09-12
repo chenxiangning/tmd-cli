@@ -58,8 +58,3 @@ export function findRemoteFileSourceForUri(path: string): RemoteFileSource | nul
 export function isRemoteFileUri(path: string): boolean {
   return sources.some((s) => s.ownsUri(path));
 }
-
-/** React 订阅端(files 树随插件注册/注销重渲)。 */
-export function useRemoteFileSources(): readonly RemoteFileSource[] {
-  return store.useStore().sources;
-}

@@ -5,6 +5,8 @@
  * - claude 家族(claude/qoder):每行携带 "sessionId",cwd/timestamp 在消息行字段里。
  * codex(session_meta)、grok(summary.json)、kimi(state.json)格式独有,
  * 由各自插件就地解析。内核只做扫描与匹配,不理解任何 CLI 的格式(kernel/cli.ts)。
+ * 消费先例:piFamily(omp/pi 内部转手)、qoderSessionModel(qoder 双插件);
+ * cli-claude 直接消费 claude 家族解析。
  */
 
 import type { SessionFileIdentity } from "@kernel/cli";

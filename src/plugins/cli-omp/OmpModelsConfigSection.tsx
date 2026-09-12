@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
-import { GitDialogShell, DialogActions } from "@plugins/git/views/remoteDialogs/GitDialogShell";
+import { DialogShell, DialogActions } from "@kernel/DialogShell";
 import { BrandAvatar, StatusDot } from "./OmpOauthSection";
 import {
   MODELS_TEMPLATE,
@@ -152,7 +152,7 @@ function ModelsEditorDialog({
 }) {
   const [raw, setRaw] = useState(initial);
   return (
-    <GitDialogShell
+    <DialogShell
       title={t("编辑 models.yml")}
       icon={null}
       width={760}
@@ -177,6 +177,6 @@ function ModelsEditorDialog({
         className="mt-3 w-full resize-y rounded border border-(--tmd-border) bg-(--tmd-bg) p-2 font-mono text-xs"
         data-testid="omp-models-editor"
       />
-    </GitDialogShell>
+    </DialogShell>
   );
 }

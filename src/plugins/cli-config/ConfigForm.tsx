@@ -20,8 +20,8 @@ import { ModelPicker } from "./ModelPicker";
 import {
   ModelMapInput,
   OrderedListInput,
-  SecretInput,
-} from "./FieldControls";
+  } from "./FieldControls";
+import { SecretInput } from "@kernel/SecretInput";
 import { normOptions, strVal, useCatalog, withCurrent } from "./FieldControlsModel";
 
 export function ConfigForm({

@@ -16,8 +16,9 @@ import { PI_COMMAND_SUGGESTIONS, PI_SKILL_SUGGESTIONS } from "../cli-pi";
 import { CODEX_COMMAND_SUGGESTIONS, extractCodexMcpServers } from "../cli-codex";
 import { GROK_COMMAND_SUGGESTIONS } from "../cli-grok";
 import { KIMI_COMMAND_SUGGESTIONS } from "../cli-kimi";
+/* qoder 双插件同族共享:候选真相在 cli-shared(qoderSessionModel),import 处声明先例 */
 import { QODER_COMMAND_SUGGESTIONS } from "../cli-shared/qoderSessionModel";
-import { OPENCODE_COMMAND_SUGGESTIONS } from "../cli-opencode/commands";
+import { OPENCODE_COMMAND_SUGGESTIONS } from "../cli-opencode";
 import type { CliSuggestion } from "@kernel/cli";
 
 /** bare 合法清单(proposal §初判表;实测校准后在此回填) */

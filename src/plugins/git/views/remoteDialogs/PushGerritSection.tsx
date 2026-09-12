@@ -6,7 +6,7 @@
 
 import { t } from "@kernel/i18n";
 import { UploadSimple } from "@phosphor-icons/react";
-import { OpToggle } from "./GitDialogShell";
+import { OpToggle } from "@kernel/DialogShell";
 
 export function PushGerritSection({
   gerrit,
