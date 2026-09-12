@@ -147,11 +147,10 @@ export function useCliDiskScan({
 
   /** 缺真标题的活会话(手动命名除外)→ 指数退避重扫追赶自动命名落盘,
    *  全部落定即停(titleRetryDelay,同运行区 / 全局置顶锁步)。 */
-  const diskTitleByCliId = new Map(
-    (sessions ?? [])
-      .filter((s) => !isDeleted(s.id))
-      .flatMap((s): [string, string][] => (s.title ? [[s.id, s.title]] : [])),
-  );
+  const diskTitleByCliId = new Map<string, string>();
+  for (const s of sessions ?? []) {
+    if (!isDeleted(s.id) && s.title) diskTitleByCliId.set(s.id, s.title);
+  }
   const missingTitleSig = profile.listSessions
     ? [...liveCliIds]
         .filter(
