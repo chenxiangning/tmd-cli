@@ -49,6 +49,7 @@
 - 前端改动:`pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build`
 - Rust 改动(在 `src-tauri/` 下):`cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check`
 - UI 行为改动必须 `pnpm tauri:dev` 打开真实窗口目检交互,测试绿不算数。
+- 提交收口铁则:每次提交收口之前必须跑 `npx react-doctor@latest -y`,得分必须达到 100;不足 100 不得收口,修到达标才能提交。
 
 ## 3. 提交与风格(用户个人偏好)
 
