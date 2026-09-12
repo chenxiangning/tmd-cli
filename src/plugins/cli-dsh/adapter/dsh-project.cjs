@@ -8,8 +8,12 @@
  *   应答经 $events/result,rpcId 位即 eventId。
  * - 事件词表(host 0.1.5-rc.1 真 turn 抓帧):turn/start|end(reason.kind 判成败)、
  *   step/start|end、user/message、assistant/message(整消息沉降,content 块 =
- *   text/tool-call,usage 挂 data.usage;无流式 chunk 事件)、
- *   tool/call、tool/result。chunkrow/* 变体为历史分页编码,活流不出现,不投影。
+ *   text/tool-call,usage 挂 data.usage)、tool/call、tool/result。
+ *   chunkrow/* 变体为历史分页编码,活流不出现,不投影。
+ * - 流式真身:follow 订阅带 assistantStream: true 时追加 assistant-stream
+ *   帧(start / chunk{text-delta|reasoning-delta|usage|...} / end committed),
+ *   durable assistant/message 仍随后沉降 —— 消费方须按「attempt 有过增量则
+ *   跳过 durable 正文」去重(2026-09-12 真机抓帧,codemoss 同款接法)。
  */
 
 function str(v) {
@@ -123,9 +127,41 @@ function projectEvent(event, sid) {
  * 单帧 value → 动作数组。channel = "follow" | "events";sessionId 只对 follow
  * 流有意义(流即会话);waterfall 的会话身份取 agentId。
  */
+/* assistant-stream 活帧(assistantStream opt-in)→ 动作投影。
+ * start 复位 attempt;chunk 按 chunk.type 分流(text/reasoning 增量、
+ * usage 与 durable 同构);end 仅 committed 有意义(settlement 键)。
+ * 消费方契约:见模块头注 —— attempt 有过增量就跳过 durable 正文。 */
+function projectAssistantStream(value, sessionId) {
+  const frame = value.frame || {};
+  const sid = sessionId;
+  const ftype = str(frame.type);
+  if (ftype === "start") return [{ sid, kind: "attempt-start", attemptId: str(frame.attemptId) }];
+  if (ftype === "end") {
+    return [{ sid, kind: "attempt-end", committed: frame.outcome?.kind === "committed" }];
+  }
+  if (ftype !== "chunk") return [];
+  const chunk = frame.chunk || {};
+  switch (str(chunk.type)) {
+    case "text-delta":
+      return str(chunk.text) ? [{ sid, kind: "text-delta", text: chunk.text }] : [];
+    case "reasoning-delta":
+      return str(chunk.text) ? [{ sid, kind: "reasoning-delta", text: chunk.text }] : [];
+    case "usage": {
+      const u = chunk.usage || {};
+      return [{ sid, kind: "usage",
+        input: intField(u, ["uncachedInputTokens", "inputTokens", "input"]),
+        output: intField(u, ["outputTokens", "output"]),
+        cached: intField(u, ["cacheReadTokens", "cachedTokens"]) }];
+    }
+    default:
+      return []; /* block-start/end、tool-call-delta、finish:durable 侧已有投影 */
+  }
+}
+
 function projectFrame(value, channel, sessionId) {
   const v = value || {};
   if (channel === "follow") {
+    if (v.type === "assistant-stream") return projectAssistantStream(v, sessionId);
     if (v.type === "event" && v.event) return projectEvent(v.event, sessionId);
     if (v.type === "snapshot") {
       return [{ sid: sessionId, kind: "snapshot",
@@ -156,4 +192,4 @@ function projectFrame(value, channel, sessionId) {
   return [];
 }
 
-module.exports = { projectFrame };
+module.exports = { projectFrame, projectAssistantStream };

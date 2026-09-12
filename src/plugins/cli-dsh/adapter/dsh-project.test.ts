@@ -165,3 +165,58 @@ describe("$events 流:waterfall 投影", () => {
     expect(projectFrame({ type: "waterfall", event: "other/request", eventId: "e", agentId: "s1", request: {} }, "events", "s1")).toEqual([]);
   });
 });
+
+describe("follow 流:assistant-stream 活帧投影(assistantStream opt-in)", () => {
+  /** 0.1.2 真机帧(2026-09-12 抓帧,codemoss 同款接法):follow 订阅带
+   *  assistantStream: true 时追加 {type:"assistant-stream", frame} 活帧,
+   *  durable assistant/message 仍随后沉降,消费方按 attempt 去重。 */
+  const streamFrame = (frame: unknown) =>
+    projectFrame({ type: "assistant-stream", frame }, "follow", "s1");
+
+  it("start:attempt 开场(消费侧复位增量标记)", () => {
+    expect(
+      streamFrame({ type: "start", attemptId: "s1:1", revision: 1, turn: 1, step: 1 }),
+    ).toEqual([{ sid: "s1", kind: "attempt-start", attemptId: "s1:1" }]);
+  });
+
+  it("chunk text-delta:正文增量原样透传", () => {
+    expect(
+      streamFrame({
+        type: "chunk", attemptId: "s1:1", revision: 3, index: 1, time: 1789145451553,
+        chunk: { type: "text-delta", index: 0, text: "1" },
+      }),
+    ).toEqual([{ sid: "s1", kind: "text-delta", text: "1" }]);
+  });
+
+  it("chunk reasoning-delta:思考增量;空文本不出动作", () => {
+    expect(
+      streamFrame({ type: "chunk", revision: 4, chunk: { type: "reasoning-delta", index: 0, text: "想" } }),
+    ).toEqual([{ sid: "s1", kind: "reasoning-delta", text: "想" }]);
+    expect(
+      streamFrame({ type: "chunk", revision: 5, chunk: { type: "text-delta", index: 0, text: "" } }),
+    ).toEqual([]);
+  });
+
+  it("chunk usage:字段与 durable usage 同构(inputTokens/cacheReadTokens)", () => {
+    expect(
+      streamFrame({
+        type: "chunk", revision: 7, index: 5, time: 1789145451984,
+        chunk: { type: "usage", usage: { inputTokens: 8293, outputTokens: 40, totalTokens: 8461, cacheReadTokens: 128 } },
+      }),
+    ).toEqual([{ sid: "s1", kind: "usage", input: 8293, output: 40, cached: 128 }]);
+  });
+
+  it("chunk block-start/end、tool-call-delta、finish:不投影(durable 侧已有)", () => {
+    expect(streamFrame({ type: "chunk", revision: 2, chunk: { type: "block-start", index: 0, blockType: "text" } })).toEqual([]);
+    expect(streamFrame({ type: "chunk", revision: 6, chunk: { type: "tool-call-delta", index: 1, id: "c1", argumentsDelta: "{}" } })).toEqual([]);
+    expect(streamFrame({ type: "chunk", revision: 8, chunk: { type: "finish", reason: { kind: "stop" } } })).toEqual([]);
+  });
+
+  it("end committed:结算键;非 committed 透传 outcome 供消费侧判读", () => {
+    expect(
+      streamFrame({ type: "end", attemptId: "s1:1", revision: 9, index: 7, outcome: { kind: "committed", eventType: "assistant/message", seq: 16 } }),
+    ).toEqual([{ sid: "s1", kind: "attempt-end", committed: true }]);
+    expect(streamFrame({ type: "end", revision: 9, outcome: { kind: "aborted" } }))
+      .toEqual([{ sid: "s1", kind: "attempt-end", committed: false }]);
+  });
+});

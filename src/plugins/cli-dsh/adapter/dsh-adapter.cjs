@@ -42,6 +42,9 @@ const STREAM_EVENTS = "events";
 const STREAM_FOLLOW = "follow";
 
 let dshSessionId = null;
+/* 当前 attempt 是否已有活增量(text/reasoning-delta):有则跳过 durable
+ * assistant/message 的正文/思考投影,防双渲染(投影层注释见 dsh-project)。 */
+let attemptStreamed = false;
 let ws = null;
 let hostChild = null;
 let closing = false;
@@ -226,11 +229,14 @@ function connectMux() {
   ws = new WebSocket(MUX_URL, cookie ? { headers: { cookie } } : undefined);
   ws.addEventListener("open", () => {
     print.status("Mux 已连接");
-    /* 双流:follow = 本会话事件(首帧快照即历史);$events = 审批/提问 waterfall。 */
+    /* 双流:follow = 本会话事件(首帧快照即历史;$events = 审批/提问 waterfall。 */
     ws.send(JSON.stringify({ type: "open", streamId: STREAM_EVENTS, endpoint: "$events", payload: { args: {} } }));
+    /* assistantStream: true = 流式 opt-in:follow 追加 assistant-stream 活帧
+     * (start/chunk{text|reasoning delta}/end),正文逐 delta 到达;
+     * durable assistant/message 仍随后沉降,applyAction 按 attempt 去重。 */
     ws.send(JSON.stringify({
       type: "open", streamId: STREAM_FOLLOW, endpoint: "session/follow",
-      payload: { args: { request: { address: { kind: "session", sessionId: dshSessionId }, maxMessages: 200 } } },
+      payload: { args: { request: { address: { kind: "session", sessionId: dshSessionId }, maxMessages: 200, assistantStream: true } } },
     }));
   });
   ws.addEventListener("message", (ev) => {
@@ -252,6 +258,11 @@ function applyAction(a) {
     return;
   }
   if (a.sid && a.sid !== dshSessionId) return;
+  if (a.kind === "attempt-start") { attemptStreamed = false; return; }
+  if (a.kind === "text-delta" || a.kind === "reasoning-delta") attemptStreamed = true;
+  /* attempt 已有活增量:durable assistant/message 的正文/思考不再渲染
+     (usage 字段幂等合并,tool 行 durable 侧本就独立投影,均放行)。 */
+  if (attemptStreamed && (a.kind === "text" || a.kind === "reasoning")) return;
   if (a.kind === "snapshot") {
     renderHistory(a.records);
     const pv = a.projections?.values || {};

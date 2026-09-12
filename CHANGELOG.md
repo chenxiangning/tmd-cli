@@ -8,6 +8,7 @@
 
 ### 新增
 
+- DSH 会话流式输出:适配器 follow 订阅开启 `assistantStream` opt-in,dsh 0.1.2 host 随轮次推送 `assistant-stream` 活帧(start/chunk/end)——正文与思考逐 delta 到达(投影层新增 assistant-stream 帧投影,轮次引擎 text-delta/reasoning-delta 走既有流式管线),durable assistant/message 沉降按 attempt 去重防双渲染;此前正文为整消息沉降(订阅未开 opt-in,旧注释误判「无流式 chunk 事件」,2026-09-12 真机抓帧纠正,codemoss 同款接法)
 - WSL 支持(M1):WSL 卡(本机发行版枚举/设默认 + 经 SSH 连远程宿主,主机簿复用 ssh 配置)、添加工作区弹层发行版 tab(远程落库 `~` 形态 Linux 路径,本机落 UNC)、发行版内引擎探针(登录 shell PATH 含 ~/.local/bin;/mnt/* 互操作不计;未探测时新建会话菜单只留引导不显示不可用 CLI)、新建/恢复 WSL 会话(SSH 包装 `wsl.exe -d`,引擎档案随会话透传,点历史行 = 已知身份绑定:去重聚焦既有/磁盘行隐藏/真标题回填)、远程磁盘历史扫描与模型/思考观测(账号级额度照常回填)、远程文件树与 wslr:// 只读预览(超 512KB 显式降级);侧栏分组身份统一「profileId 或 engine」,引擎会话归 CLI 组
 
 ### 变更

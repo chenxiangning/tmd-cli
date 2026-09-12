@@ -53,6 +53,18 @@ function createTurnEngine(deps) {
         startTurn();
         break;
 
+      /* 活增量(assistantStream opt-in):与 durable 块同路渲染,
+         think 剥离/底栏擦写复用同一管线。 */
+      case "text-delta": {
+        const safe = think.feed(a.text);
+        if (safe) stream.chunk(safe);
+        break;
+      }
+
+      case "reasoning-delta":
+        stream.chunk(render.thinkingLine(a.text));
+        break;
+
       case "text": {
         const safe = think.feed(a.text);
         if (safe) stream.chunk(safe);
