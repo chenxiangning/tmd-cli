@@ -113,10 +113,9 @@ pub(crate) async fn exec_somewhere(
             {
                 let owned = command.to_string();
                 let (bytes, code) = tokio::task::spawn_blocking(move || {
-                    crate::wsl::run_bounded(
-                        &split_windows_args(&owned),
-                        EXEC_TIMEOUT.as_millis() as u64,
-                    )
+                    let args = split_windows_args(&owned);
+                    let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+                    crate::wsl::run_bounded(&refs, EXEC_TIMEOUT.as_millis() as u64)
                 })
                 .await
                 .map_err(|e| format!("wsl join 失败: {e}"))?
@@ -151,10 +150,10 @@ pub(crate) async fn exec_somewhere(
     }
 }
 
-/// 把本模块自构的简单 wsl.exe 命令串拆回参数数组(本机 run_bounded 需要 &[&str]);
+/// 把本模块自构的简单 wsl.exe 命令串拆回参数数组(本机 run_bounded 需要 &[&str],调用处转引用);
 /// 引号仅成对出现,不做通用 shell 解析。
 #[cfg(windows)]
-fn split_windows_args(command: &str) -> Vec<&str> {
+fn split_windows_args(command: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut cur = String::new();
     let mut in_quote: Option<char> = None;
@@ -165,15 +164,14 @@ fn split_windows_args(command: &str) -> Vec<&str> {
             None if c == '"' || c == '\'' => in_quote = Some(c),
             None if c.is_whitespace() => {
                 if !cur.is_empty() {
-                    out.push(cur.as_str());
-                    cur.clear();
+                    out.push(std::mem::take(&mut cur));
                 }
             }
             None => cur.push(c),
         }
     }
     if !cur.is_empty() {
-        out.push(cur.as_str());
+        out.push(cur);
     }
     out
 }
