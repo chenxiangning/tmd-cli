@@ -103,7 +103,7 @@ function engineDisplayName(profile: CliProfile): string {
 
 
 /** 单个 profile → 引擎卡元数据。 */
-export function engineMetaOf(profile: CliProfile): EngineMeta {
+function engineMetaOf(profile: CliProfile): EngineMeta {
   const req = profile.requires;
   return {
     id: profile.id,

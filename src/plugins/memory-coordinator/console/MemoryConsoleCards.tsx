@@ -15,7 +15,7 @@ import { listModels, resolveDistillEngine } from "../modelCatalog";
 import { rememberFacts, distillSessionTail } from "../phase2/write";
 
 /** 控制台共用输入框样式(与主文件同源,勿分叉)。 */
-export const consoleInputCls =
+const consoleInputCls =
   "h-7 flex-1 min-w-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 font-mono text-[0.6875rem] text-(--tmd-fg) outline-none focus:border-(--tmd-accent)";
 /** 控制台共用卡片容器样式。 */
 export const consoleCardCls =

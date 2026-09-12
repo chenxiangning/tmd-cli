@@ -11,7 +11,7 @@ import type { ComponentType } from "react";
 import { createSubscribable } from "./subscribable";
 
 /** 动作图标的最小 props 面(兼容 @phosphor-icons-react 图标组件)。 */
-export type SidebarActionIcon = ComponentType<{
+type SidebarActionIcon = ComponentType<{
   size?: number | string;
   className?: string;
 }>;

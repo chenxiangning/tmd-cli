@@ -33,13 +33,13 @@ import {
   resolveSubagentEntry,
 } from "../paths";
 
-export interface WriteOutcome {
+interface WriteOutcome {
   ok: boolean;
   /** omp 模型的确认文本(截断),失败时为错误摘要。 */
   detail: string;
 }
 
-export interface DistillOptions {
+interface DistillOptions {
   /** 提炼用模型(引擎 selector;空 = 跟随该引擎默认)。 */
   model?: string;
   /** 用户自定义补充规则(追加到指令,如「特别记住数据库决定;忽略测试细节」)。 */

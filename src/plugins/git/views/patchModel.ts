@@ -8,7 +8,7 @@
  * 余量侧置 null(渲染期斜纹占位)——codemoss DiffBlock buildSplitRows 同构。
  */
 
-export type PatchRowKind = "hunk" | "add" | "del" | "ctx" | "meta";
+type PatchRowKind = "hunk" | "add" | "del" | "ctx" | "meta";
 
 export interface PatchRow {
   kind: PatchRowKind;

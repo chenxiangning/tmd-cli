@@ -12,7 +12,7 @@
  */
 
 /** 上游 memories.category 值域(注入优先级序,源码 CATEGORY_PRIORITY)。 */
-export const MEMORY_CATEGORIES = [
+const MEMORY_CATEGORIES = [
   "PROJECT_RULES",
   "ARCHITECTURE",
   "CONSTRAINTS",
@@ -27,7 +27,7 @@ export const MEMORY_CATEGORIES = [
   "KNOWN_ISSUES",
 ] as const;
 
-export type MemoryCategory = (typeof MEMORY_CATEGORIES)[number];
+type MemoryCategory = (typeof MEMORY_CATEGORIES)[number];
 
 export const CATEGORY_CN: Record<MemoryCategory, string> = {
   PROJECT_RULES: "项目规则",

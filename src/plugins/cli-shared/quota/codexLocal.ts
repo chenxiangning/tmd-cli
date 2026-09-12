@@ -27,7 +27,7 @@ const ROLLOUT_TAIL_BYTES = 256 * 1024;
 /** 最多回扫的 rollout 文件数(按 mtime 倒序;最新文件可能尚无额度事件)。 */
 const MAX_ROLLOUT_FILES = 8;
 
-export interface CodexLocalQuota {
+interface CodexLocalQuota {
   windows: QuotaWindow[];
   planLabel?: string;
   /** 快照产生时间(token_count 事件时间戳,ms epoch)。 */

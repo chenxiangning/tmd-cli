@@ -15,7 +15,7 @@
 
 import { parseFrontmatter } from "@kernel/frontmatter";
 
-export interface PromptData {
+interface PromptData {
   description?: string;
   argumentHint?: string;
   content: string;

@@ -65,7 +65,7 @@ export function extractJsonObjects(buf: string): Record<string, unknown>[] {
   return out;
 }
 
-export async function queryCliRpc(
+async function queryCliRpc(
   spec: Omit<Parameters<typeof ipc.procCommunicate>[0], "stdin" | "exitOnStdout" | "timeoutMs">,
   request: Record<string, unknown>,
   timeoutMs = DEFAULT_TIMEOUT_MS,
@@ -152,7 +152,7 @@ export class CachedCliQuery<T> {
 /** 技能名前缀:pi 族原生语法 /skill:<name>,composer 侧存裸名、发送时翻译。 */
 const SKILL_PREFIX = "skill:";
 
-export interface RpcSuggestionSource {
+interface RpcSuggestionSource {
   /** listSuggestions 契约实现;副车不可达/超时 = null(回退静态表)。 */
   list(kind: "command" | "skill", cwd: string): Promise<CliSuggestion[] | null>;
   /** 测试 seam:绕过 TTL 缓存直测 fetch 映射与失败语义。 */

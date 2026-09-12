@@ -35,7 +35,7 @@ const PI_SETTINGS_PATH = ".pi/agent/settings.json";
 const PI_THINKING = ["auto", "off", "minimal", "low", "medium", "high", "xhigh"];
 const PI_THEMES = ["dark", "light"];
 
-export async function piConfigSources(): Promise<CliConfigSource[]> {
+async function piConfigSources(): Promise<CliConfigSource[]> {
   const home = await ipc.configHomeDir().catch(() => null);
   if (!home) return [];
   const path = `${home}/${PI_SETTINGS_PATH}`;

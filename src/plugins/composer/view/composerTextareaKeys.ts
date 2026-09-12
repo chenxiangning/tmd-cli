@@ -12,7 +12,7 @@ import { shouldSendOnEnter } from "./enterAction";
 import { resolveArrowIntent } from "./arrowIntent";
 import type { HistoryKeyEvent } from "./usePromptHistory";
 
-export interface ComposerKeyContext {
+interface ComposerKeyContext {
   matches: SuggestionMatch[] | null;
   pickIndex: number;
   setPickIndex: React.Dispatch<React.SetStateAction<number>>;

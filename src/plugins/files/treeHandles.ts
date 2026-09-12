@@ -4,7 +4,7 @@
  * 外壳 subbar 的 refresh/newFile/newFolder 按钮据此转发。
  */
 
-export interface TreeHandles {
+interface TreeHandles {
   reload: () => Promise<void>;
   newFile: () => void;
   newFolder: () => void;

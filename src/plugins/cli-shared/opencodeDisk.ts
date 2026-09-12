@@ -41,7 +41,7 @@ export async function opencodeConfigDir(): Promise<string | null> {
 }
 
 /** 单个供应商的凭据子集(只暴露盘点所需字段,不透传 refresh 等敏感位)。 */
-export interface OpencodeAuthEntry {
+interface OpencodeAuthEntry {
   providerId: string;
   /** api 型密钥;oauth 型缺省。 */
   key?: string;

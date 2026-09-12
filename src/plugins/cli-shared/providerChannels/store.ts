@@ -13,8 +13,8 @@ import type { Channel, ChannelDoc, EngineChannels, SupportedEngineId } from "./t
 import { ENGINE_IDS } from "./types";
 import { backupOnce } from "./backup";
 
-export const CHANNELS_FILENAME = "cli-channels.json";
-export const CHANNELS_DIR = ".tmd-cli";
+const CHANNELS_FILENAME = "cli-channels.json";
+const CHANNELS_DIR = ".tmd-cli";
 
 export function channelsFilePath(home: string): string {
   return `${home}/${CHANNELS_DIR}/${CHANNELS_FILENAME}`;

@@ -126,7 +126,7 @@ export interface WorkspaceMeta {
   alias?: string | null;
 }
 
-export interface WorkspacesFile {
+interface WorkspacesFile {
   list: WorkspaceMeta[];
   activeId?: string | null;
 }
@@ -138,7 +138,7 @@ export interface DirEntry {
 }
 
 /** 带修改时间的文件条目 —— fsCollectFiles 返回,供 CLI 磁盘会话扫描。 */
-export interface FileStamp {
+interface FileStamp {
   name: string;
   path: string;
   modifiedAt: number;
@@ -208,12 +208,12 @@ export interface CkptPatch {
   binary: boolean;
 }
 
-export interface CkptSkipEntry {
+interface CkptSkipEntry {
   path: string;
   reason: string;
 }
 
-export interface CkptRestoreOutcome {
+interface CkptRestoreOutcome {
   restored: string[];
   deleted: string[];
   skipped: CkptSkipEntry[];
@@ -225,7 +225,7 @@ export interface CkptRestoreOutcome {
 
 /* ── proc_communicate 契约(对齐 src-tauri/src/proc_run.rs,serde camelCase)── */
 
-export interface ProcRunSpec {
+interface ProcRunSpec {
   /** 程序名(PATH 解析与 PTY 同源)或绝对路径。 */
   command: string;
   args: string[];
@@ -286,14 +286,14 @@ export interface WslEngineProbe {
 }
 
 /** WSL 内文件文本(wsl_read_file_text;content=null = 超过 maxBytes 未读,truncated=true)。 */
-export interface WslRemoteFileText {
+interface WslRemoteFileText {
   size: number;
   content: string | null;
   truncated: boolean;
 }
 
 /** 未决 SSH 提示对账行(ssh_prompts_pending)。 */
-export interface SshPendingPromptWire {
+interface SshPendingPromptWire {
   sessionId: string;
   prompt: SshPromptEvent;
 }
@@ -765,7 +765,7 @@ export function assetUrl(path: string): string {
   return convertFileSrc(path);
 }
 
-export interface QuotaFetchSpec {
+interface QuotaFetchSpec {
   url: string;
   method?: string;
   headers?: Record<string, string>;
@@ -778,7 +778,7 @@ export interface QuotaFetchSpec {
   includeHeaders?: boolean;
 }
 
-export interface QuotaFetchResponse {
+interface QuotaFetchResponse {
   status: number;
   body: unknown;
   /** 请求声明 includeHeaders 时才存在;键为小写头名。 */

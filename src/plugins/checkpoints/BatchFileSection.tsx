@@ -82,7 +82,7 @@ function FileSectionDiff({ lines }: { lines: string[] }) {
   );
 }
 
-export function FileSection({
+function FileSection({
   path,
   status,
   stale,

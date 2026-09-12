@@ -49,12 +49,12 @@ interface DshSessionListItem {
   blank?: boolean;
 }
 
-export interface DshContextPressure {
+interface DshContextPressure {
   pressureTokens?: number;
   projectedTokens?: number;
   contextWindow?: number;
 }
-export interface DshContextBreakdown {
+interface DshContextBreakdown {
   systemTokens?: number;
   toolsTokens?: number;
   messageTokens?: number;

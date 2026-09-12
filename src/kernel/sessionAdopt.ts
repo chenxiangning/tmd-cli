@@ -15,7 +15,7 @@ import { KernelTopics, type EventBus } from "./events";
 import { ipc, onPtyExit, onPtyOutput, type SessionMeta } from "./ipc";
 
 /** host 侧最小依赖面(三服务的 ctx 均满足;箭头函数惰性绑定避免构造顺序耦合)。 */
-export interface SessionAdoptHost {
+interface SessionAdoptHost {
   findSession(sessionId: string): SessionMeta | undefined;
   appendOutput(sessionId: string, text: string): void;
   removeSession(sessionId: string): Promise<void>;
@@ -27,7 +27,7 @@ export interface SessionAdoptHost {
   notify(): void;
 }
 
-export interface AdoptPtySessionOptions {
+interface AdoptPtySessionOptions {
   /** sessionStartFailed 载荷用(shell / ssh / 各 CLI profile id)。 */
   profileId: string;
   /** 退出回调前置钩子(CLI 秒退守望摘幕布尾部;shell/ssh 不传)。 */

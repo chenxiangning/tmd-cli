@@ -32,12 +32,12 @@ export interface UsageLine {
 }
 
 /** 单会话提取结果:lines = 窗口内归一行;codex 快照已折成单行。 */
-export interface SessionUsage {
+interface SessionUsage {
   lines: UsageLine[];
 }
 
 /** 按引擎聚合行。hasUsage=false = 该引擎行型未知/无数据,UI 显 —。 */
-export interface EngineUsage {
+interface EngineUsage {
   profileId: string;
   hasUsage: boolean;
   totalIn: number;
@@ -47,7 +47,7 @@ export interface EngineUsage {
 }
 
 /** 按日聚合(仅 in/out,趋势柱用)。 */
-export interface DailyUsage {
+interface DailyUsage {
   dayKey: string; // YYYY-MM-DD(本地时区)
   totalIn: number;
   totalOut: number;

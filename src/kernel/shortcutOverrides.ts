@@ -111,7 +111,7 @@ export function setShortcutRecording(on: boolean, onTimeout?: () => void): void 
 }
 /* ── 录制期冲突校验 ───────────────────────────────────── */
 
-export type ValidationResult =
+type ValidationResult =
   | { ok: true }
   | { ok: false; reason: "escape-forbidden" | "missing-modifier" | "syntax" | "conflict"; detail?: string };
 

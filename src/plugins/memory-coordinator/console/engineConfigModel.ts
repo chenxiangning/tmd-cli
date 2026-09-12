@@ -26,7 +26,7 @@ function pickModel(block: unknown): string {
   return "";
 }
 
-export function readEngineConfig(raw: Record<string, unknown> | null): EngineConfig {
+function readEngineConfig(raw: Record<string, unknown> | null): EngineConfig {
   return {
     historianModel: pickModel(raw?.historian),
     dreamerModel: pickModel(raw?.dreamer),
@@ -37,7 +37,7 @@ export function readEngineConfig(raw: Record<string, unknown> | null): EngineCon
 }
 
 /** 引擎配置 → 可写回的 jsonc 文本(per-harness:pi 为基座,omp 回退 pi,opencode 独立)。 */
-export function serializeEngineConfig(config: EngineConfig, original: string | null): string {
+function serializeEngineConfig(config: EngineConfig, original: string | null): string {
   const base = parseJsoncOrNull(original ?? "") ?? {};
   const withModel = (block: unknown, model: string): unknown => ({
     ...(typeof block === "object" && block ? (block as Record<string, unknown>) : {}),

@@ -190,7 +190,7 @@ async function readOptionalFile(path: string): Promise<string> {
   }
 }
 
-export interface SshScanResult {
+interface SshScanResult {
   homePath: string;
   candidates: SshImportCandidate[];
   keyFiles: string[];

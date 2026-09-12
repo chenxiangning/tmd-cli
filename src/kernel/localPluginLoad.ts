@@ -7,11 +7,11 @@ import { PLUGIN_PERMISSIONS } from "./plugin";
 import type { Plugin, PluginMeta } from "./plugin";
 
 /** 裸 specifier 白名单:插件 bundle 唯一合法的外部 import 面。 */
-export const SHIM_SPECIFIERS = ["react", "react-dom", "react/jsx-runtime", "tmd-sdk"] as const;
+const SHIM_SPECIFIERS = ["react", "react-dom", "react/jsx-runtime", "tmd-sdk"] as const;
 
 /** 当前内核 API 纪元:注册面破坏性变更时 bump,旧插件装载即拒。
  *  v2(2026-09-10):manifest.permissions 生效,SDK 收窄为按授权装配 —— v1 插件一律重装。 */
-export const LOCAL_PLUGIN_API_VERSION = 2;
+const LOCAL_PLUGIN_API_VERSION = 2;
 
 
 /** ESM 具名导出必须静态声明:按模块 key 动态拼 shim 文本;default 键走默认导出(非法标识符特例)。 */

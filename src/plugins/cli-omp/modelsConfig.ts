@@ -20,7 +20,7 @@ import { backupOnce } from "@plugins/cli-shared/providerChannels";
 
 export const MODELS_YML = ".omp/agent/models.yml";
 
-export interface OmpCustomProviderSummary {
+interface OmpCustomProviderSummary {
   name: string;
   baseUrl: string;
   /** 协议(omp 的 api 字段,如 openai-responses)。 */
@@ -47,7 +47,7 @@ export const MODELS_TEMPLATE = `providers:
         name: Model Name
 `;
 
-export async function ompModelsPath(): Promise<string> {
+async function ompModelsPath(): Promise<string> {
   const home = await ipc.configHomeDir();
   return `${home}/${MODELS_YML}`;
 }
@@ -158,7 +158,7 @@ export async function saveOmpModelsConfig(raw: string): Promise<void> {
 }
 
 /** GUI「添加供应商」表单值。 */
-export interface OmpCustomProviderInput {
+interface OmpCustomProviderInput {
   name: string;
   baseUrl: string;
   api: string;

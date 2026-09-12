@@ -8,7 +8,7 @@ import type { MemoryItem } from "../protocol";
 import { archiveMemory } from "../phase2/write";
 import { memoryPool, resolveProjectIdentity } from "../pool";
 
-export type MemoryPanelState = {
+type MemoryPanelState = {
   identity: string | null;
   ready: boolean | null;
   poolReason: "not-installed" | "locked" | null;

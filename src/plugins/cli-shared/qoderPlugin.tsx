@@ -17,7 +17,7 @@ import {
 import { listQoderSuggestions } from "./qoderSuggestions";
 
 /** 双分发版的差异面:插件身份 + 展示文案 + 分发渠道常量,其余接线完全同构。 */
-export interface QoderVariantSpec {
+interface QoderVariantSpec {
   /** 插件 id(cli-qoder / cli-qoder-cn)。 */
   id: string;
   /** 展示元数据:name/abbr/desc(icon/iconColor/category 两版一致,工厂内固定)。 */

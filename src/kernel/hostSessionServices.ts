@@ -15,7 +15,7 @@ import type { CliProfile } from "./cli";
 import type { SessionMeta } from "./ipc";
 
 /** 三张服务 ctx 的并集,由 Host 以惰性箭头注入(同各服务文件头纪律)。 */
-export interface HostSessionServicesCtx {
+interface HostSessionServicesCtx {
   /** 从 Rust 注册表刷新活会话表。 */
   refreshSessions(): Promise<void>;
   getSessions(): SessionMeta[];
@@ -33,7 +33,7 @@ export interface HostSessionServicesCtx {
   notify(): void;
 }
 
-export interface HostSessionServices {
+interface HostSessionServices {
   ssh: SshSessionService;
   shell: ShellSessionService;
   spawn: SessionSpawnService;

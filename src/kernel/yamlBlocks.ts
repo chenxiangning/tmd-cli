@@ -117,7 +117,7 @@ export function getList(lines: string[], path: string[]): string[] {
 }
 
 /** 标量输出格式:布尔裸写;歧义串/含注释与映射特征的串加引号;其余裸写。 */
-export function fmtScalar(v: string | boolean): string {
+function fmtScalar(v: string | boolean): string {
   if (typeof v === "boolean") return v ? "true" : "false";
   if (/^(off|on|yes|no|true|false|null|~)$/i.test(v) || v === "") return JSON.stringify(v);
   if (/( #|: )/.test(v) || /^[!&*\]{}>|%"'@`]/.test(v)) return JSON.stringify(v);

@@ -10,7 +10,7 @@
 import type { ComposerSendTransform } from "@kernel/composerExt";
 import { selectedAgent, type Agent } from "./store";
 
-export function agentRoleBlock(agent: Agent): string {
+function agentRoleBlock(agent: Agent): string {
   return `\n\n## Agent Role and Instructions\n\nAgent Name: ${agent.name}\n\n${agent.prompt}`;
 }
 

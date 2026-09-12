@@ -38,7 +38,7 @@ export interface PromptEntry {
   content: string;
 }
 
-export interface AssetsState {
+interface AssetsState {
   loaded: boolean;
   agents: Agent[];
   prompts: PromptEntry[];

@@ -52,7 +52,7 @@ const SEARCH_URLS = [
  * 静态精选表 —— 实时目录的离线兜底 + 描述补全源(人工审校中文描述)。
  * 版本/下载量留空(offline 语义),条目均为 npm 在售的真实包(2026-09-06 核对)。
  */
-export const CURATED_CATALOG: ExtCatalogEntry[] = [
+const CURATED_CATALOG: ExtCatalogEntry[] = [
   {
     name: "@cortexkit/pi-magic-context",
     description: "Magic Context 共享记忆库:跨 CLI 持久记忆与会话检索",

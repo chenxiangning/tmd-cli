@@ -19,7 +19,7 @@ import { BOOTSTRAP_MJS } from "./bootstrap";
 import { detectNode, detectOmpPluginInstalled, detectSharedDbReady } from "./detect";
 import { memoryDbPath } from "../paths";
 
-export interface InstallStepResult {
+interface InstallStepResult {
   ok: boolean;
   message: string;
 }

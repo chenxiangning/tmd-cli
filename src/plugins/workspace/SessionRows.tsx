@@ -33,7 +33,7 @@ function subscribeActivityTick(cb: () => void): () => void {
 export type { SessionStatus };
 
 /** 1Hz 重渲 + host 守望口径 → 当前状态(状态机见 utils.resolveSessionStatus)。 */
-export function useSessionStatus(sessionId: string): SessionStatus {
+function useSessionStatus(sessionId: string): SessionStatus {
   useHost();
   const [, tick] = useState(0);
   useEffect(() => subscribeActivityTick(() => tick((n) => n + 1)), []);

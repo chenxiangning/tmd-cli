@@ -11,7 +11,7 @@ import { gitErrorMessage, isNotARepo } from "../gitError";
 
 const POLL_MS = 5000;
 
-export interface GitStatusState {
+interface GitStatusState {
   data: GitDiffStatus | null;
   loading: boolean;
   error: string | null;

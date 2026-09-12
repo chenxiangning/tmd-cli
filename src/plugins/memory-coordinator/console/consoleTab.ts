@@ -7,7 +7,7 @@ import { closeTab, getTabs, openTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 
 /** 面板/入口打开控制台(唯一定义,避免循环依赖)。 */
-export function openConsoleTab(): void {
+function openConsoleTab(): void {
   openTab({
     id: "memory-console",
     title: t("Memory 控制台"),

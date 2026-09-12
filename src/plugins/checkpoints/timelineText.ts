@@ -15,7 +15,7 @@ import { extractPromptImages } from "./promptImagesExtract";
     (句号会吞进路径,干脆不匹配,原文保留)。 */
 const FILE_TOKEN_RE = /@(\/[^\s@]*?[^\s@.,;:!?)\]}　，。、；：！？」』])(?=$|[\s,;:!?)\]}　，。、；：！？」』])/g;
 
-export interface TimelineParts {
+interface TimelineParts {
   /** 净文本:图片与文件 token 全部剥离;空串 = 纯附件消息(调用方不渲染文本块)。 */
   text: string;
   /** 图片绝对路径(去重,复用 extractPromptImages)。 */

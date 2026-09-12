@@ -21,7 +21,7 @@ import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 
 /** 轮次闸输入:两个内核守望的瞬时态(writeSession 前读)。 */
-export interface PromptGateState {
+interface PromptGateState {
   /** Ask/确认面板阻塞等待中(host.isWaitingConfirm)。 */
   waitingConfirm: boolean;
   /** 对话轮次进行中(host.isTurnActive)。 */

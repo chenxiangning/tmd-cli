@@ -18,7 +18,7 @@ import {
 } from "../cli-shared/quota/vendors";
 import type { PiAuthEntry, PiLocalConfig } from "./piLocalConfig";
 
-export interface PiRoute {
+interface PiRoute {
   providerId: string;
   vendor: VendorId;
   /** relay 探测需要;已知供应商为空。 */

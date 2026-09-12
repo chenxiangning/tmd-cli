@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { CaretDown, Check } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 
-export interface StyledSelectOption {
+interface StyledSelectOption {
   value: string;
   label?: string;
   /** 右侧弱化备注(如「已登录」「未安装」)。 */

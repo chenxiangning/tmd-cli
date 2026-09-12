@@ -13,7 +13,7 @@ import { ipc } from "@kernel/ipc";
 import { OMP_APIKEY_PROVIDERS, type OmpApiKeyProvider } from "./providerAuthCatalog";
 
 /** 单个 API Key 供应商的展示快照。 */
-export interface OmpAuthSnapshot {
+interface OmpAuthSnapshot {
   id: string;
   name: string;
   icon: string | null;
@@ -36,7 +36,7 @@ export interface OmpAuthList {
 }
 
 /** agent.db 路径。 */
-export async function ompAuthDbPath(): Promise<string> {
+async function ompAuthDbPath(): Promise<string> {
   const home = await ipc.configHomeDir();
   return `${home}/.omp/agent/agent.db`;
 }

@@ -7,7 +7,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { ipc, type GitRepoSummary } from "@kernel/ipc";
 
-export interface RepoChipState {
+interface RepoChipState {
   branch: string;
   dirty: number;
   ahead: number;

@@ -20,7 +20,7 @@ import { t } from "@kernel/i18n";
 import { InstallOrchestrator } from "../install/setup";
 import { pluginDistDir, userHome } from "../paths";
 
-export type HarnessTarget = "omp" | "pi" | "opencode";
+type HarnessTarget = "omp" | "pi" | "opencode";
 
 const toggle = (on: boolean) =>
   `relative h-5 w-[30px] flex-none rounded-full border ${

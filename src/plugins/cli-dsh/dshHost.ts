@@ -24,7 +24,7 @@ export interface DshHostView {
 }
 
 /** 探针结果:401 = host 活着但缺凭据(与「没起来」必须可分,adopt 语义靠它)。 */
-export interface ProbeResult {
+interface ProbeResult {
   view: DshHostView | null;
   unauthorized: boolean;
 }
@@ -168,7 +168,7 @@ async function exchangeAndSave(conn: DshConnection, token: string): Promise<void
 }
 
 
-export type DshStopOutcome = "stopped" | "remote";
+type DshStopOutcome = "stopped" | "remote";
 
 /**
  * codemoss stop_host 同款:杀自spawn 会话 + 按端口停本机监听(外部/遗留

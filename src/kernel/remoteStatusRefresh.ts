@@ -11,7 +11,7 @@ import { getWorkspaces } from "./workspace";
 import { findWorkspaceOrigin } from "./workspaceOrigins";
 
 /** Host 侧能力注入(与 HostWatchesCtx 同款箭头函数惰性绑定惯例)。 */
-export interface RemoteStatusDeps {
+interface RemoteStatusDeps {
   findSession(sessionId: string): SessionMeta | undefined;
   getCliProfile(profileId: string): CliProfile | undefined;
   getCliSessionId(sessionId: string): string | undefined;

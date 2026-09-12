@@ -47,7 +47,7 @@ export interface InstallState {
 }
 
 /** 可安装目标 —— EngineMeta 与 PrerequisiteMeta 的共有形状,安装钩子复用同一套。 */
-export interface InstallTarget {
+interface InstallTarget {
   /** binary 名;安装事件 topic 的 id 惯例 = cli-install://{binary}。 */
   binary: string;
   /** 参数化安装计划;null = 未声明安装通道(start 直接 no-op)。 */

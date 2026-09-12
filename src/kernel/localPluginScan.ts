@@ -29,7 +29,7 @@ export function isContentTrusted(
   );
 }
 
-export function isDisabled(id: string): boolean {
+function isDisabled(id: string): boolean {
   return getSettingsState().settings.disabledPlugins.includes(id);
 }
 

@@ -15,9 +15,9 @@ import { t } from "@kernel/i18n";
 import { webUiUrl, type DshConnection } from "./dshConnection";
 
 /* 精致小按钮:细边、紧凑内距、小字号(与引擎行的 welcome-ab 视觉对齐)。 */
-export const BTN =
+const BTN =
   "inline-flex items-center gap-1 rounded border border-(--tmd-border) px-1.5 py-0.5 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg) disabled:cursor-not-allowed disabled:opacity-50";
-export const BTN_PRIMARY =
+const BTN_PRIMARY =
   "inline-flex items-center gap-1 rounded border border-(--tmd-accent) bg-(--tmd-accent) px-1.5 py-0.5 text-xs text-(--tmd-accent-fg) hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
 
 /** 已连接事实行;空数组不渲染(与拆分前 connected && length>0 同效)。 */

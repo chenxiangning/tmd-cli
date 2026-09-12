@@ -10,7 +10,7 @@
 import type { CliProfile } from "@kernel/cli";
 import type { SessionMeta } from "@kernel/ipc";
 
-export interface BroadcastTarget {
+interface BroadcastTarget {
   id: string;
   profile: CliProfile;
 }

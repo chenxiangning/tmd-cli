@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { hashStableString } from "./markdownDocument";
 import { normalizeMermaidSource } from "./normalizeMermaidSource";
 
-export type MermaidRenderState =
+type MermaidRenderState =
   | { status: "idle" }
   | { status: "rendering" }
   | { status: "success"; svg: string }

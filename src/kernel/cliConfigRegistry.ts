@@ -24,7 +24,7 @@ export interface CliModelCatalogProvider {
 }
 
 /** 控件类型:基础四件 + 两个复合(modelMap 键值映射表 / orderedList 有序串链)。 */
-export type CliConfigFieldKind = "text" | "select" | "toggle" | "secret" | "modelMap" | "orderedList";
+type CliConfigFieldKind = "text" | "select" | "toggle" | "secret" | "modelMap" | "orderedList";
 
 export interface CliConfigField {
   /** 表单值对象里的键(插件 load/save 自决与磁盘键的映射)。 */
