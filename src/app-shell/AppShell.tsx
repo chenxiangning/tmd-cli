@@ -33,7 +33,7 @@ import { SidebarSettingsCluster } from "./SidebarSettingsCluster";
 import { PluginMarketPage } from "./PluginMarketPage";
 import { StartFailureToast } from "./StartFailureToast";
 import { useEditorMaximized } from "./editorMaximized";
-import { shellBarToggles, shellLeftEnsureOpen, shellMarketToggle } from "./shortcutCommands";
+import { shellBarToggles, shellLeftEnsureOpen, shellMarketClose, shellMarketToggle } from "./shortcutCommands";
 import { installShortcutDispatcher } from "@kernel/shortcuts";
 import { useElementWidth, usePersistedToggle } from "./shellHooks";
 import { MainPanel } from "./MainPanel";
@@ -48,7 +48,7 @@ export function AppShell() {
     filePanels.find((p) => p.id === filePanelMode) ?? filePanels[0];
   const [leftOpen, toggleLeft, setLeftOpen] = usePersistedToggle("shell.left", true);
   const [rightOpen, toggleRight] = usePersistedToggle("shell.right", true);
-  /* 插件市场页开关:打开时整页替换下方三栏(session 现场不丢,关掉即回)。 */
+  /* 插件市场页开关:打开时以不透明覆盖层盖住三栏(见下方 JSX 注释),关掉零回放即回。 */
   const [marketOpen, setMarketOpen] = useState(false);
   const toggleMarket = useCallback(() => setMarketOpen((v) => !v), []);
   const { tabs } = useEditorTabs();
@@ -77,11 +77,13 @@ export function AppShell() {
     shellBarToggles.left = toggleLeft;
     shellBarToggles.right = toggleRight;
     shellMarketToggle.current = toggleMarket;
+    shellMarketClose.current = () => setMarketOpen(false);
     shellLeftEnsureOpen.current = () => setLeftOpen(true);
     return () => {
       shellBarToggles.left = null;
       shellBarToggles.right = null;
       shellMarketToggle.current = null;
+      shellMarketClose.current = null;
       shellLeftEnsureOpen.current = null;
     };
   }, [toggleLeft, toggleRight, toggleMarket, setLeftOpen]);
@@ -96,11 +98,12 @@ export function AppShell() {
         marketOpen={marketOpen}
         onToggleMarket={toggleMarket}
       />
-      {marketOpen ? (
-        <PluginMarketPage onClose={() => setMarketOpen(false)} />
-      ) : (
-
-      <PanelGroup orientation="horizontal" id="tmd.outer">
+      {/* 插件市场为不透明覆盖层,三栏保持挂载且可见地留在下层:会话现场/文件
+          tab/分栏尺寸零回放零重排;也不可 display:none 隐藏三栏 —— 顶栏左右区
+          宽度实测自侧栏(useElementWidth 写 CSS 变量),隐藏后 RO 上报 0 会把
+          顶栏 icon 挤叠。市场页实底背景,盖住下层即可。 */}
+      <div className="relative min-h-0 flex-1">
+        <PanelGroup orientation="horizontal" id="tmd.outer">
         {/* 左侧 session 栏 */}
         {!maximized && leftOpen && (
           <>
@@ -155,7 +158,12 @@ export function AppShell() {
           </>
         )}
       </PanelGroup>
-      )}
+        {marketOpen && (
+          <div className="absolute inset-0">
+            <PluginMarketPage onClose={() => setMarketOpen(false)} />
+          </div>
+        )}
+      </div>
 
       <Mounts point="overlay" />
       {/* 会话启动失败通知:进程秒退静默闪退的兜底呈现(见 kernel/sessionSpawn.ts) */}

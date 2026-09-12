@@ -66,11 +66,37 @@ registerCommand({
   },
 });
 
+/* ── 回首页 ⇄ 回会话切换(按钮固定身份的纯 toggle)────────────────── */
+
+/** 切换记忆:最近一次从会话回首页时的会话 id(模块级,跨重挂存活)。 */
+let homeReturnId: string | null = null;
+
+/** 市场页「确保收起」挂载点:市场是不透明覆盖层,盖着首页时回首页必须连它
+    一起收掉,否则切换在底下发生了、屏上毫无变化(即「点了没反应」);AppShell 挂载期写入。 */
+export const shellMarketClose: { current: (() => void) | null } = { current: null };
+
+/** 回首页按钮/命令本体:会话中 = 记住当前会话并回首页;首页中 = 切回打开
+    首页之前那个会话;该会话已退出则无话可回,保持首页原样不动。 */
+export function toggleHomeSession(): void {
+  const activeId = host.getActiveSessionId();
+  if (activeId) {
+    homeReturnId = activeId;
+    host.setActiveSession(null);
+    return;
+  }
+  if (homeReturnId && host.getSessions().some((s) => s.id === homeReturnId)) {
+    host.setActiveSession(homeReturnId);
+  }
+}
+
 registerCommand({
   id: "shell.goHome",
   title: "回到首页",
   keybinding: "Cmd+Shift+H",
-  run: () => host.setActiveSession(null),
+  run: () => {
+    shellMarketClose.current?.();
+    toggleHomeSession();
+  },
 });
 
 /** match 命中的序号:分发器单线程内先 eventMatches 后 run,同一次按键内成立;
