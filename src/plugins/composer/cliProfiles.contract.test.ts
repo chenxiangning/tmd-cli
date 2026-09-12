@@ -18,7 +18,8 @@ import { GROK_COMMAND_SUGGESTIONS } from "../cli-grok";
 import { KIMI_COMMAND_SUGGESTIONS } from "../cli-kimi";
 /* qoder 双插件同族共享:候选真相在 cli-shared(qoderSessionModel),import 处声明先例 */
 import { QODER_COMMAND_SUGGESTIONS } from "../cli-shared/qoderSessionModel";
-import { OPENCODE_COMMAND_SUGGESTIONS } from "../cli-opencode";
+/* opencode 候选表真相在 ./commands(插件 index 无常量出口),直接引数据模块 */
+import { OPENCODE_COMMAND_SUGGESTIONS } from "../cli-opencode/commands";
 import type { CliSuggestion } from "@kernel/cli";
 
 /** bare 合法清单(proposal §初判表;实测校准后在此回填) */

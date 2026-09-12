@@ -5,12 +5,12 @@
  * (单文件 ≤300 行铁则)。行内重命名输入已沉淀进 kernel(见 @kernel/RenameInput)。
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 import { formatRelativeTime } from "@kernel/relativeTime";
-import { host, useHost } from "@kernel/host";
+import { host } from "@kernel/host";
 import { PinIcon } from "@kernel/PinIcon";
 import { resolveSessionStatus, type SessionStatus } from "./utils";
 
@@ -32,17 +32,37 @@ function subscribeActivityTick(cb: () => void): () => void {
 
 export type { SessionStatus };
 
-/** 1Hz 重渲 + host 守望口径 → 当前状态(状态机见 utils.resolveSessionStatus)。 */
+/** 1Hz 兜底重渲(仅状态真变时)+ 宿主守望口径 → 当前状态(状态机见
+ *  utils.resolveSessionStatus)。状态值渲染期现算:notify 驱动父行重渲染即
+ *  即时生效(父级已订阅 host,本处不再重复订阅);ticker 只在无 notify 的
+ *  静默期兜底,且状态不变不重渲 —— 恒定负载不再随状态行数放大。 */
 function useSessionStatus(sessionId: string): SessionStatus {
-  useHost();
   const [, tick] = useState(0);
-  useEffect(() => subscribeActivityTick(() => tick((n) => n + 1)), []);
-  return resolveSessionStatus(
+  const status = resolveSessionStatus(
     host.getLastActivityAt(sessionId),
     host.isUnread(sessionId),
     Date.now(),
     host.isTurnActive(sessionId),
   );
+  /* 最近一帧状态的镜像:effect 写入(渲染期写 ref 违反并发语义),ticker 比对用 */
+  const lastRef = useRef(status);
+  useEffect(() => {
+    lastRef.current = status;
+  });
+  useEffect(
+    () =>
+      subscribeActivityTick(() => {
+        const next = resolveSessionStatus(
+          host.getLastActivityAt(sessionId),
+          host.isUnread(sessionId),
+          Date.now(),
+          host.isTurnActive(sessionId),
+        );
+        if (next !== lastRef.current) tick((n) => n + 1);
+      }),
+    [sessionId],
+  );
+  return status;
 }
 
 /** 时间节点三态:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止 —— 呼吸灯从 meta 区移到时间轴节点位。 */
@@ -58,12 +78,24 @@ export function ActivityDot({ sessionId }: { sessionId: string }) {
 }
 
 /** 终端/SSH 活会话呼吸灯:输出即绿,无轮次/未读概念 —— 与 CLI 会话的
- *  ActivityDot(status 状态机驱动)语义不同,4s 静默窗闲置隐藏(1Hz ticker 驱动
- *  隐判定,不依赖无关 host 事件触发重渲)。 */
+ *  ActivityDot(status 状态机驱动)语义不同,4s 静默窗闲置隐藏(1Hz ticker
+ *  驱动隐判定,不依赖无关 host 事件触发重渲);闲置翻转才重渲,恒定零负载。 */
 export function LiveOutputDot({ sessionId }: { sessionId: string }) {
   const [, tick] = useState(0);
-  useEffect(() => subscribeActivityTick(() => tick((n) => n + 1)), []);
   const idle = Date.now() - host.getLastActivityAt(sessionId) > 4000;
+  /* 闲置标记镜像:effect 写入(渲染期写 ref 违反并发语义),ticker 比对用 */
+  const idleRef = useRef(idle);
+  useEffect(() => {
+    idleRef.current = idle;
+  });
+  useEffect(
+    () =>
+      subscribeActivityTick(() => {
+        const next = Date.now() - host.getLastActivityAt(sessionId) > 4000;
+        if (next !== idleRef.current) tick((n) => n + 1);
+      }),
+    [sessionId],
+  );
   return <span className={`tl-node${idle ? " is-idle" : ""}`} aria-hidden />;
 }
 
