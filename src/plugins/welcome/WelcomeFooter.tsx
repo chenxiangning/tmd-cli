@@ -1,7 +1,7 @@
 /**
  * 首页页脚 —— RESUME(全工作区 × 已安装 CLI 磁盘会话,时间倒序前 8 条,
- * 点击 host.openDiskSession 直接续上)+ QUOTA(页级凭据盘点按供应商
- * title 去重聚合的套餐水位)。数据源与消费面见 WelcomePage。
+ * 点击 host.openDiskSession 直接续上;手动刷新经 refreshTick 重扫)+ QUOTA
+ * (页级凭据盘点按供应商 title 去重聚合的套餐水位)。数据源与消费面见 WelcomePage。
  */
 
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -114,8 +114,11 @@ function QuotaBar({ w }: { w: QuotaWindow }) {
 
 export function WelcomeFooter({
   credsMap,
+  refreshTick,
 }: {
   credsMap: Record<string, EngineCredential[]>;
+  /** 手动全量刷新计数:变化时重扫磁盘会话(缓存先上屏,重扫落定覆盖)。 */
+  refreshTick: number;
 }) {
   /* 订阅快照 = profile 集指纹:仅插件拔插时重渲染;宿主其余通知(切换会话/
      输出/状态)与本页无关 —— welcome 常驻挂载后不为它们付整页渲染。 */
@@ -136,7 +139,7 @@ export function WelcomeFooter({
     return () => {
       alive = false;
     };
-  }, [workspaces]);
+  }, [workspaces, refreshTick]);
 
   const quotas = aggregateQuotas(credsMap);
 

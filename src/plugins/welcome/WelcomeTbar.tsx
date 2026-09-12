@@ -2,8 +2,9 @@
  * 首页窗体标题条 —— 标题 / 键盘与交互提示 / 手动刷新 / GitHub 链接。
  *
  * 首页数据已 SWR 缓存(pageCache),回首页不再自动重拉,此按钮是唯一手动
- * 全量刷新入口:强制重探全部引擎与前置依赖(落 loading 可见),最新版与
- * 凭据额度由父级 refreshTick 重跑 effect 静默续拉。旋转反馈锚定探针态。
+ * 全量刷新入口:强制重探全部引擎与前置依赖(落 loading 可见),最新版/凭据
+ * 额度/页脚 RESUME 重扫/TOKENS 重扫由父级 refreshTick 重跑 effect 静默续拉。
+ * 旋转反馈锚定探针态。
  */
 import { ArrowClockwise } from "@phosphor-icons/react";
 import { openExternalUrl } from "@kernel/ipc";

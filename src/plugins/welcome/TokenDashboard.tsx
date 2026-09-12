@@ -31,7 +31,7 @@ function dayLab(dayKey: string, today: boolean): string {
   return `${Number(m)}/${Number(d)}`;
 }
 
-export function TokenDashboard() {
+export function TokenDashboard({ refreshTick }: { refreshTick: number }) {
   /* 订阅快照 = profile 集指纹:仅插件拔插时重渲染;宿主其余通知(切换会话/
      输出/状态)与本页无关 —— welcome 常驻挂载后不为它们付整页渲染。 */
   useSyncExternalStore(
@@ -43,7 +43,8 @@ export function TokenDashboard() {
   const [failed, setFailed] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
 
-  /* 挂载即拉一次(缓存命中也后台重扫,保持新鲜);重试按钮 ++reloadTick 重拉。 */
+  /* 挂载即拉一次(缓存命中也后台重扫,保持新鲜);重试按钮 ++reloadTick 重拉,
+     手动全量刷新经 refreshTick 重扫。 */
   useEffect(() => {
     if (workspaces.length === 0) return;
     let alive = true;
@@ -59,7 +60,7 @@ export function TokenDashboard() {
     return () => {
       alive = false;
     };
-  }, [workspaces, reloadTick]);
+  }, [workspaces, reloadTick, refreshTick]);
 
   if (failed) {
     return (

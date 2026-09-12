@@ -160,7 +160,7 @@ export function WelcomePage() {
   }, [visibleMetas, refreshTick]);
 
   /* 手动全量刷新(标题条按钮):重探全部引擎与前置依赖(落 loading 可见),
-     最新版/凭据经 refreshTick 重跑 effect 静默续拉。 */
+     最新版/凭据/页脚 RESUME 重扫/TOKENS 重扫经 refreshTick 重跑 effect 静默续拉。 */
   const refreshAll = useCallback(() => {
     for (const meta of visibleMetas) void runProbe(meta.id, true);
     for (const req of requires) void runDepProbe(req.binary, true);
@@ -283,8 +283,8 @@ export function WelcomePage() {
               />
             ))}
           </div>
-          <WelcomeFooter credsMap={credsMap} />
-          <TokenDashboard />
+          <WelcomeFooter credsMap={credsMap} refreshTick={refreshTick} />
+          <TokenDashboard refreshTick={refreshTick} />
           {/* 页尾跨引擎面板(WSL 主机卡等插件贡献;welcome.footer 挂点) */}
           <Mounts point="welcome.footer" />
         </div>
