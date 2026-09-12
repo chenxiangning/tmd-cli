@@ -1,41 +1,30 @@
 /**
  * 活动守望 + 完成未读状态机(呼吸灯三态结算)—— 证据分级模型。
+ * 完整契约(不变量/闸门矩阵/事故账本)见 docs/architecture/08-session-lifecycle.md。
  *
- * 完整契约(不变量/闸门矩阵/事故账本)见 docs/architecture/08-session-lifecycle.md;
- * 本文件是唯一实现,UI 一律经 host 门面读取,禁止各自实现状态机。
+ * PTY 字节无机器可读轮次边界,可靠因果只有用户写入(awaiting)与在途轮次(active)。
+ * 输出分片按「字母骨架 + 数字串」三级分类(仅 CLI;ssh/shell 经 noiseGated 豁免):
+ * - content 骨架首见 = 真实流式产出:推活动钟,可开轮;
+ * - tick    骨架复现且数字变动 = 活家具:不开轮;轮次在途时观测到跳动即登记该骨架
+ *           为 ticker(持轮家具),此后其一切复现帧刷新帧钟;
+ * - static  骨架复现数字相同(或骨架空)= 死家具:不推钟,仅续已登记 ticker 的帧钟。
  *
- * ## 模型
- *
- * PTY 字节没有机器可读的轮次边界,唯一可靠因果是用户写入(awaitingTurn)与已凭写入
- * 开启的在途轮次(active)。输出分片按「字母骨架 + 数字串」三级分类(仅 CLI 会话,
- * ssh/shell「输出即活动」经 noiseGated 豁免):
- *
- * - content  字母骨架首见(新词新字母)= 真实流式产出:推活动钟,可开轮;
- * - tick     骨架复现且数字串变动 = 活着的家具(elapsed 计数/时钟/token 计数,
- *            实测 omp 回合期页脚每秒跳「9s→10s」):推证据钟,不开轮;
- * - static   骨架复现且数字串相同(或骨架为空)= 死的家具(spinner 原地转、状态栏
- *            重绘,实测 omp 空闲 ≈2.8KB/s 自绘 36 帧仅 4 种骨架):只记活性时戳。
- *
- * 骨架仅取字母(\p{L}):braille spinner glyph 属符号类,数字跳动类家具(墙钟、
- * 版本号、计数器)整体不伪装内容。轮次结算(1s tick):静默 = 距最后 content/tick
- * 证据 >2s,且不被守卫扣住。守卫只保护未应答的用户写入:
- *
- *     awaiting && !answered && (
- *       静态家具 2s 内出现过        // spinner 还在转:思考期不假结算(P0 语义)
- *       || 无家具 && 写后 <120s     // 无 spinner/footer 的 CLI 思考期宽限
- *     )
- *
- * 其余闸门:首写闸(锚定前输出零语义,resume 回放/横幅不亮灯)、轮次开启闸
- * (无未应答写入且轮次已了结的新输出 = 异步噪音,不开轮不推钟)、重绘抑制窗
- * (自发 resize 后 1s 内 = SIGWINCH 整屏重绘)。未读归属锚定「最后一字节到达
- * 瞬间」是否正被查看,不看结算瞬间。
+ * 结算(1s tick):静默 = content 钟出 2s 窗且 ticker 帧钟出 TICKER_HOLD_MS 窗。
+ * 持轮 = 帧流连续性而非数字变动(omp 页脚过 60s 从秒切分钟粒度,2s 窗必假结算;
+ * 工作页脚自绘 ≈2.5-10Hz,完工换装帧流即断)。
+ * ticker 登记限轮次在途,已结算轮永不自愈重燃(I2)。新骨架接活 ticker 帧流 5s 内且
+ * 字母近似(skeletonNear)= 粒度换字(59s→1m)继承资格;完工换装不继承。
+ * 守卫 = 未应答写入天花板(awaiting && !answered && 距写入 <120s)。其余闸门:首写闸、轮次开启闸、重绘抑制窗。未读归属锚定「最后 content 帧瞬间」查看态。
  */
+import { skeletonNear } from "./skeletonNear";
 
 /** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅内部持有。 */
 type TimerHandle = ReturnType<typeof setInterval>;
 
-/** 输出静默轮次阈值:距最后 content/tick 证据超此值即结算一轮对话。 */
+/** 输出静默轮次阈值:距最后 content 证据超此值即结算(无存活 ticker 帧流时)。 */
 const TURN_SILENCE_MS = 2_000;
+/** 持轮家具帧流窗:ticker 帧断供超此值失去持轮(工作页脚自绘 ≈2.5-10Hz,完工换装即断;ponytail: 5s 含合包余量)。 */
+const TICKER_HOLD_MS = 5_000;
 /** 应答回显窗:写入后此窗内的内容分片视作输入回显/TUI 换帧,不算应答证据;
  *  模型生成类应答首帧恒晚于此窗;本地瞬时响应(/help、即时报错)可整体落在
  *  窗内 —— 不视作应答,由守卫天花板兜底结算。 */
@@ -57,10 +46,12 @@ const SKELETON_RE = /[^\p{L}]/gu;
  *  token「1.2k→1.3k」都在此变动;版本号等静态数字恒定)。 */
 const DIGITS_RE = /\D+/gu;
 
-/** 骨架窗条目:字母骨架 + 最近一次同骨架分片的数字串(tick/static 判据)。 */
+/** 骨架窗条目:字母骨架 + 最近数字串(tick/static 判据)+ ticker 登记位。 */
 interface SkeletonEntry {
   letters: string;
   digits: string;
+  /** 轮次在途时被观测到数字跳动过(或粒度换字继承)= 活家具;复现帧刷新帧钟。 */
+  ticker: boolean;
 }
 
 /** 每会话守望状态(单对象持有,随 PTY 消亡)。 */
@@ -77,8 +68,8 @@ interface SessionWatch {
   unread: boolean;
   /** 最后 content 帧时戳(活动钟,呼吸灯)。 */
   lastContentAt: number;
-  /** 最后 tick 帧时戳(证据钟,参与静默判定)。 */
-  lastTickAt: number;
+  /** ticker 骨架最近帧时戳(帧钟:活家具断供 = 完工换装;新提问清零)。 */
+  lastTickerAt: number;
   /** 最后用户写入时戳(回显窗与未应答天花板起点)。 */
   lastWriteAt: number;
   /** 最后 content 帧瞬间是否正被查看(未读归因)。 */
@@ -123,7 +114,7 @@ export class ActivityWatch {
         answered: false,
         unread: false,
         lastContentAt: 0,
-        lastTickAt: 0,
+        lastTickerAt: 0,
         lastWriteAt: 0,
         lastOutputViewed: false,
         lastNotifyAt: 0,
@@ -145,8 +136,10 @@ export class ActivityWatch {
     s.lastWriteAt = Date.now();
     s.awaiting = true;
     s.answered = false;
-    /* 新提问 = 新基线:清骨架窗,防跨轮次逐字符全等的真实输出被误判家具 */
+    /* 新提问 = 新基线:清骨架窗与帧钟,防跨轮次逐字符全等的真实输出被误判家具,
+       也防上一轮活家具的 ticker 登记残留吊住本轮结算。 */
     s.skeletons.length = 0;
+    s.lastTickerAt = 0;
   }
 
   /**
@@ -163,10 +156,10 @@ export class ActivityWatch {
        (骨架 FIFO 不被重绘尾行占据,I4 幂等)。 */
     if (now - s.lastResizeAt < REDRAW_SUPPRESS_MS) return false;
     if (visibleText !== undefined && this.host.noiseGated(sessionId)) {
-      const kind = this.classify(s, visibleText);
+      const kind = this.classify(s, visibleText, now);
       if (kind !== "content") {
-        /* 家具:不推活动钟、不开轮、不通知;tick 推证据钟(static 只是被扣下)。 */
-        if (kind === "tick") s.lastTickAt = now;
+        /* 家具:不推活动钟、不开轮、不通知;帧钟由 classify 就地维护
+           (tick 登记/续命,static 仅续已登记 ticker 的命)。 */
         return false;
       }
     }
@@ -227,23 +220,34 @@ export class ActivityWatch {
     this.sessions.clear();
   }
 
-  /** 分片三级分类(副作用:首见骨架入窗;复现骨架更新数字串)。
-   *  仅字母骨架为空 = 纯控制序列/braille,归 static。 */
-  private classify(s: SessionWatch, visibleText: string): "content" | "tick" | "static" {
+  /** 分片三级分类(副作用:首见骨架入窗;复现骨架更新数字串;活家具帧钟维护)。
+   *  仅字母骨架为空 = 纯控制序列/braille,归 static。ticker 登记限轮次在途;
+   *  新骨架接活 ticker 帧流 TICKER_HOLD_MS 内且字母近似 = 粒度换字,继承资格。 */
+  private classify(
+    s: SessionWatch,
+    visibleText: string,
+    now: number,
+  ): "content" | "tick" | "static" {
     const letters = visibleText.replace(SKELETON_RE, "");
     if (letters === "") return "static";
     const digits = visibleText.replace(DIGITS_RE, "");
     const hit = s.skeletons.find((e) => e.letters === letters);
     if (!hit) {
-      s.skeletons.push({ letters, digits });
+      const chain =
+        s.active &&
+        now - s.lastTickerAt <= TICKER_HOLD_MS &&
+        s.skeletons.some((e) => e.ticker && skeletonNear(e.letters, letters));
+      s.skeletons.push({ letters, digits, ticker: chain });
       if (s.skeletons.length > IDLE_SKELETON_WINDOW) s.skeletons.shift();
       return "content";
     }
-    if (hit.digits !== digits) {
+    const changed = hit.digits !== digits;
+    if (changed) {
       hit.digits = digits;
-      return "tick";
+      if (s.active) hit.ticker = true;
     }
-    return "static";
+    if (hit.ticker) s.lastTickerAt = now;
+    return changed ? "tick" : "static";
   }
 
   private ensureWatch(): void {
@@ -253,8 +257,13 @@ export class ActivityWatch {
       let changed = false;
       for (const [id, s] of this.sessions) {
         if (!s.active) continue;
-        /* 静默 = content 与 tick 证据都停 >2s;静态家具不参与(空闲页脚永续自绘)。 */
-        if (now - Math.max(s.lastContentAt, s.lastTickAt) <= TURN_SILENCE_MS) continue;
+        /* 静默 = content 钟出 2s 窗且 ticker 帧钟出持轮窗(未登记骨架与死家具
+           不参与;omp 页脚过 60s 切分钟粒度,靠帧流持轮,数字不跳不得假结算)。 */
+        if (
+          now - s.lastContentAt <= TURN_SILENCE_MS ||
+          (s.lastTickerAt !== 0 && now - s.lastTickerAt <= TICKER_HOLD_MS)
+        )
+          continue;
         /* 未应答写入天花板(仅 CLI;ssh/shell 不守,快命令 2s 照常结算):
            写入后 WRITE_GRACE_MS 内「没等到应答」与「还在思考」字节不可分,
            统一保住 awaiting 不被假结算吞掉(真应答从此被轮次开启闸拦死);

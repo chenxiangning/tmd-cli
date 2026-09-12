@@ -24,7 +24,7 @@ composer 发送门控、结束提示音、checkpoints 封口、本地插件对�
 |态|条件|呈现|
 |---|---|---|
 |none|`lastActivityAt === 0`(首写闸未锚定)|不出签不亮灯|
-|running|距上次输出 <2s|绿呼吸|
+|running|轮次在途(含 ticker 帧流持轮)或距上次 content <2s|绿呼吸|
 |unread|轮次已结算且末字节到达瞬间未被查看|蓝呼吸 + 组内置顶(`compareLiveSessions`)|
 |viewed|轮次已结算且已查看|灰|
 
@@ -68,13 +68,16 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
 |---|---|---|---|---|
 |1|首写闸|spawn 横幅/resume 回放误亮|`conversationStarted` 未置位即挡|host.turnSettled.test.ts|
 |2|重绘抑制窗|本应用自发 resize 引发 SIGWINCH 整屏重绘(实测 omp 560KB 突发)|`resizeSession` 时戳后 1s 窗内输出不进活动语义,连分类副作用都免|host.activityWatch.test.ts|
-|3|家具分类(content/tick/static)|空闲 spinner/状态栏/时钟原地自绘伪装活动:吊住结算(永挂运行时)或重跑生命周期|剥 ANSI 仅取**字母骨架**:首见 = content(推活动钟,可开轮);复现且数字串变动 = tick(推证据钟,实测 omp 回合期页脚每秒跳「9s→10s」);复现且数字相同或骨架空 = static(不推任何钟)。分类输入是 PTY 分片(非逻辑帧);省略 visibleText 的分片跳过分类照走后续闸。ssh/shell 豁免|activityWatch.test.ts「空闲重绘闸」组 + activityWatch.evidence.test.ts|
+|3|家具分类(content/tick/static)|空闲 spinner/状态栏/时钟原地自绘伪装活动:吊住结算(永挂运行时)或重跑生命周期|剥 ANSI 仅取**字母骨架**:首见 = content(推活动钟,可开轮);复现且数字串变动 = tick(轮次在途时把该骨架登记为 ticker = 持轮家具);复现且数字相同或骨架空 = static(不推钟)。分类输入是 PTY 分片(非逻辑帧);省略 visibleText 的分片跳过分类照走后续闸。ssh/shell 豁免|activityWatch.test.ts「空闲重绘闸」组 + activityWatch.evidence.test.ts|
 |4|轮次开启闸|已了结老会话被异步噪音重跑生命周期|`!activeTurns && !awaitingTurn && noiseGated` 即挡|activityWatch.test.ts + host.unread.test.ts「实证缺陷」|
+|结算|静默判据|长轮次假结算(数字粒度由 CLI 自定)或空闲自绘永挂|静默 = content 钟出 2s 窗 **且** ticker 帧钟出 `TICKER_HOLD_MS`(5s)窗:ticker 的一切复现帧(tick/static)刷新帧钟,持轮判据 = 帧流连续性而非数字变动|activityWatch.evidence.test.ts「分钟粒度持轮家具」「tick 家具持轮」「静态家具不持轮」|
 |结算|归因|看完回答 2s 窗内切走被误标未读|最后 content 帧瞬间 `isViewing` 快照|host.activityWatch.test.ts|
 |天花板|未应答写入被假结算吞掉(awaiting 丢失 → 真应答被闸 4 拦死)|`noiseGated && awaiting && !answered && 距写入 <120s` → 跳过结算;到期必结算(spinner 永续自绘的即时报错轮、写入丢失都由天花板收口)|activityWatch.test.ts「守卫天花板」+ activityWatch.evidence.test.ts「tick 持轮」「取舍钉板」|
 
-用户新提问(`onUserWrite`)清骨架窗与数字串基线,防跨轮次逐字符全等的真实输出被闸 3 误判;
-静默判定 = 距最后 content/tick 证据 >2s(静态家具不参与,空闲页脚永续自绘不得吊住结算)。
+用户新提问(`onUserWrite`)清骨架窗、帧钟与数字串基线,防跨轮次逐字符全等的真实输出被闸 3
+误判,也防上一轮活家具的 ticker 登记残留吊住本轮结算。ticker 登记只发生在轮次在途时:
+空闲期永续自绘的墙钟/token 计数数字照跳,不得凭此取得持轮资格(否则永挂运行时,且闸 4
+不允许事后重开轮)。
 
 ## 4. 事故账本(为什么「经常被改坏」)
 
@@ -89,6 +92,7 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
 |09-11|历史会话点开即走完呼吸灯|回放期 xterm 重新应答历史内容里的终端查询,应答被视同首写锚定|terminalInputGate + synthetic 标记(I8)|锚定入口必须只通真实用户输入|
 |09-11|同日三连修(空闲重绘闸 → P0 spinner 期假结算 → 思考期守卫)暴露特判互咬,根治为证据分级模型|六层特判闸各自定义「什么算输出/静默」,一个闸改变前提即动摇别的闸的推理|字母骨架三级分类 + content/tick 证据钟 + 守卫并项,12 张 Map 并为每会话单状态对象(spec 2026-09-11-activity-watch-evidence-model-design.md)|**补丁咬补丁时收敛模型,不加第七层** —— 真实 omp 字节流采集回放是验收基准|
 |09-11|独立评审 P1:回显窗内完结的轮次(/help、即时报错)+ spinner 永续自绘 ⇒ 守卫恒真,120s 宽限也兜不住,永挂运行时(继承缺陷,非重构引入)|守卫按「家具活性」分支,而 omp 页脚自绘永续刷新活性;三分支(家具新鲜/陈旧/从未见)在字节上覆盖全部形态,逻辑上必然塌缩|守卫塌缩为单一「未应答写入天花板」:写入后 120s 内不结算未应答轮次,到期必结算;P1 回归测试重写为天花板语义(前提「自绘会停歇」的 CLI 形态不存在)|**守卫分支若覆盖全部输入,它就是一条规则** —— 同日 F5(单帧家具废宽限)同根同修|
+|09-13|长轮次(>1min)侧栏恒「空闲」且永不自愈、提前掉出运行区|omp 页脚过 60s 从秒粒度切分钟粒度,两跳间隙 60s,期间全为 static 帧不推任何钟 → 2s 静默窗必假结算;真应答被闸 4 拦死|tick 登记 ticker(持轮家具),其复现帧刷新帧钟,结算判据改为「content 出 2s 窗 **且** ticker 帧钟出 5s 窗」——持轮看帧流连续性,不看数字变动;ticker 登记限轮次在途,空闲自绘墙钟不获资格|**数字粒度是 CLI 私有选择,持轮判据必须建立在帧流在场这一通用信号上**(09-11 证据模型「tick=推证据钟」的隐含前提「tick 频率 ≥1Hz」被分钟粒度击穿)|
 
 ## 5. 修改规则(review 清单)
 
@@ -116,8 +120,14 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
   钉板用例守着)。
 - 分类器输入是 PTY 分片而非逻辑帧:同一家具帧被 read 边界拆分时,子串骨架瞬时误判
   content,最多推迟结算数秒(闸 4 兜底,无未读污染)。
+- 持轮依赖工作家具在轮次内至少跳过一次数字(页脚计时从 0 起跳,恒成立);轮次恰在
+  分钟中段出生且首分钟纯工具静默的极端形态,退化为「静默 >2s 不回绿」旧取舍。
+- 完工判定 = 工作页脚换装帧流断供,固定 +5s(`TICKER_HOLD_MS`)翻空闲。
 - 纯数字应答(极罕见)字母骨架为空判家具,未读归属退化为字节时序。
 - 用户写入后 CLI 彻底无输出:不进结算循环(轮次未开启),awaiting 不清,后来字节仍放行开轮(「有输入未获应答」可辩护)。
+- 残余风险:若某 CLI 完工后页脚仍永续跳数(同骨架墙钟跨工作/空闲两态不消失),
+  ticker 帧流永不断供 → 永挂运行时。实采 omp/pi/dsh 完工均换装(帧流断),无此形态;
+  真出现时出路 = 该 CLI 插件声明页脚知识,内核不加时间窗特判(I2 教训:时间不是因果)。
 
 ## 7. 验证
 

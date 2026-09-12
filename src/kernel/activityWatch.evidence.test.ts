@@ -126,6 +126,50 @@ describe("证据分级模型", () => {
     expect(watch.isUnread("s")).toBe(false); // 已查看态保持,不被重跑
   });
 
+  /* omp 实采(2026-09-13 ~/.tmd-cli/session/omp 日志):页脚过 60s 从秒粒度切分钟
+     粒度,「47m→48m」间隙 60s,期间仅 spinner 变(骨架+数字恒定)= static 帧流
+     ≈3Hz。旧实现:static 不推任何钟,>2s 即假结算且 I2 闸永不重燃(实证缺陷:
+     轮次实跑 47 分钟,侧栏恒「空闲」)。新实现:该骨架已在轮次内跳过数字 = ticker,
+     复现帧续帧钟持轮;完工换装帧流断供,5s 窗内照常结算。 */
+  const minuteFooter = (min: number, spin: number) =>
+    stripAnsi(`\u001b[1;1H ${"⠙⠹⠼⠴⠧⠏"[spin % 8]} ${min}m > 模型 GLM`);
+
+  it("分钟粒度持轮家具:数字不跳的复现帧吊住结算,换装断供即结算(09-13 实证)", () => {
+    const { watch, viewing } = makeWatch();
+    viewing.add("s");
+    watch.onUserWrite("s");
+    vi.advanceTimersByTime(500);
+    watch.onOutput("s", "answer body"); // 应答:开轮
+    watch.onOutput("s", minuteFooter(59, 0)); // 页脚首现:content
+    watch.onOutput("s", minuteFooter(60, 1)); // 59m→60m 跳动:登记 ticker
+    for (let i = 0; i < 270; i++) {
+      watch.onOutput("s", minuteFooter(60, i)); // 分钟间隙:static 帧流 90s
+      vi.advanceTimersByTime(333);
+      expect(watch.isTurnActive("s")).toBe(true);
+    }
+    vi.advanceTimersByTime(8000); // 完工换装:帧流消失
+    expect(watch.isTurnActive("s")).toBe(false);
+    expect(watch.isUnread("s")).toBe(false); // 查看中结算,不标未读
+  });
+
+  it("粒度换字继承:59s→1m 骨架改变归 content,新骨架接活帧流且字母近似即继承持轮", () => {
+    const { watch, viewing } = makeWatch();
+    viewing.add("s");
+    watch.onUserWrite("s");
+    vi.advanceTimersByTime(500);
+    watch.onOutput("s", "answer body");
+    watch.onOutput("s", stripAnsi("\u001b[1;1H ⠹ 59s > 模型 GLM")); // 秒粒度首现
+    watch.onOutput("s", stripAnsi("\u001b[1;1H ⠼ 58s > 模型 GLM")); // 跳动:登记 ticker
+    watch.onOutput("s", stripAnsi("\u001b[1;1H ⠴ 1m > 模型 GLM")); // 换字 = 新骨架 content
+    for (let i = 0; i < 20; i++) {
+      watch.onOutput("s", stripAnsi(`\u001b[1;1H ${["⠧", "⠏"][i % 2]} 1m > 模型 GLM`));
+      vi.advanceTimersByTime(333);
+      expect(watch.isTurnActive("s")).toBe(true);
+    }
+    vi.advanceTimersByTime(8000); // 完工断供:照常结算
+    expect(watch.isTurnActive("s")).toBe(false);
+  });
+
   it("中轮全静默 ceiling:应答后零家具静默 >2s 照常结算(与真结束字节不可分,既定边界)", () => {
     const { watch } = makeWatch();
     watch.onUserWrite("s");
