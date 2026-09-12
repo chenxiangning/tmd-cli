@@ -4,19 +4,32 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
-## [未发布]
+## [0.1.6] - 2026-09-12
 
 ### 新增
 
 - DSH 会话流式输出:适配器 follow 订阅开启 `assistantStream` opt-in,dsh 0.1.2 host 随轮次推送 `assistant-stream` 活帧(start/chunk/end)——正文与思考逐 delta 到达(投影层新增 assistant-stream 帧投影,轮次引擎 text-delta/reasoning-delta 走既有流式管线),durable assistant/message 沉降按 attempt 去重防双渲染;此前正文为整消息沉降(订阅未开 opt-in,旧注释误判「无流式 chunk 事件」,2026-09-12 真机抓帧纠正,codemoss 同款接法)
 - WSL 支持(M1):WSL 卡(本机发行版枚举/设默认 + 经 SSH 连远程宿主,主机簿复用 ssh 配置)、添加工作区弹层发行版 tab(远程落库 `~` 形态 Linux 路径,本机落 UNC)、发行版内引擎探针(登录 shell PATH 含 ~/.local/bin;/mnt/* 互操作不计;未探测时新建会话菜单只留引导不显示不可用 CLI)、新建/恢复 WSL 会话(SSH 包装 `wsl.exe -d`,引擎档案随会话透传,点历史行 = 已知身份绑定:去重聚焦既有/磁盘行隐藏/真标题回填)、远程磁盘历史扫描与模型/思考观测(账号级额度照常回填)、远程文件树与 wslr:// 只读预览(超 512KB 显式降级);侧栏分组身份统一「profileId 或 engine」,引擎会话归 CLI 组
+- 会话 tab 平铺显示:打开的 tab 全部并排同屏(≥2 个生效),点分栏即聚焦切换,开关全局持久;平铺态输入框出现「广播」开关,开启后输入喂给平铺全部幕布,关闭回落单发
+- 界面缩放便捷组:侧栏左下工具条新增 − / 档位 / +(设置页同款 uiZoom),点档位数字重置 100%
+- 首页标题条手动全量刷新:首页数据 SWR 缓存后回首页不再自动重拉,标题条刷新按钮一键强制重探全部引擎与前置依赖、绕过 5 分钟 TTL 与去重重拉最新版与凭据额度,探针进行中图标旋转;键盘提示行随 GitHub 链接靠右成组
 
 ### 变更
 
+- 首页数据 SWR 缓存与 welcome 常驻层化:探针/最新版/凭据/token 用量落模块级缓存,回首页即时呈现 + 后台静默重验;welcome 与会话现场改 display 兄弟层互切,切换零回放零遮罩;宿主通知订阅收窄(首页三件套锚定注册集指纹、会话状态行 1Hz 按需重渲),会话切换的重渲染面积大幅收敛
+- 插件市场改不透明覆盖层:打开时三栏保持挂载且留在下层,会话现场/文件 tab/分栏尺寸零回放零重排,关掉即回
+- 回首页按钮改固定身份纯 toggle:永远显示「回到首页」,点一下开首页、再点切回打开首页之前的会话(该会话已退出则保持首页,不再回落其它 tab);市场覆盖层盖住首页时回首页先收市场,「点了没反应」根治
 - 内核来源注册表化:workspaceOrigins / fileSources / ptyAdapters 三注册表承载来源插件(WSL)的全部贡献(侧栏过滤/徽章/新建会话适配、远程文件源、spawn 包装),workspace/files 去 WSL 硬编码;拔出插件重启即回内建形态(契约见 docs/architecture/09-wsl-contract.md)
 - 会话状态 label 更名:「会话结束-未查看/已查看」→「空闲-未查看/空闲」——原词被误读为进程退出,实义是本轮对话结束、CLI 仍存活;状态机零改动(omp 18.1.17 整轮字节流回放实证诊断)
-- 修复:活动守望守卫死锁 —— 回显窗内完结的轮次(/help、即时报错)遇 spinner 永续自绘会永挂运行时,守卫塌缩为单一「未应答写入天花板」(120s 内不结算未应答轮次,到期必结算),连带修掉单帧家具废掉空轮宽限的盲区;重绘抑制窗前置到分类之前(独立评审 F1/F4/F5)
 - 活动守望重构为证据分级模型:输出分片按「字母骨架 + 数字串」分为内容/活家具/死家具三级,静默判定只认内容与活家具(elapsed 计数)证据;新增无 spinner CLI 的 120s 思考期宽限 —— 根治六层特判闸互咬的历史(同日三修:空闲重绘闸 → P0 假结算 → 思考期守卫),真实 omp 18.1.17 整轮字节流回放验收,既有契约测试零改动全绿
+- 内部治理:插件边界收敛与 99 处死导出清理(零逻辑改动)、远程磁盘标题索引合并单遍遍历、react-doctor 维持 100 分
+
+### 修复
+
+- 活动守望守卫死锁:回显窗内完结的轮次(/help、即时报错)遇 spinner 永续自绘会永挂运行时,守卫塌缩为单一「未应答写入天花板」(120s 内不结算未应答轮次,到期必结算),连带修掉单帧家具废掉空轮宽限的盲区;重绘抑制窗前置到分类之前(独立评审 F1/F4/F5)
+- 悬停提示目标卸载或窗口失焦后清除残留气泡
+- 后台会话等待确认经 headless 屏幕镜像补盲,webview 重载后读磁盘尾补底,关 tab 的会话不再收不到提问提示
+- 设置持久化前拉盘合并记录层,双实例运行不再覆盖写丢归档置顶等标记
 
 ## [0.1.5] - 2026-09-11
 
@@ -191,6 +204,9 @@
 - SSH 一等会话:远程终端 + SFTP 文件树 + 端口转发
 - 插件市场、设置面板、网络代理
 
+[0.1.6]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.6
+[0.1.5]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.5
+[0.1.4]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.4
 [0.1.3]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.3
 [0.1.2]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.2
 [0.1.1]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.1
