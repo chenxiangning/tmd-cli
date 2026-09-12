@@ -60,7 +60,7 @@ function liveOf(row: PinnedRow) {
     .find(
       (s) =>
         s.workspaceId === row.workspace.id &&
-        s.profileId === row.profile.id &&
+        (s.profileId === row.profile.id || s.engine === row.profile.id) &&
         host.getCliSessionId(s.id) === row.cliSessionId,
     );
 }

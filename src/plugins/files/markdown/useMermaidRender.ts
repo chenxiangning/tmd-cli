@@ -157,7 +157,7 @@ export function useMermaidRenderState({
     return () => {
       cancelled = true;
     };
-  }, [activeTab, mermaidTheme, renderCacheKey, value]);
+  }, [activeTab, mermaidTheme, renderCacheKey, value, idPrefix]);
 
   return { renderState, lastSuccessfulSvgRef };
 }

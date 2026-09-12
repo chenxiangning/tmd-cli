@@ -253,3 +253,47 @@
   height: 12px;
   animation: file-tree-spin 1s linear infinite;
 }
+
+/* 远程 WSL 工作区 M1 降级提示(替代本地文件树) */
+.filetree-wsl-degraded {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 22px 14px;
+  color: var(--text-quiet);
+  line-height: 1.7;
+  font-size: 12px;
+}
+.filetree-wsl-degraded b {
+  color: var(--text-muted);
+}
+
+/* 远程 WSL 文件树:宿主识别头与错误/提示脚注(类归 file-tree 自有,不借 wsl 卡视觉类)。 */
+.file-tree-remote-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: var(--file-tree-meta-font-size);
+  color: var(--text-quiet);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-tree-remote-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--tmd-ok);
+  flex: none;
+}
+.file-tree-panel > .file-tree-remote-err,
+.file-tree-panel > .file-tree-remote-note {
+  padding: 6px 12px;
+  font-size: var(--file-tree-meta-font-size);
+  line-height: 1.6;
+}
+.file-tree-panel > .file-tree-remote-err {
+  color: var(--tmd-err);
+}
+.file-tree-panel > .file-tree-remote-note {
+  color: var(--tmd-fg-subtle);
+}

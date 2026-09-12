@@ -97,6 +97,18 @@ export async function watchSshSession(sessionId: string) {
     }),
   ]);
   dynamicUnlistens.set(sessionId, [offEvent, offPrompt]);
+  /* 订阅前事件已发过的竞态兜底:拉一次未决提示对账(连接任务在认证前就可能发
+     hostkey prompt,经 sessionsChanged 广播接线常输给这条事件)。 */
+  try {
+    const pending = await ipc.sshPromptsPending();
+    const hit = pending.find((p) => p.sessionId === sessionId);
+    if (hit && dynamicUnlistens.has(sessionId) && sessionView(sessionId).prompt === null) {
+      sessionView(sessionId).prompt = hit.prompt;
+      notify();
+    }
+  } catch {
+    /* 纯浏览器 dev 无 Tauri runtime:静默。 */
+  }
 }
 
 /** 会话移除时退订并清镜像(pty://exit 消费方调用)。 */

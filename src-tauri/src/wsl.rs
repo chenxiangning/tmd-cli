@@ -59,7 +59,7 @@ fn collect() -> Result<WslInfo, String> {
 /// 带超时地跑 wsl.exe 诊断命令,收 stdout 原始字节(UTF-16LE 由调用方解码)。
 /// 超时/失败返回 None(杀树收尸,不留孤儿)。
 #[cfg(windows)]
-fn run_bounded(args: &[&str], timeout_ms: u64) -> Option<(Vec<u8>, Option<i32>)> {
+pub(crate) fn run_bounded(args: &[&str], timeout_ms: u64) -> Option<(Vec<u8>, Option<i32>)> {
     use std::io::Read;
     use std::process::{Command, Stdio};
     use std::sync::mpsc;
@@ -142,8 +142,8 @@ fn collect() -> Result<WslInfo, String> {
     })
 }
 
-#[cfg(windows)]
-fn unavailable() -> WslInfo {
+/// 全不可用形态(本机收集失败与远程探测失败共用)。
+pub(crate) fn unavailable() -> WslInfo {
     WslInfo {
         available: false,
         wsl_version: None,
@@ -154,8 +154,8 @@ fn unavailable() -> WslInfo {
 }
 
 /// wsl.exe 诊断输出解码:剥 BOM,按 UTF-16LE 双字节对解码,截断 NUL。
-#[cfg(windows)]
-fn decode_utf16le(bytes: &[u8]) -> String {
+/// (远程路径同样吃到 UTF-16LE —— 经 ssh exec 非 PTY stdout 亦是,wsl_remote.rs 共用。)。
+pub(crate) fn decode_utf16le(bytes: &[u8]) -> String {
     let body = bytes.strip_prefix(&[0xFFu8, 0xFEu8]).unwrap_or(bytes);
     let units: Vec<u16> = body
         .chunks(2)
@@ -182,7 +182,7 @@ fn parse_wsl_list(text: &str) -> Vec<WslDistro> {
 /// 末列 ∈ {1,2}(容忍 "2.0" 形态)。表头行(任何语言的「名称/NAME」)末列不是
 /// 版本号,天然被锚定规则排除。已知限制:发行版名含空格时列切分会错位(wsl 允许
 /// 但极罕见;STATE 列各 locale 均无空格)。
-fn parse_wsl_list_impl(text: &str) -> Vec<WslDistro> {
+pub(crate) fn parse_wsl_list_impl(text: &str) -> Vec<WslDistro> {
     let mut out = Vec::new();
     for line in text.lines() {
         let cols: Vec<&str> = line.split_whitespace().collect();
@@ -220,7 +220,7 @@ fn mark_running(distros: &mut [WslDistro], running_text: &str) {
 
 /// 用 `--running` 表(同格式,只含运行中发行版)的名字集合给全量表打 running 标。
 /// 名字按 ASCII 大小写不敏感比对(wsl 发行版名不区分大小写)。
-fn mark_running_impl(distros: &mut [WslDistro], running_text: &str) {
+pub(crate) fn mark_running_impl(distros: &mut [WslDistro], running_text: &str) {
     let names = parse_wsl_list_impl(running_text);
     for d in distros.iter_mut() {
         d.running = names.iter().any(|r| r.name.eq_ignore_ascii_case(&d.name));

@@ -25,7 +25,8 @@ mod settings;
 mod sqlite;
 mod ssh;
 mod wsl;
-
+mod wsl_remote;
+mod wsl_remote_ops;
 use pty::PtyRegistry;
 use tauri::{AppHandle, Manager};
 
@@ -137,7 +138,13 @@ pub fn run() {
             commands_fs::cli_probe,
             commands_fs::cli_install_run,
             wsl::wsl_info,
+            wsl_remote::wsl_remote_info,
             session_commands::session_spawn,
+            wsl_remote_ops::wsl_list_dir,
+            wsl_remote_ops::wsl_probe_engines,
+            wsl_remote_ops::wsl_read_file_text,
+            wsl_remote_ops::wsl_exec,
+            ssh::commands::ssh_prompts_pending,
             session_commands::session_list,
             session_commands::session_write,
             session_commands::session_resize,

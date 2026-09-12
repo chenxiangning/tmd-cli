@@ -60,7 +60,9 @@ import {
   isTabularBinaryPath,
   resolveFileRenderProfile,
   resolveStructuredPreviewKind,
+  type FileRenderKind,
 } from "./render/renderProfile";
+import { isRemoteFileUri } from "@kernel/fileSources";
 
 const MARKDOWN_FILE_RE = /\.(md|markdown|mdx)$/i;
 
@@ -89,8 +91,12 @@ function useDarkTheme(): boolean {
   return dark;
 }
 
-/** 工具条状态文案:错误 > 保存中 > 脏 > 已保存。 */
-function statusText(doc: { error: string | null; saving: boolean; dirty: boolean }): string {
+/** 工具条状态文案:远程只读 > 错误 > 保存中 > 脏 > 已保存。 */
+function statusText(
+  doc: { error: string | null; saving: boolean; dirty: boolean },
+  remote: boolean,
+): string {
+  if (remote) return t("远程文件 · 只读(M1)");
   if (doc.error) return doc.error;
   if (doc.saving) return t("保存中…");
   if (doc.dirty) return t("● 未保存的更改 · ⌘S 保存");
@@ -124,9 +130,11 @@ function ModeToggleButton({
 }
 
 
-/** 单文件主体:key={path} —— 文档状态、md/结构化切换偏好随文件切换整体重建。 */
+/** 单文件主体:key={path} —— 文档状态、md/结构化切换偏好随文件切换整体重建。
+ *  wslr:// 远程文件:同一渲染规则,编辑器只读(M1 不做远程写回)。 */
 function FileTabBody({ path, content }: { path: string; content: string }) {
   const isMd = MARKDOWN_FILE_RE.test(path);
+  const remote = isRemoteFileUri(path);
   const structuredKind = isMd ? null : resolveStructuredPreviewKind(path);
   const [mdEditor, setMdEditor] = useState(() => mdEditMode.get(path) ?? false);
   const [structuredEditor, setStructuredEditor] = useState(
@@ -136,7 +144,7 @@ function FileTabBody({ path, content }: { path: string; content: string }) {
   /* 文档钩子常驻(含 md 预览态):⌘S 在预览下也能保存未落盘草稿,
      状态文字两种模式连续显示。 */
   const doc = useFileDocument(path, content);
-  const status = statusText(doc);
+  const status = statusText(doc, remote);
 
   const showEditor = !structuredKind ? (!isMd || mdEditor) : structuredEditor;
   return (
@@ -148,6 +156,7 @@ function FileTabBody({ path, content }: { path: string; content: string }) {
               path={path}
               value={doc.content}
               dark={dark}
+              readOnly={remote}
               onChange={doc.setDoc}
               onSave={doc.save}
             />
@@ -199,43 +208,44 @@ const LOADING = () => (
   </div>
 );
 
-export function FileTabContent({ tab }: { tab: EditorTab }) {
-  /* 缓存任意变更(加载完成/刷新重读/保存回写)都推版本号 → 重渲拿到最新内容。 */
-  useSyncExternalStore(subscribeFileCache, getFileCacheVersion);
-  /* kind="file" 的 tab:path 为绝对路径(payload 同源,直接取 path 字段)。 */
-  const path = tab.path;
+/** 字节通道型渲染形态(不走 fileCache 文本管线的分支集合)。 */
+function isByteChannelKind(path: string, kind: FileRenderKind): boolean {
+  return (
+    kind === "image" ||
+    kind === "pdf" ||
+    kind === "document" ||
+    kind === "binary-unsupported" ||
+    (kind === "tabular" && isTabularBinaryPath(path))
+  );
+}
 
-  /* ── 不走文本缓存的面:图片/二进制占位自取数据,PDF/文档/二进制表格走字节通道 ── */
-  const profile = resolveFileRenderProfile(path);
-  if (profile.kind === "image") {
-    return <FileImagePreview path={path} />;
-  }
-  if (profile.kind === "binary-unsupported") {
-    return <FileBinaryUnsupported path={path} />;
-  }
-  if (profile.kind === "pdf") {
+/** 字节通道渲染分派(图片/二进制占位自取数据;PDF/文档/二进制表格走字节管线)。 */
+function ByteChannelView({ path, kind }: { path: string; kind: FileRenderKind }) {
+  if (kind === "image") return <FileImagePreview path={path} />;
+  if (kind === "binary-unsupported") return <FileBinaryUnsupported path={path} />;
+  if (kind === "pdf") {
     return (
       <Suspense fallback={<LOADING />}>
         <FilePdfPreview path={path} />
       </Suspense>
     );
   }
-  if (profile.kind === "document") {
+  if (kind === "document") {
     return (
       <Suspense fallback={<LOADING />}>
         <FileDocumentPreview path={path} />
       </Suspense>
     );
   }
-  if (profile.kind === "tabular" && isTabularBinaryPath(path)) {
-    return (
-      <Suspense fallback={<LOADING />}>
-        <FileTabularPreview path={path} text={null} />
-      </Suspense>
-    );
-  }
+  return (
+    <Suspense fallback={<LOADING />}>
+      <FileTabularPreview path={path} text={null} />
+    </Suspense>
+  );
+}
 
-  /* ── 其余形态(csv 表格/markdown/结构化/代码)需要文本内容:走 fileCache ── */
+/** 文本管线视图(csv 表格/markdown/结构化/代码,走 fileCache)。 */
+function TextFileView({ path, kind }: { path: string; kind: FileRenderKind }) {
   const payload = loadFile(path);
   if (payload.error) {
     return (
@@ -245,14 +255,35 @@ export function FileTabContent({ tab }: { tab: EditorTab }) {
     );
   }
   if (!payload.loaded) return <LOADING />;
-
-  if (profile.kind === "tabular") {
+  if (kind === "tabular") {
     return (
       <Suspense fallback={<LOADING />}>
         <FileTabularPreview path={path} text={payload.content ?? ""} />
       </Suspense>
     );
   }
-
   return <FileTabBody key={path} path={path} content={payload.content ?? ""} />;
+}
+
+export function FileTabContent({ tab }: { tab: EditorTab }) {
+  /* 缓存任意变更(加载完成/刷新重读/保存回写)都推版本号 → 重渲拿到最新内容。 */
+  useSyncExternalStore(subscribeFileCache, getFileCacheVersion);
+  /* kind="file" 的 tab:path 为绝对路径(payload 同源,直接取 path 字段)。 */
+  const path = tab.path;
+  const profile = resolveFileRenderProfile(path);
+
+  /* 远程 M1:字节通道型渲染(图片/PDF/文档/二进制表格)读不了 —— 显式占位,
+     不喂本地 fs 通道吃 wslr:// 路径(必报错)。文本族(md/code/structured/csv)照常。 */
+  if (isRemoteFileUri(path) && isByteChannelKind(path, profile.kind)) {
+    return (
+      <div className="filetree-wsl-degraded">
+        <b>{t("远程文件")}</b>
+        <span>{t("该类型暂不支持远程预览(M1):请经终端会话操作。")}</span>
+      </div>
+    );
+  }
+  if (isByteChannelKind(path, profile.kind)) {
+    return <ByteChannelView path={path} kind={profile.kind} />;
+  }
+  return <TextFileView path={path} kind={profile.kind} />;
 }

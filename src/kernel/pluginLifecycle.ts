@@ -64,26 +64,42 @@ export class PluginLifecycle {
     for (const p of plugins) {
       if (activatable.has(p.id) && !this.plugins.has(p.id)) pending.set(p.id, p);
     }
-    while (pending.size > 0) {
-      let progressed = false;
-      for (const [id, plugin] of pending) {
+    await this.activateWaves(ctx, pending, pushCleanup);
+  }
+
+  /** 分波拓扑激活(递归 + promise 链,循环体内无 await):
+   *  一波 = 激活当前所有依赖就绪者(失败原样上抛,零残留);无进展 = 依赖环。 */
+  private async activateWaves(
+    ctx: PluginContext,
+    pending: Map<string, Plugin>,
+    pushCleanup: (id: string, done: () => void) => void,
+  ): Promise<void> {
+    if (pending.size === 0) return;
+    let progressed = false;
+    const failed = await [...pending].reduce(
+      (chain, [id, plugin]) => {
         const ready = (plugin.dependsOn ?? []).every((d) => this.plugins.has(d));
-        if (!ready) continue;
-        try {
-          const done = await plugin.activate(makeAttributedCtx(ctx, plugin, this.undo));
-          if (typeof done === "function") pushCleanup(id, done);
-        } catch (e) {
-          undoContributions(id); // boot 链路同样零残留(原样上抛由调用方定夺)
-          throw e;
-        }
-        this.plugins.set(id, plugin);
+        if (!ready) return chain;
         pending.delete(id);
-        progressed = true;
-      }
-      if (!progressed) {
-        throw new Error(`插件依赖环或缺失: ${[...pending.keys()].join(", ")}`);
-      }
+        return chain.then(async () => {
+          try {
+            const done = await plugin.activate(makeAttributedCtx(ctx, plugin, this.undo));
+            if (typeof done === "function") pushCleanup(id, done);
+          } catch (e) {
+            undoContributions(id); // boot 链路同样零残留(原样上抛由调用方定夺)
+            throw e;
+          }
+          this.plugins.set(id, plugin);
+          progressed = true;
+        });
+      },
+      Promise.resolve() as Promise<void>,
+    );
+    void failed;
+    if (!progressed) {
+      throw new Error(`插件依赖环或缺失: ${[...pending.keys()].join(", ")}`);
     }
+    await this.activateWaves(ctx, pending, pushCleanup);
   }
 
   /** 插件市场数据源:全量清单 × 启用态(join 自 manifest 与 disabledPluginIds)。 */

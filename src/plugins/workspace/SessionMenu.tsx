@@ -9,6 +9,7 @@ import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { Mounts } from "@kernel/Mounts";
 import { removeWorkspace, type Workspace } from "@kernel/workspace";
+import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useSettingsState } from "@kernel/settings";
 import { assignToGroup } from "./groups";
 import { ArrowClockwise, Check, PencilSimple, Trash } from "@phosphor-icons/react";
@@ -51,19 +52,30 @@ export function SessionMenuOverlay({
   const { settings } = useSettingsState();
   const groups = settings.workspaceGroups;
   const currentGroupId = groups.some((g) => g.id === workspace.groupId) ? workspace.groupId! : null;
+  /* 来源工作区(如远程 WSL)的引擎行过滤/提示/启动适配由来源插件贡献
+     (workspaceOrigins 协议);未注册来源 = 全量引擎行 + 默认本地 spawn。 */
+  const origin = findWorkspaceOrigin(workspace);
+  const cliProfiles = origin?.filterCliProfiles?.(workspace, profiles) ?? profiles;
+  const menuNote = origin?.sessionMenuNote?.(workspace) ?? null;
 
   return createPortal(
     <>
       {/* 透明背板:纯点外关闭,role=presentation 豁免静态元素交互规则 */}
       <div className="wsmenu-backdrop" role="presentation" onClick={onClose} />
       <div className="wsmenu" style={{ left: position.x, top: position.y }}>
-        <div className="wsmenu-group-title">{t("新建会话")}</div>
-        {profiles.map((p) => (
+        <div className="wsmenu-group-title">{origin?.newSessionLabel?.(workspace) ?? t("新建会话")}</div>
+        {menuNote && <div className="wsmenu-note">{menuNote}</div>}
+        {cliProfiles.map((p) => (
           <div className="wsmenu-item-row" key={p.id}>
             <button
               className="wsmenu-item"
               onClick={() => {
-                /* spawn 被拒时原因已由内核广播 sessionStartFailed(toast 呈现),此处只吞掉 rejection */
+                /* 来源适配(远程 WSL:SSH 包装会话 + 引擎档案透传)优先接管;
+                   spawn 被拒的原因已由内核广播 sessionStartFailed(toast),此处吞 rejection。 */
+                if (origin?.spawnCliSession?.(workspace, p)) {
+                  onClose();
+                  return;
+                }
                 host.createSession(p.id, workspace.root, workspace.id).catch(() => undefined);
                 onClose();
               }}

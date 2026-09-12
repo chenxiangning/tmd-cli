@@ -45,6 +45,7 @@ import { LiveSessionRow, type MenuTarget } from "./LiveSessionRow";
 import { deleteDiskSessionFull, deleteLiveSessionFull } from "./sessionOps";
 import { ManageList } from "./SessionManage";
 import { useCliSessionGroup } from "./useCliSessionGroup";
+import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 
 import { PAGE_INITIAL } from "./utils";
 
@@ -146,14 +147,19 @@ export function CliSessionGroup({
         pinned={pinned}
         archived={archivedView}
         renaming={renaming?.cliSessionId === s.id ? renaming : null}
-        onOpen={() =>
+        onOpen={() => {
+          /* 来源工作区的远程磁盘会话:远程 resume 由来源插件接管(如 WSL 的
+             SSH 包装 + 引擎 --resume),不走本地 openDiskSession。 */
+          if (findWorkspaceOrigin(workspace)?.openRemoteDiskSession?.(workspace, profile, s.id)) {
+            return;
+          }
           void host
             .openDiskSession(profile.id, workspace.root, workspace.id, s.id)
             .then((meta) =>
               noteSessionTabTitle(meta.id, displayTitle(s.id, s.id)),
             )
-            .catch(() => undefined)
-        }
+            .catch(() => undefined);
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           setMenu({ kind: "disk", session: s, x: e.clientX, y: e.clientY });

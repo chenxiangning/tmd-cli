@@ -14,6 +14,8 @@ import { ipc, type DirEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { FileTreeOverlays } from "./FileTreeOverlays";
 import { useWorkspaces } from "@kernel/workspace";
+import { findRemoteFileSource } from "@kernel/fileSources";
+import { FileTreeRemoteSource } from "./FileTreeRemote";
 import { FileTreeRow } from "./FileTreeRow";
 import { openFileInTab } from "./openFile";
 import { useTreeOperations } from "./useTreeOperations";
@@ -232,11 +234,26 @@ function FileTree({ root }: { root: string }) {
   );
 }
 
-/** 右侧文件树 —— root 跟随当前激活工作区;切换工作区时 key 重挂载,重置展开态。 */
+/** 右侧文件树 —— root 跟随当前激活工作区;切换工作区时 key 重挂载,重置展开态。
+ *  命中远程文件源(fileSources 注册表,如 WSL 工作区)→ 协议驱动的远程树;
+ *  未注册来源的远程工作区 = 插件未启用,通用降级提示;其余走本机 fs 通道。 */
 export function ActiveWorkspaceFileTree() {
   const { list, activeId } = useWorkspaces();
   const active = list.find((w) => w.id === activeId) ?? list[0];
   const root = active?.root;
   if (!root) return null;
+  const source = active ? findRemoteFileSource(active) : null;
+  if (active && source) {
+    return <FileTreeRemoteSource key={`${active.id}:${root}`} workspace={active} source={source} />;
+  }
+  if (active?.wsl) {
+    /* 有来源元数据但来源插件未启用:通用降级(本机 fs 读不到远程路径) */
+    return (
+      <div className="filetree-wsl-degraded">
+        <b>{t("远程工作区")}</b>
+        <span>{t("该工作区的文件在远程宿主上;启用对应来源插件后可在此浏览。")}</span>
+      </div>
+    );
+  }
   return <FileTree key={root} root={root} />;
 }

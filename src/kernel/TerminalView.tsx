@@ -36,8 +36,7 @@ import { findRequestRef } from "@kernel/terminalFindBridge";
 import { TerminalCopyMenu } from "@kernel/terminalCopyMenu";
 import { setTerminalFocused } from "@kernel/shortcuts";
 
-/** 从文档计算样式读终端 token → xterm theme(主题引擎已内联最新值)。
- *  ANSI 16 色与 bg/fg/cursor/selection 同源(--tmd-terminal-* 见 themeTokens.ts)。 */
+/** 从文档计算样式读终端 token → xterm theme(主题引擎已内联最新值;ANSI 16 色与 bg/fg/cursor/selection 同源 --tmd-terminal-*。 */
 function readTerminalTheme(): ITheme {
   const styles = getComputedStyle(document.documentElement);
   const read = (name: string) => styles.getPropertyValue(name).trim() || undefined;
@@ -78,7 +77,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
   const streamReadyRef = useRef(false);
   const pagerRef = useRef<TerminalHistoryPager | null>(null);
   /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答(见 terminalInputGate.ts);
-     实例随会话 keep-alive 常驻,闸随实例持有;惰性初值 = useState 初始化器只在首帧执行一次。 */
+     实例随会话 keep-alive 常驻;惰性初值 = useState 初始化器只在首帧执行一次。 */
   const [inputGate] = useState(createReplayInputGate);
   /* 翻页器(实现见 terminalHistory.ts):锚点/前缀页/重入闸随实例持有,hasMore/loading 经 onState 回喂。 */
   /** 往前翻一页:实例内恒稳定,锚点注册表与"加载更早"按钮共用同一闭包。 */
@@ -175,11 +174,11 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       }
       host.observeAskScreen(sessionId, screenTail);
     }, 1000);
-    /* 闸外照常写会话;终端协议回传(焦点/鼠标/查询应答,见 terminalReports.ts)
-       照写 PTY 但标 synthetic —— 它们不是用户输入,不得锚定对话,
-       否则点一下终端/滚一轮就会点亮无对话会话的呼吸灯 */
+    /* 闸外照常写会话;闸窗内只弃用户形态输入、放行整段终端协议回传(标 synthetic,
+       非用户输入不锚定对话)—— 活查询的应答远端正在等,回放窗也可能接到
+       (连接先于挂载完成时 CPR 落缓冲走回放,见 terminalInputGate.ts 头注)。 */
     const offInput = term.onData((data) => {
-      if (inputGate.blocked()) return;
+      if (inputGate.blocked() && !isTerminalReport(data)) return;
       host.writeSession(sessionId, data, isTerminalReport(data));
     });
     /* 对话锚点:向内核注册本幕布的跳转/定位能力(composer 锚点栏经此中转)。 */

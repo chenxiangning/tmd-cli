@@ -65,6 +65,7 @@ describe("初始状态与默认值", () => {
       sessionDeleted: {},
       shortcutOverrides: {},
       workspaceArchiveView: false,
+  workspaceOriginFilter: "",
       workspaceCollapsedMap: {},
       workspaceGroups: [],
       workspaceGroupCollapsedMap: {},
@@ -78,7 +79,7 @@ describe("初始状态与默认值", () => {
       memoryDistillEngine: "",
       memoryDistillRules: "",
       ssh: { hosts: [] },
-      wsl: { defaultDistro: "" },
+      wsl: { defaultDistro: "", remoteHostId: "" },
       git: { view: "diff", layout: "flat", diffMode: "unified" },
       iconDecor: {
         newchat: { blink: true },

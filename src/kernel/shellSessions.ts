@@ -11,7 +11,7 @@ import { KernelTopics, type EventBus, type SessionStartFailedEvent } from "./eve
 import { ipc, type SessionMeta, type SpawnedSession } from "./ipc";
 import { adoptPtySession, ADOPT_RACE_REASON } from "./sessionAdopt";
 import { getPlatformKind } from "./platform";
-import { parseWslUnc, wslShellSpec } from "./wsl";
+import { findShellSpecProvider } from "./ptyAdapters";
 import { getActiveWorkspace, getWorkspaces } from "./workspace";
 
 /** host 侧最小依赖面(与 SshSessionHost 同形;箭头函数惰性绑定避免构造顺序耦合)。 */
@@ -59,9 +59,11 @@ export class ShellSessionService {
       });
       throw new Error(reason);
     }
-    const unc = parseWslUnc(workspace.root);
-    const shell = unc
-      ? await wslShellSpec(unc.distro, unc.linuxPath, "wsl-bash")
+    /* 来源类工作区(如 WSL 发行版)的内置终端 spec 由 ptyAdapters 注册者接管;
+       全不命中走默认本地 shell。 */
+    const shellProvider = findShellSpecProvider(workspace);
+    const shell = shellProvider
+      ? await shellProvider.build(workspace, "wsl-bash")
       : { ...defaultShell(), cwd: workspace.root, kind: "shell" as const };
     const spawned = await ipc
       .sessionSpawn(

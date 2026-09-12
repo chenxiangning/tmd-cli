@@ -194,6 +194,8 @@ export interface AppSettings {
   workspaceGroupCollapsedMap: Record<string, boolean>;
   /** 左侧栏会话视图:false = 默认(隐藏归档),true = 归档(只看归档)。 */
   workspaceArchiveView: boolean;
+  /** 侧栏工作区来源过滤:空 = 全部;local = 本地;wsl = WSL(含远程)。 */
+  workspaceOriginFilter: string;
   /**
    * 网络代理(network-proxy 插件的编辑域):客户端自身联网(quota_fetch 等
    * Rust reqwest 请求、installer 的 curl/npm 子进程)与之后 spawn 的 PTY CLI
@@ -233,9 +235,11 @@ export interface AppSettings {
   ssh: { hosts: SshHostConfig[] };
   /**
    * WSL 主机偏好(wsl 插件的编辑域):defaultDistro = 用户指定的默认发行版
-   * (wslconfig /setdefault 同步写);空串 = 跟随 wslconfig 自身默认。
+   * (wslconfig /set-default 同步写);空串 = 跟随 wslconfig 自身默认。
+   * remoteHostId = 远程 WSL 的 SSH 主机(settings.ssh.hosts 条目 id);空串 = 只用本机。
+   * (2026-09-12 退场:卡内「本机|远程」mode 段控拔除,两段按可用性共存。)
    */
-  wsl: { defaultDistro: string };
+  wsl: { defaultDistro: string; remoteHostId: string };
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -272,6 +276,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionArchive: {},
   sessionDeleted: {},
   workspaceArchiveView: false,
+  workspaceOriginFilter: "",
   networkProxyEnabled: false,
   networkProxyUrl: "",
   memoryDbPath: "",
@@ -283,7 +288,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   memoryDistillRules: "",
   git: { view: "diff", layout: "flat", diffMode: "unified" },
   ssh: { hosts: [] },
-  wsl: { defaultDistro: "" },
+  wsl: { defaultDistro: "", remoteHostId: "" },
 };
 
 /** 记忆胶囊注入策略(manual 手动勾选注入 / auto 新会话自动展开 / off 关闭)。 */

@@ -10,6 +10,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { findRemoteFileSourceForUri } from "@kernel/fileSources";
 
 interface FilePayload {
   path: string;
@@ -79,13 +80,18 @@ export function getFileCacheVersion(): number {
   return cacheVersion;
 }
 
-/** 拉取文件内容(带缓存);加载完成经变更通知驱动 tab 重渲感知。 */
+/** 拉取文件内容(带缓存);加载完成经变更通知驱动 tab 重渲感知。
+ *  远程文件 URI(文件源协议,如 wslr://)走注册源的读取通道;渲染管线无感知。 */
 export function loadFile(path: string): FilePayload {
   const cached = cacheGet(path);
   if (cached) return cached;
   const fresh: FilePayload = { path, content: null, error: null, loaded: false };
   cacheSet(path, fresh);
-  ipc.fsReadFile(path).then(
+  const source = findRemoteFileSourceForUri(path);
+  const load = source
+    ? source.readText(path, REMOTE_TEXT_MAX_BYTES)
+    : ipc.fsReadFile(path);
+  load.then(
     (content) => {
       /* 条目可能已被 LRU 淘汰:直接重插结果(幂等,不复活半状态) */
       cacheSet(path, { path, content, error: null, loaded: true });
@@ -96,6 +102,9 @@ export function loadFile(path: string): FilePayload {
   );
   return fresh;
 }
+
+/** 远程文本读取上限(与本地 fs 文本读取闸同量级;来源侧可再收紧)。 */
+const REMOTE_TEXT_MAX_BYTES = 512 * 1024;
 
 /** 外部可能已改盘(刷新按钮/外部编辑):作废条目重读磁盘。草稿独立存储,不受影响。 */
 export function reloadFile(path: string): FilePayload {

@@ -27,11 +27,13 @@ use super::{
 /// 重连入口 re-export:保持 super::session::handle_unexpected_disconnect 引用路径不变。
 pub(crate) use super::session_reconnect::handle_unexpected_disconnect;
 
-/// 打开 PTY shell 通道(实现 open_shell_channel)。
+/// 打开 PTY 通道:无 command = 交互 shell;有 command = 在同一 PTY 里 exec 该命令
+/// (远程 WSL 会话形态:`wsl.exe -d <distro> …` 作为首命令,退出即通道关闭)。
 async fn open_shell_channel(
     handle: &client::Handle<SshClient>,
     cols: u16,
     rows: u16,
+    command: Option<&str>,
 ) -> Result<russh::Channel<client::Msg>, String> {
     let channel = handle
         .channel_open_session()
@@ -49,10 +51,16 @@ async fn open_shell_channel(
         )
         .await
         .map_err(|error| format!("SSH PTY 请求失败: {error}"))?;
-    channel
-        .request_shell(false)
-        .await
-        .map_err(|error| format!("SSH shell 请求失败: {error}"))?;
+    match command {
+        Some(cmd) => channel
+            .exec(false, cmd)
+            .await
+            .map_err(|error| format!("SSH 命令执行请求失败: {error}"))?,
+        None => channel
+            .request_shell(false)
+            .await
+            .map_err(|error| format!("SSH shell 请求失败: {error}"))?,
+    }
     Ok(channel)
 }
 
@@ -229,7 +237,7 @@ pub(crate) async fn install_connected(
         .unwrap_or(SSH_DEFAULT_COLS);
     let rows = u16::try_from(entry.rows.load(std::sync::atomic::Ordering::SeqCst))
         .unwrap_or(SSH_DEFAULT_ROWS);
-    let channel = open_shell_channel(&handle, cols, rows).await?;
+    let channel = open_shell_channel(&handle, cols, rows, entry.command.as_deref()).await?;
     let (input_tx, input_rx) = tokio::sync::mpsc::channel::<SshSessionInput>(256);
     let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel::<()>(1);
     let connection_id = entry
@@ -270,6 +278,7 @@ pub(crate) async fn open_shell_channel_for_test(
     handle: &client::Handle<SshClient>,
     cols: u16,
     rows: u16,
+    command: Option<&str>,
 ) -> Result<russh::Channel<client::Msg>, String> {
-    open_shell_channel(handle, cols, rows).await
+    open_shell_channel(handle, cols, rows, command).await
 }

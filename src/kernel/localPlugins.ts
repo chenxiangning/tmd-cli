@@ -137,19 +137,41 @@ export async function bootLocalPlugins(builtins: ReadonlySet<string>): Promise<P
 export async function activateBootLocals(plugins: Plugin[]): Promise<void> {
   const pending = new Map(plugins.map((p) => [p.id, p]));
   const done = new Set<string>();
-  let progressed = true;
-  while (pending.size > 0 && progressed) {
-    progressed = false;
-    for (const [id, p] of [...pending]) {
-      const missing = (p.dependsOn ?? []).filter((d) => !builtinIds.has(d) && !done.has(d));
-      if (missing.length > 0) continue;
-      pending.delete(id);
+  await drainWaves(pending, done);
+  if (pending.size > 0) {
+    const ids = [...pending.keys()].join(", ");
+    for (const id of pending.keys()) {
+      const rec = records.get(id);
+      if (rec) rec.activateError = `依赖缺失或依赖环: ${ids}`;
+    }
+  }
+  emit();
+}
+
+/**
+ * 一轮 = 按当前 done 集合激活所有依赖就绪者(promise 链顺序执行,故障隔离:
+ * 单插件失败落 activateError 并 continue);本轮有进展 → 依赖就绪者进下一波,
+ * 直至无波可推。递归 + reduce 链表达「分波拓扑激活」,循环体内无 await。
+ */
+async function drainWaves(pending: Map<string, Plugin>, done: Set<string>): Promise<void> {
+  if (pending.size === 0) return;
+  const queued = [...pending];
+  let progressed = false;
+  const skipped: Array<[string, Plugin]> = [];
+  await queued.reduce((chain, [id, p]) => {
+    const missing = (p.dependsOn ?? []).filter((d) => !builtinIds.has(d) && !done.has(d));
+    if (missing.length > 0) {
+      skipped.push([id, p]);
+      return chain;
+    }
+    pending.delete(id);
+    return chain.then(async () => {
       /* 已激活(StrictMode 双跑)只补戳;activate 抛错上抛(占位已回滚),落记录 continue。 */
       if (host.isPluginActive(id)) {
         markActivated(id);
         done.add(id);
         progressed = true;
-        continue;
+        return;
       }
       try {
         await host.activateLate(p);
@@ -160,16 +182,12 @@ export async function activateBootLocals(plugins: Plugin[]): Promise<void> {
         if (rec) rec.activateError = msg(e);
       }
       progressed = true;
-    }
+    });
+  }, Promise.resolve());
+  if (progressed && skipped.length > 0) {
+    for (const [id, p] of skipped) pending.set(id, p);
+    await drainWaves(pending, done);
   }
-  if (pending.size > 0) {
-    const ids = [...pending.keys()].join(", ");
-    for (const id of pending.keys()) {
-      const rec = records.get(id);
-      if (rec) rec.activateError = `依赖缺失或依赖环: ${ids}`;
-    }
-  }
-  emit();
 }
 
 /** 重扫(单飞闸:并发触发共享同一 Promise,杜绝重复扫描/import)。 */
@@ -188,21 +206,23 @@ async function doRescan(): Promise<void> {
   const entries = await ipc.pluginScan().catch(() => null);
   if (!entries) return;
   const seen = new Set<string>();
-  for (const entry of entries) {
+  await entries.reduce((chain, entry) => {
     seen.add(entry.id);
     const rec = scanToRecord(entry, builtinIds);
     records.set(rec.id, rec);
-    if (rec.activatedHash) continue; // 已激活:仅更新内容戳(变更徽章),重启生效,不重载
-    if (!activatable(rec)) continue;
-    const plugin = await ensureLoaded(rec);
-    if (!plugin) continue;
-    try {
-      await host.activateLate(plugin);
-      markActivated(rec.id);
-    } catch (e) {
-      rec.activateError = msg(e);
-    }
-  }
+    if (rec.activatedHash) return chain; // 已激活:仅更新内容戳(变更徽章),重启生效,不重载
+    if (!activatable(rec)) return chain;
+    return chain.then(async () => {
+      const plugin = await ensureLoaded(rec);
+      if (!plugin) return;
+      try {
+        await host.activateLate(plugin);
+        markActivated(rec.id);
+      } catch (e) {
+        rec.activateError = msg(e);
+      }
+    });
+  }, Promise.resolve());
   for (const id of [...records.keys()]) {
     if (!seen.has(id)) records.set(id, { ...records.get(id)!, removed: true });
   }

@@ -10,6 +10,7 @@ import { useState } from "react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { setActiveWorkspace, setWorkspaceAlias, workspaceDisplayName, type Workspace } from "@kernel/workspace";
+import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { RenameInput } from "@kernel/RenameInput";
 import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, RocketLaunch, ListChecks } from "@phosphor-icons/react";
 import { CliSessionGroup } from "./SessionList";
@@ -124,6 +125,15 @@ export function WorkspaceCard({
               <span className="workspace-name-text" title={workspace.root}>
                 {workspaceDisplayName(workspace)}
               </span>
+              {(() => {
+                /* 来源徽章(如 WSL)由来源插件经 workspaceOrigins 贡献,拔插件即消失 */
+                const badge = findWorkspaceOrigin(workspace)?.badge?.(workspace);
+                return badge ? (
+                  <span className="workspace-origin-badge" title={badge.title}>
+                    {t(badge.text)}
+                  </span>
+                ) : null;
+              })()}
             </button>
           )}
           {workspace.id === "default" && !renaming && (

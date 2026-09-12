@@ -8,9 +8,8 @@ const hoisted = vi.hoisted(() => ({
   buffers: new Map<string, string>(),
   /** 会话 → CLI 磁盘身份(磁盘尾分支标签解析)。 */
   cliIds: new Map<string, string>(),
-  /** restoreTail 调用记录(磁盘回放尽的徽章恢复)。 */
+  /** restoreTail 调用记录 / 红线观测(回放期 appendOutput 零调用)。 */
   restored: [] as Array<[string, string]>,
-  /** 红线观测:磁盘回放期间 appendOutput 零调用(历史字节不入守望主链路)。 */
   appendOutputCalls: [] as string[],
   /** 磁盘尾桩:{ cliId, promise } = 预取命中;null = 未预取/错配。 */
   diskTail: null as { cliId: string; promise: Promise<{ text: string } | null> } | null,
@@ -84,9 +83,10 @@ describe("writeInChunks", () => {
 function emit(id: string, text: string) {
   for (const cb of hoisted.listeners.get(`pty://out/${id}`) ?? []) cb(text);
 }
-
-/** 空操作输入闸(本组用例不涉回放重写)。 */
-const gate = { arm: () => undefined, release: () => undefined, blocked: () => false };
+/* 空操作输入闸(本组用例不涉回放重写)。 */
+const gate = {
+  arm: () => undefined, release: () => undefined, blocked: () => false,
+};
 
 describe("attachTerminalStream 就绪锁", () => {
   beforeEach(() => vi.useFakeTimers());

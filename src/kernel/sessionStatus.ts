@@ -26,6 +26,9 @@ interface SessionStatusHost {
   /** 身份尚未绑定(pendingIdentities 在册):巡航期继续驱动绑定探测。 */
   isPendingIdentity(sessionId: string): boolean;
   tryBindIdentity(sessionId: string): Promise<void>;
+  /** 远程来源会话的观测调度(hostWatches 提供:远程身份绑定 + 引擎远程适配)。
+   *  返回 true = 该会话走了远程通道(本地 refresh 不再执行)。缺省无。 */
+  refreshRemote?: (sessionId: string) => Promise<boolean>;
   notify(): void;
 }
 
@@ -68,6 +71,9 @@ export class SessionStatusWatch {
       } else if (this.h.isPendingIdentity(sessionId)) {
         /* 慢相位:文件迟到(首条消息才落盘)/快照失败,激活会话 2s 巡航直到绑上 */
         void this.h.tryBindIdentity(sessionId);
+      } else if (this.h.refreshRemote) {
+        /* 远程来源会话(WSL CLI):本机身份探测天然绑不上,远程通道自带绑定 */
+        void this.h.refreshRemote(sessionId);
       }
     }, 2_000);
   }
@@ -107,6 +113,11 @@ export class SessionStatusWatch {
       .readSessionStatus(session.cwd, cliSessionId)
       .catch(() => null);
     if (!observed) return;
+    this.applyObserved(sessionId, observed);
+  }
+
+  /** 观测值落地(本地读与远程通道共用):死会话防写 + 字段级合并 + 来源翻转。 */
+  applyObserved(sessionId: string, observed: CliSessionStatus): void {
     /* await 期间会话可能已被移除:回包不得给死会话写状态 */
     if (!this.h.hasSession(sessionId)) return;
     const previous = this.statuses.get(sessionId);

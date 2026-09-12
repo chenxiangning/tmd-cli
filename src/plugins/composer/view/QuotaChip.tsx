@@ -40,7 +40,8 @@ function emptyQuotaSnapshot(profileId: string): QuotaSnapshot {
   };
 }
 
-/** 当前激活 session 的 CLI quota。 */
+/** 当前激活 session 的 CLI quota。供应商额度是账号级(HTTP 按模型查询),
+ *  远程引擎会话同样回填(凭据取本机登录态,同一供应商账号即代表)。 */
 function useActiveQuota(): {
   snapshot: QuotaSnapshot | null;
   loading: boolean;
@@ -51,7 +52,7 @@ function useActiveQuota(): {
   useHost();
   const sessionId = host.getActiveSessionId();
   const session = sessionId ? host.getSessions().find((s) => s.id === sessionId) : null;
-  const profileId = session?.profileId;
+  const profileId = session?.engine ?? session?.profileId;
   const model = sessionId ? (host.getSessionStatus(sessionId)?.model ?? null) : null;
   const cliSessionId = sessionId ? host.getCliSessionId(sessionId) : undefined;
 
@@ -212,6 +213,7 @@ export function QuotaChip() {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ x: number; bottom: number } | null>(null);
   const chipRef = useRef<HTMLButtonElement>(null);
+
 
   if (!snapshot) return null;
 

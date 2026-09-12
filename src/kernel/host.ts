@@ -141,14 +141,14 @@ class Host implements PluginContext {
 
   // ---- 会话服务(kernel 固有职责:PTY 生命周期) ---------------------------
 
-  /** 创建/重连 SSH 一等会话(实现见 kernel/sshSessions.ts);幕布与 PTY 同构,无 profile。 */
-  async createSshSession(host: SshHostConfig, workspaceId?: string): Promise<SessionMeta>;
+  /** 创建/重连 SSH 一等会话(实现见 kernel/sshSessions.ts);幕布与 PTY 同构。
+   *  command = PTY 内初始命令(远程 WSL 会话);engineProfileId = WSL CLI 的引擎
+   *  档案 id(SessionMeta.engine,composer/Ask 据此取 CLI profile,kind 仍为 ssh);
+   *  cliSessionId = 远程磁盘历史行恢复的已知身份(去重聚焦/显式绑定,同本地 openDiskSession)。 */
+  async createSshSession(host: SshHostConfig, workspaceId?: string, command?: string, engineProfileId?: string, cliSessionId?: string): Promise<SessionMeta>;
   async createSshSession(reconnectOf: string, workspaceId?: string): Promise<SessionMeta>;
-  async createSshSession(
-    host: SshHostConfig | string,
-    workspaceId?: string,
-  ): Promise<SessionMeta> {
-    return this.sessionServices.ssh.create(host, workspaceId);
+  async createSshSession(host: SshHostConfig | string, workspaceId?: string, command?: string, engineProfileId?: string, cliSessionId?: string): Promise<SessionMeta> {
+    return this.sessionServices.ssh.create(host, workspaceId, command, engineProfileId, cliSessionId);
   }
 
   /** 新建内置终端会话(实现见 kernel/shellSessions.ts);本地默认 shell,幕布即输入面。 */

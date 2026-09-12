@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<!--
+  WSL 原型 1/3:连接与远程调用 CLI —— 2026-09-11
+
+  演示流程(单页状态机):
+    1. 仿 welcome 引擎选择器(本地 8 引擎,探针徽章+行内刷新)+ 底部「WSL 主机」卡(红点·未连接);
+    2. 展开 WSL 卡 → 「检测发行版」(300–800ms spinner 模拟 9P/进程延迟)→ Ubuntu-24.04(运行中)/
+       Debian-12(已停止),行操作「设默认/刷新」;Ubuntu 展开引擎探针子表(kimi/opencode ✗ 行给
+       「在 WSL 内安装」占位按钮);
+    3. 设默认发行版 + 选引擎 + 选工作区 ml-pipeline → 「启动会话」→ 弹层展示完整 wsl.exe 包装命令,
+       等宽代码块 + 分段高亮解释(-d / --cd / bash -lc / 单引号命令);
+    4. 确认 → 中央区深底终端幕布,逐行打字动画(claude 启动横幅含 resume 8f2d…);
+    5. 降级态演示:侧栏底部三个小按钮切换「WSL 未安装 / 发行版冷启动中 / 引擎缺失」内联提示条。
+
+  视觉/数据唯一来源: local://wsl-proto-spec.md §1–§3;接缝标注见正文 HTML 注释(spec §5)。
+  file:// 直接打开即可走完 1→4;每步均有回退路径,无死路。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>WSL 原型 1 — 连接与远程调用 CLI</title>
+<style>
+:root{
+  --tmd-bg-base:#ffffff; --tmd-bg-elevated:#f8f8f8; --tmd-bg-sunken:#f8f8f8;
+  --tmd-bg-hover:#f2f2f2; --tmd-bg-active:rgba(0,95,184,0.14); --tmd-bg-input:#ffffff; --tmd-bg-popover:#ffffff;
+  --tmd-fg:#3b3b3b; --tmd-fg-muted:#7e7e7e; --tmd-fg-subtle:#999999; --tmd-fg-faint:#c0c0c0;
+  --tmd-border:#cecece; --tmd-border-strong:#b1b1b1;
+  --tmd-accent:#005fb8; --tmd-accent-fg:#ffffff; --tmd-accent-soft:rgba(0,95,184,0.14);
+  --tmd-ok:#059669; --tmd-warn:#a16207; --tmd-err:#dc2626;
+  --tmd-terminal-bg:#1e1e1e; --tmd-terminal-fg:#d4d4d4;
+  --tmd-radius-sm:6px; --tmd-radius-md:8px; --tmd-radius-lg:12px;
+  --tmd-tab-active:#ea5c00;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font:12px/1.5 -apple-system,"PingFang SC","Helvetica Neue",sans-serif;
+  color:var(--tmd-fg);background:var(--tmd-bg-base);overflow:hidden;
+  display:grid;grid-template-rows:33px 1fr;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
+svg{display:block}
+.muted{color:var(--tmd-fg-muted)} .subtle{color:var(--tmd-fg-subtle)}
+
+/* ---------- titlebar ---------- */
+.titlebar{display:flex;align-items:center;gap:6px;padding:0 6px;border-bottom:1px solid var(--tmd-border);background:var(--tmd-bg-elevated);-webkit-user-select:none;user-select:none}
+.tb-btn{display:inline-flex;align-items:center;gap:5px;height:23px;padding:0 8px;border:1px solid var(--tmd-border);border-radius:var(--tmd-radius-sm);background:var(--tmd-bg-input)}
+.tb-btn:hover{background:var(--tmd-bg-hover)}
+.tb-iconbtn{width:26px;height:23px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--tmd-radius-sm)}
+.tb-iconbtn:hover{background:var(--tmd-bg-hover)}
+.tb-mid{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--tmd-fg-muted);overflow:hidden;white-space:nowrap}
+.tb-mid .crumb{background:var(--tmd-bg-active);color:var(--tmd-fg);border-radius:4px;padding:1px 7px}
+.panel-tabs{display:flex;align-items:stretch;height:100%}
+.panel-tabs button{padding:0 10px;border-bottom:2px solid transparent;color:var(--tmd-fg-muted)}
+.panel-tabs button.on{color:var(--tmd-tab-active);border-bottom-color:var(--tmd-tab-active);font-weight:600}
+.winbtns{display:flex;margin-left:4px}
+.winbtns span{width:34px;display:flex;align-items:center;justify-content:center;color:var(--tmd-fg-muted)}
+.winbtns span:hover{background:var(--tmd-bg-hover)}
+.winbtns span.close:hover{background:#e81123;color:#fff}
+
+/* ---------- shell ---------- */
+.shell{display:grid;grid-template-columns:244px 1fr 260px;min-height:0}
+.sidebar{border-right:1px solid var(--tmd-border);background:var(--tmd-bg-elevated);display:flex;flex-direction:column;min-height:0}
+.main{display:flex;flex-direction:column;min-width:0;background:var(--tmd-bg-base)}
+.rpanel{border-left:1px solid var(--tmd-border);background:var(--tmd-bg-elevated);display:flex;flex-direction:column;min-height:0}
+
+/* ---------- sidebar ---------- */
+.sb-head{display:flex;align-items:center;gap:6px;padding:8px 8px 4px}
+.sb-head .lbl{font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--tmd-border);border-radius:var(--tmd-radius-sm);overflow:hidden}
+.seg button{padding:1px 8px;color:var(--tmd-fg-muted)}
+.seg button.on{background:var(--tmd-fg);color:#fff}
+.sb-spacer{flex:1}
+.ws-card{margin:6px 6px 0;border:1px solid var(--tmd-border);border-radius:var(--tmd-radius-md);background:var(--tmd-bg-base);overflow:hidden}
+.ws-head{display:flex;align-items:center;gap:5px;padding:5px 7px;cursor:pointer}
+.ws-head:hover{background:var(--tmd-bg-hover)}
+.path-badge{font-size:10px;color:var(--tmd-fg-subtle);border:1px solid var(--tmd-border);border-radius:4px;padding:0 4px;white-space:nowrap}
+.thread-row{display:flex;align-items:center;gap:6px;padding:3px 8px 3px 12px;cursor:pointer;white-space:nowrap;min-width:0}
+.thread-row:hover{background:var(--tmd-bg-hover)}
+.thread-row.active{background:var(--tmd-bg-active);box-shadow:inset 2px 0 0 var(--tmd-accent)}
+.thread-row .t{flex:1;overflow:hidden;text-overflow:ellipsis;color:var(--tmd-fg)}
+.thread-row .tm{color:var(--tmd-fg-subtle);font-size:11px}
+.dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--tmd-fg-faint)}
+.dot.ok{background:var(--tmd-ok)} .dot.err{background:var(--tmd-err)} .dot.gray{background:var(--tmd-fg-faint)}
+.dot.breathe{animation:breathe 1.6s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.35}50%{opacity:1}}
+.badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex:none;border:1px solid var(--tmd-border);border-radius:4px;font-size:9px;font-weight:700;color:var(--tmd-fg-muted);background:var(--tmd-bg-base)}
+.sb-foot{margin-top:auto;border-top:1px solid var(--tmd-border);padding:6px 8px;display:flex;flex-direction:column;gap:5px}
+.sb-foot .row1{display:flex;align-items:center;gap:6px;color:var(--tmd-fg-subtle)}
+.demo-btns{display:flex;gap:4px;flex-wrap:wrap}
+.demo-btns button{font-size:10px;border:1px dashed var(--tmd-border-strong);border-radius:4px;padding:1px 6px;color:var(--tmd-fg-muted)}
+.demo-btns button.on{border-style:solid;border-color:var(--tmd-accent);color:var(--tmd-accent);background:var(--tmd-accent-soft)}
+
+/* ---------- right panel(文件树) ---------- */
+.rp-head{padding:7px 10px;font-weight:600;border-bottom:1px solid var(--tmd-border);display:flex;align-items:center;gap:6px}
+.rp-unc{font-size:10px;color:var(--tmd-fg-subtle);padding:4px 10px;border-bottom:1px solid var(--tmd-border);word-break:break-all}
+.tree{padding:5px 0;overflow:auto}
+.tree .n{display:flex;align-items:center;gap:5px;padding:1.5px 10px;white-space:nowrap;color:var(--tmd-fg)}
+.tree .n:hover{background:var(--tmd-bg-hover)}
+.tree .n.i1{padding-left:24px} .tree .n.i2{padding-left:38px}
+
+/* ---------- welcome 主区 ---------- */
+.welcome{flex:1;overflow:auto;padding:18px 26px 10px}
+.welcome h1{font-size:20px;font-weight:600;margin-bottom:2px}
+.welcome .sub{color:var(--tmd-fg-muted);margin-bottom:14px}
+.sec-lbl{font-size:11px;font-weight:600;color:var(--tmd-fg-subtle);letter-spacing:.4px;margin:14px 0 5px}
+.engine-list{border:1px solid var(--tmd-border);border-radius:var(--tmd-radius-md);overflow:hidden}
+.engine-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--tmd-border);cursor:pointer}
+.engine-row:last-child{border-bottom:none}
+.engine-row:hover{background:var(--tmd-bg-hover)}
+.engine-row.sel{background:var(--tmd-bg-active);box-shadow:inset 2px 0 0 var(--tmd-accent)}
+.engine-row .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--tmd-fg-muted);min-width:58px}
+.stat.ok{color:var(--tmd-ok)} .stat.err{color:var(--tmd-err)}
+.refbtn{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--tmd-radius-sm);color:var(--tmd-fg-subtle)}
+.refbtn:hover{background:var(--tmd-bg-hover);color:var(--tmd-fg)}
+.spin{width:11px;height:11px;border-radius:50%;border:1.5px solid var(--tmd-fg-faint);border-top-color:var(--tmd-accent);animation:rot .7s linear infinite;display:inline-block;flex:none}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* WSL 主机卡 */
+.wsl-card{margin-top:12px;border:1px solid var(--tmd-border);border-radius:var(--tmd-radius-md);overflow:hidden}
+.wsl-head{display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;background:var(--tmd-bg-elevated)}
+.wsl-head:hover{background:var(--tmd-bg-hover)}
+.wsl-body{border-top:1px solid var(--tmd-border);padding:10px}
+.btn{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--tmd-border-strong);border-radius:var(--tmd-radius-sm);padding:3px 10px;background:var(--tmd-bg-input)}
+.btn:hover{background:var(--tmd-bg-hover)}
+.btn.pri{background:var(--tmd-accent);border-color:var(--tmd-accent);color:var(--tmd-accent-fg)}
+.btn.pri:hover{filter:brightness(1.1)}
+.btn.pri:disabled,.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{border-color:transparent;color:var(--tmd-accent);padding:2px 6px}
+.btn.ghost:hover{background:var(--tmd-accent-soft)}
+.distro-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--tmd-border);border-radius:var(--tmd-radius-sm);margin-top:6px;background:var(--tmd-bg-base)}
+.distro-row.def{border-color:var(--tmd-accent);box-shadow:inset 0 0 0 1px var(--tmd-accent)}
+.distro-row .nm{font-weight:600}
+.tag{font-size:10px;border-radius:4px;padding:0 5px;border:1px solid var(--tmd-border);color:var(--tmd-fg-muted);white-space:nowrap}
+.tag.def{color:var(--tmd-accent);border-color:var(--tmd-accent);background:var(--tmd-accent-soft)}
+.probe-sub{margin:2px 8px 8px 22px;border:1px solid var(--tmd-border);border-top:none;border-radius:0 0 var(--tmd-radius-sm) var(--tmd-radius-sm);background:var(--tmd-bg-elevated);overflow:hidden}
+.probe-row{display:flex;align-items:center;gap:8px;padding:4px 9px;border-bottom:1px solid var(--tmd-border)}
+.probe-row:last-child{border-bottom:none}
+.probe-row.sel{background:var(--tmd-bg-active);box-shadow:inset 2px 0 0 var(--tmd-accent)}
+.ok-t{color:var(--tmd-ok);font-weight:600} .err-t{color:var(--tmd-err);font-weight:600}
+.skel{height:26px;margin-top:6px;border-radius:var(--tmd-radius-sm);background:linear-gradient(90deg,var(--tmd-bg-hover) 25%,#e9e9e9 50%,var(--tmd-bg-hover) 75%);background-size:200% 100%;animation:sk 1s linear infinite}
+@keyframes sk{to{background-position:-200% 0}}
+
+/* 工作区 chips */
+.ws-chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--tmd-border);border-radius:14px;padding:3px 11px;background:var(--tmd-bg-input);cursor:pointer;white-space:nowrap}
+.chip:hover{background:var(--tmd-bg-hover)}
+.chip.sel{border-color:var(--tmd-accent);background:var(--tmd-accent-soft);color:var(--tmd-accent);font-weight:600}
+
+/* 底部操作栏 */
+.action-bar{display:flex;align-items:center;gap:10px;padding:8px 26px;border-top:1px solid var(--tmd-border);background:var(--tmd-bg-elevated)}
+.action-bar .hint{flex:1;color:var(--tmd-fg-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.action-bar .hint.warn{color:var(--tmd-err)}
+
+/* 降级提示条 */
+.banner{display:flex;align-items:flex-start;gap:8px;margin:10px 26px 0;padding:7px 10px;border-radius:var(--tmd-radius-sm);border:1px solid;line-height:1.45}
+.banner.warn{background:rgba(161,98,7,.08);border-color:rgba(161,98,7,.45);color:var(--tmd-warn)}
+.banner.err{background:rgba(220,38,38,.06);border-color:rgba(220,38,38,.4);color:var(--tmd-err)}
+.banner b{font-weight:600}
+.banner .x{margin-left:auto;cursor:pointer;opacity:.6}
+
+/* ---------- 弹层 ---------- */
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;z-index:40}
+.modal{width:640px;max-width:92vw;background:var(--tmd-bg-popover);border-radius:var(--tmd-radius-lg);box-shadow:0 4px 16px rgba(0,0,0,.12),0 0 0 1px var(--tmd-border);overflow:hidden}
+.modal-head{padding:12px 16px;border-bottom:1px solid var(--tmd-border);font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.modal-body{padding:14px 16px}
+.cmd-box{background:var(--tmd-bg-sunken);border:1px solid var(--tmd-border);border-radius:var(--tmd-radius-sm);padding:11px 12px;font:12px/1.7 "Cascadia Code",Consolas,"SF Mono",monospace;word-break:break-all}
+.cmd-box .s1{background:rgba(0,95,184,.16);border-bottom:2px solid var(--tmd-accent);padding:1px 0}
+.cmd-box .s2{background:rgba(5,150,105,.14);border-bottom:2px solid var(--tmd-ok);padding:1px 0}
+.cmd-box .s3{background:rgba(234,92,0,.14);border-bottom:2px solid var(--tmd-tab-active);padding:1px 0}
+.cmd-box .s4{background:rgba(126,34,206,.12);border-bottom:2px solid #7e22ce;padding:1px 0}
+.legend{margin-top:10px;display:flex;flex-direction:column;gap:5px;font-size:11.5px}
+.legend .li{display:flex;gap:7px;align-items:baseline}
+.legend .k{width:12px;height:12px;border-radius:3px;flex:none;position:relative;top:2px}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--tmd-border);background:var(--tmd-bg-elevated)}
+
+/* ---------- 终端幕布 ---------- */
+.term-wrap{flex:1;display:flex;flex-direction:column;min-height:0}
+.term-tabstrip{display:flex;align-items:center;height:29px;border-bottom:1px solid var(--tmd-border);background:var(--tmd-bg-elevated);padding:0 4px;gap:2px}
+.term-tab{display:inline-flex;align-items:center;gap:6px;height:23px;padding:0 8px;border-radius:5px 5px 0 0;background:var(--tmd-terminal-bg);color:#e6e6e6;font-size:11px}
+.term-tab .x{opacity:.6;cursor:pointer}
+.terminal{flex:1;background:var(--tmd-terminal-bg);color:var(--tmd-terminal-fg);padding:10px 12px;overflow:auto;font:12.5px/1.55 "Cascadia Code",Consolas,"SF Mono",monospace;white-space:pre-wrap}
+.terminal .cur{display:inline-block;width:7px;height:14px;background:var(--tmd-terminal-fg);vertical-align:text-bottom;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* 说明折叠块 */
+.proto-note{position:fixed;top:41px;left:252px;z-index:50;max-width:520px;background:var(--tmd-bg-popover);border:1px solid var(--tmd-border);border-radius:var(--tmd-radius-md);box-shadow:0 4px 16px rgba(0,0,0,.12),0 0 0 1px var(--tmd-border);font-size:11.5px}
+.proto-note summary{cursor:pointer;padding:5px 10px;font-weight:600;list-style:none}
+.proto-note summary::-webkit-details-marker{display:none}
+.proto-note[open] summary{border-bottom:1px solid var(--tmd-border)}
+.proto-note .bd{padding:7px 10px;color:var(--tmd-fg-muted);line-height:1.6}
+</style>
+</head>
+<body>
+
+<!-- ================= titlebar ================= -->
+<div class="titlebar">
+  <button class="tb-btn">+ 新建终端
+    <svg width="8" height="8" viewBox="0 0 8 8" stroke="currentColor" fill="none" stroke-width="1.2"><path d="M1.5 2.5 4 5.5 6.5 2.5"/></svg>
+  </button>
+  <button class="tb-iconbtn" title="会话"><svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" stroke-width="1.2"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6h12"/></svg></button>
+  <button class="tb-iconbtn" title="侧栏"><svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" stroke-width="1.2"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M6 3v10"/></svg></button>
+  <button class="tb-iconbtn" title="收起"><svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" stroke-width="1.2"><path d="M10 3 5 8l5 5"/></svg></button>
+  <div class="tb-mid" id="crumbs"></div>
+  <div class="panel-tabs">
+    <button class="on">终端</button><button>文件</button><button>Git</button><button>检查点</button>
+  </div>
+  <div class="winbtns">
+    <span title="最小化"><svg width="11" height="11" viewBox="0 0 11 11" stroke="currentColor" fill="none" stroke-width="1"><path d="M1.5 8.5h8"/></svg></span>
+    <span title="最大化"><svg width="11" height="11" viewBox="0 0 11 11" stroke="currentColor" fill="none" stroke-width="1"><rect x="1.5" y="1.5" width="8" height="8"/></svg></span>
+    <span class="close" title="关闭"><svg width="11" height="11" viewBox="0 0 11 11" stroke="currentColor" fill="none" stroke-width="1.1"><path d="M1.5 1.5l8 8M9.5 1.5l-8 8"/></svg></span>
+  </div>
+</div>
+
+<!-- ================= shell ================= -->
+<div class="shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main"></main>
+  <!-- 接缝(spec §5):工作区 git 面板 WSL 域 M1 降级隐藏;此处文件树 = UNC 路径喂现有 fs_collect_files -->
+  <aside class="rpanel" id="rpanel"></aside>
+</div>
+
+<details class="proto-note">
+  <summary>说明 · WSL 连接与远程调用 CLI</summary>
+  <div class="bd">演示 welcome 引擎选择器 + WSL 主机卡 → 检测发行版 → 引擎探针 → wsl.exe 包装命令确认 → 终端幕布启动;侧栏底部按钮切换三种降级提示。对应真实接缝:引擎选择器 = welcome 页 + DSH host 面板形态;探针/枚举 = 新 Rust 命令 <b>wsl_list_distros / wsl_probe</b>;spawn 包装 = CliProfile kind="wsl" 路由(先例 cli-dsh plugin.tsx:46)。</div>
+</details>
+
+<script>
+/* ================= mock 数据(spec §3) ================= */
+const ENGINES = [
+  {id:'claude',  name:'Claude Code', badge:'C',  localOk:true,  cli:'claude'},
+  {id:'omp',     name:'OMP',         badge:'O',  localOk:true,  cli:'omp',     wslArgs:' --continue'},
+  {id:'pi',      name:'Pi',          badge:'P',  localOk:true,  cli:'pi'},
+  {id:'kimi',    name:'Kimi',        badge:'K',  localOk:true,  cli:'kimi'},
+  {id:'codex',   name:'Codex',       badge:'CX', localOk:true,  cli:'codex'},
+  {id:'grok',    name:'Grok',        badge:'G',  localOk:false, cli:'grok'},
+  {id:'qoder',   name:'Qoder',       badge:'Q',  localOk:true,  cli:'qoder'},
+  {id:'opencode',name:'OpenCode',    badge:'OC', localOk:false, cli:'opencode'},
+];
+/* WSL 内引擎探针:wsl -e which 逐引擎 */
+const WSL_PROBE = {
+  claude:  {ok:true,  note:'~/.npm-global · node v22'},
+  omp:     {ok:true,  note:'~/.bun/bin'},
+  codex:   {ok:true,  note:'~/.local/bin'},
+  pi:      {ok:true,  note:'~/.bun/bin'},
+  kimi:    {ok:false, note:'未安装'},
+  opencode:{ok:false, note:'未安装'},
+};
+const DISTROS = [
+  {name:'Ubuntu-24.04', ver:'WSL 2', state:'running'},
+  {name:'Debian-12',    ver:'WSL 2', state:'stopped'},
+];
+const WORKSPACES = [
+  {id:'proj-api',    path:'D:\\work\\proj-api',    kind:'win'},
+  {id:'tmd-cli',     path:'D:\\work\\tmd-cli',     kind:'win'},
+  {id:'ml-pipeline', path:'/home/chen/work/ml-pipeline', kind:'wsl', distro:'Ubuntu-24.04'},
+];
+const SESSIONS = [
+  {engine:'omp',    title:'跑通 eval 流水线',      time:'12m', live:true},
+  {engine:'claude', title:'重构数据分片逻辑',      time:'2h'},
+  {engine:'claude', title:'补 parquet 单测',       time:'昨天'},
+  {engine:'omp',    title:'核对特征表口径',        time:'昨天'},
+  {engine:'claude', title:'排查导入管道告警',      time:'3d 前'},
+  {engine:'codex',  title:'分片键哈希 review',     time:'3d 前'},
+];
+
+/* ================= 状态机 ================= */
+const S = {
+  stage:'welcome',            // welcome | confirm | terminal
+  sbTab:'默认',
+  wslOpen:false,              // WSL 卡是否展开
+  distroState:'idle',         // idle | detecting | ready
+  defDistro:null,             // 设默认的发行版名
+  ubuntuOpen:false,           // Ubuntu 行详情(探针子表)
+  probing:false,              // 探针子表刷新中
+  engine:null,                // 选中引擎 id
+  ws:null,                    // 选中工作区 id
+  degrade:null,               // null | nowsl | cold | noengine
+  launched:false,             // 已确认启动(侧栏追加活会话)
+  busy:{},                    // {key:true} 行级 spinner
+  installed:{},               // 占位:已点「在 WSL 内安装」的引擎
+  wsOpen:true,                // 侧栏工作区卡折叠态
+  termTimer:null,
+};
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const eng=id=>ENGINES.find(e=>e.id===id);
+
+/* 图标 */
+const CARET=c=>`<svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" fill="none" stroke-width="1.3" style="transform:rotate(${c?90:0}deg);transition:transform .12s"><path d="M3.5 1.5 7 5 3.5 8.5"/></svg>`;
+const REFRESH=`<svg width="12" height="12" viewBox="0 0 16 16" stroke="currentColor" fill="none" stroke-width="1.4"><path d="M13.5 8a5.5 5.5 0 1 1-1.9-4.2M13 1.5v3h-3"/></svg>`;
+const MONITOR=`<svg width="15" height="15" viewBox="0 0 16 16" stroke="currentColor" fill="none" stroke-width="1.2"><rect x="1.5" y="2.5" width="13" height="9" rx="1"/><path d="M5.5 14h5M8 11.5V14"/></svg>`;
+const FILEIC=`<svg width="11" height="11" viewBox="0 0 16 16" stroke="currentColor" fill="none" stroke-width="1.2"><path d="M4 1.5h5L13 5v9.5H4z"/><path d="M9 1.5V5h4"/></svg>`;
+const FOLDERIC=`<svg width="11" height="11" viewBox="0 0 16 16" stroke="currentColor" fill="none" stroke-width="1.2"><path d="M1.5 3.5h5l1.5 2h6.5v7h-13z"/></svg>`;
+const spin=k=>S.busy[k]?`<span class="spin"></span>`:null;
+
+function delay(ms,fn){setTimeout(fn,ms)}
+function rnd(){return 300+Math.floor(Math.random()*500)}   // 9P/进程延迟感:300–800ms
+
+/* ================= 渲染 ================= */
+function render(){
+  renderCrumbs(); renderSidebar(); renderMain(); renderRight();
+}
+
+function renderCrumbs(){
+  const ws=S.ws?eng2ws(S.ws):null;
+  const chain = S.stage==='terminal'
+    ? ['WSL', S.defDistro||'Ubuntu-24.04', S.ws||'ml-pipeline'] : [S.ws?ws.path:'选择工作区'];
+  $('#crumbs').innerHTML = chain.map((c,i)=>
+    (i?`<span class="subtle">›</span>`:'')+`<span class="${i===chain.length-1?'crumb':''}">${esc(c)}</span>`).join('');
+}
+function eng2ws(id){return WORKSPACES.find(w=>w.id===id)}
+
+function renderSidebar(){
+  const rows = (S.launched?[{engine: S.engine, title:'恢复 · 重构数据分片逻辑', time:'刚刚', live:true}]:[]).concat(SESSIONS);
+  $('#sidebar').innerHTML=`
+  <div class="sb-head"><span class="lbl">工作区</span>
+    <span class="seg"><button data-act="sbtab" data-v="默认" class="${S.sbTab==='默认'?'on':''}">默认</button><button data-act="sbtab" data-v="归档" class="${S.sbTab==='归档'?'on':''}">归档</button></span>
+    <span class="sb-spacer"></span>
+    <button class="refbtn" data-act="sbrefresh" title="刷新会话">${spin('sb')||REFRESH}</button>
+  </div>
+  ${S.sbTab==='归档'
+    ? `<div style="padding:14px 10px" class="subtle">没有已归档的会话</div>`
+    : `<div class="ws-card">
+      <div class="ws-head" data-act="wsfold">
+        ${CARET(S.wsOpen!==false)}
+        <b>ml-pipeline</b>
+        <span class="path-badge">WSL · Ubuntu</span>
+      </div>
+      ${S.wsOpen!==false?rows.map(r=>{const e=eng(r.engine);return `
+      <div class="thread-row ${S.stage==='terminal'&&S.engine===r.engine&&r.live&&!SESSIONS.includes(r)?'active':''}">
+        <span class="dot ${r.live?'ok breathe':'gray'}"></span>
+        <span class="badge">${e?e.badge:'?'}</span>
+        <span class="t">${esc(r.title)}</span><span class="tm">${r.time}</span>
+      </div>`}).join(''):''}
+    </div>`}
+  <div class="sb-foot">
+    <div class="row1"><span>v0.1.4</span><span class="sb-spacer"></span>
+      <button class="refbtn" title="设置"><svg width="13" height="13" viewBox="0 0 16 16" stroke="currentColor" fill="none" stroke-width="1.2"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4"/></svg></button>
+    </div>
+    <!-- 原型演示开关:三种降级态(spec §5 之外的交互点 5) -->
+    <div class="demo-btns">
+      <span class="subtle" style="font-size:10px;align-self:center">演示:</span>
+      <button data-act="degrade" data-v="nowsl"    class="${S.degrade==='nowsl'?'on':''}">WSL 未安装</button>
+      <button data-act="degrade" data-v="cold"     class="${S.degrade==='cold'?'on':''}">冷启动中</button>
+      <button data-act="degrade" data-v="noengine" class="${S.degrade==='noengine'?'on':''}">引擎缺失</button>
+    </div>
+  </div>`;
+}
+
+function banner(){
+  if(!S.degrade) return '';
+  const B={
+    nowsl:{cls:'err',t:'未检测到 WSL',d:'Windows 未安装「适用于 Linux 的 Windows 子系统」。运行 <b>wsl --install</b> 并重启后即可连接远程环境;当前可继续使用本地引擎。'},
+    cold:{cls:'warn',t:'Ubuntu-24.04 冷启动中',d:'发行版首次启动(或超时回收后)通常需要 10–30 秒,期间暂不可用,启动完成后自动恢复探针。'},
+    noengine:{cls:'err',t:'引擎缺失:kimi',d:'Ubuntu-24.04 内未找到 <b>kimi</b>(wsl -e which 无结果)。可在 WSL 内安装,或将上方引擎改选为 Claude Code / OMP。'},
+  }[S.degrade];
+  return `<div class="banner ${B.cls}"><svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" fill="none" stroke-width="1.3" style="flex:none;margin-top:1px"><path d="M8 1.5 15 14H1z"/><path d="M8 6.5v3.5M8 12v.5"/></svg>
+    <span><b>${B.t}</b> —— ${B.d}</span><span class="x" data-act="degrade" data-v="">✕</span></div>`;
+}
+
+function renderMain(){
+  if(S.stage==='terminal'){renderTerminal();return;}
+  $('#main').innerHTML = banner() + welcomeHtml() + (S.stage==='confirm'?confirmModal():'');
+}
+
+function welcomeHtml(){
+  const ready = S.defDistro && S.engine && S.ws==='ml-pipeline';
+  const probe = S.engine && WSL_PROBE[S.engine];
+  const engMissing = ready && probe && !probe.ok;
+  const noProbe  = ready && probe===undefined; // grok/qoder 未在探针 mock 里
+  let hint, hintCls='';
+  if(!S.defDistro) hint='下一步:展开底部「WSL 主机」→ 检测发行版 → 设为默认;';
+  else if(!S.engine) hint='下一步:在上方列表(或 Ubuntu 探针子表)选择引擎;';
+  else if(S.ws!=='ml-pipeline') hint='本原型演示 WSL 工作区启动:请选择工作区 ml-pipeline(本地工作区直接走本地引擎,不经 WSL 包装);';
+  else if(engMissing){hint=`引擎 ${eng(S.engine).name} 在 ${S.defDistro} 内未检出——请在 WSL 内安装或改选引擎;`;}
+  else if(noProbe){hint=`引擎 ${eng(S.engine).name} 尚无 WSL 探针结果,本原型未 mock;`;}
+  else hint=`启动目标:WSL / ${S.defDistro} · ${eng(S.engine).name} · ml-pipeline`;
+  if(engMissing) hintCls='warn';
+  return `
+  <div class="welcome">
+    <h1>新建会话</h1>
+    <div class="sub">选择引擎与工作区,启动一个终端会话</div>
+
+    <div class="sec-lbl">引擎(本机探针)</div>
+    <div class="engine-list">
+      ${ENGINES.map(e=>`
+      <!-- 接缝(spec §5):本机探针沿用现有引擎探测;WSL 探针 = 新命令 wsl_probe(proc_communicate 跑 wsl -e which) -->
+      <div class="engine-row ${S.engine===e.id?'sel':''}" data-act="pickeng" data-v="${e.id}">
+        <span class="badge">${e.badge}</span>
+        <span class="nm">${e.name}${S.engine===e.id?' <span class="accent" style="color:var(--tmd-accent)">· 已选</span>':''}</span>
+        <span class="stat ${e.localOk?'ok':'err'}">${spin('e'+e.id)||(e.localOk?`<span class="dot ok"></span>已就绪`:`<span class="dot err"></span>未检出`)}</span>
+        <button class="refbtn" data-act="refengine" data-v="${e.id}" title="重新探测">${REFRESH}</button>
+      </div>`).join('')}
+    </div>
+
+    <div class="sec-lbl">WSL 主机</div>
+    <div class="wsl-card">
+      <!-- 接缝(spec §5):发行版枚举 = 新 Rust 命令 wsl_list_distros(wsl.exe -l -v) -->
+      <div class="wsl-head" data-act="wsltoggle">
+        ${CARET(S.wslOpen)}
+        <span style="color:var(--tmd-fg-muted)">${MONITOR}</span>
+        <b>WSL 主机</b>
+        <span class="muted" style="margin-left:auto;display:inline-flex;align-items:center;gap:5px">
+          ${S.distroState==='detecting'?'<span class="spin"></span><span>检测中…</span>'
+            :S.distroState==='ready'?`<span class="dot ok"></span>已连接 · 2.4.13(内核 6.6.87)· 默认:${S.defDistro||'未设置'}`
+            :`<span class="dot err"></span>${S.wslOpen?'未检测':'未连接 WSL'}`}
+        </span>
+      </div>
+      ${S.wslOpen?wslBody():''}
+    </div>
+
+    <div class="sec-lbl">工作区</div>
+    <div class="ws-chips">
+      <!-- 接缝(spec §5):Workspace 加 kind/distro 字段(workspace.ts:14);WSL 工作区 fs 走 UNC -->
+      ${WORKSPACES.map(w=>`
+      <span class="chip ${S.ws===w.id?'sel':''}" data-act="pickws" data-v="${w.id}">
+        ${w.kind==='wsl'?'<span class="dot ok" title="WSL 工作区"></span>':'<span class="dot gray"></span>'}
+        ${w.id}${w.kind==='wsl'?` <span class="subtle">· ${w.distro} · ${esc(w.path)}</span>`:` <span class="subtle">${esc(w.path)}</span>`}
+      </span>`).join('')}
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <span class="hint ${hintCls}">${hint}</span>
+    <button class="btn pri" data-act="launch" ${ready&&!engMissing&&!noProbe?'':'disabled'}>启动会话</button>
+  </div>`;
+}
+
+function wslBody(){
+  if(S.distroState==='idle') return `<div style="display:flex;align-items:center;gap:10px">
+    <button class="btn" data-act="detect">检测发行版</button>
+    <span class="subtle">读取 wsl.exe -l -v,枚举已安装发行版与运行状态</span></div>`;
+  if(S.distroState==='detecting') return `<div class="skel"></div><div class="skel"></div>`;
+  return `
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="btn" data-act="detect">重新检测</button>
+      <span class="subtle">WSL 2.4.13 · 默认 Linux 用户 chen · UNC 前缀 \\\\wsl.localhost</span>
+    </div>
+    ${DISTROS.map(d=>`
+    <div class="distro-row ${S.defDistro===d.name?'def':''}">
+      ${d.name==='Ubuntu-24.04'?`<button class="refbtn" data-act="ubuntuopen" style="width:16px">${CARET(S.ubuntuOpen)}</button>`:`<span style="width:16px;display:inline-block"></span>`}
+      <span class="dot ${d.state==='running'?'ok':'gray'}"></span>
+      <span class="nm">${d.name}</span>
+      <span class="tag">${d.ver}</span>
+      <span class="subtle">${d.state==='running'?'运行中':'已停止'}</span>
+      ${S.defDistro===d.name?'<span class="tag def">默认</span>':''}
+      <span style="margin-left:auto;display:inline-flex;gap:4px;align-items:center">
+        ${spin('d'+d.name)||''}
+        <button class="btn" data-act="setdef" data-v="${d.name}" ${S.defDistro===d.name?'disabled':''}>设默认</button>
+        <button class="refbtn" data-act="refdistro" data-v="${d.name}" title="刷新状态">${REFRESH}</button>
+      </span>
+    </div>
+    ${d.name==='Ubuntu-24.04'&&S.ubuntuOpen?probeSub():''}`).join('')}`;
+}
+
+function probeSub(){
+  if(S.probing) return `<div class="probe-sub"><div class="skel" style="margin:6px 9px"></div><div class="skel" style="margin:6px 9px"></div><div class="skel" style="margin:6px 9px"></div></div>`;
+  const n=Object.values(WSL_PROBE).filter(p=>p.ok).length;
+  return `<div class="probe-sub">
+    <div class="probe-row" style="background:var(--tmd-bg-base)">
+      <span class="muted">引擎探针 · ${n}/${Object.keys(WSL_PROBE).length} 就绪</span>
+      <span class="subtle">wsl -e which &lt;bin&gt; · 逐引擎</span>
+      <button class="refbtn" data-act="probe" title="重新探针" style="margin-left:auto">${REFRESH}</button>
+    </div>
+    ${Object.entries(WSL_PROBE).map(([id,p])=>{const e=eng(id);return `
+    <div class="probe-row ${S.engine===id?'sel':''}" data-act="pickeng" data-v="${id}">
+      <span class="badge">${e.badge}</span><span>${e.name}</span>
+      <span class="${p.ok?'ok-t':'err-t'}">${p.ok?'✓':'✗'}</span>
+      <span class="subtle">${esc(p.note)}</span>
+      ${p.ok?`<span class="subtle" style="margin-left:auto">${S.engine===id?'已选为启动引擎':''}</span>`
+            :(S.installed[id]?`<span class="subtle" style="margin-left:auto">安装任务已排队(占位)</span>`
+              :`<button class="btn ghost" style="margin-left:auto" data-act="installwsl" data-v="${id}" title="占位:实际执行 wsl -d Ubuntu-24.04 -- bash -lc 'npm i -g …'">在 WSL 内安装</button>`)}
+    </div>`}).join('')}
+  </div>`;
+}
+
+/* ---------- 确认弹层 ---------- */
+function cmdSegments(){
+  const e=eng(S.engine);
+  const args=(e.id==='claude'?' --resume 8f2d1c43':(e.wslArgs||''));
+  return {
+    s1:`-d ${S.defDistro}`,
+    s2:`--cd /home/chen/work/ml-pipeline`,
+    s3:`bash -lc`,
+    s4:`'${e.cli}${args}'`,
+  };
+}
+function confirmModal(){
+  const c=cmdSegments();
+  const full=`wsl.exe <span class="s1">${esc(c.s1)}</span> <span class="s2">${esc(c.s2)}</span> -- <span class="s3">${esc(c.s3)}</span> <span class="s4">${esc(c.s4)}</span>`;
+  return `<div class="backdrop" role="presentation" data-act="backdrop">
+  <div class="modal" role="presentation">
+    <div class="modal-head">确认启动命令
+      <span class="subtle" style="font-weight:400">将作为 PTY 进程启动(CliProfile kind="wsl")</span></div>
+    <!-- 接缝(spec §5):spawn 包装 = CliProfile.spawnTransform / kind="wsl" 路由(先例 cli-dsh plugin.tsx:46、ssh kind SessionMeta) -->
+    <div class="modal-body">
+      <div class="cmd-box">${full}</div>
+      <div class="legend">
+        <div class="li"><span class="k" style="background:rgba(0,95,184,.4)"></span><span><b>${esc(c.s1)}</b> —— 目标发行版(来自「设默认」,wsl --set-default)</span></div>
+        <div class="li"><span class="k" style="background:rgba(5,150,105,.4)"></span><span><b>--cd /home/chen/work/ml-pipeline</b> —— 直接进入工作区;不传则落在 Windows home 并继承 PATH</span></div>
+        <div class="li"><span class="k" style="background:rgba(234,92,0,.4)"></span><span><b>bash -lc</b> —— 登录 shell,读 ~/.profile / ~/.bashrc,解析 WSL 内 npm-global、bun 等引擎 PATH</span></div>
+        <div class="li"><span class="k" style="background:rgba(126,34,206,.4)"></span><span><b>单引号命令</b> —— 引擎 CLI 与恢复参数;整串经 -- 分隔后原样交给发行版执行</span></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-act="cancel">取消</button>
+      <button class="btn pri" data-act="confirm">确认启动</button>
+    </div>
+  </div></div>`;
+}
+
+/* ---------- 终端幕布 ---------- */
+function renderTerminal(){
+  const e=eng(S.engine);
+  $('#main').innerHTML=`${banner()}
+  <div class="term-wrap">
+    <div class="term-tabstrip">
+      <span class="term-tab"><span class="dot ok breathe"></span><span class="badge" style="border-color:#555;background:#2d2d2d;color:#bbb">${e.badge}</span>
+        ${esc(e.name)} · ml-pipeline <span style="opacity:.6">(Ubuntu-24.04)</span>
+        <span class="x" data-act="backwelcome">✕</span></span>
+    </div>
+    <div class="terminal" id="term"></div>
+  </div>`;
+  startTyping();
+}
+function termLines(){
+  const e=eng(S.engine);
+  const cmd=`chen@DESKTOP-TMD:~/work/ml-pipeline$ ${e.cli}${(S.engine==='claude'?' --resume 8f2d1c43':'')}`;
+  return [
+    cmd,
+    '',
+    `  ${e.name} ${e.id==='claude'?'v1.0.37(模拟)':'(模拟)'} · WSL Ubuntu-24.04`,
+    '  cwd: /home/chen/work/ml-pipeline · user: chen',
+    ...(S.engine==='claude'?['','  Resume session: 8f2d1c43 · 重构数据分片逻辑']:[]),
+    '  Tip: /help · Shift+Tab 切换权限模式',
+    '',
+    ' > ▊',
+  ].join('\n');
+}
+function startTyping(){
+  if(S.termTimer) clearInterval(S.termTimer);
+  const text=termLines(), el=$('#term'); let i=0;
+  el.innerHTML='<span id="term-tx"></span><span class="cur"></span>';
+  S.termTimer=setInterval(()=>{
+    i=Math.min(text.length, i+3);
+    $('#term-tx').textContent=text.slice(0,i);
+    if(i>=text.length){clearInterval(S.termTimer);S.termTimer=null;el=$('#term');if(el)el.scrollTop=el.scrollHeight;}
+  },14);
+}
+
+function renderRight(){
+  const tree=[
+    [0,FOLDERIC,'ml-pipeline'],[1,FILEIC,'pyproject.toml'],[1,FILEIC,'README.md'],
+    [1,FOLDERIC,'src'],[2,FILEIC,'pipeline.py'],[2,FILEIC,'sharding.py'],
+    [1,FOLDERIC,'tests'],[2,FILEIC,'test_parquet.py'],
+    [1,FOLDERIC,'data'],[2,FILEIC,'eval_set_0911.parquet'],
+  ];
+  $('#rpanel').innerHTML=`
+    <div class="rp-head">${FOLDERIC} 文件</div>
+    <div class="rp-unc">\\\\wsl.localhost\\Ubuntu\\home\\chen\\work\\ml-pipeline</div>
+    <div class="tree">${tree.map(([i,ic,n])=>`<div class="n i${i}">${ic}<span>${esc(n)}</span></div>`).join('')}</div>`;
+}
+
+/* ================= 事件 ================= */
+document.addEventListener('click',ev=>{
+  const t=ev.target.closest('[data-act]');
+  if(!t)return;
+  const a=t.dataset.act, v=t.dataset.v;
+  switch(a){
+    case 'sbtab': S.sbTab=v; render(); break;
+    case 'sbrefresh': S.busy.sb=true; render(); delay(rnd(),()=>{S.busy.sb=false;render();}); break;
+    case 'wsfold': S.wsOpen=!(S.wsOpen!==false); render(); break;
+    case 'wsltoggle': S.wslOpen=!S.wslOpen; render(); break;
+    case 'pickws': S.ws=v; render(); break;
+    case 'detect':
+      S.distroState='detecting'; render();
+      delay(rnd(),()=>{S.distroState='ready'; render();}); break;
+    case 'setdef': S.defDistro=v; render(); break;
+    case 'refdistro': S.busy['d'+v]=true; render(); delay(rnd(),()=>{S.busy['d'+v]=false;render();}); break;
+    case 'ubuntuopen': S.ubuntuOpen=!S.ubuntuOpen; render(); break;
+    case 'probe': S.probing=true; render(); delay(rnd(),()=>{S.probing=false;render();}); break;
+    case 'pickeng': if(eng(v)){S.engine=v; render();} break;
+    case 'installwsl': S.installed[v]=true; render(); break;
+    case 'refengine': S.busy['e'+v]=true; render(); delay(rnd(),()=>{S.busy['e'+v]=false;render();}); break;
+    case 'degrade': S.degrade=v||null; render(); break;
+    case 'launch': if(S.distroState==='ready'){S.stage='confirm';render();} break;
+    case 'cancel': S.stage='welcome'; render(); break;
+    case 'backdrop': if(ev.target===t){S.stage='welcome';render();} break;
+    case 'confirm':
+      S.stage='terminal'; S.launched=true;
+      if(S.termTimer){clearInterval(S.termTimer);S.termTimer=null;}
+      render(); break;
+    case 'backwelcome':
+      if(S.termTimer){clearInterval(S.termTimer);S.termTimer=null;}
+      S.stage='welcome'; S.launched=false; render(); break;
+  }
+});
+
+render();
+</script>
+</body>
+</html>

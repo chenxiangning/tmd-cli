@@ -17,9 +17,14 @@ import { TerminalView } from "@kernel/TerminalView";
  * 打开文件时 terminal 不再被横向压缩。
  */
 export function MainPanel() {
-  /* SSH / 内置终端会话无 composer:幕布即输入面(触发符/审批线等都是 CLI 语义)。 */
+  /* 无引擎的 SSH/内置终端会话无 composer:幕布即输入面(触发符/审批线等都是
+     CLI 语义);SSH 会话带 engine(远程 WSL CLI)= 挂该引擎 profile 的 composer,
+     结构与本地 CLI 会话一致。 */
   const activeId = host.getActiveSessionId();
-  const activeKind = host.getSessions().find((s) => s.id === activeId)?.kind;
+  const activeMeta = host.getSessions().find((s) => s.id === activeId);
+  const activeKind = activeMeta?.kind;
+  const showComposer =
+    activeKind !== "shell" && (activeKind !== "ssh" || !!activeMeta?.engine);
   /* 保活集合 = tab 条 ids(+ activeId 不在条内的兜底),见下方 keep-alive 注释。 */
   const { ids: tabIds, tile } = useSessionTabs();
   const kept =
@@ -89,21 +94,23 @@ export function MainPanel() {
           ))
         )}
       </Panel>
-      {activeKind === "ssh" || activeKind === "shell" ? null : stage === "min" ? (
-        /* min 段:composer 退出 Panel 体系,挂裸 div —— 内容仅工具栏条(Composer 隐藏输入区),
-           高度 = 内容自身,与窗口底边零缝隙;固定百分比永远对不齐工具栏像素高。
-           离开 min 时 Panel/Separator 重挂载回 defaultSize,上方 effect 按目标段重放键步 */
-        <div className="shrink-0">
-          <Mounts point="editorCenter.composer" />
-        </div>
-      ) : (
-        <>
-          <PanelResizeHandle className="panel-handle panel-handle-h" />
-          <Panel defaultSize={30} minSize={10} id="composer">
+      {showComposer ? (
+        stage === "min" ? (
+          /* min 段:composer 退出 Panel 体系,挂裸 div —— 内容仅工具栏条(Composer 隐藏输入区),
+             高度 = 内容自身,与窗口底边零缝隙;固定百分比永远对不齐工具栏像素高。
+             离开 min 时 Panel/Separator 重挂载回 defaultSize,上方 effect 按目标段重放键步 */
+          <div className="shrink-0">
             <Mounts point="editorCenter.composer" />
-          </Panel>
-        </>
-      )}
+          </div>
+        ) : (
+          <>
+            <PanelResizeHandle className="panel-handle panel-handle-h" />
+            <Panel defaultSize={30} minSize={10} id="composer">
+              <Mounts point="editorCenter.composer" />
+            </Panel>
+          </>
+        )
+      ) : null}
     </PanelGroup>
   );
 }

@@ -24,6 +24,10 @@ export interface Workspace {
   groupId?: string | null;
   /** 显示名覆盖(trim 后落库);空/缺省 = 显示目录名。 */
   alias?: string | null;
+  /** 来源插件的工作区元数据(历史命名 wsl;结构与解释归 wsl 来源插件,
+   *  kernel 只透传存储 —— 持久化 schema 与 Rust WorkspaceMeta.wsl 配对,勿改名)。
+   *  hostId null = 本机 wsl.exe(root 为 UNC)。缺省 = 本地目录工作区。 */
+  wsl?: { distro: string; hostId: string | null } | null;
 }
 
 interface WorkspaceState {
@@ -90,10 +94,10 @@ export function ensureWorkspaceBooted(): void {
   void loadFromDisk().finally(() => readyGate.resolve());
 }
 
-export function addWorkspace(root: string): Workspace {
+export function addWorkspace(root: string, wsl?: { distro: string; hostId: string | null }): Workspace {
   const id = `ws-${Date.now().toString(36)}`;
   const name = deriveWorkspaceName(root);
-  const ws: Workspace = { id, name, root, createdAt: Date.now() };
+  const ws: Workspace = { id, name, root, createdAt: Date.now(), wsl: wsl ?? null };
   state.list.push(ws);
   void persist();
   emit();

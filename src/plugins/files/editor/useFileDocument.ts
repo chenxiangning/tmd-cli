@@ -10,6 +10,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ipc } from "@kernel/ipc";
 import { updateTab } from "@kernel/tabs";
+import { t } from "@kernel/i18n";
+import { isRemoteFileUri } from "@kernel/fileSources";
 import {
   cacheRefreshContent,
   draftDelete,
@@ -80,6 +82,11 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
 
   const save = useCallback(() => {
     if (savingRef.current) return;
+    if (isRemoteFileUri(path)) {
+      /* 远程 M1 无写回通道;编辑器已 readOnly,此处兜底 ⌘S 直呼 */
+      setError(t("远程文件暂不支持写入(M1)"));
+      return;
+    }
     const text = contentRef.current;
     if (text === savedRef.current) return;
     savingRef.current = true;

@@ -1,5 +1,5 @@
 /**
- * WSL 路径翻译与 spawn 包装契约测试(kernel/wsl.ts)。
+ * WSL 路径翻译与 spawn 包装契约测试(plugins/wsl/wslCore.ts)。
  *
  * spawn 命令形状是承重契约:发行版名/--cd 目标/bash -lc 内层引用任何一处
  * 走形,WSL 会话就起错目录或起错命令。UNC 解析覆盖两种历史前缀形态、
@@ -7,13 +7,13 @@
  */
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("./ipc", () => ({
+vi.mock("@kernel/ipc", () => ({
   ipc: {
     configHomeDir: vi.fn(async () => "C:\\Users\\chen"),
   },
 }));
 
-import { parseWslUnc, shellQuote, wslToUnc, wrapWslSpec } from "./wsl";
+import { parseWslUnc, shellQuote, wslRemoteSpawnCommand, wslToUnc, wrapWslSpec } from "./wslCore";
 
 describe("parseWslUnc", () => {
   it("认 wsl.localhost 与 wsl$ 两种前缀,反斜杠转 posix", () => {
@@ -48,6 +48,21 @@ describe("shellQuote", () => {
   it("内部单引号按 '\\'' 规则转义", () => {
     expect(shellQuote("it's")).toBe(`'it'\\''s'`);
     expect(shellQuote("plain")).toBe("'plain'");
+  });
+});
+
+describe("wslRemoteSpawnCommand", () => {
+  it("发行版名双引号包裹并去空白(宿主 DefaultShell 可能是 PowerShell,防带空格名碎参)", () => {
+    expect(wslRemoteSpawnCommand("Ubuntu")).toBe('wsl.exe -d "Ubuntu"');
+    expect(wslRemoteSpawnCommand(" My Distro ")).toBe('wsl.exe -d "My Distro"');
+  });
+  it("cd 与 engine 叠加:engine 经 bash -lc 单引号引用", () => {
+    expect(wslRemoteSpawnCommand("Ubuntu", { cd: "/home/cxn/work" })).toBe(
+      'wsl.exe -d "Ubuntu" --cd "/home/cxn/work"',
+    );
+    expect(wslRemoteSpawnCommand("Ubuntu", { cd: "/w", engine: "claude" })).toBe(
+      "wsl.exe -d \"Ubuntu\" --cd \"/w\" -- bash -lc 'claude'",
+    );
   });
 });
 

@@ -33,7 +33,8 @@ export function shimUrl(spec: string): string {
   const text =
     `const m = window.__TMD_SHIMS[${JSON.stringify(spec)}];\n` +
     buildShimText(Object.keys(source));
-  const url = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
+  /* data URL 免 createObjectURL/revoke 配对:shim 文本仅白名单键声明,体量小。 */
+  const url = `data:text/javascript;base64,${btoa(unescape(encodeURIComponent(text)))}`;
   shimUrlCache.set(spec, url);
   return url;
 }

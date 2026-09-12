@@ -60,7 +60,7 @@ export function RunningZoneSection() {
     .getSessions()
     .flatMap((session) => {
       const workspace = workspaces.find((w) => w.id === session.workspaceId);
-      const profile = profiles.find((p) => p.id === session.profileId);
+      const profile = profiles.find((p) => p.id === (session.engine ?? session.profileId));
       if (!workspace || !profile) return [];
       const cliSessionId = host.getCliSessionId(session.id);
       if (cliSessionId !== undefined) {

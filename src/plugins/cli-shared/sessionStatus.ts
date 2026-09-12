@@ -25,7 +25,15 @@ export async function readJsonlSessionStatus(
 
   const tail = await ipc.fsReadTail(file.path, STATUS_TAIL_BYTES).catch(() => "");
   if (!tail) return null;
+  return parseJsonlStatusTail(tail, modelKeys, providerKeys);
+}
 
+/** 尾窗文本 → 模型/思考强度(内容级解析,本地读与远程读取共用)。 */
+export function parseJsonlStatusTail(
+  tail: string,
+  modelKeys: readonly string[],
+  providerKeys: readonly string[] = [],
+): CliSessionStatus | null {
   let model: string | undefined;
   let provider: string | undefined;
   let thinkingLevel: string | undefined;

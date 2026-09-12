@@ -23,9 +23,10 @@ export function resolveBroadcastTargets(
 ): BroadcastTarget[] {
   /* kept 公式与 MainPanel 保活集合逐字同构(activeId 不在条内的边缘路径补挂) */
   const kept = activeId && !tabIds.includes(activeId) ? [...tabIds, activeId] : tabIds;
+  const byId = new Map(sessions.map((x) => [x.id, x] as const));
   const out: BroadcastTarget[] = [];
   for (const id of kept) {
-    const s = sessions.find((x) => x.id === id);
+    const s = byId.get(id);
     const p = s ? getProfile(s.profileId) : undefined;
     if (p) out.push({ id, profile: p });
   }

@@ -108,6 +108,9 @@ export interface SessionMeta {
   kind?: "cli" | "ssh" | "shell";
   /** 会话展示标题(SSH = 主机名;CLI 走磁盘会话/命名覆盖层,缺省无)。 */
   title?: string;
+  /** 引擎档案 id(仅 SSH 会话:WSL CLI 会话远端跑某引擎,composer/Ask 据此取
+   *  CLI profile;kind 仍为 "ssh")。普通 SSH/本地会话无此字段。 */
+  engine?: string;
 }
 
 export interface WorkspaceMeta {
@@ -267,6 +270,32 @@ export interface WslInfo {
   /** 默认发行版登录用户。 */
   linuxUser: string | null;
 }
+
+/** WSL 目录条目(wsl_list_dir)。 */
+export interface WslDirEntry {
+  name: string;
+  isDir: boolean;
+}
+
+/** WSL 内引擎探针行(wsl_probe_engines;path=null = 未检出)。 */
+export interface WslEngineProbe {
+  bin: string;
+  path: string | null;
+}
+
+/** WSL 内文件文本(wsl_read_file_text;content=null = 超过 maxBytes 未读,truncated=true)。 */
+export interface WslRemoteFileText {
+  size: number;
+  content: string | null;
+  truncated: boolean;
+}
+
+/** 未决 SSH 提示对账行(ssh_prompts_pending)。 */
+export interface SshPendingPromptWire {
+  sessionId: string;
+  prompt: SshPromptEvent;
+}
+
 export const ipc = {
   sessionSpawn: (profileId: string, spec: SpawnSpec, workspaceId?: string) =>
     invoke<SpawnedSession>("session_spawn", { profileId, spec, workspaceId: workspaceId ?? null }),
@@ -517,6 +546,27 @@ export const ipc = {
   /** 一键安装 CLI(计划由 CliProfile 安装元数据派生:scriptInstall 优先,否则 npm);
    *  日志经 cli-install://{id} 事件推,id 惯例 = 引擎 binary。 */
   wslInfo: () => invoke<WslInfo>("wsl_info"),
+  /** 远程 WSL 探测:经 SSH 连 Windows 宿主跑 wsl.exe 诊断(平台无关;mac 客户端可直连)。 */
+  wslRemoteInfo: (host: SshHostConfig) => invoke<WslInfo>("wsl_remote_info", { host }),
+  /** WSL 目录懒加载:host 缺省 = 本机 wsl.exe(仅 Windows),否则经 SSH 远程执行。 */
+  wslListDir: (distro: string, path: string, host?: SshHostConfig) =>
+    invoke<WslDirEntry[]>("wsl_list_dir", { distro, path, host: host ?? null }),
+  /** WSL 内引擎探针(bins 来自 cli profile 清单,内核零引擎知识)。 */
+  wslProbeEngines: (distro: string, bins: string[], host?: SshHostConfig) =>
+    invoke<WslEngineProbe[]>("wsl_probe_engines", { distro, bins, host: host ?? null }),
+  /** WSL 内脚本执行(来源 remoteExec 协议的传输层;非零退出返回空串不报错)。 */
+  wslExec: (distro: string, script: string, host?: SshHostConfig) =>
+    invoke<string>("wsl_exec", { distro, script, host: host ?? null }),
+  /** WSL 内文件文本读取(远程工作区文件树 → 本地渲染管线;host 缺省 = 本机,仅 Windows)。 */
+  wslReadFileText: (distro: string, path: string, maxBytes: number, host?: SshHostConfig) =>
+    invoke<WslRemoteFileText>("wsl_read_file_text", {
+      distro,
+      path,
+      maxBytes,
+      host: host ?? null,
+    }),
+  /** 未决 SSH 提示对账(接线竞态/webview reload 兜底,先例 refreshForwards)。 */
+  sshPromptsPending: () => invoke<SshPendingPromptWire[]>("ssh_prompts_pending"),
   /** 字符串 MD5(小写 hex)。kimi 会话目录按 MD5(cwd) 命名,前端据此拼会话路径。 */
   md5Hex: (text: string) => invoke<string>("md5_hex", { text }),
 
@@ -534,15 +584,16 @@ export const ipc = {
     invoke<void>("plugin_rollback", { id, file }),
   /** 卸载本地插件:目录整体移入系统废纸篓(路径 Rust 侧锁死,前端只传 id)。 */
   pluginDelete: (id: string) => invoke<void>("plugin_delete", { id }),
-
-  /* ── SSH(对齐 src-tauri/src/ssh/commands.rs;输出/翻页走上方 session_* 按 kind 路由)── */
-  /** 创建 SSH 会话:立即返回 id,连接/认证后台完成(ssh://event / ssh://prompt)。 */
+  /** 创建 SSH 会话:立即返回 id,连接/认证后台完成(ssh://event / ssh://prompt)。
+   *  command 可选 = PTY 内初始命令(远程 WSL 会话:wsl.exe 包装串;缺省 = 交互 shell)。 */
   sshSessionCreate: (
     host: SshHostConfig,
     cwd: string,
     workspaceId?: string,
     cols?: number,
     rows?: number,
+    command?: string,
+    engineProfile?: string,
   ) =>
     invoke<SpawnedSession>("ssh_session_create", {
       host,
@@ -550,6 +601,8 @@ export const ipc = {
       workspaceId: workspaceId ?? null,
       cols: cols ?? null,
       rows: rows ?? null,
+      command: command ?? null,
+      engineProfile: engineProfile ?? null,
     }),
   /** 重连 SSH 会话:后端取原主机配置(凭据不出后端)收尾旧会话后同配置新建,新会话新 id。 */
   sshSessionReconnect: (sessionId: string, cwd: string, workspaceId?: string) =>

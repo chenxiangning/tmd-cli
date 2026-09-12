@@ -253,6 +253,10 @@ export function sanitize(raw: unknown): AppSettings {
       typeof obj.workspaceArchiveView === "boolean"
         ? obj.workspaceArchiveView
         : DEFAULT_SETTINGS.workspaceArchiveView,
+    workspaceOriginFilter:
+      typeof obj.workspaceOriginFilter === "string" && obj.workspaceOriginFilter.length <= 32
+        ? obj.workspaceOriginFilter
+        : "",
     workspaceCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceCollapsedMap),
     workspaceGroups: sanitizeWorkspaceGroups(obj.workspaceGroups),
     workspaceGroupCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceGroupCollapsedMap),
@@ -279,6 +283,13 @@ export function sanitize(raw: unknown): AppSettings {
         "defaultDistro" in obj.wsl &&
         typeof obj.wsl.defaultDistro === "string"
           ? obj.wsl.defaultDistro.slice(0, 100)
+          : "",
+      remoteHostId:
+        typeof obj.wsl === "object" &&
+        obj.wsl !== null &&
+        "remoteHostId" in obj.wsl &&
+        typeof obj.wsl.remoteHostId === "string"
+          ? obj.wsl.remoteHostId.slice(0, 100)
           : "",
     },
     git: sanitizeGitPanel(obj.git),

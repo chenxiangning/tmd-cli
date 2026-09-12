@@ -130,9 +130,10 @@
 | 2026-09-11 | [会话生命周期状态机契约:四态模型 / 八条不变量 / 闸门矩阵 / 七次事故账本](architecture/08-session-lifecycle.md) | 生效中(核心基础;改 activityWatch 前必读) |
 | 2026-09-11 | [横评广播:同一 prompt 并行喂 N 个引擎 + 活幕布真并排(鱼骨 DAG 的 1/10 兑现)](superpowers/specs/2026-09-11-collab-broadcast-design.md) | 已废弃(实施后验收否决广播编排;分屏红利改「会话 tab 平铺显示」落地,spec 留档备鱼骨重启) |
 | 2026-09-11 | [横评广播交互原型(浅色 4 态:入口 / 选引擎 / 分屏 / 失败终态)](design/collab-broadcast-prototype.html) | 设计原型(随 spec 废弃留档) |
-| 2026-09-11 | [WSL 工作区 M1 设计:kind 路由 + UNC 现有原语复用](superpowers/specs/2026-09-11-wsl-workspace-m1-design.md) | 设计定稿·实施就绪(Windows 冒烟探针=验收门;openspec/changes/wsl-workspace-m1) |
+| 2026-09-11 | [WSL 工作区 M1 设计:kind 路由 + UNC 现有原语复用](superpowers/specs/2026-09-11-wsl-workspace-m1-design.md) | 已落地(2026-09-12 十六轮实施验收,双形态真机通过;契约沉淀 architecture/09-wsl-contract.md) |
 | 2026-09-11 | [WSL 支持交互原型 ×3(连接与远程调用 / 会话列表管理 / 文件工作区)](prototypes/) | 设计原型(调研结论:Workspace kind/distro + wsl.exe spawn 包装 + UNC 喂现有 fs 原语;git M1 降级) |
 | 2026-09-11 | [后台会话「等待确认」不出现:字节通道结构性漏检评审与屏幕镜像修复](review/2026-09-11-ask-background-mirror-review.md) | 已完成(修复随记录同在工作树;真实日志回放实证 + 桩目检徽章上屏) |
 | 2026-09-11 | [活动守望证据分级模型:轮次状态机根治重构(content/tick/static 三级分类 + 证据钟 + 空轮宽限)](superpowers/specs/2026-09-11-activity-watch-evidence-model-design.md) | 已落地(真实 omp 字节流回放验收;08 契约同步修订) |
+| 2026-09-12 | [WSL 支持契约:发行版建模 / 双通道 spawn / 远程内省 / 分组身份 / 降级矩阵](architecture/09-wsl-contract.md) | 生效中(openspec/changes/wsl-workspace-m1 收口;改 wsl 插件/远程会话链路前必读) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

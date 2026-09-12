@@ -60,7 +60,15 @@ export function createSessionServices(
     notify: () => ctx.notify(),
   };
   return {
-    ssh: new SshSessionService(base, events),
+    ssh: new SshSessionService(
+      {
+        ...base,
+        getCliSessionId: (sessionId) => watches.getCliSessionId(sessionId),
+        bindIdentity: (sessionId, cliSessionId) =>
+          watches.bindIdentity(sessionId, cliSessionId),
+      },
+      events,
+    ),
     shell: new ShellSessionService(base, events),
     spawn: new SessionSpawnService(
       {
@@ -68,7 +76,7 @@ export function createSessionServices(
         getSessions: base.getSessions,
         setSessions: (sessions) => ctx.setSessions(sessions),
         findSession: base.findSession,
-        setActiveSessionId: (id) => ctx.setActiveSessionId(id),
+        setActiveSessionId: (id: string) => ctx.setActiveSessionId(id),
         setActiveSession: (id: string) => ctx.setActiveSession(id),
         bindIdentity: (sessionId, cliSessionId) =>
           watches.bindIdentity(sessionId, cliSessionId),
@@ -95,12 +103,11 @@ export function createSessionServices(
         { ...base, setSessions: (sessions) => ctx.setSessions(sessions) },
         events,
       );
-      await Promise.all(
-        ctx
-          .getSessions()
-          .filter((s) => (s.kind ?? "cli") === "cli")
-          .map((s) => watches.screenMirror.backfillFromDisk(s.id)),
-      );
+      const mirrorJobs: Promise<void>[] = [];
+      for (const s of ctx.getSessions()) {
+        if ((s.kind ?? "cli") === "cli") mirrorJobs.push(watches.screenMirror.backfillFromDisk(s.id));
+      }
+      await Promise.all(mirrorJobs);
     },
   };
 }

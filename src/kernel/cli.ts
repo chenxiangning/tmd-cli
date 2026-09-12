@@ -9,36 +9,26 @@ import type { ReactNode } from "react";
 import type { QuotaFetchContext, QuotaSnapshot } from "./quota";
 import type { SpawnSpec } from "./ipc";
 import type { CliPrerequisite } from "./cliPrerequisite";
+import type {
+  CliDiskSession,
+  CliSessionEdit,
+  CliSessionStatus,
+  CliUserMessage,
+  RemoteExec,
+  SessionFileIdentity,
+} from "./cliSessionTypes";
+
+/* 会话内省数据单元自本文件迁出(文件规模铁则);re-export 保持 import 契约。 */
+export type {
+  CliDiskSession,
+  CliSessionEdit,
+  CliSessionStatus,
+  CliUserMessage,
+  RemoteExec,
+  SessionFileIdentity,
+} from "./cliSessionTypes";
 
 export type TriggerKind = "skill" | "command" | "file";
-
-/**
- * CLI 磁盘会话 —— 从该 CLI 自己的会话存储扫描出的历史会话。
- * tmd-cli 不做会话映射:列表数据源的真相在各 CLI 的磁盘目录。
- */
-export interface CliDiskSession {
-  /** CLI 自身的会话 id(omp/pi 的 jsonl uuid、codex 的 rollout id),直接喂 resumeArgs。 */
-  id: string;
-  /** 展示标题;缺省由 UI 回退到短 id。 */
-  title?: string;
-  /** 最近修改时间 ms epoch,排序/相对时间展示用。 */
-  modifiedAt: number;
-  /** 磁盘文件路径(调试用)。 */
-  path: string;
-}
-
-/**
- * 会话文件内容自证的身份(readSessionFileIdentity 的返回)。
- * id 必填;cwd/createdAt 缺失表示该 CLI 不自证对应维度,内核按其余维度匹配。
- */
-export interface SessionFileIdentity {
-  /** CLI 会话 id(resumeArgs 可直接消费的形态)。 */
-  id: string;
-  /** 会话创建 cwd。 */
-  cwd?: string;
-  /** 会话创建时刻 ms epoch(omp/pi 来自 session 行 timestamp,codex 来自 meta)。 */
-  createdAt?: number;
-}
 
 export interface CliTriggerSpec {
   /** 触发字符，如 `$` `/` `@`。 */
@@ -52,32 +42,8 @@ export interface CliTriggerSpec {
 }
 
 /**
- * CLI 会话当前的只读运行状态。
- * 字段缺失表示对应 CLI 尚未刷盘或格式暂未识别。
+ * CLI 会话当前的只读运行状态 / 用户消息 / 写入事件类型见 ./cliSessionTypes.ts。
  */
-export interface CliSessionStatus {
-  model?: string;
-  thinkingLevel?: string;
-}
-/** 会话文件中的一条真实用户输入 —— 对话锚点栏的数据单元。 */
-export interface CliUserMessage {
-  /** CLI 消息 id(omp/pi 的 message id、claude 的 uuid、codex 的 payload id),跨增量窗口去重用。 */
-  id: string;
-  /** 完整文本:预览卡内容与幕布定位 needle 的共同来源。 */
-  text: string;
-}
-
-/**
- * 会话磁盘事件流中的一条 AI 写入事件(readSessionEdits 的返回单元)。
- * 审批线 events 归因的第二信号源:与 editMarks(PTY 输出标记)互补,
- * 从该 CLI 自己的会话 JSONL 提取,天然按会话隔离,并行会话零串扰。
- */
-export interface CliSessionEdit {
-  /** 写入文件路径(cwd 内记相对;cwd 外绝对或 ~/ 形式原样上抛,Rust 单闸终审归一)。 */
-  path: string;
-  /** 写入发生时刻 ms epoch(取自 CLI 自记的时间戳,非观测时刻)。 */
-  ts: number;
-}
 
 /**
  * 触发器补全 UI 候选项 —— composer 下拉与命令抽屉的共同数据单元。
@@ -153,6 +119,20 @@ export interface CliProfile {
    * (dsh「会话即 host」:同 origin 第二个 `dsh web` 必然 EADDRINUSE 秒退)。
    */
   singleInstance?: boolean;
+  /**
+   * 远程宿主形态(WSL 发行版内)的会话内省。exec 由来源提供传输
+   * (workspaceOrigins.remoteExec,如 SSH+b64 通道),路径/slug/解析等引擎
+   * 知识留在本 profile —— 与 listSessions 同一 cwd 语义,但 cwd 是远端
+   * posix 路径。缺省 = 该引擎不支持远程形态(来源工作区无历史/状态回填)。
+   */
+  remoteSessions?: {
+    list: (exec: RemoteExec, cwd: string) => Promise<CliDiskSession[]>;
+    readStatus?: (
+      exec: RemoteExec,
+      cwd: string,
+      cliSessionId: string,
+    ) => Promise<CliSessionStatus | null>;
+  };
   /**
    * 扫描该 CLI 在 cwd 下的磁盘历史会话。
    * 每个 cli-* 插件声明自己的存储约定(目录布局/slug 规则/文件格式),
