@@ -13,6 +13,14 @@ export function clampMenuPosition(x: number, y: number): { x: number; y: number 
   };
 }
 
+/** 添加工作区浮层定位:入口按钮右侧 6px 滑出,按浮层估算尺寸(360x340)夹进视口。 */
+export function anchorPopoverPosition(rect: DOMRect): { x: number; y: number } {
+  return {
+    x: Math.min(rect.right + 6, window.innerWidth - 372),
+    y: Math.min(rect.top, window.innerHeight - 348),
+  };
+}
+
 /**
  * 活会话列表比较器:完成未读置顶,其余按 spawn 时间倒序。
  * 排序键必须是稳定身份(createdAt),绝不能用 lastActivityAt —— 它随每个输出

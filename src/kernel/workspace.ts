@@ -140,6 +140,19 @@ export function setWorkspaceAlias(id: string, raw: string): void {
   emit();
 }
 
+/** 来源元数据回填(仅写 Workspace.wsl 透传字段,解释归来源插件;见字段注释)。
+ *  消费方 = wsl 插件 activate 期迁移旧数据(旧对话框添加时漏传元数据)。 */
+export function setWorkspaceWslMeta(
+  id: string,
+  meta: { distro: string; hostId: string | null },
+): void {
+  const target = state.list.find((w) => w.id === id);
+  if (!target || target.wsl?.distro === meta.distro && target.wsl?.hostId === meta.hostId) return;
+  target.wsl = meta;
+  void persist();
+  emit();
+}
+
 /** 全部展示位的唯一取名口:别名非空取别名,否则目录名。 */
 export function workspaceDisplayName(ws: Workspace): string {
   return ws.alias?.trim() || ws.name;

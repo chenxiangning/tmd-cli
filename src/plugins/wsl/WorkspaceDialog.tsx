@@ -90,7 +90,7 @@ export function AddWslWorkspaceDialog({ distros, onClose }: { distros: WslDistro
       return;
     }
     const unc = wslToUnc(distro, posix);
-    addWorkspace(unc);
+    addWorkspace(unc, { distro, hostId: null });
     /* 新工作区落盘后刷新会话扫描由 useCliSessionGroup 的 workspace 变化自动驱动 */
     onClose();
   };

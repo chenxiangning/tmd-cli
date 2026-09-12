@@ -244,11 +244,11 @@ describe("孤儿来源工作区过滤(来源插件拔出后隐藏)", () => {
 
   const wslMeta = { distro: "Ubuntu", hostId: null };
 
-  it("无来源认领:带 wsl 元数据的工作区不入展示视图,本机 UNC 形态不受影响", () => {
+  it("无来源认领:元数据形态与旧版 UNC 形态都不入展示视图", () => {
     const orphan = ws.addWorkspace("/home/cxn", wslMeta);
-    const unc = ws.addWorkspace("\\\\wsl.localhost\\Ubuntu\\home\\proj");
+    const unc = ws.addWorkspace("\\\\wsl.localhost\\Ubuntu-24.04\\home");
     ws.setActiveWorkspace(orphan.id);
-    expect(ws.getWorkspaces().map((w) => w.id)).toEqual([unc.id]);
+    expect(ws.getWorkspaces()).toHaveLength(0);
     expect(ws.getActiveWorkspace()).toBeNull();
     /* 数据留盘:持久化仍是全表(含孤儿) */
     expect(ipcMock.configWriteWorkspaces).toHaveBeenLastCalledWith(

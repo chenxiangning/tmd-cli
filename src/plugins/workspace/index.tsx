@@ -26,7 +26,7 @@ import { spinRemainder } from "@kernel/spin";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { registerSessionRevealHandler } from "@kernel/sessionReveal";
 import { SessionMenuOverlay } from "./SessionMenu";
-import { clampMenuPosition } from "./utils";
+import { anchorPopoverPosition, clampMenuPosition } from "./utils";
 import { Folders, FolderOpen, FolderSimplePlus, CaretDoubleDown, CaretDoubleUp } from "@phosphor-icons/react";
 import { createSessionRevealHandler } from "./revealSession";
 import { WorkspaceList } from "./WorkspaceList";
@@ -53,8 +53,9 @@ function WorkspaceSection() {
     };
   }, []);
   const { list, activeId } = useWorkspaces();
-  /** 添加工作区弹层(本地目录 tab 内建;来源 tab 经 workspaceOrigins 贡献)。 */
-  const [adding, setAdding] = useState(false);
+  /** 添加工作区浮层(本地目录 tab 内建;来源 tab 经 workspaceOrigins 贡献):
+   *  开态 = 锚定入口按钮右侧的左上角(点外/Esc 关)。 */
+  const [addPos, setAddPos] = useState<{ x: number; y: number } | null>(null);
   const { settings } = useSettingsState();
   /** 来源过滤(settings 持久化;来源清单由 workspaceOrigins 注册表供给)。 */
   const originFilter = settings.workspaceOriginFilter;
@@ -198,7 +199,7 @@ function WorkspaceSection() {
           <button
             className="ws-caption-btn"
             title={t("添加工作区")}
-            onClick={() => setAdding(true)}
+            onClick={(e) => setAddPos(anchorPopoverPosition(e.currentTarget.getBoundingClientRect()))}
           >
             <FolderSimplePlus size="0.8125rem" aria-hidden />
           </button>
@@ -229,7 +230,7 @@ function WorkspaceSection() {
         }
       />
 
-      {adding && <WorkspaceAddDialog onClose={() => setAdding(false)} />}
+      {addPos && <WorkspaceAddDialog position={addPos} onClose={() => setAddPos(null)} />}
 
       {menu && (
         <SessionMenuOverlay

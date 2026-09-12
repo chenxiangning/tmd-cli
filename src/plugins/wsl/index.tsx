@@ -16,6 +16,7 @@ import {
 } from "@kernel/fileSources";
 import { registerWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { registerShellSpecProvider, registerSpecWrapper } from "@kernel/ptyAdapters";
+import { getWorkspaces, setWorkspaceWslMeta, workspacesReady } from "@kernel/workspace";
 import { buildWslFileSource, buildWslWorkspaceOrigin } from "./contributions";
 import { AddWslTab } from "./AddWslTab";
 import { WslCard } from "./WslCard";
@@ -46,6 +47,15 @@ export const wslPlugin: Plugin = {
         if (!unc) throw new Error(t("工作区 root 不是 WSL UNC 路径"));
         return wslShellSpec(unc.distro, unc.linuxPath, "wsl-bash");
       },
+    });
+    /* 存量迁移:旧版 WslCard 对话框添加的 UNC 工作区漏传元数据(wsl: null),
+       拔掉本插件后逃过孤儿判定伪装本地 —— 回填后与新版形态一致。 */
+    void workspacesReady.then(() => {
+      for (const ws of getWorkspaces()) {
+        const unc = ws.wsl ? null : parseWslUnc(ws.root);
+        if (!unc) continue;
+        setWorkspaceWslMeta(ws.id, { distro: unc.distro, hostId: null });
+      }
     });
     return () => {
       offSource();
