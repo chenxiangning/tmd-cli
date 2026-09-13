@@ -113,6 +113,9 @@ function EngineProbeSection({
           {t("仅计发行版内安装(登录 shell PATH,含 ~/.local/bin);/mnt/*(Windows 互操作)路径不计")}
         </span>
       )}
+      <div className="wsl-desc">
+        <Hl text={t("【点选】检出的引擎行,「打开会话」即以该【CLI】启动;不选则进【交互 shell】。")} />
+      </div>
       {probeErr && <div className="wsl-remote-err">{probeErr}</div>}
       {probes?.map((p) => (
         <button
@@ -155,6 +158,9 @@ function DirBrowserSection({
         </button>
         <code>{dir ?? "~"}</code>
       </div>
+      <div className="wsl-desc">
+        <Hl text={t("「打开会话」以该目录为【启动目录】(--cd);逐级进入,点选即生效。")} />
+      </div>
       {dirErr && <div className="wsl-remote-err">{dirErr}</div>}
       {entries !== null && (
         <div className="wsl-dir-list">
@@ -177,5 +183,15 @@ function DirBrowserSection({
         </div>
       )}
     </div>
+  );
+}
+
+/** 文案高亮:把【关键词】染成强调色,详情描述共用。 */
+export function Hl({ text }: { text: string }) {
+  const parts = text.split(/【(.*?)】/g);
+  return (
+    <>
+      {parts.map((p, i) => (i % 2 === 1 ? <b key={i} className="wsl-hl">{p}</b> : p))}
+    </>
   );
 }

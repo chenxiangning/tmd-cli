@@ -17,6 +17,7 @@ import { t } from "@kernel/i18n";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { WslRemoteSection } from "./RemoteSection";
 import { AddWslWorkspaceDialog } from "./WorkspaceDialog";
+import logoUrl from "../../assets/logo.png";
 
 /** 卡头状态行(本机检测态 / 本机不可用时的远程提示)。 */
 function CardStatus({
@@ -163,7 +164,8 @@ export function WslCard() {
   };
 
   return (
-    <section className="wsl-card">
+    <>
+      <section className="wsl-card">
       <div className="wsl-card-head">
         <DesktopIcon size="0.875rem" aria-hidden />
         <b>WSL</b>
@@ -194,6 +196,11 @@ export function WslCard() {
         <WslRemoteSection />
       </div>
       {adding && info && <AddWslWorkspaceDialog distros={info.distros} onClose={() => setAdding(false)} />}
-    </section>
+      </section>
+      <div className="wsl-brand" aria-hidden>
+        <img src={logoUrl} alt="" />
+        <span>tmd-cli</span>
+      </div>
+    </>
   );
 }

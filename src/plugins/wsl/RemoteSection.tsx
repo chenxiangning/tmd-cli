@@ -16,7 +16,10 @@ import type { SshHostConfig, WslInfo } from "@kernel/ipc";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { updateSettings, useSettingsState } from "@kernel/settings";
-import { DistroPanel } from "./DistroPanel";
+import { host } from "@kernel/host";
+import { wslRemoteSpawnCommand } from "./wslCore";
+import { AddWslTab } from "./AddWslTab";
+import { DistroPanel, Hl } from "./DistroPanel";
 
 /** 非 Windows 开发机(mac)无 Tauri runtime 时的 UI 预览桩:仅 DEV 生效。 */
 const DEV_REMOTE_FALLBACK: WslInfo = {
@@ -109,6 +112,8 @@ export function WslRemoteSection() {
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [openDistro, setOpenDistro] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
+  const [addingWs, setAddingWs] = useState(false);
 
   const pickHost = (id: string) => {
     /* updateSettings 按 top-key 整域替换:wsl 域必须带全,否则互踩。 */
@@ -117,7 +122,6 @@ export function WslRemoteSection() {
     setOpenDistro(null);
     setError(null);
   };
-
   const probe = async () => {
     if (!selected || loading) return;
     setLoading(true);
@@ -125,15 +129,31 @@ export function WslRemoteSection() {
     setOpenDistro(null);
     try {
       const r = await ipc.wslRemoteInfo(selected);
-      setInfo(r?.available ? r : import.meta.env.DEV ? DEV_REMOTE_FALLBACK : null);
+      const eff = r?.available ? r : import.meta.env.DEV ? DEV_REMOTE_FALLBACK : null;
+      setInfo(eff);
+      /* 连接成功即自动展开默认发行版的探针面板(2026-09-14:免二次点击)。 */
+      const first = eff ? (eff.distros.find((d) => d.default) ?? eff.distros[0]) : null;
+      setOpenDistro(first ? first.name : null);
       if (!r?.available && !import.meta.env.DEV) setError(t("宿主未检测到 WSL 发行版(未安装或 wsl.exe 不在 PATH)。"));
     } catch (e) {
       /* 凭据/hostkey/网络错误在此如实呈现 —— 不留空白幕布。 */
       setInfo(import.meta.env.DEV ? DEV_REMOTE_FALLBACK : null);
+      if (import.meta.env.DEV) setOpenDistro(DEV_REMOTE_FALLBACK.distros[0].name);
       if (!import.meta.env.DEV) setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
+  };
+
+  /* 面板级快捷动作:以默认发行版直进交互 shell(引擎/目录细选在发行版面板内)。 */
+  const quickOpen = () => {
+    if (!selected || !info?.available || opening) return;
+    const d = info.distros.find((x) => x.default) ?? info.distros[0];
+    setOpening(true);
+    void host
+      .createSshSession(selected, undefined, wslRemoteSpawnCommand(d.name), undefined)
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setOpening(false));
   };
 
   return (
@@ -162,8 +182,11 @@ export function WslRemoteSection() {
           <PlusIcon size="0.75rem" aria-hidden />
         </button>
         <button type="button" className="wsl-btn" disabled={!selected || loading} onClick={() => void probe()}>
-          {loading ? t("检测中…") : t("检测发行版")}
+          {loading ? t("连接中…") : t("连接")}
         </button>
+      </div>
+      <div className="wsl-desc">
+        <Hl text={t("点【连接】探测远程【发行版】与已装【引擎】,自动展开发行版面板。")} />
       </div>
       {formOpen && (
         <HostForm
@@ -174,6 +197,21 @@ export function WslRemoteSection() {
         />
       )}
       {error && <div className="wsl-remote-err">{error}</div>}
+      {info?.available && selected && (
+        <>
+          <div className="wsl-actions">
+            <button type="button" className="wsl-btn primary" disabled={opening} onClick={quickOpen}>
+              {opening ? t("连接中…") : t("打开会话")}
+            </button>
+            <button type="button" className="wsl-btn" onClick={() => setAddingWs(true)}>
+              {t("添加 WSL 工作区")}
+            </button>
+          </div>
+          <div className="wsl-desc">
+            <Hl text={t("【打开会话】以默认发行版直进远程终端;【添加 WSL 工作区】把发行版目录登记进侧栏,后续会话自动走【SSH】。")} />
+          </div>
+        </>
+      )}
       {info?.available &&
         info.distros.map((d) => (
           <div className="wsl-distro-block" key={d.name}>
@@ -195,6 +233,19 @@ export function WslRemoteSection() {
             {openDistro === d.name && selected && <DistroPanel distro={d} host={selected} />}
           </div>
         ))}
+      {addingWs && selected && (
+        <div className="wsl-backdrop" role="presentation" onClick={() => setAddingWs(false)}>
+          <dialog open className="wsl-dialog m-0" aria-label={t("添加 WSL 工作区")} onClick={(e) => e.stopPropagation()}>
+            <div className="wsl-dialog-head">
+              <span>{t("添加 WSL 工作区")}</span>
+              <button type="button" className="wsl-dialog-x" onClick={() => setAddingWs(false)} aria-label={t("关闭")}>
+                ×
+              </button>
+            </div>
+            <AddWslTab onAdded={() => setAddingWs(false)} />
+          </dialog>
+        </div>
+      )}
     </div>
   );
 }
