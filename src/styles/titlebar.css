@@ -10,6 +10,9 @@
 
 .titlebar {
   position: relative;
+  /* 层梯(壁纸态):提层壁纸 40 < titlebar 45 < 插排页 50 < 设置面板 100 ——
+   * 插排页打开时不盖标题栏(region 在此),壁纸提层也不许糊掉交通灯。 */
+  z-index: 45;
   width: 100%;
   height: var(--titlebar-height, 33px);
   display: flex;

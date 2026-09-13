@@ -22,10 +22,10 @@ import { applyWallpaperPunch, wireWallpaperThemeFollow } from "./punch";
 import { useWallpaperSrc } from "./useWallpaperSrc";
 import { FluidBackdrop, WORKSPACE_FLUID_SPEED } from "./FluidBackdrop";
 
-/** 设置面板打开时壁纸提升到的层:三栏(无 z)之上、设置面板(z100)之下。
- *  面板薄纱透到的是纯壁纸(应用内容被不透明壁纸层挡住),调参实时可见。 */
-const OVERLAY_LIFT_Z = 50;
-
+/** 设置面板打开时壁纸提层(class is-lifted → z 40,壁纸态层梯见 wallpaper.css):
+ *  三栏(无 z)之上、titlebar(45)/插排页(50)/设置面板(100)之下。
+ *  面板薄纱透到的是纯壁纸(应用内容被不透明壁纸层挡住),调参实时可见。
+ *  插排页等 shell 全屏 overlay 走 :root[data-shell-overlay](shell 侧设置)。 */
 export function WallpaperLayer() {
   const state = useWallpaperState();
   const { panelOpen } = useSettingsState();
@@ -67,11 +67,10 @@ export function WallpaperLayer() {
 
   return (
     <div
-      className="tmd-wallpaper"
+      className={`tmd-wallpaper${panelOpen ? " is-lifted" : ""}`}
       aria-hidden
       data-testid="tmd-wallpaper"
       data-mode={state.mode}
-      style={{ zIndex: panelOpen ? OVERLAY_LIFT_Z : -1 }}
     >
       {state.mode === "fluid" ? (
         <FluidBackdrop

@@ -159,7 +159,7 @@ export function AppShell() {
         )}
       </PanelGroup>
         {marketOpen && (
-          <div className="absolute inset-0">
+          <div className="absolute inset-0 z-50">
             <PluginMarketPage onClose={() => setMarketOpen(false)} />
           </div>
         )}

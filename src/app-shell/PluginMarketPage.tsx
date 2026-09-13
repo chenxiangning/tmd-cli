@@ -61,6 +61,14 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
   /* 二级市场滑出面板:marketFor = 打开面板的插件 id(目前仅 cli-omp 注册)。 */
   const [marketFor, setMarketFor] = useState<string | null>(null);
   const market = marketFor ? getMarketPanel(marketFor) : undefined;
+  /* shell 全屏 overlay 标记:壁纸插件据此把壁纸层提到三栏之上(本页薄纱
+   * 透纯壁纸而非透视三栏,层梯见 wallpaper.css)。卸载即撤销。 */
+  useEffect(() => {
+    document.documentElement.dataset.shellOverlay = "on";
+    return () => {
+      delete document.documentElement.dataset.shellOverlay;
+    };
+  }, []);
   useEffect(() => {
     if (!market) return undefined;
     const onKey = (e: KeyboardEvent) => {
