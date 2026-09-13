@@ -42,20 +42,34 @@
   color: var(--text-muted);
 }
 
-/* 置顶钮与行按钮 DOM 分离(嵌套交互治理):宿主 flex,行吃满,置顶钮右缘常驻列 */
+/* 置顶钮与行按钮 DOM 分离(嵌套交互治理):宿主 flex,行吃满,置顶钮右缘常驻列。
+   2026-09-13 用户定向:扎点列改绝对定位叠在行右缘的 padding 让位区上,
+   行底色(hover/active)随之完整覆盖扎点,不再短一节。 */
 .thread-row-host {
   display: flex;
   align-items: center;
   min-width: 0;
+  position: relative;
 }
 
 .thread-row-host .thread-row {
   flex: 1;
   min-width: 0;
+  padding-right: 24px;
+}
+
+/* 光标移到扎点钮上时行不再命中 :hover(钮是行的兄弟),经宿主 hover 兜底同色,底色不断闪 */
+.thread-row-host:hover .thread-row:not(.active) {
+  background: var(--surface-hover);
+  color: var(--text-strong);
 }
 
 /* ===== 行内扎点开关(hover 显形,已扎常亮;点击即扎/取消) ===== */
 .thread-pin-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -67,7 +81,6 @@
   border-radius: 4px;
   color: var(--text-faint);
   opacity: 0;
-  flex-shrink: 0;
   cursor: pointer;
   transition:
     opacity 0.12s ease,
