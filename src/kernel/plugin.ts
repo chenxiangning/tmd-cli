@@ -77,7 +77,7 @@ export type MountPoint =
   | "overlay"
   /** 中央幕布的无会话首页(welcome/引导页);无活跃 session 时整页渲染。 */
   | "editorCenter.welcome"
-  /** welcome 首页尾部(引擎列表/页脚之后):跨引擎的整页级面板(如 WSL 主机卡)。 */
+  /** welcome 首页尾部(引擎列表/页脚之后):跨引擎的整页级面板。 */
   | "welcome.footer"
   /** 幕布下方富 composer 输入区。 */
   | "editorCenter.composer"

@@ -139,8 +139,15 @@ function EngineProbeSection({
               ) : (
                 <span className={`wsl-dot ${p.path ? "ok" : ""}`} aria-hidden />
               )}
-              <span>{p.bin}</span>
-              <span className="wsl-probe-path">{p.path ?? t("未检出")}</span>
+              <span className="wsl-probe-bin">{p.bin}</span>
+              {p.path ? (
+                <>
+                  <span className="wsl-probe-path">{p.path}</span>
+                  <span className="wsl-probe-tag">{t("可用")}</span>
+                </>
+              ) : (
+                <span className="wsl-probe-path wsl-probe-miss">{t("未检出")}</span>
+              )}
             </button>
           );
         })}

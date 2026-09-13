@@ -218,6 +218,7 @@ export function WslRemoteSection() {
       {formOpen && (
         <HostForm
           onSaved={(id) => {
+            setFormOpen(false);
             pickHost(id);
           }}
         />
@@ -254,7 +255,9 @@ export function WslRemoteSection() {
               <span className={`wsl-dot ${d.running ? "ok" : ""}`} aria-hidden />
               <span className="wsl-distro-name">{d.name}</span>
               <span className="wsl-distro-ver">WSL {d.version}</span>
-              <span className="wsl-distro-state">{d.running ? t("运行中") : t("已停止")}</span>
+              <span className={`wsl-distro-state ${d.running ? "wsl-ok" : ""}`}>
+                {d.running ? t("运行中") : t("已停止")}
+              </span>
             </button>
             {openDistro === d.name && selected && (
               <DistroPanel

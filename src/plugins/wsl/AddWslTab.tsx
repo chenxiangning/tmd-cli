@@ -48,7 +48,7 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
           setDistros(r.distros);
           setDistro((r.distros.find((d) => d.default) ?? r.distros[0]).name);
         } else if (!sshHost) {
-          setLoadErr(t("本机未检测到 WSL;请在 welcome 页 WSL 卡配置远程主机后在此导入。"));
+          setLoadErr(t("本机未检测到 WSL;打开 WSL 面板配置远程主机后在此导入。"));
         } else {
           setLoadErr(t("远程宿主未检测到 WSL 发行版。"));
         }

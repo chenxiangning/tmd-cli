@@ -285,7 +285,7 @@ export function WelcomePage() {
           </div>
           <WelcomeFooter credsMap={credsMap} refreshTick={refreshTick} />
           <TokenDashboard refreshTick={refreshTick} />
-          {/* 页尾跨引擎面板(WSL 主机卡等插件贡献;welcome.footer 挂点) */}
+          {/* 页尾跨引擎面板(插件经 welcome.footer 挂点贡献) */}
           <Mounts point="welcome.footer" />
         </div>
       </div>
