@@ -143,17 +143,17 @@ export class HostWatches {
     const chunkBytes = this.outputBuffers.append(sessionId, text, limit);
     this.ctx.events.emit(ptyLiveTopic(sessionId), text);
 
-    /* AskWatch 升级 → askDetected(提示音)+ 标签;ActivityWatch 回绿;
-       EditWatch 检测 AI 写入标记 → fileEditDetected(审批线归因)。
-       notify 单次:ask 升级与回绿共享同一渲染节拍。
-       可见文本 = 剥 ANSI 后原文,供 activityWatch 空闲重绘闸判骨架复现
-       (见该文件头);未锚定会话白算一次 regex,换取调用点单一、无状态泄漏。 */
+    /* AskWatch 升级 → askDetected + 标签;ActivityWatch 回绿;EditWatch → fileEditDetected。
+       notify 单次:ask 升级与回绿共享同一渲染节拍。visible 供家具分类;busyMarks
+       行级命中(CLI 自证在途,契约见 kernel/cli.ts)。 */
     const asked = this.askWatch.onOutput(sessionId, text, chunkBytes);
     const visible = stripAnsi(text);
-    if (asked || this.activity.onOutput(sessionId, visible)) this.ctx.notify();
-    const marks = session
-      ? this.ctx.getCliProfile(session.profileId)?.editMarks
-      : undefined;
+    const profile = session ? this.ctx.getCliProfile(session.profileId) : undefined;
+    const busy =
+      profile?.busyMarks !== undefined &&
+      profile.busyMarks.some((re) => visible.split(/\r\n|\r|\n/).some((l) => re.test(l)));
+    if (asked || this.activity.onOutput(sessionId, visible, busy)) this.ctx.notify();
+    const marks = profile?.editMarks;
     if (session && marks && marks.length > 0) {
       const paths = this.editWatch.onOutput(sessionId, text, session.cwd, marks);
       if (paths.length > 0) {

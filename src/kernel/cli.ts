@@ -186,6 +186,16 @@ export interface CliProfile {
    */
   readDefaultStatus?: (cwd: string) => Promise<CliSessionStatus | null>;
   /**
+   * 「轮次进行中」的工作界面标记(呼吸灯持轮证据):每条正则对剥 ANSI 后的
+   * 分片按行分隔符拆行匹配(全屏 TUI 以光标定位分「行」,换行符不存在的
+   * 场景退化为整串匹配 —— 正则不得依赖行首锚)。命中即 CLI 自证在途(工作
+   * 页脚/状态行),activityWatch 刷帧钟持轮 —— 流式间隙(思考/工具切换静默
+   * >2s)不再假结算,完工换装(标记消失)后 5s 照常结算。与 askMarks(等待
+   * 确认)同款纪律:只在轮次在途或有未应答写入时生效,已结算轮不重燃(闸 4
+   * 同构);未声明 = 该 CLI 维持纯字节流判定,行为不变。
+   */
+  busyMarks?: RegExp[];
+  /**
    * 「AI 写入文件」输出标记(审批线 events 归因):每条正则对剥 ANSI 后的
    * 单行匹配,捕获组 1 = 文件路径(仓库相对或 cwd 内绝对)。
    * 声明后该 CLI 的会话走 events 归因(审批线跟随 AI 输出落账);

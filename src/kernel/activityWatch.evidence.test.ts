@@ -178,4 +178,96 @@ describe("证据分级模型", () => {
     vi.advanceTimersByTime(3000);
     expect(watch.isTurnActive("s")).toBe(false);
   });
+
+  /* 2026-09-13 实采回放实证(15.7MB 单轮 7 分钟 omp 日志):流式期页脚与内容混片,
+     骨架被内容驱动为永远唯一 → ticker 永不登记,持轮只剩 content 钟;流式间隙
+     (模型思考下一段/API 停顿)>2s 即假结算且闸 4 拦死后续输出永不回绿。
+     busyMarks(插件声明的工作界面标记)= CLI 自证在途,刷帧钟持轮。 */
+  describe("busyMarks 自证在途", () => {
+    const busyFooter = (sec: number) => stripAnsi(`\u001b[1;1H ⠙ ${sec}s > ◒ 模型`);
+
+    it("混片流间隙不掉:流式间隙纯页脚 static 帧(busy 命中)持轮,换装(标记消失)30s 结算", () => {
+      const { watch, viewing } = makeWatch();
+      viewing.add("s");
+      watch.onUserWrite("s");
+      vi.advanceTimersByTime(500);
+      watch.onOutput("s", "answer chunk A"); // 应答开轮(混片形态:骨架唯一)
+      watch.onOutput("s", "answer chunk B");
+      /* 流式间隙 30s:分片退化为纯页脚,骨架复现 + 数字不变 = static(不推任何
+         钟的旧盲区),busy 命中即刷自证钟持轮 */
+      for (let i = 0; i < 90; i++) {
+        watch.onOutput("s", busyFooter(41), true);
+        vi.advanceTimersByTime(333);
+        expect(watch.isTurnActive("s")).toBe(true);
+      }
+      watch.onOutput("s", "answer chunk C"); // 流恢复
+      vi.advanceTimersByTime(3000);
+      /* 完工换装:页脚换 … 省略形态,无 busy 标记;无新内容 → 自证钟断供结算 */
+      vi.advanceTimersByTime(31_000);
+      expect(watch.isTurnActive("s")).toBe(false);
+      expect(watch.isUnread("s")).toBe(false); // 查看中结算
+    });
+
+    it("awaiting 期 busy 即应答开始:开轮 + 天花板让位(自证比 120s 猜测强)", () => {
+      const { watch } = makeWatch();
+      watch.onUserWrite("s");
+      /* 写入后 130s 无 content(旧:120s 天花板必结算);期间工作页脚 busy 帧
+         持续 = CLI 自证在思考/工作 */
+      for (let i = 0; i < 390; i++) {
+        watch.onOutput("s", busyFooter(i), true);
+        vi.advanceTimersByTime(333);
+      }
+      expect(watch.isTurnActive("s")).toBe(true);
+      vi.advanceTimersByTime(31_000); // busy 消失(完工换装):自证钟断供结算
+      expect(watch.isTurnActive("s")).toBe(false);
+    });
+
+    it("已结算轮 busy 不重燃(闸 4 同构):异步噪音里的标记残留无重跑资格", () => {
+      const { watch } = makeWatch();
+      watch.onUserWrite("s");
+      vi.advanceTimersByTime(500);
+      watch.onOutput("s", "answer body");
+      vi.advanceTimersByTime(3000);
+      expect(watch.isTurnActive("s")).toBe(false);
+      for (let i = 0; i < 10; i++) {
+        watch.onOutput("s", busyFooter(i), true);
+        vi.advanceTimersByTime(333);
+      }
+      expect(watch.isTurnActive("s")).toBe(false);
+    });
+
+    it("首写闸:未锚定会话的 busy 帧零语义(banner 期工作标记不燃灯)", () => {
+      const { watch } = makeWatch();
+      watch.onOutput("s", busyFooter(0), true);
+      vi.advanceTimersByTime(3000);
+      expect(watch.isTurnActive("s")).toBe(false);
+      expect(watch.lastActivityAt("s")).toBe(0);
+    });
+
+    it("awaiting 期 busy 开轮通知外壳(标签翻 running)", () => {
+      const { watch } = makeWatch();
+      watch.onUserWrite("s");
+      const notify = watch.onOutput("s", busyFooter(0), true);
+      expect(notify).toBe(true);
+    });
+
+    it("纯 busy 分片开轮不丢通知:骨架空(纯 spinner)分类判 static 的路径同样翻 running", () => {
+      const { watch } = makeWatch();
+      watch.onUserWrite("s");
+      /* 骨架空 = 分类 static(修复前该路径提前 return false,开轮通知丢失) */
+      const notify = watch.onOutput("s", "⠙ ⠹", true);
+      expect(notify).toBe(true);
+      expect(watch.isTurnActive("s")).toBe(true);
+    });
+
+    it("纯 busy 轮次活动钟:零文本输出只画页脚的轮次,标签不落 none(开轮推活动钟)", () => {
+      const { watch } = makeWatch();
+      watch.onUserWrite("s");
+      watch.onOutput("s", "⠙ ⠹", true); // 无 content,busy 开轮
+      expect(watch.isTurnActive("s")).toBe(true);
+      expect(watch.lastActivityAt("s")).toBeGreaterThan(0);
+      vi.advanceTimersByTime(31_000); // busy 断供:照常结算
+      expect(watch.isTurnActive("s")).toBe(false);
+    });
+  });
 });
