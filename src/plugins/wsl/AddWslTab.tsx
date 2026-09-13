@@ -11,7 +11,7 @@ import { ipc, type WslDistro, type WslDirEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { addWorkspace } from "@kernel/workspace";
 import type { WorkspaceOriginAddTabProps } from "@kernel/workspaceOrigins";
-import { wslToUnc } from "./wslCore";
+import { wslToUnc, wslWorkspaceTargetOk } from "./wslCore";
 import { useSettingsState } from "@kernel/settings";
 
 function joinPath(base: string, name: string): string {
@@ -32,7 +32,7 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
   const [distros, setDistros] = useState<WslDistro[] | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [distro, setDistro] = useState("");
-  const [dir, setDir] = useState("~");
+  const [dir, setDir] = useState(sshHost ? "~" : "/");
   const [entries, setEntries] = useState<WslDirEntry[] | null>(null);
   const [dirErr, setDirErr] = useState<string | null>(null);
 
@@ -77,8 +77,10 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
   );
 
   const add = () => {
-    const target = dir === "~" ? "" : dir;
-    if (!distro || !target) return;
+    const target = dir.trim();
+    /* 本机分支绝对路径闸:曾漏 `~/xxx` 直喂 wslToUnc 拼出 `Ubuntu~` 假发行版
+       毒根,新建会话即 WSL_E_DISTRO_NOT_FOUND(2026-09-13 实证)。 */
+    if (!distro || !wslWorkspaceTargetOk(target, !!sshHost)) return;
     if (sshHost) addWorkspace(target, { distro, hostId: sshHost.id });
     else addWorkspace(wslToUnc(distro, target), { distro, hostId: null });
     onAdded();
@@ -110,7 +112,7 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
           </div>
           {dirErr && <div className="wsl-remote-err">{dirErr}</div>}
           {entries === null && !dirErr && (
-            <button type="button" className="wsl-btn" onClick={() => loadDir("~")}>
+            <button type="button" className="wsl-btn" onClick={() => loadDir(sshHost ? "~" : "/")}>
               {t("浏览目录")}
             </button>
           )}
@@ -139,7 +141,7 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
         </div>
       )}
       <div className="wsl-dialog-foot">
-        <button type="button" className="wsl-btn primary" disabled={!distro || dir === "~" || !entries} onClick={add}>
+        <button type="button" className="wsl-btn primary" disabled={!distro || !wslWorkspaceTargetOk(dir, !!sshHost) || !entries} onClick={add}>
           {t("添加")}
         </button>
       </div>

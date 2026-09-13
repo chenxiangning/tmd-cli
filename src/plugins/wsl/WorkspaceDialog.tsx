@@ -8,7 +8,7 @@ import { useState } from "react";
 import type { WslDistro, WslDirEntry } from "@kernel/ipc";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
-import { wslToUnc } from "./wslCore";
+import { wslToUnc, wslWorkspaceTargetOk } from "./wslCore";
 import { addWorkspace } from "@kernel/workspace";
 
 function joinPath(base: string, name: string): string {
@@ -24,7 +24,7 @@ function parentOf(p: string): string {
 
 /** 目录浏览小面板:懒加载逐级进入,选中 = 回填路径输入。 */
 function DirBrowser({ distro, onPick }: { distro: string; onPick: (path: string) => void }) {
-  const [dir, setDir] = useState("~");
+  const [dir, setDir] = useState("/");
   const [entries, setEntries] = useState<WslDirEntry[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -42,17 +42,17 @@ function DirBrowser({ distro, onPick }: { distro: string; onPick: (path: string)
   return (
     <div className="wsl-dir-browser">
       <div className="wsl-dir-crumb">
-        <button type="button" className="wsl-btn ghost" onClick={() => load(dir === "~" ? "~" : parentOf(dir))}>
+        <button type="button" className="wsl-btn ghost" onClick={() => load(parentOf(dir))}>
           {t("上一级")}
         </button>
         <code title={dir}>{dir}</code>
-        <button type="button" className="wsl-btn ghost" onClick={() => onPick(dir)} disabled={dir === "~"}>
+        <button type="button" className="wsl-btn ghost" onClick={() => onPick(dir)} disabled={dir === "/"}>
           {t("选这一层")}
         </button>
       </div>
       {err && <div className="wsl-remote-err">{err}</div>}
       {entries === null && !err && (
-        <button type="button" className="wsl-btn" onClick={() => load("~")}>
+        <button type="button" className="wsl-btn" onClick={() => load("/")}>
           {t("浏览目录")}
         </button>
       )}
@@ -82,7 +82,7 @@ export function AddWslWorkspaceDialog({ distros, onClose }: { distros: WslDistro
   const [path, setPath] = useState("/home/");
   const [err, setErr] = useState<string | null>(null);
   const posix = path.trim();
-  const valid = /^\/[^/]/.test(posix) && posix !== "/";
+  const valid = wslWorkspaceTargetOk(posix, false);
 
   const submit = () => {
     if (!distro || !valid) {
@@ -127,7 +127,7 @@ export function AddWslWorkspaceDialog({ distros, onClose }: { distros: WslDistro
             spellCheck={false}
           />
         </label>
-        {distro && <DirBrowser distro={distro} onPick={(p) => setPath(p === "~" ? "" : p)} />}
+        {distro && <DirBrowser distro={distro} onPick={setPath} />}
         {valid && distro && (
           <div className="wsl-unc-preview" title={wslToUnc(distro, posix)}>
             {t("工作区根(UNC)")}:{wslToUnc(distro, posix)}
