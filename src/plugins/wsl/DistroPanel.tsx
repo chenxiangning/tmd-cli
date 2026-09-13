@@ -191,7 +191,7 @@ export function Hl({ text }: { text: string }) {
   const parts = text.split(/【(.*?)】/g);
   return (
     <>
-      {parts.map((p, i) => (i % 2 === 1 ? <b key={i} className="wsl-hl">{p}</b> : p))}
+      {parts.map((p, i) => (i % 2 === 1 ? <b key={`${i}:${p}`} className="wsl-hl">{p}</b> : p))}
     </>
   );
 }
