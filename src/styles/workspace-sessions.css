@@ -22,8 +22,8 @@
     margin-top 0.18s cubic-bezier(0.2, 0, 0, 1);
 }
 
-/* ══ 树形参考线(2026-09-08 追加,参考 Claude 侧栏):竖线 x=容器 20px(居文件夹图标中心),
-   每行 ╭ 形弯钩从线拐向行首供应商图标;行间缝隙由竖线兜底,钩子只画拐弯段。
+/* ══ 树形参考线(2026-09-13 改直角虚线):竖线 x=容器 20px(居文件夹图标中心),
+   每行 ┌ 形直角虚线钩从线拐向行首供应商图标;行间缝隙由竖线兜底,钩子只画拐弯段。
    仅 .workspace-children 内生效 —— 置顶区/运行区复用 .thread-row 但无此线,不受波及。 ══ */
 .workspace-children::before {
   content: "";
@@ -32,8 +32,8 @@
   bottom: 7px;
   /* 19.5px:1px 线宽居中于图标中心 20px(同 tl-node -3.5px 半像素居中惯例)。 */
   left: 19.5px;
-  width: 1px;
-  background: var(--border-subtle);
+  width: 0;
+  border-left: 1px dashed var(--border-subtle);
   pointer-events: none;
 }
 
@@ -44,9 +44,8 @@
   top: calc(50% - 6px);
   width: 15px; /* 拐到行首图标前(badge glyph 中心 17px) */
   height: 6px;
-  border-left: 1px solid var(--border-subtle);
-  border-bottom: 1px solid var(--border-subtle);
-  border-bottom-left-radius: 6px;
+  border-left: 1px dashed var(--border-subtle);
+  border-bottom: 1px dashed var(--border-subtle);
   pointer-events: none;
 }
 
