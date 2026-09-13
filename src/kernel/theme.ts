@@ -18,6 +18,7 @@ import {
 } from "./settings";
 import { getThemePreset, type ThemeAppearance, type ThemePresetId } from "./themePresets";
 import { mapPresetToTokens, THEME_CSS_VARIABLE_KEYS } from "./themeTokens";
+import { notifyTerminalThemeChanged } from "./terminalThemeBridge";
 
 /** 当前生效外观解析。导出供插件只读使用(如代码高亮选 light/dark 样式)。 */
 export function resolveEffectiveAppearance(
@@ -66,6 +67,10 @@ function applyTheme(settings: AppSettings): void {
   const tokens = mapPresetToTokens(getThemePreset(presetId));
   for (const [key, value] of Object.entries(tokens)) root.style.setProperty(key, value);
   themeAppliedListeners.forEach((fn) => fn());
+  /* 终端 token(如 --tmd-terminal-bg)也被整批重写:活幕布配色走主题桥重刷。
+     必须位于 themeApplied 监听之后发出——壁纸打穿的重打在监听内,先打穿再通知,
+     幕布重读才是打穿后的值。 */
+  notifyTerminalThemeChanged();
 }
 
 const themeAppliedListeners = new Set<() => void>();

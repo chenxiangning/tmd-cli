@@ -184,6 +184,9 @@ export function mapPresetToTokens(preset: ThemePresetDefinition): ThemeCssVariab
     // 表面
     "--tmd-bg-base": bgBase,
     "--tmd-bg-elevated": bgElevated,
+    /* 主面板面(composer 等常驻大面):值随 elevated,壁纸态由打穿引擎单独调薄;
+     * elevated 本体保持「浮层实底」语义(菜单/下拉经 --surface-sidebar-opaque 指到它)。 */
+    "--tmd-bg-panel": bgElevated,
     "--tmd-bg-sunken": bgSunken,
     "--tmd-bg-hover": getColor(
       colors,

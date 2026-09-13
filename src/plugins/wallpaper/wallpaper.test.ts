@@ -13,7 +13,8 @@ import {
   visibleWallpaperItems,
   wallpaperItemName,
 } from "./types";
-import { parseCssColor, terminalVeil } from "./punch";
+import { applyWallpaperPunch, parseCssColor, terminalVeil } from "./punch";
+import { subscribeTerminalTheme } from "@kernel/terminalThemeBridge";
 
 const P = (path: string) => ({ id: path, path, sourcePath: path });
 
@@ -135,5 +136,32 @@ describe("打穿色值解析", () => {
   it("terminalVeil 输出 xterm 可解析的 rgba 字面量", () => {
     expect(terminalVeil("#1f1f1f", 84)).toBe("rgba(31, 31, 31, 0.84)");
     expect(terminalVeil("nonsense", 84)).toBeNull();
+  });
+});
+
+describe("打穿 × 活幕布通知", () => {
+  it("应用与撤销各通知一次终端主题桥,同向重入不重放", () => {
+    let calls = 0;
+    const off = subscribeTerminalTheme(() => {
+      calls += 1;
+    });
+    /* node 环境无 DOM(仓库不装 jsdom):打穿引擎只消费这三个面,手写最小桩。 */
+    (globalThis as Record<string, unknown>).document = {
+      documentElement: { style: { setProperty() {}, removeProperty() {} }, dataset: {} },
+    };
+    (globalThis as Record<string, unknown>).getComputedStyle = () => ({
+      getPropertyValue: () => "",
+    });
+    try {
+      applyWallpaperPunch(true);
+      applyWallpaperPunch(true);
+      expect(calls).toBe(1);
+      applyWallpaperPunch(false);
+      expect(calls).toBe(2);
+    } finally {
+      delete (globalThis as Record<string, unknown>).document;
+      delete (globalThis as Record<string, unknown>).getComputedStyle;
+      off();
+    }
   });
 });

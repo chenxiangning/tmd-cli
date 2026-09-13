@@ -7,24 +7,27 @@
  *   即覆盖全部表面;popover/hover/accent 不在表内,弹层菜单保持实底可读。
  * - 覆盖值用「快照原色 + color-mix」,保留任意自定义 preset 的真实底色;
  *   terminal-bg 单独解析为 rgba 字面量 —— xterm 自行解析主题色,不认 color-mix。
- * - theme.ts 每次重应用会整批 remove+set 这些键(抹掉本引擎的覆盖),
- *   因此订阅 subscribeThemeApplied 在主题切换后重打;监听在插件激活期注册,
- *   早于任何 TerminalView,保证 xterm 重读时拿到的是打穿后的值。
+ * - theme.ts 每次重应用会整批 remove+set 这些键(抹掉本引擎的覆盖):
+ *   重打挂在 themeApplied 监听(refreshWallpaperPunch)内,theme.ts 的
+ *   桥通知在监听循环之后才发出,故活幕布 xterm 重读必见打穿后的值。
  */
 
 import { subscribeThemeApplied } from "@kernel/theme";
+import { notifyTerminalThemeChanged } from "@kernel/terminalThemeBridge";
 
 /**
  * 打穿 token 表:保留不透明度 %,其余全走原值。
  * 浓度对照 codemoss(其 chrome veil = 16% 不透明 + 壁纸层 8-10% wash)。
  * 不打穿 elevated:它同时承担「浮层实底」语义(菜单/下拉经
  * --surface-sidebar-opaque 指到它),打穿会让新建会话等弹层透视重叠
- * (codemoss 立场:popover 族保实底);内容卡片的薄纱感由 base/sunken
- * 提供(2026-09-13 用户实测修正)。
+ * (codemoss 立场:popover 族保实底);常驻大面板走 --tmd-bg-panel
+ * 单独打穿,内容卡片的薄纱感由 base/sunken 提供(2026-09-13 用户实测修正)。
  */
 const VEILED_TOKENS: ReadonlyArray<{ key: string; opacity: number }> = [
   { key: "--tmd-bg-base", opacity: 18 },
   { key: "--tmd-bg-sunken", opacity: 30 },
+  /* composer 等主面板面:值随 elevated,45% 薄纱(旧 elevated 打穿浓度)。 */
+  { key: "--tmd-bg-panel", opacity: 45 },
   /* hover 原值不透明(#242424):不打穿会成壁纸上的实心色块。 */
   { key: "--tmd-bg-hover", opacity: 65 },
   { key: "--tmd-bg-input", opacity: 70 },
@@ -122,11 +125,16 @@ export function applyWallpaperPunch(next: boolean): void {
   if (next) {
     active = true;
     root.dataset.wallpaper = "on";
-    if (!applied) snapshotAndApply();
+    if (!applied) {
+      snapshotAndApply();
+      /* 活幕布的 xterm theme 是挂载期快照,打穿改了 --tmd-terminal-bg 要喊一声重读。 */
+      notifyTerminalThemeChanged();
+    }
     return;
   }
   active = false;
   restore();
+  notifyTerminalThemeChanged();
 }
 
 /** 主题重应用后刷新:theme.ts 已整批抹掉覆盖,重拍快照安全。无壁纸激活则空转。 */
