@@ -5,6 +5,7 @@ import { ompConfigEntry } from "./configGui";
 import { OmpProviderAuthPanel } from "./OmpProviderAuthPanel";
 import { fetchOmpQuota } from "./quota";
 import { ompSessionsDir, readOmpSessionEdits } from "./edits";
+import { ompAcquireResume, startOmpPrewarmManager, stopOmpPrewarmManager } from "./prewarm";
 import { listOmpSuggestions } from "./rpcCommands";
 import { OmpExtensionMarket } from "./market";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
@@ -145,6 +146,9 @@ export const cliOmpPlugin: Plugin = {
       /* 命令/技能真相:RPC 副车 get_available_commands(含扩展注册命令与子命令),静态表兜底 */
       listSuggestions: listOmpSuggestions,
       resumeArgs: (sessionId) => ["--resume", sessionId],
+      /* 打开历史会话的预热接管(个性化能力;机制与降级护栏见 ./prewarm.ts):
+       * 命中预热进程注入 /resume 热切换(0.24-1.2s),失配回落默认冷路径。 */
+      acquireResume: ompAcquireResume,
       ...ompSessions,
       readDefaultStatus: readOmpDefaultStatus,
       readSessionEdits: readOmpSessionEdits,
@@ -163,5 +167,9 @@ export const cliOmpPlugin: Plugin = {
        * paste 通路,与真实终端粘贴行为一致(契约见 kernel/cli.ts)。 */
       bracketedPaste: true,
     });
+    /* 预热接管管理器:后台常驻一个裸 omp 待命(有近期会话活动才预热,
+     * 生命周期/降级护栏见 ./prewarm.ts);deactivate 强杀清场。 */
+    startOmpPrewarmManager();
+    return () => stopOmpPrewarmManager();
   },
 };

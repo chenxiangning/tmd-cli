@@ -45,6 +45,20 @@ pub fn session_list(state: State<'_, AppState>) -> Vec<SessionMeta> {
     state.sessions.list()
 }
 
+/// 补写会话的工作区归属(接管转正路径:预热 spawn 时归属未知,打开动作落地时补)。
+#[tauri::command]
+pub fn session_set_workspace(
+    state: State<'_, AppState>,
+    id: String,
+    workspace_id: Option<String>,
+) -> Result<(), String> {
+    state
+        .sessions
+        .set_workspace(&id, workspace_id)
+        .then_some(())
+        .ok_or_else(|| format!("session not found: {id}"))
+}
+
 /// 必须 async + spawn_blocking:PTY 写入在子进程停读时可无限阻塞,
 /// 同步 command 跑在主线程会冻结整个 UI,且全局注册表锁连带卡死所有会话。
 #[tauri::command]

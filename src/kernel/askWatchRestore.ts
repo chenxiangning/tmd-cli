@@ -11,15 +11,18 @@
 
 import { host } from "./host";
 import { ipc, type SessionMeta } from "./ipc";
+import { filterShadowSessions, restoreShadowSessions } from "./sessionShadowing";
 
 /** 恢复喂入量:大于 RAW_TAIL_CHARS(1024),与回放补观察同口径。 */
 const RESTORE_TAIL_BYTES = 2048;
 
 /** boot 接线(main.tsx 调一次):逐条活 CLI 会话读日志尾喂 askWatch。fire-and-forget,
- *  失败仅告警 —— 恢复是增强,不得阻塞/拖垮启动。 */
+ *  失败仅告警 —— 恢复是增强,不得阻塞/拖垮启动。影子会话(插件后台辅助 PTY)
+ *  与会话表同律滤除,不参与恢复。 */
 export function bootAskRestore(): void {
   void (async () => {
-    const sessions = await ipc.sessionList();
+    restoreShadowSessions(); /* 幂等:与 readopt 先到先得,防 boot 时序倒挂 */
+    const sessions = filterShadowSessions(await ipc.sessionList());
     await Promise.all(sessions.map(restoreOne));
   })().catch((e: unknown) => console.warn("ask 等待状态恢复失败:", e));
 }

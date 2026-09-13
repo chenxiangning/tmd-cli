@@ -156,6 +156,7 @@ pub fn run() {
             wsl_remote_ops::wsl_exec,
             ssh::commands::ssh_prompts_pending,
             session_commands::session_list,
+            session_commands::session_set_workspace,
             session_commands::session_write,
             session_commands::session_resize,
             session_commands::session_kill,

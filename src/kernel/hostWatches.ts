@@ -228,10 +228,14 @@ export class HostWatches {
     return this.outputBuffers.get(sessionId);
   }
 
-  /**
-   * 缓冲的 UTF-8 字节数(增量维护,O(1) 读取)。
-   * 供 TerminalView 翻页锚点反推缓冲起点的绝对日志偏移。
-   */
+  /** 预灌缓冲(接管转正):只进存储不进守望主链 —— 磁盘回放红线同律
+   *  (防误开轮/误未读/镜像整段 write;Ask 恢复由挂载回放的 observeReplayTail 承担)。 */
+  seedOutputBuffer(sessionId: string, text: string): void {
+    const limit = getSettingsState().settings.sessionOutputBufferLimit || OUTPUT_BUFFER_LIMIT;
+    this.outputBuffers.append(sessionId, text, limit);
+  }
+
+  /** 缓冲的 UTF-8 字节数(O(1);TerminalView 翻页锚点反推缓冲起点用)。 */
   getOutputBufferBytes(sessionId: string): number {
     return this.outputBuffers.getBytes(sessionId);
   }
@@ -257,9 +261,7 @@ export class HostWatches {
     this.identityWatch.track(sessionId, profileId, cwd, before, spawnedAt);
   }
 
-  statusEnsurePolling(): void {
-    this.statusWatch.ensurePolling();
-  }
+  statusEnsurePolling(): void { this.statusWatch.ensurePolling(); }
 
   /** 状态观测分派:远程引擎会话(来源工作区 + 引擎远程适配)走远端磁盘通道,
    *  其余走本机会话文件观测(远程身份绑定语义见 kernel/remoteStatusRefresh.ts)。 */
@@ -269,9 +271,7 @@ export class HostWatches {
     });
   }
 
-  statusSeed(sessionId: string): void {
-    void this.statusWatch.seed(sessionId);
-  }
+  statusSeed(sessionId: string): void { void this.statusWatch.seed(sessionId); }
 
   /** 会话移除:五守望与缓冲/身份账本残留一并清除。 */
   onSessionRemoved(sessionId: string): void {

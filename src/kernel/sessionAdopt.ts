@@ -13,6 +13,7 @@
 
 import { KernelTopics, type EventBus } from "./events";
 import { ipc, onPtyExit, onPtyOutput, type SessionMeta } from "./ipc";
+import { isShadowedSession, restoreShadowSessions } from "./sessionShadowing";
 
 /** host 侧最小依赖面(三服务的 ctx 均满足;箭头函数惰性绑定避免构造顺序耦合)。 */
 interface SessionAdoptHost {
@@ -102,8 +103,12 @@ export interface ReadoptHost extends SessionAdoptHost {
  */
 export function readoptSessions(h: ReadoptHost, events: EventBus): Promise<void> {
   readoptInflight ??= (async () => {
+    /* 影子会话(插件后台辅助 PTY,如预热进程)不接管:先幂等恢复跨重载的影子
+       集合(归属插件 activate 亦会恢复并清杀,先到先得),再滤除 —— 否则重载后
+       预热进程会变幽灵 tab。 */
+    restoreShadowSessions();
     const remote = await ipc.sessionList();
-    const missing = remote.filter((m) => !h.findSession(m.id));
+    const missing = remote.filter((m) => !h.findSession(m.id) && !isShadowedSession(m.id));
     if (missing.length === 0) return;
     h.setSessions([...h.getSessions(), ...missing]);
     await Promise.all(

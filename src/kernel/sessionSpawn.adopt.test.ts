@@ -68,6 +68,7 @@ function mkService() {
     trackUnlisten: vi.fn(),
     outputTail: vi.fn(() => ""),
     appendOutput: vi.fn(),
+    seedOutputBuffer: vi.fn(),
     removeSession: vi.fn(async () => {}),
     notify: vi.fn(),
   };

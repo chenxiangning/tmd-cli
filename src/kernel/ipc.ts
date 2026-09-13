@@ -304,6 +304,9 @@ export const ipc = {
   sessionSpawn: (profileId: string, spec: SpawnSpec, workspaceId?: string) =>
     invoke<SpawnedSession>("session_spawn", { profileId, spec, workspaceId: workspaceId ?? null }),
   sessionList: () => invoke<SessionMeta[]>("session_list"),
+  /** 补写会话的工作区归属(接管转正路径:预热 spawn 时归属未知,打开动作落地时补)。 */
+  sessionSetWorkspace: (id: string, workspaceId: string | null) =>
+    invoke<void>("session_set_workspace", { id, workspaceId }),
   sessionWrite: (id: string, data: string) =>
     invoke<void>("session_write", { id, data }),
   sessionResize: (id: string, cols: number, rows: number) =>

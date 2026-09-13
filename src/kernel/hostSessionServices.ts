@@ -52,6 +52,8 @@ export function createSessionServices(
     findSession: (sessionId: string) => ctx.findSession(sessionId),
     appendOutput: (sessionId: string, text: string) =>
       watches.appendOutput(sessionId, text),
+    seedOutputBuffer: (sessionId: string, text: string) =>
+      watches.seedOutputBuffer(sessionId, text),
     removeSession: (sessionId: string) => ctx.removeSession(sessionId),
     trackUnlisten: (sessionId: string, offs: Array<() => void>) =>
       ctx.trackUnlisten(sessionId, offs),
@@ -90,6 +92,8 @@ export function createSessionServices(
         outputTail: (sessionId, maxChars) =>
           watches.outputTail(sessionId, maxChars),
         appendOutput: base.appendOutput,
+        /* 预灌输出缓冲(接管转正;不进守望主链,语义见 hostWatches.seedOutputBuffer) */
+        seedOutputBuffer: base.seedOutputBuffer,
         removeSession: base.removeSession,
         notify: base.notify,
       },

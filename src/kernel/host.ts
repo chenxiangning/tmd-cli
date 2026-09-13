@@ -24,6 +24,7 @@ import type { SidebarAction } from "./sidebarActions";
 import { registerCommand } from "./shortcuts";
 import { registerHomePanel } from "./homePanels";
 import { registerCliConfig } from "./cliConfigRegistry";
+import { filterShadowSessions } from "./sessionShadowing";
 
 class Host implements PluginContext {
   readonly events = new EventBus();
@@ -54,11 +55,10 @@ class Host implements PluginContext {
   /** ssh/shell/spawn 会话服务装配:拆分件 kernel/hostSessionServices.ts(文件规模铁则)。 */
   private readonly sessionServices = createSessionServices(
     {
-      refreshSessions: async () => {
-        this.sessions = await ipc.sessionList();
-      },
+      /* 影子会话(插件后台辅助 PTY)在会话表合流点统一滤除,见 sessionShadowing.ts */
+      refreshSessions: async () => void (this.sessions = filterShadowSessions(await ipc.sessionList())),
       getSessions: () => this.sessions,
-      setSessions: (sessions) => (this.sessions = sessions),
+      setSessions: (sessions) => (this.sessions = filterShadowSessions(sessions)),
       findSession: (sessionId) => this.sessions.find((s) => s.id === sessionId),
       getCliProfile: (id) => this.getCliProfile(id),
       setActiveSessionId: (id) => (this.activeSessionId = id),

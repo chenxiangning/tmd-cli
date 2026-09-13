@@ -115,6 +115,18 @@ export interface CliProfile {
   /** 恢复 CLI 自身会话的参数模板;缺省 = 不支持恢复。 */
   resumeArgs?: (cliSessionId: string) => string[];
   /**
+   * 打开磁盘会话前的插件接管钩子(可选;预热加速等个性化能力的挂点):
+   * 返回 { sessionId, replayTail } = 接管该既有 PTY(须已在 Rust 侧存活,并以
+   * kernel/sessionShadowing 影子登记隔离出会话表,接管成功路径自行解除登记),
+   * replayTail 由调用方预灌幕布输出缓冲(挂载即回放完整画面);返回 null /
+   * 抛错 = 走默认冷路径。注入命令/就绪特征/降级清理等语义全归插件,kernel
+   * 不理解任何引擎私有行为。
+   */
+  acquireResume?: (
+    cwd: string,
+    cliSessionId: string,
+  ) => Promise<{ sessionId: string; replayTail: string } | null>;
+  /**
    * 单实例语义:同 profile 至多一个活会话,create 命中 = 聚焦既有不重 spawn
    * (dsh「会话即 host」:同 origin 第二个 `dsh web` 必然 EADDRINUSE 秒退)。
    */

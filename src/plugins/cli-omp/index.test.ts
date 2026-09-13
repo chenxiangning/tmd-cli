@@ -13,11 +13,13 @@ import type { PluginContext } from "@kernel/plugin";
 
 function activateCapturingProfile(): CliProfile {
   const captured: CliProfile[] = [];
-  cliOmpPlugin.activate({
+  const teardown = cliOmpPlugin.activate({
     registerCliProfile: (profile: CliProfile) => captured.push(profile),
     registerMarketPanel: () => {},
     registerCliConfig: () => {},
   } as unknown as PluginContext);
+  /* activate 现返回清理函数(预热管理器清场):立即执行,不留后台定时器。 */
+  if (typeof teardown === "function") teardown();
   const profile = captured[0];
   if (!profile) throw new Error("activate 未注册任何 profile");
   return profile;

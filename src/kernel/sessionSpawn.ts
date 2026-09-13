@@ -2,43 +2,21 @@
  * 本地 CLI 会话 spawn 与装配 —— 从 host.ts 拆出(单文件 ≤300 行铁则)。
  *
  * 职责:createSession / openDiskSession 两条 spawn 路径 + adoptSpawned 统一装配
- * (身份探测登记、常驻订阅输出/退出、置 active)。秒退守望也归此件:进程在
- * 启动窗口内退出 = 启动失败,摘幕布尾部报错广播 sessionStartFailed ——
- * pty://exit 会秒删 tab、removeSession 即清输出缓冲,报错在任何界面都
- * 来不及呈现(静默闪退;SSH 侧同题已在 Rust fail_session 缓解,本地无)。
+ * (身份探测登记、常驻订阅输出/退出、置 active)+ openDiskSession 的插件接管
+ * 分支(profile.acquireResume 预热加速)。秒退守望与报错摘要在
+ * kernel/sessionStartFail.ts。
  */
 
 import { KernelTopics, type EventBus, type SessionStartFailedEvent } from "./events";
 import { ipc, type SessionMeta, type SpawnSpec, type SpawnedSession } from "./ipc";
 import { adoptPtySession, ADOPT_RACE_REASON } from "./sessionAdopt";
+import { emitSessionStartFailed } from "./sessionStartFail";
 import { prefetchDiskTail } from "./diskReplay";
 import type { CliProfile } from "./cli";
 import { applySpecWrappers } from "./ptyAdapters";
 
-/** spawn 后多久内退出视为「启动失败」。node 系 CLI 冷启动数秒,窗口取宽些。 */
-const START_FAIL_WINDOW_MS = 20_000;
-/** 摘报错的幕布尾部字符数(取宽留给压缩,展示侧再截)。 */
-const TAIL_SOURCE_CHARS = 2_000;
-
-/**
- * 幕布尾部 → 可读报错摘要:剥 ANSI(TUI 把报错裹进样式序列)、\r 重绘折叠、
- * 丢 JS 栈帧行(噪音),留最后几行非空文本。空输出给固定文案。
- */
-export function crashTail(raw: string): string {
-  const text = raw
-    .slice(-TAIL_SOURCE_CHARS)
-    .replace(
-      /\x1b\[[0-9;:?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[PX^_].*?\x1b\\|\x1b[@-_]/g,
-      "",
-    )
-    .replace(/\r\n?/g, "\n")
-    .split("\n")
-    .filter((line) => !/^\s*at\s/.test(line))
-    .join("\n")
-    .replace(/\n{2,}/g, "\n")
-    .trim();
-  return text.length > 0 ? text.slice(-600) : "进程退出且无任何输出";
-}
+/* 既有测试自本件 import crashTail(host.startFailure.test.ts);实现在 sessionStartFail。 */
+export { crashTail } from "./sessionStartFail";
 
 /** host 侧最小依赖面(箭头函数惰性绑定,避免整 host 的构造顺序耦合)。 */
 interface SessionSpawnHost {
@@ -72,6 +50,8 @@ interface SessionSpawnHost {
   outputTail(sessionId: string, maxChars: number): string;
   /** PTY 输出落缓冲 + 实时 topic 广播(host.appendOutput 主链路)。 */
   appendOutput(sessionId: string, text: string): void;
+  /** 预灌输出缓冲(接管转正;只进存储不进守望主链,hostWatches.seedOutputBuffer)。 */
+  seedOutputBuffer(sessionId: string, text: string): void;
   /** 会话移除(exit 回调清场;host.removeSession 主链路)。 */
   removeSession(sessionId: string): Promise<void>;
   /** 外壳重渲染通知(Host.notify)。 */
@@ -211,19 +191,33 @@ export class SessionSpawnService {
       return opening;
     }
     const args = profile.resumeArgs?.(cliSessionId) ?? profile.args;
-    let spec: SpawnSpec = {
-      command: profile.command,
-      args,
-      cwd,
-      env: profile.env,
-    };
-    /* resume 同过 transform(契约与 spawnNew 一致;来源包装互斥的裁决同源) */
-    spec = profile.spawnTransform
-      ? await profile.spawnTransform(spec)
-      : await applySpecWrappers(spec);
     const task = (async () => {
       try {
-        const spawned = await this.spawn(profileId, spec, workspaceId);
+        /* 插件接管(预热加速等个性化能力):钩子返回既有就绪 PTY = 跳过 spawn 直接
+           装配。replayTail 经 seedOutputBuffer 预灌缓冲(只进存储,不进守望主链 —
+           与磁盘回放红线同律,防误开轮/误未读/屏幕镜像整段 write),挂载即回放完整
+           画面;workspaceId 由本分支补写(预热 spawn 时归属未知)。钩子 null / 未声明 /
+           抛错 = 静默走默认冷路径,任何场景不劣化。在闸内消费:双击第二击复用在途
+           Promise,插件池的 check-out 原子性由此双保险。 */
+        const hook = profile.acquireResume;
+        const acquired = hook ? await hook(cwd, cliSessionId).catch(() => null) : null;
+        if (acquired) {
+          if (workspaceId) {
+            /* 补写失败不阻断接管(meta 刷新时回滚为无归属,工作区面板缺行但不损数据) */
+            await ipc.sessionSetWorkspace(acquired.sessionId, workspaceId).catch(
+              () => undefined,
+            );
+          }
+          if (acquired.replayTail) this.h.seedOutputBuffer(acquired.sessionId, acquired.replayTail);
+          return await this.adoptSpawned(acquired.sessionId, profileId, cliSessionId);
+        }
+        /* 冷路径 spec 组装后置到接管未命中:来源包装/transform 对接管分支是白算 */
+        let coldSpec: SpawnSpec = { command: profile.command, args, cwd, env: profile.env };
+        /* resume 同过 transform(契约与 spawnNew 一致;来源包装互斥的裁决同源) */
+        coldSpec = profile.spawnTransform
+          ? await profile.spawnTransform(coldSpec)
+          : await applySpecWrappers(coldSpec);
+        const spawned = await this.spawn(profileId, coldSpec, workspaceId);
         return await this.adoptSpawned(spawned.id, profileId, cliSessionId);
       } finally {
         this.openingDiskSessions.delete(key);
@@ -271,7 +265,7 @@ export class SessionSpawnService {
     const meta = await adoptPtySession(this.h, this.events, sessionId, {
       profileId,
       activate,
-      onExit: (id) => this.emitIfStartFailed(id, profileId, adoptedAt),
+      onExit: (id) => emitSessionStartFailed(this.h, this.events, id, profileId, adoptedAt),
     });
     if (!meta) throw new Error(ADOPT_RACE_REASON);
     this.h.statusEnsurePolling();
@@ -279,16 +273,5 @@ export class SessionSpawnService {
     /* 全新会话创建即赋值:磁盘文件要等首条消息才落盘,先种 CLI 默认配置 */
     if (!cliSessionId) void this.h.statusSeed(sessionId);
     return meta;
-  }
-
-  /** 启动窗口内退出 = 启动失败:摘幕布尾部广播 sessionStartFailed(Toast 呈现)。 */
-  private emitIfStartFailed(sessionId: string, profileId: string, adoptedAt: number): void {
-    if (Date.now() - adoptedAt > START_FAIL_WINDOW_MS) return;
-    if (!this.h.getSessions().some((s) => s.id === sessionId)) return;
-    this.events.emit(KernelTopics.sessionStartFailed, {
-      sessionId,
-      profileId,
-      reason: crashTail(this.h.outputTail(sessionId, TAIL_SOURCE_CHARS)),
-    });
   }
 }

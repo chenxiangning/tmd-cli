@@ -150,4 +150,20 @@ impl SessionRegistry {
     pub fn remove(&self, id: &str) {
         self.sessions.lock().remove(id);
     }
+
+    /// 更新会话的工作区归属(会话被接管/转正时补写;预热 spawn 时归属未知)。
+    pub fn set_workspace(&self, id: &str, workspace_id: Option<String>) -> bool {
+        let mut map = self.sessions.lock();
+        match map.get_mut(id) {
+            Some(meta) => {
+                meta.workspace_id = workspace_id;
+                true
+            }
+            None => false,
+        }
+    }
 }
+
+#[cfg(test)]
+#[path = "session_tests.rs"]
+mod tests;
