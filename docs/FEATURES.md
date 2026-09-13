@@ -189,7 +189,7 @@
 
 ## Git 面板
 
-- 单视图三段:差异 / 分支 / 历史,外观对齐 codemoss(契约见 `openspec/changes/git-right-panel/`)
+- 单视图三段:差异 / 分支 / 历史,外观对齐 codemoss(契约见 `openspec/changes/archive/2026-09-02-git-right-panel/`)
 - 勾选文件 + 写消息 + 提交一次完成;commit 执行权仅面板按钮,composer `/commit <msg>` 仅预填
 - commit 消息:3 行高输入可多行,无长度上限与历史记忆,前后端各 trim 一次;提交成功清空消息/勾选/amend 并收起抽屉
 - amend 提交:勾选后可零选文件改写上一提交,保留原 author、更新 committer

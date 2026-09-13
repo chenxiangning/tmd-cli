@@ -1,6 +1,6 @@
 # 09 WSL 支持契约:发行版建模 / 双通道 spawn / 远程内省 / 分组身份 / 降级矩阵
 
-日期:2026-09-12(来源:openspec/changes/wsl-workspace-m1,十六轮实施与验收;全部结论真机实证 —— 本机 UNC(Windows)与远程 SSH 宿主(Windows + OpenSSH + WSL)双形态;2026-09-13 增补:路径闸 / 孤儿工作区 / 元数据回填)
+日期:2026-09-12(来源:openspec/changes/archive/2026-09-12-wsl-workspace-m1;全部结论真机实证 —— 本机 UNC(Windows)与远程 SSH 宿主(Windows + OpenSSH + WSL)双形态;2026-09-13 增补:路径闸 / 孤儿工作区 / 元数据回填)
 
 ## 结论
 
