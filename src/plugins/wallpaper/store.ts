@@ -72,15 +72,36 @@ export function ensureWallpaperStoreLoaded(): Promise<void> {
   return loadPromise;
 }
 
+function writeNow(): void {
+  if (!configPath) return;
+  void ipc
+    .fsWriteFile(configPath, JSON.stringify(store.snapshot, null, 2))
+    .catch(() => undefined);
+}
+
 function schedulePersist(): void {
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
     persistTimer = null;
-    if (!configPath) return;
-    void ipc
-      .fsWriteFile(configPath, JSON.stringify(store.snapshot, null, 2))
-      .catch(() => undefined);
+    writeNow();
   }, PERSIST_DEBOUNCE_MS);
+}
+
+/** 退出冲刷:防抖窗口内关窗/退出不再丢最后一次改动(改壁纸后立刻 Cmd+Q 的
+ *  丢失面,2026-09-13 全局审查 P2)。pagehide 在 webview 拆卸期触发,invoke
+ *  能否送达属尽力而为;visibilitychange hidden 兜常规隐藏路径。 */
+function flushPersistNow(): void {
+  if (!persistTimer) return;
+  clearTimeout(persistTimer);
+  persistTimer = null;
+  writeNow();
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", flushPersistNow);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) flushPersistNow();
+  });
 }
 
 /** 局部更新:清洗后整体换快照(UI 即时生效),防抖落盘。 */

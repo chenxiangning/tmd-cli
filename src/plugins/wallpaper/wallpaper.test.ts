@@ -50,6 +50,14 @@ describe("sanitizeWallpaperState", () => {
     expect(state.library.map((i) => i.id)).toEqual(["/m/w/a.png", "e"]);
   });
 
+  it("库条目 id 拒收分隔符与控制字符(轮播 join/split 注入面)", () => {
+    expect(sanitizeWallpaperState({ library: [{ id: "a|b", path: "/m/a.png" }] }).library).toHaveLength(0);
+    expect(sanitizeWallpaperState({ library: [{ id: "a\u0001b", path: "/m/a.png" }] }).library).toHaveLength(0);
+    /* 路径形/带空格 id 是现实形态,照收。 */
+    expect(sanitizeWallpaperState({ library: [{ id: "/m/a.png", path: "/m/a.png" }] }).library).toHaveLength(1);
+    expect(sanitizeWallpaperState({ library: [{ id: "my wall", path: "/m/a.png" }] }).library).toHaveLength(1);
+  });
+
   it("selectedId 兜底链:隐藏项不生效 → 第一可见项;库空为 null", () => {
     const state = sanitizeWallpaperState({
       library: [

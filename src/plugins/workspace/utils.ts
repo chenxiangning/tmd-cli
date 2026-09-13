@@ -4,20 +4,22 @@ import type { SessionMeta } from "@kernel/ipc";
 /** 0 配额组「更多...」首击的展开步长(正配额组从配额值起翻倍:quota → 2× → 4×)。 */
 export const PAGE_INITIAL = 10;
 
-/** 新建会话菜单定位:以点击点为左上,按估算尺寸在视口内夹取(codemoss 同款)。
+/** 新建会话菜单定位:以点击点为左上,按估算尺寸在视口内夹取(codemoss 同款);
+ *  双向下限 0,极窄/极矮窗口不出负坐标(2026-09-13 全局审查)。
  *  供 SessionMenu/SessionContextMenu 与 index.tsx 的 ⌘T 入口共用。 */
 export function clampMenuPosition(x: number, y: number): { x: number; y: number } {
   return {
-    x: Math.min(x, window.innerWidth - 328 - 12),
-    y: Math.min(y, window.innerHeight - 420 - 12),
+    x: Math.max(0, Math.min(x, window.innerWidth - 328 - 12)),
+    y: Math.max(0, Math.min(y, window.innerHeight - 420 - 12)),
   };
 }
 
-/** 添加工作区浮层定位:入口按钮右侧 6px 滑出,按浮层估算尺寸(360x340)夹进视口。 */
+/** 添加工作区浮层定位:入口按钮右侧 6px 滑出,按浮层估算尺寸(360x340)夹进视口;
+ *  下限 0 同 clampMenuPosition。 */
 export function anchorPopoverPosition(rect: DOMRect): { x: number; y: number } {
   return {
-    x: Math.min(rect.right + 6, window.innerWidth - 372),
-    y: Math.min(rect.top, window.innerHeight - 348),
+    x: Math.max(0, Math.min(rect.right + 6, window.innerWidth - 372)),
+    y: Math.max(0, Math.min(rect.top, window.innerHeight - 348)),
   };
 }
 

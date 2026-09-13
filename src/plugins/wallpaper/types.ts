@@ -106,12 +106,17 @@ function sanitizeImagePath(value: unknown): string | null {
     : null;
 }
 
-export function sanitizeWallpaperLibraryItem(value: unknown): WallpaperLibraryItem | null {
+export /** 库条目 id 黑名单:轮播可见项计数用 "|" 连接,id 含分隔符或控制字符即整项
+ *  拒收(2026-09-13 全局审查注入面)。黑名单而非白名单——路径形 id 等现实
+ *  形态照收,只挡真正破坏 join/split 语义的字符。 */
+const WALLPAPER_ID_FORBIDDEN_RE = /[|\u0000-\u001f]/;
+
+function sanitizeWallpaperLibraryItem(value: unknown): WallpaperLibraryItem | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Partial<WallpaperLibraryItem>;
   const id = typeof raw.id === "string" ? raw.id.trim() : "";
   const path = sanitizeImagePath(raw.path);
-  if (!id || !path) return null;
+  if (!id || WALLPAPER_ID_FORBIDDEN_RE.test(id) || !path) return null;
   const sourcePath =
     typeof raw.sourcePath === "string" && isSafeLocalPath(raw.sourcePath.trim())
       ? raw.sourcePath.trim()
@@ -234,7 +239,7 @@ export function cssObjectFit(fit: WallpaperFit): React.CSSProperties["objectFit"
   return fit === "center" ? "none" : fit;
 }
 
-/** 新库条目 id:毫秒时间戳 + 随机段,免依赖 uuid 库。 */
+/** 新库条目 id:毫秒时间戳 + 随机段(36 进制,落在 WALLPAPER_ID_RE 内)。 */
 export function newWallpaperId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }

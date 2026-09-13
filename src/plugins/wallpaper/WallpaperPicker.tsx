@@ -14,6 +14,7 @@ import { ipc, pickImageFiles } from "@kernel/ipc";
 import {
   fileExtensionOf,
   findDuplicateItem,
+  newWallpaperId,
   resolveSelectedId,
   wallpaperItemName,
   type WallpaperLibraryItem,
@@ -110,7 +111,7 @@ function planImport(
     if (plannedKeys.has(key)) continue;
     plannedKeys.add(key);
     const extension = fileExtensionOf(sourcePath);
-    const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    const id = newWallpaperId();
     const item: WallpaperLibraryItem = {
       id,
       path: joinPath(dir, `${id}.${extension}`),
