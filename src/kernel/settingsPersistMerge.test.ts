@@ -32,7 +32,7 @@ async function bootWith(disk: unknown) {
   await settings.settingsReady;
 }
 
-const pin = (at: number) => ({ scope: "global", pinnedAt: at, title: "x" });
+const pin = (at: number) => ({ scope: "global" as const, pinnedAt: at, title: "x" });
 
 const lastWrite = () =>
   ipcMock.configWriteSettings.mock.calls.at(-1)![0] as Record<string, Record<string, unknown>>;
@@ -69,5 +69,29 @@ describe("persist 拉盘合并:删除意图落盘(取消置顶复活回归)", ()
     settings.updateSettings({ sessionTitles: { t2: "标题二" } }); // 本地删 t1
     await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalled());
     expect(lastWrite().sessionTitles).toEqual({ t2: "标题二" });
+  });
+
+  it("他实例新增条目跨两次 persist 存活(review F1:吸收后二次写盘误删)", async () => {
+    await bootWith({ sessionPins: { A: pin(1000) } });
+    ipcMock.configReadSettings.mockResolvedValue({ sessionPins: { A: pin(1000), B: pin(1500) } });
+    settings.updateSettings({ sessionPins: { A: pin(1000), C: pin(1600) } }); // 本实例置顶 C
+    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalledTimes(1));
+    expect(Object.keys(lastWrite().sessionPins).sort()).toEqual(["A", "B", "C"]);
+    // 第二次任意写盘:B 仍不在本实例内存 → 基线不含 B → 继续照收而非误删
+    settings.updateSettings({ sessionPins: { A: pin(1000), C: pin(1600), D: pin(1700) } });
+    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalledTimes(2));
+    expect(Object.keys(lastWrite().sessionPins).sort()).toEqual(["A", "B", "C", "D"]);
+  });
+
+  it("他实例改动后存活的条目二次写盘不被误删(基线保留旧戳)", async () => {
+    await bootWith({ sessionPins: { A: pin(1000) } });
+    ipcMock.configReadSettings.mockResolvedValue({ sessionPins: { A: pin(2000) } });
+    settings.updateSettings({ sessionPins: {} }); // 本地删 A,但盘像已被他实例改动
+    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalledTimes(1));
+    expect(lastWrite().sessionPins).toEqual({ A: pin(2000) });
+    // 基线仍钉 A@1000(非吸收的 2000)→ 二次写盘盘像继续存活
+    settings.updateSettings({ theme: "dark" });
+    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalledTimes(2));
+    expect(lastWrite().sessionPins).toEqual({ A: pin(2000) });
   });
 });

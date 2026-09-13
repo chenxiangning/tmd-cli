@@ -73,8 +73,31 @@ function deepEqualStable(a: unknown, b: unknown): boolean {
   );
 }
 
-/** 盘上基线:最后一次见到(加载后/成功写盘后)的设置;null = boot 前或从未见过盘。 */
+/** 盘上基线:最后一次写盘时本实例真实有过(内存或旧基线)的盘像;null = boot 前
+ *  或从未见过盘。他实例新增被吸收落盘但不入基线(见 advanceBaseline)。 */
 let diskBaseline: AppSettings | null = null;
+
+/** 基线推进:内存有过的 key 取 payload 值;旧基线有而内存没有的(被他实例改动
+ *  后存活下来的)保留旧戳——若随 payload 新值入基线,下一次 persist 会拿它跟盘
+ *  上同一新值比出「未改动」误判本地删除(双实例丢更新回归,2026-09-13 review
+ *  实证)。他实例新增(两处都没有)不入基线,落盘照旧、下轮继续照收。 */
+function advanceBaseline(memory: AppSettings, payload: AppSettings): void {
+  const next = { ...payload } as unknown as Record<string, unknown>;
+  for (const field of [...Object.keys(MERGE_TS_FIELDS), ...MERGE_PLAIN_FIELDS]) {
+    const mem = memory[field as keyof AppSettings] as unknown as RecordLike;
+    const old = diskBaseline
+      ? (diskBaseline[field as keyof AppSettings] as unknown as RecordLike)
+      : null;
+    const merged = next[field] as RecordLike;
+    const proj: RecordLike = {};
+    for (const key of Object.keys(merged)) {
+      if (key in mem) proj[key] = merged[key];
+      else if (old !== null && key in old) proj[key] = old[key];
+    }
+    next[field] = proj;
+  }
+  diskBaseline = next as unknown as AppSettings;
+}
 
 /** per-key 合并:盘上条目除「本地已删」外全收,本实例 key 覆盖(带 ts 时较新者胜)。 */
 function mergeEntries(
@@ -119,8 +142,8 @@ function mergeEntries(
  * 前拉盘上最新做记录层合并:标记类字段按 key 并集,标量仍以本实例为准。
  * 删除意图靠 diskBaseline 判别:盘上有、内存没有、基线里已有且自基线未被他
  * 实例改动 → 本地删除(否则取消置顶永不落盘,重启复活);基线里没有 → 他
- * 实例新增,照收。合并只作用于写盘 payload,不回写内存态 —— 他窗标记不实时
- * 串进本窗,重载生效。
+ * 实例新增,照收且不入基线。合并只作用于写盘 payload,不回写内存态 —— 他窗
+ * 标记不实时串进本窗,重载生效。
  */
 function mergeDiskIntoPayload(memory: AppSettings, raw: unknown): AppSettings {
   const disk = sanitize(raw);
@@ -154,20 +177,21 @@ function persist(): void {
 }
 
 async function persistNow(): Promise<void> {
+  const memory = state.settings;
   try {
-    let payload = state.settings;
+    let payload = memory;
     try {
-      payload = mergeDiskIntoPayload(state.settings, await ipc.configReadSettings());
+      payload = mergeDiskIntoPayload(memory, await ipc.configReadSettings());
     } catch {
       /* 盘不可读(他实例锁文件等):按本实例状态原样写,行为同旧 */
     }
     await ipc.configWriteSettings(payload);
-    diskBaseline = payload;
+    advanceBaseline(memory, payload);
   } catch {
     // 浏览器 dev:降级 localStorage
     try {
-      localStorage.setItem(LOCAL_FALLBACK_KEY, JSON.stringify(state.settings));
-      diskBaseline = state.settings;
+      localStorage.setItem(LOCAL_FALLBACK_KEY, JSON.stringify(memory));
+      diskBaseline = memory;
     } catch (err) {
       console.warn("settings: 持久化失败", err);
     }
