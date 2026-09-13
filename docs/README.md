@@ -27,8 +27,8 @@
 | 2026-09-01 | [omp CLI 学习笔记(14 课主课 + prompts/ 用户速查)](research/omp-cli-course/README.md) | 已完结 |
 | 2026-09-13 | [omp 打开历史会话性能分析与常驻预热方案研究](research/omp-session-open-performance.md) | 已完成(方案待立项) |
 | 2026-09-03 | [omp 最近版本升级记录(v18.0.7-18.1.6)](research/omp-cli-course/releases.md) | 持续更新 |
-| 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-06 校准) |
-| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-07 校准:删除意图 tombstone/会话删除顺序/归档容量与分页/dsh 删除与空壳契约;**09-10 校准**:dsh 5.2 改以 0.1.2 斜杠方法面 + /api/remote.mux 双流实测契约,补 react-doctor 治理原则 9 表) |
+| 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-14 校准:27 插件 / 挂点 14 / WSL / 壁纸 / 自动更新 / 预热秒开) |
+| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-07 校准:删除意图 tombstone/会话删除顺序/归档容量与分页/dsh 删除与空壳契约;**09-10 校准**:dsh 5.2 改以 0.1.2 斜杠方法面 + /api/remote.mux 双流实测契约,补 react-doctor 治理原则 9 表;**09-14 校准**:v0.1.7 对码 —— 命令面 116 / 插件 27 / 挂点 14 / acquireResume 接管流程图 / pull rebase 兜底 / wsl 与本机插件命令行) |
 | 2026-09-01 | [Composer 工具栏设计](superpowers/specs/2026-09-01-composer-toolbar-design.md) | 已确认 |
 | 2026-09-01 | [Composer 富输入框设计原型](design/composer-design.html) | 已落地 |
 | 2026-09-01~02 | [UI 原型:composer 工具栏 / 欢迎页额度 / 设置面板 / 消息锚点栏 / git 文件列表 ×3 / 批审阅面板 / 插排](prototypes/) | 设计定稿配套 |
@@ -43,7 +43,7 @@
 | 2026-09-03 | [插排徽标升级设计](superpowers/specs/2026-09-03-plugin-market-icons-design.md) | 已评审通过 |
 | 2026-09-03 | [会话标题 tab 条设计](superpowers/specs/2026-09-03-session-title-tabs-design.md) | 已落地 |
 | 2026-09-03 | [父子会话层级原型:方案 B 定稿(父节点即开关,保留 FLUX 时间轴)](design/session-hierarchy-schemes.html) | 设计原型 |
-| 常态 | [功能清单 FEATURES](FEATURES.md) | 随代码演进(09-08 顶栏 tab 条/界面字号校准) |
+| 常态 | [功能清单 FEATURES](FEATURES.md) | 随代码演进(09-14 补校:WSL / 壁纸 / 自动更新 / 预热秒开 / dsh 流式 / git 批量,插件 27) |
 | 2026-09-04 | [Git 历史视图 Graph 化 + 提交 diff 进左侧文件容器](superpowers/specs/2026-09-04-git-history-graph-design.md) | 已落地 |
 | 2026-09-04 | [文件渲染档案:补齐 codemoss 全量文件预览形态](superpowers/specs/2026-09-04-file-render-profiles-design.md) | 已落地 |
 | 2026-09-04 | [SSH 模块竞品调研](research/ssh-module-reference.md) | 已完成 |
@@ -137,6 +137,7 @@
 | 2026-09-11 | [活动守望证据分级模型:轮次状态机根治重构(content/tick/static 三级分类 + 证据钟 + 空轮宽限)](superpowers/specs/2026-09-11-activity-watch-evidence-model-design.md) | 已落地(真实 omp 字节流回放验收;08 契约同步修订) |
 | 2026-09-12 | [WSL 支持契约:发行版建模 / 双通道 spawn / 远程内省 / 分组身份 / 降级矩阵](architecture/09-wsl-contract.md) | 生效中(openspec/changes/wsl-workspace-m1 收口;改 wsl 插件/远程会话链路前必读) |
 | 2026-09-13 | [omp 预热接管契约:acquireResume 钩子 / 影子会话 / 注入热切换 / 熔断降级](architecture/10-omp-prewarm-resume.md) | 生效中(改 cli-omp 打开历史链路前必读) |
+| 2026-09-13 | [工作区壁纸契约:表面 token 打穿 / 壁纸态层梯 / 流体着色器](architecture/11-wallpaper-surface-contract.md) | 生效中(改壁纸插件/主题 token/终端底色/shell 层叠前必读) |
 | 2026-09-13 | [codemoss 工作区壁纸(自定义背景)盘点](research/codemoss-workspace-wallpaper.md) | 已完成(数据模型/渲染层/打穿 CSS/Rust 受管文件全链路 + tmd-cli 移植映射与决策点) |
 | 2026-09-13 | [壁纸/流体插件性能与边界评审](review/2026-09-13-wallpaper-perf-boundary.md) | 已完成(P1×2 随评落地:缩略图懒加载/xterm 底色锚定归 kernel;P2 缓解选项留实测定夺) |
 | 2026-09-13 | [近十次提交全局代码审查](review/2026-09-13-ten-commits-global-audit.md) | 已完成(无 P0;1 项 P2 退出丢改动 + 7 项 P3 边角,深水区九项核查无虞) |

@@ -29,7 +29,7 @@ interface CommandContribution {
 3. **Escape 永不注册**;IME `isComposing` 全放行;约 20 处弹层 Esc 生态不受影响。
 4. **同键共存的条件**:同作用域双方都有 `when` 且语义互斥(先例:⌘S 按激活 tab kind 分家为 files.save / ssh.saveRemoteFile);否则注册即抛错。跨作用域同键允许,聚焦期 terminal 优先(resolveCommand)。
 5. **组件局部状态经模块级 ref 桥**接命令(先例:TerminalView `findRequestRef`、ssh `saveRequestRef`、app-shell `shellBarToggles`)。
-6. 键位对齐主流:⌘,设置、⌘B 左栏、⌘⌥B 右栏、⌘W 关 tab、⌘T 新建、⌘1-9 切换、⌘⇧E/G/M 右栏面板(VS Code 心智)、⌘⇧H 回首页。
+6. 键位对齐主流:⌘,设置、⌘B 左栏、⌘⌥B 右栏、⌘W 关 tab、⌘T 新建、⌘1-9 切换、⌘⇧E/G/M 右栏面板(VS Code 心智)、⌘⇧H 回首页⇄回会话 toggle(会话中记住当前会话回首页,首页中切回原会话;先收市场覆盖层,2026-09-12 8c4b3c7)。
    一期键位之外,二期补:⌘J 切输入区高度段、Ctrl+Tab / Ctrl+⇧Tab 切标签页、⌃⌘F 最大化/还原编辑区、⌘⇧X 插件市场。
 
 ## 消费点

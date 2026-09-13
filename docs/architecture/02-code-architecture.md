@@ -1,7 +1,7 @@
 # tmd-cli 代码级架构（当前实现）
 
-- 日期：2026-09-01（2026-09-04、2026-09-06、2026-09-09 按当前代码校准）
-- 状态：对应主干当前代码（v0.1.3）
+- 日期：2026-09-01（2026-09-04、2026-09-06、2026-09-09、2026-09-14 按当前代码校准）
+- 状态：对应主干当前代码（v0.1.7）
 - 前置阅读：[01-overview.md](01-overview.md)（设计决策层）；本文是**代码事实层**——每个节点都能在仓库里找到对应文件/符号。
 
 ## 1. 全景分层
@@ -21,7 +21,7 @@ flowchart TB
         subgraph KERNEL["kernel/（内核，不 import 任何插件）"]
             HOST["host.ts — Host 单例<br/>插件注册表 / 挂载点表 / 会话服务<br/>输出环形缓冲 / 呼吸灯<br/>(拆分件:hostRegistry · hostSessionServices · hostWatches)"]
             PLUGIN["plugin.ts<br/>Plugin · PluginContext · MountPoint"]
-            CLI["cli.ts<br/>CliProfile · CliPrerequisite(前置依赖)<br/>session 状态读取契约"]
+            CLI["cli.ts / cliProfile.ts / cliPrerequisite.ts<br/>CliProfile 契约(resumeArgs / acquireResume / remoteSessions /<br/>busyMarks / askMarks 等钩子) · 前置依赖 · session 状态读取"]
             EVENTS["events.ts<br/>EventBus + KernelTopics"]
             TABS["tabs.ts<br/>编辑器 tab 全局 store"]
             WS["workspace.ts<br/>工作区 store（内存态）"]
@@ -32,12 +32,12 @@ flowchart TB
             SA["sidebarActions.ts<br/>侧栏快捷动作注册表"]
             FP["filePanel.ts<br/>右栏面板注册表(通用 tab store,<br/>不预知业务面板)"]
             WATCH["守望组(host 拆分件)<br/>activityWatch·askWatch·editWatch·identityWatch<br/>+ askSound·turnSound"]
-            THEME["theme.ts + themeTokens.ts + themePresets/<br/>主题引擎:21 个 VS Code preset → --tmd-*<br/>+ 终端 ANSI 16 色 token(VS Code 官方浅/深表兜底)"]
+            THEME["theme.ts + themeTokens.ts + themePresets/<br/>主题引擎:31 个 VS Code preset → --tmd-*<br/>+ 终端 ANSI 16 色 token(VS Code 官方浅/深表兜底)"]
             SETT["settings.ts + settingsTypes/settingsSanitize(+Sessions)<br/>+ settingsAppearance + settingsRegistry.ts<br/>全局设置 store 唯一事实源(~/.tmd-cli/settings.json)<br/>设置 section 注册表(面板经注册表渲染)"]
             I18N["i18n.ts + locales/&lt;en|ja&gt;/ 域词典 + terminalFonts.ts + uiZoom.ts<br/>gettext 式 t()(zh 源串为键,切换=根树重挂载)<br/>界面缩放引擎(webview setZoom→CSS zoom 兜底)"]
             MA["messageAnchors.ts<br/>用户消息锚点内核(2s 轮询,0 订阅停表)"]
             QUA["quota.ts<br/>QuotaProvider 注册点"]
-            SESN["会话面组:sessionTabs · sessionPins · sessionTitles · sessionStatus<br/>diskIdentity · composerStage · gitContract · internalDrag · dropGuard<br/>+ sshSettings/sshTypes · platform · pathUtils · relativeTime<br/>+ shortcuts(全局快捷键) · sessionSpawn/sessionAdopt(spawn 编排)"]
+            SESN["会话面组:sessionTabs · sessionPins · sessionTitles · sessionStatus<br/>diskIdentity · composerStage · gitContract · internalDrag · dropGuard<br/>+ sshSettings/sshTypes · platform · pathUtils · relativeTime<br/>+ shortcuts(全局快捷键) · sessionSpawn/sessionAdopt(spawn 编排)<br/>+ sessionStartFail(秒退守望) · sessionShadowing(预热影子会话)"]
         end
 
         subgraph PLUGINS["plugins/（一切能力皆插件）"]
@@ -66,7 +66,7 @@ flowchart TB
     end
 
     subgraph BE["Tauri Rust 后端（src-tauri/src/）"]
-        LIB["lib.rs<br/>102 个 tauri::command 注册(git 31 + ssh 21 + checkpoints 11 + commands_fs 13 + fs_edit 6 + session 7 + quota 2 + sqlite 2 + lib.rs 直注册 9)<br/>panic 钩子落盘 panic.log"]
+        LIB["lib.rs<br/>116 个 tauri::command 注册(git 31 + ssh 19 + checkpoints 11 + commands_fs 13 + fs_edit 7 + session_commands 10 + wsl 6 + 本机插件 5 + quota 2 + sqlite 2 + lib.rs 直注册 10)<br/>panic 钩子落盘 panic.log"]
         PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出"]
         SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
         RESOLVE["resolve.rs<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
@@ -125,7 +125,7 @@ sequenceDiagram
     participant M as main.tsx
     participant H as host (Host 单例)
     participant R as Rust: session_list
-    participant P as allPlugins (22 个)
+    participant P as allPlugins (27 个)
     participant C as contributions.tsx
     participant A as AppShell
 
@@ -256,7 +256,9 @@ flowchart TD
     CLICK["点击历史会话"] --> LIVE{"已有相同 CLI native session id？"}
     LIVE -->|是| ACT["直接 setActiveSession"]
     LIVE -->|否| RES["host.openDiskSession(profileId, cwd, workspaceId, cliSessionId)"]
-    RES --> RESARGS["profile.resumeArgs(cliSessionId)<br/>spawn 新 PTY 并激活"]
+    RES --> ACQ{"profile.acquireResume？<br/>(omp 预热接管,契约见 10)"}
+    ACQ -->|命中| EARLY["onAcquired 早激活:补 workspace / 绑身份 /<br/>常驻订阅 / 置 active;早激活后钩子失败不回退冷路径"]
+    ACQ -->|未命中/失配| RESARGS["profile.resumeArgs(cliSessionId)<br/>spawn 新 PTY 并激活"]
 
     SP -.->|pty://exit| EXIT["removeSession<br/>清理输出缓冲/状态/活跃表"]
     SP -.->|启动窗口(20s)内秒退| SF["sessionSpawn.emitIfStartFailed<br/>清缓冲前摘幕布尾部剥 ANSI 摘要<br/>广播 kernel.sessions.startFailed"]
@@ -397,7 +399,7 @@ dsh(DeepSeek Harness)会话盘是 `session.jsonl.zstd` 压缩流,fs 文本原语
 
 ```mermaid
 flowchart LR
-    subgraph MOUNT["MountPoint（plugin.ts 定义的 12 个挂点)"]
+subgraph MOUNT["MountPoint（plugin.ts 定义的 14 个挂点)"]
         direction TB
         HB["header.breadcrumb"]
         HLR["header.left / header.right"]
@@ -410,6 +412,8 @@ flowchart LR
         CIR["composer.inputRail"]
         OV["overlay"]
         WSM["workspace.newSessionMenu"]
+        WF["welcome.footer"]
+        MKT["market.local"]
     end
     TABRT["kernel/tabs 注册表(registerTabContent)<br/>中央 tab 内容按 kind 路由:file / ssh-file / memory-console /<br/>git-commit-diff / git-diff / ckpt-batch"]
 
@@ -422,6 +426,9 @@ flowchart LR
     P_WELCOME2["welcome 插件"] -->|"order:0<br/>WelcomePage"| ECW
     P_SSH2["ssh 插件"] -->|"order:30 SshOverlay"| OV
     P_SSH2 -->|"「SSH 连接」入口"| WSM
+    P_WSL2["wsl 插件"] -->|"WSL 主机卡"| WF
+    P_ASSETS2["assets 插件"] -->|"唤醒入口"| CIR
+    P_LOCL2["local-loader"] -->|"本机插件次级插排"| MKT
     P_FILES2 & P_SSH2 -->|"kind= file / ssh-file"| TABRT
     Note2["右栏 files/git/checkpoints/ssh/memory 五面板并列 tab 不走挂点:<br/>经 ctx.registerFilePanel(kernel/filePanel 注册表)<br/>由插件贡献,外壳只按注册表路由渲染"]
 
@@ -443,12 +450,12 @@ flowchart TD
     CT --> KH
     CT --> KW["kernel/workspace.ts"]
 
-    PI --> P1["cli-omp / cli-pi / cli-codex / cli-claude / cli-grok / cli-kimi / cli-qoder / cli-qoder-cn / cli-opencode"]
+    PI --> P1["cli-omp / cli-pi / cli-codex / cli-claude / cli-grok / cli-kimi / cli-qoder / cli-qoder-cn / cli-opencode / cli-dsh"]
     PI --> P2["workspace"]
     PI --> P3["files"]
     PI --> P4["git"]
     PI --> P5["composer"]
-    PI --> P6["checkpoints / network-proxy / settings / welcome / session-budget / ssh / terminal / memory-coordinator"]
+    PI --> P6["checkpoints / network-proxy / settings / welcome / session-budget<br/>ssh / terminal / memory-coordinator / assets / cli-config<br/>local-loader · wsl · wallpaper"]
 
     KH --> KE["kernel/events.ts"]
     KH --> KI["kernel/ipc.ts"]
@@ -474,7 +481,7 @@ flowchart TD
 
 ## 8. Rust 后端命令面
 
-注册的 102 个 `#[tauri::command]`（git/commands.rs 31 + ssh/commands.rs 21 + checkpoints/commands.rs 11 + commands_fs.rs 13 + fs_edit.rs 6 + session_commands.rs 7 + quota.rs 2 + sqlite.rs 2 + lib.rs 直注册 9），与 `ipc.ts` 一一对应：
+注册的 116 个 `#[tauri::command]`（git/commands.rs 31 + ssh/commands.rs 19 + checkpoints/commands.rs 11 + commands_fs.rs 13 + fs_edit.rs 7 + session_commands.rs 10 + wsl*.rs 6 + plugins_cmds.rs 5 + quota.rs 2 + sqlite.rs 2 + lib.rs 直注册 10），与 `ipc.ts` 一一对应：
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
@@ -482,6 +489,7 @@ flowchart TD
 | `session_list` | `session_commands.rs` | 活会话纯内存注册表(进程重启即空;历史恢复走各 CLI 磁盘扫描;SSH 会话独立分组) |
 | `session_write` / `session_resize` / `session_kill` | `session_commands.rs` → `pty.rs` | writer 直写 / master.resize / child.kill(写路径 spawn_blocking 防全局锁卡 UI) |
 | `session_log_size` / `session_history_page` | `session_commands.rs` + `session_log.rs` | 输出日志末尾偏移 / 绝对偏移前翻一页(转义+UTF-8 边界对齐) |
+| `session_set_workspace` / `session_link_log` / `session_disk_tail` | `session_commands.rs` + `session_disk_log.rs` | 会话补写工作区归属(预热接管路径)/ spawn 代日志指针写 / 磁盘尾读(磁盘先行回放寻址,profile+cwd+cliSessionId 三元) |
 | `cli_probe` | `probe.rs` | PATH 解析 + `--version`(8s 硬超时,spawn_blocking;输出带超时收集防孙进程握管道挂死);返回增发 `npmPrefix`:命中副本位于 npm 全局布局(unix `<X>/bin/<bin>` + `<X>/lib/node_modules`,win `<X>\<bin>.cmd` + `<X>\node_modules`)时返回其 prefix,官方原生副本(如 `.kimi-code\bin`)为 null |
 | `cli_install_run` | `installer.rs` | 参数化 InstallPlan 执行(npm / script / command 三通道,配方由前端 CliProfile 声明),`cli-install://{id}` 流式日志(300s 超时);npm 通道按探针 `npmPrefix` 加 `--prefix` 就地更新探针命中的副本(双副本遮蔽修复);主引擎安装通道由 welcome 按探针解析(`resolveInstallPlan`:npm 拥有的副本且声明通道非 script → npm,否则声明通道),前置依赖门控在引擎卡:`CliProfile.requires` 声明(如 omp→bun),依赖未就位则安装/更新按钮禁用并引导先装依赖 |
 | `sqlite_query` / `sqlite_execute` | `sqlite.rs` | 只读代读(RW 打开 + query_only 连接:重放 WAL 看到未 checkpoint 行)/ 参数化写(opencode 删除会话,foreign_keys 级联);async + spawn_blocking(cli 持写锁时不冻主线程);CLI 私有库路径/表结构知识在插件侧(cli-shared/quota/ompAuth.ts、cli-opencode/db.ts) |
@@ -495,7 +503,7 @@ flowchart TD
 | `fs_remove_path` | `fs.rs` | 物理删除文件/目录（会话删除双端统一）,NotFound 幂等成功 |
 | `fs_walk_files` | `fs_walk.rs` | 全仓文件索引(gitignore 系语义镜像 pi/omp TUI,cap 上限),composer `@` 候选 |
 | `proc_communicate` | `proc_run.rs` | 通用短进程通道(omp/pi RPC 副车、grok `inspect --json`),spawn_blocking |
-| `fs_create_dir` / `fs_create_file` / `fs_write_file` | `fs_edit.rs` | 文件树新建目录/文件、编辑器保存(绝对路径,禁 .git 段,写上限 16MB) |
+| `fs_create_dir` / `fs_create_file` / `fs_write_file` / `fs_copy_file` | `fs_edit.rs` | 文件树新建目录/文件、编辑器保存(绝对路径,禁 .git 段,写上限 16MB)/ 受管副本拷贝(壁纸图库导入) |
 | `fs_rename_entry` / `fs_trash_entry` / `fs_reveal_in_file_manager` | `fs_edit.rs` | 重命名(校验 basename) / 废纸篓(trash crate) / 在访达(Finder)中显示 |
 | `read_local_image_data_url` | `lib.rs`/`fs.rs` | md 预览本地图片(白名单 + 20MB 闸) |
 | `read_binary_file_base64` | `lib.rs`/`fs.rs` | 二进制字节通道(文件渲染档案:图片/docx/pdf 预览) |
@@ -511,14 +519,16 @@ flowchart TD
 | `git_commit_files` / `git_commit_file_patch` | `git/commit_view.rs` | 单提交文件清单(提交 vs 首父,find_similar rename 检测) / 提交内单文件 patch —— 历史 Graph 展开与提交 diff tab |
 | `git_branches` / `git_checkout` / `git_create_branch` / `git_delete_branch` | `git/branch_ops.rs` | 分支操作(全 libgit2) |
 | `git_checkout_remote` / `git_smart_checkout` / `git_smart_checkout_undo` / `git_merge_branch` / `git_rebase_branch` / `git_rename_branch` / `git_branch_compare` / `git_branch_worktree_files` / `git_branch_worktree_patch` | `git/branch_ops.rs` / `compare_ops.rs` / `stash_ops.rs` | 分支右键菜单:检出远端 / 脏工作区「暂存并切换」(stash -u → 切换 → pop)与撤销 / 合并 / 变基 / 重命名 / 与当前对比(worktree 文件清单 + patch) |
-| `git_pull_push` | `git/remote_ops.rs` | 远端操作 shell-out(300s 总超时,GIT_TERMINAL_PROMPT=0,管道排空不 join) |
+| `git_pull_push` | `git/remote_ops.rs` | 远端操作 shell-out(300s 总超时,GIT_TERMINAL_PROMPT=0,管道排空不 join);pull 分叉未配策略自动 `--rebase` 兜底,撞冲突 abort 恢复原状并显式报错 |
 | `git_remotes` / `git_push_preview` / `git_remote_request` / `git_commit_message` | `git/remote_ops.rs` / `commit_view.rs` | 远端对话框:远端下拉 / 推送预览(新分支首推识别) / fetch-pull-push 结构化请求(聚合统计) / 提交完整 message(分支对比详情) |
 | `ssh_session_create` / `ssh_session_reconnect` | `ssh/commands.rs` + `session.rs`/`auth.rs` | SSH 一等会话建立/重连(认证矩阵 password/PEM+passphrase/KBI 多轮;known_hosts 首连信任卡 120s 超时;重连续取原配置收尾重建,凭据不出后端;会话状态经事件推送,无轮询命令) |
-| `ssh_prompt_answer` / `ssh_prompt_cancel` / `ssh_latency` / `ssh_known_hosts_reset` | `ssh/commands.rs` + `control.rs`/`known_hosts.rs` | 交互提示应答(KBI 上限 5 轮,密码类自动代答) / 延迟探测 / 信任重置 |
+| `ssh_prompt_answer` / `ssh_prompt_cancel` / `ssh_prompts_pending` / `ssh_latency` / `ssh_known_hosts_reset` | `ssh/commands.rs` + `control.rs`/`known_hosts.rs` | 交互提示应答(KBI 上限 5 轮,密码类自动代答) / 未决提示对账(只读快照) / 延迟探测 / 信任重置 |
 | `ssh_sftp_list` / `ssh_sftp_read_text` / `ssh_sftp_write_text` / `ssh_sftp_mkdir` / `ssh_sftp_rename` / `ssh_sftp_delete` | `ssh/sftp.rs`(+`sftp_path.rs`) | SFTP 远端文件原语(与终端同连接 subsystem,不重认证;写回带 mtime+size 乐观并发) |
 | `ssh_sftp_transfer` / `ssh_sftp_transfer_cancel` | `ssh/sftp_transfer.rs`(+`sftp_transfer_state.rs`) | 递归上传/下载:进度事件 + 取消 + 代际失效(进度全走事件,无状态轮询命令) |
 | `ssh_forward_start` / `ssh_forward_stop` / `ssh_forward_list` / `ssh_forward_check_port` | `ssh/forward.rs` | 本地端口转发(-L,127.0.0.1 绑定,端口留空自动分配 49152+,占用预检,会话关闭级联停止) |
-| `config_home_dir` / `config_default_workspace_root` | `session.rs` | 返回配置和默认工作区路径 |
+| `wsl_info` / `wsl_remote_info` / `wsl_list_dir` / `wsl_probe_engines` / `wsl_exec` / `wsl_read_file_text` | `wsl.rs` / `wsl_remote*.rs` | WSL 通道:发行版信息 / 远程探测 / 目录懒加载 / 引擎探针 / b64 载荷 exec / 文件文本读取(契约见 09) |
+| `plugin_scan` / `plugin_read_file` / `plugin_archive` / `plugin_rollback` / `plugin_delete` | `plugins_cmds.rs` | 本机插件扫描/入口读取/版本归档/回退/删除(`~/.tmd-cli/plugins/`,local-loader 消费) |
+| `config_home_dir` / `config_dir` / `config_default_workspace_root` | `session.rs` / `lib.rs` | 用户主目录 / 配置目录(目录布局唯一 owner,Rust 单点)/ 默认工作区路径 |
 | `config_read_settings` / `config_write_settings` | `settings.rs` | `~/.tmd-cli/settings.json` 全局设置读写 |
 | `config_read_workspaces` / `config_write_workspaces` | `session.rs` | `~/.tmd-cli/workspaces.json` 工作区配置读写 |
 
