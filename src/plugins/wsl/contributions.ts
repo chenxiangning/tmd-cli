@@ -43,7 +43,7 @@ function menuNote(ws: Workspace): string | null {
   if (!wsl) return null;
   const probed = getWslProbedBins(wsl.distro);
   if (probed === null) {
-    return t("未探测 {distro} 引擎;展开 WSL 卡检测发行版后可新建会话", { distro: wsl.distro });
+    return t("未探测 {distro} 引擎;打开 WSL 面板点「连接」后可新建会话", { distro: wsl.distro });
   }
   return probed.length === 0 ? t("{distro} 内未检出任何引擎", { distro: wsl.distro }) : null;
 }

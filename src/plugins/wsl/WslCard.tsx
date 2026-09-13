@@ -5,7 +5,7 @@
  * - 本机段(仅本机 WSL 可用时渲染,即 Windows):发行版枚举、设默认、
  *   添加 WSL 工作区(UNC 路径进 workspace 表);
  * - 远程段:经 SSH 连 Windows 宿主(复用 settings.ssh.hosts + 手动添加表单),
- *   发行版行展开 DistroPanel(引擎探针/目录浏览/打开会话)。
+ *   发行版行展开 DistroPanel(引擎探针/目录浏览;引擎/目录选值由面板级「SSH 进入」消费)。
  * 面板常开渲染(mac 也可见远程入口);两侧数据互不影响。
  * 自 index.tsx 拆出(文件规模铁则 + only-export-components:插件注册面归 index)。
  */

@@ -6,8 +6,8 @@
  * - 「手动添加」内联表单(host/port/user/password)→ 存入 ssh.hosts(同 host|port|user
  *   查重,先例 sshHostIdentityKey)→ 自动选中。wsl 域只存选中 id(remoteHostId)。
  *
- * 打开会话 = host.createSshSession(config, undefined, wslRemoteSpawnCommand(...));
- * 发行版行展开 DistroPanel(引擎探针 + 目录浏览 + 起始目录 --cd)。
+ * SSH 进入 = host.createSshSession(config, undefined, wslRemoteSpawnCommand(...), engineProfileId);
+ * 引擎/目录选值上提至本组件(openDistro 展开面板内点选),发行版行展开 DistroPanel(探针 + 目录)。
  */
 
 import { useState } from "react";
@@ -114,19 +114,35 @@ export function WslRemoteSection() {
   const [openDistro, setOpenDistro] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
   const [addingWs, setAddingWs] = useState(false);
+  /* 展开面板的引擎/目录选值(上提自 DistroPanel;「SSH 进入」统一消费)。 */
+  const [pickedEngine, setPickedEngine] = useState<string | null>(null);
+  const [pickedDir, setPickedDir] = useState<string | null>(null);
 
   const pickHost = (id: string) => {
     /* updateSettings 按 top-key 整域替换:wsl 域必须带全,否则互踩。 */
     updateSettings({ wsl: { ...settings.wsl, remoteHostId: id } });
     setInfo(null);
     setOpenDistro(null);
+    setPickedEngine(null);
+    setPickedDir(null);
     setError(null);
+  };
+  const toggleDistro = (name: string) => {
+    const next = openDistro === name ? null : name;
+    setOpenDistro(next);
+    if (next !== openDistro) {
+      setPickedEngine(null);
+      setPickedDir(null);
+    }
   };
   const probe = async () => {
     if (!selected || loading) return;
     setLoading(true);
     setError(null);
     setOpenDistro(null);
+    /* 重连即换面板:清上一次的引擎/目录选值,防陈旧选值套到新发行版。 */
+    setPickedEngine(null);
+    setPickedDir(null);
     try {
       const r = await ipc.wslRemoteInfo(selected);
       const eff = r?.available ? r : import.meta.env.DEV ? DEV_REMOTE_FALLBACK : null;
@@ -145,13 +161,24 @@ export function WslRemoteSection() {
     }
   };
 
-  /* 面板级快捷动作:以默认发行版直进交互 shell(引擎/目录细选在发行版面板内)。 */
-  const quickOpen = () => {
+  /* 面板级快捷动作:SSH 进入所选发行版(未展开用默认);引擎/目录取面板选值。 */
+  const sshEnter = () => {
     if (!selected || !info?.available || opening) return;
-    const d = info.distros.find((x) => x.default) ?? info.distros[0];
+    const open = openDistro ? info.distros.find((d) => d.name === openDistro) : null;
+    const d = open ?? (info.distros.find((x) => x.default) ?? info.distros[0]);
+    /* 选了引擎:profile id 随会话透传(SessionMeta.engine),composer 按 CLI
+       profile 工作;未选引擎 = 交互 shell,无 composer(与本地内置终端同构)。 */
+    const engineProfile = pickedEngine
+      ? host.getCliProfiles().find((p) => p.command === pickedEngine)?.id
+      : undefined;
     setOpening(true);
     void host
-      .createSshSession(selected, undefined, wslRemoteSpawnCommand(d.name), undefined)
+      .createSshSession(
+        selected,
+        undefined,
+        wslRemoteSpawnCommand(d.name, { cd: pickedDir ?? undefined, engine: pickedEngine ?? undefined }),
+        engineProfile,
+      )
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setOpening(false));
   };
@@ -191,7 +218,6 @@ export function WslRemoteSection() {
       {formOpen && (
         <HostForm
           onSaved={(id) => {
-            setFormOpen(false);
             pickHost(id);
           }}
         />
@@ -200,15 +226,15 @@ export function WslRemoteSection() {
       {info?.available && selected && (
         <>
           <div className="wsl-actions">
-            <button type="button" className="wsl-btn primary" disabled={opening} onClick={quickOpen}>
-              {opening ? t("连接中…") : t("打开会话")}
+            <button type="button" className="wsl-btn primary" disabled={opening} onClick={sshEnter}>
+              {opening ? t("连接中…") : t("SSH 进入")}
             </button>
             <button type="button" className="wsl-btn" onClick={() => setAddingWs(true)}>
               {t("添加 WSL 工作区")}
             </button>
           </div>
           <div className="wsl-desc">
-            <Hl text={t("【打开会话】以默认发行版直进远程终端;【添加 WSL 工作区】把发行版目录登记进侧栏,后续会话自动走【SSH】。")} />
+            <Hl text={t("【SSH 进入】直进所选发行版终端(未展开用默认),引擎/目录在发行版面板里选;【添加 WSL 工作区】把目录登记进侧栏,会话自动走【SSH】。")} />
           </div>
         </>
       )}
@@ -218,7 +244,7 @@ export function WslRemoteSection() {
             <button
               type="button"
               className="wsl-distro-row wsl-distro-toggle"
-              onClick={() => setOpenDistro(openDistro === d.name ? null : d.name)}
+              onClick={() => toggleDistro(d.name)}
             >
               {openDistro === d.name ? (
                 <CaretDownIcon size="0.625rem" aria-hidden />
@@ -230,7 +256,16 @@ export function WslRemoteSection() {
               <span className="wsl-distro-ver">WSL {d.version}</span>
               <span className="wsl-distro-state">{d.running ? t("运行中") : t("已停止")}</span>
             </button>
-            {openDistro === d.name && selected && <DistroPanel distro={d} host={selected} />}
+            {openDistro === d.name && selected && (
+              <DistroPanel
+                distro={d}
+                host={selected}
+                pickedEngine={pickedEngine}
+                onPickEngine={setPickedEngine}
+                dir={pickedDir}
+                onPickDir={setPickedDir}
+              />
+            )}
           </div>
         ))}
       {addingWs && selected && (
