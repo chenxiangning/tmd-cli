@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useMemo } from "react";
+import { useSettingsState } from "@kernel/settings";
 import {
   cssObjectFit,
   resolveWallpaperMedia,
@@ -21,8 +22,13 @@ import { applyWallpaperPunch, wireWallpaperThemeFollow } from "./punch";
 import { useWallpaperSrc } from "./useWallpaperSrc";
 import { FluidBackdrop, WORKSPACE_FLUID_SPEED } from "./FluidBackdrop";
 
+/** 设置面板打开时壁纸提升到的层:三栏(无 z)之上、设置面板(z100)之下。
+ *  面板薄纱透到的是纯壁纸(应用内容被不透明壁纸层挡住),调参实时可见。 */
+const OVERLAY_LIFT_Z = 50;
+
 export function WallpaperLayer() {
   const state = useWallpaperState();
+  const { panelOpen } = useSettingsState();
   const media = resolveWallpaperMedia(state);
   const mediaPath = media?.path ?? "";
   const preview = useWallpaperSrc(mediaPath);
@@ -60,7 +66,13 @@ export function WallpaperLayer() {
   if (!active) return null;
 
   return (
-    <div className="tmd-wallpaper" aria-hidden data-testid="tmd-wallpaper" data-mode={state.mode}>
+    <div
+      className="tmd-wallpaper"
+      aria-hidden
+      data-testid="tmd-wallpaper"
+      data-mode={state.mode}
+      style={{ zIndex: panelOpen ? OVERLAY_LIFT_Z : -1 }}
+    >
       {state.mode === "fluid" ? (
         <FluidBackdrop
           presetId={state.fluidPreset}

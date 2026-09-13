@@ -60,6 +60,11 @@
  * 作用域,viewport 吃 --tmd-terminal-bg token)—— 插件打穿只改 token 值,
  * 不触碰 kernel 组件样式。见 docs/review/2026-09-13-wallpaper-perf-boundary.md。 */
 
+/* 设置面板透视的修复不在底色(那会「取消」透视),而在层序:面板打开时
+ * 壁纸层由 WallpaperLayer 提到 z 50(三栏之上、面板 z100 之下)——面板
+ * 薄纱透到的是纯壁纸,应用内容被不透明壁纸层挡住,调参数实时可见、
+ * 零文字重叠。菜单类浮层实底由 punch 不打穿 elevated 保证。 */
+
 /* ── 选择壁纸弹窗 ── */
 .wp-picker-toolbar {
   display: flex;
