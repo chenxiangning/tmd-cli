@@ -2,10 +2,11 @@
  * openDiskSession 插件接管分支(profile.acquireResume)契约测试。
  *
  * 覆盖:命中接管(不 spawn / replayTail 预灌输出缓冲 / 身份绑定 / 置 active)、
- * null 与抛错均降级默认冷路径、未声明钩子零影响。ipc 注入替身,不触真实 host。
+ * 早激活(onAcquired 即装配,钩子结果只影响是否回退)、null 与抛错均降级默认
+ * 冷路径、未声明钩子零影响。ipc 注入替身,不触真实 host。
  */
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
-import type { SessionMeta } from "./ipc";
+import { ipc, type SessionMeta } from "./ipc";
 import type { CliProfile } from "./cli";
 
 const exitCbs = new Map<string, () => void>();
@@ -90,7 +91,6 @@ describe("openDiskSession acquireResume 接管分支", () => {
     /* seed(纯存储)而非 appendOutput(守望主链):磁盘回放红线同律 */
     expect(h.seedOutputBuffer).toHaveBeenCalledWith("pre-1", "WELCOME+RESUMED");
     expect(h.appendOutput).not.toHaveBeenCalled();
-    const { ipc } = await import("./ipc");
     expect(ipc.sessionSetWorkspace).toHaveBeenCalledWith("pre-1", "ws-7");
     expect(ipc.sessionSpawn).not.toHaveBeenCalled();
     expect(h.bindIdentity).toHaveBeenCalledWith("pre-1", "sess-9");
@@ -100,7 +100,6 @@ describe("openDiskSession acquireResume 接管分支", () => {
 
   it("接管分支 sessionSetWorkspace 失败不阻断(workspaceId 缺行但不损数据)", async () => {
     acquireResume.mockResolvedValue({ sessionId: "pre-1", replayTail: "x" });
-    const { ipc } = await import("./ipc");
     vi.mocked(ipc.sessionSetWorkspace).mockRejectedValueOnce(new Error("gone"));
     const { service } = mkService();
     const meta = await service.open("test-cli", "/w", "ws-7", "sess-9");
@@ -112,7 +111,11 @@ describe("openDiskSession acquireResume 接管分支", () => {
     const { service } = mkService();
     const meta = await service.open("test-cli", "/w", undefined, "sess-9");
     expect(meta.id).toBe("cold-1");
-    expect(acquireResume).toHaveBeenCalledWith("/w", "sess-9");
+    expect(acquireResume).toHaveBeenCalledWith(
+      "/w",
+      "sess-9",
+      expect.objectContaining({ onAcquired: expect.any(Function) }),
+    );
   });
 
   it("钩子抛错:静默降级冷路径", async () => {
@@ -135,5 +138,53 @@ describe("openDiskSession acquireResume 接管分支", () => {
     const meta = await service.open("test-cli", "/w", undefined, "sess-9");
     expect(meta.id).toBe("pre-1");
     expect(h.seedOutputBuffer).not.toHaveBeenCalled();
+  });
+
+  it("早激活:onAcquired 即装配,钩子随后成功 → 单次装配、绝不冷启", async () => {
+    acquireResume.mockImplementation(
+      async (_cwd: string, _id: string, signals: { onAcquired(id: string): void }) => {
+        signals.onAcquired("pre-1");
+        return { sessionId: "pre-1", replayTail: "" };
+      },
+    );
+    /* ipc 替身跨用例不清理:冷启判定用调用数增量,不用全局 not-called */
+    const spawnCalls = vi.mocked(ipc.sessionSpawn).mock.calls.length;
+    const { service, h } = mkService();
+    const meta = await service.open("test-cli", "/w", "ws-7", "sess-9");
+    expect(meta.id).toBe("pre-1");
+    expect(vi.mocked(ipc.sessionSpawn).mock.calls.length).toBe(spawnCalls);
+    expect(h.bindIdentity).toHaveBeenCalledTimes(1);
+    expect(h.setActiveSessionId).toHaveBeenCalledTimes(1);
+    expect(h.seedOutputBuffer).not.toHaveBeenCalled(); /* 空 tail 不灌 */
+  });
+
+  it("早激活后钩子返回 null(特征超时熔断形态):会话已激活,不回退冷路径", async () => {
+    acquireResume.mockImplementation(
+      async (_cwd: string, _id: string, signals: { onAcquired(id: string): void }) => {
+        signals.onAcquired("pre-1");
+        return null;
+      },
+    );
+    const spawnCalls = vi.mocked(ipc.sessionSpawn).mock.calls.length;
+    const { service, h } = mkService();
+    const meta = await service.open("test-cli", "/w", undefined, "sess-9");
+    expect(meta.id).toBe("pre-1");
+    expect(vi.mocked(ipc.sessionSpawn).mock.calls.length).toBe(spawnCalls);
+    expect(h.setActiveSessionId).toHaveBeenCalledWith("pre-1");
+  });
+
+  it("早激活后 adopt 落败 + 钩子 null:early 归零,自愈回退冷路径", async () => {
+    acquireResume.mockImplementation(
+      async (_cwd: string, _id: string, signals: { onAcquired(id: string): void }) => {
+        signals.onAcquired("pre-1");
+        return null;
+      },
+    );
+    const { service, h } = mkService();
+    h.setSessions.mockImplementationOnce(() => {
+      throw new Error("removed");
+    });
+    const meta = await service.open("test-cli", "/w", undefined, "sess-9");
+    expect(meta.id).toBe("cold-1");
   });
 });

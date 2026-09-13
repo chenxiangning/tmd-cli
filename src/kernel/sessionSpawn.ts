@@ -196,20 +196,47 @@ export class SessionSpawnService {
         /* 插件接管(预热加速等个性化能力):钩子返回既有就绪 PTY = 跳过 spawn 直接
            装配。replayTail 经 seedOutputBuffer 预灌缓冲(只进存储,不进守望主链 —
            与磁盘回放红线同律,防误开轮/误未读/屏幕镜像整段 write),挂载即回放完整
-           画面;workspaceId 由本分支补写(预热 spawn 时归属未知)。钩子 null / 未声明 /
-           抛错 = 静默走默认冷路径,任何场景不劣化。在闸内消费:双击第二击复用在途
-           Promise,插件池的 check-out 原子性由此双保险。 */
+           画面;workspaceId 由接管装配统一补写(预热 spawn 时归属未知)。在闸内
+           消费:双击第二击复用在途 Promise,插件池的 check-out 原子性由此双保险。
+           早激活:钩子在接管目标确定时回调 signals.onAcquired,kernel 立即装配
+           激活(磁盘先行回放 + 常驻订阅直看渲染),不等钩子全程 —— 激活是打开
+           路径唯一的状态切换,压在钩子全程之后就是点击顿挫的根因。钩子此后返回
+           null(特征超时熔断/等待期死亡)不回退冷路径:身份已绑、会话已激活,
+           再 spawn 同一磁盘身份会出双 PTY;adopt 落败(竞态守卫)则 early 归
+           null,照旧回退冷路径自愈。钩子 null / 未声明 / 抛错且未回调 = 静默走
+           默认冷路径,任何场景不劣化。 */
         const hook = profile.acquireResume;
-        const acquired = hook ? await hook(cwd, cliSessionId).catch(() => null) : null;
-        if (acquired) {
-          if (workspaceId) {
-            /* 补写失败不阻断接管(meta 刷新时回滚为无归属,工作区面板缺行但不损数据) */
-            await ipc.sessionSetWorkspace(acquired.sessionId, workspaceId).catch(
-              () => undefined,
+        let early: Promise<SessionMeta> | null = null;
+        const signals = {
+          onAcquired: (sessionId: string): void => {
+            if (early) return;
+            const p = this.adoptResumeTarget(sessionId, profileId, cliSessionId, workspaceId).catch(
+              (e: unknown) => {
+                early = null;
+                throw e;
+              },
             );
+            p.catch(() => undefined); /* 拒绝标记:kernel await 前落败也不产生 unhandledrejection,await 照常观察拒绝 */
+            early = p;
+          },
+        };
+        const acquired = hook ? await hook(cwd, cliSessionId, signals).catch(() => null) : null;
+        if (acquired) {
+          /* 早激活已回调则不灌尾:常驻订阅可能已入直播字节,尾灌会乱序 */
+          if (acquired.replayTail && !early) this.h.seedOutputBuffer(acquired.sessionId, acquired.replayTail);
+          return await (early ?? this.adoptResumeTarget(acquired.sessionId, profileId, cliSessionId, workspaceId));
+        }
+        if (early) {
+          /* 钩子放弃但接管已落地:会话已激活,绝不回退冷路径(身份已绑,再
+             spawn 同一磁盘身份会出双 PTY)。装配本身落败仅限 adopt 尚未完成
+             的窄窗(进程恰在此间死亡,回调把 early 归 null / 此处仍在途拒绝),
+             按接管未发生自愈回退冷路径;装配完成后死亡走常驻订阅退出链
+             (摘 tab + 起失败 toast),与用户中途关 tab 同义,不在此分支。 */
+          try {
+            return await early;
+          } catch {
+            /* fall through 冷路径 */
           }
-          if (acquired.replayTail) this.h.seedOutputBuffer(acquired.sessionId, acquired.replayTail);
-          return await this.adoptSpawned(acquired.sessionId, profileId, cliSessionId);
         }
         /* 冷路径 spec 组装后置到接管未命中:来源包装/transform 对接管分支是白算 */
         let coldSpec: SpawnSpec = { command: profile.command, args, cwd, env: profile.env };
@@ -242,6 +269,20 @@ export class SessionSpawnService {
       this.events.emit(KernelTopics.sessionStartFailed, event);
       throw e;
     });
+  }
+  /** 接管装配:补写 workspace 归属(预热 spawn 时归属未知;失败不阻断接管,
+   *  meta 刷新时回滚为无归属,工作区面板缺行但不损数据)后走统一装配。
+   *  早激活(signals.onAcquired)与钩子尾两路共用。 */
+  private async adoptResumeTarget(
+    sessionId: string,
+    profileId: string,
+    cliSessionId: string | undefined,
+    workspaceId: string | undefined,
+  ): Promise<SessionMeta> {
+    if (workspaceId) {
+      await ipc.sessionSetWorkspace(sessionId, workspaceId).catch(() => undefined);
+    }
+    return await this.adoptSpawned(sessionId, profileId, cliSessionId);
   }
 
   /**

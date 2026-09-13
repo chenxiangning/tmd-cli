@@ -15,9 +15,12 @@
  * - 切换不建新文件、不写目标文件,磁盘身份稳定(bindIdentity 零扰动)。
  *
  * 资源:单个预热进程 RSS 实测 ~700-810MB;10 分钟未消费自动回收。
- * 降级闭环:池空 / cwd 不匹配 / 未就绪 / 进程死亡 / 特征熔断 → 返回 null,
- * sessionSpawn 走默认冷路径。特征超时熔断(本运行周期不再预热)是关键护栏:
- * 若 omp 升级改变了切换语义,否则每次打开历史都先白等注入超时再冷启动。
+ * 降级闭环:池空 / cwd 不匹配 / 未就绪 → 返回 null,sessionSpawn 走默认冷路径。
+ * 注入派发即移交 kernel 早激活(打开零顿挫的关键:激活是打开路径唯一的状态
+ * 切换,不再压在整段 resume 渲染之后);此后特征超时熔断(本运行周期不再预热,
+ * omp 升级改语义的护栏)不再回退冷路径也不杀进程 —— 失败的 resume 字面可见,
+ * 关 tab 即清;仅注入失败/接管装配落败(adopt 尚未完成的窄窗内进程死亡,early
+ * 归 null)回退冷路径;装配完成后死亡走常驻订阅退出链,不回退。
  */
 
 import { ipc } from "@kernel/ipc";
@@ -42,8 +45,9 @@ const RESUME_TIMEOUT_MS = 5_000;
 const IDLE_REAP_MS = 10 * 60_000;
 /** activate 后首预热延迟:避开应用启动高峰。 */
 const START_DELAY_MS = 8_000;
-/** 消费成功后的补货延迟。 */
-const REFILL_DELAY_MS = 3_000;
+/** 消费成功后的补货延迟:1s 让 tab1 切换渲染(~1.2s,特征命中即完成)先收尾;
+ *  不取 0 是与死区内冷启动的 loadExtensions 错峰(双 loadExtensions 并行实测可劣化到 6.5s)。 */
+const REFILL_DELAY_MS = 1_000;
 /** 回放尾上限(欢迎屏 ~10KB + 大会话切换 ~170KB,留极端裕量)。 */
 const MAX_REPLAY_TAIL_CHARS = 2_000_000;
 
@@ -195,11 +199,14 @@ async function spawnPrewarm(cwd: string): Promise<void> {
 
 /**
  * profile.acquireResume 实现:命中就绪预热进程则注入热切换,返回接管信息。
- * 任何失配返回 null(调用方走默认冷路径)。
+ * 任何失配返回 null。注入派发即经 signals.onAcquired 移交 kernel 早激活
+ * (幕布立即挂载,渲染经常驻订阅直入,不再等整段渲染完成才切换);本钩子
+ * 此后只余特征护栏职责。
  */
 export async function ompAcquireResume(
   cwd: string,
   cliSessionId: string,
+  signals?: { onAcquired(sessionId: string): void },
 ): Promise<{ sessionId: string; replayTail: string } | null> {
   const s = slot;
   if (!s || !s.ready || s.acquired || s.dead || s.cwd !== cwd || featureFused) return null;
@@ -216,36 +223,44 @@ export async function ompAcquireResume(
   } catch {
     s.pendingFeature = undefined;
     reapSlot(true);
-    return null;
+    return null; /* 注入失败未移交:kernel 无 early,照旧回退冷路径 */
   }
+  /* 注入已派发即移交:先解影子(否则 kernel setSessions 把它滤出会话表,
+     激活了也无处显示)再回调早激活。replayTail 空手而回:渲染字节由常驻
+     订阅入缓冲,预灌只会重复。出生文件锁定窗此前已尽其责,不在此处理。 */
+  unmarkShadowSession(s.sessionId);
+  signals?.onAcquired(s.sessionId);
   await Promise.race([featureOrExit, sleep(RESUME_TIMEOUT_MS)]);
   s.pendingFeature = undefined;
+  /* 转正收尾:退订 + 清计时器 + 补货(熔断时 spawnPrewarm 自查 featureFused
+     空转)。影子登记已在移交时解除,进程归 kernel —— 收尾绝不再杀。 */
+  const handover = (): void => {
+    s.offOutput();
+    s.offExit();
+    clearTimeout(s.reapTimer);
+    clearTimeout(s.readyTimer);
+    clearTimeout(s.lockTimer);
+    slot = null;
+    refillTimer = setTimeout(() => {
+      refillTimer = null;
+      void spawnPrewarm(cwd);
+    }, REFILL_DELAY_MS);
+  };
   if (s.dead) {
-    reapSlot(false); /* exit 回调已清场,此处幂等收口 */
-    return null;
+    return null; /* 进程死亡:exit 回调已清场(收尾幂等);kernel 侧 adopt
+                    竞态守卫同样落败,早激活自愈回退冷路径 */
   }
   if (!stripAnsi(s.buffer.slice(injectMark)).includes(RESUME_FEATURE)) {
-    /* 超时 = omp 行为已变(升级等):熔断本运行周期,强杀降级 */
+    /* 超时 = omp 行为已变(升级等):熔断本运行周期。进程已移交成用户会话,
+       不再强杀 —— 失败的 resume 字面可见(/resume 文本停在 composer),关
+       tab 即清。护栏从「静默回退冷路径」退化为「可见失败 + 熔断」,换每次
+       打开零顿挫。 */
     featureFused = true;
-    reapSlot(true);
+    handover();
     return null;
   }
-  /* 接管转正:解除影子登记,进程移交 kernel adopt(输出缓冲经 replayTail
-     预灌,本侧订阅退订 —— 后续字节由 adoptPtySession 的常驻订阅接管)。
-     出生文件不在此处理:锁定窗窄删已尽其责,消费期无安全判据,宁残留不宽删。 */
-  const replayTail = s.buffer;
-  s.offOutput();
-  s.offExit();
-  if (s.reapTimer) clearTimeout(s.reapTimer);
-  if (s.readyTimer) clearTimeout(s.readyTimer);
-  if (s.lockTimer) clearTimeout(s.lockTimer);
-  unmarkShadowSession(s.sessionId);
-  slot = null;
-  refillTimer = setTimeout(() => {
-    refillTimer = null;
-    void spawnPrewarm(cwd);
-  }, REFILL_DELAY_MS);
-  return { sessionId: s.sessionId, replayTail };
+  handover();
+  return { sessionId: s.sessionId, replayTail: "" };
 }
 
 /** 插件 activate 接线:清杀重载遗留 + 延迟首预热(有近期活动才预热)。 */

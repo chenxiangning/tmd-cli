@@ -1,7 +1,8 @@
 /**
  * omp 预热接管契约测试 —— 状态机全链路(mock ipc + fake timers):
- * 命中注入序列(整行 → 150ms → 单发 \r)、特征检测、转正解除影子登记、
- * 补货调度、特征超时熔断、进程死亡清场、出生空会话文件清理(有用户消息绝不删)。
+ * 命中注入序列(整行 → 150ms → 单发 \r)、注入派发即移交早激活(onAcquired)、
+ * 特征检测、解除影子登记、补货调度、特征超时熔断(进程已移交不杀)、
+ * 进程死亡清场、出生空会话文件清理(有用户消息绝不删)。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -60,7 +61,7 @@ import {
 const CWD = "/w";
 const START_DELAY = 8_000;
 const READY_DELAY = 6_000;
-const REFILL_DELAY = 3_000;
+const REFILL_DELAY = 1_000;
 const RESUME_TIMEOUT = 5_000;
 
 function feed(id: string, text: string): void {
@@ -124,19 +125,22 @@ describe("omp 预热接管", () => {
     expect(await ompAcquireResume("/other", "sess-1")).toBeNull();
   });
 
-  it("命中:注入序列(整行 → 150ms → \\r)、特征转正、解除影子、补货", async () => {
+  it("命中:注入序列(整行 → 150ms → \\r)、注入派发即移交、特征转正、补货", async () => {
     const id = await warmToReady();
     expect(isShadowedSession(id)).toBe(true);
-    const acquired = ompAcquireResume(CWD, "sess-42");
+    const onAcquired = vi.fn();
+    const acquired = ompAcquireResume(CWD, "sess-42", { onAcquired });
     await vi.advanceTimersByTimeAsync(150 + 60);
     const writes = vi.mocked(ipc.sessionWrite).mock.calls.map((c) => c[1]);
     expect(writes).toEqual([`/resume sess-42`, "\r"]);
+    /* 注入派发完成即移交 kernel 早激活(replayTail 空手而回:渲染经常驻订阅直入) */
+    expect(onAcquired).toHaveBeenCalledWith(id);
     feed(id, "\x1b[2J\x1b[H");
     feed(id, "\x1b[1mResumed session\x1b[0m");
     await settle(acquired);
     const result = await acquired;
     expect(result?.sessionId).toBe(id);
-    expect(result?.replayTail).toContain("Resumed session");
+    expect(result?.replayTail).toBe("");
     expect(isShadowedSession(id)).toBe(false);
     /* 补货:消费后重新预热一个 */
     await vi.advanceTimersByTimeAsync(REFILL_DELAY + 100);
@@ -152,12 +156,14 @@ describe("omp 预热接管", () => {
     await settle(first);
   });
 
-  it("特征超时 → 强杀 + 熔断:本运行周期不再预热也不再接管", async () => {
+  it("特征超时 → 熔断但不再杀进程(已移交成用户会话):本运行周期不再预热", async () => {
     const id = await warmToReady();
-    const acquired = ompAcquireResume(CWD, "sess-1");
+    const onAcquired = vi.fn();
+    const acquired = ompAcquireResume(CWD, "sess-1", { onAcquired });
     await vi.advanceTimersByTimeAsync(150 + RESUME_TIMEOUT + 200);
     expect(await acquired).toBeNull();
-    expect(ipc.sessionKill).toHaveBeenCalledWith(id);
+    expect(onAcquired).toHaveBeenCalledWith(id); /* 会话已移交激活 */
+    expect(ipc.sessionKill).not.toHaveBeenCalledWith(id);
     /* 熔断:重启管理器也不得再 spawn */
     stopOmpPrewarmManager();
     startOmpPrewarmManager();
@@ -221,10 +227,12 @@ describe("omp 预热接管", () => {
     expect(isShadowedSession(id)).toBe(false);
   });
 
-  it("注入写失败 → 强杀清场降级 null(未熔断:传输错不是语义错)", async () => {
+  it("注入写失败 → 强杀清场降级 null(未移交、未熔断:传输错不是语义错)", async () => {
     await warmToReady();
+    const onAcquired = vi.fn();
     vi.mocked(ipc.sessionWrite).mockRejectedValueOnce(new Error("pipe closed"));
-    expect(await ompAcquireResume(CWD, "sess-1")).toBeNull();
+    expect(await ompAcquireResume(CWD, "sess-1", { onAcquired })).toBeNull();
+    expect(onAcquired).not.toHaveBeenCalled();
     expect(ipc.sessionKill).toHaveBeenCalledWith(spawnedIds[0]);
     /* 写失败 ≠ 特征失配,不熔断:重启管理器仍可预热 */
     stopOmpPrewarmManager();
@@ -233,10 +241,12 @@ describe("omp 预热接管", () => {
     expect(spawnedIds).toHaveLength(2);
   });
 
-  it("注入等待期进程退出 → exit 回调唤醒等待方,降级 null", async () => {
+  it("注入等待期进程退出 → exit 回调唤醒等待方,降级 null(移交后由 adopt 竞态守卫自愈)", async () => {
     const id = await warmToReady();
-    const acquired = ompAcquireResume(CWD, "sess-1");
+    const onAcquired = vi.fn();
+    const acquired = ompAcquireResume(CWD, "sess-1", { onAcquired });
     await vi.advanceTimersByTimeAsync(200);
+    expect(onAcquired).toHaveBeenCalledWith(id); /* 注入已完成,移交已发生 */
     exitCbs.get(id)?.();
     expect(await acquired).toBeNull();
   });

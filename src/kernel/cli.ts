@@ -118,13 +118,20 @@ export interface CliProfile {
    * 打开磁盘会话前的插件接管钩子(可选;预热加速等个性化能力的挂点):
    * 返回 { sessionId, replayTail } = 接管该既有 PTY(须已在 Rust 侧存活,并以
    * kernel/sessionShadowing 影子登记隔离出会话表,接管成功路径自行解除登记),
-   * replayTail 由调用方预灌幕布输出缓冲(挂载即回放完整画面);返回 null /
-   * 抛错 = 走默认冷路径。注入命令/就绪特征/降级清理等语义全归插件,kernel
-   * 不理解任何引擎私有行为。
+   * replayTail 由调用方预灌幕布输出缓冲(挂载即回放完整画面;走 onAcquired
+   * 早激活时渲染经常驻订阅直入幕布,回空串即可)。返回 null / 抛错 = 走默认
+   * 冷路径,但 onAcquired 已落地时不再回退(会话已激活,再 spawn 同一磁盘
+   * 身份会出双 PTY)。
+   *
+   * signals.onAcquired(sessionId):接管目标一确定即回调,kernel 立即装配激活
+   * (磁盘先行回放 + 常驻订阅直看渲染),不等钩子全程跑完 —— 激活是打开路径
+   * 唯一的状态切换,压在钩子全程之后就是点击顿挫的根因。注入命令/就绪特征/
+   * 降级清理等语义全归插件,kernel 不理解任何引擎私有行为。
    */
   acquireResume?: (
     cwd: string,
     cliSessionId: string,
+    signals: { onAcquired(sessionId: string): void },
   ) => Promise<{ sessionId: string; replayTail: string } | null>;
   /**
    * 单实例语义:同 profile 至多一个活会话,create 命中 = 聚焦既有不重 spawn
