@@ -29,5 +29,10 @@ fn set_workspace_updates_registered_and_rejects_missing() {
     /* 清空归属(None)也应可写:接管失败回滚语义 */
     assert!(reg.set_workspace("s1", None));
     let listed = reg.list();
-    assert!(listed.iter().find(|m| m.id == "s1").unwrap().workspace_id.is_none());
+    assert!(listed
+        .iter()
+        .find(|m| m.id == "s1")
+        .unwrap()
+        .workspace_id
+        .is_none());
 }
