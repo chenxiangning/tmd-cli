@@ -440,6 +440,9 @@ export const ipc = {
   /** 还原已跟踪文件到 HEAD;untracked 不动。 */
   gitDiscard: (cwd: string, paths: string[]) =>
     invoke<void>("git_discard", { cwd, paths }),
+  /** 删除未跟踪文件(≡ git clean -f -- paths);混入 tracked 路径后端整体拒绝。 */
+  gitClean: (cwd: string, paths: string[]) =>
+    invoke<void>("git_clean", { cwd, paths }),
   /** 勾选提交:paths 非空先 stage 再 commit,单次 IPC 原子完成。 */
   gitCommit: (cwd: string, paths: string[], input: GitCommitInput) =>
     invoke<string>("git_commit", { cwd, paths, input }),

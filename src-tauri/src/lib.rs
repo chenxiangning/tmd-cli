@@ -207,6 +207,7 @@ pub fn run() {
             git::commands::git_stage,
             git::commands::git_unstage,
             git::commands::git_discard,
+            git::commands::git_clean,
             git::commands::git_commit,
             git::commands::git_log,
             git::commands::git_commit_files,

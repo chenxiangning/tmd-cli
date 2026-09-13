@@ -180,6 +180,18 @@ export const MESSAGES = {
   全文: "Full",
   全文查看: "View full file",
 
+  /* 差异面板批量条(拖选勾选集动作面)与未跟踪文件删除(git clean) */
+  "暂存 {n}": "Stage {n}",
+  "放弃 {n}": "Discard {n}",
+  "删除 {n}": "Delete {n}",
+  "(删除)": "(delete)",
+  "删除未跟踪文件(git clean;不可恢复)":
+    "Delete untracked file (git clean; cannot be undone)",
+  "删除未跟踪文件 {path}?": "Delete untracked file {path}?",
+  "删除 {n} 个未跟踪文件?": "Delete {n} untracked files?",
+  "文件将从磁盘永久删除,不可恢复。":
+    "Files will be permanently deleted from disk; this cannot be undone.",
+  "永久删除": "Delete permanently",
   /* 消费点在面板外的模块顶层数据(命令名 / 插件描述):词典先行,迁移待消费方 */
   "获取远端更新(fetch)": "Fetch remote updates (fetch)",
   "拉取远端(pull)": "Pull from remote (pull)",

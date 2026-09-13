@@ -32,6 +32,8 @@ mod tests;
 #[cfg(test)]
 mod tests_branch_menu;
 #[cfg(test)]
+mod tests_clean;
+#[cfg(test)]
 mod tests_common;
 #[cfg(test)]
 mod tests_flow;

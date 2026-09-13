@@ -91,6 +91,11 @@ pub async fn git_discard(cwd: String, paths: Vec<String>) -> Result<(), String> 
 }
 
 #[tauri::command]
+pub async fn git_clean(cwd: String, paths: Vec<String>) -> Result<(), String> {
+    run_mut(cwd, move |r| index_ops::clean(r, paths)).await
+}
+
+#[tauri::command]
 pub async fn git_commit(
     cwd: String,
     paths: Vec<String>,

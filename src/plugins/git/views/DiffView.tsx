@@ -52,6 +52,17 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
       return next;
     });
 
+  /* 拖选扩散批量设勾(DiffFlatList 邮件式拖选落点;与单行 toggle 同一勾选集) */
+  const setChecks = (paths: string[], val: boolean) =>
+    setChecked((prev) => {
+      const next = new Set(prev);
+      for (const p of paths) {
+        if (val) next.add(p);
+        else next.delete(p);
+      }
+      return next;
+    });
+
   const runStage = (paths: string[]) =>
     ipc.gitStage(cwd, paths).then(onMutation, (e) => console.warn(gitErrorDisplay(e)));
   const runUnstage = (paths: string[]) =>
@@ -69,6 +80,22 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
       onConfirm: () =>
         ipc
           .gitDiscard(cwd, paths)
+          .then(onMutation, (e) => console.warn(gitErrorDisplay(e))),
+    });
+
+  const askClean = (paths: string[]) =>
+    // 未跟踪文件的 reset = 删除文件:破坏性,应用内确认前置
+    setConfirm({
+      title:
+        paths.length === 1
+          ? t("删除未跟踪文件 {path}?", { path: paths[0] })
+          : t("删除 {n} 个未跟踪文件?", { n: paths.length }),
+      detail: t("文件将从磁盘永久删除,不可恢复。"),
+      confirmLabel: t("永久删除"),
+      danger: true,
+      onConfirm: () =>
+        ipc
+          .gitClean(cwd, paths)
           .then(onMutation, (e) => console.warn(gitErrorDisplay(e))),
     });
 
@@ -101,10 +128,12 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
             checked={checked}
             totals={totals}
             onToggleCheck={toggleCheck}
+            onSetChecks={setChecks}
             onOpen={openDiff}
             onStage={runStage}
             onUnstage={runUnstage}
             onDiscard={askDiscard}
+            onClean={askClean}
           />
         )}
         {files.length > 0 &&

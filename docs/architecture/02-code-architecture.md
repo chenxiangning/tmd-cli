@@ -506,7 +506,7 @@ flowchart TD
 | `git_status` / `git_totals` / `git_ahead_behind` | `git/status.rs` 等 | libgit2 本地读(status 聚合/改动统计/领先落后) |
 | `git_diff_file_patch` | `git/diff.rs` | libgit2 patch 生成(前端 PatchLRU 缓存 50 条/20MB) |
 | `git_repos_scan` | `git/repos_scan.rs` | workspace 根多仓发现:BFS 有界扫描(深度前端传,默认 2;结果截 32 truncated),submodule(.gitmodules)/worktree(gitdir 指针)分档 |
-| `git_stage` / `git_unstage` / `git_discard` / `git_commit` | `git/index_ops.rs` 等 | index 写操作(discard = checkout_index,不经 fs 删除) |
+| `git_stage` / `git_unstage` / `git_discard` / `git_clean` / `git_commit` | `git/index_ops.rs` 等 | index 写操作(discard = checkout_index,不经 fs 删除;clean = 删除未跟踪文件,先校验后删,混入 tracked 路径整体拒绝) |
 | `git_log` | `git/log.rs` | 历史分页摘要 + 每提交 ref 装饰(附注 tag peel 到提交;HEAD→本地→远端→tag 排序) |
 | `git_commit_files` / `git_commit_file_patch` | `git/commit_view.rs` | 单提交文件清单(提交 vs 首父,find_similar rename 检测) / 提交内单文件 patch —— 历史 Graph 展开与提交 diff tab |
 | `git_branches` / `git_checkout` / `git_create_branch` / `git_delete_branch` | `git/branch_ops.rs` | 分支操作(全 libgit2) |
