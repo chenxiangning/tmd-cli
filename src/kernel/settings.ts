@@ -61,19 +61,53 @@ const MERGE_PLAIN_FIELDS = [
   "localPluginTrust",
 ] as const;
 
-/** per-key 合并:盘上条目全收,本实例 key 覆盖(带 ts 时较新者胜)。 */
-function mergeEntries(memory: RecordLike, disk: RecordLike, tsField: string | null): RecordLike {
+/** 键序无关的等值比较(合并后 JSON 键序会漂移,不能拿 stringify 判「未改动」)。 */
+function deepEqualStable(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  if (ka.length !== kb.length) return false;
+  return ka.every(
+    (k) => k in (b as object) && deepEqualStable((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]),
+  );
+}
+
+/** 盘上基线:最后一次见到(加载后/成功写盘后)的设置;null = boot 前或从未见过盘。 */
+let diskBaseline: AppSettings | null = null;
+
+/** per-key 合并:盘上条目除「本地已删」外全收,本实例 key 覆盖(带 ts 时较新者胜)。 */
+function mergeEntries(
+  memory: RecordLike,
+  disk: RecordLike,
+  tsField: string | null,
+  base: RecordLike | null,
+): RecordLike {
   const out: RecordLike = { ...disk };
+  /* 内存没有而盘上有的 key:基线里已有且自基线后未被外实例改动 → 本地删除,
+     删除意图赢(否则取消置顶/归档永不落盘,重启复活);基线里没有 → 外实例
+     新增,照收(双实例丢更新防护不变)。 */
+  if (base)
+    for (const key of Object.keys(out)) {
+      if (key in memory) continue;
+      const mine = base[key];
+      if (mine === undefined) continue;
+      const gone =
+        tsField === null
+          ? deepEqualStable(out[key], mine)
+          : (typeof out[key][tsField] === "number" ? (out[key][tsField] as number) : -1) <=
+            (typeof mine[tsField] === "number" ? (mine[tsField] as number) : -1);
+      if (gone) delete out[key];
+    }
   for (const key of Object.keys(memory)) {
-    const mine = memory[key];
     const theirs = out[key];
     if (theirs === undefined || tsField === null) {
-      out[key] = mine;
+      out[key] = memory[key];
       continue;
     }
-    const a = typeof mine[tsField] === "number" ? (mine[tsField] as number) : -1;
+    const a = typeof memory[key][tsField] === "number" ? (memory[key][tsField] as number) : -1;
     const b = typeof theirs[tsField] === "number" ? (theirs[tsField] as number) : -1;
-    if (a >= b) out[key] = mine;
+    if (a >= b) out[key] = memory[key];
   }
   return out;
 }
@@ -83,18 +117,21 @@ function mergeEntries(memory: RecordLike, disk: RecordLike, tsField: string | nu
  * settings.json 且写盘是全文件覆盖、后写者赢 —— 陈旧实例一次写盘即抹掉
  * 另一实例刚写的归档/置顶等标记(表现为「归档无效且无提示」)。persist
  * 前拉盘上最新做记录层合并:标记类字段按 key 并集,标量仍以本实例为准。
- * 残留缝:他实例的取消归档/取消置顶会被本实例陈旧内存复活(根除需
- * tombstone,量级不值, ponytail: 出现再补)。合并只作用于写盘 payload,
- * 不回写内存态 —— 他窗标记不实时串进本窗,重载生效。
+ * 删除意图靠 diskBaseline 判别:盘上有、内存没有、基线里已有且自基线未被他
+ * 实例改动 → 本地删除(否则取消置顶永不落盘,重启复活);基线里没有 → 他
+ * 实例新增,照收。合并只作用于写盘 payload,不回写内存态 —— 他窗标记不实时
+ * 串进本窗,重载生效。
  */
 function mergeDiskIntoPayload(memory: AppSettings, raw: unknown): AppSettings {
   const disk = sanitize(raw);
+  const base = diskBaseline;
   const out = { ...memory } as unknown as Record<string, unknown>;
   for (const [field, tsField] of Object.entries(MERGE_TS_FIELDS)) {
     out[field] = mergeEntries(
       memory[field as keyof AppSettings] as unknown as RecordLike,
       disk[field as keyof AppSettings] as unknown as RecordLike,
       tsField,
+      base ? (base[field as keyof AppSettings] as unknown as RecordLike) : null,
     );
   }
   for (const field of MERGE_PLAIN_FIELDS) {
@@ -102,12 +139,21 @@ function mergeDiskIntoPayload(memory: AppSettings, raw: unknown): AppSettings {
       memory[field] as unknown as RecordLike,
       disk[field] as unknown as RecordLike,
       null,
+      base ? (base[field] as unknown as RecordLike) : null,
     );
   }
   return out as unknown as AppSettings;
 }
 
-async function persist(): Promise<void> {
+/** persist 串行链:并发交错的读盘→合并→写盘可能乱序落盘(后发先至会用陈旧
+ *  盘像复活已删标记),链式排队保证基线推进与写序一致。persistNow 永不 reject。 */
+let persistChain: Promise<void> = Promise.resolve();
+
+function persist(): void {
+  persistChain = persistChain.then(persistNow);
+}
+
+async function persistNow(): Promise<void> {
   try {
     let payload = state.settings;
     try {
@@ -116,10 +162,12 @@ async function persist(): Promise<void> {
       /* 盘不可读(他实例锁文件等):按本实例状态原样写,行为同旧 */
     }
     await ipc.configWriteSettings(payload);
+    diskBaseline = payload;
   } catch {
     // 浏览器 dev:降级 localStorage
     try {
       localStorage.setItem(LOCAL_FALLBACK_KEY, JSON.stringify(state.settings));
+      diskBaseline = state.settings;
     } catch (err) {
       console.warn("settings: 持久化失败", err);
     }
@@ -138,6 +186,7 @@ async function load(): Promise<void> {
     }
   }
   state.settings = sanitize(raw);
+  diskBaseline = state.settings;
   state.loaded = true;
   setShortcutOverrides(state.settings.shortcutOverrides);
   emit();
