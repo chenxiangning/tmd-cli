@@ -1,6 +1,6 @@
 /**
- * WSL 插件注册面 —— 全部能力经三注册表 + welcome.footer 贡献:
- * - WslCard(welcome.footer):本机/远程发行版面板(实现见 WslCard.tsx);
+ * WSL 插件注册面 —— 全部能力经三注册表 + 中央 tab 贡献:
+ * - WslCard(中央 tab kind="wsl";入口在左下角设置菜单 wsl-panel):本机/远程发行版面板;
  * - workspaceOrigins:侧栏过滤/徽章/新建会话 SSH 适配/添加弹层 tab;
  * - fileSources:远程文件树浏览与 wslr:// 文本读取;
  * - ptyAdapters:UNC 工作区的 spawn 包装与内置终端直落发行版。
@@ -16,6 +16,7 @@ import {
 } from "@kernel/fileSources";
 import { registerWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { registerShellSpecProvider, registerSpecWrapper } from "@kernel/ptyAdapters";
+import { getActiveTab, openTab } from "@kernel/tabs";
 import { getWorkspaces, setWorkspaceWslMeta, workspacesReady } from "@kernel/workspace";
 import { buildWslFileSource, buildWslWorkspaceOrigin } from "./contributions";
 import { AddWslTab } from "./AddWslTab";
@@ -33,7 +34,17 @@ export const wslPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx) {
-    ctx.contribute("welcome.footer", { order: 10, component: WslCard });
+    /* 中央 tab 容器(kernel/tabs 注册表)+ 设置菜单入口(与 SSH/网络代理同款行,可钉底栏)。 */
+    ctx.registerTabContent({ kind: "wsl", component: WslCard });
+    ctx.registerSidebarAction({
+      id: "wsl-panel",
+      label: "WSL",
+      icon: DesktopIcon,
+      order: 26,
+      active: () => getActiveTab()?.kind === "wsl",
+      onSelect: () =>
+        openTab({ id: "wsl:panel", title: "WSL", path: "", kind: "wsl", payload: null }),
+    });
     /* 向宿主注册表贡献来源能力(全部可退订)。 */
     const offSource = registerRemoteFileSource(buildWslFileSource() as RemoteFileSource);
     const offOrigin = registerWorkspaceOrigin(

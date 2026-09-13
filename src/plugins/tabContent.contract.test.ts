@@ -24,6 +24,7 @@ const OPENABLE_KINDS = [
   "git-commit-diff",
   "git-diff",
   "ckpt-batch",
+  "wsl",
   "memory-console",
 ] as const;
 

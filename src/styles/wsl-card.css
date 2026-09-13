@@ -1,8 +1,9 @@
-/* WSL 主机卡(welcome.footer 挂点;src/plugins/wsl/index.tsx)。
-   等宽终端窗体语境下的一体化面板:折叠头一行摘要,展开态发行版行 + 添加弹层。 */
+/* WSL 主机面板(中央 tab kind="wsl";src/plugins/wsl/index.tsx)。
+   一体化容器:头行常显状态摘要,下方本机/远程两段 + 添加弹层。 */
 
 .wsl-card {
-  margin-top: 18px;
+  margin: 16px auto;
+  max-width: 860px;
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-md);
   background: var(--tmd-bg-elevated);
@@ -13,18 +14,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  width: 100%;
   padding: 8px 10px;
-  border: none;
-  background: transparent;
   color: var(--tmd-fg);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
   border-radius: var(--tmd-radius-md);
-}
-.wsl-card-head:hover {
-  background: var(--tmd-bg-hover);
 }
 .wsl-card-status {
   margin-left: auto;
