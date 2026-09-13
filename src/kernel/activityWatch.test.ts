@@ -206,4 +206,19 @@ describe("空闲重绘闸", () => {
     expect(watch.isTurnActive("s")).toBe(false); // 写入 +120s 天花板:必结算,不永挂
     expect(watch.isUnread("s")).toBe(true); // 后台即时报错不丢未读
   });
+  it("纯 busy 轮次:连续两轮开轮都推活动钟(第二轮不再停在上一轮时间,2026-09-13 取舍缝)", () => {
+    const { watch } = makeWatch();
+    watch.onUserWrite("s");
+    expect(watch.onOutput("s", "⎋ footer", true)).toBe(true); // busy 开轮即通知
+    const firstTurnClock = watch.lastActivityAt("s");
+    expect(firstTurnClock).toBeGreaterThan(0);
+
+    vi.advanceTimersByTime(31_000); // busy 自证钟出 30s 窗 → 结算
+    expect(watch.isTurnActive("s")).toBe(false);
+
+    watch.onUserWrite("s"); // 第二轮(同样零文本,只画工作页脚)
+    watch.onOutput("s", "⎋ footer", true);
+    expect(watch.lastActivityAt("s")).toBeGreaterThan(firstTurnClock);
+    expect(watch.isTurnActive("s")).toBe(true);
+  });
 });

@@ -15,9 +15,8 @@
  * (30s)持轮 —— 实采实证(2026-09-13 回放)流式期页脚与内容混片致骨架永远唯一、
  * ticker 永不登记,>2s 流式间隙即假结算且闸 4 拦死不自愈;深思期页脚重绘稀疏
  * (标记帧间隔 >5s)5s 窗也盖不住;工作间隙与空闲页脚字节同构,纯字节流无法两全。
- * ticker 登记限轮次在途,已结算轮永不自愈重燃(I2);busy 同构:awaiting 期 = 应答开始
- * (开轮 + answered,天花板让位)。新骨架接活 ticker 帧流 5s 内且字母近似
- * (skeletonNear)= 粒度换字(59s→1m)继承资格;完工换装不继承。
+ * ticker 登记限轮次在途,已结算轮永不自愈重燃(I2);busy 同构:awaiting 期 = 应答开始(开轮 + answered,天花板让位)。
+ * 新骨架接活 ticker 帧流 5s 内且字母近似(skeletonNear)= 粒度换字(59s→1m)继承资格;完工换装不继承。
  * 守卫 = 未应答写入天花板(awaiting && !answered && 距写入 <120s)。其余闸门:首写闸、轮次开启闸、重绘抑制窗。未读归属锚定「最后 content 帧瞬间」查看态。
  */
 import { skeletonNear } from "./skeletonNear";
@@ -135,8 +134,7 @@ export class ActivityWatch {
     s.lastWriteAt = Date.now();
     s.awaiting = true;
     s.answered = false;
-    /* 新提问 = 新基线:清骨架窗与帧钟,防跨轮次逐字符全等的真实输出被误判家具,
-       也防上一轮活家具的 ticker 登记残留吊住本轮结算。 */
+    /* 新提问 = 新基线:清骨架窗与帧钟(防真实输出误判家具 / 上轮 ticker 残留吊住结算)。 */
     s.skeletons.length = 0;
     s.lastTickerAt = 0;
     s.lastBusyAt = 0;
@@ -151,9 +149,8 @@ export class ActivityWatch {
        (骨架 FIFO 不被重绘尾行占据,I4 幂等)。 */
     if (now - s.lastResizeAt < REDRAW_SUPPRESS_MS) return false;
     if (busy && (s.active || s.awaiting)) {
-      /* busy 帧 = CLI 自证在途:刷自证钟持轮(深思期页脚稀疏,窗宽 30s);awaiting 期即
-         应答开始(开轮,天花板让位;工作页脚是响应界面非输入回显,answered 无条件置位);
-         已结算轮不重燃(闸 4 同构)。 */
+      /* busy 帧 = CLI 自证在途:刷自证钟持轮(深思期页脚稀疏,窗宽 30s);awaiting 期即应答开始
+         (开轮,天花板让位;工作页脚是响应界面非输入回显,answered 无条件置位);已结算轮不重燃(闸 4 同构)。 */
       s.answered = true;
       s.lastBusyAt = now;
       this.ensureWatch();
@@ -161,8 +158,8 @@ export class ActivityWatch {
         s.active = true;
         s.unread = false;
         s.lastOutputViewed = this.host.isViewing(sessionId);
-        /* 纯 busy 轮次(零文本输出只画页脚)活动钟为 0 会被派生层判 none,开轮即推一次(有过 content 的轮次不动,归因不污染)。 */
-        if (s.lastContentAt === 0) s.lastContentAt = now;
+        /* 纯 busy 轮次活动钟停在上一轮会被派生层判 none:开轮即推,判据「钟老于本轮写入」。 */
+        if (s.lastContentAt < s.lastWriteAt) s.lastContentAt = now;
         s.lastNotifyAt = now;
         return true; // 开轮即通知:纯 busy 分片后续分类判 static 会提前 return 丢通知
       }
@@ -200,6 +197,10 @@ export class ActivityWatch {
   /** 对话轮次进行中判定(输出进站起,静默超阈结算止)。 */
   isTurnActive(sessionId: string): boolean {
     return this.sessions.get(sessionId)?.active ?? false;
+  }
+  /** 已锚定判定(首写过);hostWatches 借此把 busyMarks 正则挡在未锚定会话外。 */
+  isAnchored(sessionId: string): boolean {
+    return this.sessions.get(sessionId)?.anchored ?? false;
   }
 
   /** 点开查看 = 已读(蓝 → 灰)。 */
