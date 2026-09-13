@@ -125,7 +125,7 @@ sanitize 链要点(全在 `workspaceWallpaper.ts`,纯函数、双端复用):
 | `:root[data-...]` + 650 行打穿 CSS | 插件自带 CSS(先例 `welcome/tokens.css` 组件内 import) | tmd-cli 已有 `kernel/theme.ts` 在 `:root` 写 token、表面吃 `var(--surface-*)` —— 打穿可以走「覆盖 surface token」而非选择器清单,见决策点 2 |
 | useManagedWallpaperSrc(asset:// + data URL/blob 兜底) | `ipc.assetUrl` + `readLocalImageDataUrl` 已有;视频 blob 兜底需 `readBinaryFileBase64`(已有) | 现有原语基本够 |
 | wallhaven 市场 | v1 建议砍 | 外网依赖 + 域名白名单知识,留 v2 |
-| 流体背景(fluid 模式) | 无对应,v1 砍 | codemoss 的首跑流体背景是 onboarding 资产 |
+| 流体背景(fluid 模式) | **已移植**(2026-09-13,插件内 fluidTones/fluidGlsl/fluidChaseGlsl/fluidShader/FluidBackdrop) | GLSL/运行时逐字移植并保留 MIT 归属(DSH-Transparent-UI-Plugin);主题跟随换 subscribeThemeApplied;mode 三态 off/fluid/image,旧 enabled 字段 sanitize 迁移为 image |
 
 铁律核对:
 

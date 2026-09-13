@@ -1,5 +1,5 @@
 /**
- * wallpaper 插件 —— 工作区背景壁纸(本地图库子集,对齐 codemoss workspace-wallpaper)。
+ * wallpaper 插件 —— 工作区背景:流体着色器(codemoss 移植)+ 本地图库壁纸。
  *
  * 贡献面:
  * 1. contribute("overlay") → WallpaperLayer 沉底背景层(z-index:-1 + token 打穿)。
@@ -20,7 +20,7 @@ export const wallpaperPlugin: Plugin = {
   meta: {
     name: "壁纸",
     abbr: "WP",
-    desc: "工作区背景壁纸：本地图库、模糊暗化与自动轮播",
+    desc: "工作区背景：流体着色器与本地图库壁纸",
     icon: ImagesSquare,
     iconColor: "#7AA2F7",
     category: "feature",

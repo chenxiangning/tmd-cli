@@ -1,0 +1,16 @@
+/* 终端视图宿主样式 —— xterm 元素树的底色锚定。
+ *
+ * xterm.css 给 .xterm-viewport 刷不透明 #000,且 allowTransparency=false 时
+ * 主题背景被拍成不透明再内联到元素上:挂载时刻的快照既盖不住动态 token,
+ * token 变更也不实时。此处把幕布底色统一锚到 --tmd-terminal-bg(内联在
+ * :root,壁纸插件的打穿引擎与主题引擎都实时写它),仅 viewport 单点着色,
+ * 外层透明防双层叠色。宿主 class 由 TerminalView 容器提供。 */
+
+.terminal-view-host .xterm,
+.terminal-view-host .xterm .xterm-screen {
+  background-color: transparent !important;
+}
+
+.terminal-view-host .xterm .xterm-viewport {
+  background-color: var(--tmd-terminal-bg) !important;
+}

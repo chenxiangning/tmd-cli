@@ -1,10 +1,11 @@
 /**
- * 壁纸插件 store —— 快照态 + 自管持久化(~/.tmd-cli/wallpaper.json)。
+ * 壁纸插件 store —— 快照态 + 自管持久化(<config_dir>/wallpaper.json)。
  *
  * 不进 kernel settingsTypes:壁纸域是单插件语义,kernel 零改动
  * (docs/research/codemoss-workspace-wallpaper.md 决策点 4);
  * 持久化走既有 fs 文本原语(fsReadFile/fsWriteFile),受管图库目录
- * ~/.tmd-cli/wallpapers/ 由本插件自持(目录布局知识留插件侧)。
+ * <config_dir>/wallpapers/ 由本插件自持;配置目录本身经 ipc.configDir()
+ * 原语获取(Rust session.rs 是布局 owner,插件不自拼路径)。
  */
 
 import { ipc } from "@kernel/ipc";
@@ -29,13 +30,16 @@ function joinPath(...parts: string[]): string {
   return parts.join("/").replace(/\/{2,}/g, "/");
 }
 
-/** 解析受管路径(用户主目录 → ~/.tmd-cli 布局);失败返回 null,调用方降级。 */
+/** 受管路径拼接(picker 落副本名也用);统一斜杠,Windows 亦兼容。 */
+export { joinPath };
+
+/** 解析受管路径(config_dir 原语取配置目录,布局知识留在 Rust session.rs)。 */
 async function resolvePaths(): Promise<void> {
   if (wallpapersDir) return;
-  const home = await ipc.configHomeDir();
-  if (!home) throw new Error("无法定位用户主目录");
-  wallpapersDir = joinPath(home, ".tmd-cli", "wallpapers");
-  configPath = joinPath(home, ".tmd-cli", "wallpaper.json");
+  const dir = await ipc.configDir();
+  if (!dir) throw new Error("无法定位应用配置目录");
+  wallpapersDir = joinPath(dir, "wallpapers");
+  configPath = joinPath(dir, "wallpaper.json");
 }
 
 /** 受管图库目录(导入时由 picker 调用;幂等创建)。 */

@@ -33,20 +33,32 @@
   pointer-events: none;
 }
 
-/* ── 终端幕布打穿(codemoss 同款先例)──
- * xterm.css 给 .xterm-viewport 刷不透明 #000,且 allowTransparency=false 时
- * 主题背景被拍成不透明再内联到元素上 —— 挂载时刻的快照既盖壁纸、关壁纸后
- * 也不跟随。因此这里无条件(不分 data-wallpaper 开关)把幕布底色改锚到
- * token:变量内联在 :root,开/关/换主题实时生效,无需 xterm 重读主题;
- * 仅 viewport 单点着色,外层透明防双层叠色。 */
-.xterm,
-.xterm .xterm-screen {
-  background-color: transparent !important;
+/* ── 流体背景(codemoss 移植;WebGL 缺失时 canvas 空白,wash 兜底) ── */
+.tmd-fluid {
+  position: absolute;
+  inset: 0;
 }
 
-.xterm .xterm-viewport {
-  background-color: var(--tmd-terminal-bg) !important;
+.tmd-fluid-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
+
+/* 流体预设色点(设置页 segmented 按钮内)。 */
+.wp-fluid-swatch {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.3rem;
+  border-radius: 9999px;
+  border: 1px solid var(--tmd-border);
+  vertical-align: -0.0625rem;
+}
+
+/* 终端幕布底色锚定已归 kernel:src/styles/terminal.css(terminal-view-host
+ * 作用域,viewport 吃 --tmd-terminal-bg token)—— 插件打穿只改 token 值,
+ * 不触碰 kernel 组件样式。见 docs/review/2026-09-13-wallpaper-perf-boundary.md。 */
 
 /* ── 选择壁纸弹窗 ── */
 .wp-picker-toolbar {

@@ -18,12 +18,13 @@ import {
   wallpaperItemName,
   type WallpaperLibraryItem,
 } from "./types";
-import { updateWallpaperState, useWallpaperState, wallpaperLibraryDir } from "./store";
+import {
+  joinPath,
+  updateWallpaperState,
+  useWallpaperState,
+  wallpaperLibraryDir,
+} from "./store";
 import { useWallpaperSrc } from "./useWallpaperSrc";
-
-function joinPath(...parts: string[]): string {
-  return parts.join("/").replace(/\/{2,}/g, "/");
-}
 
 function WallpaperCard({
   item,
@@ -50,7 +51,13 @@ function WallpaperCard({
         aria-label={wallpaperItemName(item)}
         onClick={onSelect}
       >
-        <img src={preview.src} alt="" decoding="async" onError={preview.handleError} />
+        <img
+          src={preview.src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={preview.handleError}
+        />
         {preview.failed ? <span className="wp-picker-broken">{t("无法预览")}</span> : null}
       </button>
       <div className="wp-picker-meta">
@@ -137,7 +144,7 @@ export function WallpaperPicker({ onClose }: { onClose: () => void }) {
     selectedLibraryId?: string,
   ): void => {
     updateWallpaperState({
-      enabled: true,
+      mode: "image",
       library,
       selectedId: selectedLibraryId ?? resolveSelectedId(library, state.selectedId),
     });
@@ -178,7 +185,7 @@ export function WallpaperPicker({ onClose }: { onClose: () => void }) {
       setShowHidden(false);
       return;
     }
-    updateWallpaperState({ enabled: true, selectedId: item.id });
+    updateWallpaperState({ mode: "image", selectedId: item.id });
     onClose();
   };
 

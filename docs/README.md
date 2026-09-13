@@ -136,5 +136,6 @@
 | 2026-09-11 | [活动守望证据分级模型:轮次状态机根治重构(content/tick/static 三级分类 + 证据钟 + 空轮宽限)](superpowers/specs/2026-09-11-activity-watch-evidence-model-design.md) | 已落地(真实 omp 字节流回放验收;08 契约同步修订) |
 | 2026-09-12 | [WSL 支持契约:发行版建模 / 双通道 spawn / 远程内省 / 分组身份 / 降级矩阵](architecture/09-wsl-contract.md) | 生效中(openspec/changes/wsl-workspace-m1 收口;改 wsl 插件/远程会话链路前必读) |
 | 2026-09-13 | [codemoss 工作区壁纸(自定义背景)盘点](research/codemoss-workspace-wallpaper.md) | 已完成(数据模型/渲染层/打穿 CSS/Rust 受管文件全链路 + tmd-cli 移植映射与决策点) |
+| 2026-09-13 | [壁纸/流体插件性能与边界评审](review/2026-09-13-wallpaper-perf-boundary.md) | 已完成(P1×2 随评落地:缩略图懒加载/xterm 底色锚定归 kernel;P2 缓解选项留实测定夺) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

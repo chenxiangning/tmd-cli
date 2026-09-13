@@ -24,6 +24,18 @@ describe("sanitizeWallpaperState", () => {
     expect(sanitizeWallpaperState(42)).toEqual(DEFAULT_WALLPAPER_STATE);
   });
 
+  it("mode 白名单 + 旧 enabled 字段迁移为 image", () => {
+    expect(sanitizeWallpaperState({ mode: "fluid" }).mode).toBe("fluid");
+    expect(sanitizeWallpaperState({ mode: "nonsense" }).mode).toBe("off");
+    expect(sanitizeWallpaperState({ enabled: true }).mode).toBe("image");
+    expect(sanitizeWallpaperState({ enabled: false }).mode).toBe("off");
+    /* 非法 mode 不误吞旧 enabled,按非法处理。 */
+    expect(sanitizeWallpaperState({ mode: 7, enabled: true }).mode).toBe("image");
+    /* 流体字段白名单回落。 */
+    expect(sanitizeWallpaperState({ mode: "fluid", fluidPreset: "nope", fluidMotion: "nope" }))
+      .toMatchObject({ fluidPreset: "mist", fluidMotion: "drift" });
+  });
+
   it("库条目按扩展名白名单过滤并按 id 去重", () => {
     const state = sanitizeWallpaperState({
       library: [

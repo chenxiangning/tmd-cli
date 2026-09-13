@@ -251,7 +251,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
   }, [loadEarlier]);
   return (
     <div className="relative h-full w-full">
-      <div ref={containerRef} className="h-full w-full" />
+      <div ref={containerRef} className="terminal-view-host h-full w-full" />
       {loadProgress !== null && (
         /* 加载遮罩:回放期显真实解析进度,流式期显真实接收量;输出静默即撤(terminalReplay.ts)。 */
         <div

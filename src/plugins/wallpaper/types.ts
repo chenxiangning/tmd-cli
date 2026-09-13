@@ -6,6 +6,26 @@
  */
 
 import type React from "react";
+import {
+  DEFAULT_FLUID_MOTION,
+  DEFAULT_FLUID_PRESET,
+  isFluidMotionId,
+  isFluidPresetId,
+  type FluidMotionId,
+  type FluidPresetId,
+} from "./fluidTones";
+
+/** 背景模式:关 / 流体着色器 / 本地图库图片。 */
+export type WallpaperMode = "off" | "fluid" | "image";
+
+export const WALLPAPER_MODES: readonly WallpaperMode[] = ["off", "fluid", "image"];
+
+export function isWallpaperMode(value: unknown): value is WallpaperMode {
+  return (
+    typeof value === "string" &&
+    (WALLPAPER_MODES as readonly string[]).includes(value)
+  );
+}
 
 /** 铺放方式;center 映射 CSS object-fit:none(原尺寸居中)。 */
 export type WallpaperFit = "cover" | "contain" | "center" | "fill";
@@ -33,7 +53,10 @@ export type WallpaperLibraryItem = {
 };
 
 export type WallpaperState = {
-  enabled: boolean;
+  mode: WallpaperMode;
+  /** 流体模式参数(preset/motion 与 codemoss 同值互通)。 */
+  fluidPreset: FluidPresetId;
+  fluidMotion: FluidMotionId;
   library: WallpaperLibraryItem[];
   selectedId: string | null;
   /** 媒体模糊(px,0-40):加在壁纸 img 的 filter 上,不动 chrome backdrop。 */
@@ -47,7 +70,9 @@ export type WallpaperState = {
 };
 
 export const DEFAULT_WALLPAPER_STATE: WallpaperState = {
-  enabled: false,
+  mode: "off",
+  fluidPreset: DEFAULT_FLUID_PRESET,
+  fluidMotion: DEFAULT_FLUID_MOTION,
   library: [],
   selectedId: null,
   blur: 0,
@@ -148,13 +173,25 @@ function sanitizeRotationMinutes(value: unknown): WallpaperRotationMinutes {
     : DEFAULT_WALLPAPER_ROTATION_MINUTES;
 }
 
-/** 整体清洗:任意畸形输入(旧存储/手改 JSON)回落安全默认,绝不抛出。 */
+/** 整体清洗:任意畸形输入(旧存储/手改 JSON)回落安全默认,绝不抛出。
+ *  迁移:旧字段 enabled(首版形态)→ mode=「image」;mode 非法时同此。 */
 export function sanitizeWallpaperState(value: unknown): WallpaperState {
   if (!value || typeof value !== "object") return { ...DEFAULT_WALLPAPER_STATE };
-  const raw = value as Partial<WallpaperState>;
+  const raw = value as Partial<WallpaperState> & { enabled?: unknown };
   const library = sanitizeWallpaperLibrary(raw.library);
+  const mode = isWallpaperMode(raw.mode)
+    ? raw.mode
+    : raw.enabled === true
+      ? "image"
+      : "off";
   return {
-    enabled: raw.enabled === true,
+    mode,
+    fluidPreset: isFluidPresetId(raw.fluidPreset)
+      ? raw.fluidPreset
+      : DEFAULT_FLUID_PRESET,
+    fluidMotion: isFluidMotionId(raw.fluidMotion)
+      ? raw.fluidMotion
+      : DEFAULT_FLUID_MOTION,
     library,
     selectedId: resolveSelectedId(library, raw.selectedId ?? null),
     blur: clampInt(raw.blur, WALLPAPER_BLUR_MIN, WALLPAPER_BLUR_MAX, 0),

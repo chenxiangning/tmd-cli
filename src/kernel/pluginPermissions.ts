@@ -67,6 +67,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
 
   /* 工作区配置目录(不含全局 settings 盘文件 —— 那是内核保留)。 */
   configHomeDir: "ipc.config",
+  configDir: "ipc.config",
   configDefaultWorkspaceRoot: "ipc.config",
   configReadWorkspaces: "ipc.config",
   configWriteWorkspaces: "ipc.config",

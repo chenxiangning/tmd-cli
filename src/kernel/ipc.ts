@@ -516,6 +516,8 @@ export const ipc = {
    *  路径不存在视为成功(幂等)。 */
   fsRemovePath: (path: string) => invoke<void>("fs_remove_path", { path }),
   configHomeDir: () => invoke<string>("config_home_dir"),
+  /** 应用配置目录(~/.tmd-cli),布局 owner 是 Rust session.rs;插件勿自拼。 */
+  configDir: () => invoke<string>("config_dir"),
   /** 默认工作区根目录(~/.tmd-cli/default,Rust 侧已确保存在,mac/win 兼容)。 */
   configDefaultWorkspaceRoot: () =>
     invoke<string>("config_default_workspace_root"),

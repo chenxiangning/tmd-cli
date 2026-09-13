@@ -69,6 +69,12 @@ fn config_home_dir() -> String {
     session::home_dir().to_string_lossy().to_string()
 }
 
+/// 应用配置目录(~/.tmd-cli):布局 owner 是 session.rs,插件不应自拼。
+#[tauri::command]
+fn config_dir() -> String {
+    session::config_dir().to_string_lossy().to_string()
+}
+
 #[tauri::command]
 fn config_default_workspace_root() -> String {
     session::default_workspace_root()
@@ -227,6 +233,7 @@ pub fn run() {
             sqlite::sqlite_query,
             sqlite::sqlite_execute,
             config_home_dir,
+            config_dir,
             config_default_workspace_root,
             config_read_workspaces,
             config_write_workspaces,
