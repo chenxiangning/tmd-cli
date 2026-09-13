@@ -4,6 +4,22 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.1.7] - 2026-09-13
+
+### 新增
+
+- 工作区壁纸插件:本地图库受管副本 + 表面 token 打穿 + xterm 透底,流体背景 GLSL 五运动场入插件(mode 三态)与缩略图懒加载,通用 fs_copy_file / config_dir 原语入 kernel
+- omp 历史会话预热接管秒开:kernel acquireResume / 影子会话原语,注入 /resume 热切换,出生文件锁定窄删,特征熔断降级;注入派发即早激活,切换不再压在整段 resume 渲染之后(契约见 docs/architecture/10-omp-prewarm-resume.md)
+
+### 修复
+
+- 长轮次假结算根治:ticker 帧流持轮替换 tick 证据钟,busyMarks 自证钟持轮治混片形态 ticker 永不登记,纯 busy 第二轮开轮同推活动钟修取舍缝
+- 壁纸透视根治:elevated 移出打穿表保浮层实底,设置面板改壁纸提层透纯壁纸实时跟手,插排页透视并入提层方案(壁纸40/titlebar45/插排50/设置100);全局审查收尾——退出冲刷防丢改动、id 黑名单防轮播注入、浮层定位补下限
+- 设置拉盘合并:引入盘上基线,取消置顶/归档的删除意图得以落盘;基线推进修正——他实例新增不入基线、存活改动保留旧戳,二次写盘不再误删
+- 会话行选中底色纳入扎点列,置顶钮改绝对定位叠行右缘让位区
+- 会话树参考线由圆角实线改直角虚线,规避与常见客户端形态撞车
+- WSL 孤儿工作区:来源插件拔出后不再伪装本地显示,旧版 UNC 形态纳入孤儿隐藏并补元数据回填;添加工作区弹窗改走 DialogShell 居中并适配双主题,改锚定按钮右侧滑出浮层
+
 ## [0.1.6] - 2026-09-12
 
 ### 新增
@@ -204,6 +220,7 @@
 - SSH 一等会话:远程终端 + SFTP 文件树 + 端口转发
 - 插件市场、设置面板、网络代理
 
+[0.1.7]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.7
 [0.1.6]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.6
 [0.1.5]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.5
 [0.1.4]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.4
