@@ -6,7 +6,7 @@ use serde::Deserialize;
 use git2::{BranchType, Repository};
 
 use super::remote_args::{first_remote, upstream_split};
-use super::remote_ops::{exec_git, non_empty_branch};
+use super::remote_ops::{exec_git, exec_pull, non_empty_branch};
 use super::GitError;
 
 /* ── 远端对话框请求(op 分派;字段 camelCase 对齐 kernel/ipc 契约)── */
@@ -51,7 +51,11 @@ pub fn run_request(repo: &Repository, cwd: &str, req: RemoteRequest) -> Result<S
         "push" => push_request_args(repo, &req)?,
         other => return Err(GitError::empty(format!("未知远端操作: {other}"))),
     };
-    exec_git(repo, cwd, &args)
+    if req.op == "pull" {
+        exec_pull(repo, cwd, &args)
+    } else {
+        exec_git(repo, cwd, &args)
+    }
 }
 
 /// fetch:remote 空 = 全部远端(保留 --prune,清理已删远端分支的引用);

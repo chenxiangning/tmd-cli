@@ -94,7 +94,45 @@ pub fn run(
             }
         }
     }
-    exec_git(repo, cwd, &args)
+    match op {
+        RemoteOp::Pull => exec_pull(repo, cwd, &args),
+        _ => exec_git(repo, cwd, &args),
+    }
+}
+
+/// pull 专用执行:git ≥2.27 在 divergent 且未配置 pull.rebase 时直接 fatal
+/// ("Need to specify how to reconcile divergent branches")。此处兜底:
+/// --rebase 重试(无冲突 = 本地提交接到远端之后,直接完成更新);撞冲突则
+/// abort 恢复原状并明确报错,不把半途 rebase 态留在工作区。fetch 引用刷新
+/// (非当前分支)与显式策略错误不在此列,原样透传。
+pub(super) fn exec_pull(repo: &Repository, cwd: &str, args: &[String]) -> Result<String, GitError> {
+    match exec_git(repo, cwd, args) {
+        Ok(out) => Ok(out),
+        Err(GitError::Shell(s)) if s.contains("divergent branches") => {
+            let mut retry = args.to_vec();
+            retry.insert(1, "--rebase".into());
+            match exec_git(repo, cwd, &retry) {
+                Ok(out) => Ok(out),
+                Err(GitError::Shell(s2)) if s2.contains("CONFLICT") => {
+                    let _ = exec_git(repo, cwd, &["rebase".into(), "--abort".into()]);
+                    // abort 基本必成(工作区在 rebase 启动时已被 git 保证干净);
+                    // 万一残留中间态,文案必须如实,引导用户手动 abort。
+                    let aborted = !std::path::Path::new(cwd).join(".git/rebase-merge").exists();
+                    if aborted {
+                        Err(GitError::empty(
+                            "拉取有冲突:已中止并恢复原状,未改动任何文件;请到幕布终端执行 git pull 自行解决冲突",
+                        ))
+                    } else {
+                        Err(GitError::empty(
+                            "拉取有冲突,自动恢复未完成:本地提交与改动都还在,请到幕布终端执行 git rebase --abort 后自行处理",
+                        ))
+                    }
+                }
+                Err(e) => Err(e),
+            }
+        }
+        Err(e) => Err(e),
+    }
 }
 
 /// 组装并执行 git 命令:非交互环境 + 总时长上限 + 双管道排空。
