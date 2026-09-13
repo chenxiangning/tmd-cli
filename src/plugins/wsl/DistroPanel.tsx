@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import type { SshHostConfig, WslDirEntry, WslDistro, WslEngineProbe } from "@kernel/ipc";
+import type { CliProfile } from "@kernel/cliProfile";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
@@ -73,9 +74,20 @@ export function DistroPanel({
       .catch((e) => setDirErr(e instanceof Error ? e.message : String(e)));
   };
 
+  /* bin → 品牌图标:cli profile 自声明 renderIcon(图标随 profile 走,不另设表)。 */
+  const probeIcons: Record<string, NonNullable<CliProfile["renderIcon"]>> = Object.fromEntries(
+    host.getCliProfiles().flatMap((p) => (p.renderIcon ? [[p.command, p.renderIcon]] : [])),
+  );
+
   return (
     <div className="wsl-distro-panel">
-      <EngineProbeSection probes={probes} probeErr={probeErr} pickedEngine={pickedEngine} onPick={onPickEngine} />
+      <EngineProbeSection
+        probes={probes}
+        probeErr={probeErr}
+        pickedEngine={pickedEngine}
+        onPick={onPickEngine}
+        icons={probeIcons}
+      />
       <DirBrowserSection dir={dir} entries={entries} dirErr={dirErr} onLoadDir={loadDir} />
     </div>
   );
@@ -87,11 +99,13 @@ function EngineProbeSection({
   probeErr,
   pickedEngine,
   onPick,
+  icons,
 }: {
   probes: WslEngineProbe[] | null;
   probeErr: string | null;
   pickedEngine: string | null;
   onPick: (bin: string | null) => void;
+  icons: Record<string, NonNullable<CliProfile["renderIcon"]>>;
 }) {
   return (
     <div className="wsl-panel-sec">
@@ -105,21 +119,32 @@ function EngineProbeSection({
         <Hl text={t("【点选】检出的引擎行,「SSH 进入」即以该【CLI】启动;不选则进【交互 shell】。")} />
       </div>
       {probeErr && <div className="wsl-remote-err">{probeErr}</div>}
-      {probes?.map((p) => (
-        <button
-          key={p.bin}
-          type="button"
-          className={`wsl-probe-row ${p.path ? "" : "off"} ${pickedEngine === p.bin ? "on" : ""}`}
-          disabled={!p.path}
-          onClick={() => onPick(pickedEngine === p.bin ? null : p.bin)}
-          title={p.path ?? t("未检出")}
-          aria-label={t("选中 {bin} 作为会话引擎", { bin: p.bin })}
-        >
-          <span className={`wsl-dot ${p.path ? "ok" : ""}`} aria-hidden />
-          <span>{p.bin}</span>
-          <span className="wsl-probe-path">{p.path ?? t("未检出")}</span>
-        </button>
-      ))}
+      <div className="wsl-probe-grid">
+        {probes?.map((p) => {
+          const icon = icons[p.bin];
+          return (
+            <button
+              key={p.bin}
+              type="button"
+              className={`wsl-probe-row ${p.path ? "" : "off"} ${pickedEngine === p.bin ? "on" : ""}`}
+              disabled={!p.path}
+              onClick={() => onPick(pickedEngine === p.bin ? null : p.bin)}
+              title={p.path ?? t("未检出")}
+              aria-label={t("选中 {bin} 作为会话引擎", { bin: p.bin })}
+            >
+              {icon ? (
+                <span className="wsl-probe-icon" aria-hidden>
+                  {icon("0.75rem")}
+                </span>
+              ) : (
+                <span className={`wsl-dot ${p.path ? "ok" : ""}`} aria-hidden />
+              )}
+              <span>{p.bin}</span>
+              <span className="wsl-probe-path">{p.path ?? t("未检出")}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

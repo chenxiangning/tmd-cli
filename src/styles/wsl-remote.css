@@ -76,6 +76,11 @@
   font-size: 11px;
   color: var(--tmd-fg-subtle);
 }
+.wsl-probe-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 14px;
+}
 .wsl-probe-row {
   display: flex;
   align-items: center;
@@ -83,6 +88,12 @@
   padding: 2px 4px;
   border-radius: 4px;
   text-align: left;
+}
+.wsl-probe-icon {
+  display: inline-flex;
+  flex: none;
+  width: 0.875rem;
+  justify-content: center;
 }
 .wsl-probe-row:hover:not(:disabled) {
   background: var(--tmd-bg-hover);
@@ -156,8 +167,8 @@
 }
 .wsl-host-grid {
   display: grid;
-  grid-template-columns: 1fr 64px;
-  gap: 4px 8px;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 4px 10px;
 }
 .wsl-host-grid label {
   display: flex;
