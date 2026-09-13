@@ -88,6 +88,34 @@ pub fn create_dir(path: &str) -> Result<(), String> {
     })
 }
 
+/// 复制上限:资源入库通道(壁纸受管副本等),远高于文本保存 16MB;
+/// 拦截误传的影片/镜像级巨物。
+const MAX_COPY_BYTES: u64 = 256 * 1024 * 1024;
+
+/// 复制文件(资源入库通道,如壁纸受管副本)。新建语义:目标已存在即报错,
+/// 绝不静默覆写;父目录须已存在(建目录走 create_dir,不在复制里隐式建)。
+pub fn copy_file(src: &str, dst: &str) -> Result<(), String> {
+    validate_target(src)?;
+    validate_target(dst)?;
+    let from = Path::new(src);
+    if !from.is_file() {
+        return Err("源路径不是文件".to_string());
+    }
+    let to = Path::new(dst);
+    if to.exists() {
+        return Err("同名文件或文件夹已存在".to_string());
+    }
+    let meta = fs::metadata(from).map_err(|e| format!("读取文件信息失败: {e}"))?;
+    if meta.len() > MAX_COPY_BYTES {
+        return Err(format!(
+            "文件超过 {}MB,拒绝复制",
+            MAX_COPY_BYTES / 1024 / 1024
+        ));
+    }
+    fs::copy(from, to).map_err(|e| format!("复制文件失败: {e}"))?;
+    Ok(())
+}
+
 /// 重命名(同目录内改名)。返回新绝对路径;目标已存在时报错(不静默覆盖)。
 pub fn rename_entry(path: &str, new_name: &str) -> Result<String, String> {
     validate_target(path)?;
@@ -185,6 +213,11 @@ pub(crate) async fn fs_trash_entry(path: String) -> Result<(), String> {
 #[tauri::command]
 pub(crate) async fn fs_reveal_in_file_manager(path: String) -> Result<(), String> {
     crate::commands_fs::spawn_fs(move || reveal_in_file_manager(&path)).await
+}
+
+#[tauri::command]
+pub(crate) async fn fs_copy_file(src: String, dst: String) -> Result<(), String> {
+    crate::commands_fs::spawn_fs(move || copy_file(&src, &dst)).await
 }
 
 #[cfg(test)]

@@ -120,3 +120,55 @@ fn reveal_拒绝不存在的路径() {
     assert!(reveal_in_file_manager(root.join("nope.txt").to_str().unwrap()).is_err());
     let _ = fs::remove_dir_all(&root);
 }
+
+#[test]
+fn copy_file_字节一致且拒绝覆写已有目标() {
+    let root = temp_root("copy");
+    fs::write(root.join("src.png"), b"png-bytes").unwrap();
+
+    let dst = root.join("dst.png");
+    copy_file(
+        root.join("src.png").to_str().unwrap(),
+        dst.to_str().unwrap(),
+    )
+    .unwrap();
+    assert_eq!(fs::read(&dst).unwrap(), b"png-bytes");
+
+    // 新建语义:目标已存在即报错,原内容不被覆写
+    fs::write(root.join("src.png"), b"changed").unwrap();
+    let err = copy_file(
+        root.join("src.png").to_str().unwrap(),
+        dst.to_str().unwrap(),
+    )
+    .unwrap_err();
+    assert!(err.contains("已存在"), "覆写应报已存在: {err}");
+    assert_eq!(fs::read(&dst).unwrap(), b"png-bytes");
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn copy_file_拒绝目录源_相对路径与_git_段() {
+    let root = temp_root("copy-guard");
+    let git_dir = root.join(".git");
+    fs::create_dir_all(&git_dir).unwrap();
+    fs::write(root.join("a.txt"), "a").unwrap();
+
+    // 源是目录
+    assert!(copy_file(root.to_str().unwrap(), root.join("x").to_str().unwrap()).is_err());
+    // 相对路径
+    assert!(copy_file("a.txt", root.join("x").to_str().unwrap()).is_err());
+    assert!(copy_file(root.join("a.txt").to_str().unwrap(), "x.txt").is_err());
+    // .git 段(任一侧)
+    assert!(copy_file(
+        root.join("a.txt").to_str().unwrap(),
+        git_dir.join("x").to_str().unwrap()
+    )
+    .is_err());
+    // 目标父目录不存在
+    assert!(copy_file(
+        root.join("a.txt").to_str().unwrap(),
+        root.join("no-dir/x").to_str().unwrap()
+    )
+    .is_err());
+    let _ = fs::remove_dir_all(&root);
+}

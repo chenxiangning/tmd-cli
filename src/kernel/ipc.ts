@@ -348,6 +348,8 @@ export const ipc = {
   /** 在系统文件管理器中显示并选中(macOS Finder / Win 资源管理器)。 */
   fsRevealInFileManager: (path: string) =>
     invoke<void>("fs_reveal_in_file_manager", { path }),
+  /** 复制文件(资源入库通道,如壁纸受管副本);新建语义,目标已存在报错,256MB 上限。 */
+  fsCopyFile: (src: string, dst: string) => invoke<void>("fs_copy_file", { src, dst }),
   /** 本地图片 → data URL(markdown 预览 asset:// 失败回退;Rust 侧白名单+大小闸)。 */
   readLocalImageDataUrl: (path: string) =>
     invoke<string>("read_local_image_data_url", { path }),
@@ -773,6 +775,20 @@ export function pickDirectory(title: string): Promise<string | null> {
 /** 文件选择对话框(上传等需要本地文件路径的场景);取消返回 null。 */
 export function pickFile(title: string): Promise<string | null> {
   return openDialog({ directory: false, multiple: false, title });
+}
+
+/** 多选本地图片对话框(壁纸库导入);取消返回空数组。 */
+export async function pickImageFiles(title: string): Promise<string[]> {
+  const selection = await openDialog({
+    directory: false,
+    multiple: true,
+    title,
+    filters: [
+      { name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif", "bmp"] },
+    ],
+  });
+  if (Array.isArray(selection)) return selection;
+  return typeof selection === "string" ? [selection] : [];
 }
 
 /** 系统默认浏览器打开外链;浏览器 dev 无 shell 插件时回退 window.open。 */

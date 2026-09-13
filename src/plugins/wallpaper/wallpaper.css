@@ -1,0 +1,250 @@
+/* wallpaper 插件样式 —— 沉底背景层 + 选择弹窗网格 + 设置区壁纸卡。
+ * 打穿的表面 token 由 punch.ts 在 :root 内联覆盖,此处只有层与弹窗自身。 */
+
+/* ── 背景层:fixed 沉到一切内容之下 ── */
+.tmd-wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--tmd-bg-base);
+}
+
+.tmd-wallpaper-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 基础 wash:主题底色薄罩,给薄纱 chrome 上的文字垫对比(punch 写变量)。 */
+.tmd-wallpaper-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--tmd-wallpaper-wash, transparent);
+}
+
+.tmd-wallpaper-darken {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ── 终端幕布打穿(codemoss 同款先例)──
+ * xterm.css 给 .xterm-viewport 刷不透明 #000,且 allowTransparency=false 时
+ * 主题背景被拍成不透明再内联到元素上 —— 挂载时刻的快照既盖壁纸、关壁纸后
+ * 也不跟随。因此这里无条件(不分 data-wallpaper 开关)把幕布底色改锚到
+ * token:变量内联在 :root,开/关/换主题实时生效,无需 xterm 重读主题;
+ * 仅 viewport 单点着色,外层透明防双层叠色。 */
+.xterm,
+.xterm .xterm-screen {
+  background-color: transparent !important;
+}
+
+.xterm .xterm-viewport {
+  background-color: var(--tmd-terminal-bg) !important;
+}
+
+/* ── 选择壁纸弹窗 ── */
+.wp-picker-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0 0.5rem;
+  font-size: 0.75rem;
+  color: var(--tmd-fg-muted);
+}
+
+.wp-picker-toggle-hidden {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.75rem;
+  color: var(--tmd-accent);
+  cursor: pointer;
+}
+
+.wp-picker-toggle-hidden:hover {
+  text-decoration: underline;
+}
+
+.wp-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 0.75rem;
+  max-height: min(52vh, 460px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.wp-picker-card {
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  overflow: hidden;
+  background: var(--tmd-bg-elevated);
+}
+
+.wp-picker-card.is-active {
+  border-color: var(--tmd-accent);
+  box-shadow: 0 0 0 1px var(--tmd-accent);
+}
+
+.wp-picker-card.is-hidden {
+  opacity: 0.55;
+}
+
+.wp-picker-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  padding: 0;
+  border: none;
+  background: var(--tmd-bg-sunken);
+  cursor: pointer;
+  position: relative;
+}
+
+.wp-picker-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.wp-picker-broken {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-subtle);
+}
+
+.wp-picker-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem;
+  padding: 0.375rem 0.5rem;
+}
+
+.wp-picker-name {
+  font-size: 0.6875rem;
+  color: var(--tmd-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wp-picker-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.wp-picker-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1875rem;
+  border: none;
+  border-radius: var(--tmd-radius-sm);
+  background: none;
+  color: var(--tmd-fg-muted);
+  cursor: pointer;
+}
+
+.wp-picker-act:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.wp-picker-act--danger:hover {
+  color: var(--tmd-err);
+}
+
+.wp-picker-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--tmd-fg-muted);
+}
+
+.wp-picker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.wp-picker-error {
+  font-size: 0.6875rem;
+  color: var(--tmd-err);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wp-picker-import {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border: none;
+  border-radius: var(--tmd-radius-sm);
+  background: var(--tmd-accent);
+  color: var(--tmd-accent-fg);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.wp-picker-import:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.wp-picker-import:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── 设置区「选择壁纸」按钮(缩略图 + 文案) ── */
+.wp-settings-choose {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.625rem 0.25rem 0.25rem;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  background: var(--tmd-bg-input);
+  color: var(--tmd-fg);
+  font-size: 0.75rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.wp-settings-choose:hover {
+  background: var(--tmd-bg-hover);
+}
+
+.wp-settings-choose img {
+  width: 2.25rem;
+  height: 1.5rem;
+  object-fit: cover;
+  border-radius: calc(var(--tmd-radius-sm) - 2px);
+  display: block;
+}
+
+.wp-settings-choose > svg {
+  width: 2.25rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tmd-bg-sunken);
+  border-radius: calc(var(--tmd-radius-sm) - 2px);
+}

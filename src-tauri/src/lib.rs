@@ -172,6 +172,7 @@ pub fn run() {
             fs_edit::fs_rename_entry,
             fs_edit::fs_trash_entry,
             fs_edit::fs_reveal_in_file_manager,
+            fs_edit::fs_copy_file,
             md5_hex,
             commands_fs::read_local_image_data_url,
             commands_fs::read_binary_file_base64,

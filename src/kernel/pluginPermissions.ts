@@ -63,6 +63,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   fsTrashEntry: "ipc.fs.write",
   fsRemovePath: "ipc.fs.write",
   fsRevealInFileManager: "ipc.fs.write",
+  fsCopyFile: "ipc.fs.write",
 
   /* 工作区配置目录(不含全局 settings 盘文件 —— 那是内核保留)。 */
   configHomeDir: "ipc.config",
