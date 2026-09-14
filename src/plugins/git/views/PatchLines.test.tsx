@@ -39,17 +39,14 @@ describe("PatchLines", () => {
     expect(html.match(/git-split-gslot-empty/g)?.length).toBe(1);
   });
 
-  it("split:改动块边框 = 槽列括号框 + 内容列首尾横线", () => {
+  it("split:改动块边框 = 槽列块底 + 三面贯通首尾横线", () => {
     const html = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
-    // mod(first)+ add(last)两行进块框;ctx 不入框
+    // 槽列块底:mod + add 两行(ctx 不入块)
     expect(html.match(/git-split-frame(?!-)/g)?.length).toBe(2);
-    // 块首 = mod 行:框顶 + 两列顶横线;块尾 = add 行:框底 + 列底横线
-    expect(html).toContain("git-split-frame-top");
-    expect(html).toContain("git-split-frame-bot");
-    expect(html.match(/git-split-bd-top/g)?.length).toBe(2); // mod 行左右两格
-    expect(html.match(/git-split-bd-bot/g)?.length).toBe(2); // add 行左右两格
+    // 块首(mod 行)/块尾(add 行)横线三面贯通:左内容 + 槽 + 右内容 = 各 3
+    expect(html.match(/git-split-bd-top/g)?.length).toBe(3);
+    expect(html.match(/git-split-bd-bot/g)?.length).toBe(3);
   });
-
   it("默认 mode = unified", () => {
     const html = renderToStaticMarkup(createElement(PatchLines, { text: PATCH }));
     expect(html).toContain(">21<");

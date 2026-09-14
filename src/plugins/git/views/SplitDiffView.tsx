@@ -75,15 +75,10 @@ function blockMap(rows: SplitRow[]): BlockTag[] {
   return out;
 }
 
-/** 槽列块括号框 class(块行恒有左右 accent 边;首/尾补顶/底线与圆角)。 */
-function frameCls(tag: BlockTag): string {
-  if (!tag) return "";
-  const top = tag.edge === "first" || tag.edge === "single";
-  const bot = tag.edge === "last" || tag.edge === "single";
-  return `git-split-frame${top ? " git-split-frame-top" : ""}${bot ? " git-split-frame-bot" : ""}`;
-}
+/** 槽列块底 class:accent 淡染,与内容列色带同块同范围。 */
+const frameCls = (tag: BlockTag): string => (tag ? "git-split-frame" : "");
 
-/** 内容列块横线 class(块首顶线 / 块尾底线 / 单行块两根)。 */
+/** 块首/块尾横线 class:三面(左内容/槽/右内容)同值同位,横线贯通不割裂。 */
 function lineCls(tag: BlockTag): string {
   if (!tag) return "";
   const top = tag.edge === "first" || tag.edge === "single";
@@ -149,7 +144,7 @@ function GridPairRow({ row, tag }: { row: Extract<SplitRow, { kind: "pair" }>; t
           <span className={CONTENT_WRAP_CLS}>{row.left?.text ?? ""}</span>
         )}
       </div>
-      <div className={`git-split-gutter-col ${frameCls(tag)} ${phClass(kind)}`}>
+      <div className={`git-split-gutter-col ${lineCls(tag)} ${frameCls(tag)} ${phClass(kind)}`}>
         <SlotGutter left={row.left} right={row.right} chg={kind !== "ctx"} />
       </div>
       <div className={`flex min-w-0 px-2 ${bandFor(row.right)} ${bd}`}>
@@ -232,7 +227,7 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
         row.kind === "header" ? (
           <div key={`h:${patchRowKey(row.row)}`} className={row.row.kind === "hunk" ? HEADER_CLS.hunk : HEADER_CLS.meta} aria-hidden />
         ) : (
-          <div key={`g:${patchRowKey(row.left ?? row.right!)}`} className={`git-split-gutter-col ${frameCls(blocks[i])} ${phClass(pairKind(row.left, row.right))}`}>
+          <div key={`g:${patchRowKey(row.left ?? row.right!)}`} className={`git-split-gutter-col ${lineCls(blocks[i])} ${frameCls(blocks[i])} ${phClass(pairKind(row.left, row.right))}`}>
             <SlotGutter left={row.left} right={row.right} chg={pairKind(row.left, row.right) !== "ctx"} />
           </div>
         ),
