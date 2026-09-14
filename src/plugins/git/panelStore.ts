@@ -26,6 +26,8 @@ interface GitPanelState {
   view: GitViewMode;
   layout: FileListLayout;
   diffMode: GitDiffMode;
+  /** diff 正文自动换行(落盘 git 域;默认开)。 */
+  diffWrap: boolean;
   /** 顶栏视图下拉「刷新」→ 面板全量刷新。 */
   refreshNonce: number;
   aggregate: GitAggregate;
@@ -48,6 +50,7 @@ const state: GitPanelState = {
   view: "diff",
   layout: "flat",
   diffMode: "unified",
+  diffWrap: true,
   refreshNonce: 0,
   aggregate: { totals: null, fileCount: 0 },
   remoteMeta: null,
@@ -79,9 +82,15 @@ export function setGitDiffMode(diffMode: GitDiffMode): void {
   emit();
 }
 
+export function setGitDiffWrap(diffWrap: boolean): void {
+  state.diffWrap = diffWrap;
+  persistPanelPrefs({ diffWrap });
+  emit();
+}
+
 /** 视图/布局/diff 模式切换即写 settings(git 编辑域,settings.json 落盘);setter 是唯一写入口,水合不回写。 */
 function persistPanelPrefs(
-  patch: Partial<{ view: GitViewMode; layout: FileListLayout; diffMode: GitDiffMode }>,
+  patch: Partial<{ view: GitViewMode; layout: FileListLayout; diffMode: GitDiffMode; diffWrap: boolean }>,
 ): void {
   updateSettings({ git: { ...getSettingsState().settings.git, ...patch } });
 }
@@ -91,6 +100,7 @@ export function hydrateGitPanelPrefs(): void {
   state.view = getSettingsState().settings.git.view;
   state.layout = getSettingsState().settings.git.layout;
   state.diffMode = getSettingsState().settings.git.diffMode;
+  state.diffWrap = getSettingsState().settings.git.diffWrap;
 }
 
 /** 顶栏视图下拉「刷新」行 → 面板全量刷新(useGitPanelData 监听 nonce)。 */
@@ -146,12 +156,14 @@ export function clearRemoteDialogRequest(): void {
 }
 
 export function useGitPanelState(): GitPanelState {
+  const getSnapshot = () => snapshot;
   return useSyncExternalStore(
     (cb) => {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
-    () => snapshot,
+    getSnapshot,
+    getSnapshot, // SSR(renderToStaticMarkup 测试)同源快照
   );
 }
 

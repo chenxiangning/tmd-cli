@@ -8,6 +8,7 @@
 import { useMemo } from "react";
 
 import type { GitDiffMode } from "@kernel/settings";
+import { useGitPanelState } from "../panelStore";
 import { buildSplitRows, parsePatch, type PatchRow, type SplitRow } from "./patchModel";
 
 /** 行底色/字色:单栏整行用,双栏按格用。 */
@@ -21,7 +22,8 @@ const ROW_CLS: Record<PatchRow["kind"], string> = {
 
 const GUTTER_CLS =
   "min-w-[2.5rem] shrink-0 select-none pr-1.5 text-right tabular-nums text-(--tmd-fg-faint)";
-const CONTENT_CLS = "min-w-0 flex-1 whitespace-pre-wrap break-all pl-2";
+const CONTENT_WRAP_CLS = "min-w-0 flex-1 whitespace-pre-wrap break-all pl-2";
+const CONTENT_NOWRAP_CLS = "min-w-0 flex-1 whitespace-pre pl-2";
 
 /** diff 行稳定 key:种类 + 旧/新行号 + 内容(同号重行以内容区分,索引 key 清零用)。 */
 function patchRowKey(row: PatchRow): string {
@@ -37,30 +39,29 @@ function Gutter({ oldLine, newLine }: { oldLine: number | null; newLine: number 
     </>
   );
 }
-function UnifiedRow({ row }: { row: PatchRow }) {
+function UnifiedRow({ row, wrap }: { row: PatchRow; wrap: boolean }) {
   if (row.kind === "hunk") return <div className={ROW_CLS.hunk}>{row.text}</div>;
   return (
     <div className={`flex [content-visibility:auto] [contain-intrinsic-size:auto_1em] ${ROW_CLS[row.kind]}`}>
       <Gutter oldLine={row.oldLine} newLine={row.newLine} />
-      <span className={CONTENT_CLS}>{row.text}</span>
+      <span className={wrap ? CONTENT_WRAP_CLS : CONTENT_NOWRAP_CLS}>{row.text}</span>
     </div>
   );
 }
 
 /** 双栏半格:有行 → 本侧行号(左旧右新) + 正文;空侧 → 斜纹占位。 */
-function SplitCell({ row, side }: { row: PatchRow | null; side: "left" | "right" }) {
+function SplitCell({ row, side, wrap }: { row: PatchRow | null; side: "left" | "right"; wrap: boolean }) {
   const border = side === "left" ? "border-r border-(color:--tmd-border)" : "";
   if (!row) return <div className={`diff-split-empty ${border}`} aria-hidden />;
   const num = side === "left" ? row.oldLine : row.newLine;
   return (
     <div className={`flex ${ROW_CLS[row.kind]} ${border}`}>
       <span className={GUTTER_CLS}>{num ?? ""}</span>
-      <span className={CONTENT_CLS}>{row.text}</span>
+      <span className={wrap ? CONTENT_WRAP_CLS : CONTENT_NOWRAP_CLS}>{row.text}</span>
     </div>
   );
 }
-
-function SplitRows({ rows }: { rows: SplitRow[] }) {
+function SplitRows({ rows, wrap }: { rows: SplitRow[]; wrap: boolean }) {
   return (
     <>
       {rows.map((row) =>
@@ -73,15 +74,14 @@ function SplitRows({ rows }: { rows: SplitRow[] }) {
             key={`${row.left ? patchRowKey(row.left) : "empty"}|${row.right ? patchRowKey(row.right) : "empty"}`}
             className="grid grid-cols-2 [content-visibility:auto] [contain-intrinsic-size:auto_1em]"
           >
-            <SplitCell row={row.left} side="left" />
-            <SplitCell row={row.right} side="right" />
+            <SplitCell row={row.left} side="left" wrap={wrap} />
+            <SplitCell row={row.right} side="right" wrap={wrap} />
           </div>
         ),
       )}
     </>
   );
 }
-
 export function PatchLines({
   text,
   className = "max-h-72",
@@ -91,14 +91,15 @@ export function PatchLines({
   className?: string;
   mode?: GitDiffMode;
 }) {
+  const { diffWrap } = useGitPanelState();
   const rows = useMemo(() => parsePatch(text), [text]);
   const splitRows = useMemo(() => (mode === "split" ? buildSplitRows(rows) : null), [mode, rows]);
   return (
     <pre className={`${className} overflow-auto px-3 py-1 font-mono text-[0.6875rem] leading-tight`}>
       {splitRows ? (
-        <SplitRows rows={splitRows} />
+        <SplitRows rows={splitRows} wrap={diffWrap} />
       ) : (
-        rows.map((row) => <UnifiedRow key={patchRowKey(row)} row={row} />)
+        rows.map((row) => <UnifiedRow key={patchRowKey(row)} row={row} wrap={diffWrap} />)
       )}
     </pre>
   );

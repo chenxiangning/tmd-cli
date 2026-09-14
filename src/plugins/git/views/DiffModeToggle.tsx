@@ -1,14 +1,15 @@
 /**
  * diff 头部控制组 —— 全文查看开关(可选,per-tab 本地态:默认关,
  * 换文件即复位,用户点开才拉全上下文 patch)+ 单栏/双栏 segmented
- * (全局落盘,settings git 域)。复用 settings 的 segmented/segment 类,零新增 CSS。
+ * (全局落盘,settings git 域)+ 自动换行开关(全局落盘)。
+ * 复用 settings 的 segmented/segment 类,零新增 CSS。
  */
 
-import { ColumnsIcon, FileTextIcon, RowsIcon } from "@phosphor-icons/react";
+import { ArrowBendDownRightIcon, ColumnsIcon, FileTextIcon, RowsIcon } from "@phosphor-icons/react";
 
 import { t } from "@kernel/i18n";
 import type { GitDiffMode } from "@kernel/settings";
-import { setGitDiffMode, useGitPanelState } from "../panelStore";
+import { setGitDiffMode, setGitDiffWrap, useGitPanelState } from "../panelStore";
 
 const OPTIONS: { id: GitDiffMode; label: string; icon: typeof RowsIcon }[] = [
   { id: "unified", label: "单栏", icon: RowsIcon },
@@ -23,7 +24,7 @@ export function DiffModeToggle({
   fullView?: boolean;
   onToggleFullView?: () => void;
 }) {
-  const { diffMode } = useGitPanelState();
+  const { diffMode, diffWrap } = useGitPanelState();
   return (
     <div className="flex shrink-0 items-center gap-1.5">
       {onToggleFullView && (
@@ -55,6 +56,18 @@ export function DiffModeToggle({
             {t(label)}
           </button>
         ))}
+      </div>
+      <div className="segmented shrink-0" role="group" aria-label={t("自动换行")}>
+        <button
+          type="button"
+          aria-pressed={diffWrap}
+          title={t("自动换行")}
+          className={`segment ${diffWrap ? "is-active" : ""}`}
+          onClick={() => setGitDiffWrap(!diffWrap)}
+        >
+          <ArrowBendDownRightIcon className="h-[0.75rem] w-[0.75rem]" />
+          {t("自动换行")}
+        </button>
       </div>
     </div>
   );

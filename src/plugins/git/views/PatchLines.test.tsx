@@ -9,6 +9,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 import { PatchLines } from "./PatchLines";
+import { setGitDiffWrap } from "../panelStore";
 
 /* ctx old10/new20 + del old11 + add new21 + add new22(右余量一行) */
 const PATCH = "@@ -10,1 +20,2 @@\n ctx\n-del\n+addA\n+addB\n";
@@ -35,5 +36,18 @@ describe("PatchLines", () => {
     const html = renderToStaticMarkup(createElement(PatchLines, { text: PATCH }));
     expect(html).not.toContain("diff-split-empty");
     expect(html).toContain(">21<");
+  });
+
+  it("自动换行默认开,关闭后正文切 whitespace-pre", () => {
+    const wrapped = renderToStaticMarkup(createElement(PatchLines, { text: PATCH }));
+    expect(wrapped).toContain("whitespace-pre-wrap break-all");
+    setGitDiffWrap(false);
+    try {
+      const nowrap = renderToStaticMarkup(createElement(PatchLines, { text: PATCH }));
+      expect(nowrap).not.toContain("whitespace-pre-wrap");
+      expect(nowrap).toContain("whitespace-pre ");
+    } finally {
+      setGitDiffWrap(true); // 模块级单例,回置防串其他用例
+    }
   });
 });

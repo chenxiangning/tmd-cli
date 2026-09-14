@@ -226,7 +226,7 @@ export interface AppSettings {
    * Git 面板记忆态(git 插件的编辑域):视图段 + 差异文件列表布局。
    * 顶栏切换即写,重启恢复上次选择;布局默认平铺。
    */
-  git: { view: GitPanelView; layout: GitFileListLayout; diffMode: GitDiffMode };
+  git: { view: GitPanelView; layout: GitFileListLayout; diffMode: GitDiffMode; diffWrap: boolean };
   /**
    * SSH 主机簿(ssh 插件的编辑域):终端/SFTP/端口转发共用的主机清单。
    * 凭据明文随 settings.json 落盘(用户裁决,与竞品同级;spec 已记录风险),
@@ -286,7 +286,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   memoryDistillModel: "",
   memoryDistillEngine: "",
   memoryDistillRules: "",
-  git: { view: "diff", layout: "flat", diffMode: "unified" },
+  git: { view: "diff", layout: "flat", diffMode: "unified", diffWrap: true },
   ssh: { hosts: [] },
   wsl: { defaultDistro: "", remoteHostId: "" },
 };
