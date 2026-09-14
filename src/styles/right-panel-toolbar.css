@@ -24,9 +24,11 @@
   cursor: pointer;
   flex: 0 1 auto;
   transition: background 120ms ease, color 120ms ease;
-  /* 靠左:折叠钮之后贴着排,自动间距把面板 tabs 推到右区右缘(接替原
-     .titlebar-action:first-child 的 margin-right:auto)。 */
-  margin-right: auto;
+}
+
+/* 面板 tabs 恒钉右区右缘:选择器/分支 label 依次靠左排,余量全落在 tabs 前。 */
+.titlebar-actions .panel-tabs-row {
+  margin-left: auto;
 }
 
 .titlebar-ws-switch:hover {
