@@ -252,3 +252,42 @@
   color: rgb(23, 23, 23);
   stroke-width: 3;
 }
+
+/* ── subbar 工作区切换:label 变可点按钮 + 下拉菜单 ── */
+.panel-subbar-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.panel-subbar-switch:hover { color: var(--tmd-fg); }
+
+.panel-subbar-switch-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-subbar-switch svg { width: 0.625rem; height: 0.625rem; flex: 0 0 auto; }
+
+/* 菜单行是 button(非 div):只补表单控件 reset,布局复用 .panel-overflow-item */
+.panel-ws-menu { max-height: 60vh; overflow-y: auto; }
+
+.panel-ws-item {
+  width: 100%;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.panel-ws-item svg { width: 0.75rem; height: 0.75rem; flex: 0 0 auto; color: var(--tmd-accent); }

@@ -8,17 +8,17 @@
  * - RightPanelToolbar: 内部组件,仅在右侧 aside 渲染 WorkspaceSubbar。
  */
 
-import { memo, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { memo, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
-import { Check, DotsThree, FilePlus, FolderSimplePlus, ArrowClockwise } from "@phosphor-icons/react";
+import { Check, DotsThree } from "@phosphor-icons/react";
 import {
   setFilePanelMode,
   togglePinned,
   useFilePanel,
   type FilePanelContribution,
 } from "@kernel/filePanel";
-import { useWorkspaces, workspaceDisplayName } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
+import { WorkspaceSubbar } from "./WorkspaceSubbar";
 
 
 /* ──────────────────────────────────────────────────────────
@@ -195,78 +195,6 @@ function PanelOverflowMenu({
   );
 }
 
-/* ──────────────────────────────────────────────────────────
- * 第 2 行:workspace label + 文件操作按钮。
- * ────────────────────────────────────────────────────────── */
-function WorkspaceSubbar() {
-  const { list, activeId } = useWorkspaces();
-  const active = list.find((w) => w.id === activeId) ?? list[0];
-  const root = active?.root;
-  /* 不用 useMemo:alias 原地变更(list 项引用不变)会滞 stale;取名字符串操作本就廉价。 */
-  const label = active ? workspaceDisplayName(active).toUpperCase() : "";
-  /* 刷新/新建文件/新建文件夹:调激活面板注册的对应槽;刷新 in-flight 转圈。 */
-  const { mode, panels } = useFilePanel();
-  const activePanel = panels.find((p) => p.id === mode);
-  const activeRefresh = activePanel?.refresh;
-  const [refreshBusy, setRefreshBusy] = useState(false);
-  const refreshBatchRef = useRef(0);
-
-  const handleRefreshFiles = () => {
-    if (!activeRefresh || refreshBusy) return;
-    const myBatch = ++refreshBatchRef.current;
-    setRefreshBusy(true);
-    /* refresh 实现经 .then 调用:同步抛错也归入 rejection,finally 必然清转圈 */
-    void Promise.resolve()
-      .then(activeRefresh)
-      .finally(() => {
-        if (refreshBatchRef.current === myBatch) setRefreshBusy(false);
-      });
-  };
-
-  if (!root) return null;
-
-  return (
-    <div className="panel-subbar">
-      <span className="panel-subbar-label" title={root}>{label}</span>
-      <span className="panel-subbar-actions">
-        <button
-          type="button"
-          className="panel-subbar-action"
-          aria-label={t("新建文件")}
-          title={t("新建文件")}
-          disabled={!activePanel?.newFile}
-          onClick={() => activePanel?.newFile?.()}
-        >
-          <FilePlus size="0.75rem" aria-hidden />
-        </button>
-        <button
-          type="button"
-          className="panel-subbar-action"
-          aria-label={t("新建文件夹")}
-          title={t("新建文件夹")}
-          disabled={!activePanel?.newFolder}
-          onClick={() => activePanel?.newFolder?.()}
-        >
-          <FolderSimplePlus size="0.75rem" aria-hidden />
-        </button>
-        <button
-          type="button"
-          className="panel-subbar-action"
-          aria-label={t("刷新文件树")}
-          title={t("刷新文件树")}
-          onClick={handleRefreshFiles}
-        >
-          <ArrowClockwise
-            size="0.75rem"
-            aria-hidden
-            className={refreshBusy ? "animate-spin" : undefined}
-          />
-        </button>
-        {activePanel?.actions ? <activePanel.actions /> : null}
-      </span>
-    </div>
-  );
-}
 
 /* ──────────────────────────────────────────────────────────
  * AppShell 右栏 aside 的渲染入口(panel tabs 已挪到 TopBarPanelTabs)。
