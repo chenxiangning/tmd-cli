@@ -128,6 +128,22 @@ pub(super) fn parse_existing_pr(out: &str) -> Option<(String, u64)> {
     let prs: Vec<ExistingPr> = serde_json::from_str(out).ok()?;
     prs.into_iter().next().map(|p| (p.url, p.number))
 }
+
+/// head 引用归一化(2026-09-15 事故修正):head 属主 = base 仓属主(同仓 PR)
+/// 时必须用纯分支名 —— gh list/create 的 `owner:branch` 形态在 GitHub 侧
+/// 只匹配跨仓 fork PR,同仓已有 PR 会查不到而撞 "already exists"。
+pub(super) fn effective_head_ref(
+    upstream_repo: &str,
+    head_owner: &str,
+    head_branch: &str,
+) -> String {
+    let upstream_owner = upstream_repo.split('/').next().unwrap_or_default();
+    if head_owner == upstream_owner {
+        head_branch.to_string()
+    } else {
+        format!("{head_owner}:{head_branch}")
+    }
+}
 /* ── 工作流步骤级封装(pr_workflow 调用;gh 参数拼装统一在此)── */
 
 /// `pr <子命令…> --repo <upstream>`:flag 置尾,不吞子命令。
@@ -255,5 +271,23 @@ mod tests {
             Some(("https://github.com/o/r/pull/12".into(), 12))
         );
         assert_eq!(parse_existing_pr("[]"), None);
+    }
+
+    #[test]
+    fn head_ref_normalized_by_owner() {
+        // 同仓 PR(head 属主 = base 仓属主):纯分支名,owner: 形态查不到同仓 PR
+        assert_eq!(
+            effective_head_ref("chenxiangning/tmd-cli", "chenxiangning", "Tmd-0.1.7"),
+            "Tmd-0.1.7"
+        );
+        // 跨仓 fork PR:owner:branch 形态
+        assert_eq!(
+            effective_head_ref(
+                "zhukunpenglinyutong/desktop-cc-gui",
+                "chenxiangning",
+                "feat/wsl"
+            ),
+            "chenxiangning:feat/wsl"
+        );
     }
 }

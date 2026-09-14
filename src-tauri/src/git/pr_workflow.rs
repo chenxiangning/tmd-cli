@@ -124,9 +124,10 @@ pub fn run(
         }
     }
 
-    /* ── Create PR:已有复用,否则 gh pr create ── */
+    /* ── Create PR:已有复用,否则 gh pr create(同仓 PR head 用纯分支名)── */
     set_stage(&mut stages, &app, 2, "running", "创建 PR…".into());
-    let head_full = format!("{}:{}", req.head_owner, req.head_branch);
+    let head_full =
+        pr_gh::effective_head_ref(&req.upstream_repo, &req.head_owner, &req.head_branch);
     let body = req
         .body
         .clone()
