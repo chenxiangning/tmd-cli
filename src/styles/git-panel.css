@@ -56,79 +56,90 @@
   white-space: nowrap;
 }
 
-/* diff 双栏空侧占位:斜纹(token 着色,明暗自适应,对齐 codemoss 视觉契约)。 */
-.diff-split-empty {
-  background-color: var(--tmd-bg-sunken);
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent,
-    transparent 5px,
-    var(--tmd-bg-hover) 5px,
-    var(--tmd-bg-hover) 6px
-  );
+/* ── 双栏 diff(自绘,2026-09-15 重做):色带 / 中央行号槽 / 改动块边框 ── */
+
+/* 色带:修改对与纯增/纯删行的本侧淡染(与单栏同源 token)。 */
+.git-split-band-del {
+  background: color-mix(in srgb, var(--tmd-diff-removed) 12%, transparent);
+}
+.git-split-band-add {
+  background: color-mix(in srgb, var(--tmd-diff-inserted) 12%, transparent);
 }
 
-/* ── 双栏 diff 主题:react-diff-view(2026-09-15)── */
-.git-diff-rdv {
-  /* 主题变量 → tmd tokens */
-  --diff-font-family: var(--tmd-font-mono, ui-monospace, monospace);
-  --diff-background-color: transparent;
-  --diff-text-color: var(--tmd-fg-muted);
-  --diff-gutter-background-color: color-mix(in srgb, var(--tmd-fg) 3%, transparent);
-  --diff-gutter-text-color: var(--tmd-fg-faint);
-  --diff-code-insert-background-color: color-mix(in srgb, var(--tmd-diff-inserted) 13%, transparent);
-  --diff-code-insert-text-color: var(--tmd-fg);
-  --diff-code-delete-background-color: color-mix(in srgb, var(--tmd-diff-removed) 13%, transparent);
-  --diff-code-delete-text-color: var(--tmd-fg);
-  --diff-gutter-insert-background-color: color-mix(in srgb, var(--tmd-diff-inserted) 20%, transparent);
-  --diff-gutter-insert-text-color: var(--tmd-fg);
-  --diff-gutter-delete-background-color: color-mix(in srgb, var(--tmd-diff-removed) 20%, transparent);
-  --diff-gutter-delete-text-color: var(--tmd-fg);
-  font-size: 0.6875rem;
-  line-height: 1.45;
+/* 词级标注:mod 对差异 token 下划线(非色块,行底色带已表意)。 */
+.git-split-word {
+  border-radius: 0;
 }
-.git-diff-rdv .diff {
-  font-family: var(--diff-font-family);
-  font-size: inherit;
-  line-height: inherit;
-  display: block;
+.git-split-word-ins {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--tmd-diff-inserted) 70%, transparent);
+  text-underline-offset: 3px;
 }
-.git-diff-rdv td {
-  display: block;
+.git-split-word-del {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--tmd-diff-removed) 70%, transparent);
+  text-underline-offset: 3px;
 }
-.git-diff-rdv tr {
+
+/* 中央行号槽:旧号居左新号居右;改动行数字提亮,缺侧画空槽占位(⬚)。 */
+.git-split-gutter-row {
   display: flex;
-}
-.git-diff-rdv .diff-line {
-  width: 100%;
-}
-.git-diff-rdv .diff-gutter {
-  width: 2.5rem;
-  flex: none;
+  justify-content: space-between;
+  gap: 6px;
   padding: 0 6px;
-  text-align: right;
+  color: var(--tmd-fg-faint);
   font-variant-numeric: tabular-nums;
   user-select: none;
 }
-.git-diff-rdv .diff-code {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 0 8px;
-  white-space: pre;
-  overflow-x: auto;
+.git-split-gutter-chg {
+  color: var(--tmd-fg);
 }
-/* 自动换行开:代码格换行(与单栏口径一致) */
-.git-diff-rdv-wrap .diff-code {
-  white-space: pre-wrap;
-  word-break: break-all;
+.git-split-gslot-empty {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.8em;
+  margin-top: 0.15em;
+  border: 1px solid color-mix(in srgb, var(--tmd-fg) 30%, transparent);
+  border-radius: 2px;
+  opacity: 0.55;
 }
-.git-diff-rdv .diff-hunk {
-  font-size: 0.625rem;
-  color: var(--tmd-accent);
-  background: color-mix(in srgb, var(--tmd-bg-hover) 40%, transparent);
-  border-top: 1px solid var(--tmd-border);
-  border-bottom: 1px solid var(--tmd-border);
+/* ⤶ 钩:改动行旧号前 */
+.git-split-ghook {
+  color: color-mix(in srgb, var(--tmd-accent) 80%, var(--tmd-fg));
+  margin-right: 2px;
 }
-.git-diff-rdv .diff-gutter-col {
-  display: none;
+
+/* 占位行槽色块(缺侧):缺左=新增块占位(inserted),缺右=删除块占位(removed)。 */
+.git-split-ph-add {
+  background: color-mix(in srgb, var(--tmd-diff-inserted) 14%, transparent);
+}
+.git-split-ph-del {
+  background: color-mix(in srgb, var(--tmd-diff-removed) 14%, transparent);
+}
+
+/* 改动块识别框 ①:中央槽列的 accent 括号框。槽列不参与横向滚动,
+   任何横滚位置都可见 —— 这是变更位置的主识别标记。 */
+.git-split-frame {
+  border-left: 1.5px solid color-mix(in srgb, var(--tmd-accent) 55%, transparent);
+  border-right: 1.5px solid color-mix(in srgb, var(--tmd-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--tmd-accent) 7%, transparent);
+}
+.git-split-frame-top {
+  border-top: 1.5px solid color-mix(in srgb, var(--tmd-accent) 55%, transparent);
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+.git-split-frame-bot {
+  border-bottom: 1.5px solid color-mix(in srgb, var(--tmd-accent) 55%, transparent);
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+
+/* 改动块识别框 ②:块首/块尾 accent 横线贯穿两个内容列(随内容横滚,
+   但恒在行边界上,滚动中也能定位块界)。 */
+.git-split-bd-top {
+  border-top: 1.5px solid color-mix(in srgb, var(--tmd-accent) 40%, transparent);
+}
+.git-split-bd-bot {
+  border-bottom: 1.5px solid color-mix(in srgb, var(--tmd-accent) 40%, transparent);
 }

@@ -21,6 +21,11 @@ export interface PatchRow {
 
 const HUNK_RE = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 
+/** diff 行稳定 key:种类 + 旧/新行号 + 内容(渲染层防重复 key)。 */
+export function patchRowKey(row: PatchRow): string {
+  return `${row.kind}:${row.oldLine ?? "-"}:${row.newLine ?? "-"}:${row.text}`;
+}
+
 /**
  * 单 delta patch(git2::Patch::to_buf)= 单文件段:首个 @@ 前的行全是
  * 元数据头(diff --git / index / --- / +++ / mode / rename …),整段丢弃。
