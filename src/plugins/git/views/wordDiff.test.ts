@@ -44,4 +44,15 @@ describe("wordDiff", () => {
     expect(del.every((p) => p.tag === "del")).toBe(true);
     expect(ins.every((p) => p.tag === "ins")).toBe(true);
   });
+
+  it("星面字符按码点整配:公共 emoji 不劈半、两侧文本无 U+FFFD", () => {
+    const [del, ins] = wordDiff("ok 😀 ship", "ok 🚀 ship");
+    expect(text(del)).toBe("ok 😀 ship");
+    expect(text(ins)).toBe("ok 🚀 ship");
+    expect(text(del)).not.toContain("\uFFFD");
+    expect(text(ins)).not.toContain("\uFFFD");
+    /* 改动段标注在位:😀 整字符作 del、🚀 整字符作 ins(劈半则出现两个半代理项段) */
+    expect(del.some((p) => p.tag === "del" && p.text.includes("😀"))).toBe(true);
+    expect(ins.some((p) => p.tag === "ins" && p.text.includes("🚀"))).toBe(true);
+  });
 });

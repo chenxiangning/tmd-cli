@@ -17,13 +17,28 @@ export interface PatchRow {
   /** 新文件行号(1 起);del/hunk/meta 行为 null。 */
   newLine: number | null;
   text: string;
+  /** 同一 patch 内基础 key 重复时的出现序数(2 起;行号恒 null 的 meta 行可整段重复)。 */
+  rep?: number;
 }
 
 const HUNK_RE = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 
-/** diff 行稳定 key:种类 + 旧/新行号 + 内容(渲染层防重复 key)。 */
+/** diff 行稳定 key:种类 + 旧/新行号 + 内容(重复行尾缀 #序数,内容组合键
+ *  不用数组下标 —— react-doctor no-array-index-as-key 规则)。 */
 export function patchRowKey(row: PatchRow): string {
-  return `${row.kind}:${row.oldLine ?? "-"}:${row.newLine ?? "-"}:${row.text}`;
+  const base = `${row.kind}:${row.oldLine ?? "-"}:${row.newLine ?? "-"}:${row.text}`;
+  return row.rep && row.rep > 1 ? `${base}#${row.rep}` : base;
+}
+
+/** 同基础 key 的行标出现序数(第 2 份起),供 patchRowKey 去重。 */
+function markRepeats(rows: PatchRow[]): void {
+  const seen = new Map<string, number>();
+  for (const row of rows) {
+    const base = `${row.kind}:${row.oldLine ?? "-"}:${row.newLine ?? "-"}:${row.text}`;
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    if (n > 1) row.rep = n;
+  }
 }
 
 /**
@@ -34,7 +49,7 @@ export function patchRowKey(row: PatchRow): string {
 export function parsePatch(text: string): PatchRow[] {
   const lines = text.split("\n");
   if (lines.at(-1) === "") lines.pop(); // 尾随换行的 split 残影
-  const rows: PatchRow[] = [];
+  let rows: PatchRow[] = [];
   let inHunk = false;
   let oldLine = 0;
   let newLine = 0;
@@ -67,8 +82,9 @@ export function parsePatch(text: string): PatchRow[] {
   /* 无 @@ 的合法 patch(纯 mode 变更 / 子模块指针):没有"正文"可言,
      整段按 meta 呈现,避免 tab 空白且无任何说明。 */
   if (!inHunk) {
-    return lines.map((line) => ({ kind: "meta" as const, oldLine: null, newLine: null, text: line }));
+    rows = lines.map((line) => ({ kind: "meta" as const, oldLine: null, newLine: null, text: line }));
   }
+  markRepeats(rows);
   return rows;
 }
 

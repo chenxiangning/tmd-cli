@@ -31,12 +31,17 @@ export function useCommitFiles(cwd: string | null) {
   const ensure = useCallback(
     (sha: string) => {
       if (!cwd || sha.startsWith("scm-graph-")) return;
-      if (fetchedRef.current.cwd !== cwd) fetchedRef.current = { cwd, set: new Set() };
+      if (fetchedRef.current.cwd !== cwd) {
+        fetchedRef.current = { cwd, set: new Set() };
+        /* 领养新 cwd:put 闸只丢旧 cwd 的迟到响应,自身不换代 —— 不领养则
+         * 切仓后 cache.cwd 恒旧值,entries 恒空,展开无声失效(2026-09-15 评审)。 */
+        setCache((prev) => (prev.cwd === cwd ? prev : { cwd, entries: {} }));
+      }
       if (fetchedRef.current.set.has(sha)) return;
       fetchedRef.current.set.add(sha);
       /* 按 sha 落槽,后写胜出;不允许用全局 token 丢响应——连开两个提交时
        * 先发的响应被丢 = 该 sha 永远 loading(去重集还不放行)= 历史点不开
-       * (2026-09-15 实证)。cwd 串扰由 put 的 prev.cwd 闸负责,与此无关。 */
+       * (2026-09-15 实证)。旧 cwd 的迟到响应由 put 的 prev.cwd 闸丢弃。 */
       const put = (entry: (prev: Record<string, CommitFilesEntry>) => CommitFilesEntry) =>
         setCache((prev) =>
           prev.cwd === cwd

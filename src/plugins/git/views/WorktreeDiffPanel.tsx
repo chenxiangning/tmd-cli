@@ -10,6 +10,7 @@ import { t } from "@kernel/i18n";
 import { CircleNotch } from "@phosphor-icons/react";
 import { ipc, type GitBranchDiffFile, type GitFilePatch } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
+import { useGitPanelState } from "../panelStore";
 import { PatchLines } from "./PatchLines";
 import { STATUS_COLOR } from "./statusColor";
 
@@ -163,6 +164,7 @@ function WorktreePatchBody({
   patchLoading: boolean;
   patchError: string | null;
 }) {
+  const { diffMode } = useGitPanelState();
   if (!selected) {
     if (loading) return null;
     return (
@@ -181,7 +183,7 @@ function WorktreePatchBody({
   if (patchError) {
     return <div className="p-3 text-(--tmd-diff-removed)">{patchError}</div>;
   }
-  if (patch && patch.patch.length > 0) return <PatchLines text={patch.patch} />;
+  if (patch && patch.patch.length > 0) return <PatchLines text={patch.patch} mode={diffMode} />;
   if (patch) {
     return (
       <div className="p-3 text-(--tmd-fg-faint)">

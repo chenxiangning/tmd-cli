@@ -6,7 +6,6 @@
 
 use git2::Repository;
 
-use super::pr_gh;
 use super::GitError;
 
 /// 描述模板({base}/{head} 占位;四步编排的 gh pr create 兜底同用)。
@@ -27,9 +26,39 @@ pub struct PrDefaults {
     pub disabled_reason: Option<String>,
 }
 
+/// 远端 URL → "owner/repo"(https / ssh / git@ 三形态;.git 后缀可选)。
+/// host 必须精确等于 github.com:子串匹配会把 notgithub.com / github.company.com
+/// 误归一成 GitHub 仓,拿用户 gh 登录态对错误仓发起操作(2026-09-15 评审)。
+pub fn parse_github_repo(url: &str) -> Option<String> {
+    let s = url.trim().trim_end_matches('/');
+    /* 剥 scheme 后按首个 / 切 authority/path;scp 形态 git@host:path 单独认。 */
+    let (host, path) = if let Some(rest) = s
+        .strip_prefix("https://")
+        .or_else(|| s.strip_prefix("http://"))
+        .or_else(|| s.strip_prefix("ssh://"))
+        .or_else(|| s.strip_prefix("git://"))
+    {
+        let (h, p) = rest.split_once('/')?;
+        (h.rsplit('@').next().unwrap_or(h), p)
+    } else if let Some(rest) = s.strip_prefix("git@") {
+        let (h, p) = rest.split_once(':')?;
+        (h, p)
+    } else {
+        return None;
+    };
+    if host != "github.com" {
+        return None;
+    }
+    let path = path.strip_suffix(".git").unwrap_or(path);
+    let mut segs = path.split('/').filter(|p| !p.is_empty());
+    let owner = segs.next()?;
+    let repo = segs.next()?;
+    Some(format!("{owner}/{repo}"))
+}
+
 pub(super) fn remote_repo(repo: &Repository, name: &str) -> Option<String> {
     let url = repo.find_remote(name).ok()?.url()?.to_string();
-    pr_gh::parse_github_repo(&url)
+    parse_github_repo(&url)
 }
 
 /// base 分支推断:远端 HEAD → 跟踪分支兜底交由调用方 → origin HEAD → main/master。
@@ -151,5 +180,26 @@ mod tests {
             Some("chenxiangning".into())
         );
         assert_eq!(repo_owner(&None), None);
+    }
+
+    #[test]
+    fn github_repo_parsed_from_url_forms() {
+        assert_eq!(
+            parse_github_repo("https://github.com/zhukunpenglinyutong/desktop-cc-gui.git"),
+            Some("zhukunpenglinyutong/desktop-cc-gui".into())
+        );
+        assert_eq!(
+            parse_github_repo("git@github.com:chenxiangning/tmd-cli.git"),
+            Some("chenxiangning/tmd-cli".into())
+        );
+        assert_eq!(
+            parse_github_repo("ssh://git@github.com/o/r"),
+            Some("o/r".into())
+        );
+        assert_eq!(parse_github_repo("https://gitlab.com/o/r"), None);
+        /* host 精确匹配:伪 github 宿主不误归一(2026-09-15 评审) */
+        assert_eq!(parse_github_repo("https://notgithub.com/o/r"), None);
+        assert_eq!(parse_github_repo("https://github.company.com/x/y"), None);
+        assert_eq!(parse_github_repo("git@notgithub.com:o/r"), None);
     }
 }

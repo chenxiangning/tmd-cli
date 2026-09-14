@@ -99,6 +99,23 @@ pub fn run(
     set_stage(&mut stages, &app, 0, "success", "gh 就绪。".into());
 
     /* ── Push:推 HEAD 到 fork origin 的 head 分支 ── */
+    /* 前置闸:工作流推的是 HEAD 且 -u 会重接当前分支 upstream;compare 下拉允许
+     * 选任意本地分支,与当前分支不一致时推上去的是 HEAD 的提交 + 跟踪被改写到
+     * origin/<head_branch> = PR 内容错位(2026-09-15 评审)。软失败引导先检出,
+     * 不做隐式跨分支推送。 */
+    let head_now = repo
+        .head()
+        .ok()
+        .and_then(|h| h.shorthand().map(str::to_string));
+    if head_now.as_deref() != Some(req.head_branch.as_str()) {
+        let msg = format!(
+            "创建 PR 需先检出 {}:当前在 {}",
+            req.head_branch,
+            head_now.as_deref().unwrap_or("分离头指针")
+        );
+        set_stage(&mut stages, &app, 1, "failed", msg.clone());
+        return finish(&mut stages, false, msg, None);
+    }
     set_stage(
         &mut stages,
         &app,

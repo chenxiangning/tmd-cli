@@ -88,18 +88,6 @@ pub(super) fn precheck(cwd: &str) -> Result<(), GitError> {
     Ok(())
 }
 
-/// 远端 URL → "owner/repo"(https / ssh / git@ 三形态;.git 后缀可选)。
-pub fn parse_github_repo(url: &str) -> Option<String> {
-    let s = url.trim().trim_end_matches('/');
-    let idx = s.find("github.com")?;
-    let rest = s[idx + "github.com".len()..].trim_start_matches(['/', ':']);
-    let rest = rest.strip_suffix(".git").unwrap_or(rest);
-    let mut segs = rest.split('/').filter(|p| !p.is_empty());
-    let owner = segs.next()?;
-    let repo = segs.next()?;
-    Some(format!("{owner}/{repo}"))
-}
-
 /// gh 输出 → PR URL(取含 /pull/ 的最后一个 token)。
 pub fn parse_pr_url(out: &str) -> Option<String> {
     out.split_whitespace()
@@ -155,7 +143,8 @@ fn gh_args(upstream: &str, args: &[String]) -> Vec<String> {
     v
 }
 
-/// 已有 PR 复用(state=all 查询),否则 `gh pr create`;create 失败先 state=open
+/// 已有 PR 复用(state=open:closed/merged 旧 PR 不挡新建),否则 `gh pr create`;
+/// create 失败回落 lookup 复用(撞 OPEN PR/create 偶发已建但报错),仍无则透传原始错误。
 /// 补查(create 偶发已建但报错),仍无则把 gh 原始错误透传给调用方展示。
 /// 成功返回 (url, number);新建时 number=0,由调用方经 parse_pr_number 回填。
 pub(super) fn ensure_pr(
@@ -187,7 +176,7 @@ pub(super) fn ensure_pr(
         .ok()
         .and_then(|out| parse_existing_pr(&out))
     };
-    if let Some(pr) = lookup("all") {
+    if let Some(pr) = lookup("open") {
         return Ok(pr);
     }
     match run(
@@ -238,23 +227,6 @@ pub(super) fn comment(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn github_repo_parsed_from_url_forms() {
-        assert_eq!(
-            parse_github_repo("https://github.com/zhukunpenglinyutong/desktop-cc-gui.git"),
-            Some("zhukunpenglinyutong/desktop-cc-gui".into())
-        );
-        assert_eq!(
-            parse_github_repo("git@github.com:chenxiangning/tmd-cli.git"),
-            Some("chenxiangning/tmd-cli".into())
-        );
-        assert_eq!(
-            parse_github_repo("ssh://git@github.com/o/r"),
-            Some("o/r".into())
-        );
-        assert_eq!(parse_github_repo("https://gitlab.com/o/r"), None);
-    }
 
     #[test]
     fn pr_url_and_number_extracted() {

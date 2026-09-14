@@ -161,6 +161,17 @@ function GridPairRow({ row, tag }: { row: Extract<SplitRow, { kind: "pair" }>; t
 /* ── 关闭换行:左右独立横向滚动面 + 中央槽,纵向三面同步 ── */
 
 function SplitHalves({ rows }: { rows: SplitRow[] }) {
+  /* mod 对词级标注一次算两份:side() 左右各渲染一遍,逐侧现算 = 同一 DP 跑两遍
+   * (2026-09-15 评审);预计算随 rows 换代。 */
+  const wordParts = useMemo(
+    () =>
+      rows.map((row) =>
+        row.kind === "pair" && pairKind(row.left, row.right) === "mod"
+          ? wordDiff(row.left!.text, row.right!.text)
+          : null,
+      ),
+    [rows],
+  );
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
   const midRef = useRef<HTMLDivElement>(null);
@@ -195,19 +206,14 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
                   {row.row.text}
                 </div>
               );
-            const kind = pairKind(row.left, row.right);
             const self = isLeft ? row.left : row.right;
             const bd = lineCls(blocks[i]);
             if (!self)
               return (
                 <div key={`e:${patchRowKey((isLeft ? row.right : row.left)!)}`} className={`min-h-[1.25em] ${bd}`} aria-hidden />
               );
-            const parts =
-              kind === "mod"
-                ? isLeft
-                  ? wordDiff(self.text, row.right!.text)[0]
-                  : wordDiff(row.left!.text, self.text)[1]
-                : null;
+            const pair = wordParts[i];
+            const parts = pair ? (isLeft ? pair[0] : pair[1]) : null;
             return (
               <div key={patchRowKey(self)} className={`min-h-[1.25em] ${bandFor(self)} ${bd}`}>
                 {parts ? (

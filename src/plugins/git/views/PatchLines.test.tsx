@@ -10,6 +10,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 import { PatchLines } from "./PatchLines";
+import { parsePatch, patchRowKey } from "./patchModel";
 import { setGitDiffWrap } from "../panelStore";
 
 /* ctx old10/new20 + mod 对 del old11 × add new21 + add 余量 new22 */
@@ -67,5 +68,17 @@ describe("PatchLines", () => {
     } finally {
       setGitDiffWrap(true); // 模块级单例,回置防串其他用例
     }
+  });
+
+  it("双 No-newline meta 行 key 唯一(内容序数去重,不用数组下标)", () => {
+    const patch = [
+      "@@ -1 +1 @@",
+      "-old",
+     ("\\ No newline at end of file"),
+      "+new",
+     ("\\ No newline at end of file"),
+    ].join("\n");
+    const keys = parsePatch(patch).map(patchRowKey);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });
