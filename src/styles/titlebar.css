@@ -165,7 +165,7 @@
   justify-content: center;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 9px;
   background: transparent;
   color: var(--tmd-fg-muted);
   cursor: pointer;
@@ -183,7 +183,7 @@
 }
 
 .titlebar-action svg {
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 1rem;
+  height: 1rem;
   stroke-width: 1.75;
 }
