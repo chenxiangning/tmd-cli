@@ -29,19 +29,22 @@ function branchHue(branch: string): number {
   return h;
 }
 
-/** 当前分支 label:活动工作区根仓分支;非仓/detached(空串)不渲染。
- *  5s 失焦暂停轮询(对齐 gitDecorate / git 插件 useGitStatus 策略)。 */
+/** 当前分支 label:活动工作区根仓分支 → upstream(推送描述上顶,2026-09-14);
+ *  非仓/detached(空串)不渲染。5s 失焦暂停轮询(对齐 gitDecorate / useGitStatus 策略)。 */
 function GitBranchLabel({ root }: { root: string }) {
-  const [branch, setBranch] = useState("");
+  const [info, setInfo] = useState<{ branch: string; upstream: string | null }>({
+    branch: "",
+    upstream: null,
+  });
   useEffect(() => {
     let alive = true;
     const scan = () => {
       ipc.gitStatus(root).then(
         (s) => {
-          if (alive) setBranch(s.branch);
+          if (alive) setInfo({ branch: s.branch, upstream: s.upstream });
         },
         () => {
-          if (alive) setBranch("");
+          if (alive) setInfo({ branch: "", upstream: null });
         },
       );
     };
@@ -54,15 +57,16 @@ function GitBranchLabel({ root }: { root: string }) {
       window.clearInterval(id);
     };
   }, [root]);
-  if (!branch) return null;
+  if (!info.branch) return null;
   return (
     <span
       className="titlebar-branch-label"
-      style={{ "--tag-h": branchHue(branch) } as React.CSSProperties}
-      title={branch}
+      style={{ "--tag-h": branchHue(info.branch) } as React.CSSProperties}
+      title={info.upstream ? `${info.branch} → ${info.upstream}` : info.branch}
     >
       <GitBranch aria-hidden />
-      <span className="titlebar-branch-label-text">{branch}</span>
+      <span className="titlebar-branch-label-text">{info.branch}</span>
+      {info.upstream && <span className="titlebar-branch-label-up">→ {info.upstream}</span>}
     </span>
   );
 }

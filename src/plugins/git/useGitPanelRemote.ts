@@ -24,7 +24,7 @@ export function useGitPanelRemote(cwd: string | null, afterMutation: () => void)
     setDialog(remoteDialogRequest.op);
   }, [remoteDialogRequest]);
 
-  /** 对话框执行链:关对话框 → 顶栏按钮转圈 → 成功通知+全量刷新 / 失败通知。 */
+  /** 对话框执行链:关对话框 → busy 态(对话框内呈现)→ 成功通知+全量刷新 / 失败通知。 */
   const runDialog = useCallback(
     (op: GitRemoteRequest["op"], req: GitRemoteRequest, opLabel: string) => {
       if (!cwd || remoteBusy) return;

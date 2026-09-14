@@ -1,6 +1,6 @@
 /**
- * GitToolbar —— 顶栏嵌入段(对齐 codemoss:视图下拉,与面板 tabs 同行;刷新 ⟳ 在 GitRemoteBar 行)。
- * 经 filePanel 的 toolbar 槽注册;状态共享走 panelStore。
+ * GitToolbar —— git 面板顶行(2026-09-14 自顶栏嵌入段下移):视图下拉 + 聚合增删行数。
+ * 状态共享走 panelStore(与 GitPanel 两实例,store 单点)。
  */
 
 import { useEffect, useRef, useState } from "react";

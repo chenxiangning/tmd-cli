@@ -47,16 +47,7 @@ export const MESSAGES = {
   "领先 {n} 个提交": "{n} commits ahead",
   "落后 {n} 个提交": "{n} commits behind",
 
-  /* 远端操作条 / 还原横幅 */
-  "刷新(重扫状态/分支/历史)": "Refresh (rescan status/branches/history)",
-  "获取远端更新(fetch --all --prune,不动本地分支)":
-    "Fetch remote updates (fetch --all --prune; local branches untouched)",
-  "拉取远端更新(落后 {n} 个提交)": "Pull remote updates ({n} commits behind)",
-  "拉取远端更新(对话框内可选远端与分支)":
-    "Pull remote updates (choose remote and branch in the dialog)",
-  "推送 {n} 个提交(对话框内可预览)": "Push {n} commits (preview available in the dialog)",
-  "推送(对话框内查看预览与选项)": "Push (preview and options in the dialog)",
-  "推送新分支并建立 upstream": "Push the new branch and set upstream",
+  /* 还原横幅(暂存并切换冲突) */
   "存在冲突(可能来自「暂存并切换」,原分支 {branch})":
     'Conflicts present (possibly from "stash and switch"; original branch {branch})',
   "还原到切换前的 {branch}?": "Restore to pre-switch {branch}?",

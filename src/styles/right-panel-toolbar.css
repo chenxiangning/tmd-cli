@@ -72,6 +72,15 @@
   white-space: nowrap;
 }
 
+/* upstream 段(main → origin/main 的右半):淡色不抢分支名。 */
+.titlebar-branch-label-up {
+  color: var(--tmd-fg-faint);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .titlebar-branch-label svg {
   width: 0.625rem;
   height: 0.625rem;

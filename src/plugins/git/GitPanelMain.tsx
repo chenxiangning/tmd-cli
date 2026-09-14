@@ -12,7 +12,8 @@ import type { GitBranchesState } from "./hooks/useGitBranches";
 import type { GitRepoContext } from "./repoContext";
 import type { FileListLayout, GitViewMode } from "./panelStore";
 import { gitErrorDisplay } from "./gitError";
-import { GitRemoteBar, SmartSwitchUndoBanner } from "./views/GitPanelBars";
+import { GitToolbar } from "./GitToolbar";
+import { SmartSwitchUndoBanner } from "./views/GitPanelBars";
 import { RepoBar } from "./views/RepoBar";
 import { RemoteDialogGroup } from "./views/RemoteDialogGroup";
 import { DiffView } from "./views/DiffView";
@@ -45,10 +46,7 @@ interface GitPanelMainProps {
   statusError: string | null;
   branch: string | undefined;
   branchName: string;
-  upstream: string | null | undefined;
   upstreamNull: string | null;
-  detached: boolean;
-  hasUpstream: boolean;
   aheadBehind: GitAheadBehind | null;
   undoOrigin: { cwd: string; branch: string } | null;
   prefill: { message: string; seq: number } | null;
@@ -137,10 +135,7 @@ export function GitPanelMain({
   statusError,
   branch,
   branchName,
-  upstream,
   upstreamNull,
-  detached,
-  hasUpstream,
   aheadBehind,
   undoOrigin,
   prefill,
@@ -151,6 +146,8 @@ export function GitPanelMain({
   const canUndo = canUndoSmartSwitch(files, undoOrigin, cwd);
   return (
     <div className="flex h-full flex-col text-xs">
+      {/* 面板顶行:视图下拉 + 聚合增删行数(2026-09-14 自顶栏嵌入段下移至此) */}
+      <GitToolbar />
       {repoCtx.showRepoBar && (
         <RepoBar
           repos={repos}
@@ -160,15 +157,6 @@ export function GitPanelMain({
           onSelect={onSelect}
         />
       )}
-      <GitRemoteBar
-        branch={branch}
-        upstream={upstream}
-        remoteBusy={remoteBusy}
-        detached={detached}
-        aheadBehind={aheadBehind}
-        hasUpstream={hasUpstream}
-        onOpenDialog={setDialog}
-      />
 
       <PanelBanners
         notice={notice}

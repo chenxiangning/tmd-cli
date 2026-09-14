@@ -64,10 +64,7 @@ export function GitPanel() {
       statusError={data.status.error}
       branch={data.branch}
       branchName={data.branchName}
-      upstream={data.upstream}
       upstreamNull={data.upstreamNull}
-      detached={data.detached}
-      hasUpstream={data.hasUpstream}
       aheadBehind={data.aheadBehind}
       undoOrigin={data.undoOrigin}
       prefill={data.prefill}
