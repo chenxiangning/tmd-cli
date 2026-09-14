@@ -130,21 +130,43 @@ const SIDE_BAND: Record<string, string> = {
 };
 const bandFor = (row: PatchRow | null) => (row ? SIDE_BAND[row.kind] ?? "" : "");
 
-/** 中央行号槽一格:旧号居左、新号居右,缺侧画点号。 */
-function SlotGutter({ left, right }: { left: PatchRow | null; right: PatchRow | null }) {
+/** 改动块的引导框:连续非 ctx pair 行 = 一个块;框画在中央槽段上(top/mid/bot/single)。 */
+type FrameKind = null | "top" | "mid" | "bot" | "single";
+function frameMap(rows: SplitRow[]): FrameKind[] {
+  const out: FrameKind[] = rows.map((r) => (r.kind === "pair" && pairKind(r.left, r.right) !== "ctx" ? "mid" : null));
+  for (let i = 0; i < out.length; i++) {
+    if (!out[i]) continue;
+    const start = i;
+    while (i < out.length && out[i]) i++;
+    const end = i - 1;
+    out[start] = start === end ? "single" : "top";
+    if (end > start) out[end] = "bot";
+  }
+  return out;
+}
+
+const FRAME_CLS: Record<string, string> = {
+  top: "git-split-frame git-split-frame-top",
+  mid: "git-split-frame",
+  bot: "git-split-frame git-split-frame-bot",
+  single: "git-split-frame git-split-frame-top git-split-frame-bot",
+};
+
+/** 中央行号槽一格:旧行号居左、新行号居右;缺侧画空槽占位(⬚),改动行数字提亮。 */
+function SlotGutter({ left, right, chg }: { left: PatchRow | null; right: PatchRow | null; chg?: boolean }) {
   return (
-    <div className="git-split-gutter-row">
-      <span>{left?.oldLine ?? "·"}</span>
-      <span>{right?.newLine ?? "·"}</span>
+    <div className={`git-split-gutter-row ${chg ? "git-split-gutter-chg" : ""}`}>
+      {left ? <span>{left.oldLine}</span> : <span className="git-split-gslot-empty" aria-hidden />}
+      {right ? <span>{right.newLine}</span> : <span className="git-split-gslot-empty" aria-hidden />}
     </div>
   );
 }
-
 /** 换行态双栏:逐行三列 grid,行行对齐(原始结构,列扩为 1fr|auto|1fr)。 */
 function SplitRows({ rows, wrap }: { rows: SplitRow[]; wrap: boolean }) {
+  const frames = useMemo(() => frameMap(rows), [rows]);
   return (
     <>
-      {rows.map((row) =>
+      {rows.map((row, i) =>
         row.kind === "header" ? (
           <div key={patchRowKey(row.row)} className={row.row.kind === "hunk" ? ROW_CLS.hunk : `px-1 ${ROW_CLS.meta}`}>
             {row.row.text}
@@ -154,6 +176,7 @@ function SplitRows({ rows, wrap }: { rows: SplitRow[]; wrap: boolean }) {
             key={`${row.left ? patchRowKey(row.left) : "empty"}|${row.right ? patchRowKey(row.right) : "empty"}`}
             row={row}
             wrap={wrap}
+            frame={frames[i]}
           />
         ),
       )}
@@ -161,7 +184,15 @@ function SplitRows({ rows, wrap }: { rows: SplitRow[]; wrap: boolean }) {
   );
 }
 
-function PairRow({ row, wrap }: { row: { left: PatchRow | null; right: PatchRow | null }; wrap: boolean }) {
+function PairRow({
+  row,
+  wrap,
+  frame,
+}: {
+  row: { left: PatchRow | null; right: PatchRow | null };
+  wrap: boolean;
+  frame: FrameKind;
+}) {
   const kind = pairKind(row.left, row.right);
   const [dParts, iParts] = kind === "mod" ? wordDiff(row.left!.text, row.right!.text) : [null, null];
   return (
@@ -174,8 +205,8 @@ function PairRow({ row, wrap }: { row: { left: PatchRow | null; right: PatchRow 
           <span className={wrap ? CONTENT_WRAP_CLS : CONTENT_NOWRAP_CLS}>{row.left?.text ?? ""}</span>
         )}
       </div>
-      <div className="border-x border-(color:--tmd-border)">
-        <SlotGutter left={row.left} right={row.right} />
+      <div className={FRAME_CLS[frame!]}>
+        <SlotGutter left={row.left} right={row.right} chg={kind !== "ctx"} />
       </div>
       <div className={`flex min-w-0 px-2 ${bandFor(row.right)}`}>
         {iParts ? (
@@ -243,13 +274,16 @@ function SplitHalvesSynced({ rows }: { rows: SplitRow[] }) {
       </div>
     );
   };
+  const frames = useMemo(() => frameMap(rows), [rows]);
   const mid = (
     <div ref={midRef} className="h-full overflow-hidden border-x border-(color:--tmd-border)">
-      {rows.map((row) =>
+      {rows.map((row, i) =>
         row.kind === "header" ? (
           <div key={`h:${patchRowKey(row.row)}`} />
         ) : (
-          <SlotGutter key={`g:${patchRowKey(row.left ?? row.right!)}`} left={row.left} right={row.right} />
+          <div key={`g:${patchRowKey(row.left ?? row.right!)}`} className={FRAME_CLS[frames[i]!]}>
+            <SlotGutter left={row.left} right={row.right} chg={pairKind(row.left, row.right) !== "ctx"} />
+          </div>
         ),
       )}
     </div>

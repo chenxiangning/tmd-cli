@@ -33,7 +33,11 @@ describe("PatchLines", () => {
     expect(html).toContain("git-split-word-ins");
     // 空侧留白(斜纹已废)
     expect(html).not.toContain("diff-split-empty");
-    expect(html).toContain("@@ -10,1 +20,2 @@");
+    // 引导框:mod 对与 add 余量构成连续块 → 中央槽 top+bot 各一段
+    expect(html).toContain("git-split-frame-top");
+    expect(html).toContain("git-split-frame-bot");
+    // 缺侧空槽占位(⬚):add 余量行左槽 ×1
+    expect(html.match(/git-split-gslot-empty/g)?.length).toBe(1);
   });
 
   it("默认 mode = unified", () => {
