@@ -66,8 +66,6 @@ export function TopBar({
         style={leftOpen ? { width: "calc(var(--tmd-left-aside-w) + 4px)" } : undefined}
       >
         {platform === "macos" ? <div className="titlebar-leading" aria-hidden /> : null}
-        {/* 工作区选择器(自右栏 subbar 上移):钉左缘,首个 titlebar-action 的 margin-left:auto 把按钮簇推右 */}
-        <WorkspaceSwitcher />
         {/* 插件贡献的左区按钮簇(内置终端等):经 activate(ctx) 挂点登记 */}
         <Mounts point="header.leftCluster" />
         {/* 插件市场(插排页):整页替换下方三栏,再点或页内关闭即回 */}
@@ -126,6 +124,8 @@ export function TopBar({
         >
           {rightOpen ? <CaretLineRight size="0.875rem" aria-hidden /> : <CaretLineLeft size="0.875rem" aria-hidden />}
         </button>
+        {/* 工作区选择器(自右栏 subbar 上移):折叠钮之后、面板 tabs 之前,贴 tabs 左缘 */}
+        <WorkspaceSwitcher />
         <TopBarPanelTabs />
         <Mounts point="header.right" />
       </div>
