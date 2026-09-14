@@ -67,3 +67,36 @@
     var(--tmd-bg-hover) 6px
   );
 }
+
+/* ── 双栏并排(2026-09-14):中央行号槽对号 + 经典红/绿淡染同行成对 +
+   词级只做下划线标注(无色块)。对位识别靠行对齐与空侧留白。 ── */
+.git-split-gutter-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 6px;
+  background: color-mix(in srgb, var(--tmd-fg) 4%, transparent);
+  color: var(--tmd-fg-faint);
+  font-variant-numeric: tabular-nums;
+  min-width: 3.25rem;
+}
+.git-split-band-del {
+  background: color-mix(in srgb, var(--tmd-diff-removed) 12%, transparent);
+}
+.git-split-band-add {
+  background: color-mix(in srgb, var(--tmd-diff-inserted) 12%, transparent);
+}
+.git-split-word {
+  border-radius: 0;
+}
+.git-split-word-ins {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--tmd-diff-inserted) 70%, transparent);
+  text-underline-offset: 3px;
+}
+.git-split-word-del {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--tmd-diff-removed) 70%, transparent);
+  text-underline-offset: 3px;
+}
+

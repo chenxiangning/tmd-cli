@@ -1,16 +1,15 @@
 /**
- * unified patch 渲染 —— unified 单栏(旧/新双行号槽 + 行着色)与
- * split 双栏(左旧右新,del×add 按下标配对,空侧斜纹占位)两模式。
- * 解析与配对纯逻辑在 patchModel.ts(codemoss DiffBlock 同构);
- * 滚动容器尺寸由 className 传入(max-h-72 / h-full,各挂载点不同)。
+ * diff 正文渲染:单栏(unified)与双栏(split)共用一套解析。
+ * 双栏为 IntelliJ 并排式:中央行号槽(旧|新)对号、改动行红/绿淡染同行成对
+ * (左红右绿即修改对,单侧红/绿即纯删/纯增)、空侧留白占位、
+ * 修改对行内词级只做下划线标注。配色全部沿用既有 diff 变量,无新色。
  */
-
 import { useMemo, useRef, type RefObject } from "react";
 import type { GitDiffMode } from "@kernel/settings";
 import { useGitPanelState } from "../panelStore";
 import { buildSplitRows, parsePatch, type PatchRow, type SplitRow } from "./patchModel";
 
-/** 行底色/字色:单栏整行用,双栏按格用。 */
+/** 行底色/字色:单栏整行用(经典红绿)。双栏不用整行字色,只做淡染带。 */
 const ROW_CLS: Record<PatchRow["kind"], string> = {
   hunk: "my-1 border-y border-(color:--tmd-border) bg-(color:--tmd-bg-hover)/40 px-1 text-[0.625rem] text-(--tmd-accent)",
   add: "bg-(color:--tmd-diff-inserted)/12 text-(--tmd-diff-inserted)",
@@ -35,10 +34,11 @@ function Gutter({ oldLine, newLine }: { oldLine: number | null; newLine: number 
   return (
     <>
       <span className={GUTTER_CLS}>{oldLine ?? ""}</span>
-      <span className={GUTTER_CLS}>{newLine ?? ""}</span>
+      <span className={`${GUTTER_CLS} pl-1.5 pr-0`}>{newLine ?? ""}</span>
     </>
   );
 }
+
 function UnifiedRow({ row, wrap }: { row: PatchRow; wrap: boolean }) {
   if (row.kind === "hunk") return <div className={ROW_CLS.hunk}>{row.text}</div>;
   return (
@@ -49,19 +49,98 @@ function UnifiedRow({ row, wrap }: { row: PatchRow; wrap: boolean }) {
   );
 }
 
-/** 双栏半格:有行 → 本侧行号(左旧右新) + 正文;空侧 → 斜纹占位。 */
-function SplitCell({ row, side, wrap }: { row: PatchRow | null; side: "left" | "right"; wrap: boolean }) {
-  const border = side === "left" ? "border-r border-(color:--tmd-border)" : "";
-  if (!row) return <div className={`diff-split-empty ${border}`} aria-hidden />;
-  const num = side === "left" ? row.oldLine : row.newLine;
+/* ── 词级 diff(仅修改对):行内 token LCS;超限退化为整行标注 ── */
+
+type WordPart = { text: string; tag?: "ins" | "del" };
+
+const tokenRe = /[\w-]+|\s+|[^\w\s]/g;
+const MAX_LDP_CELLS = 20000;
+
+function wordDiff(a: string, b: string): [WordPart[], WordPart[]] {
+  const A = a.match(tokenRe) ?? [a];
+  const B = b.match(tokenRe) ?? [b];
+  const n = A.length;
+  const m = B.length;
+  if (n * m > MAX_LDP_CELLS) return [[{ text: a, tag: "del" }], [{ text: b, tag: "ins" }]];
+  /* LCS 长度表(行内 token 数小,压平一维)。 */
+  const dp = new Uint16Array((n + 1) * (m + 1));
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      dp[i * (m + 1) + j] =
+        A[i] === B[j]
+          ? dp[(i + 1) * (m + 1) + j + 1] + 1
+          : Math.max(dp[(i + 1) * (m + 1) + j], dp[i * (m + 1) + j + 1]);
+  const parts = (side: 0 | 1): WordPart[] => {
+    const out: WordPart[] = [];
+    const push = (text: string, tag: WordPart["tag"]) => {
+      if (!text) return;
+      const last = out[out.length - 1];
+      if (last && last.tag === tag) last.text += text;
+      else out.push({ text, tag });
+    };
+    let i = 0;
+    let j = 0;
+    while (i < n && j < m) {
+      if (A[i] === B[j]) {
+        push(A[i++], undefined);
+        j++;
+      } else if (dp[(i + 1) * (m + 1) + j] >= dp[i * (m + 1) + j + 1]) {
+        push(A[i++], side === 0 ? "del" : undefined);
+      } else {
+        push(B[j++], side === 1 ? "ins" : undefined);
+      }
+    }
+    while (i < n) push(A[i++], side === 0 ? "del" : undefined);
+    while (j < m) push(B[j++], side === 1 ? "ins" : undefined);
+    return out;
+  };
+  return [parts(0), parts(1)];
+}
+
+function WordContent({ parts, wrap }: { parts: WordPart[]; wrap: boolean }) {
   return (
-    <div className={`flex ${ROW_CLS[row.kind]} ${border}`}>
-      <span className={GUTTER_CLS}>{num ?? ""}</span>
-      <span className={wrap ? CONTENT_WRAP_CLS : CONTENT_NOWRAP_CLS}>{row.text}</span>
+    <span className={wrap ? CONTENT_WRAP_CLS : CONTENT_NOWRAP_CLS}>
+      {parts.map((p, i) =>
+        p.tag ? (
+          <span
+            key={i}
+            className={p.tag === "ins" ? "git-split-word git-split-word-ins" : "git-split-word git-split-word-del"}
+          >
+            {p.text}
+          </span>
+        ) : (
+          p.text
+        ),
+      )}
+    </span>
+  );
+}
+
+/* ── 双栏(IntelliJ 并排):三列 [左内容 | 中央行号槽 | 右内容] ── */
+
+/** 双栏配对语义:双非空且文本不同 = 修改对(左红右绿同行),单侧 = 纯删/纯增。 */
+type PairKind = "ctx" | "mod" | "del" | "add";
+const pairKind = (left: PatchRow | null, right: PatchRow | null): PairKind =>
+  left && right ? (left.text === right.text ? "ctx" : "mod") : left ? "del" : "add";
+
+/** 色带 = 本侧行种类的经典淡染(与单栏同源变量);ctx/meta 无带。 */
+const SIDE_BAND: Record<string, string> = {
+  del: "git-split-band-del",
+  add: "git-split-band-add",
+};
+const bandFor = (row: PatchRow | null) => (row ? SIDE_BAND[row.kind] ?? "" : "");
+
+/** 中央行号槽一格:旧号居左、新号居右,缺侧画点号。 */
+function SlotGutter({ left, right }: { left: PatchRow | null; right: PatchRow | null }) {
+  return (
+    <div className="git-split-gutter-row">
+      <span>{left?.oldLine ?? "·"}</span>
+      <span>{right?.newLine ?? "·"}</span>
     </div>
   );
 }
-/** 双栏逐行配对 grid(原始结构,换行态):同行左右格共享行高,行行对齐。 */
+
+/** 换行态双栏:逐行三列 grid,行行对齐(原始结构,列扩为 1fr|auto|1fr)。 */
 function SplitRows({ rows, wrap }: { rows: SplitRow[]; wrap: boolean }) {
   return (
     <>
@@ -71,72 +150,119 @@ function SplitRows({ rows, wrap }: { rows: SplitRow[]; wrap: boolean }) {
             {row.row.text}
           </div>
         ) : (
-          <div
+          <PairRow
             key={`${row.left ? patchRowKey(row.left) : "empty"}|${row.right ? patchRowKey(row.right) : "empty"}`}
-            className="grid grid-cols-2 [content-visibility:auto] [contain-intrinsic-size:auto_1em]"
-          >
-            <SplitCell row={row.left} side="left" wrap={wrap} />
-            <SplitCell row={row.right} side="right" wrap={wrap} />
-          </div>
+            row={row}
+            wrap={wrap}
+          />
         ),
       )}
     </>
   );
 }
 
-/** 双栏关闭换行:左右两个独立滚动面 —— 横向各自滚(各自滚动条),
- *  纵向镜像同步。nowrap 行高恒单行,两侧行数一致,无需逐行对齐。 */
-function SplitHalvesSynced({ rows }: { rows: SplitRow[] }) {
-  const leftRef = useRef<HTMLDivElement>(null);
-  const rightRef = useRef<HTMLDivElement>(null);
-  const syncingRef = useRef(false);
-  const mirror = (src: RefObject<HTMLDivElement | null>, dst: RefObject<HTMLDivElement | null>) => () => {
-    if (syncingRef.current || !src.current || !dst.current) return;
-    syncingRef.current = true;
-    dst.current.scrollTop = src.current.scrollTop;
-    requestAnimationFrame(() => {
-      syncingRef.current = false;
-    });
-  };
-  const side = (items: (PatchRow | "header" | null)[], isLeft: boolean) => (
-    <div
-      ref={isLeft ? leftRef : rightRef}
-      onScroll={isLeft ? mirror(leftRef, rightRef) : mirror(rightRef, leftRef)}
-      className={`h-full overflow-auto ${isLeft ? "border-r border-(color:--tmd-border)" : ""}`}
-    >
-      {items.map((item, i) => {
-        if (item === null) {
-          const row = rows[i];
-          const anchor = row.kind === "header" ? row.row : row.left ?? row.right;
-          return <div key={`e:${anchor ? patchRowKey(anchor) : "empty"}`} className="diff-split-empty" aria-hidden />;
-        }
-        if (item === "header") {
-          const header = rows[i];
-          if (header.kind !== "header") return null;
-          return (
-            <div key={`h:${patchRowKey(header.row)}`} className={header.row.kind === "hunk" ? ROW_CLS.hunk : `px-1 ${ROW_CLS.meta}`}>
-              {header.row.text}
-            </div>
-          );
-        }
-        return (
-          <div key={patchRowKey(item)} className={`flex ${ROW_CLS[item.kind]}`}>
-            <span className={GUTTER_CLS}>{(isLeft ? item.oldLine : item.newLine) ?? ""}</span>
-            <span className={CONTENT_NOWRAP_CLS}>{item.text}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-  const leftItems = rows.map((r) => (r.kind === "header" ? "header" : r.left));
-  const rightItems = rows.map((r) => (r.kind === "header" ? "header" : r.right));
+function PairRow({ row, wrap }: { row: { left: PatchRow | null; right: PatchRow | null }; wrap: boolean }) {
+  const kind = pairKind(row.left, row.right);
+  const [dParts, iParts] = kind === "mod" ? wordDiff(row.left!.text, row.right!.text) : [null, null];
   return (
-    <div className="grid h-full grid-cols-2">
-      {side(leftItems, true)}
-      {side(rightItems, false)}
+    /* 三列:左 1fr | 槽 auto | 右 1fr;同行共享行高,红绿同排对位,空侧留白。 */
+    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] [content-visibility:auto] [contain-intrinsic-size:auto_1em]">
+      <div className={`flex min-w-0 px-2 ${bandFor(row.left)}`}>
+        {dParts ? (
+          <WordContent parts={dParts} wrap={wrap} />
+        ) : (
+          <span className={wrap ? CONTENT_WRAP_CLS : CONTENT_NOWRAP_CLS}>{row.left?.text ?? ""}</span>
+        )}
+      </div>
+      <div className="border-x border-(color:--tmd-border)">
+        <SlotGutter left={row.left} right={row.right} />
+      </div>
+      <div className={`flex min-w-0 px-2 ${bandFor(row.right)}`}>
+        {iParts ? (
+          <WordContent parts={iParts} wrap={wrap} />
+        ) : (
+          <span className={wrap ? CONTENT_WRAP_CLS : CONTENT_NOWRAP_CLS}>{row.right?.text ?? ""}</span>
+        )}
+      </div>
     </div>
   );
 }
+
+/** 关闭换行:左右两个独立横向滚动面 + 中央槽,纵向镜像同步
+ *  (nowrap 行高恒单行,三栏行数一致,无需逐行测量)。 */
+function SplitHalvesSynced({ rows }: { rows: SplitRow[] }) {
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
+  const midRef = useRef<HTMLDivElement>(null);
+  const syncingRef = useRef(false);
+  const mirror =
+    (src: RefObject<HTMLDivElement | null>, dst: RefObject<HTMLDivElement | null>[]) => () => {
+      if (syncingRef.current || !src.current) return;
+      syncingRef.current = true;
+      for (const d of dst) if (d.current) d.current.scrollTop = src.current.scrollTop;
+      requestAnimationFrame(() => {
+        syncingRef.current = false;
+      });
+    };
+  const side = (isLeft: boolean) => {
+    const me = isLeft ? leftRef : rightRef;
+    const targets = isLeft ? [rightRef, midRef] : [leftRef, midRef];
+    return (
+      <div ref={me} onScroll={mirror(me, targets)} className="h-full min-w-0 overflow-auto px-2">
+        {rows.map((row) =>
+          row.kind === "header" ? (
+            <div
+              key={`h:${patchRowKey(row.row)}`}
+              className={row.row.kind === "hunk" ? ROW_CLS.hunk : "italic text-(--tmd-fg-faint)"}
+            >
+              {row.row.text}
+            </div>
+          ) : (
+            (() => {
+              const kind = pairKind(row.left, row.right);
+              const self = isLeft ? row.left : row.right;
+              if (!self) return <div key={`e:${patchRowKey((isLeft ? row.right : row.left)!)}`} />;
+              const parts =
+                kind === "mod"
+                  ? isLeft
+                    ? wordDiff(self.text, row.right!.text)[0]
+                    : wordDiff(row.left!.text, self.text)[1]
+                  : null;
+              return (
+                <div key={patchRowKey(self)} className={bandFor(self)}>
+                  {parts ? (
+                    <WordContent parts={parts} wrap={false} />
+                  ) : (
+                    <span className={CONTENT_NOWRAP_CLS}>{self.text}</span>
+                  )}
+                </div>
+              );
+            })()
+          ),
+        )}
+      </div>
+    );
+  };
+  const mid = (
+    <div ref={midRef} className="h-full overflow-hidden border-x border-(color:--tmd-border)">
+      {rows.map((row) =>
+        row.kind === "header" ? (
+          <div key={`h:${patchRowKey(row.row)}`} />
+        ) : (
+          <SlotGutter key={`g:${patchRowKey(row.left ?? row.right!)}`} left={row.left} right={row.right} />
+        ),
+      )}
+    </div>
+  );
+  return (
+    <div className="grid h-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      {side(true)}
+      {mid}
+      {side(false)}
+    </div>
+  );
+}
+
 export function PatchLines({
   text,
   className = "max-h-72",
@@ -150,15 +276,15 @@ export function PatchLines({
   const rows = useMemo(() => parsePatch(text), [text]);
   const splitRows = useMemo(() => (mode === "split" ? buildSplitRows(rows) : null), [mode, rows]);
   if (splitRows && !diffWrap) {
-    /* 双栏 nowrap 走双滚动面:外层不滚,横向滚动条归左右两半各自所有。 */
+    /* 双栏 nowrap:外层不滚,横向滚动条归左右两半各自所有。 */
     return (
-      <pre className={`${className} overflow-hidden px-0 py-1 font-mono text-[0.6875rem] leading-tight`}>
+      <pre className={`${className} overflow-hidden py-1 font-mono text-[0.6875rem] leading-tight`}>
         <SplitHalvesSynced rows={splitRows} />
       </pre>
     );
   }
   return (
-    <pre className={`${className} overflow-auto px-3 py-1 font-mono text-[0.6875rem] leading-tight`}>
+    <pre className={`${className} overflow-auto py-1 font-mono text-[0.6875rem] leading-tight ${splitRows ? "" : "px-3"}`}>
       {splitRows ? (
         <SplitRows rows={splitRows} wrap={diffWrap} />
       ) : (

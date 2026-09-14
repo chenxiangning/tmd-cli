@@ -1,8 +1,7 @@
 /**
  * PatchLines 渲染契约(node 环境 renderToStaticMarkup,只验呈现面):
- * - unified:旧/新双行号槽,add 仅新号、del 仅旧号、ctx 双号;
- * - split:左格旧行号、右格新行号(防右栏无号回归),del 余量右格斜纹占位;
- * - hunk/meta 行通栏不带行号。
+ * - split(并排):中央行号槽(旧|新)、同行红绿对位(修改对左格 del 带 + 右格 add 带)、
+ *   纯删/纯增单侧带;配对行词级下划线;空侧留白(无斜纹);hunk 头通栏。
  */
 
 import { renderToStaticMarkup } from "react-dom/server";
@@ -22,13 +21,18 @@ describe("PatchLines", () => {
     expect(html).toContain("@@ -10,1 +20,2 @@"); // hunk 头通栏
   });
 
-  it("split:左旧右新行号,del 余量右格斜纹空侧", () => {
+  it("split:中央槽旧|新行号,色带与词级标注按配对语义", () => {
     const html = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
-    // 右格新行号 20/21/22 必须出现(回归:右栏曾恒空);左格旧行号 10/11
+    // 全部行号可达:ctx 10|20、mod 对 11|21、add 余量 ·|22
     for (const n of [10, 11, 20, 21, 22]) expect(html).toContain(`>${n}<`);
-    // 纯 add 余量 → 左格斜纹占位一格
-    expect(html.match(/diff-split-empty/g)?.length).toBe(1);
-    // hunk 头通栏呈现
+    // 修改对(左红右绿同行):band-del 左格 ×1 + band-add 右格 ×1;add 余量蓝带 +1
+    expect(html.match(/git-split-band-del/g)?.length).toBe(1);
+    expect(html.match(/git-split-band-add/g)?.length).toBe(2);
+    // mod 对词级:左删标注 + 右增标注(下划线,非色块)
+    expect(html).toContain("git-split-word-del");
+    expect(html).toContain("git-split-word-ins");
+    // 空侧留白(斜纹已废)
+    expect(html).not.toContain("diff-split-empty");
     expect(html).toContain("@@ -10,1 +20,2 @@");
   });
 
@@ -45,9 +49,9 @@ describe("PatchLines", () => {
       expect(nowrap).not.toContain("whitespace-pre-wrap");
       expect(nowrap).toContain("whitespace-pre ");
       const splitNowrap = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
-      // 双栏 nowrap:左右独立滚动面(两个 overflow-auto),斜纹空侧仍逐行占位
+      // 双栏 nowrap:左右独立滚动面(2 overflow-auto)+ 中央槽(overflow-hidden)
       expect(splitNowrap.match(/overflow-auto/g)?.length).toBe(2);
-      expect(splitNowrap).toContain("diff-split-empty");
+      expect(splitNowrap).toContain("git-split-gutter-row");
     } finally {
       setGitDiffWrap(true); // 模块级单例,回置防串其他用例
     }
