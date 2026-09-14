@@ -4,15 +4,16 @@
  * 数据与派生展示值由 useGitPanelData 备好,此处零派生分支。
  */
 
+import { useEffect } from "react";
 import { t } from "@kernel/i18n";
 import type { GitAheadBehind, GitFileStatus, GitRemoteRequest, GitRepoSummary, GitTotals } from "@kernel/ipc";
 import { Cross } from "@phosphor-icons/react";
 import type { GitLogState } from "./hooks/useGitLog";
 import type { GitBranchesState } from "./hooks/useGitBranches";
 import type { GitRepoContext } from "./repoContext";
-import type { FileListLayout, GitViewMode } from "./panelStore";
+import { setGitRemoteMeta, type FileListLayout, type GitViewMode, type RemoteDialogOp } from "./panelStore";
 import { gitErrorDisplay } from "./gitError";
-import { GitRemoteBar, SmartSwitchUndoBanner } from "./views/GitPanelBars";
+import { SmartSwitchUndoBanner } from "./views/GitPanelBars";
 import { RepoBar } from "./views/RepoBar";
 import { RemoteDialogGroup } from "./views/RemoteDialogGroup";
 import { DiffView } from "./views/DiffView";
@@ -21,8 +22,8 @@ import { HistoryView } from "./views/HistoryView";
 
 /** GitPanel 远端编排面 —— useGitPanelRemote 返回值的结构契约(此处只消费渲染所需)。 */
 interface GitPanelRemoteState {
-  dialog: GitRemoteRequest["op"] | null;
-  setDialog: (op: GitRemoteRequest["op"] | null) => void;
+  dialog: RemoteDialogOp | null;
+  setDialog: (op: RemoteDialogOp | null) => void;
   remoteBusy: "push" | "pull" | "fetch" | null;
   notice: string | null;
   setNotice: (msg: string | null) => void;
@@ -45,7 +46,6 @@ interface GitPanelMainProps {
   statusError: string | null;
   branch: string | undefined;
   branchName: string;
-  upstream: string | null | undefined;
   upstreamNull: string | null;
   detached: boolean;
   hasUpstream: boolean;
@@ -137,18 +137,27 @@ export function GitPanelMain({
   statusError,
   branch,
   branchName,
-  upstream,
   upstreamNull,
   detached,
   hasUpstream,
   aheadBehind,
   undoOrigin,
-  prefill,
   afterMutation,
+  prefill,
   remote,
 }: GitPanelMainProps) {
   const { dialog, setDialog, remoteBusy, notice, setNotice, runDialog } = remote;
   const canUndo = canUndoSmartSwitch(files, undoOrigin, cwd);
+  /* 远端态镜像进 panelStore:顶栏视图下拉的刷新/获取/拉取/推送行只读消费。 */
+  useEffect(() => {
+    setGitRemoteMeta({
+      detached,
+      hasUpstream,
+      ahead: aheadBehind?.ahead ?? 0,
+      behind: aheadBehind?.behind ?? 0,
+      busy: remoteBusy,
+    });
+  }, [detached, hasUpstream, aheadBehind, remoteBusy]);
   return (
     <div className="flex h-full flex-col text-xs">
       {repoCtx.showRepoBar && (
@@ -160,15 +169,6 @@ export function GitPanelMain({
           onSelect={onSelect}
         />
       )}
-      <GitRemoteBar
-        branch={branch}
-        upstream={upstream}
-        remoteBusy={remoteBusy}
-        detached={detached}
-        aheadBehind={aheadBehind}
-        hasUpstream={hasUpstream}
-        onOpenDialog={setDialog}
-      />
 
       <PanelBanners
         notice={notice}
@@ -190,6 +190,7 @@ export function GitPanelMain({
             totals={totals}
             prefill={prefill}
             onMutation={afterMutation}
+            onError={setNotice}
           />
         )}
         {view === "branch" && (

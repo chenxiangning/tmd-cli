@@ -36,7 +36,7 @@ describe("wsl origin 新建会话菜单", () => {
   it("未探测 = 不显示任何引擎行,note 引导去 WSL 卡检测", () => {
     expect(origin.filterCliProfiles?.(workspace, profiles)).toEqual([]);
     expect(origin.sessionMenuNote?.(workspace)).toBe(
-      "未探测 Ubuntu 引擎;展开 WSL 卡检测发行版后可新建会话",
+      "未探测 Ubuntu 引擎;打开 WSL 面板点「连接」后可新建会话",
     );
   });
 

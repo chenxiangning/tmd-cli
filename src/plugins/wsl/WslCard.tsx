@@ -1,22 +1,23 @@
 /**
- * WSL 主机卡 —— welcome 页尾(welcome.footer 挂点)的发行版面板。
+ * WSL 主机面板 —— 中央 tab 容器(tab kind="wsl";入口在左下角设置菜单)。
  *
  * 两段共存(2026-09-12 验收裁决:「本机|远程」段控无意义,拔掉):
  * - 本机段(仅本机 WSL 可用时渲染,即 Windows):发行版枚举、设默认、
  *   添加 WSL 工作区(UNC 路径进 workspace 表);
  * - 远程段:经 SSH 连 Windows 宿主(复用 settings.ssh.hosts + 手动添加表单),
- *   发行版行展开 DistroPanel(引擎探针/目录浏览/打开会话)。
- * 卡常驻渲染(mac 也可见远程入口);两侧数据互不影响。
+ *   发行版行展开 DistroPanel(引擎探针/目录浏览;引擎/目录选值由面板级「SSH 进入」消费)。
+ * 面板常开渲染(mac 也可见远程入口);两侧数据互不影响。
  * 自 index.tsx 拆出(文件规模铁则 + only-export-components:插件注册面归 index)。
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { CaretDownIcon, CaretRightIcon, DesktopIcon, FolderSimplePlusIcon } from "@phosphor-icons/react";
+import { DesktopIcon, FolderSimplePlusIcon } from "@phosphor-icons/react";
 import { ipc, type WslDistro, type WslInfo } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { WslRemoteSection } from "./RemoteSection";
 import { AddWslWorkspaceDialog } from "./WorkspaceDialog";
+import logoUrl from "../../assets/logo.png";
 
 /** 卡头状态行(本机检测态 / 本机不可用时的远程提示)。 */
 function CardStatus({
@@ -116,7 +117,6 @@ function LocalSection({
 export function WslCard() {
   const [info, setInfo] = useState<WslInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
   const { settings } = useSettingsState();
   const pinnedDistro = settings.wsl.defaultDistro;
@@ -164,14 +164,9 @@ export function WslCard() {
   };
 
   return (
-    <section className="wsl-card">
-      <button
-        type="button"
-        className="wsl-card-head"
-        aria-expanded={expanded}
-        onClick={() => setExpanded((v) => !v)}
-      >
-        {expanded ? <CaretDownIcon size="0.75rem" aria-hidden /> : <CaretRightIcon size="0.75rem" aria-hidden />}
+    <>
+      <section className="wsl-card">
+      <div className="wsl-card-head">
         <DesktopIcon size="0.875rem" aria-hidden />
         <b>WSL</b>
         <span className="wsl-card-status">
@@ -183,26 +178,29 @@ export function WslCard() {
             pinnedDistro={pinnedDistro}
           />
         </span>
-      </button>
-      {expanded && (
-        <div className="wsl-card-body">
-          {info && (
-            <LocalSection
-              info={info}
-              loading={loading}
-              shown={shown}
-              hiddenCount={hiddenCount}
-              pinnedDistro={pinnedDistro}
-              onRefresh={refresh}
-              onSetDefault={(name) => void setDefault(name)}
-              onAdd={() => setAdding(true)}
-              onShowAll={() => updateSettings({ wsl: { ...settings.wsl, defaultDistro: "" } })}
-            />
-          )}
-          <WslRemoteSection />
-        </div>
-      )}
+      </div>
+      <div className="wsl-card-body">
+        {info && (
+          <LocalSection
+            info={info}
+            loading={loading}
+            shown={shown}
+            hiddenCount={hiddenCount}
+            pinnedDistro={pinnedDistro}
+            onRefresh={refresh}
+            onSetDefault={(name) => void setDefault(name)}
+            onAdd={() => setAdding(true)}
+            onShowAll={() => updateSettings({ wsl: { ...settings.wsl, defaultDistro: "" } })}
+          />
+        )}
+        <WslRemoteSection />
+      </div>
       {adding && info && <AddWslWorkspaceDialog distros={info.distros} onClose={() => setAdding(false)} />}
-    </section>
+      </section>
+      <div className="wsl-brand" aria-hidden>
+        <img src={logoUrl} alt="" />
+        <span>tmd-cli</span>
+      </div>
+    </>
   );
 }

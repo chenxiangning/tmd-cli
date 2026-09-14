@@ -1,7 +1,7 @@
 /**
  * codex profile 注册契约测试 —— 钉死 bracketedPaste 阵营。
  *
- * 2026-09-06 PTY 探针实测(见 kernel/cli.ts bracketedPaste 注):codex 启动/恢复窗
+ * 2026-09-06 PTY 探针实测(见 kernel/cliProfile.ts bracketedPaste 注):codex 启动/恢复窗
  * 与斜杠弹层活跃态,裸「文本+CR」单 chunk 回车被编辑器吞("composer 发了但幕布没
  * 提交");BP 标记后走 handlePaste 通路,CR 照常提交,resume 场景 /model 实测执行。
  * 一旦被摘,composer/模型位点击在 codex 上回归「发了但没回车」。

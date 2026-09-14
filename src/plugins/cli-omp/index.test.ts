@@ -3,7 +3,7 @@
  *
  * bracketedPaste 一旦被摘(或后续 pi-tui 系 CLI 漏声明),composer 整串
  * 正文+CR 同帧到达会被编辑器的"粘贴爆发"启发式吞掉提交回车,表现为
- * "composer 发了但幕布没提交,须再手按回车"(win 实测,见 kernel/cli.ts)。
+ * "composer 发了但幕布没提交,须再手按回车"(win 实测,见 kernel/cliProfile.ts)。
  * 钉死 omp 与 pi/kimi 同阵营声明。
  */
 import { describe, expect, it } from "vitest";

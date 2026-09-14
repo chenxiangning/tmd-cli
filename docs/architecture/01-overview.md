@@ -1,6 +1,6 @@
 # tmd-cli 基础架构总览
 
-- 日期：2026-09-01（2026-09-04、2026-09-06、2026-09-07 按当前代码校准）
+- 日期：2026-09-01（2026-09-04、2026-09-06、2026-09-07、2026-09-14 按当前代码校准）
 - 状态：骨架已落地，持续演进
 - 铁律：**模块化 + 插件化**
 
@@ -20,11 +20,12 @@
 React Host
 ├── kernel/       插件契约、生命周期、事件总线、IPC、PTY TerminalView
 ├── app-shell/    五区外壳、插件市场页(PluginMarketPage)与挂载点(宿主职责)
-└── plugins/      cli-* ×10(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/opencode/dsh) · workspace · session-budget · files · git · checkpoints(审批线) · composer · settings · network-proxy · ssh(远程会话) · terminal(内置终端) · memory-coordinator(记忆协调) · welcome
+└── plugins/      cli-* ×10(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/opencode/dsh) · workspace · session-budget · files · git · checkpoints(审批线) · composer · settings · network-proxy · ssh(远程会话) · terminal(内置终端) · memory-coordinator(记忆协调) · welcome · assets(智能体/提示词) · cli-config(CLI 独立配置) · local-loader(本机插件) · wsl(WSL 通道) · wallpaper(壁纸)
 
 Tauri Rust
 ├── pty.rs            portable-pty：spawn / read / write / resize / kill,双线程聚合泵
 ├── session_log.rs    会话输出落盘(64MB 旋转) + 幕布翻页读取
+├── session_disk_log.rs spawn 代日志指针与磁盘尾读(session-last-log.txt 寻址,磁盘先行回放)
 ├── resolve/          PATH 富化 / 裸命令名 → 绝对路径(mod/path_cache/which,pty·probe·installer 共用)
 ├── probe.rs          CLI 探针(found/path/version/npmPrefix,8s 超时;npmPrefix = 命中副本的 npm prefix,双副本就地更新判据)
 ├── installer.rs      参数化安装执行器(InstallPlan:npm/script 双通道,配方由前端 CliProfile 声明),流式日志事件
@@ -38,9 +39,12 @@ Tauri Rust
 ├── fs_walk.rs        全仓文件索引(gitignore 系语义,composer `@` 候选)
 ├── proc_run.rs       通用短进程通道(CLI RPC 副车 / inspect,spawn_blocking)
 ├── fs.rs             文件树读取(只读)
-├── fs_edit.rs        文件写操作:新建/重命名/废纸篓/访达显示/编辑器保存(绝对路径,禁 .git 段,16MB 上限)
+├── fs_edit.rs        文件写操作:新建/重命名/废纸篓/访达显示/编辑器保存/受管副本拷贝 fs_copy_file(绝对路径,禁 .git 段,16MB 上限)
+├── fs_preview.rs     文件预览读取(文本/图片 dataURL/二进制 base64,自 fs.rs 拆出)
 ├── git/              libgit2 原语(git2 vendored);fetch/pull/push 走远端 shell-out
 ├── ssh/              russh 一等 SSH 会话引擎(transport/session/auth/known_hosts/control/forward/sftp 全家,附 e2e 实测)
+├── wsl*.rs           WSL 通道原语(发行版信息/远程探测/远程列表/引擎探针/exec/文件文本读取)
+├── plugins_cmds.rs   本机插件扫描/读取/归档/回退/删除(~/.tmd-cli/plugins/)
 └── checkpoints/      审批线账本 sidecar(ledger.jsonl + objects.git 裸库 + states.json,永不触碰用户仓库)
 
 ### 内核边界
@@ -61,6 +65,7 @@ SSH 会话是第二类一等会话：同一 `Session` 形状但无 CLI profile�
 连接失败不会静默消亡:错误文本原样进幕布,会话保留在 failed 态(右栏面板同步状态卡),由用户「断开」收尾;终态事件同时撤下未应答的 host key/KBI/密码提示卡。
 
 内置终端是第三类一等会话(kind="shell"):本地默认 shell(macOS zsh / Linux bash / Windows cmd),同样无 CLI profile,经 `SpawnSpec.kind/title` 透传登记(`kernel/shellSessions.ts` 装配,SSH 同构);terminal 插件只贡献头部左区按钮簇入口(点击聚焦最新/⌥新建),会话生命周期归 kernel,拔插件不孤儿化会话。
+WSL 不是第四类会话:本机发行版 = UNC 工作区 + `wsl.exe` spawn 包装,远程宿主 = SSH 通道内 `wsl.exe`,引擎/传输语义不变;契约见 `09-wsl-contract.md`。
 
 Composer 的只读状态通过 CLI profile 的 `readSessionStatus` 适配器读取各 CLI 自己的 session JSONL。内核只编排状态刷新，不理解 OMP、Pi、Codex 的文件格式；状态缺失时显示 `—`，不猜测默认值。
 
@@ -91,7 +96,7 @@ PTY bytes → Tauri event pty://out/{sessionId} → xterm.js
 - `activate(ctx)` / `deactivate()`：生命周期
 - `registerCliProfile(profile)`：CLI 插件注册启动 profile
 - `CliProfile.readSessionStatus`：声明 CLI 私有 session 状态读取能力
-- `contribute(point, contribution)`：向 10 个挂点扩展（header.left/right/breadcrumb、leftSidebar.section/workspaceCaption、workspace.newSessionMenu、overlay、editorCenter.welcome/composer、composer.statusBar；无渲染方的挂点不声明）
+- `contribute(point, contribution)`：向 14 个挂点扩展（header.left/right/leftCluster/breadcrumb、leftSidebar.section/workspaceCaption、workspace.newSessionMenu、overlay、editorCenter.welcome/composer、welcome.footer、composer.statusBar/inputRail、market.local；无渲染方的挂点不声明）
 - `registerSettingsSection(section)`：向设置面板注册 section（左导航 + 右 tab），settings 插件按注册表渲染
 - `registerFilePanel` / `registerTabContent` / `registerSidebarAction` / `registerFileVisual`：右栏面板、中央 tab 内容（按 tab.kind 路由）、侧栏快捷动作、文件视觉,全部经 ctx 登记(无旁路注册表)
 
@@ -137,6 +142,6 @@ QuotaChip (composer 插件)
 
 ## 8. 当前实现状态
 
-已完成：配置脚手架、插件宿主与插件市场（22 个注册插件）、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/opencode/dsh)+ SSH 一等会话（russh 引擎，kind 路由）+ 内置终端（本地默认 shell，kind=shell 三等会话）、PTY 全生命周期与会话输出落盘翻页、输出缓冲分块化(streamSlice)、xterm 幕布、五区外壳、顶栏会话 tab 条(容量 4)、Composer 触发符/拖拽/截图/命令抽屉/消息锚点栏/Quota chip、触发补全以 CLI 为真相源(RPC 副车/磁盘扫描/全仓模糊)、bracketed-paste 发送器(pi-tui 系)、只读 session 状态工具栏、Quota 额度查询(全供应商识别 + relay 探测 + 契约单测)、welcome 首页(引擎探针/一键安装/凭据盘点/近期会话/GitHub 仓库链接)、右栏 Git 面板全量(差异/分支/历史 Graph 化(泳道拓扑 + ahead/behind 合成行)/提交 diff 中央 tab/远端 fetch-pull-push)、Git 多仓支持(git_repos_scan 发现 + RepoBar/RepoGuide 四象限分档 + 跨仓文件树着色)、文件树 + 中央文件编辑器(CodeMirror)+ 文件渲染档案(图片/PDF/表格/docx/结构化/二进制占位)+ Markdown 预览(mermaid/KaTeX/图片/大纲)、审批线(checkpoints 账本:双归因/整批与按文件回退/影子对象库/用户消息图片缩略图)、SSH 右栏面板(SFTP 树/端口转发/远端文件编辑)、主题引擎(21 个 VS Code preset)、网络代理、会话置顶(双作用域)/重命名/显示预算、会话管理模式(批量归档/删除)+ 归档视图(独立分页)+ tombstone 删除(意图在册不复活)+ 侧栏运行区(运行中/未查看自动聚集,单一区域原则)、Ask 等待确认检测(字节流 + 屏幕态双路)、全局快捷键(kernel 注册表 + 分发器)、版本号弹窗(CHANGELOG 分页 + 在线更新检查)、网络代理、memory-coordinator(Magic Context 共享库:面板/胶囊/控制台/自动蒸馏)、cli-dsh PTY 适配器(会话内对话/审批提问卡/footer)。
+已完成：配置脚手架、插件宿主与插件市场（27 个注册插件:engine 10 / feature 13 / core 3 / local 1）、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/opencode/dsh)+ SSH 一等会话（russh 引擎，kind 路由）+ 内置终端（本地默认 shell，kind=shell 三等会话）、PTY 全生命周期与会话输出落盘翻页、输出缓冲分块化(streamSlice)、xterm 幕布、五区外壳、顶栏会话 tab 条(容量可配,默认 4)、Composer 触发符/拖拽/截图/命令抽屉/消息锚点栏/Quota chip、触发补全以 CLI 为真相源(RPC 副车/磁盘扫描/全仓模糊)、bracketed-paste 发送器(pi-tui 系)、只读 session 状态工具栏、Quota 额度查询(全供应商识别 + relay 探测 + 契约单测)、welcome 首页(引擎探针/一键安装/凭据盘点/近期会话/GitHub 仓库链接)、右栏 Git 面板全量(差异/分支/历史 Graph 化(泳道拓扑 + ahead/behind 合成行)/提交 diff 中央 tab/远端 fetch-pull-push/三区拖选批量与未跟踪删除)、Git 多仓支持(git_repos_scan 发现 + RepoBar/RepoGuide 四象限分档 + 跨仓文件树着色)、文件树 + 中央文件编辑器(CodeMirror)+ 文件渲染档案(图片/PDF/表格/docx/结构化/二进制占位)+ Markdown 预览(mermaid/KaTeX/图片/大纲)、审批线(checkpoints 账本:双归因/整批与按文件回退/影子对象库/用户消息图片缩略图)、SSH 右栏面板(SFTP 树/端口转发/远端文件编辑)、主题引擎(31 个 VS Code preset)、网络代理、会话置顶(双作用域)/重命名/显示预算、会话管理模式(批量归档/删除)+ 归档视图(独立分页)+ tombstone 删除(意图在册不复活)+ 侧栏运行区(运行中/未查看自动聚集,单一区域原则)、Ask 等待确认检测(字节流 + 屏幕态双路)、全局快捷键(kernel 注册表 + 分发器)、版本号弹窗(CHANGELOG 分页 + 在线更新检查 + updater 自动更新)、memory-coordinator(Magic Context 共享库:面板/胶囊/控制台/自动蒸馏)、cli-dsh PTY 适配器(会话内对话/审批提问卡/footer/流式输出)、WSL 支持(本机 UNC + 远程 SSH 宿主 M1:连接/工作区/会话/历史/状态/文件只读)、工作区壁纸(本地图库受管副本 + 流体着色器,表面 token 打穿 + 壁纸态层梯,契约见 11)、omp 历史会话预热接管秒开(acquireResume 注入 /resume 热切换 + onAcquired 早激活,契约见 10)、会话 tab 平铺显示与平铺广播。
 
-后续按优先级：命令抽屉真机验收(openspec composer-command-drawer,余 5 项 `[V]`)→ CLI 交互式兼容性验证；在途契约归档(openspec/changes:ssh-plugin、git-right-panel 等)。
+后续按优先级：命令抽屉真机验收(余 5 项 `[V]`,openspec/changes/composer-command-drawer,唯一在途)→ CLI 交互式兼容性验证;其余变更契约均已归档(openspec/changes/archive/)。

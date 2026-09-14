@@ -28,9 +28,11 @@ interface Props {
   totals: GitTotals | null;
   prefill: { message: string; seq: number } | null;
   onMutation: () => void;
+  /** 变更操作失败的可见反馈通道(PanelBanners notice);失败也照常刷新真实状态。 */
+  onError: (msg: string) => void;
 }
 
-export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Props) {
+export function DiffView({ cwd, layout, files, totals, prefill, onMutation, onError }: Props) {
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const [confirm, setConfirm] = useState<GitConfirmState | null>(null);
   /* 文件消失(已提交/还原)时同步掉勾选:渲染期 prev-files 对比调校(非 effect)。 */
@@ -52,10 +54,26 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
       return next;
     });
 
-  const runStage = (paths: string[]) =>
-    ipc.gitStage(cwd, paths).then(onMutation, (e) => console.warn(gitErrorDisplay(e)));
-  const runUnstage = (paths: string[]) =>
-    ipc.gitUnstage(cwd, paths).then(onMutation, (e) => console.warn(gitErrorDisplay(e)));
+  /* 拖选扩散批量设勾(DiffFlatList 邮件式拖选落点;与单行 toggle 同一勾选集) */
+  const setChecks = (paths: string[], val: boolean) =>
+    setChecked((prev) => {
+      const next = new Set(prev);
+      for (const p of paths) {
+        if (val) next.add(p);
+        else next.delete(p);
+      }
+      return next;
+    });
+
+  /* 失败统一:横幅可见报错 + 立即刷新(status 轮询 5s 太慢,且失败态必须可见);
+     静默 console.warn 会误导 —— 刚确认过的 discard/clean 失败看起来像已生效。 */
+  const fail = (e: unknown) => {
+    onError(gitErrorDisplay(e));
+    onMutation();
+  };
+
+  const runStage = (paths: string[]) => ipc.gitStage(cwd, paths).then(onMutation, fail);
+  const runUnstage = (paths: string[]) => ipc.gitUnstage(cwd, paths).then(onMutation, fail);
   const askDiscard = (paths: string[]) =>
     // 破坏性操作:应用内确认前置(window.confirm 在 Tauri 可能不弹即放行)
     setConfirm({
@@ -69,7 +87,23 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
       onConfirm: () =>
         ipc
           .gitDiscard(cwd, paths)
-          .then(onMutation, (e) => console.warn(gitErrorDisplay(e))),
+          .then(onMutation, fail)
+    });
+
+  const askClean = (paths: string[]) =>
+    // 未跟踪文件的 reset = 删除文件:破坏性,应用内确认前置
+    setConfirm({
+      title:
+        paths.length === 1
+          ? t("删除未跟踪文件 {path}?", { path: paths[0] })
+          : t("删除 {n} 个未跟踪文件?", { n: paths.length }),
+      detail: t("文件将从磁盘永久删除,不可恢复。"),
+      confirmLabel: t("永久删除"),
+      danger: true,
+      onConfirm: () =>
+        ipc
+          .gitClean(cwd, paths)
+          .then(onMutation, fail)
     });
 
   const openDiff = (file: GitFileStatus) =>
@@ -101,10 +135,12 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation }: Pr
             checked={checked}
             totals={totals}
             onToggleCheck={toggleCheck}
+            onSetChecks={setChecks}
             onOpen={openDiff}
             onStage={runStage}
             onUnstage={runUnstage}
             onDiscard={askDiscard}
+            onClean={askClean}
           />
         )}
         {files.length > 0 &&

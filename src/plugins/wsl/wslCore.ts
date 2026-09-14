@@ -39,6 +39,15 @@ export function wslToUnc(distro: string, linuxPath: string): string {
   return `\\\\wsl.localhost\\${distro}${linuxPath === "/" ? "" : linuxPath.replace(/\/+$/, "").replace(/\//g, "\\")}`;
 }
 
+/** 添加 WSL 工作区的路径闸(2026-09-13 实证回归):本机分支必须收绝对路径。
+ *  曾经 `~/cxn` 直喂 wslToUnc 拼出 `\\wsl.localhost\Ubuntu~\cxn` 毒根,
+ *  parseWslUnc 把 `Ubuntu~` 当发行版,新建会话即 WSL_E_DISTRO_NOT_FOUND。
+ *  远程分支保持 `~` 波浪惯例(契约 09 · 铁律 2),只拦裸 `~`。 */
+export function wslWorkspaceTargetOk(dir: string, remote: boolean): boolean {
+  const d = dir.trim();
+  return remote ? d !== "" && d !== "~" : /^\/[^/]/.test(d);
+}
+
 /** bash 单引号安全引用(内部 `'` → `'\''`)。 */
 export function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`;
@@ -121,7 +130,7 @@ export function wslRemoteSpawnCommand(
 
 /** 来源判定:WSL 工作区(显式元数据,或 Windows 本机 UNC 形态)。 */
 export function isWslWorkspace(ws: Workspace): boolean {
-  return !!ws.wsl || ws.root.startsWith("\\\\wsl.localhost\\\\");
+  return !!ws.wsl || ws.root.startsWith("\\\\wsl.localhost\\");
 }
 
 /** 远程 WSL 文件 URI 前缀(wslr://<hostId>/<distro>/<linuxPath>)。 */
@@ -160,4 +169,17 @@ export function parseRemoteWslFile(path: string): RemoteWslFileRef | null {
 /** 组装 wslr:// URI(文件树点击 / 打开入口共用)。 */
 export function remoteWslFileUri(hostId: string, distro: string, linuxPath: string): string {
   return `${WSLR_SCHEME}${hostId}/${distro}/${linuxPath}`;
+}
+
+/** 波浪路径拼接:~ 特判 + 尾斜杠折叠(wsl 插件内唯一定义,四处共用)。 */
+export function joinWslPath(base: string, name: string): string {
+  if (base === "~") return `~/${name}`;
+  return `${base.replace(/\/+$/, "")}/${name}`;
+}
+
+/** 波浪路径上一级:~ 与 / 恒等自身; rooted 段剥尾段,空壳回落 /。 */
+export function parentWslPath(p: string): string {
+  if (p === "~" || p === "/") return p;
+  const up = p.replace(/\/[^/]+$/, "");
+  return up === "" ? "/" : up;
 }

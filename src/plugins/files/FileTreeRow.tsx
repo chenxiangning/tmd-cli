@@ -11,8 +11,13 @@ import type { DirEntry } from "@kernel/ipc";
 import { clearDragPayload, setDragPayload } from "@kernel/internalDrag";
 import { t } from "@kernel/i18n";
 import { resolveFileVisual } from "@kernel/fileVisual";
+import { stringHue } from "@kernel/colorHash";
 
-/** 无论 drop 是否成功,结束都清 payload,防止跨拖拽残留(无捕获,提模块级)。 */
+/** 分支名稳定取 hue:同一分支恒同色(main / sit-p2 一眼可分);tag 去掉「类型 · 」前缀取分支段。 */
+function branchHue(tag: string): number {
+  return stringHue(tag.split(" · ").pop() ?? tag);
+}
+
 function handleDragEnd() {
   clearDragPayload();
 }
@@ -94,7 +99,14 @@ export function FileTreeRow({
         <span className={`file-tree-name ${color}${decoColor ? " font-semibold" : ""}`}>
           {entry.name}
         </span>
-        {repoTag && <span className="file-tree-repotag">{repoTag}</span>}
+        {repoTag && (
+          <span
+            className="file-tree-repotag"
+            style={{ "--tag-h": branchHue(repoTag) } as React.CSSProperties}
+          >
+            {repoTag}
+          </span>
+        )}
       </button>
       <span className="file-tree-actions">
         {/* 在访达中显示 ─ 设计参考图 hover 组首位(开口文件夹 icon) */}

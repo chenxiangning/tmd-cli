@@ -1,32 +1,40 @@
 /**
- * 远程发行版子面板 —— 发行版行展开:目录浏览(懒加载)+ 引擎探针 + 打开会话。
+ * 远程发行版子面板 —— 发行版行展开:目录浏览(懒加载)+ 引擎探针;引擎/目录
+ * 选值上提 RemoteSection,由面板级「SSH 进入」统一消费。
  *
  * 目录起点 ~;逐级进入;选中目录作为会话 --cd 目标。引擎探针 bins 来自
  * cli profile 清单(host.getCliProfiles,内核零引擎知识由命令签名保证)。
  * 探针/目录经同一条 ssh exec 通道命令(wsl_probe_engines / wsl_list_dir),
- * 连接即顺带完成 hostkey TOFU 信任与凭据验证 —— 「打开会话」时不再有提示卡竞态。
+ * 连接即顺带完成 hostkey TOFU 信任与凭据验证 —— 「SSH 进入」时不再有提示卡竞态。
  */
 
 import { useEffect, useState } from "react";
 import type { SshHostConfig, WslDirEntry, WslDistro, WslEngineProbe } from "@kernel/ipc";
+import type { CliProfile } from "@kernel/cliProfile";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
-import { rememberWslProbes, wslRemoteSpawnCommand } from "./wslCore";
+import { joinWslPath, rememberWslProbes } from "./wslCore";
 
-function joinPath(base: string, name: string): string {
-  if (base === "~") return `~/${name}`;
-  return `${base.replace(/\/+$/, "")}/${name}`;
-}
-
-export function DistroPanel({ distro, host: sshHost }: { distro: WslDistro; host: SshHostConfig }) {
-  const [dir, setDir] = useState<string | null>(null);
+export function DistroPanel({
+  distro,
+  host: sshHost,
+  pickedEngine,
+  onPickEngine,
+  dir,
+  onPickDir,
+}: {
+  distro: WslDistro;
+  host: SshHostConfig;
+  pickedEngine: string | null;
+  onPickEngine: (bin: string | null) => void;
+  dir: string | null;
+  onPickDir: (path: string) => void;
+}) {
   const [entries, setEntries] = useState<WslDirEntry[] | null>(null);
   const [dirErr, setDirErr] = useState<string | null>(null);
   const [probes, setProbes] = useState<WslEngineProbe[] | null>(null);
   const [probeErr, setProbeErr] = useState<string | null>(null);
-  const [pickedEngine, setPickedEngine] = useState<string | null>(null);
-  const [opening, setOpening] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,55 +63,44 @@ export function DistroPanel({ distro, host: sshHost }: { distro: WslDistro; host
     void ipc
       .wslListDir(distro.name, path, sshHost)
       .then((r) => {
-        setDir(path);
+        onPickDir(path);
         setEntries(r.filter((e) => e.isDir));
       })
       .catch((e) => setDirErr(e instanceof Error ? e.message : String(e)));
   };
 
-  const openSession = () => {
-    if (opening) return;
-    setOpening(true);
-    /* 选了引擎:profile id 随会话透传(SessionMeta.engine),composer 按 CLI
-       profile 工作;未选引擎 = 交互 shell,无 composer(与本地内置终端同构)。 */
-    const engineProfile = pickedEngine
-      ? host.getCliProfiles().find((p) => p.command === pickedEngine)?.id
-      : undefined;
-    void host
-      .createSshSession(
-        sshHost,
-        undefined,
-        wslRemoteSpawnCommand(distro.name, { cd: dir ?? undefined, engine: pickedEngine ?? undefined }),
-        engineProfile,
-      )
-      .catch((e) => setProbeErr(e instanceof Error ? e.message : String(e)))
-      .finally(() => setOpening(false));
-  };
+  /* bin → 品牌图标:cli profile 自声明 renderIcon(图标随 profile 走,不另设表)。 */
+  const probeIcons: Record<string, NonNullable<CliProfile["renderIcon"]>> = Object.fromEntries(
+    host.getCliProfiles().flatMap((p) => (p.renderIcon ? [[p.command, p.renderIcon]] : [])),
+  );
 
   return (
     <div className="wsl-distro-panel">
-      <EngineProbeSection probes={probes} probeErr={probeErr} pickedEngine={pickedEngine} onPick={setPickedEngine} />
+      <EngineProbeSection
+        probes={probes}
+        probeErr={probeErr}
+        pickedEngine={pickedEngine}
+        onPick={onPickEngine}
+        icons={probeIcons}
+      />
       <DirBrowserSection dir={dir} entries={entries} dirErr={dirErr} onLoadDir={loadDir} />
-      <button type="button" className="wsl-btn primary" disabled={opening} onClick={openSession}>
-        {opening ? t("连接中…") : t("打开会话")}
-        {pickedEngine ? ` · ${pickedEngine}` : ""}
-        {dir && dir !== "~" ? ` · ${dir}` : ""}
-      </button>
     </div>
   );
 }
 
-/** 引擎探针段:逐 binary 检出行,可点选为「打开会话」的引擎。 */
+/** 引擎探针段:逐 binary 检出行,可点选为「SSH 进入」的引擎。 */
 function EngineProbeSection({
   probes,
   probeErr,
   pickedEngine,
   onPick,
+  icons,
 }: {
   probes: WslEngineProbe[] | null;
   probeErr: string | null;
   pickedEngine: string | null;
   onPick: (bin: string | null) => void;
+  icons: Record<string, NonNullable<CliProfile["renderIcon"]>>;
 }) {
   return (
     <div className="wsl-panel-sec">
@@ -113,22 +110,43 @@ function EngineProbeSection({
           {t("仅计发行版内安装(登录 shell PATH,含 ~/.local/bin);/mnt/*(Windows 互操作)路径不计")}
         </span>
       )}
+      <div className="wsl-desc">
+        <Hl text={t("【点选】检出的引擎行,「SSH 进入」即以该【CLI】启动;不选则进【交互 shell】。")} />
+      </div>
       {probeErr && <div className="wsl-remote-err">{probeErr}</div>}
-      {probes?.map((p) => (
-        <button
-          key={p.bin}
-          type="button"
-          className={`wsl-probe-row ${p.path ? "" : "off"} ${pickedEngine === p.bin ? "on" : ""}`}
-          disabled={!p.path}
-          onClick={() => onPick(pickedEngine === p.bin ? null : p.bin)}
-          title={p.path ?? t("未检出")}
-          aria-label={t("选中 {bin} 作为会话引擎", { bin: p.bin })}
-        >
-          <span className={`wsl-dot ${p.path ? "ok" : ""}`} aria-hidden />
-          <span>{p.bin}</span>
-          <span className="wsl-probe-path">{p.path ?? t("未检出")}</span>
-        </button>
-      ))}
+      <div className="wsl-probe-grid">
+        {probes?.map((p) => {
+          const icon = icons[p.bin];
+          return (
+            <button
+              key={p.bin}
+              type="button"
+              className={`wsl-probe-row ${p.path ? "" : "off"} ${pickedEngine === p.bin ? "on" : ""}`}
+              disabled={!p.path}
+              onClick={() => onPick(pickedEngine === p.bin ? null : p.bin)}
+              title={p.path ?? t("未检出")}
+              aria-label={t("选中 {bin} 作为会话引擎", { bin: p.bin })}
+            >
+              {icon ? (
+                <span className="wsl-probe-icon" aria-hidden>
+                  {icon("0.75rem")}
+                </span>
+              ) : (
+                <span className={`wsl-dot ${p.path ? "ok" : ""}`} aria-hidden />
+              )}
+              <span className="wsl-probe-bin">{p.bin}</span>
+              {p.path ? (
+                <>
+                  <span className="wsl-probe-path">{p.path}</span>
+                  <span className="wsl-probe-tag">{t("可用")}</span>
+                </>
+              ) : (
+                <span className="wsl-probe-path wsl-probe-miss">{t("未检出")}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -155,6 +173,9 @@ function DirBrowserSection({
         </button>
         <code>{dir ?? "~"}</code>
       </div>
+      <div className="wsl-desc">
+        <Hl text={t("「SSH 进入」以该目录为【启动目录】(--cd);逐级进入,点选即生效。")} />
+      </div>
       {dirErr && <div className="wsl-remote-err">{dirErr}</div>}
       {entries !== null && (
         <div className="wsl-dir-list">
@@ -167,8 +188,8 @@ function DirBrowserSection({
             <button
               key={e.name}
               type="button"
-              className={`wsl-dir-row ${dir === joinPath(dir ?? "~", e.name) ? "on" : ""}`}
-              onClick={() => onLoadDir(joinPath(dir ?? "~", e.name))}
+              className="wsl-dir-row"
+              onClick={() => onLoadDir(joinWslPath(dir ?? "~", e.name))}
             >
               {e.name}
             </button>
@@ -177,5 +198,15 @@ function DirBrowserSection({
         </div>
       )}
     </div>
+  );
+}
+
+/** 文案高亮:把【关键词】染成强调色,详情描述共用。 */
+export function Hl({ text }: { text: string }) {
+  const parts = text.split(/【(.*?)】/g);
+  return (
+    <>
+      {parts.map((p, i) => (i % 2 === 1 ? <b key={`${i}:${p}`} className="wsl-hl">{p}</b> : p))}
+    </>
   );
 }

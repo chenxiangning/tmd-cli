@@ -47,7 +47,7 @@ export const MESSAGES = {
   "领先 {n} 个提交": "{n} commits ahead",
   "落后 {n} 个提交": "{n} commits behind",
 
-  /* 远端操作条 / 还原横幅 */
+  /* 远端动作(顶栏视图下拉行) */
   "刷新(重扫状态/分支/历史)": "Refresh (rescan status/branches/history)",
   "获取远端更新(fetch --all --prune,不动本地分支)":
     "Fetch remote updates (fetch --all --prune; local branches untouched)",
@@ -102,6 +102,29 @@ export const MESSAGES = {
   "仅当前分支可推送": "Only the current branch can be pushed",
   "打开推送对话框(可预览/选目标)": "Open the push dialog (preview and target selection)",
   "重命名...": "Rename...",
+
+  /* 创建 PR 对话框(mossx 复刻;spec 2026-09-15) */
+  "创建 PR": "Create PR",
+  "创建 Pull Request(预检 → 推送 → 建 PR → 可选审批评论)":
+    "Create pull request (precheck → push → create PR → optional review comment)",
+  "创建 Pull Request": "Create Pull Request",
+  "base repository": "base repository",
+  "head repository": "head repository",
+  "base": "base",
+  "compare": "compare",
+  "PR 标题": "PR title",
+  "PR 描述": "PR description",
+  "创建后自动评论 @审批": "Auto-comment for review after creation",
+  "等待": "Pending",
+  "执行中": "Running",
+  "执行进度": "Progress",
+  "成功": "Success",
+  "失败": "Failed",
+  "跳过": "Skipped",
+  "PR 创建成功": "PR created",
+  "PR 工作流未完成": "PR workflow incomplete",
+  "复制链接": "Copy link",
+  "已复制链接": "Link copied",
   "删除": "Delete",
   "不能删除当前分支": "Cannot delete the current branch",
 
@@ -162,7 +185,13 @@ export const MESSAGES = {
   "无改动文件": "No changed files",
   "已到最早提交": "Reached the earliest commit",
 
+  /* 工作区右键菜单(app-shell/WorkspaceSubbar) */
+  "提交目录...": "Commit directory...",
+  "添加 / 暂存全部": "Add / stage all",
+  "提取...": "Fetch...",
+
   /* 提交详情 / 工作树差异 */
+
   "个文件": "files",
   ...PART2,
 } as Record<string, string>;

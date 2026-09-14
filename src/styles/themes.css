@@ -18,6 +18,7 @@
 :root[data-theme="dark"] {
   --tmd-bg-base: #1f1f1f;
   --tmd-bg-elevated: #181818;
+  --tmd-bg-panel: #181818;
   --tmd-bg-sunken: #181818;
   --tmd-bg-hover: #242424;
   --tmd-bg-active: rgba(0,120,212,0.24);
@@ -59,6 +60,7 @@
 :root[data-theme="light"] {
   --tmd-bg-base: #ffffff;
   --tmd-bg-elevated: #f8f8f8;
+  --tmd-bg-panel: #f8f8f8;
   --tmd-bg-sunken: #f8f8f8;
   --tmd-bg-hover: #f2f2f2;
   --tmd-bg-active: rgba(0,95,184,0.14);

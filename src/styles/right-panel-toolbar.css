@@ -1,19 +1,95 @@
 /* ──────────────────────────────────────────────────────────
  * Right panel toolbar —— 复刻 codemoss right-panel-toolbar 视觉。
  *
- * 顶部 6 个 ghost icon 按钮(folder/git/edit/list/note/...)外加 ⋯ 下拉入口,
- * 下拉弹出可勾选面板列表。
+ * 顶栏:panel tab 按钮(TopBarPanelTabs)+ 工作区选择器(WorkspaceSwitcher)。
+ * 右栏底部操作条与工作区下拉菜单拆至 panel-subbar.css(文件规模铁则)。
  * ────────────────────────────────────────────────────────── */
 
-.right-panel-toolbar {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-  padding: 4px 4px 4px;
-  border-bottom: 1px solid var(--tmd-border);
-  background: var(--tmd-bg-base);
-  position: relative;
+/* ── 顶栏工作区选择器 ── */
+.titlebar-ws-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 45%;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tmd-fg-subtle);
+  cursor: pointer;
+  flex: 0 1 auto;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+/* 面板 tabs 恒钉右区右缘:工作区选择器靠左一组,余量全落在 tabs 前。 */
+.titlebar-actions .panel-tabs-row {
+  margin-left: auto;
+}
+
+/* 分支 label 改挂中区右缘(2026-09-14 用户口径):auto margin 吸右,贴右区竖线。 */
+.titlebar-center .titlebar-branch-label {
+  margin-left: auto;
+}
+
+.titlebar-ws-switch:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.titlebar-ws-switch-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titlebar-ws-switch svg {
+  width: 0.625rem;
+  height: 0.625rem;
+  flex: 0 0 auto;
+}
+
+/* ── 顶栏当前分支 label(选择器之前,只读;着色与文件树分支标注同源 --tag-h) ── */
+.titlebar-branch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 25%;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: color-mix(in srgb, hsl(var(--tag-h, 0) 60% 62%) 70%, var(--tmd-fg));
+  /* 用户口径:无底色,纯着色文字(2026-09-14) */
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.titlebar-branch-label-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* upstream 段(main → origin/main 的右半):淡色不抢分支名。 */
+.titlebar-branch-label-up {
+  color: var(--tmd-fg-faint);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titlebar-branch-label svg {
+  width: 0.625rem;
+  height: 0.625rem;
+  flex: 0 0 auto;
 }
 
 .panel-tabs-row {
@@ -39,7 +115,7 @@
   justify-content: center;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 9px;
   background: transparent;
   color: var(--tmd-fg-subtle);
   cursor: pointer;
@@ -57,30 +133,22 @@
 }
 
 /* 图标装饰:per-panel 点亮色(缺省回落写死橙;见 kernel/iconDecor.ts) */
-.panel-tab.is-active[data-panel-id="files"] {
-  color: var(--icon-decor-panel-files, rgb(255, 140, 60));
-}
-.panel-tab.is-active[data-panel-id="git"] {
-  color: var(--icon-decor-panel-git, rgb(255, 140, 60));
-}
-.panel-tab.is-active[data-panel-id="checkpoints"] {
-  color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60));
-}
-.panel-tab.is-active[data-panel-id="memory"] {
-  color: var(--icon-decor-panel-memory, rgb(255, 140, 60));
-}
+.panel-tab.is-active[data-panel-id="files"] { color: var(--icon-decor-panel-files, rgb(255, 140, 60)); }
+.panel-tab.is-active[data-panel-id="git"] { color: var(--icon-decor-panel-git, rgb(255, 140, 60)); }
+.panel-tab.is-active[data-panel-id="checkpoints"] { color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60)); }
+.panel-tab.is-active[data-panel-id="memory"] { color: var(--icon-decor-panel-memory, rgb(255, 140, 60)); }
 
 
 .panel-tab svg {
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 1rem;
+  height: 1rem;
   stroke-width: 1.75;
 }
 
 /* ⋯ more 按钮 ─ 略不同视觉 */
 .panel-tab-overflow {
   margin-left: auto;
-  border-radius: 6px;
+  border-radius: 9px;
 }
 
 /* ── 下拉面板 ──
@@ -141,18 +209,10 @@
 .panel-overflow-item.is-active .panel-overflow-item-icon {
   color: rgb(255, 140, 60);
 }
-.panel-overflow-item.is-active[data-panel-id="files"] .panel-overflow-item-icon {
-  color: var(--icon-decor-panel-files, rgb(255, 140, 60));
-}
-.panel-overflow-item.is-active[data-panel-id="git"] .panel-overflow-item-icon {
-  color: var(--icon-decor-panel-git, rgb(255, 140, 60));
-}
-.panel-overflow-item.is-active[data-panel-id="checkpoints"] .panel-overflow-item-icon {
-  color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60));
-}
-.panel-overflow-item.is-active[data-panel-id="memory"] .panel-overflow-item-icon {
-  color: var(--icon-decor-panel-memory, rgb(255, 140, 60));
-}
+.panel-overflow-item.is-active[data-panel-id="files"] .panel-overflow-item-icon { color: var(--icon-decor-panel-files, rgb(255, 140, 60)); }
+.panel-overflow-item.is-active[data-panel-id="git"] .panel-overflow-item-icon { color: var(--icon-decor-panel-git, rgb(255, 140, 60)); }
+.panel-overflow-item.is-active[data-panel-id="checkpoints"] .panel-overflow-item-icon { color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60)); }
+.panel-overflow-item.is-active[data-panel-id="memory"] .panel-overflow-item-icon { color: var(--icon-decor-panel-memory, rgb(255, 140, 60)); }
 
 .panel-overflow-item-icon svg {
   width: 0.875rem;
@@ -182,73 +242,13 @@
   border-color: var(--tmd-fg-muted);
 }
 
-.panel-overflow-item-check.is-checked {
-  background: rgb(255, 140, 60);
-  border-color: rgb(255, 140, 60);
-}
-
-/* ── subbar: workspace label + 文件操作 ── */
-.panel-subbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  min-height: 21px;
-  padding: 0 4px;
-}
-
-.panel-subbar-label {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--tmd-fg-subtle);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.panel-subbar-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  flex: 0 0 auto;
-}
-
-.panel-subbar-action {
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--tmd-fg-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
-}
-
-.panel-subbar-action:hover {
-  background: var(--tmd-bg-hover);
-  color: var(--tmd-fg);
-}
-/* 面板专属动作按钮激活态(如文件树 Git 变更着色开关) */
-.panel-subbar-action.is-active {
-  color: var(--tmd-accent);
-}
-
-.panel-subbar-action svg {
-  width: 0.75rem;
-  height: 0.75rem;
-  stroke-width: 1.75;
-}
 .panel-overflow-item-check svg {
   width: 0.6875rem;
   height: 0.6875rem;
   color: rgb(23, 23, 23);
   stroke-width: 3;
+}
+.panel-overflow-item-check.is-checked {
+  background: rgb(255, 140, 60);
+  border-color: rgb(255, 140, 60);
 }

@@ -121,16 +121,3 @@ export function getWallpaperState(): WallpaperState {
   return store.snapshot;
 }
 
-/** 测试复位。 */
-export function resetWallpaperStoreForTests(): void {
-  store.commit({ ...DEFAULT_WALLPAPER_STATE });
-  configPath = null;
-  wallpapersDir = null;
-  loaded = false;
-  loadPromise = null;
-  mutatedBeforeLoad = false;
-  if (persistTimer) {
-    clearTimeout(persistTimer);
-    persistTimer = null;
-  }
-}

@@ -181,6 +181,7 @@ function sanitizeGitPanel(raw: unknown): AppSettings["git"] {
     diffMode: GIT_DIFF_MODES.includes(rec.diffMode as GitDiffMode)
       ? (rec.diffMode as GitDiffMode)
       : d.diffMode,
+    diffWrap: typeof rec.diffWrap === "boolean" ? rec.diffWrap : d.diffWrap,
   };
 }
 

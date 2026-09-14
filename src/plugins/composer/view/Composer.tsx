@@ -130,7 +130,7 @@ export function Composer() {
     >
       <div
         ref={composerRef}
-        className={`relative flex h-full flex-col overflow-hidden border-t bg-(--tmd-bg-elevated) ${
+        className={`relative flex h-full flex-col overflow-hidden border-t bg-(--tmd-bg-panel) ${
           dragOver
             ? "border-(--tmd-accent) ring-2 ring-inset ring-(--tmd-accent-soft)"
             : "border-(--tmd-border)"

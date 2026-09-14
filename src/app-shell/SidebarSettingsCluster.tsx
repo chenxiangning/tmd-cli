@@ -225,7 +225,7 @@ export function SidebarSettingsCluster() {
               title={t(action.label)}
               onClick={() => action.onSelect(anchor())}
             >
-              <action.icon size="0.875rem" />
+              <action.icon size="1rem" />
             </button>
           );
         })}

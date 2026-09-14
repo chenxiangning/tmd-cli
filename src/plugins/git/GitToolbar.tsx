@@ -1,12 +1,14 @@
 /**
- * GitToolbar —— 顶栏嵌入段(对齐 codemoss:视图下拉,与面板 tabs 同行;刷新 ⟳ 在 GitRemoteBar 行)。
- * 经 filePanel 的 toolbar 槽注册;状态共享走 panelStore。
+ * GitToolbar —— 顶栏嵌入段(tabs 图标之后、⋯ 之前;2026-09-14 口径):
+ * 视图下拉(差异/分支/历史 + 平铺/树形)+ 聚合增删行数;远端动作行
+ * (创建 PR/刷新/获取/拉取/推送)拆至 GitToolbarRemoteRows。状态共享走 panelStore。
  */
 
 import { useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import { createPortal } from "react-dom";
 import { CaretDown, GitDiff, GitBranch, Graph, Rows, TreeStructure } from "@phosphor-icons/react";
+import { RemoteActionRows } from "./GitToolbarRemoteRows";
 import {
   setGitLayout,
   setGitView,
@@ -27,6 +29,7 @@ const VIEW_ICON: Record<GitViewMode, typeof GitDiff> = {
   branch: GitBranch,
   history: Graph,
 };
+
 const LAYOUT_ICON: Record<FileListLayout, typeof Rows> = {
   flat: Rows,
   tree: TreeStructure,
@@ -50,10 +53,10 @@ export function GitToolbar() {
     }
     const rect = viewBtnRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const width = 176;
+    const width = 200;
     setMenuPos({
       x: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)),
-      y: Math.min(rect.bottom + 4, window.innerHeight - 240),
+      y: Math.min(rect.bottom + 4, window.innerHeight - 300),
     });
   };
 
@@ -98,7 +101,7 @@ export function GitToolbar() {
   );
 }
 
-/** 视图下拉:差异/分支/历史 + 平铺/树形。历史视图即 Graph(泳道拓扑)。
+/** 视图下拉:差异/分支/历史 + 平铺/树形 + 远端动作行。历史视图即 Graph(泳道拓扑)。
  *  portal 挂 document.body + fixed(复用 panel-overflow-backdrop/menu,z 1200+):
  *  树内 absolute 会被右栏内容(聚合行 / sticky 组头 / 当前分支行)盖住。 */
 function ViewMenu({
@@ -129,7 +132,7 @@ function ViewMenu({
       <div className="panel-overflow-backdrop" role="presentation" onClick={onClose} />
       <div
         className="panel-overflow-menu"
-        style={{ left: position.x, top: position.y, minWidth: 176 }}
+        style={{ left: position.x, top: position.y, minWidth: 200 }}
         role="menu"
       >
         {(Object.keys(VIEW_LABEL) as GitViewMode[]).map((v) => {
@@ -158,6 +161,7 @@ function ViewMenu({
             </button>
           );
         })}
+        <RemoteActionRows onDone={onClose} />
       </div>
     </>,
     document.body,

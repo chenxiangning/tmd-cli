@@ -29,11 +29,11 @@ const REMOTE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 const REMOTE_POLL: std::time::Duration = std::time::Duration::from_millis(200);
 /// 退出后管道排空等待上限:git 的 ssh 孙进程(ControlMaster/GCM)可能
 /// 握管道写端不撒手,join/无限等会把锁拖到孙进程消亡。
-const PIPE_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+pub(super) const PIPE_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// 排空子进程管道并把结果发回 channel(独立线程):防子进程写满管道缓冲
 /// 自我阻塞。不 join:收集端 recv_timeout 兜底(超时/放弃路径直接丢接收端)。
-fn drain_pipe<R: std::io::Read + Send + 'static>(
+pub(super) fn drain_pipe<R: std::io::Read + Send + 'static>(
     pipe: Option<R>,
 ) -> std::sync::mpsc::Receiver<Vec<u8>> {
     let (tx, rx) = std::sync::mpsc::channel();
@@ -94,7 +94,56 @@ pub fn run(
             }
         }
     }
-    exec_git(repo, cwd, &args)
+    match op {
+        RemoteOp::Pull => exec_pull(repo, cwd, &args),
+        _ => exec_git(repo, cwd, &args),
+    }
+}
+
+/// pull 专用执行:git ≥2.27 在 divergent 且未配置 pull.rebase 时直接 fatal
+/// ("Need to specify how to reconcile divergent branches")。此处兜底:
+/// --rebase 重试(无冲突 = 本地提交接到远端之后,直接完成更新);撞冲突则
+/// abort 恢复原状并明确报错,不把半途 rebase 态留在工作区。fetch 引用刷新
+/// (非当前分支)与显式策略错误不在此列,原样透传。
+pub(super) fn exec_pull(repo: &Repository, cwd: &str, args: &[String]) -> Result<String, GitError> {
+    match exec_git(repo, cwd, args) {
+        Ok(out) => Ok(out),
+        Err(GitError::Shell(s))
+            if args.first().map(String::as_str) == Some("pull")
+                && s.contains("divergent branches") =>
+        {
+            let mut retry = args.to_vec();
+            retry.insert(1, "--rebase".into());
+            match exec_git(repo, cwd, &retry) {
+                Ok(out) => Ok(out),
+                Err(GitError::Shell(s2)) if s2.contains("CONFLICT") => {
+                    let _ = exec_git(repo, cwd, &["rebase".into(), "--abort".into()]);
+                    // abort 基本必成(工作区在 rebase 启动时已被 git 保证干净);
+                    // 万一残留中间态,文案必须如实,引导用户手动 abort。
+                    // 探测两个 rebase 后端目录;.git 是文件(linked worktree/submodule)时
+                    // 本地拼路径不可靠,按「未确认恢复」处理,给 fallback 文案。
+                    let dotgit = std::path::Path::new(cwd).join(".git");
+                    let aborted = if dotgit.is_dir() {
+                        !dotgit.join("rebase-merge").exists()
+                            && !dotgit.join("rebase-apply").exists()
+                    } else {
+                        false
+                    };
+                    if aborted {
+                        Err(GitError::empty(
+                            "拉取有冲突:已中止并恢复原状,未改动任何文件;请到幕布终端执行 git pull 自行解决冲突",
+                        ))
+                    } else {
+                        Err(GitError::empty(
+                            "拉取有冲突,自动恢复未完成:本地提交与改动都还在,请到幕布终端执行 git rebase --abort 后自行处理",
+                        ))
+                    }
+                }
+                Err(e) => Err(e),
+            }
+        }
+        Err(e) => Err(e),
+    }
 }
 
 /// 组装并执行 git 命令:非交互环境 + 总时长上限 + 双管道排空。

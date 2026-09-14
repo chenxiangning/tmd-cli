@@ -12,6 +12,8 @@
 
 mod ahead;
 mod branch_ops;
+pub mod commands;
+pub mod commands_pr;
 mod commit;
 mod commit_view;
 mod compare_ops;
@@ -19,22 +21,27 @@ mod diff;
 mod error;
 mod index_ops;
 mod log;
+mod pr_defaults;
+mod pr_gh;
+mod pr_workflow;
 mod remote_args;
 mod remote_ops;
 mod remote_request;
 mod repos_scan;
 mod stash_ops;
 mod status;
-
-pub mod commands;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_branch_menu;
 #[cfg(test)]
+mod tests_clean;
+#[cfg(test)]
 mod tests_common;
 #[cfg(test)]
 mod tests_flow;
+#[cfg(test)]
+mod tests_pull;
 #[cfg(test)]
 mod tests_remote_dialog;
 #[cfg(test)]

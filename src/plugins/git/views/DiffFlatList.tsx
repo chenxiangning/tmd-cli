@@ -11,13 +11,17 @@
  * - st 段固定 [x](已暂存 = 必将进入提交),点击 = unstage;
  * - un/ut 段 [ ] 勾选 = 纳入提交;点行 = 中央区开 diff(wt 优先);
  * - 复合文件(staged && wt)两段各一行,与 git status 原生行为一致;
- * - 冲突行 — 禁勾禁操作,引导到幕布终端解决。
+ * - 冲突行 — 禁勾禁操作,引导到幕布终端解决;
+ * - 批量:邮件式拖选扩散勾选(工作区会话列表管理模式同款),勾选集 = 批量条
+ *   动作面(暂存/放弃/删除);未跟踪行另有 (删除) hover 动作(git clean)。
  */
 
 import { t } from "@kernel/i18n";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { GitFileStatus, GitTotals } from "@kernel/ipc";
 import { FRow } from "./DiffFlatRow";
+import { DiffBatchBar } from "./DiffBatchBar";
+import { sweepKeys } from "./diffSweep";
 
 interface Props {
   files: GitFileStatus[];
@@ -25,10 +29,14 @@ interface Props {
   checked: ReadonlySet<string>;
   totals: GitTotals | null;
   onToggleCheck: (path: string) => void;
+  /** 拖选扩散:整批设/清勾选(勾选集同时是批量条动作面) */
+  onSetChecks: (paths: string[], val: boolean) => void;
   onOpen: (file: GitFileStatus) => void;
   onStage: (paths: string[]) => void;
   onUnstage: (paths: string[]) => void;
   onDiscard: (paths: string[]) => void;
+  /** 删除未跟踪文件(git clean) */
+  onClean: (paths: string[]) => void;
 }
 
 interface Section {
@@ -37,16 +45,25 @@ interface Section {
   rows: GitFileStatus[];
 }
 
+/** 命中测试:坐标 → 拖选行下标(查不到回 -1)。同 SessionManage 的 data-mrow 契约。 */
+function idxFromPoint(x: number, y: number): number {
+  const row = document.elementFromPoint(x, y)?.closest("[data-mrow]");
+  const idx = row ? Number(row.getAttribute("data-mrow")) : Number.NaN;
+  return Number.isInteger(idx) ? idx : -1;
+}
+
 export function DiffFlatList({
   files,
   cwd,
   checked,
   totals,
   onToggleCheck,
+  onSetChecks,
   onOpen,
   onStage,
   onUnstage,
   onDiscard,
+  onClean,
 }: Props) {
   const [collapsed, setCollapsed] = useState<Record<Section["key"], boolean>>({
     un: false,
@@ -91,8 +108,71 @@ export function DiffFlatList({
   const utPaths = sections[1].rows.map((f) => f.path);
   const stPaths = sections[2].rows.map((f) => f.path);
 
+  /* 拖选序:未暂存(非冲突)→ 未跟踪,与渲染顺序一致;键 = 路径。
+   * 待提交段已必进提交,不参选;冲突行禁操作,不参选。 */
+  const { sweepOrder, mrowByKey } = useMemo(() => {
+    const order: string[] = [];
+    const byKey = new Map<string, number>();
+    for (const f of [...sections[0].rows, ...sections[1].rows]) {
+      if (f.status === "C") continue;
+      byKey.set(f.path, order.length);
+      order.push(f.path);
+    }
+    return { sweepOrder: order, mrowByKey: byKey };
+  }, [sections]);
+
+  /* 邮件式拖选(会话列表管理模式同款):按下锚定但不改动,滑过行才按锚点值
+   * 整段扩散 —— 纯点击保持「开 diff」语义,不吃掉勾选。 */
+  const dragRef = useRef<{ anchorKey: string; val: boolean } | null>(null);
+  const lastIdxRef = useRef(-1);
+  const dragMovedRef = useRef(false);
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest("button")) return;
+    const idx = idxFromPoint(e.clientX, e.clientY);
+    dragMovedRef.current = false;
+    if (idx < 0) return;
+    const anchorKey = sweepOrder[idx];
+    if (anchorKey === undefined) return;
+    dragRef.current = { anchorKey, val: !checked.has(anchorKey) };
+    lastIdxRef.current = idx;
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const idx = idxFromPoint(e.clientX, e.clientY);
+    if (idx < 0 || idx === lastIdxRef.current) return;
+    lastIdxRef.current = idx;
+    dragMovedRef.current = true;
+    const anchor = sweepOrder.indexOf(dragRef.current.anchorKey);
+    if (anchor < 0) {
+      dragRef.current = null;
+      return;
+    }
+    onSetChecks(sweepKeys(sweepOrder, anchor, idx), dragRef.current.val);
+  };
+  const dragHandlers = {
+    onPointerDown,
+    onPointerMove,
+    onPointerUp: () => (dragRef.current = null),
+    onPointerCancel: () => (dragRef.current = null),
+    onPointerLeave: () => (dragRef.current = null),
+  };
+
+  /* 批量条动作面:勾选集 ∩ 当前未暂存/未跟踪行,按能力分流(放弃限 M/T) */
+  const checkedRows = useMemo(
+    () =>
+      [...sections[0].rows, ...sections[1].rows].filter(
+        (f) => checked.has(f.path) && f.status !== "C",
+      ),
+    [sections, checked],
+  );
+  const stagePaths = checkedRows.map((f) => f.path);
+  const discardPaths = checkedRows
+    .filter((f) => f.status === "M" || f.status === "T")
+    .map((f) => f.path);
+  const deletePaths = checkedRows.filter((f) => f.status === "?").map((f) => f.path);
+
   return (
-    <div className="font-mono text-xs">
+    <div className="font-mono text-xs" {...dragHandlers}>
       {sections.map((sec) => {
         const isCollapsed = collapsed[sec.key];
         return (
@@ -153,19 +233,33 @@ export function DiffFlatList({
                     file={f}
                     side={sec.key}
                     checked={checked.has(f.path)}
+                    mrow={sec.key === "st" ? undefined : mrowByKey.get(f.path)}
                     nums={numsByKey.get(`${sec.key === "st" ? "s" : "w"}:${f.path}`)}
                     onToggleCheck={() => onToggleCheck(f.path)}
-                    onOpen={() => onOpen(f)}
+                    onOpen={() => {
+                      /* 拖选结束的那次 click 不当点击:只选不开 diff */
+                      if (!dragMovedRef.current) onOpen(f);
+                    }}
                     onStage={() => onStage([f.path])}
                     onUnstage={() => onUnstage([f.path])}
                     onDiscard={() => onDiscard([f.path])}
+                    onDelete={() => onClean([f.path])}
                   />
                 ))
               ))}
           </div>
         );
       })}
+      {/* 批量条:勾选集非空即现,动作按区能力分流;破坏性动作确认在 DiffView */}
+      <DiffBatchBar
+        count={checkedRows.length}
+        stagePaths={stagePaths}
+        discardPaths={discardPaths}
+        deletePaths={deletePaths}
+        onStage={onStage}
+        onDiscard={onDiscard}
+        onDelete={onClean}
+      />
     </div>
   );
 }
-

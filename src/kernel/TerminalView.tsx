@@ -26,7 +26,7 @@ import {
   unregisterTerminalHandle,
   type TerminalHandle,
 } from "@kernel/messageAnchors";
-import { subscribeThemeApplied } from "@kernel/theme";
+import { subscribeTerminalTheme } from "@kernel/terminalThemeBridge";
 import { createReplayInputGate } from "@kernel/terminalInputGate";
 import { attachTerminalStream, type LoadProgress } from "@kernel/terminalReplay";
 import { isTerminalReport } from "@kernel/terminalReports";
@@ -103,8 +103,9 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       scrollback: 50_000,
       theme: readTerminalTheme(),
     });
-    /* 主题切换 → 重刷 xterm 配色(纯视觉重着色,字节流内容不受影响)。 */
-    const offTheme = subscribeThemeApplied(() => {
+    /* 配色重刷:主题引擎与打穿等 :root 终端 token 写手都经主题桥通知,重读计算样式。
+       纯视觉重着色,字节流不受影响。 */
+    const offTokens = subscribeTerminalTheme(() => {
       term.options.theme = readTerminalTheme();
     });
     const fit = new FitAddon();
@@ -211,7 +212,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
 
     return () => {
       clearInterval(askProbe);
-      offTheme();
+      offTokens();
       offFontSettings();
       container.removeEventListener("focusin", onFocusIn);
       container.removeEventListener("focusout", onFocusOut);

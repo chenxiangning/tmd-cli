@@ -1,16 +1,19 @@
 /**
  * PatchLines 渲染契约(node 环境 renderToStaticMarkup,只验呈现面):
- * - unified:旧/新双行号槽,add 仅新号、del 仅旧号、ctx 双号;
- * - split:左格旧行号、右格新行号(防右栏无号回归),del 余量右格斜纹占位;
- * - hunk/meta 行通栏不带行号。
+ * - unified:自绘经典红绿,旧/新双行号槽;
+ * - split:自绘三列(左右内容 | 中央行号槽),对位/占位由 buildSplitRows,
+ *   这里验 色带与词级标注、改动块边框(槽括号框 + 内容列首尾横线)、
+ *   nowrap 态左右独立横向滚动面。
  */
 
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 import { PatchLines } from "./PatchLines";
+import { parsePatch, patchRowKey } from "./patchModel";
+import { setGitDiffWrap } from "../panelStore";
 
-/* ctx old10/new20 + del old11 + add new21 + add new22(右余量一行) */
+/* ctx old10/new20 + mod 对 del old11 × add new21 + add 余量 new22 */
 const PATCH = "@@ -10,1 +20,2 @@\n ctx\n-del\n+addA\n+addB\n";
 
 describe("PatchLines", () => {
@@ -21,19 +24,61 @@ describe("PatchLines", () => {
     expect(html).toContain("@@ -10,1 +20,2 @@"); // hunk 头通栏
   });
 
-  it("split:左旧右新行号,del 余量右格斜纹空侧", () => {
+  it("split:色带/行号/词级标注按配对语义", () => {
     const html = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
-    // 右格新行号 20/21/22 必须出现(回归:右栏曾恒空);左格旧行号 10/11
+    // 全部行号可达:ctx 10|20、mod 对 11|21、add 余量 ·|22
     for (const n of [10, 11, 20, 21, 22]) expect(html).toContain(`>${n}<`);
-    // 纯 add 余量 → 左格斜纹占位一格
-    expect(html.match(/diff-split-empty/g)?.length).toBe(1);
-    // hunk 头通栏呈现
-    expect(html).toContain("@@ -10,1 +20,2 @@");
+    // 修改对(左红右绿同行):band-del ×1 + band-add ×2(mod 右 + add 右)
+    expect(html.match(/git-split-band-del/g)?.length).toBe(1);
+    expect(html.match(/git-split-band-add/g)?.length).toBe(2);
+    // mod 对词级下划线标注
+    expect(html).toContain("git-split-word-del");
+    expect(html).toContain("git-split-word-ins");
+    // 改动块标记:缺侧占位色块 + 旧号 ⤶ 钩 + 空槽 ⬚
+    expect(html).toContain("git-split-ph-add");
+    expect(html).toContain("git-split-ghook");
+    expect(html.match(/git-split-gslot-empty/g)?.length).toBe(1);
   });
 
+  it("split:改动块边框 = 槽列块底 + 三面贯通首尾横线", () => {
+    const html = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
+    // 槽列块底:mod + add 两行(ctx 不入块)
+    // 块首(mod 行)/块尾(add 行)横线三面贯通:左内容 + 槽 + 右内容 = 各 3
+    expect(html.match(/git-split-block-bg/g)?.length).toBe(2);
+    expect(html.match(/git-split-bd-bot/g)?.length).toBe(3);
+  });
   it("默认 mode = unified", () => {
     const html = renderToStaticMarkup(createElement(PatchLines, { text: PATCH }));
-    expect(html).not.toContain("diff-split-empty");
     expect(html).toContain(">21<");
+    expect(html).not.toContain("git-split-block-bg"); // 未走双栏
+  });
+
+  it("自动换行关闭:双栏切左右独立横向滚动面", () => {
+    const on = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
+    expect(on.match(/overflow-auto/g)?.length).toBe(1); // 仅外层 pre 一个滚动面
+    setGitDiffWrap(false);
+    try {
+      const off = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
+      // halves 态:左右两 overflow-auto 滚动面 + 中央槽 overflow-hidden
+      expect(off.match(/overflow-auto/g)?.length).toBe(2);
+      expect(off).toContain("overflow-hidden");
+      expect(off).toContain("git-split-gutter-row");
+      const unifiedNowrap = renderToStaticMarkup(createElement(PatchLines, { text: PATCH }));
+      expect(unifiedNowrap).toContain("whitespace-pre ");
+    } finally {
+      setGitDiffWrap(true); // 模块级单例,回置防串其他用例
+    }
+  });
+
+  it("双 No-newline meta 行 key 唯一(内容序数去重,不用数组下标)", () => {
+    const patch = [
+      "@@ -1 +1 @@",
+      "-old",
+     ("\\ No newline at end of file"),
+      "+new",
+     ("\\ No newline at end of file"),
+    ].join("\n");
+    const keys = parsePatch(patch).map(patchRowKey);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });

@@ -1,16 +1,23 @@
-//! 索引操作 —— stage / unstage / discard。
+//! 索引操作 —— stage / unstage / discard / clean。
 //!
 //! 全部经 fresh_index(read(true)) 入口:外部终端 git add 后内存 index 不 stale。
 //! 单次调用内多文件一次 index.write() 原子落盘。
 
 use git2::Repository;
+use std::io::Write;
 use std::path::{Component, Path};
+use std::process::{Command, Stdio};
 
 use super::{fresh_index, GitError};
-/// 纵深防御:拒绝对路径与 `..` 分量(调用方是受信前端,但四条写路径统一校验)。
+
+/// 纵深防御:拒绝对路径、`..` 分量与 Windows 盘符前缀分量(调用方是受信前端,但五条写路径统一校验)。
 fn validate_rel_path(p: &str) -> Result<(), GitError> {
     let rel = Path::new(p);
-    if rel.is_absolute() || rel.components().any(|c| matches!(c, Component::ParentDir)) {
+    if rel.is_absolute()
+        || rel
+            .components()
+            .any(|c| matches!(c, Component::ParentDir | Component::Prefix(_)))
+    {
         return Err(GitError::empty(format!("非法路径: {p}")));
     }
     Ok(())
@@ -78,5 +85,109 @@ pub fn discard(repo: &Repository, paths: Vec<String>) -> Result<(), GitError> {
     opts.force().disable_pathspec_match(true);
     let mut index = fresh_index(repo)?;
     repo.checkout_index(Some(&mut index), Some(&mut opts))?;
+    Ok(())
+}
+
+/// clean:删除未跟踪文件(≡ `git clean -f -- <paths>`)。
+/// 本命令的删除目标集由文件系统而非 index 定义,防线集中在先行的全量校验
+/// (先校验后删,绝不出现删了一半才发现撞线的半程状态):
+/// - `.git` 分量拒绝:仓库元数据永不在 index,tracked 检查拦不住它;
+/// - tracked = index 任意 stage(stage 1-3 = merge 冲突态,该态无 stage 0 条目);
+/// - 盘上存在的路径 canonicalize 后必须落在仓内(中间符号链接分量逃逸),
+///   并以 canonical 相对路径重查 index(igcase 卷上的大小写变体);
+/// - ignored 路径拒绝:≡ `git clean -f`(无 -x)即使显式 pathspec 也不删 ignored,
+///   判定交权威源 `git check-ignore`(汇总 .gitignore/.git/info/exclude/全局排除);
+/// - 盘上已不存在的路径按幂等成功跳过(重复清理/竞态删除皆无副作用)。
+pub fn clean(repo: &Repository, paths: Vec<String>) -> Result<(), GitError> {
+    if paths.is_empty() {
+        return Err(GitError::empty("clean 路径为空"));
+    }
+    for p in &paths {
+        validate_rel_path(p)?;
+    }
+    let workdir = repo
+        .workdir()
+        .ok_or(GitError::empty("bare repo 不支持 clean"))?;
+    let index = fresh_index(repo)?;
+    let canon_root = workdir.canonicalize()?;
+    reject_ignored(workdir, &paths)?;
+    for p in &paths {
+        let rel = Path::new(p);
+        if rel
+            .components()
+            .any(|c| matches!(c, Component::Normal(s) if s.eq_ignore_ascii_case(".git")))
+        {
+            return Err(GitError::empty(format!("拒绝删除仓库元数据: {p}")));
+        }
+        let is_tracked = |path: &Path| (0..=3).any(|s| index.get_path(path, s).is_some());
+        if is_tracked(rel) {
+            return Err(GitError::empty(format!("拒绝删除已跟踪文件: {p}")));
+        }
+        let abs = workdir.join(rel);
+        let Ok(meta) = std::fs::symlink_metadata(&abs) else {
+            continue; // 盘上不存在:删除循环按 NotFound 幂等跳过
+        };
+        // 父目录链 canonicalize 后必须仍落在仓内:拦中间符号链接分量逃逸
+        let parent = rel.parent().unwrap_or_else(|| Path::new(""));
+        let Ok(canon_parent) = workdir.join(parent).canonicalize() else {
+            continue;
+        };
+        if !canon_parent.starts_with(&canon_root) {
+            return Err(GitError::empty(format!("拒绝删除仓库外路径: {p}")));
+        }
+        if meta.file_type().is_symlink() {
+            // 叶节点自身是 symlink:remove_file 只摘链接不跟随,放行(git clean 同义)
+            continue;
+        }
+        // 常规文件:整路径 canonicalize —— igcase 卷上取回盘上真实大小写重查 index
+        let Ok(canon) = abs.canonicalize() else {
+            continue;
+        };
+        let Ok(rel_canon) = canon.strip_prefix(&canon_root) else {
+            return Err(GitError::empty(format!("拒绝删除仓库外路径: {p}")));
+        };
+        if is_tracked(rel_canon) {
+            return Err(GitError::empty(format!("拒绝删除已跟踪文件: {p}")));
+        }
+    }
+    for p in &paths {
+        match std::fs::remove_file(workdir.join(Path::new(p))) {
+            Ok(()) => {}
+            // NotFound 与目录条目(嵌入仓 `sub/`)同样跳过:≡ git clean -f(无 -d)对二者的行为
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound || p.ends_with('/') => {}
+            Err(e) => return Err(GitError::empty(format!("删除失败 {p}: {e}"))),
+        }
+    }
+    Ok(())
+}
+
+/// 批量查 ignore 规则:任一目标被 ignore 即整体拒绝(先校验后删的组成部分)。
+/// 输入输出均 NUL 分隔(`-z`),路径含换行也正确;git 无匹配时退出码 1,正常读取。
+fn reject_ignored(workdir: &Path, paths: &[String]) -> Result<(), GitError> {
+    let mut cmd = Command::new("git");
+    cmd.current_dir(workdir)
+        .args(["check-ignore", "--stdin", "-z"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    crate::resolve::hide_console(&mut cmd);
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| GitError::empty(format!("check-ignore 启动失败: {e}")))?;
+    let input = paths
+        .iter()
+        .map(|p| p.trim_end_matches('/'))
+        .collect::<Vec<_>>()
+        .join("\0");
+    child.stdin.take().unwrap().write_all(input.as_bytes())?;
+    let out = child.wait_with_output()?;
+    let hit = String::from_utf8_lossy(&out.stdout);
+    let ignored: Vec<&str> = hit.split('\0').filter(|s| !s.is_empty()).collect();
+    if !ignored.is_empty() {
+        return Err(GitError::empty(format!(
+            "拒绝删除 ignored 路径(≡ git clean 不删 ignored): {}",
+            ignored.join(", ")
+        )));
+    }
     Ok(())
 }

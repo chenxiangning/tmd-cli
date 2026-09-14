@@ -184,6 +184,9 @@ export class SessionSpawnService {
         const acquired = hook ? await hook(cwd, cliSessionId, signals).catch(() => null) : null;
         if (acquired) {
           /* 早激活已回调则不灌尾:常驻订阅可能已入直播字节,尾灌会乱序 */
+          /* early 非 null = 装配在途,等它;early 已被 adopt 落败回调归 null 的
+             毫秒级窄窗 = 对同一接管目标重试一次 adopt,再败异常上抛(不走冷
+             路径:bindIdentity 已占账,冷启会抢绑失败),按启动失败呈现。 */
           if (acquired.replayTail && !early) this.h.seedOutputBuffer(acquired.sessionId, acquired.replayTail);
           return await (early ?? this.adoptResumeTarget(acquired.sessionId, profileId, cliSessionId, workspaceId));
         }

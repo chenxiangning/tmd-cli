@@ -15,6 +15,10 @@ import type { CommandContribution } from "./shortcuts";
 import type { FileVisualProvider } from "./fileVisual";
 import type { SidebarAction } from "./sidebarActions";
 import type { CliConfigEntry } from "./cliConfigRegistry";
+import type { RemoteFileSource } from "./fileSources";
+import type { WorkspaceOrigin } from "./workspaceOrigins";
+import type { ShellSpecProvider, SpecWrapper } from "./ptyAdapters";
+
 /**
  * 本地插件能力类别(manifest.permissions 合法值)。
  * 无 permissions 字段 = 纯 UI 插件:只有 React 原语与 ctx 注册面,ipc/host/settings 整体缺席。
@@ -77,7 +81,7 @@ export type MountPoint =
   | "overlay"
   /** 中央幕布的无会话首页(welcome/引导页);无活跃 session 时整页渲染。 */
   | "editorCenter.welcome"
-  /** welcome 首页尾部(引擎列表/页脚之后):跨引擎的整页级面板(如 WSL 主机卡)。 */
+  /** welcome 首页尾部(引擎列表/页脚之后):跨引擎的整页级面板。 */
   | "welcome.footer"
   /** 幕布下方富 composer 输入区。 */
   | "editorCenter.composer"
@@ -116,6 +120,14 @@ export interface PluginContext {
   registerFileVisual(provider: FileVisualProvider): void;
   /** 注册一条快捷键命令(shortcuts 注册表的 ctx 通道;键位语义归插件,内核只做分发)。 */
   registerCommand(command: CommandContribution): void;
+  /** 注册远端文件来源(fileSources 注册表的 ctx 通道,如 WSL/SSH 远端目录);返回退订。 */
+  registerRemoteFileSource(source: RemoteFileSource): () => void;
+  /** 注册工作区来源(workspaceOrigins 注册表的 ctx 通道;孤儿判定按来源认领);返回退订。 */
+  registerWorkspaceOrigin(origin: WorkspaceOrigin): () => void;
+  /** 注册 spawn spec 包装(ptyAdapters 注册表的 ctx 通道,如远端 shell 改写);返回退订。 */
+  registerSpecWrapper(wrapper: SpecWrapper): () => void;
+  /** 注册内置终端 spec 提供者(ptyAdapters 注册表的 ctx 通道,首个命中者接管);返回退订。 */
+  registerShellSpecProvider(provider: ShellSpecProvider): () => void;
   /** 注册首页引擎卡下方专属面板(homePanels 注册表的 ctx 通道,键 = CliProfile.id)。 */
   registerHomePanel(profileId: string, panel: ComponentType): void;
   /** 注册一份引擎的图形化配置面(cliConfigRegistry 的 ctx 通道;渲染归 cli-config 插件)。 */

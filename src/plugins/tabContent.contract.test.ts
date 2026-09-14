@@ -24,6 +24,7 @@ const OPENABLE_KINDS = [
   "git-commit-diff",
   "git-diff",
   "ckpt-batch",
+  "wsl",
   "memory-console",
 ] as const;
 
@@ -39,6 +40,10 @@ function activateCollectingKinds(): Set<string> {
     registerMarketPanel: () => {},
     registerHomePanel: () => {},
     registerSidebarAction: () => {},
+    registerRemoteFileSource: () => () => {},
+    registerWorkspaceOrigin: () => () => {},
+    registerSpecWrapper: () => () => {},
+    registerShellSpecProvider: () => () => {},
     registerFileVisual: () => {},
     registerCliConfig: () => {},
     events: { on: () => () => {}, off: () => {}, emit: () => {} },

@@ -1,10 +1,10 @@
 # 09 WSL 支持契约:发行版建模 / 双通道 spawn / 远程内省 / 分组身份 / 降级矩阵
 
-日期:2026-09-12(来源:openspec/changes/wsl-workspace-m1,十六轮实施与验收;全部结论真机实证 —— 本机 UNC(Windows)与远程 SSH 宿主(Windows + OpenSSH + WSL)双形态)
+日期:2026-09-12(来源:openspec/changes/archive/2026-09-12-wsl-workspace-m1;全部结论真机实证 —— 本机 UNC(Windows)与远程 SSH 宿主(Windows + OpenSSH + WSL)双形态;2026-09-13 增补:路径闸 / 孤儿工作区 / 元数据回填)
 
 ## 结论
 
-WSL 支持的全部平台知识集中在 `plugins/wsl/`(来源插件),经 kernel 三注册表向宿主贡献;内核与其余插件零 WSL 硬编码。三条铁纪律:
+WSL 支持的全部平台知识集中在 `plugins/wsl/`(来源插件),经 kernel 三注册表向宿主贡献(2026-09-14 起经 PluginContext ctx 通道登记,不再直连注册表模块);内核与其余插件零 WSL 硬编码。三条铁纪律:
 1. **引擎/CLI 私有知识不出各插件**:会话目录 slug、探针脚本、远程内省解析归 `cli-*` 插件;wsl 插件只提供传输通道;
 2. **路径形态以落库为准,消费端归一**:远程工作区 root 是 `~` 波浪形态(AddWslTab 惯例,`wsl.exe --cd` 自行展开),一切按 cwd 推导目录的消费方(远程 slug)必须先归一 `~` 再匹配 `$HOME`,否则恒失配(2026-09-12 实证:历史/状态全空);
 3. **侧栏分组身份 = `profileId 或 engine`**:远程引擎会话是 `kind:"ssh" + engine:"<cli>"`,凡按 profile 分组/去重/置顶/删除的消费方必须双认,否则引擎会话对 CLI 组隐形(同日实证:点历史行列表每击多一条无名主机名行)。
@@ -13,6 +13,7 @@ WSL 支持的全部平台知识集中在 `plugins/wsl/`(来源插件),经 kernel
 
 - Workspace 元数据 `wsl: { distro, hostId }`(kernel 只透传存储,解释权归 wsl 插件);`hostId = null` → 本机 wsl.exe,root 落 **UNC**(`\\wsl.localhost\<distro>\<posix路径>`,Win11 `wsl.localhost` 与老 `wsl$` 两种前缀都认);`hostId` 非空 → 远程宿主,root 落 **Linux posix 路径(`~` 波浪形态)**。
 - settings 只存 `wsl.remoteHostId`,主机簿复用 `settings.ssh.hosts`(CRUD/凭据清洗现成,不另设账户域)。
+- **添加工作区路径闸 `wslWorkspaceTargetOk`(2026-09-13,d801735)**:本机 = 仅收绝对路径(浏览起点改 `/`),远程 = 保 `~` 波浪惯例只拦裸 `~`(铁律 2 不动);AddWslTab 与 WorkspaceDialog 双闸统一。毒根实证:`~` 形态直喂 wslToUnc(仅认绝对路径)产出 `\\wsl.localhost\Ubuntu~\…` 假发行版 UNC → 新建会话 `wsl.exe -d Ubuntu~` 报 WSL_E_DISTRO_NOT_FOUND。顺修 `isWslUnc` 兜底前缀双尾反斜杠死子句为单尾。
 - 回归锚点:`wslCore.test.ts`(UNC 解析双前缀 / 波浪归一)。
 
 ## 契约 2:双通道 spawn 包装
@@ -45,6 +46,12 @@ WSL 支持的全部平台知识集中在 `plugins/wsl/`(来源插件),经 kernel
 ## 契约 7:文件通道(M1 只读)
 
 - 浏览:`fileSources` 协议 `listDir` → `wsl_list_dir`(同一条 ssh 通道);寻址 `wslr://<hostId>/<distro>/<linuxPath>`;读取 `wsl_read_file_text`(size 行 + b64 段行协议,容忍 76 列换行;超 512KB 不读、目录/不可读 exit 9 如实报错),渲染与本地零差异,CodeMirror readOnly + ⌘S 早退。
+ 
+## 契约 8:工作区来源与孤儿(2026-09-13)
+
+- Workspace 携带来源插件元数据(`kernel/workspaceOrigins.ts`);来源插件拔出(重启生效)后其工作区进**孤儿隐藏**,不再伪装本地目录显示(按元数据识别,不按路径猜测,577b82c)。
+- 旧版手工 UNC 形态(`\\wsl.localhost\<distro>\…` root、无 wsl 元数据)同纳入孤儿隐藏,并**补元数据回填**:读 UNC 反推 distro/path 回写 Workspace(`kernel/workspace.ts` 统一,消费方零改动,7f9a3f0)。
+- 非 Windows 开发机有 DEV 预览桩:WSL 卡界面可在 mac 目检,不触真 wsl.exe。
 
 ## 降级矩阵(M1 边界)
 

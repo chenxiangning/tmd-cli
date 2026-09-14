@@ -43,25 +43,99 @@
 }
 
 /* 文件树仓根行的分支标注(原型 repotag:9.5px 边框圆角) */
+/* 分支标注着色:--tag-h 由 FileTreeRow 按分支名稳定计算;color-mix 混 fg 明暗自适应。 */
 .file-tree-repotag {
   flex: none;
   font-size: 0.59375rem;
   line-height: 1.4;
-  color: var(--tmd-fg-faint);
-  border: 1px solid var(--tmd-border);
+  color: color-mix(in srgb, hsl(var(--tag-h, 0) 60% 62%) 70%, var(--tmd-fg));
+  border: 1px solid hsl(var(--tag-h, 0) 45% 55% / 0.45);
+  background: hsl(var(--tag-h, 0) 50% 55% / 0.1);
   border-radius: 3px;
   padding: 0 4px;
   white-space: nowrap;
 }
 
-/* diff 双栏空侧占位:斜纹(token 着色,明暗自适应,对齐 codemoss 视觉契约)。 */
-.diff-split-empty {
-  background-color: var(--tmd-bg-sunken);
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent,
-    transparent 5px,
-    var(--tmd-bg-hover) 5px,
-    var(--tmd-bg-hover) 6px
-  );
+/* ── 双栏 diff(自绘,2026-09-15 重做):色带 / 中央行号槽 / 改动块边框 ── */
+
+/* 色带:修改对与纯增/纯删行的本侧淡染(与单栏同源 token)。 */
+.git-split-band-del {
+  background: color-mix(in srgb, var(--tmd-diff-removed) 12%, transparent);
+}
+.git-split-band-add {
+  background: color-mix(in srgb, var(--tmd-diff-inserted) 12%, transparent);
+}
+
+/* 词级标注:mod 对差异 token 下划线(非色块,行底色带已表意)。 */
+.git-split-word {
+  border-radius: 0;
+}
+.git-split-word-ins {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--tmd-diff-inserted) 70%, transparent);
+  text-underline-offset: 3px;
+}
+.git-split-word-del {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--tmd-diff-removed) 70%, transparent);
+  text-underline-offset: 3px;
+}
+
+/* 中央行号槽:旧号居左新号居右;改动行数字提亮,缺侧画空槽占位(⬚)。 */
+.git-split-gutter-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 6px;
+  color: var(--tmd-fg-faint);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+.git-split-gutter-chg {
+  color: var(--tmd-fg);
+}
+/* 缺侧行号位:无边框小占位(淡),只表「此侧无行」,不抢视线。 */
+.git-split-gslot-empty {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.8em;
+  margin-top: 0.15em;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--tmd-fg) 16%, transparent);
+}
+/* ⤶ 钩:改动行旧号前 */
+.git-split-ghook {
+  color: color-mix(in srgb, var(--tmd-accent) 80%, var(--tmd-fg));
+  margin-right: 2px;
+}
+
+
+/* 中央行号槽列:常驻底纹 + 左右发丝分隔线,把三列结构钉死(横滚时槽列
+   不滚,分隔线恒在)。 */
+.git-split-gutter-col {
+  border-left: 1px solid color-mix(in srgb, var(--tmd-fg) 10%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--tmd-fg) 10%, transparent);
+  background: color-mix(in srgb, var(--tmd-fg) 3%, transparent);
+}
+
+/* 块行槽底:accent 淡染,与常驻底纹分层,块范围一眼可辨。 */
+.git-split-block-bg {
+  background: color-mix(in srgb, var(--tmd-accent) 8%, transparent);
+}
+/* 占位行槽色块(缺侧):缺左=新增块占位(inserted),缺右=删除块占位(removed)。 */
+.git-split-ph-add {
+  background: color-mix(in srgb, var(--tmd-diff-inserted) 14%, transparent);
+}
+.git-split-ph-del {
+  background: color-mix(in srgb, var(--tmd-diff-removed) 14%, transparent);
+}
+
+
+/* 改动块识别框 ②:块首/块尾 accent 横线贯穿两个内容列(随内容横滚,
+   但恒在行边界上,滚动中也能定位块界)。 */
+.git-split-bd-top {
+  border-top: 1px solid color-mix(in srgb, var(--tmd-accent) 35%, transparent);
+}
+.git-split-bd-bot {
+  border-bottom: 1px solid color-mix(in srgb, var(--tmd-accent) 35%, transparent);
 }

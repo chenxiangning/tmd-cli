@@ -12,9 +12,8 @@ use super::{
     with_repo_mut, AheadBehind, BranchCompareSet, BranchDiffFile, BranchList, CommitFile,
     CommitInput, DiffStatus, DiffTotals, FilePatch, GitError, LogEntry, RepoScanResult,
 };
-
 /// 读命令模板:spawn_blocking 包 with_repo;JoinError 只在 panic/取消时出现。
-async fn run<T, F>(cwd: String, f: F) -> Result<T, String>
+pub(super) async fn run<T, F>(cwd: String, f: F) -> Result<T, String>
 where
     T: Send + 'static,
     F: FnOnce(&Repository) -> Result<T, GitError> + Send + 'static,
@@ -27,7 +26,7 @@ where
 
 /// 写命令模板:成功后 evict 缓存。递 &mut Repository —— stash 等写操作需要可变句柄;
 /// 既有 &Repository 写实现经自动解引用强转兼容,调用点零改动。
-async fn run_mut<T, F>(cwd: String, f: F) -> Result<T, String>
+pub(super) async fn run_mut<T, F>(cwd: String, f: F) -> Result<T, String>
 where
     T: Send + 'static,
     F: FnOnce(&mut Repository) -> Result<T, GitError> + Send + 'static,
@@ -88,6 +87,11 @@ pub async fn git_unstage(cwd: String, paths: Vec<String>) -> Result<(), String> 
 #[tauri::command]
 pub async fn git_discard(cwd: String, paths: Vec<String>) -> Result<(), String> {
     run_mut(cwd, move |r| index_ops::discard(r, paths)).await
+}
+
+#[tauri::command]
+pub async fn git_clean(cwd: String, paths: Vec<String>) -> Result<(), String> {
+    run_mut(cwd, move |r| index_ops::clean(r, paths)).await
 }
 
 #[tauri::command]

@@ -69,6 +69,7 @@ export const MESSAGES = {
   "删除工作区": "Delete workspace",
   "设置别名": "Set alias",
   "别名(留空清除)": "Alias (leave empty to clear)",
+  "切换工作区": "Switch workspace",
 
   // ── SessionManage (管理模式批量条 / 行按钮) ──
   "更多... (还有 {n} 条)": "More... ({n} remaining)",

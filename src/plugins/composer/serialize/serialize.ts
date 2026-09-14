@@ -66,7 +66,7 @@ export function translatePrompt(profile: CliProfile, text: string): string {
  * 写入 PTY 之前的最终文本。
  * bracketedPaste profile(pi-tui 系:kimi/pi):正文包 ESC[200~…ESC[201~ 再追加 CR ——
  * 一次性整串写入会被其"粘贴爆发"启发式当成粘贴而吞掉提交回车,标记让 CLI
- * 走 handlePaste 通路并复位启发式(契约见 kernel/cli.ts bracketedPaste 注)。
+ * 走 handlePaste 通路并复位启发式(契约见 kernel/cliProfile.ts bracketedPaste 注)。
  * 其余 profile:v1 不用 bracketed paste,裸文本;TUI 应用期待 CR 作 Enter 键 —
  * LF 不会被识别为"提交"。
  */

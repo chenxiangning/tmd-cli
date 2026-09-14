@@ -85,6 +85,13 @@ describe("mapPresetToTokens 缺失 token 回退", () => {
     expect(tokens["--tmd-bg-elevated"]).toBe(mixHexColors("#1e1e1e", "#000000", 0.12));
   });
 
+  it("bg-panel 与 bg-elevated 同源(壁纸态单独调薄,elevated 保浮层实底)", () => {
+    const tokens = mapPresetToTokens(
+      presetOf("dark", { "editor.background": "#1e1e1e" }),
+    );
+    expect(tokens["--tmd-bg-panel"]).toBe(tokens["--tmd-bg-elevated"]);
+  });
+
   it("非法颜色值(非 hex)视同缺失,走同一兜底链", () => {
     const tokens = mapPresetToTokens(
       presetOf("dark", { "editor.background": "not-a-color" }),

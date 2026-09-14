@@ -8,14 +8,14 @@ import { useCallback, useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
 import { spinRemainder } from "@kernel/spin";
 import { ipc, type GitRemoteRequest } from "@kernel/ipc";
-import { clearRemoteDialogRequest, useGitPanelState } from "./panelStore";
+import { clearRemoteDialogRequest, useGitPanelState, type RemoteDialogOp } from "./panelStore";
 import { gitErrorDisplay, isAuth } from "./gitError";
 
 export function useGitPanelRemote(cwd: string | null, afterMutation: () => void) {
   const { remoteDialogRequest } = useGitPanelState();
   const [notice, setNotice] = useState<string | null>(null);
   const [remoteBusy, setRemoteBusy] = useState<"push" | "pull" | "fetch" | null>(null);
-  const [dialog, setDialog] = useState<GitRemoteRequest["op"] | null>(null);
+  const [dialog, setDialog] = useState<RemoteDialogOp | null>(null);
 
   /* 分支右键菜单「推送...」等入口请求打开远端对话框:消费即清,nonce 防重复。 */
   useEffect(() => {
@@ -24,7 +24,7 @@ export function useGitPanelRemote(cwd: string | null, afterMutation: () => void)
     setDialog(remoteDialogRequest.op);
   }, [remoteDialogRequest]);
 
-  /** 对话框执行链:关对话框 → 顶栏按钮转圈 → 成功通知+全量刷新 / 失败通知。 */
+  /** 对话框执行链:关对话框 → busy 态(对话框内呈现)→ 成功通知+全量刷新 / 失败通知。 */
   const runDialog = useCallback(
     (op: GitRemoteRequest["op"], req: GitRemoteRequest, opLabel: string) => {
       if (!cwd || remoteBusy) return;

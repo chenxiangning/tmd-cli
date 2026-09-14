@@ -634,9 +634,26 @@ export function attachFluidShader(
     startLoop();
   };
 
+  const releaseGpu = (): void => {
+    for (const binding of displayCache.values()) {
+      if (binding) gl.deleteProgram(binding.program);
+    }
+    displayCache.clear();
+    if (flowProgram !== null) gl.deleteProgram(flowProgram);
+    gl.deleteBuffer(quadBuffer);
+    for (const target of [targetA, targetB]) {
+      if (target) {
+        gl.deleteFramebuffer(target.fbo);
+        gl.deleteTexture(target.tex);
+      }
+    }
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+  };
+
   const handle: FluidShaderHandle = {
     attached: true,
     setParams: (next: FluidParams) => {
+      if (disposed) return;
       current = { ...next };
       ensureDisplay(clampFluidMotionMode(next.motionMode));
       previous = 0;
@@ -656,12 +673,14 @@ export function attachFluidShader(
       startLoop();
     },
     dispose: () => {
+      if (disposed) return;
       disposed = true;
       paused = true;
       stopLoop();
       window.removeEventListener("resize", syncCanvasSize);
       document.removeEventListener("visibilitychange", handleHidden);
       resizeObserver?.disconnect();
+      releaseGpu();
     },
   };
 

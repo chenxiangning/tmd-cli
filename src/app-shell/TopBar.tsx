@@ -6,6 +6,7 @@ import { Mounts } from "@kernel/Mounts";
 import { usePlatformKind } from "@kernel/platform";
 import { toggleHomeSession } from "./shortcutCommands";
 import { TopBarPanelTabs } from "./RightPanelToolbar";
+import { TitlebarBranchLabel, WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 /** macOS 用原生左侧 traffic lights,Windows 自绘右侧按钮组;窗口控制经 kernel/ipc 薄封装。 */
 function WindowControls() {
@@ -106,6 +107,8 @@ export function TopBar({
         {/* 会话/编辑 tab 条:中间区域靠左 */}
         <Mounts point="header.breadcrumb" />
         <Mounts point="header.left" />
+        {/* 分支 label:中区右缘(margin-left:auto 钉边),自取活动工作区 */}
+        <TitlebarBranchLabel />
       </div>
       <div
         className={`titlebar-actions${rightOpen ? " is-expanded" : ""}`}
@@ -123,6 +126,8 @@ export function TopBar({
         >
           {rightOpen ? <CaretLineRight size="0.875rem" aria-hidden /> : <CaretLineLeft size="0.875rem" aria-hidden />}
         </button>
+        {/* 工作区选择器(自右栏 subbar 上移):折叠钮之后、面板 tabs 之前,贴 tabs 左缘 */}
+        <WorkspaceSwitcher />
         <TopBarPanelTabs />
         <Mounts point="header.right" />
       </div>

@@ -145,14 +145,14 @@ export function AppShell() {
             <PanelResizeHandle className="panel-handle panel-handle-v panel-handle-line-l" />
             <Panel defaultSize={22} minSize={12} id="right">
               <aside ref={rightAsideRef} className="flex h-full flex-col">
-                {/* 顶部 toolbar:右侧面板控制器(folder/git/...) */}
-                <RightPanelToolbar />
                 {/* 面板内容:按注册表路由,外壳不认识任何业务面板 */}
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                   {/* 必须 flex 容器:内部 file-tree-panel 的 flex:1 才能拿到有界高度,
                       否则文件树内容无限长高被裁掉,列表永远滚不动。 */}
                   {activeFilePanel ? <activeFilePanel.component /> : null}
                 </div>
+                {/* 底部文件操作条(新建/刷新/面板动作;工作区选择器已上移顶栏) */}
+                <RightPanelToolbar />
               </aside>
             </Panel>
           </>

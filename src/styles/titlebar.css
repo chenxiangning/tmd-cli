@@ -85,10 +85,8 @@
   gap: 2px;
   flex: 0 0 auto;
 }
-/* 右区定宽(与右侧栏对齐)时:折叠右栏按钮钉在右区最左缘(内边界),其余 icons 保持右对齐。 */
-.titlebar-actions.is-expanded > .titlebar-action:first-child {
-  margin-right: auto;
-}
+/* 右区定宽(与右侧栏对齐)时:右缘 icons 保持右对齐;tabs 恒钉右缘由
+   .titlebar-actions .panel-tabs-row 的 margin-left:auto 承担(选择器/分支 label 靠左一组)。 */
 /* 栏边界线拉上顶栏:右区左缘 1px 竖线,仅右栏展开时出现(同左区,避开 [style] 空属性陷阱)。
    宽度 = 右栏宽 + 4px 手柄 - 12px 顶栏右 padding,与左区公式对称;控制带是绝对 overlay
    (复刻 codemoss .titlebar-controls 模式)不入 flex 流,竖线位置与控制带完全解耦。
@@ -167,7 +165,7 @@
   justify-content: center;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 9px;
   background: transparent;
   color: var(--tmd-fg-muted);
   cursor: pointer;
@@ -185,7 +183,7 @@
 }
 
 .titlebar-action svg {
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 1rem;
+  height: 1rem;
   stroke-width: 1.75;
 }

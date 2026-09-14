@@ -2,13 +2,13 @@
  * DiffFlatList 文件行 —— 自 DiffFlatList.tsx 拆出(文件规模铁则)。
  * FRow:`[x]`/状态字母徽标/文件名/右对齐暗色目录列/±行数与 hover 括号动作
  * 互斥换位;状态描述表(STATUS_DESC)与徽标字母表(BADGE)随行迁移。
- * 勾选框与 hover 动作簇拆为本文件内 RowCheckbox/RowHoverActions(降分支)。
+ * 勾选框留本文件,hover 动作簇拆至 DiffRowActions(降分支)。
  */
 
 import { t } from "@kernel/i18n";
 import type { GitFileStatus } from "@kernel/ipc";
 import { STATUS_COLOR } from "./statusColor";
-import { FileOpenActions } from "./FileRowActions";
+import { RowHoverActions } from "./DiffRowActions";
 
 const STATUS_DESC: Record<GitFileStatus["status"], string> = {
   M: "已修改 (modified)",
@@ -78,69 +78,6 @@ function RowCheckbox({
   );
 }
 
-/** hover 动作簇:(取消)暂存 + 条件性放弃工作区改动。 */
-function RowHoverActions({
-  file,
-  stagedRow,
-  canDiscard,
-  cwd,
-  onStage,
-  onUnstage,
-  onDiscard,
-}: {
-  file: GitFileStatus;
-  stagedRow: boolean;
-  canDiscard: boolean;
-  cwd: string;
-  onStage: () => void;
-  onUnstage: () => void;
-  onDiscard: () => void;
-}) {
-  return (
-    <span className="hidden items-center gap-2 group-hover:flex">
-      <FileOpenActions cwd={cwd} file={file} />
-      {stagedRow ? (
-        <button
-          type="button"
-          title={t("取消暂存(git reset)")}
-          onClick={(e) => {
-            e.stopPropagation();
-            onUnstage();
-          }}
-          className="text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
-        >
-          {t("(取消暂存)")}
-        </button>
-      ) : (
-        <button
-          type="button"
-          title={t("暂存(git add)")}
-          onClick={(e) => {
-            e.stopPropagation();
-            onStage();
-          }}
-          className="text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
-        >
-          {t("(暂存)")}
-        </button>
-      )}
-      {canDiscard && (
-        <button
-          type="button"
-          title={t("放弃工作区改动(还原到暂存区;不可恢复)")}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDiscard();
-          }}
-          className="text-(--tmd-fg-faint) hover:text-(--tmd-diff-removed) hover:underline hover:underline-offset-2"
-        >
-          {t("(放弃)")}
-        </button>
-      )}
-    </span>
-  );
-}
-
 /** 目录列文案:rename 行显示旧路径目录(← 前缀),否则原目录;根文件为空(降分支拆件)。 */
 function dirLabel(file: GitFileStatus, dir: string): string {
   if (file.oldPath) return `← ${splitPath(file.oldPath)[1] ?? ""}/`;
@@ -160,22 +97,26 @@ function RowTrailer({
   conflict,
   stagedRow,
   canDiscard,
+  canDelete,
   cwd,
   nums,
   file,
   onStage,
   onUnstage,
   onDiscard,
+  onDelete,
 }: {
   conflict: boolean;
   stagedRow: boolean;
   canDiscard: boolean;
+  canDelete: boolean;
   cwd: string;
   nums: { i: number; d: number } | undefined;
   file: GitFileStatus;
   onStage: () => void;
   onUnstage: () => void;
   onDiscard: () => void;
+  onDelete: () => void;
 }) {
   const numsBlank = !nums || (nums.i === 0 && nums.d === 0);
   return conflict ? (
@@ -190,10 +131,12 @@ function RowTrailer({
         file={file}
         stagedRow={stagedRow}
         canDiscard={canDiscard}
+        canDelete={canDelete}
         cwd={cwd}
         onStage={onStage}
         onUnstage={onUnstage}
         onDiscard={onDiscard}
+        onDelete={onDelete}
       />
     </span>
   );
@@ -205,11 +148,13 @@ export function FRow({
   checked,
   nums,
   cwd,
+  mrow,
   onToggleCheck,
   onOpen,
   onStage,
   onUnstage,
   onDiscard,
+  onDelete,
 }: {
   file: GitFileStatus;
   cwd: string;
@@ -217,22 +162,27 @@ export function FRow({
   side: "un" | "ut" | "st";
   checked: boolean;
   nums: { i: number; d: number } | undefined;
+  /** 拖选锚点下标(未暂存/未跟踪可勾选行专用;待提交段与冲突行不参选) */
+  mrow?: number;
   onToggleCheck: () => void;
   onOpen: () => void;
   onStage: () => void;
   onUnstage: () => void;
   onDiscard: () => void;
+  onDelete: () => void;
 }) {
   const conflict = file.status === "C";
   const stagedRow = side === "st";
   const [name, dir] = splitPath(file.path);
   /* 放弃仅对常规修改开放:rename/deleted 的还原语义含糊,冲突已禁,untracked 无处可还 */
   const canDiscard = side === "un" && (file.status === "M" || file.status === "T");
+  const canDelete = side === "ut";
 
   return (
     <div
       onClick={onOpen}
       role="presentation"
+      data-mrow={mrow}
       title={rowTitle(file, conflict)}
       className="group flex h-6 cursor-pointer select-none items-center gap-2 whitespace-nowrap pl-3 pr-3 hover:bg-(--tmd-bg-hover)"
     >
@@ -262,12 +212,14 @@ export function FRow({
         conflict={conflict}
         stagedRow={stagedRow}
         canDiscard={canDiscard}
+        canDelete={canDelete}
         cwd={cwd}
         nums={nums}
         file={file}
         onStage={onStage}
         onUnstage={onUnstage}
         onDiscard={onDiscard}
+        onDelete={onDelete}
       />
     </div>
   );

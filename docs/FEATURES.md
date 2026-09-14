@@ -14,6 +14,7 @@
 > 2026-09-09 0.1.3 补校:会话列表扁平化(段头与折叠退役、行首供应商图标、树形参考线、灰点隐藏、管理入口上移工作区行)、启动自动激活、幕布加载进度条与大缓冲分块回放、审批线时间线页签、Git diff 双栏与全文查看、图标装饰设置、tab 条容量可配。
 > 2026-09-10 0.1.4 补校:本地插件系统(~/.tmd-cli/plugins 磁盘装载、对话即变热加载、SHA-256 信任闸 + API 纪元闸、版本历史回退)与插排页本机插件独立成排;checkpoints 工作区外写入事件入账;插件计数 22→23(10 engine / 9 feature / 3 core / 1 local)。
 > 2026-09-11 会话 tab 平铺显示 + 平铺广播开关:右键菜单全局开关(参照 codeg tile),打开的 tab 并排同屏点列即切,composer 喇叭开关开启后正常发送即广播到全部平铺幕布;横评广播插件实施后验收否决已整体拆除(spec 留档「已废弃」)。
+> 2026-09-12/13 补校:WSL 支持 M1、工作区壁纸(图库+流体)、应用内自动更新(updater 签名通道)、omp 历史会话预热秒开(onAcquired 早激活)、dsh 会话流式输出、Git 差异三区拖选批量与未跟踪删除、pull 分叉 rebase 兜底、回首页⇄回会话 toggle、欢迎页 SWR 缓存与手动全量刷新;插件计数 23→27(10 engine / 13 feature / 3 core / 1 local)。
 
 ## 工作区会话
 
@@ -29,6 +30,7 @@
 - 会话恢复:由各 CLI profile 声明 resumeArgs,适配 CLI 自身会话存储
 - 磁盘会话打开回退:CLI 未声明 resumeArgs 时以 profile 默认启动参数打开(等同新会话)
 - 磁盘会话先行回放:点击磁盘历史即用上一代日志尾分块回放出画面(百毫秒级,零进程),resume 进程后台异步拉起、就绪后实时流接管;自动激活(0.1.3 预开进程换秒开)已由本机制取代并移除
+- omp 历史会话预热接管:后台预热裸 omp 进程待命,打开历史经 profile.acquireResume 注入 /resume 热切换(onAcquired 早激活即装配激活,亚秒出完整画面);接管前后失配均降级默认冷路径,不劣化(契约见 architecture/10)
 - 会话列表:会话行(活会话 + 磁盘历史)按时间倒序平铺于工作区下(2026-09-08 扁平化,CLI 分组段头与折叠退役),行首引擎品牌图标
 - 磁盘历史:各 CLI 插件 listSessions 扫描,带相对时间
 - 磁盘历史分页:初始条数 + 「更多」翻倍加载(默认 10 条起步)
@@ -187,12 +189,13 @@
 
 ## Git 面板
 
-- 单视图三段:差异 / 分支 / 历史,外观对齐 codemoss(契约见 `openspec/changes/git-right-panel/`)
+- 单视图三段:差异 / 分支 / 历史,外观对齐 codemoss(契约见 `openspec/changes/archive/2026-09-02-git-right-panel/`)
 - 勾选文件 + 写消息 + 提交一次完成;commit 执行权仅面板按钮,composer `/commit <msg>` 仅预填
 - commit 消息:3 行高输入可多行,无长度上限与历史记忆,前后端各 trim 一次;提交成功清空消息/勾选/amend 并收起抽屉
 - amend 提交:勾选后可零选文件改写上一提交,保留原 author、更新 committer
 - 空提交防线:tree 无变化拒绝提交,提交信息空白拒绝;提交签名 git config → 环境变量 → 兜底 tmd-cli@localhost
 - 差异视图:libgit2 patch 生成,前端 LRU 缓存 50 条/20MB;平铺/树形切换
+- 差异面板三区拖选批量:勾选区/文件列表/patch 区拖选多文件批量暂存/取消暂存/丢弃,未跟踪文件批量删除(git clean,先校验后删,混入 tracked 路径整体拒绝)
 - 视图切换:差异/分支/历史下拉切换;历史视图 Graph 化:泳道拓扑(SVG 单元格,ref 语义色 + 5 色调色板),按 ahead/behind 插入「传出的更改 / 传入的更改」合成行(VS Code SCM Graph 同款);平铺/树形选择为进程内存,重启回默认
 - 文件 diff 单栏/双栏:unified / split 切换(settings.git.diffMode 重启恢复);双栏 del|add 配对左右对照、余量留空;「全文查看」整文件进单 hunk(libgit2 context_lines 上限),弹窗内两处 commit 面板恒单栏
 - 重命名检测:status 与 diff 双轨开启 rename 检测,文件可标 R、patch 携带旧路径(find_similar 默认 50% 相似度配对)
@@ -213,7 +216,7 @@
 - 分支右键菜单:变基到当前 / 合并到当前 / 与当前对比 / 重命名 / 检出远端 / 自指定分支新建;脏工作区切换走「暂存并切换」(stash -u → 切换 → pop)
 - 历史 log 浏览:每页 50 条,滚动距底 48px 自动翻页,时间+拓扑双排序保证分页稳定
 - 历史条目:泳道格 + 短 sha + 摘要 + 相对到天时间(今天/昨天/N 天前/N 个月前/N 年前),悬停显作者名/邮箱与完整时间;点击提交懒加载展开文件清单(find_similar rename 检测),点击文件开中央 commit diff tab(一提交一 tab,id = `git-commit-diff:<sha>`,focusPath 深链);空消息显「(空消息)」,翻到底显「已到最早提交」
-- 远端:fetch(--all --prune)/ pull(尊重 pull.rebase 配置,显 behind 计数)/ push(ahead>0 显现)统一走对话框(成功带聚合统计,push 自动建立跟踪);300s 总超时到点中止,禁终端凭据提示;ssh 未自配 core.sshCommand 时才注入 BatchMode + ConnectTimeout=10(自配不覆盖);凭据失败引导幕布终端
+- 远端:fetch(--all --prune)/ pull(尊重 pull.rebase 配置,显 behind 计数)/ push(ahead>0 显现)统一走对话框(成功带聚合统计,push 自动建立跟踪);300s 总超时到点中止,禁终端凭据提示;ssh 未自配 core.sshCommand 时才注入 BatchMode + ConnectTimeout=10(自配不覆盖);凭据失败引导幕布终端;pull 分叉未配策略被 git 拒绝时自动 --rebase 兜底重试,撞冲突 abort 恢复原状并显式报错(引导幕布终端自处理)
 - 错误契约:五类 E_* 前缀直传前端剥壳展示;非 git 目录显空态;凭据失败引导幕布终端执行
 - 后端 Repository 句柄缓存:per-cwd FIFO 上限 16,写操作成功后主动失效,下次访问重开保新鲜
 - 多仓发现:Rust `git_repos_scan` BFS 有界扫描 workspace 根(深度 2,结果截 32,truncated 标记);submodule(.gitmodules 登记)与 worktree(gitdir 指针)分档,Repository::open 防误报;发现仅 root 切换 / 60s 慢巡航 / 窗口转可见 / 显式刷新时拉取,不挂 5s 轮询
@@ -265,7 +268,7 @@
 - 跟随系统模式监听系统深浅色切换即时换肤;主题变更同步重刷终端幕布配色
 - 语言 i18n:设置/外观三语切换(简体中文/English/日本語),全 app 文案经 kernel/i18n t() 查表,切换即整树重挂载即时生效;缺失词条回落源中文;相对时间/日期随语言走 Intl 本地化
 - 界面字号:12–20 px(默认 16)滑杆即时生效,非默认出「重置」;html 根字号锚点驱动全库 rem 排版实现纯文字级缩放(文字与图标随动,布局壳间距与终端幕布不受影响),任意 px 字号类/CSS font-size/图标 size 已全库等值迁 rem;与界面缩放(webview zoom)、终端字号(幕布)三者正交
-- 界面缩放:80%–150% 步进 5%,webview 原生 setZoom(mac pageZoom/win zoomFactor,终端 canvas 保持清晰),浏览器 dev 回落 CSS zoom;重置一键回 100%
+- 界面缩放:80%–150% 步进 5%,webview 原生 setZoom(mac pageZoom/win zoomFactor,终端 canvas 保持清晰),浏览器 dev 回落 CSS zoom;重置一键回 100%;左下角工具条另有缩放按钮组(−/百分位/+)快捷调节
 - 终端字号:10–20 px 滑杆(默认 13),活幕布即时重排并同步 PTY 尺寸
 - 终端字体:平台默认栈 + 常见等宽字体下拉(Menlo/Monaco/SF Mono/Cascadia/Consolas/DejaVu/JetBrains Mono/Fira Code 等,按平台过滤),document.fonts.check 探测未安装项置灰,支持自定义 CSS family 串
 - 终端 ANSI 16 色:主题 token 派生兜底(浅/深各一套,默认采用 VS Code 官方终端配色,浅色表 bright 系不亮于 base 修复浅底看不清);每套浅色 preset 显式声明 16 槽(色相取自各主题官方终端色板,对比度不足保 H/S 降 L 至 WCAG ≥3:1),深色 preset 走兜底
@@ -274,13 +277,24 @@
 - 设置持久化 `~/.tmd-cli/settings.json`,前端 sanitize 归一,非法值回落默认,Rust 侧原子写
 - 侧栏齿轮菜单项可钉到底栏(localStorage 持久化,上限 4,默认钉 Git Graph + 网络代理);每行右侧 pin 复选框:16px 圆角方块、选中出对号(Check 图标),钉满置灰不可再钉(menuitemcheckbox 语义,类名 settings-menu-pin 定义于 settings-cluster.css)
 - 侧栏底栏常显应用版本号(取 Tauri 应用版本,纯浏览器 dev 回落 0.1.1)
-- 版本号点击弹版本信息弹窗:内嵌 CHANGELOG 分页(超长截断)+ 在线检查更新(解析 GitHub releases atom,失败回退重试 / 去发布页,超时 10s)
+- 版本号点击弹版本信息弹窗:内嵌 CHANGELOG 分页(超长截断,条目行内 Markdown 渲染,动作行三键一排)+ 在线检查更新(解析 GitHub releases atom,失败回退重试 / 去发布页,超时 10s)+ 自动更新按钮(updater latest.json 通道,签名校验,下载安装后提示重启)
 - 插件拔插状态(disabledPlugins)同落 settings,重启生效
 - 智能体 / 提示词 section:双 tab 管理 —— 智能体(名称 / emoji 图标 / 角色正文,发送时尾拼角色块)与提示词库(frontmatter md,全局 + 工作区两级目录,作用域筛选 + 搜索,新建/编辑/删除进废纸篓/移到工作区⇄全局);codemoss 三源导入(`~/.ccgui/agent.json` 合并撞名加 (N) 后缀、`~/.codex/prompts` 拷入、任意目录自选),行内计数反馈
 
+## 工作区壁纸
+
+- 背景三态:关 / 流体着色器(WebGL,GLSL 五运动场 × 预设色调,明暗随主题)/ 本地图库图片(cover/contain/center/fill + 模糊 0-40 + 加暗 0-80)
+- 本地图库:系统选图导入受管副本(`~/.tmd-cli/wallpapers/`),sourcePath 去重复用;png/jpg/jpeg/webp/gif/bmp;条目隐藏/显示、轮播(5/15/30/60 分钟)
+- 表面 token 打穿:六表面 token 换半透明 color-mix(快照原色,保留自定义主题真实底色),浮层菜单/popover 保实底可读;关壁纸按快照原值还原
+- xterm 透底:终端底色走 --tmd-terminal-bg 打穿,主题/打穿变更经主题桥通知活幕布即时重读
+- 壁纸态层梯:设置面板/插件市场打开时壁纸提层,面板透出纯壁纸实时跟手(契约见 architecture/11)
+- 流体性能边界:dpr≤1.5、1/4 分辨流场、drift 30fps、隐藏窗口停帧;选择器缩略图懒加载
+- 持久化 `~/.tmd-cli/wallpaper.json` 防抖落盘 + 退出冲刷;清洗畸形回落默认,id 黑名单防轮播注入
+- 拔 wallpaper 插件 = 背景层/设置分区全部下电,kernel 零壁纸语义(只依赖 config_dir / fs_copy_file 通用原语)
+
 ## 插件市场(插排)
 
-- 插排 / 清单双视图,23 个注册插件可视化插拔(10 engine + 9 feature + 3 core + 1 local),写 settings.disabledPlugins,重启生效(运行期不热卸载)
+- 插排 / 清单双视图,27 个注册插件可视化插拔(10 engine + 13 feature + 3 core + 1 local),写 settings.disabledPlugins,重启生效(运行期不热卸载)
 - core 类焊死不可拔(composer / settings / welcome);engine / feature / local 可拔
 - 插排页双插排:内置插件一块(分类虚线分隔),本机插件(local 类)独立次级插排(品牌区「本机插件 · 免重启装载」)
 - 插件市场经标题栏插头按钮开合(整页替换、会话现场不丢);页头「重启应用」按钮带待生效计数一键重启
@@ -303,9 +317,10 @@
 - 引擎卡附件:官方文档外链(docsUrl 缺失不渲染)、已是最新徽标、单卡重新探针按钮(探针/安装中禁用)
 - 欢迎页脚注:GitHub 仓库链接(系统浏览器打开)+ MIT 徽标
 - 引擎卡仅展示已注册(未拔出)的 CLI 引擎,首屏显示已就绪计数
+- 欢迎页数据 SWR 缓存常驻层化:标题条「全量刷新」一键重扫(带动页脚 RESUME 与 TOKENS 重扫)
 - 凭据盘点:已登录供应商凭据与额度一览(覆盖 omp/pi/codex/claude/grok/opencode,读各 CLI 本地凭据文件;kimi/qoder 未覆盖);查不到额度显示「已登录」不报错
 - dsh 引擎(DeepSeek Harness,第 10 个 CLI 引擎):首页引擎卡下方连接引导面板(kernel/homePanels 注册表),host:port 连接 + host 探针(quota_fetch 通道 POST describe)+ 启停自有会话(单实例闸,EADDRINUSE 防撞)+ 自定义 dsh 路径 + 自动启动(默认开,进首页且 host 未运行且二进制可用才拉,每应用运行一次闸);连接设置折叠头带摘要
-- dsh PTY 适配器:会话即 host(`dsh web --host --port`),适配器脚本落盘 `~/.tmd-cli/adapters/dsh`(内容戳变化全量重写,清场删除在 fs 白名单内);会话内对话 / 审批提问卡 / 底栏 footer 走 host-RPC 第二客户端;`~/.dsh/sessions` 为 zstd 压缩流,fs 原语不可读,listSessions/resumeArgs 不声明,删除走删盘通路
+- dsh PTY 适配器:会话即 host(`dsh web --host --port`),适配器脚本落盘 `~/.tmd-cli/adapters/dsh`(内容戳变化全量重写,清场删除在 fs 白名单内);会话内对话 / 审批提问卡 / 底栏 footer 走 host-RPC 第二客户端;`~/.dsh/sessions` 为 zstd 压缩流,fs 原语不可读;resume 经 spawnTransform 翻成适配器 `--session-id`,会话流式输出(follow 订阅 assistantStream,正文与思考逐 delta 到达,durable 投影按流式标记去重防双渲染);listSessions 不声明,删除走删盘通路
 - 最近会话:磁盘最近会话快速进入,按工作区分组每区最多 5 条,扫描失败静默跳过
 
 ## SSH 远程
@@ -323,6 +338,18 @@
 - 新建入口:新建会话菜单「SSH 连接…」(workspace.newSessionMenu 挂载点)→ 主机选择 overlay → 建会话挂当前工作区
 - 会话列表:SSH 活会话独立分组(kind 判断),标题取主机名,右键断开
 - 插件可拔(feature 类):拔出 = 菜单入口/右栏面板/设置分区/overlay 全下电,引擎会话随应用退出消亡
+
+## WSL 支持(M1)
+
+- WSL 发行版连接双形态:本机 wsl.exe(UNC `\\wsl.localhost\<distro>\…` 工作区)与远程 Windows 宿主经 SSH 通道(root 落 `~` 波浪 posix 路径);远程主机簿复用 SSH 设置
+- 添加工作区路径闸:本机仅收绝对路径、远程保 `~` 惯例只拦裸 `~`,杜绝 `~` 拼进发行版名的假 UNC(WSL_E_DISTRO_NOT_FOUND 根治)
+- 双通道 spawn 包装:本机 `wsl.exe -d <distro> --cd <path> -- bash -lc '<引擎>'`,远程作为 SSH 会话 PTY 内首命令;发行版/路径双引号包裹(宿主可能是 PowerShell),复杂脚本走 b64 载荷传输
+- 引擎探针:登录 shell 语义逐 bin 探测,`/mnt/*` 互操作检出过滤(防十个引擎九个误报);会话内缓存,未探测 = 空列表 + 引导 note(不显示不可用 CLI)
+- 远程历史与状态:一次 exec 列目录头(slug 先归一 `~` 再匹配 $HOME)+ 尾窗 256KB 状态;点历史行显式绑定恢复,全新会话按「createdAt ≥ spawn-5s」启发式绑定
+- 侧栏分组身份双认:`profileId 或 engine`,引擎会话(ssh kind + engine)对 CLI 组可见、对纯 SSH 组隐形防双渲染
+- 文件通道 M1 只读:`wslr://` 寻址 + 目录懒加载 + 文件文本读取(512KB 闸),CodeMirror readOnly ⌘S 早退
+- 降级矩阵:git 面板/checkpoints 按 kind 置灰降级提示不静默;写回 M1 不做;拔 wsl 插件全部下电回内建形态(契约见 architecture/09)
+- 非 Windows 开发机 DEV 预览桩:WSL 卡界面可 mac 目检
 
 ## 网络代理
 
@@ -352,16 +379,16 @@
 - 顶栏三区布局:左区与左栏同宽(macOS 红绿灯占位 + 插件贡献按钮簇 + 插件市场/回到首页按钮)、中区会话/编辑 tab 条靠左、右区与右栏同宽(右栏面板 tab + 插件贡献挂点)
 - 顶栏左/右缘侧栏折叠按钮:收起/展开左栏与右栏,图标随态切换
 - 文件预览为条件第四栏:有打开的文件 tab 才出现,夹于幕布与右栏之间,宽度可拖
-- 顶栏「回到首页」:一键摘掉活跃会话指针回欢迎页,会话不删可再唤回
+- 顶栏「回到首页⇄回会话」toggle:会话中记住当前会话回欢迎页,首页中切回原会话(已退出则保持首页原样);市场覆盖层开启时先收市场再切换
 - 右栏面板 tab 可钉住,溢出收进「⋯」菜单(菜单行点击激活并顺带钉住,复选框仅切钉住不收菜单;激活未钉面板临时外显;Esc/背板关闭)
 - 幕布:⌘/Ctrl+F 呼出搜索框(即时命中,Enter 下一个/Shift+Enter 上一个,Esc 或 × 关闭并归还焦点);链接点击走系统浏览器;渲染层为 xterm 内建 DOM(2026-09-10 起弃用 WebGL:WKWebView atlas 长时间运行后静默损坏)
 - 幕布字体按平台:macOS Menlo 系 / Windows Cascadia Mono·Consolas / Linux DejaVu Sans Mono·Liberation Mono,13px,光标闪烁
 - 幕布滚动回放上界 5 万行,更早历史经滚顶「加载更早的输出」按钮翻页(RIS 重置整段重写幕布)
 - panic 落盘:任意线程 panic 的时间戳/线程/源码位置追加 `~/.tmd-cli/panic.log`,超 1MB 先清空再写
 - 启动 PATH 富化:后台 fork login shell(-lc 快路径/-ilc 完整路径,超时 kill)提取,与进程 env、常见安装目录(~/.local/bin 等)去重保序合并;降级单飞重试自愈;裸命令名经 which 解析绝对路径(Windows 批处理包 cmd /c);PTY 子进程与 CLI 探针共用
-- 全局快捷键:内核注册表 + 分发器;设置页「快捷键」tab 为全量命令清单只读展示(改键 UI 未实装,数据面已预留);未绑定动作不出现在中央菜单
+- 全局快捷键:内核注册表 + 分发器;设置页「快捷键」tab 双栏改键(搜索清单 + 大键帽点击录制,冲突检测/单项重置/全部重置,设置改动即写即生效);未绑定动作弱化展示
 - 快捷键作用域:global(含无会话)/ terminal(会话幕布获得焦点,聚焦期 terminal 优先、global 兜底),分发逐作用域求值;⌘C/⌘V/Escape 永不注册
 - macOS 仅 ⌘ 平台分流:Ctrl+M/N/P/W 等不加全局劫持,按原义传给 PTY(shell / REPL 常规键不被吞)
-- 外壳键位:⌘T 新建会话、⌘, 设置、⌘1-9 切会话(match 型,无此会话穿透)、⌘W 关闭当前 tab(终端 tab 发送 EOF 退出)、⌘B/⌘⌥B 折叠左/右栏、⌘⇧H 回到首页
+- 外壳键位:⌘T 新建会话、⌘, 设置、⌘1-9 切会话(match 型,无此会话穿透)、⌘W 关闭当前 tab(终端 tab 发送 EOF 退出)、⌘B/⌘⌥B 折叠左/右栏、⌘⇧H 回首页⇄回会话
 - 面板与 tab 键位:⌘⇧E/⌘⇧G/⌘⇧M 切右栏面板 1/2/3、Ctrl+Tab / Ctrl+Shift+Tab tab 顺序切换(match 型 (meta|ctrl)+Tab)、⌘⌥F(match ⌃⌘F)编辑区最大化、⌘⇧X 插件市场;插件贡献:⌘K 命令抽屉、⌘J 对话框高度段、⌘S 保存(本地文件/SSH 远端文件双方 when 互斥)
 - 插件激活失败整页报错,不白屏

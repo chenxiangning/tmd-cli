@@ -116,7 +116,7 @@ export const cliOmpPlugin: Plugin = {
         args: ["install", "-g", "@oh-my-pi/pi-coding-agent"],
       },
       /* omp 运行时依赖 bun:welcome 引擎卡先探针 bun,缺失时引导先装 bun,
-       * 就位前 omp 的安装/更新按钮不可点(契约见 kernel/cli.ts requires)。 */
+       * 就位前 omp 的安装/更新按钮不可点(契约见 kernel/cliProfile.ts requires)。 */
       requires: {
         binary: "bun",
         name: "Bun",
@@ -159,12 +159,12 @@ export const cliOmpPlugin: Plugin = {
        * 动作行,19528 行零空闲误现)与 elapsed 计时行(Ns/Nm + 分隔符 >,banner/
        * 空闲页脚为 … 省略形态零匹配)。全屏 TUI 以光标定位分行,不可用行首锚。
        * 命中即 CLI 自证在途,activityWatch 刷帧钟持轮 —— 流式间隙不再假结算
-       * (契约见 kernel/cli.ts busyMarks)。 */
+       * (契约见 kernel/cliProfile.ts busyMarks)。 */
       busyMarks: [/⎋/u, /\d+[sm] >/u],
       /* omp 是 oh-my-pi(pi fork),输入编辑器与 pi/kimi 同源 pi-tui:composer 整串
        * 正文+\r 同帧到达会命中"粘贴爆发"启发式,提交回车被改写成换行 —— win
        * 实测偶发"composer 发了但幕布没提交,须再手按回车"。声明后走 bracketed
-       * paste 通路,与真实终端粘贴行为一致(契约见 kernel/cli.ts)。 */
+       * paste 通路,与真实终端粘贴行为一致(契约见 kernel/cliProfile.ts)。 */
       bracketedPaste: true,
     });
     /* 预热接管管理器:后台常驻一个裸 omp 待命(有近期会话活动才预热,

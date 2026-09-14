@@ -14,6 +14,7 @@ import { ArrowLeft, CircleNotch } from "@phosphor-icons/react";
 import { ipc, type GitCommitFile, type GitFilePatch, type GitLogEntry } from "@kernel/ipc";
 import { formatAbsolute } from "@kernel/relativeTime";
 import { gitErrorDisplay } from "../gitError";
+import { useGitPanelState } from "../panelStore";
 import { PatchLines } from "./PatchLines";
 import { STATUS_COLOR } from "./statusColor";
 
@@ -225,6 +226,7 @@ function PatchBody({
   error: string | null;
   patch: GitFilePatch | null;
 }) {
+  const { diffMode } = useGitPanelState();
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
@@ -233,7 +235,7 @@ function PatchBody({
     );
   }
   if (error) return <div className="text-(--tmd-diff-removed)">{error}</div>;
-  if (patch && patch.patch.length > 0) return <PatchLines text={patch.patch} />;
+  if (patch && patch.patch.length > 0) return <PatchLines text={patch.patch} mode={diffMode} />;
   if (patch) {
     return (
       <div className="text-(--tmd-fg-faint)">

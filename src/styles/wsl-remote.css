@@ -1,6 +1,9 @@
 /* WSL 卡远程连接段(src/plugins/wsl/RemoteSection.tsx / DistroPanel.tsx)。本文件与 wsl-card.css 同批载入(global.css);类名前缀 wsl-remote / wsl-distro-panel / wsl-probe / wsl-dir / wsl-host。 */
 
 /* ---- 远程连接段(2026-09-11):主机簿复用 ssh.hosts;发行版行复用 .wsl-distro-row ---- */
+.wsl-distro-state.wsl-ok {
+  color: var(--tmd-ok);
+}
 .wsl-remote {
   margin-top: 10px;
   padding-top: 8px;
@@ -76,6 +79,11 @@
   font-size: 11px;
   color: var(--tmd-fg-subtle);
 }
+.wsl-probe-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 14px;
+}
 .wsl-probe-row {
   display: flex;
   align-items: center;
@@ -84,16 +92,36 @@
   border-radius: 4px;
   text-align: left;
 }
-.wsl-probe-row:hover:not(:disabled) {
-  background: var(--tmd-bg-hover);
-}
-.wsl-probe-row.off {
+.wsl-probe-row.off .wsl-probe-icon,
+.wsl-probe-row.off .wsl-probe-bin {
   opacity: 0.5;
-  cursor: default;
 }
 .wsl-probe-row.on {
   background: var(--tmd-accent-soft);
   box-shadow: inset 2px 0 0 var(--tmd-accent);
+}
+.wsl-probe-bin {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wsl-probe-path.wsl-probe-miss {
+  color: var(--tmd-err);
+}
+.wsl-probe-tag {
+  flex: none;
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  /* 文字掺 fg 提亮浅色主题对比度(纯 --tmd-ok 在浅底 ≈3:1 不达 AA) */
+  color: color-mix(in srgb, var(--tmd-ok) 60%, var(--tmd-fg));
+  background: color-mix(in srgb, var(--tmd-ok) 14%, transparent);
+}
+.wsl-probe-row:hover:not(:disabled) {
+  background: var(--tmd-bg-hover);
 }
 .wsl-probe-path {
   margin-left: auto;
@@ -141,9 +169,6 @@
   color: var(--tmd-fg-faint);
   cursor: default;
 }
-.wsl-dir-row.on {
-  background: var(--tmd-accent-soft);
-}
 
 /* ---- 手动添加主机表单 ---- */
 .wsl-host-form {
@@ -156,8 +181,8 @@
 }
 .wsl-host-grid {
   display: grid;
-  grid-template-columns: 1fr 64px;
-  gap: 4px 8px;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 4px 10px;
 }
 .wsl-host-grid label {
   display: flex;

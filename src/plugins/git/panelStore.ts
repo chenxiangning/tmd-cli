@@ -1,14 +1,12 @@
 /**
- * git 面板共享 store —— GitToolbar(顶栏)与 GitPanel(右栏)是两个组件实例,
+ * git 面板共享 store —— GitToolbar(面板顶行)与 GitPanel(右栏)是两个组件实例,
  * 视图态经模块级 store 共享(useSyncExternalStore,同 filePanel 模式)。
  *
- * refreshNonce:顶栏 ⟳ 点击 bump,GitPanel 监听后触发全量 refresh。
  * aggregate:聚合 ±行数与文件数的只读镜像 —— totals 是重操作,只允许
  * GitPanel 的 useGitTotals 单点拉取,GitToolbar 经此消费,不做第二份轮询。
  */
 
 import { useSyncExternalStore } from "react";
-import { spinRemainder } from "@kernel/spin";
 import type { GitTotals } from "@kernel/ipc";
 import { getSettingsState, updateSettings, type GitDiffMode, type GitFileListLayout, type GitPanelView } from "@kernel/settings";
 
@@ -21,28 +19,41 @@ interface GitAggregate {
   fileCount: number;
 }
 
-type RemoteDialogOp = "push" | "pull" | "fetch";
+export type RemoteDialogOp = "push" | "pull" | "fetch" | "pr";
 
 
 interface GitPanelState {
   view: GitViewMode;
   layout: FileListLayout;
   diffMode: GitDiffMode;
+  /** diff 正文自动换行(落盘 git 域;默认开)。 */
+  diffWrap: boolean;
+  /** 顶栏视图下拉「刷新」→ 面板全量刷新。 */
   refreshNonce: number;
-  /** 顶栏 ⟳ 转圈:批量刷新发起置 true,全部 settle 后清除。 */
-  refreshing: boolean;
   aggregate: GitAggregate;
+  /** 远端态镜像(GitPanel 单点拉取,顶栏下拉按钮只读消费):
+   *  detached/hasUpstream 定禁用,ahead/behind 上计数,busy 上转圈。 */
+  remoteMeta: GitRemoteMeta | null;
   /** 右键菜单等外部入口请求打开远端对话框;nonce 保证同 op 连发也触发 effect。 */
   remoteDialogRequest: { op: RemoteDialogOp; nonce: number } | null;
+}
+
+interface GitRemoteMeta {
+  detached: boolean;
+  hasUpstream: boolean;
+  ahead: number;
+  behind: number;
+  busy: RemoteDialogOp | null;
 }
 
 const state: GitPanelState = {
   view: "diff",
   layout: "flat",
   diffMode: "unified",
+  diffWrap: true,
   refreshNonce: 0,
-  refreshing: false,
   aggregate: { totals: null, fileCount: 0 },
+  remoteMeta: null,
   remoteDialogRequest: null,
 };
 const listeners = new Set<() => void>();
@@ -71,9 +82,15 @@ export function setGitDiffMode(diffMode: GitDiffMode): void {
   emit();
 }
 
+export function setGitDiffWrap(diffWrap: boolean): void {
+  state.diffWrap = diffWrap;
+  persistPanelPrefs({ diffWrap });
+  emit();
+}
+
 /** 视图/布局/diff 模式切换即写 settings(git 编辑域,settings.json 落盘);setter 是唯一写入口,水合不回写。 */
 function persistPanelPrefs(
-  patch: Partial<{ view: GitViewMode; layout: FileListLayout; diffMode: GitDiffMode }>,
+  patch: Partial<{ view: GitViewMode; layout: FileListLayout; diffMode: GitDiffMode; diffWrap: boolean }>,
 ): void {
   updateSettings({ git: { ...getSettingsState().settings.git, ...patch } });
 }
@@ -83,14 +100,31 @@ export function hydrateGitPanelPrefs(): void {
   state.view = getSettingsState().settings.git.view;
   state.layout = getSettingsState().settings.git.layout;
   state.diffMode = getSettingsState().settings.git.diffMode;
-  emit();
+  state.diffWrap = getSettingsState().settings.git.diffWrap;
 }
 
-/** 顶栏 ⟳ → 面板全量刷新 */
+/** 顶栏视图下拉「刷新」行 → 面板全量刷新(useGitPanelData 监听 nonce)。 */
 export function bumpGitRefresh(): void {
   state.refreshNonce += 1;
   emit();
 }
+
+/** GitPanel 拉到远端态后镜像(值等不 emit,防空转重渲染)。 */
+export function setGitRemoteMeta(next: GitRemoteMeta): void {
+  const prev = state.remoteMeta;
+  if (
+    prev &&
+    prev.detached === next.detached &&
+    prev.hasUpstream === next.hasUpstream &&
+    prev.ahead === next.ahead &&
+    prev.behind === next.behind &&
+    prev.busy === next.busy
+  )
+    return;
+  state.remoteMeta = next;
+  emit();
+}
+
 
 /** GitPanel 拉到聚合数据后镜像(值不变不 emit,避免 5s 轮询空转重渲染)。 */
 export function setGitAggregate(next: GitAggregate): void {
@@ -104,37 +138,6 @@ export function setGitAggregate(next: GitAggregate): void {
   emit();
 }
 
-/** ⟳ 转圈开关:GitPanel 批量刷新发起/结束时调用,按钮据此显示 loading。
- *  收尾经 kernel/spin 兜底:数据再快也转满一圈,防「没点上」错觉;
- *  兜底等待期间再发起(true)会取消挂起的收尾,连续刷新不吞圈。 */
-let spinStartedAt = 0;
-let spinClearTimer: number | null = null;
-export function setGitRefreshing(refreshing: boolean): void {
-  if (refreshing) {
-    if (spinClearTimer !== null) {
-      clearTimeout(spinClearTimer);
-      spinClearTimer = null;
-    }
-    if (state.refreshing) return;
-    state.refreshing = true;
-    spinStartedAt = Date.now();
-    emit();
-    return;
-  }
-  if (!state.refreshing || spinClearTimer !== null) return;
-  const wait = spinRemainder(spinStartedAt);
-  if (wait === 0) {
-    state.refreshing = false;
-    emit();
-    return;
-  }
-  spinClearTimer = window.setTimeout(() => {
-    spinClearTimer = null;
-    if (!state.refreshing) return;
-    state.refreshing = false;
-    emit();
-  }, wait);
-}
 
 let remoteDialogNonce = 0;
 
@@ -153,12 +156,14 @@ export function clearRemoteDialogRequest(): void {
 }
 
 export function useGitPanelState(): GitPanelState {
+  const getSnapshot = () => snapshot;
   return useSyncExternalStore(
     (cb) => {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
-    () => snapshot,
+    getSnapshot,
+    getSnapshot, // SSR(renderToStaticMarkup 测试)同源快照
   );
 }
 

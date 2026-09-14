@@ -1,13 +1,13 @@
 # 07 —— 插件强化契约(权限门面 / 贡献记账 / 崩溃熔断)
 
-状态:已落地(2026-09-10,openspec/changes/plugin-hardening,ee94119 起的实施链)。吸收 codemoss 插件系统三优点(权限声明、贡献回滚、崩溃隔离)的本地插件强化,内置插件零迁移。
+状态:已落地(2026-09-10,openspec/changes/archive/2026-09-10-plugin-hardening,ee94119 起的实施链)。吸收 codemoss 插件系统三优点(权限声明、贡献回滚、崩溃隔离)的本地插件强化,内置插件零迁移。
 
 ## 分层与文件
 
 | 文件 | 职责 |
 |---|---|
 | `kernel/plugin.ts` | `PLUGIN_PERMISSIONS` 15 类权限唯一声明 + `MountPoint`/`PluginContext`/`PluginEventBus` 契约 |
-| `kernel/pluginPermissions.ts` | `IPC_METHOD_GRANTS`:103 个 ipc 方法 → 权限类别映射(穷尽性测试把关);`wrapIpc`/`wrapSettings`/`wrapHost` 逐插件包装;`PERMISSION_LABELS` 人话文案 |
+| `kernel/pluginPermissions.ts` | `IPC_METHOD_GRANTS`:114 个 ipc 方法 → 权限类别映射(穷尽性测试把关);`wrapIpc`/`wrapSettings`/`wrapHost` 逐插件包装;`PERMISSION_LABELS` 人话文案 |
 | `kernel/pluginSdk.ts` | `installPluginSdkShim(key, permissions)`:按授权装配逐插件 shim(react/react-dom 公共 + tmd-sdk 私有) |
 | `kernel/localPluginScan.ts` | 扫描记录、信任令牌(`trustToken`)、激活判定(自 localPlugins.ts 拆出,300 行铁则) |
 | `kernel/contributionLedger.tsx` | attributed ctx:注册即记账、失败逆序撤销、贡献组件注册期统一包 `PluginBoundary` |

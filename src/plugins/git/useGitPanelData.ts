@@ -14,7 +14,6 @@ import { useGitBranches } from "./hooks/useGitBranches";
 import { useGitLog } from "./hooks/useGitLog";
 import {
   setGitAggregate,
-  setGitRefreshing,
   setGitView,
   useGitPanelState,
   getSmartSwitchOrigin,
@@ -80,8 +79,6 @@ export function useGitPanelData(cwd: string | null, refreshRepos: () => Promise<
     [],
   );
 
-  /** 刷新批次号:快速连点 ⟳ 时,旧批次 settle 不得提前熄掉新批次的转圈。 */
-  const refreshBatchRef = useRef(0);
   /** 仓 chips 轻量状态的刷新批号:发现周期外,写操作后也拉一次(dirty/↑↓ 变化)。 */
   const [chipSeq, setChipSeq] = useState(0);
 
@@ -89,17 +86,12 @@ export function useGitPanelData(cwd: string | null, refreshRepos: () => Promise<
     const jobs: Promise<unknown>[] = [status.refresh(), totals.refresh(), refreshAheadBehind(), refreshRepos()];
     if (view === "branch") jobs.push(branches.refresh());
     if (view === "history") jobs.push(log.refresh());
-    /* 全部拉取 settle 才关 ⟳ 转圈;失败也算完成,绝不留常转。 */
-    const myBatch = ++refreshBatchRef.current;
     setChipSeq((s) => s + 1);
-    setGitRefreshing(true);
-    void Promise.allSettled(jobs).then(() => {
-      if (refreshBatchRef.current === myBatch) setGitRefreshing(false);
-    });
+    void Promise.allSettled(jobs);
   }, [status, totals, refreshAheadBehind, refreshRepos, view, branches, log]);
 
-  // 顶栏 ⟳ → 全量刷新(与 afterMutation 同一套批次守卫;effect 直呼 hook 派生
-  // 回调会命中 no-pass-data-to-parent 的闭包误判,故作业清单就地展开)
+  // 顶栏视图下拉「刷新」→ 全量刷新(与 afterMutation 同一套作业清单;effect 直呼
+  // hook 派生回调会命中 no-pass-data-to-parent 的闭包误判,故就地展开)
   const lastNonceRef = useRef(refreshNonce);
   useEffect(() => {
     if (refreshNonce === lastNonceRef.current) return;
@@ -107,14 +99,9 @@ export function useGitPanelData(cwd: string | null, refreshRepos: () => Promise<
     const jobs: Promise<unknown>[] = [status.refresh(), totals.refresh(), refreshAheadBehind(), refreshRepos()];
     if (view === "branch") jobs.push(branches.refresh());
     if (view === "history") jobs.push(log.refresh());
-    const myBatch = ++refreshBatchRef.current;
     setChipSeq((s) => s + 1);
-    setGitRefreshing(true);
-    void Promise.allSettled(jobs).then(() => {
-      if (refreshBatchRef.current === myBatch) setGitRefreshing(false);
-    });
+    void Promise.allSettled(jobs);
   }, [refreshNonce, status, totals, refreshAheadBehind, refreshRepos, view, branches, log]);
-
   /* 派生展示值:远端条/分支视图吃原始 branch/upstream,对话框/历史吃兜底后的串。 */
   const branch = status.data?.branch;
   const branchName = branch ?? "";
@@ -132,7 +119,6 @@ export function useGitPanelData(cwd: string | null, refreshRepos: () => Promise<
     files,
     branch,
     branchName,
-    upstream,
     upstreamNull: upstream ?? null,
     detached,
     hasUpstream,

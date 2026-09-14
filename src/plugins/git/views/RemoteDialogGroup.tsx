@@ -5,9 +5,11 @@
  */
 
 import type { GitRemoteRequest } from "@kernel/ipc";
+import type { RemoteDialogOp } from "../panelStore";
 import { PushDialog } from "./remoteDialogs/PushDialog";
 import { PullDialog } from "./remoteDialogs/PullDialog";
 import { FetchDialog } from "./remoteDialogs/FetchDialog";
+import { CreatePrDialog } from "./remoteDialogs/CreatePrDialog";
 
 export function RemoteDialogGroup({
   cwd,
@@ -19,7 +21,7 @@ export function RemoteDialogGroup({
   onRun,
 }: {
   cwd: string | null;
-  dialog: GitRemoteRequest["op"] | null;
+  dialog: RemoteDialogOp | null;
   branch: string;
   /** 当前仓目录名(多仓语境显示于对话框标题行右缘);单仓 undefined 不显示 */
   repoName?: string;
@@ -28,6 +30,9 @@ export function RemoteDialogGroup({
   onRun: (op: GitRemoteRequest["op"], req: GitRemoteRequest, label: string) => void;
 }) {
   if (!cwd || !dialog) return null;
+  if (dialog === "pr") {
+    return <CreatePrDialog cwd={cwd} repoName={repoName} onClose={onClose} />;
+  }
   if (dialog === "fetch") {
     return (
       <FetchDialog

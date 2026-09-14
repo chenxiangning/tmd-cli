@@ -27,16 +27,21 @@ export function useCommitFiles(cwd: string | null) {
   const [cache, setCache] = useState<Cache>({ cwd, entries: {} });
   /* 去重集与 cwd 同槽:cwd 变了旧 sha 集自然作废(懒换代,写 ref 只在 ensure 内)。 */
   const fetchedRef = useRef<{ cwd: string | null; set: Set<string> }>({ cwd, set: new Set() });
-  const tokenRef = useRef(0);
 
   const ensure = useCallback(
     (sha: string) => {
       if (!cwd || sha.startsWith("scm-graph-")) return;
-      if (fetchedRef.current.cwd !== cwd) fetchedRef.current = { cwd, set: new Set() };
+      if (fetchedRef.current.cwd !== cwd) {
+        fetchedRef.current = { cwd, set: new Set() };
+        /* 领养新 cwd:put 闸只丢旧 cwd 的迟到响应,自身不换代 —— 不领养则
+         * 切仓后 cache.cwd 恒旧值,entries 恒空,展开无声失效(2026-09-15 评审)。 */
+        setCache((prev) => (prev.cwd === cwd ? prev : { cwd, entries: {} }));
+      }
       if (fetchedRef.current.set.has(sha)) return;
       fetchedRef.current.set.add(sha);
-      const myToken = ++tokenRef.current;
-      /* 写入一律经 prev.cwd 闸:旧 cwd 迟到的响应直接弃,不污染新 cwd 缓存 */
+      /* 按 sha 落槽,后写胜出;不允许用全局 token 丢响应——连开两个提交时
+       * 先发的响应被丢 = 该 sha 永远 loading(去重集还不放行)= 历史点不开
+       * (2026-09-15 实证)。旧 cwd 的迟到响应由 put 的 prev.cwd 闸丢弃。 */
       const put = (entry: (prev: Record<string, CommitFilesEntry>) => CommitFilesEntry) =>
         setCache((prev) =>
           prev.cwd === cwd
@@ -45,12 +50,8 @@ export function useCommitFiles(cwd: string | null) {
         );
       put((prev) => ({ files: prev[sha]?.files ?? [], loading: true, error: null }));
       ipc.gitCommitFiles(cwd, sha).then(
-        (files) => {
-          if (myToken !== tokenRef.current) return;
-          put(() => ({ files, loading: false, error: null }));
-        },
+        (files) => put(() => ({ files, loading: false, error: null })),
         (e: unknown) => {
-          if (myToken !== tokenRef.current) return;
           if (fetchedRef.current.cwd === cwd) fetchedRef.current.set.delete(sha);
           put(() => ({ files: [], loading: false, error: gitErrorMessage(e) }));
         },

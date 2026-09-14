@@ -168,3 +168,49 @@ export interface GitBranchDiffFile {
   /** M / A / D / R / C / T(与 GitFileStatus.status 同口径) */
   status: string;
 }
+
+/* ── 创建 PR 工作流(对齐 src-tauri/src/git/pr_workflow.rs,serde camelCase)── */
+
+/** defaults 自动填表:upstream(缺省回落 origin)owner/repo 解析 + 模板兜底。 */
+export interface GitPrDefaults {
+  /** base repository,如 "zhukunpenglinyutong/desktop-cc-gui" */
+  upstreamRepo: string;
+  baseBranch: string;
+  /** fork 属主(origin URL 解析) */
+  headOwner: string;
+  headBranch: string;
+  title: string;
+  body: string;
+  commentBody: string;
+  canCreate: boolean;
+  /** detached HEAD / 无远端 / 解析不出 owner 时的人话原因 */
+  disabledReason: string | null;
+}
+
+/** 创建 PR 请求(对话框表单)。范围闸门已移除(2026-09-15):PR 内容零本地限制。 */
+export interface GitPrRequest {
+  upstreamRepo: string;
+  baseBranch: string;
+  headOwner: string;
+  headBranch: string;
+  title: string;
+  body: string | null;
+  commentAfterCreate: boolean;
+  commentBody: string | null;
+}
+
+/** 单阶段进度卡;key 顺序即执行顺序。 */
+export interface GitPrStage {
+  key: "precheck" | "push" | "createPr" | "comment";
+  status: "pending" | "running" | "success" | "failed" | "skipped";
+  detail: string;
+}
+
+/** 工作流终态。范围闸门已移除(2026-09-15),confirmation 字段不再存在。 */
+export interface GitPrWorkflowResult {
+  ok: boolean;
+  message: string;
+  prUrl: string | null;
+  prNumber: number | null;
+  stages: GitPrStage[];
+}

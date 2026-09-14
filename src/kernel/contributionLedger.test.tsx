@@ -42,6 +42,10 @@ function fakeCtx(): PluginContext {
     registerCommand,
     registerHomePanel: () => {},
     registerCliConfig: () => {},
+    registerRemoteFileSource: () => () => {},
+    registerWorkspaceOrigin: () => () => {},
+    registerSpecWrapper: () => () => {},
+    registerShellSpecProvider: () => () => {},
   };
 }
 function fakePlugin(id: string): Plugin {

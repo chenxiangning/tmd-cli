@@ -82,6 +82,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   gitStage: "ipc.git",
   gitUnstage: "ipc.git",
   gitDiscard: "ipc.git",
+  gitClean: "ipc.git",
   gitCommit: "ipc.git",
   gitLog: "ipc.git",
   gitCommitFiles: "ipc.git",
@@ -102,6 +103,8 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   gitRemotes: "ipc.git",
   gitPushPreview: "ipc.git",
   gitRemoteRequest: "ipc.git",
+  gitPrDefaults: "ipc.git",
+  gitPrRun: "ipc.git",
   gitSmartCheckout: "ipc.git",
   gitSmartCheckoutUndo: "ipc.git",
 
