@@ -1,15 +1,14 @@
 /**
  * CreatePrDialog 表单分件(降组件复杂度 + 文件规模铁则,pushDialogParts 同款拆法):
- * 四下拉 / 提交预览行 / 标题描述 / 自动评论段 / 范围闸门横幅。状态全部由
- * CreatePrDialog 下发,本文件零 useState。
+ * 四下拉 / 提交预览行 / 标题描述 / 自动评论段。状态全部由
+ * CreatePrDialog 下发,本文件零 useState(范围闸门横幅已随闸门移除,2026-09-15)。
  */
 
 import { t } from "@kernel/i18n";
 import { ArrowsLeftRight, ChatCircleDots } from "@phosphor-icons/react";
-import type { GitPrWorkflowResult } from "@kernel/ipc";
+import type { GitPrDefaults } from "@kernel/ipc";
 import { OpToggle } from "@kernel/DialogShell";
 import { StyledSelect } from "@kernel/StyledSelect";
-import type { GitPrDefaults } from "@kernel/ipc";
 import type { PrForm } from "./prDialogModel";
 
 export const inputCls =
@@ -160,34 +159,6 @@ export function PrCommentSection({
           className={`${inputCls} mt-1.5 resize-y`}
         />
       )}
-    </div>
-  );
-}
-
-/** 范围闸门确认横幅:确认后带 fingerprint 重试(防确认后范围漂移)。 */
-export function GateBanner({
-  gate,
-  running,
-  onConfirm,
-}: {
-  gate: NonNullable<GitPrWorkflowResult["confirmation"]>;
-  running: boolean;
-  onConfirm: () => void;
-}) {
-  return (
-    <div className="mt-3 rounded-md border border-(--tmd-border) bg-(--tmd-bg-sunken) p-2.5">
-      <div className="text-xs text-(--tmd-fg)">
-        {t("改动 {n} 个文件,超过审查阈值。", { n: gate.changedFileCount })}
-        {gate.diffIncomplete && ` ${t("已超过 GitHub 完整 diff 展示上限。")}`}
-      </div>
-      <button
-        type="button"
-        disabled={running}
-        className="mt-1.5 rounded border border-(--tmd-border) px-2 py-1 text-xs text-(--tmd-accent) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
-        onClick={onConfirm}
-      >
-        {t("确认超大范围,继续创建")}
-      </button>
     </div>
   );
 }

@@ -187,7 +187,7 @@ export interface GitPrDefaults {
   disabledReason: string | null;
 }
 
-/** 创建 PR 请求(对话框表单 + 范围闸门授权)。 */
+/** 创建 PR 请求(对话框表单)。范围闸门已移除(2026-09-15):PR 内容零本地限制。 */
 export interface GitPrRequest {
   upstreamRepo: string;
   baseBranch: string;
@@ -197,9 +197,6 @@ export interface GitPrRequest {
   body: string | null;
   commentAfterCreate: boolean;
   commentBody: string | null;
-  /** >240 改动文件:确认后置 true 且须携带 confirmedRangeFingerprint 重试 */
-  allowLargeRange: boolean;
-  confirmedRangeFingerprint: string | null;
 }
 
 /** 单阶段进度卡;key 顺序即执行顺序。 */
@@ -209,17 +206,11 @@ export interface GitPrStage {
   detail: string;
 }
 
-/** 工作流终态;confirmation 非空 = 范围闸门要求确认(带 fingerprint 重试)。 */
+/** 工作流终态。范围闸门已移除(2026-09-15),confirmation 字段不再存在。 */
 export interface GitPrWorkflowResult {
   ok: boolean;
   message: string;
   prUrl: string | null;
   prNumber: number | null;
   stages: GitPrStage[];
-  confirmation: {
-    changedFileCount: number;
-    fingerprint: string;
-    /** >300 文件:diff 过大未完整比对 */
-    diffIncomplete: boolean;
-  } | null;
 }

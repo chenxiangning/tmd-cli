@@ -1,9 +1,9 @@
 /**
  * CreatePrDialog —— 创建 Pull Request 对话框(mossx 同构复刻,spec 2026-09-15):
  * 四下拉(base/head 仓与分支)+ 提交预览行 + 标题/描述 + 自动评论开关 + 评论内容。
- * 「创建 PR」走四步工作流(git_pr_run),阶段经 git://pr-stage 事件实时点亮 PrStages;
- * 范围闸门要求确认时出横幅,确认后带 fingerprint 重试。数据来源:defaults =
- * git_pr_defaults(upstream/origin 解析);分支候选 = git_branches(远端去前缀)。
+ * 「创建 PR」走四步工作流(git_pr_run),阶段经 git://pr-stage 事件实时点亮 PrStages。
+ * 范围闸门已移除(2026-09-15):PR 内容零本地限制,错误基线/超大范围交 gh 裁决。
+ * 数据来源:defaults = git_pr_defaults(upstream/origin 解析);分支候选 = git_branches。
  * 与 push/pull/fetch 对话框不同:执行期对话框保持打开(进度卡就地呈现)。
  * 表单分件见 createPrDialogParts,状态机见 prDialogModel。
  */
@@ -29,7 +29,7 @@ import {
   remoteBranchShort,
   type PrForm,
 } from "./prDialogModel";
-import { GateBanner, PrCommentSection, PrPickers, PrPreview, PrTextFields } from "./createPrDialogParts";
+import { PrCommentSection, PrPickers, PrPreview, PrTextFields } from "./createPrDialogParts";
 import { PrStages } from "./PrStages";
 
 export function CreatePrDialog({
@@ -49,7 +49,6 @@ export function CreatePrDialog({
   const [stages, setStages] = useState<GitPrStage[]>([]);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<GitPrWorkflowResult | null>(null);
-  const [gate, setGate] = useState<GitPrWorkflowResult["confirmation"]>(null);
   const [copied, setCopied] = useState(false);
 
   /* 打开即拉 defaults 与分支候选;canCreate=false 时横幅给原因并禁提交。 */
@@ -82,41 +81,32 @@ export function CreatePrDialog({
     };
   }, [running]);
 
-  const run = useCallback(
-    (allowLargeRange: boolean, fingerprint: string | null) => {
-      if (!form) return;
-      setGate(null);
-      setResult(null);
-      setStages(initialStages());
-      setRunning(true);
-      ipc.gitPrRun(cwd, buildRequest(form, allowLargeRange, fingerprint)).then(
-        (res) => {
-          setResult(res);
-          setStages(res.stages);
-          setGate(res.confirmation);
-          setRunning(false);
-        },
-        (e: unknown) => {
-          setResult({
-            ok: false,
-            message: String(e),
-            prUrl: null,
-            prNumber: null,
-            stages: [],
-            confirmation: null,
-          });
-          setRunning(false);
-        },
-      );
-    },
-    [cwd, form],
-  );
+  const run = useCallback(() => {
+    if (!form) return;
+    setResult(null);
+    setStages(initialStages());
+    setRunning(true);
+    ipc.gitPrRun(cwd, buildRequest(form)).then(
+      (res) => {
+        setResult(res);
+        setStages(res.stages);
+        setRunning(false);
+      },
+      (e: unknown) => {
+        setResult({
+          ok: false,
+          message: String(e),
+          prUrl: null,
+          prNumber: null,
+          stages: [],
+        });
+        setRunning(false);
+      },
+    );
+  }, [cwd, form]);
 
   const patch = useCallback((p: Partial<PrForm>) => setForm((f) => (f ? { ...f, ...p } : f)), []);
-  const onPatch = useCallback(
-    (p: Partial<PrForm>) => patch(p),
-    [patch],
-  );
+  const onPatch = useCallback((p: Partial<PrForm>) => patch(p), [patch]);
   const onSet = useCallback(
     <K extends keyof PrForm>(k: K) =>
       (v: PrForm[K]) =>
@@ -141,7 +131,7 @@ export function CreatePrDialog({
           confirmDisabled={running || !canSubmit(form)}
           submitting={running}
           onCancel={onClose}
-          onConfirm={() => run(false, null)}
+          onConfirm={run}
         />
       }
     >
@@ -163,7 +153,6 @@ export function CreatePrDialog({
           <PrPreview form={form} />
           <PrTextFields form={form} running={running} onPatch={onPatch} />
           <PrCommentSection form={form} running={running} onSet={onSet} />
-          {gate && <GateBanner gate={gate} running={running} onConfirm={() => run(true, gate.fingerprint)} />}
           <PrStages
             stages={stages}
             result={result}

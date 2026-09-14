@@ -9,8 +9,7 @@ use git2::Repository;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
-use super::pr_defaults::{remote_repo, PR_BODY_TEMPLATE};
-use super::pr_gate::{self, Decision};
+use super::pr_defaults::PR_BODY_TEMPLATE;
 use super::pr_gh;
 use super::remote_ops::exec_git;
 use super::GitError;
@@ -31,8 +30,6 @@ pub struct PrRequest {
     pub body: Option<String>,
     pub comment_after_create: bool,
     pub comment_body: Option<String>,
-    pub allow_large_range: bool,
-    pub confirmed_range_fingerprint: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -43,13 +40,7 @@ pub struct PrStage {
     pub detail: String,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PrConfirmation {
-    pub changed_file_count: usize,
-    pub fingerprint: String,
-    pub diff_incomplete: bool,
-}
+/* PrConfirmation 已随范围闸门移除(2026-09-15)。 */
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,7 +50,6 @@ pub struct PrWorkflowResult {
     pub pr_url: Option<String>,
     pub pr_number: Option<u64>,
     pub stages: Vec<PrStage>,
-    pub confirmation: Option<PrConfirmation>,
 }
 
 /* ── 四步编排 ── */
@@ -81,18 +71,6 @@ fn set_stage(stages: &mut [PrStage], app: &AppHandle, i: usize, status: &str, de
     let _ = app.emit(STAGE_EVENT, stages.to_vec());
 }
 
-/// 定位 upstreamRepo 对应的本地远端名:upstream → origin → 首个同解析仓。
-fn resolve_remote_name(repo: &Repository, upstream_repo: &str) -> Result<String, GitError> {
-    for name in ["upstream", "origin"] {
-        if remote_repo(repo, name).as_deref() == Some(upstream_repo) {
-            return Ok(name.into());
-        }
-    }
-    Err(GitError::empty(format!(
-        "远端 {upstream_repo} 未配置到本仓(upstream/origin 均未命中),请先 git remote add"
-    )))
-}
-
 /// 四步工作流主体(with_repo_mut 锁内;软失败返回 ok=false 结果体)。
 pub fn run(
     repo: &mut Repository,
@@ -101,96 +79,24 @@ pub fn run(
     app: AppHandle,
 ) -> Result<PrWorkflowResult, GitError> {
     let mut stages = stages_new();
-    let finish = |stages: &mut Vec<PrStage>,
-                  ok: bool,
-                  message: String,
-                  confirmation: Option<PrConfirmation>,
-                  pr: Option<(String, u64)>| {
-        let _ = app.emit(STAGE_EVENT, stages.clone());
-        Ok(PrWorkflowResult {
-            ok,
-            message,
-            pr_url: pr.as_ref().map(|(u, _)| u.clone()),
-            pr_number: pr.as_ref().map(|(_, n)| *n),
-            stages: stages.clone(),
-            confirmation,
-        })
-    };
+    let finish =
+        |stages: &mut Vec<PrStage>, ok: bool, message: String, pr: Option<(String, u64)>| {
+            let _ = app.emit(STAGE_EVENT, stages.clone());
+            Ok(PrWorkflowResult {
+                ok,
+                message,
+                pr_url: pr.as_ref().map(|(u, _)| u.clone()),
+                pr_number: pr.as_ref().map(|(_, n)| *n),
+                stages: stages.clone(),
+            })
+        };
     fn step_err(e: GitError) -> GitError {
         GitError::shell(format!("预检失败: {e}"))
     }
+    /* Precheck 仅查 gh 可用性(2026-09-15 复审后按用户决定移除范围闸门,
+     * PR 内容不再做本地限制;错误基线/超大范围交 gh 与 GitHub 服务端裁决)。 */
     pr_gh::precheck(cwd).map_err(step_err)?;
-    let remote = resolve_remote_name(repo, &req.upstream_repo).map_err(step_err)?;
-    exec_git(
-        repo,
-        cwd,
-        &["fetch".into(), remote.clone(), req.base_branch.clone()],
-    )
-    .map_err(step_err)?;
-    let base_ref = format!("refs/remotes/{remote}/{}", req.base_branch);
-    let fp_out = exec_git(
-        repo,
-        cwd,
-        &["rev-parse".into(), base_ref.clone(), "HEAD".into()],
-    )
-    .map_err(step_err)?;
-    let mut lines = fp_out.lines().map(str::trim).filter(|l| !l.is_empty());
-    let (Some(b), Some(h)) = (lines.next(), lines.next()) else {
-        return Err(GitError::shell("预检失败: rev-parse 输出异常"));
-    };
-    let fingerprint = format!("{b}...{h}");
-    let diff_out = exec_git(
-        repo,
-        cwd,
-        &[
-            "diff".into(),
-            "--name-only".into(),
-            format!("{}/{}...HEAD", remote, req.base_branch),
-        ],
-    )
-    .map_err(step_err)?;
-    let changed: Vec<String> = diff_out
-        .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty())
-        .map(str::to_string)
-        .collect();
-    let authorized =
-        req.allow_large_range && req.confirmed_range_fingerprint.as_deref() == Some(&fingerprint);
-    match pr_gate::evaluate(&changed, authorized) {
-        Ok(Decision::Pass) => {
-            let n = changed.len();
-            set_stage(
-                &mut stages,
-                &app,
-                0,
-                "success",
-                format!("预检通过,改动 {n} 个文件。"),
-            );
-        }
-        Ok(Decision::ConfirmationRequired {
-            changed_files,
-            reason,
-            diff_incomplete,
-        }) => {
-            set_stage(&mut stages, &app, 0, "failed", reason.clone());
-            return finish(
-                &mut stages,
-                false,
-                reason,
-                Some(PrConfirmation {
-                    changed_file_count: changed_files,
-                    fingerprint,
-                    diff_incomplete,
-                }),
-                None,
-            );
-        }
-        Err(blocked) => {
-            set_stage(&mut stages, &app, 0, "failed", blocked.to_string());
-            return finish(&mut stages, false, blocked.to_string(), None, None);
-        }
-    }
+    set_stage(&mut stages, &app, 0, "success", "gh 就绪。".into());
 
     /* ── Push:推 HEAD 到 fork origin 的 head 分支 ── */
     set_stage(
@@ -214,7 +120,7 @@ pub fn run(
         Err(e) => {
             let msg = format!("推送失败: {e}");
             set_stage(&mut stages, &app, 1, "failed", msg.clone());
-            return finish(&mut stages, false, msg, None, None);
+            return finish(&mut stages, false, msg, None);
         }
     }
 
@@ -243,7 +149,7 @@ pub fn run(
     let Some((pr_url, mut pr_number)) = pr else {
         let msg = "创建 PR 失败:gh 未返回 PR 地址,请到终端执行 gh pr view 核对。".to_string();
         set_stage(&mut stages, &app, 2, "failed", msg.clone());
-        return finish(&mut stages, false, msg, None, None);
+        return finish(&mut stages, false, msg, None);
     };
     let reused = pr_number > 0;
     if pr_number == 0 {
@@ -295,5 +201,5 @@ pub fn run(
     } else {
         format!("PR 已创建,但评论步失败:{pr_url}")
     };
-    finish(&mut stages, true, msg, None, Some((pr_url, pr_number)))
+    finish(&mut stages, true, msg, Some((pr_url, pr_number)))
 }

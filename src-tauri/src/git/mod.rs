@@ -22,7 +22,6 @@ mod error;
 mod index_ops;
 mod log;
 mod pr_defaults;
-mod pr_gate;
 mod pr_gh;
 mod pr_workflow;
 mod remote_args;

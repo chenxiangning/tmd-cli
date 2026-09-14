@@ -46,12 +46,8 @@ export function mergeStages(prev: GitPrStage[], next: GitPrStage[]): GitPrStage[
   return [...next, ...prev.filter((s) => !keys.has(s.key))];
 }
 
-/** 装配工作流请求;gate 确认后置 allowLargeRange + fingerprint 重试。 */
-export function buildRequest(
-  form: PrForm,
-  allowLargeRange: boolean,
-  fingerprint: string | null,
-): GitPrRequest {
+/** 装配工作流请求。范围闸门已移除(2026-09-15),无授权重试字段。 */
+export function buildRequest(form: PrForm): GitPrRequest {
   return {
     upstreamRepo: form.upstreamRepo.trim(),
     baseBranch: form.baseBranch.trim(),
@@ -61,8 +57,6 @@ export function buildRequest(
     body: form.body.trim() ? form.body : null,
     commentAfterCreate: form.commentAfterCreate,
     commentBody: form.commentAfterCreate && form.commentBody.trim() ? form.commentBody : null,
-    allowLargeRange,
-    confirmedRangeFingerprint: fingerprint,
   };
 }
 

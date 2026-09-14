@@ -125,9 +125,6 @@ export const MESSAGES = {
   "PR 工作流未完成": "PR workflow incomplete",
   "复制链接": "Copy link",
   "已复制链接": "Link copied",
-  "改动 {n} 个文件,超过审查阈值。": "{n} changed files exceed the review threshold.",
-  "已超过 GitHub 完整 diff 展示上限。": "Exceeds GitHub's complete diff display limit.",
-  "确认超大范围,继续创建": "Confirm large range and continue",
   "删除": "Delete",
   "不能删除当前分支": "Cannot delete the current branch",
 

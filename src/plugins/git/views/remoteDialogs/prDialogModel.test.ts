@@ -41,25 +41,24 @@ describe("formFromDefaults", () => {
 });
 
 describe("buildRequest", () => {
-  it("表单装配请求;gate 确认字段原样透传", () => {
-    const f = formFromDefaults(DEFAULTS);
-    const plain = buildRequest(f, false, null);
-    expect(plain).toMatchObject({
+  it("表单装配请求;闸门字段已移除", () => {
+    const req = buildRequest(formFromDefaults(DEFAULTS));
+    expect(req).toMatchObject({
       upstreamRepo: DEFAULTS.upstreamRepo,
       baseBranch: "v1.0.1",
       headOwner: "chenxiangning",
       headBranch: "feat/wsl",
-      allowLargeRange: false,
-      confirmedRangeFingerprint: null,
     });
-    const authorized = buildRequest(f, true, "aaa...bbb");
-    expect(authorized.allowLargeRange).toBe(true);
-    expect(authorized.confirmedRangeFingerprint).toBe("aaa...bbb");
+    expect("allowLargeRange" in req).toBe(false);
+    expect("confirmedRangeFingerprint" in req).toBe(false);
   });
 
   it("空描述/关闭评论折叠为 null(后端走模板兜底/跳过)", () => {
-    const f = { ...formFromDefaults(DEFAULTS), body: "  ", commentAfterCreate: false };
-    const req = buildRequest(f, false, null);
+    const req = buildRequest({
+      ...formFromDefaults(DEFAULTS),
+      body: "  ",
+      commentAfterCreate: false,
+    });
     expect(req.body).toBeNull();
     expect(req.commentBody).toBeNull();
   });
