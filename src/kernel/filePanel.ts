@@ -35,10 +35,10 @@ export interface FilePanelContribution {
   /** 面板数据刷新(可选):外壳刷新按钮点击时调用;返回 Promise 则按钮转到 settle。
    *  实现同样经插件内 store/引用转发到面板组件(如 FileTree 的 reload 全量重拉)。 */
   refresh?: () => void | Promise<void>;
-  /** 新建文件/文件夹(可选):顶栏对应按钮点击时调用;缺省按钮置灰。 */
+  /** 新建文件/文件夹(可选):底部文件操作条对应按钮点击时调用;缺省按钮置灰。 */
   newFile?: () => void;
   newFolder?: () => void;
-  /** 是否显示外壳 workspace 文件操作行(路径 + 新建/刷新);缺省 true。
+  /** 是否显示右栏底部文件操作条(新建/刷新;工作区选择器在顶栏);缺省 true。
    * 自带摘要行的面板(git 聚合行 / checkpoints 审批线摘要 / ssh 连接段)声明 false ——
    * 外壳不认识任何业务面板,可见性由面板自己声明,不硬编码 id。 */
   showFileSubbar?: boolean;
@@ -50,7 +50,7 @@ export interface FilePanelContribution {
    *  开关入口由插件自管(如 ssh 走左下角设置簇 sidebarAction)——外壳不硬编码
    *  任何面板 id,入口归属由注册方声明。 */
   topbarEntry?: boolean;
-  /** 面板专属动作按钮(可选):渲染在 workspace 文件操作行(subbar)动作区末尾。
+  /** 面板专属动作按钮(可选):渲染在右栏底部文件操作条动作区末尾。
    *  状态归插件组件自管(模块级 store),外壳只渲染不认识语义。 */
   actions?: ComponentType;
 }

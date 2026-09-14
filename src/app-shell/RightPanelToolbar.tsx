@@ -4,8 +4,8 @@
  * 拆分后:
  * - TopBarPanelTabs: panel tab 按钮 + ⋯ more ─ 由 TopBar 渲染到顶部
  *   titlebar 右侧,与 search/quick-switcher 等其他 action 同一行。
- * - WorkspaceSubbar: workspace label + 文件操作按钮 ─ 由右侧 aside 顶部渲染。
- * - RightPanelToolbar: 内部组件,仅在右侧 aside 渲染 WorkspaceSubbar。
+ * - RightPanelToolbar: 内部组件,在右侧 aside 底部渲染 FileActionsBar
+ *   (新建/刷新/面板动作;工作区选择器 2026-09-14 上移顶栏 WorkspaceSwitcher)。
  */
 
 import { memo, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
@@ -18,7 +18,7 @@ import {
   type FilePanelContribution,
 } from "@kernel/filePanel";
 import { t } from "@kernel/i18n";
-import { WorkspaceSubbar } from "./WorkspaceSubbar";
+import { FileActionsBar } from "./FileActionsBar";
 
 
 /* ──────────────────────────────────────────────────────────
@@ -201,14 +201,10 @@ function PanelOverflowMenu({
  * ────────────────────────────────────────────────────────── */
 /* memo 兜底:无 props,父级(AppShell 右栏 aside)重渲染时不再连带重渲染。 */
 export const RightPanelToolbar = memo(function RightPanelToolbar() {
-  /* 是否显示 workspace 文件行由面板注册时自声明(showFileSubbar,缺省 true)——
+  /* 是否显示底部文件操作条由面板注册时自声明(showFileSubbar,缺省 true)——
      外壳不认识任何业务面板 id。 */
   const { mode, panels } = useFilePanel();
   const show = panels.find((p) => p.id === mode)?.showFileSubbar !== false;
   if (!show) return null;
-  return (
-    <div className="right-panel-toolbar">
-      <WorkspaceSubbar />
-    </div>
-  );
+  return <FileActionsBar />;
 });

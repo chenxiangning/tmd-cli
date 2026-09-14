@@ -1,15 +1,14 @@
 /**
- * 右栏 subbar 第 2 行 —— 工作区切换下拉 + 文件操作按钮。
+ * 顶栏工作区选择器 —— 自右栏 subbar 上移(UI 微调 2026-09-14)。
  *
- * 自 RightPanelToolbar.tsx 拆出(文件规模铁则)。工作区 label 点击弹下拉菜单
- * (portal 挂 document.body + fixed 定位,复刻 wsmenu 模式,复用 panel-overflow
+ * label 点击弹工作区下拉(portal 挂 document.body + fixed 定位,复用 panel-overflow
  * 样式),行点击 = setActiveWorkspace 切换;下拉器/行右键 = 合并菜单(见
- * WorkspaceRowMenu.tsx);新建/刷新按钮转发激活面板注册槽,外壳不认识业务面板。
+ * WorkspaceRowMenu.tsx);菜单内「新建文件/文件夹」经 files 面板句柄槽转发。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowClockwise, CaretDown, Check, FilePlus, FolderSimplePlus } from "@phosphor-icons/react";
+import { CaretDown, Check } from "@phosphor-icons/react";
 import { setFilePanelMode, useFilePanel } from "@kernel/filePanel";
 import {
   setActiveWorkspace,
@@ -79,32 +78,14 @@ function WorkspaceSwitchMenu({
   );
 }
 
-export function WorkspaceSubbar() {
+export function WorkspaceSwitcher() {
   const { list, activeId } = useWorkspaces();
   const active = list.find((w) => w.id === activeId) ?? list[0];
-  const root = active?.root;
   /* 不用 useMemo:alias 原地变更(list 项引用不变)会滞 stale;取名字符串操作本就廉价。 */
   const label = active ? workspaceDisplayName(active).toUpperCase() : "";
-  /* 刷新/新建文件/新建文件夹:调激活面板注册的对应槽;刷新 in-flight 转圈。 */
   const { mode, panels } = useFilePanel();
-  const activePanel = panels.find((p) => p.id === mode);
-  const activeRefresh = activePanel?.refresh;
-  const [refreshBusy, setRefreshBusy] = useState(false);
   const [wsMenu, setWsMenu] = useState<{ x: number; y: number } | null>(null);
   const [rowMenu, setRowMenu] = useState<{ ws: Workspace; x: number; y: number } | null>(null);
-  const refreshBatchRef = useRef(0);
-
-  const handleRefreshFiles = () => {
-    if (!activeRefresh || refreshBusy) return;
-    const myBatch = ++refreshBatchRef.current;
-    setRefreshBusy(true);
-    /* refresh 实现经 .then 调用:同步抛错也归入 rejection,finally 必然清转圈 */
-    void Promise.resolve()
-      .then(activeRefresh)
-      .finally(() => {
-        if (refreshBatchRef.current === myBatch) setRefreshBusy(false);
-      });
-  };
 
   /* 新建文件/文件夹:确保 files 面板 + 目标工作区激活,再经树句柄槽弹命名框。
    * ponytail: 切换后固定等 400ms 让文件树重挂上交句柄;未就绪则静默,再点一次即可。 */
@@ -120,69 +101,33 @@ export function WorkspaceSubbar() {
     window.setTimeout(() => slot?.(), 400);
   };
 
-  if (!root) return null;
+  if (!active) return null;
 
   return (
-    <div className="panel-subbar">
+    <>
       <button
         type="button"
-        className="panel-subbar-label panel-subbar-switch"
+        className="titlebar-ws-switch"
         aria-label={t("切换工作区")}
         aria-haspopup="menu"
         aria-expanded={wsMenu !== null}
-        title={root}
+        title={active.root}
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           setWsMenu({ x: rect.left, y: rect.bottom + 4 });
         }}
         onContextMenu={(e) => {
           e.preventDefault();
-          if (active) setRowMenu({ ws: active, x: e.clientX, y: e.clientY });
+          setRowMenu({ ws: active, x: e.clientX, y: e.clientY });
         }}
       >
-        <span className="panel-subbar-switch-text">{label}</span>
+        <span className="titlebar-ws-switch-text">{label}</span>
         <CaretDown aria-hidden />
       </button>
-      <span className="panel-subbar-actions">
-        <button
-          type="button"
-          className="panel-subbar-action"
-          aria-label={t("新建文件")}
-          title={t("新建文件")}
-          disabled={!activePanel?.newFile}
-          onClick={() => activePanel?.newFile?.()}
-        >
-          <FilePlus size="0.75rem" aria-hidden />
-        </button>
-        <button
-          type="button"
-          className="panel-subbar-action"
-          aria-label={t("新建文件夹")}
-          title={t("新建文件夹")}
-          disabled={!activePanel?.newFolder}
-          onClick={() => activePanel?.newFolder?.()}
-        >
-          <FolderSimplePlus size="0.75rem" aria-hidden />
-        </button>
-        <button
-          type="button"
-          className="panel-subbar-action"
-          aria-label={t("刷新文件树")}
-          title={t("刷新文件树")}
-          onClick={handleRefreshFiles}
-        >
-          <ArrowClockwise
-            size="0.75rem"
-            aria-hidden
-            className={refreshBusy ? "animate-spin" : undefined}
-          />
-        </button>
-        {activePanel?.actions ? <activePanel.actions /> : null}
-      </span>
       {wsMenu ? (
         <WorkspaceSwitchMenu
           workspaces={list}
-          activeId={active?.id ?? null}
+          activeId={active.id}
           position={wsMenu}
           onClose={() => setWsMenu(null)}
           onRowMenu={(ws, x, y) => {
@@ -199,6 +144,6 @@ export function WorkspaceSubbar() {
           onNewInTree={(kind) => handleNewInTree(rowMenu.ws.id, kind)}
         />
       ) : null}
-    </div>
+    </>
   );
 }

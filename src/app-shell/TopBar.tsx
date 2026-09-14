@@ -6,6 +6,7 @@ import { Mounts } from "@kernel/Mounts";
 import { usePlatformKind } from "@kernel/platform";
 import { toggleHomeSession } from "./shortcutCommands";
 import { TopBarPanelTabs } from "./RightPanelToolbar";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 /** macOS 用原生左侧 traffic lights,Windows 自绘右侧按钮组;窗口控制经 kernel/ipc 薄封装。 */
 function WindowControls() {
@@ -65,6 +66,8 @@ export function TopBar({
         style={leftOpen ? { width: "calc(var(--tmd-left-aside-w) + 4px)" } : undefined}
       >
         {platform === "macos" ? <div className="titlebar-leading" aria-hidden /> : null}
+        {/* 工作区选择器(自右栏 subbar 上移):钉左缘,首个 titlebar-action 的 margin-left:auto 把按钮簇推右 */}
+        <WorkspaceSwitcher />
         {/* 插件贡献的左区按钮簇(内置终端等):经 activate(ctx) 挂点登记 */}
         <Mounts point="header.leftCluster" />
         {/* 插件市场(插排页):整页替换下方三栏,再点或页内关闭即回 */}

@@ -2,7 +2,7 @@
  * files 插件:右栏文件树(右键菜单 + 新建/重命名/删除)+ 中央 tab 文件编辑器。
  *
  * 视觉规范:
- * - 复刻 codemoss file-tree ─ 顶部 root label + 文件操作按钮(subbar 由外壳渲染)。
+ * - 复刻 codemoss file-tree ─ 工作区选择器在顶栏,文件操作按钮在右栏底部(外壳渲染)。
  * - 文件/文件夹行用 fileVisual 图标;行 hover 右侧按钮 = 在访达中显示 + 复制路径。
  * - 右键菜单走 wsmenu 范式(FileTreeContextMenu),命名走居中卡片(NamePrompt)。
  *

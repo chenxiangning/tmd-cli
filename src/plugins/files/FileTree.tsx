@@ -193,7 +193,7 @@ function FileTree({ root }: { root: string }) {
 
   return (
     <div className="file-tree-panel">
-      {/* 顶部 toolbar(root label + 文件操作按钮)由 RightPanelToolbar 统一提供;
+      {/* 工作区选择器在顶栏(WorkspaceSwitcher),新建/刷新在右栏底部(FileActionsBar);
           列表空白区右键 = 根目录新建。 */}
       <div
         className="file-tree-list"
