@@ -65,3 +65,16 @@
     var(--tmd-bg-hover) 6px
   );
 }
+
+/* 聚合行(GitRemoteBar)动作钮:默认隐藏,悬停/聚焦行显出;
+   有变化(ahead/behind 计数、accent 推送、busy 转圈)常显。 */
+.git-remote-bar .git-remote-actions > button {
+  visibility: hidden;
+}
+.git-remote-bar:hover .git-remote-actions > button,
+.git-remote-bar:focus-within .git-remote-actions > button {
+  visibility: visible;
+}
+.git-remote-bar .git-remote-actions > button.has-state {
+  visibility: visible;
+}

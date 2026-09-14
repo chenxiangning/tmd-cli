@@ -35,17 +35,17 @@ export function GitRemoteBar({
 }) {
   const { refreshing } = useGitPanelState();
   return (
-    <div className="flex h-7 shrink-0 items-center gap-2 overflow-hidden whitespace-nowrap border-b border-(--tmd-border) px-2 text-(--tmd-fg-muted)">
+    <div className="git-remote-bar flex h-7 shrink-0 items-center gap-2 overflow-hidden whitespace-nowrap border-b border-(--tmd-border) px-2 text-(--tmd-fg-muted)">
       <span className="shrink-0 font-medium text-(--tmd-fg)">{branch ?? "…"}</span>
       {upstream && (
         <span className="min-w-0 truncate text-(--tmd-fg-faint)">→ {upstream}</span>
       )}
       <span className="flex-1" />
-      <div className="flex items-center gap-0.5">
+      <div className="git-remote-actions flex items-center gap-0.5">
       <button
         onClick={bumpGitRefresh}
         title={t("刷新(重扫状态/分支/历史)")}
-        className="rounded p-1 hover:bg-(--tmd-bg-hover)"
+        className={`rounded p-1 hover:bg-(--tmd-bg-hover)${refreshing ? " has-state" : ""}`}
       >
         <ArrowClockwise
           className={`h-3.5 w-3.5${refreshing ? " animate-spin" : ""}`}
@@ -96,7 +96,7 @@ function FetchOpButton({
       onClick={() => onOpenDialog("fetch")}
       disabled={remoteBusy !== null || detached}
       title={t("获取远端更新(fetch --all --prune,不动本地分支)")}
-      className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+      className={`flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50${remoteBusy === "fetch" ? " has-state" : ""}`}
     >
       {remoteBusy === "fetch" ? (
         <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" />
@@ -127,7 +127,9 @@ function PullOpButton({
           ? t("拉取远端更新(落后 {n} 个提交)", { n: aheadBehind!.behind })
           : t("拉取远端更新(对话框内可选远端与分支)")
       }
-      className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+      className={`flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50${
+        (aheadBehind?.behind ?? 0) > 0 || remoteBusy === "pull" ? " has-state" : ""
+      }`}
     >
       {remoteBusy === "pull" ? (
         <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" />
@@ -169,7 +171,9 @@ function PushOpButton({
           t("推送新分支并建立 upstream")
         )
       }
-      className="flex items-center gap-0.5 rounded px-1 py-0.5 text-(--tmd-accent) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+      className={`flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover) disabled:opacity-50${
+        (aheadBehind?.ahead ?? 0) > 0 || remoteBusy === "push" ? " text-(--tmd-accent) has-state" : ""
+      }`}
     >
       {remoteBusy === "push" ? (
         <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" />
