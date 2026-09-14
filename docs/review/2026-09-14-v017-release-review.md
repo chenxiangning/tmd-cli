@@ -22,7 +22,7 @@
 
 ### P2(修复 19 条,要点)
 - Rust:rebase 中止探测补 rebase-apply 后端与 gitfile 布局;validate_rel_path 拒 Windows 盘符前缀;`--rebase` 兜底加 `args[0]=="pull"` 守卫。
-- kernel:busyMarks 契约注释 5s→30s 对齐实现;sessionSpawn 二次 adopt 窄窗注释收敛;prewarm 池空闲回收/注入失败/进程退出后补货(长驻不再退化冷启动),handover 复用同一 scheduleRefill。
+- kernel:busyMarks 契约注释 5s→30s 对齐实现;sessionSpawn 二次 adopt 窄窗注释收敛;prewarm 补货收敛为用户动作驱动(handover 成功后与注入失败各补一次,复用 scheduleRefill);空闲回收/进程自行退出不自动补货 —— 无闸门补货在 omp 启动即死时构成 1s 周期崩溃循环,空闲补货是 10 分钟一次的永久空转,均为负期望(二轮评审修正)。
 - 死代码/注释:cli.ts→cliProfile.ts 旧指引全仓 8 处清零;resetWallpaperStoreForTests、punch dataset 标记、useGitPanelData.upstream 死字段、DistroPanel 恒假高亮 + `.wsl-dir-row.on` 死样式、titlebar/filePanel/RightPanelToolbar/git-index 四处过期注释簇。
 - 归一/共享:wsl joinPath×4/parentOf×2 收敛 wslCore(joinWslPath/parentWslPath);string→hue 三份复刻收敛 kernel/colorHash.ts。
 - tag 后批:useGitPanelData upstream 死字段;HistoryView 提交行钉 h-10 与 offsets 常数同源(uiFontSize≠16 不错位)+ 头像 color-mix 混 fg 修浅色对比度;WorkspaceSwitcher 菜单 240px 视口夹取 + GitBranchLabel 值等守卫停 5s 空转;`.panel-subbar-actions` 隐态 pointer-events:none 防误触;right-panel-toolbar.css 按顶栏/底部条拆出 panel-subbar.css 达标。
@@ -41,3 +41,7 @@
 - typecheck / vitest 201 文件 1610 用例 / build / arch-boundary(R1/R3/R4)/ check:file-size(除上述 report-only 一处)/ cargo test 230 + clippy -D warnings + fmt / react-doctor 100。
 - 新增 Rust 测试:clean ignored 拒绝;tests_flow 拆出 tests_pull(415→244+178,独立 SEQ 前缀防临时目录并行撞名)。
 - UI 行为改动(DiffView 失败横幅、壁纸模式切换资源释放、顶栏菜单夹取)属交互细节,未开真机目检——后续 tauri:dev 目检时顺带核对。
+
+## 二轮复审补记(2026-09-14 同日)
+
+对收口提交自身再做一轮对立面评审:核实壁纸 dispose 调用链真实存在(FluidBackdrop cleanup);修正三处自引入问题——prewarm 补货崩溃循环风险(收敛为用户动作驱动)、壁纸词典漏键「从图库隐藏(不删文件)」(60 键齐平)、check 图标规则归位 tabs overflow 文件;同步两处文档漂移(02 注册面清单/09 wsl 契约的 ctx 通道);补审首轮未分配文件(PluginMarketPage shellOverlay 标记、updateCheck 版本钉、git2 en/ja 133 键齐平)与 git 测试临时目录前缀跨文件撞名(无)。HistoryView 336 行仍为并行会话在途欠账。

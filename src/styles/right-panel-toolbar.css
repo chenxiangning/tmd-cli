@@ -237,6 +237,12 @@
   border-color: var(--tmd-fg-muted);
 }
 
+.panel-overflow-item-check svg {
+  width: 0.6875rem;
+  height: 0.6875rem;
+  color: rgb(23, 23, 23);
+  stroke-width: 3;
+}
 .panel-overflow-item-check.is-checked {
   background: rgb(255, 140, 60);
   border-color: rgb(255, 140, 60);

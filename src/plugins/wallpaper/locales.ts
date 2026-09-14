@@ -5,7 +5,9 @@
 import { registerMessages } from "@kernel/i18n";
 
 const MESSAGES_EN = {
+
   工作区背景: "Workspace backdrop",
+  "从图库隐藏(不删文件)": "Hide from library (file kept)",
   "工作区背景：流体着色器与本地图库壁纸":
     "Workspace backdrop: fluid shaders and a local image library",
   "工作区背景壁纸：本地图库与效果。":
@@ -81,6 +83,7 @@ const MESSAGES_EN = {
 
 const MESSAGES_JA = {
   工作区背景: "ワークスペース背景",
+  "从图库隐藏(不删文件)": "ライブラリから隠す(ファイルは残す)",
   "工作区背景：流体着色器与本地图库壁纸":
     "ワークスペース背景:流体シェーダーとローカル画像ライブラリ",
   "工作区背景壁纸：本地图库与效果。":

@@ -100,7 +100,8 @@ function reapSlot(kill: boolean): void {
   if (kill) void ipc.sessionKill(s.sessionId).catch(() => undefined);
 }
 
-/** 补货调度:空闲回收/注入失败/预热进程退出后保持池不空;stop 会清 refillTimer。 */
+/** 补货调度:仅用户动作驱动(handover 成功/注入失败重试)。空闲回收与进程自行退出
+ *  不补货:无闸门补货在 omp 启动即死时是 1s 崩溃循环,空闲补货是 10min 永久空转。 */
 function scheduleRefill(cwd: string): void {
   if (featureFused || refillTimer) return;
   refillTimer = setTimeout(() => {
@@ -163,11 +164,8 @@ async function spawnPrewarm(cwd: string): Promise<void> {
       onPtyExit(s.sessionId, () => {
         s.dead = true;
         const p = s.pendingFeature;
-        if (p) {
-          s.pendingFeature = undefined;
-          p.resolve();
-        }
-        if (slot === s) { reapSlot(false); scheduleRefill(s.cwd); } /* 已死无需 kill */
+        if (p) { s.pendingFeature = undefined; p.resolve(); }
+        if (slot === s) reapSlot(false); /* 已死无需 kill;不补货(防崩溃循环) */
       }),
     ]);
     s.offOutput = offOutput;
@@ -180,7 +178,7 @@ async function spawnPrewarm(cwd: string): Promise<void> {
       return;
     }
     s.reapTimer = setTimeout(() => {
-      if (slot === s && !s.acquired) { reapSlot(true); scheduleRefill(s.cwd); }
+      if (slot === s && !s.acquired) reapSlot(true); /* 空闲回收;不补货(资源取舍) */
     }, IDLE_REAP_MS);
     s.readyTimer = setTimeout(() => {
       s.readyTimer = undefined;

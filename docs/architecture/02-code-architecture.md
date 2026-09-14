@@ -106,7 +106,7 @@ flowchart TB
 **依赖铁律**（代码中已成立）：
 
  - 内核 `src/kernel/` 不 import 任何 `src/plugins/`；插件清单唯一入口是 `src/plugins/index.ts` 的 `allPlugins` 数组（编译期注册）。
- - 插件之间**零直接依赖**：协作仅通过 `PluginContext` 的注册面（`registerCliProfile` / `contribute` / `events` / `registerSettingsSection` / `registerFilePanel` / `registerTabContent` / `registerMarketPanel` / `registerSidebarAction` / `registerFileVisual` / `registerHomePanel` / `registerCommand`，quota 折叠为 `CliProfile.fetchQuota` 由 host 自动接线）——一切贡献经 ctx 登记，无旁路注册表；`plugins/cli-shared` 仅是无生命周期的共享格式库，不是插件。
+ - 插件之间**零直接依赖**：协作仅通过 `PluginContext` 的注册面（`registerCliProfile` / `contribute` / `events` / `registerSettingsSection` / `registerFilePanel` / `registerTabContent` / `registerMarketPanel` / `registerSidebarAction` / `registerFileVisual` / `registerHomePanel` / `registerCommand` / `registerRemoteFileSource` / `registerWorkspaceOrigin` / `registerSpecWrapper` / `registerShellSpecProvider`(2026-09-14 起 wsl 来源三注册表也走 ctx)，quota 折叠为 `CliProfile.fetchQuota` 由 host 自动接线）——一切贡献经 ctx 登记，无旁路注册表；`plugins/cli-shared` 仅是无生命周期的共享格式库，不是插件。
  - 前端触达 Rust 的唯一通道是 `src/kernel/ipc.ts`；插件不直接 import `@tauri-apps/api`。
 
 **文件规模铁则**（2026-09-02 起生效）：

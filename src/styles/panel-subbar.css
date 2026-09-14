@@ -67,13 +67,6 @@
 }
 
 /* ── 工作区下拉菜单(WorkspaceSwitcher 专用形态) ── */
-.panel-overflow-item-check svg {
-  width: 0.6875rem;
-  height: 0.6875rem;
-  color: rgb(23, 23, 23);
-  stroke-width: 3;
-}
-
 .panel-ws-menu { max-height: 60vh; overflow-y: auto; }
 
 .panel-ws-item {
