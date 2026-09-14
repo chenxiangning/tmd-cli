@@ -129,3 +129,25 @@
 .git-split-gutter-chg {
   color: var(--tmd-fg);
 }
+
+/* 整行外框(样例的引导框):横贯左栏+中央槽+右栏圈住改动块 */
+.git-split-oframe {
+  border-left: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);
+}
+.git-split-oframe-t {
+  border-top: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);
+}
+.git-split-oframe-b {
+  border-bottom: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);
+}
+/* nowrap 三面板:各自面板画自己一侧的框线与圆角 */
+.git-split-oframe-lt { border-top-left-radius: 5px; }
+.git-split-oframe-lb { border-bottom-left-radius: 5px; }
+.git-split-oframe-rt { border-top-right-radius: 5px; }
+.git-split-oframe-rb { border-bottom-right-radius: 5px; }
+/* ⤶ 钩:改动行旧号前 */
+.git-split-ghook {
+  color: color-mix(in srgb, var(--tmd-accent) 80%, var(--tmd-fg));
+  margin-right: 2px;
+}

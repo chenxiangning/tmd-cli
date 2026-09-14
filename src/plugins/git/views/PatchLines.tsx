@@ -145,18 +145,48 @@ function frameMap(rows: SplitRow[]): FrameKind[] {
   return out;
 }
 
+
+/** 中央槽框段(同上 frame,画在槽列上,与外框连成一体)。 */
 const FRAME_CLS: Record<string, string> = {
   top: "git-split-frame git-split-frame-top",
   mid: "git-split-frame",
   bot: "git-split-frame git-split-frame-bot",
   single: "git-split-frame git-split-frame-top git-split-frame-bot",
 };
+/** 整行外框(横贯左栏+槽+右栏):样例的引导框本体。 */
+const OFRAME_CLS: Record<string, string> = {
+  top: "git-split-oframe git-split-oframe-t",
+  mid: "git-split-oframe",
+  bot: "git-split-oframe git-split-oframe-b",
+  single: "git-split-oframe git-split-oframe-t git-split-oframe-b",
+};
+/** nowrap 三面板版:各面板只画自己一侧的框线与圆角。 */
+const oframeFor = (side: "left" | "right" | "mid", frame: FrameKind) => {
+  if (!frame) return "";
+  const base = "git-split-oframe";
+  const cap = frame === "top" ? "-t" : frame === "bot" ? "-b" : frame === "single" ? "-t -b" : "";
+  const corners =
+    side === "left"
+      ? " git-split-oframe-lt git-split-oframe-lb"
+      : side === "right"
+        ? " git-split-oframe-rt git-split-oframe-rb"
+        : "";
+  return `${base}${cap ? ` git-split-oframe-${cap.trim().split(" ").join(" git-split-oframe-")}` : ""}${corners}`;
+};
 
-/** 中央行号槽一格:旧行号居左、新行号居右;缺侧画空槽占位(⬚),改动行数字提亮。 */
+/** 中央行号槽一格:旧行号居左、新行号居右;改动行旧号前加 ⤶ 钩,
+ *  缺侧画空槽占位(⬚),改动行数字提亮。 */
 function SlotGutter({ left, right, chg }: { left: PatchRow | null; right: PatchRow | null; chg?: boolean }) {
   return (
     <div className={`git-split-gutter-row ${chg ? "git-split-gutter-chg" : ""}`}>
-      {left ? <span>{left.oldLine}</span> : <span className="git-split-gslot-empty" aria-hidden />}
+      {left ? (
+        <span>
+          {chg && <span className="git-split-ghook">⤶</span>}
+          {left.oldLine}
+        </span>
+      ) : (
+        <span className="git-split-gslot-empty" aria-hidden />
+      )}
       {right ? <span>{right.newLine}</span> : <span className="git-split-gslot-empty" aria-hidden />}
     </div>
   );
@@ -196,8 +226,10 @@ function PairRow({
   const kind = pairKind(row.left, row.right);
   const [dParts, iParts] = kind === "mod" ? wordDiff(row.left!.text, row.right!.text) : [null, null];
   return (
-    /* 三列:左 1fr | 槽 auto | 右 1fr;同行共享行高,红绿同排对位,空侧留白。 */
-    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] [content-visibility:auto] [contain-intrinsic-size:auto_1em]">
+    /* 三列:左 1fr | 槽 auto | 右 1fr;外框横贯整行圈住改动块,空侧留白在框内。 */
+    <div
+      className={`grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] [content-visibility:auto] [contain-intrinsic-size:auto_1em] ${OFRAME_CLS[frame!]}`}
+    >
       <div className={`flex min-w-0 px-2 ${bandFor(row.left)}`}>
         {dParts ? (
           <WordContent parts={dParts} wrap={wrap} />
@@ -205,7 +237,7 @@ function PairRow({
           <span className={wrap ? CONTENT_WRAP_CLS : CONTENT_NOWRAP_CLS}>{row.left?.text ?? ""}</span>
         )}
       </div>
-      <div className={FRAME_CLS[frame!]}>
+      <div className="border-x border-(color:--tmd-border)">
         <SlotGutter left={row.left} right={row.right} chg={kind !== "ctx"} />
       </div>
       <div className={`flex min-w-0 px-2 ${bandFor(row.right)}`}>
@@ -240,7 +272,7 @@ function SplitHalvesSynced({ rows }: { rows: SplitRow[] }) {
     const targets = isLeft ? [rightRef, midRef] : [leftRef, midRef];
     return (
       <div ref={me} onScroll={mirror(me, targets)} className="h-full min-w-0 overflow-auto px-2">
-        {rows.map((row) =>
+        {rows.map((row, i) =>
           row.kind === "header" ? (
             <div
               key={`h:${patchRowKey(row.row)}`}
@@ -252,7 +284,10 @@ function SplitHalvesSynced({ rows }: { rows: SplitRow[] }) {
             (() => {
               const kind = pairKind(row.left, row.right);
               const self = isLeft ? row.left : row.right;
-              if (!self) return <div key={`e:${patchRowKey((isLeft ? row.right : row.left)!)}`} />;
+              if (!self)
+                return (
+                  <div key={`e:${patchRowKey((isLeft ? row.right : row.left)!)}`} className={oframeFor(isLeft ? "left" : "right", frames[i]!)} />
+                );
               const parts =
                 kind === "mod"
                   ? isLeft
@@ -260,7 +295,7 @@ function SplitHalvesSynced({ rows }: { rows: SplitRow[] }) {
                     : wordDiff(row.left!.text, self.text)[1]
                   : null;
               return (
-                <div key={patchRowKey(self)} className={bandFor(self)}>
+                <div key={patchRowKey(self)} className={`${bandFor(self)} ${oframeFor(isLeft ? "left" : "right", frames[i]!)}`}>
                   {parts ? (
                     <WordContent parts={parts} wrap={false} />
                   ) : (
