@@ -138,18 +138,20 @@ pub fn run(
                     .replace("{head}", &req.head_branch),
             )
         });
-    let pr = pr_gh::ensure_pr(
+    let (pr_url, mut pr_number) = match pr_gh::ensure_pr(
         cwd,
         &req.upstream_repo,
         &req.base_branch,
         &head_full,
         &req.title,
         body,
-    );
-    let Some((pr_url, mut pr_number)) = pr else {
-        let msg = "创建 PR 失败:gh 未返回 PR 地址,请到终端执行 gh pr view 核对。".to_string();
-        set_stage(&mut stages, &app, 2, "failed", msg.clone());
-        return finish(&mut stages, false, msg, None);
+    ) {
+        Ok(pr) => pr,
+        Err(gh_err) => {
+            let msg = format!("创建 PR 失败: {gh_err}");
+            set_stage(&mut stages, &app, 2, "failed", msg.clone());
+            return finish(&mut stages, false, msg, None);
+        }
     };
     let reused = pr_number > 0;
     if pr_number == 0 {

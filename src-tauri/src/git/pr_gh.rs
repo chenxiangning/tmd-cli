@@ -139,8 +139,9 @@ fn gh_args(upstream: &str, args: &[String]) -> Vec<String> {
     v
 }
 
-/// 已有 PR 复用(state=all 查询,新建失败再 state=open 补查),否则 `gh pr create`。
-/// 返回 (url, number);新建时 number=0,由调用方经 parse_pr_number 回填。
+/// 已有 PR 复用(state=all 查询),否则 `gh pr create`;create 失败先 state=open
+/// 补查(create 偶发已建但报错),仍无则把 gh 原始错误透传给调用方展示。
+/// 成功返回 (url, number);新建时 number=0,由调用方经 parse_pr_number 回填。
 pub(super) fn ensure_pr(
     cwd: &str,
     upstream: &str,
@@ -148,7 +149,7 @@ pub(super) fn ensure_pr(
     head_full: &str,
     title: &str,
     body: Option<String>,
-) -> Option<(String, u64)> {
+) -> Result<(String, u64), String> {
     let lookup = |state: &str| -> Option<(String, u64)> {
         run(
             cwd,
@@ -170,29 +171,31 @@ pub(super) fn ensure_pr(
         .ok()
         .and_then(|out| parse_existing_pr(&out))
     };
-    lookup("all").or_else(|| {
-        let out = run(
-            cwd,
-            &gh_args(
-                upstream,
-                &[
-                    "create".into(),
-                    "--base".into(),
-                    base.into(),
-                    "--head".into(),
-                    head_full.into(),
-                    "--title".into(),
-                    title.into(),
-                    "--body".into(),
-                    body.unwrap_or_default(),
-                ],
-            ),
-        );
-        match out {
-            Ok(text) => parse_pr_url(&text).map(|u| (u, 0)),
-            Err(_) => lookup("open"),
-        }
-    })
+    if let Some(pr) = lookup("all") {
+        return Ok(pr);
+    }
+    match run(
+        cwd,
+        &gh_args(
+            upstream,
+            &[
+                "create".into(),
+                "--base".into(),
+                base.into(),
+                "--head".into(),
+                head_full.into(),
+                "--title".into(),
+                title.into(),
+                "--body".into(),
+                body.unwrap_or_default(),
+            ],
+        ),
+    ) {
+        Ok(text) => parse_pr_url(&text)
+            .map(|u| (u, 0))
+            .ok_or_else(|| format!("gh 已执行但未返回 PR 地址:{}", text.trim())),
+        Err(e) => lookup("open").ok_or_else(|| e.to_string()),
+    }
 }
 
 /// `gh pr comment <n> --body`;Err 原样上抛,由调用方降级(评论失败不拖垮整体)。
