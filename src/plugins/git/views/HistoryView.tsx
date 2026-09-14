@@ -54,22 +54,65 @@ function authorHue(email: string): number {
   return h;
 }
 
+/* 行高确定性:提交行双行 40px,其余(marker/file/反馈行)22px —— 窗口化免测量。 */
+
+
+/** 首个前缀和 >= y 的下界(二分)。 */
+function lowerBound(offsets: readonly number[], y: number): number {
+  let lo = 0;
+  let hi = offsets.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (offsets[mid] < y) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
 export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const { entries: fileEntries, ensure } = useCommitFiles(cwd);
+  /* 窗口化渲染:已加载页可累积数千行,全量常驻渲染卡顿 —— 只画视口 ±400px,
+     行高确定性(commit 40 / 其余 22)免测量;近底自动翻页合并同一滚动监听。 */
+  const [win, setWin] = useState({ top: 0, h: 600 });
+  const rafRef = useRef(0);
+  const loadMoreRef = useRef(log.loadMore);
+  useEffect(() => {
+    loadMoreRef.current = log.loadMore;
+  });
 
-  // 滚动近底自动翻页
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
-    const onScroll = () => {
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 48) log.loadMore();
+    const apply = () => {
+      setWin({ top: el.scrollTop, h: el.clientHeight });
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 48) loadMoreRef.current();
     };
-    el.addEventListener("scroll", onScroll);
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [log.loadMore]);
+    const onScroll = () => {
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = 0;
+        apply();
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    };
+  }, []);
 
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() =>
+      setWin((p) => (p.h === el.clientHeight ? p : { ...p, h: el.clientHeight })),
+    );
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const graphCommits = useMemo(
     () =>
       log.entries.map((e) => ({
@@ -116,6 +159,17 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
     return out;
   }, [bySha, expanded, fileEntries, gitGraph.rows]);
 
+  /* 前缀和行高 + 视口切片(±400px 冗余);线性界的 ±1 缓冲防半行裁切。 */
+  const offsets = useMemo(() => {
+    const arr = new Array<number>(rows.length + 1);
+    arr[0] = 0;
+    for (let i = 0; i < rows.length; i++) arr[i + 1] = arr[i] + (rows[i].type === "commit" ? 40 : 22);
+    return arr;
+  }, [rows]);
+  const from = Math.max(0, lowerBound(offsets, win.top - 400) - 1);
+  const to = Math.min(rows.length, lowerBound(offsets, win.top + win.h + 400) + 1);
+  const visibleRows = rows.slice(from, to);
+
   const toggleExpand = (commit: GitLogEntry) => {
     const sha = commit.longSha;
     if (expanded.has(sha)) {
@@ -152,7 +206,8 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
         </div>
       )}
 
-      {rows.map((row) => {
+      <div style={{ height: offsets[from] }} aria-hidden />
+      {visibleRows.map((row) => {
         if (row.type === "marker") {
           const label = row.kind === "outgoing-changes" ? t("传出的更改") : t("传入的更改");
           return (
@@ -268,7 +323,7 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
           </Fragment>
         );
       })}
-
+      <div style={{ height: offsets[rows.length] - offsets[to] }} aria-hidden />
 
       {log.loading && (
         <div className="flex items-center justify-center gap-1.5 py-2 text-(--tmd-fg-faint)">
