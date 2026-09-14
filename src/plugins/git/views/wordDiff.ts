@@ -35,16 +35,27 @@ export function wordDiff(a: string, b: string): [WordPart[], WordPart[]] {
     let j = 0;
     while (i < n && j < m) {
       if (A[i] === B[j]) {
-        push(A[i++], undefined);
+        push(A[i], undefined);
+        i++;
         j++;
       } else if (dp[(i + 1) * (m + 1) + j] >= dp[i * (m + 1) + j + 1]) {
-        push(A[i++], side === 0 ? "del" : undefined);
+        /* A[i] 是删除 token:只左栏渲染;右栏同步跳过(绝不渲染对侧文本)。 */
+        if (side === 0) push(A[i], "del");
+        i++;
       } else {
-        push(B[j++], side === 1 ? "ins" : undefined);
+        /* B[j] 是插入 token:只右栏渲染;左栏同步跳过。 */
+        if (side === 1) push(B[j], "ins");
+        j++;
       }
     }
-    while (i < n) push(A[i++], side === 0 ? "del" : undefined);
-    while (j < m) push(B[j++], side === 1 ? "ins" : undefined);
+    while (i < n) {
+      if (side === 0) push(A[i], "del");
+      i++;
+    }
+    while (j < m) {
+      if (side === 1) push(B[j], "ins");
+      j++;
+    }
     return out;
   };
   return [parts(0), parts(1)];

@@ -94,14 +94,14 @@
 .git-split-gutter-chg {
   color: var(--tmd-fg);
 }
+/* 缺侧行号位:无边框小占位(淡),只表「此侧无行」,不抢视线。 */
 .git-split-gslot-empty {
   display: inline-block;
   width: 0.55em;
   height: 0.8em;
   margin-top: 0.15em;
-  border: 1px solid color-mix(in srgb, var(--tmd-fg) 30%, transparent);
   border-radius: 2px;
-  opacity: 0.55;
+  background: color-mix(in srgb, var(--tmd-fg) 16%, transparent);
 }
 /* ⤶ 钩:改动行旧号前 */
 .git-split-ghook {
@@ -109,6 +109,19 @@
   margin-right: 2px;
 }
 
+
+/* 中央行号槽列:常驻底纹 + 左右发丝分隔线,把三列结构钉死(横滚时槽列
+   不滚,分隔线恒在)。 */
+.git-split-gutter-col {
+  border-left: 1px solid color-mix(in srgb, var(--tmd-fg) 10%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--tmd-fg) 10%, transparent);
+  background: color-mix(in srgb, var(--tmd-fg) 3%, transparent);
+}
+
+/* 块行槽底:accent 淡染,与常驻底纹分层,块范围一眼可辨。 */
+.git-split-frame {
+  background: color-mix(in srgb, var(--tmd-accent) 8%, transparent);
+}
 /* 占位行槽色块(缺侧):缺左=新增块占位(inserted),缺右=删除块占位(removed)。 */
 .git-split-ph-add {
   background: color-mix(in srgb, var(--tmd-diff-inserted) 14%, transparent);
@@ -117,29 +130,24 @@
   background: color-mix(in srgb, var(--tmd-diff-removed) 14%, transparent);
 }
 
-/* 改动块识别框 ①:中央槽列的 accent 括号框。槽列不参与横向滚动,
-   任何横滚位置都可见 —— 这是变更位置的主识别标记。 */
-.git-split-frame {
-  border-left: 1.5px solid color-mix(in srgb, var(--tmd-accent) 55%, transparent);
-  border-right: 1.5px solid color-mix(in srgb, var(--tmd-accent) 55%, transparent);
-  background: color-mix(in srgb, var(--tmd-accent) 7%, transparent);
-}
+/* 改动块识别框 ①:槽列上的 accent 括号框 —— 只画块首顶线/块尾底线
+   (左右边由槽列常驻分隔线承担,避免双线)。 */
 .git-split-frame-top {
-  border-top: 1.5px solid color-mix(in srgb, var(--tmd-accent) 55%, transparent);
-  border-top-left-radius: 5px;
-  border-top-right-radius: 5px;
+  border-top: 1.5px solid color-mix(in srgb, var(--tmd-accent) 60%, transparent);
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
 }
 .git-split-frame-bot {
-  border-bottom: 1.5px solid color-mix(in srgb, var(--tmd-accent) 55%, transparent);
-  border-bottom-left-radius: 5px;
-  border-bottom-right-radius: 5px;
+  border-bottom: 1.5px solid color-mix(in srgb, var(--tmd-accent) 60%, transparent);
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
 }
 
 /* 改动块识别框 ②:块首/块尾 accent 横线贯穿两个内容列(随内容横滚,
    但恒在行边界上,滚动中也能定位块界)。 */
 .git-split-bd-top {
-  border-top: 1.5px solid color-mix(in srgb, var(--tmd-accent) 40%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--tmd-accent) 35%, transparent);
 }
 .git-split-bd-bot {
-  border-bottom: 1.5px solid color-mix(in srgb, var(--tmd-accent) 40%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--tmd-accent) 35%, transparent);
 }
