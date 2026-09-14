@@ -46,10 +46,22 @@ fn infer_base_branch(repo: &Repository, remote: &str) -> Option<String> {
 }
 
 fn remote_default_branch(repo: &Repository) -> Option<String> {
-    ["main", "master"]
-        .iter()
-        .find(|b| repo.find_branch(b, git2::BranchType::Remote).is_ok())
-        .map(|b| b.to_string())
+    /* find_branch(Remote) 找的是 refs/remotes/<名> 字面量,须按远端逐个探
+     * refs/remotes/<remote>/{main,master}(2026-09-15 复查修正)。 */
+    let remotes = repo.remotes().ok()?;
+    let mut i = 0;
+    while let Some(r) = remotes.get(i) {
+        for b in ["main", "master"] {
+            if repo
+                .find_reference(&format!("refs/remotes/{r}/{b}"))
+                .is_ok()
+            {
+                return Some(b.to_string());
+            }
+        }
+        i += 1;
+    }
+    None
 }
 
 fn head_summary(repo: &Repository) -> Option<String> {

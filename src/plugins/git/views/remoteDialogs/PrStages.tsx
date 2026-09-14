@@ -13,7 +13,8 @@ const STAGE_LABEL: Record<GitPrStage["key"], string> = {
   createPr: "Create PR",
   comment: "Comment",
 };
-
+/** Rust 侧 GitError Display 会带 E_XXX: 前缀,UI 展示统一剥掉。 */
+const ERR_PREFIX_RE = /E_[A-Z0-9]+: /g;
 const STATUS_TEXT: Record<GitPrStage["status"], string> = {
   pending: "等待",
   running: "执行中",
@@ -51,7 +52,7 @@ function StageCard({ stage }: { stage: GitPrStage }) {
             <div className="text-xs font-semibold text-(--tmd-fg)">{STAGE_LABEL[stage.key]}</div>
             {stage.detail && (
               <div className="mt-0.5 break-words text-[0.6875rem] leading-4 text-(--tmd-fg-muted)">
-                {stage.detail}
+                {stage.detail.replace(ERR_PREFIX_RE, "")}
               </div>
             )}
           </div>
@@ -106,7 +107,9 @@ export function PrStages({
               </button>
             )}
           </div>
-          <div className="mt-1 break-words text-xs text-(--tmd-fg-muted)">{result.message}</div>
+          <div className="mt-1 break-words text-xs text-(--tmd-fg-muted)">
+            {result.message.replace(ERR_PREFIX_RE, "")}
+          </div>
         </div>
       )}
     </div>

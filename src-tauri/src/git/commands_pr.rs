@@ -2,8 +2,8 @@
 //! 复用 commands::{run, with_repo_mut} 模板:defaults 走读路径,工作流走写路径
 //! (fetch/push 移动引用,成功 evict 缓存)。
 
-use super::commands::run;
-use super::{pr_defaults, pr_workflow, with_repo_mut};
+use super::commands::{run, run_mut};
+use super::{pr_defaults, pr_workflow};
 
 /// 创建 PR defaults(upstream/origin 解析 + 模板兜底;不可创建时带人话原因)。
 #[tauri::command]
@@ -20,10 +20,5 @@ pub async fn git_pr_run(
     app: tauri::AppHandle,
 ) -> Result<pr_workflow::PrWorkflowResult, String> {
     let cwd2 = cwd.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        with_repo_mut(&cwd, |r| pr_workflow::run(r, &cwd2, req, app))
-    })
-    .await
-    .map_err(|e| format!("E_GIT2: 任务调度失败: {e}"))?
-    .map_err(Into::into)
+    run_mut(cwd, move |r| pr_workflow::run(r, &cwd2, req, app)).await
 }
