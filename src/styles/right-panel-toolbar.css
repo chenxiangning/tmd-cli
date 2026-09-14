@@ -60,7 +60,7 @@
   font-size: 0.6875rem;
   font-weight: 500;
   color: color-mix(in srgb, hsl(var(--tag-h, 0) 60% 62%) 70%, var(--tmd-fg));
-  background: hsl(var(--tag-h, 0) 50% 55% / 0.1);
+  /* 用户口径:无底色,纯着色文字(2026-09-14) */
   flex: 0 1 auto;
   min-width: 0;
 }
