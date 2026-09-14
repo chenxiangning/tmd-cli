@@ -242,6 +242,6 @@ describe("CHANGELOG_ENTRIES(打包内嵌管线,更新记录弹窗数据面)", ()
   it("当前发版版本(0.1.7)在记录中且带日期", () => {
     const head = entries[0];
     expect(head?.version).toBe("0.1.7");
-    expect(head?.date).toBe("2026-09-13");
+    expect(head?.date).toBe("2026-09-14");
   });
 });
