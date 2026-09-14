@@ -37,67 +37,74 @@ export interface HistoryRowItemProps {
   onOpenFile?: (commit: GitLogEntry, file: GitCommitFile) => void;
 }
 
-export function HistoryRowItem({ row, upstream, expanded, entry, onToggle, onOpenFile }: HistoryRowItemProps) {
-  if (row.type === "marker") {
-    const label = row.kind === "outgoing-changes" ? t("传出的更改") : t("传入的更改");
-    return (
-      <div
-        className={ROW_CLASS}
-        title={upstream ? `${label} ${upstream}` : label}
-      >
-        <GitGraphSvgCell row={row.graph} />
-        <span className="min-w-0 flex-1 truncate font-medium text-(--tmd-fg-muted)">
-          {label}
-        </span>
-      </div>
-    );
-  }
-
-  if (row.type === "file") {
-    const name = row.file.path.split("/").pop() ?? row.file.path;
-    const dir = row.file.path.includes("/")
-      ? row.file.path.slice(0, row.file.path.lastIndexOf("/"))
-      : "";
-    const icon = resolveFileVisual(name, false);
-    return (
-      <button
-        type="button"
-        className={`${ROW_CLASS} cursor-pointer hover:bg-(--tmd-bg-hover)`}
-        title={row.file.oldPath ? `${row.file.oldPath} → ${row.file.path}` : row.file.path}
-        onClick={() => onOpenFile?.(row.commit, row.file)}
-      >
-        <GitGraphContinuationCell row={row.graph} />
-        <span
-          className="shrink-0 [&>svg]:h-3.5 [&>svg]:w-3.5"
-          aria-hidden
-          dangerouslySetInnerHTML={{ __html: icon.svgHtml }}
-        />
-        <span className="min-w-0 flex-1 truncate">
-          <span className="font-medium">{name}</span>
-          {dir && <span className="ml-1 text-[0.625rem] text-(--tmd-fg-faint)">{dir}</span>}
-        </span>
-        <span
-          className={`w-3 shrink-0 text-center font-semibold ${STATUS_COLOR[row.file.status] ?? ""}`}
-        >
-          {row.file.status}
-        </span>
-      </button>
-    );
-  }
-
-  const sha = row.commit.longSha;
-  const isExpanded = expanded ?? false;
+function MarkerRow({ row, upstream }: { row: Extract<HistoryRow, { type: "marker" }>; upstream: string | null }) {
+  const label = row.kind === "outgoing-changes" ? t("传出的更改") : t("传入的更改");
   return (
-    <Fragment key={`commit:${sha}`}>
+    <div className={ROW_CLASS} title={upstream ? `${label} ${upstream}` : label}>
+      <GitGraphSvgCell row={row.graph} />
+      <span className="min-w-0 flex-1 truncate font-medium text-(--tmd-fg-muted)">{label}</span>
+    </div>
+  );
+}
+
+function FileRow({
+  row,
+  onOpenFile,
+}: {
+  row: Extract<HistoryRow, { type: "file" }>;
+  onOpenFile?: HistoryRowItemProps["onOpenFile"];
+}) {
+  const name = row.file.path.split("/").pop() ?? row.file.path;
+  const dir = row.file.path.includes("/")
+    ? row.file.path.slice(0, row.file.path.lastIndexOf("/"))
+    : "";
+  const icon = resolveFileVisual(name, false);
+  return (
+    <button
+      type="button"
+      className={`${ROW_CLASS} cursor-pointer hover:bg-(--tmd-bg-hover)`}
+      title={row.file.oldPath ? `${row.file.oldPath} → ${row.file.path}` : row.file.path}
+      onClick={() => onOpenFile?.(row.commit, row.file)}
+    >
+      <GitGraphContinuationCell row={row.graph} />
+      <span
+        className="shrink-0 [&>svg]:h-3.5 [&>svg]:w-3.5"
+        aria-hidden
+        dangerouslySetInnerHTML={{ __html: icon.svgHtml }}
+      />
+      <span className="min-w-0 flex-1 truncate">
+        <span className="font-medium">{name}</span>
+        {dir && <span className="ml-1 text-[0.625rem] text-(--tmd-fg-faint)">{dir}</span>}
+      </span>
+      <span className={`w-3 shrink-0 text-center font-semibold ${STATUS_COLOR[row.file.status] ?? ""}`}>
+        {row.file.status}
+      </span>
+    </button>
+  );
+}
+
+function CommitRow({
+  row,
+  expanded,
+  entry,
+  onToggle,
+}: {
+  row: Extract<HistoryRow, { type: "commit" }>;
+  expanded: boolean;
+  entry: HistoryRowItemProps["entry"];
+  onToggle?: HistoryRowItemProps["onToggle"];
+}) {
+  return (
+    <Fragment key={`commit:${row.commit.longSha}`}>
       <button
         type="button"
-        aria-expanded={isExpanded}
+        aria-expanded={expanded}
         title={`${row.commit.authorName} <${row.commit.authorEmail}>\n${formatAbsolute(
           row.commit.authorWhen * 1000,
         )} · ${row.commit.shortSha}`}
         onClick={() => onToggle?.(row.commit)}
         className={`${COMMIT_ROW_CLASS} cursor-pointer hover:bg-(--tmd-bg-hover) ${
-          isExpanded ? "bg-(--tmd-bg-active)" : ""
+          expanded ? "bg-(--tmd-bg-active)" : ""
         }`}
       >
         <GitGraphSvgCell row={row.graph} />
@@ -125,14 +132,14 @@ export function HistoryRowItem({ row, upstream, expanded, entry, onToggle, onOpe
         </span>
       </button>
       {/* 展开区占位:清单加载中/失败给一行反馈,成功后由 rows 出文件行 */}
-      {isExpanded && entry?.loading && (
+      {expanded && entry?.loading && (
         <div className={ROW_CLASS} title={t("加载改动文件")}>
           <GitGraphContinuationCell row={row.graph} />
           <CircleNotch className="h-[0.75rem] w-[0.75rem] shrink-0 animate-spin text-(--tmd-fg-faint)" />
           <span className="text-(--tmd-fg-faint)">{t("加载中…")}</span>
         </div>
       )}
-      {isExpanded && entry?.error && (
+      {expanded && entry?.error && (
         <div className={ROW_CLASS} title={entry.error}>
           <GitGraphContinuationCell row={row.graph} />
           <span className="truncate text-(--tmd-diff-removed)">
@@ -141,12 +148,21 @@ export function HistoryRowItem({ row, upstream, expanded, entry, onToggle, onOpe
         </div>
       )}
       {/* 空提交:清单已载且为空,给一行明示而非无声收场 */}
-      {isExpanded && entry && !entry.loading && !entry.error && (entry.files?.length ?? 0) === 0 && (
+      {expanded && entry && !entry.loading && !entry.error && (entry.files?.length ?? 0) === 0 && (
         <div className={ROW_CLASS}>
           <GitGraphContinuationCell row={row.graph} />
           <span className="text-(--tmd-fg-faint)">{t("无改动文件")}</span>
         </div>
       )}
     </Fragment>
+  );
+}
+
+export function HistoryRowItem(props: HistoryRowItemProps) {
+  const { row } = props;
+  if (row.type === "marker") return <MarkerRow row={row} upstream={props.upstream} />;
+  if (row.type === "file") return <FileRow row={row} onOpenFile={props.onOpenFile} />;
+  return (
+    <CommitRow row={row} expanded={props.expanded ?? false} entry={props.entry} onToggle={props.onToggle} />
   );
 }
