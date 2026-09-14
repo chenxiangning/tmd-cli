@@ -49,10 +49,8 @@ export function TopBarPanelTabs() {
       y: rect.bottom + 4,
     });
   };
-
   return (
     <div className="panel-tabs-row">
-      {ActiveToolbar ? <ActiveToolbar /> : null}
       <div className="panel-tabs" role="tablist" aria-label={t("右侧面板")}>
         {visiblePanels.map((panel) => {
           const Icon = panel.icon;
@@ -72,6 +70,10 @@ export function TopBarPanelTabs() {
           );
         })}
       </div>
+
+      {/* 激活面板嵌入段在 tabs 之后、⋯ 之前(2026-09-14 口径:与 tab 图标同行靠右) */}
+      {ActiveToolbar ? <ActiveToolbar /> : null}
+
 
       <button
         type="button"

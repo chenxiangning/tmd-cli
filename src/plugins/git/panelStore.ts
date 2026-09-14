@@ -26,16 +26,31 @@ interface GitPanelState {
   view: GitViewMode;
   layout: FileListLayout;
   diffMode: GitDiffMode;
+  /** 顶栏视图下拉「刷新」→ 面板全量刷新。 */
+  refreshNonce: number;
   aggregate: GitAggregate;
+  /** 远端态镜像(GitPanel 单点拉取,顶栏下拉按钮只读消费):
+   *  detached/hasUpstream 定禁用,ahead/behind 上计数,busy 上转圈。 */
+  remoteMeta: GitRemoteMeta | null;
   /** 右键菜单等外部入口请求打开远端对话框;nonce 保证同 op 连发也触发 effect。 */
   remoteDialogRequest: { op: RemoteDialogOp; nonce: number } | null;
+}
+
+interface GitRemoteMeta {
+  detached: boolean;
+  hasUpstream: boolean;
+  ahead: number;
+  behind: number;
+  busy: RemoteDialogOp | null;
 }
 
 const state: GitPanelState = {
   view: "diff",
   layout: "flat",
   diffMode: "unified",
+  refreshNonce: 0,
   aggregate: { totals: null, fileCount: 0 },
+  remoteMeta: null,
   remoteDialogRequest: null,
 };
 const listeners = new Set<() => void>();
@@ -76,6 +91,27 @@ export function hydrateGitPanelPrefs(): void {
   state.view = getSettingsState().settings.git.view;
   state.layout = getSettingsState().settings.git.layout;
   state.diffMode = getSettingsState().settings.git.diffMode;
+}
+
+/** 顶栏视图下拉「刷新」行 → 面板全量刷新(useGitPanelData 监听 nonce)。 */
+export function bumpGitRefresh(): void {
+  state.refreshNonce += 1;
+  emit();
+}
+
+/** GitPanel 拉到远端态后镜像(值等不 emit,防空转重渲染)。 */
+export function setGitRemoteMeta(next: GitRemoteMeta): void {
+  const prev = state.remoteMeta;
+  if (
+    prev &&
+    prev.detached === next.detached &&
+    prev.hasUpstream === next.hasUpstream &&
+    prev.ahead === next.ahead &&
+    prev.behind === next.behind &&
+    prev.busy === next.busy
+  )
+    return;
+  state.remoteMeta = next;
   emit();
 }
 

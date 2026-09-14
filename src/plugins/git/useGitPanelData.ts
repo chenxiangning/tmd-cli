@@ -22,7 +22,7 @@ import {
 import { GIT_PREFILL_TOPIC, type GitPrefillPayload } from "./gitEvents";
 
 export function useGitPanelData(cwd: string | null, refreshRepos: () => Promise<void>) {
-  const { view, layout } = useGitPanelState();
+  const { view, layout, refreshNonce } = useGitPanelState();
   const [prefill, setPrefill] = useState<{ message: string; seq: number } | null>(null);
 
   const status = useGitStatus(cwd);
@@ -90,7 +90,18 @@ export function useGitPanelData(cwd: string | null, refreshRepos: () => Promise<
     void Promise.allSettled(jobs);
   }, [status, totals, refreshAheadBehind, refreshRepos, view, branches, log]);
 
-
+  // 顶栏视图下拉「刷新」→ 全量刷新(与 afterMutation 同一套作业清单;effect 直呼
+  // hook 派生回调会命中 no-pass-data-to-parent 的闭包误判,故就地展开)
+  const lastNonceRef = useRef(refreshNonce);
+  useEffect(() => {
+    if (refreshNonce === lastNonceRef.current) return;
+    lastNonceRef.current = refreshNonce;
+    const jobs: Promise<unknown>[] = [status.refresh(), totals.refresh(), refreshAheadBehind(), refreshRepos()];
+    if (view === "branch") jobs.push(branches.refresh());
+    if (view === "history") jobs.push(log.refresh());
+    setChipSeq((s) => s + 1);
+    void Promise.allSettled(jobs);
+  }, [refreshNonce, status, totals, refreshAheadBehind, refreshRepos, view, branches, log]);
   /* 派生展示值:远端条/分支视图吃原始 branch/upstream,对话框/历史吃兜底后的串。 */
   const branch = status.data?.branch;
   const branchName = branch ?? "";

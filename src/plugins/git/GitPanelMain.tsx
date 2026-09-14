@@ -4,15 +4,15 @@
  * 数据与派生展示值由 useGitPanelData 备好,此处零派生分支。
  */
 
+import { useEffect } from "react";
 import { t } from "@kernel/i18n";
 import type { GitAheadBehind, GitFileStatus, GitRemoteRequest, GitRepoSummary, GitTotals } from "@kernel/ipc";
 import { Cross } from "@phosphor-icons/react";
 import type { GitLogState } from "./hooks/useGitLog";
 import type { GitBranchesState } from "./hooks/useGitBranches";
 import type { GitRepoContext } from "./repoContext";
-import type { FileListLayout, GitViewMode } from "./panelStore";
+import { setGitRemoteMeta, type FileListLayout, type GitViewMode } from "./panelStore";
 import { gitErrorDisplay } from "./gitError";
-import { GitToolbar } from "./GitToolbar";
 import { SmartSwitchUndoBanner } from "./views/GitPanelBars";
 import { RepoBar } from "./views/RepoBar";
 import { RemoteDialogGroup } from "./views/RemoteDialogGroup";
@@ -47,6 +47,8 @@ interface GitPanelMainProps {
   branch: string | undefined;
   branchName: string;
   upstreamNull: string | null;
+  detached: boolean;
+  hasUpstream: boolean;
   aheadBehind: GitAheadBehind | null;
   undoOrigin: { cwd: string; branch: string } | null;
   prefill: { message: string; seq: number } | null;
@@ -136,18 +138,28 @@ export function GitPanelMain({
   branch,
   branchName,
   upstreamNull,
+  detached,
+  hasUpstream,
   aheadBehind,
   undoOrigin,
-  prefill,
   afterMutation,
+  prefill,
   remote,
 }: GitPanelMainProps) {
   const { dialog, setDialog, remoteBusy, notice, setNotice, runDialog } = remote;
   const canUndo = canUndoSmartSwitch(files, undoOrigin, cwd);
+  /* 远端态镜像进 panelStore:顶栏视图下拉的刷新/获取/拉取/推送行只读消费。 */
+  useEffect(() => {
+    setGitRemoteMeta({
+      detached,
+      hasUpstream,
+      ahead: aheadBehind?.ahead ?? 0,
+      behind: aheadBehind?.behind ?? 0,
+      busy: remoteBusy,
+    });
+  }, [detached, hasUpstream, aheadBehind, remoteBusy]);
   return (
     <div className="flex h-full flex-col text-xs">
-      {/* 面板顶行:视图下拉 + 聚合增删行数(2026-09-14 自顶栏嵌入段下移至此) */}
-      <GitToolbar />
       {repoCtx.showRepoBar && (
         <RepoBar
           repos={repos}
