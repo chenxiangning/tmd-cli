@@ -33,12 +33,11 @@ describe("PatchLines", () => {
     expect(html).toContain("git-split-word-ins");
     // 空侧留白(斜纹已废)
     expect(html).not.toContain("diff-split-empty");
-    // 引导框:横贯整行的外框(连续块 top+bot 收口)
-    expect(html).toContain("git-split-oframe-t");
-    expect(html).toContain("git-split-oframe-b");
-    // 改动行旧号带 ⤶ 钩(修改对与纯删行)
+    // 引导弧线:连续块在中央槽画右弯括号弧(top/bot 收口)
+    expect(html).toContain("git-split-frame-top");
+    expect(html).toContain("git-split-frame-bot");
+    // 改动行旧号带 ⤶ 钩;缺侧空槽占位(⬚):add 余量行左槽 ×1
     expect(html).toContain("git-split-ghook");
-    // 缺侧空槽占位(⬚):add 余量行左槽 ×1
     expect(html.match(/git-split-gslot-empty/g)?.length).toBe(1);
   });
 

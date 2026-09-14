@@ -68,56 +68,20 @@
   );
 }
 
-/* ── 双栏并排(2026-09-14):中央行号槽对号 + 经典红/绿淡染同行成对 +
-   词级只做下划线标注(无色块)。对位识别靠行对齐与空侧留白。 ── */
-.git-split-gutter-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 0 6px;
-  background: color-mix(in srgb, var(--tmd-fg) 4%, transparent);
-  color: var(--tmd-fg-faint);
-  font-variant-numeric: tabular-nums;
-  min-width: 3.25rem;
-}
-.git-split-band-del {
-  background: color-mix(in srgb, var(--tmd-diff-removed) 12%, transparent);
-}
-.git-split-band-add {
-  background: color-mix(in srgb, var(--tmd-diff-inserted) 12%, transparent);
-}
-.git-split-word {
-  border-radius: 0;
-}
-.git-split-word-ins {
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--tmd-diff-inserted) 70%, transparent);
-  text-underline-offset: 3px;
-}
-.git-split-word-del {
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--tmd-diff-removed) 70%, transparent);
-  text-underline-offset: 3px;
-}
-
-
-/* 中央槽引导框:连续改动块的行号段圈成括号框(样例的引导框) */
+/* ── 中央槽弧线(样例的括号弧):连续改动块在槽内画右弯弧,槽底加深 ── */
 .git-split-frame {
-  border-left: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);
-  border-right: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);
-  background: color-mix(in srgb, var(--tmd-accent) 5%, transparent);
+  background: color-mix(in srgb, var(--tmd-fg) 6%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--tmd-fg) 28%, transparent);
 }
 .git-split-frame-top {
-  border-top: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);
-  border-top-left-radius: 4px;
-  border-top-right-radius: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--tmd-fg) 28%, transparent);
+  border-top-right-radius: 7px;
 }
 .git-split-frame-bot {
-  border-bottom: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);
-  border-bottom-left-radius: 4px;
-  border-bottom-right-radius: 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--tmd-fg) 28%, transparent);
+  border-bottom-right-radius: 7px;
 }
-/* 缺侧空槽占位(⬚):小方框,与数字同宽对齐 */
+
 .git-split-gslot-empty {
   display: inline-block;
   width: 0.55em;
@@ -130,22 +94,6 @@
   color: var(--tmd-fg);
 }
 
-/* 整行外框(样例的引导框):横贯左栏+中央槽+右栏圈住改动块 */
-.git-split-oframe {
-  border-left: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);
-  border-right: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);
-}
-.git-split-oframe-t {
-  border-top: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);
-}
-.git-split-oframe-b {
-  border-bottom: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);
-}
-/* nowrap 三面板:各自面板画自己一侧的框线与圆角 */
-.git-split-oframe-lt { border-top-left-radius: 5px; }
-.git-split-oframe-lb { border-bottom-left-radius: 5px; }
-.git-split-oframe-rt { border-top-right-radius: 5px; }
-.git-split-oframe-rb { border-bottom-right-radius: 5px; }
 /* ⤶ 钩:改动行旧号前 */
 .git-split-ghook {
   color: color-mix(in srgb, var(--tmd-accent) 80%, var(--tmd-fg));
