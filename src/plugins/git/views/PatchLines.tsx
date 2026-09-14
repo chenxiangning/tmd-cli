@@ -1,10 +1,13 @@
 /**
- * diff 正文渲染:单栏(unified)与双栏(split)共用一套解析。
- * 双栏为 IntelliJ 并排式:中央行号槽(旧|新)对号、改动行红/绿淡染同行成对
- * (左红右绿即修改对,单侧红/绿即纯删/纯增)、空侧留白占位、
- * 修改对行内词级只做下划线标注。配色全部沿用既有 diff 变量,无新色。
+ * diff 正文渲染:单栏(unified)与双栏(split)。
+ * 双栏按 IntelliJ IDEA SimpleDiffViewer 复刻(反译自本机 IDEA 3 的
+ * com/intellij/diff/tools/simple/* 与 DiffDrawUtil):
+ * - 行对位 = 缺侧渲染等高空行(IDEA 的镜像 block inlay);
+ * - 占位行在中央槽涂类型色块(IDEA DiffInlayGutterMarkerRenderer.fillRect);
+ * - 改动块在中央槽画右弯贝塞尔弧(IDEA DiffDrawUtil.makeCurve:控制点 30%/70%);
+ * - 旧行号 ⤶ 钩、缺侧 ⬚ 空槽;配色全部沿用既有 diff 变量。
  */
-import { useMemo, useRef, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { GitDiffMode } from "@kernel/settings";
 import { useGitPanelState } from "../panelStore";
 import { buildSplitRows, parsePatch, type PatchRow, type SplitRow } from "./patchModel";
@@ -24,7 +27,7 @@ const CONTENT_WRAP_CLS = "min-w-0 flex-1 whitespace-pre-wrap break-all pl-2";
 /* 关闭换行:正文不收缩(shrink-0),行宽随内容撑出 <pre> 的横向滚动区。 */
 const CONTENT_NOWRAP_CLS = "shrink-0 whitespace-pre pl-2";
 
-/** diff 行稳定 key:种类 + 旧/新行号 + 内容(同号重行以内容区分,索引 key 清零用)。 */
+/** diff 行稳定 key:种类 + 旧/新行号 + 内容。 */
 function patchRowKey(row: PatchRow): string {
   return `${row.kind}:${row.oldLine ?? "-"}:${row.newLine ?? "-"}:${row.text}`;
 }
@@ -62,7 +65,6 @@ function wordDiff(a: string, b: string): [WordPart[], WordPart[]] {
   const n = A.length;
   const m = B.length;
   if (n * m > MAX_LDP_CELLS) return [[{ text: a, tag: "del" }], [{ text: b, tag: "ins" }]];
-  /* LCS 长度表(行内 token 数小,压平一维)。 */
   const dp = new Uint16Array((n + 1) * (m + 1));
   for (let i = n - 1; i >= 0; i--)
     for (let j = m - 1; j >= 0; j--)
@@ -116,43 +118,93 @@ function WordContent({ parts, wrap }: { parts: WordPart[]; wrap: boolean }) {
   );
 }
 
-/* ── 双栏(IntelliJ 并排):三列 [左内容 | 中央行号槽 | 右内容] ── */
+/* ── 双栏(IDEA SimpleDiffViewer 式):三列 [左内容 | 中央行号槽 | 右内容] ── */
 
 /** 双栏配对语义:双非空且文本不同 = 修改对(左红右绿同行),单侧 = 纯删/纯增。 */
 type PairKind = "ctx" | "mod" | "del" | "add";
 const pairKind = (left: PatchRow | null, right: PatchRow | null): PairKind =>
   left && right ? (left.text === right.text ? "ctx" : "mod") : left ? "del" : "add";
 
-/** 色带 = 本侧行种类的经典淡染(与单栏同源变量);ctx/meta 无带。 */
+/** 色带 = 本侧行种类的经典淡染(与单栏同源变量)。 */
 const SIDE_BAND: Record<string, string> = {
   del: "git-split-band-del",
   add: "git-split-band-add",
 };
 const bandFor = (row: PatchRow | null) => (row ? SIDE_BAND[row.kind] ?? "" : "");
 
-/** 改动块的引导框:连续非 ctx pair 行 = 一个块;框画在中央槽段上(top/mid/bot/single)。 */
-type FrameKind = null | "top" | "mid" | "bot" | "single";
-function frameMap(rows: SplitRow[]): FrameKind[] {
-  const out: FrameKind[] = rows.map((r) => (r.kind === "pair" && pairKind(r.left, r.right) !== "ctx" ? "mid" : null));
+/** 连续非 ctx pair 行 = 一个改动块(一条弧);返回每行的块 id 与首尾边标记。 */
+type BlockTag = { id: number; edge: "first" | "mid" | "last" | "single" };
+function blockMap(rows: SplitRow[]): (BlockTag | null)[] {
+  const out: (BlockTag | null)[] = rows.map((r) =>
+    r.kind === "pair" && pairKind(r.left, r.right) !== "ctx" ? { id: 0, edge: "mid" } : null,
+  );
+  let id = 0;
   for (let i = 0; i < out.length; i++) {
     if (!out[i]) continue;
     const start = i;
     while (i < out.length && out[i]) i++;
     const end = i - 1;
-    out[start] = start === end ? "single" : "top";
-    if (end > start) out[end] = "bot";
+    for (let k = start; k <= end; k++)
+      out[k] = { id, edge: k === start ? (k === end ? "single" : "first") : k === end ? "last" : "mid" };
+    id++;
   }
   return out;
 }
 
-/** 中央槽弧线段:连续改动块在槽内画右弯括号弧(`)`),槽底加深。 */
-const FRAME_CLS: Record<string, string> = {
-  top: "git-split-frame git-split-frame-top",
-  mid: "git-split-frame",
-  bot: "git-split-frame git-split-frame-bot",
-  single: "git-split-frame git-split-frame-top git-split-frame-bot",
-};
+/** 槽内块弧 overlay:直译 IDEA DiffDrawUtil.makeCurve ——
+ *  三次贝塞尔 (2,y0)→(w-2,y1),控制点 30%/70%。 */
+function BlockArcs({ arcs, width }: { arcs: { y0: number; y1: number }[]; width: number }) {
+  if (arcs.length === 0 || width <= 0) return null;
+  return (
+    <svg className="git-split-arcs" width={width} height="100%" aria-hidden>
+      {arcs.map(({ y0, y1 }, i) => (
+        <path
+          key={i}
+          d={`M 2 ${y0} C ${2 + (width - 2) * 0.3} ${y0}, ${2 + (width - 2) * 0.7} ${y1}, ${width - 2} ${y1}`}
+          className="git-split-arc"
+        />
+      ))}
+    </svg>
+  );
+}
 
+
+/** 实测块首/尾槽段 y 范围(行高可变,wrap 下必须测量;RO 跟随容器)。 */
+function useBlockArcs(containerRef: RefObject<HTMLElement | null>, blockCount: number) {
+  const [state, setState] = useState<{ arcs: { y0: number; y1: number }[]; width: number }>({
+    arcs: [],
+    width: 0,
+  });
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const host = el.getBoundingClientRect();
+      const byId = new Map<number, { y0: number; y1: number }>();
+      let width = 0;
+      for (const seg of el.querySelectorAll<HTMLElement>("[data-block-id]")) {
+        const r = seg.getBoundingClientRect();
+        const id = Number(seg.dataset.blockId);
+        const acc = byId.get(id);
+        byId.set(id, {
+          y0: Math.min(acc?.y0 ?? r.top, r.top) - host.top,
+          y1: Math.max(acc?.y1 ?? r.bottom, r.bottom) - host.top,
+        });
+        width = width || r.width;
+      }
+      setState({ arcs: [...byId.values()], width });
+    };
+    measure();
+    const t = setTimeout(measure, 80); // 布局/字体稳定后复测
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      clearTimeout(t);
+    };
+  }, [containerRef, blockCount]);
+  return state;
+}
 
 /** 中央行号槽一格:旧行号居左、新行号居右;改动行旧号前加 ⤶ 钩,
  *  缺侧画空槽占位(⬚),改动行数字提亮。 */
@@ -171,11 +223,19 @@ function SlotGutter({ left, right, chg }: { left: PatchRow | null; right: PatchR
     </div>
   );
 }
-/** 换行态双栏:逐行三列 grid,行行对齐(原始结构,列扩为 1fr|auto|1fr)。 */
+
+/** 占位行槽色:缺左 = 新增块占位(inserted 色),缺右 = 删除块占位(removed 色)。 */
+const phClass = (kind: PairKind) =>
+  !kind ? "" : kind === "add" ? "git-split-ph-add" : kind === "del" ? "git-split-ph-del" : "";
+
+/** 换行态双栏:逐行三列 grid,行行对齐;块弧由槽列测量绘制。 */
 function SplitRows({ rows, wrap }: { rows: SplitRow[]; wrap: boolean }) {
-  const frames = useMemo(() => frameMap(rows), [rows]);
+  const blocks = useMemo(() => blockMap(rows), [rows]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { arcs, width } = useBlockArcs(containerRef, blocks.filter(Boolean).length);
   return (
-    <>
+    <div ref={containerRef} className="relative">
+      <BlockArcs arcs={arcs} width={width} />
       {rows.map((row, i) =>
         row.kind === "header" ? (
           <div key={patchRowKey(row.row)} className={row.row.kind === "hunk" ? ROW_CLS.hunk : `px-1 ${ROW_CLS.meta}`}>
@@ -186,27 +246,30 @@ function SplitRows({ rows, wrap }: { rows: SplitRow[]; wrap: boolean }) {
             key={`${row.left ? patchRowKey(row.left) : "empty"}|${row.right ? patchRowKey(row.right) : "empty"}`}
             row={row}
             wrap={wrap}
-            frame={frames[i]}
+            block={blocks[i]}
+            kind={pairKind(row.left, row.right)}
           />
         ),
       )}
-    </>
+    </div>
   );
 }
 
 function PairRow({
   row,
   wrap,
-  frame,
+  block,
+  kind,
 }: {
   row: { left: PatchRow | null; right: PatchRow | null };
   wrap: boolean;
-  frame: FrameKind;
+  block: BlockTag | null;
+  kind: PairKind;
 }) {
-  const kind = pairKind(row.left, row.right);
   const [dParts, iParts] = kind === "mod" ? wordDiff(row.left!.text, row.right!.text) : [null, null];
+  const ph = kind === "ctx" ? "" : phClass(kind);
   return (
-    /* 三列:左 1fr | 槽 auto | 右 1fr;引导弧线只画在中央槽,内容栏无边框。 */
+    /* 三列:左 1fr | 槽 auto | 右 1fr;同排行红绿对位,空侧留白。 */
     <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] [content-visibility:auto] [contain-intrinsic-size:auto_1em]">
       <div className={`flex min-w-0 px-2 ${bandFor(row.left)}`}>
         {dParts ? (
@@ -215,7 +278,11 @@ function PairRow({
           <span className={wrap ? CONTENT_WRAP_CLS : CONTENT_NOWRAP_CLS}>{row.left?.text ?? ""}</span>
         )}
       </div>
-      <div className={FRAME_CLS[frame!]}>
+      <div
+        data-block-id={block?.id}
+        data-block-edge={block?.edge}
+        className={`border-x border-(color:--tmd-border) ${block ? "git-split-block-bg" : ""} ${ph}`}
+      >
         <SlotGutter left={row.left} right={row.right} chg={kind !== "ctx"} />
       </div>
       <div className={`flex min-w-0 px-2 ${bandFor(row.right)}`}>
@@ -284,14 +351,21 @@ function SplitHalvesSynced({ rows }: { rows: SplitRow[] }) {
       </div>
     );
   };
-  const frames = useMemo(() => frameMap(rows), [rows]);
+  const blocks = useMemo(() => blockMap(rows), [rows]);
+  const { arcs, width } = useBlockArcs(midRef, blocks.filter(Boolean).length);
   const mid = (
-    <div ref={midRef} className="h-full overflow-hidden border-x border-(color:--tmd-border)">
+    <div ref={midRef} className="relative h-full overflow-hidden border-x border-(color:--tmd-border)">
+      <BlockArcs arcs={arcs} width={width} />
       {rows.map((row, i) =>
         row.kind === "header" ? (
           <div key={`h:${patchRowKey(row.row)}`} />
         ) : (
-          <div key={`g:${patchRowKey(row.left ?? row.right!)}`} className={FRAME_CLS[frames[i]!]}>
+          <div
+            key={`g:${patchRowKey(row.left ?? row.right!)}`}
+            data-block-id={blocks[i]?.id}
+            data-block-edge={blocks[i]?.edge}
+            className={`git-split-block-bg ${phClass(pairKind(row.left, row.right))}`}
+          >
             <SlotGutter left={row.left} right={row.right} chg={pairKind(row.left, row.right) !== "ctx"} />
           </div>
         ),

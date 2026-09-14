@@ -99,3 +99,28 @@
   color: color-mix(in srgb, var(--tmd-accent) 80%, var(--tmd-fg));
   margin-right: 2px;
 }
+
+/* ── IDEA 并排复刻(2026-09-15):中央槽弧线 + 块底 + 占位色块 ── */
+/* 块行槽底加深(IDEA gutter 底) */
+.git-split-block-bg {
+  background: color-mix(in srgb, var(--tmd-fg) 6%, transparent);
+}
+/* 块弧(SVG path):中性灰细线 */
+.git-split-arcs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.git-split-arc {
+  fill: none;
+  stroke: color-mix(in srgb, var(--tmd-fg) 32%, transparent);
+  stroke-width: 1;
+}
+/* 占位行槽色块(IDEA DiffInlayGutterMarkerRenderer.fillRect 直译) */
+.git-split-ph-add {
+  background: color-mix(in srgb, var(--tmd-diff-inserted) 14%, transparent);
+}
+.git-split-ph-del {
+  background: color-mix(in srgb, var(--tmd-diff-removed) 14%, transparent);
+}

@@ -33,10 +33,9 @@ describe("PatchLines", () => {
     expect(html).toContain("git-split-word-ins");
     // 空侧留白(斜纹已废)
     expect(html).not.toContain("diff-split-empty");
-    // 引导弧线:连续块在中央槽画右弯括号弧(top/bot 收口)
-    expect(html).toContain("git-split-frame-top");
-    expect(html).toContain("git-split-frame-bot");
-    // 改动行旧号带 ⤶ 钩;缺侧空槽占位(⬚):add 余量行左槽 ×1
+    // IDEA 式块标记与占位:块行 data-block-id + 缺侧类型色块;改动行旧号 ⤶ 钩
+    expect(html.match(/data-block-id/g)?.length).toBe(2); // mod 对 + add 余量,ctx 不属块
+    expect(html).toContain("git-split-ph-add"); // add 余量行左槽占位色块
     expect(html).toContain("git-split-ghook");
     expect(html.match(/git-split-gslot-empty/g)?.length).toBe(1);
   });
