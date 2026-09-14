@@ -4,6 +4,28 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.1.8] - 2026-09-15
+
+### 新增
+
+- Git 双栏 diff 视图:复刻 IDEA 并排形态——中央行号槽(贝塞尔弧线引导 + 缺侧占位色块/空槽)、红绿同行成对、词级差异下划线、改动块 accent 边框与首尾横线贯通中央槽;撤 react-diff-view 改自绘,左右独立横向滚动条,头部自动换行开关(落盘持久)
+- Git 创建 PR 工作流:复刻 gh 预检 → 推送 → 建 PR → 审批评论四步链,PR 内容零本地范围限制;失败透传 gh 原始错误,同仓 PR head 归一化为纯分支名修复已有 PR 复用失效
+- Git 历史列表增强:提交行加作者头像与时间元信息行,窗口化渲染只画视口行解大仓滚动卡顿;历史展开按 sha 落槽,修连开提交时全局 token 丢响应永远转圈
+- Git 分支着色标注:按分支名稳定着色,顶栏当前分支 label 跟随多仓面板选中仓
+- 文件面板工作区下拉化:文件树工作区名改下拉切换,行右键合并文件与 Git 菜单
+
+### 变更
+
+- Git 视图顶栏重排:视图切换下移面板顶行,分支与 upstream 上顶栏,下掉远端操作条;视图下拉回归顶栏 tabs 右侧,刷新/获取/拉取/推送收编进下拉;聚合行动作钮悬停显隐、有变化常显
+- 文件面板布局:工具栏移至右栏底部,工作区选择器上移顶栏右区贴面板 tabs,底部动作钮恢复悬停显隐;顶栏分支 label 去底色改纯着色文字
+- 顶栏动作/面板 tabs/设置簇图标加大一号,按钮圆角改圆润
+
+### 修复
+
+- v0.1.7 评审收口:git clean 拒 ignored 文件、rebase 中止探测补全、壁纸 GPU 释放与 en/ja 词典、来源注册表补 ctx 通道、变更失败可见反馈、死代码与重复实现清扫
+- 二轮复审补口:prewarm 补货收敛为用户动作驱动防崩溃循环,壁纸词典补漏键,check 规则归位,02/09 架构文档同步 ctx 通道
+- 双栏 diff 行高去 lh 单位兼容老 WebKit,块底类名归位 block-bg
+
 ## [0.1.7] - 2026-09-14
 
 ### 新增
@@ -227,6 +249,7 @@
 - SSH 一等会话:远程终端 + SFTP 文件树 + 端口转发
 - 插件市场、设置面板、网络代理
 
+[0.1.8]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.8
 [0.1.7]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.7
 [0.1.6]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.6
 [0.1.5]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.5
