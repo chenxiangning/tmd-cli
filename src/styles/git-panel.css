@@ -68,59 +68,67 @@
   );
 }
 
-/* ── 中央槽弧线(样例的括号弧):连续改动块在槽内画右弯弧,槽底加深 ── */
-.git-split-frame {
-  background: color-mix(in srgb, var(--tmd-fg) 6%, transparent);
-  border-right: 1px solid color-mix(in srgb, var(--tmd-fg) 28%, transparent);
+/* ── 双栏 diff 主题:react-diff-view(2026-09-15)── */
+.git-diff-rdv {
+  /* 主题变量 → tmd tokens */
+  --diff-font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  --diff-background-color: transparent;
+  --diff-text-color: var(--tmd-fg-muted);
+  --diff-gutter-background-color: color-mix(in srgb, var(--tmd-fg) 3%, transparent);
+  --diff-gutter-text-color: var(--tmd-fg-faint);
+  --diff-code-insert-background-color: color-mix(in srgb, var(--tmd-diff-inserted) 13%, transparent);
+  --diff-code-insert-text-color: var(--tmd-fg);
+  --diff-code-delete-background-color: color-mix(in srgb, var(--tmd-diff-removed) 13%, transparent);
+  --diff-code-delete-text-color: var(--tmd-fg);
+  --diff-gutter-insert-background-color: color-mix(in srgb, var(--tmd-diff-inserted) 20%, transparent);
+  --diff-gutter-insert-text-color: var(--tmd-fg);
+  --diff-gutter-delete-background-color: color-mix(in srgb, var(--tmd-diff-removed) 20%, transparent);
+  --diff-gutter-delete-text-color: var(--tmd-fg);
+  font-size: 0.6875rem;
+  line-height: 1.45;
 }
-.git-split-frame-top {
-  border-top: 1px solid color-mix(in srgb, var(--tmd-fg) 28%, transparent);
-  border-top-right-radius: 7px;
+.git-diff-rdv .diff {
+  font-family: var(--diff-font-family);
+  font-size: inherit;
+  line-height: inherit;
+  display: block;
 }
-.git-split-frame-bot {
-  border-bottom: 1px solid color-mix(in srgb, var(--tmd-fg) 28%, transparent);
-  border-bottom-right-radius: 7px;
+.git-diff-rdv td {
+  display: block;
 }
-
-.git-split-gslot-empty {
-  display: inline-block;
-  width: 0.55em;
-  height: 0.8em;
-  border: 1px solid color-mix(in srgb, var(--tmd-fg) 30%, transparent);
-  border-radius: 2px;
-  opacity: 0.55;
+.git-diff-rdv tr {
+  display: flex;
 }
-.git-split-gutter-chg {
-  color: var(--tmd-fg);
+.git-diff-rdv .diff-line {
+  width: 100%;
 }
-
-/* ⤶ 钩:改动行旧号前 */
-.git-split-ghook {
-  color: color-mix(in srgb, var(--tmd-accent) 80%, var(--tmd-fg));
-  margin-right: 2px;
+.git-diff-rdv .diff-gutter {
+  width: 2.5rem;
+  flex: none;
+  padding: 0 6px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
 }
-
-/* ── IDEA 并排复刻(2026-09-15):中央槽弧线 + 块底 + 占位色块 ── */
-/* 块行槽底加深(IDEA gutter 底) */
-.git-split-block-bg {
-  background: color-mix(in srgb, var(--tmd-fg) 6%, transparent);
+.git-diff-rdv .diff-code {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 8px;
+  white-space: pre;
+  overflow-x: auto;
 }
-/* 块弧(SVG path):中性灰细线 */
-.git-split-arcs {
-  position: absolute;
-  top: 0;
-  left: 0;
-  pointer-events: none;
+/* 自动换行开:代码格换行(与单栏口径一致) */
+.git-diff-rdv-wrap .diff-code {
+  white-space: pre-wrap;
+  word-break: break-all;
 }
-.git-split-arc {
-  fill: none;
-  stroke: color-mix(in srgb, var(--tmd-fg) 32%, transparent);
-  stroke-width: 1;
+.git-diff-rdv .diff-hunk {
+  font-size: 0.625rem;
+  color: var(--tmd-accent);
+  background: color-mix(in srgb, var(--tmd-bg-hover) 40%, transparent);
+  border-top: 1px solid var(--tmd-border);
+  border-bottom: 1px solid var(--tmd-border);
 }
-/* 占位行槽色块(IDEA DiffInlayGutterMarkerRenderer.fillRect 直译) */
-.git-split-ph-add {
-  background: color-mix(in srgb, var(--tmd-diff-inserted) 14%, transparent);
-}
-.git-split-ph-del {
-  background: color-mix(in srgb, var(--tmd-diff-removed) 14%, transparent);
+.git-diff-rdv .diff-gutter-col {
+  display: none;
 }

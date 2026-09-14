@@ -1,7 +1,8 @@
 /**
  * PatchLines 渲染契约(node 环境 renderToStaticMarkup,只验呈现面):
- * - split(并排):中央行号槽(旧|新)、同行红绿对位(修改对左格 del 带 + 右格 add 带)、
- *   纯删/纯增单侧带;配对行词级下划线;空侧留白(无斜纹);hunk 头通栏。
+ * - unified:自绘经典红绿,旧/新双行号槽;
+ * - split:react-diff-view(Diff viewType="split"),对位与占位由库负责,
+ *   这里只验 删/增/上下文 行 class 与 gutter 行号可达。
  */
 
 import { renderToStaticMarkup } from "react-dom/server";
@@ -21,41 +22,34 @@ describe("PatchLines", () => {
     expect(html).toContain("@@ -10,1 +20,2 @@"); // hunk 头通栏
   });
 
-  it("split:中央槽旧|新行号,色带与词级标注按配对语义", () => {
+  it("split:react-diff-view 呈现删/增/上下文与行号", () => {
     const html = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
-    // 全部行号可达:ctx 10|20、mod 对 11|21、add 余量 ·|22
+    // 库的结构标记
+    expect(html).toContain("diff-split");
+    expect(html).toContain("diff-code-delete");
+    expect(html).toContain("diff-code-insert");
+    expect(html).toContain("diff-gutter-insert");
+    // 行号可达:删除旧号 11、插入新号 21/22、上下文 10/20
     for (const n of [10, 11, 20, 21, 22]) expect(html).toContain(`>${n}<`);
-    // 修改对(左红右绿同行):band-del 左格 ×1 + band-add 右格 ×1;add 余量蓝带 +1
-    expect(html.match(/git-split-band-del/g)?.length).toBe(1);
-    expect(html.match(/git-split-band-add/g)?.length).toBe(2);
-    // mod 对词级:左删标注 + 右增标注(下划线,非色块)
-    expect(html).toContain("git-split-word-del");
-    expect(html).toContain("git-split-word-ins");
-    // 空侧留白(斜纹已废)
-    expect(html).not.toContain("diff-split-empty");
-    // IDEA 式块标记与占位:块行 data-block-id + 缺侧类型色块;改动行旧号 ⤶ 钩
-    expect(html.match(/data-block-id/g)?.length).toBe(2); // mod 对 + add 余量,ctx 不属块
-    expect(html).toContain("git-split-ph-add"); // add 余量行左槽占位色块
-    expect(html).toContain("git-split-ghook");
-    expect(html.match(/git-split-gslot-empty/g)?.length).toBe(1);
+    // zip 后 del 行与首个 add 行成对出现在同一 compare 行
+    expect(html).toContain("diff-line-compare");
   });
 
   it("默认 mode = unified", () => {
     const html = renderToStaticMarkup(createElement(PatchLines, { text: PATCH }));
-    expect(html).not.toContain("diff-split-empty");
     expect(html).toContain(">21<");
+    expect(html).not.toContain("diff-split"); // 未走 react-diff-view
   });
 
-  it("自动换行默认开,关闭后正文切 whitespace-pre", () => {
+  it("自动换行开关作用于双栏 wrap 类", () => {
+    const on = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
+    expect(on).toContain("git-diff-rdv-wrap");
     setGitDiffWrap(false);
     try {
-      const nowrap = renderToStaticMarkup(createElement(PatchLines, { text: PATCH }));
-      expect(nowrap).not.toContain("whitespace-pre-wrap");
-      expect(nowrap).toContain("whitespace-pre ");
-      const splitNowrap = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
-      // 双栏 nowrap:左右独立滚动面(2 overflow-auto)+ 中央槽(overflow-hidden)
-      expect(splitNowrap.match(/overflow-auto/g)?.length).toBe(2);
-      expect(splitNowrap).toContain("git-split-gutter-row");
+      const off = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
+      expect(off).not.toContain("git-diff-rdv-wrap");
+      const unifiedNowrap = renderToStaticMarkup(createElement(PatchLines, { text: PATCH }));
+      expect(unifiedNowrap).toContain("whitespace-pre ");
     } finally {
       setGitDiffWrap(true); // 模块级单例,回置防串其他用例
     }
