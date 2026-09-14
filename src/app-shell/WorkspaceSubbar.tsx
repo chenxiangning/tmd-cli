@@ -3,20 +3,14 @@
  *
  * 自 RightPanelToolbar.tsx 拆出(文件规模铁则)。工作区 label 点击弹下拉菜单
  * (portal 挂 document.body + fixed 定位,复刻 wsmenu 模式,复用 panel-overflow
- * 样式),行点击 = setActiveWorkspace 切换;新建/刷新按钮转发激活面板注册槽,
- * 外壳不认识业务面板。
+ * 样式),行点击 = setActiveWorkspace 切换;下拉器/行右键 = 合并菜单(见
+ * WorkspaceRowMenu.tsx);新建/刷新按钮转发激活面板注册槽,外壳不认识业务面板。
  */
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  ArrowClockwise,
-  CaretDown,
-  Check,
-  FilePlus,
-  FolderSimplePlus,
-} from "@phosphor-icons/react";
-import { useFilePanel } from "@kernel/filePanel";
+import { ArrowClockwise, CaretDown, Check, FilePlus, FolderSimplePlus } from "@phosphor-icons/react";
+import { setFilePanelMode, useFilePanel } from "@kernel/filePanel";
 import {
   setActiveWorkspace,
   useWorkspaces,
@@ -24,6 +18,7 @@ import {
   type Workspace,
 } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
+import { WorkspaceRowMenu } from "./WorkspaceRowMenu";
 
 /** 工作区切换下拉:fixed 菜单列出全部工作区,行点击切换激活。 */
 function WorkspaceSwitchMenu({
@@ -31,11 +26,13 @@ function WorkspaceSwitchMenu({
   activeId,
   position,
   onClose,
+  onRowMenu,
 }: {
   workspaces: Workspace[];
   activeId: string | null;
   position: { x: number; y: number };
   onClose: () => void;
+  onRowMenu: (ws: Workspace, x: number, y: number) => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -66,6 +63,10 @@ function WorkspaceSwitchMenu({
                 setActiveWorkspace(ws.id);
                 onClose();
               }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                onRowMenu(ws, e.clientX, e.clientY);
+              }}
             >
               <span className="panel-overflow-item-label">{workspaceDisplayName(ws)}</span>
               {isActive ? <Check aria-hidden /> : null}
@@ -90,6 +91,7 @@ export function WorkspaceSubbar() {
   const activeRefresh = activePanel?.refresh;
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [wsMenu, setWsMenu] = useState<{ x: number; y: number } | null>(null);
+  const [rowMenu, setRowMenu] = useState<{ ws: Workspace; x: number; y: number } | null>(null);
   const refreshBatchRef = useRef(0);
 
   const handleRefreshFiles = () => {
@@ -102,6 +104,20 @@ export function WorkspaceSubbar() {
       .finally(() => {
         if (refreshBatchRef.current === myBatch) setRefreshBusy(false);
       });
+  };
+
+  /* 新建文件/文件夹:确保 files 面板 + 目标工作区激活,再经树句柄槽弹命名框。
+   * ponytail: 切换后固定等 400ms 让文件树重挂上交句柄;未就绪则静默,再点一次即可。 */
+  const handleNewInTree = (wsId: string, kind: "file" | "folder") => {
+    const filesPanel = panels.find((p) => p.id === "files");
+    const slot = kind === "file" ? filesPanel?.newFile : filesPanel?.newFolder;
+    if (wsId === (active?.id ?? null) && mode === "files") {
+      slot?.();
+      return;
+    }
+    setFilePanelMode("files");
+    if (wsId !== (active?.id ?? null)) setActiveWorkspace(wsId);
+    window.setTimeout(() => slot?.(), 400);
   };
 
   if (!root) return null;
@@ -118,6 +134,10 @@ export function WorkspaceSubbar() {
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           setWsMenu({ x: rect.left, y: rect.bottom + 4 });
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          if (active) setRowMenu({ ws: active, x: e.clientX, y: e.clientY });
         }}
       >
         <span className="panel-subbar-switch-text">{label}</span>
@@ -165,6 +185,18 @@ export function WorkspaceSubbar() {
           activeId={active?.id ?? null}
           position={wsMenu}
           onClose={() => setWsMenu(null)}
+          onRowMenu={(ws, x, y) => {
+            setWsMenu(null);
+            setRowMenu({ ws, x, y });
+          }}
+        />
+      ) : null}
+      {rowMenu ? (
+        <WorkspaceRowMenu
+          ws={rowMenu.ws}
+          position={rowMenu}
+          onClose={() => setRowMenu(null)}
+          onNewInTree={(kind) => handleNewInTree(rowMenu.ws.id, kind)}
         />
       ) : null}
     </div>

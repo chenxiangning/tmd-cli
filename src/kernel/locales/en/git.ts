@@ -162,7 +162,13 @@ export const MESSAGES = {
   "无改动文件": "No changed files",
   "已到最早提交": "Reached the earliest commit",
 
+  /* 工作区右键菜单(app-shell/WorkspaceSubbar) */
+  "提交目录...": "Commit directory...",
+  "添加 / 暂存全部": "Add / stage all",
+  "提取...": "Fetch...",
+
   /* 提交详情 / 工作树差异 */
+
   "个文件": "files",
   ...PART2,
 } as Record<string, string>;

@@ -57,18 +57,10 @@
 }
 
 /* 图标装饰:per-panel 点亮色(缺省回落写死橙;见 kernel/iconDecor.ts) */
-.panel-tab.is-active[data-panel-id="files"] {
-  color: var(--icon-decor-panel-files, rgb(255, 140, 60));
-}
-.panel-tab.is-active[data-panel-id="git"] {
-  color: var(--icon-decor-panel-git, rgb(255, 140, 60));
-}
-.panel-tab.is-active[data-panel-id="checkpoints"] {
-  color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60));
-}
-.panel-tab.is-active[data-panel-id="memory"] {
-  color: var(--icon-decor-panel-memory, rgb(255, 140, 60));
-}
+.panel-tab.is-active[data-panel-id="files"] { color: var(--icon-decor-panel-files, rgb(255, 140, 60)); }
+.panel-tab.is-active[data-panel-id="git"] { color: var(--icon-decor-panel-git, rgb(255, 140, 60)); }
+.panel-tab.is-active[data-panel-id="checkpoints"] { color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60)); }
+.panel-tab.is-active[data-panel-id="memory"] { color: var(--icon-decor-panel-memory, rgb(255, 140, 60)); }
 
 
 .panel-tab svg {
@@ -141,18 +133,10 @@
 .panel-overflow-item.is-active .panel-overflow-item-icon {
   color: rgb(255, 140, 60);
 }
-.panel-overflow-item.is-active[data-panel-id="files"] .panel-overflow-item-icon {
-  color: var(--icon-decor-panel-files, rgb(255, 140, 60));
-}
-.panel-overflow-item.is-active[data-panel-id="git"] .panel-overflow-item-icon {
-  color: var(--icon-decor-panel-git, rgb(255, 140, 60));
-}
-.panel-overflow-item.is-active[data-panel-id="checkpoints"] .panel-overflow-item-icon {
-  color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60));
-}
-.panel-overflow-item.is-active[data-panel-id="memory"] .panel-overflow-item-icon {
-  color: var(--icon-decor-panel-memory, rgb(255, 140, 60));
-}
+.panel-overflow-item.is-active[data-panel-id="files"] .panel-overflow-item-icon { color: var(--icon-decor-panel-files, rgb(255, 140, 60)); }
+.panel-overflow-item.is-active[data-panel-id="git"] .panel-overflow-item-icon { color: var(--icon-decor-panel-git, rgb(255, 140, 60)); }
+.panel-overflow-item.is-active[data-panel-id="checkpoints"] .panel-overflow-item-icon { color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60)); }
+.panel-overflow-item.is-active[data-panel-id="memory"] .panel-overflow-item-icon { color: var(--icon-decor-panel-memory, rgb(255, 140, 60)); }
 
 .panel-overflow-item-icon svg {
   width: 0.875rem;
@@ -215,6 +199,14 @@
   align-items: center;
   gap: 1px;
   flex: 0 0 auto;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+/* 默认隐藏,悬停/键盘聚焦 subbar 行时显出 */
+.panel-subbar:hover .panel-subbar-actions,
+.panel-subbar:focus-within .panel-subbar-actions {
+  opacity: 1;
 }
 
 .panel-subbar-action {
@@ -259,7 +251,8 @@
   align-items: center;
   gap: 3px;
   padding: 0;
-  border: none;
+  flex: 0 0 auto;
+  max-width: 60%;
   border-radius: 4px;
   background: none;
   font-family: inherit;
@@ -291,3 +284,11 @@
 }
 
 .panel-ws-item svg { width: 0.75rem; height: 0.75rem; flex: 0 0 auto; color: var(--tmd-accent); }
+
+.panel-ws-menu-group {
+  padding: 6px 10px 2px;
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tmd-fg-faint);
+}
