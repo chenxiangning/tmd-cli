@@ -5,8 +5,7 @@
  * 滚动容器尺寸由 className 传入(max-h-72 / h-full,各挂载点不同)。
  */
 
-import { useMemo } from "react";
-
+import { Fragment, useMemo } from "react";
 import type { GitDiffMode } from "@kernel/settings";
 import { useGitPanelState } from "../panelStore";
 import { buildSplitRows, parsePatch, type PatchRow, type SplitRow } from "./patchModel";
@@ -62,30 +61,29 @@ function SplitCell({ row, side, wrap }: { row: PatchRow | null; side: "left" | "
     </div>
   );
 }
+/** 整块单 grid:左右列跨行共享列宽,行行对齐;
+ *  nowrap 模式 w-max 取全块最宽行撑出 <pre> 横向滚动。 */
 function SplitRows({ rows, wrap }: { rows: SplitRow[]; wrap: boolean }) {
   return (
-    <>
+    <div className={wrap ? "grid grid-cols-2" : "grid w-max grid-cols-2"}>
       {rows.map((row) =>
         row.kind === "header" ? (
-          <div key={patchRowKey(row.row)} className={row.row.kind === "hunk" ? ROW_CLS.hunk : `px-1 ${ROW_CLS.meta}`}>
+          <div
+            key={patchRowKey(row.row)}
+            className={`col-span-2 ${row.row.kind === "hunk" ? ROW_CLS.hunk : `px-1 ${ROW_CLS.meta}`}`}
+          >
             {row.row.text}
           </div>
         ) : (
-          <div
+          <Fragment
             key={`${row.left ? patchRowKey(row.left) : "empty"}|${row.right ? patchRowKey(row.right) : "empty"}`}
-            className={
-              wrap
-                ? "grid grid-cols-2 [content-visibility:auto] [contain-intrinsic-size:auto_1em]"
-                /* 双栏共享横滚:列宽 minmax(max-content,1fr),任一侧长行把网格撑超容器宽 */
-                : "grid grid-cols-[repeat(2,minmax(max-content,1fr))]"
-            }
           >
             <SplitCell row={row.left} side="left" wrap={wrap} />
             <SplitCell row={row.right} side="right" wrap={wrap} />
-          </div>
+          </Fragment>
         ),
       )}
-    </>
+    </div>
   );
 }
 export function PatchLines({

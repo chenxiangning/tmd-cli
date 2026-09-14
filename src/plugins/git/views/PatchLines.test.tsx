@@ -45,8 +45,9 @@ describe("PatchLines", () => {
       expect(nowrap).not.toContain("whitespace-pre-wrap");
       expect(nowrap).toContain("whitespace-pre ");
       const splitNowrap = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
-      // 双栏 nowrap:列宽随内容(max-content),超宽由 <pre> 横向滚动承接
-      expect(splitNowrap).toContain("grid-cols-[repeat(2,minmax(max-content,1fr))]");
+      // 整块单 grid + w-max:列跨行对齐,宽度取全块最宽行,超宽由 <pre> 横向滚动承接
+      expect(splitNowrap).toContain("w-max");
+      expect(splitNowrap).toContain("col-span-2");
     } finally {
       setGitDiffWrap(true); // 模块级单例,回置防串其他用例
     }
