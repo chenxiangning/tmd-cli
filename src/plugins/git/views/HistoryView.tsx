@@ -43,6 +43,16 @@ type HistoryRow =
 
 const ROW_CLASS =
   "flex h-[22px] w-full min-w-0 select-none items-center gap-1 px-1.5 text-left text-xs";
+/** 提交行双行(参考 codemoss:摘要 + sha·作者·时间),行高自适应内容。 */
+const COMMIT_ROW_CLASS =
+  "flex w-full min-w-0 select-none items-center gap-1 px-1.5 py-1 text-left text-xs";
+
+/** 作者头像 hue:邮箱稳定散列(与分支着色同思路),本地生成不联网。 */
+function authorHue(email: string): number {
+  let h = 0;
+  for (let i = 0; i < email.length; i++) h = (h * 31 + email.charCodeAt(i)) % 360;
+  return h;
+}
 
 export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -204,16 +214,32 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
                 row.commit.authorWhen * 1000,
               )} · ${row.commit.shortSha}`}
               onClick={() => toggleExpand(row.commit)}
-              className={`${ROW_CLASS} cursor-pointer hover:bg-(--tmd-bg-hover) ${
+              className={`${COMMIT_ROW_CLASS} cursor-pointer hover:bg-(--tmd-bg-hover) ${
                 isExpanded ? "bg-(--tmd-bg-active)" : ""
               }`}
             >
               <GitGraphSvgCell row={row.graph} />
-              <span className="min-w-0 flex-1 truncate font-medium">
-                {row.commit.summary || t("(空消息)")}
-              </span>
-              <span className="shrink-0 text-[0.625rem] tabular-nums text-(--tmd-fg-faint)">
-                {formatRelativeTime(row.commit.authorWhen * 1000)}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">
+                  {row.commit.summary || t("(空消息)")}
+                </span>
+                <span className="flex items-center gap-1.5 text-[0.625rem] leading-4 text-(--tmd-fg-faint)">
+                  <span className="font-mono">{row.commit.shortSha}</span>
+                  <span
+                    className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full text-[0.5rem] font-semibold uppercase"
+                    style={{
+                      color: `hsl(${authorHue(row.commit.authorEmail)} 60% 62%)`,
+                      background: `hsl(${authorHue(row.commit.authorEmail)} 50% 55% / 0.18)`,
+                    }}
+                    aria-hidden
+                  >
+                    {row.commit.authorName.slice(0, 1)}
+                  </span>
+                  <span className="min-w-0 truncate">{row.commit.authorName}</span>
+                  <span className="shrink-0 tabular-nums">
+                    {formatRelativeTime(row.commit.authorWhen * 1000)}
+                  </span>
+                </span>
               </span>
             </button>
             {/* 展开区占位:清单加载中/失败给一行反馈,成功后由 rows 出文件行 */}
