@@ -18,17 +18,13 @@ import { getSettingsState } from "@kernel/settings";
 import {
   getWslProbedBins,
   isRemoteWslFile,
+  joinWslPath,
   parseRemoteWslFile,
   REMOTE_WSL_FILE_MAX_BYTES,
   remoteWslFileUri,
   wslRemoteSpawnCommand,
   type RemoteWslFileRef,
 } from "./wslCore";
-
-function joinPath(base: string, name: string): string {
-  if (base === "~") return `~/${name}`;
-  return `${base.replace(/\/+$/, "")}/${name}`;
-}
 
 /** 工作区绑定的 SSH 主机配置(本机 wsl 形态 hostId=null → null)。 */
 function sshHostOf(ws: Workspace) {
@@ -132,7 +128,7 @@ export function buildWslFileSource(): RemoteFileSource {
       const cfg = sshHostOf(ws);
       if (!cfg) throw new Error(t("远程主机配置已删除,无法浏览文件;请重新选择远程宿主。"));
       const rows = await ipc.wslListDir(wsl.distro, path, cfg);
-      return rows.map((e) => ({ name: e.name, path: joinPath(path, e.name), isDir: e.isDir }));
+      return rows.map((e) => ({ name: e.name, path: joinWslPath(path, e.name), isDir: e.isDir }));
     },
     fileUri: (ws, path) => remoteWslFileUri(sshHostOf(ws)!.id, ws.wsl!.distro, path),
     ownsUri: (path) => isRemoteWslFile(path),

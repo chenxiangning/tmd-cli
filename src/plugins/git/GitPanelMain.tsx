@@ -190,6 +190,7 @@ export function GitPanelMain({
             totals={totals}
             prefill={prefill}
             onMutation={afterMutation}
+            onError={setNotice}
           />
         )}
         {view === "branch" && (

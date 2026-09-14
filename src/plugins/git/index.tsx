@@ -33,7 +33,7 @@ export const gitPlugin: Plugin = {
     ctx.registerTabContent({ kind: COMMIT_TAB_KIND, component: CommitDiffTabContent });
     ctx.registerTabContent({ kind: DIFF_TAB_KIND, component: DiffTabContent });
     // 远端动作命令化(fetch/pull/push):无键位仅暴露,为设置清单改键预留;
-    // 常规入口是分支视图右键菜单(更新/获取/推送),命令与 requestRemoteDialog 同通道
+    // 常规入口是分支视图右键菜单 + 顶栏视图下拉(更新/获取/拉取/推送),命令与 requestRemoteDialog 同通道
     for (const op of ["fetch", "pull", "push"] as const) {
       const labels = { fetch: "获取远端更新(fetch)", pull: "拉取远端(pull)", push: "推送远端(push)" };
       ctx.registerCommand({

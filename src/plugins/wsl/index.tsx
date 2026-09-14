@@ -10,12 +10,7 @@
 import { DesktopIcon } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { t } from "@kernel/i18n";
-import {
-  registerRemoteFileSource,
-  type RemoteFileSource,
-} from "@kernel/fileSources";
-import { registerWorkspaceOrigin } from "@kernel/workspaceOrigins";
-import { registerShellSpecProvider, registerSpecWrapper } from "@kernel/ptyAdapters";
+import type { RemoteFileSource } from "@kernel/fileSources";
 import { getActiveTab, openTab } from "@kernel/tabs";
 import { getWorkspaces, setWorkspaceWslMeta, workspacesReady } from "@kernel/workspace";
 import { buildWslFileSource, buildWslWorkspaceOrigin } from "./contributions";
@@ -45,13 +40,13 @@ export const wslPlugin: Plugin = {
       onSelect: () =>
         openTab({ id: "wsl:panel", title: "WSL", path: "", kind: "wsl", payload: null }),
     });
-    /* 向宿主注册表贡献来源能力(全部可退订)。 */
-    const offSource = registerRemoteFileSource(buildWslFileSource() as RemoteFileSource);
-    const offOrigin = registerWorkspaceOrigin(
+    /* 向宿主注册表贡献来源能力:经 ctx 通道登记,退订由贡献账本自动记账(拔插零残留)。 */
+    ctx.registerRemoteFileSource(buildWslFileSource() as RemoteFileSource);
+    ctx.registerWorkspaceOrigin(
       buildWslWorkspaceOrigin({ label: "WSL 发行版", component: AddWslTab }),
     );
-    const offWrap = registerSpecWrapper(wrapWslSpec);
-    const offShell = registerShellSpecProvider({
+    ctx.registerSpecWrapper(wrapWslSpec);
+    ctx.registerShellSpecProvider({
       appliesTo: isWslWorkspace,
       build: async (ws) => {
         const unc = parseWslUnc(ws.root);
@@ -68,11 +63,5 @@ export const wslPlugin: Plugin = {
         setWorkspaceWslMeta(ws.id, { distro: unc.distro, hostId: null });
       }
     });
-    return () => {
-      offSource();
-      offOrigin();
-      offWrap();
-      offShell();
-    };
   },
 };

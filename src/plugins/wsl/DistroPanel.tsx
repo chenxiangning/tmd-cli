@@ -14,12 +14,7 @@ import type { CliProfile } from "@kernel/cliProfile";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
-import { rememberWslProbes } from "./wslCore";
-
-function joinPath(base: string, name: string): string {
-  if (base === "~") return `~/${name}`;
-  return `${base.replace(/\/+$/, "")}/${name}`;
-}
+import { joinWslPath, rememberWslProbes } from "./wslCore";
 
 export function DistroPanel({
   distro,
@@ -193,8 +188,8 @@ function DirBrowserSection({
             <button
               key={e.name}
               type="button"
-              className={`wsl-dir-row ${dir === joinPath(dir ?? "~", e.name) ? "on" : ""}`}
-              onClick={() => onLoadDir(joinPath(dir ?? "~", e.name))}
+              className="wsl-dir-row"
+              onClick={() => onLoadDir(joinWslPath(dir ?? "~", e.name))}
             >
               {e.name}
             </button>

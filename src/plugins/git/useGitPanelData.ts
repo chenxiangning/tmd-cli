@@ -119,7 +119,6 @@ export function useGitPanelData(cwd: string | null, refreshRepos: () => Promise<
     files,
     branch,
     branchName,
-    upstream,
     upstreamNull: upstream ?? null,
     detached,
     hasUpstream,

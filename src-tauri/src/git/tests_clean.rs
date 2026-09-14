@@ -123,3 +123,48 @@ fn clean_拒绝符号链接逃逸与_git_元数据() {
     );
     assert_eq!(std::fs::read_to_string(&outside).unwrap(), "keep\n");
 }
+
+#[test]
+fn clean_拒绝_ignored_路径_等价_git_clean_无_x() {
+    let t = TempRepo::new();
+    t.write("a.txt", "base\n");
+    super::with_repo(t.path(), |r| {
+        super::commit::commit(
+            r,
+            vec!["a.txt".into()],
+            super::CommitInput {
+                message: "init".into(),
+                amend: false,
+            },
+        )
+    })
+    .unwrap();
+    super::evict_cwd(t.path());
+
+    t.write(".gitignore", "ign.txt\n");
+    t.write("ign.txt", "secret\n");
+    t.write("ok.txt", "bye\n");
+
+    // ignored 路径即使显式传入也整体拒绝(git clean -f 同义),先校验后删
+    let e = String::from(
+        super::with_repo(t.path(), |r| {
+            super::index_ops::clean(r, vec!["ok.txt".into(), "ign.txt".into()])
+        })
+        .unwrap_err(),
+    );
+    assert!(e.contains("ignored"), "应拒 ignored: {e}");
+    assert!(t.dir.join("ign.txt").exists(), "ignored 文件不得删除");
+    assert!(t.dir.join("ok.txt").exists(), "整体拒绝,一个文件都不许少");
+
+    // 非 ignored 的 untracked 照常可删
+    super::with_repo(t.path(), |r| {
+        super::index_ops::clean(r, vec!["ok.txt".into()])
+    })
+    .unwrap();
+    super::evict_cwd(t.path());
+    assert!(
+        !t.dir.join("ok.txt").exists(),
+        "非 ignored untracked 应被删除"
+    );
+    assert!(t.dir.join("ign.txt").exists(), "ignored 文件仍不得删除");
+}

@@ -1,8 +1,8 @@
 /**
  * 宿主 —— 插件注册表 + 挂载点注册表 + 会话服务的装配点。
  * 内核不 import 任何插件;插件清单在 src/plugins/index.ts,main.tsx 启动激活。
- * 文件规模铁则拆分:守望主链路在 hostWatches.ts,ssh/shell/spawn 接线在
- * hostSessionServices.ts;本文件留注册表、查询门面与 PTY 生命周期公开语义。
+ * 文件规模铁则拆分:守望主链路在 hostWatches.ts,ssh/shell/spawn 接线在 hostSessionServices.ts;
+ * 本文件留注册表、查询门面与 PTY 生命周期公开语义。
  */
 
 import { useSyncExternalStore } from "react";
@@ -24,6 +24,9 @@ import type { SidebarAction } from "./sidebarActions";
 import { registerCommand } from "./shortcuts";
 import { registerHomePanel } from "./homePanels";
 import { registerCliConfig } from "./cliConfigRegistry";
+import { registerRemoteFileSource } from "./fileSources";
+import { registerWorkspaceOrigin } from "./workspaceOrigins";
+import { registerShellSpecProvider, registerSpecWrapper } from "./ptyAdapters";
 import { filterShadowSessions } from "./sessionShadowing";
 
 class Host implements PluginContext {
@@ -72,23 +75,20 @@ class Host implements PluginContext {
   );
 
   // ---- PluginContext 实现 -------------------------------------------------
-
-  registerCliProfile(profile: CliProfile): void {
-    this.registry.registerCliProfile(profile);
-  }
-
-  contribute(point: MountPoint, contribution: MountContribution): void {
-    this.registry.contribute(point, contribution);
-  }
+  registerCliProfile = (profile: CliProfile): void => this.registry.registerCliProfile(profile);
+  contribute = (point: MountPoint, c: MountContribution): void => this.registry.contribute(point, c);
   /* 注册表通道纯委托即可;sidebarAction 的无键位命令镜像逻辑在 hostRegistry(注释亦随迁)。 */
   registerSettingsSection = registerSettingsSection;
   registerFilePanel = registerFilePanel;
   registerTabContent = registerTabContent;
   registerMarketPanel = registerMarketPanel;
-  registerSidebarAction = (action: SidebarAction): void =>
-    this.registry.registerSidebarAction(action);
+  registerSidebarAction = (action: SidebarAction): void => this.registry.registerSidebarAction(action);
   registerFileVisual = registerFileVisual;
   registerCommand = registerCommand;
+  registerRemoteFileSource = registerRemoteFileSource;
+  registerWorkspaceOrigin = registerWorkspaceOrigin;
+  registerSpecWrapper = registerSpecWrapper;
+  registerShellSpecProvider = registerShellSpecProvider;
   registerHomePanel = registerHomePanel;
   registerCliConfig = registerCliConfig;
   // ---- 插件生命周期(委托 kernel/hostRegistry) ----------------------------

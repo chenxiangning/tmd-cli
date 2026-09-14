@@ -84,9 +84,6 @@ function stripAnsi(raw: string): string {
     "",
   );
 }
-
-
-
 /** 杀掉并清理当前 slot(强杀:TUI 忽略 SIGTERM);幂等。
  *  出生文件不在此清理:锁定窗(2s/5s)早已窄删,reap 期无「哪一个是出生文件」的
  *  安全判据,宁残留一个空会话文件也不宽删。 */
@@ -101,6 +98,15 @@ function reapSlot(kill: boolean): void {
   s.offExit();
   unmarkShadowSession(s.sessionId);
   if (kill) void ipc.sessionKill(s.sessionId).catch(() => undefined);
+}
+
+/** 补货调度:空闲回收/注入失败/预热进程退出后保持池不空;stop 会清 refillTimer。 */
+function scheduleRefill(cwd: string): void {
+  if (featureFused || refillTimer) return;
+  refillTimer = setTimeout(() => {
+    refillTimer = null;
+    void spawnPrewarm(cwd);
+  }, REFILL_DELAY_MS);
 }
 
 /** 出生文件锁定窗调度:两轮窄删(单新增且空才删),槽位被消费/回收后自然失效。 */
@@ -161,7 +167,7 @@ async function spawnPrewarm(cwd: string): Promise<void> {
           s.pendingFeature = undefined;
           p.resolve();
         }
-        if (slot === s) reapSlot(false); /* 已死无需 kill */
+        if (slot === s) { reapSlot(false); scheduleRefill(s.cwd); } /* 已死无需 kill */
       }),
     ]);
     s.offOutput = offOutput;
@@ -174,7 +180,7 @@ async function spawnPrewarm(cwd: string): Promise<void> {
       return;
     }
     s.reapTimer = setTimeout(() => {
-      if (slot === s && !s.acquired) reapSlot(true);
+      if (slot === s && !s.acquired) { reapSlot(true); scheduleRefill(s.cwd); }
     }, IDLE_REAP_MS);
     s.readyTimer = setTimeout(() => {
       s.readyTimer = undefined;
@@ -213,6 +219,7 @@ export async function ompAcquireResume(
   } catch {
     s.pendingFeature = undefined;
     reapSlot(true);
+    scheduleRefill(s.cwd);
     return null; /* 注入失败未移交:kernel 无 early,照旧回退冷路径 */
   }
   /* 注入已派发即移交:先解影子(否则 kernel setSessions 把它滤出会话表,
@@ -231,10 +238,7 @@ export async function ompAcquireResume(
     clearTimeout(s.readyTimer);
     clearTimeout(s.lockTimer);
     slot = null;
-    refillTimer = setTimeout(() => {
-      refillTimer = null;
-      void spawnPrewarm(cwd);
-    }, REFILL_DELAY_MS);
+    scheduleRefill(cwd);
   };
   if (s.dead) {
     return null; /* 进程死亡:exit 回调已清场(收尾幂等);kernel 侧 adopt

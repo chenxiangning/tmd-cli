@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { CaretDown, Check, GitBranch } from "@phosphor-icons/react";
+import { stringHue } from "@kernel/colorHash";
 import { setFilePanelMode, useFilePanel } from "@kernel/filePanel";
 import { ipc } from "@kernel/ipc";
 import {
@@ -20,14 +21,6 @@ import {
 } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { WorkspaceRowMenu } from "./WorkspaceRowMenu";
-
-/** 分支名稳定取 hue(与 files/FileTreeRow.branchHue 同式互指,改一侧须同步):
- *  同分支恒同色,与文件树分支标注观感一致。 */
-function branchHue(branch: string): number {
-  let h = 0;
-  for (let i = 0; i < branch.length; i++) h = (h * 31 + branch.charCodeAt(i)) % 360;
-  return h;
-}
 
 /** 当前分支 label:活动工作区根仓分支 → upstream(推送描述上顶,2026-09-14);
  *  非仓/detached(空串)不渲染。5s 失焦暂停轮询(对齐 gitDecorate / useGitStatus 策略)。 */
@@ -41,10 +34,13 @@ function GitBranchLabel({ root }: { root: string }) {
     const scan = () => {
       ipc.gitStatus(root).then(
         (s) => {
-          if (alive) setInfo({ branch: s.branch, upstream: s.upstream });
-        },
-        () => {
-          if (alive) setInfo({ branch: "", upstream: null });
+          if (!alive) return;
+          /* 值等不换对象:5s 轮询不空转重渲染(对齐 panelStore 的值等 emit 纪律)。 */
+          setInfo((prev) =>
+            prev.branch === s.branch && prev.upstream === s.upstream
+              ? prev
+              : { branch: s.branch, upstream: s.upstream },
+          );
         },
       );
     };
@@ -61,7 +57,7 @@ function GitBranchLabel({ root }: { root: string }) {
   return (
     <span
       className="titlebar-branch-label"
-      style={{ "--tag-h": branchHue(info.branch) } as React.CSSProperties}
+      style={{ "--tag-h": stringHue(info.branch) } as React.CSSProperties}
       title={info.upstream ? `${info.branch} → ${info.upstream}` : info.branch}
     >
       <GitBranch aria-hidden />
@@ -166,7 +162,11 @@ export function WorkspaceSwitcher() {
         title={active.root}
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
-          setWsMenu({ x: rect.left, y: rect.bottom + 4 });
+          /* 菜单 min-width 240:窄窗右缘夹取,防右侧(active Check 区)被裁(对齐 toggleOverflow)。 */
+          setWsMenu({
+            x: Math.max(12, Math.min(rect.left, window.innerWidth - 240 - 12)),
+            y: rect.bottom + 4,
+          });
         }}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -175,6 +175,7 @@ export function WorkspaceSwitcher() {
       >
         <span className="titlebar-ws-switch-text">{label}</span>
         <CaretDown aria-hidden />
+
       </button>
       <GitBranchLabel root={active.root} />
       {wsMenu ? (

@@ -1,0 +1,96 @@
+/* ──────────────────────────────────────────────────────────
+ * Right panel subbar + workspace menu —— 自 right-panel-toolbar.css 拆出(文件规模铁则)。
+ *
+ * 右栏底部:文件操作条(panel-subbar,新建/刷新/面板动作);
+ * 工作区下拉菜单(panel-ws-menu,菜单行是 button)。
+ * ────────────────────────────────────────────────────────── */
+
+/* ── 底部文件操作条 ── */
+.panel-subbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 24px;
+  padding: 2px 4px;
+  border-top: 1px solid var(--tmd-border);
+  background: var(--tmd-bg-base);
+  flex: 0 0 auto;
+}
+
+.panel-subbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+  opacity: 0;
+  /* opacity 不脱离命中测试:隐态必须禁点,防误触凭空弹命名框 */
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+/* 动作按钮默认隐藏,悬停/键盘聚焦底部条时显出(沿用旧顶部 subbar 逻辑) */
+.panel-subbar:hover .panel-subbar-actions,
+.panel-subbar:focus-within .panel-subbar-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.panel-subbar-action {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.panel-subbar-action:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+/* 面板专属动作按钮激活态(如文件树 Git 变更着色开关) */
+.panel-subbar-action.is-active {
+  color: var(--tmd-accent);
+}
+
+.panel-subbar-action svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  stroke-width: 1.75;
+}
+
+/* ── 工作区下拉菜单(WorkspaceSwitcher 专用形态) ── */
+.panel-overflow-item-check svg {
+  width: 0.6875rem;
+  height: 0.6875rem;
+  color: rgb(23, 23, 23);
+  stroke-width: 3;
+}
+
+.panel-ws-menu { max-height: 60vh; overflow-y: auto; }
+
+.panel-ws-item {
+  width: 100%;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.panel-ws-item svg { width: 0.75rem; height: 0.75rem; flex: 0 0 auto; color: var(--tmd-accent); }
+
+.panel-ws-menu-group {
+  padding: 6px 10px 2px;
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tmd-fg-faint);
+}

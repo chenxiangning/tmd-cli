@@ -104,7 +104,7 @@ export const cliPiPlugin: Plugin = {
       listSuggestions: listPiSuggestions,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       /* pi 与 kimi 同源 pi-tui:编辑器原生解析 ESC[200~ 粘贴标记;声明后 composer
-         发送走 bracketed paste,避开新版 TUI 的粘贴爆发回车吞没(见 kernel/cli.ts) */
+         发送走 bracketed paste,避开新版 TUI 的粘贴爆发回车吞没(见 kernel/cliProfile.ts) */
       bracketedPaste: true,
       ...piSessions,
       readDefaultStatus: readPiDefaultStatus,

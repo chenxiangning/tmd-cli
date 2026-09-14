@@ -38,6 +38,8 @@ mod tests_common;
 #[cfg(test)]
 mod tests_flow;
 #[cfg(test)]
+mod tests_pull;
+#[cfg(test)]
 mod tests_remote_dialog;
 #[cfg(test)]
 mod tests_repos_scan;

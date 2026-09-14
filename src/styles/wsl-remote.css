@@ -169,9 +169,6 @@
   color: var(--tmd-fg-faint);
   cursor: default;
 }
-.wsl-dir-row.on {
-  background: var(--tmd-accent-soft);
-}
 
 /* ---- 手动添加主机表单 ---- */
 .wsl-host-form {

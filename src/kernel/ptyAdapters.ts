@@ -17,7 +17,7 @@
 import type { SpawnSpec } from "./ipc";
 import type { Workspace } from "./workspace";
 
-type SpecWrapper = (spec: SpawnSpec) => Promise<SpawnSpec>;
+export type SpecWrapper = (spec: SpawnSpec) => Promise<SpawnSpec>;
 
 let wrappers: SpecWrapper[] = [];
 
@@ -38,7 +38,7 @@ export async function applySpecWrappers(spec: SpawnSpec): Promise<SpawnSpec> {
   return out;
 }
 
-interface ShellSpecProvider {
+export interface ShellSpecProvider {
   /** 该提供者服务哪些工作区(首个命中者接管内置终端 spec 构建)。 */
   appliesTo(ws: Workspace): boolean;
   /** 标题等展示语义由提供者自决(kernel 不注入来源专属串)。 */

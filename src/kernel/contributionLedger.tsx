@@ -150,6 +150,27 @@ export function makeAttributedCtx(
       ctx.registerCliConfig(entry);
       track(() => removeCliConfig(entry.id));
     },
+    /* 来源注册表 register* 原生返回退订函数:入账并原样透传,拔插零残留。 */
+    registerRemoteFileSource(source) {
+      const off = ctx.registerRemoteFileSource(source);
+      track(off);
+      return off;
+    },
+    registerWorkspaceOrigin(origin) {
+      const off = ctx.registerWorkspaceOrigin(origin);
+      track(off);
+      return off;
+    },
+    registerSpecWrapper(wrapper) {
+      const off = ctx.registerSpecWrapper(wrapper);
+      track(off);
+      return off;
+    },
+    registerShellSpecProvider(provider) {
+      const off = ctx.registerShellSpecProvider(provider);
+      track(off);
+      return off;
+    },
   };
   return attributed;
 }

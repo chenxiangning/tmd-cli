@@ -7,6 +7,7 @@
  * 点击文件行在左侧文件开启容器(编辑器区)打开提交 diff tab。
  * 分页沿用:滚动近底自动 loadMore。
  */
+import { stringHue } from "@kernel/colorHash";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
@@ -43,18 +44,14 @@ type HistoryRow =
 
 const ROW_CLASS =
   "flex h-[22px] w-full min-w-0 select-none items-center gap-1 px-1.5 text-left text-xs";
-/** 提交行双行(参考 codemoss:摘要 + sha·作者·时间),行高自适应内容。 */
+/* h-10 钉 40px(--spacing 钉 4px 不随根字号):与 offsets 前缀和常数同源,
+   uiFontSize≠16 时虚拟滚动不错位;溢出裁切是大字号下的取舍。 */
 const COMMIT_ROW_CLASS =
-  "flex w-full min-w-0 select-none items-center gap-1 px-1.5 py-1 text-left text-xs";
+  "flex h-10 w-full min-w-0 select-none items-center gap-1 overflow-hidden px-1.5 py-1 text-left text-xs";
 
-/** 作者头像 hue:邮箱稳定散列(与分支着色同思路),本地生成不联网。 */
-function authorHue(email: string): number {
-  let h = 0;
-  for (let i = 0; i < email.length; i++) h = (h * 31 + email.charCodeAt(i)) % 360;
-  return h;
-}
 
 /* 行高确定性:提交行双行 40px,其余(marker/file/反馈行)22px —— 窗口化免测量。 */
+/* 作者头像 hue:邮箱稳定散列(kernel stringHue 单点,与分支着色同源)。 */
 
 
 /** 首个前缀和 >= y 的下界(二分)。 */
@@ -283,8 +280,8 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
                   <span
                     className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full text-[0.5rem] font-semibold uppercase"
                     style={{
-                      color: `hsl(${authorHue(row.commit.authorEmail)} 60% 62%)`,
-                      background: `hsl(${authorHue(row.commit.authorEmail)} 50% 55% / 0.18)`,
+                      color: `color-mix(in srgb, hsl(${stringHue(row.commit.authorEmail)} 60% 62%) 70%, var(--tmd-fg))`,
+                      background: `hsl(${stringHue(row.commit.authorEmail)} 50% 55% / 0.18)`,
                     }}
                     aria-hidden
                   >

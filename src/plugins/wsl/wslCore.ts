@@ -170,3 +170,16 @@ export function parseRemoteWslFile(path: string): RemoteWslFileRef | null {
 export function remoteWslFileUri(hostId: string, distro: string, linuxPath: string): string {
   return `${WSLR_SCHEME}${hostId}/${distro}/${linuxPath}`;
 }
+
+/** 波浪路径拼接:~ 特判 + 尾斜杠折叠(wsl 插件内唯一定义,四处共用)。 */
+export function joinWslPath(base: string, name: string): string {
+  if (base === "~") return `~/${name}`;
+  return `${base.replace(/\/+$/, "")}/${name}`;
+}
+
+/** 波浪路径上一级:~ 与 / 恒等自身; rooted 段剥尾段,空壳回落 /。 */
+export function parentWslPath(p: string): string {
+  if (p === "~" || p === "/") return p;
+  const up = p.replace(/\/[^/]+$/, "");
+  return up === "" ? "/" : up;
+}

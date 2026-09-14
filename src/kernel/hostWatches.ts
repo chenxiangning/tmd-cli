@@ -145,7 +145,7 @@ export class HostWatches {
 
     /* AskWatch 升级 → askDetected + 标签;ActivityWatch 回绿;EditWatch → fileEditDetected。
        notify 单次:ask 升级与回绿共享同一渲染节拍。visible 供家具分类;busyMarks
-       行级命中(CLI 自证在途,契约见 kernel/cli.ts),仅对已锚定会话计算。 */
+       行级命中(CLI 自证在途,契约见 kernel/cliProfile.ts),仅对已锚定会话计算。 */
     const asked = this.askWatch.onOutput(sessionId, text, chunkBytes);
     const visible = stripAnsi(text);
     const profile = session ? this.ctx.getCliProfile(session.profileId) : undefined;

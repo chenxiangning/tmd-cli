@@ -29,7 +29,7 @@ export interface FilePanelContribution {
   icon: FilePanelIcon;
   /** 面板内容组件(激活时整栏渲染)。 */
   component: ComponentType;
-  /** 顶栏嵌入段(激活时渲染在 panel tabs 左侧,对齐 codemoss 单行顶栏);
+  /** 顶栏嵌入段(激活时渲染在 panel tabs 之后、⋯ 之前,对齐 codemoss 单行顶栏);
    *  与 component 是两棵组件树,共享状态须走插件内模块级 store。 */
   toolbar?: ComponentType;
   /** 面板数据刷新(可选):外壳刷新按钮点击时调用;返回 Promise 则按钮转到 settle。

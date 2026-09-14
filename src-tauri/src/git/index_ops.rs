@@ -4,13 +4,20 @@
 //! 单次调用内多文件一次 index.write() 原子落盘。
 
 use git2::Repository;
+use std::io::Write;
 use std::path::{Component, Path};
+use std::process::{Command, Stdio};
 
 use super::{fresh_index, GitError};
-/// 纵深防御:拒绝对路径与 `..` 分量(调用方是受信前端,但五条写路径统一校验)。
+
+/// 纵深防御:拒绝对路径、`..` 分量与 Windows 盘符前缀分量(调用方是受信前端,但五条写路径统一校验)。
 fn validate_rel_path(p: &str) -> Result<(), GitError> {
     let rel = Path::new(p);
-    if rel.is_absolute() || rel.components().any(|c| matches!(c, Component::ParentDir)) {
+    if rel.is_absolute()
+        || rel
+            .components()
+            .any(|c| matches!(c, Component::ParentDir | Component::Prefix(_)))
+    {
         return Err(GitError::empty(format!("非法路径: {p}")));
     }
     Ok(())
@@ -88,6 +95,8 @@ pub fn discard(repo: &Repository, paths: Vec<String>) -> Result<(), GitError> {
 /// - tracked = index 任意 stage(stage 1-3 = merge 冲突态,该态无 stage 0 条目);
 /// - 盘上存在的路径 canonicalize 后必须落在仓内(中间符号链接分量逃逸),
 ///   并以 canonical 相对路径重查 index(igcase 卷上的大小写变体);
+/// - ignored 路径拒绝:≡ `git clean -f`(无 -x)即使显式 pathspec 也不删 ignored,
+///   判定交权威源 `git check-ignore`(汇总 .gitignore/.git/info/exclude/全局排除);
 /// - 盘上已不存在的路径按幂等成功跳过(重复清理/竞态删除皆无副作用)。
 pub fn clean(repo: &Repository, paths: Vec<String>) -> Result<(), GitError> {
     if paths.is_empty() {
@@ -101,6 +110,7 @@ pub fn clean(repo: &Repository, paths: Vec<String>) -> Result<(), GitError> {
         .ok_or(GitError::empty("bare repo 不支持 clean"))?;
     let index = fresh_index(repo)?;
     let canon_root = workdir.canonicalize()?;
+    reject_ignored(workdir, &paths)?;
     for p in &paths {
         let rel = Path::new(p);
         if rel
@@ -147,6 +157,37 @@ pub fn clean(repo: &Repository, paths: Vec<String>) -> Result<(), GitError> {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound || p.ends_with('/') => {}
             Err(e) => return Err(GitError::empty(format!("删除失败 {p}: {e}"))),
         }
+    }
+    Ok(())
+}
+
+/// 批量查 ignore 规则:任一目标被 ignore 即整体拒绝(先校验后删的组成部分)。
+/// 输入输出均 NUL 分隔(`-z`),路径含换行也正确;git 无匹配时退出码 1,正常读取。
+fn reject_ignored(workdir: &Path, paths: &[String]) -> Result<(), GitError> {
+    let mut cmd = Command::new("git");
+    cmd.current_dir(workdir)
+        .args(["check-ignore", "--stdin", "-z"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    crate::resolve::hide_console(&mut cmd);
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| GitError::empty(format!("check-ignore 启动失败: {e}")))?;
+    let input = paths
+        .iter()
+        .map(|p| p.trim_end_matches('/'))
+        .collect::<Vec<_>>()
+        .join("\0");
+    child.stdin.take().unwrap().write_all(input.as_bytes())?;
+    let out = child.wait_with_output()?;
+    let hit = String::from_utf8_lossy(&out.stdout);
+    let ignored: Vec<&str> = hit.split('\0').filter(|s| !s.is_empty()).collect();
+    if !ignored.is_empty() {
+        return Err(GitError::empty(format!(
+            "拒绝删除 ignored 路径(≡ git clean 不删 ignored): {}",
+            ignored.join(", ")
+        )));
     }
     Ok(())
 }

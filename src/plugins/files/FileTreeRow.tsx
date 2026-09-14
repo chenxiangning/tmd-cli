@@ -11,13 +11,11 @@ import type { DirEntry } from "@kernel/ipc";
 import { clearDragPayload, setDragPayload } from "@kernel/internalDrag";
 import { t } from "@kernel/i18n";
 import { resolveFileVisual } from "@kernel/fileVisual";
+import { stringHue } from "@kernel/colorHash";
 
 /** 分支名稳定取 hue:同一分支恒同色(main / sit-p2 一眼可分);tag 去掉「类型 · 」前缀取分支段。 */
 function branchHue(tag: string): number {
-  let h = 0;
-  const branch = tag.split(" · ").pop() ?? tag;
-  for (let i = 0; i < branch.length; i++) h = (h * 31 + branch.charCodeAt(i)) % 360;
-  return h;
+  return stringHue(tag.split(" · ").pop() ?? tag);
 }
 
 function handleDragEnd() {

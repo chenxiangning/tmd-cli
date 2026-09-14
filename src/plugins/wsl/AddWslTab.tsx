@@ -11,19 +11,8 @@ import { ipc, type WslDistro, type WslDirEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { addWorkspace } from "@kernel/workspace";
 import type { WorkspaceOriginAddTabProps } from "@kernel/workspaceOrigins";
-import { wslToUnc, wslWorkspaceTargetOk } from "./wslCore";
+import { joinWslPath, parentWslPath, wslToUnc, wslWorkspaceTargetOk } from "./wslCore";
 import { useSettingsState } from "@kernel/settings";
-
-function joinPath(base: string, name: string): string {
-  if (base === "~") return `~/${name}`;
-  return `${base.replace(/\/+$/, "")}/${name}`;
-}
-
-function parentOf(p: string): string {
-  if (p === "~" || p === "/") return p;
-  const up = p.replace(/\/[^/]+$/, "");
-  return up === "" ? "/" : up;
-}
 
 export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
   const { settings } = useSettingsState();
@@ -102,7 +91,7 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
       {distro && (
         <div className="wsl-dir-browser">
           <div className="wsl-dir-crumb">
-            <button type="button" className="wsl-btn ghost" onClick={() => loadDir(dir === "~" ? "~" : parentOf(dir))}>
+            <button type="button" className="wsl-btn ghost" onClick={() => loadDir(dir === "~" ? "~" : parentWslPath(dir))}>
               {t("上一级")}
             </button>
             <code title={dir}>{dir}</code>
@@ -123,7 +112,7 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
                 return (
                   <>
                     {dirs.map((e) => (
-                      <button key={e.name} type="button" className="wsl-dir-row" onClick={() => loadDir(joinPath(dir, e.name))}>
+                      <button key={e.name} type="button" className="wsl-dir-row" onClick={() => loadDir(joinWslPath(dir, e.name))}>
                         {e.name}/
                       </button>
                     ))}

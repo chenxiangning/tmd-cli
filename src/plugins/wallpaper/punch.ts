@@ -112,7 +112,6 @@ function restore(): void {
   originals.clear();
   root.style.removeProperty(WASH_TOKEN);
   applied = false;
-  delete root.dataset.wallpaper;
 }
 
 /**
@@ -121,10 +120,8 @@ function restore(): void {
  */
 export function applyWallpaperPunch(next: boolean): void {
   if (typeof document === "undefined") return;
-  const root = document.documentElement;
   if (next) {
     active = true;
-    root.dataset.wallpaper = "on";
     if (!applied) {
       snapshotAndApply();
       /* 活幕布的 xterm theme 是挂载期快照,打穿改了 --tmd-terminal-bg 要喊一声重读。 */

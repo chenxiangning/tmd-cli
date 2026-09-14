@@ -8,19 +8,8 @@ import { useState } from "react";
 import type { WslDistro, WslDirEntry } from "@kernel/ipc";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
-import { wslToUnc, wslWorkspaceTargetOk } from "./wslCore";
+import { joinWslPath, parentWslPath, wslToUnc, wslWorkspaceTargetOk } from "./wslCore";
 import { addWorkspace } from "@kernel/workspace";
-
-function joinPath(base: string, name: string): string {
-  if (base === "~") return `~/${name}`;
-  return `${base.replace(/\/+$/, "")}/${name}`;
-}
-
-function parentOf(p: string): string {
-  if (p === "~" || p === "/") return p;
-  const up = p.replace(/\/[^/]+$/, "");
-  return up === "" ? "/" : up;
-}
 
 /** 目录浏览小面板:懒加载逐级进入,选中 = 回填路径输入。 */
 function DirBrowser({ distro, onPick }: { distro: string; onPick: (path: string) => void }) {
@@ -42,7 +31,7 @@ function DirBrowser({ distro, onPick }: { distro: string; onPick: (path: string)
   return (
     <div className="wsl-dir-browser">
       <div className="wsl-dir-crumb">
-        <button type="button" className="wsl-btn ghost" onClick={() => load(parentOf(dir))}>
+        <button type="button" className="wsl-btn ghost" onClick={() => load(parentWslPath(dir))}>
           {t("上一级")}
         </button>
         <code title={dir}>{dir}</code>
@@ -60,7 +49,7 @@ function DirBrowser({ distro, onPick }: { distro: string; onPick: (path: string)
         <div className="wsl-dir-list">
           {entries.map((e) =>
             e.isDir ? (
-              <button key={e.name} type="button" className="wsl-dir-row" onClick={() => load(joinPath(dir, e.name))}>
+              <button key={e.name} type="button" className="wsl-dir-row" onClick={() => load(joinWslPath(dir, e.name))}>
                 {e.name}/
               </button>
             ) : (

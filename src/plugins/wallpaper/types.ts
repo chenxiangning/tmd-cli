@@ -239,7 +239,7 @@ export function cssObjectFit(fit: WallpaperFit): React.CSSProperties["objectFit"
   return fit === "center" ? "none" : fit;
 }
 
-/** 新库条目 id:毫秒时间戳 + 随机段(36 进制,落在 WALLPAPER_ID_RE 内)。 */
+/** 新库条目 id:毫秒时间戳 + 随机段(36 进制,不含「|」与控制字符,过 WALLPAPER_ID_FORBIDDEN_RE 校验)。 */
 export function newWallpaperId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }

@@ -108,7 +108,10 @@ pub fn run(
 pub(super) fn exec_pull(repo: &Repository, cwd: &str, args: &[String]) -> Result<String, GitError> {
     match exec_git(repo, cwd, args) {
         Ok(out) => Ok(out),
-        Err(GitError::Shell(s)) if s.contains("divergent branches") => {
+        Err(GitError::Shell(s))
+            if args.first().map(String::as_str) == Some("pull")
+                && s.contains("divergent branches") =>
+        {
             let mut retry = args.to_vec();
             retry.insert(1, "--rebase".into());
             match exec_git(repo, cwd, &retry) {
@@ -117,7 +120,15 @@ pub(super) fn exec_pull(repo: &Repository, cwd: &str, args: &[String]) -> Result
                     let _ = exec_git(repo, cwd, &["rebase".into(), "--abort".into()]);
                     // abort 基本必成(工作区在 rebase 启动时已被 git 保证干净);
                     // 万一残留中间态,文案必须如实,引导用户手动 abort。
-                    let aborted = !std::path::Path::new(cwd).join(".git/rebase-merge").exists();
+                    // 探测两个 rebase 后端目录;.git 是文件(linked worktree/submodule)时
+                    // 本地拼路径不可靠,按「未确认恢复」处理,给 fallback 文案。
+                    let dotgit = std::path::Path::new(cwd).join(".git");
+                    let aborted = if dotgit.is_dir() {
+                        !dotgit.join("rebase-merge").exists()
+                            && !dotgit.join("rebase-apply").exists()
+                    } else {
+                        false
+                    };
                     if aborted {
                         Err(GitError::empty(
                             "拉取有冲突:已中止并恢复原状,未改动任何文件;请到幕布终端执行 git pull 自行解决冲突",
