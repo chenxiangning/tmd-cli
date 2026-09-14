@@ -4,7 +4,7 @@
  * label 点击弹工作区下拉(portal 挂 document.body + fixed 定位,复用 panel-overflow
  * 样式),行点击 = setActiveWorkspace 切换;下拉器/行右键 = 合并菜单(见
  * WorkspaceRowMenu.tsx);菜单内「新建文件/文件夹」经 files 面板句柄槽转发。
- * 选择器后随当前 git 分支 label(GitBranchLabel,数据自取 ipc,不跨插件)。
+ * GitBranchLabel 不随本组件:由 TopBar 中区右缘挂(TitlebarBranchLabel 自取活动工作区)。
  */
 
 import { useEffect, useState } from "react";
@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 import { CaretDown, Check, GitBranch } from "@phosphor-icons/react";
 import { stringHue } from "@kernel/colorHash";
 import { setFilePanelMode, useFilePanel } from "@kernel/filePanel";
+import { resolveBranchCwd, useGitViewRepo } from "@kernel/gitViewRepo";
 import { ipc } from "@kernel/ipc";
 import {
   setActiveWorkspace,
@@ -22,17 +23,22 @@ import {
 import { t } from "@kernel/i18n";
 import { WorkspaceRowMenu } from "./WorkspaceRowMenu";
 
-/** 当前分支 label:活动工作区根仓分支 → upstream(推送描述上顶,2026-09-14);
+/** 当前分支 label:优先 git 面板解析出的选中仓(@kernel/gitViewRepo 跨层契约,
+ *  多仓工作区根常非仓,须跟随面板正在查看的仓),回退工作区根(单仓=根仓);
  *  非仓/detached(空串)不渲染。5s 失焦暂停轮询(对齐 gitDecorate / useGitStatus 策略)。 */
-function GitBranchLabel({ root }: { root: string }) {
+function GitBranchLabel({ workspaceId, root }: { workspaceId: string; root: string }) {
+  const cwd = resolveBranchCwd(useGitViewRepo(), workspaceId, root);
   const [info, setInfo] = useState<{ branch: string; upstream: string | null }>({
     branch: "",
     upstream: null,
   });
   useEffect(() => {
     let alive = true;
+    /* 换根即清:多仓工作区根常非仓( discover 向上找不到 .git 即拒),
+     * 无拒绝分支时旧工作区分支会永远滞留(2026-09-15 实证 bug)。 */
+    setInfo((prev) => (prev.branch === "" ? prev : { branch: "", upstream: null }));
     const scan = () => {
-      ipc.gitStatus(root).then(
+      ipc.gitStatus(cwd).then(
         (s) => {
           if (!alive) return;
           /* 值等不换对象:5s 轮询不空转重渲染(对齐 panelStore 的值等 emit 纪律)。 */
@@ -41,6 +47,9 @@ function GitBranchLabel({ root }: { root: string }) {
               ? prev
               : { branch: s.branch, upstream: s.upstream },
           );
+        },
+        () => {
+          if (alive) setInfo((prev) => (prev.branch === "" ? prev : { branch: "", upstream: null }));
         },
       );
     };
@@ -52,7 +61,7 @@ function GitBranchLabel({ root }: { root: string }) {
       alive = false;
       window.clearInterval(id);
     };
-  }, [root]);
+  }, [cwd]);
   if (!info.branch) return null;
   return (
     <span
@@ -65,6 +74,14 @@ function GitBranchLabel({ root }: { root: string }) {
       {info.upstream && <span className="titlebar-branch-label-up">→ {info.upstream}</span>}
     </span>
   );
+}
+
+/** 顶栏分支 label 挂点:TopBar 中区右缘渲染(2026-09-14 用户口径),自取活动工作区。 */
+export function TitlebarBranchLabel() {
+  const { list, activeId } = useWorkspaces();
+  const active = list.find((w) => w.id === activeId) ?? list[0];
+  if (!active) return null;
+  return <GitBranchLabel workspaceId={active.id} root={active.root} />;
 }
 
 /** 工作区切换下拉:fixed 菜单列出全部工作区,行点击切换激活。 */
@@ -177,7 +194,6 @@ export function WorkspaceSwitcher() {
         <CaretDown aria-hidden />
 
       </button>
-      <GitBranchLabel root={active.root} />
       {wsMenu ? (
         <WorkspaceSwitchMenu
           workspaces={list}

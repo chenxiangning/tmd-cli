@@ -4,7 +4,8 @@
  * 本文件只留多仓语境解析与空态守卫(no-high-complexity 降分支 + 文件规模铁则)。
  */
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
+import { setGitViewRepo } from "@kernel/gitViewRepo";
 import { useWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { useGitRepos } from "./hooks/useGitRepos";
@@ -32,6 +33,13 @@ export function GitPanel() {
     },
     [active],
   );
+  /* 顶栏分支 label 数据源(跨层契约 @kernel/gitViewRepo):解析后的选中仓
+   * 同步给 shell;guide 档未点选 selectedPath=null,label 回退工作区根。 */
+  const wsId = active?.id ?? null;
+  const selectedPath = repoCtx.selectedPath;
+  useEffect(() => {
+    if (wsId) setGitViewRepo({ workspaceId: wsId, cwd: selectedPath });
+  }, [wsId, selectedPath]);
 
   const data = useGitPanelData(cwd, refreshRepos);
   const remote = useGitPanelRemote(cwd, data.afterMutation);

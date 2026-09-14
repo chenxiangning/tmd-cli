@@ -26,8 +26,13 @@
   transition: background 120ms ease, color 120ms ease;
 }
 
-/* 面板 tabs 恒钉右区右缘:选择器/分支 label 依次靠左排,余量全落在 tabs 前。 */
+/* 面板 tabs 恒钉右区右缘:工作区选择器靠左一组,余量全落在 tabs 前。 */
 .titlebar-actions .panel-tabs-row {
+  margin-left: auto;
+}
+
+/* 分支 label 改挂中区右缘(2026-09-14 用户口径):auto margin 吸右,贴右区竖线。 */
+.titlebar-center .titlebar-branch-label {
   margin-left: auto;
 }
 
@@ -49,7 +54,7 @@
   flex: 0 0 auto;
 }
 
-/* ── 顶栏当前分支 label(选择器之后,只读;着色与文件树分支标注同源 --tag-h) ── */
+/* ── 顶栏当前分支 label(选择器之前,只读;着色与文件树分支标注同源 --tag-h) ── */
 .titlebar-branch-label {
   display: inline-flex;
   align-items: center;
