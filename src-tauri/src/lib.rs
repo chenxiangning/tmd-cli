@@ -228,6 +228,8 @@ pub fn run() {
             git::commands::git_remotes,
             git::commands::git_push_preview,
             git::commands::git_remote_request,
+            git::commands_pr::git_pr_defaults,
+            git::commands_pr::git_pr_run,
             git::commands::git_smart_checkout,
             git::commands::git_smart_checkout_undo,
             quota::quota_fetch,

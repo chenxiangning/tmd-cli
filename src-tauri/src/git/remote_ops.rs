@@ -29,11 +29,11 @@ const REMOTE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 const REMOTE_POLL: std::time::Duration = std::time::Duration::from_millis(200);
 /// 退出后管道排空等待上限:git 的 ssh 孙进程(ControlMaster/GCM)可能
 /// 握管道写端不撒手,join/无限等会把锁拖到孙进程消亡。
-const PIPE_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+pub(super) const PIPE_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// 排空子进程管道并把结果发回 channel(独立线程):防子进程写满管道缓冲
 /// 自我阻塞。不 join:收集端 recv_timeout 兜底(超时/放弃路径直接丢接收端)。
-fn drain_pipe<R: std::io::Read + Send + 'static>(
+pub(super) fn drain_pipe<R: std::io::Read + Send + 'static>(
     pipe: Option<R>,
 ) -> std::sync::mpsc::Receiver<Vec<u8>> {
     let (tx, rx) = std::sync::mpsc::channel();

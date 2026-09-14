@@ -69,6 +69,10 @@ import type {
   GitDiffStatus,
   GitFilePatch,
   GitLogEntry,
+  GitPrDefaults,
+  GitPrRequest,
+  GitPrStage,
+  GitPrWorkflowResult,
   GitPushPreview,
   GitRemoteRequest,
   GitRepoScanResult,
@@ -502,6 +506,11 @@ export const ipc = {
   /** 远端对话框结构化请求(带选项);pull 移动 HEAD。 */
   gitRemoteRequest: (cwd: string, req: GitRemoteRequest) =>
     invoke<string>("git_remote_request", { cwd, req }),
+  /** 创建 PR defaults(upstream/origin 解析 + 模板兜底;不可创建时带人话原因)。 */
+  gitPrDefaults: (cwd: string) => invoke<GitPrDefaults>("git_pr_defaults", { cwd }),
+  /** 创建 PR 四步工作流(precheck→push→createPr→comment);阶段经 git://pr-stage 实时推送。 */
+  gitPrRun: (cwd: string, req: GitPrRequest) =>
+    invoke<GitPrWorkflowResult>("git_pr_run", { cwd, req }),
   /** 「暂存并切换」(IDEA Smart Checkout):脏工作区 stash -u → 切换 → pop,
    *  pop 冲突时切换已生效、stash 保留;remote = 检出远程分支版。 */
   gitSmartCheckout: (cwd: string, name: string, remote: boolean) =>
@@ -880,4 +889,9 @@ export function onSshPrompt(sessionId: string, cb: (e: SshPromptEvent) => void) 
 /** 订阅 SFTP 传输进度/终态(全局通道,按 payload.transfer.sessionId 归属)。 */
 export function onSftpEvent(cb: (e: SftpEventPayload) => void) {
   return listen<SftpEventPayload>("ssh://sftp", (ev) => cb(ev.payload));
+}
+
+/** 订阅创建 PR 工作流的阶段进度(全局通道;四卡实时点亮)。 */
+export function onGitPrStage(cb: (stages: GitPrStage[]) => void) {
+  return listen<GitPrStage[]>("git://pr-stage", (ev) => cb(ev.payload));
 }

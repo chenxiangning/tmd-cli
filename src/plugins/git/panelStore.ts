@@ -19,7 +19,7 @@ interface GitAggregate {
   fileCount: number;
 }
 
-type RemoteDialogOp = "push" | "pull" | "fetch";
+export type RemoteDialogOp = "push" | "pull" | "fetch" | "pr";
 
 
 interface GitPanelState {

@@ -103,6 +103,8 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   gitRemotes: "ipc.git",
   gitPushPreview: "ipc.git",
   gitRemoteRequest: "ipc.git",
+  gitPrDefaults: "ipc.git",
+  gitPrRun: "ipc.git",
   gitSmartCheckout: "ipc.git",
   gitSmartCheckoutUndo: "ipc.git",
 
