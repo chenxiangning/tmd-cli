@@ -47,6 +47,35 @@
   flex: 0 0 auto;
 }
 
+/* ── 顶栏当前分支 label(选择器之后,只读;着色与文件树分支标注同源 --tag-h) ── */
+.titlebar-branch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 25%;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: color-mix(in srgb, hsl(var(--tag-h, 0) 60% 62%) 70%, var(--tmd-fg));
+  background: hsl(var(--tag-h, 0) 50% 55% / 0.1);
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.titlebar-branch-label-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titlebar-branch-label svg {
+  width: 0.625rem;
+  height: 0.625rem;
+  flex: 0 0 auto;
+}
+
 .panel-tabs-row {
   display: flex;
   align-items: center;

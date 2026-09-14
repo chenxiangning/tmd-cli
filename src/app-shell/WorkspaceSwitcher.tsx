@@ -4,12 +4,14 @@
  * label 点击弹工作区下拉(portal 挂 document.body + fixed 定位,复用 panel-overflow
  * 样式),行点击 = setActiveWorkspace 切换;下拉器/行右键 = 合并菜单(见
  * WorkspaceRowMenu.tsx);菜单内「新建文件/文件夹」经 files 面板句柄槽转发。
+ * 选择器后随当前 git 分支 label(GitBranchLabel,数据自取 ipc,不跨插件)。
  */
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { CaretDown, Check } from "@phosphor-icons/react";
+import { CaretDown, Check, GitBranch } from "@phosphor-icons/react";
 import { setFilePanelMode, useFilePanel } from "@kernel/filePanel";
+import { ipc } from "@kernel/ipc";
 import {
   setActiveWorkspace,
   useWorkspaces,
@@ -18,6 +20,52 @@ import {
 } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { WorkspaceRowMenu } from "./WorkspaceRowMenu";
+
+/** 分支名稳定取 hue(与 files/FileTreeRow.branchHue 同式互指,改一侧须同步):
+ *  同分支恒同色,与文件树分支标注观感一致。 */
+function branchHue(branch: string): number {
+  let h = 0;
+  for (let i = 0; i < branch.length; i++) h = (h * 31 + branch.charCodeAt(i)) % 360;
+  return h;
+}
+
+/** 当前分支 label:活动工作区根仓分支;非仓/detached(空串)不渲染。
+ *  5s 失焦暂停轮询(对齐 gitDecorate / git 插件 useGitStatus 策略)。 */
+function GitBranchLabel({ root }: { root: string }) {
+  const [branch, setBranch] = useState("");
+  useEffect(() => {
+    let alive = true;
+    const scan = () => {
+      ipc.gitStatus(root).then(
+        (s) => {
+          if (alive) setBranch(s.branch);
+        },
+        () => {
+          if (alive) setBranch("");
+        },
+      );
+    };
+    scan();
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") scan();
+    }, 5_000);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [root]);
+  if (!branch) return null;
+  return (
+    <span
+      className="titlebar-branch-label"
+      style={{ "--tag-h": branchHue(branch) } as React.CSSProperties}
+      title={branch}
+    >
+      <GitBranch aria-hidden />
+      <span className="titlebar-branch-label-text">{branch}</span>
+    </span>
+  );
+}
 
 /** 工作区切换下拉:fixed 菜单列出全部工作区,行点击切换激活。 */
 function WorkspaceSwitchMenu({
@@ -124,6 +172,7 @@ export function WorkspaceSwitcher() {
         <span className="titlebar-ws-switch-text">{label}</span>
         <CaretDown aria-hidden />
       </button>
+      <GitBranchLabel root={active.root} />
       {wsMenu ? (
         <WorkspaceSwitchMenu
           workspaces={list}

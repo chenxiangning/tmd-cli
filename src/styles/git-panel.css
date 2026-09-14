@@ -43,12 +43,14 @@
 }
 
 /* 文件树仓根行的分支标注(原型 repotag:9.5px 边框圆角) */
+/* 分支标注着色:--tag-h 由 FileTreeRow 按分支名稳定计算;color-mix 混 fg 明暗自适应。 */
 .file-tree-repotag {
   flex: none;
   font-size: 0.59375rem;
   line-height: 1.4;
-  color: var(--tmd-fg-faint);
-  border: 1px solid var(--tmd-border);
+  color: color-mix(in srgb, hsl(var(--tag-h, 0) 60% 62%) 70%, var(--tmd-fg));
+  border: 1px solid hsl(var(--tag-h, 0) 45% 55% / 0.45);
+  background: hsl(var(--tag-h, 0) 50% 55% / 0.1);
   border-radius: 3px;
   padding: 0 4px;
   white-space: nowrap;
