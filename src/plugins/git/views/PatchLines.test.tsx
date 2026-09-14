@@ -39,13 +39,14 @@ describe("PatchLines", () => {
   });
 
   it("自动换行默认开,关闭后正文切 whitespace-pre", () => {
-    const wrapped = renderToStaticMarkup(createElement(PatchLines, { text: PATCH }));
-    expect(wrapped).toContain("whitespace-pre-wrap break-all");
     setGitDiffWrap(false);
     try {
       const nowrap = renderToStaticMarkup(createElement(PatchLines, { text: PATCH }));
       expect(nowrap).not.toContain("whitespace-pre-wrap");
       expect(nowrap).toContain("whitespace-pre ");
+      const splitNowrap = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
+      // 双栏 nowrap:列宽随内容(max-content),超宽由 <pre> 横向滚动承接
+      expect(splitNowrap).toContain("grid-cols-[repeat(2,minmax(max-content,1fr))]");
     } finally {
       setGitDiffWrap(true); // 模块级单例,回置防串其他用例
     }

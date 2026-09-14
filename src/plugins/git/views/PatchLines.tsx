@@ -23,7 +23,8 @@ const ROW_CLS: Record<PatchRow["kind"], string> = {
 const GUTTER_CLS =
   "min-w-[2.5rem] shrink-0 select-none pr-1.5 text-right tabular-nums text-(--tmd-fg-faint)";
 const CONTENT_WRAP_CLS = "min-w-0 flex-1 whitespace-pre-wrap break-all pl-2";
-const CONTENT_NOWRAP_CLS = "min-w-0 flex-1 whitespace-pre pl-2";
+/* 关闭换行:正文不收缩(shrink-0),行宽随内容撑出 <pre> 的横向滚动区。 */
+const CONTENT_NOWRAP_CLS = "shrink-0 whitespace-pre pl-2";
 
 /** diff 行稳定 key:种类 + 旧/新行号 + 内容(同号重行以内容区分,索引 key 清零用)。 */
 function patchRowKey(row: PatchRow): string {
@@ -72,7 +73,12 @@ function SplitRows({ rows, wrap }: { rows: SplitRow[]; wrap: boolean }) {
         ) : (
           <div
             key={`${row.left ? patchRowKey(row.left) : "empty"}|${row.right ? patchRowKey(row.right) : "empty"}`}
-            className="grid grid-cols-2 [content-visibility:auto] [contain-intrinsic-size:auto_1em]"
+            className={
+              wrap
+                ? "grid grid-cols-2 [content-visibility:auto] [contain-intrinsic-size:auto_1em]"
+                /* 双栏共享横滚:列宽 minmax(max-content,1fr),任一侧长行把网格撑超容器宽 */
+                : "grid grid-cols-[repeat(2,minmax(max-content,1fr))]"
+            }
           >
             <SplitCell row={row.left} side="left" wrap={wrap} />
             <SplitCell row={row.right} side="right" wrap={wrap} />
