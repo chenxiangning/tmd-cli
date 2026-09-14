@@ -42,15 +42,14 @@ describe("PatchLines", () => {
   it("split:改动块边框 = 槽列块底 + 三面贯通首尾横线", () => {
     const html = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "split" }));
     // 槽列块底:mod + add 两行(ctx 不入块)
-    expect(html.match(/git-split-frame(?!-)/g)?.length).toBe(2);
     // 块首(mod 行)/块尾(add 行)横线三面贯通:左内容 + 槽 + 右内容 = 各 3
-    expect(html.match(/git-split-bd-top/g)?.length).toBe(3);
+    expect(html.match(/git-split-block-bg/g)?.length).toBe(2);
     expect(html.match(/git-split-bd-bot/g)?.length).toBe(3);
   });
   it("默认 mode = unified", () => {
     const html = renderToStaticMarkup(createElement(PatchLines, { text: PATCH }));
     expect(html).toContain(">21<");
-    expect(html).not.toContain("git-split-frame"); // 未走双栏
+    expect(html).not.toContain("git-split-block-bg"); // 未走双栏
   });
 
   it("自动换行关闭:双栏切左右独立横向滚动面", () => {

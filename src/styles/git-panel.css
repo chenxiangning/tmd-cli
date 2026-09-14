@@ -119,7 +119,7 @@
 }
 
 /* 块行槽底:accent 淡染,与常驻底纹分层,块范围一眼可辨。 */
-.git-split-frame {
+.git-split-block-bg {
   background: color-mix(in srgb, var(--tmd-accent) 8%, transparent);
 }
 /* 占位行槽色块(缺侧):缺左=新增块占位(inserted),缺右=删除块占位(removed)。 */

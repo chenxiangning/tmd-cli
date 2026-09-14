@@ -34,12 +34,13 @@ function WordContent({ parts, wrap }: { parts: WordPart[]; wrap: boolean }) {
     </span>
   );
 }
-/** hunk 头 / meta 行通栏样式。行高三面一致靠 min-h-[1lh](空占位无文字也
- *  与带字行等高);halves 模式另用 *_NW:whitespace-pre 恒单行,超长头随
- *  该列横滚,不撑高错位。 */
+/** hunk 头 / meta 行通栏样式。行高三面一致靠 min-h-[1.25em](空占位无文字也
+ *  与带字行等高;1.25em = pre 的 leading-tight 行高,不用 lh 单位——老
+ *  WebKit(Tauri 系统 WebView)不支持,静默塌行)。halves 模式另用 *_NW:
+ *  whitespace-pre 恒单行,超长头随该列横滚,不撑高错位。 */
 const HEADER_CLS: Record<"hunk" | "meta", string> = {
-  hunk: "my-1 min-h-[1lh] border-y border-(color:--tmd-border) bg-(color:--tmd-bg-hover)/40 px-1 text-[0.625rem] text-(--tmd-accent)",
-  meta: "min-h-[1lh] px-1 italic text-(--tmd-fg-faint)",
+  hunk: "my-1 min-h-[1.25em] border-y border-(color:--tmd-border) bg-(color:--tmd-bg-hover)/40 px-1 text-[0.625rem] text-(--tmd-accent)",
+  meta: "min-h-[1.25em] px-1 italic text-(--tmd-fg-faint)",
 };
 const HEADER_NW_CLS: Record<"hunk" | "meta", string> = {
   hunk: `${HEADER_CLS.hunk} whitespace-pre`,
@@ -74,9 +75,8 @@ function blockMap(rows: SplitRow[]): BlockTag[] {
   }
   return out;
 }
-
 /** 槽列块底 class:accent 淡染,与内容列色带同块同范围。 */
-const frameCls = (tag: BlockTag): string => (tag ? "git-split-frame" : "");
+const frameCls = (tag: BlockTag): string => (tag ? "git-split-block-bg" : "");
 
 /** 块首/块尾横线 class:三面(左内容/槽/右内容)同值同位,横线贯通不割裂。 */
 function lineCls(tag: BlockTag): string {
@@ -165,6 +165,8 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
   const rightRef = useRef<HTMLDivElement>(null);
   const midRef = useRef<HTMLDivElement>(null);
   const syncingRef = useRef(false);
+  /* ponytail: rAF 解锁窗内若镜像 pane 的 scroll 事件迟到,会多写一次同值
+     scrollTop(无振荡、视觉无感);换 scrollend/写前比值可根治,不值当。 */
   const mirror =
     (src: RefObject<HTMLDivElement | null>, dst: RefObject<HTMLDivElement | null>[]) => () => {
       if (syncingRef.current || !src.current) return;
@@ -198,7 +200,7 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
             const bd = lineCls(blocks[i]);
             if (!self)
               return (
-                <div key={`e:${patchRowKey((isLeft ? row.right : row.left)!)}`} className={`min-h-[1lh] ${bd}`} aria-hidden />
+                <div key={`e:${patchRowKey((isLeft ? row.right : row.left)!)}`} className={`min-h-[1.25em] ${bd}`} aria-hidden />
               );
             const parts =
               kind === "mod"
@@ -207,7 +209,7 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
                   : wordDiff(row.left!.text, self.text)[1]
                 : null;
             return (
-              <div key={patchRowKey(self)} className={`min-h-[1lh] ${bandFor(self)} ${bd}`}>
+              <div key={patchRowKey(self)} className={`min-h-[1.25em] ${bandFor(self)} ${bd}`}>
                 {parts ? (
                   <WordContent parts={parts} wrap={false} />
                 ) : (
@@ -242,13 +244,12 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
     </div>
   );
 }
-
-/** 双栏入口:wrap 开 = 单滚动面逐行 grid;wrap 关 = 左右独立横向滚动面。 */
+/** 双栏入口:wrap 开 = 单滚动面逐行 grid;wrap 关 = 左右独立横向滚动面。
+ *  注意:nowrap 态固定 h-full(横向滚动条归两半各自、纵向三面同步需要
+ *  确定高度),调用方传入的 className 尺寸类在 nowrap 下被忽略。 */
 export function SplitDiffView({ rows, wrap, className }: { rows: PatchRow[]; wrap: boolean; className: string }) {
   const splitRows = useMemo(() => buildSplitRows(rows), [rows]);
   if (!wrap) {
-    /* nowrap:外层不滚(横向滚动条归左右两半各自所有,纵向三面同步),
-       调用方的尺寸类不适用(h-max 会让 h-full 失效),固定 h-full。 */
     return (
       <pre className="h-full overflow-hidden py-1 font-mono text-[0.6875rem] leading-tight">
         <SplitHalves rows={splitRows} />
