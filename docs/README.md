@@ -142,5 +142,6 @@
 | 2026-09-13 | [壁纸/流体插件性能与边界评审](review/2026-09-13-wallpaper-perf-boundary.md) | 已完成(P1×2 随评落地:缩略图懒加载/xterm 底色锚定归 kernel;P2 缓解选项留实测定夺) |
 | 2026-09-13 | [近十次提交全局代码审查](review/2026-09-13-ten-commits-global-audit.md) | 已完成(无 P0;1 项 P2 退出丢改动 + 7 项 P3 边角,深水区九项核查无虞) |
 | 2026-09-14 | [v0.1.7 发布范围评审与收口](review/2026-09-14-v017-release-review.md) | 已完成(无 P0;5 P1 全修 + 19 P2,6 条 report-only;门禁全绿 react-doctor 100) |
+| 2026-09-15 | [git 插件「创建 PR」工作流设计:预检/推送/建 PR/可选审批评论](superpowers/specs/2026-09-15-git-create-pr-design.md) | 已落地(四步工作流 + 范围闸门 + 阶段实时卡;AI 生成留 v2) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
