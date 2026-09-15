@@ -266,6 +266,9 @@ export function sanitize(raw: unknown): AppSettings {
           : "",
     },
     webAccessEnabled: obj.webAccessEnabled === true,
+    webRelayOn: obj.webRelayOn === true,
+    webRelayUrl: typeof obj.webRelayUrl === "string" ? obj.webRelayUrl.slice(0, 200) : "",
+    webRelayKey: typeof obj.webRelayKey === "string" ? obj.webRelayKey.slice(0, 100) : "",
     git: sanitizeGitPanel(obj.git),
   };
 }

@@ -872,6 +872,47 @@ export function remoteControlActive(): Promise<number> {
   return invoke<number>("remote_control_active");
 }
 
+/** 中继连接状态;未连接返回 null。 */
+export interface RelayInfo {
+  url: string;
+  agentUrl: string;
+  connected: boolean;
+  error: string | null;
+}
+
+/** 启动中继(传入 base URL + key;同时把 LAN 桥带起)。 */
+export function webRelayStart(url: string, key: string): Promise<RelayInfo> {
+  return invoke<RelayInfo>("web_relay_start", { url, key });
+}
+
+/** 停止中继(LAN 桥不随之停)。 */
+export function webRelayStop(): Promise<void> {
+  return invoke<void>("web_relay_stop");
+}
+
+/** 查询中继状态;未运行返回 null。 */
+export function webRelayStatus(): Promise<RelayInfo | null> {
+  return invoke<RelayInfo | null>("web_relay_status");
+}
+
+/** 订阅中继状态变化(连接/断开/错误)。 */
+export function onWebRelay(cb: (info: RelayInfo | null) => void) {
+  return listen<RelayInfo | null>("web://relay", () => {
+    /* 事件 payload 为 Null,真正状态以 webRelayStatus 为准 —— 事件仅作「刷新信号」。 */
+    void webRelayStatus().then(cb);
+  });
+}
+
+/** 一键部署中继到用户自有 Cloudflare(Worker + Durable Object);token 仅本次调用内使用。 */
+export function relayDeploy(token: string, accountId?: string): Promise<{ url: string; key: string }> {
+  return invoke<{ url: string; key: string }>("relay_deploy", { token, accountId });
+}
+
+/** 导出中继部署包(zip;自行 wrangler deploy)。key 缺省时后端铸随机 key 烧入。 */
+export function relayDeployPack(path: string, key?: string): Promise<string> {
+  return invoke<string>("relay_deploy_pack", { path, key });
+}
+
 interface QuotaFetchSpec {
   url: string;
   method?: string;

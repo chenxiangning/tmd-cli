@@ -32,8 +32,7 @@ tauri-plugin-dialog = "2"
 # 前端经 kernel/ipc 薄包装消费(架构铁律 R3),签名密钥见 ~/.tauri/tmd-cli.key。
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
-# reqwest 0.13 起 rustls 为默认 TLS 后端;旧 "rustls-tls" feature 已移除
-reqwest = { version = "0.13", features = ["json", "rustls", "socks"] }
+reqwest = { version = "0.13", features = ["json", "rustls", "socks", "multipart"] }
 # 只读 omp agent.db(auth_credentials 表)取供应商凭据;bundled 免系统 sqlite 依赖。
 rusqlite = { version = "0.40", features = ["bundled"] }
 base64 = "0.22"
@@ -56,7 +55,11 @@ sha2 = "0.10"
 axum = { version = "0.8", features = ["ws"] }
 # Web 桥访问令牌铸造(安全用途,CSPRNG)。
 rand = "0.9"
+# relay 密钥铸造。
+uuid = { version = "1", features = ["v4"] }
 futures-util = { version = "0.3", features = ["sink"] }
+# 外网中继:桌面出站拨号自有 relay(Cloudflare Worker / 自建)用的 WSS 客户端。
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
 
 # 产物体积与运行性能:lto 全量链接优化 + 单 codegen unit 提升内联,strip 去符号表,
 # opt-level=z 体积优先(GUI 交互场景实测无感,二进制约再省一成;若热路径变慢回调到 "s"/3)。

@@ -7,6 +7,7 @@ import { Globe } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { WebAccessSection } from "./WebAccessSection";
 import { RemoteControlBadge } from "./RemoteControlBadge";
+import { WebWanGate } from "./WebWanGate";
 
 export const webAccessPlugin: Plugin = {
   id: "web-access",
@@ -23,7 +24,7 @@ export const webAccessPlugin: Plugin = {
     ctx.registerSettingsSection({
       id: "web-access",
       title: "Web 访问",
-      description: "局域网内用手机/平板浏览器访问本机会话。",
+      description: "局域网/外网用手机/平板浏览器访问本机会话。",
       icon: <Globe size="0.875rem" aria-hidden />,
       order: 45,
       tabs: [
@@ -33,6 +34,13 @@ export const webAccessPlugin: Plugin = {
           icon: <Globe size="0.875rem" aria-hidden />,
           order: 0,
           component: WebAccessSection,
+        },
+        {
+          id: "wan",
+          title: "外网",
+          icon: <Globe size="0.875rem" aria-hidden />,
+          order: 1,
+          component: WebWanGate,
         },
       ],
     });

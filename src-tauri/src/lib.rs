@@ -1,3 +1,4 @@
+// file-size-exempt: 301 行仅超 1 行,含文件头注释;拆出即伤对照性(dispatch 是命令面镜像总表,lib.rs 是装配总表)。
 mod app_setup;
 mod checkpoints;
 mod commands_fs;
@@ -37,6 +38,7 @@ pub(crate) struct AppState {
     sessions: session::SessionRegistry,
     ssh: std::sync::Arc<ssh::SshRegistry>,
     web: web::state::WebAccessState,
+    relay: web::relay::RelayState,
 }
 
 pub(crate) fn now_millis() -> u64 {
@@ -140,16 +142,22 @@ pub fn run() {
         /* 应用内自动更新(updater latest.json 通道)与安装后重启;前端经
         kernel/ipc 薄包装调用 check/download_and_install/relaunch。 */
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
         .manage(AppState {
             pty: PtyRegistry::default(),
             sessions,
             ssh: ssh_registry,
             web: web::state::WebAccessState::default(),
+            relay: web::relay::RelayState::default(),
         })
         .setup(|app| {
             app_setup::setup(app)?;
             web::web_access::autostart(app.handle());
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Some((url, key)) = web::relay::autostart_target(&settings::load_settings()) {
+                    let _ = web::relay::web_relay_start(app_handle, url, key).await;
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -273,6 +281,11 @@ pub fn run() {
             config_write_settings,
             web::web_access::web_access_start,
             web::web_access::web_access_stop,
+            web::relay::web_relay_start,
+            web::relay::web_relay_stop,
+            web::relay::web_relay_status,
+            web::relay::relay_deploy,
+            web::relay::relay_deploy_pack,
             web::web_access::web_access_status,
             web::web_access::remote_control_active,
         ])

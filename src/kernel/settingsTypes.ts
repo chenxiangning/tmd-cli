@@ -231,6 +231,12 @@ export interface AppSettings {
   wsl: { defaultDistro: string; remoteHostId: string };
   /** Web 访问桥开关(web-access 插件编辑域):开 = 随应用启动桥;每次启动新铸 token。 */
   webAccessEnabled: boolean;
+  /** 外网中继开关:开 = 应用重启后自动重拨。 */
+  webRelayOn: boolean;
+  /** 中继 Worker 基址(用户自有 Cloudflare / 自建 relay)。 */
+  webRelayUrl: string;
+  /** 中继共享密钥(亦作手机 URL 路径段);relay 端只认它,桌面桥仍走 token/设备授权。 */
+  webRelayKey: string;
 }
 
 /** 记忆胶囊注入策略(manual 手动勾选注入 / auto 新会话自动展开 / off 关闭)。 */

@@ -63,4 +63,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   ssh: { hosts: [] },
   wsl: { defaultDistro: "", remoteHostId: "" },
   webAccessEnabled: false,
+  webRelayOn: false,
+  webRelayUrl: "",
+  webRelayKey: "",
 };

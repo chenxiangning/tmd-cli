@@ -82,6 +82,9 @@ describe("初始状态与默认值", () => {
       ssh: { hosts: [] },
       wsl: { defaultDistro: "", remoteHostId: "" },
       webAccessEnabled: false,
+      webRelayOn: false,
+      webRelayUrl: "",
+      webRelayKey: "",
       git: { view: "diff", layout: "flat", diffMode: "unified", diffWrap: true },
       iconDecor: {
         newchat: { blink: true },

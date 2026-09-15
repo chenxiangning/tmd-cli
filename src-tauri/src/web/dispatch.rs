@@ -1,6 +1,7 @@
 //! Web 命令桥 —— 镜像 invoke_handler 全量命令(平台专属 app_restart 除外)。
 //! 新增宿主命令必须同步在此登记(与 lib.rs invoke_handler 同纪律)。
 
+// file-size-exempt: 301 行仅超 1 行,含文件头注释;拆出即伤对照性(dispatch 是命令面镜像总表,lib.rs 是装配总表)。
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
@@ -138,6 +139,13 @@ async fn misc_dispatch(app: &AppHandle, cmd: &str, raw: Value) -> Result<Value, 
         "remote_control_active" => val(crate::web::web_access::remote_control_active()),
         /* web_access_start/stop 桌面面控,不镜像(web 表面自己就是被控方);
         app_restart 桌面专属,同理由缺席。 */
+        "web_relay_status" => val(crate::web::relay::web_relay_status(app.clone())),
+        "relay_deploy_pack" => {
+            let a: RelayDeployPackArgs = serde_json::from_value(raw).map_err(|e| e.to_string())?;
+            val(crate::web::relay::relay_deploy_pack(a.path, a.key))
+        }
+        /* web_relay_start/stop、relay_deploy 桌面面控,不镜像:
+        web 面自己经 relay 进出,不允许 web 端掐断/重连/改 relay。 */
         _ => Err(format!("unknown command: {cmd}")),
     }
 }
@@ -233,6 +241,12 @@ struct SqliteArgs {
     params: Vec<String>,
 }
 
+#[derive(serde::Deserialize)]
+struct RelayDeployPackArgs {
+    path: String,
+    key: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     /// Web 桥不镜像的桌面面控/专属命令。臂表若把其中任一登记为可分发,
@@ -245,6 +259,9 @@ mod tests {
         "check_update",
         "download_and_install_update",
         "relaunch_app",
+        "web_relay_start",
+        "web_relay_stop",
+        "relay_deploy",
     ];
 
     /// misc 域臂表代表面(每臂一条抽样,完整清单以 match 为准)。
