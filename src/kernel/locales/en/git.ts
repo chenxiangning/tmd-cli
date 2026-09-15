@@ -144,6 +144,8 @@ export const MESSAGES = {
   "基于分支:": "Based on branch:",
   "新分支名": "New branch name",
   "新分支名...": "New branch name...",
+  "搜索分支…": "Search branches…",
+  "没有匹配的分支": "No matching branches",
   "创建": "Create",
   "已基于 {base} 创建 {name}": "Created {name} based on {base}",
   "签出并变基": "Check out and rebase",
