@@ -182,6 +182,8 @@ export interface AppSettings {
    * 管理态移除并在列表隐藏,磁盘数据保留(领域 API 见 kernel/sessionDeleted.ts)。
    */
   sessionDeleted: Record<string, SessionDeletedEntry>;
+  /** 引擎版本收藏层(welcome 插件编辑域):key = `${engineId}@${version}`,value = 收藏时间戳。 */
+  engineVersionFavs: Record<string, { favedAt: number }>;
   /**
    * 左侧栏各工作区会话列表折叠态:key = workspaceId,value = 是否折叠。
    * 缺失的工作区(首次出现)默认折叠;切换折叠/展开与「折叠全部」均写这里,
@@ -275,6 +277,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   workspaceGroupCollapsedMap: {},
   sessionArchive: {},
   sessionDeleted: {},
+  engineVersionFavs: {},
   workspaceArchiveView: false,
   workspaceOriginFilter: "",
   networkProxyEnabled: false,

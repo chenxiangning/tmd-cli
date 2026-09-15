@@ -3,6 +3,7 @@
  * (no-high-complexity 降分支:EngineCard.tsx 只留行编排与安装钩子。)
  */
 import { ArrowSquareOut, ArrowClockwise } from "@phosphor-icons/react";
+import type { ReactNode } from "react";
 import { t } from "@kernel/i18n";
 import type { CliInstallPlan } from "@kernel/ipc";
 import type { CliProfile } from "@kernel/cli";
@@ -151,6 +152,7 @@ export function RowActions({
   depBlocked,
   depName,
   docsUrl,
+  versionMenu,
   onProbe,
   onInstall,
   onNewSession,
@@ -163,6 +165,8 @@ export function RowActions({
   depBlocked: boolean;
   depName: string;
   docsUrl: string | undefined;
+  /** 「版本」按钮 + 菜单(meta.versionMenu 引擎,由 EngineCard 组装);缺省 = 不出。 */
+  versionMenu?: ReactNode;
   onProbe: () => void;
   onInstall: () => void;
   onNewSession: () => void;
@@ -186,6 +190,7 @@ export function RowActions({
         latest={latest}
         onInstall={onInstall}
       />
+      {installed && versionMenu}
       <button
         type="button"
         className="welcome-ab"

@@ -115,6 +115,8 @@ export const cliOmpPlugin: Plugin = {
         program: "bun",
         args: ["install", "-g", "@oh-my-pi/pi-coding-agent"],
       },
+      /* 版本回退/收藏菜单:最新 10 个稳定版 + 用户收藏,钉版走本通道拼 @version。 */
+      versionMenu: true,
       /* omp 运行时依赖 bun:welcome 引擎卡先探针 bun,缺失时引导先装 bun,
        * 就位前 omp 的安装/更新按钮不可点(契约见 kernel/cliProfile.ts requires)。 */
       requires: {
@@ -155,6 +157,8 @@ export const cliOmpPlugin: Plugin = {
       /* Ask 卡片标记(pi-tui 系共享字面量,见 cli-shared/askMarks.ts):
          会话列表「等待确认」标签 + 提示音的检测源。 */
       askMarks: PI_TUI_ASK_MARKS,
+      /* win ConPTY 的 CPR 应答错位会被 pi-tui 当字符注入(架构 04 契约 7)。 */
+      conptyCprMismatch: true,
       /* 轮次进行中的工作界面标记(实采 v18.1.19 全量日志):⎋ 状态行(工作区
        * 动作行,19528 行零空闲误现)与 elapsed 计时行(Ns/Nm + 分隔符 >,banner/
        * 空闲页脚为 … 省略形态零匹配)。全屏 TUI 以光标定位分行,不可用行首锚。

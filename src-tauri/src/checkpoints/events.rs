@@ -31,7 +31,11 @@ use std::fs;
 /// ts = 写入事件时刻(磁盘事件源携带;PTY 标记无时刻传 None):早于锚点
 /// 的事件属于上一轮(锚点隐式封上一轮),记入本轮会错归轮次,丢弃 ——
 /// 磁盘事件拉取迟到/水位线重放时防串轮。
-/// 返回 false = 事件被丢弃(无锚点 / git 归因会话 / 该轮已封口 / 迟到回放)。
+/// 已封口轮:PTY 标记(None 时刻)的重绘/回放行照旧丢弃;磁盘事件(带
+/// 真实写入时刻)迟到 = 假结算后的真实轮内写入,追加 edit 行并修订重封,
+/// 批内容随下一次 ≤4s 拉取自愈收敛(2026-09-15 win 实证:68s 静默 bash 令
+/// turnSettled 早触发,其后的文件事件全部丢失)。
+/// 返回 false = 事件被丢弃(无锚点 / git 归因会话 / 已封口且无时刻 / 迟到回放)。
 pub fn record_edit(
     cwd: &str,
     session_id: &str,
@@ -53,22 +57,27 @@ pub fn record_edit(
         .filter(|e| e.kind == "anchor" && entry_in_session(e, session_id, tmd_session_id))
         .max_by_key(|e| (e.turn, e.ts))
         .filter(|a| a.attribution == "events")
+        .cloned()
     else {
         return Ok(false);
     };
-    // 该轮已封口:封口后的输出(回放/重绘/迟到的翻译行)不记账
-    if entries
-        .iter()
-        .any(|e| e.kind == "turn" && e.id == anchor.id)
-    {
-        return Ok(false);
-    }
-    // 迟到守卫:磁盘事件源带写入时刻,早于锚点 = 上一轮尾巴(锚点隐式封
-    // 上一轮),记入本轮会错归轮次 —— 丢弃。
+    // 迟到守卫(先于封口判定):磁盘事件源带写入时刻,早于锚点 = 上一轮尾巴
+    // (锚点隐式封上一轮),记入本轮会错归轮次 —— 丢弃;PTY 标记无时刻(None),
+    // 守卫不适用。
     if let Some(ts) = ts {
         if ts < anchor.ts {
             return Ok(false);
         }
+    }
+    // 该轮已封口:PTY 标记(None 时刻)的重绘/回放行不可信,照旧丢弃;磁盘
+    // 事件(带真实写入时刻)= 假结算(turnSettled 是输出空闲启发式,长静默
+    // 工具如编译/测试跑 60s+ 会早触发)后的真实轮内写入,照常入账并修订重封
+    // (build_turn_entry 既有冻结/幂等语义护住已审批批)。
+    let sealed = entries
+        .iter()
+        .any(|e| e.kind == "turn" && e.id == anchor.id);
+    if sealed && ts.is_none() {
+        return Ok(false);
     }
 
     let sidecar = open_sidecar(cwd)?;
@@ -120,6 +129,15 @@ pub fn record_edit(
         }
     };
     append_ledger(cwd, &entry)?;
+    if sealed {
+        // 修订重封:批内容随下一次磁盘拉取(≤4s)自愈收敛;零差异/同修订
+        // 时 build_turn_entry 返回 None 或幂等跳过,不追加冗余行
+        let mut all = entries;
+        all.push(entry);
+        if let Some(t) = super::turn_entry::build_turn_entry(cwd, &anchor, &all)? {
+            append_ledger(cwd, &t)?;
+        }
+    }
     Ok(true)
 }
 

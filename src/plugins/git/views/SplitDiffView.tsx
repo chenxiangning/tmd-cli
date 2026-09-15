@@ -5,10 +5,12 @@
  * - 独立横向滚动条(关换行时):左右内容列各为独立 overflow-auto 滚动面,
  *   纵向 scrollTop 三面(左/槽/右)镜像同步(nowrap 行高恒单行,三面行数一致);
  * - 改动块识别框:块行在中央槽画 accent 括号框(槽列不随横滚,任何滚动位
- *   都可见),块首/块尾在两个内容列拉 accent 横线贯穿;缺侧占位行涂类型色块;
- * - 词级标注:mod 对 token 差异下划线(见 wordDiff.tsx)。
+ *   置恒可见);
+ * - 行高三面同源:nowrap 态三列是三个独立行栈,WebKit 下各栈行盒高度有亚像素
+ *   差,逐行累积成整行错位(全文单 hunk 时行号大、累积最显)——左栈为基准实测
+ *   行高(盒高;行外边距三面同类同值),中/右栈逐行 pin 同值,引擎差异归零。
  */
-import { useMemo, useRef, type RefObject } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { buildSplitRows, patchRowKey, type PatchRow, type SplitRow } from "./patchModel";
 import { wordDiff, type WordPart } from "./wordDiff";
 
@@ -160,6 +162,25 @@ function GridPairRow({ row, tag }: { row: Extract<SplitRow, { kind: "pair" }>; t
 
 /* ── 关闭换行:左右独立横向滚动面 + 中央槽,纵向三面同步 ── */
 
+/** 左栈行盒高实测(getBoundingClientRect,亚像素保真):中/右栈逐行 pin 同值;
+ *  行外边距(header my-1)三面同类同值,折叠量一致,只 pin 盒高即三面同位。 */
+function useRowHeights(innerRef: RefObject<HTMLDivElement | null>, rows: SplitRow[]): number[] | null {
+  const [heights, setHeights] = useState<number[] | null>(null);
+  useLayoutEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const hs = Array.from(el.children, (c) => (c as HTMLElement).getBoundingClientRect().height);
+      setHeights((prev) => (prev && prev.length === hs.length && prev.every((v, j) => v === hs[j]) ? prev : hs));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [innerRef, rows]);
+  return heights;
+}
+
 function SplitHalves({ rows }: { rows: SplitRow[] }) {
   /* mod 对词级标注一次算两份:side() 左右各渲染一遍,逐侧现算 = 同一 DP 跑两遍
    * (2026-09-15 评审);预计算随 rows 换代。 */
@@ -190,12 +211,16 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
   const blocks = useMemo(() => blockMap(rows), [rows]);
   /* 一面内容列:header 通栏单行;pair 行取本侧,缺侧等高留白(带块横线)。
      行色带/横线要铺满横向滚动全宽 → 滚动面内衬 w-max min-w-full。 */
+  const leftInnerRef = useRef<HTMLDivElement>(null);
+  const rowHeights = useRowHeights(leftInnerRef, rows);
+  /* 中/右栈逐行 pin 左栈实测高:同值同位,跨引擎零累积错位。 */
+  const pin = (i: number) => (rowHeights ? { height: rowHeights[i] } : undefined);
   const side = (isLeft: boolean) => {
     const me = isLeft ? leftRef : rightRef;
     const targets = isLeft ? [rightRef, midRef] : [leftRef, midRef];
     return (
       <div ref={me} onScroll={mirror(me, targets)} className="h-full min-w-0 overflow-auto">
-        <div className="w-max min-w-full px-2">
+        <div ref={isLeft ? leftInnerRef : undefined} className="w-max min-w-full px-2">
           {rows.map((row, i) => {
             if (row.kind === "header")
               return (
@@ -210,12 +235,12 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
             const bd = lineCls(blocks[i]);
             if (!self)
               return (
-                <div key={`e:${patchRowKey((isLeft ? row.right : row.left)!)}`} className={`min-h-[1.25em] ${bd}`} aria-hidden />
+                <div key={`e:${patchRowKey((isLeft ? row.right : row.left)!)}`} style={isLeft ? undefined : pin(i)} className={`min-h-[1.25em] ${bd}`} aria-hidden />
               );
             const pair = wordParts[i];
             const parts = pair ? (isLeft ? pair[0] : pair[1]) : null;
             return (
-              <div key={patchRowKey(self)} className={`min-h-[1.25em] ${bandFor(self)} ${bd}`}>
+              <div key={patchRowKey(self)} style={isLeft ? undefined : pin(i)} className={`min-h-[1.25em] ${bandFor(self)} ${bd}`}>
                 {parts ? (
                   <WordContent parts={parts} wrap={false} />
                 ) : (
@@ -233,9 +258,9 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
     <div ref={midRef} className="h-full overflow-hidden">
       {rows.map((row, i) =>
         row.kind === "header" ? (
-          <div key={`h:${patchRowKey(row.row)}`} className={row.row.kind === "hunk" ? HEADER_CLS.hunk : HEADER_CLS.meta} aria-hidden />
+          <div key={`h:${patchRowKey(row.row)}`} style={pin(i)} className={row.row.kind === "hunk" ? HEADER_CLS.hunk : HEADER_CLS.meta} aria-hidden />
         ) : (
-          <div key={`g:${patchRowKey(row.left ?? row.right!)}`} className={`git-split-gutter-col ${lineCls(blocks[i])} ${frameCls(blocks[i])} ${phClass(pairKind(row.left, row.right))}`}>
+          <div key={`g:${patchRowKey(row.left ?? row.right!)}`} style={pin(i)} className={`git-split-gutter-col ${lineCls(blocks[i])} ${frameCls(blocks[i])} ${phClass(pairKind(row.left, row.right))}`}>
             <SlotGutter left={row.left} right={row.right} chg={pairKind(row.left, row.right) !== "ctx"} />
           </div>
         ),

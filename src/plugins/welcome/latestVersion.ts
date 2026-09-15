@@ -43,6 +43,16 @@ export async function fetchLatestVersion(
   }
 }
 
+/** semver 三元组数值比较:a>b 正,a<b 负,等 0;不可解析的段按 0。 */
+export function compareSemver(a: string, b: string): number {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] !== pb[i]) return pa[i] - pb[i];
+  }
+  return 0;
+}
+
 /**
  * 从探针原始版本串抠首个 semver 三元组。
  * 覆盖 "omp/18.0.11"、"codex-cli 0.152.0"、"2.1.251 (Claude Code)" 等格式;
@@ -54,6 +64,41 @@ export function extractSemver(raw: string | null | undefined): string | null {
   return m ? m[0] : null;
 }
 
+/** registry versions 键集 → 稳定版(滤 prerelease)semver 降序前 limit 个。 */
+export function pickStableVersions(versions: string[], limit = 10): string[] {
+  return versions
+    .filter((v) => /^\d+\.\d+\.\d+$/.test(v))
+    .sort((a, b) => compareSemver(b, a))
+    .slice(0, limit);
+}
+
+/** 版本列表 TTL 缓存(与最新版同口径:失败不缓存,下次开菜单重试)。 */
+const listCache = new Map<string, { at: number; versions: string[] }>();
+
+/**
+ * 拉 npm registry 上某包的最新 10 个稳定版(版本菜单用)。
+ * 精简 metadata(Accept: install-v1)即含全量 versions 键,比完整文档省一个数量级。
+ * 失败语义同 fetchLatestVersion:null,调用方显「获取失败 · 重试」,绝不抛错。
+ */
+export async function fetchVersionList(npmPackage: string): Promise<string[] | null> {
+  const hit = listCache.get(npmPackage);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.versions;
+  try {
+    const res = await ipc.quotaFetch({
+      url: `https://registry.npmjs.org/${encodeURIComponent(npmPackage)}`,
+      headers: { Accept: "application/vnd.npm.install-v1+json" },
+    });
+    if (res.status !== 200) return null;
+    const body = res.body as { versions?: unknown } | null;
+    if (!body?.versions || typeof body.versions !== "object") return null;
+    const versions = pickStableVersions(Object.keys(body.versions));
+    listCache.set(npmPackage, { at: Date.now(), versions });
+    return versions;
+  } catch {
+    return null;
+  }
+}
+
 /** 当前版本是否落后于最新版本。任一无法解析 = false(不误导用户点更新)。 */
 export function isOutdated(
   currentRaw: string | null | undefined,
@@ -62,11 +107,5 @@ export function isOutdated(
   const current = extractSemver(currentRaw);
   const latest = extractSemver(latestRaw);
   if (!current || !latest) return false;
-  const cur = current.split(".").map(Number);
-  const lat = latest.split(".").map(Number);
-  for (let i = 0; i < 3; i++) {
-    if (lat[i] > cur[i]) return true;
-    if (lat[i] < cur[i]) return false;
-  }
-  return false;
+  return compareSemver(latest, current) > 0;
 }

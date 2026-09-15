@@ -175,6 +175,14 @@ export interface CliProfile {
    */
   askMarks?: RegExp[];
   /**
+   * win ConPTY 下该 CLI 的 CPR 位置查询会拿到错位应答(ConPTY 转发光标状态与
+   * TUI 虚拟光标不同步),TUI 消费错位 CPR 时把字符注入输入框(2026-09-15 win
+   * omp 实证每次建会话孤立 'C')。声明后 Windows 幕布不向 PTY 回写 CPR 应答,
+   * 查询走 TUI 自身超时回退。仅 pi-tui 系(omp/pi)声明;ssh/wsl 等死等 CPR
+   * 的会话禁声明(回写是它们不挂死的条件)。
+   */
+  conptyCprMismatch?: boolean;
+  /**
    * 会话磁盘事件流的 AI 写入读取(审批线 events 归因第二信号源)。
    * 从该 CLI 自己的会话 JSONL 提取 edit/write 工具写入的文件 —— 每会话一个
    * 文件,天然按会话隔离,并行会话不串扰(editMarks 的 PTY 标记做不到:
@@ -235,6 +243,12 @@ export interface CliProfile {
    * 例 omp 经 `bun install -g` 全局安装。安装命令经通用 IPC 原语执行,内核零配方。
    */
   commandInstall?: { program: string; args: string[] };
+  /**
+   * 引擎卡「版本」菜单开关:welcome 行动作簇出「版本」按钮,弹层列最新 10 个
+   * 稳定版 + 用户收藏,点选即钉版安装(command 通道 args 内包名替换为 pkg@version)。
+   * 仅当 commandInstall 与 npmPackage 同声明时生效;缺省 = 不出版本按钮。
+   */
+  versionMenu?: boolean;
   /**
    * 前置依赖声明:安装/更新本 CLI 前必须就位的运行时(如 omp 依赖 bun)。
    * welcome 引擎卡先探针依赖;缺失时引导先装依赖,就位前本引擎的

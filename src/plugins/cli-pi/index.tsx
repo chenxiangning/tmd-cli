@@ -111,6 +111,8 @@ export const cliPiPlugin: Plugin = {
       readSessionEdits: readPiSessionEdits,
       /* Ask 卡片标记(pi-tui 系共享字面量,见 cli-shared/askMarks.ts)。 */
       askMarks: PI_TUI_ASK_MARKS,
+      /* win ConPTY 的 CPR 应答错位会被 pi-tui 当字符注入(架构 04 契约 7)。 */
+      conptyCprMismatch: true,
     });
   },
 };

@@ -95,3 +95,25 @@ export function sanitizeSessionDeleted(raw: unknown): Record<string, SessionDele
   }
   return deleted;
 }
+
+/** 引擎版本收藏层上限:100 条(与置顶同款确定性兜底口径)。 */
+const ENGINE_VERSION_FAVS_MAX_ENTRIES = 100;
+/** key 形状:`${engineId}@${x.y.z}`(与 welcome 插件 versionFavKey 同构)。 */
+const ENGINE_VERSION_FAV_KEY = /^[^\s@]+@\d+\.\d+\.\d+$/;
+
+/** 引擎版本收藏清洗:key 须为 engineId@semver,只收有限非负 favedAt,按 key 序限量纳入。 */
+export function sanitizeEngineVersionFavs(raw: unknown): Record<string, { favedAt: number }> {
+  const favs: Record<string, { favedAt: number }> = {};
+  if (!raw || typeof raw !== "object") return favs;
+  const entries = raw as Record<string, unknown>;
+  for (const key of Object.keys(entries).sort()) {
+    if (Object.keys(favs).length >= ENGINE_VERSION_FAVS_MAX_ENTRIES) break;
+    const value = entries[key];
+    if (!ENGINE_VERSION_FAV_KEY.test(key) || !value || typeof value !== "object") continue;
+    const entry = value as Record<string, unknown>;
+    const favedAt = typeof entry.favedAt === "number" ? entry.favedAt : Number.NaN;
+    if (!Number.isFinite(favedAt) || favedAt < 0) continue;
+    favs[key] = { favedAt: Math.floor(favedAt) };
+  }
+  return favs;
+}

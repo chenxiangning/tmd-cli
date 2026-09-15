@@ -29,7 +29,7 @@ import {
 import { subscribeTerminalTheme } from "@kernel/terminalThemeBridge";
 import { createReplayInputGate } from "@kernel/terminalInputGate";
 import { attachTerminalStream, type LoadProgress } from "@kernel/terminalReplay";
-import { isTerminalReport } from "@kernel/terminalReports";
+import { isTerminalReport, shouldSuppressProbeReply } from "@kernel/terminalReports";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay } from "@kernel/terminalSearch";
 import { findRequestRef } from "@kernel/terminalFindBridge";
@@ -179,7 +179,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
        非用户输入不锚定对话)—— 活查询的应答远端正在等,回放窗也可能接到
        (连接先于挂载完成时 CPR 落缓冲走回放,见 terminalInputGate.ts 头注)。 */
     const offInput = term.onData((data) => {
-      if (inputGate.blocked() && !isTerminalReport(data)) return;
+      if (shouldSuppressProbeReply(host, sessionId, data) || (inputGate.blocked() && !isTerminalReport(data))) return;
       host.writeSession(sessionId, data, isTerminalReport(data));
     });
     /* 对话锚点:向内核注册本幕布的跳转/定位能力(composer 锚点栏经此中转)。 */

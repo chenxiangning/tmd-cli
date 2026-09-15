@@ -75,6 +75,28 @@ describe("parseOmpEditEvents", () => {
       { path: "~/outside.md", ts: Date.parse("2026-09-03T13:45:20.263Z") },
     ]);
   });
+
+  it("win 宿主实证:hashline 头与 resolvedPath 是 C:\\ 绝对路径,按 cwd 相对化入账", () => {
+    // 2026-09-15 真实会话行实证:Windows 上 omp edit/write 结果的路径全是
+    // 盘符绝对形态,旧契约直接拒收 = events 归因全盲(审批线漏文件根因)。
+    const WIN_CWD = "C:\\codeeee\\tmd-cli";
+    const winEdit =
+      `{"type":"message","timestamp":"2026-09-14T20:15:39.561Z","message":{"role":"toolResult",` +
+      `"toolCallId":"call_a1e64257","toolName":"edit",` +
+      `"content":[{"type":"text","text":"[C:\\\\codeeee\\\\tmd-cli\\\\src\\\\kernel\\\\terminalReports.ts#2329]\\n1:/**"}]}}`;
+    const winWrite =
+      `{"type":"message","timestamp":"2026-09-14T20:16:46.941Z","message":{"role":"toolResult",` +
+      `"toolCallId":"call_b26cbfea","toolName":"write",` +
+      `"content":[{"type":"text","text":"[src/kernel/terminalReports.test.ts#DD50]\\nSuccessfully wrote 1695 bytes to src/kernel/terminalReports.test.ts"}],` +
+      `"details":{"resolvedPath":"C:\\\\codeeee\\\\tmd-cli\\\\src\\\\kernel\\\\terminalReports.test.ts"}}}`;
+    expect(parseOmpEditEvents(winEdit, 0, WIN_CWD)).toEqual([
+      { path: "src/kernel/terminalReports.ts", ts: Date.parse("2026-09-14T20:15:39.561Z") },
+    ]);
+    // 同一写入的 resolvedPath(绝对)与 hashline 头(相对)归一后去重
+    expect(parseOmpEditEvents(winWrite, 0, WIN_CWD)).toEqual([
+      { path: "src/kernel/terminalReports.test.ts", ts: Date.parse("2026-09-14T20:16:46.941Z") },
+    ]);
+  });
 });
 
 /**

@@ -63,6 +63,7 @@ describe("初始状态与默认值", () => {
       sessionPins: {},
       sessionArchive: {},
       sessionDeleted: {},
+      engineVersionFavs: {},
       shortcutOverrides: {},
       workspaceArchiveView: false,
   workspaceOriginFilter: "",
