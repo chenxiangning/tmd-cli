@@ -13,7 +13,7 @@
  */
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { buildSplitRows, patchRowKey, type PatchRow, type SplitRow } from "./patchModel";
-import { wordDiff, type WordPart } from "./wordDiff";
+import { wordDiff, type WordDiffPair, type WordPart } from "./wordDiff";
 
 /* 正文格:wrap 换行 / nowrap 撑出滚动面。 */
 const CONTENT_WRAP_CLS = "min-w-0 flex-1 whitespace-pre-wrap break-all pl-2";
@@ -103,12 +103,24 @@ function lnoCols(rows: SplitRow[]): string {
 }
 
 
+/** mod 对词级标注预计算:随 rows 换代,每对同一 DP 只跑一遍(wrap/nowrap 两态共用)。 */
+function useWordParts(rows: SplitRow[]) {
+  return useMemo(
+    () =>
+      rows.map((row) =>
+        row.kind === "pair" && pairKind(row.left, row.right) === "mod" ? wordDiff(row.left!.text, row.right!.text) : null,
+      ),
+    [rows],
+  );
+}
+
 /* ── 换行态:单滚动面,逐行四列 grid ── */
 
 function SplitGrid({ rows, cols }: { rows: SplitRow[]; cols: string }) {
+  const wordParts = useWordParts(rows);
   return (
     <>
-      {rows.map((row) =>
+      {rows.map((row, i) =>
         row.kind === "header" ? (
           <div key={patchRowKey(row.row)} className={row.row.kind === "hunk" ? HEADER_CLS.hunk : HEADER_CLS.meta}>
             {row.row.text}
@@ -118,6 +130,7 @@ function SplitGrid({ rows, cols }: { rows: SplitRow[]; cols: string }) {
             key={`${row.left ? patchRowKey(row.left) : "e"}|${row.right ? patchRowKey(row.right) : "e"}`}
             row={row}
             cols={cols}
+            parts={wordParts[i]}
           />
         ),
       )}
@@ -125,9 +138,8 @@ function SplitGrid({ rows, cols }: { rows: SplitRow[]; cols: string }) {
   );
 }
 
-function GridPairRow({ row, cols }: { row: Extract<SplitRow, { kind: "pair" }>; cols: string }) {
-  const [dParts, iParts] =
-    pairKind(row.left, row.right) === "mod" ? wordDiff(row.left!.text, row.right!.text) : [null, null];
+function GridPairRow({ row, cols, parts }: { row: Extract<SplitRow, { kind: "pair" }>; cols: string; parts: WordDiffPair | null }) {
+  const [dParts, iParts] = parts ?? [null, null];
   return (
     <div className="grid [content-visibility:auto] [contain-intrinsic-size:auto_1em]" style={{ gridTemplateColumns: cols }}>
       <div className={`flex min-w-0 pr-2 ${sideBand(row.left, row.right)}`}>
@@ -172,17 +184,7 @@ function useRowHeights(innerRef: RefObject<HTMLDivElement | null>, rows: SplitRo
 }
 
 function SplitHalves({ rows, cols }: { rows: SplitRow[]; cols: string }) {
-  /* mod 对词级标注一次算两份:side() 左右各渲染一遍,逐侧现算 = 同一 DP 跑两遍
-   * (2026-09-15 评审);预计算随 rows 换代。 */
-  const wordParts = useMemo(
-    () =>
-      rows.map((row) =>
-        row.kind === "pair" && pairKind(row.left, row.right) === "mod"
-          ? wordDiff(row.left!.text, row.right!.text)
-          : null,
-      ),
-    [rows],
-  );
+  const wordParts = useWordParts(rows);
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
   const glRef = useRef<HTMLDivElement>(null);

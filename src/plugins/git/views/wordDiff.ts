@@ -6,12 +6,15 @@
 
 export type WordPart = { text: string; tag?: "ins" | "del" };
 
+/** 修改对左右两份词级标注(wordDiff 返回契约,SplitDiffView 两态共用)。 */
+export type WordDiffPair = [WordPart[], WordPart[]];
+
 /* u 标志:[^\w\s] 按码点整配,星面字符(emoji/CJK 扩展 B)不被按码元劈成孤立代理项
  * (劈半的公共 emoji 会渲染成 U+FFFD 替换符,2026-09-15 评审)。 */
 const tokenRe = /[\w-]+|\s+|[^\w\s]/gu;
 const MAX_LDP_CELLS = 20000;
 
-export function wordDiff(a: string, b: string): [WordPart[], WordPart[]] {
+export function wordDiff(a: string, b: string): WordDiffPair {
   const A = a.match(tokenRe) ?? [a];
   const B = b.match(tokenRe) ?? [b];
   const n = A.length;
