@@ -8,24 +8,7 @@
 import { useState } from "react";
 import { WarningIcon as Warning } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-
-const STORAGE_KEY = "tmd.webWanRiskAccepted";
-
-export function readWanRiskAccepted(): boolean {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function writeWanRiskAccepted(): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, "1");
-  } catch {
-    /* localStorage 不可写时等同每次询问 —— 更严,放行 */
-  }
-}
+import { writeWanRiskAccepted } from "./wanRiskAccepted";
 
 interface Props {
   onAccept: () => void;

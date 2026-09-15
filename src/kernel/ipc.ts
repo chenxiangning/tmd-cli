@@ -730,7 +730,7 @@ export function platformKind(): Promise<string> {
 import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { check, type Update, type DownloadEvent } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -801,6 +801,11 @@ export function pickDirectory(title: string): Promise<string | null> {
 /** 文件选择对话框(上传等需要本地文件路径的场景);取消返回 null。web 态 → null。 */
 export function pickFile(title: string): Promise<string | null> {
   return isWeb ? Promise.resolve(null) : openDialog({ directory: false, multiple: false, title });
+}
+
+/** 保存路径选择对话框(导出/另存为);返回绝对路径,取消返回 null。web 态 → null。 */
+export function pickSavePath(title: string, defaultPath?: string): Promise<string | null> {
+  return isWeb ? Promise.resolve(null) : saveDialog({ title, defaultPath });
 }
 
 /** 多选本地图片对话框(壁纸库导入);取消返回空数组。web 态 → []。 */

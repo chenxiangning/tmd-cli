@@ -6,16 +6,18 @@
 
 import { useState } from "react";
 import { CloudArrowUpIcon as CloudArrowUp, DownloadSimpleIcon as DownloadSimple } from "@phosphor-icons/react";
-import { relayDeploy, relayDeployPack } from "@kernel/ipc";
+import { relayDeploy, relayDeployPack, pickSavePath } from "@kernel/ipc";
 import { updateSettings } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 
 export function WebRelayDeployCard() {
   const [token, setToken] = useState("");
   const [accountId, setAccountId] = useState("");
+  const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ url: string; key: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
 
   const deploy = async () => {
     setBusy(true);
@@ -35,9 +37,12 @@ export function WebRelayDeployCard() {
   const exportPack = async () => {
     setBusy(true);
     setError(null);
+    setDone(null);
     try {
-      const path = await relayDeployPack("", undefined);
-      setResult({ url: path, key: "" });
+      const path = await pickSavePath(t("保存中继部署包"), "tmd-relay.zip");
+      if (!path) return;
+      const saved = await relayDeployPack(path, key.trim() || undefined);
+      setDone(t("已导出部署包:") + saved);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -70,6 +75,14 @@ export function WebRelayDeployCard() {
         onChange={(e) => setAccountId(e.target.value)}
         autoComplete="off"
       />
+      <input
+        type="password"
+        className="rounded border border-[var(--tmd-border)] bg-transparent px-2 py-1 text-xs"
+        placeholder={t("中继密钥(留空则导出时铸随机 key 烧入包内)")}
+        value={key}
+        onChange={(e) => setKey(e.target.value)}
+        autoComplete="off"
+      />
       {error && (
         <div className="rounded border border-[var(--tmd-error)]/40 bg-[var(--tmd-error)]/10 px-2.5 py-1.5 text-xs text-[var(--tmd-error)]">
           {error}
@@ -78,6 +91,11 @@ export function WebRelayDeployCard() {
       {result && (
         <div className="rounded border border-[var(--tmd-success)]/40 bg-[var(--tmd-success)]/10 px-2.5 py-1.5 text-xs text-[var(--tmd-success)]">
           {t("部署完成:")} {result.url}
+        </div>
+      )}
+      {done && (
+        <div className="rounded border border-[var(--tmd-success)]/40 bg-[var(--tmd-success)]/10 px-2.5 py-1.5 text-xs text-[var(--tmd-success)]">
+          {done}
         </div>
       )}
       <div className="flex gap-2">

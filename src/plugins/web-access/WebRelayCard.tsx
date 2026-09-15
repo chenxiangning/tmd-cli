@@ -1,6 +1,8 @@
 /**
  * 外网中继连接卡:中继 URL/key 输入、连接/断开、状态点+tooltip 承载错误。
  * 连接时自动带起 LAN 桥(relay 只经 127.0.0.1 桥进出,自身不开端口)。
+ * 组件拆分为状态宿主(WebRelayCard)与呈现体(WebRelayCardBody),拆至本文件;
+ * 状态纯函数在 relayStatusModel.ts(only-export-components / no-high-complexity)。
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -9,70 +11,33 @@ import { onWebRelay, webRelayStart, webRelayStatus, webRelayStop, type RelayInfo
 import { isWeb } from "@kernel/transport";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
+import { relayStatusDot, relayStatusText } from "./relayStatusModel";
 
-export function WebRelayCard() {
-  const { settings } = useSettingsState();
-  const [url, setUrl] = useState(settings.webRelayUrl);
-  const [key, setKey] = useState(settings.webRelayKey);
-  const [info, setInfo] = useState<RelayInfo | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+interface WebRelayCardBodyProps {
+  info: RelayInfo | null;
+  error: string | null;
+  busy: boolean;
+  url: string;
+  relayKey: string;
+  onUrlChange: (v: string) => void;
+  onKeyChange: (v: string) => void;
+  onConnect: () => void;
+  onDisconnect: () => void;
+}
 
-  const refresh = useCallback(async () => {
-    try {
-      setInfo(await webRelayStatus());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-    /* 中继状态事件驱动刷新(事件 payload 恒 Null,只作信号)。 */
-    let unlisten: (() => void) | null = null;
-    onWebRelay((next) => setInfo(next)).then((fn) => {
-      unlisten = fn;
-    });
-    return () => {
-      unlisten?.();
-    };
-  }, [refresh]);
-
-  const connect = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      updateSettings({ webRelayUrl: url, webRelayKey: key, webRelayOn: true });
-      setInfo(await webRelayStart(url, key));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const disconnect = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      updateSettings({ webRelayOn: false });
-      await webRelayStop();
-      setInfo(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const statusDot = info?.connected ? "🟢" : info ? "🟡" : "⚪";
-  const statusText = info?.connected
-    ? t("已连接")
-    : info?.error
-      ? info.error
-      : info
-        ? t("连接中…")
-        : t("未连接");
+export function WebRelayCardBody({
+  info,
+  error,
+  busy,
+  url,
+  relayKey,
+  onUrlChange,
+  onKeyChange,
+  onConnect,
+  onDisconnect,
+}: WebRelayCardBodyProps) {
+  const statusDot = relayStatusDot(info);
+  const statusText = relayStatusText(info);
 
   return (
     <div className="flex flex-col gap-2 rounded border border-[var(--tmd-border)] p-3">
@@ -88,7 +53,7 @@ export function WebRelayCard() {
         className="rounded border border-[var(--tmd-border)] bg-transparent px-2 py-1 text-xs"
         placeholder={t("中继 Worker URL(如 https://tmd-relay.<sub>.workers.dev)")}
         value={url}
-        onChange={(e) => setUrl(e.target.value)}
+        onChange={(e) => onUrlChange(e.target.value)}
         autoComplete="off"
         disabled={busy || isWeb}
       />
@@ -96,8 +61,8 @@ export function WebRelayCard() {
         type="password"
         className="rounded border border-[var(--tmd-border)] bg-transparent px-2 py-1 text-xs"
         placeholder={t("中继密钥(部署时自动铸造,或自行设强密码)")}
-        value={key}
-        onChange={(e) => setKey(e.target.value)}
+        value={relayKey}
+        onChange={(e) => onKeyChange(e.target.value)}
         autoComplete="off"
         disabled={busy || isWeb}
       />
@@ -121,7 +86,7 @@ export function WebRelayCard() {
           <button
             type="button"
             className="flex items-center gap-1 rounded border border-[var(--tmd-border)] px-2 py-1 text-xs hover:bg-[var(--tmd-bg-hover)] disabled:opacity-50"
-            onClick={disconnect}
+            onClick={onDisconnect}
             disabled={busy || isWeb}
           >
             {t("断开")}
@@ -130,8 +95,8 @@ export function WebRelayCard() {
           <button
             type="button"
             className="flex items-center gap-1 rounded border border-[var(--tmd-border)] px-2 py-1 text-xs hover:bg-[var(--tmd-bg-hover)] disabled:opacity-50"
-            onClick={connect}
-            disabled={busy || isWeb || !url.trim() || !key.trim()}
+            onClick={onConnect}
+            disabled={busy || isWeb || !url.trim() || !relayKey.trim()}
           >
             <ArrowsClockwise size="0.75rem" aria-hidden />
             {busy ? t("连接中…") : t("连接中继")}
@@ -145,5 +110,75 @@ export function WebRelayCard() {
         </div>
       )}
     </div>
+  );
+}
+
+export function WebRelayCard() {
+  const { settings } = useSettingsState();
+  const [url, setUrl] = useState(settings.webRelayUrl);
+  const [relayKey, setRelayKey] = useState(settings.webRelayKey);
+  const [info, setInfo] = useState<RelayInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      setInfo(await webRelayStatus());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    /* 中继状态事件驱动刷新(事件 payload 即 RelayInfo,直连填)。 */
+    let unlisten: (() => void) | null = null;
+    onWebRelay((next) => setInfo(next)).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      unlisten?.();
+    };
+  }, [refresh]);
+
+  const connect = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      updateSettings({ webRelayUrl: url, webRelayKey: relayKey, webRelayOn: true });
+      setInfo(await webRelayStart(url, relayKey));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const disconnect = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      updateSettings({ webRelayOn: false });
+      await webRelayStop();
+      setInfo(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <WebRelayCardBody
+      info={info}
+      error={error}
+      busy={busy}
+      url={url}
+      relayKey={relayKey}
+      onUrlChange={setUrl}
+      onKeyChange={setRelayKey}
+      onConnect={connect}
+      onDisconnect={disconnect}
+    />
   );
 }

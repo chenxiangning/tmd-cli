@@ -64,6 +64,18 @@ fn persist_relay_state(enabled: bool, target: Option<(&str, &str)>) -> Result<()
     crate::settings::save_settings(&settings).map_err(|e| format!("设置落盘失败: {e}"))
 }
 
+/// 桥开关落盘:relay 起桥必须让 webAccessEnabled=true,否则下一次 config_write_settings
+/// 会走 apply_settings(false) 把桥停掉(relay 转发全失败但 UI 绿灯)。停 relay 不回填 false
+/// —— 桥是 LAN 自己的功能,用户可能正开着 LAN 用。relay 起桥只是「顺带把桥打开」。
+fn persist_bridge_enabled(enabled: bool) -> Result<(), String> {
+    let mut settings = crate::settings::load_settings();
+    if settings["webAccessEnabled"] == serde_json::json!(enabled) {
+        return Ok(());
+    }
+    settings["webAccessEnabled"] = serde_json::json!(enabled);
+    crate::settings::save_settings(&settings).map_err(|e| format!("设置落盘失败: {e}"))
+}
+
 fn stop_relay_after_persist(
     persist: impl FnOnce() -> Result<(), String>,
     take_running: impl FnOnce() -> Option<Running>,
@@ -86,10 +98,14 @@ pub async fn web_relay_start(
     let agent = relay_core::agent_url(&url, &key)?;
     let state = app.state::<crate::AppState>();
     // 起桥(确保 127.0.0.1:<port> 存在),relay 只经它服务。
+    // 起桥后必须把 webAccessEnabled 回填为 true —— 否则任何 config_write_settings
+    // 都会走 apply_settings(false) 把桥停掉,中继绿灯照亮但转发全失败。
     let bridge = super::web_access::web_access_start(app.clone()).await?;
     let Some(bridge_info) = bridge else {
         return Err("Web 桥启动失败".into());
     };
+    persist_relay_state(true, Some((&url, &key)))?;
+    persist_bridge_enabled(true)?;
     let bridge_port = bridge_info.port;
 
     let info = RelayInfo {
@@ -100,7 +116,6 @@ pub async fn web_relay_start(
     };
     let (stop_tx, stop_rx) = watch::channel(false);
     let generation = NEXT_GENERATION.fetch_add(1, Ordering::Relaxed);
-    persist_relay_state(true, Some((&url, &key)))?;
     {
         let mut guard = state.relay.inner.lock();
         if let Some(previous) = guard.take() {
@@ -124,7 +139,10 @@ pub async fn web_relay_start(
 pub fn web_relay_stop(app: tauri::AppHandle) -> Result<(), String> {
     let state = app.state::<crate::AppState>();
     stop_relay_after_persist(
-        || persist_relay_state(false, None),
+        || {
+            persist_relay_state(false, None)?;
+            persist_bridge_enabled(false)
+        },
         || state.relay.inner.lock().take(),
     )?;
     broadcast_relay(&app);

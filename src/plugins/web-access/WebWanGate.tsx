@@ -5,7 +5,8 @@
  */
 
 import { useState } from "react";
-import { readWanRiskAccepted, WebWanRiskDialog } from "./WebWanRiskDialog";
+import { readWanRiskAccepted } from "./wanRiskAccepted";
+import { WebWanRiskDialog } from "./WebWanRiskDialog";
 import { WebWanPane } from "./WebWanPane";
 
 export function WebWanGate() {
