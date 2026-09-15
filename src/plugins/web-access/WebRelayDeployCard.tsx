@@ -59,6 +59,33 @@ export function WebRelayDeployCard() {
       <div className="text-xs text-[var(--tmd-fg-muted)]">
         {t("中继跑在你自己的 Cloudflare 账号(免费额度足够)。API Token 仅本次部署使用,不保存。")}
       </div>
+      <details className="rounded border border-[var(--tmd-border)] bg-[var(--tmd-surface-1)] px-2.5 py-1.5 text-xs">
+        <summary className="cursor-pointer select-none font-medium text-[var(--tmd-fg)]">
+          {t("Cloudflare API Token 怎么申请?")}
+        </summary>
+        <ol className="mt-1.5 flex flex-col gap-1 pl-4 text-[var(--tmd-fg-muted)]" style={{ listStyle: "decimal" }}>
+          <li>
+            {t("开 Cloudflare Dashboard → 右上角头像 → My Profile → 左侧 API Tokens → Create Token")}
+          </li>
+          <li>
+            {t("模板选 Edit Cloudflare Workers(或 Custom:Account 权限勾 Workers Scripts:Edit + Account Settings:Read)")}
+          </li>
+          <li>
+            {t("Account Resources 选你的账号 → Continue → Create Token → 复制粘贴到下面")}
+          </li>
+          <li>
+            {t("Account ID 在 Dashboard 右侧栏(Workers 页)或任意域名 Overview 右下角;用 cfat_ 账户令牌时必填")}
+          </li>
+        </ol>
+        <a
+          className="mt-1 inline-block text-[var(--tmd-accent)] underline"
+          href="https://dash.cloudflare.com/profile/api-tokens"
+          target="_blank"
+          rel="noreferrer"
+        >
+          {t("直达:Cloudflare API Tokens 页面")}
+        </a>
+      </details>
       <input
         type="password"
         className="rounded border border-[var(--tmd-border)] bg-transparent px-2 py-1 text-xs"
