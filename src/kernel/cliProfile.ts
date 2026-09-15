@@ -156,6 +156,17 @@ export interface CliProfile {
    */
   busyMarks?: RegExp[];
   /**
+   * 「用户消息回显」磁盘字节标记(readopt 重锚证据,见
+   * ActivityWatch.readoptAnchor):webview 重载清空前端锚后,接管时按磁盘
+   * 日志尾(256KB)判定重载前是否发生过对话 —— 命中即重锚恢复在途轮次,
+   * 否则后续输出被轮次开启闸拦死永不自愈(2026-09-15 实证)。
+   * 与 busyMarks 的匹配面不同:每条正则对**未剥 ANSI 的原始日志尾**整体
+   * 匹配(回显证据恰在 SGR 斜体序列上,剥壳即失);未声明 = 该 CLI 重载后
+   * 不重锚(行为同重锚机制落地前,不变)。
+   * 纪律同 askMarks:宁可漏报不可误报,字面量必须取自真实 session 日志。
+   */
+  echoMarks?: RegExp[];
+  /**
    * 「AI 写入文件」输出标记(审批线 events 归因):每条正则对剥 ANSI 后的
    * 单行匹配,捕获组 1 = 文件路径(仓库相对或 cwd 内绝对)。
    * 声明后该 CLI 的会话走 events 归因(审批线跟随 AI 输出落账);

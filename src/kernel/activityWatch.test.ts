@@ -222,3 +222,47 @@ describe("空闲重绘闸", () => {
     expect(watch.isTurnActive("s")).toBe(true);
   });
 });
+
+describe("readopt 重锚与调度间隙守卫(2026-09-15)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+  /* echoMarks 命中判定在插件声明侧(cli-shared),单测用哑标记钉状态机语义;
+     pi-tui 实采字节的端到端路径见 askScreenMirror.host.test.ts。 */
+
+  it("重锚命中:重载前在途轮次恢复因果,自证窗持过静默段后应答照常结算", () => {
+    const { watch } = makeWatch();
+    watch.readoptAnchor("s", "tail MARKER", [/\bMARKER\b/]);
+    expect(watch.isTurnActive("s")).toBe(true);
+    vi.advanceTimersByTime(25_000); // 重载后紧邻静默工具:自证窗持轮不假结算
+    expect(watch.isTurnActive("s")).toBe(true);
+    watch.onOutput("s", "answer tail"); // 应答到达:经正常通路续轮
+    vi.advanceTimersByTime(6_000); // 自证窗 30s 出窗(锚后 31s):照常结算
+    expect(watch.isTurnActive("s")).toBe(false);
+    expect(watch.isUnread("s")).toBe(true); // 归属锚末内容帧(I3):重载后无 tab,应答帧未查看照标蓝
+  });
+
+  it("重锚未声明/未命中:零语义(同 I1),后续噪音不开轮", () => {
+    const { watch } = makeWatch();
+    watch.readoptAnchor("s", "tail MARKER"); // 未声明 marks
+    watch.readoptAnchor("s2", "idle tail", [/\bMARKER\b/]); // 声明但未命中
+    for (const id of ["s", "s2"]) {
+      expect(watch.isTurnActive(id)).toBe(false);
+      watch.onOutput(id, "hook: background done");
+      expect(watch.isTurnActive(id)).toBe(false);
+    }
+  });
+
+  it("调度间隙守卫:墙钟跳变(睡眠/节流)不结算在途轮次,全钟刷新后真静默照常结算", () => {
+    const { watch } = makeWatch();
+    watch.onUserWrite("s");
+    vi.advanceTimersByTime(500);
+    watch.onOutput("s", "answer body");
+    vi.advanceTimersByTime(1_000); // 一次结算 tick 落基线
+    vi.setSystemTime(Date.now() + 120_000); // 墙钟跳变:计时器不 firing
+    vi.advanceTimersByTime(1_000); // 间隙后首 tick:守卫刷钟跳过结算
+    expect(watch.isTurnActive("s")).toBe(true);
+    vi.advanceTimersByTime(3_000);
+    expect(watch.isTurnActive("s")).toBe(false);
+  });
+});
+

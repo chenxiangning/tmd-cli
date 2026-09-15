@@ -12,7 +12,7 @@ import { SshSessionService } from "./sshSessions";
 import { readoptSessions } from "./sessionAdopt";
 import type { HostWatches } from "./hostWatches";
 import type { CliProfile } from "./cli";
-import type { SessionMeta } from "./ipc";
+import { ipc, type SessionMeta } from "./ipc";
 
 /** 三张服务 ctx 的并集,由 Host 以惰性箭头注入(同各服务文件头纪律)。 */
 interface HostSessionServicesCtx {
@@ -40,6 +40,8 @@ interface HostSessionServices {
   /** webview 重载后活 PTY 重新接管(会话表合并 + 常驻订阅重建)。 */
   readopt: () => Promise<void>;
 }
+/** 接管磁盘尾取量:镜像补底与回显重锚单取分用(免逐会话重复 IPC;256KB 覆盖最后一帧整帧重绘 + 近期对话回显,pi-tui 单帧可达 9KB)。 */
+const READOPT_TAIL_BYTES = 256 * 1024;
 
 export function createSessionServices(
   ctx: HostSessionServicesCtx,
@@ -100,18 +102,28 @@ export function createSessionServices(
       events,
     ),
     /* webview 重载后活 PTY 重新接管(语义见 kernel/sessionAdopt.ts readoptSessions)。
-       接管后给活 CLI 会话的屏幕镜像补磁盘日志尾:重载前已挂起的 Ask 面板无须等
-       下一次整帧重绘即可见(补盲语义见 askScreenMirror.ts)。 */
+       接管后磁盘尾单取分用两路:屏幕镜像补挂起面板(补盲语义见
+       askScreenMirror.ts);活动守望按用户回显证据重锚(重载前在途轮次不丢因果,
+       见 ActivityWatch.readoptAnchor)。 */
     readopt: async () => {
       await readoptSessions(
         { ...base, setSessions: (sessions) => ctx.setSessions(sessions) },
         events,
       );
-      const mirrorJobs: Promise<void>[] = [];
+      const jobs: Promise<void>[] = [];
       for (const s of ctx.getSessions()) {
-        if ((s.kind ?? "cli") === "cli") mirrorJobs.push(watches.screenMirror.backfillFromDisk(s.id));
+        if ((s.kind ?? "cli") !== "cli") continue;
+        jobs.push(
+          (async () => {
+            const end = await ipc.sessionLogSize(s.id);
+            if (!end) return; /* 无日志(含尚未落盘的新会话)= 无现势可补、无回显证据 */
+            const page = await ipc.sessionHistoryPage(s.id, end, READOPT_TAIL_BYTES);
+            watches.screenMirror.backfill(s.id, page.text);
+            if (page.text) watches.readoptAnchor(s.id, page.text, ctx.getCliProfile(s.profileId)?.echoMarks);
+          })().catch(() => undefined), /* 补底/重锚是增强:失败保持未恢复(同 I1 零语义),不拖垮接管 */
+        );
       }
-      await Promise.all(mirrorJobs);
+      await Promise.all(jobs);
     },
   };
 }

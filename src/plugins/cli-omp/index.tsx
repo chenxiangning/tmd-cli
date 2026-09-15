@@ -9,6 +9,7 @@ import { ompAcquireResume, startOmpPrewarmManager, stopOmpPrewarmManager } from 
 import { listOmpSuggestions } from "./rpcCommands";
 import { OmpExtensionMarket } from "./market";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
+import { PI_TUI_ECHO_MARKS } from "../cli-shared/echoMarks";
 import type { CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 
@@ -157,6 +158,9 @@ export const cliOmpPlugin: Plugin = {
       /* Ask 卡片标记(pi-tui 系共享字面量,见 cli-shared/askMarks.ts):
          会话列表「等待确认」标签 + 提示音的检测源。 */
       askMarks: PI_TUI_ASK_MARKS,
+      /* 用户消息回显标记(pi-tui 系共享字面量,见 cli-shared/echoMarks.ts):
+         webview 重载后 readopt 重锚的磁盘证据(契约见 kernel/cliProfile.ts echoMarks)。 */
+      echoMarks: PI_TUI_ECHO_MARKS,
       /* win ConPTY 的 CPR 应答错位会被 pi-tui 当字符注入(架构 04 契约 7)。 */
       conptyCprMismatch: true,
       /* 轮次进行中的工作界面标记(实采 v18.1.19 全量日志):⎋ 状态行(工作区

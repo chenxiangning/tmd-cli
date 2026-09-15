@@ -143,9 +143,8 @@ export class HostWatches {
     const chunkBytes = this.outputBuffers.append(sessionId, text, limit);
     this.ctx.events.emit(ptyLiveTopic(sessionId), text);
 
-    /* AskWatch 升级 → askDetected + 标签;ActivityWatch 回绿;EditWatch → fileEditDetected。
-       notify 单次:ask 升级与回绿共享同一渲染节拍。visible 供家具分类;busyMarks
-       行级命中(CLI 自证在途,契约见 kernel/cliProfile.ts),仅对已锚定会话计算。 */
+    /* AskWatch 升级 → askDetected + 标签;ActivityWatch 回绿;EditWatch → fileEditDetected。notify 单次;
+       visible 供家具分类;busyMarks 行级命中(CLI 自证在途,契约见 kernel/cliProfile.ts),仅对已锚定会话计算。 */
     const asked = this.askWatch.onOutput(sessionId, text, chunkBytes);
     const visible = stripAnsi(text);
     const profile = session ? this.ctx.getCliProfile(session.profileId) : undefined;
@@ -180,8 +179,7 @@ export class HostWatches {
   }
 
   /** 用户写入的守望扇出:对话锚定(呼吸灯首写闸)+ EditWatch 去重集清空 + Ask 作答解除。
-      synthetic 回传(焦点/鼠标/查询应答,terminalReports.ts)不是作答,三守望一概不碰 ——
-      否则点一下终端/切一次 tab 就清候选并重启 8s 抑制窗,亮标被无限推迟(实测根因)。
+      synthetic 回传(焦点/鼠标/查询应答,terminalReports.ts)不是作答,三守望一概不碰 —— 否则点一下终端/切 tab 就清候选重启 8s 抑制窗,亮标无限推迟(实测根因)。
       返回 true = Ask 等待态翻转,Host 据此重渲染。 */
   onUserWrite(sessionId: string, synthetic: boolean): boolean {
     if (synthetic) return false;
@@ -199,6 +197,9 @@ export class HostWatches {
   markViewed(sessionId: string): void {
     this.activity.markViewed(sessionId);
   }
+
+  /** readopt 重锚:磁盘尾 + 插件声明 echoMarks 直达活动守望(语义见 ActivityWatch.readoptAnchor)。 */
+  readoptAnchor(sessionId: string, diskTail: string, marks?: RegExp[]): void { this.activity.readoptAnchor(sessionId, diskTail, marks); }
 
   /** 完成未读判定(会话列表蓝呼吸灯)。 */
   isUnread(sessionId: string): boolean {
@@ -263,8 +264,7 @@ export class HostWatches {
 
   statusEnsurePolling(): void { this.statusWatch.ensurePolling(); }
 
-  /** 状态观测分派:远程引擎会话(来源工作区 + 引擎远程适配)走远端磁盘通道,
-   *  其余走本机会话文件观测(远程身份绑定语义见 kernel/remoteStatusRefresh.ts)。 */
+  /** 状态观测分派:远程引擎会话走远端磁盘通道,其余走本机会话文件观测(语义见 remoteStatusRefresh.ts)。 */
   statusRefresh(sessionId: string): void {
     void this.remoteStatus(sessionId).then((remote) => {
       if (!remote) return this.statusWatch.refresh(sessionId);

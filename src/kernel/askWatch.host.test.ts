@@ -34,7 +34,7 @@ vi.mock("./ipc", () => ({
 vi.mock("./askScreenMirror", () => ({
   AskScreenMirror: class {
     feed() {}
-    async backfillFromDisk() {}
+    backfill() {}
     remove() {}
     resetForTest() {}
   },

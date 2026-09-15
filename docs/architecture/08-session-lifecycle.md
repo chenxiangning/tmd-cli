@@ -46,7 +46,9 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
 
 - **I1 对话锚定**:呼吸灯只认用户发起的对话。`host.writeSession` 的真实用户输入是唯一
   锚定入口(`onUserWrite`),锚定前一切输出不推活动钟、不进轮次、不标未读、不发
-  turnSettled。锚定 = PTY 寿命级(纯内存,随 webview/PTY 消亡,重载后回 none 是既定语义)。
+  turnSettled。锚定 = PTY 寿命级(纯内存,随 webview/PTY 消亡);**例外:readopt 重锚**
+  (2026-09-15):webview 重载后接管时扫磁盘日志尾,命中插件声明 echoMarks 的用户
+  回显行(pi-tui 系引号灰斜体行实采字节,见闸 4c)= 重载前发生过对话的因果证据,恢复锚与在途轮次。
 - **I2 开轮只认因果**:CLI 会话开新轮 ⟺ `awaitingTurn`(有未应答用户写入)或本就在途。
   tab 开关、窗口焦点、会话是否被选中**都不是**开轮条件(2026-09-11 收紧的直接产物)。
 - **I3 归因锚定末内容帧**:结算时未读归属看「最后 content 帧瞬间」是否被查看,不看结算瞬间
@@ -71,6 +73,8 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
 |3|家具分类(content/tick/static)|空闲 spinner/状态栏/时钟原地自绘伪装活动:吊住结算(永挂运行时)或重跑生命周期|剥 ANSI 仅取**字母骨架**:首见 = content(推活动钟,可开轮);复现且数字串变动 = tick(轮次在途时把该骨架登记为 ticker = 持轮家具);复现且数字相同或骨架空 = static(不推钟)。分类输入是 PTY 分片(非逻辑帧);省略 visibleText 的分片跳过分类照走后续闸。ssh/shell 豁免|activityWatch.test.ts「空闲重绘闸」组 + activityWatch.evidence.test.ts|
 |4|轮次开启闸|已了结老会话被异步噪音重跑生命周期|`!activeTurns && !awaitingTurn && noiseGated` 即挡|activityWatch.test.ts + host.unread.test.ts「实证缺陷」|
 |4b|busyMarks 自证通道|流式间隙/深思期假结算(见 §4 2026-09-13 事故):混片致 ticker 永不登记,content 钟独木难支|插件声明 `busyMarks` 正则,hostWatches 行级匹配命中即馈入(**仅对已锚定会话计算**,`isAnchored` 门控省 idle 空算);只在轮次在途或 awaiting 时生效 —— 刷 30s 自证钟持轮、awaiting 期 = 应答开始(开轮 + answered,天花板让位);纯 busy 轮次开轮即推活动钟,判据「钟老于本轮写入」(`lastContentAt < lastWriteAt`,第二轮起同样生效 —— 旧「钟为 0 才推」漏第二轮,407a59d);**已结算轮不重燃(闸 4 同构),未锚定不推(闸 1 同构),重绘抑制窗内同 suppressed**|activityWatch.evidence.test.ts「busyMarks 自证在途」组 + 真实日志回放(2026-09-13,13 分钟单轮全程 running)|
+|4c|readopt 重锚|webview 重载(HMR/崩溃)清空前端态:重载前在途轮次丢锚落空闲,且 I2 拦后续输出永不自愈(2026-09-15 实证:双会话同刻翻空闲)|readopt 接管时对活 CLI 会话读磁盘日志尾 256KB,命中**插件声明的 `echoMarks`**(pi-tui 系共享声明 cli-shared/echoMarks.ts:`ESC[3;…m"` 引号灰斜体行用户消息框字面量,实采零空闲误现;匹配面是未剥 ANSI 原始字节 —— 证据恰在斜体 SGR 上;内核零 CLI 字面量,同 busyMarks/askMarks 纪律;**未声明 CLI 不重锚 = 行为不变**)即 `readoptAnchor`:恢复 anchored/awaiting/answered/active + 内容钟与自证钟(盖重载后紧邻静默工具),后续输出经正常通路续轮;未命中保持未锚定(空闲会话零语义,同 I1);归属保守按已查看(重载前查看态不可知,防幽灵轮误蓝),结算归因仍走 I3|activityWatch.test.ts + askScreenMirror.host.test.ts「readopt 重锚」组|
+|结算|调度间隙|系统睡眠/节流致墙钟跳变:三口钟同刻过窗,在途轮次被假结算且 I2 拦后续不自愈|结算 tick 间隔 >60s(`CLOCK_JUMP_MS`)= 观测缺口非因果证据:全在途钟刷到本刻跳过本轮;真静默后续 tick 照常结算|activityWatch.test.ts「调度间隙守卫」|
 |结算|静默判据|长轮次假结算(数字粒度由 CLI 自定)或空闲自绘永挂|静默 = content 钟出 2s 窗 **且** ticker 帧钟出 `TICKER_HOLD_MS`(5s)窗 **且** busy 自证钟出 `BUSY_HOLD_MS`(30s)窗:ticker 的一切复现帧(tick/static)刷新帧钟,持轮判据 = 帧流连续性而非数字变动;busy 钟窗宽于帧钟 —— 深思期页脚重绘稀疏(标记帧间隔 >5s 实证),自证可信度高|activityWatch.evidence.test.ts「分钟粒度持轮家具」「tick 家具持轮」「静态家具不持轮」「busyMarks 自证在途」|
 |结算|归因|看完回答 2s 窗内切走被误标未读|最后 content 帧瞬间 `isViewing` 快照|host.activityWatch.test.ts|
 |天花板|未应答写入被假结算吞掉(awaiting 丢失 → 真应答被闸 4 拦死)|`noiseGated && awaiting && !answered && 距写入 <120s` → 跳过结算;到期必结算(spinner 永续自绘的即时报错轮、写入丢失都由天花板收口)|activityWatch.test.ts「守卫天花板」+ activityWatch.evidence.test.ts「tick 持轮」「取舍钉板」|
@@ -95,6 +99,7 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
 |09-11|独立评审 P1:回显窗内完结的轮次(/help、即时报错)+ spinner 永续自绘 ⇒ 守卫恒真,120s 宽限也兜不住,永挂运行时(继承缺陷,非重构引入)|守卫按「家具活性」分支,而 omp 页脚自绘永续刷新活性;三分支(家具新鲜/陈旧/从未见)在字节上覆盖全部形态,逻辑上必然塌缩|守卫塌缩为单一「未应答写入天花板」:写入后 120s 内不结算未应答轮次,到期必结算;P1 回归测试重写为天花板语义(前提「自绘会停歇」的 CLI 形态不存在)|**守卫分支若覆盖全部输入,它就是一条规则** —— 同日 F5(单帧家具废宽限)同根同修|
 |09-13|长轮次(>1min)侧栏恒「空闲」且永不自愈、提前掉出运行区|omp 页脚过 60s 从秒粒度切分钟粒度,两跳间隙 60s,期间全为 static 帧不推任何钟 → 2s 静默窗必假结算;真应答被闸 4 拦死|tick 登记 ticker(持轮家具),其复现帧刷新帧钟,结算判据改为「content 出 2s 窗 **且** ticker 帧钟出 5s 窗」——持轮看帧流连续性,不看数字变动;ticker 登记限轮次在途,空闲自绘墙钟不获资格|**数字粒度是 CLI 私有选择,持轮判据必须建立在帧流在场这一通用信号上**(09-11 证据模型「tick=推证据钟」的隐含前提「tick 频率 ≥1Hz」被分钟粒度击穿)|
 |09-13 二修|同症状复发:**运行中实时对话过一段时间状态照掉**(上午修复无效)|真实字节流里页脚与流式内容**混在同一 4KB PTY read 分片**,骨架被内容驱动为永远唯一 → 「骨架复现+数字跳变」从不发生 → ticker 永不登记(上午修复的测试用纯页脚分片回放,掩盖了混片形态);持轮只剩 content 钟,流式间隙(思考下一段/API 停顿)>2s 即假结算且闸 4 拦死永不回绿;深思期页脚重绘也稀疏(标记帧间隔 >5s),5s 帧窗同样盖不住。根因层面:工作间隙与空闲页脚在字节上同构,纯字节流判定无法两全|busyMarks 自证通道(askMarks/editMarks 同款第三胞胎):CLI 插件声明工作界面标记(omp:⎋ 状态行 + elapsed 计时行,实采零空闲误现),hostWatches 行级匹配馈入 activityWatch,标记帧刷 30s 自证钟持轮;awaiting 期即应答开始(天花板让位);完工换装标记消失,30s 照常结算;未声明 CLI 行为不变。**真实日志回放验收:13 分钟单轮(44761 帧)全程 running**|**测试回放必须用真实字节流(混片形态),纯帧构造的用例会系统性掩盖分片边界效应;字节流同构的两态(工作间隙/空闲)只能靠 CLI 自证区分,这正是 askMarks 先例预留的架构出路**|
+|09-15|qwen 长轮次中双会话同刻翻「空闲」且不自愈(第 9 次)|webview 重载(HMR)清空前端态:readopt 只重建订阅不恢复锚,重载前在途轮次丢锚(I1 零语义)落空闲;此后一切输出被闸 4 拦死(I2),永不自愈 —— 与轮次内容无关,故「小概率、多会话同刻」|readopt 重锚(闸 4c):磁盘尾用户回显行恢复锚;另补调度间隙守卫(睡眠墙钟跳变不假结算)。**真实日志实证:静默工具期字节流 ≈11KB/s 持续(事件循环活),排除「工具期静默假结算」假设;`· idle` 标记工作期亦现(仅表事件循环空闲),否决 idleMarks 方案**|**状态机因果只存前端内存 = 重载即丢;凡「多会话同刻翻态」先查全局态丢失(重载/睡眠),再查单轮字节判据;磁盘尾是重载前因果的唯一持久证据**|
 
 ## 5. 修改规则(review 清单)
 
