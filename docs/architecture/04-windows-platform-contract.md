@@ -54,6 +54,14 @@ portable-pty 0.9 以 `PSEUDOCONSOLE_INHERIT_CURSOR` 建 pseudoconsole:ConPTY 启
 - 迁移窗口状态机必须接线:`InstallCard` 在 bootstrap `REFUSED migration-locked` 时暂停 tmd-cli 自家 omp 会话并重试一次,仍锁则显式指引;面板不可用态同样保留底部工具条(控制台入口 + 诊断),入口消失 = 用户无路可走(2026-09-06 实证)。
 - omp config 解析按 CRLF 容忍(`\r?\n`),Windows 手编 YAML 不再整段失配。
 
+## 契约 8:events 归因路径闸 —— Windows 绝对路径必须入账(2026-09-15)
+
+审批线 events 归因(checkpoints)从 CLI 会话 JSONL 提取 AI 写入事件,路径经两级闸:前端 `normalizeEditPath`(`src/kernel/editWatch.ts`,持有 cwd,负责 cwd 内相对化)与 Rust `canonicalize_event_path`(`src-tauri/src/checkpoints/path.rs`,单闸终审)。旧契约对 Windows 盘符形态(`C:\…` / `C:/…`)两闸都显式拒收 —— 但 omp/pi 的 edit 结果 hashline 头与 write `resolvedPath` 在 Windows 上全是盘符绝对路径,拒收即 events 归因全盲(实证:一次 10 次写入的轮次只入账 1 次,唯一幸存者是恰好以相对路径 echo 的 write)。新契约:盘符与 UNC(`\\srv\share`)按绝对路径入账,反斜杠统一为斜杠、盘符段作根(`..` 不可弹出)、NTFS 大小写不敏感比对 cwd 前缀;cwd 内由前端相对化入账,cwd 外存绝对形态(工作区外语义,无前像禁回退不变)。
+
+- 适配:`normalizeEditPath` win 绝对分支(斜杠归一 + 小写前缀比对);`canonicalize_event_path`/`is_external_path` 收盘符与 UNC,POSIX 绝对/UNC/盘符三种头各自保留。
+- 假结算自愈:events 会话的 `turnSettled` 是输出空闲启发式,Windows 上长静默工具(bash 跑测试 68s)会早触发封口,其后写入因「已封口不记账」全丢。`record_edit` 对带真实时刻(`ts >= anchor.ts`)的迟到磁盘事件照常入账并修订重封(`build_turn_entry` 既有冻结/幂等语义护住已审批批);PTY 标记(None 时刻)的重绘行照旧丢弃。
+- 回归锚点:`editWatch.test.ts`(win 绝对路径相对化/上抛/盘符残片拒)、`cli-omp/edits.test.ts`(2026-09-15 真实会话行)、`checkpoints/tests/events_external.rs`(盘符/UNC 归一)、`checkpoints/tests/events.rs`(假结算迟到事件修订重封)。
+
 ## 排障备忘
 
 - 终端黑屏 + 会话短码名 + 模型/额度 "—" 三症同根时,先查 slug 目录与 ConPTY 握手,再查上游 CLI 本身。

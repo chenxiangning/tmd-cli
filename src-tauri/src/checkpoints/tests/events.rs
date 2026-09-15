@@ -171,3 +171,42 @@ fn events_新建与删除_封口后事件丢弃() {
     assert!(ws.read("new.txt").is_none());
     assert_eq!(ws.read("a.txt").as_deref(), Some("v1\n"));
 }
+
+#[test]
+fn events_假结算后磁盘事件迟到_修订重封自愈() {
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+    let anchor = anchor_events(&ws, "cli-1", "tmd-1", "长任务");
+    ws.write("a.txt", "v2\n");
+    assert!(edit(&ws, "cli-1", "tmd-1", "a.txt"));
+    // 假结算:turnSettled 空闲启发式早触发(长静默工具期),轮被提前封口
+    assert!(ws.seal("cli-1", "tmd-1"));
+
+    // 其后 AI 继续写:磁盘事件带真实写入时刻,≤4s 迟到拉取照常入账并修订重封
+    ws.write("b.txt", "n1\n");
+    ws.write("a.txt", "v3\n");
+    let t_late = anchor.ts + 60_000;
+    assert!(record_edit(ws.path(), "cli-1", "tmd-1", "b.txt", Some(t_late)).unwrap());
+    assert!(record_edit(ws.path(), "cli-1", "tmd-1", "a.txt", Some(t_late + 1)).unwrap());
+    let b = &ws.batches("cli-1")[0];
+    assert_eq!(
+        b.files.iter().find(|f| f.path == "b.txt").unwrap().status,
+        "A"
+    );
+    assert_eq!(
+        b.files.iter().find(|f| f.path == "a.txt").unwrap().status,
+        "M"
+    );
+
+    // PTY 标记(None 时刻)的重绘/回放行仍丢弃;早于锚点的迟到回放仍丢弃
+    assert!(!edit(&ws, "cli-1", "tmd-1", "ghost.txt"));
+    assert!(!record_edit(
+        ws.path(),
+        "cli-1",
+        "tmd-1",
+        "stale.txt",
+        Some(anchor.ts - 1)
+    )
+    .unwrap());
+}

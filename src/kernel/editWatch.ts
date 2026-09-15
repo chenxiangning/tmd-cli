@@ -51,20 +51,35 @@ function splitLines(buf: string): { lines: string[]; rest: string } {
  */
 export function normalizeEditPath(raw: string, cwd: string): string | null {
   let p = raw.trim().replace(/^["'`]|["'`]$/g, "").trim();
+  let c = cwd;
   if (!p || p === "." || p === "..") return null;
   if (p.startsWith("./") || p.startsWith(".\\")) p = p.slice(2);
-  if (p.startsWith("/")) {
+  /* Windows 绝对形态(盘符/UNC):斜杠归一后与 POSIX 同分支处理;NTFS 大小写
+   * 不敏感,盘符形态下前缀比对统一小写(2026-09-15 win 实证:omp/pi 的
+   * hashline 头与 write resolvedPath 在 Windows 全是 C:\... 绝对路径,拒收 =
+   * events 归因全盲,只漏剩相对路径的零星 echo)。 */
+  const winAbs = /^[A-Za-z]:[\\/]/.test(p) || p.startsWith("\\\\");
+  const winCtx = winAbs || /^[A-Za-z]:[\\/]/.test(c);
+  if (winCtx) {
+    p = p.replace(/\\/g, "/");
+    c = c.replace(/\\/g, "/");
+  }
+  if (p.startsWith("/") || winAbs) {
     // 绝对路径:cwd 之内相对化(工作区内账本仍记相对,含 cwd 为软链前缀等
     // 简单情形);之外原样上抛(工作区外入账,Rust 终审)
-    const prefix = cwd.endsWith("/") ? cwd : cwd + "/";
-    if (!p.startsWith(prefix)) return p;
+    const prefix = c.endsWith("/") ? c : c + "/";
+    const inCwd = winCtx
+      ? p.slice(0, prefix.length).toLowerCase() === prefix.toLowerCase()
+      : p.startsWith(prefix);
+    if (!inCwd) return p;
     p = p.slice(prefix.length);
   }
   if (!p) return null;
   if (p === "~" || p.startsWith("~/")) return p; // 上抛,Rust 展开 home
   if (p.startsWith("/") || p.startsWith("~")) return null; // ~other 形式拒
-  // 父级逃逸(含 Windows 盘符残留)拒绝 —— 工作区内相对路径纪律与初版一致
+  // 父级逃逸拒绝 —— 工作区内相对路径纪律与初版一致
   if (p.split("/").some((seg) => seg === ".." || seg === "")) return null;
+  // 盘符残留(C:foo 无分隔符形态)拒 —— 非完整绝对路径的可疑残片
   if (/^[a-zA-Z]:/.test(p)) return null;
   return p;
 }

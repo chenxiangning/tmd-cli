@@ -28,13 +28,27 @@ describe("normalizeEditPath", () => {
     expect(normalizeEditPath("/etc/passwd", CWD)).toBe("/etc/passwd");
   });
 
-  it("~ 形式上抛 Rust 展开;不可信路径拒绝:父级逃逸 / 空 / 盘符", () => {
+  it("~ 形式上抛 Rust 展开;不可信路径拒绝:父级逃逸 / 空 / 盘符残片", () => {
     expect(normalizeEditPath("~/x/a.ts", CWD)).toBe("~/x/a.ts");
     expect(normalizeEditPath("../outside.ts", CWD)).toBeNull();
     expect(normalizeEditPath("a/../../b.ts", CWD)).toBeNull();
     expect(normalizeEditPath("", CWD)).toBeNull();
     expect(normalizeEditPath(".", CWD)).toBeNull();
-    expect(normalizeEditPath("C:\\x", CWD)).toBeNull();
+    expect(normalizeEditPath("C:x", CWD)).toBeNull(); // 无分隔符盘符残片
+  });
+
+  it("Windows 绝对路径:cwd 内相对化(反斜杠/盘符大小写不敏感),cwd 外上抛", () => {
+    const WIN_CWD = "C:\\codeeee\\tmd-cli";
+    // win 宿主实证形态(omp edit hashline 头 / write resolvedPath)
+    expect(normalizeEditPath("C:\\codeeee\\tmd-cli\\src\\kernel\\a.ts", WIN_CWD)).toBe(
+      "src/kernel/a.ts",
+    );
+    expect(normalizeEditPath("C:\\codeeee\\tmd-cli\\", WIN_CWD)).toBeNull(); // 即 cwd 本身,无余量
+    // cwd 外原样上抛(斜杠归一),UNC 保留 // 头
+    expect(normalizeEditPath("D:\\elsewhere\\c.ts", WIN_CWD)).toBe("D:/elsewhere/c.ts");
+    expect(normalizeEditPath("\\\\srv\\share\\d.ts", WIN_CWD)).toBe("//srv/share/d.ts");
+    // POSIX cwd 收到盘符路径 = 工作区外,同样上抛
+    expect(normalizeEditPath("C:\\x", CWD)).toBe("C:/x");
   });
 });
 
