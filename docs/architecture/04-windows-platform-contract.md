@@ -8,13 +8,13 @@ Windows 是一等运行平台,但两类知识必须显式契约化、测试锚�
 1. **平台二进制行为**(ConPTY 握手、批处理 shim、进程树、SxS manifest)——代码侧必须主动适配,OS 不兜底;
 2. **各 CLI 的磁盘落盘规则**(会话目录 slug、config 行尾)——只能实证反推,必须用测试钉死。
 
-本档记录 2026-09-06 新装机实证落地的六条契约与对应回归锚点。
+本档记录 2026-09-06 新装机实证落地的六条契约与对应回归锚点;后续实证续补(契约 7,2026-09-15)。
 
 ## 契约 1:ConPTY 启动握手 —— 必须代答 CPR
 
 portable-pty 0.9 以 `PSEUDOCONSOLE_INHERIT_CURSOR` 建 pseudoconsole:ConPTY 启动即在输出侧发 DSR(`ESC[6n`)并**扣住输出等 CPR 应答**;此刻 xterm 尚未接入(启动期 emit 无人监听,前端输入闸也会丢 CPR),无人应答 = 终端永久黑屏。
 
-- 适配:`pty_spawn.rs` `conpty_cpr_reply()` 在 `take_writer` 后 Windows 侧写 `ESC[1;1R` 并 flush;非 Windows 禁止(会向 shell 注入垃圾字节)。
+- 适配:`pty_spawn.rs` `conpty_cpr_reply()` 在 `take_writer` 后 Windows 侧写 `ESC[1;1R` 并 flush;非 Windows 禁止(会向 shell 注入垃圾字节)。2026-09-15 校准:该代答字节本身无害(干净 ConPTY 实证参数化/无参数形态均不注入 omp),但幕布对 TUI 运行期 CPR 查询的应答存在错位注入面,见契约 7。
 - 回归锚点:`pty_spawn_tests.rs::windows_conpty_启动输出在_cpr_代答后流动`(真实 ConPTY + cmd.exe,移除代答必红)。
 
 ## 契约 2:CLI 会话目录 slug(omp / pi)
@@ -53,6 +53,16 @@ portable-pty 0.9 以 `PSEUDOCONSOLE_INHERIT_CURSOR` 建 pseudoconsole:ConPTY 启
 - 共享库不可读分两态上报(`MemoryPoolStatus.reason`):`not-installed` = 库缺失/未迁移;`locked` = 打不开(busy,真·迁移窗口)。UI 两态分开表述,禁止统一误报「迁移窗口」。
 - 迁移窗口状态机必须接线:`InstallCard` 在 bootstrap `REFUSED migration-locked` 时暂停 tmd-cli 自家 omp 会话并重试一次,仍锁则显式指引;面板不可用态同样保留底部工具条(控制台入口 + 诊断),入口消失 = 用户无路可走(2026-09-06 实证)。
 - omp config 解析按 CRLF 容忍(`\r?\n`),Windows 手编 YAML 不再整段失配。
+
+## 契约 7:ConPTY 下 CPR 应答错位 —— pi-tui 把错位应答解析成字符注入(2026-09-15)
+
+**根因(大写 C)**:pi-tui(omp/pi)用「光标列测量」技巧定位自身光标 —— 写 `ESC[26G ESC[6n ESC[1G`(移到目标列、查 CPR、移回)。mac 上直连幕布,应答位置正确;win 上经 ConPTY 转发,幕布 xterm 报出的是 ConPTY 视角的错位光标(实测幕布实发 `ESC[1;1R`,Rust 侧 STDIN-PROBE 字节钩子捕获),pi-tui 消费错位 CPR 时把一个字符 'C' 注入输入框 —— 每次创建 omp 会话必现,出现滞后于注入(spinner 帧才渲染)。输入闸拦不住:应答是整段合法回传,且闸静默窗在 omp 冷启动静默期早已 release。
+
+**纵深(小写 c,2026-09-10)**:幕布对 pi-tui 的 DA/Kitty 探测的自动应答(`ESC[?1;2c` 等)同样进 PTY stdin;实测 ConPTY VT 输入模式下整段应答字节级透传,但启动期模式切换窗口的拆段行为未证稳定,win 幕布对 DA/DA2/Kitty 应答整体不回写(能力探测皆有超时回退,等价跑在无应答哑终端)。
+
+- 修法:`CliProfile.conptyCprMismatch`(omp/pi 声明)+ `terminalReports.ts` `shouldSuppressProbeReply(host, sessionId, data)` —— win 下 DA/Kitty 应答一律不回写,CPR 仅档案声明时也不回写;ssh/wsl 等死等 CPR 的会话档案不声明照放(2026-09-11/09-12 语义);焦点/鼠标/OSC/DCS/DECRPM 照放。`TerminalView` onData 接线。
+- 佐证实验:①ConPTY VT 输入模式(ENABLE_VIRTUAL_TERMINAL_INPUT)下写入序列字节级透传;②干净 ConPTY 环境 spawn omp,`ESC[1;1R`/`ESC[R`/不代答三变体均不注入(排除契约 1 代答字节因果;不代答则输出扣死,契约 1 仍成立)。
+- 回归锚点:`terminalReports.test.ts` —— 探测应答/CPR 按声明拦截、ssh-wsl 与用户击键双向不误伤、与 isTerminalReport 语义正交。
 
 ## 契约 8:events 归因路径闸 —— Windows 绝对路径必须入账(2026-09-15)
 

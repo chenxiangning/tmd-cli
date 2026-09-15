@@ -175,6 +175,14 @@ export interface CliProfile {
    */
   askMarks?: RegExp[];
   /**
+   * win ConPTY 下该 CLI 的 CPR 位置查询会拿到错位应答(ConPTY 转发光标状态与
+   * TUI 虚拟光标不同步),TUI 消费错位 CPR 时把字符注入输入框(2026-09-15 win
+   * omp 实证每次建会话孤立 'C')。声明后 Windows 幕布不向 PTY 回写 CPR 应答,
+   * 查询走 TUI 自身超时回退。仅 pi-tui 系(omp/pi)声明;ssh/wsl 等死等 CPR
+   * 的会话禁声明(回写是它们不挂死的条件)。
+   */
+  conptyCprMismatch?: boolean;
+  /**
    * 会话磁盘事件流的 AI 写入读取(审批线 events 归因第二信号源)。
    * 从该 CLI 自己的会话 JSONL 提取 edit/write 工具写入的文件 —— 每会话一个
    * 文件,天然按会话隔离,并行会话不串扰(editMarks 的 PTY 标记做不到:
