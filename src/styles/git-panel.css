@@ -56,7 +56,7 @@
   white-space: nowrap;
 }
 
-/* ── 双栏 diff(自绘,2026-09-15 GitHub 风重做):行号各半内侧缘 / 色带 / 词级实色块 ── */
+/* ── 双栏 diff(自绘,2026-09-15 中缝连接带迭代):行号居中缝两侧 / 色带 / 词级实色块 ── */
 
 /* 色带:本侧行种类淡染(与单栏同源 token)。 */
 .git-split-band-del {
@@ -84,10 +84,10 @@
   background: color-mix(in srgb, var(--tmd-diff-removed) 35%, transparent);
 }
 
-/* 行号格:各半内侧缘(GitHub 排布);muted 右对齐不可选;双侧发丝线成盒(中缝
-   分界靠右槽 border-left,左缘靠左槽 border-left);宽由 SplitDiffView 列轨
-   (lnoCols,两侧最大行号位数 ch)显式给,两槽恒同宽 = 内容列镜像对齐;改动行
-   随本侧色带铺底(band/empty 类叠加在同格)。 */
+/* 行号格:中缝两侧单号槽(JetBrains 排布);muted 右对齐不可选;宽由 SplitDiffView
+   列轨(lnoCols,两侧最大行号位数 ch)显式给,两槽恒同宽 = 内容列镜像对齐;改动行
+   随本侧色带铺底(band/empty 类叠加在同格)。中槽盒发丝 = 旧号格左缘 + 旧号格右缘
+   (中缝) + 新号格右缘(号/内容分界)三条单线。 */
 .git-split-lno {
   padding: 0 0.375rem;
   text-align: right;
@@ -95,6 +95,14 @@
   font-variant-numeric: tabular-nums;
   user-select: none;
   flex-shrink: 0;
-  border-left: 1px solid color-mix(in srgb, var(--tmd-fg) 8%, transparent);
   border-right: 1px solid color-mix(in srgb, var(--tmd-fg) 8%, transparent);
+}
+/* 旧号格(中槽盒左半)左缘补发丝。 */
+.git-split-lno-old {
+  border-left: 1px solid color-mix(in srgb, var(--tmd-fg) 8%, transparent);
+}
+/* 中缝连接带:改动行(mod/del/add)双号格发丝全透明,两侧色带贯通成一条横带
+   (连接器打断槽线;zip 配对两侧恒同高,连接带为平直横带,无斜面)。 */
+.git-split-lno-seam {
+  border-color: transparent;
 }

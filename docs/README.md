@@ -146,5 +146,7 @@
 | 2026-09-15 | [git 插件「创建 PR」工作流设计:预检/推送/建 PR/可选审批评论](superpowers/specs/2026-09-15-git-create-pr-design.md) | 已落地(四步工作流 + 阶段实时卡;同日修订:范围闸门移除,PR 内容零本地限制;AI 生成留 v2) |
 | 2026-09-15 | [omp 版本回退:首页引擎卡版本菜单 + 收藏](superpowers/specs/2026-09-15-omp-version-rollback-design.md) | 已评审通过(实现随本 spec 提交) |
 | 2026-09-15 | [双栏 diff GitHub 风视觉打磨](superpowers/specs/2026-09-15-split-diff-github-style-design.md) | 已落地(行号各半内侧缘 + 缺侧空带 + 词级实色块;删中央槽/⤶钩/⬚占位/块框) |
-
+| 2026-09-15 | [双栏 diff 中缝连接带视觉迭代](superpowers/specs/2026-09-15-split-diff-center-seam-design.md) | 已落地(列序翻转为左内容|旧号|新号|右内容,改动行色带贯通中缝;号格单发丝) |
+| 2026-09-15 | [手机 App 外网访问 tmd-cli 方案调研(服务面/通道/壳三层解耦,有 ECS 与无 ECS 两组通道 + iOS 壳三路线)](research/mobile-remote-access.md) | 调研底稿(方案对比,未拍板) |
+| 2026-09-15 | [codemoss Web/远程访问实现源码级分析(LAN 桥/出站中继/传输抽象/治理面 + tmd-cli 移植映射)](research/codemoss-web-remote.md) | 已完成(配套提案 openspec/changes/2026-09-15-web-remote-access/) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

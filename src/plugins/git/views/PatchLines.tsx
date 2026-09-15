@@ -1,6 +1,6 @@
 /**
  * diff 正文渲染分发:单栏(unified)= 自绘经典红绿;双栏(split)= SplitDiffView
- * (GitHub 风自绘四列:旧号|左内容|新号|右内容,nowrap 态左右独立横滚 + 双号槽纵同步,见该文件头注)。
+ * (中缝连接带自绘四列:左内容|旧号|新号|右内容,nowrap 态左右独立横滚 + 双号槽纵同步,见该文件头注)。
  */
 import { useMemo } from "react";
 import type { GitDiffMode } from "@kernel/settings";

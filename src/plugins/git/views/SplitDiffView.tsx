@@ -1,16 +1,15 @@
 /**
- * 双栏 diff(split)自绘渲染 —— GitHub 风:旧号 | 左内容 | 新号 | 右内容。
+ * 双栏 diff(split)自绘渲染 —— 中缝连接带(JetBrains 形):左内容 | 旧号 | 新号 | 右内容。
  *
  * - 对位:buildSplitRows 把 ctx 同行、del 块 × add 块 zip 配对,缺侧留白(浅染空带);
- * - 行号槽在各半内侧缘(GitHub 排布):muted 右对齐不可选;wrap 态随行渲染,
- *   nowrap 态为独立纵同步栈(不横滚,任何横滚位置行号恒可见);
+ * - 行号槽居中缝两侧(JetBrains 排布):muted 右对齐不可选;改动行(mod/del/add)双号格
+ *   发丝透明,两侧色带贯通中缝成横带;wrap 随行渲染,nowrap 为独立纵同步栈(行号不横滚);
  * - 词级标注:mod 对差异 token 实色深染块(深行底一档,wordDiff);
  * - 独立横向滚动条(关换行时):左右内容列各为独立 overflow-auto 滚动面,
- *   纵向 scrollTop 四面(左槽/左/右槽/右)镜像同步;
- * - 行高四面同源:nowrap 态四列是四个独立行栈,WebKit 下各栈行盒高度有亚像素
- *   差,逐行累积成整行错位(全文单 hunk 时行号大、累积最显)——左内容栈为基准
- *   实测行高(盒高;行外边距四面同类同值,折叠量一致),其余三栈逐行 pin 同值,
- *   引擎差异归零。
+ *   纵向 scrollTop 四面(左/左槽/右槽/右)镜像同步;
+ * - 行高四面同源:nowrap 态四列是四个独立行栈,WebKit 下各栈行盒高度有亚像素差,
+ *   逐行累积成整行错位(全文单 hunk 时最显)——左内容栈为基准实测行高(盒高;行外
+ *   边距四面同类同值,折叠量一致),其余三栈逐行 pin 同值,引擎差异归零。
  */
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { buildSplitRows, patchRowKey, type PatchRow, type SplitRow } from "./patchModel";
@@ -69,7 +68,8 @@ const EMPTY_BAND: Record<string, string> = {
 const sideBand = (self: PatchRow | null, other: PatchRow | null): string =>
   self ? (SIDE_BAND[self.kind] ?? "") : other ? (EMPTY_BAND[other.kind] ?? "") : "";
 
-/** 行号格:各半内侧缘单号槽(GitHub 排布);缺侧空号但同色带铺底。 */
+/** 行号格:中缝两侧单号槽(JetBrains 排布);缺侧空号同色带铺底;旧号格补左缘发丝
+ *  (git-split-lno-old),改动行 seam 类发丝全透明(pairKind 判定,ctx 之外皆改动)。 */
 function LineNo({
   row,
   other,
@@ -82,8 +82,9 @@ function LineNo({
   style?: CSSProperties;
 }) {
   const n = row ? (isLeft ? row.oldLine : row.newLine) : null;
+  const seam = pairKind(row, other) !== "ctx";
   return (
-    <div style={style} className={`git-split-lno ${sideBand(row, other)}`}>
+    <div style={style} className={`git-split-lno ${isLeft ? "git-split-lno-old" : ""} ${seam ? "git-split-lno-seam" : ""} ${sideBand(row, other)}`}>
       {n ?? ""}
     </div>
   );
@@ -98,7 +99,7 @@ function lnoCols(rows: SplitRow[]): string {
       if (r.right?.newLine) digits = Math.max(digits, String(r.right.newLine).length);
     }
   const w = `${digits + 1}ch`;
-  return `${w} minmax(0,1fr) ${w} minmax(0,1fr)`;
+  return `minmax(0,1fr) ${w} ${w} minmax(0,1fr)`;
 }
 
 
@@ -129,7 +130,6 @@ function GridPairRow({ row, cols }: { row: Extract<SplitRow, { kind: "pair" }>; 
     pairKind(row.left, row.right) === "mod" ? wordDiff(row.left!.text, row.right!.text) : [null, null];
   return (
     <div className="grid [content-visibility:auto] [contain-intrinsic-size:auto_1em]" style={{ gridTemplateColumns: cols }}>
-      <LineNo row={row.left} other={row.right} isLeft={true} />
       <div className={`flex min-w-0 pr-2 ${sideBand(row.left, row.right)}`}>
         {dParts ? (
           <WordContent parts={dParts} wrap={true} />
@@ -137,6 +137,7 @@ function GridPairRow({ row, cols }: { row: Extract<SplitRow, { kind: "pair" }>; 
           <span className={CONTENT_WRAP_CLS}>{row.left?.text ?? ""}</span>
         )}
       </div>
+      <LineNo row={row.left} other={row.right} isLeft={true} />
       <LineNo row={row.right} other={row.left} isLeft={false} />
       <div className={`flex min-w-0 pr-2 ${sideBand(row.right, row.left)}`}>
         {iParts ? (
@@ -251,7 +252,7 @@ function SplitHalves({ rows, cols }: { rows: SplitRow[]; cols: string }) {
           <div
             key={`h:${patchRowKey(row.row)}`}
             style={pin(i)}
-            className={`git-split-lno ${row.row.kind === "hunk" ? HEADER_CLS.hunk : HEADER_CLS.meta}`}
+            className={`git-split-lno ${isLeft ? "git-split-lno-old" : ""} ${row.row.kind === "hunk" ? HEADER_CLS.hunk : HEADER_CLS.meta}`}
             aria-hidden
           />
         ) : (
@@ -268,8 +269,8 @@ function SplitHalves({ rows, cols }: { rows: SplitRow[]; cols: string }) {
   );
   return (
     <div className="grid h-full" style={{ gridTemplateColumns: cols }}>
-      {gutter(true)}
       {side(true)}
+      {gutter(true)}
       {gutter(false)}
       {side(false)}
     </div>
