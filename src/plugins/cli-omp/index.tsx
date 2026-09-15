@@ -115,6 +115,8 @@ export const cliOmpPlugin: Plugin = {
         program: "bun",
         args: ["install", "-g", "@oh-my-pi/pi-coding-agent"],
       },
+      /* 版本回退/收藏菜单:最新 10 个稳定版 + 用户收藏,钉版走本通道拼 @version。 */
+      versionMenu: true,
       /* omp 运行时依赖 bun:welcome 引擎卡先探针 bun,缺失时引导先装 bun,
        * 就位前 omp 的安装/更新按钮不可点(契约见 kernel/cliProfile.ts requires)。 */
       requires: {

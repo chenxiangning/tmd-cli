@@ -144,5 +144,7 @@
 | 2026-09-14 | [v0.1.7 发布范围评审与收口](review/2026-09-14-v017-release-review.md) | 已完成(无 P0;5 P1 全修 + 19 P2,6 条 report-only;门禁全绿 react-doctor 100) |
 | 2026-09-15 | [v0.1.8 前置批次评审(双栏 diff/创建 PR/历史行)](review/2026-09-15-pr-splitdiff-review.md) | 已完成(无 P0;3 P1 修 2 + 9 P2 修 7;门禁全绿 react-doctor 100) |
 | 2026-09-15 | [git 插件「创建 PR」工作流设计:预检/推送/建 PR/可选审批评论](superpowers/specs/2026-09-15-git-create-pr-design.md) | 已落地(四步工作流 + 阶段实时卡;同日修订:范围闸门移除,PR 内容零本地限制;AI 生成留 v2) |
+| 2026-09-15 | [omp 版本回退:首页引擎卡版本菜单 + 收藏](superpowers/specs/2026-09-15-omp-version-rollback-design.md) | 已评审通过(实现随本 spec 提交) |
+| 2026-09-15 | [双栏 diff GitHub 风视觉打磨](superpowers/specs/2026-09-15-split-diff-github-style-design.md) | 已落地(行号各半内侧缘 + 缺侧空带 + 词级实色块;删中央槽/⤶钩/⬚占位/块框) |
 
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

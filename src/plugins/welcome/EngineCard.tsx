@@ -29,6 +29,7 @@ import { InstallLog } from "./InstallLog";
 import { PrerequisiteGuide } from "./PrerequisiteGuide";
 import { CredentialRows } from "./CredentialList";
 import { RowActions, RowCred, RowHead, RowVersion } from "./EngineCardParts";
+import { VersionMenuSlot } from "./VersionMenu";
 
 /** 日志滚动上限(行)。npm 全量输出数千行,只留尾部。 */
 const LOG_LINE_LIMIT = 200;
@@ -62,6 +63,7 @@ export function EngineCard({
   install,
   onProbe,
   onInstall,
+  onInstallVersion,
   depProbe,
   depInstall,
   onDepInstall,
@@ -82,6 +84,8 @@ export function EngineCard({
   install: InstallState;
   onProbe: () => void;
   onInstall: () => void;
+  /** 钉版安装(versionMenu 引擎):版本菜单点选回调,参数 = 目标版本。 */
+  onInstallVersion?: (version: string) => void;
   /** 依赖探针状态;缺省 = 按探针中处理(保守禁用安装按钮)。 */
   depProbe?: EngineProbeState;
   /** 依赖自身的安装状态与动作(引导区按钮/日志)。 */
@@ -138,6 +142,14 @@ export function EngineCard({
           docsUrl={meta.docsUrl}
           onProbe={onProbe}
           onInstall={onInstall}
+          versionMenu={
+            <VersionMenuSlot
+              meta={meta}
+              probeVersion={probe.result?.version}
+              installing={install.running}
+              onInstallVersion={onInstallVersion}
+            />
+          }
           onNewSession={onNewSession}
         />
       </div>
@@ -171,7 +183,7 @@ export function EngineCard({
 export function useEngineInstall(
   target: InstallTarget | null,
   onDone: () => void,
-): [InstallState, () => void] {
+): [InstallState, (overridePlan?: CliInstallPlan | null) => void] {
   const [state, setState] = useState<InstallState>({
     running: false,
     ok: null,
@@ -179,8 +191,10 @@ export function useEngineInstall(
   });
   const runningRef = useRef(false);
 
-  const start = useCallback(() => {
-    if (!target || !target.plan || runningRef.current) return;
+  const start = useCallback((overridePlan?: CliInstallPlan | null) => {
+    /* 钉版安装(版本菜单):overridePlan 优先;常规安装/更新走 target.plan。 */
+    const plan = overridePlan ?? target?.plan;
+    if (!target || !plan || runningRef.current) return;
     runningRef.current = true;
     setState({ running: true, ok: null, lines: [] });
 
@@ -222,7 +236,7 @@ export function useEngineInstall(
     });
 
     void ipc
-      .cliInstallRun(target.binary, target.plan)
+      .cliInstallRun(target.binary, plan)
       .then((ok) => {
         /* phase 事件是权威收尾;invoke 返回仅兜底(事件丢失时不挂起)。 */
         setState((prev) => (prev.running ? { ...prev, running: false, ok } : prev));

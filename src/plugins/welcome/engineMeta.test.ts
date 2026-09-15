@@ -4,8 +4,8 @@
  * 优先级若回退成 npm,omp 会装进 npm 全局而绕过 bun 前置依赖(门控失效)。
  */
 
+import { installPlanOf, pinPlanVersion, resolveInstallPlan } from "./engineMeta";
 import { describe, expect, it } from "vitest";
-import { installPlanOf, resolveInstallPlan } from "./engineMeta";
 
 describe("installPlanOf 通道优先级", () => {
   it("scriptInstall 优先于 command 与 npm", () => {
@@ -86,5 +86,41 @@ describe("resolveInstallPlan 探针感知", () => {
         npmPrefix: "C:\\npm",
       } as never),
     ).toEqual(kimiMeta.plan);
+  });
+});
+
+describe("pinPlanVersion 钉版安装计划", () => {
+  const bunPlan = installPlanOf({
+    npmPackage: "@oh-my-pi/pi-coding-agent",
+    commandInstall: {
+      program: "bun",
+      args: ["install", "-g", "@oh-my-pi/pi-coding-agent"],
+    },
+  });
+
+  it("command 通道:args 中包名替换为 pkg@version,其余原样", () => {
+    expect(pinPlanVersion(bunPlan, "@oh-my-pi/pi-coding-agent", "18.1.20")).toEqual({
+      channel: "command",
+      program: "bun",
+      args: ["install", "-g", "@oh-my-pi/pi-coding-agent@18.1.20"],
+    });
+  });
+
+  it("非 command 通道(npm/script)无法钉版 → null", () => {
+    expect(pinPlanVersion({ channel: "npm", package: "x" }, "x", "1.0.0")).toBeNull();
+    expect(
+      pinPlanVersion({ channel: "script", unix: "u", windows: "w" }, "x", "1.0.0"),
+    ).toBeNull();
+  });
+
+  it("未声明 npmPackage / args 不含包名 → null(不盲改参数)", () => {
+    expect(pinPlanVersion(bunPlan, undefined, "18.1.20")).toBeNull();
+    expect(
+      pinPlanVersion(
+        { channel: "command", program: "bun", args: ["install", "-g"] },
+        "@oh-my-pi/pi-coding-agent",
+        "18.1.20",
+      ),
+    ).toBeNull();
   });
 });

@@ -207,6 +207,46 @@
   background: var(--tmd-bg-sunken);
 }
 
+/* ── 版本菜单(回退/收藏弹层;wsmenu 范式,portal 到 body)── */
+
+.welcome-vermenu { width: 16rem; }
+.welcome-vermenu-cur {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--tmd-accent-soft);
+  color: var(--tmd-accent);
+  font-size: 0.625rem;
+}
+.welcome-vermenu-star {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  cursor: pointer;
+}
+.welcome-vermenu-star:hover { background: var(--tmd-bg-hover); color: var(--tmd-warn); }
+.welcome-vermenu-star.is-faved { color: var(--tmd-warn); }
+.welcome-vermenu-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--tmd-accent);
+  font: inherit;
+  font-size: 0.6875rem;
+  cursor: pointer;
+}
+.welcome-vermenu-retry:hover { text-decoration: underline; }
+
 /* ── 窄窗口:凭据列退让 ── */
 @media (max-width: 720px) {
   .welcome-row-main {

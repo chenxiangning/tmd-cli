@@ -7,7 +7,7 @@
 import { host } from "@kernel/host";
 import { useHomePanels } from "@kernel/homePanels";
 import type { EngineMeta } from "./engineMeta";
-import { resolveInstallPlan } from "./engineMeta";
+import { pinPlanVersion, resolveInstallPlan } from "./engineMeta";
 import type { EngineCredential } from "./credentials";
 import { EngineCard, useEngineInstall, type EngineProbeState } from "./EngineCard";
 
@@ -65,7 +65,19 @@ export function EngineSection({
       latest={latest}
       install={install}
       onProbe={onProbe}
-      onInstall={startInstall}
+      /* 显式包一层:startInstall 现带可选钉版参数,裸传会把 onClick 的
+         MouseEvent 当 plan 喂进 cliInstallRun。 */
+      onInstall={() => startInstall()}
+      onInstallVersion={
+        meta.versionMenu
+          ? (version) => {
+              /* 钉版只走声明通道(command/bun),不经 resolveInstallPlan 的
+                 npm 副本分支 —— npm 通道 Rust 侧硬编码 @latest(spec 方案取舍 B)。 */
+              const pinned = pinPlanVersion(meta.plan, meta.npmPackage, version);
+              if (pinned) startInstall(pinned);
+            }
+          : undefined
+      }
       depProbe={depProbe}
       depInstall={depInstall}
       onDepInstall={startDepInstall}

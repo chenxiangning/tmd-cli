@@ -27,6 +27,8 @@ export interface EngineMeta {
   npmPackage?: string;
   /** 参数化安装计划;null = 该引擎未声明安装通道(不出安装按钮)。 */
   plan: CliInstallPlan | null;
+  /** 「版本」菜单开关(profile.versionMenu 且 command 通道可钉版时才为真)。 */
+  versionMenu: boolean;
   /** 前置依赖(profile.requires 派生);缺省 = 无依赖,直接出安装按钮。 */
   requires?: PrerequisiteMeta;
 }
@@ -84,6 +86,28 @@ export function resolveInstallPlan(
   return meta.plan;
 }
 
+/**
+ * 钉版安装计划:command 通道 args 中 === npmPackage 的项替换为 `pkg@version`
+ * (如 `bun install -g @oh-my-pi/pi-coding-agent` → `…@18.1.20`)。
+ * 无法钉版(非 command 通道 / 未声明包名 / args 不含包名)→ null(不出版本菜单)。
+ * npm 通道钉版要动 Rust(InstallPlan::Npm 硬编码 @latest),本特性不做(spec 方案取舍 B)。
+ */
+export function pinPlanVersion(
+  plan: CliInstallPlan | null,
+  npmPackage: string | undefined,
+  version: string,
+): CliInstallPlan | null {
+  if (!plan || plan.channel !== "command" || !npmPackage) return null;
+  const pinned = `${npmPackage}@${version}`;
+  let replaced = false;
+  const args = plan.args.map((a) => {
+    if (a !== npmPackage) return a;
+    replaced = true;
+    return pinned;
+  });
+  return replaced ? { channel: "command", program: plan.program, args } : null;
+}
+
 /** 安装方式提示(按钮旁说明):按通道派生,与 installPlanOf 同序。 */
 function installHintOf(channels: InstallChannels): string {
   if (channels.scriptInstall) return channels.scriptInstall.unix;
@@ -105,6 +129,7 @@ function engineDisplayName(profile: CliProfile): string {
 /** 单个 profile → 引擎卡元数据。 */
 function engineMetaOf(profile: CliProfile): EngineMeta {
   const req = profile.requires;
+  const plan = installPlanOf(profile);
   return {
     id: profile.id,
     displayName: engineDisplayName(profile),
@@ -112,7 +137,9 @@ function engineMetaOf(profile: CliProfile): EngineMeta {
     docsUrl: profile.docsUrl,
     npmPackage: profile.npmPackage,
     installHint: installHintOf(profile),
-    plan: installPlanOf(profile),
+    plan,
+    versionMenu:
+      profile.versionMenu === true && plan?.channel === "command" && !!profile.npmPackage,
     requires: req
       ? {
           binary: req.binary,

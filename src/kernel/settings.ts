@@ -51,6 +51,7 @@ const MERGE_TS_FIELDS = {
   sessionArchive: "archivedAt",
   sessionDeleted: "deletedAt",
   sessionPins: "pinnedAt",
+  engineVersionFavs: "favedAt",
 } as const;
 
 /** 无 ts 的记录字段:并集,本实例值优先。 */

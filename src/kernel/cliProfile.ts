@@ -244,6 +244,12 @@ export interface CliProfile {
    */
   commandInstall?: { program: string; args: string[] };
   /**
+   * 引擎卡「版本」菜单开关:welcome 行动作簇出「版本」按钮,弹层列最新 10 个
+   * 稳定版 + 用户收藏,点选即钉版安装(command 通道 args 内包名替换为 pkg@version)。
+   * 仅当 commandInstall 与 npmPackage 同声明时生效;缺省 = 不出版本按钮。
+   */
+  versionMenu?: boolean;
+  /**
    * 前置依赖声明:安装/更新本 CLI 前必须就位的运行时(如 omp 依赖 bun)。
    * welcome 引擎卡先探针依赖;缺失时引导先装依赖,就位前本引擎的
    * 安装/更新按钮不可点。依赖的探针/安装走同一套通用原语(cli_probe / cli_install_run)。
