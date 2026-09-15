@@ -63,6 +63,7 @@
     "mermaid": "^11.17.2",
     "pdfjs-dist": "^5.7.284",
     "prismjs": "^1.30.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",

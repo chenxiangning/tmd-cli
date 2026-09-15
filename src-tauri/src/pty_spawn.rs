@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 use crate::pty::{PtyHandle, PtyRegistry, SpawnSpec, SpawnedSession};
 use crate::resolve::{enriched_path, resolve_command};
@@ -218,14 +218,14 @@ pub(crate) fn spawn(
                 }
             }
             let text = decode_utf8_chunk(&mut tail, &batch);
-            if out_app.emit(&event, text).is_err() {
+            if !crate::event_sink::emit(&out_app, &event, &text) {
                 break; // 前端已销毁
             }
         }
         /* 泵循环结束仍残留的 tail = 不完整 UTF-8 序列(进程最后输出的半个字符),
         永远等不到后续字节 —— 按 U+FFFD 替换补发,不静默吞掉 */
         if let Some(text) = flush_utf8_tail(&mut tail) {
-            let _ = out_app.emit(&event, text);
+            let _ = crate::event_sink::emit(&out_app, &event, &text);
         }
         /* 进程退出即会话销毁:清理日志文件与账本(kill 路径同样经由此处) */
         if let Some(path) = log_path.as_ref() {
@@ -242,7 +242,7 @@ pub(crate) fn spawn(
         if let Some(state) = out_app.try_state::<crate::AppState>() {
             state.sessions.remove(&out_id);
         }
-        let _ = out_app.emit(&format!("pty://exit/{out_id}"), ());
+        let _ = crate::event_sink::emit(&out_app, &format!("pty://exit/{out_id}"), &());
     });
 
     registry.sessions.lock().insert(

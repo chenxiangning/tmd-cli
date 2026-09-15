@@ -1,0 +1,66 @@
+/**
+ * 默认设置单例。从 settingsTypes 拆出:类型定义与运行时值分离,
+ * settingsTypes 保持类型/常量单一职责(300 行铁则)。
+ */
+
+import type { AppSettings } from "./settingsTypes";
+import { SESSION_LIST_TOTAL_DEFAULT } from "./settingsTypes";
+import {
+  SESSION_TABS_LIMIT_DEFAULT,
+  TERMINAL_FONT_SIZE_DEFAULT,
+  UI_FONT_SIZE_DEFAULT,
+  UI_ZOOM_DEFAULT,
+  DEFAULT_ICON_DECOR,
+} from "./settingsAppearance";
+import { DEFAULT_DARK_THEME_PRESET_ID, DEFAULT_LIGHT_THEME_PRESET_ID } from "./themePresets";
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  theme: "system",
+  lightThemePresetId: DEFAULT_LIGHT_THEME_PRESET_ID,
+  darkThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
+  customThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
+  language: "zh",
+  terminalFontSize: TERMINAL_FONT_SIZE_DEFAULT,
+  terminalFontFamily: "",
+  uiFontSize: UI_FONT_SIZE_DEFAULT,
+  uiZoom: UI_ZOOM_DEFAULT,
+  iconDecor: DEFAULT_ICON_DECOR,
+  sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT,
+  sessionTabsEnabled: true,
+  sendShortcut: "enter",
+  promptHistoryEnabled: true,
+  askSoundEnabled: true,
+  askSoundId: "default",
+  turnEndSoundEnabled: true,
+  turnEndSoundId: "default",
+  backgroundNotify: true,
+  sessionListBudget: { total: SESSION_LIST_TOTAL_DEFAULT, perCli: {} },
+  sessionOutputBufferLimit: 500_000,
+  disabledPlugins: [],
+  localPluginsDisabled: false,
+  localPluginTrust: {},
+  sessionTitles: {},
+  sessionPins: {},
+  shortcutOverrides: {},
+  workspaceCollapsedMap: {},
+  workspaceGroups: [],
+  workspaceGroupCollapsedMap: {},
+  sessionArchive: {},
+  sessionDeleted: {},
+  engineVersionFavs: {},
+  workspaceArchiveView: false,
+  workspaceOriginFilter: "",
+  networkProxyEnabled: false,
+  networkProxyUrl: "",
+  memoryDbPath: "",
+  memoryEnabled: true,
+  memoryCapsuleMode: "manual",
+  memoryAutoDistill: false,
+  memoryDistillModel: "",
+  memoryDistillEngine: "",
+  memoryDistillRules: "",
+  git: { view: "diff", layout: "flat", diffMode: "unified", diffWrap: true },
+  ssh: { hosts: [] },
+  wsl: { defaultDistro: "", remoteHostId: "" },
+  webAccessEnabled: false,
+};

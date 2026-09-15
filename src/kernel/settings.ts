@@ -14,7 +14,8 @@
 
 import { useSyncExternalStore } from "react";
 import { ipc } from "./ipc";
-import { DEFAULT_SETTINGS, type AppSettings } from "./settingsTypes";
+import { DEFAULT_SETTINGS } from "./settingsDefaults";
+import type { AppSettings } from "./settingsTypes";
 import { sanitize } from "./settingsSanitize";
 import { setShortcutOverrides } from "./shortcutOverrides";
 

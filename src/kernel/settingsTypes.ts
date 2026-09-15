@@ -1,25 +1,12 @@
 /**
- * 设置领域类型与默认值 —— 自 settings.ts 拆出(文件规模铁则收紧至 300 行)。
- * 承担:AppSettings 及关联类型、枚举白名单、默认值表、会话列表配额解析。
- * store/持久化/面板态留在 settings.ts;字段清洗在 settingsSanitize.ts。
+ * 设置领域类型 —— 自 settings.ts 拆出(文件规模铁则收紧至 300 行)。
+ * 承担:AppSettings 及关联类型、枚举白名单、会话列表配额解析。
+ * 默认值表在 settingsDefaults.ts;store/持久化在 settings.ts;字段清洗在 settingsSanitize.ts。
  */
 
 import type { SshHostConfig } from "./sshTypes";
-import {
-  SESSION_TABS_LIMIT_DEFAULT,
-  TERMINAL_FONT_SIZE_DEFAULT,
-  UI_FONT_SIZE_DEFAULT,
-  UI_ZOOM_DEFAULT,
-  DEFAULT_ICON_DECOR,
-  type IconDecorId,
-  type IconDecorItem,
-  type UiLanguage,
-} from "./settingsAppearance";
-import {
-  DEFAULT_DARK_THEME_PRESET_ID,
-  DEFAULT_LIGHT_THEME_PRESET_ID,
-  type ThemePresetId,
-} from "./themePresets";
+import type { IconDecorId, IconDecorItem, UiLanguage } from "./settingsAppearance";
+import type { ThemePresetId } from "./themePresets";
 
 export type ThemePreference = "system" | "light" | "dark" | "custom";
 /** 发送快捷键:"enter" = Enter 发送 / Shift+Enter 换行;"cmdOrCtrlEnter" = ⌘/Ctrl+Enter 发送 / Enter 换行。 */
@@ -242,57 +229,9 @@ export interface AppSettings {
    * (2026-09-12 退场:卡内「本机|远程」mode 段控拔除,两段按可用性共存。)
    */
   wsl: { defaultDistro: string; remoteHostId: string };
+  /** Web 访问桥开关(web-access 插件编辑域):开 = 随应用启动桥;每次启动新铸 token。 */
+  webAccessEnabled: boolean;
 }
-
-export const DEFAULT_SETTINGS: AppSettings = {
-  theme: "system",
-  lightThemePresetId: DEFAULT_LIGHT_THEME_PRESET_ID,
-  darkThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
-  customThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
-  language: "zh",
-  terminalFontSize: TERMINAL_FONT_SIZE_DEFAULT,
-  terminalFontFamily: "",
-  uiFontSize: UI_FONT_SIZE_DEFAULT,
-  uiZoom: UI_ZOOM_DEFAULT,
-  iconDecor: DEFAULT_ICON_DECOR,
-  sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT,
-  sessionTabsEnabled: true,
-  sendShortcut: "enter",
-  promptHistoryEnabled: true,
-  askSoundEnabled: true,
-  askSoundId: "default",
-  turnEndSoundEnabled: true,
-  turnEndSoundId: "default",
-  backgroundNotify: true,
-  sessionListBudget: { total: SESSION_LIST_TOTAL_DEFAULT, perCli: {} },
-  sessionOutputBufferLimit: 500_000,
-  disabledPlugins: [],
-  localPluginsDisabled: false,
-  localPluginTrust: {},
-  sessionTitles: {},
-  sessionPins: {},
-  shortcutOverrides: {},
-  workspaceCollapsedMap: {},
-  workspaceGroups: [],
-  workspaceGroupCollapsedMap: {},
-  sessionArchive: {},
-  sessionDeleted: {},
-  engineVersionFavs: {},
-  workspaceArchiveView: false,
-  workspaceOriginFilter: "",
-  networkProxyEnabled: false,
-  networkProxyUrl: "",
-  memoryDbPath: "",
-  memoryEnabled: true,
-  memoryCapsuleMode: "manual",
-  memoryAutoDistill: false,
-  memoryDistillModel: "",
-  memoryDistillEngine: "",
-  memoryDistillRules: "",
-  git: { view: "diff", layout: "flat", diffMode: "unified", diffWrap: true },
-  ssh: { hosts: [] },
-  wsl: { defaultDistro: "", remoteHostId: "" },
-};
 
 /** 记忆胶囊注入策略(manual 手动勾选注入 / auto 新会话自动展开 / off 关闭)。 */
 export type MemoryCapsuleMode = "manual" | "auto" | "off";

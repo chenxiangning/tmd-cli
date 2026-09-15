@@ -3,7 +3,7 @@
 use russh::client;
 use russh::ChannelMsg;
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::io::AsyncWriteExt;
 
 use super::{SshRegistry, SshSessionInput, SshSessionRuntime};
@@ -38,7 +38,7 @@ pub(crate) fn emit_output(app: &AppHandle, registry: &SshRegistry, session_id: &
         }
     }
     let text = String::from_utf8_lossy(bytes).to_string();
-    let _ = app.emit(&format!("pty://out/{session_id}"), text);
+    crate::event_sink::emit(app, &format!("pty://out/{session_id}"), &text);
 }
 
 /* 泵参数为通道原语,聚合进结构反而隔靴搔痒 */

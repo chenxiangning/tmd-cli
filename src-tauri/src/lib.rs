@@ -1,6 +1,7 @@
 mod app_setup;
 mod checkpoints;
 mod commands_fs;
+mod event_sink;
 mod fs;
 mod fs_edit;
 mod fs_preview;
@@ -24,6 +25,7 @@ mod session_log;
 mod settings;
 mod sqlite;
 mod ssh;
+mod web;
 mod wsl;
 mod wsl_remote;
 mod wsl_remote_ops;
@@ -34,6 +36,7 @@ pub(crate) struct AppState {
     pty: PtyRegistry,
     sessions: session::SessionRegistry,
     ssh: std::sync::Arc<ssh::SshRegistry>,
+    web: web::state::WebAccessState,
 }
 
 pub(crate) fn now_millis() -> u64 {
@@ -98,11 +101,13 @@ fn config_read_settings() -> serde_json::Value {
 }
 
 #[tauri::command]
-fn config_write_settings(data: serde_json::Value) -> Result<(), String> {
+fn config_write_settings(app: AppHandle, data: serde_json::Value) -> Result<(), String> {
     settings::save_settings(&data).map_err(|e| e.to_string())?;
     /* 网络代理字段变化即时生效:写盘成功后应用到进程 env,
     之后 spawn 的 PTY 子进程与 reqwest 新请求即走代理(旧会话不受影响)。 */
     proxy::apply_and_report(&data);
+    /* Web 访问开关跟随设置(web_access::apply_settings 内部异步起停桥)。 */
+    web::web_access::apply_settings(&app, &data);
     Ok(())
 }
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -140,8 +145,13 @@ pub fn run() {
             pty: PtyRegistry::default(),
             sessions,
             ssh: ssh_registry,
+            web: web::state::WebAccessState::default(),
         })
-        .setup(app_setup::setup)
+        .setup(|app| {
+            app_setup::setup(app)?;
+            web::web_access::autostart(app.handle());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             platform_kind,
             app_restart,
@@ -261,6 +271,10 @@ pub fn run() {
             ssh::commands::ssh_forward_list,
             ssh::commands::ssh_forward_check_port,
             config_write_settings,
+            web::web_access::web_access_start,
+            web::web_access::web_access_stop,
+            web::web_access::web_access_status,
+            web::web_access::remote_control_active,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

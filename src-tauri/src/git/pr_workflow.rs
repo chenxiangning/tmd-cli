@@ -7,7 +7,7 @@
 
 use git2::Repository;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 use super::pr_defaults::PR_BODY_TEMPLATE;
 use super::pr_gh;
@@ -68,7 +68,7 @@ fn stages_new() -> Vec<PrStage> {
 fn set_stage(stages: &mut [PrStage], app: &AppHandle, i: usize, status: &str, detail: String) {
     stages[i].status = status.into();
     stages[i].detail = detail;
-    let _ = app.emit(STAGE_EVENT, stages.to_vec());
+    crate::event_sink::emit(app, STAGE_EVENT, &stages);
 }
 
 /// 四步工作流主体(with_repo_mut 锁内;软失败返回 ok=false 结果体)。
@@ -81,7 +81,7 @@ pub fn run(
     let mut stages = stages_new();
     let finish =
         |stages: &mut Vec<PrStage>, ok: bool, message: String, pr: Option<(String, u64)>| {
-            let _ = app.emit(STAGE_EVENT, stages.clone());
+            crate::event_sink::emit(&app, STAGE_EVENT, &stages);
             Ok(PrWorkflowResult {
                 ok,
                 message,

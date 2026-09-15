@@ -18,7 +18,6 @@ import {
 } from "./settingsAppearance";
 import {
   ASK_SOUND_IDS,
-  DEFAULT_SETTINGS,
   SESSION_LIST_TOTAL_DEFAULT,
   SESSION_LIST_TOTAL_MAX,
   SESSION_LIST_TOTAL_MIN,
@@ -32,6 +31,7 @@ import {
   type SessionListBudget,
   type ThemePreference,
 } from "./settingsTypes";
+import { DEFAULT_SETTINGS } from "./settingsDefaults";
 import {
   sanitizeEngineVersionFavs,
   sanitizeSessionArchive,
@@ -265,6 +265,7 @@ export function sanitize(raw: unknown): AppSettings {
           ? obj.wsl.remoteHostId.slice(0, 100)
           : "",
     },
+    webAccessEnabled: obj.webAccessEnabled === true,
     git: sanitizeGitPanel(obj.git),
   };
 }

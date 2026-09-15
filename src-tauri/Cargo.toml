@@ -52,6 +52,12 @@ tokio = { version = "1", features = ["rt", "sync", "time", "net", "io-util", "fs
 russh-sftp = "2.3"
 # known_hosts 指纹 SHA256 展示。
 sha2 = "0.10"
+# Web 远程访问桥:LAN HTTP/WS 服务(见 web/ 模块);ws feature 供 /ws 命令桥。
+axum = { version = "0.8", features = ["ws"] }
+# Web 桥访问令牌铸造(安全用途,CSPRNG)。
+rand = "0.9"
+futures-util = { version = "0.3", features = ["sink"] }
+
 # 产物体积与运行性能:lto 全量链接优化 + 单 codegen unit 提升内联,strip 去符号表,
 # opt-level=z 体积优先(GUI 交互场景实测无感,二进制约再省一成;若热路径变慢回调到 "s"/3)。
 # 不用 panic=abort:它把任何异步任务 panic(如 wry 自定义协议竞态,2026-09-03

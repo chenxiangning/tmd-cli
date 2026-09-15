@@ -20,7 +20,7 @@ use std::time::Duration;
 
 use parking_lot::Mutex;
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 use crate::session_log::LogMeta;
 
@@ -217,9 +217,10 @@ impl SshRegistry {
         if let Some(entry) = self.sessions.lock().get(session_id) {
             *entry.runtime.status.lock() = status.to_string();
         }
-        let _ = app.emit(
+        crate::event_sink::emit(
+            app,
             &format!("ssh://event/{session_id}"),
-            SshSessionEvent::Status(SshStatusEvent {
+            &SshSessionEvent::Status(SshStatusEvent {
                 status: status.to_string(),
                 message,
                 reconnect_attempt: 0,
@@ -239,6 +240,6 @@ impl SshRegistry {
             }
             entry.log_file.lock().take();
         }
-        let _ = app.emit(&format!("pty://exit/{session_id}"), ());
+        crate::event_sink::emit(app, &format!("pty://exit/{session_id}"), &());
     }
 }

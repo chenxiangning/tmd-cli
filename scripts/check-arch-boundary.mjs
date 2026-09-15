@@ -4,7 +4,7 @@
  * docs/review/2026-09-02-architecture.md R1/R3/R4)。
  *
  * - R1: src/kernel/** 不得 import 任何 plugins(@plugins/* 或相对路径)
- * - R3: @tauri-apps/* 的唯一 import 点是 src/kernel/ipc.ts
+ * - R3: @tauri-apps/* 的唯一 import 点是 src/kernel/ipc.ts(传输层下沉后 src/kernel/transport.ts 继承同权)
  * - R4: src/plugins/** 不得反向 import app-shell(@shell/* 或相对路径)
  *
  * 零依赖,Node 18+,跨平台(win/mac/linux 均可本地跑)。
@@ -41,13 +41,14 @@ function importSpecifiers(file) {
 
 const violations = [];
 const IPC_FILE = join("src", "kernel", "ipc.ts");
+const TRANSPORT_FILE = join("src", "kernel", "transport.ts");
 
 for (const file of collect("src")) {
   const inKernel = file.startsWith(join("src", "kernel"));
   const inPlugins = file.startsWith(join("src", "plugins"));
   for (const spec of importSpecifiers(file)) {
     // R3: @tauri-apps/* 只允许 ipc.ts
-    if (spec.startsWith("@tauri-apps/") && file !== IPC_FILE) {
+    if (spec.startsWith("@tauri-apps/") && file !== IPC_FILE && file !== TRANSPORT_FILE) {
       violations.push(`R3 ${file} → "${spec}"(@tauri-apps/* 唯一通道是 src/kernel/ipc.ts)`);
     }
     // R1: kernel 不得 import plugins
