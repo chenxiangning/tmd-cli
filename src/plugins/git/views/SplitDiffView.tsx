@@ -1,16 +1,18 @@
 /**
- * 双栏 diff(split)自绘渲染 —— 左内容 | 中央行号槽 | 右内容。
+ * 双栏 diff(split)自绘渲染 —— GitHub 风:旧号 | 左内容 | 新号 | 右内容。
  *
- * - 对位:buildSplitRows 把 ctx 同行、del 块 × add 块 zip 配对,缺侧留白;
+ * - 对位:buildSplitRows 把 ctx 同行、del 块 × add 块 zip 配对,缺侧留白(浅染空带);
+ * - 行号槽在各半内侧缘(GitHub 排布):muted 右对齐不可选;wrap 态随行渲染,
+ *   nowrap 态为独立纵同步栈(不横滚,任何横滚位置行号恒可见);
+ * - 词级标注:mod 对差异 token 实色深染块(深行底一档,wordDiff);
  * - 独立横向滚动条(关换行时):左右内容列各为独立 overflow-auto 滚动面,
- *   纵向 scrollTop 三面(左/槽/右)镜像同步(nowrap 行高恒单行,三面行数一致);
- * - 改动块识别框:块行在中央槽画 accent 括号框(槽列不随横滚,任何滚动位
- *   置恒可见);
- * - 行高三面同源:nowrap 态三列是三个独立行栈,WebKit 下各栈行盒高度有亚像素
- *   差,逐行累积成整行错位(全文单 hunk 时行号大、累积最显)——左栈为基准实测
- *   行高(盒高;行外边距三面同类同值),中/右栈逐行 pin 同值,引擎差异归零。
+ *   纵向 scrollTop 四面(左槽/左/右槽/右)镜像同步;
+ * - 行高四面同源:nowrap 态四列是四个独立行栈,WebKit 下各栈行盒高度有亚像素
+ *   差,逐行累积成整行错位(全文单 hunk 时行号大、累积最显)——左内容栈为基准
+ *   实测行高(盒高;行外边距四面同类同值,折叠量一致),其余三栈逐行 pin 同值,
+ *   引擎差异归零。
  */
-import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { buildSplitRows, patchRowKey, type PatchRow, type SplitRow } from "./patchModel";
 import { wordDiff, type WordPart } from "./wordDiff";
 
@@ -36,7 +38,7 @@ function WordContent({ parts, wrap }: { parts: WordPart[]; wrap: boolean }) {
     </span>
   );
 }
-/** hunk 头 / meta 行通栏样式。行高三面一致靠 min-h-[1.25em](空占位无文字也
+/** hunk 头 / meta 行通栏样式。行高多面一致靠 min-h-[1.25em](空占位无文字也
  *  与带字行等高;1.25em = pre 的 leading-tight 行高,不用 lh 单位——老
  *  WebKit(Tauri 系统 WebView)不支持,静默塌行)。halves 模式另用 *_NW:
  *  whitespace-pre 恒单行,超长头随该列横滚,不撑高错位。 */
@@ -54,69 +56,58 @@ type PairKind = "ctx" | "mod" | "del" | "add";
 const pairKind = (left: PatchRow | null, right: PatchRow | null): PairKind =>
   left && right ? (left.text === right.text ? "ctx" : "mod") : left ? "del" : "add";
 
-/** 色带 = 本侧行种类的经典淡染(与单栏同源变量)。 */
+/** 色带:本侧行种类淡染;缺侧空带 = 对侧种类减半淡染(GitHub empty-cell:
+ *  纯删右侧浅红、纯增左侧浅绿)。 */
 const SIDE_BAND: Record<string, string> = {
   del: "git-split-band-del",
   add: "git-split-band-add",
 };
-const bandFor = (row: PatchRow | null) => (row ? SIDE_BAND[row.kind] ?? "" : "");
+const EMPTY_BAND: Record<string, string> = {
+  del: "git-split-empty-del",
+  add: "git-split-empty-add",
+};
+const sideBand = (self: PatchRow | null, other: PatchRow | null): string =>
+  self ? (SIDE_BAND[self.kind] ?? "") : other ? (EMPTY_BAND[other.kind] ?? "") : "";
 
-/** 连续非 ctx pair 行 = 一个改动块;返回每行的首尾边标记(块框/横线绘制用)。 */
-type BlockTag = { edge: "first" | "mid" | "last" | "single" } | null;
-function blockMap(rows: SplitRow[]): BlockTag[] {
-  const out: BlockTag[] = rows.map((r) =>
-    r.kind === "pair" && pairKind(r.left, r.right) !== "ctx" ? { edge: "mid" } : null,
-  );
-  for (let i = 0; i < out.length; i++) {
-    if (!out[i]) continue;
-    const start = i;
-    while (i < out.length && out[i]) i++;
-    const end = i - 1;
-    for (let k = start; k <= end; k++)
-      out[k] = { edge: k === start ? (k === end ? "single" : "first") : k === end ? "last" : "mid" };
-  }
-  return out;
-}
-/** 槽列块底 class:accent 淡染,与内容列色带同块同范围。 */
-const frameCls = (tag: BlockTag): string => (tag ? "git-split-block-bg" : "");
-
-/** 块首/块尾横线 class:三面(左内容/槽/右内容)同值同位,横线贯通不割裂。 */
-function lineCls(tag: BlockTag): string {
-  if (!tag) return "";
-  const top = tag.edge === "first" || tag.edge === "single";
-  const bot = tag.edge === "last" || tag.edge === "single";
-  return `${top ? "git-split-bd-top " : ""}${bot ? "git-split-bd-bot" : ""}`.trim();
-}
-
-/** 占位行槽色块:缺左 = 新增块占位(inserted),缺右 = 删除块占位(removed)。 */
-const phClass = (kind: PairKind) =>
-  kind === "add" ? "git-split-ph-add" : kind === "del" ? "git-split-ph-del" : "";
-
-/** 中央行号槽一格:旧行号居左、新行号居右;改动行旧号前加 ⤶ 钩,
- *  缺侧画空槽占位(⬚),改动行数字提亮。 */
-function SlotGutter({ left, right, chg }: { left: PatchRow | null; right: PatchRow | null; chg?: boolean }) {
+/** 行号格:各半内侧缘单号槽(GitHub 排布);缺侧空号但同色带铺底。 */
+function LineNo({
+  row,
+  other,
+  isLeft,
+  style,
+}: {
+  row: PatchRow | null;
+  other: PatchRow | null;
+  isLeft: boolean;
+  style?: CSSProperties;
+}) {
+  const n = row ? (isLeft ? row.oldLine : row.newLine) : null;
   return (
-    <div className={`git-split-gutter-row ${chg ? "git-split-gutter-chg" : ""}`}>
-      {left ? (
-        <span>
-          {chg && <span className="git-split-ghook">⤶</span>}
-          {left.oldLine}
-        </span>
-      ) : (
-        <span className="git-split-gslot-empty" aria-hidden />
-      )}
-      {right ? <span>{right.newLine}</span> : <span className="git-split-gslot-empty" aria-hidden />}
+    <div style={style} className={`git-split-lno ${sideBand(row, other)}`}>
+      {n ?? ""}
     </div>
   );
 }
+/** 行号槽列轨:按两侧最大行号位数定 ch 宽(左右槽恒同宽 = 两边内容列镜像对齐;
+ *  显式列轨也消掉 content-visibility 离屏行不计宽导致的槽宽抖动)。 */
+function lnoCols(rows: SplitRow[]): string {
+  let digits = 2;
+  for (const r of rows)
+    if (r.kind === "pair") {
+      if (r.left?.oldLine) digits = Math.max(digits, String(r.left.oldLine).length);
+      if (r.right?.newLine) digits = Math.max(digits, String(r.right.newLine).length);
+    }
+  const w = `${digits + 1}ch`;
+  return `${w} minmax(0,1fr) ${w} minmax(0,1fr)`;
+}
 
-/* ── 换行态:单滚动面,逐行三列 grid ── */
 
-function SplitGrid({ rows }: { rows: SplitRow[] }) {
-  const blocks = useMemo(() => blockMap(rows), [rows]);
+/* ── 换行态:单滚动面,逐行四列 grid ── */
+
+function SplitGrid({ rows, cols }: { rows: SplitRow[]; cols: string }) {
   return (
     <>
-      {rows.map((row, i) =>
+      {rows.map((row) =>
         row.kind === "header" ? (
           <div key={patchRowKey(row.row)} className={row.row.kind === "hunk" ? HEADER_CLS.hunk : HEADER_CLS.meta}>
             {row.row.text}
@@ -125,7 +116,7 @@ function SplitGrid({ rows }: { rows: SplitRow[] }) {
           <GridPairRow
             key={`${row.left ? patchRowKey(row.left) : "e"}|${row.right ? patchRowKey(row.right) : "e"}`}
             row={row}
-            tag={blocks[i]}
+            cols={cols}
           />
         ),
       )}
@@ -133,23 +124,21 @@ function SplitGrid({ rows }: { rows: SplitRow[] }) {
   );
 }
 
-function GridPairRow({ row, tag }: { row: Extract<SplitRow, { kind: "pair" }>; tag: BlockTag }) {
-  const kind = pairKind(row.left, row.right);
-  const [dParts, iParts] = kind === "mod" ? wordDiff(row.left!.text, row.right!.text) : [null, null];
-  const bd = lineCls(tag);
+function GridPairRow({ row, cols }: { row: Extract<SplitRow, { kind: "pair" }>; cols: string }) {
+  const [dParts, iParts] =
+    pairKind(row.left, row.right) === "mod" ? wordDiff(row.left!.text, row.right!.text) : [null, null];
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] [content-visibility:auto] [contain-intrinsic-size:auto_1em]">
-      <div className={`flex min-w-0 px-2 ${bandFor(row.left)} ${bd}`}>
+    <div className="grid [content-visibility:auto] [contain-intrinsic-size:auto_1em]" style={{ gridTemplateColumns: cols }}>
+      <LineNo row={row.left} other={row.right} isLeft={true} />
+      <div className={`flex min-w-0 pr-2 ${sideBand(row.left, row.right)}`}>
         {dParts ? (
           <WordContent parts={dParts} wrap={true} />
         ) : (
           <span className={CONTENT_WRAP_CLS}>{row.left?.text ?? ""}</span>
         )}
       </div>
-      <div className={`git-split-gutter-col ${lineCls(tag)} ${frameCls(tag)} ${phClass(kind)}`}>
-        <SlotGutter left={row.left} right={row.right} chg={kind !== "ctx"} />
-      </div>
-      <div className={`flex min-w-0 px-2 ${bandFor(row.right)} ${bd}`}>
+      <LineNo row={row.right} other={row.left} isLeft={false} />
+      <div className={`flex min-w-0 pr-2 ${sideBand(row.right, row.left)}`}>
         {iParts ? (
           <WordContent parts={iParts} wrap={true} />
         ) : (
@@ -160,10 +149,10 @@ function GridPairRow({ row, tag }: { row: Extract<SplitRow, { kind: "pair" }>; t
   );
 }
 
-/* ── 关闭换行:左右独立横向滚动面 + 中央槽,纵向三面同步 ── */
+/* ── 关闭换行:左右独立横向滚动面 + 双号槽栈,纵向四面同步 ── */
 
-/** 左栈行盒高实测(getBoundingClientRect,亚像素保真):中/右栈逐行 pin 同值;
- *  行外边距(header my-1)三面同类同值,折叠量一致,只 pin 盒高即三面同位。 */
+/** 左内容栈行盒高实测(getBoundingClientRect,亚像素保真):其余三栈逐行 pin
+ *  同值;行外边距(header my-1)四面同类同值,折叠量一致,只 pin 盒高即四面同位。 */
 function useRowHeights(innerRef: RefObject<HTMLDivElement | null>, rows: SplitRow[]): number[] | null {
   const [heights, setHeights] = useState<number[] | null>(null);
   useLayoutEffect(() => {
@@ -181,7 +170,7 @@ function useRowHeights(innerRef: RefObject<HTMLDivElement | null>, rows: SplitRo
   return heights;
 }
 
-function SplitHalves({ rows }: { rows: SplitRow[] }) {
+function SplitHalves({ rows, cols }: { rows: SplitRow[]; cols: string }) {
   /* mod 对词级标注一次算两份:side() 左右各渲染一遍,逐侧现算 = 同一 DP 跑两遍
    * (2026-09-15 评审);预计算随 rows 换代。 */
   const wordParts = useMemo(
@@ -195,7 +184,8 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
   );
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
-  const midRef = useRef<HTMLDivElement>(null);
+  const glRef = useRef<HTMLDivElement>(null);
+  const grRef = useRef<HTMLDivElement>(null);
   const syncingRef = useRef(false);
   /* ponytail: rAF 解锁窗内若镜像 pane 的 scroll 事件迟到,会多写一次同值
      scrollTop(无振荡、视觉无感);换 scrollend/写前比值可根治,不值当。 */
@@ -208,19 +198,18 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
         syncingRef.current = false;
       });
     };
-  const blocks = useMemo(() => blockMap(rows), [rows]);
-  /* 一面内容列:header 通栏单行;pair 行取本侧,缺侧等高留白(带块横线)。
-     行色带/横线要铺满横向滚动全宽 → 滚动面内衬 w-max min-w-full。 */
+  /* 中槽/右槽/右内容三栈逐行 pin 左内容栈实测高:同值同位,跨引擎零累积错位。 */
   const leftInnerRef = useRef<HTMLDivElement>(null);
   const rowHeights = useRowHeights(leftInnerRef, rows);
-  /* 中/右栈逐行 pin 左栈实测高:同值同位,跨引擎零累积错位。 */
   const pin = (i: number) => (rowHeights ? { height: rowHeights[i] } : undefined);
+  /* 一面内容列:header 通栏单行;pair 行取本侧,缺侧等高留白(浅染空带)。
+     行色带要铺满横向滚动全宽 → 滚动面内衬 w-max min-w-full。 */
   const side = (isLeft: boolean) => {
     const me = isLeft ? leftRef : rightRef;
-    const targets = isLeft ? [rightRef, midRef] : [leftRef, midRef];
+    const targets = isLeft ? [rightRef, glRef, grRef] : [leftRef, glRef, grRef];
     return (
       <div ref={me} onScroll={mirror(me, targets)} className="h-full min-w-0 overflow-auto">
-        <div ref={isLeft ? leftInnerRef : undefined} className="w-max min-w-full px-2">
+        <div ref={isLeft ? leftInnerRef : undefined} className="w-max min-w-full pr-2">
           {rows.map((row, i) => {
             if (row.kind === "header")
               return (
@@ -232,15 +221,16 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
                 </div>
               );
             const self = isLeft ? row.left : row.right;
-            const bd = lineCls(blocks[i]);
+            const other = isLeft ? row.right : row.left;
+            const band = sideBand(self, other);
             if (!self)
               return (
-                <div key={`e:${patchRowKey((isLeft ? row.right : row.left)!)}`} style={isLeft ? undefined : pin(i)} className={`min-h-[1.25em] ${bd}`} aria-hidden />
+                <div key={`e:${patchRowKey(other!)}`} style={isLeft ? undefined : pin(i)} className={`min-h-[1.25em] ${band}`} aria-hidden />
               );
             const pair = wordParts[i];
             const parts = pair ? (isLeft ? pair[0] : pair[1]) : null;
             return (
-              <div key={patchRowKey(self)} style={isLeft ? undefined : pin(i)} className={`min-h-[1.25em] ${bandFor(self)} ${bd}`}>
+              <div key={patchRowKey(self)} style={isLeft ? undefined : pin(i)} className={`min-h-[1.25em] ${band}`}>
                 {parts ? (
                   <WordContent parts={parts} wrap={false} />
                 ) : (
@@ -253,43 +243,54 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
       </div>
     );
   };
-  /* 中央槽列:不横滚(overflow-hidden),块括号框恒可见;header 空行与两侧同高。 */
-  const mid = (
-    <div ref={midRef} className="h-full overflow-hidden">
+  /* 一面行号槽栈:不横滚(overflow-hidden),header 空行与内容栈同高同外边距。 */
+  const gutter = (isLeft: boolean) => (
+    <div ref={isLeft ? glRef : grRef} className="h-full overflow-hidden">
       {rows.map((row, i) =>
         row.kind === "header" ? (
-          <div key={`h:${patchRowKey(row.row)}`} style={pin(i)} className={row.row.kind === "hunk" ? HEADER_CLS.hunk : HEADER_CLS.meta} aria-hidden />
+          <div
+            key={`h:${patchRowKey(row.row)}`}
+            style={pin(i)}
+            className={`git-split-lno ${row.row.kind === "hunk" ? HEADER_CLS.hunk : HEADER_CLS.meta}`}
+            aria-hidden
+          />
         ) : (
-          <div key={`g:${patchRowKey(row.left ?? row.right!)}`} style={pin(i)} className={`git-split-gutter-col ${lineCls(blocks[i])} ${frameCls(blocks[i])} ${phClass(pairKind(row.left, row.right))}`}>
-            <SlotGutter left={row.left} right={row.right} chg={pairKind(row.left, row.right) !== "ctx"} />
-          </div>
+          <LineNo
+            key={`g:${patchRowKey(row.left ?? row.right!)}`}
+            style={pin(i)}
+            row={isLeft ? row.left : row.right}
+            other={isLeft ? row.right : row.left}
+            isLeft={isLeft}
+          />
         ),
       )}
     </div>
   );
   return (
-    <div className="grid h-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+    <div className="grid h-full" style={{ gridTemplateColumns: cols }}>
+      {gutter(true)}
       {side(true)}
-      {mid}
+      {gutter(false)}
       {side(false)}
     </div>
   );
 }
 /** 双栏入口:wrap 开 = 单滚动面逐行 grid;wrap 关 = 左右独立横向滚动面。
- *  注意:nowrap 态固定 h-full(横向滚动条归两半各自、纵向三面同步需要
+ *  注意:nowrap 态固定 h-full(横向滚动条归两半各自、纵向四面同步需要
  *  确定高度),调用方传入的 className 尺寸类在 nowrap 下被忽略。 */
 export function SplitDiffView({ rows, wrap, className }: { rows: PatchRow[]; wrap: boolean; className: string }) {
   const splitRows = useMemo(() => buildSplitRows(rows), [rows]);
+  const cols = useMemo(() => lnoCols(splitRows), [splitRows]);
   if (!wrap) {
     return (
       <pre className="h-full overflow-hidden py-1 font-mono text-[0.6875rem] leading-tight">
-        <SplitHalves rows={splitRows} />
+        <SplitHalves rows={splitRows} cols={cols} />
       </pre>
     );
   }
   return (
     <pre className={`${className} overflow-auto py-1 font-mono text-[0.6875rem] leading-tight`}>
-      <SplitGrid rows={splitRows} />
+      <SplitGrid rows={splitRows} cols={cols} />
     </pre>
   );
 }
