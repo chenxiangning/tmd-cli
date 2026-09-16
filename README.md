@@ -59,7 +59,7 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
 
 ![CLI 独立配置](docs/images/screenshot-cli-config.png)
 
-**欢迎页** —— 引擎卡(CLI 探针 / 版本检查一键更新 / 官方文档外链)+ 多供应商额度盘点
+**欢迎页(引擎选择器)** —— 终端窗体造型:prompt 行选工作区 + 引擎全动作行(版本探针 / 凭据 ● 展开额度 / 新会话 / 重装 / 版本回退 / 官方文档),页脚 RESUME 最近会话 / QUOTA 套餐水位 / TOKENS 近 7 日用量
 
 ![欢迎页](docs/images/screenshot-welcome.png)
 
@@ -85,7 +85,7 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
 - **SSH 一等会话**：russh 引擎，输出与 PTY 会话同构直进幕布（tab 条/缓冲/翻页零分叉）；右栏面板承载连接卡 / 本地端口转发(-L) / SFTP 远端文件树，远端文件可开编辑 tab（mtime+size 乐观并发写回）；known_hosts 信任卡、断线退避重连、HTTP CONNECT / SOCKS5 代理；主机簿与 `~/.ssh/config` 导入在设置页。
 - **WSL 支持(M1)**：本机发行版(UNC 工作区 + `wsl.exe` spawn 包装)与远程 Windows 宿主(SSH 通道 + b64 载荷)双形态;引擎探针 / 远程历史 / 状态观测 / `wslr://` 只读文件通道;git 面板与 checkpoints 按 kind 置灰降级提示不静默。
 - **文件树与编辑器**：单层懒展开文件树 + 右键写操作(新建/重命名/废纸篓/访达显示);CodeMirror 6 中央 tab 编辑器(⌘S 保存、脏标记、按扩展名懒加载语言包);文件渲染档案:图片 / PDF / 表格(csv·xlsx) / docx(mammoth 转换 + 大纲) / 结构化预览,二进制显占位;文件 tab 右键菜单与编辑区最大化切换;Markdown 预览(GFM + KaTeX 数学 + Mermaid 图 + 大纲浮窗 + 渐进渲染)。
-- **欢迎页**：引擎卡(CLI 探针 + 一键安装流式日志 + npm registry 版本检查一键更新)、凭据盘点(已登录供应商与额度一览)、最近会话快速进入。
+- **欢迎页(引擎选择器)**：终端窗体造型的无会话首页——↑↓ 选引擎、⏎ 以所选工作区启动新会话、点击 ● 展开凭据额度;引擎全动作行(CLI 探针 + 前置依赖门控 + 一键安装流式日志 + npm registry 版本检查一键更新 + 版本回退菜单(最新 10 个稳定版 + 收藏钉版) + 官方文档外链);页脚三段:RESUME(全工作区 × 已装 CLI 磁盘会话时间倒序 8 条,点击直接续上)/ QUOTA(按供应商去重聚合套餐水位 + 重置倒计时)/ TOKENS(每引擎用量 + 近 7 日图表,数据源为本地会话记录)。
 - **内置终端**:头部左区一键新建本地默认 shell 会话(kind=shell 第三类一等会话),幕布 / tab 条 / 缓冲 / 翻页全链路复用;生命周期归内核,拔插件不孤儿化会话。
 - **全局快捷键**:内核命令注册表 + 逐作用域分发(global / pty / composer),设置页可视化改键(录制 / 重置 / 冲突检测);macOS 仅 ⌘ 平台分流,Ctrl+M/N/P/W 等按原义透传 PTY 不被劫持。
 - **记忆协调(memory-coordinator)**:接入 Magic Context 外部共享记忆库(`~/.magic-context` SQLite,多 CLI 宿主共享,应用零直写);右栏 Memory 面板(FTS 关键词检索 + 项目规则 / 架构 / 约束 / 配置值分类筛选)+ 状态栏 Memory 胶囊 + 控制台中央 tab,二期自动蒸馏 opt-in。
@@ -191,7 +191,7 @@ pnpm check:file-size      # 单文件 ≤300 行检查（CI 强制）
 
 ## 当前状态
 
-已落地:插件宿主与插件市场(27 个注册插件:CLI 引擎 10 + 界面功能 13 + 核心 3 + 本机插件加载器)、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/dsh/opencode)+ SSH 一等会话(russh 引擎)+ 内置终端(kind=shell)、PTY 全生命周期与会话输出落盘翻页、xterm 幕布、工作区 FLUX 时间轴会话列表(呼吸灯/状态 label/置顶/预算分页/自定分组)、顶栏会话 tab 条与会话 tab 平铺显示、Composer 全量(触发符/拖拽/截图/命令抽屉 v3/消息锚点栏/Quota/bracketed-paste,触发补全以 CLI 为真相源)、智能体/提示词资产库(!! / ## 消费)、CLI 独立配置(图形化编辑各 CLI 配置文件,模型角色路由 / 撞墙回退链)、本机插件(~/.tmd-cli/plugins/ 免重启装载 / 对话造插件 / 版本回退)、Ask 等待确认检测(字节流 + 屏幕态双通道)与双路提示音、右栏 Git 面板全量(差异/分支/历史 Graph 化/提交 diff 中央 tab 双栏并排/远端 fetch/pull/push/三区拖选批量与未跟踪删除)、文件树 + CodeMirror 编辑器 + 文件渲染档案(图片/PDF/表格/docx/结构化)+ Markdown 预览、文件 tab 右键菜单与编辑区最大化、审批线(checkpoints 账本:双归因/回退/应用/反悔/影子对象库)、主题引擎(31 个 VS Code preset)、全局界面字号与界面缩放、网络代理、欢迎页引擎卡与凭据盘点、只读 session 状态栏、全局快捷键与可视化改键、版本号弹窗与自动更新、记忆协调(Memory 面板 FTS 检索 / 胶囊 / 控制台)、Git 分支右键菜单与远端操作对话框、会话 tab 右键菜单、WSL 支持(本机 UNC + 远程 SSH 宿主 M1:连接/会话/历史/状态/只读文件通道)、工作区壁纸(本地图库 + 流体着色器,表面 token 打穿 + xterm 透底)、omp 历史会话预热接管秒开、dsh 会话流式输出。
+已落地:插件宿主与插件市场(27 个注册插件:CLI 引擎 10 + 界面功能 13 + 核心 3 + 本机插件加载器)、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/dsh/opencode)+ SSH 一等会话(russh 引擎)+ 内置终端(kind=shell)、PTY 全生命周期与会话输出落盘翻页、xterm 幕布、工作区 FLUX 时间轴会话列表(呼吸灯/状态 label/置顶/预算分页/自定分组)、顶栏会话 tab 条与会话 tab 平铺显示、Composer 全量(触发符/拖拽/截图/命令抽屉 v3/消息锚点栏/Quota/bracketed-paste,触发补全以 CLI 为真相源)、智能体/提示词资产库(!! / ## 消费)、CLI 独立配置(图形化编辑各 CLI 配置文件,模型角色路由 / 撞墙回退链)、本机插件(~/.tmd-cli/plugins/ 免重启装载 / 对话造插件 / 版本回退)、Ask 等待确认检测(字节流 + 屏幕态双通道)与双路提示音、右栏 Git 面板全量(差异/分支/历史 Graph 化/提交 diff 中央 tab 双栏并排/远端 fetch/pull/push/三区拖选批量与未跟踪删除)、文件树 + CodeMirror 编辑器 + 文件渲染档案(图片/PDF/表格/docx/结构化)+ Markdown 预览、文件 tab 右键菜单与编辑区最大化、审批线(checkpoints 账本:双归因/回退/应用/反悔/影子对象库)、主题引擎(31 个 VS Code preset)、全局界面字号与界面缩放、网络代理、欢迎页引擎选择器(全动作行 / RESUME / QUOTA / TOKENS)、只读 session 状态栏、全局快捷键与可视化改键、版本号弹窗与自动更新、记忆协调(Memory 面板 FTS 检索 / 胶囊 / 控制台)、Git 分支右键菜单与远端操作对话框、会话 tab 右键菜单、WSL 支持(本机 UNC + 远程 SSH 宿主 M1:连接/会话/历史/状态/只读文件通道)、工作区壁纸(本地图库 + 流体着色器,表面 token 打穿 + xterm 透底)、omp 历史会话预热接管秒开、dsh 会话流式输出。
 
 进行中:命令抽屉真机验收(余 5 项 `[V]`,openspec/changes/composer-command-drawer)与 CLI 交互式兼容性验证;git「创建 PR」工作流实现中(spec: docs/superpowers/specs/2026-09-15-git-create-pr-design.md);其余变更契约已全部归档(openspec/changes/archive/)。
 
