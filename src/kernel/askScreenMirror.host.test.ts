@@ -190,6 +190,17 @@ describe("后台会话的屏幕态镜像(host 接线)", () => {
     await host.removeSession("ghost-3");
   });
 
+  /* 2026-09-16 实证(第 10 次翻车):长轮次回显滚出 256KB 窗(实采 449KB / 4.1MB),
+     纯回显证据必漏 → 尾帧 busyMarks 现势证据兜底重锚。 */
+  it("readopt 重锚:回显滚出窗,尾帧 busyMarks 自证在途仍重锚", async () => {
+    sessions.push({ id: "ghost-5", profileId: PROFILE_ID, cwd: CWD } as SessionMeta);
+    logBackends.set("ghost-5", IDLE_LINE + "\u001b[1;1H ⠴ 1m > 📁 …-cli\r\n"); /* 在工页脚(busyMarks 命中),无回显行 */
+    await host.readoptSessions();
+    expect(host.isTurnActive("ghost-5")).toBe(true);
+    await host.removeSession("ghost-5");
+  });
+
+
   it("readopt 重锚纪律:profile 未声明 echoMarks,磁盘尾含回显行也不锚(未声明 = 行为不变)", async () => {
     const NOECHO_ID = "mirror-noecho-cli";
     if (!host.getCliProfile(NOECHO_ID)) {

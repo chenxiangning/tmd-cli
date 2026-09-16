@@ -252,6 +252,16 @@ describe("readopt 重锚与调度间隙守卫(2026-09-15)", () => {
     }
   });
 
+  it("重锚 busy 现势证据:回显滚出窗的长轮次按 CLI 自证在途重锚(2026-09-16 实证)", () => {
+    const { watch } = makeWatch();
+    /* echo 声明但未命中(回显已滚出 256KB 窗),busy = true(hostWatches 按尾帧 busyMarks 判给) */
+    watch.readoptAnchor("s", "idle tail", [/\bMARKER\b/], true);
+    expect(watch.isTurnActive("s")).toBe(true);
+    vi.advanceTimersByTime(25_000); // 自证窗持轮:重载后紧邻静默工具段不假结算
+    expect(watch.isTurnActive("s")).toBe(true);
+  });
+
+
   it("调度间隙守卫:墙钟跳变(睡眠/节流)不结算在途轮次,全钟刷新后真静默照常结算", () => {
     const { watch } = makeWatch();
     watch.onUserWrite("s");

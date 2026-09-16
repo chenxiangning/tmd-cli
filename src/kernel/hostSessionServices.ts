@@ -11,6 +11,7 @@ import { ShellSessionService } from "./shellSessions";
 import { SshSessionService } from "./sshSessions";
 import { readoptSessions } from "./sessionAdopt";
 import type { HostWatches } from "./hostWatches";
+import { stripAnsi } from "./askDetect";
 import type { CliProfile } from "./cli";
 import { ipc, type SessionMeta } from "./ipc";
 
@@ -42,6 +43,8 @@ interface HostSessionServices {
 }
 /** 接管磁盘尾取量:镜像补底与回显重锚单取分用(免逐会话重复 IPC;256KB 覆盖最后一帧整帧重绘 + 近期对话回显,pi-tui 单帧可达 9KB)。 */
 const READOPT_TAIL_BYTES = 256 * 1024;
+/** busy 现势证据采样窗(语义见 readopt 内联注释)。 */
+const READOPT_BUSY_TAIL_CHARS = 16 * 1024;
 
 export function createSessionServices(
   ctx: HostSessionServicesCtx,
@@ -103,8 +106,8 @@ export function createSessionServices(
     ),
     /* webview 重载后活 PTY 重新接管(语义见 kernel/sessionAdopt.ts readoptSessions)。
        接管后磁盘尾单取分用两路:屏幕镜像补挂起面板(补盲语义见
-       askScreenMirror.ts);活动守望按用户回显证据重锚(重载前在途轮次不丢因果,
-       见 ActivityWatch.readoptAnchor)。 */
+       askScreenMirror.ts);活动守望按「回显历史 + 在途现势」双证据重锚(重载前
+       在途轮次不丢因果,见 ActivityWatch.readoptAnchor 与 HostWatches.readoptAnchor)。 */
     readopt: async () => {
       await readoptSessions(
         { ...base, setSessions: (sessions) => ctx.setSessions(sessions) },
@@ -119,7 +122,14 @@ export function createSessionServices(
             if (!end) return; /* 无日志(含尚未落盘的新会话)= 无现势可补、无回显证据 */
             const page = await ipc.sessionHistoryPage(s.id, end, READOPT_TAIL_BYTES);
             watches.screenMirror.backfill(s.id, page.text);
-            if (page.text) watches.readoptAnchor(s.id, page.text, ctx.getCliProfile(s.profileId)?.echoMarks);
+            if (!page.text) return;
+            /* busy 现势证据:尾 16KB 剥壳行级命中 busyMarks = CLI 自证在途 —— 在工帧流 2.5-10Hz
+               必中(2026-09-16 实采 3 会话尾 16KB 各 13-15 帧 ⎋),兜底回显滚出 256KB 窗的长轮次;
+               完工后空闲页脚自绘约 1-4 分钟推出窗,误锚 2-3s 自结算零残留。 */
+            const recent = stripAnsi(page.text.slice(-READOPT_BUSY_TAIL_CHARS)).split(/\r\n|\r|\n/);
+            const profile = ctx.getCliProfile(s.profileId);
+            const busy = !!profile?.busyMarks?.some((re) => recent.some((l) => re.test(l)));
+            watches.readoptAnchor(s.id, page.text, profile?.echoMarks, busy);
           })().catch(() => undefined), /* 补底/重锚是增强:失败保持未恢复(同 I1 零语义),不拖垮接管 */
         );
       }

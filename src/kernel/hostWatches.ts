@@ -198,8 +198,8 @@ export class HostWatches {
     this.activity.markViewed(sessionId);
   }
 
-  /** readopt 重锚:磁盘尾 + 插件声明 echoMarks 直达活动守望(语义见 ActivityWatch.readoptAnchor)。 */
-  readoptAnchor(sessionId: string, diskTail: string, marks?: RegExp[]): void { this.activity.readoptAnchor(sessionId, diskTail, marks); }
+  /** readopt 重锚:磁盘尾 + 双证据(回显历史 + busy 现势)直达活动守望(语义见 ActivityWatch.readoptAnchor)。 */
+  readoptAnchor(sessionId: string, diskTail: string, marks: RegExp[] | undefined, busy: boolean): void { this.activity.readoptAnchor(sessionId, diskTail, marks, busy); }
 
   /** 完成未读判定(会话列表蓝呼吸灯)。 */
   isUnread(sessionId: string): boolean {

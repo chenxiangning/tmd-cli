@@ -18,7 +18,7 @@
  * ticker 登记限轮次在途,已结算轮永不自愈重燃(I2);busy 同构:awaiting 期 = 应答开始(开轮 + answered,天花板让位)。
  * 新骨架接活 ticker 帧流 5s 内且字母近似(skeletonNear)= 粒度换字(59s→1m)继承资格;完工换装不继承。
  * 守卫 = 未应答写入天花板(awaiting && !answered && 距写入 <120s)。其余闸门:首写闸、轮次开启闸、重绘抑制窗。未读归属锚定「最后 content 帧瞬间」查看态。
- * readopt 重锚:webview 重载清空前端态,在途轮次丢锚即落空闲且 I2 拦后续输出不自愈;接管时磁盘尾用户回显行恢复锚(见 readoptAnchor)。
+ * readopt 重锚:webview 重载清空前端态,在途轮次丢锚即落空闲且 I2 拦后续输出不自愈;接管时磁盘尾双证据重锚(见 readoptAnchor):echoMarks 回显行(历史:重载前有对话)+ busyMarks 尾帧(现势:CLI 自证在途)——长轮次回显滚出 256KB 窗纯回显证据必漏(2026-09-16 实证,尾帧 ⎋ 是兜底证据)。
  */
 import { skeletonNear } from "./skeletonNear";
 
@@ -29,7 +29,7 @@ const TURN_SILENCE_MS = 2_000; /** 输出静默轮次阈值:距最后 content �
 const TICKER_HOLD_MS = 5_000; /** 持轮家具帧流窗:ticker 帧断供超此值失去持轮(工作页脚自绘 ≈2.5-10Hz,完工换装即断;ponytail: 5s 含合包余量)。 */
 /** CLI 自证持轮窗:busyMarks 标记帧断供超此值失去持轮。深思期页脚重绘稀疏(reasoning 慢流段标记帧间隔 >5s,实采 2026-09-13),5s 帧窗盖不住;自证可信度高取宽窗,完工换装后 30s 结算(分钟级轮次无感)。 */
 const BUSY_HOLD_MS = 30_000;
-const CLOCK_JUMP_MS = 60_000; /** 调度间隙阈值:tick 间隔超此值 = 墙钟跳变(睡眠/节流),三口钟同刻过窗,结算判据失去观测基础。 */
+const CLOCK_JUMP_MS = BUSY_HOLD_MS; /** 调度间隙阈值:tick 间隙超此值 = 墙钟跳变(睡眠/节流),三口钟同刻过窗,结算判据失去观测基础。取最宽持轮窗(自证 30s):间隙 30-60s 旧阈不设防,睡眠一个间隙即假结算且 I2 拦死(2026-09-16 复盘补刀);阈值随最宽窗联动,防日后调窗静默开带。 */
 const ANSWER_ECHO_MS = 400; /** 应答回显窗:写入后此窗内的内容分片视作输入回显/TUI 换帧,不算应答证据;模型生成类应答首帧恒晚于此窗;本地瞬时响应(/help、即时报错)可整体落在窗内 —— 由守卫天花板兜底结算。 */
 const IDLE_SKELETON_WINDOW = 6; /** 家具骨架窗:每会话最近 N 个字母骨架 FIFO(实测 omp 空闲帧在 4 种骨架间循环,6 容得下页脚/标题/边框各变体)。 */
 const REDRAW_SUPPRESS_MS = 1_000; /** 重绘抑制窗:resize 后此窗口内的输出视为 SIGWINCH 整屏重绘,不进活动语义。 */
@@ -123,9 +123,9 @@ export class ActivityWatch {
     s.lastBusyAt = 0;
   }
 
-  /** readopt 重锚:磁盘尾命中插件声明 echoMarks(契约见 cliProfile.ts)恢复 awaiting/answered/active;未声明/未命中零语义(同 I1)。 */
-  readoptAnchor(sessionId: string, diskTail: string, marks?: RegExp[]): void {
-    if (!marks?.some((re) => re.test(diskTail))) return;
+  /** readopt 重锚:命中插件声明 echoMarks(磁盘尾回显行,历史证据)或 busy = true(尾帧 busyMarks,hostWatches 判给的现势证据)即恢复 awaiting/answered/active;皆无零语义(同 I1)。 */
+  readoptAnchor(sessionId: string, diskTail: string, marks?: RegExp[], busy = false): void {
+    if (!busy && !marks?.some((re) => re.test(diskTail))) return;
     const now = Date.now(); /* 自证窗盖重载后紧邻静默工具;归属保守按已查看(重载前查看态不可知,防幽灵轮误蓝) */
     Object.assign(this.state(sessionId), { anchored: true, awaiting: true, answered: true, active: true, lastContentAt: now, lastBusyAt: now, lastOutputViewed: true });
     this.ensureWatch();
@@ -250,7 +250,7 @@ export class ActivityWatch {
     this.timer = setInterval(() => {
       const now = Date.now();
       let changed = false;
-      /* 调度间隙守卫:tick 间隔超 60s = 墙钟跳变(睡眠/节流),结算钟失去观测基础 —— 全钟刷到本刻跳过本轮(观测缺口非因果证据)。 */
+      /* 调度间隙守卫:tick 间隙超自证窗(30s)= 墙钟跳变(睡眠/节流),结算钟失去观测基础 —— 全钟刷到本刻跳过本轮(观测缺口非因果证据)。 */
       if (this.lastTickAt && now - this.lastTickAt > CLOCK_JUMP_MS) {
         for (const w of this.sessions.values()) if (w.active)
           w.lastContentAt = now, w.lastTickerAt &&= now, w.lastBusyAt &&= now;
