@@ -51,7 +51,11 @@ pub fn autostart_target(settings: &serde_json::Value) -> Option<(String, String)
 }
 
 /// 持久化 relay 开关;与 start/stop 同一把写锁内线性化。
-fn persist_relay_state(enabled: bool, target: Option<(&str, &str)>) -> Result<(), String> {
+fn persist_relay_state(
+    app: &tauri::AppHandle,
+    enabled: bool,
+    target: Option<(&str, &str)>,
+) -> Result<(), String> {
     let mut settings = crate::settings::load_settings();
     if !settings.is_object() {
         settings = serde_json::json!({});
@@ -61,19 +65,21 @@ fn persist_relay_state(enabled: bool, target: Option<(&str, &str)>) -> Result<()
         settings["webRelayKey"] = serde_json::json!(key);
     }
     settings["webRelayOn"] = serde_json::json!(enabled);
-    crate::settings::save_settings(&settings).map_err(|e| format!("设置落盘失败: {e}"))
+    crate::settings::save_settings(&settings).map_err(|e| format!("设置落盘失败: {e}"))?;
+    /* 前端 settings store 监听此事件回读磁盘,避免 store 与盘分叉。 */
+    let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));
+    Ok(())
 }
 
-/// 桥开关落盘:relay 起桥必须让 webAccessEnabled=true,否则下一次 config_write_settings
-/// 会走 apply_settings(false) 把桥停掉(relay 转发全失败但 UI 绿灯)。停 relay 不回填 false
-/// —— 桥是 LAN 自己的功能,用户可能正开着 LAN 用。relay 起桥只是「顺带把桥打开」。
-fn persist_bridge_enabled(enabled: bool) -> Result<(), String> {
+fn persist_bridge_enabled(app: &tauri::AppHandle, enabled: bool) -> Result<(), String> {
     let mut settings = crate::settings::load_settings();
     if settings["webAccessEnabled"] == serde_json::json!(enabled) {
         return Ok(());
     }
     settings["webAccessEnabled"] = serde_json::json!(enabled);
-    crate::settings::save_settings(&settings).map_err(|e| format!("设置落盘失败: {e}"))
+    crate::settings::save_settings(&settings).map_err(|e| format!("设置落盘失败: {e}"))?;
+    let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));
+    Ok(())
 }
 
 fn stop_relay_after_persist(
@@ -104,12 +110,18 @@ pub async fn web_relay_start(
     let Some(bridge_info) = bridge else {
         return Err("Web 桥启动失败".into());
     };
-    persist_relay_state(true, Some((&url, &key)))?;
-    persist_bridge_enabled(true)?;
+    persist_relay_state(&app, true, Some((&url, &key)))?;
+    persist_bridge_enabled(&app, true)?;
     let bridge_port = bridge_info.port;
 
     let info = RelayInfo {
-        url: relay_core::phone_url(&url),
+        // 手机 URL 必须带桥 token —— transport.ts 只从 URL ?token= 取凭据,
+        // 缺它 /ws 握手必 403,外网链路不可用。
+        url: format!(
+            "{}?token={}",
+            relay_core::phone_url(&url),
+            bridge_info.token
+        ),
         agent_url: agent.clone(),
         connected: false,
         error: None,
@@ -139,10 +151,9 @@ pub async fn web_relay_start(
 pub fn web_relay_stop(app: tauri::AppHandle) -> Result<(), String> {
     let state = app.state::<crate::AppState>();
     stop_relay_after_persist(
-        || {
-            persist_relay_state(false, None)?;
-            persist_bridge_enabled(false)
-        },
+        // 停 relay 不回填 webAccessEnabled —— 桥是 LAN 自己的功能,用户可能正开着 LAN 用;
+        // 若回填 false,此后任何 config_write_settings 都会走 apply_settings 把桥杀掉。
+        || persist_relay_state(&app, false, None),
         || state.relay.inner.lock().take(),
     )?;
     broadcast_relay(&app);

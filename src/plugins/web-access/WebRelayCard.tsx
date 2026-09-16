@@ -145,7 +145,9 @@ export function WebRelayCard() {
     setBusy(true);
     setError(null);
     try {
-      updateSettings({ webRelayUrl: url, webRelayKey: relayKey, webRelayOn: true });
+      // 只持久化 URL/key;webRelayOn 由 Rust 侧 web_relay_start 成功后落盘,
+      // 避免「start 失败但 webRelayOn:true 已落盘」导致下次启动自动重拨失败 relay。
+      updateSettings({ webRelayUrl: url, webRelayKey: relayKey });
       setInfo(await webRelayStart(url, relayKey));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -158,7 +160,7 @@ export function WebRelayCard() {
     setBusy(true);
     setError(null);
     try {
-      updateSettings({ webRelayOn: false });
+      // webRelayOn 由 Rust 侧 web_relay_stop 落盘为 false。
       await webRelayStop();
       setInfo(null);
     } catch (e) {

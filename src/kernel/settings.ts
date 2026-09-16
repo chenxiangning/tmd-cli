@@ -18,6 +18,7 @@ import { DEFAULT_SETTINGS } from "./settingsDefaults";
 import type { AppSettings } from "./settingsTypes";
 import { sanitize } from "./settingsSanitize";
 import { setShortcutOverrides } from "./shortcutOverrides";
+import { listen } from "./transport";
 
 export * from "./settingsTypes";
 export * from "./settingsAppearance";
@@ -227,6 +228,7 @@ export function ensureSettingsBooted(): void {
   if (booted) return;
   booted = true;
   settingsReady = load();
+  hookSettingsChanged();
 }
 
 /** 合并补丁并持久化。唯一写入口。 */
@@ -235,6 +237,18 @@ export function updateSettings(patch: Partial<AppSettings>): void {
   setShortcutOverrides(state.settings.shortcutOverrides);
   emit();
   void persist();
+}
+
+/** Rust 侧直写盘(如 web_relay_start 回填 webAccessEnabled)后 emit 此事件,store 回读对齐。 */
+let settingsChangedHooked = false;
+
+function hookSettingsChanged(): void {
+  if (settingsChangedHooked) return;
+  settingsChangedHooked = true;
+  if (typeof window === "undefined") return; // 测试环境无 window,跳过
+  void listen("settings:changed", () => {
+    void load();
+  });
 }
 
 export function openSettingsPanel(): void {

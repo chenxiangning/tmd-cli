@@ -64,10 +64,12 @@ async fn misc_dispatch(app: &AppHandle, cmd: &str, raw: Value) -> Result<Value, 
         }
         "config_read_settings" => block(|| Ok(crate::settings::load_settings())).await,
         "config_write_settings" => {
-            let a = args::<OneData<Value>>(&raw)?;
+            let a = args::<OneData<serde_json::Value>>(&raw)?;
             block(move || {
                 crate::settings::save_settings(&a.data).map_err(|e| e.to_string())?;
                 crate::proxy::apply_and_report(&a.data);
+                /* web 面不镜像 web_access_start/stop,故此处也不跟 apply_settings 起停桥 ——
+                web 端写 webAccessEnabled 只落盘,不起停桥(桥生命周期归桌面端)。 */
                 Ok(())
             })
             .await

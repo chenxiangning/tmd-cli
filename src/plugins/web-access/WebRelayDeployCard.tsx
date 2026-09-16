@@ -9,6 +9,7 @@ import { CloudArrowUpIcon as CloudArrowUp, DownloadSimpleIcon as DownloadSimple 
 import { relayDeploy, relayDeployPack, pickSavePath } from "@kernel/ipc";
 import { updateSettings } from "@kernel/settings";
 import { t } from "@kernel/i18n";
+import { isWeb } from "@kernel/transport";
 
 export function WebRelayDeployCard() {
   const [token, setToken] = useState("");
@@ -130,7 +131,7 @@ export function WebRelayDeployCard() {
           type="button"
           className="flex items-center gap-1 rounded border border-[var(--tmd-border)] px-2 py-1 text-xs hover:bg-[var(--tmd-bg-hover)] disabled:opacity-50"
           onClick={deploy}
-          disabled={busy || !token.trim()}
+          disabled={busy || isWeb || !token.trim()}
         >
           <CloudArrowUp size="0.75rem" aria-hidden />
           {busy ? t("部署中…") : t("立即部署")}
@@ -139,7 +140,7 @@ export function WebRelayDeployCard() {
           type="button"
           className="flex items-center gap-1 rounded border border-[var(--tmd-border)] px-2 py-1 text-xs hover:bg-[var(--tmd-bg-hover)] disabled:opacity-50"
           onClick={exportPack}
-          disabled={busy}
+          disabled={busy || isWeb}
         >
           <DownloadSimple size="0.75rem" aria-hidden />
           {t("导出部署包")}

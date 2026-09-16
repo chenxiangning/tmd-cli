@@ -24,8 +24,8 @@ const STEPS: { title: string; detail: string }[] = [
   {
     title: "③ 手机打开外网地址",
     detail:
-      "连接成功后,手机 Safari 开中继 URL(路径段即密钥,形如 https://tmd-relay.你账号.workers.dev/<密钥>)," +
-      "加到主屏幕即当 app 用。密钥=门禁,别转发;用完回这里点「断开」。",
+      "连接成功后,右卡「手机打开」里的地址已带访问令牌,手机 Safari 直接开," +
+      "加到主屏幕即当 app 用。令牌=门禁,别转发;用完回这里点「断开」。",
   },
 ];
 

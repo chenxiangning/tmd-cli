@@ -189,7 +189,7 @@ export function listen<T>(
   name: string,
   cb: (e: { payload: T }) => void,
 ): Promise<UnlistenFn> {
-  if (!isWeb) return tauriListen<T>(name, cb);
+  if (!isWeb || typeof window === "undefined") return tauriListen<T>(name, cb);
   return (bridge ??= new WebBridge()).listen(name, (payload) => cb({ payload: payload as T }));
 }
 
