@@ -13,7 +13,7 @@
  * 顶部搜索框按名称子串过滤本地/远程两组(不区分大小写),分组计数随过滤变化。
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { t } from "@kernel/i18n";
 import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { ipc, type GitBranchInfo, type GitBranchList } from "@kernel/ipc";
@@ -61,10 +61,12 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
   const [confirm, setConfirm] = useState<GitConfirmState | null>(null);
   const [nameDialog, setNameDialog] = useState<BranchNameDialogState | null>(null);
   const [compare, setCompare] = useState<BranchCompareRequest | null>(null);
-
   const q = query.trim().toLowerCase();
-  const locals = (data?.local ?? []).filter((b) => b.name.toLowerCase().includes(q));
-  const remotes = (data?.remote ?? []).filter((b) => b.name.toLowerCase().includes(q));
+  /* memo:busy/error/notice/menu 等状态翻转不再全表 O(n) 重滤(万级 refs 可感)。 */
+  const { locals, remotes } = useMemo(() => {
+    const f = (list: GitBranchInfo[]) => list.filter((b) => b.name.toLowerCase().includes(q));
+    return { locals: f(data?.local ?? []), remotes: f(data?.remote ?? []) };
+  }, [data, q]);
 
   const run = (action: () => Promise<unknown>, okNotice?: string) => {
     setBusy(true);

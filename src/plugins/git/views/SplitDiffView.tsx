@@ -13,7 +13,7 @@
  */
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { buildSplitRows, patchRowKey, type PatchRow, type SplitRow } from "./patchModel";
-import { wordDiff, type WordDiffPair, type WordPart } from "./wordDiff";
+import { lnoCols, wordDiff, type WordDiffPair, type WordPart } from "./wordDiff";
 
 /* 正文格:wrap 换行 / nowrap 撑出滚动面。 */
 const CONTENT_WRAP_CLS = "min-w-0 flex-1 whitespace-pre-wrap break-all pl-2";
@@ -88,18 +88,6 @@ function LineNo({
       {n ?? ""}
     </div>
   );
-}
-/** 行号槽列轨:按两侧最大行号位数定 ch 宽(左右槽恒同宽 = 两边内容列镜像对齐;
- *  显式列轨也消掉 content-visibility 离屏行不计宽导致的槽宽抖动)。 */
-function lnoCols(rows: SplitRow[]): string {
-  let digits = 2;
-  for (const r of rows)
-    if (r.kind === "pair") {
-      if (r.left?.oldLine) digits = Math.max(digits, String(r.left.oldLine).length);
-      if (r.right?.newLine) digits = Math.max(digits, String(r.right.newLine).length);
-    }
-  const w = `${digits + 1}ch`;
-  return `minmax(0,1fr) ${w} ${w} minmax(0,1fr)`;
 }
 
 
