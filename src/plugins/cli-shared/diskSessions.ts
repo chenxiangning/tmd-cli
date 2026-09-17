@@ -10,6 +10,7 @@
 
 import type { CliDiskSession } from "@kernel/cli";
 import { ipc } from "@kernel/ipc";
+import { parseClaudeFamilySessionHead, parsePiFamilySessionHead } from "./sessionIdentity";
 
 /** 标题展示最大长度:超出截断补省略号。 */
 const TITLE_MAX_CHARS = 60;
@@ -142,6 +143,31 @@ export async function readHeadTitle(path: string): Promise<string | undefined> {
   return deep ? extractJsonlTitle(deep) : undefined;
 }
 
+/**
+ * 读头取标题 + 创建时刻(一次浅窗双解析,深窗仅标题兜底):身份解析窗(4KB/8KB)
+ * ⊂ 标题浅窗 32KB,同一 buffer 各解一遍 —— 比对「标题一读 + 身份一读」每文件省一次
+ * IPC;pi 族与 claude 族行型互斥(type:"session" vs sessionId 字段),试解顺序不歧义。
+ * 创建时刻定死看板日历落位(resume 只刷 mtime,创建 timestamp 不动)。
+ */
+export async function readHeadSessionMeta(
+  path: string,
+): Promise<{ title?: string; createdAt?: number }> {
+  const shallow = await ipc.fsReadHead(path, TITLE_HEAD_BYTES).catch(() => "");
+  /* IPC 异型返回防御:契约是 string,但桩/封装层一旦返回对象,truthy 对象会
+     直接送进 split 链炸掉整个 Promise.all —— 该工作区扫描全灭(2026-09-17 桩目检实证)。 */
+  const head = typeof shallow === "string" ? shallow : "";
+  const identity = head
+    ? (parsePiFamilySessionHead(head) ?? parseClaudeFamilySessionHead(head))
+    : null;
+  let title = head ? extractJsonlTitle(head) : undefined;
+  if (!title) {
+    const deepRaw = await ipc.fsReadHead(path, TITLE_HEAD_BYTES_DEEP).catch(() => "");
+    const deep = typeof deepRaw === "string" ? deepRaw : "";
+    title = deep ? extractJsonlTitle(deep) : undefined;
+  }
+  return { title, createdAt: identity?.createdAt };
+}
+
 export async function scanJsonlSessions(dir: string): Promise<CliDiskSession[]> {
   const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
   /* 读头彼此独立,并发一次发出:会话库几百个文件时顺序 await 是可感知的卡顿源。 */
@@ -149,10 +175,16 @@ export async function scanJsonlSessions(dir: string): Promise<CliDiskSession[]> 
     files.map(async (f) => {
       // 2026-09-01T04-20-58-618Z_01a05b32-ea7a-738c-8a48-0d03dfef6824.jsonl
       const m = f.name.match(/_([0-9a-f-]{36})\.jsonl$/);
-      if (!m) return null;
-      const title = await readHeadTitle(f.path);
-      return { id: m[1], modifiedAt: f.modifiedAt, path: f.path, title };
+      const id = m?.[1];
+      if (!id) return null;
+      /* 一次读头双解析:标题 + 创建时刻(定死看板日历落位;此前 createdAt 缺位,
+         resume 刷 mtime 卡片跳日)。 */
+      const meta = await readHeadSessionMeta(f.path);
+      const session: CliDiskSession = { id, modifiedAt: f.modifiedAt, createdAt: meta.createdAt, path: f.path, title: meta.title };
+      return session;
     }),
   );
-  return sessions.filter((s) => s !== null);
+  return sessions
+    .filter((s): s is CliDiskSession => !!s)
+    .sort((a, b) => b.modifiedAt - a.modifiedAt);
 }

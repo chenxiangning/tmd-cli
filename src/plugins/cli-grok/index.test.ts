@@ -38,6 +38,7 @@ describe("parseGrokSummary", () => {
       title: "User Checking If Assistant Is Available",
       model: "grok-4.6",
       updatedAt: Date.parse("2026-08-19T04:50:03.069357Z"),
+      createdAt: Date.parse("2026-08-19T04:48:07.862001Z"),
     });
   });
 
@@ -50,6 +51,7 @@ describe("parseGrokSummary", () => {
       title: "调试配额",
       model: undefined,
       updatedAt: Date.parse("2026-08-19T04:50:03Z"),
+      createdAt: undefined,
     });
   });
 
@@ -60,6 +62,7 @@ describe("parseGrokSummary", () => {
       title: undefined,
       model: undefined,
       updatedAt: undefined,
+      createdAt: undefined,
     });
   });
 });

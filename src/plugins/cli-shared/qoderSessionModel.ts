@@ -13,7 +13,7 @@
 
 import { ipc } from "@kernel/ipc";
 import type { CliDiskSession, CliProfile, CliSessionStatus } from "@kernel/cli";
-import { readHeadTitle } from "./diskSessions";
+import { readHeadSessionMeta } from "./diskSessions";
 import { qoderUserMessageLine, readUserMessagesFromFile } from "./userMessages";
 import { parseClaudeFamilySessionHead } from "./sessionIdentity";
 
@@ -63,17 +63,19 @@ export async function listQoderSessions(
   const dir = await qoderSessionsDir(dataDirName, cwd);
   if (!dir) return [];
   const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
-  /* 读头互不依赖,并发;结果保持 files 原序(readHeadTitle 自吞错,不抛)。 */
+  /* 一次读头双解析(身份自证窗 ⊂ 标题浅窗):标题 + createdAt(创建时刻定死看板日历
+     落位),比对「标题一读 + 身份一读」每文件省一次 IPC;结果保持 files 原序。 */
   return Promise.all(
     files.flatMap((f) => {
       const m = f.name.match(/^([0-9a-f-]{36})\.jsonl$/);
       if (!m) return [];
       return [
-        readHeadTitle(f.path).then((title) => ({
+        readHeadSessionMeta(f.path).then((meta) => ({
           id: m[1],
           modifiedAt: f.modifiedAt,
+          createdAt: meta.createdAt,
           path: f.path,
-          title,
+          title: meta.title,
         })),
       ];
     }),

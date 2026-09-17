@@ -53,15 +53,22 @@ const RESULT_LIMIT = 200; // 与 SCAN_LIMIT 对齐:展示层分页(10/20/40/80),
 /** meta 头部读取字节数。 */
 const HEAD_BYTES = 4096;
 
-function extractMeta(head: string): { id: string; cwd: string } | null {
-  // 只认首行 session_meta,防止误匹配对话内容里的同名字段
+function extractMeta(head: string): { id: string; cwd: string; createdAt?: number } | null {
   const firstLine = head.split("\n", 1)[0];
   if (!firstLine.includes('"type":"session_meta"')) return null;
   const id = firstLine.match(/"id":"([0-9a-f-]{36})"/)?.[1];
   const rawCwd = firstLine.match(/"cwd":"((?:[^"\\]|\\.)*)"/)?.[1];
   if (!id || !rawCwd) return null;
   try {
-    return { id, cwd: JSON.parse(`"${rawCwd}"`) as string };
+    /* payload.timestamp = 会话创建时刻(实证 2026-09-03,resume 不改写):
+       regex 命中即可,同窗零新增 IO;创建时刻定死看板日历落位。 */
+    const tsIso = firstLine.match(/"timestamp":"((?:[^"\\]|\\.)*)"/)?.[1];
+    let createdAt: number | undefined;
+    if (tsIso) {
+      const ms = Date.parse(JSON.parse(`"${tsIso}"`) as string);
+      if (Number.isFinite(ms)) createdAt = ms;
+    }
+    return { id, cwd: JSON.parse(`"${rawCwd}"`) as string, createdAt };
   } catch {
     return null;
   }
@@ -113,7 +120,7 @@ async function listCodexSessions(cwd: string): Promise<CliDiskSession[]> {
     // codex 无 title 概念:标题 = 首条 role:user 的 response_item 文本,走共享两段式读头
     // (meta 行带完整 system prompt 可达数十 KB,深窗覆盖;4KB meta 窗照旧先筛,成本可控)。
     const title = await readHeadTitle(f.path);
-    sessions.push({ id: meta.id, modifiedAt: f.modifiedAt, path: f.path, title });
+    sessions.push({ id: meta.id, modifiedAt: f.modifiedAt, createdAt: meta.createdAt, path: f.path, title });
   }
   return sessions;
 }

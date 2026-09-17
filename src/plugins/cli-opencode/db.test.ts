@@ -44,9 +44,16 @@ describe("opencodeDiskSessionRows(会话行 → CliDiskSession)", () => {
         id: "ses_abc",
         title: "打招呼",
         modifiedAt: 1787986055749,
+        createdAt: 1787986042610,
         path: "/data/opencode.db#ses_abc",
       },
-      { id: "ses_def", title: undefined, modifiedAt: 200, path: "/data/opencode.db#ses_def" },
+      {
+        id: "ses_def",
+        title: undefined,
+        modifiedAt: 200,
+        createdAt: 100,
+        path: "/data/opencode.db#ses_def",
+      },
     ]);
   });
 
@@ -58,6 +65,7 @@ describe("opencodeDiskSessionRows(会话行 → CliDiskSession)", () => {
     const out = opencodeDiskSessionRows("/db", rows);
     expect(out).toHaveLength(1);
     expect(out[0].modifiedAt).toBe(42);
+    expect(out[0].createdAt).toBe(42);
   });
 });
 
