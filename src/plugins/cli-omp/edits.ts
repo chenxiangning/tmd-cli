@@ -2,11 +2,14 @@
  * omp 会话写入事件适配器(readSessionEdits)—— 审批线 events 归因第二信号源。
  *
  * 数据源 = omp 自己的会话 JSONL(~/.omp/agent/sessions/<slug>/<iso-ts>_<uuid>.jsonl,
- * 与用户消息锚点同目录;条目形态实证自 2026-09-03 真实会话文件):
- * - edit / write 工具结果正文首行是 hashline 快照头 `[path#TAG]`(TAG = 4 位
- *   十六进制),path 即本次写入的文件;一次调用跨文件移动代码时逐文件各有一行;
- * - write 结果另带 details.resolvedPath(已解析绝对路径),正文兜底为
- *   "Successfully wrote N bytes to <path>"。
+ * 与用户消息锚点同目录;条目形态实证自 2026-09-03 / 2026-09-17 真实会话文件):
+ * - 路径权威源 = 工具结果 details:edit 是 details.path,write 另带
+ *   details.resolvedPath(已解析绝对路径),正文兜底为
+ *   "Successfully wrote N bytes to <path>";
+ * - content 首行 hashline 快照头是兜底信号:2026-09-03 版为 `[path#TAG]`
+ *   (TAG = 4 位十六进制,一次调用跨文件移动代码时逐文件各有一行);
+ *   2026-09-17 起 omp 去掉 TAG,头退化为 `[path]` —— 无 TAG 形态不收
+ *   (与正文引用无法区分,宁漏勿误),此时 details.path 是唯一来源。
  * 事件时刻取条目自身 timestamp(omp 自记,ms 精度),不是观测时刻 —— 消费方的
  * 水位线增量与 Rust record_edit 的迟到守卫(早于锚点 = 上一轮,丢弃)都靠它。
  *
@@ -77,14 +80,15 @@ function editEventsOf(entry: Record<string, unknown>, cwd: string): CliSessionEd
 
   const raws = new Set<string>();
   const details = raw.details;
-  if (
-    raw.toolName === "write" &&
-    typeof details === "object" &&
-    details !== null &&
-    "resolvedPath" in details &&
-    typeof details.resolvedPath === "string"
-  ) {
-    raws.add(details.resolvedPath);
+  if (typeof details === "object" && details !== null) {
+    const d = details as Record<string, unknown>;
+    /* 2026-09-17 omp 升级实证:edit 结果路径迁到 details.path(content 首行
+       退化为 `[path]` 无 TAG,不做锚 —— hashline 兜底仍严格收 #TAG 形态防
+       正文误报);write 仍带 details.resolvedPath。 */
+    if (typeof d.path === "string") raws.add(d.path);
+    if (raw.toolName === "write" && typeof d.resolvedPath === "string") {
+      raws.add(d.resolvedPath);
+    }
   }
   if (Array.isArray(raw.content)) {
     for (const block of raw.content) {

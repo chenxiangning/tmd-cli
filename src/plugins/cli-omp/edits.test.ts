@@ -43,6 +43,20 @@ describe("parseOmpEditEvents", () => {
     ]);
   });
 
+  it("2026-09-17 契约:edit 路径迁到 details.path,content 头 [path] 无 TAG 不参与锚定", () => {
+    /* 实证自 2026-09-17T17:51 真实会话(01a0b061):omp 去掉 hashline TAG 后
+       旧契约解析不出任何 edit 路径,审批线整轮丢账,仅 write 兜底幸存。 */
+    const NEW_CONTRACT =
+      `{"type":"message","id":"9f390f22","parentId":"5f5ac218","timestamp":"2026-09-17T17:51:53.916Z",` +
+      `"message":{"role":"toolResult","toolCallId":"call_7c64f591","toolName":"edit",` +
+      `"content":[{"type":"text","text":"[src/kernel/activityWatch.ts]\\n36:/** 注释行 */\\n+39:const IDLE_CONFIRM_MS"}],` +
+      `"details":{"diff":" 36|…\\n+39|…","firstChangedLine":38,"op":"update",` +
+      `"path":"/Users/x/code/AI/github/tmd-cli/src/kernel/activityWatch.ts","oldText":"…","newText":"…"}}}`;
+    expect(parseOmpEditEvents(NEW_CONTRACT, 0, CWD)).toEqual([
+      { path: "src/kernel/activityWatch.ts", ts: Date.parse("2026-09-17T17:51:53.916Z") },
+    ]);
+  });
+
   it("write 无 details:正文 Successfully wrote 兜底", () => {
     expect(parseOmpEditEvents(WRITE_NO_DETAILS, 0, CWD)).toEqual([
       { path: "docs/a.md", ts: Date.parse("2026-09-03T13:47:16.500Z") },
