@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>会话看板 · 热力月历 + 泳道时间线日视图(定稿原型)</title>
+<style>
+  :root {
+    --bg-base: #ffffff; --bg-elevated: #f8f8f8; --bg-hover: #f2f2f2; --bg-active: #e8e8e8;
+    --fg: #3b3b3b; --fg-muted: #6e7681; --fg-faint: #9a9a9a;
+    --border: #e5e5e5; --border-strong: #cecece;
+    --accent: #005fb8; --accent-soft: rgba(0,95,184,.10);
+    --run: #107c10; --wait: #949800; --idle: #9a9a9a; --arch: #c4c4c4; --rose: #b0105b;
+    --radius: 6px; --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #ececec; color: var(--fg); font: 13px/1.5 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; padding: 28px 20px 60px; }
+  .page { max-width: 1560px; margin: 0 auto; }
+  h1 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .lede { color: var(--fg-muted); font-size: 12px; margin-bottom: 18px; }
+  .lede b { color: var(--fg); }
+
+  .window { border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; background: var(--bg-base); box-shadow: 0 8px 28px rgba(0,0,0,.08); }
+  .titlebar { height: 33px; display: flex; align-items: center; gap: 10px; background: var(--bg-elevated); border-bottom: 1px solid var(--border); padding: 0 10px 0 12px; }
+  .lights { display: flex; gap: 8px; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; }
+  .lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .tabs { display: flex; gap: 4px; align-self: flex-end; height: 100%; align-items: flex-end; }
+  .tab { display: flex; align-items: center; gap: 6px; height: 27px; padding: 0 12px; font-size: 12px; color: var(--fg-muted); border-radius: 6px 6px 0 0; }
+  .tab.on { background: var(--bg-base); color: var(--fg); border: 1px solid var(--border); border-bottom-color: var(--bg-base); }
+  .tab .glyph { font-size: 10px; font-weight: 700; color: rgb(255,140,60); }
+
+  .main { display: flex; flex-direction: column; height: 860px; background: var(--bg-elevated); }
+  .toolbar { flex: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg-base); }
+  .mnav { display: flex; align-items: center; gap: 6px; }
+  .mnav .m { font-size: 14px; font-weight: 700; font-family: var(--mono); min-width: 84px; }
+  .btn { height: 22px; min-width: 22px; padding: 0 6px; border: 1px solid var(--border); background: var(--bg-base); border-radius: 5px; cursor: pointer; color: var(--fg-muted); font-family: inherit; font-size: 12px; line-height: 1; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .f-label { font-size: 10px; color: var(--fg-faint); }
+  .echip { display: flex; align-items: center; gap: 5px; border: 1px solid var(--border); background: var(--bg-base); border-radius: 999px; padding: 0 8px; font-size: 11px; line-height: 18px; color: var(--fg-faint); cursor: pointer; font-family: inherit; }
+  .echip .d { width: 7px; height: 7px; border-radius: 50%; background: var(--ec); opacity: .35; }
+  .echip.on { color: var(--fg); border-color: color-mix(in srgb, var(--ec) 45%, var(--border)); background: color-mix(in srgb, var(--ec) 7%, var(--bg-base)); }
+  .echip.on .d { opacity: 1; }
+  .hud { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--fg-faint); font-family: var(--mono); }
+  .regen { border: 1px solid var(--border); background: var(--bg-base); border-radius: 5px; font-size: 10px; padding: 1px 8px; cursor: pointer; color: var(--fg-muted); font-family: inherit; }
+  .regen:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ═══ 日历区(可压缩)═══ */
+  .stage { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .calzone { flex: none; display: flex; flex-direction: column; min-height: 0; transition: flex-grow .32s ease; }
+  .calzone.full { flex-grow: 1; }
+  .calzone.strip { flex-grow: 0; }
+  .dow { flex: none; display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid var(--border); background: var(--bg-base); }
+  .dow div { display: grid; place-items: center; font-size: 10px; color: var(--fg-faint); padding: 5px 0; }
+  .weeks { flex: 1; min-height: 0; overflow-y: auto; }
+  .week { display: grid; grid-template-columns: repeat(7, 1fr); overflow: hidden; max-height: 120px; transition: max-height .32s ease, opacity .25s ease, min-height .32s ease; }
+  .calzone.full .week { min-height: 92px; }
+  .calzone.strip .week { min-height: 44px; }
+  .calzone.strip .week.hide { max-height: 0; min-height: 0; opacity: 0; }
+  .cell { position: relative; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 3px 5px; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+  .cell:nth-child(7n) { border-right: 0; }
+  .cell:hover { box-shadow: inset 0 0 0 1.5px var(--border-strong); }
+  .cell.out { background: var(--bg-elevated); }
+  .cell.today { box-shadow: inset 0 0 0 2px var(--accent); }
+  .cell.future { opacity: .5; }
+  .cell.h0 { background: var(--bg-elevated); }
+  .cell.h1 { background: color-mix(in srgb, var(--accent) 8%, var(--bg-base)); }
+  .cell.h2 { background: color-mix(in srgb, var(--accent) 17%, var(--bg-base)); }
+  .cell.h3 { background: color-mix(in srgb, var(--accent) 28%, var(--bg-base)); }
+  .cell.h4 { background: color-mix(in srgb, var(--accent) 42%, var(--bg-base)); }
+  .cell.h3 .dnum, .cell.h4 .dnum { color: var(--fg); }
+  .cell.we { background-image: repeating-linear-gradient(135deg, transparent 0 5px, rgba(0,0,0,.022) 5px 7px); }
+  .cell.sel { box-shadow: inset 0 0 0 2px var(--accent); background-color: var(--accent-soft); }
+  .dnum { font-size: 11px; font-weight: 600; color: var(--fg-muted); display: flex; align-items: baseline; }
+  .cell.today .dnum { color: var(--accent); }
+  .cnt { margin-left: auto; font-size: 9px; color: var(--fg-faint); font-family: var(--mono); }
+  .cnt b { color: var(--fg-muted); }
+  .edots { margin-top: auto; display: flex; gap: 2.5px; padding: 2px 0 1px; min-height: 7px; }
+  .edots i { width: 5px; height: 5px; border-radius: 50%; background: var(--ec); opacity: .85; }
+  .calzone.strip .edots { gap: 3px; }
+  .calzone.strip .edots i { width: 6px; height: 6px; }
+  .legend { display: flex; align-items: center; gap: 3px; font-size: 9px; color: var(--fg-faint); }
+  .legend i { width: 10px; height: 10px; border-radius: 2.5px; }
+
+  /* ═══ 聚焦日大视图(议程式)═══ */
+  .day-panel { flex: 0 1 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; border-top: 1px solid var(--border-strong); background: var(--bg-base); opacity: 0; transition: flex-grow .32s ease, opacity .28s ease; }
+  .day-panel.open { flex-grow: 2.2; opacity: 1; }
+  .dp-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 16px 8px; border-bottom: 1px solid var(--border); }
+  .dp-head .d { font-size: 15px; font-weight: 700; font-family: var(--mono); }
+  .dp-head .wd { font-size: 11px; color: var(--fg-muted); }
+  .dp-head .tag { font-size: 9px; color: var(--accent); background: var(--accent-soft); border-radius: 3px; padding: 0 5px; line-height: 15px; }
+  .dp-head .meta { font-size: 10px; color: var(--fg-faint); font-family: var(--mono); }
+  .dp-head .spacer { flex: 1; }
+  .dp-head .kb { font-size: 10px; color: var(--fg-faint); }
+  /* 节律条:24 小时,点击跳时 */
+  .rhythm { flex: none; display: flex; align-items: flex-end; gap: 2px; height: 36px; padding: 4px 16px 6px; border-bottom: 1px solid var(--border); background: var(--bg-elevated); }
+  .rhythm .seg { flex: 1; display: flex; flex-direction: column-reverse; align-items: stretch; height: 100%; cursor: pointer; border-radius: 2px; position: relative; }
+  .rhythm .seg:hover { outline: 1.5px solid var(--accent); }
+  .rhythm .seg i { border-radius: 1.5px 1.5px 0 0; }
+  .rhythm .seg .hl-mark { position: absolute; top: -4px; left: 20%; right: 20%; height: 2px; border-radius: 1px; background: var(--accent); display: none; }
+  .rhythm .seg.hl .hl-mark { display: block; }
+  .rhythm .lbl { font-size: 8px; color: var(--fg-faint); font-family: var(--mono); text-align: center; margin-top: 2px; height: 10px; }
+  /* 泳道时间线:左时轨 + 五态垂直泳道,按小时分带对齐 */
+  .agenda { flex: 1; min-height: 0; overflow-y: auto; overflow-x: auto; padding: 0 16px 12px; }
+  .lanes-head { position: sticky; top: 0; z-index: 6; display: flex; gap: 10px; background: var(--bg-base); padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .rail-pad { width: 72px; flex: none; }
+  .lhh { flex: 1 1 0; min-width: 140px; display: flex; flex-direction: column; gap: 3px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-elevated); padding: 6px 9px; cursor: pointer; user-select: none; }
+  .lhh .l1 { display: flex; align-items: center; gap: 6px; }
+  .lhh .st { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: var(--fg-muted); white-space: nowrap; }
+  .lhh .st i { width: 7px; height: 7px; border-radius: 50%; background: var(--idle); flex: none; }
+  .lhh .st.running { color: var(--run); }
+  .lhh .st.running i { background: var(--run); box-shadow: 0 0 0 3px color-mix(in srgb, var(--run) 22%, transparent); }
+  .lhh .st.ended-new { color: var(--rose); }
+  .lhh .st.ended-new i { background: var(--rose); animation: pulse 1.4s infinite; }
+  .lhh .st.ended-seen i { background: var(--fg-faint); }
+  .lhh .st.archived i { background: var(--fg-faint); }
+  .lhh .n { margin-left: auto; font-size: 9px; color: var(--fg-faint); font-family: var(--mono); white-space: nowrap; }
+  .lhh .car { color: var(--fg-faint); font-size: 9px; transition: transform .15s; }
+  .lhh.closed .car { transform: rotate(-90deg); }
+  .lhh.closed { opacity: .55; }
+  .lhh .rule-mini { align-self: flex-start; font-size: 8.5px; line-height: 14px; color: var(--rose); background: color-mix(in srgb, var(--rose) 8%, #fff); border: 1px solid color-mix(in srgb, var(--rose) 20%, #fff); border-radius: 999px; padding: 0 6px; }
+  .hourband { display: flex; gap: 10px; padding: 6px 0 8px; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+  .hour-rail { width: 72px; flex: none; padding-top: 2px; }
+  .hour-rail .h { display: block; font-size: 13px; font-weight: 700; font-family: var(--mono); color: var(--fg-muted); }
+  .hour-rail .n { display: block; font-size: 9px; color: var(--fg-faint); font-family: var(--mono); margin-top: 1px; }
+  .lane-cell { flex: 1 1 0; min-width: 140px; display: flex; flex-direction: column; gap: 6px; }
+  .card { flex: none; border: 1px solid var(--border); border-left: 3px solid var(--ec); border-radius: 6px; background: var(--bg-base); padding: 5px 7px; cursor: pointer; }
+  .card:hover { border-color: color-mix(in srgb, var(--ec) 55%, var(--border)); }
+  .card .c1 { display: flex; align-items: center; gap: 6px; font-size: 9px; color: var(--fg-faint); font-family: var(--mono); }
+  .card .c1 .eng { color: var(--ec); font-weight: 700; }
+  .card .acts { margin-left: auto; display: none; align-items: center; gap: 4px; }
+  .card:hover .acts { display: inline-flex; }
+  .act { border: 1px solid var(--border); border-radius: 5px; background: var(--bg-base); color: var(--fg-muted); font-size: 10px; padding: 0 6px; cursor: pointer; font-family: inherit; line-height: 15px; }
+  .act:hover { color: var(--accent); border-color: var(--accent); }
+  .card .t { font-size: 11px; font-weight: 600; margin: 3px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card .c3 { font-size: 9px; color: var(--fg-faint); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card.archived { opacity: .55; }
+  .card.hl { outline: 2px solid var(--accent); }
+  .card .rename { width: 100%; font-family: inherit; font-size: 11px; font-weight: 600; color: var(--fg); background: var(--bg-base); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 5px; outline: none; margin: 3px 0; }
+  /* 生命周期:未查看角标(月历格右上) */
+  .cell .newdot { position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--rose); box-shadow: 0 0 0 2px color-mix(in srgb, var(--rose) 18%, transparent); }
+  .dp-head .rule { font-size: 9px; color: var(--rose); background: color-mix(in srgb, var(--rose) 7%, var(--bg-base)); border-radius: 3px; padding: 1px 6px; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px); background: var(--fg); color: #fff; font-size: 12px; border-radius: 8px; padding: 7px 14px; opacity: 0; pointer-events: none; transition: all .22s; z-index: 60; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .notes { margin-top: 26px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-base); padding: 16px 18px; }
+  .notes h2 { font-size: 13px; margin-bottom: 8px; }
+  .notes li { font-size: 12px; color: var(--fg-muted); margin: 4px 0 4px 18px; }
+  .notes li b { color: var(--fg); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>会话看板 · 热力月历 + 泳道时间线日视图</h1>
+  <p class="lede">月历格底色 = 当日 token 热力(底点 = 主引擎,<b>玫红点 = 有未查看会话</b>);点日期:其余周折叠为周条,<b>聚焦日大视图撑开占主体</b>——24 小时节律条 + <b>泳道时间线</b>(左侧小时时轨「HH:00 · N 个会话 · token」+ 五态垂直泳道按小时分带对齐,列头可折叠);卡悬停出 <b>✎ 重命名</b>。数据量按本机实测校准(90 天 ~1800 会话)。</p>
+
+  <div class="window">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="tabs"><div class="tab">欢迎</div><div class="tab on"><span class="glyph">◫</span>会话看板</div><div class="tab">tmd-cli</div></div>
+    </div>
+    <div class="main">
+      <div class="toolbar">
+        <div class="mnav"><button class="btn" data-act="mnav" data-d="-1">‹</button><span class="m" id="mLabel"></span><button class="btn" data-act="mnav" data-d="1">›</button></div>
+        <span class="f-label">引擎</span>
+        <span id="chips" style="display:flex;gap:5px;flex-wrap:wrap"></span>
+        <span class="f-label">状态</span>
+        <span id="lchips" style="display:flex;gap:5px;flex-wrap:wrap"></span>
+        <span class="legend" id="legend">少<i style="background:var(--bg-elevated);border:1px solid var(--border)"></i><i style="background:color-mix(in srgb, var(--accent) 8%, var(--bg-base))"></i><i style="background:color-mix(in srgb, var(--accent) 17%, var(--bg-base))"></i><i style="background:color-mix(in srgb, var(--accent) 28%, var(--bg-base))"></i><i style="background:color-mix(in srgb, var(--accent) 42%, var(--bg-base))"></i>多 · 底点 = 主引擎</span>
+        <div class="hud"><span id="hud"></span><button class="regen" data-act="regen">↻ 重塑数据</button></div>
+      </div>
+      <div class="stage">
+        <div class="calzone full" id="calzone">
+          <div class="dow"><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div></div>
+          <div class="weeks" id="weeks"></div>
+        </div>
+        <div class="day-panel" id="dayPanel">
+          <div class="dp-head">
+            <button class="btn" data-act="dprev">‹ 前一天</button>
+            <span class="d" id="dpDate"></span>
+            <button class="btn" data-act="dnext">后一天 ›</button>
+            <span class="wd" id="dpWd"></span><span class="tag" id="dpTag" style="display:none">今天</span>
+            <span class="meta" id="dpMeta"></span><span class="rule" title="会话结束-已查看 默认进入已归档">已查看 → 自动归档</span><span class="spacer"></span>
+            <span class="kb">← → 逐日 · Esc 收起</span>
+            <button class="btn" data-act="dclose" style="width:auto;padding:0 10px">×</button>
+          </div>
+          <div class="rhythm" id="rhythm"></div>
+          <div class="agenda" id="agenda"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>设计要点</h2>
+    <ul>
+      <li><b>月历 = 量化层</b>:热力色深 = 当日 token(sqrt 分级,当月最大值归一),格底 3 点 = 主引擎,角标 = 会话数;<b>右上玫红点 = 当日存在「结束-未查看」会话</b>(治理注意力入口);今天描边、未来日淡化不可点。</li>
+      <li><b>生命周期五态(纳入管理)</b>:运行中(绿·呼吸)→ 空闲(灰)→ 结束-未查看(玫红·呼吸,点击查看)→ 结束-已查看(浅灰)→ <b>已归档(默认自动:已查看即归档,无需手动)</b>;未查看/已查看态 chip 悬停出流转说明,日头常驻规则条「已查看 → 自动归档」。</li>
+      <li><b>状态过滤</b>:工具栏「状态」chips 与引擎 chips 同构,热力月历 + 泳道时间线 + 节律条随筛选即时重算;关掉「已归档」即可聚焦在途会话。</li>
+      <li><b>重命名入口</b>:卡悬停出「✎」,点击后标题原位变输入框,Enter/失焦提交、Esc 取消,提交后保持滚动位置。</li>
+      <li><b>大视图 = 泳道时间线</b>:<b>左侧共享小时时轨</b>(只列有会话的时段,组头 = HH:00 + 当日该时总会话数/token)+ <b>五态垂直泳道按小时分带对齐</b>——同一小时带横跨五列,列内该时无会话则留空,跨列时序可直接横读;列头 sticky(状态点+名、N·token、折叠箭头),「已查看」列头内联玫红规则「→ 自动归档」;卡片 [时刻 引擎 / 标题(两行截断) / 工作区 · 指标],引擎色左边条,已归档置灰;单击「未查看」卡 = 查看并移入「已查看」列(同时带内换位)。</li>
+      <li><b>交互契约</b>:点格开大视图、← → 逐日、Esc 收起;列头点击折叠/展开(跨日保持,折叠列各时带留空);节律条点段滚到对应时带并高亮该时全部会话卡,悬停卡反标节律段。</li>
+      <li><b>落地注</b>:新增数据字段仅两个——会话 `st`(五态)与 `title` 可写(重命名落盘到各家 session 元数据或宿主侧 alias 表);「已查看 → 自动归档」为默认策略,可在设置里留开关。</li>
+    </ul>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══ 数据(同一模拟器:90 天 ~1800 会话)═══ */
+const ENGS = [['omp',.20],['qoder',.20],['claude',.14],['pi',.13],['codex',.12],['grok',.08],['dsh',.08],['kimi',.05]];
+const ECOL = { omp:'#7c3aed', qoder:'#1d4ed8', claude:'#c15f3c', pi:'#b45309', codex:'#0e7490', kimi:'#be185d', grok:'#52525b', dsh:'#4d7c0f' };
+const WSS = [['tmd-cli',.48],['mossx',.16],['ccgui-plugin-wsl',.12],['research-notes',.12],['AI-playground',.12]];
+const TITLES = {
+  'tmd-cli': ['快捷键注册表分发','插件市场索引刷新','git 双仓扫描适配','composer 抽屉补全','会话归档分页水位','终端 ANSI 配色核对','checkpoints 归因仲裁','WSL UNC 路径归一','壁纸 token 打穿','dsh 适配器联调','settings 分区迁移','pty 幕布回放','欢迎页引擎卡对齐','diff 中缝视觉打磨','本地插件信任闸','token 用量聚合','会话生命周期闸门','SSH 端口转发面板'],
+  'mossx': ['对话框能力对齐','git 面板交互复刻','插件系统对比评审','工作区壁纸盘点','composer 触发器矩阵'],
+  'ccgui-plugin-wsl': ['发行版探测脚本','双通道 spawn 验证','远程 catalog 拉取','wsl.exe 噪声剥离','market 索引提交','release 哈希钉核对'],
+  'research-notes': ['竞品会话管理盘点','SSH 模块竞品调研','magic-context PoC 复核','远程访问方案对比','多仓支持断点矩阵'],
+  'AI-playground': ['DeepSeek 冒烟','glm 视觉链路试验','prompt 模板 A/B','嵌入检索调参'],
+};
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const DAYS = 90; /* 2026-06-19 .. 09-16 */
+const dOf = i => new Date(2026, 5, 19 + i);
+let seed = 20260916, rnd, DATA = [];
+function pick(pairs){ let r = rnd(), acc = 0; for (const [v,w] of pairs){ acc += w; if (r < acc) return v; } return pairs[pairs.length-1][0]; }
+function gen(){
+  rnd = mulberry32(seed); DATA = [];
+  for (let i = 0; i < DAYS; i++){
+    const d = dOf(i), we = d.getDay() === 0 || d.getDay() === 6;
+    let n = (we ? 7 : 24) + (we ? 5 : 10) * (rnd() * 2 - 1);
+    if (rnd() < .06) n *= 2.2;
+    n = Math.max(0, Math.round(n));
+    for (let k = 0; k < n; k++){
+      const ws = pick(WSS), titles = TITLES[ws];
+      DATA.push({ id: DATA.length, eng: pick(ENGS), ws, title: titles[Math.floor(rnd() * titles.length)], day: i, start: 8*60 + Math.floor(rnd() * 15 * 60), dur: 20 + Math.floor(rnd() * 240), msgs: 2 + Math.floor(rnd() * 46), tok: Math.round(3000 + 230000 * Math.pow(rnd(), 2.2)), files: Math.floor(rnd() * 18), st: lifecycle(DAYS - 1 - i) });
+    }
+  }
+}
+/* 生命周期五态:运行中 → 空闲 → 结束-未查看 → 结束-已查看 →(默认自动)归档;按距今天数分布 */
+function lifecycle(age){
+  const r = rnd();
+  if (age === 0) return r < .28 ? 'running' : r < .6 ? 'idle' : r < .85 ? 'ended-new' : 'ended-seen';
+  if (age <= 2) return r < .1 ? 'running' : r < .45 ? 'idle' : r < .75 ? 'ended-new' : r < .95 ? 'ended-seen' : 'archived';
+  if (age <= 7) return r < .2 ? 'idle' : r < .5 ? 'ended-new' : r < .8 ? 'ended-seen' : 'archived';
+  if (age <= 30) return r < .08 ? 'ended-new' : r < .3 ? 'ended-seen' : 'archived';
+  return r < .06 ? 'ended-seen' : 'archived';
+}
+const pad = n => String(n).padStart(2,'0');
+const dkey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const fmtTok = t => t >= 1e6 ? (t/1e6).toFixed(1)+'M' : Math.round(t/1e3)+'k';
+/* 五态:label + 生命周期 chips 颜色;已查看 → 默认自动归档 */
+const STMAP = { running: '运行中', idle: '空闲', 'ended-new': '未查看', 'ended-seen': '已查看', archived: '已归档' };
+const LCS = [['running', 'var(--run)'], ['idle', 'var(--idle)'], ['ended-new', 'var(--rose)'], ['ended-seen', 'var(--fg-muted)'], ['archived', 'var(--fg-faint)']];
+const LANE_ORDER = ['running', 'idle', 'ended-new', 'ended-seen', 'archived'];
+const S = { CM: { y: 2026, m: 8 }, selDay: null, F: { engs: new Set(ENGS.map(e => e[0])), lc: new Set(LCS.map(l => l[0])) }, closed: new Set() };
+function filtered(){ return DATA.filter(s => S.F.engs.has(s.eng) && S.F.lc.has(s.st)); }
+function dayIdxOf(y, m, d){ const k = `${y}-${pad(m+1)}-${pad(d)}`; for (let i = 0; i < DAYS; i++) if (dkey(dOf(i)) === k) return i; return null; }
+const styleEl = document.createElement('style');
+styleEl.textContent = Object.entries(ECOL).map(([e, c]) => `.e-${e}{--ec:${c}}`).join('');
+document.head.appendChild(styleEl);
+
+/* ═══ 月历(热力格:色深 = 当日 token,底点 = 主引擎)═══ */
+function heatHTML(d, arr, maxTok, y, m){
+  const tok = arr.reduce((t,s) => t + s.tok, 0);
+  const r = tok ? Math.sqrt(tok / maxTok) : 0;
+  const lvl = r > .72 ? 4 : r > .48 ? 3 : r > .27 ? 2 : tok ? 1 : 0;
+  const we = [0, 6].includes(new Date(y, m, d).getDay()) ? 'we' : '';
+  const byEng = {}; for (const s of arr) byEng[s.eng] = (byEng[s.eng] || 0) + s.tok;
+  const dots = Object.entries(byEng).sort((a,b) => b[1] - a[1]).slice(0, 3).map(([e]) => `<i class="e-${e}"></i>`).join('');
+  const hasNew = arr.some(s => s.st === 'ended-new');
+  return { lvl, we, dots, tok, hasNew };
+}
+function renderCal(){
+  const { y, m } = S.CM;
+  document.getElementById('mLabel').textContent = `${y}-${pad(m+1)}`;
+  const byDate = {};
+  for (const s of filtered()){ const k = dkey(dOf(s.day)); (byDate[k] ??= []).push(s); }
+  const first = new Date(y, m, 1), startWd = (first.getDay() + 6) % 7, dim = new Date(y, m+1, 0).getDate();
+  const todayStr = dkey(dOf(DAYS-1));
+  const selKey = S.selDay != null ? dkey(dOf(S.selDay)) : null;
+  const maxTok = Math.max(1, ...Object.values(byDate).map(a => a.reduce((t,s) => t + s.tok, 0)));
+  const weeks = [];
+  let cur = [];
+  const push = () => { if (cur.length){ weeks.push(cur); cur = []; } };
+  for (let i = 0; i < startWd; i++) cur.push(`<div class="cell out"><div class="dnum">${new Date(y, m, i - startWd + 1).getDate()}</div></div>`);
+  for (let d = 1; d <= dim; d++){
+    const key = `${y}-${pad(m+1)}-${pad(d)}`;
+    const arr = byDate[key] || [];
+    const idx = dayIdxOf(y, m, d);
+    const { lvl, we, dots, tok, hasNew } = heatHTML(d, arr, maxTok, y, m);
+    cur.push(`<div class="cell h${lvl} ${we} ${idx == null ? 'future' : ''} ${key === todayStr ? 'today' : ''} ${selKey === key ? 'sel' : ''}" ${idx != null ? `data-act="day" data-day="${idx}"` : ''} title="${m+1} 月 ${d} 日 · ${arr.length} 会话 · ${tok ? fmtTok(tok) : '无'}">
+      <div class="dnum">${d}<span class="cnt">${arr.length ? `<b>${arr.length}</b>` : ''}</span></div>
+      <span class="edots">${dots}</span>${hasNew ? '<span class="newdot" title="有未查看的已结束会话"></span>' : ''}
+    </div>`);
+    if (cur.length === 7) push();
+  }
+  const tail = (7 - cur.length) % 7;
+  for (let i = 1; i <= tail; i++) cur.push(`<div class="cell out"><div class="dnum">${i}</div></div>`);
+  push();
+  document.getElementById('weeks').innerHTML = weeks.map((w, i) => `<div class="week" data-w="${i}">${w.join('')}</div>`).join('');
+  if (S.selDay != null) markSelectedWeek();
+}
+function markSelectedWeek(){
+  const sel = document.querySelector('.cell.sel');
+  const zone = document.getElementById('calzone');
+  zone.classList.remove('full'); zone.classList.add('strip');
+  document.querySelectorAll('.week').forEach(w => w.classList.toggle('hide', !(sel && w.contains(sel))));
+}
+/* ═══ 聚焦日(节律条 + 议程)═══ */
+function renderDay(keepScroll){
+  const panel = document.getElementById('dayPanel');
+  if (S.selDay == null){ panel.classList.remove('open'); return; }
+  panel.classList.add('open');
+  const agendaEl = document.getElementById('agenda'), sc = agendaEl.scrollTop;
+  const d = dOf(S.selDay), arr = filtered().filter(s => s.day === S.selDay).slice().sort((a,b) => a.start - b.start);
+  document.getElementById('dpDate').textContent = `${d.getMonth()+1} 月 ${d.getDate()} 日`;
+  document.getElementById('dpWd').textContent = '周' + '日一二三四五六'[d.getDay()];
+  document.getElementById('dpTag').style.display = S.selDay === DAYS-1 ? '' : 'none';
+  const lcTxt = LANE_ORDER.map(k => { const n = arr.filter(s => s.st === k).length; return n ? `${STMAP[k]} ${n}` : null; }).filter(Boolean).join(' · ');
+  document.getElementById('dpMeta').textContent = `${arr.length} 个会话 · ${fmtTok(arr.reduce((t,s) => t + s.tok, 0))} token · ${lcTxt}`;
+  /* 节律条:每小时 token 按引擎堆叠 */
+  const perH = Array.from({length: 24}, () => ({}));
+  for (const s of arr){ const h = Math.min(Math.floor(s.start / 60), 23); perH[h][s.eng] = (perH[h][s.eng] || 0) + s.tok; }
+  const maxT = Math.max(1, ...perH.map(e => Object.values(e).reduce((a,b) => a + b, 0)));
+  document.getElementById('rhythm').innerHTML = perH.map((e, h) => {
+    const tot = Object.values(e).reduce((a,b) => a + b, 0);
+    const parts = Object.entries(e).sort((a,b) => b[1] - a[1]).map(([eng, t]) => `<i class="e-${eng}" style="height:${t / maxT * 22}px;background:color-mix(in srgb, var(--ec) 75%, #fff)" title="${eng} ${fmtTok(t)}"></i>`).join('');
+    return `<div class="seg" data-hour="${h}" title="${pad(h)}:00 · ${tot ? fmtTok(tot) : '无会话'}">${tot ? parts : ''}<div class="lbl">${h % 3 === 0 ? pad(h) : ''}</div></div>`;
+  }).join('');
+  /* 泳道时间线:左时轨 + 五态垂直泳道按小时分带对齐;卡上 ✎ 重命名 */
+  const lanesOn = LANE_ORDER.filter(k => S.F.lc.has(k));
+  const byLane = {};
+  for (const s of arr) (byLane[s.st] ??= []).push(s);
+  const cardHTML = s => `
+    <div class="card e-${s.eng} ${s.st === 'archived' ? 'archived' : ''}" data-id="${s.id}" data-hour="${Math.floor(s.start / 60)}" title="${STMAP[s.st]} · ${s.ws} · ${s.msgs}msg · ${fmtTok(s.tok)}">
+      <div class="c1"><span>${pad(Math.floor(s.start/60))}:${pad(s.start%60)}</span><span class="eng">${s.eng}</span><span class="acts"><button class="act" data-act="rename" title="重命名会话">✎</button></span></div>
+      <div class="t">${s.title}</div>
+      <div class="c3">${s.ws} · ${s.msgs}msg · ${fmtTok(s.tok)}</div>
+    </div>`;
+  const headHTML = `<div class="lanes-head"><div class="rail-pad"></div>${lanesOn.map(k => {
+    const rows = byLane[k] || [];
+    return `<div class="lhh ${S.closed.has(k) ? 'closed' : ''}" data-act="lane" data-lane="${k}" title="点击折叠/展开本列">
+      <div class="l1"><span class="st ${k}"><i></i>${STMAP[k]}</span><span class="n">${rows.length} · ${rows.length ? fmtTok(rows.reduce((t,s) => t + s.tok, 0)) : '0'}</span><span class="car">▾</span></div>
+      ${k === 'ended-seen' ? '<span class="rule-mini">已查看 → 自动归档</span>' : ''}
+    </div>`;
+  }).join('')}</div>`;
+  const byHour = {};
+  for (const s of arr) (byHour[Math.floor(s.start / 60)] ??= []).push(s);
+  const hours = Object.keys(byHour).map(Number).sort((a,b) => a - b);
+  agendaEl.innerHTML = headHTML + (hours.map(h => {
+    const hourAll = byHour[h];
+    return `<div class="hourband" id="hb${h}">
+      <div class="hour-rail"><span class="h">${pad(h)}:00</span><span class="n">${hourAll.length} 个会话 · ${fmtTok(hourAll.reduce((t,s) => t + s.tok, 0))}</span></div>
+      ${lanesOn.map(k => `<div class="lane-cell" data-lane="${k}">${S.closed.has(k) ? '' : hourAll.filter(s => s.st === k).sort((a,b) => a.start - b.start).map(cardHTML).join('')}</div>`).join('')}
+    </div>`;
+  }).join('') || '<div style="color:var(--fg-faint);font-size:11px;padding:12px 0">当日无会话。</div>');
+  if (keepScroll) agendaEl.scrollTop = sc;
+}
+function renderAll(){
+  document.getElementById('hud').textContent = `模拟 90 天 · ${DATA.length} 会话 · 筛选后 ${filtered().length}`;
+  document.getElementById('chips').innerHTML = ENGS.map(([e]) => `<button class="echip e-${e} ${S.F.engs.has(e) ? 'on' : ''}" data-act="echip" data-eng="${e}"><span class="d"></span>${e}</button>`).join('');
+  document.getElementById('lchips').innerHTML = LCS.map(([k, c]) => `<button class="echip ${S.F.lc.has(k) ? 'on' : ''}" style="--ec:${c}" data-act="lchip" data-lc="${k}"><span class="d"></span>${STMAP[k]}</button>`).join('');
+  renderCal(); renderDay();
+}
+/* ═══ 事件 ═══ */
+const toastEl = document.getElementById('toast'); let tmr;
+function toast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(tmr); tmr = setTimeout(() => toastEl.classList.remove('show'), 1700); }
+document.body.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const act = el.dataset.act;
+  if (act === 'regen'){ seed = Math.floor(Math.random() * 1e8); gen(); renderAll(); toast(`已重塑:${DATA.length} 会话`); }
+  else if (act === 'echip'){ const en = el.dataset.eng; S.F.engs.has(en) ? S.F.engs.delete(en) : S.F.engs.add(en); renderAll(); }
+  else if (act === 'lchip'){ const k = el.dataset.lc; S.F.lc.has(k) ? S.F.lc.delete(k) : S.F.lc.add(k); renderAll(); }
+  else if (act === 'lane'){ const k = el.dataset.lane; S.closed.has(k) ? S.closed.delete(k) : S.closed.add(k); renderDay(true); }
+  else if (act === 'rename'){ startRename(el.closest('.card')); }
+  else if (act === 'mnav'){ let { y, m } = S.CM; m += +el.dataset.d; if (m < 0){ m = 11; y--; } if (m > 11){ m = 0; y++; } S.CM = { y, m }; S.selDay = null; restoreFull(); renderAll(); }
+  else if (act === 'day'){ S.selDay = +el.dataset.day; syncMonth(); renderCal(); renderDay(); }
+  else if (act === 'dprev'){ if (S.selDay > 0){ S.selDay--; syncMonth(); renderCal(); renderDay(); } }
+  else if (act === 'dnext'){ if (S.selDay < DAYS-1){ S.selDay++; syncMonth(); renderCal(); renderDay(); } }
+  else if (act === 'dclose'){ S.selDay = null; restoreFull(); renderCal(); renderDay(); }
+});
+function restoreFull(){
+  const zone = document.getElementById('calzone');
+  zone.classList.add('full'); zone.classList.remove('strip');
+  document.querySelectorAll('.week').forEach(w => w.classList.remove('hide'));
+}
+/* 泳道卡:hover 反标节律段;单击 = 查看/resume(未查看 → 已查看);✎ = 重命名 */
+document.getElementById('agenda').addEventListener('mouseover', e => {
+  const r = e.target.closest('.card'); if (!r) return;
+  document.querySelectorAll('.rhythm .seg.hl').forEach(s => s.classList.remove('hl'));
+  document.querySelector(`.rhythm .seg[data-hour="${r.dataset.hour}"]`)?.classList.add('hl');
+});
+document.getElementById('agenda').addEventListener('mouseleave', () => document.querySelectorAll('.rhythm .seg.hl').forEach(s => s.classList.remove('hl')));
+document.getElementById('agenda').addEventListener('click', e => {
+  const r = e.target.closest('.card'); if (!r || e.target.closest('[data-act]') || e.target.closest('.rename')) return;
+  const s = DATA.find(x => x.id === +r.dataset.id); if (!s) return;
+  if (s.st === 'ended-new'){ s.st = 'ended-seen'; toast(`已查看:「${s.title}」→ 默认自动进入已归档`); renderAll(); }
+  else toast(`resume:${s.eng} · ${s.title}`);
+});
+/* 卡上重命名:✎ → 标题位换输入框,Enter/失焦提交,Esc 取消 */
+function startRename(card){
+  if (!card || card.querySelector('.rename')) return;
+  const s = DATA.find(x => x.id === +card.dataset.id); if (!s) return;
+  const t = card.querySelector('.t');
+  const input = document.createElement('input');
+  input.className = 'rename'; input.value = s.title; input.maxLength = 60;
+  t.replaceWith(input); input.focus(); input.select();
+  let done = false;
+  const commit = ok => {
+    if (done) return; done = true;
+    const v = input.value.trim();
+    if (ok && v && v !== s.title){ s.title = v; toast(`已重命名为「${v}」`); }
+    renderDay(true);
+  };
+  input.addEventListener('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') commit(true); else if (ev.key === 'Escape') commit(false); });
+  input.addEventListener('blur', () => commit(true));
+}
+/* 节律段:点击滚到该小时时带并高亮其中会话卡 */
+document.getElementById('rhythm').addEventListener('click', e => {
+  const seg = e.target.closest('.seg'); if (!seg) return;
+  const band = document.getElementById('hb' + seg.dataset.hour);
+  if (!band) return;
+  document.querySelectorAll('.card.hl').forEach(b => b.classList.remove('hl'));
+  document.querySelectorAll(`.card[data-hour="${seg.dataset.hour}"]`).forEach(b => b.classList.add('hl'));
+  band.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+document.addEventListener('keydown', e => {
+  if (S.selDay == null) return;
+  if (e.key === 'Escape') document.querySelector('[data-act="dclose"]').click();
+  else if (e.key === 'ArrowLeft') document.querySelector('[data-act="dprev"]').click();
+  else if (e.key === 'ArrowRight') document.querySelector('[data-act="dnext"]').click();
+});
+function syncMonth(){ const d = dOf(S.selDay); S.CM = { y: d.getFullYear(), m: d.getMonth() }; }
+gen(); renderAll();
+</script>
+</body>
+</html>
