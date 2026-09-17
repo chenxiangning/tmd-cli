@@ -199,10 +199,10 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     };
     registerTerminalHandle(sessionId, terminalHandle);
 
-    /* 重挂载必发一次;同尺寸 resize 在 Rust 侧幂等去重(pty.rs)。
-       经 host.resizeSession 走:真实尺寸变化(SIGWINCH 重绘)由活动守望
-       重绘抑制窗吸收,不再误判成一轮对话(见 activityWatch 头注释)。 */
+    /* 重挂载必发一次;同尺寸 Rust 幂等去重;重绘由活动守望抑制窗吸收(activityWatch 头注释)。
+       零宽跳过:fit 会钳到 MINIMUM_COLS=2,把不可见会话的 PTY SIGWINCH 成窄条重排。 */
     const syncSize = () => {
+      if (!container.clientWidth) return;
       fit.fit();
       host.resizeSession(sessionId, term.cols, term.rows);
     };
