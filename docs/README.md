@@ -152,4 +152,6 @@
 | 2026-09-16 | [git 双栏 diff 方向探索 ×6(保留基准 V2 双向纹 + N1 明度 / N2 聚光灯 / N3 权重 / N4 折叠焦点 / N5 斑马打断;同一份 diff 差异化对比)](design/git-split-diff-v2-hatch-directional.html) | 设计原型(V2 已保留,N1-N5 见 git-split-diff-n1~n5-*.html,待选) |
 | 2026-09-16 | [会话看板 · 热力月历 + 泳道时间线日视图(热力/周条/节律条 + 小时时轨 × 五态垂直泳道分带对齐 + 未查看治理点 + 卡上重命名;90 天 ~1800 会话密度实测)](design/session-calendar-heat-agenda.html) | 设计原型(定稿候选;六轮目检迭代;前期 A-E/综合版/F~H 探索方案已删) |
 | 2026-09-16 | [会话看板设计 spec(热力月历 + 泳道时间线 + 生命周期五态;插件化落地)](superpowers/specs/2026-09-16-session-board-design.md) | 已落地(session-board 插件,实施纪要见 spec) |
+| 2026-09-17 | [Web 远程访问桥 M1/M2 契约:transport 继承 R3 / event_sink 双扇出 / 命令镜像与信任模型 / 停机语义 / /file 允许制 / LAN 绑定 / 中继链路](architecture/12-web-remote-access.md) | 生效中(改 web 域/transport/event_sink/relay 前必读;含 18 笔整体 review 决策) |
+| 2026-09-17 | [本地 18 笔整体 code review(git 双栏/web 桥/kernel 状态/看板四域;P1×1 + P2×7 全修)](review/2026-09-17-18-commits-global-review.md) | 已完成(修复随本批提交;门禁全绿 react-doctor 100) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
