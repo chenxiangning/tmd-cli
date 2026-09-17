@@ -131,7 +131,7 @@ export function WebRelayCard() {
 
   useEffect(() => {
     void refresh();
-    /* 中继状态事件驱动刷新(事件 payload 即 RelayInfo,直连填)。 */
+    /* 中继状态事件驱动刷新(payload 恒 Null,仅作信号;实况经 webRelayStatus 重查)。 */
     let unlisten: (() => void) | null = null;
     onWebRelay((next) => setInfo(next)).then((fn) => {
       unlisten = fn;

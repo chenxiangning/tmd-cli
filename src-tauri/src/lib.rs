@@ -142,6 +142,8 @@ pub fn run() {
         /* 应用内自动更新(updater latest.json 通道)与安装后重启;前端经
         kernel/ipc 薄包装调用 check/download_and_install/relaunch。 */
         .plugin(tauri_plugin_updater::Builder::new().build())
+        /* 进程面控:relaunch(更新安装后自动重启)等;e710fc8 误删致 relaunch 必败,恢复。 */
+        .plugin(tauri_plugin_process::init())
         .manage(AppState {
             pty: PtyRegistry::default(),
             sessions,

@@ -42,16 +42,22 @@ pub(super) async fn serve(
     app: AppHandle,
 ) -> Result<(WebAccessInfo, oneshot::Sender<()>, watch::Sender<bool>), String> {
     let token = gate::new_token();
-    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, 0))
+    /* 只绑解析出的 LAN 接口 IP(与展示 URL 同一来源):VPN tun / 容器网段 /
+    公司 VPN 不再随 0.0.0.0 全接口可达;解析失败回落 127.0.0.1(仅本机)。 */
+    let lan_ip = lan_ip().unwrap_or_else(|| "127.0.0.1".to_string());
+    let bind_addr: std::net::SocketAddr = format!("{lan_ip}:0")
+        .parse()
+        .map_err(|e| format!("Web 桥绑定地址无效: {e}"))?;
+    let listener = tokio::net::TcpListener::bind(bind_addr)
         .await
         .map_err(|e| format!("Web 桥端口绑定失败: {e}"))?;
     let port = listener
         .local_addr()
         .map_err(|e| format!("Web 桥取端口失败: {e}"))?
         .port();
-    let lan_ip = lan_ip().unwrap_or_else(|| "127.0.0.1".to_string());
     let url = format!("http://{lan_ip}:{port}/?token={token}");
-    eprintln!("[web-bridge] LAN: {url}");
+    /* 不把含 token 的完整 URL 打进 stderr 日志(隐私)。 */
+    eprintln!("[web-bridge] LAN: http://{lan_ip}:{port}/");
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
     let (stop_watch, _) = watch::channel(false);
     let ctx = WebCtx {
@@ -137,7 +143,14 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket) {
     let (out_tx, mut out_rx) = tokio::sync::mpsc::channel::<String>(256);
     let mut events_rx = crate::event_sink::subscribe();
     let mut stop_writer = ctx.stop.subscribe();
+    /* 订阅后立即吸收已置位(stop 早于本连接):否则 watch 语义下 changed() 不再
+    触发,socket 将带着完整派发权活到自行断连。select 的 else 分支只在全分支
+    pattern 被禁用时执行,治不了这个窗口。 */
+    let writer_stopped = *stop_writer.borrow_and_update();
     tokio::spawn(async move {
+        if writer_stopped {
+            return;
+        }
         loop {
             tokio::select! {
                 msg = out_rx.recv() => match msg {
@@ -150,15 +163,14 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket) {
                     Err(broadcast::error::RecvError::Closed) => break,
                 },
                 _ = stop_writer.changed() => break,
-                else => {
-                    /* 停机早于订阅:初始值已 true,changed() 永不再触发。 */
-                    if *stop_writer.borrow() { break; }
-                }
             }
         }
     });
     /* 入站:每个 invoke 独立 task —— 长命令(session_spawn 等)不阻塞读循环。 */
     let mut stop_reader = ctx.stop.subscribe();
+    if *stop_reader.borrow_and_update() {
+        return;
+    }
     loop {
         tokio::select! {
             msg = ws_rx.next() => {
@@ -182,9 +194,6 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket) {
                 }
             }
             _ = stop_reader.changed() => break,
-            else => {
-                if *stop_reader.borrow() { break; }
-            }
         }
     }
 }

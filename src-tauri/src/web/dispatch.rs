@@ -72,7 +72,11 @@ async fn misc_dispatch(app: &AppHandle, cmd: &str, raw: Value) -> Result<Value, 
                 web 端写 webAccessEnabled 只落盘,不起停桥(桥生命周期归桌面端)。 */
                 Ok(())
             })
-            .await
+            .await?;
+            /* 与 relay 直写盘同款纪律:成功后广播,各面 settings store 回读磁盘,
+            防手机端修改被桌面端下一次全量持久化静默回滚(跨面丢更新)。 */
+            let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));
+            val(())
         }
         "quota_fetch" => {
             let a = args::<OneSpec<crate::quota::QuotaRequest>>(&raw)?;

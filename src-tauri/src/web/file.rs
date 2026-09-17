@@ -36,9 +36,11 @@ pub(super) async fn file_handler(
     }
 }
 
-/// /file 范围 = $HOME 内、排除凭据目录;~/.tmd-cli 下仅放行 wallpapers/
-/// (壁纸插件 asset:// 的消费路径)。canonicalize 后仍须在 $HOME 内,
-/// symlink 与 `..` 无法逃逸。较 assetProtocol 的 `**/*` 收窄,属 trust-boundary。
+/// /file 范围 = $HOME 内;首段 dot 条目默认拒绝(凭据/历史/OAuth 全在内:
+/// .ssh/.aws/.claude/.codex/.local/.netrc/.zsh_history…),仅白名单 .tmd-cli
+/// 放行且二级须 wallpapers/(壁纸插件 asset:// 的消费路径);非 dot 路径维持
+/// 放行(工作区预览)。canonicalize 后仍须在 $HOME 内,symlink 与 `..` 无法
+/// 逃逸。较 assetProtocol 的 `**/*` 收窄,属 trust-boundary。
 fn read_scoped_file(path: &Path) -> Option<(Vec<u8>, &'static str)> {
     let home = crate::session::home_dir();
     let canonical = path.canonicalize().ok()?;
@@ -47,8 +49,8 @@ fn read_scoped_file(path: &Path) -> Option<(Vec<u8>, &'static str)> {
     }
     let rel = canonical.strip_prefix(&home).ok()?;
     let first = rel.components().next()?.as_os_str().to_str()?;
-    const DENY: [&str; 4] = [".ssh", ".aws", ".gnupg", ".config"];
-    if DENY.contains(&first) {
+    /* 允许制:黑名单枚举追不完新 CLI 的凭据落点,dot 首段一刀切更稳。 */
+    if first.starts_with('.') && first != ".tmd-cli" {
         return None;
     }
     if first == ".tmd-cli"

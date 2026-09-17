@@ -36,10 +36,10 @@ export function WebWanRiskDialog({ onAccept, onReject }: Props) {
         <div className="mb-4 rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-muted)] p-2.5 text-xs text-[var(--tmd-fg-muted)]">
           <div className="mb-1 font-medium text-[var(--tmd-fg)]">{t("安全约定:")}</div>
           <ul className="list-inside list-disc space-y-0.5">
-            <li>{t("只授权自己的设备")}</li>
+            <li>{t("密钥即唯一凭据,持有者与本机等权")}</li>
             <li>{t("不转发中继地址或密钥")}</li>
             <li>{t("用完即断开中继")}</li>
-            <li>{t("定期删除闲置设备")}</li>
+            <li>{t("桌面重启后密钥自动重铸,旧链接即失效")}</li>
           </ul>
         </div>
         <div className="flex justify-end gap-2">

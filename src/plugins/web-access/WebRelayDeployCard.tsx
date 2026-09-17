@@ -26,7 +26,9 @@ export function WebRelayDeployCard() {
     try {
       const r = await relayDeploy(token, accountId.trim() || undefined);
       setResult(r);
-      updateSettings({ webRelayUrl: r.url, webRelayKey: r.key, webRelayOn: true });
+      /* 只回填部署产物;webRelayOn 留给 web_relay_start 成功后由 Rust 侧落盘
+      (与连接卡同款纪律):部署 ≠ 同意外网可达,防 autostart 静默拨通。 */
+      updateSettings({ webRelayUrl: r.url, webRelayKey: r.key });
       setToken("");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
