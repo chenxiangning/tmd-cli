@@ -227,9 +227,11 @@ export function sanitize(raw: unknown): AppSettings {
         ? obj.workspaceArchiveView
         : DEFAULT_SETTINGS.workspaceArchiveView,
     workspaceOriginFilter:
-      typeof obj.workspaceOriginFilter === "string" && obj.workspaceOriginFilter.length <= 32
+      typeof obj.workspaceOriginFilter === "string" &&
+      obj.workspaceOriginFilter.length <= 32 &&
+      obj.workspaceOriginFilter !== ""
         ? obj.workspaceOriginFilter
-        : "",
+        : "local",
     workspaceCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceCollapsedMap),
     workspaceGroups: sanitizeWorkspaceGroups(obj.workspaceGroups),
     workspaceGroupCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceGroupCollapsedMap),

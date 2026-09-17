@@ -66,7 +66,7 @@ describe("初始状态与默认值", () => {
       engineVersionFavs: {},
       shortcutOverrides: {},
       workspaceArchiveView: false,
-  workspaceOriginFilter: "",
+  workspaceOriginFilter: "local",
       workspaceCollapsedMap: {},
       workspaceGroups: [],
       workspaceGroupCollapsedMap: {},

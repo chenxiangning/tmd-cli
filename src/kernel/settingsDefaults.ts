@@ -49,7 +49,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionDeleted: {},
   engineVersionFavs: {},
   workspaceArchiveView: false,
-  workspaceOriginFilter: "",
+  workspaceOriginFilter: "local",
   networkProxyEnabled: false,
   networkProxyUrl: "",
   memoryDbPath: "",

@@ -183,7 +183,7 @@ export interface AppSettings {
   workspaceGroupCollapsedMap: Record<string, boolean>;
   /** 左侧栏会话视图:false = 默认(隐藏归档),true = 归档(只看归档)。 */
   workspaceArchiveView: boolean;
-  /** 侧栏工作区来源过滤:空 = 全部;local = 本地;wsl = WSL(含远程)。 */
+  /** 侧栏工作区来源过滤:local = 本地(缺省);wsl 等 = 对应来源;空 = 全部(仅归档视图瞬态)。 */
   workspaceOriginFilter: string;
   /**
    * 网络代理(network-proxy 插件的编辑域):客户端自身联网(quota_fetch 等

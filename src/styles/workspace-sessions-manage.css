@@ -156,7 +156,7 @@
   height: 0.75rem;
 }
 
-/* 工作区 caption 右侧视图切换(迷你 segmented:默认|本地|WSL|归档 单按钮组)。 */
+/* 工作区 caption 右侧视图切换(迷你 segmented:本地|WSL|归档 单按钮组,缺省本地)。 */
 .ws-view-toggle {
   display: flex;
   gap: 1px;

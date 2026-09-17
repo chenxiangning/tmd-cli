@@ -3,7 +3,6 @@ export const MESSAGES = {
   // ── WorkspaceSection caption & view toggle ──
   "工作区": "Workspaces",
   "会话视图": "Session view",
-  "默认": "Default",
   "归档": "Archive",
   "展开全部工作区会话": "Expand all workspace sessions",
   "折叠全部工作区会话": "Collapse all workspace sessions",
