@@ -131,13 +131,12 @@ export class ActivityWatch {
     this.ensureWatch();
   }
 
-  /** 新输出入站。返回 true = 节流窗已开或轮次开启,Host 应 notify() 一次;未锚定会话与家具分片恒 false(幕布渲染走 ptyLiveTopic)。`visibleText` = 分片剥 ANSI 后可见文本(供家具分类);`busy` = 插件声明的工作界面标记行级命中(CLI 自证在途)。 */
-  onOutput(sessionId: string, visibleText?: string, busy = false): boolean {
+  /** 新输出入站。返回 true = 节流窗已开或轮次开启,Host 应 notify() 一次;未锚定会话与家具分片恒 false(幕布渲染走 ptyLiveTopic)。`visibleText` = 分片剥 ANSI 后可见文本(供家具分类);`busy` = 插件声明的工作界面标记行级命中(CLI 自证在途);`idle` = 空闲自证标记命中(CLI 自证当前屏幕在空闲态,契约见 cliProfile.idleMarks)。 */
+  onOutput(sessionId: string, visibleText?: string, busy = false, idle = false): boolean {
     const s = this.sessions.get(sessionId);
     if (!s || !s.anchored) return false; // 首写闸:锚定前零语义(I1)
     const now = Date.now();
-    /* 重绘抑制窗:自发 resize 后窗内 = SIGWINCH 整屏重绘,连分类副作用都免
-       (骨架 FIFO 不被重绘尾行占据,I4 幂等)。 */
+    /* 重绘抑制窗:自发 resize 后窗内 = SIGWINCH 整屏重绘,连分类副作用都免(骨架 FIFO 不被重绘尾行占据,I4 幂等)。 */
     if (now - s.lastResizeAt < REDRAW_SUPPRESS_MS) return false;
     if (busy && (s.active || s.awaiting)) {
       /* busy 帧 = CLI 自证在途:刷自证钟持轮(深思期页脚稀疏,窗宽 30s);awaiting 期即应答开始
@@ -155,6 +154,7 @@ export class ActivityWatch {
         return true; // 开轮即通知:纯 busy 分片后续分类判 static 会提前 return 丢通知
       }
     }
+    if (idle && !busy && s.answered) return false; /* 闸 4d 空闲自证(idleMarks,对偶 busyMarks):CLI 证明屏幕在空闲态的重绘帧不作对话证据 —— 焦点/重排整屏重绘的新颖骨架曾伪装 content 把已完工轮次的「运行时」复燃(2026-09-17 实证);busy 优先,未声明 idleMarks = 行为不变 */
     if (visibleText !== undefined && this.host.noiseGated(sessionId)) {
       const kind = this.classify(s, visibleText, now);
       /* 家具:不推活动钟、不开轮、不通知;帧钟由 classify 就地维护(tick 登记/续命,static 仅续已登记 ticker 的命)。 */

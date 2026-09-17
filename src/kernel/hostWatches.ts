@@ -143,15 +143,15 @@ export class HostWatches {
     const chunkBytes = this.outputBuffers.append(sessionId, text, limit);
     this.ctx.events.emit(ptyLiveTopic(sessionId), text);
 
-    /* AskWatch 升级 → askDetected + 标签;ActivityWatch 回绿;EditWatch → fileEditDetected。notify 单次;
-       visible 供家具分类;busyMarks 行级命中(CLI 自证在途,契约见 kernel/cliProfile.ts),仅对已锚定会话计算。 */
+    /* AskWatch 升级 → askDetected + 标签;ActivityWatch 回绿;EditWatch → fileEditDetected。notify 单次;visible 供家具分类;busyMarks/idleMarks 行级命中(CLI 自证在途/空闲,契约见 kernel/cliProfile.ts),仅对已锚定会话计算。 */
     const asked = this.askWatch.onOutput(sessionId, text, chunkBytes);
     const visible = stripAnsi(text);
     const profile = session ? this.ctx.getCliProfile(session.profileId) : undefined;
-    const busy =
-      this.activity.isAnchored(sessionId) &&
-      !!profile?.busyMarks?.some((re) => visible.split(/\r\n|\r|\n/).some((l) => re.test(l)));
-    if (asked || this.activity.onOutput(sessionId, visible, busy)) this.ctx.notify();
+    const lines = visible.split(/\r\n|\r|\n/);
+    const anchored = this.activity.isAnchored(sessionId);
+    const busy = anchored && !!profile?.busyMarks?.some((re) => lines.some((l) => re.test(l)));
+    const idle = anchored && !!profile?.idleMarks?.some((re) => lines.some((l) => re.test(l)));
+    if (asked || this.activity.onOutput(sessionId, visible, busy, idle)) this.ctx.notify();
     const marks = profile?.editMarks;
     if (session && marks && marks.length > 0) {
       const paths = this.editWatch.onOutput(sessionId, text, session.cwd, marks);

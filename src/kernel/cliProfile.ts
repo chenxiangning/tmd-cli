@@ -156,6 +156,17 @@ export interface CliProfile {
    */
   busyMarks?: RegExp[];
   /**
+   * 「屏幕空闲态」界面标记(对偶 busyMarks,2026-09-17):匹配面与 busyMarks
+   * 相同(剥 ANSI 分片按行拆行,不得依赖行首锚)。命中即 CLI 自证当前屏幕处于
+   * 空闲态(如 pi-tui 空闲页脚 mc 行「· idle」)—— 焦点/重排引发的空闲屏整屏
+   * 重绘分片常带新颖字母骨架,家具分类挡不住,曾把已完工轮次的「运行时」
+   * 标签复燃(2026-09-17 实证:切 tab/点击终端即复燃)。活动守望对「空闲自证
+   * 且无在工自证且本轮已应答」的分片不作任何活动语义(activityWatch 闸 4d)。
+   * 纪律同 busyMarks:宁可漏报不可误报,字面量必须取自真实 session 日志;
+   * 未声明 = 该 CLI 无空闲自证,行为不变。
+   */
+  idleMarks?: RegExp[];
+  /**
    * 「用户消息回显」磁盘字节标记(readopt 重锚历史证据,见
    * ActivityWatch.readoptAnchor):webview 重载清空前端锚后,接管时按磁盘
    * 日志尾(256KB)判定重载前是否发生过对话 —— 命中即重锚恢复在途轮次,

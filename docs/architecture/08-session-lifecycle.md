@@ -1,6 +1,6 @@
 # 08 会话生命周期状态机(activityWatch)契约
 
-- 日期:2026-09-11(首版;同日晚修订:证据分级模型,见 spec 2026-09-11-activity-watch-evidence-model-design.md;同夜独立评审后守卫塌缩为未应答写入天花板,闸 4 前置;09-13 增补 busyMarks 自证通道,同日二修 407a59d:纯 busy 第二轮开轮推钟 + 正则锚定门控)
+- 日期:2026-09-11(首版;同日晚修订:证据分级模型,见 spec 2026-09-11-activity-watch-evidence-model-design.md;同夜独立评审后守卫塌缩为未应答写入天花板,闸 4 前置;09-13 增补 busyMarks 自证通道,同日二修 407a59d:纯 busy 第二轮开轮推钟 + 正则锚定门控;09-17 增补 idleMarks 空闲自证闸 4d)
 - 状态:生效中 —— 本文件是该状态机的唯一完整契约入口;02-code-architecture §4 只留摘要。
 
 ## 0. 定位与核心哲学
@@ -75,6 +75,7 @@ Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不�
 |4|轮次开启闸|已了结老会话被异步噪音重跑生命周期|`!activeTurns && !awaitingTurn && noiseGated` 即挡|activityWatch.test.ts + host.unread.test.ts「实证缺陷」|
 |4b|busyMarks 自证通道|流式间隙/深思期假结算(见 §4 2026-09-13 事故):混片致 ticker 永不登记,content 钟独木难支|插件声明 `busyMarks` 正则,hostWatches 行级匹配命中即馈入(**仅对已锚定会话计算**,`isAnchored` 门控省 idle 空算);只在轮次在途或 awaiting 时生效 —— 刷 30s 自证钟持轮、awaiting 期 = 应答开始(开轮 + answered,天花板让位);纯 busy 轮次开轮即推活动钟,判据「钟老于本轮写入」(`lastContentAt < lastWriteAt`,第二轮起同样生效 —— 旧「钟为 0 才推」漏第二轮,407a59d);**已结算轮不重燃(闸 4 同构),未锚定不推(闸 1 同构),重绘抑制窗内同 suppressed**|activityWatch.evidence.test.ts「busyMarks 自证在途」组 + 真实日志回放(2026-09-13,13 分钟单轮全程 running)|
 |4c|readopt 重锚|webview 重载(HMR/崩溃)清空前端态:重载前在途轮次丢锚落空闲,且 I2 拦后续输出永不自愈(2026-09-15 实证:双会话同刻翻空闲;2026-09-16 复发:回显滚出窗漏锚)|readopt 接管时对活 CLI 会话读磁盘日志尾 256KB,双证据命中其一即 `readoptAnchor`:① **插件声明的 `echoMarks`**(pi-tui 系共享声明 cli-shared/echoMarks.ts:`ESC[3;…m"` 引号灰斜体行用户消息框字面量,实采零空闲误现;匹配面是未剥 ANSI 原始字节 —— 证据恰在斜体 SGR 上;内核零 CLI 字面量,同 busyMarks/askMarks 纪律;**未声明 CLI 不重锚 = 行为不变**)= 历史证据「重载前有对话」;② **尾 16KB 剥壳行级命中 `busyMarks`**(2026-09-16 补,现势证据「CLI 自证在途」:在工帧流 2.5-10Hz 必中,实采 3 会话尾 16KB 各 13-15 帧 ⎋;完工后空闲页脚自绘约 1-4 分钟推出窗,误锚 2-3s 自结算零残留)—— 兜底长轮次回显滚出 256KB 窗(实采 449KB / 4.1MB)的漏锚。恢复 anchored/awaiting/answered/active + 内容钟与自证钟(盖重载后紧邻静默工具),后续输出经正常通路续轮;皆未命中保持未锚定(空闲会话零语义,同 I1);归属保守按已查看(重载前查看态不可知,防幽灵轮误蓝),结算归因仍走 I3|activityWatch.test.ts + askScreenMirror.host.test.ts「readopt 重锚」组|
+|4d|idleMarks 空闲自证通道|焦点/重排引发的空闲屏整屏重绘把已完工轮次的「运行时」复燃(2026-09-17 实证:切 tab/点击终端即复燃,PTY 分片边界漂移致重绘切片字母骨架逐帧新颖,闸 3 家具分类挡不住)|插件声明 `idleMarks` 正则(对偶 busyMarks,匹配面相同:剥 ANSI 分片按行),hostWatches 行级命中(**仅对已锚定会话计算**);「空闲自证命中 且 无在工自证 且 本轮已应答(answered)」的分片不作任何活动语义直接丢弃 —— 未应答期不抑制(小轮次 /help 不被吞),busy 同帧优先(在工自证胜过空闲自证),未声明 = 行为不变;omp 实采 v18.1.22 字面量 `/· idle/u`(mc 行)|activityWatch.idleMarks.test.ts + 真实日志 16 趟重绘 pass 冒烟|
 |结算|调度间隙|系统睡眠/节流致墙钟跳变:三口钟同刻过窗,在途轮次被假结算且 I2 拦后续不自愈|结算 tick 间隔 >30s(`CLOCK_JUMP_MS` = `BUSY_HOLD_MS`,取最宽持轮窗:旧阈 60s 留 (30,60]s 睡眠带,自证钟刚好过窗即假结算;阈值随最宽窗联动,防日后调窗静默开带)= 观测缺口非因果证据:全在途钟刷到本刻跳过本轮;真静默后续 tick 照常结算|activityWatch.test.ts「调度间隙守卫」|
 |结算|静默判据|长轮次假结算(数字粒度由 CLI 自定)或空闲自绘永挂|静默 = content 钟出 2s 窗 **且** ticker 帧钟出 `TICKER_HOLD_MS`(5s)窗 **且** busy 自证钟出 `BUSY_HOLD_MS`(30s)窗:ticker 的一切复现帧(tick/static)刷新帧钟,持轮判据 = 帧流连续性而非数字变动;busy 钟窗宽于帧钟 —— 深思期页脚重绘稀疏(标记帧间隔 >5s 实证),自证可信度高|activityWatch.evidence.test.ts「分钟粒度持轮家具」「tick 家具持轮」「静态家具不持轮」「busyMarks 自证在途」|
 |结算|归因|看完回答 2s 窗内切走被误标未读|最后 content 帧瞬间 `isViewing` 快照|host.activityWatch.test.ts|

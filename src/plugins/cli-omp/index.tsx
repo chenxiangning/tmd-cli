@@ -169,6 +169,9 @@ export const cliOmpPlugin: Plugin = {
        * 命中即 CLI 自证在途,activityWatch 刷帧钟持轮 —— 流式间隙不再假结算
        * (契约见 kernel/cliProfile.ts busyMarks)。 */
       busyMarks: [/⎋/u, /\d+[sm] >/u],
+      /* 空闲页脚标记(实采 v18.1.22):mc 行「… · idle」。对偶 busyMarks:焦点/
+       * 重排引发的空闲屏整屏重绘不作活动证据(契约见 kernel/cliProfile.ts idleMarks)。 */
+      idleMarks: [/· idle/u],
       /* omp 是 oh-my-pi(pi fork),输入编辑器与 pi/kimi 同源 pi-tui:composer 整串
        * 正文+\r 同帧到达会命中"粘贴爆发"启发式,提交回车被改写成换行 —— win
        * 实测偶发"composer 发了但幕布没提交,须再手按回车"。声明后走 bracketed
