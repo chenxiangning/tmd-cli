@@ -15,13 +15,17 @@ import { mergeDisk, mergeLive, VIEWED_FLASH_MS, type ScanEntry } from "./boardRo
 
 export type BoardState = "running" | "idle" | "ended-new" | "ended-seen" | "archived";
 
-export const BOARD_STATES: readonly { key: BoardState; label: string }[] = [
+/** 泳道显示口径(2026-09-18 用户定稿):待运行并入运行中、结束-已查看并入已归档,
+ *  两态不在界面单列 —— lane 是 BoardState 的投影,内部五态推导(boardRows)不动。 */
+export const BOARD_LANES: readonly { key: BoardState; label: string }[] = [
   { key: "running", label: "运行中" },
-  { key: "idle", label: "待运行" },
   { key: "ended-new", label: "结束-未查看" },
-  { key: "ended-seen", label: "结束-已查看" },
   { key: "archived", label: "已归档" },
 ];
+
+export function laneOf(st: BoardState): BoardState {
+  return st === "idle" ? "running" : st === "ended-seen" ? "archived" : st;
+}
 
 export interface BoardSession {
   /** 去重键:`${wsId}:${profileId}:${cliSessionId}`。 */

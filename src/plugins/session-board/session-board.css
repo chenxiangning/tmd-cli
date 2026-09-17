@@ -54,9 +54,7 @@
 .sb-day-meta { display: inline-flex; align-items: center; gap: 3px; color: var(--tmd-fg-faint); font-size: 0.625rem; font-variant-numeric: tabular-nums; }
 .sb-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-left: 5px; }
 .sb-dot.run { background: #3fb950; animation: sb-pulse 1.4s infinite; }
-.sb-dot.idle { background: var(--tmd-fg-faint); }
 .sb-dot.en { background: #e5484d; animation: sb-pulse 1.6s infinite; }
-.sb-dot.es { background: color-mix(in srgb, var(--tmd-fg-faint) 60%, transparent); }
 .sb-dot.ar { background: var(--tmd-border-strong); }
 .sb-dot.unread { background: #4493f8; }
 .sb-dot.pulse { animation: sb-pulse 1.4s infinite; }
@@ -94,13 +92,10 @@
 .sb-lane-h-name::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--tmd-fg-faint); }
 .sb-lh-running .sb-lane-h-name { color: #3fb950; }
 .sb-lh-running .sb-lane-h-name::before { background: #3fb950; }
-.sb-lh-idle .sb-lane-h-name::before { background: var(--tmd-fg-faint); }
 .sb-lh-ended-new .sb-lane-h-name { color: #e5484d; }
 .sb-lh-ended-new .sb-lane-h-name::before { background: #e5484d; animation: sb-pulse 1.6s infinite; }
-.sb-lh-ended-seen .sb-lane-h-name::before { background: color-mix(in srgb, var(--tmd-fg-faint) 60%, transparent); }
 .sb-lh-archived .sb-lane-h-name { opacity: .7; }
 .sb-lane-h-n { font-size: 0.5625rem; color: var(--tmd-fg-faint); font-variant-numeric: tabular-nums; }
-.sb-lane-rule { align-self: flex-start; font-size: 0.5rem; line-height: 12px; color: #e5484d; background: color-mix(in srgb, #e5484d 8%, transparent); border: 1px solid color-mix(in srgb, #e5484d 20%, transparent); border-radius: 999px; padding: 0 5px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .sb-tl-empty { color: var(--tmd-fg-faint); padding: 10px 0; }
 .sb-band { display: flex; gap: 6px; border-bottom: 1px solid color-mix(in srgb, var(--tmd-border) 55%, transparent); padding: 4px 0 6px; }
 .sb-band-rail { width: 56px; flex: none; padding-top: 2px; }

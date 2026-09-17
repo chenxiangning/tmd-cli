@@ -1,11 +1,11 @@
 /**
- * 看板聚焦日面板 —— 日头(日期 + 五态计数 + 关闭)+ 24 小时节律条 + 泳道时间线。
+ * 看板聚焦日面板 —— 日头(日期 + 三道泳道计数 + 关闭)+ 24 小时节律条 + 泳道时间线。
  * 节律条:每小时一段,竖条高 = 该时会话数,色 = 该时主引擎;点段滚到对应时带。
  */
 import { useMemo, useState } from "react";
 import { X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { dayTitle, engineColor, hourOf, type BoardSession } from "./boardData";
+import { dayTitle, engineColor, hourOf, laneOf, type BoardSession } from "./boardData";
 import { SwimTimeline } from "./SwimTimeline";
 
 const RHYTHM_MAX_H = 22;
@@ -44,8 +44,8 @@ export function DayPanel({
   }, [sessions]);
   const maxHour = Math.max(0, ...[...hours.values()].map((a) => a.length));
   const counts = useMemo(() => {
-    const c: Record<string, number> = { running: 0, idle: 0, "ended-new": 0, "ended-seen": 0, archived: 0 };
-    for (const s of sessions) c[s.st]++;
+    const c: Record<string, number> = { running: 0, "ended-new": 0, archived: 0 };
+    for (const s of sessions) c[laneOf(s.st)]++;
     return c;
   }, [sessions]);
 
@@ -56,9 +56,7 @@ export function DayPanel({
         <span className="sb-day-meta">
           {t("{n} 个会话", { n: sessions.length })}
           <i className="sb-dot run" aria-hidden />{counts.running}
-          <i className="sb-dot idle" aria-hidden />{counts.idle}
           <i className="sb-dot en" aria-hidden />{counts["ended-new"]}
-          <i className="sb-dot es" aria-hidden />{counts["ended-seen"]}
           <i className="sb-dot ar" aria-hidden />{counts.archived}
         </span>
         <span className="sb-day-rule" title={t("查看未查看会话后自动归档;归档可逆,已归档卡悬停可恢复")}>

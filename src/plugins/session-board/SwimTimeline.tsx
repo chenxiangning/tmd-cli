@@ -1,5 +1,6 @@
 /**
- * 泳道时间线 —— 左侧共享小时时轨(HH:00 · N 个会话)+ 五态垂直泳道按小时分带对齐。
+ * 泳道时间线 —— 左侧共享小时时轨(HH:00 · N 个会话)+ 三道垂直泳道(五态投影,
+ * BOARD_LANES 口径)按小时分带对齐。
  * 卡片:时刻 + 引擎图标 + 标题 + 相对时间;悬停出 ✎ 重命名 / ↩ 恢复(已归档);
  * 已归档卡整卡置灰;「未查看」卡单击 = 查看(宿主回调,含自动归档规则)。
  * 列头可折叠(跨日保持,折叠列各时带留空);悬停卡反标节律段(onHoverHour)。
@@ -17,7 +18,7 @@ import { RenameInput } from "@kernel/RenameInput";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { sessionArchiveKey, unarchiveSession } from "@kernel/sessionArchive";
 import { setSessionTitle } from "@kernel/sessionTitles";
-import { BOARD_STATES, engineColor, hourOf, type BoardSession } from "./boardData";
+import { BOARD_LANES, engineColor, hourOf, laneOf, type BoardSession } from "./boardData";
 const pad = (n: number) => String(n).padStart(2, "0");
 
 export function SwimTimeline({
@@ -45,7 +46,7 @@ export function SwimTimeline({
   const byStateHour = useMemo(() => {
     const map = new Map<string, BoardSession[]>();
     for (const s of sessions) {
-      const k = `${s.st}:${hourOf(s.ts)}`;
+      const k = `${laneOf(s.st)}:${hourOf(s.ts)}`;
       const arr = map.get(k);
       if (arr) arr.push(s);
       else map.set(k, [s]);
@@ -59,7 +60,7 @@ export function SwimTimeline({
   );
   const stateCount = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const s of sessions) c[s.st] = (c[s.st] ?? 0) + 1;
+    for (const s of sessions) c[laneOf(s.st)] = (c[laneOf(s.st)] ?? 0) + 1;
     return c;
   }, [sessions]);
 
@@ -67,7 +68,7 @@ export function SwimTimeline({
     <div className="sb-tl" onMouseLeave={() => onHoverHour(null)}>
       <div className="sb-tl-head">
         <div className="sb-tl-rail-pad" aria-hidden />
-        {BOARD_STATES.map(({ key, label }) => {
+        {BOARD_LANES.map(({ key, label }) => {
           const closed = collapsed.has(key);
           return (
             <button
@@ -90,11 +91,6 @@ export function SwimTimeline({
                 <span className="sb-lane-h-name">{t(label)}</span>
                 <span className="sb-lane-h-n">{stateCount[key] ?? 0}</span>
               </span>
-              {key === "ended-seen" && !closed && (
-                <span className="sb-lane-rule" title={t("查看未查看会话后自动归档;关闭自动归档的设置属未来扩展")}>
-                  {t("已查看 → 自动归档")}
-                </span>
-              )}
             </button>
           );
         })}
@@ -108,7 +104,7 @@ export function SwimTimeline({
               <span className="sb-band-h">{pad(h)}:00</span>
               <span className="sb-band-n">{t("{n} 个会话", { n: rows.length })}</span>
             </div>
-            {BOARD_STATES.map(({ key }) => {
+            {BOARD_LANES.map(({ key }) => {
               if (collapsed.has(key)) return <div key={key} className="sb-lane-cell closed" aria-hidden />;
               const cards = byStateHour.get(`${key}:${h}`) ?? [];
               return (
@@ -135,7 +131,7 @@ export function SwimTimeline({
                             type="button"
                             className={[
                               "sb-card",
-                              s.st === "archived" ? "dim" : "",
+                              laneOf(s.st) === "archived" ? "dim" : "",
                               hlHour === h ? "hl" : "",
                               s.live ? "live" : "",
                             ]

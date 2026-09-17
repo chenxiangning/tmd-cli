@@ -16,22 +16,17 @@ export const MESSAGES_EN = {
   "重新扫描": "Rescan",
   "有未查看会话": "Has unviewed sessions",
 
-  // ── 生命周期五态(boardData BOARD_STATES;侧栏已有「运行时/空闲」,此处看板口径) ──
+  // ── 泳道三道(五态投影 BOARD_LANES;侧栏已有「运行时/空闲」,此处看板口径) ──
   "运行中": "Running",
-  "待运行": "Waiting",
   "结束-未查看": "Ended · unviewed",
-  "结束-已查看": "Ended · viewed",
   "已归档": "Archived",
 
   // ── DayPanel ──
   "小时分布": "Hourly distribution",
   "收起日视图": "Collapse day view",
   "已查看 → 默认自动进入已归档": "Viewed → auto-archive by default",
-  "已查看 → 自动归档": "Viewed → auto-archive",
   "查看未查看会话后自动归档;归档可逆,已归档卡悬停可恢复":
     "Viewing an unviewed session auto-archives it; archiving is reversible via restore on the card",
-  "查看未查看会话后自动归档;关闭自动归档的设置属未来扩展":
-    "Viewing an unviewed session auto-archives it; a setting to disable this is a future extension",
   "当日无会话": "No sessions on this day",
   "运行时": "Running",
 

@@ -112,3 +112,15 @@ UI 形态、交互契约、密度策略全部以 `docs/design/session-calendar-h
   顺带修复磁盘回放指针覆写在 resume 路径被跳过的同源缺陷。
 - 测试:host.test.ts「归档会话恢复即解除归档」(同时钉住先刷表后绑定的顺序,
   回退任一即红)。
+
+## 实施纪要补遗九(2026-09-18,泳道显示收敛三道:待运行/结束-已查看取消单列)
+
+- **用户定稿(真实使用反馈)**:「待运行」「结束-已查看」两道泳道基本没用,界面取消单列。
+  泳道显示口径收敛为三道:运行中 / 结束-未查看 / 已归档;状态 chips 与日头计数同步收敛。
+- **实现**:内部五态推导引擎(boardRows 五态、VIEWED_FLASH_MS 瞬态窗、14 天龄、boardExit
+  再归档)全部不动 —— 显示层投影 `laneOf()`(boardData):idle→running、ended-seen→archived,
+  三处消费(SwimTimeline 泳道/DayPanel 计数/BoardTab chips 过滤)锁步同源。活会话卡上
+  绿色呼吸点仍按真「运行中」(isTurnActive)区分,合并道内可辨。
+- **清理**:sb-lh-idle / sb-lh-ended-seen / sb-dot.idle / sb-dot.es / sb-lane-rule CSS 死规则,
+  locales 待运行/结束-已查看/「已查看 → 自动归档」死词条(en/ja)。DayPanel 日头规则条
+  「已查看 → 默认自动进入已归档」保留(解释未查看卡点击后为何消失)。

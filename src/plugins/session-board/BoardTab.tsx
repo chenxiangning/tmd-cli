@@ -13,9 +13,10 @@ import { boardOverlayOpen } from "./boardOverlayStore";
 import { archiveSession, sessionArchiveKey, unarchiveSession } from "@kernel/sessionArchive";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import {
-  BOARD_STATES as STATES,
+  BOARD_LANES,
   dayKeyOf,
   engineColor,
+  laneOf,
   monthTitle,
   useBoardSessions,
   type BoardSession,
@@ -65,7 +66,7 @@ export function BoardTab() {
   }, [sessions]);
 
   const filtered = useMemo(
-    () => sessions?.filter((s) => !engOff.has(s.profileId) && !stOff.has(s.st)) ?? [],
+    () => sessions?.filter((s) => !engOff.has(s.profileId) && !stOff.has(laneOf(s.st))) ?? [],
     [sessions, engOff, stOff],
   );
 
@@ -224,7 +225,7 @@ export function BoardTab() {
           })}
         </span>
         <span className="sb-chips" role="group" aria-label={t("状态过滤")}>
-          {STATES.map(({ key, label }) => {
+          {BOARD_LANES.map(({ key, label }) => {
             const on = !stOff.has(key);
             return (
               <button
