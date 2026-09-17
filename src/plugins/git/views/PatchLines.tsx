@@ -47,15 +47,18 @@ export function PatchLines({
   text,
   className = "max-h-72",
   mode = "unified",
+  fold = false,
 }: {
   text: string;
   className?: string;
   mode?: GitDiffMode;
+  /** 全文态折叠焦点(仅 split 消费):连续 ctx 段压成就地展开胶囊。 */
+  fold?: boolean;
 }) {
   const { diffWrap } = useGitPanelState();
   const rows = useMemo(() => parsePatch(text), [text]);
   if (mode === "split") {
-    return <SplitDiffView rows={rows} wrap={diffWrap} className={className} />;
+    return <SplitDiffView rows={rows} wrap={diffWrap} className={className} fold={fold} />;
   }
   return (
     <pre className={`${className} overflow-auto px-3 py-1 font-mono text-[0.6875rem] leading-tight`}>

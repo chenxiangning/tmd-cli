@@ -106,3 +106,43 @@
 .git-split-lno-seam {
   border-color: transparent;
 }
+
+/* 折叠胶囊(N4 折叠焦点):全文态连续 context 段压成的就地展开条;wrap 态通栏
+   一条,nowrap 态左右内容栈各一条(双号槽放同高空带保四面同位)。 */
+.git-split-fold {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* min 可视宽(容器查询):nowrap 态内容栈 w-max 超宽时胶囊不被横滚裁掉 label。 */
+  width: min(calc(100% - 1rem), calc(100cqw - 1rem));
+  margin: 0.25rem 0.5rem;
+  padding: 0.1875rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--tmd-fg) 8%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tmd-bg-hover) 40%, transparent);
+  color: var(--tmd-fg-muted);
+  font-size: 0.6875rem;
+  cursor: pointer;
+  user-select: none;
+}
+.git-split-fold:hover {
+  background: color-mix(in srgb, var(--tmd-bg-hover) 75%, transparent);
+  color: var(--tmd-fg);
+}
+.git-split-fold-dots {
+  letter-spacing: 2px;
+  color: var(--tmd-fg-faint);
+}
+.git-split-fold-rng {
+  color: var(--tmd-fg-faint);
+  font-size: 0.625rem;
+}
+.git-split-fold-ct {
+  margin-left: auto;
+  color: var(--tmd-accent);
+  font-size: 0.625rem;
+}
+/* nowrap 态双号槽的折叠空带:与胶囊同垂直外边距,盒高由左栈实测 pin。 */
+.git-split-fold-gap {
+  margin: 0.25rem 0;
+}

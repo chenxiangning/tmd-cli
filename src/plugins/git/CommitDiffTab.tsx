@@ -105,6 +105,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
           patch={patch}
           selected={selected}
           diffMode={diffMode}
+          fullView={fullView}
         />
       </div>
     </div>
@@ -209,12 +210,14 @@ function CommitPatchPane({
   patch,
   selected,
   diffMode,
+  fullView,
 }: {
   patchLoading: boolean;
   patchError: string | null;
   patch: GitFilePatch | null;
   selected: string | null;
   diffMode: GitDiffMode;
+  fullView: boolean;
 }) {
   return (
     <div className="min-w-0 flex-1 overflow-auto">
@@ -227,7 +230,7 @@ function CommitPatchPane({
       ) : patch?.binary ? (
         <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("二进制文件,无文本 diff")}</div>
       ) : patch ? (
-        <PatchLines text={patch.patch} className="h-max min-h-full" mode={diffMode} />
+        <PatchLines text={patch.patch} className="h-max min-h-full" mode={diffMode} fold={fullView} />
       ) : selected ? (
         <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("无 patch 数据")}</div>
       ) : (

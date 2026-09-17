@@ -179,6 +179,7 @@ export const MESSAGES = {
   "双栏": "Split",
   全文: "Full",
   全文查看: "View full file",
+  "行未改动": "unchanged lines",
 
   /* 差异面板批量条(拖选勾选集动作面)与未跟踪文件删除(git clean) */
   "暂存 {n}": "Stage {n}",

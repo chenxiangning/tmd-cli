@@ -86,4 +86,17 @@ describe("PatchLines", () => {
     const keys = parsePatch(patch).map(patchRowKey);
     expect(new Set(keys).size).toBe(keys.length);
   });
+
+  it("split + fold:连续 ctx 折成胶囊条,缺省不折,改动块永远展开", () => {
+    const patch = "@@ -1,7 +1,7 @@\n a\n b\n c\n-del\n+add1\n+add2\n+add3\n";
+    const plain = renderToStaticMarkup(createElement(PatchLines, { text: patch, mode: "split" }));
+    expect(plain).not.toContain("git-split-fold");
+    expect(plain).toContain(">a<");
+    const folded = renderToStaticMarkup(createElement(PatchLines, { text: patch, mode: "split", fold: true }));
+    expect(folded).toContain("git-split-fold");
+    expect(folded).toContain("行未改动");
+    expect(folded).toContain("1–3 / 1–3"); // 双侧行号区间
+    expect(folded).not.toContain(">a<"); // 折叠段行不渲染
+    expect(folded).toContain(">del<"); // 改动块永远展开
+  });
 });
