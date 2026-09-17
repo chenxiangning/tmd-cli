@@ -81,3 +81,73 @@ describe("闸 4d idleMarks 空闲自证", () => {
     expect(watch.isTurnActive("s")).toBe(false);
   });
 });
+
+describe("闸 4d 升级:空闲自证兼作结算证据(2026-09-18,完工换装快速收口)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("完工换装即武装:确认窗 ~2s 后结算,不再等 30s busy 自证窗", () => {
+    const { watch, viewing } = makeWatch();
+    viewing.add("s"); // 用户正在查看(完成即已读,徽标翻「空闲」)
+    watch.onUserWrite("s");
+    vi.advanceTimersByTime(500);
+    watch.onOutput("s", "answer body");
+    watch.onOutput("s", "⎋ 3s > ◉ working", true, false); // 工作页脚自证在途
+    vi.advanceTimersByTime(1_000);
+    watch.onOutput("s", idleRepaint(0), false, true); // 完工换装:空闲帧武装
+    expect(watch.isTurnActive("s")).toBe(true); // 确认窗内仍「运行时」
+    vi.advanceTimersByTime(2_500);
+    expect(watch.isTurnActive("s")).toBe(false); // ~2s 收口,而非 30s
+    expect(watch.isUnread("s")).toBe(false); // 查看中结算:已读
+  });
+
+  it("确认窗内 busy 反证撤武装:工作期整帧重绘(busy+idle 同帧,实测 6 帧形态)不提前结算", () => {
+    const { watch } = makeWatch();
+    watch.onUserWrite("s");
+    vi.advanceTimersByTime(500);
+    watch.onOutput("s", "answer body");
+    watch.onOutput("s", `${idleRepaint(0)} ⎋ 3s >`, true, true); // 工作期重绘:busy 优先
+    vi.advanceTimersByTime(100);
+    watch.onOutput("s", idleRepaint(1), false, true); // 假想 mc 裸帧:武装
+    vi.advanceTimersByTime(500);
+    watch.onOutput("s", "⎋ 4s > ◉ footer", true, false); // busy 反证:撤武装
+    vi.advanceTimersByTime(2_500);
+    expect(watch.isTurnActive("s")).toBe(true); // 在工自证钟持轮,未被旧武装结算
+  });
+
+  it("answered 前置:思考期(未应答)空闲帧不武装,轮次由天花板保护照常在途", () => {
+    const { watch } = makeWatch();
+    watch.onUserWrite("s");
+    watch.onOutput("s", idleRepaint(0), false, true); // awaiting 且未 answered
+    expect(watch.isTurnActive("s")).toBe(true); // 小轮次不被吞(既有语义)
+    vi.advanceTimersByTime(2_500);
+    expect(watch.isTurnActive("s")).toBe(true); // 未被空闲帧提前结算
+  });
+
+  it("武装后新用户写入清武装:新一轮提问不被上一轮空闲尾证据误结算", () => {
+    const { watch, viewing } = makeWatch();
+    viewing.add("s");
+    watch.onUserWrite("s");
+    vi.advanceTimersByTime(500);
+    watch.onOutput("s", "answer body");
+    watch.onOutput("s", idleRepaint(0), false, true); // 武装
+    vi.advanceTimersByTime(500);
+    watch.onUserWrite("s"); // 新提问 = 新基线
+    vi.advanceTimersByTime(2_500);
+    expect(watch.isTurnActive("s")).toBe(true); // 旧武装已撤,由天花板持轮
+  });
+
+  it("未声明 idleMarks 的 CLI 不武装:结算仍走 30s busy 窗(行为不变)", () => {
+    const { watch } = makeWatch();
+    watch.onUserWrite("s");
+    vi.advanceTimersByTime(500);
+    watch.onOutput("s", "answer body");
+    watch.onOutput("s", "⎋ 3s > ◉ working", true, false);
+    vi.advanceTimersByTime(1_000);
+    watch.onOutput("s", "plain footer frame", false, false); // 无空闲自证
+    vi.advanceTimersByTime(3_000);
+    expect(watch.isTurnActive("s")).toBe(true); // 2s/5s 窗均不足以收口
+    vi.advanceTimersByTime(30_000);
+    expect(watch.isTurnActive("s")).toBe(false); // 30s busy 窗兜底
+  });
+});

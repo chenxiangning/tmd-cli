@@ -1,6 +1,7 @@
 /**
  * 活动守望 + 完成未读状态机(呼吸灯三态结算)—— 证据分级模型。
  * 完整契约(不变量/闸门矩阵/事故账本)见 docs/architecture/08-session-lifecycle.md。
+ * file-size-exempt:单一状态机不拆件(事故账本教训:补丁咬补丁时收敛模型,拆件 = 闸的前提互咬)。
  *
  * PTY 字节无机器可读轮次边界,可靠因果只有用户写入(awaiting)与在途轮次(active)。
  * 输出分片按「字母骨架 + 数字串」三级分类(仅 CLI;ssh/shell 经 noiseGated 豁免):
@@ -35,6 +36,8 @@ const IDLE_SKELETON_WINDOW = 6; /** 家具骨架窗:每会话最近 N 个字母�
 const REDRAW_SUPPRESS_MS = 1_000; /** 重绘抑制窗:resize 后此窗口内的输出视为 SIGWINCH 整屏重绘,不进活动语义。 */
 /** 未应答写入天花板:写入后此窗内不结算未应答轮次(思考期保护),到期必结算。ponytail: 120s 拍脑袋上限 —— 覆盖最慢模型 TTFB + 长思考;若出现真实 CLI 静默思考超 2 分钟的案例,改成按 profile 配置。 */
 const WRITE_GRACE_MS = 120_000;
+/** 空闲自证确认窗:闸 4d 武装后此窗内无 busy/content 反证即提前结算(完工换装帧即武装;已声明 idleMarks 的 CLI 短轮次徽标 30s 尾巴收窄到 ~2s)。 */
+const IDLE_CONFIRM_MS = 2_000;
 
 /** 可见骨架:剥 ANSI 后仅留字母(任意文字体系);spinner braille glyph、标点、空白、数字全部剔除 —— 家具帧唯一常态变化的正是这些。 */
 const SKELETON_RE = /[^\p{L}]/gu;
@@ -72,6 +75,8 @@ interface SessionWatch {
   lastNotifyAt: number;
   /** 最近一次自发 resize 时戳(重绘抑制窗起点)。 */
   lastResizeAt: number;
+  /** 空闲自证武装时戳(闸 4d:空闲帧到达即武装,确认窗后无反证由结算 tick 提前收口;0 = 未武装)。 */
+  idleArmAt: number;
   /** 最近字母骨架 FIFO(家具判据)。 */
   skeletons: SkeletonEntry[];
 }
@@ -104,7 +109,7 @@ export class ActivityWatch {
     if (!s) {
       s = { anchored: false, active: false, awaiting: false, answered: false, unread: false,
         lastContentAt: 0, lastTickerAt: 0, lastBusyAt: 0, lastWriteAt: 0, lastNotifyAt: 0,
-        lastOutputViewed: false, lastResizeAt: 0, skeletons: [] };
+        lastOutputViewed: false, lastResizeAt: 0, idleArmAt: 0, skeletons: [] };
       this.sessions.set(sessionId, s);
     }
     return s;
@@ -117,17 +122,18 @@ export class ActivityWatch {
     s.lastWriteAt = Date.now();
     s.awaiting = true;
     s.answered = false;
-    /* 新提问 = 新基线:清骨架窗与帧钟(防真实输出误判家具 / 上轮 ticker 残留吊住结算)。 */
+    /* 新提问 = 新基线:清骨架窗与帧钟(防真实输出误判家具 / 上轮 ticker 残留吊住结算),并撤空闲武装。 */
     s.skeletons.length = 0;
     s.lastTickerAt = 0;
     s.lastBusyAt = 0;
+    s.idleArmAt = 0;
   }
 
   /** readopt 重锚:命中插件声明 echoMarks(磁盘尾回显行,历史证据)或 busy = true(尾帧 busyMarks,hostWatches 判给的现势证据)即恢复 awaiting/answered/active;皆无零语义(同 I1)。 */
   readoptAnchor(sessionId: string, diskTail: string, marks?: RegExp[], busy = false): void {
     if (!busy && !marks?.some((re) => re.test(diskTail))) return;
     const now = Date.now(); /* 自证窗盖重载后紧邻静默工具;归属保守按已查看(重载前查看态不可知,防幽灵轮误蓝) */
-    Object.assign(this.state(sessionId), { anchored: true, awaiting: true, answered: true, active: true, lastContentAt: now, lastBusyAt: now, lastOutputViewed: true });
+    Object.assign(this.state(sessionId), { anchored: true, awaiting: true, answered: true, active: true, lastContentAt: now, lastBusyAt: now, lastOutputViewed: true, idleArmAt: 0 });
     this.ensureWatch();
   }
 
@@ -143,6 +149,7 @@ export class ActivityWatch {
          (开轮,天花板让位;工作页脚是响应界面非输入回显,answered 无条件置位);已结算轮不重燃(闸 4 同构)。 */
       s.answered = true;
       s.lastBusyAt = now;
+      s.idleArmAt = 0; // 在工自证 = 空闲武装的反证,即撤(I4 同款幂等:反证一到武装必清)
       this.ensureWatch();
       if (s.awaiting) {
         s.active = true;
@@ -154,11 +161,17 @@ export class ActivityWatch {
         return true; // 开轮即通知:纯 busy 分片后续分类判 static 会提前 return 丢通知
       }
     }
-    if (idle && !busy && s.answered) return false; /* 闸 4d 空闲自证(idleMarks,对偶 busyMarks):CLI 证明屏幕在空闲态的重绘帧不作对话证据 —— 焦点/重排整屏重绘的新颖骨架曾伪装 content 把已完工轮次的「运行时」复燃(2026-09-17 实证);busy 优先,未声明 idleMarks = 行为不变 */
+    if (idle && !busy && s.answered) {
+      /* 闸 4d 空闲自证(idleMarks,对偶 busyMarks):CLI 证明屏幕在空闲态的重绘帧不作对话证据 —— 焦点/重排整屏重绘的新颖骨架曾伪装 content 把已完工轮次的「运行时」复燃(2026-09-17 实证);busy 优先,未声明 idleMarks = 行为不变。
+         2026-09-18 升级:空闲帧兼作结算证据 —— 轮次在途且已应答时武装,确认窗内无 busy/content 反证即由结算 tick 提前收口(omp 实证:完工换装后徽标仍挂「运行时」30-35s,裸 π 页脚帧更被 ticker 链继承加冕致分钟级永挂);answered 前置 = 思考期 mc 呼闪不吞轮次。 */
+      if (s.active && s.idleArmAt === 0) s.idleArmAt = now;
+      return false;
+    }
     if (visibleText !== undefined && this.host.noiseGated(sessionId)) {
       const kind = this.classify(s, visibleText, now);
       /* 家具:不推活动钟、不开轮、不通知;帧钟由 classify 就地维护(tick 登记/续命,static 仅续已登记 ticker 的命)。 */
       if (kind !== "content") return false;
+      s.idleArmAt = 0; // 新颖骨架内容帧 = 空闲自证被推翻(真流式产出),撤武装
     }
     /* 轮次开启闸:无未应答写入且轮次已了结的新输出 = 异步噪音(I2);在途轮次与 awaiting 放行。 */
     if (!s.active && !s.awaiting && this.host.noiseGated(sessionId)) return false;
@@ -260,11 +273,14 @@ export class ActivityWatch {
       this.lastTickAt = now;
       for (const [id, s] of this.sessions) {
         if (!s.active) continue;
+        /* 空闲自证确认:武装后出确认窗即提前结算(完工换装证据强于时间猜测;反证 busy/content 已即时撤武装)。 */
+        const idleConfirmed = s.idleArmAt !== 0 && now - s.idleArmAt >= IDLE_CONFIRM_MS;
         /* 静默 = content 钟出 2s 窗且 ticker 帧钟出持轮窗且 busy 自证钟出 30s 窗(未登记骨架与死家具不参与;omp 页脚过 60s 切分钟粒度,靠帧流持轮,数字不跳不得假结算)。 */
         if (
-          now - s.lastContentAt <= TURN_SILENCE_MS ||
-          (s.lastTickerAt !== 0 && now - s.lastTickerAt <= TICKER_HOLD_MS) ||
-          (s.lastBusyAt !== 0 && now - s.lastBusyAt <= BUSY_HOLD_MS)
+          !idleConfirmed &&
+          (now - s.lastContentAt <= TURN_SILENCE_MS ||
+            (s.lastTickerAt !== 0 && now - s.lastTickerAt <= TICKER_HOLD_MS) ||
+            (s.lastBusyAt !== 0 && now - s.lastBusyAt <= BUSY_HOLD_MS))
         )
           continue;
         /* 未应答写入天花板(仅 CLI;ssh/shell 不守,快命令 2s 照常结算):写入后 WRITE_GRACE_MS 内「没等到应答」与「还在思考」字节不可分,统一保住 awaiting 不被假结算吞掉(真应答从此被轮次开启闸拦死);天花板保证 spinner 永续自绘(omp /help)与写入丢失必结算,不永挂。 */
@@ -277,6 +293,7 @@ export class ActivityWatch {
           continue;
         s.active = false;
         s.awaiting = false; // 本轮结算 = 应答了此前写入
+        s.idleArmAt = 0;
         const unviewed =
           !this.host.isViewing(id) && !s.lastOutputViewed && this.host.exists(id);
         if (unviewed) s.unread = true;

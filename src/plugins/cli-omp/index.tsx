@@ -169,9 +169,13 @@ export const cliOmpPlugin: Plugin = {
        * 命中即 CLI 自证在途,activityWatch 刷帧钟持轮 —— 流式间隙不再假结算
        * (契约见 kernel/cliProfile.ts busyMarks)。 */
       busyMarks: [/⎋/u, /\d+[sm] >/u],
-      /* 空闲页脚标记(实采 v18.1.22):mc 行「… · idle」。对偶 busyMarks:焦点/
-       * 重排引发的空闲屏整屏重绘不作活动证据(契约见 kernel/cliProfile.ts idleMarks)。 */
-      idleMarks: [/· idle/u],
+      /* 空闲页脚标记(实采 v18.1.18-18.2.4):mc 行「… · idle」与 π 提示行页脚
+       * 「π > ◉ …」。对偶 busyMarks:空闲屏帧不作活动证据,兼作结算证据
+       * (闸 4d 武装-确认,完工换装 ~2s 翻空闲,契约见 kernel/cliProfile.ts
+       * idleMarks)。π 行声明缘由:裸页脚帧(不带 mc 行)2026-09-18 实证会进
+       * 家具分类器,换装 5s 内被 ticker 链继承加冕,空闲自绘帧流续命致「运行时」
+       * 分钟级永挂;跨 ~380 实采日志工作期零共现,banner 共现在锚定前被首写闸拦。 */
+      idleMarks: [/· idle/u, /π >/u],
       /* omp 是 oh-my-pi(pi fork),输入编辑器与 pi/kimi 同源 pi-tui:composer 整串
        * 正文+\r 同帧到达会命中"粘贴爆发"启发式,提交回车被改写成换行 —— win
        * 实测偶发"composer 发了但幕布没提交,须再手按回车"。声明后走 bracketed
