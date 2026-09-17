@@ -31,6 +31,9 @@ export function sanitizeSessionTitles(raw: unknown): Record<string, string> {
 }
 /** 置顶层上限:200 条(超出按 key 序丢弃,确定性兜底);标题快照 ≤200 字符(可为空串)。 */
 const SESSION_PINS_MAX_ENTRIES = 200;
+/** 归档层上限:2000(须与 sessionArchive.SESSION_ARCHIVE_MAX 同步;自动归档
+ * 写入密度高,200 约 10 天触顶逐出,违背归档标记持久语义)。 */
+const SESSION_ARCHIVE_MAX_ENTRIES = 2000;
 const SESSION_PIN_SCOPES: readonly SessionPinScope[] = ["global", "workspace"];
 
 /** 置顶清洗:只收合法 scope + 有限非负时间戳的项,标题截断,按 key 序限量纳入。 */
@@ -66,7 +69,7 @@ export function sanitizeSessionArchive(raw: unknown): Record<string, SessionArch
   if (!raw || typeof raw !== "object") return archive;
   const entries = raw as Record<string, unknown>;
   for (const key of Object.keys(entries).sort()) {
-    if (Object.keys(archive).length >= SESSION_PINS_MAX_ENTRIES) break;
+    if (Object.keys(archive).length >= SESSION_ARCHIVE_MAX_ENTRIES) break;
     const value = entries[key];
     if (!key || !value || typeof value !== "object") continue;
     const entry = value as Record<string, unknown>;

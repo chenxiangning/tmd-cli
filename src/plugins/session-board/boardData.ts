@@ -10,7 +10,8 @@ import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host, useHost } from "@kernel/host";
 import { getSettingsState, useSettingsState } from "@kernel/settings";
 import type { Workspace } from "@kernel/workspace";
-import { mergeDisk, mergeLive, type ScanEntry } from "./boardRows";
+import { sessionArchiveKey } from "@kernel/sessionArchive";
+import { mergeDisk, mergeLive, VIEWED_FLASH_MS, type ScanEntry } from "./boardRows";
 
 export type BoardState = "running" | "idle" | "ended-new" | "ended-seen" | "archived";
 
@@ -160,12 +161,33 @@ export function useBoardSessions(
       alive = false;
     };
     // workspaces 由 wsKey 表征(id 集),列表对象引用每次渲染可能新,不进 deps。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsKey, refreshTick, liveKey]);
+  /* ended-seen 瞬态窗(VIEWED_FLASH_MS)到期需一次重算:mergeDisk 按 now 推导,
+   * 窗满无事件,不挂定时则卡无限期停「结束-已查看」(评审 P2)。挂一次性精确
+   * 定时,到点 bump 内部 tick;无新鲜归档行时不安排。 */
+  const [flashTick, setFlashTick] = useState(0);
+  const nextFlash = useMemo(() => {
+    let min = Infinity;
+    if (scan) {
+      for (const e of scan) {
+        const a = settings.sessionArchive[sessionArchiveKey(e.ws.id, e.profile.id, e.disk.id)];
+        if (a) min = Math.min(min, a.archivedAt);
+      }
+    }
+    return min;
+  }, [scan, settings.sessionArchive]);
+  useEffect(() => {
+    if (nextFlash === Infinity) return;
+    const remain = nextFlash + VIEWED_FLASH_MS - Date.now();
+    if (remain <= 0) return;
+    const t = setTimeout(() => setFlashTick((v) => v + 1), remain + 50);
+    return () => clearTimeout(t);
+  }, [nextFlash]);
   const diskRows = useMemo(
     () => (scan ? mergeDisk(scan, settings.sessionTitles, settings.sessionArchive) : []),
     // 归档/删除意图参与五态推导,必须进 deps(评审 P2:恢复/删除后看板要即变)。
-    [scan, settings.sessionTitles, settings.sessionArchive, settings.sessionDeleted],
+    [scan, settings.sessionTitles, settings.sessionArchive, settings.sessionDeleted, flashTick],
   );
   if (!scan) return null;
   /* 活会话绑定的磁盘身份 → 磁盘行去重(同一会话全局一次,活形态优先)。 */

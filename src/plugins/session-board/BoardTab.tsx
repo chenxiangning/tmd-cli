@@ -10,7 +10,7 @@ import { host } from "@kernel/host";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { workspaceDisplayName, useWorkspaces } from "@kernel/workspace";
 import { boardOverlayOpen } from "./boardOverlayStore";
-import { archiveSession, sessionArchiveKey } from "@kernel/sessionArchive";
+import { archiveSession, sessionArchiveKey, unarchiveSession } from "@kernel/sessionArchive";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import {
   BOARD_STATES as STATES,
@@ -97,10 +97,10 @@ export function BoardTab() {
       return;
     }
     if (!s.wsId || !s.disk) return;
-    if (s.st === "ended-new") {
-      archiveSession(sessionArchiveKey(s.wsId, s.profileId, s.disk.id));
-    }
-    host.openDiskSession(s.profileId, s.wsRoot, s.wsId, s.disk.id).catch(() => undefined);
+    const key = sessionArchiveKey(s.wsId, s.profileId, s.disk.id);
+    if (s.st === "ended-new") archiveSession(key);
+    /* 打开失败回滚归档,防注意力信号静默丢失。 */
+    host.openDiskSession(s.profileId, s.wsRoot, s.wsId, s.disk.id).catch(() => s.st === "ended-new" && void unarchiveSession(key));
   };
   /* ← → 逐日 / Esc 收起:看板覆盖层开着时接管(Esc 先收日视图,再由覆盖层自身收板)。 */
   useEffect(() => {

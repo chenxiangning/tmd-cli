@@ -18,7 +18,7 @@ export function sessionOverlayKey(
   return `${workspaceId}:${profileId}:${cliSessionId}`;
 }
 
-/** 覆盖层容量:置顶/归档/删除同款 200 条上限。 */
+/** 覆盖层默认容量;sessionArchive 自动归档写入密度高,实例化处单独提容。 */
 const OVERLAY_MAX_ENTRIES = 200;
 
 type OverlaySettingsKey = "sessionArchive" | "sessionDeleted";
@@ -30,7 +30,7 @@ type OverlaySettingsKey = "sessionArchive" | "sessionDeleted";
  * settings 表按 union key 取出后类型不可并,工厂内一次性擦除(as unknown as),
  * 调用方以具体 Entry 泛型实例化后即类型安全。
  */
-export function makeOverlay<E>(settingsKey: OverlaySettingsKey, tsField: keyof E) {
+export function makeOverlay<E>(settingsKey: OverlaySettingsKey, tsField: keyof E, max = OVERLAY_MAX_ENTRIES) {
   const table = () =>
     getSettingsState().settings[settingsKey] as unknown as Record<string, E>;
   const save = (next: Record<string, E>) =>
@@ -44,7 +44,7 @@ export function makeOverlay<E>(settingsKey: OverlaySettingsKey, tsField: keyof E
     mark(key: string): void {
       const current = table();
       const next = { ...current, [key]: { [tsField]: Date.now() } as E };
-      evictOldest(next, current, key, (e) => (e as unknown as Record<string, number>)[tsField as string], OVERLAY_MAX_ENTRIES);
+      evictOldest(next, current, key, (e) => (e as unknown as Record<string, number>)[tsField as string], max);
       save(next);
     },
     /** 取消标记;未标记为 no-op。 */

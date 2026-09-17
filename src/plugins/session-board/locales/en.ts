@@ -40,13 +40,10 @@ export const MESSAGES_EN = {
   "恢复(取消归档)": "Restore (unarchive)",
 
   "远程工作区暂不支持看板(仅本机磁盘)": "Board unavailable for remote workspaces (local disk only)",
-  "已查看:「{title}」→ 默认自动进入已归档": "Viewed: \"{title}\" → auto-archived",
-  "已打开:{engine} · {title}": "Opened: {engine} · {title}",
   "已重命名:{title}": "Renamed: {title}",
   "少": "Low",
   "多": "High",
   "底点 = 主引擎": "dots = top engines",
   "点击折叠/展开本列(跨日保持)": "Click to collapse/expand this lane (persists across days)",
-  "收起看板": "Close board",
   "会话看板": "Session board",
 } as Record<string, string>;

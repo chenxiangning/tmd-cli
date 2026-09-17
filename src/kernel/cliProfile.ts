@@ -150,9 +150,10 @@ export interface CliProfile {
    * 场景退化为整串匹配 —— 正则不得依赖行首锚)。命中即 CLI 自证在途(工作
    * 页脚/状态行),activityWatch 刷帧钟持轮 —— 流式间隙(思考/工具切换静默
    * >2s)不再假结算,完工换装(标记消失)后 30s 照常结算(自证钟
-   * BUSY_HOLD_MS,分钟级轮次无感)。readopt 重锚亦消费本声明:磁盘尾 16KB
-   * 命中 = CLI 自证在途现势证据,兜底回显滚出窗的长轮次(2026-09-16 实证)。
-   * 与 askMarks(等待
+ * BUSY_HOLD_MS,分钟级轮次无感)。readopt 重锚亦消费本声明:磁盘尾 16K
+ * 字符(READOPT_BUSY_TAIL_CHARS,字符非字节,CJK 日志窗缩至 ~1/3)命中 =
+ * CLI 自证在途现势证据,兜底回显滚出窗的长轮次(2026-09-16 实证)。
+ * 字面量纪律与 askMarks 同:取自实采,未声明 = 行为不变。
    */
   busyMarks?: RegExp[];
   /**

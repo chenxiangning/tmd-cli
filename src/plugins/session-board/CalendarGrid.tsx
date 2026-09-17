@@ -48,9 +48,10 @@ export function CalendarGrid({
 }) {
   const cells = useMemo(() => monthCells(view.y, view.m), [view.y, view.m]);
   const weeks = useMemo(() => weeksOf(cells), [cells]);
+  /* 归一只取当月格(c.inMonth):cells 含相邻月溢出格,极端日会压当月色阶。 */
   const maxDay = useMemo(() => {
     let max = 0;
-    for (const c of cells) max = Math.max(max, byDay.get(c.key)?.length ?? 0);
+    for (const c of cells) if (c.inMonth) max = Math.max(max, byDay.get(c.key)?.length ?? 0);
     return max;
   }, [cells, byDay]);
   const todayKey = dayKeyOf(Date.now());

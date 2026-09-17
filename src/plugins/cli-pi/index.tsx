@@ -114,6 +114,10 @@ export const cliPiPlugin: Plugin = {
       askMarks: PI_TUI_ASK_MARKS,
       /* 用户消息回显标记(pi-tui 系共享字面量,见 cli-shared/echoMarks.ts)。 */
       echoMarks: PI_TUI_ECHO_MARKS,
+
+      /* 待实采:busyMarks/idleMarks(在工帧 ⎋ 与空闲页脚字面量)与 omp 同源
+       * pi-tui,未声明前 4b 持轮/4d 空闲闸/readopt 现势证据对本引擎不生效
+       * (字面量须实采,禁猜测;2026-09-17 review 留档)。 */
       /* win ConPTY 的 CPR 应答错位会被 pi-tui 当字符注入(架构 04 契约 7)。 */
       conptyCprMismatch: true,
     });
