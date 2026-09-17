@@ -4,6 +4,30 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.1.9] - 2026-09-18
+
+### 新增
+
+- 会话看板插件:热力月历 + 泳道时间线呈现全工作区会话,生命周期五态(待运行/运行中/结束-未查看/结束-已查看/已归档)贯通磁盘扫描与活会话合并;归档会话恢复对话即解除归档,生命周期链重启(绑定即续命)
+- Web 访问桥:LAN 内浏览器访问本机会话(M1);外网中继出站拨 Cloudflare Worker,一键部署与离线导出包,外网 tab 风险门(M2);部署卡内嵌 Cloudflare API Token 申请引导
+- omp 引擎卡版本回退菜单:最新 10 个稳定版 + 收藏,command 通道钉版降级
+- Git 分支视图新增名称子串搜索框,本地/远程两组同滤;创建行与操作横幅提为共享组件
+- Git 双栏 diff 改中缝连接带排布:行号槽居中缝两侧、改动行色带贯通成横带(GitHub 风四列演进);词级标注预计算提为 useWordParts 两态共用,wrap 态不再逐渲染重跑 DP
+
+### 变更
+
+- CI 工作流 checkout/setup-node/pnpm/upload-artifact 升 Node 24 大版本,消 Actions Node 20 弃用告警
+
+### 修复
+
+- 长轮次假空闲根治:readopt 重锚补尾帧 busyMarks 现势证据双通道,扫磁盘日志尾 echoMarks 重锚在途轮次并守结算调度间隙,重载/回显滚出窗后翻空闲不再不自愈;空闲屏整屏重绘不再把已完工轮次复燃为运行时(idleMarks 空闲自证闸)
+- win 幕布不再回写 pi-tui 错位 CPR 应答,omp 输入框孤立「C」根治
+- checkpoints 审批线收 Windows 绝对路径写入事件,假结算后迟到事件修订重封自愈
+- 身份账本跨 webview 重载持久化并在 readopt 定稿后剪除死项;六家 CLI 磁盘会话补 createdAt(修跳日归档),一次读头双解析省一次 IPC
+- 会话看板评审收口:瞬态窗挂到期重算、归档层容量提至 2000、打开失败回滚归档、热力归一只算当月格
+- Web 访问评审收口:relay 起桥回填 webAccessEnabled 防设置写盘杀桥、relay 启动与 WebBridge 连接竞态、停机订阅预检堵死 else 竞态、/file 改首段 dot 允许制、LAN 绑定收至 lan_ip、跨面设置广播、部署不再自动置 webRelayOn、导出包改系统 Save dialog 并补 dialog:allow-save 权限、外网 tab 三步流程引导
+- Git 双栏评审收口:分支过滤 memo 隔离无关状态重渲染、行号槽 +2ch 真余量、nowrap 三面行高同源消 WebKit 亚像素累积错位
+
 ## [0.1.8] - 2026-09-15
 
 ### 新增
@@ -250,6 +274,7 @@
 - SSH 一等会话:远程终端 + SFTP 文件树 + 端口转发
 - 插件市场、设置面板、网络代理
 
+[0.1.9]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.9
 [0.1.8]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.8
 [0.1.7]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.7
 [0.1.6]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.6
