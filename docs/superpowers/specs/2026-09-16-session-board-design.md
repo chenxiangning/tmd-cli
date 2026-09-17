@@ -95,3 +95,20 @@ UI 形态、交互契约、密度策略全部以 `docs/design/session-calendar-h
 - **差距与修复**:①「空闲」标签改为「待运行」(en Waiting / ja 待機中);②已查看原为不可见的瞬时动作 —— 归档落定后 2.4s 瞬态窗内显示「结束-已查看」再转「已归档」(mergeDisk 收 settings.sessionArchive 按 archivedAt 推导);③「关闭→再入已归档」原不存在(干净关闭落回未查看)—— 新增 boardExit.ts 订阅 kernel.sessions.exited:有归属工作区 + 有稳定身份 + 尾巴已读 → 写归档标记(emit 早于 removeRoom 完成,活表可查,与 checkpoints 同序);④归档标记跨打开/关闭持久已成立(无任何路径在打开时撤归档),用测试钉死。
 - **另一根因修复(生产序)**:boardRows 模块级 profileById 在 import 期冻结(早于一切 activate 的 registerCliProfile)→ mergeLive 恒空 → 活会话两道整条死路且错以磁盘行示人。改为逐会话 host.getCliProfile() 活查。boardRows.live.test.ts 以「静态 import 先于注册」生产序固守。
 - 测试:+7(boardRows.disk 3 + boardExit 4)。门禁:typecheck / vitest 1643 / arch / file-size 全绿。
+
+## 实施纪要补遗八(2026-09-17,归档会话恢复对话即解除归档)
+
+- **用户实测推翻补遗七的一处定稿**:「↩ 恢复才显式解除归档」导致归档会话恢复对话后
+  生命周期链不重启 —— 侧栏默认视图活行被 isArchived 过滤、归档视图仍以磁盘行示人,
+  看板 mergeDisk 亦按 archivedAt 推「已归档」,running 态无处呈现。
+- **修订语义**:已归档会话经任何路径恢复对话(侧栏归档视图点开 / 看板点卡 / WSL 远程
+  恢复 / CLI 内 /resume 探测绑定)即解除归档,生命周期链重启(待运行 ⇄ 运行中);
+  干净退出由 boardExit 再归档收口,「待运行关闭 → 再入已归档」往返不变。显式 ↩ 恢复
+  (看板泳道 / 会话管理批量)语义不变。
+- **实现**:绑定唯一写入口 identityLedger.bind 成功且 meta 带归属工作区时
+  unarchiveSession(key(workspaceId, engine ?? profileId, cliSessionId)),与
+  archiveExitedSession 同构互逆;adoptSpawned 改为先 setSessions 后 bindIdentity
+  (与 ssh/shell adopt 的 refreshSessions 先行同款序)—— 绑定刻账本可查 meta,
+  顺带修复磁盘回放指针覆写在 resume 路径被跳过的同源缺陷。
+- 测试:host.test.ts「归档会话恢复即解除归档」(同时钉住先刷表后绑定的顺序,
+  回退任一即红)。

@@ -13,6 +13,7 @@
  */
 
 import { noteLogBinding } from "./diskReplay";
+import { sessionArchiveKey, unarchiveSession } from "./sessionArchive";
 import type { SessionMeta } from "./ipc";
 
 const STORAGE_KEY = "tmd.identityLedger.v1";
@@ -91,10 +92,18 @@ export class IdentityLedger {
     if (rival) return false;
     this.map.set(sessionId, cliSessionId);
     saveStored(this.map);
-    /* 磁盘先行回放:绑定成功即覆写「CLI 会话 → 当前代日志」指针(冷开寻址上一代)。
-       收口在唯一写入口,显式恢复(openDiskSession)与探测绑定(identityWatch)两路共用 */
     const meta = this.findSession(sessionId);
-    if (meta) noteLogBinding(meta.profileId, meta.cwd, cliSessionId, sessionId);
+    if (meta) {
+      noteLogBinding(meta.profileId, meta.cwd, cliSessionId, sessionId);
+      /* 绑定即续命(生命周期 2026-09-17 修订):归档会话经任何绑定路径恢复对话
+         (显式 resume / 远程恢复 / CLI 内 /resume 探测)即解除归档,生命周期链重启
+         (待运行 ⇄ 运行中);干净退出由 boardExit 再归档收口。key 构造与
+         archiveExitedSession 同构;无归属工作区不猜归属(同款守卫)。 */
+      if (meta.workspaceId)
+        unarchiveSession(
+          sessionArchiveKey(meta.workspaceId, meta.engine ?? meta.profileId, cliSessionId),
+        );
+    }
     return true;
   }
 }
