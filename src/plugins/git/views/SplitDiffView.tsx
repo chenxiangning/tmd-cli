@@ -132,6 +132,7 @@ function SplitHalves({
                 <FoldBar
                   key={`f:${row.run.key}`}
                   style={isLeft ? undefined : pin(i)}
+                  ghost={!isLeft}
                   run={row.run}
                   open={foldOpen.has(row.run.key)}
                   onToggle={toggleFold}

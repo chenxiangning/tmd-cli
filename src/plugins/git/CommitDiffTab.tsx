@@ -230,7 +230,7 @@ function CommitPatchPane({
       ) : patch?.binary ? (
         <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("二进制文件,无文本 diff")}</div>
       ) : patch ? (
-        <PatchLines text={patch.patch} className="h-max min-h-full" mode={diffMode} fold={fullView} />
+        <PatchLines key={selected} text={patch.patch} className="h-max min-h-full" mode={diffMode} fold={fullView} />
       ) : selected ? (
         <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("无 patch 数据")}</div>
       ) : (

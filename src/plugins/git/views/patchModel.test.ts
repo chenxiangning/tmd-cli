@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildSplitRows, foldItems, parsePatch, planFolds } from "./patchModel";
+import { buildSplitRows, foldItems, pairKind, parsePatch, planFolds } from "./patchModel";
 
 const PATCH = [
   "diff --git a/src/x.rs b/src/x.rs",
@@ -180,6 +180,15 @@ describe("planFolds / foldItems(N4 折叠焦点)", () => {
     expect(opened[1]?.kind).toBe("fold"); // 条常驻
     expect(opened[2]).toBe(rows[1]); // 原行原引用紧随摊平
     expect(foldItems(rows, null, new Set())).toBe(rows);
+  });
+
+  it("del×add 同文 zip 对(补尾换行)是改动不是 ctx,不入折叠段", () => {
+    const rows = parsePatch("@@ -1,4 +1,4 @@\n a\n b\n c\n-d\n\\ No newline at end of file\n+d\n");
+    const split = buildSplitRows(rows);
+    expect(split[4]).toEqual({ kind: "pair", left: rows[4], right: rows[6] }); // 同文 zip 对
+    expect(pairKind(rows[4], rows[6])).toBe("mod"); // 文本同但异源 = 改动
+    const runs = [...planFolds(split).values()];
+    expect(runs).toEqual([{ key: "1:1", count: 3, oldFrom: 1, oldTo: 3, newFrom: 1, newTo: 3 }]); // 不吞 zip 对
   });
 });
 

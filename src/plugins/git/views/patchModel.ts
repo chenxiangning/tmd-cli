@@ -93,11 +93,12 @@ export type SplitRow =
   | { kind: "header"; row: PatchRow }
   | { kind: "pair"; left: PatchRow | null; right: PatchRow | null };
 
-/** 双栏配对语义:双非空且文本相同 = ctx(折叠段成员);双非空且不同 = 修改对
- *  (左红右绿同行);单侧 = 纯删/纯增。 */
+/** 双栏配对语义:双非空且同源(buildSplitRows 的 ctx 行恒同一对象)= ctx(折叠段
+ *  成员);双非空异源 = 修改对(含 del×add zip 撞出的同文对——如补尾换行,文本
+ *  相同但确是改动,判 ctx 会把唯一改动藏进折叠段);单侧 = 纯删/纯增。 */
 export type PairKind = "ctx" | "mod" | "del" | "add";
 export const pairKind = (left: PatchRow | null, right: PatchRow | null): PairKind =>
-  left && right ? (left.text === right.text ? "ctx" : "mod") : left ? "del" : "add";
+  left && right ? (left === right ? "ctx" : "mod") : left ? "del" : "add";
 
 /** unified 行序 → 双栏配对:ctx 同源;del 块 × add 块按下标 zip,余量留空。 */
 export function buildSplitRows(rows: PatchRow[]): SplitRow[] {

@@ -29,11 +29,14 @@ export function FoldBar({
   open,
   onToggle,
   style,
+  /** 读屏去重:halves 态右栈的视觉冗余实例——aria-hidden 出读屏 + tabIndex 出 tab 序。 */
+  ghost,
 }: {
   run: FoldRun;
   open: boolean;
   onToggle: (key: string) => void;
   style?: CSSProperties;
+  ghost?: boolean;
 }) {
   return (
     <button
@@ -41,6 +44,8 @@ export function FoldBar({
       style={style}
       className="git-split-fold"
       aria-expanded={open}
+      aria-hidden={ghost || undefined}
+      tabIndex={ghost ? -1 : undefined}
       onClick={() => onToggle(run.key)}
     >
       <span className="git-split-fold-dots" aria-hidden>
