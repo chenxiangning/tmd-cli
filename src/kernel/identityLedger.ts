@@ -1,15 +1,47 @@
 /**
  * CLI 磁盘身份账本 —— 自 hostWatches 拆出(文件规模铁则)。
  * 活会话 → CLI 磁盘身份绑定(omp/pi 的 jsonl uuid、codex 的 rollout id)。
- * 纯前端内存,随 PTY 消亡 —— 这是活会话的身份属性,不是持久化映射。
- * 用途:UI 按身份去重(同一会话在活区/磁盘区只出现一次)。
+ *
+ * 跨 webview 重载持久化:PTY 经 readopt 跨重载存活,身份若不跟随,活行丢
+ * cliSessionId —— 手动命名/磁盘原生标题(首条用户消息兜底)全失联,重命名
+ * 退化为短码,活/盘去重失效,状态 pill 失明(2026-09-17 实证:HMR 重载后
+ * 两个活会话 tab 退回短码标题)。存储循 filePanel/promptHistory 惯例
+ * (localStorage 单 key,纯映射不进 settings schema)。死项只认活会话表:
+ * readopt 定稿后 prune(冷启动 Rust 注册表为空 = 一次清空陈账;重载 =
+ * 活表全保留),会话退出即删照旧 —— 陈账占用的磁盘身份会 fail-closed 挡住
+ * 后续 resume 同身份的新会话,剪除不可省。
  */
 
 import { noteLogBinding } from "./diskReplay";
 import type { SessionMeta } from "./ipc";
 
+const STORAGE_KEY = "tmd.identityLedger.v1";
+
+function loadStored(): Map<string, string> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
+    if (!Array.isArray(parsed)) return new Map();
+    return new Map(
+      parsed.filter(
+        (pair): pair is [string, string] =>
+          Array.isArray(pair) && typeof pair[0] === "string" && typeof pair[1] === "string",
+      ),
+    );
+  } catch {
+    return new Map(); /* 无 localStorage(测试环境)或损坏数据:按空账本起 */
+  }
+}
+
+function saveStored(map: ReadonlyMap<string, string>): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...map]));
+  } catch {
+    /* 尽力而为:持久化失败只伤下次重载的标题/去重/状态,不影响本次绑定 */
+  }
+}
+
 export class IdentityLedger {
-  private readonly map = new Map<string, string>();
+  private readonly map = loadStored();
 
   constructor(
     private readonly findSession: (sessionId: string) => SessionMeta | undefined,
@@ -30,7 +62,20 @@ export class IdentityLedger {
   }
 
   remove(sessionId: string): void {
-    this.map.delete(sessionId);
+    if (!this.map.delete(sessionId)) return;
+    saveStored(this.map);
+  }
+
+  /** 对活会话表剪除死项(readopt 定稿后调用;时机语义见文件头)。 */
+  prune(): void {
+    let changed = false;
+    for (const id of [...this.map.keys()]) {
+      if (!this.findSession(id)) {
+        this.map.delete(id);
+        changed = true;
+      }
+    }
+    if (changed) saveStored(this.map);
   }
 
   /**
@@ -45,6 +90,7 @@ export class IdentityLedger {
     );
     if (rival) return false;
     this.map.set(sessionId, cliSessionId);
+    saveStored(this.map);
     /* 磁盘先行回放:绑定成功即覆写「CLI 会话 → 当前代日志」指针(冷开寻址上一代)。
        收口在唯一写入口,显式恢复(openDiskSession)与探测绑定(identityWatch)两路共用 */
     const meta = this.findSession(sessionId);

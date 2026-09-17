@@ -120,14 +120,14 @@ export class HostWatches {
   constructor(private readonly ctx: HostWatchesCtx) {}
 
   /** 活会话绑定的 CLI 磁盘身份;未绑定(探测前)为 undefined。 */
-  getCliSessionId(sessionId: string): string | undefined {
-    return this.ledger.get(sessionId);
-  }
+  getCliSessionId(sessionId: string): string | undefined { return this.ledger.get(sessionId); }
 
   /** 绑定终审与磁盘回放指针语义见 IdentityLedger.bind(唯一写入口)。 */
   bindIdentity(sessionId: string, cliSessionId: string): boolean {
     return this.ledger.bind(sessionId, cliSessionId);
   }
+  /** readopt 定稿后对活会话表剪除账本死项(时机语义见 IdentityLedger.prune)。 */
+  pruneIdentities(): void { this.ledger.prune(); }
 
   /** 测试专用:直通绑定终审闸(共绑一磁盘身份的回归入口)。 */
   bindIdentityForTest(sessionId: string, cliSessionId: string): boolean {

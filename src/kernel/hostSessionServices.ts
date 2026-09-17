@@ -113,6 +113,8 @@ export function createSessionServices(
         { ...base, setSessions: (sessions) => ctx.setSessions(sessions) },
         events,
       );
+      /* 账本死项剪除(必须在此刻:活表已按 Rust 注册表定稿;冷启动清陈账,重载全保留) */
+      watches.pruneIdentities();
       const jobs: Promise<void>[] = [];
       for (const s of ctx.getSessions()) {
         if ((s.kind ?? "cli") !== "cli") continue;

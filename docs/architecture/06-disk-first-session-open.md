@@ -10,6 +10,7 @@ omp 历史会话在此之上有预热接管加速路径(`profile.acquireResume` 
 ## 契约
 
 - **指针寻址**:PTY 日志按 spawn 代 uuid 命名,跨代靠 `session-last-log.txt` 指针(`session_link_log` 写 / `session_disk_tail` 读,profile+cwd+cliSessionId 寻址,分隔符与裸 `..` 拒绝);写入口唯一 = 身份绑定(identityWatch.track / bindIdentity),读 = `diskReplay.ts` 单槽预取(openDiskSession 同步发,挂载消费,身份错配即弃)。无指针(首开/外部会话)→ 无墓碑帧变体:连接遮罩保持到首帧。
+- **身份账本跨重载持久化**(2026-09-17):PTY 经 readopt 跨 webview 重载存活,绑定必须跟随 —— 账本 localStorage 落盘(`tmd.identityLedger.v1`,循 filePanel 惯例),构造回装、bind/remove 即写;死项只认活会话表,readopt 定稿后 prune(冷启动 Rust 注册表空 = 清空陈账防 fail-closed 挡 resume 同身份;重载 = 活表全保留)。失守症候:重载后活会话重命名退短码(手动命名/磁盘原生标题/首条消息兜底全链失联)、活/盘不去重、状态 pill 失明。
 - **冷开切换三段式**(terminalReplay):①就绪锁未解除 → 活流攒队不直写(防启动清屏擦白屏);②攒队滚动 8 字节窗含 `\x1b[2J` → 300ms 后一次 flush(吞掉清屏,擦的是墓碑帧,清屏与同帧内容同批抵达);③30s 兜底覆盖纯文本 CLI。CLR 到达早于磁盘 promise 决议 → 墓碑帧与 Ask 恢复整体作废(就绪守卫,防盖活帧)。
 - **就绪相位即采样相位**:askProbe 在 ready 前停采(墓碑帧不进 askWatch 屏幕通道);输入闸回放尽即释放,卸载/竞态路径零泄漏。
 - **Ask 磁盘恢复**:墓碑帧尾部带「按 y / Enter 确认」标记 → 就绪时 `restoreDiskTail` 恢复等待徽章(自带 8s 写后闸,回放窗内作答不翻旧账);`restoreTail` 无闸,仅 bootAskRestore/内存回放观察用。
