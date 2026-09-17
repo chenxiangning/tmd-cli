@@ -52,8 +52,12 @@ export function AppShell() {
   const [marketOpen, setMarketOpen] = useState(false);
   const toggleMarket = useCallback(() => setMarketOpen((v) => !v), []);
   const { tabs } = useEditorTabs();
-  /* 编辑区最大化(editorMaximized store,持久化):有 tab 时隐藏左栏与中央幕布,
-     编辑区 + 右文件面板并占通栏(右栏不参与);无 tab 时标志不生效。 */
+  /* 编辑区最大化(editorMaximized store,持久化):有 tab 时左栏与中央幕布零宽
+     让位(.group-maximized 纯样式折叠,见 panel-handle.css),编辑区 + 右文件
+     面板并占通栏(右栏不参与);无 tab 时标志不生效。
+     幕布与左栏一律「样式折叠、永不卸载」:卸载会把 tab 条内全部 TerminalView
+     连 xterm 实例一起拆掉,还原时全量回放输出缓冲(大会话秒级「加载会话输出」
+     遮罩);折叠是纯尺寸变化,幕布现场零回放,还原后分栏尺寸逐位复原。 */
   const maximized = useEditorMaximized() && tabs.length > 0;
   const leftAsideRef = useElementWidth("--tmd-left-aside-w");
   const rightAsideRef = useElementWidth("--tmd-right-aside-w");
@@ -103,9 +107,9 @@ export function AppShell() {
           宽度实测自侧栏(useElementWidth 写 CSS 变量),隐藏后 RO 上报 0 会把
           顶栏 icon 挤叠。市场页实底背景,盖住下层即可。 */}
       <div className="relative min-h-0 flex-1">
-        <PanelGroup orientation="horizontal" id="tmd.outer">
-        {/* 左侧 session 栏 */}
-        {!maximized && leftOpen && (
+        <PanelGroup orientation="horizontal" id="tmd.outer" className={maximized ? "group-maximized" : undefined}>
+        {/* 左侧 session 栏:leftOpen 独占挂载开关,最大化只零宽折叠不卸载 */}
+        {leftOpen && (
           <>
             <Panel defaultSize={18} minSize={12} id="left">
               <aside ref={leftAsideRef} className="flex h-full flex-col">
@@ -116,23 +120,19 @@ export function AppShell() {
                 <SidebarSettingsCluster />
               </aside>
             </Panel>
-            <PanelResizeHandle className="panel-handle panel-handle-v panel-handle-line-r" />
+            <PanelResizeHandle className={`panel-handle panel-handle-v panel-handle-line-r${maximized ? " hidden" : ""}`} />
           </>
         )}
 
-        {/* 中央幕布 */}
-        {!maximized && (
+        {/* 中央幕布:始终挂载,最大化经 .group-maximized 零宽折叠(不卸载) */}
         <Panel defaultSize={tabs.length > 0 ? 24 : 60} minSize={15} id="center">
           <MainPanel />
         </Panel>
-        )}
 
         {/* 文件预览:有打开 tab 时出现,占满竖屏,位于中栏与右栏之间(可拖) */}
         {tabs.length > 0 && (
           <>
-            {!maximized && (
-              <PanelResizeHandle className="panel-handle panel-handle-v panel-handle-line-l" />
-            )}
+            <PanelResizeHandle className={`panel-handle panel-handle-v panel-handle-line-l${maximized ? " hidden" : ""}`} />
             <Panel defaultSize={36} minSize={15} id="editor">
               <EditorCenter />
             </Panel>
