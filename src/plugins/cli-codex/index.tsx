@@ -6,11 +6,12 @@ import {
   readUserMessagesFromFile,
 } from "../cli-shared/userMessages";
 import { readHeadTitle } from "../cli-shared/diskSessions";
+import { HEAD_BYTES, extractMeta, readCodexSessionStatus } from "./sessionStatus";
 import { pathsEqual } from "@kernel/pathUtils";
 import { getPlatformKind } from "@kernel/platform";
 import { readCodexSessionEdits } from "./edits";
 import { fetchCodexQuota } from "./quota";
-import type { CliDiskSession, CliSessionStatus, CliSuggestion } from "@kernel/cli";
+import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { listCodexSuggestions } from "./scanSuggestions";
 import { codexConfigEntry } from "./configGui";
@@ -50,29 +51,6 @@ function CodexGlyph({ size }: { size: number | string }) {
 const SCAN_LIMIT = 200;
 /** 每个工作区展示上限。 */
 const RESULT_LIMIT = 200; // 与 SCAN_LIMIT 对齐:展示层分页(10/20/40/80),扫描不必再卡小上限
-/** meta 头部读取字节数。 */
-const HEAD_BYTES = 4096;
-
-function extractMeta(head: string): { id: string; cwd: string; createdAt?: number } | null {
-  const firstLine = head.split("\n", 1)[0];
-  if (!firstLine.includes('"type":"session_meta"')) return null;
-  const id = firstLine.match(/"id":"([0-9a-f-]{36})"/)?.[1];
-  const rawCwd = firstLine.match(/"cwd":"((?:[^"\\]|\\.)*)"/)?.[1];
-  if (!id || !rawCwd) return null;
-  try {
-    /* payload.timestamp = 会话创建时刻(实证 2026-09-03,resume 不改写):
-       regex 命中即可,同窗零新增 IO;创建时刻定死看板日历落位。 */
-    const tsIso = firstLine.match(/"timestamp":"((?:[^"\\]|\\.)*)"/)?.[1];
-    let createdAt: number | undefined;
-    if (tsIso) {
-      const ms = Date.parse(JSON.parse(`"${tsIso}"`) as string);
-      if (Number.isFinite(ms)) createdAt = ms;
-    }
-    return { id, cwd: JSON.parse(`"${rawCwd}"`) as string, createdAt };
-  } catch {
-    return null;
-  }
-}
 
 /**
  * 身份自证:首行 session_meta payload 的 id/cwd/timestamp(实证 2026-09-03)。
@@ -125,47 +103,6 @@ async function listCodexSessions(cwd: string): Promise<CliDiskSession[]> {
   return sessions;
 }
  
-async function readCodexSessionStatus(
-  cwd: string,
-  cliSessionId: string,
-): Promise<CliSessionStatus | null> {
-  const home = await ipc.configHomeDir().catch(() => null);
-  if (!home) return null;
-  const rollouts = await ipc
-    .fsCollectFiles(`${home}/.codex/sessions`, ".jsonl")
-    .catch(() => []);
-  const file = rollouts.find((entry) => entry.name.includes(cliSessionId));
-  if (!file) return null;
-
-  const head = await ipc.fsReadHead(file.path, HEAD_BYTES).catch(() => "");
-  const meta = head ? extractMeta(head) : null;
-  if (meta && !pathsEqual(meta.cwd, cwd, CASE_INSENSITIVE_FS)) return null;
-  const tail = await ipc.fsReadTail(file.path, 256 * 1024).catch(() => "");
-  const model =
-    extractLastJsonString(`${head}\n${tail}`, ["model"]) ??
-    extractLastJsonString(head, ["modelId"]);
-  const thinkingLevel = extractLastJsonString(tail, [
-    "reasoning_effort",
-    "reasoningEffort",
-    "effort",
-  ]);
-  return model || thinkingLevel ? { model, thinkingLevel } : null;
-}
-
-function extractLastJsonString(text: string, keys: readonly string[]) {
-  /* 键别名按优先级:第一个有匹配的键获胜,键内取文件位置最后一次。
-     此前 result 跨键连续覆盖,最末别名(effort)会压掉更权威的
-     reasoning_effort —— 与 model 路径的 `?? 优先级` 语义自相矛盾。 */
-  for (const key of keys) {
-    const pattern = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`, "g");
-    let found: string | undefined;
-    for (const match of text.matchAll(pattern)) {
-      found = match[1];
-    }
-    if (found !== undefined) return found;
-  }
-  return undefined;
-}
 /** codex rollout 文件名含会话 id;resume/fork 产生同 id 新文件,取 mtime 最新(collect 已倒序,先见即最新)。 */
 async function readCodexUserMessages(cwd: string, cliSessionId: string, full: boolean) {
   const home = await ipc.configHomeDir().catch(() => null);

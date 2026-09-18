@@ -34,15 +34,22 @@ async function gateShortCircuit(path: string, lastSize: number): Promise<boolean
 }
 
 /** 直拼路径型的闸化状态读(claude/qoder:文件名即 cliSessionId,免列目录)。
- *  parse 传入内容级解析器;闸命中时不触 parse。 */
+ *  resolvePath 在闸未命中时定位文件(直拼型传 () => path,免列目录型内部 collect+find),
+ *  闸命中时零调用;parse 只在拿到新尾窗文本时执行。 */
 export async function readStatusTailGated(
   key: string,
-  path: string,
+  resolvePath: () => Promise<string | null>,
   maxBytes: number,
   parse: (text: string) => CliSessionStatus | null,
 ): Promise<CliSessionStatus | null> {
   const cached = tailGate.get(key);
-  if (cached && (await gateShortCircuit(path, cached.size))) return cached.result;
+  if (cached && (await gateShortCircuit(cached.path, cached.size))) return cached.result;
+
+  const path = await resolvePath();
+  if (!path) {
+    tailGate.delete(key);
+    return null;
+  }
   const tail = await ipc.fsReadTailChanged(path, maxBytes, null).catch(() => null);
   if (!tail) return null;
   const result = tail.text ? parse(tail.text) : null;
@@ -60,23 +67,16 @@ export async function readJsonlSessionStatus(
   modelKeys: readonly string[],
   providerKeys: readonly string[] = [],
 ): Promise<CliSessionStatus | null> {
-  /* 闸命中:免列目录(omp/pi 共享全局会话目录,一拍 = 全目录 stat 排序)免读免解析。 */
-  const key = `${dir}\u0000${cliSessionId}`;
-  const cached = tailGate.get(key);
-  if (cached && (await gateShortCircuit(cached.path, cached.size))) return cached.result;
-
-  const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
-  const file = files.find((entry) => entry.name.includes(cliSessionId));
-  if (!file) {
-    tailGate.delete(key);
-    return null;
-  }
-
-  const tail = await ipc.fsReadTailChanged(file.path, STATUS_TAIL_BYTES, null).catch(() => null);
-  if (!tail) return null;
-  const result = tail.text ? parseJsonlStatusTail(tail.text, modelKeys, providerKeys) : null;
-  tailGate.set(key, { path: file.path, size: tail.size, result });
-  return result;
+  return readStatusTailGated(
+    `${dir}\u0000${cliSessionId}`,
+    async () => {
+      /* omp/pi 共享全局会话目录,一拍 = 全目录 stat 排序;闸命中时此步整段免掉 */
+      const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
+      return files.find((entry) => entry.name.includes(cliSessionId))?.path ?? null;
+    },
+    STATUS_TAIL_BYTES,
+    (text) => parseJsonlStatusTail(text, modelKeys, providerKeys),
+  );
 }
 
 /** 尾窗文本 → 模型/思考强度(内容级解析,本地读与远程读取共用)。 */

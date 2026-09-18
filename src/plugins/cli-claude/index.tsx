@@ -115,7 +115,7 @@ async function readClaudeSessionStatus(
   /* claude 思考强度不落盘到会话文件(settings 全局开关),不提供 thinkingLevel。 */
   return readStatusTailGated(
     `${dir}\u0000${cliSessionId}`,
-    `${dir}/${cliSessionId}.jsonl`,
+    async () => `${dir}/${cliSessionId}.jsonl`,
     STATUS_TAIL_BYTES,
     (tail) => {
       const model = extractClaudeModel(tail);

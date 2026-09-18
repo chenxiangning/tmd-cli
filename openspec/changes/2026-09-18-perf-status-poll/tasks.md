@@ -21,3 +21,10 @@
 - [x] Rust(src-tauri/):`cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check`。
 - [x] 桩目检:挂机 30s 观察 ipcLog,fs 域每拍仅 1 次 read_tail_changed。
 - [x] 归档登记 docs/README.md。
+
+## 批次二(2026-09-18 追加)
+
+- [x] 引擎摸排:codex/grok/opencode/kimi/dsh 五家状态读取形态
+- [x] codex 接闸(同 omp/pi 闸型:resolver 定位 + path/size 暂存,命中拍免 collect/head/tail;head 的 model/modelId 兜底随定位拍暂存,解析优先级与旧实现逐位对齐)
+- [x] 摸排结论(不动):grok 读 summary.json 小文件;opencode 两条轻量 sqlite(LIMIT 1);kimi 读配置文件不碰会话尾读;dsh 走 RPC 无磁盘 IO
+- [x] 回归:codex 闸命中拍免列目录用例;既有 omp/pi/claude/qoder 闸用例不回归

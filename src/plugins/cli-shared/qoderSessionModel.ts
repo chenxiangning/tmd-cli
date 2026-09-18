@@ -141,7 +141,7 @@ export async function readQoderSessionStatus(
   if (!dir) return null;
   return readStatusTailGated(
     `${dir}\u0000${cliSessionId}`,
-    `${dir}/${cliSessionId}.jsonl`,
+    async () => `${dir}/${cliSessionId}.jsonl`,
     QODER_STATUS_TAIL_BYTES,
     extractQoderSessionStatus,
   );
