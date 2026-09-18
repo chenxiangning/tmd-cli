@@ -39,6 +39,8 @@ function fakeCtx(): PluginContext {
     registerMarketPanel,
     registerSidebarAction: () => {},
     registerFileVisual: () => {},
+    registerEditorExtension: () => () => {},
+    registerTerminalLinkProvider: () => () => {},
     registerCommand,
     registerHomePanel: () => {},
     registerCliConfig: () => {},

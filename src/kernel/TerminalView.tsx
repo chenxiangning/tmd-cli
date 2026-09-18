@@ -12,7 +12,7 @@
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Terminal, type ITheme } from "@xterm/xterm";
+import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -34,34 +34,11 @@ import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay } from "@kernel/terminalSearch";
 import { findRequestRef } from "@kernel/terminalFindBridge";
 import { TerminalCopyMenu } from "@kernel/terminalCopyMenu";
+import { attachTerminalLinks } from "@kernel/terminalLinks";
 import { setTerminalFocused } from "@kernel/shortcuts";
+import { readTerminalTheme } from "@kernel/terminalXtermTheme";
 
-/** 从文档计算样式读终端 token → xterm theme(主题引擎已内联最新值;ANSI 16 色与 bg/fg/cursor/selection 同源 --tmd-terminal-*。 */
-function readTerminalTheme(): ITheme {
-  const styles = getComputedStyle(document.documentElement);
-  const read = (name: string) => styles.getPropertyValue(name).trim() || undefined;
-  const ansi = {
-    black: read("--tmd-terminal-black"), red: read("--tmd-terminal-red"),
-    green: read("--tmd-terminal-green"), yellow: read("--tmd-terminal-yellow"),
-    blue: read("--tmd-terminal-blue"), magenta: read("--tmd-terminal-magenta"),
-    cyan: read("--tmd-terminal-cyan"), white: read("--tmd-terminal-white"),
-    brightBlack: read("--tmd-terminal-bright-black"), brightRed: read("--tmd-terminal-bright-red"),
-    brightGreen: read("--tmd-terminal-bright-green"),
-    brightYellow: read("--tmd-terminal-bright-yellow"),
-    brightBlue: read("--tmd-terminal-bright-blue"),
-    brightMagenta: read("--tmd-terminal-bright-magenta"),
-    brightCyan: read("--tmd-terminal-bright-cyan"),
-    brightWhite: read("--tmd-terminal-bright-white"),
-  } as const;
-  return {
-    background: read("--tmd-terminal-bg"),
-    foreground: read("--tmd-terminal-fg"),
-    cursor: read("--tmd-terminal-cursor"),
-    selectionBackground: read("--tmd-terminal-selection"),
-    ...ansi,
-  };
-}
-
+/** 从文档计算样式读终端 token → xterm theme(实现见 kernel/terminalXtermTheme.ts)。 */
 /* 导出级 memo:props 全原始类型,浅比较稳定。keep-alive 语义(MainPanel):
    tab 条内会话常驻挂载,非激活 display:none;active 切换不重挂,仅 ref 所有权迁移。 */
 function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: boolean }) {
@@ -122,6 +99,8 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     term.loadAddon(search);
     /* 链接点击 → 系统浏览器(Tauri webview 内 window.open 不可靠,走 shell 插件)。 */
     term.loadAddon(new WebLinksAddon((_event, uri) => void openExternalUrl(uri)));
+    /* 插件链接提供者(marks 回链等,terminalLinks 注册表;幕布外点缀零字节触碰)。 */
+    attachTerminalLinks(term);
     /* 聚焦态馈入分发器:聚焦期 terminal 作用域优先、global ⌘ 系键照常触发
        (命中即拦截零 PTY 字节,未命中键原样进 PTY)——分发决策见 shortcuts.ts
        resolveCommand。xterm v6 无 onFocus/onBlur 事件,借容器 focusin/focusout(冒泡可达)。 */

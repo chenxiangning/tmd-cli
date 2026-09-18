@@ -138,6 +138,16 @@ export function makeAttributedCtx(
       ctx.registerFileVisual(provider);
       track(() => removeFileVisual(provider));
     },
+    registerEditorExtension(factory) {
+      const off = ctx.registerEditorExtension(factory);
+      track(off);
+      return off;
+    },
+    registerTerminalLinkProvider(provider) {
+      const off = ctx.registerTerminalLinkProvider(provider);
+      track(off);
+      return off;
+    },
     registerCommand(command) {
       ctx.registerCommand(command);
       track(() => removeCommand(command.id));

@@ -12,6 +12,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { Extension } from "@codemirror/state";
 import { t } from "@kernel/i18n";
+import { useEditorExtensionFactories } from "@kernel/editorExtensions";
 import { loadCmLanguage } from "./cmLanguage";
 import { loadCmTheme } from "./cmTheme";
 
@@ -60,6 +61,8 @@ export default function FileCodeEditorImpl({
   const [langExts, setLangExts] = useState<Extension[]>([]);
   const [themeExts, setThemeExts] = useState<Extension[]>([]);
   const [baseExts, setBaseExts] = useState<Extension[]>([]);
+  const [pluginExts, setPluginExts] = useState<readonly Extension[]>([]);
+  const extFactories = useEditorExtensionFactories();
   /* saveRef 模式(codemoss 同款):异步键位扩展持有 ref,同时总调最新回调。 */
   const saveRef = useRef(onSave);
   useEffect(() => {
@@ -78,6 +81,23 @@ export default function FileCodeEditorImpl({
       cancelled = true;
     };
   }, [path]);
+
+  /* 插件扩展组(editorExtensions 注册表):工厂清单/文件/明暗任一变化重跑。
+     单厂抛错只丢该厂产物;CM 类型对插件侧是 type-only,运行期加载归工厂体内。 */
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const groups = await Promise.all(
+        extFactories.map((build) => build({ path, dark }).catch(() => null)),
+      );
+      if (!cancelled) {
+        setPluginExts(groups.flat().filter((ext): ext is Extension => ext != null));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [path, dark, extFactories]);
 
   /* 主题异步加载(per-dark 缓存):明暗切换重拉,失败保留旧主题。
      基础键位同批加载(import 模块级缓存,重复调用零成本)。 */
@@ -112,7 +132,7 @@ export default function FileCodeEditorImpl({
       editable={!readOnly}
       /* theme="none":关掉 @uiw 内置明暗主题,配色全走 cmEditorTheme(--tmd token) */
       theme="none"
-      extensions={[...themeExts, ...baseExts, ...langExts]}
+      extensions={[...themeExts, ...baseExts, ...langExts, ...pluginExts]}
       height="100%"
       basicSetup={{
         lineNumbers: true,

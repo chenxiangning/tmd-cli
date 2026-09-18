@@ -13,6 +13,8 @@ import type { TabContentContribution } from "./tabs";
 import type { MarketPanelContribution } from "./marketPanel";
 import type { CommandContribution } from "./shortcuts";
 import type { FileVisualProvider } from "./fileVisual";
+import type { EditorExtensionFactory } from "./editorExtensions";
+import type { TerminalLinkProvider } from "./terminalLinks";
 import type { SidebarAction } from "./sidebarActions";
 import type { CliConfigEntry } from "./cliConfigRegistry";
 import type { RemoteFileSource } from "./fileSources";
@@ -118,6 +120,10 @@ export interface PluginContext {
   registerSidebarAction(action: SidebarAction): void;
   /** 注册文件视觉 provider(fileVisual 注册表的 ctx 通道)。 */
   registerFileVisual(provider: FileVisualProvider): void;
+  /** 注册文件代码视图(CodeMirror)扩展工厂(editorExtensions 注册表的 ctx 通道;工厂体内动态 import CM,保住拆包);返回退订。 */
+  registerEditorExtension(factory: EditorExtensionFactory): () => void;
+  /** 注册终端可点击链接提供者(terminalLinks 注册表的 ctx 通道;幕布外点缀,零 PTY 字节触碰);返回退订。 */
+  registerTerminalLinkProvider(provider: TerminalLinkProvider): () => void;
   /** 注册一条快捷键命令(shortcuts 注册表的 ctx 通道;键位语义归插件,内核只做分发)。 */
   registerCommand(command: CommandContribution): void;
   /** 注册远端文件来源(fileSources 注册表的 ctx 通道,如 WSL/SSH 远端目录);返回退订。 */

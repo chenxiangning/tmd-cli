@@ -19,6 +19,8 @@ interface Subscribable<S> {
   replace(next: S): void;
   /** 只通知订阅者,不换快照。 */
   notify(): void;
+  /** 非 React 订阅;返回退订。 */
+  subscribe(fn: () => void): () => void;
   /** React 订阅;select 取切片时返回值必须引用稳定(直接取快照字段,不现算)。 */
   useStore<T = S>(select?: (snapshot: S) => T): T;
 }
@@ -40,6 +42,10 @@ export function createSubscribable<S>(initial: S): Subscribable<S> {
     },
     notify() {
       listeners.forEach((fn) => fn());
+    },
+    subscribe(fn) {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
     },
     useStore<T = S>(select?: (snapshot: S) => T): T {
       return useSyncExternalStore(

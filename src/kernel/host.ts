@@ -19,6 +19,8 @@ import { registerSettingsSection } from "./settingsRegistry";
 import { registerFilePanel } from "./filePanel";
 import { registerTabContent } from "./tabs";
 import { registerFileVisual } from "./fileVisual";
+import { registerEditorExtension } from "./editorExtensions";
+import { registerTerminalLinkProvider } from "./terminalLinks";
 import { registerMarketPanel } from "./marketPanel";
 import type { SidebarAction } from "./sidebarActions";
 import { registerCommand } from "./shortcuts";
@@ -84,6 +86,8 @@ class Host implements PluginContext {
   registerMarketPanel = registerMarketPanel;
   registerSidebarAction = (action: SidebarAction): void => this.registry.registerSidebarAction(action);
   registerFileVisual = registerFileVisual;
+  registerEditorExtension = registerEditorExtension;
+  registerTerminalLinkProvider = registerTerminalLinkProvider;
   registerCommand = registerCommand;
   registerRemoteFileSource = registerRemoteFileSource;
   registerWorkspaceOrigin = registerWorkspaceOrigin;
@@ -208,24 +212,18 @@ class Host implements PluginContext {
     return this.watches.isUnread(sessionId);
   }
   /** 对话轮次进行中判定(呼吸灯蓝态的进行时段;轮次结算即 false)。 */
-  isTurnActive = (sessionId: string): boolean =>
-    this.watches.isTurnActive(sessionId);
+  isTurnActive = (sessionId: string): boolean => this.watches.isTurnActive(sessionId);
 
   /** 等待确认判定(会话列表「等待确认」标签;用户写入即清)。 */
-  isWaitingConfirm = (sessionId: string): boolean =>
-    this.watches.isWaiting(sessionId);
+  isWaitingConfirm = (sessionId: string): boolean => this.watches.isWaiting(sessionId);
 
   resetActivityWatchForTest(): void {
     this.watches.resetActivityWatchForTest();
   }
 
-  getOutputBuffer(sessionId: string): string {
-    return this.watches.getOutputBuffer(sessionId);
-  }
+  getOutputBuffer(sessionId: string): string { return this.watches.getOutputBuffer(sessionId); }
 
-  getOutputBufferBytes(sessionId: string): number {
-    return this.watches.getOutputBufferBytes(sessionId);
-  }
+  getOutputBufferBytes(sessionId: string): number { return this.watches.getOutputBufferBytes(sessionId); }
 
   /** 窗口聚焦态馈入(main.tsx 挂 focus/blur):重聚焦即视激活会话为已读(蓝灯让位)。 */
   setWindowFocus(focused: boolean): void {
@@ -280,7 +278,6 @@ class Host implements PluginContext {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
   };
-
   private version = 0;
   getVersion = (): number => this.version;
 
