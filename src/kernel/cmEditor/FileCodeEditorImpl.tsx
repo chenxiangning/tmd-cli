@@ -11,6 +11,7 @@
 
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { Extension } from "@codemirror/state";
+import type { EditorView } from "@codemirror/view";
 import { t } from "@kernel/i18n";
 import { useEditorExtensionFactories } from "@kernel/editorExtensions";
 import { loadCmLanguage } from "./cmLanguage";
@@ -20,11 +21,13 @@ import { loadCmTheme } from "./cmTheme";
    首次真正挂载编辑器时进网络,与 loadCmLanguage/loadCmTheme 同策略)。 */
 const CodeMirror = lazy(() => import("@uiw/react-codemirror").then((m) => ({ default: m.default })));
 
-/** 基础键位扩展(Mod-s 保存 + Tab 缩进):与 CodeMirror 全家同批动态加载。 */
+/** 基础键位 + 编辑器内查找扩展(Mod-s 保存 / Tab 缩进 / Mod-f 查找面板):
+ * 与 CodeMirror 全家同批动态加载;@uiw basicSetup 不含搜索,显式补。 */
 async function loadBaseExts(onSave: () => void): Promise<Extension[]> {
-  const [{ keymap }, { indentWithTab }] = await Promise.all([
+  const [{ keymap }, { indentWithTab }, { search, openSearchPanel }] = await Promise.all([
     import("@codemirror/view"),
     import("@codemirror/commands"),
+    import("@codemirror/search"),
   ]);
   return [
     keymap.of([
@@ -36,7 +39,9 @@ async function loadBaseExts(onSave: () => void): Promise<Extension[]> {
         },
       },
       indentWithTab,
+      { key: "Mod-f", run: openSearchPanel },
     ]),
+    search({ top: true }),
   ];
 }
 
@@ -46,6 +51,10 @@ export interface FileCodeEditorProps {
   dark: boolean;
   /** 只读(远程 WSL 文件等无写回通道的场景);缺省可编辑。 */
   readOnly?: boolean;
+  /** 定位行(1 基;变化时滚动+选中该行,全文搜索命中跳转用)。 */
+  revealLine?: number | null;
+  /** 定位序号:同值行号的重复命中靠它打破 React bail-out 重新定位。 */
+  revealSeq?: number;
   onChange: (value: string) => void;
   onSave: () => void;
 }
@@ -55,6 +64,8 @@ export default function FileCodeEditorImpl({
   value,
   dark,
   readOnly = false,
+  revealLine,
+  revealSeq = 0,
   onChange,
   onSave,
 }: FileCodeEditorProps) {
@@ -62,12 +73,42 @@ export default function FileCodeEditorImpl({
   const [themeExts, setThemeExts] = useState<Extension[]>([]);
   const [baseExts, setBaseExts] = useState<Extension[]>([]);
   const [pluginExts, setPluginExts] = useState<readonly Extension[]>([]);
+  const editorViewRef = useRef<EditorView | null>(null);
   const extFactories = useEditorExtensionFactories();
   /* saveRef 模式(codemoss 同款):异步键位扩展持有 ref,同时总调最新回调。 */
   const saveRef = useRef(onSave);
   useEffect(() => {
     saveRef.current = onSave;
   });
+
+  /* 行定位:视图可能晚于 revealLine 就绪(异步 chunk),onCreateEditor 补一次
+     消费;两处共用同一实现(CM 模块此场景已在缓存,import 即时)。 */
+  const revealLineRef = useRef<number | null>(revealLine ?? null);
+  useEffect(() => {
+    /* 渲染期不写 ref(react-doctor):prop → ref 同步收敛到 effect。 */
+    revealLineRef.current = revealLine ?? null;
+  }, [revealLine]);
+  const revealEditorLine = async (view: EditorView, lineNo: number): Promise<void> => {
+    const [stateMod, viewMod] = await Promise.all([
+      import("@codemirror/state"),
+      import("@codemirror/view"),
+    ]);
+    const clamped = Math.min(Math.max(lineNo, 1), view.state.doc.lines);
+    const pos = view.state.doc.line(clamped).from;
+    view.dispatch({
+      selection: stateMod.EditorSelection.cursor(pos),
+      effects: viewMod.EditorView.scrollIntoView(pos, { y: "center" }),
+    });
+    view.focus();
+  };
+  useEffect(() => {
+    const view = editorViewRef.current;
+    const lineNo = revealLineRef.current;
+    if (view && lineNo) {
+      void revealEditorLine(view, lineNo);
+    }
+    /* revealSeq 只是重触发信号(同值行号的重复定位),不进函数体。 */
+  }, [revealLine, revealSeq]);
 
   /* 语言包懒加载:首次打开该类型文件才拉 chunk;切换语言失败降级纯文本。 */
   useEffect(() => {
@@ -133,6 +174,13 @@ export default function FileCodeEditorImpl({
       /* theme="none":关掉 @uiw 内置明暗主题,配色全走 cmEditorTheme(--tmd token) */
       theme="none"
       extensions={[...themeExts, ...baseExts, ...langExts, ...pluginExts]}
+      onCreateEditor={(view) => {
+        editorViewRef.current = view;
+        const lineNo = revealLineRef.current;
+        if (lineNo) {
+          void revealEditorLine(view, lineNo);
+        }
+      }}
       height="100%"
       basicSetup={{
         lineNumbers: true,

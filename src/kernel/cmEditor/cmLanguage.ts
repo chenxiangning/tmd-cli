@@ -50,6 +50,56 @@ function loadByExt(ext: string): Promise<Extension[]> {
       return import("@codemirror/lang-python").then(({ python }) => [python()]);
     case "rs":
       return import("@codemirror/lang-rust").then(({ rust }) => [rust()]);
+    case "c":
+    case "h":
+      return import("@codemirror/lang-cpp").then(({ cpp }) => [cpp()]);
+    case "cc":
+    case "cpp":
+    case "cxx":
+    case "hpp":
+    case "hh":
+    case "hxx":
+      return import("@codemirror/lang-cpp").then(({ cpp }) => [cpp()]);
+    case "go":
+      return import("@codemirror/lang-go").then(({ go }) => [go()]);
+    case "java":
+      return import("@codemirror/lang-java").then(({ java }) => [java()]);
+    case "php":
+      return import("@codemirror/lang-php").then(({ php }) => [
+        php({ plain: false }),
+      ]);
+    case "sql":
+      return import("@codemirror/lang-sql").then(({ sql }) => [sql()]);
+    case "rb":
+    case "ruby":
+    case "gemfile":
+      return Promise.all([
+        import("@codemirror/language"),
+        import("@codemirror/legacy-modes/mode/ruby"),
+      ]).then(([{ StreamLanguage }, { ruby }]) => [StreamLanguage.define(ruby)]);
+    case "sh":
+    case "bash":
+    case "zsh":
+    case "fish":
+      return Promise.all([
+        import("@codemirror/language"),
+        import("@codemirror/legacy-modes/mode/shell"),
+      ]).then(([{ StreamLanguage }, { shell }]) => [StreamLanguage.define(shell)]);
+    case "swift":
+      return Promise.all([
+        import("@codemirror/language"),
+        import("@codemirror/legacy-modes/mode/swift"),
+      ]).then(([{ StreamLanguage }, { swift }]) => [StreamLanguage.define(swift)]);
+    case "toml":
+      return Promise.all([
+        import("@codemirror/language"),
+        import("@codemirror/legacy-modes/mode/toml"),
+      ]).then(([{ StreamLanguage }, { toml }]) => [StreamLanguage.define(toml)]);
+    case "r":
+      return Promise.all([
+        import("@codemirror/language"),
+        import("@codemirror/legacy-modes/mode/r"),
+      ]).then(([{ StreamLanguage }, { r }]) => [StreamLanguage.define(r)]);
     case "xml":
     case "svg":
       return import("@codemirror/lang-xml").then(({ xml }) => [xml()]);
