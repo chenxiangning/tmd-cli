@@ -190,6 +190,11 @@ export function pendingMarks(cwd: string): Mark[] {
   return marksOf(cwd).filter((m) => m.state === "pending");
 }
 
+/** 已入对话(芯片条)标记,发送时注入 wire 并翻 sent。 */
+export function stagedMarks(cwd: string): Mark[] {
+  return marksOf(cwd).filter((m) => m.state === "staged");
+}
+
 export function toggleExpanded(id: string): void {
   state.expandedIds = state.expandedIds.includes(id)
     ? state.expandedIds.filter((expanded) => expanded !== id)

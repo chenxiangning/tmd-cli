@@ -8,10 +8,8 @@
  */
 
 import type { EditorView, WidgetType } from "@codemirror/view";
-import { insertIntoComposer } from "@kernel/composerInsertBridge";
 import { getActiveWorkspace } from "@kernel/workspace";
 import type { MarkState } from "./anchor";
-import { serializeMark } from "./sendTransform";
 import {
   addMark,
   removeMark,
@@ -33,6 +31,7 @@ export interface MarkRuntime {
 
 export const STATE_COLOR: Record<MarkState, string> = {
   pending: "var(--tmd-warn)",
+  staged: "var(--tmd-warn)",
   sent: "var(--tmd-accent)",
   drifted: "var(--tmd-warn)",
   lost: "var(--tmd-err)",
@@ -40,6 +39,7 @@ export const STATE_COLOR: Record<MarkState, string> = {
 
 const STATE_LABEL: Record<MarkState, string> = {
   pending: "待发送",
+  staged: "已入对话",
   sent: "已发送",
   drifted: "漂移已重定位",
   lost: "失联",
@@ -96,7 +96,7 @@ export function createMarkWidgets(cm: { WidgetType: typeof WidgetType }) {
         <textarea rows="2" class="w-full resize-y rounded-md border border-(--tmd-border) bg-(--tmd-bg-base) p-1.5 text-xs text-(--tmd-fg) outline-none focus:border-(--tmd-accent)" placeholder="写标注,随引用发送到对话…"></textarea>
         <div class="mt-1 flex items-center gap-1.5">
           <button type="button" data-op="send" class="cursor-pointer rounded-md border px-2 py-px" style="border-color:${color};color:${color}">${
-            mark.state === "pending" ? "⚑ 发送到对话" : "↩ 重发"
+            mark.state === "pending" ? "⚑ 发送到对话" : mark.state === "staged" ? "✓ 已入对话" : "↩ 重发"
           }</button>
           <button type="button" data-op="collapse" class="cursor-pointer rounded-md border border-(--tmd-border) px-2 py-px text-(--tmd-fg-muted)">收起 ▴</button>
           <button type="button" data-op="remove" class="ml-auto cursor-pointer rounded-md border border-(--tmd-border) px-2 py-px text-(--tmd-err)">移除</button>
@@ -117,18 +117,9 @@ export function createMarkWidgets(cm: { WidgetType: typeof WidgetType }) {
       root.querySelector('[data-op="send"]')?.addEventListener("click", () => {
         const cwd = cwdRoot();
         if (!cwd) return;
-        /* 发送到对话 = 引用块写进 composer 草稿(可见可改)+ 翻 sent;
-           sendTransform 只带 pending,手动插入的不会二次注入 */
-        insertIntoComposer(
-          serializeMark({
-            path: mark.path ?? "",
-            startLine: mark.startLine,
-            endLine: mark.endLine,
-            note: mark.note,
-            excerpt: mark.excerpt ?? "",
-          }),
-        );
-        setMarkState(cwd, mark.id, "sent");
+        /* 发送到对话 = 翻 staged(composer 芯片条可见,发送时 transform 注入 wire);
+           staged 再点 = 撤回 pending;sent 再点 = ↩ 重发回 staged */
+        setMarkState(cwd, mark.id, mark.state === "staged" ? "pending" : "staged");
       });
       return root;
     }

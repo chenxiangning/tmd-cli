@@ -12,8 +12,9 @@
  */
 
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { t } from "@kernel/i18n";
-import { requestFileMark, subscribeFileMarks, type FileMarkMap } from "../markBridge";
+
+import { subscribeFileMarks, type FileMarkMap } from "../markBridge";
+import { PreviewMarkControls } from "./previewMarks";
 import type ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -199,11 +200,11 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
 
   const [markMap, setMarkMap] = useState<FileMarkMap>({});
   useEffect(() => subscribeFileMarks(setMarkMap), []);
+  const [openMarkBlock, setOpenMarkBlock] = useState<string | null>(null);
   const fileMarks = useMemo(
     () => (sourceFilePath ? (markMap[sourceFilePath] ?? []) : []),
     [markMap, sourceFilePath],
   );
-
   return (
     <div className="fvp-markdown-preview-frame">
       {outline.length > 0 && (
@@ -248,37 +249,23 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
             </section>
           ) : null}
           {visibleMarkdownBlocks.map((block) => {
-            const markCount = fileMarks.filter(
+            const blockMarks = fileMarks.filter(
               (mark) => mark.startLine <= block.endLine && mark.endLine >= block.startLine,
-            ).length;
+            );
             return (
               <div
                 key={block.key}
-                className={`group/mark relative ${markCount > 0 ? "shadow-[inset_2px_0_0_var(--tmd-warn)]" : ""}`}
+                className={`group/mark relative ${blockMarks.length > 0 ? "shadow-[inset_2px_0_0_var(--tmd-warn)]" : ""}`}
               >
-                {markCount > 0 ? (
-                  <span
-                    className="absolute -left-0.5 top-0 z-10 rounded-full bg-(--tmd-warn) px-1 text-[0.6rem] leading-3 text-(--tmd-bg-base)"
-                    title={t("此处已有标记")}
-                  >
-                    ⚑{markCount}
-                  </span>
-                ) : null}
-                <button
-                  type="button"
-                  title={t("标记此块,随下次发送带上")}
-                  className="absolute left-0 top-0 z-10 -translate-x-full cursor-pointer rounded-md border border-(--tmd-warn) bg-(--tmd-bg-base) px-1 text-[0.65rem] text-(--tmd-warn) opacity-0 transition-opacity group-hover/mark:opacity-100"
-                  onClick={() => {
-                    if (!sourceFilePath) return;
-                    requestFileMark({
-                      path: sourceFilePath,
-                      startLine: block.startLine,
-                      endLine: block.endLine,
-                    });
-                  }}
-                >
-                  ⚑
-                </button>
+                <PreviewMarkControls
+                  sourceFilePath={sourceFilePath}
+                  startLine={block.startLine}
+                  endLine={block.endLine}
+                  blockKey={block.key}
+                  blockMarks={blockMarks}
+                  open={openMarkBlock === block.key}
+                  onToggle={setOpenMarkBlock}
+                />
                 <BlockMarkdown
                   blockKey={block.key}
                   markdown={block.markdown}

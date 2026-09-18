@@ -159,4 +159,7 @@
 | 2026-09-18 | [文件标记 × 对话框原型 方案 D:行间锚点 + 全局标记中心(跨文件聚合发送,sidecar 零写入 + 指纹锚定)](design/file-mark-composer-d.html) | 设计原型(已拍板) |
 | 2026-09-18 | [文件标记(file-marks)设计 spec:插件化 + 两条 kernel 宿主注册契约](superpowers/specs/2026-09-18-file-marks-design.md) | 已定稿(council 两席 + 父裁决,实施启动) |
 | 2026-09-18 | [会话状态轮询性能批次一提案:尾读尺寸闸 + configHomeDir 进程 memo(含原设计校准矩阵)](../openspec/changes/2026-09-18-perf-status-poll/proposal.md) | 实施中(同批含平铺门控修复 0f6131e 与扫描读头缓存 4e859fd) |
+| 2026-09-18 | [会话用量可见性设计 spec(本地 JSONL token 四元组 + cache 命中率 + 行徽标/详情弹层;pi/omp 透传自带 cost)](superpowers/specs/2026-09-18-session-usage-visibility-design.md) | 草案(设计推演,未排期) |
+| 2026-09-18 | [会话用量可见性交互原型(侧栏行徽标 + 看板角标 + 用量详情弹层;真实采样数据)](design/session-usage-visibility.html) | 设计原型(配套上 spec) |
+| 2026-09-18 | [yn(Yank Note)能力复刻:md 渲染提速 + 代码渲染 + 全文搜索/快开](superpowers/specs/2026-09-18-yn-replicate-md-render-code-search-design.md) | 已定稿(照抄逻辑不抄代码:AGPL/MIT 裁决;实施中) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

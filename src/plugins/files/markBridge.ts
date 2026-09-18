@@ -16,8 +16,18 @@ export interface FileMarkRequest {
 }
 
 export interface FileMarkLite {
+  id: string;
   startLine: number;
   endLine: number;
+  note: string;
+  state: "pending" | "staged" | "sent" | "drifted" | "lost";
+}
+
+/** 预览卡片动作(marks 侧处理):移除 / 发送到对话(staged)/ 改标注。 */
+export interface FileMarkAction {
+  id: string;
+  op: "remove" | "stage" | "note";
+  note?: string;
 }
 
 export type FileMarkMap = Record<string, FileMarkLite[] | undefined>;
@@ -38,6 +48,11 @@ export function setFileMarkBus(next: PluginEventBus): void {
 /** 预览块 ⚑ 点击:请求落锚(marks 侧读文件内容做指纹)。 */
 export function requestFileMark(req: FileMarkRequest): void {
   bus?.emit<FileMarkRequest>("file-mark:request", req);
+}
+
+/** 预览卡片动作发射(marks 侧订阅处理)。 */
+export function emitFileMarkAction(action: FileMarkAction): void {
+  bus?.emit<FileMarkAction>("file-mark:action", action);
 }
 
 /** 预览组件订阅;立即回放当前缓存(激活序竞态免疫)。 */

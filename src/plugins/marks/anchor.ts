@@ -13,8 +13,8 @@ export interface MarkFingerprint {
   context: string;
 }
 
-/** 待发送 → 已发送;重定位:漂移(已重定位)/ 失联。 */
-export type MarkState = "pending" | "sent" | "drifted" | "lost";
+/** 待发送 → 已入对话(芯片条,发送随消息注入)→ 已发送;重定位:漂移 / 失联。 */
+export type MarkState = "pending" | "staged" | "sent" | "drifted" | "lost";
 
 export interface Mark {
   id: string;

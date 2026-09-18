@@ -15,8 +15,9 @@ import { t } from "@kernel/i18n";
 import type { Plugin } from "@kernel/plugin";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { MarksPanel } from "./panel";
-import { addMark, loadAllMarks, marksSnapshot, subscribeMarks } from "./store";
+import { addMark, loadAllMarks, marksSnapshot, removeMark, setMarkState, subscribeMarks, updateNote } from "./store";
 import { marksSendTransform } from "./sendTransform";
+import { MarksComposerChips } from "./chips";
 import { marksLinkProvider } from "./terminalLink";
 import { marksEditorExtension } from "./editorExtension";
 
@@ -26,7 +27,14 @@ interface FileMarkRequest {
   startLine: number;
   endLine: number;
 }
-type FileMarkMap = Record<string, { startLine: number; endLine: number }[] | undefined>;
+type FileMarkLite = { id: string; startLine: number; endLine: number; note: string; state: string };
+type FileMarkMap = Record<string, FileMarkLite[] | undefined>;
+/** 预览卡片动作(remove/stage/note)。 */
+interface FileMarkAction {
+  id: string;
+  op: "remove" | "stage" | "note";
+  note?: string;
+}
 
 /** 预览落锚:读文件内容做指纹(marks 侧持有锚定知识,预览只报行号)。 */
 async function handleMarkRequest(req: FileMarkRequest): Promise<void> {
@@ -49,7 +57,13 @@ function liteMarkMap(): FileMarkMap {
   const out: FileMarkMap = {};
   for (const marks of Object.values(snap.byCwd)) {
     for (const mark of marks) {
-      (out[mark.path] ??= []).push({ startLine: mark.startLine, endLine: mark.endLine });
+      (out[mark.path] ??= []).push({
+        id: mark.id,
+        startLine: mark.startLine,
+        endLine: mark.endLine,
+        note: mark.note,
+        state: mark.state,
+      });
     }
   }
   return out;
@@ -77,6 +91,7 @@ export const marksPlugin: Plugin = {
     });
     /* 老用户 persisted 钉住清单里没有 marks,会落 ⋯ 溢出菜单不可见 —— 一次性补钉 */
     ensurePanelPinned("marks");
+    ctx.contribute("composer.attachments", { component: MarksComposerChips });
     const offs = [
       ctx.registerEditorExtension(marksEditorExtension),
       ctx.registerTerminalLinkProvider(marksLinkProvider),
@@ -86,6 +101,13 @@ export const marksPlugin: Plugin = {
     offs.push(
       ctx.events.on<FileMarkRequest>("file-mark:request", (req) => {
         void handleMarkRequest(req);
+      }),
+      ctx.events.on<FileMarkAction>("file-mark:action", (action) => {
+        const cwd = getActiveWorkspace()?.root;
+        if (!cwd) return;
+        if (action.op === "remove") removeMark(cwd, action.id);
+        else if (action.op === "stage") setMarkState(cwd, action.id, "staged");
+        else if (action.op === "note" && action.note !== undefined) updateNote(cwd, action.id, action.note);
       }),
     );
     const emitChanged = () => ctx.events.emit<FileMarkMap>("file-mark:changed", liteMarkMap());

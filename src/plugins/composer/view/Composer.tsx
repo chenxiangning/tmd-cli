@@ -39,8 +39,7 @@ import { useComposerDrawer } from "./useComposerDrawer";
 import { composerSendRef } from "./composerSendRef";
 import { PromptGhostMirror } from "./PromptGhostMirror";
 import { useComposerSend } from "./useComposerSend";
-import { composerInsertRef } from "@kernel/composerInsertBridge";
-import { insertAtCursor } from "./useComposerAttachments";
+
 import { usePromptCompletion, usePromptHistoryNav } from "./usePromptHistory";
 import { composerTextareaKeyDown } from "./composerTextareaKeys";
 import { SuggestionPortal, PreviewOverlay } from "./composerOverlays";
@@ -103,14 +102,9 @@ export function Composer() {
   useEffect(() => {
     composerSendRef.current = () => sendCurrent();
     composerWakeRef.current = wakeTrigger;
-    composerInsertRef.current = (text) => {
-      if (ref.current) insertAtCursor(ref.current, value, setValue, setCursor, text);
-      ref.current?.focus();
-    };
     return () => {
       composerSendRef.current = null;
       composerWakeRef.current = null;
-      composerInsertRef.current = null;
     };
   });
 
@@ -145,7 +139,10 @@ export function Composer() {
       >
         <Mounts point="composer.statusBar" />
         {!inputHidden && (
+        <>
         <AttachmentStrip onRemove={removeTokenForAttachment} onPreviewImage={(a) => setPreviewSrc(a.previewDataUrl || a.thumbDataUrl)} />
+        <Mounts point="composer.attachments" />
+        </>
         )}
         <SuggestionPortal
           matches={matches}

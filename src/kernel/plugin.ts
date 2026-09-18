@@ -89,6 +89,8 @@ export type MountPoint =
   | "editorCenter.composer"
   /** composer 输入区右缘竖向图标列(assets 唤醒入口等)。 */
   | "composer.inputRail"
+  /** composer 附件条区域(输入区上方):可交互附件/引用芯片条(marks 引用芯片等)。 */
+  | "composer.attachments"
   /** composer 底部状态条(+ 模型/能力/发送)。 */
   | "composer.statusBar"
   /** 插件市场页「本地插件」分区(管理 UI 归 local-loader 插件贡献,kernel 不染业务)。 */

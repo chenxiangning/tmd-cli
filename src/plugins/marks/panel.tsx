@@ -8,11 +8,12 @@ import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
 import type { Mark, MarkState } from "./anchor";
 import { removeMark, setMarkState, toggleExpanded, updateNote, useMarksState } from "./store";
-import { sendMarksToComposer } from "./sendTransform";
+import { stageMarks } from "./sendTransform";
 import { openAndReveal } from "./terminalLink";
 
 const STATE_COLOR: Record<MarkState, string> = {
   pending: "text-(--tmd-warn)",
+  staged: "text-(--tmd-warn)",
   sent: "text-(--tmd-accent)",
   drifted: "text-(--tmd-warn)",
   lost: "text-(--tmd-err)",
@@ -20,6 +21,7 @@ const STATE_COLOR: Record<MarkState, string> = {
 
 const STATE_LABEL: Record<MarkState, string> = {
   pending: "待发送",
+  staged: "已入对话",
   sent: "已发送",
   drifted: "漂移已重定位",
   lost: "失联",
@@ -134,7 +136,7 @@ export function MarksPanel() {
           <button
             type="button"
             className="ml-auto cursor-pointer rounded-md border border-(--tmd-accent) px-1.5 py-px text-(--tmd-accent) hover:bg-(--tmd-bg-hover)"
-            onClick={() => sendMarksToComposer(root, marks.filter((mark) => mark.state === "pending"))}
+            onClick={() => stageMarks(root, marks.filter((mark) => mark.state === "pending"))}
           >
             {t(`⚑ 发送全部 (${pendingCount})`)}
           </button>
@@ -163,7 +165,7 @@ export function MarksPanel() {
                   type="button"
                   className="ml-auto shrink-0 cursor-pointer rounded-md border border-(--tmd-border) px-1 py-px text-[0.65rem] text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
                   onClick={() =>
-                    sendMarksToComposer(root, group.filter((mark) => mark.state === "pending"))
+                    stageMarks(root, group.filter((mark) => mark.state === "pending"))
                   }
                 >
                   {t("发送本文件")}
