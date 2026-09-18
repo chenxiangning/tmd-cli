@@ -155,6 +155,7 @@
 | 2026-09-17 | [Web 远程访问桥 M1/M2 契约:transport 继承 R3 / event_sink 双扇出 / 命令镜像与信任模型 / 停机语义 / /file 允许制 / LAN 绑定 / 中继链路](architecture/12-web-remote-access.md) | 生效中(改 web 域/transport/event_sink/relay 前必读;含 18 笔整体 review 决策) |
 | 2026-09-17 | [本地 18 笔整体 code review(git 双栏/web 桥/kernel 状态/看板四域;P1×1 + P2×7 全修)](review/2026-09-17-18-commits-global-review.md) | 已完成(修复随本批提交;门禁全绿 react-doctor 100) |
 | 2026-09-18 | [编辑器扩展与终端链接宿主契约](architecture/13-editor-extensions-terminal-links.md) | 生效中(改 marks / CM 扩展注入 / 幕布链接前必读;原 11 号与壁纸撞号,09-19 改 13) |
+| 2026-09-19 | [LSP 语义跳转契约(分层/会话续期与断连自愈/交互手势/peek 面板)](architecture/14-lsp-semantic-nav.md) | 生效中(改 lsp 插件/语义跳转前必读) |
 | 2026-09-18 | [双栏 diff 折叠焦点设计(全文态 context 段胶囊就地展开,N4 原型落地)](superpowers/specs/2026-09-18-split-diff-n4-collapse-focus-design.md) | 已落地(commit c126047;评审收口 UX 路:spec 补盘 + 双胶囊读屏去重) |
 | 2026-09-18 | [文件标记 × 对话框交互原型 ×3(A 行间锚点 / B 右侧标注面板 / C 选区即引用)](design/file-mark-composer-a.html) | 设计原型(三选一待拍板;B/C 见同目录 -b/-c) |
 | 2026-09-18 | [文件标记 × 对话框原型 方案 D:行间锚点 + 全局标记中心(跨文件聚合发送,sidecar 零写入 + 指纹锚定)](design/file-mark-composer-d.html) | 设计原型(已拍板) |
@@ -167,4 +168,5 @@
 | 2026-09-19 | [代码符号跳转与引用(cmd/ctrl+click)调研:yn 实证 + 多语言语义路线(LSP)](research/code-symbol-references.md) | 调研底稿(方向已定:yn 本就是语义引用;用户拍板弃字面,一步到位 LSP 语义通道) |
 | 2026-09-19 | [代码符号语义跳转与引用(LSP 通道)设计:cmd/ctrl+click 定义/引用 peek](superpowers/specs/2026-09-19-lsp-semantic-navigation-design.md) | 已落地(c11c29c;TS7 探活分叉回填 112f971;桩目检六场景 + tsgo 真机冒烟全绿) |
 | 2026-09-19 | [LSP 语义跳转交互增强(二轮):手势反馈 / peek 面板 / hover 渲染](superpowers/specs/2026-09-19-lsp-interaction-enhancement-design.md) | 已批准,实施中(P1 空闲失效/F12 泄漏/防陈旧修复 + cmd+hover 链接态 + peek 键盘导航 + hover markdown) |
+| 2026-09-19 | [会话卫生清扫设计:超期(默认24h)自动归档 + 空会话删除,挂磁盘扫描结算点零轮询](superpowers/specs/2026-09-19-session-hygiene-auto-archive-design.md) | 已批准,实施中 |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
