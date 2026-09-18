@@ -13,7 +13,7 @@
 
 import { ipc } from "@kernel/ipc";
 import type { CliDiskSession, CliProfile, CliSessionStatus } from "@kernel/cli";
-import { readHeadSessionMeta } from "./diskSessions";
+import { readHeadSessionMetaCached } from "./diskSessions";
 import { qoderUserMessageLine, readUserMessagesFromFile } from "./userMessages";
 import { parseClaudeFamilySessionHead } from "./sessionIdentity";
 
@@ -70,7 +70,7 @@ export async function listQoderSessions(
       const m = f.name.match(/^([0-9a-f-]{36})\.jsonl$/);
       if (!m) return [];
       return [
-        readHeadSessionMeta(f.path).then((meta) => ({
+        readHeadSessionMetaCached(f.path, f.modifiedAt).then((meta) => ({
           id: m[1],
           modifiedAt: f.modifiedAt,
           createdAt: meta.createdAt,

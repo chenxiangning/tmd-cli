@@ -12,7 +12,7 @@ import { listClaudeSuggestions } from "./scanSuggestions";
 import { claudeConfigEntry } from "./configGui";
 import { applyClaudeChannel } from "./channelApply";
 import { ProviderChannelsCard } from "@plugins/cli-shared/providerChannels";
-import { readHeadSessionMeta } from "../cli-shared/diskSessions";
+import { readHeadSessionMetaCached } from "../cli-shared/diskSessions";
 /**
  * claude 品牌 glyph:官方日芒标志(simple-icons claude 矢量路径 vendored,
  * 与 omp/codex glyph 同源策略),品牌橙 #D97757、viewBox 0 0 24 24 官方一致。
@@ -66,7 +66,7 @@ async function listClaudeSessions(cwd: string): Promise<CliDiskSession[]> {
          一次读头双解析(身份自证窗 ⊂ 标题浅窗):标题 + createdAt(创建时刻定死看板日历落位),
          比对「标题一读 + 身份一读」每文件省一次 IPC。 */
       return [
-        readHeadSessionMeta(f.path).then((meta) => ({
+        readHeadSessionMetaCached(f.path, f.modifiedAt).then((meta) => ({
           id: m[1],
           modifiedAt: f.modifiedAt,
           createdAt: meta.createdAt,

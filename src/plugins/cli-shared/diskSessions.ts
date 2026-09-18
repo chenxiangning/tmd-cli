@@ -168,8 +168,49 @@ export async function readHeadSessionMeta(
   return { title, createdAt: identity?.createdAt };
 }
 
+/**
+ * 读头缓存:重扫的 IO 主项是每文件读头(库内数千文件时一次全扫 = 数十 MB IPC 读),
+ * 而读头内容是 append-only 日志的出生段(身份/标题/首条用户消息),落盘后不再变化
+ * —— mtime 未变即复用上次解析产物,重扫收敛为 1 次 fs_collect_files + 仅新/变文件读头。
+ * 仅缓存解析出非空结果的文件:尚无标题的文件每轮重读,追赶自动命名落盘(与
+ * workspace 退避补扫同语义);读失败的旧条目一并丢弃。上限防旁路消费者
+ * (claude/qoder 自有 list 循环)目录无限增长泄漏。
+ */
+const HEAD_CACHE_MAX = 8192;
+const headCache = new Map<string, { mtime: number; title?: string; createdAt?: number }>();
+
+/** 读头取标题 + 创建时刻,带 mtime 缓存(见 headCache 注)。mtime 以 fs_collect_files
+ *  的 FileStamp 为准,调用方必须持戳调用;裸路径请用 readHeadSessionMeta。 */
+export function readHeadSessionMetaCached(
+  path: string,
+  mtime: number,
+): Promise<{ title?: string; createdAt?: number }> {
+  const cached = headCache.get(path);
+  if (cached && cached.mtime === mtime) {
+    return Promise.resolve({ title: cached.title, createdAt: cached.createdAt });
+  }
+  return readHeadSessionMeta(path).then((meta) => {
+    if (meta.title !== undefined || meta.createdAt !== undefined) {
+      if (headCache.size >= HEAD_CACHE_MAX) {
+        const oldest = headCache.keys().next().value;
+        if (oldest !== undefined) headCache.delete(oldest);
+      }
+      headCache.set(path, { mtime, title: meta.title, createdAt: meta.createdAt });
+    } else {
+      headCache.delete(path);
+    }
+    return meta;
+  });
+}
+
 export async function scanJsonlSessions(dir: string): Promise<CliDiskSession[]> {
   const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
+  /* 缓存剪除:本目录已消失的文件条目;其他目录的条目归旁路消费者,不动。 */
+  const prefix = dir.endsWith("/") || dir.endsWith("\\") ? dir : dir + "/";
+  const live = new Set(files.map((f) => f.path));
+  for (const p of [...headCache.keys()]) {
+    if (p.startsWith(prefix) && !live.has(p)) headCache.delete(p);
+  }
   /* 读头彼此独立,并发一次发出:会话库几百个文件时顺序 await 是可感知的卡顿源。 */
   const sessions = await Promise.all(
     files.map(async (f) => {
@@ -178,8 +219,8 @@ export async function scanJsonlSessions(dir: string): Promise<CliDiskSession[]> 
       const id = m?.[1];
       if (!id) return null;
       /* 一次读头双解析:标题 + 创建时刻(定死看板日历落位;此前 createdAt 缺位,
-         resume 刷 mtime 卡片跳日)。 */
-      const meta = await readHeadSessionMeta(f.path);
+         resume 刷 mtime 卡片跳日)。mtime 未变走缓存,重扫免读头。 */
+      const meta = await readHeadSessionMetaCached(f.path, f.modifiedAt);
       const session: CliDiskSession = { id, modifiedAt: f.modifiedAt, createdAt: meta.createdAt, path: f.path, title: meta.title };
       return session;
     }),
