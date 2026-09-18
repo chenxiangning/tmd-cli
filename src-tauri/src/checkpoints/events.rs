@@ -20,8 +20,9 @@
 //! 3. 都不可知 = 真新建(A)。
 
 use super::{
-    append_ledger, entry_in_session, load_ledger, lock_ledger, now_millis, open_sidecar, open_user,
-    resolve_snap_bytes, write_sidecar_blob, CkptError, LedgerEntry, TurnFile,
+    append_ledger, backfill_identity, entry_in_session, load_ledger, lock_ledger, now_millis,
+    open_sidecar, open_user, resolve_snap_bytes, write_sidecar_blob, CkptError, LedgerEntry,
+    TurnFile,
 };
 use std::fs;
 
@@ -51,7 +52,13 @@ pub fn record_edit(
     };
     let path = path.as_str();
     let _g = lock_ledger();
-    let entries = load_ledger(cwd);
+    let mut entries = load_ledger(cwd);
+    // 绑定迟到自愈:首条锚点常落在 CLI 磁盘身份绑定之前(以 tmd id 记账),
+    // 回填若只挂在 captureAnchor,用户改在终端直打 prompt(无 promptSent)
+    // 时回填永不触发 —— 会话断裂/resume 换 tmd id 后,链按旧 tmd id 成孤儿,
+    // 新会话按 (cli id, 新 tmd id) 双键全脱靶,审批线空(2026-09-19 omp
+    // glm-5.3 会话实证)。任一写入事件抵达即回填,绑定落地后链归位 cli id。
+    backfill_identity(cwd, &mut entries, session_id, tmd_session_id)?;
     let Some(anchor) = entries
         .iter()
         .filter(|e| e.kind == "anchor" && entry_in_session(e, session_id, tmd_session_id))
