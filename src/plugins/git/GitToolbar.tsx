@@ -81,6 +81,21 @@ export function GitToolbar() {
 
   return (
     <div className="flex shrink-0 items-center gap-0.5 whitespace-nowrap border-b border-(--tmd-border) px-2 py-1">
+      {totals && (
+        <span
+          title={t("聚合增删行数(staged + 未暂存;多仓 = 选中仓口径)")}
+          className="mr-auto shrink-0 whitespace-nowrap pl-1"
+        >
+          <span className="text-(--tmd-diff-inserted)">
+            +{totals.insertions.toLocaleString("en-US")}
+          </span>
+          <span className="mx-1 text-(--tmd-fg-faint)">/</span>
+          <span className="text-(--tmd-diff-removed)">
+            -{totals.deletions.toLocaleString("en-US")}
+          </span>
+          <span className="ml-1.5 text-(--tmd-fg-muted)">{aggregate.fileCount}</span>
+        </span>
+      )}
       <button
         type="button"
         onClick={(e) => toggleMenu("view", e)}
@@ -107,21 +122,6 @@ export function GitToolbar() {
       >
         <ArrowsDownUp className="h-[0.75rem] w-[0.75rem]" aria-hidden />
       </button>
-      {totals && (
-        <span
-          title={t("聚合增删行数(staged + 未暂存;多仓 = 选中仓口径)")}
-          className="ml-auto shrink-0 whitespace-nowrap"
-        >
-          <span className="text-(--tmd-diff-inserted)">
-            +{totals.insertions.toLocaleString("en-US")}
-          </span>
-          <span className="mx-1 text-(--tmd-fg-faint)">/</span>
-          <span className="text-(--tmd-diff-removed)">
-            -{totals.deletions.toLocaleString("en-US")}
-          </span>
-          <span className="ml-1.5 text-(--tmd-fg-muted)">{aggregate.fileCount}</span>
-        </span>
-      )}
       {menu?.kind === "view" && (
         <MenuShell position={menu.pos} width={MENU_WIDTH.view} onClose={closeMenu}>
           {(Object.keys(VIEW_LABEL) as GitViewMode[]).map((v) => {
