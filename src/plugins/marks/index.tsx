@@ -10,10 +10,10 @@
 import { BookmarkSimple } from "@phosphor-icons/react";
 import { registerComposerSendTransform } from "@kernel/composerExt";
 import { ipc } from "@kernel/ipc";
-import { ensurePanelPinned } from "@kernel/filePanel";
 import { t } from "@kernel/i18n";
 import type { Plugin } from "@kernel/plugin";
 import { getActiveWorkspace } from "@kernel/workspace";
+import type { MarkState } from "./anchor";
 import { MarksPanel } from "./panel";
 import { addMark, loadAllMarks, marksSnapshot, removeMark, setMarkState, subscribeMarks, updateNote } from "./store";
 import { marksSendTransform } from "./sendTransform";
@@ -27,7 +27,7 @@ interface FileMarkRequest {
   startLine: number;
   endLine: number;
 }
-type FileMarkLite = { id: string; startLine: number; endLine: number; note: string; state: string };
+type FileMarkLite = { id: string; startLine: number; endLine: number; note: string; state: MarkState };
 type FileMarkMap = Record<string, FileMarkLite[] | undefined>;
 /** 预览卡片动作(remove/stage/note)。 */
 interface FileMarkAction {
@@ -88,9 +88,9 @@ export const marksPlugin: Plugin = {
       component: MarksPanel,
       showFileSubbar: false,
       pinnedByDefault: true,
+      /* 老用户 persisted 钉住清单里没有 marks → 落 ⋯ 溢出菜单不可见:一次性补钉(注册面选项) */
+      pinOnce: true,
     });
-    /* 老用户 persisted 钉住清单里没有 marks,会落 ⋯ 溢出菜单不可见 —— 一次性补钉 */
-    ensurePanelPinned("marks");
     ctx.contribute("composer.attachments", { component: MarksComposerChips });
     const offs = [
       ctx.registerEditorExtension(marksEditorExtension),

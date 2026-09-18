@@ -77,11 +77,27 @@ function marksOf(cwd: string): Mark[] {
   return (state.byCwd[cwd] ??= []);
 }
 
-/** 现读-合并-写回:磁盘条目按 id 并入(内存同 id 优先 = last-write-wins)。 */
+/** 现读-合并-写回:磁盘条目按 id 并入(内存同 id 优先 = last-write-wins)。
+ *  墓碑:removeMark 删除的 id 合并时跳过,否则磁盘旧条目会被并回内存复活(review P1)。 */
+const tombstones = new Map<string, Set<string>>();
+let dirReady = false;
+/* 逐键入标注防抖:review P2 —— persist 每趟 读-合并-写 全量 sidecar,逐键触发放大合并竞态 */
+const persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 async function persist(cwd: string): Promise<void> {
   try {
+    if (!dirReady) {
+      /* fsCreateDir 撞已存在即报错 = 幂等(assets 同款);~/.tmd-cli 父目录可能缺,两级都建 */
+      const dir = await marksDir();
+      await ipc.fsCreateDir(dir.slice(0, dir.lastIndexOf("/"))).catch(() => undefined);
+      await ipc.fsCreateDir(dir).catch(() => undefined);
+      dirReady = true;
+    }
     const path = await sidecarPath(cwd);
-    const disk = parseSidecar(await ipc.fsReadFile(path).catch(() => ""));
+    const gone = tombstones.get(cwd);
+    const disk = parseSidecar(await ipc.fsReadFile(path).catch(() => "")).filter(
+      (mark) => !gone?.has(mark.id),
+    );
     const byId = new Map(disk.map((mark) => [mark.id, mark]));
     for (const mark of marksOf(cwd)) byId.set(mark.id, mark);
     state.byCwd[cwd] = [...byId.values()];
@@ -89,6 +105,18 @@ async function persist(cwd: string): Promise<void> {
   } catch {
     /* 落盘失败静默:内存态仍可用,下次变更重试(标记非关键数据)。 */
   }
+}
+
+function schedulePersist(cwd: string): void {
+  const prev = persistTimers.get(cwd);
+  if (prev) clearTimeout(prev);
+  persistTimers.set(
+    cwd,
+    setTimeout(() => {
+      persistTimers.delete(cwd);
+      void persist(cwd);
+    }, 400),
+  );
 }
 
 function parseSidecar(text: string): Mark[] {
@@ -111,6 +139,8 @@ function isMark(value: unknown): boolean {
     typeof mark?.path === "string" &&
     typeof mark?.startLine === "number" &&
     typeof mark?.endLine === "number" &&
+    mark.startLine >= 1 &&
+    mark.endLine >= mark.startLine &&
     typeof mark?.fingerprint?.body === "string" &&
     typeof mark?.fingerprint?.context === "string" &&
     typeof mark?.note === "string" &&
@@ -158,7 +188,7 @@ export function addMark(input: {
   marksOf(input.cwd).push(mark);
   state.expandedIds = [...state.expandedIds, mark.id];
   emit();
-  void persist(input.cwd);
+  schedulePersist(input.cwd);
   return mark;
 }
 
@@ -167,14 +197,16 @@ export function updateNote(cwd: string, id: string, note: string): void {
   if (!mark || mark.note === note) return;
   mark.note = note;
   emit();
-  void persist(cwd);
+  schedulePersist(cwd);
 }
 
 export function removeMark(cwd: string, id: string): void {
+  /* 墓碑:persist 合并磁盘时跳过,否则已删 id 会被旧盘数据并回复活(review P1) */
+  (tombstones.get(cwd) ?? tombstones.set(cwd, new Set()).get(cwd)!).add(id);
   state.byCwd[cwd] = marksOf(cwd).filter((m) => m.id !== id);
   state.expandedIds = state.expandedIds.filter((expanded) => expanded !== id);
   emit();
-  void persist(cwd);
+  schedulePersist(cwd);
 }
 
 export function setMarkState(cwd: string, id: string, nextState: MarkState): void {
@@ -182,12 +214,7 @@ export function setMarkState(cwd: string, id: string, nextState: MarkState): voi
   if (!mark || mark.state === nextState) return;
   mark.state = nextState;
   emit();
-  void persist(cwd);
-}
-
-/** 发送序列化:全部 pending(待发送)标记;发送成功后翻 sent。 */
-export function pendingMarks(cwd: string): Mark[] {
-  return marksOf(cwd).filter((m) => m.state === "pending");
+  schedulePersist(cwd);
 }
 
 /** 已入对话(芯片条)标记,发送时注入 wire 并翻 sent。 */
@@ -220,8 +247,9 @@ export function takeReveal(path: string): RevealRequest | null {
 export function relocatePath(cwd: string, path: string, lines: readonly string[], window = 3): void {
   let changed = false;
   for (const mark of marksOf(cwd)) {
-    if (mark.path !== path || mark.state === "sent") {
-      /* 已发送的标记行号冻结(发送的是当时快照),不参与重定位显示漂移 */
+    if (mark.path !== path || mark.state === "sent" || mark.state === "staged") {
+      /* sent 行号冻结(发送的是当时快照);staged 已入对话芯片条,
+         翻 drifted/lost 会让芯片静默消失、发送静默丢引用(review P2) */
       continue;
     }
     const result = relocateMark(lines, mark, window);
@@ -233,6 +261,6 @@ export function relocatePath(cwd: string, path: string, lines: readonly string[]
   }
   if (changed) {
     emit();
-    void persist(cwd);
+    schedulePersist(cwd);
   }
 }

@@ -1,7 +1,7 @@
 /**
  * 全局标记中心 —— 右栏面板:跨文件分组聚合、状态一目了然、定位/重发/删除。
- * 发送不走面板:pending 标记在下一次 composer 发送时经 marksSendTransform 自动
- * 尾部引用块带上(council 裁决的状态机语义),面板只管编排与状态可见。
+ * 发送语义(staging):「发送到对话」翻 staged → composer 上方芯片条;
+ * 真实发送时 marksSendTransform 注入 wire 并翻 sent。
  */
 
 import { t } from "@kernel/i18n";
@@ -85,23 +85,15 @@ function MarkCard({
         >
           {expanded ? t("收起") : t("备注")}
         </button>
-        {mark.state !== "pending" ? (
-          <button
-            type="button"
-            className="cursor-pointer rounded-md border border-(--tmd-warn) px-1.5 py-px text-(--tmd-warn)"
-            onClick={() => setMarkState(root, mark.id, "pending")}
-          >
-            {t("↩ 重发")}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="cursor-pointer rounded-md border border-(--tmd-accent) px-1.5 py-px text-(--tmd-accent)"
-            onClick={() => setMarkState(root, mark.id, "sent")}
-          >
-            {t("✓ 不随下次发送")}
-          </button>
-        )}
+        {/* 与行内卡片同语义:staged 往返切换(staged↔pending,其余→staged)。
+            「✓ 不随下次发送」已删——pending 本就不发送,旧按钮只剩换色(review P2) */}
+        <button
+          type="button"
+          className="cursor-pointer rounded-md border border-(--tmd-warn) px-1.5 py-px text-(--tmd-warn)"
+          onClick={() => setMarkState(root, mark.id, mark.state === "staged" ? "pending" : "staged")}
+        >
+          {mark.state === "staged" ? t("↩ 撤回") : mark.state === "pending" ? t("⚑ 发送到对话") : t("↩ 重发")}
+        </button>
       </div>
     </div>
   );

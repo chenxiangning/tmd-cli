@@ -36,10 +36,13 @@ let bus: PluginEventBus | null = null;
 let cache: FileMarkMap = {};
 const locals = new Set<(marks: FileMarkMap) => void>();
 
-/** files 插件 activate 时注入事件总线,并常驻订阅 changed 馈送缓存。 */
+/** files 插件 activate 时注入事件总线,并常驻订阅 changed 馈送缓存。
+ *  重复注入(热重载/重激活)先退旧订阅,不叠(review P3)。 */
+let offChanged: (() => void) | null = null;
 export function setFileMarkBus(next: PluginEventBus): void {
+  offChanged?.();
   bus = next;
-  bus.on<FileMarkMap>("file-mark:changed", (marks) => {
+  offChanged = bus.on<FileMarkMap>("file-mark:changed", (marks) => {
     cache = marks;
     for (const fn of locals) fn(cache);
   });

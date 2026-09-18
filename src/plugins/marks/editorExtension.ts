@@ -126,6 +126,7 @@ export const marksEditorExtension: EditorExtensionFactory = async ({ path }) => 
     class {
       decorations: DecorationSet;
       private relocateTimer: ReturnType<typeof setTimeout> | undefined;
+      private flashTimer: ReturnType<typeof setTimeout> | undefined;
 
       constructor(readonly view: EditorView) {
         this.decorations = buildDecorations(view);
@@ -154,7 +155,11 @@ export const marksEditorExtension: EditorExtensionFactory = async ({ path }) => 
         this.view.dispatch({
           effects: [EditorView.scrollIntoView(pos, { y: "center" }), flashEffect.of(lineNo)],
         });
-        setTimeout(() => this.view.dispatch({ effects: flashEffect.of(null) }), 1200);
+        this.flashTimer = setTimeout(() => {
+          /* destroy 后 dispatch 无害但属脏写(review P3),timer 纳入清理 */
+          if (!this.view.dom.isConnected) return;
+          this.view.dispatch({ effects: flashEffect.of(null) });
+        }, 1200);
       }
 
       update(update: { docChanged: boolean; startState: EditorView["state"]; state: EditorView["state"] }): void {
@@ -171,6 +176,7 @@ export const marksEditorExtension: EditorExtensionFactory = async ({ path }) => 
       destroy(): void {
         this.unsubscribe();
         clearTimeout(this.relocateTimer);
+        clearTimeout(this.flashTimer);
       }
     },
     { decorations: (plugin) => plugin.decorations },

@@ -29,9 +29,6 @@ export interface FilePanelContribution {
   icon: FilePanelIcon;
   /** 面板内容组件(激活时整栏渲染)。 */
   component: ComponentType;
-  /** 顶栏嵌入段(激活时渲染在 panel tabs 之后、⋯ 之前,对齐 codemoss 单行顶栏);
-   *  与 component 是两棵组件树,共享状态须走插件内模块级 store。 */
-  toolbar?: ComponentType;
   /** 面板数据刷新(可选):外壳刷新按钮点击时调用;返回 Promise 则按钮转到 settle。
    *  实现同样经插件内 store/引用转发到面板组件(如 FileTree 的 reload 全量重拉)。 */
   refresh?: () => void | Promise<void>;
@@ -46,6 +43,9 @@ export interface FilePanelContribution {
   order?: number;
   /** 注册即钉到 toolbar;缺省 true。 */
   pinnedByDefault?: boolean;
+  /** 一次性补钉(review 裁决:收进注册面,禁插件旁路直连):老用户 persisted 清单
+   *  先于面板存在时新 id 落 ⋯ 菜单不可见;仅自动钉一次并留痕,手动取消钉后不复活。 */
+  pinOnce?: boolean;
   /** 是否进顶栏(「⋯ 更多面板」菜单 + tab 条);缺省 true。false = 两处均不列,
    *  开关入口由插件自管(如 ssh 走左下角设置簇 sidebarAction)——外壳不硬编码
    *  任何面板 id,入口归属由注册方声明。 */
@@ -122,6 +122,7 @@ export function registerFilePanel(panel: FilePanelContribution): void {
   }
   if (!state.mode) state.mode = panel.id;
   commit();
+  if (panel.pinOnce) ensurePanelPinned(panel.id);
 }
 
 /** 撤销通道(激活失败回滚/熔断摘除):钉住清单保留原 id(重启用原样恢复,同拔出语义)。 */
@@ -147,9 +148,9 @@ export function togglePinned(id: string): void {
   commit();
 }
 
-/** 一次性把新面板钉进 toolbar(老用户 persisted 清单先于面板存在,新 id 落 ⋯ 菜单
- *  不可见)。仅自动钉一次并留痕,用户手动取消钉后不再复活。 */
-export function ensurePanelPinned(id: string): void {
+/** 一次性把新面板钉进 toolbar(registerFilePanel 的 pinOnce 选项内部调用,
+ *  不导出——钉住写面只走注册面,插件无旁路)。 */
+function ensurePanelPinned(id: string): void {
   if (!persistedPinnedIds || persistedPinnedIds.has(id)) return;
   const marker = `tmd.filePanel.autopin.${id}`;
   try {

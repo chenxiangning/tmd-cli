@@ -99,7 +99,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     term.loadAddon(search);
     /* 链接点击 → 系统浏览器(Tauri webview 内 window.open 不可靠,走 shell 插件)。 */
     term.loadAddon(new WebLinksAddon((_event, uri) => void openExternalUrl(uri)));
-    /* 插件链接提供者(marks 回链等,terminalLinks 注册表;幕布外点缀零字节触碰)。 */
+    /* 插件链接提供者(回链定位等,terminalLinks 注册表;幕布外点缀零字节触碰)。 */
     attachTerminalLinks(term);
     /* 聚焦态馈入分发器:聚焦期 terminal 作用域优先、global ⌘ 系键照常触发
        (命中即拦截零 PTY 字节,未命中键原样进 PTY)——分发决策见 shortcuts.ts

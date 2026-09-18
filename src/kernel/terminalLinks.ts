@@ -57,7 +57,15 @@ export function attachTerminalLinks(term: Terminal): void {
       }
       const links = [];
       for (const provider of providers) {
-        for (const hit of provider.find(text)) {
+        /* kernel 不信任插件实现(review P2):find 抛错跳过该 provider,
+           否则 callback 永不调用、整行链接识别卡死 */
+        let hits: readonly TerminalLinkHit[] = [];
+        try {
+          hits = provider.find(text);
+        } catch {
+          continue;
+        }
+        for (const hit of hits) {
           if (hit.start < 0 || hit.end <= hit.start || hit.end > text.length) continue;
           links.push({
             range: {
@@ -66,7 +74,13 @@ export function attachTerminalLinks(term: Terminal): void {
               end: { x: hit.end + 1, y: bufferLineNumber },
             },
             text: text.slice(hit.start, hit.end),
-            activate: () => provider.open(hit, text),
+            activate: () => {
+              try {
+                provider.open(hit, text);
+              } catch {
+                /* 单 provider open 抛错不拖垮点击 */
+              }
+            },
           });
         }
       }
