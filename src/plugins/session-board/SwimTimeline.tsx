@@ -17,6 +17,7 @@ import { t } from "@kernel/i18n";
 import { RenameInput } from "@kernel/RenameInput";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { sessionArchiveKey, unarchiveSession } from "@kernel/sessionArchive";
+import { keepSession, sessionKeepKey } from "@kernel/sessionKeep";
 import { setSessionTitle } from "@kernel/sessionTitles";
 import { BOARD_LANES, engineColor, hourOf, laneOf, type BoardSession } from "./boardData";
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -176,11 +177,15 @@ export function SwimTimeline({
                                 className="sb-act"
                                 aria-label={t("恢复(取消归档)")}
                                 title={t("恢复(取消归档)")}
-                                onClick={() =>
+                                onClick={() => {
+                                  /* 手动取消归档 = 显式保留意图:写 keep,卫生清扫跳过 */
                                   unarchiveSession(
                                     sessionArchiveKey(s.wsId, s.profileId, s.cliSessionId!),
-                                  )
-                                }
+                                  );
+                                  keepSession(
+                                    sessionKeepKey(s.wsId, s.profileId, s.cliSessionId!),
+                                  );
+                                }}
                               >
                                 <ArrowCounterClockwise size="0.6875rem" aria-hidden />
                               </button>

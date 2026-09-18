@@ -3,6 +3,7 @@ import {
   grokUserMessageLine,
   readUserMessagesFromFile,
 } from "../cli-shared/userMessages";
+import { isJsonlSessionEmpty } from "../cli-shared/sessionEmpty";
 import {
   readGrokDefaultStatus,
 } from "./configStatus";
@@ -249,6 +250,9 @@ export const cliGrokPlugin: Plugin = {
       listSuggestions: listGrokSuggestions,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listGrokSessions,
+      /* 会话卫生判空:path = 会话目录,真实对话在 chat_history.jsonl
+         (读不到 = 判不了,共享 helper 契约返回 false 不删)。 */
+      isDiskSessionEmpty: (session) => isJsonlSessionEmpty(`${session.path}/chat_history.jsonl`),
       readSessionStatus: readGrokSessionStatus,
       readSessionFileIdentity: readGrokSessionIdentity,
       readSessionUserMessages: readGrokUserMessages,

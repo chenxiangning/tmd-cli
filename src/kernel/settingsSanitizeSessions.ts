@@ -1,11 +1,12 @@
 /**
- * 会话四层覆盖域清洗 —— 命名/置顶/归档/删除意图(自 settingsSanitize.ts 拆出,300 行铁则)。
+ * 会话五层覆盖域清洗 —— 命名/置顶/归档/删除意图/保留标记(自 settingsSanitize.ts 拆出,300 行铁则)。
  * 先例:sshSettings.ts 域文件。装配仍在 settingsSanitize.ts 的 sanitize()。
  */
 
 import type {
   SessionArchiveEntry,
   SessionDeletedEntry,
+  SessionKeepEntry,
   SessionPinEntry,
   SessionPinScope,
 } from "./settingsTypes";
@@ -97,6 +98,26 @@ export function sanitizeSessionDeleted(raw: unknown): Record<string, SessionDele
     deleted[key] = { deletedAt: Math.floor(deletedAt) };
   }
   return deleted;
+}
+
+/**
+ * 保留标记层清洗:只收有限非负时间戳的项,按 key 序限量纳入(与归档/删除同款确定性兜底)。
+ * 上限与 overlayEvict 缺省容量(200)同,沿用 SESSION_PINS_MAX_ENTRIES。
+ */
+export function sanitizeSessionKeep(raw: unknown): Record<string, SessionKeepEntry> {
+  const keep: Record<string, SessionKeepEntry> = {};
+  if (!raw || typeof raw !== "object") return keep;
+  const entries = raw as Record<string, unknown>;
+  for (const key of Object.keys(entries).sort()) {
+    if (Object.keys(keep).length >= SESSION_PINS_MAX_ENTRIES) break;
+    const value = entries[key];
+    if (!key || !value || typeof value !== "object") continue;
+    const entry = value as Record<string, unknown>;
+    const keptAt = typeof entry.keptAt === "number" ? entry.keptAt : Number.NaN;
+    if (!Number.isFinite(keptAt) || keptAt < 0) continue;
+    keep[key] = { keptAt: Math.floor(keptAt) };
+  }
+  return keep;
 }
 
 /** 引擎版本收藏层上限:100 条(与置顶同款确定性兜底口径)。 */

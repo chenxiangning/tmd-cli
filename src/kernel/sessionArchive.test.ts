@@ -91,6 +91,34 @@ describe("sessionArchive", () => {
   });
 });
 
+describe("archiveSessions 批量入口(会话卫生清扫)", () => {
+  it("批量归档全部生效且时间戳同刻;空数组 no-op", () => {
+    archive.archiveSessions(["ws1:claude:b1", "ws1:claude:b2"]);
+    expect(archive.isSessionArchived("ws1:claude:b1")).toBe(true);
+    expect(archive.isSessionArchived("ws1:claude:b2")).toBe(true);
+    const after = settings.getSettingsState().settings.sessionArchive;
+    expect(after["ws1:claude:b1"]).toEqual({ archivedAt: 1_000_000 });
+    archive.archiveSessions([]);
+    expect(Object.keys(settings.getSettingsState().settings.sessionArchive)).toHaveLength(2);
+  });
+
+  it("满表批量归档:一次调用换出等量最旧,新批全保留且总数守恒", () => {
+    const MAX = archive.SESSION_ARCHIVE_MAX;
+    const seed: Record<string, { archivedAt: number }> = {};
+    for (let i = 0; i < MAX; i++) seed[`ws1:claude:old-${i}`] = { archivedAt: 1_000_000 + i };
+    settings.updateSettings({ sessionArchive: seed });
+    vi.setSystemTime(3_000_000);
+    const batch = ["ws1:claude:n1", "ws1:claude:n2", "ws1:claude:n3"];
+    archive.archiveSessions(batch);
+    const after = settings.getSettingsState().settings.sessionArchive;
+    expect(Object.keys(after)).toHaveLength(MAX);
+    for (const k of batch) expect(after[k]).toEqual({ archivedAt: 3_000_000 });
+    expect(after["ws1:claude:old-0"]).toBeUndefined();
+    expect(after["ws1:claude:old-2"]).toBeUndefined();
+    expect(after["ws1:claude:old-3"]).toBeDefined();
+  });
+});
+
 describe(`满表回归(2026-09-11 用户实盘:满表后批量归档静默无效;容量 2026-09-17 起提至 ${"2000"} 防自动归档触顶)`, () => {
   const MAX = 2000;
   /** 仿用户实盘种子:id 区间、archivedAt 窗口(约 95 秒内满表)取真实数据形状。 */

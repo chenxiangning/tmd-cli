@@ -6,6 +6,7 @@
  * ③ 默认本机扫描。附带两路补扫:身份绑定跳变(懒落盘晚于 spawn)、
  * 缺真标题退避追赶(自动命名晚于文件出生)。
  * 纯数据装配,不含 JSX;归档/删除覆盖层过滤留宿主 hook(视图语义)。
+ * 扫描结算点顺带跑会话卫生清扫(sessionSweep:超期自动归档 + 空会话删除,零轮询)。
  */
 
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
@@ -18,6 +19,7 @@ import { sessionTitleKey } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
 import type { SessionMeta } from "@kernel/ipc";
 import { TITLE_RESOLVE_MAX_ATTEMPTS, titleRetryDelay } from "./utils";
+import { sweepStaleSessions } from "./sessionSweep";
 
 export function useCliDiskScan({
   profile,
@@ -86,6 +88,24 @@ export function useCliDiskScan({
     isSessionDeleted(sessionDeletedKey(workspace.id, profile.id, cliSessionId));
   useEffect(() => {
     let stale = false;
+    /** 扫描结算即清扫:超期归档(写覆盖层)+ 空会话删除。远程分支 allowDelete=false
+     *  (本地删不到远端文件,删了会重扫复活成幽灵);有删除才补扫一次,让行即时消失。 */
+    const sweep = (sessions: CliDiskSession[], allowDelete: boolean) => {
+      const liveIds = new Set(
+        liveRef.current
+          .map((s) => host.getCliSessionId(s.id))
+          .filter((id): id is string => id !== undefined),
+      );
+      void sweepStaleSessions({
+        profile,
+        workspace,
+        sessions,
+        liveCliIds: liveIds,
+        allowDelete,
+      }).then((deleted) => {
+        if (!stale && deleted > 0) setRescanTick((t) => t + 1);
+      });
+    };
     if (remoteScan && remoteAdapter) {
       void remoteAdapter
         .list(remoteScan, workspace.root)
@@ -102,6 +122,7 @@ export function useCliDiskScan({
             const title = cliId !== undefined ? titles.get(cliId) : undefined;
             if (title) noteSessionTabTitle(s.id, title);
           }
+          sweep(diskList, false);
           onScannedEvent();
         })
         .catch(() => {
@@ -133,6 +154,7 @@ export function useCliDiskScan({
           const title = cliId !== undefined ? titles.get(cliId) : undefined;
           if (title) noteSessionTabTitle(s.id, title);
         }
+        sweep(list, true);
       })
       .catch(() => {
         if (!stale) setSessions([]);
@@ -143,7 +165,7 @@ export function useCliDiskScan({
     return () => {
       stale = true;
     };
-  }, [profile, workspace.root, liveSessions.length, refreshTick, rescanTick, skipLocalDiskHistory, remoteScan, remoteAdapter]);
+  }, [profile, workspace, liveSessions.length, refreshTick, rescanTick, skipLocalDiskHistory, remoteScan, remoteAdapter]);
 
   /** 缺真标题的活会话(手动命名除外)→ 指数退避重扫追赶自动命名落盘,
    *  全部落定即停(titleRetryDelay,同运行区 / 全局置顶锁步)。 */

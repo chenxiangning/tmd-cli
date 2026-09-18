@@ -14,6 +14,7 @@ import { applyClaudeChannel } from "./channelApply";
 import { ProviderChannelsCard } from "@plugins/cli-shared/providerChannels";
 import { readHeadSessionMetaCached } from "../cli-shared/diskSessions";
 import { readStatusTailGated } from "../cli-shared/sessionStatus";
+import { isJsonlSessionEmpty } from "../cli-shared/sessionEmpty";
 /**
  * claude 品牌 glyph:官方日芒标志(simple-icons claude 矢量路径 vendored,
  * 与 omp/codex glyph 同源策略),品牌橙 #D97757、viewBox 0 0 24 24 官方一致。
@@ -260,6 +261,8 @@ export const cliClaudePlugin: Plugin = {
       listMcpServers: listClaudeMcpServers,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listClaudeSessions,
+      /* 会话卫生判空:path 即 <uuid>.jsonl,共享标记子串判定(sessionEmpty.ts) */
+      isDiskSessionEmpty: (session) => isJsonlSessionEmpty(session.path),
       readSessionStatus: readClaudeSessionStatus,
       readSessionFileIdentity: readClaudeSessionIdentity,
       readSessionUserMessages: readClaudeUserMessages,

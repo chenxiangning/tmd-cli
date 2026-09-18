@@ -4,7 +4,7 @@
  */
 
 import type { AppSettings } from "./settingsTypes";
-import { SESSION_LIST_TOTAL_DEFAULT } from "./settingsTypes";
+import { SESSION_HYGIENE_HOURS_DEFAULT, SESSION_LIST_TOTAL_DEFAULT } from "./settingsTypes";
 import {
   SESSION_TABS_LIMIT_DEFAULT,
   TERMINAL_FONT_SIZE_DEFAULT,
@@ -47,6 +47,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   workspaceGroupCollapsedMap: {},
   sessionArchive: {},
   sessionDeleted: {},
+  sessionKeep: {},
+  sessionHygieneEnabled: true,
+  sessionHygieneHours: SESSION_HYGIENE_HOURS_DEFAULT,
   engineVersionFavs: {},
   workspaceArchiveView: false,
   workspaceOriginFilter: "local",

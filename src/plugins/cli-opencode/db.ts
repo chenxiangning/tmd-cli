@@ -90,6 +90,25 @@ export async function readOpencodeSessionIdentity(
   return opencodeIdentityRow(sessionId, rows[0] ?? null);
 }
 
+/** 会话卫生判空:message 表该会话 role=user 计数为 0(单库多会话,path 是
+ *  <dbPath>#<sessionId> 合成路径,拆 # 定位)。查询失败 = false(判不了不删)。 */
+export async function isOpencodeSessionEmpty(path: string): Promise<boolean> {
+  const hash = path.lastIndexOf("#");
+  if (hash < 0) return false;
+  const db = path.slice(0, hash);
+  const sessionId = path.slice(hash + 1);
+  const rows = await ipc
+    .sqliteQuery(
+      db,
+      "SELECT COUNT(*) FROM message WHERE session_id = ?1 \
+       AND json_extract(data, '$.role') = 'user'",
+      [sessionId],
+    )
+    .catch(() => null);
+  const count = rows?.[0]?.[0];
+  return typeof count === "number" && count === 0;
+}
+
 /** 会话当前状态:最新 message 的模型 + session.model 的 variant。 */
 export async function readOpencodeSessionStatus(
   _cwd: string,

@@ -108,6 +108,13 @@ export interface CliProfile {
    * 清管理态覆盖层,不阻塞用户意图(磁盘数据保留 + console.warn 诊断)。
    */
   deleteSession?: (cliSessionId: string) => Promise<void>;
+  /**
+   * 判定一个磁盘会话是否为空(从未有过用户消息)—— 会话卫生清扫
+   * (workspace/sessionSweep)对超期候选的物理删除依据。格式知识留插件侧
+   * (与 deleteSession 同型);缺省 = 不可判定,清扫只归档不删(保守缺省)。
+   * 实现必须保守:读取失败/行截断/任何不确定都返回 false(判不了不删)。
+   */
+  isDiskSessionEmpty?: (session: CliDiskSession) => Promise<boolean>;
   /** 读取当前 CLI session 的模型与思考强度,只读且可缺省。 */
   readSessionStatus?: (
     cwd: string,

@@ -9,7 +9,7 @@ import type { QuotaSnapshot } from "@kernel/quota";
 import { DshGlyph } from "./index";
 import { DshHostPanel } from "./hostPanel";
 import { loadConnection } from "./dshConnection";
-import { listHostSessions, readHostSessionStatus, readHostDefaultStatus, readHostContextPressure, deleteHostSession } from "./dshRpc";
+import { listHostSessions, readHostSessionStatus, readHostDefaultStatus, readHostContextPressure, deleteHostSession, isHostSessionEmpty } from "./dshRpc";
 import { ensureAdapterDeployed } from "./adapterDeploy";
 
 /** 分发渠道常量:二进制名 + npm 包。 */
@@ -71,6 +71,8 @@ export const cliDshPlugin: Plugin = {
          resume 经 --resume 标记进 spawnTransform → 适配器 --session-id。 */
       listSessions: (cwd) => listHostSessions(loadConnection(), cwd),
       deleteSession: (cliSessionId) => deleteHostSession(cliSessionId),
+      /* 会话卫生判空:host session.list 的 blank 标志(空壳垃圾清理正主)。 */
+      isDiskSessionEmpty: async (session) => isHostSessionEmpty(loadConnection(), session.id),
       resumeArgs: (cliSessionId) => ["--resume", cliSessionId],
       /* 工具栏「思考」位点击 = 写 /effort 进幕布开强度菜单。 */
       thinkingCommand: "/effort",

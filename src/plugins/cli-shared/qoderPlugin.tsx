@@ -14,6 +14,7 @@ import {
   readQoderSessionStatus,
   readQoderUserMessages,
 } from "./qoderSessionModel";
+import { isJsonlSessionEmpty } from "./sessionEmpty";
 import { listQoderSuggestions } from "./qoderSuggestions";
 
 /** 双分发版的差异面:插件身份 + 展示文案 + 分发渠道常量,其余接线完全同构。 */
@@ -63,6 +64,8 @@ export function makeQoderPlugin(variant: QoderVariantSpec): Plugin {
         listSuggestions: listQoderSuggestions,
         resumeArgs: (sessionId) => ["--resume", sessionId],
         listSessions: (cwd) => listQoderSessions(variant.dataDir, cwd),
+        /* 会话卫生判空:path 即 <uuid>.jsonl,共享标记子串判定(sessionEmpty.ts) */
+        isDiskSessionEmpty: (session) => isJsonlSessionEmpty(session.path),
         readSessionStatus: (cwd, cliSessionId) =>
           readQoderSessionStatus(variant.dataDir, cwd, cliSessionId),
         readSessionFileIdentity: readQoderSessionIdentity,

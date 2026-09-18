@@ -30,5 +30,8 @@ export const isSessionArchived = overlay.has;
 /** 归档;已归档时刷新时间戳(幂等);满额(2000)时逐出 archivedAt 最旧的条目(零数据损失)。 */
 export const archiveSession = overlay.mark;
 
+/** 批量归档(会话卫生清扫入口):整表合并 + 逐出后单次写盘,语义与 archiveSession 同。 */
+export const archiveSessions = overlay.markMany;
+
 /** 取消归档;未归档为 no-op。 */
 export const unarchiveSession = overlay.unmark;
