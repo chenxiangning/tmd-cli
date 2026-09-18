@@ -58,13 +58,19 @@ tmd-cli 现状:编辑器 = CM6(`src/kernel/cmEditor/`),无语义引擎、无点�
 ### 插件 `src/plugins/lsp/`
 
 - 四语言配置(经 activate(ctx) 注册面登记):
-  - ts/javascript:发现链 = 工作区 `node_modules/.bin/typescript-language-server` → `which` → `npx -y typescript-language-server --stdio`;工作区 `node_modules/typescript` 注入 PATH 供 tsserver 解析;
-  - python:venv `pyright-langserver` → `which` → `npx -y -p pyright pyright-langserver --stdio`(bin 名 ≠ 包名,须 `-p`);
-  - java:无自动发现;首开 .java 弹引导卡片(JDK≥17 检测 → 下载 eclipse.jdt.ls 发行包至 `~/.tmd-cli/lsp/jdt/`,installer.rs 先例;launch = `java -jar` equinox launcher `-data ~/.tmd-cli/lsp/jdt-ws/<repoKey>`;rootUri 向上找 pom.xml/build.gradle/.project 最近祖先,兜底工作区根)。
+  - ts/javascript:**按工作区 typescript 形态分叉**(2026-09-19 探活实证:TS7(tsgo 原生包)无 `lib/tsserverlibrary.js`,typescript-language-server 与之不兼容直接报「Could not find a valid TypeScript installation」)——
+    工作区 `node_modules/typescript` 存在且含 `lib/tsserverlibrary.js`(TS5 形态)→ `typescript-language-server`(发现链:工作区 `.bin` → `which` → `npx -y typescript-language-server --stdio`;工作区 `node_modules` 注入 PATH 供 tsserver 解析);
+    否则(TS7 / 无 typescript)→ tsgo LSP(发现链:工作区 `.bin/tsgo` → `npx -y -p @typescript/native-preview tsgo --lsp --stdio`;**`--stdio` 必带**,裸 `--lsp` 默认非 stdio 传输直接退出);
+  - python:venv `pyright-langserver` → `which` → `npx -y -p pyright pyright-langserver --stdio`(bin 名 ≠ 包名,须 `-p`;探活:全局 pyright-langserver 握手 OK,hover/definition/references 全有,server→client `client/registerCapability` 请求须 ack);
+  - java:无自动发现;首开 .java 弹引导卡片(JDK≥17 检测 → 下载 eclipse.jdt.ls 发行包至 `~/.tmd-cli/lsp/jdt/`,源 = `download.eclipse.org/jdtls/milestones/<ver>/latest.txt` 解析文件名(2026-09-19 实测 200);installer.rs 先例;launch = `java -jar` equinox launcher `-data ~/.tmd-cli/lsp/jdt-ws/<repoKey>`;rootUri 向上找 pom.xml/build.gradle/.project 最近祖先,兜底工作区根)。
 - 生命周期:惰性 spawn(首个语义请求);空闲 10 分钟或工作区无代码 tab → `lsp_stop`;崩溃标记未就绪,下次手势重试一次;java 首启索引期状态徽标「索引中」。
 - 快捷键:插件贡献命令 `lsp.gotoDefinition`(F12)/`lsp.findReferences`(Shift+F12)经 kernel shortcuts 注册面;Escape 永不注册。
 - 右键菜单:CM contextmenu 上挂「转到定义/查找引用」两项;server 未就绪时置灰。
 - `src/plugins/index.ts` allPlugins +1 行。
+
+### CM 扩展落点对齐(2026-09-19 复核 architecture/13)
+
+`cmLsp.ts`(手势/hover/didOpen-didChange 同步)与 `peekWidget.tsx` 落 **`src/plugins/lsp/`** 经 `registerEditorExtension` 工厂注入(拆包红线:工厂体内只许动态 import `@codemirror/*`),**不**放 `src/kernel/lsp/`;kernel/lsp 只留 `lspClient.ts`(协议层)+ `lspRegistry.ts`(语言配置注册面)。跳转复用 `openFileAtLine`(search 插件同款跨插件 import 先例)。
 
 ## 验证
 
