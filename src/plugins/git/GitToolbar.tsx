@@ -10,7 +10,6 @@ import { t } from "@kernel/i18n";
 import { createPortal } from "react-dom";
 import {
   ArrowsDownUp,
-  CaretDown,
   GitDiff,
   GitBranch,
   Graph,
@@ -89,7 +88,6 @@ export function GitToolbar() {
       >
         <ViewIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
         <span>{t(VIEW_LABEL[view])}</span>
-        <CaretDown className="h-[0.75rem] w-[0.75rem] text-(--tmd-fg-faint)" aria-hidden />
       </button>
       <button
         type="button"
@@ -99,7 +97,6 @@ export function GitToolbar() {
         className="flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover)"
       >
         <LayoutIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
-        <CaretDown className="h-[0.75rem] w-[0.75rem] text-(--tmd-fg-faint)" aria-hidden />
       </button>
       <button
         type="button"
@@ -109,10 +106,12 @@ export function GitToolbar() {
         className="flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover)"
       >
         <ArrowsDownUp className="h-[0.75rem] w-[0.75rem]" aria-hidden />
-        <CaretDown className="h-[0.75rem] w-[0.75rem] text-(--tmd-fg-faint)" aria-hidden />
       </button>
       {totals && (
-        <span title={t("聚合增删行数(staged + 未暂存;多仓 = 选中仓口径)")}>
+        <span
+          title={t("聚合增删行数(staged + 未暂存;多仓 = 选中仓口径)")}
+          className="ml-auto shrink-0 whitespace-nowrap"
+        >
           <span className="text-(--tmd-diff-inserted)">
             +{totals.insertions.toLocaleString("en-US")}
           </span>
