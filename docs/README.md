@@ -166,4 +166,5 @@
 | 2026-09-19 | [近 20 笔提交整体 code review(P0×1 + P1×2 + P2×8 全修;marks/git/yn/perf/跨领域五路)](review/2026-09-19-20-commits-global-review.md) | 已完成(修复随本批提交;门禁全绿 react-doctor 100;缓修 4 项见文末) |
 | 2026-09-19 | [代码符号跳转与引用(cmd/ctrl+click)调研:yn 实证 + 多语言语义路线(LSP)](research/code-symbol-references.md) | 调研底稿(方向已定:yn 本就是语义引用;用户拍板弃字面,一步到位 LSP 语义通道) |
 | 2026-09-19 | [代码符号语义跳转与引用(LSP 通道)设计:cmd/ctrl+click 定义/引用 peek](superpowers/specs/2026-09-19-lsp-semantic-navigation-design.md) | 已落地(c11c29c;TS7 探活分叉回填 112f971;桩目检六场景 + tsgo 真机冒烟全绿) |
+| 2026-09-19 | [LSP 语义跳转交互增强(二轮):手势反馈 / peek 面板 / hover 渲染](superpowers/specs/2026-09-19-lsp-interaction-enhancement-design.md) | 已批准,实施中(P1 空闲失效/F12 泄漏/防陈旧修复 + cmd+hover 链接态 + peek 键盘导航 + hover markdown) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
