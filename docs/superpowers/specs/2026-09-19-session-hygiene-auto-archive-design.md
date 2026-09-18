@@ -1,7 +1,7 @@
 # 会话卫生清扫:超期自动归档 + 空会话删除
 
 - 日期:2026-09-19
-- 状态:已确认(用户拍板三项决策:modifiedAt 为准 / 全族接空删 / 加开关+时窗设置)
+- 状态:已落地(commit 1e75245;实施纪要见文末)
 
 ## 背景与目标
 
@@ -138,3 +138,20 @@ locales:en/ja settings 词条。
 - `pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build`;
 - `npx react-doctor@latest -y` 100 分;
 - 1421 浏览器桩目检:fs_collect_files 造假 FileStamp(>24h 旧会话 + 空会话 + 新会话),展开工作区 → 默认视图只剩新会话、归档视图出现旧会话、空会话文件被删(fsRemovePath 桩计数)、手动取消归档后再次扫描不回弹(keep 生效)、关开关后全短路。
+
+## 实施纪要(commit 1e75245)
+
+1. **空判定 helper 收敛为标记子串版**(与 spec 初稿的 parseUserMessages 版偏离):
+   保守闸「子串命中但解析 0 条 → 非空」使解析步骤零判别力(有标记即非空,与解析结果无关),
+   只留成本。cli-shared/sessionEmpty.ts 仅做 32KB 读头 + 五标记子串
+   (`"role":"user"`/`"type":"user"`/`"TurnBegin"`/`"turn.prompt"`,与 userMessages 预筛同源),
+   读失败/异型返回 false。kimi 双 wire 候选位拆 kimiEmpty.ts(300 行铁则)。
+2. **sweep 返回删除数**,useCliDiskScan 在 >0 时补扫一次(行即时消失,与手动删除同款);
+   候选判空+删除并发 Promise.all(react-doctor async-await-in-loop)。
+3. **overlayEvict markMany 修一枚真 bug**:`export const archiveSession = overlay.mark`
+   解绑导出后 `this.markMany` 为 undefined(批量入口首测即炸);mark 改闭包内 markMany([key])。
+4. **验证覆盖**:vitest 1762 全绿(新增 sessionSweep.test 12 例门控/批量写/远程不删、
+   sessionEmpty.test 9 例行型、sessionKeep.test 8 例覆盖层+清洗);doctor 100;
+   typecheck/arch-boundary/file-size/build 过。1421 桩目检:默认视图收走两条超期、
+   归档视图出现旧非空会话、空会话 fsRemovePath 命中、行为页卡开关/时窗条件行与写盘;
+   keep 门控由单测覆盖(未做 UI 目检,SessionManage 管理模式交互面大,单测已锁四道门)。
