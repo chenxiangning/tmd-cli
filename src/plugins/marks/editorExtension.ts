@@ -188,7 +188,9 @@ export const marksEditorExtension: EditorExtensionFactory = async ({ path }) => 
     marksField,
     selField,
     flashField,
-    /* 行装饰样式:待发送琥珀 / 已发送蓝 / 闪烁定位(随主题 token 明暗自适应) */
+    /* 行装饰样式:待发送琥珀 / 已发送蓝 / 闪烁定位(随主题 token 明暗自适应)。
+       .marks-inline 必须 white-space:normal —— widget 植在 .cm-line 内会继承
+       pre,模板里标签间的换行缩进会按字面渲染撑破卡片。 */
     EditorView.theme({
       ".marks-line-pending": {
         backgroundColor: "rgba(234,179,8,0.10)",
@@ -199,7 +201,11 @@ export const marksEditorExtension: EditorExtensionFactory = async ({ path }) => 
         boxShadow: "inset 2px 0 0 var(--tmd-accent)",
       },
       ".marks-line-flash": { backgroundColor: "var(--tmd-accent-soft)" },
-      ".marks-inline": { fontFamily: "var(--tmd-font-ui)" },
+      ".marks-inline": {
+        fontFamily: "inherit",
+        whiteSpace: "normal",
+        textWrap: "wrap",
+      },
     }),
     marksPlugin,
     selWatcher,
