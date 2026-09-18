@@ -3,7 +3,6 @@ import type { Plugin } from "@kernel/plugin";
 import { getFilePanelMode } from "@kernel/filePanel";
 import { hydrateGitPanelPrefs, requestRemoteDialog } from "./panelStore";
 import { GitPanel } from "./GitPanel";
-import { GitToolbar } from "./GitToolbar";
 import { CommitDiffTabContent } from "./CommitDiffTab";
 import { DiffTabContent } from "./DiffTabContent";
 import { COMMIT_TAB_KIND } from "./commitTab";
@@ -25,7 +24,6 @@ export const gitPlugin: Plugin = {
       label: "Git",
       icon: GitBranch,
       component: GitPanel,
-      toolbar: GitToolbar, // 顶栏视图下拉(tabs 之后、⋯ 之前),远端动作收编进下拉
       showFileSubbar: false, // 分支/upstream 上顶栏 label(2026-09-14)
     });
     // 右栏 Git 面板(差异/分支/历史)由工具栏与中央 tab 进入,不再单独暴露侧栏快捷动作。

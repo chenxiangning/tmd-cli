@@ -12,6 +12,7 @@ import type { GitLogState } from "./hooks/useGitLog";
 import type { GitBranchesState } from "./hooks/useGitBranches";
 import type { GitRepoContext } from "./repoContext";
 import { setGitRemoteMeta, type FileListLayout, type GitViewMode, type RemoteDialogOp } from "./panelStore";
+import { GitToolbar } from "./GitToolbar";
 import { gitErrorDisplay } from "./gitError";
 import { SmartSwitchUndoBanner } from "./views/GitPanelBars";
 import { RepoBar } from "./views/RepoBar";
@@ -160,6 +161,7 @@ export function GitPanelMain({
   }, [detached, hasUpstream, aheadBehind, remoteBusy]);
   return (
     <div className="flex h-full flex-col text-xs">
+      <GitToolbar />
       {repoCtx.showRepoBar && (
         <RepoBar
           repos={repos}

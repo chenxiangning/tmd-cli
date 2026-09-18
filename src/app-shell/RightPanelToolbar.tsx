@@ -28,8 +28,6 @@ import { FileActionsBar } from "./FileActionsBar";
 export function TopBarPanelTabs() {
   const { mode, pinnedIds, panels } = useFilePanel();
   const [overflowPos, setOverflowPos] = useState<{ x: number; y: number } | null>(null);
-  /* 激活面板的顶栏嵌入段(如 git 的视图下拉 + ⟳) */
-  const ActiveToolbar = panels.find((p) => p.id === mode)?.toolbar;
 
   /* 外显 tab = 已钉住 + 当前激活(未钉也临时外显) */
   const visiblePanels = panels.filter(
@@ -70,10 +68,6 @@ export function TopBarPanelTabs() {
           );
         })}
       </div>
-
-      {/* 激活面板嵌入段在 tabs 之后、⋯ 之前(2026-09-14 口径:与 tab 图标同行靠右) */}
-      {ActiveToolbar ? <ActiveToolbar /> : null}
-
 
       <button
         type="button"

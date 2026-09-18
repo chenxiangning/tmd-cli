@@ -1,5 +1,5 @@
 /**
- * GitToolbar —— 顶栏嵌入段(tabs 图标之后、⋯ 之前;2026-09-14 口径):
+ * GitToolbar —— 面板顶部工具条(2026-09-18 自顶栏嵌入段下移,右侧面板顶部空间吃紧):
  * 视图下拉(差异/分支/历史 + 平铺/树形)+ 聚合增删行数;远端动作行
  * (创建 PR/刷新/获取/拉取/推送)拆至 GitToolbarRemoteRows。状态共享走 panelStore。
  */
@@ -61,7 +61,7 @@ export function GitToolbar() {
   };
 
   return (
-    <div className="flex shrink-0 items-center gap-0.5 whitespace-nowrap">
+    <div className="flex shrink-0 items-center gap-0.5 whitespace-nowrap border-b border-(--tmd-border) px-2 py-1">
       <button
         ref={viewBtnRef}
         type="button"
