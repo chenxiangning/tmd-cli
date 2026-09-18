@@ -13,6 +13,7 @@ import { claudeConfigEntry } from "./configGui";
 import { applyClaudeChannel } from "./channelApply";
 import { ProviderChannelsCard } from "@plugins/cli-shared/providerChannels";
 import { readHeadSessionMetaCached } from "../cli-shared/diskSessions";
+import { readStatusTailGated } from "../cli-shared/sessionStatus";
 /**
  * claude 品牌 glyph:官方日芒标志(simple-icons claude 矢量路径 vendored,
  * 与 omp/codex glyph 同源策略),品牌橙 #D97757、viewBox 0 0 24 24 官方一致。
@@ -111,13 +112,16 @@ async function readClaudeSessionStatus(
 ): Promise<CliSessionStatus | null> {
   const dir = await claudeSessionsDir(cwd);
   if (!dir) return null;
-  const tail = await ipc
-    .fsReadTail(`${dir}/${cliSessionId}.jsonl`, STATUS_TAIL_BYTES)
-    .catch(() => "");
-  if (!tail) return null;
-  const model = extractClaudeModel(tail);
-  // claude 思考强度不落盘到会话文件(settings 全局开关),不提供 thinkingLevel。
-  return model ? { model } : null;
+  /* claude 思考强度不落盘到会话文件(settings 全局开关),不提供 thinkingLevel。 */
+  return readStatusTailGated(
+    `${dir}\u0000${cliSessionId}`,
+    `${dir}/${cliSessionId}.jsonl`,
+    STATUS_TAIL_BYTES,
+    (tail) => {
+      const model = extractClaudeModel(tail);
+      return model ? { model } : null;
+    },
+  );
 }
 /** claude 文件名即会话 id,免扫目录直拼路径。 */
 async function readClaudeUserMessages(cwd: string, cliSessionId: string, full: boolean) {

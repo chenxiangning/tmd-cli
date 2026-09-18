@@ -11,7 +11,7 @@ vi.mock("@kernel/ipc", () => ({
     configHomeDir: vi.fn(async () => "/home"),
     fsCollectFiles: vi.fn(async () => []),
     fsReadHead: vi.fn(async () => ""),
-    fsReadTail: vi.fn(async () => ""),
+    fsReadTailChanged: vi.fn(async () => ({ changed: true, size: 0, text: "" })),
     fsReadFile: vi.fn(async () => ""),
   },
 }));

@@ -99,6 +99,16 @@ pub(crate) async fn fs_read_tail(path: String, max_bytes: usize) -> Result<Strin
     spawn_fs(move || fs::read_tail(&path, max_bytes)).await
 }
 
+/// 尾读 + 尺寸闸(语义见 fs::read_tail_changed):会话状态巡航免无效读。
+#[tauri::command]
+pub(crate) async fn fs_read_tail_changed(
+    path: String,
+    max_bytes: usize,
+    last_size: Option<u64>,
+) -> Result<fs::ChangedTail, String> {
+    spawn_fs(move || fs::read_tail_changed(&path, max_bytes, last_size)).await
+}
+
 #[tauri::command]
 pub(crate) async fn fs_remove_path(path: String) -> Result<(), String> {
     spawn_fs(move || fs::remove_path(&path)).await

@@ -145,6 +145,14 @@ interface FileStamp {
   modifiedAt: number;
 }
 
+/** 条件尾读结果(对齐 Rust fs::ChangedTail):size 恒为当前文件字节数,
+ *  changed = false 时 text 为空(尺寸未变短路)。 */
+export interface ChangedTail {
+  changed: boolean;
+  size: number;
+  text: string;
+}
+
 /** 参数化安装计划(对齐 src-tauri/src/installer.rs InstallPlan;camelCase tagged)。 */
 export type CliInstallPlan =
   | { channel: "npm"; package: string }
@@ -298,6 +306,9 @@ interface SshPendingPromptWire {
   sessionId: string;
   prompt: SshPromptEvent;
 }
+
+/** configHomeDir 的 once 缓存(拒绝时复位,见 ipc.configHomeDir 注)。 */
+let configHomeOnce: Promise<string> | null = null;
 
 export const ipc = {
   sessionSpawn: (profileId: string, spec: SpawnSpec, workspaceId?: string) =>
@@ -519,13 +530,25 @@ export const ipc = {
   /** 读取文件尾部 maxBytes 字节,供 session 状态增量解析。 */
   fsReadTail: (path: string, maxBytes: number) =>
     invoke<string>("fs_read_tail", { path, maxBytes }),
+  /** 尾读 + 尺寸闸(语义见 Rust fs::read_tail_changed):lastSize 未变短路免读,
+   *  变化拍一次 IPC 完成探测与读取。会话状态巡航 2s 一拍的主力入口。 */
+  fsReadTailChanged: (path: string, maxBytes: number, lastSize: number | null) =>
+    invoke<ChangedTail>("fs_read_tail_changed", { path, maxBytes, lastSize }),
   /** 读文件头部 maxBytes 字节(解析 jsonl 首行 meta 用,避免全文加载)。 */
   fsReadHead: (path: string, maxBytes: number) =>
     invoke<string>("fs_read_head", { path, maxBytes }),
   /** 物理删除文件或目录(会话列表"删除会话"用);kimi 会话是目录,统一走此命令。
    *  路径不存在视为成功(幂等)。 */
   fsRemovePath: (path: string) => invoke<void>("fs_remove_path", { path }),
-  configHomeDir: () => invoke<string>("config_home_dir"),
+  configHomeDir: () => {
+    /* 主目录每进程恒定:扫描/配额/GUI 共 47 处每动作重复取,once 缓存全量受益;
+       拒绝不缓存(复位重试),失败语义与直连一致。 */
+    configHomeOnce ??= invoke<string>("config_home_dir").catch((e) => {
+      configHomeOnce = null;
+      throw e;
+    });
+    return configHomeOnce;
+  },
   /** 应用配置目录(~/.tmd-cli),布局 owner 是 Rust session.rs;插件勿自拼。 */
   configDir: () => invoke<string>("config_dir"),
   /** 默认工作区根目录(~/.tmd-cli/default,Rust 侧已确保存在,mac/win 兼容)。 */
