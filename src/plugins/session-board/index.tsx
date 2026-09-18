@@ -3,8 +3,7 @@
  *
  * 注册点:
  * - overlay 挂点:与插件市场同款全屏覆盖层切换(不透明盖住三栏,下层零回放);
- * - 头部左区按钮簇(header.leftCluster):左上角日历图标开关看板覆盖层;
- * - 侧栏快捷动作:同开关。
+ * - 头部左区按钮簇(header.leftCluster):左上角日历图标开关看板覆盖层。
  * 数据/状态层零新增:全部复用 workspace 同款内核通道(见 boardData.ts 头注)。
  */
 import { CalendarDots } from "@phosphor-icons/react";
@@ -12,7 +11,6 @@ import { KernelTopics } from "@kernel/events";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { BoardOverlay } from "./BoardOverlay";
 import { BoardButton } from "./BoardButton";
-import { boardOverlayOpen, toggleBoardOverlay } from "./boardOverlayStore";
 import { archiveExitedSession } from "./boardExit";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 
@@ -31,13 +29,5 @@ export const sessionBoardPlugin: Plugin = {
     ctx.contribute("header.leftCluster", { component: BoardButton });
     /* 生命周期收口:干净退出的会话自动归档(定义见 boardExit.ts 头注)。 */
     ctx.events.on<string>(KernelTopics.sessionExited, archiveExitedSession);
-    ctx.registerSidebarAction({
-      id: "session-board",
-      label: "会话看板",
-      icon: CalendarDots,
-      order: 30,
-      onSelect: toggleBoardOverlay,
-      active: boardOverlayOpen,
-    });
   },
 };
