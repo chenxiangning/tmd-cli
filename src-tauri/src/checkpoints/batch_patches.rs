@@ -50,11 +50,13 @@ pub fn batch_patches(cwd: &str, batch_id: &str) -> Result<Vec<super::CkptPatch>,
             .iter()
             .filter(|e| e.kind == "edit" && e.id == batch_id)
         {
-            let before: Option<Vec<u8>> = if e.before_oid.is_empty() {
-                None
-            } else {
+            let before: Option<Vec<u8>> = if !e.before_oid.is_empty() {
                 let oid = git2::Oid::from_str(&e.before_oid)?;
                 Some(sidecar.find_blob(oid)?.content().to_vec())
+            } else {
+                // 首击新建但路径已入 HEAD(并行动作落定,如 git mv/暂存提交):
+                // ± 基线重定到 HEAD,与 git 面板同源(events.rs「展示重定基」)。
+                super::store::head_blob_bytes(user.as_ref(), &e.path)
             };
             let after = fs::read(root.join(&e.path)).ok();
             if before.as_deref() == after.as_deref() {

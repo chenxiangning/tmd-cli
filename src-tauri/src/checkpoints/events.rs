@@ -181,11 +181,13 @@ fn latest_turn_after(
 }
 
 /// events 归因的 open 轮文件集(视图共用):本轮 edit 行 → live 状态符。
-/// live 存在 → A(前像空)/M(前像有);磁盘已无 → D。
+/// 磁盘已无 → D;前像空且未入 HEAD → A;其余 → M(含首击新建后路径被并行
+/// 动作带进 HEAD 的展示重定基:与 git 面板状态符对齐,见 store::head_blob_bytes)。
 /// 纯事件归因:只列 edit 行路径,shell 落盘等无事件写入不入 open 批
 /// (隔离优先,见模块 doc)。
 pub(super) fn edit_open_paths(
     root: &std::path::Path,
+    user: Option<&git2::Repository>,
     anchor: &LedgerEntry,
     entries: &[LedgerEntry],
 ) -> Vec<(String, String)> {
@@ -195,7 +197,10 @@ pub(super) fn edit_open_paths(
         .map(|e| {
             let status = if !root.join(&e.path).try_exists().unwrap_or(false) {
                 "D".to_string()
-            } else if e.before_oid.is_empty() && !super::is_external_path(&e.path) {
+            } else if e.before_oid.is_empty()
+                && !super::is_external_path(&e.path)
+                && super::store::head_blob_bytes(user, &e.path).is_none()
+            {
                 "A".to_string()
             } else {
                 // 前像自足副本在而磁盘内容等值 = 写了又写回;仍列出(轮未封口,轨迹可见)。

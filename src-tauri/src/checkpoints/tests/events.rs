@@ -107,6 +107,47 @@ fn events_open待审_只列事件路径() {
 }
 
 #[test]
+fn events_open批_首击新建被并行提交进仓库_展示重定基() {
+    let ws = TempWs::new();
+    ws.write("base.txt", "b\n");
+    ws.commit_all("init");
+
+    anchor_events(&ws, "cli-1", "tmd-1", "新建文档");
+    ws.write("13-editor.md", "l1\nl2\nl3\n");
+    assert!(edit(&ws, "cli-1", "tmd-1", "13-editor.md"));
+
+    // 落定前:未入 HEAD,open 批按 A + 全量行数(与 git 面板一致:都是新增)
+    let b = &ws.batches("cli-1")[0];
+    assert_eq!(b.files[0].status, "A");
+    let p = batch_patches(ws.path(), &b.id).unwrap();
+    assert_eq!(
+        (p[0].kind.as_str(), p[0].additions, p[0].deletions),
+        ("A", 3, 0)
+    );
+
+    // 并行动作把同一内容带进 HEAD(等价 git mv/暂存提交落定);轮仍在进行中
+    ws.commit_all("外部提交并行落定");
+
+    // 展示重定基:状态符 M、± 以 HEAD 为前像 —— 与 git 面板同源,不再是 A+全量
+    let b = &ws.batches("cli-1")[0];
+    assert_eq!(b.files[0].status, "M", "路径已入 HEAD 状态符重定 M");
+    let p = batch_patches(ws.path(), &b.id).unwrap();
+    assert!(
+        p.is_empty(),
+        "内容与 HEAD 等值 = 无 diff(等值短路),不再报 A+全量"
+    );
+
+    // 轮内继续推进一行:± = 对 HEAD 的真实增量(1/0),回退语义不受影响
+    ws.write("13-editor.md", "l1\nl2\nl3\nl4\n");
+    assert!(edit(&ws, "cli-1", "tmd-1", "13-editor.md"));
+    let p = batch_patches(ws.path(), &b.id).unwrap();
+    assert_eq!(
+        (p[0].kind.as_str(), p[0].additions, p[0].deletions),
+        ("M", 1, 0)
+    );
+}
+
+#[test]
 fn events_重复事件_修订计数_前像只抓首击() {
     let ws = TempWs::new();
     ws.write("a.txt", "v1\n");

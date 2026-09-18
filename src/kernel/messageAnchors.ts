@@ -37,7 +37,8 @@ export {
 /** 锚点 = 一条用户消息(与 CliUserMessage 同形,内核内改名强调导航语义)。 */
 export type UserMessageAnchor = CliUserMessage;
 
-/* ── 数据存储 ─────────────────────────────────────────────── */
+/** 单拍读取超时:正常尾窗/全量读亚秒级;悬挂 IPC 弃拍重试(见 tick 内注释)。 */
+const READ_TIMEOUT_MS = 10_000;
 
 interface AnchorCacheEntry {
   /** 稳定数组引用:useSyncExternalStore 快照直接持有了它,只在内容变化时换新数组。 */
@@ -105,8 +106,16 @@ class MessageAnchorStore {
     const full = !entry?.fullLoaded;
     this.inFlight = true;
     let batch: CliUserMessage[] | null;
+    /* 悬挂守护:适配器/IPC 永不结算时共享的 inFlight 会卡死 store 的全部
+       后续轮询(所有会话时间线全灭,且换会话/重挂面板都救不回);超时按
+       空结果弃拍,下一拍重试。 */
+    const { promise: timeout, resolve: settleTimeout } = Promise.withResolvers<null>();
+    const timer = window.setTimeout(() => settleTimeout(null), READ_TIMEOUT_MS);
     try {
-      batch = await profile.readSessionUserMessages(session.cwd, cliSessionId, full);
+      batch = await Promise.race([
+        profile.readSessionUserMessages(session.cwd, cliSessionId, full),
+        timeout,
+      ]).finally(() => window.clearTimeout(timer));
     } catch {
       batch = null;
     } finally {
