@@ -155,5 +155,8 @@
 | 2026-09-17 | [Web 远程访问桥 M1/M2 契约:transport 继承 R3 / event_sink 双扇出 / 命令镜像与信任模型 / 停机语义 / /file 允许制 / LAN 绑定 / 中继链路](architecture/12-web-remote-access.md) | 生效中(改 web 域/transport/event_sink/relay 前必读;含 18 笔整体 review 决策) |
 | 2026-09-17 | [本地 18 笔整体 code review(git 双栏/web 桥/kernel 状态/看板四域;P1×1 + P2×7 全修)](review/2026-09-17-18-commits-global-review.md) | 已完成(修复随本批提交;门禁全绿 react-doctor 100) |
 | 2026-09-18 | [双栏 diff 折叠焦点设计(全文态 context 段胶囊就地展开,N4 原型落地)](superpowers/specs/2026-09-18-split-diff-n4-collapse-focus-design.md) | 已落地(commit c126047;评审收口 UX 路:spec 补盘 + 双胶囊读屏去重) |
+| 2026-09-18 | [文件标记 × 对话框交互原型 ×3(A 行间锚点 / B 右侧标注面板 / C 选区即引用)](design/file-mark-composer-a.html) | 设计原型(三选一待拍板;B/C 见同目录 -b/-c) |
+| 2026-09-18 | [文件标记 × 对话框原型 方案 D:行间锚点 + 全局标记中心(跨文件聚合发送,sidecar 零写入 + 指纹锚定)](design/file-mark-composer-d.html) | 设计原型(已拍板) |
+| 2026-09-18 | [文件标记(file-marks)设计 spec:插件化 + 两条 kernel 宿主注册契约](superpowers/specs/2026-09-18-file-marks-design.md) | 已定稿(council 两席 + 父裁决,实施启动) |
 | 2026-09-18 | [会话状态轮询性能批次一提案:尾读尺寸闸 + configHomeDir 进程 memo(含原设计校准矩阵)](../openspec/changes/2026-09-18-perf-status-poll/proposal.md) | 实施中(同批含平铺门控修复 0f6131e 与扫描读头缓存 4e859fd) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

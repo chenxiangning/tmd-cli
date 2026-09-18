@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文件标记 × 对话框 · 方案 D(定稿候选):行间锚点 + 全局标记中心,源文件零写入</title>
+<style>
+  /* ── 客户端浅色 token(src/styles/themes.css :root[data-theme="light"])── */
+  :root {
+    --bg-base: #ffffff;
+    --bg-elevated: #f8f8f8;
+    --bg-panel: #f8f8f8;
+    --bg-hover: #f2f2f2;
+    --bg-active: rgba(0,95,184,0.14);
+    --fg: #3b3b3b;
+    --fg-muted: #7e7e7e;
+    --fg-subtle: #999999;
+    --fg-faint: #c0c0c0;
+    --border: #cecece;
+    --border-strong: #b1b1b1;
+    --accent: #005fb8;
+    --accent-soft: rgba(0,95,184,0.14);
+    --syn-kw: #0000ff; --syn-str: #a31515; --syn-cmt: #008000;
+    --syn-num: #098658; --syn-fn: #795e26; --syn-type: #267f99;
+    --ok: #059669; --warn: #a16207; --err: #dc2626;
+    --mark: #eab308;               /* 标记专属色(未发送) */
+    --mark-soft: rgba(234,179,8,0.13);
+    --mark-strong: #a16207;
+    --panel-tab-active: rgb(255,140,60);
+    --radius-sm: 6px;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #ececec; color: var(--fg);
+    font: 13px/1.5 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    padding: 28px 20px 60px;
+  }
+  .page { max-width: 1440px; margin: 0 auto; }
+  h1 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  h1 .tag { font-size: 11px; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 9px; vertical-align: 2px; margin-left: 6px; font-weight: 600; }
+  .lede { color: var(--fg-muted); font-size: 12px; margin-bottom: 8px; max-width: 1060px; }
+  .lede b { color: var(--fg); }
+  .lede .zero { color: var(--err); font-weight: 600; }
+  .flow { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 18px; }
+  .flow span {
+    font-size: 11px; color: var(--fg-muted); background: #fff;
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px;
+  }
+  .flow span b { color: var(--accent); font-weight: 600; }
+
+  /* ── 应用壳 ── */
+  .app {
+    background: var(--bg-base); border: 1px solid var(--border-strong);
+    border-radius: 12px; overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.10);
+  }
+  .titlebar {
+    display: flex; align-items: center; gap: 12px; height: 38px;
+    background: var(--bg-elevated); border-bottom: 1px solid var(--border);
+    padding: 0 12px;
+  }
+  .lights { display: flex; gap: 7px; }
+  .lights i { width: 11px; height: 11px; border-radius: 50%; }
+  .lights i:nth-child(1) { background: #ff5f57; }
+  .lights i:nth-child(2) { background: #febc2e; }
+  .lights i:nth-child(3) { background: #28c840; }
+  .ws-name { font-size: 12px; color: var(--fg-muted); }
+  .session-tabs { display: flex; gap: 2px; margin-left: 8px; }
+  .session-tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 24px; padding: 0 10px; border-radius: 6px;
+    font-size: 12px; color: var(--fg-muted);
+  }
+  .session-tab.active { background: var(--panel-tab-active); color: #fff; font-weight: 600; }
+  .editor-tabs { display: flex; gap: 2px; margin-left: 14px; }
+  .etab {
+    display: inline-flex; align-items: center; gap: 6px; height: 24px;
+    padding: 0 10px; border-radius: 6px; font-size: 12px; color: var(--fg-muted);
+  }
+  .etab.active { background: var(--bg-active); color: var(--fg); font-weight: 600; }
+  .etab .mk { color: var(--mark-strong); font-size: 10px; font-weight: 700; }
+  /* 右栏面板 tab(标题栏右区,橙 active,与客户端一致) */
+  .panel-tabs { margin-left: auto; display: flex; gap: 2px; }
+  .ptab {
+    display: inline-flex; align-items: center; gap: 5px; height: 24px;
+    padding: 0 10px; border-radius: 6px; font-size: 12px; color: var(--fg-muted);
+  }
+  .ptab.active { background: var(--panel-tab-active); color: #fff; font-weight: 600; }
+  .ptab .badge {
+    min-width: 15px; height: 15px; border-radius: 999px; padding: 0 4px;
+    background: rgba(255,255,255,0.28); font: 600 10px/15px sans-serif; text-align: center;
+  }
+
+  .shell { display: flex; height: 660px; }
+  /* 侧栏文件树:带标记的文件挂计数 */
+  .sidebar {
+    width: 196px; flex: none; background: var(--bg-panel);
+    border-right: 1px solid var(--border); padding: 8px 6px;
+    font-size: 12px; overflow: hidden;
+  }
+  .side-head { color: var(--fg-subtle); font-size: 11px; padding: 4px 8px; letter-spacing: 0.04em; }
+  .tree-row {
+    display: flex; align-items: center; gap: 6px; height: 24px;
+    padding: 0 8px; border-radius: 5px; color: var(--fg-muted); white-space: nowrap;
+  }
+  .tree-row.dir { color: var(--fg); }
+  .tree-row.sel { background: var(--bg-active); color: var(--fg); font-weight: 600; }
+  .indent-1 { padding-left: 14px; }
+  .mk-count {
+    margin-left: auto; flex: none; min-width: 16px; height: 14px; padding: 0 4px;
+    border-radius: 999px; background: var(--mark-soft); color: var(--mark-strong);
+    font: 700 9.5px/14px sans-serif; text-align: center;
+  }
+  .mk-count.sent { background: var(--accent-soft); color: var(--accent); }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  /* 本文件标记条(轻量,只作用于当前文件) */
+  .markbar {
+    display: flex; align-items: center; gap: 10px; height: 32px; flex: none;
+    padding: 0 14px; border-bottom: 1px solid var(--border);
+    background: linear-gradient(to right, var(--mark-soft), transparent 55%);
+    font-size: 12px;
+  }
+  .markbar .count { font-weight: 600; color: var(--mark-strong); }
+  .markbar .stat { color: var(--fg-muted); }
+  .markbar .acts { margin-left: auto; display: flex; gap: 6px; }
+  .btn {
+    height: 22px; padding: 0 10px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--bg-base);
+    font-size: 11px; color: var(--fg); display: inline-flex; align-items: center; gap: 4px;
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.amber { background: var(--mark); border-color: var(--mark); color: #3b2f00; font-weight: 600; }
+
+  /* 代码区 */
+  .code {
+    flex: 1; min-height: 0; overflow: hidden; padding: 8px 0;
+    font: 12px/1.7 var(--mono); background: var(--bg-base);
+  }
+  .cline { display: flex; padding: 0 10px 0 0; white-space: pre; }
+  .cline .ln {
+    width: 40px; flex: none; text-align: right; padding-right: 10px;
+    color: var(--fg-faint); user-select: none; position: relative;
+  }
+  .cline.marked { background: var(--mark-soft); box-shadow: inset 2px 0 0 var(--mark); }
+  .cline.marked.sent { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
+  .cline .ln .flag {
+    position: absolute; left: 3px; top: 50%; transform: translateY(-50%);
+    width: 15px; height: 15px; border-radius: 50%;
+    background: var(--mark); color: #3b2f00;
+    font: 600 10px/15px sans-serif; text-align: center; font-style: normal;
+  }
+  .cline.sent .ln .flag { background: var(--accent); color: #fff; }
+  .kw { color: var(--syn-kw); } .str { color: var(--syn-str); } .cmt { color: var(--syn-cmt); }
+  .num { color: var(--syn-num); } .fn { color: var(--syn-fn); } .typ { color: var(--syn-type); }
+
+  /* 行间批注卡(展开态) */
+  .note-card {
+    margin: 4px 10px 6px 52px; border: 1px solid var(--accent);
+    border-left-width: 3px; border-radius: 8px; background: #f6faff;
+    padding: 8px 10px; font: 12px/1.5 sans-serif;
+  }
+  .note-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .note-head .who { font-weight: 600; font-size: 11px; }
+  .note-head .range { color: var(--fg-subtle); font-size: 11px; font-family: var(--mono); }
+  .note-head .state { margin-left: auto; font-size: 10px; padding: 1px 7px; border-radius: 999px; }
+  .state.todo { background: var(--mark-soft); color: var(--mark-strong); }
+  .state.done { background: var(--accent-soft); color: var(--accent); }
+  .note-text { color: var(--fg); }
+  .note-ops { display: flex; gap: 6px; margin-top: 6px; }
+  .note-ops .btn { height: 20px; font-size: 10px; padding: 0 8px; }
+  /* 折叠态:默认只留一行摘要,防挤占代码视野 */
+  .note-strip {
+    margin: 2px 10px 4px 52px; display: flex; align-items: center; gap: 8px;
+    height: 22px; padding: 0 10px; border-radius: 6px;
+    background: var(--accent-soft); font: 11px sans-serif; color: var(--fg-muted);
+  }
+  .note-strip b { color: var(--accent); }
+  .note-strip .expand { margin-left: auto; color: var(--accent); }
+
+  /* 全局标记中心(右栏) */
+  .mark-panel {
+    width: 292px; flex: none; border-left: 1px solid var(--border);
+    background: var(--bg-panel); display: flex; flex-direction: column;
+  }
+  .mp-head {
+    display: flex; align-items: center; gap: 8px; height: 36px; flex: none;
+    padding: 0 12px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600;
+  }
+  .mp-head .scope { color: var(--fg-subtle); font-weight: 400; font-size: 11px; }
+  .mp-head .btn-send {
+    margin-left: auto; height: 22px; padding: 0 10px; border-radius: var(--radius-sm);
+    background: var(--accent); color: #fff; font-size: 11px;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .mp-sub {
+    flex: none; padding: 6px 12px; font-size: 10.5px; color: var(--fg-subtle);
+    border-bottom: 1px solid var(--border); display: flex; gap: 6px; align-items: center;
+  }
+  .mp-sub .ok-dot { color: var(--ok); }
+  .mp-list { flex: 1; min-height: 0; overflow: hidden; padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; }
+  .mp-group { font-size: 10.5px; color: var(--fg-subtle); padding: 4px 4px 0; display: flex; gap: 6px; align-items: center; }
+  .mp-group .g-send { margin-left: auto; color: var(--accent); }
+  .mcard {
+    background: var(--bg-base); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 9px; font-size: 12px;
+  }
+  .mcard.checked { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft); }
+  .mc-head { display: flex; align-items: center; gap: 7px; }
+  .mc-check {
+    width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--border-strong);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 10px; flex: none;
+  }
+  .mcard.checked .mc-check { background: var(--accent); border-color: var(--accent); }
+  .mc-flag { width: 15px; height: 15px; border-radius: 50%; background: var(--mark); color: #3b2f00; font: 600 10px/15px sans-serif; text-align: center; flex: none; }
+  .mcard.sent .mc-flag { background: var(--accent); color: #fff; }
+  .mc-range { font-family: var(--mono); font-size: 11px; color: var(--fg-muted); }
+  .mc-state { margin-left: auto; font-size: 10px; padding: 1px 7px; border-radius: 999px; flex: none; }
+  .st-todo { background: var(--mark-soft); color: var(--mark-strong); }
+  .st-done { background: var(--accent-soft); color: var(--accent); }
+  .st-drift { background: rgba(220,38,38,0.10); color: var(--err); }
+  .mc-excerpt {
+    margin-top: 5px; font: 10.5px/1.55 var(--mono); color: var(--fg-muted);
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 8px; white-space: pre; overflow: hidden;
+  }
+  .mc-note { margin-top: 5px; color: var(--fg); }
+  .mc-ops { display: flex; gap: 5px; margin-top: 6px; }
+  .mc-ops .op {
+    height: 20px; padding: 0 8px; border-radius: 5px; border: 1px solid var(--border);
+    background: var(--bg-base); font-size: 10px; color: var(--fg-muted);
+    display: inline-flex; align-items: center; gap: 3px;
+  }
+  .mc-ops .op.hot { color: var(--accent); border-color: var(--accent); }
+
+  /* 终端条(AI 回复回链) */
+  .term {
+    flex: none; border-top: 1px solid var(--border); background: var(--bg-elevated);
+    padding: 8px 14px; font: 11.5px/1.65 var(--mono); color: var(--fg-muted);
+    max-height: 100px; overflow: hidden;
+  }
+  .term .prompt { color: var(--ok); }
+  .backlink {
+    color: var(--accent); background: var(--accent-soft); border-radius: 4px;
+    padding: 0 5px; cursor: pointer; text-decoration: underline dotted;
+    position: relative; white-space: nowrap;
+  }
+  .backlink .tip {
+    position: absolute; right: 0; bottom: calc(100% + 6px); width: 246px;
+    background: var(--bg-base); border: 1px solid var(--border-strong);
+    border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.14);
+    color: var(--fg); font: 11px/1.5 sans-serif; padding: 8px 10px; text-decoration: none;
+  }
+  .tip b { color: var(--accent); }
+  .tip .t-sub { color: var(--fg-subtle); margin-top: 2px; }
+
+  /* composer */
+  .composer { flex: none; border-top: 1px solid var(--border); background: var(--bg-base); }
+  .attach-strip {
+    display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+    border-bottom: 1px solid var(--border); overflow: hidden;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; height: 26px;
+    padding: 0 6px 0 8px; border-radius: 7px; border: 1px solid var(--accent);
+    background: var(--accent-soft); font-size: 11px; color: var(--fg); flex: none;
+  }
+  .chip .flag { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); color: #fff; font: 600 9px/14px sans-serif; text-align: center; }
+  .chip .excerpt { color: var(--fg-muted); font-family: var(--mono); font-size: 10.5px; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip .x { color: var(--fg-subtle); padding: 0 2px; }
+  .attach-meta { margin-left: auto; color: var(--fg-subtle); font-size: 10.5px; flex: none; }
+  .input-row { display: flex; align-items: flex-end; gap: 8px; padding: 8px 12px 10px; }
+  .textarea {
+    flex: 1; min-height: 44px; border: 0; outline: none; resize: none;
+    font: 12.5px/1.5 sans-serif; color: var(--fg); background: transparent;
+    padding: 4px 2px;
+  }
+  .send-btn {
+    width: 30px; height: 30px; border-radius: 8px; background: var(--accent);
+    color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+
+  .callout { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--fg); color: #fff; font: 600 10px/16px sans-serif; flex: none; }
+  .legend { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 28px; font-size: 12px; color: var(--fg-muted); }
+  .legend div { display: flex; gap: 8px; align-items: baseline; }
+
+  /* 数据契约区 */
+  .contract { margin-top: 18px; border: 1px solid var(--err); border-radius: 10px; background: #fff; padding: 12px 16px; font-size: 12px; }
+  .contract h2 { font-size: 13px; margin-bottom: 6px; color: var(--err); }
+  .contract table { width: 100%; border-collapse: collapse; }
+  .contract td { padding: 4px 10px 4px 0; vertical-align: top; color: var(--fg-muted); border-top: 1px dashed var(--border); }
+  .contract tr:first-child td { border-top: 0; }
+  .contract td:first-child { color: var(--fg); font-weight: 600; white-space: nowrap; width: 108px; }
+  .contract code { font-family: var(--mono); font-size: 11px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; color: var(--fg); }
+
+  .tradeoff { margin-top: 14px; border: 1px solid var(--border); border-radius: 10px; background: #fff; padding: 12px 16px; font-size: 12px; }
+  .tradeoff h2 { font-size: 13px; margin-bottom: 6px; }
+  .tradeoff td { padding: 3px 10px 3px 0; vertical-align: top; color: var(--fg-muted); }
+  .tradeoff td:first-child { color: var(--fg); font-weight: 600; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>文件标记 × 对话框 · 方案 D:行间锚点 + 全局标记中心<span class="tag">A 为主 × B 全局化 · 定稿候选</span></h1>
+  <p class="lede"><b>模型:行间锚点是书写面,全局标记中心是存放与发送面。</b>在任意文件里选行 → 行间落锚点卡(A 的所见即所得);所有锚点实时汇入右栏「⚑ 标记」面板,跨文件分组、勾选批量发送;composer 一次带走多个文件的引用。<span class="zero">0 容忍红线:标记永远是覆盖层,源文件一个字节都不写</span> —— 数据落 sidecar,锚点带内容指纹,行号漂移自动重定位。</p>
+  <div class="flow">
+    <span><b>1</b> 任意文件选行 → 行间落锚点</span>→
+    <span><b>2</b> 换文件继续标,锚点全局累积</span>→
+    <span><b>3</b> 右栏中心勾选(跨文件)批量发送</span>→
+    <span><b>4</b> composer 多文件引用芯片</span>→
+    <span><b>5</b> AI 回链 → 激活对应 tab 定位锚点</span>
+  </div>
+
+  <div class="app">
+    <!-- 标题栏:会话 tab 橙 active + 编辑 tab 带标记计数 + 右栏「标记」面板 tab -->
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <span class="ws-name">tmd-cli</span>
+      <div class="session-tabs">
+        <span class="session-tab active">● 主题:重构 composer 发送链</span>
+        <span class="session-tab">◇ 查 dsh 502</span>
+      </div>
+      <div class="editor-tabs">
+        <span class="etab active">TS useComposerSend.ts <span class="mk">⚑2</span></span>
+        <span class="etab">TS attachments.ts <span class="mk">⚑1</span></span>
+      </div>
+      <div class="panel-tabs">
+        <span class="ptab">Git</span>
+        <span class="ptab active">⚑ 标记 <span class="badge">3</span></span>
+      </div>
+    </div>
+
+    <div class="shell">
+      <!-- 侧栏:带标记的文件挂计数胶囊 -->
+      <div class="sidebar">
+        <div class="side-head">文件</div>
+        <div class="tree-row dir">▾ src</div>
+        <div class="tree-row dir"><span class="indent-1"></span>▾ plugins</div>
+        <div class="tree-row dir"><span class="indent-1"></span><span class="indent-1"></span>▾ composer</div>
+        <div class="tree-row"><span class="indent-1"></span><span class="indent-1"></span><span class="indent-1"></span>Composer.tsx</div>
+        <div class="tree-row sel"><span class="indent-1"></span><span class="indent-1"></span><span class="indent-1"></span>useComposerSend.ts <span class="mk-count sent">2</span></div>
+        <div class="tree-row"><span class="indent-1"></span><span class="indent-1"></span><span class="indent-1"></span>attachments.ts <span class="mk-count">1</span></div>
+        <div class="tree-row"><span class="indent-1"></span><span class="indent-1"></span><span class="indent-1"></span>serialize.ts</div>
+        <div class="side-head" style="margin-top:10px">会话</div>
+        <div class="tree-row">● 重构 composer 发送链</div>
+        <div class="tree-row">◇ 查 dsh 502</div>
+      </div>
+
+      <!-- 主区:当前文件锚点(A 为主) -->
+      <div class="main">
+        <div class="markbar">
+          <span class="count">⚑ 本文件 2 处</span>
+          <span class="stat">① 已发送 · ② 已发送 · 全局共 3 处(含 attachments.ts ①)</span>
+          <div class="acts">
+            <span class="btn">折叠全部批注</span>
+            <span class="btn amber">⚑ 本文件全部发送</span>
+          </div>
+        </div>
+
+        <div class="code">
+          <div class="cline"><span class="ln">1</span><span><span class="kw">import</span> { useCallback } <span class="kw">from</span> <span class="str">"react"</span>;</span></div>
+          <div class="cline"><span class="ln">2</span><span><span class="kw">import</span> { useComposerAttachments } <span class="kw">from</span> <span class="str">"./useComposerAttachments"</span>;</span></div>
+          <div class="cline"><span class="ln">3</span><span></span></div>
+          <div class="cline"><span class="ln">4</span><span><span class="kw">export function</span> <span class="fn">useComposerSend</span>(sessionId: <span class="typ">string</span>) {</span></div>
+          <div class="cline"><span class="ln">5</span><span>  <span class="kw">const</span> { attachments, clear } = <span class="fn">useComposerAttachments</span>();</span></div>
+          <div class="cline"><span class="ln">6</span><span></span></div>
+          <div class="cline marked sent"><span class="ln"><i class="flag">1</i>7</span><span>  <span class="kw">const</span> send = <span class="fn">useCallback</span>(<span class="kw">async</span> (text: <span class="typ">string</span>) =&gt; {</span></div>
+          <div class="cline marked sent"><span class="ln">8</span><span>    <span class="kw">const</span> payload = <span class="fn">serialize</span>(text, attachments);</span></div>
+          <div class="cline marked sent"><span class="ln">9</span><span>    <span class="cmt">// 发送后清空输入</span></span></div>
+          <div class="cline marked sent"><span class="ln">10</span><span>    <span class="kw">await</span> ipc.<span class="fn">sessionWrite</span>(sessionId, payload);</span></div>
+          <div class="cline marked sent"><span class="ln">11</span><span>    <span class="fn">setText</span>(<span class="str">""</span>);</span></div>
+          <!-- 锚点①展开态 -->
+          <div class="note-card">
+            <div class="note-head">
+              <span class="who">⚑ ① · 大仙</span>
+              <span class="range">L7-11</span>
+              <span class="state done">已发送 · 全局中心可查</span>
+            </div>
+            <div class="note-text">发送成功后 attachments 没有 clear(),下一条消息会带上一次的附件,帮我确认并修掉。</div>
+            <div class="note-ops">
+              <span class="btn">↩ AI 回复</span>
+              <span class="btn">编辑</span>
+              <span class="btn">移除</span>
+            </div>
+          </div>
+          <div class="cline"><span class="ln">12</span><span>    <span class="kw">return true</span>;</span></div>
+          <div class="cline"><span class="ln">13</span><span>  }, [sessionId, attachments]);</span></div>
+          <div class="cline"><span class="ln">14</span><span></span></div>
+          <div class="cline marked sent"><span class="ln"><i class="flag">2</i>15</span><span>  <span class="kw">const</span> onError = (err: <span class="typ">unknown</span>) =&gt; {</span></div>
+          <div class="cline marked sent"><span class="ln">16</span><span>    toast.<span class="fn">error</span>(<span class="fn">String</span>(err));</span></div>
+          <div class="cline marked sent"><span class="ln">17</span><span>  };</span></div>
+          <!-- 锚点②折叠态:一行摘要,默认如此 -->
+          <div class="note-strip">
+            <b>⚑ ②</b><span>L15-17 · 错误只 toast,需要同时回显终端…</span>
+            <span class="expand">展开 ▾</span>
+          </div>
+          <div class="cline"><span class="ln">18</span><span></span></div>
+          <div class="cline"><span class="ln">19</span><span>  <span class="kw">const</span> FILE_RE = <span class="str">/^\S+\.\w+$/</span>;</span></div>
+          <div class="cline"><span class="ln">20</span><span></span></div>
+          <div class="cline"><span class="ln">21</span><span>  <span class="kw">return</span> { send, onError };</span></div>
+          <div class="cline"><span class="ln">22</span><span>}</span></div>
+        </div>
+
+        <!-- 终端条:AI 跨文件回链 -->
+        <div class="term">
+          <div><span class="prompt">➜</span> 看了你标记的三处(两个文件):</div>
+          <div>&nbsp;&nbsp;<span class="backlink">useComposerSend.ts:L7-11<span class="tip"><b>↩ 跳回锚点 ①</b><br>激活文件 tab → 滚动到 L7 → 锚点闪烁;若行号已漂移,按内容指纹重定位<div class="t-sub">回链由终端 path:line 模式识别生成</div></span></span> 确实没 clear(),修复:send 成功后调 clear() 并移出依赖。</div>
+          <div>&nbsp;&nbsp;<span class="backlink">useComposerSend.ts:L15-17</span> 已加终端回显。<span class="backlink">attachments.ts:L45</span> 去重键改 path+size,漂移锚点已按指纹重定位。</div>
+        </div>
+
+        <!-- composer:跨文件引用芯片 -->
+        <div class="composer">
+          <div class="attach-strip">
+            <span class="chip"><span class="flag">1</span>useComposerSend.ts:L7-11 <span class="excerpt">await ipc.sessionWrite(…)</span><span class="x">×</span></span>
+            <span class="chip"><span class="flag">2</span>useComposerSend.ts:L15-17 <span class="excerpt">toast.error(…)</span><span class="x">×</span></span>
+            <span class="chip"><span class="flag">1</span>attachments.ts:L45 <span class="excerpt">key: file.name</span><span class="x">×</span></span>
+            <span class="attach-meta">3 条标记引用 · 2 个文件</span>
+          </div>
+          <div class="input-row">
+            <textarea class="textarea">按标记的三处改:① 发送后清空附件;② 错误回显终端;attachments.ts 那个去重键一起修。</textarea>
+            <div class="send-btn">➤</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 全局标记中心 -->
+      <div class="mark-panel">
+        <div class="mp-head">
+          ⚑ 标记中心
+          <span class="scope">2 文件 · 3 处</span>
+          <span class="btn-send">⚑ 发送所选 (3)</span>
+        </div>
+        <div class="mp-sub">
+          <span class="ok-dot">●</span> sidecar 已保存 · 源文件零写入
+          <span style="margin-left:auto">☑ 全选</span>
+        </div>
+        <div class="mp-list">
+          <div class="mp-group">▾ useComposerSend.ts <span style="color:var(--fg-faint)">2</span> <span class="g-send">发送本文件</span></div>
+          <div class="mcard checked sent">
+            <div class="mc-head">
+              <span class="mc-check">✓</span><span class="mc-flag">1</span>
+              <span class="mc-range">L7-11</span>
+              <span class="mc-state st-done">已发送</span>
+            </div>
+            <div class="mc-excerpt">await ipc.sessionWrite(sessionId, payload);
+setText("");</div>
+            <div class="mc-note">发送成功后 attachments 没有 clear()…</div>
+            <div class="mc-ops"><span class="op">↩ 定位</span><span class="op">编辑</span><span class="op">删除</span></div>
+          </div>
+          <div class="mcard checked sent">
+            <div class="mc-head">
+              <span class="mc-check">✓</span><span class="mc-flag">2</span>
+              <span class="mc-range">L15-17</span>
+              <span class="mc-state st-done">已发送</span>
+            </div>
+            <div class="mc-note">错误只 toast,需要同时回显终端方便复制堆栈。</div>
+            <div class="mc-ops"><span class="op">↩ 定位</span><span class="op">编辑</span><span class="op">删除</span></div>
+          </div>
+          <div class="mp-group">▾ attachments.ts <span style="color:var(--fg-faint)">1</span> <span class="g-send">发送本文件</span></div>
+          <div class="mcard checked">
+            <div class="mc-head">
+              <span class="mc-check">✓</span><span class="mc-flag">1</span>
+              <span class="mc-range">L45 <s style="color:var(--fg-faint)">L42</s></span>
+              <span class="mc-state st-drift">漂移已重定位</span>
+            </div>
+            <div class="mc-excerpt">const key = file.name;  <span style="color:var(--err)">// 指纹命中 ±3 行</span></div>
+            <div class="mc-note">去重键只看文件名,同名不同内容会丢附件。</div>
+            <div class="mc-ops"><span class="op">↩ 定位</span><span class="op hot">⚑ 发送</span><span class="op">编辑</span><span class="op">删除</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图例 -->
+  <div class="legend">
+    <div><span class="callout">①</span><span>行间锚点(A 为主):选行即落卡;默认折叠成一行摘要条,点击展开,标记再多也不挤代码。</span></div>
+    <div><span class="callout">②</span><span>全局标记中心(B 的存放面):跨文件分组聚合,勾选批量发送;与右栏既有 Git 面板同 tab 体系,橙 active。</span></div>
+    <div><span class="callout">③</span><span>标记计数打穿三层:文件树胶囊 → 编辑 tab ⚑n → 面板 badge,换文件不丢上下文。</span></div>
+    <div><span class="callout">④</span><span>漂移演示:attachments.ts 的锚点从 L42 漂到 L45,按内容指纹自动重定位并标红提示,绝不静默错位。</span></div>
+  </div>
+
+  <!-- 数据契约:0 容忍 -->
+  <div class="contract">
+    <h2>数据契约 · 0 容忍红线:源文件零写入</h2>
+    <table>
+      <tr><td>存放点(全局唯一)</td><td>工作区级 sidecar:<code>.tmd/marks.json</code>(不进 git,已加 .gitignore 建议);内存态 = 全局 store,文件打开/切换/关闭都不丢。源文件从头到尾不被写、不被改 buffer、不加任何隐藏字符。</td></tr>
+      <tr><td>锚点结构</td><td><code>{ id, path, startLine, endLine, headTail 指纹(首行+尾行内容 hash), note, state, createdAt }</code> —— 行号是显示值,指纹是定位置信源。</td></tr>
+      <tr><td>重定位</td><td>文件变更后按指纹在 ±N 行窗口内模糊重定位;命中 → 静默更新行号(面板标「漂移已重定位」);不命中 → 标「失联」,绝不瞎指到错误行,由人决定删除或重新圈选。</td></tr>
+      <tr><td>渲染层</td><td>锚点走文件视图的装饰层(与 gitDecorate 同通道,纯 overlay);文件关闭 → 装饰卸载,sidecar 保留;重开 → 按指纹复锚。</td></tr>
+      <tr><td>发送语义</td><td>发送 = 把「path:行号 + 摘录原文快照 + 备注」序列化进 composer 引用;AI 拿到的是快照文本,即使之后文件改了,AI 看到的仍是标记时的内容,可复现。</td></tr>
+      <tr><td>回链</td><td>终端输出里 <code>path:line</code> 模式识别为回链(纯幕布外增强,不动 PTY 字节);点击 → 查全局 store → 激活文件 tab → 按指纹定位 → 闪烁锚点。</td></tr>
+    </table>
+  </div>
+
+  <!-- 取舍 -->
+  <div class="tradeoff">
+    <h2>方案 D 取舍(相对 A/B/C)</h2>
+    <table>
+      <tr><td>从 A 继承</td><td>行间锚点的所见即所得:书写、查看、发送状态都在代码旁;新增默认折叠态,解决 A 标记多挤视野的唯一硬伤。</td></tr>
+      <tr><td>从 B 继承</td><td>右栏全局中心:跨文件聚合、勾选批量、按文件分组发送;解决 A「单文件操作」的核心缺口。</td></tr>
+      <tr><td>从 C 继承</td><td>composer 芯片与既有附件体系同构;AI 回链不依赖文件侧对象,按 path:line + 指纹定位。</td></tr>
+      <tr><td>新增红线</td><td>sidecar 存储 + 内容指纹锚定,源文件零写入;漂移可感知、失联不瞎指。</td></tr>
+      <tr><td>代价</td><td>两套界面(行间 + 面板)状态要实时同源;指纹重定位需要一次文件监听与 ±N 行扫描(代价可忽略,单文件 KB 级)。</td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>

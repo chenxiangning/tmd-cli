@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文件标记 × 对话框 · 方案 C:选区即引用(零常驻,对话为中心)</title>
+<style>
+  /* ── 客户端浅色 token(src/styles/themes.css :root[data-theme="light"])── */
+  :root {
+    --bg-base: #ffffff;
+    --bg-elevated: #f8f8f8;
+    --bg-panel: #f8f8f8;
+    --bg-hover: #f2f2f2;
+    --bg-active: rgba(0,95,184,0.14);
+    --fg: #3b3b3b;
+    --fg-muted: #7e7e7e;
+    --fg-subtle: #999999;
+    --fg-faint: #c0c0c0;
+    --border: #cecece;
+    --border-strong: #b1b1b1;
+    --accent: #005fb8;
+    --accent-soft: rgba(0,95,184,0.14);
+    --syn-kw: #0000ff; --syn-str: #a31515; --syn-cmt: #008000;
+    --syn-num: #098658; --syn-fn: #795e26; --syn-type: #267f99;
+    --ok: #059669; --warn: #a16207; --err: #dc2626;
+    --mark: #eab308;
+    --mark-soft: rgba(234,179,8,0.13);
+    --mark-strong: #a16207;
+    --sel: rgba(173,214,255,0.55);   /* --tmd-terminal-selection 系 */
+    --panel-tab-active: rgb(255,140,60);
+    --radius-sm: 6px;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #ececec; color: var(--fg);
+    font: 13px/1.5 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    padding: 28px 20px 60px;
+  }
+  .page { max-width: 1440px; margin: 0 auto; }
+  h1 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .lede { color: var(--fg-muted); font-size: 12px; margin-bottom: 8px; max-width: 980px; }
+  .lede b { color: var(--fg); }
+  .flow { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 18px; }
+  .flow span {
+    font-size: 11px; color: var(--fg-muted); background: #fff;
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px;
+  }
+  .flow span b { color: var(--accent); font-weight: 600; }
+
+  .app {
+    background: var(--bg-base); border: 1px solid var(--border-strong);
+    border-radius: 12px; overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.10);
+  }
+  .titlebar {
+    display: flex; align-items: center; gap: 12px; height: 38px;
+    background: var(--bg-elevated); border-bottom: 1px solid var(--border);
+    padding: 0 12px;
+  }
+  .lights { display: flex; gap: 7px; }
+  .lights i { width: 11px; height: 11px; border-radius: 50%; }
+  .lights i:nth-child(1) { background: #ff5f57; }
+  .lights i:nth-child(2) { background: #febc2e; }
+  .lights i:nth-child(3) { background: #28c840; }
+  .ws-name { font-size: 12px; color: var(--fg-muted); }
+  .session-tabs { display: flex; gap: 2px; margin-left: 8px; }
+  .session-tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 24px; padding: 0 10px; border-radius: 6px;
+    font-size: 12px; color: var(--fg-muted);
+  }
+  .session-tab.active { background: var(--panel-tab-active); color: #fff; font-weight: 600; }
+  .editor-tabs { display: flex; gap: 2px; margin-left: 14px; }
+  .etab {
+    display: inline-flex; align-items: center; gap: 6px; height: 24px;
+    padding: 0 10px; border-radius: 6px; font-size: 12px; color: var(--fg-muted);
+  }
+  .etab.active { background: var(--bg-active); color: var(--fg); font-weight: 600; }
+  .titlebar-right { margin-left: auto; display: flex; gap: 4px; }
+  .titlebar-right i {
+    width: 24px; height: 24px; border-radius: 6px; display: inline-flex;
+    align-items: center; justify-content: center; color: var(--fg-subtle); font-style: normal; font-size: 13px;
+  }
+
+  .shell { display: flex; height: 640px; }
+  .sidebar {
+    width: 224px; flex: none; background: var(--bg-panel);
+    border-right: 1px solid var(--border); padding: 8px 6px;
+    font-size: 12px; overflow: hidden;
+  }
+  .side-head { color: var(--fg-subtle); font-size: 11px; padding: 4px 8px; letter-spacing: 0.04em; }
+  .tree-row {
+    display: flex; align-items: center; gap: 6px; height: 24px;
+    padding: 0 8px; border-radius: 5px; color: var(--fg-muted); white-space: nowrap;
+  }
+  .tree-row.dir { color: var(--fg); }
+  .tree-row.sel { background: var(--bg-active); color: var(--fg); font-weight: 600; }
+  .indent-1 { padding-left: 14px; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
+  .code {
+    flex: 1; min-height: 0; overflow: hidden; padding: 8px 0;
+    font: 12px/1.7 var(--mono); background: var(--bg-base); position: relative;
+  }
+  .cline { display: flex; padding: 0 14px 0 0; white-space: pre; }
+  .cline .ln {
+    width: 44px; flex: none; text-align: right; padding-right: 12px;
+    color: var(--fg-faint); user-select: none; position: relative;
+  }
+  /* 正在拖选的选区 */
+  .cline.selecting { background: var(--sel); }
+  /* 已发送引用留下的痕迹:淡蓝底 + 行号槽 ▸ */
+  .cline.quoted { background: var(--accent-soft); }
+  .cline .ln .tick {
+    position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+    color: var(--accent); font-size: 9px; font-style: normal;
+  }
+  .kw { color: var(--syn-kw); } .str { color: var(--syn-str); } .cmt { color: var(--syn-cmt); }
+  .num { color: var(--syn-num); } .fn { color: var(--syn-fn); } .typ { color: var(--syn-type); }
+
+  /* 选区浮动工具条 */
+  .float-bar {
+    position: absolute; left: 250px; top: 118px; z-index: 5;
+    display: flex; align-items: center; gap: 2px;
+    background: var(--bg-base); border: 1px solid var(--border-strong);
+    border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.14);
+    padding: 3px; font-size: 11.5px;
+  }
+  .float-bar .fb {
+    height: 24px; padding: 0 10px; border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 4px; color: var(--fg);
+  }
+  .float-bar .fb.hot { background: var(--accent); color: #fff; font-weight: 600; }
+  .float-bar .fb:hover { background: var(--bg-hover); }
+  .float-bar .fb.hot:hover { background: var(--accent); }
+  .float-bar .sep { width: 1px; height: 16px; background: var(--border); }
+  .float-bar::after {
+    content: ""; position: absolute; left: 60px; bottom: -5px;
+    width: 10px; height: 10px; background: var(--bg-base);
+    border-right: 1px solid var(--border-strong); border-bottom: 1px solid var(--border-strong);
+    transform: rotate(45deg);
+  }
+
+  /* 终端条 */
+  .term {
+    flex: none; border-top: 1px solid var(--border); background: var(--bg-elevated);
+    padding: 8px 14px; font: 11.5px/1.65 var(--mono); color: var(--fg-muted);
+    max-height: 118px; overflow: hidden;
+  }
+  .term .prompt { color: var(--ok); }
+  .backlink {
+    color: var(--accent); background: var(--accent-soft); border-radius: 4px;
+    padding: 0 5px; cursor: pointer; text-decoration: underline dotted;
+    position: relative; white-space: nowrap;
+  }
+  .backlink .tip {
+    position: absolute; right: 0; bottom: calc(100% + 6px); width: 236px;
+    background: var(--bg-base); border: 1px solid var(--border-strong);
+    border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.14);
+    color: var(--fg); font: 11px/1.5 sans-serif; padding: 8px 10px;
+  }
+  .tip b { color: var(--accent); }
+  .tip .t-sub { color: var(--fg-subtle); margin-top: 2px; }
+
+  /* composer:引用芯片即全部状态,备注直接在芯片上改 */
+  .composer { flex: none; border-top: 1px solid var(--border); background: var(--bg-base); }
+  .quote-list { padding: 8px 12px 0; display: flex; flex-direction: column; gap: 6px; }
+  .quote-chip {
+    display: flex; align-items: flex-start; gap: 8px;
+    border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 8px; background: var(--bg-elevated); padding: 6px 10px;
+  }
+  .quote-chip.editing { border-left-color: var(--mark); background: #fffdf4; }
+  .qc-body { flex: 1; min-width: 0; font-size: 11.5px; }
+  .qc-loc { font-family: var(--mono); color: var(--accent); font-size: 10.5px; }
+  .qc-loc .fresh { color: var(--mark-strong); background: var(--mark-soft); border-radius: 4px; padding: 0 5px; margin-left: 6px; font-family: sans-serif; }
+  .qc-excerpt {
+    font: 10.5px/1.5 var(--mono); color: var(--fg-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;
+  }
+  .qc-note { margin-top: 3px; color: var(--fg); }
+  .qc-note-input {
+    margin-top: 3px; width: 100%; border: 0; outline: none; background: transparent;
+    font: 11.5px/1.5 sans-serif; color: var(--fg);
+    border-bottom: 1px dashed var(--mark); padding: 1px 0;
+  }
+  .qc-note-input::placeholder { color: var(--fg-faint); }
+  .qc-x { color: var(--fg-subtle); font-size: 12px; padding: 0 2px; }
+  .input-row { display: flex; align-items: flex-end; gap: 8px; padding: 8px 12px 10px; }
+  .textarea {
+    flex: 1; min-height: 40px; border: 0; outline: none; resize: none;
+    font: 12.5px/1.5 sans-serif; color: var(--fg); background: transparent; padding: 4px 2px;
+  }
+  .send-btn {
+    width: 30px; height: 30px; border-radius: 8px; background: var(--accent);
+    color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+
+  .callout { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--fg); color: #fff; font: 600 10px/16px sans-serif; }
+  .legend { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 28px; font-size: 12px; color: var(--fg-muted); }
+  .legend div { display: flex; gap: 8px; align-items: baseline; }
+  .tradeoff { margin-top: 18px; border: 1px solid var(--border); border-radius: 10px; background: #fff; padding: 12px 16px; font-size: 12px; }
+  .tradeoff h2 { font-size: 13px; margin-bottom: 6px; }
+  .tradeoff td { padding: 3px 10px 3px 0; vertical-align: top; color: var(--fg-muted); }
+  .tradeoff td:first-child { color: var(--fg); font-weight: 600; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>文件标记 × 对话框 · 方案 C:选区即引用</h1>
+  <p class="lede"><b>模型:没有「标记」这个独立对象,选中即引用,引用直达 composer。</b>拖选代码 → 浮动条一键「引用到对话」(可顺手写备注);文件里只留一道淡蓝痕迹表示「这段已引用过」;备注不写在文件上,而是写在 composer 的引用芯片上,发送前随时改。AI 回复回链点击 → 文件滚动到对应行,痕迹闪烁。</p>
+  <div class="flow">
+    <span><b>1</b> 拖选任意行/文本</span>→
+    <span><b>2</b> 浮动条:引用到对话 / 备注后引用</span>→
+    <span><b>3</b> 引用芯片落进 composer(备注写在芯片上)</span>→
+    <span><b>4</b> 发送</span>→
+    <span><b>5</b> AI 回复回链 → 跳回文件原行</span>
+  </div>
+
+  <div class="app">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <span class="ws-name">tmd-cli</span>
+      <div class="session-tabs">
+        <span class="session-tab active">● 主题:重构 composer 发送链</span>
+        <span class="session-tab">◇ 查 dsh 502</span>
+      </div>
+      <div class="editor-tabs">
+        <span class="etab active">TS useComposerSend.ts</span>
+        <span class="etab">MD AGENTS.md</span>
+      </div>
+      <div class="titlebar-right"><i>⌘</i><i>⚙</i></div>
+    </div>
+
+    <div class="shell">
+      <div class="sidebar">
+        <div class="side-head">文件</div>
+        <div class="tree-row dir">▾ src</div>
+        <div class="tree-row dir"><span class="indent-1"></span>▾ plugins</div>
+        <div class="tree-row dir"><span class="indent-1"></span><span class="indent-1"></span>▾ composer</div>
+        <div class="tree-row"><span class="indent-1"></span><span class="indent-1"></span><span class="indent-1"></span>Composer.tsx</div>
+        <div class="tree-row sel"><span class="indent-1"></span><span class="indent-1"></span><span class="indent-1"></span>useComposerSend.ts</div>
+        <div class="tree-row"><span class="indent-1"></span><span class="indent-1"></span><span class="indent-1"></span>attachments.ts</div>
+        <div class="tree-row"><span class="indent-1"></span><span class="indent-1"></span><span class="indent-1"></span>serialize.ts</div>
+        <div class="side-head" style="margin-top:10px">会话</div>
+        <div class="tree-row">● 重构 composer 发送链</div>
+        <div class="tree-row">◇ 查 dsh 502</div>
+      </div>
+
+      <div class="main">
+        <div class="code">
+          <div class="cline"><span class="ln">1</span><span><span class="kw">import</span> { useCallback } <span class="kw">from</span> <span class="str">"react"</span>;</span></div>
+          <div class="cline"><span class="ln">2</span><span><span class="kw">import</span> { useComposerAttachments } <span class="kw">from</span> <span class="str">"./useComposerAttachments"</span>;</span></div>
+          <div class="cline"><span class="ln">3</span><span></span></div>
+          <div class="cline"><span class="ln">4</span><span><span class="kw">export function</span> <span class="fn">useComposerSend</span>(sessionId: <span class="typ">string</span>) {</span></div>
+          <div class="cline"><span class="ln">5</span><span>  <span class="kw">const</span> { attachments, clear } = <span class="fn">useComposerAttachments</span>();</span></div>
+          <div class="cline"><span class="ln">6</span><span></span></div>
+          <!-- 正在拖选(L7-11)+ 浮动工具条 -->
+          <div class="cline selecting"><span class="ln">7</span><span>  <span class="kw">const</span> send = <span class="fn">useCallback</span>(<span class="kw">async</span> (text: <span class="typ">string</span>) =&gt; {</span></div>
+          <div class="cline selecting"><span class="ln">8</span><span>    <span class="kw">const</span> payload = <span class="fn">serialize</span>(text, attachments);</span></div>
+          <div class="cline selecting"><span class="ln">9</span><span>    <span class="cmt">// 发送后清空输入</span></span></div>
+          <div class="cline selecting"><span class="ln">10</span><span>    <span class="kw">await</span> ipc.<span class="fn">sessionWrite</span>(sessionId, payload);</span></div>
+          <div class="cline selecting"><span class="ln">11</span><span>    <span class="fn">setText</span>(<span class="str">""</span>);</span></div>
+          <div class="cline"><span class="ln">12</span><span>    <span class="kw">return true</span>;</span></div>
+          <div class="cline"><span class="ln">13</span><span>  }, [sessionId, attachments]);</span></div>
+          <div class="cline"><span class="ln">14</span><span></span></div>
+          <!-- 已发送引用留下的痕迹 -->
+          <div class="cline quoted"><span class="ln"><i class="tick">▸</i>15</span><span>  <span class="kw">const</span> onError = (err: <span class="typ">unknown</span>) =&gt; {</span></div>
+          <div class="cline quoted"><span class="ln">16</span><span>    toast.<span class="fn">error</span>(<span class="fn">String</span>(err));</span></div>
+          <div class="cline quoted"><span class="ln">17</span><span>  };</span></div>
+          <div class="cline"><span class="ln">18</span><span></span></div>
+          <div class="cline"><span class="ln">19</span><span>  <span class="kw">const</span> FILE_RE = <span class="str">/^\S+\.\w+$/</span>;</span></div>
+          <div class="cline"><span class="ln">20</span><span></span></div>
+          <div class="cline"><span class="ln">21</span><span>  <span class="kw">return</span> { send, onError };</span></div>
+          <div class="cline"><span class="ln">22</span><span>}</span></div>
+        </div>
+
+        <!-- 选区浮动工具条 -->
+        <div class="float-bar">
+          <span class="fb hot">⚑ 引用到对话</span>
+          <span class="fb">✎ 备注后引用</span>
+          <span class="sep"></span>
+          <span class="fb">复制</span>
+        </div>
+
+        <!-- 终端条 -->
+        <div class="term">
+          <div><span class="prompt">➜</span> 看了你引用的两段:</div>
+          <div>&nbsp;&nbsp;<span class="backlink">useComposerSend.ts:L7-11<span class="tip"><b>↩ 跳回引用处</b><br>文件 tab 激活 → 滚动到 L7 → 该段淡蓝痕迹闪烁两下<div class="t-sub">回链由终端 path:line 模式识别生成,不依赖文件侧的标记对象</div></span></span> 确实没 clear(),修复:send 成功后调 clear()。</div>
+          <div>&nbsp;&nbsp;<span class="backlink">useComposerSend.ts:L15-17</span> 已改成 toast + 终端双通道回显错误,diff 如下…</div>
+        </div>
+
+        <!-- composer:引用芯片即全部状态 -->
+        <div class="composer">
+          <div class="quote-list">
+            <div class="quote-chip">
+              <div class="qc-body">
+                <div class="qc-loc">useComposerSend.ts:L15-17</div>
+                <div class="qc-excerpt">const onError = (err: unknown) =&gt; { toast.error(String(err)) }</div>
+                <div class="qc-note">备注:错误除了 toast 再回显到终端。</div>
+              </div>
+              <span class="qc-x">×</span>
+            </div>
+            <div class="quote-chip editing">
+              <div class="qc-body">
+                <div class="qc-loc">useComposerSend.ts:L7-11<span class="fresh">刚引用 · 备注填写中</span></div>
+                <div class="qc-excerpt">const send = useCallback(async (text: string) =&gt; { …</div>
+                <input class="qc-note-input" value="发送成功后 attachments 没 clear,会带" placeholder="给这段引用补一句备注(可选,发送前随时改)">
+              </div>
+              <span class="qc-x">×</span>
+            </div>
+          </div>
+          <div class="input-row">
+            <textarea class="textarea" placeholder="补充说明…"></textarea>
+            <div class="send-btn">➤</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div><span class="callout">①</span><span>拖选即起浮动条:一键引用,或带备注引用;不占行号槽、不插卡片,零常驻 UI。</span></div>
+    <div><span class="callout">②</span><span>引用过的段落只留淡蓝底 + 行号槽 ▸ 痕迹(悬停提示「已引用 · 点击定位到 composer 芯片」)。</span></div>
+    <div><span class="callout">③</span><span>备注写在 composer 引用芯片上,发送前随意改;芯片 × 掉即完全无痕。</span></div>
+    <div><span class="callout">④</span><span>AI 回链点击 → 文件滚动定位 + 痕迹闪烁;行号漂移时按摘录内容模糊重定位。</span></div>
+  </div>
+
+  <div class="tradeoff">
+    <h2>方案 C 取舍</h2>
+    <table>
+      <tr><td>优点</td><td>最短路径:选 → 点 → 发,两步完成;零常驻 UI、零状态管理负担;与既有 composer 附件体系同构(引用就是一种附件)。</td></tr>
+      <tr><td>代价</td><td>没有「未发送的标注」可管理:关掉 composer 引用就没了,无法攒一批再发,也无法事后复查「我标过哪些地方」。</td></tr>
+      <tr><td>适合</td><td>即兴提问:看到问题立即圈给 AI,不打算留存批注的轻量场景。</td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>

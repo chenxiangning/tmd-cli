@@ -26,6 +26,7 @@ import { welcomePlugin } from "./welcome";
 import { networkProxyPlugin } from "./network-proxy";
 import { checkpointsPlugin } from "./checkpoints";
 import { memoryCoordinatorPlugin } from "./memory-coordinator";
+import { marksPlugin } from "./marks";
 import { assetsPlugin } from "./assets";
 import { cliConfigPlugin } from "./cli-config";
 import { localLoaderPlugin } from "./local-loader";
@@ -62,5 +63,6 @@ export const allPlugins: Plugin[] = [
   wslPlugin,
   wallpaperPlugin,
   sessionBoardPlugin,
+  marksPlugin,
   webAccessPlugin,
 ];
