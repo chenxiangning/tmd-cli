@@ -7,6 +7,7 @@ mod fs;
 mod fs_edit;
 mod fs_preview;
 mod fs_remove;
+mod fs_search;
 mod fs_tail;
 mod fs_walk;
 mod git;
@@ -193,7 +194,7 @@ pub fn run() {
             commands_fs::fs_read_tail,
             commands_fs::fs_read_tail_changed,
             commands_fs::fs_remove_path,
-            commands_fs::fs_walk_files,
+            commands_fs::fs_search,
             commands_fs::proc_communicate,
             fs_edit::fs_write_file,
             fs_edit::fs_create_file,

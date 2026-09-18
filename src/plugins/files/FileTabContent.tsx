@@ -8,8 +8,9 @@
  * 重库(pdf.js/xlsx/mammoth/结构化预览的 Prism)一律 lazy 拆包,打开对应类型才拉 chunk。
  */
 
-import { Suspense, lazy, useEffect, useState, useSyncExternalStore } from "react";
-import { Eye, Pencil } from "@phosphor-icons/react";
+import { Suspense, lazy, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ModeToggleButton, useDarkTheme } from "./editor/editorChrome";
+import { statusText, toolbarCls } from "./editor/editorChromeLogic";
 import type { EditorTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import {
@@ -17,6 +18,7 @@ import {
   loadFile,
   subscribeFileCache,
 } from "./editor/fileCache";
+import { takeFileRevealLine } from "./openFile";
 
 /* 编辑器(CodeMirror 全家 + 主题/语言包)按需拆包:真正进入编辑态才拉 chunk。
    useFileDocument 只依赖轻量 fileCache,静态引入不拖累拆包。 */
@@ -70,69 +72,17 @@ const MARKDOWN_FILE_RE = /\.(md|markdown|mdx)$/i;
 const mdEditMode = new Map<string, boolean>();
 const structuredEditMode = new Map<string, boolean>();
 
-/** 编辑器明暗跟随 <html data-theme>(custom preset 也只二分 dark/light)。 */
-function useDarkTheme(): boolean {
-  const [dark, setDark] = useState(() =>
-    typeof document === "undefined"
-      ? false
-      : document.documentElement.getAttribute("data-theme") === "dark",
-  );
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const observer = new MutationObserver(() => {
-      setDark(document.documentElement.getAttribute("data-theme") === "dark");
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-theme"],
-    });
-    return () => observer.disconnect();
-  }, []);
-  return dark;
-}
-
-/** 工具条状态文案:远程只读 > 错误 > 保存中 > 脏 > 已保存。 */
-function statusText(
-  doc: { error: string | null; saving: boolean; dirty: boolean },
-  remote: boolean,
-): string {
-  if (remote) return t("远程文件 · 只读(M1)");
-  if (doc.error) return doc.error;
-  if (doc.saving) return t("保存中…");
-  if (doc.dirty) return t("● 未保存的更改 · ⌘S 保存");
-  return t("已保存");
-}
-
-/** 工具条错误/脏标记着色。 */
-function toolbarCls(error: string | null, dirty: boolean): string {
-  return `file-editor-toolbar${error ? " is-error" : dirty ? " is-dirty" : ""}`;
-}
-
-/** 编辑/预览切换钮(单钮两态,md 与结构化文件共用;偏好随路径持久由调用方落)。 */
-function ModeToggleButton({
-  editor,
-  onToggle,
-}: {
-  editor: boolean;
-  onToggle: (next: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="file-mode-toggle"
-      title={editor ? t("预览") : t("编辑")}
-      onClick={() => onToggle(!editor)}
-    >
-      {editor ? <Eye size="0.75rem" aria-hidden /> : <Pencil size="0.75rem" aria-hidden />}
-      {editor ? t("预览") : t("编辑")}
-    </button>
-  );
-}
-
-
 /** 单文件主体:key={path} —— 文档状态、md/结构化切换偏好随文件切换整体重建。
  *  wslr:// 远程文件:同一渲染规则,编辑器只读(M1 不做远程写回)。 */
-function FileTabBody({ path, content }: { path: string; content: string }) {
+function FileTabBody({
+  path,
+  content,
+  reveal,
+}: {
+  path: string;
+  content: string;
+  reveal: { line: number; seq: number } | null;
+}) {
   const isMd = MARKDOWN_FILE_RE.test(path);
   const remote = isRemoteFileUri(path);
   const structuredKind = isMd ? null : resolveStructuredPreviewKind(path);
@@ -159,6 +109,8 @@ function FileTabBody({ path, content }: { path: string; content: string }) {
               readOnly={remote}
               onChange={doc.setDoc}
               onSave={doc.save}
+              revealLine={reveal?.line ?? null}
+              revealSeq={reveal?.seq ?? 0}
             />
           </Suspense>
         ) : isMd ? (
@@ -245,7 +197,15 @@ function ByteChannelView({ path, kind }: { path: string; kind: FileRenderKind })
 }
 
 /** 文本管线视图(csv 表格/markdown/结构化/代码,走 fileCache)。 */
-function TextFileView({ path, kind }: { path: string; kind: FileRenderKind }) {
+function TextFileView({
+  path,
+  kind,
+  reveal,
+}: {
+  path: string;
+  kind: FileRenderKind;
+  reveal: { line: number; seq: number } | null;
+}) {
   const payload = loadFile(path);
   if (payload.error) {
     return (
@@ -262,7 +222,9 @@ function TextFileView({ path, kind }: { path: string; kind: FileRenderKind }) {
       </Suspense>
     );
   }
-  return <FileTabBody key={path} path={path} content={payload.content ?? ""} />;
+  return (
+    <FileTabBody key={path} path={path} content={payload.content ?? ""} reveal={reveal} />
+  );
 }
 
 export function FileTabContent({ tab }: { tab: EditorTab }) {
@@ -270,6 +232,18 @@ export function FileTabContent({ tab }: { tab: EditorTab }) {
   useSyncExternalStore(subscribeFileCache, getFileCacheVersion);
   /* kind="file" 的 tab:path 为绝对路径(payload 同源,直接取 path 字段)。 */
   const path = tab.path;
+  /* 搜索命中定位行:openFileAtLine 每次都以 refresh 换新 payload 对象 → 本 effect
+     随重渲再跑;take 一次性消费,ref 保值防 StrictMode 双跑把已取走的行清空。 */
+  /* line+seq 二元组:同文件同行号的二次命中也要重新定位(React 对同值
+     bail-out,seq 打破;P3 评审项)。 */
+  const [reveal, setReveal] = useState<{ line: number; seq: number } | null>(null);
+  const revealRef = useRef<{ line: number; seq: number } | null>(null);
+  const revealSeqRef = useRef(0);
+  useEffect(() => {
+    const line = takeFileRevealLine(path);
+    if (line !== null) revealRef.current = { line, seq: ++revealSeqRef.current };
+    setReveal(revealRef.current);
+  }, [path, tab.payload]);
   const profile = resolveFileRenderProfile(path);
 
   /* 远程 M1:字节通道型渲染(图片/PDF/文档/二进制表格)读不了 —— 显式占位,
@@ -285,5 +259,5 @@ export function FileTabContent({ tab }: { tab: EditorTab }) {
   if (isByteChannelKind(path, profile.kind)) {
     return <ByteChannelView path={path} kind={profile.kind} />;
   }
-  return <TextFileView path={path} kind={profile.kind} />;
+  return <TextFileView path={path} kind={profile.kind} reveal={reveal} />;
 }

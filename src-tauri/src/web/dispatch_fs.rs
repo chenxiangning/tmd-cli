@@ -46,6 +46,12 @@ pub(super) async fn try_dispatch(
             .await
         }
         "fs_remove_path" => go(raw, |a: OnePath| crate::commands_fs::fs_remove_path(a.path)).await,
+        "fs_search" => {
+            go(raw, |a: Search| {
+                crate::commands_fs::fs_search(a.root, a.query, a.case_sensitive, a.max_results)
+            })
+            .await
+        }
         "fs_walk_files" => {
             go(raw, |a: Walk| {
                 crate::commands_fs::fs_walk_files(a.root, a.cap)
@@ -123,6 +129,15 @@ struct TailChanged {
     path: String,
     max_bytes: usize,
     last_size: Option<u64>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Search {
+    root: String,
+    query: String,
+    case_sensitive: bool,
+    max_results: usize,
 }
 
 #[derive(serde::Deserialize)]
