@@ -8,8 +8,10 @@
  */
 
 import type { EditorView, WidgetType } from "@codemirror/view";
+import { insertIntoComposer } from "@kernel/composerInsertBridge";
 import { getActiveWorkspace } from "@kernel/workspace";
 import type { MarkState } from "./anchor";
+import { serializeMark } from "./sendTransform";
 import {
   addMark,
   removeMark,
@@ -20,10 +22,12 @@ import {
 
 export interface MarkRuntime {
   id: string;
+  path: string;
   startLine: number;
   endLine: number;
   state: MarkState;
   note: string;
+  excerpt: string;
   expanded: boolean;
 }
 
@@ -112,13 +116,27 @@ export function createMarkWidgets(cm: { WidgetType: typeof WidgetType }) {
       });
       root.querySelector('[data-op="send"]')?.addEventListener("click", () => {
         const cwd = cwdRoot();
-        if (cwd) setMarkState(cwd, mark.id, mark.state === "pending" ? "sent" : "pending");
+        if (!cwd) return;
+        /* 发送到对话 = 引用块写进 composer 草稿(可见可改)+ 翻 sent;
+           sendTransform 只带 pending,手动插入的不会二次注入 */
+        insertIntoComposer(
+          serializeMark({
+            path: mark.path ?? "",
+            startLine: mark.startLine,
+            endLine: mark.endLine,
+            note: mark.note,
+            excerpt: mark.excerpt ?? "",
+          }),
+        );
+        setMarkState(cwd, mark.id, "sent");
       });
       return root;
     }
 
+    /* true:事件源自 widget 内部(textarea/按钮)时 CM 不处理 ——
+       false 会让 CM 抢焦点吞键盘,标注无法填写 */
     override ignoreEvent(): boolean {
-      return false;
+      return true;
     }
   }
 
@@ -134,6 +152,10 @@ export function createMarkWidgets(cm: { WidgetType: typeof WidgetType }) {
     }
     override eq(other: AddMarkWidget): boolean {
       return other.from === this.from && other.to === this.to && other.path === this.path;
+    }
+    /* 同 NoteWidget:widget 内事件不进 CM 处理 */
+    override ignoreEvent(): boolean {
+      return true;
     }
     override toDOM(): HTMLElement {
       const btn = document.createElement("button");
@@ -156,9 +178,6 @@ export function createMarkWidgets(cm: { WidgetType: typeof WidgetType }) {
         });
       });
       return btn;
-    }
-    override ignoreEvent(): boolean {
-      return false;
     }
   }
 

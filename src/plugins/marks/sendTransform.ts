@@ -7,6 +7,7 @@
  */
 
 import type { ComposerSendTransform } from "@kernel/composerExt";
+import { insertIntoComposer } from "@kernel/composerInsertBridge";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { pendingMarks, setMarkState } from "./store";
 
@@ -28,6 +29,17 @@ export function serializeMark(mark: {
     .map((line) => `  > ${line}`)
     .join("\n");
   return [`${mark.path}:${range}`, excerpt, `  标注:${mark.note || "(无备注)"}`].join("\n");
+}
+
+/** 手动「发送到对话」:引用块写进 composer 草稿(可见可改)+ 翻 sent。
+ *  sendTransform 只带 pending,手动插入的不会被二次注入。 */
+export function sendMarksToComposer(
+  cwd: string,
+  marks: readonly { id: string; path: string; startLine: number; endLine: number; note: string; excerpt: string }[],
+): void {
+  if (marks.length === 0) return;
+  insertIntoComposer(marks.map((mark) => serializeMark(mark)).join("\n\n"));
+  for (const mark of marks) setMarkState(cwd, mark.id, "sent");
 }
 
 export const marksSendTransform: ComposerSendTransform = (text) => {

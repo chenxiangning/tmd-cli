@@ -9,13 +9,51 @@
 
 import { BookmarkSimple } from "@phosphor-icons/react";
 import { registerComposerSendTransform } from "@kernel/composerExt";
+import { ipc } from "@kernel/ipc";
+import { ensurePanelPinned } from "@kernel/filePanel";
 import { t } from "@kernel/i18n";
 import type { Plugin } from "@kernel/plugin";
+import { getActiveWorkspace } from "@kernel/workspace";
 import { MarksPanel } from "./panel";
-import { loadAllMarks } from "./store";
+import { addMark, loadAllMarks, marksSnapshot, subscribeMarks } from "./store";
 import { marksSendTransform } from "./sendTransform";
 import { marksLinkProvider } from "./terminalLink";
 import { marksEditorExtension } from "./editorExtension";
+
+/** 事件载荷(files/markBridge.ts 契约的 marks 侧副本,字段必须同步)。 */
+interface FileMarkRequest {
+  path: string;
+  startLine: number;
+  endLine: number;
+}
+type FileMarkMap = Record<string, { startLine: number; endLine: number }[] | undefined>;
+
+/** 预览落锚:读文件内容做指纹(marks 侧持有锚定知识,预览只报行号)。 */
+async function handleMarkRequest(req: FileMarkRequest): Promise<void> {
+  const cwd = getActiveWorkspace()?.root;
+  if (!cwd) return;
+  const content = await ipc.fsReadFile(req.path).catch(() => "");
+  if (!content) return;
+  addMark({
+    cwd,
+    path: req.path,
+    startLine: req.startLine,
+    endLine: req.endLine,
+    lines: content.split("\n"),
+  });
+}
+
+/** 全量轻量快照(按绝对 path 分组),供预览渲染已标记块。 */
+function liteMarkMap(): FileMarkMap {
+  const snap = marksSnapshot();
+  const out: FileMarkMap = {};
+  for (const marks of Object.values(snap.byCwd)) {
+    for (const mark of marks) {
+      (out[mark.path] ??= []).push({ startLine: mark.startLine, endLine: mark.endLine });
+    }
+  }
+  return out;
+}
 
 export const marksPlugin: Plugin = {
   id: "marks",
@@ -27,9 +65,8 @@ export const marksPlugin: Plugin = {
     iconColor: "#EAB308",
     category: "feature",
   },
-  permissions: ["ipc.fs.read", "ipc.fs.write"],
+  permissions: ["ipc.fs.read", "ipc.fs.write", "events"],
   activate(ctx) {
-    void loadAllMarks().catch(() => undefined);
     ctx.registerFilePanel({
       id: "marks",
       label: t("标记"),
@@ -38,11 +75,22 @@ export const marksPlugin: Plugin = {
       showFileSubbar: false,
       pinnedByDefault: true,
     });
+    /* 老用户 persisted 钉住清单里没有 marks,会落 ⋯ 溢出菜单不可见 —— 一次性补钉 */
+    ensurePanelPinned("marks");
     const offs = [
       ctx.registerEditorExtension(marksEditorExtension),
       ctx.registerTerminalLinkProvider(marksLinkProvider),
       registerComposerSendTransform(marksSendTransform),
     ];
+    /* md 预览(files 插件)经事件总线落锚:插件间零 import,双端各自声明载荷 */
+    offs.push(
+      ctx.events.on<FileMarkRequest>("file-mark:request", (req) => {
+        void handleMarkRequest(req);
+      }),
+    );
+    const emitChanged = () => ctx.events.emit<FileMarkMap>("file-mark:changed", liteMarkMap());
+    offs.push(subscribeMarks(emitChanged));
+    void loadAllMarks().then(emitChanged).catch(() => undefined);
     /* 反注册钩先设:下方注册中途抛错也不留半注册状态(assets 同款) */
     this.deactivate = () => {
       for (const off of offs) off();

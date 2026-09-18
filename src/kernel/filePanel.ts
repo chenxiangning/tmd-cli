@@ -147,6 +147,20 @@ export function togglePinned(id: string): void {
   commit();
 }
 
+/** 一次性把新面板钉进 toolbar(老用户 persisted 清单先于面板存在,新 id 落 ⋯ 菜单
+ *  不可见)。仅自动钉一次并留痕,用户手动取消钉后不再复活。 */
+export function ensurePanelPinned(id: string): void {
+  if (!persistedPinnedIds || persistedPinnedIds.has(id)) return;
+  const marker = `tmd.filePanel.autopin.${id}`;
+  try {
+    if (localStorage.getItem(marker)) return;
+    localStorage.setItem(marker, "1");
+  } catch {
+    return;
+  }
+  if (!state.pinnedIds.has(id)) togglePinned(id);
+}
+
 export function getFilePanels(): readonly FilePanelContribution[] {
   return state.panels;
 }

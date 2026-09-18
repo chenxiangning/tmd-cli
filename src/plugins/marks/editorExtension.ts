@@ -45,10 +45,12 @@ export const marksEditorExtension: EditorExtensionFactory = async ({ path }) => 
       .filter((mark) => mark.path === path)
       .map((mark) => ({
         id: mark.id,
+        path: mark.path,
         startLine: mark.startLine,
         endLine: mark.endLine,
         state: mark.state,
         note: mark.note,
+        excerpt: mark.excerpt,
         expanded: expanded.has(mark.id),
       }));
   };

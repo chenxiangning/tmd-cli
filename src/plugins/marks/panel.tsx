@@ -8,6 +8,7 @@ import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
 import type { Mark, MarkState } from "./anchor";
 import { removeMark, setMarkState, toggleExpanded, updateNote, useMarksState } from "./store";
+import { sendMarksToComposer } from "./sendTransform";
 import { openAndReveal } from "./terminalLink";
 
 const STATE_COLOR: Record<MarkState, string> = {
@@ -127,7 +128,16 @@ export function MarksPanel() {
           {t(`${marks.length} 处标记 · ${groups.size} 个文件`)}
         </span>
         {pendingCount > 0 ? (
-          <span className="text-(--tmd-warn)">{t(`待发送 ${pendingCount},下次发送自动带上`)}</span>
+          <span className="text-(--tmd-warn)">{t(`待发送 ${pendingCount}`)}</span>
+        ) : null}
+        {pendingCount > 0 && root ? (
+          <button
+            type="button"
+            className="ml-auto cursor-pointer rounded-md border border-(--tmd-accent) px-1.5 py-px text-(--tmd-accent) hover:bg-(--tmd-bg-hover)"
+            onClick={() => sendMarksToComposer(root, marks.filter((mark) => mark.state === "pending"))}
+          >
+            {t(`⚑ 发送全部 (${pendingCount})`)}
+          </button>
         ) : null}
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
@@ -138,15 +148,28 @@ export function MarksPanel() {
         ) : null}
         {[...groups.entries()].map(([path, group]) => (
           <div key={path} className="flex flex-col gap-1.5">
-            <button
-              type="button"
-              className="cursor-pointer truncate px-1 text-left text-[0.65rem] text-(--tmd-fg-subtle) hover:text-(--tmd-fg-muted)"
-              onClick={() => openAndReveal(path, group[0].startLine)}
-              title={t("打开文件")}
-            >
-              {root ? relPath(path, root) : path}
-              <span className="ml-1 text-(--tmd-fg-faint)">{group.length}</span>
-            </button>
+            <div className="flex items-center gap-1 px-1">
+              <button
+                type="button"
+                className="cursor-pointer truncate text-left text-[0.65rem] text-(--tmd-fg-subtle) hover:text-(--tmd-fg-muted)"
+                onClick={() => openAndReveal(path, group[0].startLine)}
+                title={t("打开文件")}
+              >
+                {root ? relPath(path, root) : path}
+                <span className="ml-1 text-(--tmd-fg-faint)">{group.length}</span>
+              </button>
+              {root && group.some((mark) => mark.state === "pending") ? (
+                <button
+                  type="button"
+                  className="ml-auto shrink-0 cursor-pointer rounded-md border border-(--tmd-border) px-1 py-px text-[0.65rem] text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
+                  onClick={() =>
+                    sendMarksToComposer(root, group.filter((mark) => mark.state === "pending"))
+                  }
+                >
+                  {t("发送本文件")}
+                </button>
+              ) : null}
+            </div>
             {group.map((mark) => (
               <MarkCard key={mark.id} mark={mark} root={root ?? ""} expanded={expanded.has(mark.id)} />
             ))}

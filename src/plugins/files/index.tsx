@@ -21,6 +21,7 @@ import { defaultFileVisualProvider } from "./fileVisual";
 import { reloadFile } from "./editor/fileCache";
 import { saveRequestRef } from "./editor/useFileDocument";
 import { ActiveWorkspaceFileTree } from "./FileTree";
+import { setFileMarkBus } from "./markBridge";
 import { getActiveTreeHandles } from "./treeHandles";
 import { GitDecorateToggle } from "./gitDecorate";
 
@@ -35,6 +36,7 @@ export const filesPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx: PluginContext) {
+    setFileMarkBus(ctx.events);
     ctx.registerFileVisual(defaultFileVisualProvider);
 
     ctx.registerFilePanel({
