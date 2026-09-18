@@ -1,7 +1,7 @@
 /* assets 插件 —— 唤醒图标 / 智能体徽章 / 设置双 tab(布局容器 .composer-input-rail
    与锚点栏几何在 composer-anchors.css) */
 
-/* ── composer 右缘唤醒图标 ── */
+/* ── composer 左下唤醒图标 ── */
 .assets-wake-btn {
   display: flex;
   align-items: center;
