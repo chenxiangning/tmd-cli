@@ -53,13 +53,13 @@ tmd-cli 现状:编辑器 = CM6(`src/kernel/cmEditor/`),无语义引擎、无点�
 - `lspRegistry.ts`:插件注册面 —— `registerLanguageServer({ language, extensions, discoverChain, initializeOptions, resolveRoot })`;kernel 不含语言知识。
 - `cmLsp.ts`:CM6 集成 —— hoverTooltip(textDocument/hover)、`domEventHandlers` mousedown 手势((meta||ctrl)+左键)、didOpen/didChange 同步(update listener → 增量)、UTF-16↔code point 换算。
 - `peekWidget.tsx`:monaco ReferencesWidget 同款浮窗 —— 符号行下方嵌入面板,左 = 目标文件只读源码预览(复用 cmEditor 语言包,滚动至引用行并高亮当前项),右 = 引用列表(文件路径/行号/行内容裁剪),点击 `openFileAtLine` 跳转;Esc(局部 handler,不经全局快捷键)/点击外部关闭;loading 态可取消。
-- 语义动作路由(手势/命令共用):点击使用点 → definition 单目标直跳 `openFileAtLine`、多目标 peek;点击定义处 → references peek(含声明,对齐截图「引用 (N)」)。
+- 语义动作路由(手势/命令共用):点击使用点 → definition 单目标直跳 `openFileAtLine`、多目标 peek;definition 结果包含当前位置时视为「点击定义处」→ references peek(含声明,对齐截图「引用 (N)」)。
 
 ### 插件 `src/plugins/lsp/`
 
 - 四语言配置(经 activate(ctx) 注册面登记):
   - ts/javascript:发现链 = 工作区 `node_modules/.bin/typescript-language-server` → `which` → `npx -y typescript-language-server --stdio`;工作区 `node_modules/typescript` 注入 PATH 供 tsserver 解析;
-  - python:venv `pyright-langserver` → `which` → `npx -y pyright`;
+  - python:venv `pyright-langserver` → `which` → `npx -y -p pyright pyright-langserver --stdio`(bin 名 ≠ 包名,须 `-p`);
   - java:无自动发现;首开 .java 弹引导卡片(JDK≥17 检测 → 下载 eclipse.jdt.ls 发行包至 `~/.tmd-cli/lsp/jdt/`,installer.rs 先例;launch = `java -jar` equinox launcher `-data ~/.tmd-cli/lsp/jdt-ws/<repoKey>`;rootUri 向上找 pom.xml/build.gradle/.project 最近祖先,兜底工作区根)。
 - 生命周期:惰性 spawn(首个语义请求);空闲 10 分钟或工作区无代码 tab → `lsp_stop`;崩溃标记未就绪,下次手势重试一次;java 首启索引期状态徽标「索引中」。
 - 快捷键:插件贡献命令 `lsp.gotoDefinition`(F12)/`lsp.findReferences`(Shift+F12)经 kernel shortcuts 注册面;Escape 永不注册。
