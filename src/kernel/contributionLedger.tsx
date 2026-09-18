@@ -148,6 +148,11 @@ export function makeAttributedCtx(
       track(off);
       return off;
     },
+    registerLanguageServer(config) {
+      const off = ctx.registerLanguageServer(config);
+      track(off);
+      return off;
+    },
     registerCommand(command) {
       ctx.registerCommand(command);
       track(() => removeCommand(command.id));

@@ -21,6 +21,7 @@ import { registerTabContent } from "./tabs";
 import { registerFileVisual } from "./fileVisual";
 import { registerEditorExtension } from "./editorExtensions";
 import { registerTerminalLinkProvider } from "./terminalLinks";
+import { registerLanguageServer } from "./lsp/lspRegistry";
 import { registerMarketPanel } from "./marketPanel";
 import type { SidebarAction } from "./sidebarActions";
 import { registerCommand } from "./shortcuts";
@@ -88,6 +89,7 @@ class Host implements PluginContext {
   registerFileVisual = registerFileVisual;
   registerEditorExtension = registerEditorExtension;
   registerTerminalLinkProvider = registerTerminalLinkProvider;
+  registerLanguageServer = registerLanguageServer;
   registerCommand = registerCommand;
   registerRemoteFileSource = registerRemoteFileSource;
   registerWorkspaceOrigin = registerWorkspaceOrigin;

@@ -15,6 +15,7 @@ import type { CommandContribution } from "./shortcuts";
 import type { FileVisualProvider } from "./fileVisual";
 import type { EditorExtensionFactory } from "./editorExtensions";
 import type { TerminalLinkProvider } from "./terminalLinks";
+import type { LanguageServerConfig } from "./lsp/lspRegistry";
 import type { SidebarAction } from "./sidebarActions";
 import type { CliConfigEntry } from "./cliConfigRegistry";
 import type { RemoteFileSource } from "./fileSources";
@@ -126,6 +127,8 @@ export interface PluginContext {
   registerEditorExtension(factory: EditorExtensionFactory): () => void;
   /** 注册终端可点击链接提供者(terminalLinks 注册表的 ctx 通道;幕布外点缀,零 PTY 字节触碰);返回退订。 */
   registerTerminalLinkProvider(provider: TerminalLinkProvider): () => void;
+  /** 注册一份语言服务器配置(lsp/lspRegistry 的 ctx 通道;语言知识全在插件侧,内核只做协议与路由);返回退订。 */
+  registerLanguageServer(config: LanguageServerConfig): () => void;
   /** 注册一条快捷键命令(shortcuts 注册表的 ctx 通道;键位语义归插件,内核只做分发)。 */
   registerCommand(command: CommandContribution): void;
   /** 注册远端文件来源(fileSources 注册表的 ctx 通道,如 WSL/SSH 远端目录);返回退订。 */

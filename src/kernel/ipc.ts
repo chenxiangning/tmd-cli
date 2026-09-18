@@ -1032,3 +1032,55 @@ export function onSftpEvent(cb: (e: SftpEventPayload) => void) {
 export function onGitPrStage(cb: (stages: GitPrStage[]) => void) {
   return listen<GitPrStage[]>("git://pr-stage", (ev) => cb(ev.payload));
 }
+
+/* ---------- LSP 通用原语(长驻 stdio 语言服务器;方法语义全在前端 kernel/lsp) ---------- */
+
+/** 启动(或幂等复用)某 key 的语言服务器进程。 */
+export function lspSpawn(
+  key: string,
+  command: string,
+  args: readonly string[],
+  cwd: string,
+  env?: Record<string, string>,
+) {
+  return invoke<void>("lsp_spawn", { key, command, args, cwd, env });
+}
+
+/** 写入一条完整 JSON-RPC 消息(前端已组好串;Rust 只组帧)。 */
+export function lspSend(key: string, message: string) {
+  return invoke<void>("lsp_send", { key, message });
+}
+
+/** 杀树收割某 key 的语言服务器。 */
+export function lspStop(key: string) {
+  return invoke<void>("lsp_stop", { key });
+}
+
+/** LSP 事件结构(Rust lsp.rs 双扇出)。 */
+export interface LspMessageEvent {
+  key: string;
+  payload: string;
+}
+export interface LspTextEvent {
+  key: string;
+  text: string;
+}
+export interface LspExitEvent {
+  key: string;
+  code: number | null;
+}
+
+/** 订阅 LSP 完整 JSON 消息(全局通道,按 key 归属)。 */
+export function onLspMessage(cb: (e: LspMessageEvent) => void) {
+  return listen<LspMessageEvent>("lsp://message", (ev) => cb(ev.payload));
+}
+
+/** 订阅 LSP 服务端 stderr 日志(调试面)。 */
+export function onLspStderr(cb: (e: LspTextEvent) => void) {
+  return listen<LspTextEvent>("lsp://stderr", (ev) => cb(ev.payload));
+}
+
+/** 订阅 LSP 进程退出。 */
+export function onLspExit(cb: (e: LspExitEvent) => void) {
+  return listen<LspExitEvent>("lsp://exit", (ev) => cb(ev.payload));
+}

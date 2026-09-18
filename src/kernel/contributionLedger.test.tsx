@@ -41,6 +41,7 @@ function fakeCtx(): PluginContext {
     registerFileVisual: () => {},
     registerEditorExtension: () => () => {},
     registerTerminalLinkProvider: () => () => {},
+    registerLanguageServer: () => () => {},
     registerCommand,
     registerHomePanel: () => {},
     registerCliConfig: () => {},

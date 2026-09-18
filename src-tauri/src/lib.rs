@@ -13,6 +13,7 @@ mod fs_walk;
 mod git;
 mod hash;
 mod installer;
+mod lsp;
 mod plugins;
 mod probe;
 mod proc_run;
@@ -197,6 +198,9 @@ pub fn run() {
             commands_fs::fs_search,
             commands_fs::fs_walk_files,
             commands_fs::proc_communicate,
+            lsp::lsp_spawn,
+            lsp::lsp_send,
+            lsp::lsp_stop,
             fs_edit::fs_write_file,
             fs_edit::fs_create_file,
             fs_edit::fs_create_dir,

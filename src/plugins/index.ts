@@ -35,6 +35,7 @@ import { wallpaperPlugin } from "./wallpaper";
 import { sessionBoardPlugin } from "./session-board";
 import { webAccessPlugin } from "./web-access";
 import { searchPlugin } from "./search";
+import { lspPlugin } from "./lsp";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -67,4 +68,5 @@ export const allPlugins: Plugin[] = [
   marksPlugin,
   webAccessPlugin,
   searchPlugin,
+  lspPlugin,
 ];
