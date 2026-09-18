@@ -1,7 +1,7 @@
 # 代码符号语义跳转与引用(LSP 通道):cmd/ctrl+click 定义/引用 peek — 设计
 
 - 日期:2026-09-19
-- 状态:已定稿(待实施)
+- 状态:已落地(c11c29c;验证:cargo framing/假 server、vitest 1733、react-doctor 100、1421 桩目检六场景、tsgo 真机 hover/definition/references 冒烟)
 - 关联调研:`docs/research/code-symbol-references.md`(yn 实证:yn 的该能力 = monaco 内置 TS 语言 worker,语义级,非字面匹配;用户拍板弃字面方案,一步到位语义)
 
 ## 背景与目标

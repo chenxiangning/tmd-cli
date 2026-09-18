@@ -262,6 +262,7 @@
 - Mermaid 预算与修复:SVG 渲染 LRU 80、源码/渲染 tab 选择按文档记忆(50 文档);渲染前为不安全标签自动补引号,主题跟随应用,SVG 就绪预热查看器
 - md 文件默认预览,右上角编辑/预览切换按路径记住(进程内存,重启回默认预览);预览始终渲染磁盘内容,未保存草稿不进预览
 - Markdown 本地图片:asset:// 直载失败回退 data URL(≤20MB,扩展名白名单)
+- 语义跳转与引用(LSP 通道):cmd/ctrl+点击使用点跳定义、定义点/⇧F12/右键「查找引用」开引用 peek(左源码预览右命中列表,点击跳转);F12 跳定义;hover 悬停签名;Rust lsp_spawn/lsp_send/lsp_stop 通用原语(只懂 Content-Length 组帧),语言知识全在 lsp 插件(TS5→typescript-language-server / TS7→tsgo `--lsp --stdio` 自动分叉,Python→pyright,Java→jdt.ls 首用引导下载);空闲 10 分钟自动关停;server 未就绪静默降级不猜测
 
 ## 设置与外观
 
