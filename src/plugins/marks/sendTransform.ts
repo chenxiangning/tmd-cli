@@ -8,7 +8,7 @@
 import type { ComposerSendTransform } from "@kernel/composerExt";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { setMarkState, stagedMarks } from "./store";
-const MARK_LINE_RE = /([\w./@\\:-]+?\.[A-Za-z0-9]{1,8}):L?(\d+)(?:[-–:](\d+))?/g;
+const MARK_LINE_RE = /([\w./@\\:-]+(?: [\w./@\\:-]+)*?\.[A-Za-z0-9]{1,8}):L?(\d+)(?:[-–:](\d+))?/g;
 
 /** 引用块格式(回链正则的生成端,两边必须同步改):
  *  `文件路径:L起-L止` 独立成行,下一行起缩进摘录,最后备注行。 */
@@ -62,6 +62,8 @@ export function parseMarkRef(
   for (let match = MARK_LINE_RE.exec(lineText); match; match = MARK_LINE_RE.exec(lineText)) {
     const path = match[1];
     if (path.includes("://") || (path.includes("@") && path.length > 64)) continue;
+    /* 空格路径须含分隔符:防『server.ts and a.rs:L5』把整段当路径吃进 */
+    if (path.includes(" ") && !/[\\/]/.test(path)) continue;
     out.push({
       path,
       startLine: Number(match[2]),

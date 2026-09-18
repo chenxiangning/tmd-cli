@@ -87,7 +87,7 @@ export type MountPoint =
   | "welcome.footer"
   /** 幕布下方富 composer 输入区。 */
   | "editorCenter.composer"
-  /** composer 输入区右缘竖向图标列(assets 唤醒入口等)。 */
+  /** composer 输入区左下水平图标行(assets 唤醒入口等;b7960d5 起左下横排)。 */
   | "composer.inputRail"
   /** composer 附件条区域(输入区上方):可交互附件/引用芯片条(marks 引用芯片等)。 */
   | "composer.attachments"

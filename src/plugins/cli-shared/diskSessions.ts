@@ -205,11 +205,13 @@ export function readHeadSessionMetaCached(
 
 export async function scanJsonlSessions(dir: string): Promise<CliDiskSession[]> {
   const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
-  /* 缓存剪除:本目录已消失的文件条目;其他目录的条目归旁路消费者,不动。 */
-  const prefix = dir.endsWith("/") || dir.endsWith("\\") ? dir : dir + "/";
+  /* 缓存剪除:本目录已消失的文件条目;其他目录的条目归旁路消费者,不动。
+     两侧分隔符先归一:Windows 下 dir 拼型 `/` 与 Rust collect 返回的 `\` 不一致,
+     不归一则剪除恒 no-op(条目滞留到 FIFO 上限)。 */
+  const prefix = (dir.endsWith("/") || dir.endsWith("\\") ? dir : `${dir}/`).replace(/\\/g, "/");
   const live = new Set(files.map((f) => f.path));
   for (const p of [...headCache.keys()]) {
-    if (p.startsWith(prefix) && !live.has(p)) headCache.delete(p);
+    if (p.replace(/\\/g, "/").startsWith(prefix) && !live.has(p)) headCache.delete(p);
   }
   /* 读头彼此独立,并发一次发出:会话库几百个文件时顺序 await 是可感知的卡顿源。 */
   const sessions = await Promise.all(

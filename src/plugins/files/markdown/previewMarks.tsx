@@ -45,7 +45,7 @@ export function PreviewMarkControls({
                 <span className="text-(--tmd-warn)">⚑</span>
                 L{mark.startLine}
                 {mark.endLine !== mark.startLine ? `-${mark.endLine}` : ""}
-                <span className="ml-auto text-(--tmd-fg-faint)">{mark.state}</span>
+                <span className="ml-auto text-(--tmd-fg-faint)">{mark.stateLabel}</span>
                 <button
                   type="button"
                   className="cursor-pointer text-(--tmd-err) hover:opacity-80"

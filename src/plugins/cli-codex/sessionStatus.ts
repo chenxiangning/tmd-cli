@@ -86,5 +86,7 @@ export async function readCodexSessionStatus(
       ]);
       return model || thinkingLevel ? { model, thinkingLevel } : null;
     },
+    /* 目录扫描定位型:resume/fork 产生同 id 新文件,30s 强制重定位一次防黏滞 */
+    30_000,
   );
 }

@@ -14,7 +14,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { openExternalUrl } from "@kernel/ipc";
-import { openFileInTab } from "../openFile";
+import { openFileInTab } from "@kernel/fileTabs";
 import { t } from "@kernel/i18n";
 import {
   FileMarkdownCodeBlock,

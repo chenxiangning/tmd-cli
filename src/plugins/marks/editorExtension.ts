@@ -14,7 +14,8 @@
 import type { Extension } from "@codemirror/state";
 import type { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import type { EditorExtensionFactory } from "@kernel/editorExtensions";
-import { getActiveWorkspace } from "@kernel/workspace";
+import { getWorkspaces, getActiveWorkspace } from "@kernel/workspace";
+import { normalizePath } from "@kernel/pathUtils";
 import { createMarkWidgets, type MarkRuntime } from "./widgets";
 import {
   marksSnapshot,
@@ -23,8 +24,20 @@ import {
   takeReveal,
 } from "./store";
 
-function cwdRoot(): string | null {
-  return getActiveWorkspace()?.root ?? null;
+/* 标记桶归属:按文件路径找包含它的工作区(最长前缀;跨工作区打开的 tab
+   装饰/动作/重定位不随活跃工作区漂移),无归属回落活跃工作区。 */
+function owningCwd(path: string): string | null {
+  const np = normalizePath(path);
+  let bestRoot = "";
+  let best: string | null = null;
+  for (const ws of getWorkspaces()) {
+    const root = normalizePath(ws.root);
+    if ((np === root || np.startsWith(`${root}/`)) && root.length > bestRoot.length) {
+      bestRoot = root;
+      best = ws.root;
+    }
+  }
+  return best ?? getActiveWorkspace()?.root ?? null;
 }
 
 export const marksEditorExtension: EditorExtensionFactory = async ({ path }) => {
@@ -38,13 +51,14 @@ export const marksEditorExtension: EditorExtensionFactory = async ({ path }) => 
 
   const runtimeMarks = (): readonly MarkRuntime[] => {
     const snap = marksSnapshot();
-    const cwd = cwdRoot();
+    const cwd = owningCwd(path);
     const all = cwd ? (snap.byCwd[cwd] ?? []) : [];
     const expanded = new Set(snap.expandedIds);
     return all
       .filter((mark) => mark.path === path)
       .map((mark) => ({
         id: mark.id,
+        cwd: cwd ?? "",
         path: mark.path,
         startLine: mark.startLine,
         endLine: mark.endLine,
@@ -111,7 +125,7 @@ export const marksEditorExtension: EditorExtensionFactory = async ({ path }) => 
     if (sel) {
       entries.push({
         pos: sel.from,
-        deco: Decoration.widget({ widget: new AddMarkWidget(sel.from, sel.to, view, path), side: 1 }),
+        deco: Decoration.widget({ widget: new AddMarkWidget(sel.from, sel.to, view, path, owningCwd(path)), side: 1 }),
       });
     }
     entries.sort((a, b) => a.pos - b.pos);
@@ -142,7 +156,7 @@ export const marksEditorExtension: EditorExtensionFactory = async ({ path }) => 
       private scheduleRelocate(): void {
         clearTimeout(this.relocateTimer);
         this.relocateTimer = setTimeout(() => {
-          const cwd = cwdRoot();
+          const cwd = owningCwd(path);
           if (cwd) relocatePath(cwd, path, this.view.state.doc.toString().split("\n"));
         }, 500);
       }

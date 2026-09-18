@@ -8,7 +8,7 @@
  */
 
 import type { EditorView, WidgetType } from "@codemirror/view";
-import { getActiveWorkspace } from "@kernel/workspace";
+import { t } from "@kernel/i18n";
 import type { MarkState } from "./anchor";
 import {
   addMark,
@@ -20,6 +20,8 @@ import {
 
 export interface MarkRuntime {
   id: string;
+  /** 标记所在桶的工作区根(动作直落此桶,跨工作区 tab 不随活跃区漂移)。 */
+  cwd: string;
   path: string;
   startLine: number;
   endLine: number;
@@ -29,6 +31,7 @@ export interface MarkRuntime {
   expanded: boolean;
 }
 
+
 export const STATE_COLOR: Record<MarkState, string> = {
   pending: "var(--tmd-warn)",
   staged: "var(--tmd-warn)",
@@ -37,7 +40,7 @@ export const STATE_COLOR: Record<MarkState, string> = {
   lost: "var(--tmd-err)",
 };
 
-const STATE_LABEL: Record<MarkState, string> = {
+export const STATE_LABEL: Record<MarkState, string> = {
   pending: "待发送",
   staged: "已入对话",
   sent: "已发送",
@@ -49,9 +52,6 @@ function escapeHtml(text: string): string {
   return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
 
-function cwdRoot(): string | null {
-  return getActiveWorkspace()?.root ?? null;
-}
 
 /** 注入 CM 运行时类,产出两个 widget 类(仅 editorExtension 工厂闭包消费)。 */
 export function createMarkWidgets(cm: { WidgetType: typeof WidgetType }) {
@@ -67,6 +67,9 @@ export function createMarkWidgets(cm: { WidgetType: typeof WidgetType }) {
         other.mark.id === this.mark.id &&
         other.mark.expanded === this.mark.expanded &&
         other.mark.state === this.mark.state &&
+        /* 行号进 eq:drifted→drifted 再漂移时行号标签不能滞留旧值 */
+        other.mark.startLine === this.mark.startLine &&
+        other.mark.endLine === this.mark.endLine &&
         (this.mark.expanded || other.mark.note === this.mark.note)
       );
     }
@@ -80,7 +83,7 @@ export function createMarkWidgets(cm: { WidgetType: typeof WidgetType }) {
         root.className =
           "marks-inline my-0.5 inline-flex max-w-full items-center rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) px-2 py-px text-xs";
         root.innerHTML = `<button type="button" class="cursor-pointer text-(--tmd-fg-muted) hover:text-(--tmd-fg)"><b style="color:${color}">⚑</b> L${mark.startLine}-${mark.endLine} · ${
-          mark.note ? escapeHtml(mark.note) : '<span class="opacity-60">点此添加标注</span>'
+          mark.note ? escapeHtml(mark.note) : `<span class="opacity-60">${t("点此添加标注")}</span>`
         } <span class="opacity-60">▾</span></button>`;
         root.querySelector("button")?.addEventListener("click", () => toggleExpanded(mark.id));
         return root;
@@ -91,35 +94,27 @@ export function createMarkWidgets(cm: { WidgetType: typeof WidgetType }) {
         <div class="mb-1 flex items-center gap-2">
           <b style="color:${color}">⚑</b>
           <span class="font-mono text-(--tmd-fg-subtle)">L${mark.startLine}-${mark.endLine}</span>
-          <span class="rounded-full px-1.5" style="color:${color}">${STATE_LABEL[mark.state]}</span>
+          <span class="rounded-full px-1.5" style="color:${color}">${t(STATE_LABEL[mark.state])}</span>
         </div>
-        <textarea rows="2" class="w-full resize-y rounded-md border border-(--tmd-border) bg-(--tmd-bg-base) p-1.5 text-xs text-(--tmd-fg) outline-none focus:border-(--tmd-accent)" placeholder="写标注,随引用发送到对话…"></textarea>
+        <textarea rows="2" class="w-full resize-y rounded-md border border-(--tmd-border) bg-(--tmd-bg-base) p-1.5 text-xs text-(--tmd-fg) outline-none focus:border-(--tmd-accent)" placeholder="${t("写标注,随引用发送到对话…")}"></textarea>
         <div class="mt-1 flex items-center gap-1.5">
           <button type="button" data-op="send" class="cursor-pointer rounded-md border px-2 py-px" style="border-color:${color};color:${color}">${
-            mark.state === "pending" ? "⚑ 发送到对话" : mark.state === "staged" ? "✓ 已入对话" : "↩ 重发"
+            mark.state === "pending" ? t("⚑ 发送到对话") : mark.state === "staged" ? t("↩ 撤回") : t("↩ 重发")
           }</button>
-          <button type="button" data-op="collapse" class="cursor-pointer rounded-md border border-(--tmd-border) px-2 py-px text-(--tmd-fg-muted)">收起 ▴</button>
-          <button type="button" data-op="remove" class="ml-auto cursor-pointer rounded-md border border-(--tmd-border) px-2 py-px text-(--tmd-err)">移除</button>
+          <button type="button" data-op="collapse" class="cursor-pointer rounded-md border border-(--tmd-border) px-2 py-px text-(--tmd-fg-muted)">${t("收起 ▴")}</button>
+          <button type="button" data-op="remove" class="ml-auto cursor-pointer rounded-md border border-(--tmd-border) px-2 py-px text-(--tmd-err)">${t("移除")}</button>
         </div>`;
       const textarea = root.querySelector("textarea");
       if (textarea) {
         textarea.value = mark.note;
-        textarea.addEventListener("input", () => {
-          const cwd = cwdRoot();
-          if (cwd) updateNote(cwd, mark.id, textarea.value);
-        });
+        textarea.addEventListener("input", () => updateNote(mark.cwd, mark.id, textarea.value));
       }
       root.querySelector('[data-op="collapse"]')?.addEventListener("click", () => toggleExpanded(mark.id));
-      root.querySelector('[data-op="remove"]')?.addEventListener("click", () => {
-        const cwd = cwdRoot();
-        if (cwd) removeMark(cwd, mark.id);
-      });
+      root.querySelector('[data-op="remove"]')?.addEventListener("click", () => removeMark(mark.cwd, mark.id));
       root.querySelector('[data-op="send"]')?.addEventListener("click", () => {
-        const cwd = cwdRoot();
-        if (!cwd) return;
         /* 发送到对话 = 翻 staged(composer 芯片条可见,发送时 transform 注入 wire);
            staged 再点 = 撤回 pending;sent 再点 = ↩ 重发回 staged */
-        setMarkState(cwd, mark.id, mark.state === "staged" ? "pending" : "staged");
+        setMarkState(mark.cwd, mark.id, mark.state === "staged" ? "pending" : "staged");
       });
       return root;
     }
@@ -138,6 +133,7 @@ export function createMarkWidgets(cm: { WidgetType: typeof WidgetType }) {
       private readonly to: number,
       private readonly view: EditorView,
       private readonly path: string,
+      private readonly cwd: string | null,
     ) {
       super();
     }
@@ -151,17 +147,16 @@ export function createMarkWidgets(cm: { WidgetType: typeof WidgetType }) {
     override toDOM(): HTMLElement {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.textContent = "⚑ 标记";
+      btn.textContent = t("⚑ 标记");
       btn.className =
         "marks-inline mx-1 inline-flex items-center rounded-md border border-(--tmd-warn) bg-(--tmd-bg-base) px-1.5 py-px text-xs hover:bg-(--tmd-bg-hover)";
       btn.addEventListener("mousedown", (event) => event.preventDefault());
       btn.addEventListener("click", (event) => {
         event.stopPropagation();
-        const cwd = cwdRoot();
         const doc = this.view.state.doc;
-        if (!cwd) return;
+        if (!this.cwd) return;
         addMark({
-          cwd,
+          cwd: this.cwd,
           path: this.path,
           startLine: doc.lineAt(this.from).number,
           endLine: doc.lineAt(this.to).number,

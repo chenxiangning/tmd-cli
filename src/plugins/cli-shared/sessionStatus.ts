@@ -20,8 +20,13 @@ function bareModelId(model: string): string {
  * openspec/changes/2026-09-18-perf-status-poll,含方案取舍与老功能校准矩阵)。
  * 同尺寸原地替换不属于任何 CLI 会话日志的写行为(resume 另起新文件,闸键随
  * cliSessionId 自然失效)。只存解析产物不存尾窗文本,单条 ~200B 不设上限。
+ * 例外:codex resume/fork 产生**同 id 新文件**(闸键不变)且旧文件不再写,
+ * 黏滞 path 会永久短路 → revalidateMs 到期强制重定位一次(30s 级自愈)。
  */
-const tailGate = new Map<string, { path: string; size: number; result: CliSessionStatus | null }>();
+const tailGate = new Map<
+  string,
+  { path: string; size: number; result: CliSessionStatus | null; resolvedAt: number }
+>();
 
 /** 闸短路探测:上次尺寸未变 → true。探测失败(文件被移走等)按未命中处理,调用方走全路径自愈。 */
 async function gateShortCircuit(path: string, lastSize: number): Promise<boolean> {
@@ -33,17 +38,18 @@ async function gateShortCircuit(path: string, lastSize: number): Promise<boolean
   }
 }
 
-/** 直拼路径型的闸化状态读(claude/qoder:文件名即 cliSessionId,免列目录)。
- *  resolvePath 在闸未命中时定位文件(直拼型传 () => path,免列目录型内部 collect+find),
- *  闸命中时零调用;parse 只在拿到新尾窗文本时执行。 */
 export async function readStatusTailGated(
   key: string,
   resolvePath: () => Promise<string | null>,
   maxBytes: number,
   parse: (text: string) => CliSessionStatus | null,
+  /** 路径重定位周期(默认永不):目录扫描定位型(codex 同 id 多文件取最新)必传,
+   *  防止 resume 后黏滞旧 path 永久短路(直拼路径型无需)。 */
+  revalidateMs = Number.POSITIVE_INFINITY,
 ): Promise<CliSessionStatus | null> {
   const cached = tailGate.get(key);
-  if (cached && (await gateShortCircuit(cached.path, cached.size))) return cached.result;
+  const fresh = cached !== undefined && Date.now() - cached.resolvedAt < revalidateMs;
+  if (cached && fresh && (await gateShortCircuit(cached.path, cached.size))) return cached.result;
 
   const path = await resolvePath();
   if (!path) {
@@ -53,7 +59,7 @@ export async function readStatusTailGated(
   const tail = await ipc.fsReadTailChanged(path, maxBytes, null).catch(() => null);
   if (!tail) return null;
   const result = tail.text ? parse(tail.text) : null;
-  tailGate.set(key, { path, size: tail.size, result });
+  tailGate.set(key, { path, size: tail.size, result, resolvedAt: Date.now() });
   return result;
 }
 

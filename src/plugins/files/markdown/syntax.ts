@@ -55,7 +55,9 @@ function escapeHtml(text: string): string {
 function sanitizePrismHtml(html: string): string {
   return html
     .replace(/<script[\s>][\s\S]*?<\/script>/gi, "")
-    .replace(/\bon\w+\s*=/gi, "data-removed=");
+    /* 只在未转义的标签内部剥 on*= 事件属性 —— 代码示例正文里的『onclick=』
+       字样(已被 Prism 转义成 &lt;…)不是标签,原样保留 */
+    .replace(/<[^>]*>/g, (tag) => tag.replace(/\bon\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, ""));
 }
 
 const MAX_HIGHLIGHT_CACHE_ENTRIES = 4000;

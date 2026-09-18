@@ -9,7 +9,7 @@ import { CaretRight, MagnifyingGlass } from "@phosphor-icons/react";
 import { ipc, type FsSearchHit } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { normalizePath } from "@kernel/pathUtils";
-import { openFileAtLine } from "@plugins/files/openFile";
+import { openFileAtLine } from "@kernel/fileTabs";
 import { closeSearchOverlay, useActiveWorkspaceRoot } from "./overlayStore";
 
 /** 全局命中上限(护栏在 fs_search.rs;命中即提示截断)。 */
@@ -55,11 +55,15 @@ export function SearchPanel() {
   const [query, setQuery] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [results, setResults] = useState<FsSearchHit[] | null>(null);
+  const [truncated, setTruncated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /* 展开集(命中 path);默认全折叠,新搜索重置 */
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
+  /* 请求序守卫:大仓在途搜索(可至 3s 预算)期间输入清空后,旧 IPC 晚到
+     resolve 不得把旧结果回填进新关键词态;新回车可顶替旧请求。 */
+  const seqRef = useRef(0);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -70,19 +74,27 @@ export function SearchPanel() {
   /* 输入或大小写开关变化即清旧结果:旧命中行配新高亮/过期计数是误导(P3 评审项)。 */
   useEffect(() => {
     setResults(null);
+    seqRef.current++;
   }, [query, caseSensitive]);
 
   async function runSearch(): Promise<void> {
-    if (!root || busy || !query.trim()) return;
+    if (!root || !query.trim()) return;
+    const seq = ++seqRef.current;
     setBusy(true);
     setError(null);
     try {
-      setResults(await ipc.fsSearch(root, query, caseSensitive, MAX_RESULTS));
+      const found = await ipc.fsSearch(root, query, caseSensitive, MAX_RESULTS);
+      if (seqRef.current !== seq) return;
+      setResults(found.hits);
+      setTruncated(found.truncated);
       setExpanded(new Set());
     } catch (e) {
+      if (seqRef.current !== seq) return;
       setError(String(e));
       setResults(null);
     } finally {
+      /* 无条件复位:busy 只承担 spinner 展示;被新回车顶替的旧请求提前灭灯
+         属可接受瞬时态(新请求 Enter 不受 busy 拦截)。 */
       setBusy(false);
     }
   }
@@ -203,8 +215,7 @@ export function SearchPanel() {
 
       <div className="flex items-center gap-3 border-t border-(--tmd-border) px-3 py-1.5 text-xs text-(--tmd-fg-faint)">
         {results ? t("{n} 个结果", { n: results.length }) : "\u00a0"}
-        {results && results.length >= MAX_RESULTS &&
-          t("已达结果上限,仅显示前 {n} 条", { n: MAX_RESULTS })}
+        {results && truncated && t("结果不完整(扫描预算耗尽或已达上限),仅显示前 {n} 条", { n: results.length })}
       </div>
     </div>
   );

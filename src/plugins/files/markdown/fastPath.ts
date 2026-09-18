@@ -15,6 +15,7 @@
 
 import MarkdownIt from "markdown-it";
 import { t } from "@kernel/i18n";
+import { getSettingsState } from "@kernel/settings";
 import { highlightLine } from "./syntax";
 import { resolveImageRenderSource, resolveMarkdownLinkTarget } from "./markdownImages";
 import { isMathCodeLanguage, isMermaidCodeLanguage } from "./markdownPreviewHelpers";
@@ -201,7 +202,8 @@ const FAST_CACHE_LIMIT = 600;
  * 与 markdown 内容共同构成缓存键。
  */
 export function renderFastMarkdown(markdown: string, sourceFilePath?: string | null): string {
-  const cacheKey = `${sourceFilePath ?? ""}\u0000${markdown}`;
+  /* 语言进缓存键:fence renderer 把 t("复制") 烧进缓存 HTML,切换语言不得回放旧语言按钮 */
+  const cacheKey = `${sourceFilePath ?? ""}\u0000${getSettingsState().settings.language}\u0000${markdown}`;
   const cached = fastHtmlCache.get(cacheKey);
   if (cached !== undefined) {
     /* 命中刷新插入序(LRU 语义,同 syntax.ts readHighlightCache)。 */

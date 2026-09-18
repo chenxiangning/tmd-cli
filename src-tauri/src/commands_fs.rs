@@ -86,7 +86,7 @@ pub(crate) async fn fs_search(
     query: String,
     case_sensitive: bool,
     max_results: usize,
-) -> Result<Vec<fs_search::FsSearchHit>, String> {
+) -> Result<fs_search::FsSearchResult, String> {
     spawn_fs(move || fs_search::search(&root, &query, case_sensitive, max_results)).await
 }
 

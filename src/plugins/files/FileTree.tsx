@@ -17,7 +17,7 @@ import { useWorkspaces } from "@kernel/workspace";
 import { findRemoteFileSource } from "@kernel/fileSources";
 import { FileTreeRemoteSource } from "./FileTreeRemote";
 import { FileTreeRow } from "./FileTreeRow";
-import { openFileInTab } from "./openFile";
+import { openFileInTab } from "@kernel/fileTabs";
 import { useTreeOperations } from "./useTreeOperations";
 import { useGitDecorations } from "./gitDecorate";
 import { useRepoBranches } from "./useRepoBranches";

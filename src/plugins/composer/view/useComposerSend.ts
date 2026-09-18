@@ -51,9 +51,15 @@ export function useComposerSend({
         (pid) => host.getCliProfile(pid),
       );
       if (targets.length >= 2) {
+        /* 发送变换单次化:变换可能带副作用(marks 翻 sent),逐路重跑会让
+           引用块只进第一路、状态在第二路前已被翻掉。共享同一份变换文本,
+           各路差异(bracketed paste 等)仍由 prepareSendPayload 按目标处理。 */
+        const shared = composerSendTransforms().reduce(
+          (acc, fn) => fn(acc, host.getActiveSessionId()!),
+          value,
+        );
         for (const { id, profile: p } of targets) {
-          const payload = prepareSendPayload(p, value,
-            composerSendTransforms().map((fn) => (text: string) => fn(text, id)));
+          const payload = prepareSendPayload(p, shared, []);
           const gate = readPromptGate(id);
           host.writeSession(id, payload);
           emitPromptSent(gate, id, trimmed);

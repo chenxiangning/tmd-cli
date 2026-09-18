@@ -8,7 +8,7 @@ import { FileMagnifyingGlass } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { normalizePath } from "@kernel/pathUtils";
-import { openFileInTab } from "@plugins/files/openFile";
+import { openFileInTab } from "@kernel/fileTabs";
 import { closeSearchOverlay, useActiveWorkspaceRoot } from "./overlayStore";
 import { fuzzyMatch } from "./fuzzy";
 

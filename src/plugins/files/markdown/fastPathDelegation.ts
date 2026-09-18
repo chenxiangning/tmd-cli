@@ -9,7 +9,7 @@
 
 import type { Components } from "react-markdown";
 import { openExternalUrl } from "@kernel/ipc";
-import { openFileInTab } from "../openFile";
+import { openFileInTab } from "@kernel/fileTabs";
 import { normalizeMarkdownAnchorKey } from "./markdownPreviewHelpers";
 import { t } from "@kernel/i18n";
 

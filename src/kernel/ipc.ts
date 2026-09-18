@@ -314,6 +314,12 @@ export interface FsSearchHit {
   text: string;
 }
 
+/** 全文搜索交付(fs_search):truncated = 3s 预算耗尽或满额,结果不完整。 */
+export interface FsSearchResult {
+  hits: FsSearchHit[];
+  truncated: boolean;
+}
+
 /** configHomeDir 的 once 缓存(拒绝时复位,见 ipc.configHomeDir 注)。 */
 let configHomeOnce: Promise<string> | null = null;
 
@@ -347,9 +353,10 @@ export const ipc = {
    *  语义镜像 pi/omp TUI 自己的 @ 发现规则(见 fs_walk.rs)。 */
   fsWalkFiles: (root: string, cap: number) => invoke<string[]>("fs_walk_files", { root, cap }),
   /** 全文搜索(rg 式即时扫描,walk 语义与 fsWalkFiles 同源,见 fs_search.rs):
-   *  大小写不敏感=两侧 to_lowercase 归一;>3MB/二进制文件跳过;maxResults 全局上限。 */
+   *  大小写不敏感=两侧 to_lowercase 归一;>3MB/二进制文件跳过;maxResults 全局上限。
+   *  3s 预算耗尽或满额时交付部分结果(truncated 置位,UI 提示)。 */
   fsSearch: (root: string, query: string, caseSensitive: boolean, maxResults: number) =>
-    invoke<FsSearchHit[]>("fs_search", { root, query, caseSensitive, maxResults }),
+    invoke<FsSearchResult>("fs_search", { root, query, caseSensitive, maxResults }),
   /** 通用短进程通道:spawn + stdin(写入后持开防 RPC 丢响应)+ stdout 收割;
    *  exitOnStdout 命中或超时即杀。omp/pi RPC 副车、grok inspect 共用(见 proc_run.rs)。 */
   procCommunicate: (spec: ProcRunSpec) => invoke<ProcRunResult>("proc_communicate", { spec }),

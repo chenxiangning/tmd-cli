@@ -1,5 +1,6 @@
 import { GitBranch } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
+import { t } from "@kernel/i18n";
 import { getFilePanelMode } from "@kernel/filePanel";
 import { hydrateGitPanelPrefs, requestRemoteDialog } from "./panelStore";
 import { GitPanel } from "./GitPanel";
@@ -33,7 +34,11 @@ export const gitPlugin: Plugin = {
     // 远端动作命令化(fetch/pull/push):无键位仅暴露,为设置清单改键预留;
     // 常规入口是分支视图右键菜单 + 顶栏视图下拉(更新/获取/拉取/推送),命令与 requestRemoteDialog 同通道
     for (const op of ["fetch", "pull", "push"] as const) {
-      const labels = { fetch: "获取远端更新(fetch)", pull: "拉取远端(pull)", push: "推送远端(push)" };
+      const labels = {
+        fetch: t("获取远端更新(fetch)"),
+        pull: t("拉取远端(pull)"),
+        push: t("推送远端(push)"),
+      };
       ctx.registerCommand({
         id: `git.${op}`,
         title: labels[op],

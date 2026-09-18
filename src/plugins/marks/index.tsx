@@ -17,9 +17,11 @@ import type { MarkState } from "./anchor";
 import { MarksPanel } from "./panel";
 import { addMark, loadAllMarks, marksSnapshot, removeMark, setMarkState, subscribeMarks, updateNote } from "./store";
 import { marksSendTransform } from "./sendTransform";
+import "./locales"; /* 域词典随插件自带:import 即注册 */
 import { MarksComposerChips } from "./chips";
 import { marksLinkProvider } from "./terminalLink";
 import { marksEditorExtension } from "./editorExtension";
+import { STATE_LABEL } from "./widgets";
 
 /** 事件载荷(files/markBridge.ts 契约的 marks 侧副本,字段必须同步)。 */
 interface FileMarkRequest {
@@ -27,7 +29,7 @@ interface FileMarkRequest {
   startLine: number;
   endLine: number;
 }
-type FileMarkLite = { id: string; startLine: number; endLine: number; note: string; state: MarkState };
+type FileMarkLite = { id: string; startLine: number; endLine: number; note: string; state: MarkState; stateLabel: string };
 type FileMarkMap = Record<string, FileMarkLite[] | undefined>;
 /** 预览卡片动作(remove/stage/note)。 */
 interface FileMarkAction {
@@ -63,6 +65,8 @@ function liteMarkMap(): FileMarkMap {
         endLine: mark.endLine,
         note: mark.note,
         state: mark.state,
+        /* 状态文案随载荷下发(已 t()):files 侧零 marks 语义 import */
+        stateLabel: t(STATE_LABEL[mark.state]),
       });
     }
   }

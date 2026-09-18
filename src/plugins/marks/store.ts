@@ -125,7 +125,14 @@ function parseSidecar(text: string): Mark[] {
     const parsed: unknown = JSON.parse(text);
     if (typeof parsed !== "object" || parsed === null || !("marks" in parsed)) return [];
     const marks: unknown = parsed.marks;
-    return Array.isArray(marks) ? marks.filter(isMark) : [];
+    /* 旧条目可能缺 excerpt(早期形态):缺省补空串而非整条丢弃 ——
+       丢弃会让老标记静默蒸发,补空串只影响引用块摘录为空 */
+    return Array.isArray(marks)
+      ? marks.filter(isMark).map((m) => {
+          const mark = m as Mark;
+          return typeof mark.excerpt === "string" ? mark : { ...mark, excerpt: "" };
+        })
+      : [];
   } catch {
     return [];
   }
@@ -144,7 +151,12 @@ function isMark(value: unknown): boolean {
     typeof mark?.fingerprint?.body === "string" &&
     typeof mark?.fingerprint?.context === "string" &&
     typeof mark?.note === "string" &&
-    typeof mark?.state === "string" &&
+    (mark?.excerpt === undefined || typeof mark?.excerpt === "string") &&
+    (mark?.state === "pending" ||
+      mark?.state === "staged" ||
+      mark?.state === "sent" ||
+      mark?.state === "drifted" ||
+      mark?.state === "lost") &&
     typeof mark?.createdAt === "number"
   );
 }
@@ -160,7 +172,14 @@ export async function loadAllMarks(): Promise<void> {
     }),
   );
   workspaces.forEach((ws, i) => {
-    state.byCwd[ws.root] = parseSidecar(texts[i]);
+    /* 按 id 合并(内存优先):读盘窗口内落锚的内存标记不被磁盘旧像整桶覆写 */
+    const disk = parseSidecar(texts[i]);
+    const mem = state.byCwd[ws.root] ?? [];
+    if (mem.length === 0) state.byCwd[ws.root] = disk;
+    else {
+      const ids = new Set(mem.map((m) => m.id));
+      state.byCwd[ws.root] = [...mem, ...disk.filter((m) => !ids.has(m.id))];
+    }
   });
   state.loaded = true;
   emit();
@@ -253,7 +272,14 @@ export function relocatePath(cwd: string, path: string, lines: readonly string[]
       continue;
     }
     const result = relocateMark(lines, mark, window);
-    if (result.status === "exact") continue;
+    if (result.status === "exact") {
+      /* 内容回原位(如 undo):lost/drifted 恢复 pending,不失联永久化 */
+      if (mark.state === "lost" || mark.state === "drifted") {
+        mark.state = "pending";
+        changed = true;
+      }
+      continue;
+    }
     mark.startLine = result.startLine;
     mark.endLine = result.endLine;
     mark.state = result.status === "moved" ? "drifted" : "lost";

@@ -22,6 +22,13 @@ pub struct FsSearchHit {
     pub text: String,
 }
 
+/// 搜索交付:truncated = 3s 预算耗尽或满额,结果不完整(UI 提示用)。
+#[derive(Serialize, PartialEq, Debug)]
+pub struct FsSearchResult {
+    pub hits: Vec<FsSearchHit>,
+    pub truncated: bool,
+}
+
 /// 单次搜索的时间预算(与 fs_walk 同款):超时交付已收集部分。
 const WALK_BUDGET: Duration = Duration::from_secs(3);
 /// 文件大小闸:超过即跳过(yn 同款 3MB)。
@@ -43,9 +50,12 @@ pub fn search(
     query: &str,
     case_sensitive: bool,
     max_results: usize,
-) -> Result<Vec<FsSearchHit>, String> {
+) -> Result<FsSearchResult, String> {
     if query.is_empty() || max_results == 0 {
-        return Ok(Vec::new());
+        return Ok(FsSearchResult {
+            hits: Vec::new(),
+            truncated: false,
+        });
     }
     let root_path = PathBuf::from(root);
     if !root_path.is_dir() {
@@ -71,9 +81,11 @@ pub fn search(
 
     let start = Instant::now();
     let mut hits: Vec<FsSearchHit> = Vec::new();
+    let mut truncated = false;
     for entry in builder.build() {
-        // 慢盘兜底:预算耗尽或全局满额即交付部分结果
+        // 慢盘兜底:预算耗尽或全局满额即交付部分结果(不完整,置 truncated)
         if start.elapsed() > WALK_BUDGET || hits.len() >= max_results {
+            truncated = true;
             break;
         }
         let Ok(entry) = entry else { continue };
@@ -104,11 +116,28 @@ pub fn search(
             continue; // 二进制
         }
         let file_start = hits.len();
-        for (idx, raw) in bytes.split(|&b| b == b'\n').enumerate() {
+        /* 行游标切行:\n 与独立 \r 都断行,CRLF(\r\n)视作单一换行 ——
+        naive split(\n|\r) 会给 CRLF 文本拆出幻影空行,行号错位。
+        与 CodeMirror(lezer)的 CR/CR-LF/LF 三态换行语义对齐。 */
+        let mut line_no: u32 = 0;
+        let mut pos = 0usize;
+        while pos < bytes.len() {
+            line_no += 1;
+            let rest = &bytes[pos..];
+            let (raw, next) = match rest.iter().position(|&b| b == b'\n' || b == b'\r') {
+                Some(i) => {
+                    let end = pos + i;
+                    let mut nxt = end + 1;
+                    if bytes[end] == b'\r' && nxt < bytes.len() && bytes[nxt] == b'\n' {
+                        nxt += 1; // CRLF 合一
+                    }
+                    (&bytes[pos..end], nxt)
+                }
+                None => (rest, bytes.len()),
+            };
             if hits.len() - file_start >= PER_FILE_CAP || hits.len() >= max_results {
                 break;
             }
-            let raw = raw.strip_suffix(b"\r").unwrap_or(raw); // CRLF 归一
             let text = String::from_utf8_lossy(raw); // 合法 UTF-8 零拷贝
             let matched = if case_sensitive {
                 text.contains(query)
@@ -118,13 +147,14 @@ pub fn search(
             if matched {
                 hits.push(FsSearchHit {
                     path: path.clone(),
-                    line: idx as u32 + 1,
+                    line: line_no,
                     text: text.into_owned(),
                 });
             }
+            pos = next;
         }
     }
-    Ok(hits)
+    Ok(FsSearchResult { hits, truncated })
 }
 
 /// 测试:临时目录 fixture(与 fs_walk.rs 测试同款纪律)。
@@ -152,7 +182,9 @@ mod tests {
     fn hits_line_numbers_and_text_trim() {
         let root = tmp_root("hits");
         write(&root, "a.txt", b"hello world\nSECOND line\r\nthird hello\n");
-        let hits = search(root.to_str().unwrap(), "hello", true, 100).unwrap();
+        let hits = search(root.to_str().unwrap(), "hello", true, 100)
+            .unwrap()
+            .hits;
         assert_eq!(
             hits,
             vec![
@@ -176,10 +208,14 @@ mod tests {
         let root = tmp_root("case");
         write(&root, "a.txt", b"Foo\nfoo\nFOO\nbar\n");
         // 不敏感:前三行全命中
-        let hits = search(root.to_str().unwrap(), "foo", false, 100).unwrap();
+        let hits = search(root.to_str().unwrap(), "foo", false, 100)
+            .unwrap()
+            .hits;
         assert_eq!(hits.len(), 3);
         // 敏感:仅精确一例
-        let hits = search(root.to_str().unwrap(), "foo", true, 100).unwrap();
+        let hits = search(root.to_str().unwrap(), "foo", true, 100)
+            .unwrap()
+            .hits;
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].line, 2);
         std::fs::remove_dir_all(&root).unwrap();
@@ -197,7 +233,9 @@ mod tests {
         write(&root, "late.txt", &late);
         // node_modules 整枝剪掉
         write(&root, "node_modules/pkg/index.js", b"match");
-        let hits = search(root.to_str().unwrap(), "match", true, 100).unwrap();
+        let hits = search(root.to_str().unwrap(), "match", true, 100)
+            .unwrap()
+            .hits;
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].path, "late.txt");
         std::fs::remove_dir_all(&root).unwrap();
@@ -209,11 +247,13 @@ mod tests {
         // 单文件超 100 命中:截到 100
         let many = "x\n".repeat(150);
         write(&root, "many.txt", many.as_bytes());
-        let hits = search(root.to_str().unwrap(), "x", true, 1000).unwrap();
+        let hits = search(root.to_str().unwrap(), "x", true, 1000)
+            .unwrap()
+            .hits;
         assert_eq!(hits.len(), 100);
         // 全局 cap:跨文件也截
         write(&root, "few.txt", b"x\nx\n");
-        let hits = search(root.to_str().unwrap(), "x", true, 3).unwrap();
+        let hits = search(root.to_str().unwrap(), "x", true, 3).unwrap().hits;
         assert_eq!(hits.len(), 3);
         std::fs::remove_dir_all(&root).unwrap();
     }
@@ -223,6 +263,7 @@ mod tests {
         let root = tmp_root("empty");
         assert!(search(root.to_str().unwrap(), "", true, 100)
             .unwrap()
+            .hits
             .is_empty());
         assert!(search("/definitely/not/a/dir/tmd", "q", true, 100).is_err());
         std::fs::remove_dir_all(&root).unwrap();

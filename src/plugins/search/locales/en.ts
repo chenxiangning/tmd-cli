@@ -9,7 +9,8 @@ export const MESSAGES_EN = {
   "无匹配结果": "No matches",
   "搜索失败": "Search failed",
   "{n} 个结果": "{n} results",
-  "已达结果上限,仅显示前 {n} 条": "Result limit reached, showing first {n} only",
+  "结果不完整(扫描预算耗尽或已达上限),仅显示前 {n} 条":
+    "Results incomplete (scan budget exhausted or limit reached), showing first {n} only",
   "仅显示前 50 项,继续输入缩小范围": "Showing first 50 only — keep typing to narrow down",
   "输入文件名…": "Type a file name…",
   "正在加载文件列表…": "Loading file list…",

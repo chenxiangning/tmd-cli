@@ -129,7 +129,9 @@ export default function FileCodeEditorImpl({
     let cancelled = false;
     void (async () => {
       const groups = await Promise.all(
-        extFactories.map((build) => build({ path, dark }).catch(() => null)),
+        /* 工厂可能非 async 形态同步抛(签名允许返回 Promise):包一层,
+           否则 map 回调抛出会让整个 IIFE reject 被 void 吞掉,全部插件扩展静默丢 */
+        extFactories.map((build) => Promise.resolve().then(() => build({ path, dark })).catch(() => null)),
       );
       if (!cancelled) {
         setPluginExts(groups.flat().filter((ext): ext is Extension => ext != null));

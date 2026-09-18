@@ -14,7 +14,7 @@ import { resolveFileVisual } from "@kernel/fileVisual";
 import type { DirEntry } from "@kernel/ipc";
 import type { Workspace } from "@kernel/workspace";
 import type { RemoteFileSource } from "@kernel/fileSources";
-import { openFileInTab } from "./openFile";
+import { openFileInTab } from "@kernel/fileTabs";
 import { setActiveTreeHandles } from "./treeHandles";
 
 /** 单行渲染:目录 = 展开箭头 + 图标;文件 = 图标 + 名(点击开渲染 tab)。 */

@@ -16,6 +16,7 @@
 > 2026-09-11 会话 tab 平铺显示 + 平铺广播开关:右键菜单全局开关(参照 codeg tile),打开的 tab 并排同屏点列即切,composer 喇叭开关开启后正常发送即广播到全部平铺幕布;横评广播插件实施后验收否决已整体拆除(spec 留档「已废弃」)。
 > 2026-09-12/13 补校:WSL 支持 M1、工作区壁纸(图库+流体)、应用内自动更新(updater 签名通道)、omp 历史会话预热秒开(onAcquired 早激活)、dsh 会话流式输出、Git 差异三区拖选批量与未跟踪删除、pull 分叉 rebase 兜底、回首页⇄回会话 toggle、欢迎页 SWR 缓存与手动全量刷新;插件计数 23→27(10 engine / 13 feature / 3 core / 1 local)。
 > 2026-09-16 欢迎页改版补校:终端窗体造型引擎选择器(标题条 / prompt 行工作区选择 / 键盘 ↑↓⏎)、引擎全动作行(凭据 ● 展开额度 / 新会话 / 安装更新重装 / 单行重探 / 官方文档)、omp 版本回退菜单(最新 10 个稳定版 + 收藏钉版)、前置依赖门控、页脚 RESUME(全工作区倒序 8 条)/ QUOTA(供应商聚合 + 重置倒计时)/ TOKENS(本地 usage 聚合 + 近 7 日双段柱)。
+> 2026-09-19 补校:文件标记插件(marks,行间锚点/跨文件聚合/芯片条 staging 发送/指纹重锚/终端回链)、全文搜索面板与文件名快开(⇧⌘F/⌘P,Rust fs_search 即时扫描)、Markdown 预览 markdown-it 快路径(常规块单遍 HTML 直渲染,富块留 react-markdown)、代码编辑器扩语言至 25 家 + 行内查找 + 定位行、git 面板内工具条(顶栏嵌入段下移,聚合数字三类型化下拉)、会话状态巡航尾读尺寸闸(omp/pi/claude/qoder/codex 五家接闸,重扫读头 mtime 增量缓存)、Web 远程访问桥 M1/M2、会话看板插件;插件计数 27→31(10 engine / 17 feature / 3 core / 1 local,新增 marks/search/web-access/session-board)。
 
 ## 工作区会话
 
@@ -295,7 +296,7 @@
 
 ## 插件市场(插排)
 
-- 插排 / 清单双视图,27 个注册插件可视化插拔(10 engine + 13 feature + 3 core + 1 local),写 settings.disabledPlugins,重启生效(运行期不热卸载)
+- 插排 / 清单双视图,31 个注册插件可视化插拔(10 engine + 17 feature + 3 core + 1 local),写 settings.disabledPlugins,重启生效(运行期不热卸载)
 - core 类焊死不可拔(composer / settings / welcome);engine / feature / local 可拔
 - 插排页双插排:内置插件一块(分类虚线分隔),本机插件(local 类)独立次级插排(品牌区「本机插件 · 免重启装载」)
 - 插件市场经标题栏插头按钮开合(整页替换、会话现场不丢);页头「重启应用」按钮带待生效计数一键重启

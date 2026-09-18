@@ -195,6 +195,7 @@ pub fn run() {
             commands_fs::fs_read_tail_changed,
             commands_fs::fs_remove_path,
             commands_fs::fs_search,
+            commands_fs::fs_walk_files,
             commands_fs::proc_communicate,
             fs_edit::fs_write_file,
             fs_edit::fs_create_file,

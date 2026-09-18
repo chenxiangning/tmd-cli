@@ -66,9 +66,9 @@ function canUndoSmartSwitch(
   return files.some((f) => f.status === "C") && undoOrigin != null && undoOrigin.cwd === cwd;
 }
 
-/** 多仓时的展示仓名:取 cwd 末段;单仓 undefined(对话框按需自解析)。 */
+/** 多仓时的展示仓名:取 cwd 末段(双分隔符;Windows 反斜杠安全);单仓 undefined(对话框按需自解析)。 */
 function repoDisplayName(repoCount: number, cwd: string): string | undefined {
-  return repoCount >= 2 ? (cwd.split("/").filter(Boolean).pop() ?? undefined) : undefined;
+  return repoCount >= 2 ? (cwd.split(/[\\/]/).filter(Boolean).pop() ?? undefined) : undefined;
 }
 
 /** 面板横幅簇:通知(可关闭)/ 状态错误 / 智能切换撤销横幅(降分支拆件)。 */

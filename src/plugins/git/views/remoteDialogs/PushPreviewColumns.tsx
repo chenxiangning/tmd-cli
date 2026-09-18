@@ -197,7 +197,7 @@ function PushDetailContent({
       </div>
       <div className="mt-1 min-h-0 flex-1 overflow-auto rounded border border-(--tmd-border) p-1">
         <CommitFileTree
-          rootName={cwd.split("/").filter(Boolean).pop() ?? ""}
+          rootName={cwd.split(/[\\/]/).filter(Boolean).pop() ?? ""}
           files={details}
           selectedPath={null}
           onSelect={(f) => onFileSelect(f, selected)}

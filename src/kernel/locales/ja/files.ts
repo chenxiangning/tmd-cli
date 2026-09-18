@@ -103,4 +103,5 @@ export const MESSAGES = {
   "仅展示前 {rows} 行 × {cols} 列": "先頭 {rows} 行 × {cols} 列のみ表示",
   /* 構造化プレビュー */
   "文件较大,仅展示前 {visible} / {total} 行": "ファイルが大きいため先頭 {visible} / {total} 行のみ表示",
+"远程文件 · 只读(M1)": "リモートファイル · 読み取り専用(M1)",
 } as Record<string, string>;

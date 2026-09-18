@@ -21,6 +21,8 @@ export interface FileMarkLite {
   endLine: number;
   note: string;
   state: "pending" | "staged" | "sent" | "drifted" | "lost";
+  /** 状态文案(marks 侧已 t() 随载荷下发)。 */
+  stateLabel: string;
 }
 
 /** 预览卡片动作(marks 侧处理):移除 / 发送到对话(staged)/ 改标注。 */

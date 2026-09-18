@@ -18,7 +18,7 @@ import {
   loadFile,
   subscribeFileCache,
 } from "./editor/fileCache";
-import { takeFileRevealLine } from "./openFile";
+import { takeFileRevealLine } from "@kernel/fileTabs";
 
 /* 编辑器(CodeMirror 全家 + 主题/语言包)按需拆包:真正进入编辑态才拉 chunk。
    useFileDocument 只依赖轻量 fileCache,静态引入不拖累拆包。 */

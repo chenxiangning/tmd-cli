@@ -84,7 +84,7 @@ export function GitToolbar() {
       {totals && (
         <span
           title={t("聚合增删行数(staged + 未暂存;多仓 = 选中仓口径)")}
-          className="mr-auto shrink-0 whitespace-nowrap pl-1"
+          className="shrink-0 whitespace-nowrap pl-1"
         >
           <span className="text-(--tmd-diff-inserted)">
             +{totals.insertions.toLocaleString("en-US")}
@@ -96,10 +96,13 @@ export function GitToolbar() {
           <span className="ml-1.5 text-(--tmd-fg-muted)">{aggregate.fileCount}</span>
         </span>
       )}
+      {/* ml-auto 挂恒渲染的视图钮:totals 未就绪(首开/切仓)时按钮组不跳位 */}
       <button
         type="button"
         onClick={(e) => toggleMenu("view", e)}
-        className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1 py-0.5 text-xs font-medium hover:bg-(--tmd-bg-hover)"
+        aria-haspopup="menu"
+        aria-expanded={menu?.kind === "view"}
+        className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1 py-0.5 text-xs font-medium hover:bg-(--tmd-bg-hover)"
       >
         <ViewIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
         <span>{t(VIEW_LABEL[view])}</span>
@@ -109,6 +112,8 @@ export function GitToolbar() {
         onClick={(e) => toggleMenu("layout", e)}
         title={t("文件列表视图")}
         aria-label={t("文件列表视图")}
+        aria-haspopup="menu"
+        aria-expanded={menu?.kind === "layout"}
         className="flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover)"
       >
         <LayoutIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
@@ -118,6 +123,8 @@ export function GitToolbar() {
         onClick={(e) => toggleMenu("remote", e)}
         title={t("远端操作")}
         aria-label={t("远端操作")}
+        aria-haspopup="menu"
+        aria-expanded={menu?.kind === "remote"}
         className="flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover)"
       >
         <ArrowsDownUp className="h-[0.75rem] w-[0.75rem]" aria-hidden />
@@ -130,6 +137,7 @@ export function GitToolbar() {
               <button
                 key={v}
                 type="button"
+                role="menuitem"
                 className={MENU_ITEM}
                 onClick={() => {
                   setGitView(v);
@@ -154,6 +162,7 @@ export function GitToolbar() {
               <button
                 key={l}
                 type="button"
+                role="menuitem"
                 className={MENU_ITEM}
                 onClick={() => {
                   setGitLayout(l);

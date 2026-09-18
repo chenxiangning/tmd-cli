@@ -8,7 +8,7 @@
  * 终端实例;provider 清单运行期动态生效(每次 provideLinks 现读注册表)。
  */
 
-import type { Terminal } from "@xterm/xterm";
+import type { IBufferLine, Terminal } from "@xterm/xterm";
 
 /** 行内命中段:0 基列区间,含头不含尾。 */
 export interface TerminalLinkHit {
@@ -45,17 +45,32 @@ export function registerTerminalLinkProvider(provider: TerminalLinkProvider): ()
   };
 }
 
+
+/* 字符下标 → 起始单元格列映射:宽字符(CJK/emoji)占 2 格,后续格
+   getChars() 为空串;逐 cell 走行,把每个字符的首格记下。 */
+function charCellMap(line: IBufferLine): number[] {
+  const map: number[] = [];
+  for (let x = 0; x < line.length; x++) {
+    const cell = line.getCell(x);
+    if (!cell) break;
+    const s = cell.getChars();
+    if (!s) continue;
+    for (let k = 0; k < s.length; k++) map.push(x);
+  }
+  return map;
+}
 /** 聚合全部 provider 为单个 xterm 链接提供者并挂载;provider 清单动态生效。 */
 export function attachTerminalLinks(term: Terminal): void {
   term.registerLinkProvider({
     provideLinks(bufferLineNumber, callback) {
       const line = term.buffer.active.getLine(bufferLineNumber - 1);
       const text = line?.translateToString(true) ?? "";
-      if (!text) {
+      if (!line || !text) {
         callback(undefined);
         return;
       }
       const links = [];
+      let cellOfChar: number[] | null = null; /* 命中才建,无命中的行零开销 */
       for (const provider of providers) {
         /* kernel 不信任插件实现(review P2):find 抛错跳过该 provider,
            否则 callback 永不调用、整行链接识别卡死 */
@@ -67,11 +82,17 @@ export function attachTerminalLinks(term: Terminal): void {
         }
         for (const hit of hits) {
           if (hit.start < 0 || hit.end <= hit.start || hit.end > text.length) continue;
+          /* 命中区间是字符下标,单元格列须经宽度映射换算(宽字符前置防错位) */
+          cellOfChar ??= charCellMap(line);
+          const startCell = cellOfChar[hit.start];
+          const endCell = cellOfChar[hit.end - 1];
+          if (startCell === undefined || endCell === undefined) continue;
+          const endWidth = line.getCell(endCell)?.getWidth() ?? 1;
           links.push({
             range: {
-              /* xterm 6:IBufferCellPosition 1 基;end = 末字符后一列(不含) */
-              start: { x: hit.start + 1, y: bufferLineNumber },
-              end: { x: hit.end + 1, y: bufferLineNumber },
+              /* xterm 6:IBufferCellPosition 1 基;end = 末字符占格后一列(不含) */
+              start: { x: startCell + 1, y: bufferLineNumber },
+              end: { x: endCell + endWidth + 1, y: bufferLineNumber },
             },
             text: text.slice(hit.start, hit.end),
             activate: () => {

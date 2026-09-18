@@ -22,7 +22,7 @@ import { FileActionsBar } from "./FileActionsBar";
 
 
 /* ──────────────────────────────────────────────────────────
- * TopBar 用 panel tabs 组件 ─ TopBar 直接渲染(header.right 挂点当前零贡献者)。
+ * TopBar 用 panel tabs 组件 ─ TopBar 直接渲染(header.right 挂点由插件贡献,如 web-access 的远程控制徽标)。
  * tab 列表完全来自 kernel 面板注册表,外壳不认识任何业务面板。
  * ────────────────────────────────────────────────────────── */
 export function TopBarPanelTabs() {

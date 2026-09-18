@@ -119,10 +119,10 @@ export function MarksPanel() {
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex items-center gap-2 border-b border-(--tmd-border) px-3 py-1.5 text-xs text-(--tmd-fg-muted)">
         <span>
-          {t(`${marks.length} 处标记 · ${groups.size} 个文件`)}
+          {t("{n} 处标记 · {m} 个文件", { n: marks.length, m: groups.size })}
         </span>
         {pendingCount > 0 ? (
-          <span className="text-(--tmd-warn)">{t(`待发送 ${pendingCount}`)}</span>
+          <span className="text-(--tmd-warn)">{t("待发送 {n}", { n: pendingCount })}</span>
         ) : null}
         {pendingCount > 0 && root ? (
           <button
@@ -130,7 +130,7 @@ export function MarksPanel() {
             className="ml-auto cursor-pointer rounded-md border border-(--tmd-accent) px-1.5 py-px text-(--tmd-accent) hover:bg-(--tmd-bg-hover)"
             onClick={() => stageMarks(root, marks.filter((mark) => mark.state === "pending"))}
           >
-            {t(`⚑ 发送全部 (${pendingCount})`)}
+            {t("⚑ 发送全部 ({n})", { n: pendingCount })}
           </button>
         ) : null}
       </div>

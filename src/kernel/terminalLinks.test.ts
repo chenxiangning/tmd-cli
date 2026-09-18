@@ -14,6 +14,18 @@ let mod: TerminalLinksModule;
 
 function fakeTerminal(lines: string[]): { term: Terminal; captured: () => ILinkProvider | undefined } {
   let captured: ILinkProvider | undefined;
+  /* cell 仿真:CJK 宽字符占 2 格(续格 getChars 空串/宽度 0),
+     与 xterm buffer 行为一致 —— provideLinks 的字符→列换算依赖它。 */
+  const cellLine = (text: string) => {
+    const cells: { c: string; w: number }[] = [];
+    for (const ch of text) {
+      const wide = /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE6F\uFF00-\uFF60]/.test(ch);
+      cells.push({ c: ch, w: wide ? 2 : 1 });
+      if (wide) cells.push({ c: "", w: 0 });
+    }
+    return cells;
+  };
+  const cellLines = lines.map(cellLine);
   const term = {
     registerLinkProvider(provider: ILinkProvider) {
       captured = provider;
@@ -21,10 +33,20 @@ function fakeTerminal(lines: string[]): { term: Terminal; captured: () => ILinkP
     },
     buffer: {
       active: {
-        getLine: (y: number) =>
-          y >= 0 && y < lines.length
-            ? { translateToString: () => lines[y] }
-            : undefined,
+        getLine: (y: number) => {
+          if (y < 0 || y >= lines.length) return undefined;
+          const cells = cellLines[y];
+          return {
+            translateToString: () => lines[y],
+            get length() {
+              return cells.length;
+            },
+            getCell: (x: number) =>
+              x >= 0 && x < cells.length
+                ? { getChars: () => cells[x].c, getWidth: () => cells[x].w }
+                : null,
+          };
+        },
       },
     },
   } as unknown as Terminal;
@@ -66,6 +88,25 @@ describe("attachTerminalLinks", () => {
     expect(links?.[0].text).toBe("src/a.ts:L7-9");
     links?.[0].activate({ type: "click" } as MouseEvent, links?.[0].text);
     expect(open).toHaveBeenCalledWith({ start: 4, end: 17 }, "see src/a.ts:L7-9 here");
+  });
+
+  it("宽字符(CJK)前置时命中区间按单元格列换算不错位", () => {
+    const open = vi.fn();
+    mod.registerTerminalLinkProvider({
+      id: "p",
+      find: () => [{ start: 4, end: 17 }], /* 'src/a.ts:L7-9' 的字符下标 */
+      open,
+    });
+    /* 3 个宽字符 + 1 空格后接链接:字符 4 的起始单元格是 7(0 基) */
+    const { term, captured } = fakeTerminal(["错误在 src/a.ts:L7-9 处"]);
+    mod.attachTerminalLinks(term);
+    const cb = vi.fn();
+    captured()?.provideLinks(1, cb);
+    const links = cb.mock.calls[0][0];
+    expect(links).toHaveLength(1);
+    expect(links?.[0].range.start.x).toBe(8); /* 0 基 cell 7 → 1 基 8 */
+    expect(links?.[0].range.end.x).toBe(21); /* 末字符 cell 19(宽 1)后一列 */
+    expect(links?.[0].text).toBe("src/a.ts:L7-9");
   });
 
   it("无命中行回调 undefined;越界命中被过滤", () => {
