@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>会话用量可见性 · 设计原型(浅色主题,数据为 2026-09-18 本机真实采样)</title>
+<style>
+  /* ── 客户端 token(浅色主题,src/styles/themes.css light)── */
+  :root {
+    --bg-base: #f6f6f7;
+    --bg-elevated: #ffffff;
+    --bg-hover: rgba(0,0,0,0.045);
+    --bg-active: rgba(0,120,212,0.14);
+    --bg-input: #ececee;
+    --bg-sunken: rgba(0,0,0,0.05);
+    --bg-popover: #ffffff;
+    --fg: #24292e;
+    --fg-muted: #6a737d;
+    --fg-subtle: #8b949e;
+    --fg-faint: #b0b8c0;
+    --border: #e2e4e8;
+    --border-strong: #c9cdd4;
+    --accent: #0078d4;
+    --accent-soft: rgba(0,120,212,0.10);
+    --ok: #1a7f37;
+    --ok-dim: rgba(26,127,55,0.12);
+    --warn: #9a6700;
+    --warn-bg: rgba(234,179,8,0.14);
+    --err: #cf222e;
+    --err-dim: rgba(207,34,46,0.10);
+    --panel-tab-active: rgb(255,140,60);
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #e8e9eb; color: var(--fg);
+    font: 13px/1.5 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    padding: 28px 20px 80px;
+  }
+  .page { max-width: 1240px; margin: 0 auto; }
+  h1 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  h2 { font-size: 13px; font-weight: 600; margin: 26px 0 4px; color: var(--fg); }
+  h2 .no { color: var(--fg-faint); font-weight: 400; margin-right: 6px; }
+  .sub { color: var(--fg-muted); font-size: 12px; margin-bottom: 12px; }
+  .sub b { color: var(--fg); font-weight: 600; }
+  .window { border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; background: var(--bg-base); box-shadow: 0 8px 28px rgba(0,0,0,0.10); }
+  .titlebar {
+    height: 33px; display: flex; align-items: center; gap: 10px;
+    background: var(--bg-elevated); border-bottom: 1px solid var(--border);
+    padding: 0 10px 0 12px; flex: none;
+  }
+  .lights { display: flex; gap: 8px; flex: none; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; }
+  .lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .tabs { display: flex; gap: 4px; align-self: flex-end; height: 100%; align-items: flex-end; margin-left: 8px; }
+  .tab {
+    display: flex; align-items: center; gap: 6px; height: 27px; padding: 0 12px;
+    font-size: 12px; color: var(--fg-subtle); border-radius: 6px 6px 0 0; white-space: nowrap;
+  }
+  .tab.on { background: var(--bg-base); color: var(--fg); border: 1px solid var(--border); border-bottom-color: var(--bg-base); }
+  .tab.active-hot { color: var(--panel-tab-active); }
+  .tab .glyph { font-size: 10px; font-weight: 700; }
+  .body-row { display: flex; min-height: 460px; }
+
+  /* ── 侧栏(244px)── */
+  .sidebar { width: 244px; flex: none; background: var(--bg-elevated); border-right: 1px solid var(--border); padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; }
+  .group-label { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--fg-subtle); padding: 8px 6px 4px; }
+  .group-label .caret { font-size: 9px; }
+  .group-label .g-icon { font-size: 10px; font-weight: 700; }
+  .thread-row {
+    display: flex; align-items: center; gap: 7px; width: 100%;
+    padding: 5px 6px; border-radius: var(--radius-sm); border: none; background: none;
+    font: inherit; color: var(--fg); text-align: left; cursor: pointer;
+  }
+  .thread-row:hover { background: var(--bg-hover); }
+  .thread-row.on { background: var(--bg-active); }
+  .tl-node { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-faint); flex: none; }
+  .tl-node.run { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-dim); }
+  .tl-node.ask { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-bg); }
+  .thread-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+  /* ── 用量徽标(v1 新增,唯一新视觉)── */
+  .usage-badge {
+    flex: none; font: 10px/1 var(--mono); color: var(--fg-subtle);
+    background: var(--bg-sunken); border-radius: 4px; padding: 3px 5px;
+    letter-spacing: 0.02em;
+  }
+  .usage-badge.none { color: var(--fg-faint); background: none; padding: 3px 2px; }
+  .usage-badge.dim { color: var(--fg-faint); }
+  .usage-badge.warn-hit { color: var(--warn); }
+  .thread-time { flex: none; font-size: 10px; color: var(--fg-faint); width: 34px; text-align: right; }
+
+  /* ── 看板区 ── */
+  .board { flex: 1; padding: 14px 16px; overflow: auto; }
+  .board-lane { margin-bottom: 16px; }
+  .lane-head { font-size: 12px; font-weight: 600; color: var(--fg); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .lane-count { font-weight: 400; color: var(--fg-faint); font-size: 11px; }
+  .cards { display: flex; gap: 10px; flex-wrap: wrap; }
+  .card {
+    width: 250px; background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 9px 11px; cursor: pointer; position: relative;
+  }
+  .card:hover { border-color: var(--border-strong); }
+  .card.running { border-color: rgba(26,127,55,0.45); }
+  .card .c-top { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .card .c-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .card .c-title { flex: 1; font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .c-meta { font-size: 11px; color: var(--fg-muted); display: flex; gap: 8px; align-items: center; }
+  .card .c-usage { margin-left: auto; font: 10px/1 var(--mono); color: var(--fg-subtle); background: var(--bg-sunken); border-radius: 4px; padding: 3px 5px; }
+
+  .engine { font-size: 10px; font-weight: 700; flex: none; }
+  .e-omp { color: #b02fd6; } .e-pi { color: #24292e; } .e-claude { color: #D97757; }
+  .e-codex { color: #24292e; } .e-kimi { color: #24292e; } .e-grok { color: #24292e; }
+
+  /* ── 用量详情弹层(核心新面)── */
+  .stage { position: relative; }
+  .popover {
+    position: absolute; z-index: 5; width: 340px; background: var(--bg-popover);
+    border: 1px solid var(--border-strong); border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.16); padding: 14px 16px 12px;
+  }
+  .pop-head { display: flex; align-items: center; gap: 7px; margin-bottom: 2px; }
+  .pop-head .t { font-size: 13px; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pop-snap { font-size: 10px; color: var(--fg-faint); margin-bottom: 10px; }
+  .pop-total { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+  .pop-total .n { font: 600 22px/1 var(--mono); letter-spacing: -0.02em; }
+  .pop-total .u { font-size: 11px; color: var(--fg-muted); }
+  .pop-total .usd { margin-left: auto; font: 12px/1 var(--mono); color: var(--fg-muted); }
+  .pop-total .usd b { color: var(--fg); font-weight: 600; }
+  .bar-row { display: grid; grid-template-columns: 86px 1fr 64px; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .bar-row .lbl { font-size: 11px; color: var(--fg-muted); text-align: right; }
+  .bar-row .trk { height: 8px; background: var(--bg-sunken); border-radius: 4px; overflow: hidden; }
+  .bar-row .fill { height: 100%; border-radius: 4px; }
+  .f-input { background: #6ea8d8; } .f-read { background: #3fb950; } .f-write { background: #d29922; } .f-out { background: #8250df; }
+  .bar-row .val { font: 10px/1.2 var(--mono); color: var(--fg-muted); text-align: right; }
+  .hit-box { display: flex; align-items: center; gap: 10px; margin: 12px 0 10px; padding: 8px 10px; border-radius: var(--radius-sm); }
+  .hit-box .pct { font: 600 16px/1 var(--mono); }
+  .hit-box .desc { flex: 1; font-size: 11px; color: var(--fg-muted); line-height: 1.45; }
+  .hit-ok { background: var(--ok-dim); } .hit-ok .pct { color: var(--ok); }
+  .hit-warn { background: var(--warn-bg); } .hit-warn .pct { color: var(--warn); }
+  .hit-bad { background: var(--err-dim); } .hit-bad .pct { color: var(--err); }
+  .pop-foot { display: flex; gap: 14px; border-top: 1px solid var(--border); padding-top: 9px; font-size: 11px; color: var(--fg-muted); }
+  .pop-foot b { color: var(--fg); font-weight: 600; font-family: var(--mono); font-size: 11px; }
+  .hint { margin-top: 10px; font-size: 11px; color: var(--fg-faint); }
+  .legend { margin-top: 14px; font-size: 11px; color: var(--fg-muted); line-height: 1.7; border-left: 2px solid var(--border); padding-left: 10px; }
+  .legend code { font-family: var(--mono); font-size: 10px; background: var(--bg-sunken); padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>会话用量可见性 · 设计原型</h1>
+  <div class="sub">口径:本地会话 JSONL 提取 token 四元组(input / cache-read / cache-write / output),<b>不折钱</b>(pi/omp 例外,透传自带 costUsd)。徽标可点击,下方三块演示三个消费面;数据为 2026-09-18 本机真实采样值。</div>
+
+  <div class="window">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="tabs">
+        <div class="tab on"><span class="glyph e-omp">◆</span> omp · tmd-cli</div>
+        <div class="tab"><span class="glyph e-claude">✳</span> claude</div>
+      </div>
+    </div>
+    <div class="body-row">
+
+      <!-- ① 侧栏:会话行徽标 -->
+      <div class="sidebar">
+        <div class="group-label"><span class="caret">▾</span><span class="g-icon e-omp">◆</span> omp · 运行区</div>
+        <button class="thread-row on"><span class="tl-node run"></span><span class="thread-title">看板生命周期五态收尾</span><span class="usage-badge dim">—</span><span class="thread-time">现在</span></button>
+        <button class="thread-row"><span class="tl-node ask"></span><span class="thread-title">marks 插件桩目检</span><span class="usage-badge" title="input 96.4K · cache-read 1.9M · cache-write 0 · output 41.2K · 12 轮">2.0M</span><span class="thread-time">12m</span></button>
+        <div class="group-label"><span class="caret">▾</span><span class="g-icon e-claude">✳</span> claude</div>
+        <button class="thread-row"><span class="tl-node"></span><span class="thread-title">fix(sidebar): reload force index sync</span><span class="usage-badge" title="input 878K · cache-read 7.7M · cache-write 0 · output 116K · 34 轮">8.7M</span><span class="thread-time">3h</span></button>
+        <button class="thread-row"><span class="tl-node"></span><span class="thread-title">CM widget 样式双坑排查</span><span class="usage-badge warn-hit" title="input 3.1M · cache-read 1.2M · cache-write 0 · output 88K · 21 轮 · cache 命中率 28%">4.4M</span><span class="thread-time">昨天</span></button>
+        <div class="group-label"><span class="caret">▾</span><span class="g-icon e-codex">▣</span> codex</div>
+        <button class="thread-row"><span class="tl-node"></span><span class="thread-title">rollout 会话 adapter createdAt</span><span class="usage-badge" title="total_token_usage 末值:input 17.1K · cached 0 · output 282 · 1 轮">17K</span><span class="thread-time">9/10</span></button>
+        <div class="group-label"><span class="caret">▾</span><span class="g-icon e-kimi">◉</span> kimi</div>
+        <button class="thread-row"><span class="tl-node"></span><span class="thread-title">legacy 会话格式声明</span><span class="usage-badge none">—</span><span class="thread-time">9/08</span></button>
+      </div>
+
+      <!-- ② 看板:卡角标 + ③ 详情弹层 -->
+      <div class="board stage">
+        <div class="board-lane">
+          <div class="lane-head">运行中 <span class="lane-count">2</span></div>
+          <div class="cards">
+            <div class="card running"><div class="c-top"><span class="c-dot" style="background:var(--ok)"></span><span class="thread-title c-title">看板生命周期五态收尾</span></div><div class="c-meta"><span class="engine e-omp">◆ omp</span><span>3 轮</span><span class="c-usage">—</span></div></div>
+            <div class="card running"><div class="c-top"><span class="c-dot" style="background:var(--warn)"></span><span class="thread-title c-title">marks 插件桩目检</span></div><div class="c-meta"><span class="engine e-omp">◆ omp</span><span>12 轮</span><span class="c-usage">2.0M</span></div></div>
+          </div>
+        </div>
+        <div class="board-lane">
+          <div class="lane-head">结束-未查看 <span class="lane-count">3</span></div>
+          <div class="cards">
+            <div class="card"><div class="c-top"><span class="c-dot" style="background:var(--fg-faint)"></span><span class="thread-title c-title">fix(sidebar): reload force index sync</span></div><div class="c-meta"><span class="engine e-claude">✳ claude</span><span>3h</span><span class="c-usage">8.7M</span></div></div>
+            <div class="card"><div class="c-top"><span class="c-dot" style="background:var(--fg-faint)"></span><span class="thread-title c-title">CM widget 样式双坑排查</span></div><div class="c-meta"><span class="engine e-claude">✳ claude</span><span>昨天</span><span class="c-usage" style="color:var(--warn)">4.4M</span></div></div>
+            <div class="card"><div class="c-top"><span class="c-dot" style="background:var(--fg-faint)"></span><span class="thread-title c-title">rollout 会话 adapter createdAt</span></div><div class="c-meta"><span class="engine e-codex">▣ codex</span><span>9/10</span><span class="c-usage">17K</span></div></div>
+          </div>
+        </div>
+
+        <!-- 用量详情弹层(点击徽标触发;此处直接摆出) -->
+        <div class="popover">
+          <div class="pop-head"><span class="engine e-claude">✳</span><span class="t">fix(sidebar): reload force index sync</span></div>
+          <div class="pop-snap">claude · 快照 2026-09-18 18:42(文件 mtime)</div>
+          <div class="pop-total"><span class="n">8.7M</span><span class="u">累计 token · 34 轮 · 场均 256K</span><span class="usd">$ —</span></div>
+          <div class="bar-row"><span class="lbl">input</span><div class="trk"><div class="fill f-input" style="width:11%"></div></div><span class="val">878,168</span></div>
+          <div class="bar-row"><span class="lbl">cache-read</span><div class="trk"><div class="fill f-read" style="width:97%"></div></div><span class="val">7,681,204</span></div>
+          <div class="bar-row"><span class="lbl">cache-write</span><div class="trk"><div class="fill f-write" style="width:1%"></div></div><span class="val">0</span></div>
+          <div class="bar-row"><span class="lbl">output</span><div class="trk"><div class="fill f-out" style="width:2%"></div></div><span class="val">116,432</span></div>
+          <div class="hit-box hit-ok"><span class="pct">90%</span><span class="desc">cache 命中率 &gt;80% 健康。健康会话基线 95-99%;官方 cache bug 受害形态常见 &lt;40%。</span></div>
+          <div class="pop-foot"><span>轮次 <b>34</b></span><span>场均 input <b>25.8K</b></span><span>场均 output <b>3.4K</b></span></div>
+          <div class="hint">对照:「CM widget 样式双坑排查」同引擎 28% 命中率(黄标行)—— 同一额度两种烧法。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2><span class="no">②</span>对照:cache 命中率异常形态(同一弹层,黄档)</h2>
+  <div class="sub">研究实证阈值:>80% 绿 / 40-80% 黄 / <40% 红(徽标随档变色,不弹窗打扰)。此为「官方 cache bug 静默膨胀」的客户端侧暴露面 —— 用户无需自建代理抓包。</div>
+  <div class="window" style="max-width:372px">
+    <div style="padding:14px 16px 12px">
+      <div class="pop-head"><span class="engine e-claude">✳</span><span class="t">CM widget 样式双坑排查</span></div>
+      <div class="pop-snap">claude · 快照 2026-09-17 23:11</div>
+      <div class="pop-total"><span class="n">4.4M</span><span class="u">21 轮</span><span class="usd">$ —</span></div>
+      <div class="bar-row"><span class="lbl">input</span><div class="trk"><div class="fill f-input" style="width:70%"></div></div><span class="val">3,142,881</span></div>
+      <div class="bar-row"><span class="lbl">cache-read</span><div class="trk"><div class="fill f-read" style="width:28%"></div></div><span class="val">1,204,556</span></div>
+      <div class="bar-row"><span class="lbl">cache-write</span><div class="trk"><div class="fill f-write" style="width:1%"></div></div><span class="val">0</span></div>
+      <div class="bar-row"><span class="lbl">output</span><div class="trk"><div class="fill f-out" style="width:2%"></div></div><span class="val">88,120</span></div>
+      <div class="hit-box hit-warn"><span class="pct">28%</span><span class="desc">cache 命中率偏低:大量输入按全价重算。社区实证健康会话 &gt;80%;此形态常见于 resume 重建缓存 / cache bug。</span></div>
+      <div class="pop-foot"><span>轮次 <b>21</b></span><span>场均 input <b>149.7K</b></span><span>场均 output <b>4.2K</b></span></div>
+    </div>
+  </div>
+
+  <h2><span class="no">③</span>对照:pi/omp 自带 costUsd(免维护白拿)</h2>
+  <div class="sub">omp/pi 的 message.usage 自带 cost(USD),透传显示;其余引擎 <code>$ —</code>,不折钱不猜。</div>
+  <div class="window" style="max-width:372px">
+    <div style="padding:14px 16px 12px">
+      <div class="pop-head"><span class="engine e-omp">◆</span><span class="t">marks 插件桩目检</span></div>
+      <div class="pop-snap">omp · 快照 2026-09-18 21:54</div>
+      <div class="pop-total"><span class="n">2.0M</span><span class="u">12 轮</span><span class="usd">$ <b>0.4217</b></span></div>
+      <div class="bar-row"><span class="lbl">input</span><div class="trk"><div class="fill f-input" style="width:5%"></div></div><span class="val">96,404</span></div>
+      <div class="bar-row"><span class="lbl">cache-read</span><div class="trk"><div class="fill f-read" style="width:95%"></div></div><span class="val">1,927,582</span></div>
+      <div class="bar-row"><span class="lbl">cache-write</span><div class="trk"><div class="fill f-write" style="width:2%"></div></div><span class="val">31,108</span></div>
+      <div class="bar-row"><span class="lbl">output</span><div class="trk"><div class="fill f-out" style="width:2%"></div></div><span class="val">41,206</span></div>
+      <div class="hit-box hit-ok"><span class="pct">94%</span><span class="desc">cache 命中率健康。</span></div>
+      <div class="pop-foot"><span>轮次 <b>12</b></span><span>cost 为 CLI 自记,非 tmd-cli 估算</span></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    展示纪律:未接入引擎(kimi/qoder/grok/dsh/opencode)徽标显示 <code>—</code>,不猜测兜底;活会话(mtime 变动中)徽标 <code>—</code>,轮次结算/关闭时计算;徽标点击才弹详情,hover 只给 title 四元组。汇总量(今日/本周/各引擎)后置 v2,不在本原型。
+  </div>
+</div>
+</body>
+</html>
