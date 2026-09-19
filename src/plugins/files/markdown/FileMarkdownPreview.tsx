@@ -29,6 +29,7 @@ import {
 import { FullscreenViewer } from "./FullscreenViewer";
 import { resolveImageViewerSrc } from "./viewerSrcModel";
 import { PreviewOutlineSidebar } from "./PreviewOutlineSidebar";
+import { BackToTopButton } from "./BackToTopButton";
 import { useMarkdownOutline } from "./useMarkdownOutline";
 import { normalizeMarkdownAnchorKey } from "./markdownPreviewHelpers";
 import { BlockMarkdown, useMarkdownComponents } from "./useMarkdownComponents";
@@ -92,7 +93,6 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
     handleSelectOutlineItem,
     handleToggleOutlinePinned,
     handleToggleOutlineCollapsed,
-    handleOutlineMouseLeave,
   } = useMarkdownOutline({
     body: compiledDocument.body,
     cacheKey: compiledDocument.cacheKey,
@@ -184,7 +184,7 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
     [markMap, sourceFilePath],
   );
   return (
-    <div className="fvp-markdown-preview-frame">
+    <div className={`fvp-markdown-preview-frame${isOutlinePinned ? " is-outline-pinned" : isOutlineCollapsed ? " is-outline-collapsed" : ""}`}>
       {outline.length > 0 && (
         <div className="fvp-markdown-outline-layer">
           <PreviewOutlineSidebar
@@ -195,10 +195,10 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
             pinned={isOutlinePinned}
             onToggleCollapsed={handleToggleOutlineCollapsed}
             onTogglePinned={handleToggleOutlinePinned}
-            onMouseLeave={handleOutlineMouseLeave}
           />
         </div>
       )}
+      <BackToTopButton scrollRef={previewRootRef} />
       <div ref={previewRootRef} className="fvp-markdown-preview-scroll">
         <div
           className={className}

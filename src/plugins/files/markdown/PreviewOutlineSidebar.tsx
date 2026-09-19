@@ -41,7 +41,7 @@ function PreviewOutlineEntry<T extends OutlineItemShape<T>>({
     <li className="fvp-preview-outline-entry">
       <div
         className="fvp-preview-outline-row"
-        style={{ paddingInlineStart: `${Math.max(0, depth) * 8}px` }}
+        style={{ paddingInlineStart: `${Math.max(0, depth) * 12 + 6}px` }}
       >
         {hasChildren ? (
           <button
@@ -61,7 +61,8 @@ function PreviewOutlineEntry<T extends OutlineItemShape<T>>({
         )}
         <button
           type="button"
-          className={`fvp-preview-outline-button${isActive ? " is-active" : ""}`}
+            className={`fvp-preview-outline-button${isActive ? " is-active" : ""}`}
+            data-level={item.level}
           aria-current={isActive ? "location" : undefined}
           onClick={() => onSelectItem(item)}
         >
@@ -96,7 +97,6 @@ export function PreviewOutlineSidebar<T extends OutlineItemShape<T>>({
   pinned = true,
   onToggleCollapsed,
   onTogglePinned,
-  onMouseLeave,
 }: {
   items: T[];
   activeItemId: string | null;
@@ -105,7 +105,6 @@ export function PreviewOutlineSidebar<T extends OutlineItemShape<T>>({
   pinned?: boolean;
   onToggleCollapsed?: () => void;
   onTogglePinned?: () => void;
-  onMouseLeave?: () => void;
 }) {
   const [collapsedItemIds, setCollapsedItemIds] = useState<Set<string>>(
     () => new Set(),
@@ -147,10 +146,10 @@ export function PreviewOutlineSidebar<T extends OutlineItemShape<T>>({
   }
 
   return (
-    <nav className="fvp-preview-outline" aria-label={t("章节大纲")} onMouseLeave={onMouseLeave}>
+    <nav className="fvp-preview-outline" aria-label={t("章节大纲")}>
       <div className="fvp-preview-outline-panel">
         <header className="fvp-preview-section-header">
-          <strong>{t("章节")}</strong>
+          <strong>{t("目录")}</strong>
           <div className="fvp-preview-outline-actions">
             {onTogglePinned ? (
               <button
@@ -166,7 +165,7 @@ export function PreviewOutlineSidebar<T extends OutlineItemShape<T>>({
                   viewBox="0 0 24 24"
                   aria-hidden="true"
                 >
-                  <path d="M14.5 3.5 20.5 9.5 17.5 10.4 14.2 13.7 14.7 18.2 13.4 19.5 10.1 16.2 5.8 20.5 4.5 19.2 8.8 14.9 5.5 11.6 6.8 10.3 11.3 10.8 14.6 7.5 14.5 3.5Z" />
+                  <path d="M12 2.6c-3 0-5.1 2.1-5.1 4.8 0 1.5.7 2.7 1.9 3.5l1.2.8v5.1l1.35 4.5c.13.42.72.42.85 0L13.6 17v-5.1l1.2-.8c1.2-.8 1.9-2 1.9-3.5 0-2.7-2.1-4.8-5.1-4.8Z" />
                 </svg>
               </button>
             ) : null}

@@ -174,7 +174,7 @@ describe("lookupSuggestions:@ 文件候选", () => {
     ipcMock.fsWalkFiles.mockResolvedValue(["docs/"]);
     const hits = await suggest.lookupSuggestions(makeProfile(), { char: "@", kind: "file" }, "@docs", "/ws/");
     expect(hits[0]).toMatchObject({ value: "docs/", detail: "/ws/docs/", kind: "file" });
-    expect(hits[0].description).toBe(t("目录"));
+    expect(hits[0].description).toBe(t("文件夹"));
   });
 });
 

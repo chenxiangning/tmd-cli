@@ -68,6 +68,42 @@ export function useMarkdownOutline({
     });
   }, [outline, revealComplete]);
 
+  /* yn 滚动跟随:激活项 = 视口顶沿之上最后一个标题(被动监听,行量级无需节流)。 */
+  useEffect(() => {
+    const scrollEl = previewRootRef.current;
+    if (!scrollEl || outline.length === 0) {
+      return;
+    }
+    const flattenItems = flattenPreviewOutlineItems(outline);
+    const syncActiveFromScroll = () => {
+      const headingNodes = scrollEl.querySelectorAll<HTMLElement>(
+        ".fvp-file-markdown h1,.fvp-file-markdown h2,.fvp-file-markdown h3,.fvp-file-markdown h4,.fvp-file-markdown h5,.fvp-file-markdown h6",
+      );
+      const viewTop = scrollEl.getBoundingClientRect().top + 1;
+      let active: PreviewOutlineItem | null = null;
+      for (let index = 0; index < flattenItems.length; index++) {
+        const headingNode = headingNodes[index];
+        if (headingNode && headingNode.getBoundingClientRect().top <= viewTop) {
+          active = flattenItems[index];
+        }
+      }
+      setActiveOutlineItemId((active ?? flattenItems[0] ?? null)?.id ?? null);
+    };
+    syncActiveFromScroll();
+    scrollEl.addEventListener("scroll", syncActiveFromScroll, { passive: true });
+    return () => scrollEl.removeEventListener("scroll", syncActiveFromScroll);
+  }, [outline, revealComplete]);
+
+  /* yn scrollIntoViewIfNeeded:激活行滚入大纲列表可视区(nearest,不惊动正文)。 */
+  useEffect(() => {
+    if (!activeOutlineItemId) {
+      return;
+    }
+    document
+      .querySelector(".fvp-preview-outline-button.is-active")
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activeOutlineItemId]);
+
   const handleSelectOutlineItem = useCallback((item: PreviewOutlineItem) => {
     const articleNode = previewRootRef.current?.querySelector(".fvp-file-markdown");
     if (!articleNode) {
@@ -113,11 +149,6 @@ export function useMarkdownOutline({
     setIsOutlineCollapsed((current) => !current);
   }, []);
 
-  const handleOutlineMouseLeave = useCallback(() => {
-    if (!isOutlinePinned) {
-      setIsOutlineCollapsed(true);
-    }
-  }, [isOutlinePinned]);
 
   return {
     outline,
@@ -128,6 +159,5 @@ export function useMarkdownOutline({
     handleSelectOutlineItem,
     handleToggleOutlinePinned,
     handleToggleOutlineCollapsed,
-    handleOutlineMouseLeave,
   };
 }
