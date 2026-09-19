@@ -4,7 +4,7 @@
 
 use tauri::AppHandle;
 
-use crate::{fs, fs_walk, installer, probe, proc_run};
+use crate::{fs, fs_search, fs_walk, installer, probe, proc_run};
 
 /// 探针某个 CLI 命令是否在本机 PATH 中可解析,以及其 `--version` 输出。
 /// 返回 `probe::CliProbeResult`,前端按 found/path/version 渲染行卡。
@@ -79,6 +79,17 @@ pub(crate) async fn fs_walk_files(root: String, cap: usize) -> Result<Vec<String
     spawn_fs(move || fs_walk::walk_files(&root, cap)).await
 }
 
+/// 全文搜索(rg 式即时扫描,walk 语义与 fs_walk_files 同源,见 fs_search.rs)。
+#[tauri::command]
+pub(crate) async fn fs_search(
+    root: String,
+    query: String,
+    case_sensitive: bool,
+    max_results: usize,
+) -> Result<fs_search::FsSearchResult, String> {
+    spawn_fs(move || fs_search::search(&root, &query, case_sensitive, max_results)).await
+}
+
 /// 通用短进程通道(omp/pi RPC 副车查询、grok inspect):同步阻塞,spawn_blocking 包裹。
 #[tauri::command]
 pub(crate) async fn proc_communicate(
@@ -97,6 +108,16 @@ pub(crate) async fn fs_read_head(path: String, max_bytes: usize) -> Result<Strin
 #[tauri::command]
 pub(crate) async fn fs_read_tail(path: String, max_bytes: usize) -> Result<String, String> {
     spawn_fs(move || fs::read_tail(&path, max_bytes)).await
+}
+
+/// 尾读 + 尺寸闸(语义见 fs::read_tail_changed):会话状态巡航免无效读。
+#[tauri::command]
+pub(crate) async fn fs_read_tail_changed(
+    path: String,
+    max_bytes: usize,
+    last_size: Option<u64>,
+) -> Result<fs::ChangedTail, String> {
+    spawn_fs(move || fs::read_tail_changed(&path, max_bytes, last_size)).await
 }
 
 #[tauri::command]

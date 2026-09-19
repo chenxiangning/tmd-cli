@@ -33,7 +33,7 @@ subscribeSettings(() => {
 interface SessionTabsState {
   /** 打开次序(早 → 晚)的活会话 tab id(tmd PTY id,非 CLI 磁盘 id)。 */
   ids: readonly string[];
-  /** 平铺显示开关(全局,localStorage 持久):开启且 ids ≥2 时幕布并排全部 tab。 */
+  /** 平铺显示开关(全局,localStorage 持久):开启且 ≥1 tab 即幕布并排(与 tab 数解耦,0f6131e)。 */
   tile: boolean;
 }
 

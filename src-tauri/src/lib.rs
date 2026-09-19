@@ -7,10 +7,14 @@ mod fs;
 mod fs_edit;
 mod fs_preview;
 mod fs_remove;
+mod fs_search;
+mod fs_tail;
 mod fs_walk;
 mod git;
 mod hash;
 mod installer;
+mod lsp;
+mod lsp_framing;
 mod plugins;
 mod probe;
 mod proc_run;
@@ -190,9 +194,14 @@ pub fn run() {
             commands_fs::fs_collect_files,
             commands_fs::fs_read_head,
             commands_fs::fs_read_tail,
+            commands_fs::fs_read_tail_changed,
             commands_fs::fs_remove_path,
+            commands_fs::fs_search,
             commands_fs::fs_walk_files,
             commands_fs::proc_communicate,
+            lsp::lsp_spawn,
+            lsp::lsp_send,
+            lsp::lsp_stop,
             fs_edit::fs_write_file,
             fs_edit::fs_create_file,
             fs_edit::fs_create_dir,

@@ -22,6 +22,7 @@ import {
   sessionArchiveKey,
   unarchiveSession,
 } from "@kernel/sessionArchive";
+import { keepSession, sessionKeepKey, unkeepSession } from "@kernel/sessionKeep";
 import type { Workspace } from "@kernel/workspace";
 import { PAGE_INITIAL } from "./utils";
 import { selectRange } from "./selectRange";
@@ -112,13 +113,21 @@ export function ManageList({
     setSelected((prev) => selectRange(prev, order, anchor, idx, dragRef.current!.val));
   };
 
+  /** 手动归档切换 = 用户显式意图:取消归档写保留标记(清扫跳过,防「取消又被扫回」);
+   *  重新归档撤回保留(否则一次 resume + 手动归档后该会话永远脱离清扫)。 */
   const setArchived = (row: ManageRow, archived: boolean) => {
     const cliId =
       row.kind === "disk" ? row.session.id : host.getCliSessionId(row.session.id);
     if (!cliId) return;
     const key = sessionArchiveKey(workspace.id, profile.id, cliId);
-    if (archived) archiveSession(key);
-    else unarchiveSession(key);
+    const keepKey = sessionKeepKey(workspace.id, profile.id, cliId);
+    if (archived) {
+      archiveSession(key);
+      unkeepSession(keepKey);
+    } else {
+      unarchiveSession(key);
+      keepSession(keepKey);
+    }
   };
 
   const runDelete = async (row: ManageRow) => {

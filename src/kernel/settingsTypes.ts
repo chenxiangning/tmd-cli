@@ -82,6 +82,17 @@ export interface SessionDeletedEntry {
   deletedAt: number;
 }
 
+/** 单条保留标记记录:仅标记时间戳(ms);语义见 kernel/sessionKeep.ts。
+ *  手动取消归档时写入,会话卫生清扫据此跳过(防「取消归档又被扫回」)。 */
+export interface SessionKeepEntry {
+  keptAt: number;
+}
+
+/** 会话卫生清扫时窗(小时)白名单:12h / 24h / 48h / 7d。 */
+export type SessionHygieneHours = 12 | 24 | 48 | 168;
+export const SESSION_HYGIENE_HOURS: readonly SessionHygieneHours[] = [12, 24, 48, 168];
+export const SESSION_HYGIENE_HOURS_DEFAULT: SessionHygieneHours = 24;
+
 /** Git 面板视图段(git 插件编辑域):差异 / 分支 / 历史。 */
 export type GitPanelView = "diff" | "branch" | "history";
 /** Git 差异文件列表布局:flat 平铺(status 原文三段分区)/ tree 目录树。 */
@@ -169,6 +180,16 @@ export interface AppSettings {
    * 管理态移除并在列表隐藏,磁盘数据保留(领域 API 见 kernel/sessionDeleted.ts)。
    */
   sessionDeleted: Record<string, SessionDeletedEntry>;
+  /**
+   * 会话保留层:key = `${workspaceId}:${profileId}:${cliSessionId}`,value = 标记时间戳。
+   * 手动取消归档时写入;会话卫生清扫(workspace/sessionSweep)据此跳过,防「取消归档
+   * 又被扫回」。resume 打开路径的自动 unarchive 不写(领域 API 见 kernel/sessionKeep.ts)。
+   */
+  sessionKeep: Record<string, SessionKeepEntry>;
+  /** 会话卫生清扫开关:超期(默认 24h 未活动)自动归档 + 空会话删除;默认开。 */
+  sessionHygieneEnabled: boolean;
+  /** 清扫超期时窗(小时);白名单 SESSION_HYGIENE_HOURS,默认 24。 */
+  sessionHygieneHours: SessionHygieneHours;
   /** 引擎版本收藏层(welcome 插件编辑域):key = `${engineId}@${version}`,value = 收藏时间戳。 */
   engineVersionFavs: Record<string, { favedAt: number }>;
   /**

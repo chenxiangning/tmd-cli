@@ -47,8 +47,10 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   /* 文件系统读。 */
   fsListDir: "ipc.fs.read",
   fsWalkFiles: "ipc.fs.read",
+  fsSearch: "ipc.fs.read",
   fsReadFile: "ipc.fs.read",
   fsReadTail: "ipc.fs.read",
+  fsReadTailChanged: "ipc.fs.read",
   fsReadHead: "ipc.fs.read",
 
   fsCollectFiles: "ipc.fs.read",

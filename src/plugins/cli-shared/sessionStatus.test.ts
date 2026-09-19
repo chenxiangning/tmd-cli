@@ -8,13 +8,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   fsCollectFiles: vi.fn(),
-  fsReadTail: vi.fn(),
+  fsReadTailChanged: vi.fn(),
 }));
 
 vi.mock("@kernel/ipc", () => ({
   ipc: {
     fsCollectFiles: mocks.fsCollectFiles,
-    fsReadTail: mocks.fsReadTail,
+    fsReadTailChanged: mocks.fsReadTailChanged,
   },
 }));
 
@@ -26,7 +26,7 @@ const FILE = { name: "abc-session.jsonl", path: "/dir/abc-session.jsonl", modifi
 
 function setup(files: { name: string; path: string; modifiedAt: number }[], tail: string) {
   mocks.fsCollectFiles.mockResolvedValue(files);
-  mocks.fsReadTail.mockResolvedValue(tail);
+  mocks.fsReadTailChanged.mockResolvedValue({ changed: true, size: tail.length, text: tail });
 }
 
 beforeEach(() => {
@@ -46,10 +46,10 @@ describe("输入与文件定位", () => {
 
   it("尾部读取失败或为空 → null", async () => {
     mocks.fsCollectFiles.mockResolvedValue([FILE]);
-    mocks.fsReadTail.mockRejectedValue(new Error("io"));
+    mocks.fsReadTailChanged.mockRejectedValue(new Error("io"));
     expect(await readJsonlSessionStatus("/dir", "abc", MODEL_KEYS)).toBeNull();
 
-    mocks.fsReadTail.mockResolvedValue("");
+    mocks.fsReadTailChanged.mockResolvedValue({ changed: true, size: 0, text: "" });
     expect(await readJsonlSessionStatus("/dir", "abc", MODEL_KEYS)).toBeNull();
   });
 });
@@ -214,5 +214,75 @@ describe("model/provider 拼接与 key 优先级", () => {
       JSON.stringify({ type: "message", message: { role: "user", model: "x" } }),
     );
     expect(await readJsonlSessionStatus("/dir", "abc", MODEL_KEYS)).toBeNull();
+  });
+});
+
+describe("尺寸闸(提案 2026-09-18-perf-status-poll)", () => {
+  const GATE_FILE = { name: "abc-session.jsonl", path: "/gate/abc-session.jsonl", modifiedAt: 1 };
+  const tailOf = (model: string) =>
+    JSON.stringify({ type: "model_change", model, provider: "zai" });
+
+  it("尺寸未变:短路返回缓存解析,免列目录免读", async () => {
+    mocks.fsCollectFiles.mockResolvedValue([GATE_FILE]);
+    mocks.fsReadTailChanged.mockResolvedValue({ changed: true, size: 100, text: tailOf("m1") });
+    expect(await readJsonlSessionStatus("/gate", "abc", MODEL_KEYS, PROVIDER_KEYS)).toEqual({
+      model: "zai/m1",
+      thinkingLevel: undefined,
+    });
+
+    mocks.fsCollectFiles.mockRejectedValue(new Error("短路拍不该列目录"));
+    mocks.fsReadTailChanged.mockResolvedValue({ changed: false, size: 100, text: "" });
+    expect(await readJsonlSessionStatus("/gate", "abc", MODEL_KEYS, PROVIDER_KEYS)).toEqual({
+      model: "zai/m1",
+      thinkingLevel: undefined,
+    });
+  });
+
+  it("尺寸变:走全路径刷新解析产物", async () => {
+    mocks.fsCollectFiles.mockResolvedValue([GATE_FILE]);
+    mocks.fsReadTailChanged.mockResolvedValue({ changed: true, size: 100, text: tailOf("m1") });
+    await readJsonlSessionStatus("/gate2", "abc", MODEL_KEYS, PROVIDER_KEYS);
+
+    mocks.fsCollectFiles.mockResolvedValue([GATE_FILE]);
+    mocks.fsReadTailChanged
+      .mockResolvedValueOnce({ changed: true, size: 180, text: "" }) // 探测拍判变
+      .mockResolvedValueOnce({ changed: true, size: 180, text: tailOf("m2") });
+    expect(await readJsonlSessionStatus("/gate2", "abc", MODEL_KEYS, PROVIDER_KEYS)).toEqual({
+      model: "zai/m2",
+      thinkingLevel: undefined,
+    });
+  });
+
+  it("探测失败(文件被移走):回落全路径自愈", async () => {
+    mocks.fsCollectFiles.mockResolvedValue([GATE_FILE]);
+    mocks.fsReadTailChanged.mockResolvedValue({ changed: true, size: 100, text: tailOf("m1") });
+    await readJsonlSessionStatus("/gate3", "abc", MODEL_KEYS, PROVIDER_KEYS);
+
+    mocks.fsReadTailChanged
+      .mockRejectedValueOnce(new Error("文件消失")) // 探测拍失败
+      .mockResolvedValueOnce({ changed: true, size: 140, text: tailOf("m9") });
+    expect(await readJsonlSessionStatus("/gate3", "abc", MODEL_KEYS, PROVIDER_KEYS)).toEqual({
+      model: "zai/m9",
+      thinkingLevel: undefined,
+    });
+  });
+
+  it("文件消失出列:清缓存,后续走全路径", async () => {
+    mocks.fsCollectFiles.mockResolvedValue([GATE_FILE]);
+    mocks.fsReadTailChanged.mockResolvedValue({ changed: true, size: 100, text: tailOf("m1") });
+    await readJsonlSessionStatus("/gate4", "abc", MODEL_KEYS, PROVIDER_KEYS);
+
+    mocks.fsCollectFiles.mockResolvedValue([]); // 文件没了
+    mocks.fsReadTailChanged.mockResolvedValue({ changed: true, size: 200, text: "" });
+    expect(await readJsonlSessionStatus("/gate4", "abc", MODEL_KEYS, PROVIDER_KEYS)).toBeNull();
+
+    // 文件回来:同键重新建缓存(旧条目已删,不会拿陈旧短路)
+    mocks.fsCollectFiles.mockResolvedValue([GATE_FILE]);
+    mocks.fsReadTailChanged
+      .mockResolvedValueOnce({ changed: true, size: 260, text: tailOf("m7") });
+    expect(await readJsonlSessionStatus("/gate4", "abc", MODEL_KEYS, PROVIDER_KEYS)).toEqual({
+      model: "zai/m7",
+      thinkingLevel: undefined,
+    });
   });
 });

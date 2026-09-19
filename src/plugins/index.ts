@@ -26,6 +26,7 @@ import { welcomePlugin } from "./welcome";
 import { networkProxyPlugin } from "./network-proxy";
 import { checkpointsPlugin } from "./checkpoints";
 import { memoryCoordinatorPlugin } from "./memory-coordinator";
+import { marksPlugin } from "./marks";
 import { assetsPlugin } from "./assets";
 import { cliConfigPlugin } from "./cli-config";
 import { localLoaderPlugin } from "./local-loader";
@@ -33,6 +34,8 @@ import { wslPlugin } from "./wsl";
 import { wallpaperPlugin } from "./wallpaper";
 import { sessionBoardPlugin } from "./session-board";
 import { webAccessPlugin } from "./web-access";
+import { searchPlugin } from "./search";
+import { lspPlugin } from "./lsp";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -62,5 +65,8 @@ export const allPlugins: Plugin[] = [
   wslPlugin,
   wallpaperPlugin,
   sessionBoardPlugin,
+  marksPlugin,
   webAccessPlugin,
+  searchPlugin,
+  lspPlugin,
 ];

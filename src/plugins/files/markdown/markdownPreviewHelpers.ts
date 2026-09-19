@@ -1,11 +1,11 @@
 /**
  * FileMarkdownPreview 纯函数助手 —— 自 FileMarkdownPreview.tsx 拆出(文件规模铁则)。
- * pre 节点代码提取 / mermaid·math 语言判定 / 重块阈值 / 文档级特性探测 /
+ * pre 节点代码提取 / mermaid·math 语言判定 / 重块阈值 /
  * mermaid 块稳定 key;无 React 依赖,行为逐字保留。
  */
 
 import type { Element } from "hast";
-import { hashStableString } from "./markdownDocument";
+import { hashStableString } from "@kernel/textHash";
 
 export type PreviewPreNode = {
   children?: Array<{
@@ -49,12 +49,6 @@ export function isHeavyCodeBlock(value: string) {
   );
 }
 
-export function hasDocumentScopedMarkdownFeatures(value: string) {
-  return (
-    /^\s{0,3}\[[^\]\n]+]:\s+\S+/m.test(value) ||
-    /^\s{0,3}<([A-Za-z][\w:-]*)(?:\s[^>]*)?>[\s\S]*?^\s{0,3}<\/\1>\s*$/m.test(value)
-  );
-}
 
 export function createMermaidBlockKey(
   node: MarkdownPositionTreeNode,

@@ -9,12 +9,12 @@
  * 缓存复用,保证 BlockMarkdown memo 的 components 引用稳定。
  */
 
-import { memo, type MouseEvent, useCallback, useRef } from "react";
+import { memo, type MouseEvent, useCallback, useEffect, useRef } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { openExternalUrl } from "@kernel/ipc";
-import { openFileInTab } from "../openFile";
+import { openFileInTab } from "@kernel/fileTabs";
 import { t } from "@kernel/i18n";
 import {
   FileMarkdownCodeBlock,
@@ -34,6 +34,8 @@ import {
   isMermaidCodeLanguage,
   type PreviewPreNode,
 } from "./markdownPreviewHelpers";
+import { isRichBlock, renderFastMarkdown } from "./fastPath";
+import { fastPathCallbacks, handleFastBlockClick, type FastComponents } from "./fastPathDelegation";
 
 /* remark 插件数组提升为模块级常量:行内字面量会让每个 render 都拿到新数组
    引用,ReactMarkdown 视其为插件变化而增加不必要的重解析成本。 */
@@ -52,6 +54,12 @@ export const BlockMarkdown = memo(function BlockMarkdown({
   rehypePlugins,
   components,
 }: BlockMarkdownProps) {
+  const fastMeta = (components as FastComponents).__fastMeta;
+  /* 快路径:常规块一次 markdown-it 出 HTML 直塞(富块分类见 fastPath.isRichBlock)。
+     renderFastMarkdown 带内容级缓存,重复 render 零重解析。 */
+  if (fastMeta && !isRichBlock(markdown)) {
+    return <FastMarkdownBlock html={renderFastMarkdown(markdown, fastMeta.sourceFilePath)} />;
+  }
   return (
     <ReactMarkdown
       remarkPlugins={MARKDOWN_REMARK_PLUGINS}
@@ -61,6 +69,23 @@ export const BlockMarkdown = memo(function BlockMarkdown({
       {markdown}
     </ReactMarkdown>
   );
+});
+
+/* 快路径块容器:innerHTML 直塞 + 原生 click 委托(挂载期 addEventListener,
+   内层无 React 树,委托是 yn 同款代理面;a11y 规则对非 JSX 侦听不适用)。 */
+const FastMarkdownBlock = memo(function FastMarkdownBlock({ html }: { html: string }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) {
+      return;
+    }
+    host.addEventListener("click", handleFastBlockClick);
+    return () => {
+      host.removeEventListener("click", handleFastBlockClick);
+    };
+  }, []);
+  return <div className="fvp-md-fast" ref={hostRef} dangerouslySetInnerHTML={{ __html: html }} />;
 });
 
 export function useMarkdownComponents({
@@ -77,6 +102,12 @@ export function useMarkdownComponents({
   /** `#锚点` 点击回调(锚点原文,未解码);缺省时锚点点击只拦不跳。 */
   onAnchorNavigate?: (anchor: string) => void;
 }) {
+  /* 快路径图片全屏回调桥:latest 引用收敛到 effect(渲染期不写模块级共享态,
+     防未来多预览并存时 last-writer-wins 串台;P3 评审项)。 */
+  useEffect(() => {
+    fastPathCallbacks.onImageFullscreen = onImageFullscreen;
+  }, [onImageFullscreen]);
+
   const handleAnchorClick = useCallback((event: MouseEvent, href?: string) => {
     if (!href) {
       return;
@@ -113,7 +144,10 @@ export function useMarkdownComponents({
     }
   }, [onAnchorNavigate, sourceFilePath]);
 
-  const createMarkdownComponents = useCallback((blockStartLine: number, blockKey: string): Components => ({
+  const createMarkdownComponents = useCallback((blockStartLine: number, blockKey: string): FastComponents => ({
+    /* 快路径元数据:随 components 对象身份流转(BlockMarkdown memo 依赖 components
+       引用,sourceFilePath 变化 → 工厂重建 → 引用变化 → memo 失效,天然正确)。 */
+    __fastMeta: { sourceFilePath },
     a: ({ href, children, node: _node, ...props }) => (
       <a {...props} href={href} onClick={(event) => handleAnchorClick(event, href)}>
         {children}

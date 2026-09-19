@@ -11,7 +11,7 @@
  */
 
 import { useMemo } from "react";
-import { highlightLine } from "../markdown/syntax";
+import { highlightLine } from "@kernel/syntaxHighlight";
 import { resolveStructuredPreviewKind } from "./renderProfile";
 import { t } from "@kernel/i18n";
 import {

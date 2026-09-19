@@ -1,5 +1,5 @@
 /**
- * 唤醒图标 —— composer.inputRail 挂载点贡献:右缘竖向双图标,
+ * 唤醒图标 —— composer.inputRail 挂载点贡献:左下角横排双图标,
  * 点击经 composerWakeRef(kernel ref 桥)让对应触发源弹出候选,
  * 与手敲 !! / ## 同一管线;未选中关闭时 composer 自动回收注入的触发符。
  */

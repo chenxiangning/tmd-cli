@@ -9,26 +9,13 @@
 
 import { t } from "@kernel/i18n";
 import { FileText, FolderOpen } from "@phosphor-icons/react";
-import { openTab } from "@kernel/tabs";
-import { baseName } from "@kernel/pathUtils";
+import { openFileInTab } from "@kernel/fileTabs";
 import { ipc, type GitFileStatus } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
 
 /** 仓库相对路径 → 绝对路径(git 恒以 `/` 给路径;拼法同 files 插件 joinPath)。 */
 function worktreeAbsPath(cwd: string, relPath: string): string {
   return `${cwd.replace(/[\\/]+$/, "")}/${relPath}`;
-}
-
-/** 在中央文件区打开工作区文件(与 files 插件树点击同一 kind "file" 契约)。 */
-function openWorktreeFile(cwd: string, relPath: string): void {
-  const abs = worktreeAbsPath(cwd, relPath);
-  openTab({
-    id: `file:${abs}`,
-    kind: "file",
-    title: baseName(abs) || abs,
-    path: abs,
-    payload: { path: abs },
-  });
 }
 
 /**
@@ -45,7 +32,7 @@ export function FileOpenActions({ cwd, file }: { cwd: string; file: GitFileStatu
         title={t("打开文件")}
         onClick={(e) => {
           e.stopPropagation();
-          openWorktreeFile(cwd, file.path);
+          openFileInTab(worktreeAbsPath(cwd, file.path));
         }}
         className="shrink-0 text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
       >

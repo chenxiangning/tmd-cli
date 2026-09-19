@@ -52,6 +52,7 @@ type RecordLike = Record<string, Record<string, unknown>>;
 const MERGE_TS_FIELDS = {
   sessionArchive: "archivedAt",
   sessionDeleted: "deletedAt",
+  sessionKeep: "keptAt",
   sessionPins: "pinnedAt",
   engineVersionFavs: "favedAt",
 } as const;

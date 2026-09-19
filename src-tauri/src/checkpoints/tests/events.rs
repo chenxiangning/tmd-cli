@@ -107,6 +107,47 @@ fn events_open待审_只列事件路径() {
 }
 
 #[test]
+fn events_open批_首击新建被并行提交进仓库_展示重定基() {
+    let ws = TempWs::new();
+    ws.write("base.txt", "b\n");
+    ws.commit_all("init");
+
+    anchor_events(&ws, "cli-1", "tmd-1", "新建文档");
+    ws.write("13-editor.md", "l1\nl2\nl3\n");
+    assert!(edit(&ws, "cli-1", "tmd-1", "13-editor.md"));
+
+    // 落定前:未入 HEAD,open 批按 A + 全量行数(与 git 面板一致:都是新增)
+    let b = &ws.batches("cli-1")[0];
+    assert_eq!(b.files[0].status, "A");
+    let p = batch_patches(ws.path(), &b.id).unwrap();
+    assert_eq!(
+        (p[0].kind.as_str(), p[0].additions, p[0].deletions),
+        ("A", 3, 0)
+    );
+
+    // 并行动作把同一内容带进 HEAD(等价 git mv/暂存提交落定);轮仍在进行中
+    ws.commit_all("外部提交并行落定");
+
+    // 展示重定基:状态符 M、± 以 HEAD 为前像 —— 与 git 面板同源,不再是 A+全量
+    let b = &ws.batches("cli-1")[0];
+    assert_eq!(b.files[0].status, "M", "路径已入 HEAD 状态符重定 M");
+    let p = batch_patches(ws.path(), &b.id).unwrap();
+    assert!(
+        p.is_empty(),
+        "内容与 HEAD 等值 = 无 diff(等值短路),不再报 A+全量"
+    );
+
+    // 轮内继续推进一行:± = 对 HEAD 的真实增量(1/0),回退语义不受影响
+    ws.write("13-editor.md", "l1\nl2\nl3\nl4\n");
+    assert!(edit(&ws, "cli-1", "tmd-1", "13-editor.md"));
+    let p = batch_patches(ws.path(), &b.id).unwrap();
+    assert_eq!(
+        (p[0].kind.as_str(), p[0].additions, p[0].deletions),
+        ("M", 1, 0)
+    );
+}
+
+#[test]
 fn events_重复事件_修订计数_前像只抓首击() {
     let ws = TempWs::new();
     ws.write("a.txt", "v1\n");
@@ -209,4 +250,30 @@ fn events_假结算后磁盘事件迟到_修订重封自愈() {
         Some(anchor.ts - 1)
     )
     .unwrap());
+}
+
+#[test]
+fn events_绑定迟到_首击回填整链_cli身份跨resume可查() {
+    // 生产序(2026-09-19 omp glm-5.3 会话实证):首条 prompt 在 CLI 磁盘身份
+    // 绑定落地之前发出,锚点暂记 tmd id 名下;之后用户改在终端直打 prompt
+    // (无 promptSent → captureAnchor 不触发,回填原只挂在它上面)。会话断裂
+    // resume 换 tmd id 后,旧链按死掉的 tmd id 成孤儿,新会话按
+    // (cli id, 新 tmd id) 双键全脱靶,审批线空。回填须随首个写入事件补挂。
+    let ws = TempWs::new();
+    ws.write("a.txt", "v1\n");
+    ws.commit_all("init");
+    // 绑定未落地:identity.key 回退 tmd id,锚点按 tmd id 记账(主副键相同)
+    anchor_events(&ws, "tmd-1", "tmd-1", "改 a");
+    // 绑定落地(cli-1)后终端直打轮次产生写入事件:首击即把整链改归 cli id
+    ws.write("a.txt", "v2\n");
+    assert!(edit(&ws, "cli-1", "tmd-1", "a.txt"));
+    // resume 语义(新 tmd id,按 cli id 主键查):链可见
+    let batches = ws.batches("cli-1");
+    assert_eq!(batches.len(), 1, "链已归位 cli id,跨 resume 可查");
+    assert_eq!(batches[0].files[0].path, "a.txt");
+    // 死掉的旧 tmd id 名下不再有账(链已整体改归,不留双份)
+    assert!(ws.batches("tmd-1").is_empty());
+    // 回填后封口/继续记账走 cli id 正常闭环
+    assert!(ws.seal("cli-1", "tmd-1"));
+    assert_eq!(ws.batches("cli-1").len(), 1);
 }

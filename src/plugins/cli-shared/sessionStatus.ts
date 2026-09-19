@@ -14,6 +14,54 @@ function bareModelId(model: string): string {
   return slash >= 0 ? model.slice(slash + 1) : model;
 }
 
+/**
+ * 状态巡航尺寸闸:path → 上次尺寸与解析产物。会话日志 append-only,尺寸未变 =
+ * 内容未变 → 返回同解析产物,巡航拍免列目录免读免解析(提案
+ * openspec/changes/2026-09-18-perf-status-poll,含方案取舍与老功能校准矩阵)。
+ * 同尺寸原地替换不属于任何 CLI 会话日志的写行为(resume 另起新文件,闸键随
+ * cliSessionId 自然失效)。只存解析产物不存尾窗文本,单条 ~200B 不设上限。
+ * 例外:codex resume/fork 产生**同 id 新文件**(闸键不变)且旧文件不再写,
+ * 黏滞 path 会永久短路 → revalidateMs 到期强制重定位一次(30s 级自愈)。
+ */
+const tailGate = new Map<
+  string,
+  { path: string; size: number; result: CliSessionStatus | null; resolvedAt: number }
+>();
+
+/** 闸短路探测:上次尺寸未变 → true。探测失败(文件被移走等)按未命中处理,调用方走全路径自愈。 */
+async function gateShortCircuit(path: string, lastSize: number): Promise<boolean> {
+  try {
+    const probe = await ipc.fsReadTailChanged(path, 0, lastSize);
+    return !probe.changed;
+  } catch {
+    return false;
+  }
+}
+
+export async function readStatusTailGated(
+  key: string,
+  resolvePath: () => Promise<string | null>,
+  maxBytes: number,
+  parse: (text: string) => CliSessionStatus | null,
+  /** 路径重定位周期(默认永不):目录扫描定位型(codex 同 id 多文件取最新)必传,
+   *  防止 resume 后黏滞旧 path 永久短路(直拼路径型无需)。 */
+  revalidateMs = Number.POSITIVE_INFINITY,
+): Promise<CliSessionStatus | null> {
+  const cached = tailGate.get(key);
+  const fresh = cached !== undefined && Date.now() - cached.resolvedAt < revalidateMs;
+  if (cached && fresh && (await gateShortCircuit(cached.path, cached.size))) return cached.result;
+
+  const path = await resolvePath();
+  if (!path) {
+    tailGate.delete(key);
+    return null;
+  }
+  const tail = await ipc.fsReadTailChanged(path, maxBytes, null).catch(() => null);
+  if (!tail) return null;
+  const result = tail.text ? parse(tail.text) : null;
+  tailGate.set(key, { path, size: tail.size, result, resolvedAt: Date.now() });
+  return result;
+}
 
 /**
  * 读取 omp/pi 共享 JSONL session 格式中的最后状态事件。
@@ -25,13 +73,16 @@ export async function readJsonlSessionStatus(
   modelKeys: readonly string[],
   providerKeys: readonly string[] = [],
 ): Promise<CliSessionStatus | null> {
-  const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
-  const file = files.find((entry) => entry.name.includes(cliSessionId));
-  if (!file) return null;
-
-  const tail = await ipc.fsReadTail(file.path, STATUS_TAIL_BYTES).catch(() => "");
-  if (!tail) return null;
-  return parseJsonlStatusTail(tail, modelKeys, providerKeys);
+  return readStatusTailGated(
+    `${dir}\u0000${cliSessionId}`,
+    async () => {
+      /* omp/pi 共享全局会话目录,一拍 = 全目录 stat 排序;闸命中时此步整段免掉 */
+      const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
+      return files.find((entry) => entry.name.includes(cliSessionId))?.path ?? null;
+    },
+    STATUS_TAIL_BYTES,
+    (text) => parseJsonlStatusTail(text, modelKeys, providerKeys),
+  );
 }
 
 /** 尾窗文本 → 模型/思考强度(内容级解析,本地读与远程读取共用)。 */

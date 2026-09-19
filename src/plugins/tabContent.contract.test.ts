@@ -45,6 +45,9 @@ function activateCollectingKinds(): Set<string> {
     registerSpecWrapper: () => () => {},
     registerShellSpecProvider: () => () => {},
     registerFileVisual: () => {},
+    registerEditorExtension: () => () => {},
+    registerTerminalLinkProvider: () => () => {},
+    registerLanguageServer: () => () => {},
     registerCliConfig: () => {},
     events: { on: () => () => {}, off: () => {}, emit: () => {} },
   } as unknown as PluginContext;

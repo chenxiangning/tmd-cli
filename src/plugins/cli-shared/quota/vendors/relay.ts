@@ -146,7 +146,9 @@ async function fetchSub2api(baseUrl: string, key: string): Promise<VendorQuota> 
   if (windows.length === 0 && balanceNum === undefined) {
     throw new Error(t("Sub2API 响应无额度数据"));
   }
-  const quota: VendorQuota = { windows: windows.slice(0, 2) };
+  /* 上限 3 窗(chip 密度;rate_limits 常见 5h+7d + subscription 月窗恰好齐显,
+     多于 3 的未知窗口按服务端顺序截断)。 */
+  const quota: VendorQuota = { windows: windows.slice(0, 3) };
   if (balanceNum !== undefined) quota.balanceText = `${symbol}${twoDecimals(balanceNum)}`;
   if (planName?.trim()) quota.planLabel = planName.trim();
   return quota;

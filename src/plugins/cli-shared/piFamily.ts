@@ -28,6 +28,7 @@ import {
   readUserMessagesFromFile,
 } from "./userMessages";
 import { readEditsTail } from "./sessionEdits";
+import { isJsonlSessionEmpty } from "./sessionEmpty";
 
 /** 一家 pi 族 CLI 的会话存储声明。 */
 export interface PiFamilyStore {
@@ -44,8 +45,8 @@ export interface PiFamilyStore {
 }
 
 /** 生成 profile 的会话读取能力(listSessions/readSessionStatus/
- *  readSessionFileIdentity/readSessionUserMessages + 声明 remoteSessionsDirSh 时
- *  附带 remoteSessions 远程内省),展开进 CliProfile 即可。 */
+ *  readSessionFileIdentity/readSessionUserMessages/isDiskSessionEmpty + 声明
+ *  remoteSessionsDirSh 时附带 remoteSessions 远程内省),展开进 CliProfile 即可。 */
 export function piFamilySessions(store: PiFamilyStore) {
   const { sessionsDir } = store;
   const remote = piFamilyRemoteSessions(store);
@@ -84,6 +85,8 @@ export function piFamilySessions(store: PiFamilyStore) {
       if (!path) return null;
       return readUserMessagesFromFile(path, full, ompPiUserMessageLine);
     },
+    /** 会话卫生判空:path 即 jsonl 文件,共享标记子串判定(保守口径见 sessionEmpty.ts)。 */
+    isDiskSessionEmpty: (session: CliDiskSession) => isJsonlSessionEmpty(session.path),
     /* 远程形态(WSL 发行版内)历史扫描与状态回填;未声明 dirSh 时值为 undefined,
        展开进 profile 与 CliProfile 的可缺省语义对齐。 */
     ...(remote ? { remoteSessions: remote } : {}),

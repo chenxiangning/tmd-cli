@@ -43,7 +43,7 @@ export async function scanCommandMdDirs(dirs: readonly string[]): Promise<CliSug
       const isCommandDir = entry.endsWith("/SKILL.md");
       if (!isCommandDir && absorbedDirs.has(holder)) return [];
       const derived = entry
-        .slice(0, -".md".length)
+        .slice(0, -(isCommandDir ? "SKILL.md" : ".md").length)
         .split("/")
         .filter((s) => s)
         .join(":");

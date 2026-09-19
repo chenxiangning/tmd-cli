@@ -96,7 +96,7 @@ pub fn seal_turn(cwd: &str, session_id: &str, tmd_session_id: &str) -> Result<bo
 
 /// 身份回填:CLI 身份绑定后,把仍记在 tmd id 名下的历史条目改归 CLI id
 /// (一次整文件重写;条目顺序与内容不变)。只在主副键不同(确已绑定)时执行。
-fn backfill_identity(
+pub(crate) fn backfill_identity(
     cwd: &str,
     entries: &mut [LedgerEntry],
     session_id: &str,

@@ -220,7 +220,7 @@ describe("CHANGELOG_ENTRIES(打包内嵌管线,更新记录弹窗数据面)", ()
 
   it("内嵌 CHANGELOG 解析出全部版本小节且顺序为最新在前", () => {
     expect(entries.length).toBeGreaterThanOrEqual(9);
-    expect(entries[0]?.version).toBe("0.1.9");
+    expect(entries[0]?.version).toBe("0.2.0");
     for (let i = 1; i < entries.length; i++) {
       const prev = extractSemver(entries[i - 1]?.version ?? "");
       const cur = extractSemver(entries[i]?.version ?? "");
@@ -239,9 +239,9 @@ describe("CHANGELOG_ENTRIES(打包内嵌管线,更新记录弹窗数据面)", ()
     }
   });
 
-  it("当前发版版本(0.1.9)在记录中且带日期", () => {
+  it("当前发版版本(0.2.0)在记录中且带日期", () => {
     const head = entries[0];
-    expect(head?.version).toBe("0.1.9");
-    expect(head?.date).toBe("2026-09-18");
+    expect(head?.version).toBe("0.2.0");
+    expect(head?.date).toBe("2026-09-19");
   });
 });

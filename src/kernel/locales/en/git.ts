@@ -19,6 +19,7 @@ export const MESSAGES = {
   "聚合增删行数(staged + 未暂存;多仓 = 选中仓口径)":
     "Aggregate insertions/deletions (staged + unstaged; multi-repo = selected repo)",
   "文件列表视图": "File list view",
+  "远端操作": "Remote actions",
   "平铺": "Flat",
   "树形": "Tree",
 

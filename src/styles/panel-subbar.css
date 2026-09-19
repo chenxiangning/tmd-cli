@@ -23,17 +23,6 @@
   align-items: center;
   gap: 1px;
   flex: 0 0 auto;
-  opacity: 0;
-  /* opacity 不脱离命中测试:隐态必须禁点,防误触凭空弹命名框 */
-  pointer-events: none;
-  transition: opacity 120ms ease;
-}
-
-/* 动作按钮默认隐藏,悬停/键盘聚焦底部条时显出(沿用旧顶部 subbar 逻辑) */
-.panel-subbar:hover .panel-subbar-actions,
-.panel-subbar:focus-within .panel-subbar-actions {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .panel-subbar-action {

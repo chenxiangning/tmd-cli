@@ -10,14 +10,14 @@
 
 import {
   countMarkdownBlocks,
-  hashStableString,
   segmentMarkdownDocumentBlocks,
   type FileMarkdownDocumentBlock,
 } from "./markdownBlockSegment";
+import { hashStableString } from "@kernel/textHash";
 
-// 拆出后保持 ./markdownDocument 导出契约(消费方:outline/syntax/markdownBlocks/
-// MermaidBlock/FileMarkdownPreview/markdownDocument.test)。
-export { segmentMarkdownDocumentBlocks, hashStableString } from "./markdownBlockSegment";
+// 拆出后保持 ./markdownDocument 导出契约(消费方:outline/markdownBlocks/
+// FileMarkdownPreview/markdownDocument.test)。
+export { segmentMarkdownDocumentBlocks } from "./markdownBlockSegment";
 
 type FileMarkdownFrontmatterField = {
   key: string;
@@ -119,6 +119,27 @@ function identityLineMap(lineCount: number): number[] {
   return Array.from({ length: lineCount }, (_, index) => index + 1);
 }
 
+/** 链接/脚注定义收集(含缩进续行):remark 对定义不产输出,逐块追加后跨块引用
+ *  (定义在文末、使用在前文)在分块渲染下仍可解析——替代历史「整篇合并渲染」。
+ *  围栏内的示例定义行也会被收集,仅多恢复一个同名引用,无渲染副作用。 */
+function collectMarkdownDefinitions(body: string): string[] {
+  const lines = body.split(/\r?\n/);
+  const definitions: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (!/^\s{0,3}\[[^\]\n]+\]:\s*\S+/.test(line)) {
+      continue;
+    }
+    const definitionLines = [line];
+    while (index + 1 < lines.length && /^[ \t]+\S/.test(lines[index + 1] ?? "")) {
+      index += 1;
+      definitionLines.push(lines[index] ?? "");
+    }
+    definitions.push(definitionLines.join("\n"));
+  }
+  return definitions;
+}
+
 export function compileFileMarkdownDocument(
   documentKey: string,
   rawMarkdown: string,
@@ -134,7 +155,20 @@ export function compileFileMarkdownDocument(
 
   const frontmatter = extractFrontmatter(rawMarkdown);
   const blockMetrics = countMarkdownBlocks(frontmatter.body);
-  const blocks = segmentMarkdownDocumentBlocks(frontmatter.body);
+  const rawBlocks = segmentMarkdownDocumentBlocks(frontmatter.body);
+  /* 定义行追加进每块 markdown(startLine/endLine 不动):键随内容 hash 重算。 */
+  const definitions = collectMarkdownDefinitions(frontmatter.body);
+  const definitionSuffix = definitions.length > 0 ? `\n\n${definitions.join("\n\n")}` : "";
+  const blocks = definitionSuffix
+    ? rawBlocks.map((block) => {
+        const markdown = block.markdown + definitionSuffix;
+        return {
+          ...block,
+          markdown,
+          key: `${block.startLine}:${block.endLine}:${hashStableString(markdown)}`,
+        };
+      })
+    : rawBlocks;
   const lineCount = rawMarkdown.length === 0 ? 0 : rawMarkdown.split(/\r?\n/).length;
   const bodyLineCount =
     frontmatter.body.length === 0 ? 0 : frontmatter.body.split(/\r?\n/).length;

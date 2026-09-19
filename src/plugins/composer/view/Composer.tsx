@@ -39,6 +39,7 @@ import { useComposerDrawer } from "./useComposerDrawer";
 import { composerSendRef } from "./composerSendRef";
 import { PromptGhostMirror } from "./PromptGhostMirror";
 import { useComposerSend } from "./useComposerSend";
+
 import { usePromptCompletion, usePromptHistoryNav } from "./usePromptHistory";
 import { composerTextareaKeyDown } from "./composerTextareaKeys";
 import { SuggestionPortal, PreviewOverlay } from "./composerOverlays";
@@ -138,7 +139,10 @@ export function Composer() {
       >
         <Mounts point="composer.statusBar" />
         {!inputHidden && (
+        <>
         <AttachmentStrip onRemove={removeTokenForAttachment} onPreviewImage={(a) => setPreviewSrc(a.previewDataUrl || a.thumbDataUrl)} />
+        <Mounts point="composer.attachments" />
+        </>
         )}
         <SuggestionPortal
           matches={matches}
@@ -202,7 +206,7 @@ export function Composer() {
         {!imeComposing && !matches && completion.suffix && cursor === value.length &&
           <PromptGhostMirror mirrorRef={mirrorRef} value={value} suffix={completion.suffix} />}
         </div>
-        {/* 资产唤醒入口(assets 插件贡献):右缘竖向图标列,几何见 composer-anchors.css */}
+        {/* 资产唤醒入口(assets 插件贡献):左下水平图标行,几何见 composer-anchors.css */}
         <div className="composer-input-rail">
           <Mounts point="composer.inputRail" />
         </div>

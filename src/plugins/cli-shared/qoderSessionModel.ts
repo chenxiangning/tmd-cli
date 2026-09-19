@@ -13,7 +13,8 @@
 
 import { ipc } from "@kernel/ipc";
 import type { CliDiskSession, CliProfile, CliSessionStatus } from "@kernel/cli";
-import { readHeadSessionMeta } from "./diskSessions";
+import { readHeadSessionMetaCached } from "./diskSessions";
+import { readStatusTailGated } from "./sessionStatus";
 import { qoderUserMessageLine, readUserMessagesFromFile } from "./userMessages";
 import { parseClaudeFamilySessionHead } from "./sessionIdentity";
 
@@ -70,7 +71,7 @@ export async function listQoderSessions(
       const m = f.name.match(/^([0-9a-f-]{36})\.jsonl$/);
       if (!m) return [];
       return [
-        readHeadSessionMeta(f.path).then((meta) => ({
+        readHeadSessionMetaCached(f.path, f.modifiedAt).then((meta) => ({
           id: m[1],
           modifiedAt: f.modifiedAt,
           createdAt: meta.createdAt,
@@ -130,7 +131,7 @@ export function extractQoderSessionStatus(
   return model || thinkingLevel ? { model, thinkingLevel } : null;
 }
 
-/** 会话态状态观测:tail 扫 runtime-config/assistant 帧,纯函数收尾。 */
+/** 会话态状态观测:tail 扫 runtime-config/assistant 帧,纯函数收尾。直拼路径走共享尺寸闸。 */
 export async function readQoderSessionStatus(
   dataDirName: string,
   cwd: string,
@@ -138,11 +139,12 @@ export async function readQoderSessionStatus(
 ): Promise<CliSessionStatus | null> {
   const dir = await qoderSessionsDir(dataDirName, cwd);
   if (!dir) return null;
-  const tail = await ipc
-    .fsReadTail(`${dir}/${cliSessionId}.jsonl`, QODER_STATUS_TAIL_BYTES)
-    .catch(() => "");
-  if (!tail) return null;
-  return extractQoderSessionStatus(tail);
+  return readStatusTailGated(
+    `${dir}\u0000${cliSessionId}`,
+    async () => `${dir}/${cliSessionId}.jsonl`,
+    QODER_STATUS_TAIL_BYTES,
+    extractQoderSessionStatus,
+  );
 }
 
 /** 锚点栏数据源:文件名即会话 id,免扫目录直拼路径。 */

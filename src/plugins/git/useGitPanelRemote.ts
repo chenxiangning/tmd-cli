@@ -10,6 +10,7 @@ import { spinRemainder } from "@kernel/spin";
 import { ipc, type GitRemoteRequest } from "@kernel/ipc";
 import { clearRemoteDialogRequest, useGitPanelState, type RemoteDialogOp } from "./panelStore";
 import { gitErrorDisplay, isAuth } from "./gitError";
+import { formatRemoteReport } from "./views/remoteDialogs/remoteReport";
 
 export function useGitPanelRemote(cwd: string | null, afterMutation: () => void) {
   const { remoteDialogRequest } = useGitPanelState();
@@ -35,11 +36,11 @@ export function useGitPanelRemote(cwd: string | null, afterMutation: () => void)
       const startedAt = Date.now();
       const finishSpin = () => setRemoteBusy(null);
       ipc.gitRemoteRequest(cwd, req).then(
-        () => {
+        (report) => {
           const wait = spinRemainder(startedAt);
           if (wait > 0) setTimeout(finishSpin, wait);
           else finishSpin();
-          setNotice(t("{op}成功。", { op: opLabel }));
+          setNotice(formatRemoteReport(op, opLabel, report));
           afterMutation();
         },
         (e: unknown) => {

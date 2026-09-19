@@ -61,6 +61,7 @@ export const MESSAGES_EN = {
   /* ── 控制台主体 ── */
   "Memory 控制台": "Memory console",
   "引擎配置读取失败: {err}": "Failed to read engine config: {err}",
+  "引擎配置保存失败: {err}": "Failed to save engine config: {err}",
   "共享记忆库暂不可读(可能处于迁移窗口:关闭全部 omp/pi 会话后重开即可)。session / composer / approvals 不受影响。": "The shared memory library is temporarily unreadable (possibly mid-migration: close all omp/pi sessions and reopen). session / composer / approvals are unaffected.",
   "共享记忆库尚未初始化(Magic Context 未安装或未迁移),在下方安装卡完成安装与迁移即可。session / composer / approvals 不受影响。": "The shared memory library is not initialized (Magic Context not installed or migrated). Use the install card below to install and migrate. session / composer / approvals are unaffected.",
   /* ── 读取设置卡 ── */

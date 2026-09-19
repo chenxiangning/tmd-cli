@@ -69,6 +69,7 @@ import type {
   GitPrStage,
   GitPrWorkflowResult,
   GitPushPreview,
+  GitRemoteOpReport,
   GitRemoteRequest,
   GitRepoScanResult,
   GitTotals,
@@ -143,6 +144,14 @@ interface FileStamp {
   name: string;
   path: string;
   modifiedAt: number;
+}
+
+/** 条件尾读结果(对齐 Rust fs::ChangedTail):size 恒为当前文件字节数,
+ *  changed = false 时 text 为空(尺寸未变短路)。 */
+export interface ChangedTail {
+  changed: boolean;
+  size: number;
+  text: string;
 }
 
 /** 参数化安装计划(对齐 src-tauri/src/installer.rs InstallPlan;camelCase tagged)。 */
@@ -299,6 +308,22 @@ interface SshPendingPromptWire {
   prompt: SshPromptEvent;
 }
 
+/** 全文搜索命中(fs_search):path 为 root 相对 posix 路径,line 1 基,text 已去行尾换行。 */
+export interface FsSearchHit {
+  path: string;
+  line: number;
+  text: string;
+}
+
+/** 全文搜索交付(fs_search):truncated = 3s 预算耗尽或满额,结果不完整。 */
+export interface FsSearchResult {
+  hits: FsSearchHit[];
+  truncated: boolean;
+}
+
+/** configHomeDir 的 once 缓存(拒绝时复位,见 ipc.configHomeDir 注)。 */
+let configHomeOnce: Promise<string> | null = null;
+
 export const ipc = {
   sessionSpawn: (profileId: string, spec: SpawnSpec, workspaceId?: string) =>
     invoke<SpawnedSession>("session_spawn", { profileId, spec, workspaceId: workspaceId ?? null }),
@@ -328,6 +353,11 @@ export const ipc = {
    *  跳 dotfiles/node_modules,返回 root 相对 posix 路径(排序稳定);cap = 上限。
    *  语义镜像 pi/omp TUI 自己的 @ 发现规则(见 fs_walk.rs)。 */
   fsWalkFiles: (root: string, cap: number) => invoke<string[]>("fs_walk_files", { root, cap }),
+  /** 全文搜索(rg 式即时扫描,walk 语义与 fsWalkFiles 同源,见 fs_search.rs):
+   *  大小写不敏感=两侧 to_lowercase 归一;>3MB/二进制文件跳过;maxResults 全局上限。
+   *  3s 预算耗尽或满额时交付部分结果(truncated 置位,UI 提示)。 */
+  fsSearch: (root: string, query: string, caseSensitive: boolean, maxResults: number) =>
+    invoke<FsSearchResult>("fs_search", { root, query, caseSensitive, maxResults }),
   /** 通用短进程通道:spawn + stdin(写入后持开防 RPC 丢响应)+ stdout 收割;
    *  exitOnStdout 命中或超时即杀。omp/pi RPC 副车、grok inspect 共用(见 proc_run.rs)。 */
   procCommunicate: (spec: ProcRunSpec) => invoke<ProcRunResult>("proc_communicate", { spec }),
@@ -498,9 +528,9 @@ export const ipc = {
   /** 推送预览:HEAD 相对 <remote>/<branch> 的独有提交;低频,仅在对话框内按需拉。 */
   gitPushPreview: (cwd: string, remote: string, branch: string, limit?: number) =>
     invoke<GitPushPreview>("git_push_preview", { cwd, remote, branch, limit: limit ?? null }),
-  /** 远端对话框结构化请求(带选项);pull 移动 HEAD。 */
+  /** 远端对话框结构化请求(带选项);pull 移动 HEAD;返回完成明细(通知文案数据源)。 */
   gitRemoteRequest: (cwd: string, req: GitRemoteRequest) =>
-    invoke<string>("git_remote_request", { cwd, req }),
+    invoke<GitRemoteOpReport>("git_remote_request", { cwd, req }),
   /** 创建 PR defaults(upstream/origin 解析 + 模板兜底;不可创建时带人话原因)。 */
   gitPrDefaults: (cwd: string) => invoke<GitPrDefaults>("git_pr_defaults", { cwd }),
   /** 创建 PR 四步工作流(precheck→push→createPr→comment);阶段经 git://pr-stage 实时推送。 */
@@ -519,13 +549,25 @@ export const ipc = {
   /** 读取文件尾部 maxBytes 字节,供 session 状态增量解析。 */
   fsReadTail: (path: string, maxBytes: number) =>
     invoke<string>("fs_read_tail", { path, maxBytes }),
+  /** 尾读 + 尺寸闸(语义见 Rust fs::read_tail_changed):lastSize 未变短路免读,
+   *  变化拍一次 IPC 完成探测与读取。会话状态巡航 2s 一拍的主力入口。 */
+  fsReadTailChanged: (path: string, maxBytes: number, lastSize: number | null) =>
+    invoke<ChangedTail>("fs_read_tail_changed", { path, maxBytes, lastSize }),
   /** 读文件头部 maxBytes 字节(解析 jsonl 首行 meta 用,避免全文加载)。 */
   fsReadHead: (path: string, maxBytes: number) =>
     invoke<string>("fs_read_head", { path, maxBytes }),
   /** 物理删除文件或目录(会话列表"删除会话"用);kimi 会话是目录,统一走此命令。
    *  路径不存在视为成功(幂等)。 */
   fsRemovePath: (path: string) => invoke<void>("fs_remove_path", { path }),
-  configHomeDir: () => invoke<string>("config_home_dir"),
+  configHomeDir: () => {
+    /* 主目录每进程恒定:扫描/配额/GUI 共 47 处每动作重复取,once 缓存全量受益;
+       拒绝不缓存(复位重试),失败语义与直连一致。 */
+    configHomeOnce ??= invoke<string>("config_home_dir").catch((e) => {
+      configHomeOnce = null;
+      throw e;
+    });
+    return configHomeOnce;
+  },
   /** 应用配置目录(~/.tmd-cli),布局 owner 是 Rust session.rs;插件勿自拼。 */
   configDir: () => invoke<string>("config_dir"),
   /** 默认工作区根目录(~/.tmd-cli/default,Rust 侧已确保存在,mac/win 兼容)。 */
@@ -852,16 +894,6 @@ export interface WebAccessInfo {
   lanIp: string;
 }
 
-/** 启动 LAN Web 访问桥(绑定 0.0.0.0,token 每次重铸)。 */
-export function webAccessStart(): Promise<WebAccessInfo> {
-  return invoke<WebAccessInfo>("web_access_start");
-}
-
-/** 停止桥。 */
-export function webAccessStop(): Promise<void> {
-  return invoke<void>("web_access_stop");
-}
-
 /** 查询桥状态;未运行返回 null。 */
 export function webAccessStatus(): Promise<WebAccessInfo | null> {
   return invoke<WebAccessInfo | null>("web_access_status");
@@ -990,4 +1022,56 @@ export function onSftpEvent(cb: (e: SftpEventPayload) => void) {
 /** 订阅创建 PR 工作流的阶段进度(全局通道;四卡实时点亮)。 */
 export function onGitPrStage(cb: (stages: GitPrStage[]) => void) {
   return listen<GitPrStage[]>("git://pr-stage", (ev) => cb(ev.payload));
+}
+
+/* ---------- LSP 通用原语(长驻 stdio 语言服务器;方法语义全在前端 kernel/lsp) ---------- */
+
+/** 启动(或幂等复用)某 key 的语言服务器进程。 */
+export function lspSpawn(
+  key: string,
+  command: string,
+  args: readonly string[],
+  cwd: string,
+  env?: Record<string, string>,
+) {
+  return invoke<void>("lsp_spawn", { key, command, args, cwd, env });
+}
+
+/** 写入一条完整 JSON-RPC 消息(前端已组好串;Rust 只组帧)。 */
+export function lspSend(key: string, message: string) {
+  return invoke<void>("lsp_send", { key, message });
+}
+
+/** 杀树收割某 key 的语言服务器。 */
+export function lspStop(key: string) {
+  return invoke<void>("lsp_stop", { key });
+}
+
+/** LSP 事件结构(Rust lsp.rs 双扇出)。 */
+export interface LspMessageEvent {
+  key: string;
+  payload: string;
+}
+export interface LspTextEvent {
+  key: string;
+  text: string;
+}
+export interface LspExitEvent {
+  key: string;
+  code: number | null;
+}
+
+/** 订阅 LSP 完整 JSON 消息(全局通道,按 key 归属)。 */
+export function onLspMessage(cb: (e: LspMessageEvent) => void) {
+  return listen<LspMessageEvent>("lsp://message", (ev) => cb(ev.payload));
+}
+
+/** 订阅 LSP 服务端 stderr 日志(调试面)。 */
+export function onLspStderr(cb: (e: LspTextEvent) => void) {
+  return listen<LspTextEvent>("lsp://stderr", (ev) => cb(ev.payload));
+}
+
+/** 订阅 LSP 进程退出。 */
+export function onLspExit(cb: (e: LspExitEvent) => void) {
+  return listen<LspExitEvent>("lsp://exit", (ev) => cb(ev.payload));
 }

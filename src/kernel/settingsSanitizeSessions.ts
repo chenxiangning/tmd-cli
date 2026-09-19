@@ -1,11 +1,12 @@
 /**
- * 会话四层覆盖域清洗 —— 命名/置顶/归档/删除意图(自 settingsSanitize.ts 拆出,300 行铁则)。
+ * 会话五层覆盖域清洗 —— 命名/置顶/归档/删除意图/保留标记(自 settingsSanitize.ts 拆出,300 行铁则)。
  * 先例:sshSettings.ts 域文件。装配仍在 settingsSanitize.ts 的 sanitize()。
  */
 
 import type {
   SessionArchiveEntry,
   SessionDeletedEntry,
+  SessionKeepEntry,
   SessionPinEntry,
   SessionPinScope,
 } from "./settingsTypes";
@@ -17,7 +18,7 @@ const SESSION_TITLE_MAX_LENGTH = 200;
 /** 会话命名清洗:只收非空 key + 非空字符串值,截断超长标题,按 key 序限量纳入。 */
 export function sanitizeSessionTitles(raw: unknown): Record<string, string> {
   const titles: Record<string, string> = {};
-  if (!raw || typeof raw !== "object") return titles;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return titles;
   const entries = raw as Record<string, unknown>;
   for (const key of Object.keys(entries).sort()) {
     if (Object.keys(titles).length >= SESSION_TITLES_MAX_ENTRIES) break;
@@ -39,7 +40,7 @@ const SESSION_PIN_SCOPES: readonly SessionPinScope[] = ["global", "workspace"];
 /** 置顶清洗:只收合法 scope + 有限非负时间戳的项,标题截断,按 key 序限量纳入。 */
 export function sanitizeSessionPins(raw: unknown): Record<string, SessionPinEntry> {
   const pins: Record<string, SessionPinEntry> = {};
-  if (!raw || typeof raw !== "object") return pins;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return pins;
   const entries = raw as Record<string, unknown>;
   for (const key of Object.keys(entries).sort()) {
     if (Object.keys(pins).length >= SESSION_PINS_MAX_ENTRIES) break;
@@ -66,7 +67,7 @@ export function sanitizeSessionPins(raw: unknown): Record<string, SessionPinEntr
  */
 export function sanitizeSessionArchive(raw: unknown): Record<string, SessionArchiveEntry> {
   const archive: Record<string, SessionArchiveEntry> = {};
-  if (!raw || typeof raw !== "object") return archive;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return archive;
   const entries = raw as Record<string, unknown>;
   for (const key of Object.keys(entries).sort()) {
     if (Object.keys(archive).length >= SESSION_ARCHIVE_MAX_ENTRIES) break;
@@ -85,7 +86,7 @@ export function sanitizeSessionArchive(raw: unknown): Record<string, SessionArch
  */
 export function sanitizeSessionDeleted(raw: unknown): Record<string, SessionDeletedEntry> {
   const deleted: Record<string, SessionDeletedEntry> = {};
-  if (!raw || typeof raw !== "object") return deleted;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return deleted;
   const entries = raw as Record<string, unknown>;
   for (const key of Object.keys(entries).sort()) {
     if (Object.keys(deleted).length >= SESSION_PINS_MAX_ENTRIES) break;
@@ -99,6 +100,26 @@ export function sanitizeSessionDeleted(raw: unknown): Record<string, SessionDele
   return deleted;
 }
 
+/**
+ * 保留标记层清洗:只收有限非负时间戳的项,按 key 序限量纳入(与归档/删除同款确定性兜底)。
+ * 上限与 overlayEvict 缺省容量(200)同,沿用 SESSION_PINS_MAX_ENTRIES。
+ */
+export function sanitizeSessionKeep(raw: unknown): Record<string, SessionKeepEntry> {
+  const keep: Record<string, SessionKeepEntry> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return keep;
+  const entries = raw as Record<string, unknown>;
+  for (const key of Object.keys(entries).sort()) {
+    if (Object.keys(keep).length >= SESSION_PINS_MAX_ENTRIES) break;
+    const value = entries[key];
+    if (!key || !value || typeof value !== "object") continue;
+    const entry = value as Record<string, unknown>;
+    const keptAt = typeof entry.keptAt === "number" ? entry.keptAt : Number.NaN;
+    if (!Number.isFinite(keptAt) || keptAt < 0) continue;
+    keep[key] = { keptAt: Math.floor(keptAt) };
+  }
+  return keep;
+}
+
 /** 引擎版本收藏层上限:100 条(与置顶同款确定性兜底口径)。 */
 const ENGINE_VERSION_FAVS_MAX_ENTRIES = 100;
 /** key 形状:`${engineId}@${x.y.z}`(与 welcome 插件 versionFavKey 同构)。 */
@@ -107,7 +128,7 @@ const ENGINE_VERSION_FAV_KEY = /^[^\s@]+@\d+\.\d+\.\d+$/;
 /** 引擎版本收藏清洗:key 须为 engineId@semver,只收有限非负 favedAt,按 key 序限量纳入。 */
 export function sanitizeEngineVersionFavs(raw: unknown): Record<string, { favedAt: number }> {
   const favs: Record<string, { favedAt: number }> = {};
-  if (!raw || typeof raw !== "object") return favs;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return favs;
   const entries = raw as Record<string, unknown>;
   for (const key of Object.keys(entries).sort()) {
     if (Object.keys(favs).length >= ENGINE_VERSION_FAVS_MAX_ENTRIES) break;

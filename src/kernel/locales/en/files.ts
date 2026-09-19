@@ -102,4 +102,5 @@ export const MESSAGES = {
   "仅展示前 {rows} 行 × {cols} 列": "Showing first {rows} rows × {cols} columns",
   /* 结构化预览 */
   "文件较大,仅展示前 {visible} / {total} 行": "File is large; showing first {visible} / {total} lines",
+"远程文件 · 只读(M1)": "Remote file · read-only (M1)",
 } as Record<string, string>;

@@ -12,7 +12,7 @@ import {
   type ReactNode,
   type UIEvent,
 } from "react";
-import { hashStableString } from "./markdownDocument";
+import { hashStableString } from "@kernel/textHash";
 import { renderLatexFormula } from "./markdownMath";
 import DOMPurify from "dompurify";
 import {

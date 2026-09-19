@@ -20,8 +20,9 @@
 //! 3. 都不可知 = 真新建(A)。
 
 use super::{
-    append_ledger, entry_in_session, load_ledger, lock_ledger, now_millis, open_sidecar, open_user,
-    resolve_snap_bytes, write_sidecar_blob, CkptError, LedgerEntry, TurnFile,
+    append_ledger, backfill_identity, entry_in_session, load_ledger, lock_ledger, now_millis,
+    open_sidecar, open_user, resolve_snap_bytes, write_sidecar_blob, CkptError, LedgerEntry,
+    TurnFile,
 };
 use std::fs;
 
@@ -51,7 +52,13 @@ pub fn record_edit(
     };
     let path = path.as_str();
     let _g = lock_ledger();
-    let entries = load_ledger(cwd);
+    let mut entries = load_ledger(cwd);
+    // 绑定迟到自愈:首条锚点常落在 CLI 磁盘身份绑定之前(以 tmd id 记账),
+    // 回填若只挂在 captureAnchor,用户改在终端直打 prompt(无 promptSent)
+    // 时回填永不触发 —— 会话断裂/resume 换 tmd id 后,链按旧 tmd id 成孤儿,
+    // 新会话按 (cli id, 新 tmd id) 双键全脱靶,审批线空(2026-09-19 omp
+    // glm-5.3 会话实证)。任一写入事件抵达即回填,绑定落地后链归位 cli id。
+    backfill_identity(cwd, &mut entries, session_id, tmd_session_id)?;
     let Some(anchor) = entries
         .iter()
         .filter(|e| e.kind == "anchor" && entry_in_session(e, session_id, tmd_session_id))
@@ -174,11 +181,13 @@ fn latest_turn_after(
 }
 
 /// events 归因的 open 轮文件集(视图共用):本轮 edit 行 → live 状态符。
-/// live 存在 → A(前像空)/M(前像有);磁盘已无 → D。
+/// 磁盘已无 → D;前像空且未入 HEAD → A;其余 → M(含首击新建后路径被并行
+/// 动作带进 HEAD 的展示重定基:与 git 面板状态符对齐,见 store::head_blob_bytes)。
 /// 纯事件归因:只列 edit 行路径,shell 落盘等无事件写入不入 open 批
 /// (隔离优先,见模块 doc)。
 pub(super) fn edit_open_paths(
     root: &std::path::Path,
+    user: Option<&git2::Repository>,
     anchor: &LedgerEntry,
     entries: &[LedgerEntry],
 ) -> Vec<(String, String)> {
@@ -188,7 +197,10 @@ pub(super) fn edit_open_paths(
         .map(|e| {
             let status = if !root.join(&e.path).try_exists().unwrap_or(false) {
                 "D".to_string()
-            } else if e.before_oid.is_empty() && !super::is_external_path(&e.path) {
+            } else if e.before_oid.is_empty()
+                && !super::is_external_path(&e.path)
+                && super::store::head_blob_bytes(user, &e.path).is_none()
+            {
                 "A".to_string()
             } else {
                 // 前像自足副本在而磁盘内容等值 = 写了又写回;仍列出(轮未封口,轨迹可见)。

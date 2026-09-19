@@ -37,14 +37,13 @@ interface TabState {
 const state: TabState = { tabs: [], activeId: null };
 const store = createSubscribable<TabState>(state);
 
-/** 提交当前 state 为新快照并通知。activeId 兜底修正在快照之后落 state,
- *  快照保留修正前的值(原有时序,下次提交才进快照)。 */
+/** 提交当前 state 为新快照并通知。activeId 先兜底修正再进快照——快照不得出现
+ *  悬空 activeId(否则关闭激活 tab 后 UI 空态,要等下一次提交才自愈)。 */
 function commit(): void {
-  store.replace({ tabs: [...state.tabs], activeId: state.activeId });
-  state.activeId = state.tabs.some((t) => t.id === state.activeId)
-    ? state.activeId
-    : state.tabs[0]?.id ?? null;
-  store.notify();
+  if (!state.tabs.some((t) => t.id === state.activeId)) {
+    state.activeId = state.tabs[0]?.id ?? null;
+  }
+  store.commit({ tabs: [...state.tabs], activeId: state.activeId });
 }
 
 export function openTab(tab: EditorTab, opts?: { refresh?: boolean }): void {
@@ -65,7 +64,17 @@ export function openTab(tab: EditorTab, opts?: { refresh?: boolean }): void {
 }
 
 export function closeTab(id: string): void {
-   state.tabs = state.tabs.filter((t) => t.id !== id);
+  const index = state.tabs.findIndex((t) => t.id === id);
+  if (index === -1) {
+    return;
+  }
+  const wasActive = state.activeId === id;
+  state.tabs = state.tabs.filter((t) => t.id !== id);
+  /* 相邻补位(浏览器语义):优先右邻(数组前移后仍在原下标),无右邻取左邻;
+   * 关闭非激活 tab 不动当前激活。 */
+  if (wasActive) {
+    state.activeId = state.tabs[index]?.id ?? state.tabs[index - 1]?.id ?? null;
+  }
   commit();
 }
 
@@ -107,6 +116,11 @@ export function getTabs(): readonly EditorTab[] {
 
 export function getActiveTabId(): string | null {
   return state.activeId;
+}
+
+/** 当前不可变快照(useEditorTabs 的同源快照,非 React 断言/调试观测口)。 */
+export function getEditorTabsSnapshot(): TabState {
+  return store.snapshot;
 }
 
 /** 激活 tab 本体(快捷键 when 等非响应式查询用);无激活 tab 返回 null。 */

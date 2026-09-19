@@ -18,7 +18,7 @@ import {
   type ReactNode,
 } from "react";
 import { BracketsCurly, Check, Code, Copy, FileCode, FileText, Hash, Gear, Sigma, Terminal, type Icon } from "@phosphor-icons/react";
-import { highlightLine } from "./syntax";
+import { highlightLine } from "@kernel/syntaxHighlight";
 import { extractLanguageTag } from "./languageTag";
 import { t } from "@kernel/i18n";
 

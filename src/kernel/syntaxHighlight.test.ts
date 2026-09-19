@@ -4,7 +4,7 @@
  * LRU 缓存命中返回同一引用(dangerouslySetInnerHTML 消费方跳过 DOM 重写)。
  */
 import { describe, expect, it } from "vitest";
-import { highlightLine } from "./syntax";
+import { highlightLine } from "./syntaxHighlight";
 
 describe("highlightLine", () => {
   it("已知语言产出 Prism token 标记", () => {

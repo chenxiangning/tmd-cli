@@ -26,6 +26,7 @@ mod pr_gh;
 pub(crate) mod pr_workflow;
 mod remote_args;
 mod remote_ops;
+mod remote_report;
 pub(crate) mod remote_request;
 mod repos_scan;
 mod stash_ops;

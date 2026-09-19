@@ -146,6 +146,21 @@ export interface GitRemoteRequest {
   gerrit: GerritExtra | null;
 }
 
+/** 远端操作完成明细(git_remote_request 返回;面板通知文案的数据源)。
+ *  fetch 用 refs;pull 用 commits/files/insertions/deletions;push 用 commits。 */
+export interface GitRemoteOpReport {
+  /** 无任何变化(已是最新)。 */
+  upToDate: boolean;
+  /** push=推送提交数;pull=来自远端的合入提交数。 */
+  commits: number;
+  /** pull=变更文件数。 */
+  files: number;
+  insertions: number;
+  deletions: number;
+  /** fetch=更新/新增/清理的远端引用数。 */
+  refs: number;
+}
+
 /** 推送预览:HEAD 相对 <remote>/<branch> 的独有提交(targetFound=false = 新分支首推)。 */
 export interface GitPushPreview {
   sourceBranch: string;

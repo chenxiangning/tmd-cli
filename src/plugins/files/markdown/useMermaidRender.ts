@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { hashStableString } from "./markdownDocument";
+import { hashStableString } from "@kernel/textHash";
 import { normalizeMermaidSource } from "./normalizeMermaidSource";
 
 type MermaidRenderState =

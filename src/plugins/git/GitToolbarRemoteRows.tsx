@@ -1,5 +1,5 @@
 /**
- * GitToolbarRemoteRows —— 视图下拉的远端动作行(自 GitToolbar 拆出,文件规模铁则):
+ * GitToolbarRemoteRows —— 远端下拉的动作行(自 GitToolbar 拆出,文件规模铁则):
  * 创建 PR(打开工作流对话框)+ 刷新 / 获取 / 拉取(behind 计数)/ 推送(ahead 计数,accent)。
  * 状态共享走 panelStore(remoteMeta 镜像,由 GitPanelMain 写入)。
  */
@@ -14,9 +14,6 @@ import {
   UploadSimple,
 } from "@phosphor-icons/react";
 import { bumpGitRefresh, requestRemoteDialog, useGitPanelState } from "./panelStore";
-
-/** 菜单分组分隔线(常量 JSX 提模块级,不随渲染重建;GitToolbar 同款)。 */
-const MENU_SEPARATOR = <div className="my-1 border-t border-(--tmd-border)" />;
 
 export function RemoteActionRows({ onDone }: { onDone: () => void }) {
   const { remoteMeta } = useGitPanelState();
@@ -105,14 +102,14 @@ export function RemoteActionRows({ onDone }: { onDone: () => void }) {
   ];
   return (
     <>
-      {MENU_SEPARATOR}
       {rows.map((r) => {
         const Icon = r.active && busy === r.key ? CircleNotch : r.icon;
         return (
           <button
             key={r.key}
             type="button"
-            className={`${item}${r.active ? " has-state" : ""}${r.accent ? " text-(--tmd-accent)" : ""}`}
+            role="menuitem"
+            className={`${item}${r.accent ? " text-(--tmd-accent)" : ""}`}
             title={r.title}
             disabled={r.disabled}
             onClick={() => {

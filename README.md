@@ -157,13 +157,13 @@ pnpm check:file-size      # 单文件 ≤300 行检查（CI 强制）
 
 从 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 获取对应平台安装包。产物由 CI 在推送 `v*` tag 时自动构建(macOS universal / Windows x86_64 / Linux x86_64),以 Draft Release 形式落盘,确认后发布。
 
-当前 v0.1.9 产物矩阵:
+当前 v0.2.0 产物矩阵:
 
 | 平台 | 产物 |
 |---|---|
-| macOS(universal:arm64 + x86_64) | `tmd-cli_0.1.9_universal.dmg`、`tmd-cli_universal.app.tar.gz` |
-| Windows(x86_64) | `tmd-cli_0.1.9_x64-setup.exe`(NSIS)、`tmd-cli_0.1.9_x64_en-US.msi` |
-| Linux(x86_64) | `tmd-cli_0.1.9_amd64.AppImage`、`tmd-cli_0.1.9_amd64.deb`、`tmd-cli-0.1.9-1.x86_64.rpm` |
+| macOS(universal:arm64 + x86_64) | `tmd-cli_0.2.0_universal.dmg`、`tmd-cli_universal.app.tar.gz` |
+| Windows(x86_64) | `tmd-cli_0.2.0_x64-setup.exe`(NSIS)、`tmd-cli_0.2.0_x64_en-US.msi` |
+| Linux(x86_64) | `tmd-cli_0.2.0_amd64.AppImage`、`tmd-cli_0.2.0_amd64.deb`、`tmd-cli-0.2.0-1.x86_64.rpm` |
 
 当前产物未签名 / 未公证:macOS 首次打开需在「系统设置 → 隐私与安全性」手动放行。
 
@@ -191,9 +191,9 @@ pnpm check:file-size      # 单文件 ≤300 行检查（CI 强制）
 
 ## 当前状态
 
-已落地:插件宿主与插件市场(27 个注册插件:CLI 引擎 10 + 界面功能 13 + 核心 3 + 本机插件加载器)、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/dsh/opencode)+ SSH 一等会话(russh 引擎)+ 内置终端(kind=shell)、PTY 全生命周期与会话输出落盘翻页、xterm 幕布、工作区 FLUX 时间轴会话列表(呼吸灯/状态 label/置顶/预算分页/自定分组)、顶栏会话 tab 条与会话 tab 平铺显示、Composer 全量(触发符/拖拽/截图/命令抽屉 v3/消息锚点栏/Quota/bracketed-paste,触发补全以 CLI 为真相源)、智能体/提示词资产库(!! / ## 消费)、CLI 独立配置(图形化编辑各 CLI 配置文件,模型角色路由 / 撞墙回退链)、本机插件(~/.tmd-cli/plugins/ 免重启装载 / 对话造插件 / 版本回退)、Ask 等待确认检测(字节流 + 屏幕态双通道)与双路提示音、右栏 Git 面板全量(差异/分支/历史 Graph 化/提交 diff 中央 tab 双栏并排/远端 fetch/pull/push/三区拖选批量与未跟踪删除)、文件树 + CodeMirror 编辑器 + 文件渲染档案(图片/PDF/表格/docx/结构化)+ Markdown 预览、文件 tab 右键菜单与编辑区最大化、审批线(checkpoints 账本:双归因/回退/应用/反悔/影子对象库)、主题引擎(31 个 VS Code preset)、全局界面字号与界面缩放、网络代理、欢迎页引擎选择器(全动作行 / RESUME / QUOTA / TOKENS)、只读 session 状态栏、全局快捷键与可视化改键、版本号弹窗与自动更新、记忆协调(Memory 面板 FTS 检索 / 胶囊 / 控制台)、Git 分支右键菜单与远端操作对话框、会话 tab 右键菜单、WSL 支持(本机 UNC + 远程 SSH 宿主 M1:连接/会话/历史/状态/只读文件通道)、工作区壁纸(本地图库 + 流体着色器,表面 token 打穿 + xterm 透底)、omp 历史会话预热接管秒开、dsh 会话流式输出。
+已落地:插件宿主与插件市场(31 个注册插件:CLI 引擎 10 + 界面功能 17 + 核心 3 + 本机插件加载器)、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/dsh/opencode)+ SSH 一等会话(russh 引擎)+ 内置终端(kind=shell)、PTY 全生命周期与会话输出落盘翻页、xterm 幕布、工作区 FLUX 时间轴会话列表(呼吸灯/状态 label/置顶/预算分页/自定分组)、顶栏会话 tab 条与会话 tab 平铺显示、Composer 全量(触发符/拖拽/截图/命令抽屉 v3/消息锚点栏/Quota/bracketed-paste,触发补全以 CLI 为真相源)、智能体/提示词资产库(!! / ## 消费)、CLI 独立配置(图形化编辑各 CLI 配置文件,模型角色路由 / 撞墙回退链)、本机插件(~/.tmd-cli/plugins/ 免重启装载 / 对话造插件 / 版本回退)、Ask 等待确认检测(字节流 + 屏幕态双通道)与双路提示音、右栏 Git 面板全量(差异/分支/历史 Graph 化/提交 diff 中央 tab 双栏并排/远端 fetch/pull/push/三区拖选批量与未跟踪删除)、文件树 + CodeMirror 编辑器 + 文件渲染档案(图片/PDF/表格/docx/结构化)+ Markdown 预览、文件 tab 右键菜单与编辑区最大化、审批线(checkpoints 账本:双归因/回退/应用/反悔/影子对象库)、主题引擎(31 个 VS Code preset)、全局界面字号与界面缩放、网络代理、欢迎页引擎选择器(全动作行 / RESUME / QUOTA / TOKENS)、只读 session 状态栏、全局快捷键与可视化改键、版本号弹窗与自动更新、记忆协调(Memory 面板 FTS 检索 / 胶囊 / 控制台)、Git 分支右键菜单与远端操作对话框、会话 tab 右键菜单、WSL 支持(本机 UNC + 远程 SSH 宿主 M1:连接/会话/历史/状态/只读文件通道)、工作区壁纸(本地图库 + 流体着色器,表面 token 打穿 + xterm 透底)、omp 历史会话预热接管秒开、dsh 会话流式输出。
 
-进行中:命令抽屉真机验收(余 5 项 `[V]`,openspec/changes/composer-command-drawer)与 CLI 交互式兼容性验证;git「创建 PR」工作流实现中(spec: docs/superpowers/specs/2026-09-15-git-create-pr-design.md);其余变更契约已全部归档(openspec/changes/archive/)。
+进行中:命令抽屉真机验收(余 5 项 `[V]`,openspec/changes/composer-command-drawer)与 CLI 交互式兼容性验证;其余变更契约已全部归档(openspec/changes/archive/)。
 
 ## License
 

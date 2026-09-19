@@ -94,7 +94,7 @@ pub fn derive_batches(
                     continue;
                 }
                 let changed = if a.attribution == "events" {
-                    edit_open_paths(&root, a, &entries)
+                    edit_open_paths(&root, user.as_ref(), a, &entries)
                 } else {
                     let Some(u) = user.as_ref() else {
                         continue; // git 归因 + 非 git:无推断素材

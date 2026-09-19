@@ -13,6 +13,7 @@ import {
   readKimiSessionIdentity,
   readKimiUserMessages,
 } from "./kimiSessions";
+import { isKimiSessionEmpty } from "./kimiEmpty";
 
 /**
  * Kimi 品牌 glyph:几何 K 字monogram(codemoss EngineIcon 同源策略),
@@ -146,6 +147,10 @@ export const cliKimiPlugin: Plugin = {
       resumeArgs: (sessionId) => ["--session", sessionId],
       bracketedPaste: true,
       listSessions: listKimiSessions,
+      /* 会话卫生判空:path = 会话目录,wire 双候选位(新布局 agents/main/wire.jsonl,
+         老 home 目录直挂 wire.jsonl,见 kimiEmpty.ts)。wire 缺失 = 判不了不删。 */
+      isDiskSessionEmpty: (session) =>
+        isKimiSessionEmpty(session.path),
       readSessionStatus: () => readKimiConfigStatus(),
       readSessionFileIdentity: readKimiSessionIdentity,
       readDefaultStatus: readKimiConfigStatus,

@@ -18,6 +18,7 @@ import {
 } from "./settingsAppearance";
 import {
   ASK_SOUND_IDS,
+  SESSION_HYGIENE_HOURS,
   SESSION_LIST_TOTAL_DEFAULT,
   SESSION_LIST_TOTAL_MAX,
   SESSION_LIST_TOTAL_MIN,
@@ -28,6 +29,7 @@ import {
   type GitPanelView,
   type MemoryCapsuleMode,
   type SendShortcut,
+  type SessionHygieneHours,
   type SessionListBudget,
   type ThemePreference,
 } from "./settingsTypes";
@@ -36,6 +38,7 @@ import {
   sanitizeEngineVersionFavs,
   sanitizeSessionArchive,
   sanitizeSessionDeleted,
+  sanitizeSessionKeep,
   sanitizeSessionPins,
   sanitizeSessionTitles,
 } from "./settingsSanitizeSessions";
@@ -107,7 +110,7 @@ function sanitizeDisabledPlugins(raw: unknown): string[] {
 /** 本地插件信任表清洗:id → 非空字符串数组;坏 id/坏项丢弃,确定性按 key 序。 */
 function sanitizeLocalPluginTrust(raw: unknown): Record<string, string[]> {
   const map: Record<string, string[]> = {};
-  if (!raw || typeof raw !== "object") return map;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return map;
   const entries = raw as Record<string, unknown>;
   for (const id of Object.keys(entries).sort()) {
     if (!id || !Array.isArray(entries[id])) continue;
@@ -220,6 +223,14 @@ export function sanitize(raw: unknown): AppSettings {
     sessionPins: sanitizeSessionPins(obj.sessionPins),
     sessionArchive: sanitizeSessionArchive(obj.sessionArchive),
     sessionDeleted: sanitizeSessionDeleted(obj.sessionDeleted),
+    sessionKeep: sanitizeSessionKeep(obj.sessionKeep),
+    sessionHygieneEnabled:
+      typeof obj.sessionHygieneEnabled === "boolean"
+        ? obj.sessionHygieneEnabled
+        : DEFAULT_SETTINGS.sessionHygieneEnabled,
+    sessionHygieneHours: SESSION_HYGIENE_HOURS.includes(obj.sessionHygieneHours as SessionHygieneHours)
+      ? (obj.sessionHygieneHours as SessionHygieneHours)
+      : DEFAULT_SETTINGS.sessionHygieneHours,
     engineVersionFavs: sanitizeEngineVersionFavs(obj.engineVersionFavs),
     shortcutOverrides: sanitizeShortcutOverrides(obj.shortcutOverrides),
     workspaceArchiveView:

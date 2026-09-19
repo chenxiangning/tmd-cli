@@ -27,6 +27,12 @@ export function resolveDistillEngine(raw: string): ModelEngine {
 const cache = new Map<ModelEngine, ModelEntry[]>();
 const cacheAt = new Map<ModelEngine, number>();
 
+/** 测试缝:清空模块级缓存(模型目录缓存跨用例共享会串台)。 */
+export function __resetModelCatalogForTests(): void {
+  cache.clear();
+  cacheAt.clear();
+}
+
 function fromCache(engine: ModelEngine): ModelEntry[] | null {
   const at = cacheAt.get(engine) ?? 0;
   if (Date.now() - at < 10 * 60 * 1000) return cache.get(engine) ?? null;
@@ -78,7 +84,11 @@ export async function listModels(engine: ModelEngine = "omp", force = false): Pr
   } catch {
     entries = [];
   }
-  cache.set(engine, entries);
-  cacheAt.set(engine, Date.now());
+  /* 只缓存非空结果:失败(引擎缺席/超时)不进缓存,窗口期内引擎恢复下次调用
+     立即可重试;pi 恒空属设计,空结果不落缓存无进程开销。 */
+  if (entries.length > 0) {
+    cache.set(engine, entries);
+    cacheAt.set(engine, Date.now());
+  }
   return entries;
 }

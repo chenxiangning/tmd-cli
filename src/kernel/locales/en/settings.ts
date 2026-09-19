@@ -65,6 +65,16 @@ export const MESSAGES = {
   "后台提醒": "Background notifications",
   "窗口失焦时，当前会话完成一轮对话也标记未读并播放结束提示音；切回窗口即恢复已读。":
     "While the window is unfocused, a finished turn still marks the session unread and plays the turn-end sound; focusing the window clears it.",
+  "会话自动清理": "Session auto-cleanup",
+  "超过设定时长没有活动的会话自动转入归档；其中从未发过消息的空会话直接删除。工作区展开或手动刷新时执行，不后台轮询。":
+    "Sessions idle past the chosen window move to the archive; ones that never received a message are deleted outright. Runs when a workspace is expanded or refreshed — no background polling.",
+  "超期时长": "Idle window",
+  "以会话最后活动时间计算；置顶与手动恢复过的会话不清理。":
+    "Measured from the session's last activity; pinned and manually restored sessions are never swept.",
+  "12 小时": "12 hours",
+  "24 小时": "24 hours",
+  "48 小时": "48 hours",
+  "7 天": "7 days",
   "默认": "Default",
   "风铃": "Chime",
   "铃声": "Bell",

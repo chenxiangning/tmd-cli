@@ -23,7 +23,9 @@ import { resolveGrokDefaultProfile } from "../cli-shared/grokConfig";
 
 export async function fetchGrokQuota(): Promise<QuotaSnapshot> {
   const home = await ipc.configHomeDir();
-  const text = await ipc.fsReadFile(`${home}/.grok/config.toml`);
+  /* 文件缺失/读取失败回落空文本,与「文件在但无 key」同走显式不支持文案,
+     不把裸 ENOENT 抛给额度面板。 */
+  const text = await ipc.fsReadFile(`${home}/.grok/config.toml`).catch(() => "");
   const profile = resolveGrokDefaultProfile(text);
 
   if (profile.baseUrl && profile.apiKey) {

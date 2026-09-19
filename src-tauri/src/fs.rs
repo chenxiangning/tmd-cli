@@ -134,23 +134,8 @@ pub fn read_head(path: &str, max_bytes: usize) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&buf[..n]).to_string())
 }
 
-/// 读取文件尾部最多 max_bytes 字节(UTF-8 损失容忍)。
-/// 给 JSONL session 状态解析用,避免把完整对话文件加载到前端。
-pub fn read_tail(path: &str, max_bytes: usize) -> Result<String, String> {
-    use std::io::{Read, Seek, SeekFrom};
-    let mut f = fs::File::open(path).map_err(|e| format!("打开文件失败: {e}"))?;
-    let file_len = f
-        .metadata()
-        .map_err(|e| format!("读取文件信息失败: {e}"))?
-        .len();
-    let offset = file_len.saturating_sub(max_bytes as u64);
-    f.seek(SeekFrom::Start(offset))
-        .map_err(|e| format!("定位文件失败: {e}"))?;
-    let mut buf = Vec::with_capacity((file_len - offset) as usize);
-    f.read_to_end(&mut buf)
-        .map_err(|e| format!("读取文件失败: {e}"))?;
-    Ok(String::from_utf8_lossy(&buf).to_string())
-}
+/// 尾读原语 re-export:保持 crate::fs::{read_tail, read_tail_changed, ChangedTail} 引用路径不变。
+pub use crate::fs_tail::{read_tail, read_tail_changed, ChangedTail};
 
 #[cfg(test)]
 mod tests {

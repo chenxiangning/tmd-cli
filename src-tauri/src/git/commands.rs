@@ -273,12 +273,13 @@ pub async fn git_push_preview(
     .await
 }
 
-/// 远端对话框结构化请求(fetch/pull/push 带选项);pull 会移动 HEAD → 写路径 evict。
+/// 远端对话框结构化请求(fetch/pull/push 带选项),返回完成明细(面板通知);
+/// pull 会移动 HEAD → 写路径 evict。
 #[tauri::command]
 pub async fn git_remote_request(
     cwd: String,
     req: remote_ops::RemoteRequest,
-) -> Result<String, String> {
+) -> Result<remote_ops::RemoteOpReport, String> {
     let cwd2 = cwd.clone();
     run_mut(cwd, move |r| remote_ops::run_request(r, &cwd2, req)).await
 }

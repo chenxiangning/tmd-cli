@@ -16,6 +16,7 @@
 > 2026-09-11 会话 tab 平铺显示 + 平铺广播开关:右键菜单全局开关(参照 codeg tile),打开的 tab 并排同屏点列即切,composer 喇叭开关开启后正常发送即广播到全部平铺幕布;横评广播插件实施后验收否决已整体拆除(spec 留档「已废弃」)。
 > 2026-09-12/13 补校:WSL 支持 M1、工作区壁纸(图库+流体)、应用内自动更新(updater 签名通道)、omp 历史会话预热秒开(onAcquired 早激活)、dsh 会话流式输出、Git 差异三区拖选批量与未跟踪删除、pull 分叉 rebase 兜底、回首页⇄回会话 toggle、欢迎页 SWR 缓存与手动全量刷新;插件计数 23→27(10 engine / 13 feature / 3 core / 1 local)。
 > 2026-09-16 欢迎页改版补校:终端窗体造型引擎选择器(标题条 / prompt 行工作区选择 / 键盘 ↑↓⏎)、引擎全动作行(凭据 ● 展开额度 / 新会话 / 安装更新重装 / 单行重探 / 官方文档)、omp 版本回退菜单(最新 10 个稳定版 + 收藏钉版)、前置依赖门控、页脚 RESUME(全工作区倒序 8 条)/ QUOTA(供应商聚合 + 重置倒计时)/ TOKENS(本地 usage 聚合 + 近 7 日双段柱)。
+> 2026-09-19 补校:文件标记插件(marks,行间锚点/跨文件聚合/芯片条 staging 发送/指纹重锚/终端回链)、全文搜索面板与文件名快开(⇧⌘F/⌘P,Rust fs_search 即时扫描)、Markdown 预览 markdown-it 快路径(常规块单遍 HTML 直渲染,富块留 react-markdown)、代码编辑器扩语言至 25 家 + 行内查找 + 定位行、git 面板内工具条(顶栏嵌入段下移,聚合数字三类型化下拉)、会话状态巡航尾读尺寸闸(omp/pi/claude/qoder/codex 五家接闸,重扫读头 mtime 增量缓存)、Web 远程访问桥 M1/M2、会话看板插件;插件计数 27→32(10 engine / 18 feature / 3 core / 1 local,新增 marks/search/web-access/session-board/lsp)。
 
 ## 工作区会话
 
@@ -253,7 +254,7 @@
 - 预览高亮:文本文件直接进 CodeMirror 编辑态;Markdown 代码块 Prism 高亮
 - Markdown 预览:GFM + 数学(KaTeX)+ Mermaid 图(源码/渲染双 tab)+ 本地图片(asset 协议)+ 图片查看器 + 大纲浮窗(汉堡展开、可钉住,未钉住跳转/移出自动收起) + 图片/Mermaid 全屏
 - Markdown 渲染契约:大文档渐进揭示(360 行起、720 行/片);超大代码块懒渲染;frontmatter 卡片;外链走系统浏览器
-- 渐进渲染阈值:超 96KB / 2500 行 / 900 块 / 20 重块任一即转渐进;编译结果 LRU 30 篇;纯文本段 80 行切块;含引用定义/文档级 HTML 退化单文档整体渲染
+- 渐进渲染阈值:超 96KB / 2500 行 / 900 块 / 20 重块任一即转渐进;编译结果 LRU 30 篇;纯文本段 80 行切块;配对跨行 HTML 块原子切出;链接/脚注定义逐块追加进编译(跨块引用可解析),脚注定义判富块落 remark-gfm(09-19 拆除整篇合并,marks 落锚子段落粒度)
 - 超大代码块懒渲染阈值:超 80 行或 12KB 折叠为占位,视口外 600px 预揭示,已揭示块缓存 800 条
 - Markdown 代码块工具条:语言 badge(图标桶映射)+ 一键复制(成功对勾 1.2s);表格横向滚动包裹,滚动位置跨重渲染缓存(上限 160 条)
 - Prism 高亮预算:30 种语言包静态注册,高亮结果 LRU 4000 条,输出经纵深清洗
@@ -261,6 +262,7 @@
 - Mermaid 预算与修复:SVG 渲染 LRU 80、源码/渲染 tab 选择按文档记忆(50 文档);渲染前为不安全标签自动补引号,主题跟随应用,SVG 就绪预热查看器
 - md 文件默认预览,右上角编辑/预览切换按路径记住(进程内存,重启回默认预览);预览始终渲染磁盘内容,未保存草稿不进预览
 - Markdown 本地图片:asset:// 直载失败回退 data URL(≤20MB,扩展名白名单)
+- 语义跳转与引用(LSP 通道):cmd/ctrl+点击使用点跳定义、定义点/⇧F12/右键「查找引用」开引用 peek(左源码预览右命中列表,点击跳转);F12 跳定义;hover 悬停签名;Rust lsp_spawn/lsp_send/lsp_stop 通用原语(只懂 Content-Length 组帧),语言知识全在 lsp 插件(TS5→typescript-language-server / TS7→tsgo `--lsp --stdio` 自动分叉,Python→pyright,Java→jdt.ls 首用引导下载);空闲 10 分钟自动关停;server 未就绪静默降级不猜测
 
 ## 设置与外观
 
@@ -295,7 +297,7 @@
 
 ## 插件市场(插排)
 
-- 插排 / 清单双视图,27 个注册插件可视化插拔(10 engine + 13 feature + 3 core + 1 local),写 settings.disabledPlugins,重启生效(运行期不热卸载)
+- 插排 / 清单双视图,32 个注册插件可视化插拔(10 engine + 18 feature + 3 core + 1 local),写 settings.disabledPlugins,重启生效(运行期不热卸载)
 - core 类焊死不可拔(composer / settings / welcome);engine / feature / local 可拔
 - 插排页双插排:内置插件一块(分类虚线分隔),本机插件(local 类)独立次级插排(品牌区「本机插件 · 免重启装载」)
 - 插件市场经标题栏插头按钮开合(整页替换、会话现场不丢);页头「重启应用」按钮带待生效计数一键重启

@@ -44,6 +44,7 @@ pub use capture::{dirty_paths, snapshot_paths};
 pub use diff::{blob_patch, open_batch_patches, CkptPatch};
 pub use error::CkptError;
 pub use events::record_edit;
+pub(crate) use ledger::backfill_identity;
 pub use ledger::{anchor_turn, seal_dead_turns, seal_turn};
 pub use prune::prune;
 pub use restore::{restore_batch, RestoreOutcome};

@@ -1,9 +1,9 @@
 import { GitBranch } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
+import { t } from "@kernel/i18n";
 import { getFilePanelMode } from "@kernel/filePanel";
 import { hydrateGitPanelPrefs, requestRemoteDialog } from "./panelStore";
 import { GitPanel } from "./GitPanel";
-import { GitToolbar } from "./GitToolbar";
 import { CommitDiffTabContent } from "./CommitDiffTab";
 import { DiffTabContent } from "./DiffTabContent";
 import { COMMIT_TAB_KIND } from "./commitTab";
@@ -25,7 +25,6 @@ export const gitPlugin: Plugin = {
       label: "Git",
       icon: GitBranch,
       component: GitPanel,
-      toolbar: GitToolbar, // 顶栏视图下拉(tabs 之后、⋯ 之前),远端动作收编进下拉
       showFileSubbar: false, // 分支/upstream 上顶栏 label(2026-09-14)
     });
     // 右栏 Git 面板(差异/分支/历史)由工具栏与中央 tab 进入,不再单独暴露侧栏快捷动作。
@@ -35,7 +34,11 @@ export const gitPlugin: Plugin = {
     // 远端动作命令化(fetch/pull/push):无键位仅暴露,为设置清单改键预留;
     // 常规入口是分支视图右键菜单 + 顶栏视图下拉(更新/获取/拉取/推送),命令与 requestRemoteDialog 同通道
     for (const op of ["fetch", "pull", "push"] as const) {
-      const labels = { fetch: "获取远端更新(fetch)", pull: "拉取远端(pull)", push: "推送远端(push)" };
+      const labels = {
+        fetch: t("获取远端更新(fetch)"),
+        pull: t("拉取远端(pull)"),
+        push: t("推送远端(push)"),
+      };
       ctx.registerCommand({
         id: `git.${op}`,
         title: labels[op],

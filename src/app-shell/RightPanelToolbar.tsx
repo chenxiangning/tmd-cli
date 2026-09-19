@@ -22,14 +22,12 @@ import { FileActionsBar } from "./FileActionsBar";
 
 
 /* ──────────────────────────────────────────────────────────
- * TopBar 用 panel tabs 组件 ─ TopBar 直接渲染(header.right 挂点当前零贡献者)。
+ * TopBar 用 panel tabs 组件 ─ TopBar 直接渲染(header.right 挂点由插件贡献,如 web-access 的远程控制徽标)。
  * tab 列表完全来自 kernel 面板注册表,外壳不认识任何业务面板。
  * ────────────────────────────────────────────────────────── */
 export function TopBarPanelTabs() {
   const { mode, pinnedIds, panels } = useFilePanel();
   const [overflowPos, setOverflowPos] = useState<{ x: number; y: number } | null>(null);
-  /* 激活面板的顶栏嵌入段(如 git 的视图下拉 + ⟳) */
-  const ActiveToolbar = panels.find((p) => p.id === mode)?.toolbar;
 
   /* 外显 tab = 已钉住 + 当前激活(未钉也临时外显) */
   const visiblePanels = panels.filter(
@@ -70,10 +68,6 @@ export function TopBarPanelTabs() {
           );
         })}
       </div>
-
-      {/* 激活面板嵌入段在 tabs 之后、⋯ 之前(2026-09-14 口径:与 tab 图标同行靠右) */}
-      {ActiveToolbar ? <ActiveToolbar /> : null}
-
 
       <button
         type="button"

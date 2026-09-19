@@ -22,6 +22,7 @@ import {
 } from "@kernel/settings";
 import { playAskSound } from "@kernel/askSound";
 import { PromptHistoryManager } from "./PromptHistoryManager";
+import { HygieneCard } from "./HygieneCard";
 import { t } from "@kernel/i18n";
 import { StyledSelect } from "@kernel/StyledSelect";
 
@@ -255,6 +256,7 @@ export function BehaviorTab() {
       </div>
     </div>
       <PromptHistoryManager />
+      <HygieneCard />
     </>
   );
 }

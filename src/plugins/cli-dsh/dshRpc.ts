@@ -150,3 +150,15 @@ export async function readHostContextPressure(
     breakdown: it?.projections?.values?.contextBreakdown,
   };
 }
+
+/** 会话卫生判空:session.list 自项 blank 标志(host 预创建、从未发过消息的空壳,
+ *  即 listHostSessions 显示「空会话」的同源判定)。list 失败/会话不在册 = false
+ *  (判不了不删,与其他引擎钩子同一保守口径)。 */
+export async function isHostSessionEmpty(
+  conn: DshConnection, cliSessionId: string,
+): Promise<boolean> {
+  const value = await rpc<{ items?: DshSessionListItem[] }>(conn, "session/list", { _request: {} });
+  if (!value) return false;
+  const it = (value.items || []).find((s) => s.sessionId === cliSessionId);
+  return it !== undefined && it.blank === true;
+}

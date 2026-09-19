@@ -18,7 +18,7 @@ import {
   draftRenamePrefix,
   pathEqualsOrUnder,
 } from "./editor/fileCache";
-import { openFileInTab } from "./openFile";
+import { openFileInTab } from "@kernel/fileTabs";
 
 /** 命名弹窗:new-file/new-folder 在 dir 下新建;rename 改名 entry。 */
 type TreePrompt =

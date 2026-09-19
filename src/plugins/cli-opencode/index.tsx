@@ -1,6 +1,7 @@
 import type { Plugin } from "@kernel/plugin";
 import {
   deleteOpencodeSession,
+  isOpencodeSessionEmpty,
   listOpencodeSessions,
   readOpencodeSessionEdits,
   readOpencodeSessionIdentity,
@@ -71,6 +72,8 @@ export const cliOpencodePlugin: Plugin = {
       resumeArgs: (sessionId) => ["--session", sessionId],
       deleteSession: deleteOpencodeSession,
       listSessions: listOpencodeSessions,
+      /* 会话卫生判空:message 表 role=user 计数(sqlite 代读,库不可用 = 不删)。 */
+      isDiskSessionEmpty: (session) => isOpencodeSessionEmpty(session.path),
       readSessionStatus: readOpencodeSessionStatus,
       readSessionFileIdentity: readOpencodeSessionIdentity,
       readSessionUserMessages: readOpencodeUserMessages,

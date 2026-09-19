@@ -106,3 +106,46 @@ describe("importPromptDir", () => {
     expect(await importer.importPromptDir("/不存在")).toEqual({ agents: 0, prompts: 0, skipped: 0 });
   });
 });
+
+describe("importCodemossPrompts 与导入容错", () => {
+  it("importCodemossPrompts 读 ~/.codex/prompts 入全局库", async () => {
+    ipcMock.files.set("/home/.codex/prompts/cx.md", "---\ndescription: codex 迁移\n---\n\ncodemoss 正文");
+    expect(await importer.importCodemossPrompts()).toEqual({ agents: 0, prompts: 1, skipped: 0 });
+    expect(store.promptContent("cx", "/x")).toBe("codemoss 正文");
+    expect(store.promptSuggestions("/x")[0]?.description).toBe("codex 迁移");
+  });
+
+  it("同批 agent.json 内重名:后到者加 (2)(查重依赖先前已保存项)", async () => {
+    ipcMock.files.set(
+      "/home/.ccgui/agent.json",
+      JSON.stringify({ agents: { a1: { name: "重", prompt: "先到" }, a2: { name: "重", prompt: "后到" } } }),
+    );
+    expect(await importer.importCodemossAgents()).toEqual({ agents: 2, prompts: 0, skipped: 0 });
+    expect(store.agentByName("重")?.prompt).toBe("先到");
+    expect(store.agentByName("重 (2)")?.prompt).toBe("后到");
+  });
+
+  it("行级容错:icon/prompt 非字符串回落,空白名计 skipped", async () => {
+    ipcMock.files.set(
+      "/home/.ccgui/agent.json",
+      JSON.stringify({
+        agents: {
+          a1: { name: "容错", icon: 7, prompt: { 非字符串: true } },
+          a2: { name: "   ", prompt: "空白名" },
+        },
+      }),
+    );
+    expect(await importer.importCodemossAgents()).toEqual({ agents: 1, prompts: 0, skipped: 1 });
+    const agent = store.agentByName("容错")!;
+    expect(agent.icon).toBeUndefined();
+    expect(agent.prompt).toBe("");
+    expect(store.agentByName("   ")).toBeNull();
+  });
+
+  it("saveAgent 写盘失败计入 skipped,不炸整批", async () => {
+    ipcMock.files.set("/home/.ccgui/agent.json", JSON.stringify({ agents: { a1: { name: "落盘炸", prompt: "x" } } }));
+    ipcMock.fsWriteFile.mockRejectedValueOnce(new Error("EIO"));
+    expect(await importer.importCodemossAgents()).toEqual({ agents: 0, prompts: 0, skipped: 1 });
+    expect(store.agentByName("落盘炸")).toBeNull();
+  });
+});

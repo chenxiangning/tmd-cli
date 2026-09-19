@@ -12,7 +12,9 @@ import { listClaudeSuggestions } from "./scanSuggestions";
 import { claudeConfigEntry } from "./configGui";
 import { applyClaudeChannel } from "./channelApply";
 import { ProviderChannelsCard } from "@plugins/cli-shared/providerChannels";
-import { readHeadSessionMeta } from "../cli-shared/diskSessions";
+import { readHeadSessionMetaCached } from "../cli-shared/diskSessions";
+import { readStatusTailGated } from "../cli-shared/sessionStatus";
+import { isJsonlSessionEmpty } from "../cli-shared/sessionEmpty";
 /**
  * claude 品牌 glyph:官方日芒标志(simple-icons claude 矢量路径 vendored,
  * 与 omp/codex glyph 同源策略),品牌橙 #D97757、viewBox 0 0 24 24 官方一致。
@@ -66,7 +68,7 @@ async function listClaudeSessions(cwd: string): Promise<CliDiskSession[]> {
          一次读头双解析(身份自证窗 ⊂ 标题浅窗):标题 + createdAt(创建时刻定死看板日历落位),
          比对「标题一读 + 身份一读」每文件省一次 IPC。 */
       return [
-        readHeadSessionMeta(f.path).then((meta) => ({
+        readHeadSessionMetaCached(f.path, f.modifiedAt).then((meta) => ({
           id: m[1],
           modifiedAt: f.modifiedAt,
           createdAt: meta.createdAt,
@@ -111,13 +113,16 @@ async function readClaudeSessionStatus(
 ): Promise<CliSessionStatus | null> {
   const dir = await claudeSessionsDir(cwd);
   if (!dir) return null;
-  const tail = await ipc
-    .fsReadTail(`${dir}/${cliSessionId}.jsonl`, STATUS_TAIL_BYTES)
-    .catch(() => "");
-  if (!tail) return null;
-  const model = extractClaudeModel(tail);
-  // claude 思考强度不落盘到会话文件(settings 全局开关),不提供 thinkingLevel。
-  return model ? { model } : null;
+  /* claude 思考强度不落盘到会话文件(settings 全局开关),不提供 thinkingLevel。 */
+  return readStatusTailGated(
+    `${dir}\u0000${cliSessionId}`,
+    async () => `${dir}/${cliSessionId}.jsonl`,
+    STATUS_TAIL_BYTES,
+    (tail) => {
+      const model = extractClaudeModel(tail);
+      return model ? { model } : null;
+    },
+  );
 }
 /** claude 文件名即会话 id,免扫目录直拼路径。 */
 async function readClaudeUserMessages(cwd: string, cliSessionId: string, full: boolean) {
@@ -256,6 +261,8 @@ export const cliClaudePlugin: Plugin = {
       listMcpServers: listClaudeMcpServers,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listClaudeSessions,
+      /* 会话卫生判空:path 即 <uuid>.jsonl,共享标记子串判定(sessionEmpty.ts) */
+      isDiskSessionEmpty: (session) => isJsonlSessionEmpty(session.path),
       readSessionStatus: readClaudeSessionStatus,
       readSessionFileIdentity: readClaudeSessionIdentity,
       readSessionUserMessages: readClaudeUserMessages,

@@ -27,8 +27,8 @@
 | 2026-09-01 | [omp CLI 学习笔记(14 课主课 + prompts/ 用户速查)](research/omp-cli-course/README.md) | 已完结 |
 | 2026-09-13 | [omp 打开历史会话性能分析与常驻预热方案研究](research/omp-session-open-performance.md) | 已完成(方案已落地:预热接管,契约见 architecture/10) |
 | 2026-09-03 | [omp 最近版本升级记录(v18.0.7-18.1.6)](research/omp-cli-course/releases.md) | 持续更新 |
-| 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-14 校准:27 插件 / 挂点 14 / WSL / 壁纸 / 自动更新 / 预热秒开) |
-| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-07 校准:删除意图 tombstone/会话删除顺序/归档容量与分页/dsh 删除与空壳契约;**09-10 校准**:dsh 5.2 改以 0.1.2 斜杠方法面 + /api/remote.mux 双流实测契约,补 react-doctor 治理原则 9 表;**09-14 校准**:v0.1.7 对码 —— 命令面 116 / 插件 27 / 挂点 14 / acquireResume 接管流程图 / pull rebase 兜底 / wsl 与本机插件命令行) |
+| 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-14 校准:27 插件 / 挂点 14 / WSL / 壁纸 / 自动更新 / 预热秒开;09-19 校准:31 插件) |
+| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-07 校准:删除意图 tombstone/会话删除顺序/归档容量与分页/dsh 删除与空壳契约;**09-10 校准**:dsh 5.2 改以 0.1.2 斜杠方法面 + /api/remote.mux 双流实测契约,补 react-doctor 治理原则 9 表;**09-14 校准**:v0.1.7 对码 —— 命令面 116 / 插件 27 / 挂点 14 / acquireResume 接管流程图 / pull rebase 兜底 / wsl 与本机插件命令行;**09-19 校准**:插件 31,新增 marks/search 插件与编辑器扩展/终端链接两条宿主注册表,契约见 architecture/13) |
 | 2026-09-01 | [Composer 工具栏设计](superpowers/specs/2026-09-01-composer-toolbar-design.md) | 已确认 |
 | 2026-09-01 | [Composer 富输入框设计原型](design/composer-design.html) | 已落地 |
 | 2026-09-01~02 | [UI 原型:composer 工具栏 / 欢迎页额度 / 设置面板 / 消息锚点栏 / git 文件列表 ×3 / 批审阅面板 / 插排](prototypes/) | 设计定稿配套 |
@@ -43,7 +43,7 @@
 | 2026-09-03 | [插排徽标升级设计](superpowers/specs/2026-09-03-plugin-market-icons-design.md) | 已评审通过 |
 | 2026-09-03 | [会话标题 tab 条设计](superpowers/specs/2026-09-03-session-title-tabs-design.md) | 已落地 |
 | 2026-09-03 | [父子会话层级原型:方案 B 定稿(父节点即开关,保留 FLUX 时间轴)](design/session-hierarchy-schemes.html) | 设计原型 |
-| 常态 | [功能清单 FEATURES](FEATURES.md) | 随代码演进(09-14 补校:WSL / 壁纸 / 自动更新 / 预热秒开 / dsh 流式 / git 批量,插件 27) |
+| 常态 | [功能清单 FEATURES](FEATURES.md) | 随代码演进(09-19 补校:文件标记 / 全文搜索与快开 / md 快路径 / git 面板工具条 / 状态巡航尺寸闸,插件 31) |
 | 2026-09-04 | [Git 历史视图 Graph 化 + 提交 diff 进左侧文件容器](superpowers/specs/2026-09-04-git-history-graph-design.md) | 已落地 |
 | 2026-09-04 | [文件渲染档案:补齐 codemoss 全量文件预览形态](superpowers/specs/2026-09-04-file-render-profiles-design.md) | 已落地 |
 | 2026-09-04 | [SSH 模块竞品调研](research/ssh-module-reference.md) | 已完成 |
@@ -154,5 +154,20 @@
 | 2026-09-16 | [会话看板设计 spec(热力月历 + 泳道时间线 + 生命周期五态;插件化落地)](superpowers/specs/2026-09-16-session-board-design.md) | 已落地(session-board 插件,实施纪要见 spec) |
 | 2026-09-17 | [Web 远程访问桥 M1/M2 契约:transport 继承 R3 / event_sink 双扇出 / 命令镜像与信任模型 / 停机语义 / /file 允许制 / LAN 绑定 / 中继链路](architecture/12-web-remote-access.md) | 生效中(改 web 域/transport/event_sink/relay 前必读;含 18 笔整体 review 决策) |
 | 2026-09-17 | [本地 18 笔整体 code review(git 双栏/web 桥/kernel 状态/看板四域;P1×1 + P2×7 全修)](review/2026-09-17-18-commits-global-review.md) | 已完成(修复随本批提交;门禁全绿 react-doctor 100) |
+| 2026-09-18 | [编辑器扩展与终端链接宿主契约](architecture/13-editor-extensions-terminal-links.md) | 生效中(改 marks / CM 扩展注入 / 幕布链接前必读;原 11 号与壁纸撞号,09-19 改 13) |
+| 2026-09-19 | [LSP 语义跳转契约(分层/会话续期与断连自愈/交互手势/peek 面板)](architecture/14-lsp-semantic-nav.md) | 生效中(改 lsp 插件/语义跳转前必读) |
 | 2026-09-18 | [双栏 diff 折叠焦点设计(全文态 context 段胶囊就地展开,N4 原型落地)](superpowers/specs/2026-09-18-split-diff-n4-collapse-focus-design.md) | 已落地(commit c126047;评审收口 UX 路:spec 补盘 + 双胶囊读屏去重) |
+| 2026-09-18 | [文件标记 × 对话框交互原型 ×3(A 行间锚点 / B 右侧标注面板 / C 选区即引用)](design/file-mark-composer-a.html) | 设计原型(三选一待拍板;B/C 见同目录 -b/-c) |
+| 2026-09-18 | [文件标记 × 对话框原型 方案 D:行间锚点 + 全局标记中心(跨文件聚合发送,sidecar 零写入 + 指纹锚定)](design/file-mark-composer-d.html) | 设计原型(已拍板) |
+| 2026-09-18 | [文件标记(file-marks)设计 spec:插件化 + 两条 kernel 宿主注册契约](superpowers/specs/2026-09-18-file-marks-design.md) | 已落地(cbe7839/a157610/6317d86;宿主契约见 architecture/13) |
+| 2026-09-18 | [会话状态轮询性能批次一提案:尾读尺寸闸 + configHomeDir 进程 memo(含原设计校准矩阵)](../openspec/changes/archive/2026-09-18-perf-status-poll/proposal.md) | 已落地(4e859fd/9aa8f77/66599b9;同批平铺门控修复 0f6131e,已归档) |
+| 2026-09-18 | [会话用量可见性设计 spec(本地 JSONL token 四元组 + cache 命中率 + 行徽标/详情弹层;pi/omp 透传自带 cost)](superpowers/specs/2026-09-18-session-usage-visibility-design.md) | 草案(设计推演,未排期) |
+| 2026-09-18 | [会话用量可见性交互原型(侧栏行徽标 + 看板角标 + 用量详情弹层;真实采样数据)](design/session-usage-visibility.html) | 设计原型(配套上 spec) |
+| 2026-09-18 | [yn(Yank Note)能力复刻:md 渲染提速 + 代码渲染 + 全文搜索/快开](superpowers/specs/2026-09-18-yn-replicate-md-render-code-search-design.md) | 已落地(f176423/15e7e60/2c58d44;AGPL/MIT 裁决:照抄逻辑不抄代码) |
+| 2026-09-19 | [近 20 笔提交整体 code review(P0×1 + P1×2 + P2×8 全修;marks/git/yn/perf/跨领域五路)](review/2026-09-19-20-commits-global-review.md) | 已完成(修复随本批提交;门禁全绿 react-doctor 100;缓修 4 项见文末) |
+| 2026-09-19 | [代码符号跳转与引用(cmd/ctrl+click)调研:yn 实证 + 多语言语义路线(LSP)](research/code-symbol-references.md) | 调研底稿(方向已定:yn 本就是语义引用;用户拍板弃字面,一步到位 LSP 语义通道) |
+| 2026-09-19 | [代码符号语义跳转与引用(LSP 通道)设计:cmd/ctrl+click 定义/引用 peek](superpowers/specs/2026-09-19-lsp-semantic-navigation-design.md) | 已落地(c11c29c;TS7 探活分叉回填 112f971;桩目检六场景 + tsgo 真机冒烟全绿) |
+| 2026-09-19 | [LSP 语义跳转交互增强(二轮):手势反馈 / peek 面板 / hover 渲染](superpowers/specs/2026-09-19-lsp-interaction-enhancement-design.md) | 已落地(db938d6;桩目检六场景全绿,架构沉淀 architecture/14) |
+| 2026-09-19 | [会话卫生清扫设计:超期(默认24h)自动归档 + 空会话删除,挂磁盘扫描结算点零轮询](superpowers/specs/2026-09-19-session-hygiene-auto-archive-design.md) | 已落地(1e75245;keep 覆盖层 + 9 引擎判空钩子 + 行为页开关/时窗) |
+| 2026-09-19 | [v0.2.0 发布后批次评审(sidekick 开关冲突修复 / 数组守卫补漏 / 死代码清理 / 文档 8 处对齐)](review/2026-09-19-v0.2.0-postrelease-review.md) | 已完成(修复与清理随评审提交) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

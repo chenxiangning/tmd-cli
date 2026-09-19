@@ -89,6 +89,24 @@ pub(crate) fn write_sidecar_blob(
     Ok(oid.to_string())
 }
 
+/// HEAD 树内路径的 blob 内容;无提交/路径不在/仓库异常 → None。
+///
+/// open 批展示重定基(2026-09-19 对齐裁决)的取值原语:首击新建(前像空)的
+/// 路径在轮进行中被并行动作(git mv/暂存/提交)带进 HEAD 后,账本语义仍记
+/// A + 全量行数,而 git 面板按 HEAD 记 R/M + 增量 —— 两套数字对用户呈现为
+/// 「审批线对不上」。展示层(状态符与 ± 基线)改以 HEAD 为准:路径已入 HEAD
+/// 即按 M 计、diff 以 HEAD 为前像;回退/应用语义不动(仍走账本固化快照)。
+pub(super) fn head_blob_bytes(user: Option<&git2::Repository>, path: &str) -> Option<Vec<u8>> {
+    let repo = user?;
+    let head = repo.find_reference("HEAD").ok()?.peel_to_commit().ok()?;
+    let entry = head
+        .tree()
+        .ok()?
+        .get_path(std::path::Path::new(path))
+        .ok()?;
+    Some(repo.find_blob(entry.id()).ok()?.content().to_vec())
+}
+
 pub(crate) fn append_ledger(cwd: &str, entry: &LedgerEntry) -> Result<(), CkptError> {
     let file = ledger_file(cwd);
     if let Some(parent) = file.parent() {

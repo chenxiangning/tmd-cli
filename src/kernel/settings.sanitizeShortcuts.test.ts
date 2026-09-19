@@ -33,6 +33,9 @@ describe("sanitizeShortcutOverrides", () => {
     expect(sanitize.sanitizeShortcutOverrides("nope")).toEqual({});
     expect(sanitize.sanitizeShortcutOverrides([])).toEqual({});
   });
+  it("字符串数组不混入索引键(\"0\"/\"1\" 不是命令 id)", () => {
+    expect(sanitize.sanitizeShortcutOverrides(["mod+k", "alt+x"] as unknown)).toEqual({});
+  });
 
   it("合法键位串保留并规范化(主键小写)", () => {
     expect(

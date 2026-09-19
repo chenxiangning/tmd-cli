@@ -1,0 +1,292 @@
+/* lsp 域样式 —— peek 浮窗 / 右键菜单 / hover 提示 / Java 引导卡。 */
+
+.lsp-peek {
+  position: absolute;
+  z-index: 40;
+  max-height: 62%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--tmd-border, rgba(0 0 0 / 0.18));
+  border-radius: 8px;
+  background: var(--tmd-bg-elevated, #fff);
+  box-shadow: 0 8px 28px rgba(0 0 0 / 0.24);
+  overflow: hidden;
+}
+
+.lsp-peek-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--tmd-border, rgba(0 0 0 / 0.12));
+  font-size: 0.75rem;
+  color: var(--tmd-fg);
+}
+
+.lsp-peek-close {
+  border: none;
+  background: none;
+  color: var(--tmd-fg);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.lsp-peek-close:hover {
+  background: var(--tmd-bg-hover);
+}
+
+.lsp-peek-body {
+  display: flex;
+  min-height: 120px;
+  max-height: 46vh;
+}
+
+.lsp-peek-preview {
+  flex: 1.6;
+  min-width: 0;
+  overflow: auto;
+  padding: 6px 0;
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  border-right: 1px solid var(--tmd-border, rgba(0 0 0 / 0.12));
+}
+
+.lsp-peek-code-row {
+  display: flex;
+  gap: 10px;
+  padding: 0 10px;
+  white-space: pre;
+}
+.lsp-peek-code-n {
+  flex: none;
+  min-width: 3em;
+  text-align: right;
+  opacity: 0.45;
+  user-select: none;
+}
+.lsp-peek-code-cur {
+  background: rgba(90 160 214 / 0.22);
+}
+
+.lsp-peek-list {
+  flex: 1;
+  min-width: 180px;
+  max-width: 320px;
+  overflow: auto;
+  padding: 4px;
+}
+
+.lsp-peek-row {
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.lsp-peek-row:hover {
+  background: var(--tmd-bg-hover);
+}
+.lsp-peek-row-name {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 0.75rem;
+  color: var(--tmd-fg);
+}
+.lsp-peek-row-base {
+  font-weight: 600;
+}
+.lsp-peek-row-line {
+  opacity: 0.55;
+  font-size: 0.7rem;
+}
+
+.lsp-peek-empty {
+  padding: 18px 14px;
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.lsp-menu {
+  position: absolute;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  padding: 4px;
+  border: 1px solid var(--tmd-border, rgba(0 0 0 / 0.18));
+  border-radius: 8px;
+  background: var(--tmd-bg-elevated, #fff);
+  box-shadow: 0 6px 20px rgba(0 0 0 / 0.2);
+}
+
+.lsp-menu-item {
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: var(--tmd-fg);
+  cursor: pointer;
+}
+.lsp-menu-item:hover {
+  background: var(--tmd-bg-hover);
+}
+
+/* hover 内容走 markdown 渲染(hoverCard):正文用界面字体,代码用等宽;
+   white-space 必须 normal —— pre-wrap 会把标签间换行符渲染成可见空白。 */
+.lsp-hover {
+  max-width: 520px;
+  max-height: 300px;
+  overflow: auto;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  white-space: normal;
+  word-break: break-word;
+  color: var(--tmd-fg);
+}
+.lsp-hover p {
+  margin: 4px 0;
+}
+.lsp-hover code {
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  font-size: 0.68rem;
+  background: var(--tmd-bg-hover, rgba(0 0 0 / 0.06));
+  border-radius: 3px;
+  padding: 0 3px;
+}
+.lsp-hover-code {
+  margin: 6px 0;
+  border: 1px solid var(--tmd-border, rgba(0 0 0 / 0.12));
+  border-radius: 6px;
+  overflow: hidden;
+}
+.lsp-hover-code-label {
+  padding: 1px 8px;
+  font-size: 0.64rem;
+  opacity: 0.55;
+  border-bottom: 1px solid var(--tmd-border, rgba(0 0 0 / 0.12));
+}
+.lsp-hover-code pre {
+  margin: 0;
+  padding: 6px 8px;
+  overflow: auto;
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+.lsp-hover-code pre code {
+  background: none;
+  padding: 0;
+}
+.lsp-hover-link {
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  opacity: 0.85;
+}
+
+/* cmd+hover 链接态预告(词法级,零 server 调用)。 */
+.lsp-link-hint {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* peek 选中行 / 行文本 / 符号区间高亮。 */
+.lsp-peek-list:focus {
+  outline: none;
+}
+.lsp-peek-row-sel {
+  background: var(--tmd-bg-active, rgba(90 140 200 / 0.18));
+}
+.lsp-peek-row-code {
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  font-size: 0.68rem;
+  opacity: 0.65;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lsp-peek-row-code:empty {
+  display: none;
+}
+.lsp-peek-sym {
+  background: rgba(220 170 60 / 0.38);
+  border-radius: 2px;
+}
+
+/* 右键菜单置灰与提示行。 */
+.lsp-menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.lsp-menu-item:disabled:hover {
+  background: none;
+}
+.lsp-menu-hint {
+  padding: 2px 10px 6px;
+  font-size: 0.68rem;
+  opacity: 0.55;
+}
+.lsp-guide {
+  position: fixed;
+  left: 50%;
+  top: 24vh;
+  transform: translateX(-50%);
+  z-index: 1202;
+  width: min(460px, calc(100vw - 48px));
+  padding: 18px 20px;
+  border: 1px solid var(--tmd-border, rgba(0 0 0 / 0.18));
+  border-radius: 12px;
+  background: var(--tmd-bg-elevated, #fff);
+  box-shadow: 0 12px 40px rgba(0 0 0 / 0.28);
+}
+.lsp-guide-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--tmd-fg);
+  margin-bottom: 10px;
+}
+.lsp-guide-body {
+  font-size: 0.75rem;
+  line-height: 1.7;
+  color: var(--tmd-fg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lsp-guide-ok {
+  color: #3a9d5d;
+}
+.lsp-guide-warn {
+  color: #c2762a;
+}
+.lsp-guide-status {
+  opacity: 0.7;
+}
+.lsp-guide-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+.lsp-guide-btn {
+  padding: 5px 14px;
+  border-radius: 7px;
+  border: 1px solid var(--tmd-border, rgba(0 0 0 / 0.2));
+  background: none;
+  font-size: 0.75rem;
+  color: var(--tmd-fg);
+  cursor: pointer;
+}
+.lsp-guide-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.lsp-guide-primary {
+  background: var(--tmd-accent, #5c8ac9);
+  border-color: transparent;
+  color: #fff;
+}

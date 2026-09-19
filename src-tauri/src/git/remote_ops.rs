@@ -21,7 +21,7 @@ use super::GitError;
 
 // 拆分后保持 remote_ops::* 引用契约:参数组装与对话框请求层经此处 re-export。
 pub(super) use super::remote_args::{fetch_args, pull_args, push_args};
-pub use super::remote_request::{run_request, RemoteRequest};
+pub use super::remote_request::{run_request, RemoteOpReport, RemoteRequest};
 
 /// 网络操作总时限:到点 kill,释放 per-cwd 互斥锁(面板冻结的最后防线)。
 const REMOTE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);

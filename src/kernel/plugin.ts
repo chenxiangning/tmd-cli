@@ -13,6 +13,9 @@ import type { TabContentContribution } from "./tabs";
 import type { MarketPanelContribution } from "./marketPanel";
 import type { CommandContribution } from "./shortcuts";
 import type { FileVisualProvider } from "./fileVisual";
+import type { EditorExtensionFactory } from "./editorExtensions";
+import type { TerminalLinkProvider } from "./terminalLinks";
+import type { LanguageServerConfig } from "./lsp/lspRegistry";
 import type { SidebarAction } from "./sidebarActions";
 import type { CliConfigEntry } from "./cliConfigRegistry";
 import type { RemoteFileSource } from "./fileSources";
@@ -85,8 +88,10 @@ export type MountPoint =
   | "welcome.footer"
   /** 幕布下方富 composer 输入区。 */
   | "editorCenter.composer"
-  /** composer 输入区右缘竖向图标列(assets 唤醒入口等)。 */
+  /** composer 输入区左下水平图标行(assets 唤醒入口等;b7960d5 起左下横排)。 */
   | "composer.inputRail"
+  /** composer 附件条区域(输入区上方):可交互附件/引用芯片条(marks 引用芯片等)。 */
+  | "composer.attachments"
   /** composer 底部状态条(+ 模型/能力/发送)。 */
   | "composer.statusBar"
   /** 插件市场页「本地插件」分区(管理 UI 归 local-loader 插件贡献,kernel 不染业务)。 */
@@ -118,6 +123,12 @@ export interface PluginContext {
   registerSidebarAction(action: SidebarAction): void;
   /** 注册文件视觉 provider(fileVisual 注册表的 ctx 通道)。 */
   registerFileVisual(provider: FileVisualProvider): void;
+  /** 注册文件代码视图(CodeMirror)扩展工厂(editorExtensions 注册表的 ctx 通道;工厂体内动态 import CM,保住拆包);返回退订。 */
+  registerEditorExtension(factory: EditorExtensionFactory): () => void;
+  /** 注册终端可点击链接提供者(terminalLinks 注册表的 ctx 通道;幕布外点缀,零 PTY 字节触碰);返回退订。 */
+  registerTerminalLinkProvider(provider: TerminalLinkProvider): () => void;
+  /** 注册一份语言服务器配置(lsp/lspRegistry 的 ctx 通道;语言知识全在插件侧,内核只做协议与路由);返回退订。 */
+  registerLanguageServer(config: LanguageServerConfig): () => void;
   /** 注册一条快捷键命令(shortcuts 注册表的 ctx 通道;键位语义归插件,内核只做分发)。 */
   registerCommand(command: CommandContribution): void;
   /** 注册远端文件来源(fileSources 注册表的 ctx 通道,如 WSL/SSH 远端目录);返回退订。 */

@@ -12,13 +12,14 @@
  */
 
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+
+import { subscribeFileMarks, type FileMarkMap } from "../markBridge";
+import { PreviewMarkControls } from "./previewMarks";
 import type ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
-import {
-  compileFileMarkdownDocument,
-  hashStableString,
-} from "./markdownDocument";
+import { compileFileMarkdownDocument } from "./markdownDocument";
+import { hashStableString } from "@kernel/textHash";
 import {
   areKatexAssetsReady,
   detectMathContent,
@@ -29,7 +30,7 @@ import { FullscreenViewer } from "./FullscreenViewer";
 import { resolveImageViewerSrc } from "./viewerSrcModel";
 import { PreviewOutlineSidebar } from "./PreviewOutlineSidebar";
 import { useMarkdownOutline } from "./useMarkdownOutline";
-import { hasDocumentScopedMarkdownFeatures, normalizeMarkdownAnchorKey } from "./markdownPreviewHelpers";
+import { normalizeMarkdownAnchorKey } from "./markdownPreviewHelpers";
 import { BlockMarkdown, useMarkdownComponents } from "./useMarkdownComponents";
 import { flattenPreviewOutlineItems } from "./outline";
 
@@ -98,31 +99,11 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
     visibleLineLimit,
   });
 
-  const shouldRenderSingleMarkdownDocument = useMemo(
-    () => !progressive && hasDocumentScopedMarkdownFeatures(compiledDocument.body),
-    [compiledDocument.body, progressive],
-  );
-  const renderBlocks = useMemo(
-    () =>
-      shouldRenderSingleMarkdownDocument
-        ? [{
-            key: `${compiledDocument.cacheKey}:full`,
-            markdown: compiledDocument.body,
-            startLine: 1,
-            endLine: bodyLineCount,
-          }]
-        : compiledDocument.blocks,
-    [
-      compiledDocument.blocks,
-      compiledDocument.body,
-      compiledDocument.cacheKey,
-      bodyLineCount,
-      shouldRenderSingleMarkdownDocument,
-    ],
-  );
+  /* 渲染块恒为编译切块:配对 HTML 块由切块器保原子,跨块链接/脚注引用由编译层
+   * 逐块追加定义行兜底,marks 落锚粒度因此恒为子段落(原整篇合并已拆)。 */
   const visibleMarkdownBlocks = useMemo(
-    () => renderBlocks.filter((block) => block.startLine <= visibleLineLimit),
-    [visibleLineLimit, renderBlocks],
+    () => compiledDocument.blocks.filter((block) => block.startLine <= visibleLineLimit),
+    [visibleLineLimit, compiledDocument.blocks],
   );
 
   const [imageFullscreen, setImageFullscreen] = useState<{
@@ -195,6 +176,13 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
     onAnchorNavigate: handleAnchorNavigate,
   });
 
+  const [markMap, setMarkMap] = useState<FileMarkMap>({});
+  useEffect(() => subscribeFileMarks(setMarkMap), []);
+  const [openMarkBlock, setOpenMarkBlock] = useState<string | null>(null);
+  const fileMarks = useMemo(
+    () => (sourceFilePath ? (markMap[sourceFilePath] ?? []) : []),
+    [markMap, sourceFilePath],
+  );
   return (
     <div className="fvp-markdown-preview-frame">
       {outline.length > 0 && (
@@ -238,15 +226,33 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
               </dl>
             </section>
           ) : null}
-          {visibleMarkdownBlocks.map((block) => (
-            <BlockMarkdown
-              key={block.key}
-              blockKey={block.key}
-              markdown={block.markdown}
-              rehypePlugins={rehypePlugins}
-              components={getBlockMarkdownComponents(block.startLine, block.key)}
-            />
-          ))}
+          {visibleMarkdownBlocks.map((block) => {
+            const blockMarks = fileMarks.filter(
+              (mark) => mark.startLine <= block.endLine && mark.endLine >= block.startLine,
+            );
+            return (
+              <div
+                key={block.key}
+                className={`group/mark relative ${blockMarks.length > 0 ? "shadow-[inset_2px_0_0_var(--tmd-warn)]" : ""}`}
+              >
+                <PreviewMarkControls
+                  sourceFilePath={sourceFilePath}
+                  startLine={block.startLine}
+                  endLine={block.endLine}
+                  blockKey={block.key}
+                  blockMarks={blockMarks}
+                  open={openMarkBlock === block.key}
+                  onToggle={setOpenMarkBlock}
+                />
+                <BlockMarkdown
+                  blockKey={block.key}
+                  markdown={block.markdown}
+                  rehypePlugins={rehypePlugins}
+                  components={getBlockMarkdownComponents(block.startLine, block.key)}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

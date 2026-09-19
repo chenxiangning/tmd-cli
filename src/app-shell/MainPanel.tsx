@@ -32,9 +32,14 @@ export function MainPanel() {
   const { ids: tabIds, tile } = useSessionTabs();
   const kept =
     activeId && !tabIds.includes(activeId) ? [...tabIds, activeId] : tabIds;
-  /* 平铺显示(参照 codeg tile):开关持久于 sessionTabs store,≥2 tab 才成屏;
-     焦点 = host 活跃指针(点列即 switchTab),composer 随指针走,不新增状态。 */
-  const tiling = tile && kept.length >= 2;
+  /* 平铺显示(参照 codeg tile):开关持久于 sessionTabs store;焦点 = host 活跃指针
+     (点列即 switchTab),composer 随指针走,不新增状态。 */
+  /* tiling 只由开关决定,绝不掺 kept.length:树形(tile PanelGroup ↔ keep-alive div)
+     一旦随 tab 数量跨 2 边界翻转,React 视作不同子树整拆重建,条内全部 TerminalView
+     重挂载 = 全量回放 + 「加载会话输出」遮罩(大仙实测:平铺态开第 2 个会话/关到剩
+     1 个 tab,其余会话集体重新 loading)。tile 开且 0 tab 时落 keep-alive 空分支,
+     无会话可保护,互换零代价。显式拨动平铺开关仍会互换重排(用户主动改版式,可接受)。 */
+  const tiling = tile;
   /* 对话框五段式高度:composer 插件工具栏的 ↑↓ 写 kernel composerStage,这里消费。
      实测本库命令式 setLayout/panelRef.resize 在嵌套 group 下会被静默回滚,不可用;
      separator 键盘路径(每键 5%)走库自身状态更新,可靠 —— 借它驱动:
@@ -65,7 +70,7 @@ export function MainPanel() {
       <div className="h-full w-full" style={{ display: activeId ? undefined : "none" }}>
         <PanelGroup orientation="vertical" id="tmd.main.vertical" groupRef={groupRef}>
       <Panel defaultSize={70} minSize={30} id="canvas">
-        {tiling ? (
+        {tiling && kept.length > 0 ? (
           /* 平铺:tab 条全部会话并排同屏,点列 = switchTab(setActiveSession,
              已读/状态刷新/composer 换绑全走现有链路);composer 不隐藏,
              始终编辑活跃会话(与 codeg 每 pane 自带输入的差异:tmd 幕布外输入面唯一) */

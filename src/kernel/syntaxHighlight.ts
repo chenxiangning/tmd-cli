@@ -1,5 +1,6 @@
 /**
- * Prism 高亮器 —— 照抄 codemoss utils/syntax.ts。
+ * Prism 高亮器(内核通用原语)—— 自 files/markdown/syntax.ts 上移(lsp hover/peek 与
+ * markdown 预览双消费,跨插件契约沉淀 kernel;照抄 codemoss utils/syntax.ts)。
  *
  * highlightLine 纯函数(text, language),带 LRU 缓存(大文档重渲染时
  * 避免每次 commit 重跑 Prism 分词);输出经 sanitizePrismHtml 防御性清洗。
@@ -7,7 +8,7 @@
  */
 
 import Prism, { type Grammar } from "prismjs";
-import { hashStableString } from "./markdownDocument";
+import { hashStableString } from "./textHash";
 import "prismjs/components/prism-bash";
 import "prismjs/components/prism-c";
 import "prismjs/components/prism-csharp";
@@ -55,7 +56,9 @@ function escapeHtml(text: string): string {
 function sanitizePrismHtml(html: string): string {
   return html
     .replace(/<script[\s>][\s\S]*?<\/script>/gi, "")
-    .replace(/\bon\w+\s*=/gi, "data-removed=");
+    /* 只在未转义的标签内部剥 on*= 事件属性 —— 代码示例正文里的『onclick=』
+       字样(已被 Prism 转义成 &lt;…)不是标签,原样保留 */
+    .replace(/<[^>]*>/g, (tag) => tag.replace(/\bon\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, ""));
 }
 
 const MAX_HIGHLIGHT_CACHE_ENTRIES = 4000;
