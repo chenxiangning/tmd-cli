@@ -32,8 +32,9 @@ import {
   harnessLabel,
   projectIdentityFromRootCommit,
 } from "./protocol";
-import { listModels, resolveDistillEngine } from "./modelCatalog";
+import { __resetModelCatalogForTests, listModels, resolveDistillEngine } from "./modelCatalog";
 import { readEngineConfigFile, writeEngineConfigFile } from "./console/engineConfigModel";
+import { parseJsonc } from "../cli-shared/jsonc";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -79,6 +80,7 @@ describe("resolveDistillEngine", () => {
 });
 
 describe("listModels", () => {
+  beforeEach(() => __resetModelCatalogForTests());
   it("omp:JSON 解析 + 条目缺省归一", async () => {
     procCommunicate.mockResolvedValue({
       code: 0,
@@ -102,17 +104,19 @@ describe("listModels", () => {
     ]);
   });
 
-  it("omp:非零退出或非法 stdout → 空数组且仍进缓存", async () => {
+  it("omp:非零退出或非法 stdout → 空数组不进缓存,下次调用重试", async () => {
     procCommunicate.mockResolvedValue({ code: 1, stdout: "", stderr: "boom" });
     await expect(listModels("omp", true)).resolves.toEqual([]);
     procCommunicate.mockClear();
     await expect(listModels("omp")).resolves.toEqual([]);
-    expect(procCommunicate).not.toHaveBeenCalled();
+    expect(procCommunicate).toHaveBeenCalledTimes(1);
   });
 
-  it("omp:抛错(引擎缺席)→ 空数组不外抛", async () => {
-    procCommunicate.mockRejectedValue(new Error("spawn omp"));
-    await expect(listModels("omp", true)).resolves.toEqual([]);
+  it("omp:抛错(引擎缺席)→ 空数组不外抛,恢复后下次调用即可重试", async () => {
+    procCommunicate.mockRejectedValueOnce(new Error("spawn omp"));
+    await expect(listModels("omp")).resolves.toEqual([]);
+    procCommunicate.mockResolvedValueOnce({ code: 0, stdout: '{"models":[{"selector":"z/g","name":"g","provider":"z"}]}', stderr: "" });
+    await expect(listModels("omp")).resolves.toHaveLength(1);
   });
 
   it("opencode:逐行 selector,仅含 / 的行入表", async () => {
@@ -188,11 +192,13 @@ describe("engineConfigModel", () => {
     expect(fsWriteFile).toHaveBeenCalledTimes(1);
     const [path, text] = fsWriteFile.mock.calls[0];
     expect(path).toBe("/home/u/.config/cortexkit/magic-context.jsonc");
-    const out = JSON.parse(text);
+    /* 保注释写入:输出仍是合法 JSONC 且用户注释原样在文中 */
+    expect(text).toContain("// 保留注释");
+    const out = parseJsonc(text) as Record<string, unknown>;
     expect(out.theme).toBe("dark");
     expect(text.endsWith("\n")).toBe(true);
     expect(out.historian).toEqual({ pi: { model: "zai/glm-5" }, omp: { model: "zai/glm-5" }, opencode: { model: "zai/glm-5" } });
-    expect(out.dreamer.opencode.model).toBe("zai/air");
+    expect((out.dreamer as Record<string, unknown>).opencode).toEqual({ model: "zai/air" });
     expect(out.sidekick).toBeUndefined();
   });
 

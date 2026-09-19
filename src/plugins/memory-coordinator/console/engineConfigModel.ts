@@ -7,6 +7,7 @@ import { ipc } from "@kernel/ipc";
 import { engineConfigPath } from "../paths";
 // cli-shared 消费声明:本 feature 插件经共享层消费 CLI 配置 JSONC 格式知识(见 jsonc.ts 头注)。
 import { parseJsoncOrNull } from "../../cli-shared/jsonc";
+import { applyEdits, modify, type JSONPath } from "jsonc-parser";
 
 export interface EngineConfig {
   historianModel: string;
@@ -36,19 +37,46 @@ function readEngineConfig(raw: Record<string, unknown> | null): EngineConfig {
   };
 }
 
-/** 引擎配置 → 可写回的 jsonc 文本(per-harness:pi 为基座,omp 回退 pi,opencode 独立)。 */
+/** jsonc 写回统一排版(与旧 JSON.stringify(base, null, 2) 缩进一致)。 */
+const ENGINE_CONFIG_FMT = { formattingOptions: { tabSize: 2, insertSpaces: true } };
+
+/** jsonc 逐叶写入一个 model 值;父级是标量(异型行,如 "historian": "str")时
+ *  jsonc 拒插 → 把最近异型祖先替换成空对象后重写(对齐旧实现「异型按 {} 处理」)。 */
+function writeModelLeaf(text: string, block: string, harness: string, model: string): string {
+  const path: JSONPath = [block, harness, "model"];
+  try {
+    return applyEdits(text, modify(text, path, model, ENGINE_CONFIG_FMT));
+  } catch {
+    for (let cut = path.length - 1; cut >= 1; cut--) {
+      try {
+        text = applyEdits(text, modify(text, path.slice(0, cut), {}, ENGINE_CONFIG_FMT));
+        break;
+      } catch {
+        /* 再上一层 */
+      }
+    }
+    return applyEdits(text, modify(text, path, model, ENGINE_CONFIG_FMT));
+  }
+}
+
+/** 引擎配置 → 可写回的 jsonc 文本(per-harness:pi 为基座,omp 回退 pi,opencode 独立)。
+ *  用 jsonc-parser 逐叶 edit:原文里用户手写注释与既有字段(如 extra、主题块)原样保留,
+ *  只有目标 model 值的字节被替换 —— 旧实现 parseJsoncOrNull→JSON.stringify 整文件重写会
+ *  静默抹掉全部注释。sidekick 关闭不动其块(与读侧「缺块即禁用」对称);
+ *  原文非法 JSONC → 回落 "{}" 干净重建(旧语义)。 */
 function serializeEngineConfig(config: EngineConfig, original: string | null): string {
-  const base = parseJsoncOrNull(original ?? "") ?? {};
-  const withModel = (block: unknown, model: string): unknown => ({
-    ...(typeof block === "object" && block ? (block as Record<string, unknown>) : {}),
-    pi: { ...(((block as Record<string, unknown>)?.pi as object) ?? {}), model },
-    omp: { ...(((block as Record<string, unknown>)?.omp as object) ?? {}), model },
-    opencode: { model },
-  });
-  base.historian = withModel(base.historian, config.historianModel);
-  base.dreamer = withModel(base.dreamer, config.dreamerModel);
-  if (config.sidekickEnabled) base.sidekick = withModel(base.sidekick, config.sidekickModel);
-  return JSON.stringify(base, null, 2) + "\n";
+  let text = original && original.trim() && parseJsoncOrNull(original) !== null ? original : "{}";
+  const blocks: Array<[string, string]> = [
+    ["historian", config.historianModel],
+    ["dreamer", config.dreamerModel],
+    ...(config.sidekickEnabled ? [["sidekick", config.sidekickModel] as [string, string]] : []),
+  ];
+  for (const [block, model] of blocks) {
+    for (const harness of ["pi", "omp", "opencode"] as const) {
+      text = writeModelLeaf(text, block, harness, model);
+    }
+  }
+  return text.endsWith("\n") ? text : `${text}\n`;
 }
 
 export async function readEngineConfigFile(): Promise<{ config: EngineConfig; original: string }> {
