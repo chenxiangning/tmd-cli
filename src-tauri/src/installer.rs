@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::thread;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 use crate::resolve::{enriched_path, hide_console};
 
@@ -136,9 +136,10 @@ fn install_command(plan: &InstallPlan, npm_prefix: Option<&str>) -> (String, Vec
 pub fn run_install(app: &AppHandle, id: &str, plan: &InstallPlan) -> Result<bool, String> {
     let topic = format!("cli-install://{id}");
     let emit = |stream: &str, text: String| {
-        let _ = app.emit(
+        crate::event_sink::emit(
+            app,
             &topic,
-            CliInstallEvent {
+            &CliInstallEvent {
                 stream: stream.to_string(),
                 text,
             },
@@ -184,9 +185,10 @@ pub fn run_install(app: &AppHandle, id: &str, plan: &InstallPlan) -> Result<bool
             thread::spawn(move || {
                 for line in BufReader::new(r).lines() {
                     let Ok(text) = line else { break };
-                    let _ = app2.emit(
+                    crate::event_sink::emit(
+                        &app2,
                         &topic2,
-                        CliInstallEvent {
+                        &CliInstallEvent {
                             stream: stream.to_string(),
                             text,
                         },

@@ -116,3 +116,20 @@
 .panel-handle[data-separator="focus"]::after {
   background: var(--tmd-fg-subtle);
 }
+
+/* ── 编辑区最大化(tmd.outer.group-maximized)──
+ * 左栏与中央幕布零宽让位,幕布 keep-alive:库的布局经行内 flexGrow 直写
+ * DOM(React 重渲染即丢),命令式 collapse/expand 又会在子面板集变化时被
+ * 注册归一化静默回滚 —— 纯样式折叠绕开两者:!important 压过行内值,子面板
+ * 集恒定,卸载零发生,还原 = 摘类,分栏尺寸逐位复原。
+ * 配套:AppShell 把两条被折叠栏的 handle 加 .hidden(挂载保留,可拖面消失)。
+ * visibility:hidden 不可省:仅 width:0 时已聚焦的 xterm textarea 不会失焦,
+ * 击键会漏进不可见 PTY;hidden 夺焦语义与旧卸载实现(display:none 拆树)一致。 */
+.group-maximized > #left,
+.group-maximized > #center {
+  flex-grow: 0 !important;
+  flex-basis: 0% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+}

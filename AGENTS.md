@@ -34,7 +34,7 @@
 |---|---|---|
 | 300 行铁则 | 单文件 ≤300 行(`.ts/.tsx/.rs/.css`;豁免须文件头 10 行内标 `file-size-exempt`) | `pnpm check:file-size` |
 | R1 | `src/kernel/**` 不得 import 任何 plugins | `pnpm check:arch-boundary` |
-| R3 | `@tauri-apps/*` 唯一 import 点是 `src/kernel/ipc.ts` | `pnpm check:arch-boundary` |
+| R3 | `@tauri-apps/*` 唯一 import 点是 `src/kernel/ipc.ts`(传输层下沉后 `src/kernel/transport.ts` 继承同权) | `pnpm check:arch-boundary` |
 | R4 | `src/plugins/**` 不得反向 import app-shell(`@shell/*`) | `pnpm check:arch-boundary` |
 
 - 新增 UI / CLI 能力的标准路径:新建 `src/plugins/<id>/` 实现 `Plugin` 接口 + 在 `src/plugins/index.ts` 的 `allPlugins` 数组注册一行;跨插件基础契约先沉淀进 `src/kernel/`,再由插件实现。插件的一切贡献(挂点 UI / CLI profile / 设置分区 / 右栏面板 / 中央 tab 内容 / 侧栏快捷动作 / 文件视觉)**一律经 `activate(ctx)` 的注册面登记**,禁止绕过 ctx 直接 import 注册模块调用(runtime 能力 host/ipc/settings 等模块除外)。

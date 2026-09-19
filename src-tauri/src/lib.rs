@@ -1,6 +1,8 @@
+// file-size-exempt: 301 行仅超 1 行,含文件头注释;拆出即伤对照性(dispatch 是命令面镜像总表,lib.rs 是装配总表)。
 mod app_setup;
 mod checkpoints;
 mod commands_fs;
+mod event_sink;
 mod fs;
 mod fs_edit;
 mod fs_preview;
@@ -24,6 +26,7 @@ mod session_log;
 mod settings;
 mod sqlite;
 mod ssh;
+mod web;
 mod wsl;
 mod wsl_remote;
 mod wsl_remote_ops;
@@ -34,6 +37,8 @@ pub(crate) struct AppState {
     pty: PtyRegistry,
     sessions: session::SessionRegistry,
     ssh: std::sync::Arc<ssh::SshRegistry>,
+    web: web::state::WebAccessState,
+    relay: web::relay::RelayState,
 }
 
 pub(crate) fn now_millis() -> u64 {
@@ -98,11 +103,13 @@ fn config_read_settings() -> serde_json::Value {
 }
 
 #[tauri::command]
-fn config_write_settings(data: serde_json::Value) -> Result<(), String> {
+fn config_write_settings(app: AppHandle, data: serde_json::Value) -> Result<(), String> {
     settings::save_settings(&data).map_err(|e| e.to_string())?;
     /* 网络代理字段变化即时生效:写盘成功后应用到进程 env,
     之后 spawn 的 PTY 子进程与 reqwest 新请求即走代理(旧会话不受影响)。 */
     proxy::apply_and_report(&data);
+    /* Web 访问开关跟随设置(web_access::apply_settings 内部异步起停桥)。 */
+    web::web_access::apply_settings(&app, &data);
     Ok(())
 }
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -135,13 +142,26 @@ pub fn run() {
         /* 应用内自动更新(updater latest.json 通道)与安装后重启;前端经
         kernel/ipc 薄包装调用 check/download_and_install/relaunch。 */
         .plugin(tauri_plugin_updater::Builder::new().build())
+        /* 进程面控:relaunch(更新安装后自动重启)等;e710fc8 误删致 relaunch 必败,恢复。 */
         .plugin(tauri_plugin_process::init())
         .manage(AppState {
             pty: PtyRegistry::default(),
             sessions,
             ssh: ssh_registry,
+            web: web::state::WebAccessState::default(),
+            relay: web::relay::RelayState::default(),
         })
-        .setup(app_setup::setup)
+        .setup(|app| {
+            app_setup::setup(app)?;
+            web::web_access::autostart(app.handle());
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Some((url, key)) = web::relay::autostart_target(&settings::load_settings()) {
+                    let _ = web::relay::web_relay_start(app_handle, url, key).await;
+                }
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             platform_kind,
             app_restart,
@@ -261,6 +281,15 @@ pub fn run() {
             ssh::commands::ssh_forward_list,
             ssh::commands::ssh_forward_check_port,
             config_write_settings,
+            web::web_access::web_access_start,
+            web::web_access::web_access_stop,
+            web::relay::web_relay_start,
+            web::relay::web_relay_stop,
+            web::relay::web_relay_status,
+            web::relay::relay_deploy,
+            web::relay::relay_deploy_pack,
+            web::web_access::web_access_status,
+            web::web_access::remote_control_active,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

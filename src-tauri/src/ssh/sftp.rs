@@ -9,7 +9,6 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
-use tauri::Emitter;
 
 use super::SshRegistry;
 
@@ -145,9 +144,10 @@ pub(crate) fn broadcast_transfer(
     let Some(app) = super::global_app() else {
         return;
     };
-    let _ = app.emit(
+    crate::event_sink::emit(
+        &app,
         SFTP_EVENT,
-        SftpEventPayload {
+        &SftpEventPayload {
             kind: kind.to_string(),
             transfer: transfer.clone(),
         },

@@ -1,6 +1,6 @@
 /**
  * diff 正文渲染分发:单栏(unified)= 自绘经典红绿;双栏(split)= SplitDiffView
- * (自绘三列:左右独立横向滚动 + 中央行号槽 + 改动块边框,见该文件头注)。
+ * (中缝连接带自绘四列:左内容|旧号|新号|右内容,nowrap 态左右独立横滚 + 双号槽纵同步,见该文件头注)。
  */
 import { useMemo } from "react";
 import type { GitDiffMode } from "@kernel/settings";
@@ -47,15 +47,18 @@ export function PatchLines({
   text,
   className = "max-h-72",
   mode = "unified",
+  fold = false,
 }: {
   text: string;
   className?: string;
   mode?: GitDiffMode;
+  /** 全文态折叠焦点(仅 split 消费):连续 ctx 段压成就地展开胶囊。 */
+  fold?: boolean;
 }) {
   const { diffWrap } = useGitPanelState();
   const rows = useMemo(() => parsePatch(text), [text]);
   if (mode === "split") {
-    return <SplitDiffView rows={rows} wrap={diffWrap} className={className} />;
+    return <SplitDiffView rows={rows} wrap={diffWrap} className={className} fold={fold} />;
   }
   return (
     <pre className={`${className} overflow-auto px-3 py-1 font-mono text-[0.6875rem] leading-tight`}>

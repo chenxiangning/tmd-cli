@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::time::timeout;
 
 use super::known_hosts;
@@ -65,7 +65,7 @@ pub(crate) async fn ask_user(
             responder: responder_tx,
         }),
     );
-    let _ = app.emit(&format!("ssh://prompt/{session_id}"), &event);
+    crate::event_sink::emit(app, &format!("ssh://prompt/{session_id}"), &event);
     /* 等待可见化:提示卡在右下角,状态卡同步说明在等什么,
     否则 120s 等待期表现为「一直连接中」,无从理解(实测踩坑)。 */
     let waiting = match event.kind.as_str() {

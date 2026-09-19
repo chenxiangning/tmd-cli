@@ -4,7 +4,6 @@ import {
   claudeUserMessageLine,
   readUserMessagesFromFile,
 } from "../cli-shared/userMessages";
-import { readHeadTitle } from "../cli-shared/diskSessions";
 import { parseClaudeFamilySessionHead } from "../cli-shared/sessionIdentity";
 import type { CliDiskSession, CliProfile, CliSessionStatus, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
@@ -13,7 +12,7 @@ import { listClaudeSuggestions } from "./scanSuggestions";
 import { claudeConfigEntry } from "./configGui";
 import { applyClaudeChannel } from "./channelApply";
 import { ProviderChannelsCard } from "@plugins/cli-shared/providerChannels";
-
+import { readHeadSessionMeta } from "../cli-shared/diskSessions";
 /**
  * claude 品牌 glyph:官方日芒标志(simple-icons claude 矢量路径 vendored,
  * 与 omp/codex glyph 同源策略),品牌橙 #D97757、viewBox 0 0 24 24 官方一致。
@@ -63,13 +62,16 @@ async function listClaudeSessions(cwd: string): Promise<CliDiskSession[]> {
       // 6b844d1a-d84e-44c3-8385-1e1770d0ffb0.jsonl —— 文件名即 sessionId,直接喂 --resume
       const m = f.name.match(/^([0-9a-f-]{36})\.jsonl$/);
       if (!m) return [];
-      /* claude 无 title 记录:标题走共享两段式读头;目录已按 cwd 分区,每个文件都值得读。 */
+      /* claude 无 title 记录:标题走共享两段式读头;目录已按 cwd 分区,每个文件都值得读。
+         一次读头双解析(身份自证窗 ⊂ 标题浅窗):标题 + createdAt(创建时刻定死看板日历落位),
+         比对「标题一读 + 身份一读」每文件省一次 IPC。 */
       return [
-        readHeadTitle(f.path).then((title) => ({
+        readHeadSessionMeta(f.path).then((meta) => ({
           id: m[1],
           modifiedAt: f.modifiedAt,
+          createdAt: meta.createdAt,
           path: f.path,
-          title,
+          title: meta.title,
         })),
       ];
     }),

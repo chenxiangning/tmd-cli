@@ -1,12 +1,13 @@
 /**
  * BranchView 行件 —— 自 BranchView.tsx 拆出(文件规模铁则)。
  * GroupLabel = 本地/远程分组吸顶标签;BranchRow = 分支行(当前态高亮 /
- * 远程检出 / 行内两步武装删除:首击标红再击执行,双击后一击强删)。
+ * 远程检出 / 行内两步武装删除:首击标红再击执行,双击后一击强删);
+ * BranchSearchBox = 分支搜索框;GitOpBanner = 错误/提示/执行中反馈三态。
  */
 
 import { useState } from "react";
 import { t } from "@kernel/i18n";
-import { GitBranch, Trash } from "@phosphor-icons/react";
+import { CircleNotch, GitBranch, Plus, Trash } from "@phosphor-icons/react";
 import type { GitBranchInfo } from "@kernel/ipc";
 
 export function GroupLabel({ label }: { label: string }) {
@@ -99,5 +100,87 @@ export function BranchRow({
         </button>
       )}
     </div>
+  );
+}
+
+/** 分支搜索框:值受控于 BranchView,按名称子串过滤本地/远程两组。 */
+export function BranchSearchBox({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={t("搜索分支…")}
+      className="min-w-0 flex-1 rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-xs outline-none focus:border-(--tmd-accent)"
+    />
+  );
+}
+
+/** 新建分支行:BranchView 折叠态展开时才渲染;Enter 等价点击创建钮。 */
+export function BranchCreateRow({
+  value,
+  onChange,
+  onSubmit,
+  busy,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+  busy: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && onSubmit()}
+        placeholder={t("新分支名...")}
+        className="min-w-0 flex-1 rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-xs outline-none focus:border-(--tmd-accent)"
+      />
+      <button
+        onClick={onSubmit}
+        disabled={!value.trim() || busy}
+        title={t("基于当前 HEAD 创建")}
+        className="rounded bg-(--tmd-accent) p-1.5 text-(--tmd-accent-fg) disabled:opacity-40"
+      >
+        <Plus className="h-[0.875rem] w-[0.875rem]" />
+      </button>
+    </div>
+  );
+}
+
+/** 操作反馈三态:错误(红)/ 成功提示(灰)/ 执行中 spinner。 */
+export function GitOpBanner({
+  error,
+  notice,
+  busy,
+}: {
+  error: string | null;
+  notice: string | null;
+  busy: boolean;
+}) {
+  return (
+    <>
+      {error && (
+        <div className="rounded bg-(--tmd-bg-sunken) px-2 py-1 text-(--tmd-diff-removed)">
+          {error}
+        </div>
+      )}
+      {notice && (
+        <div className="rounded bg-(--tmd-bg-elevated) px-2 py-1 text-(--tmd-fg-muted)">
+          {notice}
+        </div>
+      )}
+      {busy && (
+        <div className="flex items-center gap-1.5 text-(--tmd-fg-faint)">
+          <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" /> {t("执行中…")}
+        </div>
+      )}
+    </>
   );
 }

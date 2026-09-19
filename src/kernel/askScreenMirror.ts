@@ -15,20 +15,17 @@
  * 列镜像实测都落在底部 8 行窗内,尺寸联动属过度设计。
  *
  * 镜像无历史的场景(webview 重载后新建):只反映新字节,重载前已挂起的面板
- * 要等下一次整帧重绘才可见 —— readopt 后用磁盘日志尾回放补底(backfillFromDisk;
- * 磁盘字节与幕布回放同源,严禁经 appendOutput,diskReplay 红线)。补底与实时
- * 字节的重叠区容忍:面板帧是绝对寻址重绘,后到帧覆盖先到态。
+ * 要等下一次整帧重绘才可见 —— readopt 后用磁盘日志尾回放补底(backfill;日志
+ * 尾由接管方单取分用,见 hostSessionServices.readopt;磁盘字节与幕布回放同源,
+ * 严禁经 appendOutput,diskReplay 红线)。补底与实时字节的重叠区容忍:面板帧是
+ * 绝对寻址重绘,后到帧覆盖先到态。
  */
 
 import { Terminal } from "@xterm/xterm";
-import { ipc } from "./ipc";
 import { getTerminalHandle } from "./terminalHandles";
 
 /** 采样行数:与 TerminalView askProbe 同口径(面板标记落面板尾部,底部 8 行覆盖)。 */
 const SAMPLE_ROWS = 8;
-
-/** 补底窗量:覆盖最后一帧整帧重绘 + 后续增量(pi-tui 单帧可达 9KB,256KB 富余)。 */
-const BACKFILL_BYTES = 256 * 1024;
 
 /** 默认栅格:与 Rust 侧 PTY spawn 默认一致;真实尺寸未知时的兜底。 */
 const DEFAULT_COLS = 80;
@@ -51,20 +48,9 @@ export class AskScreenMirror {
     this.entry(sessionId).term.write(text);
   }
 
-  /**
-   * 磁盘日志尾回放补底(readopt 后逐会话调用):重建重载前的屏幕现势,
-   * 旧挂起面板无须等下一次整帧重绘即可见。恢复是增强:失败仅告警不抛出,
-   * 不得拖垮接管流程(与 bootAskRestore 同纪律)。
-   */
-  async backfillFromDisk(sessionId: string): Promise<void> {
-    try {
-      const end = await ipc.sessionLogSize(sessionId);
-      if (!end) return; /* 无日志(含尚未落盘的新会话)= 无现势可补 */
-      const page = await ipc.sessionHistoryPage(sessionId, end, BACKFILL_BYTES);
-      if (page.text) this.feed(sessionId, page.text);
-    } catch (e) {
-      console.warn("屏幕镜像补底失败(不影响会话):", sessionId, e);
-    }
+  /** 磁盘日志尾回放补底(readopt 后逐会话调用,日志尾由接管方单取分用,见 hostSessionServices.readopt):重建重载前的屏幕现势,旧挂起面板无须等下一次整帧重绘即可见。 */
+  backfill(sessionId: string, text: string): void {
+    if (text) this.feed(sessionId, text);
   }
 
   /** 会话移除:镜像随 PTY 消亡,采样计时器空闲即停。 */

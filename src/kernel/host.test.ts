@@ -20,11 +20,12 @@ const ptyOutputCbs = new Map<string, (text: string) => void>();
 /* vi.mock 由 vitest 提升于静态 import 之前,host 内部拿到的即 mock,无需动态 import */
 vi.mock("./ipc", () => ({
   ipc: {
-    /* 对齐真实行为:Rust 侧 session_spawn 同步注册,session_list 立即可见 */
-    sessionSpawn: vi.fn(async (profileId: string, spec: { cwd: string }) => {
+    /* 对齐真实行为:Rust 侧 session_spawn 同步注册(含 workspaceId 归属),
+       session_list 立即可见 */
+    sessionSpawn: vi.fn(async (profileId: string, spec: { cwd: string }, workspaceId?: string) => {
       spawnSeq += 1;
       const id = `pty-${spawnSeq}`;
-      sessions.push({ id, profileId, cwd: spec.cwd } as SessionMeta);
+      sessions.push({ id, profileId, cwd: spec.cwd, workspaceId } as SessionMeta);
       return { id, pid: 1000 + spawnSeq };
     }),
     sessionList: vi.fn(async () => sessions),
@@ -41,6 +42,7 @@ vi.mock("./ipc", () => ({
 
 import { ipc } from "./ipc";
 import { KernelTopics } from "./events";
+import { archiveSession, isSessionArchived, sessionArchiveKey } from "./sessionArchive";
 import { host } from "./host";
 
 const PROFILE_ID = "test-omp";
@@ -259,5 +261,13 @@ describe("openDiskSession 去重聚焦与失败广播(走法 1 契约)", () => {
     );
     expect(failures).toHaveLength(1);
     off();
+  });
+
+  it("归档会话恢复(身份绑定)即解除归档,生命周期链重启", async () => {
+    const key = sessionArchiveKey("ws-r", PROFILE_ID, "resume-arch-1");
+    archiveSession(key);
+    expect(isSessionArchived(key)).toBe(true);
+    await host.openDiskSession(PROFILE_ID, CWD, "ws-r", "resume-arch-1");
+    expect(isSessionArchived(key)).toBe(false);
   });
 });

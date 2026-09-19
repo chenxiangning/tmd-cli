@@ -77,6 +77,8 @@ interface GrokSummary {
   model?: string;
   /** updated_at(优先)或 last_active_at 的 ms epoch;解析失败 = undefined。 */
   updatedAt?: number;
+  /** created_at 的 ms epoch(会话创建时刻,resume 不改写)。 */
+  createdAt?: number;
 }
 
 /** 外部 JSON 逐层收窄取 string;缺失/异型/空串返回 undefined。 */
@@ -89,7 +91,7 @@ function summaryString(obj: unknown, key: string): string | undefined {
 /**
  * summary.json 文本 → 会话元数据(纯函数,可测)。
  * 实证字段:info.{id,cwd}、generated_title ≈ session_summary、
- * current_model_id、updated_at/last_active_at(ISO 8601)。
+ * current_model_id、created_at/updated_at/last_active_at(ISO 8601)。
  */
 export function parseGrokSummary(raw: string): GrokSummary | null {
   let parsed: unknown;
@@ -105,10 +107,13 @@ export function parseGrokSummary(raw: string): GrokSummary | null {
   const iso =
     summaryString(parsed, "updated_at") ?? summaryString(parsed, "last_active_at");
   const ms = iso ? Date.parse(iso) : NaN;
+  const createdIso = summaryString(parsed, "created_at");
+  const createdMs = createdIso ? Date.parse(createdIso) : NaN;
   return {
     title,
     model,
     updatedAt: Number.isFinite(ms) ? ms : undefined,
+    createdAt: Number.isFinite(createdMs) ? createdMs : undefined,
   };
 }
 
@@ -160,6 +165,8 @@ async function listGrokSessions(cwd: string): Promise<CliDiskSession[]> {
             id: entry.name,
             title: summary?.title,
             modifiedAt: summary?.updatedAt ?? 0,
+            /* 创建时刻定死日历落位:resume 只刷 updated_at,created_at 不动。 */
+            createdAt: summary?.createdAt,
             path: `${dir}/${entry.name}`,
           };
         })(),

@@ -202,6 +202,8 @@ async function listModernKimiSessions(
     sessions.push({
       id: hit.m.id,
       modifiedAt: hit.modifiedAt,
+      /* 创建时刻定死日历落位:state.createdAt(resume 不改写);缺省回退 modifiedAt。 */
+      createdAt: hit.state.createdAt,
       /* path 约定"磁盘路径":kimi 会话是目录,CliDiskSession.path 指向目录,
          删除(fs_remove_path)按整目录删,与 CLI 自删的 rm -rf 语义一致 */
       path: hit.m.dir,
@@ -240,6 +242,8 @@ async function listLegacyKimiSessions(
     sessions.push({
       id: entry.id,
       modifiedAt: entry.modifiedAt,
+      /* 刻意不补 createdAt:deprecated 老 home 路径(≤0.34),看板卡片回退 modifiedAt;
+         现代路径(state.json)已透传。 */
       path: `${root}/${entry.hash}/${entry.id}`,
       title: head ? extractKimiTitle(head) : undefined,
     });

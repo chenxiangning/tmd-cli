@@ -144,5 +144,15 @@
 | 2026-09-14 | [v0.1.7 发布范围评审与收口](review/2026-09-14-v017-release-review.md) | 已完成(无 P0;5 P1 全修 + 19 P2,6 条 report-only;门禁全绿 react-doctor 100) |
 | 2026-09-15 | [v0.1.8 前置批次评审(双栏 diff/创建 PR/历史行)](review/2026-09-15-pr-splitdiff-review.md) | 已完成(无 P0;3 P1 修 2 + 9 P2 修 7;门禁全绿 react-doctor 100) |
 | 2026-09-15 | [git 插件「创建 PR」工作流设计:预检/推送/建 PR/可选审批评论](superpowers/specs/2026-09-15-git-create-pr-design.md) | 已落地(四步工作流 + 阶段实时卡;同日修订:范围闸门移除,PR 内容零本地限制;AI 生成留 v2) |
-
+| 2026-09-15 | [omp 版本回退:首页引擎卡版本菜单 + 收藏](superpowers/specs/2026-09-15-omp-version-rollback-design.md) | 已评审通过(实现随本 spec 提交) |
+| 2026-09-15 | [双栏 diff GitHub 风视觉打磨](superpowers/specs/2026-09-15-split-diff-github-style-design.md) | 已落地(行号各半内侧缘 + 缺侧空带 + 词级实色块;删中央槽/⤶钩/⬚占位/块框) |
+| 2026-09-15 | [双栏 diff 中缝连接带视觉迭代](superpowers/specs/2026-09-15-split-diff-center-seam-design.md) | 已落地(列序翻转为左内容|旧号|新号|右内容,改动行色带贯通中缝;号格单发丝) |
+| 2026-09-15 | [手机 App 外网访问 tmd-cli 方案调研(服务面/通道/壳三层解耦,有 ECS 与无 ECS 两组通道 + iOS 壳三路线)](research/mobile-remote-access.md) | 调研底稿(方案对比,未拍板) |
+| 2026-09-15 | [codemoss Web/远程访问实现源码级分析(LAN 桥/出站中继/传输抽象/治理面 + tmd-cli 移植映射)](research/codemoss-web-remote.md) | 已完成(配套提案 openspec/changes/2026-09-15-web-remote-access/) |
+| 2026-09-16 | [git 双栏 diff 方向探索 ×6(保留基准 V2 双向纹 + N1 明度 / N2 聚光灯 / N3 权重 / N4 折叠焦点 / N5 斑马打断;同一份 diff 差异化对比)](design/git-split-diff-v2-hatch-directional.html) | 设计原型(V2 已保留,N1-N5 见 git-split-diff-n1~n5-*.html,待选) |
+| 2026-09-16 | [会话看板 · 热力月历 + 泳道时间线日视图(热力/周条/节律条 + 小时时轨 × 五态垂直泳道分带对齐 + 未查看治理点 + 卡上重命名;90 天 ~1800 会话密度实测)](design/session-calendar-heat-agenda.html) | 设计原型(定稿候选;六轮目检迭代;前期 A-E/综合版/F~H 探索方案已删) |
+| 2026-09-16 | [会话看板设计 spec(热力月历 + 泳道时间线 + 生命周期五态;插件化落地)](superpowers/specs/2026-09-16-session-board-design.md) | 已落地(session-board 插件,实施纪要见 spec) |
+| 2026-09-17 | [Web 远程访问桥 M1/M2 契约:transport 继承 R3 / event_sink 双扇出 / 命令镜像与信任模型 / 停机语义 / /file 允许制 / LAN 绑定 / 中继链路](architecture/12-web-remote-access.md) | 生效中(改 web 域/transport/event_sink/relay 前必读;含 18 笔整体 review 决策) |
+| 2026-09-17 | [本地 18 笔整体 code review(git 双栏/web 桥/kernel 状态/看板四域;P1×1 + P2×7 全修)](review/2026-09-17-18-commits-global-review.md) | 已完成(修复随本批提交;门禁全绿 react-doctor 100) |
+| 2026-09-18 | [双栏 diff 折叠焦点设计(全文态 context 段胶囊就地展开,N4 原型落地)](superpowers/specs/2026-09-18-split-diff-n4-collapse-focus-design.md) | 已落地(commit c126047;评审收口 UX 路:spec 补盘 + 双胶囊读屏去重) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

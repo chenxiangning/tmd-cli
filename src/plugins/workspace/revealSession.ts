@@ -52,7 +52,8 @@ export function createSessionRevealHandler(
       /* 组内行:无 pin / scope=workspace 留组顶块或活行;分组恒展开,只需展开工作区卡片。
        * 归档视图组内只摆归档行(活行/顶块清空),定位目标恒为活会话:
        * 切回默认视图让行回归 —— 比 toast 直白,行真的出现且用户感知视图为何变了。 */
-      if (st.workspaceArchiveView) updateSettings({ workspaceArchiveView: false });
+      if (st.workspaceArchiveView)
+        updateSettings({ workspaceArchiveView: false, workspaceOriginFilter: st.workspaceOriginFilter || "local" });
       if (st.workspaceCollapsedMap[meta.workspaceId] ?? true) {
         updateSettings({
           workspaceCollapsedMap: { ...st.workspaceCollapsedMap, [meta.workspaceId]: false },

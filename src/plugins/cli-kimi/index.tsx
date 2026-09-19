@@ -6,6 +6,7 @@ import type {
 } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
+import { PI_TUI_ECHO_MARKS } from "../cli-shared/echoMarks";
 import { listKimiSuggestions } from "./scanSuggestions";
 import {
   listKimiSessions,
@@ -151,6 +152,11 @@ export const cliKimiPlugin: Plugin = {
       readSessionUserMessages: readKimiUserMessages,
       /* Ask 卡片标记(pi-tui 系共享字面量,见 cli-shared/askMarks.ts)。 */
       askMarks: PI_TUI_ASK_MARKS,
+      /* 用户消息回显标记(pi-tui 系共享字面量,见 cli-shared/echoMarks.ts)。 */
+      echoMarks: PI_TUI_ECHO_MARKS,
+
+      /* 待实采:busyMarks/idleMarks 与 omp 同源 pi-tui(见 cli-pi 同款注记;
+       * kimi 版 UI 略异,须独立实采,禁照抄)。 */
     };
     ctx.registerCliProfile(profile);
   },

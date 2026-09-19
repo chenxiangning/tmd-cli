@@ -150,11 +150,37 @@ export interface CliProfile {
    * 场景退化为整串匹配 —— 正则不得依赖行首锚)。命中即 CLI 自证在途(工作
    * 页脚/状态行),activityWatch 刷帧钟持轮 —— 流式间隙(思考/工具切换静默
    * >2s)不再假结算,完工换装(标记消失)后 30s 照常结算(自证钟
-   * BUSY_HOLD_MS,分钟级轮次无感)。与 askMarks(等待
-   * 确认)同款纪律:只在轮次在途或有未应答写入时生效,已结算轮不重燃(闸 4
-   * 同构);未声明 = 该 CLI 维持纯字节流判定,行为不变。
+ * BUSY_HOLD_MS,分钟级轮次无感)。readopt 重锚亦消费本声明:磁盘尾 16K
+ * 字符(READOPT_BUSY_TAIL_CHARS,字符非字节,CJK 日志窗缩至 ~1/3)命中 =
+ * CLI 自证在途现势证据,兜底回显滚出窗的长轮次(2026-09-16 实证)。
+ * 字面量纪律与 askMarks 同:取自实采,未声明 = 行为不变。
    */
   busyMarks?: RegExp[];
+  /**
+   * 「屏幕空闲态」界面标记(对偶 busyMarks,2026-09-17;2026-09-18 升级兼作
+   * 结算证据):匹配面与 busyMarks 相同(剥 ANSI 分片按行拆行,不得依赖行首锚)。
+   * 命中即 CLI 自证当前屏幕处于空闲态(如 pi-tui 空闲页脚 mc 行「· idle」)——
+   * 焦点/重排引发的空闲屏整屏重绘分片常带新颖字母骨架,家具分类挡不住,曾把
+   * 已完工轮次的「运行时」标签复燃(2026-09-17 实证:切 tab/点击终端即复燃)。
+   * 活动守望对「空闲自证且无在工自证且本轮已应答」的分片不作任何活动语义,
+   * 且轮次在途时以首个空闲帧为完工换装证据武装快速结算,确认窗(IDLE_CONFIRM_MS)
+   * 内无 busy/content 反证即收口 —— 已声明 CLI 短轮次徽标不再拖 30s busy 尾巴
+   * (activityWatch 闸 4d)。纪律同 busyMarks:宁可漏报不可误报,字面量必须
+   * 取自真实 session 日志;未声明 = 该 CLI 无空闲自证,行为不变。
+   */
+  idleMarks?: RegExp[];
+  /**
+   * 「用户消息回显」磁盘字节标记(readopt 重锚历史证据,见
+   * ActivityWatch.readoptAnchor):webview 重载清空前端锚后,接管时按磁盘
+   * 日志尾(256KB)判定重载前是否发生过对话 —— 命中即重锚恢复在途轮次,
+   * 否则后续输出被轮次开启闸拦死永不自愈(2026-09-15 实证;长轮次回显
+   * 滚出 256KB 窗时由 busyMarks 现势证据兜底,2026-09-16 实证)。
+   * 与 busyMarks 的匹配面不同:每条正则对**未剥 ANSI 的原始日志尾**整体
+   * 匹配(回显证据恰在 SGR 斜体序列上,剥壳即失);未声明 = 该 CLI 重载后
+   * 不重锚(行为同重锚机制落地前,不变)。
+   * 纪律同 askMarks:宁可漏报不可误报,字面量必须取自真实 session 日志。
+   */
+  echoMarks?: RegExp[];
   /**
    * 「AI 写入文件」输出标记(审批线 events 归因):每条正则对剥 ANSI 后的
    * 单行匹配,捕获组 1 = 文件路径(仓库相对或 cwd 内绝对)。
@@ -174,6 +200,14 @@ export interface CliProfile {
    * 尾窗,底部字面量才稳定落在页脚窗口。
    */
   askMarks?: RegExp[];
+  /**
+   * win ConPTY 下该 CLI 的 CPR 位置查询会拿到错位应答(ConPTY 转发光标状态与
+   * TUI 虚拟光标不同步),TUI 消费错位 CPR 时把字符注入输入框(2026-09-15 win
+   * omp 实证每次建会话孤立 'C')。声明后 Windows 幕布不向 PTY 回写 CPR 应答,
+   * 查询走 TUI 自身超时回退。仅 pi-tui 系(omp/pi)声明;ssh/wsl 等死等 CPR
+   * 的会话禁声明(回写是它们不挂死的条件)。
+   */
+  conptyCprMismatch?: boolean;
   /**
    * 会话磁盘事件流的 AI 写入读取(审批线 events 归因第二信号源)。
    * 从该 CLI 自己的会话 JSONL 提取 edit/write 工具写入的文件 —— 每会话一个
@@ -235,6 +269,12 @@ export interface CliProfile {
    * 例 omp 经 `bun install -g` 全局安装。安装命令经通用 IPC 原语执行,内核零配方。
    */
   commandInstall?: { program: string; args: string[] };
+  /**
+   * 引擎卡「版本」菜单开关:welcome 行动作簇出「版本」按钮,弹层列最新 10 个
+   * 稳定版 + 用户收藏,点选即钉版安装(command 通道 args 内包名替换为 pkg@version)。
+   * 仅当 commandInstall 与 npmPackage 同声明时生效;缺省 = 不出版本按钮。
+   */
+  versionMenu?: boolean;
   /**
    * 前置依赖声明:安装/更新本 CLI 前必须就位的运行时(如 omp 依赖 bun)。
    * welcome 引擎卡先探针依赖;缺失时引导先装依赖,就位前本引擎的

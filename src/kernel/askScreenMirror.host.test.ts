@@ -98,6 +98,9 @@ describe("后台会话的屏幕态镜像(host 接线)", () => {
           /Esc(?: to)? cancel\b/,
           /Other \(type your own\)/,
         ],
+        busyMarks: [/\d+[sm] >/u],
+        /* pi-tui 用户回显行实采形态(引号灰斜体行;生产声明见 cli-shared/echoMarks.ts)。 */
+        echoMarks: [/\u001b\[3;(?:\d+;)*\d+m"/],
       });
     }
   });
@@ -156,5 +159,57 @@ describe("后台会话的屏幕态镜像(host 接线)", () => {
     await vi.advanceTimersByTimeAsync(3_500);
     expect(host.isWaitingConfirm("ghost-1")).toBe(true);
     await host.removeSession("ghost-1");
+  });
+
+  /* 2026-09-15 实证:webview 重载清空前端态,重载前在途轮次丢锚即落空闲且
+     I2 拦后续输出永不自愈;readopt 经磁盘尾用户回显行重锚恢复因果。 */
+  const ECHO_LINE = '\u001b[33;1H\u001b[0m\u001b[K \u001b[3;38;2;156;163;176m"校准会话状态"\u001b[39;23m\r\n';
+  const IDLE_LINE = "\u001b[0m\u001b[Kmc: 69.7K (8%) · idle\u001b[0m\r\n";
+
+  it("readopt 重锚:重载前在途轮次恢复运行中,静默工具段持轮,应答到达照常结算", async () => {
+    sessions.push({ id: "ghost-2", profileId: PROFILE_ID, cwd: CWD } as SessionMeta);
+    logBackends.set("ghost-2", IDLE_LINE + ECHO_LINE + IDLE_LINE); /* 尾含用户回显行 */
+    await host.readoptSessions();
+    expect(host.isTurnActive("ghost-2")).toBe(true);
+    await vi.advanceTimersByTimeAsync(25_000); // 重载后紧邻静默工具:自证窗持轮
+    expect(host.isTurnActive("ghost-2")).toBe(true);
+    ptyOutputCbs.get("ghost-2")!("answer tail"); // 应答到达续轮
+    await vi.advanceTimersByTimeAsync(6_000); // 自证窗 30s 出窗(锚后 31s)
+    expect(host.isTurnActive("ghost-2")).toBe(false);
+    expect(host.isUnread("ghost-2")).toBe(true); // 归属锚末内容帧(I3):重载后无 tab 照标蓝
+    await host.removeSession("ghost-2");
+  });
+
+  it("readopt 重锚未命中:空闲会话保持未锚定,后续噪音不开轮", async () => {
+    sessions.push({ id: "ghost-3", profileId: PROFILE_ID, cwd: CWD } as SessionMeta);
+    logBackends.set("ghost-3", IDLE_LINE + IDLE_LINE);
+    await host.readoptSessions();
+    expect(host.isTurnActive("ghost-3")).toBe(false);
+    ptyOutputCbs.get("ghost-3")!("hook: background done");
+    expect(host.isTurnActive("ghost-3")).toBe(false);
+    await host.removeSession("ghost-3");
+  });
+
+  /* 2026-09-16 实证(第 10 次翻车):长轮次回显滚出 256KB 窗(实采 449KB / 4.1MB),
+     纯回显证据必漏 → 尾帧 busyMarks 现势证据兜底重锚。 */
+  it("readopt 重锚:回显滚出窗,尾帧 busyMarks 自证在途仍重锚", async () => {
+    sessions.push({ id: "ghost-5", profileId: PROFILE_ID, cwd: CWD } as SessionMeta);
+    logBackends.set("ghost-5", IDLE_LINE + "\u001b[1;1H ⠴ 1m > 📁 …-cli\r\n"); /* 在工页脚(busyMarks 命中),无回显行 */
+    await host.readoptSessions();
+    expect(host.isTurnActive("ghost-5")).toBe(true);
+    await host.removeSession("ghost-5");
+  });
+
+
+  it("readopt 重锚纪律:profile 未声明 echoMarks,磁盘尾含回显行也不锚(未声明 = 行为不变)", async () => {
+    const NOECHO_ID = "mirror-noecho-cli";
+    if (!host.getCliProfile(NOECHO_ID)) {
+      host.registerCliProfile({ id: NOECHO_ID, name: "noecho", command: "true", args: [], triggers: [] });
+    }
+    sessions.push({ id: "ghost-4", profileId: NOECHO_ID, cwd: CWD } as SessionMeta);
+    logBackends.set("ghost-4", IDLE_LINE + ECHO_LINE + IDLE_LINE);
+    await host.readoptSessions();
+    expect(host.isTurnActive("ghost-4")).toBe(false);
+    await host.removeSession("ghost-4");
   });
 });

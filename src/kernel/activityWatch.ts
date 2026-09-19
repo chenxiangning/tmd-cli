@@ -1,6 +1,7 @@
 /**
  * 活动守望 + 完成未读状态机(呼吸灯三态结算)—— 证据分级模型。
  * 完整契约(不变量/闸门矩阵/事故账本)见 docs/architecture/08-session-lifecycle.md。
+ * file-size-exempt:单一状态机不拆件(事故账本教训:补丁咬补丁时收敛模型,拆件 = 闸的前提互咬)。
  *
  * PTY 字节无机器可读轮次边界,可靠因果只有用户写入(awaiting)与在途轮次(active)。
  * 输出分片按「字母骨架 + 数字串」三级分类(仅 CLI;ssh/shell 经 noiseGated 豁免):
@@ -18,26 +19,25 @@
  * ticker 登记限轮次在途,已结算轮永不自愈重燃(I2);busy 同构:awaiting 期 = 应答开始(开轮 + answered,天花板让位)。
  * 新骨架接活 ticker 帧流 5s 内且字母近似(skeletonNear)= 粒度换字(59s→1m)继承资格;完工换装不继承。
  * 守卫 = 未应答写入天花板(awaiting && !answered && 距写入 <120s)。其余闸门:首写闸、轮次开启闸、重绘抑制窗。未读归属锚定「最后 content 帧瞬间」查看态。
+ * readopt 重锚:webview 重载清空前端态,在途轮次丢锚即落空闲且 I2 拦后续输出不自愈;接管时磁盘尾双证据重锚(见 readoptAnchor):echoMarks 回显行(历史:重载前有对话)+ busyMarks 尾帧(现势:CLI 自证在途)——长轮次回显滚出 256KB 窗纯回显证据必漏(2026-09-16 实证,尾帧 ⎋ 是兜底证据)。
  */
 import { skeletonNear } from "./skeletonNear";
 
 /** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅内部持有。 */
 type TimerHandle = ReturnType<typeof setInterval>;
 
-/** 输出静默轮次阈值:距最后 content 证据超此值即结算(无存活 ticker 帧流时)。 */
-const TURN_SILENCE_MS = 2_000;
-/** 持轮家具帧流窗:ticker 帧断供超此值失去持轮(工作页脚自绘 ≈2.5-10Hz,完工换装即断;ponytail: 5s 含合包余量)。 */
-const TICKER_HOLD_MS = 5_000;
+const TURN_SILENCE_MS = 2_000; /** 输出静默轮次阈值:距最后 content 证据超此值即结算(无存活 ticker 帧流时)。 */
+const TICKER_HOLD_MS = 5_000; /** 持轮家具帧流窗:ticker 帧断供超此值失去持轮(工作页脚自绘 ≈2.5-10Hz,完工换装即断;ponytail: 5s 含合包余量)。 */
 /** CLI 自证持轮窗:busyMarks 标记帧断供超此值失去持轮。深思期页脚重绘稀疏(reasoning 慢流段标记帧间隔 >5s,实采 2026-09-13),5s 帧窗盖不住;自证可信度高取宽窗,完工换装后 30s 结算(分钟级轮次无感)。 */
 const BUSY_HOLD_MS = 30_000;
-/** 应答回显窗:写入后此窗内的内容分片视作输入回显/TUI 换帧,不算应答证据;模型生成类应答首帧恒晚于此窗;本地瞬时响应(/help、即时报错)可整体落在窗内 —— 由守卫天花板兜底结算。 */
-const ANSWER_ECHO_MS = 400;
-/** 家具骨架窗:每会话最近 N 个字母骨架 FIFO(实测 omp 空闲帧在 4 种骨架间循环,6 容得下页脚/标题/边框各变体)。 */
-const IDLE_SKELETON_WINDOW = 6;
-/** 重绘抑制窗:resize 后此窗口内的输出视为 SIGWINCH 整屏重绘,不进活动语义。 */
-const REDRAW_SUPPRESS_MS = 1_000;
+const CLOCK_JUMP_MS = BUSY_HOLD_MS; /** 调度间隙阈值:tick 间隙超此值 = 墙钟跳变(睡眠/节流),三口钟同刻过窗,结算判据失去观测基础。取最宽持轮窗(自证 30s):间隙 30-60s 旧阈不设防,睡眠一个间隙即假结算且 I2 拦死(2026-09-16 复盘补刀);阈值随最宽窗联动,防日后调窗静默开带。 */
+const ANSWER_ECHO_MS = 400; /** 应答回显窗:写入后此窗内的内容分片视作输入回显/TUI 换帧,不算应答证据;模型生成类应答首帧恒晚于此窗;本地瞬时响应(/help、即时报错)可整体落在窗内 —— 由守卫天花板兜底结算。 */
+const IDLE_SKELETON_WINDOW = 6; /** 家具骨架窗:每会话最近 N 个字母骨架 FIFO(实测 omp 空闲帧在 4 种骨架间循环,6 容得下页脚/标题/边框各变体)。 */
+const REDRAW_SUPPRESS_MS = 1_000; /** 重绘抑制窗:resize 后此窗口内的输出视为 SIGWINCH 整屏重绘,不进活动语义。 */
 /** 未应答写入天花板:写入后此窗内不结算未应答轮次(思考期保护),到期必结算。ponytail: 120s 拍脑袋上限 —— 覆盖最慢模型 TTFB + 长思考;若出现真实 CLI 静默思考超 2 分钟的案例,改成按 profile 配置。 */
 const WRITE_GRACE_MS = 120_000;
+/** 空闲自证确认窗:闸 4d 武装后此窗内无 busy/content 反证即提前结算(完工换装帧即武装;已声明 idleMarks 的 CLI 短轮次徽标 30s 尾巴收窄到 ~2s)。 */
+const IDLE_CONFIRM_MS = 2_000;
 
 /** 可见骨架:剥 ANSI 后仅留字母(任意文字体系);spinner braille glyph、标点、空白、数字全部剔除 —— 家具帧唯一常态变化的正是这些。 */
 const SKELETON_RE = /[^\p{L}]/gu;
@@ -54,9 +54,8 @@ interface SkeletonEntry {
 
 /** 每会话守望状态(单对象持有,随 PTY 消亡)。 */
 interface SessionWatch {
-  /** 已锚定对话(用户首写起,PTY 寿命级)。 */
+  /** 已锚定对话(用户首写起,PTY 寿命级);在途轮次:输出进站起,结算止。 */
   anchored: boolean;
-  /** 在途轮次:输出进站起,结算止。 */
   active: boolean;
   /** 未应答的用户写入:首写置位,本轮结算清除。 */
   awaiting: boolean;
@@ -66,18 +65,18 @@ interface SessionWatch {
   unread: boolean;
   /** 最后 content 帧时戳(活动钟,呼吸灯)。 */
   lastContentAt: number;
-  /** ticker 骨架最近帧时戳(帧钟:活家具断供 = 完工换装;新提问清零)。 */
+  /** ticker 骨架最近帧时戳(帧钟:活家具断供 = 完工换装;新提问清零);busyMarks 标记帧最近时戳(自证钟:CLI 声明的在途界面标记;新提问清零)。 */
   lastTickerAt: number;
-  /** busyMarks 标记帧最近时戳(自证钟:CLI 声明的在途界面标记;新提问清零)。 */
   lastBusyAt: number;
   /** 最后用户写入时戳(回显窗与未应答天花板起点)。 */
   lastWriteAt: number;
-  /** 最后 content 帧瞬间是否正被查看(未读归因)。 */
+  /** 最后 content 帧瞬间是否正被查看(未读归因);呼吸灯 notify 节流(500ms 最多一次外壳重渲染)。 */
   lastOutputViewed: boolean;
-  /** 呼吸灯 notify 节流(500ms 最多一次外壳重渲染)。 */
   lastNotifyAt: number;
   /** 最近一次自发 resize 时戳(重绘抑制窗起点)。 */
   lastResizeAt: number;
+  /** 空闲自证武装时戳(闸 4d:空闲帧到达即武装,确认窗后无反证由结算 tick 提前收口;0 = 未武装)。 */
+  idleArmAt: number;
   /** 最近字母骨架 FIFO(家具判据)。 */
   skeletons: SkeletonEntry[];
 }
@@ -101,27 +100,16 @@ export class ActivityWatch {
   private timer: TimerHandle | null = null;
   /** 每会话状态。 */
   private readonly sessions = new Map<string, SessionWatch>();
+  private lastTickAt = 0; // 结算 tick 上一刻(调度间隙守卫基线;停表即无在途轮次,不归零)
 
   constructor(private readonly host: ActivityWatchHost) {}
   /** 取会话状态,惰性建档(首写/resize 前不占内存;PTY 消亡整体清除)。 */
   private state(sessionId: string): SessionWatch {
     let s = this.sessions.get(sessionId);
     if (!s) {
-      s = {
-        anchored: false,
-        active: false,
-        awaiting: false,
-        answered: false,
-        unread: false,
-        lastContentAt: 0,
-        lastTickerAt: 0,
-        lastBusyAt: 0,
-        lastWriteAt: 0,
-        lastOutputViewed: false,
-        lastNotifyAt: 0,
-        lastResizeAt: 0,
-        skeletons: [],
-      };
+      s = { anchored: false, active: false, awaiting: false, answered: false, unread: false,
+        lastContentAt: 0, lastTickerAt: 0, lastBusyAt: 0, lastWriteAt: 0, lastNotifyAt: 0,
+        lastOutputViewed: false, lastResizeAt: 0, idleArmAt: 0, skeletons: [] };
       this.sessions.set(sessionId, s);
     }
     return s;
@@ -134,25 +122,34 @@ export class ActivityWatch {
     s.lastWriteAt = Date.now();
     s.awaiting = true;
     s.answered = false;
-    /* 新提问 = 新基线:清骨架窗与帧钟(防真实输出误判家具 / 上轮 ticker 残留吊住结算)。 */
+    /* 新提问 = 新基线:清骨架窗与帧钟(防真实输出误判家具 / 上轮 ticker 残留吊住结算),并撤空闲武装。 */
     s.skeletons.length = 0;
     s.lastTickerAt = 0;
     s.lastBusyAt = 0;
+    s.idleArmAt = 0;
   }
 
-  /** 新输出入站。返回 true = 节流窗已开或轮次开启,Host 应 notify() 一次;未锚定会话与家具分片恒 false(幕布渲染走 ptyLiveTopic)。`visibleText` = 分片剥 ANSI 后可见文本(供家具分类);`busy` = 插件声明的工作界面标记行级命中(CLI 自证在途)。 */
-  onOutput(sessionId: string, visibleText?: string, busy = false): boolean {
+  /** readopt 重锚:命中插件声明 echoMarks(磁盘尾回显行,历史证据)或 busy = true(尾帧 busyMarks,hostWatches 判给的现势证据)即恢复 awaiting/answered/active;皆无零语义(同 I1)。 */
+  readoptAnchor(sessionId: string, diskTail: string, marks?: RegExp[], busy = false): void {
+    if (!busy && !marks?.some((re) => re.test(diskTail))) return;
+    const now = Date.now(); /* 自证窗盖重载后紧邻静默工具;归属保守按已查看(重载前查看态不可知,防幽灵轮误蓝) */
+    Object.assign(this.state(sessionId), { anchored: true, awaiting: true, answered: true, active: true, lastContentAt: now, lastBusyAt: now, lastOutputViewed: true, idleArmAt: 0 });
+    this.ensureWatch();
+  }
+
+  /** 新输出入站。返回 true = 节流窗已开或轮次开启,Host 应 notify() 一次;未锚定会话与家具分片恒 false(幕布渲染走 ptyLiveTopic)。`visibleText` = 分片剥 ANSI 后可见文本(供家具分类);`busy` = 插件声明的工作界面标记行级命中(CLI 自证在途);`idle` = 空闲自证标记命中(CLI 自证当前屏幕在空闲态,契约见 cliProfile.idleMarks)。 */
+  onOutput(sessionId: string, visibleText?: string, busy = false, idle = false): boolean {
     const s = this.sessions.get(sessionId);
     if (!s || !s.anchored) return false; // 首写闸:锚定前零语义(I1)
     const now = Date.now();
-    /* 重绘抑制窗:自发 resize 后窗内 = SIGWINCH 整屏重绘,连分类副作用都免
-       (骨架 FIFO 不被重绘尾行占据,I4 幂等)。 */
+    /* 重绘抑制窗:自发 resize 后窗内 = SIGWINCH 整屏重绘,连分类副作用都免(骨架 FIFO 不被重绘尾行占据,I4 幂等)。 */
     if (now - s.lastResizeAt < REDRAW_SUPPRESS_MS) return false;
     if (busy && (s.active || s.awaiting)) {
       /* busy 帧 = CLI 自证在途:刷自证钟持轮(深思期页脚稀疏,窗宽 30s);awaiting 期即应答开始
          (开轮,天花板让位;工作页脚是响应界面非输入回显,answered 无条件置位);已结算轮不重燃(闸 4 同构)。 */
       s.answered = true;
       s.lastBusyAt = now;
+      s.idleArmAt = 0; // 在工自证 = 空闲武装的反证,即撤(I4 同款幂等:反证一到武装必清)
       this.ensureWatch();
       if (s.awaiting) {
         s.active = true;
@@ -164,10 +161,17 @@ export class ActivityWatch {
         return true; // 开轮即通知:纯 busy 分片后续分类判 static 会提前 return 丢通知
       }
     }
+    if (idle && !busy && s.answered) {
+      /* 闸 4d 空闲自证(idleMarks,对偶 busyMarks):CLI 证明屏幕在空闲态的重绘帧不作对话证据 —— 焦点/重排整屏重绘的新颖骨架曾伪装 content 把已完工轮次的「运行时」复燃(2026-09-17 实证);busy 优先,未声明 idleMarks = 行为不变。
+         2026-09-18 升级:空闲帧兼作结算证据 —— 轮次在途且已应答时武装,确认窗内无 busy/content 反证即由结算 tick 提前收口(omp 实证:完工换装后徽标仍挂「运行时」30-35s,裸 π 页脚帧更被 ticker 链继承加冕致分钟级永挂);answered 前置 = 思考期 mc 呼闪不吞轮次。 */
+      if (s.active && s.idleArmAt === 0) s.idleArmAt = now;
+      return false;
+    }
     if (visibleText !== undefined && this.host.noiseGated(sessionId)) {
       const kind = this.classify(s, visibleText, now);
       /* 家具:不推活动钟、不开轮、不通知;帧钟由 classify 就地维护(tick 登记/续命,static 仅续已登记 ticker 的命)。 */
       if (kind !== "content") return false;
+      s.idleArmAt = 0; // 新颖骨架内容帧 = 空闲自证被推翻(真流式产出),撤武装
     }
     /* 轮次开启闸:无未应答写入且轮次已了结的新输出 = 异步噪音(I2);在途轮次与 awaiting 放行。 */
     if (!s.active && !s.awaiting && this.host.noiseGated(sessionId)) return false;
@@ -227,6 +231,7 @@ export class ActivityWatch {
       this.timer = null;
     }
     this.sessions.clear();
+    this.lastTickAt = 0; // 调度间隙守卫基线同属全态:陈旧基线会跨用例误触发守卫
   }
 
   /** 分片三级分类(副作用:首见骨架入窗;复现骨架更新数字串;活家具帧钟维护)。仅字母骨架为空 = 纯控制序列/braille,归 static;ticker 登记限轮次在途;新骨架接活 ticker 帧流 TICKER_HOLD_MS 内且字母近似 = 粒度换字,继承资格。 */
@@ -258,13 +263,24 @@ export class ActivityWatch {
     this.timer = setInterval(() => {
       const now = Date.now();
       let changed = false;
+      /* 调度间隙守卫:tick 间隙超自证窗(30s)= 墙钟跳变(睡眠/节流),结算钟失去观测基础 —— 全钟刷到本刻跳过本轮(观测缺口非因果证据)。 */
+      if (this.lastTickAt && now - this.lastTickAt > CLOCK_JUMP_MS) {
+        for (const w of this.sessions.values()) if (w.active)
+          w.lastContentAt = now, w.lastTickerAt &&= now, w.lastBusyAt &&= now;
+        this.lastTickAt = now;
+        return; // 观测缺口非因果证据:跳过本轮结算
+      }
+      this.lastTickAt = now;
       for (const [id, s] of this.sessions) {
         if (!s.active) continue;
+        /* 空闲自证确认:武装后出确认窗即提前结算(完工换装证据强于时间猜测;反证 busy/content 已即时撤武装)。 */
+        const idleConfirmed = s.idleArmAt !== 0 && now - s.idleArmAt >= IDLE_CONFIRM_MS;
         /* 静默 = content 钟出 2s 窗且 ticker 帧钟出持轮窗且 busy 自证钟出 30s 窗(未登记骨架与死家具不参与;omp 页脚过 60s 切分钟粒度,靠帧流持轮,数字不跳不得假结算)。 */
         if (
-          now - s.lastContentAt <= TURN_SILENCE_MS ||
-          (s.lastTickerAt !== 0 && now - s.lastTickerAt <= TICKER_HOLD_MS) ||
-          (s.lastBusyAt !== 0 && now - s.lastBusyAt <= BUSY_HOLD_MS)
+          !idleConfirmed &&
+          (now - s.lastContentAt <= TURN_SILENCE_MS ||
+            (s.lastTickerAt !== 0 && now - s.lastTickerAt <= TICKER_HOLD_MS) ||
+            (s.lastBusyAt !== 0 && now - s.lastBusyAt <= BUSY_HOLD_MS))
         )
           continue;
         /* 未应答写入天花板(仅 CLI;ssh/shell 不守,快命令 2s 照常结算):写入后 WRITE_GRACE_MS 内「没等到应答」与「还在思考」字节不可分,统一保住 awaiting 不被假结算吞掉(真应答从此被轮次开启闸拦死);天花板保证 spinner 永续自绘(omp /help)与写入丢失必结算,不永挂。 */
@@ -277,6 +293,7 @@ export class ActivityWatch {
           continue;
         s.active = false;
         s.awaiting = false; // 本轮结算 = 应答了此前写入
+        s.idleArmAt = 0;
         const unviewed =
           !this.host.isViewing(id) && !s.lastOutputViewed && this.host.exists(id);
         if (unviewed) s.unread = true;

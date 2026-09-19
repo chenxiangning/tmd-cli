@@ -9,6 +9,7 @@ import { ompAcquireResume, startOmpPrewarmManager, stopOmpPrewarmManager } from 
 import { listOmpSuggestions } from "./rpcCommands";
 import { OmpExtensionMarket } from "./market";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
+import { PI_TUI_ECHO_MARKS } from "../cli-shared/echoMarks";
 import type { CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 
@@ -115,6 +116,8 @@ export const cliOmpPlugin: Plugin = {
         program: "bun",
         args: ["install", "-g", "@oh-my-pi/pi-coding-agent"],
       },
+      /* 版本回退/收藏菜单:最新 10 个稳定版 + 用户收藏,钉版走本通道拼 @version。 */
+      versionMenu: true,
       /* omp 运行时依赖 bun:welcome 引擎卡先探针 bun,缺失时引导先装 bun,
        * 就位前 omp 的安装/更新按钮不可点(契约见 kernel/cliProfile.ts requires)。 */
       requires: {
@@ -155,12 +158,24 @@ export const cliOmpPlugin: Plugin = {
       /* Ask 卡片标记(pi-tui 系共享字面量,见 cli-shared/askMarks.ts):
          会话列表「等待确认」标签 + 提示音的检测源。 */
       askMarks: PI_TUI_ASK_MARKS,
+      /* 用户消息回显标记(pi-tui 系共享字面量,见 cli-shared/echoMarks.ts):
+         webview 重载后 readopt 重锚的磁盘证据(契约见 kernel/cliProfile.ts echoMarks)。 */
+      echoMarks: PI_TUI_ECHO_MARKS,
+      /* win ConPTY 的 CPR 应答错位会被 pi-tui 当字符注入(架构 04 契约 7)。 */
+      conptyCprMismatch: true,
       /* 轮次进行中的工作界面标记(实采 v18.1.19 全量日志):⎋ 状态行(工作区
        * 动作行,19528 行零空闲误现)与 elapsed 计时行(Ns/Nm + 分隔符 >,banner/
        * 空闲页脚为 … 省略形态零匹配)。全屏 TUI 以光标定位分行,不可用行首锚。
        * 命中即 CLI 自证在途,activityWatch 刷帧钟持轮 —— 流式间隙不再假结算
        * (契约见 kernel/cliProfile.ts busyMarks)。 */
       busyMarks: [/⎋/u, /\d+[sm] >/u],
+      /* 空闲页脚标记(实采 v18.1.18-18.2.4):mc 行「… · idle」与 π 提示行页脚
+       * 「π > ◉ …」。对偶 busyMarks:空闲屏帧不作活动证据,兼作结算证据
+       * (闸 4d 武装-确认,完工换装 ~2s 翻空闲,契约见 kernel/cliProfile.ts
+       * idleMarks)。π 行声明缘由:裸页脚帧(不带 mc 行)2026-09-18 实证会进
+       * 家具分类器,换装 5s 内被 ticker 链继承加冕,空闲自绘帧流续命致「运行时」
+       * 分钟级永挂;跨 ~380 实采日志工作期零共现,banner 共现在锚定前被首写闸拦。 */
+      idleMarks: [/· idle/u, /π >/u],
       /* omp 是 oh-my-pi(pi fork),输入编辑器与 pi/kimi 同源 pi-tui:composer 整串
        * 正文+\r 同帧到达会命中"粘贴爆发"启发式,提交回车被改写成换行 —— win
        * 实测偶发"composer 发了但幕布没提交,须再手按回车"。声明后走 bracketed

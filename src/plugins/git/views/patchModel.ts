@@ -93,6 +93,13 @@ export type SplitRow =
   | { kind: "header"; row: PatchRow }
   | { kind: "pair"; left: PatchRow | null; right: PatchRow | null };
 
+/** 双栏配对语义:双非空且同源(buildSplitRows 的 ctx 行恒同一对象)= ctx(折叠段
+ *  成员);双非空异源 = 修改对(含 del×add zip 撞出的同文对——如补尾换行,文本
+ *  相同但确是改动,判 ctx 会把唯一改动藏进折叠段);单侧 = 纯删/纯增。 */
+export type PairKind = "ctx" | "mod" | "del" | "add";
+export const pairKind = (left: PatchRow | null, right: PatchRow | null): PairKind =>
+  left && right ? (left === right ? "ctx" : "mod") : left ? "del" : "add";
+
 /** unified 行序 → 双栏配对:ctx 同源;del 块 × add 块按下标 zip,余量留空。 */
 export function buildSplitRows(rows: PatchRow[]): SplitRow[] {
   const out: SplitRow[] = [];
@@ -126,6 +133,76 @@ export function buildSplitRows(rows: PatchRow[]): SplitRow[] {
       out.push({ kind: "pair", left: dels[i] ?? null, right: adds[i] ?? null });
     }
     for (const m of metas) out.push({ kind: "header", row: m });
+  }
+  return out;
+}
+
+/* ── 折叠焦点(N4,原型 git-split-diff-n4-collapse-focus):全文态连续 ctx
+   段压缩成就地展开条;规划在此(纯逻辑),胶囊交互件在 splitFold.tsx。 ── */
+
+/** 折叠段:连续 ctx pair ≥ 折叠下限;行号区间取双侧行号,key = 双侧起号
+ *  (行号稳定键:他段展开不移位,wrap 翻转与同内容重拉均保展开态)。 */
+export interface FoldRun {
+  key: string;
+  count: number;
+  oldFrom: number;
+  oldTo: number;
+  newFrom: number;
+  newTo: number;
+}
+
+/** 渲染编排项:原 SplitRow 或折叠胶囊。 */
+export type FoldItem = SplitRow | { kind: "fold"; run: FoldRun };
+
+const FOLD_MIN = 3;
+
+/** 扫连续 ctx pair 段,≥ 折叠下限记为一段(起点下标 → run)。 */
+export function planFolds(rows: SplitRow[]): Map<number, FoldRun> {
+  const runs = new Map<number, FoldRun>();
+  let i = 0;
+  while (i < rows.length) {
+    const row = rows[i]!;
+    if (row.kind !== "pair" || pairKind(row.left, row.right) !== "ctx") {
+      i += 1;
+      continue;
+    }
+    let j = i + 1;
+    while (j < rows.length) {
+      const r = rows[j]!;
+      if (r.kind !== "pair" || pairKind(r.left, r.right) !== "ctx") break;
+      j += 1;
+    }
+    if (j - i >= FOLD_MIN) {
+      const first = rows[i] as Extract<SplitRow, { kind: "pair" }>;
+      const last = rows[j - 1] as Extract<SplitRow, { kind: "pair" }>;
+      runs.set(i, {
+        key: `${first.left!.oldLine}:${first.right!.newLine}`,
+        count: j - i,
+        oldFrom: first.left!.oldLine!,
+        oldTo: last.left!.oldLine!,
+        newFrom: first.right!.newLine!,
+        newTo: last.right!.newLine!,
+      });
+    }
+    i = j;
+  }
+  return runs;
+}
+
+/** 折叠编排:段恒出一个胶囊项(条常驻,展开态 label 翻转「收起」),展开时段内
+ *  原行紧随其后摊平;未启用折叠原数组直返。 */
+export function foldItems(rows: SplitRow[], runs: Map<number, FoldRun> | null, open: Set<string>): FoldItem[] {
+  if (!runs || runs.size === 0) return rows;
+  const out: FoldItem[] = [];
+  for (let i = 0; i < rows.length; i += 1) {
+    const run = runs.get(i);
+    if (run) {
+      out.push({ kind: "fold", run });
+      if (open.has(run.key)) for (let k = i; k < i + run.count; k += 1) out.push(rows[k]!);
+      i += run.count - 1;
+      continue;
+    }
+    out.push(rows[i]!);
   }
   return out;
 }

@@ -260,9 +260,12 @@ export class SessionSpawnService {
     activate = true,
   ): Promise<SessionMeta> {
     /* 显式恢复路径的绑定也走唯一写入口:入口去重的兜底闸 —— 同一磁盘会话
-       已有活 PTY 时新 PTY 照常运行,但身份不绑(账本/UI 按 tmd id 隔离,不与既有会话并账)。*/
-    if (cliSessionId) this.h.bindIdentity(sessionId, cliSessionId);
+       已有活 PTY 时新 PTY 照常运行,但身份不绑(账本/UI 按 tmd id 隔离,不与既有
+       会话并账)。先刷表后绑定:绑定刻账本要能查到 meta(workspaceId/engine)——
+       磁盘回放指针覆写与「绑定即续命解除归档」(identityLedger.bind)都依赖此刻
+       可查,与 ssh/shell adopt 的 refreshSessions 先行同款序。 */
     this.h.setSessions(await ipc.sessionList());
+    if (cliSessionId) this.h.bindIdentity(sessionId, cliSessionId);
     if (activate) this.h.setActiveSessionId(sessionId);
     /* 常驻订阅从会话诞生起持续缓冲输出(与幕布是否挂载无关);
        秒退守望经 onExit 进退出回调 —— 缓冲随 removeSession 即清,摘尾须在清理前同步执行 */

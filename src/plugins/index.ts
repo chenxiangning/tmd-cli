@@ -31,6 +31,8 @@ import { cliConfigPlugin } from "./cli-config";
 import { localLoaderPlugin } from "./local-loader";
 import { wslPlugin } from "./wsl";
 import { wallpaperPlugin } from "./wallpaper";
+import { sessionBoardPlugin } from "./session-board";
+import { webAccessPlugin } from "./web-access";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -59,4 +61,6 @@ export const allPlugins: Plugin[] = [
   localLoaderPlugin,
   wslPlugin,
   wallpaperPlugin,
+  sessionBoardPlugin,
+  webAccessPlugin,
 ];

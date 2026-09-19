@@ -1,121 +1,45 @@
 /**
- * 双栏 diff(split)自绘渲染 —— 左内容 | 中央行号槽 | 右内容。
+ * 双栏 diff(split)自绘渲染 —— 中缝连接带(JetBrains 形):左内容 | 旧号 | 新号 | 右内容。
  *
- * - 对位:buildSplitRows 把 ctx 同行、del 块 × add 块 zip 配对,缺侧留白;
+ * - 对位:buildSplitRows 把 ctx 同行、del 块 × add 块 zip 配对,缺侧留白(浅染空带);
+ * - 行号槽居中缝两侧(JetBrains 排布):muted 右对齐不可选;改动行(mod/del/add)双号格
+ *   发丝透明,两侧色带贯通中缝成横带;wrap 随行渲染,nowrap 为独立纵同步栈(行号不横滚);
+ * - 词级标注:mod 对差异 token 实色深染块(深行底一档,wordDiff);
+ * - 折叠焦点(N4,仅 fold 态):连续 ctx 段 ≥3 行压成就地展开胶囊(planFolds/foldItems 编排 + splitFold 胶囊);
  * - 独立横向滚动条(关换行时):左右内容列各为独立 overflow-auto 滚动面,
- *   纵向 scrollTop 三面(左/槽/右)镜像同步(nowrap 行高恒单行,三面行数一致);
- * - 改动块识别框:块行在中央槽画 accent 括号框(槽列不随横滚,任何滚动位
- *   都可见),块首/块尾在两个内容列拉 accent 横线贯穿;缺侧占位行涂类型色块;
- * - 词级标注:mod 对 token 差异下划线(见 wordDiff.tsx)。
+ *   纵向 scrollTop 四面(左/左槽/右槽/右)镜像同步;
+ * - 行高四面同源:nowrap 态四列是四个独立行栈,WebKit 下各栈行盒高度有亚像素差,
+ *   逐行累积成整行错位(全文单 hunk 时最显)——左内容栈为基准实测行高(盒高;行外
+ *   边距四面同类同值,折叠量一致),其余三栈逐行 pin 同值,引擎差异归零。
  */
-import { useMemo, useRef, type RefObject } from "react";
-import { buildSplitRows, patchRowKey, type PatchRow, type SplitRow } from "./patchModel";
-import { wordDiff, type WordPart } from "./wordDiff";
+import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { buildSplitRows, foldItems, patchRowKey, planFolds, type FoldItem, type PatchRow } from "./patchModel";
+import { lnoCols } from "./wordDiff";
+import { FoldBar, useFoldRuns } from "./splitFold";
+import { GridPairRow, LineNo, useWordParts, WordContent } from "./splitCells";
+import { CONTENT_NOWRAP_CLS, HEADER_CLS, HEADER_NW_CLS, sideBand } from "./splitCls";
 
-/* 正文格:wrap 换行 / nowrap 撑出滚动面。 */
-const CONTENT_WRAP_CLS = "min-w-0 flex-1 whitespace-pre-wrap break-all pl-2";
-const CONTENT_NOWRAP_CLS = "shrink-0 whitespace-pre pl-2";
 
-function WordContent({ parts, wrap }: { parts: WordPart[]; wrap: boolean }) {
-  return (
-    <span className={wrap ? CONTENT_WRAP_CLS : CONTENT_NOWRAP_CLS}>
-      {parts.map((p, i) =>
-        p.tag ? (
-          <span
-            key={i}
-            className={p.tag === "ins" ? "git-split-word git-split-word-ins" : "git-split-word git-split-word-del"}
-          >
-            {p.text}
-          </span>
-        ) : (
-          p.text
-        ),
-      )}
-    </span>
-  );
-}
-/** hunk 头 / meta 行通栏样式。行高三面一致靠 min-h-[1.25em](空占位无文字也
- *  与带字行等高;1.25em = pre 的 leading-tight 行高,不用 lh 单位——老
- *  WebKit(Tauri 系统 WebView)不支持,静默塌行)。halves 模式另用 *_NW:
- *  whitespace-pre 恒单行,超长头随该列横滚,不撑高错位。 */
-const HEADER_CLS: Record<"hunk" | "meta", string> = {
-  hunk: "my-1 min-h-[1.25em] border-y border-(color:--tmd-border) bg-(color:--tmd-bg-hover)/40 px-1 text-[0.625rem] text-(--tmd-accent)",
-  meta: "min-h-[1.25em] px-1 italic text-(--tmd-fg-faint)",
-};
-const HEADER_NW_CLS: Record<"hunk" | "meta", string> = {
-  hunk: `${HEADER_CLS.hunk} whitespace-pre`,
-  meta: `${HEADER_CLS.meta} whitespace-pre`,
-};
+/* ── 换行态:单滚动面,逐行四列 grid ── */
 
-/** 双栏配对语义:双非空且文本不同 = 修改对(左红右绿同行);单侧 = 纯删/纯增。 */
-type PairKind = "ctx" | "mod" | "del" | "add";
-const pairKind = (left: PatchRow | null, right: PatchRow | null): PairKind =>
-  left && right ? (left.text === right.text ? "ctx" : "mod") : left ? "del" : "add";
-
-/** 色带 = 本侧行种类的经典淡染(与单栏同源变量)。 */
-const SIDE_BAND: Record<string, string> = {
-  del: "git-split-band-del",
-  add: "git-split-band-add",
-};
-const bandFor = (row: PatchRow | null) => (row ? SIDE_BAND[row.kind] ?? "" : "");
-
-/** 连续非 ctx pair 行 = 一个改动块;返回每行的首尾边标记(块框/横线绘制用)。 */
-type BlockTag = { edge: "first" | "mid" | "last" | "single" } | null;
-function blockMap(rows: SplitRow[]): BlockTag[] {
-  const out: BlockTag[] = rows.map((r) =>
-    r.kind === "pair" && pairKind(r.left, r.right) !== "ctx" ? { edge: "mid" } : null,
-  );
-  for (let i = 0; i < out.length; i++) {
-    if (!out[i]) continue;
-    const start = i;
-    while (i < out.length && out[i]) i++;
-    const end = i - 1;
-    for (let k = start; k <= end; k++)
-      out[k] = { edge: k === start ? (k === end ? "single" : "first") : k === end ? "last" : "mid" };
-  }
-  return out;
-}
-/** 槽列块底 class:accent 淡染,与内容列色带同块同范围。 */
-const frameCls = (tag: BlockTag): string => (tag ? "git-split-block-bg" : "");
-
-/** 块首/块尾横线 class:三面(左内容/槽/右内容)同值同位,横线贯通不割裂。 */
-function lineCls(tag: BlockTag): string {
-  if (!tag) return "";
-  const top = tag.edge === "first" || tag.edge === "single";
-  const bot = tag.edge === "last" || tag.edge === "single";
-  return `${top ? "git-split-bd-top " : ""}${bot ? "git-split-bd-bot" : ""}`.trim();
-}
-
-/** 占位行槽色块:缺左 = 新增块占位(inserted),缺右 = 删除块占位(removed)。 */
-const phClass = (kind: PairKind) =>
-  kind === "add" ? "git-split-ph-add" : kind === "del" ? "git-split-ph-del" : "";
-
-/** 中央行号槽一格:旧行号居左、新行号居右;改动行旧号前加 ⤶ 钩,
- *  缺侧画空槽占位(⬚),改动行数字提亮。 */
-function SlotGutter({ left, right, chg }: { left: PatchRow | null; right: PatchRow | null; chg?: boolean }) {
-  return (
-    <div className={`git-split-gutter-row ${chg ? "git-split-gutter-chg" : ""}`}>
-      {left ? (
-        <span>
-          {chg && <span className="git-split-ghook">⤶</span>}
-          {left.oldLine}
-        </span>
-      ) : (
-        <span className="git-split-gslot-empty" aria-hidden />
-      )}
-      {right ? <span>{right.newLine}</span> : <span className="git-split-gslot-empty" aria-hidden />}
-    </div>
-  );
-}
-
-/* ── 换行态:单滚动面,逐行三列 grid ── */
-
-function SplitGrid({ rows }: { rows: SplitRow[] }) {
-  const blocks = useMemo(() => blockMap(rows), [rows]);
+function SplitGrid({
+  items,
+  cols,
+  foldOpen,
+  toggleFold,
+}: {
+  items: FoldItem[];
+  cols: string;
+  foldOpen: Set<string>;
+  toggleFold: (key: string) => void;
+}) {
+  const wordParts = useWordParts(items);
   return (
     <>
-      {rows.map((row, i) =>
-        row.kind === "header" ? (
+      {items.map((row, i) =>
+        row.kind === "fold" ? (
+          <FoldBar key={`f:${row.run.key}`} run={row.run} open={foldOpen.has(row.run.key)} onToggle={toggleFold} />
+        ) : row.kind === "header" ? (
           <div key={patchRowKey(row.row)} className={row.row.kind === "hunk" ? HEADER_CLS.hunk : HEADER_CLS.meta}>
             {row.row.text}
           </div>
@@ -123,7 +47,8 @@ function SplitGrid({ rows }: { rows: SplitRow[] }) {
           <GridPairRow
             key={`${row.left ? patchRowKey(row.left) : "e"}|${row.right ? patchRowKey(row.right) : "e"}`}
             row={row}
-            tag={blocks[i]}
+            cols={cols}
+            parts={wordParts[i]}
           />
         ),
       )}
@@ -131,50 +56,43 @@ function SplitGrid({ rows }: { rows: SplitRow[] }) {
   );
 }
 
-function GridPairRow({ row, tag }: { row: Extract<SplitRow, { kind: "pair" }>; tag: BlockTag }) {
-  const kind = pairKind(row.left, row.right);
-  const [dParts, iParts] = kind === "mod" ? wordDiff(row.left!.text, row.right!.text) : [null, null];
-  const bd = lineCls(tag);
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] [content-visibility:auto] [contain-intrinsic-size:auto_1em]">
-      <div className={`flex min-w-0 px-2 ${bandFor(row.left)} ${bd}`}>
-        {dParts ? (
-          <WordContent parts={dParts} wrap={true} />
-        ) : (
-          <span className={CONTENT_WRAP_CLS}>{row.left?.text ?? ""}</span>
-        )}
-      </div>
-      <div className={`git-split-gutter-col ${lineCls(tag)} ${frameCls(tag)} ${phClass(kind)}`}>
-        <SlotGutter left={row.left} right={row.right} chg={kind !== "ctx"} />
-      </div>
-      <div className={`flex min-w-0 px-2 ${bandFor(row.right)} ${bd}`}>
-        {iParts ? (
-          <WordContent parts={iParts} wrap={true} />
-        ) : (
-          <span className={CONTENT_WRAP_CLS}>{row.right?.text ?? ""}</span>
-        )}
-      </div>
-    </div>
-  );
+/* ── 关闭换行:左右独立横向滚动面 + 双号槽栈,纵向四面同步 ── */
+
+/** 左内容栈行盒高实测(getBoundingClientRect,亚像素保真):其余三栈逐行 pin
+ *  同值;行外边距(header my-1)四面同类同值,折叠量一致,只 pin 盒高即四面同位。 */
+function useRowHeights(innerRef: RefObject<HTMLDivElement | null>, rows: FoldItem[]): number[] | null {
+  const [heights, setHeights] = useState<number[] | null>(null);
+  useLayoutEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const hs = Array.from(el.children, (c) => (c as HTMLElement).getBoundingClientRect().height);
+      setHeights((prev) => (prev && prev.length === hs.length && prev.every((v, j) => v === hs[j]) ? prev : hs));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [innerRef, rows]);
+  return heights;
 }
 
-/* ── 关闭换行:左右独立横向滚动面 + 中央槽,纵向三面同步 ── */
-
-function SplitHalves({ rows }: { rows: SplitRow[] }) {
-  /* mod 对词级标注一次算两份:side() 左右各渲染一遍,逐侧现算 = 同一 DP 跑两遍
-   * (2026-09-15 评审);预计算随 rows 换代。 */
-  const wordParts = useMemo(
-    () =>
-      rows.map((row) =>
-        row.kind === "pair" && pairKind(row.left, row.right) === "mod"
-          ? wordDiff(row.left!.text, row.right!.text)
-          : null,
-      ),
-    [rows],
-  );
+function SplitHalves({
+  items,
+  cols,
+  foldOpen,
+  toggleFold,
+}: {
+  items: FoldItem[];
+  cols: string;
+  foldOpen: Set<string>;
+  toggleFold: (key: string) => void;
+}) {
+  const wordParts = useWordParts(items);
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
-  const midRef = useRef<HTMLDivElement>(null);
+  const glRef = useRef<HTMLDivElement>(null);
+  const grRef = useRef<HTMLDivElement>(null);
   const syncingRef = useRef(false);
   /* ponytail: rAF 解锁窗内若镜像 pane 的 scroll 事件迟到,会多写一次同值
      scrollTop(无振荡、视觉无感);换 scrollend/写前比值可根治,不值当。 */
@@ -187,16 +105,19 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
         syncingRef.current = false;
       });
     };
-  const blocks = useMemo(() => blockMap(rows), [rows]);
-  /* 一面内容列:header 通栏单行;pair 行取本侧,缺侧等高留白(带块横线)。
-     行色带/横线要铺满横向滚动全宽 → 滚动面内衬 w-max min-w-full。 */
+  /* 中槽/右槽/右内容三栈逐行 pin 左内容栈实测高:同值同位,跨引擎零累积错位。 */
+  const leftInnerRef = useRef<HTMLDivElement>(null);
+  const rowHeights = useRowHeights(leftInnerRef, items);
+  const pin = (i: number) => (rowHeights ? { height: rowHeights[i] } : undefined);
+  /* 一面内容列:header 通栏单行;pair 行取本侧,缺侧等高留白(浅染空带)。
+     行色带要铺满横向滚动全宽 → 滚动面内衬 w-max min-w-full。 */
   const side = (isLeft: boolean) => {
     const me = isLeft ? leftRef : rightRef;
-    const targets = isLeft ? [rightRef, midRef] : [leftRef, midRef];
+    const targets = isLeft ? [rightRef, glRef, grRef] : [leftRef, glRef, grRef];
     return (
-      <div ref={me} onScroll={mirror(me, targets)} className="h-full min-w-0 overflow-auto">
-        <div className="w-max min-w-full px-2">
-          {rows.map((row, i) => {
+      <div ref={me} onScroll={mirror(me, targets)} className="h-full min-w-0 overflow-auto [container-type:inline-size]">
+        <div ref={isLeft ? leftInnerRef : undefined} className="w-max min-w-full pr-2">
+          {items.map((row, i) => {
             if (row.kind === "header")
               return (
                 <div
@@ -206,16 +127,28 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
                   {row.row.text}
                 </div>
               );
+            if (row.kind === "fold")
+              return (
+                <FoldBar
+                  key={`f:${row.run.key}`}
+                  style={isLeft ? undefined : pin(i)}
+                  ghost={!isLeft}
+                  run={row.run}
+                  open={foldOpen.has(row.run.key)}
+                  onToggle={toggleFold}
+                />
+              );
             const self = isLeft ? row.left : row.right;
-            const bd = lineCls(blocks[i]);
+            const other = isLeft ? row.right : row.left;
+            const band = sideBand(self, other);
             if (!self)
               return (
-                <div key={`e:${patchRowKey((isLeft ? row.right : row.left)!)}`} className={`min-h-[1.25em] ${bd}`} aria-hidden />
+                <div key={`e:${patchRowKey(other!)}`} style={isLeft ? undefined : pin(i)} className={`min-h-[1.25em] ${band}`} aria-hidden />
               );
             const pair = wordParts[i];
             const parts = pair ? (isLeft ? pair[0] : pair[1]) : null;
             return (
-              <div key={patchRowKey(self)} className={`min-h-[1.25em] ${bandFor(self)} ${bd}`}>
+              <div key={patchRowKey(self)} style={isLeft ? undefined : pin(i)} className={`min-h-[1.25em] ${band}`}>
                 {parts ? (
                   <WordContent parts={parts} wrap={false} />
                 ) : (
@@ -228,43 +161,70 @@ function SplitHalves({ rows }: { rows: SplitRow[] }) {
       </div>
     );
   };
-  /* 中央槽列:不横滚(overflow-hidden),块括号框恒可见;header 空行与两侧同高。 */
-  const mid = (
-    <div ref={midRef} className="h-full overflow-hidden">
-      {rows.map((row, i) =>
-        row.kind === "header" ? (
-          <div key={`h:${patchRowKey(row.row)}`} className={row.row.kind === "hunk" ? HEADER_CLS.hunk : HEADER_CLS.meta} aria-hidden />
+  /* 一面行号槽栈:不横滚(overflow-hidden),header 空行与内容栈同高同外边距。 */
+  const gutter = (isLeft: boolean) => (
+    <div ref={isLeft ? glRef : grRef} className="h-full overflow-hidden">
+      {items.map((row, i) =>
+        row.kind === "fold" ? (
+          <div key={`f:${row.run.key}`} style={pin(i)} className="git-split-fold-gap" aria-hidden />
+        ) : row.kind === "header" ? (
+          <div
+            key={`h:${patchRowKey(row.row)}`}
+            style={pin(i)}
+            className={`git-split-lno ${isLeft ? "git-split-lno-old" : ""} ${row.row.kind === "hunk" ? HEADER_CLS.hunk : HEADER_CLS.meta}`}
+            aria-hidden
+          />
         ) : (
-          <div key={`g:${patchRowKey(row.left ?? row.right!)}`} className={`git-split-gutter-col ${lineCls(blocks[i])} ${frameCls(blocks[i])} ${phClass(pairKind(row.left, row.right))}`}>
-            <SlotGutter left={row.left} right={row.right} chg={pairKind(row.left, row.right) !== "ctx"} />
-          </div>
+          <LineNo
+            key={`g:${patchRowKey(row.left ?? row.right!)}`}
+            style={pin(i)}
+            row={isLeft ? row.left : row.right}
+            other={isLeft ? row.right : row.left}
+            isLeft={isLeft}
+          />
         ),
       )}
     </div>
   );
   return (
-    <div className="grid h-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+    <div className="grid h-full" style={{ gridTemplateColumns: cols }}>
       {side(true)}
-      {mid}
+      {gutter(true)}
+      {gutter(false)}
       {side(false)}
     </div>
   );
 }
 /** 双栏入口:wrap 开 = 单滚动面逐行 grid;wrap 关 = 左右独立横向滚动面。
- *  注意:nowrap 态固定 h-full(横向滚动条归两半各自、纵向三面同步需要
+ *  注意:nowrap 态固定 h-full(横向滚动条归两半各自、纵向四面同步需要
  *  确定高度),调用方传入的 className 尺寸类在 nowrap 下被忽略。 */
-export function SplitDiffView({ rows, wrap, className }: { rows: PatchRow[]; wrap: boolean; className: string }) {
+export function SplitDiffView({
+  rows,
+  wrap,
+  className,
+  fold,
+}: {
+  rows: PatchRow[];
+  wrap: boolean;
+  className: string;
+  /** 全文态折叠焦点:连续 ctx 段压成就地展开胶囊(缺省不折叠)。 */
+  fold?: boolean;
+}) {
   const splitRows = useMemo(() => buildSplitRows(rows), [rows]);
+  const cols = useMemo(() => lnoCols(splitRows), [splitRows]);
+  const runs = useMemo(() => (fold ? planFolds(splitRows) : null), [fold, splitRows]);
+  const [foldOpen, toggleFold] = useFoldRuns(runs);
+  const items = useMemo(() => foldItems(splitRows, runs, foldOpen), [splitRows, runs, foldOpen]);
   if (!wrap) {
     return (
       <pre className="h-full overflow-hidden py-1 font-mono text-[0.6875rem] leading-tight">
-        <SplitHalves rows={splitRows} />
+        <SplitHalves items={items} cols={cols} foldOpen={foldOpen} toggleFold={toggleFold} />
       </pre>
     );
   }
   return (
     <pre className={`${className} overflow-auto py-1 font-mono text-[0.6875rem] leading-tight`}>
-      <SplitGrid rows={splitRows} />
+      <SplitGrid items={items} cols={cols} foldOpen={foldOpen} toggleFold={toggleFold} />
     </pre>
   );
 }

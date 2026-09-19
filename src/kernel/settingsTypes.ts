@@ -1,25 +1,12 @@
 /**
- * 设置领域类型与默认值 —— 自 settings.ts 拆出(文件规模铁则收紧至 300 行)。
- * 承担:AppSettings 及关联类型、枚举白名单、默认值表、会话列表配额解析。
- * store/持久化/面板态留在 settings.ts;字段清洗在 settingsSanitize.ts。
+ * 设置领域类型 —— 自 settings.ts 拆出(文件规模铁则收紧至 300 行)。
+ * 承担:AppSettings 及关联类型、枚举白名单、会话列表配额解析。
+ * 默认值表在 settingsDefaults.ts;store/持久化在 settings.ts;字段清洗在 settingsSanitize.ts。
  */
 
 import type { SshHostConfig } from "./sshTypes";
-import {
-  SESSION_TABS_LIMIT_DEFAULT,
-  TERMINAL_FONT_SIZE_DEFAULT,
-  UI_FONT_SIZE_DEFAULT,
-  UI_ZOOM_DEFAULT,
-  DEFAULT_ICON_DECOR,
-  type IconDecorId,
-  type IconDecorItem,
-  type UiLanguage,
-} from "./settingsAppearance";
-import {
-  DEFAULT_DARK_THEME_PRESET_ID,
-  DEFAULT_LIGHT_THEME_PRESET_ID,
-  type ThemePresetId,
-} from "./themePresets";
+import type { IconDecorId, IconDecorItem, UiLanguage } from "./settingsAppearance";
+import type { ThemePresetId } from "./themePresets";
 
 export type ThemePreference = "system" | "light" | "dark" | "custom";
 /** 发送快捷键:"enter" = Enter 发送 / Shift+Enter 换行;"cmdOrCtrlEnter" = ⌘/Ctrl+Enter 发送 / Enter 换行。 */
@@ -182,6 +169,8 @@ export interface AppSettings {
    * 管理态移除并在列表隐藏,磁盘数据保留(领域 API 见 kernel/sessionDeleted.ts)。
    */
   sessionDeleted: Record<string, SessionDeletedEntry>;
+  /** 引擎版本收藏层(welcome 插件编辑域):key = `${engineId}@${version}`,value = 收藏时间戳。 */
+  engineVersionFavs: Record<string, { favedAt: number }>;
   /**
    * 左侧栏各工作区会话列表折叠态:key = workspaceId,value = 是否折叠。
    * 缺失的工作区(首次出现)默认折叠;切换折叠/展开与「折叠全部」均写这里,
@@ -194,7 +183,7 @@ export interface AppSettings {
   workspaceGroupCollapsedMap: Record<string, boolean>;
   /** 左侧栏会话视图:false = 默认(隐藏归档),true = 归档(只看归档)。 */
   workspaceArchiveView: boolean;
-  /** 侧栏工作区来源过滤:空 = 全部;local = 本地;wsl = WSL(含远程)。 */
+  /** 侧栏工作区来源过滤:local = 本地(缺省);wsl 等 = 对应来源;空 = 全部(仅归档视图瞬态)。 */
   workspaceOriginFilter: string;
   /**
    * 网络代理(network-proxy 插件的编辑域):客户端自身联网(quota_fetch 等
@@ -240,56 +229,15 @@ export interface AppSettings {
    * (2026-09-12 退场:卡内「本机|远程」mode 段控拔除,两段按可用性共存。)
    */
   wsl: { defaultDistro: string; remoteHostId: string };
+  /** Web 访问桥开关(web-access 插件编辑域):开 = 随应用启动桥;每次启动新铸 token。 */
+  webAccessEnabled: boolean;
+  /** 外网中继开关:开 = 应用重启后自动重拨。 */
+  webRelayOn: boolean;
+  /** 中继 Worker 基址(用户自有 Cloudflare / 自建 relay)。 */
+  webRelayUrl: string;
+  /** 中继共享密钥(亦作手机 URL 路径段);relay 端只认它,桌面桥仍走 token/设备授权。 */
+  webRelayKey: string;
 }
-
-export const DEFAULT_SETTINGS: AppSettings = {
-  theme: "system",
-  lightThemePresetId: DEFAULT_LIGHT_THEME_PRESET_ID,
-  darkThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
-  customThemePresetId: DEFAULT_DARK_THEME_PRESET_ID,
-  language: "zh",
-  terminalFontSize: TERMINAL_FONT_SIZE_DEFAULT,
-  terminalFontFamily: "",
-  uiFontSize: UI_FONT_SIZE_DEFAULT,
-  uiZoom: UI_ZOOM_DEFAULT,
-  iconDecor: DEFAULT_ICON_DECOR,
-  sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT,
-  sessionTabsEnabled: true,
-  sendShortcut: "enter",
-  promptHistoryEnabled: true,
-  askSoundEnabled: true,
-  askSoundId: "default",
-  turnEndSoundEnabled: true,
-  turnEndSoundId: "default",
-  backgroundNotify: true,
-  sessionListBudget: { total: SESSION_LIST_TOTAL_DEFAULT, perCli: {} },
-  sessionOutputBufferLimit: 500_000,
-  disabledPlugins: [],
-  localPluginsDisabled: false,
-  localPluginTrust: {},
-  sessionTitles: {},
-  sessionPins: {},
-  shortcutOverrides: {},
-  workspaceCollapsedMap: {},
-  workspaceGroups: [],
-  workspaceGroupCollapsedMap: {},
-  sessionArchive: {},
-  sessionDeleted: {},
-  workspaceArchiveView: false,
-  workspaceOriginFilter: "",
-  networkProxyEnabled: false,
-  networkProxyUrl: "",
-  memoryDbPath: "",
-  memoryEnabled: true,
-  memoryCapsuleMode: "manual",
-  memoryAutoDistill: false,
-  memoryDistillModel: "",
-  memoryDistillEngine: "",
-  memoryDistillRules: "",
-  git: { view: "diff", layout: "flat", diffMode: "unified", diffWrap: true },
-  ssh: { hosts: [] },
-  wsl: { defaultDistro: "", remoteHostId: "" },
-};
 
 /** 记忆胶囊注入策略(manual 手动勾选注入 / auto 新会话自动展开 / off 关闭)。 */
 export type MemoryCapsuleMode = "manual" | "auto" | "off";

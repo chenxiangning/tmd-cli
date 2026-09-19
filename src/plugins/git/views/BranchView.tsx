@@ -10,11 +10,12 @@
  * checkout 脏工作区冲突:libgit2 safe 模式拒绝 → 后端给出「先提交或暂存」引导,不擅自 force。
  * merge/rebase 冲突:git CLI 留标准中间态(E_SHELL 透传),幕布终端可接管收尾。
  * 远程行检出:建同名本地分支并建跟踪(checkout_remote),本地同名已存在由后端拒绝。
+ * 顶部搜索框按名称子串过滤本地/远程两组(不区分大小写),分组计数随过滤变化。
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { t } from "@kernel/i18n";
-import { CircleNotch, Plus } from "@phosphor-icons/react";
+import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { ipc, type GitBranchInfo, type GitBranchList } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
 import {
@@ -25,7 +26,13 @@ import {
 import { GitConfirmDialog, type GitConfirmState } from "./GitConfirmDialog";
 import { BranchCompareModal, type BranchCompareRequest } from "./BranchCompareModal";
 import { BranchNameDialog, type BranchNameDialogState } from "./BranchNameDialog";
-import { BranchRow, GroupLabel } from "./BranchRow";
+import {
+  BranchCreateRow,
+  BranchRow,
+  BranchSearchBox,
+  GitOpBanner,
+  GroupLabel,
+} from "./BranchRow";
 import { requestRemoteDialog, setSmartSwitchOrigin } from "../panelStore";
 
 interface Props {
@@ -45,6 +52,8 @@ function localNameOf(remoteBranch: string): string {
 
 export function BranchView({ cwd, data, loading, currentName, dirty, onMutation }: Props) {
   const [newName, setNewName] = useState("");
+  const [query, setQuery] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -52,6 +61,12 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
   const [confirm, setConfirm] = useState<GitConfirmState | null>(null);
   const [nameDialog, setNameDialog] = useState<BranchNameDialogState | null>(null);
   const [compare, setCompare] = useState<BranchCompareRequest | null>(null);
+  const q = query.trim().toLowerCase();
+  /* memo:busy/error/notice/menu 等状态翻转不再全表 O(n) 重滤(万级 refs 可感)。 */
+  const { locals, remotes } = useMemo(() => {
+    const f = (list: GitBranchInfo[]) => list.filter((b) => b.name.toLowerCase().includes(q));
+    return { locals: f(data?.local ?? []), remotes: f(data?.remote ?? []) };
+  }, [data, q]);
 
   const run = (action: () => Promise<unknown>, okNotice?: string) => {
     setBusy(true);
@@ -209,45 +224,29 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
           run(() => ipc.gitDeleteBranch(cwd, b.name, false), t("已删除 {branch}", { branch: b.name })),
       }),
   };
+  const CreateCaret = createOpen ? CaretDown : CaretRight;
 
   return (
     <div className="flex h-full flex-col gap-1 overflow-y-auto p-2">
       <div className="flex items-center gap-1.5">
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && createBranch()}
-          placeholder={t("新分支名...")}
-          className="min-w-0 flex-1 rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-xs outline-none focus:border-(--tmd-accent)"
-        />
+        <BranchSearchBox value={query} onChange={setQuery} />
         <button
-          onClick={createBranch}
-          disabled={!newName.trim() || busy}
-          title={t("基于当前 HEAD 创建")}
-          className="rounded bg-(--tmd-accent) p-1.5 text-(--tmd-accent-fg) disabled:opacity-40"
+          onClick={() => setCreateOpen((v) => !v)}
+          aria-expanded={createOpen}
+          title={t("新建分支")}
+          className="rounded p-1.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-elevated) hover:text-(--tmd-fg)"
         >
-          <Plus className="h-[0.875rem] w-[0.875rem]" />
+          <CreateCaret className="h-[0.75rem] w-[0.75rem]" />
         </button>
       </div>
-
-      {error && (
-        <div className="rounded bg-(--tmd-bg-sunken) px-2 py-1 text-(--tmd-diff-removed)">
-          {error}
-        </div>
-      )}
-      {notice && (
-        <div className="rounded bg-(--tmd-bg-elevated) px-2 py-1 text-(--tmd-fg-muted)">
-          {notice}
-        </div>
-      )}
-      {busy && (
-        <div className="flex items-center gap-1.5 text-(--tmd-fg-faint)">
-          <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" /> {t("执行中…")}
-        </div>
+      {createOpen && (
+        <BranchCreateRow value={newName} onChange={setNewName} onSubmit={createBranch} busy={busy} />
       )}
 
-      <GroupLabel label={t("本地 ({n})", { n: data?.local.length ?? 0 })} />
-      {data?.local.map((b) => (
+      <GitOpBanner error={error} notice={notice} busy={busy} />
+
+      <GroupLabel label={t("本地 ({n})", { n: locals.length })} />
+      {locals.map((b) => (
         <BranchRow
           key={b.name}
           branch={b}
@@ -259,8 +258,8 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
       ))}
       {loading && !data && <div className="px-2 py-1 text-(--tmd-fg-faint)">{t("加载中…")}</div>}
 
-      <GroupLabel label={t("远程 ({n})", { n: data?.remote.length ?? 0 })} />
-      {data?.remote.map((b) => (
+      <GroupLabel label={t("远程 ({n})", { n: remotes.length })} />
+      {remotes.map((b) => (
         <BranchRow
           key={b.name}
           branch={b}
@@ -269,6 +268,9 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
           onMenu={(x, y) => setMenu({ x, y, branch: b })}
         />
       ))}
+      {q !== "" && locals.length === 0 && remotes.length === 0 && (
+        <div className="px-2 py-1 text-(--tmd-fg-faint)">{t("没有匹配的分支")}</div>
+      )}
 
       {menu && (
         <BranchContextMenu

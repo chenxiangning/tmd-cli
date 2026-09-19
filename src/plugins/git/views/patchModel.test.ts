@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildSplitRows, parsePatch } from "./patchModel";
+import { buildSplitRows, foldItems, pairKind, parsePatch, planFolds } from "./patchModel";
 
 const PATCH = [
   "diff --git a/src/x.rs b/src/x.rs",
@@ -134,6 +134,61 @@ describe("buildSplitRows", () => {
     expect(split[2]).toEqual({ kind: "pair", left: rows[2], right: rows[4] }); // -b × +c 对照
     expect(split[3]).toEqual({ kind: "header", row: rows[3] }); // meta 原序补发
     expect(split[4]).toEqual({ kind: "header", row: rows[5] });
+  });
+});
+
+describe("planFolds / foldItems(N4 折叠焦点)", () => {
+  const PATCH = [
+    "@@ -1,9 +1,9 @@",
+    " a",
+    " b",
+    " c",
+    "-x",
+    "+y",
+    " d",
+    " e",
+    "@@ -20,4 +20,4 @@",
+    " f",
+    " g",
+    " h",
+    " i",
+  ].join("\n");
+
+  it("≥3 行连续 ctx 记段(起点下标 + 双侧行号区间),2 行段与 header 切断不计", () => {
+    const runs = planFolds(buildSplitRows(parsePatch(PATCH)));
+    expect([...runs.entries()]).toEqual([
+      [1, { key: "1:1", count: 3, oldFrom: 1, oldTo: 3, newFrom: 1, newTo: 3 }],
+      [8, { key: "20:20", count: 4, oldFrom: 20, oldTo: 23, newFrom: 20, newTo: 23 }],
+    ]);
+  });
+
+  it("foldItems:段恒出胶囊项,展开时原行紧随摊平,未启用折叠原数组直返", () => {
+    const rows = buildSplitRows(parsePatch(PATCH));
+    const runs = planFolds(rows);
+    const closed = foldItems(rows, runs, new Set());
+    expect(closed.map((r) => (r.kind === "fold" ? `fold:${r.run.key}` : r.kind))).toEqual([
+      "header",
+      "fold:1:1",
+      "pair",
+      "pair",
+      "pair",
+      "header",
+      "fold:20:20",
+    ]);
+    const opened = foldItems(rows, runs, new Set(["1:1"]));
+    expect(opened).toHaveLength(10);
+    expect(opened[1]?.kind).toBe("fold"); // 条常驻
+    expect(opened[2]).toBe(rows[1]); // 原行原引用紧随摊平
+    expect(foldItems(rows, null, new Set())).toBe(rows);
+  });
+
+  it("del×add 同文 zip 对(补尾换行)是改动不是 ctx,不入折叠段", () => {
+    const rows = parsePatch("@@ -1,4 +1,4 @@\n a\n b\n c\n-d\n\\ No newline at end of file\n+d\n");
+    const split = buildSplitRows(rows);
+    expect(split[4]).toEqual({ kind: "pair", left: rows[4], right: rows[6] }); // 同文 zip 对
+    expect(pairKind(rows[4], rows[6])).toBe("mod"); // 文本同但异源 = 改动
+    const runs = [...planFolds(split).values()];
+    expect(runs).toEqual([{ key: "1:1", count: 3, oldFrom: 1, oldTo: 3, newFrom: 1, newTo: 3 }]); // 不吞 zip 对
   });
 });
 

@@ -12,6 +12,7 @@
     "core:window:allow-toggle-maximize",
     "core:webview:allow-set-webview-zoom",
     "dialog:allow-open",
+    "dialog:allow-save",
     "shell:allow-open",
     "updater:default",
     "process:default"

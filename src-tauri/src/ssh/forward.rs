@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 use serde::Serialize;
-use tauri::Emitter;
 use tokio::net::TcpListener;
 use tokio::sync::{watch, Semaphore};
 
@@ -222,9 +221,10 @@ impl SshForwardRegistry {
             return;
         };
         let forwards = self.list(session_id);
-        let _ = app.emit(
+        crate::event_sink::emit(
+            &app,
             &format!("ssh://event/{session_id}"),
-            super::SshSessionEvent::Forwards { forwards },
+            &super::SshSessionEvent::Forwards { forwards },
         );
     }
 }

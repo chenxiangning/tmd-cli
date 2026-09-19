@@ -1,0 +1,48 @@
+/**
+ * web-access 插件:LAN Web 访问的设置卡 + 「远程控制中」徽标。
+ * 桥/分发/事件广播全在 Rust(src-tauri/src/web/);前端只注册 UI 贡献。
+ */
+
+import { Globe } from "@phosphor-icons/react";
+import type { Plugin } from "@kernel/plugin";
+import { WebAccessSection } from "./WebAccessSection";
+import { RemoteControlBadge } from "./RemoteControlBadge";
+import { WebWanGate } from "./WebWanGate";
+
+export const webAccessPlugin: Plugin = {
+  id: "web-access",
+  meta: {
+    name: "Web 访问",
+    abbr: "WA",
+    desc: "局域网内用手机/平板浏览器访问本机会话",
+    icon: Globe,
+    iconColor: "#4F9CF9",
+    category: "feature",
+  },
+  activate(ctx) {
+    ctx.contribute("header.right", { order: 40, component: RemoteControlBadge });
+    ctx.registerSettingsSection({
+      id: "web-access",
+      title: "Web 访问",
+      description: "局域网/外网用手机/平板浏览器访问本机会话。",
+      icon: <Globe size="0.875rem" aria-hidden />,
+      order: 45,
+      tabs: [
+        {
+          id: "lan",
+          title: "内网",
+          icon: <Globe size="0.875rem" aria-hidden />,
+          order: 0,
+          component: WebAccessSection,
+        },
+        {
+          id: "wan",
+          title: "外网",
+          icon: <Globe size="0.875rem" aria-hidden />,
+          order: 1,
+          component: WebWanGate,
+        },
+      ],
+    });
+  },
+};

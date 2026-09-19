@@ -64,17 +64,43 @@ fn 外部路径归一_绝对与波浪展开_相对纪律不变() {
         Some("/etc/passwd".to_string())
     );
     assert_eq!(canonicalize_event_path("/"), None);
-    // ~ 展开:~/ → home(必在工作区外);裸 ~ 与 ~other 形式拒
+    // ~ 展开:~/ → home(必在工作区外,win 宿主 home 反斜杠随盘符形态归一);
+    // 裸 ~ 与 ~other 形式拒
     let home = dirs::home_dir().unwrap();
-    let want = format!("{}/x/y.json", home.to_string_lossy().trim_end_matches('/'));
+    let want = format!(
+        "{}/x/y.json",
+        home.to_string_lossy()
+            .trim_end_matches('/')
+            .replace('\\', "/")
+    );
     assert_eq!(canonicalize_event_path("~/x/y.json"), Some(want));
     assert_eq!(canonicalize_event_path("~"), None);
     assert_eq!(canonicalize_event_path("~root/x"), None);
-    // Windows 盘符形态两态都拒(Rust 单闸终审,不依赖前端已拒)
-    assert_eq!(canonicalize_event_path("C:\\Users\\x\\a.txt"), None);
-    assert_eq!(canonicalize_event_path("C:/Users/x/a.txt"), None);
+    // Windows 盘符/UNC 绝对形态:2026-09-15 起入账(反斜杠归一、词法归一与
+    // POSIX 绝对同分支、盘符段作根不可弹出);cwd 内相对化由前端承担,本闸只认形态
+    assert_eq!(
+        canonicalize_event_path("C:\\Users\\x\\a.txt"),
+        Some("C:/Users/x/a.txt".to_string())
+    );
+    assert_eq!(
+        canonicalize_event_path("C:/Users/x/a.txt"),
+        Some("C:/Users/x/a.txt".to_string())
+    );
+    assert_eq!(
+        canonicalize_event_path("C:/a/./b/../c.txt"),
+        Some("C:/a/c.txt".to_string())
+    );
+    // 盘符根处越界截断: ".." 弹不掉盘符段,结果仍是绝对形态
+    assert_eq!(
+        canonicalize_event_path("C:/../etc"),
+        Some("C:/etc".to_string())
+    );
+    assert_eq!(canonicalize_event_path("C:/"), None);
+    assert_eq!(
+        canonicalize_event_path("\\\\srv\\share\\a.json"),
+        Some("//srv/share/a.json".to_string())
+    );
 }
-
 #[test]
 fn 外部文件_首轮无前像_禁回退_同批工作区内照常() {
     let ws = TempWs::new();
@@ -87,7 +113,7 @@ fn 外部文件_首轮无前像_禁回退_同批工作区内照常() {
     let anchor = anchor_events(&ws, "cli-1", "tmd-1", "改两处");
     ws.write("in.txt", "v2\n");
     assert!(edit(&ws, "cli-1", "tmd-1", "in.txt"));
-    let ext_path = ext.path();
+    let ext_path = canonicalize_event_path(&ext.path()).unwrap();
     assert!(record_edit(ws.path(), "cli-1", "tmd-1", &ext_path, None).unwrap());
     assert!(ws.seal("cli-1", "tmd-1"));
 
@@ -127,7 +153,7 @@ fn 外部文件_跨轮前像链_次轮回退恢复() {
     ws.commit_all("init");
     let ext = ExtFile::new("t2");
     ext.write("v1\n"); // 会话前既有内容
-    let ext_path = ext.path();
+    let ext_path = canonicalize_event_path(&ext.path()).unwrap();
 
     // 首轮:AI 覆盖为 v2 —— 无前像,禁回退
     anchor_events(&ws, "cli-1", "tmd-1", "首轮");
@@ -173,7 +199,7 @@ fn 外部文件_open批_修改语义_工作区内新建仍新增() {
     ws.commit_all("init");
     let ext = ExtFile::new("t3");
     ext.write("e\n");
-    let ext_path = ext.path();
+    let ext_path = canonicalize_event_path(&ext.path()).unwrap();
 
     anchor_events(&ws, "cli-1", "tmd-1", "进行中轮");
     assert!(record_edit(ws.path(), "cli-1", "tmd-1", &ext_path, None).unwrap());

@@ -56,86 +56,93 @@
   white-space: nowrap;
 }
 
-/* ── 双栏 diff(自绘,2026-09-15 重做):色带 / 中央行号槽 / 改动块边框 ── */
+/* ── 双栏 diff(自绘,2026-09-15 中缝连接带迭代):行号居中缝两侧 / 色带 / 词级实色块 ── */
 
-/* 色带:修改对与纯增/纯删行的本侧淡染(与单栏同源 token)。 */
+/* 色带:本侧行种类淡染(与单栏同源 token)。 */
 .git-split-band-del {
   background: color-mix(in srgb, var(--tmd-diff-removed) 12%, transparent);
 }
 .git-split-band-add {
   background: color-mix(in srgb, var(--tmd-diff-inserted) 12%, transparent);
 }
+/* 缺侧空带:对侧种类减半淡染(GitHub empty-cell:纯删右侧浅红、纯增左侧浅绿)。 */
+.git-split-empty-del {
+  background: color-mix(in srgb, var(--tmd-diff-removed) 5%, transparent);
+}
+.git-split-empty-add {
+  background: color-mix(in srgb, var(--tmd-diff-inserted) 5%, transparent);
+}
 
-/* 词级标注:mod 对差异 token 下划线(非色块,行底色带已表意)。 */
+/* 词级标注:mod 对差异 token 实色深染块(GitHub word highlight,深行底一档)。 */
 .git-split-word {
-  border-radius: 0;
+  border-radius: 2px;
 }
 .git-split-word-ins {
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--tmd-diff-inserted) 70%, transparent);
-  text-underline-offset: 3px;
+  background: color-mix(in srgb, var(--tmd-diff-inserted) 35%, transparent);
 }
 .git-split-word-del {
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--tmd-diff-removed) 70%, transparent);
-  text-underline-offset: 3px;
+  background: color-mix(in srgb, var(--tmd-diff-removed) 35%, transparent);
 }
 
-/* 中央行号槽:旧号居左新号居右;改动行数字提亮,缺侧画空槽占位(⬚)。 */
-.git-split-gutter-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 0 6px;
+/* 行号格:中缝两侧单号槽(JetBrains 排布);muted 右对齐不可选;宽由 SplitDiffView
+   列轨(lnoCols,两侧最大行号位数 ch)显式给,两槽恒同宽 = 内容列镜像对齐;改动行
+   随本侧色带铺底(band/empty 类叠加在同格)。中槽盒发丝 = 旧号格左缘 + 旧号格右缘
+   (中缝) + 新号格右缘(号/内容分界)三条单线。 */
+.git-split-lno {
+  padding: 0 0.375rem;
+  text-align: right;
   color: var(--tmd-fg-faint);
   font-variant-numeric: tabular-nums;
   user-select: none;
+  flex-shrink: 0;
+  border-right: 1px solid color-mix(in srgb, var(--tmd-fg) 8%, transparent);
 }
-.git-split-gutter-chg {
+/* 旧号格(中槽盒左半)左缘补发丝。 */
+.git-split-lno-old {
+  border-left: 1px solid color-mix(in srgb, var(--tmd-fg) 8%, transparent);
+}
+/* 中缝连接带:改动行(mod/del/add)双号格发丝全透明,两侧色带贯通成一条横带
+   (连接器打断槽线;zip 配对两侧恒同高,连接带为平直横带,无斜面)。 */
+.git-split-lno-seam {
+  border-color: transparent;
+}
+
+/* 折叠胶囊(N4 折叠焦点):全文态连续 context 段压成的就地展开条;wrap 态通栏
+   一条,nowrap 态左右内容栈各一条(双号槽放同高空带保四面同位)。 */
+.git-split-fold {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* min 可视宽(容器查询):nowrap 态内容栈 w-max 超宽时胶囊不被横滚裁掉 label。 */
+  width: min(calc(100% - 1rem), calc(100cqw - 1rem));
+  margin: 0.25rem 0.5rem;
+  padding: 0.1875rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--tmd-fg) 8%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tmd-bg-hover) 40%, transparent);
+  color: var(--tmd-fg-muted);
+  font-size: 0.6875rem;
+  cursor: pointer;
+  user-select: none;
+}
+.git-split-fold:hover {
+  background: color-mix(in srgb, var(--tmd-bg-hover) 75%, transparent);
   color: var(--tmd-fg);
 }
-/* 缺侧行号位:无边框小占位(淡),只表「此侧无行」,不抢视线。 */
-.git-split-gslot-empty {
-  display: inline-block;
-  width: 0.55em;
-  height: 0.8em;
-  margin-top: 0.15em;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--tmd-fg) 16%, transparent);
+.git-split-fold-dots {
+  letter-spacing: 2px;
+  color: var(--tmd-fg-faint);
 }
-/* ⤶ 钩:改动行旧号前 */
-.git-split-ghook {
-  color: color-mix(in srgb, var(--tmd-accent) 80%, var(--tmd-fg));
-  margin-right: 2px;
+.git-split-fold-rng {
+  color: var(--tmd-fg-faint);
+  font-size: 0.625rem;
 }
-
-
-/* 中央行号槽列:常驻底纹 + 左右发丝分隔线,把三列结构钉死(横滚时槽列
-   不滚,分隔线恒在)。 */
-.git-split-gutter-col {
-  border-left: 1px solid color-mix(in srgb, var(--tmd-fg) 10%, transparent);
-  border-right: 1px solid color-mix(in srgb, var(--tmd-fg) 10%, transparent);
-  background: color-mix(in srgb, var(--tmd-fg) 3%, transparent);
+.git-split-fold-ct {
+  margin-left: auto;
+  color: var(--tmd-accent);
+  font-size: 0.625rem;
 }
-
-/* 块行槽底:accent 淡染,与常驻底纹分层,块范围一眼可辨。 */
-.git-split-block-bg {
-  background: color-mix(in srgb, var(--tmd-accent) 8%, transparent);
-}
-/* 占位行槽色块(缺侧):缺左=新增块占位(inserted),缺右=删除块占位(removed)。 */
-.git-split-ph-add {
-  background: color-mix(in srgb, var(--tmd-diff-inserted) 14%, transparent);
-}
-.git-split-ph-del {
-  background: color-mix(in srgb, var(--tmd-diff-removed) 14%, transparent);
-}
-
-
-/* 改动块识别框 ②:块首/块尾 accent 横线贯穿两个内容列(随内容横滚,
-   但恒在行边界上,滚动中也能定位块界)。 */
-.git-split-bd-top {
-  border-top: 1px solid color-mix(in srgb, var(--tmd-accent) 35%, transparent);
-}
-.git-split-bd-bot {
-  border-bottom: 1px solid color-mix(in srgb, var(--tmd-accent) 35%, transparent);
+/* nowrap 态双号槽的折叠空带:与胶囊同垂直外边距,盒高由左栈实测 pin。 */
+.git-split-fold-gap {
+  margin: 0.25rem 0;
 }

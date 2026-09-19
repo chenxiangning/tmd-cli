@@ -6,7 +6,8 @@
  * - 未安装(notFound):即使拿到最新版也不渲染(行只显示「安装」);
  * - 前置依赖(omp → bun):依赖未就位时主引擎安装/更新按钮禁用 + 引导区;
  *   依赖探针 ok 后门控解除;
- * - 已安装行常驻「新会话」按钮,未安装行不出。
+ * - 已安装行常驻「新会话」按钮,未安装行不出;
+ * - 版本菜单入口:「版本」按钮 = meta.versionMenu && onInstallVersion && 已安装。
  */
 
 import { renderToStaticMarkup } from "react-dom/server";
@@ -23,6 +24,7 @@ const META: EngineMeta = {
   docsUrl: "https://github.com/oh-my-pi/pi-coding-agent",
   installHint: "bun install -g @oh-my-pi/pi-coding-agent",
   npmPackage: "@oh-my-pi/pi-coding-agent",
+  versionMenu: true,
   plan: {
     channel: "command",
     program: "bun",
@@ -59,7 +61,11 @@ function probeOk(version: string): EngineProbeState {
 function renderCard(
   probe: EngineProbeState,
   latest: string | null | undefined,
-  overrides?: { meta?: EngineMeta; depProbe?: EngineProbeState },
+  overrides?: {
+    meta?: EngineMeta;
+    depProbe?: EngineProbeState;
+    onInstallVersion?: (version: string) => void;
+  },
 ): string {
   return renderToStaticMarkup(
     createElement(EngineCard, {
@@ -70,6 +76,7 @@ function renderCard(
       install: IDLE_INSTALL,
       onProbe: () => {},
       onInstall: () => {},
+      onInstallVersion: overrides?.onInstallVersion,
       depProbe: overrides?.depProbe,
       depInstall: IDLE_INSTALL,
       onDepInstall: () => {},
@@ -121,6 +128,37 @@ describe("EngineCard 版本列与动作按钮", () => {
   it("已安装:行常驻「新会话」按钮", () => {
     const html = renderCard(probeOk("1.0.0"), "1.0.0");
     expect(html).toContain("新会话");
+  });
+});
+
+describe("EngineCard 版本菜单入口", () => {
+  it("versionMenu 且已安装:出「版本」按钮", () => {
+    const html = renderCard(probeOk("omp/18.1.22"), "18.1.22", {
+      onInstallVersion: () => {},
+    });
+    expect(html).toContain(">版本</button>");
+    expect(html).toContain("安装指定版本(回退/收藏)");
+  });
+
+  it("已安装但无 onInstallVersion 回调:不出「版本」按钮", () => {
+    const html = renderCard(probeOk("omp/18.1.22"), "18.1.22");
+    expect(html).not.toContain(">版本</button>");
+  });
+
+  it.each([
+    ["未安装", { status: "notFound", result: null } as EngineProbeState],
+    ["探针失败", { status: "error", result: null } as EngineProbeState],
+  ])("%s:不出「版本」按钮", (_label, probe) => {
+    const html = renderCard(probe, undefined, { onInstallVersion: () => {} });
+    expect(html).not.toContain(">版本</button>");
+  });
+
+  it("meta 未声明 versionMenu:不出「版本」按钮", () => {
+    const html = renderCard(probeOk("omp/18.1.22"), "18.1.22", {
+      meta: { ...META, versionMenu: false },
+      onInstallVersion: () => {},
+    });
+    expect(html).not.toContain(">版本</button>");
   });
 });
 

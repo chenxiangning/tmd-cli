@@ -73,7 +73,7 @@ function DiffTab({ payload }: { payload: DiffTabPayload }) {
       </div>
 
       {/* patch 区 */}
-      <FilePatchBody patch={patch} loading={loading} error={error} diffMode={diffMode as GitDiffMode} />
+      <FilePatchBody patch={patch} loading={loading} error={error} diffMode={diffMode as GitDiffMode} fullView={fullView} />
     </div>
   );
 }
@@ -113,11 +113,13 @@ function FilePatchBody({
   loading,
   error,
   diffMode,
+  fullView,
 }: {
   patch: GitFilePatch | null;
   loading: boolean;
   error: string | null;
   diffMode: GitDiffMode;
+  fullView: boolean;
 }) {
   return (
     <div className="min-w-0 flex-1 overflow-auto">
@@ -130,7 +132,7 @@ function FilePatchBody({
       ) : patch?.binary ? (
         <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("二进制文件,无文本 diff")}</div>
       ) : patch ? (
-        <PatchLines text={patch.patch} className="h-max min-h-full" mode={diffMode} />
+        <PatchLines text={patch.patch} className="h-max min-h-full" mode={diffMode} fold={fullView} />
       ) : (
         <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("无 diff 数据")}</div>
       )}

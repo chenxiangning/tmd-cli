@@ -3,7 +3,8 @@
  * 文件规模铁则检查 —— 单文件 ≤300 行(见 docs/architecture/02-code-architecture.md)。
  *
  * - 扫描 src/ 与 src-tauri/src/ 下的 .ts/.tsx/.rs/.css
- * - 豁免:文件头(前 10 行)注释含 `file-size-exempt` 标记(仅限自动生成/vendored 文件)
+ * - 豁免:文件头(前 10 行)注释含 `file-size-exempt` 标记(限自动生成/vendored,及
+ *   同源移植/命令面镜像总表等拆分即伤对照性的手写文件;豁免须注明理由)
  * - 任何违规 → 退出码 1,CI 红
  *
  * 零依赖,Node 18+,跨平台(win/mac/linux 均可本地跑)。

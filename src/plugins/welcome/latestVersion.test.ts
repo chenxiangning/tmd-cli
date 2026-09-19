@@ -1,11 +1,12 @@
 /**
  * latestVersion 单元测试 —— 守住两个可观察契约:
  * 1. extractSemver:从各 CLI 真实 --version 输出格式里抠三元组;
- * 2. isOutdated:数值比较(非字符串比较,"9.x" < "10.x"),不可解析不误报。
+ * 2. isOutdated:数值比较(非字符串比较,"9.x" < "10.x"),不可解析不误报;
+ * 3. pickStableVersions:滤 prerelease、semver 降序、截前 limit 个。
  */
 
 import { describe, expect, it } from "vitest";
-import { extractSemver, isOutdated } from "./latestVersion";
+import { extractSemver, isOutdated, pickStableVersions } from "./latestVersion";
 
 describe("extractSemver", () => {
   it.each([
@@ -44,5 +45,31 @@ describe("isOutdated", () => {
     expect(isOutdated("已安装", "18.0.12")).toBe(false);
     expect(isOutdated(null, "18.0.12")).toBe(false);
     expect(isOutdated("18.0.11", null)).toBe(false);
+  });
+});
+
+
+describe("pickStableVersions", () => {
+  it("滤掉 prerelease(带 - 的 tag)", () => {
+    expect(
+      pickStableVersions(["18.1.22", "19.0.0-beta.1", "19.0.0-rc.2", "18.1.21"]),
+    ).toEqual(["18.1.22", "18.1.21"]);
+  });
+
+  it("semver 数值降序(非字符串序)", () => {
+    expect(pickStableVersions(["18.9.0", "18.10.0", "9.99.0", "18.10.1"])).toEqual([
+      "18.10.1",
+      "18.10.0",
+      "18.9.0",
+      "9.99.0",
+    ]);
+  });
+
+  it("只留前 limit(默认 10)个", () => {
+    const many = Array.from({ length: 15 }, (_, i) => `1.${i}.0`);
+    const picked = pickStableVersions(many);
+    expect(picked).toHaveLength(10);
+    expect(picked[0]).toBe("1.14.0");
+    expect(picked[9]).toBe("1.5.0");
   });
 });

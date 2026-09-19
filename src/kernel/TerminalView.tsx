@@ -29,7 +29,7 @@ import {
 import { subscribeTerminalTheme } from "@kernel/terminalThemeBridge";
 import { createReplayInputGate } from "@kernel/terminalInputGate";
 import { attachTerminalStream, type LoadProgress } from "@kernel/terminalReplay";
-import { isTerminalReport } from "@kernel/terminalReports";
+import { isTerminalReport, shouldSuppressProbeReply } from "@kernel/terminalReports";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay } from "@kernel/terminalSearch";
 import { findRequestRef } from "@kernel/terminalFindBridge";
@@ -179,7 +179,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
        非用户输入不锚定对话)—— 活查询的应答远端正在等,回放窗也可能接到
        (连接先于挂载完成时 CPR 落缓冲走回放,见 terminalInputGate.ts 头注)。 */
     const offInput = term.onData((data) => {
-      if (inputGate.blocked() && !isTerminalReport(data)) return;
+      if (shouldSuppressProbeReply(host, sessionId, data) || (inputGate.blocked() && !isTerminalReport(data))) return;
       host.writeSession(sessionId, data, isTerminalReport(data));
     });
     /* 对话锚点:向内核注册本幕布的跳转/定位能力(composer 锚点栏经此中转)。 */
@@ -199,10 +199,10 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     };
     registerTerminalHandle(sessionId, terminalHandle);
 
-    /* 重挂载必发一次;同尺寸 resize 在 Rust 侧幂等去重(pty.rs)。
-       经 host.resizeSession 走:真实尺寸变化(SIGWINCH 重绘)由活动守望
-       重绘抑制窗吸收,不再误判成一轮对话(见 activityWatch 头注释)。 */
+    /* 重挂载必发一次;同尺寸 Rust 幂等去重;重绘由活动守望抑制窗吸收(activityWatch 头注释)。
+       零宽跳过:fit 会钳到 MINIMUM_COLS=2,把不可见会话的 PTY SIGWINCH 成窄条重排。 */
     const syncSize = () => {
+      if (!container.clientWidth) return;
       fit.fit();
       host.resizeSession(sessionId, term.cols, term.rows);
     };

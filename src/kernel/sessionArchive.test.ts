@@ -69,17 +69,17 @@ describe("sessionArchive", () => {
     expect(Object.keys(settings.getSettingsState().settings.sessionArchive)).toEqual([KEY_A]);
   });
 
-  it("容量满(200)逐出 archivedAt 最旧条目,新归档始终生效", () => {
-    for (let i = 0; i < 200; i++) {
-      vi.setSystemTime(1_000_000 + i);
-      archive.archiveSession(`ws1:claude:old-${i}`);
-    }
-    const map = settings.getSettingsState().settings.sessionArchive;
-    expect(Object.keys(map)).toHaveLength(200);
+  it("容量满(SESSION_ARCHIVE_MAX)逐出 archivedAt 最旧条目,新归档始终生效", () => {
+    /* 灌表一次 + 单次 mark:2000 次逐次 mark 会撞 5s 测试超时(每次写盘链
+     * ~30ms);满表 + 逐出语义等价,反复满额写入路径由满表回归 describe 覆盖。 */
+    const MAX = archive.SESSION_ARCHIVE_MAX;
+    const seed: Record<string, { archivedAt: number }> = {};
+    for (let i = 0; i < MAX; i++) seed[`ws1:claude:old-${i}`] = { archivedAt: 1_000_000 + i };
+    settings.updateSettings({ sessionArchive: seed });
     vi.setSystemTime(3_000_000);
     archive.archiveSession(KEY_A);
     const after = settings.getSettingsState().settings.sessionArchive;
-    expect(Object.keys(after)).toHaveLength(200);
+    expect(Object.keys(after)).toHaveLength(MAX);
     expect(after[KEY_A]).toEqual({ archivedAt: 3_000_000 });
     expect(after["ws1:claude:old-0"]).toBeUndefined();
     expect(after["ws1:claude:old-1"]).toBeDefined();
@@ -91,25 +91,26 @@ describe("sessionArchive", () => {
   });
 });
 
-describe("满表回归(2026-09-11 用户实盘:200 条后批量归档静默无效)", () => {
-  /** 仿用户实盘种子:id 区间、archivedAt 窗口(95 秒内 200 条)取真实数据形状。 */
+describe(`满表回归(2026-09-11 用户实盘:满表后批量归档静默无效;容量 2026-09-17 起提至 ${"2000"} 防自动归档触顶)`, () => {
+  const MAX = 2000;
+  /** 仿用户实盘种子:id 区间、archivedAt 窗口(约 95 秒内满表)取真实数据形状。 */
   const seedFullTable = () => {
     const table: Record<string, { archivedAt: number }> = {};
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < MAX; i++) {
       const id = `01a0${(0x5b32 + i * 0x17).toString(16).padStart(4, "0")}-0000-0000-0000-000000000000`;
       table[`ws-mtiwe7vz:omp:${id}`] = { archivedAt: 1_778_000_000_000 + i * 400 };
     }
     return table;
   };
 
-  it("表满 200 时再归档新会话仍生效(换出最旧)", () => {
+  it(`表满 ${MAX} 时再归档新会话仍生效(换出最旧)`, () => {
     settings.updateSettings({ sessionArchive: seedFullTable() });
     const missing = "ws-mtiwe7vz:omp:01a07308-3115-711f-a57e-85f58e0600eb";
     archive.archiveSession(missing);
     expect(archive.isSessionArchived(missing)).toBe(true);
   });
 
-  it("表满 200 时批量归档 19 条全部生效(时钟递增,换出 19 条最旧)", () => {
+  it(`表满 ${MAX} 时批量归档 19 条全部生效(时钟递增,换出 19 条最旧)`, () => {
     settings.updateSettings({ sessionArchive: seedFullTable() });
     const batch = Array.from(
       { length: 19 },
@@ -122,7 +123,7 @@ describe("满表回归(2026-09-11 用户实盘:200 条后批量归档静默无�
       archive.archiveSession(k);
     });
     for (const k of batch) expect(archive.isSessionArchived(k)).toBe(true);
-    expect(Object.keys(settings.getSettingsState().settings.sessionArchive)).toHaveLength(200);
+    expect(Object.keys(settings.getSettingsState().settings.sessionArchive)).toHaveLength(MAX);
   });
 
   it("时钟停滞(同毫秒批量)时后 mark 换出先 mark:新条目至少保留最后一条且总数守恒", () => {
@@ -132,7 +133,7 @@ describe("满表回归(2026-09-11 用户实盘:200 条后批量归档静默无�
       (_, i) => `ws-mtiwe7vz:omp:01a07${(0x300 + i).toString(16)}-2222-2222-2222-222222222222`,
     );
     batch.forEach((k) => archive.archiveSession(k));
-    expect(Object.keys(settings.getSettingsState().settings.sessionArchive)).toHaveLength(200);
+    expect(Object.keys(settings.getSettingsState().settings.sessionArchive)).toHaveLength(MAX);
     expect(archive.isSessionArchived(batch[18])).toBe(true);
   });
 });

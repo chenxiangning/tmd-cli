@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>N5 · 斑马打断 · git 双栏 diff 设计原型</title>
+<style>
+:root{
+  --bg:#ffffff; --panel:#f8f8f8; --hover:#f2f2f2; --fg:#3b3b3b; --muted:#7e7e7e;
+  --subtle:#999999; --faint:#c0c0c0; --border:#cecece; --strong:#b1b1b1; --accent:#005fb8;
+  --ins:#2ea043; --del:#f85149;
+  --ins-band:color-mix(in srgb, var(--ins) 12%, transparent);
+  --del-band:color-mix(in srgb, var(--del) 12%, transparent);
+  --ins-empty:color-mix(in srgb, var(--ins) 5%, transparent);
+  --del-empty:color-mix(in srgb, var(--del) 5%, transparent);
+  --ins-word:color-mix(in srgb, var(--ins) 35%, transparent);
+  --del-word:color-mix(in srgb, var(--del) 35%, transparent);
+  --hairline:color-mix(in srgb, var(--fg) 8%, transparent);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font:13px/1.5 -apple-system,"SF Pro Text","Segoe UI",sans-serif;background:var(--bg);color:var(--fg);display:flex;flex-direction:column;overflow:hidden}
+.mono,.diff{font:12px/1.5 "SF Mono",Menlo,Consolas,"Liberation Mono",monospace}
+/* ── 外壳 ── */
+.titlebar{height:33px;flex:none;display:flex;align-items:center;border-bottom:1px solid var(--border);background:var(--bg);padding:0 8px 0 78px;gap:6px;user-select:none}
+.tb-ic{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--muted)}
+.tb-ic svg{width:15px;height:15px}
+.tb-spring{flex:1}
+.tb-branch{font-size:11px;color:#1a7f37;font-weight:500}
+.tb-ws{font-size:11px;color:var(--fg);border:1px solid var(--border);border-radius:5px;padding:1px 7px;display:flex;gap:5px;align-items:center}
+.tb-tabs{display:flex;gap:2px;margin-left:4px}
+.tb-tab{width:24px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--muted)}
+.tb-tab.on{color:#d97706;background:color-mix(in srgb,#d97706 10%,transparent)}
+.tb-tab svg{width:15px;height:15px}
+.body{flex:1;display:flex;min-height:0}
+.sidebar{width:200px;flex:none;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sb-head{padding:8px 10px 4px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.sb-tabs{display:flex;gap:2px;padding:0 8px 6px;border-bottom:1px solid var(--border)}
+.sb-tab{font-size:11px;color:var(--muted);padding:1px 7px;border-radius:4px}
+.sb-tab.on{color:var(--fg);background:var(--hover);font-weight:600}
+.sb-ws{margin:8px 8px 0;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);font-size:12px;display:flex;align-items:center;gap:6px}
+.sb-note{padding:10px;font-size:11px;color:var(--faint)}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.tabstrip{height:34px;flex:none;display:flex;align-items:flex-end;border-bottom:1px solid var(--border);padding:0 8px;gap:4px;background:var(--bg)}
+.tab{display:flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--border);border-bottom:none;border-radius:7px 7px 0 0;background:var(--bg);font-size:12px;color:var(--fg)}
+.tab .dot{width:7px;height:7px;border-radius:50%;background:#d97706}
+.diffbar{flex:none;display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);background:var(--bg)}
+.diffbar .badgeM{font-size:10px;font-weight:700;color:#9a6700;border:1px solid color-mix(in srgb,#9a6700 40%,transparent);border-radius:4px;padding:0 4px;background:color-mix(in srgb,#9a6700 8%,transparent)}
+.diffbar .fname{font-size:12px;font-weight:600}
+.diffbar .fpath{font-size:11px;color:var(--subtle)}
+.diffbar .stats{font-size:11px}
+.stats b.ins{color:var(--ins)} .stats b.del{color:var(--del)}
+.pill{font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:2px 9px;background:var(--bg)}
+.seg{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.seg span{font-size:11px;color:var(--muted);padding:2px 9px;background:var(--bg)}
+.seg span.on{color:var(--fg);background:var(--hover);font-weight:600}
+.side-lab{font-size:11px;color:var(--muted);padding:5px 12px;border-bottom:1px solid var(--border);background:var(--bg)}
+.diffscroll{flex:1;overflow:auto;background:var(--bg)}
+/* ── 说明卡 + 方案导航 ── */
+.note{position:fixed;left:214px;bottom:44px;width:400px;background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.08);padding:10px 12px;z-index:9}
+.note h2{font-size:12px;margin-bottom:4px}
+.note p{font-size:11px;color:var(--muted);line-height:1.55;margin:3px 0}
+.note b{color:var(--fg)}
+.nav{position:fixed;left:0;right:0;bottom:0;height:34px;background:var(--panel);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:6px;z-index:10;font-size:11px;color:var(--muted)}
+.nav a{color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:5px;padding:2px 10px;background:var(--bg)}
+.nav a.on{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent);font-weight:700}
+
+.diff{padding:8px 0 60px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 42px 42px minmax(0,1fr);min-height:19px}
+.c{padding:1px 8px;white-space:pre-wrap;word-break:break-all}
+.n{font-size:11px;color:var(--faint);text-align:right;padding:1px 6px 0;font-variant-numeric:tabular-nums;user-select:none;border-right:1px solid var(--hairline)}
+.n.old{border-left:1px solid var(--hairline)}
+.n.seam{border-color:transparent}
+.band-d{background:var(--del-band)}
+.band-a{background:var(--ins-band)}
+.w{border-radius:2px}
+.w-del{background:var(--del-word)}
+.w-ins{background:var(--ins-word)}
+.hunk{background:color-mix(in srgb,#0550ae 7%,transparent);border-top:1px solid color-mix(in srgb,#0550ae 12%,transparent);border-bottom:1px solid color-mix(in srgb,#0550ae 12%,transparent)}
+.hc{color:#0550ae;font-size:11px;padding-top:2px}
+
+.band-d,.band-a{background:transparent}
+.row.ctx.z0>*{background:#fcfcfc}
+.row.ctx.z1>*{background:#f4f4f4}
+.gblk-d{box-shadow:inset -2.5px 0 0 var(--del)}
+.gblk-a{box-shadow:inset 2.5px 0 0 var(--ins)}
+.chip-d{background:color-mix(in srgb,var(--del) 16%,transparent);border-radius:2px}
+.chip-a{background:color-mix(in srgb,var(--ins) 16%,transparent);border-radius:2px}
+.neu2{background:#efefef}
+.w-del{background:color-mix(in srgb,var(--del) 38%,transparent)}
+.w-ins{background:color-mix(in srgb,var(--ins) 38%,transparent)}
+</style>
+</head>
+<body>
+<div class="titlebar">
+  <div class="tb-ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M6 2v12"/></svg></div>
+  <div class="tb-ic"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.8 4.2L14 6l-3.2 3 .9 4.5L8 11.2 4.3 13.5 5.2 9 2 6l4.2-.8z"/></svg></div>
+  <div class="tb-spring"></div>
+  <span class="tb-branch">⑂ Tmd-0.1.9 → origin/Tmd-0.1.9</span>
+  <span class="tb-ws">TMD-CLI ▾</span>
+  <div class="tb-tabs">
+    <div class="tb-tab on"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 4l4-2 4 2 4-2v10l-4 2-4-2-4 2z"/></svg></div>
+    <div class="tb-tab"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="5" cy="4" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="11" cy="8" r="2"/><path d="M5 6v4M5 6c3 0 4 0 4 0"/></svg></div>
+    <div class="tb-tab"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 8l3 3 7-7"/></svg></div>
+  </div>
+</div>
+<div class="body">
+  <div class="sidebar">
+    <div class="sb-head">工作区 <span style="margin-left:auto">▾</span></div>
+    <div class="sb-tabs"><span class="sb-tab on">默认</span><span class="sb-tab">本地</span><span class="sb-tab">WSL</span><span class="sb-tab">归档</span></div>
+    <div class="sb-ws">📁 tmd-cli</div>
+    <div class="sb-note">侧栏简化示意 · 仅 diff 区为本方案内容</div>
+  </div>
+  <div class="main">
+    <div class="tabstrip"><div class="tab"><span style="color:#3178c6;font-weight:700;font-size:10px">TS</span> SplitDiffView.tsx <span class="dot"></span></div></div>
+    <div class="diffbar">
+      <span class="badgeM">M</span><span class="fname">SplitDiffView.tsx</span><span class="fpath">src/plugins/git/views/…</span>
+      <span class="stats"><b class="ins">+9</b> <b class="del">-5</b></span>
+      <span style="flex:1"></span>
+      <span class="pill">全文</span>
+      <span class="seg"><span>单栏</span><span class="on">双栏</span></span>
+      <span class="pill">↩ 自动换行</span>
+    </div>
+    <div class="side-lab">工作区 → 暂存区</div>
+    <div class="diffscroll"><div class="diff"><div class="row hunk"><div class="c mono hc" style="grid-column:1/-1">@@ -53,12 +53,15 @@ import { wordDiff } from "./wordDiff";</div></div>
+<div class="row ctx z0"><div class="c mono"></div><div class="n old">53</div><div class="n">53</div><div class="c mono"></div></div>
+<div class="row ctx z1"><div class="c mono">/** 双栏配对语义:双非空且文本不同 = 修改对(左红右绿同行);单侧 = 纯删/纯增。 */</div><div class="n old">54</div><div class="n">54</div><div class="c mono">/** 双栏配对语义:双非空且文本不同 = 修改对(左红右绿同行);单侧 = 纯删/纯增。 */</div></div>
+<div class="row ctx z0"><div class="c mono">type PairKind = "ctx" | "mod" | "del" | "add";</div><div class="n old">55</div><div class="n">55</div><div class="c mono">type PairKind = "ctx" | "mod" | "del" | "add";</div></div>
+<div class="row mod"><div class="c mono ">const pairKind = (<span class="w w-del">l</span>: PatchRow | null, <span class="w w-del">r</span>): PairKind =&gt;</div><div class="n old seam gblk-d">56</div><div class="n seam gblk-a">56</div><div class="c mono ">const pairKind = (<span class="w w-ins">left</span>: PatchRow | null, <span class="w w-ins">right</span>): PairKind =&gt;</div></div>
+<div class="row mod"><div class="c mono ">  <span class="w w-del">l &amp;&amp; r</span> ? (<span class="w w-del">l.text === r.text</span> ? "ctx" : "mod") : <span class="w w-del">l</span> ? "del" : "add";</div><div class="n old seam gblk-d">57</div><div class="n seam gblk-a">57</div><div class="c mono ">  <span class="w w-ins">left &amp;&amp; right</span> ? (<span class="w w-ins">left.text === right.text</span> ? "ctx" : "mod") : <span class="w w-ins">left</span> ? "del" : "add";</div></div>
+<div class="row add"><div class="c mono neu2"></div><div class="n old seam "></div><div class="n seam gblk-a">58</div><div class="c mono chip-a"></div></div>
+<div class="row ctx z1"><div class="c mono"></div><div class="n old">58</div><div class="n">59</div><div class="c mono"></div></div>
+<div class="row ctx z0"><div class="c mono">/** 色带:本侧行种类淡染;缺侧空带 = 对侧种类减半淡染。 */</div><div class="n old">59</div><div class="n">60</div><div class="c mono">/** 色带:本侧行种类淡染;缺侧空带 = 对侧种类减半淡染。 */</div></div>
+<div class="row ctx z1"><div class="c mono">const SIDE_BAND: Record&lt;string, string&gt; = {</div><div class="n old">60</div><div class="n">61</div><div class="c mono">const SIDE_BAND: Record&lt;string, string&gt; = {</div></div>
+<div class="row ctx z0"><div class="c mono">  del: "git-split-band-del",</div><div class="n old">61</div><div class="n">62</div><div class="c mono">  del: "git-split-band-del",</div></div>
+<div class="row ctx z1"><div class="c mono">  add: "git-split-band-add",</div><div class="n old">62</div><div class="n">63</div><div class="c mono">  add: "git-split-band-add",</div></div>
+<div class="row ctx z0"><div class="c mono">};</div><div class="n old">63</div><div class="n">64</div><div class="c mono">};</div></div>
+<div class="row mod"><div class="c mono ">const EMPTY_BAND: Record&lt;string, string&gt; = <span class="w w-del">{ del: "git-split-empty-del", add: "git-split-empty-add" };</span></div><div class="n old seam gblk-d">64</div><div class="n seam gblk-a">65</div><div class="c mono ">const EMPTY_BAND: Record&lt;string, string&gt; = <span class="w w-ins">{</span></div></div>
+<div class="row add"><div class="c mono neu2"></div><div class="n old seam "></div><div class="n seam gblk-a">66</div><div class="c mono chip-a">  del: "git-split-empty-del",</div></div>
+<div class="row add"><div class="c mono neu2"></div><div class="n old seam "></div><div class="n seam gblk-a">67</div><div class="c mono chip-a">  add: "git-split-empty-add",</div></div>
+<div class="row add"><div class="c mono neu2"></div><div class="n old seam "></div><div class="n seam gblk-a">68</div><div class="c mono chip-a">};</div></div>
+<div class="row hunk"><div class="c mono hc" style="grid-column:1/-1">@@ -104,6 +107,5 @@ function lnoCols(rows: SplitRow[]): string {</div></div>
+<div class="row ctx z1"><div class="c mono"></div><div class="n old">104</div><div class="n">107</div><div class="c mono"></div></div>
+<div class="row ctx z0"><div class="c mono">/** 行号槽列轨:按两侧最大行号位数定 ch 宽。 */</div><div class="n old">105</div><div class="n">108</div><div class="c mono">/** 行号槽列轨:按两侧最大行号位数定 ch 宽。 */</div></div>
+<div class="row del"><div class="c mono chip-d">const colWidth = (n) =&gt; Math.max(2, String(n).length) + "ch";</div><div class="n old seam gblk-d">106</div><div class="n seam "></div><div class="c mono neu2"></div></div>
+<div class="row ctx z1"><div class="c mono">export function SplitDiffView({ rows, wrap, className }: Props) {</div><div class="n old">107</div><div class="n">109</div><div class="c mono">export function SplitDiffView({ rows, wrap, className }: Props) {</div></div>
+<div class="row ctx z0"><div class="c mono">  const cols = useMemo(() =&gt; lnoCols(rows), [rows]);</div><div class="n old">108</div><div class="n">110</div><div class="c mono">  const cols = useMemo(() =&gt; lnoCols(rows), [rows]);</div></div>
+<div class="row ctx z1"><div class="c mono">  return &lt;div className={className}&gt;{rows.map(renderRow)}&lt;/div&gt;;</div><div class="n old">109</div><div class="n">111</div><div class="c mono">  return &lt;div className={className}&gt;{rows.map(renderRow)}&lt;/div&gt;;</div></div></div></div>
+  </div>
+</div>
+<div class="note"><h2>N5 · 斑马打断(中性纹理轴)</h2>
+<p><b>方向:</b>纹理给「秩序」而不是给「差异」:context 行奇偶斑马纹,帮助视线在超宽行里横向对齐;改动行撤掉斑马改白底——「打断」本身就是信号,再配号槽内侧 2.5px 色块 + 词块。</p>
+<p><b>与 V2 本质差异:</b>V2 的纹理标「空位」;N5 的纹理标「没变」——差异靠秩序的中断显现,改动行本身一尘不染。</p>
+<p><b>代价:</b>斑马纹是全幅纹理,与「安静」诉求天然相冲;2% 灰度在劣质面板上看不见,看见了又像表格;纯删/纯增的整行 chip 边界是圆角矩形,与斑马直线块略有质感冲突。</p></div>
+<div class="nav">差异化方向探索(同一份 diff;V2 为已保留基准)&nbsp;&nbsp;<a href="git-split-diff-v2-hatch-directional.html" class="">保留 V2 双向纹</a><a href="git-split-diff-n1-faded-old.html" class="">N1 明度</a><a href="git-split-diff-n2-spotlight.html" class="">N2 聚光灯</a><a href="git-split-diff-n3-weight-tiers.html" class="">N3 权重</a><a href="git-split-diff-n4-collapse-focus.html" class="">N4 折叠焦点</a><a href="git-split-diff-n5-zebra-break.html" class="on">N5 斑马打断</a>&nbsp;&nbsp;浅色主题 · token 与客户端同源</div>
+</body>
+</html>

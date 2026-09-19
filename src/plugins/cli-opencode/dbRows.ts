@@ -51,6 +51,8 @@ export function opencodeDiskSessionRows(
       /* modifiedAt 契约 = 最近修改:time_updated 优先(复活检测/相对时间/排序都吃它;
          本机实证 56/56 会话 updated>created,CLI 内 /resume 只增长 updated)。 */
       modifiedAt: num(row[3]) ?? num(row[2]) ?? 0,
+      /* 创建时刻定死日历落位:time_created(resume 不改写)。 */
+      createdAt: num(row[2]) || undefined,
       path: opencodeSessionPath(dbPath, id),
     });
   }

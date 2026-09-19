@@ -60,7 +60,7 @@ export function WorkspaceCard({
   const profiles = host.getCliProfiles();
   const scanKey = (profileId: string) => `${workspace.id}:${profileId}`;
   const rowRefreshing = profiles.some((p) => refreshing[scanKey(p.id)] ?? false);
-  /** 会话管理模式(本工作区全部 CLI 组统一切换,prop 下发);入口 = 行头开关(归档视图入口在 caption「默认|归档」radio)。 */
+  /** 会话管理模式(本工作区全部 CLI 组统一切换,prop 下发);入口 = 行头开关(归档视图入口在 caption「本地|归档」radio)。 */
   const [manage, setManage] = useState(false);
   return (
     <div className={`workspace-card${isActive ? " is-active" : ""}`}>

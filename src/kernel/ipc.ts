@@ -1,22 +1,17 @@
 /**
  * IPC 薄封装 —— 前端触达 Rust 后端的唯一入口。
- * 模式复用 mossx 的 services/tauri 分层，但砍到只剩直连。
+ * 模式复用 mossx 的 services/tauri 分层,但砍到只剩直连。
  * Git 契约类型在 ./gitContract、SSH/SFTP 契约在 ./sshTypes(此处转发导出,消费方路径不变)。
- * file-size-exempt:R3 规定 @tauri-apps/* 唯一 import 点是本文件,fs/git/checkpoints/ssh
- * 四域 invoke 封装必须集中于此;契约类型已外拆,剩余为不可分散的命令面。
+ * file-size-exempt:R3 规定 @tauri-apps/* 唯一 import 点是 ./transport(本文件继承);
+ * fs/git/checkpoints/ssh 四域 invoke 封装必须集中于此;契约类型已外拆,剩余为不可分散的命令面。
  * 另有 wsl_* 命令族:语义归 wsl 来源插件(kernel 零 WSL 语义,解释权在插件),
  * 因 R3 同样必须经本文件 invoke,故与四域并列集中;权限面归 ipc.exec 泛化类。
+ * 浏览器态(isWeb)下 invoke/listen 由 transport 自动切 WS 桥;纯桌面 API
+ * (窗口/对话框/更新器)在本文件按 isWeb 降级(见尾部各包装注释)。
  */
 
-import { invoke, convertFileSrc } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { getVersion } from "@tauri-apps/api/app";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { open as shellOpen } from "@tauri-apps/plugin-shell";
-import { check, type Update, type DownloadEvent } from "@tauri-apps/plugin-updater";
-import { relaunch } from "@tauri-apps/plugin-process";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { invoke, listen, webToken, isWeb, serverVersion } from "./transport";
 import type {
   SftpEntry,
   SftpEventPayload,
@@ -731,29 +726,43 @@ export function platformKind(): Promise<string> {
   return invoke<string>("platform_kind");
 }
 
-/** 窗口最小化(自绘 titlebar 用;macOS 系统红绿灯下不会被调用)。 */
+/* 纯桌面 API 静态 import:R3 白名单文件,web 态经 isWeb 提前分流不触达。 */
+import { getVersion } from "@tauri-apps/api/app";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
+import { open as shellOpen } from "@tauri-apps/plugin-shell";
+import { check, type Update, type DownloadEvent } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
+
+/** 窗口最小化(自绘 titlebar 用;macOS 系统红绿灯下不会被调用)。web 态 = 浏览器标签页,无窗口可控 → no-op。 */
 export function windowMinimize(): Promise<void> {
-  return getCurrentWindow().minimize();
+  return isWeb ? Promise.resolve() : getCurrentWindow().minimize();
 }
 
-/** 窗口最大化/还原切换。 */
+/** 窗口最大化/还原切换。web 态 no-op。 */
 export function windowToggleMaximize(): Promise<void> {
-  return getCurrentWindow().toggleMaximize();
+  return isWeb ? Promise.resolve() : getCurrentWindow().toggleMaximize();
 }
 
 /** 界面缩放:webview 整页 zoom(mac pageZoom / win zoomFactor / gtk zoom_level)。
- *  需 capability core:webview:allow-set-webview-zoom;浏览器环境 reject 由 kernel/uiZoom 兜底。 */
+ *  需 capability core:webview:allow-set-webview-zoom;web 态 reject 由 kernel/uiZoom 兜底。 */
 export function setWebviewZoom(factor: number): Promise<void> {
-  return getCurrentWebview().setZoom(factor);
+  return isWeb ? Promise.reject(new Error("no webview")) : getCurrentWebview().setZoom(factor);
 }
 
-/** 关闭窗口。 */
+/** 关闭窗口。web 态 = 关闭当前标签页(脚本打开的页面有效,否则浏览器静默忽略)。 */
 export function windowClose(): Promise<void> {
+  if (isWeb) {
+    window.close();
+    return Promise.resolve();
+  }
   return getCurrentWindow().close();
 }
 
-/** 应用版本号(关于/设置页脚展示)。 */
-export function appVersion(): Promise<string> {
+/** 应用版本号(关于/设置页脚展示)。web 态走桥 hello 帧上报的版本(serverVersion)。 */
+export async function appVersion(): Promise<string> {
+  if (isWeb) return (await serverVersion()) ?? "";
   return getVersion();
 }
 
@@ -766,17 +775,17 @@ export type { Update, DownloadEvent };
 
 /** 浏览器 dev(无 Tauri runtime)恒 false;应用内恒 true。 */
 export function hasNativeUpdater(): boolean {
-  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+  return !isWeb;
 }
 
 /** 查询更新通道:有可用更新返回句柄(此后 downloadAndInstall),无更新返回 null。 */
 export function updaterCheck(): Promise<Update | null> {
-  return check();
+  return isWeb ? Promise.resolve(null) : check();
 }
 
 /** 安装已下载的更新并重启应用(updater 下载落临时目录,install 交换后 relaunch 生效)。 */
 export function relaunchApp(): Promise<void> {
-  return relaunch();
+  return isWeb ? Promise.resolve() : relaunch();
 }
 
 /** 重启应用(插件市场"拔插 = 重启生效"的一键入口;浏览器 dev 无 Tauri runtime,调用方需兜底)。 */
@@ -784,32 +793,43 @@ export function appRestart(): Promise<void> {
   return invoke<void>("app_restart");
 }
 
-/** 目录选择对话框;返回绝对路径,取消返回 null。 */
+/** 目录选择对话框;返回绝对路径,取消返回 null。web 态无文件系统对话框 → null。 */
 export function pickDirectory(title: string): Promise<string | null> {
-  return openDialog({ directory: true, multiple: false, title });
+  return isWeb ? Promise.resolve(null) : openDialog({ directory: true, multiple: false, title });
 }
 
-/** 文件选择对话框(上传等需要本地文件路径的场景);取消返回 null。 */
+/** 文件选择对话框(上传等需要本地文件路径的场景);取消返回 null。web 态 → null。 */
 export function pickFile(title: string): Promise<string | null> {
-  return openDialog({ directory: false, multiple: false, title });
+  return isWeb ? Promise.resolve(null) : openDialog({ directory: false, multiple: false, title });
 }
 
-/** 多选本地图片对话框(壁纸库导入);取消返回空数组。 */
+/** 保存路径选择对话框(导出/另存为);返回绝对路径,取消返回 null。web 态 → null。 */
+export function pickSavePath(title: string, defaultPath?: string): Promise<string | null> {
+  return isWeb ? Promise.resolve(null) : saveDialog({ title, defaultPath });
+}
+
+/** 多选本地图片对话框(壁纸库导入);取消返回空数组。web 态 → []。 */
 export async function pickImageFiles(title: string): Promise<string[]> {
-  const selection = await openDialog({
-    directory: false,
-    multiple: true,
-    title,
-    filters: [
-      { name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif", "bmp"] },
-    ],
-  });
+  const selection = isWeb
+    ? null
+    : await openDialog({
+        directory: false,
+        multiple: true,
+        title,
+        filters: [
+          { name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif", "bmp"] },
+        ],
+      });
   if (Array.isArray(selection)) return selection;
   return typeof selection === "string" ? [selection] : [];
 }
 
-/** 系统默认浏览器打开外链;浏览器 dev 无 shell 插件时回退 window.open。 */
+/** 系统默认浏览器打开外链;web 态直接 window.open(同源新标签)。 */
 export async function openExternalUrl(url: string): Promise<void> {
+  if (isWeb) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
   try {
     await shellOpen(url);
   } catch {
@@ -817,9 +837,85 @@ export async function openExternalUrl(url: string): Promise<void> {
   }
 }
 
-/** 本地文件路径 → asset:// URL(markdown 预览本地图片)。 */
+/** 本地文件路径 → URL(markdown/壁纸图)。webview = asset://;web 态 = 桥 /file 只读下载。 */
 export function assetUrl(path: string): string {
-  return convertFileSrc(path);
+  return isWeb
+    ? `/file?path=${encodeURIComponent(path)}&token=${encodeURIComponent(webToken ?? "")}`
+    : convertFileSrc(path);
+}
+
+/** Web 访问桥状态(对齐 src-tauri/src/web/web_access.rs WebAccessInfoWire)。 */
+export interface WebAccessInfo {
+  url: string;
+  port: number;
+  token: string;
+  lanIp: string;
+}
+
+/** 启动 LAN Web 访问桥(绑定 0.0.0.0,token 每次重铸)。 */
+export function webAccessStart(): Promise<WebAccessInfo> {
+  return invoke<WebAccessInfo>("web_access_start");
+}
+
+/** 停止桥。 */
+export function webAccessStop(): Promise<void> {
+  return invoke<void>("web_access_stop");
+}
+
+/** 查询桥状态;未运行返回 null。 */
+export function webAccessStatus(): Promise<WebAccessInfo | null> {
+  return invoke<WebAccessInfo | null>("web_access_status");
+}
+
+/** 订阅桥存活浏览器连接数(0↔N 边沿即发;桌面徽标消费)。 */
+export function onWebRemoteControl(cb: (count: number) => void) {
+  return listen<{ count: number }>("web://remote-control", (ev) => cb(ev.payload.count));
+}
+
+/** 存活 WS 客户端数(桌面徽标消费;>0 即「远程控制中」)。 */
+export function remoteControlActive(): Promise<number> {
+  return invoke<number>("remote_control_active");
+}
+
+/** 中继连接状态;未连接返回 null。 */
+export interface RelayInfo {
+  url: string;
+  agentUrl: string;
+  connected: boolean;
+  error: string | null;
+}
+
+/** 启动中继(传入 base URL + key;同时把 LAN 桥带起)。 */
+export function webRelayStart(url: string, key: string): Promise<RelayInfo> {
+  return invoke<RelayInfo>("web_relay_start", { url, key });
+}
+
+/** 停止中继(LAN 桥不随之停)。 */
+export function webRelayStop(): Promise<void> {
+  return invoke<void>("web_relay_stop");
+}
+
+/** 查询中继状态;未运行返回 null。 */
+export function webRelayStatus(): Promise<RelayInfo | null> {
+  return invoke<RelayInfo | null>("web_relay_status");
+}
+
+/** 订阅中继状态变化(连接/断开/错误)。 */
+export function onWebRelay(cb: (info: RelayInfo | null) => void) {
+  return listen<RelayInfo | null>("web://relay", () => {
+    /* 事件 payload 为 Null,真正状态以 webRelayStatus 为准 —— 事件仅作「刷新信号」。 */
+    void webRelayStatus().then(cb);
+  });
+}
+
+/** 一键部署中继到用户自有 Cloudflare(Worker + Durable Object);token 仅本次调用内使用。 */
+export function relayDeploy(token: string, accountId?: string): Promise<{ url: string; key: string }> {
+  return invoke<{ url: string; key: string }>("relay_deploy", { token, accountId });
+}
+
+/** 导出中继部署包(zip;自行 wrangler deploy)。key 缺省时后端铸随机 key 烧入。 */
+export function relayDeployPack(path: string, key?: string): Promise<string> {
+  return invoke<string>("relay_deploy_pack", { path, key });
 }
 
 interface QuotaFetchSpec {

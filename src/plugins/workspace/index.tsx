@@ -148,12 +148,11 @@ function WorkspaceSection() {
           {t("工作区")}
         </span>
         <span className="ws-caption-actions">
-          {/* 视图切换:默认/本地/〈来源 chips〉/归档 单按钮组(来源段由
+          {/* 视图切换:本地(缺省)/〈来源 chips〉/归档 单按钮组(来源段由
               workspaceOrigins 注册表供给,来源插件启用才有)。 */}
           <div className="ws-view-toggle" role="radiogroup" aria-label={t("工作区视图")}>
             {(
               [
-                ["default", "默认"],
                 ["local", "本地"],
                 ...origins.map((o) => [o.id, o.label] as const),
                 ["archived", "归档"],
@@ -161,12 +160,12 @@ function WorkspaceSection() {
             ).map(([value, label]) => {
               const active = archivedView
                 ? value === "archived"
-                : value === (originFilter || "default");
+                : value === (originFilter || "local");
               const pick = () =>
                 updateSettings(
                   value === "archived"
                     ? { workspaceArchiveView: true, workspaceOriginFilter: "" }
-                    : { workspaceArchiveView: false, workspaceOriginFilter: value === "default" ? "" : value },
+                    : { workspaceArchiveView: false, workspaceOriginFilter: value },
                 );
               return (
                 <button
