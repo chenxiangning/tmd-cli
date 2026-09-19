@@ -5,6 +5,8 @@
 @import "./file-tree.css";
 @import "./file-editor.css";
 @import "./open-with.css";
+@import "./open-with-settings.css";
+@import "./open-with-dialog.css";
 @import "./tab-bar.css";
 @import "./right-panel-toolbar.css";
 @import "./panel-subbar.css";
@@ -49,6 +51,7 @@
 @import "./markdown-codeblock.css";
 @import "./markdown-fullscreen.css";
 @import "./markdown-outline.css";
+@import "./markdown-back-top.css";
 @import "./file-preview.css";
 @import "./file-preview-structured.css";
 @import "./file-preview-docs.css";

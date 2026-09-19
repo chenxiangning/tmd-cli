@@ -1,0 +1,139 @@
+/**
+ * 打开方式 · 添加对话框样式 —— 复刻 mossx preset-list:行列表选择器 +
+ * 预设行(图标容器/名称副行/健康徽标/已添加态)+ 浏览自定义入口。原生 dialog。
+ */
+
+/* ===== 添加对话框:行列表(mossx preset-list 同构)===== */
+.owdlg {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(26rem, calc(100vw - 3rem));
+  max-height: min(30rem, calc(100vh - 6rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.875rem;
+  border: 1px solid var(--tmd-border);
+  border-radius: 0.75rem;
+  background: var(--tmd-bg-base);
+}
+
+.owdlg::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.owdlg-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.owdlg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  max-height: min(48vh, 23.75rem);
+  overflow: auto;
+  padding: 0.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--tmd-border);
+  background: color-mix(in srgb, var(--tmd-fg) 3%, transparent);
+}
+
+.owdlg-row {
+  appearance: none;
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: none;
+  border-radius: 0.625rem;
+  background: transparent;
+  color: var(--text-strong);
+  text-align: left;
+  transition: background-color 120ms ease;
+}
+
+.owdlg-row:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.owdlg-row:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.owdlg-row.is-missing {
+  opacity: 0.7;
+}
+
+.owdlg-iconwrap {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--tmd-border);
+  background: var(--tmd-bg-base);
+  overflow: hidden;
+}
+
+.owdlg-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.owdlg-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-strong);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.owdlg-sub {
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-faint);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.owdlg-added {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-faint);
+  white-space: nowrap;
+}
+
+.owdlg-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.owdlg-browse {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0 0.875rem;
+  border-radius: 0.5rem;
+  border: 1px dashed var(--tmd-border);
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  font-size: 0.75rem;
+}
+
+.owdlg-browse:hover {
+  color: var(--tmd-fg);
+  background: var(--surface-hover);
+}
