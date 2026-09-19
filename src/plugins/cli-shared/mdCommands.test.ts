@@ -66,11 +66,8 @@ describe("scanCommandMdDirs", () => {
       "/h/.claude/commands/git/SKILL.md": "---\nname: 必须被忽略\ndescription: git 套件\n---\n",
     });
     const out = await md.scanCommandMdDirs(["/h/.claude/commands"]);
-    expect(out.map((s) => s.value)).toEqual(["os-new", "git:SKILL"]);
+    expect(out.map((s) => s.value)).toEqual(["os-new", "git"]);
     expect(out[1]?.description).toBe("git 套件");
-    /* 疑似缺陷锁定:头注释与行内注释均称「命令目录的调用名 = 目录名(如 /git)」,
-       实现却回退派生名 git:SKILL(frontmatter name 正确地未改写)。此处按现状钉死,
-       修复该缺陷时应同步改断言为 "git"。 */
   });
 
   it("SKILL.md 目录整目录吸收:目录内散装 .md 忽略;根级裸 SKILL.md 无命令语义", async () => {
@@ -79,9 +76,8 @@ describe("scanCommandMdDirs", () => {
     });
     readResult({ "/h/.qoder/commands/git/SKILL.md": "", "/h/.qoder/commands/solo.md": "单独命令" });
     const out = await md.scanCommandMdDirs(["/h/.qoder/commands"]);
-    /* 吸收语义按现状钉死;调用名偏离注释契约(应为目录名 "git",实得 "git:SKILL"),
-       与上一用例同一疑似缺陷,详见该处注释。 */
-    expect(out.map((s) => s.value)).toEqual(["git:SKILL", "solo"]);
+    /* 调用名 = 目录名(qoder 实证 /git),与源码头注释契约一致 */
+    expect(out.map((s) => s.value)).toEqual(["git", "solo"]);
     expect(out[0]?.description).toBeUndefined();
   });
 
