@@ -90,8 +90,9 @@ describe("fetchGrokQuota", () => {
     expect(mocks.fetchVendorQuota).not.toHaveBeenCalled();
   });
 
-  it("config.toml 读取失败 → IO 错误原样向上传播", async () => {
+  it("config.toml 读取失败(如 ENOENT)→ 与无 key 同走显式不支持文案,不裸抛 IO 错误", async () => {
     mocks.fsReadFile.mockRejectedValue(new Error("enoent: config.toml"));
-    await expect(fetchGrokQuota()).rejects.toThrow("enoent: config.toml");
+    await expect(fetchGrokQuota()).rejects.toThrow(/未找到 grok 凭据/);
+    expect(mocks.fetchVendorQuota).not.toHaveBeenCalled();
   });
 });
