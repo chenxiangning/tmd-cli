@@ -16,7 +16,8 @@ export function statusText(
   return t("已保存");
 }
 
-/** 工具条错误/脏标记着色。 */
+/** 工具条错误/脏标记着色(两者并存时同挂,视觉权重由 CSS 顺序承担)。 */
 export function toolbarCls(error: string | null, dirty: boolean): string {
-  return `file-editor-toolbar${error ? " is-error" : dirty ? " is-dirty" : ""}`;
+  const flags = [error ? "is-error" : "", dirty ? "is-dirty" : ""].filter(Boolean).join(" ");
+  return `file-editor-toolbar${flags ? ` ${flags}` : ""}`;
 }

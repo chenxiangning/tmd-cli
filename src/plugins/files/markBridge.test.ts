@@ -204,10 +204,10 @@ describe("editorChromeLogic(编辑器壳纯逻辑)", () => {
     expect(statusText(doc(), false)).toBe("已保存");
   });
 
-  it("toolbarCls:错误优先于脏,并存时只着错误色不叠加", () => {
+  it("toolbarCls:错误与脏并存时双类同挂,视觉权重由 CSS 顺序承担", () => {
     expect(toolbarCls(null, false)).toBe("file-editor-toolbar");
     expect(toolbarCls("boom", false)).toBe("file-editor-toolbar is-error");
     expect(toolbarCls(null, true)).toBe("file-editor-toolbar is-dirty");
-    expect(toolbarCls("boom", true)).toBe("file-editor-toolbar is-error");
+    expect(toolbarCls("boom", true)).toBe("file-editor-toolbar is-error is-dirty");
   });
 });
