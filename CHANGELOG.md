@@ -4,6 +4,26 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.2.0] - 2026-09-19
+
+### 新增
+
+- LSP 语义跳转与引用:cmd/ctrl+点击跳定义与引用侧边预览、F12/⇧F12、右键菜单与悬停提示;TS/JS/Python/Java 四语言 server 发现链;二轮增 cmd+hover 链接态、peek 键盘导航与符号区间高亮、悬停卡 markdown 渲染;语法高亮收敛入 kernel,抽 lsp 组帧模块达标文件规模铁则(契约见 docs/superpowers/specs/2026-09-19-lsp-semantic-navigation-design.md)
+- 会话卫生清扫:超期(默认 24h)会话自动归档 + 空会话物理删除,挂磁盘扫描结算点零轮询;行为页开关与时窗(12/24/48/168h);手动取消归档经 kernel sessionKeep 覆盖层护送,远程分支只归档不删盘;恢复对话即解除归档,续命链生效;9 引擎接 isDiskSessionEmpty 钩子,判空收敛为标记子串(读头缓存已存全量头,真解析零增益)
+- 文件标记插件:行间锚点跨文件聚合,标记中心面板与 md 预览落锚;发送链路改芯片条 staging——staged 芯片挂 composer.attachments 挂点,真实发送时注入并翻已送达,原「引用块直接写输入框」方案废弃(桥删除,干净切换);md 预览交互卡与面板批量发送;终端回链定位经 kernel 文件深链,评审收口修持久化复活、staged 吞并与注册面旁路,批注卡继承字体并重置 pre 空白修排版错乱
+- 全文搜索面板与文件快开:⇧⌘F 全文、⌘P 文件名;Rust `fs_search` 原语(字面匹配即时扫描,与 `fs_walk` 同源语义;3MB 闸 / 8KB 二进制嗅探 / 3s 预算,无持久索引),命中打开文件并定位行;快开带路径模糊匹配与 50 条截断提示(契约见 docs/superpowers/specs/2026-09-18-yn-replicate-md-render-code-search-design.md)
+- kernel 编辑器扩展与终端链接宿主注册表:扩展挂点接入文件视图,终端链接注册表接入幕布;编辑器语言扩至 25 家并补行内查找与定位行面;markdown 预览接入 markdown-it 快路径(常规块单遍 HTML 直渲染 + 事件委托,富块留 react-markdown)
+
+### 变更
+
+- Git 顶栏嵌入段下移为面板内工具条,删除无主 toolbar 契约;工具条三类型化下拉,视图钮常显文案,左缘对齐内容列;排布两度收口:聚合数字先贴右缘再去箭头,终态聚合数字居左、下拉钮居右;en/ja 词典补工具条文案
+- 会话状态巡航接尾读尺寸闸,`configHomeDir` 进程 memo,免每拍列目录全读;cli-codex 状态巡航拆出 `sessionStatus` 模块,闸签名收编 resolver 型并补 30s 重定位周期;会话扫描读头按 mtime 增量缓存,重扫免全库读头;composer 唤醒图标行移至对话框左下横排,锚点栏恢复贴顶紧凑排列;平铺门控与 tab 数量解耦,根治跨 2 边界关开 tab 集体重放遮罩
+
+### 修复
+
+- checkpoints 审批线:open 批首击展示重定基至 HEAD 对齐 git 面板(回退语义仍走账本快照);写入事件记账补身份回填,绑定迟到链不再因 resume 成孤儿;时间线轮询加 10s 悬挂守护,单次 IPC 悬挂不再全会话永久卡死(契约测试锚定)
+- 整体评审收口近 20 笔:fs_walk_files 注册回补(曾静默断 @ 补全与快开)、文件深链上移 `kernel/fileTabs` 统一入口根治 Windows 双分隔符双 tab、codex 状态闸补 30s 重定位自愈、终端链接 CJK 宽字符列映射、marks i18n 全族落位
+
 ## [0.1.9] - 2026-09-18
 
 ### 新增
@@ -280,6 +300,7 @@
 - SSH 一等会话:远程终端 + SFTP 文件树 + 端口转发
 - 插件市场、设置面板、网络代理
 
+[0.2.0]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.2.0
 [0.1.9]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.9
 [0.1.8]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.8
 [0.1.7]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.7
