@@ -58,3 +58,12 @@
 - 单测:`updateCheck.test.ts` 守 changelog 解析结构、semver 数值比较、atom 解析映射、检查结果分级(浏览器 dev / HTTP 状态 / 网络失败 / 格式异常)(vi.mock `@kernel/ipc`);
 - 全套:`pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build` + Rust 侧 `cargo clippy/test/fmt`;
 - 目检:dev 环境打开真实界面,点击版本号看浮层开关 / 更新记录渲染 / 翻页 / 检查按钮各态(浏览器 dev 下显示环境提示,桩 Tauri invoke 验证 outdated / latest);atom 真实形状已用 curl 实测(见背景)。
+
+## 增补:更新感应后台化(2026-09-19)
+
+用户决策修订上文「不做的事」中「不自动后台检查、不打扰式红点」一条:发现新版要给短提示,但检查必须节流,更新动作仍交给用户手点。
+
+- 节流(`src/app-shell/updatePresence.ts`):距上次成功检查 ≥6h 才发请求;启动查一次,长驻会话每 6h 周期兜底;账本(localStorage `shell.updatePresence.v1`)存 `checkedAt` + 最近结论,重启先亮缓存结论,失败不记账(下个周期自动重试);
+- 提示:底栏版本号旁缀 accent 色「有新版」短文案(非红点非弹层,点击行为不变仍开版本弹窗);弹窗「在线检查」结论经 `recordPresenceCheck` 回填同一账本与提示——查到已是最新则顺带清掉提示;
+- 不自动更新:autoUpdate 通道仍只由弹窗按钮触发,后台检查只「发现」不「安装」;
+- 验证:`updatePresence.test.ts` 守缓存解析 / 到期判定 / 节流跳过 / 记账纪律四契约;全套前端五连 + 浏览器桩目检提示显隐。

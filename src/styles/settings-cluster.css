@@ -125,6 +125,12 @@
   background: var(--tmd-bg-hover);
 }
 
+/* 新版短提示:后台检查发现新版本时缀在版本号后,accent 点睛不改按钮布局 */
+.version-new-hint {
+  margin-left: 3px;
+  color: var(--tmd-accent);
+}
+
 /* ── 上弹菜单 ── */
 
 .settings-menu {

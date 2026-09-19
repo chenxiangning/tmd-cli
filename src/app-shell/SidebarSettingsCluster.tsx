@@ -30,6 +30,8 @@ import {
 import logoUrl from "../assets/logo.png";
 import { Check, Gear } from "@phosphor-icons/react";
 import { VersionPopover } from "./VersionPopover";
+import { isNewerVersion } from "./updateCheck";
+import { initUpdatePresence, useUpdatePresence } from "./updatePresence";
 
 /** 底栏空间有限,最多外显 4 个快捷入口(同 codemoss SIDEBAR_SETTINGS_PINNED_MAX)。 */
 const PINNED_MAX = 4;
@@ -96,6 +98,10 @@ export function SidebarSettingsCluster() {
       .catch(() => setVersion("0.1.4")); // 纯浏览器 dev(vite)下无 Tauri runtime
   }, []);
 
+  /* 更新感应:启动节流后台检查(6h 一次),发现新版在版本号旁挂短提示。 */
+  const presence = useUpdatePresence();
+  useEffect(() => initUpdatePresence(), []);
+
   /* 点击外部 / Esc 关菜单。 */
   useEffect(() => {
     if (!open) return;
@@ -142,6 +148,9 @@ export function SidebarSettingsCluster() {
     return a ? [a] : [];
   });
   const atPinLimit = pinnedIds.length >= PINNED_MAX;
+
+  /* 更新感应:后台检查发现比当前版本新的发布 → 版本号旁亮短提示。 */
+  const hasNewer = presence.latest !== null && isNewerVersion(presence.latest.version, version);
 
   const select = (action: SidebarAction) => {
     setOpen(false);
@@ -264,8 +273,8 @@ export function SidebarSettingsCluster() {
         <button
           type="button"
           className="settings-cluster-version"
-          aria-label={t("版本与更新")}
-          title={t("版本与更新")}
+          aria-label={hasNewer ? t("版本与更新(有新版本)") : t("版本与更新")}
+          title={hasNewer ? t("版本与更新(有新版本)") : t("版本与更新")}
           onClick={() => {
             const rect = rootRef.current?.getBoundingClientRect();
             /* 面板(300px)宽于侧栏:锚定簇左缘、悬于底栏上方,越界由弹窗内夹取。 */
@@ -274,6 +283,7 @@ export function SidebarSettingsCluster() {
           }}
         >
           v{version}
+          {hasNewer && <span className="version-new-hint">{t("有新版")}</span>}
         </button>
         <VersionPopover
           open={aboutOpen}

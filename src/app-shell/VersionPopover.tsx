@@ -25,6 +25,7 @@ import {
   type ChangelogEntry,
   type ReleaseInfo,
 } from "./updateCheck";
+import { recordPresenceCheck } from "./updatePresence";
 import {
   AutoUpdateButton,
   AutoUpdateStatus,
@@ -183,6 +184,8 @@ export function VersionPopover({
     const latest = result.release;
     const outdated = isNewerVersion(latest.version, currentVersion);
     setStatus(outdated ? "outdated" : "latest");
+    /* 手动检查结论回填底栏提示与节流账本(查到已是最新则顺带清掉「有新版」)。 */
+    recordPresenceCheck(latest);
     /* 发现新版且更新记录里有该版本 → 自动翻到那一页。 */
     if (outdated) {
       const i = CHANGELOG_ENTRIES.findIndex((e) => e.version === latest.version);
