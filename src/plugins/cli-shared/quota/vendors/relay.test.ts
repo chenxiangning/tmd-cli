@@ -137,7 +137,7 @@ describe("fetchRelay · Sub2API 窗口解析", () => {
     }))).toEqual([["池", 75], ["x", 9]]);
   });
 
-  it("无百分比条目跳过;同 label 去重;最多保留 2 个窗口", async () => {
+  it("无百分比条目跳过;同 label 去重;上限 3 窗,月窗不再被前两窗挤掉", async () => {
     const ws = await windowsOf({
       rate_limits: [{ name: "5h", used_percent: 10 }, { name: "无数据" }],
       windows: [
@@ -146,8 +146,8 @@ describe("fetchRelay · Sub2API 窗口解析", () => {
         { name: "month", used_percent: 30 },
       ],
     });
-    expect(ws.map((w) => w.label)).toEqual(["5小时", "7天"]);
-    expect(ws).toHaveLength(2);
+    expect(ws.map((w) => w.label)).toEqual(["5小时", "7天", "30天"]);
+    expect(ws).toHaveLength(3);
   });
 
   it("resetsAt 归一:秒→ms、ISO 串→ms(缺失字段由主路径精确 toEqual 覆盖)", async () => {
