@@ -26,7 +26,7 @@
 .owdlg-title {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--text-strong);
+  color: var(--tmd-fg);
 }
 
 .owdlg-list {
@@ -52,13 +52,13 @@
   border: none;
   border-radius: 0.625rem;
   background: transparent;
-  color: var(--text-strong);
+  color: var(--tmd-fg);
   text-align: left;
   transition: background-color 120ms ease;
 }
 
 .owdlg-row:hover:not(:disabled) {
-  background: var(--surface-hover);
+  background: var(--tmd-bg-hover);
 }
 
 .owdlg-row:disabled {
@@ -91,7 +91,7 @@
 .owdlg-name {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--text-strong);
+  color: var(--tmd-fg);
   line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -100,7 +100,7 @@
 
 .owdlg-sub {
   font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  color: var(--tmd-fg-subtle);
   line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -110,7 +110,7 @@
 .owdlg-added {
   flex-shrink: 0;
   font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  color: var(--tmd-fg-subtle);
   white-space: nowrap;
 }
 
@@ -135,5 +135,5 @@
 
 .owdlg-browse:hover {
   color: var(--tmd-fg);
-  background: var(--surface-hover);
+  background: var(--tmd-bg-hover);
 }

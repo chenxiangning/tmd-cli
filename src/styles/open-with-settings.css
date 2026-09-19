@@ -61,7 +61,7 @@
   font-size: 0.84375rem;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--text-strong);
+  color: var(--tmd-fg);
   line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -70,7 +70,7 @@
 
 .ow-row-sub {
   font-size: 0.75rem;
-  color: var(--tmd-fg-faint);
+  color: var(--tmd-fg-subtle);
   line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -86,7 +86,7 @@
   padding: 0.1875rem 0.5rem;
   border-radius: 999px;
   border: 1px solid var(--tmd-border);
-  color: var(--tmd-fg-faint);
+  color: var(--tmd-fg-subtle);
   background: transparent;
   white-space: nowrap;
 }
@@ -102,7 +102,7 @@
 }
 
 .ow-badge.is-miss {
-  color: var(--tmd-fg-faint);
+  color: var(--tmd-fg-subtle);
 }
 
 .ow-badge:disabled {
@@ -119,7 +119,7 @@
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--tmd-fg) 16%, transparent);
   background: color-mix(in srgb, var(--tmd-fg) 8%, transparent);
-  color: var(--text-strong);
+  color: var(--tmd-fg);
   font-size: 0.71875rem;
   font-weight: 600;
   line-height: 1;
@@ -144,12 +144,12 @@
   border: none;
   border-radius: 0.5rem;
   background: transparent;
-  color: var(--tmd-fg-faint);
+  color: var(--tmd-fg-subtle);
 }
 
 .ow-row-act:hover:not(:disabled) {
   color: var(--tmd-fg);
-  background: var(--surface-hover);
+  background: var(--tmd-bg-hover);
 }
 
 .ow-row-act:disabled {
@@ -181,18 +181,18 @@
   border-radius: 999px;
   border: 1px solid var(--tmd-border);
   background: var(--tmd-bg-base);
-  color: var(--text-strong);
+  color: var(--tmd-fg);
   font-size: 0.8125rem;
   align-self: flex-start;
 }
 
 .ow-add-btn:hover {
-  background: var(--surface-hover);
+  background: var(--tmd-bg-hover);
 }
 
 .ow-help {
   font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  color: var(--tmd-fg-subtle);
   line-height: 1.4;
 }
 
