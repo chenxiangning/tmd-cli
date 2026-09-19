@@ -21,15 +21,15 @@ import {
 import { sanitizeWorkspaceCollapsedMap, sanitizeWorkspaceGroups } from "./settingsSanitizeWorkspace";
 
 describe("sanitizeSessionTitles", () => {
-  it("非法输入回落空对象(空数组因 typeof object 漏过守卫,返回空对象)", () => {
+  it("非法输入(null/标量/数组)一律回落空对象,不抛错", () => {
     for (const bad of [null, undefined, 42, "x", true, []]) {
       expect(sanitizeSessionTitles(bad)).toEqual({});
     }
   });
 
-  it("【可疑】数组输入漏过类型守卫,索引被当 key", () => {
-    // 疑似源码问题:raw 未排除 Array,["a"] 被当 {0:"a"} 处理 → {"0":"a"}。已写入报告,不改源码。
-    expect(sanitizeSessionTitles(["a"])).toEqual({ "0": "a" });
+  it("数组输入被守卫拒绝(索引不再被当 key)", () => {
+    expect(sanitizeSessionTitles(["a"])).toEqual({});
+    expect(sanitizeSessionTitles(["a", "b"])).toEqual({});
   });
 
   it("合法值 trim 后透传,空白值丢弃", () => {

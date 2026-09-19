@@ -12,7 +12,7 @@ const WORKSPACE_COLLAPSED_MAX_ENTRIES = 200;
 /** 工作区折叠态清洗:只收 boolean 值,按 key 序限量纳入(与置顶同款确定性兜底)。 */
 export function sanitizeWorkspaceCollapsedMap(raw: unknown): Record<string, boolean> {
   const map: Record<string, boolean> = {};
-  if (!raw || typeof raw !== "object") return map;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return map;
   const entries = raw as Record<string, unknown>;
   for (const key of Object.keys(entries).sort().slice(0, WORKSPACE_COLLAPSED_MAX_ENTRIES)) {
     if (typeof entries[key] === "boolean") map[key] = entries[key] as boolean;
