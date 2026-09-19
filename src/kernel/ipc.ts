@@ -23,6 +23,13 @@ import type {
   SshPromptEvent,
   SshSessionEvent,
 } from "./sshTypes";
+import type { OpenWithTarget } from "./settingsTypes";
+
+/** 打开方式探测结果(Rust open_with.rs 契约):ok=false 时 resolvedPath 为 null。 */
+export interface OpenWithProbe {
+  ok: boolean;
+  resolvedPath: string | null;
+}
 
 /** 本地插件文件戳(plugins.rs 契约):文件名 + 内容 SHA-256 + 大小 + mtime(版本库排序)。 */
 export interface LocalPluginFileStamp {
@@ -382,6 +389,15 @@ export const ipc = {
     invoke<void>("fs_reveal_in_file_manager", { path }),
   /** 复制文件(资源入库通道,如壁纸受管副本);新建语义,目标已存在报错,256MB 上限。 */
   fsCopyFile: (src: string, dst: string) => invoke<void>("fs_copy_file", { src, dst }),
+  /* ── 打开方式(open-with;契约 kernel/openWith.ts,Rust open_with.rs)── */
+  /** 用配置的外部应用/命令打开文件;finder 复用 reveal 定位;目标路径恒为最后参数。 */
+  fsOpenWith: (path: string, target: OpenWithTarget) =>
+    invoke<void>("fs_open_with", { path, target }),
+  /** 探测目标可用性(mac 找 .app / command 走 which);探测失败不抛错,返回 ok=false。 */
+  fsProbeOpenApp: (target: OpenWithTarget) =>
+    invoke<OpenWithProbe>("fs_probe_open_app", { target }),
+  /** 提取应用图标 data URL(mac bundle icns→sips→png);失败返回 null,调用方回落通用图标。 */
+  fsOpenAppIcon: (appName: string) => invoke<string | null>("fs_open_app_icon", { appName }),
   /** 本地图片 → data URL(markdown 预览 asset:// 失败回退;Rust 侧白名单+大小闸)。 */
   readLocalImageDataUrl: (path: string) =>
     invoke<string>("read_local_image_data_url", { path }),
@@ -838,6 +854,11 @@ export function appRestart(): Promise<void> {
 /** 目录选择对话框;返回绝对路径,取消返回 null。web 态无文件系统对话框 → null。 */
 export function pickDirectory(title: string): Promise<string | null> {
   return isWeb ? Promise.resolve(null) : openDialog({ directory: true, multiple: false, title });
+}
+
+/** 应用选择对话框(打开方式「浏览…」):选 .app/可执行文件,取消返回 null。web 态 → null。 */
+export function pickOpenWithApp(): Promise<string | null> {
+  return isWeb ? Promise.resolve(null) : openDialog({ multiple: false, title: "选择应用" });
 }
 
 /** 文件选择对话框(上传等需要本地文件路径的场景);取消返回 null。web 态 → null。 */

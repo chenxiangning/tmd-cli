@@ -1,0 +1,273 @@
+/**
+ * 打开方式(open-with)样式 —— 复刻 mossx OpenAppMenu / OpenAppsSection。
+ * 覆盖:文件底部工具条右侧簇与入口钮、向上弹菜单(wsmenu 范式,z 1200 层)、
+ * 设置面板清单行与「添加打开方式」对话框。令牌沿用 wsmenu(--text-strong / --surface-hover)。
+ */
+
+/* ===== 文件底部工具条:右侧簇(编辑/预览切换 + 打开方式入口)===== */
+.file-editor-toolbar-right {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ===== 入口钮(矮工具条内 ghost 小钮,与 file-mode-toggle 同素)===== */
+.ow-entry {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  font-size: 0.6875rem;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 6px;
+}
+
+.ow-entry:hover {
+  background: var(--surface-hover);
+  color: var(--tmd-fg);
+}
+
+/* ===== 弹出菜单(portal + fixed,向上弹)===== */
+.ow-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+
+.ow-menu {
+  position: fixed;
+  z-index: 1201;
+  width: 240px;
+  padding: 4px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 10px;
+  background: var(--tmd-bg-base);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 28%);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ow-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 6px 8px;
+  border-radius: 7px;
+  color: var(--text-strong);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-align: left;
+}
+
+.ow-menu-item:hover {
+  background: var(--surface-hover);
+}
+
+.ow-menu-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ow-icon {
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.ow-icon-ph {
+  flex-shrink: 0;
+  color: var(--tmd-fg-muted);
+}
+
+/* 默认项圆圈(原生 radio,appearance 复位成圆圈):行点击 = 打开;圆圈点击 = 仅设默认 */
+.ow-menu-radio {
+  appearance: none;
+  margin: 0;
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1.5px solid var(--tmd-fg-faint);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.ow-menu-radio:hover {
+  border-color: var(--tmd-fg);
+}
+
+.ow-menu-radio:checked {
+  border-color: var(--tmd-fg);
+  background: radial-gradient(circle, var(--tmd-fg) 0 3.5px, transparent 4px);
+}
+
+/* ===== 设置面板清单行 ===== */
+.ow-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 10px;
+}
+
+.ow-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ow-row-title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ow-row-sub {
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 可用性徽标:探测中点态 / 可用绿 / 未装灰 */
+.ow-badge {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--tmd-border);
+  color: var(--tmd-fg-faint);
+}
+
+.ow-badge.is-ok {
+  color: #34d399;
+  border-color: rgb(52 211 153 / 45%);
+}
+
+.ow-badge.is-miss {
+  color: var(--tmd-fg-faint);
+}
+
+/* 行尾图标动作钮(星标/上下移/删除,ghost) */
+.ow-row-act {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tmd-fg-faint);
+  padding: 2px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.ow-row-act:hover:not(:disabled) {
+  color: var(--tmd-fg);
+  background: var(--surface-hover);
+}
+
+.ow-row-act:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.ow-row-act.is-default {
+  color: var(--text-strong);
+  border: 1px solid var(--tmd-border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  gap: 4px;
+  font-size: 0.6875rem;
+}
+
+/* ===== 添加打开方式对话框(原生 dialog;::backdrop 为暗化背板)===== */
+.owdlg {
+  width: min(420px, calc(100vw - 48px));
+  max-height: min(480px, calc(100vh - 96px));
+  overflow: auto;
+  border: 1px solid var(--tmd-border);
+  border-radius: 12px;
+  background: var(--tmd-bg-base);
+  color: var(--text-strong);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.owdlg::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.owdlg-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.owdlg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.owdlg-preset {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 0.75rem;
+  text-align: left;
+  min-width: 0;
+}
+
+.owdlg-preset:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.owdlg-preset:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.owdlg-preset span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.owdlg-browse {
+  border: 1px dashed var(--tmd-border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  font-size: 0.75rem;
+  padding: 8px;
+}
+
+.owdlg-browse:hover {
+  color: var(--tmd-fg);
+  background: var(--surface-hover);
+}

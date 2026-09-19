@@ -15,6 +15,7 @@ mod hash;
 mod installer;
 mod lsp;
 mod lsp_framing;
+mod open_with;
 mod plugins;
 mod probe;
 mod proc_run;
@@ -209,6 +210,9 @@ pub fn run() {
             fs_edit::fs_trash_entry,
             fs_edit::fs_reveal_in_file_manager,
             fs_edit::fs_copy_file,
+            open_with::fs_open_with,
+            open_with::fs_probe_open_app,
+            open_with::fs_open_app_icon,
             md5_hex,
             commands_fs::read_local_image_data_url,
             commands_fs::read_binary_file_base64,

@@ -65,6 +65,7 @@ import {
   type FileRenderKind,
 } from "./render/renderProfile";
 import { isRemoteFileUri } from "@kernel/fileSources";
+import { OpenWithMenu } from "./OpenWithMenu";
 
 const MARKDOWN_FILE_RE = /\.(md|markdown|mdx)$/i;
 
@@ -126,29 +127,32 @@ function FileTabBody({
           </div>
         )}
       </div>
-      {/* 矮工具条:状态文字在左,编辑/预览切换钮在右(md 与结构化文件才有) */}
+      {/* 矮工具条:状态文字在左;右侧 = 编辑/预览切换钮(md 与结构化才有)+ 打开方式入口(远程文件不出) */}
       <div
         className={toolbarCls(doc.error, doc.dirty)}
         role="status"
       >
         <span className="file-editor-toolbar-status">{status}</span>
-        {structuredKind ? (
-          <ModeToggleButton
-            editor={structuredEditor}
-            onToggle={(next) => {
-              structuredEditMode.set(path, next);
-              setStructuredEditor(next);
-            }}
-          />
-        ) : isMd ? (
-          <ModeToggleButton
-            editor={mdEditor}
-            onToggle={(next) => {
-              mdEditMode.set(path, next);
-              setMdEditor(next);
-            }}
-          />
-        ) : null}
+        <span className="file-editor-toolbar-right">
+          {structuredKind ? (
+            <ModeToggleButton
+              editor={structuredEditor}
+              onToggle={(next) => {
+                structuredEditMode.set(path, next);
+                setStructuredEditor(next);
+              }}
+            />
+          ) : isMd ? (
+            <ModeToggleButton
+              editor={mdEditor}
+              onToggle={(next) => {
+                mdEditMode.set(path, next);
+                setMdEditor(next);
+              }}
+            />
+          ) : null}
+          {!remote && <OpenWithMenu path={path} />}
+        </span>
       </div>
     </div>
   );

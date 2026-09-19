@@ -42,6 +42,7 @@ import {
   sanitizeSessionPins,
   sanitizeSessionTitles,
 } from "./settingsSanitizeSessions";
+import { sanitizeOpenWithTargets } from "./settingsSanitizeOpenWith";
 import { sanitizeShortcutOverrides } from "./settingsSanitizeShortcuts";
 
 import {
@@ -283,5 +284,8 @@ export function sanitize(raw: unknown): AppSettings {
     webRelayUrl: typeof obj.webRelayUrl === "string" ? obj.webRelayUrl.slice(0, 200) : "",
     webRelayKey: typeof obj.webRelayKey === "string" ? obj.webRelayKey.slice(0, 100) : "",
     git: sanitizeGitPanel(obj.git),
+    openWithTargets: sanitizeOpenWithTargets(obj.openWithTargets),
+    openWithDefaultId:
+      typeof obj.openWithDefaultId === "string" ? obj.openWithDefaultId.slice(0, 64) : "",
   };
 }

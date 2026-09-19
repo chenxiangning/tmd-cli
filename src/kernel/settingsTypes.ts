@@ -103,6 +103,26 @@ export type GitDiffMode = "unified" | "split";
 /** 工作区分组定义(workspace 插件编辑域):数组顺序即侧栏显示顺序。 */
 export interface WorkspaceGroup { id: string; name: string }
 
+/**
+ * 打开方式目标(open-with,复刻 mossx OpenAppTarget):用外部应用/命令打开文件。
+ * files 插件(文件底部菜单)消费、settings 插件(配置面板)编辑,契约见 kernel/openWith.ts。
+ * 启动语义:目标路径恒为最后参数;app 经系统启动器(macOS `open -a`),command 直接 spawn。
+ */
+export interface OpenWithTarget {
+  /** 稳定 id:预设用 preset id,自定义用 `custom-<时间戳>`;默认项指向它。 */
+  id: string;
+  /** 显示名。 */
+  label: string;
+  /** app = 系统启动器打开应用;command = 直接执行命令;finder = 文件管理器定位(复用 reveal)。 */
+  kind: "app" | "command" | "finder";
+  /** kind=app:macOS `open -a` 的应用名或 .app 路径;Windows 下为应用名/可执行路径。 */
+  appName?: string;
+  /** kind=command:可执行文件或 PATH 命令。 */
+  command?: string;
+  /** 附加参数(排在目标路径之前);缺省无。 */
+  args?: string[];
+}
+
 export interface AppSettings {
   theme: ThemePreference;
   /** 浅色外观使用的 preset(system/light 模式生效)。 */
@@ -258,6 +278,13 @@ export interface AppSettings {
   webRelayUrl: string;
   /** 中继共享密钥(亦作手机 URL 路径段);relay 端只认它,桌面桥仍走 token/设备授权。 */
   webRelayKey: string;
+  /**
+   * 打开方式清单(open-with 编辑域,settings/files 两插件消费):数组顺序即菜单/面板显示顺序。
+   * 默认种子仅「访达」;图标与可用性运行时解析,不持久化(见 kernel/openWith.ts)。
+   */
+  openWithTargets: OpenWithTarget[];
+  /** 打开方式默认项 id(菜单圆圈/设置星标指向);指向被删条目时消费侧回落首项。 */
+  openWithDefaultId: string;
 }
 
 /** 记忆胶囊注入策略(manual 手动勾选注入 / auto 新会话自动展开 / off 关闭)。 */

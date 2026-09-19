@@ -11,7 +11,7 @@ use std::path::Path;
 const MAX_WRITE_BYTES: usize = 16 * 1024 * 1024;
 
 /// 路径校验:必须是绝对路径,且任意段不得为 `.git`(树不展示、也不允许改写)。
-fn validate_target(path: &str) -> Result<(), String> {
+pub(crate) fn validate_target(path: &str) -> Result<(), String> {
     let p = Path::new(path);
     if !p.is_absolute() {
         return Err("路径必须是绝对路径".to_string());
