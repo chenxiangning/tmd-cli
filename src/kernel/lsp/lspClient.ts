@@ -106,7 +106,15 @@ function ensureListeners() {
   if (listenersBound) return;
   listenersBound = true;
   onLspMessage((e) => routeMessage(e.key, e.payload));
-  onLspExit((e) => failAllPending(e.key, `语言服务进程退出(code=${e.code ?? "?"})`));
+  onLspExit((e) => {
+    /* 进程退出即清连接态(state→none),否则死 conn 残留"ready",手势永不重建。 */
+    const b = boxes.get(e.key);
+    if (b) {
+      b.conn = null;
+      b.opening = null;
+    }
+    failAllPending(e.key, `语言服务进程退出(code=${e.code ?? "?"})`);
+  });
 }
 
 function rawSend(key: string, message: unknown): Promise<void> {
@@ -205,13 +213,19 @@ export function lspConnectionState(key: string): "opening" | "ready" | "none" {
   return b.opening ? "opening" : "none";
 }
 
-/** 优雅关停:shutdown/exit 尽力通知后杀树;清空本地态并失败所有 pending。 */
+/** 优雅关停:shutdown request(LSP 规范,非 notification)→ exit 通知 → 杀树。 */
 export async function closeLspConnection(key: string): Promise<void> {
   const b = boxes.get(key);
-  if (b) {
-    if (b.conn) b.conn.notify("shutdown", null);
-    b.conn = null;
-    b.opening = null;
+  if (!b) {
+    await lspStop(key).catch(() => {});
+    return;
+  }
+  const conn = b.conn;
+  b.conn = null;
+  b.opening = null;
+  if (conn) {
+    await conn.request("shutdown", null, 2000).catch(() => {});
+    conn.notify("exit", null);
   }
   failAllPending(key, "连接已关闭");
   await lspStop(key).catch(() => {});

@@ -85,7 +85,11 @@ export function getSessionForPath(path: string): Promise<LspDocSession> | null {
     versions: new Map<string, number>(),
   };
   sessions.set(key, box);
-  if (box.session) return box.session;
+  if (box.session) {
+    /* 进程退出/已关停(state=none):弃缓存重建,崩溃/idle 关停后手势自愈。 */
+    if (lspConnectionState(key) !== "none") return box.session;
+    box.session = null;
+  }
 
   const np = normalizePath(path);
   const serverLanguage = config.language;
@@ -96,13 +100,22 @@ export function getSessionForPath(path: string): Promise<LspDocSession> | null {
     const root = resolveRoot ? await resolveRoot(np, workspaceRoot) : workspaceRoot;
     const launch = await config.discover(workspaceRoot);
     if (!launch) throw new Error("语言服务不可用(发现链无命中)");
-    const conn = await openLspConnection({
+    const conn0 = await openLspConnection({
       key,
       rootUri: pathToUri(root),
       launch,
       cwd: workspaceRoot,
       initializationOptions,
     });
+    /* request 包装:真实请求才续期(idle 关停语义 = 无请求;初版只在建连路径
+       touch,缓存 promise 后活跃使用仍被误杀)。 */
+    const conn: LspConnection = {
+      ...conn0,
+      request: (method, params, timeoutMs) => {
+        touchActivity(key);
+        return conn0.request(method, params, timeoutMs);
+      },
+    };
 
     const languageIdFor = (p: string): string => {
       const dot = p.lastIndexOf(".");
@@ -110,6 +123,7 @@ export function getSessionForPath(path: string): Promise<LspDocSession> | null {
       return EXT_LANGUAGE_IDS[ext] ?? serverLanguage;
     };
     const didOpen = (p: string, text: string) => {
+      touchActivity(key);
       const v = (versions.get(p) ?? 0) + 1;
       versions.set(p, v);
       conn.notify("textDocument/didOpen", {
@@ -117,6 +131,7 @@ export function getSessionForPath(path: string): Promise<LspDocSession> | null {
       });
     };
     const didChange = (p: string, text: string, events: readonly DocChangeEvent[]) => {
+      touchActivity(key);
       const v = (versions.get(p) ?? 0) + 1;
       versions.set(p, v);
       conn.notify("textDocument/didChange", {
@@ -149,12 +164,12 @@ export function getSessionForPath(path: string): Promise<LspDocSession> | null {
   return box.session;
 }
 
-/** server 是否已就绪(菜单置灰/手势提示用)。 */
-export function sessionReadyForPath(path: string): boolean {
+/** server 连接状态(右键置灰/手势自愈用);null = 该文件无配置或无归属工作区。 */
+export function sessionStateForPath(path: string): "none" | "opening" | "ready" | null {
   const config = configForPath(path);
   const workspaceRoot = owningWorkspaceRoot(path);
-  if (!config || !workspaceRoot) return false;
-  return lspConnectionState(sessionKey(workspaceRoot, config.language)) === "ready";
+  if (!config || !workspaceRoot) return null;
+  return lspConnectionState(sessionKey(workspaceRoot, config.language));
 }
 
 /** 扩展名 → LSP languageId(ts/js 同一 server,文档级区分)。 */

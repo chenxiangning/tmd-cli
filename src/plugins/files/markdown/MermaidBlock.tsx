@@ -17,8 +17,8 @@ import {
 } from "react";
 import { CornersOut } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { hashStableString } from "./markdownDocument";
-import { highlightLine } from "./syntax";
+import { hashStableString } from "@kernel/textHash";
+import { highlightLine } from "@kernel/syntaxHighlight";
 import { FullscreenViewer } from "./FullscreenViewer";
 import { resolveMermaidViewerSrc } from "./viewerSrcModel";
 import { preloadViewerjs } from "./viewerRuntime";

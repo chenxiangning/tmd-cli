@@ -7,23 +7,30 @@
  * 语义路由(spec):cmd/ctrl+click → definition;单目标直跳,definition
  * 结果包含点击位置(=点在定义上)或多目标 → 引用/列表 peek;Shift+F12 →
  * references peek(含声明);F12 → definition 同手势。
+ * 二轮:seq 序号牌防陈旧覆盖、dead conn 弃缓存自愈(sessionStateForPath)、
+ * 250ms 延迟 loading、cmd+hover 链接态(linkHint)、hover markdown 渲染(hoverCard)。
+ * 位置换算管道(normalizeLocations/locToPeekItem 等)在 lspLocations.ts。
  */
 
 import type { Extension } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import type { EditorExtensionFactory } from "@kernel/editorExtensions";
 import { configForPath, owningWorkspaceRoot } from "@kernel/lsp/lspRegistry";
-import { lspToOffset, offsetToLsp, type LspRange } from "@kernel/lsp/lspPosition";
+import { offsetToLsp } from "@kernel/lsp/lspPosition";
+import { t } from "@kernel/i18n";
 import { openFileAtLine } from "@kernel/fileTabs";
-import { normalizePath } from "@kernel/pathUtils";
-import { closeContextMenu, contextMenuOpen, openContextMenu } from "./contextMenu";
-import { closePeek, closePeekIfOutside, peekOpen, showPeek, showPeekLoading, type PeekItem } from "./peekWidget";
-import { getSessionForPath, pathToUri, type DocChangeEvent, type LspDocSession } from "./session";
-
-interface LspLocation {
-  uri: string;
-  range: LspRange;
-}
+import { closeContextMenu, closeContextMenuIfOwner, contextMenuOpen, openContextMenu } from "./contextMenu";
+import { closePeek, closePeekIfOwner, peekOpen, showPeek, showPeekLoading } from "./peekWidget";
+import {
+  getSessionForPath,
+  pathToUri,
+  sessionStateForPath,
+  type DocChangeEvent,
+  type LspDocSession,
+} from "./session";
+import { createLinkHint } from "./linkHint";
+import { hoverMarkdown, renderHoverCard } from "./hoverCard";
+import { locToPeekItem, normalizeLocations, rangeContainsOffset } from "./lspLocations";
 
 interface ViewSync {
   path: string;
@@ -35,6 +42,8 @@ interface ViewSync {
 
 const viewSyncs = new WeakMap<EditorView, ViewSync>();
 let activeView: EditorView | null = null;
+/* 语义动作序号牌:连续触发时旧请求结果一律作废(防慢响应覆盖新 peek)。 */
+let actionSeq = 0;
 
 /** F12:光标处符号跳定义。 */
 export function gotoDefinitionAtCursor(): void {
@@ -46,14 +55,19 @@ export function findReferencesAtCursor(): void {
   if (activeView) void symbolAction(activeView, activeView.state.selection.main.head, "references");
 }
 
-/** F12/Shift+F12 命令的 when 谓词:有 lsp 编辑器聚焦才吃键。 */
+/** F12/Shift+F12 命令的 when 谓词:lsp 编辑器持真实焦点才吃键(终端聚焦穿透进 PTY)。 */
 export function hasActiveEditor(): boolean {
-  return activeView !== null;
+  return activeView !== null && activeView.dom.contains(document.activeElement);
 }
 
 function ensureSync(view: EditorView): Promise<LspDocSession> | null {
   const sync = viewSyncs.get(view);
   if (!sync) return null;
+  /* 连接已死(idle 关停/进程退出,state=none):弃缓存重建;opening 在途共享保留。 */
+  if (sync.session && sessionStateForPath(sync.path) === "none") {
+    sync.session = null;
+    sync.opened = false;
+  }
   if (!sync.session) {
     sync.session = (async () => {
       const session = await getSessionForPath(sync.path);
@@ -73,51 +87,10 @@ function ensureSync(view: EditorView): Promise<LspDocSession> | null {
   return sync.session;
 }
 
-/** Location | Location[] | LocationLink[] | null → 统一 {uri, range}[]。 */
-function normalizeLocations(raw: unknown): LspLocation[] {
-  const arr = Array.isArray(raw) ? raw : raw == null ? [] : [raw];
-  const out: LspLocation[] = [];
-  for (const item of arr) {
-    if (typeof item !== "object" || item === null) continue;
-    const loc = item as Record<string, unknown>;
-    const uri =
-      typeof loc.uri === "string" ? loc.uri : typeof loc.targetUri === "string" ? loc.targetUri : null;
-    const rawRange = loc.range ?? loc.targetRange;
-    if (uri && typeof rawRange === "object" && rawRange !== null) {
-      out.push({ uri, range: rawRange as LspRange });
-    }
-  }
-  return out;
-}
-
-function uriToPath(uri: string): string {
-  return normalizePath(decodeURIComponent(uri.replace(/^file:\/\//, "")));
-}
-
-function locToPeekItem(loc: LspLocation): PeekItem {
-  return { path: uriToPath(loc.uri), line: loc.range.start.line + 1 };
-}
-
-function rangeContainsOffset(range: LspRange, doc: string, offset: number): boolean {
-  return lspToOffset(doc, range.start) <= offset && offset <= lspToOffset(doc, range.end);
-}
-
-/** hover.contents 的三种历史形态(MarkupContent / MarkedString[] / string)归一。 */
-function hoverText(raw: unknown): string | null {
-  if (raw == null) return null;
-  if (typeof raw === "string") return raw;
-  const h = raw as Record<string, unknown>;
-  if (typeof h.value === "string") return h.value;
-  if (Array.isArray(h.contents)) {
-    const parts: string[] = [];
-    for (const c of h.contents) {
-      if (typeof c === "string") parts.push(c);
-      else if (typeof c === "object" && c !== null && "value" in c && typeof (c as Record<string, unknown>).value === "string")
-        parts.push((c as Record<string, unknown>).value as string);
-    }
-    return parts.length > 0 ? parts.join("\n\n") : null;
-  }
-  return null;
+/** 延迟 loading:250ms 内返回不上屏(快 server 不闪);超时未回才 showPeekLoading。 */
+function delayedLoading(view: EditorView, at: number, title: string): () => void {
+  const timer = setTimeout(() => showPeekLoading(view, at, title), 250);
+  return () => clearTimeout(timer);
 }
 
 async function referencesPeek(
@@ -126,8 +99,8 @@ async function referencesPeek(
   path: string,
   doc: string,
   at: number,
+  isStale: () => boolean,
 ): Promise<void> {
-  showPeekLoading(view, at, "引用");
   const raw = await session.conn.request<unknown>(
     "textDocument/references",
     {
@@ -137,22 +110,26 @@ async function referencesPeek(
     },
     10_000,
   );
+  if (isStale()) return;
   const items = normalizeLocations(raw).map(locToPeekItem);
-  showPeek(view, at, `引用 (${items.length})`, items);
+  showPeek(view, at, `${t("引用")} (${items.length})`, items);
 }
 
 async function symbolAction(view: EditorView, pos: number, mode: "definition" | "references"): Promise<void> {
   const sync = viewSyncs.get(view);
   if (!sync) return;
   activeView = view;
+  const seq = ++actionSeq;
+  const isStale = () => seq !== actionSeq;
   const doc = view.state.doc.toString();
   const word = view.state.wordAt(pos);
   const at = word ? word.from : pos;
+  const cancelLoading = delayedLoading(view, at, mode === "references" ? t("引用") : t("定义"));
   try {
     const session = await ensureSync(view);
-    if (!session) return;
+    if (!session || isStale()) return;
     if (mode === "references") {
-      await referencesPeek(view, session, sync.path, doc, at);
+      await referencesPeek(view, session, sync.path, doc, at, isStale);
       return;
     }
     const raw = await session.conn.request<unknown>(
@@ -160,28 +137,36 @@ async function symbolAction(view: EditorView, pos: number, mode: "definition" | 
       { textDocument: { uri: pathToUri(sync.path) }, position: offsetToLsp(doc, at) },
       5000,
     );
+    if (isStale()) return;
     const items = normalizeLocations(raw);
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      closePeek(); // 慢 server 已上 loading 时收回;未上屏 noop
+      return;
+    }
     const currentUri = pathToUri(sync.path);
     if (items.some((it) => it.uri === currentUri && rangeContainsOffset(it.range, doc, at))) {
-      await referencesPeek(view, session, sync.path, doc, at); // 点在定义上 → 引用 peek(截图同款)
+      await referencesPeek(view, session, sync.path, doc, at, isStale); // 点在定义上 → 引用 peek(截图同款)
       return;
     }
     if (items.length === 1) {
       const item = locToPeekItem(items[0]);
+      closePeek();
       openFileAtLine(item.path, item.line);
       return;
     }
-    showPeek(view, at, `定义 (${items.length})`, items.map(locToPeekItem));
+    showPeek(view, at, `${t("定义")} (${items.length})`, items.map(locToPeekItem));
   } catch {
-    /* server 未就绪/超时:静默降级(菜单态可见;不做猜测兜底)。 */
+    /* server 未就绪/超时:静默降级(菜单态可见;不做猜测兜底),收 loading。 */
+    if (!isStale()) closePeek();
+  } finally {
+    cancelLoading();
   }
 }
 
 /** lsp 编辑器扩展工厂(经 ctx.registerEditorExtension 注入)。 */
 export const lspEditorExtension: EditorExtensionFactory = async ({ path }) => {
   if (!configForPath(path) || !owningWorkspaceRoot(path)) return null;
-  const viewMod = await import("@codemirror/view");
+  const [viewMod, stateMod] = await Promise.all([import("@codemirror/view"), import("@codemirror/state")]);
   const { EditorView, ViewPlugin, hoverTooltip, keymap } = viewMod;
 
   const sync: ViewSync = { path, session: null, opened: false, dirtyWhileOpening: false };
@@ -205,21 +190,25 @@ export const lspEditorExtension: EditorExtensionFactory = async ({ path }) => {
     void sync.session?.then((session) => session.didChange(path, update.state.doc.toString(), events));
   });
 
-  /* 视图生命周期:登记 sync 账本;销毁时对已打开文档补 didClose。 */
+  /* 视图生命周期:登记 sync 账本;销毁时对已打开文档补 didClose + 收浮层。 */
   const lifecycle = ViewPlugin.fromClass(
     class {
+      private view: EditorView;
       constructor(view: EditorView) {
+        this.view = view;
         viewSyncs.set(view, sync);
       }
       destroy() {
         if (sync.opened) void sync.session?.then((session) => session.didClose(path));
+        closePeekIfOwner(this.view);
+        closeContextMenuIfOwner(this.view);
+        if (activeView === this.view) activeView = null;
       }
     },
   );
 
   const handlers = EditorView.domEventHandlers({
     mousedown(event, view) {
-      closePeekIfOutside(event.target);
       if (contextMenuOpen()) closeContextMenu();
       if (event.button !== 0) return false;
       if (!(event.metaKey || event.ctrlKey)) return false;
@@ -232,8 +221,10 @@ export const lspEditorExtension: EditorExtensionFactory = async ({ path }) => {
     contextmenu(event, view) {
       const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
       if (pos == null) return false;
+      if (!view.state.wordAt(pos)) return false; // 空白处不弹(动作必空)
       event.preventDefault();
       openContextMenu(view, event.clientX, event.clientY, {
+        serverState: sessionStateForPath(path) ?? "none",
         definition: () => void symbolAction(view, pos, "definition"),
         references: () => void symbolAction(view, pos, "references"),
       });
@@ -255,14 +246,14 @@ export const lspEditorExtension: EditorExtensionFactory = async ({ path }) => {
         { textDocument: { uri: pathToUri(sync.path) }, position: offsetToLsp(view.state.doc.toString(), pos) },
         5000,
       );
-      const text = hoverText(raw);
-      if (!text) return null;
+      const markdown = hoverMarkdown(raw);
+      if (!markdown) return null;
       return {
         pos,
         create: () => {
           const dom = document.createElement("div");
           dom.className = "lsp-hover";
-          dom.textContent = text.length > 4000 ? `${text.slice(0, 4000)}…` : text;
+          renderHoverCard(dom, markdown);
           return { dom };
         },
       };
@@ -284,5 +275,7 @@ export const lspEditorExtension: EditorExtensionFactory = async ({ path }) => {
     },
   ]);
 
-  return [updateSync, lifecycle, handlers, hover, escapeKey] as Extension[];
+  const linkHint = createLinkHint(viewMod, stateMod);
+
+  return [linkHint, updateSync, lifecycle, handlers, hover, escapeKey] as Extension[];
 };

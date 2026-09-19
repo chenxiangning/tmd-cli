@@ -2,9 +2,10 @@
  * markdown 切块器 —— 自 markdownDocument.ts 拆出(文件规模铁则)。
  * 按空行/围栏/管道表格切块(列表/引用/任务/$$/缩进代码整块保持原子,
  * 长普通块按 80 行分片)+ 块形统计(重块 = mermaid/math 围栏与表格)。
- * hashStableString 与 FileMarkdownDocumentBlock 类型同住此层,
- * markdownDocument.ts re-export 保持原路径契约。
+ * hashStableString 已上移 @kernel/textHash(lsp 高亮器共用)。
  */
+
+import { hashStableString } from "@kernel/textHash";
 
 export type FileMarkdownDocumentBlock = {
   key: string;
@@ -15,13 +16,6 @@ export type FileMarkdownDocumentBlock = {
 
 const MAX_PLAIN_MARKDOWN_BLOCK_LINES = 80;
 
-export function hashStableString(value: string): string {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-  return hash.toString(36);
-}
 
 export function countMarkdownBlocks(value: string) {
   const lines = value.split(/\r?\n/);

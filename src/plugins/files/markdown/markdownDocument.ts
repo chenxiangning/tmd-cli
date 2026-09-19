@@ -10,14 +10,14 @@
 
 import {
   countMarkdownBlocks,
-  hashStableString,
   segmentMarkdownDocumentBlocks,
   type FileMarkdownDocumentBlock,
 } from "./markdownBlockSegment";
+import { hashStableString } from "@kernel/textHash";
 
-// 拆出后保持 ./markdownDocument 导出契约(消费方:outline/syntax/markdownBlocks/
-// MermaidBlock/FileMarkdownPreview/markdownDocument.test)。
-export { segmentMarkdownDocumentBlocks, hashStableString } from "./markdownBlockSegment";
+// 拆出后保持 ./markdownDocument 导出契约(消费方:outline/markdownBlocks/
+// FileMarkdownPreview/markdownDocument.test)。
+export { segmentMarkdownDocumentBlocks } from "./markdownBlockSegment";
 
 type FileMarkdownFrontmatterField = {
   key: string;

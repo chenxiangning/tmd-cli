@@ -16,7 +16,7 @@
 import MarkdownIt from "markdown-it";
 import { t } from "@kernel/i18n";
 import { getSettingsState } from "@kernel/settings";
-import { highlightLine } from "./syntax";
+import { highlightLine } from "@kernel/syntaxHighlight";
 import { resolveImageRenderSource, resolveMarkdownLinkTarget } from "./markdownImages";
 import { isMathCodeLanguage, isMermaidCodeLanguage } from "./markdownPreviewHelpers";
 

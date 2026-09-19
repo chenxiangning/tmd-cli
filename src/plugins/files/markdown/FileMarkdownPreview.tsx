@@ -18,10 +18,8 @@ import { PreviewMarkControls } from "./previewMarks";
 import type ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
-import {
-  compileFileMarkdownDocument,
-  hashStableString,
-} from "./markdownDocument";
+import { compileFileMarkdownDocument } from "./markdownDocument";
+import { hashStableString } from "@kernel/textHash";
 import {
   areKatexAssetsReady,
   detectMathContent,

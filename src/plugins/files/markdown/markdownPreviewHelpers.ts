@@ -5,7 +5,7 @@
  */
 
 import type { Element } from "hast";
-import { hashStableString } from "./markdownDocument";
+import { hashStableString } from "@kernel/textHash";
 
 export type PreviewPreNode = {
   children?: Array<{

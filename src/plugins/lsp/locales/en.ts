@@ -14,4 +14,11 @@ export const MESSAGES_EN = {
   "暂不安装": "Not now",
   "下载并安装": "Download & install",
   "安装中…": "Installing…",
+  "定义": "Definition",
+  "引用": "References",
+  "检索中…": "Searching…",
+  "无结果": "No results",
+  "无法读取预览": "Preview unavailable",
+  "语言服务启动中…": "Language server starting…",
+  "显示前 {n} 条": "showing first {n}",
 };

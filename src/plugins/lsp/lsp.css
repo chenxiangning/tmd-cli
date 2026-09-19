@@ -142,17 +142,101 @@
   background: var(--tmd-bg-hover);
 }
 
+/* hover 内容走 markdown 渲染(hoverCard):正文用界面字体,代码用等宽;
+   white-space 必须 normal —— pre-wrap 会把标签间换行符渲染成可见空白。 */
 .lsp-hover {
   max-width: 520px;
   max-height: 300px;
   overflow: auto;
-  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  padding: 4px 10px;
   font-size: 0.72rem;
-  line-height: 1.5;
-  white-space: pre-wrap;
+  line-height: 1.55;
+  white-space: normal;
   word-break: break-word;
+  color: var(--tmd-fg);
+}
+.lsp-hover p {
+  margin: 4px 0;
+}
+.lsp-hover code {
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  font-size: 0.68rem;
+  background: var(--tmd-bg-hover, rgba(0 0 0 / 0.06));
+  border-radius: 3px;
+  padding: 0 3px;
+}
+.lsp-hover-code {
+  margin: 6px 0;
+  border: 1px solid var(--tmd-border, rgba(0 0 0 / 0.12));
+  border-radius: 6px;
+  overflow: hidden;
+}
+.lsp-hover-code-label {
+  padding: 1px 8px;
+  font-size: 0.64rem;
+  opacity: 0.55;
+  border-bottom: 1px solid var(--tmd-border, rgba(0 0 0 / 0.12));
+}
+.lsp-hover-code pre {
+  margin: 0;
+  padding: 6px 8px;
+  overflow: auto;
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+.lsp-hover-code pre code {
+  background: none;
+  padding: 0;
+}
+.lsp-hover-link {
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  opacity: 0.85;
 }
 
+/* cmd+hover 链接态预告(词法级,零 server 调用)。 */
+.lsp-link-hint {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* peek 选中行 / 行文本 / 符号区间高亮。 */
+.lsp-peek-list:focus {
+  outline: none;
+}
+.lsp-peek-row-sel {
+  background: var(--tmd-bg-active, rgba(90 140 200 / 0.18));
+}
+.lsp-peek-row-code {
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  font-size: 0.68rem;
+  opacity: 0.65;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lsp-peek-row-code:empty {
+  display: none;
+}
+.lsp-peek-sym {
+  background: rgba(220 170 60 / 0.38);
+  border-radius: 2px;
+}
+
+/* 右键菜单置灰与提示行。 */
+.lsp-menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.lsp-menu-item:disabled:hover {
+  background: none;
+}
+.lsp-menu-hint {
+  padding: 2px 10px 6px;
+  font-size: 0.68rem;
+  opacity: 0.55;
+}
 .lsp-guide {
   position: fixed;
   left: 50%;

@@ -14,6 +14,7 @@ mod git;
 mod hash;
 mod installer;
 mod lsp;
+mod lsp_framing;
 mod plugins;
 mod probe;
 mod proc_run;
