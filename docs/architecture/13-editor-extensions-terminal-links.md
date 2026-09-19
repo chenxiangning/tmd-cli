@@ -32,7 +32,7 @@
 
 ## 跳转定位的既定形态
 
-跨插件「打开文件并定位」**不新增 kernel 契约**:复用 `kernel/tabs.openTab` 深链(插件以 `file:<abs>` id 打开/激活)+ 消费方自有 store 的 reveal 请求字段 + 自有扩展 StateEffect 滚动/闪烁(marks 的 requestReveal/takeReveal 即此形态)。
+跨插件「打开文件并定位」统一走 `kernel/fileTabs`(14190ca 上移,normalizePath 派生 id,双分隔符双 tab 根治):`openFileInTab`/`openFileAtLine` 打开或激活,`takeFileRevealLine` 取走定位行;marks 的 requestReveal/takeReveal 是编辑器扩展内 StateEffect 滚动/闪烁形态,与 fileTabs 深链衔接。
 
 ## 验证
 

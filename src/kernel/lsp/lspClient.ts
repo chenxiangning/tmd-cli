@@ -29,7 +29,6 @@ interface ConnectionBox {
   /** 同 key 并发 open 共享一个在途 promise。 */
   opening: Promise<LspConnection> | null;
   pending: Map<number, PendingEntry>;
-  notifications: ((msg: Record<string, unknown>) => void)[];
 }
 
 const boxes = new Map<string, ConnectionBox>();
@@ -38,7 +37,7 @@ let listenersBound = false;
 function box(key: string): ConnectionBox {
   let b = boxes.get(key);
   if (!b) {
-    b = { conn: null, opening: null, pending: new Map(), notifications: [] };
+    b = { conn: null, opening: null, pending: new Map() };
     boxes.set(key, b);
   }
   return b;
@@ -88,7 +87,7 @@ function routeMessage(key: string, payload: string) {
   } else if (msg.id !== undefined) {
     answerServerRequest(key, msg);
   } else {
-    for (const handler of b.notifications) handler(msg);
+    /* 纯通知(无 id):暂无消费面(诊断等后续特性接入点),静默丢弃。 */
   }
 }
 
@@ -194,15 +193,6 @@ export async function openLspConnection(opts: OpenLspOptions): Promise<LspConnec
   } finally {
     b.opening = null;
   }
-}
-
-/** 订阅某连接的 server 通知(诊断等);返回退订。 */
-export function onLspNotification(key: string, handler: (msg: Record<string, unknown>) => void) {
-  const b = box(key);
-  b.notifications.push(handler);
-  return () => {
-    b.notifications = b.notifications.filter((h) => h !== handler);
-  };
 }
 
 /** 连接状态(键不存在 = none)。 */

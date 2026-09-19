@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lspRangeToOffsets, lspToOffset, offsetToLsp } from "./lspPosition";
+import { lspToOffset, offsetToLsp } from "./lspPosition";
 
 describe("lspToOffset(UTF-16 单位系,与 CM Text 同)", () => {
   it("ASCII 直位与行首", () => {
@@ -35,8 +35,3 @@ describe("offsetToLsp / 往返", () => {
   });
 });
 
-describe("lspRangeToOffsets", () => {
-  it("区间两端独立换算", () => {
-    expect(lspRangeToOffsets("a😀b\nc", { start: { line: 0, character: 1 }, end: { line: 1, character: 1 } })).toEqual([1, 6]);
-  });
-});

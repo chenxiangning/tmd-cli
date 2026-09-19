@@ -9,7 +9,7 @@
  *   opencode 逐行 selector 文本,仅含 "/" 的行入表;pi 无列表命令恒空;
  *   10 分钟缓存(未过期直接回缓存,force 绕过),失败结果同样进缓存。
  * engineConfigModel —— readEngineConfig 语义经 read/write 文件面验证:模型从
- *   block.pi/omp.model 取,嵌套字符串;sidekick 缺块=禁用,写回不产 sidekick;
+ *   block.pi/omp.model 取,嵌套字符串;sidekick 开关与块在否同构(关闭删块);
  *   注释保留(jsonc 回写底座)、缺 omp 回退 pi.model、embeddingEnabled 恒 true;
  *   读文件失败(不存在)→ 空配置。
  */
@@ -219,6 +219,22 @@ describe("engineConfigModel", () => {
       omp: { model: "s" },
       opencode: { model: "s" },
     });
+  });
+
+  it("写:sidekick 关闭删既有块(关闭须落盘,否则读侧块在即开复活)", async () => {
+    const original = `{
+  "sidekick": { "pi": { "model": "old" } },
+  // 保留属性的注释不得丢
+  "theme": "dark"
+}`;
+    await writeEngineConfigFile(
+      { historianModel: "", dreamerModel: "", sidekickModel: "", sidekickEnabled: false, embeddingEnabled: true },
+      original,
+    );
+    const text = fsWriteFile.mock.calls[0][1];
+    expect(text).toContain("// 保留属性的注释不得丢");
+    expect((parseJsonc(text) as Record<string, unknown>).sidekick).toBeUndefined();
+    expect((parseJsonc(text) as Record<string, unknown>).theme).toBe("dark");
   });
 
   it("写:historian 缺 omp 时回退已有 pi.model,不丢既有字段", async () => {

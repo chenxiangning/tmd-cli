@@ -110,7 +110,7 @@ function sanitizeDisabledPlugins(raw: unknown): string[] {
 /** 本地插件信任表清洗:id → 非空字符串数组;坏 id/坏项丢弃,确定性按 key 序。 */
 function sanitizeLocalPluginTrust(raw: unknown): Record<string, string[]> {
   const map: Record<string, string[]> = {};
-  if (!raw || typeof raw !== "object") return map;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return map;
   const entries = raw as Record<string, unknown>;
   for (const id of Object.keys(entries).sort()) {
     if (!id || !Array.isArray(entries[id])) continue;

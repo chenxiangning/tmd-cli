@@ -101,13 +101,6 @@
   opacity: 0.55;
   font-size: 0.7rem;
 }
-.lsp-peek-row-path {
-  font-size: 0.68rem;
-  opacity: 0.5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .lsp-peek-empty {
   padding: 18px 14px;

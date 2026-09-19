@@ -118,7 +118,9 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
     try {
       const { original } = await readEngineConfigFile();
       await writeEngineConfigFile(st.engine, original);
-      patch({ engineDirty: false });
+      patch({ engineDirty: false, configHint: null });
+    } catch (e) {
+      patch({ configHint: t("引擎配置保存失败: {err}", { err: String(e).slice(0, 120) }) });
     } finally {
       patch({ engineSaving: false });
     }

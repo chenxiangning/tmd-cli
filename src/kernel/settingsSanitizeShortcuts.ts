@@ -49,7 +49,7 @@ export function sanitizeShortcutOverrides(
   raw: unknown,
 ): Record<string, string> {
   const out: Record<string, string> = {};
-  if (!raw || typeof raw !== "object") return out;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
   const entries = raw as Record<string, unknown>;
   for (const key of Object.keys(entries).sort()) {
     if (Object.keys(out).length >= SHORTCUT_OVERRIDES_MAX_ENTRIES) break;

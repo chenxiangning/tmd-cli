@@ -169,4 +169,5 @@
 | 2026-09-19 | [代码符号语义跳转与引用(LSP 通道)设计:cmd/ctrl+click 定义/引用 peek](superpowers/specs/2026-09-19-lsp-semantic-navigation-design.md) | 已落地(c11c29c;TS7 探活分叉回填 112f971;桩目检六场景 + tsgo 真机冒烟全绿) |
 | 2026-09-19 | [LSP 语义跳转交互增强(二轮):手势反馈 / peek 面板 / hover 渲染](superpowers/specs/2026-09-19-lsp-interaction-enhancement-design.md) | 已落地(db938d6;桩目检六场景全绿,架构沉淀 architecture/14) |
 | 2026-09-19 | [会话卫生清扫设计:超期(默认24h)自动归档 + 空会话删除,挂磁盘扫描结算点零轮询](superpowers/specs/2026-09-19-session-hygiene-auto-archive-design.md) | 已落地(1e75245;keep 覆盖层 + 9 引擎判空钩子 + 行为页开关/时窗) |
+| 2026-09-19 | [v0.2.0 发布后批次评审(sidekick 开关冲突修复 / 数组守卫补漏 / 死代码清理 / 文档 8 处对齐)](review/2026-09-19-v0.2.0-postrelease-review.md) | 已完成(修复与清理随评审提交) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

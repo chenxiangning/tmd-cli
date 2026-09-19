@@ -7,7 +7,7 @@ describe("sanitize 本地插件字段", () => {
     for (const raw of [
       {},
       { localPluginsDisabled: "yes", localPluginTrust: "no" },
-      { localPluginsDisabled: 1, localPluginTrust: [1] },
+      { localPluginsDisabled: 1, localPluginTrust: [["abc"], ["def"]] },
       null,
     ]) {
       const s = sanitize(raw);

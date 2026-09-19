@@ -23,7 +23,7 @@ vi.mock("@kernel/transport", () => ({
   serverVersion: () => null,
 }));
 
-import { closeLspConnection, lspConnectionState, onLspNotification, openLspConnection } from "./lspClient";
+import { closeLspConnection, lspConnectionState, openLspConnection } from "./lspClient";
 
 function fire(event: string, payload: unknown) {
   listeners.get(event)?.({ payload });
@@ -97,17 +97,6 @@ describe("请求关联与 server→client 应答", () => {
     const answer = sentJson().at(-1);
     expect(answer?.message.id).toBe(900);
     expect(answer?.message.result).toEqual([null, null, null]);
-  });
-
-  it("通知走 onLspNotification 订阅", async () => {
-    await readyConn();
-    const seen: string[] = [];
-    const off = onLspNotification("t1", (msg) => seen.push(String(msg.method)));
-    fire("lsp://message", { key: "t1", payload: JSON.stringify({ jsonrpc: "2.0", method: "textDocument/publishDiagnostics", params: {} }) });
-    expect(seen).toEqual(["textDocument/publishDiagnostics"]);
-    off();
-    fire("lsp://message", { key: "t1", payload: JSON.stringify({ jsonrpc: "2.0", method: "x/y", params: {} }) });
-    expect(seen).toHaveLength(1);
   });
 
   it("超时发 $/cancelRequest 并 reject;进程退出失败 pending", async () => {

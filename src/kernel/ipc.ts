@@ -893,16 +893,6 @@ export interface WebAccessInfo {
   lanIp: string;
 }
 
-/** 启动 LAN Web 访问桥(绑定 0.0.0.0,token 每次重铸)。 */
-export function webAccessStart(): Promise<WebAccessInfo> {
-  return invoke<WebAccessInfo>("web_access_start");
-}
-
-/** 停止桥。 */
-export function webAccessStop(): Promise<void> {
-  return invoke<void>("web_access_stop");
-}
-
 /** 查询桥状态;未运行返回 null。 */
 export function webAccessStatus(): Promise<WebAccessInfo | null> {
   return invoke<WebAccessInfo | null>("web_access_status");

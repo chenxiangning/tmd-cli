@@ -42,7 +42,3 @@ export function offsetToLsp(text: string, offset: number): LspPosition {
   return { line, character: clamped - lineStart };
 }
 
-/** 区间 → [from, to] 偏移对。 */
-export function lspRangeToOffsets(text: string, range: LspRange): [number, number] {
-  return [lspToOffset(text, range.start), lspToOffset(text, range.end)];
-}
