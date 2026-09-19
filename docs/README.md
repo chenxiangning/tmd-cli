@@ -161,8 +161,6 @@
 | 2026-09-18 | [文件标记 × 对话框原型 方案 D:行间锚点 + 全局标记中心(跨文件聚合发送,sidecar 零写入 + 指纹锚定)](design/file-mark-composer-d.html) | 设计原型(已拍板) |
 | 2026-09-18 | [文件标记(file-marks)设计 spec:插件化 + 两条 kernel 宿主注册契约](superpowers/specs/2026-09-18-file-marks-design.md) | 已落地(cbe7839/a157610/6317d86;宿主契约见 architecture/13) |
 | 2026-09-18 | [会话状态轮询性能批次一提案:尾读尺寸闸 + configHomeDir 进程 memo(含原设计校准矩阵)](../openspec/changes/archive/2026-09-18-perf-status-poll/proposal.md) | 已落地(4e859fd/9aa8f77/66599b9;同批平铺门控修复 0f6131e,已归档) |
-| 2026-09-18 | [会话用量可见性设计 spec(本地 JSONL token 四元组 + cache 命中率 + 行徽标/详情弹层;pi/omp 透传自带 cost)](superpowers/specs/2026-09-18-session-usage-visibility-design.md) | 草案(设计推演,未排期) |
-| 2026-09-19 | [会话用量可见性交互原型 v4 可交互带读版(徽标点击弹详情/Esc 遮罩关闭/行选中互不干扰;术语卡 + 三落点带读 + 健康/受害对照;数据全真实采样含 codex 口径修正)](design/session-usage-visibility.html) | 设计原型 v4(配套上 spec;重构自 09-18 版) |
 | 2026-09-18 | [yn(Yank Note)能力复刻:md 渲染提速 + 代码渲染 + 全文搜索/快开](superpowers/specs/2026-09-18-yn-replicate-md-render-code-search-design.md) | 已落地(f176423/15e7e60/2c58d44;AGPL/MIT 裁决:照抄逻辑不抄代码) |
 | 2026-09-19 | [近 20 笔提交整体 code review(P0×1 + P1×2 + P2×8 全修;marks/git/yn/perf/跨领域五路)](review/2026-09-19-20-commits-global-review.md) | 已完成(修复随本批提交;门禁全绿 react-doctor 100;缓修 4 项见文末) |
 | 2026-09-19 | [代码符号跳转与引用(cmd/ctrl+click)调研:yn 实证 + 多语言语义路线(LSP)](research/code-symbol-references.md) | 调研底稿(方向已定:yn 本就是语义引用;用户拍板弃字面,一步到位 LSP 语义通道) |
