@@ -76,6 +76,12 @@ describe("fastPath isRichBlock", () => {
     expect(isRichBlock("前置\n\n<div class=\"x\">hi</div>")).toBe(true);
   });
 
+  it("脚注定义命中富路径(markdown-it 无脚注语义,须落 remark-gfm)", () => {
+    expect(isRichBlock("正文。[^1]\n\n[^1]: 脚注说明")).toBe(true);
+    expect(isRichBlock("段落\n\n[^a]: 定义\n  续行")).toBe(true);
+    expect(isRichBlock("普通 [链接] 与引用")).toBe(false);
+  });
+
   it("引用/列表内嵌的 math/mermaid 栅栏也命中富路径(P2 评审项)", () => {
     expect(isRichBlock("> ```math\n> x^2\n> ```")).toBe(true);
     expect(isRichBlock("- ```mermaid\n  graph TD\n  ```")).toBe(true);

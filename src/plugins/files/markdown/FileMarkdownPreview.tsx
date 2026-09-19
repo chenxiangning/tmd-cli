@@ -30,7 +30,7 @@ import { FullscreenViewer } from "./FullscreenViewer";
 import { resolveImageViewerSrc } from "./viewerSrcModel";
 import { PreviewOutlineSidebar } from "./PreviewOutlineSidebar";
 import { useMarkdownOutline } from "./useMarkdownOutline";
-import { hasDocumentScopedMarkdownFeatures, normalizeMarkdownAnchorKey } from "./markdownPreviewHelpers";
+import { normalizeMarkdownAnchorKey } from "./markdownPreviewHelpers";
 import { BlockMarkdown, useMarkdownComponents } from "./useMarkdownComponents";
 import { flattenPreviewOutlineItems } from "./outline";
 
@@ -99,31 +99,11 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
     visibleLineLimit,
   });
 
-  const shouldRenderSingleMarkdownDocument = useMemo(
-    () => !progressive && hasDocumentScopedMarkdownFeatures(compiledDocument.body),
-    [compiledDocument.body, progressive],
-  );
-  const renderBlocks = useMemo(
-    () =>
-      shouldRenderSingleMarkdownDocument
-        ? [{
-            key: `${compiledDocument.cacheKey}:full`,
-            markdown: compiledDocument.body,
-            startLine: 1,
-            endLine: bodyLineCount,
-          }]
-        : compiledDocument.blocks,
-    [
-      compiledDocument.blocks,
-      compiledDocument.body,
-      compiledDocument.cacheKey,
-      bodyLineCount,
-      shouldRenderSingleMarkdownDocument,
-    ],
-  );
+  /* 渲染块恒为编译切块:配对 HTML 块由切块器保原子,跨块链接/脚注引用由编译层
+   * 逐块追加定义行兜底,marks 落锚粒度因此恒为子段落(原整篇合并已拆)。 */
   const visibleMarkdownBlocks = useMemo(
-    () => renderBlocks.filter((block) => block.startLine <= visibleLineLimit),
-    [visibleLineLimit, renderBlocks],
+    () => compiledDocument.blocks.filter((block) => block.startLine <= visibleLineLimit),
+    [visibleLineLimit, compiledDocument.blocks],
   );
 
   const [imageFullscreen, setImageFullscreen] = useState<{

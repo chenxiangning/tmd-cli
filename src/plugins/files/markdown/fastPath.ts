@@ -171,12 +171,17 @@ const RAW_HTML = /<[a-zA-Z\/!]/;
 /** 含数学定界符($..$ / $$..$$)即富块:与文档级 detectMathContent 同语义,正则内联避免循环依赖。 */
 const MATH_DELIMITER = /\$\$[\s\S]*?\$\$|\$[^$\s](?:[^$\n]*[^$\s])?\$/;
 
+/* 脚注定义(`[^x]: …`)即富块:markdown-it 无脚注语义,会把定义当普通链接定义、
+   引用渲成伪文件链接;编译层把定义逐块追加,命中即该文档全块落 remark-gfm,
+   与旧「整篇合并」同渲染器,脚注渲染平价。 */
+const FOOTNOTE_DEFINITION = /^\s{0,3}\[\^[^\]\n]+\]:/m;
+
 /**
  * 块是否需要富路径。纯文本/表格/常规代码块返回 false(快路径)。
  * 数学检测宽松(宁富勿快):误报只损失速度,不损失正确性。
  */
 export function isRichBlock(markdown: string): boolean {
-  if (RAW_HTML.test(markdown) || MATH_DELIMITER.test(markdown)) {
+  if (RAW_HTML.test(markdown) || MATH_DELIMITER.test(markdown) || FOOTNOTE_DEFINITION.test(markdown)) {
     return true;
   }
   for (const line of markdown.split("\n")) {

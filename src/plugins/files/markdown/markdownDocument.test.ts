@@ -117,4 +117,27 @@ describe("markdownDocument", () => {
     expect(blocks).toHaveLength(1);
     expect(blocks[0]?.markdown).toBe("A | B\n--- | ---\n1 | 2\n3 | 4");
   });
+
+  it("链接/脚注定义逐块追加进 markdown:跨块引用可解析,行号区间不变", () => {
+    const linked = compileFileMarkdownDocument(
+      "file:/a/defs.md",
+      "[点我] 看这里\n\n第二段。\n\n[点我]: https://example.com",
+    );
+    expect(linked.blocks.map((block) => [block.startLine, block.endLine])).toEqual([
+      [1, 1],
+      [3, 3],
+      [5, 5],
+    ]);
+    expect(linked.blocks[0]?.markdown).toBe("[点我] 看这里\n\n[点我]: https://example.com");
+
+    const footnote = compileFileMarkdownDocument(
+      "file:/a/foot.md",
+      "正文。[^1]\n\n[^1]: 定义\n  续行\n\n尾段",
+    );
+    expect(footnote.blocks[0]?.markdown).toBe("正文。[^1]\n\n[^1]: 定义\n  续行");
+
+    /* 无定义文档零改动:块 markdown 与源文切片逐字相等。 */
+    const plain = compileFileMarkdownDocument("file:/a/plain.md", "# 标题\n\n纯散文。");
+    expect(plain.blocks[1]?.markdown).toBe("纯散文。");
+  });
 });

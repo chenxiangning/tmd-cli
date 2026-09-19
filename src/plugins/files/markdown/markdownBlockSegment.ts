@@ -111,6 +111,19 @@ function isPipeTableStart(lines: string[], index: number) {
 function isPipeTableContinuationLine(line: string) {
   return isPipeTableCandidateLine(line) || isPipeTableDelimiterLine(line);
 }
+const HTML_BLOCK_OPEN_RE = /^\s{0,3}<([A-Za-z][\w:-]*)(?:\s[^>]*)?>/;
+
+/** 配对跨行 HTML 块(<details>/<div> 等)的关闭行定位,语义与历史整篇合并正则一致:
+ *  关闭行须独占一行;无配对关闭行返回 null,调用方回落普通段落切块。 */
+function findHtmlBlockCloseIndex(lines: string[], openIndex: number, tag: string) {
+  const closeRe = new RegExp(`^\\s{0,3}</${tag}>\\s*$`);
+  for (let index = openIndex + 1; index < lines.length; index += 1) {
+    if (closeRe.test(lines[index] ?? "")) {
+      return index;
+    }
+  }
+  return null;
+}
 
 function shouldKeepMarkdownBlockAtomic(lines: string[], startIndex: number, endIndexExclusive: number) {
   for (let index = startIndex; index < endIndexExclusive; index += 1) {
@@ -211,6 +224,22 @@ export function segmentMarkdownDocumentBlocks(value: string): FileMarkdownDocume
         blocks.push(block);
       }
       continue;
+    }
+
+    /* 配对跨行 HTML 块原子切出:空行不再切碎 <details> 之类的容器(原整篇合并渲染
+     * 的存在理由之一),行号区间直通 marks 落锚;无配对关闭行则按普通段落走。 */
+    const htmlOpenMatch = line.match(HTML_BLOCK_OPEN_RE);
+    if (htmlOpenMatch) {
+      const closeIndex = findHtmlBlockCloseIndex(lines, index, htmlOpenMatch[1] ?? "");
+      if (closeIndex !== null) {
+        pushBlock(index);
+        const block = createMarkdownBlock(lines, index, closeIndex + 1);
+        if (block) {
+          blocks.push(block);
+        }
+        index = closeIndex + 1;
+        continue;
+      }
     }
 
     if (blockStartIndex === null) {

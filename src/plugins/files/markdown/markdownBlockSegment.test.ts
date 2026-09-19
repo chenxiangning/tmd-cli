@@ -94,6 +94,28 @@ describe("segmentMarkdownDocumentBlocks", () => {
     const blocks = segmentMarkdownDocumentBlocks("# 标\r\n\r\n```ts\r\nx\r\n```");
     expect(blocks.map((block) => block.markdown)).toEqual(["# 标", "```ts\nx\n```"]);
   });
+
+  it("配对跨行 HTML 块保原子,内部空行不切碎容器", () => {
+    const blocks = segmentMarkdownDocumentBlocks(
+      "前言\n\n<details>\n<summary>x</summary>\n\n内容\n\n</details>\n\n尾段",
+    );
+    expect(blocks.map((block) => block.markdown)).toEqual([
+      "前言",
+      "<details>\n<summary>x</summary>\n\n内容\n\n</details>",
+      "尾段",
+    ]);
+    expect(blocks[1]).toMatchObject({ startLine: 3, endLine: 8 });
+  });
+
+  it("无配对关闭行的 HTML 开标签回落普通空行切块", () => {
+    const blocks = segmentMarkdownDocumentBlocks("<div>\n甲\n\n乙");
+    expect(blocks.map((block) => block.markdown)).toEqual(["<div>\n甲", "乙"]);
+  });
+
+  it("单行已闭合的 HTML 行不吞后续段落", () => {
+    const blocks = segmentMarkdownDocumentBlocks("<div>x</div>\n\n乙");
+    expect(blocks.map((block) => block.markdown)).toEqual(["<div>x</div>", "乙"]);
+  });
 });
 
 describe("countMarkdownBlocks", () => {
