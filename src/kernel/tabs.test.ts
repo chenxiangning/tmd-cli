@@ -1,6 +1,6 @@
 /**
  * 编辑器标签页 store 行为契约测试。
- * 覆盖:open 新增/去重激活、close 后激活回退、空列表边界、
+ * 覆盖:open 新增/去重激活、close 相邻补位(优先右邻,无右邻取左邻)、
  * 不变量「activeId 始终指向存在的 tab」。
  * 模块级单例,每个用例经 vi.resetModules + 动态 import 取全新实例。
  */
@@ -40,14 +40,31 @@ describe("openTab", () => {
 });
 
 describe("closeTab", () => {
-  it("关闭激活 tab 后,激活回退到首个剩余 tab", () => {
+  it("关闭末尾激活 tab,左邻补位激活", () => {
     tabs.openTab(tab("a"));
     tabs.openTab(tab("b"));
     tabs.openTab(tab("c"));
     tabs.closeTab("c");
-    expect(tabs.getActiveTabId()).toBe("a");
+    expect(tabs.getActiveTabId()).toBe("b");
   });
 
+  it("关闭中间激活 tab,右邻补位激活", () => {
+    tabs.openTab(tab("a"));
+    tabs.openTab(tab("b"));
+    tabs.openTab(tab("c"));
+    tabs.setActiveTab("b");
+    tabs.closeTab("b");
+    expect(tabs.getActiveTabId()).toBe("c");
+  });
+
+  it("关闭激活 tab 后快照同步补位:UI 不得看到悬空 activeId", () => {
+    tabs.openTab(tab("a"));
+    tabs.openTab(tab("b"));
+    tabs.closeTab("b");
+    const snapshot = tabs.getEditorTabsSnapshot();
+    expect(snapshot.activeId).toBe("a");
+    expect(snapshot.tabs.some((t) => t.id === snapshot.activeId)).toBe(true);
+  });
   it("关闭非激活 tab 不影响激活态", () => {
     tabs.openTab(tab("a"));
     tabs.openTab(tab("b"));
