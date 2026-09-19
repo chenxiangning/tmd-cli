@@ -30,7 +30,19 @@ export function normalizeLocations(raw: unknown): LspLocation[] {
 }
 
 export function uriToPath(uri: string): string {
-  return normalizePath(decodeURIComponent(uri.replace(/^file:\/\//, "")));
+  /* 只有 file:// URI 是编码形态需要解码;裸路径(如文件名 "50%off.md")
+     解码会破坏字面 % 序列,decodeURIComponent 对非法 % 直接抛错 —— 一律原样保留。 */
+  const isFileUri = uri.startsWith("file://");
+  const stripped = uri.replace(/^file:\/\//, "");
+  let decoded = stripped;
+  if (isFileUri) {
+    try {
+      decoded = decodeURIComponent(stripped);
+    } catch {
+      /* 非法 % 序列:按未解码原样回落 */
+    }
+  }
+  return normalizePath(decoded);
 }
 
 export function locToPeekItem(loc: LspLocation): PeekItem {

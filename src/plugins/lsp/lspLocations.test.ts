@@ -2,7 +2,7 @@
  * LSP 位置换算管道测试 —— lspLocations 契约清单:
  * 1. normalizeLocations:null/undefined → 空;单个 Location 包一成数组;数组保序;
  *    LocationLink(targetUri/targetRange)归一;非对象/缺 uri/缺 range/uri 非字符串项剔除
- * 2. uriToPath:剥 file:// 前缀、%XX 解码、反斜杠与尾分隔符归一;无转义裸路径原样
+ * 2. uriToPath:剥 file:// 前缀、仅对 file:// 解码 %XX(裸路径不解码,非法 % 序列不抛)、反斜杠与尾分隔符归一
  * 3. locToPeekItem:0 基行 → 1 基;同行 end → endChar;跨行 endChar=null
  * 4. rangeContainsOffset:两端闭区间;跨行区间含换行偏移;越界行列收拢到行尾/文档尾后判定
  */
@@ -63,6 +63,13 @@ describe("normalizeLocations(归一)", () => {
 describe("uriToPath", () => {
   it("剥 file:// 前缀并解码 %XX", () => {
     expect(uriToPath("file:///a/b%20c.ts")).toBe("/a/b c.ts");
+  });
+  it("裸路径不解码:字面 % 序列原样保留(合法 %XX 也不误解码)", () => {
+    expect(uriToPath("w/50%20off.md")).toBe("w/50%20off.md");
+    expect(uriToPath("w/src/a.ts")).toBe("w/src/a.ts");
+  });
+  it("file:// 含非法 % 序列 → 不抛 URIError,按未解码原样回落", () => {
+    expect(uriToPath("file:///a/50%off.md")).toBe("/a/50%off.md");
   });
 
   it("无转义裸路径原样透传", () => {
