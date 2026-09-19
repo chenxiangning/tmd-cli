@@ -69,6 +69,7 @@ import type {
   GitPrStage,
   GitPrWorkflowResult,
   GitPushPreview,
+  GitRemoteOpReport,
   GitRemoteRequest,
   GitRepoScanResult,
   GitTotals,
@@ -527,9 +528,9 @@ export const ipc = {
   /** 推送预览:HEAD 相对 <remote>/<branch> 的独有提交;低频,仅在对话框内按需拉。 */
   gitPushPreview: (cwd: string, remote: string, branch: string, limit?: number) =>
     invoke<GitPushPreview>("git_push_preview", { cwd, remote, branch, limit: limit ?? null }),
-  /** 远端对话框结构化请求(带选项);pull 移动 HEAD。 */
+  /** 远端对话框结构化请求(带选项);pull 移动 HEAD;返回完成明细(通知文案数据源)。 */
   gitRemoteRequest: (cwd: string, req: GitRemoteRequest) =>
-    invoke<string>("git_remote_request", { cwd, req }),
+    invoke<GitRemoteOpReport>("git_remote_request", { cwd, req }),
   /** 创建 PR defaults(upstream/origin 解析 + 模板兜底;不可创建时带人话原因)。 */
   gitPrDefaults: (cwd: string) => invoke<GitPrDefaults>("git_pr_defaults", { cwd }),
   /** 创建 PR 四步工作流(precheck→push→createPr→comment);阶段经 git://pr-stage 实时推送。 */

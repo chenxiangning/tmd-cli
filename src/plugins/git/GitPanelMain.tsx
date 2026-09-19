@@ -7,7 +7,7 @@
 import { useEffect } from "react";
 import { t } from "@kernel/i18n";
 import type { GitAheadBehind, GitFileStatus, GitRemoteRequest, GitRepoSummary, GitTotals } from "@kernel/ipc";
-import { Cross } from "@phosphor-icons/react";
+import { CircleNotch, Cross } from "@phosphor-icons/react";
 import type { GitLogState } from "./hooks/useGitLog";
 import type { GitBranchesState } from "./hooks/useGitBranches";
 import type { GitRepoContext } from "./repoContext";
@@ -73,6 +73,7 @@ function repoDisplayName(repoCount: number, cwd: string): string | undefined {
 
 /** 面板横幅簇:通知(可关闭)/ 状态错误 / 智能切换撤销横幅(降分支拆件)。 */
 function PanelBanners({
+  busyLabel,
   notice,
   onCloseNotice,
   onNotice,
@@ -82,6 +83,8 @@ function PanelBanners({
   cwd,
   afterMutation,
 }: {
+  /** 远端操作执行中的操作名(获取/拉取/推送);null = 空闲。 */
+  busyLabel: string | null;
   notice: string | null;
   onCloseNotice: () => void;
   onNotice: (msg: string | null) => void;
@@ -93,6 +96,12 @@ function PanelBanners({
 }) {
   return (
     <>
+      {busyLabel && (
+        <div className="flex shrink-0 items-center gap-1.5 border-b border-(--tmd-border) px-2 py-1 text-(--tmd-fg-faint)">
+          <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" aria-hidden />
+          {t("正在{op}…", { op: busyLabel })}
+        </div>
+      )}
       {notice && (
         <div className="flex shrink-0 items-start gap-1 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2 py-1 text-(--tmd-fg-muted)">
           <span className="min-w-0 flex-1 break-words">{notice}</span>
@@ -159,6 +168,15 @@ export function GitPanelMain({
       busy: remoteBusy,
     });
   }, [detached, hasUpstream, aheadBehind, remoteBusy]);
+  /* 远端操作执行中横幅的操作名(与对话框传入的 opLabel 同词)。 */
+  const busyLabel =
+    remoteBusy === "fetch"
+      ? t("获取")
+      : remoteBusy === "pull"
+        ? t("拉取")
+        : remoteBusy === "push"
+          ? t("推送")
+          : null;
   return (
     <div className="flex h-full flex-col text-xs">
       <GitToolbar />
@@ -173,6 +191,7 @@ export function GitPanelMain({
       )}
 
       <PanelBanners
+        busyLabel={busyLabel}
         notice={notice}
         onCloseNotice={() => setNotice(null)}
         onNotice={setNotice}

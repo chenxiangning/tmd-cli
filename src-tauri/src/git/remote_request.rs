@@ -5,6 +5,9 @@ use serde::Deserialize;
 
 use git2::{BranchType, Repository};
 
+pub use super::remote_report::RemoteOpReport;
+use super::remote_report::{head_oid, pull_report, remote_refs_snapshot, revwalk_ahead_count};
+
 use super::remote_args::{first_remote, upstream_split};
 use super::remote_ops::{exec_git, exec_pull, non_empty_branch};
 use super::GitError;
@@ -44,17 +47,53 @@ pub struct GerritExtra {
 
 const PULL_STRATEGIES: [&str; 4] = ["--rebase", "--ff-only", "--no-ff", "--squash"];
 
-pub fn run_request(repo: &Repository, cwd: &str, req: RemoteRequest) -> Result<String, GitError> {
-    let args = match req.op.as_str() {
-        "fetch" => fetch_request_args(req.remote)?,
-        "pull" => pull_request_args(&req)?,
-        "push" => push_request_args(repo, &req)?,
-        other => return Err(GitError::empty(format!("未知远端操作: {other}"))),
-    };
-    if req.op == "pull" {
-        exec_pull(repo, cwd, &args)
-    } else {
-        exec_git(repo, cwd, &args)
+pub fn run_request(
+    repo: &Repository,
+    cwd: &str,
+    req: RemoteRequest,
+) -> Result<RemoteOpReport, GitError> {
+    match req.op.as_str() {
+        "fetch" => {
+            let before = remote_refs_snapshot(repo);
+            exec_git(repo, cwd, &fetch_request_args(req.remote.clone())?)?;
+            let after = remote_refs_snapshot(repo);
+            let changed = after
+                .iter()
+                .filter(|(k, v)| before.get(*k) != Some(v))
+                .count()
+                + before.keys().filter(|k| !after.contains_key(*k)).count();
+            Ok(RemoteOpReport {
+                up_to_date: changed == 0,
+                refs: changed,
+                ..Default::default()
+            })
+        }
+        "pull" => {
+            let head_before = head_oid(repo);
+            exec_pull(repo, cwd, &pull_request_args(&req)?)?;
+            Ok(pull_report(repo, head_before))
+        }
+        "push" => {
+            /* 明细在 exec 前算:推的是「远端当前缺哪些提交」,推完远端引用即同步。 */
+            let remote = resolve_push_remote(repo, &req)?;
+            let branch = non_empty_branch(&req.branch)?
+                .ok_or_else(|| GitError::empty("推送目标分支不能为空"))?;
+            let base = repo
+                .find_reference(&format!("refs/remotes/{remote}/{branch}"))
+                .ok()
+                .and_then(|r| r.target());
+            let commits = match head_oid(repo) {
+                Some(head) => revwalk_ahead_count(repo, base, head),
+                None => 0,
+            };
+            exec_git(repo, cwd, &push_request_args(repo, &req)?)?;
+            Ok(RemoteOpReport {
+                up_to_date: base.is_some() && commits == 0,
+                commits,
+                ..Default::default()
+            })
+        }
+        other => Err(GitError::empty(format!("未知远端操作: {other}"))),
     }
 }
 
@@ -115,21 +154,7 @@ pub(super) fn push_request_args(
     if req.follow_tags {
         args.push("--follow-tags".into());
     }
-    let remote = match non_empty_branch(&req.remote)? {
-        Some(r) => r,
-        // 未显式指定:上游远端 → 首个远端
-        None => {
-            let current = repo
-                .head()
-                .ok()
-                .filter(|h| h.is_branch())
-                .and_then(|h| h.shorthand().map(str::to_string));
-            current
-                .as_deref()
-                .and_then(|c| upstream_split(repo, c).map(|(r, _)| r))
-                .unwrap_or(first_remote(repo)?)
-        }
-    };
+    let remote = resolve_push_remote(repo, req)?;
     args.push(remote);
     match &req.gerrit {
         Some(g) => {
@@ -158,6 +183,24 @@ pub(super) fn push_request_args(
         }
     }
     Ok(args)
+}
+
+/// push 目标远端解析:显式指定 → 当前分支上游远端 → 首个远端(run_request 明细与拼参共用)。
+fn resolve_push_remote(repo: &Repository, req: &RemoteRequest) -> Result<String, GitError> {
+    match non_empty_branch(&req.remote)? {
+        Some(r) => Ok(r),
+        None => {
+            let current = repo
+                .head()
+                .ok()
+                .filter(|h| h.is_branch())
+                .and_then(|h| h.shorthand().map(str::to_string));
+            Ok(current
+                .as_deref()
+                .and_then(|c| upstream_split(repo, c).map(|(r, _)| r))
+                .unwrap_or(first_remote(repo)?))
+        }
+    }
 }
 
 /// Gerrit refspec 尾巴:`topic=<t>` 在前;reviewers/cc 逗号分隔展开为 `r=<v>` / `cc=<v>`。
