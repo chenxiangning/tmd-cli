@@ -1,0 +1,28 @@
+/** en 词典 · prompt-enhancer 域(键 = 中文源串;zh 恒等无词典)。 */
+export const MESSAGES_EN = {
+  "增强提示词": "Enhance prompt",
+  "并排对照": "Side-by-side",
+  "增强引擎": "Enhance engine",
+  "轻润色": "Light polish",
+  "结构化": "Structured",
+  "可执行": "Executable",
+  "开始增强": "Start enhance",
+  "增强中…": "Enhancing…",
+  "只整理措辞,短句不扩写": "Wording and clarity only; short drafts stay short",
+  "分小节重组,不虚构事实": "Reorganize into sections; never invent facts",
+  "压成短句清单,只留约束与交付格式": "Compress into short lines; keep only constraints and deliverables",
+  "高级设置": "Advanced",
+  "超时(秒)": "Timeout (s)",
+  "模型(留空用 CLI 默认)": "Model (empty = CLI default)",
+  "原始提示词": "Original prompt",
+  "可改": "Editable",
+  "增强后的提示词": "Enhanced prompt",
+  "等待增强": "Waiting",
+  "增强失败": "Enhance failed",
+  "保留原始版本": "Keep original",
+  "使用增强版本": "Use enhanced",
+  "增强超时({seconds} 秒),可重试或调大超时":
+    "Enhance timed out after {seconds}s — retry or raise the timeout",
+  "引擎返回空结果,请重试": "Engine returned an empty result — try again",
+  "无活跃工作区,无法运行增强": "No active workspace; cannot run enhancement",
+} as Record<string, string>;

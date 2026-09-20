@@ -36,6 +36,7 @@ import { sessionBoardPlugin } from "./session-board";
 import { webAccessPlugin } from "./web-access";
 import { searchPlugin } from "./search";
 import { lspPlugin } from "./lsp";
+import { promptEnhancerPlugin } from "./prompt-enhancer";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -69,4 +70,5 @@ export const allPlugins: Plugin[] = [
   webAccessPlugin,
   searchPlugin,
   lspPlugin,
+  promptEnhancerPlugin,
 ];

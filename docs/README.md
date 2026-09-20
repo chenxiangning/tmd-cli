@@ -57,6 +57,7 @@
 | 2026-09-05 | [Git 差异面板文件列表:F 终端风重构](superpowers/specs/2026-09-05-git-diff-filelist-f-terminal-design.md) | 已确认 |
 | 2026-09-05 | [Git 远端操作对话框复刻(codemoss push/pull/fetch)+ 顶栏聚合数字迁移](superpowers/specs/2026-09-05-git-remote-dialogs-design.md) | 已落地 |
 | 2026-09-05 | [分支右键菜单对齐 codemoss:变基/合并/对比/重命名/自指定分支新建](superpowers/specs/2026-09-05-branch-menu-parity-design.md) | 已落地 |
+| 2026-09-21 | [增强提示词(composer 增强入口)设计](superpowers/specs/2026-09-21-prompt-enhancer-design.md) | 已确认 |
 | 2026-09-05 | [会话 tab 右键菜单:重命名 + 关闭一套](superpowers/specs/2026-09-05-session-tab-context-menu-design.md) | 已落地 |
 | 2026-09-05 | [会话状态标签:结算归因修正 + SIGWINCH 重绘抑制窗](superpowers/specs/2026-09-05-session-status-settle-attribution-design.md) | 已落地 |
 | 2026-09-05 | [审批线隔离与精准手术:纯事件归因 · 批审计冻结 · 共改文件 diff 擦除](superpowers/specs/2026-09-05-checkpoints-isolation-surgery-design.md) | 已落地 |
