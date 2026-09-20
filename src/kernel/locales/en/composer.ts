@@ -27,6 +27,7 @@ export const MESSAGES = {
 
   /* view/CommandDrawer.tsx */
   "已发送到幕布:{wire}": "Sent to terminal: {wire}",
+  "{n} 条引用标记仍待下次输入注入": "{n} reference marks pending — injected with your next message",
   "已打开:{name}": "Opened: {name}",
   "命令与技能面板": "Commands & skills panel",
   "分区切换": "Section tabs",

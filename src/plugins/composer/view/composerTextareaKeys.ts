@@ -87,6 +87,7 @@ export function composerTextareaKeyDown(
         metaKey: e.metaKey,
         ctrlKey: e.ctrlKey,
         isComposing: e.nativeEvent.isComposing,
+        keyCode: e.keyCode,
       },
       ctx.sendShortcut,
     )) {

@@ -7,11 +7,11 @@
 
 import { useSyncExternalStore } from "react";
 import { EventBus, KernelTopics } from "./events";
+import { getSessionTabs } from "./sessionTabs";
 import { getSettingsState } from "./settings";
 import { HostRegistry } from "./hostRegistry";
 import { HostWatches } from "./hostWatches";
 import { createSessionServices } from "./hostSessionServices";
-
 import { ipc, type SshHostConfig, type SessionMeta, type SpawnSpec } from "./ipc";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import type { MountContribution, MountPoint, Plugin, PluginContext } from "./plugin";
@@ -265,9 +265,9 @@ class Host implements PluginContext {
     this.sessions = this.sessions.filter((s) => s.id !== id);
     this.watches.onSessionRemoved(id);
     if (this.activeSessionId === id) {
-      const next = this.sessions[0]?.id ?? null;
-      this.activeSessionId = next;
-      /* 隐式切换也要广播(含删尽转 null):EventBus 是跨插件唯一通道,陈旧 id 误导订阅方 */
+      /* 后继走 tab 条 MRU 序(closeSessionTab 同语义)回落注册表首项;隐式切换也广播(陈旧 id 误导订阅方) */
+      const mru = [...getSessionTabs()].reverse().find((x) => this.sessions.some((s) => s.id === x));
+      const next = mru ?? this.sessions[0]?.id ?? null;
       this.events.emit(KernelTopics.activeSessionChanged, next);
     }
     this.events.emit(KernelTopics.sessionsChanged, this.sessions);

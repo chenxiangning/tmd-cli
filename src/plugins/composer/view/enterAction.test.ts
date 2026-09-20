@@ -27,6 +27,9 @@ describe("shouldSendOnEnter / enter 模式(默认)", () => {
   it("IME 组合中 Enter 不拦截(交给输入法确认候选)", () => {
     expect(shouldSendOnEnter(mods({ isComposing: true }), "enter")).toBe(false);
   });
+  it("keyCode 229(组合末尾派发的确认 Enter)不拦截", () => {
+    expect(shouldSendOnEnter(mods({ keyCode: 229 }), "enter")).toBe(false);
+  });
 });
 
 describe("shouldSendOnEnter / cmdOrCtrlEnter 模式", () => {

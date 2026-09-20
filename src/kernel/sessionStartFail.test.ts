@@ -91,12 +91,12 @@ describe("emitSessionStartFailed", () => {
     emitSessionStartFailed(host, events, "s1", "p-claude", now - 1_000);
 
     expect(received).toEqual([
-      { sessionId: "s1", profileId: "p-claude", reason: "Error: boom\nexit code 1" },
+      { sessionId: "s1", profileId: "p-claude", reason: "Error: boom\nexit code 1", late: false },
     ]);
     expect(host.outputTail).toHaveBeenCalledWith("s1", TAIL_SOURCE_CHARS);
   });
 
-  it("窗口边界:退出时刻距今恰为窗口宽仍算启动失败;超出 1ms 即静默", () => {
+  it("窗口边界:恰为窗口宽仍算启动失败;超出 1ms 后无崩溃特征即静默", () => {
     const now = Date.now();
     const events = new EventBus();
     const received: unknown[] = [];
@@ -109,15 +109,19 @@ describe("emitSessionStartFailed", () => {
     expect(received).toHaveLength(1);
   });
 
-  it("超窗或会话已移除:静默不 emit、不读幕布", () => {
+  it("超窗但尾部带崩溃特征:降级广播(late=true);会话已移除:静默", () => {
     const now = Date.now();
-    const late = makeHost("boom");
-    emitSessionStartFailed(late, new EventBus(), "s1", "p", now - 20_001);
+    const events = new EventBus();
+    const received: unknown[] = [];
+    events.on(KernelTopics.sessionStartFailed, (p) => received.push(p));
+
+    emitSessionStartFailed(makeHost("Fatal: disk boom"), events, "s1", "p", now - 25_000);
+    expect(received).toEqual([
+      { sessionId: "s1", profileId: "p", reason: "Fatal: disk boom", late: true },
+    ]);
+
     const gone = makeHost("boom", []);
     emitSessionStartFailed(gone, new EventBus(), "s1", "p", now - 1_000);
-
-    expect(late.outputTail).not.toHaveBeenCalled();
-    expect(gone.outputTail).not.toHaveBeenCalled();
     expect(gone.getSessions).toHaveBeenCalled();
   });
 });

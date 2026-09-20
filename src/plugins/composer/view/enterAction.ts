@@ -16,6 +16,8 @@ export interface EnterKeyMods {
   metaKey: boolean;
   ctrlKey: boolean;
   isComposing: boolean;
+  /** 229 = IME 在途(部分 WebView 组合末尾仍派发,通用兜底标记)。 */
+  keyCode?: number;
 }
 
 /** 返回 true = 拦截默认行为并发送;false = 走 textarea 默认(换行/输入法确认)。 */
@@ -23,7 +25,9 @@ export function shouldSendOnEnter(
   mods: EnterKeyMods,
   sendShortcut: SendShortcut,
 ): boolean {
-  if (mods.isComposing) return false;
+  /* keyCode 229 兜底:部分 WKWebView 在 compositionend 之后派发确认 Enter 且
+   * isComposing=false(Chromium 正常)——229 是 IME 处理中事件的通用标记。 */
+  if (mods.isComposing || mods.keyCode === 229) return false;
   if (sendShortcut === "cmdOrCtrlEnter") {
     return mods.metaKey || mods.ctrlKey;
   }

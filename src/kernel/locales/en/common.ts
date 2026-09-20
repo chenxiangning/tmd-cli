@@ -110,6 +110,7 @@ export const MESSAGES = {
 
   // ── 会话启动失败通知 ──
   "{name} 会话启动失败": "{name} session failed to start",
+  "{name} 会话异常退出": "{name} exited unexpectedly",
   "关闭启动失败通知": "Dismiss startup failure notice",
 
   // ── tab 右键菜单 ──

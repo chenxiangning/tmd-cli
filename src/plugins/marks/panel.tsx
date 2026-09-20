@@ -4,8 +4,10 @@
  * 真实发送时 marksSendTransform 注入 wire 并翻 sent。
  */
 
+import { useEffect } from "react";
 import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
+import { ipc } from "@kernel/ipc";
 import type { Mark, MarkState } from "./anchor";
 import { removeMark, setMarkState, toggleExpanded, updateNote, useMarksState } from "./store";
 import { stageMarks } from "./sendTransform";
@@ -102,11 +104,21 @@ function MarkCard({
 export function MarksPanel() {
   const snap = useMarksState();
   const { list, activeId } = useWorkspaces();
-  const root = list.find((ws) => ws.id === activeId)?.root ?? list[0]?.root ?? null;
+  const root = list.find((w) => w.id === activeId)?.root ?? list[0]?.root ?? null;
   const marks = root ? (snap.byCwd[root] ?? []) : [];
+  /* 打开即存在性巡检:文件已删/改名的 pending 标记标 lost(relocate 依赖打开
+     该文件才跑,删除场景永无机会)——失存可见,「定位」不再静默失败。 */
+  useEffect(() => {
+    const cwd = root;
+    if (!cwd) return;
+    const pending = (snap.byCwd[cwd] ?? []).filter((m) => m.state === "pending");
+    for (const p of new Set(pending.map((m) => m.path))) {
+      void ipc.fsReadFile(p).catch(() => {
+        for (const m of pending.filter((x) => x.path === p)) setMarkState(cwd, m.id, "lost");
+      });
+    }
+  }, [root, snap]);
   const pendingCount = marks.filter((mark) => mark.state === "pending").length;
-
-  /* 按文件分组(保插入序):全局中心的跨文件聚合面 */
   const groups = new Map<string, Mark[]>();
   for (const mark of marks) {
     const group = groups.get(mark.path) ?? [];

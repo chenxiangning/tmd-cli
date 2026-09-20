@@ -17,7 +17,7 @@ import { t } from "@kernel/i18n";
 import { composerSendTransforms, undoComposerSend } from "@kernel/composerExt";
 import type { CliProfile } from "@kernel/cli";
 import { getSessionTabs, getSessionTile } from "@kernel/sessionTabs";
-import { emitPromptSent, readPromptGate } from "../promptGate";
+import { emitPromptSent, readPromptGate, shouldBroadcastPrompt } from "../promptGate";
 import { prepareSendPayload } from "../serialize/serialize";
 import { clearAttachments } from "../state/attachments";
 import { recordPrompt } from "@kernel/promptHistory";
@@ -58,11 +58,15 @@ export function useComposerSend({
       if (targets.length >= 2) {
         /* 发送变换单次化:变换可能带副作用(marks 翻 sent),逐路重跑会让
            引用块只进第一路、状态在第二路前已被翻掉。共享同一份变换文本,
-           各路差异(bracketed paste 等)仍由 prepareSendPayload 按目标处理。 */
-        const shared = composerSendTransforms().reduce(
-          (acc, fn) => fn(acc, host.getActiveSessionId()!),
-          value,
-        );
+           各路差异(bracketed paste 等)仍由 prepareSendPayload 按目标处理。
+           变换过闸(单路同款):ask 确认期作答不开新轮,引用块不注入。 */
+        const activeGate = readPromptGate(host.getActiveSessionId()!);
+        const shared = shouldBroadcastPrompt(activeGate, trimmed)
+          ? composerSendTransforms().reduce(
+              (acc, fn) => fn(acc, host.getActiveSessionId()!),
+              value,
+            )
+          : value;
         const failed: string[] = (
           await Promise.all(
             targets.map(async ({ id, profile: p }): Promise<string | null> => {
@@ -93,18 +97,20 @@ export function useComposerSend({
       }
     }
     const sid = host.getActiveSessionId()!;
-    /* 发送变换(composerExt 契约):仅用户自然语言消息走;抽屉/工具栏命令发送不经此 */
-    const payload = prepareSendPayload(profile, value,
-      composerSendTransforms().map((fn) => (text: string) => fn(text, sid)));
-    const gate = readPromptGate(sid); // 轮次闸写前现读:writeSession 作答即清 ask 等待态
+    /* 闸读前置 + 变换过闸:ask 确认期作答/轮中斜杠命令不开新轮,发送变换
+       (marks 注入+翻 sent)与之同语义跳过 —— 与 promptSent 锚点闸口径一致。 */
+    const gate = readPromptGate(sid);
+    const anchored = shouldBroadcastPrompt(gate, trimmed);
+    const transforms = anchored
+      ? composerSendTransforms().map((fn) => (text: string) => fn(text, sid))
+      : [];
+    const payload = prepareSendPayload(profile, value, transforms);
     if (!(await host.writeSession(sid, payload))) {
       undoComposerSend();
       onSendError(t("发送失败:会话已断开,内容已保留"));
       return;
     }
-    /* 锚点快照信号(checkpoints 消费)过轮次闸:ask 作答/轮中斜杠命令不开轮不广播 */
     emitPromptSent(gate, sid, trimmed);
-    /* 输入历史:仅自然语言发送入史(trim 非空即记);抽屉/工具栏命令不入(⌘K 可达) */
     recordPrompt(trimmed);
     setValue("");
     clearAttachments();

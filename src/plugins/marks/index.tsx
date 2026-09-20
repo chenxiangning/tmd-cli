@@ -8,14 +8,14 @@
  */
 
 import { BookmarkSimple } from "@phosphor-icons/react";
-import { registerComposerSendTransform, registerComposerSendUndo } from "@kernel/composerExt";
+import { registerComposerPendingCount, registerComposerSendTransform, registerComposerSendUndo } from "@kernel/composerExt";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import type { Plugin } from "@kernel/plugin";
 import { getActiveWorkspace } from "@kernel/workspace";
 import type { MarkState } from "./anchor";
 import { MarksPanel } from "./panel";
-import { addMark, loadAllMarks, marksSnapshot, removeMark, setMarkState, subscribeMarks, updateNote } from "./store";
+import { addMark, loadAllMarks, marksSnapshot, removeMark, setMarkState, stagedMarks, subscribeMarks, updateNote } from "./store";
 import { marksSendTransform, undoLastSendTransform } from "./sendTransform";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 import { MarksComposerChips } from "./chips";
@@ -43,7 +43,6 @@ async function handleMarkRequest(req: FileMarkRequest): Promise<void> {
   const cwd = getActiveWorkspace()?.root;
   if (!cwd) return;
   const content = await ipc.fsReadFile(req.path).catch(() => "");
-  if (!content) return;
   addMark({
     cwd,
     path: req.path,
@@ -51,6 +50,12 @@ async function handleMarkRequest(req: FileMarkRequest): Promise<void> {
     endLine: req.endLine,
     lines: content.split("\n"),
   });
+}
+
+/** 活跃工作区在挂 staged 芯片数(composerExt 待注入提示,抽屉命令发送后提示用)。 */
+function stagedPendingCount(): number {
+  const cwd = getActiveWorkspace()?.root;
+  return cwd ? stagedMarks(cwd).length : 0;
 }
 
 /** 全量轻量快照(按绝对 path 分组),供预览渲染已标记块。 */
@@ -101,6 +106,7 @@ export const marksPlugin: Plugin = {
       ctx.registerTerminalLinkProvider(marksLinkProvider),
       registerComposerSendTransform(marksSendTransform),
       registerComposerSendUndo(undoLastSendTransform),
+      registerComposerPendingCount(stagedPendingCount),
     ];
     /* md 预览(files 插件)经事件总线落锚:插件间零 import,双端各自声明载荷 */
     offs.push(

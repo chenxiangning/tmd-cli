@@ -34,7 +34,11 @@ function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }
     <div className="sft-card">
       <div className="sft-head">
         <Warning size="0.875rem" className="sft-icon" aria-hidden />
-        <span className="sft-title">{t("{name} 会话启动失败", { name })}</span>
+        <span className="sft-title">
+          {n.late
+            ? t("{name} 会话异常退出", { name })
+            : t("{name} 会话启动失败", { name })}
+        </span>
         <button
           type="button"
           className="sft-close"

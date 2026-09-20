@@ -183,6 +183,7 @@ export function OpenWithTab() {
           {t("添加打开方式")}
         </button>
         <div className="ow-help">{t("文件底部工具条右侧用默认应用直开;菜单里选择即设为默认并打开。")}</div>
+        <div className="ow-help">{t("命令类只填可执行文件名,参数写 args 字段(空格串会被当作路径查找而失败)。")}</div>
       </div>
       {adding && (
         <AddOpenWithDialog

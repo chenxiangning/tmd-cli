@@ -63,14 +63,19 @@ export function parseCodexEditEvents(text: string, sinceTs: number, cwd: string)
   );
 }
 
-/** 定位会话 rollout 文件:全量收集文件名按 id 匹配,命中后缓存。 */
+/** 定位会话 rollout:按 id 匹配取文件名最新(codex rollout 名带时间戳前缀,
+ *  同 id 重开会出新文件,取首个会永久读旧文件漏事件);命中缓存,读失败清缓存
+ *  重定位(新 rollout 出现后旧路径失效的场景)。 */
 async function locateRollout(cliSessionId: string): Promise<string | null> {
   const cached = locatedPaths.get(cliSessionId);
   if (cached) return cached;
   const home = await ipc.configHomeDir().catch(() => null);
   if (!home) return null;
   const files = await ipc.fsCollectFiles(`${home}/.codex/sessions`, ".jsonl").catch(() => []);
-  const hit = files.find((entry) => entry.name.includes(cliSessionId))?.path ?? null;
+  const hit =
+    files
+      .filter((entry) => entry.name.includes(cliSessionId))
+      .sort((a, b) => b.name.localeCompare(a.name))[0]?.path ?? null;
   if (hit) locatedPaths.set(cliSessionId, hit);
   return hit;
 }
@@ -84,5 +89,11 @@ export async function readCodexSessionEdits(
   cliSessionId: string,
   sinceTs: number,
 ): Promise<CliSessionEdit[] | null> {
-  return readEditsTail(await locateRollout(cliSessionId), sinceTs, cwd, parseCodexEditEvents);
+  const path = await locateRollout(cliSessionId);
+  const out = await readEditsTail(path, sinceTs, cwd, parseCodexEditEvents);
+  if (out === null && path && locatedPaths.get(cliSessionId) === path) {
+    locatedPaths.delete(cliSessionId); /* 失效缓存:新 rollout 顶掉旧文件 */
+  }
+  return out;
 }
+

@@ -19,7 +19,7 @@ export type { SessionArchiveEntry };
 /** 归档 key:`${workspaceId}:${profileId}:${cliSessionId}` —— 与置顶 key 同构。 */
 export const sessionArchiveKey = sessionOverlayKey;
 
-/* 自动归档(干净退出即写)密度 ~20 会话/天,200 上限 ~10 天触顶逐出,
+/* 自动归档密度 ~20 会话/天,2000 上限 ≈100 天触顶逐出(2026-09-17 自 200 提容),
  * 与 settingsSanitizeSessions.SESSION_ARCHIVE_MAX_ENTRIES 双源同步(改须同改)。 */
 export const SESSION_ARCHIVE_MAX = 2000;
 const overlay = makeOverlay<SessionArchiveEntry>("sessionArchive", "archivedAt", SESSION_ARCHIVE_MAX);

@@ -8,6 +8,8 @@
 import { useEffect, useState } from "react";
 import type { CliProfile } from "@kernel/cli";
 import { host } from "@kernel/host";
+import { t } from "@kernel/i18n";
+import { composerPendingCount } from "@kernel/composerExt";
 import { emitPromptSent, readPromptGate } from "../promptGate";
 import { openSettingsPanel } from "@kernel/settings";
 import { setFilePanelMode } from "@kernel/filePanel";
@@ -80,6 +82,11 @@ export function useComposerDrawer({
     const gate = readPromptGate(sid); // 轮次闸写前现读:ask 作答/轮中斜杠命令不开轮不广播
     if (!(await host.writeSession(sid, wire))) return null;
     emitPromptSent(gate, sid, text);
+    /* staged 引用块不会随命令注入(变换仅自然语言路径):在挂芯片时给可见提示,
+       防「发了命令以为引用已带出」(2026-09-20 P3 8.7) */
+    const stagedPending = composerPendingCount();
+    if (stagedPending > 0)
+      return `${wire.replace(/\r$/, "")}\n${t("{n} 条引用标记仍待下次输入注入", { n: stagedPending })}`;
     return wire.replace(/\r$/, "");
   }
 

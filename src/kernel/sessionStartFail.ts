@@ -39,7 +39,11 @@ interface StartFailHost {
   outputTail(sessionId: string, maxChars: number): string;
 }
 
-/** 启动窗口内退出 = 启动失败:摘幕布尾部广播(须在 removeSession 清缓冲前同步执行)。 */
+/** 窗口外退出的崩溃特征(误放行 OK:正常退出静默;漏报优于每个 /quit 弹通知)。 */
+const CRASH_HINT_RE = /(error|fatal|panic|traceback|exception|failed|denied|abort|崩溃|失败)/i;
+
+/** 启动窗口内退出 = 启动失败;窗口外(慢启动 CLI 冷启 10-25s)带崩溃特征退出 =
+ *  降级同样广播(late 置位,Toast 标题换「会话异常退出」)—— 正常退出静默不打扰。 */
 export function emitSessionStartFailed(
   h: StartFailHost,
   events: EventBus,
@@ -47,11 +51,14 @@ export function emitSessionStartFailed(
   profileId: string,
   adoptedAt: number,
 ): void {
-  if (Date.now() - adoptedAt > START_FAIL_WINDOW_MS) return;
+  const late = Date.now() - adoptedAt > START_FAIL_WINDOW_MS;
   if (!h.getSessions().some((s) => s.id === sessionId)) return;
+  const tail = h.outputTail(sessionId, TAIL_SOURCE_CHARS);
+  if (late && !CRASH_HINT_RE.test(tail)) return;
   events.emit(KernelTopics.sessionStartFailed, {
     sessionId,
     profileId,
-    reason: crashTail(h.outputTail(sessionId, TAIL_SOURCE_CHARS)),
+    reason: crashTail(tail),
+    late,
   });
 }

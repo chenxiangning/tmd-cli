@@ -69,6 +69,23 @@ export function undoComposerSend(): void {
   for (const fn of [...sendUndos]) fn();
 }
 
+/** 在挂待注入内容计数(如 marks staged 引用块):抽屉/工具栏命令发送不经
+ *  发送变换,给「命令已发出但引用仍待下次输入注入」的可见提示用。
+ *  返回合计;无注册 = 0。 */
+const pendingCounts: Array<() => number> = [];
+
+export function registerComposerPendingCount(fn: () => number): () => void {
+  pendingCounts.push(fn);
+  return () => {
+    const i = pendingCounts.indexOf(fn);
+    if (i >= 0) pendingCounts.splice(i, 1);
+  };
+}
+
+export function composerPendingCount(): number {
+  return pendingCounts.reduce((acc, fn) => acc + fn(), 0);
+}
+
 export function composerTriggerSources(): readonly ComposerTriggerSource[] {
   return triggerSources;
 }

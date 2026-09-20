@@ -78,12 +78,17 @@ describe("屏幕态通道(onScreenSample,幕布 1Hz 采样)", () => {
     expect(watch.onScreenSample("sc5", true)).toBe("asked"); // 防抖满即置位
   });
 
-  it("字节流置位的等待被屏幕消失自愈(CLI 自行继续,spinner 使流静默永不达成)", async () => {
+  it("字节流置位的等待被屏幕持续消失自愈(闪断单拍不摘)", async () => {
     fire("sc3", OMP_ASK);
     await pastConfirm();
     fire("sc3", OMP_ASK);
     expect(watch.isWaiting("sc3")).toBe(true);
-    expect(watch.onScreenSample("sc3", false)).toBe("healed"); // 屏幕无面板 → 摘
+    /* 首拍缺席:闪断保护,只记起算不摘(整帧重绘的空屏帧属常态) */
+    expect(watch.onScreenSample("sc3", false)).toBeNull();
+    expect(watch.isWaiting("sc3")).toBe(true);
+    /* 缺席满一个确认窗(≥1 采样间隔):真消失,摘(spinner 静默流仍可自愈) */
+    await vi.advanceTimersByTimeAsync(1_300);
+    expect(watch.onScreenSample("sc3", false)).toBe("healed");
     expect(watch.isWaiting("sc3")).toBe(false);
   });
 

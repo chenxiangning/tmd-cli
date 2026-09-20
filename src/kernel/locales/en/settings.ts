@@ -58,6 +58,8 @@ export const MESSAGES = {
   "提示音音效": "Notification sound effect",
   "试听": "Preview",
   "提示音音量": "Notification volume",
+  "命令类只填可执行文件名,参数写 args 字段(空格串会被当作路径查找而失败)。":
+    "For command targets, put only the executable name — parameters go in the args field (a string with spaces fails path lookup).",
   "作用于 Ask 提示音与结束提示音。": "Applies to both the ask sound and the turn-end sound.",
   "结束提示音": "Turn-end sound",
   "一轮对话结束且未被查看时播放（结算后静默 3 秒确认，中途来新输出不响）。":

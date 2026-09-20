@@ -58,22 +58,21 @@
 ## 8. P3 池(穿插清)
 
 会话生命:
-- [ ] 8.1 `askWatchCore.ts:139-144` 屏幕态自愈对称:!present 时字节尾巴页脚窗仍含标记则保留 waiting(现无条件连字节通道一并摘,整帧重绘瞬时采样闪摘)
-- [ ] 8.2 `sessionStartFail.ts:50` 20s 窗外退出且 outputTail 非空 → 降级普通退出通知(现直接 return,慢启动 CLI 崩溃静默消失)
-- [ ] 8.3 `sessionDeleted.ts:23` 墓碑提容对齐 2000(overlayEvict.ts:21 注释明说实例化处单独提容,此处漏;删盘失败路径 200 次后幽灵复活);`sessionArchive.ts:22-24` 注释 200→2000 口径
-- [ ] 8.4 `host.ts:268` removeSession 兜底活跃指针改 sessionTabs MRU 序(现取注册表序 sessions[0])
+- [x] 8.1 askWatchCore 屏幕态自愈对称化:字节态等待摘除对称防抖(缺席 ≥ASK_CONFIRM_MS 两拍才摘,瞬时空屏帧不闪摘;spinner 静默流自愈保留);absentSince 随 onUserWrite/onSessionRemoved/resetForTest 全清
+- [x] 8.2 20s 窗外退出带崩溃特征(error/fatal/panic/… 启发式)降级广播 late=true,Toast 标题「{name} 会话异常退出」;正常退出(/quit)静默不打扰
+- [x] 8.3 墓碑提容 2000(容量测试同步);sessionArchive 注释对齐 2000 口径
+- [x] 8.4 removeSession 后继指针走 sessionTabs MRU 序(closeSessionTab 同语义),回落注册表首项
 
 marks/composer 补:
-- [ ] 8.5 `useComposerSend.ts:76-81` sendTransforms 过轮次闸(现 payload 构建先于 readPromptGate,ask 确认期作答也注入 staged 引用并翻 sent)
-- [ ] 8.6 `enterAction.ts:26` Enter 兜底 keyCode 229 / compositionend 短窗(WKWebView 平台差异,推断项)
-- [ ] 8.7 `useComposerDrawer.ts:71-74` 抽屉发送对在挂 staged 芯片提示「仍待注入」或提供一并注入(现注释自认同路径但零拦截)
-- [ ] 8.8 `marks/store.ts:266` relocatePath 唯一调用面 editorExtension.ts:160——面板打开/发送前补路径存在性检查,失存标 lost(现删/改名文件标记永不重定位,「定位」静默失败)
+- [x] 8.5 发送变换过轮次闸(单路+广播):ask 确认期作答不注入 staged 引用块、不翻 sent,与 promptSent 锚点闸口径一致
+- [x] 8.6 Enter 兜底 keyCode 229(WKWebView 组合末尾派发的确认 Enter 不误发送),回归测试入 enterAction.test
+- [x] 8.7 抽屉命令发送后在挂 staged 芯片时 toast 附「{n} 条引用标记仍待下次输入注入」(composerExt 新 registerComposerPendingCount 注册面,marks 注册计数)
+- [x] 8.8 MarksPanel 打开即存在性巡检:pending 标记文件失存批量标 lost(relocate 依赖打开文件,删除场景永无机会)
 
 files/cli 补:
-- [ ] 8.9 `open_with.rs:41-46` command 类直启不经 shell:设置面板加「参数请填 args」提示(或含空格且无对应可执行时 shell 分词兜底)
-- [ ] 8.10 `cli-codex/edits.ts:67-75,73` locateRollout 双修:缓存带 mtime/重扫对齐 sessionStatus revalidate;:73 find 命中改取最新(现取首个匹配,同 id 新 rollout 漏事件)
-- [ ] 8.11 `QuickOpen.tsx:53-68` walk 按 root+mtime 缓存(可选,大仓慢盘有感再做)
-
+- [x] 8.9 打开方式帮助行补「命令类只填可执行文件名,参数写 args 字段」(open_with command 直启无 shell,空格串必败)
+- [x] 8.10 codex rollout 定位:同 id 多文件取文件名最新(时间戳前缀降序)+ 读失败清缓存重定位(新 rollout 顶掉旧文件场景)
+- [ ] 8.11 [缓做] QuickOpen walk 缓存(root+mtime):低优,大仓慢盘有感再做(任务板原文明示)
 ## 9. 收口
 
 - [ ] 9.1 每批验证:前端五件套(typecheck/test/arch-boundary/file-size/build)+ react-doctor 100;涉 Rust 批跑 cargo test/clippy -D warnings/fmt

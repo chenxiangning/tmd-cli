@@ -62,14 +62,14 @@ describe("isSessionDeleted / markSessionDeleted", () => {
     expect(mockSettings.sessionDeleted[key].deletedAt).toBeGreaterThan(first);
   });
 
-  it("满额逐出:第 201 个写入逐出 deletedAt 最旧的条目,保留最新 200 条", () => {
-    for (let i = 0; i < 200; i++) {
+  it("满额逐出:第 2001 个写入逐出 deletedAt 最旧的条目,保留最新 2000 条", () => {
+    for (let i = 0; i < 2000; i++) {
       vi.setSystemTime(new Date("2026-09-19T00:00:00Z").getTime() + i * 1_000);
       markSessionDeleted(sessionDeletedKey("ws1", "claude", `old-${i}`));
     }
     vi.setSystemTime(new Date("2026-09-19T00:05:00Z"));
     markSessionDeleted(sessionDeletedKey("ws1", "claude", "newest"));
-    expect(Object.keys(mockSettings.sessionDeleted)).toHaveLength(200);
+    expect(Object.keys(mockSettings.sessionDeleted)).toHaveLength(2000);
     expect(isSessionDeleted(sessionDeletedKey("ws1", "claude", "old-0"))).toBe(
       false,
     );
@@ -82,7 +82,7 @@ describe("isSessionDeleted / markSessionDeleted", () => {
   });
 
   it("逐出保护:满额时新写 key 永不被逐出(逐出的总是历史最旧者)", () => {
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 2000; i++) {
       vi.setSystemTime(new Date("2026-09-19T00:00:00Z").getTime() + i * 1_000);
       markSessionDeleted(sessionDeletedKey("ws1", "claude", `old-${i}`));
     }
@@ -92,6 +92,6 @@ describe("isSessionDeleted / markSessionDeleted", () => {
     expect(isSessionDeleted(sessionDeletedKey("ws1", "claude", "just-now"))).toBe(
       true,
     );
-    expect(Object.keys(mockSettings.sessionDeleted)).toHaveLength(200);
+    expect(Object.keys(mockSettings.sessionDeleted)).toHaveLength(2000);
   });
 });

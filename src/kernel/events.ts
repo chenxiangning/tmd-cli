@@ -79,11 +79,13 @@ export interface FileEditEvent {
   paths: string[];
 }
 
-/** sessionStartFailed 负载:reason = 幕布尾部摘要(秒退)或错误消息(spawn 被拒);sessionId 为 null = PTY 尚未诞生。 */
+/** sessionStartFailed 负载:reason = 幕布尾部摘要(秒退)或错误消息(spawn 被拒);
+ *  sessionId 为 null = PTY 尚未诞生;late = 启动窗口外退出(崩溃特征命中才广播)。 */
 export interface SessionStartFailedEvent {
   sessionId: string | null;
   profileId: string | null;
   reason: string;
+  late?: boolean;
 }
 
 /** settingsPersistFailed 负载:Tauri 环境写盘失败(盘上旧文件仍完好,重启将回读旧值)。 */

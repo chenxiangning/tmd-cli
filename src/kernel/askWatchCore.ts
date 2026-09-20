@@ -4,14 +4,10 @@
  * 检测原语/阈值在 askDetect.ts;host 接线(AskWatchFeed)在 askWatchFeed.ts;
  * 机制总述文档留在入口 askWatch.ts。
  *
- * 状态迁移:
- * - 立候选:空闲时标记命中(不响不亮,仅观察);
- * - 升级:候选存在,且①标记复现距首击 ≥ 确认窗,或②静默期满页脚字面量仍在,
- *   均须不在写后抑制窗内 → 等待(askDetected + 标签);
- * - 撤销:候选存在,距上次命中流出超 16KB 仍无复现 → 回到空闲;
- * - 清除:用户写入(作答,尾巴/候选一并重置)/ 静默自愈 / 会话移除。
- * 一个未回答的提问期间无论重绘多少次只触发一次;作答后的下一个提问再触发
- * (抑制窗内只延迟;omp 静态面板字节候选会被漂移先行撤销,由屏幕通道窗后兜底)。
+ * 状态迁移:空闲 --标记命中--> 候选(不响不亮,仅观察);候选 --复现距首击
+ * ≥确认窗 或 静默期满页脚字面量仍在--> 等待(须不在写后抑制窗;askDetected
+ * + 标签);候选 --流出超 16KB 无复现--> 空闲;用户写入/静默自愈/会话移除清除。
+ * 一个未回答提问期间只触发一次;作答后下一提问再触发(抑制窗内只延迟)。
  */
 
 import {
@@ -58,6 +54,8 @@ export class AskWatch {
   private readonly screenSince = new Map<string, number>();
   /** 屏幕态置位的等待集合:与字节流 waiting 并集判定,自愈互认。 */
   private readonly waitingByScreen = new Set<string>();
+  /** 字节态等待的屏幕缺席起始时刻:摘除对称防抖(连续两拍缺席才摘)。 */
+  private readonly absentSince = new Map<string, number>();
   /** 每会话的 CLI 声明标记(CliProfile.askMarks,feed 随首帧输出注入);
       计时器/自愈路径无处取 profile,按会话留存。 */
   private readonly marksBySession = new Map<string, RegExp[]>();
@@ -71,12 +69,9 @@ export class AskWatch {
   ) {}
 
   /**
-   * 会话输出进站(host.appendOutput 唯一调用方)。
-   * 返回 true = 候选确认升级为等待(false → true),host 据此发 askDetected 并重渲染;
-   * 其余情况(立候选/撤销/等待中重绘)恒 false。等待中尾巴照常推进 —— 结算自愈
-   * 要读现势尾巴判断面板字面量是否仍在。
-   * byteLength:chunk 的 UTF-8 字节数(host 侧 OutputBufferStore 编码顺手产出);
-   * 漂移阈值是字节语义,CJK 状态栏按 chars 计量会偏松 3 倍(评审实测)。
+   * 会话输出进站(host.appendOutput 唯一调用方)。返回 true = 候选升级等待
+   * (host 发 askDetected 并重渲染);其余恒 false。等待中尾巴照常推进(结算
+   * 自愈要读现势尾巴)。byteLength = chunk UTF-8 字节数(漂移阈是字节语义)。
    */
   onOutput(
     sessionId: string,
@@ -125,24 +120,36 @@ export class AskWatch {
     return false;
   }
 
-  /**
-   * 屏幕采样进站(TerminalView 1Hz 轮询幕布底部行,v3)。
-   * 字节流检测的原理性盲区:omp 等待期间 spinner 以光标寻址持续重绘
-   * (实测 3h 挂起面板后流 7.4MB、标记远在 512KB 缓冲之外),静态面板的
-   * 标记一旦流出尾窗永不复现 —— 但屏幕(xterm buffer)上标记始终在。
-   * 语义:屏幕上可见面板标记 ⟺ 等待用户确认。防抖:连续在场 ≥ASK_CONFIRM_MS
-   * 才置位;消失即摘(自愈,覆盖 CLI 未等写入自行继续的场景)。
-   * 返回 "asked"(false→true 升级)/ "healed"(摘除)/ null(无迁移)。
-   */
+  /** 屏幕采样进站(1Hz):字节流盲区(spinner 光标寻址重绘,静态面板标记流出
+   * 尾窗永不复现)由屏幕态兜底。置位防抖在场 ≥ASK_CONFIRM_MS;字节态摘除
+   * 对称防抖(缺席 ≥ASK_CONFIRM_MS)。返回 asked/healed/null。 */
   onScreenSample(sessionId: string, present: boolean): "asked" | "healed" | null {
     const now = Date.now();
     if (!present) {
       this.screenSince.delete(sessionId);
-      const healed =
-        this.waitingByScreen.delete(sessionId) || this.waiting.delete(sessionId);
+      const healedScreen = this.waitingByScreen.delete(sessionId);
+      /* 字节态摘除对称防抖:瞬时闪断(整帧重绘空屏帧)单拍不摘,缺席满
+       * ASK_CONFIRM_MS(≥1 采样间隔)才摘;spinner 静默流自愈能力保留。 */
+      let healedByte = false;
+      if (this.waiting.has(sessionId)) {
+        const absentSince = this.absentSince.get(sessionId);
+        if (absentSince === undefined) {
+          this.absentSince.set(sessionId, now);
+        } else if (now - absentSince >= ASK_CONFIRM_MS) {
+          healedByte = this.waiting.delete(sessionId);
+          this.absentSince.delete(sessionId);
+        }
+      } else {
+        this.absentSince.delete(sessionId);
+      }
+      if (healedScreen || healedByte) {
+        this.stopWatchIfIdle();
+        return "healed";
+      }
       this.stopWatchIfIdle();
-      return healed ? "healed" : null;
+      return null;
     }
+    this.absentSince.delete(sessionId);
     if (this.waiting.has(sessionId) || this.waitingByScreen.has(sessionId)) {
       return null; /* 已置位:字节流与屏幕态互认,不重复发边沿 */
     }
@@ -162,10 +169,8 @@ export class AskWatch {
     return "asked";
   }
 
-  /**
-   * 用户写入(仅非 synthetic 真实击键)= 作答:尾巴/候选/屏幕起算一并重置。
-   * 仅真作答(写入时确有等待态)才上 8s 写后闸;普通发消息后是新提问非残影(实测根因)。
-   */
+  /** 用户写入(非 synthetic)= 作答:尾巴/候选/屏幕起算重置;仅真作答(写入时
+   * 确有等待态)才上 8s 写后闸,普通发消息后是新提问非残影。 */
   onUserWrite(sessionId: string): boolean {
     const answered =
       this.waiting.has(sessionId) ||
@@ -184,16 +189,10 @@ export class AskWatch {
 
   /**
    * 守望计时器(1Hz,等待或候选非空时运转)双职责:
-   * ① 候选漂移确认:期满(≥ASK_CONFIRM_MS)且命中后累计新输出 ≤
-   *   ASK_CONFIRM_MAX_DRIFT_BYTES = 面板静态驻留、仅状态栏/spinner 细水长流
-   *   (omp Ask 面板光标停住后不再重绘,标记早被后台输出挤出 1024 尾巴,
-   *   「标记仍在尾巴」判定在此场景必然漏报 —— 实测根因);真实响应流 1.2s 内
-   *   远超半帧 TUI,漂移超阈即就地撤销候选(标记确已随流远去)。
-   *   写后抑制窗内的残影不升级(作答后的复燃双保险之一,另一是写入清尾)。
-   * ② 等待自愈:输出静默超阈值且尾巴再无面板字面量 = CLI 已自行继续,残留等待
-   *   就地摘除。真面板常驻重绘持续刷新静默钟不会被误清;整帧重绘的末行必含面板
-   *   字面量,静默挂起的真面板尾巴里仍有字面量,同样保守保留。
-   * 不依赖轮次结算,未锚定会话同样覆盖。
+   * ① 候选漂移确认:期满(≥ASK_CONFIRM_MS)且命中后累计新输出 ≤ 漂移阈 =
+   *   面板静态驻留(omp 光标停住不再重绘,标记已被后台输出挤出尾巴)→ 升级;
+   *   真实响应流 1.2s 内远超半帧,漂移超阈即撤销。写后抑制窗内残影不升级。
+   * ② 等待自愈:输出静默超阈值且尾巴再无面板字面量 = CLI 已自行继续,摘除。
    */
   private ensureWatch(): void {
     if (this.timer !== null) return;
@@ -201,8 +200,7 @@ export class AskWatch {
       const now = Date.now();
       const asked = new Set<string>();
       for (const [id, candidate] of [...this.candidates]) {
-        /* 漂移超阈 = 标记已被实质输出推走(回放/响应体),候选就地撤销;
-           撤销后 onOutput 的字节缺口路径不再持有引用,无需二次清理 */
+        /* 漂移超阈 = 标记已被实质输出推走,候选就地撤销 */
         const drift = (this.bytesIn.get(id) ?? 0) - candidate.lastHitBytes;
         if (drift > ASK_CONFIRM_MAX_DRIFT_BYTES) {
           this.candidates.delete(id);
@@ -259,10 +257,10 @@ export class AskWatch {
     this.waiting.delete(sessionId);
     this.waitingByScreen.delete(sessionId);
     this.screenSince.delete(sessionId);
+    this.absentSince.delete(sessionId);
     this.lastOutputAt.delete(sessionId);
     this.bytesIn.delete(sessionId);
     this.lastWriteAt.delete(sessionId);
-    this.marksBySession.delete(sessionId);
     this.stopWatchIfIdle();
   }
 
@@ -284,8 +282,8 @@ export class AskWatch {
     this.bytesIn.clear();
     this.lastWriteAt.clear();
     this.waitingByScreen.clear();
+    this.absentSince.clear();
     this.screenSince.clear();
-    this.marksBySession.clear();
   }
 
   /** 是否已有任何检测态(等待/屏幕等待/候选):回放补观察的短路判据。 */

@@ -20,14 +20,15 @@ export type { SessionDeletedEntry };
 /** 删除意图 key:`${workspaceId}:${profileId}:${cliSessionId}` —— 与置顶 key 同构。 */
 export const sessionDeletedKey = sessionOverlayKey;
 
-const overlay = makeOverlay<SessionDeletedEntry>("sessionDeleted", "deletedAt");
+const overlay = makeOverlay<SessionDeletedEntry>("sessionDeleted", "deletedAt", 2000);
 
 /** 是否已被用户删除(意图在册,列表隐藏)。 */
 export const isSessionDeleted = overlay.has;
 
 /**
- * 记录删除意图;已在册时刷新时间戳(幂等);容量满(200)时逐出 deletedAt 最旧条目。
- * 删除成功路径同样在册 —— id 不复用,残留 key 无害,且让「删除后重扫前」的
- * 窗口期内行也即时隐藏,不闪现。
+ * 记录删除意图;已在册时刷新时间戳(幂等);容量满(2000)时逐出 deletedAt 最旧条目
+ * (对齐 sessionArchive 提容:删盘失败路径靠墓碑防复活,200 次删除后最旧逐出
+ * 会让删失败会话重扫复活成幽灵行)。删除成功路径同样在册 —— id 不复用,残留
+ * key 无害,且让「删除后重扫前」窗口期内的行也即时隐藏,不闪现。
  */
 export const markSessionDeleted = overlay.mark;
