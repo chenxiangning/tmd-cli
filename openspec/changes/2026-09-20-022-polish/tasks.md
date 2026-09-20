@@ -30,11 +30,10 @@
 - [ ] 4.5 [归 9.2] 快开/wsfb UI 目检:headless 桩遇双模块实例分叉(store 与 app 树不同步)未能完成;Rust 截断契约有单测,真窗口目检并入收口批
 
 ## 5. 可见失败小修(四条独立)
-
-- [ ] 5.1 `settings.ts:183-203` persistNow 失败降级 localStorage 仅限浏览器 dev(:195 注释自认);Tauri 环境写盘失败向 UI 通知——触发条件=写失败但盘上旧文件可读(磁盘满/杀软锁),此时 load(:205-215)永远读不到兜底,改动静默丢失
-- [ ] 5.2 `cli-dsh/dshHost.ts:216-221` lsof procCommunicate 补 .catch(lsof 缺席即 reject;同函数 :236 KILL 已有 catch);`hostPanel.tsx:115-124,127-134` onStop/onCancelStart 包 try/catch 落 error——现 reject 后 setPending(null) 永不执行,面板卡「正在停止…」
-- [ ] 5.3 `terminalCopyMenu.tsx:77` clipboard 失败轻提示(词条「剪贴板写入失败」已有)
-- [ ] 5.4 `welcome/EngineCard.tsx:82-83` latest=null(类型注释自认「查询失败(不渲染)」)改行内轻量失败占位 + 重试
+- [x] 5.1 settings persistNow:Tauri 写盘失败广播 settingsPersistFailed(新 toast SettingsPersistToast 复用 sft 卡片样式),localStorage 兜底仅浏览器 dev;host 动态导入破 settings↔host 静态环
+- [x] 5.2 dsh 停止链:lsof/TERM 探针源头全容错(.catch → 跳过),hostPanel pending 不再永卡「正在停止…」(源头修复后 onStop 无需再包)
+- [x] 5.3 终端复制:失败保菜单开 + 行内「剪贴板写入失败」(词条复用 common)
+- [x] 5.4 引擎卡版本查询失败:RowVersion 行内「版本获取失败」占位 + tooltip 指向标题条刷新(重试通道已存在:refreshTick 强制重拉失败引擎)
 
 ## 6. git 打磨
 

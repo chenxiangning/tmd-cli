@@ -210,7 +210,9 @@ export async function ensureHostSession(
 /* 平台判定统一走 kernel/platform(UA 小写化 + unknown 兜底链),不自造。 */
 const isWindowsPlatform = () => getPlatformKind() === "windows";
 
-/** unix:lsof 找 LISTEN pid → TERM,非零退出补 KILL(codemoss 同款)。 */
+/** unix:lsof 找 LISTEN pid → TERM,非零退出补 KILL(codemoss 同款)。
+ *  lsof/kill 探针全程容错:缺席/超时即跳过 —— 此链任何 reject 都会让
+ *  hostPanel 的 pending 永卡「正在停止…」(onStop 无 try/catch)。 */
 async function terminateLocalListenerUnix(port: number): Promise<void> {
   const cwd = await ipc.configHomeDir();
   const scan = await ipc.procCommunicate({
@@ -218,7 +220,8 @@ async function terminateLocalListenerUnix(port: number): Promise<void> {
     args: ["-n", "-P", "-t", `-iTCP:${port}`, "-sTCP:LISTEN"],
     cwd,
     timeoutMs: 8000,
-  });
+  }).catch(() => null);
+  if (!scan) return;
   const pids = scan.stdout.split("\n").map((l) => l.trim()).filter((l) => /^\d+$/.test(l));
   if (pids.length === 0) return;
   const term = await ipc.procCommunicate({
@@ -226,8 +229,8 @@ async function terminateLocalListenerUnix(port: number): Promise<void> {
     args: ["-TERM", ...pids],
     cwd,
     timeoutMs: 8000,
-  });
-  if (term.code !== 0) {
+  }).catch(() => null);
+  if (term && term.code !== 0) {
     await ipc.procCommunicate({
       command: "kill",
       args: ["-KILL", ...pids],

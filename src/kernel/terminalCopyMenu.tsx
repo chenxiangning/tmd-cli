@@ -21,17 +21,17 @@ export function TerminalCopyMenu({
   active: boolean;
 }) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [copyFailed, setCopyFailed] = useState(false);
   const selRef = useRef("");
   const mouse = useRef({ x: 0, y: 0 });
-  /* 单槽跟随激活实例(同 findRequestRef):keep-alive 多幕布并存,仅激活幕布接触发并记鼠标锚点。 */
   useEffect(() => {
     if (!active) return;
     const open = () => {
       selRef.current = termRef.current?.getSelection() ?? "";
+      setCopyFailed(false);
       const m = mouse.current;
       setPos({ x: m.x || window.innerWidth / 2, y: m.y || window.innerHeight / 3 });
     };
-    /* 键盘触发的菜单无天然锚点,锚最近鼠标点;监听随激活槽挂摘。 */
     const onMove = (e: MouseEvent) => {
       mouse.current.x = e.clientX;
       mouse.current.y = e.clientY;
@@ -62,6 +62,16 @@ export function TerminalCopyMenu({
     setPos(null);
     termRef.current?.focus();
   };
+  /* 失败保菜单开 + 显错:静默吞掉会让人以为已复制 */
+  const onCopy = () => {
+    void navigator.clipboard.writeText(selRef.current).then(
+      () => {
+        setPos(null);
+        termRef.current?.focus();
+      },
+      () => setCopyFailed(true),
+    );
+  };
   const left = Math.max(8, Math.min(pos.x, window.innerWidth - 136));
   const top = Math.max(8, Math.min(pos.y, window.innerHeight - 88));
   return (
@@ -73,13 +83,14 @@ export function TerminalCopyMenu({
       >
         <button
           disabled={!selRef.current}
-          onClick={() =>
-            act(() => void navigator.clipboard.writeText(selRef.current).catch(() => {}))
-          }
+          onClick={onCopy}
           className="block w-full px-3 py-1.5 text-left text-xs text-(--tmd-fg) hover:bg-(--tmd-bg-hover) disabled:opacity-50 disabled:hover:bg-transparent"
         >
           {t("复制")}
         </button>
+        {copyFailed && (
+          <div className="px-3 py-1 text-[0.625rem] text-(--tmd-err)">{t("剪贴板写入失败")}</div>
+        )}
         <button
           onClick={() => act(() => host.writeSession(sessionId, "\x03"))}
           className="block w-full px-3 py-1.5 text-left text-xs text-(--tmd-fg) hover:bg-(--tmd-bg-hover)"

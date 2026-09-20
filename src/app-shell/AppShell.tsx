@@ -32,6 +32,7 @@ import { RightPanelToolbar } from "./RightPanelToolbar";
 import { SidebarSettingsCluster } from "./SidebarSettingsCluster";
 import { PluginMarketPage } from "./PluginMarketPage";
 import { StartFailureToast } from "./StartFailureToast";
+import { SettingsPersistToast } from "./SettingsPersistToast";
 import { useEditorMaximized } from "./editorMaximized";
 import { shellBarToggles, shellLeftEnsureOpen, shellMarketClose, shellMarketToggle } from "./shortcutCommands";
 import { installShortcutDispatcher } from "@kernel/shortcuts";
@@ -195,6 +196,7 @@ export function AppShell() {
 
       <Mounts point="overlay" />
       {/* 会话启动失败通知:进程秒退静默闪退的兜底呈现(见 kernel/sessionSpawn.ts) */}
+      <SettingsPersistToast />
       <StartFailureToast />
     </div>
   );

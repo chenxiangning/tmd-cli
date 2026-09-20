@@ -56,6 +56,8 @@ export const KernelTopics = {
    * ask 作答与轮中控制命令(如 /model 切模型)不开轮、不广播。
    */
   promptSent: "kernel.sessions.prompt",
+  /** 设置写盘失败(Tauri 环境):payload SettingsPersistFailedEvent,toast 呈现。 */
+  settingsPersistFailed: "kernel.settings.persistFailed",
 } as const;
 
 /** promptSent 负载:text = 发送的原文(prepareSendPayload 前,translate 后的展示文本截断)。 */
@@ -82,4 +84,9 @@ export interface SessionStartFailedEvent {
   sessionId: string | null;
   profileId: string | null;
   reason: string;
+}
+
+/** settingsPersistFailed 负载:Tauri 环境写盘失败(盘上旧文件仍完好,重启将回读旧值)。 */
+export interface SettingsPersistFailedEvent {
+  error: string;
 }

@@ -13,6 +13,8 @@ const MESSAGES_EN = {
   "↑↓ 选引擎 · ⏎ 以所选工作区启动新会话 · 点击 ● 展开凭据额度":
     "↑↓ pick engine · ⏎ new session in selected workspace · click ● to expand credentials & quota",
   "刷新首页数据": "Refresh home data",
+  "版本获取失败": "version lookup failed",
+  "最新版查询失败,点右上刷新按钮重试": "Latest version lookup failed — use the refresh button at top right to retry",
   "移动游标": "move cursor",
   "启动新会话": "start new session",
   "展开凭据与额度": "expand credentials & quota",
@@ -112,6 +114,8 @@ const MESSAGES_JA = {
   "↑↓ 选引擎 · ⏎ 以所选工作区启动新会话 · 点击 ● 展开凭据额度":
     "↑↓ エンジン選択 · ⏎ 選択ワークスペースで新規セッション · ● クリックで認証情報と使用量を表示",
   "刷新首页数据": "ホームデータを更新",
+  "版本获取失败": "バージョン取得に失敗",
+  "最新版查询失败,点右上刷新按钮重试": "最新版の取得に失敗しました — 右上の更新ボタンで再試行してください",
   "移动游标": "カーソル移動",
   "启动新会话": "新規セッション開始",
   "展开凭据与额度": "認証情報と使用量を展開",

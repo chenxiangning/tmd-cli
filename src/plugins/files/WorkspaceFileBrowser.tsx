@@ -50,8 +50,7 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
   const [walkError, setWalkError] = useState(false);
   const [tick, setTick] = useState(0);
   /* —— 数据面(右栏同源)—— */
-  const { entries, expanded, selectedPath, setSelectedPath, loading, reloadAll, revealDir, toggle } =
-    useDirTree(root);
+  const { entries, expanded, selectedPath, setSelectedPath, loading, reloadAll, revealDir, toggle } = useDirTree(root);
   /* 行右键/命名弹窗/轻提示:与右栏 FileTree 同一 useTreeOperations(零新逻辑)。 */
   const ops = useTreeOperations({ root, revealDir, setSelected: setSelectedPath });
   const rowMenu = useCallback<WsfbRowMenu>(
@@ -67,6 +66,7 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
 
   /* 忽略前缀:挂载/手动刷新拉取(低频);非仓/失败 = 空集(绝对路径口径)。
    * ponytail: 嵌套仓各自的 ignore 未并入,需要时逐仓再取。 */
+  const [ignored, setIgnored] = useState<string[]>([]);
   useEffect(() => {
     let alive = true;
     ipc.gitIgnoredPrefixes(root).then(

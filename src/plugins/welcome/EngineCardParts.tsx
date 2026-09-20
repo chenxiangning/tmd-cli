@@ -31,7 +31,8 @@ export function RowVersion({
     return <span className="welcome-row-ver missing">{t("探针失败")}</span>;
   }
   const version = probe.result?.version ?? t("已安装");
-  /* 落后且拿到最新版:→ latest 高亮;已最新/查询失败:只显版本(tooltip 补)。 */
+  /* 落后且拿到最新版:→ latest 高亮;latest=null 查询失败:行内占位
+     (此前静默不渲染,重试入口只藏于版本菜单)——重试走标题条刷新按钮。 */
   const showNew = outdated && typeof latest === "string";
   return (
     <span
@@ -40,6 +41,12 @@ export function RowVersion({
     >
       {version}
       {showNew && <span className="new"> →{latest}</span>}
+      {latest === null && (
+        <span className="mut" title={t("最新版查询失败,点右上刷新按钮重试")}>
+          {" "}
+          {t("版本获取失败")}
+        </span>
+      )}
     </span>
   );
 }

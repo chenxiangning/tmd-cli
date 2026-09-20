@@ -18,8 +18,8 @@ import { DEFAULT_SETTINGS } from "./settingsDefaults";
 import type { AppSettings } from "./settingsTypes";
 import { sanitize } from "./settingsSanitize";
 import { setShortcutOverrides } from "./shortcutOverrides";
-import { listen } from "./transport";
-
+import { isWeb, listen } from "./transport";
+import { KernelTopics } from "./events";
 export * from "./settingsTypes";
 export * from "./settingsAppearance";
 
@@ -191,13 +191,21 @@ async function persistNow(): Promise<void> {
     }
     await ipc.configWriteSettings(payload);
     advanceBaseline(memory, payload);
-  } catch {
+  } catch (err) {
     // 浏览器 dev:降级 localStorage
     try {
       localStorage.setItem(LOCAL_FALLBACK_KEY, JSON.stringify(memory));
       diskBaseline = memory;
-    } catch (err) {
-      console.warn("settings: 持久化失败", err);
+    } catch (err2) {
+      console.warn("settings: 持久化失败", err2);
+    }
+    /* Tauri 环境写盘失败必须可见:盘上旧文件完好 → 重启回读旧值,
+       localStorage 兜底永远不生效,改动静默丢失。toast 订阅在 app-shell。
+       host 动态导入:settings ← host 静态环(host imports settings)。 */
+    if (!isWeb) {
+      void import("./host").then(({ host }) =>
+        host.events.emit(KernelTopics.settingsPersistFailed, { error: String(err) }),
+      );
     }
   }
 }

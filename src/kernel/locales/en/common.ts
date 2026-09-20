@@ -197,4 +197,6 @@ export const MESSAGES = {
     'No local plugins yet — click "Copy plugin dev prompt" and paste it to the AI in any session; it writes the plugin into ~/.tmd-cli/plugins/',
   "操作失败": "Action failed",
   "剪贴板写入失败": "Failed to write clipboard",
+  "设置保存失败,重启后将丢失本次改动": "Failed to save settings — changes will be lost on restart",
+  "关闭设置保存失败通知": "Dismiss settings save failure",
 } as Record<string, string>;
