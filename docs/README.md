@@ -161,8 +161,6 @@
 | 2026-09-18 | [文件标记 × 对话框原型 方案 D:行间锚点 + 全局标记中心(跨文件聚合发送,sidecar 零写入 + 指纹锚定)](design/file-mark-composer-d.html) | 设计原型(已拍板) |
 | 2026-09-18 | [文件标记(file-marks)设计 spec:插件化 + 两条 kernel 宿主注册契约](superpowers/specs/2026-09-18-file-marks-design.md) | 已落地(cbe7839/a157610/6317d86;宿主契约见 architecture/13) |
 | 2026-09-18 | [会话状态轮询性能批次一提案:尾读尺寸闸 + configHomeDir 进程 memo(含原设计校准矩阵)](../openspec/changes/archive/2026-09-18-perf-status-poll/proposal.md) | 已落地(4e859fd/9aa8f77/66599b9;同批平铺门控修复 0f6131e,已归档) |
-| 2026-09-18 | [会话用量可见性设计 spec(本地 JSONL token 四元组 + cache 命中率 + 行徽标/详情弹层;pi/omp 透传自带 cost)](superpowers/specs/2026-09-18-session-usage-visibility-design.md) | 草案(设计推演,未排期) |
-| 2026-09-18 | [会话用量可见性交互原型(侧栏行徽标 + 看板角标 + 用量详情弹层;真实采样数据)](design/session-usage-visibility.html) | 设计原型(配套上 spec) |
 | 2026-09-18 | [yn(Yank Note)能力复刻:md 渲染提速 + 代码渲染 + 全文搜索/快开](superpowers/specs/2026-09-18-yn-replicate-md-render-code-search-design.md) | 已落地(f176423/15e7e60/2c58d44;AGPL/MIT 裁决:照抄逻辑不抄代码) |
 | 2026-09-19 | [近 20 笔提交整体 code review(P0×1 + P1×2 + P2×8 全修;marks/git/yn/perf/跨领域五路)](review/2026-09-19-20-commits-global-review.md) | 已完成(修复随本批提交;门禁全绿 react-doctor 100;缓修 4 项见文末) |
 | 2026-09-19 | [代码符号跳转与引用(cmd/ctrl+click)调研:yn 实证 + 多语言语义路线(LSP)](research/code-symbol-references.md) | 调研底稿(方向已定:yn 本就是语义引用;用户拍板弃字面,一步到位 LSP 语义通道) |
@@ -170,4 +168,6 @@
 | 2026-09-19 | [LSP 语义跳转交互增强(二轮):手势反馈 / peek 面板 / hover 渲染](superpowers/specs/2026-09-19-lsp-interaction-enhancement-design.md) | 已落地(db938d6;桩目检六场景全绿,架构沉淀 architecture/14) |
 | 2026-09-19 | [会话卫生清扫设计:超期(默认24h)自动归档 + 空会话删除,挂磁盘扫描结算点零轮询](superpowers/specs/2026-09-19-session-hygiene-auto-archive-design.md) | 已落地(1e75245;keep 覆盖层 + 9 引擎判空钩子 + 行为页开关/时窗) |
 | 2026-09-19 | [v0.2.0 发布后批次评审(sidekick 开关冲突修复 / 数组守卫补漏 / 死代码清理 / 文档 8 处对齐)](review/2026-09-19-v0.2.0-postrelease-review.md) | 已完成(修复与清理随评审提交) |
+| 2026-09-19 | [打开方式(Open With)设计:复刻 mossx(设置配置面板 + 文件底部入口菜单)](superpowers/specs/2026-09-19-open-with-design.md) | 已落地(实现随本批提交;入口仅文本族文件视图) |
+| 2026-09-20 | [近八笔提交全量审核(open-with/wsfb/md 目录/最大化/更新感应;P1×1+P2×3+P3×17 修 16 缓修 4)](review/2026-09-20-8-commits-global-review.md) | 已完成(修复随本批提交;门禁全绿 react-doctor 100;Windows 分隔符专项待排) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

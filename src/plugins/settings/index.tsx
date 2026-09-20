@@ -9,11 +9,12 @@
  * 本文件不需要改动 —— 设置面板是注册表驱动的开放结构。
  */
 
-import { Command, Keyboard, Monitor, Gear } from "@phosphor-icons/react";
+import { Command, Keyboard, Monitor, Export, Gear } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { SettingsPanel } from "./SettingsPanel";
 import { BasicAppearanceTab } from "./BasicAppearanceTab";
 import { BehaviorTab } from "./BehaviorTab";
+import { OpenWithTab } from "./OpenWithTab";
 import { ShortcutTab } from "./ShortcutTab";
 
 export const settingsPlugin: Plugin = {
@@ -50,10 +51,17 @@ export const settingsPlugin: Plugin = {
           component: BehaviorTab,
         },
         {
+          id: "openwith",
+          title: "打开方式",
+          icon: <Export size="0.875rem" aria-hidden />,
+          order: 2,
+          component: OpenWithTab,
+        },
+        {
           id: "shortcuts",
           title: "快捷键",
           icon: <Command size="0.875rem" aria-hidden />,
-          order: 2,
+          order: 3,
           component: ShortcutTab,
         },
       ],

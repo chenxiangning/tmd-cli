@@ -72,10 +72,11 @@ fn events_路径逃逸拒绝_git_归因会话事件丢弃() {
     assert!(!edit(&ws, "cli-1", "tmd-1", "../outside.txt"));
     assert!(!edit(&ws, "cli-1", "tmd-1", ""));
 
-    // git 归因会话:事件流不启用
-    ws.anchor("cli-2", "tmd-2", "p");
+    // git 归因会话:事件流不启用;钉宽 mtime 至 jiffy 噪声带外——自然 mtime
+    // 粗时钟可早于其后锚点 ts,落回上一会话窗口令 seal 无账可落
+    let a = ws.anchor("cli-2", "tmd-2", "p");
     ws.write("a.txt", "v2\n");
-    assert!(!edit(&ws, "cli-2", "tmd-2", "a.txt"));
+    ws.touch("a.txt", a.ts + 20);
     assert!(ws.seal("cli-2", "tmd-2"), "git 归因照常推断");
     assert_eq!(ws.batches("cli-2")[0].files[0].path, "a.txt");
 }

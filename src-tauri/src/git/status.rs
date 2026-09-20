@@ -161,6 +161,23 @@ fn fold_status(st: Status) -> (String, bool, bool) {
     (ch.to_string(), idx.is_some(), wt.is_some())
 }
 
+/// 忽略项前缀清单(git status --ignored 口径;侧栏工作区文件浏览器降显用)。
+/// 整体忽略的目录折叠返回(带尾斜杠,"node_modules/"),前端按前缀降显整棵
+/// 子树;untracked 开关仅为 libgit2 出 ignored 条目的前提,结果已过滤不外泄。
+pub fn ignored_prefixes(repo: &Repository) -> Result<Vec<String>, GitError> {
+    let mut opts = StatusOptions::new();
+    opts.include_ignored(true)
+        .include_untracked(true)
+        .recurse_untracked_dirs(false)
+        .include_unmodified(false);
+    let statuses = repo.statuses(Some(&mut opts))?;
+    Ok(statuses
+        .iter()
+        .filter(|s| s.status().is_ignored())
+        .map(|s| String::from_utf8_lossy(s.path_bytes()).into_owned())
+        .collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -182,5 +199,25 @@ mod tests {
             fold_status(Status::CONFLICTED),
             ("C".to_string(), false, true)
         );
+    }
+
+    #[test]
+    fn ignored_prefixes_collapses_dirs_with_trailing_slash() {
+        use crate::git::tests_common::TempRepo;
+        let t = TempRepo::new();
+        t.write(".gitignore", "node_modules/\ndist/\n");
+        t.write("keep.ts", "x");
+        std::fs::create_dir_all(t.dir.join("node_modules/pkg")).unwrap();
+        t.write("node_modules/pkg/a.js", "x");
+        std::fs::create_dir_all(t.dir.join("dist")).unwrap();
+        t.write("dist/out.js", "x");
+
+        let repo = Repository::open(t.path()).unwrap();
+        let out = ignored_prefixes(&repo).unwrap();
+        // 整目录忽略折叠返回(带尾斜杠)—— 前端 isIgnoredPath 前缀匹配的契约前提
+        assert!(out.contains(&"node_modules/".to_string()), "got {out:?}");
+        assert!(out.contains(&"dist/".to_string()), "got {out:?}");
+        // 非 ignored(untracked keep.ts)不外泄
+        assert!(!out.iter().any(|p| p.contains("keep.ts")), "got {out:?}");
     }
 }

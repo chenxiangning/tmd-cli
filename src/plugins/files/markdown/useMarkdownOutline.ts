@@ -5,7 +5,7 @@
  * - 换文档复位(折叠 + 不钉住)
  * - 渲染后按顺序给标题挂锚点 id
  * - 点击条目:锚点滚动 + 未钉住时自动收起
- * - 鼠标离开浮窗且未钉住 → 自动收起
+ * - 滚动跟随:视口顶沿之上最后一个标题为激活项(yn 观感)
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -68,6 +68,48 @@ export function useMarkdownOutline({
     });
   }, [outline, revealComplete]);
 
+  /* yn 滚动跟随:激活项 = 视口顶沿之上最后一个标题(被动监听)。标题节点
+     列表在 effect 建立时快照 —— 渐进渲染期间新标题暂不参与跟随,
+     revealComplete 翻转时 effect 重跑重建缓存,窗口自愈。 */
+  useEffect(() => {
+    const scrollEl = previewRootRef.current;
+    if (!scrollEl || outline.length === 0) {
+      return;
+    }
+    const flattenItems = flattenPreviewOutlineItems(outline);
+    const headingNodes = Array.from(
+      scrollEl.querySelectorAll<HTMLElement>(
+        ".fvp-file-markdown h1,.fvp-file-markdown h2,.fvp-file-markdown h3,.fvp-file-markdown h4,.fvp-file-markdown h5,.fvp-file-markdown h6",
+      ),
+    );
+    const syncActiveFromScroll = () => {
+      const viewTop = scrollEl.getBoundingClientRect().top + 1;
+      let active: PreviewOutlineItem | null = null;
+      for (let index = 0; index < flattenItems.length; index++) {
+        const headingNode = headingNodes[index];
+        if (headingNode && headingNode.getBoundingClientRect().top <= viewTop) {
+          active = flattenItems[index];
+        }
+      }
+      setActiveOutlineItemId((active ?? flattenItems[0] ?? null)?.id ?? null);
+    };
+    syncActiveFromScroll();
+    scrollEl.addEventListener("scroll", syncActiveFromScroll, { passive: true });
+    return () => scrollEl.removeEventListener("scroll", syncActiveFromScroll);
+  }, [outline, revealComplete]);
+
+  /* yn scrollIntoViewIfNeeded:激活行滚入大纲列表可视区(nearest,不惊动正文)。
+     经 previewRootRef 限定查询范围,不再 document 全局(未来双预览并存不串)。 */
+  useEffect(() => {
+    if (!activeOutlineItemId) {
+      return;
+    }
+    previewRootRef.current
+      ?.closest(".fvp-markdown-preview-frame")
+      ?.querySelector(".fvp-preview-outline-button.is-active")
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activeOutlineItemId]);
+
   const handleSelectOutlineItem = useCallback((item: PreviewOutlineItem) => {
     const articleNode = previewRootRef.current?.querySelector(".fvp-file-markdown");
     if (!articleNode) {
@@ -113,11 +155,6 @@ export function useMarkdownOutline({
     setIsOutlineCollapsed((current) => !current);
   }, []);
 
-  const handleOutlineMouseLeave = useCallback(() => {
-    if (!isOutlinePinned) {
-      setIsOutlineCollapsed(true);
-    }
-  }, [isOutlinePinned]);
 
   return {
     outline,
@@ -128,6 +165,5 @@ export function useMarkdownOutline({
     handleSelectOutlineItem,
     handleToggleOutlinePinned,
     handleToggleOutlineCollapsed,
-    handleOutlineMouseLeave,
   };
 }

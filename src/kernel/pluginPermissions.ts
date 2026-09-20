@@ -67,6 +67,10 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   fsRemovePath: "ipc.fs.write",
   fsRevealInFileManager: "ipc.fs.write",
   fsCopyFile: "ipc.fs.write",
+  /* 打开方式:启动外部应用/命令归 exec;探测与图标提取是只读。 */
+  fsOpenWith: "ipc.exec",
+  fsProbeOpenApp: "ipc.fs.read",
+  fsOpenAppIcon: "ipc.fs.read",
 
   /* 工作区配置目录(不含全局 settings 盘文件 —— 那是内核保留)。 */
   configHomeDir: "ipc.config",
@@ -78,6 +82,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   /* git 全域。 */
   gitStatus: "ipc.git",
   gitReposScan: "ipc.git",
+  gitIgnoredPrefixes: "ipc.git",
   gitTotals: "ipc.git",
   gitAheadBehind: "ipc.git",
   gitDiffFilePatch: "ipc.git",

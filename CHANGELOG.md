@@ -4,6 +4,23 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.2.1] - 2026-09-20
+
+### 新增
+
+- 打开方式插件:复刻 mossx——基础设置配置面板管理目标应用,文件视图底部入口菜单唤起;菜单 is-active 勾选、分割线行列表与居中对话框,深浅主题适配走全局令牌
+- 侧栏文件浏览器:工作区行「查看文件」在左栏切出文件浏览器,复用目录树与 git 装饰(状态字母/目录聚合圆点),支持搜索过滤、变更剪枝与忽略降显
+- md 预览目录对齐 yn 视觉,补回到顶部浮钮与标记避让
+- 更新感应后台化:启动检查转后台,底栏版本号旁提示有新版
+
+### 变更
+
+- 文件 tab 最大化改为仅扩展中央区域,不再折叠左栏或压缩右栏
+
+### 修复
+
+- 批次评审收口 16 项:macOS open --args 参数序(文件参数须置于 --args 前)、并发下临时文件名加序号防串号、嵌套仓变更剪枝只抬一层、PDF/文档大纲层全局 CSS 误伤共享组件、releases.atom 首条为 rc tag 时逐条找稳定版(修 rc 期更新检查误报格式异常)等
+
 ## [0.2.0] - 2026-09-19
 
 ### 新增
@@ -305,6 +322,7 @@
 - SSH 一等会话:远程终端 + SFTP 文件树 + 端口转发
 - 插件市场、设置面板、网络代理
 
+[0.2.1]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.2.1
 [0.2.0]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.2.0
 [0.1.9]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.9
 [0.1.8]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.8

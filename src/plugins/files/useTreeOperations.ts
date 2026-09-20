@@ -8,7 +8,7 @@
  * - 重命名文件 → 迁移草稿,tab 若开着则关旧开新(内容按新路径重载)。
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ipc, type DirEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { closeTab, getTabs } from "@kernel/tabs";
@@ -44,7 +44,7 @@ function joinPath(dir: string, name: string): string {
 }
 
 /** 复制文本:优先 async clipboard,非安全上下文回退 execCommand(codemoss 同思路)。 */
-async function copyText(text: string): Promise<void> {
+export async function copyText(text: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
@@ -214,18 +214,36 @@ export function useTreeOperations(opts: {
     [prompt, createFile, createFolder, rename],
   );
 
-  return {
-    menu,
-    openMenu,
-    closeMenu,
-    prompt,
-    promptError,
-    openPrompt,
-    closePrompt,
-    submitPrompt,
-    copyPath,
-    revealInFileManager,
-    trash,
-    notice,
-  };
+  /* 引用稳定:消费方(FileTree/侧栏浏览器)以 ops 为 useCallback/useMemo 依赖,
+     字面量返回会每渲染产新引用打败下游 memo(仅开菜单也全树重渲染)。 */
+  return useMemo(
+    () => ({
+      menu,
+      openMenu,
+      closeMenu,
+      prompt,
+      promptError,
+      openPrompt,
+      closePrompt,
+      submitPrompt,
+      copyPath,
+      revealInFileManager,
+      trash,
+      notice,
+    }),
+    [
+      menu,
+      openMenu,
+      closeMenu,
+      prompt,
+      promptError,
+      openPrompt,
+      closePrompt,
+      submitPrompt,
+      copyPath,
+      revealInFileManager,
+      trash,
+      notice,
+    ],
+  );
 }

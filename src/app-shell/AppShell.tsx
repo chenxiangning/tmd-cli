@@ -52,10 +52,10 @@ export function AppShell() {
   const [marketOpen, setMarketOpen] = useState(false);
   const toggleMarket = useCallback(() => setMarketOpen((v) => !v), []);
   const { tabs } = useEditorTabs();
-  /* 编辑区最大化(editorMaximized store,持久化):有 tab 时左栏与中央幕布零宽
-     让位(.group-maximized 纯样式折叠,见 panel-handle.css),编辑区 + 右文件
-     面板并占通栏(右栏不参与);无 tab 时标志不生效。
-     幕布与左栏一律「样式折叠、永不卸载」:卸载会把 tab 条内全部 TerminalView
+  /* 编辑区最大化(editorMaximized store,持久化):有 tab 时仅中央幕布零宽
+     让位(.group-maximized 纯样式折叠,见 panel-handle.css),左栏与右栏钉住
+     实测宽度 —— 编辑区只在中间区域撑满;无 tab 时标志不生效。
+     幕布一律「样式折叠、永不卸载」:卸载会把 tab 条内全部 TerminalView
      连 xterm 实例一起拆掉,还原时全量回放输出缓冲(大会话秒级「加载会话输出」
      遮罩);折叠是纯尺寸变化,幕布现场零回放,还原后分栏尺寸逐位复原。 */
   const maximized = useEditorMaximized() && tabs.length > 0;
@@ -108,7 +108,7 @@ export function AppShell() {
           顶栏 icon 挤叠。市场页实底背景,盖住下层即可。 */}
       <div className="relative min-h-0 flex-1">
         <PanelGroup orientation="horizontal" id="tmd.outer" className={maximized ? "group-maximized" : undefined}>
-        {/* 左侧 session 栏:leftOpen 独占挂载开关,最大化只零宽折叠不卸载 */}
+        {/* 左侧 session 栏:leftOpen 独占挂载开关,最大化不折叠(钉宽不动) */}
         {leftOpen && (
           <>
             <Panel defaultSize={18} minSize={12} id="left">
@@ -142,7 +142,7 @@ export function AppShell() {
         {/* 右文件面板:最大化时不参与隐藏(用户微调:文件树保持可见) */}
         {rightOpen && (
           <>
-            <PanelResizeHandle className="panel-handle panel-handle-v panel-handle-line-l" />
+            <PanelResizeHandle className={`panel-handle panel-handle-v panel-handle-line-l${maximized ? " hidden" : ""}`} />
             <Panel defaultSize={22} minSize={12} id="right">
               <aside ref={rightAsideRef} className="flex h-full flex-col">
                 {/* 面板内容:按注册表路由,外壳不认识任何业务面板 */}

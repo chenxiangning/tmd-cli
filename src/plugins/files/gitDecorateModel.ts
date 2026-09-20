@@ -82,6 +82,26 @@ export function mergeRepoStatusDecorations(
   return out;
 }
 
+/** 状态字母展示口径:untracked 渲染为 U,其余原样(侧栏文件浏览器行尾标记)。 */
+export function statusLetter(status: GitFileStatus["status"]): string {
+  return status === "?" ? "U" : status;
+}
+
+/** 纯函数:逐仓 git status → 绝对路径 → 状态字母(仅文件条目;目录无字母)。
+ *  与 buildDecorationMap 同源数据,供侧栏浏览器行尾字母标记。 */
+export function buildLetterMap(
+  entries: readonly RepoStatusEntry[],
+): ReadonlyMap<string, string> {
+  const out = new Map<string, string>();
+  for (const e of entries) {
+    const base = e.root.replace(/\/+$/, "");
+    for (const f of e.files) {
+      if (!f.path.endsWith("/")) out.set(`${base}/${f.path}`, statusLetter(f.status));
+    }
+  }
+  return out;
+}
+
 /* ── 开关(模块级单例;localStorage 持久化,对齐 filePanel 钉住惯例)── */
 
 function loadEnabled(): boolean {

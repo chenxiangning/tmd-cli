@@ -29,6 +29,7 @@ import { SessionMenuOverlay } from "./SessionMenu";
 import { anchorPopoverPosition, clampMenuPosition } from "./utils";
 import { Folders, FolderOpen, FolderSimplePlus, CaretDoubleDown, CaretDoubleUp } from "@phosphor-icons/react";
 import { createSessionRevealHandler } from "./revealSession";
+import { useWorkspaceBrowserSwap } from "./WorkspaceBrowserSwap";
 import { WorkspaceList } from "./WorkspaceList";
 import { groupWorkspaces } from "./groups";
 import { WorkspaceGroupsTab } from "./GroupSettingsTab";
@@ -53,6 +54,8 @@ function WorkspaceSection() {
     };
   }, []);
   const { list, activeId } = useWorkspaces();
+  /** 「查看文件」浏览器整体切换:openId 在位 = 左栏切到该工作区文件浏览器(WorkspaceBrowserSwap)。 */
+  const browserSwap = useWorkspaceBrowserSwap(sidebarRef);
   /** 添加工作区浮层(本地目录 tab 内建;来源 tab 经 workspaceOrigins 贡献):
    *  开态 = 锚定入口按钮右侧的左上角(点外/Esc 关)。 */
   const [addPos, setAddPos] = useState<{ x: number; y: number } | null>(null);
@@ -133,7 +136,7 @@ function WorkspaceSection() {
     if (wait > 0) setTimeout(clear, wait);
     else clear();
   };
-
+  if (browserSwap) return browserSwap;
   return (
     <div className="ws-sidebar" ref={sidebarRef}>
       {/* 全局置顶区(codemoss Pinned 复刻):scope=global 的会话跨工作区汇总于此 */}

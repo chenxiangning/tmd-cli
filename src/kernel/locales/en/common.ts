@@ -40,6 +40,8 @@ export const MESSAGES = {
   "设置菜单": "Settings menu",
   "设置": "Settings",
   "版本与更新": "Version and updates",
+  "版本与更新(有新版本)": "Version and updates (new version available)",
+  "有新版": "New",
 
   // ── 版本弹窗 ──
   "点击「检查更新」查询 GitHub 最新发布版本。":

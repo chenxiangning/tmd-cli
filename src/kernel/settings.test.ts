@@ -88,6 +88,8 @@ describe("初始状态与默认值", () => {
       webRelayOn: false,
       webRelayUrl: "",
       webRelayKey: "",
+      openWithTargets: [{ id: "finder", label: "访达", kind: "finder" }],
+      openWithDefaultId: "finder",
       git: { view: "diff", layout: "flat", diffMode: "unified", diffWrap: true },
       iconDecor: {
         newchat: { blink: true },

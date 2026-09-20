@@ -86,5 +86,5 @@ export const MESSAGES = {
   "打开 {name}": "Open {name}",
 
   /* triggers/suggest.ts */
-  "目录": "Folder",
+  "文件夹": "Folder",
 } as Record<string, string>;

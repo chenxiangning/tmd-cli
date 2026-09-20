@@ -1,0 +1,198 @@
+/**
+ * 打开方式 · 设置面板样式 —— 复刻 mossx basic-redesign:分割线行列表 + 图标容器 +
+ * 健康徽标 + 默认胶囊 + 28px 幽灵钮 + 圆角添加钮 + 行列表式添加对话框。
+ * 入口与菜单见 open-with.css;令牌沿用 tmd 主题体系。
+ */
+
+/* ===== 设置 tab:分割线行列表(mossx settings-open-app-item 同构)===== */
+.ow-tab {
+  display: flex;
+  flex-direction: column;
+}
+
+.ow-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ow-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.625rem;
+  border-bottom: 1px solid var(--tmd-border);
+  transition: background-color 140ms ease;
+}
+
+.ow-row:last-child {
+  border-bottom: none;
+}
+
+.ow-row:hover {
+  background: color-mix(in srgb, var(--tmd-fg) 5%, transparent);
+}
+
+/* 24px 图标容器:包边 + 控制面底,内嵌 18px 图标(mossx icon-wrap 同构) */
+.ow-row-iconwrap {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--tmd-border);
+  background: var(--tmd-bg-base);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ow-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.ow-row-title {
+  font-size: 0.84375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--tmd-fg);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ow-row-sub {
+  font-size: 0.75rem;
+  color: var(--tmd-fg-subtle);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 健康徽标:11px 胶囊,可点重探(mossx open-app-health 同构) */
+.ow-badge {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--tmd-border);
+  color: var(--tmd-fg-subtle);
+  background: transparent;
+  white-space: nowrap;
+}
+
+.ow-badge.is-ok {
+  color: #15803d;
+  border-color: color-mix(in srgb, #15803d 35%, transparent);
+}
+
+:root[data-theme="dark"] .ow-badge.is-ok {
+  color: #34d399;
+  border-color: color-mix(in srgb, #34d399 35%, transparent);
+}
+
+.ow-badge.is-miss {
+  color: var(--tmd-fg-subtle);
+}
+
+.ow-badge:disabled {
+  cursor: default;
+}
+
+/* 默认胶囊(mossx default-badge 同构):26px 高、文本 16%/底 8% */
+.ow-default-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.625rem;
+  padding: 0 0.625rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--tmd-fg) 16%, transparent);
+  background: color-mix(in srgb, var(--tmd-fg) 8%, transparent);
+  color: var(--tmd-fg);
+  font-size: 0.71875rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* 28px 幽灵动作钮(mossx icon-btn 同构) */
+.ow-row-ops {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+.ow-row-act {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--tmd-fg-subtle);
+}
+
+.ow-row-act:hover:not(:disabled) {
+  color: var(--tmd-fg);
+  background: var(--tmd-bg-hover);
+}
+
+.ow-row-act:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.ow-row-act.is-danger:hover:not(:disabled) {
+  color: #ef4444;
+  background: color-mix(in srgb, #ef4444 10%, transparent);
+}
+
+/* ===== 底部:添加钮 + 帮助文案(mossx footer/add-btn 同构)===== */
+.ow-footer {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ow-add-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 2.125rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--tmd-border);
+  background: var(--tmd-bg-base);
+  color: var(--tmd-fg);
+  font-size: 0.8125rem;
+  align-self: flex-start;
+}
+
+.ow-add-btn:hover {
+  background: var(--tmd-bg-hover);
+}
+
+.ow-help {
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-subtle);
+  line-height: 1.4;
+}
+

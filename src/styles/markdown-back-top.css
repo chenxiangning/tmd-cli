@@ -1,0 +1,49 @@
+/* ═══════════════════════════════════════════════════════════════
+   回到顶部浮钮 —— 对齐 yn DefaultPreviewer.vue .scroll-to-top:
+   右下半透明浮钮 + backdrop blur,CSS 三角箭头 + TOP 文本;
+   滚动 < 30px 时隐藏(向右滑出)。
+   ═══════════════════════════════════════════════════════════════ */
+
+.fvp-preview-back-top {
+  position: absolute;
+  bottom: 28px;
+  right: 28px;
+  z-index: 9;
+  display: block;
+  border: none;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tmd-bg-elevated) 70%, transparent);
+  backdrop-filter: blur(10px);
+  color: var(--tmd-fg);
+  font-size: 0.875rem;
+  line-height: 1.2;
+  padding: 7px 9px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    background 120ms ease;
+}
+
+.fvp-preview-back-top::before {
+  content: "";
+  display: block;
+  margin: 0 auto 4px;
+  width: 0;
+  height: 0;
+  border-left: 16px solid transparent;
+  border-right: 16px solid transparent;
+  border-bottom: 7px solid var(--tmd-fg-muted);
+}
+
+.fvp-preview-back-top:hover {
+  background: color-mix(in srgb, var(--tmd-bg-hover) 80%, transparent);
+}
+
+.fvp-preview-back-top.is-hidden {
+  opacity: 0;
+  transform: translateX(60px);
+  pointer-events: none;
+}

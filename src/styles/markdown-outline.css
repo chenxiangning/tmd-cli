@@ -1,8 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════
-   markdown 章节大纲浮窗 —— 照抄 codemoss file-view-panel.css 1117-1470
-   的 fvp-preview-outline/fvp-markdown-outline-layer 段。
-   变量桥接 --tmd-*(浮窗挂在预览 frame 内,--fvp-* 桥接变量不在作用域,
-   故本文件直接用 --tmd-* 重写 var 引用)。
+   markdown 目录浮窗 —— 视觉对齐 yn(DefaultPreviewer.vue .outline +
+   Outline.vue .heading):窄面板 208px / 徽标紧跟标题(不留右缘空白) /
+   无折叠符纯缩进树(组件 inline depth*12+6px) / h1 加粗 / 激活整行贴边。
+   结构沿用 codemoss 浮层(汉堡钮 + 钉住 + disclosure DOM 保留),
+   折叠符号仅视觉隐藏,交互链路不变。
    ═══════════════════════════════════════════════════════════════ */
 
 .fvp-markdown-preview-frame {
@@ -35,25 +36,17 @@
   z-index: 5;
   display: flex;
   flex-direction: column;
-  gap: 0;
-  width: min(320px, calc(100% - 40px));
-  max-height: min(520px, calc(100% - 40px));
-  min-width: 260px;
+  width: min(208px, calc(100% - 40px));
+  max-height: min(70vh, calc(100% - 40px));
+  min-width: 200px;
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--tmd-border) 72%, transparent);
-  border-radius: 12px;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--tmd-bg-elevated) 94%, transparent),
-      color-mix(in srgb, var(--tmd-bg-hover) 90%, transparent)
-    );
-  box-shadow:
-    0 16px 38px color-mix(in srgb, #000 16%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--tmd-bg-elevated) 76%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tmd-bg-elevated) 92%, transparent);
+  box-shadow: 0 10px 26px color-mix(in srgb, #000 14%, transparent);
   color: var(--tmd-fg);
   overflow: auto;
-  backdrop-filter: blur(12px) saturate(1.04);
+  backdrop-filter: blur(12px);
   pointer-events: auto;
 }
 
@@ -79,44 +72,29 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--tmd-border) 84%, transparent);
-  border-radius: 10px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--tmd-bg-elevated) 78%, transparent);
-  box-shadow:
-    0 10px 24px color-mix(in srgb, #000 12%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--tmd-bg-base) 68%, transparent);
+  box-shadow: 0 6px 16px color-mix(in srgb, #000 12%, transparent);
   color: var(--tmd-fg-muted);
   backdrop-filter: blur(12px);
   cursor: pointer;
   pointer-events: auto;
-  transition:
-    background 140ms ease,
-    border-color 140ms ease,
-    color 140ms ease,
-    transform 140ms ease;
 }
 
 .fvp-preview-outline-float-button:hover {
   border-color: var(--tmd-border);
   background: color-mix(in srgb, var(--tmd-bg-hover) 82%, transparent);
   color: var(--tmd-fg);
-  transform: translateY(-1px);
-}
-
-.fvp-preview-outline-float-button:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--tmd-fg-faint) 12%, transparent),
-    0 10px 24px color-mix(in srgb, #000 12%, transparent);
 }
 
 .fvp-preview-outline-menu-icon {
   display: grid;
   gap: 3px;
-  width: 15px;
+  width: 13px;
 }
 
 .fvp-preview-outline-menu-icon span {
@@ -131,45 +109,39 @@
   top: 0;
   z-index: 1;
   display: flex;
-  padding: 12px 12px 10px;
-  margin-bottom: 0;
+  padding: 7px 9px 6px;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   background: color-mix(in srgb, var(--tmd-bg-elevated) 88%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--tmd-border) 58%, transparent);
 }
 
 .fvp-preview-outline .fvp-preview-section-header strong {
   color: var(--tmd-fg);
-  font-size: 0.9375rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .fvp-preview-outline-actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
 }
 
 .fvp-preview-outline-icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border: none;
   border-radius: 999px;
   background: transparent;
   cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 800;
 }
 
 .fvp-preview-outline-pin-button {
-  opacity: 1;
   color: var(--tmd-fg-muted);
 }
 
@@ -181,12 +153,11 @@
 
 .fvp-preview-outline-pin-icon {
   display: block;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   fill: currentColor;
   pointer-events: none;
   transform: rotate(90deg);
-  transform-origin: 50% 50%;
   transition: transform 140ms ease;
 }
 
@@ -194,103 +165,91 @@
   transform: rotate(0deg);
 }
 
+/* 钉住 = 长期共存:正文右缘整体让位(面板 208 + right 20 + 间隙 4),
+   标记 ⚑ 锚点贴正文右缘随之避开面板;临时展开态压正文(点击即收)。 */
+.fvp-markdown-preview-frame.is-outline-pinned .fvp-markdown-preview-scroll {
+  padding-right: 232px;
+}
+
+/* 折叠态汉堡常驻右上(28px @ right:14px):标记控件右移避让。
+   flag/详情卡/添加钮原本贴正文右缘(4px),让到汉堡左侧 6px 间隙;
+   有 flag 时添加钮原在 32px 位,同步平移。 */
+.fvp-markdown-preview-frame.is-outline-collapsed .fvp-md-mark-flag,
+.fvp-markdown-preview-frame.is-outline-collapsed .fvp-md-mark-card,
+.fvp-markdown-preview-frame.is-outline-collapsed .fvp-md-mark-add {
+  right: 48px;
+}
+
+.fvp-markdown-preview-frame.is-outline-collapsed .fvp-md-mark-add.has-flag {
+  right: 80px;
+}
+
 .fvp-preview-outline-list {
   display: flex;
   flex-direction: column;
-  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.fvp-preview-outline-entry {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* yn 观感:激活/hover 是整行贴边块(含缩进区),不止标题段。 */
+.fvp-preview-outline-row:has(.fvp-preview-outline-button:hover) {
+  background: color-mix(in srgb, var(--tmd-bg-hover) 64%, transparent);
 }
 
-.fvp-preview-outline-row {
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
-  align-items: center;
-  gap: 0;
+.fvp-preview-outline-row:has(.fvp-preview-outline-button.is-active) {
+  background: color-mix(in srgb, var(--tmd-bg-active) 80%, transparent);
 }
 
-.fvp-preview-outline-disclosure,
-.fvp-preview-outline-disclosure-spacer {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 32px;
-}
-
-.fvp-preview-outline-disclosure {
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--tmd-fg-muted);
-  cursor: pointer;
-  font-size: 0.6875rem;
-  font-weight: 900;
-}
-
-.fvp-preview-outline-disclosure:hover {
-  background: color-mix(in srgb, var(--tmd-bg-hover) 58%, transparent);
-  color: var(--tmd-fg);
+/* yn 观感:markdown 浮层无折叠符(disclosure DOM/aria 保留,仅视觉隐藏)。
+   必须限定在 layer 内:PreviewOutlineSidebar 是共享组件,PDF/文档预览
+   直接渲染(无 layer),裸类名会把它们的书签树钉成永久全展开。 */
+.fvp-markdown-outline-layer .fvp-preview-outline-disclosure,
+.fvp-markdown-outline-layer .fvp-preview-outline-disclosure-spacer {
+  display: none;
 }
 
 .fvp-preview-outline-button {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
   width: 100%;
   border: none;
-  border-radius: 0;
   background: transparent;
   color: var(--tmd-fg);
   text-align: left;
   cursor: pointer;
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  padding: 6px 9px;
-  transition:
-    background 140ms ease,
-    color 140ms ease;
+  font-size: 0.875rem;
+  line-height: 18px;
+  padding: 4px 6px;
 }
 
 .fvp-preview-outline-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 700;
+  font-weight: 500;
 }
 
+/* yn tag-h1:一级标题行加粗。 */
+.fvp-preview-outline-button[data-level="1"] .fvp-preview-outline-title {
+  font-weight: 600;
+}
+
+/* yn tag-name:徽标紧跟标题,不推右缘。 */
 .fvp-preview-outline-level {
   margin-left: 8px;
   color: var(--tmd-fg-muted);
-  font-size: 0.75rem;
-  font-weight: 800;
+  font-size: 0.6875rem;
+  font-weight: 400;
   flex: 0 0 auto;
 }
 
-.fvp-preview-outline-button:hover {
-  background: color-mix(in srgb, var(--tmd-bg-hover) 64%, transparent);
-  color: var(--tmd-fg);
-}
-
-.fvp-preview-outline-button.is-active {
-  background: color-mix(in srgb, var(--tmd-bg-active) 80%, transparent);
-  color: var(--tmd-fg);
-}
-
 .fvp-preview-outline-empty {
-  margin: 12px;
-  border-radius: 8px;
+  margin: 8px;
+  border-radius: 6px;
   background: color-mix(in srgb, var(--tmd-bg-hover) 56%, transparent);
   color: var(--tmd-fg-muted);
   font-size: 0.75rem;
   line-height: 1.5;
-  padding: 10px 12px;
+  padding: 8px 10px;
 }

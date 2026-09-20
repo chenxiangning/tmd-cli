@@ -69,4 +69,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   webRelayOn: false,
   webRelayUrl: "",
   webRelayKey: "",
+  openWithTargets: [{ id: "finder", label: "访达", kind: "finder" }],
+  openWithDefaultId: "finder",
 };

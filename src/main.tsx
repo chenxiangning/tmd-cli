@@ -19,6 +19,7 @@ import { bootI18n, t } from "@kernel/i18n";
 import { useSettingsState } from "@kernel/settings";
 import { bootUiFontSize } from "@kernel/uiFontSize";
 import { bootUiZoom } from "@kernel/uiZoom";
+import { initUpdatePresence } from "./app-shell/updatePresence";
 import { bootIconDecor } from "@kernel/iconDecor";
 import { allPlugins } from "@plugins/index";
 import { installPluginShims } from "@kernel/pluginSdk";
@@ -38,6 +39,7 @@ function App() {
     bootAskSound(host.events); /* Ask 提示音:消费 askDetected(host 主链路检测,见 askWatch.ts) */
     bootTurnSound(host.events); /* 轮次结束提示音:消费 turnSettled,延迟确认后播放 */
     bootDropGuard(); /* 文件拖放护栏:防 webview drop 导航开文件(lib.rs 关原生拦截的副作用) */
+    initUpdatePresence(); /* 更新感应后台化:6h 节流检查,底栏版本号旁亮提示(boot 级,不随左栏关闭停摆) */
     bootSessionTabs(host.events); /* 会话标题 tab 条:订阅打开/存活广播,见 kernel/sessionTabs.ts */
     const syncFocus = () => host.setWindowFocus(document.hasFocus());
     window.addEventListener("focus", syncFocus);

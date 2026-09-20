@@ -31,14 +31,14 @@ export function PreviewMarkControls({
         <button
           type="button"
           title={t("查看标记")}
-          className="absolute right-1 top-0.5 z-10 cursor-pointer rounded-full bg-(--tmd-warn) px-1 text-[0.6rem] leading-3 text-(--tmd-bg-base)"
+          className="fvp-md-mark-flag absolute right-1 top-0.5 z-10 cursor-pointer rounded-full bg-(--tmd-warn) px-1 text-[0.6rem] leading-3 text-(--tmd-bg-base)"
           onClick={() => onToggle(open ? null : blockKey)}
         >
           ⚑{blockMarks.length}
         </button>
       ) : null}
       {open && blockMarks.length > 0 ? (
-        <div className="absolute right-1 top-5 z-20 w-64 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2 text-xs shadow-lg">
+        <div className="fvp-md-mark-card absolute right-1 top-5 z-20 w-64 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2 text-xs shadow-lg">
           {blockMarks.map((mark) => (
             <div key={mark.id} className="mb-2 border-b border-(--tmd-border) pb-2 last:mb-0 last:border-0 last:pb-0">
               <div className="mb-1 flex items-center gap-1.5 text-(--tmd-fg-muted)">
@@ -78,7 +78,7 @@ export function PreviewMarkControls({
       <button
         type="button"
         title={t("标记此块,随下次发送带上")}
-        className={`absolute top-0.5 z-10 cursor-pointer rounded-md border border-(--tmd-warn) bg-(--tmd-bg-base) px-1 text-[0.65rem] text-(--tmd-warn) opacity-0 transition-opacity group-hover/mark:opacity-100 ${blockMarks.length > 0 ? "right-8" : "right-1"}`}
+        className={`fvp-md-mark-add absolute top-0.5 z-10 cursor-pointer rounded-md border border-(--tmd-warn) bg-(--tmd-bg-base) px-1 text-[0.65rem] text-(--tmd-warn) opacity-0 transition-opacity group-hover/mark:opacity-100 ${blockMarks.length > 0 ? "has-flag right-8" : "right-1"}`}
         onClick={() => {
           if (!sourceFilePath) return;
           requestFileMark({ path: sourceFilePath, startLine, endLine });

@@ -121,7 +121,7 @@ async function matchFiles(needle: string, cwd: string): Promise<SuggestionMatch[
   const base = cwd.endsWith("/") ? cwd : `${cwd}/`;
   return fuzzyFileMatch(files, needle, MAX_CANDIDATES).map<SuggestionMatch>((path) => ({
     value: path,
-    description: path.endsWith("/") ? t("目录") : undefined,
+    description: path.endsWith("/") ? t("文件夹") : undefined,
     detail: `${base}${path}`,
     kind: "file",
   }));
