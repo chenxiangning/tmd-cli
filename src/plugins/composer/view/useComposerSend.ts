@@ -1,17 +1,20 @@
 /**
  * Composer 发送闭包 hook —— 自 Composer.tsx 拆出(文件规模铁则)。
  *
- * 发送管线:git 预填联动 → translate 变换 → 轮次闸写前现读 → writeSession →
- * promptSent 广播 → 输入历史记录(2026-09-10)→ 清空输入/附件/下拉。
- * 每次渲染产出新闭包,经 composerSendRef 活读(⌘K 等命令路径同源)。
+ * 发送管线:git 预填联动 → translate 变换 → 轮次闸写前现读 → writeSession(等
+ * 送达)→ promptSent 广播 → 输入历史记录(2026-09-10)→ 清空输入/附件/下拉。
+ * 写入失败(会话死/PTY 断)保草稿并报 onSendError;全目标失败回滚发送变换的
+ * 乐观副作用(marks 翻 sent 退 staged)。每次渲染产出新闭包,经 composerSendRef
+ * 活读(⌘K 等命令路径同源)。
  *
  * 平铺广播分支(broadcastModeRef 开 + 平铺态 + kept 目标 ≥2):同一题面逐路过
- * 各自 profile 的完整管线喂给全部幕布(含活跃),题面入史恰一次;任一条件不满足
- * 原样走单发(布尔短路,零额外开销)。
+ * 各自 profile 的完整管线喂给全部幕布(含活跃),题面入史恰一次;任一失败保草稿
+ * 汇总「N 路中 M 路失败」(不整批重发,防好目标重复);全败才回滚变换。
  */
 
 import { host } from "@kernel/host";
-import { composerSendTransforms } from "@kernel/composerExt";
+import { t } from "@kernel/i18n";
+import { composerSendTransforms, undoComposerSend } from "@kernel/composerExt";
 import type { CliProfile } from "@kernel/cli";
 import { getSessionTabs, getSessionTile } from "@kernel/sessionTabs";
 import { emitPromptSent, readPromptGate } from "../promptGate";
@@ -26,13 +29,15 @@ export function useComposerSend({
   value,
   setValue,
   clearMatches,
+  onSendError,
 }: {
   profile: CliProfile | null;
   value: string;
   setValue: (v: string) => void;
   clearMatches: () => void;
+  onSendError: (msg: string) => void;
 }): () => void {
-  function sendCurrent() {
+  async function sendCurrent() {
     if (!value.trim()) return;
     if (!profile || !host.getActiveSessionId()) return;
     /* git 联动:`/commit <msg>` → 预填 git 面板提交框。
@@ -58,11 +63,27 @@ export function useComposerSend({
           (acc, fn) => fn(acc, host.getActiveSessionId()!),
           value,
         );
-        for (const { id, profile: p } of targets) {
-          const payload = prepareSendPayload(p, shared, []);
-          const gate = readPromptGate(id);
-          host.writeSession(id, payload);
-          emitPromptSent(gate, id, trimmed);
+        const failed: string[] = (
+          await Promise.all(
+            targets.map(async ({ id, profile: p }): Promise<string | null> => {
+              const payload = prepareSendPayload(p, shared, []);
+              const gate = readPromptGate(id);
+              if (await host.writeSession(id, payload)) {
+                emitPromptSent(gate, id, trimmed);
+                return null;
+              }
+              return id;
+            }),
+          )
+        ).filter((r): r is string => r !== null);
+        if (failed.length > 0) {
+          if (failed.length === targets.length) undoComposerSend();
+          onSendError(
+            failed.length === targets.length
+              ? t("发送失败:会话已断开,内容已保留")
+              : t("{n} 路中 {m} 路发送失败,内容已保留", { n: targets.length, m: failed.length }),
+          );
+          return;
         }
         recordPrompt(trimmed);
         setValue("");
@@ -76,7 +97,11 @@ export function useComposerSend({
     const payload = prepareSendPayload(profile, value,
       composerSendTransforms().map((fn) => (text: string) => fn(text, sid)));
     const gate = readPromptGate(sid); // 轮次闸写前现读:writeSession 作答即清 ask 等待态
-    host.writeSession(sid, payload);
+    if (!(await host.writeSession(sid, payload))) {
+      undoComposerSend();
+      onSendError(t("发送失败:会话已断开,内容已保留"));
+      return;
+    }
     /* 锚点快照信号(checkpoints 消费)过轮次闸:ask 作答/轮中斜杠命令不开轮不广播 */
     emitPromptSent(gate, sid, trimmed);
     /* 输入历史:仅自然语言发送入史(trim 非空即记);抽屉/工具栏命令不入(⌘K 可达) */

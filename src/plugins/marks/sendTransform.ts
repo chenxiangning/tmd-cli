@@ -2,12 +2,13 @@
  * 发送变换 —— 把「已入对话」(staged)标记序列化为 prompt 尾部引用块。
  *
  * 状态机:pending(行间/面板)→ staged(发送到对话,芯片条可见)→ sent(发送
- * 完成,不再注入)。transform 无发送成功回调,乐观翻转;发送失败可 ↩ 重发。
+ * 完成,不再注入)。transform 乐观翻转并记录名单;写入全败由
+ * undoLastSendTransform(composerExt.undoComposerSend 消费)退回 staged。
  */
 
 import type { ComposerSendTransform } from "@kernel/composerExt";
 import { getActiveWorkspace } from "@kernel/workspace";
-import { setMarkState, stagedMarks } from "./store";
+import { marksSnapshot, setMarkState, stagedMarks } from "./store";
 const MARK_LINE_RE = /([\w./@\\:-]+(?: [\w./@\\:-]+)*?\.[A-Za-z0-9]{1,8}):L?(\d+)(?:[-–:](\d+))?/g;
 
 /** 引用块格式(回链正则的生成端,两边必须同步改):
@@ -33,6 +34,7 @@ export function serializeMark(mark: {
 export function stageMarks(cwd: string, marks: readonly { id: string }[]): void {
   for (const mark of marks) setMarkState(cwd, mark.id, "staged");
 }
+let lastFlip: { cwd: string; ids: string[] } | null = null;
 export const marksSendTransform: ComposerSendTransform = (text) => {
   const cwd = getActiveWorkspace()?.root;
   if (!cwd) return text;
@@ -50,8 +52,21 @@ export const marksSendTransform: ComposerSendTransform = (text) => {
     )
     .join("\n\n");
   for (const mark of staged) setMarkState(cwd, mark.id, "sent");
+  lastFlip = { cwd, ids: staged.map((m) => m.id) };
   return `${text}\n\n请看我在文件里标记的 ${staged.length} 处:\n${block}`;
 };
+
+/** 写入全败回滚:最近一次 transform 翻掉的 sent 退回 staged(只退仍是 sent 的,幂等)。 */
+export function undoLastSendTransform(): void {
+  if (!lastFlip) return;
+  const { cwd, ids } = lastFlip;
+  lastFlip = null;
+  for (const id of ids) {
+    if (marksSnapshot().byCwd[cwd]?.some((m) => m.id === id && m.state === "sent")) {
+      setMarkState(cwd, id, "staged");
+    }
+  }
+}
 
 /** 供回链/测试复用:从行文本解析 path:L起-L止(不含 URL:// 形态)。 */
 export function parseMarkRef(

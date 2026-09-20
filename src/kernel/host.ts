@@ -197,10 +197,10 @@ class Host implements PluginContext {
   restoreTail = (sessionId: string, tail: string, extraMarks?: RegExp[]): void => this.watches.restoreTail(sessionId, tail, extraMarks);
   /** 磁盘尾恢复(走法 1 冷开回放;带写后闸,语义见 askWatchFeed.restoreDiskTail)。 */
   restoreDiskTail = (sessionId: string, tail: string): void => this.watches.restoreDiskTail(sessionId, tail);
-  /** 用户输入的唯一写入口:PTY 写入 + 对话锚定(呼吸灯首写闸)+ Ask 作答解除。 */
-  writeSession(sessionId: string, data: string, synthetic = false): void {
-    void ipc.sessionWrite(sessionId, data);
+  /** 用户输入唯一写入口:PTY 写入 + 对话锚定 + Ask 作答解除;返回是否送达(死会话/写失败 false,锚定照常)。 */
+  writeSession(sessionId: string, data: string, synthetic = false): Promise<boolean> {
     if (this.watches.onUserWrite(sessionId, synthetic)) this.notify();
+    return ipc.sessionWrite(sessionId, data).then(() => true, () => false);
   }
 
   /** 幕布尺寸同步的唯一入口(TerminalView):转发 resize + 给活动守望记重绘抑制窗起点。 */

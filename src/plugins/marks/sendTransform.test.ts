@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import * as ws from "@kernel/workspace";
 import { addMark, marksSnapshot, removeMark } from "./store";
-import { marksSendTransform, serializeMark, stageMarks } from "./sendTransform";
+import { marksSendTransform, serializeMark, stageMarks, undoLastSendTransform } from "./sendTransform";
 
 const LINES = ["l1", "l2", "l3", "l4"];
 
@@ -51,6 +51,28 @@ describe("marksSendTransform", () => {
     expect(marksSnapshot().byCwd[w.root][0]?.state).toBe("staged");
     stageMarks(w.root, []); /* 空集无操作 */
     expect(marksSnapshot().byCwd[w.root][0]?.state).toBe("staged");
+    ws.removeWorkspace(w.id);
+  });
+
+  it("写入全败回滚:undoLastSendTransform 把刚翻的 sent 退回 staged,幂等且不误伤他态", () => {
+    const w = ws.addWorkspace("/repo/undo");
+    ws.setActiveWorkspace(w.id);
+    const a = addMark({ cwd: w.root, path: "/repo/undo/a.ts", startLine: 1, endLine: 1, lines: LINES, note: "" });
+    stageMarks(w.root, [a]);
+    marksSendTransform("正文", null);
+    expect(marksSnapshot().byCwd[w.root][0]?.state).toBe("sent");
+
+    undoLastSendTransform();
+    expect(marksSnapshot().byCwd[w.root][0]?.state).toBe("staged");
+    /* 无 flip 在册时幂等 */
+    undoLastSendTransform();
+    expect(marksSnapshot().byCwd[w.root][0]?.state).toBe("staged");
+
+    /* 用户已手动改走(如撤回 pending)后,旧名单回滚不得翻回 */
+    marksSendTransform("二发", null);
+    removeMark(w.root, a.id);
+    undoLastSendTransform();
+    expect(marksSnapshot().byCwd[w.root]).toHaveLength(0);
     ws.removeWorkspace(w.id);
   });
 });

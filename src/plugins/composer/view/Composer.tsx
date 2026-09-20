@@ -116,8 +116,12 @@ export function Composer() {
   const { handleKeyDown: handleHistoryNav } = usePromptHistoryNav({
     textareaRef: ref, value, setValue, setCursor, enabled: settings.promptHistoryEnabled,
   });
+  const [sendError, setSendError] = useState<string | null>(null);
+  /* 发送失败提示随下一次输入即清(新编辑就是新尝试);失败路径本身保留草稿 */
+  useEffect(() => { setSendError(null); }, [value]);
   const sendCurrent = useComposerSend({
     profile, value, setValue, clearMatches: () => setMatches(null),
+    onSendError: setSendError,
   });
 
   /* 弹窗悬停锚定 + 拖拽判定(实现见 composerChrome.ts) */
@@ -138,6 +142,7 @@ export function Composer() {
         }`}
       >
         <Mounts point="composer.statusBar" />
+        {sendError && <div className="px-3 py-1 text-xs text-(--tmd-err)">{sendError}</div>}
         {!inputHidden && (
         <>
         <AttachmentStrip onRemove={removeTokenForAttachment} onPreviewImage={(a) => setPreviewSrc(a.previewDataUrl || a.thumbDataUrl)} />

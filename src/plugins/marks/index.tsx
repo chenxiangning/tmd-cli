@@ -8,7 +8,7 @@
  */
 
 import { BookmarkSimple } from "@phosphor-icons/react";
-import { registerComposerSendTransform } from "@kernel/composerExt";
+import { registerComposerSendTransform, registerComposerSendUndo } from "@kernel/composerExt";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import type { Plugin } from "@kernel/plugin";
@@ -16,7 +16,7 @@ import { getActiveWorkspace } from "@kernel/workspace";
 import type { MarkState } from "./anchor";
 import { MarksPanel } from "./panel";
 import { addMark, loadAllMarks, marksSnapshot, removeMark, setMarkState, subscribeMarks, updateNote } from "./store";
-import { marksSendTransform } from "./sendTransform";
+import { marksSendTransform, undoLastSendTransform } from "./sendTransform";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 import { MarksComposerChips } from "./chips";
 import { marksLinkProvider } from "./terminalLink";
@@ -100,6 +100,7 @@ export const marksPlugin: Plugin = {
       ctx.registerEditorExtension(marksEditorExtension),
       ctx.registerTerminalLinkProvider(marksLinkProvider),
       registerComposerSendTransform(marksSendTransform),
+      registerComposerSendUndo(undoLastSendTransform),
     ];
     /* md 预览(files 插件)经事件总线落锚:插件间零 import,双端各自声明载荷 */
     offs.push(

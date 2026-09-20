@@ -263,6 +263,14 @@ describe("openDiskSession 去重聚焦与失败广播(走法 1 契约)", () => {
     off();
   });
 
+  it("writeSession 写入失败返回 false 不抛(会话死/PTY 断,composer 保草稿依据)", async () => {
+    const s = await host.createSession(PROFILE_ID, CWD);
+    vi.mocked(ipc.sessionWrite).mockRejectedValueOnce(new Error("session gone"));
+    await expect(host.writeSession(s.id, "hi\r")).resolves.toBe(false);
+    await expect(host.writeSession(s.id, "ok\r")).resolves.toBe(true);
+    await host.removeSession(s.id);
+  });
+
   it("归档会话恢复(身份绑定)即解除归档,生命周期链重启", async () => {
     const key = sessionArchiveKey("ws-r", PROFILE_ID, "resume-arch-1");
     archiveSession(key);

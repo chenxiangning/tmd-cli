@@ -23,8 +23,8 @@ import { DrawerItemList } from "./DrawerItemList";
 interface CommandDrawerProps {
   open: boolean;
   items: DrawerItem[];
-  /** 直接发送;返回实际写入文本供 toast 展示(translate 后的 wire)。 */
-  onSend: (item: DrawerItem) => string;
+  /** 直接发送;返回实际写入文本供 toast 展示(translate 后的 wire);null=写入失败。 */
+  onSend: (item: DrawerItem) => Promise<string | null>;
   onInsert: (item: DrawerItem) => void;
   onOpen: (item: DrawerItem) => void;
   /** fixed 锚定几何( right/bottom/maxHeight ),Composer 量测传入。 */
@@ -111,19 +111,24 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
   function activate(item: DrawerItem) {
     const key = `${item.section}:${item.name}`;
     if (item.action === "send") {
-      const wire = onSend(item);
-      /* 空串 = 无会话静默守卫(Composer sendFromDrawer):无反馈、不关闭 */
-      if (!wire) return;
-      setFlashKey(key);
-      window.clearTimeout(flashTimer.current);
-      flashTimer.current = window.setTimeout(() => setFlashKey(null), 480);
-      showToast(t("已发送到幕布:{wire}", { wire }));
-      window.clearTimeout(closeTimer.current);
-      closeTimer.current = window.setTimeout(() => {
-        /* 320ms 内被重新打开(⌘K 快速开合)则不关,防误杀新开的抽屉 */
-        if (isDrawerOpen()) return;
-        setDrawerOpen(false);
-      }, 320);
+      void onSend(item).then((wire) => {
+        /* null=写入失败(死会话);空串=无会话静默守卫:无反馈、不关闭 */
+        if (wire === null) {
+          showToast(t("发送失败:会话已断开"));
+          return;
+        }
+        if (!wire) return;
+        setFlashKey(key);
+        window.clearTimeout(flashTimer.current);
+        flashTimer.current = window.setTimeout(() => setFlashKey(null), 480);
+        showToast(t("已发送到幕布:{wire}", { wire }));
+        window.clearTimeout(closeTimer.current);
+        closeTimer.current = window.setTimeout(() => {
+          /* 320ms 内被重新打开(⌘K 快速开合)则不关,防误杀新开的抽屉 */
+          if (isDrawerOpen()) return;
+          setDrawerOpen(false);
+        }, 320);
+      });
     } else if (item.action === "open") {
       onOpen(item);
       showToast(t("已打开:{name}", { name: item.name }));

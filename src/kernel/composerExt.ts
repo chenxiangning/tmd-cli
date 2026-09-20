@@ -52,6 +52,23 @@ export function registerComposerSendTransform(fn: ComposerSendTransform): () => 
   };
 }
 
+/** 发送失败回滚:与发送变换配对注册,把变换的乐观副作用退回(实现方自负幂等)。 */
+export type ComposerSendUndo = () => void;
+const sendUndos: ComposerSendUndo[] = [];
+
+export function registerComposerSendUndo(fn: ComposerSendUndo): () => void {
+  sendUndos.push(fn);
+  return () => {
+    const i = sendUndos.indexOf(fn);
+    if (i >= 0) sendUndos.splice(i, 1);
+  };
+}
+
+/** 全部目标写入失败时由发送方调用(部分成功不回滚:消息已进好目标,重发会重复)。 */
+export function undoComposerSend(): void {
+  for (const fn of [...sendUndos]) fn();
+}
+
 export function composerTriggerSources(): readonly ComposerTriggerSource[] {
   return triggerSources;
 }

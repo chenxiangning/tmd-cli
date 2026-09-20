@@ -70,15 +70,15 @@ export function useComposerDrawer({
 
   /* send 与手动发送完全同路径(prepareSendPayload → host.writeSession,translate 生效,零拦截;
      writeSession 同时锚定对话(呼吸灯首写闸) —— 用户首写后的输出才按对话语义结算呼吸灯);
-     返回写入的 wire 文本(translate 后)供抽屉 toast 展示;无会话/无 profile 返回空串
-     (spec:静默守卫,不弹"已发送"假反馈) */
-  function sendFromDrawer(item: DrawerItem): string {
+     返回写入的 wire 文本(translate 后)供抽屉 toast 展示;null=写入失败(死会话),
+     空串=无会话/无 profile 静默守卫(spec:不弹"已发送"假反馈) */
+  async function sendFromDrawer(item: DrawerItem): Promise<string | null> {
     const sid = host.getActiveSessionId();
     if (!sid || !profile) return "";
     const text = drawerWireText(item);
     const wire = prepareSendPayload(profile, text);
     const gate = readPromptGate(sid); // 轮次闸写前现读:ask 作答/轮中斜杠命令不开轮不广播
-    host.writeSession(sid, wire);
+    if (!(await host.writeSession(sid, wire))) return null;
     emitPromptSent(gate, sid, text);
     return wire.replace(/\r$/, "");
   }
