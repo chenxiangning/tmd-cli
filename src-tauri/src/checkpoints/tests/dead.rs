@@ -12,8 +12,11 @@ fn 死锚点收口_强退最后一轮落账() {
     ws.commit_all("init");
 
     // 强退模拟:锚点后 AI 改了文件,kill 掉 sessionExited,永远等不到显式封口
-    let _ = ws.anchor("cli-1", "tmd-1", "被强退的一轮");
+    let a0 = ws.anchor("cli-1", "tmd-1", "被强退的一轮");
     ws.write("a.txt", "v2\n");
+    // 钉宽到 jiffy 噪声带外:自然 mtime 走内核粗时钟,可能早于其后锚点的
+    // ledger ts(细粒度),窗口仲裁在 CI 亚毫秒节奏下失去次序
+    ws.touch("a.txt", a0.ts + 20);
 
     // 新鲜度保护:宽限内的在途锚点不收(本运行刚打的轮),但 open 批在时间线可见
     assert_eq!(
@@ -42,19 +45,20 @@ fn 死锚点收口_强退最后一轮落账() {
 #[test]
 fn 死锚点收口_按会话隔离_不吞别人窗口() {
     let ws = TempWs::new();
-    ws.write("a.txt", "v1\n");
-    ws.commit_all("init");
-
     // 会话 A 强退留下开放锚点;会话 B 在其后提示并写入。
-    // mtime 显式钉在各自锚点 ts 之后:Linux ext4 coarse 时钟下自然 mtime
-    // 可能早于其后锚点的 ledger ts,亚毫秒节奏的 CI 上窗口会失去次序。
+    // mtime 显式钉宽锚点 ts 之后:Linux jiffy 粗时钟(1-4ms)会把自然/贴边
+    // mtime 舍入向下,贴回上一窗口端点(含等比较)就把别人的文件吞进来;
+    // +20ms 与 25ms 隔离垫都意在噪声带外。
     let a0 = ws.anchor("dead-1", "dead-1", "被强退的一轮");
     ws.write("a.txt", "v2\n");
-    ws.touch("a.txt", a0.ts + 1);
-    std::thread::sleep(std::time::Duration::from_millis(3));
+    ws.touch("a.txt", a0.ts + 10);
+    std::thread::sleep(std::time::Duration::from_millis(25));
     let b0 = ws.anchor("live-1", "live-1", "B 的一轮");
     ws.write("b.txt", "new\n");
-    ws.touch("b.txt", b0.ts + 1);
+    ws.touch("b.txt", b0.ts + 20);
+    // 收口前垫一拍:窗口端 = min(仲裁 now, 僵尸封顶),钉点必须落在 now 之前,
+    // 否则 mtime 逃出全部窗口走认领兜底,快机器上同毫秒收口必吞文件
+    std::thread::sleep(std::time::Duration::from_millis(30));
 
     // grace 0 下刚打的 live 锚点也可能超龄被一并代封(修订追加,无损失);
     // 要钉的契约是:收口不吞别人窗口,各会话批各归各的变更

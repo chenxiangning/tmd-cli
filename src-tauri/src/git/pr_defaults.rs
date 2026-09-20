@@ -32,19 +32,21 @@ pub struct PrDefaults {
 pub fn parse_github_repo(url: &str) -> Option<String> {
     let s = url.trim().trim_end_matches('/');
     /* 剥 scheme 后按首个 / 切 authority/path;scp 形态 git@host:path 单独认。 */
-    let (host, path) = if let Some(rest) = s
+    let (host, path) = match s
         .strip_prefix("https://")
         .or_else(|| s.strip_prefix("http://"))
         .or_else(|| s.strip_prefix("ssh://"))
         .or_else(|| s.strip_prefix("git://"))
     {
-        let (h, p) = rest.split_once('/')?;
-        (h.rsplit('@').next().unwrap_or(h), p)
-    } else if let Some(rest) = s.strip_prefix("git@") {
-        let (h, p) = rest.split_once(':')?;
-        (h, p)
-    } else {
-        return None;
+        Some(rest) => {
+            let (h, p) = rest.split_once('/')?;
+            (h.rsplit('@').next().unwrap_or(h), p)
+        }
+        None => {
+            let rest = s.strip_prefix("git@")?;
+            let (h, p) = rest.split_once(':')?;
+            (h, p)
+        }
     };
     if host != "github.com" {
         return None;
