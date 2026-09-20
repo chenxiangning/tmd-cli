@@ -19,6 +19,7 @@
   gap: 2px;
   height: 27px;
   padding: 0 8px;
+  overflow: hidden; /* 窄栏时内容物在栏内裁剪,不出血到中央区域;弹层经 portal 不受影响 */
 }
 
 .settings-bar-btn {
@@ -116,6 +117,8 @@
   font-size: 0.6875rem;
   font-family: inherit;
   color: var(--tmd-fg-subtle); /* neutral-500 */
+  white-space: nowrap; /* 窄窗不折行:版本号与「有新版」保持同一行 */
+  flex-shrink: 0;
   cursor: pointer;
   user-select: none;
 }
