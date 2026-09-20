@@ -25,6 +25,36 @@ fn write_file_覆写与新建空文件() {
 }
 
 #[test]
+fn write_file_原子替换_保权限_无_tmp_残留() {
+    let root = temp_root("atomic");
+    let file = root.join("auth.json");
+    fs::write(&file, "old").unwrap();
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
+    }
+
+    write_file(file.to_str().unwrap(), "new-content").unwrap();
+    assert_eq!(fs::read(&file).unwrap(), b"new-content");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = fs::metadata(&file).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600, "覆写后不得放宽既有权限");
+    }
+    /* 同目录不留 tmp 残留(同 pid 命名) */
+    let residue: Vec<_> = fs::read_dir(&root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name().to_string_lossy().contains(".tmp"))
+        .collect();
+    assert!(residue.is_empty(), "tmp 残留: {residue:?}");
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn write_file_拒绝相对路径_git_段_与目录目标() {
     let root = temp_root("guard");
     let git_dir = root.join(".git");

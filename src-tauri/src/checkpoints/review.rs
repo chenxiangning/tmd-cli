@@ -75,7 +75,7 @@ pub fn undo_revert(cwd: &str, batch_id: &str) -> Result<RestoreOutcome, CkptErro
                 if let Some(parent) = full.parent() {
                     fs::create_dir_all(parent)?;
                 }
-                fs::write(&full, data)?;
+                crate::session::write_atomic(&full, &data)?;
                 restored.push(path.clone());
             }
             None => {

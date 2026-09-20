@@ -54,7 +54,8 @@ pub fn write_temp_file(name: &str, bytes: &[u8]) -> Result<String, String> {
     let ext = name
         .rsplit_once('.')
         .map(|(_, e)| {
-            if e.len() <= 5 && !e.is_empty() {
+            /* 白名单字母数字:用户可控 name 的 ext 不得带分隔符等拼进文件名 */
+            if e.len() <= 5 && !e.is_empty() && e.chars().all(|c| c.is_ascii_alphanumeric()) {
                 e
             } else {
                 "bin"

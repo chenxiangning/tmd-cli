@@ -116,12 +116,26 @@ pub fn load_workspaces() -> WorkspacesFile {
     }
 }
 
-/// 同目录临时文件 + rename 的原子替换:进程崩溃/掉电不会留下截断的 JSON。
+/// 同目录临时文件 + rename 的原子替换:进程崩溃/掉电不会留下截断文件。
 /// rename 在同一文件系统内原子;load 侧失败本就回退默认,损坏不再不可逆。
+/// tmp 名带 pid 防与用户同名文件相撞;保留目标既有权限(如 CLI auth 600)。
+pub(crate) fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
+    let tmp = path.with_file_name(format!("{name}.{}.tmp", std::process::id()));
+    std::fs::write(&tmp, bytes)?;
+    if let Ok(meta) = std::fs::metadata(path) {
+        let _ = std::fs::set_permissions(&tmp, meta.permissions());
+    }
+    if let Err(e) = std::fs::rename(&tmp, path) {
+        let _ = std::fs::remove_file(&tmp); // rename 失败不残留 tmp
+        return Err(e);
+    }
+    Ok(())
+}
+
+/// 原子写 JSON(settings/workspaces 等应用自有文件)。
 pub(crate) fn write_json_atomic(path: &std::path::Path, json: &str) -> std::io::Result<()> {
-    let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, json)?;
-    std::fs::rename(&tmp, path)
+    write_atomic(path, json.as_bytes())
 }
 
 /// 落盘工作区列表。

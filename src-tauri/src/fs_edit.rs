@@ -52,7 +52,7 @@ pub fn write_file(path: &str, content: &str) -> Result<(), String> {
     if p.is_dir() {
         return Err("目标路径是目录,不能写入文件".to_string());
     }
-    fs::write(p, content).map_err(|e| format!("写入文件失败: {e}"))
+    crate::session::write_atomic(p, content.as_bytes()).map_err(|e| format!("写入文件失败: {e}"))
 }
 
 /// 新建空文件。已存在(无论文件还是目录)都报错 —— 与 create_dir 同语义:

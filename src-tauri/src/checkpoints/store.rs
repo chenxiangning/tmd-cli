@@ -18,7 +18,9 @@ pub(crate) struct StatesFile {
     pub batches: BTreeMap<String, BatchState>,
 }
 /// 账本互斥:anchor/seal/restore/prune 都要读改 ledger.jsonl,
-/// 进程内串行化防并行会话同时落账交错(文件自身是追加写,跨进程天然安全)。
+/// 进程内串行化防并行会话同时落账交错。
+/* ponytail: 仅进程内锁;双实例同时 rewrite+append 会吞行(std 无 flock,不为此引依赖)。
+单用户单实例是常态;确需多实例共存时改 flock 或 prune 走 append 补偿行。 */
 pub(crate) static LEDGER_LOCK: Mutex<()> = Mutex::new(());
 
 /// 持有 LEDGER_LOCK 的 RAII 守卫(测试 panic 毒化后可恢复)。
@@ -165,7 +167,7 @@ pub(crate) fn rewrite_ledger(cwd: &str, entries: &[LedgerEntry]) -> Result<(), C
         out.push_str(&serde_json::to_string(e).unwrap());
         out.push('\n');
     }
-    fs::write(&file, out)?;
+    crate::session::write_atomic(&file, out.as_bytes())?;
     Ok(())
 }
 
@@ -182,7 +184,7 @@ pub(crate) fn save_states(cwd: &str, states: &StatesFile) -> Result<(), CkptErro
         fs::create_dir_all(parent)?;
     }
     let json = serde_json::to_string(states).map_err(|e| CkptError::Store(e.to_string()))?;
-    fs::write(&file, json)?;
+    crate::session::write_atomic(&file, json.as_bytes())?;
     Ok(())
 }
 

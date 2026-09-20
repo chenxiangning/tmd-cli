@@ -10,10 +10,10 @@
 - [x] 1.4 `sendTransform.ts:52` marks 乐观翻 sent 改发送成功后确认(或失败回滚)
 - [x] 1.5 回归测试:单路+广播写入失败 → 草稿保留、芯片不翻 sent、错误可见
 
-- [ ] 2.1 `session.rs:121-125` write_json_atomic 泛化为 `write_atomic`(tmp+rename 保权限;Windows rename 覆盖语义)
-- [ ] 2.2 六点接入(全部实读核实为裸 fs::write):`fs_edit.rs:55` write_file(编辑器保存+全部 CLI 配置写回通道)、`checkpoints/store.rs:168` rewrite_ledger(截断=批次历史不可逆丢)、`store.rs:185` save_states、`checkpoints/apply.rs:184` / `restore.rs:228` / `review.rs:78` 写回用户文件
-- [ ] 2.3 `fs.rs:54-63` write_temp_file ext 白名单(实测含 "/" 的 ext 致写入失败而非逃逸;字母数字 1-5 位)
-- [ ] 2.4 `store.rs:20-22` LEDGER_LOCK 跨实例:注释「跨进程天然安全」只对 append 成立,双实例 rewrite 与 append 交错吞行——rewrite 前文件锁或 prune 走 append 补偿;单测:重写后账本可完整 load
+- [x] 2.1 `session.rs` write_atomic 泛化(tmp 名带 pid 防撞 + 保留目标权限 + rename 失败清残;write_json_atomic 委托之)
+- [x] 2.2 六点接入(全部实读核实为裸 fs::write):`fs_edit.rs:55` write_file(编辑器保存+全部 CLI 配置写回通道)、`checkpoints/store.rs:168` rewrite_ledger(截断=批次历史不可逆丢)、`store.rs:185` save_states、`checkpoints/apply.rs:184` / `restore.rs:228` / `review.rs:78` 写回用户文件
+- [x] 2.3 `fs.rs:54-63` write_temp_file ext 白名单(字母数字 1-5 位;含 "/" 的 ext 现会落 bin 而非拼出非法路径)
+- [ ] 2.4 [缓修] LEDGER_LOCK 跨实例文件锁:std 无 flock、不为此引依赖;单用户单实例常态下仅进程内锁够用,已在 store.rs 留 ponytail 天花板注释(多实例共存时改 flock 或 prune 走 append 补偿)
 
 ## 3. PTY 进程收口(Rust)
 

@@ -225,7 +225,7 @@ pub fn restore_batch(
                 if let Some(parent) = full.parent() {
                     fs::create_dir_all(parent)?;
                 }
-                fs::write(&full, bytes)?;
+                crate::session::write_atomic(&full, bytes)?;
                 restored.push(path.clone());
             }
             PlanOp::Delete => {
