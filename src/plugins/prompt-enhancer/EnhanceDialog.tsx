@@ -1,7 +1,8 @@
 /**
- * 增强对话框 —— 并排对照(图 2 交互,spec 2026-09-21):
- * 引擎选择 + 强度三档 + 开始增强;高级设置折叠(超时/模型);左原始可改、右增强只读;
- * 底部保留原始版本 / 使用增强版本(整替草稿经 composerReplaceRef)。
+ * 增强对话框 —— 并排对照(spec 2026-09-21,阶段 2 增强):
+ * 引擎选择 + 强度三档 + 开始增强;高级设置折叠(超时/模型);历史记录切换;
+ * 同 草稿+引擎+档位+模型 命中缓存秒回(再点强制重跑);lastUsed 记忆上次组合;
+ * 左原始可改、右增强只读;底部保留原始版本 / 使用增强版本(整替草稿)。
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -17,67 +18,16 @@ import {
   type EnhanceOutcome,
   type EnhancePreset,
 } from "./enhanceEngines";
+import { pushHistory, readCache, setLastUsed, writeCache, ensureLoaded, getLastUsed } from "./enhanceStore";
+import { EnhancedPane } from "./EnhancePanes";
+import { EnhanceHistory } from "./EnhanceHistory";
+import type { EnhanceHistoryEntry } from "./enhanceStore";
 
 const PRESETS: Array<{ id: EnhancePreset; label: string; hint: string }> = [
   { id: "light", label: t("轻润色"), hint: t("只整理措辞,短句不扩写") },
   { id: "structured", label: t("结构化"), hint: t("分小节重组,不虚构事实") },
   { id: "executable", label: t("可执行"), hint: t("压成短句清单,只留约束与交付格式") },
 ];
-
-function failCopy(fail: Extract<EnhanceOutcome, { ok: false }>, timeoutSeconds: number): string {
-  switch (fail.kind) {
-    case "timeout":
-      return t("增强超时({seconds} 秒),可重试或调大超时", { seconds: timeoutSeconds });
-    case "empty":
-      return t("引擎返回空结果,请重试");
-    case "engine":
-      return `${t("增强失败")}${fail.detail ? `: ${fail.detail}` : ""}`;
-  }
-}
-
-/** 增强右栏:状态标签 + 结果体(运行中 = 实时信息流并自动滚底;完成 = 哨兵终稿;错误红字)。 */
-function EnhancedPane({
-  running,
-  live,
-  fail,
-  enhanced,
-  timeoutSeconds,
-}: {
-  running: boolean;
-  live: string;
-  fail: Extract<EnhanceOutcome, { ok: false }> | null;
-  enhanced: string;
-  timeoutSeconds: number;
-}) {
-  const taRef = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    if (running && taRef.current) taRef.current.scrollTop = taRef.current.scrollHeight;
-  }, [live, running]);
-  return (
-    <div className="flex min-w-0 flex-col">
-      <div className="flex items-center gap-1 text-xs text-(--tmd-fg-muted)">
-        <SparkleIcon size="0.75rem" className="text-(--tmd-accent)" />
-        {t("增强后的提示词")}
-        <span className="ml-auto">
-          {running ? t("增强中…") : fail ? t("增强失败") : enhanced ? "" : t("等待增强")}
-        </span>
-      </div>
-      <textarea
-        ref={taRef}
-        readOnly
-        aria-label={t("增强后的提示词")}
-        value={running ? live : fail ? failCopy(fail, timeoutSeconds) : enhanced}
-        className={`mt-1.5 h-64 w-full resize-y rounded border p-2 text-xs leading-normal outline-none ${
-          running
-            ? "border-(--tmd-accent) bg-(--tmd-bg-elevated) font-mono text-(--tmd-fg-muted)"
-            : fail
-              ? "border-(--tmd-border) text-[#f85149]"
-              : "border-(--tmd-accent) bg-(--tmd-bg-elevated) text-(--tmd-fg)"
-        }`}
-      />
-    </div>
-  );
-}
 
 export function EnhanceDialog({
   cwd,
@@ -100,10 +50,41 @@ export function EnhanceDialog({
   const [timeoutSeconds, setTimeoutSeconds] = useState(60);
   const [model, setModel] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [view, setView] = useState<"panes" | "history">("panes");
+  const [fromCache, setFromCache] = useState(false);
   const activePreset = PRESETS.find((p) => p.id === preset) ?? PRESETS[0];
+  /* 缓存命中后同一按钮变强制重跑(再点一次绕过缓存) */
+  const fromCacheRef = useRef(false);
+
+  /* 恢复上次选择(引擎/档位/模型/超时) */
+  useEffect(() => {
+    void ensureLoaded().then(() => {
+      const lu = getLastUsed();
+      if (!lu) return;
+      if (ENHANCE_ENGINES.some((e) => e.id === lu.engineId)) setEngineId(lu.engineId);
+      setPreset(lu.preset);
+      setModel(lu.model);
+      setTimeoutSeconds(clampTimeoutSeconds(lu.timeoutSeconds));
+    });
+  }, []);
 
   const run = async () => {
     if (running || !original.trim() || !cwd) return;
+    setLastUsed({ engineId, preset, model: model.trim(), timeoutSeconds });
+    if (fromCacheRef.current) {
+      /* 显示的是缓存:本次点击 = 强制重跑 */
+      fromCacheRef.current = false;
+      setFromCache(false);
+    } else {
+      const hit = readCache(engineId, preset, model.trim(), original);
+      if (hit) {
+        fromCacheRef.current = true;
+        setFromCache(true);
+        setFail(null);
+        setEnhanced(hit);
+        return;
+      }
+    }
     setRunning(true);
     setFail(null);
     setEnhanced("");
@@ -119,8 +100,25 @@ export function EnhanceDialog({
       onChunk: setLive,
     });
     setRunning(false);
-    if (out.ok) setEnhanced(out.text);
-    else setFail(out);
+    if (out.ok) {
+      setEnhanced(out.text);
+      writeCache(engineId, preset, model.trim(), original, out.text);
+      pushHistory({ original, enhanced: out.text, engineId, preset, model: model.trim(), at: Date.now() });
+    } else {
+      setFail(out);
+    }
+  };
+
+  const pickHistory = (e: EnhanceHistoryEntry) => {
+    setOriginal(e.original);
+    setEnhanced(e.enhanced);
+    setEngineId(e.engineId);
+    setPreset(e.preset);
+    setModel(e.model);
+    setFail(null);
+    fromCacheRef.current = false;
+    setFromCache(false);
+    setView("panes");
   };
 
   const chip = (active: boolean) =>
@@ -179,7 +177,13 @@ export function EnhanceDialog({
         <button
           type="button"
           disabled={running || !original.trim() || !cwd}
-          title={cwd ? undefined : t("无活跃工作区,无法运行增强")}
+          title={
+            cwd
+              ? fromCacheRef.current
+                ? t("当前为缓存结果,再点将重新增强")
+                : undefined
+              : t("无活跃工作区,无法运行增强")
+          }
           onClick={run}
           className="ml-auto flex items-center gap-1.5 rounded bg-(--tmd-accent) px-3 py-1.5 text-xs text-(--tmd-accent-fg) hover:opacity-90 disabled:opacity-50"
         >
@@ -189,15 +193,24 @@ export function EnhanceDialog({
       </div>
       <div className="mt-1.5 text-xs text-(--tmd-fg-muted)">{activePreset.hint}</div>
 
-      {/* 高级设置折叠:超时 / 模型 */}
-      <button
-        type="button"
-        className="mt-2 flex items-center gap-1 text-xs text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
-        onClick={() => setAdvancedOpen((v) => !v)}
-      >
-        {advancedOpen ? <CaretDownIcon size="0.75rem" /> : <CaretRightIcon size="0.75rem" />}
-        {t("高级设置")}
-      </button>
+      {/* 高级设置 + 历史切换行 */}
+      <div className="mt-2 flex items-center text-xs">
+        <button
+          type="button"
+          className="flex items-center gap-1 text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
+          onClick={() => setAdvancedOpen((v) => !v)}
+        >
+          {advancedOpen ? <CaretDownIcon size="0.75rem" /> : <CaretRightIcon size="0.75rem" />}
+          {t("高级设置")}
+        </button>
+        <button
+          type="button"
+          className={`ml-4 ${view === "history" ? "text-(--tmd-accent)" : "text-(--tmd-fg-muted) hover:text-(--tmd-fg)"}`}
+          onClick={() => setView((v) => (v === "history" ? "panes" : "history"))}
+        >
+          {t("历史记录")}
+        </button>
+      </div>
       {advancedOpen && (
         <div className="mt-1.5 flex items-center gap-4 text-xs">
           <label className="flex items-center gap-1.5">
@@ -229,29 +242,33 @@ export function EnhanceDialog({
         </div>
       )}
 
-      {/* 并排双栏:原始可改 / 增强只读 */}
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <div className="flex min-w-0 flex-col">
-          <div className="flex items-center gap-1 text-xs text-(--tmd-fg-muted)">
-            <PencilSimpleIcon size="0.75rem" />
-            {t("原始提示词")}
-            <span className="ml-auto">{t("可改")}</span>
+      {view === "history" ? (
+        <EnhanceHistory onPick={pickHistory} />
+      ) : (
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="flex min-w-0 flex-col">
+            <div className="flex items-center gap-1 text-xs text-(--tmd-fg-muted)">
+              <PencilSimpleIcon size="0.75rem" />
+              {t("原始提示词")}
+              <span className="ml-auto">{t("可改")}</span>
+            </div>
+            <textarea
+              aria-label={t("原始提示词")}
+              value={original}
+              onChange={(e) => setOriginal(e.target.value)}
+              className="mt-1.5 h-64 w-full resize-y rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2 text-xs leading-normal text-(--tmd-fg) outline-none focus:border-(--tmd-accent)"
+            />
           </div>
-          <textarea
-            aria-label={t("原始提示词")}
-            value={original}
-            onChange={(e) => setOriginal(e.target.value)}
-            className="mt-1.5 h-64 w-full resize-y rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2 text-xs leading-normal text-(--tmd-fg) outline-none focus:border-(--tmd-accent)"
+          <EnhancedPane
+            running={running}
+            live={live}
+            fail={fail}
+            enhanced={enhanced}
+            fromCache={fromCache}
+            timeoutSeconds={clampTimeoutSeconds(timeoutSeconds)}
           />
         </div>
-        <EnhancedPane
-          running={running}
-          live={live}
-          fail={fail}
-          enhanced={enhanced}
-          timeoutSeconds={clampTimeoutSeconds(timeoutSeconds)}
-        />
-      </div>
+      )}
     </DialogShell>
   );
 }

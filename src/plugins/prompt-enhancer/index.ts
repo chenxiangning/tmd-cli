@@ -6,7 +6,10 @@
  */
 import { SparkleIcon } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
+import { t } from "@kernel/i18n";
+import { composerDraftRef } from "@kernel/composerExt";
 import { EnhanceButton } from "./EnhanceButton";
+import { openEnhance } from "./enhanceOpen";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
 export const promptEnhancerPlugin: Plugin = {
@@ -19,8 +22,16 @@ export const promptEnhancerPlugin: Plugin = {
     iconColor: "#A78BFA",
     category: "feature",
   },
-  permissions: ["ipc.terminal", "settings.write"],
+  permissions: ["ipc.terminal", "ipc.fs.read", "ipc.fs.write", "settings.write"],
   activate(ctx) {
     ctx.contribute("composer.inputRail", { order: 50, component: EnhanceButton });
+    /* ⌘⌥E 唤起增强(草稿非空才生效);键位空闲实证 2026-09-21(⌘⇧E 被会话切换占用) */
+    ctx.registerCommand({
+      id: "promptEnhancer.run",
+      title: t("增强提示词"),
+      keybinding: "Cmd+Alt+E",
+      when: () => Boolean(composerDraftRef.current?.().trim()),
+      run: () => openEnhance(),
+    });
   },
 };

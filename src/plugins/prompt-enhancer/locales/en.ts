@@ -25,4 +25,8 @@ export const MESSAGES_EN = {
     "Enhance timed out after {seconds}s — retry or raise the timeout",
   "引擎返回空结果,请重试": "Engine returned an empty result — try again",
   "无活跃工作区,无法运行增强": "No active workspace; cannot run enhancement",
+  "历史记录": "History",
+  "暂无历史记录": "No history yet",
+  "缓存": "Cached",
+  "当前为缓存结果,再点将重新增强": "Showing cached result — click again to re-run",
 } as Record<string, string>;
