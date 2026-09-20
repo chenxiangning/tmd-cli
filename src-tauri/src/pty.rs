@@ -129,15 +129,17 @@ impl PtyRegistry {
         let mut handle = sessions
             .remove(id)
             .ok_or_else(|| format!("会话 {id} 不存在"))?;
-        handle.child.kill().map_err(|e| format!("kill 失败: {e}"))
+        handle.child.kill().map_err(|e| format!("kill 失败: {e}"))?;
+        let _ = handle.child.wait(); /* 收尸:kill 仅发信号,不 wait 留僵尸直到 App 退出 */
+        Ok(())
     }
 
     /// 应用退出时清场:逐个 kill 全部存活子进程。缺它则 PTY 子进程成孤儿
-    /// 常驻(自动激活每次启动新增一代 resume 进程,泄漏随启动次数累积)。
     pub fn kill_all(&self) {
         let mut sessions = self.sessions.lock();
         for (_, mut handle) in sessions.drain() {
             let _ = handle.child.kill();
+            let _ = handle.child.wait(); /* 收尸同 kill */
         }
     }
 

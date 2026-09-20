@@ -17,9 +17,9 @@
 
 ## 3. PTY 进程收口(Rust)
 
-- [ ] 3.1 三处 kill 补收尸:`pty.rs:132`(kill)、`pty.rs:140`(kill_all)、`pty_spawn.rs:238`(emitter 退出清理)——全库 grep 实证 PTY 是唯一无 try_wait/wait 的子进程路径(lsp/proc_run/wsl/git/resolve 均有)
-- [ ] 3.2 `pty_spawn.rs:191` 泵线程先起、`:248-256` registry 插入在后:秒退会话的 emitter 清理跑在插入前,死亡 handle 永久滞留(master fd 泄漏)——改先插再起泵
-- [ ] 3.3 验证:spawn 即退命令后 sessions 表无残留;多会话进出 `ps` 无僵尸
+- [x] 3.1 三处 kill 补收尸:`pty.rs` kill(:133)/kill_all(:142)、`pty_spawn.rs` emitter 退出清理(:250)各加 child.wait()
+- [x] 3.2 `pty_spawn.rs` 注册表插入提前到泵线程前(原 :248→现 :175-185):秒退会话的 emitter 清理不再跑空,死亡 handle 不滞留
+- [ ] 3.3 [待真机] ps 级无僵尸验证归入 9.2 目检(单测需 AppHandle 不可行;伪造 Child 钉实现无行为价值,不写)
 
 ## 4. 搜索完整性(fs_walk 契约)
 

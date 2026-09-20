@@ -172,6 +172,17 @@ pub(crate) fn spawn(
     /* 有界 channel:队列满则 reader 阻塞 → 内核 PTY 缓冲回压子进程,
     防持续高速输出(cat 大文件/构建刷屏)下无界队列内存膨胀。 */
     let (out_tx, out_rx) = mpsc::sync_channel::<Vec<u8>>(64);
+    /* 先插注册表再起泵线程:子进程秒退时 emitter 的退出清理(remove)必须能
+    找到它,否则死亡 handle 永久滞留 sessions 表(master fd 泄漏)。 */
+    registry.sessions.lock().insert(
+        id.clone(),
+        PtyHandle {
+            writer: Arc::new(Mutex::new(writer)),
+            master: pair.master,
+            child,
+            size: Mutex::new((spec.cols, spec.rows)),
+        },
+    );
     std::thread::spawn(move || {
         let mut buf = [0u8; 8192];
         loop {
@@ -236,6 +247,7 @@ pub(crate) fn spawn(
          * webview reload 会错过 pty://exit,句柄(master fd)否则永久滞留。 */
         if let Some(mut handle) = out_sessions.lock().remove(&out_id) {
             let _ = handle.child.kill();
+            let _ = handle.child.wait(); /* 收尸:kill 仅发信号,不 wait 留僵尸 */
         }
         /* 活会话注册表同步移除:webview reload 错过 exit 事件后,
          * session_list 不再把死会话当活会话返回 */
@@ -244,16 +256,6 @@ pub(crate) fn spawn(
         }
         let _ = crate::event_sink::emit(&out_app, &format!("pty://exit/{out_id}"), &());
     });
-
-    registry.sessions.lock().insert(
-        id.clone(),
-        PtyHandle {
-            writer: Arc::new(Mutex::new(writer)),
-            master: pair.master,
-            child,
-            size: Mutex::new((spec.cols, spec.rows)),
-        },
-    );
 
     Ok(SpawnedSession { id, pid })
 }
