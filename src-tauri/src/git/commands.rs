@@ -45,6 +45,12 @@ pub async fn git_status(cwd: String) -> Result<DiffStatus, String> {
     run(cwd, status_impl::compute).await
 }
 
+/// 忽略项前缀(侧栏工作区文件浏览器降显;整体忽略目录折叠带尾斜杠)。
+#[tauri::command]
+pub async fn git_ignored_prefixes(cwd: String) -> Result<Vec<String>, String> {
+    run(cwd, status_impl::ignored_prefixes).await
+}
+
 /// 多仓发现(workspace 根 BFS;不走 with_repo 缓存 —— 见 repos_scan.rs)。
 #[tauri::command]
 pub async fn git_repos_scan(root: String, max_depth: u32) -> Result<RepoScanResult, String> {

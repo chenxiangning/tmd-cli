@@ -24,6 +24,8 @@ import { ActiveWorkspaceFileTree } from "./FileTree";
 import { setFileMarkBus } from "./markBridge";
 import { getActiveTreeHandles } from "./treeHandles";
 import { GitDecorateToggle } from "./gitDecorate";
+import { WorkspaceFileBrowser } from "./WorkspaceFileBrowser";
+import { registerWorkspaceFileBrowser } from "@kernel/workspaceFileBrowser";
 
 export const filesPlugin: Plugin = {
   id: "files",
@@ -56,6 +58,9 @@ export const filesPlugin: Plugin = {
       newFolder: () => getActiveTreeHandles()?.newFolder(),
       actions: GitDecorateToggle,
     });
+    /* 左栏工作区「查看文件」浏览器实现(kernel workspaceFileBrowser 契约);
+       拔出本插件 = 入口按钮消失、已开视图自动关闭,右栏文件树零感知。 */
+    registerWorkspaceFileBrowser(WorkspaceFileBrowser);
     /* 中央文件 tab 内容:kind="file" 路由(kernel/tabs 注册表)。 */
     ctx.registerTabContent({ kind: "file", component: FileTabContent });
     /* ⌘S 保存命令:when 限定激活 tab 为本地文件 tab(kind="file"),否则键穿透;
@@ -67,5 +72,6 @@ export const filesPlugin: Plugin = {
       when: () => getActiveTab()?.kind === "file",
       run: () => saveRequestRef.current?.(),
     });
+    return () => registerWorkspaceFileBrowser(null);
   },
 };

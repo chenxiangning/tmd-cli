@@ -408,6 +408,9 @@ export const ipc = {
    *  结果按 path 排序,root 是仓时首个即 root;超 32 截断(truncated)。 */
   gitReposScan: (root: string, maxDepth: number) =>
     invoke<GitRepoScanResult>("git_repos_scan", { root, maxDepth }),
+  /** 忽略项前缀(git status --ignored 口径;整体忽略目录折叠带尾斜杠,如 "node_modules/")。
+   *  侧栏工作区文件浏览器降显用;非仓报错由调用方兜底空集。 */
+  gitIgnoredPrefixes: (cwd: string) => invoke<string[]>("git_ignored_prefixes", { cwd }),
 
   /* ── checkpoints(批次审批/回退;契约对齐 src-tauri/src/checkpoints/*,serde camelCase)
    * E_* 前缀:E_NOT_A_REPO / E_EMPTY / E_STORE / E_GIT2 / E_IO ── */

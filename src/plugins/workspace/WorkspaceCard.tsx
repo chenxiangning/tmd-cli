@@ -12,7 +12,8 @@ import { t } from "@kernel/i18n";
 import { setActiveWorkspace, setWorkspaceAlias, workspaceDisplayName, type Workspace } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { RenameInput } from "@kernel/RenameInput";
-import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, RocketLaunch, ListChecks } from "@phosphor-icons/react";
+import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, RocketLaunch, ListChecks, Rows } from "@phosphor-icons/react";
+import { openWorkspaceFiles, useWorkspaceFileBrowserView } from "@kernel/workspaceFileBrowser";
 import { CliSessionGroup } from "./SessionList";
 import { SshSessionGroup } from "./SshSessionGroup";
 import { ShellSessionGroup } from "./ShellSessionGroup";
@@ -62,6 +63,8 @@ export function WorkspaceCard({
   const rowRefreshing = profiles.some((p) => refreshing[scanKey(p.id)] ?? false);
   /** 会话管理模式(本工作区全部 CLI 组统一切换,prop 下发);入口 = 行头开关(归档视图入口在 caption「本地|归档」radio)。 */
   const [manage, setManage] = useState(false);
+  /* 「查看文件」入口:files 插件的侧栏浏览器实现在位才显示(拔出即消失)。 */
+  const browserOn = useWorkspaceFileBrowserView() !== null;
   return (
     <div className={`workspace-card${isActive ? " is-active" : ""}`}>
       <div className={`workspace-row${isActive ? " active" : ""}`}>
@@ -145,6 +148,19 @@ export function WorkspaceCard({
 
 
         <div className="workspace-actions">
+          {browserOn && (
+            <button
+              type="button"
+              className="workspace-action-btn"
+              title={t("查看文件")}
+              onClick={(e) => {
+                e.stopPropagation();
+                openWorkspaceFiles(workspace.id);
+              }}
+            >
+              <Rows size="0.9375rem" aria-hidden />
+            </button>
+          )}
           <button
             type="button"
             className={`workspace-action-btn${manage ? " is-on" : ""}`}

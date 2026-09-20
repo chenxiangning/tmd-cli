@@ -17,6 +17,21 @@ export const MESSAGES = {
   "复制失败": "Copy failed",
   "子模块": "Submodule",
   "工作树": "Worktree",
+  /* 侧栏工作区文件浏览器 */
+  "查看文件": "View files",
+  "返回任务": "Back to tasks",
+  "搜索文件...": "Search files...",
+  "搜索中…": "Searching…",
+  "没有匹配的文件": "No matching files",
+  "没有变更文件": "No changed files",
+  "显示全部文件": "Show all files",
+  "仅显示有变更的文件": "Show only changed files",
+  "更多操作": "More actions",
+  "刷新": "Refresh",
+  "仅显示前 {n} 条结果": "Showing first {n} results",
+  "远程工作区": "Remote workspace",
+  "该工作区的文件在远程宿主上;启用对应来源插件后可在此浏览。":
+    "This workspace's files live on the remote host; enable its source plugin to browse here.",
   /* 文件编辑 tab */
   "保存中…": "Saving…",
   "● 未保存的更改 · ⌘S 保存": "● Unsaved changes · ⌘S to save",

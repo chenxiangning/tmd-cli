@@ -4,6 +4,7 @@
 @import "./git-panel.css";
 @import "./file-tree.css";
 @import "./file-editor.css";
+@import "./workspace-file-browser.css";
 @import "./open-with.css";
 @import "./open-with-settings.css";
 @import "./open-with-dialog.css";

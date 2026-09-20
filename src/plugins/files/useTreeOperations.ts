@@ -44,7 +44,7 @@ function joinPath(dir: string, name: string): string {
 }
 
 /** 复制文本:优先 async clipboard,非安全上下文回退 execCommand(codemoss 同思路)。 */
-async function copyText(text: string): Promise<void> {
+export async function copyText(text: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
