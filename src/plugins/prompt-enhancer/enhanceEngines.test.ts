@@ -174,13 +174,22 @@ describe("runEnhance 全链路", () => {
     await vi.waitFor(() => expect(archiveMocks.archiveSession).toHaveBeenCalledWith("ws1:omp:disk-1"));
   });
 
-  it("日志权威于流:哨兵分块错乱也按全量日志提取", async () => {
-    fullLog("<ENHANCED>完整答案</ENHANCED>");
-    const pending = runEnhance({ ...BASE, engineId: "kimi" });
+  it("流为权威:exit 后日志已死(sessionLogSize=0)仍从流取终稿(空结果回归钉)", async () => {
+    ipcMocks.sessionLogSize.mockResolvedValue(0);
+    ipcMocks.sessionHistoryPage.mockResolvedValue({ text: "", startOffset: 0, hasMore: false });
+    const pending = runEnhance({ ...BASE, engineId: "omp" });
     await vi.waitFor(() => expect(outCbs.has("pty-9")).toBe(true));
-    outCbs.get("pty-9")!("<ENHANCE");
+    outCbs.get("pty-9")!("Working...\r\n<ENHANCED>流终稿</ENHANCED>");
     exitCbs.get("pty-9")!();
-    expect(await pending).toEqual({ ok: true, text: "完整答案" });
+    expect(await pending).toEqual({ ok: true, text: "流终稿" });
+  });
+
+  it("流为空退日志兜底:日志哨兵提取成功", async () => {
+    fullLog("<ENHANCED>日志终稿</ENHANCED>");
+    const pending = runEnhance({ ...BASE, engineId: "kimi" });
+    await vi.waitFor(() => expect(exitCbs.has("pty-9")).toBe(true));
+    exitCbs.get("pty-9")!();
+    expect(await pending).toEqual({ ok: true, text: "日志终稿" });
   });
 
   it("command not found → engine 态附该行", async () => {

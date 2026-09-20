@@ -158,7 +158,7 @@ export async function runEnhance(opts: EnhanceRunOpts): Promise<EnhanceOutcome> 
     settled = true;
     clearTimeout(timer);
     void (async () => {
-      const outcome = await settle(spawned.id, timedOut);
+      const outcome = await settle(spawned.id, live, timedOut);
       await cleanup(spawned.id, opts, startedAt);
       resolve(outcome);
     })();
@@ -166,10 +166,13 @@ export async function runEnhance(opts: EnhanceRunOpts): Promise<EnhanceOutcome> 
   return promise;
 }
 
-/** 终局裁定:全量落盘日志为权威(订阅前瞬间的早期输出不丢),哨兵提取。 */
-async function settle(id: string, timedOut: boolean): Promise<EnhanceOutcome> {
+/** 终局裁定:流式缓冲为第一权威(订阅与 CLI 冷启动同起,几无丢失);
+ *  流为空才退落盘日志(防订阅竞态)——exit 后 PTY 句柄已被 Rust watcher
+ *  自清理,sessionLogSize 恒 0,日志读取本就不可依赖(2026-09-21 实证空结果回归)。 */
+async function settle(id: string, streamed: string, timedOut: boolean): Promise<EnhanceOutcome> {
   if (timedOut) return { ok: false, kind: "timeout" };
-  const full = await readFullLog(id);
+  let full = streamed;
+  if (!normalizePtyText(full)) full = await readFullLog(id);
   const live = normalizePtyText(full);
   if (!live) return { ok: false, kind: "empty" };
   if (/command not found/i.test(live)) {

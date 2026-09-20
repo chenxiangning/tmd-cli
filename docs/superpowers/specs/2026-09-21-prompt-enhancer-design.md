@@ -34,6 +34,9 @@ composer 左下 inputRail 现有三个图标(assets 唤醒双图标 + 平铺广�
 
 权限:`ipc.exec` → `ipc.terminal` + `settings.write`(sessionSpawn/Kill/HistoryPage + 归档落 settings)。
 
+回归注记(同日):v2 首版终稿从落盘日志读——exit 后 PTY 句柄被 Rust watcher 自清理,`sessionLogSize` 恒 0,表现为右栏滚着内容突然红字「空结果」(闪烁)。已改为流式缓冲为第一权威,日志仅在流为空时兜底;真实窗口 omp 实跑复现后修复验证通过。
+
+
 
 ## 验证
 
