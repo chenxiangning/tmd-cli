@@ -189,6 +189,14 @@ Issues and PRs welcome:
 - Security reports: [`SECURITY.md`](.github/SECURITY.md) (use GitHub's private security reporting; do not describe details in public issues)
 - Code of conduct: [`CODE_OF_CONDUCT.md`](.github/CODE_OF_CONDUCT.md)
 
+## Community
+
+Join the QQ group **Tmd-cli vibecoding** (group id 91944516) to chat about usage and plugin development:
+
+<p align="center">
+  <img src="docs/images/qq-group-qr.png" alt="QQ group: Tmd-cli vibecoding (91944516)" width="260" />
+</p>
+
 ## Current status
 
 Landed: plugin host & plugin market (31 registered plugins: 10 CLI engines + 17 UI features + 3 core + local plugin loader), ten CLI profiles (omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/dsh/opencode) + first-class SSH sessions (russh) + built-in terminal (kind=shell), full PTY lifecycle & rotating session output logs with pagination, xterm curtain, workspace FLUX timeline session list (breathing lights/status labels/pinning/budget pagination/custom groups), top session tab strip with tile display, full composer (triggers/drag-drop/screenshots/command drawer v3/message anchor bar/quota/bracketed-paste, completions sourced from the CLIs themselves), agent/prompt asset library (!! / ## consumption), per-CLI configuration (visual editing of CLI config files, model role routing / wall-hit fallback chains), local plugins (~/.tmd-cli/plugins/ hot-load / build via conversation / version rollback), Ask confirmation detection (byte-stream + screen-state dual channel) with dual sounds, full right-rail Git panel (diff/branch/graph history/commit diff central tabs (dual-pane)/remote fetch/pull/push/three-zone drag-select batch ops & untracked deletion), file tree + CodeMirror editor + file render profiles (images/PDF/spreadsheets/docx/structured) + Markdown preview, file tab context menu & editor maximize, checkpoints (ledger: dual attribution/revert/apply/undo/shadow object store), theme engine (31 VS Code presets), global UI font size & zoom, network proxy, welcome page engine selector (full-action rows / RESUME / QUOTA / TOKENS), read-only session status bar, global shortcuts with visual rebinding, version popover with auto-update, memory coordination (Memory panel with FTS search / pill / console), branch context menu & remote operation dialogs, session tab context menu, WSL support (local UNC + remote SSH host M1: connect/sessions/history/status/read-only file channel), workspace wallpaper (local gallery + fluid shader, surface-token punch-through & translucent curtain), omp disk-session prewarm takeover for instant open, dsh streaming session output.
