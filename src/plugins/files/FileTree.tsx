@@ -110,9 +110,19 @@ function FileTree({ root }: { root: string }) {
       reload: reloadAll,
       newFile: () => ops.openPrompt({ kind: "new-file", dir: root }),
       newFolder: () => ops.openPrompt({ kind: "new-folder", dir: root }),
+      /* 详情页「定位到文件」:自浅向深逐层 reveal 祖先目录(每层等快照),末了选中。 */
+      revealFile: (path) => {
+        const base = root.replace(/[\\/]+$/, "");
+        const norm = path.replace(/\\/g, "/");
+        const rel = norm.startsWith(`${base}/`) ? norm.slice(base.length + 1) : norm;
+        const parts = rel.split("/").filter(Boolean);
+        const walk = (i: number): Promise<void> =>
+          i < parts.length ? revealDir(`${base}/${parts.slice(0, i).join("/")}`).then(() => walk(i + 1)) : Promise.resolve();
+        void walk(1).then(() => setSelectedPath(path));
+      },
     });
     return () => setActiveTreeHandles(null);
-  }, [reloadAll, root, ops.openPrompt]);
+  }, [reloadAll, root, ops.openPrompt, revealDir, setSelectedPath]);
 
 
   const rowMenu = useCallback(

@@ -33,6 +33,10 @@ export type ComposerSendTransform = (text: string, sessionId: string | null) => 
 /** 唤醒指定触发源的候选面板;composer 挂载期交接,未挂载 = null(欢迎页等无输入区场景)。 */
 export const composerWakeRef: { current: ((char: string) => void) | null } = { current: null };
 
+/** 输入框文本注入桥:composer 挂载期交接(插光标处并聚焦),未挂载 = null。
+ *  消费方如文件详情右键「发送到输入框」——模块级 ref 桥,同 composerWakeRef 先例。 */
+export const composerInsertRef: { current: ((text: string) => void) | null } = { current: null };
+
 const triggerSources: ComposerTriggerSource[] = [];
 const sendTransforms: ComposerSendTransform[] = [];
 

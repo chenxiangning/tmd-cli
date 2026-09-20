@@ -1,26 +1,40 @@
 /**
- * 文件详情页右键菜单 —— 参考 JetBrains 编辑器右键菜单裁剪出的最小可用集:
+ * 文件详情页右键菜单 —— 参考 JetBrains/VS Code 编辑器右键菜单裁剪出的最小可用集:
  *
- *   编辑态  剪切/复制/粘贴(CodeMirror 事务直驱)─ 复制路径/在访达中显示
- *          ─ 预览·编辑切换(md/结构化)─ 保存(脏态可用)
- *   预览态  复制(DOM 选区)─ 复制路径/在访达中显示 ─ 编辑切换
- *   字节态  复制路径/在访达中显示
+ *   通用    发送到输入框(kernel composerInsertRef 桥)─ 复制路径/在访达中显示
+ *          ─ Git 操作子菜单(暂存/取消暂存/放弃改动)─ 定位到文件(文件树 reveal)
+ *   编辑态  剪切/复制/粘贴(CodeMirror 事务直驱)─ 预览·编辑切换 ─ 保存(脏态可用)
+ *   预览态  复制(DOM 选区)─ 编辑切换
  *
- * 参考图中的 Git 子菜单/定位到文件未做:仓库尚无按文件历史/blame 视图与
- * 文件树定位契约,不造空项。视觉走 wsmenu 范式(FileTreeContextMenu 同款:
- * portal + backdrop + Escape + 视口夹取)。
- *
- * 粘贴走 navigator.clipboard.readText:WKWebView 拒绝授权时静默失败,
- * 原生 ⌘V(CodeMirror 内建)始终可用。
+ * Git 子菜单仅本地文件且落在活跃工作区内时出现;路径口径 = 工作区根相对
+ * (git ipc 仓库相对,同 git 插件 DiffView)。放弃改动两步武装确认。
  */
 
-import { useEffect, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { EditorView } from "@codemirror/view";
-import { ClipboardText, Copy, Eye, FloppyDisk, FolderOpen, Pencil, Scissors } from "@phosphor-icons/react";
+import {
+  ArrowCounterClockwise,
+  CaretRight,
+  ChatText,
+  ClipboardText,
+  Copy,
+  Crosshair,
+  Eye,
+  FloppyDisk,
+  FolderOpen,
+  GitBranch,
+  Minus,
+  Pencil,
+  Plus,
+  Scissors,
+} from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
+import { composerInsertRef } from "@kernel/composerExt";
+import { getActiveWorkspace } from "@kernel/workspace";
 import { clampMenuPosition, copyText } from "./useTreeOperations";
+import { getActiveTreeHandles } from "./treeHandles";
 
 export interface DetailMenuPos {
   x: number;
@@ -39,7 +53,7 @@ interface FileDetailContextMenuProps {
   view: EditorView | null;
   /** 开启菜单瞬间的选区文本快照(点菜单不会丢它;空串 = 无选区)。 */
   selText: string;
-  /** 只读(远程文件):剪切/粘贴/保存禁用,路径/访达两项不出。 */
+  /** 只读(远程文件):剪切/粘贴/保存禁用,路径/Git/定位三项不出。 */
   remote?: boolean;
   /** 有未落盘草稿时保存项可用。 */
   dirty?: boolean;
@@ -52,15 +66,20 @@ interface FileDetailContextMenuProps {
   onClose: () => void;
 }
 
-/** 菜单行构造(同 FileTreeContextMenu.item,多快捷键提示与禁用态)。 */
+/** 菜单行构造(同 FileTreeContextMenu.item,多快捷键提示与禁用/武装态)。 */
 function item(
   label: string,
   icon: ReactNode,
   onPick: () => void,
-  extra?: { kbd?: string; disabled?: boolean },
+  extra?: { kbd?: string; disabled?: boolean; danger?: boolean },
 ) {
   return (
-    <button type="button" className="wsmenu-item" disabled={extra?.disabled} onClick={onPick}>
+    <button
+      type="button"
+      className={`wsmenu-item${extra?.danger ? " is-danger" : ""}`}
+      disabled={extra?.disabled}
+      onClick={onPick}
+    >
       <span className="wsmenu-item-icon">{icon}</span>
       <span className="wsmenu-item-label">{label}</span>
       {extra?.kbd ? <span className="wsmenu-item-kbd">{extra.kbd}</span> : null}
@@ -101,19 +120,122 @@ function editorClipItems(view: EditorView, selText: string, remote: boolean, pic
   );
 }
 
-/** 预览态:仅复制 DOM 选区快照。 */
-function previewCopyItem(selText: string, pick: Pick) {
-  return item(t("复制"), <Copy size="0.8125rem" />, () =>
-    pick(() => void copyText(selText)), { disabled: !selText });
+/** Git 子菜单动作表:op → ipc 调用(路径口径 = 仓库根相对,同 git 插件 DiffView)。 */
+const GIT_OPS = {
+  stage: (cwd: string, rel: string) => ipc.gitStage(cwd, [rel]),
+  unstage: (cwd: string, rel: string) => ipc.gitUnstage(cwd, [rel]),
+  discard: (cwd: string, rel: string) => ipc.gitDiscard(cwd, [rel]),
+} as const;
+
+/** Git 子菜单:暂存/取消暂存/放弃改动(两步武装)。 */
+function GitSubmenu({ cwd, rel, pick }: { cwd: string; rel: string; pick: Pick }) {
+  const [armed, setArmed] = useState(false);
+  const run = (op: keyof typeof GIT_OPS) => {
+    void GIT_OPS[op](cwd, rel).catch(() => undefined);
+  };
+  return (
+    <div className="wsmenu-submenu-host">
+      <button type="button" className="wsmenu-item">
+        <span className="wsmenu-item-icon"><GitBranch size="0.8125rem" /></span>
+        <span className="wsmenu-item-label">{t("Git 操作")}</span>
+        <span className="wsmenu-item-kbd"><CaretRight size="0.8125rem" /></span>
+      </button>
+      <div className="wsmenu-submenu" role="menu">
+        {item(t("暂存"), <Plus size="0.8125rem" />, () => pick(() => run("stage")))}
+        {item(t("取消暂存"), <Minus size="0.8125rem" />, () => pick(() => run("unstage")))}
+        {item(armed ? t("确认放弃改动?") : t("放弃改动"), <ArrowCounterClockwise size="0.8125rem" />, () => {
+          if (!armed) {
+            setArmed(true);
+            return;
+          }
+          pick(() => run("discard"));
+        }, { danger: armed })}
+      </div>
+    </div>
+  );
 }
 
-/** 路径两项:复制路径 + 在访达中显示(本地文件专属)。 */
-function pathItems(path: string, pick: Pick) {
+/** 菜单全部行段(条件收敛在此,主组件只留壳;camelCase 构造函数非组件)。 */
+function menuBody(args: {
+  variant: DetailMenuVariant;
+  path: string;
+  view: EditorView | null;
+  selText: string;
+  remote: boolean;
+  dirty: boolean;
+  canToggle: boolean;
+  editorOpen: boolean;
+  onToggle?: () => void;
+  onSave?: () => void;
+  pick: Pick;
+}) {
+  const { variant, path, view, selText, remote, dirty, canToggle, editorOpen, onToggle, onSave, pick } = args;
+  const ws = getActiveWorkspace();
+  const base = ws ? ws.root.replace(/[\\/]+$/, "") : "";
+  const relPath = !remote && base && path.startsWith(`${base}/`) ? path.slice(base.length + 1) : null;
+  const revealFile = !remote ? getActiveTreeHandles()?.revealFile : undefined;
+  const sendText = selText || relPath || (!remote ? path : "");
+  const isEditor = variant === "editor" && view !== null;
   return (
     <>
-      {item(t("复制路径"), <Copy size="0.8125rem" />, () => pick(() => void copyText(path)))}
-      {item(t("在访达中显示"), <FolderOpen size="0.8125rem" />, () =>
-        pick(() => void ipc.fsRevealInFileManager(path).catch(() => undefined)),
+      {sendText && composerInsertRef.current && (
+        <>
+          {item(t("发送到输入框"), <ChatText size="0.8125rem" />, () =>
+            pick(() => composerInsertRef.current?.(sendText)))}
+          <div className="wsmenu-divider" />
+        </>
+      )}
+      {isEditor && (
+        <>
+          {editorClipItems(view, selText, remote, pick)}
+          <div className="wsmenu-divider" />
+        </>
+      )}
+      {variant === "preview" && (
+        <>
+          {item(t("复制"), <Copy size="0.8125rem" />, () =>
+            pick(() => void copyText(selText)), { disabled: !selText })}
+          <div className="wsmenu-divider" />
+        </>
+      )}
+      {!remote && (
+        <>
+          {item(t("复制路径"), <Copy size="0.8125rem" />, () => pick(() => void copyText(path)))}
+          {item(t("在访达中显示"), <FolderOpen size="0.8125rem" />, () =>
+            pick(() => void ipc.fsRevealInFileManager(path).catch(() => undefined)),
+          )}
+        </>
+      )}
+      {relPath && (
+        <>
+          <div className="wsmenu-divider" />
+          <GitSubmenu cwd={base} rel={relPath} pick={pick} />
+        </>
+      )}
+      {revealFile && (
+        <>
+          {!relPath && <div className="wsmenu-divider" />}
+          {item(t("定位到文件"), <Crosshair size="0.8125rem" />, () => pick(() => revealFile(path)))}
+        </>
+      )}
+      {canToggle && onToggle && (
+        <>
+          <div className="wsmenu-divider" />
+          {item(
+            editorOpen ? t("预览") : t("编辑"),
+            editorOpen ? <Eye size="0.8125rem" /> : <Pencil size="0.8125rem" />,
+            () => pick(onToggle),
+          )}
+        </>
+      )}
+      {isEditor && onSave && (
+        <>
+          <div className="wsmenu-divider" />
+          {item(t("保存"), <FloppyDisk size="0.8125rem" />, () => pick(onSave), {
+            kbd: "⌘S",
+            disabled: remote || !dirty,
+          })}
+        </>
       )}
     </>
   );
@@ -133,7 +255,9 @@ export function FileDetailContextMenu({
   onSave,
   onClose,
 }: FileDetailContextMenuProps) {
+  /* 子菜单要向右再伸 ~180px,夹取留量比树菜单更宽。 */
   const pos = clampMenuPosition(state.x, state.y);
+  pos.x = Math.min(pos.x, window.innerWidth - 400 - 12);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -143,13 +267,12 @@ export function FileDetailContextMenu({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  /* 先执行后关单:run 里的异步剪贴板操作不阻塞菜单关闭。 */
+  /* 先执行后关单:run 里的异步操作不阻塞菜单关闭。 */
   const pick: Pick = (run) => {
     run();
     onClose();
   };
 
-  const isEditor = variant === "editor" && view !== null;
   return createPortal(
     <>
       <div
@@ -162,87 +285,9 @@ export function FileDetailContextMenu({
         }}
       />
       <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }} role="menu">
-        {isEditor && (
-          <>
-            {editorClipItems(view, selText, remote, pick)}
-            <div className="wsmenu-divider" />
-          </>
-        )}
-        {variant === "preview" && (
-          <>
-            {previewCopyItem(selText, pick)}
-            <div className="wsmenu-divider" />
-          </>
-        )}
-        {!remote && pathItems(path, pick)}
-        {canToggle && onToggle && (
-          <>
-            <div className="wsmenu-divider" />
-            {item(
-              editorOpen ? t("预览") : t("编辑"),
-              editorOpen ? <Eye size="0.8125rem" /> : <Pencil size="0.8125rem" />,
-              () => pick(onToggle),
-            )}
-          </>
-        )}
-        {isEditor && onSave && (
-          <>
-            <div className="wsmenu-divider" />
-            {item(t("保存"), <FloppyDisk size="0.8125rem" />, () => pick(onSave), {
-              kbd: "⌘S",
-              disabled: remote || !dirty,
-            })}
-          </>
-        )}
+        {menuBody({ variant, path, view, selText, remote, dirty, canToggle, editorOpen, onToggle, onSave, pick })}
       </div>
     </>,
     document.body,
   );
-}
-
-/** 详情页右键菜单接线:开单瞬间快照选区文本,返回 触发器属性 与 菜单节点。 */
-export function useFileDetailMenu(opts: {
-  variant: DetailMenuVariant;
-  path: string;
-  viewRef: RefObject<EditorView | null>;
-  remote?: boolean;
-  dirty?: boolean;
-  canToggle?: boolean;
-  editorOpen?: boolean;
-  onToggle?: () => void;
-  onSave?: () => void;
-}): { detailMenuProps: { onContextMenu: (e: React.MouseEvent) => void }; detailMenu: ReactNode } {
-  const [pos, setPos] = useState<DetailMenuPos | null>(null);
-  const [selText, setSelText] = useState("");
-  const detailMenuProps = {
-    onContextMenu: (e: React.MouseEvent) => {
-      e.preventDefault();
-      const v = opts.viewRef.current;
-      setSelText(
-        v
-          ? v.state.selection.main.from !== v.state.selection.main.to
-            ? v.state.sliceDoc(v.state.selection.main.from, v.state.selection.main.to)
-            : ""
-          : (document.getSelection()?.toString() ?? ""),
-      );
-      setPos({ x: e.clientX, y: e.clientY });
-    },
-  };
-  const detailMenu = pos ? (
-    <FileDetailContextMenu
-      state={pos}
-      variant={opts.variant}
-      path={opts.path}
-      view={opts.viewRef.current}
-      selText={selText}
-      remote={opts.remote}
-      dirty={opts.dirty}
-      canToggle={opts.canToggle}
-      editorOpen={opts.editorOpen}
-      onToggle={opts.onToggle}
-      onSave={opts.onSave}
-      onClose={() => setPos(null)}
-    />
-  ) : null;
-  return { detailMenuProps, detailMenu };
 }

@@ -8,6 +8,8 @@ interface TreeHandles {
   reload: () => Promise<void>;
   newFile: () => void;
   newFolder: () => void;
+  /** 详情页「定位到文件」:逐层展开祖先目录后选中该路径;远程树不实现(菜单隐藏该项)。 */
+  revealFile?: (path: string) => void;
 }
 
 let activeTreeHandles: TreeHandles | null = null;

@@ -37,6 +37,8 @@ import { useAttachDragProps, usePopupAnchor } from "./composerChrome";
 import { AnchorRail } from "./AnchorRail";
 import { useComposerDrawer } from "./useComposerDrawer";
 import { composerSendRef } from "./composerSendRef";
+import { composerInsertRef } from "@kernel/composerExt";
+import { insertAtCursor } from "./useComposerAttachments";
 import { PromptGhostMirror } from "./PromptGhostMirror";
 import { useComposerSend } from "./useComposerSend";
 
@@ -91,6 +93,18 @@ export function Composer() {
     return () => window.clearTimeout(timer);
   }, [cwd, value]);
   const [cursor, setCursor] = useState(0);
+  /* 输入框注入桥:文件详情右键「发送到输入框」等经 kernel ref 桥写入光标处。
+     value 进 deps 仅为让 insertAtCursor 拿到最新受控值;cleanup 只清自己的注册。 */
+  useEffect(() => {
+    composerInsertRef.current = (text) => {
+      if (ref.current) insertAtCursor(ref.current, value, setValue, setCursor, text);
+      else setValue((v) => v + text);
+    };
+    const impl = composerInsertRef.current;
+    return () => {
+      if (composerInsertRef.current === impl) composerInsertRef.current = null;
+    };
+  }, [value]);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   /* 附件交互(拖放/粘贴/token 同步)职责在 useComposerAttachments */

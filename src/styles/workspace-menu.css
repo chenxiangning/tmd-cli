@@ -142,6 +142,33 @@
   color: var(--tmd-fg-faint);
 }
 
+/* 二级子菜单(Git 操作等):挂在宿主行内,CSS :hover 显示;
+   子菜单在 .wsmenu DOM 内,调色板变量随作用域继承,无需重声明。 */
+.wsmenu-submenu-host {
+  position: relative;
+}
+
+.wsmenu-submenu {
+  display: none;
+  position: absolute;
+  left: calc(100% - 4px);
+  top: -6px;
+  z-index: 1202;
+  min-width: 168px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-quiet);
+  background: var(--surface-sidebar-opaque);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.18),
+    0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.wsmenu-submenu-host:hover .wsmenu-submenu,
+.wsmenu-submenu-host:focus-within .wsmenu-submenu {
+  display: block;
+}
+
 .wsmenu-item-refresh {
   width: 26px;
   height: 26px;
