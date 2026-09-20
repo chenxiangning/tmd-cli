@@ -55,6 +55,7 @@ export const KernelTopics = {
    * 仅「开启新对话轮次」的发送才广播:composer/promptGate 轮次闸把守,
    * ask 作答与轮中控制命令(如 /model 切模型)不开轮、不广播。
    */
+  promptSent: "kernel.sessions.promptSent",
 } as const;
 
 /** promptSent 负载:text = 发送的原文(prepareSendPayload 前,translate 后的展示文本截断)。 */
