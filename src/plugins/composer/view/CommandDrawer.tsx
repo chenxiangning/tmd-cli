@@ -245,7 +245,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
       {/* 发送/打开反馈 toast */}
       <div
         role="status"
-        className={`pointer-events-none absolute bottom-8 left-16 rounded-lg border border-(--tmd-border-strong) bg-(--tmd-bg-popover) px-3 py-1.5 font-mono text-[0.6875rem] text-(--tmd-fg) shadow-lg transition-all ${
+        className={`pointer-events-none absolute bottom-8 left-16 max-w-[70%] whitespace-pre-line rounded-lg border border-(--tmd-border-strong) bg-(--tmd-bg-popover) px-3 py-1.5 font-mono text-[0.6875rem] text-(--tmd-fg) shadow-lg transition-all ${
           toast ? "translate-y-0 opacity-100" : "translate-y-1.5 opacity-0"
         }`}
       >

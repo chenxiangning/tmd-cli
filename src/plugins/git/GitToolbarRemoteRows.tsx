@@ -28,6 +28,8 @@ interface RemoteRowDeps {
 function remoteRows({ busy, detached, unborn, hasUpstream, ahead, behind }: RemoteRowDeps) {
   const remoteDisable = busy !== null || detached || unborn;
   const unbornHint = t("先创建首个提交");
+  /* fetch 在 unborn 分支合法且有用(拉远端引用供对照),只有拉/推需要首提交 */
+  const fetchDisable = busy !== null || detached;
   return [
     {
       key: "pr" as const,
@@ -54,11 +56,9 @@ function remoteRows({ busy, detached, unborn, hasUpstream, ahead, behind }: Remo
     {
       key: "fetch" as const,
       label: t("获取"),
-      title: unborn
-        ? unbornHint
-        : t("获取远端更新(fetch --all --prune,不动本地分支)"),
+      title: t("获取远端更新(fetch --all --prune,不动本地分支)"),
       icon: CloudArrowDown,
-      disabled: remoteDisable,
+      disabled: fetchDisable,
       active: busy === "fetch",
       accent: false,
       count: 0,
