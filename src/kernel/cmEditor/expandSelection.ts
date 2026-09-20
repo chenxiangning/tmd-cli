@@ -17,9 +17,10 @@ export function setActiveEditorView(view: EditorView | null): void {
   activeEditorView = view;
 }
 
-/** ⌘W 扩大选择(无语法树/语法树到底时退化词选择;词也没有则不动作)。
+/** ⌘⌥W 扩大选择(无语法树/语法树到底时退化词选择;词也没有则不动作)。
  *  绑定不在 CM keymap:内核分发器 window capture 先于 CM 吃键,经
- *  editor 作用域命令 editor.expandSelection 路由到此处(见 shortcutCommands)。 */
+ *  editor 作用域命令 editor.expandSelection 路由到此处(见 shortcutCommands);
+ *  ⌘W 恒留给 shell.closeTab,不与之抢键。 */
 export function expandSelectionFallback(view: EditorView): void {
   const sel = view.state.selection.main;
   const word = view.state.wordAt(sel.head);

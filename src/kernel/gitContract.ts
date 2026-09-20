@@ -106,6 +106,26 @@ export interface GitLogEntry {
   refs: string[];
 }
 
+/** 文件维度提交历史(git_file_log;新→旧,合并提交只比对首父)。 */
+export interface GitFileLogEntry {
+  shortSha: string;
+  longSha: string;
+  summary: string;
+  authorName: string;
+  authorWhen: number;
+}
+
+/** 逐行归属(git_blame;boundary = 与上一行不同提交,分组描边用)。 */
+export interface GitBlameLine {
+  lineNo: number;
+  text: string;
+  shortSha: string;
+  summary: string;
+  authorName: string;
+  authorWhen: number;
+  boundary: boolean;
+}
+
 export interface GitBranchInfo {
   name: string;
   isHead: boolean;

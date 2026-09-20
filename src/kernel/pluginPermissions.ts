@@ -93,6 +93,8 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   gitClean: "ipc.git",
   gitCommit: "ipc.git",
   gitLog: "ipc.git",
+  gitFileLog: "ipc.git",
+  gitBlame: "ipc.git",
   gitCommitFiles: "ipc.git",
   gitCommitFilePatch: "ipc.git",
   gitCommitMessage: "ipc.git",

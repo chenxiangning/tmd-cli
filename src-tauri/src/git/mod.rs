@@ -11,14 +11,17 @@
 //! - 写操作由 commands 层成功后 evict_cwd,不暴露 invalidate IPC。
 
 mod ahead;
+mod blame;
 mod branch_ops;
 pub mod commands;
+pub mod commands_file;
 pub mod commands_pr;
 pub(crate) mod commit;
 mod commit_view;
 mod compare_ops;
 mod diff;
 mod error;
+mod file_log;
 mod index_ops;
 mod log;
 mod pr_defaults;
@@ -41,6 +44,8 @@ mod tests_clean;
 #[cfg(test)]
 mod tests_common;
 #[cfg(test)]
+mod tests_file_history;
+#[cfg(test)]
 mod tests_flow;
 #[cfg(test)]
 mod tests_pull;
@@ -60,12 +65,14 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
 pub use ahead::{ahead_behind, AheadBehind};
+pub use blame::{blame, BlameLine};
 pub use branch_ops::BranchList;
 pub use commit::CommitInput;
 pub use commit_view::CommitFile;
 pub use compare_ops::{BranchCompareSet, BranchDiffFile};
 pub use diff::{DiffTotals, FilePatch};
 pub use error::GitError;
+pub use file_log::FileLogEntry;
 pub use log::{walk as walk_log, LogEntry};
 pub use repos_scan::RepoScanResult;
 pub use status::DiffStatus;

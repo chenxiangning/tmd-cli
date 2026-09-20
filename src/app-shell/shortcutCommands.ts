@@ -68,10 +68,10 @@ registerCommand({
 });
 
 registerCommand({
-  /* 编辑器聚焦期 ⌘W 优先扩选(JetBrains 同型);失焦期落回上方 shell.closeTab。 */
+  /* 编辑器聚焦期 ⌘⌥W 优先扩选(JetBrains 同型);⌘W 恒为关 tab,无歧义。 */
   id: "editor.expandSelection",
   title: "扩大选择范围",
-  keybinding: "Cmd+W",
+  keybinding: "Cmd+Alt+W",
   scope: "editor",
   when: () => getActiveEditorView() !== null,
   run: () => {

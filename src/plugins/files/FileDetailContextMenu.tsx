@@ -11,6 +11,7 @@ import {
   ArrowCounterClockwise,
   CaretRight,
   ChatText,
+  ClockCounterClockwise,
   ClipboardText,
   Copy,
   Crosshair,
@@ -18,6 +19,7 @@ import {
   FloppyDisk,
   FolderOpen,
   GitBranch,
+  GitCommit,
   Minus,
   Pencil,
   Plus,
@@ -30,6 +32,7 @@ import { composerInsertRef } from "@kernel/composerExt";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { clampMenuPosition, copyText } from "./useTreeOperations";
 import { collectRevealTargets } from "./treeHandles";
+import { openBlameTab, openFileHistoryTab } from "@plugins/git/fileHistoryTab";
 import { expandEditorSelection } from "@kernel/cmEditor/expandSelection";
 
 export interface DetailMenuPos { x: number; y: number }
@@ -109,7 +112,7 @@ function editorClipItems(view: EditorView, selText: string, remote: boolean, pic
         pick(() => {
           void expandEditorSelection(view);
           view.focus();
-        }), { kbd: "⌘W" })}
+        }), { kbd: "⌘⌥W" })}
     </>
   );
 }
@@ -134,7 +137,7 @@ function GitSubmenu({ cwd, rel, pick }: { cwd: string; rel: string; pick: Pick }
     if (!r) return;
     const W = 176;
     const x = r.right + W + 8 > window.innerWidth ? r.left - W + 4 : r.right - 4;
-    setPos({ x, y: Math.max(8, Math.min(r.top - 6, window.innerHeight - 150)) });
+    setPos({ x, y: Math.max(8, Math.min(r.top - 6, window.innerHeight - 190)) });
   };
   return (
     <div ref={hostRef} className="wsmenu-submenu-host" onMouseEnter={open} onMouseLeave={() => setPos(null)}>
@@ -154,6 +157,11 @@ function GitSubmenu({ cwd, rel, pick }: { cwd: string; rel: string; pick: Pick }
             }
             pick(() => run("discard"));
           }, { danger: armed })}
+          <div className="wsmenu-divider" />
+          {item(t("显示文件历史"), <ClockCounterClockwise size="0.8125rem" />, () =>
+            pick(() => openFileHistoryTab({ cwd, path: rel })))}
+          {item(t("显示 Git Blame"), <GitCommit size="0.8125rem" />, () =>
+            pick(() => openBlameTab({ cwd, path: rel })))}
         </div>
       )}
     </div>
@@ -161,20 +169,8 @@ function GitSubmenu({ cwd, rel, pick }: { cwd: string; rel: string; pick: Pick }
 }
 
 /** 菜单全部行段(条件收敛在此,主组件只留壳;camelCase 构造函数非组件)。 */
-function menuBody(args: {
-  variant: DetailMenuVariant;
-  path: string;
-  view: EditorView | null;
-  selText: string;
-  remote: boolean;
-  dirty: boolean;
-  canToggle: boolean;
-  editorOpen: boolean;
-  onToggle?: () => void;
-  onSave?: () => void;
-  pick: Pick;
-}) {
-  const { variant, path, view, selText, remote, dirty, canToggle, editorOpen, onToggle, onSave, pick } = args;
+function menuBody(p: FileDetailContextMenuProps & { pick: Pick }) {
+  const { variant, path, view, selText, remote = false, dirty = false, canToggle, editorOpen, onToggle, onSave, pick } = p;
   const ws = getActiveWorkspace();
   const base = ws ? ws.root.replace(/[\\/]+$/, "") : "";
   const relPath = !remote && base && path.startsWith(`${base}/`) ? path.slice(base.length + 1) : null;
@@ -291,7 +287,7 @@ export function FileDetailContextMenu({
         }}
       />
       <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }} role="menu">
-        {menuBody({ variant, path, view, selText, remote, dirty, canToggle, editorOpen, onToggle, onSave, pick })}
+        {menuBody({ state, variant, path, view, selText, remote, dirty, canToggle, editorOpen, onToggle, onSave, onClose, pick })}
       </div>
     </>,
     document.body,

@@ -23,6 +23,8 @@ const OPENABLE_KINDS = [
   "ssh-file",
   "git-commit-diff",
   "git-diff",
+  "git-file-history",
+  "git-blame",
   "ckpt-batch",
   "wsl",
   "memory-console",

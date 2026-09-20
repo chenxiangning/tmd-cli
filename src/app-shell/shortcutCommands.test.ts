@@ -179,23 +179,23 @@ describe("ref 桥类命令", () => {
     expect(tabsMock.closeTab).toHaveBeenCalledWith("t1");
   });
 
-  it("⌘W:编辑器聚焦期路由 editor.expandSelection,失焦期落回 shell.closeTab", () => {
+  it("⌘⌥W:编辑器聚焦期路由 editor.expandSelection;失焦期 ⌘⌥W 无绑定、⌘W 落回关 tab", () => {
     tabsMock.list = [{ id: "t1" }];
     tabsMock.activeId = "t1";
     cmEditorMock.view = { marked: true };
     registry.setEditorFocused(true);
-    const hit = registry.resolveCommand(keyEvent("w"));
+    const hit = registry.resolveCommand(keyEvent("w", { altKey: true }));
     expect(hit?.id).toBe("editor.expandSelection");
     hit!.run();
     expect(cmEditorMock.expandEditorSelection).toHaveBeenCalledWith(cmEditorMock.view);
     cmEditorMock.view = null;
     registry.setEditorFocused(false);
+    expect(registry.resolveCommand(keyEvent("w", { altKey: true }))).toBeUndefined();
     expect(registry.resolveCommand(keyEvent("w"))?.id).toBe("shell.closeTab");
     registry.resolveCommand(keyEvent("w"))!.run();
     expect(tabsMock.closeTab).toHaveBeenCalledWith("t1");
   });
 });
-
 describe("shell.focusSessionN", () => {
   it("Cmd+1..9 且会话存在才命中;Shift/Alt/无会话/越界序号穿透", () => {
     hostMock.sessions = [{ id: "s1" }, { id: "s2" }];

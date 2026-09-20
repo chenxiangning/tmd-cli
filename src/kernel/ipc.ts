@@ -69,6 +69,8 @@ import type {
   GitCommitInput,
   GitDiffStatus,
   GitFilePatch,
+  GitBlameLine,
+  GitFileLogEntry,
   GitLogEntry,
   GitPrDefaults,
   GitPrRequest,
@@ -499,6 +501,12 @@ export const ipc = {
     invoke<string>("git_commit", { cwd, paths, input }),
   gitLog: (cwd: string, limit: number, offset: number) =>
     invoke<GitLogEntry[]>("git_log", { cwd, limit, offset }),
+  /** 文件维度提交历史(新→旧;合并提交只比对首父,同 GitHub 口径)。 */
+  gitFileLog: (cwd: string, path: string, limit: number) =>
+    invoke<GitFileLogEntry[]>("git_file_log", { cwd, path, limit }),
+  /** 逐行归属(工作区文件 vs 历史;boundary = 与上一行不同提交)。 */
+  gitBlame: (cwd: string, path: string) =>
+    invoke<GitBlameLine[]>("git_blame", { cwd, path }),
   /** 单提交文件清单(历史 Graph 展开;sha 口径 = 提交 vs 首父)。 */
   gitCommitFiles: (cwd: string, sha: string) =>
     invoke<GitCommitFile[]>("git_commit_files", { cwd, sha }),

@@ -67,7 +67,7 @@ import {
 import { isRemoteFileUri } from "@kernel/fileSources";
 import { OpenWithMenu } from "./OpenWithMenu";
 import type { EditorView } from "@codemirror/view";
-import { useFileDetailMenu } from "./FileDetailContextMenu";
+import { useFileDetailMenu } from "./useFileDetailMenu";
 
 const MARKDOWN_FILE_RE = /\.(md|markdown|mdx)$/i;
 
