@@ -1,23 +1,20 @@
 /**
  * BranchView —— 分支视图:本地/远程分组 + 创建 / checkout / 删除。
  *
- * 切换/检出/删除/合并/变基/签出并变基的二次确认走应用内 GitConfirmDialog
- * (window.confirm 在 Tauri WKWebView 下可能不弹窗直接放行,易失操作一律不用它);
- * 脏工作区切换提供「暂存并切换」次选(复刻 IDEA Smart Checkout:stash -u →
- * 切换 → pop;pop 冲突时 stash 保留、文件标冲突)。
+ * 切换/检出/删除/合并/变基的二次确认走应用内 GitConfirmDialog(WKWebView 下
+ * window.confirm 可能不弹窗直接放行);脏工作区切换提供「暂存并切换」次选
+ * (IDEA Smart Checkout 同款:stash -u → 切换 → pop,冲突时 stash 保留)。
  * 右键菜单(codemoss git graph 全 11 项同款):新建自 X / 签出并变基 / 与当前比较 /
  * 工作树差异 / 变基 / 合并 / 更新 / 获取 / 推送(开对话框)/ 重命名 / 删除。
- * checkout 脏工作区冲突:libgit2 safe 模式拒绝 → 后端给出「先提交或暂存」引导,不擅自 force。
- * merge/rebase 冲突:git CLI 留标准中间态(E_SHELL 透传),幕布终端可接管收尾。
- * 远程行检出:建同名本地分支并建跟踪(checkout_remote),本地同名已存在由后端拒绝。
- * 顶部搜索框按名称子串过滤本地/远程两组(不区分大小写),分组计数随过滤变化。
+ * merge/rebase 冲突留标准中间态透传,幕布终端接管收尾;远程行检出建同名本地分支
+ * 并建跟踪;顶部搜索框按名称子串过滤两组,分组计数随过滤变化。
  */
 
 import { useMemo, useState } from "react";
 import { t } from "@kernel/i18n";
 import { CaretDown, CaretRight } from "@phosphor-icons/react";
-import { ipc, type GitBranchInfo, type GitBranchList } from "@kernel/ipc";
-import { gitErrorDisplay } from "../gitError";
+import { ipc, type GitBranchInfo, type GitBranchList, type GitRemoteOpReport } from "@kernel/ipc";
+import { gitErrorDisplay, isAuth } from "../gitError";
 import {
   BranchContextMenu,
   type BranchMenuActions,
@@ -68,19 +65,20 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
     return { locals: f(data?.local ?? []), remotes: f(data?.remote ?? []) };
   }, [data, q]);
 
-  const run = (action: () => Promise<unknown>, okNotice?: string) => {
+  const run = (action: () => Promise<unknown>, okNotice?: string | ((res: unknown) => string)) => {
     setBusy(true);
     setError(null);
     setNotice(null);
     action().then(
-      () => {
+      (res) => {
         setBusy(false);
-        if (okNotice) setNotice(okNotice);
+        if (okNotice) setNotice(typeof okNotice === "string" ? okNotice : okNotice(res));
         onMutation();
       },
       (e: unknown) => {
         setBusy(false);
-        setError(gitErrorDisplay(e));
+        /* auth 失败统一引导幕布终端(与对话框路径 useGitPanelRemote 同口径) */
+        setError(isAuth(e) ? t("凭据需要交互,请到幕布终端执行 git 命令") : gitErrorDisplay(e));
       },
     );
   };
@@ -187,16 +185,18 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
           ),
       }),
     pull: (b) =>
-      run(
-        () => ipc.gitPullPush(cwd, "pull", b.name),
-        b.name === currentName
-          ? t("已更新 {branch}", { branch: b.name })
-          : t("已 fast-forward {branch}", { branch: b.name }),
+      run(() => ipc.gitPullPush(cwd, "pull", b.name), (r) =>
+        (r as GitRemoteOpReport).upToDate
+          ? t("{branch} 已是最新", { branch: b.name })
+          : b.name === currentName
+            ? t("已更新 {branch}", { branch: b.name })
+            : t("已 fast-forward {branch}", { branch: b.name }),
       ),
     fetch: (b) =>
-      run(
-        () => ipc.gitPullPush(cwd, "fetch", b.name),
-        t("已获取 {branch} 的远端引用", { branch: b.name }),
+      run(() => ipc.gitPullPush(cwd, "fetch", b.name), (r) =>
+        (r as GitRemoteOpReport).upToDate
+          ? t("{branch} 的远端引用已是最新", { branch: b.name })
+          : t("已获取 {branch} 的远端引用", { branch: b.name }),
       ),
     push: () => requestRemoteDialog("push"),
     rename: (b) =>

@@ -5,11 +5,9 @@
  * schema/默认值/sanitize 全部在前端,见 src-tauri/src/settings.rs 的设计决策)。
  * 浏览器 dev(无 Tauri runtime)降级 localStorage,保证 vite 起得来。
  *
- * 模式与 kernel/workspace.ts 一致:模块级 state + useSyncExternalStore。
- * 面板开关态(settingsPanelOpen)也在此:它是设置领域的 UI 态,不放 host。
- *
- * 文件规模铁则拆分:类型/默认值/配额解析在 settingsTypes.ts(此处 re-export,
- * import 契约不变),字段清洗在 settingsSanitize.ts,本文件只留 store 装配。
+ * 模式与 kernel/workspace.ts 一致:模块级 state + useSyncExternalStore;
+ * 面板开关态(设置领域 UI 态)也在此,不放 host。
+ * 规模铁则拆分:类型/默认值在 settingsTypes.ts,清洗在 settingsSanitize.ts。
  */
 
 import { useSyncExternalStore } from "react";
@@ -19,7 +17,13 @@ import type { AppSettings } from "./settingsTypes";
 import { sanitize } from "./settingsSanitize";
 import { setShortcutOverrides } from "./shortcutOverrides";
 import { isWeb, listen } from "./transport";
-import { KernelTopics } from "./events";
+
+/** 订阅设置写盘失败(Tauri 环境触发;SettingsPersistToast 订阅呈现);返回退订。 */
+const persistFailListeners = new Set<(error: string) => void>();
+export function onSettingsPersistFailed(cb: (error: string) => void): () => void {
+  persistFailListeners.add(cb);
+  return () => persistFailListeners.delete(cb);
+}
 export * from "./settingsTypes";
 export * from "./settingsAppearance";
 
@@ -200,12 +204,11 @@ async function persistNow(): Promise<void> {
       console.warn("settings: 持久化失败", err2);
     }
     /* Tauri 环境写盘失败必须可见:盘上旧文件完好 → 重启回读旧值,
-       localStorage 兜底永远不生效,改动静默丢失。toast 订阅在 app-shell。
-       host 动态导入:settings ← host 静态环(host imports settings)。 */
+       localStorage 兜底永远不生效,改动静默丢失。轻量监听注册面
+       (SettingsPersistToast 订阅);不 import host——那条链会把他测
+       的 persist 失败放大成整张 host 图加载(2026-09-20 实证拖爆测试)。 */
     if (!isWeb) {
-      void import("./host").then(({ host }) =>
-        host.events.emit(KernelTopics.settingsPersistFailed, { error: String(err) }),
-      );
+      for (const cb of persistFailListeners) cb(String(err));
     }
   }
 }

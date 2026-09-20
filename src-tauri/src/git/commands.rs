@@ -8,9 +8,9 @@ use git2::Repository;
 
 use super::{
     ahead_behind as ahead_behind_impl, branch_ops, commit as commit_impl, commit_view, compare_ops,
-    diff, index_ops, remote_ops, repos_scan, stash_ops, status as status_impl, walk_log, with_repo,
-    with_repo_mut, AheadBehind, BranchCompareSet, BranchDiffFile, BranchList, CommitFile,
-    CommitInput, DiffStatus, DiffTotals, FilePatch, GitError, LogEntry, RepoScanResult,
+    diff, index_ops, remote_ops, remote_quick, repos_scan, stash_ops, status as status_impl,
+    walk_log, with_repo, with_repo_mut, AheadBehind, BranchCompareSet, BranchDiffFile, BranchList,
+    CommitFile, CommitInput, DiffStatus, DiffTotals, FilePatch, GitError, LogEntry, RepoScanResult,
 };
 /// 读命令模板:spawn_blocking 包 with_repo;JoinError 只在 panic/取消时出现。
 pub(super) async fn run<T, F>(cwd: String, f: F) -> Result<T, String>
@@ -245,7 +245,7 @@ pub async fn git_pull_push(
     cwd: String,
     op: String,
     branch: Option<String>,
-) -> Result<String, String> {
+) -> Result<remote_ops::RemoteOpReport, String> {
     let op = match op.as_str() {
         "pull" => remote_ops::RemoteOp::Pull,
         "push" => remote_ops::RemoteOp::Push,
@@ -255,7 +255,7 @@ pub async fn git_pull_push(
     };
     // pull 会移动 HEAD → 写路径,成功 evict
     let cwd2 = cwd.clone();
-    run_mut(cwd, move |r| remote_ops::run(r, &cwd2, op, branch)).await
+    run_mut(cwd, move |r| remote_quick::run(r, &cwd2, op, branch)).await
 }
 
 /// 已配置远端名列表(推送/拉取对话框的远端下拉)。

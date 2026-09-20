@@ -49,6 +49,7 @@ interface GitPanelMainProps {
   branchName: string;
   upstreamNull: string | null;
   detached: boolean;
+  unborn: boolean;
   hasUpstream: boolean;
   aheadBehind: GitAheadBehind | null;
   undoOrigin: { cwd: string; branch: string } | null;
@@ -149,6 +150,7 @@ export function GitPanelMain({
   branchName,
   upstreamNull,
   detached,
+  unborn,
   hasUpstream,
   aheadBehind,
   undoOrigin,
@@ -162,12 +164,13 @@ export function GitPanelMain({
   useEffect(() => {
     setGitRemoteMeta({
       detached,
+      unborn,
       hasUpstream,
       ahead: aheadBehind?.ahead ?? 0,
       behind: aheadBehind?.behind ?? 0,
       busy: remoteBusy,
     });
-  }, [detached, hasUpstream, aheadBehind, remoteBusy]);
+  }, [detached, unborn, hasUpstream, aheadBehind, remoteBusy]);
   /* 远端操作执行中横幅的操作名(与对话框传入的 opLabel 同词)。 */
   const busyLabel =
     remoteBusy === "fetch"

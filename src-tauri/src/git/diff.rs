@@ -27,11 +27,59 @@ pub fn file_patch(
     staged: bool,
     full: bool,
 ) -> Result<Option<FilePatch>, GitError> {
-    /* 不做单文件 pathspec 收窄:libgit2 的 head→index rename 在 status 挂旧路径,
-     * 而树→index diff 的 rename delta 挂新路径 —— 收窄到单路径会拆散 rename 配对
-     * (R 退化为 D/A)。全仓 diff + find_similar 是 rename 语义正确的最小实现。 */
-    let diff = build_diff(repo, staged, full)?;
-    file_patch_from_diff(&diff, path)
+    /* 两段式(2026-09-20 收窄):扫描段不做单文件 pathspec 收窄 —— libgit2 的
+     * head→index rename 在 status 挂旧路径,而树→index diff 的 rename delta 挂
+     * 新路径,收窄到单路径会拆散 rename 配对(R 退化为 D/A);全仓窄上下文 diff
+     * + find_similar 是 rename 语义正确的最小实现。
+     * full 态第二段只对目标文件以 [旧,新] 双 pathspec + u32::MAX 上下文二次
+     * diff —— 修掉「点开单文件全文 = 全仓所有已改文件的全文 patch 进内存」。 */
+    let scan = build_diff(repo, staged)?;
+    if !full {
+        return file_patch_from_diff(&scan, path);
+    }
+    /* 目标 delta 的新旧双侧路径(rename 两侧都带上,保二次 diff 配对) */
+    let target = scan.deltas().find_map(|d| {
+        let hit = d.new_file().path().and_then(|p| p.to_str()) == Some(path)
+            || d.old_file().path().and_then(|p| p.to_str()) == Some(path);
+        hit.then(|| (d.old_file().path(), d.new_file().path()))
+    });
+    let Some((old_side, new_side)) = target else {
+        return Ok(None);
+    };
+
+    let mut opts = DiffOptions::new();
+    opts.include_untracked(true)
+        .show_untracked_content(true)
+        .recurse_untracked_dirs(true)
+        .include_ignored(false)
+        .context_lines(u32::MAX)
+        .interhunk_lines(0);
+    if let Some(old) = old_side.as_ref() {
+        opts.pathspec(old);
+    }
+    if let Some(new) = new_side.as_ref() {
+        opts.pathspec(new);
+    }
+    let focused = build_with_opts(repo, staged, &mut opts)?;
+    file_patch_from_diff(&focused, path)
+}
+
+/// build_diff 的 opts 外置形态(full 二次 diff 用;find_similar 同样必跑)。
+fn build_with_opts<'r>(
+    repo: &'r Repository,
+    staged: bool,
+    opts: &mut DiffOptions,
+) -> Result<Diff<'r>, GitError> {
+    let mut diff = if staged {
+        let head_tree = repo.head().ok().map(|h| h.peel_to_tree()).transpose()?;
+        let index = super::fresh_index(repo)?;
+        repo.diff_tree_to_index(head_tree.as_ref(), Some(&index), Some(opts))?
+    } else {
+        let index = super::fresh_index(repo)?;
+        repo.diff_index_to_workdir(Some(&index), Some(opts))?
+    };
+    diff.find_similar(None)?;
+    Ok(diff)
 }
 
 /// diff 内单文件 patch 提取(path 按新路径 / rename 来源双侧匹配 delta)——
@@ -81,27 +129,15 @@ pub(super) fn file_patch_from_diff(diff: &Diff, path: &str) -> Result<Option<Fil
     }))
 }
 
-fn build_diff<'r>(repo: &'r Repository, staged: bool, full: bool) -> Result<Diff<'r>, GitError> {
+fn build_diff<'r>(repo: &'r Repository, staged: bool) -> Result<Diff<'r>, GitError> {
     let mut opts = DiffOptions::new();
     opts.include_untracked(true)
         .show_untracked_content(true) // untracked 整文件按 Added 计行(stats/patch 抽屉)
         .recurse_untracked_dirs(true)
         .include_ignored(false)
-        // full = 「全文查看」:整文件进单个 hunk(用户按文件显式点开,代价 = 文件体积);
-        // 否则标准 3 行上下文。untracked 本就整文件 Added,full 对它是恒等。
-        .context_lines(if full { u32::MAX } else { 3 })
+        .context_lines(3)
         .interhunk_lines(0);
-    let mut diff = if staged {
-        // unborn HEAD(首个提交前):无 head tree → None 空 tree,index 全量视为 Added
-        let head_tree = repo.head().ok().map(|h| h.peel_to_tree()).transpose()?;
-        let index = super::fresh_index(repo)?;
-        repo.diff_tree_to_index(head_tree.as_ref(), Some(&index), Some(&mut opts))?
-    } else {
-        let index = super::fresh_index(repo)?;
-        repo.diff_index_to_workdir(Some(&index), Some(&mut opts))?
-    };
-    diff.find_similar(None)?; // rename/copy 检测(默认 50% 相似度)
-    Ok(diff)
+    build_with_opts(repo, staged, &mut opts)
 }
 
 /// 低频聚合命令的返回单元 —— git_totals 独立命令用,不随 5s 轮询的 status 走。
@@ -132,7 +168,7 @@ pub fn totals_of(repo: &Repository) -> Result<DiffTotals, GitError> {
     let mut deletions = 0u32;
     let mut files = Vec::new();
     for staged in [true, false] {
-        let diff = build_diff(repo, staged, false)?;
+        let diff = build_diff(repo, staged)?;
         for (idx, delta) in diff.deltas().enumerate() {
             let new_path = delta.new_file().path();
             let old_path = delta.old_file().path();

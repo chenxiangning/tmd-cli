@@ -30,21 +30,21 @@
 - [ ] 4.5 [归 9.2] 快开/wsfb UI 目检:headless 桩遇双模块实例分叉(store 与 app 树不同步)未能完成;Rust 截断契约有单测,真窗口目检并入收口批
 
 ## 5. 可见失败小修(四条独立)
-- [x] 5.1 settings persistNow:Tauri 写盘失败广播 settingsPersistFailed(新 toast SettingsPersistToast 复用 sft 卡片样式),localStorage 兜底仅浏览器 dev;host 动态导入破 settings↔host 静态环
+- [x] 5.1 settings persistNow:Tauri 写盘失败经自持轻量监听注册面 onSettingsPersistFailed 通知(SettingsPersistToast 订阅,复用 sft 卡片样式);不 import host——动态导入链曾把他测 persist 失败放大成整张 host 图加载,实证拖爆归档测试,已改自持;localStorage 兜底仅浏览器 dev
 - [x] 5.2 dsh 停止链:lsof/TERM 探针源头全容错(.catch → 跳过),hostPanel pending 不再永卡「正在停止…」(源头修复后 onStop 无需再包)
 - [x] 5.3 终端复制:失败保菜单开 + 行内「剪贴板写入失败」(词条复用 common)
 - [x] 5.4 引擎卡版本查询失败:RowVersion 行内「版本获取失败」占位 + tooltip 指向标题条刷新(重试通道已存在:refreshTick 强制重拉失败引擎)
 
 ## 6. git 打磨
 
-- [ ] 6.1 `diff.rs:84-103` build_diff full 态仅对目标 delta 二次 diff(pathspec 收窄)——现 context=u32::MAX(:92)作用于全仓所有 delta(含 untracked 内容),「全文查看」单文件 = 全仓全文 patch 进内存(P2,优先)
-- [ ] 6.2 `BranchView.tsx:189-200` 分支右键成功文案无条件(「已更新 {branch}」up-to-date 也报;根因 commands.rs:244-259 git_pull_push 返回 String 非 report);`BranchView.tsx:83` 错误只走 gitErrorDisplay 无 isAuth「去幕布终端」引导(对话框路径 useGitPanelRemote.ts:50-54 有,双轨)。修:快速路径复用 git_remote_request 或返回体带 report;错误统一 isAuth 分流。注:busy 横幅已存在(BranchView.tsx:246),勿重复造
-- [ ] 6.3 `remote_ops.rs:27,194-201` REMOTE_TIMEOUT 300s 策略:传输型(push/fetch)放宽或可配;文案「请检查网络/远端后重试」把超时误归因网络(收尸已完备,纯文案/策略)
-- [ ] 6.4 `remote_ops.rs:209-219` 失败通知只取 stderr 尾 ~500 字符(combined 未截断进横幅刷屏),全文留 hover
-- [ ] 6.5 `GitToolbarRemoteRows.tsx:66,80,96` + `useGitPanelData.ts:109` + `status.rs:4-5,33-35`:unborn(首提交前)branch 名正常返回、head_sha 空 → detached=false → 拉推行可点回裸英文 fatal。修:head_sha 空同样禁用 + 「先创建首个提交」
-- [ ] 6.6 `remote_ops.rs:103-147` vs 显式策略路径:对话框策略 pull/合并/变基冲突透传英文 CONFLICT stderr(divergent+rebase 路径有完整中文处置)。修:from_shell_output 识别 CONFLICT/中间态统一中文引导
-- [ ] 6.7 `remote_report.rs:72` ponytail 自认:HEAD 不动时 diff HEAD→index 把既有暂存计入「拉取成功:N 个文件变更」。修:对比 pull 前后 index oid 排除
-- [ ] 6.8 `remote_report.rs:31-39` fetch 快照仅 refs/remotes/**,自动跟随 tag 不计入。修:并入 refs/tags
+- [x] 6.1 diff.rs file_patch 两段式:窄上下文全仓扫保 rename 配对(既有回归测试锁死不可 pathspec 收窄),full 态以 [旧,新] 双 pathspec + u32::MAX 二次 diff 只构目标文件;新增 full+rename 契约测试。commit_view 同款全文模式留待(频率低)
+- [x] 6.2 git_pull_push 返回 RemoteOpReport(remote_ops::run 拆 remote_quick.rs);BranchView pull/fetch 真报告文案(up_to_date 不再假成功)+ isAuth 幕布引导(与对话框同口径);非当前分支 pull 走 refs 口径报告
+- [x] 6.3 REMOTE_TIMEOUT 300s→600s;超时文案改「超时≠网络故障判定;大传输请到幕布终端」
+- [x] 6.4 远端失败输出尾裁 500 字符(修复裁掉 CONFLICT 字面量后 exec_pull 匹配改大小写不敏感——测试实证抓出)
+- [x] 6.5 unborn(首提交前)headSha 空判定:useGitPanelData 派生 → panelStore 镜像 → 拉取/推送/获取行禁用 + 「先创建首个提交」
+- [x] 6.6 from_shell_output 识别 CONFLICT/Automatic merge failed → 统一中文中间态引导(divergent 兜底路径先返回不受影响)
+- [x] 6.7 pull_report 逐 delta 聚合并跳过 pull 前已 staged 路径(staged_paths 基线;run_request/remote_quick 两入口同捕获)
+- [x] 6.8 remote_refs_snapshot 并入 refs/tags(自动跟随 tag 不再误报「已是最新」)
 
 ## 7. UX 习惯批
 

@@ -27,15 +27,21 @@ pub(super) fn head_oid(repo: &Repository) -> Option<Oid> {
     repo.head().ok().and_then(|h| h.target())
 }
 
-/// refs/remotes/** 的 name→oid 快照(fetch 前后对比算更新数)。
+/// fetch 前后对比的引用快照:远端跟踪引用 + 自动跟随的 tag(只看 remotes 会把
+/// tag 更新误报「已是最新」,2026-09-20 修)。
 pub(super) fn remote_refs_snapshot(repo: &Repository) -> HashMap<String, Oid> {
-    repo.references_glob("refs/remotes/**")
-        .map(|refs| {
-            refs.flatten()
-                .filter_map(|r| Some((r.name()?.to_string(), r.target()?)))
-                .collect()
-        })
-        .unwrap_or_default()
+    let mut out = HashMap::new();
+    for glob in ["refs/remotes/**", "refs/tags/**"] {
+        if let Ok(refs) = repo.references_glob(glob) {
+            for r in refs.flatten() {
+                let (Some(name), Some(target)) = (r.name().map(str::to_string), r.target()) else {
+                    continue;
+                };
+                out.insert(name, target);
+            }
+        }
+    }
+    out
 }
 
 /// from(不含)到 to 的提交数;from=None 数全部历史;from 非祖先(force 场景)同样成立
@@ -66,22 +72,63 @@ fn tree_diff_stats(repo: &Repository, old: Option<Oid>, new: Option<Oid>) -> (us
         .unwrap_or((0, 0, 0))
 }
 
+/// pull 前 staged 路径集(HEAD→index 双侧路径):HEAD 不动的报告用它排除既有暂存。
+pub(super) fn staged_paths(repo: &Repository) -> std::collections::HashSet<String> {
+    let head_tree = head_oid(repo)
+        .and_then(|o| repo.find_commit(o).ok())
+        .and_then(|c| c.tree().ok());
+    let mut out = std::collections::HashSet::new();
+    if let Ok(diff) = repo.diff_tree_to_index(head_tree.as_ref(), None, None) {
+        for d in diff.deltas() {
+            if let Some(p) = d.old_file().path().and_then(|p| p.to_str()) {
+                out.insert(p.to_string());
+            }
+            if let Some(p) = d.new_file().path().and_then(|p| p.to_str()) {
+                out.insert(p.to_string());
+            }
+        }
+    }
+    out
+}
+
 /// pull 完成明细:HEAD 动了 = 对比 FETCH_HEAD(来自远端的提交数,rebase 重放不计)
 /// + 前后树 diff;HEAD 不动 = --no-commit/--squash 的暂存态或已是最新。
 ///
-/// ponytail:HEAD 不动时 diff HEAD→index,用户既有暂存会一并计入(已知上限)。
-pub(super) fn pull_report(repo: &Repository, head_before: Option<Oid>) -> RemoteOpReport {
+/// 既有暂存(pull 前已 staged 的路径)不计入。
+pub(super) fn pull_report(
+    repo: &Repository,
+    head_before: Option<Oid>,
+    staged_before: &std::collections::HashSet<String>,
+) -> RemoteOpReport {
     let head_after = head_oid(repo);
     if head_before == head_after {
         let head_tree = head_after
             .and_then(|o| repo.find_commit(o).ok())
             .and_then(|c| c.tree().ok());
-        let staged = repo
-            .diff_tree_to_index(head_tree.as_ref(), None, None)
-            .and_then(|d| d.stats())
-            .map(|s| (s.files_changed(), s.insertions(), s.deletions()))
-            .unwrap_or((0, 0, 0));
-        if staged.0 == 0 {
+        /* 逐 delta 聚合,跳过 pull 前就 staged 的路径:--no-commit/--squash 混着
+         * 用户既有暂存时,既有部分不算「拉取带来的变更」(2026-09-20 修虚高)。 */
+        let diff = repo.diff_tree_to_index(head_tree.as_ref(), None, None);
+        let mut files = 0usize;
+        let mut ins = 0usize;
+        let mut del = 0usize;
+        if let Ok(diff) = diff {
+            for (i, d) in diff.deltas().enumerate() {
+                let old = d.old_file().path().and_then(|p| p.to_str());
+                let new = d.new_file().path().and_then(|p| p.to_str());
+                let pre = old.map(|p| staged_before.contains(p)).unwrap_or(false)
+                    || new.map(|p| staged_before.contains(p)).unwrap_or(false);
+                if pre {
+                    continue;
+                }
+                if let Ok(Some(p)) = git2::Patch::from_diff(&diff, i) {
+                    let (_, a, dl) = p.line_stats().unwrap_or((0, 0, 0));
+                    files += 1;
+                    ins += a;
+                    del += dl;
+                }
+            }
+        }
+        if files == 0 {
             return RemoteOpReport {
                 up_to_date: true,
                 ..Default::default()
@@ -96,9 +143,9 @@ pub(super) fn pull_report(repo: &Repository, head_before: Option<Oid>) -> Remote
             .unwrap_or(0);
         return RemoteOpReport {
             commits,
-            files: staged.0,
-            insertions: staged.1,
-            deletions: staged.2,
+            files,
+            insertions: ins,
+            deletions: del,
             ..Default::default()
         };
     }

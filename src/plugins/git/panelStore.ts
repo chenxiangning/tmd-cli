@@ -40,6 +40,8 @@ interface GitPanelState {
 
 interface GitRemoteMeta {
   detached: boolean;
+  /** unborn(首提交前):拉/推行动禁用 + 「先创建首个提交」提示。 */
+  unborn: boolean;
   hasUpstream: boolean;
   ahead: number;
   behind: number;

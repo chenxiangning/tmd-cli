@@ -542,9 +542,10 @@ export const ipc = {
   gitBranchWorktreePatch: (cwd: string, branch: string, path: string) =>
     invoke<GitFilePatch | null>("git_branch_worktree_patch", { cwd, branch, path }),
   /** pull/push/fetch 统一入口;branch 缺省作用于当前分支(fetch 缺省 = --all --prune)。
-   *  pull 非当前分支 = 仅 fast-forward 上游引用;fetch 带分支 = 刷新该分支上游引用。 */
+   *  pull 非当前分支 = 仅 fast-forward 上游引用;fetch 带分支 = 刷新该分支上游引用。
+   *  返回完成明细(快速路径成功文案/up_to_date 依据,同 gitRemoteRequest)。 */
   gitPullPush: (cwd: string, op: "pull" | "push" | "fetch", branch?: string) =>
-    invoke<string>("git_pull_push", { cwd, op, branch: branch ?? null }),
+    invoke<GitRemoteOpReport>("git_pull_push", { cwd, op, branch: branch ?? null }),
   /** 已配置远端名列表(推送/拉取对话框远端下拉)。 */
   gitRemotes: (cwd: string) => invoke<string[]>("git_remotes", { cwd }),
   /** 推送预览:HEAD 相对 <remote>/<branch> 的独有提交;低频,仅在对话框内按需拉。 */

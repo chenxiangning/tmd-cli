@@ -70,8 +70,9 @@ pub fn run_request(
         }
         "pull" => {
             let head_before = head_oid(repo);
+            let staged = super::remote_report::staged_paths(repo);
             exec_pull(repo, cwd, &pull_request_args(&req)?)?;
-            Ok(pull_report(repo, head_before))
+            Ok(pull_report(repo, head_before, &staged))
         }
         "push" => {
             /* 明细在 exec 前算:推的是「远端当前缺哪些提交」,推完远端引用即同步。 */

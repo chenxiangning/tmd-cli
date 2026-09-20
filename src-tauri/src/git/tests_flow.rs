@@ -139,7 +139,7 @@ fn remote_push_local_bare_repo() {
     })
     .unwrap();
     let out = super::with_repo(t.path(), |r| {
-        super::remote_ops::run(
+        super::remote_quick::run(
             r,
             t.path(),
             super::remote_ops::RemoteOp::Push,
@@ -150,7 +150,7 @@ fn remote_push_local_bare_repo() {
 
     // fetch 同路径
     let out = super::with_repo(t.path(), |r| {
-        super::remote_ops::run(r, t.path(), super::remote_ops::RemoteOp::Fetch, None)
+        super::remote_quick::run(r, t.path(), super::remote_ops::RemoteOp::Fetch, None)
     });
     assert!(out.is_ok(), "fetch 失败: {:?}", out.err());
 
@@ -182,7 +182,7 @@ fn remote_auth_failure_fast_no_hang() {
 
     let start = std::time::Instant::now();
     let err = super::with_repo(t.path(), |r| {
-        super::remote_ops::run(
+        super::remote_quick::run(
             r,
             t.path(),
             super::remote_ops::RemoteOp::Push,

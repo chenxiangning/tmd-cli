@@ -19,12 +19,12 @@ use std::process::Command;
 
 use super::GitError;
 
-// 拆分后保持 remote_ops::* 引用契约:参数组装与对话框请求层经此处 re-export。
-pub(super) use super::remote_args::{fetch_args, pull_args, push_args};
+// 拆分后保持 remote_ops::* 引用契约:run 已拆 remote_quick.rs(参数组装随迁)。
 pub use super::remote_request::{run_request, RemoteOpReport, RemoteRequest};
 
 /// 网络操作总时限:到点 kill,释放 per-cwd 互斥锁(面板冻结的最后防线)。
-const REMOTE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+/// 600s(2026-09-20 自 300s 放宽):慢上行推大产物 300s 常态触顶被中途 kill。
+const REMOTE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
 /// try_wait 轮询间隔。
 const REMOTE_POLL: std::time::Duration = std::time::Duration::from_millis(200);
 /// 退出后管道排空等待上限:git 的 ssh 孙进程(ControlMaster/GCM)可能
@@ -54,52 +54,6 @@ pub enum RemoteOp {
     Push,
 }
 
-pub fn run(
-    repo: &Repository,
-    cwd: &str,
-    op: RemoteOp,
-    branch: Option<String>,
-) -> Result<String, GitError> {
-    let mut args: Vec<String> = Vec::new();
-    match op {
-        RemoteOp::Fetch => {
-            args.push("fetch".into());
-            if let Some(b) = non_empty_branch(&branch)? {
-                args.extend(fetch_args(repo, &b)?);
-            } else {
-                args.extend(["--all".into(), "--prune".into()]);
-            }
-        }
-        RemoteOp::Pull => {
-            let b = non_empty_branch(&branch)?;
-            match b {
-                Some(b) => {
-                    let extra = pull_args(repo, &b)?;
-                    if extra.is_empty() {
-                        args.push("pull".into());
-                    } else {
-                        // 非当前分支:仅 fast-forward 上游引用,等价 git fetch <远端> <上游>:<分支>
-                        // (merge/rebase 只对已检出分支有意义;git pull 无子命令,fetch 不能作其参数)
-                        args.push("fetch".into());
-                        args.extend(extra);
-                    }
-                }
-                None => args.push("pull".into()),
-            }
-        }
-        RemoteOp::Push => {
-            args.push("push".into());
-            if let Some(b) = non_empty_branch(&branch)? {
-                args.extend(push_args(repo, &b)?);
-            }
-        }
-    }
-    match op {
-        RemoteOp::Pull => exec_pull(repo, cwd, &args),
-        _ => exec_git(repo, cwd, &args),
-    }
-}
-
 /// pull 专用执行:git ≥2.27 在 divergent 且未配置 pull.rebase 时直接 fatal
 /// ("Need to specify how to reconcile divergent branches")。此处兜底:
 /// --rebase 重试(无冲突 = 本地提交接到远端之后,直接完成更新);撞冲突则
@@ -115,11 +69,9 @@ pub(super) fn exec_pull(repo: &Repository, cwd: &str, args: &[String]) -> Result
             let mut retry = args.to_vec();
             retry.insert(1, "--rebase".into());
             match exec_git(repo, cwd, &retry) {
-                Ok(out) => Ok(out),
-                Err(GitError::Shell(s2)) if s2.contains("CONFLICT") => {
+                Err(GitError::Shell(s2)) if s2.to_lowercase().contains("conflict") => {
                     let _ = exec_git(repo, cwd, &["rebase".into(), "--abort".into()]);
                     // abort 基本必成(工作区在 rebase 启动时已被 git 保证干净);
-                    // 万一残留中间态,文案必须如实,引导用户手动 abort。
                     // 探测两个 rebase 后端目录;.git 是文件(linked worktree/submodule)时
                     // 本地拼路径不可靠,按「未确认恢复」处理,给 fallback 文案。
                     let dotgit = std::path::Path::new(cwd).join(".git");
@@ -139,6 +91,7 @@ pub(super) fn exec_pull(repo: &Repository, cwd: &str, args: &[String]) -> Result
                         ))
                     }
                 }
+                Ok(out) => Ok(out),
                 Err(e) => Err(e),
             }
         }
@@ -156,8 +109,6 @@ pub(super) fn exec_git(repo: &Repository, cwd: &str, args: &[String]) -> Result<
         .env("LC_ALL", "C")
         .env("LANG", "C");
     crate::resolve::hide_console(&mut cmd);
-
-    // 用户未自配 sshCommand 时才注入无交互兜底
     let user_has_ssh_cfg = repo
         .config()
         .ok()
@@ -197,7 +148,7 @@ pub(super) fn exec_git(repo: &Repository, cwd: &str, args: &[String]) -> Result<
                     /* 不 join 读线程:git 的 ssh 孙进程可能仍握管道写端,
                      * join 会把锁持有时间拖到孙进程消亡 —— 接收端直接丢弃 */
                     return Err(GitError::empty(
-                        "git 操作超时(>300s),已中止;请检查网络/远端后重试",
+                        "git 操作超时(>600s)已中止(超时≠网络故障判定);大传输请到幕布终端自行执行",
                     ));
                 }
                 std::thread::sleep(REMOTE_POLL);
@@ -216,7 +167,14 @@ pub(super) fn exec_git(repo: &Repository, cwd: &str, args: &[String]) -> Result<
         combined.push_str(&String::from_utf8_lossy(&stderr));
     }
     if !status.success() {
-        return Err(GitError::from_shell_output(&combined));
+        /* 尾裁 500 字符:pre-receive 拒绝等长输出整段进横幅会刷屏 */
+        let tail = if combined.chars().count() > 500 {
+            let skip = combined.chars().count() - 500;
+            format!("…{}", combined.chars().skip(skip).collect::<String>())
+        } else {
+            combined.clone()
+        };
+        return Err(GitError::from_shell_output(&tail));
     }
     Ok(combined)
 }

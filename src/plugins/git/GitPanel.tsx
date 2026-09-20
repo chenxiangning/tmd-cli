@@ -74,6 +74,7 @@ export function GitPanel() {
       branchName={data.branchName}
       upstreamNull={data.upstreamNull}
       detached={data.detached}
+      unborn={data.unborn}
       hasUpstream={data.hasUpstream}
       aheadBehind={data.aheadBehind}
       undoOrigin={data.undoOrigin}

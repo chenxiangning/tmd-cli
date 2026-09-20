@@ -103,6 +103,40 @@ fn rename_状态与_old_path_全链路() {
     .unwrap();
     assert_eq!(patch_old.kind, "R");
 }
+
+/// full 两段式收窄(2026-09-20):全文查看经 [旧,新] 双 pathspec 二次 diff,
+/// rename 配对仍成立;且全文上下文确实进 patch(整文件单 hunk)。
+#[test]
+fn full_查看_rename_配对保持_且_全文上下文生效() {
+    let t = TempRepo::new();
+    t.write("a.txt", "line1\nline2\nline3\n");
+    super::with_repo(t.path(), |r| {
+        super::commit::commit(
+            r,
+            vec!["a.txt".into()],
+            super::CommitInput {
+                message: "init".into(),
+                amend: false,
+            },
+        )
+    })
+    .unwrap();
+    super::evict_cwd(t.path());
+    std::fs::rename(t.dir.join("a.txt"), t.dir.join("b.txt")).unwrap();
+    super::with_repo(t.path(), |r| {
+        super::index_ops::stage(r, vec!["a.txt".into(), "b.txt".into()])
+    })
+    .unwrap();
+    super::evict_cwd(t.path());
+
+    let full = super::with_repo(t.path(), |r| {
+        super::diff::file_patch(r, "b.txt", true, true)
+    })
+    .unwrap()
+    .unwrap();
+    assert_eq!(full.kind, "R", "full 二次 diff 双 pathspec 不得拆散 rename");
+    assert_eq!(full.old_path.as_deref(), Some("a.txt"));
+}
 /// 公共前置:单提交 repo + 远端引用 origin/feat 指向 HEAD(本地无同名分支)。
 pub(super) fn repo_with_origin_feat() -> TempRepo {
     let t = TempRepo::new();
@@ -181,12 +215,12 @@ fn push_args_无upstream建跟踪_有upstream显式上游() {
     super::with_repo(t.path(), |r| {
         // 新分支:无 upstream → 显式 -u 建跟踪
         super::branch_ops::create(r, "fresh", None)?;
-        let args = super::remote_ops::push_args(r, "fresh")?;
+        let args = super::remote_args::push_args(r, "fresh")?;
         assert_eq!(args, vec!["-u", "origin", "fresh"]);
         // 无任何远端配置 → 明确报错而非产出坏参数
         super::branch_ops::create(r, "lonely", None)?;
         r.remote_delete("origin")?;
-        let e = String::from(super::remote_ops::push_args(r, "lonely").unwrap_err());
+        let e = String::from(super::remote_args::push_args(r, "lonely").unwrap_err());
         assert!(e.starts_with("E_EMPTY:"), "无远端应走 E_EMPTY,得: {e}");
         r.remote("origin", "https://example.com/x.git")?;
         // 有 upstream → 显式推到上游同名分支(非当前分支也可推)
@@ -195,7 +229,7 @@ fn push_args_无upstream建跟踪_有upstream显式上游() {
         r.reference("refs/remotes/origin/fresh", target.id(), true, "test")?;
         tracked.set_upstream(Some("origin/fresh"))?;
         assert_eq!(
-            super::remote_ops::push_args(r, "fresh")?,
+            super::remote_args::push_args(r, "fresh")?,
             vec!["origin".to_string(), "fresh:fresh".to_string()]
         );
         Ok(())
@@ -211,7 +245,7 @@ fn pull_args_当前裸拉_非当前ff_无upstream拒绝() {
         // 当前分支(origin/feat 指向 HEAD,检出 feat 后 HEAD 即 feat)
         super::branch_ops::checkout_remote(r, "origin/feat")?;
         assert_eq!(
-            super::remote_ops::pull_args(r, "feat")?,
+            super::remote_args::pull_args(r, "feat")?,
             Vec::<String>::new(),
             "当前分支裸 pull,尊重 pull.rebase"
         );
@@ -220,12 +254,12 @@ fn pull_args_当前裸拉_非当前ff_无upstream拒绝() {
         let mut b = r.find_branch("fresh", git2::BranchType::Local)?;
         b.set_upstream(Some("origin/feat"))?;
         assert_eq!(
-            super::remote_ops::pull_args(r, "fresh")?,
+            super::remote_args::pull_args(r, "fresh")?,
             vec!["origin".to_string(), "feat:fresh".to_string()],
             "非当前分支返回 refspec 参数,fetch 子命令由 run 层选择"
         );
         // 无 upstream → E_EMPTY
-        let e = String::from(super::remote_ops::pull_args(r, "other").unwrap_err());
+        let e = String::from(super::remote_args::pull_args(r, "other").unwrap_err());
         assert!(
             e.starts_with("E_EMPTY:"),
             "无 upstream 应走 E_EMPTY,得: {e}"
@@ -241,7 +275,7 @@ fn fetch_args_远程分支与上游引用() {
     super::with_repo(t.path(), |r| {
         // 远程分支名 → fetch 该远端分支
         assert_eq!(
-            super::remote_ops::fetch_args(r, "origin/feat")?,
+            super::remote_args::fetch_args(r, "origin/feat")?,
             vec!["origin".to_string(), "feat".to_string()]
         );
         // 本地分支带 upstream → fetch 其上游引用
@@ -249,12 +283,12 @@ fn fetch_args_远程分支与上游引用() {
         let mut b = r.find_branch("fresh", git2::BranchType::Local)?;
         b.set_upstream(Some("origin/feat"))?;
         assert_eq!(
-            super::remote_ops::fetch_args(r, "fresh")?,
+            super::remote_args::fetch_args(r, "fresh")?,
             vec!["origin".to_string(), "feat".to_string()]
         );
         // 无 upstream → E_EMPTY
         super::branch_ops::create(r, "lonely", None)?;
-        let e = String::from(super::remote_ops::fetch_args(r, "lonely").unwrap_err());
+        let e = String::from(super::remote_args::fetch_args(r, "lonely").unwrap_err());
         assert!(
             e.starts_with("E_EMPTY:"),
             "无 upstream 应走 E_EMPTY,得: {e}"

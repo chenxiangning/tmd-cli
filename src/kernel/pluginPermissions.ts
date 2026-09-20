@@ -254,6 +254,7 @@ export const SETTINGS_PURE_KEYS = [
   "sanitizeUiZoom",
   "sanitizeSessionTabsMax",
   "sanitizeIconDecor",
+  "onSettingsPersistFailed",
 ] as const;
 export const PERMISSION_LABELS: Record<PluginPermission, string> = {
   "ipc.terminal": "终端会话(读写 PTY、拉起/结束进程)",

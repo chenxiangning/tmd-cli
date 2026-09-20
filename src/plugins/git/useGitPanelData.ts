@@ -107,6 +107,8 @@ export function useGitPanelData(cwd: string | null, refreshRepos: () => Promise<
   const branchName = branch ?? "";
   const upstream = status.data?.upstream;
   const detached = !branchName || branchName.startsWith("detached@");
+  /* unborn(首提交前):branch 名正常返回但 headSha 空 → 远端动作禁用口径 */
+  const unborn = !detached && branchName !== "" && !status.data?.headSha;
   const hasUpstream = upstream != null;
 
   return {
@@ -121,6 +123,7 @@ export function useGitPanelData(cwd: string | null, refreshRepos: () => Promise<
     branchName,
     upstreamNull: upstream ?? null,
     detached,
+    unborn,
     hasUpstream,
     undoOrigin,
     aheadBehind,

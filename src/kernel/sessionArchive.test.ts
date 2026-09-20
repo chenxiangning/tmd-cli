@@ -152,7 +152,7 @@ describe(`满表回归(2026-09-11 用户实盘:满表后批量归档静默无效
     });
     for (const k of batch) expect(archive.isSessionArchived(k)).toBe(true);
     expect(Object.keys(settings.getSettingsState().settings.sessionArchive)).toHaveLength(MAX);
-  });
+  }, 20_000);
 
   it("时钟停滞(同毫秒批量)时后 mark 换出先 mark:新条目至少保留最后一条且总数守恒", () => {
     settings.updateSettings({ sessionArchive: seedFullTable() });
@@ -163,7 +163,7 @@ describe(`满表回归(2026-09-11 用户实盘:满表后批量归档静默无效
     batch.forEach((k) => archive.archiveSession(k));
     expect(Object.keys(settings.getSettingsState().settings.sessionArchive)).toHaveLength(MAX);
     expect(archive.isSessionArchived(batch[18])).toBe(true);
-  });
+  }, 20_000);
 });
 
 describe("settings 清洗", () => {

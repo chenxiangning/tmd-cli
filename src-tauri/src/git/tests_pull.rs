@@ -35,7 +35,7 @@ fn setup_divergent(local: (&str, &str), remote: (&str, &str)) -> (TempRepo, std:
     })
     .unwrap();
     super::with_repo(t.path(), |r| {
-        super::remote_ops::run(
+        super::remote_quick::run(
             r,
             t.path(),
             super::remote_ops::RemoteOp::Push,
@@ -89,7 +89,7 @@ fn git_cli(cwd: &std::path::Path, args: &[&str]) {
 fn pull_divergent_无冲突_自动rebase完成更新() {
     let (t, w) = setup_divergent(("local.txt", "local\n"), ("remote.txt", "remote\n"));
     let out = super::with_repo(t.path(), |r| {
-        super::remote_ops::run(
+        super::remote_quick::run(
             r,
             t.path(),
             super::remote_ops::RemoteOp::Pull,
@@ -116,7 +116,7 @@ fn pull_divergent_无冲突_自动rebase完成更新() {
 fn pull_divergent_有冲突_中止恢复原状并报错() {
     let (t, w) = setup_divergent(("same.txt", "local\n"), ("same.txt", "remote\n"));
     let err = super::with_repo(t.path(), |r| {
-        super::remote_ops::run(
+        super::remote_quick::run(
             r,
             t.path(),
             super::remote_ops::RemoteOp::Pull,
@@ -154,7 +154,7 @@ fn pull_divergent_未提交改动_拒绝且工作区原样() {
     let (t, w) = setup_divergent(("local.txt", "local\n"), ("remote.txt", "remote\n"));
     t.write("base.txt", "dirty");
     let err = super::with_repo(t.path(), |r| {
-        super::remote_ops::run(
+        super::remote_quick::run(
             r,
             t.path(),
             super::remote_ops::RemoteOp::Pull,

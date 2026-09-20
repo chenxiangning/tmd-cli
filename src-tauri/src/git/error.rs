@@ -26,7 +26,7 @@ impl GitError {
         Self::Shell(msg.into())
     }
 
-    /// 按 stderr 特征分类:凭据类 → Auth,其余 → Shell。
+    /// 按 stderr 特征分类:凭据类 → Auth;冲突中间态 → 人话引导;其余 → Shell。
     pub fn from_shell_output(output: &str) -> Self {
         let lower = output.to_lowercase();
         let is_auth = lower.contains("permission denied")
@@ -34,10 +34,18 @@ impl GitError {
             || lower.contains("could not read username")
             || lower.contains("host key verification failed");
         if is_auth {
-            Self::Auth(output.trim().to_string())
-        } else {
-            Self::Shell(output.trim().to_string())
+            return Self::Auth(output.trim().to_string());
         }
+        /* 冲突/中间态:对话框显式策略 pull 与合并/变基菜单冲突时 git 透传英文
+         * CONFLICT stderr —— 统一中文处置引导(divergent 兜底路径有自己的
+         * abort 恢复文案,先于这里返回,不冲突)。 */
+        if lower.contains("conflict") || lower.contains("automatic merge failed") {
+            return Self::Shell(format!(
+                "有冲突,仓库留在合并/变基中间态:请到幕布终端执行 git merge --continue/--abort(或 rebase 同款)解决\n\n{}",
+                output.trim()
+            ));
+        }
+        Self::Shell(output.trim().to_string())
     }
 }
 
