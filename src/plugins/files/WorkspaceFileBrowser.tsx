@@ -23,6 +23,7 @@ import { openFileInTab } from "@kernel/fileTabs";
 import type { WorkspaceFileBrowserProps } from "@kernel/workspaceFileBrowser";
 import { useDirTree } from "./useDirTree";
 import { useTreeOperations } from "./useTreeOperations";
+import { useSidebarTreeReveal } from "./treeHandles";
 import { FileTreeOverlays } from "./FileTreeOverlays";
 import { useRepoStatusState } from "./gitDecorate";
 import { buildLetterMap } from "./gitDecorateModel";
@@ -53,6 +54,8 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
   const { entries, expanded, selectedPath, setSelectedPath, loading, reloadAll, revealDir, toggle } = useDirTree(root);
   /* 行右键/命名弹窗/轻提示:与右栏 FileTree 同一 useTreeOperations(零新逻辑)。 */
   const ops = useTreeOperations({ root, revealDir, setSelected: setSelectedPath });
+  /* 详情页「定位到文件」:侧栏树与右栏树同步定位展开。 */
+  useSidebarTreeReveal(root, revealDir, setSelectedPath);
   const rowMenu = useCallback<WsfbRowMenu>(
     (entry) => (e) => {
       e.preventDefault();
@@ -70,16 +73,10 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
   useEffect(() => {
     let alive = true;
     ipc.gitIgnoredPrefixes(root).then(
-      (out) => {
-        if (alive) setIgnored(out.map((p) => `${base}/${p}`));
-      },
-      () => {
-        if (alive) setIgnored([]);
-      },
+      (out) => { if (alive) setIgnored(out.map((p) => `${base}/${p}`)); },
+      () => { if (alive) setIgnored([]); },
     );
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [root, base, tick]);
 
   /* 装饰与剪枝(纯派生;颜色/字母与右栏同口径)。 */

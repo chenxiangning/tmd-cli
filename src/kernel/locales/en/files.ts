@@ -48,6 +48,7 @@ export const MESSAGES = {
   "暂存": "Stage",
   "取消暂存": "Unstage",
   "确认放弃改动?": "Discard changes?",
+  "扩大选择范围": "Expand selection",
   "按 Git 变更着色文件": "Color files by Git changes",
   "关闭 Git 变更着色": "Turn off Git change coloring",
   "按 Git 变更着色文件与文件夹": "Color files and folders by Git changes",

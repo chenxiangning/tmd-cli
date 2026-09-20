@@ -54,8 +54,8 @@ export interface CommandContribution {
   keybindingLabel?: string;
   /** 上下文谓词;抛错或不满足 = 不吃键(穿透,不 preventDefault)。 */
   when?: () => boolean;
-  /** 缺省 "global"。 */
-  scope?: "global" | "terminal";
+  /** 缺省 "global"。editor = 文件编辑器聚焦期优先(同 terminal 先例,如 ⌘W 扩选)。 */
+  scope?: "global" | "terminal" | "editor";
   run: () => void;
 }
 
@@ -181,15 +181,35 @@ export function setTerminalFocused(focused: boolean): void {
   terminalFocused = focused;
 }
 
-/** 分发决策(纯函数,分发器与测试共用):终端聚焦时先查 terminal 作用域(同键跨作用域
- *  时终端优先,如 global ⌘F 与 terminal.find),未命中再落 global;非聚焦只查 global。 */
+/** 编辑器作用域匹配器:文件编辑器聚焦期优先(如 ⌘W 扩选与全局关 tab 分家)。 */
+export function matchEditorCommand(e: ShortcutKeyEvent): CommandContribution | undefined {
+  for (const cmd of commands.values()) {
+    if (cmd.scope !== "editor") continue;
+    if (eventMatches(cmd, e) && whenOk(cmd)) return cmd;
+  }
+  return undefined;
+}
+
+/** 编辑器聚焦态(FileCodeEditorImpl 馈入):聚焦期间 editor 作用域优先、global 照常。 */
+let editorFocused = false;
+export function setEditorFocused(focused: boolean): void {
+  editorFocused = focused;
+}
+
+/** 分发决策(纯函数,分发器与测试共用):聚焦作用域优先(编辑器/终端互斥,先后无涉),
+ *  同键跨作用域时聚焦侧优先(如 global ⌘F 与 terminal.find、global ⌘W 关 tab 与
+ *  editor.expandSelection),未命中再落 global;非聚焦只查 global。 */
 export function resolveCommand(e: ShortcutKeyEvent): CommandContribution | undefined {
+  if (editorFocused) {
+    const editor = matchEditorCommand(e);
+    if (editor) return editor;
+  }
   if (terminalFocused) {
     const terminal = matchTerminalCommand(e);
     if (terminal) return terminal;
   }
   for (const cmd of commands.values()) {
-    if (cmd.scope === "terminal") continue;
+    if (cmd.scope && cmd.scope !== "global") continue;
     if (eventMatches(cmd, e) && whenOk(cmd)) return cmd;
   }
   return undefined;

@@ -1,16 +1,10 @@
 /**
- * 文件详情页右键菜单 —— 参考 JetBrains/VS Code 编辑器右键菜单裁剪出的最小可用集:
- *
- *   通用    发送到输入框(kernel composerInsertRef 桥)─ 复制路径/在访达中显示
- *          ─ Git 操作子菜单(暂存/取消暂存/放弃改动)─ 定位到文件(文件树 reveal)
- *   编辑态  剪切/复制/粘贴(CodeMirror 事务直驱)─ 预览·编辑切换 ─ 保存(脏态可用)
- *   预览态  复制(DOM 选区)─ 编辑切换
- *
- * Git 子菜单仅本地文件且落在活跃工作区内时出现;路径口径 = 工作区根相对
- * (git ipc 仓库相对,同 git 插件 DiffView)。放弃改动两步武装确认。
+ * 文件详情页右键菜单 —— JetBrains 同型裁剪:发送到输入框/剪贴板(CM 事务直驱)/
+ * 复制路径/访达/Git 操作子菜单/定位到文件(右栏+侧栏双树同步)/扩选 ⌘W/
+ * 编辑预览切换/保存。Git 项仅本地文件且在活跃工作区内;路径口径 = 根相对(同 DiffView)。
  */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { EditorView } from "@codemirror/view";
 import {
@@ -28,19 +22,17 @@ import {
   Pencil,
   Plus,
   Scissors,
+  Selection,
 } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
 import { composerInsertRef } from "@kernel/composerExt";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { clampMenuPosition, copyText } from "./useTreeOperations";
-import { getActiveTreeHandles } from "./treeHandles";
+import { collectRevealTargets } from "./treeHandles";
+import { expandEditorSelection } from "@kernel/cmEditor/expandSelection";
 
-export interface DetailMenuPos {
-  x: number;
-  y: number;
-}
-
+export interface DetailMenuPos { x: number; y: number }
 export type DetailMenuVariant = "editor" | "preview" | "byte";
 
 type Pick = (run: () => void) => void;
@@ -55,12 +47,9 @@ interface FileDetailContextMenuProps {
   selText: string;
   /** 只读(远程文件):剪切/粘贴/保存禁用,路径/Git/定位三项不出。 */
   remote?: boolean;
-  /** 有未落盘草稿时保存项可用。 */
-  dirty?: boolean;
-  /** md/结构化:多一档 编辑↔预览 切换。 */
-  canToggle?: boolean;
-  /** 当前为编辑态:切换项文案给「预览」,否则给「编辑」。 */
-  editorOpen?: boolean;
+  dirty?: boolean; // 有未落盘草稿时保存项可用
+  canToggle?: boolean; // md/结构化:多一档 编辑↔预览 切换
+  editorOpen?: boolean; // 当前为编辑态:切换项文案给「预览」,否则给「编辑」
   onToggle?: () => void;
   onSave?: () => void;
   onClose: () => void;
@@ -116,6 +105,11 @@ function editorClipItems(view: EditorView, selText: string, remote: boolean, pic
             view.focus();
           }, () => undefined);
         }), { kbd: "⌘V", disabled: remote })}
+      {item(t("扩大选择范围"), <Selection size="0.8125rem" />, () =>
+        pick(() => {
+          void expandEditorSelection(view);
+          view.focus();
+        }), { kbd: "⌘W" })}
     </>
   );
 }
@@ -127,30 +121,41 @@ const GIT_OPS = {
   discard: (cwd: string, rel: string) => ipc.gitDiscard(cwd, [rel]),
 } as const;
 
-/** Git 子菜单:暂存/取消暂存/放弃改动(两步武装)。 */
+/** Git 子菜单:fixed 定位(.wsmenu 的 overflow 会剪裁绝对定位子元素),右侧放不下翻左。 */
 function GitSubmenu({ cwd, rel, pick }: { cwd: string; rel: string; pick: Pick }) {
   const [armed, setArmed] = useState(false);
+  const [pos, setPos] = useState<DetailMenuPos | null>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
   const run = (op: keyof typeof GIT_OPS) => {
     void GIT_OPS[op](cwd, rel).catch(() => undefined);
   };
+  const open = () => {
+    const r = hostRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const W = 176;
+    const x = r.right + W + 8 > window.innerWidth ? r.left - W + 4 : r.right - 4;
+    setPos({ x, y: Math.max(8, Math.min(r.top - 6, window.innerHeight - 150)) });
+  };
   return (
-    <div className="wsmenu-submenu-host">
+    <div ref={hostRef} className="wsmenu-submenu-host" onMouseEnter={open} onMouseLeave={() => setPos(null)}>
       <button type="button" className="wsmenu-item">
         <span className="wsmenu-item-icon"><GitBranch size="0.8125rem" /></span>
         <span className="wsmenu-item-label">{t("Git 操作")}</span>
         <span className="wsmenu-item-kbd"><CaretRight size="0.8125rem" /></span>
       </button>
-      <div className="wsmenu-submenu" role="menu">
-        {item(t("暂存"), <Plus size="0.8125rem" />, () => pick(() => run("stage")))}
-        {item(t("取消暂存"), <Minus size="0.8125rem" />, () => pick(() => run("unstage")))}
-        {item(armed ? t("确认放弃改动?") : t("放弃改动"), <ArrowCounterClockwise size="0.8125rem" />, () => {
-          if (!armed) {
-            setArmed(true);
-            return;
-          }
-          pick(() => run("discard"));
-        }, { danger: armed })}
-      </div>
+      {pos && (
+        <div className="wsmenu-submenu" role="menu" style={{ left: pos.x, top: pos.y }}>
+          {item(t("暂存"), <Plus size="0.8125rem" />, () => pick(() => run("stage")))}
+          {item(t("取消暂存"), <Minus size="0.8125rem" />, () => pick(() => run("unstage")))}
+          {item(armed ? t("确认放弃改动?") : t("放弃改动"), <ArrowCounterClockwise size="0.8125rem" />, () => {
+            if (!armed) {
+              setArmed(true);
+              return;
+            }
+            pick(() => run("discard"));
+          }, { danger: armed })}
+        </div>
+      )}
     </div>
   );
 }
@@ -173,7 +178,7 @@ function menuBody(args: {
   const ws = getActiveWorkspace();
   const base = ws ? ws.root.replace(/[\\/]+$/, "") : "";
   const relPath = !remote && base && path.startsWith(`${base}/`) ? path.slice(base.length + 1) : null;
-  const revealFile = !remote ? getActiveTreeHandles()?.revealFile : undefined;
+  const revealTargets = !remote ? collectRevealTargets() : [];
   const sendText = selText || relPath || (!remote ? path : "");
   const isEditor = variant === "editor" && view !== null;
   return (
@@ -212,10 +217,11 @@ function menuBody(args: {
           <GitSubmenu cwd={base} rel={relPath} pick={pick} />
         </>
       )}
-      {revealFile && (
+      {revealTargets.length > 0 && (
         <>
           {!relPath && <div className="wsmenu-divider" />}
-          {item(t("定位到文件"), <Crosshair size="0.8125rem" />, () => pick(() => revealFile(path)))}
+          {item(t("定位到文件"), <Crosshair size="0.8125rem" />, () =>
+            pick(() => { for (const r of revealTargets) r(path); }))}
         </>
       )}
       {canToggle && onToggle && (
@@ -255,7 +261,7 @@ export function FileDetailContextMenu({
   onSave,
   onClose,
 }: FileDetailContextMenuProps) {
-  /* 子菜单要向右再伸 ~180px,夹取留量比树菜单更宽。 */
+  /* 子菜单要向右再伸 ~176px,夹取留量比树菜单更宽。 */
   const pos = clampMenuPosition(state.x, state.y);
   pos.x = Math.min(pos.x, window.innerWidth - 400 - 12);
 

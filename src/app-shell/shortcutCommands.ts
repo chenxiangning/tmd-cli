@@ -14,6 +14,7 @@ import {
 import { host } from "@kernel/host";
 import { openSettingsPanel } from "@kernel/settings";
 import { registerCommand, type ShortcutKeyEvent } from "@kernel/shortcuts";
+import { expandEditorSelection, getActiveEditorView } from "@kernel/cmEditor/expandSelection";
 import {
   closeTab,
   getActiveTabId,
@@ -63,6 +64,19 @@ registerCommand({
   run: () => {
     const id = getActiveTabId();
     if (id) closeTab(id);
+  },
+});
+
+registerCommand({
+  /* 编辑器聚焦期 ⌘W 优先扩选(JetBrains 同型);失焦期落回上方 shell.closeTab。 */
+  id: "editor.expandSelection",
+  title: "扩大选择范围",
+  keybinding: "Cmd+W",
+  scope: "editor",
+  when: () => getActiveEditorView() !== null,
+  run: () => {
+    const view = getActiveEditorView();
+    if (view) void expandEditorSelection(view);
   },
 });
 

@@ -1,31 +1,19 @@
 /**
- * shell.* 外壳命令注册总表契约测试(shortcutCommands.ts):
- * 1. 表完整性不变量 —— 注册期即校验(id 唯一由真实注册表 fail fast 兜底):
- *    全部命令 id 唯一、id 以 shell./panel. 前缀、title 非空、run 可调用;
- *    静态键位型须 keybinding 可解析,match 型须带 keybindingLabel;
- *    global 作用域内静态键位两两不冲突。
- * 2. 行为契约 —— ref 桥类命令(toggleLeft/Right、market)挂点缺失安全、挂点命中转发;
- *    goHome 的「会话 ⇄ 首页」往返记忆(会话退出则不误回);
- *    focusSessionN/focusPanelN 的 when/match 守卫与越界穿透;
- *    next/prevTab 循环切换;panel.* 动作路由到激活面板注册槽。
- * 手法:业务依赖全部 vi.mock,注册表用真件(vi.resetModules + 动态 import,
- * 同 shortcuts.override.test.ts 范式)。
+ * shell.* 外壳命令注册总表契约测试:表完整性(id 唯一/前缀/键位/global 不冲突)
+ * + 行为契约(ref 桥/goHome 往返/focus 守卫/⌘W 双态路由)。mock 全依赖,注册表真件。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as ShortcutsNs from "@kernel/shortcuts";
 import type * as ShortcutCommandsNs from "./shortcutCommands";
 import type { ShortcutKeyEvent } from "@kernel/shortcuts";
 
-/* ── 业务依赖 mock(仅调用期消费,注册期零副作用)────────────────── */
-
+/* 业务依赖 mock(仅调用期消费,注册期零副作用) */
 const filePanel = vi.hoisted(() => ({
   panels: [] as Array<Record<string, unknown> & { id: string }>,
   mode: "",
   getFilePanels: () => filePanel.panels,
   getFilePanelMode: () => filePanel.mode,
-  setFilePanelMode: vi.fn((id: string) => {
-    filePanel.mode = id;
-  }),
+  setFilePanelMode: vi.fn((id: string) => { filePanel.mode = id; }),
 }));
 vi.mock("@kernel/filePanel", () => filePanel);
 
@@ -34,9 +22,7 @@ const hostMock = vi.hoisted(() => ({
   sessions: [] as Array<{ id: string }>,
   getActiveSessionId: () => hostMock.activeId,
   getSessions: () => hostMock.sessions,
-  setActiveSession: vi.fn((id: string | null) => {
-    hostMock.activeId = id;
-  }),
+  setActiveSession: vi.fn((id: string | null) => { hostMock.activeId = id; }),
 }));
 vi.mock("@kernel/host", () => ({ host: hostMock }));
 
@@ -57,12 +43,17 @@ vi.mock("@kernel/tabs", () => tabsMock);
 const maximized = vi.hoisted(() => ({ toggleEditorMaximized: vi.fn() }));
 vi.mock("./editorMaximized", () => maximized);
 
-import { openSettingsPanel } from "@kernel/settings";
+const cmEditorMock = vi.hoisted(() => ({
+  view: null as unknown | null,
+  getActiveEditorView: () => cmEditorMock.view,
+  expandEditorSelection: vi.fn(),
+}));
+vi.mock("@kernel/cmEditor/expandSelection", () => cmEditorMock);
 
+import { openSettingsPanel } from "@kernel/settings";
 const openSettings = vi.mocked(openSettingsPanel);
 
-let mod: typeof ShortcutCommandsNs;
-let registry: typeof ShortcutsNs;
+let mod: typeof ShortcutCommandsNs, registry: typeof ShortcutsNs;
 
 function keyEvent(key: string, extra?: Partial<ShortcutKeyEvent>): ShortcutKeyEvent {
   return { key, metaKey: true, ctrlKey: false, shiftKey: false, altKey: false, ...extra };
@@ -77,12 +68,9 @@ function cmd(id: string) {
 beforeEach(async () => {
   vi.clearAllMocks();
   vi.resetModules();
-  filePanel.panels = [];
-  filePanel.mode = "";
-  hostMock.activeId = null;
-  hostMock.sessions = [];
-  tabsMock.list = [];
-  tabsMock.activeId = null;
+  filePanel.panels = []; filePanel.mode = "";
+  hostMock.activeId = null; hostMock.sessions = [];
+  tabsMock.list = []; tabsMock.activeId = null;
   registry = await import("@kernel/shortcuts");
   mod = await import("./shortcutCommands");
 });
@@ -92,6 +80,7 @@ describe("注册表完整性不变量", () => {
     const ids = registry.getCommands().map((c) => c.id);
     expect(ids).toEqual([...ids].sort());
     expect(ids).toEqual([
+      "editor.expandSelection",
       "panel.newFile", "panel.newFolder", "panel.refresh", "shell.closeTab",
       "shell.focusPanel1", "shell.focusPanel2", "shell.focusPanel3", "shell.focusSessionN",
       "shell.goHome", "shell.nextTab", "shell.openMarket", "shell.openSettings",
@@ -101,7 +90,7 @@ describe("注册表完整性不变量", () => {
 
   it("每条命令:必填字段齐、id 前缀合法、run 可调用", () => {
     for (const c of registry.getCommands()) {
-      expect(c.id.startsWith("shell.") || c.id.startsWith("panel.")).toBe(true);
+      expect(["shell.", "panel.", "editor."].some((p) => c.id.startsWith(p))).toBe(true);
       expect(c.title.trim().length).toBeGreaterThan(0);
       expect(typeof c.run).toBe("function");
     }
@@ -122,6 +111,7 @@ describe("注册表完整性不变量", () => {
     for (const c of registry.getCommands()) {
       if (!c.keybinding || c.match) continue;
       const p = registry.parseKeybinding(c.keybinding)!;
+      if (c.scope && c.scope !== "global") continue; // editor/terminal 作用域允许与 global 同键(聚焦优先)
       const sig = `${p.key}|${p.meta}|${p.shift}|${p.alt}`;
       expect(seen.has(sig), `${c.id} 与 ${seen.get(sig)} 键位冲突`).toBe(false);
       seen.set(sig, c.id);
@@ -137,8 +127,7 @@ describe("注册表完整性不变量", () => {
 
 describe("ref 桥类命令", () => {
   it("toggleLeftBar/toggleRightBar:挂点缺失安全,挂点命中转发", () => {
-    const left = vi.fn();
-    const right = vi.fn();
+    const left = vi.fn(), right = vi.fn();
     cmd("shell.toggleLeftBar").run();
     cmd("shell.toggleRightBar").run();
     expect(left).not.toHaveBeenCalled();
@@ -181,13 +170,28 @@ describe("ref 桥类命令", () => {
     cmd("shell.goHome").run();
     expect(hostMock.setActiveSession).toHaveBeenLastCalledWith("s1");
   });
-
   it("closeTab:无激活 tab 时 when 拦下,有则关闭当前 tab", () => {
     expect(cmd("shell.closeTab").when!()).toBe(false);
     tabsMock.list = [{ id: "t1" }];
     tabsMock.activeId = "t1";
     expect(cmd("shell.closeTab").when!()).toBe(true);
     cmd("shell.closeTab").run();
+    expect(tabsMock.closeTab).toHaveBeenCalledWith("t1");
+  });
+
+  it("⌘W:编辑器聚焦期路由 editor.expandSelection,失焦期落回 shell.closeTab", () => {
+    tabsMock.list = [{ id: "t1" }];
+    tabsMock.activeId = "t1";
+    cmEditorMock.view = { marked: true };
+    registry.setEditorFocused(true);
+    const hit = registry.resolveCommand(keyEvent("w"));
+    expect(hit?.id).toBe("editor.expandSelection");
+    hit!.run();
+    expect(cmEditorMock.expandEditorSelection).toHaveBeenCalledWith(cmEditorMock.view);
+    cmEditorMock.view = null;
+    registry.setEditorFocused(false);
+    expect(registry.resolveCommand(keyEvent("w"))?.id).toBe("shell.closeTab");
+    registry.resolveCommand(keyEvent("w"))!.run();
     expect(tabsMock.closeTab).toHaveBeenCalledWith("t1");
   });
 });

@@ -13,6 +13,8 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { Extension } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { t } from "@kernel/i18n";
+import { setEditorFocused } from "@kernel/shortcuts";
+import { setActiveEditorView } from "./expandSelection";
 import { useEditorExtensionFactories } from "@kernel/editorExtensions";
 import { loadCmLanguage } from "./cmLanguage";
 import { loadCmTheme } from "./cmTheme";
@@ -133,6 +135,15 @@ export default function FileCodeEditorImpl({
     };
   }, [path]);
 
+  /* 卸载兜底:卸载路径不保证触发 CM blur,清掉聚焦态防 ⌘W 悬空路由到旧实例。 */
+  useEffect(
+    () => () => {
+      setActiveEditorView(null);
+      setEditorFocused(false);
+    },
+    [],
+  );
+
   /* 插件扩展组(editorExtensions 注册表):工厂清单/文件/明暗任一变化重跑。
      单厂抛错只丢该厂产物;CM 类型对插件侧是 type-only,运行期加载归工厂体内。 */
   useEffect(() => {
@@ -193,6 +204,14 @@ export default function FileCodeEditorImpl({
         if (lineNo) {
           void revealEditorLine(view, lineNo);
         }
+      }}
+      onFocus={() => {
+        setActiveEditorView(editorViewRef.current);
+        setEditorFocused(true);
+      }}
+      onBlur={() => {
+        setActiveEditorView(null);
+        setEditorFocused(false);
       }}
       height="100%"
       basicSetup={{
