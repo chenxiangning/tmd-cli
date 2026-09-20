@@ -245,6 +245,8 @@ pub fn run() {
             git::commands::git_clean,
             git::commands::git_commit,
             git::commands::git_log,
+            git::commands_file::git_file_log,
+            git::commands_file::git_blame,
             git::commands::git_commit_files,
             git::commands::git_commit_file_patch,
             git::commands::git_commit_message,

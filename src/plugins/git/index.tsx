@@ -8,8 +8,8 @@ import { CommitDiffTabContent } from "./CommitDiffTab";
 import { DiffTabContent } from "./DiffTabContent";
 import { COMMIT_TAB_KIND } from "./commitTab";
 import { DIFF_TAB_KIND } from "./diffTab";
-import { FILE_HISTORY_TAB_KIND, BLAME_TAB_KIND } from "./fileHistoryTab";
-import { FileHistoryTabContent, GitBlameTabContent } from "./fileHistoryViews";
+import { FILE_HISTORY_TAB_KIND } from "./fileHistoryTab";
+import { FileHistoryTabContent } from "./fileHistoryViews";
 
 /** Git 插件入口:单视图三段面板(差异/分支/历史)+ 提交 diff 中央 tab。
  *  契约见 openspec/changes/git-right-panel/ 与
@@ -34,7 +34,6 @@ export const gitPlugin: Plugin = {
     ctx.registerTabContent({ kind: COMMIT_TAB_KIND, component: CommitDiffTabContent });
     ctx.registerTabContent({ kind: DIFF_TAB_KIND, component: DiffTabContent });
     ctx.registerTabContent({ kind: FILE_HISTORY_TAB_KIND, component: FileHistoryTabContent });
-    ctx.registerTabContent({ kind: BLAME_TAB_KIND, component: GitBlameTabContent });
     // 远端动作命令化(fetch/pull/push):无键位仅暴露,为设置清单改键预留;
     // 常规入口是分支视图右键菜单 + 顶栏视图下拉(更新/获取/拉取/推送),命令与 requestRemoteDialog 同通道
     for (const op of ["fetch", "pull", "push"] as const) {

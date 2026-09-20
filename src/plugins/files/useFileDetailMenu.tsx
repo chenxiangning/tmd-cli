@@ -15,6 +15,10 @@ export function useFileDetailMenu(opts: {
   dirty?: boolean;
   canToggle?: boolean;
   editorOpen?: boolean;
+  /** blame 内嵌模式:canBlame 控项显隐,active 显「隐藏」文案。 */
+  canBlame?: boolean;
+  blameActive?: boolean;
+  onToggleBlame?: () => void;
   onToggle?: () => void;
   onSave?: () => void;
 }): { detailMenuProps: { onContextMenu: (e: React.MouseEvent) => void }; detailMenu: ReactNode } {
@@ -45,6 +49,9 @@ export function useFileDetailMenu(opts: {
       dirty={opts.dirty}
       canToggle={opts.canToggle}
       editorOpen={opts.editorOpen}
+      canBlame={opts.canBlame}
+      blameActive={opts.blameActive}
+      onToggleBlame={opts.onToggleBlame}
       onToggle={opts.onToggle}
       onSave={opts.onSave}
       onClose={() => setPos(null)}

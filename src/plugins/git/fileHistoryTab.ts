@@ -8,7 +8,6 @@ import { t } from "@kernel/i18n";
 import { openTab } from "@kernel/tabs";
 
 export const FILE_HISTORY_TAB_KIND = "git-file-history";
-export const BLAME_TAB_KIND = "git-blame";
 
 export interface FileHistoryTabPayload {
   cwd: string;
@@ -30,23 +29,9 @@ export function openFileHistoryTab(tab: FileHistoryTabPayload): void {
   );
 }
 
-export function openBlameTab(tab: FileHistoryTabPayload): void {
-  const absPath = `${tab.cwd}/${tab.path}`;
-  openTab(
-    {
-      id: `${BLAME_TAB_KIND}:${absPath}`,
-      kind: BLAME_TAB_KIND,
-      title: t("{path} — Git Blame", { path: tab.path.split("/").pop() ?? tab.path }),
-      path: absPath,
-      payload: { ...tab },
-    },
-    { refresh: true },
-  );
-}
-
 /** tab kind → payload;非本族 kind 返回 null(kernel/tabs 路由方守卫用)。 */
 export function readPayload(kind: string, raw: unknown): FileHistoryTabPayload | null {
-  if (kind !== FILE_HISTORY_TAB_KIND && kind !== BLAME_TAB_KIND) return null;
+  if (kind !== FILE_HISTORY_TAB_KIND) return null;
   const p = raw as Partial<FileHistoryTabPayload> | null;
   if (!p?.cwd || !p?.path) return null;
   return { cwd: p.cwd, path: p.path };

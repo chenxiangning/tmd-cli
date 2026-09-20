@@ -44,9 +44,10 @@ const maximized = vi.hoisted(() => ({ toggleEditorMaximized: vi.fn() }));
 vi.mock("./editorMaximized", () => maximized);
 
 const cmEditorMock = vi.hoisted(() => ({
-  view: null as unknown | null,
+  view: null as { marked: boolean; hasFocus?: boolean } | null,
   getActiveEditorView: () => cmEditorMock.view,
   expandEditorSelection: vi.fn(),
+  hasFocusedEditor: () => Boolean(cmEditorMock.view?.hasFocus),
 }));
 vi.mock("@kernel/cmEditor/expandSelection", () => cmEditorMock);
 
@@ -182,14 +183,13 @@ describe("ref 桥类命令", () => {
   it("⌘W:编辑器聚焦期路由 editor.expandSelection,失焦期落回 shell.closeTab", () => {
     tabsMock.list = [{ id: "t1" }];
     tabsMock.activeId = "t1";
-    cmEditorMock.view = { marked: true };
-    registry.setEditorFocused(true);
+    cmEditorMock.view = { marked: true, hasFocus: true };
+    registry.setEditorFocusProbe(() => Boolean(cmEditorMock.view?.hasFocus));
     const hit = registry.resolveCommand(keyEvent("w"));
     expect(hit?.id).toBe("editor.expandSelection");
     hit!.run();
     expect(cmEditorMock.expandEditorSelection).toHaveBeenCalledWith(cmEditorMock.view);
     cmEditorMock.view = null;
-    registry.setEditorFocused(false);
     expect(registry.resolveCommand(keyEvent("w"))?.id).toBe("shell.closeTab");
     registry.resolveCommand(keyEvent("w"))!.run();
     expect(tabsMock.closeTab).toHaveBeenCalledWith("t1");

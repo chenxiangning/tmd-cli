@@ -13,7 +13,6 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { Extension } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { t } from "@kernel/i18n";
-import { setEditorFocused } from "@kernel/shortcuts";
 import { setActiveEditorView } from "./expandSelection";
 import { useEditorExtensionFactories } from "@kernel/editorExtensions";
 import { loadCmLanguage } from "./cmLanguage";
@@ -26,11 +25,13 @@ const CodeMirror = lazy(() => import("@uiw/react-codemirror").then((m) => ({ def
 /** 基础键位 + 编辑器内查找扩展(Mod-s 保存 / Tab 缩进 / Mod-f 查找面板):
  * 与 CodeMirror 全家同批动态加载;@uiw basicSetup 不含搜索,显式补。 */
 async function loadBaseExts(onSave: () => void): Promise<Extension[]> {
-  const [{ keymap }, { indentWithTab }, { search, openSearchPanel }] = await Promise.all([
+  const [{ keymap }, { indentWithTab }, { search, openSearchPanel }, blameMod] = await Promise.all([
     import("@codemirror/view"),
     import("@codemirror/commands"),
     import("@codemirror/search"),
+    import("./editorBlame"),
   ]);
+  const blameExt = await blameMod.editorBlameExtension();
   return [
     keymap.of([
       {
@@ -44,6 +45,7 @@ async function loadBaseExts(onSave: () => void): Promise<Extension[]> {
       { key: "Mod-f", run: openSearchPanel },
     ]),
     search({ top: true }),
+    blameExt,
   ];
 }
 
@@ -135,11 +137,10 @@ export default function FileCodeEditorImpl({
     };
   }, [path]);
 
-  /* 卸载兜底:卸载路径不保证触发 CM blur,清掉聚焦态防 ⌘W 悬空路由到旧实例。 */
+  /* 卸载兜底:卸载路径不保证触发 CM blur,清掉活跃视图防 ⌘W 悬空路由到旧实例。 */
   useEffect(
     () => () => {
       setActiveEditorView(null);
-      setEditorFocused(false);
     },
     [],
   );
@@ -199,19 +200,14 @@ export default function FileCodeEditorImpl({
       extensions={[...themeExts, ...baseExts, ...langExts, ...pluginExts]}
       onCreateEditor={(view) => {
         editorViewRef.current = view;
+        /* 活跃视图挂载即注册;聚焦与否由 view.hasFocus 实测(内核探针),
+           不走 React onFocus/onBlur —— 合成焦点事件时序盲区会漏置态。 */
+        setActiveEditorView(view);
         onViewReadyRef.current?.(view);
         const lineNo = revealLineRef.current;
         if (lineNo) {
           void revealEditorLine(view, lineNo);
         }
-      }}
-      onFocus={() => {
-        setActiveEditorView(editorViewRef.current);
-        setEditorFocused(true);
-      }}
-      onBlur={() => {
-        setActiveEditorView(null);
-        setEditorFocused(false);
       }}
       height="100%"
       basicSetup={{

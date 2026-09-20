@@ -190,17 +190,18 @@ export function matchEditorCommand(e: ShortcutKeyEvent): CommandContribution | u
   return undefined;
 }
 
-/** 编辑器聚焦态(FileCodeEditorImpl 馈入):聚焦期间 editor 作用域优先、global 照常。 */
-let editorFocused = false;
-export function setEditorFocused(focused: boolean): void {
-  editorFocused = focused;
+/** 编辑器聚焦态探针(内核注入,FileCodeEditor 模块以 CM view.hasFocus 实测馈入):
+ *  聚焦期间 editor 作用域优先、global 照常。不取 React 焦点桥 —— 合成/时序盲区多。 */
+let hasFocusedEditor: () => boolean = () => false;
+export function setEditorFocusProbe(probe: () => boolean): void {
+  hasFocusedEditor = probe;
 }
 
 /** 分发决策(纯函数,分发器与测试共用):聚焦作用域优先(编辑器/终端互斥,先后无涉),
  *  同键跨作用域时聚焦侧优先(如 global ⌘F 与 terminal.find、global ⌘W 关 tab 与
  *  editor.expandSelection),未命中再落 global;非聚焦只查 global。 */
 export function resolveCommand(e: ShortcutKeyEvent): CommandContribution | undefined {
-  if (editorFocused) {
+  if (hasFocusedEditor()) {
     const editor = matchEditorCommand(e);
     if (editor) return editor;
   }

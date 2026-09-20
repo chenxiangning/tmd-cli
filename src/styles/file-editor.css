@@ -225,3 +225,31 @@
   pointer-events: none;
   overflow-wrap: anywhere;
 }
+
+/* ===== Git blame 内嵌 gutter(editorBlame,菜单「显示 Git Blame」)===== */
+.cm-blameGutter {
+  width: 17rem;
+  min-width: 17rem;
+}
+.cm-blameGutter .cm-gutterElement {
+  padding: 0;
+  height: 100%;
+}
+.cm-blame-cell {
+  display: flex;
+  align-items: center;
+  width: 17rem;
+  height: 100%;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-muted);
+  background: var(--tmd-bg-elevated);
+}
+.cm-blame-cell.cm-blame-boundary {
+  color: var(--tmd-fg);
+  font-weight: 500;
+  background: color-mix(in srgb, var(--tmd-syntax-string) 10%, var(--tmd-bg-elevated));
+}

@@ -13,8 +13,8 @@ import {
 } from "@kernel/filePanel";
 import { host } from "@kernel/host";
 import { openSettingsPanel } from "@kernel/settings";
-import { registerCommand, type ShortcutKeyEvent } from "@kernel/shortcuts";
-import { expandEditorSelection, getActiveEditorView } from "@kernel/cmEditor/expandSelection";
+import { registerCommand, setEditorFocusProbe, type ShortcutKeyEvent } from "@kernel/shortcuts";
+import { expandEditorSelection, getActiveEditorView, hasFocusedEditor } from "@kernel/cmEditor/expandSelection";
 import {
   closeTab,
   getActiveTabId,
@@ -34,6 +34,9 @@ export const shellMarketToggle: { current: (() => void) | null } = { current: nu
 
 /** 左栏「确保展开」挂载点:顶栏 tab 定位需要左栏可见,toggle 语义不够用(AppShell 挂载期写入)。 */
 export const shellLeftEnsureOpen: { current: (() => void) | null } = { current: null };
+
+/* editor 作用域聚焦判定 = CM view.hasFocus 真值(模块加载即馈入,一次即可)。 */
+setEditorFocusProbe(hasFocusedEditor);
 
 registerCommand({
   id: "shell.toggleLeftBar",

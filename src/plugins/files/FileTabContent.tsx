@@ -30,16 +30,12 @@ import { useFileDocument } from "./editor/useFileDocument";
 /* md 预览管线(react-markdown/katex/mermaid/viewerjs 体积大)按需拆包:
    仅当真正打开 md 文件时才加载该 chunk。 */
 const FileMarkdownPreview = lazy(() =>
-  import("./markdown/FileMarkdownPreview").then((m) => ({
-    default: m.FileMarkdownPreview,
-  })),
+  import("./markdown/FileMarkdownPreview").then((m) => ({ default: m.FileMarkdownPreview })),
 );
 
 /* 结构化预览(连带 Prism 高亮)按需拆包:仅 sh/Dockerfile 拉取。 */
 const FileStructuredPreview = lazy(() =>
-  import("./render/FileStructuredPreview").then((m) => ({
-    default: m.FileStructuredPreview,
-  })),
+  import("./render/FileStructuredPreview").then((m) => ({ default: m.FileStructuredPreview })),
 );
 /* pdf.js / xlsx / mammoth 三条重库管线:各自类型才拉 chunk。 */
 const FilePdfPreview = lazy(() =>
@@ -66,6 +62,7 @@ import {
 } from "./render/renderProfile";
 import { isRemoteFileUri } from "@kernel/fileSources";
 import { OpenWithMenu } from "./OpenWithMenu";
+import { useFileBlame } from "./useFileBlame";
 import type { EditorView } from "@codemirror/view";
 import { useFileDetailMenu } from "./useFileDetailMenu";
 
@@ -93,15 +90,15 @@ function FileTabBody({
   const [structuredEditor, setStructuredEditor] = useState(
     () => structuredEditMode.get(path) ?? false,
   );
-  const dark = useDarkTheme();
-  /* 文档钩子常驻(含 md 预览态):⌘S 在预览下也能保存未落盘草稿,
-     状态文字两种模式连续显示。 */
+  const dark = useDarkTheme();  /* 文档钩子常驻(含 md 预览态):⌘S 预览下也能保存,状态文字两模式连续显示。 */
   const doc = useFileDocument(path, content);
   const status = statusText(doc, remote);
 
   const showEditor = !structuredKind ? (!isMd || mdEditor) : structuredEditor;
   /* 详情页右键菜单(JetBrains 同型最小集):viewRef 持编辑器实例,剪切/粘贴直驱事务。 */
   const viewRef = useRef<EditorView | null>(null);
+  const editorActive = showEditor && !remote;
+  const { blameOn, toggleBlame } = useFileBlame({ path, active: editorActive, viewRef });
   const { detailMenuProps, detailMenu } = useFileDetailMenu({
     variant: showEditor ? "editor" : "preview",
     path,
@@ -110,6 +107,9 @@ function FileTabBody({
     dirty: doc.dirty,
     canToggle: Boolean(structuredKind) || isMd,
     editorOpen: showEditor,
+    canBlame: editorActive,
+    blameActive: blameOn,
+    onToggleBlame: toggleBlame,
     onToggle: () => {
       const next = !showEditor;
       if (structuredKind) {

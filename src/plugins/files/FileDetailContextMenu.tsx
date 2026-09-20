@@ -4,25 +4,18 @@
  * 编辑预览切换/保存。Git 项仅本地文件且在活跃工作区内;路径口径 = 根相对(同 DiffView)。
  */
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { EditorView } from "@codemirror/view";
 import {
-  ArrowCounterClockwise,
-  CaretRight,
   ChatText,
-  ClockCounterClockwise,
   ClipboardText,
   Copy,
   Crosshair,
   Eye,
   FloppyDisk,
   FolderOpen,
-  GitBranch,
-  GitCommit,
-  Minus,
   Pencil,
-  Plus,
   Scissors,
   Selection,
 } from "@phosphor-icons/react";
@@ -32,13 +25,12 @@ import { composerInsertRef } from "@kernel/composerExt";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { clampMenuPosition, copyText } from "./useTreeOperations";
 import { collectRevealTargets } from "./treeHandles";
-import { openBlameTab, openFileHistoryTab } from "@plugins/git/fileHistoryTab";
 import { expandEditorSelection } from "@kernel/cmEditor/expandSelection";
+import { item, type Pick } from "./wsmenuItem";
+import { FileDetailGitSubmenu } from "./FileDetailGitSubmenu";
 
 export interface DetailMenuPos { x: number; y: number }
 export type DetailMenuVariant = "editor" | "preview" | "byte";
-
-type Pick = (run: () => void) => void;
 
 interface FileDetailContextMenuProps {
   state: DetailMenuPos;
@@ -53,30 +45,13 @@ interface FileDetailContextMenuProps {
   dirty?: boolean; // 有未落盘草稿时保存项可用
   canToggle?: boolean; // md/结构化:多一档 编辑↔预览 切换
   editorOpen?: boolean; // 当前为编辑态:切换项文案给「预览」,否则给「编辑」
+  /** blame 内嵌开关(仅本地编辑态出项):canBlame 显隐,active 定文案。 */
+  canBlame?: boolean;
+  blameActive?: boolean;
+  onToggleBlame?: () => void;
   onToggle?: () => void;
   onSave?: () => void;
   onClose: () => void;
-}
-
-/** 菜单行构造(同 FileTreeContextMenu.item,多快捷键提示与禁用/武装态)。 */
-function item(
-  label: string,
-  icon: ReactNode,
-  onPick: () => void,
-  extra?: { kbd?: string; disabled?: boolean; danger?: boolean },
-) {
-  return (
-    <button
-      type="button"
-      className={`wsmenu-item${extra?.danger ? " is-danger" : ""}`}
-      disabled={extra?.disabled}
-      onClick={onPick}
-    >
-      <span className="wsmenu-item-icon">{icon}</span>
-      <span className="wsmenu-item-label">{label}</span>
-      {extra?.kbd ? <span className="wsmenu-item-kbd">{extra.kbd}</span> : null}
-    </button>
-  );
 }
 
 /** 编辑态剪贴板三项:剪切/复制走选区快照,剪切/粘贴直驱 CodeMirror 事务。 */
@@ -117,60 +92,9 @@ function editorClipItems(view: EditorView, selText: string, remote: boolean, pic
   );
 }
 
-/** Git 子菜单动作表:op → ipc 调用(路径口径 = 仓库根相对,同 git 插件 DiffView)。 */
-const GIT_OPS = {
-  stage: (cwd: string, rel: string) => ipc.gitStage(cwd, [rel]),
-  unstage: (cwd: string, rel: string) => ipc.gitUnstage(cwd, [rel]),
-  discard: (cwd: string, rel: string) => ipc.gitDiscard(cwd, [rel]),
-} as const;
-
-/** Git 子菜单:fixed 定位(.wsmenu 的 overflow 会剪裁绝对定位子元素),右侧放不下翻左。 */
-function GitSubmenu({ cwd, rel, pick }: { cwd: string; rel: string; pick: Pick }) {
-  const [armed, setArmed] = useState(false);
-  const [pos, setPos] = useState<DetailMenuPos | null>(null);
-  const hostRef = useRef<HTMLDivElement>(null);
-  const run = (op: keyof typeof GIT_OPS) => {
-    void GIT_OPS[op](cwd, rel).catch(() => undefined);
-  };
-  const open = () => {
-    const r = hostRef.current?.getBoundingClientRect();
-    if (!r) return;
-    const W = 176;
-    const x = r.right + W + 8 > window.innerWidth ? r.left - W + 4 : r.right - 4;
-    setPos({ x, y: Math.max(8, Math.min(r.top - 6, window.innerHeight - 190)) });
-  };
-  return (
-    <div ref={hostRef} className="wsmenu-submenu-host" onMouseEnter={open} onMouseLeave={() => setPos(null)}>
-      <button type="button" className="wsmenu-item">
-        <span className="wsmenu-item-icon"><GitBranch size="0.8125rem" /></span>
-        <span className="wsmenu-item-label">{t("Git 操作")}</span>
-        <span className="wsmenu-item-kbd"><CaretRight size="0.8125rem" /></span>
-      </button>
-      {pos && (
-        <div className="wsmenu-submenu" role="menu" style={{ left: pos.x, top: pos.y }}>
-          {item(t("暂存"), <Plus size="0.8125rem" />, () => pick(() => run("stage")))}
-          {item(t("取消暂存"), <Minus size="0.8125rem" />, () => pick(() => run("unstage")))}
-          {item(armed ? t("确认放弃改动?") : t("放弃改动"), <ArrowCounterClockwise size="0.8125rem" />, () => {
-            if (!armed) {
-              setArmed(true);
-              return;
-            }
-            pick(() => run("discard"));
-          }, { danger: armed })}
-          <div className="wsmenu-divider" />
-          {item(t("显示文件历史"), <ClockCounterClockwise size="0.8125rem" />, () =>
-            pick(() => openFileHistoryTab({ cwd, path: rel })))}
-          {item(t("显示 Git Blame"), <GitCommit size="0.8125rem" />, () =>
-            pick(() => openBlameTab({ cwd, path: rel })))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /** 菜单全部行段(条件收敛在此,主组件只留壳;camelCase 构造函数非组件)。 */
 function menuBody(p: FileDetailContextMenuProps & { pick: Pick }) {
-  const { variant, path, view, selText, remote = false, dirty = false, canToggle, editorOpen, onToggle, onSave, pick } = p;
+  const { variant, path, view, selText, remote = false, dirty = false, canToggle, editorOpen, canBlame, blameActive, onToggleBlame, onToggle, onSave, pick } = p;
   const ws = getActiveWorkspace();
   const base = ws ? ws.root.replace(/[\\/]+$/, "") : "";
   const relPath = !remote && base && path.startsWith(`${base}/`) ? path.slice(base.length + 1) : null;
@@ -210,7 +134,7 @@ function menuBody(p: FileDetailContextMenuProps & { pick: Pick }) {
       {relPath && (
         <>
           <div className="wsmenu-divider" />
-          <GitSubmenu cwd={base} rel={relPath} pick={pick} />
+          <FileDetailGitSubmenu cwd={base} rel={relPath} pick={pick} blameActive={blameActive} onToggleBlame={canBlame ? onToggleBlame : undefined} />
         </>
       )}
       {revealTargets.length > 0 && (
@@ -253,6 +177,9 @@ export function FileDetailContextMenu({
   dirty = false,
   canToggle = false,
   editorOpen = false,
+  canBlame,
+  blameActive,
+  onToggleBlame,
   onToggle,
   onSave,
   onClose,
@@ -287,7 +214,7 @@ export function FileDetailContextMenu({
         }}
       />
       <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }} role="menu">
-        {menuBody({ state, variant, path, view, selText, remote, dirty, canToggle, editorOpen, onToggle, onSave, onClose, pick })}
+        {menuBody({ state, variant, path, view, selText, remote, dirty, canToggle, editorOpen, canBlame, blameActive, onToggleBlame, onToggle, onSave, onClose, pick })}
       </div>
     </>,
     document.body,

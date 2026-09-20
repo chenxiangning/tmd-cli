@@ -17,6 +17,12 @@ export function setActiveEditorView(view: EditorView | null): void {
   activeEditorView = view;
 }
 
+/** 编辑器聚焦真值:CM 自己维护的 hasFocus(对合成/异步焦点时序无感)。
+ *  shortcuts 内核经 setEditorFocusProbe 取此判定 editor 作用域是否接管。 */
+export function hasFocusedEditor(): boolean {
+  return activeEditorView?.hasFocus ?? false;
+}
+
 /** ⌘W 扩大选择(无语法树/语法树到底时退化词选择;词也没有则不动作)。
  *  绑定不在 CM keymap:内核分发器 window capture 先于 CM 吃键,经
  *  editor 作用域命令 editor.expandSelection 路由到此处(见 shortcutCommands);
