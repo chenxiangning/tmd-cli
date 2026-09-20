@@ -10,6 +10,7 @@ import { ipc } from "@kernel/ipc";
 import { formatAbsolute } from "@kernel/relativeTime";
 import { getActiveWorkspace } from "@kernel/workspace";
 import type { BlameViewLike } from "@kernel/cmEditor/editorBlame";
+import { blameToggleRef } from "./fileDetailActions";
 
 export function useFileBlame(opts: {
   path: string;
@@ -20,6 +21,15 @@ export function useFileBlame(opts: {
   const { path, active, viewRef } = opts;
   const [blameOn, setBlameOn] = useState(false);
   const seqRef = useRef(0);
+  /* 命令桥:仅本地编辑态暴露 ⌥⇧B 开关(远程/预览态快捷键自落空)。 */
+  const toggle = () => setBlameOn((v) => !v);
+  useEffect(() => {
+    if (!active) return;
+    blameToggleRef.current = toggle;
+    return () => {
+      blameToggleRef.current = null;
+    };
+  }, [active]);
   const { wsRoot, relPath } = useMemo(() => {
     const ws = getActiveWorkspace();
     const base = ws ? ws.root.replace(/[\\/]+$/, "") : "";
@@ -60,5 +70,5 @@ export function useFileBlame(opts: {
     };
   }, [blameOn, active, relPath, wsRoot, viewRef]);
 
-  return { blameOn: blameOn && Boolean(relPath), toggleBlame: () => setBlameOn((v) => !v) };
+  return { blameOn: blameOn && Boolean(relPath), toggleBlame: toggle };
 }

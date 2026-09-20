@@ -71,12 +71,13 @@ export function FileDetailGitSubmenu({
           }, { danger: armed })}
           <div className="wsmenu-divider" />
           {item(t("显示文件历史"), <ClockCounterClockwise size="0.8125rem" />, () =>
-            pick(() => openFileHistoryTab({ cwd, path: rel })))}
+            pick(() => openFileHistoryTab({ cwd, path: rel })), { kbd: "⌥⇧H" })}
           {onToggleBlame &&
             item(
               blameActive ? t("隐藏 Git Blame") : t("显示 Git Blame"),
               <GitCommit size="0.8125rem" />,
               () => pick(onToggleBlame),
+              { kbd: "⌥⇧B" },
             )}
         </div>
       )}

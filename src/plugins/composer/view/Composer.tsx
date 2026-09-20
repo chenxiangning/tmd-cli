@@ -20,7 +20,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { composerWakeRef } from "@kernel/composerExt";
+import { composerWakeRef, composerInsertRef, composerDraftRef, composerReplaceRef } from "@kernel/composerExt";
 import { t } from "@kernel/i18n";
 import { useComposerStage } from "@kernel/composerStage";
 import { useComposerTriggers } from "./useComposerTriggers";
@@ -37,7 +37,6 @@ import { useAttachDragProps, usePopupAnchor } from "./composerChrome";
 import { AnchorRail } from "./AnchorRail";
 import { useComposerDrawer } from "./useComposerDrawer";
 import { composerSendRef } from "./composerSendRef";
-import { composerInsertRef } from "@kernel/composerExt";
 import { insertAtCursor } from "./useComposerAttachments";
 import { PromptGhostMirror } from "./PromptGhostMirror";
 import { useComposerSend } from "./useComposerSend";
@@ -93,16 +92,24 @@ export function Composer() {
     return () => window.clearTimeout(timer);
   }, [cwd, value]);
   const [cursor, setCursor] = useState(0);
-  /* 输入框注入桥:文件详情右键「发送到输入框」等经 kernel ref 桥写入光标处。
-     value 进 deps 仅为让 insertAtCursor 拿到最新受控值;cleanup 只清自己的注册。 */
+  /* 输入框注入桥:详情右键「发送到输入框」经 kernel ref 桥写入光标处;value 进 deps 为拿最新受控值。 */
   useEffect(() => {
     composerInsertRef.current = (text) => {
-      if (ref.current) insertAtCursor(ref.current, value, setValue, setCursor, text);
+      const ta = ref.current;
+      if (ta) insertAtCursor(ta, value, setValue, setCursor, text);
       else setValue((v) => v + text);
+    }; /* 增强提示词等跨件消费:读全文 / 整替并聚焦尾部 */
+    composerDraftRef.current = () => value;
+    composerReplaceRef.current = (text) => {
+      setValue(text);
+      setCursor(text.length);
+      ref.current?.focus();
     };
     const impl = composerInsertRef.current;
     return () => {
       if (composerInsertRef.current === impl) composerInsertRef.current = null;
+      composerDraftRef.current = null;
+      composerReplaceRef.current = null;
     };
   }, [value]);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);

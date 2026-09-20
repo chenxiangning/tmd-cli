@@ -22,9 +22,7 @@ import { takeFileRevealLine } from "@kernel/fileTabs";
 
 /* 编辑器(CodeMirror 全家 + 主题/语言包)按需拆包:真正进入编辑态才拉 chunk。
    useFileDocument 只依赖轻量 fileCache,静态引入不拖累拆包。 */
-const FileCodeEditor = lazy(() =>
-  import("@kernel/cmEditor/FileCodeEditor").then((m) => ({ default: m.FileCodeEditor })),
-);
+const FileCodeEditor = lazy(() => import("@kernel/cmEditor/FileCodeEditor").then((m) => ({ default: m.FileCodeEditor })));
 import { useFileDocument } from "./editor/useFileDocument";
 
 /* md 预览管线(react-markdown/katex/mermaid/viewerjs 体积大)按需拆包:
@@ -41,16 +39,8 @@ const FileStructuredPreview = lazy(() =>
 const FilePdfPreview = lazy(() =>
   import("./render/FilePdfPreview").then((m) => ({ default: m.FilePdfPreview })),
 );
-const FileTabularPreview = lazy(() =>
-  import("./render/FileTabularPreview").then((m) => ({
-    default: m.FileTabularPreview,
-  })),
-);
-const FileDocumentPreview = lazy(() =>
-  import("./render/FileDocumentPreview").then((m) => ({
-    default: m.FileDocumentPreview,
-  })),
-);
+const FileTabularPreview = lazy(() => import("./render/FileTabularPreview").then((m) => ({ default: m.FileTabularPreview })));
+const FileDocumentPreview = lazy(() => import("./render/FileDocumentPreview").then((m) => ({ default: m.FileDocumentPreview })));
 
 import { FileImagePreview } from "./render/FileImagePreview";
 import { FileBinaryUnsupported } from "./render/FileBinaryUnsupported";
@@ -63,6 +53,7 @@ import {
 import { isRemoteFileUri } from "@kernel/fileSources";
 import { OpenWithMenu } from "./OpenWithMenu";
 import { useFileBlame } from "./useFileBlame";
+import { fileDetailActions } from "./fileDetailActions";
 import type { EditorView } from "@codemirror/view";
 import { useFileDetailMenu } from "./useFileDetailMenu";
 
@@ -98,6 +89,13 @@ function FileTabBody({
   /* 详情页右键菜单(JetBrains 同型最小集):viewRef 持编辑器实例,剪切/粘贴直驱事务。 */
   const viewRef = useRef<EditorView | null>(null);
   const editorActive = showEditor && !remote;
+  /* 命令桥:内核快捷键(⌥F1 定位 / ⌥⇧H 历史 / ⌥⇧B blame)读当前详情上下文。 */
+  useEffect(() => {
+    fileDetailActions.current = { path, remote };
+    return () => {
+      fileDetailActions.current = null;
+    };
+  }, [path, remote]);
   const { blameOn, toggleBlame } = useFileBlame({ path, active: editorActive, viewRef });
   const { detailMenuProps, detailMenu } = useFileDetailMenu({
     variant: showEditor ? "editor" : "preview",

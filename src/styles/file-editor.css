@@ -226,11 +226,8 @@
   overflow-wrap: anywhere;
 }
 
-/* ===== Git blame 内嵌 gutter(editorBlame,菜单「显示 Git Blame」)===== */
-.cm-blameGutter {
-  width: 17rem;
-  min-width: 17rem;
-}
+/* ===== Git blame 内嵌 gutter(editorBlame,菜单「显示 Git Blame」)=====
+   宽度全在 cell 上:无数据(隐藏态)时 gutter 收缩为 0,不占位 —— 只有显示才显示。 */
 .cm-blameGutter .cm-gutterElement {
   padding: 0;
   height: 100%;

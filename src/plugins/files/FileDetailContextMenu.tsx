@@ -141,7 +141,7 @@ function menuBody(p: FileDetailContextMenuProps & { pick: Pick }) {
         <>
           {!relPath && <div className="wsmenu-divider" />}
           {item(t("定位到文件"), <Crosshair size="0.8125rem" />, () =>
-            pick(() => { for (const r of revealTargets) r(path); }))}
+            pick(() => { for (const r of revealTargets) r(path); }), { kbd: "⌥F1" })}
         </>
       )}
       {canToggle && onToggle && (

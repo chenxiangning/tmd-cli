@@ -20,6 +20,10 @@ import { FileTabContent } from "./FileTabContent";
 import { defaultFileVisualProvider } from "./fileVisual";
 import { reloadFile } from "./editor/fileCache";
 import { saveRequestRef } from "./editor/useFileDocument";
+import { collectRevealTargets } from "./treeHandles";
+import { fileDetailActions, blameToggleRef } from "./fileDetailActions";
+import { getActiveWorkspace } from "@kernel/workspace";
+import { openFileHistoryTab } from "@plugins/git/fileHistoryTab";
 import { ActiveWorkspaceFileTree } from "./FileTree";
 import { setFileMarkBus } from "./markBridge";
 import { getActiveTreeHandles } from "./treeHandles";
@@ -71,6 +75,40 @@ export const filesPlugin: Plugin = {
       keybinding: "Cmd+S",
       when: () => getActiveTab()?.kind === "file",
       run: () => saveRequestRef.current?.(),
+    });
+    /* 详情页三项 JetBrains 同型快捷键(⌥F1 定位 / ⌥⇧H 文件历史 / ⌥⇧B blame):
+       when 限定激活 tab 为文件详情;远程文件时 Git 类动作经桥自守卫跳过。 */
+    ctx.registerCommand({
+      id: "files.revealToTree",
+      title: "定位到文件",
+      keybinding: "Alt+F1",
+      when: () => getActiveTab()?.kind === "file",
+      run: () => {
+        const a = fileDetailActions.current;
+        if (!a || a.remote) return;
+        for (const reveal of collectRevealTargets()) reveal(a.path);
+      },
+    });
+    ctx.registerCommand({
+      id: "files.showFileHistory",
+      title: "显示文件历史",
+      keybinding: "Alt+Shift+H",
+      when: () => getActiveTab()?.kind === "file",
+      run: () => {
+        const a = fileDetailActions.current;
+        if (!a || a.remote) return;
+        const ws = getActiveWorkspace();
+        const base = ws ? ws.root.replace(/[\\/]+$/, "") : "";
+        const rel = base && a.path.startsWith(`${base}/`) ? a.path.slice(base.length + 1) : "";
+        if (rel) openFileHistoryTab({ cwd: base, path: rel });
+      },
+    });
+    ctx.registerCommand({
+      id: "files.toggleGitBlame",
+      title: "显示 Git Blame",
+      keybinding: "Alt+Shift+B",
+      when: () => getActiveTab()?.kind === "file",
+      run: () => blameToggleRef.current?.(),
     });
     return () => registerWorkspaceFileBrowser(null);
   },
