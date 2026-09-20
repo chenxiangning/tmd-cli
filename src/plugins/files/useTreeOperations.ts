@@ -43,6 +43,15 @@ function joinPath(dir: string, name: string): string {
   return `${dir.replace(/[\\/]+$/, "")}/${name}`;
 }
 
+/** 菜单定位:以点击点为左上,按估算尺寸视口内夹取(同 wsmenu 模式;
+ *  文件树与文件详情两份右键菜单共用)。 */
+export function clampMenuPosition(x: number, y: number): { x: number; y: number } {
+  return {
+    x: Math.min(Math.max(8, x), window.innerWidth - 220 - 12),
+    y: Math.min(y, window.innerHeight - 320 - 12),
+  };
+}
+
 /** 复制文本:优先 async clipboard,非安全上下文回退 execCommand(codemoss 同思路)。 */
 export async function copyText(text: string): Promise<void> {
   try {

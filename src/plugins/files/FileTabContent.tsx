@@ -66,6 +66,8 @@ import {
 } from "./render/renderProfile";
 import { isRemoteFileUri } from "@kernel/fileSources";
 import { OpenWithMenu } from "./OpenWithMenu";
+import type { EditorView } from "@codemirror/view";
+import { useFileDetailMenu } from "./FileDetailContextMenu";
 
 const MARKDOWN_FILE_RE = /\.(md|markdown|mdx)$/i;
 
@@ -98,9 +100,31 @@ function FileTabBody({
   const status = statusText(doc, remote);
 
   const showEditor = !structuredKind ? (!isMd || mdEditor) : structuredEditor;
+  /* 详情页右键菜单(JetBrains 同型最小集):viewRef 持编辑器实例,剪切/粘贴直驱事务。 */
+  const viewRef = useRef<EditorView | null>(null);
+  const { detailMenuProps, detailMenu } = useFileDetailMenu({
+    variant: showEditor ? "editor" : "preview",
+    path,
+    viewRef,
+    remote,
+    dirty: doc.dirty,
+    canToggle: Boolean(structuredKind) || isMd,
+    editorOpen: showEditor,
+    onToggle: () => {
+      const next = !showEditor;
+      if (structuredKind) {
+        structuredEditMode.set(path, next);
+        setStructuredEditor(next);
+      } else {
+        mdEditMode.set(path, next);
+        setMdEditor(next);
+      }
+    },
+    onSave: doc.save,
+  });
   return (
     <div className="file-editor-shell">
-      <div className="file-editor-body">
+      <div className="file-editor-body" {...detailMenuProps}>
         {showEditor ? (
           <Suspense fallback={<LOADING />}>
             <FileCodeEditor
@@ -110,6 +134,7 @@ function FileTabBody({
               readOnly={remote}
               onChange={doc.setDoc}
               onSave={doc.save}
+              onViewReady={(view) => { viewRef.current = view; }}
               revealLine={reveal?.line ?? null}
               revealSeq={reveal?.seq ?? 0}
             />
@@ -154,6 +179,7 @@ function FileTabBody({
           {!remote && <OpenWithMenu path={path} />}
         </span>
       </div>
+      {detailMenu}
     </div>
   );
 }
@@ -177,26 +203,32 @@ function isByteChannelKind(path: string, kind: FileRenderKind): boolean {
 
 /** 字节通道渲染分派(图片/二进制占位自取数据;PDF/文档/二进制表格走字节管线)。 */
 function ByteChannelView({ path, kind }: { path: string; kind: FileRenderKind }) {
-  if (kind === "image") return <FileImagePreview path={path} />;
-  if (kind === "binary-unsupported") return <FileBinaryUnsupported path={path} />;
-  if (kind === "pdf") {
-    return (
-      <Suspense fallback={<LOADING />}>
-        <FilePdfPreview path={path} />
-      </Suspense>
-    );
-  }
-  if (kind === "document") {
-    return (
-      <Suspense fallback={<LOADING />}>
-        <FileDocumentPreview path={path} />
-      </Suspense>
-    );
-  }
+  /* 字节态菜单仅 路径/访达 两项;display:contents 包装零布局影响。 */
+  const viewRef = useRef<EditorView | null>(null);
+  const { detailMenuProps, detailMenu } = useFileDetailMenu({ variant: "byte", path, viewRef });
   return (
-    <Suspense fallback={<LOADING />}>
-      <FileTabularPreview path={path} text={null} />
-    </Suspense>
+    <>
+      <div className="contents" {...detailMenuProps}>
+        {kind === "image" ? <FileImagePreview path={path} /> : null}
+        {kind === "binary-unsupported" ? <FileBinaryUnsupported path={path} /> : null}
+        {kind === "pdf" ? (
+          <Suspense fallback={<LOADING />}>
+            <FilePdfPreview path={path} />
+          </Suspense>
+        ) : null}
+        {kind === "document" ? (
+          <Suspense fallback={<LOADING />}>
+            <FileDocumentPreview path={path} />
+          </Suspense>
+        ) : null}
+        {kind === "tabular" ? (
+          <Suspense fallback={<LOADING />}>
+            <FileTabularPreview path={path} text={null} />
+          </Suspense>
+        ) : null}
+      </div>
+      {detailMenu}
+    </>
   );
 }
 

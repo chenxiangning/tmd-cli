@@ -40,6 +40,8 @@ export const MESSAGES = {
   "已保存": "Saved",
   "预览": "Preview",
   "编辑": "Edit",
+  "剪切": "Cut",
+  "粘贴": "Paste",
   "按 Git 变更着色文件": "Color files by Git changes",
   "关闭 Git 变更着色": "Turn off Git change coloring",
   "按 Git 变更着色文件与文件夹": "Color files and folders by Git changes",

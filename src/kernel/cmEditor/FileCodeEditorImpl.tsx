@@ -55,6 +55,8 @@ export interface FileCodeEditorProps {
   revealLine?: number | null;
   /** 定位序号:同值行号的重复命中靠它打破 React bail-out 重新定位。 */
   revealSeq?: number;
+  /** 编辑器实例上交(挂载给 view,卸载回 null):详情页右键菜单的剪切/粘贴要直驱事务。 */
+  onViewReady?: (view: EditorView | null) => void;
   onChange: (value: string) => void;
   onSave: () => void;
 }
@@ -66,6 +68,7 @@ export default function FileCodeEditorImpl({
   readOnly = false,
   revealLine,
   revealSeq = 0,
+  onViewReady,
   onChange,
   onSave,
 }: FileCodeEditorProps) {
@@ -80,6 +83,13 @@ export default function FileCodeEditorImpl({
   useEffect(() => {
     saveRef.current = onSave;
   });
+
+  /* view 上交回调:同 saveRef 模式;卸载时回 null(菜单据此禁用剪贴板项)。 */
+  const onViewReadyRef = useRef(onViewReady);
+  useEffect(() => {
+    onViewReadyRef.current = onViewReady;
+  }, [onViewReady]);
+  useEffect(() => () => onViewReadyRef.current?.(null), []);
 
   /* 行定位:视图可能晚于 revealLine 就绪(异步 chunk),onCreateEditor 补一次
      消费;两处共用同一实现(CM 模块此场景已在缓存,import 即时)。 */
@@ -178,6 +188,7 @@ export default function FileCodeEditorImpl({
       extensions={[...themeExts, ...baseExts, ...langExts, ...pluginExts]}
       onCreateEditor={(view) => {
         editorViewRef.current = view;
+        onViewReadyRef.current?.(view);
         const lineNo = revealLineRef.current;
         if (lineNo) {
           void revealEditorLine(view, lineNo);

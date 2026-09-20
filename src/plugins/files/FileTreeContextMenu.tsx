@@ -13,15 +13,7 @@ import { createPortal } from "react-dom";
 import { Copy, FilePlus, FolderOpen, FolderSimplePlus, Pencil, Trash } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import type { DirEntry } from "@kernel/ipc";
-import type { TreeMenuState } from "./useTreeOperations";
-
-/** 菜单定位:以点击点为左上,按估算尺寸视口内夹取(同 wsmenu 模式)。 */
-function clampMenuPosition(x: number, y: number): { x: number; y: number } {
-  return {
-    x: Math.min(Math.max(8, x), window.innerWidth - 220 - 12),
-    y: Math.min(y, window.innerHeight - 320 - 12),
-  };
-}
+import { clampMenuPosition, type TreeMenuState } from "./useTreeOperations";
 
 interface TreeMenuActions {
   createFile: (dir: string) => void;

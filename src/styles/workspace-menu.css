@@ -134,6 +134,14 @@
   flex: 1 1 auto;
 }
 
+/* 右键菜单快捷键提示:右对齐弱化文本(JetBrains 编辑器菜单同型) */
+.wsmenu-item-kbd {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-faint);
+}
+
 .wsmenu-item-refresh {
   width: 26px;
   height: 26px;
