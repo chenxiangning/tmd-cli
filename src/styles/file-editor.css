@@ -43,7 +43,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  height: 26px;
+  /* 三栏底栏同高不变量:含上边框总高 28px(border-box 28 = 27 内容 + 1 边框),
+     与左 settings-cluster(27 bar + wrapper 边框)/ 右 panel-subbar 逐像素对齐。 */
+  height: 28px;
   padding: 0 8px 0 12px;
   border-top: 1px solid var(--tmd-border);
   background: var(--tmd-bg-base);

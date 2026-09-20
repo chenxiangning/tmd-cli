@@ -124,8 +124,12 @@
  * 集恒定,卸载零发生,还原 = 摘类,分栏尺寸逐位复原。
  * 左栏与右栏钉住实测宽度(根 CSS 变量由 useElementWidth 维护):最大化
  * 只吃幕布让出的空间,编辑区在中间区域撑满;左栏可见性与右栏宽度都不动。
- * 配套:AppShell 把幕布两侧 + 右栏左缘共三条 handle 加 .hidden(钉死后
- * 拖动无效,可拖面一并消失)。
+ * 配套:三条竖 handle 保持可见(栏边界线唯一来源是 handle 细线,隐藏则
+ * 编辑区两侧无界线);最大化下可拖 —— Separator disabled 拦住库拖拽,由
+ * AppShell 手动双通道驱动(var 直写 + panelRef.resize,还原后尺寸保留)。
+ * 幕布零宽使其左右两条 handle 贴合:左条(左栏|幕布)轨道归零并不绘抓手,
+ * 细线与右邻(幕布|编辑区,贴左缘)重合,右邻承担命中 —— 左右边缘各呈现
+ * 「1px 单线 + 单枚抓手」。
  * visibility:hidden 不可省:仅 width:0 时已聚焦的 xterm textarea 不会失焦,
  * 击键会漏进不可见 PTY;hidden 夺焦语义与旧卸载实现(display:none 拆树)一致。 */
 .group-maximized > #center {
@@ -144,4 +148,11 @@
   flex-grow: 0 !important;
   flex-shrink: 0 !important;
   flex-basis: var(--tmd-right-aside-w, 22%) !important;
+}
+/* 幕布左侧条:轨道归零,细线(贴右缘)与右邻贴左缘细线重合;抓手与命中让位右邻。 */
+.group-maximized > .panel-handle-line-r {
+  width: 0;
+}
+.group-maximized > .panel-handle-line-r::after {
+  display: none;
 }

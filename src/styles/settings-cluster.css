@@ -17,6 +17,7 @@
   display: flex;
   align-items: center;
   gap: 2px;
+  /* 三栏底栏同高基准:中 file-editor-toolbar / 右 panel-subbar 向本高度对齐(27px + 1px 上边框)。 */
   height: 27px;
   padding: 0 8px;
   overflow: hidden; /* 窄栏时内容物在栏内裁剪,不出血到中央区域;弹层经 portal 不受影响 */

@@ -11,7 +11,9 @@
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  min-height: 24px;
+  /* 三栏底栏同高不变量:含上边框总高 28px(border-box 28 = 27 内容 + 1 边框),
+     与左 settings-cluster / 中 file-editor-toolbar 逐像素对齐。 */
+  min-height: 28px;
   padding: 2px 4px;
   border-top: 1px solid var(--tmd-border);
   background: var(--tmd-bg-base);

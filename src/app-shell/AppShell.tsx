@@ -20,8 +20,8 @@
  * - SessionList/TopBar 面包屑等通过挂点贡献(见 contributions.tsx),非硬编码
  */
 
-import { useCallback, useEffect, useState } from "react";
-import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
+import { useCallback, useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 import { useHost } from "@kernel/host";
 import { Mounts } from "@kernel/Mounts";
 import { useEditorTabs } from "@kernel/tabs";
@@ -59,8 +59,36 @@ export function AppShell() {
      连 xterm 实例一起拆掉,还原时全量回放输出缓冲(大会话秒级「加载会话输出」
      遮罩);折叠是纯尺寸变化,幕布现场零回放,还原后分栏尺寸逐位复原。 */
   const maximized = useEditorMaximized() && tabs.length > 0;
-  const leftAsideRef = useElementWidth("--tmd-left-aside-w");
-  const rightAsideRef = useElementWidth("--tmd-right-aside-w");
+  const leftAsideRef = useElementWidth("--tmd-left-aside-w", maximized);
+  const rightAsideRef = useElementWidth("--tmd-right-aside-w", maximized);
+  const leftPanelRef = usePanelRef();
+  const rightPanelRef = usePanelRef();
+  /* 最大化下的侧栏拖拽:钉宽(!important flex-basis = var)压住库行内布局,库原生
+     拖拽只改内部布局、视觉纹丝不动,故最大化时三条 handle 全 disabled(库在组级
+     原生捕获监听,React stopPropagation 拦不到),改由这里手动驱动双通道:
+     var 直写(钉宽即时跟随)+ panelRef.resize(库内部布局同步,还原后拖拽
+     结果保留)。非最大化不拦截,走库原生拖拽。 */
+  const startAsideDrag = (e: ReactPointerEvent, side: "left" | "right") => {
+    if (!maximized) return;
+    e.preventDefault();
+    const varName = side === "left" ? "--tmd-left-aside-w" : "--tmd-right-aside-w";
+    const panel = (side === "left" ? leftPanelRef : rightPanelRef).current;
+    const startX = e.clientX;
+    const startW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(varName)) || 240;
+    const sign = side === "left" ? 1 : -1;
+    const onMove = (ev: PointerEvent) => {
+      const w = Math.round(startW + sign * (ev.clientX - startX));
+      const clamped = Math.min(Math.max(160, w), Math.round(window.innerWidth * 0.6));
+      document.documentElement.style.setProperty(varName, `${clamped}px`);
+      panel?.resize(clamped);
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
   /* 经典滚动条会吃掉滚动容器的内容宽度:实测一次,供顶栏折叠按钮让位对齐。 */
   useEffect(() => {
     const probe = document.createElement("div");
@@ -111,7 +139,7 @@ export function AppShell() {
         {/* 左侧 session 栏:leftOpen 独占挂载开关,最大化不折叠(钉宽不动) */}
         {leftOpen && (
           <>
-            <Panel defaultSize={18} minSize={12} id="left">
+            <Panel defaultSize={18} minSize={12} id="left" panelRef={leftPanelRef}>
               <aside ref={leftAsideRef} className="flex h-full flex-col">
                 <div className="min-h-0 flex-1 overflow-auto">
                   <Mounts point="leftSidebar.section" />
@@ -120,7 +148,7 @@ export function AppShell() {
                 <SidebarSettingsCluster />
               </aside>
             </Panel>
-            <PanelResizeHandle className={`panel-handle panel-handle-v panel-handle-line-r${maximized ? " hidden" : ""}`} />
+            <PanelResizeHandle className="panel-handle panel-handle-v panel-handle-line-r" disabled={maximized} />
           </>
         )}
 
@@ -132,7 +160,7 @@ export function AppShell() {
         {/* 文件预览:有打开 tab 时出现,占满竖屏,位于中栏与右栏之间(可拖) */}
         {tabs.length > 0 && (
           <>
-            <PanelResizeHandle className={`panel-handle panel-handle-v panel-handle-line-l${maximized ? " hidden" : ""}`} />
+            <PanelResizeHandle className="panel-handle panel-handle-v panel-handle-line-l" disabled={maximized} onPointerDownCapture={(e) => startAsideDrag(e, "left")} />
             <Panel defaultSize={36} minSize={15} id="editor">
               <EditorCenter />
             </Panel>
@@ -142,8 +170,8 @@ export function AppShell() {
         {/* 右文件面板:最大化时不参与隐藏(用户微调:文件树保持可见) */}
         {rightOpen && (
           <>
-            <PanelResizeHandle className={`panel-handle panel-handle-v panel-handle-line-l${maximized ? " hidden" : ""}`} />
-            <Panel defaultSize={22} minSize={12} id="right">
+            <PanelResizeHandle className="panel-handle panel-handle-v panel-handle-line-l" disabled={maximized} onPointerDownCapture={(e) => startAsideDrag(e, "right")} />
+            <Panel defaultSize={22} minSize={12} id="right" panelRef={rightPanelRef}>
               <aside ref={rightAsideRef} className="flex h-full flex-col">
                 {/* 面板内容:按注册表路由,外壳不认识任何业务面板 */}
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
