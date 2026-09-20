@@ -148,9 +148,8 @@ export function SidebarSettingsCluster() {
   });
   const atPinLimit = pinnedIds.length >= PINNED_MAX;
 
-  /* 更新感应:后台检查发现比当前版本新的发布 → 版本号旁亮短提示。
-     版本未知期(app version 未回)不判定;展示回落 = CHANGELOG 首条
-     (浏览器 dev 无 Tauri runtime,比硬编码占位更接近真实)。 */
+  /* 更新感应:发现比当前版本新的发布 → 版本号旁亮短提示。版本未知期不判定;
+     展示回落 = CHANGELOG 首条(浏览器 dev 无 runtime,比硬编码占位更真实)。 */
   const fallbackVersion = CHANGELOG_ENTRIES[0]?.version ?? "?";
   const hasNewer =
     version !== null && presence.latest !== null && isNewerVersion(presence.latest.version, version);
@@ -286,6 +285,7 @@ export function SidebarSettingsCluster() {
           }}
         >
           v{version ?? fallbackVersion}
+          {hasNewer && <span className="version-new-hint">{t("有新版")}</span>}
         </button>
         <VersionPopover
           open={aboutOpen}
