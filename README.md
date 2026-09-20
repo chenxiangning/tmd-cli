@@ -157,13 +157,13 @@ pnpm check:file-size      # 单文件 ≤300 行检查（CI 强制）
 
 从 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 获取对应平台安装包。产物由 CI 在推送 `v*` tag 时自动构建(macOS universal / Windows x86_64 / Linux x86_64),以 Draft Release 形式落盘,确认后发布。
 
-当前 v0.2.0 产物矩阵:
+当前 v0.2.1 产物矩阵:
 
 | 平台 | 产物 |
 |---|---|
-| macOS(universal:arm64 + x86_64) | `tmd-cli_0.2.0_universal.dmg`、`tmd-cli_universal.app.tar.gz` |
-| Windows(x86_64) | `tmd-cli_0.2.0_x64-setup.exe`(NSIS)、`tmd-cli_0.2.0_x64_en-US.msi` |
-| Linux(x86_64) | `tmd-cli_0.2.0_amd64.AppImage`、`tmd-cli_0.2.0_amd64.deb`、`tmd-cli-0.2.0-1.x86_64.rpm` |
+| macOS(universal:arm64 + x86_64) | `tmd-cli_0.2.1_universal.dmg`、`tmd-cli_universal.app.tar.gz` |
+| Windows(x86_64) | `tmd-cli_0.2.1_x64-setup.exe`(NSIS)、`tmd-cli_0.2.1_x64_en-US.msi` |
+| Linux(x86_64) | `tmd-cli_0.2.1_amd64.AppImage`、`tmd-cli_0.2.1_amd64.deb`、`tmd-cli-0.2.1-1.x86_64.rpm` |
 
 当前产物未签名 / 未公证:macOS 首次打开需在「系统设置 → 隐私与安全性」手动放行。
 
