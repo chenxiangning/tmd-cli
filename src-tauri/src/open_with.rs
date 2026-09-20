@@ -19,17 +19,17 @@ pub struct OpenWithTarget {
     pub args: Vec<String>,
 }
 
-/// 探测结果(ok=false 时 resolved_path 为 None;camelCase 对齐前端 OpenWithProbe)。
+/// 探测结果(camelCase 对齐前端 OpenWithProbe)。
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenWithProbe {
     pub ok: bool,
-    pub resolved_path: Option<String>,
 }
 
 /* ── 打开 ── */
 
-/// 用目标打开 path;目标路径恒为最后参数。finder 复用 reveal;app 经系统启动器;command 直接 spawn。
+/// 用目标打开 path;finder 复用 reveal;app 经系统启动器(macOS 路径参数在 --args 前);
+/// command 直接 spawn(路径恒为最后参数)。
 fn open_with(path: &str, target: &OpenWithTarget) -> Result<(), String> {
     crate::fs_edit::validate_target(path)?;
     let p = Path::new(path);
@@ -49,24 +49,30 @@ fn open_with(path: &str, target: &OpenWithTarget) -> Result<(), String> {
     }
 }
 
-/// app 类 · macOS:`open -a <app> [--args …] <path>`;output+status 检查,应用缺失即时报错。
+/// app 类 · macOS:`open -a <app> <path> [--args …]` —— 文件参数必须在 --args 之前:
+/// open(1) 明言 --args 之后的参数不再被 open 解析(只进应用 argv),路径放在
+/// 其后不会被打开;output+status 检查,失败并报 stderr 首行(可诊断)。
 #[cfg(target_os = "macos")]
 fn open_with_app(p: &Path, target: &OpenWithTarget) -> Result<(), String> {
     let mut cmd = std::process::Command::new("open");
-    cmd.arg("-a").arg(&target.app_name);
+    cmd.arg("-a").arg(&target.app_name).arg(p);
     if !target.args.is_empty() {
         cmd.arg("--args").args(&target.args);
     }
-    cmd.arg(p);
     let out = cmd.output().map_err(|e| format!("打开应用失败: {e}"))?;
     if out.status.success() {
-        Ok(())
-    } else {
-        Err(format!(
+        return Ok(());
+    }
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    let hint = stderr.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+    Err(if hint.is_empty() {
+        format!(
             "打开应用失败: exit code {}",
             out.status.code().unwrap_or(-1)
-        ))
-    }
+        )
+    } else {
+        format!("打开应用失败: {hint}")
+    })
 }
 
 /// app 类 · 非 macOS:应用名按 PATH 命令/可执行路径尽力(spawn 不等,编辑器常驻不阻塞)。
@@ -84,16 +90,10 @@ fn open_with_app(p: &Path, target: &OpenWithTarget) -> Result<(), String> {
 
 fn probe_open_app(target: &OpenWithTarget) -> OpenWithProbe {
     match target.kind.as_str() {
-        "finder" => OpenWithProbe {
-            ok: true,
-            resolved_path: None,
-        },
+        "finder" => OpenWithProbe { ok: true },
         "app" if !target.app_name.is_empty() => probe_app_bundle(&target.app_name),
         "command" if !target.command.is_empty() => probe_command(&target.command),
-        _ => OpenWithProbe {
-            ok: false,
-            resolved_path: None,
-        },
+        _ => OpenWithProbe { ok: false },
     }
 }
 
@@ -101,35 +101,23 @@ fn probe_open_app(target: &OpenWithTarget) -> OpenWithProbe {
 #[cfg(target_os = "macos")]
 fn probe_app_bundle(app_name: &str) -> OpenWithProbe {
     if app_name.ends_with(".app") {
-        let ok = Path::new(app_name).is_dir();
         return OpenWithProbe {
-            ok,
-            resolved_path: ok.then(|| app_name.to_string()),
+            ok: Path::new(app_name).is_dir(),
         };
     }
     for dir in macos_app_search_dirs() {
-        let candidate = dir.join(format!("{app_name}.app"));
-        if candidate.is_dir() {
-            return OpenWithProbe {
-                ok: true,
-                resolved_path: candidate.to_str().map(|s| s.to_string()),
-            };
+        if dir.join(format!("{app_name}.app")).is_dir() {
+            return OpenWithProbe { ok: true };
         }
     }
-    OpenWithProbe {
-        ok: false,
-        resolved_path: None,
-    }
+    OpenWithProbe { ok: false }
 }
 
 /// app 探测 · 非 macOS:可执行路径存在性,否则回落 PATH 解析。
 #[cfg(not(target_os = "macos"))]
 fn probe_app_bundle(app_name: &str) -> OpenWithProbe {
     if Path::new(app_name).exists() {
-        return OpenWithProbe {
-            ok: true,
-            resolved_path: Some(app_name.to_string()),
-        };
+        return OpenWithProbe { ok: true };
     }
     probe_command(app_name)
 }
@@ -137,17 +125,12 @@ fn probe_app_bundle(app_name: &str) -> OpenWithProbe {
 /// command 探测:which / where 解析 PATH。
 fn probe_command(command: &str) -> OpenWithProbe {
     let finder = if cfg!(windows) { "where" } else { "which" };
-    let ok = match std::process::Command::new(finder).arg(command).output() {
-        Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout)
-            .lines()
-            .next()
-            .is_some_and(|l| !l.trim().is_empty()),
-        _ => false,
-    };
-    OpenWithProbe {
-        ok,
-        resolved_path: None,
-    }
+    let ok = std::process::Command::new(finder)
+        .arg(command)
+        .output()
+        .map(|out| out.status.success())
+        .unwrap_or(false);
+    OpenWithProbe { ok }
 }
 
 /// macOS 标准应用目录(mossx 同款 + /System/Applications/Utilities)。
@@ -183,10 +166,17 @@ fn open_app_icon(app_name: &str) -> Option<String> {
             p.extension()
                 .is_some_and(|ext| ext.eq_ignore_ascii_case("icns"))
         })?;
-    let out_png =
-        std::env::temp_dir().join(format!("tmd-openwith-icon-{}.png", std::process::id()));
+    /* 临时名带自增序号:spawn_fs 多线程并发提取时固定名会互相覆盖/误删
+    (前端设置面板一次挂载 N 个图标即并发);-Z 128 降采样防大图标
+    数百 KB data URL 永驻会话缓存。 */
+    static ICON_TMP_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = ICON_TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let out_png = std::env::temp_dir().join(format!(
+        "tmd-openwith-icon-{}-{seq}.png",
+        std::process::id()
+    ));
     let converted = std::process::Command::new("sips")
-        .args(["-s", "format", "png"])
+        .args(["-s", "format", "png", "-Z", "128"])
         .arg(&icns)
         .arg("--out")
         .arg(&out_png)
@@ -220,8 +210,9 @@ fn locate_macos_app_bundle(app_name: &str) -> Option<std::path::PathBuf> {
 #[cfg(target_os = "windows")]
 fn open_app_icon(app_name: &str) -> Option<String> {
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let ps_path = app_name.replace('\'', "''");
     let script = format!(
-        "Add-Type -AssemblyName System.Drawing; $i=[System.Drawing.Icon]::ExtractAssociatedIcon('{app_name}'); \
+        "Add-Type -AssemblyName System.Drawing; $i=[System.Drawing.Icon]::ExtractAssociatedIcon('{ps_path}'); \
          $ms=New-Object System.IO.MemoryStream; $i.ToBitmap().Save($ms,[System.Drawing.Imaging.ImageFormat]::Png); \
          [Convert]::ToBase64String($ms.ToArray())"
     );

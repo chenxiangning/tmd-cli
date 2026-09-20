@@ -62,10 +62,18 @@ export function isNewerVersion(latest: string, current: string): boolean {
   return false;
 }
 
-/** 从 atom 首条 entry 抠最新发布;形状由 GitHub 机器生成,正则解析足够。 */
+/** 从 atom entries 抠最新可解析发布:逐条尝试(最新在前),跳过 pre-release
+ *  tag(extractSemver 严格三元组拒收 rc/alpha)—— 最新条目是 rc 时取下一个
+ *  稳定版,而不是整次检查报「格式异常」(后台化后 rc 期账本会冻结)。 */
 export function parseAtomLatest(xml: string): ReleaseInfo | null {
-  const entry = /<entry>([\s\S]*?)<\/entry>/.exec(xml)?.[1];
-  if (!entry) return null;
+  for (const m of xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)) {
+    const info = parseAtomEntry(m[1] ?? "");
+    if (info) return info;
+  }
+  return null;
+}
+
+function parseAtomEntry(entry: string): ReleaseInfo | null {
   const tag = /<id>[^<]*\/([^<]+)<\/id>/.exec(entry)?.[1] ?? "";
   const version = extractSemver(tag);
   const htmlUrl = /<link[^>]*rel="alternate"[^>]*href="([^"]+)"/.exec(entry)?.[1];

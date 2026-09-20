@@ -9,6 +9,8 @@
  * 侧栏特有交互:搜索(文件名,fs_walk 同源扫描)/ 漏斗(仅看变更,变更剪枝树)/
  *  忽略降显(git_ignored_prefixes)/ ⋯ 菜单(访达+复制路径)。视觉件与列表态拆至
  *  WsfbChromeTop / WsfbRow / WsfbLists / WsfbBodies(文件规模铁则)。
+ * git 装饰有意不受右栏「Git 变更」开关约束:浏览器自带字母/着色是浏览语义
+ *  的一部分(搜索过滤后仍需要),开关只管辖右栏文件树的装饰渲染。
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -26,7 +28,6 @@ import { useRepoStatusState } from "./gitDecorate";
 import { buildLetterMap } from "./gitDecorateModel";
 import type { WsfbRowMenu } from "./WsfbLists";
 import {
-  changedRootChildren,
   changedTreeOf,
   decorationColors,
   filterWalkHits,
@@ -45,6 +46,7 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
   const [changedOpen, setChangedOpen] = useState<Record<string, true>>({});
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [hits, setHits] = useState<string[] | null>(null);
+  const [hitsTruncated, setHitsTruncated] = useState(false);
   const [tick, setTick] = useState(0);
 
   /* —— 数据面(右栏同源)—— */
@@ -61,16 +63,16 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
     [ops],
   );
   const { entries: statusEntries, single } = useRepoStatusState(root, true);
+  const base = root.replace(/\/+$/, "");
 
   /* 忽略前缀:挂载/手动刷新拉取(低频);非仓/失败 = 空集。绝对路径口径。
    * ponytail: 嵌套仓各自的 ignore 未并入,需要时逐仓再取。 */
   const [ignored, setIgnored] = useState<string[]>([]);
   useEffect(() => {
     let alive = true;
-    const b = root.replace(/\/+$/, "");
     ipc.gitIgnoredPrefixes(root).then(
       (out) => {
-        if (alive) setIgnored(out.map((p) => `${b}/${p}`));
+        if (alive) setIgnored(out.map((p) => `${base}/${p}`));
       },
       () => {
         if (alive) setIgnored([]);
@@ -79,36 +81,35 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
     return () => {
       alive = false;
     };
-  }, [root, tick]);
+  }, [root, base, tick]);
 
   /* 装饰与剪枝(纯派生;颜色/字母与右栏同口径)。 */
-  const base = root.replace(/\/+$/, "");
   const colors = useMemo(
     () => decorationColors(root, statusEntries, single),
     [statusEntries, single, root],
   );
   const letters = useMemo(() => buildLetterMap(statusEntries ?? []), [statusEntries]);
-  const changedTree = useMemo(() => changedTreeOf(statusEntries), [statusEntries]);
-  const changedRoot = useMemo(
-    () => changedRootChildren(base, changedTree, statusEntries),
-    [changedTree, statusEntries, base],
-  );
-
-  /* 搜索:去抖后走 fs_walk(与 composer @ 补全同源扫描)按文件名过滤。 */
+  const changedTree = useMemo(() => changedTreeOf(base, statusEntries), [statusEntries, base]);
+  /* 搜索:去抖后走 fs_walk(同 composer @ 扫描);满额 = 命中集可能不完整。 */
   useEffect(() => {
     const q = query.trim();
     if (!q) {
       setHits(null);
+      setHitsTruncated(false);
       return;
     }
     let alive = true;
     const timer = window.setTimeout(() => {
       ipc.fsWalkFiles(root, SEARCH_WALK_CAP).then(
         (paths) => {
-          if (alive) setHits(filterWalkHits(root, paths, q));
+          if (!alive) return;
+          setHits(filterWalkHits(root, paths, q));
+          setHitsTruncated(paths.length >= SEARCH_WALK_CAP);
         },
         () => {
-          if (alive) setHits([]);
+          if (!alive) return;
+          setHits([]);
+          setHitsTruncated(false);
         },
       );
     }, 200);
@@ -123,6 +124,7 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
       return (
         <SearchBody
           hits={hits}
+          truncated={hitsTruncated}
           selectedPath={selectedPath}
           colors={colors}
           letters={letters}
@@ -138,7 +140,7 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
     if (changedOnly) {
       return (
         <ChangedBody
-          rootKids={changedRoot}
+          rootKids={changedTree.get(base) ?? []}
           changedTree={changedTree}
           changedOpen={changedOpen}
           selectedPath={selectedPath}
@@ -173,8 +175,9 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
   }, [
     query,
     hits,
+    hitsTruncated,
     changedOnly,
-    changedRoot,
+    base,
     changedTree,
     changedOpen,
     entries,

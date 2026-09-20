@@ -10,6 +10,7 @@ import { CaretDown, CaretUp, Plus, Star, Trash } from "@phosphor-icons/react";
 import { ipc, pickOpenWithApp, type OpenWithProbe } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { getSettingsState, updateSettings, useSettingsState } from "@kernel/settings";
+import { OPEN_WITH_TARGETS_MAX } from "@kernel/settingsSanitizeOpenWith";
 import {
   OPEN_WITH_PRESET_CATALOG,
   customOpenWithTarget,
@@ -47,9 +48,12 @@ async function probeAll(
   return next;
 }
 
-/** 追加目标到当前清单(store 读数,对话框内写后即生效)。 */
+/** 追加目标到当前清单(store 读数,对话框内写后即生效);满 32(sanitize
+    上限)拒加,UI 侧禁用在先,这里是双保险。 */
 function appendTarget(target: OpenWithTarget): void {
-  updateSettings({ openWithTargets: [...getSettingsState().settings.openWithTargets, target] });
+  const list = getSettingsState().settings.openWithTargets;
+  if (list.length >= OPEN_WITH_TARGETS_MAX) return;
+  updateSettings({ openWithTargets: [...list, target] });
 }
 
 export function OpenWithTab() {
@@ -169,19 +173,39 @@ export function OpenWithTab() {
         })}
       </ul>
       <div className="ow-footer">
-        <button type="button" className="ow-add-btn" onClick={() => setAdding(true)}>
+        <button
+          type="button"
+          className="ow-add-btn"
+          onClick={() => setAdding(true)}
+          disabled={targets.length >= OPEN_WITH_TARGETS_MAX}
+        >
           <Plus size="0.875rem" aria-hidden />
           {t("添加打开方式")}
         </button>
         <div className="ow-help">{t("文件底部工具条右侧用默认应用直开;菜单里选择即设为默认并打开。")}</div>
       </div>
-      {adding && <AddOpenWithDialog addedIds={new Set(targets.map((x) => x.id))} onClose={() => setAdding(false)} />}
+      {adding && (
+        <AddOpenWithDialog
+          addedIds={new Set(targets.map((x) => x.id))}
+          full={targets.length >= OPEN_WITH_TARGETS_MAX}
+          onClose={() => setAdding(false)}
+        />
+      )}
     </div>
   );
 }
 
-/** 添加打开方式:预设行列表(未装/已加禁用)+ 浏览自定义(原生 dialog,Esc/背板关闭)。 */
-function AddOpenWithDialog({ addedIds, onClose }: { addedIds: Set<string>; onClose: () => void }) {
+/** 添加打开方式:预设行列表(未装/已加/清单满禁用)+ 浏览自定义(原生 dialog,Esc/背板关闭)。 */
+function AddOpenWithDialog({
+  addedIds,
+  full,
+  onClose,
+}: {
+  addedIds: Set<string>;
+  /** 清单已达 sanitize 上限:所有添加通道禁用(appendTarget 侧另有双保险)。 */
+  full: boolean;
+  onClose: () => void;
+}) {
   const presets = OPEN_WITH_PRESET_CATALOG.filter((p) => p.platforms.includes(detectOpenWithPlatform()));
   const [health, setHealth] = useState<Record<string, Health>>({});
 
@@ -204,7 +228,7 @@ function AddOpenWithDialog({ addedIds, onClose }: { addedIds: Set<string>; onClo
   useEffect(() => {
     const dlg = dlgRef.current;
     if (!dlg) return;
-    dlg.showModal();
+    if (!dlg.open) dlg.showModal();
     const onClick = (e: MouseEvent) => {
       if (e.target === dlg) onClose();
     };
@@ -225,7 +249,7 @@ function AddOpenWithDialog({ addedIds, onClose }: { addedIds: Set<string>; onClo
           const asTarget = openWithTargetFromPreset(preset);
           const key = preset.kind === "app" ? (preset.appName ?? "") : (preset.command ?? "");
           const h: Health | null = preset.kind === "finder" ? "ok" : (health[key] ?? null);
-          const disabled = addedIds.has(preset.id) || h === "miss";
+          const disabled = full || addedIds.has(preset.id) || h === "miss";
           return (
             <button
               key={preset.id}
@@ -255,7 +279,12 @@ function AddOpenWithDialog({ addedIds, onClose }: { addedIds: Set<string>; onClo
         })}
       </div>
       <div className="owdlg-actions">
-        <button type="button" className="owdlg-browse" onClick={() => void browse()}>
+        <button
+          type="button"
+          className="owdlg-browse"
+          onClick={() => void browse()}
+          disabled={full}
+        >
           {t("浏览…选择应用")}
         </button>
       </div>

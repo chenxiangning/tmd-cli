@@ -169,4 +169,5 @@
 | 2026-09-19 | [会话卫生清扫设计:超期(默认24h)自动归档 + 空会话删除,挂磁盘扫描结算点零轮询](superpowers/specs/2026-09-19-session-hygiene-auto-archive-design.md) | 已落地(1e75245;keep 覆盖层 + 9 引擎判空钩子 + 行为页开关/时窗) |
 | 2026-09-19 | [v0.2.0 发布后批次评审(sidekick 开关冲突修复 / 数组守卫补漏 / 死代码清理 / 文档 8 处对齐)](review/2026-09-19-v0.2.0-postrelease-review.md) | 已完成(修复与清理随评审提交) |
 | 2026-09-19 | [打开方式(Open With)设计:复刻 mossx(设置配置面板 + 文件底部入口菜单)](superpowers/specs/2026-09-19-open-with-design.md) | 已落地(实现随本批提交;入口仅文本族文件视图) |
+| 2026-09-20 | [近八笔提交全量审核(open-with/wsfb/md 目录/最大化/更新感应;P1×1+P2×3+P3×17 修 16 缓修 4)](review/2026-09-20-8-commits-global-review.md) | 已完成(修复随本批提交;门禁全绿 react-doctor 100;Windows 分隔符专项待排) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

@@ -30,8 +30,8 @@ import {
 import logoUrl from "../assets/logo.png";
 import { Check, Gear } from "@phosphor-icons/react";
 import { VersionPopover } from "./VersionPopover";
-import { isNewerVersion } from "./updateCheck";
-import { initUpdatePresence, useUpdatePresence } from "./updatePresence";
+import { CHANGELOG_ENTRIES, isNewerVersion } from "./updateCheck";
+import { useUpdatePresence } from "./updatePresence";
 
 /** 底栏空间有限,最多外显 4 个快捷入口(同 codemoss SIDEBAR_SETTINGS_PINNED_MAX)。 */
 const PINNED_MAX = 4;
@@ -83,7 +83,7 @@ function PinCheckbox({
 export function SidebarSettingsCluster() {
   const [open, setOpen] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<string[]>(loadPinned);
-  const [version, setVersion] = useState("0.1.4");
+  const [version, setVersion] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [aboutAnchor, setAboutAnchor] = useState({ x: 0, y: 0 });
   /* 订阅设置:动作的 active 是渲染期求值的 getter,设置变更(如代理开关)时本簇
@@ -95,12 +95,11 @@ export function SidebarSettingsCluster() {
   useEffect(() => {
     appVersion()
       .then(setVersion)
-      .catch(() => setVersion("0.1.4")); // 纯浏览器 dev(vite)下无 Tauri runtime
+      .catch(() => setVersion(null)); // 纯浏览器 dev(vite)下无 Tauri runtime,保持未知态
   }, []);
-
-  /* 更新感应:启动节流后台检查(6h 一次),发现新版在版本号旁挂短提示。 */
+  /* 更新感应:启动节流后台检查(6h 一次),发现新版在版本号旁挂短提示。
+     init 在 main.tsx boot(左栏持久化关闭时本簇不挂载,检查不能停摆)。 */
   const presence = useUpdatePresence();
-  useEffect(() => initUpdatePresence(), []);
 
   /* 点击外部 / Esc 关菜单。 */
   useEffect(() => {
@@ -149,8 +148,12 @@ export function SidebarSettingsCluster() {
   });
   const atPinLimit = pinnedIds.length >= PINNED_MAX;
 
-  /* 更新感应:后台检查发现比当前版本新的发布 → 版本号旁亮短提示。 */
-  const hasNewer = presence.latest !== null && isNewerVersion(presence.latest.version, version);
+  /* 更新感应:后台检查发现比当前版本新的发布 → 版本号旁亮短提示。
+     版本未知期(app version 未回)不判定;展示回落 = CHANGELOG 首条
+     (浏览器 dev 无 Tauri runtime,比硬编码占位更接近真实)。 */
+  const fallbackVersion = CHANGELOG_ENTRIES[0]?.version ?? "?";
+  const hasNewer =
+    version !== null && presence.latest !== null && isNewerVersion(presence.latest.version, version);
 
   const select = (action: SidebarAction) => {
     setOpen(false);
@@ -282,13 +285,12 @@ export function SidebarSettingsCluster() {
             setAboutOpen(true);
           }}
         >
-          v{version}
-          {hasNewer && <span className="version-new-hint">{t("有新版")}</span>}
+          v{version ?? fallbackVersion}
         </button>
         <VersionPopover
           open={aboutOpen}
           anchor={aboutAnchor}
-          currentVersion={version}
+          currentVersion={version ?? fallbackVersion}
           onClose={() => setAboutOpen(false)}
         />
       </div>

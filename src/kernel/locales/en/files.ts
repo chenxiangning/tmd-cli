@@ -29,6 +29,7 @@ export const MESSAGES = {
   "更多操作": "More actions",
   "刷新": "Refresh",
   "仅显示前 {n} 条结果": "Showing first {n} results",
+  "结果可能不完整:文件数超过扫描上限": "Results may be incomplete: file count exceeded scan limit",
   "远程工作区": "Remote workspace",
   "该工作区的文件在远程宿主上;启用对应来源插件后可在此浏览。":
     "This workspace's files live on the remote host; enable its source plugin to browse here.",

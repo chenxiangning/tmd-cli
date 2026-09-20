@@ -158,6 +158,21 @@ describe("parseAtomLatest", () => {
     });
   });
 
+  it("首条 entry 为 rc tag → 跳过取下一条稳定版(后台账本不冻结)", () => {
+    const rcFirst = atom.replace("v0.2.0", "v0.3.0-rc.1").replace(
+      "</entry>",
+      `</entry>
+  <entry>
+    <id>tag:github.com,2008:Repository/1353124934/v0.2.0</id>
+    <updated>2026-09-10T00:00:00Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/chenxiangning/tmd-cli/releases/tag/v0.2.0"/>
+    <title>tmd-cli v0.2.0</title>
+    <content type="html">&lt;p&gt;Automated build.&lt;/p&gt;</content>
+  </entry>`,
+    );
+    expect(parseAtomLatest(rcFirst)).toMatchObject({ version: "0.2.0" });
+  });
+
   it.each([
     ["空 feed(无 entry)", "<feed></feed>"],
     ["tag 非 semver", '<feed><entry><id>tag:x/nightly</id><link rel="alternate" href="https://x"/></entry></feed>'],

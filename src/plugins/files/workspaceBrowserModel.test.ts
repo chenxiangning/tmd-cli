@@ -3,6 +3,7 @@ import type { GitFileStatus } from "@kernel/ipc";
 import { buildLetterMap, statusLetter } from "./gitDecorateModel";
 import {
   buildChangedChildren,
+  changedTreeOf,
   filterWalkHits,
   isIgnoredPath,
   type ChangedChild,
@@ -76,5 +77,30 @@ describe("filterWalkHits", () => {
       `${ROOT}/src/app.test.tsx`,
     ]);
     expect(filterWalkHits(ROOT, rels, "  ")).toEqual([]);
+  });
+});
+
+describe("changedTreeOf(多仓合并 + 深层仓补链)", () => {
+  const entries = [
+    { root: `${ROOT}/a/repo2`, files: [f("src/x.ts", "M")] },
+    { root: `${ROOT}/top`, files: [f("t.ts", "M")] },
+  ];
+  const tree = changedTreeOf(ROOT, entries);
+
+  it("深度 ≥2 嵌套仓:base→仓根中间目录成链,根层露出 a,展开可达 repo2 变更", () => {
+    expect((tree.get(ROOT) ?? []).map((c) => c.name)).toEqual(["a", "top"]);
+    expect(tree.get(`${ROOT}/a`)!.map((c) => c.path)).toEqual([`${ROOT}/a/repo2`]);
+    expect(tree.get(`${ROOT}/a/repo2`)!.map((c) => c.name)).toEqual(["src"]);
+  });
+
+  it("干净仓也补链(空桶自身不可展开,但链通到更深的脏仓)", () => {
+    const mixed = [
+      { root: `${ROOT}/clean`, files: [] },
+      { root: `${ROOT}/clean/dirty`, files: [f("y.ts", "?")] },
+    ];
+    const t = changedTreeOf(ROOT, mixed);
+    expect(t.get(ROOT)!.map((c) => c.name)).toEqual(["clean"]);
+    expect(t.get(`${ROOT}/clean`)!.map((c) => c.name)).toEqual(["dirty"]);
+    expect(t.get(`${ROOT}/clean/dirty`)!.map((c) => c.name)).toEqual(["y.ts"]);
   });
 });

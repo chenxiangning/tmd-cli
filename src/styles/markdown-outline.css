@@ -201,9 +201,11 @@
   background: color-mix(in srgb, var(--tmd-bg-active) 80%, transparent);
 }
 
-/* yn 预览浮层无折叠符:disclosure DOM/aria 保留,仅视觉隐藏。 */
-.fvp-preview-outline-disclosure,
-.fvp-preview-outline-disclosure-spacer {
+/* yn 观感:markdown 浮层无折叠符(disclosure DOM/aria 保留,仅视觉隐藏)。
+   必须限定在 layer 内:PreviewOutlineSidebar 是共享组件,PDF/文档预览
+   直接渲染(无 layer),裸类名会把它们的书签树钉成永久全展开。 */
+.fvp-markdown-outline-layer .fvp-preview-outline-disclosure,
+.fvp-markdown-outline-layer .fvp-preview-outline-disclosure-spacer {
   display: none;
 }
 

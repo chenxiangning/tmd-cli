@@ -57,7 +57,9 @@ function FileTreeRows({
             depth={depth}
             expanded={isOpen}
             selected={selectedPath === e.path}
-            decoColor={gitColors.get(e.path)}
+            // 尾斜杠键回查:status 折叠的整目录变更(untracked 嵌套仓)
+            // 在 map 里是 "dir/" 形态,侧栏 WsfbLists.dirDecoOf 同口径。
+            decoColor={gitColors.get(e.path) ?? gitColors.get(`${e.path}/`)}
             repoTag={repoTags.get(e.path)}
             onClick={() => toggle(e)}
             onContextMenu={rowMenu(e)}

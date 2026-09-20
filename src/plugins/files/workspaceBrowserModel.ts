@@ -31,8 +31,8 @@ export interface ChangedChild {
 }
 
 /** 变更剪枝树:git status 文件清单 → absDir → 有序直接子条目(目录在前,
- *  同层名称升序);目录条目 = 变更文件的祖先链;根键为 root 本身。
- *  漏斗开(仅显示有变更的文件)时的列表数据源,零额外 IPC。 */
+ *  同层名称码点升序,与 Rust fs_read_dir 字节序同口径);目录条目 = 变更文件的
+ * 祖先链;根键为 root 本身。漏斗开(仅显示有变更的文件)时的列表数据源,零额外 IPC。 */
 export function buildChangedChildren(
   root: string,
   files: readonly GitFileStatus[],
@@ -72,24 +72,31 @@ export function buildChangedChildren(
     out.set(
       absDir,
       [...bucket.values()].sort((a, b) =>
-        a.isDir !== b.isDir ? (a.isDir ? -1 : 1) : a.name.localeCompare(b.name),
+        a.isDir !== b.isDir ? (a.isDir ? -1 : 1) : compareNames(a.name, b.name),
       ),
     );
   }
   return out;
 }
 
-/** 搜索命中:fs_walk_files 相对路径按文件名子串过滤(大小写不敏感)→ 绝对路径。 */
+/** 搜索命中:fs_walk_files 相对路径按文件名子串过滤(大小写不敏感)→ 绝对路径。
+ *  目录条目(带尾斜杠)显式排除 —— 不依赖「尾斜杠 split 得空名凑巧不匹配」。 */
 export function filterWalkHits(root: string, relPaths: readonly string[], query: string): string[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   const base = root.replace(/\/+$/, "");
   const out: string[] = [];
   for (const rel of relPaths) {
+    if (rel.endsWith("/")) continue;
     const name = rel.split("/").pop() ?? rel;
     if (name.toLowerCase().includes(q)) out.push(`${base}/${rel}`);
   }
   return out;
+}
+
+/** 同层名称比较:码点序,对齐 Rust fs_read_dir 的字节序(两视图口径一致)。 */
+function compareNames(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /* ── 组合派生(侧栏浏览器视图消费;着色复用 gitDecorateModel 纯函数)── */
@@ -107,34 +114,35 @@ export function decorationColors(
   return mergeRepoStatusDecorations(entries);
 }
 
-/** 派生:变更剪枝树(逐仓构建后合并桶)。 */
+/** 派生:变更剪枝树(逐仓构建后合并桶 + base→各仓根的中间祖先链合成:
+ * buildChangedChildren 只从仓自身根起建,深度 ≥2 的嵌套仓(孙仓)不经补链
+ * 在 base 视角不可达 —— 变更视图会误报「没有变更文件」而全部文件视图有色。
+ * 干净仓也补链:链通到更深的脏仓;干净仓自身是空桶(不可展开)。 */
 export function changedTreeOf(
+  base: string,
   statusEntries: readonly RepoStatusEntry[] | null,
 ): ReadonlyMap<string, readonly ChangedChild[]> {
-  const out = new Map<string, readonly ChangedChild[]>();
+  const out = new Map<string, ChangedChild[]>();
   for (const e of statusEntries ?? []) {
-    for (const [k, v] of buildChangedChildren(e.root, e.files)) out.set(k, v);
+    for (const [k, v] of buildChangedChildren(e.root, e.files)) out.set(k, [...v]);
   }
-  return out;
-}
-
-/** 派生:变更态根层条目(多仓根合成 —— root 非仓时各仓根目录露出)。 */
-export function changedRootChildren(
-  base: string,
-  changedTree: ReadonlyMap<string, readonly ChangedChild[]>,
-  statusEntries: readonly RepoStatusEntry[] | null,
-): readonly ChangedChild[] {
-  const kids = new Map<string, ChangedChild>();
-  for (const c of changedTree.get(base) ?? []) kids.set(c.path, c);
   for (const e of statusEntries ?? []) {
     const repo = e.root.replace(/\/+$/, "");
-    /* 仅抬一层:更深的嵌套仓留在其父目录的变更祖先链里,避免根层重复露出 */
-    const rel = repo.startsWith(`${base}/`) ? repo.slice(base.length + 1) : "";
-    if (repo !== base && rel && !rel.includes("/")) {
-      kids.set(repo, { name: rel, path: repo, isDir: true });
+    if (repo === base || !repo.startsWith(`${base}/`)) continue;
+    const parts = repo.slice(base.length + 1).split("/");
+    let parent = base;
+    for (const part of parts) {
+      const childPath = `${parent}/${part}`;
+      let bucket = out.get(parent);
+      if (!bucket) out.set(parent, (bucket = []));
+      if (!bucket.some((c) => c.path === childPath)) {
+        bucket.push({ name: part, path: childPath, isDir: true });
+      }
+      parent = childPath;
     }
   }
-  return [...kids.values()].sort((a, b) =>
-    a.isDir !== b.isDir ? (a.isDir ? -1 : 1) : a.name.localeCompare(b.name),
-  );
+  for (const bucket of out.values()) {
+    bucket.sort((a, b) => (a.isDir !== b.isDir ? (a.isDir ? -1 : 1) : compareNames(a.name, b.name)));
+  }
+  return out;
 }

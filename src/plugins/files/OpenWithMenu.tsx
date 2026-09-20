@@ -29,8 +29,8 @@ export function OpenWithMenu({ path }: { path: string }) {
   const [menuH, setMenuH] = useState(0);
 
   const targets = settings.openWithTargets;
-  const fallback = resolveDefaultOpenWith(targets, settings.openWithDefaultId);
-  const def = fallback ?? targets[0] ?? null;
+  /* resolveDefaultOpenWith 已含失效回落首项;null 仅清单空(入口隐藏)。 */
+  const def = resolveDefaultOpenWith(targets, settings.openWithDefaultId);
 
   useLayoutEffect(() => {
     if (open && menuRef.current) setMenuH(menuRef.current.getBoundingClientRect().height);

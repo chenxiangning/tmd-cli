@@ -25,10 +25,9 @@ import type {
 } from "./sshTypes";
 import type { OpenWithTarget } from "./settingsTypes";
 
-/** 打开方式探测结果(Rust open_with.rs 契约):ok=false 时 resolvedPath 为 null。 */
+/** 打开方式探测结果(Rust open_with.rs 契约)。 */
 export interface OpenWithProbe {
   ok: boolean;
-  resolvedPath: string | null;
 }
 
 /** 本地插件文件戳(plugins.rs 契约):文件名 + 内容 SHA-256 + 大小 + mtime(版本库排序)。 */

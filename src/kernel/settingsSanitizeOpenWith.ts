@@ -8,15 +8,17 @@ import { DEFAULT_SETTINGS } from "./settingsDefaults";
 
 /** 打开方式 kind 白名单。 */
 const OPEN_WITH_KINDS: readonly OpenWithTarget["kind"][] = ["app", "command", "finder"];
-/** 打开方式清单条目上限(手改 JSON 兜底,防膨胀)。 */
-const OPEN_WITH_TARGETS_MAX = 32;
+/** 打开方式清单条目上限(手改 JSON 兜底,防膨胀;设置面板添加按钮同用)。 */
+export const OPEN_WITH_TARGETS_MAX = 32;
 
 /**
  * 打开方式清单清洗:仅留结构合法条目(非空 id/label + 白名单 kind + 按 kind 配套字段),
  * args 收窄为非空字符串数组;确定性保序,超限截断。
  */
 export function sanitizeOpenWithTargets(raw: unknown): OpenWithTarget[] {
-  if (!Array.isArray(raw)) return DEFAULT_SETTINGS.openWithTargets;
+  /* 深拷贝回落:DEFAULT_SETTINGS 是模块级单例,直接给活引用会被未来
+     就地变更腐蚀全局默认。 */
+  if (!Array.isArray(raw)) return DEFAULT_SETTINGS.openWithTargets.map((x) => ({ ...x }));
   const out: OpenWithTarget[] = [];
   for (const item of raw.slice(0, OPEN_WITH_TARGETS_MAX)) {
     if (!item || typeof item !== "object") continue;

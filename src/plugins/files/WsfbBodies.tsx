@@ -16,6 +16,7 @@ const SEARCH_RENDER_CAP = 200;
 /** 搜索态:命中平铺(点击开 tab)+ 截断提示。 */
 export function SearchBody({
   hits,
+  truncated,
   selectedPath,
   colors,
   letters,
@@ -24,6 +25,8 @@ export function SearchBody({
   onPick,
 }: {
   hits: string[] | null;
+  /** walk 满额(SEARCH_WALK_CAP):命中集可能不完整,空结果别当「没有」。 */
+  truncated: boolean;
   selectedPath: string | null;
   colors: ReadonlyMap<string, string>;
   letters: ReadonlyMap<string, string>;
@@ -32,7 +35,13 @@ export function SearchBody({
   onPick: (path: string) => void;
 }) {
   if (hits == null) return <div className="wsfb-empty">{t("搜索中…")}</div>;
-  if (hits.length === 0) return <div className="wsfb-empty">{t("没有匹配的文件")}</div>;
+  if (hits.length === 0) {
+    return (
+      <div className="wsfb-empty">
+        {truncated ? t("结果可能不完整:文件数超过扫描上限") : t("没有匹配的文件")}
+      </div>
+    );
+  }
   return (
     <>
       <WsfbSearchList
