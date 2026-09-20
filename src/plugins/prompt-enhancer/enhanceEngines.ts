@@ -15,6 +15,7 @@
 
 import { ipc, onPtyExit, onPtyOutput } from "@kernel/ipc";
 import { host } from "@kernel/host";
+import { stripAnsi } from "@kernel/askDetect";
 import { archiveSession, sessionArchiveKey } from "@kernel/sessionArchive";
 
 export interface EnhanceEngineAdapter {
@@ -30,13 +31,15 @@ function modelArgs(flag: string, model: string | null): string[] {
 
 export const ENHANCE_ENGINES: EnhanceEngineAdapter[] = [
   { id: "claude", command: "claude", buildArgs: (p, m) => ["-p", p, ...modelArgs("--model", m)] },
-  { id: "codex", command: "codex", buildArgs: (p, m) => ["exec", ...modelArgs("-m", m), p] },
+  /* codex:非 git 目录被信任闸拒绝(2026-09-21 实证);增强只改写提示词,跳过检查兼容任意工作区 */
+  { id: "codex", command: "codex", buildArgs: (p, m) => ["exec", "--skip-git-repo-check", ...modelArgs("-m", m), p] },
   { id: "omp", command: "omp", buildArgs: (p, m) => ["-p", ...modelArgs("--model", m), p] },
   { id: "pi", command: "pi", buildArgs: (p, m) => ["-p", ...modelArgs("--model", m), p] },
   { id: "opencode", command: "opencode", buildArgs: (p, m) => ["run", ...modelArgs("-m", m), p] },
   { id: "kimi", command: "kimi", buildArgs: (p, m) => ["-p", ...modelArgs("-m", m), p] },
   { id: "qoder", command: "qoder", buildArgs: (p, m) => ["-p", ...modelArgs("-m", m), p] },
-  { id: "grok", command: "grok", buildArgs: (p, m) => ["-p", ...modelArgs("-m", m), p] },
+  /* grok 的 -p = --single <PROMPT> 取值型,值必须紧跟其后再接模型旗标(2026-09-21 --help 实证) */
+  { id: "grok", command: "grok", buildArgs: (p, m) => ["--single", p, ...modelArgs("-m", m)] },
 ];
 
 export type EnhancePreset = "light" | "structured" | "executable";
@@ -48,8 +51,8 @@ const PRESET_RULES: Record<EnhancePreset, string> = {
 };
 
 /** 终稿哨兵:模型把改写结果包在标记内,TTY 噪声(进度行/stderr 合流)留在标记外。 */
-export const ENHANCE_MARKER_OPEN = "<ENHANCED>";
-export const ENHANCE_MARKER_CLOSE = "</ENHANCED>";
+const ENHANCE_MARKER_OPEN = "<ENHANCED>";
+const ENHANCE_MARKER_CLOSE = "</ENHANCED>";
 
 /** 组装一次改写的完整指令(base + 档位约束 + 哨兵规则 + 草稿);指令要求保留草稿原语言。 */
 export function buildEnhanceInstruction(draft: string, preset: EnhancePreset): string {
@@ -74,18 +77,11 @@ export function stripCodeFence(text: string): string {
   return m ? m[1] : text;
 }
 
-/** 剥 ANSI 转义(OSC 标题串 / CSI 控制序列 / 其余转义)与非排版控制字符。 */
-export function stripAnsi(text: string): string {
-  return text
-    .replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, "")
-    .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
-    .replace(/\x1b[@-Z\\-_]/g, "")
-    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
-}
-
-/** PTY 原始字节 → 可读文本:\r\n / 裸 \r 归一为 \n,压缩 3+ 连续空行。 */
+/** PTY 原始字节 → 可读文本:ANSI 剥离(kernel askDetect 同一件,OSC8 正文安全)+
+ *  裸控制字符清理(kernel 版不管束非转义控制符)+ \r\n/裸 \r 归一 + 压 3+ 空行。 */
 export function normalizePtyText(text: string): string {
   return stripAnsi(text)
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "")
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
     .replace(/\n{3,}/g, "\n\n")

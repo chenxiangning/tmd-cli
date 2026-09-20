@@ -97,7 +97,8 @@ export function EnhanceDialog({
       cwd,
       workspaceId,
       timeoutSeconds,
-      onChunk: setLive,
+      /* 展示层截 16KB 尾窗(超长输出卡 textarea 渲染);提取用的是引擎面自持全量缓冲 */
+      onChunk: (s) => setLive(s.length > 16_384 ? `…\n${s.slice(-16_384)}` : s),
     });
     setRunning(false);
     if (out.ok) {
@@ -151,7 +152,7 @@ export function EnhanceDialog({
               composerReplaceRef.current?.(enhanced);
               onClose();
             }}
-            title={enhanced ? undefined : t("增强失败")}
+            title={enhanced ? undefined : t("暂无增强结果")}
             className="rounded bg-(--tmd-accent) px-3 py-1.5 text-xs text-(--tmd-accent-fg) hover:opacity-90 disabled:opacity-50"
           >
             {t("使用增强版本")}

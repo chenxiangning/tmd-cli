@@ -49,6 +49,9 @@ composer 左下 inputRail 现有三个图标(assets 唤醒双图标 + 平铺广�
 
 持久化:插件私有 JSON `<configDir>/prompt-enhancer.json`(wallpaper/store.ts 先例:fs 读写通用原语 + configDir 布局 owner 在 Rust);损坏文件静默重置。权限加 `ipc.fs.read/write`。
 
+review 收口(同日第三轮):① grok `-p` 实为 `--single <PROMPT>` 取值型,原开关型写法会吞参,改 `["--single", prompt, ...model]`;② codex 非 git 目录被信任闸拒绝,加 `--skip-git-repo-check`(只改写提示词无沙箱风险);③ 本地 stripAnsi 的 OSC 正则贪婪吞 OSC8 链接正文,ANSI 清洗收敛复用 kernel `askDetect.stripAnsi`(形态一致且含 C1),裸控制符清理归 `normalizePtyText`;④ live 展示截 16KB 尾窗防超长卡渲染(提取用引擎面全量缓冲不受影响);⑤ 哨兵常量/缓存键函数转私有。8 家 CLI argv 已逐家 `--help` 实证 + 可用者真跑(omp/kimi 全链路;claude/pi/grok/qoder/opencode 为本机凭据或额度环境问题,参数形态均已实证)。
+
+
 
 
 

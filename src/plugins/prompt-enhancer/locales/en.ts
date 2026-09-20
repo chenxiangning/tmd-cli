@@ -27,6 +27,7 @@ export const MESSAGES_EN = {
   "无活跃工作区,无法运行增强": "No active workspace; cannot run enhancement",
   "历史记录": "History",
   "暂无历史记录": "No history yet",
+  "暂无增强结果": "No enhanced result yet",
   "缓存": "Cached",
   "当前为缓存结果,再点将重新增强": "Showing cached result — click again to re-run",
 } as Record<string, string>;

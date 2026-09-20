@@ -107,7 +107,7 @@ export function setLastUsed(v: EnhanceLastUsed): void {
 
 /* ── 结果缓存(键 = 引擎|档位|模型|草稿;LRU 20)── */
 
-export function cacheKey(engineId: string, preset: EnhancePreset, model: string, draft: string): string {
+function cacheKey(engineId: string, preset: EnhancePreset, model: string, draft: string): string {
   return [engineId, preset, model, draft].join("\u0001");
 }
 

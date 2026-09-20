@@ -38,8 +38,10 @@ import {
   extractEnhanced,
   normalizePtyText,
   runEnhance,
-  stripAnsi,
 } from "./enhanceEngines";
+/* kernel 契约的消费方回归钉:OSC8(ST 终止)之间的正文必须存活 —— 增强链路
+   的 ANSI 清洗已收敛到 kernel askDetect.stripAnsi,此处钉防其回归。 */
+import { stripAnsi } from "@kernel/askDetect";
 
 const outCbs = new Map<string, (text: string) => void>();
 const exitCbs = new Map<string, () => void>();
@@ -84,15 +86,20 @@ describe("ENHANCE_ENGINES argv 组装", () => {
   it("空模型:不出现模型旗标,prompt 落位各家惯用位置", () => {
     const p = "改写我";
     expect(ENHANCE_ENGINES[0].buildArgs(p, null)).toEqual(["-p", p]);
-    expect(ENHANCE_ENGINES[1].buildArgs(p, null)).toEqual(["exec", p]);
+    expect(ENHANCE_ENGINES[1].buildArgs(p, null)).toEqual(["exec", "--skip-git-repo-check", p]);
     expect(ENHANCE_ENGINES[4].buildArgs(p, null)).toEqual(["run", p]);
   });
 
   it("带模型:旗标按家分流(claude/omp/pi --model,其余 -m)", () => {
     const p = "改写我";
     expect(ENHANCE_ENGINES[0].buildArgs(p, "opus")).toEqual(["-p", p, "--model", "opus"]);
-    expect(ENHANCE_ENGINES[1].buildArgs(p, "gpt-5")).toEqual(["exec", "-m", "gpt-5", p]);
+    expect(ENHANCE_ENGINES[1].buildArgs(p, "gpt-5")).toEqual(["exec", "--skip-git-repo-check", "-m", "gpt-5", p]);
     expect(ENHANCE_ENGINES[5].buildArgs(p, "k3")).toEqual(["-p", "-m", "k3", p]);
+  });
+
+  it("grok:-p 是 --single 取值型,prompt 必须紧跟其后(--help 实证回归钉)", () => {
+    expect(ENHANCE_ENGINES[7].buildArgs("改写我", null)).toEqual(["--single", "改写我"]);
+    expect(ENHANCE_ENGINES[7].buildArgs("改写我", "grok-4")).toEqual(["--single", "改写我", "-m", "grok-4"]);
   });
 
   it("模型串首尾空白视为空(用 CLI 默认)", () => {
@@ -115,9 +122,14 @@ describe("buildEnhanceInstruction", () => {
 });
 
 describe("PTY 清洗与哨兵提取", () => {
-  it("stripAnsi 剥 OSC/CSI/控制字符,保留正文与换行", () => {
+  it("stripAnsi 剥 OSC/CSI,保留正文与换行(裸控制符归 normalizePtyText)", () => {
     expect(stripAnsi("\x1b]0;title\x07OK\x1b[31m红\x1b[0m\n")).toBe("OK红\n");
-    expect(stripAnsi("a\x08b\x7fc")).toBe("abc");
+    expect(normalizePtyText("a\x08b\x7fc")).toBe("abc");
+  });
+
+  it("OSC8 链接(ST 终止)之间的正文存活(贪婪吞正文回归钉)", () => {
+    const s = "a\x1b]8;;http://x\x1b\\点击\x1b]8;;\x1b\\b";
+    expect(stripAnsi(s)).toBe("a点击b");
   });
 
   it("normalizePtyText 归一 CRLF/裸 CR 并压空行", () => {
