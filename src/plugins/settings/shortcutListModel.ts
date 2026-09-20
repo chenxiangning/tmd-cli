@@ -32,8 +32,10 @@ export function groupCommandsByIdPrefix(
   return [...groups.values()];
 }
 
-/** effective 键位展示标签:label > effective keybinding > 未绑定(null)。 */
+/** effective 键位展示标签:match 型恒为 keybindingLabel(不可改写,陈旧 override 不遮蔽);
+ *  其余 = 改写优先 > keybindingLabel > keybinding;全缺 null。 */
 export function effectiveLabel(cmd: CommandContribution): string | null {
+  if (cmd.match) return cmd.keybindingLabel ?? null;
   const overrides = getShortcutOverridesSnapshot();
   const overridden = overrides[cmd.id];
   if (overridden === "") return null;

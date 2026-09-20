@@ -75,12 +75,12 @@ export function getEffectiveKeybinding(id: string): string | undefined {
   return cmd.keybinding;
 }
 
-/** 是否可被用户改写:有静态 keybinding 且非 match 型(match 的区间/双修饰语法录不成单键);
- *  无默认键位的命令一律「内置」置灰(与设置页/规格的已知上限一致)。 */
+/** 是否可被用户改写:非 match 型即可(无默认键位命令 = 改键预留面,可绑定;
+ * match 型区间/双修饰键语法录不成单键,「内置」置灰但 keybindingLabel 照常展示)。 */
 export function isShortcutRemappable(id: string): boolean {
   const cmd = getCommands().find((c) => c.id === id);
   if (!cmd) return false;
-  return !cmd.match && cmd.keybinding !== undefined;
+  return !cmd.match;
 }
 
 /* ── 录制闸门 ───────────────────────────────────────────── */

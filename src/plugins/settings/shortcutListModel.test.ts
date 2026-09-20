@@ -77,6 +77,14 @@ describe("effectiveLabel", () => {
     overrides.setShortcutOverrides({ "a.b": "" });
     expect(mod.effectiveLabel(cmd("a.b", { keybinding: "Cmd+K" }))).toBeNull();
   });
+
+  it("match 型恒显 keybindingLabel,陈旧 override 不遮蔽", () => {
+    overrides.setShortcutOverrides({ "a.b": "Cmd+X", "a.c": "" });
+    expect(
+      mod.effectiveLabel(cmd("a.b", { match: () => true, keybindingLabel: "⌘1-9" })),
+    ).toBe("⌘1-9");
+    expect(mod.effectiveLabel(cmd("a.c", { match: () => true, keybindingLabel: "Ctrl+Tab" }))).toBe("Ctrl+Tab");
+  });
 });
 
 describe("filterCommands", () => {

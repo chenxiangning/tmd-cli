@@ -45,6 +45,12 @@ describe("getEffectiveKeybinding", () => {
     expect(ov.getEffectiveKeybinding("g.t")).toBeUndefined();
   });
 
+  it("无默认键位命令接受 override(改键预留面:绑定即 effective,eventMatches 可分发)", () => {
+    sc.registerCommand({ id: "g.unbound", title: "U", run: () => undefined });
+    ov.setShortcutOverrides({ "g.unbound": "Cmd+Shift+R" });
+    expect(ov.getEffectiveKeybinding("g.unbound")).toBe("Cmd+Shift+R");
+  });
+
   it("未注册 id 返回 undefined", () => {
     expect(ov.getEffectiveKeybinding("missing")).toBeUndefined();
   });
@@ -75,9 +81,12 @@ describe("isShortcutRemappable", () => {
     });
     expect(ov.isShortcutRemappable("g.m")).toBe(false);
   });
-  it("无 keybinding(非 match)→ false:未绑定命令按「内置」置灰(提交语义,见 isShortcutRemappable 注释)", () => {
+  it("无 keybinding(非 match)→ true:无默认键位命令 = 改键预留面,可绑定(panel.refresh 等)", () => {
     sc.registerCommand({ id: "g.t", title: "T", run: () => undefined });
-    expect(ov.isShortcutRemappable("g.t")).toBe(false);
+    expect(ov.isShortcutRemappable("g.t")).toBe(true);
+  });
+  it("未注册 id → false", () => {
+    expect(ov.isShortcutRemappable("g.none")).toBe(false);
   });
 });
 

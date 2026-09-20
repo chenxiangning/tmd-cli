@@ -30,7 +30,8 @@ function CommandListItem({
 }) {
   const overrides = getShortcutOverridesSnapshot();
   const hasOverride = cmd.id in overrides;
-  // 不可改写(match 型区间键,或无默认键位)挂「内置」徽章,详情面板同步置灰
+  // 不可改写(match 型区间/双修饰键,语法录不成单键)挂「内置」徽章,详情面板同步置灰;
+  // 无默认键位命令(panel.refresh/git.fetch 等)是改键预留面,可绑定,不挂徽章。
   const builtin = !isShortcutRemappable(cmd.id);
   const label = effectiveLabel(cmd);
   return (
