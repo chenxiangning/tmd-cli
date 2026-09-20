@@ -79,6 +79,17 @@ pub(crate) async fn fs_walk_files(root: String, cap: usize) -> Result<Vec<String
     spawn_fs(move || fs_walk::walk_files(&root, cap)).await
 }
 
+/// 带截断标志的项目索引(⌘P 快开/侧栏文件搜索):cap 满额或 3s 预算断时
+/// truncated=true,UI 提示「结果可能不完整」;扁平 fs_walk_files 面向
+/// md/skill/prompts 扫描等小目录消费,两者同源。
+#[tauri::command]
+pub(crate) async fn fs_walk_index(
+    root: String,
+    cap: usize,
+) -> Result<fs_walk::WalkFilesResult, String> {
+    spawn_fs(move || fs_walk::walk_files_result(&root, cap)).await
+}
+
 /// 全文搜索(rg 式即时扫描,walk 语义与 fs_walk_files 同源,见 fs_search.rs)。
 #[tauri::command]
 pub(crate) async fn fs_search(

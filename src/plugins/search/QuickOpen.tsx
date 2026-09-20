@@ -44,6 +44,7 @@ function pathParts(path: string, indices: readonly number[]): { text: string; hi
 export function QuickOpen() {
   const root = useActiveWorkspaceRoot();
   const [files, setFiles] = useState<string[] | null>(null);
+  const [walkTruncated, setWalkTruncated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sel, setSel] = useState(0);
@@ -55,9 +56,11 @@ export function QuickOpen() {
     if (!root) return;
     let cancelled = false;
     ipc
-      .fsWalkFiles(root, WALK_CAP)
-      .then((entries) => {
-        if (!cancelled) setFiles(entries.filter((p) => !p.endsWith("/")));
+      .fsWalkIndex(root, WALK_CAP)
+      .then((res) => {
+        if (cancelled) return;
+        setFiles(res.files.filter((p) => !p.endsWith("/")));
+        setWalkTruncated(res.truncated);
       })
       .catch((e: unknown) => {
         if (!cancelled) setError(String(e));
@@ -181,6 +184,11 @@ export function QuickOpen() {
             {t("仅显示前 50 项,继续输入缩小范围")}
           </div>
         ) : null}
+        {walkTruncated && (
+          <div className="px-3 py-1.5 text-center text-[0.6875rem] text-(--tmd-fg-faint)">
+            {t("结果可能不完整:文件数超过扫描上限")}
+          </div>
+        )}
       </div>
     </div>
   );

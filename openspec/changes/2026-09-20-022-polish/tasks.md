@@ -23,10 +23,11 @@
 
 ## 4. 搜索完整性(fs_walk 契约)
 
-- [ ] 4.1 `fs_walk.rs:30,53-54` walk_files 返回 `{files, truncated}`(镜像 fs_search.rs FsSearchResult);cap 满额与 3s 预算两臂都置标志
-- [ ] 4.2 `QuickOpen.tsx:16,178-183` WALK_CAP=5000 索引截断补提示(:178 注释自认「被截掉的文件静默不可达是误导(P3 评审项)」;现有提示只盖 SHOW_LIMIT=50 展示闸;硬错误 error 态已存在,勿重复造)
-- [ ] 4.3 `WorkspaceFileBrowser.tsx:103-113` truncated 改消费标志(弃 `length>=4000`);reject 分支独立 error 态「搜索失败」,不再 setHits([]) 伪装「没有匹配的文件」
-- [ ] 4.4 `useDirTree.ts:88-90` toggle 懒展开补竞态守卫 + .catch(同文件 revealDir:64-70 已有 catch,照抄即可)
+- [x] 4.1 `fs_walk.rs` walk_files_result 返回 `{files, truncated}`(cap/预算两臂都置);扁平 walk_files 保留包装(12+ 小目录消费方零波及),新命令 fs_walk_index 只供搜索 UI
+- [x] 4.2 QuickOpen 改走 fsWalkIndex,walkTruncated 提示行复用「结果可能不完整:文件数超过扫描上限」词条
+- [x] 4.3 wsfb truncated 消费真标志(弃 length>=4000);reject 分支独立 walkError 态显式「搜索失败」(en/ja 词条已补)
+- [x] 4.4 useDirTree toggle 加 wantedRef 意向集竞态守卫 + .catch(折叠后在途结果按意向丢弃)
+- [ ] 4.5 [归 9.2] 快开/wsfb UI 目检:headless 桩遇双模块实例分叉(store 与 app 树不同步)未能完成;Rust 截断契约有单测,真窗口目检并入收口批
 
 ## 5. 可见失败小修(四条独立)
 

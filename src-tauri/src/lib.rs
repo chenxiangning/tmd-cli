@@ -199,6 +199,7 @@ pub fn run() {
             commands_fs::fs_remove_path,
             commands_fs::fs_search,
             commands_fs::fs_walk_files,
+            commands_fs::fs_walk_index,
             commands_fs::proc_communicate,
             lsp::lsp_spawn,
             lsp::lsp_send,

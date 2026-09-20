@@ -47,8 +47,8 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [hits, setHits] = useState<string[] | null>(null);
   const [hitsTruncated, setHitsTruncated] = useState(false);
+  const [walkError, setWalkError] = useState(false);
   const [tick, setTick] = useState(0);
-
   /* —— 数据面(右栏同源)—— */
   const { entries, expanded, selectedPath, setSelectedPath, loading, reloadAll, revealDir, toggle } =
     useDirTree(root);
@@ -65,9 +65,8 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
   const { entries: statusEntries, single } = useRepoStatusState(root, true);
   const base = root.replace(/\/+$/, "");
 
-  /* 忽略前缀:挂载/手动刷新拉取(低频);非仓/失败 = 空集。绝对路径口径。
+  /* 忽略前缀:挂载/手动刷新拉取(低频);非仓/失败 = 空集(绝对路径口径)。
    * ponytail: 嵌套仓各自的 ignore 未并入,需要时逐仓再取。 */
-  const [ignored, setIgnored] = useState<string[]>([]);
   useEffect(() => {
     let alive = true;
     ipc.gitIgnoredPrefixes(root).then(
@@ -90,26 +89,25 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
   );
   const letters = useMemo(() => buildLetterMap(statusEntries ?? []), [statusEntries]);
   const changedTree = useMemo(() => changedTreeOf(base, statusEntries), [statusEntries, base]);
-  /* 搜索:去抖后走 fs_walk(同 composer @ 扫描);满额 = 命中集可能不完整。 */
+  /* 搜索:200ms 去抖走带截断标志的 fs_walk_index;失败显式「搜索失败」。 */
   useEffect(() => {
     const q = query.trim();
-    if (!q) {
-      setHits(null);
-      setHitsTruncated(false);
-      return;
-    }
+    if (!q) { setHits(null); setHitsTruncated(false); setWalkError(false); return; }
     let alive = true;
     const timer = window.setTimeout(() => {
-      ipc.fsWalkFiles(root, SEARCH_WALK_CAP).then(
-        (paths) => {
+      ipc.fsWalkIndex(root, SEARCH_WALK_CAP).then(
+        (res) => {
           if (!alive) return;
-          setHits(filterWalkHits(root, paths, q));
-          setHitsTruncated(paths.length >= SEARCH_WALK_CAP);
+          setWalkError(false);
+          setHits(filterWalkHits(root, res.files, q));
+          setHitsTruncated(res.truncated); /* cap 满额与 3s 预算两臂统一由标志承载 */
         },
         () => {
           if (!alive) return;
+          /* 目录不可读/被删:显式失败,不伪装成「没有匹配的文件」 */
           setHits([]);
           setHitsTruncated(false);
+          setWalkError(true);
         },
       );
     }, 200);
@@ -125,6 +123,7 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
         <SearchBody
           hits={hits}
           truncated={hitsTruncated}
+          error={walkError}
           selectedPath={selectedPath}
           colors={colors}
           letters={letters}
@@ -176,6 +175,7 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
     query,
     hits,
     hitsTruncated,
+    walkError,
     changedOnly,
     base,
     changedTree,

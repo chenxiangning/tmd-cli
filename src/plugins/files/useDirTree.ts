@@ -4,7 +4,7 @@
  * 右键菜单/命名/删除等编辑操作留在右栏(useTreeOperations),本钩子只管浏览。
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ipc, type DirEntry } from "@kernel/ipc";
 import { openFileInTab } from "@kernel/fileTabs";
 
@@ -72,7 +72,10 @@ export function useDirTree(root: string) {
     [root, reloadRoot],
   );
 
-  /* 行点击:文件 = 选中 + 开 tab;目录 = 选中 + 展开/折叠(懒拉子层)。 */
+  /* 行点击:文件 = 选中 + 开 tab;目录 = 选中 + 展开/折叠(懒拉子层)。
+   * 展开意向集(wantedRef)挡竞态:展开后快速折叠,在途 fsListDir 的结果
+   * 按意向丢弃,不把用户刚折叠的目录又翻回来。 */
+  const wantedRef = useRef<Set<string>>(new Set());
   const toggle = useCallback(
     (entry: DirEntry) => {
       if (!entry.isDir) {
@@ -82,12 +85,21 @@ export function useDirTree(root: string) {
       }
       setSelectedPath(entry.path);
       if (expanded[entry.path]) {
+        wantedRef.current.delete(entry.path);
         setExpanded(({ [entry.path]: _drop, ...rest }) => rest);
         return;
       }
-      void ipc.fsListDir(entry.path).then((children) =>
-        setExpanded((prev) => ({ ...prev, [entry.path]: children })),
-      );
+      wantedRef.current.add(entry.path);
+      void ipc
+        .fsListDir(entry.path)
+        .then((children) =>
+          setExpanded((prev) =>
+            wantedRef.current.has(entry.path)
+              ? { ...prev, [entry.path]: children }
+              : prev,
+          ),
+        )
+        .catch(() => wantedRef.current.delete(entry.path)); /* 目录消失:意向撤回,静默 */
     },
     [expanded],
   );

@@ -359,6 +359,10 @@ export const ipc = {
    *  跳 dotfiles/node_modules,返回 root 相对 posix 路径(排序稳定);cap = 上限。
    *  语义镜像 pi/omp TUI 自己的 @ 发现规则(见 fs_walk.rs)。 */
   fsWalkFiles: (root: string, cap: number) => invoke<string[]>("fs_walk_files", { root, cap }),
+  /** 带截断标志的项目索引(⌘P 快开/侧栏文件搜索):truncated = cap 满额或
+   *  3s 预算断,UI 提示「结果可能不完整」;扁平 fsWalkFiles 面向小目录扫描。 */
+  fsWalkIndex: (root: string, cap: number) =>
+    invoke<{ files: string[]; truncated: boolean }>("fs_walk_index", { root, cap }),
   /** 全文搜索(rg 式即时扫描,walk 语义与 fsWalkFiles 同源,见 fs_search.rs):
    *  大小写不敏感=两侧 to_lowercase 归一;>3MB/二进制文件跳过;maxResults 全局上限。
    *  3s 预算耗尽或满额时交付部分结果(truncated 置位,UI 提示)。 */

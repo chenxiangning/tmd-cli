@@ -17,6 +17,7 @@ const SEARCH_RENDER_CAP = 200;
 export function SearchBody({
   hits,
   truncated,
+  error,
   selectedPath,
   colors,
   letters,
@@ -27,6 +28,8 @@ export function SearchBody({
   hits: string[] | null;
   /** walk 满额(SEARCH_WALK_CAP):命中集可能不完整,空结果别当「没有」。 */
   truncated: boolean;
+  /** walk 失败(目录不可读/被删):显式「搜索失败」,不伪装成空命中。 */
+  error: boolean;
   selectedPath: string | null;
   colors: ReadonlyMap<string, string>;
   letters: ReadonlyMap<string, string>;
@@ -34,6 +37,7 @@ export function SearchBody({
   rowMenu: WsfbRowMenu;
   onPick: (path: string) => void;
 }) {
+  if (error) return <div className="wsfb-empty">{t("搜索失败")}</div>;
   if (hits == null) return <div className="wsfb-empty">{t("搜索中…")}</div>;
   if (hits.length === 0) {
     return (

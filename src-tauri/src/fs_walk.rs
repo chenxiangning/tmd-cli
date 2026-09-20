@@ -25,9 +25,22 @@ fn pruned(name: &std::ffi::OsStr) -> bool {
     name == std::ffi::OsStr::new("node_modules")
 }
 
+/// 索引交付:truncated = cap 满额或 3s 预算断,结果可能不完整(快开/侧栏搜索 UI 提示用)。
+#[derive(serde::Serialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct WalkFilesResult {
+    pub files: Vec<String>,
+    pub truncated: bool,
+}
+
 /// 递归枚举 root 下的文件(root 相对 posix 路径,排序稳定)。
-/// cap = 最大文件数;超 cap 或超时间预算时返回已有部分。
+/// cap = 最大文件数;超 cap 或超时间预算时返回已有部分(扁平列表形态)。
 pub fn walk_files(root: &str, cap: usize) -> Result<Vec<String>, String> {
+    Ok(walk_files_result(root, cap)?.files)
+}
+
+/// walk_files 的带截断标志形态:快开/侧栏搜索消费,区分完整/部分索引。
+pub fn walk_files_result(root: &str, cap: usize) -> Result<WalkFilesResult, String> {
     let root_path = PathBuf::from(root);
     if !root_path.is_dir() {
         return Err(format!("不是目录: {root}"));
@@ -45,12 +58,13 @@ pub fn walk_files(root: &str, cap: usize) -> Result<Vec<String>, String> {
         .parents(false)
         .add_custom_ignore_filename(".fdignore")
         .filter_entry(|e| e.depth() == 0 || !pruned(e.file_name()));
-
     let start = Instant::now();
     let mut files: Vec<String> = Vec::with_capacity(1024);
+    let mut truncated = false;
     for entry in builder.build() {
-        // 慢盘兜底:预算耗尽即交付部分结果
+        // 慢盘兜底:预算耗尽或满额即交付部分结果;两臂都置 truncated
         if start.elapsed() > WALK_BUDGET || files.len() >= cap {
+            truncated = true;
             break;
         }
         let Ok(entry) = entry else { continue };
@@ -78,7 +92,7 @@ pub fn walk_files(root: &str, cap: usize) -> Result<Vec<String>, String> {
         }
     }
     files.sort();
-    Ok(files)
+    Ok(WalkFilesResult { files, truncated })
 }
 
 /// 测试:临时仓 fixture,验 gitignore / dotfiles / node_modules / 相对路径形态。
@@ -154,6 +168,24 @@ mod tests {
         let mut sorted = files.clone();
         sorted.sort();
         assert_eq!(files, sorted);
+
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn walk_index_截断标志_cap_满额置位_完整走完不置() {
+        let root = tmp_root("trunc");
+        for i in 0..3 {
+            touch(&root, &format!("t{i}.txt"));
+        }
+        /* cap 满额断:拿到部分集 + truncated */
+        let hit = walk_files_result(root.to_str().unwrap(), 2).unwrap();
+        assert_eq!(hit.files.len(), 2);
+        assert!(hit.truncated);
+        /* 完整走完:全量 + 不截断 */
+        let full = walk_files_result(root.to_str().unwrap(), 100).unwrap();
+        assert_eq!(full.files.len(), 3);
+        assert!(!full.truncated);
 
         std::fs::remove_dir_all(&root).unwrap();
     }
