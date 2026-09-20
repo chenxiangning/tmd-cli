@@ -19,7 +19,7 @@ export const promptEnhancerPlugin: Plugin = {
     iconColor: "#A78BFA",
     category: "feature",
   },
-  permissions: ["ipc.exec"],
+  permissions: ["ipc.terminal", "settings.write"],
   activate(ctx) {
     ctx.contribute("composer.inputRail", { order: 50, component: EnhanceButton });
   },

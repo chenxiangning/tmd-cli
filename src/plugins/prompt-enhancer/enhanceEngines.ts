@@ -1,11 +1,21 @@
 /**
- * 增强提示词引擎面 —— 8 家 CLI 一次性 print 模式的 argv 组装与执行收口。
- * 本机实证(2026-09-21 逐家 --help):claude/qoder/omp/pi `-p`、codex `exec`、
+ * 增强提示词引擎面 —— 8 家 CLI 一次性 print 模式的 spawn/流式收割/归档收口。
+ *
+ * 链路(v2,2026-09-21):session_spawn 起 PTY 跑一次性改写 → pty://out 实时喂
+ * 面板(进度+内容,ANSI 剥离)→ 结束后读落盘日志全量,按 <ENHANCED> 哨兵提取终稿
+ * (TTY 下进度行/stderr 合流/CLI 插件噪声都在哨兵外,天然隔离;哨兵缺失回退全量
+ * 清洗文本)→ sessionKill 收尾,磁盘身份经 profile.listSessions 定位后
+ * archiveSession 直进归档(增强会话不占默认视图)。
+ *
+ * argv 实证(2026-09-21 逐家 --help):claude/qoder/omp/pi `-p`、codex `exec`、
  * opencode `run`、kimi/grok `-p <值>`;模型旗标 claude/omp/pi 用 `--model`,其余 `-m`。
- * CLI 私有 argv 知识只落本文件;执行走 proc_communicate 通用原语(Rust 零改动)。
+ * TTY 形态实测(script -q):omp -p 输出 Working... 进度行 + 答案 + 插件噪声行,
+ * 哨兵可整段隔离。CLI 私有知识只落本文件;PTY 走 session_spawn 通用原语。
  */
 
-import { ipc } from "@kernel/ipc";
+import { ipc, onPtyExit, onPtyOutput } from "@kernel/ipc";
+import { host } from "@kernel/host";
+import { archiveSession, sessionArchiveKey } from "@kernel/sessionArchive";
 
 export interface EnhanceEngineAdapter {
   id: string;
@@ -37,7 +47,11 @@ const PRESET_RULES: Record<EnhancePreset, string> = {
   executable: "- 最多输出 6 行短句,纯文本;删除填充词与元语言,只保留可执行的约束与交付格式。",
 };
 
-/** 组装一次改写的完整指令(base + 档位约束 + 草稿);指令要求保留草稿原语言。 */
+/** 终稿哨兵:模型把改写结果包在标记内,TTY 噪声(进度行/stderr 合流)留在标记外。 */
+export const ENHANCE_MARKER_OPEN = "<ENHANCED>";
+export const ENHANCE_MARKER_CLOSE = "</ENHANCED>";
+
+/** 组装一次改写的完整指令(base + 档位约束 + 哨兵规则 + 草稿);指令要求保留草稿原语言。 */
 export function buildEnhanceInstruction(draft: string, preset: EnhancePreset): string {
   return [
     "你是一名提示词改写助手。",
@@ -47,7 +61,7 @@ export function buildEnhanceInstruction(draft: string, preset: EnhancePreset): s
     "- 不要回答请求本身。",
     "- 草稿含糊时,在不虚构新事实的前提下改善结构与清晰度。",
     PRESET_RULES[preset],
-    "- 只输出改写后的提示词文本,不要解释、不要 markdown 代码块、不要前言。",
+    `- 把改写结果完整包在 ${ENHANCE_MARKER_OPEN} 与 ${ENHANCE_MARKER_CLOSE} 标记之间,标记之外不要输出任何内容(不要解释、不要代码围栏)。`,
     "",
     "用户草稿:",
     draft,
@@ -60,6 +74,32 @@ export function stripCodeFence(text: string): string {
   return m ? m[1] : text;
 }
 
+/** 剥 ANSI 转义(OSC 标题串 / CSI 控制序列 / 其余转义)与非排版控制字符。 */
+export function stripAnsi(text: string): string {
+  return text
+    .replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, "")
+    .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
+    .replace(/\x1b[@-Z\\-_]/g, "")
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
+}
+
+/** PTY 原始字节 → 可读文本:\r\n / 裸 \r 归一为 \n,压缩 3+ 连续空行。 */
+export function normalizePtyText(text: string): string {
+  return stripAnsi(text)
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** 全量日志 → 终稿:哨兵内芯优先,缺失回退全量清洗文本(去围栏)。 */
+export function extractEnhanced(rawLog: string): string {
+  const text = normalizePtyText(rawLog);
+  const m = text.match(/<ENHANCED>([\s\S]*?)<\/ENHANCED>/);
+  if (m) return stripCodeFence(m[1].trim());
+  return stripCodeFence(text);
+}
+
 export function clampTimeoutSeconds(v: number): number {
   if (!Number.isFinite(v)) return 60;
   return Math.min(300, Math.max(5, Math.round(v)));
@@ -69,29 +109,105 @@ export type EnhanceOutcome =
   | { ok: true; text: string }
   | { ok: false; kind: "timeout" | "empty" | "engine"; detail?: string };
 
-/** 一次性跑选中 CLI 的 print 模式改写草稿;closeStdin = 一次性 CLI 等管道 EOF 的纪律。 */
-export async function runEnhance(opts: {
+export interface EnhanceRunOpts {
   engineId: string;
   draft: string;
   preset: EnhancePreset;
   model: string | null;
   cwd: string;
+  workspaceId: string | null;
   timeoutSeconds: number;
-}): Promise<EnhanceOutcome> {
+  /** 流式回调:每次 PTY 输出后携带累计已清洗文本(进度 + 内容,供面板实时展示)。 */
+  onChunk: (liveText: string) => void;
+}
+
+/** 起一次 PTY 增强会话并等到终局;结束(含超时杀)后自归档磁盘身份。 */
+export async function runEnhance(opts: EnhanceRunOpts): Promise<EnhanceOutcome> {
   const adapter = ENHANCE_ENGINES.find((e) => e.id === opts.engineId);
   if (!adapter) return { ok: false, kind: "engine", detail: `未知引擎 ${opts.engineId}` };
-  const res = await ipc.procCommunicate({
-    command: adapter.command,
-    args: adapter.buildArgs(buildEnhanceInstruction(opts.draft, opts.preset), opts.model),
-    cwd: opts.cwd,
-    closeStdin: true,
-    timeoutMs: clampTimeoutSeconds(opts.timeoutSeconds) * 1000,
-  });
-  if (res.timedOut) return { ok: false, kind: "timeout" };
-  if (res.code !== 0) {
-    return { ok: false, kind: "engine", detail: res.stderr.trim().slice(0, 400) || `退出码 ${res.code ?? "未知"}` };
+  const startedAt = Date.now();
+  let spawned: { id: string };
+  try {
+    spawned = await ipc.sessionSpawn(
+      opts.engineId,
+      {
+        command: adapter.command,
+        args: adapter.buildArgs(buildEnhanceInstruction(opts.draft, opts.preset), opts.model),
+        cwd: opts.cwd,
+      },
+      opts.workspaceId ?? undefined,
+    );
+  } catch (e) {
+    return { ok: false, kind: "engine", detail: String(e).slice(0, 200) };
   }
-  const out = stripCodeFence(res.stdout.trim());
-  if (!out) return { ok: false, kind: "empty" };
-  return { ok: true, text: out };
+
+  const { promise, resolve } = Promise.withResolvers<EnhanceOutcome>();
+  let live = "";
+  let timedOut = false;
+  let settled = false;
+  void onPtyOutput(spawned.id, (chunk) => {
+    live += chunk;
+    opts.onChunk(normalizePtyText(live));
+  });
+  const timer = setTimeout(() => {
+    timedOut = true;
+    void ipc.sessionKill(spawned.id).catch(() => {});
+  }, clampTimeoutSeconds(opts.timeoutSeconds) * 1000);
+  void onPtyExit(spawned.id, () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    void (async () => {
+      const outcome = await settle(spawned.id, timedOut);
+      await cleanup(spawned.id, opts, startedAt);
+      resolve(outcome);
+    })();
+  });
+  return promise;
+}
+
+/** 终局裁定:全量落盘日志为权威(订阅前瞬间的早期输出不丢),哨兵提取。 */
+async function settle(id: string, timedOut: boolean): Promise<EnhanceOutcome> {
+  if (timedOut) return { ok: false, kind: "timeout" };
+  const full = await readFullLog(id);
+  const live = normalizePtyText(full);
+  if (!live) return { ok: false, kind: "empty" };
+  if (/command not found/i.test(live)) {
+    return { ok: false, kind: "engine", detail: live.split("\n").find((l) => /command not found/i.test(l))?.slice(0, 200) };
+  }
+  const text = extractEnhanced(full);
+  if (!text) return { ok: false, kind: "empty" };
+  return { ok: true, text };
+}
+
+/** 会话落盘日志全量读回(before 语义向前翻页直到起点)。 */
+async function readFullLog(id: string): Promise<string> {
+  const size = await ipc.sessionLogSize(id).catch(() => 0);
+  let before = size;
+  const parts: string[] = [];
+  for (let guard = 0; guard < 16 && before > 0; guard++) {
+    const page = await ipc.sessionHistoryPage(id, before, 262144).catch(() => null);
+    if (!page || !page.text) break;
+    parts.unshift(page.text);
+    before = page.startOffset;
+  }
+  return parts.join("");
+}
+
+/** 收尾:杀掉已退出的会话条目(容错)+ 磁盘身份定位后直进归档。失败静默不扰 UI。 */
+async function cleanup(id: string, opts: EnhanceRunOpts, startedAt: number): Promise<void> {
+  void ipc.sessionKill(id).catch(() => {});
+  try {
+    /* CLI 落盘有迟滞(omp 懒 flush),留一拍再扫。 */
+    await new Promise((r) => setTimeout(r, 800));
+    const disks = (await host.getCliProfile(opts.engineId)?.listSessions?.(opts.cwd)) ?? [];
+    const fresh = disks
+      .filter((s) => Math.max(s.modifiedAt, s.createdAt ?? 0) >= startedAt)
+      .sort((a, b) => b.modifiedAt - a.modifiedAt)[0];
+    if (fresh && opts.workspaceId) {
+      archiveSession(sessionArchiveKey(opts.workspaceId, opts.engineId, fresh.id));
+    }
+  } catch {
+    /* 归档失败不打扰:会话仍在,用户可手动归档 */
+  }
 }

@@ -30,7 +30,14 @@ export function EnhanceButton() {
       >
         <SparkleIcon size="0.875rem" />
       </button>
-      {open && <EnhanceDialog cwd={cwd} initialDraft={composerDraftRef.current?.() ?? ""} onClose={() => setOpen(false)} />}
+      {open && (
+        <EnhanceDialog
+          cwd={cwd}
+          workspaceId={workspaces.activeId ?? null}
+          initialDraft={composerDraftRef.current?.() ?? ""}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </>
   );
 }

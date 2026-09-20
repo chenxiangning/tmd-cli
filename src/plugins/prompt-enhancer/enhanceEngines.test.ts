@@ -1,21 +1,77 @@
 /**
- * 增强引擎面契约:argv 组装(prompt 位置/模型旗标/空模型省略)、三档指令差异、
- * 围栏剥离、超时钳制、runEnhance 四态(成功剥围栏/超时/非零退出附 stderr/空结果)。
+ * 增强引擎面契约(v2 PTY 流式):argv 组装、哨兵指令、ANSI/PTY 清洗、哨兵提取、
+ * runEnhance 全链路(spawn → 流式回调 → 日志终稿 → 杀会话 → 磁盘身份归档)、
+ * 超时杀、command not found、空结果、未知引擎不 spawn。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const procCommunicate = vi.fn();
-vi.mock("@kernel/ipc", () => ({ ipc: { procCommunicate: (spec: unknown) => procCommunicate(spec) } }));
-
-beforeEach(() => procCommunicate.mockClear());
+const ipcMocks = vi.hoisted(() => ({
+  sessionSpawn: vi.fn(),
+  sessionKill: vi.fn(async () => undefined),
+  sessionLogSize: vi.fn(async () => 0),
+  sessionHistoryPage: vi.fn(async () => ({ text: "", startOffset: 0, hasMore: false })),
+  onPtyOutput: vi.fn(),
+  onPtyExit: vi.fn(),
+}));
+vi.mock("@kernel/ipc", () => ({
+  ipc: {
+    sessionSpawn: (...a: unknown[]) => ipcMocks.sessionSpawn(...(a as [string, unknown, string?])),
+    sessionKill: ipcMocks.sessionKill,
+    sessionLogSize: ipcMocks.sessionLogSize,
+    sessionHistoryPage: ipcMocks.sessionHistoryPage,
+  },
+  onPtyOutput: ipcMocks.onPtyOutput,
+  onPtyExit: ipcMocks.onPtyExit,
+}));
+const hostMocks = vi.hoisted(() => ({ getCliProfile: vi.fn() }));
+vi.mock("@kernel/host", () => ({ host: { getCliProfile: hostMocks.getCliProfile } }));
+const archiveMocks = vi.hoisted(() => ({ archiveSession: vi.fn() }));
+vi.mock("@kernel/sessionArchive", () => ({
+  archiveSession: archiveMocks.archiveSession,
+  sessionArchiveKey: (w: string, p: string, c: string) => `${w}:${p}:${c}`,
+}));
 
 import {
   ENHANCE_ENGINES,
   buildEnhanceInstruction,
   clampTimeoutSeconds,
+  extractEnhanced,
+  normalizePtyText,
   runEnhance,
-  stripCodeFence,
+  stripAnsi,
 } from "./enhanceEngines";
+
+const outCbs = new Map<string, (text: string) => void>();
+const exitCbs = new Map<string, () => void>();
+
+beforeEach(() => {
+  outCbs.clear();
+  exitCbs.clear();
+  ipcMocks.sessionSpawn.mockReset().mockResolvedValue({ id: "pty-9", pid: 7 });
+  ipcMocks.sessionKill.mockClear();
+  ipcMocks.sessionLogSize.mockResolvedValue(100);
+  ipcMocks.sessionHistoryPage.mockResolvedValue({ text: "", startOffset: 0, hasMore: false });
+  ipcMocks.onPtyOutput.mockReset().mockImplementation(async (id: string, cb: (t: string) => void) => {
+    outCbs.set(id, cb);
+    return () => outCbs.delete(id);
+  });
+  ipcMocks.onPtyExit.mockReset().mockImplementation(async (id: string, cb: () => void) => {
+    exitCbs.set(id, cb);
+    return () => exitCbs.delete(id);
+  });
+  hostMocks.getCliProfile.mockReset().mockReturnValue(undefined);
+  archiveMocks.archiveSession.mockClear();
+});
+
+const BASE = {
+  draft: "原稿",
+  preset: "light" as const,
+  model: null,
+  cwd: "/repo",
+  workspaceId: "ws1",
+  timeoutSeconds: 60,
+  onChunk: vi.fn(),
+};
 
 describe("ENHANCE_ENGINES argv 组装", () => {
   it("8 家引擎齐备,command 与 profile id 同名", () => {
@@ -32,11 +88,10 @@ describe("ENHANCE_ENGINES argv 组装", () => {
     expect(ENHANCE_ENGINES[4].buildArgs(p, null)).toEqual(["run", p]);
   });
 
-  it("带模型:旗标按家分流(claude/omp/pi --model,其余 -m),codex 模型在 prompt 前", () => {
+  it("带模型:旗标按家分流(claude/omp/pi --model,其余 -m)", () => {
     const p = "改写我";
     expect(ENHANCE_ENGINES[0].buildArgs(p, "opus")).toEqual(["-p", p, "--model", "opus"]);
     expect(ENHANCE_ENGINES[1].buildArgs(p, "gpt-5")).toEqual(["exec", "-m", "gpt-5", p]);
-    expect(ENHANCE_ENGINES[2].buildArgs(p, "x")).toEqual(["-p", "--model", "x", p]);
     expect(ENHANCE_ENGINES[5].buildArgs(p, "k3")).toEqual(["-p", "-m", "k3", p]);
   });
 
@@ -46,34 +101,37 @@ describe("ENHANCE_ENGINES argv 组装", () => {
 });
 
 describe("buildEnhanceInstruction", () => {
-  const base = (text: string) => {
-    expect(text).toContain("不要回答请求本身");
-    expect(text).toContain("只输出改写后的提示词文本");
-    expect(text.endsWith("草稿")).toBe(true);
-  };
-
-  it("三档档位行互异且都含草稿尾", () => {
+  it("含哨兵规则与档位行,草稿原文完整保留在指令尾部", () => {
+    for (const preset of ["light", "structured", "executable"] as const) {
+      const text = buildEnhanceInstruction("草稿", preset);
+      expect(text).toContain("<ENHANCED>");
+      expect(text).toContain("不要回答请求本身");
+      expect(text.endsWith("草稿")).toBe(true);
+    }
     expect(buildEnhanceInstruction("d", "light")).toContain("只整理措辞与清晰度");
     expect(buildEnhanceInstruction("d", "structured")).toContain("简洁小节重组");
     expect(buildEnhanceInstruction("d", "executable")).toContain("最多输出 6 行短句");
-    for (const p of ["light", "structured", "executable"] as const) base(buildEnhanceInstruction("草稿", p));
-  });
-
-  it("草稿原文完整保留在指令尾部", () => {
-    const draft = "第一行\n第二行 with English";
-    expect(buildEnhanceInstruction(draft, "light").endsWith(draft)).toBe(true);
   });
 });
 
-describe("stripCodeFence", () => {
-  it("整段围栏剥内芯(含语言标注)", () => {
-    expect(stripCodeFence("```text\n改写后\n多行\n```")).toBe("改写后\n多行");
-    expect(stripCodeFence("```\nonly\n```")).toBe("only");
+describe("PTY 清洗与哨兵提取", () => {
+  it("stripAnsi 剥 OSC/CSI/控制字符,保留正文与换行", () => {
+    expect(stripAnsi("\x1b]0;title\x07OK\x1b[31m红\x1b[0m\n")).toBe("OK红\n");
+    expect(stripAnsi("a\x08b\x7fc")).toBe("abc");
   });
 
-  it("非全围栏形态原样返回", () => {
-    expect(stripCodeFence("纯Oneliner")).toBe("纯Oneliner");
-    expect(stripCodeFence("```ts\nconst a=1;\n```\n后面还有")).toBe("```ts\nconst a=1;\n```\n后面还有");
+  it("normalizePtyText 归一 CRLF/裸 CR 并压空行", () => {
+    expect(normalizePtyText("Working...\r\n\r\n\r\nOK\r\n")).toBe("Working...\n\nOK");
+  });
+
+  it("哨兵内芯优先:前后进度行/插件噪声/转义全隔离", () => {
+    const log = "\x1b[2mWorking...\r\n\x1b[0m<ENHANCED>修复报错:先复现\r\n再修</ENHANCED>\r\nExtension error (x): noise";
+    expect(extractEnhanced(log)).toBe("修复报错:先复现\n再修");
+  });
+
+  it("哨兵内芯整段围栏剥壳;哨兵缺失回退全量清洗", () => {
+    expect(extractEnhanced("```text\n<ENHANCED>答案</ENHANCED>\n```")).toBe("答案");
+    expect(extractEnhanced("Working...\n无哨兵的答案")).toBe("Working...\n无哨兵的答案");
   });
 });
 
@@ -86,40 +144,86 @@ describe("clampTimeoutSeconds", () => {
   });
 });
 
-describe("runEnhance", () => {
-  it("成功:组装指令走 procCommunicate,stdout 剥围栏返回", async () => {
-    procCommunicate.mockResolvedValueOnce({ stdout: "```\n改写结果\n```", stderr: "", code: 0, timedOut: false });
-    const out = await runEnhance({ engineId: "claude", draft: "原稿", preset: "light", model: null, cwd: "/repo", timeoutSeconds: 60 });
-    expect(out).toEqual({ ok: true, text: "改写结果" });
-    const spec = procCommunicate.mock.calls[0][0] as { command: string; args: string[]; cwd: string; closeStdin: boolean };
-    expect(spec.command).toBe("claude");
-    expect(spec.cwd).toBe("/repo");
-    expect(spec.closeStdin).toBe(true);
-    expect(spec.args[0]).toBe("-p");
-    expect(spec.args[1]).toContain("用户草稿:\n原稿");
+describe("runEnhance 全链路", () => {
+  const fullLog = (text: string) => {
+    ipcMocks.sessionLogSize.mockResolvedValue(text.length);
+    ipcMocks.sessionHistoryPage.mockResolvedValue({ text, startOffset: 0, hasMore: false });
+  };
+
+  it("spawn 带 argv spec;终稿取哨兵;流式回调给清洗文本;杀会话+归档身份", async () => {
+    fullLog("Working...\n<ENHANCED>终稿</ENHANCED>\nnoise");
+    hostMocks.getCliProfile.mockReturnValue({
+      listSessions: async () => [{ id: "disk-1", modifiedAt: Date.now() + 9_000, path: "/x" }],
+    });
+    const pending = runEnhance({ ...BASE, engineId: "omp", onChunk: BASE.onChunk });
+    await vi.waitFor(() => expect(outCbs.has("pty-9")).toBe(true));
+    outCbs.get("pty-9")!("\x1b[2mWorking...\r\n");
+    outCbs.get("pty-9")!("<ENHANCED>终");
+    outCbs.get("pty-9")!("稿</ENHANCED>");
+    expect(BASE.onChunk).toHaveBeenLastCalledWith(expect.stringContaining("Working..."));
+    exitCbs.get("pty-9")!();
+    const out = await pending;
+    expect(out).toEqual({ ok: true, text: "终稿" });
+    expect(ipcMocks.sessionSpawn).toHaveBeenCalledWith(
+      "omp",
+      expect.objectContaining({ command: "omp", cwd: "/repo" }),
+      "ws1",
+    );
+    expect(String(ipcMocks.sessionSpawn.mock.calls[0][1].args[1])).toContain("用户草稿:\n原稿");
+    await vi.waitFor(() => expect(ipcMocks.sessionKill).toHaveBeenCalledWith("pty-9"));
+    await vi.waitFor(() => expect(archiveMocks.archiveSession).toHaveBeenCalledWith("ws1:omp:disk-1"));
   });
 
-  it("超时:kind=timeout", async () => {
-    procCommunicate.mockResolvedValueOnce({ stdout: "", stderr: "", code: null, timedOut: true });
-    const out = await runEnhance({ engineId: "codex", draft: "d", preset: "light", model: null, cwd: "/r", timeoutSeconds: 5 });
-    expect(out).toEqual({ ok: false, kind: "timeout" });
+  it("日志权威于流:哨兵分块错乱也按全量日志提取", async () => {
+    fullLog("<ENHANCED>完整答案</ENHANCED>");
+    const pending = runEnhance({ ...BASE, engineId: "kimi" });
+    await vi.waitFor(() => expect(outCbs.has("pty-9")).toBe(true));
+    outCbs.get("pty-9")!("<ENHANCE");
+    exitCbs.get("pty-9")!();
+    expect(await pending).toEqual({ ok: true, text: "完整答案" });
   });
 
-  it("非零退出:kind=engine 附 stderr 首 400 字", async () => {
-    procCommunicate.mockResolvedValueOnce({ stdout: "", stderr: "boom\n", code: 1, timedOut: false });
-    const out = await runEnhance({ engineId: "kimi", draft: "d", preset: "light", model: null, cwd: "/r", timeoutSeconds: 60 });
-    expect(out).toEqual({ ok: false, kind: "engine", detail: "boom" });
+  it("command not found → engine 态附该行", async () => {
+    fullLog("zsh: command not found: grok\n");
+    const pending = runEnhance({ ...BASE, engineId: "grok" });
+    await vi.waitFor(() => expect(exitCbs.has("pty-9")).toBe(true));
+    exitCbs.get("pty-9")!();
+    const out = await pending;
+    expect(out).toEqual({ ok: false, kind: "engine", detail: "zsh: command not found: grok" });
   });
 
-  it("空结果:kind=empty", async () => {
-    procCommunicate.mockResolvedValueOnce({ stdout: "  \n", stderr: "", code: 0, timedOut: false });
-    const out = await runEnhance({ engineId: "grok", draft: "d", preset: "light", model: null, cwd: "/r", timeoutSeconds: 60 });
-    expect(out).toEqual({ ok: false, kind: "empty" });
+  it("空日志 → empty;spawn 抛错 → engine 态不炸", async () => {
+    const p1 = runEnhance({ ...BASE, engineId: "pi" });
+    await vi.waitFor(() => expect(exitCbs.has("pty-9")).toBe(true));
+    exitCbs.get("pty-9")!();
+    expect(await p1).toEqual({ ok: false, kind: "empty" });
+
+    ipcMocks.sessionSpawn.mockReset().mockRejectedValue("boom");
+    expect(await runEnhance({ ...BASE, engineId: "pi" })).toEqual({ ok: false, kind: "engine", detail: "boom" });
   });
 
   it("未知引擎:engine 态,不 spawn", async () => {
-    const out = await runEnhance({ engineId: "dsh", draft: "d", preset: "light", model: null, cwd: "/r", timeoutSeconds: 60 });
-    expect(out).toEqual({ ok: false, kind: "engine", detail: "未知引擎 dsh" });
-    expect(procCommunicate).not.toHaveBeenCalled();
+    expect(await runEnhance({ ...BASE, engineId: "dsh" })).toEqual({
+      ok: false,
+      kind: "engine",
+      detail: "未知引擎 dsh",
+    });
+    expect(ipcMocks.sessionSpawn).not.toHaveBeenCalled();
+  });
+
+  it("超时:定时杀会话,exit 后判 timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      ipcMocks.sessionLogSize.mockResolvedValue(12);
+      ipcMocks.sessionHistoryPage.mockResolvedValue({ text: "半截输出", startOffset: 0, hasMore: false });
+      const pending = runEnhance({ ...BASE, engineId: "omp", timeoutSeconds: 5 });
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(ipcMocks.sessionKill).toHaveBeenCalledWith("pty-9");
+      exitCbs.get("pty-9")!();
+      await vi.advanceTimersByTimeAsync(800);
+      expect(await pending).toEqual({ ok: false, kind: "timeout" });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

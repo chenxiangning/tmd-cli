@@ -4,7 +4,7 @@
  * 底部保留原始版本 / 使用增强版本(整替草稿经 composerReplaceRef)。
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CaretDownIcon, CaretRightIcon, PencilSimpleIcon, PlayIcon, SparkleIcon } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { DialogShell } from "@kernel/DialogShell";
@@ -35,18 +35,24 @@ function failCopy(fail: Extract<EnhanceOutcome, { ok: false }>, timeoutSeconds: 
   }
 }
 
-/** 增强右栏:状态标签 + 只读结果体(错误红字 / 等待空态),从主件拆出降复杂度。 */
+/** 增强右栏:状态标签 + 结果体(运行中 = 实时信息流并自动滚底;完成 = 哨兵终稿;错误红字)。 */
 function EnhancedPane({
   running,
+  live,
   fail,
   enhanced,
   timeoutSeconds,
 }: {
   running: boolean;
+  live: string;
   fail: Extract<EnhanceOutcome, { ok: false }> | null;
   enhanced: string;
   timeoutSeconds: number;
 }) {
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (running && taRef.current) taRef.current.scrollTop = taRef.current.scrollHeight;
+  }, [live, running]);
   return (
     <div className="flex min-w-0 flex-col">
       <div className="flex items-center gap-1 text-xs text-(--tmd-fg-muted)">
@@ -57,13 +63,16 @@ function EnhancedPane({
         </span>
       </div>
       <textarea
+        ref={taRef}
         readOnly
         aria-label={t("增强后的提示词")}
-        value={running ? "" : fail ? failCopy(fail, timeoutSeconds) : enhanced}
+        value={running ? live : fail ? failCopy(fail, timeoutSeconds) : enhanced}
         className={`mt-1.5 h-64 w-full resize-y rounded border p-2 text-xs leading-normal outline-none ${
-          fail
-            ? "border-(--tmd-border) text-[#f85149]"
-            : "border-(--tmd-accent) bg-(--tmd-bg-elevated) text-(--tmd-fg)"
+          running
+            ? "border-(--tmd-accent) bg-(--tmd-bg-elevated) font-mono text-(--tmd-fg-muted)"
+            : fail
+              ? "border-(--tmd-border) text-[#f85149]"
+              : "border-(--tmd-accent) bg-(--tmd-bg-elevated) text-(--tmd-fg)"
         }`}
       />
     </div>
@@ -72,10 +81,12 @@ function EnhancedPane({
 
 export function EnhanceDialog({
   cwd,
+  workspaceId,
   initialDraft,
   onClose,
 }: {
   cwd: string;
+  workspaceId: string | null;
   initialDraft: string;
   onClose: () => void;
 }) {
@@ -83,6 +94,7 @@ export function EnhanceDialog({
   const [preset, setPreset] = useState<EnhancePreset>("light");
   const [original, setOriginal] = useState(initialDraft);
   const [enhanced, setEnhanced] = useState("");
+  const [live, setLive] = useState("");
   const [running, setRunning] = useState(false);
   const [fail, setFail] = useState<Extract<EnhanceOutcome, { ok: false }> | null>(null);
   const [timeoutSeconds, setTimeoutSeconds] = useState(60);
@@ -95,13 +107,16 @@ export function EnhanceDialog({
     setRunning(true);
     setFail(null);
     setEnhanced("");
+    setLive("");
     const out = await runEnhance({
       engineId,
       draft: original,
       preset,
       model: model.trim() || null,
       cwd,
+      workspaceId,
       timeoutSeconds,
+      onChunk: setLive,
     });
     setRunning(false);
     if (out.ok) setEnhanced(out.text);
@@ -231,6 +246,7 @@ export function EnhanceDialog({
         </div>
         <EnhancedPane
           running={running}
+          live={live}
           fail={fail}
           enhanced={enhanced}
           timeoutSeconds={clampTimeoutSeconds(timeoutSeconds)}

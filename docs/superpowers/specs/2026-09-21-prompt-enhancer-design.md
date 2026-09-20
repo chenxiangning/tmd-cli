@@ -22,6 +22,19 @@ composer 左下 inputRail 现有三个图标(assets 唤醒双图标 + 平铺广�
 
 错误文案分类(超时 / 空结果 / 非零退出附 stderr)移植 mossx 的 kind 思路但收敛为三态字符串,不建错误类。
 
+## 修订 v2(2026-09-21 当日,大仙反馈)
+
+空档期体验 + 会话残留两项:
+
+| 决策点 | 选定 | 被否决 | 理由 |
+|---|---|---|---|
+| 实时信息流 | `session_spawn` 起 PTY 跑一次性 CLI,`pty://out` 流式喂右栏(ANSI 剥离 + 自动滚底) | `proc_communicate` 一次性收割(无流)/ 新增 Rust 流式命令 | 原语全现成,零 Rust 改动;进度行与内容实时可见 |
+| 终稿提取 | 指令加哨兵:改写结果包 `<ENHANCED>…</ENHANCED>`,结束后读落盘日志全量、取哨兵内芯 | 直接用流式缓冲(PTY 合流 stderr/进度行/CLI 插件噪声污染终稿)/ 双跑一次干净收割(双倍额度) | TTY 实测(script -q)omp 输出 Working... + 答案 + 插件噪声行,哨兵整段隔离;日志权威于订阅流(早期输出不丢);哨兵缺失回退全量清洗文本 |
+| 会话归档 | 结束(含超时杀)后 `sessionKill` 收尾,`profile.listSessions(cwd)` 按 mtime ≥ 启动时刻定位磁盘身份,`archiveSession` 直进归档 | 留在默认视图 | 大仙明示:增强会话不占默认视图 |
+
+权限:`ipc.exec` → `ipc.terminal` + `settings.write`(sessionSpawn/Kill/HistoryPage + 归档落 settings)。
+
+
 ## 验证
 
 - 门禁:`pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build`
