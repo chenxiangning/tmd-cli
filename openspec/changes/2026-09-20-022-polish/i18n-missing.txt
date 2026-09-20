@@ -1,0 +1,383 @@
+MISS-EN+JA	(尚无主机,点右侧手动添加)	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	(无子目录)	src/plugins/wsl/AddWslTab.tsx
+MISS-EN+JA	(点击展开)	src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	(点击收起)	src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	(空目录)	src/plugins/wsl/WorkspaceDialog.tsx src/plugins/wsl/DistroPanel.tsx
+MISS-EN+JA	7 日	src/plugins/welcome/TokenDashboard.tsx
+MISS-EN+JA	API Key	src/plugins/cli-omp/OmpKeyDialog.tsx src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	API Key(可空;建议 $ENV_VAR 引用)	src/plugins/cli-omp/OmpCustomProviderDialog.tsx
+MISS-EN+JA	API 地址	src/plugins/cli-omp/OmpCustomProviderDialog.tsx src/plugins/cli-shared/providerChannels/ChannelDialog.tsx
+MISS-EN+JA	Account ID 在 Dashboard 右侧栏(Workers 页)或任意域名 Overview 右下角;用 cfat_ 账户令牌时必填	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	Account ID(可选,cfat_ 账户令牌必填)	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	Account Resources 选你的账号 → Continue → Create Token → 复制粘贴到下面	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	CLI 主题	src/plugins/cli-pi/configGui.ts
+MISS-EN+JA	CLI 独立配置	src/plugins/cli-config/index.tsx
+MISS-EN+JA	Cloudflare API Token (My Profile → API Tokens)	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	Cloudflare API Token 怎么申请?	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	GitHub 仓库	src/plugins/welcome/WelcomeTbar.tsx
+MISS-EN+JA	Linux 目录	src/plugins/wsl/WorkspaceDialog.tsx
+MISS-EN+JA	OAuth 登录	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	OAuth 登录,token 自动刷新,由 omp CLI 存储	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	SSH 进入	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	WSL 工作区以 \\wsl.localhost 路径登记;引擎会话在该目录内以 wsl.exe 包装启动(幕布/工作区行为与本地一致)。	src/plugins/wsl/WslCard.tsx
+MISS-EN+JA	cc-switch 没有 {engine} 的渠道	src/plugins/cli-shared/providerChannels/ProviderChannelsCard.tsx
+MISS-EN+JA	config.toml 的 [model_providers] / [projects] / [mcp_servers] 等段由 Codex 自管理;GUI 只编辑顶层平面键,保存为行级补丁,未知段落与注释原样保留。	src/plugins/cli-codex/configGui.ts
+MISS-EN+JA	models.yml 原文	src/plugins/cli-omp/OmpModelsConfigSection.tsx
+MISS-EN+JA	pi 系费用	src/plugins/welcome/TokenDashboard.tsx
+MISS-EN+JA	prewalk	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	settings.json 顶层必须是对象	src/plugins/cli-claude/configGui.ts
+MISS-EN+JA	ttsr 打断模式	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	{base} · 重置于 {at}({relative})	src/plugins/welcome/CredentialList.tsx
+MISS-EN+JA	{distro} 内未检出任何引擎	src/plugins/wsl/contributions.ts
+MISS-EN+JA	{f} 个文件变更(+{i} -{d})	src/plugins/git/views/remoteDialogs/remoteReport.ts
+MISS-EN+JA	{label}失败,日志见上方	src/plugins/welcome/InstallLog.tsx
+MISS-EN+JA	{label}完成	src/plugins/welcome/InstallLog.tsx
+MISS-EN+JA	{label}窗口 · 已使用 {pct}%	src/plugins/welcome/CredentialList.tsx
+MISS-EN+JA	{minutes} 分钟	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	{m}月{d}日	src/plugins/welcome/CredentialList.tsx
+MISS-EN+JA	{name} 安装	src/plugins/welcome/PrerequisiteGuide.tsx
+MISS-EN+JA	{name} 官网	src/plugins/welcome/PrerequisiteGuide.tsx
+MISS-EN+JA	{n} 个模型	src/plugins/cli-omp/OmpModelsConfigSection.tsx
+MISS-EN+JA	{op}成功:{files}。	src/plugins/git/views/remoteDialogs/remoteReport.ts
+MISS-EN+JA	{op}成功:合入 {c} 个提交,{files}。	src/plugins/git/views/remoteDialogs/remoteReport.ts
+MISS-EN+JA	{op}成功:已推送 {n} 个提交。	src/plugins/git/views/remoteDialogs/remoteReport.ts
+MISS-EN+JA	{op}成功:已是最新。	src/plugins/git/views/remoteDialogs/remoteReport.ts
+MISS-EN+JA	{op}成功:更新 {n} 个远端引用。	src/plugins/git/views/remoteDialogs/remoteReport.ts
+MISS-EN+JA	{op}成功:远端已是最新。	src/plugins/git/views/remoteDialogs/remoteReport.ts
+MISS-EN+JA	{op}成功:远端引用已是最新。	src/plugins/git/views/remoteDialogs/remoteReport.ts
+MISS-EN+JA	↑↓ 选引擎 · ⏎ 以所选工作区启动新会话 · 点击 ● 展开凭据额度	src/plugins/welcome/WelcomeTbar.tsx
+MISS-EN+JA	● 未保存的更改	src/plugins/cli-config/ConfigForm.tsx src/plugins/cli-config/CliConfigTab.tsx
+MISS-EN+JA	「SSH 进入」以该目录为【启动目录】(--cd);逐级进入,点选即生效。	src/plugins/wsl/DistroPanel.tsx
+MISS-EN+JA	【SSH 进入】直进所选发行版终端(未展开用默认),引擎/目录在发行版面板里选;【添加 WSL 工作区】把目录登记进侧栏,会话自动走【SSH】。	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	【点选】检出的引擎行,「SSH 进入」即以该【CLI】启动;不选则进【交互 shell】。	src/plugins/wsl/DistroPanel.tsx
+MISS-EN+JA	七组色相/深度组合，随明暗主题各出一套配色。	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	上一级	src/plugins/wsl/WorkspaceDialog.tsx src/plugins/wsl/AddWslTab.tsx
+MISS-EN+JA	不转发中继地址或密钥	src/plugins/web-access/WebWanRiskDialog.tsx
+MISS-EN+JA	个发行版	src/plugins/wsl/WslCard.tsx
+MISS-EN+JA	中继 Worker URL(如 https://tmd-relay.<sub>.workers.dev)	src/plugins/web-access/WebRelayCard.tsx
+MISS-EN+JA	中继密钥(留空则导出时铸随机 key 烧入包内)	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	中继密钥(部署时自动铸造,或自行设强密码)	src/plugins/web-access/WebRelayCard.tsx
+MISS-EN+JA	中继跑在你自己的 Cloudflare 账号(免费额度足够)。API Token 仅本次部署使用,不保存。	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	仅计发行版内安装(登录 shell PATH,含 ~/.local/bin);/mnt/*(Windows 互操作)路径不计	src/plugins/wsl/DistroPanel.tsx
+MISS-EN+JA	今日	src/plugins/welcome/TokenDashboard.tsx
+MISS-EN+JA	从图库隐藏(不删文件)	src/plugins/wallpaper/WallpaperPicker.tsx
+MISS-EN+JA	代理地址	src/plugins/ssh/settings/HostModal.tsx
+MISS-EN+JA	代理端口	src/plugins/ssh/settings/HostModal.tsx
+MISS-EN+JA	代理类型	src/plugins/ssh/settings/HostModal.tsx
+MISS-EN+JA	作用域筛选	src/plugins/assets/view/PromptTab.tsx
+MISS-EN+JA	使用流程	src/plugins/web-access/WebWanPane.tsx
+MISS-EN+JA	供应商	src/plugins/cli-config/ModelPicker.tsx
+MISS-EN+JA	供应商渠道	src/plugins/cli-shared/providerChannels/ProviderChannelsCard.tsx
+MISS-EN+JA	供应商认证	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	依赖 {name} 运行时 —— 先安装 {name},再安装/更新本引擎	src/plugins/welcome/PrerequisiteGuide.tsx
+MISS-EN+JA	保存中继部署包	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	保存到磁盘	src/plugins/cli-config/ConfigForm.tsx src/plugins/cli-config/CliConfigTab.tsx
+MISS-EN+JA	保存并选择	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	候选	src/plugins/cli-config/FieldControls.tsx
+MISS-EN+JA	值	src/plugins/cli-config/FieldControls.tsx
+MISS-EN+JA	先安装 {name}	src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	免 key	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	全局思考强度	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	全局配置	src/plugins/cli-pi/configGui.ts src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	兰紫	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	共 {n} 条	src/kernel/i18n.ts
+MISS-EN+JA	内网 Web 访问	src/plugins/web-access/WebAccessSection.tsx
+MISS-EN+JA	写入 ~/.omp/agent/agent.db · 优先级高于环境变量	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	写入 ~/.omp/agent/models.yml · 中转站 / 自定义模型	src/plugins/cli-omp/OmpModelsConfigSection.tsx
+MISS-EN+JA	凭据与额度{arrow}	src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	凭据缺失	src/plugins/welcome/credentialsEngines.ts
+MISS-EN+JA	删除失败:写入磁盘未成功	src/plugins/assets/view/AgentTab.tsx
+MISS-EN+JA	删除此条历史记录	src/plugins/settings/PromptHistoryManager.tsx
+MISS-EN+JA	刷新首页数据	src/plugins/welcome/WelcomeTbar.tsx
+MISS-EN+JA	前置依赖 {name} 探针失败	src/plugins/welcome/PrerequisiteGuide.tsx
+MISS-EN+JA	加在壁纸本身（非界面毛玻璃），0 = 清晰。	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	加载版本列表…	src/plugins/welcome/VersionMenu.tsx
+MISS-EN+JA	协议	src/plugins/cli-omp/OmpCustomProviderDialog.tsx
+MISS-EN+JA	历史输入补全	src/plugins/settings/BehaviorTab.tsx
+MISS-EN+JA	压暗壁纸提升界面文字对比。	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	压暗流体背景，提升界面文字对比。	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	原始编辑	src/plugins/cli-config/CliConfigTab.tsx
+MISS-EN+JA	发行版	src/plugins/wsl/WorkspaceDialog.tsx src/plugins/wsl/AddWslTab.tsx
+MISS-EN+JA	取消收藏该版本	src/plugins/welcome/VersionMenu.tsx
+MISS-EN+JA	可用	src/plugins/wsl/DistroPanel.tsx src/plugins/settings/OpenWithTab.tsx
+MISS-EN+JA	同一 Wi-Fi 下的手机/平板浏览器打开下方地址即可访问本机会话。地址含一次性 token,每次启动都会重新生成,不要转发给他人。	src/plugins/web-access/WebAccessSection.tsx
+MISS-EN+JA	同名渠道已存在:{name}	src/plugins/cli-shared/providerChannels/ProviderChannelsCard.tsx
+MISS-EN+JA	名称含非法字符、同作用域重复,或写入磁盘失败	src/plugins/assets/view/PromptTab.tsx
+MISS-EN+JA	名称已存在,或写入磁盘失败	src/plugins/assets/view/AgentTab.tsx
+MISS-EN+JA	含 Key	src/plugins/cli-omp/OmpModelsConfigSection.tsx
+MISS-EN+JA	命令与技能	src/plugins/composer/view/ComposerToolbar.tsx
+MISS-EN+JA	回退链	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	图库	src/plugins/wallpaper/index.tsx
+MISS-EN+JA	图库({count})	src/plugins/wallpaper/WallpaperPicker.tsx
+MISS-EN+JA	图库为空,点「导入图片」选择本地图片。	src/plugins/wallpaper/WallpaperPicker.tsx
+MISS-EN+JA	图库可见项达到 2 张后可开启。	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	图形化编辑各 CLI 的本地配置文件 —— 不用记命令、不用手改磁盘文件;保存即写回原文件,未知内容原样保留。	src/plugins/cli-config/index.tsx
+MISS-EN+JA	图片	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	地址	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	填充	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	填充=拉伸铺满；居中=原尺寸不缩放。	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	墨蓝	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	壁纸	src/plugins/wallpaper/index.tsx
+MISS-EN+JA	壁纸暗化	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	壁纸模糊	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	复制地址	src/plugins/web-access/WebAccessSection.tsx
+MISS-EN+JA	外网访问:请先了解风险	src/plugins/web-access/WebWanRiskDialog.tsx
+MISS-EN+JA	太极	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	套餐水位	src/plugins/welcome/WelcomeFooter.tsx
+MISS-EN+JA	安全扫描	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	安全约定:	src/plugins/web-access/WebWanRiskDialog.tsx
+MISS-EN+JA	安装	src/plugins/cli-omp/marketCards.tsx src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	安装 {name}	src/plugins/welcome/PrerequisiteGuide.tsx src/plugins/welcome/VersionMenu.tsx
+MISS-EN+JA	安装指定版本(回退/收藏)	src/plugins/welcome/VersionMenu.tsx
+MISS-EN+JA	官方文档	src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	宿主未检测到 WSL 发行版(未安装或 wsl.exe 不在 PATH)。	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	密钥	src/kernel/SecretInput.tsx
+MISS-EN+JA	密钥即唯一凭据,持有者与本机等权	src/plugins/web-access/WebWanRiskDialog.tsx
+MISS-EN+JA	导入 ccswitch	src/plugins/cli-shared/providerChannels/ProviderChannelsCard.tsx
+MISS-EN+JA	导入图片	src/plugins/wallpaper/WallpaperPicker.tsx
+MISS-EN+JA	导出部署包	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	尚无引擎贡献配置面。	src/plugins/cli-config/CliConfigTab.tsx
+MISS-EN+JA	尚未选择；导入并点选一张图片后生效。	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	居中	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	工作区 root 不是 WSL UNC 路径	src/plugins/wsl/index.tsx
+MISS-EN+JA	工作区外({n}) —— 首轮批前像不可知,禁回退;次轮起可正常回退	src/plugins/checkpoints/BatchFileSection.tsx
+MISS-EN+JA	工作区外文件,首轮批前像不可知 —— 禁回退(防误删既有文件);次轮起可正常回退	src/plugins/checkpoints/BatchRowParts.tsx src/plugins/checkpoints/BatchFileSection.tsx
+MISS-EN+JA	工作区来源	src/plugins/workspace/WorkspaceAddDialog.tsx
+MISS-EN+JA	工作区根(UNC)	src/plugins/wsl/WorkspaceDialog.tsx
+MISS-EN+JA	工作区背景	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	工作区背景壁纸：本地图库与效果。	src/plugins/wallpaper/index.tsx
+MISS-EN+JA	工作区背景：流体着色器与本地图库壁纸	src/plugins/wallpaper/index.tsx
+MISS-EN+JA	工作区视图	src/plugins/workspace/index.tsx
+MISS-EN+JA	已保存 {id} 的 API Key	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	已保存到磁盘(首次写入前已留 .bak-tmd 备份)	src/plugins/cli-config/ConfigForm.tsx
+MISS-EN+JA	已停止	src/plugins/wsl/WorkspaceDialog.tsx src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	已关闭	src/plugins/web-access/WebAccessSection.tsx
+MISS-EN+JA	已切换:{name}	src/plugins/cli-shared/providerChannels/ProviderChannelsCard.tsx
+MISS-EN+JA	已删除 {id} 的 API Key	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	已在内置终端打开 {name} 的登录流程,完成后回到此处查看状态	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	已安装	src/plugins/cli-omp/marketCards.tsx src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	已导入 cc-switch:新增 {added},更新 {updated},跳过 {skipped}	src/plugins/cli-shared/providerChannels/ProviderChannelsCard.tsx
+MISS-EN+JA	已导出部署包:	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	已开启	src/plugins/web-access/WebAccessSection.tsx
+MISS-EN+JA	已授权	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	已添加	src/plugins/settings/OpenWithTab.tsx
+MISS-EN+JA	已熔断	src/plugins/local-loader/LocalSection.tsx
+MISS-EN+JA	已登录	src/plugins/welcome/CredentialList.tsx src/plugins/welcome/credentialsEngines.ts
+MISS-EN+JA	已登录(ChatGPT 订阅)	src/plugins/welcome/credentialsEngines.ts
+MISS-EN+JA	已登录;官方订阅额度请在 CLI 内 /usage 查看	src/plugins/welcome/credentialsEngines.ts
+MISS-EN+JA	已配置	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	已隐藏({count})	src/plugins/wallpaper/WallpaperPicker.tsx
+MISS-EN+JA	应用	src/kernel/openWith.ts
+MISS-EN+JA	开 Cloudflare Dashboard → 右上角头像 → My Profile → 左侧 API Tokens → Create Token	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	开启后,任何知道你中继地址和密钥的人都能读写文件、运行终端命令、消耗 API 额度 —— 权限与本机完全相同。	src/plugins/web-access/WebWanRiskDialog.tsx
+MISS-EN+JA	引擎	src/plugins/cli-config/index.tsx src/plugins/cli-config/CliConfigTab.tsx
+MISS-EN+JA	引擎探针	src/plugins/wsl/DistroPanel.tsx
+MISS-EN+JA	引擎选择器	src/plugins/welcome/WelcomePage.tsx src/plugins/welcome/WelcomeTbar.tsx
+MISS-EN+JA	强度	src/plugins/cli-config/ModelPicker.tsx
+MISS-EN+JA	当前为 Web 只读视图:中继的部署/连接/断开只能在桌面端操作。	src/plugins/web-access/WebWanPane.tsx
+MISS-EN+JA	当前值	src/plugins/cli-config/ModelPicker.tsx
+MISS-EN+JA	当前壁纸	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	当前正通过 Web 访问查看(权限与本机相同)	src/plugins/web-access/WebAccessSection.tsx
+MISS-EN+JA	当前正通过中继查看(权限与本机相同)	src/plugins/web-access/WebRelayCard.tsx
+MISS-EN+JA	当前版本	src/plugins/welcome/VersionMenu.tsx
+MISS-EN+JA	恢复到图库	src/plugins/wallpaper/WallpaperPicker.tsx
+MISS-EN+JA	我已了解并自行承担风险	src/plugins/web-access/WebWanRiskDialog.tsx
+MISS-EN+JA	手动添加主机	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	手机在外网经中继访问本机;中继只认 key 搬字节,桥内仍走 token/设备授权。	src/plugins/web-access/WebRelayCard.tsx
+MISS-EN+JA	打开	src/plugins/files/OpenWithMenu.tsx
+MISS-EN+JA	按间隔在图库可见项间轮流切换。	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	探测中	src/plugins/settings/OpenWithTab.tsx
+MISS-EN+JA	探针中…	src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	探针前置依赖 {name}…	src/plugins/welcome/PrerequisiteGuide.tsx
+MISS-EN+JA	探针失败	src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	搜索…	src/kernel/StyledSelect.tsx
+MISS-EN+JA	撞墙自动回退	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	收藏	src/plugins/welcome/VersionMenu.tsx
+MISS-EN+JA	收藏该版本	src/plugins/welcome/VersionMenu.tsx
+MISS-EN+JA	放弃	src/plugins/cli-config/ConfigForm.tsx src/plugins/cli-config/CliConfigTab.tsx
+MISS-EN+JA	数据源 = 本地会话记录,仅统计近 7 日	src/plugins/welcome/TokenDashboard.tsx
+MISS-EN+JA	文件底部工具条右侧用默认应用直开;菜单里选择即设为默认并打开。	src/plugins/settings/OpenWithTab.tsx
+MISS-EN+JA	断开	src/plugins/web-access/WebRelayCard.tsx
+MISS-EN+JA	新会话	src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	新会话的工作区	src/plugins/welcome/WelcomePage.tsx
+MISS-EN+JA	新建 WSL 会话	src/plugins/wsl/contributions.ts
+MISS-EN+JA	无 Key	src/plugins/cli-omp/OmpModelsConfigSection.tsx
+MISS-EN+JA	无前像	src/plugins/checkpoints/BatchRowParts.tsx src/plugins/checkpoints/BatchFileSection.tsx
+MISS-EN+JA	无匹配项	src/kernel/StyledSelect.tsx
+MISS-EN+JA	无已登录供应商	src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	无法解析配置文件	src/plugins/cli-config/CliConfigTab.tsx
+MISS-EN+JA	无法读取配置文件	src/plugins/cli-config/CliConfigTab.tsx
+MISS-EN+JA	无法预览	src/plugins/wallpaper/WallpaperPicker.tsx
+MISS-EN+JA	显示	src/kernel/SecretInput.tsx
+MISS-EN+JA	显示全部 37 个供应商	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	显示全部发行版	src/plugins/wsl/WslCard.tsx
+MISS-EN+JA	暂不支持该供应商	src/plugins/welcome/credentialsEngines.ts
+MISS-EN+JA	暂无历史会话	src/plugins/welcome/WelcomeFooter.tsx
+MISS-EN+JA	暂无历史记录	src/plugins/settings/PromptHistoryManager.tsx
+MISS-EN+JA	暂无可查询的套餐额度	src/plugins/welcome/WelcomeFooter.tsx
+MISS-EN+JA	暮色	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	更新到 {version}	src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	最新版本	src/plugins/welcome/VersionMenu.tsx
+MISS-EN+JA	最新版本 {version},点"更新"升级	src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	有浏览器客户端正通过 Web 访问控制本机	src/plugins/web-access/RemoteControlBadge.tsx
+MISS-EN+JA	未创建	src/plugins/cli-config/CliConfigTab.tsx
+MISS-EN+JA	未授权	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	未探测 {distro} 引擎;打开 WSL 面板点「连接」后可新建会话	src/plugins/wsl/contributions.ts
+MISS-EN+JA	未检出	src/plugins/wsl/DistroPanel.tsx
+MISS-EN+JA	未检测到 cc-switch 数据(本机没有 ~/.cc-switch/)	src/plugins/cli-shared/providerChannels/ProviderChannelsCard.tsx
+MISS-EN+JA	未能解析当前版本	src/plugins/welcome/VersionMenu.tsx
+MISS-EN+JA	未连接	src/plugins/web-access/relayStatusModel.ts
+MISS-EN+JA	未选择	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	未配置	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	本地目录	src/plugins/workspace/WorkspaceAddDialog.tsx
+MISS-EN+JA	本机未检测到 WSL;打开 WSL 面板配置远程主机后在此导入。	src/plugins/wsl/AddWslTab.tsx
+MISS-EN+JA	极光	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	查看已隐藏	src/plugins/wallpaper/WallpaperPicker.tsx
+MISS-EN+JA	查看标记	src/plugins/files/markdown/previewMarks.tsx
+MISS-EN+JA	标记此块,随下次发送带上	src/plugins/files/markdown/previewMarks.tsx
+MISS-EN+JA	桌面重启后密钥自动重铸,旧链接即失效	src/plugins/web-access/WebWanRiskDialog.tsx
+MISS-EN+JA	检查点	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	模型(一行一个 id;高级字段用「编辑配置」)	src/plugins/cli-omp/OmpCustomProviderDialog.tsx
+MISS-EN+JA	模型(可选)	src/plugins/cli-shared/providerChannels/ChannelDialog.tsx
+MISS-EN+JA	模型角色路由	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	模板选 Edit Cloudflare Workers(或 Custom:Account 权限勾 Workers Scripts:Edit + Account Settings:Read)	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	正在{op}…	src/plugins/git/GitPanelMain.tsx
+MISS-EN+JA	正在安装 {name}…	src/plugins/welcome/PrerequisiteGuide.tsx
+MISS-EN+JA	水平翻转	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	没有匹配的供应商	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	没有已隐藏的壁纸。	src/plugins/wallpaper/WallpaperPicker.tsx
+MISS-EN+JA	流体	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	流体着色器动态背景，或本地图库壁纸；界面各栏随之变为半透明磨砂。	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	流体运动	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	流体预设	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	流式工具摘要(ttsr)	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	浏览…选择应用	src/plugins/settings/OpenWithTab.tsx
+MISS-EN+JA	浏览目录	src/plugins/wsl/WorkspaceDialog.tsx src/plugins/wsl/AddWslTab.tsx
+MISS-EN+JA	消耗会话	src/plugins/welcome/TokenDashboard.tsx
+MISS-EN+JA	添加	src/plugins/wsl/WorkspaceDialog.tsx src/plugins/wsl/AddWslTab.tsx
+MISS-EN+JA	添加 WSL 工作区	src/plugins/wsl/WorkspaceDialog.tsx src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	添加供应商	src/plugins/cli-omp/OmpModelsConfigSection.tsx src/plugins/cli-omp/OmpCustomProviderDialog.tsx
+MISS-EN+JA	添加候选	src/plugins/cli-config/ChainPicker.tsx src/plugins/cli-config/FieldControls.tsx
+MISS-EN+JA	添加后 root 为远程 Linux 路径;会话经 WSL 卡或侧栏打开(SSH 包装)。	src/plugins/wsl/AddWslTab.tsx
+MISS-EN+JA	添加后以 \\wsl.localhost UNC 登记为本机 WSL 工作区。	src/plugins/wsl/AddWslTab.tsx
+MISS-EN+JA	添加打开方式	src/plugins/settings/OpenWithTab.tsx
+MISS-EN+JA	添加渠道	src/plugins/cli-shared/providerChannels/ChannelDialog.tsx src/plugins/cli-shared/providerChannels/ProviderChannelsCard.tsx
+MISS-EN+JA	清空全部	src/plugins/settings/PromptHistoryManager.tsx
+MISS-EN+JA	清空全部输入历史	src/plugins/settings/PromptHistoryManager.tsx
+MISS-EN+JA	游龙	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	漂移	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	漂移=域扭曲流场；太极/风暴/龙卷/游龙为独立着色程序。	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	灰烬	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	点【连接】探测远程【发行版】与已装【引擎】,自动展开发行版面板。	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	点击右上角「添加渠道」创建	src/plugins/cli-shared/providerChannels/ProviderChannelsCard.tsx
+MISS-EN+JA	点击行即切换 · 对新会话生效	src/plugins/cli-shared/providerChannels/ProviderChannelsCard.tsx
+MISS-EN+JA	点击重新探测	src/plugins/settings/OpenWithTab.tsx
+MISS-EN+JA	烬红	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	版本	src/plugins/welcome/VersionMenu.tsx
+MISS-EN+JA	用	src/plugins/files/OpenWithMenu.tsx
+MISS-EN+JA	用完即断开中继	src/plugins/web-access/WebWanRiskDialog.tsx
+MISS-EN+JA	用户	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	用量	src/plugins/welcome/TokenDashboard.tsx
+MISS-EN+JA	用量数据加载失败	src/plugins/welcome/TokenDashboard.tsx
+MISS-EN+JA	登录	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	直达:Cloudflare API Tokens 页面	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	确认删除	src/plugins/cli-omp/OmpProviderAuthPanel.tsx src/plugins/cli-shared/providerChannels/ChannelRow.tsx
+MISS-EN+JA	确认清空?	src/plugins/settings/PromptHistoryManager.tsx
+MISS-EN+JA	移入废纸篓并从图库移除	src/plugins/wallpaper/WallpaperPicker.tsx
+MISS-EN+JA	移动失败:目标作用域重名或写入失败	src/plugins/assets/view/PromptTab.tsx
+MISS-EN+JA	移除 {name}	src/plugins/composer/view/AttachmentStrip.tsx
+MISS-EN+JA	立即部署	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	符号风格	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	筛选供应商…	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	管理历史记录	src/plugins/settings/PromptHistoryManager.tsx
+MISS-EN+JA	经 SSH 连接远程宿主	src/plugins/wsl/WslCard.tsx
+MISS-EN+JA	续作	src/plugins/welcome/WelcomeFooter.tsx
+MISS-EN+JA	编辑 models.yml	src/plugins/cli-omp/OmpModelsConfigSection.tsx
+MISS-EN+JA	编辑渠道	src/plugins/cli-shared/providerChannels/ChannelDialog.tsx
+MISS-EN+JA	编辑配置	src/plugins/cli-omp/OmpModelsConfigSection.tsx
+MISS-EN+JA	网络搜索链	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	背景暗化	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	自动刷新	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	自动压缩历史	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	自动换行	src/plugins/git/views/DiffModeToggle.tsx
+MISS-EN+JA	自动轮播	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	自定义供应商	src/plugins/cli-omp/OmpModelsConfigSection.tsx
+MISS-EN+JA	获取版本列表失败	src/plugins/welcome/VersionMenu.tsx
+MISS-EN+JA	薄雾	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	订阅授权	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	记忆后端	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	设为默认	src/plugins/settings/OpenWithTab.tsx
+MISS-EN+JA	设置 Key	src/plugins/cli-omp/OmpProviderAuthPanel.tsx
+MISS-EN+JA	设置 Key — {name}	src/plugins/cli-omp/OmpKeyDialog.tsx
+MISS-EN+JA	设默认	src/plugins/wsl/WslCard.tsx
+MISS-EN+JA	访达	src/kernel/openWith.ts
+MISS-EN+JA	评论内容	src/plugins/git/views/remoteDialogs/createPrDialogParts.tsx
+MISS-EN+JA	该主机已存在(同地址/端口/用户名),请在下拉中选择	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	该类型暂不支持远程预览(M1):请经终端会话操作。	src/plugins/files/FileTabContent.tsx
+MISS-EN+JA	说明	src/plugins/cli-config/ConfigForm.tsx
+MISS-EN+JA	说明(可选)	src/plugins/cli-shared/providerChannels/ChannelDialog.tsx
+MISS-EN+JA	读取渠道…	src/plugins/cli-shared/providerChannels/ProviderChannelsCard.tsx
+MISS-EN+JA	读取配置…	src/plugins/cli-config/CliConfigTab.tsx
+MISS-EN+JA	读取配置清单…	src/plugins/cli-config/CliConfigTab.tsx
+MISS-EN+JA	起始目录	src/plugins/wsl/DistroPanel.tsx
+MISS-EN+JA	轮播间隔	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	输入+缓存	src/plugins/welcome/TokenDashboard.tsx
+MISS-EN+JA	输入时按 Tab 接受历史补全建议;输入框为空时按 ↑↓ 翻阅历史。	src/plugins/settings/BehaviorTab.tsx
+MISS-EN+JA	输出	src/plugins/welcome/TokenDashboard.tsx
+MISS-EN+JA	近 7 日无消费	src/plugins/welcome/TokenDashboard.tsx
+MISS-EN+JA	返回 GUI	src/plugins/cli-config/CliConfigTab.tsx
+MISS-EN+JA	返回图库	src/plugins/wallpaper/WallpaperPicker.tsx
+MISS-EN+JA	还没有自定义供应商,点右上角「编辑配置」添加	src/plugins/cli-omp/OmpModelsConfigSection.tsx
+MISS-EN+JA	还没有自定义渠道	src/plugins/cli-shared/providerChannels/ProviderChannelsCard.tsx
+MISS-EN+JA	远程	src/plugins/composer/view/ComposerToolbar.tsx
+MISS-EN+JA	远程 WSL 宿主	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	远程主机	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	远程主机配置已删除,无法浏览文件;请重新选择远程宿主。	src/plugins/wsl/contributions.ts
+MISS-EN+JA	远程主机配置已删除,无法读取文件	src/plugins/wsl/contributions.ts
+MISS-EN+JA	远程宿主未检测到 WSL 发行版。	src/plugins/wsl/AddWslTab.tsx
+MISS-EN+JA	远程控制中	src/plugins/web-access/RemoteControlBadge.tsx
+MISS-EN+JA	远程文件	src/plugins/files/FileTabContent.tsx
+MISS-EN+JA	远程文件暂不支持写入(M1)	src/plugins/files/editor/useFileDocument.ts
+MISS-EN+JA	远程文件暂不支持在文件树新建(M1):请经终端会话操作	src/plugins/files/FileTreeRemote.tsx
+MISS-EN+JA	远程文件超过 512KB,暂不支持预览(M1)	src/plugins/wsl/contributions.ts
+MISS-EN+JA	连接	src/plugins/wsl/RemoteSection.tsx
+MISS-EN+JA	连接中…	src/plugins/wsl/RemoteSection.tsx src/plugins/web-access/WebRelayCard.tsx
+MISS-EN+JA	连接中继	src/plugins/web-access/WebRelayCard.tsx
+MISS-EN+JA	适应	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	选中 {bin} 作为会话引擎	src/plugins/wsl/DistroPanel.tsx
+MISS-EN+JA	选择 {path}	src/plugins/git/views/DiffView.tsx
+MISS-EN+JA	选择一个本机目录作为工作区根。	src/plugins/workspace/WorkspaceAddDialog.tsx
+MISS-EN+JA	选择壁纸	src/plugins/wallpaper/WallpaperImageRows.tsx src/plugins/wallpaper/WallpaperPicker.tsx
+MISS-EN+JA	选择壁纸图片	src/plugins/wallpaper/WallpaperPicker.tsx
+MISS-EN+JA	选择打开方式	src/plugins/files/OpenWithMenu.tsx
+MISS-EN+JA	选择目录…	src/plugins/workspace/WorkspaceAddDialog.tsx
+MISS-EN+JA	选择目录失败(权限被拒或已取消)。	src/plugins/workspace/WorkspaceAddDialog.tsx
+MISS-EN+JA	选这一层	src/plugins/wsl/WorkspaceDialog.tsx
+MISS-EN+JA	逐日	src/plugins/session-board/DayPanel.tsx
+MISS-EN+JA	部署中…	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	部署中继(自有 Cloudflare 账号)	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	部署完成:	src/plugins/web-access/WebRelayDeployCard.tsx
+MISS-EN+JA	配置文件不是 JSON 对象	src/plugins/cli-pi/configGui.ts
+MISS-EN+JA	重命名 {name}	src/plugins/workspace/GroupSettingsTab.tsx
+MISS-EN+JA	重新安装/更新到最新版	src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	重新探针	src/plugins/welcome/PrerequisiteGuide.tsx src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	重新探针前置依赖	src/plugins/welcome/PrerequisiteGuide.tsx
+MISS-EN+JA	重置{rel}	src/plugins/welcome/WelcomeFooter.tsx
+MISS-EN+JA	重置{time} · {relative}	src/plugins/welcome/CredentialList.tsx
+MISS-EN+JA	重装	src/plugins/welcome/EngineCardParts.tsx
+MISS-EN+JA	重试	src/plugins/welcome/VersionMenu.tsx src/plugins/welcome/TokenDashboard.tsx
+MISS-EN+JA	铺放方式	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	铺满	src/plugins/wallpaper/WallpaperImageRows.tsx
+MISS-EN+JA	键	src/plugins/cli-config/FieldControls.tsx
+MISS-EN+JA	隐藏	src/kernel/SecretInput.tsx
+MISS-EN+JA	需 API key	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	需选择发行版并填写 Linux 绝对路径(如 /home/chen/work/proj)	src/plugins/wsl/WorkspaceDialog.tsx
+MISS-EN+JA	项目级 overlay 叠在全局之上;数组段(modelRoles / fallbackChains / providerChain)整体替换而非追加。首次保存时创建本文件。	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	项目级({name})	src/plugins/cli-omp/configGui.ts
+MISS-EN+JA	风暴	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-EN+JA	高级	src/plugins/cli-config/ConfigForm.tsx
+MISS-EN+JA	默认发行版用户	src/plugins/wsl/WslCard.tsx
+MISS-EN+JA	默认思考强度	src/plugins/cli-pi/configGui.ts
+MISS-EN+JA	默认模型	src/plugins/cli-pi/configGui.ts
+MISS-EN+JA	龙卷	src/plugins/wallpaper/WallpaperSettingsTab.tsx
+MISS-JA	引擎配置保存失败: {err}	src/plugins/memory-coordinator/console/MemoryConsole.tsx
