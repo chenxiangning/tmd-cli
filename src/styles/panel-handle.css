@@ -118,18 +118,30 @@
 }
 
 /* ── 编辑区最大化(tmd.outer.group-maximized)──
- * 左栏与中央幕布零宽让位,幕布 keep-alive:库的布局经行内 flexGrow 直写
- * DOM(React 重渲染即丢),命令式 collapse/expand 又会在子面板集变化时被
+ * 只折叠中央幕布(keep-alive):库的布局经行内 flexGrow 直写 DOM
+ * (React 重渲染即丢),命令式 collapse/expand 又会在子面板集变化时被
  * 注册归一化静默回滚 —— 纯样式折叠绕开两者:!important 压过行内值,子面板
  * 集恒定,卸载零发生,还原 = 摘类,分栏尺寸逐位复原。
- * 配套:AppShell 把两条被折叠栏的 handle 加 .hidden(挂载保留,可拖面消失)。
+ * 左栏与右栏钉住实测宽度(根 CSS 变量由 useElementWidth 维护):最大化
+ * 只吃幕布让出的空间,编辑区在中间区域撑满;左栏可见性与右栏宽度都不动。
+ * 配套:AppShell 把幕布两侧 + 右栏左缘共三条 handle 加 .hidden(钉死后
+ * 拖动无效,可拖面一并消失)。
  * visibility:hidden 不可省:仅 width:0 时已聚焦的 xterm textarea 不会失焦,
  * 击键会漏进不可见 PTY;hidden 夺焦语义与旧卸载实现(display:none 拆树)一致。 */
-.group-maximized > #left,
 .group-maximized > #center {
   flex-grow: 0 !important;
   flex-basis: 0% !important;
   min-width: 0 !important;
   overflow: hidden !important;
   visibility: hidden !important;
+}
+.group-maximized > #left {
+  flex-grow: 0 !important;
+  flex-shrink: 0 !important;
+  flex-basis: var(--tmd-left-aside-w, 18%) !important;
+}
+.group-maximized > #right {
+  flex-grow: 0 !important;
+  flex-shrink: 0 !important;
+  flex-basis: var(--tmd-right-aside-w, 22%) !important;
 }
