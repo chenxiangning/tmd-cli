@@ -27,9 +27,9 @@ interface CommandContribution {
 1. **分发器单点**:AppShell 挂载期 `installShortcutDispatcher()` 安装 window keydown capture;命中 = preventDefault + run,未命中穿透。
 2. **终端聚焦期统一分发(09-06 修订,原「终端是黑洞」)**:分发器聚焦时先查 terminal 作用域、再查 global(`resolveCommand`);命中 = capture 相位 `preventDefault + stopPropagation`,事件到不了 xterm,零 PTY 字节;未命中键原样进 PTY(终端自由快捷键/readline 不变)。⌘ 系键位在终端生态本就不进 PTY,终端内 CLI 零感知;全平台放开(非 mac ⌘ 映射 Ctrl,Ctrl+W/K 等被覆盖为已接受取舍)。⌘V 永不注册;⌘C 例外(2026-09-11):Windows 用户 Ctrl+C 直穿 PTY 会误中断 CLI 对话,注册为 terminal.copyMenu —— 聚焦期弹「复制/停止终端」小菜单(命令桥 `terminalCopyMenuBridge.ts`,浮层 `terminalCopyMenu.tsx`,停止项补发 \x03 保持原字节语义),非聚焦期照旧浏览器复制。
 3. **Escape 永不注册**;IME `isComposing` 全放行;约 20 处弹层 Esc 生态不受影响。
-4. **同键共存的条件**:同作用域双方都有 `when` 且语义互斥(先例:⌘S 按激活 tab kind 分家为 files.save / ssh.saveRemoteFile);否则注册即抛错。跨作用域同键允许,聚焦期聚焦作用域优先(editor 先于 terminal,09-20 加 editor:⌘⌥W editor.expandSelection 与 global ⌘W 关 tab 分家)。
+4. **同键共存的条件**:同作用域双方都有 `when` 且语义互斥(先例:⌘S 按激活 tab kind 分家为 files.save / ssh.saveRemoteFile);否则注册即抛错。跨作用域同键允许,聚焦期聚焦作用域优先(09-20 加 editor:⌘W editor.expandSelection 编辑器聚焦期扩选,失焦期落回 global shell.closeTab 关 tab)。
 5. **组件局部状态经模块级 ref 桥**接命令(先例:TerminalView `findRequestRef`、ssh `saveRequestRef`、app-shell `shellBarToggles`)。
-6. 键位对齐主流:⌘,设置、⌘B 左栏、⌘⌥B 右栏、⌘W 关 tab、⌘⌥W 编辑器扩选(09-20)、⌘T 新建、⌘1-9 切换、⌘⇧E/G/M 右栏面板(VS Code 心智)、⌘⇧H 回首页⇄回会话 toggle(会话中记住当前会话回首页,首页中切回原会话;先收市场覆盖层,2026-09-12 8c4b3c7)。
+6. 键位对齐主流:⌘,设置、⌘B 左栏、⌘⌥B 右栏、⌘W 关 tab(编辑器聚焦期例外 = 扩大选择,09-20)、⌘T 新建、⌘1-9 切换、⌘⇧E/G/M 右栏面板(VS Code 心智)、⌘⇧H 回首页⇄回会话 toggle(会话中记住当前会话回首页,首页中切回原会话;先收市场覆盖层,2026-09-12 8c4b3c7)。
    一期键位之外,二期补:⌘J 切输入区高度段、Ctrl+Tab / Ctrl+⇧Tab 切标签页、⌃⌘F 最大化/还原编辑区、⌘⇧X 插件市场。
 
 ## 消费点

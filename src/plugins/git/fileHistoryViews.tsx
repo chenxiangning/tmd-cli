@@ -62,22 +62,18 @@ function DataView({ payload, blame }: { payload: FileHistoryTabPayload; blame: b
   if (blame) {
     if (!lines) return <Loading />;
     if (lines.length === 0) return <CenterNote text={t("文件为空,无归属行")} />;
+    /* gutter 三列定宽:行号 | 归属元数据(boundary 填充,余行留空保代码对齐)| 代码。
+       boundary 行整行浅底 + 上描边分组;元数据 = 短 sha + 作者 + 绝对时间(参考 JetBrains/VSC blame)。 */
     return (
-      <div className="h-full overflow-auto font-mono text-xs leading-[1.5]">
+      <div className="h-full overflow-auto font-mono text-xs leading-[1.6]">
         {lines.map((l) => (
-          <div
-            key={l.lineNo}
-            className={`flex min-w-max ${l.boundary ? "border-t border-(--tmd-border)" : ""}`}
-            title={`${l.shortSha} ${l.summary} · ${l.authorName}`}
-          >
-            <span className="sticky left-0 w-10 shrink-0 select-none bg-(--tmd-bg-elevated) pr-2 text-right text-(--tmd-fg-faint)">
+          <div key={l.lineNo} className={`flex min-w-max ${l.boundary ? "border-t border-(--tmd-border) bg-(--tmd-bg-hover)" : ""}`}>
+            <span className="sticky left-0 w-10 shrink-0 select-none border-r border-(--tmd-border) bg-(--tmd-bg-elevated) pr-2 text-right text-(--tmd-fg-faint)">
               {l.lineNo}
             </span>
-            {l.boundary && (
-              <span className="shrink-0 border-r border-(--tmd-border) px-2 text-(--tmd-fg-muted)">
-                {l.shortSha} {l.authorName} {formatAbsolute(l.authorWhen * 1000)}
-              </span>
-            )}
+            <span className="w-[18rem] shrink-0 truncate whitespace-nowrap px-2 text-(--tmd-fg-muted)" title={l.boundary ? `${l.shortSha} ${l.summary}` : undefined}>
+              {l.boundary ? `${l.shortSha} ${l.authorName} ${formatAbsolute(l.authorWhen * 1000)}` : ""}
+            </span>
             <span className="whitespace-pre px-2">{l.text || " "}</span>
           </div>
         ))}

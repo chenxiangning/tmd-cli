@@ -179,18 +179,17 @@ describe("ref 桥类命令", () => {
     expect(tabsMock.closeTab).toHaveBeenCalledWith("t1");
   });
 
-  it("⌘⌥W:编辑器聚焦期路由 editor.expandSelection;失焦期 ⌘⌥W 无绑定、⌘W 落回关 tab", () => {
+  it("⌘W:编辑器聚焦期路由 editor.expandSelection,失焦期落回 shell.closeTab", () => {
     tabsMock.list = [{ id: "t1" }];
     tabsMock.activeId = "t1";
     cmEditorMock.view = { marked: true };
     registry.setEditorFocused(true);
-    const hit = registry.resolveCommand(keyEvent("w", { altKey: true }));
+    const hit = registry.resolveCommand(keyEvent("w"));
     expect(hit?.id).toBe("editor.expandSelection");
     hit!.run();
     expect(cmEditorMock.expandEditorSelection).toHaveBeenCalledWith(cmEditorMock.view);
     cmEditorMock.view = null;
     registry.setEditorFocused(false);
-    expect(registry.resolveCommand(keyEvent("w", { altKey: true }))).toBeUndefined();
     expect(registry.resolveCommand(keyEvent("w"))?.id).toBe("shell.closeTab");
     registry.resolveCommand(keyEvent("w"))!.run();
     expect(tabsMock.closeTab).toHaveBeenCalledWith("t1");

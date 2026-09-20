@@ -112,7 +112,7 @@ function editorClipItems(view: EditorView, selText: string, remote: boolean, pic
         pick(() => {
           void expandEditorSelection(view);
           view.focus();
-        }), { kbd: "⌘⌥W" })}
+        }), { kbd: "⌘W" })}
     </>
   );
 }
