@@ -1,5 +1,6 @@
 /* ──────────────────────────────────────────────────────────
- * 左栏整页视图:返回工作区+搜索同行 / 工作区名 + ⋯/漏斗/刷新 / 文件列表。
+ * 侧栏工作区文件浏览器(复刻参考稿)—— 工作区行「查看文件」打开的
+ * 左栏整页视图:返回工作区 / 搜索 / 工作区名 + ⋯/漏斗/刷新 / 文件列表。
  * 行复用右栏 .file-tree-* 类,此处只放侧栏 chrome 与行装饰覆盖
  * (箭头常显、行尾字母/圆点、忽略降显、子层引导线)。
  * ────────────────────────────────────────────────────────── */
@@ -19,19 +20,13 @@
   height: 100%;
 }
 
-/* 返回工作区 + 搜索框同一行 */
-.wsfb-topbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 2px 10px 8px;
-}
+/* 返回工作区 */
 .wsfb-back {
-  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 2px;
+  margin: 2px 10px 8px;
+  padding: 2px 4px;
   background: none;
   border: none;
   color: var(--tmd-fg-muted);
@@ -42,13 +37,12 @@
   color: var(--tmd-fg);
 }
 
-/* 搜索框(占满余宽;漏斗开时带「显示全部文件」退出 pill) */
+/* 搜索框(漏斗开时带「显示全部文件」退出 pill) */
 .wsfb-search {
-  flex: 1;
-  min-width: 0;
   display: flex;
   align-items: center;
   gap: 6px;
+  margin: 0 10px 8px;
   min-height: 28px;
   padding: 0 6px;
   border: 1px solid var(--tmd-border);
