@@ -69,7 +69,8 @@ pub fn archive_current(root: &Path, id: &str) -> Result<Option<String>, String> 
         return Err("拒绝写入符号链接".into());
     }
     fs::create_dir_all(&vdir).map_err(|e| format!("创建版本库失败: {e}"))?;
-    fs::write(vdir.join(&name), content).map_err(|e| format!("归档失败: {e}"))?;
+    crate::session::write_atomic(&vdir.join(&name), content.as_bytes())
+        .map_err(|e| format!("归档失败: {e}"))?;
     prune_versions(root, &vdir)?;
     Ok(Some(name))
 }
@@ -104,7 +105,8 @@ fn align_manifest_version(dir: &Path, version: &str) -> Result<(), String> {
     v["version"] = version.into();
     let out =
         serde_json::to_string_pretty(&v).map_err(|e| format!("序列化 plugin.json 失败: {e}"))?;
-    fs::write(&path, out).map_err(|e| format!("回写 plugin.json 失败: {e}"))
+    crate::session::write_atomic(&path, out.as_bytes())
+        .map_err(|e| format!("回写 plugin.json 失败: {e}"))
 }
 
 /// 回退:先把当前版归档进版本库(永不丢当前版),再把指定版本换回入口;
@@ -120,7 +122,8 @@ pub fn rollback(root: &Path, id: &str, file: &str) -> Result<(), String> {
     {
         return Err("拒绝写入符号链接".into());
     }
-    fs::write(dir.join(&entry), content).map_err(|e| format!("回退写入失败: {e}"))?;
+    crate::session::write_atomic(&dir.join(&entry), content.as_bytes())
+        .map_err(|e| format!("回退写入失败: {e}"))?;
     if let Some(version) = version_of_file_name(file) {
         align_manifest_version(&dir, version)?;
     }

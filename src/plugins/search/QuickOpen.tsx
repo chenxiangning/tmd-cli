@@ -1,5 +1,5 @@
 /**
- * 文件名快开(⌘P)—— fsWalkFiles 5000 条 + 自写 fuzzy 打分(spec 取舍四:
+ * 文件名快开(⌘P)—— fsWalkIndex(带截断标志)+ 自写 fuzzy 打分(spec 取舍四:
  * 不引 fuzzy 库);目录项(尾 /)不进快开。↑↓ 选择、Enter/click 打开
  * (openFileInTab);Esc/遮罩关闭由 index.tsx 浮层壳统一处理。
  */

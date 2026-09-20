@@ -61,7 +61,8 @@ export function useComposerSend({
            各路差异(bracketed paste 等)仍由 prepareSendPayload 按目标处理。
            变换过闸(单路同款):ask 确认期作答不开新轮,引用块不注入。 */
         const activeGate = readPromptGate(host.getActiveSessionId()!);
-        const shared = shouldBroadcastPrompt(activeGate, trimmed)
+        const gateOpen = shouldBroadcastPrompt(activeGate, trimmed);
+        const shared = gateOpen
           ? composerSendTransforms().reduce(
               (acc, fn) => fn(acc, host.getActiveSessionId()!),
               value,
@@ -81,7 +82,7 @@ export function useComposerSend({
           )
         ).filter((r): r is string => r !== null);
         if (failed.length > 0) {
-          if (failed.length === targets.length) undoComposerSend();
+          if (failed.length === targets.length && gateOpen) undoComposerSend();
           onSendError(
             failed.length === targets.length
               ? t("发送失败:会话已断开,内容已保留")
@@ -106,7 +107,9 @@ export function useComposerSend({
       : [];
     const payload = prepareSendPayload(profile, value, transforms);
     if (!(await host.writeSession(sid, payload))) {
-      undoComposerSend();
+      /* 只回滚本轮真正运行过的变换:闸关/无变换时不动注册面 undo,
+         防 marks 的历史翻转名单被无关失败错误回滚(2026-09-20 复查)。 */
+      if (transforms.length > 0) undoComposerSend();
       onSendError(t("发送失败:会话已断开,内容已保留"));
       return;
     }

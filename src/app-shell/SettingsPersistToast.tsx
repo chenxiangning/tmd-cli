@@ -1,5 +1,5 @@
 /**
- * 设置写盘失败通知 —— 右下角 toast,订阅 kernel settingsPersistFailed。
+ * 设置写盘失败通知 —— 右下角 toast,订阅 onSettingsPersistFailed 回调。
  *
  * 背景:Tauri 环境 persistNow 写盘失败(磁盘满/杀软锁 tmp)时盘上旧文件仍
  * 完好 → 重启回读旧值,localStorage 兜底永远不生效,用户改动静默丢失。

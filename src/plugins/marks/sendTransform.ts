@@ -38,6 +38,9 @@ let lastFlip: { cwd: string; ids: string[] } | null = null;
 export const marksSendTransform: ComposerSendTransform = (text) => {
   const cwd = getActiveWorkspace()?.root;
   if (!cwd) return text;
+  /* 每次运行即新一轮发送开始:先失效旧翻转名单,防止上一封成功的标记
+     被本轮发送失败的 undo 错误回滚(跨发送残留,2026-09-20 复查 P1)。 */
+  lastFlip = null;
   const staged = stagedMarks(cwd);
   if (staged.length === 0) return text;
   const block = staged
