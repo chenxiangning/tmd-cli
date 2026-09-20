@@ -1,6 +1,6 @@
 /**
  * 侧栏工作区文件浏览器(复刻参考稿)—— 工作区行「查看文件」打开,整体替换
- * 左栏任务列表;「返回任务」关闭(kernel workspaceFileBrowser 契约)。
+ * 左栏任务列表;「返回工作区」关闭(kernel workspaceFileBrowser 契约)。
  *
  * 复用面(右栏同源,零新逻辑):
  * - 目录浏览:useDirTree(右栏 FileTree 同一实现)

@@ -19,7 +19,7 @@ export const MESSAGES = {
   "工作树": "Worktree",
   /* 侧栏工作区文件浏览器 */
   "查看文件": "View files",
-  "返回任务": "Back to tasks",
+  "返回工作区": "Back to workspace",
   "搜索文件...": "Search files...",
   "搜索中…": "Searching…",
   "没有匹配的文件": "No matching files",

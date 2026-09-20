@@ -6,7 +6,7 @@
  * - 开合态:模块级单例 + useSyncExternalStore;openId 为 null 即任务列表常态
  * - 视图实现:files 插件 activate 时注册;未注册时 openWorkspaceFiles 是
  *   no-op,入口按钮以「实现已注册」为可见前提
- * - 关闭语义归视图自身(「返回任务」按钮直调 closeWorkspaceFiles),
+ * - 关闭语义归视图自身(「返回工作区」按钮直调 closeWorkspaceFiles),
  *   workspace 插件只负责按 openId 换渲染
  */
 
@@ -49,7 +49,7 @@ export function openWorkspaceFiles(workspaceId: string): void {
   emit();
 }
 
-/** 「返回任务」:关闭浏览器回任务列表;本就关闭时 no-op。 */
+/** 「返回工作区」:关闭浏览器回任务列表;本就关闭时 no-op。 */
 export function closeWorkspaceFiles(): void {
   if (openId === null) return;
   openId = null;

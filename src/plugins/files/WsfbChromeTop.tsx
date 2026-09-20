@@ -1,6 +1,6 @@
 /**
- * 侧栏文件浏览器顶栏 chrome —— 返回任务 + 搜索框(漏斗开时带「显示全部文件」
- * 退出 pill)。自 WorkspaceFileBrowser 拆出(文件规模铁则)。
+ * 侧栏文件浏览器顶栏 chrome —— 「返回工作区」与搜索框同一行(漏斗开时带
+ * 「显示全部文件」退出 pill)。自 WorkspaceFileBrowser 拆出(文件规模铁则)。
  */
 
 import { ArrowLeft, MagnifyingGlass } from "@phosphor-icons/react";
@@ -19,10 +19,10 @@ export function WsfbChromeTop({
   onExitChanged: () => void;
 }) {
   return (
-    <>
+    <div className="wsfb-topbar">
       <button type="button" className="wsfb-back" onClick={closeWorkspaceFiles}>
         <ArrowLeft size="0.875rem" aria-hidden />
-        <span>{t("返回任务")}</span>
+        <span>{t("返回工作区")}</span>
       </button>
       <div className="wsfb-search">
         <MagnifyingGlass size="0.75rem" aria-hidden className="wsfb-search-icon" />
@@ -44,6 +44,6 @@ export function WsfbChromeTop({
           </button>
         )}
       </div>
-    </>
+    </div>
   );
 }
