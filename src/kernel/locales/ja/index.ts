@@ -5,6 +5,7 @@ import { MESSAGES as workspace } from "./workspace";
 import { MESSAGES as git } from "./git";
 import { MESSAGES as files } from "./files";
 import { MESSAGES as cli } from "./cli";
+import { MESSAGES as cli2 } from "./cli2";
 import { MESSAGES as composer } from "./composer";
 import { MESSAGES as ssh } from "./ssh";
 import { MESSAGES as misc } from "./misc";
@@ -17,6 +18,7 @@ export const JA_MESSAGES: Record<string, string> = {
   ...git,
   ...files,
   ...cli,
+  ...cli2,
   ...composer,
   ...ssh,
   ...assets,

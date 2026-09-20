@@ -119,13 +119,21 @@ function FieldRow({
             <summary>{t("说明")}</summary>
             <div className="cli-cfg-detail-body">
               {field.detail.split("\n").map((para) => {
-                const sep = para.indexOf(":");
-                const lead = sep > 0 && sep < 12 ? para.slice(0, sep) : "";
-                const rest = lead ? para.slice(sep + 1) : para;
+                /* 整段查键(词典键 = 定义处完整中文段),译文再按首个短冒号
+                   拆 lead 加粗 —— 片段级查键需 40 条拆分键,反模式已废弃 */
+                const zh = para;
+                const sep = zh.indexOf(":");
+                const hasLead = sep > 0 && sep < 12;
+                const translated = t(zh);
+                const tSep = hasLead
+                  ? translated.indexOf(":")
+                  : -1; /* 译文冒号位置可能漂移,找不到就不加粗 */
+                const lead = tSep > 0 && tSep < 24 ? translated.slice(0, tSep) : "";
+                const rest = lead ? translated.slice(tSep + 1) : translated;
                 return (
                   <p key={para}>
-                    {lead && <strong>{t(lead)}:</strong>}
-                    {t(rest)}
+                    {lead && <strong>{lead}:</strong>}
+                    {rest}
                   </p>
                 );
               })}

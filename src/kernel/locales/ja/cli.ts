@@ -122,7 +122,6 @@ export const MESSAGES = {
   "Claude 账号额度": "Claude アカウント残量",
   "Grok 账号额度": "Grok アカウント残量",
   "中转站额度": "リレー残量",
-  "Claude 官方订阅": "Claude 公式サブスクリプション",
 
   /* MCP/命令候选(渲染点在 composer 抽屉,主会话包裹) */
   "MCP 服务器": "MCP サーバー",

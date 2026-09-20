@@ -112,6 +112,7 @@ export const MESSAGES = {
   "外观": "Appearance",
   "行为": "Behavior",
   "快捷键": "Shortcuts",
+  "打开方式": "Open with",
 
   // IconDecorCard
   "图标装饰": "Icon decorations",
@@ -125,6 +126,35 @@ export const MESSAGES = {
   "Memory 面板": "Memory panel",
   "颜色": "Color",
   "闪烁": "Breathing",
+
+  // 插件注册表 meta(name/desc 原串;消费点 = PluginMarketList 卡片与命令抽屉,t(plugin.meta.*))
+  "CLI 配置": "CLI config",
+  "图形化编辑各 CLI 的本地配置文件": "Edit each CLI's local config file graphically",
+  "搜索": "Search",
+  "全文搜索面板与文件名快开(⇧⌘F / ⌘P),命中跳文件定位行":
+    "Full-text search panel and filename quick open (⇧⌘F / ⌘P); hits jump to the file and line",
+  "会话列表预算": "Session list budget",
+  "工作区会话列表的磁盘历史露出预算(caption 弹窗编辑)":
+    "Budget of disk history shown in the workspace session list (edited from the caption popover)",
+  "内置终端": "Built-in terminal",
+  "本地默认 shell 终端会话(zsh/bash/cmd),复用幕布全链路":
+    "Terminal sessions in the local default shell (zsh/bash/cmd), reusing the full terminal pipeline",
+  "WSL 主机": "WSL hosts",
+  "WSL 发行版面板:本机/远程连接,发行版探测、添加工作区、远程打开引擎会话":
+    "WSL distro panel: local/remote connections, distro detection, adding workspaces, opening engine sessions remotely",
+  "局域网内用手机/平板浏览器访问本机会话":
+    "Reach this machine's sessions from a phone/tablet browser on the LAN",
+  "Pi CLI 引擎:会话扫描、配额、状态": "Pi CLI engine: session scanning, quota, status",
+  "Qoder CLI 引擎:磁盘会话、模型状态": "Qoder CLI engine: disk sessions, model status",
+  "Qoder CLI 国内版引擎:磁盘会话、模型状态": "Qoder CLI China-edition engine: disk sessions, model status",
+  "管理 ~/.tmd-cli/plugins/ 本地插件:对话造插件、免重启装载、版本回退":
+    "Manage local plugins in ~/.tmd-cli/plugins/: build them through conversation, load without restart, roll back versions",
+  "语义跳转与引用(cmd/ctrl+点击 / F12 / ⇧F12 / hover)":
+    "Semantic jumps and references (cmd/ctrl+click / F12 / ⇧F12 / hover)",
+  "客户端与 CLI 子进程统一走 http(s)/socks5 代理":
+    "Routes the client and CLI child processes through one http(s)/socks5 proxy",
+  "热力月历 + 泳道时间线:按日回溯会话、未查看治理、行内重命名":
+    "Heatmap calendar + swimlane timeline: revisit sessions by day, triage unread ones, rename inline",
 
   // cli-config「CLI 独立配置」(index / CliConfigTab / ConfigForm / ModelPicker / FieldControls / ChainPicker)
   "CLI 独立配置": "Standalone CLI config",
@@ -177,6 +207,11 @@ export const MESSAGES = {
 
   // web-access(Web 访问:LAN 卡 / 外网中继 / 部署 / 风险弹窗 / 徽标)
   "内网 Web 访问": "LAN web access",
+  "Web 访问": "Web access",
+  "局域网/外网用手机/平板浏览器访问本机会话。":
+    "Reach this machine's sessions from a phone/tablet browser over the LAN or the internet.",
+  "内网": "LAN",
+  "外网": "Internet",
   "已开启": "On",
   "已关闭": "Off",
   "同一 Wi-Fi 下的手机/平板浏览器打开下方地址即可访问本机会话。地址含一次性 token,每次启动都会重新生成,不要转发给他人。":

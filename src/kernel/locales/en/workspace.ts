@@ -4,6 +4,7 @@ export const MESSAGES = {
   "工作区": "Workspaces",
   "会话视图": "Session view",
   "归档": "Archive",
+  "本地": "Local",
   "展开全部工作区会话": "Expand all workspace sessions",
   "折叠全部工作区会话": "Collapse all workspace sessions",
   "添加工作区": "Add workspace",

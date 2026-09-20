@@ -123,6 +123,8 @@ export const MESSAGES = {
     "Can't reach the local host. Make sure dsh web is running, or click Start now.",
   "只能停掉本机 DSH host。远程地址不会被关闭。":
     "Only a local DSH host can be stopped. Remote addresses won't be closed.",
+  "host 在运行但拒绝本端凭据(疑似外部拉起)。点立即启动换代重启。":
+    "The host is running but rejects this machine's credentials (likely started externally). Click Start now to bring up a fresh instance.",
   "正在启动…": "Starting…",
   "未安装 DSH CLI": "DSH CLI not installed",
   "主机已连接": "Host connected",
