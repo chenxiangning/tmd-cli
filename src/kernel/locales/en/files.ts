@@ -121,4 +121,18 @@ export const MESSAGES = {
   /* 结构化预览 */
   "文件较大,仅展示前 {visible} / {total} 行": "File is large; showing first {visible} / {total} lines",
 "远程文件 · 只读(M1)": "Remote file · read-only (M1)",
+  /* 打开方式菜单(OpenWithMenu:用 {label} 打开 = Use {label} to open this) */
+  "用": "Use",
+  "打开": "to open this",
+  "选择打开方式": "Choose how to open",
+  /* Markdown 预览标记(previewMarks) */
+  "查看标记": "View marked blocks",
+  "标记此块,随下次发送带上": "Mark this block to include it with the next send",
+  /* 远程文件 M1 降级面 */
+  "远程文件": "Remote file",
+  "该类型暂不支持远程预览(M1):请经终端会话操作。":
+    "This file type can't be previewed remotely yet (M1): use a terminal session instead.",
+  "远程文件暂不支持写入(M1)": "Writing remote files is not supported yet (M1)",
+  "远程文件暂不支持在文件树新建(M1):请经终端会话操作":
+    "Creating files in the remote tree is not supported yet (M1): use a terminal session instead",
 } as Record<string, string>;

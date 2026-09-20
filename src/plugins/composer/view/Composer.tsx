@@ -48,12 +48,51 @@ import { SuggestionPortal, PreviewOverlay } from "./composerOverlays";
 export function Composer() {
   const ref = useRef<HTMLTextAreaElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
-  const [value, setValue] = useState("");
+  const profile = useActiveProfile();
+  const { settings } = useSettingsState();
+  const workspaces = useWorkspaces();
+  const cwd = useMemo(
+    () => workspaces.list.find((w) => w.id === workspaces.activeId)?.root ?? workspaces.list[0]?.root ?? "",
+    [workspaces],
+  );
+  /* 草稿持久化:按工作区 root 存 localStorage——挂载恢复、切换工作区换稿(旧稿先落盘)、
+   * 发送/清空随 value="" 落盘(发送失败保留草稿 = 持久化自然成立,见 useComposerSend)。 */
+  const draftKeyRef = useRef(`tmd.composerDraft.${cwd}`);
+  const [value, setValue] = useState(() => {
+    try {
+      return localStorage.getItem(draftKeyRef.current) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  useEffect(() => {
+    const key = `tmd.composerDraft.${cwd}`;
+    if (key !== draftKeyRef.current) {
+      try {
+        localStorage.setItem(draftKeyRef.current, value);
+      } catch {
+        /* 配额满忽略 */
+      }
+      draftKeyRef.current = key;
+      try {
+        setValue(localStorage.getItem(key) ?? "");
+      } catch {
+        setValue("");
+      }
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      try {
+        localStorage.setItem(key, value);
+      } catch {
+        /* 配额满忽略 */
+      }
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [cwd, value]);
   const [cursor, setCursor] = useState(0);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const profile = useActiveProfile();
-  const { settings } = useSettingsState();
   /* 附件交互(拖放/粘贴/token 同步)职责在 useComposerAttachments */
   const { removeTokenForAttachment, handlePaste, handleDrop } = useComposerAttachments(
     ref,
@@ -64,11 +103,6 @@ export function Composer() {
   );
   /* 五段高度最底段(min,仅工具栏条):隐藏输入区(附件条/textarea/锚点栏),工具栏保留 */
   const inputHidden = useComposerStage() === "min";
-  const workspaces = useWorkspaces();
-  const cwd = useMemo(
-    () => workspaces.list.find((w) => w.id === workspaces.activeId)?.root ?? workspaces.list[0]?.root ?? "",
-    [workspaces],
-  );
   const { drawerOpen, drawerItems, sendFromDrawer, insertFromDrawer, openFromDrawer } =
     useComposerDrawer({
       profile,

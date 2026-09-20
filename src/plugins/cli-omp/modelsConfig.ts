@@ -15,6 +15,7 @@
  * 不做 YAML 语义校验:omp 下次启动自会报错,编辑器保留原文可回改(已知上限,记 spec)。
  */
 
+import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
 import { backupOnce } from "@plugins/cli-shared/providerChannels";
 
@@ -177,19 +178,20 @@ export function validateProviderInput(
 ): OmpCustomProviderInput {
   const name = input.name.trim();
   if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(name))
-    throw new Error("名称只能用字母/数字/中划线/下划线,且以字母或数字开头");
-  if (existingNames.includes(name)) throw new Error(`供应商「${name}」已存在`);
+    throw new Error(t("名称只能用字母/数字/中划线/下划线,且以字母或数字开头"));
+  if (existingNames.includes(name)) throw new Error(t("供应商「{name}」已存在", { name }));
   const baseUrl = input.baseUrl.trim();
-  if (!baseUrl || /\s/.test(baseUrl)) throw new Error("API 地址不能为空且不能含空白");
-  if (!(API_VALUES as readonly string[]).includes(input.api)) throw new Error(`未知协议: ${input.api}`);
+  if (!baseUrl || /\s/.test(baseUrl)) throw new Error(t("API 地址不能为空且不能含空白"));
+  if (!(API_VALUES as readonly string[]).includes(input.api))
+    throw new Error(t("未知协议: {api}", { api: input.api }));
   const apiKey = input.apiKey.trim();
-  if (/[\r\n]/.test(apiKey)) throw new Error("API Key 不能包含换行");
+  if (/[\r\n]/.test(apiKey)) throw new Error(t("API Key 不能包含换行"));
   const models = input.models.flatMap((m) => {
     const id = m.trim();
     return id ? [id] : [];
   });
-  if (models.length === 0) throw new Error("至少填写一个模型 id");
-  if (models.some((m) => /\s/.test(m))) throw new Error("模型 id 不能含空白");
+  if (models.length === 0) throw new Error(t("至少填写一个模型 id"));
+  if (models.some((m) => /\s/.test(m))) throw new Error(t("模型 id 不能含空白"));
   return { name, baseUrl, api: input.api, apiKey, models };
 }
 

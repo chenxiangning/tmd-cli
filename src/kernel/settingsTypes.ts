@@ -155,6 +155,8 @@ export interface AppSettings {
   askSoundEnabled: boolean;
   /** Ask 提示音效 id。 */
   askSoundId: AskSoundId;
+  /** 提示音音量 0-1(作用于 Ask 与结束提示音)。 */
+  soundVolume: number;
   /** 对话轮次结束(未被查看)提示音开关,默认开启。 */
   turnEndSoundEnabled: boolean;
   /** 轮次结束提示音效 id(与 Ask 音共用内置 wav 白名单)。 */

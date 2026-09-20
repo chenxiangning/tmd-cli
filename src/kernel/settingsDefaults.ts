@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   promptHistoryEnabled: true,
   askSoundEnabled: true,
   askSoundId: "default",
+  soundVolume: 1,
   turnEndSoundEnabled: true,
   turnEndSoundId: "default",
   backgroundNotify: true,

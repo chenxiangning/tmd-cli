@@ -53,7 +53,8 @@ export function playAskSound(soundId: unknown): void {
     .then((url) => {
       try {
         const audio = new Audio(url);
-        audio.volume = 1;
+        const vol = getSettingsState().settings.soundVolume;
+        audio.volume = typeof vol === "number" && Number.isFinite(vol) ? Math.min(1, Math.max(0, vol)) : 1;
         void audio.play().catch(() => undefined);
       } catch {
         // 无 Audio 环境(异常 WebView):提示音不可用,静默跳过。

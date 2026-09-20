@@ -6,12 +6,12 @@
  *   │ (注册表动作…)        □ │  ← 右侧复选框 = pin 到底栏
  *   │ 设置                    │
  *   └────────────────────────┘
- *   [logo] [pinned…] [− 100% +]  v0.1.4  ← 底栏(缩放组 = 设置页同款 uiZoom 的便捷入口)
+ *   [logo] [pinned…] [− 100% +]  v0.2.2  ← 底栏(缩放组 = 设置页同款 uiZoom 的便捷入口)
  *
  * 动作数据源 = kernel/sidebarActions 注册表(插件 activate 时自注册),
  * 本组件只渲染注册表与钉住状态,不认识任何具体动作 —— 与右栏面板同纪律。
  * 「设置」行是壳自有入口(openSettingsPanel),钉住/pin 上限 4 同 codemoss。
- * 版本号取 Tauri app version,浏览器 dev 环境回退 "0.1.4"。
+ * 版本号取 Tauri app version,浏览器 dev 环境回退 CHANGELOG 首条版本。
  */
 
 import { useEffect, useRef, useState } from "react";

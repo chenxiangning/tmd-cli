@@ -161,4 +161,89 @@ export const MESSAGES = {
   "自动启动主机": "Auto-start host",
   "下次进首页且 host 未运行时自动拉起。拨开关不会立刻启动或停止。":
     "Automatically starts the next time you open the home page and the host isn't running. Toggling doesn't start or stop it immediately.",
+
+  // ── 内核组件(SecretInput / StyledSelect / openWith / i18n 插值示例) ──
+  "密钥": "Secret",
+  "显示": "Show",
+  "隐藏": "Hide",
+  "搜索…": "Search…",
+  "无匹配项": "No matches",
+  "应用": "App",
+  "访达": "Finder",
+  "共 {n} 条": "{n} items",
+
+  // ── wsl 插件 ──
+  // WslCard(本机段/状态行)
+  "经 SSH 连接远程宿主": "Connect to the remote host via SSH",
+  "检测中…": "Detecting…",
+  "个发行版": "distros",
+  "设默认": "Set default",
+  "显示全部发行版": "Show all distros",
+  "默认发行版用户": "Default distro user",
+  "WSL 工作区以 \\\\wsl.localhost 路径登记;引擎会话在该目录内以 wsl.exe 包装启动(幕布/工作区行为与本地一致)。":
+    "WSL workspaces are registered as \\\\wsl.localhost paths; engine sessions launch inside that directory wrapped via wsl.exe (terminal/workspace behavior matches local).",
+  // RemoteSection(远程连接段)
+  "地址": "Address",
+  "用户": "User",
+  "保存并选择": "Save and select",
+  "该主机已存在(同地址/端口/用户名),请在下拉中选择":
+    "This host already exists (same address/port/username) — pick it from the dropdown",
+  "远程主机": "Remote host",
+  "远程 WSL 宿主": "Remote WSL host",
+  "(尚无主机,点右侧手动添加)": "(no hosts yet — add one on the right)",
+  "手动添加主机": "Add host manually",
+  "连接": "Connect",
+  "连接中…": "Connecting…",
+  "宿主未检测到 WSL 发行版(未安装或 wsl.exe 不在 PATH)。":
+    "No WSL distros detected on the host (not installed, or wsl.exe is not on PATH).",
+  "SSH 进入": "Enter via SSH",
+  "添加 WSL 工作区": "Add WSL workspace",
+  "点【连接】探测远程【发行版】与已装【引擎】,自动展开发行版面板。":
+    "Click 【Connect】 to probe remote 【distros】 and installed 【engines】; the distro panel expands automatically.",
+  "【SSH 进入】直进所选发行版终端(未展开用默认),引擎/目录在发行版面板里选;【添加 WSL 工作区】把目录登记进侧栏,会话自动走【SSH】。":
+    "【Enter via SSH】 drops you into the selected distro's terminal (default distro if none expanded); pick engine/directory in the distro panel. 【Add WSL workspace】 registers the directory in the sidebar; sessions then go over 【SSH】 automatically.",
+  "已停止": "Stopped",
+  "未选择": "Not selected",
+  // DistroPanel(发行版子面板)
+  "引擎探针": "Engine probe",
+  "仅计发行版内安装(登录 shell PATH,含 ~/.local/bin);/mnt/*(Windows 互操作)路径不计":
+    "Counts only installs inside the distro (login shell PATH, incl. ~/.local/bin); /mnt/* (Windows interop) paths don't count",
+  "【点选】检出的引擎行,「SSH 进入」即以该【CLI】启动;不选则进【交互 shell】。":
+    "【Click】 a detected engine row and “Enter via SSH” launches that 【CLI】; without a pick you get an 【interactive shell】.",
+  "未检出": "Not detected",
+  "可用": "Available",
+  "选中 {bin} 作为会话引擎": "Select {bin} as the session engine",
+  "起始目录": "Start directory",
+  "浏览目录": "Browse directory",
+  "「SSH 进入」以该目录为【启动目录】(--cd);逐级进入,点选即生效。":
+    "“Enter via SSH” uses this directory as the 【start directory】 (--cd); navigate down level by level — clicking a row applies it.",
+  "上一级": "Up one level",
+  "(空目录)": "(empty directory)",
+  // WorkspaceDialog / AddWslTab(添加工作区对话框)
+  "选这一层": "Choose this level",
+  "发行版": "Distro",
+  "Linux 目录": "Linux directory",
+  "需选择发行版并填写 Linux 绝对路径(如 /home/chen/work/proj)":
+    "Pick a distro and enter an absolute Linux path (e.g. /home/chen/work/proj)",
+  "工作区根(UNC)": "Workspace root (UNC)",
+  "添加": "Add",
+  "本机未检测到 WSL;打开 WSL 面板配置远程主机后在此导入。":
+    "No WSL detected on this machine; configure a remote host in the WSL card, then import here.",
+  "远程宿主未检测到 WSL 发行版。": "No WSL distros detected on the remote host.",
+  "(无子目录)": "(no subdirectories)",
+  "添加后 root 为远程 Linux 路径;会话经 WSL 卡或侧栏打开(SSH 包装)。":
+    "After adding, the root is a remote Linux path; sessions open via the WSL card or the sidebar (SSH-wrapped).",
+  "添加后以 \\\\wsl.localhost UNC 登记为本机 WSL 工作区。":
+    "After adding, it's registered as a local WSL workspace with a \\\\wsl.localhost UNC path.",
+  // contributions(工作区来源/远程文件源)
+  "新建 WSL 会话": "New WSL session",
+  "未探测 {distro} 引擎;打开 WSL 面板点「连接」后可新建会话":
+    "Engines in {distro} not probed yet; open the WSL card and click “Connect” to create a session",
+  "{distro} 内未检出任何引擎": "No engines detected in {distro}",
+  "远程主机配置已删除,无法浏览文件;请重新选择远程宿主。":
+    "The remote host config was deleted, so files can't be browsed; pick a remote host again.",
+  "远程主机配置已删除,无法读取文件": "Remote host config deleted; can't read the file",
+  "远程文件超过 512KB,暂不支持预览(M1)": "Remote file exceeds 512KB; preview not supported yet (M1)",
+  // index.tsx(spec wrapper)
+  "工作区 root 不是 WSL UNC 路径": "Workspace root is not a WSL UNC path",
 } as Record<string, string>;

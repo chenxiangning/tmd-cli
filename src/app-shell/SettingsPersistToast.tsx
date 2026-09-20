@@ -9,8 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Warning, Cross } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { host } from "@kernel/host";
-import { KernelTopics, type SettingsPersistFailedEvent } from "@kernel/events";
+import { onSettingsPersistFailed } from "@kernel/settings";
 
 const NOTICE_TTL_MS = 12_000;
 
@@ -19,14 +18,11 @@ export function SettingsPersistToast() {
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
-    const off = host.events.on<SettingsPersistFailedEvent>(
-      KernelTopics.settingsPersistFailed,
-      (e) => {
-        setError(e.error);
-        if (timer.current !== null) window.clearTimeout(timer.current);
-        timer.current = window.setTimeout(() => setError(null), NOTICE_TTL_MS);
-      },
-    );
+    const off = onSettingsPersistFailed((error) => {
+      setError(error);
+      if (timer.current !== null) window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => setError(null), NOTICE_TTL_MS);
+    });
     return () => {
       off();
       if (timer.current !== null) window.clearTimeout(timer.current);

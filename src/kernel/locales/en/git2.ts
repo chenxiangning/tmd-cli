@@ -198,4 +198,17 @@ export const MESSAGES = {
   "拉取远端(pull)": "Pull from remote (pull)",
   "推送远端(push)": "Push to remote (push)",
   "Git 状态与面板集成": "Git status and panel integration",
+  /* 远端操作完成通知(remoteReport)+ 面板横幅 / PR 评论 / diff 杂项 */
+  "{op}成功:更新 {n} 个远端引用。": "{op} succeeded: updated {n} remote refs.",
+  "{op}成功:远端引用已是最新。": "{op} succeeded: remote refs are already up to date.",
+  "{op}成功:远端已是最新。": "{op} succeeded: remote is already up to date.",
+  "{op}成功:已推送 {n} 个提交。": "{op} succeeded: pushed {n} commits.",
+  "{op}成功:已是最新。": "{op} succeeded: already up to date.",
+  "{op}成功:合入 {c} 个提交,{files}。": "{op} succeeded: merged {c} commits, {files}.",
+  "{op}成功:{files}。": "{op} succeeded: {files}.",
+  "{f} 个文件变更(+{i} -{d})": "{f} files changed (+{i} -{d})",
+  "正在{op}…": "{op} in progress…",
+  "自动换行": "Word wrap",
+  "评论内容": "Comment body",
+  "选择 {path}": "Select {path}",
 } as Record<string, string>;

@@ -29,8 +29,13 @@ export function findActiveTrigger<T extends { char: string }>(
        含空白即无效 —— 与旧单字符逐字回扫(遇空白 break)语义等价 */
     const lastIdx = before.lastIndexOf(char);
     if (lastIdx < 0) continue;
-    /* 前置字符为词字符(字母/数字/_)时不触发:foo!!bar、user@host 之类词内命中不弹候选 */
-    if (lastIdx > 0 && /\w/.test(before[lastIdx - 1])) continue;
+    /* 前置字符守卫:词字符(foo!!bar/user@host)、触发符自身(src//x 的第二个 /)、
+     * 冒号(https: 后的第一个 /,合成 ://)都不弹 —— 否则输 URL 按 Enter 会被
+     * 下拉劫持去 applyPick 误改文本而非发送 */
+    if (lastIdx > 0) {
+      const prev = before[lastIdx - 1];
+      if (/\w/.test(prev) || prev === char.at(-1) || prev === ":") continue;
+    }
     if (/\s/.test(before.slice(lastIdx + char.length))) continue;
     return { spec, range: [lastIdx, cursor] };
   }

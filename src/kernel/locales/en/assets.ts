@@ -23,6 +23,8 @@ export const MESSAGES = {
   "名称已存在": "Name already exists",
   "同作用域下名称已存在(或名称含非法字符)":
     "Name already exists in this scope (or contains invalid characters)",
+  "名称已存在,或写入磁盘失败": "Name already exists, or the disk write failed",
+  "删除失败:写入磁盘未成功": "Delete failed: could not write to disk",
   "图标(单个 emoji,可空)": "Icon (single emoji, optional)",
   "如:小张": "e.g. Alex",
   "描述(可空)": "Description (optional)",
@@ -50,12 +52,17 @@ export const MESSAGES = {
   "移到全局": "Move to global",
   "移到工作区": "Move to workspace",
   "作用域": "Scope",
+  "作用域筛选": "Filter by scope",
   "工作区(当前活跃工作区)": "Workspace (currently active)",
   "名称(!! 触发时的调用名)": "Name (invoked with !!)",
   "正文($NAME 大写占位符,插入后手填)": "Body ($NAME uppercase placeholder, fill in after inserting)",
   "参数提示(可空,如:PR 号, 重点)": "Argument hint (optional, e.g. PR number, focus)",
   "参数: {hint}": "Args: {hint}",
   "无活跃工作区,无法保存到工作区级": "No active workspace — cannot save to workspace level",
+  "名称含非法字符、同作用域重复,或写入磁盘失败":
+    "Name contains invalid characters, is duplicated in this scope, or the disk write failed",
+  "移动失败:目标作用域重名或写入失败":
+    "Move failed: duplicate name in the target scope, or the write failed",
   "导入 {n} 条提示词,跳过 {s} 条": "Imported {n} prompts, skipped {s}",
   "导入失败:~/.codex/prompts 不可读": "Import failed: ~/.codex/prompts is unreadable",
   "导入失败:目录不可读": "Import failed: folder is unreadable",

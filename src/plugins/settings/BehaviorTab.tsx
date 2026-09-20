@@ -177,6 +177,22 @@ export function BehaviorTab() {
       ) : null}
       <div className="pref-row">
         <div>
+          <div className="pref-title">{t("提示音音量")}</div>
+          <div className="pref-desc">{t("作用于 Ask 提示音与结束提示音。")}</div>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.1}
+          value={settings.soundVolume}
+          aria-label={t("提示音音量")}
+          onChange={(e) => updateSettings({ soundVolume: Number(e.target.value) })}
+          className="w-28 shrink-0 accent-(--tmd-accent)"
+        />
+      </div>
+      <div className="pref-row">
+        <div>
           <div className="pref-title">{t("结束提示音")}</div>
           <div className="pref-desc">
             {t("一轮对话结束且未被查看时播放（结算后静默 3 秒确认，中途来新输出不响）。")}

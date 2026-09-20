@@ -53,6 +53,7 @@ describe("初始状态与默认值", () => {
       promptHistoryEnabled: true,
       askSoundEnabled: true,
       askSoundId: "default",
+      soundVolume: 1,
       turnEndSoundEnabled: true,
       turnEndSoundId: "default",
       backgroundNotify: true,

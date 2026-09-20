@@ -79,6 +79,12 @@ describe("findActiveTrigger(多字符触发符,composerExt 资产源)", () => {
     expect(findActiveTrigger("中文!!bar", 7, [BANG_BANG])).not.toBeNull();
   });
 
+  it("前置字符为触发符自身或冒号不触发(URL/双斜杠不弹下拉)", () => {
+    expect(findActiveTrigger("https://x", 9, [SLASH])).toBeNull();
+    expect(findActiveTrigger("src//x", 6, [SLASH])).toBeNull();
+    expect(findActiveTrigger("看 https://a.b 一下", 13, [AT, SLASH])).toBeNull();
+  });
+
   it("!! 与 ## 共存:各命中各的", () => {
     const hit = findActiveTrigger("##小张", 4, [BANG_BANG, HASH_HASH]);
     expect(hit?.spec).toBe(HASH_HASH);

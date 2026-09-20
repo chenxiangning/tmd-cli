@@ -172,8 +172,13 @@ export async function loadAllMarks(): Promise<void> {
     }),
   );
   workspaces.forEach((ws, i) => {
-    /* 按 id 合并(内存优先):读盘窗口内落锚的内存标记不被磁盘旧像整桶覆写 */
-    const disk = parseSidecar(texts[i]);
+    /* 按 id 合并(内存优先):读盘窗口内落锚的内存标记不被磁盘旧像整桶覆写。
+     * 磁盘像里的 staged 回滚 pending:staged 是「本次会话已挂 composer 待注入」
+     * 的瞬态,跨重启复活会随下一次自然语言发送把陈旧引用块静默注入 —— 回滚后
+     * 芯片条消失、面板可见待重发,治理即回收。 */
+    const disk = parseSidecar(texts[i]).map((m) =>
+      m.state === "staged" ? { ...m, state: "pending" as const } : m,
+    );
     const mem = state.byCwd[ws.root] ?? [];
     if (mem.length === 0) state.byCwd[ws.root] = disk;
     else {

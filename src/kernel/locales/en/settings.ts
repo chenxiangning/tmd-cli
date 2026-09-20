@@ -57,6 +57,8 @@ export const MESSAGES = {
   "选择 Ask 提示音音效，「试听」立即播放。": "Choose the ask sound; “Preview” plays it immediately.",
   "提示音音效": "Notification sound effect",
   "试听": "Preview",
+  "提示音音量": "Notification volume",
+  "作用于 Ask 提示音与结束提示音。": "Applies to both the ask sound and the turn-end sound.",
   "结束提示音": "Turn-end sound",
   "一轮对话结束且未被查看时播放（结算后静默 3 秒确认，中途来新输出不响）。":
     "Plays when a turn ends unseen (confirmed after 3 silent seconds; it stays silent if new output arrives meanwhile).",
@@ -121,4 +123,124 @@ export const MESSAGES = {
   "Memory 面板": "Memory panel",
   "颜色": "Color",
   "闪烁": "Breathing",
+
+  // cli-config「CLI 独立配置」(index / CliConfigTab / ConfigForm / ModelPicker / FieldControls / ChainPicker)
+  "CLI 独立配置": "Standalone CLI config",
+  "图形化编辑各 CLI 的本地配置文件 —— 不用记命令、不用手改磁盘文件;保存即写回原文件,未知内容原样保留。":
+    "Edit each CLI's local config file graphically — no commands to memorize, no hand-editing files on disk; saving writes back to the original file, unknown content is preserved as-is.",
+  "引擎": "Engines",
+  "尚无引擎贡献配置面。": "No engines have contributed config panels yet.",
+  "读取配置清单…": "Loading config sources…",
+  "未创建": "Not created",
+  "原始编辑": "Raw edit",
+  "返回 GUI": "Back to GUI",
+  "读取配置…": "Loading config…",
+  "无法读取配置文件": "Cannot read the config file",
+  "无法解析配置文件": "Cannot parse the config file",
+  "● 未保存的更改": "● Unsaved changes",
+  "放弃": "Discard",
+  "保存到磁盘": "Save to disk",
+  "已保存到磁盘(首次写入前已留 .bak-tmd 备份)":
+    "Saved to disk (a .bak-tmd backup is kept before the first write)",
+  "高级": "Advanced",
+  "说明": "Notes",
+  "供应商": "Provider",
+  "强度": "Level",
+  "当前值": "Current value",
+  "候选": "Candidates",
+  "值": "Value",
+  "键": "Key",
+  "添加候选": "Add candidate",
+
+  // cli-shared 供应商渠道(providerChannels;渲染点 = cli-config 引擎面板)
+  "供应商渠道": "Provider channels",
+  "点击行即切换 · 对新会话生效": "Click a row to switch · applies to new sessions",
+  "还没有自定义渠道": "No custom channels yet",
+  "点击右上角「添加渠道」创建": "Click “Add channel” at the top right to create one",
+  "读取渠道…": "Loading channels…",
+  "导入 ccswitch": "Import from ccswitch",
+  "添加渠道": "Add channel",
+  "编辑渠道": "Edit channel",
+  "说明(可选)": "Remark (optional)",
+  "模型(可选)": "Model (optional)",
+  "API 地址": "API URL",
+  "同名渠道已存在:{name}": "A channel named “{name}” already exists",
+  "已切换:{name}": "Switched to {name}",
+  "cc-switch 没有 {engine} 的渠道": "cc-switch has no {engine} channels",
+  "已导入 cc-switch:新增 {added},更新 {updated},跳过 {skipped}":
+    "Imported from cc-switch: {added} added, {updated} updated, {skipped} skipped",
+  "未检测到 cc-switch 数据(本机没有 ~/.cc-switch/)":
+    "No cc-switch data found (~/.cc-switch/ is missing on this machine)",
+  "确认删除": "Confirm delete",
+
+  // web-access(Web 访问:LAN 卡 / 外网中继 / 部署 / 风险弹窗 / 徽标)
+  "内网 Web 访问": "LAN web access",
+  "已开启": "On",
+  "已关闭": "Off",
+  "同一 Wi-Fi 下的手机/平板浏览器打开下方地址即可访问本机会话。地址含一次性 token,每次启动都会重新生成,不要转发给他人。":
+    "Open the address below in a phone/tablet browser on the same Wi-Fi to reach this machine's sessions. The address carries a one-time token that is regenerated on every start — don't share it with anyone.",
+  "复制地址": "Copy address",
+  "当前正通过 Web 访问查看(权限与本机相同)":
+    "You are viewing via web access (same permissions as this machine)",
+  "使用流程": "How it works",
+  "当前为 Web 只读视图:中继的部署/连接/断开只能在桌面端操作。":
+    "This is a read-only web view: deploying, connecting, and disconnecting the relay can only be done on the desktop.",
+  "连接中继": "Connect relay",
+  "手机在外网经中继访问本机;中继只认 key 搬字节,桥内仍走 token/设备授权。":
+    "Phones reach this machine from outside networks through the relay; the relay trusts nothing but the key to move bytes — inside the bridge it's still token/device-authorized.",
+  "中继 Worker URL(如 https://tmd-relay.<sub>.workers.dev)":
+    "Relay Worker URL (e.g. https://tmd-relay.<sub>.workers.dev)",
+  "中继密钥(部署时自动铸造,或自行设强密码)":
+    "Relay key (minted automatically on deploy, or set your own strong passphrase)",
+  "断开": "Disconnect",
+  "当前正通过中继查看(权限与本机相同)":
+    "You are viewing through the relay (same permissions as this machine)",
+  "未连接": "Not connected",
+  "部署中继(自有 Cloudflare 账号)": "Deploy the relay (your own Cloudflare account)",
+  "① 部署中继(一次性)": "① Deploy the relay (one-time)",
+  "中继是跑在你自己 Cloudflare 账号的 Worker(免费额度够),只做字节转发、零存储。左卡任选一种:填 Cloudflare API Token 一键部署,或导 zip 到你的 ECS / 任意机器 wrangler deploy。":
+    "The relay is a Worker on your own Cloudflare account (free tier is enough) — pure byte forwarding, zero storage. Pick either way on the left card: one-click deploy with a Cloudflare API token, or export the zip and wrangler deploy on your ECS / any machine.",
+  "② 连接中继(每次用前)": "② Connect to the relay (before each use)",
+  "右卡填中继 URL 和密钥(一键部署会自动回填),点「连接中继」。桌面会主动外拨一条加密长连,状态点转绿即外网可达。会顺带打开内网桥,不用先去内网 tab。":
+    "Fill the relay URL and secret on the right card (one-click deploy autofills them) and hit “Connect”. The app dials out an encrypted long-lived connection — the dot turns green once reachable from the internet. The LAN bridge opens along the way; no need to visit the LAN tab first.",
+  "③ 手机打开外网地址": "③ Open the public URL on your phone",
+  "连接成功后,右卡「手机打开」里的地址已带访问令牌,手机 Safari 直接开,加到主屏幕即当 app 用。令牌=门禁,别转发;用完回这里点「断开」。":
+    "Once connected, the “Open on phone” address carries the access token — open it directly in mobile Safari and add to home screen to use like an app. The token is the gate: don't share it; come back and hit “Disconnect” when done.",
+  "中继跑在你自己的 Cloudflare 账号(免费额度足够)。API Token 仅本次部署使用,不保存。":
+    "The relay runs on your own Cloudflare account (the free tier is enough). The API token is used only for this deployment and never stored.",
+  "Cloudflare API Token 怎么申请?": "How do I get a Cloudflare API token?",
+  "开 Cloudflare Dashboard → 右上角头像 → My Profile → 左侧 API Tokens → Create Token":
+    "Open the Cloudflare Dashboard → avatar at the top right → My Profile → API Tokens on the left → Create Token",
+  "模板选 Edit Cloudflare Workers(或 Custom:Account 权限勾 Workers Scripts:Edit + Account Settings:Read)":
+    "Pick the Edit Cloudflare Workers template (or Custom: under Account check Workers Scripts:Edit + Account Settings:Read)",
+  "Account Resources 选你的账号 → Continue → Create Token → 复制粘贴到下面":
+    "Under Account Resources pick your account → Continue → Create Token → paste it below",
+  "Account ID 在 Dashboard 右侧栏(Workers 页)或任意域名 Overview 右下角;用 cfat_ 账户令牌时必填":
+    "The Account ID is in the Dashboard sidebar (Workers page) or the bottom-right of any domain's Overview; required for cfat_ account tokens",
+  "直达:Cloudflare API Tokens 页面": "Direct link: Cloudflare API Tokens page",
+  "Cloudflare API Token (My Profile → API Tokens)": "Cloudflare API Token (My Profile → API Tokens)",
+  "Account ID(可选,cfat_ 账户令牌必填)":
+    "Account ID (optional; required for cfat_ account tokens)",
+  "中继密钥(留空则导出时铸随机 key 烧入包内)":
+    "Relay key (leave empty to mint a random key baked into the exported package)",
+  "保存中继部署包": "Save relay deployment package",
+  "已导出部署包:": "Deployment package exported: ",
+  "部署完成:": "Deployed: ",
+  "部署中…": "Deploying…",
+  "立即部署": "Deploy now",
+  "导出部署包": "Export deployment package",
+  "外网访问:请先了解风险": "Outside access: understand the risks first",
+  "开启后,任何知道你中继地址和密钥的人都能读写文件、运行终端命令、消耗 API 额度 —— 权限与本机完全相同。":
+    "Once enabled, anyone who knows your relay address and key can read and write files, run terminal commands, and burn API quota — with permissions identical to this machine.",
+  "安全约定:": "Safety rules:",
+  "密钥即唯一凭据,持有者与本机等权":
+    "The key is the sole credential — whoever holds it has the same rights as this machine",
+  "不转发中继地址或密钥": "Don't share the relay address or key",
+  "用完即断开中继": "Disconnect the relay when done",
+  "桌面重启后密钥自动重铸,旧链接即失效":
+    "The key is re-minted on desktop restart; old links stop working",
+  "我已了解并自行承担风险": "I understand the risks and accept them",
+  "有浏览器客户端正通过 Web 访问控制本机":
+    "A browser client is controlling this machine via web access",
+  "远程控制中": "Remote control active",
 } as Record<string, string>;

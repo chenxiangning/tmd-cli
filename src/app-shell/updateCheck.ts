@@ -49,10 +49,12 @@ export function extractSemver(raw: string | null | undefined): string | null {
   return m ? `${Number(m[1])}.${Number(m[2])}.${Number(m[3])}` : null;
 }
 
-/** latest 是否比 current 更新(数值比较,0.10.0 > 0.9.0);任一不可解析 → false。 */
+/** latest 是否比 current 更新(数值比较,0.10.0 > 0.9.0);任一不可解析 → false。
+ *  current 是 rc 构建(v0.2.2-rc.1)时剥预发布后缀再比 —— 装了 rc 的人也该
+ *  被稳定版发布提醒(比较语义:同三元组视为相等,不提示,rc 期账本防抖动)。 */
 export function isNewerVersion(latest: string, current: string): boolean {
   const latestV = extractSemver(latest);
-  const currentV = extractSemver(current);
+  const currentV = extractSemver(current) ?? extractSemver(current.split("-")[0]);
   if (!latestV || !currentV) return false;
   const a = latestV.split(".").map(Number);
   const c = currentV.split(".").map(Number);

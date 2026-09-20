@@ -103,4 +103,14 @@ export const MESSAGES = {
   "删除组": "Delete group",
   "删除组「{name}」?组内工作区将移到未分组。":
     "Delete group \"{name}\"? Its workspaces will move to Ungrouped.",
+
+  // ── 添加工作区浮层(WorkspaceAddDialog)+ 视图 radiogroup + 分组重命名 ──
+  "工作区来源": "Workspace source",
+  "本地目录": "Local directory",
+  "选择一个本机目录作为工作区根。": "Choose a local directory as the workspace root.",
+  "选择目录…": "Choose directory…",
+  "选择目录失败(权限被拒或已取消)。":
+    "Failed to choose a directory (permission denied or canceled).",
+  "工作区视图": "Workspace view",
+  "重命名 {name}": "Rename {name}",
 } as Record<string, string>;

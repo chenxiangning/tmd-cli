@@ -4,7 +4,7 @@
  * terminal.find 命令桥与模块级 findRequestRef 在 terminalFindBridge.ts。
  */
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type RefObject } from "react";
 import type { SearchAddon } from "@xterm/addon-search";
 import { CaretDown, CaretUp, Cross } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
@@ -21,25 +21,38 @@ export function TerminalSearchOverlay({
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+  /* 命中高亮:滚动条概览标尺(中性灰 = 命中,主题色 = 活动命中)——
+   * 主题色取 CSS 变量,取不到回落固定蓝;关闭时清干净。 */
+  const decorations = () => ({
+    matchOverviewRuler: "#8a8a8a",
+    activeMatchColorOverviewRuler:
+      getComputedStyle(document.documentElement).getPropertyValue("--tmd-accent").trim() || "#4a9eff",
+  });
+  const close = () => {
+    searchRef.current?.clearDecorations();
+    onClose();
+  };
 
   return (
     <div className="absolute right-3 top-2 z-10 flex items-center gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) px-2 py-1 shadow-lg">
       <input
         ref={inputRef}
         value={query}
-        onChange={(e) => {
+        onChange={(e: ChangeEvent<HTMLInputElement>) => {
           setQuery(e.target.value);
-          if (e.target.value) searchRef.current?.findNext(e.target.value);
+          /* IME 组合态跳过逐字搜索(拼音中途剧烈跳选),组合结束再找 */
+          if (e.target.value && !(e.nativeEvent as InputEvent).isComposing)
+            searchRef.current?.findNext(e.target.value, { decorations: decorations() });
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             if (e.shiftKey) {
-              if (query) searchRef.current?.findPrevious(query);
+              if (query) searchRef.current?.findPrevious(query, { decorations: decorations() });
             } else if (query) {
-              searchRef.current?.findNext(query);
+              searchRef.current?.findNext(query, { decorations: decorations() });
             }
           } else if (e.key === "Escape") {
-            onClose();
+            close();
           }
         }}
         placeholder={t("搜索终端输出")}
@@ -47,21 +60,21 @@ export function TerminalSearchOverlay({
       />
       <button
         title={t("上一个 (Shift+Enter)")}
-        onClick={() => query && searchRef.current?.findPrevious(query)}
+        onClick={() => query && searchRef.current?.findPrevious(query, { decorations: decorations() })}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
         <CaretUp size="0.875rem" />
       </button>
       <button
         title={t("下一个 (Enter)")}
-        onClick={() => query && searchRef.current?.findNext(query)}
+        onClick={() => query && searchRef.current?.findNext(query, { decorations: decorations() })}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
         <CaretDown size="0.875rem" />
       </button>
       <button
         title={t("关闭 (Esc)")}
-        onClick={onClose}
+        onClick={close}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
         <Cross size="0.875rem" />

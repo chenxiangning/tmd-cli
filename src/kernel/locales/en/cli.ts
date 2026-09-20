@@ -215,4 +215,84 @@ export const MESSAGES = {
     "Kiro OAuth login, quota usage, and model discovery",
   "基于 jscpd 的重复代码检测插件":
     "Duplicate-code detection plugin based on jscpd",
+
+  /* pi 配置面(cli-pi/configGui.ts;「全局配置」亦被 cli-omp/configGui.ts 消费) */
+  "CLI 主题": "CLI theme",
+  "全局配置": "Global config",
+  "配置文件不是 JSON 对象": "Config file is not a JSON object",
+  "默认思考强度": "Default thinking level",
+  "默认模型": "Default model",
+
+  /* omp 配置面(configGui 字段/配置源) */
+  "模型角色路由": "Model role routing",
+  "撞墙自动回退": "Auto-fallback on rate-limit walls",
+  "回退链": "Fallback chains",
+  "全局思考强度": "Global thinking level",
+  "符号风格": "Symbol style",
+  "prewalk": "prewalk",
+  "自动压缩历史": "Auto-compact history",
+  "记忆后端": "Memory backend",
+  "网络搜索链": "Web search chain",
+  "检查点": "Checkpoints",
+  "安全扫描": "Security scanning",
+  "流式工具摘要(ttsr)": "Streaming tool summary (ttsr)",
+  "ttsr 打断模式": "ttsr interrupt mode",
+  "免 key": "No key needed",
+  "需 API key": "API key required",
+  "OAuth 登录": "OAuth sign-in",
+  "项目级({name})": "Project ({name})",
+  "项目级 overlay 叠在全局之上;数组段(modelRoles / fallbackChains / providerChain)整体替换而非追加。首次保存时创建本文件。":
+    "The project overlay stacks on top of global; array sections (modelRoles / fallbackChains / providerChain) are replaced wholesale, not appended. The file is created on first save.",
+
+  /* omp 供应商认证(OmpProviderAuthPanel / OmpKeyDialog) */
+  "供应商认证": "Provider authentication",
+  "订阅授权": "Subscription auth",
+  "API Key": "API Key",
+  "写入 ~/.omp/agent/agent.db · 优先级高于环境变量":
+    "Written to ~/.omp/agent/agent.db · takes precedence over environment variables",
+  "OAuth 登录,token 自动刷新,由 omp CLI 存储":
+    "OAuth sign-in; tokens refresh automatically and are stored by the omp CLI",
+  "已授权": "Authorized",
+  "未授权": "Not authorized",
+  "自动刷新": "Auto-refresh",
+  "已配置": "Configured",
+  "未配置": "Not configured",
+  "登录": "Sign in",
+  "设置 Key": "Set key",
+  "设置 Key — {name}": "Set key — {name}",
+  "已保存 {id} 的 API Key": "Saved the API key for {id}",
+  "已删除 {id} 的 API Key": "Deleted the API key for {id}",
+  "已在内置终端打开 {name} 的登录流程,完成后回到此处查看状态":
+    "Opened the {name} sign-in flow in the built-in terminal; come back here to check the status once it's done",
+  "筛选供应商…": "Filter providers…",
+  "没有匹配的供应商": "No matching providers",
+  "显示全部 37 个供应商": "Show all 37 providers",
+
+  /* omp models.yml 自定义供应商(面板 + 添加对话框) */
+  "自定义供应商": "Custom providers",
+  "写入 ~/.omp/agent/models.yml · 中转站 / 自定义模型":
+    "Written to ~/.omp/agent/models.yml · relays / custom models",
+  "添加供应商": "Add provider",
+  "编辑配置": "Edit config",
+  "编辑 models.yml": "Edit models.yml",
+  "models.yml 原文": "models.yml raw",
+  "{n} 个模型": "{n} models",
+  "含 Key": "Has key",
+  "无 Key": "No key",
+  "还没有自定义供应商,点右上角「编辑配置」添加":
+    "No custom providers yet — click “Edit config” at the top right to add one",
+  "API Key(可空;建议 $ENV_VAR 引用)": "API Key (optional; a $ENV_VAR reference is recommended)",
+  "协议": "Protocol",
+  "模型(一行一个 id;高级字段用「编辑配置」)":
+    "Models (one id per line; advanced fields via “Edit config”)",
+
+  /* omp 添加供应商校验(modelsConfig.validateProviderInput;渲染点 = 对话框错误条) */
+  "名称只能用字母/数字/中划线/下划线,且以字母或数字开头":
+    "Names may only contain letters, digits, hyphens, and underscores, and must start with a letter or digit",
+  "供应商「{name}」已存在": "Provider “{name}” already exists",
+  "API 地址不能为空且不能含空白": "The API URL cannot be empty or contain whitespace",
+  "未知协议: {api}": "Unknown protocol: {api}",
+  "API Key 不能包含换行": "The API key cannot contain line breaks",
+  "至少填写一个模型 id": "Enter at least one model id",
+  "模型 id 不能含空白": "Model ids cannot contain whitespace",
 } as Record<string, string>;

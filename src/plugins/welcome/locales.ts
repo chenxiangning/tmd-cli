@@ -72,6 +72,7 @@ const MESSAGES_EN = {
   "已登录(ChatGPT 订阅)": "Signed in (ChatGPT plan)",
   "已登录;官方订阅额度请在 CLI 内 /usage 查看":
     "Signed in; check plan usage with /usage in the CLI",
+  "Claude 官方订阅": "Claude official plan",
   "凭据缺失": "Credential missing",
   "暂不支持该供应商": "Provider not supported yet",
   "{label}窗口 · 已使用 {pct}%": "{label} window · {pct}% used",
@@ -174,6 +175,7 @@ const MESSAGES_JA = {
   "已登录(ChatGPT 订阅)": "ログイン済み(ChatGPT プラン)",
   "已登录;官方订阅额度请在 CLI 内 /usage 查看":
     "ログイン済み。公式プランの使用量は CLI 内 /usage で確認",
+  "Claude 官方订阅": "Claude 公式プラン",
   "凭据缺失": "認証情報なし",
   "暂不支持该供应商": "このプロバイダは未対応",
   "{label}窗口 · 已使用 {pct}%": "{label}ウィンドウ · 使用 {pct}%",

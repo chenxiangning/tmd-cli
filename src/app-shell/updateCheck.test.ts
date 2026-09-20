@@ -71,6 +71,11 @@ describe("isNewerVersion", () => {
     expect(isNewerVersion("v0.2.0", "")).toBe(false);
     expect(isNewerVersion("v0.2.0", "dev")).toBe(false);
   });
+
+  it("rc 装机剥预发布后缀再比:稳定更新可提示,同三元组不提示", () => {
+    expect(isNewerVersion("0.2.3", "v0.2.2-rc.1")).toBe(true);
+    expect(isNewerVersion("0.2.2", "v0.2.2-rc.1")).toBe(false);
+  });
 });
 
 describe("parseChangelog", () => {

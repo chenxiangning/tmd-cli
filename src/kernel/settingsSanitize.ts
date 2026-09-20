@@ -200,6 +200,10 @@ export function sanitize(raw: unknown): AppSettings {
     askSoundId: ASK_SOUND_IDS.includes(obj.askSoundId as AskSoundId)
       ? (obj.askSoundId as AskSoundId)
       : DEFAULT_SETTINGS.askSoundId,
+    soundVolume:
+      typeof obj.soundVolume === "number" && Number.isFinite(obj.soundVolume)
+        ? Math.min(1, Math.max(0, obj.soundVolume))
+        : DEFAULT_SETTINGS.soundVolume,
     turnEndSoundEnabled:
       typeof obj.turnEndSoundEnabled === "boolean"
         ? obj.turnEndSoundEnabled

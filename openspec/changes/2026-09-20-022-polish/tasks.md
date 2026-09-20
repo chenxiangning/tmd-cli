@@ -48,14 +48,13 @@
 
 ## 7. UX 习惯批
 
-- [ ] 7.1 `Composer.tsx:51` 草稿按 workspace 存 localStorage:挂载恢复、发送清除
-- [ ] 7.2 `serialize.ts:33` + `composerTextareaKeys.ts:47-52` 触发符守卫:前一字符为触发符自身或 `://` 不激活(现只挡 \w,`https://x`/`src//x` 照弹下拉,Enter 被 applyPick 劫持误改文本)
-- [ ] 7.3 `marks/store.ts:155-158,165-183` staged 跨会话治理:loadAllMarks 回滚 pending 或醒目标识(isMark 收 staged/sent 随 sidecar 持久化,重启原样复活)
-- [ ] 7.4 i18n 首批:settings 域 15 条 + git 12 + files 9 + kernel 8(高频面)+ `modelsConfig.ts:179-192` validateProviderInput 7 条校验文案包 t();git 参数化键({op}成功等)人工抽查
-- [ ] 7.5 i18n 大批量:按 `i18n-missing.txt` 分批补 en(382)/ja(383)——welcome 63 / wallpaper 57 / wsl 49 / cli-omp 49 / web-access 42 / cli-config 24 / cli-shared 15 / 其余零散
-- [ ] 7.6 终端三件:`askSound.ts:56` 提示音 soundVolume(0-1);`terminalSearch.tsx:30-33` isComposing 跳过 findNext;终端搜索启用命中高亮(findNext 传 decorations:matchOverviewRuler+activeMatchColorUnderline,closeSearch 清除——现无任何高亮仅滚动定位)
-- [ ] 7.7 更新检查两件:`updateCheck.ts:46-56` isNewerVersion 对 current 剥 -rc 后缀再比(现 rc 装机恒不提示);`SidebarSettingsCluster.tsx:9,14` 头注释 v0.1.4 示意改 CHANGELOG 首条口径
-
+- [x] 7.1 Composer 草稿按工作区 root 持久化 localStorage(tmd.composerDraft.<root>):挂载懒恢复、切换工作区旧稿先落盘再换稿、发送/清空随 value="" 落盘(失败保留草稿 = P1 批语义自然成立);300ms 去抖
+- [x] 7.2 触发符三重前置守卫:词字符 + 触发符自身(src//x 第二个 /)+ 冒号(https: 后第一个 / 合成 ://)都不弹;回归测试 3 例入 serialize.test
+- [x] 7.3 marks loadAllMarks 磁盘像 staged 回滚 pending(瞬态语义:重启即失效,芯片条消失、面板可见待重发)
+- [x] 7.4 i18n 高频面(kernel 8 + git 12 含 remoteReport 参数化 8 + files 9 + workspace 7)+ git 域全量扫描零漏(git 插件 271 个 t() 键全核对)
+- [x] 7.5 i18n 大批量(4 路子代理并行):welcome/wallpaper 底稿过时已在前批补齐(0 改动,程序核验);实补 wsl 53 + assets 5 + cli-pi 5 + cli-omp 49+7(modelsConfig 7 条 throw 包 t(),用户可见已实证)+ cli-config 24 + cli-shared 15 + web-access 42+6(WebWanPane STEPS 变量消费盲区,主会话补);en/ja 键集一致契约测试全过。遗留:变量式 t() 调用各域可能仍有零星盲区(字面量普查不覆盖),「Claude 官方订阅」welcome/cli.ts 跨文件冗余无害(flat registry 后到覆盖)
+- [x] 7.6 终端三件:soundVolume 设置(0-1 钳制清洗 + BehaviorTab 原生 range 滑杆,ask/turnEnd 共用播放点);搜索框 IME 组合态跳过 findNext;搜索命中高亮(概览标尺中性灰=命中/主题色=活动命中,关闭 clearDecorations)
+- [x] 7.7 isNewerVersion current 剥 -rc 后缀再比(同三元组不提示防 rc 期账本抖动,回归测试 2 例);SidebarSettingsCluster 头注释对齐 CHANGELOG 首条回落口径
 ## 8. P3 池(穿插清)
 
 会话生命:
