@@ -24,6 +24,7 @@ import { bootIconDecor } from "@kernel/iconDecor";
 import { allPlugins } from "@plugins/index";
 import { installPluginShims } from "@kernel/pluginSdk";
 import { bootLocalPlugins, activateBootLocals } from "@kernel/localPlugins";
+import { isMobileShell, mountMobileShellGate } from "@shell/mobilePairing";
 import "./styles/global.css";
 
 function App() {
@@ -87,14 +88,27 @@ function App() {
 }
 
 /* Phosphor 全局默认 weight=bold —— 圆胖粗线视觉(对齐"圆乎乎 icon"诉求);
- * 调用点显式 weight 可覆盖。 */
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <IconContext.Provider value={{ weight: "bold" }}>
-      <HintProvider>
-        <App />
-      </HintProvider>
-    </IconContext.Provider>
-  </React.StrictMode>,
-);
+ * 调用点显式 weight 可覆盖。模块级常量:Provider value 引用稳定。 */
+const ICON_CONTEXT = { weight: "bold" } as const;
+
+function renderApp(root: ReactDOM.Root) {
+  root.render(
+    <React.StrictMode>
+      <IconContext.Provider value={ICON_CONTEXT}>
+        <HintProvider>
+          <App />
+        </HintProvider>
+      </IconContext.Provider>
+    </React.StrictMode>,
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root")!);
+/* 移动壳(initialization_script 注入 __TMD_SHELL__):先走配对门,授权后装配主应用;
+ * 桌面/浏览器两态直装。 */
+if (isMobileShell()) {
+  mountMobileShellGate(root, () => renderApp(root));
+} else {
+  renderApp(root);
+}
 

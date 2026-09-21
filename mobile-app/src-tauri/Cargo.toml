@@ -7,7 +7,9 @@ rust-version = "1.82"
 
 [lib]
 name = "tmd_mobile_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# iOS 走静态链(staticlib + Xcode 里的 Swift shim);不放 cdylib —— 独立 cargo link
+# 阶段解析不到 Tauri Swift 符号会 65。
+crate-type = ["staticlib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

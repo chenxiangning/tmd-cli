@@ -28,7 +28,7 @@ export interface RemoteEndpoint {
 
 let remoteEndpoint: RemoteEndpoint | null = null;
 
-let revokedCbs: (() => void)[] = [];
+let revokedCbs: ((reason: string) => void)[] = [];
 
 /** 壳态切换远程模式;null = 清凭证(撤销/重新配对),桥停连不再重试。 */
 export function configureRemoteEndpoint(ep: RemoteEndpoint | null): void {
@@ -43,8 +43,9 @@ export function isRemote(): boolean {
   return remoteEndpoint !== null;
 }
 
-/** 设备凭据被桌面撤销/拒(WS 4001):壳清凭证回配对屏。返回退订函数。 */
-export function onRemoteRevoked(cb: () => void): () => void {
+/** 设备凭据被桌面撤销/拒(WS 4001):壳清凭证回配对屏。回调收 close reason
+ * ("pending" = 待批准,"rejected" = 已被撤销)。返回退订函数。 */
+export function onRemoteRevoked(cb: (reason: string) => void): () => void {
   revokedCbs.push(cb);
   return () => {
     revokedCbs = revokedCbs.filter((f) => f !== cb);
@@ -117,7 +118,15 @@ class WebBridge {
         this.closed = true;
         for (const entry of this.pending.values()) entry.reject(new Error("device revoked"));
         this.pending.clear();
-        for (const cb of revokedCbs.splice(0)) cb();
+        /* 等待 hello 的调用方一并释放:4001 下永远不会有 hello。 */
+        if (this.versionValue === null) {
+          for (const w of this.versionWaiters.splice(0)) w(null);
+        }
+        if (this.capsValue === null) {
+          for (const w of this.capsWaiters.splice(0)) w([]);
+        }
+        const reason = typeof e.reason === "string" ? e.reason : "";
+        for (const cb of revokedCbs.splice(0)) cb(reason);
         return;
       }
       this.onClose(ws);
