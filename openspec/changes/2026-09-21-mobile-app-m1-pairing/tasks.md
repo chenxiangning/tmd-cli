@@ -78,11 +78,11 @@
 
 ## 12. 验证收口
 
-- [ ] 12.1 门禁:`pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build`;`cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check`
-- [ ] 12.2 协议脚本 e2e:LAN 与 relay 两路 配对→授权→连接→invoke→事件→回放→撤销 4001
-- [ ] 12.3 桌面真窗口目检:配对卡 QR/TTL/pending/授权/踢除/节流告警
-- [ ] 12.4 真机 iOS e2e:粘贴配对 → 桌面授权 → 远程 home 会话列表 → 打开会话实况;LAN/relay 各验;撤销回配对屏;block 屏注水演练
-- [ ] 12.5 `npx react-doctor@latest -y` 100 收口
+- [x] 12.1 门禁:`pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build`;`cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check`(2026-09-22 HEAD 全绿:2741 前端测/280 Rust 测)
+- [ ] 12.2 协议脚本 e2e:LAN 与 relay 两路(LAN 已绿见 9.2;relay 路待大仙 settings 配 webRelayUrl/webRelayKey —— 当前为空,offer relay=null)
+- [ ] 12.3 桌面真窗口目检:配对卡 QR/TTL/pending/授权/踢除/节流告警(浏览器桩目检已过;真窗口人眼复核待大仙 tauri:dev)
+- [ ] 12.4 真机 iOS e2e(用户门):需大仙 Xcode 登录 Apple ID 出签名 + iPhone;上游阻断见 10.4(模拟器启动验证同受累)
+- [x] 12.5 `npx react-doctor@latest -y` 100 收口(100/100)
 
 ## 13. 文档沉淀
 
