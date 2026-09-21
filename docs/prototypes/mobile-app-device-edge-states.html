@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mobile app · 设备管理与边界态原型</title>
+<style>
+  :root{
+    --bg-base:#ffffff; --bg-panel:#f8f8f8; --bg-hover:#f2f2f2;
+    --fg:#3b3b3b; --fg-muted:#7e7e7e; --fg-subtle:#999999; --fg-faint:#c0c0c0;
+    --border:#cecece; --border-strong:#b1b1b1; --accent:#005fb8; --accent-soft:rgba(0,95,184,.14);
+    --ok:#059669; --warn:#a16207; --err:#dc2626;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:14px/1.6 -apple-system,"PingFang SC","Segoe UI",sans-serif;color:var(--fg);background:#ececec;padding:32px 40px}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{color:var(--fg-muted);font-size:13px;margin-bottom:24px;max-width:960px}
+  .stage{display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap}
+  .panel-label{font-size:12px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px}
+  .step-note{font-size:12px;color:var(--fg-subtle);margin-top:10px;max-width:330px}
+  .step-note b{color:var(--fg);font-weight:600}
+  /* 桌面设置卡 */
+  .desktop{width:500px;background:var(--bg-base);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .d-titlebar{height:34px;background:var(--bg-panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:6px}
+  .d-dot{width:11px;height:11px;border-radius:50%}
+  .d-title{font-size:12px;color:var(--fg-muted);margin-left:8px}
+  .card{padding:16px}
+  .sect{font-size:13px;font-weight:600;margin-bottom:10px}
+  .dev{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;font-size:12.5px;background:var(--bg-panel)}
+  .dev.pending{border-style:dashed;border-color:var(--border-strong);background:#fffdf6}
+  .avatar{width:30px;height:30px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+  .dev .nm{font-weight:600}
+  .dev .mt{font-size:10.5px;color:var(--fg-subtle)}
+  .btn{font-size:12px;border:1px solid var(--border);background:var(--bg-base);border-radius:6px;padding:4px 11px;color:var(--fg)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.danger{color:var(--err);border-color:rgba(220,38,38,.4)}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+  .live-dot.off{background:var(--fg-faint)}
+  .hint{font-size:11.5px;color:var(--fg-muted);margin-top:10px}
+  /* 手机态 */
+  .phone{width:280px;height:560px;background:#0b0b0f;border-radius:42px;padding:9px;box-shadow:0 18px 44px rgba(0,0,0,.28);flex:none}
+  .screen{width:100%;height:100%;background:var(--bg-base);border-radius:34px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+  .island{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:82px;height:22px;background:#0b0b0f;border-radius:12px;z-index:5}
+  .statusbar{height:38px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 20px 3px;font-size:11.5px;font-weight:600;flex:none}
+  .homebar{height:18px;display:flex;align-items:center;justify-content:center;flex:none}
+  .homebar::after{content:"";width:110px;height:5px;border-radius:3px;background:var(--fg-faint)}
+  /* 通知横幅(iOS 锁屏/顶弹样式) */
+  .notif{margin:44px 10px 0;background:rgba(250,250,250,.97);border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.16)}
+  .notif .head{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--fg-muted);margin-bottom:3px}
+  .notif .app{font-weight:700;color:var(--fg)}
+  .notif .title{font-size:12.5px;font-weight:600}
+  .notif .body2{font-size:11.5px;color:var(--fg-muted)}
+  .notif .acts{display:flex;gap:8px;margin-top:8px}
+  .notif .act{flex:1;text-align:center;font-size:11.5px;font-weight:600;border-radius:7px;padding:5px 0;background:rgba(0,0,0,.06)}
+  .notif .act.yes{background:var(--ok);color:#fff}
+  .dark{background:#1c1c1e;height:100%;color:#e5e5e7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0 28px;text-align:center}
+  .dark .ico{font-size:40px}
+  .dark .t1{font-size:15px;font-weight:700}
+  .dark .t2{font-size:12px;color:#98989f}
+  .dark .btn{margin-top:8px;background:#0a84ff;color:#fff;border:none;border-radius:9px;padding:9px 22px;font-size:13px;font-weight:600}
+  .reconn{margin:10px 12px 0;display:flex;align-items:center;gap:8px;background:var(--accent-soft);border:1px solid rgba(0,95,184,.3);color:var(--accent);border-radius:10px;padding:8px 10px;font-size:11.5px}
+</style>
+</head>
+<body>
+<h1>设备管理与边界态 —— 授权/撤销 · 通知 · block 屏 · 重连</h1>
+<p class="sub">spec §A(设备表生命周期)与 §D(通知 v1 = 本地通知)。撤销即断连;app 凭证存 iOS 钥匙串档;协议 min-version 不满足时壳端渲染 block 屏。</p>
+
+<div class="stage">
+  <!-- 桌面:设备管理 -->
+  <div>
+    <p class="panel-label">桌面 · Web 访问 › 设备配对(设备表 UI)</p>
+    <div class="desktop">
+      <div class="d-titlebar">
+        <span class="d-dot" style="background:#ff5f57"></span><span class="d-dot" style="background:#febc2e"></span><span class="d-dot" style="background:#28c840"></span>
+        <span class="d-title">tmd-cli — 设置 › Web 访问</span>
+      </div>
+      <div class="card">
+        <div class="sect">待授权</div>
+        <div class="dev pending">
+          <span class="avatar">?</span>
+          <div style="flex:1"><div class="nm">iPad mini</div><div class="mt">192.168.1.40 · 发起于 1 分钟前 · 配对码 08:12 后过期</div></div>
+          <button class="btn primary">授权</button>
+          <button class="btn">忽略</button>
+        </div>
+        <div class="sect" style="margin-top:14px">已授权设备</div>
+        <div class="dev">
+          <span class="live-dot"></span>
+          <span class="avatar">iOS</span>
+          <div style="flex:1"><div class="nm">iPhone 15 Pro</div><div class="mt">已连接 · LAN · 上次活跃刚刚 · 配对于 09-21</div></div>
+          <button class="btn danger">踢除</button>
+        </div>
+        <div class="dev">
+          <span class="live-dot off"></span>
+          <span class="avatar">iOS</span>
+          <div style="flex:1"><div class="nm">iPhone 15 Pro(旧)</div><div class="mt">离线 6 天 · 上次活跃 09-15 22:41</div></div>
+          <button class="btn danger">踢除</button>
+        </div>
+        <div class="dev">
+          <span class="live-dot off"></span>
+          <span class="avatar">iOS</span>
+          <div style="flex:1"><div class="nm">iPad Air</div><div class="mt">离线 21 天 · 上次活跃 08-31 10:02</div></div>
+          <button class="btn danger">踢除</button>
+        </div>
+        <div class="hint">设备凭证 = 每台独立 token(桌面只存 sha-256)。踢除立即断开该设备全部连接,其本地凭证作废,需重新扫码配对。授权/踢除仅桌面可操作,手机端只读自己状态。</div>
+      </div>
+    </div>
+    <p class="step-note"><b>设备表 = 唯一授权闸</b>:web_devices.json(app-data,0600)落 deviceId/name/tokenHash/lastSeenAt/approved。_ws 每 5s 复查 approved(继承 codemiss 纪律),踢除后已开连接即刻 4001。</p>
+  </div>
+
+  <!-- 手机:本地通知 -->
+  <div>
+    <p class="panel-label">手机 · 本地通知(v1:前台/短暂后台)</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span></span></div>
+        <div class="notif">
+          <div class="head"><span class="app">tmd-cli</span> · 现在 <span style="margin-left:auto"></span></div>
+          <div class="title">审批请求 · Mac Studio</div>
+          <div class="body2">claude 想运行 pnpm build(tmd-cli)</div>
+          <div class="acts"><span class="act yes">允许</span><span class="act">拒绝</span><span class="act">查看</span></div>
+        </div>
+        <div class="notif">
+          <div class="head"><span class="app">tmd-cli</span> · 2 分钟前</div>
+          <div class="title">会话已空闲</div>
+          <div class="body2">「0.2.2 打磨期收口」回合结束,等待输入</div>
+        </div>
+        <div style="flex:1"></div>
+        <div style="text-align:center;font-size:10px;color:var(--fg-faint);padding-bottom:10px">v1 为本地通知(app 存活期);<br>APNs 推送 = v2(relay Worker 加推送通道)</div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note"><b>通知源 = WS 事件</b>:ask 到达 / 回合结束(app 前台或短暂后台时经 tauri-plugin-notification 弹本地通知),横幅动作直接走应答 RPC。断连期无推送——已知边界,不遮掩。</p>
+  </div>
+
+  <!-- 手机:block 屏 -->
+  <div>
+    <p class="panel-label">手机 · 协议 block 屏(min-version 不满足)</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="dark">
+          <div class="ico">!</div>
+          <div class="t1">桌面版本过旧</div>
+          <div class="t2">此 app 需要 tmd-cli v0.3.0 以上(当前 v0.2.2)。<br>请更新桌面端后重新连接。</div>
+          <div class="t2" style="font-size:10.5px">hello.version=0.2.2 · required ≥ 0.3.0</div>
+          <button class="btn">重试连接</button>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note"><b>block 屏 = orca 的教训</b>:app 审核更新天然滞后桌面,hello 帧的 version(+ capabilities)在壳侧评估,不满足即硬 block——宁可明说不可静默错行为。capability 预留位同机制,未来 E2EE 上线时老桌面自然落到对应提示。</p>
+  </div>
+
+  <!-- 手机:重连回放 -->
+  <div>
+    <p class="panel-label">手机 · 回前台重连 → 回放接管</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:44</span><span></span></div>
+        <div class="reconn"><span>↻</span> 已重连 · 回放了 18:02–18:04 之间 47 行输出</div>
+        <div style="flex:1;padding:12px;font-family:var(--mono);font-size:10px;line-height:1.6;color:var(--fg-muted)">
+          <div><span style="color:var(--ok)">⏺</span> Bash: pnpm test -- workspace</div>
+          <div>⎿ Tests 47 passed (12:41)</div>
+          <div style="color:var(--fg-faint)">… —— 以下为回放段(灰底左缘)——</div>
+          <div style="background:var(--bg-panel);border-left:2px solid var(--border);padding-left:6px;margin-top:4px">
+            <div>⏺ Edit(Sidebar.tsx) +12 -3</div>
+            <div>⏺ Bash: pnpm build</div>
+            <div>⎿ ✓ built in 1.24s</div>
+            <div>● 已修复:reload 后强制重建索引。</div>
+          </div>
+          <div style="margin-top:6px">Waiting for input…</div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note"><b>回放接管 = architecture/06 同构</b>:attach 会话先按 JSONL 水位回放缺失段(左缘灰条标记),再接管活流。断线时长任意,内容零丢失——这是 tmd-cli 磁盘先行契约白送 mobile 的能力,orca 需要自建 serialized buffer 快照才做到同效果。</p>
+  </div>
+</div>
+</body>
+</html>

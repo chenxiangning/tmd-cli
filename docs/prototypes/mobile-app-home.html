@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mobile app · 远程 home(会话列表)原型</title>
+<style>
+  :root{
+    --bg-base:#ffffff; --bg-panel:#f8f8f8; --bg-hover:#f2f2f2; --bg-sunken:#f8f8f8;
+    --fg:#3b3b3b; --fg-muted:#7e7e7e; --fg-subtle:#999999; --fg-faint:#c0c0c0;
+    --border:#cecece; --border-strong:#b1b1b1; --accent:#005fb8; --accent-soft:rgba(0,95,184,.14);
+    --ok:#059669; --warn:#a16207; --err:#dc2626;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:14px/1.6 -apple-system,"PingFang SC","Segoe UI",sans-serif;color:var(--fg);background:#ececec;padding:32px 40px}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{color:var(--fg-muted);font-size:13px;margin-bottom:24px;max-width:900px}
+  .stage{display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap}
+  .panel-label{font-size:12px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px}
+  .step-note{font-size:12px;color:var(--fg-subtle);margin-top:10px;max-width:320px}
+  .step-note b{color:var(--fg);font-weight:600}
+  /* 手机壳 */
+  .phone{width:300px;height:640px;background:#0b0b0f;border-radius:44px;padding:10px;box-shadow:0 18px 44px rgba(0,0,0,.28);flex:none}
+  .screen{width:100%;height:100%;background:var(--bg-base);border-radius:35px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+  .island{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:88px;height:24px;background:#0b0b0f;border-radius:14px;z-index:5}
+  .statusbar{height:42px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 22px 4px;font-size:12px;font-weight:600;flex:none}
+  .homebar{height:20px;display:flex;align-items:center;justify-content:center;flex:none}
+  .homebar::after{content:"";width:120px;height:5px;border-radius:3px;background:var(--fg-faint)}
+  /* RemoteHostBar(远程模式顶条,壳注入) */
+  .host-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--accent-soft);border-bottom:.5px solid var(--border);font-size:11.5px;flex:none}
+  .host-bar .nm{font-weight:600}
+  .host-bar .sub2{color:var(--fg-muted);font-family:var(--mono);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dot{width:7px;height:7px;border-radius:50%;flex:none}
+  .dot.ok{background:var(--ok)} .dot.err{background:var(--err)}
+  /* 列表 = tmd-cli 侧栏工作区卡片折叠态 + thread-row 同构 */
+  .ws-head{display:flex;align-items:center;gap:6px;padding:9px 4px 5px;font-size:11.5px;font-weight:600;color:var(--fg-muted)}
+  .ws-head .cnt{margin-left:auto;font-weight:400;color:var(--fg-subtle)}
+  .caret{font-size:9px;color:var(--fg-subtle)}
+  .row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;font-size:12.5px}
+  .row.active{background:var(--accent-soft)}
+  .glyph{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex:none}
+  .g-om{background:#e8f0fb;color:#005fb8}.g-cl{background:#f0eee9;color:#8a6d3b}.g-cx{background:#eaf3ee;color:#0f7a4d}
+  .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .meta{font-size:10.5px;color:var(--fg-subtle);flex:none}
+  .sdot{width:6px;height:6px;border-radius:50%;flex:none}
+  .sdot.run{background:var(--ok)} .sdot.idle{background:var(--fg-faint)} .sdot.ask{background:var(--warn)}
+  .pill{font-size:10px;border-radius:999px;padding:1px 8px;font-weight:600;flex:none}
+  .pill.warn{background:rgba(161,98,7,.1);color:var(--warn);border:1px solid rgba(161,98,7,.3)}
+  .search{margin:10px 0 4px;display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12.5px;color:var(--fg-faint);background:var(--bg-input)}
+  .fab{position:absolute;right:16px;bottom:34px;width:46px;height:46px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 6px 16px rgba(0,95,184,.35)}
+  /* 桌面 titlebar 徽标 */
+  .desktop{width:430px;background:var(--bg-base);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .d-titlebar{height:36px;background:var(--bg-panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:6px}
+  .d-dot{width:11px;height:11px;border-radius:50%}
+  .d-title{font-size:12px;color:var(--fg-muted);margin-left:8px;flex:1}
+  .badge{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--accent);background:var(--accent-soft);border:1px solid rgba(0,95,184,.3);border-radius:6px;padding:2px 8px}
+  .tabs{display:flex;gap:2px}
+  .tab{font-size:11px;padding:3px 9px;border-radius:5px;color:var(--fg-muted)}
+  .tab.on{background:#c46a2b;color:#fff;font-weight:600}
+  /* 断连态(手机) */
+  .banner{display:flex;align-items:center;gap:8px;background:#fdf3f3;border-bottom:.5px solid rgba(220,38,38,.35);color:var(--err);font-size:11.5px;padding:7px 12px;flex:none}
+  .banner button{margin-left:auto;border:1px solid rgba(220,38,38,.4);color:var(--err);background:#fff;border-radius:6px;font-size:11px;padding:2px 9px}
+</style>
+</head>
+<body>
+<h1>远程 home —— 手机壳主屏(轻交互:看会话)</h1>
+<p class="sub">spec §C · 壳 = 同一份前端跑远程模式,transport 注入 LAN/relay 端点;本页 = 配对成功后的第一屏。会话数据即桌面同款:工作区卡片分组 + thread 行,磁盘先行回放(architecture/06)保证断线重连不丢内容。</p>
+
+<div class="stage">
+  <!-- 手机:已连接 -->
+  <div>
+    <p class="panel-label">已连接 · LAN</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span></span></div>
+        <div class="host-bar">
+          <span class="dot ok"></span>
+          <div style="flex:1;min-width:0"><div class="nm">Mac Studio</div><div class="sub2">wss://tmd-relay.chen.workers.dev/cell/a9f3</div></div>
+          <span style="color:var(--accent);font-size:13px">⇄</span>
+        </div>
+        <div class="body">
+          <div class="search">iOS 搜索会话…</div>
+          <div class="ws-head"><span class="caret">▾</span> tmd-cli <span class="cnt">3</span></div>
+          <div class="row active"><span class="glyph g-cl">CL</span><span class="t">fix sidebar reload force index sync</span><span class="pill warn">审批 2</span><span class="meta">2 分</span><span class="sdot run"></span></div>
+          <div class="row"><span class="glyph g-om">OMP</span><span class="t">0.2.2 打磨期收口与 CHANGELOG</span><span class="meta">18 分</span><span class="sdot ask"></span></div>
+          <div class="row"><span class="glyph g-cx">CX</span><span class="t">移动端 transport 参数化 spike</span><span class="meta">1 时</span><span class="sdot idle"></span></div>
+          <div class="ws-head"><span class="caret">▸</span> orca-analysis <span class="cnt">2</span></div>
+          <div class="ws-head"><span class="caret">▸</span> mossx <span class="cnt">1</span></div>
+          <div class="ws-head"><span class="caret">▸</span> WSL · dev-box <span class="cnt">4</span></div>
+          <div style="margin-top:14px;font-size:11px;color:var(--fg-subtle);text-align:center">已归档会话在桌面端查看</div>
+        </div>
+        <div class="fab">+</div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note"><b>顶条 = RemoteHostBar</b>:主机名 + 当前路径(LAN/relay 自动竞速选中的那条)+ 手动切换。<b>会话行</b>与桌面侧栏同构:引擎字形 · 标题 · 相对时间 · 状态点;琥珀点 = 有待答 ask,橙 pill = 审批线待审批次数(轻交互也能批)。</p>
+  </div>
+
+  <!-- 手机:断连 -->
+  <div>
+    <p class="panel-label">断连态(进后台 / 桌面休眠)</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span></span></div>
+        <div class="banner"><span class="dot err"></span>连接已断开 · 正在重连(第 3 次)<button>手动重试</button></div>
+        <div class="body">
+          <div class="ws-head"><span class="caret">▾</span> tmd-cli <span class="cnt">3</span></div>
+          <div class="row" style="opacity:.55"><span class="glyph g-cl">CL</span><span class="t">fix sidebar reload force index sync</span><span class="meta">—</span><span class="sdot idle"></span></div>
+          <div class="row" style="opacity:.55"><span class="glyph g-om">OMP</span><span class="t">0.2.2 打磨期收口与 CHANGELOG</span><span class="meta">—</span><span class="sdot idle"></span></div>
+          <div style="margin-top:22px;text-align:center;font-size:12px;color:var(--fg-muted)">
+            列表为最近快照。<br>重连成功后自动按磁盘账本回放,<br>错过的输出不丢(磁盘先行契约)。
+          </div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note"><b>iOS 后台必断连</b>(spec D 的已知边界):回前台 = WebBridge 退避重连 + 按 JSONL 水位回放错过的终端输出——与桌面打开历史会话完全同构,零新增协议。</p>
+  </div>
+
+  <!-- 桌面:远程控制中徽标 -->
+  <div>
+    <p class="panel-label">桌面侧感知 · titlebar「远程控制中」</p>
+    <div class="desktop">
+      <div class="d-titlebar">
+        <span class="d-dot" style="background:#ff5f57"></span><span class="d-dot" style="background:#febc2e"></span><span class="d-dot" style="background:#28c840"></span>
+        <span class="d-title">tmd-cli — tmd-cli/tmd-cli</span>
+        <div class="tabs"><span class="tab">幕布</span><span class="tab on">审批线</span><span class="tab">Git</span></div>
+        <div class="badge">远程控制中 · 1</div>
+      </div>
+      <div style="padding:14px 16px;font-size:12.5px;color:var(--fg-muted)">
+        iPhone 15 Pro 已连接(LAN · 2 分钟前起)。v1 手机为<b style="color:var(--fg)">只读旁观</b>:不写 PTY、不抢终端,桌面操作不受任何影响——无 orca 式 driver 仲裁即是安全。
+      </div>
+    </div>
+    <p class="step-note">现有 RemoteControlBadge 直接复用并扩一档:除「N 个连接」外悬停可见设备名。轻交互 = 手机永远不进入 driver 位,终端归属桌面独占。</p>
+  </div>
+</div>
+</body>
+</html>

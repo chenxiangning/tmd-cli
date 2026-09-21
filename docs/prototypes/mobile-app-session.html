@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mobile app · 会话屏(实况 + 审批 + 发送)原型</title>
+<style>
+  :root{
+    --bg-base:#ffffff; --bg-panel:#f8f8f8; --bg-hover:#f2f2f2;
+    --fg:#3b3b3b; --fg-muted:#7e7e7e; --fg-subtle:#999999; --fg-faint:#c0c0c0;
+    --border:#cecece; --border-strong:#b1b1b1; --accent:#005fb8; --accent-soft:rgba(0,95,184,.14);
+    --ok:#059669; --warn:#a16207; --err:#dc2626;
+    --t-syntax-key:#0000ff; --t-syntax-str:#a31515; --t-syntax-cm:#008000; --t-syntax-num:#098658; --t-syntax-fn:#795e26; --t-syntax-type:#267f99;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:14px/1.6 -apple-system,"PingFang SC","Segoe UI",sans-serif;color:var(--fg);background:#ececec;padding:32px 40px}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{color:var(--fg-muted);font-size:13px;margin-bottom:24px;max-width:960px}
+  .stage{display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap}
+  .panel-label{font-size:12px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px}
+  .step-note{font-size:12px;color:var(--fg-subtle);margin-top:10px;max-width:320px}
+  .step-note b{color:var(--fg);font-weight:600}
+  .phone{width:300px;height:660px;background:#0b0b0f;border-radius:44px;padding:10px;box-shadow:0 18px 44px rgba(0,0,0,.28);flex:none}
+  .screen{width:100%;height:100%;background:var(--bg-base);border-radius:35px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+  .island{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:88px;height:24px;background:#0b0b0f;border-radius:14px;z-index:5}
+  .statusbar{height:40px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 22px 3px;font-size:12px;font-weight:600;flex:none}
+  .nav{height:44px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:.5px solid var(--border);flex:none}
+  .nav .back{color:var(--accent);font-size:14px}
+  .glyph{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;flex:none}
+  .g-cl{background:#f0eee9;color:#8a6d3b}
+  .nav .t{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .run{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--ok);flex:none}
+  .run::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ok)}
+  .live{flex:1;overflow:hidden;padding:8px 12px;font-family:var(--mono);font-size:10.5px;line-height:1.55;background:var(--bg-base);position:relative}
+  .live .dim{color:var(--fg-subtle)} .live .mut{color:var(--fg-muted)}
+  .live .k{color:var(--t-syntax-key)} .live .s{color:var(--t-syntax-str)} .live .c{color:var(--t-syntax-cm)} .live .n{color:var(--t-syntax-num)} .live .f{color:var(--t-syntax-fn)}
+  .live .ok{color:var(--ok);font-weight:700} .live .wr{color:var(--err);font-weight:700}
+  .fade{position:absolute;left:0;right:0;bottom:0;height:26px;background:linear-gradient(transparent,var(--bg-base))}
+  .live-tag{position:absolute;top:8px;right:12px;font-size:9.5px;color:var(--fg-faint);border:1px solid var(--border);border-radius:5px;padding:1px 6px;background:var(--bg-panel)}
+  /* ask 审批卡(幕布 ask 面板手机化:允许/拒绝/选项按钮) */
+  .ask{margin:0 12px 8px;border:1px solid rgba(161,98,7,.4);background:#fffdf3;border-radius:11px;padding:11px 12px;flex:none;box-shadow:0 4px 14px rgba(161,98,7,.12)}
+  .ask-head{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--warn);margin-bottom:6px}
+  .ask-q{font-family:var(--mono);font-size:10.5px;color:var(--fg);background:#fff;border:1px solid var(--border);border-radius:7px;padding:7px 9px;margin-bottom:9px;word-break:break-all}
+  .ask-opts{display:flex;gap:8px}
+  .opt{flex:1;text-align:center;font-size:13px;font-weight:600;border-radius:8px;padding:8px 0;border:1px solid var(--border);background:var(--bg-panel);color:var(--fg)}
+  .opt.yes{background:var(--ok);border-color:var(--ok);color:#fff}
+  .opt.no{background:#fff;color:var(--err);border-color:rgba(220,38,38,.45)}
+  /* composer(真实占位文案的移动短版) */
+  .composer{flex:none;border-top:.5px solid var(--border);background:var(--bg-panel);padding:8px 10px 6px}
+  .box{display:flex;align-items:flex-end;gap:8px;background:var(--bg-base);border:1px solid var(--border);border-radius:12px;padding:8px 10px}
+  .box .txt{flex:1;font-size:13.5px;line-height:1.5;color:var(--fg)}
+  .box .ph{color:var(--fg-faint)}
+  .send{width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+  .tools{display:flex;gap:12px;padding:5px 4px 0;font-size:10.5px;color:var(--fg-subtle)}
+  .toolbar-row{height:38px;display:flex;align-items:center;gap:6px;padding:0 10px;border-top:.5px solid var(--border);background:var(--bg-panel);flex:none;overflow:hidden}
+  .key{font-family:var(--mono);font-size:11px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:6px;padding:3px 9px;background:var(--bg-base);color:var(--fg-muted);white-space:nowrap}
+  .homebar{height:18px;display:flex;align-items:center;justify-content:center;flex:none}
+  .homebar::after{content:"";width:120px;height:5px;border-radius:3px;background:var(--fg-faint)}
+  /* 审批线 chip 行(右栏面板手机化) */
+  .ckpt{display:flex;align-items:center;gap:8px;margin:8px 12px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;font-size:11.5px;flex:none;background:var(--bg-panel)}
+  .ckpt b{font-weight:600}
+  .chip{font-size:10px;border-radius:999px;padding:1px 8px;font-weight:600;background:rgba(161,98,7,.1);color:var(--warn);border:1px solid rgba(161,98,7,.3)}
+  .chip.g{background:rgba(5,150,105,.08);color:var(--ok);border-color:rgba(5,150,105,.3)}
+  .chip.p{background:rgba(0,95,184,.08);color:var(--accent);border-color:rgba(0,95,184,.3)}
+</style>
+</head>
+<body>
+<h1>会话屏 —— 只读实况 + 审批应答 + composer 发送</h1>
+<p class="sub">spec §B/§C · 终端 = pty://out 字节原样透传进 xterm(幕布铁律),手机纯旁观不写 PTY;审批卡 = ask 面板手机化(允许/拒绝);发送走与桌面 composer 同一条 RPC。下面两屏是同一会话的两个时刻。</p>
+
+<div class="stage">
+  <!-- 时刻 A:ask 到来 -->
+  <div>
+    <p class="panel-label">时刻 A · CLI 请求审批(ask 卡置底)</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span></span></div>
+        <div class="nav">
+          <span class="back">‹</span>
+          <span class="glyph g-cl">CL</span>
+          <span class="t">fix sidebar reload force index sync</span>
+          <span class="run">运行中</span>
+        </div>
+        <div class="live">
+          <span class="dim">$ claude --resume 3f2a…</span><br>
+          <span class="dim">›</span> 侧栏刷新后索引不同步,查一下 <span class="c">// 用户</span><br>
+          <span class="ok">⏺</span> <span class="f">Read</span>(src/plugins/workspace/Sidebar.tsx)<br>
+          <span class="mut">⎿ 读入 412 行</span><br>
+          <span class="ok">⏺</span> <span class="f">Grep</span>(forceIndexSync)<br>
+          <span class="mut">⎿ 3 处命中</span><br>
+          <span class="ok">⏺</span> <span class="f">Edit</span>(src/plugins/workspace/Sidebar.tsx)<br>
+          <span class="mut">⎿ +12 -3</span><br>
+          <span class="ok">⏺</span> <span class="f">Bash</span>: pnpm test -- workspace<br>
+          <span class="mut">⎿ Tests 47 passed</span><br>
+          <span class="wr">●</span> 需要权限: <span class="k">pnpm build</span><br>
+          <span class="fade"></span>
+          <span class="live-tag">只读旁观 · 2 手机 + 桌面</span>
+        </div>
+        <div class="ask">
+          <div class="ask-head">审批请求 · claude</div>
+          <div class="ask-q">允许运行<b> pnpm build</b> ?(tmd-cli · 工作区根)</div>
+          <div class="ask-opts">
+            <button class="opt yes">允许</button>
+            <button class="opt no">拒绝</button>
+          </div>
+        </div>
+        <div class="composer">
+          <div class="box"><span class="txt ph">输入消息,回车发送…</span><span class="send">↑</span></div>
+          <div class="tools"><span>@ 文件</span><span>/ 命令</span><span>!! 提示词</span><span style="margin-left:auto;color:var(--fg-faint)">拖入/⌘V 图片在手机端不可用</span></div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note"><b>ask 卡</b>:桌面 askWatch 的事件镜像,手机点「允许/拒绝」= 与幕布 Enter/Esc 同一条应答 RPC。卡置底常驻直到应答;应答后落地为终端里一行结果(如实况所示)。</p>
+  </div>
+
+  <!-- 时刻 B:输入发送 + 审批线摘要 -->
+  <div>
+    <p class="panel-label">时刻 B · 打字发送 + 审批线入口</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:43</span><span></span></div>
+        <div class="nav">
+          <span class="back">‹</span>
+          <span class="glyph g-cl">CL</span>
+          <span class="t">fix sidebar reload force index sync</span>
+          <span class="run">运行中</span>
+        </div>
+        <div class="live">
+          <span class="dim">⏺ Bash: pnpm build</span><br>
+          <span class="mut">⎿ vite v7… building for production…</span><br>
+          <span class="mut">⎿ ✓ 2 modules transformed in 1.2s</span><br>
+          <span class="ok">●</span> 已修复:reload 后强制重建索引。<br>
+          <span class="dim">Waiting for input…</span><br>
+          <span class="fade"></span>
+        </div>
+        <div class="ckpt">
+          <b>审批线</b><span class="chip">待审 1</span><span class="chip g">已通过 3</span>
+          <span style="margin-left:auto;color:var(--accent)">查看 ›</span>
+        </div>
+        <div class="composer">
+          <div class="box">
+            <span class="txt">把 Sidebar.tsx 的变更同步一份到 fix-sidebar 分支,<b>然后跑 check:file-size</b></span>
+            <span class="send">↑</span>
+          </div>
+          <div class="tools"><span> 截图</span><span>@ 引用</span><span>/ 命令</span><span style="margin-left:auto;color:var(--fg-faint)">回车发送 · Shift+回车换行</span></div>
+        </div>
+        <div class="toolbar-row">
+          <span class="key">esc</span><span class="key">tab</span><span class="key">ctrl</span><span class="key">↑</span><span class="key">↓</span><span class="key">/</span><span class="key">⌘</span>
+          <span style="margin-left:auto;font-size:9.5px;color:var(--fg-faint)">v1.5 预留:终端键盘(现在不可用)</span>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note"><b>发送</b>:复用桌面 composer 语义(Enter 发送;图片/拖拽手机端禁用,占位提示写明)。<b>审批线行</b>:右栏 CheckpointsPanel 的摘要手机化,点开 = 批次清单(通过/回退动作 v1 只读展示,v1.5 开放操作)。<b>键盘工具条置灰</b>:终端输入属于 v1.5,清楚标明边界。</p>
+  </div>
+</div>
+</body>
+</html>

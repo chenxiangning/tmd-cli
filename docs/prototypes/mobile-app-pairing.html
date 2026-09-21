@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mobile app · 配对流程原型(tmd://pair)</title>
+<style>
+  :root{
+    --bg-base:#ffffff; --bg-panel:#f8f8f8; --bg-hover:#f2f2f2; --bg-input:#ffffff;
+    --fg:#3b3b3b; --fg-muted:#7e7e7e; --fg-subtle:#999999; --fg-faint:#c0c0c0;
+    --border:#cecece; --border-strong:#b1b1b1; --accent:#005fb8; --accent-soft:rgba(0,95,184,.14);
+    --ok:#059669; --warn:#a16207; --err:#dc2626;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:14px/1.6 -apple-system,"PingFang SC","Segoe UI",sans-serif;color:var(--fg);background:#ececec;padding:32px 40px}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{color:var(--fg-muted);font-size:13px;margin-bottom:24px}
+  .stage{display:flex;gap:36px;align-items:flex-start;flex-wrap:wrap}
+  .panel-label{font-size:12px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px}
+  .step-note{font-size:12px;color:var(--fg-subtle);margin-top:10px;max-width:340px}
+  .step-note b{color:var(--fg);font-weight:600}
+  .arrow{align-self:center;color:var(--border-strong);font-size:22px;margin-top:120px}
+  /* ── 桌面设置卡(tmd-cli 浅色 settings 卡同款) ── */
+  .desktop{width:520px;background:var(--bg-base);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .d-titlebar{height:34px;background:var(--bg-panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:6px}
+  .d-dot{width:11px;height:11px;border-radius:50%}
+  .d-title{font-size:12px;color:var(--fg-muted);margin-left:8px}
+  .card{padding:16px}
+  .card-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .card-title{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600}
+  .card-title svg{width:16px;height:16px;stroke:var(--fg);fill:none;stroke-width:1.6}
+  .switch{position:relative;width:34px;height:19px;background:var(--accent);border-radius:10px}
+  .switch::after{content:"";position:absolute;top:2px;right:2px;width:15px;height:15px;border-radius:50%;background:#fff}
+  .hint{font-size:12px;color:var(--fg-muted);margin-bottom:14px}
+  .pair-zone{border:1px dashed var(--border-strong);border-radius:8px;padding:14px;background:var(--bg-panel)}
+  .pz-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .pz-title{font-size:13px;font-weight:600}
+  .code-chip{font-family:var(--mono);font-size:15px;letter-spacing:.35em;background:var(--bg-base);border:1px solid var(--border);border-radius:6px;padding:3px 8px 3px 12px;font-weight:600}
+  .ttl{font-size:11px;color:var(--warn);background:rgba(161,98,7,.08);border:1px solid rgba(161,98,7,.25);border-radius:5px;padding:1px 7px}
+  .qr-wrap{display:flex;gap:14px;align-items:flex-start}
+  .qr{background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px}
+  .qr-meta{flex:1;font-size:12px;color:var(--fg-muted);display:flex;flex-direction:column;gap:8px;min-width:0}
+  .qr-meta code{font-family:var(--mono);font-size:10.5px;background:var(--bg-panel);border:1px solid var(--border);border-radius:5px;padding:5px 7px;word-break:break-all;all:initial;font-family:var(--mono);font-size:10.5px;display:block;background:var(--bg-panel);border:1px solid var(--border);border-radius:5px;padding:5px 7px;word-break:break-all;color:var(--fg)}
+  .pending-row{display:flex;align-items:center;gap:8px;margin-top:14px;padding:8px 10px;background:#fff;border:1px solid var(--border);border-radius:7px;font-size:12.5px}
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--warn);flex:none}
+  .btn{font-size:12px;border:1px solid var(--border);background:var(--bg-base);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--fg)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  /* ── 手机壳 ── */
+  .phone{width:300px;height:620px;background:#0b0b0f;border-radius:44px;padding:10px;box-shadow:0 18px 44px rgba(0,0,0,.28);flex:none;position:relative}
+  .screen{width:100%;height:100%;background:var(--bg-base);border-radius:35px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+  .island{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:88px;height:24px;background:#0b0b0f;border-radius:14px;z-index:5}
+  .statusbar{height:42px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 22px 4px;font-size:12px;font-weight:600}
+  .nav{height:44px;display:flex;align-items:center;justify-content:center;position:relative;font-size:15px;font-weight:600;border-bottom:.5px solid var(--border)}
+  .nav .back{position:absolute;left:12px;color:var(--accent);font-size:14px;font-weight:400;display:flex;align-items:center;gap:2px}
+  .body{flex:1;overflow:auto;padding:14px}
+  .homebar{height:22px;display:flex;align-items:center;justify-content:center}
+  .homebar::after{content:"";width:120px;height:5px;border-radius:3px;background:var(--fg-faint)}
+  .camera{height:100%;background:linear-gradient(160deg,#2a2d31,#1a1c1f 55%,#232528);position:relative;display:flex;align-items:center;justify-content:center}
+  .corner{position:absolute;width:52px;height:52px;border:3px solid var(--accent);border-radius:6px}
+  .corner.tl{top:120px;left:52px;border-right:none;border-bottom:none}
+  .corner.tr{top:120px;right:52px;border-left:none;border-bottom:none}
+  .corner.bl{bottom:150px;left:52px;border-right:none;border-top:none}
+  .corner.br{bottom:150px;right:52px;border-left:none;border-top:none}
+  .scan-hint{position:absolute;bottom:96px;left:0;right:0;text-align:center;color:#d5d5d8;font-size:12.5px;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+  .scan-line{position:absolute;top:150px;left:60px;right:60px;height:2px;background:var(--accent);opacity:.85;box-shadow:0 0 10px var(--accent)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg-base);border-radius:16px 16px 0 0;padding:16px 18px 8px;box-shadow:0 -8px 24px rgba(0,0,0,.14)}
+  .grab{width:36px;height:4.5px;border-radius:3px;background:var(--border);margin:0 auto 12px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:11.5px;color:var(--fg-muted);margin-bottom:4px}
+  .field input{width:100%;font-size:14px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg-input);color:var(--fg)}
+  .host-card{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:9px;padding:10px;background:var(--bg-panel)}
+  .host-glyph{width:34px;height:34px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+  .host-name{font-size:13.5px;font-weight:600}
+  .host-sub{font-size:11px;color:var(--fg-muted);font-family:var(--mono)}
+  .cta{width:100%;margin-top:4px;padding:11px;border-radius:9px;border:none;background:var(--accent);color:#fff;font-size:14.5px;font-weight:600}
+  .fineprint{font-size:10.5px;color:var(--fg-faint);text-align:center;margin-top:8px}
+  legend, .lg{font-size:12px;font-weight:600;color:var(--fg-muted)}
+</style>
+</head>
+<body>
+<h1>配对流程 —— 桌面出码,手机扫码,桌面授权</h1>
+<p class="sub">spec:<code>docs/superpowers/specs/2026-09-21-mobile-app-design.md</code> §A · QR offer = <code>tmd://pair?c=</code> + base64url(JSON {v:1, hostId, name, pairCode, lan?, relay?}) · 配对码 8 位 / 10 分钟 TTL / 单次消费</p>
+
+<div class="stage">
+  <!-- ① 桌面:web-access 设置卡 + 设备配对 -->
+  <div>
+    <p class="panel-label">① 桌面 · 设置 › Web 访问(新增「设备配对」区)</p>
+    <div class="desktop">
+      <div class="d-titlebar">
+        <span class="d-dot" style="background:#ff5f57"></span><span class="d-dot" style="background:#febc2e"></span><span class="d-dot" style="background:#28c840"></span>
+        <span class="d-title">tmd-cli — 设置</span>
+      </div>
+      <div class="card">
+        <div class="card-row">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+            内网 Web 访问
+          </div>
+          <div class="switch"></div>
+        </div>
+        <div class="hint">同一 Wi-Fi 下的手机/平板浏览器打开下方地址即可访问本机会话。地址含一次性 token,每次启动都会重新生成,不要转发给他人。</div>
+
+        <div class="pair-zone">
+          <div class="pz-head">
+            <span class="pz-title">设备配对</span>
+            <span class="ttl">配对码 09:42 后过期</span>
+          </div>
+          <div class="qr-wrap">
+            <div class="qr"><svg id="qr1" width="118" height="118"></svg></div>
+            <div class="qr-meta">
+              <div>手机 app 扫此码发起配对。配对码单次消费,扫码后此码即作废。</div>
+              <code>tmd://pair?c=eyJ2IjoxLCJob3N0SWQiOiJhOWYz…(base64url)</code>
+              <div class="code-chip">K7MP-2QDX</div>
+              <div>端口 61234 · LAN 192.168.1.23 · relay 已连接</div>
+            </div>
+          </div>
+          <div class="pending-row">
+            <span class="pulse"></span>
+            <div style="flex:1"><b>iPhone 15 Pro</b> 正在等待授权…</div>
+            <button class="btn primary">授权</button>
+            <button class="btn">忽略</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="step-note"><b>桌面出码</b>:点「添加设备」→ 铸 8 位配对码(10 分钟 TTL)→ 屏显 QR。手机扫码后落「待授权」行,人工点<b>授权</b>才翻 approved——手机端永远不能自批(codemoss 教训收窄)。</p>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- ② 手机:扫码 -->
+  <div>
+    <p class="panel-label">② 手机 · 首屏无凭证 → 扫码</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="camera">
+          <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+          <div class="scan-line"></div>
+          <div class="scan-hint">对准桌面「Web 访问 › 设备配对」二维码<br>或粘贴 tmd://pair 链接</div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note"><b>相机扫码</b>:app 内建取景器(Expo/expo-camera 同位,Tauri 壳走 Safari 相机捕获或原生插件,实施期定)。旁边预留「粘贴链接」兜底,Mac 上演示时不用举着手机对屏。</p>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- ③ 手机:配对确认 -->
+  <div>
+    <p class="panel-label">③ 手机 · offer 解析 → 确认 → 等授权</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span></span></div>
+        <div class="nav"><span class="back">‹ 扫码</span>配对设备</div>
+        <div class="body">
+          <div class="lg" style="margin-bottom:8px">识别到主机</div>
+          <div class="host-card">
+            <div class="host-glyph">M</div>
+            <div style="flex:1;min-width:0">
+              <div class="host-name">Mac Studio</div>
+              <div class="host-sub">ws://192.168.1.23:61234/ws</div>
+            </div>
+            <span style="font-size:11px;color:var(--ok)">● LAN 可达</span>
+          </div>
+          <div style="height:14px"></div>
+          <div class="field">
+            <label>设备名称(桌面授权列表里显示)</label>
+            <input value="iPhone 15 Pro">
+          </div>
+          <div class="field">
+            <label>配对码</label>
+            <input value="K7MP-2QDX" style="font-family:var(--mono);letter-spacing:.2em">
+          </div>
+          <button class="cta">请求配对</button>
+          <div class="fineprint">凭证只存本机,不上 iCloud 备份<br>桌面授权后才能访问</div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note"><b>确认页</b>:展示从 offer 解析出的主机与端点(LAN/relay 双路自动竞速,谁先通用谁)。提交后桌面出现②里的待授权行,人工授权 → 手机直接进远程 home(第 2 页原型)。</p>
+  </div>
+</div>
+
+<script>
+/* 伪 QR:固定种子画模块,视觉近似真实码 */
+function drawQR(id,seed){
+  const svg=document.getElementById(id);const n=25,s=118/n;let x=seed;
+  const rnd=()=>{x=(x*1103515245+12345)%2147483648;return x/2147483648};
+  svg.setAttribute("viewBox","0 0 118 118");
+  let d="";
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++){if(rnd()>0.52)d+=`M${j*s} ${i*s}h${s+0.3}v${s+0.3}h-${s+0.3}z`}
+  svg.innerHTML=`<rect width="118" height="118" fill="#fff"/><path d="${d}" fill="#1a1a1a"/>`;
+  const finder=(px,py)=>`<path fill="#1a1a1a" d="M${px} ${py}h${7*s}v${7*s}h-${7*s}z M${px+s} ${py+s}h${5*s}v${5*s}h-${5*s}z M${px+2*s} ${py+2*s}h${3*s}v${3*s}h-${3*s}z" fill-rule="evenodd"/>`;
+  svg.innerHTML+=finder(0,0)+finder(118-7*s,0)+finder(0,118-7*s);
+}
+drawQR("qr1",77);
+</script>
+</body>
+</html>
