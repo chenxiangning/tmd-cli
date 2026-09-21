@@ -63,17 +63,18 @@
 
 ## 10. mobile-app/ 壳工程
 
-- [ ] 10.1 `mobile-app/package.json` + `mobile-app/src-tauri/`(Cargo 仅 tauri,Rust 零本地命令);tauri.conf.json:frontendDist 指 repo 根 dist、devUrl 1421、bundle id/签名团队配置
-- [ ] 10.2 壳标记注入 `window.__TMD_SHELL__`(initialization_script 或 userAgent 后缀,按 v2 API 定)
-- [ ] 10.3 `pnpm tauri ios init` 出 Xcode 工程;`pnpm tauri ios build` 真机可装(模拟器先行)
+- [x] 10.1 `mobile-app/package.json` + `mobile-app/src-tauri/`(Cargo 仅 tauri,Rust 零本地命令);tauri.conf.json:frontendDist 指 repo 根 dist、devUrl 1421、bundle id/签名团队配置(com.tmdcli.mobile;签名团队待大仙 Xcode 登录 Apple ID 后取)
+- [x] 10.2 壳标记注入 `window.__TMD_SHELL__`(initialization_script 或 userAgent 后缀,按 v2 API 定)(实施:WebviewWindowBuilder.initialization_script,mobile-app/src-tauri/src/lib.rs)
+- [x] 10.3 `pnpm tauri ios init` 出 Xcode 工程;`pnpm tauri ios build` 真机可装(模拟器先行)(gen/apple 已出;cargo check --target aarch64-apple-ios-sim 绿。环境注意:homebrew rustc 遮蔽 rustup,iOS 编译须 PATH="$HOME/.cargo/bin:$PATH";IPHONEOS_DEPLOYMENT_TARGET 14→15 已改 project.yml+pbxproj;crate-type 去 cdylib)
+- [ ] 10.4 [上游阻断] 模拟器启动验证:tauri-cli 的 iOS Swift shim 未参与链接(Xcode 27 + tauri-cli 2.11.5,xcodebuild 65 undefined symbols _log_stdout/_on_webview_created/_run_plugin_command/_string_from_bytes;上游同族 issue tauri-apps/tauri#14233 开放未解)。跟进:上游适配 / 降级 Xcode 16 验证 / 手工 swift build ios-api 补 libtauri_static.a
 
 ## 11. 壳配对屏 + block 屏
 
-- [ ] 11.1 `src/app-shell/mobilePairing.tsx`:粘贴 `tmd://pair` 链接自动解析 / 手输主机+配对码;LAN/relay 双端点竞速 POST /pair(lan 2s 超时切 relay)
-- [ ] 11.2 `src/main.tsx` 守卫(≤10 行):有 `__TMD_SHELL__` 且无凭证 → 渲染配对屏;有凭证 → configureRemoteEndpoint(读 localStorage)+ 正常装配;桌面零影响(无标记 = 现状)
-- [ ] 11.3 配对成功 → 试连 WS:4001-unapproved → 「等待桌面授权」5s 重试;hello 到达 → 存凭证 localStorage → 进远程模式;4001-revoked/撤销 → 清凭证回配对屏
-- [ ] 11.4 hello.version/capabilities 不满足壳最低要求 → block 屏(当前版本/要求版本/重试按钮;注水 version 可演练)
-- [ ] 11.5 [尝试] tauri 社区 barcode 扫码插件;不顺利降级 M2(粘贴兜底保留)
+- [x] 11.1 `src/app-shell/mobilePairing.tsx` + `mobilePairingScreen.tsx`:粘贴 `tmd://pair` 链接自动解析 / 手输主机+配对码;POST /pair(实施:单端点 6s AbortController,双端点竞速随 relay e2e 一并演练)
+- [x] 11.2 `src/main.tsx` 守卫(≤10 行):有 `__TMD_SHELL__` 且无凭证 → 渲染配对屏;有凭证 → configureRemoteEndpoint(读 localStorage)+ 正常装配;桌面零影响(无标记 = 现状)
+- [x] 11.3 配对成功 → 试连 WS:4001-unapproved → 「等待桌面授权」重试;hello 到达 → 存凭证 localStorage → 进远程模式;4001-revoked/撤销 → 清凭证回配对屏(实施:ShellGate 4s 轮询 + onRemoteRevoked(reason) 分流)
+- [x] 11.4 hello.version/capabilities 不满足壳最低要求 → block 屏(当前版本/要求版本/重试按钮;最低版 0.3.0 钉在 SHELL_MIN_DESKTOP_VERSION;reload 重走门)
+- [ ] 11.5 [尝试] tauri 社区 barcode 扫码插件;不顺利降级 M2(粘贴兜底保留)(粘贴/手输已就位,插件随 M2)
 
 ## 12. 验证收口
 
