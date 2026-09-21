@@ -27,7 +27,7 @@
 
 - [x] 4.1 `/ws` 握手:`?token=`(浏览器,现状零回退)或 `?device=&token=`(设备);两路产出 `ConnScope::{Browser, AppDevice{device_id}}`
 - [x] 4.2 设备凭据未授权/被撤:升级后立即 4001 close + reason(`unapproved`/`revoked`);壳据此分流
-- [ ] 4.3 连接存活期 5s 复查 approved,翻 false 即 4001;AppDevice socket 按 device_id 计数(state.rs 增 in-memory 计数,设备行 live 点与 remote_control_active 共用)
+- [x] 4.3(实施:即时踢 conn.rs LiveGuard + 5s 复查;per-device 连接计数挪 M2 徽标项) 连接存活期 5s 复查 approved,翻 false 即 4001;AppDevice socket 按 device_id 计数(state.rs 增 in-memory 计数,设备行 live 点与 remote_control_active 共用)
 - [x] 4.4 hello 帧补 `capabilities: []`;连接泵与复查逻辑抽 `conn.rs`(server.rs 守 300 铁则,只留路由/握手/静态面)(实施:泵/握手在 ws.rs,conn.rs = scope 枚举 + AppDevice 域闸 + scoped dispatch,server.rs 168 行)
 - [ ] 4.5 单测:浏览器 token 零回退;设备 4001 两 reason;复查翻false断连;hello 含 capabilities 字段
 
@@ -45,21 +45,21 @@
 
 ## 7. transport.ts 远程模式(唯一 kernel 改动点)
 
-- [ ] 7.1 `configureRemoteEndpoint({wsUrl,deviceId,token} | null)`:置位后 invoke/listen 走 WebBridge 连远端(wsUrl + `?device=&token=`);浏览器态 location.host + webToken 原样;`isRemote` export
-- [ ] 7.2 hello 增存 capabilities:`serverCapabilities()` 与 serverVersion 并列;onclose 读 code,4001 → 停止重连 + revoked 态 + 事件通知(壳清凭证回配对屏)
-- [ ] 7.3 现有浏览器桩目检链路回归(transport 双态不破坏 isWeb 行为)
+- [x] 7.1 `configureRemoteEndpoint({wsUrl,deviceId,token} | null)`:置位后 invoke/listen 走 WebBridge 连远端(wsUrl + `?device=&token=`);浏览器态 location.host + webToken 原样;`isRemote` export
+- [x] 7.2 hello 增存 capabilities:`serverCapabilities()` 与 serverVersion 并列;onclose 读 code,4001 → 停止重连 + revoked 态 + 事件通知(壳清凭证回配对屏)
+- [x] 7.3 现有浏览器桩目检链路回归(transport 双态不破坏 isWeb 行为)
 
 ## 8. 桌面配对 UI(web-access 插件)
 
-- [ ] 8.1 新 `src/plugins/web-access/WebDevicePairCard.tsx`(原型 ① 同构):添加设备 → QRCodeSVG(现有依赖)+ 配对码 chip + TTL 倒计时;待授权行(授权/忽略);已授权列表(live 点/上次活跃/踢除);订阅 `web://devices`;`web://pair-alert` 节流告警 toast
-- [ ] 8.2 `WebAccessSection` 内网卡下挂载配对卡;isWeb 态隐藏(desktop-only)
-- [ ] 8.3 i18n 三语词条(en/ja 落 kernel locales misc.ts web-access 段先例)
+- [x] 8.1 新 `src/plugins/web-access/WebDevicePairCard.tsx`(原型 ① 同构):添加设备 → QRCodeSVG(现有依赖)+ 配对码 chip + TTL 倒计时;待授权行(授权/忽略);已授权列表(live 点/上次活跃/踢除);订阅 `web://devices`;`web://pair-alert` 节流告警 toast
+- [x] 8.2 `WebAccessSection` 内网卡下挂载配对卡;isWeb 态隐藏(desktop-only)
+- [x] 8.3 i18n 三语词条(en/ja 落 kernel locales misc.ts web-access 段先例)
 - [ ] 8.4 桩目检:配对卡全交互链(出码→pending→授权→踢除)
 
 ## 9. 协议层客户端脚本
 
-- [ ] 9.1 `scripts/web-bridge-client.mjs`(Node 22+ global WebSocket):`--url --pair-code --device-name` → POST /pair → 轮询等授权 → WS(device 凭据)→ hello → invoke session_list → 事件 → attach 回放演示;`--token` 浏览器路径;`--expect-revoke` 断言撤销 4001
-- [ ] 9.2 LAN 真桥跑通全链 = 协议验收判据(server bug vs UI bug 归因)
+- [x] 9.1 `scripts/web-bridge-client.mjs`(Node 22+ global WebSocket):`--offer` / `--url+--code` / `--url+--device+--token` 三入口 → POST /pair → 轮询等授权 → WS(device 凭据)→ hello → invoke session_list → 事件旁听;4001/revoked 退出码 42(实施:--token 浏览器路径与 attach 回放演示并入 12 收口,按需)
+- [x] 9.2 LAN 真桥跑通全链 = 协议验收判据(server bug vs UI bug 归因)(2026-09-22 实测:出 offer→/pair 200→pending 4001 轮询→授权→hello capabilities=[app-device]→session_list ok→撤销→4001/revoked 退出 42;dev offer 经 debug 构建 stderr 提供,release 零编译)
 
 ## 10. mobile-app/ 壳工程
 
