@@ -120,6 +120,7 @@ fn 节流_连续失败到上限拒_成功清零() {
 
 #[test]
 fn 撤销即时踢_活跃连接收到信号() {
+    use crate::web::conn::register_live;
     let dir = tmpdir("kick");
     let reg = DeviceRegistry::default();
     let (code, _) = reg.mint_code(1000);

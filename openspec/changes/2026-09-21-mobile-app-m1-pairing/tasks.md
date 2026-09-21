@@ -4,43 +4,43 @@
 
 ## 1. [前置] relay 数据面 loopback 修复(P1 存量缺陷)
 
-- [ ] 1.1 `src-tauri/src/web/server.rs` serve():LAN listener 起后按同端口再绑 `127.0.0.1`(占用则重铸端口重试,上限 3 次);双 listener 各起 axum::serve 共享 Router;停机语义两路同收
-- [ ] 1.2 单测/实测:起桥后 `127.0.0.1:{port}` 与 `{lan_ip}:{port}` 均可建 TCP;relay_agent 零改动
+- [x] 1.1 `src-tauri/src/web/server.rs` serve():LAN listener 起后按同端口再绑 `127.0.0.1`(占用则重铸端口重试,上限 3 次);双 listener 各起 axum::serve 共享 Router;停机语义两路同收
+- [x] 1.2 单测/实测:起桥后 `127.0.0.1:{port}` 与 `{lan_ip}:{port}` 均可建 TCP;relay_agent 零改动
 - [ ] 1.3 验收:relay 已连接态下经 Worker 隧道发 HTTP 请求,桥真实应答(修复前 = 拒绝)
 
 ## 2. 设备注册表(devices.rs)
 
-- [ ] 2.1 新 `src-tauri/src/web/devices.rs`(~200 行):`Device{deviceId,name,tokenHash,createdAt,lastSeenAt,approved}`;`web_devices.json`(app-data,0600,`{version:1, devices:[…]}`);写盘复用 `crate::session` 原子写
-- [ ] 2.2 hostId:16 字节随机 hex,app-data `web_host_id` 一次性生成(已存在直读)
-- [ ] 2.3 配对码生命周期:mint(8 位 `XXXX-XXXX`,gate.rs 字母表,10min TTL,单次消费)→ consume;设备 token 32 字符 CSPRNG,落盘只存 sha-256 hex(复用现有 sha2 依赖)
-- [ ] 2.4 `validate/approve/revoke/list/touch_last_seen`;revoke 返回被撤 deviceId 供踢 socket
-- [ ] 2.5 单测:铸码→配对→pending→approve→validate 全链;TTL 过期拒;码单次消费;撤销后 validate 拒;落盘文件无明文 token;0600 权限
+- [x] 2.1 新 `src-tauri/src/web/devices.rs`(~200 行):`Device{deviceId,name,tokenHash,createdAt,lastSeenAt,approved}`;`web_devices.json`(app-data,0600,`{version:1, devices:[…]}`);写盘复用 `crate::session` 原子写
+- [x] 2.2 hostId:16 字节随机 hex,app-data `web_host_id` 一次性生成(已存在直读)
+- [x] 2.3 配对码生命周期:mint(8 位 `XXXX-XXXX`,gate.rs 字母表,10min TTL,单次消费)→ consume;设备 token 32 字符 CSPRNG,落盘只存 sha-256 hex(复用现有 sha2 依赖)
+- [x] 2.4 `validate/approve/revoke/list/touch_last_seen`;revoke 返回被撤 deviceId 供踢 socket
+- [x] 2.5 单测:铸码→配对→pending→approve→validate 全链;TTL 过期拒;码单次消费;撤销后 validate 拒;落盘文件无明文 token;0600 权限
 
 ## 3. /pair HTTP 面(pair.rs)
 
-- [ ] 3.1 新 `src-tauri/src/web/pair.rs`(~120 行):offer 铸造 `{v:1,hostId,name,pairCode,lan?,relay?}` → base64url → `tmd://pair?c=…`(lan 取 WebAccessInfo,relay 已连接才带;name 取主机名,兜底 `tmd-cli`)
-- [ ] 3.2 `POST /pair {pairCode, deviceName}` → 200 `{deviceId,deviceToken,hostId,name,version}`;码错 403 / 过期 410;不做 URL token 闸(pairCode 即凭据);路由挂 server.rs build_router 一行
-- [ ] 3.3 按来源 IP 连续失败 5 次 → 429 + `web://pair-alert` 事件;成功清零
-- [ ] 3.4 单测:状态机矩阵(200/403/410/429);offer JSON 可 base64url 解码回读;节流计数与清零
+- [x] 3.1 新 `src-tauri/src/web/pair.rs`(~120 行):offer 铸造 `{v:1,hostId,name,pairCode,lan?,relay?}` → base64url → `tmd://pair?c=…`(lan 取 WebAccessInfo,relay 已连接才带;name 取主机名,兜底 `tmd-cli`)
+- [x] 3.2 `POST /pair {pairCode, deviceName}` → 200 `{deviceId,deviceToken,hostId,name,version}`;码错 403 / 过期 410;不做 URL token 闸(pairCode 即凭据);路由挂 server.rs build_router 一行
+- [x] 3.3 按来源 IP 连续失败 5 次 → 429 + `web://pair-alert` 事件;成功清零
+- [x] 3.4 单测:状态机矩阵(200/403/410/429);offer JSON 可 base64url 解码回读;节流计数与清零
 
 ## 4. WS 双凭据 gate + 连接生命周期(conn.rs)
 
-- [ ] 4.1 `/ws` 握手:`?token=`(浏览器,现状零回退)或 `?device=&token=`(设备);两路产出 `ConnScope::{Browser, AppDevice{device_id}}`
-- [ ] 4.2 设备凭据未授权/被撤:升级后立即 4001 close + reason(`unapproved`/`revoked`);壳据此分流
+- [x] 4.1 `/ws` 握手:`?token=`(浏览器,现状零回退)或 `?device=&token=`(设备);两路产出 `ConnScope::{Browser, AppDevice{device_id}}`
+- [x] 4.2 设备凭据未授权/被撤:升级后立即 4001 close + reason(`unapproved`/`revoked`);壳据此分流
 - [ ] 4.3 连接存活期 5s 复查 approved,翻 false 即 4001;AppDevice socket 按 device_id 计数(state.rs 增 in-memory 计数,设备行 live 点与 remote_control_active 共用)
-- [ ] 4.4 hello 帧补 `capabilities: []`;连接泵与复查逻辑抽 `conn.rs`(server.rs 守 300 铁则,只留路由/握手/静态面)
+- [x] 4.4 hello 帧补 `capabilities: []`;连接泵与复查逻辑抽 `conn.rs`(server.rs 守 300 铁则,只留路由/握手/静态面)(实施:泵/握手在 ws.rs,conn.rs = scope 枚举 + AppDevice 域闸 + scoped dispatch,server.rs 168 行)
 - [ ] 4.5 单测:浏览器 token 零回退;设备 4001 两 reason;复查翻false断连;hello 含 capabilities 字段
 
 ## 5. dispatch scope 两档
 
-- [ ] 5.1 `dispatch()` 与各域 `try_dispatch` 增 `&ConnScope` 形参;每命令一行注释标域归属
-- [ ] 5.2 AppDevice 允许:dispatch_session(列表/回放/活流/发送/审批应答;**拒 session_spawn**)、fs/git 只读命令、misc 域 settings/workspaces/quota/platform 读;拒:全部写命令、dispatch_ssh 全域、sqliteQuery/插件市场/updater/config_write_*
-- [ ] 5.3 单测拒绝矩阵:AppDevice 写命令/ssh/spawn 拒、读命令通;Browser 全量零回退
+- [x] 5.1 `dispatch()` 与各域 `try_dispatch` 增 `&ConnScope` 形参;每命令一行注释标域归属(实施:不改 dispatch 签名,`conn::dispatch_scoped` 包一层做域闸,域文件零改动)
+- [x] 5.2 AppDevice 允许:dispatch_session(列表/回放/活流/发送/审批应答;**拒 session_spawn**)、fs/git 只读命令、misc 域 settings/workspaces/quota/platform 读;拒:全部写命令、dispatch_ssh 全域、sqliteQuery/插件市场/updater/config_write_*
+- [x] 5.3 单测拒绝矩阵:AppDevice 写命令/ssh/spawn 拒、读命令通;Browser 全量零回退
 
 ## 6. 桌面命令面(lib.rs 登记,dispatch 排除)
 
-- [ ] 6.1 `web_pair_offer() -> {url,pairCode,expiresAt}`、`web_devices_list() -> {pending,approved}`(wire 不含 tokenHash)、`web_device_approve(deviceId)`、`web_device_revoke(deviceId)`(撤销即踢该设备 socket)
-- [ ] 6.2 设备表变更发 `web://devices` 事件;四条命令 lib.rs invoke_handler 登记,web dispatch 显式排除并注释(同 web_access_start/stop 先例)
+- [x] 6.1 `web_pair_offer() -> {url,pairCode,expiresAt}`、`web_devices_list() -> {pending,approved}`(wire 不含 tokenHash)、`web_device_approve(deviceId)`、`web_device_revoke(deviceId)`(撤销即踢该设备 socket)
+- [x] 6.2 设备表变更发 `web://devices` 事件;四条命令 lib.rs invoke_handler 登记,web dispatch 显式排除并注释(同 web_access_start/stop 先例)
 - [ ] 6.3 `src/kernel/ipc.ts` 补四条命令 wrapper 与 DeviceWire 类型
 
 ## 7. transport.ts 远程模式(唯一 kernel 改动点)
