@@ -31,3 +31,16 @@
 ## 验证
 
 18 笔提交整体 review(4 域并行)后收口:`cargo test && cargo clippy -D warnings && cargo fmt --check` + `pnpm typecheck && test && check:arch-boundary && check:file-size && build` + react-doctor 100;review 修复(P1 relaunch 插件恢复、P2×7)逐条落地,修复明细见本表内联注记。
+
+## 配对底座增补(M1 mobile-app,2026-09-22 落地)
+
+实施提案:`openspec/changes/2026-09-21-mobile-app-m1-pairing/`;壳工程 `mobile-app/`(bundle id `com.tmdcli.mobile`)。
+
+|面|契约|
+|---|---|
+|LAN 双绑|`web/bind.rs`:绑 `lan_ip:0` 后以同端口号补绑 `127.0.0.1` 第二 listener(桥本身落 loopback 则免)。relay_agent 每流转成都对 `127.0.0.1:{port}` 回拨,单绑 LAN IP 会拒 —— d227f8c 收窄绑定后 relay 数据面整体断的本修复;停机信号 oneshot→watch 转发,双 serve 同收。|
+|设备注册表|`web/devices.rs`:`~/.tmd-cli/web_devices.json`(0600,原子写),行含 `tokenHash`(sha-256,明文 token 只在 /pair 应答出现一次);hostId:`~/.tmd-cli/web_host_id` 一次性 16B hex。配对码与节流计数为进程内存态(桌面重启即失效)。|
+|配对协议|`web/pair.rs`:offer = base64url(`{v,hostId,name,pairCode,lan?,relay?}`)→ `tmd://pair?c=…`;`POST /pair {pairCode,deviceName}` → 200 `{deviceId,deviceToken,hostId,name,version}` / 403 错码 / 410 过期 / 429 节流。pairCode 即凭据(无 URL token 闸);8 位 `XXXX-XXXX`(gate 字母表)10min TTL 单次消费;按来源 IP 连续错码 5 次 → 429 + `web://pair-alert` 事件,成功清零。debug 构建起桥时 stderr 打 dev offer(release 不编译)。|
+|WS 双凭据|`web/ws.rs`:`?token=`(浏览器,现状零回退)或 `?device=&token=`(设备,哈希比对+已批准);pending/被撤照常升级后立即 `4001` close(reason `pending`/`rejected`),壳据此分流;设备连接 5s 复查批准态 + 撤销即时踢(conn.rs LiveGuard watch,先发 Close 帧再收线防 1006)。hello 帧增 `capabilities:["browser"|"app-device"]`。|
+|命令域|`web/conn.rs`:`dispatch_scoped` 包一层域闸(不改 dispatch 签名,域文件零改动)。AppDevice 白名单默认拒绝:session 域(列表/回放/活流/发送/resize;**拒 session_spawn/session_kill**)、fs-git 只读白名单、config/quota 只读;写命令/ssh/sqlite/wsl/lsp/plugins/checkpoint/web 管理面全拒。浏览器 scope 全量零回退。|
+|壳配对门|`src/app-shell/mobilePairing.tsx`:`__TMD_SHELL__=mobile`(壳 initialization_script 注入)接管根装配;凭证存壳 webview localStorage `tmd.mobile.creds.v1`;连接门 4s 轮询授权、hello 版本不足(≥0.3.0)block 屏、rejected 清凭证回配对屏。transport 增 `configureRemoteEndpoint`/`isRemote`/`onRemoteRevoked(reason)`/`serverCapabilities`,远程模式下 invoke/listen 一律走桥连桌面,壳 Rust 侧零业务命令。|

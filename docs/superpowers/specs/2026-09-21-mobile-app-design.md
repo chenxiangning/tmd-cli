@@ -1,6 +1,7 @@
 # mobile app(Tauri 2 壳 · 轻交互 · 配对不加密)设计
 
 > 日期:2026-09-21 · 状态:已评审通过(设计对话拍板:Tauri 2 壳 / 轻交互 / 配对+设备表不加密)
+> 实施对照:M1 配对底座实施中 —— 提案与任务分解见 `openspec/changes/2026-09-21-mobile-app-m1-pairing/`,总纲见 `docs/superpowers/specs/2026-09-21-mobile-app-master-plan.md`;三处收窄偏离(localStorage 凭证/AppDevice 域不含 session_spawn/相机扫码降级为尝试)已在该提案「方案取舍」记录并经确认。
 > 前置调研:`docs/research/orca-mobile-reference.md`(orca mobile 源码级分析)、`docs/research/mobile-remote-access.md`(通道选型)、`docs/research/codemoss-web-remote.md`(web-access 现状的移植出处)
 
 ## 背景与目标
