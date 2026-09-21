@@ -3,11 +3,12 @@
  * 桥/分发/事件广播全在 Rust(src-tauri/src/web/);前端只注册 UI 贡献。
  */
 
-import { Globe } from "@phosphor-icons/react";
+import { Globe, DeviceMobile } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { WebAccessSection } from "./WebAccessSection";
 import { RemoteControlBadge } from "./RemoteControlBadge";
 import { WebWanGate } from "./WebWanGate";
+import { WebDevicePairCard } from "./WebDevicePairCard";
 
 export const webAccessPlugin: Plugin = {
   id: "web-access",
@@ -41,6 +42,13 @@ export const webAccessPlugin: Plugin = {
           icon: <Globe size="0.875rem" aria-hidden />,
           order: 1,
           component: WebWanGate,
+        },
+        {
+          id: "devices",
+          title: "设备",
+          icon: <DeviceMobile size="0.875rem" aria-hidden />,
+          order: 2,
+          component: WebDevicePairCard,
         },
       ],
     });

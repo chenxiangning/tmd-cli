@@ -231,55 +231,8 @@ pub(crate) fn revoke(dir: &Path, device_id: &str) -> bool {
         return false;
     }
     let ok = save_devices(dir, &all).is_ok();
-    kick(device_id);
+    super::conn::kick(device_id);
     ok
-}
-
-// ---------- 活跃设备连接登记(撤销即时踢,不等 5s 复查) ----------
-
-static ACTIVE: std::sync::LazyLock<
-    Mutex<std::collections::HashMap<String, Vec<tokio::sync::watch::Sender<()>>>>,
-> = std::sync::LazyLock::new(|| Mutex::new(std::collections::HashMap::new()));
-
-/// 设备连接存活期登记;Drop 自 dereg。返回的 Receiver 在撤销时被置位。
-pub(crate) fn register_live(device_id: &str) -> (LiveGuard, tokio::sync::watch::Receiver<()>) {
-    let (tx, rx) = tokio::sync::watch::channel(());
-    ACTIVE
-        .lock()
-        .entry(device_id.to_string())
-        .or_default()
-        .push(tx);
-    (
-        LiveGuard {
-            device_id: device_id.to_string(),
-        },
-        rx,
-    )
-}
-
-/// 存活登记 RAII:连接结束自动摘除(顺带清已关闭的 sender)。
-pub(crate) struct LiveGuard {
-    device_id: String,
-}
-
-impl Drop for LiveGuard {
-    fn drop(&mut self) {
-        let mut map = ACTIVE.lock();
-        if let Some(list) = map.get_mut(&self.device_id) {
-            list.retain(|tx| !tx.is_closed());
-            if list.is_empty() {
-                map.remove(&self.device_id);
-            }
-        }
-    }
-}
-
-fn kick(device_id: &str) {
-    if let Some(list) = ACTIVE.lock().get(device_id) {
-        for tx in list {
-            let _ = tx.send(());
-        }
-    }
 }
 
 /// 双凭据校验:device_id + token 哈希比对 + 已批准。失败一律 None,不区分原因。

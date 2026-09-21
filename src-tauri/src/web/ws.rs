@@ -79,7 +79,7 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
     }
     /* 设备连接登记:桌面撤销即时踢(不等 5s 复查)。 */
     let (_live, live_rx) = if let ConnScope::AppDevice { device_id } = &scope {
-        let (guard, rx) = devices::register_live(device_id);
+        let (guard, rx) = conn::register_live(device_id);
         (Some(guard), Some(rx))
     } else {
         (None, None)

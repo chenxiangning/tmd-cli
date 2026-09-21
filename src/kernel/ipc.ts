@@ -986,6 +986,57 @@ export function relayDeployPack(path: string, key?: string): Promise<string> {
   return invoke<string>("relay_deploy_pack", { path, key });
 }
 
+// ==================== 设备配对(桌面设置卡) ====================
+
+/** 配对 offer:桥须在运行;url = tmd://pair?c=… 短链(内嵌 LAN/relay 与配对码)。 */
+export interface PairOffer {
+  url: string;
+  pairCode: string;
+  /** 过期 unix 秒。 */
+  expiresAt: number;
+}
+
+/** 铸一次性配对 offer(10min TTL,单次消费)。 */
+export function webPairOffer(): Promise<PairOffer> {
+  return invoke<PairOffer>("web_pair_offer");
+}
+
+/** 已配对设备行(脱敏:token hash 不出桌面)。 */
+export interface DeviceWire {
+  deviceId: string;
+  name: string;
+  createdAt: number;
+  lastSeenAt: number;
+  approved: boolean;
+}
+
+/** 设备表全量(pending + approved 由 approved 字段区分)。 */
+export function webDevicesList(): Promise<{ devices: DeviceWire[]; now: number }> {
+  return invoke<{ devices: DeviceWire[]; now: number }>("web_devices_list");
+}
+
+/** 批准 pending 设备;返回是否真的存在该设备。 */
+export function webDeviceApprove(deviceId: string): Promise<boolean> {
+  return invoke<boolean>("web_device_approve", { deviceId });
+}
+
+/** 撤销设备(删行 + 即时踢既有连接);返回是否真的删了。 */
+export function webDeviceRevoke(deviceId: string): Promise<boolean> {
+  return invoke<boolean>("web_device_revoke", { deviceId });
+}
+
+/** 订阅设备表变更(批准/撤销后发;UI 以 webDevicesList 重取为准)。 */
+export function onWebDevices(cb: () => void) {
+  return listen<unknown>("web://devices", () => cb());
+}
+
+/** 配对码节流告警(同 IP 连续错码 5 次):设置卡 toast。 */
+export function onWebPairAlert(cb: (ip: string, limit: number) => void) {
+  return listen<{ ip: string; limit: number }>("web://pair-alert", (ev) =>
+    cb(ev.payload.ip, ev.payload.limit),
+  );
+}
+
 interface QuotaFetchSpec {
   url: string;
   method?: string;

@@ -248,4 +248,26 @@ export const MESSAGES = {
   "远程文件超过 512KB,暂不支持预览(M1)": "Remote file exceeds 512KB; preview not supported yet (M1)",
   // index.tsx(spec wrapper)
   "工作区 root 不是 WSL UNC 路径": "Workspace root is not a WSL UNC path",
+  // WebDevicePairCard(设备配对卡)
+  "添加设备": "Add device",
+  "手机装好 tmd-cli app 后,扫码或输入配对码完成配对;授权一次长期有效。":
+    "Install the tmd-cli app on your phone, then scan the code or enter the pairing code; one approval lasts.",
+  "出示配对码": "Show pairing code",
+  "有效期 {ttl}": "Expires in {ttl}",
+  "已复制": "Copied",
+  "复制配对链接": "Copy pairing link",
+  "IP {ip} 连续配对码错误,已暂时拒绝。":
+    "IP {ip} had repeated wrong pairing codes and is temporarily blocked.",
+  "待授权": "Pending approval",
+  "授权": "Approve",
+  "忽略": "Ignore",
+  "已授权设备": "Approved devices",
+  "刚刚": "just now",
+  "{n} 分钟前": "{n} min ago",
+  "{n} 小时前": "{n} h ago",
+  "{n} 天前": "{n} d ago",
+  "上次活跃 {time}": "Last active {time}",
+  "撤销后手机立即掉线,需重新配对":
+    "Revoking disconnects the phone immediately; pairing is required again",
+  "踢除": "Remove",
 } as Record<string, string>;
