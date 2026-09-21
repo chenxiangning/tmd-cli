@@ -12,7 +12,7 @@ use axum::{
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tokio::sync::{broadcast, watch};
+use tokio::sync::broadcast;
 
 use super::{
     conn::{self, ConnScope},
@@ -97,58 +97,31 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
     {
         return;
     }
-    /* 出站:invoke 响应(mpsc)+ 事件广播(broadcast)合并进同一条 socket。 */
+    /* 出站:invoke 响应(mpsc)+ 事件广播(broadcast)合并进同一条 socket。
+    收发同循环:任一收线分支都能先发 Close 帧再统一断开,避免半边 drop
+    把 4001 竞态成 1006。 */
     let (out_tx, mut out_rx) = tokio::sync::mpsc::channel::<String>(256);
     let mut events_rx = crate::event_sink::subscribe();
-    let mut stop_writer = ctx.stop.subscribe();
+    let mut stop = ctx.stop.subscribe();
     /* 订阅后立即吸收已置位(stop 早于本连接):否则 watch 语义下 changed() 不再
-    触发,socket 将带着完整派发权活到自行断连。select 的 else 分支只在全分支
-    pattern 被禁用时执行,治不了这个窗口。 */
-    let writer_stopped = *stop_writer.borrow_and_update();
-    /* 设备撤销通道:Some(4001) → 写侧发 Close 帧后收线。 */
-    let (close_tx, mut close_rx) = watch::channel::<Option<u16>>(None);
-    let mut kick_rx = live_rx;
-    tokio::spawn(async move {
-        if writer_stopped {
-            return;
-        }
-        loop {
-            tokio::select! {
-                msg = out_rx.recv() => match msg {
-                    Some(m) => if ws_tx.send(Message::Text(m.into())).await.is_err() { break },
-                    None => break,
-                },
-                ev = events_rx.recv() => match ev {
-                    Ok(m) => if ws_tx.send(Message::Text(m.into())).await.is_err() { break },
-                    Err(broadcast::error::RecvError::Lagged(_)) => continue,
-                    Err(broadcast::error::RecvError::Closed) => break,
-                },
-                _ = close_rx.changed() => {
-                    let code = *close_rx.borrow_and_update();
-                    if let Some(code) = code {
-                        let frame = CloseFrame { code, reason: "revoked".into() };
-                        let _ = ws_tx.send(Message::Close(Some(frame))).await;
-                    }
-                    break;
-                }
-                _ = kick_tick(&mut kick_rx) => {
-                    let frame = CloseFrame { code: 4001, reason: "revoked".into() };
-                    let _ = ws_tx.send(Message::Close(Some(frame))).await;
-                    break;
-                }
-                _ = stop_writer.changed() => break,
-            }
-        }
-    });
-    /* 入站:每个 invoke 独立 task —— 长命令(session_spawn 等)不阻塞读循环。
-    设备连接另有 5s 批准态复查(桌面撤销/删除即断)。 */
-    let mut stop_reader = ctx.stop.subscribe();
-    if *stop_reader.borrow_and_update() {
+    触发,socket 将带着完整派发权活到自行断连。 */
+    if *stop.borrow_and_update() {
         return;
     }
+    /* 设备撤销信号(桌面 revoke → conn::kick 置位)。 */
+    let mut kick_rx = live_rx;
     let mut recheck = tokio::time::interval(std::time::Duration::from_secs(5));
     loop {
         tokio::select! {
+            msg = out_rx.recv() => match msg {
+                Some(m) => if ws_tx.send(Message::Text(m.into())).await.is_err() { break },
+                None => break,
+            },
+            ev = events_rx.recv() => match ev {
+                Ok(m) => if ws_tx.send(Message::Text(m.into())).await.is_err() { break },
+                Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(broadcast::error::RecvError::Closed) => break,
+            },
             msg = ws_rx.next() => {
                 match msg {
                     Some(Ok(Message::Text(text))) => {
@@ -170,15 +143,25 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
                     Some(Err(_)) | None => break,
                 }
             }
+            /* 撤销即时踢 */
+            _ = kick_tick(&mut kick_rx) => {
+                let frame = CloseFrame { code: 4001, reason: "revoked".into() };
+                let _ = ws_tx.send(Message::Close(Some(frame))).await;
+                tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+                break;
+            }
+            /* 5s 批准态复查(interval 首跳即到 = 连上即查一次);浏览器连接永挂 */
             _ = recheck_tick(&scope, &mut recheck) => {
                 if let ConnScope::AppDevice { device_id } = &scope {
                     if !devices::is_approved(&devices::devices_dir(), device_id) {
-                        let _ = close_tx.send(Some(4001));
+                        let frame = CloseFrame { code: 4001, reason: "revoked".into() };
+                        let _ = ws_tx.send(Message::Close(Some(frame))).await;
+                        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
                         break;
                     }
                 }
             }
-            _ = stop_reader.changed() => break,
+            _ = stop.changed() => break,
         }
     }
 }

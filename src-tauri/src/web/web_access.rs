@@ -35,6 +35,14 @@ pub(crate) async fn web_access_start(
     let (info, shutdown, stopped) = server::serve(app.clone()).await?;
     let info = web.publish(state::new_running(info, shutdown, stopped));
     emit_info(&app);
+    #[cfg(debug_assertions)]
+    {
+        /* dev 便捷:桥一起即出 offer 到 stderr(含配对码,仅 debug 构建;
+        release 不编译,生产零泄漏)。脚本 e2e 从日志取链。 */
+        if let Ok((url, _code, _exp)) = pair::mint_offer(&app) {
+            eprintln!("[web-bridge] dev pairing offer: {url}");
+        }
+    }
     Ok(Some(info))
 }
 
