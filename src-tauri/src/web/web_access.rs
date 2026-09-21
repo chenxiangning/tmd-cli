@@ -18,8 +18,10 @@ fn web_state(app: &AppHandle) -> tauri::State<'_, crate::AppState> {
 }
 
 fn emit_info(app: &AppHandle) {
-    let info = web_state(app).inner().web.status();
-    crate::event_sink::emit(app, "web://access", &json!({ "info": info }));
+    /* 只作「刷新信号」:payload 不带 WebAccessInfo —— 事件广播的受众含已配对
+    app 设备,info 里含浏览器 token/url,等于把全量域凭据发出去(域闸旁路)。
+    前端以 web_access_status 重取为准(web://relay 同款先例)。 */
+    crate::event_sink::emit(app, "web://access", &json!({ "info": null }));
 }
 
 #[tauri::command]

@@ -192,6 +192,10 @@ class WebBridge {
     if (this.versionValue === null) {
       for (const w of this.versionWaiters.splice(0)) w(null);
     }
+    /* caps 同理对称释放,否则壳 block 屏等 caps 会永久挂起。 */
+    if (this.capsValue === null) {
+      for (const w of this.capsWaiters.splice(0)) w([]);
+    }
     // 桌面可能重启了桥:持续重试。
     const delay = this.retryMs;
     this.retryMs = Math.min(this.retryMs * 2, RETRY_MAX_MS);
@@ -282,11 +286,20 @@ export function listen<T>(
 /** 桥 hello 帧上报的服务端版本;不可得为 null。 */
 export function serverVersion(): Promise<string | null> {
   if (!isWeb && !remoteEndpoint) return Promise.resolve(null);
-  return (bridge ??= new WebBridge()).serverVersion();
+  try {
+    return (bridge ??= new WebBridge()).serverVersion();
+  } catch {
+    /* closed 桥(撤销/清凭证窗口):同步抛错转成兜底值,调用方无需接同步异常 */
+    return Promise.resolve(null);
+  }
 }
 
 /** 桥 hello 帧的服务端能力表(协议治理:block 屏据此评估)。 */
 export function serverCapabilities(): Promise<string[]> {
   if (!isWeb && !remoteEndpoint) return Promise.resolve([]);
-  return (bridge ??= new WebBridge()).serverCapabilities();
+  try {
+    return (bridge ??= new WebBridge()).serverCapabilities();
+  } catch {
+    return Promise.resolve([]);
+  }
 }

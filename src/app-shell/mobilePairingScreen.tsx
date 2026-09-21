@@ -7,7 +7,9 @@ import type { MobileCreds } from "./mobilePairing";
 
 
 /** 解析 tmd://pair?c=… 短链;非该形状返回 null。 */
-function parseOfferLink(text: string): { code: string; url: string; hostName: string } | null {
+function parseOfferLink(
+  text: string,
+): { code: string; urls: string[]; hostName: string } | null {
   const m = /tmd:\/\/pair\?c=([A-Za-z0-9_-]+)/.exec(text.trim());
   if (!m) return null;
   try {
@@ -19,9 +21,9 @@ function parseOfferLink(text: string): { code: string; url: string; hostName: st
       relay?: string | null;
       name?: string;
     };
-    const url = payload.lan || payload.relay;
-    if (!payload.pairCode || !url) return null;
-    return { code: payload.pairCode, url, hostName: payload.name ?? "" };
+    const urls = [payload.lan, payload.relay].filter((u): u is string => typeof u === "string");
+    if (!payload.pairCode || !urls.length) return null;
+    return { code: payload.pairCode, urls, hostName: payload.name ?? "" };
   } catch {
     return null;
   }
@@ -84,15 +86,28 @@ export function PairingScreen(props: { onPaired: (c: MobileCreds) => void }) {
     setBusy(true);
     try {
       const offer = parseOfferLink(host_);
-      const url = offer ? offer.url : host_.trim();
+      const urls = offer
+        ? offer.urls
+        : [host_.trim()].filter((u) => /^https?:\/\//.test(u));
       const pairCode = offer ? offer.code : code.trim();
-      if (!/^https?:\/\//.test(url) || pairCode.length < 6) {
+      if (!urls.length || pairCode.length < 6) {
         setError("请填主机地址(http://…:端口)与 8 位配对码");
         return;
       }
-      const r = await tryPair(url, pairCode, deviceName());
-      if (r.creds) props.onPaired(r.creds);
-      else setError(r.error ?? "配对失败");
+      // 双端点竞速(LAN/relay 并发,先成先用;offer 只带一端点时退化为单发)
+      const attempts = urls.map((u) =>
+        tryPair(u, pairCode, deviceName()).then((r) => {
+          if (r.creds) return r;
+          throw r;
+        }),
+      );
+      try {
+        const ok = await Promise.any(attempts);
+        props.onPaired(ok.creds!);
+      } catch (agg) {
+        const errs = (agg as AggregateError).errors as { error?: string }[];
+        setError(errs.map((e) => e?.error).find(Boolean) ?? "配对失败");
+      }
     } finally {
       setBusy(false);
     }

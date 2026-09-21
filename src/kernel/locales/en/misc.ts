@@ -256,8 +256,8 @@ export const MESSAGES = {
   "有效期 {ttl}": "Expires in {ttl}",
   "已复制": "Copied",
   "复制配对链接": "Copy pairing link",
-  "IP {ip} 连续配对码错误,已暂时拒绝。":
-    "IP {ip} had repeated wrong pairing codes and is temporarily blocked.",
+  "IP {ip} 连续配对码错误,已暂时拒绝(10 分钟)。":
+    "IP {ip} had repeated wrong pairing codes and is temporarily blocked (10 min).",
   "待授权": "Pending approval",
   "授权": "Approve",
   "忽略": "Ignore",

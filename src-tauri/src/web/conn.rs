@@ -71,7 +71,9 @@ pub(crate) fn app_allowed(cmd: &str) -> bool {
         return true;
     }
     // 配置/环境域:只读;config_write_* 与其余域(sqlite/wsl/lsp/plugins/checkpoint/
-    // ssh/cli 执行面/web 管理面)全部默认拒绝
+    // ssh/cli 执行面/web 管理面)全部默认拒绝。
+    // 注:quota_fetch 不进 AppDevice —— 它是桌面出站的任意 HTTP 原语(任意 url+方法),
+    // 对设备通道即 SSRF 面;引擎版本 pill 在远程态降级(M1 取舍)。
     matches!(
         cmd,
         "config_read_settings"
@@ -80,8 +82,6 @@ pub(crate) fn app_allowed(cmd: &str) -> bool {
             | "config_home_dir"
             | "config_dir"
             | "platform_kind"
-            | "quota_fetch"
-            | "quota_env_value"
     )
 }
 
@@ -193,12 +193,14 @@ mod tests {
     }
 
     #[test]
-    fn 配置配额只读_其余域全拒() {
+    fn 配置只读_其余域全拒() {
         assert!(app_allowed("config_read_settings"));
-        assert!(app_allowed("quota_fetch"));
+        assert!(!app_allowed("config_write_settings"));
+        assert!(!app_allowed("config_write_workspaces"));
+        // quota_fetch = 桌面出站任意 HTTP 原语,SSRF 面,设备域不授
+        assert!(!app_allowed("quota_fetch"));
+        assert!(!app_allowed("quota_env_value"));
         for no in [
-            "config_write_settings",
-            "config_write_workspaces",
             "sqlite_query",
             "sqlite_execute",
             "wsl_exec",

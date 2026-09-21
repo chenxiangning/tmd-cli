@@ -65,7 +65,7 @@ async function connectAttempt(creds: MobileCreds): Promise<GateOutcome> {
     resolve(o);
   };
   const off = onRemoteRevoked((reason) =>
-    done(reason === "rejected" ? { kind: "rejected" } : { kind: "pending" }),
+    done(reason === "pending" ? { kind: "pending" } : { kind: "rejected" }),
   );
   const timer = setTimeout(() => done({ kind: "timeout" }), 12_000);
   void serverVersion().then((v) => {

@@ -17,11 +17,15 @@ fn 配对全链_铸码_待批_批准_验证() {
     assert_eq!(code.len(), 9, "XXXX-XXXX");
 
     let (device_id, token) = reg.pair(&dir, &code, "大仙的 iPhone", 1001).unwrap();
-    // pending 未批准:双凭据校验拒
-    assert!(validate(&dir, &device_id, &token).is_none());
+    // pending 未批准:凭据命中但 approved=false(ws 分流层据此发 4001/pending)
+    assert!(
+        !find_by_credentials(&dir, &device_id, &token)
+            .unwrap()
+            .approved
+    );
     // 批准后通过,且返回设备行
     assert!(approve(&dir, &device_id, 1002));
-    let dev = validate(&dir, &device_id, &token).unwrap();
+    let dev = find_by_credentials(&dir, &device_id, &token).unwrap();
     assert_eq!(dev.name, "大仙的 iPhone");
     assert!(dev.approved);
     // 落盘无明文 token(展示名允许明文)
@@ -57,9 +61,12 @@ fn 撤销后验证拒() {
     let (code, _) = reg.mint_code(1000);
     let (device_id, token) = reg.pair(&dir, &code, "pad", 1001).unwrap();
     assert!(approve(&dir, &device_id, 1002));
-    assert!(validate(&dir, &device_id, &token).is_some());
+    assert!(find_by_credentials(&dir, &device_id, &token).is_some());
     assert!(revoke(&dir, &device_id));
-    assert!(validate(&dir, &device_id, &token).is_none());
+    assert!(
+        find_by_credentials(&dir, &device_id, &token).is_none(),
+        "撤销删行后凭据不命中"
+    );
     assert!(!revoke(&dir, &device_id), "重复撤销返回 false");
 }
 
@@ -70,8 +77,8 @@ fn 错_token_拒() {
     let (code, _) = reg.mint_code(1000);
     let (device_id, token) = reg.pair(&dir, &code, "dev", 1001).unwrap();
     approve(&dir, &device_id, 1002);
-    assert!(validate(&dir, &device_id, &format!("{token}x")).is_none());
-    assert!(validate(&dir, "no-such-device", &token).is_none());
+    assert!(find_by_credentials(&dir, &device_id, &format!("{token}x")).is_none());
+    assert!(find_by_credentials(&dir, "no-such-device", &token).is_none());
 }
 
 #[test]

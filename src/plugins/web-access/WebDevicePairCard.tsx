@@ -62,7 +62,7 @@ export function WebDevicePairCard() {
     void refresh();
     const un1 = onWebDevices(() => void refresh());
     const un2 = onWebPairAlert((ip) => {
-      setAlert(t("IP {ip} 连续配对码错误,已暂时拒绝。", { ip }));
+      setAlert(t("IP {ip} 连续配对码错误,已暂时拒绝(10 分钟)。", { ip }));
       if (alertTimer.current) window.clearTimeout(alertTimer.current);
       alertTimer.current = window.setTimeout(() => setAlert(null), 6000);
     });

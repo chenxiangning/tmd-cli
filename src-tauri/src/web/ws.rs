@@ -36,7 +36,7 @@ pub(super) async fn ws_handler(
 ) -> Response {
     let scope = match (&q.device, &q.token) {
         (Some(device_id), Some(token)) => {
-            match devices::validate(&devices::devices_dir(), device_id, token) {
+            match devices::find_by_credentials(&devices::devices_dir(), device_id, token) {
                 Some(d) if d.approved => ConnScope::AppDevice {
                     device_id: device_id.clone(),
                 },
