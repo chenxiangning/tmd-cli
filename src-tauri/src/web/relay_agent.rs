@@ -57,6 +57,12 @@ pub(super) async fn run_agent(
         };
         super::relay::set_error(&app, generation, String::new());
         super::relay::set_connected(&app, generation, true);
+        /* dev 便捷:中继就绪后重出 offer(起桥时中继尚未连上,首份 relay=null;
+        仅 debug 构建,release 零编译)。 */
+        #[cfg(debug_assertions)]
+        if let Ok((url, _, _)) = super::pair::mint_offer(&app) {
+            eprintln!("[web-bridge] dev pairing offer (relay): {url}");
+        }
         serve(socket, port, &mut stop).await;
         super::relay::set_connected(&app, generation, false);
         if *stop.borrow() {
@@ -353,6 +359,8 @@ fn spawn_socket(
         let socket = match tokio_tungstenite::connect_async(request).await {
             Ok((socket, _)) => socket,
             Err(e) => {
+                #[cfg(debug_assertions)]
+                eprintln!("[relay-agent] 本机 WS 拨号失败 id={id}: {e}");
                 let _ = send(
                     &out,
                     &ClientFrame::Error {

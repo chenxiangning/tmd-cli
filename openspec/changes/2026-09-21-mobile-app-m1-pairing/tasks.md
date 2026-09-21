@@ -79,7 +79,10 @@
 ## 12. 验证收口
 
 - [x] 12.1 门禁:`pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build`;`cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check`(2026-09-22 HEAD 全绿:2741 前端测/280 Rust 测)
-- [ ] 12.2 协议脚本 e2e:LAN 与 relay 两路(LAN 已绿见 9.2;relay 路待大仙 settings 配 webRelayUrl/webRelayKey —— 当前为空,offer relay=null)
+- [x] 12.2 协议脚本 e2e:LAN 与 relay 两路(2026-09-22 双绿)
+  - LAN:见 9.2。
+  - relay:scripts/fake-relay.mjs(bun,worker 协议仿真)+ 桌面 autostart 拨号 → 经中继 /pair 200 → bye/pending 轮询 → 授权 → hello → session_list → 撤销 → bye/revoked → 退出 42。真 CF Worker 待大仙配好后同一脚本复跑即可。
+  - 顺带修出两个真问题:①offer.relay 曾嵌浏览器链接(?token=),泄漏桥凭据且拼不出 /pair base(pair.rs 改发中继基址);②close code 无法穿越 relay 流(管道丢 Close),pending/revoked 语义改 bye 帧带内传(ws.rs/transport.ts/脚本三端同步,测试 transport.remote.test.ts bye 用例)。
 - [ ] 12.3 桌面真窗口目检:配对卡 QR/TTL/pending/授权/踢除/节流告警(浏览器桩目检已过;真窗口人眼复核待大仙 tauri:dev)
 - [ ] 12.4 真机 iOS e2e(用户门):需大仙 Xcode 登录 Apple ID 出签名 + iPhone;上游阻断见 10.4(模拟器启动验证同受累)
 - [x] 12.5 `npx react-doctor@latest -y` 100 收口(100/100)

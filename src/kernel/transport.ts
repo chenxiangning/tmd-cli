@@ -147,6 +147,7 @@ class WebBridge {
       payload?: unknown;
       error?: unknown;
       event?: string;
+      reason?: unknown;
     };
     try {
       msg = JSON.parse(text);
@@ -175,6 +176,22 @@ class WebBridge {
     if (msg.type === "event" && typeof msg.event === "string") {
       const subs = this.listeners.get(msg.event);
       if (subs) for (const cb of subs) cb(msg.payload);
+      return;
+    }
+    if (msg.type === "bye") {
+      /* 服务端逐出(pending/rejected/revoked)。close code 过不了 relay 中继,
+      bye 是权威语义;随后仍会收到 Close,以 this.closed 幂等兜底。 */
+      this.closed = true;
+      for (const entry of this.pending.values()) entry.reject(new Error("device revoked"));
+      this.pending.clear();
+      if (this.versionValue === null) {
+        for (const w of this.versionWaiters.splice(0)) w(null);
+      }
+      if (this.capsValue === null) {
+        for (const w of this.capsWaiters.splice(0)) w([]);
+      }
+      const reason = typeof msg.reason === "string" ? msg.reason : "revoked";
+      for (const cb of revokedCbs.splice(0)) cb(reason);
     }
   }
 

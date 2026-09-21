@@ -61,7 +61,18 @@ pub(crate) fn mint_offer(app: &AppHandle) -> Result<(String, String, u64), Strin
     let (code, expires_at) = state.devices.mint_code(devices::now_secs());
     let relay = crate::web::relay::web_relay_status(app.clone())
         .filter(|r| r.connected)
-        .map(|r| r.url);
+        // 设备配对只要中继基址;RelayInfo.url 是浏览器链接(带 ?token=),不能进
+        // offer —— 既把桥凭据泄漏进可分享的配对链接,形状也拼不出 /pair 的 base。
+        .and_then(|r| {
+            let base = r
+                .url
+                .split('?')
+                .next()
+                .unwrap_or_default()
+                .trim_end_matches('/')
+                .to_string();
+            (!base.is_empty()).then_some(base)
+        });
     let payload = json!({
         "v": 1,
         "hostId": devices::host_id(&devices::devices_dir()),

@@ -26,9 +26,9 @@ const listenSecs = Number(flag("listen-secs") ?? 5);
 const preferRelay = has("relay");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-function die(msg) {
+function die(msg, code = 1) {
   console.error(`[e2e] ${msg}`);
-  process.exit(1);
+  process.exit(code);
 }
 
 // ── 端点与凭据解析 ──
@@ -100,6 +100,10 @@ async function connectUntilHello(creds0, deadlineMs) {
           return;
         }
         if (msg.type === "hello") resolve({ kind: "hello", hello: msg, ws });
+        if (msg.type === "bye") {
+          /* close code 过不了中继:bye 是权威语义(reason pending/rejected/revoked) */
+          resolve({ kind: "pending-or-revoked", code: 4001, byeReason: msg.reason });
+        }
       };
       ws.onclose = (e) => {
         clearTimeout(t);
@@ -108,10 +112,20 @@ async function connectUntilHello(creds0, deadlineMs) {
       ws.onerror = () => {};
     });
     if (result.kind === "hello") return result;
-    if (result.kind === "pending-or-revoked" && Date.now() < deadline) {
-      console.log("[e2e] 4001:等待桌面授权(pending)…3s 后重试");
-      await sleep(3000);
-      continue;
+    if (result.kind === "pending-or-revoked") {
+      if (result.byeReason === "pending" && Date.now() < deadline) {
+        console.log("[e2e] 等待桌面授权(pending)…3s 后重试");
+        await sleep(3000);
+        continue;
+      }
+      if (result.byeReason && result.byeReason !== "pending") {
+        die(`被桌面逐出:${result.byeReason}`, 42);
+      }
+      if (Date.now() < deadline) {
+        console.log("[e2e] 等待桌面授权(4001)…3s 后重试");
+        await sleep(3000);
+        continue;
+      }
     }
     die(`连接失败:${result.kind}`);
   }
@@ -135,6 +149,10 @@ async function main() {
       if (msg.type === "event") {
         events.push(msg.event);
         return;
+      }
+      if (msg.type === "bye") {
+        console.log(`[e2e] 被桌面逐出:${msg.reason ?? "revoked"}`);
+        process.exit(42);
       }
       if (msg.type === "response" && msg.id === 1) {
         console.log(`[e2e] session_list 响应:ok=${msg.ok}${msg.ok ? ` 会话数=${(msg.payload ?? []).length}` : ` error=${msg.error}`}`);

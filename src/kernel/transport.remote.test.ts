@@ -110,6 +110,20 @@ describe("transport 远程模式(壳已配对)", () => {
     expect(FakeWS.made).toHaveLength(1);
   });
 
+  it("bye 帧 = 带内逐出语义(close code 过不了 relay 中继)", async () => {
+    const onRevoked = vi.fn();
+    transport.onRemoteRevoked(onRevoked);
+    const p = transport.invoke<string>("session_list");
+    const ws = lastWS();
+    ws.open();
+    await vi.advanceTimersByTimeAsync(0);
+    ws.recv(JSON.stringify({ type: "bye", reason: "revoked" }));
+    await expect(p).rejects.toThrow("device revoked");
+    expect(onRevoked).toHaveBeenCalledWith("revoked");
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(FakeWS.made).toHaveLength(1);
+  });
+
   it("configureRemoteEndpoint(null) 后 invoke 直接抛错,不再连旧端点", async () => {
     transport.configureRemoteEndpoint(null);
     await expect(transport.invoke("session_list")).rejects.toThrow("web bridge closed");

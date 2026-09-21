@@ -53,6 +53,14 @@ pub(super) async fn ws_handler(
 /// 未过闸的连接:发 4001 Close 帧即收线。
 async fn reject_socket(socket: WebSocket, reason: &'static str) {
     let (mut tx, _rx) = socket.split();
+    /* bye 先行:close code 无法穿越 relay 中继流(管道丢弃 Close),语义必须带内传 */
+    let _ = tx
+        .send(Message::Text(
+            json!({ "type": "bye", "reason": reason })
+                .to_string()
+                .into(),
+        ))
+        .await;
     let _ = tx
         .send(Message::Close(Some(CloseFrame {
             code: 4001,
@@ -143,8 +151,11 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
                     Some(Err(_)) | None => break,
                 }
             }
-            /* 撤销即时踢 */
+            /* 撤销即时踢:bye 带内传语义(close code 过不了中继) */
             _ = kick_tick(&mut kick_rx) => {
+                let _ = ws_tx.send(Message::Text(
+                    json!({ "type": "bye", "reason": "revoked" }).to_string().into(),
+                )).await;
                 let frame = CloseFrame { code: 4001, reason: "revoked".into() };
                 let _ = ws_tx.send(Message::Close(Some(frame))).await;
                 tokio::time::sleep(std::time::Duration::from_millis(150)).await;
@@ -154,6 +165,9 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
             _ = recheck_tick(&scope, &mut recheck) => {
                 if let ConnScope::AppDevice { device_id } = &scope {
                     if !devices::is_approved(&devices::devices_dir(), device_id) {
+                        let _ = ws_tx.send(Message::Text(
+                            json!({ "type": "bye", "reason": "revoked" }).to_string().into(),
+                        )).await;
                         let frame = CloseFrame { code: 4001, reason: "revoked".into() };
                         let _ = ws_tx.send(Message::Close(Some(frame))).await;
                         tokio::time::sleep(std::time::Duration::from_millis(150)).await;
