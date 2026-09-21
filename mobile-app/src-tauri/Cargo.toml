@@ -1,0 +1,23 @@
+[package]
+name = "tmd-mobile"
+version = "0.1.0"
+description = "tmd-cli mobile 壳:iOS/Android Webview 容器,Rust 侧零业务命令,数据面全部走 transport 远程模式连桌面桥"
+edition = "2021"
+rust-version = "1.82"
+
+[lib]
+name = "tmd_mobile_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
