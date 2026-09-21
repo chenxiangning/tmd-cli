@@ -1,0 +1,49 @@
+/* mobile app 原型共享样式:设计 token、页面脚手架、统一手机壳、桌面窗框、通用原子。
+   pairing / home / session / device-edge-states 四页共用;页面专属样式留在各自 <style>。
+   手机壳四页统一:300×640 / r44 / 灵动岛 88×24 / 状态栏 40px / home 指示条 20px。 */
+:root{
+  --bg-base:#ffffff; --bg-panel:#f8f8f8; --bg-hover:#f2f2f2; --bg-input:#ffffff;
+  --fg:#3b3b3b; --fg-muted:#7e7e7e; --fg-subtle:#999999; --fg-faint:#c0c0c0;
+  --border:#cecece; --border-strong:#b1b1b1; --accent:#005fb8; --accent-soft:rgba(0,95,184,.14);
+  --ok:#059669; --warn:#a16207; --err:#dc2626;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:14px/1.6 -apple-system,"PingFang SC","Segoe UI",sans-serif;color:var(--fg);background:#ececec;padding:32px 40px}
+h1{font-size:20px;font-weight:600;margin-bottom:4px}
+.sub{color:var(--fg-muted);font-size:13px;margin-bottom:24px;max-width:960px}
+.sub code{font-family:var(--mono);font-size:12px}
+.stage{display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap}
+.panel-label{font-size:12px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px}
+.step-note{font-size:12px;color:var(--fg-subtle);margin-top:10px;max-width:330px}
+.step-note b{color:var(--fg);font-weight:600}
+.arrow{align-self:center;color:var(--border-strong);font-size:22px;margin-top:120px}
+
+/* ── 手机壳 ── */
+.phone{width:300px;height:640px;background:#0b0b0f;border-radius:44px;padding:10px;box-shadow:0 18px 44px rgba(0,0,0,.28);flex:none;position:relative}
+.screen{width:100%;height:100%;background:var(--bg-base);border-radius:35px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.island{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:88px;height:24px;background:#0b0b0f;border-radius:14px;z-index:5}
+.statusbar{height:40px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 22px 3px;font-size:12px;font-weight:600;flex:none}
+/* 内容区:吃满剩余高,把 homebar 钉到屏底(修 home 页指示条悬空) */
+.body{flex:1;min-height:0;overflow:auto}
+.homebar{height:20px;display:flex;align-items:center;justify-content:center;flex:none}
+.homebar::after{content:"";width:120px;height:5px;border-radius:3px;background:var(--fg-faint)}
+
+/* ── 桌面窗框(tmd-cli 浅色设置卡同款) ── */
+.desktop{background:var(--bg-base);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.d-titlebar{height:34px;background:var(--bg-panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:6px}
+.d-dot{width:11px;height:11px;border-radius:50%}
+.d-title{font-size:12px;color:var(--fg-muted);margin-left:8px}
+.card{padding:16px}
+
+/* ── 通用原子 ── */
+.btn{font-size:12px;border:1px solid var(--border);background:var(--bg-base);border-radius:6px;padding:4px 11px;cursor:pointer;color:var(--fg)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--err);border-color:rgba(220,38,38,.4)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+.dot.err{background:var(--err)}
+.dot.off{background:var(--fg-faint)}
+/* 引擎品牌色(与 tmd-cli 侧栏 glyph 同色);尺寸由各页 .glyph 定 */
+.g-om{background:#e8f0fb;color:#005fb8}
+.g-cl{background:#f0eee9;color:#8a6d3b}
+.g-cx{background:#eaf3ee;color:#0f7a4d}
