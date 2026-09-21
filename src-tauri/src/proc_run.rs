@@ -203,7 +203,9 @@ mod tests {
     fn close_stdin_gives_immediate_eof() {
         // cat 以 null stdin 启动 = 立即 EOF,自然退出(code 0)而非挂到超时。
         // 对齐一次性 CLI(omp -p 等)读管道 stdin 等 EOF 的真实行为。
-        let mut s = spec("cat", &[], 5_000);
+        // 上限 30s 只防回归挂死:高载 CI runner 上 exec+退出可能超 5s,
+        // 收紧上限会把环境慢误判成超时强杀(code=None)——2026-09-21 实证。
+        let mut s = spec("cat", &[], 30_000);
         s.close_stdin = true;
         let r = run(&s).unwrap();
         assert_eq!(r.code, Some(0));
