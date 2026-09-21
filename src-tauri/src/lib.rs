@@ -44,6 +44,7 @@ pub(crate) struct AppState {
     ssh: std::sync::Arc<ssh::SshRegistry>,
     web: web::state::WebAccessState,
     relay: web::relay::RelayState,
+    devices: web::devices::DeviceRegistry,
 }
 
 pub(crate) fn now_millis() -> u64 {
@@ -155,6 +156,7 @@ pub fn run() {
             ssh: ssh_registry,
             web: web::state::WebAccessState::default(),
             relay: web::relay::RelayState::default(),
+            devices: web::devices::DeviceRegistry::default(),
         })
         .setup(|app| {
             app_setup::setup(app)?;
@@ -306,6 +308,10 @@ pub fn run() {
             web::relay::relay_deploy,
             web::relay::relay_deploy_pack,
             web::web_access::web_access_status,
+            web::web_access::web_pair_offer,
+            web::web_access::web_devices_list,
+            web::web_access::web_device_approve,
+            web::web_access::web_device_revoke,
             web::web_access::remote_control_active,
         ])
         .build(tauri::generate_context!())

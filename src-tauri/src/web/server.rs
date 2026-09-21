@@ -1,40 +1,32 @@
-//! Web 桥 HTTP/WS 服务:静态前端 + /ws 命令桥 + /file 资源路由 + CSP。
+//! Web 桥 HTTP 服务:双监听(LAN + 同端口 loopback)+ 静态前端 + 路由装配 + CSP。
+//! WS 命令桥在 ws.rs(握手双凭据/连接生命周期);配对 HTTP 面在 pair.rs。
 //! 协议(与 src/kernel/transport.ts 对齐):
 //! - 客户端 → 桥:{"type":"invoke","id":N,"cmd":"…","args":{…}}
-//! - 桥 → 客户端:hello 帧 {"type":"hello","version"};响应 {"type":"response","id","ok","payload"|"error"};
-//!   事件帧 {"type":"event","event","payload"}(event_sink 广播)。
+//! - 桥 → 客户端:hello 帧 {"type":"hello","version","capabilities"};响应 {"type":"response","id","ok","payload"|"error"};事件帧 {"type":"event","event","payload"}(event_sink 广播)。
 
 use axum::{
-    extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
-        Query, State as AxumState,
-    },
+    extract::State as AxumState,
     http::{header, HeaderValue, StatusCode, Uri},
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::get,
+    routing::{get, post},
     Router,
 };
-use futures_util::{SinkExt, StreamExt};
-use serde::Deserialize;
-use serde_json::Value;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tauri::AppHandle;
-use tokio::sync::{broadcast, oneshot, watch};
+use tokio::sync::{oneshot, watch};
 
-use super::{
-    bind, dispatch, file, gate,
-    state::{RemoteSocket, WebAccessInfo},
-};
+use super::{bind, file, gate, pair, state::WebAccessInfo, ws};
 
 /// Web 表面 CSP:无 Tauri 注入,桥自发;WS 仅允许同 origin。
 const CSP: &str = "default-src 'self'; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self'; font-src 'self' data:; connect-src 'self' ws: wss:";
 
 #[derive(Clone)]
 pub(super) struct WebCtx {
-    app: AppHandle,
+    pub(super) app: AppHandle,
     pub(super) token: Arc<String>,
-    stop: watch::Sender<bool>,
+    pub(super) stop: watch::Sender<bool>,
 }
 
 /// 起服务:绑 LAN 接口 IP 随机端口,并同端口补绑 loopback(relay agent 回拨面)。
@@ -68,11 +60,12 @@ pub(super) async fn serve(
         let _ = shutdown_rx.await;
         let _ = halt_tx.send(true);
     });
-    let router = build_router(ctx);
+    /* ConnectInfo:pair_handler 按来源 IP 节流需要真实对端地址。 */
+    let router = build_router(ctx).into_make_service_with_connect_info::<SocketAddr>();
     if let Some(lo) = loopback {
-        let (router, mut halt) = (router.clone(), halt_rx.clone());
+        let (svc, mut halt) = (router.clone(), halt_rx.clone());
         tauri::async_runtime::spawn(async move {
-            let _ = axum::serve(lo, router)
+            let _ = axum::serve(lo, svc)
                 .with_graceful_shutdown(async move {
                     let _ = halt.changed().await;
                 })
@@ -100,7 +93,8 @@ pub(super) async fn serve(
 
 fn build_router(ctx: WebCtx) -> Router {
     Router::new()
-        .route("/ws", get(ws_handler))
+        .route("/ws", get(ws::ws_handler))
+        .route("/pair", post(pair::pair_handler))
         .route("/file", get(file::file_handler))
         .fallback(static_handler)
         .layer(middleware::from_fn(csp))
@@ -114,102 +108,6 @@ async fn csp(req: axum::extract::Request, next: Next) -> Response {
         HeaderValue::from_static(CSP),
     );
     resp
-}
-
-// ==================== /ws 命令桥 ====================
-
-#[derive(Deserialize)]
-struct TokenQuery {
-    token: Option<String>,
-}
-
-async fn ws_handler(
-    AxumState(ctx): AxumState<WebCtx>,
-    Query(q): Query<TokenQuery>,
-    ws: WebSocketUpgrade,
-) -> Response {
-    if !gate::token_ok(q.token.as_deref(), &ctx.token) {
-        return StatusCode::FORBIDDEN.into_response();
-    }
-    ws.on_upgrade(move |socket| handle_socket(ctx, socket))
-}
-
-#[derive(Deserialize)]
-struct InvokeReq {
-    #[serde(rename = "type")]
-    kind: String,
-    id: Value,
-    cmd: String,
-    #[serde(default)]
-    args: Value,
-}
-
-async fn handle_socket(ctx: WebCtx, socket: WebSocket) {
-    /* 计数到 socket 真正结束:徽标语义 = 有浏览器在驾驶,与连接保活一致。 */
-    let _remote = RemoteSocket::enter(ctx.app.clone());
-    let (mut ws_tx, mut ws_rx) = socket.split();
-    let hello =
-        serde_json::json!({"type": "hello", "version": env!("CARGO_PKG_VERSION")}).to_string();
-    if ws_tx.send(Message::Text(hello.into())).await.is_err() {
-        return;
-    }
-    /* 出站:invoke 响应(mpsc)+ 事件广播(broadcast)合并进同一条 socket。 */
-    let (out_tx, mut out_rx) = tokio::sync::mpsc::channel::<String>(256);
-    let mut events_rx = crate::event_sink::subscribe();
-    let mut stop_writer = ctx.stop.subscribe();
-    /* 订阅后立即吸收已置位(stop 早于本连接):否则 watch 语义下 changed() 不再
-    触发,socket 将带着完整派发权活到自行断连。select 的 else 分支只在全分支
-    pattern 被禁用时执行,治不了这个窗口。 */
-    let writer_stopped = *stop_writer.borrow_and_update();
-    tokio::spawn(async move {
-        if writer_stopped {
-            return;
-        }
-        loop {
-            tokio::select! {
-                msg = out_rx.recv() => match msg {
-                    Some(m) => if ws_tx.send(Message::Text(m.into())).await.is_err() { break },
-                    None => break,
-                },
-                ev = events_rx.recv() => match ev {
-                    Ok(m) => if ws_tx.send(Message::Text(m.into())).await.is_err() { break },
-                    Err(broadcast::error::RecvError::Lagged(_)) => continue,
-                    Err(broadcast::error::RecvError::Closed) => break,
-                },
-                _ = stop_writer.changed() => break,
-            }
-        }
-    });
-    /* 入站:每个 invoke 独立 task —— 长命令(session_spawn 等)不阻塞读循环。 */
-    let mut stop_reader = ctx.stop.subscribe();
-    if *stop_reader.borrow_and_update() {
-        return;
-    }
-    loop {
-        tokio::select! {
-            msg = ws_rx.next() => {
-                match msg {
-                    Some(Ok(Message::Text(text))) => {
-                        let Ok(req) = serde_json::from_str::<InvokeReq>(&text) else { continue };
-                        if req.kind != "invoke" { continue; }
-                        let app = ctx.app.clone();
-                        let out = out_tx.clone();
-                        tokio::spawn(async move {
-                            let frame = match dispatch::dispatch(&app, &req.cmd, req.args).await {
-                                Ok(payload) => serde_json::json!({"type": "response", "id": req.id, "ok": true, "payload": payload}),
-                                Err(error) => serde_json::json!({"type": "response", "id": req.id, "ok": false, "error": error}),
-                            };
-                            let _ = out.send(frame.to_string()).await;
-                        });
-                    }
-                    /* Ping/Pong 由 tungstenite 自答;Binary/Close 不消费。 */
-                    Some(Ok(_)) => {}
-                    Some(Err(_)) | None => break,
-                }
-            }
-            _ = stop_reader.changed() => break,
-        }
-    }
 }
 
 // ==================== 静态前端 ====================
