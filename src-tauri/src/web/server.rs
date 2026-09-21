@@ -23,7 +23,7 @@ use tauri::AppHandle;
 use tokio::sync::{broadcast, oneshot, watch};
 
 use super::{
-    dispatch, file, gate,
+    bind, dispatch, file, gate,
     state::{RemoteSocket, WebAccessInfo},
 };
 
@@ -37,20 +37,17 @@ pub(super) struct WebCtx {
     stop: watch::Sender<bool>,
 }
 
-/// 起服务:绑 0.0.0.0 随机端口(LAN 可达),返回(info, 停 accept, 停连接)。
+/// 起服务:绑 LAN 接口 IP 随机端口,并同端口补绑 loopback(relay agent 回拨面)。
+/// 返回(info, 停 accept, 停连接)。
 pub(super) async fn serve(
     app: AppHandle,
 ) -> Result<(WebAccessInfo, oneshot::Sender<()>, watch::Sender<bool>), String> {
     let token = gate::new_token();
     /* 只绑解析出的 LAN 接口 IP(与展示 URL 同一来源):VPN tun / 容器网段 /
-    公司 VPN 不再随 0.0.0.0 全接口可达;解析失败回落 127.0.0.1(仅本机)。 */
+    公司 VPN 不再随 0.0.0.0 全接口可达;解析失败回落 127.0.0.1(仅本机)。
+    同端口补绑 127.0.0.1:relay agent 每流按 loopback 回拨本机桥,单绑 LAN IP 会拒。 */
     let lan_ip = lan_ip().unwrap_or_else(|| "127.0.0.1".to_string());
-    let bind_addr: std::net::SocketAddr = format!("{lan_ip}:0")
-        .parse()
-        .map_err(|e| format!("Web 桥绑定地址无效: {e}"))?;
-    let listener = tokio::net::TcpListener::bind(bind_addr)
-        .await
-        .map_err(|e| format!("Web 桥端口绑定失败: {e}"))?;
+    let (listener, loopback) = bind::bind_bridge(&lan_ip).await?;
     let port = listener
         .local_addr()
         .map_err(|e| format!("Web 桥取端口失败: {e}"))?
@@ -65,10 +62,27 @@ pub(super) async fn serve(
         token: Arc::new(token.clone()),
         stop: stop_watch.clone(),
     };
+    /* oneshot 停机信号经 watch 转发,双 serve(LAN + loopback)共享同一停机。 */
+    let (halt_tx, mut halt_rx) = watch::channel(false);
     tauri::async_runtime::spawn(async move {
-        let _ = axum::serve(listener, build_router(ctx))
-            .with_graceful_shutdown(async {
-                let _ = shutdown_rx.await;
+        let _ = shutdown_rx.await;
+        let _ = halt_tx.send(true);
+    });
+    let router = build_router(ctx);
+    if let Some(lo) = loopback {
+        let (router, mut halt) = (router.clone(), halt_rx.clone());
+        tauri::async_runtime::spawn(async move {
+            let _ = axum::serve(lo, router)
+                .with_graceful_shutdown(async move {
+                    let _ = halt.changed().await;
+                })
+                .await;
+        });
+    }
+    tauri::async_runtime::spawn(async move {
+        let _ = axum::serve(listener, router)
+            .with_graceful_shutdown(async move {
+                let _ = halt_rx.changed().await;
             })
             .await;
     });
