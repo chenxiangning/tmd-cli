@@ -1,51 +1,29 @@
 /**
- * 移动壳配对门:`window.__TMD_SHELL__ === "mobile"`(壳 initialization_script 注入)
- * 时接管根装配。无凭证 → 配对屏;有凭证 → 连接门(等待授权轮询/桌面协议能力 block/
- * 被撤销回配对屏)→ hello 通过后装配主应用。
- * 凭证存壳 webview localStorage;app-data/钥匙串硬化在 M2(见 M1 proposal 方案取舍)。
+ * 移动壳配对门:`window.__TMD_SHELL__ === "mobile"`(壳注入脚本)时接管根装配。
+ * 无凭证 → 配对屏;有凭证 → 连接门(等待授权轮询/桌面协议能力 block/被撤销回配对屏)
+ * → hello 通过后装配主应用。凭证经 mobileCreds(钥匙串优先 + localStorage 迁移)。
  * 桌面/浏览器两态不进本模块(isMobileShell 为 false,main.tsx 直装主应用)。
  */
 import React from "react";
 import { configureRemoteEndpoint, onRemoteRevoked, serverCapabilities, serverVersion } from "@kernel/transport";
 import { PairingScreen, ShellPage } from "./mobilePairingScreen";
+import { persistCreds, resolveCreds, type MobileCreds } from "./mobileCreds";
 
-const CREDS_KEY = "tmd.mobile.creds.v1";
 /** 壳要求的桌面协议能力(hello.capabilities 缺此 = block 屏;协议破坏性变更时步进)。 */
 const REQUIRED_CAPABILITY = "app-device";
 
-export interface MobileCreds {
-  wsUrl: string;
-  deviceId: string;
-  token: string;
-  hostName: string;
-}
+export type { MobileCreds };
+export { loadCreds } from "./mobileCreds";
 
 declare global {
   interface Window {
-    /** 壳 initialization_script 注入的移动壳标记(mobile-app/src-tauri/src/lib.rs)。 */
+    /** 壳 initialization_script 注入的移动壳标记。 */
     __TMD_SHELL__?: string;
   }
 }
 
 export function isMobileShell(): boolean {
-  if (typeof window === "undefined") return false;
-  if (window.__TMD_SHELL__ === "mobile") return true;
-  /* 诊断期临时通道:iOS 壳 initialization_script 疑似未注入,UA 兜底识别(定稿删除) */
-  return /iPhone|iPad/i.test(navigator.userAgent) && !/Macintosh/i.test(navigator.userAgent);
-}
-
-export function loadCreds(): MobileCreds | null {
-  try {
-    const raw = localStorage.getItem(CREDS_KEY);
-    return raw ? (JSON.parse(raw) as MobileCreds) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveCreds(c: MobileCreds | null) {
-  if (c) localStorage.setItem(CREDS_KEY, JSON.stringify(c));
-  else localStorage.removeItem(CREDS_KEY);
+  return typeof window !== "undefined" && window.__TMD_SHELL__ === "mobile";
 }
 
 type GateOutcome =
@@ -76,19 +54,25 @@ async function connectAttempt(creds: MobileCreds): Promise<GateOutcome> {
   return promise;
 }
 
-/** 壳根:无凭证 = 配对屏;有凭证 = 连接门。撤销后经 onRePair 清凭证回配对屏。 */
+/** 壳根:凭证解析中(钥匙串异步)= 空屏;无凭证 = 配对屏;有凭证 = 连接门。
+ * 撤销后经 onRePair 清凭证回配对屏。 */
 export function mountMobileShellGate(
   root: { render: (node: React.ReactNode) => void },
   mountApp: () => void,
 ): void {
   function ShellRoot() {
-    const [creds, setCreds] = React.useState<MobileCreds | null>(loadCreds);
+    /* undefined = 钥匙串解析中;null = 无凭证(配对屏) */
+    const [creds, setCreds] = React.useState<MobileCreds | null | undefined>(undefined);
     const [gateKey, setGateKey] = React.useState(0);
+    React.useEffect(() => {
+      void resolveCreds().then(setCreds);
+    }, []);
+    if (creds === undefined) return null;
     if (!creds) {
       return (
         <PairingScreen
           onPaired={(c) => {
-            saveCreds(c);
+            void persistCreds(c);
             setCreds(c);
           }}
         />
@@ -100,7 +84,7 @@ export function mountMobileShellGate(
         creds={creds}
         mountApp={mountApp}
         onRePair={() => {
-          saveCreds(null);
+          void persistCreds(null);
           setCreds(null);
           setGateKey((k) => k + 1);
         }}
