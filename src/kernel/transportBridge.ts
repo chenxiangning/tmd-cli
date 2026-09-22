@@ -4,8 +4,10 @@
  * (close code 过不了 relay 中继,bye 是权威语义)。重连退避/pending 释放/hello
  * 版本与能力表,行为与 transport.test/transport.remote.test 契约一致。
  */
-import type { UnlistenFn } from "@tauri-apps/api/event";
 import { webToken, type RemoteEndpoint } from "./transport";
+
+/** @tauri-apps/api/event 的 UnlistenFn 真身就是 () => void;本地定义,守 R3 唯一通道。 */
+type UnlistenFn = () => void;
 
 type Listener = (payload: unknown) => void;
 
