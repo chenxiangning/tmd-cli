@@ -174,7 +174,7 @@
 | 2026-09-20 | [0.2.2 打磨期全量功能体检(v2 复核定稿:逐条实读复核,1 P1 + 10 P2 + 27 P3;删 1 误报、校准 11 处行号)](review/2026-09-20-022-polish-survey.md) | 已收口(8 批修复落地,见 0.2.2 CHANGELOG) |
 | 2026-09-20 | [0.2.2 打磨期任务分解(P1 发送收口/原子写簇/PTY 收尸/搜索完整性/git 打磨/UX 习惯批/P3 池)](../openspec/changes/archive/2026-09-20-022-polish/tasks.md) | 已完成(45 项完成 43;缓修 2 项板内注明:双实例文件锁/QuickOpen walk 缓存;UI 真窗口目检待用户侧) |
 | 2026-09-21 | [orca mobile 模块源码级分析(QR 配对/E2EE/二进制终端流/占用仲裁/开发基建;tmd-cli mobile app 对标蓝本与学习清单)](research/orca-mobile-reference.md) | 已完成(学习清单 1-6 为壳无关的 mobile 就绪底座;壳选型待拍板) |
-| 2026-09-21 | [mobile app 设计(Tauri 2 壳 · 轻交互 · 配对不加密;QR 配对/设备表/dispatch scope/壳工程/通知)](superpowers/specs/2026-09-21-mobile-app-design.md) | 已评审通过(壳=Tauri 2/功能面=轻交互/安全=配对不加密三项用户拍板;实施总计划已出) |
+| 2026-09-21 | [mobile app 设计(轻交互 · 配对不加密;QR 配对/设备表/dispatch scope/壳工程/通知)](superpowers/specs/2026-09-21-mobile-app-design.md) | 已评审通过(壳实定=原生 SwiftUI+WKWebView,Tauri iOS 流水线 Xcode 27 上游阻断;功能面/安全档拍板不变) |
 | 2026-09-21 | [mobile app UI 原型 ×4(配对流程 / 远程 home / 会话屏实况+审批+发送 / 设备管理与边界态)](prototypes/mobile-app-pairing.html) | 设计原型(浅色主题实测基准;同目录 -home/-session/-device-edge-states 三页配套;共享样式 mobile-app-shared.css = 统一手机壳/桌面窗框/设计 token) |
-| 2026-09-21 | [mobile app 实施总计划(终态验收清单 + M1 配对底座/M2 轻交互闭环/M3 发布候选)](superpowers/specs/2026-09-21-mobile-app-master-plan.md) | 生效中(M1 提案已细化:openspec/changes/2026-09-21-mobile-app-m1-pairing/) |
+| 2026-09-21 | [mobile app 实施总计划(终态验收清单 + M1 配对底座/M2 轻交互闭环/M3 发布候选)](superpowers/specs/2026-09-21-mobile-app-master-plan.md) | 生效中(M1 已收口归档;M2 细化中:openspec/changes/2026-09-22-mobile-app-m2-light-interaction/) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
