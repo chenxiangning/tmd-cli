@@ -18,6 +18,7 @@
 		8CCE165FF5F2E923E9419402 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E2B1FCC63B54D6C8C469F272 /* UIKit.framework */; };
 		A4C5AE0844F7FE8A9759D670 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 275C7EC03ECD3416422EB5CA /* CoreGraphics.framework */; };
 		CC6570D4727240C542B583AD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AF70342FDDEBF4AA868E651A /* Assets.xcassets */; };
+		E6A56E346DB0C50980D0B75D /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = 9CFFAC910D6932C292A9527E /* libapp.a */; };
 		E9CF260435D74D7A6AD5DFCE /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 96589E3484A11DEB46C43D2D /* assets */; };
 /* End PBXBuildFile section */
 
@@ -35,6 +36,7 @@
 		95F0AE35E9DB745FF96D9C62 /* tmd-mobile_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "tmd-mobile_iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		96589E3484A11DEB46C43D2D /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
 		965AEF984627C380E92FE7F9 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+		9CFFAC910D6932C292A9527E /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		AF70342FDDEBF4AA868E651A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C4D4F17E7EE994E1C07CC07D /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
 		C77098698487EA3A6B132183 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
@@ -81,6 +83,7 @@
 		5403F00D8059728F655FB152 /* Externals */ = {
 			isa = PBXGroup;
 			children = (
+				820EB59F8CB13E8BFBFF34DB /* arm64 */,
 			);
 			path = Externals;
 			sourceTree = "<group>";
@@ -118,6 +121,14 @@
 			);
 			sourceTree = "<group>";
 		};
+		820EB59F8CB13E8BFBFF34DB /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+				F4DFAF72DD30C44F0AEBB8A0 /* release */,
+			);
+			path = arm64;
+			sourceTree = "<group>";
+		};
 		849BDBF55DF9223068DBD245 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
@@ -148,6 +159,21 @@
 				3C6DB44E940F92BB4569B908 /* tmd-mobile_iOS.entitlements */,
 			);
 			path = "tmd-mobile_iOS";
+			sourceTree = "<group>";
+		};
+		F4DFAF72DD30C44F0AEBB8A0 /* release */ = {
+			isa = PBXGroup;
+			children = (
+				9CFFAC910D6932C292A9527E /* libapp.a */,
+			);
+			path = release;
+			sourceTree = "<group>";
+		};
+		"TEMP_0FF88BD5-D3E0-430F-905A-A26A195A3A2E" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -211,7 +237,7 @@
 				CC6570D4727240C542B583AD /* Assets.xcassets in Resources */,
 				2DFD303395E016BBEC23F219 /* LaunchScreen.storyboard in Resources */,
 				E9CF260435D74D7A6AD5DFCE /* assets in Resources */,
-			);
+				);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
@@ -236,7 +262,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "pnpm tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
+			shellScript = "\"$SRCROOT/build-rust-stub.sh\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 

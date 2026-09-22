@@ -17,6 +17,10 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 
+[features]
+# Release 资产嵌入(frontendDist ../dist);不嵌入则壳 WebView 无页面可加载
+custom-protocol = ["tauri/custom-protocol"]
+
 [profile.release]
 codegen-units = 1
 lto = true
