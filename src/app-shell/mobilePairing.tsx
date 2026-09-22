@@ -29,7 +29,10 @@ declare global {
 }
 
 export function isMobileShell(): boolean {
-  return typeof window !== "undefined" && window.__TMD_SHELL__ === "mobile";
+  if (typeof window === "undefined") return false;
+  if (window.__TMD_SHELL__ === "mobile") return true;
+  /* 诊断期临时通道:iOS 壳 initialization_script 疑似未注入,UA 兜底识别(定稿删除) */
+  return /iPhone|iPad/i.test(navigator.userAgent) && !/Macintosh/i.test(navigator.userAgent);
 }
 
 function loadCreds(): MobileCreds | null {

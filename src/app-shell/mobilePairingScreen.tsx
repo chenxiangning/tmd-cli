@@ -1,10 +1,10 @@
 /**
- * 移动壳配对屏 + 壳屏底:粘贴 tmd://pair 链接或手输地址+配对码,POST /pair。
- * 视觉对齐 docs/prototypes/mobile-app-device-edge-states.html 撤销屏(暗底)。
+ * 移动壳配对屏 + 壳屏底:扫码为主 —— 调壳原生 QR 扫描(webkit.messageHandlers.qr),
+ * 解出 tmd://pair?c=… offer 后自动双端点竞速配对。无桥环境(浏览器开发态)退化为
+ * 手动粘贴/输入表单。视觉对齐 docs/prototypes/mobile-app-device-edge-states.html。
  */
 import React from "react";
 import type { MobileCreds } from "./mobilePairing";
-
 
 /** 解析 tmd://pair?c=… 短链;非该形状返回 null。 */
 function parseOfferLink(
@@ -40,7 +40,7 @@ async function tryPair(
     const resp = await fetch(`${base.replace(/\/+$/, "")}/pair`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ pairCode: code.trim().toUpperCase(), deviceName }),
+      body: JSON.stringify({ pairCode: code.trim(), deviceName }),
       signal: ctrl.signal,
     });
     if (resp.status !== 200) {
@@ -74,44 +74,120 @@ function deviceName(): string {
   return "手机";
 }
 
+/** 壳是否有原生扫码桥。 */
+function hasQrBridge(): boolean {
+  return typeof (window as { webkit?: { messageHandlers?: { qr?: unknown } } })
+    .webkit?.messageHandlers?.qr !== "undefined";
+}
+
+/** 开原生扫码;取消返回 null。 */
+function scanOfferLink(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const w = window as unknown as { __TMD_QR__?: (t: string | null) => void };
+    w.__TMD_QR__ = (t) => resolve(t);
+    (
+      (window as unknown as { webkit: { messageHandlers: { qr: { postMessage: (m: string) => void } } } })
+        .webkit.messageHandlers.qr
+    ).postMessage("start");
+  });
+}
+
+/** offer → 双端点竞速配对(LAN/relay 并发,先成先用)。 */
+async function pairWithOffer(offer: { code: string; urls: string[] }): Promise<MobileCreds> {
+  const attempts = offer.urls.map((u) =>
+    tryPair(u, offer.code, deviceName()).then((r) => {
+      if (r.creds) return r;
+      throw r;
+    }),
+  );
+  try {
+    const ok = await Promise.any(attempts);
+    return ok.creds!;
+  } catch (agg) {
+    const errs = (agg as AggregateError).errors as { error?: string }[];
+    throw new Error(errs.map((e) => e?.error).find(Boolean) ?? "配对失败");
+  }
+}
+
 export function PairingScreen(props: { onPaired: (c: MobileCreds) => void }) {
-  const [host_, setHost] = React.useState("");
-  const [code, setCode] = React.useState("");
-  const [hostName, setHostName] = React.useState("");
+  const bridge = hasQrBridge();
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+  // 无桥(浏览器开发态)才出现的退化管理态
+  const [manual, setManual] = React.useState(false);
+  const [host_, setHost] = React.useState("");
+  const [code, setCode] = React.useState("");
 
-  const submit = async () => {
-    setError(null);
+  const runOffer = async (text: string) => {
+    const offer = parseOfferLink(text);
+    if (!offer) {
+      setError("二维码不是 tmd-cli 配对码,请扫桌面「Web 访问 → 设备」里的二维码");
+      return;
+    }
     setBusy(true);
+    setError(null);
     try {
-      const offer = parseOfferLink(host_);
-      const urls = offer
-        ? offer.urls
-        : [host_.trim()].filter((u) => /^https?:\/\//.test(u));
-      const pairCode = offer ? offer.code : code.trim();
-      if (!urls.length || pairCode.length < 6) {
-        setError("请填主机地址(http://…:端口)与 8 位配对码");
-        return;
-      }
-      // 双端点竞速(LAN/relay 并发,先成先用;offer 只带一端点时退化为单发)
-      const attempts = urls.map((u) =>
-        tryPair(u, pairCode, deviceName()).then((r) => {
-          if (r.creds) return r;
-          throw r;
-        }),
-      );
-      try {
-        const ok = await Promise.any(attempts);
-        props.onPaired(ok.creds!);
-      } catch (agg) {
-        const errs = (agg as AggregateError).errors as { error?: string }[];
-        setError(errs.map((e) => e?.error).find(Boolean) ?? "配对失败");
-      }
+      props.onPaired(await pairWithOffer(offer));
+    } catch (e) {
+      setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   };
+
+  const scan = async () => {
+    setError(null);
+    const text = await scanOfferLink();
+    if (text) await runOffer(text);
+  };
+
+  const submitManual = async () => {
+    setError(null);
+    const offer = parseOfferLink(host_);
+    const urls = offer ? offer.urls : [host_.trim()].filter((u) => /^https?:\/\//.test(u));
+    const pairCode = offer ? offer.code : code.trim();
+    if (!urls.length || pairCode.length < 6) {
+      setError("请填主机地址(http://…:端口)与 8 位配对码");
+      return;
+    }
+    setBusy(true);
+    try {
+      props.onPaired(await pairWithOffer({ code: pairCode, urls }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (bridge && !manual) {
+    return (
+      <ShellPage>
+        <div className="text-[1.375rem] font-bold">连接你的 tmd-cli 桌面</div>
+        <p className="text-center text-[0.8125rem] leading-relaxed text-[#98989f]">
+          桌面端打开 设置 → Web 访问 → 设备,
+          <br />
+          扫描屏幕上的配对二维码。
+        </p>
+        {error && <div className="text-[0.8125rem] text-[#ff453a]">{error}</div>}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void scan()}
+          className="mt-2 w-full rounded-xl bg-[#0a84ff] py-3.5 text-[0.9375rem] font-semibold text-white disabled:opacity-50"
+        >
+          {busy ? "配对中…" : "扫码配对"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setManual(true)}
+          className="mt-1 text-[0.75rem] text-[#636366] underline underline-offset-2"
+        >
+          扫码不便?手动输入配对码
+        </button>
+      </ShellPage>
+    );
+  }
 
   return (
     <ShellPage>
@@ -129,10 +205,7 @@ export function PairingScreen(props: { onPaired: (c: MobileCreds) => void }) {
         onChange={(e) => {
           setHost(e.target.value);
           const offer = parseOfferLink(e.target.value);
-          if (offer) {
-            setCode(offer.code);
-            setHostName(offer.hostName);
-          }
+          if (offer) setCode(offer.code);
         }}
       />
       <input
@@ -142,16 +215,24 @@ export function PairingScreen(props: { onPaired: (c: MobileCreds) => void }) {
         value={code}
         onChange={(e) => setCode(e.target.value.toUpperCase())}
       />
-      {hostName && <div className="text-[0.75rem] text-[#98989f]">主机:{hostName}</div>}
       {error && <div className="text-[0.8125rem] text-[#ff453a]">{error}</div>}
       <button
         type="button"
         disabled={busy}
-        onClick={() => void submit()}
+        onClick={() => void submitManual()}
         className="w-full rounded-xl bg-[#0a84ff] py-3 text-[0.9375rem] font-semibold text-white disabled:opacity-50"
       >
         {busy ? "配对中…" : "配对"}
       </button>
+      {bridge && (
+        <button
+          type="button"
+          onClick={() => setManual(false)}
+          className="mt-1 text-[0.75rem] text-[#636366] underline underline-offset-2"
+        >
+          返回扫码
+        </button>
+      )}
     </ShellPage>
   );
 }
