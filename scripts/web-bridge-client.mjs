@@ -156,9 +156,22 @@ async function main() {
       }
       if (msg.type === "response" && msg.id === 1) {
         console.log(`[e2e] session_list 响应:ok=${msg.ok}${msg.ok ? ` 会话数=${(msg.payload ?? []).length}` : ` error=${msg.error}`}`);
+        // M2 白名单扩面回归:checkpoint 只读令过域闸(业务错可接受,"不在允许域" 不可);
+        // 写令必须被域闸拒。
+        ws.send(JSON.stringify({ type: "invoke", id: 2, cmd: "checkpoint_list", args: { cwd: "", sessionId: "", tmdSessionId: "" } }));
+        ws.send(JSON.stringify({ type: "invoke", id: 3, cmd: "checkpoint_apply", args: { cwd: "", batchId: "" } }));
+      }
+      if (msg.type === "response" && msg.id === 2) {
+        const gate = String(msg.error ?? "").includes("不在允许域");
+        console.log(`[e2e] checkpoint_list:${gate ? "被域闸拒(应放行!)" : `过闸 ok=${msg.ok}`}`);
+        if (gate) process.exit(43);
+      }
+      if (msg.type === "response" && msg.id === 3) {
+        const gate = String(msg.error ?? "").includes("不在允许域");
+        console.log(`[e2e] checkpoint_apply:${gate ? "域闸正确拒绝" : `未拒(ok=${msg.ok},应被域闸拒!)`}`);
+        if (!gate) process.exit(44);
         resolve();
       }
-      if (msg.type === "close" || msg.type === undefined) resolve();
     };
     ws.onclose = (e) => {
       console.log(`[e2e] 连接关闭:code=${e.code}`);

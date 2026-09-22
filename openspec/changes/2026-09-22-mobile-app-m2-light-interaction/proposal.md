@@ -11,12 +11,11 @@ M1 收口后的业务面 = 「能连上、能看列表与实况」;M2 出口 = *
 
 | 面 | 做 | 不做(去向) |
 |---|---|---|
-| 审批应答 | ask 等待卡(允许/拒绝,经 `session_write` 发键,与桌面幕布同 RPC) | 终端键盘全控(M3+ 评估) |
-| 审批线 | checkpoint **只读**摘要(读命令进 AppDevice 白名单) | 批次回退/应用等写操作(桌面专属) |
+| 审批应答 | ask 等待浮标(计数+列表+直达会话),应答在实况幕布软键盘按键(与桌面同 session_write 路径) | 卡片自造"允许/拒绝"代发 y/n —— 各 CLI 键位语义不一(1/2/y/a/n/Esc),发错键 = 批错操作;评审 A2 确认偏离可接受并回写 |
 | composer | 窄屏适配(输入框 + 发送;软键盘避让) | 桌面工具栏全量搬移 |
 | 凭证 | iOS 钥匙串(原生壳 bridge),localStorage 旧凭证一次性迁移 | Android Keystore(M3 评估) |
-| 通知 | 本地通知(UNUserNotificationCenter,壳 bridge):ask 等待 / 会话完成空闲 | APNs 远程推送(个人自用无收益) |
-| 通道 | LAN/relay 双 endpoint 竞速 + RemoteHostBar 手动切换 | 自动多路径热切换(单活连接不变) |
+| 通知 | 本地通知(UNUserNotificationCenter,壳 bridge):ask 等待边沿 / 轮次结算未看(turnSettled.unviewed) | APNs 远程推送(个人自用无收益) |
+| 通道 | 配对时 offer 存 `{lan, relay?}` 双端点;连接序 LAN 8s 超时 → relay(评审 A4:蜂窝下 LAN 黑洞握手需 8s 量级);RemoteHostBar 手动钉选 | 并行拨号择优 —— 双 WS 并连浪费桌面资源且撤销语义复杂化;串行竞速够用 |
 | 韧性 | 回前台强制重连 + 磁盘水位回放验证;断连期列表快照保留 | 离线写队列(无写面) |
 
 ## 方案取舍
@@ -27,7 +26,7 @@ M1 收口后的业务面 = 「能连上、能看列表与实况」;M2 出口 = *
 | 审批卡数据源 | 复用 kernel `askWatch`(host.appendOutput 主链路驱动,远程态 pty://out 事件同样喂它) | 桌面侧新增 ask 状态 RPC —— 检测已在手机本地跑(字节流 + 屏幕镜像通道随 transport 走),加 RPC 是双份真相。 |
 | 审批线摘要 | `conn.rs` AppDevice 白名单 + checkpoint 只读命令(`checkpoint_list`/`checkpoint_detail` 级别,写全拒) | 移动端隐藏审批线 —— spec 终态清单 3 明写「审批线摘要只读可见」。 |
 | 钥匙串 | 原生壳 bridge `shell.creds.get/set`(kSecClassGenericAccount,`tmd.mobile.creds.v1`);首启把 localStorage 旧值迁移后删除 | app-group 文件 / Tauri stronghold —— 壳已是原生 Swift,直接 Security.framework 最短路径,零依赖。 |
-| 通道竞速 | 配对时 offer 同时存 `{lan, relay?}`;连接序:LAN 3s 超时 → relay;RemoteHostBar 点开 = 手动选路 | 并行拨号择优 —— 双 WS 并连浪费桌面资源且撤销语义复杂化;串行竞速够用(蜂窝下 LAN 必败,超时即切)。 |
+| 通道竞速 | 配对时 offer 同时存 `{lan, relay?}`;连接序:LAN 8s 超时 → relay(评审 A4:蜂窝下 LAN 黑洞 TCP 握手需 8s 量级;冷启动最坏 8s×N);RemoteHostBar 点开 = 手动选路 | 并行拨号择优 —— 双 WS 并连浪费桌面资源且撤销语义复杂化;串行竞速够用(蜂窝下 LAN 必败,超时即切)。 |
 | 本地通知触发 | 前端 askWatch 边沿(进入等待/会话转空闲)→ `shell.notify`;系统权限首启配对屏后申请 | 桌面侧推送 —— 无 APNs 凭证链;本地通知覆盖「前台或短暂后台」(spec 措辞),深度后台 = M3 评估。 |
 
 ## 风险

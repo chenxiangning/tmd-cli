@@ -133,7 +133,9 @@ export class WebBridge {
     if (this.capsValue === null) {
       for (const w of this.capsWaiters.splice(0)) w([]);
     }
-    for (const cb of revokedCbs.splice(0)) cb(reason);
+    /* 回调不清空:常驻订阅者(壳撤销回配对屏)须跨多次逐出存活;
+     * bye+4001close 双触发由消费方幂等兜底。 */
+    for (const cb of [...revokedCbs]) cb(reason);
   }
 
   private onMessage(text: string) {

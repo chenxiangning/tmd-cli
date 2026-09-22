@@ -89,6 +89,13 @@ export function mountMobileShellGate(
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") forceRemoteReconnect();
   });
+  /* 运行期撤销(评审 B2):主应用挂载后 gate 订阅已退,常驻处理器清凭证 + reload
+   * 回配对屏。pending 不处理(gate 轮询自有出口);bye+4001 双触发由 reload 幂等吸收。 */
+  onRemoteRevoked((reason) => {
+    if (reason === "pending") return;
+    void persistCreds(null);
+    window.location.reload();
+  });
   function ShellRoot() {
     /* undefined = 钥匙串解析中;null = 无凭证(配对屏) */
     const [creds, setCreds] = React.useState<MobileCreds | null | undefined>(undefined);
@@ -100,8 +107,8 @@ export function mountMobileShellGate(
     if (!creds) {
       return (
         <PairingScreen
-          onPaired={(c) => {
-            void persistCreds(c);
+          onPaired={async (c) => {
+            await persistCreds(c); // 评审 B4:写成功再进门,杀 app 不丢凭证
             setCreds(c);
           }}
         />

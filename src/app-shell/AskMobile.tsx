@@ -1,19 +1,22 @@
 /**
- * 窄屏审批浮标 —— 手机上的「有会话在等确认」提醒与直达。
+ * 窄屏审批浮标 + 通知边沿 —— 手机上的「有会话在等确认」提醒与直达。
  * 数据源 = kernel askWatch(host.isWaitingConfirm,远程态 pty://out 同样驱动);
  * 应答本身在实况幕布用软键盘完成(各 CLI 键位/语义不同,卡片不自造通用 y/n ——
  * 发错键 = 批错操作)。浮标 = 等待会话数,点开 = 列表,点条目 = 切到该会话幕布。
- * 边沿通知:进入等待 → shellBridge 本地通知(壳态);浏览器/桌面态静默。
+ * 通知:进入等待 / 轮次结算未看 → shellBridge 本地通知(壳态);其余环境静默。
  */
 import { useEffect, useRef, useState } from "react";
 import { host, useHost } from "@kernel/host";
+import { KernelTopics, type TurnSettledEvent } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import { hasShellBridge, shellNotify } from "@kernel/shellBridge";
 import { useIsNarrow } from "@kernel/uiBreakpoint";
 
 export function AskNotifier() {
-  /* 等待边沿 → 本地通知;常驻挂载(桌面态 hasShellBridge=false 即 no-op)。 */
+  /* 等待边沿 → 本地通知;会话轮次结算(unviewed = 用户没在看)→ 「已完成」通知。
+   * 非壳态 hasShellBridge=false 即 no-op。首轮只记基线不发(评审 C3:防冷启动风暴)。 */
   const wasWaiting = useRef<Set<string>>(new Set());
+  const primed = useRef(false);
   const version = useHost();
   useEffect(() => {
     const now = new Set(
@@ -26,6 +29,11 @@ export function AskNotifier() {
       wasWaiting.current = now;
       return;
     }
+    if (!primed.current) {
+      primed.current = true; // 冷启动存量等待 = 基线,不补发
+      wasWaiting.current = now;
+      return;
+    }
     for (const id of now) {
       if (!wasWaiting.current.has(id)) {
         const meta = host.getSessions().find((s) => s.id === id);
@@ -34,6 +42,15 @@ export function AskNotifier() {
     }
     wasWaiting.current = now;
   }, [version]);
+  useEffect(() => {
+    if (!hasShellBridge()) return;
+    const off = host.events.on<TurnSettledEvent>(KernelTopics.turnSettled, ({ sessionId, unviewed }) => {
+      if (!unviewed) return; // 正在看 = 不打扰
+      const meta = host.getSessions().find((s) => s.id === sessionId);
+      void shellNotify(t("会话已完成"), meta?.title ?? sessionId).catch(() => undefined);
+    });
+    return () => off();
+  }, []);
   return null;
 }
 
