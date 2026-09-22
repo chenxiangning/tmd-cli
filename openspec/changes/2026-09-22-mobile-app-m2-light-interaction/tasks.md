@@ -19,7 +19,7 @@
 ## 3. 审批卡(ask 应答)
 
 - [x] 3.1 窄屏审批卡组件(挂 overlay 或幕布顶部):会话等待态(askWatch isWaiting)+ 标记摘要 + 允许/拒绝按钮(AskFloatingBadge(等待浮标+列表))
-- [ ] 3.2 应答 RPC:经 `session_write` 发键(实现偏离:浮标只导航不代发键——各 CLI 键位语义不一,发错键=批错操作;应答在幕布软键盘完成,待评审确认)
+- [x] 应答 RPC:经 `session_write` 发键(实现偏离:浮标只导航不代发键——各 CLI 键位语义不一,发错键=批错操作;应答在幕布软键盘完成,待评审确认) —— 评审 A2 确认改道:浮标+幕布人工应答,不自造代发键
 - [x] 3.3 单测:等待边沿→卡出现;应答→session_write 载荷断言;应答后卡消失 + 8s 抑制窗不复燃(浮标数据源=host.isWaitingConfirm(askWatch 既有测试覆盖))
 - [ ] 3.4 真机:CLI 触发 ask → 手机应答 → 桌面幕布同步继续
 
@@ -27,7 +27,7 @@
 
 - [x] 4.1 Rust:`conn.rs` AppDevice 白名单 + checkpoint 只读命令(list/detail 级);dispatch 面单测(写命令仍拒)(conn.rs 白名单 +checkpoint_list/batch_diff(测试翻转))
 - [x] 4.2 前端:窄屏审批线抽屉/页(复用 checkpoints 插件数据源,只读渲染)(CheckpointsMobileSummary overlay 挂点)
-- [ ] 4.3 协议脚本:checkpoint 只读命令断言 + 写命令 403 域闸回归
+- [x] 4.3 协议脚本:checkpoint 只读命令断言 + 写命令域闸回归(web-bridge-client.mjs 实测:list 过闸/apply 拒,exit 43/44 哨兵)
 
 ## 5. composer 窄屏适配
 
@@ -56,7 +56,7 @@
 
 ## 9. 收口
 
-- [ ] 9.1 全门禁 + react-doctor 100
-- [ ] 9.2 换角度评审:设计偏离(对照本提案边界表)/兼容性(旧凭证/单端点/桌面态回归)/边界(权限拒绝/钥匙串不可用/双端点全灭)/性能(通知风暴/竞速超时)
-- [ ] 9.3 评审修复 + 批次提交
-- [ ] 9.4 architecture/12 增补 M2 契约(shellBridge/双端点/白名单扩面);docs/README 索引;本目录归档
+- [x] 9.1 全门禁 + react-doctor 100(typecheck/2758 测试/边界/300 行/build/Rust 全绿)
+- [x] 9.2 换角度评审(reviewer 子代理 17min):2 high(B2 运行期撤销无回配对屏/A1 空闲通知缺触发)+ 2 med(A2 审批卡偏离未回写/E2 协议脚本 checkpoint 断言缺口)+ 4 low;确认 shellBridge 零桌面 RPC 混入、旧凭证回落、双份轮询修复、测试守真契约
+- [x] 9.3 评审修复批(B2 常驻撤销订阅+revokedCbs 不清空/A1 turnSettled.unviewed 通知/C3 冷启动基线/E2 checkpoint e2e 断言实测通过/B4 await persistCreds/A2+A4 proposal 回写)
+- [x] 9.4 architecture/12 增补「轻交互闭环增补(M2)」节(shellBridge/双通道/撤销/重拨/审批浮标/摘要/键盘避让)+ 修正 M1 节两处过时;真机项(2.3/3.4/5.2/5.3/6.3/7.4/8.2/8.3)留待大仙扫码复验后归档

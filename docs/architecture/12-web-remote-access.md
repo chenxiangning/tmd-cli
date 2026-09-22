@@ -42,7 +42,19 @@
 |设备注册表|`web/devices.rs`:`~/.tmd-cli/web_devices.json`(0600,原子写),行含 `tokenHash`(sha-256,明文 token 只在 /pair 应答出现一次);hostId:`~/.tmd-cli/web_host_id` 一次性 16B hex。配对码与节流计数为进程内存态(桌面重启即失效)。|
 |配对协议|`web/pair.rs`:offer = base64url(`{v,hostId,name,pairCode,lan?,relay?}`)→ `tmd://pair?c=…`;`POST /pair {pairCode,deviceName}` → 200 `{deviceId,deviceToken,hostId,name,version}` / 403 错码 / 410 过期 / 429 节流。pairCode 即凭据(无 URL token 闸);8 位 `XXXX-XXXX`(gate 字母表)10min TTL 单次消费;按来源 IP 连续错码 5 次 → 429 + `web://pair-alert` 事件,成功清零。/pair 响应带 CORS 三头 + OPTIONS 预检(壳 origin `app://tmd` 跨域;node 脚本不受 CORS 管,e2e 掩盖过此缺口)。debug 构建起桥时 stderr 打 dev offer(release 不编译)。|
 |WS 双凭据|`web/ws.rs`:`?token=`(浏览器,现状零回退)或 `?device=&token=`(设备,哈希比对+已批准);pending/被撤照常升级后立即 `4001` close(reason `pending`/`rejected`),壳据此分流;设备连接 5s 复查批准态 + 撤销即时踢(conn.rs LiveGuard watch,先发 Close 帧再收线防 1006)。hello 帧增 `capabilities:["browser"|"app-device"]`。|
-|命令域|`web/conn.rs`:`dispatch_scoped` 包一层域闸(不改 dispatch 签名,域文件零改动)。AppDevice 白名单默认拒绝:session 域(列表/回放/活流/发送/resize;**拒 session_spawn/session_kill**)、fs-git 只读白名单、config/quota 只读;写命令/ssh/sqlite/wsl/lsp/plugins/checkpoint/web 管理面全拒。浏览器 scope 全量零回退。|
-|壳配对门|`src/app-shell/mobilePairing.tsx`:`__TMD_SHELL__=mobile`(壳注入脚本)接管根装配;凭证存壳 webview localStorage `tmd.mobile.creds.v1`;连接门 4s 轮询授权、hello `capabilities` 缺 `app-device` → block 屏(协议能力判定,非版本阈值)、rejected 清凭证回配对屏。transport 增 `configureRemoteEndpoint`/`isRemote`/`onRemoteRevoked(reason)`/`serverCapabilities`/`isRemoteConnected`+`onRemoteConnection`(桥实现拆 `transportBridge.ts`),远程模式下 invoke/listen 一律走桥连桌面,壳 Rust 侧零业务命令。|
+|命令域|`web/conn.rs`:`dispatch_scoped` 包一层域闸(不改 dispatch 签名,域文件零改动)。AppDevice 白名单默认拒绝:session 域(列表/回放/活流/发送/resize;**拒 session_spawn/session_kill**)、fs-git 只读白名单、config/quota 只读、checkpoint 只读二令(`checkpoint_list`/`checkpoint_batch_diff`,M2 审批线摘要;写/回退/批准全拒);写命令/ssh/sqlite/wsl/lsp/plugins/web 管理面全拒。浏览器 scope 全量零回退。协议脚本 `web-bridge-client.mjs` 对扩面白名单回归(读令过闸 + 写令域拒)。|
+|壳配对门|`src/app-shell/mobilePairing.tsx`:`__TMD_SHELL__=mobile`(壳注入脚本)接管根装配;凭证经 `mobileCreds.ts`:壳态钥匙串优先(`shell.creds.*`)+ localStorage 旧值一次性迁移 + 内存缓存(loadCreds 同步消费),浏览器态维持 localStorage;连接门 4s 轮询授权、hello `capabilities` 缺 `app-device` → block 屏(协议能力判定,非版本阈值)、rejected 清凭证回配对屏。transport 增 `configureRemoteEndpoint`/`isRemote`/`onRemoteRevoked(reason)`/`serverCapabilities`/`serverVersion`/`isRemoteConnected`+`onRemoteConnection`/`forceRemoteReconnect`(桥实现拆 `transportBridge.ts`),远程模式下 invoke/listen 一律走桥连桌面,壳 Rust 侧零业务命令。|
 |壳形态(实测定)|原生 SwiftUI + WKWebView(`mobile-app/native-shell/`,xcodegen 生成工程,`scripts/build-device.sh` 一键出包),**非 Tauri 壳**:上游 tauri-cli 的 iOS 流水线在 Xcode 27 下不可用(xcode-script 守护进程 panic;SPM shim 符号/平台错配;手写 scene manifest 与 tao 冲突 segfault)。壳三职责:WKURLSchemeHandler 以 `app://tmd/` 为根服务内嵌 dist(绝对路径产物不能用 file://)、注入 `__TMD_SHELL__`、AVCapture 扫码桥(`window.__TMD_QR__`)。bundle id `com.tmdcli.mobile`。|
 |移动断点|`useIsNarrow`(≤768):单栏 MainPanel + `NarrowDrawer` 左栏抽屉(遮罩 button/Escape 收起,会话激活联动自动收)+ `RemoteHostBar`(主机名/连接态/重试);桌面专属栏(文件预览/右文件面板)窄屏隐藏。桌面三栏拆 `DesktopColumns`(行为不变)。|
+
+## 轻交互闭环增补(M2 mobile-app,2026-09-22 落地)
+
+|面|契约|
+|---|---|
+|壳能力桥|`src/kernel/shellBridge.ts` ↔ Swift `ShellBridge`(`mobile-app/native-shell/ShellBridge.swift`):帧 `{id,method,args}` postMessage → `window.__TMD_SHELL_RESULT__(id,ok,payload)` 回注;能力 `notify`(UNUserNotificationCenter,权限拒静默 ok)/ `creds.get/set/delete`(Keychain GenericPassword,AfterFirstUnlockThisDeviceOnly)。**手机本机能力,不经桌面桥、不进 AppDevice 白名单**;非壳环境 `hasShellBridge()=false`,调用方降级。|
+|双通道竞速|凭证 `urls: string[]`(配对 offer 全端点);连接序 = `endpointCandidates`(钉选优先,auto 按 urls 序)逐个 `connectOne`(8s 超时换下一端点;pending/rejected 端点无关即返);钉选存 localStorage `tmd.mobile.channel.v1`,RemoteHostBar 菜单切换即重臂。旧凭证无 urls → 单 wsUrl 兼容。|
+|运行期撤销|`onRemoteRevoked` 回调**不清空**(常驻订阅跨多次逐出存活;bye+4001 双触发由消费方幂等吸收);`mountMobileShellGate` 注册常驻处理器:非 pending 逐出 → 清凭证 + reload 回配对屏(主应用挂载后 gate 已退订,B2 修复)。|
+|回前台重拨|`pageshow`/`visibilitychange` → `forceRemoteReconnect()`(iOS 后台掐 WS;退避最长 10s 不可等;closed/未配对 no-op)。|
+|审批浮标与通知|`AskMobile.tsx`:`AskFloatingBadge`(窄屏等待计数浮标 → 列表 → setActiveSession 直达幕布;应答 = 幕布软键盘按键,不自造代发键——各 CLI 键位语义不一);`AskNotifier` 边沿通知:进入等待(冷启动首轮只记基线防风暴)+ `turnSettled.unviewed` → `shellNotify`。|
+|审批线窄屏摘要|checkpoints 插件 `contribute("overlay")` → `CheckpointsMobileSummary`(批次只读清单 + 待审计数;刷新链仅窄屏启用防桌面双份轮询;写操作无入口)。|
+|软键盘避让|`useViewportHeight` → `--tmd-vvh`(visualViewport 高度),窄屏壳根 height 消费(iOS 100vh 不随键盘缩)。|
