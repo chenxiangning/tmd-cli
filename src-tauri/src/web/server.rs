@@ -94,7 +94,10 @@ pub(super) async fn serve(
 fn build_router(ctx: WebCtx) -> Router {
     Router::new()
         .route("/ws", get(ws::ws_handler))
-        .route("/pair", post(pair::pair_handler))
+        .route(
+            "/pair",
+            post(pair::pair_handler).options(pair::pair_preflight),
+        )
         .route("/file", get(file::file_handler))
         .fallback(static_handler)
         .layer(middleware::from_fn(csp))

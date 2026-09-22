@@ -85,14 +85,47 @@ pub(crate) fn mint_offer(app: &AppHandle) -> Result<(String, String, u64), Strin
 }
 
 /// POST /pair:码错 403 / 过期 410 / 节流 429 / 设备表写失败 500。
+/// 壳 origin(app://tmd)与 relay 基址跨域:响应挂 CORS 头,并配 OPTIONS 预检
+/// (前端 fetch 带 JSON content-type 必触发预检;node 脚本无 CORS 掩盖过此缺口)。
+pub(crate) fn cors(mut resp: Response) -> Response {
+    let h = resp.headers_mut();
+    h.insert(
+        axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
+        axum::http::HeaderValue::from_static("*"),
+    );
+    h.insert(
+        axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+        axum::http::HeaderValue::from_static("POST, OPTIONS"),
+    );
+    h.insert(
+        axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS,
+        axum::http::HeaderValue::from_static("content-type"),
+    );
+    resp
+}
+
+pub(crate) async fn pair_preflight() -> Response {
+    cors(StatusCode::NO_CONTENT.into_response())
+}
+
 pub(crate) async fn pair_handler(
     AxumState(ctx): AxumState<WebCtx>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(req): Json<PairReq>,
 ) -> Response {
-    let ip = addr.ip().to_string();
     let state = ctx.app.state::<crate::AppState>();
     let registry = &state.inner().devices;
+    let resp = pair_inner(registry, ctx.clone(), addr, req).await;
+    cors(resp)
+}
+
+async fn pair_inner(
+    registry: &devices::DeviceRegistry,
+    ctx: WebCtx,
+    addr: SocketAddr,
+    req: PairReq,
+) -> Response {
+    let ip = addr.ip().to_string();
     if registry.pair_denied(&ip) {
         return (StatusCode::TOO_MANY_REQUESTS, "配对尝试过多,稍后再试").into_response();
     }
@@ -153,5 +186,22 @@ mod tests {
     #[test]
     fn host_name_非空() {
         assert!(!host_name().is_empty());
+    }
+
+    #[test]
+    fn cors_头挂在所有pair响应上() {
+        let resp = cors((StatusCode::FORBIDDEN, "配对码不正确").into_response());
+        let h = resp.headers();
+        assert_eq!(h[axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN], "*");
+        assert_eq!(
+            h[axum::http::header::ACCESS_CONTROL_ALLOW_METHODS],
+            "POST, OPTIONS"
+        );
+        assert_eq!(
+            h[axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS],
+            "content-type"
+        );
+        // 原状态码与 content 不被包装吞掉
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
     }
 }
