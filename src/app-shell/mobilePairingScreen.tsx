@@ -92,7 +92,7 @@ function scanOfferLink(): Promise<string | null> {
   });
 }
 
-/** offer → 双端点竞速配对(LAN/relay 并发,先成先用)。 */
+/** offer → 端点竞速配对(先成先用);凭证存全部端点供 M2 双通道重选路。 */
 async function pairWithOffer(offer: { code: string; urls: string[] }): Promise<MobileCreds> {
   const attempts = offer.urls.map((u) =>
     tryPair(u, offer.code, deviceName()).then((r) => {
@@ -102,7 +102,10 @@ async function pairWithOffer(offer: { code: string; urls: string[] }): Promise<M
   );
   try {
     const ok = await Promise.any(attempts);
-    return ok.creds!;
+    return {
+      ...ok.creds!,
+      urls: offer.urls.map((u) => u.replace(/^http/, "ws").replace(/\/+$/, "")),
+    };
   } catch (agg) {
     const errs = (agg as AggregateError).errors as { error?: string }[];
     throw new Error(errs.map((e) => e?.error).find(Boolean) ?? "配对失败");

@@ -7,7 +7,7 @@
 import React from "react";
 import { configureRemoteEndpoint, onRemoteRevoked, serverCapabilities, serverVersion } from "@kernel/transport";
 import { PairingScreen, ShellPage } from "./mobilePairingScreen";
-import { persistCreds, resolveCreds, type MobileCreds } from "./mobileCreds";
+import { loadChannelPin, persistCreds, resolveCreds, type MobileCreds } from "./mobileCreds";
 
 /** 壳要求的桌面协议能力(hello.capabilities 缺此 = block 屏;协议破坏性变更时步进)。 */
 const REQUIRED_CAPABILITY = "app-device";
@@ -32,9 +32,17 @@ type GateOutcome =
   | { kind: "rejected" }
   | { kind: "timeout" };
 
-/** 单次连接尝试:重臂桥,hello / 4001(pending|rejected)/ 12s 超时三选一。 */
-async function connectAttempt(creds: MobileCreds): Promise<GateOutcome> {
-  configureRemoteEndpoint(creds);
+/** 端点候选:钉选优先;auto = urls 序(配对时 LAN 在前),旧凭证回落单 wsUrl。 */
+function endpointCandidates(creds: MobileCreds): string[] {
+  const all = creds.urls?.length ? creds.urls : [creds.wsUrl];
+  const pin = loadChannelPin();
+  if (pin !== "auto" && all.includes(pin)) return [pin];
+  return all;
+}
+
+/** 单端点连接尝试:hello / 4001(pending|rejected)/ 8s 超时(超时 = 换下一端点)。 */
+async function connectOne(creds: MobileCreds, wsUrl: string): Promise<GateOutcome> {
+  configureRemoteEndpoint({ ...creds, wsUrl });
   const { promise, resolve } = Promise.withResolvers<GateOutcome>();
   let settled = false;
   const done = (o: GateOutcome) => {
@@ -47,11 +55,26 @@ async function connectAttempt(creds: MobileCreds): Promise<GateOutcome> {
   const off = onRemoteRevoked((reason) =>
     done(reason === "pending" ? { kind: "pending" } : { kind: "rejected" }),
   );
-  const timer = setTimeout(() => done({ kind: "timeout" }), 12_000);
+  const timer = setTimeout(() => done({ kind: "timeout" }), 8_000);
   void serverVersion().then(async (v) => {
     if (v !== null) done({ kind: "hello", version: v, caps: await serverCapabilities() });
   });
   return promise;
+}
+
+/** 双通道竞速:按候选序尝试,超时换下一端点;pending/rejected 与端点无关,即返。 */
+async function connectAttempt(creds: MobileCreds): Promise<GateOutcome> {
+  const candidates = endpointCandidates(creds);
+  for (const url of candidates) {
+    const o = await connectOne(creds, url);
+    if (o.kind !== "timeout" || candidates.length === 1) return o;
+  }
+  return { kind: "timeout" };
+}
+
+/** RemoteHostBar 重试/展示用:当前钉选解析出的首选端点。 */
+export function currentEndpoint(creds: MobileCreds): string {
+  return endpointCandidates(creds)[0];
 }
 
 /** 壳根:凭证解析中(钥匙串异步)= 空屏;无凭证 = 配对屏;有凭证 = 连接门。

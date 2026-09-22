@@ -14,6 +14,18 @@ export interface MobileCreds {
   deviceId: string;
   token: string;
   hostName: string;
+  /** M2 双通道:配对时 offer 的全部端点(ws://…);旧凭证缺省 = [wsUrl]。 */
+  urls?: string[];
+}
+
+/* 通道钉选(M2 手动切换):auto = 按 urls 序竞速;否则只用该端点。 */
+const PIN_KEY = "tmd.mobile.channel.v1";
+export function loadChannelPin(): string {
+  return localStorage.getItem(PIN_KEY) ?? "auto";
+}
+export function saveChannelPin(v: string) {
+  if (v === "auto") localStorage.removeItem(PIN_KEY);
+  else localStorage.setItem(PIN_KEY, v);
 }
 
 function lsRead(): MobileCreds | null {
