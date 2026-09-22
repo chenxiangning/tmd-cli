@@ -46,29 +46,41 @@ function lsWrite(c: MobileCreds | null) {
   }
 }
 
-/** 同步 localStorage 读(RemoteHostBar 展示 hostName 等轻量消费)。 */
+/* 壳态钥匙串异步解析后 localStorage 被清(迁移语义),同步消费方需要内存缓存;
+ * resolveCreds/persistCreds 是唯一写口,loadCreds 缓存优先。 */
+let cached: MobileCreds | null | undefined;
+
+/** 同步读(展示用):缓存优先,回落 localStorage(浏览器态/首帧前)。 */
 export function loadCreds(): MobileCreds | null {
-  return lsRead();
+  return cached !== undefined ? cached : lsRead();
 }
 
-/** 启动凭证解析(含旧值迁移);非壳态 = localStorage。 */
+/** 启动凭证解析(含旧值迁移);非壳态 = localStorage。结果入缓存供同步消费方。 */
 export async function resolveCreds(): Promise<MobileCreds | null> {
-  if (!hasShellBridge()) return lsRead();
+  if (!hasShellBridge()) {
+    cached = lsRead();
+    return cached;
+  }
   try {
     const raw = await shellCreds.get();
-    if (raw) return JSON.parse(raw) as MobileCreds;
+    if (raw) {
+      cached = JSON.parse(raw) as MobileCreds;
+      return cached;
+    }
   } catch {
     /* 钥匙串异常 → 走旧值路径 */
   }
   const legacy = lsRead();
+  cached = legacy;
   if (legacy) {
     await persistCreds(legacy); // 尽力迁移;失败不阻塞本次会话
   }
   return legacy;
 }
 
-/** 凭证写入(配对成功/撤销清空)。 */
+/** 凭证写入(配对成功/撤销清空);同步更新缓存。 */
 export async function persistCreds(c: MobileCreds | null): Promise<void> {
+  cached = c;
   if (!hasShellBridge()) {
     lsWrite(c);
     return;

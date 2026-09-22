@@ -1,7 +1,8 @@
 /**
  * mobileCreds 迁移矩阵测试(壳桥 mock):
  * 仅旧值 / 仅钥匙串 / 双有以钥匙串为准 / 全无 = null / 钥匙串抛错回落旧值 /
- * 非壳态 localStorage 原语义 / 壳态写钥匙串成功后清 localStorage、失败回落。
+ * 非壳态 localStorage 原语义 / 壳态写钥匙串成功后清 localStorage、失败回落 /
+ * 钥匙串命中后 loadCreds 走缓存。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -67,12 +68,14 @@ describe("mobileCreds 迁移矩阵", () => {
     expect(ls.get(creds.CREDS_KEY)).toBeTruthy();
   });
 
-  it("壳态仅钥匙串命中:直接返回,不迁移动作", async () => {
+  it("壳态仅钥匙串命中:直接返回 + loadCreds 走缓存(localStorage 已被迁移清空)", async () => {
     bridge.has = true;
     fakeLocalStorage({});
     bridge.getFn = () => ({ value: JSON.stringify(CREDS) });
     expect(await creds.resolveCreds()).toEqual(CREDS);
     expect(bridge.setCalls.length).toBe(0);
+    // 钥匙串命中后同步 loadCreds 走缓存(RemoteHostBar 消费;localStorage 无值)
+    expect(creds.loadCreds()).toEqual(CREDS);
   });
 
   it("壳态仅旧值:迁移写钥匙串并清 localStorage", async () => {
@@ -120,11 +123,12 @@ describe("mobileCreds 迁移矩阵", () => {
     expect(ls.get(creds.CREDS_KEY)).toBeTruthy();
   });
 
-  it("撤销清空:壳态删钥匙串 + 清 localStorage", async () => {
+  it("撤销清空:壳态删钥匙串 + 清 localStorage + 缓存归 null", async () => {
     bridge.has = true;
     const ls = fakeLocalStorage({ [creds.CREDS_KEY]: JSON.stringify(CREDS) });
     await creds.persistCreds(null);
     expect(bridge.delCalls).toBe(1);
     expect(ls.has(creds.CREDS_KEY)).toBe(false);
+    expect(creds.loadCreds()).toBeNull();
   });
 });
