@@ -1,18 +1,17 @@
 /**
  * 移动壳配对门:`window.__TMD_SHELL__ === "mobile"`(壳 initialization_script 注入)
- * 时接管根装配。无凭证 → 配对屏;有凭证 → 连接门(等待授权轮询/桌面版本 block/
+ * 时接管根装配。无凭证 → 配对屏;有凭证 → 连接门(等待授权轮询/桌面协议能力 block/
  * 被撤销回配对屏)→ hello 通过后装配主应用。
  * 凭证存壳 webview localStorage;app-data/钥匙串硬化在 M2(见 M1 proposal 方案取舍)。
  * 桌面/浏览器两态不进本模块(isMobileShell 为 false,main.tsx 直装主应用)。
  */
 import React from "react";
-import { configureRemoteEndpoint, onRemoteRevoked, serverVersion } from "@kernel/transport";
-import { isNewerVersion } from "@shell/updateCheck";
+import { configureRemoteEndpoint, onRemoteRevoked, serverCapabilities, serverVersion } from "@kernel/transport";
 import { PairingScreen, ShellPage } from "./mobilePairingScreen";
 
 const CREDS_KEY = "tmd.mobile.creds.v1";
-/** 壳要求的最低桌面版本(hello.version 低于此 = block 屏)。随 M1 发布目标步进。 */
-const SHELL_MIN_DESKTOP_VERSION = "0.3.0";
+/** 壳要求的桌面协议能力(hello.capabilities 缺此 = block 屏;协议破坏性变更时步进)。 */
+const REQUIRED_CAPABILITY = "app-device";
 
 export interface MobileCreds {
   wsUrl: string;
@@ -50,7 +49,7 @@ function saveCreds(c: MobileCreds | null) {
 }
 
 type GateOutcome =
-  | { kind: "hello"; version: string }
+  | { kind: "hello"; version: string; caps: string[] }
   | { kind: "pending" }
   | { kind: "rejected" }
   | { kind: "timeout" };
@@ -71,8 +70,8 @@ async function connectAttempt(creds: MobileCreds): Promise<GateOutcome> {
     done(reason === "pending" ? { kind: "pending" } : { kind: "rejected" }),
   );
   const timer = setTimeout(() => done({ kind: "timeout" }), 12_000);
-  void serverVersion().then((v) => {
-    if (v !== null) done({ kind: "hello", version: v });
+  void serverVersion().then(async (v) => {
+    if (v !== null) done({ kind: "hello", version: v, caps: await serverCapabilities() });
   });
   return promise;
 }
@@ -122,7 +121,7 @@ function ShellGate(props: { creds: MobileCreds; mountApp: () => void; onRePair: 
         const o = await connectAttempt(props.creds);
         if (!alive) return;
         if (o.kind === "hello") {
-          if (isNewerVersion(SHELL_MIN_DESKTOP_VERSION, o.version)) {
+          if (!o.caps.includes(REQUIRED_CAPABILITY)) {
             setVersion(o.version);
             setPhase("block");
             return; // block 屏重试 = reload 重走门
@@ -149,7 +148,7 @@ function ShellGate(props: { creds: MobileCreds; mountApp: () => void; onRePair: 
       ? "已连上主机,等待桌面端点【授权】…"
       : phase === "connecting"
         ? `正在连接 ${props.creds.hostName}…`
-        : `桌面版本过旧(当前 ${version ?? "?"},需要 ≥ ${SHELL_MIN_DESKTOP_VERSION}),请先升级桌面端。`;
+        : `桌面端协议不兼容(当前 ${version ?? "?"},缺 ${REQUIRED_CAPABILITY} 能力),请升级桌面端。`;
   return (
     <ShellPage>
       <div className="text-[2rem]">⏳</div>
