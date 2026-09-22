@@ -34,7 +34,7 @@ vi.mock("@kernel/shellBridge", () => ({
   },
 }));
 
-let creds: typeof import("./mobileCreds");
+let creds: typeof import("./creds");
 const CREDS = { wsUrl: "ws://h:1", deviceId: "d", token: "t", hostName: "h" };
 
 function fakeLocalStorage(initial: Record<string, string> = {}) {
@@ -57,7 +57,7 @@ beforeEach(async () => {
   bridge.setCalls = [];
   bridge.setFail = false;
   bridge.delCalls = 0;
-  creds = await import("./mobileCreds");
+  creds = await import("./creds");
 });
 
 describe("mobileCreds 迁移矩阵", () => {

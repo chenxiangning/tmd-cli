@@ -13,8 +13,8 @@ vi.mock("@kernel/transport", () => ({
   serverCapabilities: vi.fn(() => Promise.resolve([])),
 }));
 
-import { currentEndpoint } from "./mobilePairing";
-import { saveChannelPin, type MobileCreds } from "./mobileCreds";
+import { currentEndpoint } from "./shared";
+import { saveChannelPin, type MobileCreds } from "./creds";
 
 const LAN = "ws://192.168.1.4:53050";
 const RELAY = "wss://relay.example";

@@ -24,7 +24,6 @@ import { captureAnchor, recordEdit, sealTurn } from "./store";
 import { checkpointIdentity } from "./identity";
 import { BATCH_TAB_KIND } from "./batchTab";
 import { CheckpointsPanel } from "./CheckpointsPanel";
-import { CheckpointsMobileSummary } from "./CheckpointsMobileSummary";
 import { BatchSheetTabContent } from "./BatchSheet";
 
 export const checkpointsPlugin: Plugin = {
@@ -46,8 +45,6 @@ export const checkpointsPlugin: Plugin = {
       showFileSubbar: false, // 审批线自带摘要行(审批线 · 批次规模 · 待审计数)
       order: 10,
     });
-    /* 窄屏手机上右栏 filePanel 不挂载:经 overlay 挂点提供审批线只读摘要。 */
-    ctx.contribute("overlay", { order: 35, component: CheckpointsMobileSummary });
     /* 中央批审阅单 tab:kind="ckpt-batch" 路由(kernel/tabs 注册表)。 */
     ctx.registerTabContent({ kind: BATCH_TAB_KIND, component: BatchSheetTabContent });
 

@@ -4,7 +4,7 @@
  * 手动粘贴/输入表单。视觉对齐 docs/prototypes/mobile-app-device-edge-states.html。
  */
 import React from "react";
-import type { MobileCreds } from "./mobilePairing";
+import type { MobileCreds } from "./creds";
 
 /** 解析 tmd://pair?c=… 短链;非该形状返回 null。 */
 function parseOfferLink(
@@ -165,43 +165,40 @@ export function PairingScreen(props: { onPaired: (c: MobileCreds) => void }) {
 
   if (bridge && !manual) {
     return (
-      <ShellPage>
-        <div className="text-[1.375rem] font-bold">连接你的 tmd-cli 桌面</div>
-        <p className="text-center text-[0.8125rem] leading-relaxed text-[#98989f]">
+      <div className="m-center">
+        <div className="m-title">连接你的 tmd-cli 桌面</div>
+        <p className="m-sub">
           桌面端打开 设置 → Web 访问 → 设备,
           <br />
           扫描屏幕上的配对二维码。
         </p>
-        {error && <div className="text-[0.8125rem] text-[#ff453a]">{error}</div>}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void scan()}
-          className="mt-2 w-full rounded-xl bg-[#0a84ff] py-3.5 text-[0.9375rem] font-semibold text-white disabled:opacity-50"
-        >
+        {error && <div className="m-err">{error}</div>}
+        <button type="button" disabled={busy} onClick={() => void scan()} className="m-btn">
           {busy ? "配对中…" : "扫码配对"}
         </button>
         <button
           type="button"
           onClick={() => setManual(true)}
-          className="mt-1 text-[0.75rem] text-[#636366] underline underline-offset-2"
+          className="m-fine"
+          style={{ background: "none", border: "none", textDecoration: "underline" }}
         >
           扫码不便?手动输入配对码
         </button>
-      </ShellPage>
+      </div>
     );
   }
 
   return (
-    <ShellPage>
-      <div className="text-[1.375rem] font-bold">连接你的 tmd-cli 桌面</div>
-      <p className="text-center text-[0.8125rem] leading-relaxed text-[#98989f]">
+    <div className="m-center">
+      <div className="m-title">连接你的 tmd-cli 桌面</div>
+      <p className="m-sub">
         桌面端打开 设置 → Web 访问 → 设备,出示配对码;
         <br />
         可直接把 tmd://pair 链接粘贴到下面的地址框。
       </p>
       <input
-        className="w-full rounded-xl border border-[#3a3a3c] bg-[#2c2c2e] px-3 py-2.5 text-[0.9375rem] text-white placeholder:text-[#636366]"
+        className="field"
+        style={{ width: "100%", fontSize: 14, padding: "8px 10px", border: "1px solid var(--border)", borderRadius: 7, background: "var(--bg-input)", color: "var(--fg)" }}
         aria-label="配对链接或主机地址"
         placeholder="tmd://pair 链接 或 http://192.168.x.x:端口"
         value={host_}
@@ -212,7 +209,7 @@ export function PairingScreen(props: { onPaired: (c: MobileCreds) => void }) {
         }}
       />
       <input
-        className="w-full rounded-xl border border-[#3a3a3c] bg-[#2c2c2e] px-3 py-2.5 text-center font-mono text-[1.0625rem] tracking-[0.3em] text-white placeholder:tracking-normal placeholder:text-[#636366]"
+        style={{ width: "100%", fontSize: 17, padding: "8px 10px", border: "1px solid var(--border)", borderRadius: 7, background: "var(--bg-input)", color: "var(--fg)", textAlign: "center", fontFamily: "var(--mono)", letterSpacing: "0.3em", marginBottom: 12 }}
         aria-label="配对码"
         placeholder="配对码 XXXX-XXXX"
         value={code}
@@ -223,7 +220,8 @@ export function PairingScreen(props: { onPaired: (c: MobileCreds) => void }) {
         type="button"
         disabled={busy}
         onClick={() => void submitManual()}
-        className="w-full rounded-xl bg-[#0a84ff] py-3 text-[0.9375rem] font-semibold text-white disabled:opacity-50"
+        className="m-btn"
+        style={{ marginBottom: 8 }}
       >
         {busy ? "配对中…" : "配对"}
       </button>
@@ -236,14 +234,14 @@ export function PairingScreen(props: { onPaired: (c: MobileCreds) => void }) {
           返回扫码
         </button>
       )}
-    </ShellPage>
+      </div>
   );
 }
 
-/** 壳屏通用暗底(与原型 mobile-app-device-edge-states 撤销屏同视觉)。 */
+/** 壳屏通用暗底(block/撤销屏;与原型 device-edge-states 同视觉)。 */
 export function ShellPage(props: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full min-h-screen flex-col items-center justify-center gap-3 bg-[#1c1c1e] px-7 text-center text-[#e5e5e7]">
+    <div className="m-center" style={{ background: "#1c1c1e", color: "#e5e5e7", gap: 12 }}>
       {props.children}
     </div>
   );
