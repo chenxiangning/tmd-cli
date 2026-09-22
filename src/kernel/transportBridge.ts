@@ -271,4 +271,12 @@ export class WebBridge {
     this.openResolve?.();
     this.openResolve = null;
   }
+
+  /** 回前台强制重拨(iOS 后台会掐 WS,退避计时器最长 10s 不可等)。 */
+  forceReconnect() {
+    if (this.closed) return;
+    this.retryMs = 1000;
+    if (this.ws && this.ws.readyState <= WebSocket.CONNECTING) return; // 已在连
+    void this.ensure();
+  }
 }

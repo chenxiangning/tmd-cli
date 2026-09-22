@@ -5,7 +5,7 @@
  * 桌面/浏览器两态不进本模块(isMobileShell 为 false,main.tsx 直装主应用)。
  */
 import React from "react";
-import { configureRemoteEndpoint, onRemoteRevoked, serverCapabilities, serverVersion } from "@kernel/transport";
+import { configureRemoteEndpoint, forceRemoteReconnect, onRemoteRevoked, serverCapabilities, serverVersion } from "@kernel/transport";
 import { PairingScreen, ShellPage } from "./mobilePairingScreen";
 import { loadChannelPin, persistCreds, resolveCreds, type MobileCreds } from "./mobileCreds";
 
@@ -83,6 +83,12 @@ export function mountMobileShellGate(
   root: { render: (node: React.ReactNode) => void },
   mountApp: () => void,
 ): void {
+  /* iOS 后台掐 WS:回前台/可见即强制重拨(退避最长 10s 不可等;撤销态 no-op)。
+   * 注册一次于壳页生命周期 = app 生命周期,mountApp 后仍需存活。 */
+  window.addEventListener("pageshow", forceRemoteReconnect);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") forceRemoteReconnect();
+  });
   function ShellRoot() {
     /* undefined = 钥匙串解析中;null = 无凭证(配对屏) */
     const [creds, setCreds] = React.useState<MobileCreds | null | undefined>(undefined);

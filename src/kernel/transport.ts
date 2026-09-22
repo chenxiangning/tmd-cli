@@ -47,6 +47,11 @@ export function isRemote(): boolean {
 /* 桥连接态与撤销回调:实现在 transportBridge,此处再导出保持消费面单一。 */
 export { isRemoteConnected, onRemoteConnection, onRemoteRevoked };
 
+/** 回前台强制重拨(iOS 后台掐 WS 的即时恢复;未配对/已撤销 no-op)。 */
+export function forceRemoteReconnect(): void {
+  bridge?.forceReconnect();
+}
+
 /** @tauri-apps/api/core invoke 的 drop-in。 */
 export function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (remoteEndpoint) return (bridge ??= new WebBridge()).invoke<T>(cmd, args);
