@@ -14,6 +14,7 @@ import {
   webDeviceApprove,
   webDeviceRevoke,
   onWebDevices,
+  onWebPairConsumed,
   onWebPairAlert,
   type PairOffer,
   type DeviceWire,
@@ -61,6 +62,7 @@ export function WebDevicePairCard() {
   useEffect(() => {
     void refresh();
     const un1 = onWebDevices(() => void refresh());
+    const un3 = onWebPairConsumed(() => setOffer(null)); // 手机已消费配对码:收起码区,pending 行接管
     const un2 = onWebPairAlert((ip) => {
       setAlert(t("IP {ip} 连续配对码错误,已暂时拒绝(10 分钟)。", { ip }));
       if (alertTimer.current) window.clearTimeout(alertTimer.current);
@@ -69,6 +71,7 @@ export function WebDevicePairCard() {
     return () => {
       un1.then((f) => f());
       un2.then((f) => f());
+      un3.then((f) => f());
       if (alertTimer.current) window.clearTimeout(alertTimer.current);
     };
   }, [refresh]);

@@ -1030,6 +1030,11 @@ export function onWebDevices(cb: () => void) {
   return listen<unknown>("web://devices", () => cb());
 }
 
+/** 手机已消费配对码(POST /pair 200):配对卡收起码区,显示 pending 行。 */
+export function onWebPairConsumed(cb: () => void) {
+  return listen<unknown>("web://pair-consumed", () => cb());
+}
+
 /** 配对码节流告警(同 IP 连续错码 5 次):设置卡 toast。 */
 export function onWebPairAlert(cb: (ip: string, limit: number) => void) {
   return listen<{ ip: string; limit: number }>("web://pair-alert", (ev) =>

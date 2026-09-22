@@ -13,7 +13,7 @@ import { HomeScreen } from "./HomeScreen";
 import { SessionScreen } from "./SessionScreen";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
 import { listSessions, listWorkspaces, sessionTitles } from "./remote";
-import { forceRemoteReconnect, onRemoteConnection } from "@kernel/transport";
+import { forceRemoteReconnect, isRemoteConnected, onRemoteConnection } from "@kernel/transport";
 
 export interface MobileCtxValue {
   creds: MobileCreds;
@@ -33,7 +33,7 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   const [sessions, setSessions] = React.useState<RemoteSession[]>([]);
   const [workspaces, setWorkspaces] = React.useState<RemoteWorkspace[]>([]);
   const [titles, setTitles] = React.useState<Record<string, string>>({});
-  const [connected, setConnected] = React.useState(false);
+  const [connected, setConnected] = React.useState(() => isRemoteConnected());
   React.useEffect(() => onRemoteConnection(setConnected), []);
   const [route, setRoute] = React.useState<MobileRoute>({ view: "home" });
 

@@ -137,6 +137,9 @@ async fn pair_inner(
     ) {
         Ok((device_id, token)) => {
             registry.note_ok(&ip);
+            // 桌面配对卡联动:pending 行立即出现 + 配对码收起(等 TTL 收码会卡住授权流)
+            crate::event_sink::emit(&ctx.app, "web://devices", &json!({}));
+            crate::event_sink::emit(&ctx.app, "web://pair-consumed", &json!({}));
             let granted = PairGranted {
                 device_id: &device_id,
                 device_token: &token,
