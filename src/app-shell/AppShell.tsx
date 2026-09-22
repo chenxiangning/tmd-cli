@@ -39,6 +39,7 @@ import { RemoteHostBar } from "./RemoteHostBar";
 import { NarrowDrawer } from "./NarrowDrawer";
 import { TopBar } from "./TopBar";
 import { isRemote } from "@kernel/transport";
+import { AskFloatingBadge, AskNotifier } from "./AskMobile";
 
 export function AppShell() {
   useHost();
@@ -130,6 +131,9 @@ export function AppShell() {
       </div>
 
       <Mounts point="overlay" />
+      {/* 窄屏审批浮标 + 等待边沿本地通知(壳态;桌面态 no-op) */}
+      <AskFloatingBadge />
+      <AskNotifier />
       {/* 会话启动失败通知:进程秒退静默闪退的兜底呈现(见 kernel/sessionSpawn.ts) */}
       <SettingsPersistToast />
       <StartFailureToast />
