@@ -233,11 +233,13 @@ struct WebView: UIViewRepresentable {
     ))
 
     config.userContentController.add(QrBridge.shared, name: "qr")
+    config.userContentController.add(ShellBridge.shared, name: "shell")
     let webview = WKWebView(frame: .zero, configuration: config)
     webview.backgroundColor = .black
     webview.scrollView.bounces = false
     webview.navigationDelegate = context.coordinator
     QrBridge.shared.webview = webview
+    ShellBridge.shared.webview = webview
     webview.load(URLRequest(url: URL(string: "app://tmd/index.html")!))
     return webview
   }

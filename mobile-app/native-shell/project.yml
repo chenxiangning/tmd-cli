@@ -9,6 +9,7 @@ targets:
     platform: iOS
     sources:
       - path: TmdApp.swift
+      - path: ShellBridge.swift
       - path: ../dist
         type: folder
         buildPhase: resources

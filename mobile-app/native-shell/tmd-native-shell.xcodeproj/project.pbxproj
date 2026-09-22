@@ -8,11 +8,13 @@
 
 /* Begin PBXBuildFile section */
 		39A9F189A40F367BFBEA0CBF /* TmdApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21533CD68DC34CA85E6C49D0 /* TmdApp.swift */; };
+		A8E6F5AE1D91CE229EA6C659 /* ShellBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 378E0BCC1924BC873334938F /* ShellBridge.swift */; };
 		FE1A3F1BD5AF9F861F9FB75F /* dist in Resources */ = {isa = PBXBuildFile; fileRef = 4BE9F3D05B458E08D3087F1C /* dist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		21533CD68DC34CA85E6C49D0 /* TmdApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TmdApp.swift; sourceTree = "<group>"; };
+		378E0BCC1924BC873334938F /* ShellBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellBridge.swift; sourceTree = "<group>"; };
 		4BE9F3D05B458E08D3087F1C /* dist */ = {isa = PBXFileReference; lastKnownFileType = folder; name = dist; path = ../dist; sourceTree = SOURCE_ROOT; };
 		C42784232A03C7147A577382 /* tmd-cli mobile.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "tmd-cli mobile.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -22,6 +24,7 @@
 			isa = PBXGroup;
 			children = (
 				4BE9F3D05B458E08D3087F1C /* dist */,
+				378E0BCC1924BC873334938F /* ShellBridge.swift */,
 				21533CD68DC34CA85E6C49D0 /* TmdApp.swift */,
 				DAA7685686ED21F4AAC782EA /* Products */,
 			);
@@ -102,6 +105,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A8E6F5AE1D91CE229EA6C659 /* ShellBridge.swift in Sources */,
 				39A9F189A40F367BFBEA0CBF /* TmdApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
