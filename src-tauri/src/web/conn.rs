@@ -99,6 +99,8 @@ pub(crate) fn app_allowed(cmd: &str) -> bool {
 }
 
 /// scoped dispatch:AppDevice 先过域闸(显式报错,前端可提示),浏览器直通。
+/// session_spawn 额外收敛 spec.command ∈ 已知 CLI/shell 名(放行 spawn 不等于
+/// 任意远程执行;手机 UI 只能从内置引擎表选择,自由 command 在域闸打回)。
 pub(crate) async fn dispatch_scoped(
     app: &AppHandle,
     scope: &ConnScope,
@@ -109,8 +111,26 @@ pub(crate) async fn dispatch_scoped(
         if !app_allowed(cmd) {
             return Err(format!("app 设备命令不在允许域: {cmd}"));
         }
+        if cmd == "session_spawn" && !spawn_command_allowed(&raw) {
+            return Err("app 设备仅可发起已知 CLI 引擎的会话".into());
+        }
     }
     dispatch::dispatch(app, cmd, raw).await
+}
+
+/// 已知引擎/shell 名(spec.command 的 basename;桌面 cli-* 插件声明的启动命令)。
+fn spawn_command_allowed(raw: &serde_json::Value) -> bool {
+    const ENGINES: &[&str] = &[
+        "omp", "pi", "claude", "codex", "kimi", "grok", "qoder", "opencode", "deepseek", "dsh",
+        "bash", "zsh", "sh", "fish",
+    ];
+    let cmd = raw
+        .get("spec")
+        .and_then(|s| s.get("command"))
+        .and_then(|c| c.as_str())
+        .unwrap_or("");
+    let base = cmd.rsplit('/').next().unwrap_or("");
+    ENGINES.contains(&base)
 }
 
 // ---------- 活跃设备连接登记(撤销即时踢,不等 5s 复查) ----------
@@ -182,6 +202,19 @@ mod tests {
         for no in ["session_kill", "session_set_workspace"] {
             assert!(!app_allowed(no), "{no} 应拒绝");
         }
+    }
+
+    #[test]
+    fn spawn_命令收敛_引擎白名单() {
+        let ok = |cmd: &str| serde_json::json!({ "profileId": "omp", "spec": { "command": cmd, "cwd": "/tmp" }, "workspaceId": null });
+        assert!(spawn_command_allowed(&ok("omp")));
+        assert!(spawn_command_allowed(&ok("/usr/local/bin/claude"))); // basename 命中
+        assert!(spawn_command_allowed(&ok("zsh")));
+        for bad in ["curl", "rm", "python3", "/bin/bash -c evil", ""] {
+            assert!(!spawn_command_allowed(&ok(bad)), "{bad} 应拒绝");
+        }
+        // 缺 spec/command
+        assert!(!spawn_command_allowed(&serde_json::json!({})));
     }
 
     #[test]
