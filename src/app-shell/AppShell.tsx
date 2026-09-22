@@ -33,7 +33,7 @@ import { SettingsPersistToast } from "./SettingsPersistToast";
 import { useEditorMaximized } from "./editorMaximized";
 import { shellBarToggles, shellLeftEnsureOpen, shellMarketClose, shellMarketToggle } from "./shortcutCommands";
 import { installShortcutDispatcher } from "@kernel/shortcuts";
-import { usePersistedToggle, useIsNarrow, useScrollbarProbe } from "./shellHooks";
+import { usePersistedToggle, useIsNarrow, useScrollbarProbe, useViewportHeight } from "./shellHooks";
 import { MainPanel } from "./MainPanel";
 import { RemoteHostBar } from "./RemoteHostBar";
 import { NarrowDrawer } from "./NarrowDrawer";
@@ -70,6 +70,7 @@ export function AppShell() {
      遮罩);折叠是纯尺寸变化,幕布现场零回放,还原后分栏尺寸逐位复原。 */
   const maximized = useEditorMaximized() && tabs.length > 0;
   useScrollbarProbe();
+  useViewportHeight();
 
   /* 全局快捷键分发器:挂载期安装一次,卸载退订;命令本体在 ./shortcutCommands 模块级注册。 */
   useEffect(() => installShortcutDispatcher(), []);
@@ -90,7 +91,10 @@ export function AppShell() {
   }, [toggleLeft, toggleRight, toggleMarket, setLeftOpen]);
 
   const shell = (
-    <div className={`app ${platform}-desktop flex h-screen w-screen flex-col bg-(--tmd-bg-base) text-(--tmd-fg)`}>
+    <div
+      className={`app ${platform}-desktop flex h-screen w-screen flex-col bg-(--tmd-bg-base) text-(--tmd-fg)`}
+      style={narrow ? { height: "var(--tmd-vvh, 100dvh)" } : undefined}
+    >
       <TopBar
         onToggleLeft={narrow ? () => setDrawerOpen((v) => !v) : toggleLeft}
         onToggleRight={toggleRight}

@@ -70,6 +70,26 @@ export function useScrollbarProbe() {
     probe.remove();
   }, []);
 }
+
+/** iOS 软键盘不缩 100vh:visualViewport 高度写 CSS 变量,壳根消费。 */
+export function useViewportHeight() {
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const apply = () => {
+      document.documentElement.style.setProperty(
+        "--tmd-vvh",
+        `${Math.round(vv ? vv.height : window.innerHeight)}px`,
+      );
+    };
+    apply();
+    vv?.addEventListener("resize", apply);
+    vv?.addEventListener("scroll", apply);
+    return () => {
+      vv?.removeEventListener("resize", apply);
+      vv?.removeEventListener("scroll", apply);
+    };
+  }, []);
+}
 /**
  * 测量元素宽度并直写 CSS 变量(随拖动实时更新)。
  * 直写 var 而非 setState:分栏拖动每帧触发,避免顶栏整树重渲染(顶栏经 var() 消费);
