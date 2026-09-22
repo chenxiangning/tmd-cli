@@ -70,10 +70,11 @@ pub(crate) fn app_allowed(cmd: &str) -> bool {
     if GIT_READ.contains(&cmd) {
         return true;
     }
-    // 配置/环境域:只读;config_write_* 与其余域(sqlite/wsl/lsp/plugins/checkpoint/
-    // ssh/cli 执行面/web 管理面)全部默认拒绝。
+    // 配置/环境域:只读;config_write_* 与其余域(sqlite/wsl/lsp/plugins/ssh/cli
+    // 执行面/web 管理面)全部默认拒绝。
     // 注:quota_fetch 不进 AppDevice —— 它是桌面出站的任意 HTTP 原语(任意 url+方法),
     // 对设备通道即 SSRF 面;引擎版本 pill 在远程态降级(M1 取舍)。
+    // checkpoint 只放摘要二令(M2 审批线只读);anchor/apply/seal/restore/approve 写全拒。
     matches!(
         cmd,
         "config_read_settings"
@@ -82,6 +83,8 @@ pub(crate) fn app_allowed(cmd: &str) -> bool {
             | "config_home_dir"
             | "config_dir"
             | "platform_kind"
+            | "checkpoint_list"
+            | "checkpoint_batch_diff"
     )
 }
 
@@ -193,20 +196,27 @@ mod tests {
     }
 
     #[test]
-    fn 配置只读_其余域全拒() {
+    fn 配置只读_checkpoint只读_其余域全拒() {
         assert!(app_allowed("config_read_settings"));
         assert!(!app_allowed("config_write_settings"));
         assert!(!app_allowed("config_write_workspaces"));
         // quota_fetch = 桌面出站任意 HTTP 原语,SSRF 面,设备域不授
         assert!(!app_allowed("quota_fetch"));
         assert!(!app_allowed("quota_env_value"));
+        // M2 审批线摘要:checkpoint 只读二令放行,写/回退全拒
+        assert!(app_allowed("checkpoint_list"));
+        assert!(app_allowed("checkpoint_batch_diff"));
         for no in [
+            "checkpoint_anchor",
+            "checkpoint_apply",
+            "checkpoint_seal",
+            "checkpoint_restore",
+            "checkpoint_approve",
             "sqlite_query",
             "sqlite_execute",
             "wsl_exec",
             "lsp_send",
             "plugin_scan",
-            "checkpoint_list",
             "web_access_start",
             "web_relay_start",
             "ssh_connect",
