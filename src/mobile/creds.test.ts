@@ -6,13 +6,14 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type Result = { value?: string | null; error?: string };
+type Result = { value?: string | null; error?: string; pending?: boolean };
 
 const bridge = vi.hoisted(() => ({
   has: false,
   getFn: (): Result => ({ value: null }),
   setCalls: [] as string[],
   setFail: false,
+  setPending: false,
   delCalls: 0,
 }));
 
@@ -21,10 +22,12 @@ vi.mock("@kernel/shellBridge", () => ({
   shellCreds: {
     get: () => {
       const r = bridge.getFn();
+      if (r.pending) return new Promise<null>(() => {});
       return r.error ? Promise.reject(new Error(r.error)) : Promise.resolve(r.value ?? null);
     },
     set: (j: string) => {
       bridge.setCalls.push(j);
+      if (bridge.setPending) return new Promise<void>(() => {});
       return bridge.setFail ? Promise.reject(new Error("locked")) : Promise.resolve();
     },
     delete: () => {
@@ -130,5 +133,37 @@ describe("mobileCreds 迁移矩阵", () => {
     expect(bridge.delCalls).toBe(1);
     expect(ls.has(creds.CREDS_KEY)).toBe(false);
     expect(creds.loadCreds()).toBeNull();
+  });
+
+  it("看门狗:壳 get 永不应答 → 超时回落旧值,不迁移写(2026-09-23 白屏回归)", async () => {
+    vi.useFakeTimers();
+    try {
+      bridge.has = true;
+      const ls = fakeLocalStorage({ [creds.CREDS_KEY]: JSON.stringify(CREDS) });
+      bridge.getFn = () => ({ pending: true });
+      const p = creds.resolveCreds();
+      await vi.advanceTimersByTimeAsync(3500);
+      expect(await p).toEqual(CREDS);
+      expect(bridge.setCalls.length).toBe(0); // 超时态不做迁移写
+      expect(ls.has(creds.CREDS_KEY)).toBe(true); // 旧值保留待壳恢复
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("看门狗:壳 set 永不应答 → persist 超时回落 localStorage 兜底", async () => {
+    vi.useFakeTimers();
+    try {
+      bridge.has = true;
+      const ls = fakeLocalStorage({});
+      bridge.setPending = true;
+      const p = creds.persistCreds(CREDS);
+      await vi.advanceTimersByTimeAsync(3500);
+      await p;
+      expect(ls.get(creds.CREDS_KEY)).toBeTruthy(); // 兜底落 localStorage
+      expect(creds.loadCreds()).toEqual(CREDS);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

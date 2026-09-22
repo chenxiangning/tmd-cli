@@ -46,6 +46,26 @@ function lsWrite(c: MobileCreds | null) {
   }
 }
 
+/* 壳应答看门狗:壳二进制与前端契约漂移时(老壳不认识新方法,postMessage 无应答方),
+ * 凭证链路若永挂,gate 停在 undefined → 整树白屏(2026-09-23 真机白屏根因)。
+ * 所有壳往返一律限时;超时/异常同态处理,回落 localStorage,绝不丢已存凭证。 */
+const SHELL_REPLY_TIMEOUT_MS = 3500;
+
+type Timed<T> = { kind: "ok"; value: T } | { kind: "timeout" };
+
+function withTimeout<T>(p: Promise<T>): Promise<Timed<T>> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    p.then(
+      (value): Timed<T> => ({ kind: "ok", value }),
+      (): Timed<T> => ({ kind: "timeout" }),
+    ),
+    new Promise<Timed<T>>((resolve) => {
+      timer = setTimeout(() => resolve({ kind: "timeout" }), SHELL_REPLY_TIMEOUT_MS);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 /* 壳态钥匙串异步解析后 localStorage 被清(迁移语义),同步消费方需要内存缓存;
  * resolveCreds/persistCreds 是唯一写口,loadCreds 缓存优先。 */
 let cached: MobileCreds | null | undefined;
@@ -61,18 +81,19 @@ export async function resolveCreds(): Promise<MobileCreds | null> {
     cached = lsRead();
     return cached;
   }
-  try {
-    const raw = await shellCreds.get();
-    if (raw) {
-      cached = JSON.parse(raw) as MobileCreds;
+  const got = await withTimeout(shellCreds.get());
+  if (got.kind === "ok" && got.value) {
+    try {
+      cached = JSON.parse(got.value) as MobileCreds;
       return cached;
+    } catch {
+      /* 凭证损坏 → 走旧值重迁 */
     }
-  } catch {
-    /* 钥匙串异常 → 走旧值路径 */
   }
   const legacy = lsRead();
   cached = legacy;
-  if (legacy) {
+  /* 超时(壳不应答)不做迁移写:写了也没人确认,保留 localStorage 待壳恢复后再迁。 */
+  if (legacy && got.kind === "ok") {
     await persistCreds(legacy); // 尽力迁移;失败不阻塞本次会话
   }
   return legacy;
@@ -85,11 +106,12 @@ export async function persistCreds(c: MobileCreds | null): Promise<void> {
     lsWrite(c);
     return;
   }
-  try {
-    if (c) await shellCreds.set(JSON.stringify(c));
-    else await shellCreds.delete();
-    lsWrite(null); // 钥匙串成功 → 清 localStorage(含迁移旧值)
-  } catch {
-    lsWrite(c); // 钥匙串失败 → localStorage 兜底,下次启动再迁
+  const done = c
+    ? await withTimeout(shellCreds.set(JSON.stringify(c)))
+    : await withTimeout(shellCreds.delete());
+  if (done.kind !== "ok") {
+    lsWrite(c); // 钥匙串失败/壳不应答 → localStorage 兜底,下次启动再迁
+    return;
   }
+  lsWrite(null); // 钥匙串确认成功 → 清 localStorage(含迁移旧值)
 }

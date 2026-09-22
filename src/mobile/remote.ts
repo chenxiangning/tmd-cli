@@ -72,6 +72,18 @@ export async function tailHasAskMarker(tail: string): Promise<boolean> {
   return ASK_MARKER_RE.test(lines);
 }
 
+/** 尾窗内命中 ask 标记的原文行(ask 卡正文;提示行常在选项区上方数行,窗口放宽到 40 行)。 */
+export async function tailAskLine(tail: string): Promise<string | null> {
+  // 动态 import:askDetect 与 transport 同策略切出主 chunk(手机入口体积),非运行时选型
+  const { ASK_MARKER_RE, stripAnsi } = await import("@kernel/askDetect");
+  const lines = stripAnsi(tail).split("\n").slice(-40);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    ASK_MARKER_RE.lastIndex = 0;
+    if (ASK_MARKER_RE.test(lines[i])) return lines[i].trim();
+  }
+  return null;
+}
+
 // ---- 基础 invoke(远程模式;未连接时抛错由调用方处理) ----
 
 async function invokeSafe<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {

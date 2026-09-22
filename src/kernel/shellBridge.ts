@@ -41,6 +41,15 @@ export function shellInvoke<T = unknown>(method: string, args?: unknown): Promis
 
 // ---------- 类型化门面 ----------
 
+/** 页面诊断通道:Swift 侧写入沙箱 Documents/shell.log(发后即忘,无应答方)。 */
+export function shellLog(line: string): void {
+  shellWindow()?.webkit?.messageHandlers?.shell?.postMessage({
+    id: 0,
+    method: "log",
+    args: { line },
+  });
+}
+
 /** 本地通知(系统权限被拒时 Swift 侧静默成功,不抛)。 */
 export function shellNotify(title: string, body: string): Promise<void> {
   return shellInvoke("notify", { title, body }).then(() => undefined);

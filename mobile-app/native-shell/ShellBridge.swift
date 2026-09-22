@@ -19,6 +19,9 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     switch method {
     case "notify":
       notify(id: id, args: args ?? [:])
+    case "log":
+      /* 页面诊断通道:前端把 mount 态/JS 错误写进 Documents/shell.log(id=0 无应答方) */
+      ShellLog.write(String(describing: args?["line"] ?? ""))
     case "creds.get":
       reply(id: id, ok: true, payload: Keychain.read())
     case "creds.set":
@@ -102,6 +105,8 @@ enum Keychain {
       kSecAttrService as String: service,
       kSecAttrAccount as String: account,
     ]
-    SecItemDelete(base as CFDictionary)
+    /* 状态进 shell.log:静默失败(ACL/锁定态)会让前端凭证"删不掉"无从排查 */
+    let status = SecItemDelete(base as CFDictionary)
+    ShellLog.write("keychain delete status=\(status)")
   }
 }

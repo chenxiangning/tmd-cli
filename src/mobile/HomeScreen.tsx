@@ -14,6 +14,50 @@ export function HomeScreen() {
   const { sessions, workspaces, titleOf, route, go } = useMobile();
   const [q, setQ] = useState("");
   const [spawn, setSpawn] = useState(false);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  /* 审批线待审数(home 行琥珀点 + pill;白名单 checkpoint_list 只读)。 */
+  const [pending, setPending] = useState<Record<string, number>>({});
+
+  /* 轮询签名:会话集合不变就不重启 interval(sessions 数组每 2.5s 换新引用)。 */
+  const pollSig = useMemo(
+    () => sessions.slice(0, 12).map((s) => `${s.id}@${s.cwd}`).join("|"),
+    [sessions],
+  );
+  React.useEffect(() => {
+    let alive = true;
+    const targets = pollSig ? pollSig.split("|").map((pair) => pair.split("@")) : [];
+    const pull = async () => {
+      if (!targets.length) {
+        if (alive) setPending({});
+        return;
+      }
+      // 动态 import:transport 切出主 chunk(手机入口体积),与 remote.ts invokeSafe 同策略
+      const { invoke } = await import("@kernel/transport");
+      const entries = await Promise.all(
+        targets.map(async ([id, cwd]) => {
+          try {
+            const batches = await invoke<{ open: boolean; state: string }[]>(
+              "checkpoint_list",
+              { cwd, sessionId: id, tmdSessionId: id },
+            );
+            return [
+              id,
+              batches.filter((b) => !b.open && b.state === "pending").length,
+            ] as const;
+          } catch {
+            return [id, 0] as const;
+          }
+        }),
+      );
+      if (alive) setPending(Object.fromEntries(entries));
+    };
+    void pull();
+    const timer = setInterval(pull, 10_000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [pollSig]);
 
   const groups = useMemo(() => {
     const byWs = new Map<string, RemoteSession[]>();
@@ -53,14 +97,27 @@ export function HomeScreen() {
         )}
         {groups.map((g) => (
           <React.Fragment key={g.wsId}>
-            <div className="ws-head">
-              <span className="caret">▾</span>
+            <button
+              type="button"
+              className="ws-head"
+              aria-expanded={!collapsed[g.wsId]}
+              onClick={() => setCollapsed((m) => ({ ...m, [g.wsId]: !m[g.wsId] }))}
+            >
+              <span className="caret">{collapsed[g.wsId] ? "▸" : "▾"}</span>
               {g.name}
               <span className="cnt">{g.list.length}</span>
-            </div>
-            {g.list.map((s) => (
-              <SessionRow key={s.id} s={s} title={titleOf(s)} active={route.sessionId === s.id} onOpen={() => go({ view: "session", sessionId: s.id })} />
-            ))}
+            </button>
+            {!collapsed[g.wsId] &&
+              g.list.map((s) => (
+                <SessionRow
+                  key={s.id}
+                  s={s}
+                  title={titleOf(s)}
+                  active={route.sessionId === s.id}
+                  pending={pending[s.id] ?? 0}
+                  onOpen={() => go({ view: "session", sessionId: s.id })}
+                />
+              ))}
           </React.Fragment>
         ))}
         {sessions.length > 0 && (
@@ -90,14 +147,23 @@ export function HomeScreen() {
   );
 }
 
-function SessionRow(props: { s: RemoteSession; title: string; active: boolean; onOpen: () => void }) {
+function SessionRow(props: {
+  s: RemoteSession;
+  title: string;
+  active: boolean;
+  pending: number;
+  onOpen: () => void;
+}) {
   const g = glyphOf(props.s.profile_id);
   return (
     <button type="button" className={`row${props.active ? " active" : ""}`} onClick={props.onOpen}>
       <span className={`glyph ${g.cls}`}>{g.text}</span>
       <span className="t">{props.title}</span>
+      {props.pending > 0 && (
+        <span className="pill">{t("审批 {n}", { n: props.pending })}</span>
+      )}
       <span className="meta">{relTime(props.s.created_at)}</span>
-      <span className="sdot" />
+      <span className={`sdot${props.pending > 0 ? " ask" : ""}`} />
     </button>
   );
 }

@@ -10,7 +10,7 @@ import { t } from "@kernel/i18n";
 import { HostBar } from "./MobileApp";
 import { useMobile } from "./shared";
 import { notifyAsk } from "./shared";
-import { glyphOf, onPtyOut, tailHasAskMarker, writeSession } from "./remote";
+import { glyphOf, onPtyOut, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
 
 const TAIL_LINES = 400;
 
@@ -19,6 +19,7 @@ export function SessionScreen(props: { sessionId: string }) {
   const meta = sessions.find((s) => s.id === props.sessionId);
   const [live, setLive] = useState("");
   const [ask, setAsk] = useState(false);
+  const [askQ, setAskQ] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [ckpt, setCkpt] = useState<{ pending: number; approved: number } | null>(null);
   const liveRef = React.useRef<HTMLDivElement | null>(null);
@@ -85,6 +86,9 @@ export function SessionScreen(props: { sessionId: string }) {
           notifyAsk(titleOf(meta ?? ({ id: props.sessionId } as never)));
         }
         setAsk(true);
+        void tailAskLine(live).then((line) => {
+          if (alive && line) setAskQ(line);
+        });
       } else {
         setAsk(false);
       }
@@ -129,7 +133,7 @@ export function SessionScreen(props: { sessionId: string }) {
       {ask && (
         <div className="ask">
           <div className="ask-head">⚠ {t("审批请求")}</div>
-          <div className="ask-q">{t("CLI 正在等待确认;「允许」发送 Enter,「拒绝」发送 Esc")}</div>
+          <div className="ask-q">{askQ ?? t("CLI 正在等待确认;「允许」发送 Enter,「拒绝」发送 Esc")}</div>
           <div className="ask-opts">
             <button type="button" className="opt yes" onClick={() => answer("\r")}>
               {t("允许")}
@@ -145,7 +149,6 @@ export function SessionScreen(props: { sessionId: string }) {
           <b>{t("审批线")}</b>
           <span className="chip">{t("待审 {n}", { n: ckpt.pending })}</span>
           <span className="chip g">{t("已通过 {n}", { n: ckpt.approved })}</span>
-          <span style={{ marginLeft: "auto", color: "var(--accent)" }}>{t("查看 ›")}</span>
         </div>
       )}
       <div className="composer">

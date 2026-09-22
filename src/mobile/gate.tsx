@@ -13,6 +13,7 @@ import {
   serverCapabilities,
   serverVersion,
 } from "@kernel/transport";
+import { shellLog } from "@kernel/shellBridge";
 import { PairingScreen, ShellPage } from "./PairingScreen";
 import { persistCreds, resolveCreds, type MobileCreds } from "./creds";
 import { REQUIRED_CAPABILITY, endpointCandidates } from "./shared";
@@ -73,7 +74,14 @@ export function MobileRoot() {
   const [probeKey, setProbeKey] = React.useState(0);
 
   React.useEffect(() => {
-    void resolveCreds().then(setCreds);
+    void resolveCreds().then((c) => {
+      shellLog(
+        c
+          ? `boot: creds ok host=${c.hostName} endpoints=${(c.urls ?? [c.wsUrl]).length}`
+          : "boot: no creds → pairing screen",
+      );
+      setCreds(c);
+    });
   }, []);
 
   /* iOS 后台掐 WS:回前台/可见即强制重拨(撤销态 no-op)。app 生命周期注册一次。 */

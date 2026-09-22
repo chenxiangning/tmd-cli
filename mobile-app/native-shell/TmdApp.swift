@@ -219,15 +219,8 @@ struct WebView: UIViewRepresentable {
     let config = WKWebViewConfiguration()
     config.websiteDataStore = .default() // app://tmd origin 下 localStorage 持久(凭证)
     config.setURLSchemeHandler(handler, forURLScheme: "app")
-    // 脚本化验收钩子:仅当进程带 TMD_DEVPAIR 环境变量时注入(正式路径无此参数)
-    let devpair = ProcessInfo.processInfo.environment["TMD_DEVPAIR"].map {
-      "window.__TMD_DEVPAIR__ = \((try? JSONEncoder().encode($0)).flatMap { String(data: $0, encoding: .utf8) } ?? "''");"
-    } ?? ""
     config.userContentController.addUserScript(WKUserScript(
-      source: """
-      window.__TMD_SHELL__ = 'mobile';
-      \(devpair)
-      """,
+      source: "window.__TMD_SHELL__ = 'mobile';",
       injectionTime: .atDocumentStart,
       forMainFrameOnly: true
     ))
