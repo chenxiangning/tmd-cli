@@ -283,4 +283,5 @@ export const MESSAGES = {
   "收起抽屉": "Close drawer",
   "重试": "Retry",
   "已回退": "Reverted",
+  "自动(按序竞速)": "Auto (race in order)",
 } as Record<string, string>;
