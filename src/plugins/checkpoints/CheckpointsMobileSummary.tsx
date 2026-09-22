@@ -34,10 +34,11 @@ export function CheckpointsMobileSummary() {
   useHost();
   const activeId = host.getActiveSessionId();
   const meta = activeId ? host.getSessions().find((s) => s.id === activeId) : undefined;
-  /* 与桌面面板同一 scope/刷新链(非窄屏也照常订阅,组件本体 early-return)。 */
+  /* 刷新链仅窄屏启用(桌面右栏面板自带轮询,双订阅 = 双份 checkpoint_list);
+   * 非窄屏传 null → hook 直接短路,组件随后 early-return。 */
   const { cwd, sessionId, tmdSessionId } = useCkptScope();
-  useCkptAutoRefresh(cwd, sessionId, tmdSessionId);
-  const state = useCkptBatches(cwd, sessionId);
+  useCkptAutoRefresh(narrow ? cwd : null, narrow ? sessionId : null, tmdSessionId);
+  const state = useCkptBatches(narrow ? cwd : null, narrow ? sessionId : null);
   if (!narrow) return null;
   const sealed = state.batches.filter((b) => !b.open);
   const pending = sealed.filter((b) => b.state === "pending").length;
