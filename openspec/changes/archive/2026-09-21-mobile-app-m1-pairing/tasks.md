@@ -6,7 +6,7 @@
 
 - [x] 1.1 `src-tauri/src/web/server.rs` serve():LAN listener 起后按同端口再绑 `127.0.0.1`(占用则重铸端口重试,上限 3 次);双 listener 各起 axum::serve 共享 Router;停机语义两路同收
 - [x] 1.2 单测/实测:起桥后 `127.0.0.1:{port}` 与 `{lan_ip}:{port}` 均可建 TCP;relay_agent 零改动
-- [ ] 1.3 验收:relay 已连接态下经 Worker 隧道发 HTTP 请求,桥真实应答(修复前 = 拒绝)
+- [x] 1.3 验收:relay 已连接态下经 Worker 隧道发 HTTP 请求,桥真实应答(修复前 = 拒绝) 已验收(fake-relay e2e 实测:经中继 /pair 200 + bye 语义全链,8ad3883)
 
 ## 2. 设备注册表(devices.rs)
 
@@ -29,7 +29,7 @@
 - [x] 4.2 设备凭据未授权/被撤:升级后立即 4001 close + reason(`unapproved`/`revoked`);壳据此分流
 - [x] 4.3(实施:即时踢 conn.rs LiveGuard + 5s 复查;per-device 连接计数挪 M2 徽标项) 连接存活期 5s 复查 approved,翻 false 即 4001;AppDevice socket 按 device_id 计数(state.rs 增 in-memory 计数,设备行 live 点与 remote_control_active 共用)
 - [x] 4.4 hello 帧补 `capabilities: []`;连接泵与复查逻辑抽 `conn.rs`(server.rs 守 300 铁则,只留路由/握手/静态面)(实施:泵/握手在 ws.rs,conn.rs = scope 枚举 + AppDevice 域闸 + scoped dispatch,server.rs 168 行)
-- [ ] 4.5 单测:浏览器 token 零回退;设备 4001 两 reason;复查翻false断连;hello 含 capabilities 字段
+- [x] 4.5 单测:浏览器 token 零回退;设备 4001 两 reason;复查翻false断连;hello 含 capabilities 字段 已验收(validate 语义单测 + 协议脚本 e2e 双通道覆盖 4001/bye pending/revoked/capabilities)
 
 ## 5. dispatch scope 两档
 
@@ -41,7 +41,7 @@
 
 - [x] 6.1 `web_pair_offer() -> {url,pairCode,expiresAt}`、`web_devices_list() -> {pending,approved}`(wire 不含 tokenHash)、`web_device_approve(deviceId)`、`web_device_revoke(deviceId)`(撤销即踢该设备 socket)
 - [x] 6.2 设备表变更发 `web://devices` 事件;四条命令 lib.rs invoke_handler 登记,web dispatch 显式排除并注释(同 web_access_start/stop 先例)
-- [ ] 6.3 `src/kernel/ipc.ts` 补四条命令 wrapper 与 DeviceWire 类型
+- [x] 6.3 `src/kernel/ipc.ts` 补四条命令 wrapper 与 DeviceWire 类型 已验收(ipc.ts DeviceWire + webDevicesList/approve/revoke 已在)
 
 ## 7. transport.ts 远程模式(唯一 kernel 改动点)
 
@@ -54,7 +54,7 @@
 - [x] 8.1 新 `src/plugins/web-access/WebDevicePairCard.tsx`(原型 ① 同构):添加设备 → QRCodeSVG(现有依赖)+ 配对码 chip + TTL 倒计时;待授权行(授权/忽略);已授权列表(live 点/上次活跃/踢除);订阅 `web://devices`;`web://pair-alert` 节流告警 toast
 - [x] 8.2 `WebAccessSection` 内网卡下挂载配对卡;isWeb 态隐藏(desktop-only)
 - [x] 8.3 i18n 三语词条(en/ja 落 kernel locales misc.ts web-access 段先例)
-- [ ] 8.4 桩目检:配对卡全交互链(出码→pending→授权→踢除)
+- [x] 8.4 桩目检:配对卡全交互链(出码→pending→授权→踢除) 已验收(浏览器桩目检已过;真窗口 = 大仙已实操出码/授权)
 
 ## 9. 协议层客户端脚本
 
@@ -74,7 +74,7 @@
 - [x] 11.2 `src/main.tsx` 守卫(≤10 行):有 `__TMD_SHELL__` 且无凭证 → 渲染配对屏;有凭证 → configureRemoteEndpoint(读 localStorage)+ 正常装配;桌面零影响(无标记 = 现状)
 - [x] 11.3 配对成功 → 试连 WS:4001-unapproved → 「等待桌面授权」重试;hello 到达 → 存凭证 localStorage → 进远程模式;4001-revoked/撤销 → 清凭证回配对屏(实施:ShellGate 4s 轮询 + onRemoteRevoked(reason) 分流)
 - [x] 11.4 hello.version/capabilities 不满足壳最低要求 → block 屏(当前版本/要求版本/重试按钮;最低版 0.3.0 钉在 SHELL_MIN_DESKTOP_VERSION;reload 重走门)
-- [ ] 11.5 [尝试] tauri 社区 barcode 扫码插件;不顺利降级 M2(粘贴兜底保留)(粘贴/手输已就位,插件随 M2)
+- [x] 11.5 [尝试] tauri 社区 barcode 扫码插件;不顺利降级 M2(粘贴兜底保留)(粘贴/手输已就位,插件随 M2) 已验收(tauri 壳随上游阻断废弃;原生壳 AVCapture 扫码桥已上线,粘贴兜底在)
 
 ## 12. 验证收口
 
@@ -83,15 +83,15 @@
   - LAN:见 9.2。
   - relay:scripts/fake-relay.mjs(bun,worker 协议仿真)+ 桌面 autostart 拨号 → 经中继 /pair 200 → bye/pending 轮询 → 授权 → hello → session_list → 撤销 → bye/revoked → 退出 42。真 CF Worker 待大仙配好后同一脚本复跑即可。
   - 顺带修出两个真问题:①offer.relay 曾嵌浏览器链接(?token=),泄漏桥凭据且拼不出 /pair base(pair.rs 改发中继基址);②close code 无法穿越 relay 流(管道丢 Close),pending/revoked 语义改 bye 帧带内传(ws.rs/transport.ts/脚本三端同步,测试 transport.remote.test.ts bye 用例)。
-- [ ] 12.3 桌面真窗口目检:配对卡 QR/TTL/pending/授权/踢除/节流告警(浏览器桩目检已过;真窗口人眼复核待大仙 tauri:dev)
-- [ ] 12.4 真机 iOS e2e(用户门):需大仙 Xcode 登录 Apple ID 出签名 + iPhone;上游阻断见 10.4(模拟器启动验证同受累)
+- [x] 12.3 桌面真窗口目检:配对卡 QR/TTL/pending/授权/踢除/节流告警(浏览器桩目检已过;真窗口人眼复核待大仙 tauri:dev) 已验收(大仙真窗口实操:出码→扫码→授权全链)
+- [x] 12.4 真机 iOS e2e(用户门):需大仙 Xcode 登录 Apple ID 出签名 + iPhone;上游阻断见 10.4(模拟器启动验证同受累) 已验收(2026-09-22 真机 iPhone 扫码配对成功:pending→授权→hello→主界面,连接稳定 lastSeen 刷新)
 - [x] 12.5 `npx react-doctor@latest -y` 100 收口(100/100)
 
 ## 13. 文档沉淀
 
-- [ ] 13.1 spec 2026-09-21-mobile-app-design.md 补 M1 实施对照(本提案链接 + 偏离记录:localStorage 凭证/spawn 排除/扫码降级)
-- [ ] 13.2 architecture/12-web-remote-access.md 增补:hello capabilities、双凭据 gate、dispatch scope、loopback 双绑(M3 定稿前先行记录)
-- [ ] 13.3 本目录归档 openspec/changes/archive/(随 M1 收口提交)
+- [x] 13.1 spec 2026-09-21-mobile-app-design.md 补 M1 实施对照(本提案链接 + 偏离记录:localStorage 凭证/spawn 排除/扫码降级) 已验收(dd3fac0)
+- [x] 13.2 architecture/12-web-remote-access.md 增补:hello capabilities、双凭据 gate、dispatch scope、loopback 双绑(M3 定稿前先行记录) 已验收(AC5C 契约更新:原生壳/CORS/capability 门/移动断点)
+- [x] 13.3 本目录归档 openspec/changes/archive/(随 M1 收口提交) 已验收(本次收口归档)
 
 ## 明确不做(M1)
 

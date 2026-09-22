@@ -1,7 +1,7 @@
 # mobile app 实施总计划(总纲)
 
-> 日期:2026-09-21 · 状态:生效中(M1 已细化待开工,M2/M3 待 M1 收口后细化)
-> 上游:设计 spec `2026-09-21-mobile-app-design.md`(已评审通过);M1 提案与任务分解 `openspec/changes/2026-09-21-mobile-app-m1-pairing/`
+> 日期:2026-09-21 · 状态:生效中(**M1 已收口** 2026-09-22:LAN/relay 双通道 e2e + iPhone 真机扫码配对全绿,提案已归档;M2 细化中,M3 待 M2 收口)
+> 上游:设计 spec `2026-09-21-mobile-app-design.md`(已评审通过);M1 提案与任务分解 `openspec/changes/archive/2026-09-21-mobile-app-m1-pairing/`
 > 本文 = 贯穿整体任务的总计划:终态定义 → 里程碑切分 → 关键路径 → 风险。每个里程碑各有一份 openspec 变更提案承载实施细节。
 
 ## 终态(执行完毕的验收面)
