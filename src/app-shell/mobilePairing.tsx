@@ -131,10 +131,12 @@ export function mountMobileShellGate(
 }
 
 function ShellGate(props: { creds: MobileCreds; mountApp: () => void; onRePair: () => void }) {
-  const [phase, setPhase] = React.useState<"connecting" | "pending" | "block">("connecting");
+  const [phase, setPhase] = React.useState<"connecting" | "pending" | "block" | "offline">("connecting");
   const [version, setVersion] = React.useState<string | null>(null);
+  const [nonce, setNonce] = React.useState(0);
   React.useEffect(() => {
     let alive = true;
+    let rounds = 0;
     (async () => {
       for (;;) {
         if (!alive) return;
@@ -153,6 +155,16 @@ function ShellGate(props: { creds: MobileCreds; mountApp: () => void; onRePair: 
           props.onRePair();
           return;
         }
+        if (o.kind === "timeout") {
+          /* 连续两轮全端点不可达 = 桌面重启换端口/不在同一网络;给出口不死循环。 */
+          rounds += 1;
+          if (rounds >= 2) {
+            setPhase("offline");
+            return;
+          }
+        } else {
+          rounds = 0;
+        }
         setPhase(o.kind === "pending" ? "pending" : "connecting");
         await new Promise((r) => setTimeout(r, 4000));
       }
@@ -161,18 +173,25 @@ function ShellGate(props: { creds: MobileCreds; mountApp: () => void; onRePair: 
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [nonce]);
 
   const hint =
     phase === "pending"
       ? "已连上主机,等待桌面端点【授权】…"
       : phase === "connecting"
         ? `正在连接 ${props.creds.hostName}…`
-        : `桌面端协议不兼容(当前 ${version ?? "?"},缺 ${REQUIRED_CAPABILITY} 能力),请升级桌面端。`;
+        : phase === "offline"
+          ? `无法连接 ${props.creds.hostName}`
+          : `桌面端协议不兼容(当前 ${version ?? "?"},缺 ${REQUIRED_CAPABILITY} 能力),请升级桌面端。`;
   return (
     <ShellPage>
-      <div className="text-[2rem]">⏳</div>
+      <div className="text-[2rem]">{phase === "offline" ? "⚠️" : "⏳"}</div>
       <div className="text-[0.9375rem] font-semibold">{hint}</div>
+      {phase === "offline" && (
+        <div className="mt-1 px-6 text-center text-[0.75rem] opacity-70">
+          桌面可能已重启(端口变化)或与手机不在同一网络
+        </div>
+      )}
       {phase === "block" && (
         <button
           type="button"
@@ -181,6 +200,29 @@ function ShellGate(props: { creds: MobileCreds; mountApp: () => void; onRePair: 
         >
           重试
         </button>
+      )}
+      {(phase === "offline" || phase === "pending" || phase === "connecting") && (
+        <div className="mt-4 flex items-center gap-4">
+          {phase === "offline" && (
+            <button
+              type="button"
+              onClick={() => {
+                setPhase("connecting");
+                setNonce((n) => n + 1);
+              }}
+              className="rounded-lg bg-[#0a84ff] px-5 py-2 text-[0.8125rem] font-semibold text-white"
+            >
+              重试
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={props.onRePair}
+            className="text-[0.8125rem] underline opacity-70"
+          >
+            重新配对
+          </button>
+        </div>
       )}
     </ShellPage>
   );
