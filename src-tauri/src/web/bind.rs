@@ -6,15 +6,26 @@
 
 use tokio::net::TcpListener;
 
-/// 绑 `lan_ip:0` 随机端口;除桥本身就在 127.0.0.1 外,以同端口号补绑 127.0.0.1。
+/// 绑 `lan_ip` 端口:preferred 命中(桌面重启端点稳定,手机凭证不失效)优先,
+/// 被占回落 `:0` 随机;除桥本身就在 127.0.0.1 外,以同端口号补绑 127.0.0.1。
 /// 同端口 loopback 被占(极小概率)时换随机端口重试,三轮不成才报错。
 pub(super) async fn bind_bridge(
     lan_ip: &str,
+    preferred: Option<u16>,
 ) -> Result<(TcpListener, Option<TcpListener>), String> {
-    for _ in 0..3 {
-        let lan = TcpListener::bind((lan_ip, 0))
-            .await
-            .map_err(|e| format!("Web 桥端口绑定失败: {e}"))?;
+    for attempt in 0..3 {
+        // 首轮用 preferred(若有);被占或后续轮次走随机
+        let want = if attempt == 0 {
+            preferred.unwrap_or(0)
+        } else {
+            0
+        };
+        let Ok(lan) = TcpListener::bind((lan_ip, want)).await else {
+            if want != 0 {
+                continue; // preferred 被占:换随机再来
+            }
+            return Err(format!("Web 桥端口绑定失败: {lan_ip}"));
+        };
         let addr = lan
             .local_addr()
             .map_err(|e| format!("Web 桥取端口失败: {e}"))?;
@@ -35,7 +46,7 @@ mod tests {
 
     #[tokio::test]
     async fn single_bind_when_bridge_on_loopback() {
-        let (lan, lo) = bind_bridge("127.0.0.1").await.unwrap();
+        let (lan, lo) = bind_bridge("127.0.0.1", None).await.unwrap();
         assert_eq!(lan.local_addr().unwrap().ip().to_string(), "127.0.0.1");
         assert!(lo.is_none());
     }
@@ -58,7 +69,7 @@ mod tests {
         let Some(host) = non_loopback_host() else {
             return; // 无非环回地址可用的环境(极少)跳过
         };
-        let (lan, lo) = bind_bridge(&host).await.unwrap();
+        let (lan, lo) = bind_bridge(&host, None).await.unwrap();
         let lo = lo.expect("非 127.0.0.1 必须补绑 loopback");
         let lan_port = lan.local_addr().unwrap().port();
         assert_eq!(
@@ -73,5 +84,21 @@ mod tests {
         tokio::net::TcpStream::connect(("127.0.0.1", lan_port))
             .await
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn preferred_port_reused_across_rebinds() {
+        let Some(host) = non_loopback_host() else {
+            return;
+        };
+        let (lan, lo) = bind_bridge(&host, None).await.unwrap();
+        let port = lan.local_addr().unwrap().port();
+        drop(lo);
+        drop(lan);
+        // 模拟桌面重启:preferred 命中同端口(手机凭证端点稳定)
+        let (lan2, lo2) = bind_bridge(&host, Some(port)).await.unwrap();
+        assert_eq!(lan2.local_addr().unwrap().port(), port);
+        drop(lo2);
+        drop(lan2);
     }
 }

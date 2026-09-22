@@ -22,13 +22,23 @@ impl ConnScope {
     }
 }
 
-/// AppDevice 允许域(v1 轻交互,spec §B):白名单制,默认拒绝。
+/// AppDevice 允许域(M2 起:轻交互 + 发起会话;spec §B,大仙 2026-09-22 拍板
+/// 「手机的核心能力 = 远程连上桌面并操作桌面」,发起会话是操作的一部分)。
+/// 白名单制,默认拒绝。
 pub(crate) fn app_allowed(cmd: &str) -> bool {
-    // 会话域:列表/回放/活流/发送/审批应答/终端自适应;不开新会话、不杀会话
+    // 会话域:列表/回放/活流/发送/审批应答/终端自适应/发起会话(session_spawn;
+    // 参数由桌面侧收敛为 工作区+引擎,桌面自己执行 CLI);不杀会话
     if let Some(rest) = cmd.strip_prefix("session_") {
         return matches!(
             rest,
-            "list" | "disk_tail" | "history_page" | "link_log" | "log_size" | "write" | "resize"
+            "list"
+                | "disk_tail"
+                | "history_page"
+                | "link_log"
+                | "log_size"
+                | "write"
+                | "resize"
+                | "spawn"
         );
     }
     // fs 域:只读面(读/搜/枚举/图像预览);写与逃逸面(打开/回收站/临时写)拒绝
@@ -156,7 +166,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 会话域_放行轻交互_拒绝开新与杀() {
+    fn 会话域_放行轻交互与发起_拒绝杀与改属() {
         for ok in [
             "session_list",
             "session_disk_tail",
@@ -165,10 +175,11 @@ mod tests {
             "session_log_size",
             "session_write",
             "session_resize",
+            "session_spawn", // M2:手机可发起会话(大仙拍板:远程操作含发起)
         ] {
             assert!(app_allowed(ok), "{ok} 应允许");
         }
-        for no in ["session_spawn", "session_kill", "session_set_workspace"] {
+        for no in ["session_kill", "session_set_workspace"] {
             assert!(!app_allowed(no), "{no} 应拒绝");
         }
     }
