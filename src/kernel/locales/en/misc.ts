@@ -270,4 +270,17 @@ export const MESSAGES = {
   "撤销后手机立即掉线,需重新配对":
     "Revoking disconnects the phone immediately; pairing is required again",
   "踢除": "Remove",
+  // M2 移动轻交互(AskMobile/CheckpointsMobileSummary/RemoteHostBar/NarrowDrawer)
+  "等待确认的会话": "Sessions awaiting confirmation",
+  "去应答 ›": "Answer ›",
+  "允许/拒绝请在实况幕布中按键应答(与桌面同一 RPC)":
+    "Approve/deny by pressing keys in the live terminal (same RPC as desktop)",
+  "审批线 · {session}": "Approval timeline · {session}",
+  "只读摘要 · 处理请在桌面端进行": "Read-only summary · handle it on the desktop",
+  "暂无批次": "No batches yet",
+  "(无提示词)": "(no prompt)",
+  "{n} 个文件": "{n} files",
+  "收起抽屉": "Close drawer",
+  "重试": "Retry",
+  "已回退": "Reverted",
 } as Record<string, string>;

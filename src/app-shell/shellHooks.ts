@@ -11,21 +11,6 @@ export function usePersistedToggle(key: string, initial: boolean) {
   return [open, () => setOpen((v) => !v), setOpen] as const;
 }
 
-/** 窄屏(手机)断点判定:matchMedia 订阅,默认 768px。 */
-export function useIsNarrow(maxPx = 768): boolean {
-  const [narrow, setNarrow] = useState(
-    () => typeof window !== "undefined" && window.innerWidth <= maxPx,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${maxPx}px)`);
-    const on = () => setNarrow(mq.matches);
-    on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, [maxPx]);
-  return narrow;
-}
-
 /** 最大化下侧栏手动拖拽(钉宽 var + panelRef 双通道;非最大化返回 no-op 交库原生)。 */
 export function asideDragFactory(
   maximized: boolean,

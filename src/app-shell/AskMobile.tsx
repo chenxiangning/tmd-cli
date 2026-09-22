@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { hasShellBridge, shellNotify } from "@kernel/shellBridge";
-import { useIsNarrow } from "./shellHooks";
+import { useIsNarrow } from "@kernel/uiBreakpoint";
 
 export function AskNotifier() {
   /* 等待边沿 → 本地通知;常驻挂载(桌面态 hasShellBridge=false 即 no-op)。 */
