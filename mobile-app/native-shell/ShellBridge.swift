@@ -54,8 +54,9 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
       json = (try? JSONSerialization.data(withJSONObject: ["p": payload]))
         .flatMap { String(data: $0, encoding: .utf8) } ?? "{\"p\":null}"
     } else { json = "{\"p\":null}" }
-    // payload 经 {"p":…} 包裹再序列化,避免字符串双重转义
-    webview?.evaluateJavaScript("window.__TMD_SHELL_RESULT__ && window.__TMD_SHELL_RESULT__(\(id), \(ok ? "true" : "false"), \(json)[\"p\"])")
+    // payload 经 {"p":…} 包裹再序列化,避免字符串双重转义;
+    // (…) 括号为防御写法(evaluateJavaScript 按 program 求值,表达式位本无歧义)。
+    webview?.evaluateJavaScript("window.__TMD_SHELL_RESULT__ && window.__TMD_SHELL_RESULT__(\(id), \(ok ? "true" : "false"), (\(json))[\"p\"])")
   }
 }
 
