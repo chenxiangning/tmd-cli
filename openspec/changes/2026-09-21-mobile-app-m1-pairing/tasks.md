@@ -66,7 +66,7 @@
 - [x] 10.1 `mobile-app/package.json` + `mobile-app/src-tauri/`(Cargo 仅 tauri,Rust 零本地命令);tauri.conf.json:frontendDist 指 repo 根 dist、devUrl 1421、bundle id/签名团队配置(com.tmdcli.mobile;签名团队待大仙 Xcode 登录 Apple ID 后取)
 - [x] 10.2 壳标记注入 `window.__TMD_SHELL__`(initialization_script 或 userAgent 后缀,按 v2 API 定)(实施:WebviewWindowBuilder.initialization_script,mobile-app/src-tauri/src/lib.rs)
 - [x] 10.3 `pnpm tauri ios init` 出 Xcode 工程;`pnpm tauri ios build` 真机可装(模拟器先行)(gen/apple 已出;cargo check --target aarch64-apple-ios-sim 绿。环境注意:homebrew rustc 遮蔽 rustup,iOS 编译须 PATH="$HOME/.cargo/bin:$PATH";IPHONEOS_DEPLOYMENT_TARGET 14→15 已改 project.yml+pbxproj;crate-type 去 cdylib)
-- [ ] 10.4 [上游阻断] 模拟器启动验证:tauri-cli 的 iOS Swift shim 未参与链接(Xcode 27 + tauri-cli 2.11.5,xcodebuild 65 undefined symbols _log_stdout/_on_webview_created/_run_plugin_command/_string_from_bytes;上游同族 issue tauri-apps/tauri#14233 开放未解)。跟进:上游适配 / 降级 Xcode 16 验证 / 手工 swift build ios-api 补 libtauri_static.a
+- [x] 10.4 上游阻断已绕过(2026-09-22):scripts/build-device.sh 全流水线验证通过 —— 真机 unsigned BUILD SUCCEEDED(24M 包)。途中修掉四处:①Xcode 27 强制 UIApplicationSceneManifest(无 scene 声明启动即 trap);②部署目标 14→15;③Swift shim 必须与 Cargo.lock 的 tauri 2.11.6 同源、SPM Debug 构建(2.9.5 源码 ABI 不匹配 swift_deletedMethodError;SPM Release 把 @_cdecl 藏成局部符号会链接失败;单独合并 libSwiftRs.a 会类重复注册);④tauri 升 2.11.6。sim 路因 SPM 在 Xcode 27 平台错标(iphonesimulator 产物是 IOS 对象)不可用,真机直验替代。上游同族 issue tauri-apps/tauri#14233 仍开放,上游修复后可删 build-device.sh 与 stub。
 
 ## 11. 壳配对屏 + block 屏
 
