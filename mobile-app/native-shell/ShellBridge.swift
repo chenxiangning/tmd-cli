@@ -30,6 +30,18 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     case "creds.delete":
       Keychain.delete()
       reply(id: id, ok: true, payload: nil)
+    case "ws.open":
+      /* 连接号取 args.id(信封 id 是请求号;回注按连接号分发,两套不能混) */
+      if let cid = args?["id"] as? Int,
+         let urlStr = args?["url"] as? String, let url = URL(string: urlStr) {
+        WsTunnel.shared.open(id: cid, url: url, webview: webview)
+      } else {
+        reply(id: id, ok: false, payload: "ws.open: bad args")
+      }
+    case "ws.send":
+      WsTunnel.shared.send(id: args?["id"] as? Int ?? 0, text: args?["data"] as? String ?? "")
+    case "ws.close":
+      WsTunnel.shared.close(id: args?["id"] as? Int ?? 0)
     default:
       reply(id: id, ok: false, payload: "unknown method \(method)")
     }
@@ -60,6 +72,95 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     // payload 经 {"p":…} 包裹再序列化,避免字符串双重转义;
     // (…) 括号为防御写法(evaluateJavaScript 按 program 求值,表达式位本无歧义)。
     webview?.evaluateJavaScript("window.__TMD_SHELL_RESULT__ && window.__TMD_SHELL_RESULT__(\(id), \(ok ? "true" : "false"), (\(json))[\"p\"])")
+  }
+}
+
+/// 壳 WS 隧道:iOS WKWebView 的自定义 scheme 页面(app://tmd)发不出 ws://
+/// (WebKit 限制:fetch 可用、WebSocket 不可用,Tauri iOS 同类问题)。JS 侧经
+/// shell 桥发连接意图,这里用 URLSessionWebSocketTask 建连(无 origin 限制),
+/// 帧回注 window.__TMD_SHELL_WS__(connId, event, payload);对端是 kernel/shellWs.ts。
+final class WsTunnel {
+  static let shared = WsTunnel()
+  private let session = URLSession(configuration: .default)
+  private var tasks: [Int: URLSessionWebSocketTask] = [:]
+  private var opened: Set<Int> = []
+  weak var webview: WKWebView?
+
+  /* URLSession 回调在后台线程;evaluateJavaScript 是主线程专用 API(后台直调 =
+   * WebKit 主动 crash),tasks/opened 状态也一律回主线程改,免锁。 */
+  private func onMain(_ block: @escaping () -> Void) {
+    DispatchQueue.main.async(execute: block)
+  }
+
+  private func emit(_ id: Int, _ event: String, _ payload: [String: Any]) {
+    guard let data = try? JSONSerialization.data(withJSONObject: payload),
+          let json = String(data: data, encoding: .utf8) else { return }
+    let js = "window.__TMD_SHELL_WS__ && window.__TMD_SHELL_WS__(\(id), \"\(event)\", \(json))"
+    onMain { [weak self] in
+      self?.webview?.evaluateJavaScript(js) { _, error in
+        if let error { ShellLog.write("js eval err: \(error)") }
+      }
+    }
+  }
+
+  /// 建连:resume 后立即挂 receive,首帧(含服务端拒绝的 bye)即视为已开。
+  /// 不用 sendPing 探测 open —— 对方若不回 pong(URLSession 无超时)会永久挂起。
+  func open(id: Int, url: URL, webview: WKWebView?) {
+    onMain {
+      self.webview = webview
+      self.opened.remove(id)
+      self.tasks[id]?.cancel(with: .goingAway, reason: nil)
+      let task = self.session.webSocketTask(with: url)
+      self.tasks[id] = task
+      task.resume()
+      ShellLog.write("ws dial id=\(id) host=\(url.host ?? "?") port=\(url.port ?? -1)")
+      self.receive(id: id, task: task)
+    }
+  }
+
+  private func receive(id: Int, task: URLSessionWebSocketTask) {
+    task.receive { [weak self] result in
+      self?.onMain {
+        guard let self, self.tasks[id] === task else { return }
+        switch result {
+        case .success(.string(let text)):
+          self.markOpen(id)
+          self.emit(id, "message", ["data": text])
+          self.receive(id: id, task: task)
+        case .success(.data(let data)):
+          self.markOpen(id)
+          self.emit(id, "message", ["b64": data.base64EncodedString()])
+          self.receive(id: id, task: task)
+        case .success:
+          self.receive(id: id, task: task)
+        case .failure(let error):
+          self.tasks[id] = nil
+          let wasOpen = self.opened.remove(id) != nil
+          ShellLog.write("ws close id=\(id) open=\(wasOpen): \(error)")
+          self.emit(id, "close", ["code": 1006, "reason": "\(error)"])
+        }
+      }
+    }
+  }
+
+  private func markOpen(_ id: Int) {
+    guard !opened.contains(id) else { return }
+    opened.insert(id)
+    emit(id, "open", [:])
+  }
+
+  func send(id: Int, text: String) {
+    onMain { [weak self] in
+      guard let task = self?.tasks[id] else { return }
+      task.send(.string(text)) { _ in } // 发送失败由 close 事件承载
+    }
+  }
+
+  func close(id: Int) {
+    onMain {
+      self.opened.remove(id)
+      self.tasks.removeValue(forKey: id)?.cancel(with: .goingAway, reason: nil)
+    }
   }
 }
 

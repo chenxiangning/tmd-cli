@@ -5,6 +5,8 @@
  * 版本与能力表,行为与 transport.test/transport.remote.test 契约一致。
  */
 import { webToken, type RemoteEndpoint } from "./transport";
+import { shellLog } from "./shellBridge";
+import { createShellWs, shellWsAvailable, WS_CONNECTING, WS_OPEN, type WebSocketLike } from "./shellWs";
 
 /** @tauri-apps/api/event 的 UnlistenFn 真身就是 () => void;本地定义,守 R3 唯一通道。 */
 type UnlistenFn = () => void;
@@ -57,7 +59,7 @@ export function onRemoteRevoked(cb: (reason: string) => void): () => void {
 }
 
 export class WebBridge {
-  private ws: WebSocket | null = null;
+  private ws: WebSocketLike | null = null;
   private openGate: Promise<void> | null = null;
   private openResolve: (() => void) | null = null;
   private nextId = 1;
@@ -78,7 +80,7 @@ export class WebBridge {
   private ensure(): Promise<void> {
     if (
       this.ws &&
-      (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)
+      (this.ws.readyState === WS_OPEN || this.ws.readyState === WS_CONNECTING)
     ) {
       return this.openGate!;
     }
@@ -86,7 +88,9 @@ export class WebBridge {
     const url = this.endpoint
       ? `${this.endpoint.wsUrl}/ws?device=${encodeURIComponent(this.endpoint.deviceId)}&token=${encodeURIComponent(this.endpoint.token)}`
       : `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?token=${encodeURIComponent(webToken ?? "")}`;
-    const ws = new WebSocket(url);
+    const ws: WebSocketLike = shellWsAvailable()
+      ? createShellWs(url)
+      : new WebSocket(url) as unknown as WebSocketLike; // 原生 WS 满足所用子集;handler 签名(this,ev)在 strictFunctionTypes 下不可结构化收窄
     this.ws = ws;
     const { promise, resolve } = Promise.withResolvers<void>();
     this.openGate = promise;
@@ -100,7 +104,7 @@ export class WebBridge {
     };
     /* 帧可能以二进制回(relay 通道在 Worker 判定帧类型前),String(blob) 会得到
        "[object Blob]" 把响应静默吃掉 —— 统一 arraybuffer + decode。 */
-    ws.binaryType = "arraybuffer";
+    if (ws instanceof WebSocket) ws.binaryType = "arraybuffer";
     ws.onmessage = (e) =>
       this.onMessage(
         typeof e.data === "string" ? e.data : new TextDecoder().decode(e.data as ArrayBuffer),
@@ -180,6 +184,7 @@ export class WebBridge {
       return;
     }
     if (msg.type === "bye") {
+      shellLog(`bridge: bye reason=${String(msg.reason)}`);
       /* 服务端逐出(pending/rejected/revoked)。close code 过不了 relay 中继,
       bye 是权威语义;随后仍会收到 Close,以 this.closed 幂等兜底。 */
       this.closed = true;
@@ -187,7 +192,7 @@ export class WebBridge {
     }
   }
 
-  private onClose(ws: WebSocket) {
+  private onClose(ws: WebSocketLike) {
     if (this.ws !== ws) return;
     this.ws = null;
     this.openGate = null;
@@ -213,7 +218,7 @@ export class WebBridge {
 
   async invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
     await this.ensure();
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    if (!this.ws || this.ws.readyState !== WS_OPEN) {
       throw new Error("web bridge disconnected");
     }
     const id = this.nextId++;
@@ -278,7 +283,7 @@ export class WebBridge {
   forceReconnect() {
     if (this.closed) return;
     this.retryMs = 1000;
-    if (this.ws && this.ws.readyState <= WebSocket.CONNECTING) return; // 已在连
+    if (this.ws && this.ws.readyState <= WS_CONNECTING) return; // 已在连
     void this.ensure();
   }
 }

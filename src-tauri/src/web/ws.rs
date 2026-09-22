@@ -50,9 +50,9 @@ pub(super) async fn ws_handler(
     ws.on_upgrade(move |socket| handle_socket(ctx, socket, scope))
 }
 
-/// 未过闸的连接:发 4001 Close 帧即收线。
+/// 未过闸的连接:bye + 4001 Close 后收线。
 async fn reject_socket(socket: WebSocket, reason: &'static str) {
-    let (mut tx, _rx) = socket.split();
+    let (mut tx, mut rx) = socket.split();
     /* bye 先行:close code 无法穿越 relay 中继流(管道丢弃 Close),语义必须带内传 */
     let _ = tx
         .send(Message::Text(
@@ -67,6 +67,10 @@ async fn reject_socket(socket: WebSocket, reason: &'static str) {
             reason: reason.into(),
         })))
         .await;
+    /* 立即 drop 会向对端发 RST,内核把未读缓冲(含 bye)一并丢弃 ——
+     * iOS 壳的 URLSession 隧道读不到 close code,bye 被丢 = 永远不知道被拒。
+     * 留 500ms 让对端读净再收线。 */
+    let _ = tokio::time::timeout(std::time::Duration::from_millis(500), rx.next()).await;
 }
 
 #[derive(Deserialize)]
