@@ -4,6 +4,7 @@
  * 断连 = banner + 列表快照减淡。数据 = 远程 RPC 轮询(见 MobileApp)。
  */
 import React, { useMemo, useState } from "react";
+import { SpawnSheet } from "./SpawnSheet";
 import { t } from "@kernel/i18n";
 import { HostBar } from "./MobileApp";
 import { useMobile } from "./shared";
@@ -12,7 +13,7 @@ import { glyphOf, relTime, type RemoteSession } from "./remote";
 export function HomeScreen() {
   const { sessions, workspaces, titleOf, route, go } = useMobile();
   const [q, setQ] = useState("");
-  const [fabNote, setFabNote] = useState(false);
+  const [spawn, setSpawn] = useState(false);
 
   const groups = useMemo(() => {
     const byWs = new Map<string, RemoteSession[]>();
@@ -71,15 +72,20 @@ export function HomeScreen() {
       <button
         type="button"
         className="fab"
-        aria-label={t("新建会话")}
-        onClick={() => {
-          setFabNote(true);
-          setTimeout(() => setFabNote(false), 2400);
-        }}
+        aria-label={t("发起会话")}
+        onClick={() => setSpawn(true)}
       >
         +
       </button>
-      {fabNote && <div className="fab-note">{t("新建会话请在桌面端进行;手机端提供远程查看与操作")}</div>}
+      {spawn && (
+        <SpawnSheet
+          onClose={() => setSpawn(false)}
+          onSpawned={(sessionId) => {
+            setSpawn(false);
+            go({ view: "session", sessionId });
+          }}
+        />
+      )}
     </>
   );
 }

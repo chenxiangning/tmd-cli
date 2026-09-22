@@ -81,3 +81,10 @@
 .m-btn.ghost{background:var(--bg-base);color:var(--fg);border:1px solid var(--border)}
 .m-err{color:var(--err);font-size:12px;margin-top:10px}
 .m-fine{font-size:10.5px;color:var(--fg-faint);text-align:center;margin-top:10px}
+
+/* ── host-bar 菜单(重试连接/重新配对) ── */
+.menu-sheet{position:absolute;top:32px;right:8px;z-index:60;min-width:180px;background:var(--bg-base);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);overflow:hidden}
+.menu-item{display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;background:none;border:none;color:var(--fg);cursor:pointer}
+.menu-item:active{background:var(--bg-hover)}
+.menu-item.danger{color:var(--err)}
+.banner button{margin-left:auto;border:1px solid rgba(220,38,38,.4);color:var(--err);background:#fff;border-radius:6px;font-size:11px;padding:2px 9px}

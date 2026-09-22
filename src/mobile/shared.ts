@@ -46,6 +46,7 @@ export interface MobileCtxValue {
   route: MobileRoute;
   go: (r: MobileRoute) => void;
   titleOf: (s: import("./remote").RemoteSession) => string;
+  onRePair: () => void;
 }
 
 export const MobileAppCtx = React.createContext<MobileCtxValue | null>(null);
