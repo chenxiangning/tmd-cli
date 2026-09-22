@@ -90,14 +90,6 @@ final class DistSchemeHandler: NSObject, WKURLSchemeHandler {
   func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
 }
 
-/// 页面 JS 错误 / console 回传落盘(诊断期用)
-final class BootLogger: NSObject, WKScriptMessageHandler {
-  static let shared = BootLogger()
-  func userContentController(_ ucc: WKUserContentController, didReceive message: WKScriptMessage) {
-    ShellLog.write("page: \(message.body)")
-  }
-}
-
 /// 全屏 QR 扫描页:扫到即回调,取消回调 nil
 final class QrScannerVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
   var onResult: ((String?) -> Void)?
@@ -235,19 +227,11 @@ struct WebView: UIViewRepresentable {
       source: """
       window.__TMD_SHELL__ = 'mobile';
       \(devpair)
-      (function () {
-        function report(m) { try { window.webkit.messageHandlers.boot.postMessage(String(m)); } catch (e) {} }
-        window.addEventListener('error', function (e) { report('ERR ' + (e.message || 'load') + ' @' + (e.filename || '?') + ':' + (e.lineno || '?')); }, true);
-        window.addEventListener('unhandledrejection', function (e) { report('REJECT ' + ((e.reason && e.reason.message) || e.reason)); }, true);
-        var _e = console.error;
-        console.error = function () { report('console.error ' + Array.prototype.join.call(arguments, ' ')); _e.apply(console, arguments); };
-        document.addEventListener('DOMContentLoaded', function () { report('DOMContentLoaded root=' + (document.getElementById('root') ? document.getElementById('root').childElementCount : 'no-root')); });
-      })();
       """,
       injectionTime: .atDocumentStart,
       forMainFrameOnly: true
     ))
-    config.userContentController.add(BootLogger.shared, name: "boot")
+
     config.userContentController.add(QrBridge.shared, name: "qr")
     let webview = WKWebView(frame: .zero, configuration: config)
     webview.backgroundColor = .black

@@ -41,6 +41,7 @@ export function TopBar({
   rightOpen,
   marketOpen,
   onToggleMarket,
+  hideRightToggle = false,
 }: {
   onToggleLeft: () => void;
   onToggleRight: () => void;
@@ -48,6 +49,7 @@ export function TopBar({
   rightOpen: boolean;
   marketOpen: boolean;
   onToggleMarket: () => void;
+  hideRightToggle?: boolean;
 }) {
   const platform = usePlatformKind();
   /* 回首页按钮 = 固定身份的纯 toggle:永远显示「回到首页」,点一下开首页,
@@ -114,18 +116,20 @@ export function TopBar({
         className={`titlebar-actions${rightOpen ? " is-expanded" : ""}`}
         data-tauri-drag-region
       >
-        {/* 折叠/展开右侧栏 */}
-        <button
-          type="button"
-          className="titlebar-action"
-          aria-label={t(rightOpen ? "收起右栏" : "展开右栏")}
-          data-hint={t(rightOpen ? "收起右栏" : "展开右栏")}
-          data-hint-cmd="shell.toggleRightBar"
-          title=""
-          onClick={onToggleRight}
-        >
-          {rightOpen ? <CaretLineRight size="0.875rem" aria-hidden /> : <CaretLineLeft size="0.875rem" aria-hidden />}
-        </button>
+        {/* 折叠/展开右侧栏(窄屏隐藏:右栏不参与移动布局) */}
+        {!hideRightToggle && (
+          <button
+            type="button"
+            className="titlebar-action"
+            aria-label={t(rightOpen ? "收起右栏" : "展开右栏")}
+            data-hint={t(rightOpen ? "收起右栏" : "展开右栏")}
+            data-hint-cmd="shell.toggleRightBar"
+            title=""
+            onClick={onToggleRight}
+          >
+            {rightOpen ? <CaretLineRight size="0.875rem" aria-hidden /> : <CaretLineLeft size="0.875rem" aria-hidden />}
+          </button>
+        )}
         {/* 工作区选择器(自右栏 subbar 上移):折叠钮之后、面板 tabs 之前,贴 tabs 左缘 */}
         <WorkspaceSwitcher />
         <TopBarPanelTabs />

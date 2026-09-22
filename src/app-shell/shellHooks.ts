@@ -10,6 +10,21 @@ export function usePersistedToggle(key: string, initial: boolean) {
   }, [key, open]);
   return [open, () => setOpen((v) => !v), setOpen] as const;
 }
+
+/** 窄屏(手机)断点判定:matchMedia 订阅,默认 768px。 */
+export function useIsNarrow(maxPx = 768): boolean {
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= maxPx,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${maxPx}px)`);
+    const on = () => setNarrow(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [maxPx]);
+  return narrow;
+}
 /**
  * 测量元素宽度并直写 CSS 变量(随拖动实时更新)。
  * 直写 var 而非 setState:分栏拖动每帧触发,避免顶栏整树重渲染(顶栏经 var() 消费);

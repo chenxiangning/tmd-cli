@@ -36,9 +36,11 @@ import { SettingsPersistToast } from "./SettingsPersistToast";
 import { useEditorMaximized } from "./editorMaximized";
 import { shellBarToggles, shellLeftEnsureOpen, shellMarketClose, shellMarketToggle } from "./shortcutCommands";
 import { installShortcutDispatcher } from "@kernel/shortcuts";
-import { useElementWidth, usePersistedToggle } from "./shellHooks";
+import { useElementWidth, usePersistedToggle, useIsNarrow } from "./shellHooks";
 import { MainPanel } from "./MainPanel";
+import { RemoteHostBar } from "./RemoteHostBar";
 import { TopBar } from "./TopBar";
+import { isRemote } from "@kernel/transport";
 
 export function AppShell() {
   useHost();
@@ -49,6 +51,9 @@ export function AppShell() {
     filePanels.find((p) => p.id === filePanelMode) ?? filePanels[0];
   const [leftOpen, toggleLeft, setLeftOpen] = usePersistedToggle("shell.left", true);
   const [rightOpen, toggleRight] = usePersistedToggle("shell.right", true);
+  /* 窄屏(手机):单栏 + 左栏抽屉;桌面专属栏(文件预览/右文件面板)隐藏。 */
+  const narrow = useIsNarrow();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   /* 插件市场页开关:打开时以不透明覆盖层盖住三栏(见下方 JSX 注释),关掉零回放即回。 */
   const [marketOpen, setMarketOpen] = useState(false);
   const toggleMarket = useCallback(() => setMarketOpen((v) => !v), []);
@@ -121,21 +126,31 @@ export function AppShell() {
     };
   }, [toggleLeft, toggleRight, toggleMarket, setLeftOpen]);
 
-  return (
+  const shell = (
     <div className={`app ${platform}-desktop flex h-screen w-screen flex-col bg-(--tmd-bg-base) text-(--tmd-fg)`}>
       <TopBar
-        onToggleLeft={toggleLeft}
+        onToggleLeft={narrow ? () => setDrawerOpen((v) => !v) : toggleLeft}
         onToggleRight={toggleRight}
-        leftOpen={leftOpen}
-        rightOpen={rightOpen}
+        leftOpen={narrow ? drawerOpen : leftOpen}
+        rightOpen={narrow ? false : rightOpen}
         marketOpen={marketOpen}
         onToggleMarket={toggleMarket}
+        hideRightToggle={narrow}
       />
+      {/* 移动壳:主机状态条(连接态/重试);桌面态不渲染 */}
+      {narrow && isRemote() && <RemoteHostBar />}
       {/* 插件市场为不透明覆盖层,三栏保持挂载且可见地留在下层:会话现场/文件
           tab/分栏尺寸零回放零重排;也不可 display:none 隐藏三栏 —— 顶栏左右区
           宽度实测自侧栏(useElementWidth 写 CSS 变量),隐藏后 RO 上报 0 会把
           顶栏 icon 挤叠。市场页实底背景,盖住下层即可。 */}
       <div className="relative min-h-0 flex-1">
+        {narrow ? (
+          /* 窄屏单栏:中央幕布占满;左栏成抽屉(遮罩覆盖层),桌面专属栏隐藏。
+             幕布与桌面共用同一 MainPanel 实例树 —— 切栏不卸载,xterm 零回放。 */
+          <div className="h-full w-full">
+            <MainPanel />
+          </div>
+        ) : (
         <PanelGroup orientation="horizontal" id="tmd.outer" className={maximized ? "group-maximized" : undefined}>
         {/* 左侧 session 栏:leftOpen 独占挂载开关,最大化不折叠(钉宽不动) */}
         {leftOpen && (
@@ -187,6 +202,22 @@ export function AppShell() {
           </>
         )}
       </PanelGroup>
+        )}
+        {/* 窄屏左栏抽屉:与桌面左栏同一内容(Mounts 挂点),遮罩点击收起 */}
+        {narrow && drawerOpen && (
+          <div className="absolute inset-0 z-40 flex" onClick={() => setDrawerOpen(false)}>
+            <div className="absolute inset-0 bg-black/45" />
+            <aside
+              className="relative z-10 flex h-full w-[78vw] max-w-[320px] flex-col border-r border-(--tmd-border) bg-(--tmd-bg-base) shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="min-h-0 flex-1 overflow-auto">
+                <Mounts point="leftSidebar.section" />
+              </div>
+              <SidebarSettingsCluster />
+            </aside>
+          </div>
+        )}
         {marketOpen && (
           <div className="absolute inset-0 z-50">
             <PluginMarketPage onClose={() => setMarketOpen(false)} />
@@ -200,4 +231,5 @@ export function AppShell() {
       <StartFailureToast />
     </div>
   );
+  return shell;
 }

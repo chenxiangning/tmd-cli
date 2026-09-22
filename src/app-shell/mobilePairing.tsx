@@ -34,7 +34,7 @@ export function isMobileShell(): boolean {
   return /iPhone|iPad/i.test(navigator.userAgent) && !/Macintosh/i.test(navigator.userAgent);
 }
 
-function loadCreds(): MobileCreds | null {
+export function loadCreds(): MobileCreds | null {
   try {
     const raw = localStorage.getItem(CREDS_KEY);
     return raw ? (JSON.parse(raw) as MobileCreds) : null;
