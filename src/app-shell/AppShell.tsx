@@ -22,7 +22,7 @@
 
 import { useCallback, useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
-import { useHost } from "@kernel/host";
+import { host, useHost } from "@kernel/host";
 import { Mounts } from "@kernel/Mounts";
 import { useEditorTabs } from "@kernel/tabs";
 import { useFilePanel } from "@kernel/filePanel";
@@ -54,6 +54,11 @@ export function AppShell() {
   /* 窄屏(手机):单栏 + 左栏抽屉;桌面专属栏(文件预览/右文件面板)隐藏。 */
   const narrow = useIsNarrow();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  /* 窄屏抽屉联动:抽屉里选中会话(活跃指针移动)即收起 —— 否则抽屉盖着幕布。 */
+  const activeSessionId = host.getActiveSessionId();
+  useEffect(() => {
+    if (activeSessionId) setDrawerOpen(false);
+  }, [activeSessionId]);
   /* 插件市场页开关:打开时以不透明覆盖层盖住三栏(见下方 JSX 注释),关掉零回放即回。 */
   const [marketOpen, setMarketOpen] = useState(false);
   const toggleMarket = useCallback(() => setMarketOpen((v) => !v), []);
