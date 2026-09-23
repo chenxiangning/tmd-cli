@@ -26,6 +26,11 @@ enum ShellLog {
   }()
   static func write(_ s: String) {
     let line = "[\(Date())] \(s)\n"
+    /* 轮转:超 5MB 删档重建(故障风暴曾把日志撑到 409MB) */
+    if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+       let size = attrs[.size] as? UInt64, size > 5_000_000 {
+      try? FileManager.default.removeItem(at: url)
+    }
     if let h = try? FileHandle(forWritingTo: url) {
       h.seekToEndOfFile(); h.write(line.data(using: .utf8)!); try? h.close()
     } else {

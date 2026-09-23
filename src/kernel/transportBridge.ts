@@ -66,6 +66,9 @@ export class WebBridge {
   private pending = new Map<number, PendingReq>();
   private listeners = new Map<string, Set<Listener>>();
   private retryMs = 1000;
+  /** 全局重拨闸:onClose 起算的退避期内,一切 ensure() 直接失败,不再新建 socket
+   *  (否则每个轮询 RPC 各自重拨,快败网络下秒级风暴——真机曾 2 分钟拨 76 万次)。 */
+  private nextDialAt = 0;
   private versionValue: string | null = null;
   private versionWaiters: ((v: string | null) => void)[] = [];
   private endpoint: RemoteEndpoint | null = null;
@@ -85,6 +88,7 @@ export class WebBridge {
       return this.openGate!;
     }
     if (this.closed) throw new Error("web bridge closed");
+    if (Date.now() < this.nextDialAt) throw new Error("web bridge disconnected");
     const url = this.endpoint
       ? `${this.endpoint.wsUrl}/ws?device=${encodeURIComponent(this.endpoint.deviceId)}&token=${encodeURIComponent(this.endpoint.token)}`
       : `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?token=${encodeURIComponent(webToken ?? "")}`;
@@ -99,6 +103,7 @@ export class WebBridge {
     ws.onopen = () => {
       clearTimeout(openTimer);
       this.retryMs = 1000;
+      this.nextDialAt = 0;
       setConnected(true);
       resolve();
     };
@@ -210,7 +215,8 @@ export class WebBridge {
     if (this.capsValue === null) {
       for (const w of this.capsWaiters.splice(0)) w([]);
     }
-    // 桌面可能重启了桥:持续重试。
+    // 桌面可能重启了桥:持续重试(全局闸:退避期内其它 ensure 一律快败)。
+    this.nextDialAt = Date.now() + this.retryMs;
     const delay = this.retryMs;
     this.retryMs = Math.min(this.retryMs * 2, RETRY_MAX_MS);
     setTimeout(() => void this.ensure(), delay);
@@ -283,6 +289,7 @@ export class WebBridge {
   forceReconnect() {
     if (this.closed) return;
     this.retryMs = 1000;
+    this.nextDialAt = 0; // 用户显式重试:绕过退避闸
     if (this.ws && this.ws.readyState <= WS_CONNECTING) return; // 已在连
     void this.ensure();
   }

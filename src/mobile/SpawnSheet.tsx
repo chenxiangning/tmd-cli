@@ -22,7 +22,7 @@ const ENGINES: { id: string; name: string; cmd: string }[] = [
 ];
 
 export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: string) => void }) {
-  const { workspaces } = useMobile();
+  const { workspaces, connected } = useMobile();
   const [wsId, setWsId] = useState(workspaces[0]?.id ?? "");
   const [engineId, setEngineId] = useState(ENGINES[0].id);
   const [busy, setBusy] = useState(false);
@@ -30,6 +30,7 @@ export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: 
 
   const ws = workspaces.find((w) => w.id === wsId);
   const engine = ENGINES.find((e) => e.id === engineId) ?? ENGINES[0];
+  const blocked = !connected || workspaces.length === 0;
 
   const spawn = async () => {
     if (!ws) {
@@ -106,10 +107,20 @@ export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: 
           })}
         </div>
 
-        {err && <div className="m-err" style={{ textAlign: "left" }}>{err}</div>}
-        <button type="button" className="m-btn" disabled={busy} onClick={() => void spawn()}>
-          {busy ? t("启动中…") : `${t("在")} ${ws?.name ?? "?"} ${t("启动")} ${engine.name}`}
-        </button>
+        {blocked ? (
+          <div className="m-err" style={{ textAlign: "left" }}>
+            {!connected
+              ? t("未连接桌面:连接恢复后再发起会话(右上 ⇄ 可手动重试)")
+              : t("桌面还没有工作区:先在桌面端设置里添加")}
+          </div>
+        ) : (
+          <>
+            {err && <div className="m-err" style={{ textAlign: "left" }}>{err}</div>}
+            <button type="button" className="m-btn" disabled={busy} onClick={() => void spawn()}>
+              {busy ? t("启动中…") : `${t("在")} ${ws?.name ?? "?"} ${t("启动")} ${engine.name}`}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
