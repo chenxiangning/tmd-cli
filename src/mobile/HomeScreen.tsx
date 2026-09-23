@@ -125,11 +125,17 @@ export function HomeScreen() {
       },
     });
   };
-  /** 行置顶切换(无稳定磁盘身份 = 不可置顶)。 */
+  /** 行置顶切换(无稳定磁盘身份 = 不可置顶)。快照只传真标题(桌面 pinSession 同律:
+     手动命名 > 磁盘原生标题,兜底形态一律空串,由桌面磁盘解析回填)。 */
   const togglePinOf = (r: HomeRow): void => {
     const wsId = wsIdOf(r);
     const k = wsId ? pinKeyOf(wsId, r) : null;
-    if (k) void togglePin(k, r.title);
+    if (!k) return;
+    const real =
+      titles[`${r.profileId}:${r.kind === "live" ? r.live?.cliSessionId : r.disk?.id}`] ??
+      (r.kind === "disk" ? r.disk?.title : undefined) ??
+      "";
+    void togglePin(k, real);
   };
 
   return (

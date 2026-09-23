@@ -157,9 +157,11 @@ async function main() {
       if (msg.type === "response" && msg.id === 1) {
         console.log(`[e2e] session_list 响应:ok=${msg.ok}${msg.ok ? ` 会话数=${(msg.payload ?? []).length}` : ` error=${msg.error}`}`);
         // M2 白名单扩面回归:checkpoint 只读令过域闸(业务错可接受,"不在允许域" 不可);
-        // 写令必须被域闸拒。
+        // 写令必须被域闸拒。bind_cli(桌面镜像专用)必须被拒。pin_toggle 的过闸断言在
+        // conn.rs 单测(脚本真调会写用户 settings.json,不做活体探测)。
         ws.send(JSON.stringify({ type: "invoke", id: 2, cmd: "checkpoint_list", args: { cwd: "", sessionId: "", tmdSessionId: "" } }));
         ws.send(JSON.stringify({ type: "invoke", id: 3, cmd: "checkpoint_apply", args: { cwd: "", batchId: "" } }));
+        ws.send(JSON.stringify({ type: "invoke", id: 4, cmd: "session_bind_cli", args: { id: "x", cliSessionId: "y" } }));
       }
       if (msg.type === "response" && msg.id === 2) {
         const gate = String(msg.error ?? "").includes("不在允许域");
@@ -170,6 +172,11 @@ async function main() {
         const gate = String(msg.error ?? "").includes("不在允许域");
         console.log(`[e2e] checkpoint_apply:${gate ? "域闸正确拒绝" : `未拒(ok=${msg.ok},应被域闸拒!)`}`);
         if (!gate) process.exit(44);
+      }
+      if (msg.type === "response" && msg.id === 4) {
+        const gate = String(msg.error ?? "").includes("不在允许域");
+        console.log(`[e2e] session_bind_cli:${gate ? "域闸正确拒绝" : `未拒(ok=${msg.ok},应被域闸拒!)`}`);
+        if (!gate) process.exit(45);
         resolve();
       }
     };

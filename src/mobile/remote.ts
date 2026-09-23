@@ -48,7 +48,8 @@ export function listWorkspaces(): Promise<RemoteWorkspace[]> {
   );
 }
 
-/** 会话手动命名覆盖层(桌面 settings.sessionTitles,key = 会话 id)。 */
+/** 会话手动命名覆盖层(桌面 settings.sessionTitles,key = profileId:cliSessionId;
+ *  活会话经 cliSessionId 解析,磁盘行同键)。 */
 export async function sessionTitles(): Promise<Record<string, string>> {
   const s = await invokeSafe<Record<string, Record<string, string>>>("config_read_settings");
   const t = s?.sessionTitles;

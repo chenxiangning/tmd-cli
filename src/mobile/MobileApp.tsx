@@ -13,7 +13,7 @@ import { SessionScreen } from "./SessionScreen";
 import { HistoryScreen } from "./HistoryScreen";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
 import { listSessions, listWorkspaces, sessionArchiveKeys, sessionPinEntries, sessionPinToggle, sessionTitles } from "./remote";
-import { isRemoteConnected, isRemotePaused, onRemoteConnection } from "@kernel/transport";
+import { isRemoteConnected, isRemotePaused, listen, onRemoteConnection } from "@kernel/transport";
 
 export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   const [sessions, setSessions] = React.useState<RemoteSession[]>([]);
@@ -49,12 +49,17 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
     };
   }, []);
 
-  /* 覆盖层(桌面 settings):手动命名 + 归档键集 + 置顶;进 app 读一次,
-     置顶切换后本地即时更新(桌面经 settings:changed 广播回读)。 */
+  /* 覆盖层(桌面 settings):手动命名 + 归档键集 + 置顶。桌面任何一侧改动都广播
+     settings:changed(桥 event_sink 转发,手机自己的置顶窄令也触发)→ 重拉即同步。 */
   React.useEffect(() => {
-    void sessionTitles().then(setTitles);
-    void sessionArchiveKeys().then(setArchive);
-    void sessionPinEntries().then(setPins);
+    const pull = () => {
+      void sessionTitles().then(setTitles);
+      void sessionArchiveKeys().then(setArchive);
+      void sessionPinEntries().then(setPins);
+    };
+    pull();
+    const off = listen("settings:changed", pull);
+    return () => void off.then((f) => f()).catch(() => undefined);
   }, []);
 
   const togglePin = React.useCallback(async (key: string, title: string) => {
@@ -73,9 +78,9 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
 
   const titleOf = React.useCallback(
     (s: RemoteSession) =>
-      /* 桌面命名覆盖层 key = profileId:cliSessionId(桥 resume 直填/绑定镜像后可解析) */
+      /* 桌面命名覆盖层 key = profileId:cliSessionId(桥 resume 直填/绑定镜像后可解析);
+         未绑定活会话(新起 CLI 未落盘)= 兜底形态 */
       (s.cliSessionId ? titles[`${s.profileId}:${s.cliSessionId}`] : undefined) ??
-      titles[s.id] ??
       `${glyphOf2(s.profileId).text} · ${s.cwd.split("/").filter(Boolean).pop() ?? s.cwd}`,
     [titles],
   );

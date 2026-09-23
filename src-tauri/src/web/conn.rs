@@ -27,7 +27,10 @@ impl ConnScope {
 /// 白名单制,默认拒绝。
 pub(crate) fn app_allowed(cmd: &str) -> bool {
     // 会话域:列表/回放/活流/发送/审批应答/终端自适应/发起会话(session_spawn;
-    // 参数由桌面侧收敛为 工作区+引擎,桌面自己执行 CLI);不杀会话
+    // 参数由桌面侧收敛为 工作区+引擎,桌面自己执行 CLI)/置顶窄写令;不杀会话。
+    // bind_cli 不列:唯一调用方 = 桌面 bindIdentity 镜像回写(webview IPC 通道,不过
+    // 本域闸),手机从不主动绑身份(桥 spawn 直填);放行 = 手机可把任意会话张冠李戴
+    // 到任意磁盘身份(标题/归档/置顶 key 全被误导)。
     if let Some(rest) = cmd.strip_prefix("session_") {
         return matches!(
             rest,
@@ -40,7 +43,6 @@ pub(crate) fn app_allowed(cmd: &str) -> bool {
                 | "write"
                 | "resize"
                 | "spawn"
-                | "bind_cli"
                 | "pin_toggle"
         );
     }
@@ -207,10 +209,12 @@ mod tests {
             "session_write",
             "session_resize",
             "session_spawn", // M2:手机可发起会话(大仙拍板:远程操作含发起)
+            "session_pin_toggle", // 置顶窄写令(服务端读改写仅 sessionPins 一键)
         ] {
             assert!(app_allowed(ok), "{ok} 应允许");
         }
-        for no in ["session_kill", "session_set_workspace"] {
+        /* bind_cli = 桌面镜像回写专用(webview 通道);设备域放行 = 张冠李戴任意身份 */
+        for no in ["session_kill", "session_set_workspace", "session_bind_cli"] {
             assert!(!app_allowed(no), "{no} 应拒绝");
         }
     }
