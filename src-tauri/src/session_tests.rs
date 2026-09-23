@@ -36,3 +36,15 @@ fn set_workspace_updates_registered_and_rejects_missing() {
         .workspace_id
         .is_none());
 }
+
+/// 线上形状锁:session_list 载荷为 serde camelCase(手机壳 UI 按此消费)。
+/// 2026-09-23 白屏根因:手机端误按 snake_case 解析,profileId 全 undefined
+/// → 渲染崩溃。此测试锁死字段名,防止序列化形状再漂移。
+#[test]
+fn session_meta_线上形状_camel_case() {
+    let v = serde_json::to_value(meta("s1")).expect("serialize");
+    assert!(v.get("profileId").is_some(), "profileId 必须是 camelCase");
+    assert!(v.get("workspaceId").is_some(), "workspaceId 必须是 camelCase");
+    assert!(v.get("createdAt").is_some(), "createdAt 必须是 camelCase");
+    assert!(v.get("profile_id").is_none(), "不允许 snake_case 漏出");
+}

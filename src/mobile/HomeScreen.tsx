@@ -63,14 +63,14 @@ export function HomeScreen() {
     const byWs = new Map<string, RemoteSession[]>();
     for (const s of sessions) {
       if (q && !titleOf(s).toLowerCase().includes(q.toLowerCase())) continue;
-      const key = s.workspace_id ?? "default";
+      const key = s.workspaceId ?? "default";
       (byWs.get(key) ?? byWs.set(key, []).get(key)!).push(s);
     }
     return [...byWs.entries()]
       .map(([wsId, list]) => ({
         wsId,
         name: workspaces.find((w) => w.id === wsId)?.name ?? wsId,
-        list: list.sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0)),
+        list: list.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)),
       }))
       .sort((a, b) => b.list.length - a.list.length);
   }, [sessions, workspaces, titleOf, q]);
@@ -154,7 +154,7 @@ function SessionRow(props: {
   pending: number;
   onOpen: () => void;
 }) {
-  const g = glyphOf(props.s.profile_id);
+  const g = glyphOf(props.s.profileId);
   return (
     <button type="button" className={`row${props.active ? " active" : ""}`} onClick={props.onOpen}>
       <span className={`glyph ${g.cls}`}>{g.text}</span>
@@ -162,7 +162,7 @@ function SessionRow(props: {
       {props.pending > 0 && (
         <span className="pill">{t("审批 {n}", { n: props.pending })}</span>
       )}
-      <span className="meta">{relTime(props.s.created_at)}</span>
+      <span className="meta">{relTime(props.s.createdAt)}</span>
       <span className={`sdot${props.pending > 0 ? " ask" : ""}`} />
     </button>
   );

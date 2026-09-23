@@ -30,7 +30,7 @@ export function SessionScreen(props: { sessionId: string }) {
   const [ckpt, setCkpt] = useState<{ pending: number; approved: number } | null>(null);
   const liveRef = React.useRef<HTMLDivElement | null>(null);
   const askSeen = React.useRef(false);
-  const g = glyphOf(meta?.profile_id ?? "");
+  const g = glyphOf(meta?.profileId ?? "");
 
   /* 审批线 chip:checkpoint_list(白名单只读)60s 轻拉;仅 (cwd,sessionId) 齐备时。 */
   useEffect(() => {
@@ -151,7 +151,7 @@ export function SessionScreen(props: { sessionId: string }) {
           ‹
         </button>
         <span className={`glyph ${g.cls}`}>{g.text}</span>
-        <span className="t">{titleOf(meta ?? ({ id: props.sessionId, profile_id: "", cwd: "" } as never))}</span>
+        <span className="t">{titleOf(meta ?? ({ id: props.sessionId, profileId: "", cwd: "" } as never))}</span>
         <span className="run">{t("运行中")}</span>
       </div>
       <div className="live" ref={liveRef}>

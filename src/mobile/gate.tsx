@@ -67,6 +67,24 @@ async function helloProbe(creds: MobileCreds): Promise<HelloProbe> {
 }
 
 export function MobileRoot() {
+  /* 白屏BlackBox:页面级异常/unhandledrejection 同步进 shell.log(真机唯一现场)。
+   * 白屏事故排查的最大黑洞就是「JS 炸了但日志零痕迹」——此钩子出生即挂。 */
+  React.useEffect(() => {
+    const fmt = (r: unknown) => {
+      const e = r as { message?: string; stack?: string; reason?: unknown };
+      const m = e?.message ?? String(r);
+      return `${m.slice(0, 200)} @ ${(e?.stack ?? "").split("\n")[1]?.trim().slice(0, 160)}`;
+    };
+    const onErr = (ev: ErrorEvent) => shellLog(`window.onerror: ${fmt(ev.error ?? ev.message)}`);
+    const onRej = (ev: PromiseRejectionEvent) => shellLog(`unhandledrejection: ${fmt(ev.reason)}`);
+    window.addEventListener("error", onErr);
+    window.addEventListener("unhandledrejection", onRej);
+    return () => {
+      window.removeEventListener("error", onErr);
+      window.removeEventListener("unhandledrejection", onRej);
+    };
+  }, []);
+
   /* undefined = 凭证解析中;null = 无凭证(配对屏);否则主界面 */
   const [creds, setCreds] = React.useState<MobileCreds | null | undefined>(undefined);
   /* block = hello 能力不满足(一次性探测;协议升级提示屏) */
@@ -171,5 +189,38 @@ export function MobileRoot() {
       </div>
     );
   }
-  return <MobileApp creds={creds} onRePair={() => setCreds(null)} />;
+  return <ShellErrorBoundary><MobileApp creds={creds} onRePair={() => setCreds(null)} /></ShellErrorBoundary>;
+}
+
+/** 主应用错误边界:渲染抛错不再整树白屏,错误原文上屏+进 shell.log。 */
+class ShellErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { err: Error | null }
+> {
+  state = { err: null as Error | null };
+  static getDerivedStateFromError(err: Error) {
+    return { err };
+  }
+  componentDidCatch(err: Error, info: React.ErrorInfo) {
+    shellLog(`render crash: ${err.message} | ${String(info.componentStack ?? "").slice(0, 300)}`);
+  }
+  render() {
+    if (this.state.err) {
+      return (
+        <div className="m-app">
+          <ShellPage>
+            <div style={{ fontSize: 28 }}>💥</div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>界面渲染出错</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 11, opacity: 0.8, wordBreak: "break-all", textAlign: "left" }}>
+              {this.state.err.message}
+            </div>
+            <button type="button" className="m-btn" style={{ maxWidth: 220 }} onClick={() => window.location.reload()}>
+              重新加载
+            </button>
+          </ShellPage>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }

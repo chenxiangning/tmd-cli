@@ -9,10 +9,11 @@ import { shellLog } from "@kernel/shellBridge";
 
 export interface RemoteSession {
   id: string;
-  profile_id: string;
+  /** 服务端 SessionMeta serde camelCase;手机 UI 一律以线上形状为准 */
+  profileId: string;
   cwd: string;
-  workspace_id?: string;
-  created_at?: number;
+  workspaceId?: string;
+  createdAt?: number;
   kind?: "cli" | "ssh" | "shell";
 }
 
@@ -22,7 +23,7 @@ export interface RemoteWorkspace {
   root: string;
 }
 
-/** 引擎字形(与桌面侧栏 glyph 同映射;profile_id 前缀 → 缩写 + 品牌色类)。 */
+/** 引擎字形(与桌面侧栏 glyph 同映射;profileId 前缀 → 缩写 + 品牌色类)。 */
 export function glyphOf(profileId: string): { text: string; cls: string } {
   const p = profileId.toLowerCase();
   if (p.startsWith("omp") || p.startsWith("pi")) return { text: "OMP", cls: "g-om" };

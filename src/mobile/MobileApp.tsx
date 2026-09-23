@@ -65,7 +65,7 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
 
   const titleOf = React.useCallback(
     (s: RemoteSession) =>
-      titles[s.id] ?? `${glyphOf2(s.profile_id).text} · ${s.cwd.split("/").filter(Boolean).pop() ?? s.cwd}`,
+      titles[s.id] ?? `${glyphOf2(s.profileId).text} · ${s.cwd.split("/").filter(Boolean).pop() ?? s.cwd}`,
     [titles],
   );
 
@@ -165,5 +165,5 @@ function stripScheme(s: string): string {
 
 /** glyphOf 的 MobileApp 内部别名(避免与 remote.glyphOf 双导出)。 */
 function glyphOf2(profileId: string): { text: string } {
-  return { text: profileId.slice(0, 3).toUpperCase() };
+  return { text: String(profileId ?? "").slice(0, 3).toUpperCase() };
 }
