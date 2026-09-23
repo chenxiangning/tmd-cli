@@ -95,6 +95,9 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
             profileId={route.history?.profileId ?? ""}
             path={route.history?.path ?? ""}
             title={route.history?.title ?? ""}
+            cwd={route.history?.cwd}
+            workspaceId={route.history?.workspaceId}
+            cliSessionId={route.history?.cliSessionId}
           />
         ) : (
           <SessionScreen key={route.sessionId ?? ""} sessionId={route.sessionId ?? ""} />

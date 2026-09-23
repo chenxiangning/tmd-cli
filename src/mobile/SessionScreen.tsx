@@ -34,7 +34,7 @@ export function SessionScreen(props: { sessionId: string }) {
   const [kbOpen, setKbOpen] = useState(false);
   const liveRef = React.useRef<HTMLDivElement | null>(null);
   const askSeen = React.useRef(false);
-
+  
   /* 审批线 chip:checkpoint_list(白名单只读)60s 轻拉;仅 (cwd,sessionId) 齐备时。 */
   useEffect(() => {
     const cwd = meta?.cwd;
@@ -164,12 +164,29 @@ export function SessionScreen(props: { sessionId: string }) {
     };
   }, [live, props.sessionId, meta, titleOf]);
 
-  /* 自动滚底(新字节到达时;用户上滚不拽)。实况折叠时不滚——保持对话视图。 */
+  /* 自动滚底 = 跟随态(贴底 <48px)时新输出拽底;上滚阅读历史不被打断。
+   * 展开实况块 = 重进跟随并跳底(看最新是默认预期)。实况折叠时不滚。 */
+  const followRef = React.useRef(true);
+  useEffect(() => {
+    const el = liveRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
   useEffect(() => {
     if (!liveShown) return;
     const el = liveRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el && followRef.current) el.scrollTop = el.scrollHeight;
   }, [live, liveShown]);
+  useEffect(() => {
+    if (!liveShown) return;
+    followRef.current = true;
+    const el = liveRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [liveShown]);
 
   const answer = (data: string) => {
     setAsk(false);

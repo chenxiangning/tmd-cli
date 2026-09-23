@@ -1,7 +1,8 @@
 /**
  * LiveScreen 视口契约:回退式重绘(spin/状态栏/页脚)按行覆写收敛为一份;
- * 固定视口高度 + LF 触底上滚 + DECAWM 换行;清屏/备屏重置;CUP 夹在视口内;
- * 私有 CSI/OSC 剥除;跨 chunk 未完成转义缓冲拼回。
+ * 固定视口高度 + LF 触底上滚(滚出行进 scrollback,view 全量可上翻)+ DECAWM 换行;
+ * 清屏/备屏 = 翻页(旧屏进 scrollback);CUP 夹在视口内;私有 CSI/OSC 剥除;
+ * 跨 chunk 未完成转义缓冲拼回。
  * 真机三次实证(重复刷屏):纯文本累加与帧界启发式都治不了绝对定位重绘。
  */
 import { describe, expect, it } from "vitest";
@@ -23,8 +24,7 @@ describe("LiveScreen 重绘收敛", () => {
     s.feed("\x1b[2;1H\x1b[2KB2");
     expect(s.view()).toBe("a\nB2\nc");
   });
-
-  it("页脚钉底行:正文超视口后上滚,页脚不散落", () => {
+  it("页脚钉底行:正文超视口后上滚,视口内页脚不散落", () => {
     const s = new LiveScreen(20, 4);
     /* 模拟 omp:正文逐行 + 页脚恒画在第 4 行。 */
     for (let i = 1; i <= 10; i++) {
@@ -32,9 +32,10 @@ describe("LiveScreen 重绘收敛", () => {
       s.feed("\x1b[4;1H\x1b[2Kfooter");
     }
     const out = s.view().split("\n");
-    expect(out[out.length - 1]).toBe("footer");
-    /* 视口只有 4 行,footer 仅一份。 */
-    expect(out.filter((l) => l === "footer")).toHaveLength(1);
+    const vp = out.slice(-4); // scrollback 之后 = 当前视口
+    expect(vp[vp.length - 1]).toBe("footer");
+    /* 视口只有 4 行,footer 仅一份(滚出的旧页脚进历史,不算散落)。 */
+    expect(vp.filter((l) => l === "footer")).toHaveLength(1);
   });
 
   it("线性输出(无回退)逐行累积", () => {
@@ -44,14 +45,14 @@ describe("LiveScreen 重绘收敛", () => {
     expect(s.view()).toBe("l1\nl2\nl3");
   });
 
-  it("清屏(2J/3J)与备屏切换(1049h/l)重置屏", () => {
+  it("清屏/备屏 = 翻页:旧屏进 scrollback,新屏从干净视口开始", () => {
     const s = new LiveScreen(80, 24);
     s.feed("旧\n\x1b[2J新");
-    expect(s.view()).toBe("新");
+    expect(s.view()).toBe("旧\n新");
     s.feed("\x1b[?1049hpicker");
-    expect(s.view()).toBe("picker");
+    expect(s.view()).toBe("旧\n新\npicker");
     s.feed("\x1b[?1049lback");
-    expect(s.view()).toBe("back");
+    expect(s.view()).toBe("旧\n新\npicker\nback");
   });
 
   it("越界 CUP 夹到底行(真终端语义)", () => {
@@ -82,14 +83,24 @@ describe("LiveScreen 重绘收敛", () => {
     expect(s.view()).toBe("hi");
   });
 
-  it("超视口 LF 上滚:窗口只留最近 rows 行", () => {
+  it("超视口 LF 上滚:滚出行进 scrollback,view 保留全量历史", () => {
     const s = new LiveScreen(80, 400);
     for (let i = 0; i < 500; i++) s.feed(`line-${i}\n`);
     const out = s.view().split("\n");
-    /* 末次 \n 把光标顶到底行再滚一行 + view 去尾空行:窗口 = line-101..line-499。 */
-    expect(out[0]).toBe("line-101");
+    /* 手机「看全输出」契约:line-0 不被丢弃,末行 = 最新。 */
+    expect(out[0]).toBe("line-0");
     expect(out[out.length - 1]).toBe("line-499");
-    expect(out).toHaveLength(399);
+    expect(out).toHaveLength(500);
+  });
+
+  it("scrollback 有界:超上限丢最老行,保最新", () => {
+    const s = new LiveScreen(80, 4);
+    for (let i = 0; i < 2100; i++) s.feed(`line-${i}\n`);
+    const out = s.view().split("\n");
+    /* 2097 次上滚,scrollback 截尾 2000(line-97..line-2096)+ 视口 3 行非空。 */
+    expect(out).toHaveLength(2003);
+    expect(out[out.length - 1]).toBe("line-2099");
+    expect(out[0]).toBe("line-97");
   });
 
   it("分块到达的转义序列不丢语义(跨 chunk 边界)", () => {

@@ -129,3 +129,7 @@
 .sheet-fine{font-size:10.5px;color:var(--fg-faint);margin-bottom:10px}
 /* transcript 长文展开柄 */
 .tr-more{display:inline-block;margin-top:2px;font-size:10.5px;color:var(--accent)}
+
+/* 历史屏「继续对话」底栏 */
+.resume-bar{flex:none;display:flex;align-items:center;gap:10px;border-top:.5px solid var(--border);background:var(--bg-panel);padding:8px 12px}
+.resume-btn{max-width:none;flex:1;padding:10px}

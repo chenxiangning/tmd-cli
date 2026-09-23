@@ -15,8 +15,15 @@ export const REQUIRED_CAPABILITY = "app-device";
 export interface MobileRoute {
   view: "home" | "session" | "history";
   sessionId?: string;
-  /** view = history:磁盘会话定位信息。 */
-  history?: { profileId: string; path: string; title: string };
+  /** view = history:磁盘会话定位信息(cwd/workspaceId/cliSessionId 齐备时可续聊)。 */
+  history?: {
+    profileId: string;
+    path: string;
+    title: string;
+    cwd?: string;
+    workspaceId?: string;
+    cliSessionId?: string;
+  };
 }
 
 /** 端点候选:钉选优先;auto = urls 序(配对时 LAN 在前),旧凭证回落单 wsUrl。 */

@@ -4,7 +4,9 @@
  * 无滚动区/插删行。上一版无固定视口:正文一超行,CUP(31) 就落回文档中段盖正文、
  * 页脚散落多行 = 重复(真机三次实证)。正解 = 忠实终端:固定高度,LF 到底上滚,
  * 按列换行(DECAWM 可关),CUP 夹在视口内 → 重绘天然收敛为一份。
- * 支持集:可打印、\n \r \t \b、CSI H/f/A/B/C/D/E/G/J/K/s/u、2J/3J、
+ * 滚出视口的行进 scrollback(上限 SCROLL_CAP 行),view(fromTop) 可取全量历史,
+ * 手机实况区因此能向上滚动看旧输出。
+ * 支持集:可打印、\n \r \t \b、CSI H/f/A/B/C/D/E/G/J/K/M/s/u、2J/3J、
  * 模式 ?7h/l(换行)?1049h/l(备屏清屏);SGR/其余忽略。桌面幕布用真 xterm,不共享。
  */
 
@@ -13,6 +15,8 @@ const DEFAULT_COLS = 80;
 const DEFAULT_ROWS = 24;
 /** 单行宽度硬顶(异常 CUP 列的止损)。 */
 const MAX_LINE = 4000;
+/** 滚出视口行的保留上限(内存止损)。 */
+const SCROLL_CAP = 2000;
 
 /* 已闭合序列的锚定判据(与切分器同源);tail 用它识别「还没收完」的转义。 */
 const CSI_FULL = /^\x1b\[[0-9:;<=>?]*[ -/]*[@-~]/;
@@ -28,6 +32,8 @@ function incompleteEsc(t: string): boolean {
 
 export class LiveScreen {
   private lines: string[] = [];
+  /** 滚出视口的行(有界;view() = scrollback + 视口,实况区因此可向上滚动看旧输出)。 */
+  private scrollback: string[] = [];
   private row = 0;
   private col = 0;
   private savedRow = 0;
@@ -72,11 +78,14 @@ export class LiveScreen {
     if (last < data.length) this.tail(data.slice(last));
   }
 
-  /** 当前视口内容(去尾部空行);实况视图直接渲染它。 */
+  /**
+   * 全量内容 = scrollback + 当前视口(去尾部空行)。实况区直接渲染它并允许向上滚动;
+   * fromTop 取前 N 行(供「跳到顶」)。alt-screen 切换会清 scrollback(见 clear)。
+   */
   view(): string {
     let end = this.lines.length;
     while (end > 0 && !this.lines[end - 1]) end--;
-    return this.lines.slice(0, end).join("\n");
+    return [...this.scrollback, ...this.lines.slice(0, end)].join("\n");
   }
 
   /** 尾段处理:以 ESC 起头的未完成序列进 pending,其余落屏。 */
@@ -180,7 +189,9 @@ export class LiveScreen {
 
   private lineFeed(): void {
     if (this.row >= this.rows - 1) {
-      this.lines.shift();
+      const gone = this.lines.shift() ?? "";
+      this.scrollback.push(gone);
+      if (this.scrollback.length > SCROLL_CAP) this.scrollback.splice(0, this.scrollback.length - SCROLL_CAP);
       this.lines.push("");
     } else {
       this.row++;
@@ -201,7 +212,12 @@ export class LiveScreen {
     else this.lines[this.row] = line.slice(0, Math.min(this.col, line.length));
   }
 
+  /** 屏切换/清屏 = 翻页:旧屏整体进 scrollback(手机「看全输出」要历史;当前屏重开)。 */
   private clear(): void {
+    let end = this.lines.length;
+    while (end > 0 && !this.lines[end - 1]) end--;
+    this.scrollback.push(...this.lines.slice(0, end));
+    if (this.scrollback.length > SCROLL_CAP) this.scrollback.splice(0, this.scrollback.length - SCROLL_CAP);
     this.lines = new Array(this.rows).fill("");
     this.row = 0;
     this.col = 0;

@@ -58,3 +58,12 @@
 |审批浮标与通知|`AskMobile.tsx`:`AskFloatingBadge`(窄屏等待计数浮标 → 列表 → setActiveSession 直达幕布;应答 = 幕布软键盘按键,不自造代发键——各 CLI 键位语义不一);`AskNotifier` 边沿通知:进入等待(冷启动首轮只记基线防风暴)+ `turnSettled.unviewed` → `shellNotify`。|
 |审批线窄屏摘要|checkpoints 插件 `contribute("overlay")` → `CheckpointsMobileSummary`(批次只读清单 + 待审计数;刷新链仅窄屏启用防桌面双份轮询;写操作无入口)。|
 |软键盘避让|`useViewportHeight` → `--tmd-vvh`(visualViewport 高度),窄屏壳根 height 消费(iOS 100vh 不随键盘缩)。|
+
+## 手机独立树增补(会话屏紧凑化 + 实况滚动 + 历史续聊,2026-09-23 落地)
+
+|面|契约|
+|---|---|
+|单顶栏|`src/mobile/ConnChip.tsx`:`HostChip`(连接点+主机名,点开 = 端点钉选/重试/重新配对 sheet)+ `ConnBanner`(断连告警不折叠);旧 HostBar 双条堆叠退役。审批线常驻行 → session nav 计数芯片 + `CkptSheet`(checkpoint_list/batch_diff 白名单二令只读)。|
+|实况滚动|`LiveScreen`(src/mobile/liveText.ts)= 固定视口 VT 模型 + **scrollback(有界 2000 行)**:LF 触底上滚与清屏/备屏翻页都把旧行进历史,`view()` = scrollback+视口全量 → 实况区可向上滚动看全部输出;SessionScreen 自动滚底 = 跟随态(贴底 <48px)才拽底,上滚阅读不被新输出打断,展开实况块重进跟随。|
+|键盘工具条|`KeyToolbar.tsx`:十键(esc/tab/⌃c/←→↑↓/↵/Pg↑↓)经 `session_write` 发原始 PTY 序列;切模型 = composer 发 `/model` 开 CLI TUI 后用键条操作(零新 RPC,十家 CLI 通吃);composer 聚焦时整行隐藏。|
+|历史续聊|`src/mobile/resume.ts` + `engines.ts`(resume 参数镜像各插件 profile.resumeArgs):HistoryScreen「继续对话」= `session_spawn`(已在白名单)带 `--resume <cliSessionId>` + 工作区 cwd,与桌面 openDiskSession 同语义。**去重**:本连接期内存表 + 磁盘日志指针 `~/.tmd-cli/session/<slug>/<slug>/<cliId>.logptr`(fs_read_file 已放行)→ 指针 logId 仍在 session_list = 聚焦既有 PTY,绝不双开;指针缺/已死 = 冷开。手机自 spawn 走冷路径(桌面 acquireResume 预热池不在手机视野,M1 取舍)。|

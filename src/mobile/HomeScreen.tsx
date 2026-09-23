@@ -168,6 +168,9 @@ export function HomeScreen() {
                                   profileId: r.profileId,
                                   path: r.disk!.path,
                                   title: r.title,
+                                  cwd: workspaces.find((w) => w.id === g.wsId)?.root,
+                                  workspaceId: g.wsId,
+                                  cliSessionId: r.disk!.id,
                                 },
                               })
                         }
@@ -208,7 +211,7 @@ export function HomeScreen() {
   );
 }
 
-/** 会话行(活/磁盘同形):引擎字形 + 标题 + 审批 pill + 相对时间 + 状态点。 */
+/** 会话行(活/磁盘同形):品牌字形 + 标题 + 审批 pill + 相对时间 + 状态点。 */
 function Row(props: { r: HomeRow; active: boolean; pending: number; onOpen: () => void }) {
   const live = props.r.kind === "live";
   return (
