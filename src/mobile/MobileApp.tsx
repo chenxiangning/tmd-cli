@@ -50,16 +50,32 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   }, []);
 
   /* 覆盖层(桌面 settings):手动命名 + 归档键集 + 置顶。桌面任何一侧改动都广播
-     settings:changed(桥 event_sink 转发,手机自己的置顶窄令也触发)→ 重拉即同步。 */
+     settings:changed(桥 event_sink 转发,手机自己的置顶窄令也触发)→ 重拉即同步。
+     冷启动竞态(2026-09-23 手机 shell.log 实证):进 app 瞬间桥未连,首拉全失败且
+     无重试 → archive 恒空 → 归档磁盘行全被划进「本地」。失败退避重试直到成功,
+     与列表轮询同一自愈纪律(onRemoteConnection 只在翻转时触发,罩不住已连场景)。 */
   React.useEffect(() => {
+    let alive = true;
+    let timer = 0;
     const pull = () => {
-      void sessionTitles().then(setTitles);
-      void sessionArchiveKeys().then(setArchive);
-      void sessionPinEntries().then(setPins);
+      clearTimeout(timer);
+      void Promise.allSettled([sessionTitles(), sessionArchiveKeys(), sessionPinEntries()]).then(
+        ([t, a, p]) => {
+          if (!alive) return;
+          if (t.status === "fulfilled") setTitles(t.value);
+          if (a.status === "fulfilled") setArchive(a.value);
+          if (p.status === "fulfilled") setPins(p.value);
+          if ([t, a, p].some((r) => r.status === "rejected")) timer = window.setTimeout(pull, 3000);
+        },
+      );
     };
     pull();
     const off = listen("settings:changed", pull);
-    return () => void off.then((f) => f()).catch(() => undefined);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+      void off.then((f) => f()).catch(() => undefined);
+    };
   }, []);
 
   const togglePin = React.useCallback(async (key: string, title: string) => {

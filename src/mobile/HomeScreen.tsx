@@ -103,6 +103,7 @@ export function HomeScreen() {
   );
   /* 顶部两区(搜索词在场时同样过滤,与分组区一致)。 */
   const zones = useMemo(() => topZones({ groups, pins }), [groups, pins]);
+  const pinnedSet = useMemo(() => new Set(zones.pinned), [zones]);
   /** 行 → 归属工作区 id(顶区行跨组,按 groups 反查)。 */
   const wsIdOf = (r: HomeRow): string | undefined =>
     groups.find((g) => g.rows.includes(r))?.wsId;
@@ -185,7 +186,7 @@ export function HomeScreen() {
                     r={r}
                     active={route.sessionId === r.key.slice(5)}
                     pending={pending[r.key.slice(5)] ?? 0}
-                    pinned={zones.pinned.includes(r)}
+                    pinned={pinnedSet.has(r)}
                     onTogglePin={() => togglePinOf(r)}
                     onOpen={() => openRow(r)}
                   />
