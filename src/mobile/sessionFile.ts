@@ -5,6 +5,7 @@
  * 形状契约:ipc.ts 的 invoke 签名(path/maxBytes/dir/suffix)+ DirEntry/FileStamp。
  */
 import { parseTranscript, tailTurns, type TranscriptTurn } from "@kernel/transcript";
+import { shellLog } from "@kernel/shellBridge";
 
 const TAIL_BYTES = 256 * 1024;
 const MAX_TURNS = 40;
@@ -80,12 +81,17 @@ export async function loadTranscript(
 ): Promise<TranscriptTurn[] | null> {
   try {
     const path = await resolveTranscriptPath(profileId, cwd);
-    if (!path) return null;
+    if (!path) {
+      shellLog(`transcript: 未定位到 jsonl(profile=${profileId} cwd=${cwd})→ 回落实况`);
+      return null;
+    }
     const tail = await inv<string>("fs_read_tail", { path, maxBytes: TAIL_BYTES });
     if (!tail) return null;
     const turns = parseTranscript(tail);
+    if (!turns.length) shellLog(`transcript: 解析 0 行(${path})→ 回落实况`);
     return turns.length ? tailTurns(turns, MAX_TURNS) : null;
-  } catch {
+  } catch (e) {
+    shellLog(`transcript: 读取失败 ${String((e as Error)?.message ?? e).slice(0, 120)}`);
     return null;
   }
 }

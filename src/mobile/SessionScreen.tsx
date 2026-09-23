@@ -63,6 +63,9 @@ export function SessionScreen(props: { sessionId: string }) {
 
   /* transcript(单独解析):CLI 磁盘 jsonl → 对话/操作分层渲染;失败回落 PTY 尾流。 */
   const [turns, setTurns] = useState<TranscriptTurn[] | null>(null);
+  /* 实况块:有对话时默认折叠(终端原始流在窄屏不可读),点开看;无对话=全屏实况。 */
+  const [liveOpen, setLiveOpen] = useState(false);
+  const liveShown = turns ? liveOpen : true;
   useEffect(() => {
     const profile = meta?.profileId;
     const cwd = meta?.cwd;
@@ -143,11 +146,12 @@ export function SessionScreen(props: { sessionId: string }) {
     };
   }, [live, props.sessionId, meta, titleOf]);
 
-  /* 自动滚底(新字节到达时;用户上滚不拽)。 */
+  /* 自动滚底(新字节到达时;用户上滚不拽)。实况折叠时不滚——保持对话视图。 */
   useEffect(() => {
+    if (!liveShown) return;
     const el = liveRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [live]);
+  }, [live, liveShown]);
 
   const answer = (data: string) => {
     setAsk(false);
@@ -193,9 +197,19 @@ export function SessionScreen(props: { sessionId: string }) {
             )}
           </div>
         )}
-        {live && (
+        {turns && !liveShown && (
+          <button className="tr-live-toggle" onClick={() => setLiveOpen(true)}>
+            ▸ {t("终端实况")}
+            {live ? ` · ${t("点开查看原始输出")}` : ""}
+          </button>
+        )}
+        {liveShown && live && (
           <div className="tr-live">
-            <span className="tr-live-tag">{t("实况(终端字节)")}</span>
+            {turns && (
+              <button className="tr-live-tag" onClick={() => setLiveOpen(false)}>
+                ▾ {t("终端实况")}{live ? ` · ${t("点击收起")}` : ""}
+              </button>
+            )}
             {"\n"}
             {live}
           </div>
