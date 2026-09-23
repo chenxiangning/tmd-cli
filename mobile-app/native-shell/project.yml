@@ -13,6 +13,8 @@ targets:
       - path: ../dist
         type: folder
         buildPhase: resources
+      # 图标与 tauri 壳同源(单一图标源):gen/apple 的 AppIcon.appiconset 已入库
+      - path: ../src-tauri/gen/apple/Assets.xcassets
     info:
       path: Info.plist
       properties:
@@ -29,3 +31,4 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tmdcli.mobile
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
