@@ -12,27 +12,14 @@ import { HomeScreen } from "./HomeScreen";
 import { SessionScreen } from "./SessionScreen";
 import { HistoryScreen } from "./HistoryScreen";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
-import { listSessions, listWorkspaces, sessionTitles } from "./remote";
+import { listSessions, listWorkspaces, sessionArchiveKeys, sessionTitles } from "./remote";
 import { isRemoteConnected, onRemoteConnection } from "@kernel/transport";
-
-export interface MobileCtxValue {
-  creds: MobileCreds;
-  sessions: RemoteSession[];
-  workspaces: RemoteWorkspace[];
-  titles: Record<string, string>;
-  connected: boolean;
-  route: MobileRoute;
-  go: (r: MobileRoute) => void;
-  /** 会话标题解析(覆盖层 → profile 字形回落)。 */
-  titleOf: (s: RemoteSession) => string;
-}
-
-
 
 export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   const [sessions, setSessions] = React.useState<RemoteSession[]>([]);
   const [workspaces, setWorkspaces] = React.useState<RemoteWorkspace[]>([]);
   const [titles, setTitles] = React.useState<Record<string, string>>({});
+  const [archive, setArchive] = React.useState<Set<string>>(() => new Set());
   const [connected, setConnected] = React.useState(() => isRemoteConnected());
   React.useEffect(() => onRemoteConnection(setConnected), []);
   const [route, setRoute] = React.useState<MobileRoute>({ view: "home" });
@@ -58,9 +45,10 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
     };
   }, []);
 
-  /* 手动命名覆盖层(桌面 settings.sessionTitles,key = 会话 id);进 app 读一次。 */
+  /* 覆盖层(桌面 settings):手动命名 + 归档键集;进 app 读一次。 */
   React.useEffect(() => {
     void sessionTitles().then(setTitles);
+    void sessionArchiveKeys().then(setArchive);
   }, []);
 
   const titleOf = React.useCallback(
@@ -75,13 +63,14 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       sessions,
       workspaces,
       titles,
+      archive,
       connected,
       route,
       go: setRoute,
       titleOf,
       onRePair: props.onRePair,
     }),
-    [props.creds, sessions, workspaces, titles, connected, route, titleOf, props.onRePair],
+    [props.creds, sessions, workspaces, titles, archive, connected, route, titleOf, props.onRePair],
   );
 
   return (

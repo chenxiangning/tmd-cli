@@ -40,7 +40,7 @@ vi.mock("@plugins/cli-shared/qoderSessionModel", () => ({
   listQoderSessions: async () => [],
 }));
 
-import { groupHomeRows, scanWorkspaceHistory, splitEngineGroups, type HomeRow } from "./history";
+import { groupHomeRows, partitionByArchive, scanWorkspaceHistory, type HomeRow } from "./history";
 
 const ws = (id: string, root: string, name = id) => ({ id, root, name });
 
@@ -104,23 +104,25 @@ describe("scanWorkspaceHistory", () => {
   });
 });
 
-describe("splitEngineGroups", () => {
-  const row = (key: string, profileId: string, ts: number): HomeRow => ({
+describe("partitionByArchive", () => {
+  const diskRow = (key: string, id: string): HomeRow => ({
     key,
     kind: "disk",
-    profileId,
+    profileId: "omp",
     title: key,
-    ts,
+    ts: 10,
+    disk: { id, modifiedAt: 10, path: `/p/${id}.jsonl` },
   });
-  it("按引擎切组:组按最近活动倒序,组内时间倒序", () => {
-    const groups = splitEngineGroups([
-      row("a", "omp", 50),
-      row("b", "claude", 60),
-      row("c", "omp", 70),
-      row("d", "claude", 40),
-    ]);
-    expect(groups.map((g) => g.profileId)).toEqual(["omp", "claude"]);
-    expect(groups[0].rows.map((r) => r.key)).toEqual(["c", "a"]);
-    expect(groups[1].rows.map((r) => r.key)).toEqual(["b", "d"]);
+  const liveRow: HomeRow = { key: "live:pty-1", kind: "live", profileId: "omp", title: "l", ts: 20 };
+  it("磁盘行按 wsId:profileId:cliId 键切分;活行恒本地", () => {
+    const rows = [liveRow, diskRow("disk:omp:a", "a"), diskRow("disk:omp:b", "b")];
+    const p = partitionByArchive(rows, "w1", new Set(["w1:omp:b"]));
+    expect(p.local.map((r) => r.key)).toEqual(["live:pty-1", "disk:omp:a"]);
+    expect(p.archived.map((r) => r.key)).toEqual(["disk:omp:b"]);
+  });
+  it("归档集为空 = 全本地;键含工作区维度不跨组误伤", () => {
+    const rows = [diskRow("disk:omp:a", "a")];
+    expect(partitionByArchive(rows, "w1", new Set()).archived).toEqual([]);
+    expect(partitionByArchive(rows, "w1", new Set(["w2:omp:a"])).local).toHaveLength(1);
   });
 });

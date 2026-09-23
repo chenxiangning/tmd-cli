@@ -51,10 +51,12 @@ export interface MobileCtxValue {
   sessions: RemoteSession[];
   workspaces: RemoteWorkspace[];
   titles: Record<string, string>;
+  /** 归档覆盖层键集(wsId:profileId:cliSessionId;桌面 settings.sessionArchive 只读镜像)。 */
+  archive: Set<string>;
   connected: boolean;
   route: MobileRoute;
   go: (r: MobileRoute) => void;
-  titleOf: (s: import("./remote").RemoteSession) => string;
+  titleOf: (s: RemoteSession) => string;
   onRePair: () => void;
 }
 

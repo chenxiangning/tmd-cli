@@ -148,18 +148,22 @@ export function groupHomeRows(args: {
     .map(({ wsId, name, rows }) => ({ wsId, name, rows }));
 }
 
-/** 工作区组内按引擎再分组:组按最近活动倒序,组内行按时间倒序。 */
-export function splitEngineGroups(rows: HomeRow[]): { profileId: string; rows: HomeRow[] }[] {
-  const byEngine = new Map<string, HomeRow[]>();
+/** 归档覆盖层 key(与桌面 kernel/sessionArchive key 同构;活会话无磁盘身份,恒本地)。 */
+export function diskArchiveKey(wsId: string, r: HomeRow): string {
+  return `${wsId}:${r.profileId}:${r.disk?.id ?? ""}`;
+}
+
+/** 工作区行按归档视图切分:local = 活行 + 未归档磁盘行;archive = 归档磁盘行。 */
+export function partitionByArchive(
+  rows: HomeRow[],
+  wsId: string,
+  archive: Set<string>,
+): { local: HomeRow[]; archived: HomeRow[] } {
+  const local: HomeRow[] = [];
+  const archived: HomeRow[] = [];
   for (const r of rows) {
-    const list = byEngine.get(r.profileId);
-    if (list) list.push(r);
-    else byEngine.set(r.profileId, [r]);
+    if (r.kind === "disk" && archive.has(diskArchiveKey(wsId, r))) archived.push(r);
+    else local.push(r);
   }
-  return [...byEngine.entries()]
-    .map(([profileId, list]) => ({
-      profileId,
-      rows: list.sort((a, b) => b.ts - a.ts),
-    }))
-    .sort((a, b) => (b.rows[0]?.ts ?? 0) - (a.rows[0]?.ts ?? 0));
+  return { local, archived };
 }

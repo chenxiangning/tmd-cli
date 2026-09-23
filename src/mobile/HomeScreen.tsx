@@ -1,8 +1,8 @@
 /**
- * home 屏 —— 单顶栏(主机芯片 + 标题 + 新建)+ 搜索 + 工作区分组行
- * (引擎字形/标题/相对时间/状态点);活会话(session_list)+ 磁盘历史
+ * home 屏 —— 单顶栏(主机芯片 + 标题 + 新建)+ 搜索 + 工作区分组:组内会话行
+ * 按时间平铺(不分引擎子组),工作区头下「本地/归档」分段(归档 = 桌面
+ * settings.sessionArchive 覆盖层只读镜像);活会话(session_list)+ 磁盘历史
  * (history.ts 扫描,与桌面侧栏同源适配器)同列;断连 = banner + 列表快照减淡。
- * (原型 mobile-app-home.html;顶栏合并见 spec 2026-09-23-mobile-session-compact。)
  */
 import React, { useMemo, useState } from "react";
 import { SpawnSheet } from "./SpawnSheet";
@@ -11,19 +11,20 @@ import { ConnBanner, HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { relTime } from "./remote";
 import { EngineMark } from "./EngineMark";
-import { groupHomeRows, splitEngineGroups, scanWorkspaceHistory, type HistoryItem, type HomeRow } from "./history";
+import { groupHomeRows, partitionByArchive, scanWorkspaceHistory, type HistoryItem, type HomeRow } from "./history";
 
 /** 磁盘历史重扫节奏:读头有 mtime 缓存,稳态每轮只剩 fs_collect_files 轻量 RPC。 */
 const HISTORY_RESCAN_MS = 60_000;
-/** 引擎子分组分页:每页行数(与桌面侧栏 PAGE_INITIAL 同口径)。 */
+/** 工作区分段分页:每页行数(分页水位按 工作区:分段 独立)。 */
 const PAGE_SIZE = 10;
 
 export function HomeScreen() {
-  const { sessions, workspaces, titles, titleOf, route, go } = useMobile();
+  const { sessions, workspaces, titles, titleOf, route, go, archive } = useMobile();
   const [q, setQ] = useState("");
   const [spawn, setSpawn] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  /* 引擎子分组分页水位:key = 工作区:引擎。 */
+  /* 工作区视图分段:本地(默认)/ 归档;分页水位按视图独立(key = 工作区:分段)。 */
+  const [wsTab, setWsTab] = useState<Record<string, "local" | "archive">>({});
   const [limits, setLimits] = useState<Record<string, number>>({});
   /* 审批线待审数(home 行琥珀点 + pill;白名单 checkpoint_list 只读)。 */
   const [pending, setPending] = useState<Record<string, number>>({});
@@ -102,7 +103,6 @@ export function HomeScreen() {
     [workspaces, sessions, history, q, titleOf, titleOfDisk],
   );
 
-  const total = groups.reduce((n, g) => n + g.rows.length, 0);
   return (
     <>
       <div className="nav">
@@ -130,73 +130,88 @@ export function HomeScreen() {
               : t("暂无会话\n在桌面端启动会话后,这里会实时出现")}
           </div>
         )}
-        {groups.map((g) => (
-          <React.Fragment key={g.wsId}>
-            <button
-              type="button"
-              className="ws-head"
-              aria-expanded={!collapsed[g.wsId]}
-              onClick={() => setCollapsed((m) => ({ ...m, [g.wsId]: !m[g.wsId] }))}
-            >
-              <span className="caret">{collapsed[g.wsId] ? "▸" : "▾"}</span>
-              {g.name}
-              <span className="cnt">{g.rows.length}</span>
-            </button>
-            {!collapsed[g.wsId] &&
-              splitEngineGroups(g.rows).map((eg) => {
-                const key = `${g.wsId}:${eg.profileId}`;
-                const limit = limits[key] ?? PAGE_SIZE;
-                return (
-                  <React.Fragment key={key}>
-                    <div className="engine-head">
-                      <EngineMark profileId={eg.profileId} />
-                      <span className="engine-name">{eg.profileId}</span>
-                      <span className="cnt">{eg.rows.length}</span>
+        {groups.map((g) => {
+          const { local, archived } = partitionByArchive(g.rows, g.wsId, archive);
+          const tab = wsTab[g.wsId] ?? "local";
+          const rows = tab === "local" ? local : archived;
+          const key = `${g.wsId}:${tab}`;
+          const limit = limits[key] ?? PAGE_SIZE;
+          return (
+            <React.Fragment key={g.wsId}>
+              <button
+                type="button"
+                className="ws-head"
+                aria-expanded={!collapsed[g.wsId]}
+                onClick={() => setCollapsed((m) => ({ ...m, [g.wsId]: !m[g.wsId] }))}
+              >
+                <span className="caret">{collapsed[g.wsId] ? "▸" : "▾"}</span>
+                {g.name}
+                <span className="cnt">{local.length}</span>
+              </button>
+              {!collapsed[g.wsId] && (
+                <>
+                  <div className="ws-seg" role="tablist">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === "local"}
+                      className={tab === "local" ? "on" : ""}
+                      onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "local" }))}
+                    >
+                      {t("本地")} {local.length}
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === "archive"}
+                      className={tab === "archive" ? "on" : ""}
+                      onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "archive" }))}
+                    >
+                      {t("归档")} {archived.length}
+                    </button>
+                  </div>
+                  {rows.length === 0 && (
+                    <div className="empty seg-empty">
+                      {tab === "local" ? t("暂无会话") : t("没有归档会话")}
                     </div>
-                    {eg.rows.slice(0, limit).map((r) => (
-                      <Row
-                        key={r.key}
-                        r={r}
-                        active={route.sessionId === r.key.slice(5)}
-                        pending={pending[r.key.slice(5)] ?? 0}
-                        onOpen={() =>
-                          r.kind === "live"
-                            ? go({ view: "session", sessionId: r.live!.id })
-                            : go({
-                                view: "history",
-                                history: {
-                                  profileId: r.profileId,
-                                  path: r.disk!.path,
-                                  title: r.title,
-                                  cwd: workspaces.find((w) => w.id === g.wsId)?.root,
-                                  workspaceId: g.wsId,
-                                  cliSessionId: r.disk!.id,
-                                },
-                              })
-                        }
-                      />
-                    ))}
-                    {limit < eg.rows.length && (
-                      <button
-                        type="button"
-                        className="more"
-                        onClick={() =>
-                          setLimits((m) => ({ ...m, [key]: limit + PAGE_SIZE }))
-                        }
-                      >
-                        {t("加载更多({n})", { n: eg.rows.length - limit })}
-                      </button>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-          </React.Fragment>
-        ))}
-        {total > 0 && (
-          <div style={{ margin: "14px 0 8px", fontSize: 11, color: "var(--fg-subtle)", textAlign: "center" }}>
-            {t("已归档会话在桌面端查看")}
-          </div>
-        )}
+                  )}
+                  {rows.slice(0, limit).map((r) => (
+                    <Row
+                      key={r.key}
+                      r={r}
+                      active={route.sessionId === r.key.slice(5)}
+                      pending={pending[r.key.slice(5)] ?? 0}
+                      onOpen={() =>
+                        r.kind === "live"
+                          ? go({ view: "session", sessionId: r.live!.id })
+                          : go({
+                              view: "history",
+                              history: {
+                                profileId: r.profileId,
+                                path: r.disk!.path,
+                                title: r.title,
+                                cwd: workspaces.find((w) => w.id === g.wsId)?.root,
+                                workspaceId: g.wsId,
+                                cliSessionId: r.disk!.id,
+                              },
+                            })
+                      }
+                    />
+                  ))}
+                  {limit < rows.length && (
+                    <button
+                      type="button"
+                      className="more"
+                      onClick={() => setLimits((m) => ({ ...m, [key]: limit + PAGE_SIZE }))}
+                    >
+                      {t("加载更多({n})", { n: rows.length - limit })}
+                    </button>
+                  )}
+                </>
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
       {spawn && (
         <SpawnSheet

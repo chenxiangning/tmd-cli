@@ -53,6 +53,14 @@ export async function sessionTitles(): Promise<Record<string, string>> {
   return t && typeof t === "object" ? t : {};
 }
 
+/** 归档覆盖层键集(桌面 settings.sessionArchive,key = wsId:profileId:cliSessionId;
+ *  语义 kernel/sessionArchive.ts —— 手机只读过滤,不写)。 */
+export async function sessionArchiveKeys(): Promise<Set<string>> {
+  const s = await invokeSafe<Record<string, Record<string, unknown>>>("config_read_settings");
+  const a = s?.sessionArchive;
+  return new Set(a && typeof a === "object" ? Object.keys(a) : []);
+}
+
 /** 写 PTY:data 原样入流(键应答传 "\r"/"\x1b";消息传 text + "\r")。 */
 export function writeSession(id: string, data: string): Promise<void> {
   return invokeSafe<void>("session_write", { id, data }).then(() => undefined);
