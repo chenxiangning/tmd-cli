@@ -80,9 +80,12 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   return (
     <MobileAppCtx.Provider value={ctx}>
       <div className="m-app">
-        {route.view === "home" ? (
+        {/* home 常驻挂载(进详情只隐藏):返回时保留磁盘历史扫描/折叠/分页/
+            滚动位置,免整屏重拉造成的空档期。 */}
+        <div className={route.view === "home" ? "m-screen" : "m-screen hide"}>
           <HomeScreen />
-        ) : route.view === "history" ? (
+        </div>
+        {route.view === "history" ? (
           <HistoryScreen
             key={route.history?.path ?? ""}
             profileId={route.history?.profileId ?? ""}
@@ -92,9 +95,9 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
             workspaceId={route.history?.workspaceId}
             cliSessionId={route.history?.cliSessionId}
           />
-        ) : (
+        ) : route.view === "session" ? (
           <SessionScreen key={route.sessionId ?? ""} sessionId={route.sessionId ?? ""} />
-        )}
+        ) : null}
       </div>
     </MobileAppCtx.Provider>
   );
