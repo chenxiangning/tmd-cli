@@ -9,38 +9,42 @@ use tauri::{AppHandle, Manager};
 
 use super::dispatch::{args, ser, val};
 
+/// 本域闸表:session_*/checkpoint_* 的全部桥面命令名。与 dispatch_inner 臂表同文件
+/// 维护;conn.rs 交叉测试钉「AppDevice 白名单 session/checkpoint 域 ⊆ 本表」防漂移
+/// (2026-09-24 link_log 被顶出闸表的回归教训)。
+pub(super) const GATED: &[&str] = &[
+    "session_spawn",
+    "session_list",
+    "session_set_workspace",
+    "session_write",
+    "session_resize",
+    "session_kill",
+    "session_log_size",
+    "session_size",
+    "session_history_page",
+    "session_link_log",
+    "session_bind_cli",
+    "session_pin_toggle",
+    "session_disk_tail",
+    "checkpoint_anchor",
+    "checkpoint_record_edit",
+    "checkpoint_apply",
+    "checkpoint_seal",
+    "checkpoint_seal_dead",
+    "checkpoint_list",
+    "checkpoint_batch_diff",
+    "checkpoint_restore",
+    "checkpoint_approve",
+    "checkpoint_undo_revert",
+    "checkpoint_prune",
+];
+
 pub(super) async fn try_dispatch(
     app: &AppHandle,
     cmd: &str,
     raw: &Value,
 ) -> Option<Result<Value, String>> {
-    if !matches!(
-        cmd,
-        "session_spawn"
-            | "session_list"
-            | "session_set_workspace"
-            | "session_write"
-            | "session_resize"
-            | "session_kill"
-            | "session_log_size"
-            | "session_size"
-            | "session_history_page"
-            | "session_link_log"
-            | "session_bind_cli"
-            | "session_pin_toggle"
-            | "session_disk_tail"
-            | "checkpoint_anchor"
-            | "checkpoint_record_edit"
-            | "checkpoint_apply"
-            | "checkpoint_seal"
-            | "checkpoint_seal_dead"
-            | "checkpoint_list"
-            | "checkpoint_batch_diff"
-            | "checkpoint_restore"
-            | "checkpoint_approve"
-            | "checkpoint_undo_revert"
-            | "checkpoint_prune"
-    ) {
+    if !GATED.contains(&cmd) {
         return None;
     }
     Some(dispatch_inner(app, cmd, raw).await)
