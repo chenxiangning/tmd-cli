@@ -95,18 +95,21 @@ export function SessionScreen(props: { sessionId: string }) {
     };
   }, [meta?.profileId, meta?.cwd, props.sessionId]);
 
-  /* 活流订阅:PTY 字节喂进迷你 VT 屏模型(LiveScreen),重绘按行覆写收敛为一份;
-   * ask 检测在独立 effect(不在 state updater 内做副作用)。
-   * 打开会话先拉 PTY 字节日志尾(session_history_page,before 传巨数即取尾)回放,
+  /* 活流订阅:PTY 字节喂进迷你 VT 视口模型(LiveScreen,固定 H×W + 触底上滚),
+   * 绝对定位重绘(页脚/spinner)天然收敛为一份;ask 检测在独立 effect。
+   * 打开会话先拉真实 PTY 尺寸(session_size)+ 字节日志尾回放,
    * 否则老会话只有「连接期活流」——空闲老会话永远空屏。 */
   useEffect(() => {
     if (!props.sessionId) return;
     let alive = true;
     let off: (() => void) | null = null;
-    const screen = new LiveScreen();
     setLive("");
     void (async () => {
       const { invoke } = await import("@kernel/transport");
+      const size = await invoke<[number, number] | null>("session_size", {
+        id: props.sessionId,
+      }).catch(() => null);
+      const screen = new LiveScreen(size?.[0], size?.[1]);
       try {
         const page = await invoke<{ text: string }>("session_history_page", {
           id: props.sessionId,

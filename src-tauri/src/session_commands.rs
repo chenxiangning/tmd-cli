@@ -129,6 +129,12 @@ pub fn session_log_size(state: State<'_, AppState>, id: String) -> u64 {
         .unwrap_or(0)
 }
 
+/// 会话 PTY 当前尺寸 (cols, rows);SSH/未知会话回 null(手机回落默认视口)。
+#[tauri::command]
+pub fn session_size(state: State<'_, AppState>, id: String) -> Option<(u16, u16)> {
+    state.pty.session_size(&id)
+}
+
 /// 幕布往前翻页:磁盘读,spawn_blocking 与其余 fs 命令同纪律。
 #[tauri::command]
 pub async fn session_history_page(

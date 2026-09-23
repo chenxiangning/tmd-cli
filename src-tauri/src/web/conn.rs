@@ -36,6 +36,7 @@ pub(crate) fn app_allowed(cmd: &str) -> bool {
                 | "history_page"
                 | "link_log"
                 | "log_size"
+                | "size"
                 | "write"
                 | "resize"
                 | "spawn"

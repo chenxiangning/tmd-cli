@@ -23,6 +23,7 @@ pub(super) async fn try_dispatch(
             | "session_resize"
             | "session_kill"
             | "session_log_size"
+            | "session_size"
             | "session_history_page"
             | "session_link_log"
             | "session_disk_tail"
@@ -69,6 +70,10 @@ async fn dispatch_inner(app: &AppHandle, cmd: &str, raw: &Value) -> Result<Value
             ser(crate::session_commands::session_kill(app.clone(), args::<IdArgs>(raw)?.id).await)
         }
         "session_log_size" => val(crate::session_commands::session_log_size(
+            app.state(),
+            args::<IdArgs>(raw)?.id,
+        )),
+        "session_size" => val(crate::session_commands::session_size(
             app.state(),
             args::<IdArgs>(raw)?.id,
         )),
