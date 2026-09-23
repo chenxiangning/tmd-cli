@@ -11,10 +11,12 @@ import type { RemoteSession, RemoteWorkspace } from "./remote";
 /** 壳要求的桌面协议能力(hello.capabilities 缺此 = block 屏;协议破坏性变更时步进)。 */
 export const REQUIRED_CAPABILITY = "app-device";
 
-/** 手机两层路由:home(列表)/ session(实况+审批+发送)。 */
+/** 手机三层路由:home(列表)/ session(实况+审批+发送)/ history(只读 transcript)。 */
 export interface MobileRoute {
-  view: "home" | "session";
+  view: "home" | "session" | "history";
   sessionId?: string;
+  /** view = history:磁盘会话定位信息。 */
+  history?: { profileId: string; path: string; title: string };
 }
 
 /** 端点候选:钉选优先;auto = urls 序(配对时 LAN 在前),旧凭证回落单 wsUrl。 */

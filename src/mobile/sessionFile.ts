@@ -89,16 +89,21 @@ export async function loadTranscript(
   profileId: string,
   cwd: string,
 ): Promise<TranscriptTurn[] | null> {
+  const path = await resolveTranscriptPath(profileId, cwd);
+  if (!path) {
+    shellLog(`transcript: 未定位到 jsonl(profile=${profileId} cwd=${cwd})→ 回落实况`);
+    return null;
+  }
+  return loadTranscriptAt(path);
+}
+
+/** 按会话文件路径拉 transcript(home 历史行;路径来自磁盘扫描,免再定位)。 */
+export async function loadTranscriptAt(path: string): Promise<TranscriptTurn[] | null> {
   try {
-    const path = await resolveTranscriptPath(profileId, cwd);
-    if (!path) {
-      shellLog(`transcript: 未定位到 jsonl(profile=${profileId} cwd=${cwd})→ 回落实况`);
-      return null;
-    }
     const tail = await inv<string>("fs_read_tail", { path, maxBytes: TAIL_BYTES });
     if (!tail) return null;
     const turns = parseTranscript(tail);
-    if (!turns.length) shellLog(`transcript: 解析 0 行(${path})→ 回落实况`);
+    if (!turns.length) shellLog(`transcript: 解析 0 行(${path})`);
     return turns.length ? tailTurns(turns, MAX_TURNS) : null;
   } catch (e) {
     shellLog(`transcript: 读取失败 ${String((e as Error)?.message ?? e).slice(0, 120)}`);

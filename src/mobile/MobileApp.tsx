@@ -11,6 +11,7 @@ import type { MobileCreds } from "./creds";
 import { currentEndpoint, MobileAppCtx, useMobile, type MobileRoute } from "./shared";
 import { HomeScreen } from "./HomeScreen";
 import { SessionScreen } from "./SessionScreen";
+import { HistoryScreen } from "./HistoryScreen";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
 import { listSessions, listWorkspaces, sessionTitles } from "./remote";
 import { forceRemoteReconnect, isRemoteConnected, onRemoteConnection } from "@kernel/transport";
@@ -89,6 +90,13 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       <div className="m-app">
         {route.view === "home" ? (
           <HomeScreen />
+        ) : route.view === "history" ? (
+          <HistoryScreen
+            key={route.history?.path ?? ""}
+            profileId={route.history?.profileId ?? ""}
+            path={route.history?.path ?? ""}
+            title={route.history?.title ?? ""}
+          />
         ) : (
           <SessionScreen key={route.sessionId ?? ""} sessionId={route.sessionId ?? ""} />
         )}

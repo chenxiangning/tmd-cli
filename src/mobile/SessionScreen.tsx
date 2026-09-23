@@ -13,6 +13,7 @@ import { notifyAsk } from "./shared";
 import { glyphOf, onPtyOut, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
 import { shellInvoke } from "@kernel/shellBridge";
 import { loadTranscript } from "./sessionFile";
+import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
 import { collapseTui, type TranscriptTurn } from "@kernel/transcript";
 
 const TAIL_LINES = 400;
@@ -199,59 +200,16 @@ export function SessionScreen(props: { sessionId: string }) {
         <span className="run">{t("运行中")}</span>
       </div>
       <div className="live" ref={liveRef}>
-        {turns && (
-          <div className="tr">
-            {turns.map((tn, i) =>
-              tn.role === "tool" ? (
-                <div className="tr-tool" key={i}>
-                  ⚙ {tn.tool}
-                  {tn.text ? ` ${tn.text}` : ""}
-                </div>
-              ) : tn.role === "user" ? (
-                <div className="tr-user" key={i}>
-                  {tn.text}
-                </div>
-              ) : (
-                <div className="tr-asst" key={i}>
-                  {tn.text}
-                </div>
-              ),
-            )}
-          </div>
-        )}
-        {turns && !liveShown && (
-          <button className="tr-live-toggle" onClick={() => setLiveOpen(true)}>
-            ▸ {t("终端实况")}
-            {live ? ` · ${t("点开查看原始输出")}` : ""}
-          </button>
-        )}
-        {liveShown && live && (
-          <div className="tr-live">
-            {turns && (
-              <button className="tr-live-tag" onClick={() => setLiveOpen(false)}>
-                ▾ {t("终端实况")}{live ? ` · ${t("点击收起")}` : ""}
-              </button>
-            )}
-            {"\n"}
-            {live}
-          </div>
-        )}
-        {!turns && !live && t("已连接,等待输出…")}
+        {turns && <TurnsView turns={turns} />}
+        <LiveBlock
+          turns={turns}
+          live={live}
+          liveShown={liveShown}
+          onExpandLive={() => setLiveOpen(true)}
+          onCollapseLive={() => setLiveOpen(false)}
+        />
       </div>
-      {ask && (
-        <div className="ask">
-          <div className="ask-head">⚠ {t("审批请求")}</div>
-          <div className="ask-q">{askQ ?? t("CLI 正在等待确认;「允许」发送 Enter,「拒绝」发送 Esc")}</div>
-          <div className="ask-opts">
-            <button type="button" className="opt yes" onClick={() => answer("\r")}>
-              {t("允许")}
-            </button>
-            <button type="button" className="opt no" onClick={() => answer("\x1b")}>
-              {t("拒绝")}
-            </button>
-          </div>
-        </div>
-      )}
+      {ask && <AskCard q={askQ} onAnswer={answer} />}
       {ckpt && (
         <div className="ckpt">
           <b>{t("审批线")}</b>

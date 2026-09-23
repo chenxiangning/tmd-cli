@@ -5,13 +5,13 @@ import {
   findJsonlSessionFile,
   readUserMessagesFromFile,
 } from "../cli-shared/userMessages";
-import { readHeadTitle } from "../cli-shared/diskSessions";
+import { listCodexSessions } from "./sessions";
 import { HEAD_BYTES, extractMeta, readCodexSessionStatus } from "./sessionStatus";
 import { pathsEqual } from "@kernel/pathUtils";
 import { getPlatformKind } from "@kernel/platform";
 import { readCodexSessionEdits } from "./edits";
 import { fetchCodexQuota } from "./quota";
-import type { CliDiskSession, CliSuggestion } from "@kernel/cli";
+import type { CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { listCodexSuggestions } from "./scanSuggestions";
 import { codexConfigEntry } from "./configGui";
@@ -48,11 +48,6 @@ function CodexGlyph({ size }: { size: number | string }) {
  *   只从头部 4KB 正则提取 id/cwd(两字段在 payload 最前,实证 <300 字节)。
  */
 
-/** 扫描上限:rollout 已按 mtime 倒序,只解析最近 N 个文件的头部。 */
-const SCAN_LIMIT = 200;
-/** 每个工作区展示上限。 */
-const RESULT_LIMIT = 200; // 与 SCAN_LIMIT 对齐:展示层分页(10/20/40/80),扫描不必再卡小上限
-
 /**
  * 身份自证:首行 session_meta payload 的 id/cwd/timestamp(实证 2026-09-03)。
  * payload.timestamp = 会话创建时刻(ISO),内容级绑定按它对齐 spawn 时刻。
@@ -81,29 +76,8 @@ async function readCodexSessionIdentity(path: string) {
   };
 }
 
-async function listCodexSessions(cwd: string): Promise<CliDiskSession[]> {
-  const home = await ipc.configHomeDir().catch(() => null);
-  if (!home) return [];
-  const rollouts = await ipc
-    .fsCollectFiles(`${home}/.codex/sessions`, ".jsonl")
-    .catch(() => []);
-  const sessions: CliDiskSession[] = [];
-  for (const f of rollouts.slice(0, SCAN_LIMIT)) {
-    if (sessions.length >= RESULT_LIMIT) break;
-    const head = await ipc.fsReadHead(f.path, HEAD_BYTES).catch(() => "");
-    const meta = head ? extractMeta(head) : null;
-    if (!meta || !pathsEqual(meta.cwd, cwd, CASE_INSENSITIVE_FS)) continue;
-    // codex resume/fork 会在新日期目录写同 id 的新 rollout 文件:
-    // 按 id 去重,保留最新 mtime(rollouts 已按 mtime 倒序,先见即最新)
-    if (sessions.some((s) => s.id === meta.id)) continue;
-    // codex 无 title 概念:标题 = 首条 role:user 的 response_item 文本,走共享两段式读头
-    // (meta 行带完整 system prompt 可达数十 KB,深窗覆盖;4KB meta 窗照旧先筛,成本可控)。
-    const title = await readHeadTitle(f.path);
-    sessions.push({ id: meta.id, modifiedAt: f.modifiedAt, createdAt: meta.createdAt, path: f.path, title });
-  }
-  return sessions;
-}
- 
+/* 磁盘会话扫描在 ./sessions(叶子模块,移动端 home 历史同源复用)。 */
+
 /** codex rollout 文件名含会话 id;resume/fork 产生同 id 新文件,取 mtime 最新(collect 已倒序,先见即最新)。 */
 async function readCodexUserMessages(cwd: string, cliSessionId: string, full: boolean) {
   const home = await ipc.configHomeDir().catch(() => null);
