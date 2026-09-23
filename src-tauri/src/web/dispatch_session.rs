@@ -25,7 +25,7 @@ pub(super) async fn try_dispatch(
             | "session_log_size"
             | "session_size"
             | "session_history_page"
-            | "session_spawn"
+            | "session_link_log"
             | "session_bind_cli"
             | "session_pin_toggle"
             | "session_disk_tail"
