@@ -11,6 +11,8 @@ import { HostBar } from "./MobileApp";
 import { useMobile } from "./shared";
 import { notifyAsk } from "./shared";
 import { glyphOf, onPtyOut, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
+import { loadTranscript } from "./sessionFile";
+import type { TranscriptTurn } from "@kernel/transcript";
 
 const TAIL_LINES = 400;
 
@@ -58,6 +60,22 @@ export function SessionScreen(props: { sessionId: string }) {
     const timer = setInterval(pull, 60_000);
     return () => clearInterval(timer);
   }, [meta?.cwd, props.sessionId]);
+
+  /* transcript(单独解析):CLI 磁盘 jsonl → 对话/操作分层渲染;失败回落 PTY 尾流。 */
+  const [turns, setTurns] = useState<TranscriptTurn[] | null>(null);
+  useEffect(() => {
+    const profile = meta?.profileId;
+    const cwd = meta?.cwd;
+    if (!profile || !cwd) return;
+    let alive = true;
+    setTurns(null);
+    void loadTranscript(profile, cwd).then((t) => {
+      if (alive) setTurns(t);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [meta?.profileId, meta?.cwd, props.sessionId]);
 
   /* 活流订阅:字节累积进 ref/state;ask 检测在独立 effect(不在 state updater 内做副作用)。
    * 打开会话先拉 PTY 字节日志尾(session_history_page,before 传巨数即取尾),
@@ -155,7 +173,34 @@ export function SessionScreen(props: { sessionId: string }) {
         <span className="run">{t("运行中")}</span>
       </div>
       <div className="live" ref={liveRef}>
-        {live || t("已连接,等待输出…(v1 实况为连接期活流)")}
+        {turns && (
+          <div className="tr">
+            {turns.map((tn, i) =>
+              tn.role === "tool" ? (
+                <div className="tr-tool" key={i}>
+                  ⚙ {tn.tool}
+                  {tn.text ? ` ${tn.text}` : ""}
+                </div>
+              ) : tn.role === "user" ? (
+                <div className="tr-user" key={i}>
+                  {tn.text}
+                </div>
+              ) : (
+                <div className="tr-asst" key={i}>
+                  {tn.text}
+                </div>
+              ),
+            )}
+          </div>
+        )}
+        {live && (
+          <div className="tr-live">
+            <span className="tr-live-tag">{t("实况(终端字节)")}</span>
+            {"\n"}
+            {live}
+          </div>
+        )}
+        {!turns && !live && t("已连接,等待输出…")}
       </div>
       {ask && (
         <div className="ask">

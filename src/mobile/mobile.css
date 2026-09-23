@@ -115,6 +115,13 @@
 .tools{display:flex;gap:12px;padding:5px 4px 0;font-size:10.5px;color:var(--fg-subtle)}
 .toolbar-row{height:38px;display:flex;align-items:center;gap:6px;padding:0 10px;border-top:.5px solid var(--border);background:var(--bg-panel);flex:none;overflow:hidden}
 .key{font-family:var(--mono);font-size:11px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:6px;padding:3px 9px;background:var(--bg-base);color:var(--fg-muted);white-space:nowrap}
+/* transcript:对话(用户/助手)与工具操作分型渲染 */
+.tr{display:flex;flex-direction:column;gap:7px;padding-bottom:8px}
+.tr-user{align-self:flex-end;max-width:86%;background:var(--accent-soft);border:1px solid rgba(0,95,184,.25);border-radius:12px 12px 3px 12px;padding:7px 10px;font-family:system-ui;font-size:12.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.tr-asst{align-self:flex-start;max-width:94%;font-family:system-ui;font-size:12.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.tr-tool{align-self:stretch;font-family:var(--mono);font-size:10.5px;color:var(--fg-muted);background:var(--bg-base);border:1px dashed var(--border);border-radius:7px;padding:5px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-live{margin-top:10px;padding-top:8px;border-top:1px dashed var(--border);color:var(--fg-subtle);font-size:10.5px;white-space:pre-wrap;word-break:break-all}
+.tr-live-tag{font-size:9.5px;color:var(--fg-faint);border:1px solid var(--border);border-radius:5px;padding:1px 6px;background:var(--bg-panel)}
 /* 审批线 chip 行 */
 .ckpt{display:flex;align-items:center;gap:8px;margin:8px 12px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;font-size:11.5px;flex:none;background:var(--bg-panel);color:var(--fg)}
 .ckpt b{font-weight:600}
