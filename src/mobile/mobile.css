@@ -68,6 +68,7 @@
 .m-btn.ghost{background:var(--bg-base);color:var(--fg);border:1px solid var(--border)}
 .m-err{color:var(--err);font-size:12px;margin-top:10px}
 .m-fine{font-size:10.5px;color:var(--fg-faint);text-align:center;margin-top:10px}
+.host-truncate{display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
 
 
 /* ── session 屏(原型 mobile-app-session.html 同构) ── */

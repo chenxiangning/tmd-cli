@@ -171,15 +171,16 @@ export function PairingScreen(props: {
     }
   };
 
-  /* 旧凭证仍在(从连接面板「重新配对」进来):返回入口,免重扫切回老连接。 */
+  /* 旧凭证仍在(从连接面板「重新配对」进来):返回入口,免重扫切回老连接。
+     次级动作用细链接(与「扫码不便?」同层级);主机名截断防长文案撑爆按钮。 */
   const back = props.onCancel && (
     <button
       type="button"
       onClick={props.onCancel}
-      className="m-btn ghost"
-      style={{ marginTop: 10 }}
+      className="m-fine"
+      style={{ background: "none", border: "none", textDecoration: "underline" }}
     >
-      返回「{props.savedHostName || "已保存的连接"}」
+      不想重扫?返回 <span className="host-truncate">{props.savedHostName || "上次的连接"}</span>
     </button>
   );
 
