@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowsClockwiseIcon as ArrowsClockwise, LinkSimpleIcon as LinkSimple } from "@phosphor-icons/react";
 import { onWebRelay, webRelayStart, webRelayStatus, webRelayStop, type RelayInfo } from "@kernel/ipc";
 import { isWeb } from "@kernel/transport";
-import { updateSettings, useSettingsState } from "@kernel/settings";
+import { useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 import { relayStatusDot, relayStatusText } from "./relayStatusModel";
 
@@ -153,9 +153,10 @@ export function WebRelayCard() {
     setBusy(true);
     setError(null);
     try {
-      // 只持久化 URL/key;webRelayOn 由 Rust 侧 web_relay_start 成功后落盘,
-      // 避免「start 失败但 webRelayOn:true 已落盘」导致下次启动自动重拨失败 relay。
-      updateSettings({ webRelayUrl: url, webRelayKey: relayKey });
+      // URL/key/on/webAccessEnabled 全部由 Rust 侧 web_relay_start 成功后一次落盘。
+      // 前端抢先 updateSettings 是整文件覆盖:内存里陈旧的 webAccessEnabled:false 会把
+      // Rust 刚回填的 true 冲掉 → apply_settings 杀桥 → 中继绿灯但桥已死
+      // (2026-09-24 实证竞态,表现为外网连上后手机 /pair 全挂 + 「Web 访问未开启」)。
       setInfo(await webRelayStart(url, relayKey));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
