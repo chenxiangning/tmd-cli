@@ -171,8 +171,8 @@ class Host implements PluginContext {
   ): Promise<SessionMeta> {
     return this.sessionServices.spawn.create(profileId, cwd, workspaceId);
   }
-  /** 按任意 spec spawn 并完整装配(见 SessionSpawnService.raw);opts.activate=false
-   *  = 后台拉起(不抢中央区/tab,如 dsh 自动启动 host)。 */
+  /** 按任意 spec spawn 并完整装配(见 SessionSpawnService.raw);activate:false = 后台拉起
+   *  (不抢中央区/tab,如 dsh 自动启动 host)。 */
   spawnRawSession(
     profileId: string,
     spec: SpawnSpec,
@@ -196,14 +196,14 @@ class Host implements PluginContext {
   observeReplayTail = (sessionId: string): void => this.watches.observeReplayTail(sessionId);
   observeAskScreen = (sessionId: string, screenText: string): void => this.watches.observeAskScreen(sessionId, screenText);
   restoreTail = (sessionId: string, tail: string, extraMarks?: RegExp[]): void => this.watches.restoreTail(sessionId, tail, extraMarks);
-  /** 磁盘尾恢复(走法 1 冷开回放;带写后闸,语义见 askWatchFeed.restoreDiskTail)。 */
+  /** 磁盘尾恢复(走法 1 冷开回放;写后闸语义见 askWatchFeed.restoreDiskTail)。 */
   restoreDiskTail = (sessionId: string, tail: string): void => this.watches.restoreDiskTail(sessionId, tail);
   /** 用户输入唯一写入口:PTY 写入 + 对话锚定 + Ask 作答解除;返回是否送达(死会话/写失败 false,锚定照常)。 */
   writeSession(sessionId: string, data: string, synthetic = false): Promise<boolean> {
     if (this.watches.onUserWrite(sessionId, synthetic)) this.notify();
     return ipc.sessionWrite(sessionId, data).then(() => true, () => false);
   }
-
+  noteRemoteWrite = (sessionId: string): void => { if (this.watches.onUserWrite(sessionId, false)) this.notify(); }; /* 桥写入补锚定(session:remote-write;PTY 写已在桥侧完成) */
   /** 幕布尺寸同步的唯一入口(TerminalView):转发 resize + 给活动守望记重绘抑制窗起点。 */
   resizeSession(sessionId: string, cols: number, rows: number): void {
     this.watches.onResized(sessionId);

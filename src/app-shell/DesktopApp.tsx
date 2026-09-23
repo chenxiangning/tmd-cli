@@ -21,7 +21,7 @@ import { bootDropGuard } from "@kernel/dropGuard";
 import { bootSessionTabs } from "@kernel/sessionTabs";
 import { registerDefaultContributions } from "./contributions";
 import { bootAskRestore } from "@kernel/askWatchRestore";
-import { onExternalSpawn } from "@kernel/ipc";
+import { onExternalSpawn, onRemoteWrite } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 
 export function DesktopApp() {
@@ -44,6 +44,9 @@ export function DesktopApp() {
     const unlistenExternal = onExternalSpawn((e) => {
       void host.adoptExternalSession(e).catch(() => undefined);
     });
+    /* 桥写入补锚定:手机/浏览器端 session_write 直通 Rust PTY,桌面 ActivityWatch
+       不感知 → 轮次/状态签全盲;桥成功广播此事件,桌面走同款守望扇出。 */
+    const unlistenRemoteWrite = onRemoteWrite((id) => host.noteRemoteWrite(id));
     const syncFocus = () => host.setWindowFocus(document.hasFocus());
     window.addEventListener("focus", syncFocus);
     window.addEventListener("blur", syncFocus);
@@ -74,6 +77,7 @@ export function DesktopApp() {
       window.removeEventListener("focus", syncFocus);
       window.removeEventListener("blur", syncFocus);
       void unlistenExternal.then((off) => off()).catch(() => undefined);
+      void unlistenRemoteWrite.then((off) => off()).catch(() => undefined);
     };
   }, []);
 

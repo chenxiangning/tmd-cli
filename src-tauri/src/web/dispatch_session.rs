@@ -72,7 +72,18 @@ async fn dispatch_inner(app: &AppHandle, cmd: &str, raw: &Value) -> Result<Value
         )),
         "session_write" => {
             let a = args::<WriteArgs>(raw)?;
-            ser(crate::session_commands::session_write(app.clone(), a.id, a.data).await)
+            let r = crate::session_commands::session_write(app.clone(), a.id.clone(), a.data).await;
+            /* 桥写绕过桌面 writeSession → ActivityWatch 锚定/Ask 清除全失明
+            (桌面行无状态签,手机/桌面两边不同步,2026-09-24 实证)。
+            成功即广播,桌面 noteRemoteWrite 补锚定(语义见 hostSessionServices)。 */
+            if r.is_ok() {
+                let _ = crate::event_sink::emit(
+                    app,
+                    "session:remote-write",
+                    &serde_json::json!({ "sessionId": a.id }),
+                );
+            }
+            ser(r)
         }
         "session_resize" => {
             let a = args::<ResizeArgs>(raw)?;
@@ -238,8 +249,8 @@ async fn spawn(app: &AppHandle, raw: &Value) -> Result<Value, String> {
     )
     .await?;
     /* 桥发起 = 绕过桌面前端装配(身份绑定/常驻订阅/状态守望全缺,桌面行退化成
-       短码标题+无运行态)。广播请桌面 host 走 adoptPtySession 补全装配
-       (activate:false 不抢前台;语义见 kernel/sessionAdopt.ts)。 */
+    短码标题+无运行态)。广播请桌面 host 走 adoptPtySession 补全装配
+    (activate:false 不抢前台;语义见 kernel/sessionAdopt.ts)。 */
     let _ = crate::event_sink::emit(
         app,
         "session:external-spawn",

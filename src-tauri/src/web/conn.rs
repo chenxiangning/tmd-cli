@@ -208,7 +208,7 @@ mod tests {
             "session_log_size",
             "session_write",
             "session_resize",
-            "session_spawn", // M2:手机可发起会话(大仙拍板:远程操作含发起)
+            "session_spawn",      // M2:手机可发起会话(大仙拍板:远程操作含发起)
             "session_pin_toggle", // 置顶窄写令(服务端读改写仅 sessionPins 一键)
         ] {
             assert!(app_allowed(ok), "{ok} 应允许");

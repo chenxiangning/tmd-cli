@@ -49,7 +49,10 @@ fn set_cli_session_id_updates_and_locks_wire_shape() {
     assert!(!reg.set_cli_session_id("ghost", Some("x".to_string())));
     /* 线上形状:手机 session_list 按 camelCase 直读(白屏事故锁) */
     let v = serde_json::to_value(m).expect("serialize");
-    assert_eq!(v.get("cliSessionId").and_then(|s| s.as_str()), Some("cli-9"));
+    assert_eq!(
+        v.get("cliSessionId").and_then(|s| s.as_str()),
+        Some("cli-9")
+    );
 }
 
 /// 线上形状锁:session_list 载荷为 serde camelCase(手机壳 UI 按此消费)。
@@ -59,7 +62,10 @@ fn set_cli_session_id_updates_and_locks_wire_shape() {
 fn session_meta_线上形状_camel_case() {
     let v = serde_json::to_value(meta("s1")).expect("serialize");
     assert!(v.get("profileId").is_some(), "profileId 必须是 camelCase");
-    assert!(v.get("workspaceId").is_some(), "workspaceId 必须是 camelCase");
+    assert!(
+        v.get("workspaceId").is_some(),
+        "workspaceId 必须是 camelCase"
+    );
     assert!(v.get("createdAt").is_some(), "createdAt 必须是 camelCase");
     assert!(v.get("profile_id").is_none(), "不允许 snake_case 漏出");
 }

@@ -1118,6 +1118,13 @@ export function onExternalSpawn(cb: (e: ExternalSpawnEvent) => void) {
   return listen<ExternalSpawnEvent>("session:external-spawn", (ev) => cb(ev.payload));
 }
 
+/** 订阅桥(手机/浏览器)写入事件:桌面补锚定(桥 session_write 成功广播)。 */
+export function onRemoteWrite(cb: (sessionId: string) => void) {
+  return listen<{ sessionId: string }>("session:remote-write", (ev) =>
+    cb(ev.payload.sessionId),
+  );
+}
+
 /** 订阅某 SSH 会话的状态/转发快照事件。返回退订函数。 */
 export function onSshSessionEvent(sessionId: string, cb: (e: SshSessionEvent) => void) {
   return listen<SshSessionEvent>(`ssh://event/${sessionId}`, (ev) => cb(ev.payload));
