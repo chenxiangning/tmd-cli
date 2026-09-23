@@ -89,3 +89,44 @@
 .menu-item:active{background:var(--bg-hover)}
 .menu-item.danger{color:var(--err)}
 .banner button{margin-left:auto;border:1px solid rgba(220,38,38,.4);color:var(--err);background:#fff;border-radius:6px;font-size:11px;padding:2px 9px}
+
+/* ── session 屏(原型 mobile-app-session.html 同构) ── */
+.nav{height:44px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:.5px solid var(--border);flex:none;background:var(--bg-base)}
+.nav .back{color:var(--accent);font-size:20px;background:none;border:none;padding:0 4px;font-family:inherit}
+.nav .glyph{width:22px;height:22px;border-radius:6px;font-size:9.5px}
+.nav .t{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
+.run{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--ok);flex:none}
+.run::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ok)}
+.live{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;padding:8px 12px;font-family:var(--mono);font-size:10.5px;line-height:1.55;background:var(--bg-base);color:var(--fg);white-space:pre-wrap;word-break:break-all}
+/* ask 审批卡(幕布 ask 面板手机化) */
+.ask{margin:0 12px 8px;border:1px solid rgba(161,98,7,.4);background:#fffdf3;border-radius:11px;padding:11px 12px;flex:none;box-shadow:0 4px 14px rgba(161,98,7,.12)}
+.ask-head{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--warn);margin-bottom:6px}
+.ask-q{font-family:var(--mono);font-size:10.5px;color:var(--fg);background:#fff;border:1px solid var(--border);border-radius:7px;padding:7px 9px;margin-bottom:9px;word-break:break-all}
+.ask-opts{display:flex;gap:8px}
+.opt{flex:1;text-align:center;font-size:13px;font-weight:600;border-radius:8px;padding:8px 0;border:1px solid var(--border);background:var(--bg-panel);color:var(--fg);font-family:inherit;cursor:pointer}
+.opt.yes{background:var(--ok);border-color:var(--ok);color:#fff}
+.opt.no{background:#fff;color:var(--err);border-color:rgba(220,38,38,.45)}
+/* composer(移动短版) */
+.composer{flex:none;border-top:.5px solid var(--border);background:var(--bg-panel);padding:8px 10px 6px}
+.composer .box{display:flex;align-items:flex-end;gap:8px;background:var(--bg-base);border:1px solid var(--border);border-radius:12px;padding:8px 10px}
+.composer textarea{flex:1;font-size:13.5px;line-height:1.5;color:var(--fg);background:none;border:none;outline:none;resize:none;font-family:inherit;padding:0}
+.composer textarea::placeholder{color:var(--fg-faint)}
+.send{width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none;border:none;cursor:pointer}
+.tools{display:flex;gap:12px;padding:5px 4px 0;font-size:10.5px;color:var(--fg-subtle)}
+.toolbar-row{height:38px;display:flex;align-items:center;gap:6px;padding:0 10px;border-top:.5px solid var(--border);background:var(--bg-panel);flex:none;overflow:hidden}
+.key{font-family:var(--mono);font-size:11px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:6px;padding:3px 9px;background:var(--bg-base);color:var(--fg-muted);white-space:nowrap}
+/* 审批线 chip 行 */
+.ckpt{display:flex;align-items:center;gap:8px;margin:8px 12px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;font-size:11.5px;flex:none;background:var(--bg-panel);color:var(--fg)}
+.ckpt b{font-weight:600}
+.chip{font-size:10px;border-radius:999px;padding:1px 8px;font-weight:600;background:rgba(161,98,7,.1);color:var(--warn);border:1px solid rgba(161,98,7,.3)}
+.chip.g{background:rgba(5,150,105,.08);color:var(--ok);border-color:rgba(5,150,105,.3)}
+/* 发起会话弹层(SpawnSheet;浅色令牌,不再借桌面 --tmd-*) */
+.sheet-scrim{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;background:rgba(0,0,0,.45)}
+.sheet{position:relative;z-index:10;max-height:70vh;width:100%;overflow:auto;border-radius:16px 16px 0 0;border:1px solid var(--border);border-bottom:none;background:var(--bg-base);color:var(--fg);padding:16px 16px 24px;box-sizing:border-box}
+.sheet-h{margin-bottom:12px;font-size:15px;font-weight:600}
+.sheet-label{margin-bottom:4px;font-size:11.5px;font-weight:600;color:var(--fg-muted)}
+.sheet-opts{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.sheet-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:12px}
+.sheet-opt{display:flex;align-items:center;gap:8px;border-radius:9px;border:none;background:none;padding:8px 12px;text-align:left;font-size:13px;color:var(--fg);font-family:inherit;cursor:pointer}
+.sheet-opt.on{background:var(--accent-soft);color:var(--accent)}
+.sheet-opt .tick{width:16px}

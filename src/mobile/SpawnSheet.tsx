@@ -61,45 +61,44 @@ export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: 
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end" onClick={props.onClose}>
+    <div className="sheet-scrim" onClick={props.onClose}>
       <button
-          type="button"
-          aria-label={t("关闭")}
-          className="absolute inset-0 cursor-default bg-black/45"
-          onClick={props.onClose}
-        />
-      <div
-        className="relative z-10 max-h-[70vh] w-full overflow-auto rounded-t-2xl border-t border-(--tmd-border) bg-(--tmd-bg-base) p-4 pb-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-3 text-[0.9375rem] font-semibold">{t("发起会话")}</div>
+        type="button"
+        aria-label={t("关闭")}
+        className="sheet-scrim-hit"
+        style={{ position: "absolute", inset: 0, cursor: "default", background: "none", border: "none" }}
+        onClick={props.onClose}
+      />
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-h">{t("发起会话")}</div>
 
-        <div className="mb-1 text-[11.5px] font-semibold text-(--tmd-muted)">{t("工作区")}</div>
-        <div className="mb-3 flex flex-col gap-1">
+        <div className="sheet-label">{t("工作区")}</div>
+        <div className="sheet-opts">
           {workspaces.map((w) => (
             <button
               key={w.id}
               type="button"
-              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] ${wsId === w.id ? "bg-(--tmd-accent-soft) text-(--tmd-accent)" : "text-(--tmd-fg)"}`}
+              className={`sheet-opt${wsId === w.id ? " on" : ""}`}
               onClick={() => setWsId(w.id)}
             >
-              <span className="w-4">{wsId === w.id ? "✓" : ""}</span>
+              <span className="tick">{wsId === w.id ? "✓" : ""}</span>
               <span className="min-w-0 flex-1 truncate">{w.name}</span>
             </button>
           ))}
         </div>
 
-        <div className="mb-1 text-[11.5px] font-semibold text-(--tmd-muted)">{t("引擎")}</div>
-        <div className="mb-3 grid grid-cols-2 gap-1">
+        <div className="sheet-label">{t("引擎")}</div>
+        <div className="sheet-grid">
           {ENGINES.map((e) => {
             const gg = glyphOf(e.id);
             return (
               <button
                 key={e.id}
                 type="button"
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] ${engineId === e.id ? "bg-(--tmd-accent-soft) text-(--tmd-accent)" : "text-(--tmd-fg)"}`}
+                className={`sheet-opt${engineId === e.id ? " on" : ""}`}
                 onClick={() => setEngineId(e.id)}
               >
+                <span className="tick" />
                 <span className={`glyph ${gg.cls}`}>{gg.text}</span>
                 {e.name}
               </button>

@@ -8,8 +8,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { MobileRoot } from "./mobile/gate";
 import { isMobileShell } from "./mobile/shared";
-import "./mobile/mobile.css";
 import "./styles/global.css";
+import "./mobile/mobile.css";
 
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 

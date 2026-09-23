@@ -5,6 +5,8 @@
  * 可用命令全部在 AppDevice 白名单内(web/conn.rs app_allowed)。
  */
 
+import { shellLog } from "@kernel/shellBridge";
+
 export interface RemoteSession {
   id: string;
   profile_id: string;
@@ -88,7 +90,13 @@ export async function tailAskLine(tail: string): Promise<string | null> {
 
 async function invokeSafe<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   const { invoke } = await import("@kernel/transport");
-  return invoke<T>(cmd, args);
+  try {
+    return await invoke<T>(cmd, args);
+  } catch (e) {
+    // 设备侧诊断:失败命令+错误进 shell.log(真机排查唯一现场)
+    shellLog(`rpc ${cmd} 失败: ${String((e as Error)?.message ?? e).slice(0, 200)}`);
+    throw e;
+  }
 }
 
 /** 相对时间(home 行 meta;与桌面侧栏口径一致)。 */

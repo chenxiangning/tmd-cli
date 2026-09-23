@@ -14,6 +14,12 @@ import { glyphOf, onPtyOut, tailAskLine, tailHasAskMarker, writeSession } from "
 
 const TAIL_LINES = 400;
 
+/** ANSI/控制序列剥离:pty://out 是字节原样(含 CSI),纯文本渲染前剥掉。 */
+function strip(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1a\x1c-\x1f]/g, "");
+}
+
 export function SessionScreen(props: { sessionId: string }) {
   const { sessions, titleOf, go } = useMobile();
   const meta = sessions.find((s) => s.id === props.sessionId);
@@ -53,7 +59,9 @@ export function SessionScreen(props: { sessionId: string }) {
     return () => clearInterval(timer);
   }, [meta?.cwd, props.sessionId]);
 
-  /* 活流订阅:字节累积进 ref/state;ask 检测在独立 effect(不在 state updater 内做副作用)。 */
+  /* 活流订阅:字节累积进 ref/state;ask 检测在独立 effect(不在 state updater 内做副作用)。
+   * 打开会话先拉 PTY 字节日志尾(session_history_page,before 传巨数即取尾),
+   * 否则老会话只有「连接期活流」——空闲老会话永远空屏。 */
   const bufRef = React.useRef("");
   useEffect(() => {
     if (!props.sessionId) return;
@@ -62,9 +70,28 @@ export function SessionScreen(props: { sessionId: string }) {
     bufRef.current = "";
     setLive("");
     void (async () => {
+      const { invoke } = await import("@kernel/transport");
+      try {
+        const page = await invoke<{ text: string }>("session_history_page", {
+          id: props.sessionId,
+          before: Number.MAX_SAFE_INTEGER,
+          maxBytes: 32_000,
+        });
+        if (!alive) return;
+        const seeded = strip(page?.text ?? "");
+        if (seeded) {
+          bufRef.current = seeded.split("\n").slice(-TAIL_LINES).join("\n");
+          setLive(bufRef.current);
+        }
+      } catch {
+        /* 无日志(新会话)或暂不可达:活流照常 */
+      }
       off = await onPtyOut(props.sessionId, (chunk) => {
         if (!alive) return;
-        bufRef.current = (bufRef.current + chunk).split("\n").slice(-TAIL_LINES).join("\n");
+        bufRef.current = (bufRef.current + strip(chunk))
+          .split("\n")
+          .slice(-TAIL_LINES)
+          .join("\n");
         setLive(bufRef.current);
       });
     })();
