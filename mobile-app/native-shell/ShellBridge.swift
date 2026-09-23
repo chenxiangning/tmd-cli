@@ -50,8 +50,11 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         reply(id: id, ok: false, payload: "no active scene"); return
       }
       let mask: UIInterfaceOrientationMask = mode == "landscape" ? [.landscapeLeft, .landscapeRight] : .portrait
-      scene.requestGeometryUpdate(.iOS(interfaceOrientations: mask)) { error in
-        DispatchQueue.main.async { self.reply(id: id, ok: error == nil, payload: error.map { "\($0)" }) }
+      /* requestGeometryUpdate 的 completionHandler 只在失败时调用(成功永不回 →
+         JS promise 永挂);用 async 变体拿全两路,成败都诚实回话。 */
+      Task { @MainActor in
+        do { try await scene.requestGeometryUpdate(.iOS(interfaceOrientations: mask)); self.reply(id: id, ok: true, payload: nil) }
+        catch { self.reply(id: id, ok: false, payload: "\(error)") }
       }
     default:
       reply(id: id, ok: false, payload: "unknown method \(method)")
