@@ -28,6 +28,8 @@ declare global {
     __TMD_SHELL__?: string;
     /** 壳注入的真实设备名(系统设置里的名字);配对上报桌面区分多机。 */
     __TMD_DEVICE_NAME__?: string;
+    /** 壳注入的硬件标识(utsname.machine,如 iPhone17,1);默认名拼它区分多机。 */
+    __TMD_DEVICE_MODEL__?: string;
   }
 }
 

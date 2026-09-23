@@ -229,12 +229,23 @@ struct WebView: UIViewRepresentable {
       injectionTime: .atDocumentStart,
       forMainFrameOnly: true
     ))
-    /* 真实设备名(系统设置里用户起的名字):配对上报桌面,设备列表靠它区分多机。 */
-    let deviceName = UIDevice.current.name
+    /* 真实设备名(系统设置里用户起的名字)上报桌面,设备列表靠它区分多机。
+       出厂默认名(iPhone/iPad,用户没改过)拼硬件标识(utsname.machine,如 iPhone17,1),
+       多台默认名手机也可区分;配对与重连拨号共用这一个最终名。 */
+    var uts = utsname()
+    uname(&uts)
+    let machine = withUnsafeBytes(of: &uts.machine) { raw in
+      String(cString: raw.baseAddress!.assumingMemoryBound(to: CChar.self))
+    }
+    var composed = UIDevice.current.name
+    if ["iPhone", "iPad", "iPod", "手机"].contains(composed), !machine.isEmpty {
+      composed += "(\(machine))"
+    }
+    let escaped = composed
       .replacingOccurrences(of: "\\", with: "\\\\")
       .replacingOccurrences(of: "\"", with: "\\\"")
     config.userContentController.addUserScript(WKUserScript(
-      source: "window.__TMD_DEVICE_NAME__ = \"\(deviceName)\";",
+      source: "window.__TMD_DEVICE_NAME__ = \"\(escaped)\";",
       injectionTime: .atDocumentStart,
       forMainFrameOnly: true
     ))
