@@ -76,17 +76,29 @@ export function HomeScreen() {
   React.useEffect(() => {
     let alive = true;
     const roots = wsSig ? wsSig.split("|").map((pair) => pair.slice(pair.indexOf(":") + 1)) : [];
-    /* 逐区串行:全并发 = 工作区×引擎 RPC 风暴(实测一波 7.9MB),
-       蜂窝慢链路挤爆中继出站队列被桌面掐流;串行削峰且增量上屏。 */
-    const scan = async () => {
-      for (const root of roots) {
-        if (!alive) return;
-        await scanWorkspaceHistory(root)
-          .then((items) => {
-            if (alive) setHistory((prev) => new Map(prev).set(root, items));
-          })
-          .catch(() => undefined); // 单区失败保留旧值,下轮重试
-      }
+    /* 逐区串行 + 防重入:全并发 = 工作区×引擎 RPC 风暴(实测一波 7.9MB),
+       蜂窝慢链路挤爆中继出站队列被桌面掐流;首轮未扫完时 60s 定时器不得叠波。 */
+    let running = false;
+    const scan = () => {
+      if (running) return; // 上一波未完:跳过,不叠 RPC 波
+      running = true;
+      // promise 链 = 逐区串行(刻意削峰,勿并发化);单区失败保留旧值留下轮。
+      void roots
+        .reduce(
+          (prev, root) =>
+            prev.then(() => {
+              if (!alive) return undefined;
+              return scanWorkspaceHistory(root)
+                .then((items) => {
+                  if (alive) setHistory((old) => new Map(old).set(root, items));
+                })
+                .catch(() => undefined);
+            }),
+          Promise.resolve(),
+        )
+        .then(() => {
+          running = false;
+        });
     };
     void scan();
     const timer = setInterval(scan, HISTORY_RESCAN_MS);
