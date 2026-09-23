@@ -294,21 +294,31 @@ async fn serve(socket: AgentSocket, port: u16, stop: &mut watch::Receiver<bool>)
             AgentFrame::Data { id, b64, text } => {
                 let sender = sockets.lock().get(&id).map(|s| s.frames.clone());
                 if let Some(sender) = sender {
-                    // try_send 绝不 await:await 会停住本循环,而它同时是所有流的唯一读者。
-                    match sender.try_send((b64_to_bytes(&b64), text.unwrap_or(true))) {
+                    let frame = (b64_to_bytes(&b64), text.unwrap_or(true));
+                    match sender.try_send(frame) {
                         Ok(()) => {}
-                        Err(mpsc::error::TrySendError::Full(_)) => {
-                            if let Some(live) = sockets.lock().remove(&id) {
-                                live.task.abort();
-                            }
-                            let _ = send(
-                                &out_tx,
-                                &ClientFrame::Error {
-                                    id,
-                                    message: "本机 socket 积压过多,已断开该连接".into(),
-                                },
+                        Err(mpsc::error::TrySendError::Full(frame)) => {
+                            /* 慢手机(蜂窝)排不完时先背压等待,不立刻杀流:
+                            杀流 = 手机重连重发,风暴只会更大。超时才判死。 */
+                            if tokio::time::timeout(
+                                std::time::Duration::from_secs(5),
+                                sender.send(frame),
                             )
-                            .await;
+                            .await
+                            .is_err()
+                            {
+                                if let Some(live) = sockets.lock().remove(&id) {
+                                    live.task.abort();
+                                }
+                                let _ = send(
+                                    &out_tx,
+                                    &ClientFrame::Error {
+                                        id,
+                                        message: "本机 socket 积压过久,已断开该连接".into(),
+                                    },
+                                )
+                                .await;
+                            }
                         }
                         Err(mpsc::error::TrySendError::Closed(_)) => {
                             sockets.lock().remove(&id);

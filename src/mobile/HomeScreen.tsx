@@ -76,14 +76,19 @@ export function HomeScreen() {
   React.useEffect(() => {
     let alive = true;
     const roots = wsSig ? wsSig.split("|").map((pair) => pair.slice(pair.indexOf(":") + 1)) : [];
-    const scan = () => {
-      void Promise.all(
-        roots.map(async (root) => [root, await scanWorkspaceHistory(root)] as const),
-      ).then((entries) => {
-        if (alive) setHistory(new Map(entries));
-      });
+    /* 逐区串行:全并发 = 工作区×引擎 RPC 风暴(实测一波 7.9MB),
+       蜂窝慢链路挤爆中继出站队列被桌面掐流;串行削峰且增量上屏。 */
+    const scan = async () => {
+      for (const root of roots) {
+        if (!alive) return;
+        await scanWorkspaceHistory(root)
+          .then((items) => {
+            if (alive) setHistory((prev) => new Map(prev).set(root, items));
+          })
+          .catch(() => undefined); // 单区失败保留旧值,下轮重试
+      }
     };
-    scan();
+    void scan();
     const timer = setInterval(scan, HISTORY_RESCAN_MS);
     return () => {
       alive = false;
