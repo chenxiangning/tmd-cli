@@ -153,4 +153,27 @@ describe("transport 远程模式(壳已配对)", () => {
     await expect(transport.invoke("session_list")).rejects.toThrow("web bridge closed");
     expect(FakeWS.made).toHaveLength(0);
   });
+
+  it("remoteDisconnect = 手动断开:停重拨、invoke 快败;forceRemoteReconnect 恢复", async () => {
+    const p = transport.invoke<string>("session_list");
+    const ws = lastWS();
+    ws.open();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(transport.isRemoteConnected()).toBe(true);
+    expect(transport.activeRemoteEndpoint()).toBe("ws://192.168.1.5:61234");
+    ws.recv(JSON.stringify({ type: "response", id: 1, ok: true, payload: [] }));
+    await expect(p).resolves.toEqual([]);
+    transport.remoteDisconnect();
+    expect(transport.isRemoteConnected()).toBe(false);
+    expect(transport.isRemotePaused()).toBe(true);
+    // 等待远超退避窗口:不再自动重拨
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(FakeWS.made).toHaveLength(1);
+    await expect(transport.invoke("session_list")).rejects.toThrow("web bridge disconnected");
+    // 显式重连:清暂停并立即建连
+    transport.forceRemoteReconnect();
+    expect(FakeWS.made.length).toBeGreaterThanOrEqual(2);
+    expect(transport.isRemotePaused()).toBe(false);
+  });
 });
+

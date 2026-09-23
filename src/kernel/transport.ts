@@ -10,7 +10,14 @@
 
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { listen as tauriListen, type UnlistenFn } from "@tauri-apps/api/event";
-import { WebBridge, isRemoteConnected, onRemoteConnection, onRemoteRevoked } from "./transportBridge";
+import { WebBridge } from "./transportBridge";
+import {
+  activeRemoteEndpoint,
+  isRemoteConnected,
+  isRemotePaused,
+  onRemoteConnection,
+  onRemoteRevoked,
+} from "./transportState";
 
 export const isWeb =
   typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window);
@@ -44,10 +51,15 @@ export function isRemote(): boolean {
   return remoteEndpoint !== null;
 }
 
-/* 桥连接态与撤销回调:实现在 transportBridge,此处再导出保持消费面单一。 */
-export { isRemoteConnected, onRemoteConnection, onRemoteRevoked };
+/* 桥连接态与撤销回调:实现在 transportBridge/transportState,此处再导出保持消费面单一。 */
+export { isRemoteConnected, isRemotePaused, activeRemoteEndpoint, onRemoteConnection, onRemoteRevoked };
 
-/** 回前台强制重拨(iOS 后台掐 WS 的即时恢复;未配对/已撤销 no-op)。 */
+/** 手动断开(手机连接面板):停连且不再自动重拨;forceRemoteReconnect 恢复。 */
+export function remoteDisconnect(): void {
+  bridge?.disconnect();
+}
+
+/** 回前台强制重拨(iOS 后台掐 WS 的即时恢复;未配对/已撤销 no-op;兼作手动断开的恢复)。 */
 export function forceRemoteReconnect(): void {
   bridge?.forceReconnect();
 }

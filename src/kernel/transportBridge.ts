@@ -7,6 +7,7 @@
 import { webToken, type RemoteEndpoint } from "./transport";
 import { shellLog } from "./shellBridge";
 import { createShellWs, shellWsAvailable, WS_CONNECTING, WS_OPEN, type WebSocketLike } from "./shellWs";
+import { fireRevoked, setActiveEndpoint, setConnected, setPaused } from "./transportState";
 
 /** @tauri-apps/api/event 的 UnlistenFn 真身就是 () => void;本地定义,守 R3 唯一通道。 */
 type UnlistenFn = () => void;
@@ -23,40 +24,6 @@ const RETRY_MAX_MS = 10_000;
 /** WS open 等待上限:过时不等(但保留连接),防服务器无 /ws 时永久挂起。 */
 const OPEN_TIMEOUT_MS = 5_000;
 
-/* 桥连接态(open/close):RemoteHostBar 与断线重连 UI 消费。 */
-let connectedValue = false;
-let connCbs: ((v: boolean) => void)[] = [];
-
-function setConnected(v: boolean) {
-  if (connectedValue === v) return;
-  connectedValue = v;
-  for (const cb of connCbs) cb(v);
-}
-
-/** 当前桥是否已连(open)。未配对/断开为 false。 */
-export function isRemoteConnected(): boolean {
-  return connectedValue;
-}
-
-/** 订阅桥连接态变化,返回退订。 */
-export function onRemoteConnection(cb: (connected: boolean) => void): () => void {
-  connCbs.push(cb);
-  return () => {
-    connCbs = connCbs.filter((f) => f !== cb);
-  };
-}
-
-/* 设备凭据被桌面撤销/拒的回调表(transport.onRemoteRevoked 再导出)。 */
-let revokedCbs: ((reason: string) => void)[] = [];
-
-/** 设备凭据被桌面撤销/拒(WS 4001/bye):壳清凭证回配对屏。回调收 reason
- * ("pending" = 待批准,"rejected" = 已被撤销)。返回退订函数。 */
-export function onRemoteRevoked(cb: (reason: string) => void): () => void {
-  revokedCbs.push(cb);
-  return () => {
-    revokedCbs = revokedCbs.filter((f) => f !== cb);
-  };
-}
 
 export class WebBridge {
   private ws: WebSocketLike | null = null;
@@ -76,6 +43,8 @@ export class WebBridge {
   private closed = false;
   private capsValue: string[] | null = null;
   private capsWaiters: ((v: string[]) => void)[] = [];
+  /** 手动断开置位(手机连接面板):ensure 快败,onClose 不再排重拨。 */
+  private paused = false;
 
   /** 未连则建连;resolve 于 socket open 或 OPEN_TIMEOUT 超时(超时不灭 socket,
    *  真桥迟到时 onopen 仍会 resolve;无 /ws 的环境如 vite dev server,则 invoke
@@ -88,7 +57,7 @@ export class WebBridge {
       return this.openGate!;
     }
     if (this.closed) throw new Error("web bridge closed");
-    if (Date.now() < this.nextDialAt) throw new Error("web bridge disconnected");
+    if (this.paused || Date.now() < this.nextDialAt) throw new Error("web bridge disconnected");
     const url = this.endpoint
       ? `${this.endpoint.wsUrl}/ws?device=${encodeURIComponent(this.endpoint.deviceId)}&token=${encodeURIComponent(this.endpoint.token)}${window.__TMD_DEVICE_NAME__ ? `&name=${encodeURIComponent(window.__TMD_DEVICE_NAME__)}` : ""}`
       : `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?token=${encodeURIComponent(webToken ?? "")}`;
@@ -104,6 +73,7 @@ export class WebBridge {
       clearTimeout(openTimer);
       this.retryMs = 1000;
       this.nextDialAt = 0;
+      setActiveEndpoint(this.endpoint?.wsUrl ?? null);
       setConnected(true);
       resolve();
     };
@@ -144,7 +114,7 @@ export class WebBridge {
     }
     /* 回调不清空:常驻订阅者(壳撤销回配对屏)须跨多次逐出存活;
      * bye+4001close 双触发由消费方幂等兜底。 */
-    for (const cb of [...revokedCbs]) cb(reason);
+    fireRevoked(reason);
   }
 
   private onMessage(text: string) {
@@ -219,6 +189,7 @@ export class WebBridge {
       for (const w of this.capsWaiters.splice(0)) w([]);
     }
     // 桌面可能重启了桥:持续重试(全局闸:退避期内其它 ensure 一律快败)。
+    if (this.paused) return; // 手动断开:停摆,等用户显式重连
     this.nextDialAt = Date.now() + this.retryMs;
     const delay = this.retryMs;
     this.retryMs = Math.min(this.retryMs * 2, RETRY_MAX_MS);
@@ -276,6 +247,8 @@ export class WebBridge {
   setEndpoint(ep: RemoteEndpoint | null) {
     this.endpoint = ep;
     this.closed = ep === null;
+    this.paused = ep === null; // 换端点 = 重新开始;清凭证则一并停摆
+    setPaused(this.paused);
     if (this.ws) {
       const ws = this.ws;
       this.ws = null; // 先断关联:onClose 的重试守卫(this.ws !== ws)不再触发
@@ -288,9 +261,25 @@ export class WebBridge {
     this.openResolve = null;
   }
 
-  /** 回前台强制重拨(iOS 后台会掐 WS,退避计时器最长 10s 不可等)。 */
+  /** 手动断开(手机连接面板):立即关连接并停止一切自动重拨。 */
+  disconnect() {
+    if (this.closed) return;
+    this.paused = true;
+    setPaused(true);
+    if (this.ws) {
+      const ws = this.ws;
+      ws.onclose = null; // 不走自动重拨路径
+      ws.close();
+      this.onClose(ws); // 统一拆摊:拒 pending/放等待者(paused 守卫下不再排重拨)
+    }
+    setConnected(false);
+  }
+
+  /** 回前台强制重拨(iOS 后台会掐 WS,退避计时器最长 10s 不可等);同时清手动断开。 */
   forceReconnect() {
     if (this.closed) return;
+    this.paused = false;
+    setPaused(false);
     this.retryMs = 1000;
     this.nextDialAt = 0; // 用户显式重试:绕过退避闸
     if (this.ws && this.ws.readyState <= WS_CONNECTING) return; // 已在连

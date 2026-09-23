@@ -14,15 +14,20 @@ function AssistantMsg(props: { text: string }) {
   const [open, setOpen] = useState(false);
   const lines = props.text.split("\n");
   const long = lines.length > CLAMP_LINES;
+  const body = long && !open ? lines.slice(0, CLAMP_LINES).join("\n") : props.text;
+  if (!long) return <div className="tr-asst">{body}</div>;
   return (
-    <div className="tr-asst" onClick={long ? () => setOpen((v) => !v) : undefined}>
-      {long && !open ? lines.slice(0, CLAMP_LINES).join("\n") : props.text}
-      {long && (
-        <span className="tr-more">
-          {open ? ` ▴ ${t("收起")}` : ` ▾ ${t("展开全文")}`}
-        </span>
-      )}
-    </div>
+    <button
+      type="button"
+      className="tr-asst tr-asst-btn"
+      aria-expanded={open}
+      onClick={() => setOpen((v) => !v)}
+    >
+      {body}
+      <span className="tr-more">
+        {open ? ` ▴ ${t("收起")}` : ` ▾ ${t("展开全文")}`}
+      </span>
+    </button>
   );
 }
 

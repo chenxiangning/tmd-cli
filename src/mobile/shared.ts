@@ -39,6 +39,14 @@ export function currentEndpoint(creds: MobileCreds): string {
   return endpointCandidates(creds)[0];
 }
 
+/** 端点网络域:私有网段/localhost = 内网(局域网直连),其余(中继域名) = 外网。 */
+export function endpointKind(url: string): "lan" | "wan" {
+  const host = url.replace(/^wss?:\/\//, "").split(/[/:]/)[0];
+  if (/^(localhost|127\.)/.test(host)) return "lan";
+  if (/^10\./.test(host) || /^192\.168\./.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host)) return "lan";
+  return "wan";
+}
+
 /** ask 首现本地通知(壳态;SessionScreen 检测边沿调用)。 */
 export function notifyAsk(title: string): void {
   if (!hasShellBridge()) return;
@@ -54,6 +62,8 @@ export interface MobileCtxValue {
   /** 归档覆盖层键集(wsId:profileId:cliSessionId;桌面 settings.sessionArchive 只读镜像)。 */
   archive: Set<string>;
   connected: boolean;
+  /** 手动断开(已停止自动重连)。 */
+  paused: boolean;
   route: MobileRoute;
   go: (r: MobileRoute) => void;
   titleOf: (s: RemoteSession) => string;
@@ -72,3 +82,39 @@ export function useMobile(): MobileCtxValue {
 export function isMobileShell(): boolean {
   return typeof window !== "undefined" && window.__TMD_SHELL__ === "mobile";
 }
+
+/** 审批线批次(线上 JSON camelCase;数据形状与排序归 shared,组件文件只出组件)。 */
+export interface CkptLite {
+  id: string;
+  index: number;
+  open: boolean;
+  ts: number;
+  state: string;
+  prompt: string;
+  files: unknown[];
+}
+
+/** 排序:进行中(open)最前,其余按轮次倒序(新批在上)。 */
+export function sortBatches(bs: CkptLite[]): CkptLite[] {
+  return [...bs].sort((a, b) => Number(b.open) - Number(a.open) || b.index - a.index);
+}
+
+/** 键盘工具条键表(顺序 = 视觉顺序;窄屏横向可滚)。 */
+export interface KeyDef {
+  label: string;
+  seq: string;
+  aria: string;
+}
+
+export const KEYS: KeyDef[] = [
+  { label: "esc", seq: "\x1b", aria: "Esc" },
+  { label: "tab", seq: "\t", aria: "Tab" },
+  { label: "⌃c", seq: "\x03", aria: "Ctrl+C" },
+  { label: "←", seq: "\x1b[D", aria: "Left" },
+  { label: "→", seq: "\x1b[C", aria: "Right" },
+  { label: "↑", seq: "\x1b[A", aria: "Up" },
+  { label: "↓", seq: "\x1b[B", aria: "Down" },
+  { label: "↵", seq: "\r", aria: "Enter" },
+  { label: "Pg↑", seq: "\x1b[5~", aria: "PageUp" },
+  { label: "Pg↓", seq: "\x1b[6~", aria: "PageDown" },
+];

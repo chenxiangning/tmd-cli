@@ -6,21 +6,7 @@
 import { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
 import { invoke } from "@kernel/transport";
-
-export interface CkptLite {
-  id: string;
-  index: number;
-  open: boolean;
-  ts: number;
-  state: string;
-  prompt: string;
-  files: unknown[];
-}
-
-/** 排序:进行中(open)最前,其余按轮次倒序(新批在上)。 */
-export function sortBatches(bs: CkptLite[]): CkptLite[] {
-  return [...bs].sort((a, b) => Number(b.open) - Number(a.open) || b.index - a.index);
-}
+import { sortBatches, type CkptLite } from "./shared";
 
 const STATE_CLS: Record<string, string> = {
   pending: "chip",

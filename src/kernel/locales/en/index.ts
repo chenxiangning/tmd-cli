@@ -10,6 +10,7 @@ import { MESSAGES as composer } from "./composer";
 import { MESSAGES as ssh } from "./ssh";
 import { MESSAGES as misc } from "./misc";
 import { MESSAGES as assets } from "./assets";
+import { MESSAGES as mobile } from "./mobile";
 
 export const EN_MESSAGES: Record<string, string> = {
   ...common,
@@ -23,4 +24,5 @@ export const EN_MESSAGES: Record<string, string> = {
   ...ssh,
   ...assets,
   ...misc,
+  ...mobile,
 };

@@ -13,15 +13,18 @@ import { SessionScreen } from "./SessionScreen";
 import { HistoryScreen } from "./HistoryScreen";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
 import { listSessions, listWorkspaces, sessionArchiveKeys, sessionTitles } from "./remote";
-import { isRemoteConnected, onRemoteConnection } from "@kernel/transport";
+import { isRemoteConnected, isRemotePaused, onRemoteConnection } from "@kernel/transport";
 
 export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   const [sessions, setSessions] = React.useState<RemoteSession[]>([]);
   const [workspaces, setWorkspaces] = React.useState<RemoteWorkspace[]>([]);
   const [titles, setTitles] = React.useState<Record<string, string>>({});
   const [archive, setArchive] = React.useState<Set<string>>(() => new Set());
-  const [connected, setConnected] = React.useState(() => isRemoteConnected());
-  React.useEffect(() => onRemoteConnection(setConnected), []);
+  const [conn, setConn] = React.useState(() => ({
+    connected: isRemoteConnected(),
+    paused: isRemotePaused(),
+  }));
+  React.useEffect(() => onRemoteConnection(setConn), []);
   const [route, setRoute] = React.useState<MobileRoute>({ view: "home" });
 
   /* 列表轮询:桥自愈重连,拉取失败保留快照(原型断连态「列表为最近快照」)。 */
@@ -64,13 +67,14 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       workspaces,
       titles,
       archive,
-      connected,
+      connected: conn.connected,
+      paused: conn.paused,
       route,
       go: setRoute,
       titleOf,
       onRePair: props.onRePair,
     }),
-    [props.creds, sessions, workspaces, titles, archive, connected, route, titleOf, props.onRePair],
+    [props.creds, sessions, workspaces, titles, archive, conn, route, titleOf, props.onRePair],
   );
 
   return (

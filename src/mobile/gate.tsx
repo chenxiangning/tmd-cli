@@ -9,6 +9,7 @@ import React from "react";
 import {
   configureRemoteEndpoint,
   forceRemoteReconnect,
+  isRemotePaused,
   onRemoteRevoked,
   serverCapabilities,
   serverVersion,
@@ -106,11 +107,13 @@ export function MobileRoot() {
     });
   }, []);
 
-  /* iOS 后台掐 WS:回前台/可见即强制重拨(撤销态 no-op)。app 生命周期注册一次。 */
+  /* iOS 后台掐 WS:回前台/可见即强制重拨(撤销态 no-op)。手动断开态不复活。 */
   React.useEffect(() => {
-    const onShow = () => forceRemoteReconnect();
+    const onShow = () => {
+      if (!isRemotePaused()) forceRemoteReconnect();
+    };
     const onVis = () => {
-      if (document.visibilityState === "visible") forceRemoteReconnect();
+      if (document.visibilityState === "visible" && !isRemotePaused()) forceRemoteReconnect();
     };
     window.addEventListener("pageshow", onShow);
     document.addEventListener("visibilitychange", onVis);

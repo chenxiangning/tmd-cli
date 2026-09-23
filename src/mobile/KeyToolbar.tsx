@@ -5,26 +5,7 @@
  * 软键盘弹起(composer 聚焦)时整行隐藏:键条会被键盘顶出视野,省 38px。
  */
 import { writeSession } from "./remote";
-
-export interface KeyDef {
-  label: string;
-  seq: string;
-  aria: string;
-}
-
-/** 键表(顺序 = 视觉顺序;窄屏横向可滚)。 */
-export const KEYS: KeyDef[] = [
-  { label: "esc", seq: "\x1b", aria: "Esc" },
-  { label: "tab", seq: "\t", aria: "Tab" },
-  { label: "⌃c", seq: "\x03", aria: "Ctrl+C" },
-  { label: "←", seq: "\x1b[D", aria: "Left" },
-  { label: "→", seq: "\x1b[C", aria: "Right" },
-  { label: "↑", seq: "\x1b[A", aria: "Up" },
-  { label: "↓", seq: "\x1b[B", aria: "Down" },
-  { label: "↵", seq: "\r", aria: "Enter" },
-  { label: "Pg↑", seq: "\x1b[5~", aria: "PageUp" },
-  { label: "Pg↓", seq: "\x1b[6~", aria: "PageDown" },
-];
+import { KEYS } from "./shared";
 
 export function KeyToolbar(props: { sessionId: string; hidden: boolean }) {
   if (props.hidden) return null;

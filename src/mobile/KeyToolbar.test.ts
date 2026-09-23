@@ -3,8 +3,7 @@
  * 审批 sheet 排序 = 进行中置顶 + 轮次倒序(新批在上)。
  */
 import { describe, expect, it } from "vitest";
-import { KEYS } from "./KeyToolbar";
-import { sortBatches, type CkptLite } from "./CkptSheet";
+import { KEYS, sortBatches, type CkptLite } from "./shared";
 
 const seq = (label: string) => KEYS.find((k) => k.label === label)?.seq;
 
