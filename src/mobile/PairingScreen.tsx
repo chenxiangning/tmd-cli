@@ -115,7 +115,12 @@ async function pairWithOffer(offer: { code: string; urls: string[] }): Promise<M
   }
 }
 
-export function PairingScreen(props: { onPaired: (c: MobileCreds) => void }) {
+export function PairingScreen(props: {
+  onPaired: (c: MobileCreds) => void;
+  /** 旧凭证仍在时的返回入口(连接面板「重新配对」进来,不想重扫可切回老连接)。 */
+  savedHostName?: string | null;
+  onCancel?: () => void;
+}) {
   const bridge = hasQrBridge();
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -166,6 +171,18 @@ export function PairingScreen(props: { onPaired: (c: MobileCreds) => void }) {
     }
   };
 
+  /* 旧凭证仍在(从连接面板「重新配对」进来):返回入口,免重扫切回老连接。 */
+  const back = props.onCancel && (
+    <button
+      type="button"
+      onClick={props.onCancel}
+      className="m-btn ghost"
+      style={{ marginTop: 10 }}
+    >
+      返回「{props.savedHostName || "已保存的连接"}」
+    </button>
+  );
+
   if (bridge && !manual) {
     return (
       <div className="m-center">
@@ -187,6 +204,7 @@ export function PairingScreen(props: { onPaired: (c: MobileCreds) => void }) {
         >
           扫码不便?手动输入配对码
         </button>
+        {back}
       </div>
     );
   }
@@ -237,6 +255,7 @@ export function PairingScreen(props: { onPaired: (c: MobileCreds) => void }) {
           返回扫码
         </button>
       )}
+      {back}
       </div>
   );
 }

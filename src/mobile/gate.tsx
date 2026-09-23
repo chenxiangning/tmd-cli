@@ -16,7 +16,7 @@ import {
 } from "@kernel/transport";
 import { shellLog } from "@kernel/shellBridge";
 import { PairingScreen, ShellPage } from "./PairingScreen";
-import { persistCreds, resolveCreds, type MobileCreds } from "./creds";
+import { loadCreds, persistCreds, resolveCreds, type MobileCreds } from "./creds";
 import { REQUIRED_CAPABILITY, endpointCandidates } from "./shared";
 import { MobileApp } from "./MobileApp";
 
@@ -147,9 +147,14 @@ export function MobileRoot() {
 
   if (creds === undefined) return <div className="m-app" />;
   if (!creds) {
+    /* 从连接面板「重新配对」进来时旧凭证仍在(只清了 state):给返回入口,
+     * 不想重扫就能切回老连接;冷启动无凭证/撤销清库后 saved=null,不出现。 */
+    const saved = loadCreds();
     return (
       <div className="m-app">
         <PairingScreen
+          savedHostName={saved?.hostName ?? null}
+          onCancel={saved ? () => setCreds(saved) : undefined}
           onPaired={async (c) => {
             await persistCreds(c); // 评审 B4:写成功再进门,杀 app 不丢凭证
             setBlocked(null);
