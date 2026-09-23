@@ -12,7 +12,7 @@ import { useMobile } from "./shared";
 import { notifyAsk } from "./shared";
 import { glyphOf, onPtyOut, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
 import { loadTranscript } from "./sessionFile";
-import type { TranscriptTurn } from "@kernel/transcript";
+import { collapseTui, type TranscriptTurn } from "@kernel/transcript";
 
 const TAIL_LINES = 400;
 
@@ -99,7 +99,7 @@ export function SessionScreen(props: { sessionId: string }) {
           maxBytes: 32_000,
         });
         if (!alive) return;
-        const seeded = strip(page?.text ?? "");
+        const seeded = collapseTui(strip(page?.text ?? ""));
         if (seeded) {
           bufRef.current = seeded.split("\n").slice(-TAIL_LINES).join("\n");
           setLive(bufRef.current);
@@ -109,7 +109,7 @@ export function SessionScreen(props: { sessionId: string }) {
       }
       off = await onPtyOut(props.sessionId, (chunk) => {
         if (!alive) return;
-        bufRef.current = (bufRef.current + strip(chunk))
+        bufRef.current = collapseTui(`${bufRef.current}${strip(chunk)}`)
           .split("\n")
           .slice(-TAIL_LINES)
           .join("\n");

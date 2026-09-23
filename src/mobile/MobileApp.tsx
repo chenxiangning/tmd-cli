@@ -87,7 +87,11 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   return (
     <MobileAppCtx.Provider value={ctx}>
       <div className="m-app">
-        {route.view === "home" ? <HomeScreen /> : <SessionScreen sessionId={route.sessionId ?? ""} />}
+        {route.view === "home" ? (
+          <HomeScreen />
+        ) : (
+          <SessionScreen key={route.sessionId ?? ""} sessionId={route.sessionId ?? ""} />
+        )}
       </div>
     </MobileAppCtx.Provider>
   );

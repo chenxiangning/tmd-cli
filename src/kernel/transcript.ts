@@ -8,6 +8,8 @@
  * 操作(tool)与正文分离返回:UI 据此把「操作行」与对话内容区分开。
  */
 
+import { stripAnsi } from "./askDetect";
+
 export interface TranscriptTurn {
   role: "user" | "assistant" | "tool";
   /** 文本内容;tool turn = 参数摘要(单行)。 */
@@ -19,7 +21,7 @@ export interface TranscriptTurn {
 const TURN_MAX = 600; // 单 turn 渲染上限;更长截断(移动端不需要全文)
 
 function clip(s: string): string {
-  const one = s.replace(/\s+/g, " ").trim();
+  const one = stripAnsi(s).replace(/\s+/g, " ").trim();
   return one.length > TURN_MAX ? `${one.slice(0, TURN_MAX)}…` : one;
 }
 
@@ -95,6 +97,28 @@ function parseLine(line: string, out: TranscriptTurn[]): void {
     const role = str(p, "role") === "user" ? "user" : "assistant";
     pushParts(p["content"], role, out);
   }
+}
+
+/** 尾部窗口条数上限。 */
+export const TAIL_WINDOW = 400;
+
+/**
+ * 终端重绘折叠:交互式 CLI(omp 等)每帧用 \r 原地重画,剥掉转义码后正文帧
+ * 会整段堆叠成「重复渲染」。按终端语义折叠:行内取最后一个 \r 段(覆盖写),
+ * 相邻重复行去重,空行压缩。ponytail: 全局线性折叠,不做真终端网格模型;
+ * 若需逐格还原(表格对齐)再上 xterm.js 解析层。
+ */
+export function collapseTui(text: string): string {
+  const lines = text.split("\n").map((line) => {
+    const segs = line.split("\r");
+    return segs[segs.length - 1].replace(/[\u0008\u001b]/g, "").replace(/\s+$/, "");
+  });
+  const out: string[] = [];
+  for (const t of lines) {
+    if (t !== "" && out.length && out[out.length - 1] === t) continue; // 帧重绘
+    out.push(t);
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n");
 }
 
 /**

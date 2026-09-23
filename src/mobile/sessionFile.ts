@@ -40,16 +40,16 @@ async function newestFile(dir: string): Promise<string | null> {
   }
 }
 
-/** omp/pi 会话根下找 cwd 对应的 slug 目录(目录名 = cwd 的 `-` 连接形态,实证)。 */
+/** omp/pi 会话根下找 cwd 对应的 slug 目录(pi 目录名两端补 `-`,规则未文档化;
+ *  以「去掉所有 - 后相等」匹配,兼容尾斜杠/前导杠任意变体)。 */
 async function piSessionDir(root: string, cwd: string): Promise<string | null> {
   try {
     const dirs = await inv<{ name: string; path: string; isDir: boolean }[]>("fs_list_dir", {
       path: root,
     });
-    const dash = cwd.replaceAll("/", "-");
-    const hit =
-      dirs.find((d) => d.isDir && d.name === dash) ??
-      dirs.find((d) => d.isDir && dash.endsWith(d.name) && d.name.length > 4);
+    const norm = (s: string) => s.replaceAll("-", "").toLowerCase();
+    const target = norm(cwd);
+    const hit = dirs.find((d) => d.isDir && norm(d.name) === target);
     return hit?.path ?? null;
   } catch {
     return null;
@@ -65,8 +65,18 @@ export async function resolveTranscriptPath(
   if (!home) return null;
   const p = profileId.toLowerCase();
   if (p === "claude" || p === "cl") {
-    const slug = cwd.replaceAll("/", "-");
-    return newestFile(`${home}/.claude/projects/${slug}`);
+    const norm = (s: string) => s.replaceAll("-", "").toLowerCase();
+    const target = norm(cwd);
+    const dir = `${home}/.claude/projects`;
+    try {
+      const dirs = await inv<{ name: string; path: string; isDir: boolean }[]>("fs_list_dir", {
+        path: dir,
+      });
+      const hit = dirs.find((d) => d.isDir && norm(d.name) === target);
+      return hit ? newestFile(hit.path) : null;
+    } catch {
+      return null;
+    }
   }
   /* omp/pi/qoder: ~/.pi/agent/sessions/<cwd-slug>/*.jsonl(桌面内核同源) */
   const dir = await piSessionDir(`${home}/.pi/agent/sessions`, cwd);

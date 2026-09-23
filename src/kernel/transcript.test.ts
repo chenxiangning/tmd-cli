@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTranscript, tailTurns, transcriptCwd } from "./transcript";
+import { collapseTui, parseTranscript, tailTurns, transcriptCwd } from "./transcript";
 
 /* 夹具 = 真实抓包行(2026-09-23 本机 ~/.pi/agent/sessions、~/.claude/projects 抽样,
  * 字段级保真;仅缩短文本) */
@@ -17,6 +17,29 @@ const CODEX_MSG =
   '{"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"codex 正文"}]}}';
 const CODEX_CALL =
   '{"type":"response_item","payload":{"type":"function_call","name":"shell","arguments":"{\\"cmd\\":\\"ls\\"}"}}';
+
+describe("collapseTui(TUI 重绘折叠)", () => {
+  it("\r 覆盖写取末段;相邻重复帧去重;三连空行压缩", () => {
+    const raw = [
+      "progress 10%\rprogress 50%\rprogress 90%",
+      "",
+      "✔ done",
+      "✔ done", // 重绘帧重复
+      "",
+      "",
+      "",
+      "next",
+    ].join("\n");
+    expect(collapseTui(raw)).toBe("progress 90%\n\n✔ done\n\nnext");
+  });
+
+  it("剥残留转义码;正常多行输出不被误伤", () => {
+    expect(collapseTui("\u001b[2J\u001b[Hheader\rheader2\nline1\nline1\nline2")).toBe(
+      "header2\nline1\nline2",
+    );
+    expect(collapseTui("a\nb\nc")).toBe("a\nb\nc");
+  });
+});
 
 describe("transcript 解析(线上形状)", () => {
   it("omp/pi:message 行 → 文本 turns;thinking 跳过", () => {
