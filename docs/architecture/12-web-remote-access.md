@@ -67,3 +67,4 @@
 |实况滚动|`LiveScreen`(src/mobile/liveText.ts)= 固定视口 VT 模型 + **scrollback(有界 2000 行)**:LF 触底上滚与清屏/备屏翻页都把旧行进历史,`view()` = scrollback+视口全量 → 实况区可向上滚动看全部输出;SessionScreen 自动滚底 = 跟随态(贴底 <48px)才拽底,上滚阅读不被新输出打断,展开实况块重进跟随。|
 |键盘工具条|`KeyToolbar.tsx`:十键(esc/tab/⌃c/←→↑↓/↵/Pg↑↓)经 `session_write` 发原始 PTY 序列;切模型 = composer 发 `/model` 开 CLI TUI 后用键条操作(零新 RPC,十家 CLI 通吃);composer 聚焦时整行隐藏。|
 |历史续聊|`src/mobile/resume.ts` + `engines.ts`(resume 参数镜像各插件 profile.resumeArgs):HistoryScreen「继续对话」= `session_spawn`(已在白名单)带 `--resume <cliSessionId>` + 工作区 cwd,与桌面 openDiskSession 同语义。**去重**:本连接期内存表 + 磁盘日志指针 `~/.tmd-cli/session/<slug>/<slug>/<cliId>.logptr`(fs_read_file 已放行)→ 指针 logId 仍在 session_list = 聚焦既有 PTY,绝不双开;指针缺/已死 = 冷开。手机自 spawn 走冷路径(桌面 acquireResume 预热池不在手机视野,M1 取舍)。|
+|home 平铺+归档分段|工作区组内会话行按时间平铺(引擎子分组头退役);组头下「本地/归档」分段 = 桌面 `settings.sessionArchive` 覆盖层只读镜像(`config_read_settings` 已放行,key `wsId:profileId:cliSessionId` 与 kernel/sessionArchive 同构;活行恒本地)。分页水位按 工作区:分段 独立。|
