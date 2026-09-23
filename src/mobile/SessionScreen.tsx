@@ -15,11 +15,9 @@ import { shellInvoke } from "@kernel/shellBridge";
 import { loadTranscript } from "./sessionFile";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
 import { type TranscriptTurn } from "@kernel/transcript";
-import { appendLive, renderLive } from "./liveText";
+import { LiveScreen } from "./liveText";
 
-const TAIL_LINES = 400;
-
-/** 实况装配走 liveText(帧切割/私有 CSI 清理);此处不再自带 strip。 */
+/* 实况 = LiveScreen 迷你 VT 屏模型渲染(见 ./liveText)。 */
 
 export function SessionScreen(props: { sessionId: string }) {
   const { sessions, titleOf, go } = useMobile();
@@ -97,15 +95,15 @@ export function SessionScreen(props: { sessionId: string }) {
     };
   }, [meta?.profileId, meta?.cwd, props.sessionId]);
 
-  /* 活流订阅:字节累积进 ref/state;ask 检测在独立 effect(不在 state updater 内做副作用)。
-   * 打开会话先拉 PTY 字节日志尾(session_history_page,before 传巨数即取尾),
+  /* 活流订阅:PTY 字节喂进迷你 VT 屏模型(LiveScreen),重绘按行覆写收敛为一份;
+   * ask 检测在独立 effect(不在 state updater 内做副作用)。
+   * 打开会话先拉 PTY 字节日志尾(session_history_page,before 传巨数即取尾)回放,
    * 否则老会话只有「连接期活流」——空闲老会话永远空屏。 */
-  const bufRef = React.useRef("");
   useEffect(() => {
     if (!props.sessionId) return;
     let alive = true;
     let off: (() => void) | null = null;
-    bufRef.current = "";
+    const screen = new LiveScreen();
     setLive("");
     void (async () => {
       const { invoke } = await import("@kernel/transport");
@@ -116,18 +114,17 @@ export function SessionScreen(props: { sessionId: string }) {
           maxBytes: 32_000,
         });
         if (!alive) return;
-        const seeded = renderLive(page?.text ?? "", TAIL_LINES);
-        if (seeded) {
-          bufRef.current = page?.text ?? "";
-          setLive(seeded);
+        if (page?.text) {
+          screen.feed(page.text);
+          setLive(screen.view());
         }
       } catch {
         /* 无日志(新会话)或暂不可达:活流照常 */
       }
       off = await onPtyOut(props.sessionId, (chunk) => {
         if (!alive) return;
-        bufRef.current = appendLive(bufRef.current, chunk);
-        setLive(renderLive(bufRef.current, TAIL_LINES));
+        screen.feed(chunk);
+        setLive(screen.view());
       });
     })();
     return () => {
