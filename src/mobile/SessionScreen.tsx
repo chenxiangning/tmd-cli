@@ -11,6 +11,7 @@ import { HostBar } from "./MobileApp";
 import { useMobile } from "./shared";
 import { notifyAsk } from "./shared";
 import { glyphOf, onPtyOut, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
+import { shellInvoke } from "@kernel/shellBridge";
 import { loadTranscript } from "./sessionFile";
 import { collapseTui, type TranscriptTurn } from "@kernel/transcript";
 
@@ -66,6 +67,24 @@ export function SessionScreen(props: { sessionId: string }) {
   /* 实况块:有对话时默认折叠(终端原始流在窄屏不可读),点开看;无对话=全屏实况。 */
   const [liveOpen, setLiveOpen] = useState(false);
   const liveShown = turns ? liveOpen : true;
+  /* 横竖屏切换:壳内走原生 requestGeometryUpdate;无壳(浏览器目检)CSS 旋转兜底。 */
+  const [landscape, setLandscape] = useState(false);
+  const toggleOrient = () => {
+    const next = !landscape;
+    setLandscape(next);
+    void shellInvoke("screen.orient", { mode: next ? "landscape" : "portrait" }).catch(() => {
+      document.querySelector(".m-app")?.classList.toggle("m-land", next);
+    });
+  };
+  useEffect(
+    () => () => {
+      /* 离开会话屏恢复竖屏(无论当前朝向,统一归位) */
+      void shellInvoke("screen.orient", { mode: "portrait" }).catch(() => {
+        document.querySelector(".m-app")?.classList.remove("m-land");
+      });
+    },
+    [],
+  );
   useEffect(() => {
     const profile = meta?.profileId;
     const cwd = meta?.cwd;
@@ -174,6 +193,9 @@ export function SessionScreen(props: { sessionId: string }) {
         </button>
         <span className={`glyph ${g.cls}`}>{g.text}</span>
         <span className="t">{titleOf(meta ?? ({ id: props.sessionId, profileId: "", cwd: "" } as never))}</span>
+        <button type="button" className="orient-btn" aria-label={t("切换横竖屏")} onClick={toggleOrient}>
+          {landscape ? t("竖屏") : t("横屏")}
+        </button>
         <span className="run">{t("运行中")}</span>
       </div>
       <div className="live" ref={liveRef}>

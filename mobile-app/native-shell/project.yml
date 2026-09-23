@@ -20,7 +20,7 @@ targets:
         CFBundleShortVersionString: "0.1.0"
         CFBundleVersion: "0.1.0"
         UILaunchScreen: {}
-        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         NSCameraUsageDescription: 扫描桌面端配对二维码,完成设备配对
         # 内网直连(LAN 桌面桥)需要本地网络权限说明
         NSLocalNetworkUsageDescription: 连接局域网内的 tmd-cli 桌面端(配对与远程控制)

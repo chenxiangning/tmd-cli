@@ -42,6 +42,17 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
       WsTunnel.shared.send(id: args?["id"] as? Int ?? 0, text: args?["data"] as? String ?? "")
     case "ws.close":
       WsTunnel.shared.close(id: args?["id"] as? Int ?? 0)
+    case "screen.orient":
+      /* 横竖屏切换(iOS16+):plist 须含全部方向;完成回调在私有队列,
+         reply 里的 evaluateJavaScript 必须回主线程(WebKit 铁律) */
+      let mode = args?["mode"] as? String ?? "portrait"
+      guard let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene else {
+        reply(id: id, ok: false, payload: "no active scene"); return
+      }
+      let mask: UIInterfaceOrientationMask = mode == "landscape" ? [.landscapeLeft, .landscapeRight] : .portrait
+      scene.requestGeometryUpdate(.iOS(interfaceOrientations: mask)) { _ in
+        DispatchQueue.main.async { self.reply(id: id, ok: true, payload: nil) }
+      }
     default:
       reply(id: id, ok: false, payload: "unknown method \(method)")
     }
