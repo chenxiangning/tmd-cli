@@ -177,4 +177,5 @@
 | 2026-09-21 | [mobile app 设计(轻交互 · 配对不加密;QR 配对/设备表/dispatch scope/壳工程/通知)](superpowers/specs/2026-09-21-mobile-app-design.md) | 已评审通过(壳实定=原生 SwiftUI+WKWebView,Tauri iOS 流水线 Xcode 27 上游阻断;功能面/安全档拍板不变) |
 | 2026-09-21 | [mobile app UI 原型 ×4(配对流程 / 远程 home / 会话屏实况+审批+发送 / 设备管理与边界态)](prototypes/mobile-app-pairing.html) | 设计原型(浅色主题实测基准;同目录 -home/-session/-device-edge-states 三页配套;共享样式 mobile-app-shared.css = 统一手机壳/桌面窗框/设计 token) |
 | 2026-09-21 | [mobile app 实施总计划(终态验收清单 + M1 配对底座/M2 轻交互闭环/M3 发布候选)](superpowers/specs/2026-09-21-mobile-app-master-plan.md) | 生效中(M1 已收口归档;M2 细化中:openspec/changes/2026-09-22-mobile-app-m2-light-interaction/) |
+| 2026-09-23 | [手机会话屏紧凑化 + 键盘工具条做实(单顶栏/审批芯片 sheet/真实键序列;切模型走 CLI /model TUI)](superpowers/specs/2026-09-23-mobile-session-compact-interaction-design.md) | 已落地(ab09119;桩目检全绿,真机待装机验收) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
