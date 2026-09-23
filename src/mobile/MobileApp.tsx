@@ -5,16 +5,15 @@
  * 手机端**不挂**桌面 host 单例(远程模式它恒空):等待态由 SessionScreen
  * 的活流 ask 检测驱动,ask 首现即弹本地通知(壳态)。
  */
-import React, { useState } from "react";
-import { t } from "@kernel/i18n";
+import React from "react";
 import type { MobileCreds } from "./creds";
-import { currentEndpoint, MobileAppCtx, useMobile, type MobileRoute } from "./shared";
+import { MobileAppCtx, type MobileRoute } from "./shared";
 import { HomeScreen } from "./HomeScreen";
 import { SessionScreen } from "./SessionScreen";
 import { HistoryScreen } from "./HistoryScreen";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
 import { listSessions, listWorkspaces, sessionTitles } from "./remote";
-import { forceRemoteReconnect, isRemoteConnected, onRemoteConnection } from "@kernel/transport";
+import { isRemoteConnected, onRemoteConnection } from "@kernel/transport";
 
 export interface MobileCtxValue {
   creds: MobileCreds;
@@ -103,75 +102,6 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       </div>
     </MobileAppCtx.Provider>
   );
-}
-
-/** host-bar + 断连 banner(两屏共用;连接态由 transport 事件驱动)。 */
-export function HostBar() {
-  const { creds, connected, onRePair } = useMobile();
-  const endpoint = currentEndpoint(creds);
-  const [menu, setMenu] = useState(false);
-  return (
-    <>
-      <div className="host-bar">
-        <span className={connected ? "dot" : "dot err"} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="nm">{creds.hostName}</div>
-          <div className="sub2">{connected ? stripScheme(endpoint) : t("重连中…")}</div>
-        </div>
-        <button
-          type="button"
-          aria-label={t("连接选项")}
-          style={{ color: "var(--accent)", fontSize: 13 }}
-          onClick={() => setMenu((v: boolean) => !v)}
-        >
-          ⇄
-        </button>
-      </div>
-      {!connected && (
-        <div className="banner">
-          <span className="dot" />
-          {t("连接已断开 · 正在重连")}
-          <button
-            type="button"
-            onClick={() => {
-              forceRemoteReconnect();
-            }}
-          >
-            {t("重试")}
-          </button>
-        </div>
-      )}
-      {menu && (
-        <div className="menu-sheet" role="menu">
-          <button type="button" aria-label={t("关闭菜单")} className="menu-item" style={{ display: "none" }} onClick={() => setMenu(false)} />
-          <button
-            type="button"
-            className="menu-item"
-            onClick={() => {
-              forceRemoteReconnect();
-              setMenu(false);
-            }}
-          >
-            {t("重试连接")}
-          </button>
-          <button
-            type="button"
-            className="menu-item danger"
-            onClick={() => {
-              setMenu(false);
-              onRePair();
-            }}
-          >
-            {t("重新配对(扫码)")}
-          </button>
-        </div>
-      )}
-    </>
-  );
-}
-
-function stripScheme(s: string): string {
-  return s.replace(/^wss?:\/\//, "");
 }
 
 

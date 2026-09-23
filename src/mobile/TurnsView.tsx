@@ -1,10 +1,30 @@
 /**
  * transcript 对话/操作分层渲染 —— SessionScreen 与 HistoryScreen 共用;
  * turns 来自 append-only 会话日志,解析后不重排不插入,下标即稳定身份
- * (key 用下标是语义正解,非图省事)。
+ * (key 用下标是语义正解,非图省事)。助手长文默认 clamp,点击展开。
  */
+import { useState } from "react";
 import { t } from "@kernel/i18n";
 import type { TranscriptTurn } from "@kernel/transcript";
+
+/** 助手消息超过该行数默认折叠(窄屏一屏被一条长文吃满)。 */
+const CLAMP_LINES = 8;
+
+function AssistantMsg(props: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const lines = props.text.split("\n");
+  const long = lines.length > CLAMP_LINES;
+  return (
+    <div className="tr-asst" onClick={long ? () => setOpen((v) => !v) : undefined}>
+      {long && !open ? lines.slice(0, CLAMP_LINES).join("\n") : props.text}
+      {long && (
+        <span className="tr-more">
+          {open ? ` ▴ ${t("收起")}` : ` ▾ ${t("展开全文")}`}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function TurnsView(props: { turns: TranscriptTurn[] }) {
   return (
@@ -23,9 +43,7 @@ export function TurnsView(props: { turns: TranscriptTurn[] }) {
           </div>
         ) : (
           // react-doctor-disable-next-line react-doctor/no-array-index-as-key -- 同上
-          <div className="tr-asst" key={i}>
-            {tn.text}
-          </div>
+          <AssistantMsg text={tn.text} key={i} />
         ),
       )}
     </div>

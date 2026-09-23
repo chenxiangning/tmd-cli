@@ -1,13 +1,13 @@
 /**
- * home 屏 —— 会话列表(原型 mobile-app-home.html)。
- * host-bar + 搜索 + 工作区分组行(引擎字形/标题/相对时间/状态点)+ fab;
- * 列出客户端全部工作区(含无会话的),活会话(session_list)+ 磁盘历史
+ * home 屏 —— 单顶栏(主机芯片 + 标题 + 新建)+ 搜索 + 工作区分组行
+ * (引擎字形/标题/相对时间/状态点);活会话(session_list)+ 磁盘历史
  * (history.ts 扫描,与桌面侧栏同源适配器)同列;断连 = banner + 列表快照减淡。
+ * (原型 mobile-app-home.html;顶栏合并见 spec 2026-09-23-mobile-session-compact。)
  */
 import React, { useMemo, useState } from "react";
 import { SpawnSheet } from "./SpawnSheet";
 import { t } from "@kernel/i18n";
-import { HostBar } from "./MobileApp";
+import { ConnBanner, HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { glyphOf, relTime } from "./remote";
 import { groupHomeRows, scanWorkspaceHistory, type HistoryItem, type HomeRow } from "./history";
@@ -100,7 +100,14 @@ export function HomeScreen() {
   const total = groups.reduce((n, g) => n + g.rows.length, 0);
   return (
     <>
-      <HostBar />
+      <div className="nav">
+        <span className="t home-t">tmd-cli</span>
+        <button type="button" className="nav-chip" aria-label={t("发起会话")} onClick={() => setSpawn(true)}>
+          + {t("新建")}
+        </button>
+        <HostChip />
+      </div>
+      <ConnBanner />
       <div className="m-body">
         <div className="search">
           <span>🔍</span>
@@ -159,14 +166,6 @@ export function HomeScreen() {
           </div>
         )}
       </div>
-      <button
-        type="button"
-        className="fab"
-        aria-label={t("发起会话")}
-        onClick={() => setSpawn(true)}
-      >
-        +
-      </button>
       {spawn && (
         <SpawnSheet
           onClose={() => setSpawn(false)}

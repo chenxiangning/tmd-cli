@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
-import { HostBar } from "./MobileApp";
+import { ConnBanner, HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { glyphOf } from "./remote";
 import { loadTranscriptAt } from "./sessionFile";
@@ -29,7 +29,6 @@ export function HistoryScreen(props: { profileId: string; path: string; title: s
 
   return (
     <>
-      <HostBar />
       <div className="nav">
         <button type="button" className="back" aria-label={t("返回列表")} onClick={() => go({ view: "home" })}>
           ‹
@@ -37,7 +36,9 @@ export function HistoryScreen(props: { profileId: string; path: string; title: s
         <span className={`glyph ${g.cls}`}>{g.text}</span>
         <span className="t">{props.title}</span>
         <span className="run">{t("历史")}</span>
+        <HostChip />
       </div>
+      <ConnBanner />
       <div className="live">
         {turns === null && <div className="empty">{t("加载中…")}</div>}
         {turns?.length === 0 && <div className="empty">{t("没有可解析的对话记录")}</div>}

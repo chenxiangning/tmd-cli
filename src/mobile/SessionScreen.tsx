@@ -1,13 +1,13 @@
 /**
- * session 屏 —— 只读实况 + ask 审批卡 + composer 发送(原型 mobile-app-session.html)。
- * 实况 = pty://out 字节原样透传(剥 ANSI 展示),手机纯旁观不写 PTY;
- * ask 卡 = 活流尾窗命中标记即出现,允许/拒绝 = 与幕布按键同一 session_write;
- * composer = Enter 发送(session_write text+\r),图片/拖拽手机端禁用;
- * 键盘工具条 = v1.5 预留置灰展示。
+ * session 屏 —— 单顶栏(返回/标题/横屏/审批芯片/主机芯片)+ 实况 + ask 卡 + composer。
+ * 实况 = LiveScreen 迷你 VT 屏;ask 卡/键盘工具条 = 同一 session_write 通道;
+ * 审批线 = nav 芯片 + 只读 sheet(checkpoint_list/batch_diff 白名单二令);
+ * composer Enter 发送;软键盘弹起时键条隐藏(spec 2026-09-23-mobile-session-compact)。
  */
 import React, { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
-import { HostBar } from "./MobileApp";
+import { ConnBanner } from "./ConnChip";
+import { HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { notifyAsk } from "./shared";
 import { glyphOf, onPtyOut, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
@@ -16,6 +16,8 @@ import { loadTranscript } from "./sessionFile";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
 import { type TranscriptTurn } from "@kernel/transcript";
 import { LiveScreen } from "./liveText";
+import { KeyToolbar } from "./KeyToolbar";
+import { CkptSheet } from "./CkptSheet";
 
 /* 实况 = LiveScreen 迷你 VT 屏模型渲染(见 ./liveText)。 */
 
@@ -27,6 +29,8 @@ export function SessionScreen(props: { sessionId: string }) {
   const [askQ, setAskQ] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [ckpt, setCkpt] = useState<{ pending: number; approved: number } | null>(null);
+  const [ckptSheet, setCkptSheet] = useState(false);
+  const [kbOpen, setKbOpen] = useState(false);
   const liveRef = React.useRef<HTMLDivElement | null>(null);
   const askSeen = React.useRef(false);
   const g = glyphOf(meta?.profileId ?? "");
@@ -178,21 +182,31 @@ export function SessionScreen(props: { sessionId: string }) {
     void writeSession(props.sessionId, `${text}\r`);
   };
 
-
   return (
     <>
-      <HostBar />
       <div className="nav">
         <button type="button" className="back" aria-label={t("返回列表")} onClick={() => go({ view: "home" })}>
           ‹
         </button>
         <span className={`glyph ${g.cls}`}>{g.text}</span>
         <span className="t">{titleOf(meta ?? ({ id: props.sessionId, profileId: "", cwd: "" } as never))}</span>
+        {ckpt && (
+          <button
+            type="button"
+            className={`nav-chip${ckpt.pending > 0 ? " warn" : ""}`}
+            aria-label={t("审批线")}
+            onClick={() => setCkptSheet(true)}
+          >
+            {t("审批")}
+            {ckpt.pending > 0 ? ` ${ckpt.pending}` : ""}
+          </button>
+        )}
         <button type="button" className="orient-btn" aria-label={t("切换横竖屏")} onClick={toggleOrient}>
           {landscape ? t("竖屏") : t("横屏")}
         </button>
-        <span className="run">{t("运行中")}</span>
+        <HostChip />
       </div>
+      <ConnBanner />
       <div className="live" ref={liveRef}>
         {turns && <TurnsView turns={turns} />}
         <LiveBlock
@@ -204,19 +218,14 @@ export function SessionScreen(props: { sessionId: string }) {
         />
       </div>
       {ask && <AskCard q={askQ} onAnswer={answer} />}
-      {ckpt && (
-        <div className="ckpt">
-          <b>{t("审批线")}</b>
-          <span className="chip">{t("待审 {n}", { n: ckpt.pending })}</span>
-          <span className="chip g">{t("已通过 {n}", { n: ckpt.approved })}</span>
-        </div>
-      )}
       <div className="composer">
         <div className="box">
           <textarea
             rows={1}
             value={draft}
             placeholder={t("输入消息,回车发送…")}
+            onFocus={() => setKbOpen(true)}
+            onBlur={() => setKbOpen(false)}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -229,22 +238,11 @@ export function SessionScreen(props: { sessionId: string }) {
             ↑
           </button>
         </div>
-        <div className="tools">
-          <span>{t("回车发送 · Shift+回车换行")}</span>
-          <span style={{ marginLeft: "auto", color: "var(--fg-faint)" }}>{t("图片/拖拽手机端不可用")}</span>
-        </div>
       </div>
-      <div className="toolbar-row">
-        <span className="key">esc</span>
-        <span className="key">tab</span>
-        <span className="key">ctrl</span>
-        <span className="key">↑</span>
-        <span className="key">↓</span>
-        <span className="key">/</span>
-        <span style={{ marginLeft: "auto", fontSize: "9.5px", color: "var(--fg-faint)" }}>
-          {t("v1.5 预留:终端键盘(现在不可用)")}
-        </span>
-      </div>
+      <KeyToolbar sessionId={props.sessionId} hidden={kbOpen} />
+      {ckptSheet && meta?.cwd && (
+        <CkptSheet cwd={meta.cwd} sessionId={props.sessionId} onClose={() => setCkptSheet(false)} />
+      )}
     </>
   );
 }
