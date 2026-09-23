@@ -129,6 +129,14 @@ export function WebRelayCard() {
     }
   }, []);
 
+  /* 部署卡铸 key 只写 settings;本卡挂载时一次性拷贝会漏掉同屏部署产物
+  (用户看到空 key 栏只能瞎填)。settings 变化即回填;手输不触发 settings
+  变化,不会覆盖打字;connect 自写自读同值,幂等。 */
+  useEffect(() => {
+    setUrl(settings.webRelayUrl);
+    setRelayKey(settings.webRelayKey);
+  }, [settings.webRelayUrl, settings.webRelayKey]);
+
   useEffect(() => {
     void refresh();
     /* 中继状态事件驱动刷新(payload 恒 Null,仅作信号;实况经 webRelayStatus 重查)。 */
