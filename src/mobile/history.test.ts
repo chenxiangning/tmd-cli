@@ -40,7 +40,7 @@ vi.mock("@plugins/cli-shared/qoderSessionModel", () => ({
   listQoderSessions: async () => [],
 }));
 
-import { groupHomeRows, scanWorkspaceHistory } from "./history";
+import { groupHomeRows, scanWorkspaceHistory, splitEngineGroups, type HomeRow } from "./history";
 
 const ws = (id: string, root: string, name = id) => ({ id, root, name });
 
@@ -101,5 +101,26 @@ describe("scanWorkspaceHistory", () => {
       { profileId: "pi", session: piSession },
       { profileId: "claude", session: claudeSession },
     ]);
+  });
+});
+
+describe("splitEngineGroups", () => {
+  const row = (key: string, profileId: string, ts: number): HomeRow => ({
+    key,
+    kind: "disk",
+    profileId,
+    title: key,
+    ts,
+  });
+  it("按引擎切组:组按最近活动倒序,组内时间倒序", () => {
+    const groups = splitEngineGroups([
+      row("a", "omp", 50),
+      row("b", "claude", 60),
+      row("c", "omp", 70),
+      row("d", "claude", 40),
+    ]);
+    expect(groups.map((g) => g.profileId)).toEqual(["omp", "claude"]);
+    expect(groups[0].rows.map((r) => r.key)).toEqual(["c", "a"]);
+    expect(groups[1].rows.map((r) => r.key)).toEqual(["b", "d"]);
   });
 });

@@ -9,17 +9,22 @@ import { SpawnSheet } from "./SpawnSheet";
 import { t } from "@kernel/i18n";
 import { ConnBanner, HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
-import { glyphOf, relTime } from "./remote";
-import { groupHomeRows, scanWorkspaceHistory, type HistoryItem, type HomeRow } from "./history";
+import { relTime } from "./remote";
+import { EngineMark } from "./EngineMark";
+import { groupHomeRows, splitEngineGroups, scanWorkspaceHistory, type HistoryItem, type HomeRow } from "./history";
 
 /** 磁盘历史重扫节奏:读头有 mtime 缓存,稳态每轮只剩 fs_collect_files 轻量 RPC。 */
 const HISTORY_RESCAN_MS = 60_000;
+/** 引擎子分组分页:每页行数(与桌面侧栏 PAGE_INITIAL 同口径)。 */
+const PAGE_SIZE = 10;
 
 export function HomeScreen() {
   const { sessions, workspaces, titles, titleOf, route, go } = useMobile();
   const [q, setQ] = useState("");
   const [spawn, setSpawn] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  /* 引擎子分组分页水位:key = 工作区:引擎。 */
+  const [limits, setLimits] = useState<Record<string, number>>({});
   /* 审批线待审数(home 行琥珀点 + pill;白名单 checkpoint_list 只读)。 */
   const [pending, setPending] = useState<Record<string, number>>({});
   /* 磁盘历史:key = 工作区 root。 */
@@ -138,26 +143,50 @@ export function HomeScreen() {
               <span className="cnt">{g.rows.length}</span>
             </button>
             {!collapsed[g.wsId] &&
-              g.rows.map((r) => (
-                <Row
-                  key={r.key}
-                  r={r}
-                  active={route.sessionId === r.key.slice(5)}
-                  pending={pending[r.key.slice(5)] ?? 0}
-                  onOpen={() =>
-                    r.kind === "live"
-                      ? go({ view: "session", sessionId: r.live!.id })
-                      : go({
-                          view: "history",
-                          history: {
-                            profileId: r.profileId,
-                            path: r.disk!.path,
-                            title: r.title,
-                          },
-                        })
-                  }
-                />
-              ))}
+              splitEngineGroups(g.rows).map((eg) => {
+                const key = `${g.wsId}:${eg.profileId}`;
+                const limit = limits[key] ?? PAGE_SIZE;
+                return (
+                  <React.Fragment key={key}>
+                    <div className="engine-head">
+                      <EngineMark profileId={eg.profileId} />
+                      <span className="engine-name">{eg.profileId}</span>
+                      <span className="cnt">{eg.rows.length}</span>
+                    </div>
+                    {eg.rows.slice(0, limit).map((r) => (
+                      <Row
+                        key={r.key}
+                        r={r}
+                        active={route.sessionId === r.key.slice(5)}
+                        pending={pending[r.key.slice(5)] ?? 0}
+                        onOpen={() =>
+                          r.kind === "live"
+                            ? go({ view: "session", sessionId: r.live!.id })
+                            : go({
+                                view: "history",
+                                history: {
+                                  profileId: r.profileId,
+                                  path: r.disk!.path,
+                                  title: r.title,
+                                },
+                              })
+                        }
+                      />
+                    ))}
+                    {limit < eg.rows.length && (
+                      <button
+                        type="button"
+                        className="more"
+                        onClick={() =>
+                          setLimits((m) => ({ ...m, [key]: limit + PAGE_SIZE }))
+                        }
+                      >
+                        {t("加载更多({n})", { n: eg.rows.length - limit })}
+                      </button>
+                    )}
+                  </React.Fragment>
+                );
+              })}
           </React.Fragment>
         ))}
         {total > 0 && (
@@ -181,11 +210,10 @@ export function HomeScreen() {
 
 /** 会话行(活/磁盘同形):引擎字形 + 标题 + 审批 pill + 相对时间 + 状态点。 */
 function Row(props: { r: HomeRow; active: boolean; pending: number; onOpen: () => void }) {
-  const g = glyphOf(props.r.profileId);
   const live = props.r.kind === "live";
   return (
     <button type="button" className={`row${props.active ? " active" : ""}`} onClick={props.onOpen}>
-      <span className={`glyph ${g.cls}`}>{g.text}</span>
+      <EngineMark profileId={props.r.profileId} />
       <span className="t">{props.r.title}</span>
       {live && props.pending > 0 && (
         <span className="pill">{t("审批 {n}", { n: props.pending })}</span>

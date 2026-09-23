@@ -1,3 +1,4 @@
+import { OmpGlyph } from "../cli-shared/engineGlyphs";
 import { Package } from "@phosphor-icons/react";
 import { piFamilySessions } from "../cli-shared/piFamily";
 import { readOmpDefaultStatus } from "./configStatus";
@@ -12,39 +13,6 @@ import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 import { PI_TUI_ECHO_MARKS } from "../cli-shared/echoMarks";
 import type { CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
-
-/**
- * OMP(oh-my-pi)品牌 π 字形:顶部横杠 + 左短竖 + 右长竖。
- * 粉紫→蓝渐变取自上游 hero 标志(codemoss EngineIcon 同源),
- * inline svg 不依赖 currentColor,深浅主题均清晰。
- */
-const OMP_ICON_PATH =
-  "M2.5 3h19v4h-19zM5.5 7h4.3v10H5.5zM13.2 7h4.3v14h-4.3z" as const;
-
-function OmpGlyph({ size }: { size: number | string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      style={{ width: size, height: size, flexShrink: 0 }}
-      aria-hidden
-    >
-      <defs>
-        <linearGradient
-          id="omp-engine-icon-gradient"
-          x1="2.5"
-          y1="3"
-          x2="21.5"
-          y2="21"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop offset="0" stopColor="#E36BD4" />
-          <stop offset="1" stopColor="#5B8BE8" />
-        </linearGradient>
-      </defs>
-      <path fill="url(#omp-engine-icon-gradient)" d={OMP_ICON_PATH} />
-    </svg>
-  );
-}
 
 /**
  * omp 磁盘会话四件套(扫描/状态/身份自证/用户消息)走 pi 族共享适配器;

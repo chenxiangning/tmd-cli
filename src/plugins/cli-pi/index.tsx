@@ -1,3 +1,4 @@
+import { PiGlyph } from "../cli-shared/engineGlyphs";
 import { piFamilySessions } from "../cli-shared/piFamily";
 import { readPiDefaultStatus } from "./configStatus";
 import { fetchPiQuota } from "./quota";
@@ -22,27 +23,6 @@ export const PI_SKILL_SUGGESTIONS: CliSuggestion[] = [
   { value: "think", description: "深度思考", icon: "think" },
   { value: "code", description: "代码任务", icon: "review" },
 ];
-
-/** pi 品牌字形(codemoss EngineIcon 同源):π 方块组合;全对比度随主题(浅黑/深白,用户指定)。 */
-const PI_ICON_PATHS = [
-  "M1 1h16.5v11H12v5.5H6.5V23H1V1zm5.5 5.5V12H12V6.5H6.5z",
-  "M17.5 12H23v11h-5.5V12z",
-] as const;
-
-function PiGlyph({ size }: { size: number | string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fillRule="evenodd"
-      style={{ width: size, height: size, flexShrink: 0 }}
-      aria-hidden
-    >
-      {PI_ICON_PATHS.map((d) => (
-        <path key={d} d={d} fill="var(--tmd-fg)" />
-      ))}
-    </svg>
-  );
-}
 
 /**
  * pi 磁盘会话四件套(扫描/状态/身份自证/用户消息)走 pi 族共享适配器

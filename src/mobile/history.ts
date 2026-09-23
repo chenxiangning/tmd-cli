@@ -147,3 +147,19 @@ export function groupHomeRows(args: {
     .sort((a, b) => (a.rows.length && b.rows.length ? b.latest - a.latest : a.rows.length ? -1 : b.rows.length ? 1 : 0))
     .map(({ wsId, name, rows }) => ({ wsId, name, rows }));
 }
+
+/** 工作区组内按引擎再分组:组按最近活动倒序,组内行按时间倒序。 */
+export function splitEngineGroups(rows: HomeRow[]): { profileId: string; rows: HomeRow[] }[] {
+  const byEngine = new Map<string, HomeRow[]>();
+  for (const r of rows) {
+    const list = byEngine.get(r.profileId);
+    if (list) list.push(r);
+    else byEngine.set(r.profileId, [r]);
+  }
+  return [...byEngine.entries()]
+    .map(([profileId, list]) => ({
+      profileId,
+      rows: list.sort((a, b) => b.ts - a.ts),
+    }))
+    .sort((a, b) => (b.rows[0]?.ts ?? 0) - (a.rows[0]?.ts ?? 0));
+}

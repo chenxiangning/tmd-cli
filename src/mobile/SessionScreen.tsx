@@ -10,9 +10,10 @@ import { ConnBanner } from "./ConnChip";
 import { HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { notifyAsk } from "./shared";
-import { glyphOf, onPtyOut, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
+import { onPtyOut, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
 import { shellInvoke } from "@kernel/shellBridge";
 import { loadTranscript } from "./sessionFile";
+import { EngineMark } from "./EngineMark";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
 import { type TranscriptTurn } from "@kernel/transcript";
 import { LiveScreen } from "./liveText";
@@ -33,7 +34,6 @@ export function SessionScreen(props: { sessionId: string }) {
   const [kbOpen, setKbOpen] = useState(false);
   const liveRef = React.useRef<HTMLDivElement | null>(null);
   const askSeen = React.useRef(false);
-  const g = glyphOf(meta?.profileId ?? "");
 
   /* 审批线 chip:checkpoint_list(白名单只读)60s 轻拉;仅 (cwd,sessionId) 齐备时。 */
   useEffect(() => {
@@ -188,7 +188,7 @@ export function SessionScreen(props: { sessionId: string }) {
         <button type="button" className="back" aria-label={t("返回列表")} onClick={() => go({ view: "home" })}>
           ‹
         </button>
-        <span className={`glyph ${g.cls}`}>{g.text}</span>
+        <EngineMark profileId={meta?.profileId ?? ""} />
         <span className="t">{titleOf(meta ?? ({ id: props.sessionId, profileId: "", cwd: "" } as never))}</span>
         {ckpt && (
           <button
