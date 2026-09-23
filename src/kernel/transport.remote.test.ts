@@ -4,6 +4,7 @@
  * - configureRemoteEndpoint 后 invoke/listen 走桥,URL 带 ?device=&token=(wsUrl 尾斜杠去)
  * - hello capabilities 经 serverCapabilities 暴露
  * - 4001 = 撤销:onRemoteRevoked 触发、pending 全拒、不再重连
+ * - bye pending = 待授权暂态:不闭桥、退避重拨(桌面授权后自动上线)
  * - configureRemoteEndpoint(null) 后 invoke 抛「web bridge closed」,不再连旧端点
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -122,6 +123,29 @@ describe("transport 远程模式(壳已配对)", () => {
     expect(onRevoked).toHaveBeenCalledWith("revoked");
     await vi.advanceTimersByTimeAsync(30_000);
     expect(FakeWS.made).toHaveLength(1);
+  });
+
+  it("bye pending = 待授权暂态:不闭桥,退避重拨,批准后自动上线", async () => {
+    const onRevoked = vi.fn();
+    transport.onRemoteRevoked(onRevoked);
+    const p = transport.invoke<string>("session_list");
+    const ws = lastWS();
+    ws.open();
+    await vi.advanceTimersByTimeAsync(0);
+    ws.recv(JSON.stringify({ type: "bye", reason: "pending" }));
+    ws.close(); // 服务器随后关连接(非 4001)
+    await expect(p).rejects.toThrow("web bridge disconnected");
+    expect(onRevoked).not.toHaveBeenCalled();
+    // 退避窗口后重拨(桌面授权前后一直尝试)
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(FakeWS.made.length).toBeGreaterThanOrEqual(2);
+    // 桌面已授权:新连接 open 后正常应答,invoke 成功(第一次失败占用了 id 1)
+    const ws2 = lastWS();
+    ws2.open();
+    const p2 = transport.invoke<string>("session_list");
+    await vi.advanceTimersByTimeAsync(0);
+    ws2.recv(JSON.stringify({ type: "response", id: 2, ok: true, payload: ["ok"] }));
+    await expect(p2).resolves.toEqual(["ok"]);
   });
 
   it("configureRemoteEndpoint(null) 后 invoke 直接抛错,不再连旧端点", async () => {

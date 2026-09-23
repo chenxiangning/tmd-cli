@@ -26,6 +26,8 @@ declare global {
   interface Window {
     /** 壳注入脚本打上的移动壳标记。 */
     __TMD_SHELL__?: string;
+    /** 壳注入的真实设备名(系统设置里的名字);配对上报桌面区分多机。 */
+    __TMD_DEVICE_NAME__?: string;
   }
 }
 

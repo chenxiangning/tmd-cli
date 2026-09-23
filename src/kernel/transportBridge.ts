@@ -189,11 +189,14 @@ export class WebBridge {
       return;
     }
     if (msg.type === "bye") {
-      shellLog(`bridge: bye reason=${String(msg.reason)}`);
-      /* 服务端逐出(pending/rejected/revoked)。close code 过不了 relay 中继,
-      bye 是权威语义;随后仍会收到 Close,以 this.closed 幂等兜底。 */
-      this.closed = true;
-      this.releaseRevoked(typeof msg.reason === "string" ? msg.reason : "revoked");
+      const reason = typeof msg.reason === "string" ? msg.reason : "revoked";
+      shellLog(`bridge: bye reason=${reason}`);
+      // pending=待授权暂态:不闭桥,退避重拨,授权后 ≤10s 自动上线;其余=逐出(bye 权威语义)
+      if (reason !== "pending") {
+        this.closed = true;
+        this.releaseRevoked(reason);
+        return;
+      }
     }
   }
 

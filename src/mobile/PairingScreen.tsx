@@ -68,6 +68,9 @@ async function tryPair(
 }
 
 function deviceName(): string {
+  /* 壳注入的真实设备名(系统设置里的名字)优先:多台手机靠它区分(桌面列表展示)。 */
+  const injected = window.__TMD_DEVICE_NAME__;
+  if (injected?.trim()) return injected.trim().slice(0, 40);
   const ua = navigator.userAgent;
   if (/iPad/.test(ua)) return "iPad";
   if (/iPhone/.test(ua)) return "iPhone";

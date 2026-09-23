@@ -229,6 +229,15 @@ struct WebView: UIViewRepresentable {
       injectionTime: .atDocumentStart,
       forMainFrameOnly: true
     ))
+    /* 真实设备名(系统设置里用户起的名字):配对上报桌面,设备列表靠它区分多机。 */
+    let deviceName = UIDevice.current.name
+      .replacingOccurrences(of: "\\", with: "\\\\")
+      .replacingOccurrences(of: "\"", with: "\\\"")
+    config.userContentController.addUserScript(WKUserScript(
+      source: "window.__TMD_DEVICE_NAME__ = \"\(deviceName)\";",
+      injectionTime: .atDocumentStart,
+      forMainFrameOnly: true
+    ))
 
     config.userContentController.add(QrBridge.shared, name: "qr")
     config.userContentController.add(ShellBridge.shared, name: "shell")
