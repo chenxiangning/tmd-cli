@@ -102,40 +102,59 @@ export function SessionScreen(props: { sessionId: string }) {
   /* 活流订阅:PTY 字节喂进迷你 VT 视口模型(LiveScreen,固定 H×W + 触底上滚),
    * 绝对定位重绘(页脚/spinner)天然收敛为一份;ask 检测在独立 effect。
    * 打开会话先拉真实 PTY 尺寸(session_size)+ 字节日志尾回放,
-   * 否则老会话只有「连接期活流」——空闲老会话永远空屏。 */
+   * 否则老会话只有「连接期活流」——空闲老会话永远空屏。
+   * 尺寸漂移再同步(2026-09-24 真机双页脚实证):PTY 尺寸归桌面 xterm 独占
+   * (手机从不 resize),桌面拖面板 → omp 按新几何重绘,旧模型 CUP 钳位错位 →
+   * 页脚残留两份。每 3s 校 session_size:变了即按新几何重建 + 重放日志尾。 */
   useEffect(() => {
     if (!props.sessionId) return;
     let alive = true;
     let off: (() => void) | null = null;
+    let timer = 0;
     setLive("");
     void (async () => {
       const { invoke } = await import("@kernel/transport");
-      const size = await invoke<[number, number] | null>("session_size", {
-        id: props.sessionId,
-      }).catch(() => null);
-      const screen = new LiveScreen(size?.[0], size?.[1]);
-      try {
-        const page = await invoke<{ text: string }>("session_history_page", {
+      const sizeOf = () =>
+        invoke<[number, number] | null>("session_size", { id: props.sessionId }).catch(() => null);
+      const pageOf = () =>
+        invoke<{ text: string }>("session_history_page", {
           id: props.sessionId,
           before: Number.MAX_SAFE_INTEGER,
           maxBytes: 32_000,
-        });
-        if (!alive) return;
-        if (page?.text) {
-          screen.feed(page.text);
-          setLive(screen.view());
-        }
-      } catch {
-        /* 无日志(新会话)或暂不可达:活流照常 */
+        }).catch(() => null);
+      const size = await sizeOf();
+      if (!alive) return;
+      let sizeKey = size ? `${size[0]}x${size[1]}` : "";
+      let screen = new LiveScreen(size?.[0], size?.[1]);
+      const page = await pageOf();
+      if (!alive) return;
+      if (page?.text) {
+        screen.feed(page.text);
+        setLive(screen.view());
       }
       off = await onPtyOut(props.sessionId, (chunk) => {
         if (!alive) return;
         screen.feed(chunk);
         setLive(screen.view());
       });
+      timer = window.setInterval(() => {
+        void (async () => {
+          const s = await sizeOf();
+          if (!alive || !s) return;
+          const key = `${s[0]}x${s[1]}`;
+          if (key === sizeKey) return;
+          sizeKey = key;
+          screen = new LiveScreen(s[0], s[1]);
+          const p = await pageOf();
+          if (!alive) return;
+          if (p?.text) screen.feed(p.text);
+          setLive(screen.view());
+        })();
+      }, 3000);
     })();
     return () => {
       alive = false;
+      clearInterval(timer);
       off?.();
     };
   }, [props.sessionId]);
