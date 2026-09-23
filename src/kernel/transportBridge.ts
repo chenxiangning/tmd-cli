@@ -90,7 +90,7 @@ export class WebBridge {
     if (this.closed) throw new Error("web bridge closed");
     if (Date.now() < this.nextDialAt) throw new Error("web bridge disconnected");
     const url = this.endpoint
-      ? `${this.endpoint.wsUrl}/ws?device=${encodeURIComponent(this.endpoint.deviceId)}&token=${encodeURIComponent(this.endpoint.token)}`
+      ? `${this.endpoint.wsUrl}/ws?device=${encodeURIComponent(this.endpoint.deviceId)}&token=${encodeURIComponent(this.endpoint.token)}${window.__TMD_DEVICE_NAME__ ? `&name=${encodeURIComponent(window.__TMD_DEVICE_NAME__)}` : ""}`
       : `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?token=${encodeURIComponent(webToken ?? "")}`;
     const ws: WebSocketLike = shellWsAvailable()
       ? createShellWs(url)

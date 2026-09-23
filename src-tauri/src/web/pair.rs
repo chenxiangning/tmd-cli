@@ -133,6 +133,7 @@ async fn pair_inner(
         &devices::devices_dir(),
         &req.pair_code,
         &req.device_name,
+        &ip,
         devices::now_secs(),
     ) {
         Ok((device_id, token)) => {

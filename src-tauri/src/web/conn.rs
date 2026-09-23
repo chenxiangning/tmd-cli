@@ -172,13 +172,21 @@ impl Drop for LiveGuard {
     }
 }
 
-/// 踢某设备的全部活跃连接(撤销/删除设备行时调用)。
+/// 踢某设备的全部活跃连接(撤销/删除设备行时调用);本文件仅此一处写 ACTIVE。
 pub(crate) fn kick(device_id: &str) {
     if let Some(list) = ACTIVE.lock().get(device_id) {
         for tx in list {
             let _ = tx.send(());
         }
     }
+}
+
+/// 设备当前是否有活连接(设备卡「已连接/离线」徽标)。
+pub(crate) fn is_online(device_id: &str) -> bool {
+    ACTIVE
+        .lock()
+        .get(device_id)
+        .is_some_and(|list| !list.is_empty())
 }
 
 #[cfg(test)]

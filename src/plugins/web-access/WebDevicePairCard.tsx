@@ -178,9 +178,23 @@ export function WebDevicePairCard() {
           {pending.map((d) => (
             <div
               key={d.deviceId}
-              className="flex items-center gap-2 rounded-lg border border-dashed border-[var(--tmd-border-strong,#b1b1b1)] bg-[#fffdf6] px-2.5 py-2"
+              className="flex items-center gap-2.5 rounded-lg border border-dashed border-[var(--tmd-border-strong,#b1b1b1)] bg-[#fffdf6] px-2.5 py-2"
             >
-              <span className="min-w-0 flex-1 truncate text-xs font-medium">{d.name}</span>
+              <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-[var(--tmd-hover)] text-sm font-semibold text-[var(--tmd-fg-muted)]">
+                ?
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-semibold">{d.name}</div>
+                <div className="truncate text-[0.6875rem] text-[var(--tmd-fg-muted)]">
+                  {[
+                    d.ip,
+                    t("发起于 {time}", { time: fmtLastSeen(d.createdAt, now) }),
+                    offer ? t("配对码 {ttl} 后过期", { ttl: fmtTtl(ttl) }) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => void approve(d.deviceId)}
@@ -209,12 +223,27 @@ export function WebDevicePairCard() {
           {approved.map((d) => (
             <div
               key={d.deviceId}
-              className="flex items-center gap-2 rounded-lg border border-[var(--tmd-border)] px-2.5 py-2"
+              className="flex items-center gap-2.5 rounded-lg border border-[var(--tmd-border)] px-2.5 py-2"
             >
-              <span className="min-w-0 flex-1 truncate text-xs font-medium">{d.name}</span>
-              <span className="text-[0.6875rem] text-[var(--tmd-fg-muted)]">
-                {t("上次活跃 {time}", { time: fmtLastSeen(d.lastSeenAt, now) })}
+              <span
+                className={`size-2 flex-none rounded-full ${d.online ? "bg-[var(--tmd-diff-inserted,#16a34a)]" : "bg-[var(--tmd-fg-faint,#9ca3af)] opacity-50"}`}
+                aria-hidden
+              />
+              <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-[var(--tmd-hover)] text-[0.625rem] font-semibold text-[var(--tmd-fg-muted)]">
+                iOS
               </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-semibold">{d.name}</div>
+                <div className="truncate text-[0.6875rem] text-[var(--tmd-fg-muted)]">
+                  {(
+                    d.online
+                      ? [t("已连接"), t("上次活跃 {time}", { time: fmtLastSeen(d.lastSeenAt, now) })]
+                      : [t("离线 {time}", { time: fmtLastSeen(d.lastSeenAt, now) })]
+                  )
+                    .concat(t("配对于 {date}", { date: fmtPairedDate(d.createdAt) }))
+                    .join(" · ")}
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => void revoke(d.deviceId)}
@@ -228,6 +257,21 @@ export function WebDevicePairCard() {
           ))}
         </div>
       )}
+
+      <p className="text-[0.6875rem] leading-relaxed text-[var(--tmd-fg-muted)]">
+        {t(
+          "设备凭证 = 每台独立 token(桌面只存 sha-256)。踢除立即断开该设备全部连接,其本地凭证作废,需重新扫码配对。授权/踢除仅桌面可操作,手机端只读自己状态。",
+        )}
+      </p>
     </div>
   );
+}
+
+/** 配对于日期(MM-DD;跨年显示完整年月日)。 */
+function fmtPairedDate(ts: number): string {
+  const d = new Date(ts * 1000);
+  const nowYear = new Date().getFullYear();
+  const y = d.getFullYear();
+  const md = `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return y === nowYear ? md : `${y}-${md}`;
 }

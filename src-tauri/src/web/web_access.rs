@@ -3,7 +3,7 @@
 use serde_json::json;
 use tauri::{AppHandle, Manager};
 
-use super::{devices, pair, server, state};
+use super::{conn, devices, pair, server, state};
 
 /// 设置里的 Web 访问开关(M1 仅内网;settings.ts 同步增加 webAccessEnabled 字段)。
 pub(crate) fn web_enabled(settings: &serde_json::Value) -> bool {
@@ -121,6 +121,8 @@ pub(crate) fn web_devices_list() -> serde_json::Value {
                 "createdAt": d.created_at,
                 "lastSeenAt": d.last_seen_at,
                 "approved": d.approved,
+                "online": conn::is_online(&d.device_id),
+                "ip": d.ip,
             })
         })
         .collect();

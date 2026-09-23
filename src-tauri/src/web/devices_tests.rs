@@ -16,7 +16,7 @@ fn 配对全链_铸码_待批_批准_验证() {
     assert_eq!(exp, 1000 + PAIR_TTL_SECS);
     assert_eq!(code.len(), 9, "XXXX-XXXX");
 
-    let (device_id, token) = reg.pair(&dir, &code, "大仙的 iPhone", 1001).unwrap();
+    let (device_id, token) = reg.pair(&dir, &code, "大仙的 iPhone", "192.168.1.9", 1001).unwrap();
     // pending 未批准:凭据命中但 approved=false(ws 分流层据此发 4001/pending)
     assert!(
         !find_by_credentials(&dir, &device_id, &token)
@@ -50,8 +50,8 @@ fn 配对码_错码_过期_单次消费() {
     assert_eq!(reg.consume_code(&code, 1002), Err(PairError::BadCode));
     // 单次:pair 成功后同码再 pair 拒
     let (c, _) = reg.mint_code(2000);
-    let _ = reg.pair(&dir, &c, "a", 2001).unwrap();
-    assert_eq!(reg.pair(&dir, &c, "b", 2002), Err(PairError::BadCode));
+    let _ = reg.pair(&dir, &c, "a", "10.0.0.1", 2001).unwrap();
+    assert_eq!(reg.pair(&dir, &c, "b", "10.0.0.2", 2002), Err(PairError::BadCode));
 }
 
 #[test]
@@ -59,7 +59,7 @@ fn 撤销后验证拒() {
     let dir = tmpdir("revoke");
     let reg = DeviceRegistry::default();
     let (code, _) = reg.mint_code(1000);
-    let (device_id, token) = reg.pair(&dir, &code, "pad", 1001).unwrap();
+    let (device_id, token) = reg.pair(&dir, &code, "pad", "", 1001).unwrap();
     assert!(approve(&dir, &device_id, 1002));
     assert!(find_by_credentials(&dir, &device_id, &token).is_some());
     assert!(revoke(&dir, &device_id));
@@ -75,7 +75,7 @@ fn 错_token_拒() {
     let dir = tmpdir("badtok");
     let reg = DeviceRegistry::default();
     let (code, _) = reg.mint_code(1000);
-    let (device_id, token) = reg.pair(&dir, &code, "dev", 1001).unwrap();
+    let (device_id, token) = reg.pair(&dir, &code, "dev", "", 1001).unwrap();
     approve(&dir, &device_id, 1002);
     assert!(find_by_credentials(&dir, &device_id, &format!("{token}x")).is_none());
     assert!(find_by_credentials(&dir, "no-such-device", &token).is_none());
@@ -98,7 +98,7 @@ fn 落盘权限_仅属主() {
     let dir = tmpdir("perm");
     let reg = DeviceRegistry::default();
     let (code, _) = reg.mint_code(1000);
-    let _ = reg.pair(&dir, &code, "dev", 1001).unwrap();
+    let _ = reg.pair(&dir, &code, "dev", "", 1001).unwrap();
     let mode = std::fs::metadata(devices_path(&dir))
         .unwrap()
         .permissions()
@@ -131,7 +131,7 @@ fn 撤销即时踢_活跃连接收到信号() {
     let dir = tmpdir("kick");
     let reg = DeviceRegistry::default();
     let (code, _) = reg.mint_code(1000);
-    let (device_id, _token) = reg.pair(&dir, &code, "dev", 1001).unwrap();
+    let (device_id, _token) = reg.pair(&dir, &code, "dev", "", 1001).unwrap();
     approve(&dir, &device_id, 1002);
     let (_guard, rx) = register_live(&device_id);
     assert!(!rx.has_changed().unwrap(), "未撤销不应有信号");

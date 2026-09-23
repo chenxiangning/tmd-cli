@@ -1008,6 +1008,10 @@ export interface DeviceWire {
   createdAt: number;
   lastSeenAt: number;
   approved: boolean;
+  /** 当前是否有活连接(设备卡「已连接/离线」点)。 */
+  online?: boolean;
+  /** 配对请求来源 IP(展示;老行可能为空)。 */
+  ip?: string;
 }
 
 /** 设备表全量(pending + approved 由 approved 字段区分)。 */

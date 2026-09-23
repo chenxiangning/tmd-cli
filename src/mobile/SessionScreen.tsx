@@ -14,15 +14,12 @@ import { glyphOf, onPtyOut, tailAskLine, tailHasAskMarker, writeSession } from "
 import { shellInvoke } from "@kernel/shellBridge";
 import { loadTranscript } from "./sessionFile";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
-import { collapseTui, type TranscriptTurn } from "@kernel/transcript";
+import { type TranscriptTurn } from "@kernel/transcript";
+import { appendLive, renderLive } from "./liveText";
 
 const TAIL_LINES = 400;
 
-/** ANSI/控制序列剥离:pty://out 是字节原样(含 CSI),纯文本渲染前剥掉。 */
-function strip(s: string): string {
-  // eslint-disable-next-line no-control-regex
-  return s.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1a\x1c-\x1f]/g, "");
-}
+/** 实况装配走 liveText(帧切割/私有 CSI 清理);此处不再自带 strip。 */
 
 export function SessionScreen(props: { sessionId: string }) {
   const { sessions, titleOf, go } = useMobile();
@@ -119,21 +116,18 @@ export function SessionScreen(props: { sessionId: string }) {
           maxBytes: 32_000,
         });
         if (!alive) return;
-        const seeded = collapseTui(strip(page?.text ?? ""));
+        const seeded = renderLive(page?.text ?? "", TAIL_LINES);
         if (seeded) {
-          bufRef.current = seeded.split("\n").slice(-TAIL_LINES).join("\n");
-          setLive(bufRef.current);
+          bufRef.current = page?.text ?? "";
+          setLive(seeded);
         }
       } catch {
         /* 无日志(新会话)或暂不可达:活流照常 */
       }
       off = await onPtyOut(props.sessionId, (chunk) => {
         if (!alive) return;
-        bufRef.current = collapseTui(`${bufRef.current}${strip(chunk)}`)
-          .split("\n")
-          .slice(-TAIL_LINES)
-          .join("\n");
-        setLive(bufRef.current);
+        bufRef.current = appendLive(bufRef.current, chunk);
+        setLive(renderLive(bufRef.current, TAIL_LINES));
       });
     })();
     return () => {

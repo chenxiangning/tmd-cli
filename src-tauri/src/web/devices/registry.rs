@@ -123,6 +123,7 @@ impl DeviceRegistry {
         dir: &std::path::Path,
         code: &str,
         device_name: &str,
+        ip: &str,
         now: u64,
     ) -> Result<(String, String), PairError> {
         self.consume_code(code, now)?;
@@ -139,6 +140,7 @@ impl DeviceRegistry {
             created_at: now,
             last_seen_at: now,
             approved: false,
+            ip: ip.to_string(),
         });
         save_devices(dir, &all).map_err(|_| PairError::Storage)?;
         Ok((device_id, token))

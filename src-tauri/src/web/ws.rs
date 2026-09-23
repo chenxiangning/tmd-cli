@@ -25,6 +25,8 @@ use super::{
 pub(super) struct TokenQuery {
     token: Option<String>,
     device: Option<String>,
+    /// 真实设备名(壳拨号携带):桌面设备行随之自愈更新。
+    name: Option<String>,
 }
 
 /// 握手闸:浏览器 ?token=;设备 ?device=&token=(哈希比对 + 已批准)。
@@ -37,9 +39,17 @@ pub(super) async fn ws_handler(
     let scope = match (&q.device, &q.token) {
         (Some(device_id), Some(token)) => {
             match devices::find_by_credentials(&devices::devices_dir(), device_id, token) {
-                Some(d) if d.approved => ConnScope::AppDevice {
-                    device_id: device_id.clone(),
-                },
+                Some(d) if d.approved => {
+                    /* 名字自愈:壳上报系统设备名与存量行不同则更新(老配对全叫 iPhone)。 */
+                    if let Some(name) = q.name.as_deref().map(str::trim).filter(|n| !n.is_empty()) {
+                        if d.name != name {
+                            devices::set_name(&devices::devices_dir(), device_id, name);
+                        }
+                    }
+                    ConnScope::AppDevice {
+                        device_id: device_id.clone(),
+                    }
+                }
                 Some(_) => return ws.on_upgrade(move |s| reject_socket(s, "pending")),
                 None => return ws.on_upgrade(move |s| reject_socket(s, "rejected")),
             }

@@ -24,6 +24,9 @@ pub(crate) struct Device {
     pub created_at: u64,
     pub last_seen_at: u64,
     pub approved: bool,
+    /// 配对请求来源 IP(展示用;老行缺省空)。
+    #[serde(default)]
+    pub ip: String,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -170,6 +173,18 @@ pub(crate) fn touch_last_seen(dir: &Path, device_id: &str, now: u64) {
     for d in &mut all {
         if d.device_id == device_id {
             d.last_seen_at = now;
+        }
+    }
+    let _ = save_devices(dir, &all);
+}
+
+/// 设备名自愈:连接拨号带上系统设备名,桌面行随之更新(老配对的名字也能修)。
+pub(crate) fn set_name(dir: &Path, device_id: &str, name: &str) {
+    let _io = io_lock();
+    let mut all = load_devices(dir);
+    for d in &mut all {
+        if d.device_id == device_id {
+            d.name = sanitize_name(name);
         }
     }
     let _ = save_devices(dir, &all);
