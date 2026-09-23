@@ -7,9 +7,16 @@ use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
 use parking_lot::Mutex;
+use tokio::net::TcpStream;
 use tokio::sync::{mpsc, watch};
+use tokio_tungstenite::client_async_tls_with_config;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::Message;
+
+use crate::ssh::proxy::{
+    http_connect_proxy, socks5_connect_proxy, split_host_port, split_proxy_scheme,
+    ResolvedSshProxy, SshProxyKind,
+};
 
 use super::relay_core::{
     b64_to_bytes, bytes_to_b64, hop_headers, queue_heartbeat, redial_until_connected, send,
@@ -33,14 +40,7 @@ pub(super) async fn run_agent(
             &mut stop,
             || {
                 let agent = agent.clone();
-                async move {
-                    let request = agent
-                        .into_client_request()
-                        .map_err(|e| format!("中继地址无效: {e}"))?;
-                    tokio_tungstenite::connect_async(request)
-                        .await
-                        .map_err(|e| e.to_string())
-                }
+                async move { dial_agent(&agent).await }
             },
             |attempt, error| {
                 super::relay::set_connected(&app, generation, false);
@@ -52,7 +52,7 @@ pub(super) async fn run_agent(
             },
         )
         .await;
-        let Some((socket, _)) = connected else {
+        let Some(socket) = connected else {
             return;
         };
         super::relay::set_error(&app, generation, String::new());
@@ -73,6 +73,129 @@ pub(super) async fn run_agent(
             _ = stop.changed() => return,
         }
     }
+}
+
+/// rustls 0.23 在树内同时含 aws-lc-rs(reqwest 启用)与 ring(webpki 拽入)两个
+/// crypto provider 时,自动探测直接 panic;显式装与 reqwest 一致的 aws-lc-rs。
+fn install_tls_provider() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    });
+}
+/// 出站拨号:tokio-tungstenite 不读 *_PROXY env,直连被墙时表现为整 20 秒连接超时
+/// (deploy 走 reqwest 读 env 所以能成)。这里手工接管:先按进程 env 代理打通
+/// TCP 隧道(HTTP CONNECT / SOCKS5,复用 ssh 握手),再在其上升 TLS + WS。
+async fn dial_agent(agent: &str) -> Result<AgentSocket, String> {
+    install_tls_provider();
+    let request = agent
+        .into_client_request()
+        .map_err(|e| format!("中继地址无效: {e}"))?;
+    let uri = request.uri().clone();
+    let scheme = uri.scheme_str().unwrap_or("wss");
+    let host = uri
+        .host()
+        .ok_or_else(|| "中继地址缺少主机名".to_string())?
+        .to_string();
+    let tls = matches!(scheme, "https" | "wss");
+    let port = uri.port_u16().unwrap_or(if tls { 443 } else { 80 });
+    let stream = connect_via_env_proxy(scheme, &host, port).await?;
+    client_async_tls_with_config(request, stream, None, None)
+        .await
+        .map(|(socket, _)| socket)
+        .map_err(|e| e.to_string())
+}
+
+async fn connect_via_env_proxy(scheme: &str, host: &str, port: u16) -> Result<TcpStream, String> {
+    let proxy = env_proxy_for(scheme, host);
+    let mut stream = match &proxy {
+        Some(proxy) => TcpStream::connect((proxy.host.as_str(), proxy.port))
+            .await
+            .map_err(|e| format!("代理 {}:{} 连接失败: {e}", proxy.host, proxy.port))?,
+        None => TcpStream::connect((host, port))
+            .await
+            .map_err(|e| format!("TCP 连接 {host}:{port} 失败: {e}"))?,
+    };
+    if let Some(proxy) = &proxy {
+        match proxy.kind {
+            SshProxyKind::Http => http_connect_proxy(&mut stream, host, port, proxy).await?,
+            SshProxyKind::Socks5 => socks5_connect_proxy(&mut stream, host, port, proxy).await?,
+        }
+    }
+    let _ = stream.set_nodelay(true);
+    Ok(stream)
+}
+
+/// 与 reqwest 同源:HTTPS_PROXY/ALL_PROXY(大小写两套)+ NO_PROXY。
+fn env_proxy_for(scheme: &str, host: &str) -> Option<ResolvedSshProxy> {
+    let no_proxy = first_env(&["NO_PROXY", "no_proxy"]).unwrap_or_default();
+    if host_in_no_proxy(host, &no_proxy) {
+        return None;
+    }
+    let keys: &[&str] = if matches!(scheme, "https" | "wss") {
+        &["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"]
+    } else {
+        &["HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"]
+    };
+    first_env(keys).and_then(|raw| proxy_from_url(&raw))
+}
+
+fn first_env(keys: &[&str]) -> Option<String> {
+    keys.iter()
+        .find_map(|k| std::env::var(k).ok().map(|v| v.trim().to_string()))
+        .filter(|v| !v.is_empty())
+}
+
+/// 解析 env 代理 URL;不认识的协议(如 socks4)回落直连而非报错。
+fn proxy_from_url(raw: &str) -> Option<ResolvedSshProxy> {
+    let (scheme, authority) = split_proxy_scheme(raw.trim());
+    let kind = match scheme.unwrap_or("").to_ascii_lowercase().as_str() {
+        "http" | "https" | "" => SshProxyKind::Http,
+        "socks5" | "socks" | "socks5h" => SshProxyKind::Socks5,
+        _ => return None,
+    };
+    let authority = authority.split(['/', '?', '#']).next().unwrap_or(authority);
+    let (userinfo, hostpart) = authority.rsplit_once('@').unwrap_or(("", authority));
+    let (host, port) = split_host_port(hostpart.trim());
+    if host.is_empty() {
+        return None;
+    }
+    let (username, password) = match userinfo.split_once(':') {
+        Some((u, p)) => (u.to_string(), p.to_string()),
+        None => (userinfo.to_string(), String::new()),
+    };
+    Some(ResolvedSshProxy {
+        kind,
+        host,
+        port: port.unwrap_or(if kind == SshProxyKind::Socks5 {
+            1080
+        } else {
+            8080
+        }),
+        username,
+        password,
+    })
+}
+
+// ponytail: NO_PROXY 只支持精确/后缀匹配(reqwest 还认通配段);够用,误判时删条目即绕开。
+fn host_in_no_proxy(host: &str, list: &str) -> bool {
+    let host = host.to_ascii_lowercase();
+    list.split(',').any(|entry| {
+        let entry = entry.trim().to_ascii_lowercase();
+        if entry.is_empty() {
+            return false;
+        }
+        if entry == "*" {
+            return true;
+        }
+        if let Some(prefix) = entry.strip_suffix('*') {
+            return host.starts_with(prefix);
+        }
+        if let Some(suffix) = entry.strip_prefix('*') {
+            return host.ends_with(suffix);
+        }
+        host == entry || host.ends_with(&format!(".{entry}"))
+    })
 }
 
 type AgentSocket =
@@ -413,5 +536,44 @@ fn spawn_socket(
     LiveSocket {
         frames: frames_tx,
         task: handle.abort_handle(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn proxy_url_parses_http_with_credentials() {
+        let p = proxy_from_url("http://u:p@127.0.0.1:7890/path").unwrap();
+        assert_eq!(p.kind, SshProxyKind::Http);
+        assert_eq!((p.host.as_str(), p.port), ("127.0.0.1", 7890));
+        assert_eq!((p.username.as_str(), p.password.as_str()), ("u", "p"));
+    }
+
+    #[test]
+    fn proxy_url_scheme_defaults_and_rejects() {
+        // 裸 host:port 按 env 惯例 = HTTP(与 ssh 配置的 socks 缺省不同)
+        assert_eq!(
+            proxy_from_url("127.0.0.1:8888").unwrap().kind,
+            SshProxyKind::Http
+        );
+        assert_eq!(proxy_from_url("socks5://10.0.0.1").unwrap().port, 1080);
+        assert!(proxy_from_url("socks4://10.0.0.1").is_none());
+        assert!(proxy_from_url("http://").is_none());
+    }
+
+    #[test]
+    fn no_proxy_exact_and_suffix_only() {
+        let list = "localhost,127.*,*.workers.dev,example.com";
+        assert!(host_in_no_proxy("example.com", list));
+        assert!(host_in_no_proxy("a.example.com", list));
+        assert!(host_in_no_proxy("x.workers.dev", list));
+        // 子域后缀匹配不吃裸域名通配缺失:notexample.com 不匹配 example.com
+        assert!(!host_in_no_proxy("notexample.com", list));
+        assert!(!host_in_no_proxy(
+            "tmd-relay.451624324.workers.dev",
+            "localhost,127.0.0.1,::1"
+        ));
     }
 }

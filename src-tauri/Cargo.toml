@@ -60,6 +60,9 @@ uuid = { version = "1", features = ["v4"] }
 futures-util = { version = "0.3", features = ["sink"] }
 # 外网中继:桌面出站拨号自有 relay(Cloudflare Worker / 自建)用的 WSS 客户端。
 tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
+# relay 出站 WSS:rustls 树同时含 aws-lc-rs(reqwest 启用)与 ring,provider 自动探测遇歧义 panic;
+# 拨号前显式装与 reqwest 一致的 aws-lc-rs(见 relay_agent::dial_agent)。
+rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "std"] }
 
 # 产物体积与运行性能:lto 全量链接优化 + 单 codegen unit 提升内联,strip 去符号表,
 # opt-level=z 体积优先(GUI 交互场景实测无感,二进制约再省一成;若热路径变慢回调到 "s"/3)。

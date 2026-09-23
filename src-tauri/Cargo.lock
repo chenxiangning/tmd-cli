@@ -5721,6 +5721,7 @@ dependencies = [
  "rusqlite",
  "russh",
  "russh-sftp",
+ "rustls",
  "serde",
  "serde_json",
  "sha2 0.10.9",
