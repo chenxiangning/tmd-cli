@@ -88,7 +88,7 @@ pub async fn ssh_session_create(
         } else {
             host.name.trim().to_string()
         }),
-        engine: engine_profile,
+        engine: engine_profile, cli_session_id: None,
     });
 
     let registry = Arc::clone(&state.ssh);

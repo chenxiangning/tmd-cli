@@ -27,3 +27,35 @@ pub fn save_settings(data: &serde_json::Value) -> std::io::Result<()> {
     let json = serde_json::to_string_pretty(data).map_err(std::io::Error::other)?;
     crate::session::write_json_atomic(&settings_file(), &json)
 }
+
+/// 会话置顶切换(app 设备窄写面):读改写仅 sessionPins 一个键。
+/// 手机不持全量 settings 快照 —— 整树写会静默覆盖桌面并发修改,故不开
+/// config_write_settings,只给这一把定向钥匙(key = wsId:profileId:cliSessionId)。
+pub fn toggle_pin(key: &str, title: &str) -> Result<bool, String> {
+    let mut data = load_settings();
+    let root = data
+        .as_object_mut()
+        .ok_or_else(|| "settings.json 不是对象".to_string())?;
+    let pins = root
+        .entry("sessionPins")
+        .or_insert_with(|| serde_json::Value::Object(Default::default()));
+    let pins = pins
+        .as_object_mut()
+        .ok_or_else(|| "sessionPins 不是对象".to_string())?;
+    let now_pinned = if pins.contains_key(key) {
+        pins.remove(key);
+        false
+    } else {
+        pins.insert(
+            key.to_string(),
+            serde_json::json!({
+                "scope": "global",
+                "pinnedAt": crate::now_millis(),
+                "title": title,
+            }),
+        );
+        true
+    };
+    save_settings(&serde_json::Value::Object(root.clone())).map_err(|e| e.to_string())?;
+    Ok(now_pinned)
+}

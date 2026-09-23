@@ -12,13 +12,14 @@ import { HomeScreen } from "./HomeScreen";
 import { SessionScreen } from "./SessionScreen";
 import { HistoryScreen } from "./HistoryScreen";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
-import { listSessions, listWorkspaces, sessionArchiveKeys, sessionTitles } from "./remote";
+import { listSessions, listWorkspaces, sessionArchiveKeys, sessionPinEntries, sessionPinToggle, sessionTitles } from "./remote";
 import { isRemoteConnected, isRemotePaused, onRemoteConnection } from "@kernel/transport";
 
 export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   const [sessions, setSessions] = React.useState<RemoteSession[]>([]);
   const [workspaces, setWorkspaces] = React.useState<RemoteWorkspace[]>([]);
   const [titles, setTitles] = React.useState<Record<string, string>>({});
+  const [pins, setPins] = React.useState<Record<string, { title?: string; pinnedAt?: number }>>({});
   const [archive, setArchive] = React.useState<Set<string>>(() => new Set());
   const [conn, setConn] = React.useState(() => ({
     connected: isRemoteConnected(),
@@ -48,15 +49,34 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
     };
   }, []);
 
-  /* 覆盖层(桌面 settings):手动命名 + 归档键集;进 app 读一次。 */
+  /* 覆盖层(桌面 settings):手动命名 + 归档键集 + 置顶;进 app 读一次,
+     置顶切换后本地即时更新(桌面经 settings:changed 广播回读)。 */
   React.useEffect(() => {
     void sessionTitles().then(setTitles);
     void sessionArchiveKeys().then(setArchive);
+    void sessionPinEntries().then(setPins);
+  }, []);
+
+  const togglePin = React.useCallback(async (key: string, title: string) => {
+    try {
+      const pinned = await sessionPinToggle(key, title);
+      setPins((m) => {
+        const next = { ...m };
+        if (pinned) next[key] = { title, pinnedAt: Date.now() };
+        else delete next[key];
+        return next;
+      });
+    } catch {
+      /* 桥断:不动本地态 */
+    }
   }, []);
 
   const titleOf = React.useCallback(
     (s: RemoteSession) =>
-      titles[s.id] ?? `${glyphOf2(s.profileId).text} · ${s.cwd.split("/").filter(Boolean).pop() ?? s.cwd}`,
+      /* 桌面命名覆盖层 key = profileId:cliSessionId(桥 resume 直填/绑定镜像后可解析) */
+      (s.cliSessionId ? titles[`${s.profileId}:${s.cliSessionId}`] : undefined) ??
+      titles[s.id] ??
+      `${glyphOf2(s.profileId).text} · ${s.cwd.split("/").filter(Boolean).pop() ?? s.cwd}`,
     [titles],
   );
 
@@ -67,14 +87,16 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       workspaces,
       titles,
       archive,
+      pins,
       connected: conn.connected,
       paused: conn.paused,
       route,
       go: setRoute,
       titleOf,
+      togglePin,
       onRePair: props.onRePair,
     }),
-    [props.creds, sessions, workspaces, titles, archive, conn, route, titleOf, props.onRePair],
+    [props.creds, sessions, workspaces, titles, archive, pins, conn, route, titleOf, togglePin, props.onRePair],
   );
 
   return (

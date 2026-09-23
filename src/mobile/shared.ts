@@ -61,12 +61,16 @@ export interface MobileCtxValue {
   titles: Record<string, string>;
   /** 归档覆盖层键集(wsId:profileId:cliSessionId;桌面 settings.sessionArchive 只读镜像)。 */
   archive: Set<string>;
+  /** 置顶覆盖层(桌面 settings.sessionPins 只读镜像;写走 togglePin)。 */
+  pins: Record<string, { title?: string; pinnedAt?: number }>;
   connected: boolean;
   /** 手动断开(已停止自动重连)。 */
   paused: boolean;
   route: MobileRoute;
   go: (r: MobileRoute) => void;
   titleOf: (s: RemoteSession) => string;
+  /** 置顶切换(session_pin_toggle 窄令;key = wsId:profileId:cliSessionId)。 */
+  togglePin: (key: string, title: string) => Promise<void>;
   onRePair: () => void;
 }
 

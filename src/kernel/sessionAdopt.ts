@@ -40,6 +40,11 @@ interface AdoptPtySessionOptions {
 /** 守卫分支的广播文案(抛出信息与之一致,调用方直接复用)。 */
 export const ADOPT_RACE_REASON = "会话在装配期间被移除(进程启动后即刻退出)";
 
+/** 装配在途闸(同 readoptInflight 纪律):桥发起事件与发起端本地 adoptSpawned /
+ *  boot readopt 竞速(同一 Rust 后端,多路都到同一 id)→ 双订阅 = 每字节双写。
+ *  在途 Promise 收口;完成即销账,会话生命周期内的重复装配由调用方 findSession 幂等。 */
+const adoptInflight = new Map<string, Promise<SessionMeta | null>>();
+
 /**
  * spawn 共用装配:常驻订阅输出与退出、竞态守卫、广播会话表。
  * 返回 null = 守卫分支命中(已广播 sessionStartFailed)。
@@ -50,6 +55,9 @@ export async function adoptPtySession(
   sessionId: string,
   opts: AdoptPtySessionOptions,
 ): Promise<SessionMeta | null> {
+  const inflight = adoptInflight.get(sessionId);
+  if (inflight) return await inflight;
+  const task = (async (): Promise<SessionMeta | null> => {
   /* 双订阅互不依赖,并行注册;缝隙竞态由下方存活复查统一兜底(退订恒成对)。 */
   const [offOutput, offExit] = await Promise.all([
     onPtyOutput(sessionId, (text) => {
@@ -80,6 +88,9 @@ export async function adoptPtySession(
   if (opts.activate !== false) events.emit(KernelTopics.activeSessionChanged, sessionId);
   h.notify();
   return h.findSession(sessionId) ?? null;
+  })().finally(() => adoptInflight.delete(sessionId));
+  adoptInflight.set(sessionId, task);
+  return await task;
 }
 
 /** re-adopt 在途单例闸:boot 接线(含 React StrictMode 双调)并发收口;完成后

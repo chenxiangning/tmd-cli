@@ -15,6 +15,8 @@ export interface RemoteSession {
   workspaceId?: string;
   createdAt?: number;
   kind?: "cli" | "ssh" | "shell";
+  /** CLI 磁盘身份(注册表直读:桥 resume 直填 / 桌面绑定镜像;缺省 = 未绑定)。 */
+  cliSessionId?: string;
 }
 
 export interface RemoteWorkspace {
@@ -59,6 +61,20 @@ export async function sessionArchiveKeys(): Promise<Set<string>> {
   const s = await invokeSafe<Record<string, Record<string, unknown>>>("config_read_settings");
   const a = s?.sessionArchive;
   return new Set(a && typeof a === "object" ? Object.keys(a) : []);
+}
+
+/** 置顶覆盖层(桌面 settings.sessionPins,key = wsId:profileId:cliSessionId;
+ *  值含快照标题 + 置顶时间;手机读它渲染「已置顶」区,写走 session_pin_toggle 窄令)。 */
+export async function sessionPinEntries(): Promise<Record<string, { title?: string; pinnedAt?: number }>> {
+  const s = await invokeSafe<Record<string, Record<string, { title?: string; pinnedAt?: number }>>>("config_read_settings");
+  const p = s?.sessionPins;
+  return p && typeof p === "object" ? p : {};
+}
+
+/** 置顶切换(服务端读改写仅 sessionPins 键,免手机持全量快照;返回切换后状态)。 */
+export async function sessionPinToggle(key: string, title: string): Promise<boolean> {
+  const r = await invokeSafe<{ pinned: boolean }>("session_pin_toggle", { key, title });
+  return r.pinned;
 }
 
 /** 写 PTY:data 原样入流(键应答传 "\r"/"\x1b";消息传 text + "\r")。 */

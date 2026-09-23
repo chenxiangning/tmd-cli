@@ -9,9 +9,8 @@ import { SpawnSheet } from "./SpawnSheet";
 import { t } from "@kernel/i18n";
 import { ConnBanner, HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
-import { relTime } from "./remote";
-import { EngineMark } from "./EngineMark";
-import { groupHomeRows, partitionByArchive, scanWorkspaceHistory, type HistoryItem, type HomeRow } from "./history";
+import { Row } from "./Row";
+import { groupHomeRows, partitionByArchive, pinKeyOf, scanWorkspaceHistory, topZones, type HistoryItem, type HomeRow } from "./history";
 
 /** 磁盘历史重扫节奏:读头有 mtime 缓存,稳态每轮只剩 fs_collect_files 轻量 RPC。 */
 const HISTORY_RESCAN_MS = 60_000;
@@ -19,7 +18,7 @@ const HISTORY_RESCAN_MS = 60_000;
 const PAGE_SIZE = 10;
 
 export function HomeScreen() {
-  const { sessions, workspaces, titles, titleOf, route, go, archive } = useMobile();
+  const { sessions, workspaces, titles, titleOf, route, go, archive, pins, togglePin } = useMobile();
   const [q, setQ] = useState("");
   const [spawn, setSpawn] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -102,6 +101,36 @@ export function HomeScreen() {
     () => groupHomeRows({ workspaces, sessions, history, q, titleOfLive: titleOf, titleOfDisk }),
     [workspaces, sessions, history, q, titleOf, titleOfDisk],
   );
+  /* 顶部两区(搜索词在场时同样过滤,与分组区一致)。 */
+  const zones = useMemo(() => topZones({ groups, pins }), [groups, pins]);
+  /** 行 → 归属工作区 id(顶区行跨组,按 groups 反查)。 */
+  const wsIdOf = (r: HomeRow): string | undefined =>
+    groups.find((g) => g.rows.includes(r))?.wsId;
+  /** 行打开:活 → 实况屏;磁盘 → 历史屏(带续聊三参)。 */
+  const openRow = (r: HomeRow): void => {
+    if (r.kind === "live") {
+      go({ view: "session", sessionId: r.live!.id });
+      return;
+    }
+    const wsId = wsIdOf(r);
+    go({
+      view: "history",
+      history: {
+        profileId: r.profileId,
+        path: r.disk!.path,
+        title: r.title,
+        cwd: workspaces.find((w) => w.id === wsId)?.root,
+        workspaceId: wsId,
+        cliSessionId: r.disk!.id,
+      },
+    });
+  };
+  /** 行置顶切换(无稳定磁盘身份 = 不可置顶)。 */
+  const togglePinOf = (r: HomeRow): void => {
+    const wsId = wsIdOf(r);
+    const k = wsId ? pinKeyOf(wsId, r) : null;
+    if (k) void togglePin(k, r.title);
+  };
 
   return (
     <>
@@ -123,7 +152,43 @@ export function HomeScreen() {
             aria-label={t("搜索会话")}
           />
         </div>
-        {groups.length === 0 && (
+        {(zones.pinned.length > 0 || zones.running.length > 0) && (
+          <div className="top-zones">
+            {zones.pinned.length > 0 && (
+              <>
+                <div className="zone-head">📌 {t("已置顶")} {zones.pinned.length}</div>
+                {zones.pinned.map((r) => (
+                  <Row
+                    key={`pin:${r.key}`}
+                    r={r}
+                    active={route.sessionId === r.key.slice(5)}
+                    pending={pending[r.key.slice(5)] ?? 0}
+                    pinned
+                    onTogglePin={() => togglePinOf(r)}
+                    onOpen={() => openRow(r)}
+                  />
+                ))}
+              </>
+            )}
+            {zones.running.length > 0 && (
+              <>
+                <div className="zone-head"><span className="run-dot" /> {t("运行中")} {zones.running.length}</div>
+                {zones.running.map((r) => (
+                  <Row
+                    key={`run:${r.key}`}
+                    r={r}
+                    active={route.sessionId === r.key.slice(5)}
+                    pending={pending[r.key.slice(5)] ?? 0}
+                    pinned={zones.pinned.includes(r)}
+                    onTogglePin={() => togglePinOf(r)}
+                    onOpen={() => openRow(r)}
+                  />
+                ))}
+              </>
+            )}
+          </div>
+        )}
+        {groups.length === 0 && zones.running.length === 0 && (
           <div className="empty">
             {q
               ? t("没有匹配的会话")
@@ -187,21 +252,12 @@ export function HomeScreen() {
                       r={r}
                       active={route.sessionId === r.key.slice(5)}
                       pending={pending[r.key.slice(5)] ?? 0}
-                      onOpen={() =>
-                        r.kind === "live"
-                          ? go({ view: "session", sessionId: r.live!.id })
-                          : go({
-                              view: "history",
-                              history: {
-                                profileId: r.profileId,
-                                path: r.disk!.path,
-                                title: r.title,
-                                cwd: workspaces.find((w) => w.id === g.wsId)?.root,
-                                workspaceId: g.wsId,
-                                cliSessionId: r.disk!.id,
-                              },
-                            })
-                      }
+                      pinned={(() => {
+                        const k = pinKeyOf(g.wsId, r);
+                        return !!k && k in pins;
+                      })()}
+                      onTogglePin={() => togglePinOf(r)}
+                      onOpen={() => openRow(r)}
                     />
                   ))}
                   {limit < rows.length && (
@@ -229,21 +285,5 @@ export function HomeScreen() {
         />
       )}
     </>
-  );
-}
-
-/** 会话行(活/磁盘同形):品牌字形 + 标题 + 审批 pill + 相对时间 + 状态点。 */
-function Row(props: { r: HomeRow; active: boolean; pending: number; onOpen: () => void }) {
-  const live = props.r.kind === "live";
-  return (
-    <button type="button" className={`row${props.active ? " active" : ""}`} onClick={props.onOpen}>
-      <EngineMark profileId={props.r.profileId} />
-      <span className="t">{props.r.title}</span>
-      {live && props.pending > 0 && (
-        <span className="pill">{t("审批 {n}", { n: props.pending })}</span>
-      )}
-      <span className="meta">{relTime(props.r.ts)}</span>
-      <span className={`sdot${live && props.pending > 0 ? " ask" : ""}`} />
-    </button>
   );
 }

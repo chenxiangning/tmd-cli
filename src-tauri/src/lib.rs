@@ -184,6 +184,7 @@ pub fn run() {
             ssh::commands::ssh_prompts_pending,
             session_commands::session_list,
             session_commands::session_set_workspace,
+            session_commands::session_bind_cli,
             session_commands::session_write,
             session_commands::session_resize,
             session_commands::session_kill,

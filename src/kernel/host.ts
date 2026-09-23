@@ -162,6 +162,7 @@ class Host implements PluginContext {
     return this.sessionServices.shell.create(workspaceId);
   }
   readoptSessions = (): Promise<void> => this.sessionServices.readopt(); /* webview 重载后活 PTY 重新接管:会话表合并+常驻订阅重建(语义见 kernel/sessionAdopt.ts) */
+  adoptExternalSession = (e: { sessionId: string; profileId: string; cliSessionId?: string }): Promise<void> => this.sessionServices.adoptExternal(e); /* 桥发起会话补装配(session:external-spawn;见 hostSessionServices) */
 
   async createSession(
     profileId: string,

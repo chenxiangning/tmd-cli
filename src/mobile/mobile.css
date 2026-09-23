@@ -42,8 +42,17 @@
 .ws-seg button b{font-weight:600;font-size:10.5px;color:var(--fg-faint)}
 .ws-seg button.on b{color:var(--accent)}
 .seg-empty{padding:10px 26px;font-size:11.5px}
-.row{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:12.5px;width:100%;background:none;border:none;text-align:left;cursor:pointer}
-.row:active{background:var(--bg-hover)}
+.row{display:flex;align-items:stretch;width:100%}
+.row-main{display:flex;align-items:center;gap:8px;padding:10px 6px 10px 16px;font-size:12.5px;flex:1;min-width:0;background:none;border:none;text-align:left;cursor:pointer;color:inherit;font-family:inherit}
+.row .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .pin{flex:none;width:34px;background:none;border:none;cursor:pointer;font-size:13px;opacity:0;padding:0;color:var(--fg-muted)}
+.row .pin.on{opacity:.9}
+@media (hover: none){.row .pin{opacity:.28}}
+.top-zones{margin:2px 0 6px}
+.zone-head{display:flex;align-items:center;gap:6px;padding:8px 16px 3px;font-size:11px;font-weight:600;color:var(--fg-subtle);letter-spacing:.02em}
+.zone-head+.zone-head{margin-top:4px;border-top:.5px solid var(--border);padding-top:9px}
+.run-dot{width:7px;height:7px;border-radius:50%;background:var(--ok,#22a06b);flex:none;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 .row.active{background:var(--accent-soft)}
 .glyph{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex:none}
 .g-om{background:#e8f0fb;color:#005fb8}.g-cl{background:#f0eee9;color:#8a6d3b}.g-cx{background:#eaf3ee;color:#0f7a4d}

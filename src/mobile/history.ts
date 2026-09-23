@@ -167,3 +167,28 @@ export function partitionByArchive(
   }
   return { local, archived };
 }
+
+/** 置顶 key(与桌面 sessionOverlayKey 同构;活行取注册表 cliSessionId,磁盘行取扫描 id)。 */
+export function pinKeyOf(wsId: string, r: HomeRow): string | null {
+  const cid = r.kind === "live" ? r.live?.cliSessionId : r.disk?.id;
+  return cid ? `${wsId}:${r.profileId}:${cid}` : null;
+}
+/** home 顶部两区:运行中 = 全部活会话(跨工作区,新在上);
+ *  已置顶 = pins 覆盖层命中的行(置顶时间升序 = 最早置顶最上,与桌面同律)。 */
+export function topZones(args: {
+  groups: { wsId: string; name: string; rows: HomeRow[] }[];
+  pins: Record<string, { pinnedAt?: number }>;
+}): { running: HomeRow[]; pinned: HomeRow[] } {
+  const running: HomeRow[] = [];
+  const pinned: Array<{ row: HomeRow; at: number }> = [];
+  for (const g of args.groups) {
+    for (const r of g.rows) {
+      if (r.kind === "live") running.push(r);
+      const pk = pinKeyOf(g.wsId, r);
+      if (pk && pk in args.pins) pinned.push({ row: r, at: args.pins[pk].pinnedAt ?? 0 });
+    }
+  }
+  running.sort((a, b) => b.ts - a.ts);
+  pinned.sort((a, b) => a.at - b.at);
+  return { running, pinned: pinned.map((p) => p.row) };
+}

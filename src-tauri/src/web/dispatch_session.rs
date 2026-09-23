@@ -25,7 +25,9 @@ pub(super) async fn try_dispatch(
             | "session_log_size"
             | "session_size"
             | "session_history_page"
-            | "session_link_log"
+            | "session_spawn"
+            | "session_bind_cli"
+            | "session_pin_toggle"
             | "session_disk_tail"
             | "checkpoint_anchor"
             | "checkpoint_record_edit"
@@ -47,6 +49,21 @@ pub(super) async fn try_dispatch(
 async fn dispatch_inner(app: &AppHandle, cmd: &str, raw: &Value) -> Result<Value, String> {
     match cmd {
         "session_spawn" => spawn(app, raw).await,
+        "session_bind_cli" => {
+            let a = args::<BindCliArgs>(raw)?;
+            ser(crate::session_commands::session_bind_cli(
+                app.state(),
+                a.id,
+                a.cli_session_id,
+            ))
+        }
+        "session_pin_toggle" => {
+            let a = args::<PinToggleArgs>(raw)?;
+            let now_pinned = crate::settings::toggle_pin(&a.key, &a.title)?;
+            /* 与 config_write_settings 同款纪律:广播回读,桌面置顶区即时更新 */
+            let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));
+            val(serde_json::json!({ "pinned": now_pinned }))
+        }
         "session_list" => val(crate::session_commands::session_list(app.state())),
         "session_set_workspace" => ser(crate::session_commands::session_set_workspace(
             app.state(),
@@ -207,12 +224,32 @@ async fn spawn(app: &AppHandle, raw: &Value) -> Result<Value, String> {
         profile_id: String,
         spec: crate::pty::SpawnSpec,
         workspace_id: Option<String>,
+        /// CLI 磁盘身份(手机续接老会话自带;注册表直填,桌面装配不再猜)。
+        #[serde(default)]
+        cli_session_id: Option<String>,
     }
     let a = args::<SpawnArgs>(raw)?;
-    ser(
-        crate::session_commands::session_spawn(app.clone(), a.profile_id, a.spec, a.workspace_id)
-            .await,
+    let spawned = crate::session_commands::session_spawn(
+        app.clone(),
+        a.profile_id.clone(),
+        a.spec,
+        a.workspace_id,
+        a.cli_session_id.clone(),
     )
+    .await?;
+    /* 桥发起 = 绕过桌面前端装配(身份绑定/常驻订阅/状态守望全缺,桌面行退化成
+       短码标题+无运行态)。广播请桌面 host 走 adoptPtySession 补全装配
+       (activate:false 不抢前台;语义见 kernel/sessionAdopt.ts)。 */
+    let _ = crate::event_sink::emit(
+        app,
+        "session:external-spawn",
+        &serde_json::json!({
+            "sessionId": spawned.id,
+            "profileId": a.profile_id,
+            "cliSessionId": a.cli_session_id,
+        }),
+    );
+    val(spawned)
 }
 
 #[derive(serde::Deserialize)]
@@ -221,6 +258,21 @@ struct IdArgs {
     id: String,
     #[serde(default)]
     workspace_id: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BindCliArgs {
+    id: String,
+    cli_session_id: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PinToggleArgs {
+    key: String,
+    #[serde(default)]
+    title: String,
 }
 
 #[derive(serde::Deserialize)]

@@ -13,6 +13,7 @@ fn meta(id: &str) -> SessionMeta {
         kind: "cli".to_string(),
         title: None,
         engine: None,
+        cli_session_id: None,
     }
 }
 
@@ -35,6 +36,20 @@ fn set_workspace_updates_registered_and_rejects_missing() {
         .unwrap()
         .workspace_id
         .is_none());
+}
+
+#[test]
+fn set_cli_session_id_updates_and_locks_wire_shape() {
+    let reg = SessionRegistry::default();
+    reg.register(meta("s1"));
+    assert!(reg.set_cli_session_id("s1", Some("cli-9".to_string())));
+    let listed = reg.list();
+    let m = listed.iter().find(|x| x.id == "s1").expect("registered");
+    assert_eq!(m.cli_session_id.as_deref(), Some("cli-9"));
+    assert!(!reg.set_cli_session_id("ghost", Some("x".to_string())));
+    /* 线上形状:手机 session_list 按 camelCase 直读(白屏事故锁) */
+    let v = serde_json::to_value(m).expect("serialize");
+    assert_eq!(v.get("cliSessionId").and_then(|s| s.as_str()), Some("cli-9"));
 }
 
 /// 线上形状锁:session_list 载荷为 serde camelCase(手机壳 UI 按此消费)。

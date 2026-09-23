@@ -40,6 +40,8 @@ pub(crate) fn app_allowed(cmd: &str) -> bool {
                 | "write"
                 | "resize"
                 | "spawn"
+                | "bind_cli"
+                | "pin_toggle"
         );
     }
     // fs 域:只读面(读/搜/枚举/图像预览);写与逃逸面(打开/回收站/临时写)拒绝

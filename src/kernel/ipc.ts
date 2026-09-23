@@ -123,6 +123,9 @@ export interface SessionMeta {
   /** 引擎档案 id(仅 SSH 会话:WSL CLI 会话远端跑某引擎,composer/Ask 据此取
    *  CLI profile;kind 仍为 "ssh")。普通 SSH/本地会话无此字段。 */
   engine?: string;
+  /** CLI 磁盘身份(注册表视图:桥 resume spawn 直填 / 前端账本绑定经 session_bind_cli
+   *  回写;手机壳 session_list 直读,标题/归档/置顶 key 全按此解析)。 */
+  cliSessionId?: string;
 }
 
 export interface WorkspaceMeta {
@@ -339,6 +342,9 @@ export const ipc = {
   /** 补写会话的工作区归属(接管转正路径:预热 spawn 时归属未知,打开动作落地时补)。 */
   sessionSetWorkspace: (id: string, workspaceId: string | null) =>
     invoke<void>("session_set_workspace", { id, workspaceId }),
+  /** 回写活会话的 CLI 磁盘身份(账本绑定唯一写入口的注册表镜像;手机直读)。 */
+  sessionBindCli: (id: string, cliSessionId: string) =>
+    invoke<void>("session_bind_cli", { id, cliSessionId }),
   sessionWrite: (id: string, data: string) =>
     invoke<void>("session_write", { id, data }),
   sessionResize: (id: string, cols: number, rows: number) =>
@@ -1098,6 +1104,18 @@ export function onPtyOutput(sessionId: string, cb: (text: string) => void) {
 /** 订阅某会话的进程退出。返回退订函数。 */
 export function onPtyExit(sessionId: string, cb: () => void) {
   return listen(`pty://exit/${sessionId}`, () => cb());
+}
+
+/** 桥(web/手机)发起会话的装配请求事件(Rust dispatch_session 广播)。 */
+export interface ExternalSpawnEvent {
+  sessionId: string;
+  profileId: string;
+  cliSessionId?: string;
+}
+
+/** 订阅桥发起会话事件:桌面走 adoptPtySession 补全装配(见 app-shell/DesktopApp)。 */
+export function onExternalSpawn(cb: (e: ExternalSpawnEvent) => void) {
+  return listen<ExternalSpawnEvent>("session:external-spawn", (ev) => cb(ev.payload));
 }
 
 /** 订阅某 SSH 会话的状态/转发快照事件。返回退订函数。 */

@@ -66,6 +66,9 @@ export async function resumeDiskSession(args: {
       env: {},
     },
     workspaceId: args.workspaceId,
+    /* 磁盘身份直注注册表(桥 spawn 参数):桌面装配/标题解析/手机置顶 key 即刻可用,
+       不再依赖前端身份探测(懒落盘 35-44s 窗) */
+    cliSessionId: args.cliSessionId,
   });
   opened.set(key, r.id);
   return r.id;

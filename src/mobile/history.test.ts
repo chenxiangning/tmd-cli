@@ -40,7 +40,7 @@ vi.mock("@plugins/cli-shared/qoderSessionModel", () => ({
   listQoderSessions: async () => [],
 }));
 
-import { groupHomeRows, partitionByArchive, scanWorkspaceHistory, type HomeRow } from "./history";
+import { groupHomeRows, partitionByArchive, pinKeyOf, scanWorkspaceHistory, topZones, type HomeRow } from "./history";
 
 const ws = (id: string, root: string, name = id) => ({ id, root, name });
 
@@ -124,5 +124,42 @@ describe("partitionByArchive", () => {
     const rows = [diskRow("disk:omp:a", "a")];
     expect(partitionByArchive(rows, "w1", new Set()).archived).toEqual([]);
     expect(partitionByArchive(rows, "w1", new Set(["w2:omp:a"])).local).toHaveLength(1);
+  });
+});
+
+describe("topZones", () => {
+  const live = (id: string, ts: number, cliSessionId?: string): HomeRow => ({
+    key: `live:${id}`,
+    kind: "live",
+    profileId: "omp",
+    title: id,
+    ts,
+    live: { id, profileId: "omp", cwd: "/w1", cliSessionId },
+  });
+  const disk = (id: string, ts: number): HomeRow => ({
+    key: `disk:omp:${id}`,
+    kind: "disk",
+    profileId: "omp",
+    title: id,
+    ts,
+    disk: { id, modifiedAt: ts, path: `/p/${id}.jsonl` },
+  });
+  const groups = [
+    { wsId: "w1", name: "w1", rows: [live("a", 30, "ca"), disk("d1", 20)] },
+    { wsId: "w2", name: "w2", rows: [live("b", 40)] },
+  ];
+  it("运行中 = 跨组活会话新在上;未绑定活行无置顶键", () => {
+    const z = topZones({ groups, pins: {} });
+    expect(z.running.map((r) => r.key)).toEqual(["live:b", "live:a"]);
+    expect(pinKeyOf("w2", live("b", 40))).toBeNull();
+    expect(pinKeyOf("w1", live("a", 30, "ca"))).toBe("w1:omp:ca");
+    expect(pinKeyOf("w1", disk("d1", 20))).toBe("w1:omp:d1");
+  });
+  it("已置顶按 pinnedAt 升序(最早置顶最上,与桌面同律)", () => {
+    const z = topZones({
+      groups,
+      pins: { "w1:omp:ca": { pinnedAt: 200 }, "w1:omp:d1": { pinnedAt: 100 } },
+    });
+    expect(z.pinned.map((r) => r.key)).toEqual(["disk:omp:d1", "live:a"]);
   });
 });

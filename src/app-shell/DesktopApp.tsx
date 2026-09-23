@@ -21,6 +21,7 @@ import { bootDropGuard } from "@kernel/dropGuard";
 import { bootSessionTabs } from "@kernel/sessionTabs";
 import { registerDefaultContributions } from "./contributions";
 import { bootAskRestore } from "@kernel/askWatchRestore";
+import { onExternalSpawn } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 
 export function DesktopApp() {
@@ -38,6 +39,11 @@ export function DesktopApp() {
     bootDropGuard(); /* 文件拖放护栏:防 webview drop 导航开文件(lib.rs 关原生拦截的副作用) */
     initUpdatePresence(); /* 更新感应后台化:6h 节流检查,底栏版本号旁亮提示(boot 级,不随左栏关闭停摆) */
     bootSessionTabs(host.events); /* 会话标题 tab 条:订阅打开/存活广播,见 kernel/sessionTabs.ts */
+    /* 桥(手机)发起会话补装配:桥 spawn 绕过前端生命周期,桌面行会退化成短码
+       标题 + 无运行态;事件驱动走 adoptExternalSession(语义见 hostSessionServices)。 */
+    const unlistenExternal = onExternalSpawn((e) => {
+      void host.adoptExternalSession(e).catch(() => undefined);
+    });
     const syncFocus = () => host.setWindowFocus(document.hasFocus());
     window.addEventListener("focus", syncFocus);
     window.addEventListener("blur", syncFocus);
@@ -67,6 +73,7 @@ export function DesktopApp() {
     return () => {
       window.removeEventListener("focus", syncFocus);
       window.removeEventListener("blur", syncFocus);
+      void unlistenExternal.then((off) => off()).catch(() => undefined);
     };
   }, []);
 
