@@ -22,7 +22,7 @@ export function HomeScreen() {
   const { sessions, workspaces, titles, titleOf, route, go, archive } = useMobile();
   const [q, setQ] = useState("");
   const [spawn, setSpawn] = useState(false);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   /* 工作区视图分段:本地(默认)/ 归档;分页水位按视图独立(key = 工作区:分段)。 */
   const [wsTab, setWsTab] = useState<Record<string, "local" | "archive">>({});
   const [limits, setLimits] = useState<Record<string, number>>({});
@@ -136,40 +136,44 @@ export function HomeScreen() {
           const rows = tab === "local" ? local : archived;
           const key = `${g.wsId}:${tab}`;
           const limit = limits[key] ?? PAGE_SIZE;
+          /* 默认折叠;搜索词在场时强制展开(否则搜索结果不可见)。 */
+          const open = q.trim() ? true : expanded[g.wsId] === true;
           return (
             <React.Fragment key={g.wsId}>
-              <button
-                type="button"
-                className="ws-head"
-                aria-expanded={!collapsed[g.wsId]}
-                onClick={() => setCollapsed((m) => ({ ...m, [g.wsId]: !m[g.wsId] }))}
-              >
-                <span className="caret">{collapsed[g.wsId] ? "▸" : "▾"}</span>
-                {g.name}
-                <span className="cnt">{local.length}</span>
-              </button>
-              {!collapsed[g.wsId] && (
+              <div className="ws-head">
+                <button
+                  type="button"
+                  className="ws-caret"
+                  aria-expanded={open}
+                  aria-label={open ? t("折叠") : t("展开")}
+                  onClick={() => setExpanded((m) => ({ ...m, [g.wsId]: !m[g.wsId] }))}
+                >
+                  {open ? "▾" : "▸"}
+                </button>
+                <span className="ws-name">{g.name}</span>
+                <div className="ws-seg" role="tablist">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === "local"}
+                    className={tab === "local" ? "on" : ""}
+                    onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "local" }))}
+                  >
+                    {t("本地")} {local.length}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === "archive"}
+                    className={tab === "archive" ? "on" : ""}
+                    onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "archive" }))}
+                  >
+                    {t("归档")} {archived.length}
+                  </button>
+                </div>
+              </div>
+              {open && (
                 <>
-                  <div className="ws-seg" role="tablist">
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={tab === "local"}
-                      className={tab === "local" ? "on" : ""}
-                      onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "local" }))}
-                    >
-                      {t("本地")} {local.length}
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={tab === "archive"}
-                      className={tab === "archive" ? "on" : ""}
-                      onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "archive" }))}
-                    >
-                      {t("归档")} {archived.length}
-                    </button>
-                  </div>
                   {rows.length === 0 && (
                     <div className="empty seg-empty">
                       {tab === "local" ? t("暂无会话") : t("没有归档会话")}
