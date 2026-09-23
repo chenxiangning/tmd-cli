@@ -159,7 +159,8 @@ export function HomeScreen() {
                     className={tab === "local" ? "on" : ""}
                     onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "local" }))}
                   >
-                    {t("本地")} {local.length}
+                    <span className="ic">🖥</span>
+                    {t("本地")} <b>{local.length}</b>
                   </button>
                   <button
                     type="button"
@@ -168,7 +169,8 @@ export function HomeScreen() {
                     className={tab === "archive" ? "on" : ""}
                     onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "archive" }))}
                   >
-                    {t("归档")} {archived.length}
+                    <span className="ic">📦</span>
+                    {t("归档")} <b>{archived.length}</b>
                   </button>
                 </div>
               </div>
