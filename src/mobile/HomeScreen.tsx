@@ -30,9 +30,11 @@ export function HomeScreen() {
   /* 磁盘历史:key = 工作区 root。 */
   const [history, setHistory] = useState<Map<string, HistoryItem[]>>(new Map());
 
-  /* 轮询签名:会话集合不变就不重启 interval(sessions 数组每 2.5s 换新引用)。 */
+  /* 轮询签名:会话集合不变就不重启 interval;截断前按 createdAt 稳定排序
+     (session_list 源 HashMap 无序,不排序则 >12 活会话时徽标覆盖面随机漂移)。 */
   const pollSig = useMemo(
-    () => sessions.slice(0, 12).map((s) => `${s.id}@${s.cwd}`).join("|"),
+    () => [...sessions].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+      .slice(0, 12).map((s) => `${s.id}@${s.cwd}`).join("|"),
     [sessions],
   );
   React.useEffect(() => {
@@ -155,6 +157,19 @@ export function HomeScreen() {
       "";
     void togglePin(k, real);
   };
+  /** 顶区一块:标题 + 行列表(置顶/运行共用;pin 钮态由 pinnedSet 判)。 */
+  const zoneBlock = (head: React.ReactNode, rows: HomeRow[], allPinned: boolean) =>
+    rows.length === 0 ? null : (
+      <>
+        <div className="zone-head">{head} {rows.length}</div>
+        {rows.map((r) => (
+          <Row key={r.key} r={r} active={route.sessionId === r.key.slice(5)}
+            pending={pending[r.key.slice(5)] ?? 0}
+            pinned={allPinned || pinnedSet.has(r)}
+            onTogglePin={() => togglePinOf(r)} onOpen={() => openRow(r)} />
+        ))}
+      </>
+    );
 
   return (
     <>
@@ -178,38 +193,8 @@ export function HomeScreen() {
         </div>
         {(zones.pinned.length > 0 || zones.running.length > 0) && (
           <div className="top-zones">
-            {zones.pinned.length > 0 && (
-              <>
-                <div className="zone-head">📌 {t("已置顶")} {zones.pinned.length}</div>
-                {zones.pinned.map((r) => (
-                  <Row
-                    key={`pin:${r.key}`}
-                    r={r}
-                    active={route.sessionId === r.key.slice(5)}
-                    pending={pending[r.key.slice(5)] ?? 0}
-                    pinned
-                    onTogglePin={() => togglePinOf(r)}
-                    onOpen={() => openRow(r)}
-                  />
-                ))}
-              </>
-            )}
-            {zones.running.length > 0 && (
-              <>
-                <div className="zone-head"><span className="run-dot" /> {t("运行中")} {zones.running.length}</div>
-                {zones.running.map((r) => (
-                  <Row
-                    key={`run:${r.key}`}
-                    r={r}
-                    active={route.sessionId === r.key.slice(5)}
-                    pending={pending[r.key.slice(5)] ?? 0}
-                    pinned={pinnedSet.has(r)}
-                    onTogglePin={() => togglePinOf(r)}
-                    onOpen={() => openRow(r)}
-                  />
-                ))}
-              </>
-            )}
+            {zoneBlock(`📌 ${t("已置顶")}`, zones.pinned, true)}
+            {zoneBlock(<><span className="run-dot" /> {t("运行中")}</>, zones.running, false)}
           </div>
         )}
         {groups.length === 0 && zones.running.length === 0 && (

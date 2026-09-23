@@ -35,8 +35,8 @@ APP="$DERIVED/Build/Products/Release-iphoneos/tmd-cli mobile.app"
 echo "[build-device] 产物: $APP"
 
 if [[ "${1:-}" == "--install" ]]; then
-  echo "[build-device] 3/3 安装并启动(第一台已连接真机)"
-  DEV="$(xcrun devicectl list devices 2>/dev/null | grep -E 'connected' | grep -v simulated | grep -oE '[0-9A-F]{8}-[0-9A-F]{10,24}' | head -1 || true)"
+  echo "[build-device] 3/3 安装并启动(第一台已连接真机;TMD_DEVICE_UDID 可指定)"
+  DEV="${TMD_DEVICE_UDID:-$(xcrun devicectl list devices 2>/dev/null | grep -E 'connected' | grep -v simulated | grep -oE '[0-9A-F]{8}-[0-9A-F]{10,24}' | head -1 || true)}"
   if [[ -z "$DEV" ]]; then
     echo "[build-device] 未发现已连接真机;可用 TMD_DEVICE_UDID 指定" >&2
     exit 1

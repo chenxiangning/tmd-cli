@@ -12,7 +12,7 @@ import { HomeScreen } from "./HomeScreen";
 import { SessionScreen } from "./SessionScreen";
 import { HistoryScreen } from "./HistoryScreen";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
-import { listSessions, listWorkspaces, sessionArchiveKeys, sessionPinEntries, sessionPinToggle, sessionTitles } from "./remote";
+import { listSessions, listWorkspaces, overlayState, sessionPinToggle } from "./remote";
 import { isRemoteConnected, isRemotePaused, listen, onRemoteConnection } from "@kernel/transport";
 
 export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
@@ -59,18 +59,24 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
     let timer = 0;
     const pull = () => {
       clearTimeout(timer);
-      void Promise.allSettled([sessionTitles(), sessionArchiveKeys(), sessionPinEntries()]).then(
-        ([t, a, p]) => {
+      void overlayState().then(
+        (o) => {
           if (!alive) return;
-          if (t.status === "fulfilled") setTitles(t.value);
-          if (a.status === "fulfilled") setArchive(a.value);
-          if (p.status === "fulfilled") setPins(p.value);
-          if ([t, a, p].some((r) => r.status === "rejected")) timer = window.setTimeout(pull, 3000);
+          setTitles(o.titles);
+          setArchive(o.archive);
+          setPins(o.pins);
+        },
+        () => {
+          if (alive) timer = window.setTimeout(pull, 3000);
         },
       );
     };
     pull();
-    const off = listen("settings:changed", pull);
+    /* 防抖:桌面连发 settings:changed(如批量归档)只拉一次全量。 */
+    const off = listen("settings:changed", () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(pull, 300);
+    });
     return () => {
       alive = false;
       clearTimeout(timer);

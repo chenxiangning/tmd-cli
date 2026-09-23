@@ -14,16 +14,11 @@ type UnlistenFn = () => void;
 
 type Listener = (payload: unknown) => void;
 
-interface PendingReq {
-  resolve: (v: unknown) => void;
-  reject: (e: Error) => void;
-}
+interface PendingReq { resolve: (v: unknown) => void; reject: (e: Error) => void; }
 
 const RETRY_MAX_MS = 10_000;
-
 /** WS open 等待上限:过时不等(但保留连接),防服务器无 /ws 时永久挂起。 */
 const OPEN_TIMEOUT_MS = 5_000;
-
 
 export class WebBridge {
   private ws: WebSocketLike | null = null;
@@ -196,9 +191,8 @@ export class WebBridge {
     // 桌面可能重启了桥:持续重试(全局闸:退避期内其它 ensure 一律快败)。
     if (this.paused) return; // 手动断开:停摆,等用户显式重连
     this.nextDialAt = Date.now() + this.retryMs;
-    const delay = this.retryMs;
-    this.retryMs = Math.min(this.retryMs * 2, RETRY_MAX_MS);
-    setTimeout(() => void this.ensure(), delay);
+    const delay = this.retryMs; this.retryMs = Math.min(this.retryMs * 2, RETRY_MAX_MS);
+    setTimeout(() => { try { void this.ensure(); } catch { /* 退避窗未清:由下轮 onClose 重排 */ } }, delay);
   }
 
   async invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -217,7 +211,7 @@ export class WebBridge {
   }
 
   async listen(name: string, cb: Listener): Promise<UnlistenFn> {
-    void this.ensure();
+    try { void this.ensure(); } catch { /* 退避/paused 快败:注册照常,open 时统一重放(评审:同步抛会断实况订阅) */ }
     let subs = this.listeners.get(name);
     if (!subs) {
       subs = new Set();
@@ -246,24 +240,24 @@ export class WebBridge {
 
   serverVersion(): Promise<string | null> {
     if (this.versionValue !== null) return Promise.resolve(this.versionValue);
+    if (this.closed) return Promise.resolve(null); /* closed 早返:不注册永不收敛的 waiter(评审 P2) */
     const { promise, resolve } = Promise.withResolvers<string | null>();
     this.versionWaiters.push(resolve);
     void this.ensure();
     return promise;
   }
-
   serverCapabilities(): Promise<string[]> {
     if (this.capsValue !== null) return Promise.resolve(this.capsValue);
+    if (this.closed) return Promise.resolve([]); /* 同 version:closed 不吊 waiter */
     const { promise, resolve } = Promise.withResolvers<string[]>();
     this.capsWaiters.push(resolve);
     void this.ensure();
     return promise;
   }
-
   /** 远程模式切换(壳配对成功 / 撤销清凭证)。null 且曾连接 → 停连不再重试。 */
   setEndpoint(ep: RemoteEndpoint | null) {
     this.endpoint = ep;
-    this.closed = ep === null;
+    this.closed = ep === null; this.versionValue = null; this.capsValue = null; /* 换端点=新桌面:停连 + hello 缓存失效(评审:旧 caps 旁路 block 防线) */
     this.paused = ep === null; // 换端点 = 重新开始;清凭证则一并停摆
     setPaused(this.paused);
     if (this.ws) {

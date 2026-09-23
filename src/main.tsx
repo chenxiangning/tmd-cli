@@ -11,6 +11,20 @@ import { isMobileShell } from "./mobile/shared";
 import "./styles/global.css";
 import "./mobile/mobile.css";
 
+/* Promise.withResolvers = Safari 17.4+;壳声明支持 iOS 16.0(transportBridge/gate 依赖)。
+   四行垫片,三树(壳/桌面/浏览器)统一兜底,免得抬 deploymentTarget 砍 16.x 用户。 */
+if (!Promise.withResolvers) {
+  Promise.withResolvers = function <T>() {
+    let resolve!: (v: T | PromiseLike<T>) => void;
+    let reject!: (r?: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
+}
+
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 
 if (isMobileShell()) {

@@ -9,7 +9,7 @@ use tauri::{AppHandle, Manager};
 
 use super::dispatch::{args, ser, val};
 
-/// 本域闸表:session_*/checkpoint_* 的全部桥面命令名。与 dispatch_inner 臂表同文件
+/// 本域闸表:session 与 checkpoint 两域的全部桥面命令名。与 dispatch_inner 臂表同文件
 /// 维护;conn.rs 交叉测试钉「AppDevice 白名单 session/checkpoint 域 ⊆ 本表」防漂移
 /// (2026-09-24 link_log 被顶出闸表的回归教训)。
 pub(super) const GATED: &[&str] = &[

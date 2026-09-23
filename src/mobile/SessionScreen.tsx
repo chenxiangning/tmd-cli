@@ -132,10 +132,18 @@ export function SessionScreen(props: { sessionId: string }) {
         screen.feed(page.text);
         setLive(screen.view());
       }
+      /* rAF 合帧:每 chunk 全量 view() 重建(2000 行 scrollback join)在流式输出下
+         是每帧 O(全屏) 复制;脏标 + 帧对齐把重绘压到 ≤60Hz(评审 P1-3)。 */
+      let dirty = false;
       off = await onPtyOut(props.sessionId, (chunk) => {
         if (!alive) return;
         screen.feed(chunk);
-        setLive(screen.view());
+        if (dirty) return;
+        dirty = true;
+        requestAnimationFrame(() => {
+          dirty = false;
+          if (alive) setLive(screen.view());
+        });
       });
       timer = window.setInterval(() => {
         void (async () => {
@@ -159,19 +167,22 @@ export function SessionScreen(props: { sessionId: string }) {
     };
   }, [props.sessionId]);
 
-  /* ask 检测:live 变化后对尾窗跑标记(命中 → 卡 + 首现通知;消失 → 自愈收卡)。 */
+  /* ask 检测:live 变化后对尾窗跑标记(命中 → 卡 + 首现通知;消失 → 自愈收卡)。
+     截尾 8K:标记只在末屏,全量 stripAnsi 在 2000 行 scrollback 下是每帧全文扫。 */
+  const metaId = meta?.profileId ?? "";
+  const metaCwd = meta?.cwd ?? "";
   useEffect(() => {
     if (!props.sessionId || !live) return;
     let alive = true;
-    void tailHasAskMarker(live).then((hit) => {
+    void tailHasAskMarker(live.slice(-8192)).then((hit) => {
       if (!alive) return;
       if (hit) {
         if (!askSeen.current) {
           askSeen.current = true;
-          notifyAsk(titleOf(meta ?? ({ id: props.sessionId } as never)));
+          notifyAsk(titleOf(meta ?? ({ id: props.sessionId, profileId: "", cwd: "" } as never)));
         }
         setAsk(true);
-        void tailAskLine(live).then((line) => {
+        void tailAskLine(live.slice(-8192)).then((line) => {
           if (alive && line) setAskQ(line);
         });
       } else {
@@ -181,8 +192,8 @@ export function SessionScreen(props: { sessionId: string }) {
     return () => {
       alive = false;
     };
-  }, [live, props.sessionId, meta, titleOf]);
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- meta 派生串入依赖,免 2.5s 轮询新引用带崩
+  }, [live, props.sessionId, metaId, metaCwd, titleOf]);
   /* 自动滚底 = 跟随态(贴底 <48px)时新输出拽底;上滚阅读历史不被打断。
    * 展开实况块 = 重进跟随并跳底(看最新是默认预期)。实况折叠时不滚。 */
   const followRef = React.useRef(true);

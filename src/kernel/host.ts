@@ -71,6 +71,7 @@ class Host implements PluginContext {
       setActiveSession: (id) => this.setActiveSession(id),
       removeSession: (sessionId) => this.removeSession(sessionId),
       trackUnlisten: (sessionId, offs) => this.ptyUnlistens.set(sessionId, offs),
+      hasSubscribed: (sessionId) => this.ptyUnlistens.has(sessionId),
       notify: () => this.notify(),
     },
     this.watches,
@@ -196,14 +197,13 @@ class Host implements PluginContext {
   observeReplayTail = (sessionId: string): void => this.watches.observeReplayTail(sessionId);
   observeAskScreen = (sessionId: string, screenText: string): void => this.watches.observeAskScreen(sessionId, screenText);
   restoreTail = (sessionId: string, tail: string, extraMarks?: RegExp[]): void => this.watches.restoreTail(sessionId, tail, extraMarks);
-  /** 磁盘尾恢复(走法 1 冷开回放;写后闸语义见 askWatchFeed.restoreDiskTail)。 */
-  restoreDiskTail = (sessionId: string, tail: string): void => this.watches.restoreDiskTail(sessionId, tail);
+  restoreDiskTail = (sessionId: string, tail: string): void => this.watches.restoreDiskTail(sessionId, tail); /* 磁盘尾恢复(冷开回放;写后闸见 askWatchFeed) */
   /** 用户输入唯一写入口:PTY 写入 + 对话锚定 + Ask 作答解除;返回是否送达(死会话/写失败 false,锚定照常)。 */
   writeSession(sessionId: string, data: string, synthetic = false): Promise<boolean> {
     if (this.watches.onUserWrite(sessionId, synthetic)) this.notify();
     return ipc.sessionWrite(sessionId, data).then(() => true, () => false);
   }
-  noteRemoteWrite = (sessionId: string): void => { if (this.watches.onUserWrite(sessionId, false)) this.notify(); }; /* 桥写入补锚定(session:remote-write;PTY 写已在桥侧完成) */
+  noteRemoteWrite = (sessionId: string): void => { if (this.sessions.some((s) => s.id === sessionId) && this.watches.onUserWrite(sessionId, false)) this.notify(); }; /* 桥写补锚定(session:remote-write);未装配会话不建档(评审:幽灵守望条目) */
   /** 幕布尺寸同步的唯一入口(TerminalView):转发 resize + 给活动守望记重绘抑制窗起点。 */
   resizeSession(sessionId: string, cols: number, rows: number): void {
     this.watches.onResized(sessionId);

@@ -63,7 +63,7 @@ final class DistSchemeHandler: NSObject, WKURLSchemeHandler {
     var path = url.path
     if path.isEmpty || path == "/" { path = "/index.html" }
     let file = root.appendingPathComponent(path).standardizedFileURL
-    guard file.path.hasPrefix(root.path) else {
+    guard file.path.hasPrefix(root.path + "/") || file == root else {
       ShellLog.write("404 escape \(file.path) vs \(root.path)")
       task.didFailWithError(NSError(domain: "tmd", code: 404))
       return

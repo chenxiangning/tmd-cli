@@ -50,8 +50,8 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         reply(id: id, ok: false, payload: "no active scene"); return
       }
       let mask: UIInterfaceOrientationMask = mode == "landscape" ? [.landscapeLeft, .landscapeRight] : .portrait
-      scene.requestGeometryUpdate(.iOS(interfaceOrientations: mask)) { _ in
-        DispatchQueue.main.async { self.reply(id: id, ok: true, payload: nil) }
+      scene.requestGeometryUpdate(.iOS(interfaceOrientations: mask)) { error in
+        DispatchQueue.main.async { self.reply(id: id, ok: error == nil, payload: error.map { "\($0)" }) }
       }
     default:
       reply(id: id, ok: false, payload: "unknown method \(method)")
@@ -75,6 +75,12 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
   }
 
   private func reply(id: Int, ok: Bool, payload: Any?) {
+    /* WebKit 铁律:evaluateJavaScript 必须回主线程(UN requestAuthorization/add 回调
+       在后台队列,直调 = 真机 crash;2026-09-24 评审抓到 notify 路径漏网)。 */
+    guard Thread.isMainThread else {
+      DispatchQueue.main.async { self.reply(id: id, ok: ok, payload: payload) }
+      return
+    }
     let json: String
     if let payload {
       json = (try? JSONSerialization.data(withJSONObject: ["p": payload]))

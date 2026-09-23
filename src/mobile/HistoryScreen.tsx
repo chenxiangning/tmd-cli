@@ -10,6 +10,7 @@ import { useMobile } from "./shared";
 import { EngineMark } from "./EngineMark";
 import { loadTranscriptAt } from "./sessionFile";
 import { resumeDiskSession } from "./resume";
+import { engineOf } from "./engines";
 import { TurnsView } from "./TurnsView";
 import type { TranscriptTurn } from "@kernel/transcript";
 
@@ -25,7 +26,7 @@ export function HistoryScreen(props: {
   const [turns, setTurns] = useState<TranscriptTurn[] | null>(null);
   const [resuming, setResuming] = useState(false);
   const [resumeErr, setResumeErr] = useState<string | null>(null);
-  const resumable = !!props.cwd && !!props.cliSessionId;
+  const resumable = !!props.cwd && !!props.cliSessionId && !!engineOf(props.profileId);
 
   const resume = () => {
     setResuming(true);

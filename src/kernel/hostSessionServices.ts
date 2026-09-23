@@ -30,6 +30,8 @@ interface HostSessionServicesCtx {
   removeSession(sessionId: string): Promise<void>;
   /** 登记输出/退出退订对(会话移除时成对退订)。 */
   trackUnlisten(sessionId: string, offs: Array<() => void>): void;
+  /** 已装配订阅?(adoptPtySession 终态幂等闸透传)。 */
+  hasSubscribed(sessionId: string): boolean;
   /** 外壳重渲染通知(Host.notify)。 */
   notify(): void;
 }
@@ -64,6 +66,7 @@ export function createSessionServices(
     removeSession: (sessionId: string) => ctx.removeSession(sessionId),
     trackUnlisten: (sessionId: string, offs: Array<() => void>) =>
       ctx.trackUnlisten(sessionId, offs),
+    hasSubscribed: (sessionId: string) => ctx.hasSubscribed(sessionId),
     getSessions: () => ctx.getSessions(),
     setActiveSession: (id: string) => ctx.setActiveSession(id),
     notify: () => ctx.notify(),
@@ -96,6 +99,7 @@ export function createSessionServices(
         statusRefresh: (sessionId) => watches.statusRefresh(sessionId),
         statusSeed: (sessionId) => watches.statusSeed(sessionId),
         trackUnlisten: base.trackUnlisten,
+        hasSubscribed: base.hasSubscribed,
         outputTail: (sessionId, maxChars) =>
           watches.outputTail(sessionId, maxChars),
         appendOutput: base.appendOutput,
@@ -117,12 +121,9 @@ export function createSessionServices(
       );
       /* 账本死项剪除(必须在此刻:活表已按 Rust 注册表定稿;冷启动清陈账,重载全保留) */
       watches.pruneIdentities();
-      /* 注册表身份回灌:桥 spawn 直填/桌面绑定镜像的 cliSessionId 在重载后
-         账本已丢(账本 localStorage 只存桌面绑定的),按注册表视图补回 */
+      /* 注册表身份回灌(cliSessionId 重载后账本已丢;免镜像回写,值本就来自注册表) */
       for (const s of ctx.getSessions()) {
-        if (s.cliSessionId && !watches.getCliSessionId(s.id)) {
-          watches.bindIdentity(s.id, s.cliSessionId);
-        }
+        if (s.cliSessionId && !watches.getCliSessionId(s.id)) watches.seedIdentity(s.id, s.cliSessionId);
       }
       const jobs: Promise<void>[] = [];
       for (const s of ctx.getSessions()) {

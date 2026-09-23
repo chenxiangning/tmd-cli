@@ -48,28 +48,22 @@ export function listWorkspaces(): Promise<RemoteWorkspace[]> {
   );
 }
 
-/** 会话手动命名覆盖层(桌面 settings.sessionTitles,key = profileId:cliSessionId;
- *  活会话经 cliSessionId 解析,磁盘行同键)。 */
-export async function sessionTitles(): Promise<Record<string, string>> {
-  const s = await invokeSafe<Record<string, Record<string, string>>>("config_read_settings");
-  const t = s?.sessionTitles;
-  return t && typeof t === "object" ? t : {};
-}
-
-/** 归档覆盖层键集(桌面 settings.sessionArchive,key = wsId:profileId:cliSessionId;
- *  语义 kernel/sessionArchive.ts —— 手机只读过滤,不写)。 */
-export async function sessionArchiveKeys(): Promise<Set<string>> {
+/** 桌面 settings 三覆盖层一次 RPC 全取(评审:三次独立 config_read_settings =
+ *  全树 settings.json ×3;titles key = profileId:cliSessionId,archive/pins key =
+ *  wsId:profileId:cliSessionId,语义 kernel/sessionArchive.ts / sessionPins.ts)。 */
+export async function overlayState(): Promise<{
+  titles: Record<string, string>;
+  archive: Set<string>;
+  pins: Record<string, { title?: string; pinnedAt?: number }>;
+}> {
   const s = await invokeSafe<Record<string, Record<string, unknown>>>("config_read_settings");
-  const a = s?.sessionArchive;
-  return new Set(a && typeof a === "object" ? Object.keys(a) : []);
-}
-
-/** 置顶覆盖层(桌面 settings.sessionPins,key = wsId:profileId:cliSessionId;
- *  值含快照标题 + 置顶时间;手机读它渲染「已置顶」区,写走 session_pin_toggle 窄令)。 */
-export async function sessionPinEntries(): Promise<Record<string, { title?: string; pinnedAt?: number }>> {
-  const s = await invokeSafe<Record<string, Record<string, { title?: string; pinnedAt?: number }>>>("config_read_settings");
-  const p = s?.sessionPins;
-  return p && typeof p === "object" ? p : {};
+  const obj = <T>(v: unknown): Record<string, T> =>
+    v && typeof v === "object" ? (v as Record<string, T>) : {};
+  return {
+    titles: obj<string>(s?.sessionTitles),
+    archive: new Set(Object.keys(obj(s?.sessionArchive))),
+    pins: obj<{ title?: string; pinnedAt?: number }>(s?.sessionPins),
+  };
 }
 
 /** 置顶切换(服务端读改写仅 sessionPins 键,免手机持全量快照;返回切换后状态)。 */

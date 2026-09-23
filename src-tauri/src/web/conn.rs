@@ -219,29 +219,14 @@ mod tests {
         }
     }
 
-    /// 三表漂移防线:AppDevice 白名单放行的 session/checkpoint 命令必须都在桥闸表
-    /// (dispatch_session::GATED)。2026-09-24 实证:加令时把 session_link_log 顶出闸表,
-    /// 白名单/臂表都在 → 桥面 unknown command,日志指针断写。
+    /// 三表漂移防线:白名单放行的 session/checkpoint 命令必须都在桥闸表(GATED)。
+    /// 2026-09-24 实证:加令时 session_link_log 被顶出闸表 → 桥面 unknown command。
     #[test]
     fn 白名单会话命令必在桥闸表() {
-        for cmd in [
-            "session_list",
-            "session_disk_tail",
-            "session_history_page",
-            "session_link_log",
-            "session_log_size",
-            "session_size",
-            "session_write",
-            "session_resize",
-            "session_spawn",
-            "session_pin_toggle",
-            "checkpoint_list",
-            "checkpoint_batch_diff",
-        ] {
-            assert!(
-                super::super::dispatch_session::GATED.contains(&cmd),
-                "{cmd} 在白名单但缺桥闸表臂"
-            );
+        for cmd in "session_list session_disk_tail session_history_page session_link_log \
+            session_log_size session_size session_write session_resize session_spawn \
+            session_pin_toggle checkpoint_list checkpoint_batch_diff".split(' ') {
+            assert!(super::super::dispatch_session::GATED.contains(&cmd), "{cmd} 缺桥闸表臂");
         }
     }
 

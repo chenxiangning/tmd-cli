@@ -183,9 +183,11 @@ export function topZones(args: {
   const pinned: Array<{ row: HomeRow; at: number }> = [];
   for (const g of args.groups) {
     for (const r of g.rows) {
-      if (r.kind === "live") running.push(r);
       const pk = pinKeyOf(g.wsId, r);
-      if (pk && pk in args.pins) pinned.push({ row: r, at: args.pins[pk].pinnedAt ?? 0 });
+      const isPinned = !!pk && pk in args.pins;
+      /* 运行中排除已置顶(与桌面 RunningZone 同律:一行一区,计数不虚高) */
+      if (r.kind === "live" && !isPinned) running.push(r);
+      if (isPinned) pinned.push({ row: r, at: args.pins[pk!].pinnedAt ?? 0 });
     }
   }
   running.sort((a, b) => b.ts - a.ts);

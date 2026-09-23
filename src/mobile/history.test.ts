@@ -155,11 +155,12 @@ describe("topZones", () => {
     expect(pinKeyOf("w1", live("a", 30, "ca"))).toBe("w1:omp:ca");
     expect(pinKeyOf("w1", disk("d1", 20))).toBe("w1:omp:d1");
   });
-  it("已置顶按 pinnedAt 升序(最早置顶最上,与桌面同律)", () => {
+  it("已置顶按 pinnedAt 升序;置顶活行从运行中排除(一行一区,桌面同律)", () => {
     const z = topZones({
       groups,
       pins: { "w1:omp:ca": { pinnedAt: 200 }, "w1:omp:d1": { pinnedAt: 100 } },
     });
     expect(z.pinned.map((r) => r.key)).toEqual(["disk:omp:d1", "live:a"]);
+    expect(z.running.map((r) => r.key)).toEqual(["live:b"]);
   });
 });
