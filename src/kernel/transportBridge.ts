@@ -32,6 +32,8 @@ export class WebBridge {
   private nextId = 1;
   private pending = new Map<number, PendingReq>();
   private listeners = new Map<string, Set<Listener>>();
+  /** 本连接已订阅的事件名(新连接 open 时按 listeners 重放)。 */
+  private subscribed = new Set<string>();
   private retryMs = 1000;
   /** 全局重拨闸:onClose 起算的退避期内,一切 ensure() 直接失败,不再新建 socket
    *  (否则每个轮询 RPC 各自重拨,快败网络下秒级风暴——真机曾 2 分钟拨 76 万次)。 */
@@ -75,6 +77,9 @@ export class WebBridge {
       this.nextDialAt = 0;
       setActiveEndpoint(this.endpoint?.wsUrl ?? null);
       setConnected(true);
+      /* 事件订阅闸:新连接重放全部在订事件,否则服务端不再推 event。 */
+      this.subscribed.clear();
+      for (const name of this.listeners.keys()) this.sendSubscribe(name);
       resolve();
     };
     /* 帧可能以二进制回(relay 通道在 Worker 判定帧类型前),String(blob) 会得到
@@ -217,14 +222,26 @@ export class WebBridge {
     if (!subs) {
       subs = new Set();
       this.listeners.set(name, subs);
+      this.sendSubscribe(name);
     }
     subs.add(cb);
     return () => {
       const set = this.listeners.get(name);
       if (!set) return;
       set.delete(cb);
-      if (set.size === 0) this.listeners.delete(name);
+      if (set.size === 0) {
+        this.listeners.delete(name);
+        if (this.subscribed.delete(name) && this.ws?.readyState === WS_OPEN) {
+          this.ws.send(JSON.stringify({ type: "unsubscribe", event: name }));
+        }
+      }
     };
+  }
+
+  private sendSubscribe(name: string) {
+    if (this.subscribed.has(name) || this.ws?.readyState !== WS_OPEN) return;
+    this.subscribed.add(name);
+    this.ws.send(JSON.stringify({ type: "subscribe", event: name }));
   }
 
   serverVersion(): Promise<string | null> {

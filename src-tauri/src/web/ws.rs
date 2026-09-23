@@ -84,13 +84,21 @@ async fn reject_socket(socket: WebSocket, reason: &'static str) {
 }
 
 #[derive(Deserialize)]
-struct InvokeReq {
-    #[serde(rename = "type")]
-    kind: String,
-    id: Value,
-    cmd: String,
-    #[serde(default)]
-    args: Value,
+#[serde(tag = "type", rename_all = "lowercase")]
+enum Inbound {
+    Invoke {
+        id: Value,
+        cmd: String,
+        #[serde(default)]
+        args: Value,
+    },
+    /// 事件订阅:连接只收订阅过的事件(pty://out/* 等高频流不再无差别广播)。
+    Subscribe {
+        event: String,
+    },
+    Unsubscribe {
+        event: String,
+    },
 }
 
 async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
@@ -123,6 +131,8 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
     收发同循环:任一收线分支都能先发 Close 帧再统一断开,避免半边 drop
     把 4001 竞态成 1006。 */
     let (out_tx, mut out_rx) = tokio::sync::mpsc::channel::<String>(256);
+    // 事件订阅集:未订阅的事件不发(慢链路手机不再被 pty out 高频流灌爆)。
+    let mut subs: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut events_rx = crate::event_sink::subscribe();
     let mut stop = ctx.stop.subscribe();
     /* 订阅后立即吸收已置位(stop 早于本连接):否则 watch 语义下 changed() 不再
@@ -140,25 +150,40 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
                 None => break,
             },
             ev = events_rx.recv() => match ev {
-                Ok(m) => if ws_tx.send(Message::Text(m.into())).await.is_err() { break },
+                Ok(m) => {
+                    if event_subscribed(&m, &subs)
+                        && ws_tx.send(Message::Text(m.into())).await.is_err()
+                    {
+                        break;
+                    }
+                }
                 Err(broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(broadcast::error::RecvError::Closed) => break,
             },
             msg = ws_rx.next() => {
                 match msg {
                     Some(Ok(Message::Text(text))) => {
-                        let Ok(req) = serde_json::from_str::<InvokeReq>(&text) else { continue };
-                        if req.kind != "invoke" { continue; }
-                        let app = ctx.app.clone();
-                        let scope = scope.clone();
-                        let out = out_tx.clone();
-                        tokio::spawn(async move {
-                            let frame = match conn::dispatch_scoped(&app, &scope, &req.cmd, req.args).await {
-                                Ok(payload) => serde_json::json!({"type": "response", "id": req.id, "ok": true, "payload": payload}),
-                                Err(error) => serde_json::json!({"type": "response", "id": req.id, "ok": false, "error": error}),
-                            };
-                            let _ = out.send(frame.to_string()).await;
-                        });
+                        let Ok(req) = serde_json::from_str::<Inbound>(&text) else { continue };
+                        match req {
+                            Inbound::Invoke { id, cmd, args } => {
+                                let app = ctx.app.clone();
+                                let scope = scope.clone();
+                                let out = out_tx.clone();
+                                tokio::spawn(async move {
+                                    let frame = match conn::dispatch_scoped(&app, &scope, &cmd, args).await {
+                                        Ok(payload) => serde_json::json!({"type": "response", "id": id, "ok": true, "payload": payload}),
+                                        Err(error) => serde_json::json!({"type": "response", "id": id, "ok": false, "error": error}),
+                                    };
+                                    let _ = out.send(frame.to_string()).await;
+                                });
+                            }
+                            Inbound::Subscribe { event } => {
+                                subs.insert(event);
+                            }
+                            Inbound::Unsubscribe { event } => {
+                                subs.remove(&event);
+                            }
+                        }
                     }
                     /* Ping/Pong 由 tungstenite 自答;Binary/Close 不消费。 */
                     Some(Ok(_)) => {}
@@ -193,6 +218,19 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
         }
     }
 }
+/// 事件帧是否该发往本连接:非 event 帧直通;event 帧只发订阅过的。
+fn event_subscribed(frame: &str, subs: &std::collections::HashSet<String>) -> bool {
+    let Ok(v) = serde_json::from_str::<Value>(frame) else {
+        return true;
+    };
+    if v.get("type").and_then(Value::as_str) != Some("event") {
+        return true;
+    }
+    v.get("event")
+        .and_then(Value::as_str)
+        .is_some_and(|name| subs.contains(name))
+}
+
 
 /// 浏览器连接无复查:永挂;设备连接 5s 一跳(interval 首跳即到 = 连上即查一次)。
 async fn recheck_tick(scope: &ConnScope, iv: &mut tokio::time::Interval) {
