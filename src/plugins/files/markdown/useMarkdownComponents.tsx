@@ -85,6 +85,7 @@ const FastMarkdownBlock = memo(function FastMarkdownBlock({ html }: { html: stri
       host.removeEventListener("click", handleFastBlockClick);
     };
   }, []);
+  // react-doctor-disable-next-line react-doctor/dangerous-html-sink -- fastPath 转义一切原文,零 XSS 面(fastPath.ts 头注)
   return <div className="fvp-md-fast" ref={hostRef} dangerouslySetInnerHTML={{ __html: html }} />;
 });
 
