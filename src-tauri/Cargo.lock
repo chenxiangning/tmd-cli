@@ -5707,6 +5707,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 name = "tmd-cli"
 version = "0.2.2"
 dependencies = [
+ "aws-lc-rs",
  "axum",
  "base64 0.22.1",
  "dirs",
@@ -5735,6 +5736,7 @@ dependencies = [
  "tokio-tungstenite 0.28.0",
  "trash",
  "uuid",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]

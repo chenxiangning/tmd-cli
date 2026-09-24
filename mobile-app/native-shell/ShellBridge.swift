@@ -42,6 +42,8 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
       WsTunnel.shared.send(id: args?["id"] as? Int ?? 0, text: args?["data"] as? String ?? "")
     case "ws.close":
       WsTunnel.shared.close(id: args?["id"] as? Int ?? 0)
+    case "http.post":
+      httpPost(id: id, args: args ?? [:])
     case "screen.orient":
       /* 横竖屏切换(iOS16+):plist 须含全部方向;完成回调在私有队列,
          reply 里的 evaluateJavaScript 必须回主线程(WebKit 铁律) */
@@ -59,6 +61,25 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     default:
       reply(id: id, ok: false, payload: "unknown method \(method)")
     }
+  }
+  /// 壳原生 POST(自签中继场景:WKWebView fetch 无法信任自签证书,
+  /// /pair 下沉到这里,走 PinnedTLS 证书锁定)。应答 {status, body}。
+  private func httpPost(id: Int, args: [String: Any]) {
+    guard let urlStr = args["url"] as? String, let url = URL(string: urlStr),
+          let body = args["body"] as? String else {
+      reply(id: id, ok: false, payload: "http.post: bad args"); return
+    }
+    var req = URLRequest(url: url)
+    req.httpMethod = "POST"
+    req.setValue("application/json", forHTTPHeaderField: "content-type")
+    req.httpBody = Data(body.utf8)
+    req.timeoutInterval = 8
+    PinnedHttp.dataTask(with: req) { data, resp, err in
+      if let err { self.reply(id: id, ok: false, payload: err.localizedDescription); return }
+      let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+      let text = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+      self.reply(id: id, ok: true, payload: ["status": status, "body": text])
+    }.resume()
   }
 
   /// 权限未决/被拒 → 静默成功(应用内横幅照旧,spec 降级路径)。
@@ -101,7 +122,8 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
 /// 帧回注 window.__TMD_SHELL_WS__(connId, event, payload);对端是 kernel/shellWs.ts。
 final class WsTunnel {
   static let shared = WsTunnel()
-  private let session = URLSession(configuration: .default)
+  /* 自签中继证书钉住(PinnedTLS);非钉住主机走系统默认校验。 */
+  private let session = URLSession(configuration: .default, delegate: PinnedDelegate.shared, delegateQueue: nil)
   private var tasks: [Int: URLSessionWebSocketTask] = [:]
   private var opened: Set<Int> = []
   weak var webview: WKWebView?

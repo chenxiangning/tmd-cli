@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		39A9F189A40F367BFBEA0CBF /* TmdApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21533CD68DC34CA85E6C49D0 /* TmdApp.swift */; };
 		A8E6F5AE1D91CE229EA6C659 /* ShellBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 378E0BCC1924BC873334938F /* ShellBridge.swift */; };
+		FA000000000000000000B001 /* PinnedTLS.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA000000000000000000F002 /* PinnedTLS.swift */; };
 		C8F0D0DD4D73A606DAA6EF79 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ABA73BCF41DFA8E9BE1540BD /* Assets.xcassets */; };
 		FE1A3F1BD5AF9F861F9FB75F /* dist in Resources */ = {isa = PBXBuildFile; fileRef = 4BE9F3D05B458E08D3087F1C /* dist */; };
 /* End PBXBuildFile section */
@@ -16,6 +17,7 @@
 /* Begin PBXFileReference section */
 		21533CD68DC34CA85E6C49D0 /* TmdApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TmdApp.swift; sourceTree = "<group>"; };
 		378E0BCC1924BC873334938F /* ShellBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellBridge.swift; sourceTree = "<group>"; };
+		FA000000000000000000F002 /* PinnedTLS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedTLS.swift; sourceTree = "<group>"; };
 		4BE9F3D05B458E08D3087F1C /* dist */ = {isa = PBXFileReference; lastKnownFileType = folder; name = dist; path = ../dist; sourceTree = SOURCE_ROOT; };
 		ABA73BCF41DFA8E9BE1540BD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C42784232A03C7147A577382 /* tmd-cli mobile.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "tmd-cli mobile.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -27,6 +29,7 @@
 			children = (
 				4BE9F3D05B458E08D3087F1C /* dist */,
 				378E0BCC1924BC873334938F /* ShellBridge.swift */,
+				FA000000000000000000F002 /* PinnedTLS.swift */,
 				21533CD68DC34CA85E6C49D0 /* TmdApp.swift */,
 				77F765552026353A2F4E339F /* apple */,
 				DAA7685686ED21F4AAC782EA /* Products */,
@@ -119,6 +122,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A8E6F5AE1D91CE229EA6C659 /* ShellBridge.swift in Sources */,
+				FA000000000000000000B001 /* PinnedTLS.swift in Sources */,
 				39A9F189A40F367BFBEA0CBF /* TmdApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

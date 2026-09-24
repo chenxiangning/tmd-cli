@@ -5,6 +5,7 @@
  */
 import React from "react";
 import type { MobileCreds } from "./creds";
+import { hasShellBridge, shellHttpPost } from "@kernel/shellBridge";
 
 /** 解析 tmd://pair?c=… 短链;非该形状返回 null。 */
 function parseOfferLink(
@@ -34,24 +35,23 @@ async function tryPair(
   code: string,
   deviceName: string,
 ): Promise<{ creds?: MobileCreds; error?: string }> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 6000);
+  const url = `${base.replace(/\/+$/, "")}/pair`;
+  const body = JSON.stringify({ pairCode: code.trim(), deviceName });
   try {
-    const resp = await fetch(`${base.replace(/\/+$/, "")}/pair`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ pairCode: code.trim(), deviceName }),
-      signal: ctrl.signal,
-    });
-    if (resp.status !== 200) {
+    /* 壳内走原生 URLSession(自签中继证书钉住;WKWebView fetch 过不了
+     * 自签校验)。浏览器/桌面开发态回落 fetch。 */
+    const { status, body: text } = hasShellBridge()
+      ? await shellHttpPost(url, body)
+      : await fetchWithTimeout(url, body, 6000);
+    if (status !== 200) {
       const map: Record<number, string> = {
         403: "配对码不正确",
         410: "配对码已过期,桌面重新出码",
         429: "尝试过多,稍后再试",
       };
-      return { error: map[resp.status] ?? `配对失败(${resp.status})` };
+      return { error: map[status] ?? `配对失败(${status})` };
     }
-    const j = (await resp.json()) as { deviceId: string; deviceToken: string; name: string };
+    const j = JSON.parse(text) as { deviceId: string; deviceToken: string; name: string };
     return {
       creds: {
         wsUrl: base.replace(/^http/, "ws"),
@@ -62,6 +62,25 @@ async function tryPair(
     };
   } catch {
     return { error: "无法连接主机,检查地址与同一网络" };
+  }
+}
+
+async function fetchWithTimeout(
+  url: string,
+  body: string,
+  ms: number,
+): Promise<{ status: number; body: string }> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+      signal: ctrl.signal,
+    });
+    if (!resp.ok) return { status: resp.status, body: "" };
+    return { status: resp.status, body: await resp.text() };
   } finally {
     clearTimeout(timer);
   }

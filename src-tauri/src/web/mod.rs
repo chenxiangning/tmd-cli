@@ -14,6 +14,7 @@ mod dispatch_ssh;
 pub mod file;
 pub mod gate;
 mod pair;
+mod pinned_tls;
 pub mod relay;
 mod relay_agent;
 mod relay_core;

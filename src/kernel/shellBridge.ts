@@ -66,6 +66,14 @@ export const shellCreds: ShellCredsStore = {
   set: (json) => shellInvoke("creds.set", { json }).then(() => undefined),
   delete: () => shellInvoke("creds.delete").then(() => undefined),
 };
+
+/** 壳原生 POST(自签中继的 /pair:WKWebView fetch 过不了自签校验)。 */
+export function shellHttpPost(
+  url: string,
+  body: string,
+): Promise<{ status: number; body: string }> {
+  return shellInvoke("http.post", { url, body });
+}
 /* Swift 回注入口:模块加载即注册(幂等覆盖,兼容 HMR 双实例);node 态跳过。 */
 if (typeof window !== "undefined") {
   (window as ShellWindow).__TMD_SHELL_RESULT__ = (id, ok, payload) => {

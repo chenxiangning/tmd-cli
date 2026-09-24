@@ -12,6 +12,7 @@ use tokio::sync::{mpsc, watch};
 use tokio_tungstenite::client_async_tls_with_config;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::Connector;
 
 use crate::ssh::proxy::{
     http_connect_proxy, socks5_connect_proxy, split_host_port, split_proxy_scheme,
@@ -100,7 +101,10 @@ async fn dial_agent(agent: &str) -> Result<AgentSocket, String> {
     let tls = matches!(scheme, "https" | "wss");
     let port = uri.port_u16().unwrap_or(if tls { 443 } else { 80 });
     let stream = connect_via_env_proxy(scheme, &host, port).await?;
-    client_async_tls_with_config(request, stream, None, None)
+    // 自建 ECS 中继(443 自签证书):走证书钉住的 verifier。
+    let connector = (host == super::pinned_tls::PINNED_HOST && tls)
+        .then(|| Connector::Rustls(super::pinned_tls::pinned_client_config()));
+    client_async_tls_with_config(request, stream, None, connector)
         .await
         .map(|(socket, _)| socket)
         .map_err(|e| e.to_string())
