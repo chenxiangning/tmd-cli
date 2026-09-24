@@ -204,7 +204,7 @@ export function SessionScreen(props: { sessionId: string }) {
               }
             }}
           />
-          <button type="button" className="send" aria-label={t("发送")} onClick={send}>
+          <button type="button" className="send" aria-label={t("发送")} disabled={!draft.trim()} onClick={send}>
             ↑
           </button>
         </div>

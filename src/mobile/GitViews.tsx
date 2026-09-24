@@ -22,13 +22,13 @@ export function DiffView(props: {
         return (
           <div key={f.path + (f.staged ? "~s" : "")}>
             <button className="git-row" onClick={() => props.onTap(f.path, f.staged, f.status === "?")}>
-              <span className="st">{f.status === "?" ? "U" : f.status}</span>
+              <span className={"st " + stClass(f.status)}>{f.status === "?" ? "U" : f.status}</span>
               <span className="path">{f.path}</span>
               {ft ? (
                 <span className="pm"><b className="add">+{ft.insertions}</b> <b className="del">-{ft.deletions}</b></span>
               ) : null}
             </button>
-            {props.openPatch === f.path && <pre className="git-patch">{props.patch}</pre>}
+            {props.openPatch === f.path && <DiffPatch patch={props.patch} />}
           </div>
         );
       })}
@@ -159,5 +159,36 @@ export function GitOverlays(props: {
         <div className={"git-toast" + (props.toast ? "" : " busy")}>{props.toast ?? busyText}</div>
       )}
     </>
+  );
+}
+
+
+/** git 状态字母 → 颜色类(M 改/A 增/D 删/U 未跟踪/C 冲突,R/T 沿用改动色)。 */
+function stClass(status: string): string {
+  if (status === "A") return "st-a";
+  if (status === "D") return "st-d";
+  if (status === "?") return "st-u";
+  if (status === "C") return "st-c";
+  return "st-st";
+}
+
+/** patch 按行着色:+ 添加绿 / - 删除红 / @@ hunk 暗淡,其余正文。 */
+function DiffPatch(props: { patch: string }) {
+  const seen = new Map<string, number>();
+  return (
+    <pre className="git-patch">
+      {props.patch.split("\n").map((line) => {
+        /* 同内容行去重计数,内容寻址 key(静态行渲染,无重排语义) */
+        const n = seen.get(line) ?? 0;
+        seen.set(line, n + 1);
+        const cls = line.startsWith("+") ? "dl-add" : line.startsWith("-") ? "dl-del" : line.startsWith("@@") ? "dl-hunk" : undefined;
+        return (
+          <span key={`${n}:${line}`} className={cls}>
+            {line}
+            {"\n"}
+          </span>
+        );
+      })}
+    </pre>
   );
 }

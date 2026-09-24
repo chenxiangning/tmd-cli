@@ -1,16 +1,36 @@
-/* 手机远程 UI 独立样式 —— 严格对齐 docs/prototypes/mobile-app-{home,session,pairing,device-edge-states}.html。
-   自带设计 token(浅色),不依赖桌面 global.css/主题系统;桌面与手机唯一共享的是 transport 数据面。 */
-:root{
+/* 手机远程 UI 独立样式 —— 自持设计令牌(亮色默认 + prefers-color-scheme 暗色,
+ * 跟随手机系统,大仙 2026-09-25 拍板),不依赖桌面 global.css/themes.css;
+ * app 与客户端样式经 main.tsx 分支互斥载入,两树零共用样式。 */
+/* 壳根令牌:只在 .m-app 作用域生效,不污染宿主页面 */
+/* 壳根:吃满真机视口,浅色底(原型 screen 同款) */
+.m-app{
   --bg-base:#ffffff; --bg-panel:#f8f8f8; --bg-input:#ffffff;
   --fg:#3b3b3b; --fg-muted:#7e7e7e; --fg-subtle:#999999; --fg-faint:#c0c0c0;
   --border:#cecece; --border-strong:#b1b1b1; --accent:#005fb8; --accent-soft:rgba(0,95,184,.14);
   --ok:#059669; --warn:#a16207; --err:#dc2626;
   --mono:ui-monospace,"SF Mono",Menlo,monospace;
-}
-/* 壳根:吃满真机视口,浅色底(原型 screen 同款) */
-.m-app{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg-base);
+  --row-press:rgba(0,95,184,.08);
+  position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg-base);
   color:var(--fg);font:14px/1.6 -apple-system,"PingFang SC","Segoe UI",sans-serif;
   height:100dvh;overflow:hidden;touch-action:manipulation}
+@media (prefers-color-scheme: dark){
+  .m-app{
+    --bg-base:#1c1c1e; --bg-panel:#242426; --bg-input:#2c2c2e;
+    --fg:#e5e5e7; --fg-muted:#a0a0a5; --fg-subtle:#7c7c82; --fg-faint:#55555a;
+    --border:#3a3a3e; --border-strong:#55555a; --accent:#3f8ee0; --accent-soft:rgba(63,142,224,.2);
+    --ok:#34d399; --warn:#eab308; --err:#f87171;
+    --row-press:rgba(63,142,224,.14);
+  }
+}
+/* 最小 reset:原桌面 global preflight 不再载入,按键/表单回归基线 */
+.m-app button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer;touch-action:manipulation}
+.m-app input,.m-app textarea{font:inherit;color:inherit}
+.m-app *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* 路由转场:淡入+轻微上移;尊重系统减动效 */
+@media (prefers-reduced-motion: no-preference){
+  .m-screen:not(.hide){animation:screen-in .2s ease-out}
+  @keyframes screen-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+}
 .m-body{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
 .m-screen{display:flex;flex-direction:column;flex:1;min-height:0}
 .m-screen.hide{display:none}
@@ -167,10 +187,10 @@
 
 /* PTY 日志回看前置块:剥 ANSI 线性文本,弱化色与实况区隔开 */
 .tr-live-old {
-  color: var(--tmd-fg-faint, #888);
+  color: var(--fg-subtle);
   white-space: pre-wrap;
   word-break: break-word;
-  border-bottom: 1px solid var(--tmd-border, #ddd);
+  border-bottom: 1px solid var(--border);
   margin-bottom: 6px;
   padding-bottom: 6px;
 }
@@ -206,3 +226,22 @@
 .sheet-row.accent{color:var(--accent);font-weight:600}
 .sheet-head{padding:10px 16px 2px;font-size:13px;font-weight:700}
 .sheet-note{padding:4px 16px 8px;font-size:11.5px;color:var(--fg-muted);word-break:break-all}
+
+/* ── 按压态统一(行/chip/键:底色反馈 + 微缩放)── */
+.git-row:active,.row:active,.sheet-row:active{background:var(--row-press)}
+.chip-ws:active,.nav-chip:active,.orient-btn:active,.kb-toggle:active{transform:scale(.96);opacity:.85}
+.git-row,.row,.sheet-row{transition:background .12s ease}
+.chip-ws,.nav-chip,.orient-btn,.kb-toggle{transition:transform .12s ease}
+
+/* composer:聚焦描边 + 空草稿禁用发送 */
+.composer .box{transition:border-color .15s ease}
+.composer .box:focus-within{border-color:var(--accent)}
+.send:disabled{opacity:.4}
+
+/* keybar:model 键 accent 强调(切模型高频动作) */
+.keybar .key.model{color:var(--accent);border-color:var(--accent);font-weight:600}
+
+/* git:状态字母分色(M 改/A 增/D 删/U 未跟踪/C 冲突)+ patch 行着色 */
+.st-st{color:var(--accent)} .st-a{color:var(--ok)} .st-d{color:var(--err)}
+.st-u{color:var(--fg-muted)} .st-c{color:var(--err);font-weight:700}
+.dl-add{color:var(--ok)} .dl-del{color:var(--err)} .dl-hunk{color:var(--fg-faint)}

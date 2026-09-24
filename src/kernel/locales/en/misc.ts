@@ -270,14 +270,8 @@ export const MESSAGES = {
   "撤销后手机立即掉线,需重新配对":
   "Revoking disconnects the phone immediately; pairing is required again",
   "踢除": "Remove",
-  "审批线 · {session}": "Approval timeline · {session}",
-  "只读摘要 · 处理请在桌面端进行": "Read-only summary · handle it on the desktop",
-  "暂无批次": "No batches yet",
-  "(无提示词)": "(no prompt)",
-  "{n} 个文件": "{n} files",
   "重试": "Retry",
   "已回退": "Reverted",
-  "自动(按序竞速)": "Auto (race in order)",
 
   /* 设备配对卡补充键(评审收口:配对域统一归 misc,settings 不留双份) */
   "发起于 {time}": "Requested at {time}",
@@ -285,7 +279,5 @@ export const MESSAGES = {
   "离线 {time}": "Offline {time}",
   "配对于 {date}": "Paired on {date}",
   "设备凭证 = 每台独立 token(桌面只存 sha-256)。踢除立即断开该设备全部连接,其本地凭证作废,需重新扫码配对。授权/踢除仅桌面可操作,手机端只读自己状态。": "Device credentials = a per-device token (desktop stores only sha-256). Kicking immediately drops all of the device's connections and voids its local credential; re-pairing by QR is required. Approve/kick are desktop-only; the phone sees read-only status.",
-  "加载更早输出": "Load earlier output",
-  "已到开头": "Beginning of output",
   "加载中…": "Loading…",
 } as Record<string, string>;

@@ -124,7 +124,6 @@ export const MESSAGES = {
   "标记面板": "Marks panel",
   "网络代理": "Network proxy",
   "文件面板": "Files panel",
-  "Git 面板": "Git panel",
   "审批线面板": "Checkpoints panel",
   "Memory 面板": "Memory panel",
   "颜色": "Color",
