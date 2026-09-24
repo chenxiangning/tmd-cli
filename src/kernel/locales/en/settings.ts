@@ -279,5 +279,4 @@ export const MESSAGES = {
   "我已了解并自行承担风险": "I understand the risks and accept them",
   "有浏览器客户端正通过 Web 访问控制本机":
     "A browser client is controlling this machine via web access",
-  "远程控制中": "Remote control active",
 } as Record<string, string>;

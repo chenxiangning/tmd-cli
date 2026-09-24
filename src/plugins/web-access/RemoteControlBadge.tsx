@@ -1,6 +1,7 @@
 /**
  * RemoteControlBadge —— 有浏览器客户端连着本机桥时,titlebar 右区常驻
- * 「远程控制中」徽标(计数事件即时翻转,10s 轮询兜底;无连接即不渲染)。
+ * 远程控制徽标(仅 icon,悬停提示文案;计数事件即时翻转,10s 轮询兜底;
+ * 无连接即不渲染)。
  */
 
 import { useEffect, useState } from "react";
@@ -45,11 +46,10 @@ export function RemoteControlBadge() {
   if (!active) return null;
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full border border-[var(--tmd-warning)]/40 bg-[var(--tmd-warning)]/15 px-2 py-0.5 text-xs text-[var(--tmd-warning)]"
+      className="inline-flex items-center justify-center rounded-full border border-[var(--tmd-warning)]/40 bg-[var(--tmd-warning)]/15 p-1 text-[var(--tmd-warning)]"
       title={t("有浏览器客户端正通过 Web 访问控制本机")}
     >
       <MonitorPlay size="0.75rem" aria-hidden />
-      {t("远程控制中")}
     </span>
   );
 }

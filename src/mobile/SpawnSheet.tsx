@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { t } from "@kernel/i18n";
 import { useMobile } from "./shared";
-import { glyphOf } from "./remote";
+import { EngineMark } from "./EngineMark";
 
 /** 内置引擎表(profileId = 桌面 cli-* 插件 id;cmd = 启动命令 basename)。 */
 const ENGINES: { id: string; name: string; cmd: string }[] = [
@@ -91,7 +91,6 @@ export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: 
         <div className="sheet-label">{t("引擎")}</div>
         <div className="sheet-grid">
           {ENGINES.map((e) => {
-            const gg = glyphOf(e.id);
             return (
               <button
                 key={e.id}
@@ -100,7 +99,7 @@ export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: 
                 onClick={() => setEngineId(e.id)}
               >
                 <span className="tick" />
-                <span className={`glyph ${gg.cls}`}>{gg.text}</span>
+                <EngineMark profileId={e.id} />
                 {e.name}
               </button>
             );
