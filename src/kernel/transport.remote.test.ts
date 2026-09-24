@@ -175,5 +175,52 @@ describe("transport 远程模式(壳已配对)", () => {
     expect(FakeWS.made.length).toBeGreaterThanOrEqual(2);
     expect(transport.isRemotePaused()).toBe(false);
   });
+
+  it("退避窗内 listen 不断订:注册照常,新连接 open 时重放 subscribe(评审 P1)", async () => {
+    // 先建一次连接并踢进 bye pending → 退避窗(nextDialAt 在未来)
+    const p = transport.invoke<string>("session_list");
+    const ws = lastWS();
+    ws.open();
+    await vi.advanceTimersByTimeAsync(0);
+    ws.recv(JSON.stringify({ type: "bye", reason: "pending" }));
+    ws.close();
+    await expect(p).rejects.toThrow();
+    // 退避窗内挂实况订阅:旧实现 ensure 同步 throw → 条目根本没进,永久断订
+    const cb = vi.fn();
+    const un = await transport.listen("pty://out/s1", cb);
+    // 退避到期重拨 + 新连接上线
+    await vi.advanceTimersByTimeAsync(2_000);
+    const ws2 = lastWS();
+    ws2.open();
+    await vi.advanceTimersByTimeAsync(0);
+    // open 重放:新连接上必须发出 subscribe 帧
+    expect(ws2.sent.some((f) => f.includes('"subscribe"') && f.includes("pty://out/s1"))).toBe(true);
+    ws2.recv(JSON.stringify({ type: "event", event: "pty://out/s1", payload: "x" }));
+    expect(cb).toHaveBeenCalledWith({ payload: "x" });
+    un();
+  });
+
+  it("换端点 = hello 版本/能力缓存失效(评审 P1:旧 caps 旁路 block 防线)", async () => {
+    const p = transport.invoke<string>("session_list");
+    const ws = lastWS();
+    ws.open();
+    await vi.advanceTimersByTimeAsync(0);
+    ws.recv(JSON.stringify({ type: "hello", version: "0.9.9", capabilities: ["app-device"] }));
+    ws.recv(JSON.stringify({ type: "response", id: 1, ok: true, payload: [] }));
+    await expect(p).resolves.toEqual([]);
+    await expect(transport.serverCapabilities()).resolves.toEqual(["app-device"]);
+    // 重新配对到另一台桌面:缓存必须清空,hello 未回前不得拿旧 caps 秒判兼容
+    transport.configureRemoteEndpoint({ wsUrl: "ws://10.0.0.2:1/", deviceId: "d2", token: "t2" });
+    const probe = transport.serverCapabilities();
+    let settled = false;
+    void probe.then(() => { settled = true; });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toBe(false); // 挂在新桌面 hello 上,而非旧缓存
+    const ws2 = lastWS();
+    ws2.open();
+    await vi.advanceTimersByTimeAsync(0);
+    ws2.recv(JSON.stringify({ type: "hello", version: "0.2.2", capabilities: [] }));
+    await expect(probe).resolves.toEqual([]); // 新桌面缺 app-device → gate 能弹 block
+  });
 });
 
