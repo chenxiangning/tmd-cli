@@ -6,7 +6,7 @@ use tauri::{AppHandle, Manager};
 use super::{conn, devices, pair, server, state};
 
 /// 设置里的 Web 访问开关(M1 仅内网;settings.ts 同步增加 webAccessEnabled 字段)。
-pub(crate) fn web_enabled(settings: &serde_json::Value) -> bool {
+fn web_enabled(settings: &serde_json::Value) -> bool {
     settings
         .get("webAccessEnabled")
         .and_then(|v| v.as_bool())

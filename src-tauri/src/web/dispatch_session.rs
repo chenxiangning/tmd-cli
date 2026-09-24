@@ -7,7 +7,7 @@ use std::future::Future;
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
-use super::dispatch::{args, ser, val};
+use super::dispatch::{args, block, ser, val};
 
 /// 本域闸表:session 与 checkpoint 两域的全部桥面命令名。与 dispatch_inner 臂表同文件
 /// 维护;conn.rs 交叉测试钉「AppDevice 白名单 session/checkpoint 域 ⊆ 本表」防漂移
@@ -63,10 +63,15 @@ async fn dispatch_inner(app: &AppHandle, cmd: &str, raw: &Value) -> Result<Value
         }
         "session_pin_toggle" => {
             let a = args::<PinToggleArgs>(raw)?;
-            let now_pinned = crate::settings::toggle_pin(&a.key, &a.title)?;
+            /* 整棵 settings.json 读+写 = 磁盘 IO,走 block() 纪律(评审 F4)。 */
+            let r = block(move || {
+                let now_pinned = crate::settings::toggle_pin(&a.key, &a.title)?;
+                Ok(serde_json::json!({ "pinned": now_pinned }))
+            })
+            .await?;
             /* 与 config_write_settings 同款纪律:广播回读,桌面置顶区即时更新 */
             let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));
-            val(serde_json::json!({ "pinned": now_pinned }))
+            Ok(r)
         }
         "session_list" => val(crate::session_commands::session_list(app.state())),
         "session_set_workspace" => ser(crate::session_commands::session_set_workspace(
@@ -219,7 +224,7 @@ async fn dispatch_inner(app: &AppHandle, cmd: &str, raw: &Value) -> Result<Value
             })
             .await
         }
-        _ => unreachable!("web dispatch 归属判断与臂表不同步: {cmd}"),
+        _ => Err(format!("internal: gated command without arm: {cmd}")), /* 评审 F5:漂移不 panic(spawn 任务里 unreachable = response 永挂) */
     }
 }
 

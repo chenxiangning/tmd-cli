@@ -156,8 +156,8 @@ export class WebBridge {
     if (msg.type === "event" && typeof msg.event === "string") {
       const subs = this.listeners.get(msg.event);
       if (subs) for (const cb of subs) cb(msg.payload);
-      return;
-    }
+    } /* 服务端订阅拒(评审F2):清乐观位,重订可再试 */
+    else if (msg.type === "subscribe-rejected") this.subscribed.delete(String(msg.event));
     if (msg.type === "bye") {
       const reason = typeof msg.reason === "string" ? msg.reason : "revoked";
       shellLog(`bridge: bye reason=${reason}`);

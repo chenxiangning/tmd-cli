@@ -298,10 +298,11 @@ async fn serve(socket: AgentSocket, port: u16, stop: &mut watch::Receiver<bool>)
                     match sender.try_send(frame) {
                         Ok(()) => {}
                         Err(mpsc::error::TrySendError::Full(frame)) => {
-                            /* 慢手机(蜂窝)排不完时先背压等待,不立刻杀流:
-                            杀流 = 手机重连重发,风暴只会更大。超时才判死。 */
+                            /* 慢手机(蜂窝)排不完时先背压等待,不立刻杀流:杀流 = 手机
+                            重连重发,风暴只会更大。超时才判死。上限 2s(评审 F3):
+                            await 停住本循环 = 心跳入队同停,必须 ≪ HEARTBEAT_INTERVAL(15s)。 */
                             if tokio::time::timeout(
-                                std::time::Duration::from_secs(5),
+                                std::time::Duration::from_secs(2),
                                 sender.send(frame),
                             )
                             .await

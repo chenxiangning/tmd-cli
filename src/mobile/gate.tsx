@@ -20,8 +20,6 @@ import { loadCreds, persistCreds, resolveCreds, type MobileCreds } from "./creds
 import { REQUIRED_CAPABILITY, endpointCandidates } from "./shared";
 import { MobileApp } from "./MobileApp";
 
-export type { MobileCreds };
-export { loadCreds } from "./creds";
 
 declare global {
   interface Window {

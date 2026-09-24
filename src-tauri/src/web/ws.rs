@@ -1,5 +1,6 @@
 //! WS 命令桥:握手双凭据(URL token / 设备配对凭据)+ 连接生命周期。
-//! 设备连接:hello 带 capabilities,5s 复查批准态(撤销即 4001);浏览器全量不变。
+//! 设备连接:hello 带 capabilities,5s 复查批准态(撤销即 4001),订阅过 event_allowed 域闸;
+//! 浏览器 = 全量命令 + 全量事件(旧页不发 subscribe → 首帧前直通全发,新页 open 即重放订阅)。
 
 use axum::{
     extract::{
@@ -197,6 +198,13 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
                                 };
                                 if ok {
                                     subs.insert(event);
+                                } else {
+                                    /* 评审 F2:拒绝必回执,客户端清乐观位(否则本连接内
+                                       该事件静默永久缺席,重连也不重订)。try_send:出站队列满
+                                       时丢回执可接受(客户端 open 重放兜底)。 */
+                                    let _ = out_tx.try_send(
+                                        json!({"type": "subscribe-rejected", "event": event}).to_string(),
+                                    );
                                 }
                             }
                             Inbound::Unsubscribe { event } => {

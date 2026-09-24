@@ -54,17 +54,21 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
      冷启动竞态(2026-09-23 手机 shell.log 实证):进 app 瞬间桥未连,首拉全失败且
      无重试 → archive 恒空 → 归档磁盘行全被划进「本地」。失败退避重试直到成功,
      与列表轮询同一自愈纪律(onRemoteConnection 只在翻转时触发,罩不住已连场景)。 */
+  /* 本地 pin 写水位(评审 F6):请求发出后本机又写过 pin → 响应快照可能早于该写,
+     整表覆写会冲掉乐观位;此时只合 titles/archive,pins 留本地(服务端随后广播会再收敛)。 */
+  const lastPinWriteAt = React.useRef(0);
   React.useEffect(() => {
     let alive = true;
     let timer = 0;
     const pull = () => {
       clearTimeout(timer);
+      const reqAt = Date.now();
       void overlayState().then(
         (o) => {
           if (!alive) return;
           setTitles(o.titles);
           setArchive(o.archive);
-          setPins(o.pins);
+          if (lastPinWriteAt.current <= reqAt) setPins(o.pins);
         },
         () => {
           if (alive) timer = window.setTimeout(pull, 3000);
@@ -85,6 +89,8 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   }, []);
 
   const togglePin = React.useCallback(async (key: string, title: string) => {
+    /* 水位打在写之前:在途 pull 的响应快照可能早于本机写(评审 F6)。 */
+    lastPinWriteAt.current = Date.now();
     try {
       const pinned = await sessionPinToggle(key, title);
       setPins((m) => {

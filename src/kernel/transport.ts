@@ -55,11 +55,6 @@ export function configureRemoteEndpoint(ep: RemoteEndpoint | null): void {
   }
 }
 
-/** 远程模式(移动壳已配对)判定;与 isWeb(浏览器)互斥的第三态。 */
-export function isRemote(): boolean {
-  return remoteEndpoint !== null;
-}
-
 /* 桥连接态与撤销回调:实现在 transportBridge/transportState,此处再导出保持消费面单一。 */
 export { isRemoteConnected, isRemotePaused, activeRemoteEndpoint, onRemoteConnection, onRemoteRevoked };
 
