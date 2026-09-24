@@ -75,6 +75,17 @@ export function AskCard(props: { q: string | null; onAnswer: (data: string) => v
   );
 }
 
+/** 「加载更早输出」柄:hasMore=false 且已拉过 = 已到开头。 */
+function EarlierButton(props: { hasMore?: boolean; loading?: boolean; onLoad?: () => void }) {
+  if (!props.hasMore && !props.onLoad) return null;
+  const label = props.loading ? t("加载中…") : props.hasMore ? t("加载更早输出") : t("已到开头");
+  return (
+    <button type="button" className="tr-live-tag" disabled={props.loading || !props.hasMore} onClick={props.onLoad}>
+      {label}
+    </button>
+  );
+}
+
 /** 实况块内容:有对话时默认折叠(窄屏终端流不可读),点开看;无对话 = 全屏实况。 */
 export function LiveBlock(props: {
   turns: TranscriptTurn[] | null;
@@ -97,20 +108,7 @@ export function LiveBlock(props: {
           {live ? ` · ${t("点开查看原始输出")}` : ""}
         </button>
       )}
-      {liveShown && (props.hasMore || props.earlier) && (
-        <button
-          type="button"
-          className="tr-live-tag"
-          disabled={props.loadingEarlier || !props.hasMore}
-          onClick={props.onLoadEarlier}
-        >
-          {props.loadingEarlier
-            ? t("加载中…")
-            : props.hasMore
-              ? t("加载更早输出")
-              : t("已到开头")}
-        </button>
-      )}
+      {liveShown && <EarlierButton hasMore={props.hasMore} loading={props.loadingEarlier} onLoad={props.onLoadEarlier} />}
       {liveShown && props.earlier && <div className="tr-live tr-live-old">{props.earlier}</div>}
       {liveShown && live && (
         <div className="tr-live">

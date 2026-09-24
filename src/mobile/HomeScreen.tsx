@@ -168,6 +168,7 @@ export function HomeScreen() {
     <>
       <div className="nav">
         <span className="t home-t">tmd-cli</span>
+        <button type="button" className="nav-chip" aria-label={t("Git 面板")} onClick={() => go({ view: "git" })}>⎇ Git</button>
         <button type="button" className="nav-chip" aria-label={t("发起会话")} onClick={() => setSpawn(true)}>
           + {t("新建")}
         </button>

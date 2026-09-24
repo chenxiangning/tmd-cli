@@ -105,6 +105,10 @@
 .keybar{height:38px;display:flex;align-items:center;gap:6px;padding:0 10px;padding-bottom:env(safe-area-inset-bottom);box-sizing:content-box;border-top:.5px solid var(--border);background:var(--bg-panel);flex:none;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .keybar .key{font-family:var(--mono);font-size:11px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:6px;padding:3px 9px;background:var(--bg-base);color:var(--fg-muted);white-space:nowrap;cursor:pointer;flex:none}
 .keybar .key:active{background:var(--accent-soft);color:var(--accent)}
+/* 折叠钮(composer 行首):on=条展开;条展开时 composer 不再吃底部安全区(避免双份留白) */
+.kb-toggle{flex:none;width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--bg-panel);color:var(--fg-muted);font-size:13px;line-height:1}
+.kb-toggle.on{color:var(--accent);border-color:var(--accent)}
+.composer.kb-on{padding-bottom:6px}
 /* transcript:对话(用户/助手)与工具操作分型渲染 */
 .tr{display:flex;flex-direction:column;gap:7px;padding-bottom:8px}
 /* 助手长文展开柄:button 复位后与 tr-asst 同外观 */
@@ -170,3 +174,35 @@
   margin-bottom: 6px;
   padding-bottom: 6px;
 }
+/* ── Git 面板(桌面 git 插件手机化)── */
+.gitscr{display:flex;flex-direction:column;background:var(--bg-base)}
+.ws-chips{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;flex:none;-webkit-overflow-scrolling:touch}
+.chip-ws{flex:none;font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:var(--bg-panel);color:var(--fg-muted)}
+.chip-ws.on{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.git-subbar{display:flex;align-items:center;gap:8px;padding:6px 10px;border-top:.5px solid var(--border);border-bottom:.5px solid var(--border);background:var(--bg-panel);flex:none;overflow-x:auto}
+.git-branch{font-family:var(--mono);font-size:11.5px;font-weight:700;flex:none}
+.git-nums{font-size:11px;flex:none;white-space:nowrap}
+.git-nums .add,.pm .add,.cf-row .add{color:var(--ok)}
+.git-nums .del,.pm .del,.cf-row .del{color:#c0392b}
+.git-nums .ab{color:var(--fg-muted)}
+.seg{display:flex;margin-left:auto;flex:none;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{font-size:11px;padding:4px 10px;background:var(--bg-panel);color:var(--fg-muted);border:none}
+.seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.git-body{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+.git-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:8px 10px;border:none;border-bottom:.5px solid var(--border);background:var(--bg-base);color:var(--fg);font-size:12px}
+.git-row .st{flex:none;width:22px;font-family:var(--mono);font-size:10.5px;color:var(--warn)}
+.git-row .st.mono{color:var(--fg-faint)}
+.git-row .path{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:11px}
+.git-row .pm{flex:none;font-size:10.5px;white-space:nowrap}
+.git-row .dim{color:var(--fg-faint)}
+.git-patch{margin:0;padding:8px 10px;font-family:var(--mono);font-size:10px;line-height:1.5;background:var(--bg-panel);border-bottom:.5px solid var(--border);overflow-x:auto;white-space:pre;max-height:40vh;overflow-y:auto}
+.git-patch .cf-row{padding:2px 0;border-bottom:.5px dashed var(--border);font-size:10.5px}
+.git-empty{padding:24px 12px;text-align:center;color:var(--fg-faint);font-size:12px}
+.git-toast{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));max-width:86%;background:var(--fg);color:var(--bg-base);font-size:11.5px;padding:7px 12px;border-radius:9px;z-index:30;word-break:break-all}
+.nav-pill{flex:none;font-size:15px;border:none;background:none;color:var(--fg);padding:4px 8px}
+.sheet-mask{position:absolute;inset:0;background:rgba(0,0,0,.25);z-index:40;display:flex;align-items:flex-end}
+.sheet{width:100%;background:var(--bg-panel);border-radius:14px 14px 0 0;padding:8px 0 calc(8px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
+.sheet-row{width:100%;text-align:left;padding:12px 16px;font-size:13.5px;background:none;border:none;border-bottom:.5px solid var(--border);color:var(--fg)}
+.sheet-row.accent{color:var(--accent);font-weight:600}
+.sheet-head{padding:10px 16px 2px;font-size:13px;font-weight:700}
+.sheet-note{padding:4px 16px 8px;font-size:11.5px;color:var(--fg-muted);word-break:break-all}

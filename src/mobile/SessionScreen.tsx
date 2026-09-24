@@ -6,8 +6,8 @@
  */
 import React, { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
-import { invoke } from "@kernel/transport";
 import { useLiveStream } from "./useLiveStream";
+import { useCkptBadge, useTerminalFit } from "./sessionHooks";
 import { ConnBanner } from "./ConnChip";
 import { HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
@@ -29,36 +29,27 @@ export function SessionScreen(props: { sessionId: string }) {
   const [ask, setAsk] = useState(false);
   const [askQ, setAskQ] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
-  const [ckpt, setCkpt] = useState<{ pending: number; approved: number } | null>(null);
   const [ckptSheet, setCkptSheet] = useState(false);
   const [kbOpen, setKbOpen] = useState(false);
+  /* 键盘工具条折叠(pref 持久化); composers 行 ⌨ 切换。 */
+  const [kbOn, setKbOn] = useState(() => {
+    try {
+      return localStorage.getItem("tmd.keybar.on") !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const toggleKb = () => {
+    const n = !kbOn;
+    setKbOn(n);
+    try {
+      localStorage.setItem("tmd.keybar.on", n ? "1" : "0");
+    } catch { /* 隐私态 */ }
+  };
   const liveRef = React.useRef<HTMLDivElement | null>(null);
   const askSeen = React.useRef(false);
   
-  /* 审批线 chip:checkpoint_list(白名单只读)60s 轻拉;仅 (cwd,sessionId) 齐备时。 */
-  useEffect(() => {
-    const cwd = meta?.cwd;
-    const cliId = props.sessionId;
-    if (!cwd || !cliId) return;
-    const pull = () => {
-      void invoke<{ id: string; open: boolean; state: string }[]>("checkpoint_list", {
-        cwd,
-        sessionId: cliId,
-        tmdSessionId: cliId,
-      })
-        .then((batches) => {
-          const sealed = batches.filter((b) => !b.open);
-          setCkpt({
-            pending: sealed.filter((b) => b.state === "pending").length,
-            approved: sealed.filter((b) => b.state === "approved").length,
-          });
-        })
-        .catch(() => setCkpt(null));
-    };
-    pull();
-    const timer = setInterval(pull, 60_000);
-    return () => clearInterval(timer);
-  }, [meta?.cwd, props.sessionId]);
+  const ckpt = useCkptBadge(meta?.cwd, props.sessionId);
 
   /* transcript(单独解析):CLI 磁盘 jsonl → 对话/操作分层渲染;失败回落 PTY 尾流。 */
   const [turns, setTurns] = useState<TranscriptTurn[] | null>(null);
@@ -99,45 +90,7 @@ export function SessionScreen(props: { sessionId: string }) {
 
   const { live, earlier, hasMore, loadingEarlier, loadEarlier } = useLiveStream(props.sessionId);
 
-  /* 终端尺寸随容器自适应(横屏留白修复):spawn 固定 80x24,竖屏略窄横屏半屏空白。
-     量 .live 内容盒宽/高与 .tr-live 字距,算 cols/rows 调 session_resize;CLI 收
-     SIGWINCH 重排,活流 3s 尺寸轮询带新几何重建。仅在列数偏差 ≥2 时发,防键盘
-     弹出等高度抖动引发重排风暴。 */
-  const sentColsRef = React.useRef(0);
-  useEffect(() => {
-    const id = props.sessionId;
-    if (!id) return;
-    let timer = 0;
-    const fit = () => {
-      const el = liveRef.current;
-      if (!el || !el.clientWidth) return;
-      const probe = document.createElement("span");
-      probe.className = "tr-live";
-      probe.style.cssText = "position:absolute;visibility:hidden;white-space:pre;";
-      probe.textContent = "0".repeat(50);
-      el.appendChild(probe);
-      const rect = probe.getBoundingClientRect();
-      const cw = rect.width / 50;
-      const lh = rect.height || parseFloat(getComputedStyle(probe).lineHeight) || 16;
-      probe.remove();
-      const cs = getComputedStyle(el);
-      const cols = Math.floor((el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / cw);
-      const rows = Math.max(8, Math.floor((el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) / lh) - 1);
-      if (cols < 20 || Math.abs(cols - sentColsRef.current) < 2) return;
-      sentColsRef.current = cols;
-      void invoke("session_resize", { id, cols, rows }).catch(() => undefined);
-    };
-    const debounced = () => {
-      clearTimeout(timer);
-      timer = window.setTimeout(fit, 300);
-    };
-    fit();
-    window.addEventListener("resize", debounced);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("resize", debounced);
-    };
-  }, [props.sessionId, liveShown]);
+  useTerminalFit(props.sessionId, liveRef, liveShown);
   /* 加载更早:前置渲染不改 scrollTop,视口自然留在当前行;期间暂停跟随防跳底。 */
   const loadEarlierKeepScroll = () => {
     followRef.current = false;
@@ -209,28 +162,15 @@ export function SessionScreen(props: { sessionId: string }) {
 
   return (
     <>
-      <div className="nav">
-        <button type="button" className="back" aria-label={t("返回列表")} onClick={() => go({ view: "home" })}>
-          ‹
-        </button>
-        <EngineMark profileId={meta?.profileId ?? ""} />
-        <span className="t">{titleOf(meta ?? ({ id: props.sessionId, profileId: "", cwd: "" } as never))}</span>
-        {ckpt && (
-          <button
-            type="button"
-            className={`nav-chip${ckpt.pending > 0 ? " warn" : ""}`}
-            aria-label={t("审批线")}
-            onClick={() => setCkptSheet(true)}
-          >
-            {t("审批")}
-            {ckpt.pending > 0 ? ` ${ckpt.pending}` : ""}
-          </button>
-        )}
-        <button type="button" className="orient-btn" aria-label={t("切换横竖屏")} onClick={toggleOrient}>
-          {landscape ? t("竖屏") : t("横屏")}
-        </button>
-        <HostChip />
-      </div>
+      <SessionHeader
+        title={titleOf(meta ?? ({ id: props.sessionId, profileId: "", cwd: "" } as never))}
+        profileId={meta?.profileId ?? ""}
+        ckpt={ckpt}
+        landscape={landscape}
+        onBack={() => go({ view: "home" })}
+        onCkpt={() => setCkptSheet(true)}
+        onOrient={toggleOrient}
+      />
       <ConnBanner />
       <div className="live" ref={liveRef}>
         {turns && <TurnsView turns={turns} />}
@@ -247,8 +187,9 @@ export function SessionScreen(props: { sessionId: string }) {
         />
       </div>
       {ask && <AskCard q={askQ} onAnswer={answer} />}
-      <div className="composer">
+      <div className={"composer" + (kbOn && !kbOpen ? " kb-on" : "")}>
         <div className="box">
+          <button type="button" className={"kb-toggle" + (kbOn ? " on" : "")} aria-label={t("键盘工具条")} onClick={toggleKb}>⌨</button>
           <textarea
             rows={1}
             value={draft}
@@ -268,10 +209,47 @@ export function SessionScreen(props: { sessionId: string }) {
           </button>
         </div>
       </div>
-      <KeyToolbar sessionId={props.sessionId} hidden={kbOpen} />
+      <KeyToolbar sessionId={props.sessionId} hidden={kbOpen || !kbOn} />
       {ckptSheet && meta?.cwd && (
         <CkptSheet cwd={meta.cwd} sessionId={props.sessionId} onClose={() => setCkptSheet(false)} />
       )}
     </>
+  );
+}
+
+
+/** 会话顶栏:返回/引擎/标题/审批线 chip/横竖屏切换/通道(纯展示,状态在父组件)。 */
+function SessionHeader(props: {
+  title: string;
+  profileId: string;
+  ckpt: { pending: number; approved: number } | null;
+  landscape: boolean;
+  onBack: () => void;
+  onCkpt: () => void;
+  onOrient: () => void;
+}) {
+  return (
+    <div className="nav">
+      <button type="button" className="back" aria-label={t("返回列表")} onClick={props.onBack}>
+        ‹
+      </button>
+      <EngineMark profileId={props.profileId} />
+      <span className="t">{props.title}</span>
+      {props.ckpt && (
+        <button
+          type="button"
+          className={`nav-chip${props.ckpt.pending > 0 ? " warn" : ""}`}
+          aria-label={t("审批线")}
+          onClick={props.onCkpt}
+        >
+          {t("审批")}
+          {props.ckpt.pending > 0 ? ` ${props.ckpt.pending}` : ""}
+        </button>
+      )}
+      <button type="button" className="orient-btn" aria-label={t("切换横竖屏")} onClick={props.onOrient}>
+        {props.landscape ? t("竖屏") : t("横屏")}
+      </button>
+      <HostChip />
+    </div>
   );
 }

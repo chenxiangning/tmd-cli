@@ -81,6 +81,12 @@ fn spawn_命令收敛_引擎白名单() {
 fn fs_git_只读放行_写面拒绝() {
     assert!(app_allowed("fs_read_file"));
     assert!(app_allowed("git_status"));
+    // 手机 git 面板动作(大仙 2026-09-24 复刻桌面操作菜单):远端操作/切分支/PR
+    // 对批准设备放行(SSH 级信任,与 session_spawn 同律)。
+    assert!(app_allowed("git_pull_push"));
+    assert!(app_allowed("git_checkout"));
+    assert!(app_allowed("git_pr_defaults"));
+    assert!(app_allowed("git_pr_run"));
     for no in [
         "fs_write_file",
         "fs_remove_path",
@@ -91,9 +97,7 @@ fn fs_git_只读放行_写面拒绝() {
         "git_stage",
         "git_commit",
         "git_discard",
-        "git_pull_push",
         "git_create_branch",
-        "git_pr_run",
     ] {
         assert!(!app_allowed(no), "{no} 应拒绝");
     }

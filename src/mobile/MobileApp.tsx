@@ -11,6 +11,7 @@ import { MobileAppCtx, endpointKind, type MobileRoute } from "./shared";
 import { HomeScreen } from "./HomeScreen";
 import { SessionScreen } from "./SessionScreen";
 import { HistoryScreen } from "./HistoryScreen";
+import { GitScreen } from "./GitScreen";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
 import { listSessions, listWorkspaces, overlayState, sessionPinToggle } from "./remote";
 import { activeRemoteEndpoint, isRemoteConnected, isRemotePaused, listen, onRemoteConnection } from "@kernel/transport";
@@ -163,6 +164,8 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
             workspaceId={route.history?.workspaceId}
             cliSessionId={route.history?.cliSessionId}
           />
+        ) : route.view === "git" ? (
+          <GitScreen onBack={() => setRoute({ view: "home" })} />
         ) : route.view === "session" ? (
           <SessionScreen key={route.sessionId ?? ""} sessionId={route.sessionId ?? ""} />
         ) : null}

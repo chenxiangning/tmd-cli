@@ -49,6 +49,12 @@ pub(crate) const GIT_READ: &[&str] = &[
     "git_branch_worktree_files",
     "git_branch_worktree_patch",
     "git_remotes",
+    // 手机 git 面板动作(大仙 2026-09-24 复刻桌面操作菜单):拉取/推送/获取、
+    // 分支切换、创建 PR(defaults+run)。批准设备 = SSH 级信任,与 session_spawn 同律。
+    "git_pull_push",
+    "git_checkout",
+    "git_pr_defaults",
+    "git_pr_run",
 ];
 
 /// AppDevice 允许域(M2 起:轻交互 + 发起会话;spec §B,大仙 2026-09-22 拍板

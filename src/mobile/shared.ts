@@ -13,7 +13,7 @@ export const REQUIRED_CAPABILITY = "app-device";
 
 /** 手机三层路由:home(列表)/ session(实况+审批+发送)/ history(只读 transcript)。 */
 export interface MobileRoute {
-  view: "home" | "session" | "history";
+  view: "home" | "session" | "history" | "git";
   sessionId?: string;
   /** view = history:磁盘会话定位信息(cwd/workspaceId/cliSessionId 齐备时可续聊)。 */
   history?: {
@@ -106,6 +106,7 @@ export interface KeyDef {
 }
 
 export const KEYS: KeyDef[] = [
+  { label: "model", seq: "/model\r", aria: "切换模型" },
   { label: "esc", seq: "\x1b", aria: "Esc" },
   { label: "tab", seq: "\t", aria: "Tab" },
   { label: "⌃c", seq: "\x03", aria: "Ctrl+C" },
