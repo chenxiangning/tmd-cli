@@ -235,8 +235,6 @@ export const MESSAGES = {
   "未连接": "Not connected",
   "部署中继(自有 Cloudflare 账号)": "Deploy the relay (your own Cloudflare account)",
   "① 部署中继(一次性)": "① Deploy the relay (one-time)",
-  "中继是跑在你自己 Cloudflare 账号的 Worker(免费额度够),只做字节转发、零存储。左卡任选一种:填 Cloudflare API Token 一键部署,或导 zip 到你的 ECS / 任意机器 wrangler deploy。":
-    "The relay is a Worker on your own Cloudflare account (free tier is enough) — pure byte forwarding, zero storage. Pick either way on the left card: one-click deploy with a Cloudflare API token, or export the zip and wrangler deploy on your ECS / any machine.",
   "② 连接中继(每次用前)": "② Connect to the relay (before each use)",
   "右卡填中继 URL 和密钥(一键部署会自动回填),点「连接中继」。桌面会主动外拨一条加密长连,状态点转绿即外网可达。会顺带打开内网桥,不用先去内网 tab。":
     "Fill the relay URL and secret on the right card (one-click deploy autofills them) and hit “Connect”. The app dials out an encrypted long-lived connection — the dot turns green once reachable from the internet. The LAN bridge opens along the way; no need to visit the LAN tab first.",
@@ -279,4 +277,5 @@ export const MESSAGES = {
   "我已了解并自行承担风险": "I understand the risks and accept them",
   "有浏览器客户端正通过 Web 访问控制本机":
     "A browser client is controlling this machine via web access",
+
 } as Record<string, string>;

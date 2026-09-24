@@ -278,4 +278,11 @@ export const MESSAGES = {
     "重试": "Retry",
   "已回退": "Reverted",
   "自动(按序竞速)": "Auto (race in order)",
+
+  /* 设备配对卡补充键(评审收口:配对域统一归 misc,settings 不留双份) */
+  "发起于 {time}": "Requested at {time}",
+  "配对码 {ttl} 后过期": "Pairing code expires in {ttl}",
+  "离线 {time}": "Offline {time}",
+  "配对于 {date}": "Paired on {date}",
+  "设备凭证 = 每台独立 token(桌面只存 sha-256)。踢除立即断开该设备全部连接,其本地凭证作废,需重新扫码配对。授权/踢除仅桌面可操作,手机端只读自己状态。": "Device credentials = a per-device token (desktop stores only sha-256). Kicking immediately drops all of the device's connections and voids its local credential; re-pairing by QR is required. Approve/kick are desktop-only; the phone sees read-only status.",
 } as Record<string, string>;

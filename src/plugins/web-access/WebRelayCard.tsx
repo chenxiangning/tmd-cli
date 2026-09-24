@@ -73,7 +73,7 @@ export function WebRelayCardBody({
       )}
       <div className="flex items-center gap-2 text-xs">
         <span title={info?.error ?? undefined}>
-          {statusDot} {statusText}
+          <span className={`size-2 flex-none rounded-full ${statusDot}`} /> {statusText}
         </span>
         {info && (
           <code className="min-w-0 flex-1 truncate rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-muted)] px-2 py-0.5">
@@ -139,13 +139,17 @@ export function WebRelayCard() {
 
   useEffect(() => {
     void refresh();
-    /* 中继状态事件驱动刷新(payload 恒 Null,仅作信号;实况经 webRelayStatus 重查)。 */
-    let unlisten: (() => void) | null = null;
+    /* 中继状态事件驱动刷新(payload 恒 Null,仅作信号;实况经 webRelayStatus 重查)。
+     * 卸载先于 listen promise 到站时立即退订,防桥内监听永久滞留。 */
+    let off: (() => void) | null = null;
+    let gone = false;
     onWebRelay((next) => setInfo(next)).then((fn) => {
-      unlisten = fn;
+      if (gone) fn();
+      else off = fn;
     });
     return () => {
-      unlisten?.();
+      gone = true;
+      off?.();
     };
   }, [refresh]);
 

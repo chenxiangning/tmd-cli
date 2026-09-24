@@ -19,9 +19,6 @@ import {
   readGrokSessionStatus,
 } from "./sessions";
 
-/* 纯函数兼容再导出(index.test.ts 消费面不变);实现在 ./sessions。 */
-export { grokSessionsDirName, parseGrokSummary } from "./sessions";
-
 /**
  * grok / 命令候选(官方 README 斜杠命令表;action 初判见
  * openspec/changes/composer-command-drawer,/model /load 等 picker 类已拍板 send)。

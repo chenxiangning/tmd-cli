@@ -34,10 +34,10 @@ describe("relayStatusModel", () => {
   });
 
   it("relayStatusDot:未连接白点、已连接绿点、连接中与出错黄点", () => {
-    expect(relayStatusDot(null)).toBe("⚪");
-    expect(relayStatusDot(info({ connected: true }))).toBe("🟢");
-    expect(relayStatusDot(info())).toBe("🟡");
-    expect(relayStatusDot(info({ error: "x" }))).toBe("🟡");
+    expect(relayStatusDot(null)).toBe("bg-[var(--tmd-fg-faint)]");
+    expect(relayStatusDot(info({ connected: true }))).toBe("bg-[var(--tmd-ok)]");
+    expect(relayStatusDot(info())).toBe("bg-[var(--tmd-warn)]");
+    expect(relayStatusDot(info({ error: "x" }))).toBe("bg-[var(--tmd-warn)]");
   });
 });
 

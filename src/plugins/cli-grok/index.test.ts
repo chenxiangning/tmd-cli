@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { grokSessionsDirName, parseGrokSummary } from "./index";
+import { grokSessionsDirName, parseGrokSummary } from "./sessions";
 
 describe("grokSessionsDirName", () => {
   it("实证:encodeURIComponent 全路径(/ → %2F)", () => {

@@ -978,7 +978,7 @@ export function webRelayStatus(): Promise<RelayInfo | null> {
 export function onWebRelay(cb: (info: RelayInfo | null) => void) {
   return listen<RelayInfo | null>("web://relay", () => {
     /* 事件 payload 为 Null,真正状态以 webRelayStatus 为准 —— 事件仅作「刷新信号」。 */
-    void webRelayStatus().then(cb);
+    void webRelayStatus().then(cb).catch(() => cb(null)); /* 桥不通时回 null 状态,不裸抛 unhandledrejection */
   });
 }
 

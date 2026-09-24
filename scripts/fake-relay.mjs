@@ -4,7 +4,7 @@
  * 用于无 CF 账号时的 relay 链路 e2e:桌面 relay_agent 拨 /agent?key=,手机(协议脚本)
  * 经它转发到桌面桥。只搬运字节,门禁全部在桌面桥内,与真 Worker 同一契约。
  *
- * 用法:node scripts/fake-relay.mjs [--port 8787] [--key <relayKey>]
+ * 用法:bun scripts/fake-relay.mjs [--port 8787] [--key <relayKey>]
  * 配套:桌面 settings {webRelayUrl:"http://127.0.0.1:8787", webRelayKey:<key>, webRelayOn:true}
  * 后重启桌面(autostart 自动拨号),再用 web-bridge-client.mjs --relay 走 relay 配对。
  */

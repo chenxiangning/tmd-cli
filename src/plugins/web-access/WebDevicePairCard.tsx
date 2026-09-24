@@ -133,26 +133,26 @@ export function WebDevicePairCard() {
         <button
           type="button"
           onClick={() => void mint()}
-          className="self-start rounded-md border border-[var(--tmd-border)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--tmd-hover)]"
+          className="self-start rounded-md border border-[var(--tmd-border)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--tmd-bg-hover)]"
         >
           {t("出示配对码")}
         </button>
       ) : (
-        <div className="flex items-start gap-3 rounded-lg border border-[var(--tmd-border)] bg-[var(--tmd-panel)] p-3">
+        <div className="flex items-start gap-3 rounded-lg border border-[var(--tmd-border)] bg-[var(--tmd-bg-panel)] p-3">
           <QRCodeSVG value={offer.url} size={232} />
           <div className="flex min-w-0 flex-col gap-1.5">
-            <code className="w-fit rounded-md border border-[var(--tmd-border)] bg-[var(--tmd-base)] px-2 py-0.5 font-mono text-sm font-semibold tracking-[0.3em]">
+            <code className="w-fit rounded-md border border-[var(--tmd-border)] bg-[var(--tmd-bg-base)] px-2 py-0.5 font-mono text-sm font-semibold tracking-[0.3em]">
               {offer.pairCode}
             </code>
             <span
-              className={`inline-flex items-center gap-1 text-[0.6875rem] ${ttl <= TTL_WARN_SECS ? "text-[var(--tmd-warn,#a16207)]" : "text-[var(--tmd-fg-muted)]"}`}
+              className={`inline-flex items-center gap-1 text-[0.6875rem] ${ttl <= TTL_WARN_SECS ? "text-[var(--tmd-warn)]" : "text-[var(--tmd-fg-muted)]"}`}
             >
               {t("有效期 {ttl}", { ttl: fmtTtl(ttl) })}
             </span>
             <button
               type="button"
               onClick={() => void copyLink()}
-              className="inline-flex w-fit items-center gap-1 text-[0.6875rem] text-[var(--tmd-accent,#005fb8)] hover:underline"
+              className="inline-flex w-fit items-center gap-1 text-[0.6875rem] text-[var(--tmd-accent)] hover:underline"
             >
               {copied ? <Check size="0.75rem" aria-hidden /> : <Copy size="0.75rem" aria-hidden />}
               {copied ? t("已复制") : t("复制配对链接")}
@@ -161,9 +161,9 @@ export function WebDevicePairCard() {
         </div>
       )}
 
-      {error && <p className="text-xs text-[var(--tmd-err,#dc2626)]">{error}</p>}
+      {error && <p className="text-xs text-[var(--tmd-err)]">{error}</p>}
       {alert && (
-        <p className="flex items-center gap-1 text-xs text-[var(--tmd-warn,#a16207)]">
+        <p className="flex items-center gap-1 text-xs text-[var(--tmd-warn)]">
           <Warning size="0.75rem" aria-hidden />
           {alert}
         </p>
@@ -178,9 +178,9 @@ export function WebDevicePairCard() {
           {pending.map((d) => (
             <div
               key={d.deviceId}
-              className="flex items-center gap-2.5 rounded-lg border border-dashed border-[var(--tmd-border-strong,#b1b1b1)] bg-[#fffdf6] px-2.5 py-2"
+              className="flex items-center gap-2.5 rounded-lg border border-dashed border-[var(--tmd-border-strong)] bg-[var(--tmd-warn)]/8 px-2.5 py-2"
             >
-              <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-[var(--tmd-hover)] text-sm font-semibold text-[var(--tmd-fg-muted)]">
+              <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-[var(--tmd-bg-active)] text-sm font-semibold text-[var(--tmd-fg-muted)]">
                 ?
               </span>
               <div className="min-w-0 flex-1">
@@ -198,7 +198,7 @@ export function WebDevicePairCard() {
               <button
                 type="button"
                 onClick={() => void approve(d.deviceId)}
-                className="rounded-md bg-[var(--tmd-accent,#005fb8)] px-2 py-0.5 text-[0.6875rem] font-semibold text-white"
+                className="rounded-md bg-[var(--tmd-accent)] px-2 py-0.5 text-[0.6875rem] font-semibold text-white"
               >
                 {t("授权")}
               </button>
@@ -226,10 +226,10 @@ export function WebDevicePairCard() {
               className="flex items-center gap-2.5 rounded-lg border border-[var(--tmd-border)] px-2.5 py-2"
             >
               <span
-                className={`size-2 flex-none rounded-full ${d.online ? "bg-[var(--tmd-diff-inserted,#16a34a)]" : "bg-[var(--tmd-fg-faint,#9ca3af)] opacity-50"}`}
+                className={`size-2 flex-none rounded-full ${d.online ? "bg-[var(--tmd-diff-inserted)]" : "bg-[var(--tmd-fg-faint)] opacity-50"}`}
                 aria-hidden
               />
-              <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-[var(--tmd-hover)] text-[0.625rem] font-semibold text-[var(--tmd-fg-muted)]">
+              <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-[var(--tmd-bg-active)] text-[0.625rem] font-semibold text-[var(--tmd-fg-muted)]">
                 iOS
               </span>
               <div className="min-w-0 flex-1">
@@ -247,7 +247,7 @@ export function WebDevicePairCard() {
               <button
                 type="button"
                 onClick={() => void revoke(d.deviceId)}
-                className="inline-flex items-center gap-1 rounded-md border border-[rgba(220,38,38,0.4)] px-2 py-0.5 text-[0.6875rem] text-[var(--tmd-err,#dc2626)]"
+                className="inline-flex items-center gap-1 rounded-md border border-[rgba(220,38,38,0.4)] px-2 py-0.5 text-[0.6875rem] text-[var(--tmd-err)]"
                 title={t("撤销后手机立即掉线,需重新配对")}
               >
                 <Trash size="0.75rem" aria-hidden />
