@@ -124,9 +124,14 @@ export function HostChip() {
   };
   const pickChannel = (v: string) => {
     saveChannelPin(v);
-    /* 换端点立即生效:重配桥(清手动断开)并强制重拨;auto = 候选序首项。 */
-    const target = v === "auto" ? endpointCandidates(creds)[0] : v;
-    configureRemoteEndpoint({ wsUrl: target, deviceId: creds.deviceId, token: creds.token });
+    /* 换端点立即生效:重配桥(清手动断开)并强制重拨;auto = 全候选表
+     * (桥按连续失败轮换,不再重钉死首项——评审二轮 P1-2)。 */
+    if (v === "auto") {
+      const list = endpointCandidates(creds);
+      configureRemoteEndpoint({ wsUrl: list[0], urls: list, deviceId: creds.deviceId, token: creds.token });
+    } else {
+      configureRemoteEndpoint({ wsUrl: v, deviceId: creds.deviceId, token: creds.token });
+    }
     forceRemoteReconnect();
     setSheet(false);
   };

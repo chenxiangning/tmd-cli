@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * fake-relay.mjs —— 本地假 Cloudflare Worker(deploy/worker/src/index.js 的协议仿真),
  * 用于无 CF 账号时的 relay 链路 e2e:桌面 relay_agent 拨 /agent?key=,手机(协议脚本)

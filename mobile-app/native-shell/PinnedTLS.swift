@@ -147,11 +147,13 @@ enum PinnedHttp {
   }
 
   /// base64url/padding 宽松解码(与 PinnedDelegate.b64Equal 同规则):
-  /// pin 存在但不可解码时静默降级 = 无钉会话,配对必失败且无因可查。
+  /// strip 后必须重补 '='——Foundation 严格要求 padding,43 字符(%4=3)会解出
+  /// nil → 静默降级无钉会话,配对必失败且无因可查(签发端恒 STANDARD 带 '=')。
   private static func b64DecodeLenient(_ s: String) -> Data? {
     let norm = s.replacingOccurrences(of: "-", with: "+")
       .replacingOccurrences(of: "_", with: "/")
       .replacingOccurrences(of: "=", with: "")
-    return Data(base64Encoded: norm)
+    let padded = norm + String(repeating: "=", count: (4 - norm.count % 4) % 4)
+    return Data(base64Encoded: padded)
   }
 }

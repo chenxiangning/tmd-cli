@@ -1,9 +1,5 @@
-/**
- * home 屏 —— 单顶栏(主机芯片 + 标题 + 新建)+ 搜索 + 工作区分组:组内会话行
- * 按时间平铺(不分引擎子组),工作区头下「本地/归档」分段(归档 = 桌面
- * settings.sessionArchive 覆盖层只读镜像);活会话(session_list)+ 磁盘历史
- * (history.ts 扫描,与桌面侧栏同源适配器)同列;断连 = banner + 列表快照减淡。
- */
+/** home 屏:单顶栏+搜索+工作区分组(本地/归档分段);活会话+磁盘历史同列,
+ * 断连 = banner + 快照减淡。 */
 import React, { useMemo, useState } from "react";
 import { SpawnSheet } from "./SpawnSheet";
 import { t } from "@kernel/i18n";
@@ -31,11 +27,10 @@ export function HomeScreen() {
   /* 磁盘历史:key = 工作区 root。 */
   const [history, setHistory] = useState<Map<string, HistoryItem[]>>(new Map());
 
-  /* 轮询签名:会话集合不变就不重启 interval;截断前按 createdAt 稳定排序
-     (session_list 源 HashMap 无序,不排序则 >12 活会话时徽标覆盖面随机漂移)。 */
+  /* 轮询目标:截断前按 createdAt 稳定排序(源 HashMap 无序,否则徽标覆盖面漂移)。 */
   const targets = useMemo(
-    () => [...sessions].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
-      .slice(0, 12).map((s) => [s.id, s.cwd ?? ""] as [string, string]),
+    () => [...sessions].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)).slice(0, 12)
+      .map((s) => [s.id, s.cwd ?? ""] as [string, string]),
     [sessions],
   );
   React.useEffect(() => {
@@ -72,8 +67,7 @@ export function HomeScreen() {
   }, [targets]);
 
   /* 磁盘历史扫描:工作区清单变化 / 挂载 / 60s 周期。签名依赖,避免 2.5s 轮询重触发。 */
-  /* 直接数组身份(评审 P2-5 曾用裸拼串,id/root 含 | 或 : 会错位;MobileApp 已
-     改签名比对后才 set,workspaces 身份稳定,无需再经字符串签名)。 */
+  /* 直接数组身份(P2-5:裸拼串遇 |/: 错位;MobileApp 签名比对后 set,身份稳定)。 */
   const roots = useMemo(() => workspaces.map((w) => w.root), [workspaces]);
   React.useEffect(() => {
     let alive = true;

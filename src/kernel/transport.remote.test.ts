@@ -200,6 +200,27 @@ describe("transport 远程模式(壳已配对)", () => {
     un();
   });
 
+  it("换端点清退避闸:旧端点退避期内切新端点,首连立即拨不被旧闸拦(第一轮 P1 修复回归锚)", async () => {
+    // 旧端点建立 + 断连:装填全局重拨闸(nextDialAt = now+1s)
+    const p1 = transport.invoke<string>("session_list");
+    const ws1 = lastWS();
+    ws1.open();
+    await vi.advanceTimersByTimeAsync(0);
+    ws1.close();
+    await expect(p1).rejects.toThrow();
+    // 退避期内(不推 1s)直接换端点:新端点首连必须立即发出,而非吃旧闸快败
+    transport.configureRemoteEndpoint({ wsUrl: "wss://relay.example/ws", deviceId: "d3", token: "t3" });
+    const p2 = transport.invoke<string>("session_list");
+    await vi.advanceTimersByTimeAsync(0);
+    const ws2 = lastWS();
+    expect(ws2).not.toBe(ws1);
+    expect(ws2.url).toContain("relay.example");
+    ws2.open();
+    await vi.advanceTimersByTimeAsync(0); // 冲刷微任务:pending 登记后才喂响应
+    ws2.recv(JSON.stringify({ type: "response", id: 2, ok: true, payload: [] }));
+    await expect(p2).resolves.toEqual([]);
+  });
+
   it("换端点 = hello 版本/能力缓存失效(评审 P1:旧 caps 旁路 block 防线)", async () => {
     const p = transport.invoke<string>("session_list");
     const ws = lastWS();

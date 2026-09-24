@@ -6,13 +6,6 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@kernel/transport", () => ({
-  configureRemoteEndpoint: vi.fn(),
-  onRemoteRevoked: vi.fn(() => vi.fn()),
-  serverVersion: vi.fn(() => Promise.resolve(null)),
-  serverCapabilities: vi.fn(() => Promise.resolve([])),
-}));
-
 import { endpointCandidates } from "./shared";
 import { saveChannelPin, type MobileCreds } from "./creds";
 

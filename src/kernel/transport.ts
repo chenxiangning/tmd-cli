@@ -40,10 +40,12 @@ if (isWeb && webToken) {
 export interface RemoteEndpoint {
   /** ws://… 或 wss://…(LAN 直连或 relay worker),不带 /ws 路径。 */
   wsUrl: string;
+  /** 候选端点表(配对 offer 全量;缺省 = [wsUrl])。离家 LAN 死后桥按连续失败
+   *  轮换下一候选——自动竞速不只存在于启动探测(评审二轮 P1-2)。 */
+  urls?: string[];
   deviceId: string;
   token: string;
 }
-
 let remoteEndpoint: RemoteEndpoint | null = null;
 let bridge: WebBridge | null = null;
 
@@ -82,6 +84,12 @@ export function listen<T>(
 ): Promise<UnlistenFn> {
   if (!remoteEndpoint && (!isWeb || typeof window === "undefined")) return tauriListen<T>(name, cb);
   return (bridge ??= new WebBridge()).listen(name, (payload) => cb({ payload: payload as T }));
+}
+
+/** 事件跳帧通知(仅桥态;桌面态事件不丢,回调不注册即无操作)。 */
+export function onEventGap(cb: () => void): () => void {
+  if (!remoteEndpoint && (!isWeb || typeof window === "undefined")) return () => {};
+  return (bridge ??= new WebBridge()).onEventGap(cb);
 }
 
 /** 桥 hello 帧上报的服务端版本;不可得为 null。 */

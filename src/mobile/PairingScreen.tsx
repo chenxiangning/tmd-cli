@@ -115,32 +115,31 @@ function scanOfferLink(): Promise<string | null> {
   });
 }
 
-/** offer → 端点竞速配对(先成先用);凭证存全部端点供 M2 双通道重选路。 */
+/** offer → 端点配对;凭证存全部端点供 M2 双通道重选路。
+ * 串行 LAN 先行(评审二轮 P2-4):并发 = 单次消费码必产生一次后到 403,
+ * 每次配对烧中继面全局失败预算(25 次窗),串行只有全败才轮到中继面计数。 */
 async function pairWithOffer(offer: { code: string; urls: string[]; relay?: string; pin?: string }): Promise<MobileCreds> {
-  const attempts = offer.urls.map((u) =>
-    tryPair(u, offer.code, deviceName(), u.startsWith("https") ? offer.pin : undefined).then((r) => {
-      if (r.creds) return r;
-      throw r;
-    }),
-  );
-  try {
-    const ok = await Promise.any(attempts);
-    const creds: MobileCreds = {
-      ...ok.creds!,
-      urls: offer.urls.map((u) => u.replace(/^http/, "ws").replace(/\/+$/, "")),
-    };
-    /* 证书钉住:pinHost 取 relay host(内置 pin 只属中继);非 URL 形状则不设,壳侧不启用。 */
-    if (offer.pin) {
-      try {
-        creds.pin = offer.pin;
-        creds.pinHost = new URL(offer.relay ?? ok.creds!.wsUrl).hostname;
-      } catch { /* 手动输入退化态:放弃 pin */ }
+  const ordered = [...offer.urls].sort((a) => (a.startsWith("https") ? 1 : -1)); // LAN 先
+  let lastError = "";
+  for (const u of ordered) {
+    const r = await tryPair(u, offer.code, deviceName(), u.startsWith("https") ? offer.pin : undefined);
+    if (r.creds) {
+      const creds: MobileCreds = {
+        ...r.creds,
+        urls: offer.urls.map((x) => x.replace(/^http/, "ws").replace(/\/+$/, "")),
+      };
+      /* 证书钉住:pinHost 取 relay host(内置 pin 只属中继);非 URL 形状则不设,壳侧不启用。 */
+      if (offer.pin) {
+        try {
+          creds.pin = offer.pin;
+          creds.pinHost = new URL(offer.relay ?? r.creds.wsUrl).hostname;
+        } catch { /* 手动输入退化态:放弃 pin */ }
+      }
+      return creds;
     }
-    return creds;
-  } catch (agg) {
-    const errs = (agg as AggregateError).errors as { error?: string }[];
-    throw new Error(errs.map((e) => e?.error).find(Boolean) ?? "配对失败");
+    lastError = r.error ?? "";
   }
+  throw new Error(lastError || "配对失败");
 }
 
 export function PairingScreen(props: {

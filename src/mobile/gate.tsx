@@ -38,9 +38,11 @@ type HelloProbe =
   | { kind: "rejected" }
   | { kind: "timeout" };
 
-/** 单端点 hello 探测(8s 超时);挂 transport 端点 = 顺带建连。 */
+/** 单端点 hello 探测(8s 超时);挂 transport 端点 = 顺带建连。
+ * 全候选表随端点下发(评审二轮 P1-2):探测胜出后的运行期断连由桥按
+ * 连续失败自动轮换,离家后中继接管不再依赖用户手动切通道。 */
 async function probeOne(creds: MobileCreds, wsUrl: string): Promise<HelloProbe> {
-  configureRemoteEndpoint({ ...creds, wsUrl });
+  configureRemoteEndpoint({ ...creds, wsUrl, urls: endpointCandidates(creds) });
   const { promise, resolve } = Promise.withResolvers<HelloProbe>();
   let settled = false;
   const done = (o: HelloProbe) => {

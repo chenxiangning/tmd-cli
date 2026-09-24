@@ -93,7 +93,14 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     guard url.scheme == "http" else { return false }
     if host == "localhost" { return true }
     let parts = host.split(separator: ".")
-    guard parts.count == 4, let a = Int(parts[0]), let b = Int(parts[1]) else { return false }
+    guard parts.count == 4 else { return false }
+    var octets: [Int] = []
+    for p in parts {
+      // 前导零(010.1.1.1 系统可按八进制解出公网)/超 3 位/非数字一律拒
+      guard p.count <= 3, p.first != "0" || p.count == 1, let v = Int(p) else { return false }
+      octets.append(v)
+    }
+    let (a, b) = (octets[0], octets[1])
     return a == 127 || a == 10 || (a == 192 && b == 168) || (a == 172 && (16...31).contains(b))
   }
 

@@ -16,19 +16,27 @@ const root = ReactDOM.createRoot(document.getElementById("root")!);
 if (isMobileShell()) {
   /* 双树皆动态:mobile 分支静态引 gate 会让桌面首包背上 mobile 树
    * (含 7 家 CLI 磁盘扫描器,评审 P1-2);对偶分支同构。 */
-  void import("./mobile/gate").then(({ MobileRoot }) => {
-    root.render(
-      <React.StrictMode>
-        <MobileRoot />
-      </React.StrictMode>,
-    );
-  });
+  void import("./mobile/gate")
+    .then(({ MobileRoot }) => {
+      root.render(
+        <React.StrictMode>
+          <MobileRoot />
+        </React.StrictMode>,
+      );
+    })
+    .catch((e) => {
+      root.render(<div style={{ padding: 24, color: "#c33" }}>mobile chunk load failed: {String(e)}</div>);
+    });
 } else {
-  void import("./app-shell/DesktopApp").then(({ DesktopApp }) => {
-    root.render(
-      <React.StrictMode>
-        <DesktopApp />
-      </React.StrictMode>,
-    );
-  });
+  void import("./app-shell/DesktopApp")
+    .then(({ DesktopApp }) => {
+      root.render(
+        <React.StrictMode>
+          <DesktopApp />
+        </React.StrictMode>,
+      );
+    })
+    .catch((e) => {
+      root.render(<div style={{ padding: 24, color: "#c33" }}>app chunk load failed: {String(e)}</div>);
+    });
 }

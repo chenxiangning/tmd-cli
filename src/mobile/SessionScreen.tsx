@@ -7,17 +7,17 @@
 import React, { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
 import { invoke } from "@kernel/transport";
+import { useLiveStream } from "./useLiveStream";
 import { ConnBanner } from "./ConnChip";
 import { HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { notifyAsk } from "./shared";
-import { onPtyOut, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
+import { tailAskLine, tailHasAskMarker, writeSession } from "./remote";
 import { shellInvoke } from "@kernel/shellBridge";
 import { loadTranscript } from "./sessionFile";
 import { EngineMark } from "./EngineMark";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
 import { type TranscriptTurn } from "@kernel/transcript";
-import { LiveScreen } from "./liveText";
 import { KeyToolbar } from "./KeyToolbar";
 import { CkptSheet } from "./CkptSheet";
 
@@ -26,7 +26,6 @@ import { CkptSheet } from "./CkptSheet";
 export function SessionScreen(props: { sessionId: string }) {
   const { sessions, titleOf, go } = useMobile();
   const meta = sessions.find((s) => s.id === props.sessionId);
-  const [live, setLive] = useState("");
   const [ask, setAsk] = useState(false);
   const [askQ, setAskQ] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -42,21 +41,19 @@ export function SessionScreen(props: { sessionId: string }) {
     const cliId = props.sessionId;
     if (!cwd || !cliId) return;
     const pull = () => {
-      void import("@kernel/transport").then(({ invoke }) =>
-        invoke<{ id: string; open: boolean; state: string }[]>("checkpoint_list", {
-          cwd,
-          sessionId: cliId,
-          tmdSessionId: cliId,
+      void invoke<{ id: string; open: boolean; state: string }[]>("checkpoint_list", {
+        cwd,
+        sessionId: cliId,
+        tmdSessionId: cliId,
+      })
+        .then((batches) => {
+          const sealed = batches.filter((b) => !b.open);
+          setCkpt({
+            pending: sealed.filter((b) => b.state === "pending").length,
+            approved: sealed.filter((b) => b.state === "approved").length,
+          });
         })
-          .then((batches) => {
-            const sealed = batches.filter((b) => !b.open);
-            setCkpt({
-              pending: sealed.filter((b) => b.state === "pending").length,
-              approved: sealed.filter((b) => b.state === "approved").length,
-            });
-          })
-          .catch(() => setCkpt(null)),
-      );
+        .catch(() => setCkpt(null));
     };
     pull();
     const timer = setInterval(pull, 60_000);
@@ -100,75 +97,7 @@ export function SessionScreen(props: { sessionId: string }) {
     };
   }, [meta?.profileId, meta?.cwd, props.sessionId]);
 
-  /* 活流订阅:PTY 字节喂进迷你 VT 视口模型(LiveScreen,固定 H×W + 触底上滚),
-   * 绝对定位重绘(页脚/spinner)天然收敛为一份;ask 检测在独立 effect。
-   * 打开会话先拉真实 PTY 尺寸(session_size)+ 字节日志尾回放,
-   * 否则老会话只有「连接期活流」——空闲老会话永远空屏。
-   * 尺寸漂移再同步(2026-09-24 真机双页脚实证):PTY 尺寸归桌面 xterm 独占
-   * (手机从不 resize),桌面拖面板 → omp 按新几何重绘,旧模型 CUP 钳位错位 →
-   * 页脚残留两份。每 3s 校 session_size:变了即按新几何重建 + 重放日志尾。 */
-  useEffect(() => {
-    if (!props.sessionId) return;
-    let alive = true;
-    let off: (() => void) | null = null;
-    let timer = 0;
-    setLive("");
-    void (async () => {
-      const sizeOf = () =>
-        invoke<[number, number] | null>("session_size", { id: props.sessionId }).catch(() => null);
-      const pageOf = () =>
-        invoke<{ text: string }>("session_history_page", {
-          id: props.sessionId,
-          before: Number.MAX_SAFE_INTEGER,
-          maxBytes: 32_000,
-        }).catch(() => null);
-      const size = await sizeOf();
-      if (!alive) return;
-      let sizeKey = size ? `${size[0]}x${size[1]}` : "";
-      let screen = new LiveScreen(size?.[0], size?.[1]);
-      const page = await pageOf();
-      if (!alive) return;
-      if (page?.text) {
-        screen.feed(page.text);
-        setLive(screen.view());
-      }
-      /* rAF 合帧:每 chunk 全量 view() 重建(2000 行 scrollback join)在流式输出下
-         是每帧 O(全屏) 复制;脏标 + 帧对齐把重绘压到 ≤60Hz(评审 P1-3)。 */
-      let dirty = false;
-      const un = await onPtyOut(props.sessionId, (chunk) => {
-        if (!alive) return;
-        screen.feed(chunk);
-        if (dirty) return;
-        dirty = true;
-        requestAnimationFrame(() => {
-          dirty = false;
-          if (alive) setLive(screen.view());
-        });
-      });
-      /* 竞态:卸载发生在 await 在途时,off 仍 null → 桥内监听永久滞留。到站即核。 */
-      if (!alive) { un(); return; }
-      off = un;
-      timer = window.setInterval(() => {
-        void (async () => {
-          const s = await sizeOf();
-          if (!alive || !s) return;
-          const key = `${s[0]}x${s[1]}`;
-          if (key === sizeKey) return;
-          sizeKey = key;
-          screen = new LiveScreen(s[0], s[1]);
-          const p = await pageOf();
-          if (!alive) return;
-          if (p?.text) screen.feed(p.text);
-          setLive(screen.view());
-        })();
-      }, 3000);
-    })();
-    return () => {
-      alive = false;
-      clearInterval(timer);
-      off?.();
-    };
-  }, [props.sessionId]);
+  const live = useLiveStream(props.sessionId);
 
   /* ask 检测:live 变化后对尾窗跑标记(命中 → 卡 + 首现通知;消失 → 自愈收卡)。
      截尾 8K:标记只在末屏,全量 stripAnsi 在 2000 行 scrollback 下是每帧全文扫。 */
