@@ -190,7 +190,16 @@ fn spawn_cwd_allowed(raw: &serde_json::Value) -> bool {
 /// 桌面内置终端走 webview IPC 不过本闸 —— 留着 = 批准设备可起交互 shell 的纯攻击面。
 fn spawn_command_allowed(raw: &serde_json::Value) -> bool {
     const ENGINES: &[&str] = &[
-        "omp", "pi", "claude", "codex", "kimi", "grok", "qodercli", "qoderclicn", "opencode", "dsh",
+        "omp",
+        "pi",
+        "claude",
+        "codex",
+        "kimi",
+        "grok",
+        "qodercli",
+        "qoderclicn",
+        "opencode",
+        "dsh",
     ];
     let cmd = raw
         .get("spec")

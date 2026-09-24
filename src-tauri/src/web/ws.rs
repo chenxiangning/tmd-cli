@@ -135,7 +135,7 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
     // 事件订阅集:未订阅的事件不发(慢链路手机不再被 pty out 高频流灌爆)。
     let mut subs: std::collections::HashSet<String> = std::collections::HashSet::new();
     /* 旧客户端兼容(契约评审 face2):22a493c 前页面不发 subscribe 帧 → 首帧到达前
-       全发(旧语义),置位后收紧(新语义)。新客户端 open 即重放订阅,空窗毫秒级。 */
+    全发(旧语义),置位后收紧(新语义)。新客户端 open 即重放订阅,空窗毫秒级。 */
     let mut ever_subscribed = false;
     let mut events_rx = crate::event_sink::subscribe();
     let mut stop = ctx.stop.subscribe();
@@ -257,7 +257,6 @@ fn event_subscribed(frame: &str, subs: &std::collections::HashSet<String>) -> bo
         .and_then(Value::as_str)
         .is_some_and(|name| subs.contains(name))
 }
-
 
 /// 浏览器连接无复查:永挂;设备连接 5s 一跳(interval 首跳即到 = 连上即查一次)。
 async fn recheck_tick(scope: &ConnScope, iv: &mut tokio::time::Interval) {

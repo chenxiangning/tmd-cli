@@ -92,9 +92,7 @@ impl DeviceRegistry {
         };
         let map = self.fails.lock();
         match map.get(key) {
-            Some(e) if now_secs().saturating_sub(e.last_at) <= FAIL_WINDOW_SECS => {
-                e.count >= limit
-            }
+            Some(e) if now_secs().saturating_sub(e.last_at) <= FAIL_WINDOW_SECS => e.count >= limit,
             _ => false,
         }
     }

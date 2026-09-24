@@ -16,7 +16,9 @@ fn 配对全链_铸码_待批_批准_验证() {
     assert_eq!(exp, 1000 + PAIR_TTL_SECS);
     assert_eq!(code.len(), 9, "XXXX-XXXX");
 
-    let (device_id, token) = reg.pair(&dir, &code, "大仙的 iPhone", "192.168.1.9", 1001).unwrap();
+    let (device_id, token) = reg
+        .pair(&dir, &code, "大仙的 iPhone", "192.168.1.9", 1001)
+        .unwrap();
     // pending 未批准:凭据命中但 approved=false(ws 分流层据此发 4001/pending)
     assert!(
         !find_by_credentials(&dir, &device_id, &token)
@@ -51,7 +53,10 @@ fn 配对码_错码_过期_单次消费() {
     // 单次:pair 成功后同码再 pair 拒
     let (c, _) = reg.mint_code(2000);
     let _ = reg.pair(&dir, &c, "a", "10.0.0.1", 2001).unwrap();
-    assert_eq!(reg.pair(&dir, &c, "b", "10.0.0.2", 2002), Err(PairError::BadCode));
+    assert_eq!(
+        reg.pair(&dir, &c, "b", "10.0.0.2", 2002),
+        Err(PairError::BadCode)
+    );
 }
 
 #[test]

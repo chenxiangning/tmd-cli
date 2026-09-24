@@ -43,8 +43,8 @@ fn save_settings_locked(data: &serde_json::Value) -> std::io::Result<()> {
 /// config_write_settings,只给这一把定向钥匙(key = wsId:profileId:cliSessionId)。
 pub fn toggle_pin(key: &str, title: &str) -> Result<bool, String> {
     let _io = SETTINGS_IO.lock(); // 读改写全程持锁:与桌面整树写串行
-    let key = if key.len() > 512 { &key[..key.floor_char_boundary(512)] } else { key };
-    let title = if title.len() > 256 { &title[..title.floor_char_boundary(256)] } else { title };
+    let key = truncate_boundary(key, 512);
+    let title = truncate_boundary(title, 256);
     let mut data = load_settings();
     let root = data
         .as_object_mut()
@@ -71,4 +71,17 @@ pub fn toggle_pin(key: &str, title: &str) -> Result<bool, String> {
     };
     save_settings_locked(&serde_json::Value::Object(root.clone())).map_err(|e| e.to_string())?;
     Ok(now_pinned)
+}
+
+/// 按字节上限截到字符边界(MSRV 1.80;str::floor_char_boundary 1.91 才稳定)。
+fn truncate_boundary(s: &str, max: usize) -> &str {
+    if s.len() <= max {
+        s
+    } else {
+        let mut i = max;
+        while !s.is_char_boundary(i) {
+            i -= 1;
+        }
+        &s[..i]
+    }
 }

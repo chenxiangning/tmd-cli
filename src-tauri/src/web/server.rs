@@ -39,11 +39,18 @@ pub(super) async fn serve(
     公司 VPN 不再随 0.0.0.0 全接口可达;解析失败回落 127.0.0.1(仅本机)。
     同端口补绑 127.0.0.1:relay agent 每流按 loopback 回拨本机桥,单绑 LAN IP 会拒。 */
     let lan_ip = lan_ip().unwrap_or_else(|| "127.0.0.1".to_string());
-    let (listener, loopback) = bind::bind_bridge(&lan_ip).await?;
+    /* 端口持久化:上次实际端口作 preferred 重绑(手机凭证端点跨桌面重启稳定);
+     * 被占则随机,并以新端口覆写文件。 */
+    let port_file = crate::session::config_dir().join("web_bridge_port");
+    let preferred = std::fs::read_to_string(&port_file)
+        .ok()
+        .and_then(|s| s.trim().parse::<u16>().ok());
+    let (listener, loopback) = bind::bind_bridge(&lan_ip, preferred).await?;
     let port = listener
         .local_addr()
         .map_err(|e| format!("Web 桥取端口失败: {e}"))?
         .port();
+    let _ = std::fs::write(&port_file, port.to_string());
     let url = format!("http://{lan_ip}:{port}/?token={token}");
     /* 不把含 token 的完整 URL 打进 stderr 日志(隐私)。 */
     eprintln!("[web-bridge] LAN: http://{lan_ip}:{port}/");
@@ -122,9 +129,10 @@ async fn static_handler(AxumState(ctx): AxumState<WebCtx>, uri: Uri) -> Response
     if let Some((bytes, mime)) = load_static(&ctx.app, rel) {
         let mut resp = (StatusCode::OK, [(header::CONTENT_TYPE, mime)], bytes).into_response();
         /* index.html 必 no-cache:软刷新吃盘里旧壳 = 旧客户端连新服务端,订阅协议
-           静默失效(契约评审 2026-09-24);assets 带 hash 名,留默认缓存。 */
+        静默失效(契约评审 2026-09-24);assets 带 hash 名,留默认缓存。 */
         if rel.ends_with(".html") {
-            resp.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+            resp.headers_mut()
+                .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
         }
         return resp;
     }
