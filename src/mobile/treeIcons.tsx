@@ -1,6 +1,7 @@
 /**
  * treeIcons —— 工作区树的细线图标(工作区 UI 照桌面侧栏图样,大仙 2026-09-25):
  * 全部 1.5 stroke / round cap,与桌面侧栏线条风格一致。纯展示,无状态。
+ * chevron 方向按大仙指定基准图(展开=上尖);桌面 WorkspaceCard 相反,手机刻意独立。
  */
 export function ChevronIcon(props: { open: boolean; size?: number }) {
   return (

@@ -167,10 +167,10 @@
 
 /* PTY 日志回看前置块:剥 ANSI 线性文本,弱化色与实况区隔开 */
 .tr-live-old {
-  color: var(--tmd-fg-faint, #888);
+  color: var(--fg-subtle);
   white-space: pre-wrap;
   word-break: break-word;
-  border-bottom: 1px solid var(--tmd-border, #ddd);
+  border-bottom: 1px solid var(--border);
   margin-bottom: 6px;
   padding-bottom: 6px;
 }
@@ -209,7 +209,8 @@
 
 /* 最小 reset:样式分家后 mobile 分支不再载桌面 global preflight,恢复其等效基线
  * (仅复位,不是新样式;2026-09-25 大仙反馈回退全局视觉改动后补) */
-.m-app button{font:inherit;color:inherit}
+.m-app *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+.m-app button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer;touch-action:manipulation}
 .m-app input,.m-app textarea{font:inherit;color:inherit}
 
 /* ── git 模块细节(大仙 2026-09-25 指定范围):状态字母分色 + patch 行着色 ── */
@@ -220,8 +221,8 @@
 /* ── 工作区树(样式照桌面侧栏:细线图标 + 折叠 chevron + 会话虚线引导;2026-09-25)── */
 .ws-caption{display:flex;align-items:center;gap:6px;padding:10px 16px 2px;font-size:11px;font-weight:600;color:var(--fg-subtle);letter-spacing:.02em}
 .ws-head{padding-left:8px}
-.ws-caret{width:36px;height:36px;color:var(--fg-faint)}
-.ws-head > svg{flex:none;color:var(--fg-faint)}
+.ws-caret{width:36px;height:36px;color:var(--fg-muted)}
+.ws-head > svg{flex:none;color:var(--fg-muted)}
 .ws-name{color:var(--fg);font-size:13px}
 .ws-kids{margin-left:22px;border-left:1px dashed var(--border);padding-left:4px}
 .ws-kids > .row{position:relative}
