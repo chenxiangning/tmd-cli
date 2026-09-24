@@ -1,11 +1,12 @@
 /**
- * RemoteControlBadge —— 有浏览器客户端连着本机桥时,titlebar 右区常驻
- * 远程控制徽标(仅 icon,悬停提示文案;计数事件即时翻转,10s 轮询兜底;
- * 无连接即不渲染)。
+ * RemoteControlBadge —— 有浏览器客户端连着本机桥时,titlebar 左区按钮簇常驻
+ * 远程控制钮(裸 icon 无圆圈皮,悬停提示文案;计数事件即时翻转,10s 轮询兜底;
+ * 无连接即不渲染)。颜色吃图标装饰 --icon-decor-remote-control(web-access.css)。
  */
 
 import { useEffect, useState } from "react";
 import { MonitorPlay } from "@phosphor-icons/react";
+import "./web-access.css";
 import { remoteControlActive, onWebRemoteControl } from "@kernel/ipc";
 import { isWeb } from "@kernel/transport";
 import { t } from "@kernel/i18n";
@@ -46,10 +47,12 @@ export function RemoteControlBadge() {
   if (!active) return null;
   return (
     <span
-      className="inline-flex items-center justify-center rounded-full border border-[var(--tmd-warning)]/40 bg-[var(--tmd-warning)]/15 p-1 text-[var(--tmd-warning)]"
+      className="titlebar-action remote-control-badge"
+      role="img"
+      aria-label={t("有浏览器客户端正通过 Web 访问控制本机")}
       title={t("有浏览器客户端正通过 Web 访问控制本机")}
     >
-      <MonitorPlay size="0.75rem" aria-hidden />
+      <MonitorPlay size="0.875rem" aria-hidden />
     </span>
   );
 }

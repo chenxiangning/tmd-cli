@@ -137,6 +137,7 @@
 .panel-tab.is-active[data-panel-id="git"] { color: var(--icon-decor-panel-git, rgb(255, 140, 60)); }
 .panel-tab.is-active[data-panel-id="checkpoints"] { color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60)); }
 .panel-tab.is-active[data-panel-id="memory"] { color: var(--icon-decor-panel-memory, rgb(255, 140, 60)); }
+.panel-tab.is-active[data-panel-id="marks"] { color: var(--icon-decor-panel-marks, rgb(255, 140, 60)); }
 
 
 .panel-tab svg {
@@ -213,6 +214,7 @@
 .panel-overflow-item.is-active[data-panel-id="git"] .panel-overflow-item-icon { color: var(--icon-decor-panel-git, rgb(255, 140, 60)); }
 .panel-overflow-item.is-active[data-panel-id="checkpoints"] .panel-overflow-item-icon { color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60)); }
 .panel-overflow-item.is-active[data-panel-id="memory"] .panel-overflow-item-icon { color: var(--icon-decor-panel-memory, rgb(255, 140, 60)); }
+.panel-overflow-item.is-active[data-panel-id="marks"] .panel-overflow-item-icon { color: var(--icon-decor-panel-marks, rgb(255, 140, 60)); }
 
 .panel-overflow-item-icon svg {
   width: 0.875rem;

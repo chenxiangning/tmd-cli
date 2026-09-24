@@ -94,12 +94,9 @@ describe("初始状态与默认值", () => {
       git: { view: "diff", layout: "flat", diffMode: "unified", diffWrap: true },
       iconDecor: {
         newchat: { blink: true },
-        "ssh-panel": {},
-        "system-proxy": {},
-        "panel-files": {},
-        "panel-git": {},
-        "panel-checkpoints": {},
-        "panel-memory": {},
+        "ssh-panel": {}, "system-proxy": {},
+        "panel-files": {}, "panel-git": {}, "panel-checkpoints": {}, "panel-memory": {},
+        "panel-marks": {}, "wsl-panel": {}, terminal: {}, "session-board": {}, "remote-control": {},
       },
     });
     expect(s.loaded).toBe(false);

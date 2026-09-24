@@ -20,6 +20,7 @@ export function BoardButton() {
     <button
       type="button"
       className={`titlebar-action${isActive ? " is-active" : ""}`}
+      data-action-id="session-board"
       aria-label={label}
       data-hint={label}
       onClick={toggleBoardOverlay}

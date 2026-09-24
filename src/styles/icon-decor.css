@@ -26,7 +26,8 @@ html[data-icon-blink~="newchat"] .workspace-action-btn.is-newchat svg {
 html[data-icon-blink~="panel-files"] .panel-tab[data-panel-id="files"] svg,
 html[data-icon-blink~="panel-git"] .panel-tab[data-panel-id="git"] svg,
 html[data-icon-blink~="panel-checkpoints"] .panel-tab[data-panel-id="checkpoints"] svg,
-html[data-icon-blink~="panel-memory"] .panel-tab[data-panel-id="memory"] svg {
+html[data-icon-blink~="panel-memory"] .panel-tab[data-panel-id="memory"] svg,
+html[data-icon-blink~="panel-marks"] .panel-tab[data-panel-id="marks"] svg {
   animation: icon-decor-breathe 5s ease-in-out infinite;
 }
 
@@ -34,7 +35,12 @@ html[data-icon-blink~="panel-memory"] .panel-tab[data-panel-id="memory"] svg {
 html[data-icon-blink~="ssh-panel"] .settings-bar-btn[data-action-id="ssh-panel"],
 html[data-icon-blink~="ssh-panel"] .settings-menu-row[data-action-id="ssh-panel"] .settings-menu-icon,
 html[data-icon-blink~="system-proxy"] .settings-bar-btn[data-action-id="system-proxy"],
-html[data-icon-blink~="system-proxy"] .settings-menu-row[data-action-id="system-proxy"] .settings-menu-icon {
+html[data-icon-blink~="system-proxy"] .settings-menu-row[data-action-id="system-proxy"] .settings-menu-icon,
+html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"],
+html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
+html[data-icon-blink~="terminal"] .titlebar-action[data-action-id="terminal"],
+html[data-icon-blink~="session-board"] .titlebar-action[data-action-id="session-board"],
+html[data-icon-blink~="remote-control"] .remote-control-badge svg {
   animation: icon-decor-breathe 5s ease-in-out infinite;
 }
 
@@ -45,10 +51,16 @@ html[data-icon-blink~="system-proxy"] .settings-menu-row[data-action-id="system-
   html[data-icon-blink~="panel-git"] .panel-tab[data-panel-id="git"] svg,
   html[data-icon-blink~="panel-checkpoints"] .panel-tab[data-panel-id="checkpoints"] svg,
   html[data-icon-blink~="panel-memory"] .panel-tab[data-panel-id="memory"] svg,
+  html[data-icon-blink~="panel-marks"] .panel-tab[data-panel-id="marks"] svg,
   html[data-icon-blink~="ssh-panel"] .settings-bar-btn[data-action-id="ssh-panel"],
   html[data-icon-blink~="ssh-panel"] .settings-menu-row[data-action-id="ssh-panel"] .settings-menu-icon,
   html[data-icon-blink~="system-proxy"] .settings-bar-btn[data-action-id="system-proxy"],
-  html[data-icon-blink~="system-proxy"] .settings-menu-row[data-action-id="system-proxy"] .settings-menu-icon {
+  html[data-icon-blink~="system-proxy"] .settings-menu-row[data-action-id="system-proxy"] .settings-menu-icon,
+  html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"],
+  html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
+  html[data-icon-blink~="terminal"] .titlebar-action[data-action-id="terminal"],
+  html[data-icon-blink~="session-board"] .titlebar-action[data-action-id="session-board"],
+  html[data-icon-blink~="remote-control"] .remote-control-badge svg {
     animation: none;
   }
 }

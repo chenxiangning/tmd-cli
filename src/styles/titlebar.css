@@ -181,6 +181,9 @@
   background: var(--tmd-bg-hover);
   color: var(--tmd-fg);
 }
+/* 图标装饰:左区钮点亮色(内置终端/会话看板;缺省回落常态点亮,见 kernel/iconDecor.ts) */
+.titlebar-action.is-active[data-action-id="terminal"] { color: var(--icon-decor-terminal, var(--tmd-fg)); }
+.titlebar-action.is-active[data-action-id="session-board"] { color: var(--icon-decor-session-board, var(--tmd-fg)); }
 
 .titlebar-action svg {
   width: 1rem;

@@ -31,7 +31,7 @@ export const webAccessPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx) {
-    ctx.contribute("header.right", { order: 40, component: RemoteControlBadge });
+    ctx.contribute("header.leftCluster", { order: 40, component: RemoteControlBadge });
     ctx.registerSettingsSection({
       id: "web-access",
       title: "Web 访问",

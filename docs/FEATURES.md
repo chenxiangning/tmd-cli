@@ -275,7 +275,7 @@
 - 终端字号:10–20 px 滑杆(默认 13),活幕布即时重排并同步 PTY 尺寸
 - 终端字体:平台默认栈 + 常见等宽字体下拉(Menlo/Monaco/SF Mono/Cascadia/Consolas/DejaVu/JetBrains Mono/Fira Code 等,按平台过滤),document.fonts.check 探测未安装项置灰,支持自定义 CSS family 串
 - 终端 ANSI 16 色:主题 token 派生兜底(浅/深各一套,默认采用 VS Code 官方终端配色,浅色表 bright 系不亮于 base 修复浅底看不清);每套浅色 preset 显式声明 16 槽(色相取自各主题官方终端色板,对比度不足保 H/S 降 L 至 WCAG ≥3:1),深色 preset 走兜底
-- 图标装饰:7 个界面图标(新建会话 / SSH 入口 / 网络代理 / files-git-checkpoints-memory 四面板)独立取色 + 呼吸闪烁开关,即时写 CSS 变量与 data-icon-blink;历史 8 键残留由 sanitize 白名单静默剔除
+- 图标装饰:12 个界面图标(新建会话 / SSH 入口 / 网络代理 / WSL 入口 / 内置终端 / 会话看板 / 远程控制 / files-git-checkpoints-memory-marks 五面板)独立取色 + 呼吸闪烁开关,即时写 CSS 变量与 data-icon-blink;历史 8 键残留由 sanitize 白名单静默剔除;远程控制徽标 2026-09-25 从右栏工具区迁入顶栏左区按钮簇并去圆圈皮(裸 icon,缺省 --tmd-warn)
 - 行为 tab:发送快捷键模式(Enter 发送 ↔ ⌘/Ctrl+Enter 发送互换)、Ask 提示音开关与音效、结束提示音、后台提醒、会话输出缓冲上限(5 万–1000 万字符,默认 50 万)
 - 设置持久化 `~/.tmd-cli/settings.json`,前端 sanitize 归一,非法值回落默认,Rust 侧原子写
 - 侧栏齿轮菜单项可钉到底栏(localStorage 持久化,上限 4,默认钉 Git Graph + 网络代理);每行右侧 pin 复选框:16px 圆角方块、选中出对号(Check 图标),钉满置灰不可再钉(menuitemcheckbox 语义,类名 settings-menu-pin 定义于 settings-cluster.css)

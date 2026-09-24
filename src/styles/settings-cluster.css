@@ -50,6 +50,9 @@
 .settings-bar-btn.is-active[data-action-id="system-proxy"] {
   color: var(--icon-decor-system-proxy, rgb(255, 140, 60));
 }
+.settings-bar-btn.is-active[data-action-id="wsl-panel"] {
+  color: var(--icon-decor-wsl-panel, rgb(255, 140, 60));
+}
 
 .settings-gear.is-active {
   background: var(--tmd-bg-hover);
@@ -169,6 +172,9 @@
 }
 .settings-menu-row.is-active[data-action-id="system-proxy"] .settings-menu-icon {
   color: var(--icon-decor-system-proxy, rgb(255, 140, 60));
+}
+.settings-menu-row.is-active[data-action-id="wsl-panel"] .settings-menu-icon {
+  color: var(--icon-decor-wsl-panel, rgb(255, 140, 60));
 }
 
 .settings-menu-item {
