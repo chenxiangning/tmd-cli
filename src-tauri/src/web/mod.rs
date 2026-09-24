@@ -20,6 +20,7 @@ mod relay_agent;
 mod relay_core;
 pub mod relay_selfhost;
 pub mod relay_selfhost_pack;
+mod relay_selfhost_persist;
 mod selfhost_assets;
 mod selfhost_ssh;
 pub mod server;

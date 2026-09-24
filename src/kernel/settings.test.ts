@@ -98,6 +98,7 @@ describe("初始状态与默认值", () => {
         "panel-files": {}, "panel-git": {}, "panel-checkpoints": {}, "panel-memory": {},
         "panel-marks": {}, "wsl-panel": {}, terminal: {}, "session-board": {}, "remote-control": {},
       },
+      relayDeployHistory: [],
     });
     expect(s.loaded).toBe(false);
     expect(s.panelOpen).toBe(false);

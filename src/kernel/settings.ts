@@ -25,7 +25,7 @@ export function onSettingsPersistFailed(cb: (error: string) => void): () => void
 }
 export * from "./settingsTypes";
 export * from "./settingsAppearance";
-
+export * from "./settingsRelayHistory";
 interface SettingsState {
   settings: AppSettings;
   /** 首屏落地前为 false,主题引擎等它再应用(防闪默认色)。 */

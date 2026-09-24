@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 
-use super::relay_core::bytes_to_b64;
+use super::relay_selfhost_persist;
 use super::selfhost_assets::{self, SERVER_SOURCE};
 use super::selfhost_ssh;
 use crate::ssh::transport::SshHostWire;
@@ -263,8 +263,19 @@ pub async fn relay_deploy_selfhost(
     }
     pass(&mut steps, &app, "health");
 
-    // 成功:settings 一次写(url/key/动态钉),连接卡经回填通道即时可见。
-    persist_selfhost(&app, &host, &key, &cert);
+    // 成功:settings 一次写(url/key/动态钉/部署历史),连接卡经回填通道即时可见。
+    relay_selfhost_persist::persist_selfhost(
+        &app,
+        &relay_selfhost_persist::DeployConn {
+            host: &host,
+            port: req.port,
+            username: &req.username,
+            auth_type: &req.auth_type,
+            private_key_path: &req.private_key_path,
+        },
+        &key,
+        &cert,
+    );
     Ok(SelfhostDeployResult {
         ok: true,
         url: format!("https://{host}"),
@@ -273,22 +284,4 @@ pub async fn relay_deploy_selfhost(
         steps,
         host_key_fingerprint: None,
     })
-}
-
-fn persist_selfhost(
-    app: &tauri::AppHandle,
-    host: &str,
-    key: &str,
-    cert: &selfhost_assets::RelayCert,
-) {
-    if let Err(error) = crate::settings::update_settings(|settings| {
-        settings["webRelayUrl"] = serde_json::json!(format!("https://{host}"));
-        settings["webRelayKey"] = serde_json::json!(key);
-        settings["webRelayCertHost"] = serde_json::json!(host);
-        settings["webRelayCertDer"] = serde_json::json!(bytes_to_b64(&cert.der));
-    }) {
-        eprintln!("[selfhost] 设置落盘失败: {error}");
-    }
-    let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));
-    /* event_sink:webview+WS 双面(手机覆盖层同步) */
 }

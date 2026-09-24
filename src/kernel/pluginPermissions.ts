@@ -257,6 +257,7 @@ export const SETTINGS_PURE_KEYS = [
   "sanitizeUiZoom",
   "sanitizeSessionTabsMax",
   "sanitizeIconDecor",
+  "sanitizeRelayDeployHistory",
   "onSettingsPersistFailed",
 ] as const;
 export const PERMISSION_LABELS: Record<PluginPermission, string> = {

@@ -236,13 +236,13 @@ export const MESSAGES = {
     "You are viewing through the relay (same permissions as this machine)",
   "未连接": "Not connected",
   "部署中继(自有 Cloudflare 账号)": "Deploy the relay (your own Cloudflare account)",
-  "① 部署中继(一次性)": "① Deploy the relay (one-time)",
+  "① 部署中继(只做一次)": "① Deploy the relay (once)",
   "② 连接中继(每次用前)": "② Connect to the relay (before each use)",
-  "右卡填中继 URL 和密钥(一键部署会自动回填),点「连接中继」。桌面会主动外拨一条加密长连,状态点转绿即外网可达。会顺带打开内网桥,不用先去内网 tab。":
-    "Fill the relay URL and secret on the right card (one-click deploy autofills them) and hit “Connect”. The app dials out an encrypted long-lived connection — the dot turns green once reachable from the internet. The LAN bridge opens along the way; no need to visit the LAN tab first.",
-  "③ 手机打开外网地址": "③ Open the public URL on your phone",
-  "连接成功后,右卡「手机打开」里的地址已带访问令牌,手机 Safari 直接开,加到主屏幕即当 app 用。令牌=门禁,别转发;用完回这里点「断开」。":
-    "Once connected, the “Open on phone” address carries the access token — open it directly in mobile Safari and add to home screen to use like an app. The token is the gate: don't share it; come back and hit “Disconnect” when done.",
+  "右卡点「连接中继」(地址和密钥上一步已自动填好)。圆点变绿,手机就能从外网连上这台电脑;内网桥顺带打开,不用先去内网 tab。":
+    "Hit “Connect to relay” on the right card (URL and key were autofilled in step ①). When the dot turns green, your phone can reach this machine from anywhere. The LAN bridge opens along the way — no need to visit the LAN tab first.",
+  "③ 手机打开地址": "③ Open the URL on your phone",
+  "右卡「手机打开」的地址,手机 Safari 直接开,加到主屏幕就当 app 用。地址里带的令牌就是钥匙,别转发给别人;用完回这里点「断开」。":
+    "Open the “Open on phone” URL from the right card in mobile Safari, then add it to the home screen and it works like an app. The token in the URL is the key — don't forward it; hit “Disconnect” here when you're done.",
   "中继跑在你自己的 Cloudflare 账号(免费额度足够)。API Token 仅本次部署使用,不保存。":
     "The relay runs on your own Cloudflare account (the free tier is enough). The API token is used only for this deployment and never stored.",
   "Cloudflare API Token 怎么申请?": "How do I get a Cloudflare API token?",

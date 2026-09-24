@@ -3,19 +3,20 @@ export const MESSAGES = {
   // tabs(index.tsx 贡献)
   "自建服务器": "Self-hosted server",
   "设备": "Devices",
-  // WebCfPane(Cloudflare tab;① 文案改口,只讲 Worker 一键)
-  "中继是跑在你自己 Cloudflare 账号的 Worker(免费额度够),只做字节转发、零存储。左卡填 Cloudflare API Token 点「立即部署」即可,Token 仅本次使用、不保存。":
-    "The relay is a Worker on your own Cloudflare account (the free tier is enough) — pure byte forwarding, zero storage. Just fill in a Cloudflare API token on the left card and hit Deploy; the token is used only for this deployment and never stored.",
+  // WebCfPane(Cloudflare tab;① 大白话改口)
+  "没有自己的服务器就走这条:中继跑在你自己的 Cloudflare 账号上(免费额度就够),只搬字节、不存内容。左卡贴上 Cloudflare API Token 点「立即部署」,地址和密钥自动填进右卡;Token 只用这一次,不保存。":
+    "No server of your own? Take this route: the relay runs as a Worker on your Cloudflare account (the free tier is enough) — it only shuttles bytes and stores nothing. Paste a Cloudflare API token on the left card and hit Deploy; the URL and key land on the right card automatically. The token is used once and never stored.",
   // WebSelfHostPane(自建 tab 三步卡)
-  "① 一键部署(一次性)": "① One-click deploy (one-time)",
-  "给你一台有公网 IP 的服务器(Node ≥ 18,SSH 可达),左卡填 SSH 信息点「一键部署」:桌面自动上传中继服务、现场签发 443 TLS 证书、装 systemd、健康自检。凭据只进本次调用,不保存。":
-    "Give it any server with a public IP (Node ≥ 18, SSH-reachable): fill the SSH details on the left card and hit Deploy — the desktop uploads the relay service, mints a 443 TLS certificate on the spot, installs the systemd unit, and runs a health check. Credentials stay inside this single call and are never stored.",
-  "连接成功后,右卡「手机打开」里的地址已带访问令牌,手机浏览器直接开,加到主屏幕即当 app 用。自签证书由两端证书钉住校验,换服务器重新部署+重新扫码即可。令牌=门禁,别转发;用完回这里点「断开」。":
-    "Once connected, the “Open on phone” address carries the access token — open it in your phone browser and add it to the home screen to use like an app. The self-signed certificate is checked by certificate pinning on both ends; switching servers just means redeploying and re-scanning the pairing code. The token is the gate: don't share it; come back and hit “Disconnect” when done.",
+  "① 一键部署(只做一次)": "① One-click deploy (once)",
+  "手边有一台带公网 IP 的服务器(阿里云/腾讯云轻量都行,装好 Node ≥ 18)?左卡填它的 IP、SSH 用户名、密码,点「一键部署」:上传中继、签证书、装服务全自动。成功后服务器记进「部署历史」,下次点一下就回填,重输密码即可。":
+    "Got a server with a public IP (any cheap VPS will do, with Node ≥ 18 installed)? Fill its IP, SSH username and password on the left card and hit Deploy — uploading the relay, minting the certificate and installing the service all run automatically. Afterwards the server lands in “Deploy history”: next time click it to refill the form and just retype the password.",
+  "右卡「手机打开」的地址,手机浏览器直接开,加到主屏幕就当 app 用。地址里带的令牌就是钥匙,别转发给别人;用完回这里点「断开」。":
+    "Open the “Open on phone” URL from the right card in your phone browser, then add it to the home screen and it works like an app. The token in the URL is the key — don't forward it; hit “Disconnect” here when you're done.",
   // WebSelfHostCard(一键部署卡)
   "一键部署到自建服务器": "One-click deploy to your own server",
-  "桌面经 SSH 自动完成:上传服务、现场签发 TLS 证书、安装 systemd、健康自检。凭据仅本次部署使用,不保存。":
-    "Fully automated over SSH from the desktop: upload the service, mint a TLS certificate on the spot, install systemd, run a health check. Credentials are used only for this deployment and never stored.",
+  "桌面经 SSH 自动完成:上传服务、现场签发 TLS 证书、安装 systemd、健康自检。密码和私钥不保存,下次部署从历史点一下回填,重输密码即可。":
+    "Fully automated over SSH from the desktop: upload the service, mint a TLS certificate on the spot, install systemd, run a health check. Passwords and private keys are never stored — next time, pick the server from the history below and just retype the password.",
+  "部署历史(点一下回填,密码/私钥需重输)": "Deploy history (click to refill; retype the password/key)",
   "服务器 IP 或域名 *": "Server IP or hostname *",
   "SSH 密码": "SSH password",
   "私钥内容(粘贴;留空则按下方路径读取)":

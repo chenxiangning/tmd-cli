@@ -1,19 +1,23 @@
 /**
  * 自建服务器中继部署卡:填 SSH 信息一键部署(连接 → 铸证书 → 上传 →
  * 装 systemd → 健康自检),进度事件(web-relay-deploy)驱动步骤 checklist;
- * 未知主机指纹时给「信任并重试」(TOFU)。成功后 URL/key/证书由 Rust 落
- * settings 并经 settings:changed 回填连接卡 —— 本卡对 settings 零写入。
- * SSH 凭据仅存组件 state、只进本次调用,不落盘(与 CF Token 同纪律)。
- * 折叠区为手动兜底:导出部署包(relay_selfhost_pack)+ 三条命令。
+ * 未知主机指纹时给「信任并重试」(TOFU)。成功后 URL/key/证书/部署历史由
+ * Rust 落 settings 并经 settings:changed 回填 —— 本卡对 settings 零写入。
+ * SSH 凭据(密码/私钥)仅存组件 state、只进本次调用,不落盘;落盘的只有
+ * 连接信息(host/port/user/authType/私钥路径),供历史列表点选回填免重填。
+ * 历史列表与手动兜底折叠区拆件(RelayDeployHistoryList/ManualDeployDetails)。
  * 状态机纯函数在 selfhostDeployModel.ts(300 行铁则一并拆文件)。
  */
 
 import { useState } from "react";
-import { CheckCircle, CircleNotch, CloudArrowUpIcon as CloudArrowUp, DownloadSimple, Minus, TerminalWindow, XCircle } from "@phosphor-icons/react";
-import { onRelayDeployProgress, pickSavePath, relayDeploySelfhost, relaySelfhostPack, type RelayDeployProgress, type SelfhostDeployReq, type SelfhostDeployResult } from "@kernel/ipc";
+import { CheckCircle, CircleNotch, CloudArrowUpIcon as CloudArrowUp, Minus, TerminalWindow, XCircle } from "@phosphor-icons/react";
+import { onRelayDeployProgress, relayDeploySelfhost, type RelayDeployProgress, type SelfhostDeployReq, type SelfhostDeployResult } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { isWeb } from "@kernel/transport";
+import type { RelayDeployHistoryEntry } from "@kernel/settings";
 import { deriveStepStates, SELFHOST_STEPS, type SelfhostStepId, type SelfhostStepState } from "./selfhostDeployModel";
+import { RelayDeployHistoryList } from "./RelayDeployHistoryList";
+import { ManualDeployDetails } from "./ManualDeployDetails";
 
 const STEP_LABELS: Record<SelfhostStepId, string> = {
   connect: "SSH 连接",
@@ -23,12 +27,7 @@ const STEP_LABELS: Record<SelfhostStepId, string> = {
   health: "健康自检",
 };
 
-/** 手动兜底的三条命令(与 pack 内 README 逐字一致;parent 定稿)。 */
-const MANUAL_CMDS: string[] = [
-  "scp -r tmd-relay-selfhost/* root@<IP>:/opt/tmd-relay/",
-  "mv /opt/tmd-relay/tmd-relay.service /etc/systemd/system/ && systemctl daemon-reload && systemctl enable --now tmd-relay",
-  "curl -sk https://<IP>/healthz",
-];
+
 
 function StepIcon({ state }: { state: SelfhostStepState }) {
   const cls = "h-[0.875rem] w-[0.875rem] shrink-0";
@@ -93,20 +92,16 @@ export function WebSelfHostCard() {
     }
   };
 
-  const exportPack = async () => {
-    setBusy(true);
-    setError(null);
-    setDone(null);
-    try {
-      const path = await pickSavePath(t("保存自建中继部署包"), "tmd-relay-selfhost.zip");
-      if (!path) return;
-      const saved = await relaySelfhostPack(path, host.trim());
-      setDone(t("已导出部署包:") + saved);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
+  /** 历史点选回填:只回连接信息;密码/私钥内容恒不留存,需重输。 */
+  const fillFromHistory = (e: RelayDeployHistoryEntry) => {
+    setHost(e.host);
+    setPort(String(e.port));
+    setUser(e.username);
+    setAuth(e.authType);
+    setPrivateKeyPath(e.privateKeyPath ?? "");
+    setPassword("");
+    setPrivateKey("");
+    setPassphrase("");
   };
 
   const stepStates = deriveStepStates(submitted, events, result);
@@ -128,8 +123,9 @@ export function WebSelfHostCard() {
         {t("一键部署到自建服务器")}
       </div>
       <div className="text-xs text-[var(--tmd-fg-muted)]">
-        {t("桌面经 SSH 自动完成:上传服务、现场签发 TLS 证书、安装 systemd、健康自检。凭据仅本次部署使用,不保存。")}
+        {t("桌面经 SSH 自动完成:上传服务、现场签发 TLS 证书、安装 systemd、健康自检。密码和私钥不保存,下次部署从历史点一下回填,重输密码即可。")}
       </div>
+      <RelayDeployHistoryList onPick={fillFromHistory} />
       <div className="grid grid-cols-[1fr_5rem] gap-2">
         <input
           type="text"
@@ -261,33 +257,12 @@ export function WebSelfHostCard() {
           {busy ? t("部署中…") : t("一键部署")}
         </button>
       </div>
-      <details className="rounded border border-[var(--tmd-border)] bg-[var(--tmd-surface-1)] px-2.5 py-1.5 text-xs">
-        <summary className="cursor-pointer select-none font-medium text-[var(--tmd-fg)]">
-          {t("手动部署指导(一键失败时的兜底)")}
-        </summary>
-        <div className="mt-1.5 flex flex-col gap-1.5 text-[var(--tmd-fg-muted)]">
-          <div>
-            {t("前置要求:")}
-            {t("服务器有公网可达 IP;装好 Node.js ≥ 18;用 root(或免密 sudo)部署;云安全组放行 80 与 443 端口。")}
-          </div>
-          <button
-            type="button"
-            className="flex w-fit items-center gap-1 rounded border border-[var(--tmd-border)] px-2 py-1 text-xs hover:bg-[var(--tmd-bg-hover)] disabled:opacity-50"
-            onClick={exportPack}
-            disabled={busy || isWeb || host.trim() === ""}
-          >
-            <DownloadSimple size="0.75rem" aria-hidden />
-            {t("导出部署包")}
-          </button>
-          <div>{t("解包后按序执行(把包目录整个传到服务器,再起服务、验活):")}</div>
-          <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded bg-[var(--tmd-bg-sunken)] p-2 font-mono text-[var(--tmd-fg)]">
-            {MANUAL_CMDS.map((c, i) => `${i + 1}) ${c}`).join("\n")}
-          </pre>
-          <div>
-            {t("第 3 条在桌面执行:回 no agent = 服务活着、正等桌面拨号;连接中继后回 agent connected。")}
-          </div>
-        </div>
-      </details>
+      <ManualDeployDetails
+        host={host}
+        busy={busy}
+        onDone={setDone}
+        onError={setError}
+      />
     </div>
   );
 }
