@@ -2,7 +2,7 @@
  * 手机根装配(独立 UI 树入口;桌面树在 src/app-shell,互不共享组件)。
  * 职责:凭证解析 → 无 = 配对屏 / 有 = MobileApp;撤销常驻订阅(清凭证回配对);
  * 回前台/可见强制重拨;hello 能力探测(block 屏)。
- * 连接态本身不设阻塞门 —— transport 自动重连,home 屏自带 host-bar/断连 banner
+ * 连接态本身不设阻塞门 —— transport 自动重连,顶栏 HostChip + 断连 banner
  * (原型 mobile-app-home.html 设计;连接是持续状态,不是一扇门)。
  */
 import React from "react";
@@ -141,7 +141,7 @@ export function MobileRoot() {
       if (o.kind === "hello" && !o.caps.includes(REQUIRED_CAPABILITY)) {
         setBlocked(o.version);
       }
-      // hello 正常 / pending / timeout:主界面自持(host-bar/banner 表达连接态)
+      // hello 正常 / pending / timeout:主界面自持(HostChip/banner 表达连接态)
     });
   }, [creds, probeKey, blocked]);
 

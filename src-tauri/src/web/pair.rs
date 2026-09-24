@@ -155,11 +155,17 @@ async fn pair_inner(
             (StatusCode::INTERNAL_SERVER_ERROR, "设备表写入失败").into_response()
         }
         Err(devices::PairError::BadCode) => {
-            if registry.note_fail(&ip) == devices::PAIR_FAIL_LIMIT {
+            /* 告警阈值:relay 面按全局桶上限,单 IP 面按本地上限(红队链5)。 */
+            let limit = if ip == "127.0.0.1" {
+                devices::RELAY_FAIL_LIMIT
+            } else {
+                devices::PAIR_FAIL_LIMIT
+            };
+            if registry.note_fail(&ip) >= limit {
                 crate::event_sink::emit(
                     &ctx.app,
                     "web://pair-alert",
-                    &json!({ "ip": ip, "limit": devices::PAIR_FAIL_LIMIT }),
+                    &json!({ "ip": ip, "limit": limit }),
                 );
             }
             (StatusCode::FORBIDDEN, "配对码不正确").into_response()

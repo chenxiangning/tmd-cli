@@ -17,7 +17,7 @@ const ENGINES: { id: string; name: string; cmd: string }[] = [
   { id: "codex", name: "Codex CLI", cmd: "codex" },
   { id: "kimi", name: "Kimi", cmd: "kimi" },
   { id: "grok", name: "Grok", cmd: "grok" },
-  { id: "qoder", name: "Qoder", cmd: "qoder" },
+  { id: "qoder", name: "Qoder", cmd: "qodercli" },
   { id: "opencode", name: "OpenCode", cmd: "opencode" },
 ];
 

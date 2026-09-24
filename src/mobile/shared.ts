@@ -34,7 +34,7 @@ export function endpointCandidates(creds: MobileCreds): string[] {
   return all;
 }
 
-/** RemoteHostBar 展示/重试用:当前钉选解析出的首选端点。 */
+/** HostChip 端点 sheet 展示/重试用:当前钉选解析出的首选端点。 */
 export function currentEndpoint(creds: MobileCreds): string {
   return endpointCandidates(creds)[0];
 }

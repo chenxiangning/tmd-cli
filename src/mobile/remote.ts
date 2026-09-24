@@ -86,7 +86,9 @@ export async function onPtyOut(
   return listen<string>(`pty://out/${sessionId}`, (e) => cb(String(e.payload ?? "")));
 }
 
-/** 轻量 ask 检测:活流尾窗命中标记即视为等待确认(askDetect 同一标记表)。 */
+/** 轻量 ask 检测:活流尾窗命中【通用】标记表(ASK_MARKER_RE)即视为等待确认。
+ *  刻意子集(契约评审 face4 注):不含 profile 私有 askMarks、无 1.2s 候选确认与
+ *  写后 8s 抑制;漏报私有卡片型 CLI、作答后残影可能瞬时复燃重弹卡(下帧自愈)。 */
 export async function tailHasAskMarker(tail: string): Promise<boolean> {
   const { ASK_MARKER_RE, stripAnsi } = await import("@kernel/askDetect");
   const lines = stripAnsi(tail).split("\n").slice(-5).join("\n");
@@ -127,9 +129,4 @@ export function relTime(ts?: number): string {
   if (d < 3600) return `${Math.floor(d / 60)} 分`;
   if (d < 86400) return `${Math.floor(d / 3600)} 时`;
   return `${Math.floor(d / 86400)} 天`;
-}
-
-/** cwd 末段(会话行的次级标识)。 */
-export function baseName(cwd: string): string {
-  return cwd.split("/").filter(Boolean).pop() ?? cwd;
 }

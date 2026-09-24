@@ -7,7 +7,7 @@ mod registry;
 
 #[cfg(test)]
 pub(crate) use registry::PAIR_TTL_SECS;
-pub(crate) use registry::{now_secs, DeviceRegistry, PairError, PAIR_FAIL_LIMIT};
+pub(crate) use registry::{now_secs, DeviceRegistry, PairError, PAIR_FAIL_LIMIT, RELAY_FAIL_LIMIT};
 
 use crate::session::{config_dir, write_json_atomic};
 use serde::{Deserialize, Serialize};

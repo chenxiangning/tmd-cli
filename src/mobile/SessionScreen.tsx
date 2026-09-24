@@ -220,7 +220,8 @@ export function SessionScreen(props: { sessionId: string }) {
 
   const answer = (data: string) => {
     setAsk(false);
-    void writeSession(props.sessionId, data);
+    /* 写失败(断桥/死会话)回滚弹卡:否则卡瞬时消失且无后续输出复现(契约评审 face4)。 */
+    writeSession(props.sessionId, data).catch(() => setAsk(true));
   };
   const send = () => {
     const text = draft.trimEnd();

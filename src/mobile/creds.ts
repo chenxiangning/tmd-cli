@@ -1,6 +1,6 @@
 /**
  * 移动壳凭证存取 —— 钥匙串优先(原生壳),localStorage 为浏览器态与一次性迁移旧值。
- * 自 mobilePairing 拆出(300 行铁则 + 迁移矩阵可独立单测)。
+ * (300 行铁则拆分 + 迁移矩阵可独立单测。)
  * 启动序(resolveCreds):壳态读钥匙串 → 命中即返;未命中查 localStorage 旧值 →
  * 迁移写钥匙串 → 删 localStorage;浏览器态维持 localStorage 原语义。
  * 写(persistCreds):壳态钥匙串(失败回落 localStorage,下次启动再迁);浏览器态 localStorage。

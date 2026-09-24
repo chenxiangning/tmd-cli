@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { collapseTui, parseTranscript, tailTurns, transcriptCwd } from "./transcript";
+import { parseTranscript, tailTurns } from "./transcript";
 
 /* 夹具 = 真实抓包行(2026-09-23 本机 ~/.pi/agent/sessions、~/.claude/projects 抽样,
  * 字段级保真;仅缩短文本) */
 const PI_USER =
   '{"type":"message","id":"13e39d3a","parentId":"daf5f61d","timestamp":"2026-09-11T10:28:20.217Z","message":{"role":"user","content":[{"type":"text","text":"你好"}],"timestamp":1789122500106}}';
-const PI_SESSION_HEAD =
-  '{"type":"session","version":3,"id":"01a09002","timestamp":"2026-09-11T10:27:57.680Z","cwd":"/Users/x/demo"}';
 const PI_THINK =
   '{"type":"message","message":{"role":"assistant","content":[{"type":"thinking","thinking":"内心戏"},{"type":"text","text":"回答正文"}]}}';
 const CLAUDE_USER =
@@ -17,29 +15,6 @@ const CODEX_MSG =
   '{"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"codex 正文"}]}}';
 const CODEX_CALL =
   '{"type":"response_item","payload":{"type":"function_call","name":"shell","arguments":"{\\"cmd\\":\\"ls\\"}"}}';
-
-describe("collapseTui(TUI 重绘折叠)", () => {
-  it("\r 覆盖写取末段;相邻重复帧去重;三连空行压缩", () => {
-    const raw = [
-      "progress 10%\rprogress 50%\rprogress 90%",
-      "",
-      "✔ done",
-      "✔ done", // 重绘帧重复
-      "",
-      "",
-      "",
-      "next",
-    ].join("\n");
-    expect(collapseTui(raw)).toBe("progress 90%\n\n✔ done\n\nnext");
-  });
-
-  it("剥残留转义码;正常多行输出不被误伤", () => {
-    expect(collapseTui("\u001b[2J\u001b[Hheader\rheader2\nline1\nline1\nline2")).toBe(
-      "header2\nline1\nline2",
-    );
-    expect(collapseTui("a\nb\nc")).toBe("a\nb\nc");
-  });
-});
 
 describe("transcript 解析(线上形状)", () => {
   it("omp/pi:message 行 → 文本 turns;thinking 跳过", () => {
@@ -82,8 +57,4 @@ describe("transcript 解析(线上形状)", () => {
     expect(tailTurns(turns, 2)[0].text).toBe("回答正文");
   });
 
-  it("transcriptCwd 取 session 头 cwd;claude 形态返回 null", () => {
-    expect(transcriptCwd(`${PI_SESSION_HEAD}\n${PI_USER}`)).toBe("/Users/x/demo");
-    expect(transcriptCwd(CLAUDE_USER)).toBeNull();
-  });
 });

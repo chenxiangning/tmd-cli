@@ -16,6 +16,9 @@ pub(crate) const PAIR_FAIL_LIMIT: u32 = 5;
 /// 节流窗口(秒):距上次失败超过该窗,计数清零重计(修永久锁)。
 pub(crate) const FAIL_WINDOW_SECS: u64 = 600;
 
+/// relay 回拨面(真源不可见)的全局失败上限:远高于单 IP 限(不毒化正常用户),
+/// 但掐死公网洪水/猜码/抢跑烧毁(红队链5)。
+pub(crate) const RELAY_FAIL_LIMIT: u32 = 25;
 pub(crate) fn now_secs() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -77,22 +80,27 @@ impl DeviceRegistry {
         }
     }
 
-    /// 节流判定:距上次失败不足一个窗口期内的连续失败达到上限才拒;
-    /// `127.0.0.1` = relay 回拨面(真源不可见),只计数告警不拒,防单点错码毒化全体 relay 配对。
+    /// 节流判定:距上次失败不足一个窗口期内的连续失败达到上限才拒。
+    /// `127.0.0.1` = relay 回拨面(真源不可见):改走全局桶(红队链5:免限 = 公网
+    /// 猜码/抢跑烧毁无代价;单在售码命中率极低,但烧码 DoS + pending 抢位真实存在,
+    /// 高限既防毒化单点又掐死洪水)。
     pub fn pair_denied(&self, ip: &str) -> bool {
-        if ip == "127.0.0.1" {
-            return false;
-        }
+        let (key, limit) = if ip == "127.0.0.1" {
+            ("__relay__", RELAY_FAIL_LIMIT)
+        } else {
+            (ip, PAIR_FAIL_LIMIT)
+        };
         let map = self.fails.lock();
-        match map.get(ip) {
+        match map.get(key) {
             Some(e) if now_secs().saturating_sub(e.last_at) <= FAIL_WINDOW_SECS => {
-                e.count >= PAIR_FAIL_LIMIT
+                e.count >= limit
             }
             _ => false,
         }
     }
 
     /// 记一次失败,返回当前计数(调用方在达到上限时发告警)。窗外重算。
+    /// relay 面(127.0.0.1)与 pair_denied 同映射进全局桶 `__relay__`。
     pub fn note_fail(&self, ip: &str) -> u32 {
         let mut map = self.fails.lock();
         // ponytail: 伪造源 IP 可撑大 map;超 1024 条整体清零,升级路径 = LRU
@@ -100,7 +108,8 @@ impl DeviceRegistry {
             map.clear();
         }
         let now = now_secs();
-        let e = map.entry(ip.to_string()).or_insert(FailEntry {
+        let key = if ip == "127.0.0.1" { "__relay__" } else { ip };
+        let e = map.entry(key.to_string()).or_insert(FailEntry {
             count: 0,
             last_at: now,
         });
@@ -112,9 +121,10 @@ impl DeviceRegistry {
         e.count
     }
 
-    /// 成功配对清零。
+    /// 成功配对清零(relay 面清全局桶,与 pair_denied 的键映射对称)。
     pub fn note_ok(&self, ip: &str) {
-        self.fails.lock().remove(ip);
+        let key = if ip == "127.0.0.1" { "__relay__" } else { ip };
+        self.fails.lock().remove(key);
     }
 
     /// 配对:消费码 → 建 pending 设备 → 落盘;明文 token 只在此返回一次。

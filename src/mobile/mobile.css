@@ -1,7 +1,7 @@
 /* 手机远程 UI 独立样式 —— 严格对齐 docs/prototypes/mobile-app-{home,session,pairing,device-edge-states}.html。
    自带设计 token(浅色),不依赖桌面 global.css/主题系统;桌面与手机唯一共享的是 transport 数据面。 */
 :root{
-  --bg-base:#ffffff; --bg-panel:#f8f8f8; --bg-hover:#f2f2f2; --bg-input:#ffffff;
+  --bg-base:#ffffff; --bg-panel:#f8f8f8; --bg-input:#ffffff;
   --fg:#3b3b3b; --fg-muted:#7e7e7e; --fg-subtle:#999999; --fg-faint:#c0c0c0;
   --border:#cecece; --border-strong:#b1b1b1; --accent:#005fb8; --accent-soft:rgba(0,95,184,.14);
   --ok:#059669; --warn:#a16207; --err:#dc2626;
@@ -58,9 +58,6 @@
 .g-om{background:#e8f0fb;color:#005fb8}.g-cl{background:#f0eee9;color:#8a6d3b}.g-cx{background:#eaf3ee;color:#0f7a4d}
 .g-ki{background:#f0f4fb;color:#0b57d0}.g-gk{background:#f2f0f6;color:#4b4b6b}.g-qd{background:#eef7f2;color:#0f7a4d}
 .g-oc{background:#f4f0ea;color:#7a5230}.g-df{background:#f0f0f0;color:#666}
-.engine-head{display:flex;align-items:center;gap:6px;padding:7px 16px 4px 26px;font-size:10.5px;font-weight:600;color:var(--fg-subtle)}
-.engine-head .glyph{width:16px;height:16px;border-radius:4px}
-.engine-head .cnt{margin-left:auto;font-weight:400}
 .glyph-brand{background:none}
 .more{display:block;width:100%;padding:8px;background:none;border:none;font-family:inherit;font-size:11.5px;color:var(--accent);cursor:pointer;text-align:center}
 .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -76,7 +73,6 @@
 .m-title{font-size:19px;font-weight:700;margin-bottom:8px}
 .m-sub{font-size:12.5px;color:var(--fg-muted);line-height:1.8;margin-bottom:20px}
 .m-btn{width:100%;max-width:280px;padding:12px;border-radius:9px;border:none;background:var(--accent);color:#fff;font-size:14.5px;font-weight:600}
-.m-btn.ghost{background:var(--bg-base);color:var(--fg);border:1px solid var(--border)}
 .m-err{color:var(--err);font-size:12px;margin-top:10px}
 .m-fine{font-size:10.5px;color:var(--fg-faint);text-align:center;margin-top:10px}
 .host-truncate{display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}

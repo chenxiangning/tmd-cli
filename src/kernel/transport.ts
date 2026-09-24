@@ -22,10 +22,19 @@ import {
 export const isWeb =
   typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window);
 
-/** 桌面端启动 web 访问时铸的 token,随 URL 携带;串行前端态恒 null。 */
+/** 桌面端启动 web 访问时铸的 token,随 URL 携带;串行前端态恒 null。
+ *  读入内存后立即抹出地址栏(红队链1 泄露面收缩:浏览器历史/旁观/截图不再带凭据;
+ *  /file、/ws 拼 URL 用的都是本变量,与 location 无关)。 */
 export const webToken: string | null = isWeb
   ? new URLSearchParams(window.location.search).get("token")
   : null;
+if (isWeb && webToken) {
+  try {
+    const u = new URL(window.location.href);
+    u.searchParams.delete("token");
+    window.history.replaceState(null, "", u);
+  } catch { /* 非浏览器环境静默 */ }
+}
 
 /** 移动壳远程模式凭据:配对成功后由壳写入;置位后 invoke/listen 一律走桥连桌面。 */
 export interface RemoteEndpoint {

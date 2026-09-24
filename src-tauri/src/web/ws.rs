@@ -133,6 +133,9 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
     let (out_tx, mut out_rx) = tokio::sync::mpsc::channel::<String>(256);
     // 事件订阅集:未订阅的事件不发(慢链路手机不再被 pty out 高频流灌爆)。
     let mut subs: std::collections::HashSet<String> = std::collections::HashSet::new();
+    /* 旧客户端兼容(契约评审 face2):22a493c 前页面不发 subscribe 帧 → 首帧到达前
+       全发(旧语义),置位后收紧(新语义)。新客户端 open 即重放订阅,空窗毫秒级。 */
+    let mut ever_subscribed = false;
     let mut events_rx = crate::event_sink::subscribe();
     let mut stop = ctx.stop.subscribe();
     /* 订阅后立即吸收已置位(stop 早于本连接):否则 watch 语义下 changed() 不再
@@ -151,7 +154,11 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
             },
             ev = events_rx.recv() => match ev {
                 Ok(m) => {
-                    if event_subscribed(&m, &subs)
+                    /* 旧客户端兼容(契约评审 face2):22a493c 前浏览器页从不发 subscribe
+                       → 首帧前全发(旧语义);新客户端 open 即重放订阅,空窗毫秒级。
+                       设备域不适用(配对协议与订阅闸同批,必发 subscribe)。 */
+                    let legacy = matches!(scope, conn::ConnScope::Browser) && !ever_subscribed;
+                    if (legacy || event_subscribed(&m, &subs))
                         && ws_tx.send(Message::Text(m.into())).await.is_err()
                     {
                         break;
@@ -178,7 +185,19 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
                                 });
                             }
                             Inbound::Subscribe { event } => {
-                                subs.insert(event);
+                                ever_subscribed = true;
+                                /* 设备域订阅闸(红队链3):命令域白名单在事件面的镜像——
+                                   否则订 ssh:// / lsp:// / web://pair-alert 直接旁路域闸。
+                                   设备面事件 = 会话实况/生命周期 + settings:changed(覆盖层同步)。 */
+                                let ok = match &scope {
+                                    conn::ConnScope::AppDevice { .. } => {
+                                        conn::event_allowed(&event) && subs.len() < 256
+                                    }
+                                    conn::ConnScope::Browser => true,
+                                };
+                                if ok {
+                                    subs.insert(event);
+                                }
                             }
                             Inbound::Unsubscribe { event } => {
                                 subs.remove(&event);

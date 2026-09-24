@@ -99,32 +99,6 @@ function parseLine(line: string, out: TranscriptTurn[]): void {
   }
 }
 
-/** 尾部窗口条数上限。 */
-export const TAIL_WINDOW = 400;
-
-/**
- * 终端重绘折叠:交互式 CLI(omp 等)每帧用 \r 原地重画,剥掉转义码后正文帧
- * 会整段堆叠成「重复渲染」。按终端语义折叠:行内取最后一个 \r 段(覆盖写),
- * 相邻重复行去重,空行压缩。ponytail: 全局线性折叠,不做真终端网格模型;
- * 若需逐格还原(表格对齐)再上 xterm.js 解析层。
- */
-export function collapseTui(text: string): string {
-  const lines = text.split("\n").map((line) => {
-    const segs = line.split("\r");
-    return segs[segs.length - 1].replace(/[\u0008\u001b]/g, "").replace(/\s+$/, "");
-  });
-  const out: string[] = [];
-  for (const t of lines) {
-    if (t !== "" && out.length && out[out.length - 1] === t) continue; // 帧重绘
-    out.push(t);
-  }
-  return out.join("\n").replace(/\n{3,}/g, "\n\n");
-}
-
-/**
- * jsonl 文本(可为截断的尾部窗口)→ turns,保序。
- * 尾部窗口首行可能是残行:首行解析失败自然跳过,不影响后续。
- */
 export function parseTranscript(text: string): TranscriptTurn[] {
   const out: TranscriptTurn[] = [];
   for (const line of text.split("\n")) parseLine(line, out);
@@ -134,23 +108,4 @@ export function parseTranscript(text: string): TranscriptTurn[] {
 /** 从 turns 里取最后 limit 条(完整展示最近的对话)。 */
 export function tailTurns(turns: TranscriptTurn[], limit: number): TranscriptTurn[] {
   return turns.length > limit ? turns.slice(turns.length - limit) : turns;
-}
-
-/**
- * 从 jsonl 尾部窗口文本提取所属 cwd(session 头行携带;omp/pi 实证)。
- * claude 文件无 session 头 → null(调用方按 slug 目录已定位,不需要它)。
- */
-export function transcriptCwd(text: string): string | null {
-  for (const line of text.split("\n")) {
-    if (!line.includes('"')) continue;
-    try {
-      const e = asObj(JSON.parse(line));
-      const cwd = e && typeof e["cwd"] === "string" ? (e["cwd"] as string) : null;
-      if (cwd) return cwd;
-      if (e && str(e, "type")) return null; // 首个可解析行不是 session 头 → 无 cwd
-    } catch {
-      /* 残行跳过 */
-    }
-  }
-  return null;
 }

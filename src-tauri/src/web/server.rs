@@ -120,7 +120,13 @@ async fn static_handler(AxumState(ctx): AxumState<WebCtx>, uri: Uri) -> Response
     let path = uri.path().trim_start_matches('/');
     let rel = if path.is_empty() { "index.html" } else { path };
     if let Some((bytes, mime)) = load_static(&ctx.app, rel) {
-        return (StatusCode::OK, [(header::CONTENT_TYPE, mime)], bytes).into_response();
+        let mut resp = (StatusCode::OK, [(header::CONTENT_TYPE, mime)], bytes).into_response();
+        /* index.html 必 no-cache:软刷新吃盘里旧壳 = 旧客户端连新服务端,订阅协议
+           静默失效(契约评审 2026-09-24);assets 带 hash 名,留默认缓存。 */
+        if rel.ends_with(".html") {
+            resp.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+        }
+        return resp;
     }
     /* SPA 回退:无扩展名的路由路径回 index.html。 */
     if !rel.contains('.') {

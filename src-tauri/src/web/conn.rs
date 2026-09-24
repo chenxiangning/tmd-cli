@@ -22,6 +22,35 @@ impl ConnScope {
     }
 }
 
+/// fs/git 只读白名单(模块级 = 测试可枚举;纪律:每项必有桥臂,交叉测试
+/// conn_tests::白名单fs_git命令必有桥臂 用 include_str! 钉死漂移)。
+pub(crate) const FS_READ: &[&str] = &[
+    "fs_collect_files",
+    "fs_list_dir",
+    "fs_read_file",
+    "fs_read_head",
+    "fs_read_tail",
+    "fs_read_tail_changed",
+    "fs_search",
+    "fs_walk_files",
+    "read_binary_file_base64",
+];
+pub(crate) const GIT_READ: &[&str] = &[
+    "git_status",
+    "git_repos_scan",
+    "git_ahead_behind",
+    "git_diff_file_patch",
+    "git_totals",
+    "git_log",
+    "git_commit_files",
+    "git_commit_message",
+    "git_branches",
+    "git_branch_compare",
+    "git_branch_worktree_files",
+    "git_branch_worktree_patch",
+    "git_remotes",
+];
+
 /// AppDevice 允许域(M2 起:轻交互 + 发起会话;spec §B,大仙 2026-09-22 拍板
 /// 「手机的核心能力 = 远程连上桌面并操作桌面」,发起会话是操作的一部分)。
 /// 白名单制,默认拒绝。
@@ -46,42 +75,11 @@ pub(crate) fn app_allowed(cmd: &str) -> bool {
                 | "pin_toggle"
         );
     }
-    // fs 域:只读面(读/搜/枚举/图像预览);写与逃逸面(打开/回收站/临时写)拒绝
-    const FS_READ: &[&str] = &[
-        "fs_collect_files",
-        "fs_list_dir",
-        "fs_read_file",
-        "fs_read_head",
-        "fs_read_tail",
-        "fs_read_tail_changed",
-        "fs_search",
-        "fs_walk_files",
-        "fs_walk_index",
-        "read_binary_file_base64",
-        "read_local_image_data_url",
-    ];
+    // fs 域:只读面(表在模块级 FS_READ)。
     if FS_READ.contains(&cmd) {
         return true;
     }
-    // git 域:只读面;写操作(stage/commit/push/分支/PR 触发)拒绝
-    const GIT_READ: &[&str] = &[
-        "git_status",
-        "git_ignored_prefixes",
-        "git_repos_scan",
-        "git_ahead_behind",
-        "git_diff_file_patch",
-        "git_totals",
-        "git_log",
-        "git_commit_files",
-        "git_commit_message",
-        "git_branches",
-        "git_branch_compare",
-        "git_branch_worktree_files",
-        "git_branch_worktree_patch",
-        "git_remotes",
-        "git_blame",
-        "git_file_log",
-    ];
+    // git 域:只读面;写操作拒绝。
     if GIT_READ.contains(&cmd) {
         return true;
     }
@@ -104,8 +102,10 @@ pub(crate) fn app_allowed(cmd: &str) -> bool {
 }
 
 /// scoped dispatch:AppDevice 先过域闸(显式报错,前端可提示),浏览器直通。
-/// session_spawn 额外收敛 spec.command ∈ 已知 CLI/shell 名(放行 spawn 不等于
-/// 任意远程执行;手机 UI 只能从内置引擎表选择,自由 command 在域闸打回)。
+/// session_spawn 额外收敛:spec.command ∈ 已知引擎名 + spec.env 剥离(防 PATH/DYLD
+/// 注入劫持子进程)+ spec.cwd 限已注册工作区根(红队链4①;桌面自发不过本闸)。
+/// config_read_settings 在设备域剥密钥字段(红队链2:整树裸回 = webRelayKey 泄露
+/// → 中继 agent 劫持;手机只消费三覆盖层,剥键零成本)。
 pub(crate) async fn dispatch_scoped(
     app: &AppHandle,
     scope: &ConnScope,
@@ -116,18 +116,80 @@ pub(crate) async fn dispatch_scoped(
         if !app_allowed(cmd) {
             return Err(format!("app 设备命令不在允许域: {cmd}"));
         }
-        if cmd == "session_spawn" && !spawn_command_allowed(&raw) {
-            return Err("app 设备仅可发起已知 CLI 引擎的会话".into());
+        if cmd == "session_spawn" {
+            let mut raw = raw;
+            if !spawn_command_allowed(&raw) {
+                return Err("app 设备仅可发起已知 CLI 引擎的会话".into());
+            }
+            if !spawn_cwd_allowed(&raw) {
+                return Err("app 设备仅可在已注册工作区内发起会话".into());
+            }
+            if let Some(sp) = raw.get_mut("spec").and_then(|s| s.as_object_mut()) {
+                sp.insert("env".into(), serde_json::json!({}));
+            }
+            return dispatch::dispatch(app, cmd, raw).await;
+        }
+        if cmd == "config_read_settings" {
+            let mut v = dispatch::dispatch(app, cmd, raw).await?;
+            if let Some(o) = v.as_object_mut() {
+                o.retain(|k, _| !settings_secret(k));
+            }
+            return Ok(v);
         }
     }
     dispatch::dispatch(app, cmd, raw).await
 }
 
+/// 设备面 settings 剥键规则:中继密钥/桥 token 类字段不出桥(命名含 key/token/
+/// secret/password 一刀切 + webRelayUrl 显式项;手机只消费三覆盖层,剥键零成本)。
+fn settings_secret(key: &str) -> bool {
+    let k = key.to_ascii_lowercase();
+    k == "webrelayurl"
+        || k.contains("key")
+        || k.contains("token")
+        || k.contains("secret")
+        || k.contains("password")
+}
+
+/// 设备域事件订阅白名单(红队链3:命令域闸的事件面镜像)。pty:// = 会话实况/退出
+/// (设备可看用户全部会话 = 「批准设备=SSH 级信任」模型内,session_disk_tail 同理);
+/// settings:changed = 覆盖层同步。ssh:// / lsp:// / web://pair-alert / plugin 域全拒。
+pub(crate) fn event_allowed(event: &str) -> bool {
+    event.starts_with("pty://") || event == "settings:changed"
+}
+
+/// spawn cwd 必须落在已注册工作区根(或默认工作区)内;canonicalize 双侧防 symlink/`..` 逃逸。
+fn spawn_cwd_allowed(raw: &serde_json::Value) -> bool {
+    let Some(cwd) = raw
+        .get("spec")
+        .and_then(|s| s.get("cwd"))
+        .and_then(|c| c.as_str())
+    else {
+        return false;
+    };
+    let Ok(target) = std::path::Path::new(cwd).canonicalize() else {
+        return false;
+    };
+    let ws = crate::session::load_workspaces();
+    let default_root = crate::session::default_workspace_root().canonicalize().ok();
+    ws.list.iter().any(|w| {
+        std::path::Path::new(&w.root)
+            .canonicalize()
+            .map(|r| target.starts_with(&r))
+            .unwrap_or(false)
+            || default_root
+                .as_ref()
+                .map(|d| target.starts_with(d))
+                .unwrap_or(false)
+    })
+}
+
 /// 已知引擎/shell 名(spec.command 的 basename;桌面 cli-* 插件声明的启动命令)。
+/// qoder 的权威命令是 qodercli(cli-qoder/index.tsx:17);deepseek 无桌面 profile,死项删。
 fn spawn_command_allowed(raw: &serde_json::Value) -> bool {
     const ENGINES: &[&str] = &[
-        "omp", "pi", "claude", "codex", "kimi", "grok", "qoder", "opencode", "deepseek", "dsh",
-        "bash", "zsh", "sh", "fish",
+        "omp", "pi", "claude", "codex", "kimi", "grok", "qodercli", "qoderclicn", "opencode",
+        "dsh", "bash", "zsh", "sh", "fish",
     ];
     let cmd = raw
         .get("spec")
@@ -195,104 +257,6 @@ pub(crate) fn is_online(device_id: &str) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn 会话域_放行轻交互与发起_拒绝杀与改属() {
-        for ok in [
-            "session_list",
-            "session_disk_tail",
-            "session_history_page",
-            "session_link_log",
-            "session_log_size",
-            "session_write",
-            "session_resize",
-            "session_spawn",      // M2:手机可发起会话(大仙拍板:远程操作含发起)
-            "session_pin_toggle", // 置顶窄写令(服务端读改写仅 sessionPins 一键)
-        ] {
-            assert!(app_allowed(ok), "{ok} 应允许");
-        }
-        /* bind_cli = 桌面镜像回写专用(webview 通道);设备域放行 = 张冠李戴任意身份 */
-        for no in ["session_kill", "session_set_workspace", "session_bind_cli"] {
-            assert!(!app_allowed(no), "{no} 应拒绝");
-        }
-    }
-
-    /// 三表漂移防线:白名单放行的 session/checkpoint 命令必须都在桥闸表(GATED)。
-    /// 2026-09-24 实证:加令时 session_link_log 被顶出闸表 → 桥面 unknown command。
-    #[test]
-    fn 白名单会话命令必在桥闸表() {
-        for cmd in "session_list session_disk_tail session_history_page session_link_log \
-            session_log_size session_size session_write session_resize session_spawn \
-            session_pin_toggle checkpoint_list checkpoint_batch_diff".split(' ') {
-            assert!(super::super::dispatch_session::GATED.contains(&cmd), "{cmd} 缺桥闸表臂");
-        }
-    }
-
-    #[test]
-    fn spawn_命令收敛_引擎白名单() {
-        let ok = |cmd: &str| serde_json::json!({ "profileId": "omp", "spec": { "command": cmd, "cwd": "/tmp" }, "workspaceId": null });
-        assert!(spawn_command_allowed(&ok("omp")));
-        assert!(spawn_command_allowed(&ok("/usr/local/bin/claude"))); // basename 命中
-        assert!(spawn_command_allowed(&ok("zsh")));
-        for bad in ["curl", "rm", "python3", "/bin/bash -c evil", ""] {
-            assert!(!spawn_command_allowed(&ok(bad)), "{bad} 应拒绝");
-        }
-        // 缺 spec/command
-        assert!(!spawn_command_allowed(&serde_json::json!({})));
-    }
-
-    #[test]
-    fn fs_git_只读放行_写面拒绝() {
-        assert!(app_allowed("fs_read_file"));
-        assert!(app_allowed("git_status"));
-        for no in [
-            "fs_write_file",
-            "fs_remove_path",
-            "fs_trash_entry",
-            "fs_open_with",
-            "cli_install_run",
-            "proc_communicate",
-            "git_stage",
-            "git_commit",
-            "git_discard",
-            "git_pull_push",
-            "git_create_branch",
-            "git_pr_run",
-        ] {
-            assert!(!app_allowed(no), "{no} 应拒绝");
-        }
-    }
-
-    #[test]
-    fn 配置只读_checkpoint只读_其余域全拒() {
-        assert!(app_allowed("config_read_settings"));
-        assert!(!app_allowed("config_write_settings"));
-        assert!(!app_allowed("config_write_workspaces"));
-        // quota_fetch = 桌面出站任意 HTTP 原语,SSRF 面,设备域不授
-        assert!(!app_allowed("quota_fetch"));
-        assert!(!app_allowed("quota_env_value"));
-        // M2 审批线摘要:checkpoint 只读二令放行,写/回退全拒
-        assert!(app_allowed("checkpoint_list"));
-        assert!(app_allowed("checkpoint_batch_diff"));
-        for no in [
-            "checkpoint_anchor",
-            "checkpoint_apply",
-            "checkpoint_seal",
-            "checkpoint_restore",
-            "checkpoint_approve",
-            "sqlite_query",
-            "sqlite_execute",
-            "wsl_exec",
-            "lsp_send",
-            "plugin_scan",
-            "web_access_start",
-            "web_relay_start",
-            "ssh_connect",
-            "totally_unknown_cmd",
-        ] {
-            assert!(!app_allowed(no), "{no} 应拒绝");
-        }
-    }
-}
+// 测试体按 300 行铁则外提(path 子模块:super::* 私有项仍可见)。
+#[path = "conn_tests.rs"]
+mod tests;
