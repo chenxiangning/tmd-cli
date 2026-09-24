@@ -184,12 +184,13 @@ fn spawn_cwd_allowed(raw: &serde_json::Value) -> bool {
     })
 }
 
-/// 已知引擎/shell 名(spec.command 的 basename;桌面 cli-* 插件声明的启动命令)。
+/// 已知引擎名(spec.command 的 basename;桌面 cli-* 插件声明的启动命令)。
 /// qoder 的权威命令是 qodercli(cli-qoder/index.tsx:17);deepseek 无桌面 profile,死项删。
+/// shell 四件套(bash/zsh/sh/fish)不列(2026-09-24 专业收口):手机引擎表无 shell 入口,
+/// 桌面内置终端走 webview IPC 不过本闸 —— 留着 = 批准设备可起交互 shell 的纯攻击面。
 fn spawn_command_allowed(raw: &serde_json::Value) -> bool {
     const ENGINES: &[&str] = &[
-        "omp", "pi", "claude", "codex", "kimi", "grok", "qodercli", "qoderclicn", "opencode",
-        "dsh", "bash", "zsh", "sh", "fish",
+        "omp", "pi", "claude", "codex", "kimi", "grok", "qodercli", "qoderclicn", "opencode", "dsh",
     ];
     let cmd = raw
         .get("spec")

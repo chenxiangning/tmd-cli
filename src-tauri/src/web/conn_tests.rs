@@ -54,8 +54,8 @@
         let ok = |cmd: &str| serde_json::json!({ "profileId": "omp", "spec": { "command": cmd, "cwd": "/tmp" }, "workspaceId": null });
         assert!(spawn_command_allowed(&ok("omp")));
         assert!(spawn_command_allowed(&ok("/usr/local/bin/claude"))); // basename 命中
-        assert!(spawn_command_allowed(&ok("zsh")));
-        for bad in ["curl", "rm", "python3", "/bin/bash -c evil", ""] {
+        // shell 四件套退闸(2026-09-24):手机无 shell 入口,设备起交互 shell = 纯攻击面
+        for bad in ["curl", "rm", "python3", "bash", "zsh", "sh", "fish", "/bin/bash -c evil", ""] {
             assert!(!spawn_command_allowed(&ok(bad)), "{bad} 应拒绝");
         }
         // 缺 spec/command
