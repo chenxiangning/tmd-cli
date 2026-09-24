@@ -94,6 +94,31 @@ final class PinnedDelegate: NSObject, URLSessionDelegate {
   }
 }
 
+/// 一次性 pin delegate:配对时 offer 带 pin(扫码即信任,TOFU)——此时钥匙串
+/// 还没有 creds,credsMatch 必然落空(鸡生蛋死锁,2026-09-24 实证),故 /pair
+/// 请求现场带 pin,叶证书 SHA-256 命中即放行。
+final class OneShotPinDelegate: NSObject, URLSessionDelegate {
+  private let pin: Data
+  init(pin: Data) { self.pin = pin }
+
+  func urlSession(
+    _ session: URLSession,
+    didReceive challenge: URLAuthenticationChallenge,
+    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+  ) {
+    guard let trust = challenge.protectionSpace.serverTrust,
+          let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate],
+          let leaf = chain.first,
+          let certData = SecCertificateCopyData(leaf) as Data?,
+          Data(SHA256.hash(data: certData)) == pin
+    else {
+      completionHandler(.performDefaultHandling, nil)
+      return
+    }
+    completionHandler(.useCredential, URLCredential(trust: trust))
+  }
+}
+
 /// 壳原生 HTTP(自签中继的 /pair;WKWebView fetch 过不了自签校验)。
 enum PinnedHttp {
   static let session: URLSession = {
@@ -104,8 +129,20 @@ enum PinnedHttp {
 
   static func dataTask(
     with request: URLRequest,
+    pin: String? = nil,
     completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void
   ) -> URLSessionDataTask {
-    session.dataTask(with: request, completionHandler: completionHandler)
+    if let pin, let pinData = Data(base64Encoded: pin) {
+      let cfg = URLSessionConfiguration.ephemeral
+      cfg.waitsForConnectivity = false
+      let s = URLSession(configuration: cfg, delegate: OneShotPinDelegate(pin: pinData), delegateQueue: nil)
+      // session 必须活到任务结束:由 completion 后释放。
+      let task = s.dataTask(with: request) { data, resp, err in
+        s.invalidateAndCancel()
+        completionHandler(data, resp, err)
+      }
+      return task
+    }
+    return session.dataTask(with: request, completionHandler: completionHandler)
   }
 }

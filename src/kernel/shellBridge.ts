@@ -67,12 +67,14 @@ export const shellCreds: ShellCredsStore = {
   delete: () => shellInvoke("creds.delete").then(() => undefined),
 };
 
-/** 壳原生 POST(自签中继的 /pair:WKWebView fetch 过不了自签校验)。 */
+/** 壳原生 POST(自签中继的 /pair:WKWebView fetch 过不了自签校验)。
+ * pin = 配对 offer 携带的证书 SHA-256 base64(扫码即信任;钥匙串还没有 creds)。 */
 export function shellHttpPost(
   url: string,
   body: string,
+  pin?: string,
 ): Promise<{ status: number; body: string }> {
-  return shellInvoke("http.post", { url, body });
+  return shellInvoke("http.post", { url, body, pin });
 }
 /* Swift 回注入口:模块加载即注册(幂等覆盖,兼容 HMR 双实例);node 态跳过。 */
 if (typeof window !== "undefined") {

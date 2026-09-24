@@ -139,7 +139,7 @@ export function WebDevicePairCard() {
         </button>
       ) : (
         <div className="flex items-start gap-3 rounded-lg border border-[var(--tmd-border)] bg-[var(--tmd-panel)] p-3">
-          <QRCodeSVG value={offer.url} size={116} />
+          <QRCodeSVG value={offer.url} size={232} />
           <div className="flex min-w-0 flex-col gap-1.5">
             <code className="w-fit rounded-md border border-[var(--tmd-border)] bg-[var(--tmd-base)] px-2 py-0.5 font-mono text-sm font-semibold tracking-[0.3em]">
               {offer.pairCode}

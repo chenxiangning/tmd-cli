@@ -74,8 +74,8 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     req.setValue("application/json", forHTTPHeaderField: "content-type")
     req.httpBody = Data(body.utf8)
     req.timeoutInterval = 8
-    ShellLog.write("http.post dial url=\(urlStr)")
-    PinnedHttp.dataTask(with: req) { data, resp, err in
+    ShellLog.write("http.post dial url=\(urlStr) pin=\(args["pin"] != nil)")
+    PinnedHttp.dataTask(with: req, pin: args["pin"] as? String) { data, resp, err in
       if let err { ShellLog.write("http.post fail: \(err)"); self.reply(id: id, ok: false, payload: err.localizedDescription); return }
       let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
       let text = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""

@@ -35,14 +35,14 @@ async function tryPair(
   base: string,
   code: string,
   deviceName: string,
+  pin?: string,
 ): Promise<{ creds?: MobileCreds; error?: string }> {
   const url = `${base.replace(/\/+$/, "")}/pair`;
   const body = JSON.stringify({ pairCode: code.trim(), deviceName });
   try {
-    /* 壳内走原生 URLSession(自签中继证书钉住;WKWebView fetch 过不了
-     * 自签校验)。浏览器/桌面开发态回落 fetch。 */
+    /* 壳内走原生 URLSession(自签中继;WKWebView fetch 过不了自签校验),浏览器态回落 fetch。pin=扫码即信任(TOFU)。 */
     const { status, body: text } = hasShellBridge()
-      ? await shellHttpPost(url, body)
+      ? await shellHttpPost(url, body, pin)
       : await fetchWithTimeout(url, body, 6000);
     if (status !== 200) {
       const map: Record<number, string> = {
@@ -118,7 +118,7 @@ function scanOfferLink(): Promise<string | null> {
 /** offer → 端点竞速配对(先成先用);凭证存全部端点供 M2 双通道重选路。 */
 async function pairWithOffer(offer: { code: string; urls: string[]; relay?: string; pin?: string }): Promise<MobileCreds> {
   const attempts = offer.urls.map((u) =>
-    tryPair(u, offer.code, deviceName()).then((r) => {
+    tryPair(u, offer.code, deviceName(), u.startsWith("https") ? offer.pin : undefined).then((r) => {
       if (r.creds) return r;
       throw r;
     }),
