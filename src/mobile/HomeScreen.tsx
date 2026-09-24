@@ -7,6 +7,7 @@ import { invoke } from "@kernel/transport";
 import { ConnBanner, HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { Row } from "./Row";
+import { ArchiveIcon, ChevronIcon, FolderIcon, LocalIcon } from "./treeIcons";
 import { groupHomeRows, partitionByArchive, pinKeyOf, scanWorkspaceHistory, topZones, type HistoryItem, type HomeRow } from "./history";
 
 /** 磁盘历史重扫节奏:读头有 mtime 缓存,稳态每轮只剩 fs_collect_files 轻量 RPC。 */
@@ -200,6 +201,7 @@ export function HomeScreen() {
               : t("暂无会话\n在桌面端启动会话后,这里会实时出现")}
           </div>
         )}
+        {groups.length > 0 && <div className="ws-caption"><FolderIcon size={14} /><span>{t("工作区")}</span></div>}
         {groups.map((g) => {
           const { local, archived } = partitionByArchive(g.rows, g.wsId, archive);
           const tab = wsTab[g.wsId] ?? "local";
@@ -218,8 +220,9 @@ export function HomeScreen() {
                   aria-label={open ? t("折叠") : t("展开")}
                   onClick={() => setExpanded((m) => ({ ...m, [g.wsId]: !m[g.wsId] }))}
                 >
-                  {open ? "▾" : "▸"}
+                  <ChevronIcon open={open} />
                 </button>
+                <FolderIcon open={open} size={16} />
                 <span className="ws-name">{g.name}</span>
                 <div className="ws-seg" role="tablist">
                   <button
@@ -229,9 +232,7 @@ export function HomeScreen() {
                     className={tab === "local" ? "on" : ""}
                     onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "local" }))}
                   >
-                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
-                      <rect x="1.8" y="2.5" width="12.4" height="8.4" rx="1.4" /><path d="M5.5 13.5h5M8 10.9v2.6" strokeLinecap="round" />
-                    </svg>
+                    <LocalIcon />
                     {t("本地")} <b>{local.length}</b>
                   </button>
                   <button
@@ -241,15 +242,13 @@ export function HomeScreen() {
                     className={tab === "archive" ? "on" : ""}
                     onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "archive" }))}
                   >
-                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
-                      <rect x="2" y="4.5" width="12" height="8.6" rx="1.4" /><path d="M2 7.5h12M5.5 4.5 4 7.5" strokeLinecap="round" />
-                    </svg>
+                    <ArchiveIcon />
                     {t("归档")} <b>{archived.length}</b>
                   </button>
                 </div>
               </div>
               {open && (
-                <>
+                <div className="ws-kids">
                   {rows.length === 0 && (
                     <div className="empty seg-empty">
                       {tab === "local" ? t("暂无会话") : t("没有归档会话")}
@@ -278,7 +277,7 @@ export function HomeScreen() {
                       {t("加载更多({n})", { n: rows.length - limit })}
                     </button>
                   )}
-                </>
+                </div>
               )}
             </React.Fragment>
           );

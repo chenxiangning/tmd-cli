@@ -216,3 +216,14 @@
 .st-st{color:var(--accent)} .st-a{color:var(--ok)} .st-d{color:var(--err)}
 .st-u{color:var(--fg-muted)} .st-c{color:var(--err);font-weight:700}
 .dl-add{color:var(--ok)} .dl-del{color:var(--err)} .dl-hunk{color:var(--fg-faint)}
+
+/* ── 工作区树(样式照桌面侧栏:细线图标 + 折叠 chevron + 会话虚线引导;2026-09-25)── */
+.ws-caption{display:flex;align-items:center;gap:6px;padding:10px 16px 2px;font-size:11px;font-weight:600;color:var(--fg-subtle);letter-spacing:.02em}
+.ws-head{padding-left:8px}
+.ws-caret{width:30px;height:32px;color:var(--fg-faint)}
+.ws-head > svg{flex:none;color:var(--fg-faint)}
+.ws-name{color:var(--fg);font-size:13px}
+.ws-kids{margin-left:22px;border-left:1px dashed var(--border);padding-left:4px}
+.ws-kids > .row{position:relative}
+.ws-kids > .row::before{content:"";position:absolute;left:-4px;top:50%;width:4px;border-top:1px dashed var(--border)}
+.ws-kids .more{text-align:left;padding-left:22px}

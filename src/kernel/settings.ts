@@ -17,7 +17,6 @@ import type { AppSettings } from "./settingsTypes";
 import { sanitize } from "./settingsSanitize";
 import { setShortcutOverrides } from "./shortcutOverrides";
 import { isWeb, listen } from "./transport";
-
 /** 订阅设置写盘失败(Tauri 环境触发;SettingsPersistToast 订阅呈现);返回退订。 */
 const persistFailListeners = new Set<(error: string) => void>();
 export function onSettingsPersistFailed(cb: (error: string) => void): () => void {
@@ -32,7 +31,7 @@ interface SettingsState {
   /** 首屏落地前为 false,主题引擎等它再应用(防闪默认色)。 */
   loaded: boolean;
   panelOpen: boolean;
-  /** 深链:开面板时指定 section/tab(openSettingsPanel(target));null = 保持面板内上次位置。 */
+  /** 深链:开面板指定 section/tab(openSettingsPanel(target));null = 保持上次位置 */
   panelTarget: { section: string; tab?: string } | null;
 }
 
