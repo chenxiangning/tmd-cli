@@ -43,6 +43,7 @@
 - PTY 幕布硬约束:`PTY bytes → pty://out/{sessionId} → xterm.js` 原样透传,**严禁**在幕布侧做消息气泡 / Markdown / Diff 二次渲染;一切增强(状态栏、引用、Git、文件树)发生在幕布之外。
 - 内核不理解任何 CLI 私有格式;读取各家 session JSONL 只能经该 CLI 插件声明的适配器,缺失显示 `—`,不做猜测兜底。CLI 私有库的 Rust 代读只能走通用原语(如只读 `sqliteQuery`),路径/表结构知识留插件侧。
 - CLI 私有格式的跨插件共享沉淀进 `src/plugins/cli-shared/`(无生命周期共享格式库,非插件、不入 `allPlugins`):它是「跨插件契约进 kernel」与「内核不理解 CLI 私有格式」两条规则的缝隙层,准入标准 = ≥2 个 cli-* 插件消费同一磁盘/HTTP 格式知识,或 1 个 cli-* + feature 插件(welcome / workspace / composer / memory-coordinator 等 feature 插件)联合消费(文件头注释声明先例);同族变体共享声明(glyph/静态表,如 qoder 双插件)视同满足。feature 插件经它消费 CLI 格式须在 import 处注释声明。
+- `src/mobile/` = 手机远程 UI 树(web 桥服务手机的第二棵 UI 面,与 app-shell 平行,2026-09-24 评审准入):只许 import `@kernel` 公共面与各 cli-* 插件**声明的适配器/纯函数模块**(sessions / edits / cli-shared 一类,走 `@plugins` 别名),禁 import 插件 UI/生命周期模块与 `@shell/*`;不实现 `Plugin` 接口、不入 `allPlugins`(手机树不跑 activate,注册面对它不存在)。两棵树在 `main.tsx` 一律**动态 import** 分流——桌面包不得携带 mobile 树(mobile 反向携带 7 家 CLI 扫描器是其自身需要,桌面不需要)。
 
 ## 2. 验证(交付前必跑)
 
