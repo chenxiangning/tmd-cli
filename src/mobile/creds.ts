@@ -16,6 +16,10 @@ export interface MobileCreds {
   hostName: string;
   /** M2 双通道:配对时 offer 的全部端点(ws://…);旧凭证缺省 = [wsUrl]。 */
   urls?: string[];
+  /** 自建 https 中继证书钉住:证书 DER 的 SHA-256 base64(配对 offer 携带,原生壳 PinnedTLS 消费)。 */
+  pin?: string;
+  /** pin 对应的中继主机(relay URL 的 host,去端口);壳比对 TLS challenge 主机一致才启用。 */
+  pinHost?: string;
 }
 
 /* 通道钉选(M2 手动切换):auto = 按 urls 序竞速;否则只用该端点。 */

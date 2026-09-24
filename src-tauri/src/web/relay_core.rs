@@ -280,7 +280,7 @@ fn push_u32(out: &mut Vec<u8>, value: u32) {
 }
 
 /// 极简 STORE(无压缩) zip 写手。故意不引依赖:包是 ~9KB 文本,原样落盘。
-fn zip_store(files: &[(&str, &[u8])]) -> Vec<u8> {
+pub(super) fn zip_store(files: &[(&str, &[u8])]) -> Vec<u8> {
     const DOS_DATE: u16 = (45 << 9) | (1 << 5) | 1;
     const DOS_TIME: u16 = 0;
 

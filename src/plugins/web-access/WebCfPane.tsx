@@ -1,19 +1,21 @@
 /**
- * 外网中继面板:顶部流程引导 + 部署卡/连接卡横向两卡。
+ * Cloudflare 中继面板:顶部流程引导 + 部署卡/连接卡横向两卡。
+ * 只讲 Worker 一键部署路线(自建服务器落点见 WebSelfHostPane)。
  * web 端(isWeb)只读。
  */
 
 import { WebRelayCard } from "./WebRelayCard";
 import { WebRelayDeployCard } from "./WebRelayDeployCard";
+import { WanStepsCard, type WanStep } from "./WanStepsCard";
 import { isWeb } from "@kernel/transport";
 import { t } from "@kernel/i18n";
 
-const STEPS: { title: string; detail: string }[] = [
+const STEPS: WanStep[] = [
   {
     title: "① 部署中继(一次性)",
     detail:
       "中继是跑在你自己 Cloudflare 账号的 Worker(免费额度够),只做字节转发、零存储。" +
-      "左卡任选一种:填 Cloudflare API Token 一键部署,或导 zip 到你的 ECS / 任意机器 wrangler deploy。",
+      "左卡填 Cloudflare API Token 点「立即部署」即可,Token 仅本次使用、不保存。",
   },
   {
     title: "② 连接中继(每次用前)",
@@ -29,26 +31,10 @@ const STEPS: { title: string; detail: string }[] = [
   },
 ];
 
-export function WebWanPane() {
+export function WebCfPane() {
   return (
     <div className="flex flex-col gap-3 p-4">
-      <div className="rounded border border-[var(--tmd-border)] bg-[var(--tmd-surface-1)] px-3 py-2">
-        <div className="mb-1.5 text-xs font-medium text-[var(--tmd-fg)]">
-          {t("使用流程")}
-        </div>
-        <ol className="flex flex-col gap-1.5">
-          {STEPS.map((s) => (
-            <li key={s.title} className="text-xs leading-relaxed">
-              <span className="font-medium text-[var(--tmd-fg)]">
-                {t(s.title)}
-              </span>
-              <span className="ml-1.5 text-[var(--tmd-fg-muted)]">
-                {t(s.detail)}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </div>
+      <WanStepsCard steps={STEPS} />
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <WebRelayDeployCard />
         <WebRelayCard />

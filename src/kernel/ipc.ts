@@ -992,6 +992,53 @@ export function relayDeployPack(path: string, key?: string): Promise<string> {
   return invoke<string>("relay_deploy_pack", { path, key });
 }
 
+/** 自建服务器一键部署请求(Rust relay_deploy_selfhost 契约;凭据仅本次调用内使用)。 */
+export interface SelfhostDeployReq {
+  host: string;
+  port: number;
+  username: string;
+  authType: "password" | "privateKey";
+  password?: string;
+  privateKey?: string;
+  privateKeyPath?: string;
+  privateKeyPassphrase?: string;
+  /** 未知主机指纹时,用户点「信任并重试」置 true(TOFU)。 */
+  trustHostKey?: boolean;
+}
+
+/** 自建部署结果;steps 固定序列 connect/cert/upload/systemd/health。 */
+export interface SelfhostDeployResult {
+  ok: boolean;
+  url: string;
+  key: string;
+  fingerprint: string;
+  steps: { id: string; ok: boolean; error?: string }[];
+  /** 仅当主机指纹未知:steps 里 connect 步 ok=false。 */
+  hostKeyFingerprint?: string;
+}
+
+/** 部署进度事件(web-relay-deploy payload;step 完成时发,ok=false 即失败)。 */
+export interface RelayDeployProgress {
+  step: string;
+  ok: boolean;
+  error?: string;
+}
+
+/** 一键 SSH 部署自建中继(成功时 Rust 自己落 settings url/key/certDer/certHost)。 */
+export function relayDeploySelfhost(req: SelfhostDeployReq): Promise<SelfhostDeployResult> {
+  return invoke<SelfhostDeployResult>("relay_deploy_selfhost", { req });
+}
+
+/** 导出自建中继部署包(zip;mjs+证书+env+unit+README,铸该 host 自签证书并落 settings)。 */
+export function relaySelfhostPack(path: string, host: string): Promise<string> {
+  return invoke<string>("relay_selfhost_pack", { path, host });
+}
+
+/** 订阅自建部署进度事件;返回退订函数。 */
+export function onRelayDeployProgress(cb: (e: RelayDeployProgress) => void): Promise<() => void> {
+  return listen<RelayDeployProgress>("web-relay-deploy", (ev) => cb(ev.payload));
+}
+
 // ==================== 设备配对(桌面设置卡) ====================
 
 /** 配对 offer:桥须在运行;url = tmd://pair?c=… 短链(内嵌 LAN/relay 与配对码)。 */

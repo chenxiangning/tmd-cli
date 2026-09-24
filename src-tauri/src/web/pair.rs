@@ -73,6 +73,12 @@ pub(crate) fn mint_offer(app: &AppHandle) -> Result<(String, String, u64), Strin
                 .to_string();
             (!base.is_empty()).then_some(base)
         });
+    // 自建 https 中继:带证书指纹 pin,手机按表动态钉(换服务器免重装)。
+    let pin = relay
+        .as_deref()
+        .filter(|base| base.starts_with("https://"))
+        .and_then(super::pinned_tls::dynamic_pin_for)
+        .map(|(fingerprint, _)| fingerprint);
     let payload = json!({
         "v": 1,
         "hostId": devices::host_id(&devices::devices_dir()),
@@ -80,6 +86,7 @@ pub(crate) fn mint_offer(app: &AppHandle) -> Result<(String, String, u64), Strin
         "pairCode": code,
         "lan": format!("http://{}:{}", info.lan_ip, info.port),
         "relay": relay,
+        "pin": pin,
     });
     Ok((encode_offer(&payload), code, expires_at))
 }

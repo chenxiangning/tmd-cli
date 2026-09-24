@@ -10,7 +10,7 @@ import { hasShellBridge, shellHttpPost } from "@kernel/shellBridge";
 /** 解析 tmd://pair?c=… 短链;非该形状返回 null。 */
 function parseOfferLink(
   text: string,
-): { code: string; urls: string[]; hostName: string } | null {
+): { code: string; urls: string[]; hostName: string; relay?: string; pin?: string } | null {
   const m = /tmd:\/\/pair\?c=([A-Za-z0-9_-]+)/.exec(text.trim());
   if (!m) return null;
   try {
@@ -21,10 +21,11 @@ function parseOfferLink(
       lan?: string | null;
       relay?: string | null;
       name?: string;
+      pin?: string; // 自建 https 中继证书 SHA-256 base64(壳侧 PinnedTLS 消费)
     };
     const urls = [payload.lan, payload.relay].filter((u): u is string => typeof u === "string");
     if (!payload.pairCode || !urls.length) return null;
-    return { code: payload.pairCode, urls, hostName: payload.name ?? "" };
+    return { code: payload.pairCode, urls, hostName: payload.name ?? "", relay: payload.relay ?? undefined, pin: payload.pin };
   } catch {
     return null;
   }
@@ -115,7 +116,7 @@ function scanOfferLink(): Promise<string | null> {
 }
 
 /** offer → 端点竞速配对(先成先用);凭证存全部端点供 M2 双通道重选路。 */
-async function pairWithOffer(offer: { code: string; urls: string[] }): Promise<MobileCreds> {
+async function pairWithOffer(offer: { code: string; urls: string[]; relay?: string; pin?: string }): Promise<MobileCreds> {
   const attempts = offer.urls.map((u) =>
     tryPair(u, offer.code, deviceName()).then((r) => {
       if (r.creds) return r;
@@ -124,10 +125,18 @@ async function pairWithOffer(offer: { code: string; urls: string[] }): Promise<M
   );
   try {
     const ok = await Promise.any(attempts);
-    return {
+    const creds: MobileCreds = {
       ...ok.creds!,
       urls: offer.urls.map((u) => u.replace(/^http/, "ws").replace(/\/+$/, "")),
     };
+    /* 证书钉住:pinHost 取 relay host(内置 pin 只属中继);非 URL 形状则不设,壳侧不启用。 */
+    if (offer.pin) {
+      try {
+        creds.pin = offer.pin;
+        creds.pinHost = new URL(offer.relay ?? ok.creds!.wsUrl).hostname;
+      } catch { /* 手动输入退化态:放弃 pin */ }
+    }
+    return creds;
   } catch (agg) {
     const errs = (agg as AggregateError).errors as { error?: string }[];
     throw new Error(errs.map((e) => e?.error).find(Boolean) ?? "配对失败");
@@ -182,7 +191,7 @@ export function PairingScreen(props: {
     }
     setBusy(true);
     try {
-      props.onPaired(await pairWithOffer({ code: pairCode, urls }));
+      props.onPaired(await pairWithOffer({ code: pairCode, urls, relay: offer?.relay, pin: offer?.pin }));
     } catch (e) {
       setError((e as Error).message);
     } finally {

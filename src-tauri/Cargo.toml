@@ -66,6 +66,7 @@ rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", 
 # 自建中继证书钉住(pinned_tls):摘要用 aws-lc-rs;默认根库与 tungstenite 对齐 0.26。
 aws-lc-rs = "1"
 webpki-roots = "0.26"
+rcgen = { version = "=0.14.7", default-features = false, features = ["aws_lc_rs", "pem"] }
 
 # 产物体积与运行性能:lto 全量链接优化 + 单 codegen unit 提升内联,strip 去符号表,
 # opt-level=z 体积优先(GUI 交互场景实测无感,二进制约再省一成;若热路径变慢回调到 "s"/3)。

@@ -20,10 +20,11 @@ fn sha256(bytes: &[u8]) -> Vec<u8> {
         .to_vec()
 }
 
+/// 钉住表:host -> 证书 SHA-256。内置 ECS 一张 + settings 动态一张(一键部署铸)。
 #[derive(Debug)]
 struct PinnedVerifier {
     default: Arc<WebPkiServerVerifier>,
-    pinned_hash: Vec<u8>,
+    pins: Vec<(String, Vec<u8>)>,
 }
 
 impl ServerCertVerifier for PinnedVerifier {
@@ -35,13 +36,14 @@ impl ServerCertVerifier for PinnedVerifier {
         ocsp_response: &[u8],
         now: UnixTime,
     ) -> Result<ServerCertVerified, rustls::Error> {
-        let is_pinned_host = match server_name {
-            ServerName::IpAddress(ip) => std::net::IpAddr::from(*ip).to_string() == PINNED_HOST,
-            _ => false,
+        let host = match server_name {
+            ServerName::IpAddress(ip) => std::net::IpAddr::from(*ip).to_string(),
+            ServerName::DnsName(name) => name.as_ref().to_string(),
+            _ => String::new(),
         };
-        if is_pinned_host {
+        if let Some((_, hash)) = self.pins.iter().find(|(h, _)| *h == host) {
             // 指纹一致即信任(自签无链可走);握手签名校验仍委托默认 verifier。
-            if sha256(end_entity.as_ref()) == self.pinned_hash {
+            if sha256(end_entity.as_ref()) == *hash {
                 return Ok(ServerCertVerified::assertion());
             }
             return Err(rustls::Error::General(
@@ -75,13 +77,21 @@ impl ServerCertVerifier for PinnedVerifier {
     }
 }
 
-/// 拨号用 ClientConfig:公共 CA 默认链 + 对 PINNED_HOST 的证书钉住。
-pub fn pinned_client_config() -> Arc<rustls::ClientConfig> {
+/// 拨号用 ClientConfig:公共 CA 默认链 + 钉住表(内置 ECS + 可选动态)。
+/// 动态钉:一键部署把新服务器证书 DER 落 settings 后,拨号额外信任 (host, der)。
+pub fn pinned_client_config_with(extra: Option<(&str, &[u8])>) -> Arc<rustls::ClientConfig> {
     let mut roots = RootCertStore::empty();
     roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
     let default = WebPkiServerVerifier::builder(Arc::new(roots))
         .build()
         .expect("webpki verifier");
+    let mut pins = vec![(PINNED_HOST.to_string(), sha256(PINNED_CERT_DER))];
+    if let Some((host, der)) = extra {
+        match pins.iter_mut().find(|(h, _)| h == host) {
+            Some(slot) => slot.1 = sha256(der),
+            None => pins.push((host.to_string(), sha256(der))),
+        }
+    }
     let mut cfg = rustls::ClientConfig::builder()
         // 占位根(同库);实际校验整体替换为 PinnedVerifier。
         .with_root_certificates({
@@ -91,11 +101,42 @@ pub fn pinned_client_config() -> Arc<rustls::ClientConfig> {
         })
         .with_no_client_auth();
     cfg.dangerous()
-        .set_certificate_verifier(Arc::new(PinnedVerifier {
-            default,
-            pinned_hash: sha256(PINNED_CERT_DER),
-        }));
+        .set_certificate_verifier(Arc::new(PinnedVerifier { default, pins }));
     Arc::new(cfg)
+}
+
+/// 从 settings 读动态钉(webRelayCertHost/webRelayCertDer);缺省/坏值 = None。
+pub fn dynamic_pin() -> Option<(String, Vec<u8>)> {
+    let settings = crate::settings::load_settings();
+    let host = settings["webRelayCertHost"]
+        .as_str()
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    let der_b64 = settings["webRelayCertDer"].as_str().unwrap_or("").trim();
+    if host.is_empty() || der_b64.is_empty() {
+        return None;
+    }
+    let der = super::relay_core::b64_to_bytes(der_b64);
+    (!der.is_empty()).then_some((host, der))
+}
+
+/// 配对 offer 用:relay 基址(https://host[:port])命中动态钉 → (base64 指纹, der)。
+pub fn dynamic_pin_for(relay_base: &str) -> Option<(String, Vec<u8>)> {
+    let host = relay_base
+        .trim_start_matches("https://")
+        .split(['/', ':'])
+        .next()?
+        .to_string();
+    let (pin_host, der) = dynamic_pin()?;
+    (pin_host == host).then(|| {
+        use base64::Engine;
+        let digest = aws_lc_rs::digest::digest(&aws_lc_rs::digest::SHA256, &der);
+        (
+            base64::engine::general_purpose::STANDARD.encode(digest.as_ref()),
+            der,
+        )
+    })
 }
 
 #[cfg(test)]

@@ -280,6 +280,10 @@ export interface AppSettings {
   webRelayUrl: string;
   /** 中继共享密钥(亦作手机 URL 路径段);relay 端只认它,桌面桥仍走 token/设备授权。 */
   webRelayKey: string;
+  /** 自建中继动态证书钉住:base64 DER(一键部署/导包时 Rust 落盘;空 = 回落内置钉)。 */
+  webRelayCertDer: string;
+  /** 动态证书适用主机(relay URL 的 host;命中才用上行 DER 做锚)。 */
+  webRelayCertHost: string;
   /**
    * 打开方式清单(open-with 编辑域,settings/files 两插件消费):数组顺序即菜单/面板显示顺序。
    * 默认种子仅「访达」;图标与可用性运行时解析,不持久化(见 kernel/openWith.ts)。

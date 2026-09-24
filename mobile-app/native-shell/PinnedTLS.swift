@@ -1,9 +1,11 @@
+import CryptoKit
 import Foundation
 
-/// 自建中继(123.249.45.144)的证书钉住。运营商对所有端口做 WS 深包检测
+/// 自建中继的证书钉住。运营商对所有端口做 WS 深包检测
 /// (80 吞 upgrade、443 嗅探 TLS),明文无解 → 443 上真 TLS(自签证书);
-/// 信任模型 = 不信任公共 CA,只认这张烧进二进制的证书(逐字节比对 DER)。
-/// 与桌面 src-tauri/src/web/pinned_tls.rs 同证书、同语义。
+/// 信任模型 = 不信任公共 CA:内置指纹(烧进二进制,换证书 = 重发版)+
+/// 配对下发的钥匙串 creds pin(任意自建 host,见 credsMatch)。
+/// 与桌面 src-tauri/src/web/pinned_tls.rs 同语义。
 enum PinnedTLS {
   static let host = "123.249.45.144"
   /// deploy/relay/relay-cert.der 的 base64(十年期自签;换证书 = 换这里重发版)。
@@ -35,6 +37,31 @@ EGVrEuDU
     guard let expected = certDer else { return false }
     return der == expected
   }
+
+  /// 钥匙串凭证回落钉住:配对 offer 带 pin(证书 DER 的 SHA-256 base64)+ pinHost
+  /// (src/mobile/creds.ts MobileCreds)。读取复用 ShellBridge.swift 的 Keychain.read
+  /// (同步 SecItemCopyMatching,challenge 回调线程可调)。host 不等、JSON 解析失败、
+  /// pin 缺失/不等一律返回 false,静默走拒绝分支。
+  static func credsMatch(host: String, der: Data) -> Bool {
+    guard let json = Keychain.read(),
+          let data = json.data(using: .utf8),
+          let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+          let pin = obj["pin"] as? String, !pin.isEmpty,
+          let pinHost = obj["pinHost"] as? String, pinHost == host
+    else { return false }
+    let digest = Data(SHA256.hash(data: der)).base64EncodedString()
+    return b64Equal(pin, digest)
+  }
+
+  /// base64 宽松比对:容忍 base64url 变体与 padding 差异(签发端编码不做强约定)。
+  private static func b64Equal(_ a: String, _ b: String) -> Bool {
+    func norm(_ s: String) -> String {
+      s.replacingOccurrences(of: "-", with: "+")
+        .replacingOccurrences(of: "_", with: "/")
+        .replacingOccurrences(of: "=", with: "")
+    }
+    return norm(a) == norm(b)
+  }
 }
 
 /// 证书钉住 URLSession delegate(WS 与 /pair 共用):钉住主机比对证书 DER,
@@ -48,16 +75,22 @@ final class PinnedDelegate: NSObject, URLSessionDelegate {
     completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
   ) {
     guard let trust = challenge.protectionSpace.serverTrust,
-          PinnedTLS.isPinned(challenge.protectionSpace.host),
           let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate],
           let leaf = chain.first,
-          let certData = SecCertificateCopyData(leaf) as Data?,
-          PinnedTLS.matches(certData)
+          let certData = SecCertificateCopyData(leaf) as Data?
     else {
       completionHandler(.performDefaultHandling, nil)
       return
     }
-    completionHandler(.useCredential, URLCredential(trust: trust))
+    let host = challenge.protectionSpace.host
+    // 内置指纹命中,或失败后回落钥匙串 creds pin;自签证书没有 CA 链,
+    // performDefaultHandling 必被系统打回 → 指纹命中一律 useCredential 显式放行。
+    if (PinnedTLS.isPinned(host) && PinnedTLS.matches(certData))
+      || PinnedTLS.credsMatch(host: host, der: certData) {
+      completionHandler(.useCredential, URLCredential(trust: trust))
+    } else {
+      completionHandler(.performDefaultHandling, nil)
+    }
   }
 }
 

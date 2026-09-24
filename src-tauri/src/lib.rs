@@ -309,6 +309,8 @@ pub fn run() {
             web::relay::web_relay_status,
             web::relay::relay_deploy,
             web::relay::relay_deploy_pack,
+            web::relay_selfhost::relay_deploy_selfhost,
+            web::relay_selfhost_pack::relay_selfhost_pack,
             web::web_access::web_access_status,
             web::web_access::web_pair_offer,
             web::web_access::web_devices_list,

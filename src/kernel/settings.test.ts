@@ -87,8 +87,8 @@ describe("初始状态与默认值", () => {
       wsl: { defaultDistro: "", remoteHostId: "" },
       webAccessEnabled: false,
       webRelayOn: false,
-      webRelayUrl: "",
-      webRelayKey: "",
+      /* 中继域四键并一行:本文件贴 300 行铁则线,同域同默认值不逐行展开 */
+      webRelayUrl: "", webRelayKey: "", webRelayCertDer: "", webRelayCertHost: "",
       openWithTargets: [{ id: "finder", label: "访达", kind: "finder" }],
       openWithDefaultId: "finder",
       git: { view: "diff", layout: "flat", diffMode: "unified", diffWrap: true },

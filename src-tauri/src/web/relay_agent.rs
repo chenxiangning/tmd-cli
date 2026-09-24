@@ -101,9 +101,17 @@ async fn dial_agent(agent: &str) -> Result<AgentSocket, String> {
     let tls = matches!(scheme, "https" | "wss");
     let port = uri.port_u16().unwrap_or(if tls { 443 } else { 80 });
     let stream = connect_via_env_proxy(scheme, &host, port).await?;
-    // 自建 ECS 中继(443 自签证书):走证书钉住的 verifier。
-    let connector = (host == super::pinned_tls::PINNED_HOST && tls)
-        .then(|| Connector::Rustls(super::pinned_tls::pinned_client_config()));
+    // 自建中继(443 自签证书):内置钉或 settings 动态钉命中才走钉住 verifier。
+    let dynamic = super::pinned_tls::dynamic_pin();
+    let pinned = tls
+        && (host == super::pinned_tls::PINNED_HOST
+            || dynamic.as_ref().is_some_and(|(h, _)| *h == host));
+    let connector = pinned.then(|| {
+        let extra = dynamic
+            .as_ref()
+            .map(|(h, der)| (h.as_str(), der.as_slice()));
+        Connector::Rustls(super::pinned_tls::pinned_client_config_with(extra))
+    });
     client_async_tls_with_config(request, stream, None, connector)
         .await
         .map(|(socket, _)| socket)
