@@ -172,3 +172,24 @@ fn spawn_引擎表含qodercli不含裸qoder() {
     assert!(!spawn_command_allowed(&ok("qoder"))); // 漂移名:不存在二进制,秒退
     assert!(!spawn_command_allowed(&ok("deepseek"))); // 无桌面 profile,死项
 }
+
+/// 手机引擎表(engines.ts)与桥闸对齐:手机表加新引擎而闸未加 = spawn 全拒,
+/// 只有真机能发现(第二轮评审 TestQuality P2;include_str! 扫描同「桥臂表」先例)。
+#[test]
+fn 手机引擎表命令必过桥闸() {
+    const TS: &str = include_str!("../../../src/mobile/engines.ts");
+    let mut found = 0;
+    let mut rest = TS;
+    while let Some(at) = rest.find("cmd: \"") {
+        let after = &rest[at + 6..];
+        let end = after.find('"').expect("cmd 字符串未闭合");
+        let cmd = &after[..end];
+        assert!(
+            spawn_command_allowed(&serde_json::json!({ "spec": { "command": cmd } })),
+            "{cmd} 手机表有、桥闸拒绝"
+        );
+        found += 1;
+        rest = &after[end..];
+    }
+    assert!(found >= 8, "引擎表扫描异常(仅 {found} 项)");
+}

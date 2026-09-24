@@ -56,28 +56,27 @@ fn persist_relay_state(
     enabled: bool,
     target: Option<(&str, &str)>,
 ) -> Result<(), String> {
-    let mut settings = crate::settings::load_settings();
-    if !settings.is_object() {
-        settings = serde_json::json!({});
-    }
-    if let Some((url, key)) = target {
-        settings["webRelayUrl"] = serde_json::json!(url);
-        settings["webRelayKey"] = serde_json::json!(key);
-    }
-    settings["webRelayOn"] = serde_json::json!(enabled);
-    crate::settings::save_settings(&settings).map_err(|e| format!("设置落盘失败: {e}"))?;
+    crate::settings::update_settings(|settings| {
+        if let Some((url, key)) = target {
+            settings["webRelayUrl"] = serde_json::json!(url);
+            settings["webRelayKey"] = serde_json::json!(key);
+        }
+        settings["webRelayOn"] = serde_json::json!(enabled);
+    })?;
     /* 前端 settings store 监听此事件回读磁盘,避免 store 与盘分叉。 */
     let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));
     Ok(())
 }
 
 fn persist_bridge_enabled(app: &tauri::AppHandle, enabled: bool) -> Result<(), String> {
-    let mut settings = crate::settings::load_settings();
-    if settings["webAccessEnabled"] == serde_json::json!(enabled) {
+    if crate::settings::update_settings(|settings| {
+        settings["webAccessEnabled"] == serde_json::json!(enabled)
+    })? {
         return Ok(());
     }
-    settings["webAccessEnabled"] = serde_json::json!(enabled);
-    crate::settings::save_settings(&settings).map_err(|e| format!("设置落盘失败: {e}"))?;
+    crate::settings::update_settings(|settings| {
+        settings["webAccessEnabled"] = serde_json::json!(enabled);
+    })?;
     let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));
     Ok(())
 }

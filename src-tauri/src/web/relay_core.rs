@@ -21,7 +21,10 @@ pub(super) const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::fro
 pub(super) const MAX_HTTP_BODY: usize = 8 * 1024 * 1024;
 /// 悬挂 HTTP 流(Open 后 60s 未 End)兜底 TTL。
 pub(super) const PENDING_HTTP_TTL: std::time::Duration = std::time::Duration::from_secs(60);
-/// 单 agent 并发流上限(防流表灌爆;中继侧另有 MAX_STREAMS)。
+/// 单 agent 出站帧上限(b64 后):mjs AGENT_MAX_FRAME=32MiB 再留余量。
+/// 预算链(评审二轮 P1-3 跨层对齐):手机 invoke 帧 ≤3.5MiB(transportBridge 守卫)
+/// < PHONE_MAX_FRAME 4MiB;桌面响应帧 ≤ 此值 < 中继 32MiB —— 超限走带内 Error 不断链。
+pub(super) const MAX_CLIENT_FRAME: usize = 30 * 1024 * 1024;
 pub(super) const MAX_PENDING_STREAMS: usize = 512;
 /// 标记经中继进入本机的流量:桥的 VIA 语义。
 pub const VIA_HEADER: &str = "x-tmd-via";

@@ -26,8 +26,22 @@ enum IoEndReason {
     WriteFailed,
 }
 
-/// 向幕布事件流追加一段原始字节并落日志(重连提示等引擎侧文本也走此路)。
+/// 向幕布事件流追加一段原始字节并落日志(重连提示等引擎侧文本也走此路;
+/// 完整串自带 tail 无缝合需要)。
 pub(crate) fn emit_output(app: &AppHandle, registry: &SshRegistry, session_id: &str, bytes: &[u8]) {
+    emit_output_decoded(app, registry, session_id, &mut Vec::new(), bytes);
+}
+
+/// 幕布事件流写入(带跨 chunk UTF-8 缝合):russh Data 消息边界与多字节字符
+/// 边界任意相交,逐包 lossy = 每个劈点产 U+FFFD(与 pty_spawn 泵同病);
+/// tail 由泵循环跨 chunk 持有(评审二轮 P1-1:同一 pty://out 契约保真度一致)。
+pub(crate) fn emit_output_decoded(
+    app: &AppHandle,
+    registry: &SshRegistry,
+    session_id: &str,
+    tail: &mut Vec<u8>,
+    bytes: &[u8],
+) {
     let entry = match registry.sessions.lock().get(session_id).map(Arc::clone) {
         Some(entry) => entry,
         None => return,
@@ -37,7 +51,7 @@ pub(crate) fn emit_output(app: &AppHandle, registry: &SshRegistry, session_id: &
             *entry.log_file.lock() = None;
         }
     }
-    let text = String::from_utf8_lossy(bytes).to_string();
+    let text = crate::pty_spawn::decode_utf8_chunk(tail, bytes);
     crate::event_sink::emit(app, &format!("pty://out/{session_id}"), &text);
 }
 
@@ -88,6 +102,8 @@ pub(crate) async fn run_session_io(
     });
 
     let mut remote_exit: Option<IoEndReason> = None;
+    /* 跨 chunk UTF-8 残尾:Data 边界劈开多字节字符时缝合,收尾时 flush。 */
+    let mut utf8_tail: Vec<u8> = Vec::new();
     let end_reason = loop {
         tokio::select! {
             reason = writer_end_rx.recv() => {
@@ -96,7 +112,7 @@ pub(crate) async fn run_session_io(
             message = read_half.wait() => {
                 match message {
                     Some(ChannelMsg::Data { data }) | Some(ChannelMsg::ExtendedData { data, .. }) => {
-                        emit_output(&app, &registry, &session_id, data.as_ref());
+                        emit_output_decoded(&app, &registry, &session_id, &mut utf8_tail, data.as_ref());
                     }
                     Some(ChannelMsg::ExitStatus { exit_status }) => {
                         remote_exit = Some(IoEndReason::RemoteExit(exit_status));
@@ -115,7 +131,6 @@ pub(crate) async fn run_session_io(
             }
         }
     };
-
     finish_session_io(
         app,
         registry,
@@ -123,6 +138,7 @@ pub(crate) async fn run_session_io(
         runtime,
         connection_id,
         end_reason,
+        utf8_tail,
     )
     .await;
 }
@@ -134,7 +150,12 @@ async fn finish_session_io(
     runtime: Arc<SshSessionRuntime>,
     connection_id: usize,
     end_reason: IoEndReason,
+    mut utf8_tail: Vec<u8>,
 ) {
+    /* 残尾补 U+FFFD:断口后的字节永远等不到(重连期间远端输出已丢),横幅前先清账。 */
+    if let Some(rest) = crate::pty_spawn::flush_utf8_tail(&mut utf8_tail) {
+        emit_output(&app, &registry, &session_id, rest.as_bytes());
+    }
     if runtime.is_closing() {
         return;
     }

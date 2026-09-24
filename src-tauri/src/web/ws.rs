@@ -128,9 +128,8 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
     {
         return;
     }
-    /* 出站:invoke 响应(mpsc)+ 事件广播(broadcast)合并进同一条 socket。
-    收发同循环:任一收线分支都能先发 Close 帧再统一断开,避免半边 drop
-    把 4001 竞态成 1006。 */
+    /* 出站:invoke 响应+事件广播合并进同一条 socket;收发同循环:任何收线
+    分支都先发 Close 再断,避免半边 drop 把 4001 竞态成 1006。 */
     let (out_tx, mut out_rx) = tokio::sync::mpsc::channel::<String>(256);
     // 事件订阅集:未订阅的事件不发(慢链路手机不再被 pty out 高频流灌爆)。
     let mut subs: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -139,12 +138,12 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
     let mut ever_subscribed = false;
     let mut events_rx = crate::event_sink::subscribe();
     let mut stop = ctx.stop.subscribe();
-    /* 订阅后立即吸收已置位(stop 早于本连接):否则 watch 语义下 changed() 不再
-    触发,socket 将带着完整派发权活到自行断连。 */
+    /* 先吸收已置位的 stop(watch 语义):否则 socket 带完整派发权活到自行断连。 */
     if *stop.borrow_and_update() {
         return;
     }
-    /* 设备撤销信号(桌面 revoke → conn::kick 置位)。 */
+    /* 撤销信号(revoke→kick)。取舍(二轮 P2-5):kick 只关 socket,在途 invoke
+     * 跑完为止——批准 = SSH 级信任,断连同不杀在途,有意不复核批准态。 */
     let mut kick_rx = live_rx;
     let mut recheck = tokio::time::interval(std::time::Duration::from_secs(5));
     /* invoke 并发帽:每连接 32 并发,超发快拒。 */
@@ -167,7 +166,11 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
                         break;
                     }
                 }
-                Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(broadcast::error::RecvError::Lagged(n)) => {
+                    /* 带内跳帧信号(二轮 P2-2):告知消费方重拉,幕布不静默缺帧。 */
+                    let _ = out_tx.try_send(format!("{{\"type\":\"event-gap\",\"n\":{n}}}"));
+                    continue;
+                }
                 Err(broadcast::error::RecvError::Closed) => break,
             },
             msg = ws_rx.next() => {
@@ -183,10 +186,14 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
                                 let permit = match invoke_slots.clone().try_acquire_owned() {
                                     Ok(p) => p,
                                     Err(_) => {
-                                        let _ = out_tx.try_send(
-                                            serde_json::json!({"type": "response", "id": id, "ok": false,
-                                                "error": "并发请求过多,请稍候"}).to_string(),
-                                        );
+                                        /* 拒绝响应走 spawn+await:手机 invoke 无逐请求超时,
+                                         * try_send 满即丢 = 客户端该请求挂到断连。 */
+                                        let out = out_tx.clone();
+                                        let frame = serde_json::json!({"type": "response", "id": id, "ok": false,
+                                            "error": "并发请求过多,请稍候"}).to_string();
+                                        tokio::spawn(async move {
+                                            let _ = out.send(frame).await;
+                                        });
                                         continue;
                                     }
                                 };

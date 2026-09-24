@@ -281,12 +281,12 @@ fn persist_selfhost(
     key: &str,
     cert: &selfhost_assets::RelayCert,
 ) {
-    let mut settings = crate::settings::load_settings();
-    settings["webRelayUrl"] = serde_json::json!(format!("https://{host}"));
-    settings["webRelayKey"] = serde_json::json!(key);
-    settings["webRelayCertHost"] = serde_json::json!(host);
-    settings["webRelayCertDer"] = serde_json::json!(bytes_to_b64(&cert.der));
-    if let Err(error) = crate::settings::save_settings(&settings) {
+    if let Err(error) = crate::settings::update_settings(|settings| {
+        settings["webRelayUrl"] = serde_json::json!(format!("https://{host}"));
+        settings["webRelayKey"] = serde_json::json!(key);
+        settings["webRelayCertHost"] = serde_json::json!(host);
+        settings["webRelayCertDer"] = serde_json::json!(bytes_to_b64(&cert.der));
+    }) {
         eprintln!("[selfhost] 设置落盘失败: {error}");
     }
     let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));

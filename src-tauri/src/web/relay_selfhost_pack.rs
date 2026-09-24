@@ -39,10 +39,10 @@ pub fn relay_selfhost_pack(
         ("tmd-relay-selfhost/README.txt", readme.as_bytes()),
     ]);
     std::fs::write(&path, zip).map_err(|e| format!("写入 {path} 失败: {e}"))?;
-    let mut settings = crate::settings::load_settings();
-    settings["webRelayCertHost"] = serde_json::json!(host);
-    settings["webRelayCertDer"] = serde_json::json!(bytes_to_b64(&cert.der));
-    if let Err(error) = crate::settings::save_settings(&settings) {
+    if let Err(error) = crate::settings::update_settings(|settings| {
+        settings["webRelayCertHost"] = serde_json::json!(host);
+        settings["webRelayCertDer"] = serde_json::json!(bytes_to_b64(&cert.der));
+    }) {
         eprintln!("[selfhost] 设置落盘失败: {error}");
     }
     let _ = crate::event_sink::emit(&app, "settings:changed", &serde_json::json!({})); /* 双面:手机覆盖层也需感知证书钉 */

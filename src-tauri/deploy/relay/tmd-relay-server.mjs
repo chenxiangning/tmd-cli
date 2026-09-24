@@ -183,7 +183,7 @@ function wrapSocket(sock, head, maxFrame) {
           sock.write(wsFrame(OP.pong, f.payload));
         } catch {}
       } else if (f.opcode === OP.close) return state.destroy();
-      else if (f.opcode === OP.text || f.opcode === OP.binary) state.onMessage(f.payload);
+      else if (f.opcode === OP.text || f.opcode === OP.binary) state.onMessage(f.payload, f.opcode === OP.text);
     }
   };
   sock.on("data", onData);
@@ -288,14 +288,23 @@ function onAgentFrame(raw) {
     case "data": {
       const bytes = Buffer.from(frame.b64, "base64");
       if (s.kind === "http") {
+        /* 慢客户端水位:res.write 忽略返回值 = Node 侧无界缓冲(同 ws 流防线)。 */
+        if (s.res.writableLength > MAX_STREAM_TO_PHONE) {
+          toAgent({ t: "close", id: frame.id });
+          killStream(frame.id, "http backpressure");
+          return;
+        }
         try {
           s.res.write(bytes);
         } catch {}
       } else if (s.ws) {
         s.toPhone += bytes.length;
         /* 手机慢排水:ws.send 背压自身停摄入只挡 phone→desk 向;desk→phone 向
-         * 源在 agent,只能按单流积压水位杀——超限即手机死链,清场让它重连。 */
+         * 源在 agent,只能按单流积压水位杀——超限即手机死链,清场让它重连。
+         * 必须先 toAgent close:桌面 LiveSocket 只认 close 帧,不发 = 本地桥
+         * 任务永久存活持续泵输出到未知 id(二轮 FixAudit P1-2)。 */
         if (s.ws.writableLength() > MAX_STREAM_TO_PHONE) {
+          toAgent({ t: "close", id: frame.id });
           killStream(frame.id, "phone backpressure");
           return;
         }
@@ -401,10 +410,12 @@ function serveWs(req, socket, head) {
     log(`ws#${id} ${url.pathname} open`);
     toAgent({ t: "open", id, ws: true, path: req.url, headers: copyHeaders(req, DROP_WS_HEADERS) });
     const cmdHist = new Map();
-    phoneWs.onMessage = (payload) => {
+    phoneWs.onMessage = (payload, isText) => {
       s.fromPhone += payload.length;
-      /* 手机向合法帧全是小 JSON 线帧;超总量 = 滥用,清场。 */
+      /* 手机向合法帧全是小 JSON 线帧;超总量 = 滥用,清场。
+       * 先 toAgent close:桌面 LiveSocket 只认 close 帧,不发 = 任务泄漏。 */
       if (s.fromPhone > MAX_STREAM_FROM_PHONE) {
+        toAgent({ t: "close", id });
         killStream(id, "phone flood");
         return;
       }
@@ -415,7 +426,7 @@ function serveWs(req, socket, head) {
         } catch {}
         log(`ws#${id} phone burst: ${s.phoneMsgs} msgs; cmds=${JSON.stringify(Object.fromEntries(cmdHist))}`);
       }
-      toAgent({ t: "data", id, b64: payload.toString("base64"), text: true });
+      toAgent({ t: "data", id, b64: payload.toString("base64"), text: isText }); /* 真实帧型别:agent 侧 lossy 解码只在 text 帧合法 */
     };
     phoneWs.onClose = () => {
       clearInterval(keep);

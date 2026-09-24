@@ -32,6 +32,18 @@ pub fn save_settings(data: &serde_json::Value) -> std::io::Result<()> {
     save_settings_locked(data)
 }
 
+/// 锁内读改写:与桌面整树写(config_write_settings)及其他 RMW 写者
+/// (relay/selfhost persist、toggle_pin)串行,消掉「load 在锁外的 stale 覆盖」窗口。
+pub fn update_settings<R>(f: impl FnOnce(&mut serde_json::Value) -> R) -> Result<R, String> {
+    let _io = SETTINGS_IO.lock();
+    let mut data = load_settings();
+    if !data.is_object() {
+        data = serde_json::json!({});
+    }
+    let out = f(&mut data);
+    save_settings_locked(&data).map_err(|e| format!("设置落盘失败: {e}"))?;
+    Ok(out)
+}
 fn save_settings_locked(data: &serde_json::Value) -> std::io::Result<()> {
     ensure_config_dir()?;
     let json = serde_json::to_string_pretty(data).map_err(std::io::Error::other)?;

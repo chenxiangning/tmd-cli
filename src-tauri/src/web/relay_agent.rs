@@ -21,8 +21,9 @@ use crate::ssh::proxy::{
 
 use super::relay_core::{
     b64_to_bytes, bytes_to_b64, hop_headers, queue_heartbeat, redial_until_connected, send,
-    AgentFrame, ClientFrame, LiveSocket, OutFrame, PendingHttp, HEARTBEAT_INTERVAL, MAX_HTTP_BODY,
-    MAX_PENDING_STREAMS, PENDING_HTTP_TTL, REDIAL_DELAY_MS, VIA_HEADER,
+    AgentFrame, ClientFrame, LiveSocket, OutFrame, PendingHttp, HEARTBEAT_INTERVAL,
+    MAX_CLIENT_FRAME, MAX_HTTP_BODY, MAX_PENDING_STREAMS, PENDING_HTTP_TTL, REDIAL_DELAY_MS,
+    VIA_HEADER,
 };
 
 /// 保持 agent socket 存活:活着又死就重拨;拨不上就封顶退避重试,只有开关能停。
@@ -230,6 +231,8 @@ async fn serve(socket: AgentSocket, port: u16, stop: &mut watch::Receiver<bool>)
     });
 
     let http: Arc<Mutex<HashMap<u64, PendingHttp>>> = Arc::new(Mutex::new(HashMap::new()));
+    /* 已发 HTTP 流任务句柄:serve 收尾统一 abort(悬死响应防 writer 互等)。 */
+    let https: Arc<Mutex<Vec<tokio::task::AbortHandle>>> = Arc::new(Mutex::new(Vec::new()));
     let sockets: Arc<Mutex<HashMap<u64, LiveSocket>>> = Arc::new(Mutex::new(HashMap::new()));
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
@@ -250,8 +253,7 @@ async fn serve(socket: AgentSocket, port: u16, stop: &mut watch::Receiver<bool>)
             _ = stop.changed() => break,
             _ = heartbeat.tick() => {
                 sweep.tick().await; // 与心跳同频即够(15s ≪ TTL 60s)
-                http.lock()
-                    .retain(|_, p| p.opened.elapsed() < PENDING_HTTP_TTL);
+                sweep_stale(&http);
                 if ping_sent_at.take().is_some() {
                     break;
                 }
@@ -285,48 +287,37 @@ async fn serve(socket: AgentSocket, port: u16, stop: &mut watch::Receiver<bool>)
                 headers,
             } => {
                 if ws {
-                    let live = spawn_socket(id, path, headers, port, out_tx.clone());
-                    sockets.lock().insert(id, live);
-                } else {
-                    let too_many = http.lock().len() >= MAX_PENDING_STREAMS;
-                    if too_many {
+                    if sockets.lock().len() >= MAX_PENDING_STREAMS {
                         let _ = send(
                             &out_tx,
                             &ClientFrame::Error {
                                 id,
-                                message: "中继并发流过多,拒绝".into(),
+                                message: STREAM_CAP_MSG.into(),
                             },
                         )
                         .await;
                         continue;
                     }
-                    http.lock().insert(
-                        id,
-                        PendingHttp {
-                            method,
-                            path,
-                            headers,
-                            body: Vec::new(),
-                            opened: tokio::time::Instant::now(),
+                    let live = spawn_socket(id, path, headers, port, out_tx.clone());
+                    sockets.lock().insert(id, live);
+                } else if http.lock().len() >= MAX_PENDING_STREAMS {
+                    let _ = send(
+                        &out_tx,
+                        &ClientFrame::Error {
+                            id,
+                            message: STREAM_CAP_MSG.into(),
                         },
-                    );
+                    )
+                    .await;
+                    continue;
+                } else {
+                    http.lock().insert(id, admit_http(method, path, headers));
                 }
             }
             AgentFrame::Body { id, b64 } => {
-                let overflow = {
-                    let mut http = http.lock();
-                    match http.get_mut(&id) {
-                        Some(pending) => {
-                            pending.body.extend(b64_to_bytes(&b64));
-                            pending.body.len() > MAX_HTTP_BODY
-                        }
-                        None => false,
-                    }
-                };
-                if overflow {
+                if let Err(()) = feed_http_body(&http, id, &b64) {
                     /* 匿名公网面经中继 POST 即达此处:无上限累积 = 远程 OOM 杀桌面
                      * (全部活会话陪葬)。超限即断流,配中继侧 MAX_STREAMS 纵深。 */
-                    http.lock().remove(&id);
                     let _ = send(
                         &out_tx,
                         &ClientFrame::Error {
@@ -340,7 +331,8 @@ async fn serve(socket: AgentSocket, port: u16, stop: &mut watch::Receiver<bool>)
             AgentFrame::End { id } => {
                 let pending = http.lock().remove(&id);
                 if let Some(pending) = pending {
-                    spawn_http(id, pending, port, out_tx.clone(), client.clone());
+                    let task = spawn_http(id, pending, port, out_tx.clone(), client.clone());
+                    https.lock().push(task);
                 }
             }
             AgentFrame::Data { id, b64, text } => {
@@ -391,20 +383,66 @@ async fn serve(socket: AgentSocket, port: u16, stop: &mut watch::Receiver<bool>)
     for (_, live) in sockets.lock().drain() {
         live.task.abort();
     }
+    for task in https.lock().drain(..) {
+        task.abort();
+    }
     http.lock().clear();
     drop(out_tx);
-    let _ = writer.await;
+    /* writer 等全部发送端 drop:悬死流已 abort,再给 5s 兜底防互等死锁。 */
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), writer).await;
 }
 
-/// 向本机桥发一个 HTTP 流并回传。
+/// 三防可测小件(评审二轮 TestQuality P1-1):serve 臂表调用,测试直驱。
+const STREAM_CAP_MSG: &str = "中继并发流过多,拒绝";
+
+/// HTTP 流入表构造(Open 非 ws 臂;id 由调用方作 map 键)。 */
+fn admit_http(method: String, path: String, headers: HashMap<String, String>) -> PendingHttp {
+    PendingHttp {
+        method,
+        path,
+        headers,
+        body: Vec::new(),
+        opened: tokio::time::Instant::now(),
+    }
+}
+
+/// Body 臂:累积请求体;Err(()) = 超 MAX_HTTP_BODY(调用方发 Error 并断流)。
+fn feed_http_body(
+    http: &Arc<Mutex<HashMap<u64, PendingHttp>>>,
+    id: u64,
+    b64: &str,
+) -> Result<(), ()> {
+    let mut http = http.lock();
+    match http.get_mut(&id) {
+        Some(pending) => {
+            pending.body.extend(b64_to_bytes(b64));
+            if pending.body.len() > MAX_HTTP_BODY {
+                http.remove(&id);
+                Err(())
+            } else {
+                Ok(())
+            }
+        }
+        None => Ok(()),
+    }
+}
+
+/// 悬挂流清扫(心跳臂):Open 后超 TTL 未 End 即弃。
+fn sweep_stale(http: &Arc<Mutex<HashMap<u64, PendingHttp>>>) {
+    http.lock()
+        .retain(|_, p| p.opened.elapsed() < PENDING_HTTP_TTL);
+}
+
+/// 向本机桥发一个 HTTP 流并回传;返回任务句柄(serve 收尾统一 abort,
+/// 否则桥端悬死响应会让 writer.await 互等 → 停中继后 agent 任务滞留)。
 fn spawn_http(
     id: u64,
     pending: PendingHttp,
     port: u16,
     out: mpsc::Sender<OutFrame>,
     client: reqwest::Client,
-) {
-    tokio::spawn(async move {
+) -> tokio::task::AbortHandle {
+    let task = tokio::spawn(async move {
         if !pending.path.starts_with('/') {
             let _ = send(
                 &out,
@@ -449,7 +487,8 @@ fn spawn_http(
                 continue;
             }
             if let Ok(value) = value.to_str() {
-                /* 同名多头(Set-Cookie 等)合并保留,insert 会静默丢只剩最后一份。 */
+                /* 同名多头 join 保留(insert 只剩最后一份)。注:set-cookie 语义上
+                 * 不得列表合并(RFC 7230),当前桥面无生产者;真需要时改 Vec 头。 */
                 headers
                     .entry(name)
                     .and_modify(|v: &mut String| {
@@ -506,6 +545,7 @@ fn spawn_http(
         }
         let _ = send(&out, &ClientFrame::Close { id }).await;
     });
+    task.abort_handle()
 }
 
 /// 拨本机桥的 socket 路由,双向泵载荷。
@@ -586,12 +626,29 @@ fn spawn_socket(
                     }
                 },
                 message = ws_rx.next() => match message {
+                    /* 单帧载荷守卫(评审二轮 P1-3):invoke 全量响应(大文件 base64)
+                     * 打包成一条 Data 帧超中继解析上限时,整条 agent socket 会被拆除
+                     * 进重拨循环。改为对该流回 Error 并关流,单请求失败 ≠ 断链。 */
                     Some(Ok(Message::Binary(bytes))) => {
+                        if bytes_to_b64(&bytes).len() > MAX_CLIENT_FRAME {
+                            let _ = send(&out, &ClientFrame::Error {
+                                id,
+                                message: "响应载荷超过中继线帧上限,请在桌面端处理该文件".into(),
+                            }).await;
+                            break;
+                        }
                         if send(&out, &ClientFrame::Data { id, b64: bytes_to_b64(&bytes), text: Some(false) }).await.is_err() {
                             break;
                         }
                     }
                     Some(Ok(Message::Text(text))) => {
+                        if text.len() > MAX_CLIENT_FRAME {
+                            let _ = send(&out, &ClientFrame::Error {
+                                id,
+                                message: "响应载荷超过中继线帧上限,请在桌面端处理该文件".into(),
+                            }).await;
+                            break;
+                        }
                         if send(&out, &ClientFrame::Data { id, b64: bytes_to_b64(text.as_bytes()), text: Some(true) }).await.is_err() {
                             break;
                         }
@@ -612,6 +669,63 @@ fn spawn_socket(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 评审二轮 TestQuality P1-1:P0 三防(体限/清扫/流表帽)回归锚。
+    #[test]
+    fn http体超限即断流() {
+        let http: Arc<Mutex<HashMap<u64, PendingHttp>>> = Arc::new(Mutex::new(HashMap::new()));
+        http.lock().insert(
+            7,
+            PendingHttp {
+                method: "POST".into(),
+                path: "/".into(),
+                headers: HashMap::new(),
+                body: Vec::new(),
+                opened: tokio::time::Instant::now(),
+            },
+        );
+        // 8MB 上限:灌 8MB+1 必超;b64 of 8MB zeros
+        let big = "A".repeat((MAX_HTTP_BODY / 3 + 1) * 4); // STANDARD b64 必须补齐 4 倍长;解码 3/4 后恰超上限一字节
+        assert!(feed_http_body(&http, 7, &big).is_err(), "超限应 Err");
+        assert!(
+            !http.lock().contains_key(&7),
+            "超限后条目必须移除(End 不得再触发 spawn)"
+        );
+        // 未超限路径
+        http.lock().insert(
+            8,
+            PendingHttp {
+                method: "POST".into(),
+                path: "/".into(),
+                headers: HashMap::new(),
+                body: Vec::new(),
+                opened: tokio::time::Instant::now(),
+            },
+        );
+        assert!(feed_http_body(&http, 8, "QUJD").is_ok());
+        assert_eq!(http.lock().get(&8).unwrap().body, b"ABC");
+        // 未知 id 静默
+        assert!(feed_http_body(&http, 999, "QQ==").is_ok());
+    }
+
+    #[test]
+    fn 悬挂流超ttl被清扫() {
+        let http: Arc<Mutex<HashMap<u64, PendingHttp>>> = Arc::new(Mutex::new(HashMap::new()));
+        let mut stale = admit_http("GET".into(), "/".into(), HashMap::new());
+        stale.opened =
+            tokio::time::Instant::now() - PENDING_HTTP_TTL - std::time::Duration::from_secs(1);
+        http.lock().insert(1, stale);
+        http.lock()
+            .insert(2, admit_http("GET".into(), "/".into(), HashMap::new()));
+        sweep_stale(&http);
+        assert!(!http.lock().contains_key(&1), "超 TTL 应清扫");
+        assert!(http.lock().contains_key(&2), "未超 TTL 保留");
+    }
+
+    #[test]
+    fn 流表帽512() {
+        assert_eq!(MAX_PENDING_STREAMS, 512); // 钉常量:改动需过此测试(评审有意识决策)
+    }
 
     #[test]
     fn proxy_url_parses_http_with_credentials() {
