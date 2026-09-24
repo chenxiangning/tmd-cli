@@ -185,7 +185,20 @@ pub async fn relay_deploy_selfhost(
             Err(error) => return Ok(fail(&app, &mut steps, "upload", error, None)),
         }
     }
-    let _ = selfhost_ssh::exec(&handle, &format!("chmod 600 {DIR}/relay-key.pem {DIR}/env")).await;
+    match selfhost_ssh::exec(&handle, &format!("chmod 600 {DIR}/relay-key.pem {DIR}/env")).await {
+        // 私钥+RELAY_KEY 落 0644 = 服务器全局可读;chmod 失败必须挡,不能让部署假成功。
+        Ok(out) if out.exit == 0 => {}
+        Ok(out) => {
+            return Ok(fail(
+                &app,
+                &mut steps,
+                "upload",
+                format!("chmod 600 失败(exit {}): 私钥权限未收紧", out.exit),
+                None,
+            ))
+        }
+        Err(error) => return Ok(fail(&app, &mut steps, "upload", error, None)),
+    }
     pass(&mut steps, &app, "upload");
 
     // systemd:探测 node 绝对路径 → 写 unit → enable --now
@@ -276,5 +289,6 @@ fn persist_selfhost(
     if let Err(error) = crate::settings::save_settings(&settings) {
         eprintln!("[selfhost] 设置落盘失败: {error}");
     }
-    let _ = app.emit("settings:changed", &serde_json::json!({}));
+    let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));
+    /* event_sink:webview+WS 双面(手机覆盖层同步) */
 }

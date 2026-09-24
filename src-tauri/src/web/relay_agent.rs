@@ -21,8 +21,8 @@ use crate::ssh::proxy::{
 
 use super::relay_core::{
     b64_to_bytes, bytes_to_b64, hop_headers, queue_heartbeat, redial_until_connected, send,
-    AgentFrame, ClientFrame, LiveSocket, OutFrame, PendingHttp, HEARTBEAT_INTERVAL,
-    REDIAL_DELAY_MS, VIA_HEADER,
+    AgentFrame, ClientFrame, LiveSocket, OutFrame, PendingHttp, HEARTBEAT_INTERVAL, MAX_HTTP_BODY,
+    MAX_PENDING_STREAMS, PENDING_HTTP_TTL, REDIAL_DELAY_MS, VIA_HEADER,
 };
 
 /// 保持 agent socket 存活:活着又死就重拨;拨不上就封顶退避重试,只有开关能停。
@@ -240,11 +240,18 @@ async fn serve(socket: AgentSocket, port: u16, stop: &mut watch::Receiver<bool>)
     heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     heartbeat.tick().await;
     let mut ping_sent_at: Option<tokio::time::Instant> = None;
-
+    /* 悬挂 HTTP 清扫:中继只发 Open+Body 不发 End 的流(攻击/半途死)在此兜底,
+     * 不让 PendingHttp 无限滞留。心跳臂顺带扫,免多一个 select 臂。 */
+    let mut sweep = tokio::time::interval(std::time::Duration::from_secs(15));
+    sweep.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    sweep.tick().await;
     loop {
         let frame = tokio::select! {
             _ = stop.changed() => break,
             _ = heartbeat.tick() => {
+                sweep.tick().await; // 与心跳同频即够(15s ≪ TTL 60s)
+                http.lock()
+                    .retain(|_, p| p.opened.elapsed() < PENDING_HTTP_TTL);
                 if ping_sent_at.take().is_some() {
                     break;
                 }
@@ -281,6 +288,18 @@ async fn serve(socket: AgentSocket, port: u16, stop: &mut watch::Receiver<bool>)
                     let live = spawn_socket(id, path, headers, port, out_tx.clone());
                     sockets.lock().insert(id, live);
                 } else {
+                    let too_many = http.lock().len() >= MAX_PENDING_STREAMS;
+                    if too_many {
+                        let _ = send(
+                            &out_tx,
+                            &ClientFrame::Error {
+                                id,
+                                message: "中继并发流过多,拒绝".into(),
+                            },
+                        )
+                        .await;
+                        continue;
+                    }
                     http.lock().insert(
                         id,
                         PendingHttp {
@@ -288,13 +307,34 @@ async fn serve(socket: AgentSocket, port: u16, stop: &mut watch::Receiver<bool>)
                             path,
                             headers,
                             body: Vec::new(),
+                            opened: tokio::time::Instant::now(),
                         },
                     );
                 }
             }
             AgentFrame::Body { id, b64 } => {
-                if let Some(pending) = http.lock().get_mut(&id) {
-                    pending.body.extend(b64_to_bytes(&b64));
+                let overflow = {
+                    let mut http = http.lock();
+                    match http.get_mut(&id) {
+                        Some(pending) => {
+                            pending.body.extend(b64_to_bytes(&b64));
+                            pending.body.len() > MAX_HTTP_BODY
+                        }
+                        None => false,
+                    }
+                };
+                if overflow {
+                    /* 匿名公网面经中继 POST 即达此处:无上限累积 = 远程 OOM 杀桌面
+                     * (全部活会话陪葬)。超限即断流,配中继侧 MAX_STREAMS 纵深。 */
+                    http.lock().remove(&id);
+                    let _ = send(
+                        &out_tx,
+                        &ClientFrame::Error {
+                            id,
+                            message: "请求体过大".into(),
+                        },
+                    )
+                    .await;
                 }
             }
             AgentFrame::End { id } => {
@@ -409,7 +449,14 @@ fn spawn_http(
                 continue;
             }
             if let Ok(value) = value.to_str() {
-                headers.insert(name, value.to_string());
+                /* 同名多头(Set-Cookie 等)合并保留,insert 会静默丢只剩最后一份。 */
+                headers
+                    .entry(name)
+                    .and_modify(|v: &mut String| {
+                        v.push_str(", ");
+                        v.push_str(value);
+                    })
+                    .or_insert_with(|| value.to_string());
             }
         }
         if send(

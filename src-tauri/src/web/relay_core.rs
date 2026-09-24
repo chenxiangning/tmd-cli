@@ -17,7 +17,12 @@ const REDIAL_MAX_MS: u64 = 30_000;
 pub(super) const HEARTBEAT_INTERVAL: std::time::Duration = std::time::Duration::from_secs(15);
 /// 单次拨号超时:connect_async 无内建超时,半开会永远停在握手、stop 永远等不到。
 pub(super) const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
-
+/// HTTP 请求体上限:经中继的匿名公网面可达,超限断流防 OOM(配中继侧纵深)。
+pub(super) const MAX_HTTP_BODY: usize = 8 * 1024 * 1024;
+/// 悬挂 HTTP 流(Open 后 60s 未 End)兜底 TTL。
+pub(super) const PENDING_HTTP_TTL: std::time::Duration = std::time::Duration::from_secs(60);
+/// 单 agent 并发流上限(防流表灌爆;中继侧另有 MAX_STREAMS)。
+pub(super) const MAX_PENDING_STREAMS: usize = 512;
 /// 标记经中继进入本机的流量:桥的 VIA 语义。
 pub const VIA_HEADER: &str = "x-tmd-via";
 
@@ -93,12 +98,13 @@ pub(super) enum ClientFrame {
     },
 }
 
-/// 已 announce 未收全的 HTTP 流。
 pub(super) struct PendingHttp {
     pub method: String,
     pub path: String,
     pub headers: HashMap<String, String>,
     pub body: Vec<u8>,
+    /// Open 到达时刻:悬挂流 TTL 清扫依据。
+    pub opened: tokio::time::Instant,
 }
 
 /// 活 socket 流:close 所需的句柄。

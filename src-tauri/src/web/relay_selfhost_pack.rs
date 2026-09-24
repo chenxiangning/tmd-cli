@@ -45,7 +45,6 @@ pub fn relay_selfhost_pack(
     if let Err(error) = crate::settings::save_settings(&settings) {
         eprintln!("[selfhost] 设置落盘失败: {error}");
     }
-    use tauri::Emitter;
-    let _ = app.emit("settings:changed", &serde_json::json!({}));
+    let _ = crate::event_sink::emit(&app, "settings:changed", &serde_json::json!({})); /* 双面:手机覆盖层也需感知证书钉 */
     Ok(path)
 }

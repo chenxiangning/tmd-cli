@@ -80,11 +80,20 @@ impl ServerCertVerifier for PinnedVerifier {
 /// 拨号用 ClientConfig:公共 CA 默认链 + 钉住表(内置 ECS + 可选动态)。
 /// 动态钉:一键部署把新服务器证书 DER 落 settings 后,拨号额外信任 (host, der)。
 pub fn pinned_client_config_with(extra: Option<(&str, &[u8])>) -> Arc<rustls::ClientConfig> {
-    let mut roots = RootCertStore::empty();
-    roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    let default = WebPkiServerVerifier::builder(Arc::new(roots))
-        .build()
-        .expect("webpki verifier");
+    /* 重拨循环 ≤30s 一次:根库构建(~150 根证书解析)与默认 verifier 全局只做一次。 */
+    static ROOTS: std::sync::LazyLock<Arc<RootCertStore>> = std::sync::LazyLock::new(|| {
+        let mut roots = RootCertStore::empty();
+        roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+        Arc::new(roots)
+    });
+    static DEFAULT: std::sync::LazyLock<Arc<WebPkiServerVerifier>> =
+        std::sync::LazyLock::new(|| {
+            WebPkiServerVerifier::builder(ROOTS.clone())
+                .build()
+                .expect("webpki verifier")
+        });
+    let default = DEFAULT.clone();
+    let roots = ROOTS.clone();
     let mut pins = vec![(PINNED_HOST.to_string(), sha256(PINNED_CERT_DER))];
     if let Some((host, der)) = extra {
         match pins.iter_mut().find(|(h, _)| h == host) {
@@ -94,11 +103,7 @@ pub fn pinned_client_config_with(extra: Option<(&str, &[u8])>) -> Arc<rustls::Cl
     }
     let mut cfg = rustls::ClientConfig::builder()
         // 占位根(同库);实际校验整体替换为 PinnedVerifier。
-        .with_root_certificates({
-            let mut r = RootCertStore::empty();
-            r.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-            r
-        })
+        .with_root_certificates(roots)
         .with_no_client_auth();
     cfg.dangerous()
         .set_certificate_verifier(Arc::new(PinnedVerifier { default, pins }));

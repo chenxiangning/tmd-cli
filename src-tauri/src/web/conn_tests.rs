@@ -58,8 +58,8 @@ fn 白名单fs_git命令必有桥臂() {
 fn spawn_命令收敛_引擎白名单() {
     let ok = |cmd: &str| serde_json::json!({ "profileId": "omp", "spec": { "command": cmd, "cwd": "/tmp" }, "workspaceId": null });
     assert!(spawn_command_allowed(&ok("omp")));
-    assert!(spawn_command_allowed(&ok("/usr/local/bin/claude"))); // basename 命中
-                                                                  // shell 四件套退闸(2026-09-24):手机无 shell 入口,设备起交互 shell = 纯攻击面
+    assert!(!spawn_command_allowed(&ok("/usr/local/bin/claude"))); // 路径形:PTY 原样透传,basename 命中 = 闸洞
+    assert!(!spawn_command_allowed(&ok("./claude"))); // 工作区内同名可执行 = 任意执行
     for bad in [
         "curl",
         "rm",

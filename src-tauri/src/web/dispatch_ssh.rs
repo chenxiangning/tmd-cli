@@ -151,7 +151,7 @@ async fn dispatch_inner(app: &AppHandle, cmd: &str, raw: &Value) -> Result<Value
         "ssh_forward_check_port" => {
             val(c::ssh_forward_check_port(args::<OnePort>(raw)?.port).await)
         }
-        _ => unreachable!("web dispatch 归属判断与臂表不同步: {cmd}"),
+        _ => Err(format!("internal: gated command without arm: {cmd}")), /* 同 dispatch_session F5:漂移不 panic(spawn 任务里 unreachable = response 永挂) */
     }
 }
 

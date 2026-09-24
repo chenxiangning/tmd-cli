@@ -53,10 +53,11 @@ function wsFrame(opcode, payload) {
   return Buffer.concat([header, payload]);
 }
 
-function makeParser() {
+function makeParser(maxFrame) {
   let buf = Buffer.alloc(0);
   let fragments = [];
   let fragOpcode = 0;
+  let fragTotal = 0;
   return {
     feed(chunk) {
       buf = Buffer.concat([buf, chunk]);
@@ -79,6 +80,10 @@ function makeParser() {
           len = Number(big);
           off += 8;
         }
+        /* RFC6455:控制帧不分片、载荷 ≤125B;协议帧只可能是小 JSON,
+         * 大Declared/碎片流 = DoS 滴灌,头部期即拒,不等 payload 灌满。 */
+        if (opcode >= 0x8 && len > 125) throw new Error("control frame too large");
+        if (len > maxFrame) throw new Error("frame too large");
         if (masked) off += 4;
         if (buf.length < off + len) break;
         let payload = Buffer.from(buf.subarray(off, off + len));
@@ -89,18 +94,21 @@ function makeParser() {
         buf = buf.subarray(off + len);
         if (opcode === OP.close || opcode === OP.ping || opcode === OP.pong) {
           out.push({ opcode, payload });
-          fragments = [];
           continue;
         }
         if (opcode !== OP.cont) {
           fragOpcode = opcode;
           fragments = [payload];
+          fragTotal = payload.length;
         } else {
+          fragTotal += payload.length;
+          if (fragTotal > maxFrame) throw new Error("fragmented message too large");
           fragments.push(payload);
         }
         if (fin) {
           out.push({ opcode: fragOpcode, payload: Buffer.concat(fragments) });
           fragments = [];
+          fragTotal = 0;
         }
       }
       return out;
@@ -108,22 +116,37 @@ function makeParser() {
   };
 }
 
-/** socket → {send,close,onMessage,onClose,onActivity};自动回 pong。 */
-function wrapSocket(sock, head) {
-  const parser = makeParser();
+/** socket → {send,close,onMessage,onClose,onActivity};自动回 pong。
+ * 背压:向本端写 congested(write 返回 false)时暂停对端读——停摄入即停转发,
+ * 否则慢消费端把中继当无限缓冲灌爆(公网 443 无门禁,必须自保)。 */
+function wrapSocket(sock, head, maxFrame) {
+  const parser = makeParser(maxFrame);
+  let readPaused = false;
   const state = {
     closed: false,
     onMessage: () => {},
     onClose: () => {},
     onActivity: () => {},
     send(data, isText = true) {
-      if (state.closed) return;
+      if (state.closed) return true;
       try {
-        sock.write(wsFrame(isText ? OP.text : OP.binary, Buffer.from(data)));
+        const ok = sock.write(wsFrame(isText ? OP.text : OP.binary, Buffer.from(data)));
+        if (ok === false && !readPaused) {
+          readPaused = true;
+          sock.pause();
+          sock.once("drain", () => {
+            readPaused = false;
+            if (!state.closed) sock.resume();
+          });
+        }
+        return ok !== false;
       } catch {
         state.destroy();
+        return false;
       }
     },
+    /** 本端 socket 当前未刷出字节数(背压水位判定用)。 */
+    writableLength: () => (state.closed ? 0 : sock.writableLength),
     ping() {
       if (state.closed) return;
       try {
@@ -170,7 +193,7 @@ function wrapSocket(sock, head) {
   return state;
 }
 
-function upgrade(req, socket, head, onOpen) {
+function upgrade(req, socket, head, onOpen, maxFrame) {
   const key = req.headers["sec-websocket-key"];
   if (!key) {
     log(`upgrade rejected: no ws key ${req.url}`);
@@ -184,7 +207,7 @@ function upgrade(req, socket, head, onOpen) {
       `Sec-WebSocket-Accept: ${wsAccept(key)}\r\n\r\n`,
   );
   socket.setNoDelay(true);
-  onOpen(wrapSocket(socket, head));
+  onOpen(wrapSocket(socket, head, maxFrame));
 }
 
 /* ==================== 中继核心(与 Worker 同语义) ==================== */
@@ -199,15 +222,26 @@ function log(msg) {
 const HEAD_TIMEOUT = 30_000;
 const PHONE_PING_MS = 20_000;
 const IDLE_KILL = 45_000; // 桌面心跳 15s 一次;45s 无任何字节 = 死链
-
+/* 帧上限:agent 向 = 桌面 b64 大帧(文件读)沿 32MiB 现状;手机向 = 纯 JSON 线帧。 */
+const AGENT_MAX_FRAME = 32 * 1024 * 1024;
+const PHONE_MAX_FRAME = 4 * 1024 * 1024;
+/* 流量闸:公网手机流在中继层零鉴权(门禁在桌面桥),防灌爆自保。 */
+const MAX_STREAMS = 64;
+const MAX_STREAM_TO_PHONE = 8 * 1024 * 1024; // 单流 desk→phone 积压上限
+const MAX_STREAM_FROM_PHONE = 32 * 1024 * 1024; // 单流 phone→desk 总量上限(合法路径全是小 JSON)
+const MAX_AGENT_BACKLOG = 64 * 1024 * 1024; // agent socket 积压:超 = 桌面链路死亡,全员清场
 const agentAlive = () => agent && !agent.ws.closed;
 
 function toAgent(obj) {
-  if (agentAlive()) {
-    try {
-      agent.ws.send(JSON.stringify(obj));
-    } catch {}
+  if (!agentAlive()) return;
+  /* agent socket 积压超限 = 桌面链路死亡(不读):全员清场防中继变无限缓冲。 */
+  if (agent.ws.writableLength() > MAX_AGENT_BACKLOG) {
+    for (const id of [...streams.keys()]) killStream(id, "agent backpressure");
+    return;
   }
+  try {
+    agent.ws.send(JSON.stringify(obj));
+  } catch {}
 }
 
 function killStream(id, message) {
@@ -259,6 +293,12 @@ function onAgentFrame(raw) {
         } catch {}
       } else if (s.ws) {
         s.toPhone += bytes.length;
+        /* 手机慢排水:ws.send 背压自身停摄入只挡 phone→desk 向;desk→phone 向
+         * 源在 agent,只能按单流积压水位杀——超限即手机死链,清场让它重连。 */
+        if (s.ws.writableLength() > MAX_STREAM_TO_PHONE) {
+          killStream(frame.id, "phone backpressure");
+          return;
+        }
         if (frame.text === false) s.ws.send(bytes, false);
         else s.ws.send(bytes.toString("utf8"), true);
       }
@@ -311,8 +351,15 @@ function serveHttp(req, res) {
     res.end("tmd-cli 桌面端未连接到中继。请在电脑上打开 tmd-cli → 设置 → Web 访问 → 外网,点「连接中继」。");
     return;
   }
+  if (streams.size >= MAX_STREAMS) {
+    res.writeHead(503, { "content-type": "text/plain; charset=utf-8" });
+    res.end("relay busy");
+    return;
+  }
+  const url = new URL(req.url, "http://x");
   const id = nextId++;
-  const s = { kind: "http", res, headersSent: false, timer: null, t0: Date.now(), path: req.url };
+  /* 日志只落 pathname:query 带活体 token/配对码,不能进 journalctl。 */
+  const s = { kind: "http", res, headersSent: false, timer: null, t0: Date.now(), path: url.pathname };
   streams.set(id, s);
   toAgent({ t: "open", id, method: req.method, path: req.url, headers: copyHeaders(req, DROP_REQ_HEADERS) });
   req.on("data", (chunk) => toAgent({ t: "body", id, b64: chunk.toString("base64") }));
@@ -333,28 +380,41 @@ function serveHttp(req, res) {
 
 function serveWs(req, socket, head) {
   if (!agentAlive()) {
-    log(`ws rejected, no agent: ${req.url}`);
+    log(`ws rejected, no agent: ${new URL(req.url, "http://x").pathname}`);
     socket.end("HTTP/1.1 503 Service Unavailable\r\n\r\n");
     socket.destroy();
     return;
   }
+  if (streams.size >= MAX_STREAMS) {
+    log(`ws rejected, streams full (${streams.size})`);
+    socket.end("HTTP/1.1 503 Service Unavailable\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+  const url = new URL(req.url, "http://x");
   const id = nextId++;
   upgrade(req, socket, head, (phoneWs) => {
     // 蜂窝/CGNAT 30-90s 掐空闲 TCP:浏览器 WS 发不了协议 ping,由中继代ping 撑活这一跳。
     const keep = setInterval(() => phoneWs.ping(), PHONE_PING_MS);
-    const s = { kind: "ws", ws: phoneWs, t0: Date.now(), path: req.url, fromPhone: 0, toPhone: 0, phoneMsgs: 0 };
+    const s = { kind: "ws", ws: phoneWs, t0: Date.now(), path: url.pathname, fromPhone: 0, toPhone: 0, phoneMsgs: 0 };
     streams.set(id, s);
-    log(`ws#${id} ${req.url} open`);
+    log(`ws#${id} ${url.pathname} open`);
     toAgent({ t: "open", id, ws: true, path: req.url, headers: copyHeaders(req, DROP_WS_HEADERS) });
     const cmdHist = new Map();
     phoneWs.onMessage = (payload) => {
       s.fromPhone += payload.length;
-      try {
-        const m = JSON.parse(payload.toString("utf8"));
-        if (m.type === "invoke") cmdHist.set(m.cmd, (cmdHist.get(m.cmd) ?? 0) + 1);
-      } catch {}
-      if (++s.phoneMsgs % 50 === 0)
+      /* 手机向合法帧全是小 JSON 线帧;超总量 = 滥用,清场。 */
+      if (s.fromPhone > MAX_STREAM_FROM_PHONE) {
+        killStream(id, "phone flood");
+        return;
+      }
+      if (++s.phoneMsgs % 50 === 0) {
+        try {
+          const m = JSON.parse(payload.toString("utf8"));
+          if (m.type === "invoke") cmdHist.set(m.cmd, (cmdHist.get(m.cmd) ?? 0) + 1);
+        } catch {}
         log(`ws#${id} phone burst: ${s.phoneMsgs} msgs; cmds=${JSON.stringify(Object.fromEntries(cmdHist))}`);
+      }
       toAgent({ t: "data", id, b64: payload.toString("base64"), text: true });
     };
     phoneWs.onClose = () => {
@@ -364,7 +424,7 @@ function serveWs(req, socket, head) {
       toAgent({ t: "close", id });
       streams.delete(id);
     };
-  });
+  }, PHONE_MAX_FRAME);
 }
 
 const server = http.createServer((req, res) => {
@@ -380,7 +440,11 @@ const server = http.createServer((req, res) => {
 server.on("upgrade", (req, socket, head) => {
   const url = new URL(req.url, "http://x");
   if (url.pathname === "/agent") {
-    if (url.searchParams.get("key") !== RELAY_KEY) {
+    const supplied = url.searchParams.get("key") ?? "";
+    const a = Buffer.from(supplied);
+    const b = Buffer.from(RELAY_KEY);
+    const keyOk = a.length === b.length && crypto.timingSafeEqual(a, b);
+    if (!keyOk) {
       socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
       socket.destroy();
       return;
@@ -392,6 +456,9 @@ server.on("upgrade", (req, socket, head) => {
         } catch {}
       }
       agent = { ws, lastSeen: Date.now() };
+      /* 顶替即清场:旧 agent 名下全部流对新 agent 是未知 id,双向数据全黑洞;
+       * 杀流让手机端收 close 事件自行重连(与断连清场同语义,fake-relay 同款)。 */
+      for (const id of [...streams.keys()]) killStream(id, "agent replaced");
       ws.onActivity = () => (agent ? (agent.lastSeen = Date.now()) : null);
       ws.onMessage = (payload) => onAgentFrame(payload);
       ws.onClose = () => {
@@ -402,7 +469,7 @@ server.on("upgrade", (req, socket, head) => {
           killStream(id, "agent disconnected");
       };
       console.log(new Date().toISOString(), "agent connected");
-    });
+    }, AGENT_MAX_FRAME);
     return;
   }
   serveWs(req, socket, head);

@@ -147,6 +147,8 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
     /* 设备撤销信号(桌面 revoke → conn::kick 置位)。 */
     let mut kick_rx = live_rx;
     let mut recheck = tokio::time::interval(std::time::Duration::from_secs(5));
+    /* invoke 并发帽:每连接 32 并发,超发快拒。 */
+    let invoke_slots = std::sync::Arc::new(tokio::sync::Semaphore::new(32));
     loop {
         tokio::select! {
             msg = out_rx.recv() => match msg {
@@ -177,7 +179,19 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
                                 let app = ctx.app.clone();
                                 let scope = scope.clone();
                                 let out = out_tx.clone();
+                                /* 每连接并发帽:invoker 连发不设限 = 任务堆积占满 runtime。 */
+                                let permit = match invoke_slots.clone().try_acquire_owned() {
+                                    Ok(p) => p,
+                                    Err(_) => {
+                                        let _ = out_tx.try_send(
+                                            serde_json::json!({"type": "response", "id": id, "ok": false,
+                                                "error": "并发请求过多,请稍候"}).to_string(),
+                                        );
+                                        continue;
+                                    }
+                                };
                                 tokio::spawn(async move {
+                                    let _permit = permit;
                                     let frame = match conn::dispatch_scoped(&app, &scope, &cmd, args).await {
                                         Ok(payload) => serde_json::json!({"type": "response", "id": id, "ok": true, "payload": payload}),
                                         Err(error) => serde_json::json!({"type": "response", "id": id, "ok": false, "error": error}),

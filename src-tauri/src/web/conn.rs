@@ -184,10 +184,12 @@ fn spawn_cwd_allowed(raw: &serde_json::Value) -> bool {
     })
 }
 
-/// 已知引擎名(spec.command 的 basename;桌面 cli-* 插件声明的启动命令)。
+/// 已知引擎名(桌面 cli-* 插件声明的启动命令;手机引擎表只发裸名)。
 /// qoder 的权威命令是 qodercli(cli-qoder/index.tsx:17);deepseek 无桌面 profile,死项删。
 /// shell 四件套(bash/zsh/sh/fish)不列(2026-09-24 专业收口):手机引擎表无 shell 入口,
 /// 桌面内置终端走 webview IPC 不过本闸 —— 留着 = 批准设备可起交互 shell 的纯攻击面。
+/// 拒绝含路径分隔符的 command:PTY 侧对含 '/' 的命令原样透传(which.rs 不解析),
+/// "./claude" basename 命中 = 工作区里同名可执行文件任意执行,闸形同虚设。
 fn spawn_command_allowed(raw: &serde_json::Value) -> bool {
     const ENGINES: &[&str] = &[
         "omp",
@@ -206,8 +208,7 @@ fn spawn_command_allowed(raw: &serde_json::Value) -> bool {
         .and_then(|s| s.get("command"))
         .and_then(|c| c.as_str())
         .unwrap_or("");
-    let base = cmd.rsplit('/').next().unwrap_or("");
-    ENGINES.contains(&base)
+    !cmd.contains('/') && !cmd.contains('\\') && ENGINES.contains(&cmd)
 }
 
 // ---------- 活跃设备连接登记(撤销即时踢,不等 5s 复查) ----------
