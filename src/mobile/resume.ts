@@ -12,6 +12,9 @@ import { invoke } from "@kernel/transport";
 import { engineOf } from "./engines";
 import type { RemoteSession } from "./remote";
 
+/** home 目录连接期缓存(评审三轮:外网每 resume 省 1 个串行 RTT;桌面重启也基本不变)。 */
+let homeDir: string | null = null;
+
 /** 本连接期开过的会话(重进历史屏不重复 spawn)。 */
 const opened = new Map<string, string>();
 
@@ -47,7 +50,8 @@ export async function resumeDiskSession(args: {
   const known = opened.get(key);
   if (known && args.sessions.some((s) => s.id === known)) return known;
   /* 内存表失效(重连/桌面重启后 id 变):按磁盘指针找上一代 logId,仍在活表即聚焦 */
-  const home = await invoke<string>("config_home_dir").catch(() => "");
+  if (homeDir === null) homeDir = await invoke<string>("config_home_dir").catch(() => "");
+  const home = homeDir;
   if (home) {
     const logId = await pointerOf(home, args.profileId, args.cwd, args.cliSessionId);
     if (logId && args.sessions.some((s) => s.id === logId)) {

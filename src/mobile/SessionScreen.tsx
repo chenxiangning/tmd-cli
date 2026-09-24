@@ -97,7 +97,12 @@ export function SessionScreen(props: { sessionId: string }) {
     };
   }, [meta?.profileId, meta?.cwd, props.sessionId]);
 
-  const live = useLiveStream(props.sessionId);
+  const { live, earlier, hasMore, loadingEarlier, loadEarlier } = useLiveStream(props.sessionId);
+  /* 加载更早:前置渲染不改 scrollTop,视口自然留在当前行;期间暂停跟随防跳底。 */
+  const loadEarlierKeepScroll = () => {
+    followRef.current = false;
+    loadEarlier();
+  };
 
   /* ask 检测:live 变化后对尾窗跑标记(命中 → 卡 + 首现通知;消失 → 自愈收卡)。
      截尾 8K:标记只在末屏,全量 stripAnsi 在 2000 行 scrollback 下是每帧全文扫。 */
@@ -195,6 +200,10 @@ export function SessionScreen(props: { sessionId: string }) {
           liveShown={liveShown}
           onExpandLive={() => setLiveOpen(true)}
           onCollapseLive={() => setLiveOpen(false)}
+          earlier={earlier}
+          hasMore={hasMore}
+          loadingEarlier={loadingEarlier}
+          onLoadEarlier={loadEarlierKeepScroll}
         />
       </div>
       {ask && <AskCard q={askQ} onAnswer={answer} />}

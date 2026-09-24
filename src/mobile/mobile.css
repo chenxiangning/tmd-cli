@@ -160,3 +160,13 @@
 /* 历史屏「继续对话」底栏 */
 .resume-bar{flex:none;display:flex;align-items:center;gap:10px;border-top:.5px solid var(--border);background:var(--bg-panel);padding:8px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
 .resume-btn{max-width:none;flex:1;padding:10px}
+
+/* PTY 日志回看前置块:剥 ANSI 线性文本,弱化色与实况区隔开 */
+.tr-live-old {
+  color: var(--tmd-fg-faint, #888);
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-bottom: 1px solid var(--tmd-border, #ddd);
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+}

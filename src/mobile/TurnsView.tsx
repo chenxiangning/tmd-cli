@@ -82,6 +82,11 @@ export function LiveBlock(props: {
   liveShown: boolean;
   onExpandLive: () => void;
   onCollapseLive: () => void;
+  /** PTY 日志回看(桌面分页协议,start_offset/has_more;剥 ANSI 线性文本)。 */
+  earlier?: string;
+  hasMore?: boolean;
+  loadingEarlier?: boolean;
+  onLoadEarlier?: () => void;
 }) {
   const { turns, live, liveShown } = props;
   return (
@@ -92,6 +97,21 @@ export function LiveBlock(props: {
           {live ? ` · ${t("点开查看原始输出")}` : ""}
         </button>
       )}
+      {liveShown && (props.hasMore || props.earlier) && (
+        <button
+          type="button"
+          className="tr-live-tag"
+          disabled={props.loadingEarlier || !props.hasMore}
+          onClick={props.onLoadEarlier}
+        >
+          {props.loadingEarlier
+            ? t("加载中…")
+            : props.hasMore
+              ? t("加载更早输出")
+              : t("已到开头")}
+        </button>
+      )}
+      {liveShown && props.earlier && <div className="tr-live tr-live-old">{props.earlier}</div>}
       {liveShown && live && (
         <div className="tr-live">
           {turns && (

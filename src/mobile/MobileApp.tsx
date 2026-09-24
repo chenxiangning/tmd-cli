@@ -7,13 +7,13 @@
  */
 import React from "react";
 import type { MobileCreds } from "./creds";
-import { MobileAppCtx, type MobileRoute } from "./shared";
+import { MobileAppCtx, endpointKind, type MobileRoute } from "./shared";
 import { HomeScreen } from "./HomeScreen";
 import { SessionScreen } from "./SessionScreen";
 import { HistoryScreen } from "./HistoryScreen";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
 import { listSessions, listWorkspaces, overlayState, sessionPinToggle } from "./remote";
-import { isRemoteConnected, isRemotePaused, listen, onRemoteConnection } from "@kernel/transport";
+import { activeRemoteEndpoint, isRemoteConnected, isRemotePaused, listen, onRemoteConnection } from "@kernel/transport";
 
 export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   const [sessions, setSessions] = React.useState<RemoteSession[]>([]);
@@ -47,10 +47,18 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       }
     };
     void pull();
-    const timer = setInterval(pull, 2500);
+    /* 外网端点降频(评审三轮):中继链路每 RTT 都贵,轮询减半给交互请求让路;
+     * LAN 维持 2.5s。每轮按当前活动端点现算,切换通道即时生效。 */
+    let timer = 0;
+    const tick = () => {
+      const ep = activeRemoteEndpoint();
+      const ms = ep && endpointKind(ep) === "wan" ? 5000 : 2500;
+      timer = window.setTimeout(() => void pull().finally(tick), ms);
+    };
+    tick();
     return () => {
       alive = false;
-      clearInterval(timer);
+      clearTimeout(timer);
     };
   }, []);
 

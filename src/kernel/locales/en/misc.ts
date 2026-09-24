@@ -285,4 +285,7 @@ export const MESSAGES = {
   "离线 {time}": "Offline {time}",
   "配对于 {date}": "Paired on {date}",
   "设备凭证 = 每台独立 token(桌面只存 sha-256)。踢除立即断开该设备全部连接,其本地凭证作废,需重新扫码配对。授权/踢除仅桌面可操作,手机端只读自己状态。": "Device credentials = a per-device token (desktop stores only sha-256). Kicking immediately drops all of the device's connections and voids its local credential; re-pairing by QR is required. Approve/kick are desktop-only; the phone sees read-only status.",
+  "加载更早输出": "Load earlier output",
+  "已到开头": "Beginning of output",
+  "加载中…": "Loading…",
 } as Record<string, string>;
