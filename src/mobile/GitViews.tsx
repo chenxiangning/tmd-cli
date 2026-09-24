@@ -166,10 +166,10 @@ export function GitOverlays(props: {
 /** git 状态字母 → 颜色类(M 改/A 增/D 删/U 未跟踪/C 冲突,R/T 沿用改动色)。 */
 function stClass(status: string): string {
   if (status === "A") return "st-a";
-  if (status === "D") return "st-d";
+  if (status === "D" || status === "C") return "st-d";
   if (status === "?") return "st-u";
-  if (status === "C") return "st-c";
-  return "st-st";
+  if (status === "R" || status === "T") return "st-r";
+  return "st-m"; /* M:变更警示色,对齐桌面 STATUS_COLOR */
 }
 
 /** patch 按行着色:+ 添加绿 / - 删除红 / @@ hunk 暗淡,其余正文。 */

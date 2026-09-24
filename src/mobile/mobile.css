@@ -213,14 +213,14 @@
 .m-app input,.m-app textarea{font:inherit;color:inherit}
 
 /* ── git 模块细节(大仙 2026-09-25 指定范围):状态字母分色 + patch 行着色 ── */
-.st-st{color:var(--accent)} .st-a{color:var(--ok)} .st-d{color:var(--err)}
-.st-u{color:var(--fg-muted)} .st-c{color:var(--err);font-weight:700}
+.st-m{color:var(--warn)} .st-a{color:var(--ok)} .st-d{color:var(--err)}
+.st-r{color:var(--accent)} .st-u{color:var(--fg-muted)}
 .dl-add{color:var(--ok)} .dl-del{color:var(--err)} .dl-hunk{color:var(--fg-faint)}
 
 /* ── 工作区树(样式照桌面侧栏:细线图标 + 折叠 chevron + 会话虚线引导;2026-09-25)── */
 .ws-caption{display:flex;align-items:center;gap:6px;padding:10px 16px 2px;font-size:11px;font-weight:600;color:var(--fg-subtle);letter-spacing:.02em}
 .ws-head{padding-left:8px}
-.ws-caret{width:30px;height:32px;color:var(--fg-faint)}
+.ws-caret{width:36px;height:36px;color:var(--fg-faint)}
 .ws-head > svg{flex:none;color:var(--fg-faint)}
 .ws-name{color:var(--fg);font-size:13px}
 .ws-kids{margin-left:22px;border-left:1px dashed var(--border);padding-left:4px}
