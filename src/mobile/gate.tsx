@@ -166,7 +166,7 @@ export function MobileRoot() {
     return (
       <div className="m-app">
         <ShellPage>
-          <div style={{ fontSize: 32 }}>⛔</div>
+          <div style={{ fontSize: 32, color: "var(--warn)" }}>⚠</div>
           <div style={{ fontSize: 15, fontWeight: 700 }}>桌面端协议不兼容</div>
           <div style={{ fontSize: 12.5, opacity: 0.75, lineHeight: 1.8 }}>
             当前桌面 {blocked || "?"},缺 {REQUIRED_CAPABILITY} 能力;
@@ -219,7 +219,7 @@ class ShellErrorBoundary extends React.Component<
       return (
         <div className="m-app">
           <ShellPage>
-            <div style={{ fontSize: 28 }}>💥</div>
+            <div style={{ fontSize: 28, color: "var(--err)" }}>✕</div>
             <div style={{ fontSize: 14, fontWeight: 700 }}>界面渲染出错</div>
             <div style={{ fontFamily: "var(--mono)", fontSize: 11, opacity: 0.8, wordBreak: "break-all", textAlign: "left" }}>
               {this.state.err.message}

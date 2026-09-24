@@ -3,6 +3,7 @@
  * react-doctor「组件文件只出组件」纪律)。置顶钮是行容器兄弟钮(禁嵌套 button)。
  */
 import { t } from "@kernel/i18n";
+import { PinIcon } from "@kernel/PinIcon";
 import { relTime } from "./remote";
 import { EngineMark } from "./EngineMark";
 import type { HomeRow } from "./history";
@@ -36,7 +37,7 @@ export function Row(props: {
           aria-label={props.pinned ? t("取消置顶") : t("置顶")}
           onClick={props.onTogglePin}
         >
-          📌
+          <PinIcon size={13} />
         </button>
       )}
     </div>

@@ -28,15 +28,20 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   React.useEffect(() => onRemoteConnection(setConn), []);
   const [route, setRoute] = React.useState<MobileRoute>({ view: "home" });
 
-  /* 列表轮询:桥自愈重连,拉取失败保留快照(原型断连态「列表为最近快照」)。 */
+  /* 列表轮询:桥自愈重连,拉取失败保留快照(原型断连态「列表为最近快照」)。
+     签名比对后再 set:无脑 set 新数组 = ctx 重造全树 0.4Hz 重渲染(评审 P2-8)。 */
   React.useEffect(() => {
     let alive = true;
+    let sigS = "";
+    let sigW = "";
     const pull = async () => {
       try {
         const [s, w] = await Promise.all([listSessions(), listWorkspaces()]);
         if (!alive) return;
-        setSessions(s);
-        setWorkspaces(w);
+        const ns = JSON.stringify(s);
+        const nw = JSON.stringify(w);
+        if (ns !== sigS) { sigS = ns; setSessions(s); }
+        if (nw !== sigW) { sigW = nw; setWorkspaces(w); }
       } catch {
         /* 断连:保留快照 */
       }

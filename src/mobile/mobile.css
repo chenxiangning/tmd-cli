@@ -47,6 +47,7 @@
 .row .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .row .pin{flex:none;width:34px;background:none;border:none;cursor:pointer;font-size:13px;opacity:0;padding:0;color:var(--fg-muted)}
 .row .pin.on{opacity:.9}
+.pin-dot{display:inline-block;width:7px;height:7px;border-radius:999px;background:var(--warn);margin-right:2px;vertical-align:baseline}
 @media (hover: none){.row .pin{opacity:.28}}
 .top-zones{margin:2px 0 6px}
 .zone-head{display:flex;align-items:center;gap:6px;padding:8px 16px 3px;font-size:11px;font-weight:600;color:var(--fg-subtle);letter-spacing:.02em}
@@ -79,7 +80,7 @@
 
 
 /* ── session 屏(原型 mobile-app-session.html 同构) ── */
-.nav{height:44px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:.5px solid var(--border);flex:none;background:var(--bg-base)}
+.nav{height:44px;display:flex;align-items:center;gap:8px;padding:0 12px;padding-top:env(safe-area-inset-top);box-sizing:content-box;border-bottom:.5px solid var(--border);flex:none;background:var(--bg-base)}
 .nav .back{color:var(--accent);font-size:20px;background:none;border:none;padding:0 4px;font-family:inherit}
 .nav .glyph{width:22px;height:22px;border-radius:6px;font-size:9.5px}
 .nav .t{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
@@ -95,13 +96,13 @@
 .opt.yes{background:var(--ok);border-color:var(--ok);color:#fff}
 .opt.no{background:#fff;color:var(--err);border-color:rgba(220,38,38,.45)}
 /* composer(移动短版) */
-.composer{flex:none;border-top:.5px solid var(--border);background:var(--bg-panel);padding:8px 10px 6px}
+.composer{flex:none;border-top:.5px solid var(--border);background:var(--bg-panel);padding:8px 10px 6px;padding-bottom:calc(6px + env(safe-area-inset-bottom))}
 .composer .box{display:flex;align-items:flex-end;gap:8px;background:var(--bg-base);border:1px solid var(--border);border-radius:12px;padding:8px 10px}
 .composer textarea{flex:1;font-size:13.5px;line-height:1.5;color:var(--fg);background:none;border:none;outline:none;resize:none;font-family:inherit;padding:0;max-height:96px}
 .composer textarea::placeholder{color:var(--fg-faint)}
 .send{width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none;border:none;cursor:pointer}
 /* 键盘工具条(做实:session_write 原始序列;composer 聚焦时整行隐藏) */
-.keybar{height:38px;display:flex;align-items:center;gap:6px;padding:0 10px;border-top:.5px solid var(--border);background:var(--bg-panel);flex:none;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.keybar{height:38px;display:flex;align-items:center;gap:6px;padding:0 10px;padding-bottom:env(safe-area-inset-bottom);box-sizing:content-box;border-top:.5px solid var(--border);background:var(--bg-panel);flex:none;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .keybar .key{font-family:var(--mono);font-size:11px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:6px;padding:3px 9px;background:var(--bg-base);color:var(--fg-muted);white-space:nowrap;cursor:pointer;flex:none}
 .keybar .key:active{background:var(--accent-soft);color:var(--accent)}
 /* transcript:对话(用户/助手)与工具操作分型渲染 */
@@ -157,5 +158,5 @@
 .tr-more{display:inline-block;margin-top:2px;font-size:10.5px;color:var(--accent)}
 
 /* 历史屏「继续对话」底栏 */
-.resume-bar{flex:none;display:flex;align-items:center;gap:10px;border-top:.5px solid var(--border);background:var(--bg-panel);padding:8px 12px}
+.resume-bar{flex:none;display:flex;align-items:center;gap:10px;border-top:.5px solid var(--border);background:var(--bg-panel);padding:8px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
 .resume-btn{max-width:none;flex:1;padding:10px}

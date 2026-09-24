@@ -259,6 +259,7 @@ export class WebBridge {
     this.endpoint = ep;
     this.closed = ep === null; this.versionValue = null; this.capsValue = null; /* 换端点=新桌面:停连 + hello 缓存失效(评审:旧 caps 旁路 block 防线) */
     this.paused = ep === null; // 换端点 = 重新开始;清凭证则一并停摆
+    if (ep !== null) { this.retryMs = 1000; this.nextDialAt = 0; } /* 换端点=新意图:旧端点的退避闸不得劫持新端点首连(否则 LAN 快败后 relay 探测烧满超时) */
     setPaused(this.paused);
     if (this.ws) {
       const ws = this.ws;

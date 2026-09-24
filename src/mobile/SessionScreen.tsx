@@ -6,6 +6,7 @@
  */
 import React, { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
+import { invoke } from "@kernel/transport";
 import { ConnBanner } from "./ConnChip";
 import { HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
@@ -113,7 +114,6 @@ export function SessionScreen(props: { sessionId: string }) {
     let timer = 0;
     setLive("");
     void (async () => {
-      const { invoke } = await import("@kernel/transport");
       const sizeOf = () =>
         invoke<[number, number] | null>("session_size", { id: props.sessionId }).catch(() => null);
       const pageOf = () =>
@@ -135,7 +135,7 @@ export function SessionScreen(props: { sessionId: string }) {
       /* rAF 合帧:每 chunk 全量 view() 重建(2000 行 scrollback join)在流式输出下
          是每帧 O(全屏) 复制;脏标 + 帧对齐把重绘压到 ≤60Hz(评审 P1-3)。 */
       let dirty = false;
-      off = await onPtyOut(props.sessionId, (chunk) => {
+      const un = await onPtyOut(props.sessionId, (chunk) => {
         if (!alive) return;
         screen.feed(chunk);
         if (dirty) return;
@@ -145,6 +145,9 @@ export function SessionScreen(props: { sessionId: string }) {
           if (alive) setLive(screen.view());
         });
       });
+      /* 竞态:卸载发生在 await 在途时,off 仍 null → 桥内监听永久滞留。到站即核。 */
+      if (!alive) { un(); return; }
+      off = un;
       timer = window.setInterval(() => {
         void (async () => {
           const s = await sizeOf();

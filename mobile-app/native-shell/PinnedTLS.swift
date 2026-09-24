@@ -132,7 +132,7 @@ enum PinnedHttp {
     pin: String? = nil,
     completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void
   ) -> URLSessionDataTask {
-    if let pin, let pinData = Data(base64Encoded: pin) {
+    if let pin, let pinData = b64DecodeLenient(pin) {
       let cfg = URLSessionConfiguration.ephemeral
       cfg.waitsForConnectivity = false
       let s = URLSession(configuration: cfg, delegate: OneShotPinDelegate(pin: pinData), delegateQueue: nil)
@@ -144,5 +144,14 @@ enum PinnedHttp {
       return task
     }
     return session.dataTask(with: request, completionHandler: completionHandler)
+  }
+
+  /// base64url/padding 宽松解码(与 PinnedDelegate.b64Equal 同规则):
+  /// pin 存在但不可解码时静默降级 = 无钉会话,配对必失败且无因可查。
+  private static func b64DecodeLenient(_ s: String) -> Data? {
+    let norm = s.replacingOccurrences(of: "-", with: "+")
+      .replacingOccurrences(of: "_", with: "/")
+      .replacingOccurrences(of: "=", with: "")
+    return Data(base64Encoded: norm)
   }
 }

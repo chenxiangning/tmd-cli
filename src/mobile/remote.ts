@@ -6,6 +6,7 @@
  */
 
 import { shellLog } from "@kernel/shellBridge";
+import { invoke, listen } from "@kernel/transport";
 
 export interface RemoteSession {
   id: string;
@@ -82,7 +83,6 @@ export async function onPtyOut(
   sessionId: string,
   cb: (chunk: string) => void,
 ): Promise<() => void> {
-  const { listen } = await import("@kernel/transport");
   return listen<string>(`pty://out/${sessionId}`, (e) => cb(String(e.payload ?? "")));
 }
 
@@ -111,7 +111,6 @@ export async function tailAskLine(tail: string): Promise<string | null> {
 // ---- 基础 invoke(远程模式;未连接时抛错由调用方处理) ----
 
 async function invokeSafe<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  const { invoke } = await import("@kernel/transport");
   try {
     return await invoke<T>(cmd, args);
   } catch (e) {

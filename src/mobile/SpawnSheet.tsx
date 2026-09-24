@@ -6,20 +6,10 @@
  */
 import { useState } from "react";
 import { t } from "@kernel/i18n";
+import { invoke } from "@kernel/transport";
 import { useMobile } from "./shared";
 import { EngineMark } from "./EngineMark";
-
-/** 内置引擎表(profileId = 桌面 cli-* 插件 id;cmd = 启动命令 basename)。 */
-const ENGINES: { id: string; name: string; cmd: string }[] = [
-  { id: "omp", name: "OMP", cmd: "omp" },
-  { id: "pi", name: "Pi", cmd: "pi" },
-  { id: "claude", name: "Claude Code", cmd: "claude" },
-  { id: "codex", name: "Codex CLI", cmd: "codex" },
-  { id: "kimi", name: "Kimi", cmd: "kimi" },
-  { id: "grok", name: "Grok", cmd: "grok" },
-  { id: "qoder", name: "Qoder", cmd: "qodercli" },
-  { id: "opencode", name: "OpenCode", cmd: "opencode" },
-];
+import { ENGINES } from "./engines"; /* 单一来源(评审 P2-2:双份手抄已现 qoder cmd drift) */
 
 export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: string) => void }) {
   const { workspaces, connected } = useMobile();
@@ -40,7 +30,6 @@ export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: 
     setBusy(true);
     setErr(null);
     try {
-      const { invoke } = await import("@kernel/transport");
       const r = await invoke<{ id: string }>("session_spawn", {
         profileId: engine.id,
         spec: {
@@ -116,7 +105,7 @@ export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: 
           <>
             {err && <div className="m-err" style={{ textAlign: "left" }}>{err}</div>}
             <button type="button" className="m-btn" disabled={busy} onClick={() => void spawn()}>
-              {busy ? t("启动中…") : `${t("在")} ${ws?.name ?? "?"} ${t("启动")} ${engine.name}`}
+              {busy ? t("启动中…") : t("在 {ws} 启动 {engine}", { ws: ws?.name ?? "?", engine: engine.name })}
             </button>
           </>
         )}

@@ -7,6 +7,7 @@
 import React, { useMemo, useState } from "react";
 import { SpawnSheet } from "./SpawnSheet";
 import { t } from "@kernel/i18n";
+import { invoke } from "@kernel/transport";
 import { ConnBanner, HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { Row } from "./Row";
@@ -32,21 +33,18 @@ export function HomeScreen() {
 
   /* 轮询签名:会话集合不变就不重启 interval;截断前按 createdAt 稳定排序
      (session_list 源 HashMap 无序,不排序则 >12 活会话时徽标覆盖面随机漂移)。 */
-  const pollSig = useMemo(
+  const targets = useMemo(
     () => [...sessions].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
-      .slice(0, 12).map((s) => `${s.id}@${s.cwd}`).join("|"),
+      .slice(0, 12).map((s) => [s.id, s.cwd ?? ""] as [string, string]),
     [sessions],
   );
   React.useEffect(() => {
     let alive = true;
-    const targets = pollSig ? pollSig.split("|").map((pair) => pair.split("@")) : [];
     const pull = async () => {
       if (!targets.length) {
         if (alive) setPending({});
         return;
       }
-      // 动态 import:transport 切出主 chunk(手机入口体积),与 remote.ts invokeSafe 同策略
-      const { invoke } = await import("@kernel/transport");
       const entries = await Promise.all(
         targets.map(async ([id, cwd]) => {
           try {
@@ -71,13 +69,14 @@ export function HomeScreen() {
       alive = false;
       clearInterval(timer);
     };
-  }, [pollSig]);
+  }, [targets]);
 
   /* 磁盘历史扫描:工作区清单变化 / 挂载 / 60s 周期。签名依赖,避免 2.5s 轮询重触发。 */
-  const wsSig = useMemo(() => workspaces.map((w) => `${w.id}:${w.root}`).join("|"), [workspaces]);
+  /* 直接数组身份(评审 P2-5 曾用裸拼串,id/root 含 | 或 : 会错位;MobileApp 已
+     改签名比对后才 set,workspaces 身份稳定,无需再经字符串签名)。 */
+  const roots = useMemo(() => workspaces.map((w) => w.root), [workspaces]);
   React.useEffect(() => {
     let alive = true;
-    const roots = wsSig ? wsSig.split("|").map((pair) => pair.slice(pair.indexOf(":") + 1)) : [];
     /* 逐区串行 + 防重入:全并发 = 工作区×引擎 RPC 风暴(实测一波 7.9MB),
        蜂窝慢链路挤爆中继出站队列被桌面掐流;首轮未扫完时 60s 定时器不得叠波。 */
     let running = false;
@@ -108,7 +107,7 @@ export function HomeScreen() {
       alive = false;
       clearInterval(timer);
     };
-  }, [wsSig]);
+  }, [roots]);
 
   const titleOfDisk = React.useCallback(
     (h: HistoryItem) =>
@@ -183,7 +182,9 @@ export function HomeScreen() {
       <ConnBanner />
       <div className="m-body">
         <div className="search">
-          <span>🔍</span>
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+            <circle cx="7" cy="7" r="4.4" /><path d="m10.4 10.4 3.4 3.4" strokeLinecap="round" />
+          </svg>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -193,7 +194,7 @@ export function HomeScreen() {
         </div>
         {(zones.pinned.length > 0 || zones.running.length > 0) && (
           <div className="top-zones">
-            {zoneBlock(`📌 ${t("已置顶")}`, zones.pinned, true)}
+            {zoneBlock(<><span className="pin-dot" /> {t("已置顶")}</>, zones.pinned, true)}
             {zoneBlock(<><span className="run-dot" /> {t("运行中")}</>, zones.running, false)}
           </div>
         )}
@@ -233,7 +234,9 @@ export function HomeScreen() {
                     className={tab === "local" ? "on" : ""}
                     onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "local" }))}
                   >
-                    <span className="ic">🖥</span>
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+                      <rect x="1.8" y="2.5" width="12.4" height="8.4" rx="1.4" /><path d="M5.5 13.5h5M8 10.9v2.6" strokeLinecap="round" />
+                    </svg>
                     {t("本地")} <b>{local.length}</b>
                   </button>
                   <button
@@ -243,7 +246,9 @@ export function HomeScreen() {
                     className={tab === "archive" ? "on" : ""}
                     onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "archive" }))}
                   >
-                    <span className="ic">📦</span>
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+                      <rect x="2" y="4.5" width="12" height="8.6" rx="1.4" /><path d="M2 7.5h12M5.5 4.5 4 7.5" strokeLinecap="round" />
+                    </svg>
                     {t("归档")} <b>{archived.length}</b>
                   </button>
                 </div>

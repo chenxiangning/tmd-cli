@@ -34,11 +34,6 @@ export function endpointCandidates(creds: MobileCreds): string[] {
   return all;
 }
 
-/** HostChip 端点 sheet 展示/重试用:当前钉选解析出的首选端点。 */
-export function currentEndpoint(creds: MobileCreds): string {
-  return endpointCandidates(creds)[0];
-}
-
 /** 端点网络域:私有网段/localhost = 内网(局域网直连),其余(中继域名) = 外网。 */
 export function endpointKind(url: string): "lan" | "wan" {
   const host = url.replace(/^wss?:\/\//, "").split(/[/:]/)[0];

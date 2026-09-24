@@ -190,7 +190,8 @@ final class QrBridge: NSObject, WKScriptMessageHandler {
   weak var webview: WKWebView?
 
   func userContentController(_ ucc: WKUserContentController, didReceive message: WKScriptMessage) {
-    guard (message.body as? String) == "start" else { return }
+    guard message.frameInfo.isMainFrame,
+          (message.body as? String) == "start" else { return }
     DispatchQueue.main.async {
       AVCaptureDevice.requestAccess(for: .video) { granted in
         DispatchQueue.main.async {
@@ -267,6 +268,16 @@ struct WebView: UIViewRepresentable {
 }
 
 final class NavLog: NSObject, WKNavigationDelegate {
+  /// 导航闸:壳内容是自有 app:// 静态包,主帧没有合法理由跳外部。放行外部导航 =
+  /// 任意网页拿到 shell 桥(creds.get/http.post)——整个钉住体系被一次跳转旁路。
+  func webView(
+    _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+    decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+  ) {
+    let ok = navigationAction.request.url?.scheme == "app"
+      || navigationAction.targetFrame?.isMainFrame != true // 子帧资源放行(自有页内嵌图等)
+    decisionHandler(ok ? .allow : .cancel)
+  }
   func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
     ShellLog.write("nav FAIL \(error.localizedDescription)")
   }

@@ -1,5 +1,5 @@
 /**
- * 双通道端点选择契约(currentEndpoint = 竞速候选序首项):
+ * 双通道端点选择契约(首选端点 = 竞速候选序首项):
  * - 旧凭证(无 urls):回落 [wsUrl]
  * - 钉 auto:urls 序(LAN 在配对时已排前)
  * - 钉某端点:该端点优先;钉失效端点(不在 urls)回 auto
@@ -13,7 +13,7 @@ vi.mock("@kernel/transport", () => ({
   serverCapabilities: vi.fn(() => Promise.resolve([])),
 }));
 
-import { currentEndpoint } from "./shared";
+import { endpointCandidates } from "./shared";
 import { saveChannelPin, type MobileCreds } from "./creds";
 
 const LAN = "ws://192.168.1.4:53050";
@@ -39,21 +39,21 @@ beforeEach(() => {
 
 describe("双通道端点选择", () => {
   it("auto = urls 序首项(LAN 优先)", () => {
-    expect(currentEndpoint(creds())).toBe(LAN);
+    expect(endpointCandidates(creds())[0]).toBe(LAN);
   });
 
   it("钉 relay → relay 优先", () => {
     saveChannelPin(RELAY);
-    expect(currentEndpoint(creds())).toBe(RELAY);
+    expect(endpointCandidates(creds())[0]).toBe(RELAY);
   });
 
   it("钉失效端点(不在 urls)→ 回 auto 序", () => {
     saveChannelPin("ws://gone");
-    expect(currentEndpoint(creds())).toBe(LAN);
+    expect(endpointCandidates(creds())[0]).toBe(LAN);
   });
 
   it("旧凭证无 urls → 单 wsUrl 候选", () => {
     saveChannelPin(RELAY); // 钉了也不在候选里
-    expect(currentEndpoint(creds({ urls: undefined }))).toBe(LAN);
+    expect(endpointCandidates(creds({ urls: undefined }))[0]).toBe(LAN);
   });
 });

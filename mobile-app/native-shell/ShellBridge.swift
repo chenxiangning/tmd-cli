@@ -12,6 +12,9 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
   weak var webview: WKWebView?
 
   func userContentController(_ ucc: WKUserContentController, didReceive message: WKScriptMessage) {
+    /* 来源闸:creds.get/http.post/ws.* 是钥匙串读与原生网络原语,只服务自有主帧;
+     * iframe/被导航走的外部页面同信道可达,一次导航或 XSS = 凭证外传。 */
+    guard message.frameInfo.isMainFrame else { return }
     guard let body = message.body as? [String: Any],
           let id = body["id"] as? Int,
           let method = body["method"] as? String else { return }
@@ -66,7 +69,7 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
   /// /pair 下沉到这里,走 PinnedTLS 证书锁定)。应答 {status, body}。
   private func httpPost(id: Int, args: [String: Any]) {
     guard let urlStr = args["url"] as? String, let url = URL(string: urlStr),
-          let body = args["body"] as? String else {
+          let body = args["body"] as? String, Self.postTargetAllowed(url) else {
       reply(id: id, ok: false, payload: "http.post: bad args"); return
     }
     var req = URLRequest(url: url)
@@ -81,6 +84,17 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
       let text = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
       self.reply(id: id, ok: true, payload: ["status": status, "body": text])
     }.resume()
+  }
+
+  /// POST 目标闸:https(中继,证书钉)或私网明文(LAN 直连 /pair);公网明文拒绝。
+  private static func postTargetAllowed(_ url: URL) -> Bool {
+    let host = url.host ?? ""
+    if url.scheme == "https" { return true }
+    guard url.scheme == "http" else { return false }
+    if host == "localhost" { return true }
+    let parts = host.split(separator: ".")
+    guard parts.count == 4, let a = Int(parts[0]), let b = Int(parts[1]) else { return false }
+    return a == 127 || a == 10 || (a == 192 && b == 168) || (a == 172 && (16...31).contains(b))
   }
 
   /// 权限未决/被拒 → 静默成功(应用内横幅照旧,spec 降级路径)。
