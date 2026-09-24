@@ -1,7 +1,0 @@
-{
-  "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default",
-  "description": "壳默认能力:core 默认权限;业务命令全部远程,不在壳 Rust 面",
-  "windows": ["mobile"],
-  "permissions": ["core:default"]
-}
