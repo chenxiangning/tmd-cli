@@ -110,8 +110,8 @@ export function HomeScreen() {
   );
 
   const groups = useMemo(
-    () => groupHomeRows({ workspaces, sessions, history, q, titleOfLive: titleOf, titleOfDisk }),
-    [workspaces, sessions, history, q, titleOf, titleOfDisk],
+    () => groupHomeRows({ workspaces, sessions, history, q, overlayTitles: titles, titleOfLive: titleOf, titleOfDisk }),
+    [workspaces, sessions, history, q, titles, titleOf, titleOfDisk],
   );
   /* 顶部两区(搜索词在场时同样过滤,与分组区一致)。 */
   const zones = useMemo(() => topZones({ groups, pins }), [groups, pins]);

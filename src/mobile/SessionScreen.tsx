@@ -98,6 +98,46 @@ export function SessionScreen(props: { sessionId: string }) {
   }, [meta?.profileId, meta?.cwd, props.sessionId]);
 
   const { live, earlier, hasMore, loadingEarlier, loadEarlier } = useLiveStream(props.sessionId);
+
+  /* 终端尺寸随容器自适应(横屏留白修复):spawn 固定 80x24,竖屏略窄横屏半屏空白。
+     量 .live 内容盒宽/高与 .tr-live 字距,算 cols/rows 调 session_resize;CLI 收
+     SIGWINCH 重排,活流 3s 尺寸轮询带新几何重建。仅在列数偏差 ≥2 时发,防键盘
+     弹出等高度抖动引发重排风暴。 */
+  const sentColsRef = React.useRef(0);
+  useEffect(() => {
+    const id = props.sessionId;
+    if (!id) return;
+    let timer = 0;
+    const fit = () => {
+      const el = liveRef.current;
+      if (!el || !el.clientWidth) return;
+      const probe = document.createElement("span");
+      probe.className = "tr-live";
+      probe.style.cssText = "position:absolute;visibility:hidden;white-space:pre;";
+      probe.textContent = "0".repeat(50);
+      el.appendChild(probe);
+      const rect = probe.getBoundingClientRect();
+      const cw = rect.width / 50;
+      const lh = rect.height || parseFloat(getComputedStyle(probe).lineHeight) || 16;
+      probe.remove();
+      const cs = getComputedStyle(el);
+      const cols = Math.floor((el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / cw);
+      const rows = Math.max(8, Math.floor((el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) / lh) - 1);
+      if (cols < 20 || Math.abs(cols - sentColsRef.current) < 2) return;
+      sentColsRef.current = cols;
+      void invoke("session_resize", { id, cols, rows }).catch(() => undefined);
+    };
+    const debounced = () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(fit, 300);
+    };
+    fit();
+    window.addEventListener("resize", debounced);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", debounced);
+    };
+  }, [props.sessionId, liveShown]);
   /* 加载更早:前置渲染不改 scrollTop,视口自然留在当前行;期间暂停跟随防跳底。 */
   const loadEarlierKeepScroll = () => {
     followRef.current = false;

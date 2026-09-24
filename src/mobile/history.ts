@@ -69,6 +69,8 @@ export function groupHomeRows(args: {
   /** key = 工作区 root(scanWorkspaceHistory 的调用参数)。 */
   history: Map<string, HistoryItem[]>;
   q: string;
+  /** 手动命名覆盖层(key = profileId:cliSessionId):活行标题第一优先。 */
+  overlayTitles: Record<string, string>;
   titleOfLive: (s: RemoteSession) => string;
   titleOfDisk: (h: HistoryItem) => string;
 }): { wsId: string; name: string; rows: HomeRow[] }[] {
@@ -88,8 +90,17 @@ export function groupHomeRows(args: {
 
   for (const w of args.workspaces) {
     const rows: HomeRow[] = [];
+    const diskItems = args.history.get(w.root) ?? [];
+    /* 已落盘的活会话:借磁盘真标题并对同会话磁盘行去重(否则同会话双行出现) */
+    const bound = new Set<string>();
     for (const s of byWs.get(w.id) ?? []) {
-      const title = args.titleOfLive(s);
+      const idKey = s.cliSessionId ? `${s.profileId}:${s.cliSessionId}` : "";
+      const diskTitle = idKey
+        ? diskItems.find((h) => `${h.profileId}:${h.session.id}` === idKey)?.session.title
+        : undefined;
+      const title =
+        (idKey ? args.overlayTitles[idKey] : undefined) ?? diskTitle ?? args.titleOfLive(s);
+      if (idKey) bound.add(idKey);
       if (!hit(title)) continue;
       rows.push({
         key: `live:${s.id}`,
@@ -100,7 +111,8 @@ export function groupHomeRows(args: {
         live: s,
       });
     }
-    for (const h of args.history.get(w.root) ?? []) {
+    for (const h of diskItems) {
+      if (bound.has(`${h.profileId}:${h.session.id}`)) continue;
       const title = args.titleOfDisk(h);
       if (!hit(title)) continue;
       rows.push({

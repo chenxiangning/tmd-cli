@@ -58,9 +58,33 @@ describe("groupHomeRows", () => {
     sessions,
     history,
     q: "",
+    overlayTitles: {} as Record<string, string>,
     titleOfLive: (s: { id: string }) => `live:${s.id}`,
     titleOfDisk: (h: { session: CliDiskSession }) => h.session.title ?? h.session.id,
   };
+
+  it("活会话已落盘(cliSessionId 命中磁盘项):借磁盘真标题并对同会话磁盘行去重", () => {
+    const bound = {
+      id: "pty-9",
+      profileId: "claude",
+      cwd: "/w1",
+      workspaceId: "w1",
+      createdAt: 9000,
+      cliSessionId: claudeSession.id,
+    };
+    const groups = groupHomeRows({
+      ...args,
+      sessions: [bound],
+      overlayTitles: { [`claude:${claudeSession.id}`]: "手动名" },
+    });
+    const rows = groups[0].rows;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: "live", title: "手动名" });
+    /* 无手动名时回落磁盘标题 */
+    const rows2 = groupHomeRows({ ...args, sessions: [bound] })[0].rows;
+    expect(rows2).toHaveLength(1);
+    expect(rows2[0]).toMatchObject({ kind: "live", title: claudeSession.title });
+  });
 
   it("配置工作区全列出,空工作区也在;磁盘行按 root 归组,活磁盘并存且时间倒序", () => {
     const groups = groupHomeRows(args);
