@@ -15,7 +15,7 @@ export function KeyToolbar(props: { sessionId: string; hidden: boolean }) {
         <button
           key={k.label}
           type="button"
-          className={"key" + (k.label === "model" ? " model" : "")}
+          className="key"
           aria-label={k.aria}
           onClick={() => void writeSession(props.sessionId, k.seq)}
         >
