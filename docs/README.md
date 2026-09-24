@@ -179,5 +179,6 @@
 | 2026-09-21 | [mobile app 实施总计划(终态验收清单 + M1 配对底座/M2 轻交互闭环/M3 发布候选)](superpowers/specs/2026-09-21-mobile-app-master-plan.md) | 生效中(M1 已收口归档;M2 细化中:openspec/changes/2026-09-22-mobile-app-m2-light-interaction/) |
 | 2026-09-23 | [手机会话屏紧凑化 + 键盘工具条做实(单顶栏/审批芯片 sheet/真实键序列;切模型走 CLI /model TUI)](superpowers/specs/2026-09-23-mobile-session-compact-interaction-design.md) | 已落地(ab09119;桩目检全绿,真机待装机验收) |
 | 2026-09-24 | [外网中继拆分 Cloudflare/自建服务器 + 一键 SSH 部署(动态证书钉住)](superpowers/specs/2026-09-24-selfhost-relay-deploy-design.md) | 已落地 |
+| 2026-09-24 | [第二轮 code review:修复审计/线协议契约/生命周期/测试质量(修第一轮 2 回归 + P1x5;补测债 6 件)](review/2026-09-24-round2-fixaudit-contract-lifecycle-tests.md) | 已完成(修复同轮收口) |
 | 2026-09-24 | [手机端与远程连接 114 提交全量 code review(P0×1/P1×12/P2 修 18 项;src/mobile 树准入)](review/2026-09-24-mobile-web-114-commits-review.md) | 已完成(修复同轮收口;线上中继待重部署) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

@@ -236,7 +236,7 @@ export function WebSelfHostCard() {
         </ol>
       )}
       {result?.hostKeyFingerprint && (
-        <div className="rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-muted)] px-2.5 py-1.5 text-xs">
+        <div className="rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-sunken)] px-2.5 py-1.5 text-xs">
           <div className="font-mono text-[var(--tmd-fg-muted)]">
             {result.hostKeyFingerprint}
           </div>
@@ -280,7 +280,7 @@ export function WebSelfHostCard() {
             {t("导出部署包")}
           </button>
           <div>{t("解包后按序执行(把包目录整个传到服务器,再起服务、验活):")}</div>
-          <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded bg-[var(--tmd-bg-muted)] p-2 font-mono text-[var(--tmd-fg)]">
+          <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded bg-[var(--tmd-bg-sunken)] p-2 font-mono text-[var(--tmd-fg)]">
             {MANUAL_CMDS.map((c, i) => `${i + 1}) ${c}`).join("\n")}
           </pre>
           <div>

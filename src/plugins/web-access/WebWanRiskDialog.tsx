@@ -33,7 +33,7 @@ export function WebWanRiskDialog({ onAccept, onReject }: Props) {
         <div className="mb-3 text-sm text-[var(--tmd-fg)]">
           {t("开启后,任何知道你中继地址和密钥的人都能读写文件、运行终端命令、消耗 API 额度 —— 权限与本机完全相同。")}
         </div>
-        <div className="mb-4 rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-muted)] p-2.5 text-xs text-[var(--tmd-fg-muted)]">
+        <div className="mb-4 rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-sunken)] p-2.5 text-xs text-[var(--tmd-fg-muted)]">
           <div className="mb-1 font-medium text-[var(--tmd-fg)]">{t("安全约定:")}</div>
           <ul className="list-inside list-disc space-y-0.5">
             <li>{t("密钥即唯一凭据,持有者与本机等权")}</li>

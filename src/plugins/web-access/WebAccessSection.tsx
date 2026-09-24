@@ -84,7 +84,7 @@ export function WebAccessSection() {
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex items-center gap-1.5">
-              <code className="min-w-0 flex-1 truncate rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-muted)] px-2 py-1 text-xs">
+              <code className="min-w-0 flex-1 truncate rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-sunken)] px-2 py-1 text-xs">
                 {info.url}
               </code>
               <button

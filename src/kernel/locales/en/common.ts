@@ -202,9 +202,7 @@ export const MESSAGES = {
   "关闭设置保存失败通知": "Dismiss settings save failure",
 
   // ── 手机远程 UI(src/mobile 树) ──
-  "审批线 · {session}": "Approval rail · {session}",
   "读取失败": "Failed to load",
-  "重试": "Retry",
   "该批无文件记录": "No file records in this batch",
   "二进制": "Binary",
   "该引擎暂不支持手机续聊": "This engine does not support mobile resume yet",
