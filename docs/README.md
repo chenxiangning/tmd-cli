@@ -184,4 +184,8 @@
 | 2026-09-24 | [第二轮 code review:修复审计/线协议契约/生命周期/测试质量(修第一轮 2 回归 + P1x5;补测债 6 件)](review/2026-09-24-round2-fixaudit-contract-lifecycle-tests.md) | 已完成(修复同轮收口) |
 | 2026-09-24 | [手机端与远程连接 114 提交全量 code review(P0×1/P1×12/P2 修 18 项;src/mobile 树准入)](review/2026-09-24-mobile-web-114-commits-review.md) | 已完成(修复同轮收口;线上中继待重部署) |
 | 2026-09-25 | [手机会话通用渲染:codemoss 视觉重皮 + transcript 实时生长](superpowers/specs/2026-09-25-mobile-session-render-design.md) | 已落地并真机验收(6a9ab6c;反馈迭代:c1bc686 toolResult 文本墙修复、f18baec 助手正文 markdown 渲染) |
+| 2026-09-25 | [审批收件箱 + 手机一键放行交互原型(桌面右栏页签 + 手机壳一键作答;消费 askWatch 状态位,作答走 writeSession)](design/approval-inbox.html) | 设计原型 |
+| 2026-09-25 | [跨会话文件冲突雷达原型(编辑入账跨会话 join + 触碰时间轴 + 双侧 mini diff 对照;只预警不拦截)](design/session-conflict-radar.html) | 设计原型 |
+| 2026-09-25 | [审批收件箱设计:桌面右栏聚合等待确认会话,直达 + 自由文本应答(检测零新增;预设代发键否决遵 M2 评审 A2)](../openspec/changes/2026-09-25-approval-inbox/proposal.md) | 已落地(真机目检待大仙;approval-inbox 插件随本提案提交) |
+| 2026-09-25 | [审批收件箱换角度评审(功能完整性/架构边界/系统兼容;P1 幽灵行 + 7 项全当场修)](review/2026-09-25-approval-inbox-review.md) | 已完成(修复同批提交) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

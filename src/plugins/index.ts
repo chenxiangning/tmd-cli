@@ -37,6 +37,7 @@ import { webAccessPlugin } from "./web-access";
 import { searchPlugin } from "./search";
 import { lspPlugin } from "./lsp";
 import { promptEnhancerPlugin } from "./prompt-enhancer";
+import { approvalInboxPlugin } from "./approval-inbox";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -71,4 +72,5 @@ export const allPlugins: Plugin[] = [
   searchPlugin,
   lspPlugin,
   promptEnhancerPlugin,
+  approvalInboxPlugin,
 ];

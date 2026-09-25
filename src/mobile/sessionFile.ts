@@ -48,19 +48,6 @@ export async function resolveTranscriptPath(
   return newestFile(dir);
 }
 
-/** 拉会话 transcript(最近 MAX_TURNS 条);任何一步失败 → null(UI 回落)。 */
-export async function loadTranscript(
-  profileId: string,
-  cwd: string,
-): Promise<TranscriptTurn[] | null> {
-  const path = await resolveTranscriptPath(profileId, cwd);
-  if (!path) {
-    shellLog(`transcript: 未定位到 jsonl(profile=${profileId} cwd=${cwd})→ 回落实况`);
-    return null;
-  }
-  return loadTranscriptAt(path);
-}
-
 /** 按会话文件路径拉 transcript(home 历史行;路径来自磁盘扫描,免再定位)。 */
 export async function loadTranscriptAt(path: string): Promise<TranscriptTurn[] | null> {
   try {
