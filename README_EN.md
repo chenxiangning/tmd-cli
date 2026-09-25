@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <strong>A plugin-based desktop client for multiple AI Coding CLIs — one native terminal curtain + one rich composer, uniformly driving 10 CLIs: omp / pi / kimi / codex / claude / grok / qoder / qoder-cn / dsh / opencode, with first-class SSH remote sessions.</strong>
+  <strong>A plugin-based desktop client for multiple AI Coding CLIs — one native terminal curtain + one rich composer, uniformly driving 10 CLIs: omp / pi / kimi / codex / claude / grok / qoder / qoder-cn / dsh / opencode, with first-class SSH remote sessions, plus a native mobile app and browser remote access (LAN direct / Cloudflare / self-hosted relay).</strong>
 </p>
 
 ---
@@ -63,6 +63,18 @@ In one sentence: **CLI output is presented as-is; the input side gets the rich e
 
 ![Welcome page](docs/images/screenshot-welcome.png)
 
+**Mobile app** — native shell (iOS / Android); after scanning the desktop pairing code it remotely drives local sessions: session list (running / workspace groups / archive), live session screen (terminal passthrough + layered conversation), approval cards, keyboard toolbar, landscape, Git panel, history resume
+
+![Mobile app](docs/images/screenshot-mobile.png)
+
+**Web access · device pairing** — the desktop's "Settings → Web access → Devices" tab shows a pairing QR / code; each device holds its own token (the desktop stores only the sha-256), authorization lasts, and kicking a device immediately severs all of its connections
+
+![Web access · device pairing](docs/images/screenshot-web-devices.png)
+
+**Web access · self-hosted relay** — any server with a public IP works: the desktop deploys the relay over SSH in one click (upload service / issue TLS certificate on the spot / systemd / health check), with deploy history one-click refill; once connected, phones reach this machine through the relay — the relay only shuttles bytes, the bridge still enforces token / device authorization
+
+![Web access · self-hosted relay](docs/images/screenshot-web-relay.png)
+
 ## Core design
 
 - **Native PTY curtain (hard constraint)**: `PTY bytes → pty://out/{sessionId} → xterm.js`, zero message bubbles / Markdown / diff re-rendering. ⌘/Ctrl+F in-curtain search, links open in the system browser, automatic fallback from WebGL to DOM rendering on context loss.
@@ -92,6 +104,8 @@ In one sentence: **CLI output is presented as-is; the input side gets the rich e
 - **Version popover & auto-update**: click the version number in the bottom bar for the update history (embedded paginated CHANGELOG with inline Markdown entries), an online check against the latest GitHub release, and one-click auto-update (updater with signature verification, restart prompt after install).
 - **Plugin market (power strip)**: 26 built-in plugins with visual plug/unplug (engines 10 / features 13 / core 3), effective after restart; core category is welded, engines/features can be unplugged; CLI brand glyphs + semantic colored icons; the local-loader manages `~/.tmd-cli/plugins/` — build plugins through conversation, hot-load without restart, roll back versions, with a one-click "copy plugin dev prompt" to get started.
 - **Workspace wallpaper (wallpaper)**: fluid shader (WebGL, five motion fields, theme-aware) and local image gallery modes; surface-token punch-through lets chrome show the wallpaper while popover menus stay opaque; the xterm curtain turns translucent; unplugging removes everything — the kernel holds zero wallpaper semantics (contract: `docs/architecture/11`).
+- **Mobile app (native shell)**: native shells for iOS (SwiftUI + WKWebView) and Android (Kotlin + WebView) loading the standalone `src/mobile/` remote UI tree (parallel to the desktop app-shell, sharing the kernel transport data plane). After QR pairing: session list (running / workspace groups / local / archive, approval-count pills), live session screen (mini-VT passthrough of raw `PTY bytes` + conversation layered from CLI disk jsonl — user bubbles / assistant markdown body / folded tool-run groups, 2s incremental polling growing with the stream), ask approval cards (allow / deny via the same `session_write` channel), keyboard toolbar (real key sequences), landscape, Git panel, read-only history with "resume" (resume injection, same semantics as the desktop's openDiskSession). iOS WKWebView custom schemes can't emit ws, so the connection runs through a native URLSession tunnel; reconnect with backoff + multi-endpoint racing, forced redial on foreground.
+- **Web access & remote channels**: the desktop's "Settings → Web access" hosts every phone/tablet entry. Three channels: LAN direct (`ws://`), Cloudflare tunnel, and self-hosted server relay (one-click SSH deployment from the desktop: upload relay service + issue TLS certificate on the spot + systemd install + health check; deploy history saved and refillable, with a manual-deployment fallback guide); the self-hosted relay pins its dynamically issued TLS certificate. Security model: device credentials are per-device tokens, the desktop stores only sha-256, and kicking a device immediately severs all its connections; the relay only shuttles bytes keyed by its key, while the bridge still enforces token / device authorization. Browsers open the token-bearing URL directly — add to home screen and it works like an app; the connection is a persistent state (top host chip + disconnect banner), not a door.
 
 ## Architecture
 
@@ -99,6 +113,7 @@ In one sentence: **CLI output is presented as-is; the input side gets the rich e
 React Host
 ├── src/kernel/       plugin contracts, lifecycle, event bus, IPC, PTY TerminalView, theme engine
 ├── src/app-shell/    shell (top bar / left rail / curtain / right rail / bottom) & mount points, session tab strip
+├── src/mobile/       remote UI tree for phones (loaded by the iOS / Android shells and browsers; parallel to app-shell, sharing the transport data plane)
 └── src/plugins/      cli-* × 10 (omp / pi / kimi / codex / claude / grok / qoder / qoder-cn / dsh / opencode) · session-budget · workspace · files · git · checkpoints · composer · settings · network-proxy · ssh · terminal · memory-coordinator · welcome · assets · cli-config · local-loader · wsl · wallpaper
 
 Tauri Rust (src-tauri/)
@@ -117,6 +132,7 @@ Tauri Rust (src-tauri/)
 ├── proxy.rs             process-level proxy env injection
 ├── ssh/                 russh SSH session engine (transport/auth/forward/sftp, output via pty://out isomorphic events)
 ├── wsl*.rs             WSL channel primitives (distro info / remote probe / engine probe / b64 exec / file reads)
+├── web/                 web access bridge (WS bridge server / dispatch allowlist / device authorization / external relay client)
 └── git/ + checkpoints/  libgit2 primitives / checkpoints ledger sidecar
 ```
 
@@ -135,6 +151,7 @@ The standard path for new capabilities:
 | Terminal | xterm.js + addon-fit |
 | Styling | Tailwind CSS 4 |
 | Editing/preview | CodeMirror 6 · highlight.js · react-markdown · KaTeX · Mermaid |
+| Mobile | SwiftUI + WKWebView (iOS) · Kotlin + WebView (Android) |
 | Testing | Vitest |
 | Icons | @phosphor-icons/react + CLI brand glyphs |
 
@@ -146,6 +163,7 @@ Prerequisites: Rust toolchain, Node.js / pnpm, and at least one target CLI insta
 pnpm install              # install dependencies
 pnpm tauri:dev            # development mode (Vite dev server + Tauri window)
 pnpm tauri:build          # package the desktop app
+scripts/build-device.sh --install   # build + install the phone shell on a device (dist and shell ship in one package, auto-signed; requires Xcode)
 pnpm typecheck            # TypeScript checks
 pnpm test                 # Vitest unit tests
 pnpm build                # frontend build only
@@ -157,15 +175,17 @@ pnpm check:file-size      # per-file ≤300 lines check (CI-enforced)
 
 Grab the installer for your platform from [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases). Artifacts are built automatically by CI when a `v*` tag is pushed (macOS universal / Windows x86_64 / Linux x86_64), land as a Draft Release, and go live after confirmation.
 
-Current v0.1.7 artifact matrix:
+Current v0.2.2 artifact matrix:
 
 | Platform | Artifacts |
 |---|---|
-| macOS (universal: arm64 + x86_64) | `tmd-cli_0.1.7_universal.dmg`, `tmd-cli_universal.app.tar.gz` |
-| Windows (x86_64) | `tmd-cli_0.1.7_x64-setup.exe` (NSIS), `tmd-cli_0.1.7_x64_en-US.msi` |
-| Linux (x86_64) | `tmd-cli_0.1.7_amd64.AppImage`, `tmd-cli_0.1.7_amd64.deb`, `tmd-cli-0.1.7-1.x86_64.rpm` |
+| macOS (universal: arm64 + x86_64) | `tmd-cli_0.2.2_universal.dmg`, `tmd-cli_universal.app.tar.gz` |
+| Windows (x86_64) | `tmd-cli_0.2.2_x64-setup.exe` (NSIS), `tmd-cli_0.2.2_x64_en-US.msi` |
+| Linux (x86_64) | `tmd-cli_0.2.2_amd64.AppImage`, `tmd-cli_0.2.2_amd64.deb`, `tmd-cli-0.2.2-1.x86_64.rpm` |
 
 Current artifacts are unsigned / unnotarized: on first launch on macOS, allow the app under "System Settings → Privacy & Security".
+
+The mobile app is not distributed via Releases yet — two ways to use it: build from source with `scripts/build-device.sh --install` (iOS, requires Xcode signing), or enable Web access on the desktop and open the token-bearing URL in the phone's browser (add to home screen to use it like an app).
 
 ## Documentation
 
@@ -199,9 +219,9 @@ Join the QQ group **Tmd-cli vibecoding** (group id 91944516) to chat about usage
 
 ## Current status
 
-Landed: plugin host & plugin market (31 registered plugins: 10 CLI engines + 17 UI features + 3 core + local plugin loader), ten CLI profiles (omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/dsh/opencode) + first-class SSH sessions (russh) + built-in terminal (kind=shell), full PTY lifecycle & rotating session output logs with pagination, xterm curtain, workspace FLUX timeline session list (breathing lights/status labels/pinning/budget pagination/custom groups), top session tab strip with tile display, full composer (triggers/drag-drop/screenshots/command drawer v3/message anchor bar/quota/bracketed-paste, completions sourced from the CLIs themselves), agent/prompt asset library (!! / ## consumption), per-CLI configuration (visual editing of CLI config files, model role routing / wall-hit fallback chains), local plugins (~/.tmd-cli/plugins/ hot-load / build via conversation / version rollback), Ask confirmation detection (byte-stream + screen-state dual channel) with dual sounds, full right-rail Git panel (diff/branch/graph history/commit diff central tabs (dual-pane)/remote fetch/pull/push/three-zone drag-select batch ops & untracked deletion), file tree + CodeMirror editor + file render profiles (images/PDF/spreadsheets/docx/structured) + Markdown preview, file tab context menu & editor maximize, checkpoints (ledger: dual attribution/revert/apply/undo/shadow object store), theme engine (31 VS Code presets), global UI font size & zoom, network proxy, welcome page engine selector (full-action rows / RESUME / QUOTA / TOKENS), read-only session status bar, global shortcuts with visual rebinding, version popover with auto-update, memory coordination (Memory panel with FTS search / pill / console), branch context menu & remote operation dialogs, session tab context menu, WSL support (local UNC + remote SSH host M1: connect/sessions/history/status/read-only file channel), workspace wallpaper (local gallery + fluid shader, surface-token punch-through & translucent curtain), omp disk-session prewarm takeover for instant open, dsh streaming session output.
+Landed: plugin host & plugin market (31 registered plugins: 10 CLI engines + 17 UI features + 3 core + local plugin loader), ten CLI profiles (omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/dsh/opencode) + first-class SSH sessions (russh) + built-in terminal (kind=shell), full PTY lifecycle & rotating session output logs with pagination, xterm curtain, workspace FLUX timeline session list (breathing lights/status labels/pinning/budget pagination/custom groups), top session tab strip with tile display, full composer (triggers/drag-drop/screenshots/command drawer v3/message anchor bar/quota/bracketed-paste, completions sourced from the CLIs themselves), agent/prompt asset library (!! / ## consumption), per-CLI configuration (visual editing of CLI config files, model role routing / wall-hit fallback chains), local plugins (~/.tmd-cli/plugins/ hot-load / build via conversation / version rollback), Ask confirmation detection (byte-stream + screen-state dual channel) with dual sounds, full right-rail Git panel (diff/branch/graph history/commit diff central tabs (dual-pane)/remote fetch/pull/push/three-zone drag-select batch ops & untracked deletion), file tree + CodeMirror editor + file render profiles (images/PDF/spreadsheets/docx/structured) + Markdown preview, file tab context menu & editor maximize, checkpoints (ledger: dual attribution/revert/apply/undo/shadow object store), theme engine (31 VS Code presets), global UI font size & zoom, network proxy, welcome page engine selector (full-action rows / RESUME / QUOTA / TOKENS), read-only session status bar, global shortcuts with visual rebinding, version popover with auto-update, memory coordination (Memory panel with FTS search / pill / console), branch context menu & remote operation dialogs, session tab context menu, WSL support (local UNC + remote SSH host M1: connect/sessions/history/status/read-only file channel), workspace wallpaper (local gallery + fluid shader, surface-token punch-through & translucent curtain), omp disk-session prewarm takeover for instant open, dsh streaming session output, web access & mobile app (QR device pairing with token authorization, LAN direct / Cloudflare / self-hosted relay with one-click SSH deployment + pinned TLS; iOS / Android native shells: session list / live screen with layered transcript (markdown / folded tool runs / growing with the stream) / approval cards / keyboard toolbar / landscape / Git panel / history resume; browsers open the token URL directly).
 
-In progress: command drawer on-device acceptance (5 `[V]` items left, openspec/changes/composer-command-drawer) and CLI interactive compatibility verification; the git "create PR" workflow is being implemented (spec: docs/superpowers/specs/2026-09-15-git-create-pr-design.md); all other change contracts are archived under `openspec/changes/archive/`.
+In progress: command drawer on-device acceptance (5 `[V]` items left, openspec/changes/composer-command-drawer) and CLI interactive compatibility verification; all other change contracts are archived under `openspec/changes/archive/`.
 
 ## License
 
