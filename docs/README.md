@@ -182,4 +182,5 @@
 | 2026-09-24 | [外网中继拆分 Cloudflare/自建服务器 + 一键 SSH 部署(动态证书钉住)](superpowers/specs/2026-09-24-selfhost-relay-deploy-design.md) | 已落地 |
 | 2026-09-24 | [第二轮 code review:修复审计/线协议契约/生命周期/测试质量(修第一轮 2 回归 + P1x5;补测债 6 件)](review/2026-09-24-round2-fixaudit-contract-lifecycle-tests.md) | 已完成(修复同轮收口) |
 | 2026-09-24 | [手机端与远程连接 114 提交全量 code review(P0×1/P1×12/P2 修 18 项;src/mobile 树准入)](review/2026-09-24-mobile-web-114-commits-review.md) | 已完成(修复同轮收口;线上中继待重部署) |
+| 2026-09-25 | [手机会话通用渲染:codemoss 视觉重皮 + transcript 实时生长](superpowers/specs/2026-09-25-mobile-session-render-design.md) | 已评审通过 |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
