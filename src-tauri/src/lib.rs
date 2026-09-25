@@ -18,6 +18,7 @@ mod lsp_framing;
 mod open_with;
 mod plugins;
 mod probe;
+mod probe_prefix;
 mod proc_run;
 mod proxy;
 mod pty;
