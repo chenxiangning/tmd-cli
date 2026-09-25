@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>跨会话文件冲突雷达(设计原型)</title>
+<style>
+  :root {
+    --bg-base: #ffffff; --bg-elevated: #f8f8f8; --bg-hover: #f2f2f2; --bg-active: #e8e8e8;
+    --fg: #3b3b3b; --fg-muted: #6e7681; --fg-faint: #9a9a9a;
+    --border: #e5e5e5; --border-strong: #cecece;
+    --accent: #005fb8; --accent-soft: rgba(0,95,184,.10);
+    --err: #dc2626; --err-soft: rgba(220,38,38,.08);
+    --ok: #059669; --add: #0f7a4d; --add-bg: rgba(15,122,77,.10);
+    --del: #b91c1c; --del-bg: rgba(185,28,28,.09);
+    --radius: 6px; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #ececec; color: var(--fg); font: 13px/1.5 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; padding: 28px 20px 60px; }
+  .page { max-width: 1560px; margin: 0 auto; }
+  h1 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .lede { color: var(--fg-muted); font-size: 12px; margin-bottom: 18px; max-width: 980px; }
+  .lede b { color: var(--fg); }
+  .lede code { font-family: var(--mono); font-size: 11px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+
+  .window { border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; background: var(--bg-base); box-shadow: 0 8px 28px rgba(0,0,0,.08); }
+  .titlebar { height: 33px; display: flex; align-items: center; gap: 10px; background: var(--bg-elevated); border-bottom: 1px solid var(--border); padding: 0 10px 0 12px; }
+  .lights { display: flex; gap: 8px; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; }
+  .lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .wtitle { font-size: 12px; color: var(--fg-muted); }
+  .tabs { display: flex; gap: 4px; margin-left: auto; align-self: flex-end; height: 100%; align-items: flex-end; }
+  .tab { display: flex; align-items: center; gap: 5px; height: 27px; padding: 0 11px; font-size: 12px; color: var(--fg-muted); border-radius: 6px 6px 0 0; }
+  .tab.on { background: var(--bg-base); color: var(--fg); border: 1px solid var(--border); border-bottom-color: var(--bg-base); }
+  .tab .glyph { font-size: 10px; font-weight: 700; color: rgb(255,140,60); }
+  .badge { min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--err); color: #fff; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+
+  .main { display: flex; height: 660px; }
+  .sidebar { width: 250px; flex: none; background: var(--bg-elevated); border-right: 1px solid var(--border); padding: 8px; overflow: auto; }
+  .shead { font-size: 10px; color: var(--fg-faint); padding: 4px 6px 6px; letter-spacing: .05em; }
+  .srow { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: default; }
+  .srow:hover { background: var(--bg-hover); }
+  .srow.hl { background: var(--accent-soft); }
+  .sglyph { width: 20px; height: 20px; border-radius: 5px; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .g-cl { background: #f0eee9; color: #8a6d3b; } .g-cx { background: #eaf3ee; color: #0f7a4d; }
+  .g-om { background: #e8f0fb; color: #005fb8; }
+  .sname { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sws { font-size: 10px; color: var(--fg-faint); }
+  .smeta { margin-left: auto; flex: none; display: flex; align-items: center; }
+  .confdot { width: 8px; height: 8px; border-radius: 50%; background: var(--err); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+
+  .radar { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg-base); }
+  .radar-head { flex: none; display: flex; align-items: baseline; gap: 10px; padding: 12px 16px 10px; border-bottom: 1px solid var(--border); }
+  .radar-head h2 { font-size: 13px; font-weight: 600; }
+  .radar-head .sum { font-size: 11px; color: var(--fg-muted); }
+  .radar-head .sum b { color: var(--err); }
+  .radar-body { flex: 1; overflow: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+  .group { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .group.ignored { opacity: .5; }
+  .group.resolved { opacity: .62; }
+  .g-top { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--err-soft); cursor: pointer; }
+  .g-top .path { font-family: var(--mono); font-size: 11.5px; font-weight: 600; }
+  .g-top .ws { font-size: 10px; color: var(--fg-faint); }
+  .g-top .win { margin-left: auto; font-size: 10px; color: var(--fg-muted); }
+  .g-top .chev { font-size: 10px; color: var(--fg-faint); }
+  .g-body { padding: 10px 12px 12px; display: none; flex-direction: column; gap: 10px; }
+  .group.open .g-body { display: flex; }
+  .group.open .chev { transform: rotate(90deg); }
+
+  /* 双侧会话对照 */
+  .duo { display: flex; gap: 10px; }
+  .side { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+  .side-head { display: flex; align-items: center; gap: 7px; padding: 7px 9px; background: var(--bg-elevated); border-bottom: 1px solid var(--border); }
+  .side-title { font-size: 11.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side-stat { margin-left: auto; font-family: var(--mono); font-size: 10px; flex: none; }
+  .side-stat .a { color: var(--add); } .side-stat .d { color: var(--del); }
+  .side-time { font-size: 10px; color: var(--fg-faint); padding: 4px 9px 0; }
+  .mini { font-family: var(--mono); font-size: 10.5px; line-height: 1.7; padding: 6px 0 8px; }
+  .mini div { padding: 0 9px; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+  .mini .add { background: var(--add-bg); color: var(--add); }
+  .mini .del { background: var(--del-bg); color: var(--del); }
+  .mini .ctx { color: var(--fg-faint); }
+
+  /* 触碰时间轴 */
+  .tl { border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px 10px; }
+  .tl-head { font-size: 10px; color: var(--fg-faint); margin-bottom: 6px; }
+  .tl-lane { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .tl-name { width: 150px; flex: none; display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--fg-muted); }
+  .tl-track { flex: 1; height: 14px; background: var(--bg-elevated); border-radius: 4px; position: relative; }
+  .tl-win { position: absolute; top: 0; bottom: 0; background: var(--err-soft); border-left: 1px dashed rgba(220,38,38,.45); border-right: 1px dashed rgba(220,38,38,.45); }
+  .tl-dot { position: absolute; top: 50%; width: 9px; height: 9px; border-radius: 50%; transform: translate(-50%, -50%); }
+  .tl-dot.cl { background: #8a6d3b; } .tl-dot.cx { background: #0f7a4d; }
+  .tl-axis { display: flex; justify-content: space-between; font-size: 9px; color: var(--fg-faint); font-family: var(--mono); margin: 3px 0 0 158px; }
+
+  .g-actions { display: flex; gap: 8px; }
+  .btn { height: 24px; padding: 0 12px; border: 1px solid var(--border); background: var(--bg-base); border-radius: 6px; font-size: 12px; cursor: pointer; color: var(--fg); font-family: inherit; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.ghost { border-color: transparent; color: var(--fg-muted); }
+  .btn.ghost:hover { color: var(--err); }
+  .g-strip { display: none; padding: 8px 12px; font-size: 11px; color: var(--fg-muted); background: var(--bg-elevated); }
+  .group.ignored .g-strip, .group.resolved .g-strip { display: block; }
+
+  .notes { margin-top: 26px; max-width: 980px; }
+  .notes h2 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .notes li { font-size: 12px; color: var(--fg-muted); margin: 4px 0 4px 18px; }
+  .notes li b { color: var(--fg); }
+  .notes code { font-family: var(--mono); font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>跨会话文件冲突雷达</h1>
+  <p class="lede">
+    数据源 = <b>editWatch 入账 + checkpoints 账本,跨会话 join</b>:同工作区两个活会话在判定窗内触碰同一文件即成组。
+    <b>只预警不拦截</b>(不做文件锁,两个 agent 改同一文件不同区域是合法并行);点击跳转或开双栏 diff,人裁决。
+    数据为静态假数据,交互可点。
+  </p>
+
+  <div class="window">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <span class="wtitle">tmd-cli</span>
+      <div class="tabs">
+        <div class="tab">会话</div>
+        <div class="tab">时间线</div>
+        <div class="tab">审批</div>
+        <div class="tab on"><span class="badge">2</span> 冲突 <span class="glyph">C</span></div>
+        <div class="tab">文件</div>
+      </div>
+    </div>
+    <div class="main">
+      <div class="sidebar">
+        <div class="shead">TMD-CLI · 3 个会话</div>
+        <div class="srow" data-jump="side-cl"><span class="sglyph g-cl">CL</span><div><div class="sname">重构 host 事件分发</div><div class="sws">tmd-cli</div></div><span class="smeta"><span class="confdot"></span></span></div>
+        <div class="srow" data-jump="side-cx"><span class="sglyph g-cx">CX</span><div><div class="sname">修复登录 401 竞态</div><div class="sws">tmd-cli</div></div><span class="smeta"><span class="confdot"></span></span></div>
+        <div class="srow"><span class="sglyph g-om">OM</span><div><div class="sname">schema 迁移评审</div><div class="sws">tmd-cli</div></div></div>
+        <div class="shead" style="margin-top:6px;">INFRA · 1 个会话</div>
+        <div class="srow"><span class="sglyph g-cl">CL</span><div><div class="sname">runbook 增补</div><div class="sws">infra</div></div></div>
+      </div>
+      <div class="radar">
+        <div class="radar-head">
+          <h2>冲突雷达</h2>
+          <span class="sum"><b>2</b> 组冲突 · 3 个文件 · 判定窗 10 分钟 · 工作区作用域</span>
+        </div>
+        <div class="radar-body">
+
+          <div class="group open" id="g1">
+            <div class="g-top" data-toggle="g1">
+              <span class="path">src/kernel/host.ts</span><span class="ws">tmd-cli</span>
+              <span class="win">最近触碰 14:32 · 窗内 4 次交叉</span><span class="chev">▶</span>
+            </div>
+            <div class="g-body">
+              <div class="tl">
+                <div class="tl-head">近 1 小时触碰时间轴 · 红带 = 判定窗交叠</div>
+                <div class="tl-lane">
+                  <span class="tl-name"><span class="sglyph g-cl" style="width:14px;height:14px;font-size:8px;">CL</span> 重构 host 事件分发</span>
+                  <div class="tl-track">
+                    <span class="tl-dot cl" style="left:18%"></span><span class="tl-dot cl" style="left:46%"></span>
+                    <span class="tl-dot cl" style="left:71%"></span>
+                  </div>
+                </div>
+                <div class="tl-lane">
+                  <span class="tl-name"><span class="sglyph g-cx" style="width:14px;height:14px;font-size:8px;">CX</span> 修复登录 401 竞态</span>
+                  <div class="tl-track">
+                    <div class="tl-win" style="left:38%;width:40%;"></div>
+                    <span class="tl-dot cx" style="left:55%"></span><span class="tl-dot cx" style="left:76%"></span>
+                  </div>
+                </div>
+                <div class="tl-axis"><span>13:40</span><span>14:00</span><span>14:20</span><span>14:40</span><span>15:00</span></div>
+              </div>
+              <div class="duo">
+                <div class="side" id="side-cl">
+                  <div class="side-head"><span class="sglyph g-cl">CL</span><span class="side-title">重构 host 事件分发</span><span class="side-stat"><span class="a">+86</span> <span class="d">−41</span></span></div>
+                  <div class="side-time">最后写入 14:32:10 · notify() 调用点</div>
+                  <div class="mini">
+                    <div class="ctx">@@ -188,7 +188,9 @@ writeSession(</div>
+                    <div class="del">-  if (this.writes.onUserWrite(id)) this.notify();</div>
+                    <div class="add">+  const delivered = this.writes.onUserWrite(id, synthetic);</div>
+                    <div class="add">+  if (delivered) this.notify();</div>
+                    <div class="ctx">    return delivered;</div>
+                  </div>
+                </div>
+                <div class="side" id="side-cx">
+                  <div class="side-head"><span class="sglyph g-cx">CX</span><span class="side-title">修复登录 401 竞态</span><span class="side-stat"><span class="a">+12</span> <span class="d">−3</span></span></div>
+                  <div class="side-time">最后写入 14:29:47 · 同文件 auth 段</div>
+                  <div class="mini">
+                    <div class="ctx">@@ -201,6 +201,8 @@ writeSession(</div>
+                    <div class="add">+  if (this.authBusy) return false;</div>
+                    <div class="add">+  this.authBusy = true;</div>
+                    <div class="ctx">    if (this.writes.onUserWrite(id)) this.notify();</div>
+                  </div>
+                </div>
+              </div>
+              <div class="g-actions">
+                <button class="btn" data-jumpbtn="side-cl">跳转 claude</button>
+                <button class="btn" data-jumpbtn="side-cx">跳转 codex</button>
+                <button class="btn">双栏 diff(复用 git 面板)</button>
+                <button class="btn ghost" data-ignore="g1">忽略此文件</button>
+              </div>
+            </div>
+            <div class="g-strip">已忽略:14:33 起 24h 内该文件不再入组(settings.conflictRadar.ignore)</div>
+          </div>
+
+          <div class="group" id="g2">
+            <div class="g-top" data-toggle="g2">
+              <span class="path">posts/draft-remote.md</span><span class="ws">blog</span>
+              <span class="win">最近触碰 14:18 · 窗内 2 次交叉</span><span class="chev">▶</span>
+            </div>
+            <div class="g-body">
+              <div class="duo">
+                <div class="side">
+                  <div class="side-head"><span class="sglyph g-cl">CL</span><span class="side-title">中继部署文章初稿</span><span class="side-stat"><span class="a">+120</span> <span class="d">−0</span></span></div>
+                  <div class="side-time">最后写入 14:18:02</div>
+                  <div class="mini">
+                    <div class="ctx">@@ -12,4 +12,9 @@</div>
+                    <div class="add">+ ## 一键部署的前提</div>
+                    <div class="add">+ ECS 上要有 docker 与 80/443 端口…</div>
+                  </div>
+                </div>
+                <div class="side">
+                  <div class="side-head"><span class="sglyph g-om">OM</span><span class="side-title">术语表统一(中继/桥)</span><span class="side-stat"><span class="a">+8</span> <span class="d">−14</span></span></div>
+                  <div class="side-time">最后写入 14:16:40</div>
+                  <div class="mini">
+                    <div class="ctx">@@ -30,7 +30,5 @@</div>
+                    <div class="del">- 外网桥(webAccessEnabled)</div>
+                    <div class="add">+ 外网中继(relay)/ 内网桥(bridge)</div>
+                  </div>
+                </div>
+              </div>
+              <div class="g-actions">
+                <button class="btn ghost" data-ignore="g2">忽略此文件</button>
+              </div>
+            </div>
+            <div class="g-strip">已忽略:14:33 起 24h 内该文件不再入组(settings.conflictRadar.ignore)</div>
+          </div>
+
+          <div class="group resolved" id="g3">
+            <div class="g-top" data-toggle="g3">
+              <span class="path">src-tauri/src/lib.rs</span><span class="ws">tmd-cli</span>
+              <span class="win">冲突已解除 · 一方会话已归档</span><span class="chev">▶</span>
+            </div>
+            <div class="g-body">
+              <div class="duo">
+                <div class="side"><div class="side-head"><span class="sglyph g-cx">CX</span><span class="side-title">修复启动竞态(已归档)</span><span class="side-stat">最后写入 13:52</span></div></div>
+                <div class="side"><div class="side-head"><span class="sglyph g-cl">CL</span><span class="side-title">重构 host 事件分发</span><span class="side-stat">最后写入 13:58</span></div></div>
+              </div>
+            </div>
+            <div class="g-strip">13:58 后仅剩一个活会话,冲突组自动解除并沉底保留 1 小时</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>设计要点与边界</h2>
+    <ul>
+      <li><b>零新采集</b>:editWatch 已按会话入账改动路径(record_edit 终审过),checkpoints 账本已有时间戳;雷达只是把两表按「工作区 + 文件 + 时间窗」join,新增的是聚合查询与一个右栏面板,不动采集链。</li>
+      <li><b>判定语义</b>:同工作区、双方均为<b>活会话</b>、判定窗(默认 10 分钟,可配)内都写过同一文件才成组;时间轴红带标出交叠段,一眼看出谁先谁后。</li>
+      <li><b>只预警不拦截</b>:不做文件锁、不阻塞 PTY 写入——两个 agent 改同一文件不同区域是合法并行,拦截误伤远大于收益;裁决权在人。</li>
+      <li><b>出口</b>:跳转会话(高亮侧栏行)、双栏 diff 复用 git 面板既有视图;忽略名单落 <code>settings.conflictRadar.ignore</code>(按文件,24h 生效)。</li>
+      <li><b>解除与沉淀</b>:一方归档/退出即自动解除,组沉底保留 1 小时供回看;组内 mini diff 与统计来自 checkpoints 锚点,非重新读盘。</li>
+      <li><b>落点预估</b>:join 聚合放 <code>src/plugins/conflict-radar/</code>(消费 editWatch/checkpoints 既有账本,经 ctx 注册面订阅);侧栏会话行加冲突徽标 = 侧栏一处小改;kernel 零改动。</li>
+    </ul>
+  </div>
+</div>
+<script>
+  document.querySelectorAll("[data-toggle]").forEach(t => t.onclick = () => document.getElementById(t.dataset.toggle).classList.toggle("open"));
+  document.querySelectorAll("[data-ignore]").forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    document.getElementById(b.dataset.ignore).classList.add("ignored");
+  });
+  function hl(id) {
+    document.querySelectorAll(".srow").forEach(r => r.classList.remove("hl"));
+    const row = document.querySelector('.srow[data-jump="' + id + '"]');
+    if (row) { row.classList.add("hl"); row.scrollIntoView({ block: "nearest" }); }
+  }
+  document.querySelectorAll("[data-jumpbtn]").forEach(b => b.onclick = () => hl(b.dataset.jumpbtn));
+  document.querySelectorAll("[data-jump]").forEach(r => r.onclick = () => hl(r.dataset.jump));
+</script>
+</body>
+</html>
