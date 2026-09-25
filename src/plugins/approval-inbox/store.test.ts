@@ -1,10 +1,14 @@
 /**
  * 审批收件箱 store 行为契约测试(mock host/ipc,不依赖真机会话)。
- * 钉:摘录提取纯函数(ANSI 剥离/末 3 行/截断)、since 首见不重置、answer 载荷
- * 与行消退、事件边沿驱动重算。摘录失败静默(日志为 0/抛错)不产生毒化行。
+ * 钉:摘录提取纯函数(ANSI 剥离/末 3 行/截断)、since 首见不重置、answer 载荷、
+ * 幽灵行回归(终端侧作答/自愈只 host.notify,不发 topic → host.subscribe 兜底)、
+ * 后见补盲不记 since、复 ask 重拉新摘录、失败提示位。摘录失败静默不毒化。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { KernelTopics, EventBus } from "@kernel/events";
+
+/** host.subscribe 捕获:测试借此模拟 host.notify 旁路(终端侧作答/自愈路径)。 */
+const hostSubs: Array<() => void> = [];
 
 vi.mock("@kernel/host", () => ({
   host: {
@@ -13,6 +17,10 @@ vi.mock("@kernel/host", () => ({
     writeSession: vi.fn(async () => true),
     getCliProfile: vi.fn(() => undefined),
     getCliSessionId: vi.fn(() => undefined),
+    subscribe: vi.fn((fn: () => void) => {
+      hostSubs.push(fn);
+      return () => undefined;
+    }),
   },
 }));
 vi.mock("@kernel/ipc", () => ({
@@ -30,6 +38,7 @@ import {
   bootApprovalInbox,
   excerptFromTail,
   noteAskDetected,
+  observeCurrentWaitings,
   refreshInbox,
   resetApprovalInboxForTest,
 } from "./store";
@@ -41,12 +50,19 @@ function sessionsFixture(waiting: string[]): SessionMeta[] {
 
 beforeEach(() => {
   resetApprovalInboxForTest();
+  hostSubs.length = 0;
   vi.mocked(host.getSessions).mockReturnValue([]);
   vi.mocked(host.isWaitingConfirm).mockReturnValue(false);
   vi.mocked(host.writeSession).mockResolvedValue(true);
   vi.mocked(ipc.sessionLogSize).mockResolvedValue(0);
   vi.mocked(ipc.sessionHistoryPage).mockResolvedValue({ text: "", startOffset: 0, hasMore: false });
 });
+
+/** 喂入摘录用日志尾桩。 */
+function stubTail(text: string): void {
+  vi.mocked(ipc.sessionLogSize).mockResolvedValue(4096);
+  vi.mocked(ipc.sessionHistoryPage).mockResolvedValue({ text, startOffset: 0, hasMore: false });
+}
 
 describe("excerptFromTail 纯函数", () => {
   it("剥 ANSI、取末 3 个非空行、保留行内空格结构", () => {
@@ -101,12 +117,7 @@ describe("摘录", () => {
   it("askDetected 拉日志尾,剥 ANSI 后上快照", async () => {
     vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a"]));
     vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
-    vi.mocked(ipc.sessionLogSize).mockResolvedValue(4096);
-    vi.mocked(ipc.sessionHistoryPage).mockResolvedValue({
-      text: "Some frame\r\nAllow Bash command: pnpm test?\r\n❯ 1. Yes\r\n",
-      startOffset: 0,
-      hasMore: false,
-    });
+    stubTail("Some frame\r\nAllow Bash command: pnpm test?\r\n❯ 1. Yes\r\n");
     noteAskDetected("a");
     await vi.waitFor(() => {
       expect(approvalInboxSnapshot().entries[0].excerpt).toContain("Allow Bash command: pnpm test?");
@@ -119,6 +130,55 @@ describe("摘录", () => {
     noteAskDetected("a");
     await vi.waitFor(() => approvalInboxSnapshot().entries.length > 0);
     expect(approvalInboxSnapshot().entries[0].excerpt).toBeNull();
+  });
+
+  it("作答消退后缓存清零,复 ask 重拉到新摘录", async () => {
+    vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a"]));
+    vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
+    stubTail("old question\r\nAllow old?\r\n");
+    noteAskDetected("a");
+    await vi.waitFor(() => approvalInboxSnapshot().entries[0].excerpt?.includes("Allow old?") === true);
+
+    /* 作答 → 行消退(缓存随 refreshInbox 清理)→ 新一轮 ask,面板已换问题 */
+    vi.mocked(host.isWaitingConfirm).mockReturnValue(false);
+    refreshInbox();
+    stubTail("new question\r\nAllow new-command?\r\n");
+    vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
+    noteAskDetected("a");
+    await vi.waitFor(() => {
+      expect(approvalInboxSnapshot().entries[0].excerpt).toContain("Allow new-command?");
+    });
+  });
+});
+
+describe("幽灵行回归(非收件箱路径的状态位变化)", () => {
+  it("终端侧作答(只 host.notify,无 topic)经 host.subscribe 重算即消退", () => {
+    const events = new EventBus();
+    bootApprovalInbox(events);
+    expect(hostSubs.length).toBe(1); /* boot 恰挂一条 host.subscribe */
+    vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a"]));
+    vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
+    events.emit<string>(KernelTopics.askDetected, "a");
+    expect(approvalInboxSnapshot().entries.map((e) => e.sessionId)).toEqual(["a"]);
+
+    /* 用户在终端直接答 y:askWatch 清位只 host.notify,不发 kernel 事件 */
+    vi.mocked(host.isWaitingConfirm).mockReturnValue(false);
+    hostSubs[0]();
+    expect(approvalInboxSnapshot().entries).toEqual([]);
+  });
+
+  it("boot 前 askDetected 丢失的场景:observeCurrentWaitings 补盲且不假造时长", async () => {
+    vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["late"]));
+    vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
+    stubTail("late panel\r\nAllow late-command?\r\n");
+    observeCurrentWaitings();
+    await vi.waitFor(() => approvalInboxSnapshot().entries.length > 0);
+    const entry = approvalInboxSnapshot().entries[0];
+    expect(entry.sessionId).toBe("late");
+    expect(entry.since).toBeNull(); /* 真实提问时刻不可知 → 「等待中」,不从 0 假起走 */
+    await vi.waitFor(() => {
+      expect(approvalInboxSnapshot().entries[0].excerpt).toContain("Allow late-command?");
+    });
   });
 });
 
@@ -133,32 +193,20 @@ describe("应答", () => {
     vi.mocked(host.writeSession).mockResolvedValue(false);
     await expect(answerWaiting("a", "n")).resolves.toBe(false);
   });
-});
 
-describe("事件边沿驱动", () => {
-  it("boot 后 askDetected 上行,turnSettled 消行", () => {
-    const events = new EventBus();
-    bootApprovalInbox(events);
-    vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a"]));
+  it("写失败落 failure 提示位(行已消退,横幅兜底);成功作答清位", async () => {
+    vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a", "b"]));
     vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
-    events.emit<string>(KernelTopics.askDetected, "a");
-    expect(approvalInboxSnapshot().entries.map((e) => e.sessionId)).toEqual(["a"]);
+    noteAskDetected("a");
+    noteAskDetected("b");
 
-    vi.mocked(host.isWaitingConfirm).mockReturnValue(false);
-    events.emit<unknown>(KernelTopics.turnSettled, { sessionId: "a", unviewed: false, settledAt: 1 });
-    expect(approvalInboxSnapshot().entries).toEqual([]);
-  });
+    vi.mocked(host.writeSession).mockResolvedValue(false);
+    await answerWaiting("a", "retry");
+    expect(approvalInboxSnapshot().failure).toBe("a");
 
-  it("sessionExited 消行(死会话不留残卡)", () => {
-    const events = new EventBus();
-    bootApprovalInbox(events);
-    vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a"]));
-    vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
-    events.emit<string>(KernelTopics.askDetected, "a");
-    expect(approvalInboxSnapshot().entries).toHaveLength(1);
-
-    vi.mocked(host.getSessions).mockReturnValue([]);
-    events.emit<string>(KernelTopics.sessionExited, "a");
-    expect(approvalInboxSnapshot().entries).toEqual([]);
+    /* a 已不在等待表时重算清位;成功作答 b 同样清位 */
+    vi.mocked(host.writeSession).mockResolvedValue(true);
+    await answerWaiting("b", "y");
+    expect(approvalInboxSnapshot().failure).toBeNull();
   });
 });

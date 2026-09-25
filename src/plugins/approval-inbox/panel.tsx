@@ -11,7 +11,13 @@ import { t } from "@kernel/i18n";
 import { useSettingsState } from "@kernel/settings";
 import { getSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, shortId } from "@kernel/sessionTitles";
-import { answerWaiting, observeCurrentWaitings, useApprovalInbox, type InboxEntry } from "./store";
+import {
+  answerWaiting,
+  dismissFailure,
+  observeCurrentWaitings,
+  useApprovalInbox,
+  type InboxEntry,
+} from "./store";
 
 /** 等待时长文案;since 未知(面板后见)只显示「等待中」。 */
 function formatWait(since: number | null): string {
@@ -37,8 +43,8 @@ function resolveTitle(sessionId: string, manualTitles: Record<string, string>): 
 }
 
 export function ApprovalInboxPanel() {
-  useHost(); /* 作答 / 会话变化即时重算(host.notify 驱动,turnSettled 兜底) */
-  const { entries } = useApprovalInbox();
+  useHost(); /* 状态位变化经 store 的 host.subscribe 重算,此处驱动重渲 */
+  const { entries, failure } = useApprovalInbox();
   const { settings } = useSettingsState();
   const [, tick] = useState(0);
   useEffect(() => {
@@ -49,9 +55,21 @@ export function ApprovalInboxPanel() {
 
   return (
     <div className="flex h-full flex-col bg-(--tmd-bg-base)">
-      <div className="flex-none border-b border-(--tmd-border) px-3 py-1.5 text-[0.6875rem] leading-[1.125rem] text-(--tmd-fg-muted)">
-        {t("审批收件箱 · {n} 个会话在等待 · 应答原样写入会话", { n: entries.length })}
+      <div
+        role="status"
+        className="flex-none border-b border-(--tmd-border) px-3 py-1.5 text-[0.6875rem] leading-[1.125rem] text-(--tmd-fg-muted)"
+      >
+        {t("审批收件箱 · {n} 个会话在等待 · 摘录以会话面板为准", { n: entries.length })}
       </div>
+      {failure && (
+        <button
+          type="button"
+          className="flex-none border-b border-(--tmd-border) bg-(--tmd-diff-removed)/10 px-3 py-1.5 text-left text-[0.6875rem] leading-[1.125rem] text-(--tmd-diff-removed) hover:underline"
+          onClick={dismissFailure}
+        >
+          {t("应答发送失败,会话可能已退出")} · {t("点击关闭")}
+        </button>
+      )}
       {entries.length === 0 ? (
         <div className="px-4 pt-10 text-center text-[0.6875rem] leading-relaxed text-(--tmd-fg-faint)">
           {t("没有会话在等待确认")}
@@ -71,16 +89,16 @@ function InboxRow({ entry, manualTitles }: { entry: InboxEntry; manualTitles: Re
   const meta = host.getSessions().find((s) => s.id === entry.sessionId);
   const profile = host.getCliProfile(meta?.profileId ?? entry.profileId);
   const [draft, setDraft] = useState("");
-  const [failed, setFailed] = useState(false);
+  const [sending, setSending] = useState(false); /* 在途闸:防连按回车重复写 PTY */
 
   const send = async () => {
     const text = draft.trim();
-    if (!text) return;
-    if (await answerWaiting(entry.sessionId, text)) {
-      setDraft("");
-      setFailed(false);
-    } else {
-      setFailed(true); /* 行保留给用户看错误;会话已死时下轮重算摘除 */
+    if (!text || sending) return;
+    setSending(true);
+    try {
+      if (await answerWaiting(entry.sessionId, text)) setDraft("");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -103,36 +121,36 @@ function InboxRow({ entry, manualTitles }: { entry: InboxEntry; manualTitles: Re
         </button>
       </div>
       {entry.excerpt && (
-        <pre className="mt-1 max-h-[3.375rem] overflow-hidden font-mono text-[0.625rem] leading-[1.125rem] whitespace-pre-wrap text-(--tmd-fg-muted)">
+        <pre
+          title={entry.excerpt}
+          aria-label={t("摘录以会话面板为准")}
+          className="mt-1 max-h-[3.375rem] overflow-hidden font-mono text-[0.625rem] leading-[1.125rem] whitespace-pre-wrap text-(--tmd-fg-muted)"
+        >
           {entry.excerpt}
         </pre>
       )}
       <div className="mt-1.5 flex items-center gap-1.5">
         <input
           value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            setFailed(false);
-          }}
+          disabled={sending}
+          onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") void send();
+            /* IME 组词回车(中文输入确认)不发送 */
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) void send();
           }}
           placeholder={t("应答原样写入会话,回车发送")}
-          className="h-[1.5rem] min-w-0 flex-1 rounded border border-(--tmd-border) bg-(--tmd-bg-base) px-2 font-mono text-[0.6875rem] text-(--tmd-fg) placeholder:text-(--tmd-fg-faint) focus:border-(--tmd-accent) focus:outline-none"
+          aria-label={t("应答原样写入会话,回车发送")}
+          className="h-[1.5rem] min-w-0 flex-1 rounded border border-(--tmd-border) bg-(--tmd-bg-base) px-2 font-mono text-[0.6875rem] text-(--tmd-fg) placeholder:text-(--tmd-fg-faint) focus:border-(--tmd-accent) focus:outline-none disabled:opacity-50"
         />
         <button
           type="button"
-          className="flex-none rounded bg-(--tmd-accent) px-2 text-[0.625rem] leading-[1.25rem] text-white opacity-90 hover:opacity-100"
+          disabled={sending}
+          className="flex-none rounded bg-(--tmd-accent) px-2 text-[0.625rem] leading-[1.25rem] text-white opacity-90 hover:opacity-100 disabled:opacity-50"
           onClick={() => void send()}
         >
           {t("发送")}
         </button>
       </div>
-      {failed && (
-        <div className="mt-1 text-[0.625rem] leading-[1.125rem] text-(--tmd-diff-removed)">
-          {t("发送失败:会话可能已退出")}
-        </div>
-      )}
     </div>
   );
 }

@@ -11,7 +11,12 @@ export const MESSAGES_EN = {
   "直达": "Open",
   "发送": "Send",
   "应答原样写入会话,回车发送": "Reply is written to the session verbatim; Enter to send",
-  "发送失败:会话可能已退出": "Send failed: the session may have exited",
+  "应答发送失败,会话可能已退出": "Reply failed to send; the session may have exited",
+  "审批收件箱 · {n} 个会话在等待 · 摘录以会话面板为准":
+    "Approval inbox · {n} waiting · excerpts are hints; the session panel is authoritative",
+  "摘录以会话面板为准": "Excerpt hint — the session panel is authoritative",
+  "点击关闭": "Click to dismiss",
+  "审批收件箱": "Approval Inbox",
   "聚合等待确认的会话:一键直达与自由文本应答":
     "Aggregates sessions waiting for confirmation: one-click open and free-text replies",
 } as Record<string, string>;
