@@ -63,6 +63,7 @@ export const MESSAGES = {
   "自动(按序竞速)": "Auto (race in order)",
   "加载更早输出": "Load earlier output",
   "已到开头": "Beginning of output",
+  "工具调用 {n} 次": "{n} tool calls",
   "Git 面板": "Git panel",
   "PR 创建失败,请稍后重试": "PR creation failed, please retry later",
   "工作区干净,没有未提交改动": "Working tree clean — nothing to commit",

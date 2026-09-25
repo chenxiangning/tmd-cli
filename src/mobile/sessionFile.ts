@@ -74,3 +74,24 @@ export async function loadTranscriptAt(path: string): Promise<TranscriptTurn[] |
     return null;
   }
 }
+
+/** 增量拍(spec 2026-09-25-mobile-session-render):尺寸闸尾读 + 整窗重解析,
+ *  语义与 loadTranscriptAt 一致。lastSize=null 强制读(首拍);unchanged → null
+ *  (调用方免 setState);变化但解析 0 行(尾部半行/未识别行)→ null 保旧态,
+ *  size 不同步,待半行写全后下一拍自然补上。 */
+export async function pollTranscript(
+  path: string,
+  lastSize: number | null,
+): Promise<{ turns: TranscriptTurn[]; size: number } | null> {
+  try {
+    const r = await invoke<{ changed: boolean; size: number; text: string }>(
+      "fs_read_tail_changed",
+      { path, maxBytes: TAIL_BYTES, lastSize },
+    );
+    if (!r.changed) return null;
+    const all = parseTranscript(r.text);
+    return all.length ? { turns: tailTurns(all, MAX_TURNS), size: r.size } : null;
+  } catch {
+    return null;
+  }
+}

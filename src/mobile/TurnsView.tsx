@@ -2,10 +2,13 @@
  * transcript 对话/操作分层渲染 —— SessionScreen 与 HistoryScreen 共用;
  * turns 来自 append-only 会话日志,解析后不重排不插入,下标即稳定身份
  * (key 用下标是语义正解,非图省事)。助手长文默认 clamp,点击展开。
+ * 视觉重皮(spec 2026-09-25-mobile-session-render,对标 codemoss 消息时间线):
+ * 连续 tool turn 在渲染层归组折叠为一条「工具调用 {n} 次」芯片,数据与顺序不动。
  */
 import { useState } from "react";
 import { t } from "@kernel/i18n";
 import type { TranscriptTurn } from "@kernel/transcript";
+import { groupTurns } from "./shared";
 
 /** 助手消息超过该行数默认折叠(窄屏一屏被一条长文吃满)。 */
 const CLAMP_LINES = 8;
@@ -31,26 +34,45 @@ function AssistantMsg(props: { text: string }) {
   );
 }
 
-export function TurnsView(props: { turns: TranscriptTurn[] }) {
+/** 折叠工具运行:默认一条芯片,点开逐条单行摘要;再点收起。 */
+function ToolRun(props: { items: TranscriptTurn[] }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="tr">
-      {props.turns.map((tn, i) =>
-        tn.role === "tool" ? (
-          // react-doctor-disable-next-line react-doctor/no-array-index-as-key -- append-only 日志,下标即身份(见头注)
-          <div className="tr-tool" key={i}>
+    <div className="tr-run-open">
+      <button
+        type="button"
+        className="tr-run"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open ? "▾" : "▸"} ⚙ {t("工具调用 {n} 次", { n: props.items.length })}
+      </button>
+      {open &&
+        props.items.map((tn, k) => (
+          // react-doctor-disable-next-line react-doctor/no-array-index-as-key -- 组内瞬态展开列表,append-only
+          <div className="tr-tool" key={k}>
             ⚙ {tn.tool}
             {tn.text ? ` ${tn.text}` : ""}
           </div>
-        ) : tn.role === "user" ? (
-          // react-doctor-disable-next-line react-doctor/no-array-index-as-key -- 同上
-          <div className="tr-user" key={i}>
-            {tn.text}
-          </div>
-        ) : (
-          // react-doctor-disable-next-line react-doctor/no-array-index-as-key -- 同上
-          <AssistantMsg text={tn.text} key={i} />
-        ),
-      )}
+        ))}
+    </div>
+  );
+}
+
+export function TurnsView(props: { turns: TranscriptTurn[] }) {
+  return (
+    <div className="tr">
+      {groupTurns(props.turns).map((seg) => {
+        if (seg.kind === "run") return <ToolRun items={seg.items} key={seg.index} />;
+        if (seg.kind === "user") {
+          return (
+            <div className="tr-user" key={seg.index}>
+              {seg.turn.text}
+            </div>
+          );
+        }
+        return <AssistantMsg text={seg.turn.text} key={seg.index} />;
+      })}
     </div>
   );
 }

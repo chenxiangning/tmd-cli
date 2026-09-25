@@ -110,7 +110,12 @@
 .kb-toggle.on{color:var(--accent);border-color:var(--accent)}
 .composer.kb-on{padding-bottom:6px}
 /* transcript:对话(用户/助手)与工具操作分型渲染 */
-.tr{display:flex;flex-direction:column;gap:7px;padding-bottom:8px}
+.tr{display:flex;flex-direction:column;gap:10px;padding-bottom:8px}
+/* 工具运行折叠(spec 2026-09-25-mobile-session-render;codemoss process 行手机版):
+ * 默认一条 mono 芯片,点开逐条展开(.tr-tool 列表) */
+.tr-run-open{display:flex;flex-direction:column;gap:4px}
+.tr-run{display:block;width:100%;text-align:left;font-family:var(--mono);font-size:10.5px;color:var(--fg-muted);background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:6px 9px;cursor:pointer}
+.tr-run:active{color:var(--accent);border-color:var(--accent)}
 /* 助手长文展开柄:button 复位后与 tr-asst 同外观 */
 .tr-asst-btn{border:none;background:none;padding:0;font:inherit;text-align:left;color:inherit;cursor:pointer}
 .tr-user{align-self:flex-end;max-width:86%;background:var(--accent-soft);border:1px solid rgba(0,95,184,.25);border-radius:12px 12px 3px 12px;padding:7px 10px;font-family:system-ui;font-size:12.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word}

@@ -7,17 +7,15 @@
 import React, { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
 import { useLiveStream } from "./useLiveStream";
-import { useCkptBadge, useTerminalFit } from "./sessionHooks";
+import { useCkptBadge, useLiveTurns, useTerminalFit } from "./sessionHooks";
 import { ConnBanner } from "./ConnChip";
 import { HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { notifyAsk } from "./shared";
 import { tailAskLine, tailHasAskMarker, writeSession } from "./remote";
 import { shellInvoke } from "@kernel/shellBridge";
-import { loadTranscript } from "./sessionFile";
 import { EngineMark } from "./EngineMark";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
-import { type TranscriptTurn } from "@kernel/transcript";
 import { KeyToolbar } from "./KeyToolbar";
 import { CkptSheet } from "./CkptSheet";
 
@@ -51,8 +49,9 @@ export function SessionScreen(props: { sessionId: string }) {
   
   const ckpt = useCkptBadge(meta?.cwd, props.sessionId);
 
-  /* transcript(单独解析):CLI 磁盘 jsonl → 对话/操作分层渲染;失败回落 PTY 尾流。 */
-  const [turns, setTurns] = useState<TranscriptTurn[] | null>(null);
+  /* transcript(spec 2026-09-25-mobile-session-render):jsonl 定位 + 2s 增量生长;
+   * 失败/非契约引擎回落 null → PTY 尾流实况。 */
+  const turns = useLiveTurns(meta?.profileId, meta?.cwd, props.sessionId);
   /* 实况块:有对话时默认折叠(终端原始流在窄屏不可读),点开看;无对话=全屏实况。 */
   const [liveOpen, setLiveOpen] = useState(false);
   const liveShown = turns ? liveOpen : true;
@@ -74,19 +73,6 @@ export function SessionScreen(props: { sessionId: string }) {
     },
     [],
   );
-  useEffect(() => {
-    const profile = meta?.profileId;
-    const cwd = meta?.cwd;
-    if (!profile || !cwd) return;
-    let alive = true;
-    setTurns(null);
-    void loadTranscript(profile, cwd).then((t) => {
-      if (alive) setTurns(t);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [meta?.profileId, meta?.cwd, props.sessionId]);
 
   const { live, earlier, hasMore, loadingEarlier, loadEarlier } = useLiveStream(props.sessionId);
 

@@ -5,8 +5,31 @@
 import React from "react";
 import { t } from "@kernel/i18n";
 import { hasShellBridge, shellNotify } from "@kernel/shellBridge";
+import type { TranscriptTurn } from "@kernel/transcript";
 import { loadChannelPin, type MobileCreds } from "./creds";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
+
+/** 渲染分段(spec 2026-09-25-mobile-session-render):连续 tool turn 归组为一条
+ *  折叠运行;纯渲染层折叠,数据与顺序不动。index = 段首元素在原 turns 中的
+ *  下标(append-only,下标即稳定身份)。 */
+export type TurnSegment =
+  | { kind: "user" | "assistant"; turn: TranscriptTurn; index: number }
+  | { kind: "run"; items: TranscriptTurn[]; index: number };
+
+export function groupTurns(turns: TranscriptTurn[]): TurnSegment[] {
+  const segs: TurnSegment[] = [];
+  for (let i = 0; i < turns.length; i++) {
+    const tn = turns[i]!;
+    if (tn.role !== "tool") {
+      segs.push({ kind: tn.role, turn: tn, index: i });
+      continue;
+    }
+    const last = segs[segs.length - 1];
+    if (last?.kind === "run") last.items.push(tn);
+    else segs.push({ kind: "run", items: [tn], index: i });
+  }
+  return segs;
+}
 
 /** 壳要求的桌面协议能力(hello.capabilities 缺此 = block 屏;协议破坏性变更时步进)。 */
 export const REQUIRED_CAPABILITY = "app-device";
