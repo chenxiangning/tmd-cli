@@ -6,6 +6,8 @@
  * 连续 tool turn 在渲染层归组折叠为一条「工具调用 {n} 次」芯片,数据与顺序不动。
  */
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { t } from "@kernel/i18n";
 import type { TranscriptTurn } from "@kernel/transcript";
 import { groupTurns } from "./shared";
@@ -13,12 +15,29 @@ import { groupTurns } from "./shared";
 /** 助手消息超过该行数默认折叠(窄屏一屏被一条长文吃满)。 */
 const CLAMP_LINES = 8;
 
+/** 助手正文轻量 markdown(GFM:标题/列表/行内码/代码块/链接)。CLI 回复
+ *  即 markdown 源文,纯文本经渲染输出不变;clamp 按源文行数,腰斩的围栏/
+ *  标题由 remark 就地解析降级。不用 rehype-raw(内嵌 HTML 不渲染,免 sanitize)。 */
+function Md(props: { text: string }) {
+  return (
+    <div className="md">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{props.text}</ReactMarkdown>
+    </div>
+  );
+}
+
 function AssistantMsg(props: { text: string }) {
   const [open, setOpen] = useState(false);
   const lines = props.text.split("\n");
   const long = lines.length > CLAMP_LINES;
   const body = long && !open ? lines.slice(0, CLAMP_LINES).join("\n") : props.text;
-  if (!long) return <div className="tr-asst">{body}</div>;
+  if (!long) {
+    return (
+      <div className="tr-asst">
+        <Md text={body} />
+      </div>
+    );
+  }
   return (
     <button
       type="button"
@@ -26,7 +45,7 @@ function AssistantMsg(props: { text: string }) {
       aria-expanded={open}
       onClick={() => setOpen((v) => !v)}
     >
-      {body}
+      <Md text={body} />
       <span className="tr-more">
         {open ? ` ▴ ${t("收起")}` : ` ▾ ${t("展开全文")}`}
       </span>

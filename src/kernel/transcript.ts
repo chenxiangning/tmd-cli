@@ -20,8 +20,16 @@ export interface TranscriptTurn {
 
 const TURN_MAX = 600; // 单 turn 渲染上限;更长截断(移动端不需要全文)
 
+/** 工具摘要:压成单行(芯片/折叠行只显示一行)。 */
 function clip(s: string): string {
   const one = stripAnsi(s).replace(/\s+/g, " ").trim();
+  return one.length > TURN_MAX ? `${one.slice(0, TURN_MAX)}…` : one;
+}
+
+/** 对话正文:剥 ANSI、去首尾空白,但保留换行 —— markdown 块级语法
+ *  (标题/列表/围栏)依赖换行,压单行会让手机端格式渲染失效。 */
+function clipText(s: string): string {
+  const one = stripAnsi(s).trim();
   return one.length > TURN_MAX ? `${one.slice(0, TURN_MAX)}…` : one;
 }
 
@@ -37,7 +45,7 @@ function str(o: Obj | null, k: string): string {
 /** content 部分 → turns(文本归 role,工具件归 tool)。 */
 function pushParts(content: unknown, role: "user" | "assistant", out: TranscriptTurn[]): void {
   if (typeof content === "string") {
-    const t = clip(content);
+    const t = clipText(content);
     if (t) out.push({ role, text: t });
     return;
   }
@@ -47,7 +55,7 @@ function pushParts(content: unknown, role: "user" | "assistant", out: Transcript
     if (!p) continue;
     const type = str(p, "type");
     if (type === "text" || type === "input_text" || type === "output_text") {
-      const t = clip(str(p, "text"));
+      const t = clipText(str(p, "text"));
       if (t) out.push({ role, text: t });
     } else if (type === "tool_use" || type === "toolUse" || type === "function_call") {
       const name = str(p, "name") || "tool";
