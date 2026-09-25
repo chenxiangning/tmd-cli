@@ -1220,10 +1220,6 @@ export interface LspMessageEvent {
   key: string;
   payload: string;
 }
-export interface LspTextEvent {
-  key: string;
-  text: string;
-}
 export interface LspExitEvent {
   key: string;
   code: number | null;
@@ -1232,11 +1228,6 @@ export interface LspExitEvent {
 /** 订阅 LSP 完整 JSON 消息(全局通道,按 key 归属)。 */
 export function onLspMessage(cb: (e: LspMessageEvent) => void) {
   return listen<LspMessageEvent>("lsp://message", (ev) => cb(ev.payload));
-}
-
-/** 订阅 LSP 服务端 stderr 日志(调试面)。 */
-export function onLspStderr(cb: (e: LspTextEvent) => void) {
-  return listen<LspTextEvent>("lsp://stderr", (ev) => cb(ev.payload));
 }
 
 /** 订阅 LSP 进程退出。 */
