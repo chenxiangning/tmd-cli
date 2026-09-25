@@ -189,5 +189,6 @@
 | 2026-09-25 | [审批收件箱设计:桌面右栏聚合等待确认会话,直达 + 自由文本应答(检测零新增;预设代发键否决遵 M2 评审 A2)](../openspec/changes/2026-09-25-approval-inbox/proposal.md) | 已落地(真机目检待大仙;approval-inbox 插件随本提案提交) |
 | 2026-09-25 | [审批收件箱换角度评审(功能完整性/架构边界/系统兼容;P1 幽灵行 + 7 项全当场修)](review/2026-09-25-approval-inbox-review.md) | 已完成(修复同批提交) |
 | 2026-09-25 | [omp 学堂一体化学习体系原型(左栏入口 + 13 课入门 + 指南 tab + composer 斜杠抽屉,四面对互打通)](design/omp-learning-system.html) | 已定稿(见同日 spec) |
-| 2026-09-25 | [CLI 学堂(cli-academy)设计:多 CLI 通用引导学习体系(kernel 课程注册面 + cli-* 供数据 + academy feature 插件;omp 首接入 82 命令/13 课)](superpowers/specs/2026-09-25-cli-academy-design.md) | 实施中(分阶段,每阶段 review 通过才提交) |
+| 2026-09-25 | [CLI 学堂(cli-academy)设计:多 CLI 通用引导学习体系(kernel 课程注册面 + cli-* 供数据 + academy feature 插件;omp 首接入 82 命令/13 课)](superpowers/specs/2026-09-25-cli-academy-design.md) | 已落地(dd78bae/d86e1b5/80554fb;阶段 1-3 双轮 review PASS;真窗口已启动,目检清单待大仙) |
+| 2026-09-25 | [15 — CLI 学堂契约:课程注册面/AcademyCourse 结构/供给方与消费方职责/练习桥时序/契约测试](architecture/15-cli-academy.md) | 已落地(随 cli-academy 实施) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
