@@ -1,8 +1,8 @@
 /**
  * 壳能力桥 —— 原生壳(SwiftUI + WKWebView)本机能力的唯一前端入口。
- * 协议:postMessage `{id, method, args}` → Swift ShellBridge 分发 →
+ * 协议:postMessage `{id, method, args}` → 壳(iOS Swift/Android Kotlin)分发 →
  * `window.__TMD_SHELL_RESULT__(id, ok, payload|error)` 回注。
- * 能力:notify(本地通知)/ creds.get/set/delete(iOS 钥匙串)。
+ * 能力:notify(本地通知)/ creds.get/set/delete(iOS 钥匙串 / Android 加密偏好)。
  * 非壳环境(桌面/浏览器)hasShellBridge()=false,调用方自行降级;
  * 这些能力是**手机本机**的,不经桌面桥,也不进 AppDevice 白名单。
  */
@@ -14,18 +14,28 @@ let nextId = 1;
 
 interface ShellWindow {
   webkit?: { messageHandlers?: { shell?: { postMessage: (m: unknown) => void } } };
+  /** Android 壳:WebView addJavascriptInterface 注入;post 只收 JSON 字符串(接口仅支持原语) */
+  AndroidShell?: { post: (json: string) => void };
   __TMD_SHELL_RESULT__?: (id: number, ok: boolean, payload: unknown) => void;
 }
 
 function shellWindow(): ShellWindow | null {
   if (typeof window === "undefined") return null;
   const w = window as ShellWindow;
-  return w.webkit?.messageHandlers?.shell ? w : null;
+  return w.webkit?.messageHandlers?.shell || w.AndroidShell ? w : null;
 }
 
 /** 壳桥是否可用(原生壳内为 true;桌面/浏览器 false)。 */
 export function hasShellBridge(): boolean {
   return shellWindow() !== null;
+}
+
+/** 壳桥发信封;iOS 走 messageHandlers,Android 走 AndroidShell.post(JSON 串)。 */
+function shellPost(m: { id: number; method: string; args: unknown }): void {
+  const w = shellWindow();
+  if (!w) return;
+  if (w.AndroidShell) w.AndroidShell.post(JSON.stringify(m));
+  else w.webkit!.messageHandlers!.shell!.postMessage(m);
 }
 
 /** 调壳能力;桥缺席或异常 reject(调用方负责降级,不静默吞)。 */
@@ -35,7 +45,7 @@ export function shellInvoke<T = unknown>(method: string, args?: unknown): Promis
   const id = nextId++;
   return new Promise<T>((resolve, reject) => {
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
-    w.webkit!.messageHandlers!.shell!.postMessage({ id, method, args: args ?? null });
+    shellPost({ id, method, args: args ?? null });
   });
 }
 
@@ -43,11 +53,7 @@ export function shellInvoke<T = unknown>(method: string, args?: unknown): Promis
 
 /** 页面诊断通道:Swift 侧写入沙箱 Documents/shell.log(发后即忘,无应答方)。 */
 export function shellLog(line: string): void {
-  shellWindow()?.webkit?.messageHandlers?.shell?.postMessage({
-    id: 0,
-    method: "log",
-    args: { line },
-  });
+  shellPost({ id: 0, method: "log", args: { line } });
 }
 
 /** 本地通知(系统权限被拒时 Swift 侧静默成功,不抛)。 */

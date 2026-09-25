@@ -120,3 +120,126 @@ jobs:
           name: tmd-cli-bundle-${{ matrix.tauri-target }}
           path: src-tauri/target/${{ matrix.tauri-target }}/release/bundle/
 
+
+  # ---------- 手机 app(Android 壳)----------
+  # Kotlin+WebView 薄壳(mobile-app/android-shell),与桌面四 job 并行;产物:
+  # debug 签名 APK(直装可用;正式签名需要上 keystore secret,当前无,如实未签)。
+  android:
+    name: "Android (arm64 + armv7 + x86_64)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      # 壳二进制与前端 dist 必须同包(build-device-android.sh 同规则)
+      - name: Build web dist
+        run: pnpm build
+
+      - name: Copy dist into shell assets
+        run: |
+          rm -rf mobile-app/android-shell/app/src/main/assets/dist
+          mkdir -p mobile-app/android-shell/app/src/main/assets
+          cp -R dist mobile-app/android-shell/app/src/main/assets/dist
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Gradle assembleRelease
+        run: |
+          cd mobile-app/android-shell
+          gradle assembleRelease --no-daemon --console=plain
+
+      - name: Attach APK to release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mobile-app/android-shell/app/build/outputs/apk/release/app-release-unsigned.apk
+          tag_name: ${{ github.ref_name }}
+          draft: true
+
+      - name: Upload APK artifact(仅手动触发)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: tmd-cli-android-apk
+          path: mobile-app/android-shell/app/build/outputs/apk/release/
+
+  # ---------- 手机 app(iOS 壳,未签名)----------
+  # 原生 SwiftUI 壳(mobile-app/native-shell)。CI 无分发证书 → CODE_SIGNING_ALLOWED=NO
+  # 出未签名 .app(侧载需用户自签;真机日常装用本地 scripts/build-device.sh)。
+  ios-shell:
+    name: "iOS (arm64, unsigned)"
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web dist
+        run: pnpm build
+
+      - name: Copy dist for shell bundle
+        run: |
+          rm -rf mobile-app/dist
+          cp -R dist mobile-app/dist
+
+      - name: xcodebuild (unsigned)
+        run: |
+          cd mobile-app/native-shell
+          xcodebuild \
+            -project tmd-native-shell.xcodeproj \
+            -scheme 'tmd-cli mobile' \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath /tmp/tmd-ios-ci \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Zip .app
+        run: |
+          cd /tmp/tmd-ios-ci/Build/Products/Release-iphoneos
+          zip -qry /tmp/tmd-cli-mobile-unsigned.zip "tmd-cli mobile.app"
+
+      - name: Attach to release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: /tmp/tmd-cli-mobile-unsigned.zip
+          tag_name: ${{ github.ref_name }}
+          draft: true
+
+      - name: Upload artifact(仅手动触发)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: tmd-cli-ios-unsigned
+          path: /tmp/tmd-cli-mobile-unsigned.zip
