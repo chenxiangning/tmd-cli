@@ -7,7 +7,14 @@
 import "./kernel/withResolversShim"; /* 首位:垫片先于一切静态图求值 */
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { IconContext } from "@phosphor-icons/react";
+import { HintProvider } from "@kernel/Tooltip";
 import { isMobileShell } from "./mobile/shared";
+
+/* Phosphor 全局默认 weight=bold —— 圆胖粗线视觉(对齐「圆乎乎 icon」诉求);
+ * 调用点显式 weight 可覆盖。模块级常量:Provider value 引用稳定。
+ * 2026-09-25 恢复:b2f14b2 双树分离重写入口时整块丢失,桌面/手机图标静默退回细体。 */
+const ICON_CONTEXT = { weight: "bold" } as const;
 
 /* 样式也分家(大仙 2026-09-25:app 与客户端不许混载):mobile 分支只载
  * mobile.css(自持令牌+reset,不依赖桌面 themes.css),桌面分支只载
@@ -24,7 +31,9 @@ if (isMobileShell()) {
     .then(({ MobileRoot }) => {
       root.render(
         <React.StrictMode>
-          <MobileRoot />
+          <IconContext.Provider value={ICON_CONTEXT}>
+            <MobileRoot />
+          </IconContext.Provider>
         </React.StrictMode>,
       );
     })
@@ -37,7 +46,12 @@ if (isMobileShell()) {
     .then(({ DesktopApp }) => {
       root.render(
         <React.StrictMode>
-          <DesktopApp />
+          {/* HintProvider 仅桌面树:悬浮提示消费 data-hint 系属性,mobile 无此面。 */}
+          <IconContext.Provider value={ICON_CONTEXT}>
+            <HintProvider>
+              <DesktopApp />
+            </HintProvider>
+          </IconContext.Provider>
         </React.StrictMode>,
       );
     })
