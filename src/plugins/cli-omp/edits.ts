@@ -10,6 +10,11 @@
  *   (TAG = 4 位十六进制,一次调用跨文件移动代码时逐文件各有一行);
  *   2026-09-17 起 omp 去掉 TAG,头退化为 `[path]` —— 无 TAG 形态不收
  *   (与正文引用无法区分,宁漏勿误),此时 details.path 是唯一来源。
+ * - bash 工具的命令文本是第三路径来源(2026-09-25 起):assistant 消息里
+ *   bash toolCall 命中已知写盘形态(sd/sed -i/perl -i/tee/重定向)时按命令
+ *   实参入账 —— 批量替换走 bash,工具结果里没有这些路径(实证 012210c:
+ *   13 个 edit 路径入账,15 个 bash 改写文件只进提交不进账本,审批线与
+ *   git 面板对不上);提取契约见 cli-shared/bashWrites。
  * 事件时刻取条目自身 timestamp(omp 自记,ms 精度),不是观测时刻 —— 消费方的
  * 水位线增量与 Rust record_edit 的迟到守卫(早于锚点 = 上一轮,丢弃)都靠它。
  *
@@ -25,6 +30,7 @@ import type { CliSessionEdit } from "@kernel/cli";
 import { normalizeEditPath } from "@kernel/editWatch";
 import { ipc } from "@kernel/ipc";
 import { parseEditEventsFromText } from "../cli-shared/sessionEdits";
+import { bashToolCallEvents } from "../cli-shared/bashWrites";
 import { readPiFamilySessionEdits } from "../cli-shared/piFamily";
 
 
@@ -73,9 +79,11 @@ function editEventsOf(entry: Record<string, unknown>, cwd: string): CliSessionEd
     return [];
   }
   const raw = entry.message as Record<string, unknown>; // 已 narrowing 为 object,收窄字段在下方逐一 typeof 守卫
+  const ts = Date.parse(typeof entry.timestamp === "string" ? entry.timestamp : "");
+  /* assistant bash toolCall:已知写盘命令形态按命令实参入账(见文件头第三来源)。 */
+  if (raw.role === "assistant") return bashToolCallEvents(raw, ts, cwd);
   if (raw.role !== "toolResult" || typeof raw.toolName !== "string") return [];
   if (!WRITE_TOOLS[raw.toolName]) return [];
-  const ts = Date.parse(typeof entry.timestamp === "string" ? entry.timestamp : "");
   if (!Number.isFinite(ts)) return [];
 
   const raws = new Set<string>();

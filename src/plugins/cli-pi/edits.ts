@@ -7,6 +7,9 @@
  * - write 工具结果:"Successfully wrote N bytes to <abs path>"。
  * 与 omp 分叉:pi 上游 edit 是 str_replace 语义,结果正文不带 hashline 快照头,
  * 路径只能从结果正文提取 —— 两 CLI 契约各自演进,不暗中复用 omp 解析。
+ * - ctx_shell 工具的命令文本是第三路径来源(2026-09-25 起,与 omp 同契约):
+ *   assistant 消息里 ctx_shell toolCall 命中已知写盘形态(sd/sed -i/perl -i/
+ *   tee/重定向)时按命令实参入账,提取契约见 cli-shared/bashWrites。
  *
  * 并行会话正确的关键与 omp 相同:每会话一个 JSONL,本会话的流里看不到别的
  * 会话写了什么;git 窗口推断(mtime「最近提示者赢」)在重叠轮次下做不到。
@@ -16,6 +19,7 @@ import type { CliSessionEdit } from "@kernel/cli";
 import { normalizeEditPath } from "@kernel/editWatch";
 import { piAgentDir } from "./piLocalConfig";
 import { parseEditEventsFromText } from "../cli-shared/sessionEdits";
+import { bashToolCallEvents } from "../cli-shared/bashWrites";
 import { readPiFamilySessionEdits } from "../cli-shared/piFamily";
 
 
@@ -52,9 +56,11 @@ function editEventsOf(entry: Record<string, unknown>, cwd: string): CliSessionEd
     return [];
   }
   const raw = entry.message as Record<string, unknown>; // 已 narrowing 为 object,字段在下方逐一守卫
+  const ts = Date.parse(typeof entry.timestamp === "string" ? entry.timestamp : "");
+  /* assistant ctx_shell toolCall:已知写盘命令形态按命令实参入账(见文件头第三来源)。 */
+  if (raw.role === "assistant") return bashToolCallEvents(raw, ts, cwd);
   if (raw.role !== "toolResult" || typeof raw.toolName !== "string") return [];
   if (!WRITE_TOOLS[raw.toolName]) return [];
-  const ts = Date.parse(typeof entry.timestamp === "string" ? entry.timestamp : "");
   if (!Number.isFinite(ts)) return [];
 
   const paths = new Set<string>();

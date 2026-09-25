@@ -26,6 +26,14 @@ const SHELL_LINE =
 
 const T0 = Date.parse("2026-09-02T02:43:00.000Z");
 
+/* 2026-09-25 起第三路径来源:assistant ctx_shell toolCall 的写盘命令实参
+ * (提取契约见 cli-shared/bashWrites;toolCall 块形状实证自 pi 会话 JSONL,
+ * 命令文本构造)。 */
+const CTX_SHELL_BULK_LINE =
+  `{"type":"message","id":"c03","timestamp":"2026-09-20T19:30:00.000Z",` +
+  `"message":{"role":"assistant","content":[{"type":"toolCall","id":"call_x4","name":"ctx_shell",` +
+  `"arguments":{"command":"sd 'old' 'new' src/a.ts src/b.ts"}}]}}`;
+
 describe("parsePiEditEvents", () => {
   it("edit 工具结果:正文句末绝对路径,按 cwd 相对化(尾句点剥除)", () => {
     expect(parsePiEditEvents(EDIT_LINE, 0, CWD)).toEqual([
@@ -36,6 +44,13 @@ describe("parsePiEditEvents", () => {
   it("write 工具结果:无句点收尾同样可提取", () => {
     expect(parsePiEditEvents(WRITE_LINE, 0, CWD)).toEqual([
       { path: ".github/workflows/release.yml", ts: Date.parse("2026-09-02T02:44:00.000Z") },
+    ]);
+  });
+
+  it("2026-09-25 契约:assistant ctx_shell toolCall 的写盘命令按实参逐文件入账", () => {
+    expect(parsePiEditEvents(CTX_SHELL_BULK_LINE, 0, CWD)).toEqual([
+      { path: "src/a.ts", ts: Date.parse("2026-09-20T19:30:00.000Z") },
+      { path: "src/b.ts", ts: Date.parse("2026-09-20T19:30:00.000Z") },
     ]);
   });
 

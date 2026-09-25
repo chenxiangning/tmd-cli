@@ -30,6 +30,14 @@ const READ_LINE =
 
 const T0 = Date.parse("2026-09-03T13:45:00.000Z");
 
+/* 2026-09-25 真实条目(012210c 现场):assistant bash toolCall 批量替换。
+ * 工具结果通道之外唯一的路径来源 —— 15 个 bash 改写文件曾只进提交不进账本,
+ * 审批线与 git 面板对不上的实证残源。 */
+const BASH_BULK_LINE =
+  `{"type":"message","id":"c51c140f","parentId":"e32f7d5a","timestamp":"2026-09-25T14:36:11.921Z",` +
+  `"message":{"role":"assistant","content":[{"type":"toolCall","id":"call_ea0c01d2e817428999b177ab","name":"bash",` +
+  `"arguments":{"command":"perl -pi -e 's/configWriteSettings/configMergeSettings/g' src/kernel/askSound.test.ts src/kernel/i18n.test.ts src/kernel/sessionArchive.test.ts src/kernel/sessionKeep.test.ts src/kernel/sessionPins.test.ts src/kernel/settings.boot.test.ts src/kernel/settings.fields.test.ts src/kernel/settings.sanitizeShortcuts.test.ts src/kernel/settings.test.ts src/kernel/settingsIconDecor.test.ts src/kernel/settingsPersistMerge.test.ts src/kernel/settingsWorkspaceGroups.test.ts src/kernel/turnSound.test.ts src/plugins/workspace/groups.test.ts && grep -rn 'configWriteSettings' src/ || echo \\"src 无残留\\""}}]}}`;
+
 describe("parseOmpEditEvents", () => {
   it("edit 工具结果:hashline 快照头即写入路径,时刻取条目 timestamp", () => {
     expect(parseOmpEditEvents(EDIT_LINE, 0, CWD)).toEqual([
@@ -110,6 +118,30 @@ describe("parseOmpEditEvents", () => {
     expect(parseOmpEditEvents(winWrite, 0, WIN_CWD)).toEqual([
       { path: "src/kernel/terminalReports.test.ts", ts: Date.parse("2026-09-14T20:16:46.941Z") },
     ]);
+  });
+  it("2026-09-25 契约:assistant bash toolCall 的批量替换按命令实参逐文件入账", () => {
+    const events = parseOmpEditEvents(BASH_BULK_LINE, 0, CWD);
+    expect(events.map((e) => e.path)).toEqual([
+      "src/kernel/askSound.test.ts",
+      "src/kernel/i18n.test.ts",
+      "src/kernel/sessionArchive.test.ts",
+      "src/kernel/sessionKeep.test.ts",
+      "src/kernel/sessionPins.test.ts",
+      "src/kernel/settings.boot.test.ts",
+      "src/kernel/settings.fields.test.ts",
+      "src/kernel/settings.sanitizeShortcuts.test.ts",
+      "src/kernel/settings.test.ts",
+      "src/kernel/settingsIconDecor.test.ts",
+      "src/kernel/settingsPersistMerge.test.ts",
+      "src/kernel/settingsWorkspaceGroups.test.ts",
+      "src/kernel/turnSound.test.ts",
+      "src/plugins/workspace/groups.test.ts",
+    ]);
+    expect(events.every((e) => e.ts === Date.parse("2026-09-25T14:36:11.921Z"))).toBe(true);
+  });
+
+  it("水位线:bash 批量替换行水位过后不再重放", () => {
+    expect(parseOmpEditEvents(BASH_BULK_LINE, Date.parse("2026-09-25T14:36:11.921Z"), CWD)).toEqual([]);
   });
 });
 
