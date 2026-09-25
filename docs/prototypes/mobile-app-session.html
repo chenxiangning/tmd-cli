@@ -4,41 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>mobile app · 会话屏(实况 + 审批 + 发送)原型</title>
+<link rel="stylesheet" href="mobile-app-shared.css">
 <style>
   :root{
-    --bg-base:#ffffff; --bg-panel:#f8f8f8; --bg-hover:#f2f2f2;
-    --fg:#3b3b3b; --fg-muted:#7e7e7e; --fg-subtle:#999999; --fg-faint:#c0c0c0;
-    --border:#cecece; --border-strong:#b1b1b1; --accent:#005fb8; --accent-soft:rgba(0,95,184,.14);
-    --ok:#059669; --warn:#a16207; --err:#dc2626;
     --t-syntax-key:#0000ff; --t-syntax-str:#a31515; --t-syntax-cm:#008000; --t-syntax-num:#098658; --t-syntax-fn:#795e26; --t-syntax-type:#267f99;
-    --mono:ui-monospace,"SF Mono",Menlo,monospace;
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font:14px/1.6 -apple-system,"PingFang SC","Segoe UI",sans-serif;color:var(--fg);background:#ececec;padding:32px 40px}
-  h1{font-size:20px;font-weight:600;margin-bottom:4px}
-  .sub{color:var(--fg-muted);font-size:13px;margin-bottom:24px;max-width:960px}
-  .stage{display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap}
-  .panel-label{font-size:12px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px}
-  .step-note{font-size:12px;color:var(--fg-subtle);margin-top:10px;max-width:320px}
-  .step-note b{color:var(--fg);font-weight:600}
-  .phone{width:300px;height:660px;background:#0b0b0f;border-radius:44px;padding:10px;box-shadow:0 18px 44px rgba(0,0,0,.28);flex:none}
-  .screen{width:100%;height:100%;background:var(--bg-base);border-radius:35px;overflow:hidden;display:flex;flex-direction:column;position:relative}
-  .island{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:88px;height:24px;background:#0b0b0f;border-radius:14px;z-index:5}
-  .statusbar{height:40px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 22px 3px;font-size:12px;font-weight:600;flex:none}
   .nav{height:44px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:.5px solid var(--border);flex:none}
   .nav .back{color:var(--accent);font-size:14px}
   .glyph{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;flex:none}
-  .g-cl{background:#f0eee9;color:#8a6d3b}
   .nav .t{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .run{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--ok);flex:none}
   .run::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ok)}
-  .live{flex:1;overflow:hidden;padding:8px 12px;font-family:var(--mono);font-size:10.5px;line-height:1.55;background:var(--bg-base);position:relative}
+  .live{flex:1;min-height:0;overflow:hidden;padding:8px 12px;font-family:var(--mono);font-size:10.5px;line-height:1.55;background:var(--bg-base);position:relative}
   .live .dim{color:var(--fg-subtle)} .live .mut{color:var(--fg-muted)}
   .live .k{color:var(--t-syntax-key)} .live .s{color:var(--t-syntax-str)} .live .c{color:var(--t-syntax-cm)} .live .n{color:var(--t-syntax-num)} .live .f{color:var(--t-syntax-fn)}
   .live .ok{color:var(--ok);font-weight:700} .live .wr{color:var(--err);font-weight:700}
   .fade{position:absolute;left:0;right:0;bottom:0;height:26px;background:linear-gradient(transparent,var(--bg-base))}
   .live-tag{position:absolute;top:8px;right:12px;font-size:9.5px;color:var(--fg-faint);border:1px solid var(--border);border-radius:5px;padding:1px 6px;background:var(--bg-panel)}
-  /* ask 审批卡(幕布 ask 面板手机化:允许/拒绝/选项按钮) */
+  /* ask 审批卡(幕布 ask 面板手机化:允许/拒绝) */
   .ask{margin:0 12px 8px;border:1px solid rgba(161,98,7,.4);background:#fffdf3;border-radius:11px;padding:11px 12px;flex:none;box-shadow:0 4px 14px rgba(161,98,7,.12)}
   .ask-head{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--warn);margin-bottom:6px}
   .ask-q{font-family:var(--mono);font-size:10.5px;color:var(--fg);background:#fff;border:1px solid var(--border);border-radius:7px;padding:7px 9px;margin-bottom:9px;word-break:break-all}
@@ -55,8 +38,6 @@
   .tools{display:flex;gap:12px;padding:5px 4px 0;font-size:10.5px;color:var(--fg-subtle)}
   .toolbar-row{height:38px;display:flex;align-items:center;gap:6px;padding:0 10px;border-top:.5px solid var(--border);background:var(--bg-panel);flex:none;overflow:hidden}
   .key{font-family:var(--mono);font-size:11px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:6px;padding:3px 9px;background:var(--bg-base);color:var(--fg-muted);white-space:nowrap}
-  .homebar{height:18px;display:flex;align-items:center;justify-content:center;flex:none}
-  .homebar::after{content:"";width:120px;height:5px;border-radius:3px;background:var(--fg-faint)}
   /* 审批线 chip 行(右栏面板手机化) */
   .ckpt{display:flex;align-items:center;gap:8px;margin:8px 12px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;font-size:11.5px;flex:none;background:var(--bg-panel)}
   .ckpt b{font-weight:600}

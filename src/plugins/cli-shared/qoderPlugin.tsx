@@ -5,7 +5,7 @@
  */
 
 import type { Plugin } from "@kernel/plugin";
-import { QoderGlyph } from "./qoderSessions";
+import { QoderGlyph } from "./engineGlyphs";
 import {
   QODER_COMMAND_SUGGESTIONS,
   listQoderSessions,

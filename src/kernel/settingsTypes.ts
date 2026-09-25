@@ -6,6 +6,7 @@
 
 import type { SshHostConfig } from "./sshTypes";
 import type { IconDecorId, IconDecorItem, UiLanguage } from "./settingsAppearance";
+import type { RelayDeployHistoryEntry } from "./settingsRelayHistory";
 import type { ThemePresetId } from "./themePresets";
 
 export type ThemePreference = "system" | "light" | "dark" | "custom";
@@ -33,7 +34,6 @@ export interface SessionListBudget {
 export const SESSION_LIST_TOTAL_DEFAULT = 20;
 export const SESSION_LIST_TOTAL_MIN = 1;
 export const SESSION_LIST_TOTAL_MAX = 100;
-
 
 /**
  * 解析某 CLI 分组的初始露出条数。
@@ -141,7 +141,7 @@ export interface AppSettings {
   uiFontSize: number;
   /** 界面缩放(0.8-1.5 步进 0.05);Tauri webview setZoom,浏览器 dev 兜底 CSS zoom。 */
   uiZoom: number;
-  /** 图标装饰:7 个界面图标的独立颜色/呼吸闪烁(外观页可调;应用层 kernel/iconDecor.ts)。 */
+  /** 图标装饰:12 个界面图标的独立颜色/呼吸闪烁(外观页可调;应用层 kernel/iconDecor.ts)。 */
   iconDecor: Record<IconDecorId, IconDecorItem>;
   /** 顶栏中央会话标题 tab 条开关(外观页可调,默认开启;见 kernel/sessionTabs.ts)。 */
   sessionTabsEnabled: boolean;
@@ -280,6 +280,12 @@ export interface AppSettings {
   webRelayUrl: string;
   /** 中继共享密钥(亦作手机 URL 路径段);relay 端只认它,桌面桥仍走 token/设备授权。 */
   webRelayKey: string;
+  /** 自建中继动态证书钉住:base64 DER(一键部署/导包时 Rust 落盘;空 = 回落内置钉)。 */
+  webRelayCertDer: string;
+  /** 动态证书适用主机(relay URL 的 host;命中才用上行 DER 做锚)。 */
+  webRelayCertHost: string;
+  /** 自建中继部署历史(一键部署成功后 Rust 落盘;含密码,不含私钥内容,供整表回填)。 */
+  relayDeployHistory: RelayDeployHistoryEntry[];
   /**
    * 打开方式清单(open-with 编辑域,settings/files 两插件消费):数组顺序即菜单/面板显示顺序。
    * 默认种子仅「访达」;图标与可用性运行时解析,不持久化(见 kernel/openWith.ts)。

@@ -6,9 +6,14 @@ const TOKEN_ALPHABET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz2
 
 /// 铸造访问令牌(24 字符,CSPRNG;每次启动新铸 = 旧链接全部失效)。
 pub(super) fn new_token() -> String {
+    gen(24)
+}
+
+/// 任意长度令牌(同字母表);设备 token/配对码共用。
+pub(super) fn gen(len: usize) -> String {
     use rand::Rng;
     let mut rng = rand::rng();
-    (0..24)
+    (0..len)
         .map(|_| TOKEN_ALPHABET[rng.random_range(0..TOKEN_ALPHABET.len())] as char)
         .collect()
 }

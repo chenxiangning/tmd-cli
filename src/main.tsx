@@ -1,100 +1,47 @@
 /**
- * 入口：装配内核 + 激活插件 + 注册默认贡献 + 挂外壳。
+ * 入口:按环境分流两棵独立 UI 树。
+ * - 手机壳(__TMD_SHELL__=mobile):src/mobile 独立远程 UI(不加载桌面树)。
+ * - 桌面/浏览器:动态 import app-shell/DesktopApp(与手机包 chunk 分离)。
+ * 共享的只有数据面:@kernel/transport(RPC/事件)与少量 kernel 原语。
  */
-
+import "./kernel/withResolversShim"; /* 首位:垫片先于一切静态图求值 */
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { IconContext } from "@phosphor-icons/react";
-import { AppShell } from "@shell/AppShell";
-import { HintProvider } from "@kernel/Tooltip";
-import { registerDefaultContributions } from "@shell/contributions";
-import { host } from "@kernel/host";
-import { bootAskSound } from "@kernel/askSound";
-import { bootAskRestore } from "@kernel/askWatchRestore";
-import { bootTurnSound } from "@kernel/turnSound";
-import { bootDropGuard } from "@kernel/dropGuard";
-import { bootSessionTabs } from "@kernel/sessionTabs";
-import { startThemeEngine } from "@kernel/theme";
-import { bootI18n, t } from "@kernel/i18n";
-import { useSettingsState } from "@kernel/settings";
-import { bootUiFontSize } from "@kernel/uiFontSize";
-import { bootUiZoom } from "@kernel/uiZoom";
-import { initUpdatePresence } from "./app-shell/updatePresence";
-import { bootIconDecor } from "@kernel/iconDecor";
-import { allPlugins } from "@plugins/index";
-import { installPluginShims } from "@kernel/pluginSdk";
-import { bootLocalPlugins, activateBootLocals } from "@kernel/localPlugins";
-import "./styles/global.css";
+import { isMobileShell } from "./mobile/shared";
 
-function App() {
-  const [ready, setReady] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+/* 样式也分家(大仙 2026-09-25:app 与客户端不许混载):mobile 分支只载
+ * mobile.css(自持令牌+reset,不依赖桌面 themes.css),桌面分支只载
+ * global.css。CSS 动态 import 由 vite 按分支切 chunk,两树互不背对方字节。 */
+const cssPromise = isMobileShell() ? import("./mobile/mobile.css") : import("./styles/global.css");
 
-  React.useEffect(() => {
-    startThemeEngine(); /* 设置加载 + 主题应用,与插件激活并行 */
-    bootI18n(); /* 语言内核:<html lang> 同步;整树重挂载在下方 key 实现 */
-    bootUiZoom(); /* 界面缩放:settings.uiZoom → webview 整页 zoom */
-    bootUiFontSize(); /* 界面字号:settings.uiFontSize → html 根字号(rem 文字缩放) */
-    bootIconDecor(); /* 图标装饰:settings.iconDecor → html CSS 变量 + data-icon-blink */
-    bootAskSound(host.events); /* Ask 提示音:消费 askDetected(host 主链路检测,见 askWatch.ts) */
-    bootTurnSound(host.events); /* 轮次结束提示音:消费 turnSettled,延迟确认后播放 */
-    bootDropGuard(); /* 文件拖放护栏:防 webview drop 导航开文件(lib.rs 关原生拦截的副作用) */
-    initUpdatePresence(); /* 更新感应后台化:6h 节流检查,底栏版本号旁亮提示(boot 级,不随左栏关闭停摆) */
-    bootSessionTabs(host.events); /* 会话标题 tab 条:订阅打开/存活广播,见 kernel/sessionTabs.ts */
-    const syncFocus = () => host.setWindowFocus(document.hasFocus());
-    window.addEventListener("focus", syncFocus);
-    window.addEventListener("blur", syncFocus);
-    syncFocus();
-    installPluginShims(); /* 本地插件 shim 实例表:任何外部 bundle import 之前必须就位 */
-    /* 本地插件扫描与内置激活并行(内置激活时序零变化);扫描完成后在 setReady 之后晚激活,
-       单插件 activate 卡死不再阻塞首屏。 */
-    const localPromise = bootLocalPlugins(new Set(allPlugins.map((p) => p.id)));
-    host
-      .activateAll(allPlugins)
-      .then(() => {
-        registerDefaultContributions(host);
-        setReady(true);
-        void host.readoptSessions(); /* webview 重载后活 PTY 重新接管:重建监听/会话表(先于 ask 恢复,见 kernel/sessionAdopt.ts) */
-        bootAskRestore(); /* Ask 等待状态开机恢复(profiles 就绪后才有 askMarks,见 kernel/askWatchRestore.ts) */
-        /* 扫描自身意外失败也不翻全局错误页(与晚激活同一隔离承诺) */
-        return localPromise.catch((e) => {
-          console.error("[local-plugins] 扫描异常(已隔离):", e);
-          return [];
-        });
-      })
-      .then(async (locals) => {
-        /* 拓扑晚激活 + 单插件失败隔离全在 activateBootLocals;任何意外不得翻成全局错误页。 */
-        try {
-          await activateBootLocals(locals);
-        } catch (e) {
-          console.error("[local-plugins] 晚激活异常(已隔离):", e);
-        }
-      })
-      .catch((e: unknown) => setError(String(e)));
-    return () => {
-      window.removeEventListener("focus", syncFocus);
-      window.removeEventListener("blur", syncFocus);
-    };
-  }, []);
+const root = ReactDOM.createRoot(document.getElementById("root")!);
 
-  /* 语言切换 = 整树重挂载(低频;host/PTY 态在 React 外,幕布回放按重挂载设计)。 */
-  const language = useSettingsState().settings.language;
-  if (error) {
-    return <div className="p-4 text-red-400">{t("插件激活失败：{error}", { error })}</div>;
-  }
-  if (!ready) return null;
-  return <AppShell key={language} />;
+if (isMobileShell()) {
+  /* 双树皆动态:mobile 分支静态引 gate 会让桌面首包背上 mobile 树
+   * (含 7 家 CLI 磁盘扫描器,评审 P1-2);对偶分支同构。 */
+  cssPromise
+    .then(() => import("./mobile/gate"))
+    .then(({ MobileRoot }) => {
+      root.render(
+        <React.StrictMode>
+          <MobileRoot />
+        </React.StrictMode>,
+      );
+    })
+    .catch((e) => {
+      root.render(<div style={{ padding: 24, color: "#c33" }}>mobile chunk load failed: {String(e)}</div>);
+    });
+} else {
+  cssPromise
+    .then(() => import("./app-shell/DesktopApp"))
+    .then(({ DesktopApp }) => {
+      root.render(
+        <React.StrictMode>
+          <DesktopApp />
+        </React.StrictMode>,
+      );
+    })
+    .catch((e) => {
+      root.render(<div style={{ padding: 24, color: "#c33" }}>app chunk load failed: {String(e)}</div>);
+    });
 }
-
-/* Phosphor 全局默认 weight=bold —— 圆胖粗线视觉(对齐"圆乎乎 icon"诉求);
- * 调用点显式 weight 可覆盖。 */
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <IconContext.Provider value={{ weight: "bold" }}>
-      <HintProvider>
-        <App />
-      </HintProvider>
-    </IconContext.Provider>
-  </React.StrictMode>,
-);
-

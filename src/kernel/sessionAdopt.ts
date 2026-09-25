@@ -22,6 +22,8 @@ interface SessionAdoptHost {
   removeSession(sessionId: string): Promise<void>;
   /** 登记输出/退出退订对(会话移除时成对退订)。 */
   trackUnlisten(sessionId: string, offs: Array<() => void>): void;
+  /** 已装配订阅?(终态幂等闸:桥事件与本地装配跨 inflight 窗竞速用) */
+  hasSubscribed?(sessionId: string): boolean;
   /** 活会话表(事件广播载荷)。 */
   getSessions(): SessionMeta[];
   /** 外壳重渲染通知(Host.notify)。 */
@@ -40,6 +42,12 @@ interface AdoptPtySessionOptions {
 /** 守卫分支的广播文案(抛出信息与之一致,调用方直接复用)。 */
 export const ADOPT_RACE_REASON = "会话在装配期间被移除(进程启动后即刻退出)";
 
+/** 装配在途闸(同 readoptInflight 纪律):桥发起事件与发起端本地 adoptSpawned /
+ *  boot readopt 竞速(同一 Rust 后端,多路都到同一 id)→ 双订阅 = 每字节双写。
+ *  在途 Promise 收口;完成后双序竞态由 h.hasSubscribed 终态闸挡
+ *  (2026-09-24 评审:浏览器自发会话 = 本地链与 external 事件同实例必现竞速)。 */
+const adoptInflight = new Map<string, Promise<SessionMeta | null>>();
+
 /**
  * spawn 共用装配:常驻订阅输出与退出、竞态守卫、广播会话表。
  * 返回 null = 守卫分支命中(已广播 sessionStartFailed)。
@@ -50,7 +58,10 @@ export async function adoptPtySession(
   sessionId: string,
   opts: AdoptPtySessionOptions,
 ): Promise<SessionMeta | null> {
-  /* 双订阅互不依赖,并行注册;缝隙竞态由下方存活复查统一兜底(退订恒成对)。 */
+  const inflight = adoptInflight.get(sessionId);
+  if (inflight) return await inflight;
+  const task = (async (): Promise<SessionMeta | null> => {
+  if (h.hasSubscribed?.(sessionId)) return h.findSession(sessionId) ?? null; /* 终态幂等 */
   const [offOutput, offExit] = await Promise.all([
     onPtyOutput(sessionId, (text) => {
       /* 存活守卫:退订前在途的迟到输出不得复活已删会话的缓冲/呼吸灯状态 */
@@ -80,6 +91,9 @@ export async function adoptPtySession(
   if (opts.activate !== false) events.emit(KernelTopics.activeSessionChanged, sessionId);
   h.notify();
   return h.findSession(sessionId) ?? null;
+  })().finally(() => adoptInflight.delete(sessionId));
+  adoptInflight.set(sessionId, task);
+  return await task;
 }
 
 /** re-adopt 在途单例闸:boot 接线(含 React StrictMode 双调)并发收口;完成后

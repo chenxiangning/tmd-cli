@@ -33,6 +33,10 @@ pub struct SessionMeta {
     /// 取 CLI profile;kind 仍为 "ssh",传输语义不变)。普通 SSH/本地会话 = None。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub engine: Option<String>,
+    /// CLI 磁盘身份(omp/pi 的 session id;桌面装配绑定或桥 spawn 注入后回写)。
+    /// 手机壳据此做标题解析/续接去重/置顶 key —— session_list 是它的唯一活表视图。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cli_session_id: Option<String>,
 }
 
 fn default_session_kind() -> String {
@@ -171,6 +175,18 @@ impl SessionRegistry {
         match map.get_mut(id) {
             Some(meta) => {
                 meta.workspace_id = workspace_id;
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// 回写 CLI 磁盘身份(桥 spawn 注入 / 桌面装配绑定后同步;None = 清除)。
+    pub fn set_cli_session_id(&self, id: &str, cli_session_id: Option<String>) -> bool {
+        let mut map = self.sessions.lock();
+        match map.get_mut(id) {
+            Some(meta) => {
+                meta.cli_session_id = cli_session_id;
                 true
             }
             None => false,

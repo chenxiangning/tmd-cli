@@ -17,7 +17,6 @@ import type { AppSettings } from "./settingsTypes";
 import { sanitize } from "./settingsSanitize";
 import { setShortcutOverrides } from "./shortcutOverrides";
 import { isWeb, listen } from "./transport";
-
 /** 订阅设置写盘失败(Tauri 环境触发;SettingsPersistToast 订阅呈现);返回退订。 */
 const persistFailListeners = new Set<(error: string) => void>();
 export function onSettingsPersistFailed(cb: (error: string) => void): () => void {
@@ -26,12 +25,14 @@ export function onSettingsPersistFailed(cb: (error: string) => void): () => void
 }
 export * from "./settingsTypes";
 export * from "./settingsAppearance";
-
+export * from "./settingsRelayHistory";
 interface SettingsState {
   settings: AppSettings;
   /** 首屏落地前为 false,主题引擎等它再应用(防闪默认色)。 */
   loaded: boolean;
   panelOpen: boolean;
+  /** 深链:开面板指定 section/tab(openSettingsPanel(target));null = 保持上次位置 */
+  panelTarget: { section: string; tab?: string } | null;
 }
 
 /** 浏览器 dev 降级存储 key(Tauri 环境不走这里)。 */
@@ -40,7 +41,7 @@ const LOCAL_FALLBACK_KEY = "tmd.settings.v1";
 const state: SettingsState = {
   settings: DEFAULT_SETTINGS,
   loaded: false,
-  panelOpen: false,
+  panelOpen: false, panelTarget: null,
 };
 const listeners = new Set<() => void>();
 let snapshot: SettingsState = state;
@@ -263,9 +264,10 @@ function hookSettingsChanged(): void {
   });
 }
 
-export function openSettingsPanel(): void {
-  if (state.panelOpen) return;
+export function openSettingsPanel(target?: { section: string; tab?: string }): void {
+  if (state.panelOpen && !target) return;
   state.panelOpen = true;
+  state.panelTarget = target ?? null;
   emit();
 }
 

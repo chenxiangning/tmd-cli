@@ -4,47 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>mobile app · 设备管理与边界态原型</title>
+<link rel="stylesheet" href="mobile-app-shared.css">
 <style>
-  :root{
-    --bg-base:#ffffff; --bg-panel:#f8f8f8; --bg-hover:#f2f2f2;
-    --fg:#3b3b3b; --fg-muted:#7e7e7e; --fg-subtle:#999999; --fg-faint:#c0c0c0;
-    --border:#cecece; --border-strong:#b1b1b1; --accent:#005fb8; --accent-soft:rgba(0,95,184,.14);
-    --ok:#059669; --warn:#a16207; --err:#dc2626;
-    --mono:ui-monospace,"SF Mono",Menlo,monospace;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font:14px/1.6 -apple-system,"PingFang SC","Segoe UI",sans-serif;color:var(--fg);background:#ececec;padding:32px 40px}
-  h1{font-size:20px;font-weight:600;margin-bottom:4px}
-  .sub{color:var(--fg-muted);font-size:13px;margin-bottom:24px;max-width:960px}
-  .stage{display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap}
-  .panel-label{font-size:12px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px}
-  .step-note{font-size:12px;color:var(--fg-subtle);margin-top:10px;max-width:330px}
-  .step-note b{color:var(--fg);font-weight:600}
   /* 桌面设置卡 */
-  .desktop{width:500px;background:var(--bg-base);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-  .d-titlebar{height:34px;background:var(--bg-panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:6px}
-  .d-dot{width:11px;height:11px;border-radius:50%}
-  .d-title{font-size:12px;color:var(--fg-muted);margin-left:8px}
-  .card{padding:16px}
+  .desktop{width:500px}
   .sect{font-size:13px;font-weight:600;margin-bottom:10px}
   .dev{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;font-size:12.5px;background:var(--bg-panel)}
   .dev.pending{border-style:dashed;border-color:var(--border-strong);background:#fffdf6}
   .avatar{width:30px;height:30px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
   .dev .nm{font-weight:600}
   .dev .mt{font-size:10.5px;color:var(--fg-subtle)}
-  .btn{font-size:12px;border:1px solid var(--border);background:var(--bg-base);border-radius:6px;padding:4px 11px;color:var(--fg)}
-  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  .btn.danger{color:var(--err);border-color:rgba(220,38,38,.4)}
-  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
-  .live-dot.off{background:var(--fg-faint)}
   .hint{font-size:11.5px;color:var(--fg-muted);margin-top:10px}
-  /* 手机态 */
-  .phone{width:280px;height:560px;background:#0b0b0f;border-radius:42px;padding:9px;box-shadow:0 18px 44px rgba(0,0,0,.28);flex:none}
-  .screen{width:100%;height:100%;background:var(--bg-base);border-radius:34px;overflow:hidden;display:flex;flex-direction:column;position:relative}
-  .island{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:82px;height:22px;background:#0b0b0f;border-radius:12px;z-index:5}
-  .statusbar{height:38px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 20px 3px;font-size:11.5px;font-weight:600;flex:none}
-  .homebar{height:18px;display:flex;align-items:center;justify-content:center;flex:none}
-  .homebar::after{content:"";width:110px;height:5px;border-radius:3px;background:var(--fg-faint)}
   /* 通知横幅(iOS 锁屏/顶弹样式) */
   .notif{margin:44px 10px 0;background:rgba(250,250,250,.97);border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.16)}
   .notif .head{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--fg-muted);margin-bottom:3px}
@@ -85,19 +55,19 @@
         </div>
         <div class="sect" style="margin-top:14px">已授权设备</div>
         <div class="dev">
-          <span class="live-dot"></span>
+          <span class="dot"></span>
           <span class="avatar">iOS</span>
           <div style="flex:1"><div class="nm">iPhone 15 Pro</div><div class="mt">已连接 · LAN · 上次活跃刚刚 · 配对于 09-21</div></div>
           <button class="btn danger">踢除</button>
         </div>
         <div class="dev">
-          <span class="live-dot off"></span>
+          <span class="dot off"></span>
           <span class="avatar">iOS</span>
           <div style="flex:1"><div class="nm">iPhone 15 Pro(旧)</div><div class="mt">离线 6 天 · 上次活跃 09-15 22:41</div></div>
           <button class="btn danger">踢除</button>
         </div>
         <div class="dev">
-          <span class="live-dot off"></span>
+          <span class="dot off"></span>
           <span class="avatar">iOS</span>
           <div style="flex:1"><div class="nm">iPad Air</div><div class="mt">离线 21 天 · 上次活跃 08-31 10:02</div></div>
           <button class="btn danger">踢除</button>

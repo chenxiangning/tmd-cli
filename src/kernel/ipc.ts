@@ -123,6 +123,9 @@ export interface SessionMeta {
   /** 引擎档案 id(仅 SSH 会话:WSL CLI 会话远端跑某引擎,composer/Ask 据此取
    *  CLI profile;kind 仍为 "ssh")。普通 SSH/本地会话无此字段。 */
   engine?: string;
+  /** CLI 磁盘身份(注册表视图:桥 resume spawn 直填 / 前端账本绑定经 session_bind_cli
+   *  回写;手机壳 session_list 直读,标题/归档/置顶 key 全按此解析)。 */
+  cliSessionId?: string;
 }
 
 export interface WorkspaceMeta {
@@ -339,6 +342,9 @@ export const ipc = {
   /** 补写会话的工作区归属(接管转正路径:预热 spawn 时归属未知,打开动作落地时补)。 */
   sessionSetWorkspace: (id: string, workspaceId: string | null) =>
     invoke<void>("session_set_workspace", { id, workspaceId }),
+  /** 回写活会话的 CLI 磁盘身份(账本绑定唯一写入口的注册表镜像;手机直读)。 */
+  sessionBindCli: (id: string, cliSessionId: string) =>
+    invoke<void>("session_bind_cli", { id, cliSessionId }),
   sessionWrite: (id: string, data: string) =>
     invoke<void>("session_write", { id, data }),
   sessionResize: (id: string, cols: number, rows: number) =>
@@ -972,7 +978,7 @@ export function webRelayStatus(): Promise<RelayInfo | null> {
 export function onWebRelay(cb: (info: RelayInfo | null) => void) {
   return listen<RelayInfo | null>("web://relay", () => {
     /* 事件 payload 为 Null,真正状态以 webRelayStatus 为准 —— 事件仅作「刷新信号」。 */
-    void webRelayStatus().then(cb);
+    void webRelayStatus().then(cb).catch(() => cb(null)); /* 桥不通时回 null 状态,不裸抛 unhandledrejection */
   });
 }
 
@@ -984,6 +990,113 @@ export function relayDeploy(token: string, accountId?: string): Promise<{ url: s
 /** 导出中继部署包(zip;自行 wrangler deploy)。key 缺省时后端铸随机 key 烧入。 */
 export function relayDeployPack(path: string, key?: string): Promise<string> {
   return invoke<string>("relay_deploy_pack", { path, key });
+}
+
+/** 自建服务器一键部署请求(Rust relay_deploy_selfhost 契约;凭据仅本次调用内使用)。 */
+export interface SelfhostDeployReq {
+  host: string;
+  port: number;
+  username: string;
+  authType: "password" | "privateKey";
+  password?: string;
+  privateKey?: string;
+  privateKeyPath?: string;
+  privateKeyPassphrase?: string;
+  /** 未知主机指纹时,用户点「信任并重试」置 true(TOFU)。 */
+  trustHostKey?: boolean;
+}
+
+/** 自建部署结果;steps 固定序列 connect/cert/upload/systemd/health。 */
+export interface SelfhostDeployResult {
+  ok: boolean;
+  url: string;
+  key: string;
+  fingerprint: string;
+  steps: { id: string; ok: boolean; error?: string }[];
+  /** 仅当主机指纹未知:steps 里 connect 步 ok=false。 */
+  hostKeyFingerprint?: string;
+}
+
+/** 部署进度事件(web-relay-deploy payload;step 完成时发,ok=false 即失败)。 */
+export interface RelayDeployProgress {
+  step: string;
+  ok: boolean;
+  error?: string;
+}
+
+/** 一键 SSH 部署自建中继(成功时 Rust 自己落 settings url/key/certDer/certHost)。 */
+export function relayDeploySelfhost(req: SelfhostDeployReq): Promise<SelfhostDeployResult> {
+  return invoke<SelfhostDeployResult>("relay_deploy_selfhost", { req });
+}
+
+/** 导出自建中继部署包(zip;mjs+证书+env+unit+README,铸该 host 自签证书并落 settings)。 */
+export function relaySelfhostPack(path: string, host: string): Promise<string> {
+  return invoke<string>("relay_selfhost_pack", { path, host });
+}
+
+/** 订阅自建部署进度事件;返回退订函数。 */
+export function onRelayDeployProgress(cb: (e: RelayDeployProgress) => void): Promise<() => void> {
+  return listen<RelayDeployProgress>("web-relay-deploy", (ev) => cb(ev.payload));
+}
+
+// ==================== 设备配对(桌面设置卡) ====================
+
+/** 配对 offer:桥须在运行;url = tmd://pair?c=… 短链(内嵌 LAN/relay 与配对码)。 */
+export interface PairOffer {
+  url: string;
+  pairCode: string;
+  /** 过期 unix 秒。 */
+  expiresAt: number;
+}
+
+/** 铸一次性配对 offer(10min TTL,单次消费)。 */
+export function webPairOffer(): Promise<PairOffer> {
+  return invoke<PairOffer>("web_pair_offer");
+}
+
+/** 已配对设备行(脱敏:token hash 不出桌面)。 */
+export interface DeviceWire {
+  deviceId: string;
+  name: string;
+  createdAt: number;
+  lastSeenAt: number;
+  approved: boolean;
+  /** 当前是否有活连接(设备卡「已连接/离线」点)。 */
+  online?: boolean;
+  /** 配对请求来源 IP(展示;老行可能为空)。 */
+  ip?: string;
+}
+
+/** 设备表全量(pending + approved 由 approved 字段区分)。 */
+export function webDevicesList(): Promise<{ devices: DeviceWire[]; now: number }> {
+  return invoke<{ devices: DeviceWire[]; now: number }>("web_devices_list");
+}
+
+/** 批准 pending 设备;返回是否真的存在该设备。 */
+export function webDeviceApprove(deviceId: string): Promise<boolean> {
+  return invoke<boolean>("web_device_approve", { deviceId });
+}
+
+/** 撤销设备(删行 + 即时踢既有连接);返回是否真的删了。 */
+export function webDeviceRevoke(deviceId: string): Promise<boolean> {
+  return invoke<boolean>("web_device_revoke", { deviceId });
+}
+
+/** 订阅设备表变更(批准/撤销后发;UI 以 webDevicesList 重取为准)。 */
+export function onWebDevices(cb: () => void) {
+  return listen<unknown>("web://devices", () => cb());
+}
+
+/** 手机已消费配对码(POST /pair 200):配对卡收起码区,显示 pending 行。 */
+export function onWebPairConsumed(cb: () => void) {
+  return listen<unknown>("web://pair-consumed", () => cb());
+}
+
+/** 配对码节流告警(同 IP 连续错码 5 次):设置卡 toast。 */
+export function onWebPairAlert(cb: (ip: string, limit: number) => void) {
+  return listen<{ ip: string; limit: number }>("web://pair-alert", (ev) =>
+    cb(ev.payload.ip, ev.payload.limit),
+  );
 }
 
 interface QuotaFetchSpec {
@@ -1038,6 +1151,25 @@ export function onPtyOutput(sessionId: string, cb: (text: string) => void) {
 /** 订阅某会话的进程退出。返回退订函数。 */
 export function onPtyExit(sessionId: string, cb: () => void) {
   return listen(`pty://exit/${sessionId}`, () => cb());
+}
+
+/** 桥(web/手机)发起会话的装配请求事件(Rust dispatch_session 广播)。 */
+export interface ExternalSpawnEvent {
+  sessionId: string;
+  profileId: string;
+  cliSessionId?: string;
+}
+
+/** 订阅桥发起会话事件:桌面走 adoptPtySession 补全装配(见 app-shell/DesktopApp)。 */
+export function onExternalSpawn(cb: (e: ExternalSpawnEvent) => void) {
+  return listen<ExternalSpawnEvent>("session:external-spawn", (ev) => cb(ev.payload));
+}
+
+/** 订阅桥(手机/浏览器)写入事件:桌面补锚定(桥 session_write 成功广播)。 */
+export function onRemoteWrite(cb: (sessionId: string) => void) {
+  return listen<{ sessionId: string }>("session:remote-write", (ev) =>
+    cb(ev.payload.sessionId),
+  );
 }
 
 /** 订阅某 SSH 会话的状态/转发快照事件。返回退订函数。 */

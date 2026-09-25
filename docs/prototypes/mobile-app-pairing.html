@@ -4,29 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>mobile app · 配对流程原型(tmd://pair)</title>
+<link rel="stylesheet" href="mobile-app-shared.css">
 <style>
-  :root{
-    --bg-base:#ffffff; --bg-panel:#f8f8f8; --bg-hover:#f2f2f2; --bg-input:#ffffff;
-    --fg:#3b3b3b; --fg-muted:#7e7e7e; --fg-subtle:#999999; --fg-faint:#c0c0c0;
-    --border:#cecece; --border-strong:#b1b1b1; --accent:#005fb8; --accent-soft:rgba(0,95,184,.14);
-    --ok:#059669; --warn:#a16207; --err:#dc2626;
-    --mono:ui-monospace,"SF Mono",Menlo,monospace;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font:14px/1.6 -apple-system,"PingFang SC","Segoe UI",sans-serif;color:var(--fg);background:#ececec;padding:32px 40px}
-  h1{font-size:20px;font-weight:600;margin-bottom:4px}
-  .sub{color:var(--fg-muted);font-size:13px;margin-bottom:24px}
-  .stage{display:flex;gap:36px;align-items:flex-start;flex-wrap:wrap}
-  .panel-label{font-size:12px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px}
-  .step-note{font-size:12px;color:var(--fg-subtle);margin-top:10px;max-width:340px}
-  .step-note b{color:var(--fg);font-weight:600}
-  .arrow{align-self:center;color:var(--border-strong);font-size:22px;margin-top:120px}
-  /* ── 桌面设置卡(tmd-cli 浅色 settings 卡同款) ── */
-  .desktop{width:520px;background:var(--bg-base);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-  .d-titlebar{height:34px;background:var(--bg-panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:6px}
-  .d-dot{width:11px;height:11px;border-radius:50%}
-  .d-title{font-size:12px;color:var(--fg-muted);margin-left:8px}
-  .card{padding:16px}
+  /* ── 桌面设置卡 ── */
+  .desktop{width:520px}
   .card-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
   .card-title{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600}
   .card-title svg{width:16px;height:16px;stroke:var(--fg);fill:none;stroke-width:1.6}
@@ -41,21 +22,13 @@
   .qr-wrap{display:flex;gap:14px;align-items:flex-start}
   .qr{background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px}
   .qr-meta{flex:1;font-size:12px;color:var(--fg-muted);display:flex;flex-direction:column;gap:8px;min-width:0}
-  .qr-meta code{font-family:var(--mono);font-size:10.5px;background:var(--bg-panel);border:1px solid var(--border);border-radius:5px;padding:5px 7px;word-break:break-all;all:initial;font-family:var(--mono);font-size:10.5px;display:block;background:var(--bg-panel);border:1px solid var(--border);border-radius:5px;padding:5px 7px;word-break:break-all;color:var(--fg)}
+  .qr-meta code{font-family:var(--mono);font-size:10.5px;display:block;background:var(--bg-base);border:1px solid var(--border);border-radius:5px;padding:5px 7px;word-break:break-all;color:var(--fg)}
   .pending-row{display:flex;align-items:center;gap:8px;margin-top:14px;padding:8px 10px;background:#fff;border:1px solid var(--border);border-radius:7px;font-size:12.5px}
   .pulse{width:7px;height:7px;border-radius:50%;background:var(--warn);flex:none}
-  .btn{font-size:12px;border:1px solid var(--border);background:var(--bg-base);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--fg)}
-  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  /* ── 手机壳 ── */
-  .phone{width:300px;height:620px;background:#0b0b0f;border-radius:44px;padding:10px;box-shadow:0 18px 44px rgba(0,0,0,.28);flex:none;position:relative}
-  .screen{width:100%;height:100%;background:var(--bg-base);border-radius:35px;overflow:hidden;display:flex;flex-direction:column;position:relative}
-  .island{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:88px;height:24px;background:#0b0b0f;border-radius:14px;z-index:5}
-  .statusbar{height:42px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 22px 4px;font-size:12px;font-weight:600}
-  .nav{height:44px;display:flex;align-items:center;justify-content:center;position:relative;font-size:15px;font-weight:600;border-bottom:.5px solid var(--border)}
+  /* ── 手机屏内 ── */
+  .body{padding:14px}
+  .nav{height:44px;display:flex;align-items:center;justify-content:center;position:relative;font-size:15px;font-weight:600;border-bottom:.5px solid var(--border);flex:none}
   .nav .back{position:absolute;left:12px;color:var(--accent);font-size:14px;font-weight:400;display:flex;align-items:center;gap:2px}
-  .body{flex:1;overflow:auto;padding:14px}
-  .homebar{height:22px;display:flex;align-items:center;justify-content:center}
-  .homebar::after{content:"";width:120px;height:5px;border-radius:3px;background:var(--fg-faint)}
   .camera{height:100%;background:linear-gradient(160deg,#2a2d31,#1a1c1f 55%,#232528);position:relative;display:flex;align-items:center;justify-content:center}
   .corner{position:absolute;width:52px;height:52px;border:3px solid var(--accent);border-radius:6px}
   .corner.tl{top:120px;left:52px;border-right:none;border-bottom:none}
@@ -64,8 +37,6 @@
   .corner.br{bottom:150px;right:52px;border-left:none;border-top:none}
   .scan-hint{position:absolute;bottom:96px;left:0;right:0;text-align:center;color:#d5d5d8;font-size:12.5px;text-shadow:0 1px 4px rgba(0,0,0,.5)}
   .scan-line{position:absolute;top:150px;left:60px;right:60px;height:2px;background:var(--accent);opacity:.85;box-shadow:0 0 10px var(--accent)}
-  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg-base);border-radius:16px 16px 0 0;padding:16px 18px 8px;box-shadow:0 -8px 24px rgba(0,0,0,.14)}
-  .grab{width:36px;height:4.5px;border-radius:3px;background:var(--border);margin:0 auto 12px}
   .field{margin-bottom:12px}
   .field label{display:block;font-size:11.5px;color:var(--fg-muted);margin-bottom:4px}
   .field input{width:100%;font-size:14px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg-input);color:var(--fg)}
@@ -75,7 +46,7 @@
   .host-sub{font-size:11px;color:var(--fg-muted);font-family:var(--mono)}
   .cta{width:100%;margin-top:4px;padding:11px;border-radius:9px;border:none;background:var(--accent);color:#fff;font-size:14.5px;font-weight:600}
   .fineprint{font-size:10.5px;color:var(--fg-faint);text-align:center;margin-top:8px}
-  legend, .lg{font-size:12px;font-weight:600;color:var(--fg-muted)}
+  .lg{font-size:12px;font-weight:600;color:var(--fg-muted)}
 </style>
 </head>
 <body>

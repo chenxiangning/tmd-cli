@@ -119,9 +119,11 @@ export const MESSAGES = {
   "逐图标自定义颜色与呼吸闪烁;有开关两态的图标仅作用于点亮色。":
     "Per-icon color and breathing glow; for icons with on/off states only the lit color is themed.",
   "SSH 入口": "SSH entry",
+  "WSL 入口": "WSL entry",
+  "远程控制": "Remote control",
+  "标记面板": "Marks panel",
   "网络代理": "Network proxy",
   "文件面板": "Files panel",
-  "Git 面板": "Git panel",
   "审批线面板": "Checkpoints panel",
   "Memory 面板": "Memory panel",
   "颜色": "Color",
@@ -234,15 +236,13 @@ export const MESSAGES = {
     "You are viewing through the relay (same permissions as this machine)",
   "未连接": "Not connected",
   "部署中继(自有 Cloudflare 账号)": "Deploy the relay (your own Cloudflare account)",
-  "① 部署中继(一次性)": "① Deploy the relay (one-time)",
-  "中继是跑在你自己 Cloudflare 账号的 Worker(免费额度够),只做字节转发、零存储。左卡任选一种:填 Cloudflare API Token 一键部署,或导 zip 到你的 ECS / 任意机器 wrangler deploy。":
-    "The relay is a Worker on your own Cloudflare account (free tier is enough) — pure byte forwarding, zero storage. Pick either way on the left card: one-click deploy with a Cloudflare API token, or export the zip and wrangler deploy on your ECS / any machine.",
+  "① 部署中继(只做一次)": "① Deploy the relay (once)",
   "② 连接中继(每次用前)": "② Connect to the relay (before each use)",
-  "右卡填中继 URL 和密钥(一键部署会自动回填),点「连接中继」。桌面会主动外拨一条加密长连,状态点转绿即外网可达。会顺带打开内网桥,不用先去内网 tab。":
-    "Fill the relay URL and secret on the right card (one-click deploy autofills them) and hit “Connect”. The app dials out an encrypted long-lived connection — the dot turns green once reachable from the internet. The LAN bridge opens along the way; no need to visit the LAN tab first.",
-  "③ 手机打开外网地址": "③ Open the public URL on your phone",
-  "连接成功后,右卡「手机打开」里的地址已带访问令牌,手机 Safari 直接开,加到主屏幕即当 app 用。令牌=门禁,别转发;用完回这里点「断开」。":
-    "Once connected, the “Open on phone” address carries the access token — open it directly in mobile Safari and add to home screen to use like an app. The token is the gate: don't share it; come back and hit “Disconnect” when done.",
+  "右卡点「连接中继」(地址和密钥上一步已自动填好)。圆点变绿,手机就能从外网连上这台电脑;内网桥顺带打开,不用先去内网 tab。":
+    "Hit “Connect to relay” on the right card (URL and key were autofilled in step ①). When the dot turns green, your phone can reach this machine from anywhere. The LAN bridge opens along the way — no need to visit the LAN tab first.",
+  "③ 手机打开地址": "③ Open the URL on your phone",
+  "右卡「手机打开」的地址,手机 Safari 直接开,加到主屏幕就当 app 用。地址里带的令牌就是钥匙,别转发给别人;用完回这里点「断开」。":
+    "Open the “Open on phone” URL from the right card in mobile Safari, then add it to the home screen and it works like an app. The token in the URL is the key — don't forward it; hit “Disconnect” here when you're done.",
   "中继跑在你自己的 Cloudflare 账号(免费额度足够)。API Token 仅本次部署使用,不保存。":
     "The relay runs on your own Cloudflare account (the free tier is enough). The API token is used only for this deployment and never stored.",
   "Cloudflare API Token 怎么申请?": "How do I get a Cloudflare API token?",
@@ -279,5 +279,5 @@ export const MESSAGES = {
   "我已了解并自行承担风险": "I understand the risks and accept them",
   "有浏览器客户端正通过 Web 访问控制本机":
     "A browser client is controlling this machine via web access",
-  "远程控制中": "Remote control active",
+
 } as Record<string, string>;

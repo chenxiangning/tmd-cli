@@ -3,70 +3,70 @@ export const MESSAGES = {
   // checkpoints 插件 meta(registerFilePanel label 与 plugin.meta 的渲染点在内核/首页,主会话包裹)
   "批次审批": "Batch approval",
   "AI 改动按轮成批:审 diff、整批或按文件回退":
-    "Groups AI changes by turn: review diffs, revert a whole batch or per file",
+  "Groups AI changes by turn: review diffs, revert a whole batch or per file",
   "审批线": "Approval timeline",
   // CheckpointsPanel
   "批次已标记通过 —— 仅记录状态,不影响任何文件":
-    "Batch marked approved — state recorded only, no files affected",
+  "Batch marked approved — state recorded only, no files affected",
   "已回退 {n} 个文件;跳过:{skipped}": "Reverted {n} files; skipped: {skipped}",
   "已回退 {n} 个路径 · 恢复点已留存,可反悔":
-    "Reverted {n} paths · restore point kept, you can undo",
+  "Reverted {n} paths · restore point kept, you can undo",
   "已应用 {n} 个文件;跳过:{skipped}": "Applied {n} files; skipped: {skipped}",
   "已应用 {n} 个文件 · 恢复点已留存,可反悔":
-    "Applied {n} files · restore point kept, you can undo",
+  "Applied {n} files · restore point kept, you can undo",
   "没有可应用的文件;跳过:{skipped}": "No files to apply; skipped: {skipped}",
   "没有可应用的文件": "No files to apply",
   "已从恢复点恢复 {n} 个文件,批次回到待审":
-    "Restored {n} files from the restore point; batch is back to pending review",
+  "Restored {n} files from the restore point; batch is back to pending review",
   "待审": "Pending review",
   "点击关闭": "click to dismiss",
   "审批线清单刷新失败:{error} · 点击重试":
-    "Failed to refresh the approval list: {error} · click to retry",
+  "Failed to refresh the approval list: {error} · click to retry",
   "暂无活跃工作区": "No active workspace",
   "审批线跟随会话生命周期 —— 当前工作区没有活会话":
-    "The approval timeline follows the session lifecycle — no active session in this workspace",
+  "The approval timeline follows the session lifecycle — no active session in this workspace",
   "非 git 工作区 —— 仅声明写入事件检测的 CLI(如 claude)可在此记账,其余 CLI 需 git 仓库":
-    "Not a git workspace — only CLIs that declare write-event detection (e.g. claude) can record here; other CLIs need a git repository",
+  "Not a git workspace — only CLIs that declare write-event detection (e.g. claude) can record here; other CLIs need a git repository",
   "读取批次…": "Loading batches…",
   "本会话还没有批次 —— 发送一条让 AI 改文件的消息后,这里会按轮归批":
-    "No batches in this session yet — send a message that asks the AI to change files, and changes will be grouped by turn here",
+  "No batches in this session yet — send a message that asks the AI to change files, and changes will be grouped by turn here",
   // TimelinePanel(审批线面板「时间线」页签)
   "时间线": "Timeline",
   "定位幕布": "Locate in terminal",
   "展开全文": "Show full text",
   "时间线跟随会话生命周期 —— 当前没有活跃会话":
-    "The timeline follows the session lifecycle — no active session right now",
+  "The timeline follows the session lifecycle — no active session right now",
   "本会话还没有用户消息 —— 发送一条后,这里按时间记录":
-    "No user messages in this session yet — send one and it will be listed here in order",
+  "No user messages in this session yet — send one and it will be listed here in order",
   // BatchRow / STATE_META(定义处保留中文,消费点 t(meta.label))
   "进行中": "In progress",
   "已处理": "Done",
   "已通过": "Approved",
   "已退": "Reverted",
   "点击审阅该批(用户消息 + 文件 diff) · {ts}":
-    "Click to review this batch (user message + file diff) · {ts}",
+  "Click to review this batch (user message + file diff) · {ts}",
   "{start} 发起": "started {start}",
   "{start} 发起 · {end} 封口": "started {start} · sealed {end}",
   "批次 #{index}": "Batch #{index}",
   "{n} 文件": "{n} files",
   "归因:AI 写入事件流(账本只记 CLI 声称写过的文件)":
-    "Attribution: AI write event stream (the ledger records only files the CLI claims to have written)",
+  "Attribution: AI write event stream (the ledger records only files the CLI claims to have written)",
   "归因:窗口内 git 变更推断(该 CLI 未声明写入事件检测,可能有误差)":
-    "Attribution: inferred from git changes in the window (this CLI doesn't declare write-event detection; may be inaccurate)",
+  "Attribution: inferred from git changes in the window (this CLI doesn't declare write-event detection; may be inaccurate)",
   "该 CLI 未声明写入事件检测:批次由 git 变更推断,可能混入手改":
-    "This CLI doesn't declare write-event detection: batches are inferred from git changes and may include manual edits",
+  "This CLI doesn't declare write-event detection: batches are inferred from git changes and may include manual edits",
   "推断": "Inferred",
   "思考 {level}": "Thinking {level}",
   "标记本批已审阅(纯标记,不影响任何文件)":
-    "Mark this batch as reviewed (mark only; no files are touched)",
+  "Mark this batch as reviewed (mark only; no files are touched)",
   "通过": "Approve",
   "回退整批({n})": "Revert batch ({n})",
   "按账本副本把这轮改动精确写回(live 已偏离批前像的文件跳过,绝不覆盖)":
-    "Write this turn's changes back precisely from the ledger copy (files whose live state diverged from the pre-batch image are skipped, never overwritten)",
+  "Write this turn's changes back precisely from the ledger copy (files whose live state diverged from the pre-batch image are skipped, never overwritten)",
   "应用回此批": "Reapply batch",
   "反悔 · 恢复回来": "Undo · restore back",
   "进行中 —— 本轮对话结算后自动封口进入待审":
-    "In progress — sealed automatically when this turn settles, then awaits review",
+  "In progress — sealed automatically when this turn settles, then awaits review",
   "已处理 —— 无需操作": "Done — nothing to do",
   "已通过 —— 仅标记,改动仍在工作区": "Approved — mark only; changes stay in the workspace",
   "已回退 · 恢复点留存": "Reverted · restore point kept",
@@ -78,22 +78,22 @@ export const MESSAGES = {
   "{n} 个路径": "{n} paths",
   "整批": "whole batch",
   "按账本副本把这轮改动精确写回磁盘(回退的镜像);":
-    "Write this turn's changes back to disk precisely from the ledger copy (the mirror of reverting);",
+  "Write this turn's changes back to disk precisely from the ledger copy (the mirror of reverting);",
   "执行前已自动打恢复点,可反悔": "a restore point is created automatically before running — you can undo",
   "live 已偏离批前像的文件按 diff 精准重放,改动重叠才跳过。":
-    "Files whose live state diverged from the pre-batch image are replayed precisely by diff; only overlapping changes are skipped.",
+  "Files whose live state diverged from the pre-batch image are replayed precisely by diff; only overlapping changes are skipped.",
   "改动将还原到这轮消息发出之前;": "Changes will be restored to before this turn's message was sent;",
   "回退前已自动打恢复点,可反悔": "a restore point is created automatically before reverting — you can undo",
   "共改文件按 diff 精准擦除(只擦本批改动),重叠才跳过。":
-    "Shared-change files are erased precisely by diff (only this batch's changes); only overlapping parts are skipped.",
+  "Shared-change files are erased precisely by diff (only this batch's changes); only overlapping parts are skipped.",
   "取消": "Cancel",
   "确认应用": "Confirm apply",
   "确认回退": "Confirm revert",
   "点击在编辑区查看该文件 diff": "Click to view this file's diff in the editor",
   "AI 本轮写入该文件 {n} 次(事件流轨迹,账本可审计)":
-    "AI wrote this file {n} times this turn (event-stream trace, auditable in the ledger)",
+  "AI wrote this file {n} times this turn (event-stream trace, auditable in the ledger)",
   "工作区内容已偏离本批后像,不可回退,仅可对照":
-    "Workspace contents have diverged from this batch's after-image; cannot revert, compare only",
+  "Workspace contents have diverged from this batch's after-image; cannot revert, compare only",
   "只回退这个文件": "Revert only this file",
   "只回退此文件": "Revert this file only",
   // BatchSheet
@@ -102,7 +102,7 @@ export const MESSAGES = {
   "{h} 小时 {m} 分": "{h}h {m}m",
   "该工作区不是 git 仓库,无审批数据": "This workspace is not a git repository; no approval data",
   "批次不存在或已随会话结束(审批线生命周期 = 单个会话)":
-    "Batch not found or ended with the session (an approval timeline spans a single session)",
+  "Batch not found or ended with the session (an approval timeline spans a single session)",
   "已处理 · {reason}": "Done · {reason}",
   "批次 #{index} · {state} · {time}": "Batch #{index} · {state} · {time}",
   "确认回退{target}? 恢复点自动留存。": "Revert {target}? A restore point is kept automatically.",
@@ -112,36 +112,36 @@ export const MESSAGES = {
   "思考": "Thinking",
   "耗时 {duration}": "Took {duration}",
   "AI 修改的文件({n}) —— 点击分区头折叠;hover 可单文件回退":
-    "Files changed by AI ({n}) — click a section header to collapse; hover to revert a single file",
+  "Files changed by AI ({n}) — click a section header to collapse; hover to revert a single file",
   "本批文件当前与批后像无差异(可能已回退或已提交)":
-    "Files currently show no diff against the batch after-image (possibly already reverted or committed)",
+  "Files currently show no diff against the batch after-image (possibly already reverted or committed)",
   // PromptImages
   "{path}(文件已不可读)": "{path} (file no longer readable)",
   "{name} —— 点击放大查看": "{name} — click to enlarge",
   // cli-dsh hostPanel
   "连不上本地 host。确认 dsh web 已启动,或点立即启动。":
-    "Can't reach the local host. Make sure dsh web is running, or click Start now.",
+  "Can't reach the local host. Make sure dsh web is running, or click Start now.",
   "只能停掉本机 DSH host。远程地址不会被关闭。":
-    "Only a local DSH host can be stopped. Remote addresses won't be closed.",
+  "Only a local DSH host can be stopped. Remote addresses won't be closed.",
   "host 在运行但拒绝本端凭据(疑似外部拉起)。点立即启动换代重启。":
-    "The host is running but rejects this machine's credentials (likely started externally). Click Start now to bring up a fresh instance.",
+  "The host is running but rejects this machine's credentials (likely started externally). Click Start now to bring up a fresh instance.",
   "正在启动…": "Starting…",
   "未安装 DSH CLI": "DSH CLI not installed",
   "主机已连接": "Host connected",
   "主机未运行": "Host not running",
   "正在探测本地 host": "Probing local host",
   "先装本地 dsh。模型和密钥仍然去 DSH Web UI 配。":
-    "Install the local dsh first. Models and keys are still configured in the DSH Web UI.",
+  "Install the local dsh first. Models and keys are still configured in the DSH Web UI.",
   "连不上 {origin}。自动启动只影响下次对话;要现在拉起请点立即启动。":
-    "Can't reach {origin}. Auto-start only affects the next conversation; click Start now to bring it up immediately.",
+  "Can't reach {origin}. Auto-start only affects the next conversation; click Start now to bring it up immediately.",
   "只信 host.describe,不把端口通当作已就绪。":
-    "Only host.describe counts as ready; an open port alone doesn't.",
+  "Only host.describe counts as ready; an open port alone doesn't.",
   "当前供应商": "Current provider",
   "当前模型": "Current model",
   "已挂会话": "Attached sessions",
   "提示": "Tip",
   "模型和 API Key 在 DSH Web UI 里配,这里只负责装 CLI、连本地 host(要求 Node ≥ 22.19 或 ≥ 24)。启动 = 新开一个「DSH Host」终端会话跑 dsh web,关掉会话即停止服务。":
-    "Configure models and API keys in the DSH Web UI; this only installs the CLI and connects to the local host (requires Node ≥ 22.19 or ≥ 24). Starting opens a new “DSH Host” terminal session running dsh web; closing that session stops the service.",
+  "Configure models and API keys in the DSH Web UI; this only installs the CLI and connects to the local host (requires Node ≥ 22.19 or ≥ 24). Starting opens a new “DSH Host” terminal session running dsh web; closing that session stops the service.",
   "已连接到 {origin}": "Connected to {origin}",
   "取消启动": "Cancel start",
   "打开 DSH Web UI": "Open DSH Web UI",
@@ -155,14 +155,14 @@ export const MESSAGES = {
   "连接设置": "Connection settings",
   "自定义 DeepSeek Harness 路径": "Custom DeepSeek Harness path",
   "留空用 PATH 里的 dsh;改动即保存,下次启动服务生效。":
-    "Leave empty to use dsh from PATH; changes save immediately and take effect the next time the service starts.",
+  "Leave empty to use dsh from PATH; changes save immediately and take effect the next time the service starts.",
   "Host 地址": "Host address",
   "默认本机。改端口前先确认没有别的进程占着。":
-    "Local machine by default. Before changing the port, make sure no other process is holding it.",
+  "Local machine by default. Before changing the port, make sure no other process is holding it.",
   "端口": "Port",
   "自动启动主机": "Auto-start host",
   "下次进首页且 host 未运行时自动拉起。拨开关不会立刻启动或停止。":
-    "Automatically starts the next time you open the home page and the host isn't running. Toggling doesn't start or stop it immediately.",
+  "Automatically starts the next time you open the home page and the host isn't running. Toggling doesn't start or stop it immediately.",
 
   // ── 内核组件(SecretInput / StyledSelect / openWith / i18n 插值示例) ──
   "密钥": "Secret",
@@ -183,13 +183,13 @@ export const MESSAGES = {
   "显示全部发行版": "Show all distros",
   "默认发行版用户": "Default distro user",
   "WSL 工作区以 \\\\wsl.localhost 路径登记;引擎会话在该目录内以 wsl.exe 包装启动(幕布/工作区行为与本地一致)。":
-    "WSL workspaces are registered as \\\\wsl.localhost paths; engine sessions launch inside that directory wrapped via wsl.exe (terminal/workspace behavior matches local).",
+  "WSL workspaces are registered as \\\\wsl.localhost paths; engine sessions launch inside that directory wrapped via wsl.exe (terminal/workspace behavior matches local).",
   // RemoteSection(远程连接段)
   "地址": "Address",
   "用户": "User",
   "保存并选择": "Save and select",
   "该主机已存在(同地址/端口/用户名),请在下拉中选择":
-    "This host already exists (same address/port/username) — pick it from the dropdown",
+  "This host already exists (same address/port/username) — pick it from the dropdown",
   "远程主机": "Remote host",
   "远程 WSL 宿主": "Remote WSL host",
   "(尚无主机,点右侧手动添加)": "(no hosts yet — add one on the right)",
@@ -197,28 +197,28 @@ export const MESSAGES = {
   "连接": "Connect",
   "连接中…": "Connecting…",
   "宿主未检测到 WSL 发行版(未安装或 wsl.exe 不在 PATH)。":
-    "No WSL distros detected on the host (not installed, or wsl.exe is not on PATH).",
+  "No WSL distros detected on the host (not installed, or wsl.exe is not on PATH).",
   "SSH 进入": "Enter via SSH",
   "添加 WSL 工作区": "Add WSL workspace",
   "点【连接】探测远程【发行版】与已装【引擎】,自动展开发行版面板。":
-    "Click 【Connect】 to probe remote 【distros】 and installed 【engines】; the distro panel expands automatically.",
+  "Click 【Connect】 to probe remote 【distros】 and installed 【engines】; the distro panel expands automatically.",
   "【SSH 进入】直进所选发行版终端(未展开用默认),引擎/目录在发行版面板里选;【添加 WSL 工作区】把目录登记进侧栏,会话自动走【SSH】。":
-    "【Enter via SSH】 drops you into the selected distro's terminal (default distro if none expanded); pick engine/directory in the distro panel. 【Add WSL workspace】 registers the directory in the sidebar; sessions then go over 【SSH】 automatically.",
+  "【Enter via SSH】 drops you into the selected distro's terminal (default distro if none expanded); pick engine/directory in the distro panel. 【Add WSL workspace】 registers the directory in the sidebar; sessions then go over 【SSH】 automatically.",
   "已停止": "Stopped",
   "未选择": "Not selected",
   // DistroPanel(发行版子面板)
   "引擎探针": "Engine probe",
   "仅计发行版内安装(登录 shell PATH,含 ~/.local/bin);/mnt/*(Windows 互操作)路径不计":
-    "Counts only installs inside the distro (login shell PATH, incl. ~/.local/bin); /mnt/* (Windows interop) paths don't count",
+  "Counts only installs inside the distro (login shell PATH, incl. ~/.local/bin); /mnt/* (Windows interop) paths don't count",
   "【点选】检出的引擎行,「SSH 进入」即以该【CLI】启动;不选则进【交互 shell】。":
-    "【Click】 a detected engine row and “Enter via SSH” launches that 【CLI】; without a pick you get an 【interactive shell】.",
+  "【Click】 a detected engine row and “Enter via SSH” launches that 【CLI】; without a pick you get an 【interactive shell】.",
   "未检出": "Not detected",
   "可用": "Available",
   "选中 {bin} 作为会话引擎": "Select {bin} as the session engine",
   "起始目录": "Start directory",
   "浏览目录": "Browse directory",
   "「SSH 进入」以该目录为【启动目录】(--cd);逐级进入,点选即生效。":
-    "“Enter via SSH” uses this directory as the 【start directory】 (--cd); navigate down level by level — clicking a row applies it.",
+  "“Enter via SSH” uses this directory as the 【start directory】 (--cd); navigate down level by level — clicking a row applies it.",
   "上一级": "Up one level",
   "(空目录)": "(empty directory)",
   // WorkspaceDialog / AddWslTab(添加工作区对话框)
@@ -226,26 +226,58 @@ export const MESSAGES = {
   "发行版": "Distro",
   "Linux 目录": "Linux directory",
   "需选择发行版并填写 Linux 绝对路径(如 /home/chen/work/proj)":
-    "Pick a distro and enter an absolute Linux path (e.g. /home/chen/work/proj)",
+  "Pick a distro and enter an absolute Linux path (e.g. /home/chen/work/proj)",
   "工作区根(UNC)": "Workspace root (UNC)",
   "添加": "Add",
   "本机未检测到 WSL;打开 WSL 面板配置远程主机后在此导入。":
-    "No WSL detected on this machine; configure a remote host in the WSL card, then import here.",
+  "No WSL detected on this machine; configure a remote host in the WSL card, then import here.",
   "远程宿主未检测到 WSL 发行版。": "No WSL distros detected on the remote host.",
   "(无子目录)": "(no subdirectories)",
   "添加后 root 为远程 Linux 路径;会话经 WSL 卡或侧栏打开(SSH 包装)。":
-    "After adding, the root is a remote Linux path; sessions open via the WSL card or the sidebar (SSH-wrapped).",
+  "After adding, the root is a remote Linux path; sessions open via the WSL card or the sidebar (SSH-wrapped).",
   "添加后以 \\\\wsl.localhost UNC 登记为本机 WSL 工作区。":
-    "After adding, it's registered as a local WSL workspace with a \\\\wsl.localhost UNC path.",
+  "After adding, it's registered as a local WSL workspace with a \\\\wsl.localhost UNC path.",
   // contributions(工作区来源/远程文件源)
   "新建 WSL 会话": "New WSL session",
   "未探测 {distro} 引擎;打开 WSL 面板点「连接」后可新建会话":
-    "Engines in {distro} not probed yet; open the WSL card and click “Connect” to create a session",
+  "Engines in {distro} not probed yet; open the WSL card and click “Connect” to create a session",
   "{distro} 内未检出任何引擎": "No engines detected in {distro}",
   "远程主机配置已删除,无法浏览文件;请重新选择远程宿主。":
-    "The remote host config was deleted, so files can't be browsed; pick a remote host again.",
+  "The remote host config was deleted, so files can't be browsed; pick a remote host again.",
   "远程主机配置已删除,无法读取文件": "Remote host config deleted; can't read the file",
   "远程文件超过 512KB,暂不支持预览(M1)": "Remote file exceeds 512KB; preview not supported yet (M1)",
   // index.tsx(spec wrapper)
   "工作区 root 不是 WSL UNC 路径": "Workspace root is not a WSL UNC path",
+  // WebDevicePairCard(设备配对卡)
+  "添加设备": "Add device",
+  "手机装好 tmd-cli app 后,扫码或输入配对码完成配对;授权一次长期有效。":
+  "Install the tmd-cli app on your phone, then scan the code or enter the pairing code; one approval lasts.",
+  "出示配对码": "Show pairing code",
+  "有效期 {ttl}": "Expires in {ttl}",
+  "已复制": "Copied",
+  "复制配对链接": "Copy pairing link",
+  "IP {ip} 连续配对码错误,已暂时拒绝(10 分钟)。":
+  "IP {ip} had repeated wrong pairing codes and is temporarily blocked (10 min).",
+  "待授权": "Pending approval",
+  "授权": "Approve",
+  "忽略": "Ignore",
+  "已授权设备": "Approved devices",
+  "刚刚": "just now",
+  "{n} 分钟前": "{n} min ago",
+  "{n} 小时前": "{n} h ago",
+  "{n} 天前": "{n} d ago",
+  "上次活跃 {time}": "Last active {time}",
+  "撤销后手机立即掉线,需重新配对":
+  "Revoking disconnects the phone immediately; pairing is required again",
+  "踢除": "Remove",
+  "重试": "Retry",
+  "已回退": "Reverted",
+
+  /* 设备配对卡补充键(评审收口:配对域统一归 misc,settings 不留双份) */
+  "发起于 {time}": "Requested at {time}",
+  "配对码 {ttl} 后过期": "Pairing code expires in {ttl}",
+  "离线 {time}": "Offline {time}",
+  "配对于 {date}": "Paired on {date}",
+  "设备凭证 = 每台独立 token(桌面只存 sha-256)。踢除立即断开该设备全部连接,其本地凭证作废,需重新扫码配对。授权/踢除仅桌面可操作,手机端只读自己状态。": "Device credentials = a per-device token (desktop stores only sha-256). Kicking immediately drops all of the device's connections and voids its local credential; re-pairing by QR is required. Approve/kick are desktop-only; the phone sees read-only status.",
+  "加载中…": "Loading…",
 } as Record<string, string>;

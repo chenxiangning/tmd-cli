@@ -11,6 +11,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RelayInfo } from "@kernel/ipc";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { relayStatusDot, relayStatusText } from "./relayStatusModel";
 import { readWanRiskAccepted, writeWanRiskAccepted } from "./wanRiskAccepted";
 
@@ -34,10 +36,18 @@ describe("relayStatusModel", () => {
   });
 
   it("relayStatusDot:未连接白点、已连接绿点、连接中与出错黄点", () => {
-    expect(relayStatusDot(null)).toBe("⚪");
-    expect(relayStatusDot(info({ connected: true }))).toBe("🟢");
-    expect(relayStatusDot(info())).toBe("🟡");
-    expect(relayStatusDot(info({ error: "x" }))).toBe("🟡");
+    expect(relayStatusDot(null)).toBe("bg-[var(--tmd-fg-faint)]");
+    expect(relayStatusDot(info({ connected: true }))).toBe("bg-[var(--tmd-ok)]");
+    expect(relayStatusDot(info())).toBe("bg-[var(--tmd-warn)]");
+    expect(relayStatusDot(info({ error: "x" }))).toBe("bg-[var(--tmd-warn)]");
+  });
+
+  it("圆点 token 双主题有定义(类串钉死但变量改名即静默透明的防线)", () => {
+    const css = readFileSync(join(__dirname, "../../styles/themes.css"), "utf8");
+    for (const v of ["--tmd-ok", "--tmd-warn", "--tmd-fg-faint"]) {
+      const hits = css.split(`${v}:`).length - 1;
+      expect(hits, `${v} 应在亮暗两主题各定义一次`).toBeGreaterThanOrEqual(2);
+    }
   });
 });
 

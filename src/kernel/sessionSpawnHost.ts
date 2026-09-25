@@ -34,6 +34,8 @@ export interface SessionSpawnHost {
   statusSeed(sessionId: string): void;
   /** 登记输出/退出退订对(会话移除时成对退订)。 */
   trackUnlisten(sessionId: string, offs: Array<() => void>): void;
+  /** 已装配订阅?(adoptPtySession 终态幂等闸透传;与 external 事件竞速防双订阅)。 */
+  hasSubscribed?(sessionId: string): boolean;
   /** 幕布输出尾部(秒退守望摘报错用;removeSession 即清,须在退出回调同步取)。 */
   outputTail(sessionId: string, maxChars: number): string;
   /** PTY 输出落缓冲 + 实时 topic 广播(host.appendOutput 主链路)。 */

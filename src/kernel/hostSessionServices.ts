@@ -9,7 +9,7 @@ import type { EventBus } from "./events";
 import { SessionSpawnService } from "./sessionSpawn";
 import { ShellSessionService } from "./shellSessions";
 import { SshSessionService } from "./sshSessions";
-import { readoptSessions } from "./sessionAdopt";
+import { adoptPtySession, readoptSessions } from "./sessionAdopt";
 import type { HostWatches } from "./hostWatches";
 import { stripAnsi } from "./askDetect";
 import type { CliProfile } from "./cli";
@@ -30,6 +30,8 @@ interface HostSessionServicesCtx {
   removeSession(sessionId: string): Promise<void>;
   /** 登记输出/退出退订对(会话移除时成对退订)。 */
   trackUnlisten(sessionId: string, offs: Array<() => void>): void;
+  /** 已装配订阅?(adoptPtySession 终态幂等闸透传)。 */
+  hasSubscribed(sessionId: string): boolean;
   /** 外壳重渲染通知(Host.notify)。 */
   notify(): void;
 }
@@ -40,6 +42,8 @@ interface HostSessionServices {
   spawn: SessionSpawnService;
   /** webview 重载后活 PTY 重新接管(会话表合并 + 常驻订阅重建)。 */
   readopt: () => Promise<void>;
+  /** 桥(手机/浏览器)发起会话的补装配:单会话版 readopt,免全表磁盘尾回灌。 */
+  adoptExternal: (e: { sessionId: string; profileId: string; cliSessionId?: string }) => Promise<void>;
 }
 /** 接管磁盘尾取量:镜像补底与回显重锚单取分用(免逐会话重复 IPC;256KB 覆盖最后一帧整帧重绘 + 近期对话回显,pi-tui 单帧可达 9KB)。 */
 const READOPT_TAIL_BYTES = 256 * 1024;
@@ -62,6 +66,7 @@ export function createSessionServices(
     removeSession: (sessionId: string) => ctx.removeSession(sessionId),
     trackUnlisten: (sessionId: string, offs: Array<() => void>) =>
       ctx.trackUnlisten(sessionId, offs),
+    hasSubscribed: (sessionId: string) => ctx.hasSubscribed(sessionId),
     getSessions: () => ctx.getSessions(),
     setActiveSession: (id: string) => ctx.setActiveSession(id),
     notify: () => ctx.notify(),
@@ -94,6 +99,7 @@ export function createSessionServices(
         statusRefresh: (sessionId) => watches.statusRefresh(sessionId),
         statusSeed: (sessionId) => watches.statusSeed(sessionId),
         trackUnlisten: base.trackUnlisten,
+        hasSubscribed: base.hasSubscribed,
         outputTail: (sessionId, maxChars) =>
           watches.outputTail(sessionId, maxChars),
         appendOutput: base.appendOutput,
@@ -115,6 +121,10 @@ export function createSessionServices(
       );
       /* 账本死项剪除(必须在此刻:活表已按 Rust 注册表定稿;冷启动清陈账,重载全保留) */
       watches.pruneIdentities();
+      /* 注册表身份回灌(cliSessionId 重载后账本已丢;免镜像回写,值本就来自注册表) */
+      for (const s of ctx.getSessions()) {
+        if (s.cliSessionId && !watches.getCliSessionId(s.id)) watches.seedIdentity(s.id, s.cliSessionId);
+      }
       const jobs: Promise<void>[] = [];
       for (const s of ctx.getSessions()) {
         if ((s.kind ?? "cli") !== "cli") continue;
@@ -137,6 +147,32 @@ export function createSessionServices(
         );
       }
       await Promise.all(jobs);
+    },
+    /* 桥发起会话的补装配(事件 session:external-spawn,见 dispatch_session.rs):
+       手机 spawn/resume 绕过前端全部生命周期(身份/订阅/状态/标题),桌面行退化成
+       短码 + 无运行态。这里做单会话版 readopt:刷表 → 绑身份(resume 自带 / 新会话
+       挂探测)→ 常驻订阅 → 状态巡航。activate:false 不抢桌面前台。 */
+    adoptExternal: async (e) => {
+      if (base.findSession(e.sessionId)) return; /* 事件重放/与轮询竞速:已装配即幂等 */
+      await ctx.refreshSessions();
+      const meta = ctx.findSession(e.sessionId);
+      if (!meta) return; /* spawn 后瞬死:Rust 注册表已清,无事可做 */
+      if (e.cliSessionId) {
+        watches.bindIdentity(e.sessionId, e.cliSessionId);
+      } else {
+        const profile = ctx.getCliProfile(e.profileId);
+        if (profile?.listSessions) {
+          /* 新会话无 before 基线:退化 spawn 水位判定(只认事件后落盘/增长),
+             与 spawnNew 快照失败的 fail-closed 语义同律 */
+          watches.identityTrack(e.sessionId, e.profileId, meta.cwd, null, Date.now());
+        }
+      }
+      await adoptPtySession(base, events, e.sessionId, {
+        profileId: e.profileId,
+        activate: false,
+      });
+      watches.statusEnsurePolling();
+      watches.statusRefresh(e.sessionId);
     },
   };
 }

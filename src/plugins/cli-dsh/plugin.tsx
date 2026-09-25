@@ -6,7 +6,7 @@
 import type { Plugin } from "@kernel/plugin";
 import type { SpawnSpec } from "@kernel/ipc";
 import type { QuotaSnapshot } from "@kernel/quota";
-import { DshGlyph } from "./index";
+import { DshGlyph } from "../cli-shared/engineGlyphs";
 import { DshHostPanel } from "./hostPanel";
 import { loadConnection } from "./dshConnection";
 import { listHostSessions, readHostSessionStatus, readHostDefaultStatus, readHostContextPressure, deleteHostSession, isHostSessionEmpty } from "./dshRpc";

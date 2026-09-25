@@ -1,6 +1,5 @@
 //! SSH Tauri 命令 —— invoke 入口(git/commands.rs 同款模板)。
 //! 会话注册/输出/翻页复用既有 session_* 命令(按 kind 路由,见 lib.rs)。
-
 use std::sync::Arc;
 
 use tauri::{AppHandle, State};
@@ -89,6 +88,7 @@ pub async fn ssh_session_create(
             host.name.trim().to_string()
         }),
         engine: engine_profile,
+        cli_session_id: None,
     });
 
     let registry = Arc::clone(&state.ssh);

@@ -48,6 +48,7 @@ scripts/i18n/.work/
 
 # Rust / Tauri build artifacts
 src-tauri/target/
+mobile-app/node_modules/
 # tauri 构建生成物(capability schema,构建本地再生成,权限真源在 src-tauri/capabilities/)
 src-tauri/gen/schemas/
 Cargo.bak.lock
@@ -63,3 +64,11 @@ package-lock.json
 .*/
 !/.vscode/
 !/.github/
+
+# 安卓壳构建产物(mobile-app/android-shell)
+mobile-app/android-shell/.gradle/
+mobile-app/android-shell/build/
+mobile-app/android-shell/app/build/
+mobile-app/android-shell/local.properties
+mobile-app/android-shell/.idea/
+mobile-app/dist/

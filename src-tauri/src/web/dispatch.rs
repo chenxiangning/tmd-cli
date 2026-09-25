@@ -261,6 +261,10 @@ mod tests {
     const EXCLUDED: &[&str] = &[
         "web_access_start",
         "web_access_stop",
+        "web_pair_offer",
+        "web_devices_list",
+        "web_device_approve",
+        "web_device_revoke",
         "app_restart",
         "check_update",
         "download_and_install_update",

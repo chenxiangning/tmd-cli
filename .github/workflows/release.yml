@@ -23,7 +23,23 @@ permissions:
   contents: write
 
 jobs:
+  # 前置单 job 先建 Draft:tauri-action 的 getOrCreateRelease 有并发建重窗口
+  # (GitHub 允许同 tag 多 draft,产物会静默分家),先建好大家只复用。
+  prep-release:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --draft --title "tmd-cli $GITHUB_REF_NAME" \
+              --notes "Automated build. See commit log for changes." --repo "$GITHUB_REPOSITORY"
+
   build:
+    needs: prep-release
+    if: ${{ !cancelled() && (startsWith(github.ref, 'refs/tags/v') || needs.prep-release.result == 'skipped') }}
     name: ${{ matrix.label }}
     strategy:
       fail-fast: false # 某个平台挂了不影响其他平台产物落地
@@ -120,3 +136,158 @@ jobs:
           name: tmd-cli-bundle-${{ matrix.tauri-target }}
           path: src-tauri/target/${{ matrix.tauri-target }}/release/bundle/
 
+
+  # ---------- 手机 app(Android 壳)----------
+  # Kotlin+WebView 薄壳(mobile-app/android-shell),与桌面四 job 并行;产物:
+  # debug 签名 APK(直装可用;正式签名需要上 keystore secret,当前无,如实未签)。
+  android:
+    name: "Android (universal APK)"
+    runs-on: ubuntu-latest
+    needs: prep-release
+    if: ${{ !cancelled() && (startsWith(github.ref, 'refs/tags/v') || needs.prep-release.result == 'skipped') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # versionCode = 提交数,需全量历史
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      # 壳二进制与前端 dist 必须同包(build-device-android.sh 同规则)
+      - name: Build web dist
+        run: pnpm build
+
+      - name: Copy dist into shell assets
+        run: |
+          rm -rf mobile-app/android-shell/app/src/main/assets/dist
+          mkdir -p mobile-app/android-shell/app/src/main/assets
+          cp -R dist mobile-app/android-shell/app/src/main/assets/dist
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # ubuntu-24.04 镜像预装全套 Android SDK(ANDROID_HOME 已设、license 已接受);
+      # android-actions/setup-android 反而会在自身 sdkmanager 步撞 license 交互挂掉(v0.2.3 实证)。
+      - name: Accept Android licenses(防御)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+
+      # 版本随 tag 注入(versionCode = 提交数,单调);release 用仓内自签 keystore
+      # (keystore/tmd-release.keystore)——零成本侧载分发,签名稳定可覆盖升级。
+      - name: Gradle assembleRelease(wrapper 钉 8.10.2;runner 预装 gradle 9.x 与 AGP 8.7 不兼容)
+        run: |
+          cd mobile-app/android-shell
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --console=plain \
+            -PversionName="${GITHUB_REF_NAME#v}" \
+            -PversionCode="$(git rev-list --count HEAD)"
+
+      # Draft Release 由 tauri-action(桌面 build job)创建;手机 job 可能先跑完,
+      # 轮询等它出现再挂产物(softprops 二次创建会出重复 release,故用 gh CLI --clobber)。
+      - name: Attach APK to release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for i in $(seq 1 60); do
+            gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 && break
+            sleep 10
+          done
+          gh release upload "$GITHUB_REF_NAME"             mobile-app/android-shell/app/build/outputs/apk/release/app-release.apk             --clobber --repo "$GITHUB_REPOSITORY"
+
+      - name: Upload APK artifact(仅手动触发)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: tmd-cli-android-apk
+          path: mobile-app/android-shell/app/build/outputs/apk/release/
+
+  # ---------- 手机 app(iOS 壳,未签名)----------
+  # 原生 SwiftUI 壳(mobile-app/native-shell)。CI 无分发证书 → CODE_SIGNING_ALLOWED=NO
+  # 出未签名 .app(侧载需用户自签;真机日常装用本地 scripts/build-device.sh)。
+  ios-shell:
+    name: "iOS (arm64, unsigned)"
+    runs-on: macos-latest
+    needs: prep-release
+    if: ${{ !cancelled() && (startsWith(github.ref, 'refs/tags/v') || needs.prep-release.result == 'skipped') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # CFBundleVersion = 提交数,需全量历史
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web dist
+        run: pnpm build
+
+      - name: Copy dist for shell bundle
+        run: |
+          rm -rf mobile-app/dist
+          cp -R dist mobile-app/dist
+
+      - name: xcodebuild (unsigned)
+        run: |
+          cd mobile-app/native-shell
+          xcodebuild \
+            -project tmd-native-shell.xcodeproj \
+            -scheme 'tmd-cli mobile' \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath /tmp/tmd-ios-ci \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Stamp version into bundle
+        run: |
+          PLIST="/tmp/tmd-ios-ci/Build/Products/Release-iphoneos/tmd-cli mobile.app/Info.plist"
+          plutil -replace CFBundleShortVersionString -string "${GITHUB_REF_NAME#v}" "$PLIST"
+          plutil -replace CFBundleVersion -string "$(git rev-list --count HEAD)" "$PLIST"
+
+      - name: Zip .app
+        run: |
+          cd /tmp/tmd-ios-ci/Build/Products/Release-iphoneos
+          zip -qry /tmp/tmd-cli-mobile-unsigned.zip "tmd-cli mobile.app"
+
+      # 同 android job:等 tauri-action 的 Draft 出现再挂,避免重复 release
+      - name: Attach iOS zip to release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for i in $(seq 1 90); do
+            gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 && break
+            sleep 30
+          done
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 || \
+            { echo "Draft release 未在限时内出现(桌面构建超 45 分钟?)" >&2; exit 1; }
+          gh release upload "$GITHUB_REF_NAME" /tmp/tmd-cli-mobile-unsigned.zip --clobber --repo "$GITHUB_REPOSITORY"
+
+      - name: Upload artifact(仅手动触发)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: tmd-cli-ios-unsigned
+          path: /tmp/tmd-cli-mobile-unsigned.zip

@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ipc, type DirEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { copyText } from "@kernel/clipboard";
 import { closeTab, getTabs } from "@kernel/tabs";
 import {
   cacheDeletePrefix,
@@ -50,22 +51,6 @@ export function clampMenuPosition(x: number, y: number): { x: number; y: number 
     x: Math.min(Math.max(8, x), window.innerWidth - 220 - 12),
     y: Math.min(y, window.innerHeight - 320 - 12),
   };
-}
-
-/** 复制文本:优先 async clipboard,非安全上下文回退 execCommand(codemoss 同思路)。 */
-export async function copyText(text: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    ta.remove();
-  }
 }
 
 export function useTreeOperations(opts: {

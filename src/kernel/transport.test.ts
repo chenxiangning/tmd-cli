@@ -37,7 +37,7 @@ class FakeWS {
   sent: string[] = [];
   onopen: (() => void) | null = null;
   onmessage: ((e: { data: unknown }) => void) | null = null;
-  onclose: (() => void) | null = null;
+  onclose: ((e: { code: number }) => void) | null = null;
   onerror: (() => void) | null = null;
   constructor(url: string) {
     this.url = url;
@@ -48,7 +48,7 @@ class FakeWS {
   }
   close() {
     this.readyState = 3;
-    this.onclose?.();
+    this.onclose?.({ code: 1000 });
   }
   open() {
     this.readyState = 1;
@@ -207,6 +207,22 @@ describe("transport web 态(WS 桥)", () => {
     await vi.advanceTimersByTimeAsync(0);
     ws2.recv(JSON.stringify({ type: "response", id: 2, ok: true, payload: "ok" }));
     await expect(p2).resolves.toBe("ok");
+  });
+
+  it("退避期内并发 invoke 快败且零新建 socket(全局重拨闸)", async () => {
+    const p1 = transport.invoke("first");
+    const ws1 = lastWS();
+    ws1.open();
+    await vi.advanceTimersByTimeAsync(0);
+    ws1.close(); // onClose:全局闸 nextDialAt = now+1s,并调度 1s 后重试
+    await expect(p1).rejects.toThrow("web bridge disconnected");
+    await vi.advanceTimersByTimeAsync(500);
+    const before = FakeWS.made.length;
+    // 退避期内轮询类 invoke 快败,不再各起新 socket(快败网络风暴的根因)
+    await expect(transport.invoke("during_backoff")).rejects.toThrow("web bridge disconnected");
+    expect(FakeWS.made).toHaveLength(before);
+    await vi.advanceTimersByTimeAsync(500); // 闸期满,调度重试落地
+    expect(FakeWS.made.length).toBeGreaterThan(before);
   });
 
   it("事件帧按事件名分发、payload 包裹;退订后不再收到;多监听者各收各的", async () => {

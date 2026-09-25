@@ -19,7 +19,7 @@ import { OutputBufferStore } from "./outputBuffers";
 import { SessionStatusWatch } from "./sessionStatus";
 import { refreshRemoteStatus } from "./remoteStatusRefresh";
 import type { CliProfile, CliSessionStatus } from "./cli";
-import type { SessionMeta } from "./ipc";
+import { ipc, type SessionMeta } from "./ipc";
 /** 幕布实时输出 topic(TerminalView 订阅,与 appendOutput 共用)。 */
 export function ptyLiveTopic(sessionId: string): string {
   return `kernel.pty.live.${sessionId}`;
@@ -118,21 +118,20 @@ export class HostWatches {
   });
 
   constructor(private readonly ctx: HostWatchesCtx) {}
-
-  /** 活会话绑定的 CLI 磁盘身份;未绑定(探测前)为 undefined。 */
+  /** 活会话绑定的 CLI 磁盘身份;未绑定(探测前)= undefined。 */
   getCliSessionId(sessionId: string): string | undefined { return this.ledger.get(sessionId); }
-
-  /** 绑定终审与磁盘回放指针语义见 IdentityLedger.bind(唯一写入口)。 */
+  /** 绑定终审见 IdentityLedger.bind;成功即镜像回写注册表(session_bind_cli;手机直读,失败无害)。 */
   bindIdentity(sessionId: string, cliSessionId: string): boolean {
-    return this.ledger.bind(sessionId, cliSessionId);
+    const ok = this.ledger.bind(sessionId, cliSessionId);
+    if (ok) void ipc.sessionBindCli?.(sessionId, cliSessionId).catch(() => undefined);
+    return ok;
   }
+  /** readopt 身份回灌专用:值本就来自注册表,免镜像回写(评审:重载 N 冗余 IPC)。 */
+  seedIdentity(sessionId: string, cliSessionId: string): void { this.ledger.bind(sessionId, cliSessionId); }
   /** readopt 定稿后对活会话表剪除账本死项(时机语义见 IdentityLedger.prune)。 */
   pruneIdentities(): void { this.ledger.prune(); }
-
   /** 测试专用:直通绑定终审闸(共绑一磁盘身份的回归入口)。 */
-  bindIdentityForTest(sessionId: string, cliSessionId: string): boolean {
-    return this.ledger.bind(sessionId, cliSessionId);
-  }
+  bindIdentityForTest(sessionId: string, cliSessionId: string): boolean { return this.ledger.bind(sessionId, cliSessionId); }
 
   appendOutput(sessionId: string, text: string): void {
     /* 上限读设置项 sessionOutputBufferLimit(行为页可调),异常值已被 sanitize 拦截。 */

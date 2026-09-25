@@ -45,6 +45,7 @@ export function TerminalButton() {
     <button
       type="button"
       className={`titlebar-action${isActive ? " is-active" : ""}`}
+      data-action-id="terminal"
       aria-label="内置终端"
       title="内置终端(Option+点击新建)"
       onClick={(e) => open(e.altKey)}

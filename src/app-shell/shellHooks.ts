@@ -1,5 +1,5 @@
 // AppShell 持久化开关与元素宽度测量 hook,自 AppShell.tsx 按「纯结构拆分、行为不变」拆出
-import { useEffect, useState } from "react";
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 export function usePersistedToggle(key: string, initial: boolean) {
   const [open, setOpen] = useState(
@@ -10,6 +10,52 @@ export function usePersistedToggle(key: string, initial: boolean) {
   }, [key, open]);
   return [open, () => setOpen((v) => !v), setOpen] as const;
 }
+
+/** 最大化下侧栏手动拖拽(钉宽 var + panelRef 双通道;非最大化返回 no-op 交库原生)。 */
+export function asideDragFactory(
+  maximized: boolean,
+  leftPanelRef: { current: { resize: (px: number) => void } | null },
+  rightPanelRef: { current: { resize: (px: number) => void } | null },
+) {
+  return (e: ReactPointerEvent<HTMLElement>, side: "left" | "right") => {
+    if (!maximized) return;
+    e.preventDefault();
+    const varName = side === "left" ? "--tmd-left-aside-w" : "--tmd-right-aside-w";
+    const panel = (side === "left" ? leftPanelRef : rightPanelRef).current;
+    const startX = e.clientX;
+    const startW =
+      parseFloat(getComputedStyle(document.documentElement).getPropertyValue(varName)) || 240;
+    const sign = side === "left" ? 1 : -1;
+    const onMove = (ev: PointerEvent) => {
+      const w = Math.round(startW + sign * (ev.clientX - startX));
+      const clamped = Math.min(Math.max(160, w), Math.round(window.innerWidth * 0.6));
+      document.documentElement.style.setProperty(varName, `${clamped}px`);
+      panel?.resize(clamped);
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+}
+
+/** 经典滚动条吃掉内容宽度:实测一次写 CSS 变量,供顶栏折叠按钮让位对齐。 */
+export function useScrollbarProbe() {
+  useEffect(() => {
+    const probe = document.createElement("div");
+    probe.style.cssText =
+      "position:absolute;top:-99px;left:-99px;width:100px;height:100px;overflow:scroll";
+    document.body.appendChild(probe);
+    document.documentElement.style.setProperty(
+      "--tmd-scrollbar-w",
+      `${probe.offsetWidth - probe.clientWidth}px`,
+    );
+    probe.remove();
+  }, []);
+}
+
 /**
  * 测量元素宽度并直写 CSS 变量(随拖动实时更新)。
  * 直写 var 而非 setState:分栏拖动每帧触发,避免顶栏整树重渲染(顶栏经 var() 消费);

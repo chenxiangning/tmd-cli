@@ -1,6 +1,7 @@
 # mobile app(Tauri 2 壳 · 轻交互 · 配对不加密)设计
 
 > 日期:2026-09-21 · 状态:已评审通过(设计对话拍板:Tauri 2 壳 / 轻交互 / 配对+设备表不加密)
+> 实施对照:**M1 已收口(2026-09-22,iPhone 真机扫码配对全绿)** —— 提案归档 `openspec/changes/archive/2026-09-21-mobile-app-m1-pairing/`,总纲 `docs/superpowers/specs/2026-09-21-mobile-app-master-plan.md`。已确认偏离:localStorage 凭证 / AppDevice 域不含 session_spawn / 扫码为原生壳 AVCapture(已落地);**壳形态实定 = 原生 SwiftUI + WKWebView**(Tauri iOS 流水线在 Xcode 27 下上游不可用,见 architecture/12「壳形态」行;数据面契约不变,前端整份复用仍成立)。
 > 前置调研:`docs/research/orca-mobile-reference.md`(orca mobile 源码级分析)、`docs/research/mobile-remote-access.md`(通道选型)、`docs/research/codemoss-web-remote.md`(web-access 现状的移植出处)
 
 ## 背景与目标

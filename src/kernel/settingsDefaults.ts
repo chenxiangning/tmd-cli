@@ -70,6 +70,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   webRelayOn: false,
   webRelayUrl: "",
   webRelayKey: "",
+  webRelayCertDer: "",
+  webRelayCertHost: "",
+  relayDeployHistory: [],
   openWithTargets: [{ id: "finder", label: "访达", kind: "finder" }],
   openWithDefaultId: "finder",
 };

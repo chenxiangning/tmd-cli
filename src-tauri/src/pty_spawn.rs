@@ -16,9 +16,10 @@ use crate::pty::{PtyHandle, PtyRegistry, SpawnSpec, SpawnedSession};
 use crate::resolve::{enriched_path, resolve_command};
 use crate::session_log::{append_log, session_log_path, LogMeta};
 
-/// 增量 UTF-8 解码：不完整的多字节尾部暂存进 `tail`，与下一 chunk 拼接后再解码。
-/// 真正的坏字节(error_len 存在)按 U+FFFD 替换；仅是"没读完"的字节绝不误伤。
-fn decode_utf8_chunk(tail: &mut Vec<u8>, chunk: &[u8]) -> String {
+/// 增量 UTF-8 解码:不完整的多字节尾部暂存进 `tail`,与下一 chunk 拼接后再解码。
+/// 真正的坏字节(error_len 存在)按 U+FFFD 替换;仅是"没读完"的字节绝不误伤。
+/// pub(crate):SSH IO 泵同契约复用(io.rs)——pty://out 的保真度不得取决于供血泵。
+pub(crate) fn decode_utf8_chunk(tail: &mut Vec<u8>, chunk: &[u8]) -> String {
     let mut bytes = std::mem::take(tail);
     bytes.extend_from_slice(chunk);
 
@@ -54,7 +55,7 @@ fn decode_utf8_chunk(tail: &mut Vec<u8>, chunk: &[u8]) -> String {
 
 /// 泵循环收尾:tail 残留 = 永远等不到后续字节的不完整 UTF-8 序列(进程最后
 /// 输出的半个字符),按 U+FFFD 替换取出;空 tail 返回 None(无残留不补发)。
-fn flush_utf8_tail(tail: &mut [u8]) -> Option<String> {
+pub(crate) fn flush_utf8_tail(tail: &mut [u8]) -> Option<String> {
     if tail.is_empty() {
         return None;
     }

@@ -21,9 +21,79 @@ pub fn load_settings() -> serde_json::Value {
     }
 }
 
+/// 设置文件写锁:桌面 config_write_settings(整树)与桥 toggle_pin(读改写)同进程
+/// 串行化,防交叠写与 pin-vs-pin 丢更新(web/devices io_lock 同款纪律)。
+static SETTINGS_IO: std::sync::LazyLock<parking_lot::Mutex<()>> =
+    std::sync::LazyLock::new(|| parking_lot::Mutex::new(()));
+
 /// 落盘设置(整棵写;前端 store 保证传入的是完整 settings 对象)。原子替换防截断。
 pub fn save_settings(data: &serde_json::Value) -> std::io::Result<()> {
+    let _io = SETTINGS_IO.lock();
+    save_settings_locked(data)
+}
+
+/// 锁内读改写:与桌面整树写(config_write_settings)及其他 RMW 写者
+/// (relay/selfhost persist、toggle_pin)串行,消掉「load 在锁外的 stale 覆盖」窗口。
+pub fn update_settings<R>(f: impl FnOnce(&mut serde_json::Value) -> R) -> Result<R, String> {
+    let _io = SETTINGS_IO.lock();
+    let mut data = load_settings();
+    if !data.is_object() {
+        data = serde_json::json!({});
+    }
+    let out = f(&mut data);
+    save_settings_locked(&data).map_err(|e| format!("设置落盘失败: {e}"))?;
+    Ok(out)
+}
+fn save_settings_locked(data: &serde_json::Value) -> std::io::Result<()> {
     ensure_config_dir()?;
     let json = serde_json::to_string_pretty(data).map_err(std::io::Error::other)?;
     crate::session::write_json_atomic(&settings_file(), &json)
+}
+
+/// 会话置顶切换(app 设备窄写面):读改写仅 sessionPins 一个键。
+/// 手机不持全量 settings 快照 —— 整树写会静默覆盖桌面并发修改,故不开
+/// config_write_settings,只给这一把定向钥匙(key = wsId:profileId:cliSessionId)。
+pub fn toggle_pin(key: &str, title: &str) -> Result<bool, String> {
+    let _io = SETTINGS_IO.lock(); // 读改写全程持锁:与桌面整树写串行
+    let key = truncate_boundary(key, 512);
+    let title = truncate_boundary(title, 256);
+    let mut data = load_settings();
+    let root = data
+        .as_object_mut()
+        .ok_or_else(|| "settings.json 不是对象".to_string())?;
+    let pins = root
+        .entry("sessionPins")
+        .or_insert_with(|| serde_json::Value::Object(Default::default()));
+    let pins = pins
+        .as_object_mut()
+        .ok_or_else(|| "sessionPins 不是对象".to_string())?;
+    let now_pinned = if pins.contains_key(key) {
+        pins.remove(key);
+        false
+    } else {
+        pins.insert(
+            key.to_string(),
+            serde_json::json!({
+                "scope": "global",
+                "pinnedAt": crate::now_millis(),
+                "title": title,
+            }),
+        );
+        true
+    };
+    save_settings_locked(&serde_json::Value::Object(root.clone())).map_err(|e| e.to_string())?;
+    Ok(now_pinned)
+}
+
+/// 按字节上限截到字符边界(MSRV 1.80;str::floor_char_boundary 1.91 才稳定)。
+fn truncate_boundary(s: &str, max: usize) -> &str {
+    if s.len() <= max {
+        s
+    } else {
+        let mut i = max;
+        while !s.is_char_boundary(i) {
+            i -= 1;
+        }
+        &s[..i]
+    }
 }

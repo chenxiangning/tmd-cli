@@ -1,5 +1,5 @@
 /**
- * 基础设置 / 外观 tab 的图标装饰卡 —— 7 个界面图标的独立颜色与呼吸闪烁(可折叠)。
+ * 基础设置 / 外观 tab 的图标装饰卡 —— 12 个界面图标的独立颜色与呼吸闪烁(可折叠)。
  * 键清单是 UI 知识(键 = kernel/iconDecor.ts 的 CSS 变量约定 id);全部写 kernel/settings
  * store 即时生效,应用由 kernel/iconDecor.ts 同步到 <html>,预览图标即时反映自定义色。
  */
@@ -7,14 +7,19 @@
 import { useState, type ComponentType } from "react";
 import {
   ArrowCounterClockwise,
+  BookmarkSimple,
   Brain,
+  CalendarDots,
   CaretDown,
   CaretRight,
+  Desktop,
   Folder,
   GitBranch,
   HardDrive,
+  MonitorPlay,
   RocketLaunch,
   SealCheck,
+  TerminalWindow,
 } from "@phosphor-icons/react";
 import {
   DEFAULT_ICON_DECOR,
@@ -58,10 +63,15 @@ const ICON_DECOR_ITEMS: ReadonlyArray<{
   { id: "newchat", label: "新建会话", icon: RocketLaunch },
   { id: "ssh-panel", label: "SSH 入口", icon: HardDrive },
   { id: "system-proxy", label: "网络代理", icon: LadderIcon },
+  { id: "wsl-panel", label: "WSL 入口", icon: Desktop },
+  { id: "terminal", label: "内置终端", icon: TerminalWindow },
+  { id: "session-board", label: "会话看板", icon: CalendarDots },
+  { id: "remote-control", label: "远程控制", icon: MonitorPlay },
   { id: "panel-files", label: "文件面板", icon: Folder },
   { id: "panel-git", label: "Git 面板", icon: GitBranch },
   { id: "panel-checkpoints", label: "审批线面板", icon: SealCheck },
   { id: "panel-memory", label: "Memory 面板", icon: Brain },
+  { id: "panel-marks", label: "标记面板", icon: BookmarkSimple },
 ];
 type _ItemsCoverAllKeys = Exclude<IconDecorId, (typeof ICON_DECOR_ITEMS)[number]["id"]> extends never
   ? true

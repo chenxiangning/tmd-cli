@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowsClockwiseIcon as ArrowsClockwise, LinkSimpleIcon as LinkSimple } from "@phosphor-icons/react";
 import { onWebRelay, webRelayStart, webRelayStatus, webRelayStop, type RelayInfo } from "@kernel/ipc";
 import { isWeb } from "@kernel/transport";
-import { updateSettings, useSettingsState } from "@kernel/settings";
+import { useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 import { relayStatusDot, relayStatusText } from "./relayStatusModel";
 
@@ -73,10 +73,10 @@ export function WebRelayCardBody({
       )}
       <div className="flex items-center gap-2 text-xs">
         <span title={info?.error ?? undefined}>
-          {statusDot} {statusText}
+          <span className={`size-2 flex-none rounded-full ${statusDot}`} /> {statusText}
         </span>
         {info && (
-          <code className="min-w-0 flex-1 truncate rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-muted)] px-2 py-0.5">
+          <code className="min-w-0 flex-1 truncate rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-sunken)] px-2 py-0.5">
             {info.url}
           </code>
         )}
@@ -129,15 +129,27 @@ export function WebRelayCard() {
     }
   }, []);
 
+  /* 部署卡铸 key 只写 settings;本卡挂载时一次性拷贝会漏掉同屏部署产物
+  (用户看到空 key 栏只能瞎填)。settings 变化即回填;手输不触发 settings
+  变化,不会覆盖打字;connect 自写自读同值,幂等。 */
+  useEffect(() => {
+    setUrl(settings.webRelayUrl);
+    setRelayKey(settings.webRelayKey);
+  }, [settings.webRelayUrl, settings.webRelayKey]);
+
   useEffect(() => {
     void refresh();
-    /* 中继状态事件驱动刷新(payload 恒 Null,仅作信号;实况经 webRelayStatus 重查)。 */
-    let unlisten: (() => void) | null = null;
+    /* 中继状态事件驱动刷新(payload 恒 Null,仅作信号;实况经 webRelayStatus 重查)。
+     * 卸载先于 listen promise 到站时立即退订,防桥内监听永久滞留。 */
+    let off: (() => void) | null = null;
+    let gone = false;
     onWebRelay((next) => setInfo(next)).then((fn) => {
-      unlisten = fn;
+      if (gone) fn();
+      else off = fn;
     });
     return () => {
-      unlisten?.();
+      gone = true;
+      off?.();
     };
   }, [refresh]);
 
@@ -145,9 +157,10 @@ export function WebRelayCard() {
     setBusy(true);
     setError(null);
     try {
-      // 只持久化 URL/key;webRelayOn 由 Rust 侧 web_relay_start 成功后落盘,
-      // 避免「start 失败但 webRelayOn:true 已落盘」导致下次启动自动重拨失败 relay。
-      updateSettings({ webRelayUrl: url, webRelayKey: relayKey });
+      // URL/key/on/webAccessEnabled 全部由 Rust 侧 web_relay_start 成功后一次落盘。
+      // 前端抢先 updateSettings 是整文件覆盖:内存里陈旧的 webAccessEnabled:false 会把
+      // Rust 刚回填的 true 冲掉 → apply_settings 杀桥 → 中继绿灯但桥已死
+      // (2026-09-24 实证竞态,表现为外网连上后手机 /pair 全挂 + 「Web 访问未开启」)。
       setInfo(await webRelayStart(url, relayKey));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

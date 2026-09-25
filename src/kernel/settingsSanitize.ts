@@ -5,6 +5,7 @@
  */
 
 import { sanitizeSshSettings } from "./sshSettings";
+import { sanitizeRelayDeployHistory } from "./settingsRelayHistory";
 import { isThemePresetId, type ThemePresetId } from "./themePresets";
 import {
   UI_LANGUAGES,
@@ -287,6 +288,9 @@ export function sanitize(raw: unknown): AppSettings {
     webRelayOn: obj.webRelayOn === true,
     webRelayUrl: typeof obj.webRelayUrl === "string" ? obj.webRelayUrl.slice(0, 200) : "",
     webRelayKey: typeof obj.webRelayKey === "string" ? obj.webRelayKey.slice(0, 100) : "",
+    /* 自签证书 base64 DER 量级 ~1KB;上限留宽余 */
+    webRelayCertDer: typeof obj.webRelayCertDer === "string" ? obj.webRelayCertDer.slice(0, 4096) : "", webRelayCertHost: typeof obj.webRelayCertHost === "string" ? obj.webRelayCertHost.slice(0, 200) : "",
+    relayDeployHistory: sanitizeRelayDeployHistory(obj.relayDeployHistory),
     git: sanitizeGitPanel(obj.git),
     openWithTargets: sanitizeOpenWithTargets(obj.openWithTargets),
     openWithDefaultId:

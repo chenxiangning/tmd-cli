@@ -57,12 +57,20 @@
   border-right: 1px solid var(--tmd-border);
 }
 
-/* 左区首个按钮推向右缘(组内后续按钮紧贴):终端最前、折叠左栏按钮收尾钉在最右缘。 */
-.titlebar-zone-left > .titlebar-action:first-of-type {
+/* 左区首个按钮推向右缘(组内后续按钮紧贴):终端最前、折叠左栏按钮收尾钉在最右缘。
+   远程控制徽标(可点 button)排最左:auto 边距让位给徽标后的首个按钮(两条覆盖规则
+   按书写序压过 first-of-type 规则;徽标带 button 元素限定保证同权重后置胜出)。 */
+.titlebar-zone-left > button.titlebar-action:first-of-type {
+  margin-left: auto;
+}
+.titlebar-zone-left > button.titlebar-action.remote-control-badge:first-of-type {
+  margin-left: 0;
+}
+.titlebar-zone-left > .remote-control-badge + .titlebar-action {
   margin-left: auto;
 }
 /* 左栏展开(定宽)且有经典滚动条时:仅最末按钮右缘让出滚动条宽度,与下方内容列右缘对齐。 */
-.titlebar-zone-left.is-expanded > .titlebar-action:last-of-type {
+.titlebar-zone-left.is-expanded > button.titlebar-action:last-of-type {
   margin-right: calc(var(--tmd-scrollbar-w, 0px) + 4px);
 }
 
@@ -181,6 +189,9 @@
   background: var(--tmd-bg-hover);
   color: var(--tmd-fg);
 }
+/* 图标装饰:左区钮点亮色(内置终端/会话看板;缺省回落常态点亮,见 kernel/iconDecor.ts) */
+.titlebar-action.is-active[data-action-id="terminal"] { color: var(--icon-decor-terminal, var(--tmd-fg)); }
+.titlebar-action.is-active[data-action-id="session-board"] { color: var(--icon-decor-session-board, var(--tmd-fg)); }
 
 .titlebar-action svg {
   width: 1rem;

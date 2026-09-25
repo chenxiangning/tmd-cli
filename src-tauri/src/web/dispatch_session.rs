@@ -7,37 +7,44 @@ use std::future::Future;
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
-use super::dispatch::{args, ser, val};
+use super::dispatch::{args, block, ser, val};
+
+/// 本域闸表:session 与 checkpoint 两域的全部桥面命令名。与 dispatch_inner 臂表同文件
+/// 维护;conn.rs 交叉测试钉「AppDevice 白名单 session/checkpoint 域 ⊆ 本表」防漂移
+/// (2026-09-24 link_log 被顶出闸表的回归教训)。
+pub(super) const GATED: &[&str] = &[
+    "session_spawn",
+    "session_list",
+    "session_set_workspace",
+    "session_write",
+    "session_resize",
+    "session_kill",
+    "session_log_size",
+    "session_size",
+    "session_history_page",
+    "session_link_log",
+    "session_bind_cli",
+    "session_pin_toggle",
+    "session_disk_tail",
+    "checkpoint_anchor",
+    "checkpoint_record_edit",
+    "checkpoint_apply",
+    "checkpoint_seal",
+    "checkpoint_seal_dead",
+    "checkpoint_list",
+    "checkpoint_batch_diff",
+    "checkpoint_restore",
+    "checkpoint_approve",
+    "checkpoint_undo_revert",
+    "checkpoint_prune",
+];
 
 pub(super) async fn try_dispatch(
     app: &AppHandle,
     cmd: &str,
     raw: &Value,
 ) -> Option<Result<Value, String>> {
-    if !matches!(
-        cmd,
-        "session_spawn"
-            | "session_list"
-            | "session_set_workspace"
-            | "session_write"
-            | "session_resize"
-            | "session_kill"
-            | "session_log_size"
-            | "session_history_page"
-            | "session_link_log"
-            | "session_disk_tail"
-            | "checkpoint_anchor"
-            | "checkpoint_record_edit"
-            | "checkpoint_apply"
-            | "checkpoint_seal"
-            | "checkpoint_seal_dead"
-            | "checkpoint_list"
-            | "checkpoint_batch_diff"
-            | "checkpoint_restore"
-            | "checkpoint_approve"
-            | "checkpoint_undo_revert"
-            | "checkpoint_prune"
-    ) {
+    if !GATED.contains(&cmd) {
         return None;
     }
     Some(dispatch_inner(app, cmd, raw).await)
@@ -46,6 +53,26 @@ pub(super) async fn try_dispatch(
 async fn dispatch_inner(app: &AppHandle, cmd: &str, raw: &Value) -> Result<Value, String> {
     match cmd {
         "session_spawn" => spawn(app, raw).await,
+        "session_bind_cli" => {
+            let a = args::<BindCliArgs>(raw)?;
+            ser(crate::session_commands::session_bind_cli(
+                app.state(),
+                a.id,
+                a.cli_session_id,
+            ))
+        }
+        "session_pin_toggle" => {
+            let a = args::<PinToggleArgs>(raw)?;
+            /* 整棵 settings.json 读+写 = 磁盘 IO,走 block() 纪律(评审 F4)。 */
+            let r = block(move || {
+                let now_pinned = crate::settings::toggle_pin(&a.key, &a.title)?;
+                Ok(serde_json::json!({ "pinned": now_pinned }))
+            })
+            .await?;
+            /* 与 config_write_settings 同款纪律:广播回读,桌面置顶区即时更新 */
+            let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));
+            Ok(r)
+        }
         "session_list" => val(crate::session_commands::session_list(app.state())),
         "session_set_workspace" => ser(crate::session_commands::session_set_workspace(
             app.state(),
@@ -54,7 +81,18 @@ async fn dispatch_inner(app: &AppHandle, cmd: &str, raw: &Value) -> Result<Value
         )),
         "session_write" => {
             let a = args::<WriteArgs>(raw)?;
-            ser(crate::session_commands::session_write(app.clone(), a.id, a.data).await)
+            let r = crate::session_commands::session_write(app.clone(), a.id.clone(), a.data).await;
+            /* 桥写绕过桌面 writeSession → ActivityWatch 锚定/Ask 清除全失明
+            (桌面行无状态签,手机/桌面两边不同步,2026-09-24 实证)。
+            成功即广播,桌面 noteRemoteWrite 补锚定(语义见 hostSessionServices)。 */
+            if r.is_ok() {
+                let _ = crate::event_sink::emit(
+                    app,
+                    "session:remote-write",
+                    &serde_json::json!({ "sessionId": a.id }),
+                );
+            }
+            ser(r)
         }
         "session_resize" => {
             let a = args::<ResizeArgs>(raw)?;
@@ -69,6 +107,10 @@ async fn dispatch_inner(app: &AppHandle, cmd: &str, raw: &Value) -> Result<Value
             ser(crate::session_commands::session_kill(app.clone(), args::<IdArgs>(raw)?.id).await)
         }
         "session_log_size" => val(crate::session_commands::session_log_size(
+            app.state(),
+            args::<IdArgs>(raw)?.id,
+        )),
+        "session_size" => val(crate::session_commands::session_size(
             app.state(),
             args::<IdArgs>(raw)?.id,
         )),
@@ -182,7 +224,7 @@ async fn dispatch_inner(app: &AppHandle, cmd: &str, raw: &Value) -> Result<Value
             })
             .await
         }
-        _ => unreachable!("web dispatch 归属判断与臂表不同步: {cmd}"),
+        _ => Err(format!("internal: gated command without arm: {cmd}")), /* 评审 F5:漂移不 panic(spawn 任务里 unreachable = response 永挂) */
     }
 }
 
@@ -202,12 +244,32 @@ async fn spawn(app: &AppHandle, raw: &Value) -> Result<Value, String> {
         profile_id: String,
         spec: crate::pty::SpawnSpec,
         workspace_id: Option<String>,
+        /// CLI 磁盘身份(手机续接老会话自带;注册表直填,桌面装配不再猜)。
+        #[serde(default)]
+        cli_session_id: Option<String>,
     }
     let a = args::<SpawnArgs>(raw)?;
-    ser(
-        crate::session_commands::session_spawn(app.clone(), a.profile_id, a.spec, a.workspace_id)
-            .await,
+    let spawned = crate::session_commands::session_spawn(
+        app.clone(),
+        a.profile_id.clone(),
+        a.spec,
+        a.workspace_id,
+        a.cli_session_id.clone(),
     )
+    .await?;
+    /* 桥发起 = 绕过桌面前端装配(身份绑定/常驻订阅/状态守望全缺,桌面行退化成
+    短码标题+无运行态)。广播请桌面 host 走 adoptPtySession 补全装配
+    (activate:false 不抢前台;语义见 kernel/sessionAdopt.ts)。 */
+    let _ = crate::event_sink::emit(
+        app,
+        "session:external-spawn",
+        &serde_json::json!({
+            "sessionId": spawned.id,
+            "profileId": a.profile_id,
+            "cliSessionId": a.cli_session_id,
+        }),
+    );
+    val(spawned)
 }
 
 #[derive(serde::Deserialize)]
@@ -216,6 +278,21 @@ struct IdArgs {
     id: String,
     #[serde(default)]
     workspace_id: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BindCliArgs {
+    id: String,
+    cli_session_id: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PinToggleArgs {
+    key: String,
+    #[serde(default)]
+    title: String,
 }
 
 #[derive(serde::Deserialize)]

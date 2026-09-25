@@ -15,10 +15,17 @@ import { t } from "@kernel/i18n";
 import { useSettingsSections } from "@kernel/settingsRegistry";
 
 export function SettingsPanel() {
-  const { panelOpen } = useSettingsState();
+  const { panelOpen, panelTarget } = useSettingsState();
   const sections = useSettingsSections();
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+
+  /* 深链:openSettingsPanel({section,tab}) 驱动跳转(远程控制徽标等入口)。 */
+  useEffect(() => {
+    if (!panelTarget) return;
+    setActiveSectionId(panelTarget.section);
+    setActiveTabId(panelTarget.tab ?? null);
+  }, [panelTarget]);
 
   /* Esc 关闭(面板是全屏 overlay,不抢编辑器输入,只在打开时挂监听)。 */
   useEffect(() => {

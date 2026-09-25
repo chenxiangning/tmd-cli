@@ -19,7 +19,7 @@ vi.mock("./ipc", () => ({
   onPtyExit: ipcMocks.onPtyExit,
 }));
 
-import { readoptSessions, type ReadoptHost } from "./sessionAdopt";
+import { adoptPtySession, readoptSessions, type ReadoptHost } from "./sessionAdopt";
 import { EventBus, KernelTopics } from "./events";
 import type { SessionMeta } from "./ipc";
 
@@ -103,5 +103,21 @@ describe("readoptSessions", () => {
     await readoptSessions(h, events);
     exitCbs.get("a")!();
     expect(h.removeSession).toHaveBeenCalledWith("a");
+  });
+});
+
+describe("adoptPtySession 终态幂等(评审 P1-1 双序竞态)", () => {
+  it("首轮装配完成后,后到的第二路(桥事件/本地链)不再二次订阅", async () => {
+    const { h, events, store } = mkHost([mkMeta("a")]);
+    const subs = new Set<string>();
+    h.hasSubscribed = (id) => subs.has(id);
+    ipcMocks.onPtyOutput.mockImplementation(async (id: string) => {
+      subs.add(id);
+      return () => subs.delete(id);
+    });
+    await adoptPtySession(h, events, "a", { profileId: "test-omp", activate: false });
+    await adoptPtySession(h, events, "a", { profileId: "test-omp", activate: false });
+    expect(ipcMocks.onPtyOutput).toHaveBeenCalledTimes(1);
+    expect(store.list.map((s) => s.id)).toEqual(["a"]);
   });
 });

@@ -25,6 +25,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   sessionLogSize: "ipc.terminal",
   sessionHistoryPage: "ipc.terminal",
   sessionSetWorkspace: "ipc.terminal",
+  sessionBindCli: "ipc.terminal",
   sessionLinkLog: "ipc.terminal",
   sessionDiskTail: "ipc.terminal",
 
@@ -256,6 +257,7 @@ export const SETTINGS_PURE_KEYS = [
   "sanitizeUiZoom",
   "sanitizeSessionTabsMax",
   "sanitizeIconDecor",
+  "sanitizeRelayDeployHistory",
   "onSettingsPersistFailed",
 ] as const;
 export const PERMISSION_LABELS: Record<PluginPermission, string> = {

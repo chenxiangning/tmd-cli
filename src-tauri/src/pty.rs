@@ -148,6 +148,14 @@ impl PtyRegistry {
         self.logs.lock().get(id).map(|m| m.written)
     }
 
+    /// 会话 PTY 当前尺寸 (cols, rows);无此会话返回 None。手机实况据此建真实视口。
+    pub fn session_size(&self, id: &str) -> Option<(u16, u16)> {
+        let sessions = self.sessions.lock();
+        let handle = sessions.get(id)?;
+        let (cols, rows) = *handle.size.lock();
+        Some((cols, rows))
+    }
+
     /// 往前翻一页:before 绝对偏移之前最多 max_bytes 字节的原始输出。
     pub fn session_history_page(
         &self,

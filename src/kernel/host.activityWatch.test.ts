@@ -144,3 +144,34 @@ describe("结算归因修正 + 重绘抑制窗", () => {
     expect(host.isUnread(a.id)).toBe(true);
   });
 });
+
+describe("桥写入补锚定(noteRemoteWrite,2026-09-24)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    sessions.length = 0;
+    ptyOutputCbs.clear();
+    host.resetStatusTimerForTest();
+    host.resetActivityWatchForTest();
+    resetSessionTabsForTest();
+    bootSessionTabs(host.events);
+    if (!host.getCliProfile(PROFILE_ID)) host.registerCliProfile(profile);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("手机发起的轮次(桥写):桌面同径开轮 → 应答结算标未读(状态签同步)", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    const b = await host.createSession(PROFILE_ID, CWD);
+    host.setActiveSession(a.id);
+    /* 桥 session_write 直通 Rust PTY(桌面 writeSession 不经);桥成功广播 → noteRemoteWrite。
+       与本地写同款时序:写即锚定(awaiting),应答输出到达才进 active(跨回显窗 500ms) */
+    host.noteRemoteWrite(a.id);
+    vi.advanceTimersByTime(500); // 跨回显窗(与本地写 userPrompt 同款时序)
+    ptyOutputCbs.get(a.id)?.("answer");
+    expect(host.isTurnActive(a.id)).toBe(true); // 应答在途 = 桌面「运行时」态
+    host.setActiveSession(b.id); // 用户在手机上看,桌面切走
+    ptyOutputCbs.get(a.id)?.("answer tail"); // 末字节到达时不在看(异文防 classify 去重)
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(host.isTurnActive(a.id)).toBe(false);
+    expect(host.isUnread(a.id)).toBe(true); // 与本地写同款结算归因
+  });
+});

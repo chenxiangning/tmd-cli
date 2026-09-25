@@ -1,0 +1,34 @@
+name: tmd-native-shell
+options:
+  bundleIdPrefix: com.tmdcli
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  tmd-cli mobile:
+    type: application
+    platform: iOS
+    sources:
+      - path: TmdApp.swift
+      - path: ShellBridge.swift
+      - path: ../dist
+        type: folder
+        buildPhase: resources
+      # 图标与 tauri 壳同源(单一图标源):gen/apple 的 AppIcon.appiconset 已入库
+      - path: ../src-tauri/gen/apple/Assets.xcassets
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: tmd-cli
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "0.1.0"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        NSCameraUsageDescription: 扫描桌面端配对二维码,完成设备配对
+        # 内网直连(LAN 桌面桥)需要本地网络权限说明
+        NSLocalNetworkUsageDescription: 连接局域网内的 tmd-cli 桌面端(配对与远程控制)
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tmdcli.mobile
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

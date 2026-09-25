@@ -15,6 +15,9 @@ pub async fn session_spawn(
     profile_id: String,
     spec: SpawnSpec,
     workspace_id: Option<String>,
+    // CLI 磁盘身份(桥 resume spawn 注入:手机续接老会话时自带,桌面装配/标题
+    // 解析直接可用;桌面冷路径不传,由前端身份探测绑定;Tauri 缺省参数 = None)。
+    cli_session_id: Option<String>,
 ) -> Result<SpawnedSession, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
@@ -33,6 +36,7 @@ pub async fn session_spawn(
             kind,
             title,
             engine: None,
+            cli_session_id,
         });
         Ok(spawned)
     })
@@ -55,6 +59,21 @@ pub fn session_set_workspace(
     state
         .sessions
         .set_workspace(&id, workspace_id)
+        .then_some(())
+        .ok_or_else(|| format!("session not found: {id}"))
+}
+
+/// 回写会话的 CLI 磁盘身份(前端账本绑定唯一写入口同步;手机 session_list 直读,
+/// 标题/归档/置顶 key 全按 profileId:cliSessionId 解析)。
+#[tauri::command]
+pub fn session_bind_cli(
+    state: State<'_, AppState>,
+    id: String,
+    cli_session_id: String,
+) -> Result<(), String> {
+    state
+        .sessions
+        .set_cli_session_id(&id, Some(cli_session_id))
         .then_some(())
         .ok_or_else(|| format!("session not found: {id}"))
 }
@@ -127,6 +146,12 @@ pub fn session_log_size(state: State<'_, AppState>, id: String) -> u64 {
                 .map(|meta| meta.written + meta.base)
         })
         .unwrap_or(0)
+}
+
+/// 会话 PTY 当前尺寸 (cols, rows);SSH/未知会话回 null(手机回落默认视口)。
+#[tauri::command]
+pub fn session_size(state: State<'_, AppState>, id: String) -> Option<(u16, u16)> {
+    state.pty.session_size(&id)
 }
 
 /// 幕布往前翻页:磁盘读,spawn_blocking 与其余 fs 命令同纪律。

@@ -60,6 +60,7 @@ function makeCtx(sessions: SessionMeta[] = [], profile?: CliProfile) {
     setActiveSession: vi.fn(),
     removeSession: vi.fn().mockResolvedValue(undefined),
     trackUnlisten: vi.fn(),
+    hasSubscribed: vi.fn(() => false),
     notify: vi.fn(),
   };
 }

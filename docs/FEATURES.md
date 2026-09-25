@@ -18,6 +18,8 @@
 > 2026-09-16 欢迎页改版补校:终端窗体造型引擎选择器(标题条 / prompt 行工作区选择 / 键盘 ↑↓⏎)、引擎全动作行(凭据 ● 展开额度 / 新会话 / 安装更新重装 / 单行重探 / 官方文档)、omp 版本回退菜单(最新 10 个稳定版 + 收藏钉版)、前置依赖门控、页脚 RESUME(全工作区倒序 8 条)/ QUOTA(供应商聚合 + 重置倒计时)/ TOKENS(本地 usage 聚合 + 近 7 日双段柱)。
 > 2026-09-19 补校:文件标记插件(marks,行间锚点/跨文件聚合/芯片条 staging 发送/指纹重锚/终端回链)、全文搜索面板与文件名快开(⇧⌘F/⌘P,Rust fs_search 即时扫描)、Markdown 预览 markdown-it 快路径(常规块单遍 HTML 直渲染,富块留 react-markdown)、代码编辑器扩语言至 25 家 + 行内查找 + 定位行、git 面板内工具条(顶栏嵌入段下移,聚合数字三类型化下拉)、会话状态巡航尾读尺寸闸(omp/pi/claude/qoder/codex 五家接闸,重扫读头 mtime 增量缓存)、Web 远程访问桥 M1/M2、会话看板插件;插件计数 27→32(10 engine / 18 feature / 3 core / 1 local,新增 marks/search/web-access/session-board/lsp)。
 
+> 2026-09-25 补校:自建中继「部署历史」落盘(settings.relayDeployHistory,一键部署成功后 Rust 写连接信息+密码,不含私钥内容,明文纪律同 ssh.hosts;历史列表点选整表回填免重输,上限 10 条);外网 tab「使用流程」文案大白话重写;远程控制徽标迁顶栏左区最左 + 点击深链设备 tab;图标装饰 7→12 键。
+
 ## 工作区会话
 
 - 添加工作区(目录选择器),工作区即会话容器;持久化 `~/.tmd-cli/workspaces.json`(列表 + 激活项,Rust 侧临时文件 + rename 原子写)
@@ -275,7 +277,7 @@
 - 终端字号:10–20 px 滑杆(默认 13),活幕布即时重排并同步 PTY 尺寸
 - 终端字体:平台默认栈 + 常见等宽字体下拉(Menlo/Monaco/SF Mono/Cascadia/Consolas/DejaVu/JetBrains Mono/Fira Code 等,按平台过滤),document.fonts.check 探测未安装项置灰,支持自定义 CSS family 串
 - 终端 ANSI 16 色:主题 token 派生兜底(浅/深各一套,默认采用 VS Code 官方终端配色,浅色表 bright 系不亮于 base 修复浅底看不清);每套浅色 preset 显式声明 16 槽(色相取自各主题官方终端色板,对比度不足保 H/S 降 L 至 WCAG ≥3:1),深色 preset 走兜底
-- 图标装饰:7 个界面图标(新建会话 / SSH 入口 / 网络代理 / files-git-checkpoints-memory 四面板)独立取色 + 呼吸闪烁开关,即时写 CSS 变量与 data-icon-blink;历史 8 键残留由 sanitize 白名单静默剔除
+- 图标装饰:12 个界面图标(新建会话 / SSH 入口 / 网络代理 / WSL 入口 / 内置终端 / 会话看板 / 远程控制 / files-git-checkpoints-memory-marks 五面板)独立取色 + 呼吸闪烁开关,即时写 CSS 变量与 data-icon-blink;历史 8 键残留由 sanitize 白名单静默剔除;远程控制徽标 2026-09-25 从右栏工具区迁入顶栏左区最左(裸 icon,缺省 --tmd-warn),点击深链设置「Web 访问/设备」tab
 - 行为 tab:发送快捷键模式(Enter 发送 ↔ ⌘/Ctrl+Enter 发送互换)、Ask 提示音开关与音效、结束提示音、后台提醒、会话输出缓冲上限(5 万–1000 万字符,默认 50 万)
 - 设置持久化 `~/.tmd-cli/settings.json`,前端 sanitize 归一,非法值回落默认,Rust 侧原子写
 - 侧栏齿轮菜单项可钉到底栏(localStorage 持久化,上限 4,默认钉 Git Graph + 网络代理);每行右侧 pin 复选框:16px 圆角方块、选中出对号(Check 图标),钉满置灰不可再钉(menuitemcheckbox 语义,类名 settings-menu-pin 定义于 settings-cluster.css)

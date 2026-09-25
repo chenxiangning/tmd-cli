@@ -70,9 +70,10 @@ export function sanitizeSessionTabsMax(raw: unknown): number {
     : SESSION_TABS_LIMIT_DEFAULT;
 }
 
-/** ── 图标装饰(icon decor)域 ── 7 个界面图标的独立颜色/呼吸闪烁;CSS 变量约定见 kernel/iconDecor.ts */
+/** ── 图标装饰(icon decor)域 ── 12 个界面图标的独立颜色/呼吸闪烁;CSS 变量约定见 kernel/iconDecor.ts */
 
-/** 可装饰图标 id 白名单:面板键 = filePanel 注册 id 加 panel- 前缀,动作键 = sidebarActions id。 */
+/** 可装饰图标 id 白名单:面板键 = filePanel 注册 id 加 panel- 前缀,动作键 = sidebarActions id,
+ *  顶栏钮键 = header.leftCluster 消费方自定 id(remote-control/terminal/session-board)。 */
 export const ICON_DECOR_IDS = [
   "newchat",
   "ssh-panel",
@@ -81,6 +82,11 @@ export const ICON_DECOR_IDS = [
   "panel-git",
   "panel-checkpoints",
   "panel-memory",
+  "panel-marks",
+  "wsl-panel",
+  "terminal",
+  "session-board",
+  "remote-control",
 ] as const;
 export type IconDecorId = (typeof ICON_DECOR_IDS)[number];
 
@@ -99,6 +105,11 @@ export const DEFAULT_ICON_DECOR: Record<IconDecorId, IconDecorItem> = {
   "panel-git": {},
   "panel-checkpoints": {},
   "panel-memory": {},
+  "panel-marks": {},
+  "wsl-panel": {},
+  terminal: {},
+  "session-board": {},
+  "remote-control": {},
 };
 
 const ICON_DECOR_COLOR_RE = /^#[0-9a-f]{6}$/i;

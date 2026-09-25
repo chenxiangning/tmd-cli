@@ -29,10 +29,10 @@ beforeEach(async () => {
 });
 
 describe("图标装饰设置", () => {
-  it("出厂默认:newchat 呼吸开,其余全默认,7 键齐全", () => {
+  it("出厂默认:newchat 呼吸开,其余全默认,12 键齐全", () => {
     const d = settings.getSettingsState().settings.iconDecor;
     expect(d.newchat).toEqual({ blink: true });
-    expect(Object.keys(d)).toHaveLength(7);
+    expect(Object.keys(d)).toHaveLength(12);
   });
 
   it("合法补丁合并生效:色与闪烁互相独立,其余键不动", () => {

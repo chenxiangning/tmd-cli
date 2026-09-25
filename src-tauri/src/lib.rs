@@ -44,6 +44,7 @@ pub(crate) struct AppState {
     ssh: std::sync::Arc<ssh::SshRegistry>,
     web: web::state::WebAccessState,
     relay: web::relay::RelayState,
+    devices: web::devices::DeviceRegistry,
 }
 
 pub(crate) fn now_millis() -> u64 {
@@ -155,6 +156,7 @@ pub fn run() {
             ssh: ssh_registry,
             web: web::state::WebAccessState::default(),
             relay: web::relay::RelayState::default(),
+            devices: web::devices::DeviceRegistry::default(),
         })
         .setup(|app| {
             app_setup::setup(app)?;
@@ -182,10 +184,12 @@ pub fn run() {
             ssh::commands::ssh_prompts_pending,
             session_commands::session_list,
             session_commands::session_set_workspace,
+            session_commands::session_bind_cli,
             session_commands::session_write,
             session_commands::session_resize,
             session_commands::session_kill,
             session_commands::session_log_size,
+            session_commands::session_size,
             session_commands::session_link_log,
             session_commands::session_disk_tail,
             session_commands::session_history_page,
@@ -305,7 +309,13 @@ pub fn run() {
             web::relay::web_relay_status,
             web::relay::relay_deploy,
             web::relay::relay_deploy_pack,
+            web::relay_selfhost::relay_deploy_selfhost,
+            web::relay_selfhost_pack::relay_selfhost_pack,
             web::web_access::web_access_status,
+            web::web_access::web_pair_offer,
+            web::web_access::web_devices_list,
+            web::web_access::web_device_approve,
+            web::web_access::web_device_revoke,
             web::web_access::remote_control_active,
         ])
         .build(tauri::generate_context!())
