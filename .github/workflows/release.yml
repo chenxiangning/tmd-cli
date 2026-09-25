@@ -33,9 +33,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 || \
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            # 同 tag 重跑会复用旧 release。上游 tauri-action upload-version-json.ts 对
+            # universal darwin 只在 darwin-aarch64/x86_64 键不存在时才写入("Don't
+            # overwrite native builds" 守卫),残留的 latest.json 会让新构建签名被陈旧
+            # 条目挡住 → 应用内更新验签失败(v0.2.3 实证)。先删 latest.json,让本轮
+            # 全平台条目重新生成;其余产物由 tauri-action --clobber 原地覆盖,无需处理。
+            ASSET_ID=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" \
+              --jq '.assets[] | select(.name == "latest.json") | .id')
+            if [ -n "$ASSET_ID" ]; then
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID"
+              echo "已删除陈旧 latest.json(asset $ASSET_ID)"
+            fi
+          else
             gh release create "$GITHUB_REF_NAME" --draft --title "tmd-cli $GITHUB_REF_NAME" \
               --notes "Automated build. See commit log for changes." --repo "$GITHUB_REPOSITORY"
+          fi
 
   build:
     needs: prep-release
