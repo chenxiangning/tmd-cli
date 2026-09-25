@@ -28,9 +28,8 @@ type TimerHandle = ReturnType<typeof setInterval>;
 
 const TURN_SILENCE_MS = 2_000; /** 输出静默轮次阈值:距最后 content 证据超此值即结算(无存活 ticker 帧流时)。 */
 const TICKER_HOLD_MS = 5_000; /** 持轮家具帧流窗:ticker 帧断供超此值失去持轮(工作页脚自绘 ≈2.5-10Hz,完工换装即断;ponytail: 5s 含合包余量)。 */
-/** CLI 自证持轮窗:busyMarks 标记帧断供超此值失去持轮。深思期页脚重绘稀疏(reasoning 慢流段标记帧间隔 >5s,实采 2026-09-13),5s 帧窗盖不住;自证可信度高取宽窗,完工换装后 30s 结算(分钟级轮次无感)。 */
-const BUSY_HOLD_MS = 30_000;
-const CLOCK_JUMP_MS = BUSY_HOLD_MS; /** 调度间隙阈值:tick 间隙超此值 = 墙钟跳变(睡眠/节流),三口钟同刻过窗,结算判据失去观测基础。取最宽持轮窗(自证 30s):间隙 30-60s 旧阈不设防,睡眠一个间隙即假结算且 I2 拦死(2026-09-16 复盘补刀);阈值随最宽窗联动,防日后调窗静默开带。 */
+const BUSY_HOLD_MS = 30_000; /** 默认自证持轮窗:busyMarks 标记帧断供超此值失去持轮(深思期页脚重绘稀疏,5s 帧窗盖不住,实采 2026-09-13)。插件可经 busyHoldMs 按引擎覆盖(omp 18.3 渲染冻结 60s,见 cliProfile.busyHoldMs)。 */
+const CLOCK_JUMP_MS = 30_000; /** 调度间隙阈值:tick 间隙超此值 = 墙钟跳变(睡眠/节流),三口钟同刻过窗,结算判据失去观测基础。间隙 30-60s 旧阈不设防,睡眠一个间隙即假结算且 I2 拦死(2026-09-16 复盘补刀)。守卫只管 tick 饥饿,不随插件 busyHoldMs 联动(睡眠保护宜窄)。 */
 const ANSWER_ECHO_MS = 400; /** 应答回显窗:写入后此窗内的内容分片视作输入回显/TUI 换帧,不算应答证据;模型生成类应答首帧恒晚于此窗;本地瞬时响应(/help、即时报错)可整体落在窗内 —— 由守卫天花板兜底结算。 */
 const IDLE_SKELETON_WINDOW = 6; /** 家具骨架窗:每会话最近 N 个字母骨架 FIFO(实测 omp 空闲帧在 4 种骨架间循环,6 容得下页脚/标题/边框各变体)。 */
 const REDRAW_SUPPRESS_MS = 1_000; /** 重绘抑制窗:resize 后此窗口内的输出视为 SIGWINCH 整屏重绘,不进活动语义。 */
@@ -68,6 +67,8 @@ interface SessionWatch {
   /** ticker 骨架最近帧时戳(帧钟:活家具断供 = 完工换装;新提问清零);busyMarks 标记帧最近时戳(自证钟:CLI 声明的在途界面标记;新提问清零)。 */
   lastTickerAt: number;
   lastBusyAt: number;
+  /** busy 自证持轮窗(插件 busyHoldMs 覆盖默认值; omp 18.3 渲染冻结 60s 需 75s 窗)。 */
+  busyHoldMs: number;
   /** 最后用户写入时戳(回显窗与未应答天花板起点)。 */
   lastWriteAt: number;
   /** 最后 content 帧瞬间是否正被查看(未读归因);呼吸灯 notify 节流(500ms 最多一次外壳重渲染)。 */
@@ -108,11 +109,17 @@ export class ActivityWatch {
     let s = this.sessions.get(sessionId);
     if (!s) {
       s = { anchored: false, active: false, awaiting: false, answered: false, unread: false,
-        lastContentAt: 0, lastTickerAt: 0, lastBusyAt: 0, lastWriteAt: 0, lastNotifyAt: 0,
+        lastContentAt: 0, lastTickerAt: 0, lastBusyAt: 0, busyHoldMs: BUSY_HOLD_MS, lastWriteAt: 0, lastNotifyAt: 0,
         lastOutputViewed: false, lastResizeAt: 0, idleArmAt: 0, skeletons: [] };
       this.sessions.set(sessionId, s);
     }
     return s;
+  }
+
+  /** 插件 busyHoldMs 落位(omp 18.3 渲染冻结需宽窗)。仅在已建档会话生效 —— 不为未锚定的噪音输出建档。 */
+  setBusyHold(sessionId: string, ms: number): void {
+    const s = this.sessions.get(sessionId);
+    if (s) s.busyHoldMs = ms;
   }
 
   /** 用户首写 = 锚定对话,后续输出(回显/应答)按对话语义结算。终端协议回传(焦点/鼠标/查询应答)不经过此入口,见 host.writeSession。 */
@@ -280,7 +287,7 @@ export class ActivityWatch {
           !idleConfirmed &&
           (now - s.lastContentAt <= TURN_SILENCE_MS ||
             (s.lastTickerAt !== 0 && now - s.lastTickerAt <= TICKER_HOLD_MS) ||
-            (s.lastBusyAt !== 0 && now - s.lastBusyAt <= BUSY_HOLD_MS))
+            (s.lastBusyAt !== 0 && now - s.lastBusyAt <= s.busyHoldMs))
         )
           continue;
         /* 未应答写入天花板(仅 CLI;ssh/shell 不守,快命令 2s 照常结算):写入后 WRITE_GRACE_MS 内「没等到应答」与「还在思考」字节不可分,统一保住 awaiting 不被假结算吞掉(真应答从此被轮次开启闸拦死);天花板保证 spinner 永续自绘(omp /help)与写入丢失必结算,不永挂。 */

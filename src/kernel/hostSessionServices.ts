@@ -138,7 +138,7 @@ export function createSessionServices(
             /* busy 现势证据:尾 16K 字符(READOPT_BUSY_TAIL_CHARS)剥壳行级命中 busyMarks
                = CLI 自证在途 —— 在工帧流 2.5-10Hz 必中(2026-09-16 实采 3 会话尾窗各 13-15 帧 ⎋),
                兜底回显滚出 256KB 窗的长轮次;完工后空闲页脚自绘约 1-4 分钟推出窗,误锚后由
-               闸 4d 挡住空闲帧刷钟,≤30s(BUSY_HOLD_MS 自证钟)自结算。 */
+               闸 4d 挡住空闲帧刷钟,≤busyHoldMs(默认 BUSY_HOLD_MS)自结算。 */
             const recent = stripAnsi(page.text.slice(-READOPT_BUSY_TAIL_CHARS)).split(/\r\n|\r|\n/);
             const profile = ctx.getCliProfile(s.profileId);
             const busy = !!profile?.busyMarks?.some((re) => recent.some((l) => re.test(l)));

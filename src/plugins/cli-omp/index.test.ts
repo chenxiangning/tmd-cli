@@ -46,4 +46,27 @@ describe("cli-omp profile 注册契约", () => {
     /* npmPackage 保留:registry 最新版查询仍要走它。 */
     expect(profile.npmPackage).toBe("@oh-my-pi/pi-coding-agent");
   });
+
+  it("activity marks 契约(2026-09-25 omp 18.3 实证):busy 锚 braille 族,空闲时钟/mc 行不误匹配,idleMarks 退场", () => {
+    const profile = activateCapturingProfile();
+    const hit = (text: string) =>
+      profile.busyMarks?.some((re) => text.split(/\r\n|\r|\n/).some((l) => re.test(l))) ?? false;
+
+    /* 工作页脚两代形态都命中:v18.1/18.2「⠙ 9s · 模型」与 v18.3「⠧ 1m > ◉ …」。 */
+    expect(hit("⠙ 9s · 模型 GLM")).toBe(true);
+    expect(hit(" ⠧ 1m > ◉ GLM-5.3-Flash > 📁 …-cli ▶─5%─┃1M─")).toBe(true);
+    expect(hit(" ⎋ 读探针命中与前缀识别实现")).toBe(true);
+
+    /* v18.3.1 空闲时钟页脚与 mc 行(「idle」指 context 子系统)不得命中 ——
+       裸 elapsed 匹配曾把完工后的空闲屏当在途自证(结算拖到分钟级)。 */
+    expect(hit(" ⏺ 3m > ◉ GLM-5.3-Flash > 📁 …-cli ▶─5%─┃1M─")).toBe(false);
+    expect(hit("mc: 50.4K (6%) · idle")).toBe(false);
+    expect(hit("π › 🐴 ponytail: ⚡ FULL")).toBe(false);
+
+    /* 18.3 把 mc 行常驻画进工作屏(2110/2110 帧落在工作期),空闲自证字面量
+       已无独占形态 —— idleMarks 退场,完工收口走 busyHoldMs 尾窗。 */
+    expect(profile.idleMarks).toBeUndefined();
+    /* exec 期渲染冻结 ~60s(分钟跳格),默认 30s 自证窗必假结算且 I2 拦死。 */
+    expect(profile.busyHoldMs).toBe(75_000);
+  });
 });

@@ -149,6 +149,7 @@ export class HostWatches {
     const lines = visible.split(/\r\n|\r|\n/);
     const anchored = this.activity.isAnchored(sessionId);
     const busy = anchored && !!profile?.busyMarks?.some((re) => lines.some((l) => re.test(l)));
+    if (anchored && profile?.busyHoldMs) this.activity.setBusyHold(sessionId, profile.busyHoldMs);
     const idle = anchored && !!profile?.idleMarks?.some((re) => lines.some((l) => re.test(l)));
     if (asked || this.activity.onOutput(sessionId, visible, busy, idle)) this.ctx.notify();
     const marks = profile?.editMarks;
