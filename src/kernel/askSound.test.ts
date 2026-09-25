@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const ipcMock = vi.hoisted(() => ({
   configReadSettings: vi.fn(),
-  configWriteSettings: vi.fn(),
+  configMergeSettings: vi.fn(),
 }));
 
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
@@ -31,7 +31,7 @@ const audioUrls: string[] = [];
 beforeEach(async () => {
   vi.clearAllMocks();
   ipcMock.configReadSettings.mockResolvedValue(null);
-  ipcMock.configWriteSettings.mockResolvedValue(undefined);
+  ipcMock.configMergeSettings.mockResolvedValue(undefined);
   vi.resetModules();
   // 动态 import 例外:被测模块是模块级单例,必须借 resetModules 取全新实例;
   // askSound 与 settings/events 同批 import,共享同一份全新单例。

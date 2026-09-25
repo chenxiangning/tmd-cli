@@ -33,7 +33,7 @@ flowchart TB
             FP["filePanel.ts<br/>右栏面板注册表(通用 tab store,<br/>不预知业务面板)"]
             WATCH["守望组(host 拆分件)<br/>activityWatch·askWatch·editWatch·identityWatch<br/>+ askSound·turnSound"]
             THEME["theme.ts + themeTokens.ts + themePresets/<br/>主题引擎:31 个 VS Code preset → --tmd-*<br/>+ 终端 ANSI 16 色 token(VS Code 官方浅/深表兜底)"]
-            SETT["settings.ts + settingsTypes/settingsSanitize(+Sessions)<br/>+ settingsAppearance + settingsRegistry.ts<br/>全局设置 store 唯一事实源(~/.tmd-cli/settings.json)<br/>设置 section 注册表(面板经注册表渲染)"]
+            SETT["settings.ts + settingsTypes/settingsSanitize(+Sessions)<br/>+ settingsAppearance + settingsPersistMerge + settingsRegistry.ts<br/>全局设置 store 唯一事实源(~/.tmd-cli/settings.json)<br/>设置 section 注册表(面板经注册表渲染)"]
             I18N["i18n.ts + locales/&lt;en|ja&gt;/ 域词典 + terminalFonts.ts + uiZoom.ts<br/>gettext 式 t()(zh 源串为键,切换=根树重挂载)<br/>界面缩放引擎(webview setZoom→CSS zoom 兜底)"]
             MA["messageAnchors.ts<br/>用户消息锚点内核(2s 轮询,0 订阅停表)"]
             QUA["quota.ts<br/>QuotaProvider 注册点"]
@@ -529,7 +529,7 @@ flowchart TD
 | `wsl_info` / `wsl_remote_info` / `wsl_list_dir` / `wsl_probe_engines` / `wsl_exec` / `wsl_read_file_text` | `wsl.rs` / `wsl_remote*.rs` | WSL 通道:发行版信息 / 远程探测 / 目录懒加载 / 引擎探针 / b64 载荷 exec / 文件文本读取(契约见 09) |
 | `plugin_scan` / `plugin_read_file` / `plugin_archive` / `plugin_rollback` / `plugin_delete` | `plugins_cmds.rs` | 本机插件扫描/入口读取/版本归档/回退/删除(`~/.tmd-cli/plugins/`,local-loader 消费) |
 | `config_home_dir` / `config_dir` / `config_default_workspace_root` | `session.rs` / `lib.rs` | 用户主目录 / 配置目录(目录布局唯一 owner,Rust 单点)/ 默认工作区路径 |
-| `config_read_settings` / `config_write_settings` | `settings.rs` | `~/.tmd-cli/settings.json` 全局设置读写 |
+| `config_read_settings` / `config_merge_settings` | `settings.rs` | `~/.tmd-cli/settings.json` 全局设置读 / 补丁写(2026-09-25:前端只送被改顶层域,Rust SETTINGS_IO 锁内合并落盘并跑 proxy/web 钩子;整树覆盖写废弃——它会用陈旧内存砸掉 Rust 直写盘与他实例刚落的键,00d3dc5「绿灯但桥死」的机制根修) |
 | `config_read_workspaces` / `config_write_workspaces` | `session.rs` | `~/.tmd-cli/workspaces.json` 工作区配置读写 |
 
 ### 8.1 checkpoints 账本模型(审批线底层)

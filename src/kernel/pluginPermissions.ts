@@ -164,7 +164,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
 
   /* 内核保留:全局 settings 盘文件 / 环境变量(凭据)/ 本地插件管理面(提权面)。 */
   configReadSettings: null,
-  configWriteSettings: null,
+  configMergeSettings: null,
   quotaEnvValue: null,
   pluginScan: null,
   pluginReadFile: null,

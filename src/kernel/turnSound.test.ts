@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const ipcMock = vi.hoisted(() => ({
   configReadSettings: vi.fn(),
-  configWriteSettings: vi.fn(),
+  configMergeSettings: vi.fn(),
   sessionSpawn: vi.fn(),
   sessionList: vi.fn(),
   sessionKill: vi.fn(),
@@ -52,7 +52,7 @@ function makeDeps() {
 beforeEach(async () => {
   vi.clearAllMocks();
   ipcMock.configReadSettings.mockResolvedValue(null);
-  ipcMock.configWriteSettings.mockResolvedValue(undefined);
+  ipcMock.configMergeSettings.mockResolvedValue(undefined);
   vi.resetModules();
   // 动态 import 例外:被测模块是模块级单例,resetModules 后同批取全新一套。
   settings = await import("./settings");

@@ -110,13 +110,14 @@ fn config_read_settings() -> serde_json::Value {
 }
 
 #[tauri::command]
-fn config_write_settings(app: AppHandle, data: serde_json::Value) -> Result<(), String> {
-    settings::save_settings(&data).map_err(|e| e.to_string())?;
-    /* 网络代理字段变化即时生效:写盘成功后应用到进程 env,
+fn config_merge_settings(app: AppHandle, patch: serde_json::Value) -> Result<(), String> {
+    let merged = settings::merge_settings(&patch)?;
+    /* 网络代理字段变化即时生效:合并落盘后应用到进程 env,
     之后 spawn 的 PTY 子进程与 reqwest 新请求即走代理(旧会话不受影响)。 */
-    proxy::apply_and_report(&data);
-    /* Web 访问开关跟随设置(web_access::apply_settings 内部异步起停桥)。 */
-    web::web_access::apply_settings(&app, &data);
+    proxy::apply_and_report(&merged);
+    /* Web 访问开关跟随设置(web_access::apply_settings 内部异步起停桥)。
+    以合并后整树为准 —— 陈旧补丁域不参与,桥不会被内存旧值误杀(00d3dc5)。 */
+    web::web_access::apply_settings(&app, &merged);
     Ok(())
 }
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -302,7 +303,7 @@ pub fn run() {
             ssh::commands::ssh_forward_stop,
             ssh::commands::ssh_forward_list,
             ssh::commands::ssh_forward_check_port,
-            config_write_settings,
+            config_merge_settings,
             web::web_access::web_access_start,
             web::web_access::web_access_stop,
             web::relay::web_relay_start,

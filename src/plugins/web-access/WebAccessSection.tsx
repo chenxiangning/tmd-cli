@@ -34,7 +34,7 @@ export function WebAccessSection() {
     void refresh();
   }, [refresh]);
 
-  /* 开关即写设置;后端 config_write_settings 钩子负责起停桥,轮询刷新状态回显。 */
+  /* 开关即写设置;后端 config_merge_settings 钩子负责起停桥,轮询刷新状态回显。 */
   const setEnabled = (on: boolean) => {
     setBusy(true);
     try {

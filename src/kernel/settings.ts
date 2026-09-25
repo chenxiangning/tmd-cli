@@ -15,6 +15,7 @@ import { ipc } from "./ipc";
 import { DEFAULT_SETTINGS } from "./settingsDefaults";
 import type { AppSettings } from "./settingsTypes";
 import { sanitize } from "./settingsSanitize";
+import { advanceBaseline, mergeDiskIntoPayload, setDiskBaseline } from "./settingsPersistMerge";
 import { setShortcutOverrides } from "./shortcutOverrides";
 import { isWeb, listen } from "./transport";
 /** 订阅设置写盘失败(Tauri 环境触发;SettingsPersistToast 订阅呈现);返回退订。 */
@@ -51,131 +52,11 @@ function emit(): void {
   listeners.forEach((fn) => fn());
 }
 
-type RecordLike = Record<string, Record<string, unknown>>;
-
-/** 带 ts 的记录字段:同 key 冲突取时间戳较新者。 */
-const MERGE_TS_FIELDS = {
-  sessionArchive: "archivedAt",
-  sessionDeleted: "deletedAt",
-  sessionKeep: "keptAt",
-  sessionPins: "pinnedAt",
-  engineVersionFavs: "favedAt",
-} as const;
-
-/** 无 ts 的记录字段:并集,本实例值优先。 */
-const MERGE_PLAIN_FIELDS = [
-  "sessionTitles",
-  "workspaceCollapsedMap",
-  "workspaceGroupCollapsedMap",
-  "localPluginTrust",
-] as const;
-
-/** 键序无关的等值比较(合并后 JSON 键序会漂移,不能拿 stringify 判「未改动」)。 */
-function deepEqualStable(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
-  const ka = Object.keys(a);
-  const kb = Object.keys(b);
-  if (ka.length !== kb.length) return false;
-  return ka.every(
-    (k) => k in (b as object) && deepEqualStable((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]),
-  );
-}
-
-/** 盘上基线:最后一次写盘时本实例真实有过(内存或旧基线)的盘像;null = boot 前
- *  或从未见过盘。他实例新增被吸收落盘但不入基线(见 advanceBaseline)。 */
-let diskBaseline: AppSettings | null = null;
-
-/** 基线推进:内存有过的 key 取 payload 值;旧基线有而内存没有的(被他实例改动
- *  后存活下来的)保留旧戳——若随 payload 新值入基线,下一次 persist 会拿它跟盘
- *  上同一新值比出「未改动」误判本地删除(双实例丢更新回归,2026-09-13 review
- *  实证)。他实例新增(两处都没有)不入基线,落盘照旧、下轮继续照收。 */
-function advanceBaseline(memory: AppSettings, payload: AppSettings): void {
-  const next = { ...payload } as unknown as Record<string, unknown>;
-  for (const field of [...Object.keys(MERGE_TS_FIELDS), ...MERGE_PLAIN_FIELDS]) {
-    const mem = memory[field as keyof AppSettings] as unknown as RecordLike;
-    const old = diskBaseline
-      ? (diskBaseline[field as keyof AppSettings] as unknown as RecordLike)
-      : null;
-    const merged = next[field] as RecordLike;
-    const proj: RecordLike = {};
-    for (const key of Object.keys(merged)) {
-      if (key in mem) proj[key] = merged[key];
-      else if (old !== null && key in old) proj[key] = old[key];
-    }
-    next[field] = proj;
-  }
-  diskBaseline = next as unknown as AppSettings;
-}
-
-/** per-key 合并:盘上条目除「本地已删」外全收,本实例 key 覆盖(带 ts 时较新者胜)。 */
-function mergeEntries(
-  memory: RecordLike,
-  disk: RecordLike,
-  tsField: string | null,
-  base: RecordLike | null,
-): RecordLike {
-  const out: RecordLike = { ...disk };
-  /* 内存没有而盘上有的 key:基线里已有且自基线后未被外实例改动 → 本地删除,
-     删除意图赢(否则取消置顶/归档永不落盘,重启复活);基线里没有 → 外实例
-     新增,照收(双实例丢更新防护不变)。 */
-  if (base)
-    for (const key of Object.keys(out)) {
-      if (key in memory) continue;
-      const mine = base[key];
-      if (mine === undefined) continue;
-      const gone =
-        tsField === null
-          ? deepEqualStable(out[key], mine)
-          : (typeof out[key][tsField] === "number" ? (out[key][tsField] as number) : -1) <=
-            (typeof mine[tsField] === "number" ? (mine[tsField] as number) : -1);
-      if (gone) delete out[key];
-    }
-  for (const key of Object.keys(memory)) {
-    const theirs = out[key];
-    if (theirs === undefined || tsField === null) {
-      out[key] = memory[key];
-      continue;
-    }
-    const a = typeof memory[key][tsField] === "number" ? (memory[key][tsField] as number) : -1;
-    const b = typeof theirs[tsField] === "number" ? (theirs[tsField] as number) : -1;
-    if (a >= b) out[key] = memory[key];
-  }
-  return out;
-}
-
-/**
- * 双实例丢更新防护:dev 版与打包版可能并存(2026-09-11 实证),共享
- * settings.json 且写盘是全文件覆盖、后写者赢 —— 陈旧实例一次写盘即抹掉
- * 另一实例刚写的归档/置顶等标记(表现为「归档无效且无提示」)。persist
- * 前拉盘上最新做记录层合并:标记类字段按 key 并集,标量仍以本实例为准。
- * 删除意图靠 diskBaseline 判别:盘上有、内存没有、基线里已有且自基线未被他
- * 实例改动 → 本地删除(否则取消置顶永不落盘,重启复活);基线里没有 → 他
- * 实例新增,照收且不入基线。合并只作用于写盘 payload,不回写内存态 —— 他窗
- * 标记不实时串进本窗,重载生效。
- */
-function mergeDiskIntoPayload(memory: AppSettings, raw: unknown): AppSettings {
-  const disk = sanitize(raw);
-  const base = diskBaseline;
-  const out = { ...memory } as unknown as Record<string, unknown>;
-  for (const [field, tsField] of Object.entries(MERGE_TS_FIELDS)) {
-    out[field] = mergeEntries(
-      memory[field as keyof AppSettings] as unknown as RecordLike,
-      disk[field as keyof AppSettings] as unknown as RecordLike,
-      tsField,
-      base ? (base[field as keyof AppSettings] as unknown as RecordLike) : null,
-    );
-  }
-  for (const field of MERGE_PLAIN_FIELDS) {
-    out[field] = mergeEntries(
-      memory[field] as unknown as RecordLike,
-      disk[field] as unknown as RecordLike,
-      null,
-      base ? (base[field] as unknown as RecordLike) : null,
-    );
-  }
-  return out as unknown as AppSettings;
-}
+/** 待落盘补丁:自上次写盘起 updateSettings 触碰过的顶层域并集。
+ *  写盘只上送这些域 —— 整树覆盖写会把 Rust 直写盘(web_relay 回填
+ *  webAccessEnabled)与他实例刚落的键砸回内存旧值(00d3dc5「绿灯但桥死」),
+ *  补丁写让陈旧域根本不上线,该竞态从机制上消失。 */
+let pendingPatch: Partial<AppSettings> = {};
 
 /** persist 串行链:并发交错的读盘→合并→写盘可能乱序落盘(后发先至会用陈旧
  *  盘像复活已删标记),链式排队保证基线推进与写序一致。persistNow 永不 reject。 */
@@ -187,20 +68,31 @@ function persist(): void {
 
 async function persistNow(): Promise<void> {
   const memory = state.settings;
+  const patch = pendingPatch;
+  pendingPatch = {};
   try {
-    let payload = memory;
+    /* 标记域(归档/置顶等)仍整域拉盘合并:双实例丢更新防护(2026-09-11 实证)
+       与删除意图判定(diskBaseline)是域内语义,补丁写不改变它们 —— 只是合并
+       结果仅在被触碰时才上送。盘不可读(他实例锁文件等)按本实例状态原样写。 */
+    let full = memory;
     try {
-      payload = mergeDiskIntoPayload(memory, await ipc.configReadSettings());
+      full = mergeDiskIntoPayload(memory, await ipc.configReadSettings());
     } catch {
-      /* 盘不可读(他实例锁文件等):按本实例状态原样写,行为同旧 */
+      /* 按内存原样 */
     }
-    await ipc.configWriteSettings(payload);
-    advanceBaseline(memory, payload);
+    const payload: Record<string, unknown> = {};
+    for (const key of Object.keys(patch)) {
+      payload[key] = (full as unknown as Record<string, unknown>)[key];
+    }
+    await ipc.configMergeSettings(payload);
+    advanceBaseline(memory, full);
   } catch (err) {
+    /* 写盘失败:补丁返还(与期间新补丁合并,新者胜),下轮 persist 重试。 */
+    pendingPatch = { ...patch, ...pendingPatch };
     // 浏览器 dev:降级 localStorage
     try {
       localStorage.setItem(LOCAL_FALLBACK_KEY, JSON.stringify(memory));
-      diskBaseline = memory;
+      setDiskBaseline(memory);
     } catch (err2) {
       console.warn("settings: 持久化失败", err2);
     }
@@ -226,7 +118,7 @@ async function load(): Promise<void> {
     }
   }
   state.settings = sanitize(raw);
-  diskBaseline = state.settings;
+  setDiskBaseline(state.settings);
   state.loaded = true;
   setShortcutOverrides(state.settings.shortcutOverrides);
   emit();
@@ -247,6 +139,7 @@ export function ensureSettingsBooted(): void {
 /** 合并补丁并持久化。唯一写入口。 */
 export function updateSettings(patch: Partial<AppSettings>): void {
   state.settings = sanitize({ ...state.settings, ...patch });
+  pendingPatch = { ...pendingPatch, ...patch };
   setShortcutOverrides(state.settings.shortcutOverrides);
   emit();
   void persist();

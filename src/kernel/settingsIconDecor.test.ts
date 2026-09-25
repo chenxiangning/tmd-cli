@@ -8,7 +8,7 @@ import type { AppSettings } from "./settings";
 
 const ipcMock = vi.hoisted(() => ({
   configReadSettings: vi.fn(),
-  configWriteSettings: vi.fn(),
+  configMergeSettings: vi.fn(),
 }));
 
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
@@ -23,7 +23,7 @@ let settings: {
 beforeEach(async () => {
   vi.clearAllMocks();
   ipcMock.configReadSettings.mockResolvedValue(null);
-  ipcMock.configWriteSettings.mockResolvedValue(undefined);
+  ipcMock.configMergeSettings.mockResolvedValue(undefined);
   vi.resetModules();
   settings = (await import("./settings")) as unknown as typeof settings;
 });

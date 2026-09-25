@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const ipcMock = vi.hoisted(() => ({
   configReadSettings: vi.fn(),
-  configWriteSettings: vi.fn(),
+  configMergeSettings: vi.fn(),
 }));
 
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
@@ -29,7 +29,7 @@ function stubLocalStorage(initial: Record<string, string> = {}) {
 beforeEach(async () => {
   vi.clearAllMocks();
   ipcMock.configReadSettings.mockResolvedValue(null);
-  ipcMock.configWriteSettings.mockResolvedValue(undefined);
+  ipcMock.configMergeSettings.mockResolvedValue(undefined);
   vi.resetModules();
   // 动态 import 例外:被测模块是模块级单例,必须借 resetModules 取全新实例
   settings = await import("./settings");
@@ -89,7 +89,7 @@ describe("boot 加载契约", () => {
 
 describe("持久化降级", () => {
   it("Tauri 写失败时降级写 localStorage", async () => {
-    ipcMock.configWriteSettings.mockRejectedValue(new Error("no tauri"));
+    ipcMock.configMergeSettings.mockRejectedValue(new Error("no tauri"));
     const store = stubLocalStorage();
     settings.updateSettings({ theme: "dark" });
     await vi.waitFor(() => {

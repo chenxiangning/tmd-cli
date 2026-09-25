@@ -21,18 +21,19 @@ pub fn load_settings() -> serde_json::Value {
     }
 }
 
-/// 设置文件写锁:桌面 config_write_settings(整树)与桥 toggle_pin(读改写)同进程
-/// 串行化,防交叠写与 pin-vs-pin 丢更新(web/devices io_lock 同款纪律)。
+/// 设置文件写锁:桌面 config_merge_settings(锁内补丁合并)与桥 toggle_pin
+/// (读改写)同进程串行化,防交叠写与 pin-vs-pin 丢更新(web/devices io_lock 同款纪律)。
 static SETTINGS_IO: std::sync::LazyLock<parking_lot::Mutex<()>> =
     std::sync::LazyLock::new(|| parking_lot::Mutex::new(()));
 
-/// 落盘设置(整棵写;前端 store 保证传入的是完整 settings 对象)。原子替换防截断。
-pub fn save_settings(data: &serde_json::Value) -> std::io::Result<()> {
-    let _io = SETTINGS_IO.lock();
-    save_settings_locked(data)
+/// 落盘设置(锁内;调用方须持 SETTINGS_IO)。原子替换防截断。
+fn save_settings_locked(data: &serde_json::Value) -> std::io::Result<()> {
+    ensure_config_dir()?;
+    let json = serde_json::to_string_pretty(data).map_err(std::io::Error::other)?;
+    crate::session::write_json_atomic(&settings_file(), &json)
 }
 
-/// 锁内读改写:与桌面整树写(config_write_settings)及其他 RMW 写者
+/// 锁内读改写:与桌面补丁合并(config_merge_settings)及其他 RMW 写者
 /// (relay/selfhost persist、toggle_pin)串行,消掉「load 在锁外的 stale 覆盖」窗口。
 pub fn update_settings<R>(f: impl FnOnce(&mut serde_json::Value) -> R) -> Result<R, String> {
     let _io = SETTINGS_IO.lock();
@@ -44,17 +45,33 @@ pub fn update_settings<R>(f: impl FnOnce(&mut serde_json::Value) -> R) -> Result
     save_settings_locked(&data).map_err(|e| format!("设置落盘失败: {e}"))?;
     Ok(out)
 }
-fn save_settings_locked(data: &serde_json::Value) -> std::io::Result<()> {
-    ensure_config_dir()?;
-    let json = serde_json::to_string_pretty(data).map_err(std::io::Error::other)?;
-    crate::session::write_json_atomic(&settings_file(), &json)
+
+/// 前端补丁写(顶层键合并):patch 只携带被改域,落盘时与其余域合流 ——
+/// 整树覆盖写会把 Rust 直写盘(web_relay 回填 webAccessEnabled、selfhost
+/// persist)与他实例刚落的键砸回内存旧值(00d3dc5「绿灯但桥死」竞态),
+/// 补丁写让陈旧域根本不上线,该 bug 类从机制上消失。
+/// 返回合并后整树,供命令层跑 proxy/web 跟随钩子。非对象 patch 拒写。
+pub fn merge_settings(patch: &serde_json::Value) -> Result<serde_json::Value, String> {
+    if !patch.is_object() {
+        return Err("设置补丁必须是对象".into());
+    }
+    let mut merged = serde_json::Value::Null;
+    update_settings(|data| {
+        if let (Some(dst), Some(src)) = (data.as_object_mut(), patch.as_object()) {
+            for (k, v) in src {
+                dst.insert(k.clone(), v.clone());
+            }
+        }
+        merged = data.clone();
+    })?;
+    Ok(merged)
 }
 
 /// 会话置顶切换(app 设备窄写面):读改写仅 sessionPins 一个键。
-/// 手机不持全量 settings 快照 —— 整树写会静默覆盖桌面并发修改,故不开
-/// config_write_settings,只给这一把定向钥匙(key = wsId:profileId:cliSessionId)。
+/// 手机不持全量 settings 快照,也不给 config_merge_settings ——
+/// 只给这一把定向钥匙(key = wsId:profileId:cliSessionId)。
 pub fn toggle_pin(key: &str, title: &str) -> Result<bool, String> {
-    let _io = SETTINGS_IO.lock(); // 读改写全程持锁:与桌面整树写串行
+    let _io = SETTINGS_IO.lock(); // 读改写全程持锁:与补丁合并及其他 RMW 写者串行
     let key = truncate_boundary(key, 512);
     let title = truncate_boundary(title, 256);
     let mut data = load_settings();

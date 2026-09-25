@@ -171,7 +171,7 @@ pub fn apply(config: &ProxyConfig) -> Result<(), String> {
     Ok(())
 }
 
-/// 校验并应用;失败仅告警不报错 —— config_write_settings 是通用透传命令,
+/// 校验并应用;失败仅告警不报错 —— config_merge_settings 是通用透传命令,
 /// 不能因单个插件域的非法值拒绝整棵设置树的落盘。
 pub fn apply_and_report(settings: &serde_json::Value) {
     if let Err(error) = apply(&ProxyConfig::from_settings(settings)) {

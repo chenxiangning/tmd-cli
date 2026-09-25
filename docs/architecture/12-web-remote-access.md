@@ -12,7 +12,7 @@
 |---|---|
 |传输层|`src/kernel/transport.ts` 继承 R3(ipc.ts 的全部 `@tauri-apps/*` import 集中于此):webview 态原样透传;浏览器态走 WS(重连退避 1s→10s 封顶、open 20s 超时、pending 释放、hello 版本握手)。前端 ipc 层对运行环境零感知。check-arch-boundary R3 白名单同步。|
 |事件扇出|`src-tauri/src/event_sink.rs`:桌面 webview(emit)+ 桥总线(broadcast,容量 512,慢消费者跳帧不反压桌面)双扇出;pty 泵「emit 失败即退出」契约不变。|
-|命令镜像|`src-tauri/src/web/dispatch.rs` 镜像 invoke_handler 全量命令(新增宿主命令必须同步登记,与 lib.rs 同纪律);面控命令(web_access/relay start-stop、relay_deploy、app_restart、updater 族)排除在镜像外,EXCLUDED 清单有测试。`config_write_settings` 落盘成功后广播 `settings:changed`(与 relay 直写盘同款纪律,防跨面静默回滚)。|
+|命令镜像|`src-tauri/src/web/dispatch.rs` 镜像 invoke_handler 全量命令(新增宿主命令必须同步登记,与 lib.rs 同纪律);面控命令(web_access/relay start-stop、relay_deploy、app_restart、updater 族)排除在镜像外,EXCLUDED 清单有测试。`config_merge_settings` 合并落盘成功后广播 `settings:changed`(与 relay 直写盘同款纪律,防跨面静默回滚)。|
 |信任模型|**token 持有者 = 桌面等权**(dispatch 可达 fs/pty/sqlite/install 全量),风险弹窗如实告知。token 24 字符 CSPRNG,gate.rs 双侧 SipHash 后 u64 定长比较;每次起服务重铸(重启后旧链接 403,需重新扫码)。风险弹窗只承诺真实存在的机制:密钥即凭据/不转发/用完断开/重启重铸 —— 无设备管理面,不虚诺 per-device approval。|
 |停机语义|`watch::Sender<bool>` 广播:accept 循环 + 每连接 reader/writer。**select! 的 else 分支只在全分支 pattern 被禁用时执行**(治不了「stop 早于订阅」);订阅后必须立即 `borrow_and_update()` 吸收已置位,否则 socket 带完整派发权活到自行断连(2026-09-17 review P2 修复)。|
 |/file 范围|$HOME 内;**首段 dot 条目默认拒绝**(凭据/历史/OAuth 全在内),白名单仅 `.tmd-cli/wallpapers`;非 dot 维持放行(工作区预览)。canonicalize + $HOME 前缀校验防 symlink 逃逸;先验大小再读。黑名单枚举追不完新 CLI 凭据落点,允许制一刀切更稳(review P2 改造)。|

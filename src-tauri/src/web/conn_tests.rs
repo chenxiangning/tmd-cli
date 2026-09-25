@@ -106,7 +106,7 @@ fn fs_git_只读放行_写面拒绝() {
 #[test]
 fn 配置只读_checkpoint只读_其余域全拒() {
     assert!(app_allowed("config_read_settings"));
-    assert!(!app_allowed("config_write_settings"));
+    assert!(!app_allowed("config_merge_settings"));
     assert!(!app_allowed("config_write_workspaces"));
     // quota_fetch = 桌面出站任意 HTTP 原语,SSRF 面,设备域不授
     assert!(!app_allowed("quota_fetch"));

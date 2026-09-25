@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const ipcMock = vi.hoisted(() => ({
   configReadSettings: vi.fn(),
-  configWriteSettings: vi.fn(),
+  configMergeSettings: vi.fn(),
 }));
 
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
@@ -19,7 +19,7 @@ let settings: SettingsModule;
 beforeEach(async () => {
   vi.clearAllMocks();
   ipcMock.configReadSettings.mockResolvedValue(null);
-  ipcMock.configWriteSettings.mockResolvedValue(undefined);
+  ipcMock.configMergeSettings.mockResolvedValue(undefined);
   vi.resetModules();
   // 动态 import 例外:被测模块是模块级单例,必须借 resetModules 取全新实例
   settings = await import("./settings");
@@ -35,13 +35,13 @@ async function bootWith(disk: unknown) {
 const pin = (at: number) => ({ scope: "global" as const, pinnedAt: at, title: "x" });
 
 const lastWrite = () =>
-  ipcMock.configWriteSettings.mock.calls.at(-1)![0] as Record<string, Record<string, unknown>>;
+  ipcMock.configMergeSettings.mock.calls.at(-1)![0] as Record<string, Record<string, unknown>>;
 
 describe("persist 拉盘合并:删除意图落盘(取消置顶复活回归)", () => {
   it("boot 见过盘后删除 pin:写盘 payload 不含该 key(旧实现盘上并集复活)", async () => {
     await bootWith({ sessionPins: { A: pin(1000) } });
     settings.updateSettings({ sessionPins: {} });
-    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalled());
+    await vi.waitFor(() => expect(ipcMock.configMergeSettings).toHaveBeenCalled());
     expect(lastWrite().sessionPins).toEqual({});
   });
 
@@ -50,7 +50,7 @@ describe("persist 拉盘合并:删除意图落盘(取消置顶复活回归)", ()
     // 另一实例在盘上新增 B
     ipcMock.configReadSettings.mockResolvedValue({ sessionPins: { A: pin(1000), B: pin(1500) } });
     settings.updateSettings({ sessionPins: {} }); // 本地取消 A
-    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalled());
+    await vi.waitFor(() => expect(ipcMock.configMergeSettings).toHaveBeenCalled());
     expect(Object.keys(lastWrite().sessionPins)).toEqual(["B"]);
   });
 
@@ -58,7 +58,7 @@ describe("persist 拉盘合并:删除意图落盘(取消置顶复活回归)", ()
     await bootWith({ sessionPins: { A: pin(1000) } });
     ipcMock.configReadSettings.mockResolvedValue({ sessionPins: { A: pin(2000) } });
     settings.updateSettings({ sessionPins: {} });
-    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalled());
+    await vi.waitFor(() => expect(ipcMock.configMergeSettings).toHaveBeenCalled());
     expect(lastWrite().sessionPins).toEqual({ A: pin(2000) });
   });
 
@@ -67,7 +67,7 @@ describe("persist 拉盘合并:删除意图落盘(取消置顶复活回归)", ()
     // 他实例未动盘,仅 JSON 键序不同 → 仍判「本地删除」
     ipcMock.configReadSettings.mockResolvedValue({ sessionTitles: { t2: "标题二", t1: "标题一" } });
     settings.updateSettings({ sessionTitles: { t2: "标题二" } }); // 本地删 t1
-    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalled());
+    await vi.waitFor(() => expect(ipcMock.configMergeSettings).toHaveBeenCalled());
     expect(lastWrite().sessionTitles).toEqual({ t2: "标题二" });
   });
 
@@ -75,11 +75,11 @@ describe("persist 拉盘合并:删除意图落盘(取消置顶复活回归)", ()
     await bootWith({ sessionPins: { A: pin(1000) } });
     ipcMock.configReadSettings.mockResolvedValue({ sessionPins: { A: pin(1000), B: pin(1500) } });
     settings.updateSettings({ sessionPins: { A: pin(1000), C: pin(1600) } }); // 本实例置顶 C
-    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(ipcMock.configMergeSettings).toHaveBeenCalledTimes(1));
     expect(Object.keys(lastWrite().sessionPins).sort()).toEqual(["A", "B", "C"]);
     // 第二次任意写盘:B 仍不在本实例内存 → 基线不含 B → 继续照收而非误删
     settings.updateSettings({ sessionPins: { A: pin(1000), C: pin(1600), D: pin(1700) } });
-    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(ipcMock.configMergeSettings).toHaveBeenCalledTimes(2));
     expect(Object.keys(lastWrite().sessionPins).sort()).toEqual(["A", "B", "C", "D"]);
   });
 
@@ -87,11 +87,11 @@ describe("persist 拉盘合并:删除意图落盘(取消置顶复活回归)", ()
     await bootWith({ sessionPins: { A: pin(1000) } });
     ipcMock.configReadSettings.mockResolvedValue({ sessionPins: { A: pin(2000) } });
     settings.updateSettings({ sessionPins: {} }); // 本地删 A,但盘像已被他实例改动
-    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(ipcMock.configMergeSettings).toHaveBeenCalledTimes(1));
     expect(lastWrite().sessionPins).toEqual({ A: pin(2000) });
-    // 基线仍钉 A@1000(非吸收的 2000)→ 二次写盘盘像继续存活
+    // 二次写盘补丁只送 theme:sessionPins 不上线,盘像 A@2000 原样存活
     settings.updateSettings({ theme: "dark" });
-    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalledTimes(2));
-    expect(lastWrite().sessionPins).toEqual({ A: pin(2000) });
+    await vi.waitFor(() => expect(ipcMock.configMergeSettings).toHaveBeenCalledTimes(2));
+    expect("sessionPins" in lastWrite()).toBe(false);
   });
 });

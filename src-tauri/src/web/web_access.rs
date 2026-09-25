@@ -63,7 +63,7 @@ pub(crate) fn web_access_status(app: AppHandle) -> Option<state::WebAccessInfo> 
     web_state(&app).inner().web.status()
 }
 
-/// 设置变化跟随:开 → 起桥;关 → 停桥(lib.rs config_write_settings 同步调)。
+/// 设置变化跟随:开 → 起桥;关 → 停桥(lib.rs config_merge_settings 同步调)。
 pub(crate) fn apply_settings(app: &AppHandle, settings: &serde_json::Value) {
     let app = app.clone();
     let on = web_enabled(settings);

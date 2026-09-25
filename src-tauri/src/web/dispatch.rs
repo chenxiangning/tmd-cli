@@ -1,7 +1,7 @@
 //! Web 命令桥 —— 镜像 invoke_handler 全量命令(平台专属 app_restart 除外)。
 //! 新增宿主命令必须同步在此登记(与 lib.rs invoke_handler 同纪律)。
 
-// file-size-exempt: 301 行仅超 1 行,含文件头注释;拆出即伤对照性(dispatch 是命令面镜像总表,lib.rs 是装配总表)。
+// file-size-exempt: 327 行(2026-09-25 merge 线契约测试并入);拆出即伤对照性(dispatch 是命令面镜像总表,lib.rs 是装配总表)。
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
@@ -63,18 +63,18 @@ async fn misc_dispatch(app: &AppHandle, cmd: &str, raw: Value) -> Result<Value, 
             block(move || crate::session::save_workspaces(&a.data).map_err(|e| e.to_string())).await
         }
         "config_read_settings" => block(|| Ok(crate::settings::load_settings())).await,
-        "config_write_settings" => {
-            let a = args::<OneData<serde_json::Value>>(&raw)?;
+        "config_merge_settings" => {
+            let a = args::<OnePatch>(&raw)?;
             block(move || {
-                crate::settings::save_settings(&a.data).map_err(|e| e.to_string())?;
-                crate::proxy::apply_and_report(&a.data);
-                /* web 面不镜像 web_access_start/stop,故此处也不跟 apply_settings 起停桥 ——
+                let merged = crate::settings::merge_settings(&a.patch)?;
+                /* web 面不镜像 web_access_start/stop,故不跟 apply_settings 起停桥 ——
                 web 端写 webAccessEnabled 只落盘,不起停桥(桥生命周期归桌面端)。 */
+                crate::proxy::apply_and_report(&merged);
                 Ok(())
             })
             .await?;
             /* 与 relay 直写盘同款纪律:成功后广播,各面 settings store 回读磁盘,
-            防手机端修改被桌面端下一次全量持久化静默回滚(跨面丢更新)。 */
+            防跨面修改被另面持久化静默回滚(跨面丢更新)。 */
             let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));
             val(())
         }
@@ -179,6 +179,11 @@ struct OneId {
 #[derive(serde::Deserialize)]
 struct OneData<T> {
     data: T,
+}
+
+#[derive(serde::Deserialize)]
+struct OnePatch {
+    patch: serde_json::Value,
 }
 
 #[derive(serde::Deserialize)]
@@ -307,5 +312,16 @@ mod tests {
                 "{known} 同时出现在镜像与排除清单"
             );
         }
+    }
+
+    /// 线契约:config_merge_settings 的桥侧参数键必须是 `patch` ——
+    /// 前端 ipc.configMergeSettings 发 `{patch}`,桌面命令签名同名;
+    /// 旧整树写时代键名是 `data`,键名错位 = 浏览器 WebUI 写设置静默反序列化失败。
+    #[test]
+    fn merge臂线契约_patch键() {
+        use super::{args, OnePatch};
+        let ok: OnePatch = args(&serde_json::json!({ "patch": { "theme": "dark" } })).unwrap();
+        assert_eq!(ok.patch["theme"], "dark");
+        assert!(args::<OnePatch>(&serde_json::json!({ "data": {} })).is_err());
     }
 }

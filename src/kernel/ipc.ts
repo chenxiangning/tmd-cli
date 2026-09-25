@@ -615,9 +615,9 @@ export const ipc = {
     invoke<void>("config_write_workspaces", { data }),
   /** 读全局设置(~/.tmd-cli/settings.json);文件不存在/损坏返回 null,前端 sanitize 兜底。 */
   configReadSettings: () => invoke<unknown>("config_read_settings"),
-  /** 整棵写全局设置;schema 归 kernel/settings.ts,Rust 仅透传。 */
-  configWriteSettings: (data: unknown) =>
-    invoke<void>("config_write_settings", { data }),
+  /** 补丁写全局设置:只携带被改顶层域,Rust 锁内合并落盘;schema 归 kernel/settings.ts。 */
+  configMergeSettings: (patch: unknown) =>
+    invoke<void>("config_merge_settings", { patch }),
   /** 通用 HTTP 代理 ─ 各 CLI quota provider 通过此调用供应商 API。 */
   quotaFetch: (spec: QuotaFetchSpec) =>
     invoke<QuotaFetchResponse>("quota_fetch", { spec }),
