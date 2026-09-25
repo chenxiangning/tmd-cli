@@ -94,11 +94,18 @@ function renderCard(
 describe("EngineCard 版本列与动作按钮", () => {
   it("落后:渲染 → 最新版 + 「更新」pri 高亮", () => {
     const html = renderCard(probeOk("omp/18.0.11"), "18.1.2");
-    expect(html).toContain("omp/18.0.11");
+    /* 落后态版本列显示抠出的裸 semver(10.5rem 定宽防截箭头),原样串留 title。 */
+    expect(html).toContain("18.0.11");
     expect(html).toContain("→18.1.2");
     expect(html).toContain("welcome-ab pri");
     expect(html).toContain("更新");
     expect(html).toContain("更新到 18.1.2");
+  });
+
+  it("落后且探针版本串带后缀:裸 semver 上屏,原样串只在 title 出现一次", () => {
+    const html = renderCard(probeOk("2.1.270 (Claude Code)"), "2.1.282");
+    expect(html).toContain("→2.1.282");
+    expect([...html.matchAll(/2\.1\.270 \(Claude Code\)/g)].length).toBe(1);
   });
 
   it("已最新:出「重装」按钮,无 pri 高亮", () => {

@@ -24,4 +24,8 @@ export const cliQoderPlugin = makeQoderPlugin({
   docsUrl: "https://docs.qoder.com",
   npmPackage: "@qoder-ai/qodercli",
   ...QODER_VARIANT,
+  /* 原生副本自管版本化目录(~/.qoder/bin/qodercli/qodercli-<v>,~/.local/bin
+   * symlink 垫 PATH 首位),npm 覆盖更不到探针命中的那份;2026-09-25 实证
+   * `qodercli update` 就地 1.1.56 → 1.1.63。国内版未实证此子命令,不声明。 */
+  commandUpdate: { program: QODER_VARIANT.command, args: ["update"] },
 });

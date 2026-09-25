@@ -27,6 +27,8 @@ export interface EngineMeta {
   npmPackage?: string;
   /** 参数化安装计划;null = 该引擎未声明安装通道(不出安装按钮)。 */
   plan: CliInstallPlan | null;
+  /** 就地自更新通道(profile.commandUpdate 透传);仅更新,不当安装通道。 */
+  commandUpdate?: { program: string; args: string[] };
   /** 「版本」菜单开关(profile.versionMenu 且 command 通道可钉版时才为真)。 */
   versionMenu: boolean;
   /** 前置依赖(profile.requires 派生);缺省 = 无依赖,直接出安装按钮。 */
@@ -75,13 +77,24 @@ export function installPlanOf(channels: InstallChannels): CliInstallPlan | null 
  *   是 npm 副本时,bun 更新永远更不到探针命中的副本);
  * - 其余(未装/非 npm 副本/声明 script)→ 声明计划(script > command > npm):
  *   声明 script 的引擎走官方原生分发(claude/kimi),只有官方脚本管得了
- *   原生副本,npm 覆盖会写一份探针看不到的新副本。 */
+ *   原生副本,npm 覆盖会写一份探针看不到的新副本;
+ * - 探针命中非 npm 副本且声明通道是 npm:更新永远写探针看不到的新副本
+ *   (2026-09-25 qoder 实证,原生版本化目录自管)→ 声明了 commandUpdate
+ *   (CLI 自带 update 子命令)则走命令通道就地自更新,否则声明计划原样。 */
 export function resolveInstallPlan(
-  meta: Pick<EngineMeta, "plan" | "npmPackage">,
+  meta: Pick<EngineMeta, "plan" | "npmPackage" | "commandUpdate">,
   probe: CliProbeResult | null | undefined,
 ): CliInstallPlan | null {
   if (meta.plan?.channel !== "script" && meta.npmPackage && probe?.npmPrefix) {
     return { channel: "npm", package: meta.npmPackage };
+  }
+  if (
+    probe?.found &&
+    !probe.npmPrefix &&
+    meta.plan?.channel === "npm" &&
+    meta.commandUpdate
+  ) {
+    return { channel: "command", ...meta.commandUpdate };
   }
   return meta.plan;
 }
@@ -138,6 +151,7 @@ function engineMetaOf(profile: CliProfile): EngineMeta {
     npmPackage: profile.npmPackage,
     installHint: installHintOf(profile),
     plan,
+    commandUpdate: profile.commandUpdate,
     versionMenu:
       profile.versionMenu === true && plan?.channel === "command" && !!profile.npmPackage,
     requires: req

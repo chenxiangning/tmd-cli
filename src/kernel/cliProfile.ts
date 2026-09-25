@@ -163,6 +163,8 @@ export interface CliProfile {
  * 字面量纪律与 askMarks 同:取自实采,未声明 = 行为不变。
    */
   busyMarks?: RegExp[];
+  /** busy 自证持轮窗覆盖(默认 30s):帧断供超此值才失持轮。omp 18.3 渲染冻结 ~60s 无帧需宽窗(2026-09-25 实证),代价 = 完工后徽标拖 ≤此窗。 */
+  busyHoldMs?: number;
   /**
    * 「屏幕空闲态」界面标记(对偶 busyMarks,2026-09-17;2026-09-18 升级兼作
    * 结算证据):匹配面与 busyMarks 相同(剥 ANSI 分片按行拆行,不得依赖行首锚)。
@@ -276,6 +278,9 @@ export interface CliProfile {
    * 例 omp 经 `bun install -g` 全局安装。安装命令经通用 IPC 原语执行,内核零配方。
    */
   commandInstall?: { program: string; args: string[] };
+  /** 就地自更新通道(仅更新):探针命中非 npm 管理的原生副本(CLI 自管
+   * 版本化目录,如 `qodercli update`)才声明;未装机器仍走声明通道安装。 */
+  commandUpdate?: { program: string; args: string[] };
   /**
    * 引擎卡「版本」菜单开关:welcome 行动作簇出「版本」按钮,弹层列最新 10 个
    * 稳定版 + 用户收藏,点选即钉版安装(command 通道 args 内包名替换为 pkg@version)。
