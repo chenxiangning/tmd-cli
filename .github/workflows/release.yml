@@ -205,7 +205,7 @@ jobs:
             gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 && break
             sleep 10
           done
-          gh release upload "$GITHUB_REF_NAME"             mobile-app/android-shell/app/build/outputs/apk/release/app-release-unsigned.apk             --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload "$GITHUB_REF_NAME"             mobile-app/android-shell/app/build/outputs/apk/release/app-release.apk             --clobber --repo "$GITHUB_REPOSITORY"
 
       - name: Upload APK artifact(仅手动触发)
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
