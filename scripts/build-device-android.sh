@@ -21,7 +21,7 @@ rm -rf "$SHELL_DIR/app/src/main/assets/dist"
 mkdir -p "$SHELL_DIR/app/src/main/assets"
 cp -R dist "$SHELL_DIR/app/src/main/assets/dist"
 
-echo "[build-android] 2/3 gradle assembleDebug"
+echo "[build-android] 2/3 gradle assembleRelease(仓内自签 keystore,与 CI 产物同签名)"
 cd "$SHELL_DIR"
 # SDK 定位:环境变量 > ~/Library/Android/sdk(Android Studio)> brew cask 命令行工具;
 # 都没有则看 local.properties(sdk.dir,gitignore,开发者手配)。
@@ -33,9 +33,9 @@ if [[ -z "${ANDROID_HOME:-}" && ! -f local.properties ]]; then
   fi
 fi
 if [[ -x ./gradlew ]]; then GRADLE=./gradlew; else GRADLE=gradle; fi  # 缺执行位让 gradle 报错暴露,勿静默回落
-"$GRADLE" assembleDebug --console=plain -q
+"$GRADLE" assembleRelease --console=plain -q
 
-APK="$PWD/app/build/outputs/apk/debug/app-debug.apk"
+APK="$PWD/app/build/outputs/apk/release/app-release.apk"
 echo "[build-android] 产物: $APK"
 cd ../..
 

@@ -7,6 +7,15 @@ android {
     namespace = "com.tmdcli.mobile"
     compileSdk = 35
 
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file("keystore/tmd-release.keystore")
+            storePassword = "tmd-cli-mobile"
+            keyAlias = "tmd"
+            keyPassword = "tmd-cli-mobile"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.tmdcli.mobile"
         minSdk = 29
@@ -19,6 +28,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            /* 自签 keystore(仓内 keystore/tmd-release.keystore,密码同文件注释):
+             * 零成本侧载分发——签名跨版本稳定,升级覆盖安装不塌;非 Play 商店用途 */
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {

@@ -182,13 +182,13 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # 版本随 tag 注入(versionCode = 提交数,单调);debug 签名直装可用,
-      # 但每次 CI 临时生成 debug keystore → 跨发版覆盖安装需先卸载。
-      - name: Gradle assembleDebug(wrapper 钉 8.10.2;runner 预装 gradle 9.x 与 AGP 8.7 不兼容)
+      # 版本随 tag 注入(versionCode = 提交数,单调);release 用仓内自签 keystore
+      # (keystore/tmd-release.keystore)——零成本侧载分发,签名稳定可覆盖升级。
+      - name: Gradle assembleRelease(wrapper 钉 8.10.2;runner 预装 gradle 9.x 与 AGP 8.7 不兼容)
         run: |
           cd mobile-app/android-shell
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --console=plain \
+          ./gradlew assembleRelease --no-daemon --console=plain \
             -PversionName="${GITHUB_REF_NAME#v}" \
             -PversionCode="$(git rev-list --count HEAD)"
 
@@ -210,7 +210,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: tmd-cli-android-apk
-          path: mobile-app/android-shell/app/build/outputs/apk/debug/
+          path: mobile-app/android-shell/app/build/outputs/apk/release/
 
   # ---------- 手机 app(iOS 壳,未签名)----------
   # 原生 SwiftUI 壳(mobile-app/native-shell)。CI 无分发证书 → CODE_SIGNING_ALLOWED=NO
