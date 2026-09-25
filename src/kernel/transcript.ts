@@ -80,6 +80,16 @@ function parseLine(line: string, out: TranscriptTurn[]): void {
   if (type === "message" || type === "user" || type === "assistant") {
     const m = asObj(e["message"]);
     if (!m) return;
+    /* pi 系(omp/pi)工具结果行:独立 message 行,role=toolResult + toolName,
+     * content 是结果 text 段。非 user 即 assistant 的旧判法把它渲染成
+     * 「助手正文文本墙」(2026-09-25 真机历史屏实证)→ 落 tool turn。 */
+    if (str(m, "role") === "toolResult") {
+      const texts = (Array.isArray(m["content"]) ? m["content"] : [])
+        .map((raw) => str(asObj(raw), "text"))
+        .filter(Boolean);
+      if (texts.length) out.push({ role: "tool", tool: str(m, "toolName") || "tool", text: clip(texts.join("\n")) });
+      return;
+    }
     const role = str(m, "role") === "user" ? "user" : "assistant";
     pushParts(m["content"], role, out);
     return;
