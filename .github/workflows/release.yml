@@ -23,7 +23,23 @@ permissions:
   contents: write
 
 jobs:
+  # 前置单 job 先建 Draft:tauri-action 的 getOrCreateRelease 有并发建重窗口
+  # (GitHub 允许同 tag 多 draft,产物会静默分家),先建好大家只复用。
+  prep-release:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --draft --title "tmd-cli $GITHUB_REF_NAME" \
+              --notes "Automated build. See commit log for changes." --repo "$GITHUB_REPOSITORY"
+
   build:
+    needs: prep-release
+    if: ${{ !cancelled() && (startsWith(github.ref, 'refs/tags/v') || needs.prep-release.result == 'skipped') }}
     name: ${{ matrix.label }}
     strategy:
       fail-fast: false # 某个平台挂了不影响其他平台产物落地
@@ -125,11 +141,15 @@ jobs:
   # Kotlin+WebView 薄壳(mobile-app/android-shell),与桌面四 job 并行;产物:
   # debug 签名 APK(直装可用;正式签名需要上 keystore secret,当前无,如实未签)。
   android:
-    name: "Android (arm64 + armv7 + x86_64)"
+    name: "Android (universal APK)"
     runs-on: ubuntu-latest
+    needs: prep-release
+    if: ${{ !cancelled() && (startsWith(github.ref, 'refs/tags/v') || needs.prep-release.result == 'skipped') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # versionCode = 提交数,需全量历史
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -162,25 +182,35 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Gradle assembleRelease
+      # 版本随 tag 注入(versionCode = 提交数,单调);debug 签名直装可用,
+      # 但每次 CI 临时生成 debug keystore → 跨发版覆盖安装需先卸载。
+      - name: Gradle assembleDebug(wrapper 钉 8.10.2;runner 预装 gradle 9.x 与 AGP 8.7 不兼容)
         run: |
           cd mobile-app/android-shell
-          gradle assembleRelease --no-daemon --console=plain
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --console=plain \
+            -PversionName="${GITHUB_REF_NAME#v}" \
+            -PversionCode="$(git rev-list --count HEAD)"
 
+      # Draft Release 由 tauri-action(桌面 build job)创建;手机 job 可能先跑完,
+      # 轮询等它出现再挂产物(softprops 二次创建会出重复 release,故用 gh CLI --clobber)。
       - name: Attach APK to release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        uses: softprops/action-gh-release@v2
-        with:
-          files: mobile-app/android-shell/app/build/outputs/apk/release/app-release-unsigned.apk
-          tag_name: ${{ github.ref_name }}
-          draft: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for i in $(seq 1 60); do
+            gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 && break
+            sleep 10
+          done
+          gh release upload "$GITHUB_REF_NAME"             mobile-app/android-shell/app/build/outputs/apk/release/app-release-unsigned.apk             --clobber --repo "$GITHUB_REPOSITORY"
 
       - name: Upload APK artifact(仅手动触发)
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@v7
         with:
           name: tmd-cli-android-apk
-          path: mobile-app/android-shell/app/build/outputs/apk/release/
+          path: mobile-app/android-shell/app/build/outputs/apk/debug/
 
   # ---------- 手机 app(iOS 壳,未签名)----------
   # 原生 SwiftUI 壳(mobile-app/native-shell)。CI 无分发证书 → CODE_SIGNING_ALLOWED=NO
@@ -188,9 +218,13 @@ jobs:
   ios-shell:
     name: "iOS (arm64, unsigned)"
     runs-on: macos-latest
+    needs: prep-release
+    if: ${{ !cancelled() && (startsWith(github.ref, 'refs/tags/v') || needs.prep-release.result == 'skipped') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # CFBundleVersion = 提交数,需全量历史
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -224,18 +258,30 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
             build
 
+      - name: Stamp version into bundle
+        run: |
+          PLIST="/tmp/tmd-ios-ci/Build/Products/Release-iphoneos/tmd-cli mobile.app/Info.plist"
+          plutil -replace CFBundleShortVersionString -string "${GITHUB_REF_NAME#v}" "$PLIST"
+          plutil -replace CFBundleVersion -string "$(git rev-list --count HEAD)" "$PLIST"
+
       - name: Zip .app
         run: |
           cd /tmp/tmd-ios-ci/Build/Products/Release-iphoneos
           zip -qry /tmp/tmd-cli-mobile-unsigned.zip "tmd-cli mobile.app"
 
-      - name: Attach to release
+      # 同 android job:等 tauri-action 的 Draft 出现再挂,避免重复 release
+      - name: Attach iOS zip to release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        uses: softprops/action-gh-release@v2
-        with:
-          files: /tmp/tmd-cli-mobile-unsigned.zip
-          tag_name: ${{ github.ref_name }}
-          draft: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for i in $(seq 1 90); do
+            gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 && break
+            sleep 30
+          done
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 || \
+            { echo "Draft release 未在限时内出现(桌面构建超 45 分钟?)" >&2; exit 1; }
+          gh release upload "$GITHUB_REF_NAME" /tmp/tmd-cli-mobile-unsigned.zip --clobber --repo "$GITHUB_REPOSITORY"
 
       - name: Upload artifact(仅手动触发)
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}

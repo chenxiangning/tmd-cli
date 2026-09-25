@@ -11,8 +11,9 @@ android {
         applicationId = "com.tmdcli.mobile"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        /* 发版注入:CI 从 tag 推导(release.yml);本地不传 = 0.0.0-dev */
+        versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
+        versionName = (project.findProperty("versionName") as String?) ?: "0.0.0-dev"
     }
 
     buildTypes {

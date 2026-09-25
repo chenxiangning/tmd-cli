@@ -23,10 +23,16 @@ cp -R dist "$SHELL_DIR/app/src/main/assets/dist"
 
 echo "[build-android] 2/3 gradle assembleDebug"
 cd "$SHELL_DIR"
-if [[ -z "${ANDROID_HOME:-}" && -d "$HOME/Library/Android/sdk" ]]; then
-  export ANDROID_HOME="$HOME/Library/Android/sdk"
+# SDK 定位:环境变量 > ~/Library/Android/sdk(Android Studio)> brew cask 命令行工具;
+# 都没有则看 local.properties(sdk.dir,gitignore,开发者手配)。
+if [[ -z "${ANDROID_HOME:-}" && ! -f local.properties ]]; then
+  if [[ -d "$HOME/Library/Android/sdk" ]]; then
+    export ANDROID_HOME="$HOME/Library/Android/sdk"
+  elif [[ -d /opt/homebrew/share/android-commandlinetools ]]; then
+    export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
+  fi
 fi
-if command -v ./gradlew > /dev/null 2>&1; then GRADLE=./gradlew; else GRADLE=gradle; fi
+if [[ -x ./gradlew ]]; then GRADLE=./gradlew; else GRADLE=gradle; fi  # 缺执行位让 gradle 报错暴露,勿静默回落
 "$GRADLE" assembleDebug --console=plain -q
 
 APK="$PWD/app/build/outputs/apk/debug/app-debug.apk"
