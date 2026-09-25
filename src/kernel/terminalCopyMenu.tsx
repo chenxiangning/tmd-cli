@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Terminal } from "@xterm/xterm";
 import { host } from "@kernel/host";
+import { copyText } from "@kernel/clipboard";
 import { t } from "@kernel/i18n";
 import { copyMenuRequestRef } from "@kernel/terminalCopyMenuBridge";
 
@@ -64,7 +65,7 @@ export function TerminalCopyMenu({
   };
   /* 失败保菜单开 + 显错:静默吞掉会让人以为已复制 */
   const onCopy = () => {
-    void navigator.clipboard.writeText(selRef.current).then(
+    void copyText(selRef.current).then(
       () => {
         setPos(null);
         termRef.current?.focus();

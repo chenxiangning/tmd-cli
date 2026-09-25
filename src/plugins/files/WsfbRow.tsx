@@ -10,7 +10,7 @@ import { CaretRight, Copy, FolderOpen } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { resolveFileVisual } from "@kernel/fileVisual";
-import { copyText } from "./useTreeOperations";
+import { copyText } from "@kernel/clipboard";
 
 /** 行装饰:letter 仅文件有;目录 = 圆点。 */
 export interface RowDeco {
