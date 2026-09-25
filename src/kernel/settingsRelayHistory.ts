@@ -1,8 +1,9 @@
 /**
- * 自建中继部署历史域 —— 一键部署成功后 Rust 落盘的 SSH 连接信息(不含密码/私钥),
- * 下次部署从历史点选回填表单,免重填。类型 + 清洗同域文件
- * (先例:settingsAppearance.ts);字段装配在 settingsSanitize.ts;upsert 在 Rust persist_selfhost。
- * 键 = host:port:username(同服务器同账号覆盖刷新 savedAt);上限 10 条新者在前。
+ * 自建中继部署历史域 —— 一键部署成功后 Rust 落盘的 SSH 连接信息(含密码/口令,
+ * 点历史即整表回填免重输;明文存储对齐 settings.ssh.hosts 既有纪律与风险记录),
+ * 私钥内容不落盘(路径在,Rust 按路径读)。下次部署从历史点选回填表单。
+ * 类型 + 清洗同域文件(先例:settingsAppearance.ts);字段装配在 settingsSanitize.ts;
+ * upsert 在 Rust persist_selfhost。键 = host:port:username(覆盖刷新 savedAt);上限 10。
  */
 
 export interface RelayDeployHistoryEntry {
@@ -10,8 +11,10 @@ export interface RelayDeployHistoryEntry {
   port: number;
   username: string;
   authType: "password" | "privateKey";
-  /** 私钥认证时记录的读取路径(路径非机密;私钥内容/密码恒不落盘)。 */
+  /** 私钥认证时记录的读取路径(内容不落盘)。 */
   privateKeyPath?: string;
+  password?: string;
+  passphrase?: string;
   savedAt: number;
 }
 
@@ -36,6 +39,8 @@ export function sanitizeRelayDeployHistory(raw: unknown): RelayDeployHistoryEntr
       ...(typeof e.privateKeyPath === "string" && e.privateKeyPath.trim()
         ? { privateKeyPath: e.privateKeyPath.trim().slice(0, 500) }
         : {}),
+      ...(typeof e.password === "string" && e.password ? { password: e.password.slice(0, 500) } : {}),
+      ...(typeof e.passphrase === "string" && e.passphrase ? { passphrase: e.passphrase.slice(0, 500) } : {}),
       savedAt: typeof e.savedAt === "number" ? e.savedAt : 0,
     });
   }

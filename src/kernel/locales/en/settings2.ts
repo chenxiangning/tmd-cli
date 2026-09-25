@@ -8,15 +8,14 @@ export const MESSAGES = {
     "No server of your own? Take this route: the relay runs as a Worker on your Cloudflare account (the free tier is enough) — it only shuttles bytes and stores nothing. Paste a Cloudflare API token on the left card and hit Deploy; the URL and key land on the right card automatically. The token is used once and never stored.",
   // WebSelfHostPane(自建 tab 三步卡)
   "① 一键部署(只做一次)": "① One-click deploy (once)",
-  "手边有一台带公网 IP 的服务器(阿里云/腾讯云轻量都行,装好 Node ≥ 18)?左卡填它的 IP、SSH 用户名、密码,点「一键部署」:上传中继、签证书、装服务全自动。成功后服务器记进「部署历史」,下次点一下就回填,重输密码即可。":
-    "Got a server with a public IP (any cheap VPS will do, with Node ≥ 18 installed)? Fill its IP, SSH username and password on the left card and hit Deploy — uploading the relay, minting the certificate and installing the service all run automatically. Afterwards the server lands in “Deploy history”: next time click it to refill the form and just retype the password.",
+  "手边有一台带公网 IP 的服务器(阿里云/腾讯云轻量都行,装好 Node ≥ 18)?左卡填它的 IP、SSH 用户名、密码,点「一键部署」:上传中继、签证书、装服务全自动。成功后服务器记进「部署历史」,下次点一下整表回填,直接再部署。":
+    "Got a server with a public IP (any cheap VPS will do, with Node ≥ 18 installed)? Fill its IP, SSH username and password on the left card and hit Deploy — uploading the relay, minting the certificate and installing the service all run automatically. Afterwards the server lands in “Deploy history”: next time one click refills the whole form and you can deploy again right away.",
   "右卡「手机打开」的地址,手机浏览器直接开,加到主屏幕就当 app 用。地址里带的令牌就是钥匙,别转发给别人;用完回这里点「断开」。":
     "Open the “Open on phone” URL from the right card in your phone browser, then add it to the home screen and it works like an app. The token in the URL is the key — don't forward it; hit “Disconnect” here when you're done.",
   // WebSelfHostCard(一键部署卡)
-  "一键部署到自建服务器": "One-click deploy to your own server",
-  "桌面经 SSH 自动完成:上传服务、现场签发 TLS 证书、安装 systemd、健康自检。密码和私钥不保存,下次部署从历史点一下回填,重输密码即可。":
-    "Fully automated over SSH from the desktop: upload the service, mint a TLS certificate on the spot, install systemd, run a health check. Passwords and private keys are never stored — next time, pick the server from the history below and just retype the password.",
-  "部署历史(点一下回填,密码/私钥需重输)": "Deploy history (click to refill; retype the password/key)",
+  "桌面经 SSH 自动完成:上传服务、现场签发 TLS 证书、安装 systemd、健康自检。成功后服务器记进下方「部署历史」,下次点一下整表回填;密码随历史保存在本机设置文件(与 SSH 主机清单同等纪律),私钥内容不保存。":
+    "Fully automated over SSH from the desktop: upload the service, mint a TLS certificate on the spot, install systemd, run a health check. Afterwards the server lands in “Deploy history” below — one click refills the whole form. The password is stored with the history in your local settings file (same discipline as the SSH host list); private key contents are never stored.",
+  "部署历史(点一下回填;密码随历史存本机,私钥需重贴或填路径)": "Deploy history (click to refill; the password is stored locally with the history, paste the key again or fill its path)",
   "服务器 IP 或域名 *": "Server IP or hostname *",
   "SSH 密码": "SSH password",
   "私钥内容(粘贴;留空则按下方路径读取)":

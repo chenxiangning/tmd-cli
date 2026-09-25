@@ -18,7 +18,10 @@ describe("sanitizeRelayDeployHistory", () => {
     expect(sanitizeRelayDeployHistory([{ ...OK, authType: "ssh" }])[0].authType).toBe("password");
   });
 
-  it("privateKeyPath 留空不写入,超长截断;总量截到上限 10", () => {
+  it("password/passphrase 保留、超长截断;留空不写入;总量截到上限 10", () => {
+    expect(sanitizeRelayDeployHistory([{ ...OK, password: "s3cret", passphrase: "pp" }])[0]).toMatchObject({ password: "s3cret", passphrase: "pp" });
+    expect("password" in sanitizeRelayDeployHistory([OK])[0]).toBe(false);
+    expect(sanitizeRelayDeployHistory([{ ...OK, password: "x".repeat(600) }])[0].password).toHaveLength(500);
     expect("privateKeyPath" in sanitizeRelayDeployHistory([OK])[0]).toBe(false);
     const long = sanitizeRelayDeployHistory([{ ...OK, privateKeyPath: "x".repeat(600) }])[0];
     expect(long.privateKeyPath).toHaveLength(500);

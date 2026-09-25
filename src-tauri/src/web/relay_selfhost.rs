@@ -272,6 +272,8 @@ pub async fn relay_deploy_selfhost(
             username: &req.username,
             auth_type: &req.auth_type,
             private_key_path: &req.private_key_path,
+            password: &req.password,
+            passphrase: &req.private_key_passphrase,
         },
         &key,
         &cert,

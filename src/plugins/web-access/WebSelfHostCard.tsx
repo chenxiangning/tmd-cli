@@ -3,8 +3,8 @@
  * 装 systemd → 健康自检),进度事件(web-relay-deploy)驱动步骤 checklist;
  * 未知主机指纹时给「信任并重试」(TOFU)。成功后 URL/key/证书/部署历史由
  * Rust 落 settings 并经 settings:changed 回填 —— 本卡对 settings 零写入。
- * SSH 凭据(密码/私钥)仅存组件 state、只进本次调用,不落盘;落盘的只有
- * 连接信息(host/port/user/authType/私钥路径),供历史列表点选回填免重填。
+ * 历史含密码/口令(明文存 settings,纪律同 settings.ssh.hosts),私钥内容不落盘
+ * (只存路径);点历史整表回填免重输。
  * 历史列表与手动兜底折叠区拆件(RelayDeployHistoryList/ManualDeployDetails)。
  * 状态机纯函数在 selfhostDeployModel.ts(300 行铁则一并拆文件)。
  */
@@ -92,16 +92,17 @@ export function WebSelfHostCard() {
     }
   };
 
-  /** 历史点选回填:只回连接信息;密码/私钥内容恒不留存,需重输。 */
+  /** 历史点选回填:连接信息 + 密码/口令(明文存 settings,同 ssh.hosts 纪律);
+   *  私钥内容不落盘,回填后留空待重贴或按路径读。 */
   const fillFromHistory = (e: RelayDeployHistoryEntry) => {
     setHost(e.host);
     setPort(String(e.port));
     setUser(e.username);
     setAuth(e.authType);
     setPrivateKeyPath(e.privateKeyPath ?? "");
-    setPassword("");
+    setPassword(e.password ?? "");
     setPrivateKey("");
-    setPassphrase("");
+    setPassphrase(e.passphrase ?? "");
   };
 
   const stepStates = deriveStepStates(submitted, events, result);
@@ -123,7 +124,7 @@ export function WebSelfHostCard() {
         {t("一键部署到自建服务器")}
       </div>
       <div className="text-xs text-[var(--tmd-fg-muted)]">
-        {t("桌面经 SSH 自动完成:上传服务、现场签发 TLS 证书、安装 systemd、健康自检。密码和私钥不保存,下次部署从历史点一下回填,重输密码即可。")}
+        {t("桌面经 SSH 自动完成:上传服务、现场签发 TLS 证书、安装 systemd、健康自检。成功后服务器记进下方「部署历史」,下次点一下整表回填;密码随历史保存在本机设置文件(与 SSH 主机清单同等纪律),私钥内容不保存。")}
       </div>
       <RelayDeployHistoryList onPick={fillFromHistory} />
       <div className="grid grid-cols-[1fr_5rem] gap-2">

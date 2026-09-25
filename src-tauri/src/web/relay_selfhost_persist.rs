@@ -1,18 +1,20 @@
 //! 一键部署成功后的 settings 落盘:URL/key/动态证书钉 + 部署历史。
-//! 历史 = 连接信息(host/port/username/authType/私钥路径),不含密码/私钥;
-//! upsert 键 = host:port:username,新者在前,上限 10
-//! (与前端 settingsRelayHistory.ts 清洗契约一致)。
+//! 历史 = 连接信息 + 密码/口令(点选整表回填;明文纪律对齐 settings.ssh.hosts,
+//! 手机 dispatch 本就全量可读,不新增暴露面);私钥内容不落盘,只存路径。
+//! upsert 键 = host:port:username,新者在前,上限 10(与前端 settingsRelayHistory.ts 一致)。
 
 use super::relay_core::bytes_to_b64;
 use super::selfhost_assets;
 
-/// 部署请求里可安全落盘的连接信息(凭据字段恒不进 settings)。
+/// 部署请求里落盘的连接信息(密码/口令随历史存;私钥内容不落盘,只存路径)。
 pub struct DeployConn<'a> {
     pub host: &'a str,
     pub port: u16,
     pub username: &'a str,
     pub auth_type: &'a str,
     pub private_key_path: &'a str,
+    pub password: &'a str,
+    pub passphrase: &'a str,
 }
 
 fn history_key(v: &serde_json::Value) -> String {
@@ -54,6 +56,8 @@ pub fn persist_selfhost(
             "username": conn.username.trim(),
             "authType": conn.auth_type,
             "privateKeyPath": conn.private_key_path.trim(),
+            "password": conn.password,
+            "passphrase": conn.passphrase,
             "savedAt": crate::now_millis(),
         });
         let old = settings["relayDeployHistory"]

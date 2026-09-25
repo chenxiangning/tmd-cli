@@ -284,7 +284,7 @@ export interface AppSettings {
   webRelayCertDer: string;
   /** 动态证书适用主机(relay URL 的 host;命中才用上行 DER 做锚)。 */
   webRelayCertHost: string;
-  /** 自建中继部署历史(一键部署成功后 Rust 落盘;不含密码/私钥,供回填)。 */
+  /** 自建中继部署历史(一键部署成功后 Rust 落盘;含密码,不含私钥内容,供整表回填)。 */
   relayDeployHistory: RelayDeployHistoryEntry[];
   /**
    * 打开方式清单(open-with 编辑域,settings/files 两插件消费):数组顺序即菜单/面板显示顺序。

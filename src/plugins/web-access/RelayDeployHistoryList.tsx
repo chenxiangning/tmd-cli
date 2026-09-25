@@ -1,6 +1,6 @@
 /**
  * 自建中继部署历史列表(WebSelfHostCard 消费,拆文件守 300 行铁则)——
- * 一键部署成功后 Rust 落 settings.relayDeployHistory(不含密码/私钥);
+ * 一键部署成功后 Rust 落 settings.relayDeployHistory(含密码,不含私钥内容);
  * 点行回填 SSH 表单,× 删单条。空列表不渲染。
  */
 
@@ -23,7 +23,7 @@ export function RelayDeployHistoryList({ onPick }: { onPick: (e: RelayDeployHist
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="text-xs text-[var(--tmd-fg-muted)]">{t("部署历史(点一下回填,密码/私钥需重输)")}</div>
+      <div className="text-xs text-[var(--tmd-fg-muted)]">{t("部署历史(点一下回填;密码随历史存本机,私钥需重贴或填路径)")}</div>
       {history.map((e) => (
         <div
           key={`${e.host}:${e.port}:${e.username}`}
