@@ -209,9 +209,11 @@
 
 /* 最小 reset:样式分家后 mobile 分支不再载桌面 global preflight,恢复其等效基线
  * (仅复位,不是新样式;2026-09-25 大仙反馈回退全局视觉改动后补) */
-.m-app *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-.m-app button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer;touch-action:manipulation}
-.m-app input,.m-app textarea{font:inherit;color:inherit}
+/* :where 零特异性:只给无规则元素兜底,绝不覆盖 .nav/.row-main 等既有声明
+ * (教训:.m-app * 同特异性且靠后会赢过 .nav 的 content-box,吃掉安全区 padding) */
+:where(.m-app) :where(*){box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:where(.m-app) :where(button){font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer;touch-action:manipulation}
+:where(.m-app) :where(input,textarea){font:inherit;color:inherit}
 
 /* ── git 模块细节(大仙 2026-09-25 指定范围):状态字母分色 + patch 行着色 ── */
 .st-m{color:var(--warn)} .st-a{color:var(--ok)} .st-d{color:var(--err)}
