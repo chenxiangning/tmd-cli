@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>omp 学堂 — 一体化学习体系(入口/入门课/指南/斜杠抽屉) · tmd-cli 设计原型</title>
+<!--
+  设计探索原型 v2(体系版),非生产代码。样式基准 = 2026-09-25 真实客户端截图(浅色 Light Modern,1421 桩目检)。
+  token 源:src/styles/themes.css;数据源 = omp 18.3.1 BUILTIN_SLASH_COMMANDS_INTERNAL 全量 82 命令,
+  每条含:中文一句话 + 详细描述 + 使用示例 + 子命令原文 + tmd-cli 接入标注。
+
+  体系结构(四个面互相打通,不是四个孤立页面):
+  1. 入口:左面板顶部「omp 学堂」常驻按钮(新挂点,建议 registerSidebarHeaderEntry),
+     显示课程进度;点开 = 继续入门 / 完整指南 / 结业速查 / 重置进度。
+  2. 入门课:13 课覆盖全部 10 章,每课 = 目标 + 要点 + 终端演示 + 练习。
+     练习「试一试」→ 跳终端 tab、命令填入 composer、唤起抽屉,学完即上手。
+  3. 指南 tab:registerTabContent 挂中央 tab;82 条全量目录,章节 chip 导航 + 搜索;
+     卡片展开 = 详细描述 + 示例 + 子命令 + 「在 tmd-cli 里」+「去学」互链。
+  4. 斜杠抽屉:composer 输入 / 唤出(cli-omp profile.listSuggestions + 静态表既有机制增强);
+     详情卡给讲解与示例,「完整讲解」反跳指南卡片。
+-->
+<style>
+:root{
+  --bg:#ffffff; --panel:#f8f8f8; --hover:#f2f2f2; --active:rgba(0,95,184,.14);
+  --fg:#3b3b3b; --muted:#7e7e7e; --subtle:#999999; --faint:#c0c0c0;
+  --border:#cecece; --border-strong:#b1b1b1;
+  --accent:#005fb8; --accent-fg:#ffffff; --accent-soft:rgba(0,95,184,.14);
+  --ok:#059669; --warn:#a16207; --err:#dc2626;
+  --r-sm:6px; --r-md:8px; --r-lg:12px;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font:12px/1.55 -apple-system,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--fg);background:var(--panel);display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,textarea{font:inherit;color:inherit}
+::-webkit-scrollbar{width:10px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ── 标题栏 ── */
+.titlebar{flex:none;height:34px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:10px;font-size:12px}
+.titlebar .lights{display:flex;gap:6px}
+.titlebar .lights i{width:11px;height:11px;border-radius:50%;background:var(--border);display:block}
+.titlebar .crumb{flex:1;text-align:center;color:var(--muted)}
+.titlebar .crumb b{color:var(--fg);font-weight:600}
+.titlebar .acts{display:flex;gap:10px;color:var(--muted)}
+
+.body{flex:1;display:flex;min-height:0}
+
+/* ── 左面板 ── */
+.sidebar{width:244px;flex:none;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column}
+/* 学堂入口:左面板顶部新挂点 */
+.academy{margin:10px 10px 6px;position:relative}
+.academy-btn{width:100%;display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--accent);border-radius:var(--r-md);background:var(--accent-soft);text-align:left}
+.academy-btn:hover{background:var(--active)}
+.academy-btn .glyph{flex:none;width:26px;height:26px;border-radius:var(--r-sm);background:var(--accent);color:var(--accent-fg);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:13px}
+.academy-btn .tt{flex:1;min-width:0}
+.academy-btn .tt b{font-size:12.5px;color:var(--accent)}
+.academy-btn .tt span{display:block;color:var(--muted);font-size:11px;margin-top:1px}
+.academy-btn .pct{flex:none;font-variant-numeric:tabular-nums;color:var(--accent);font-weight:600}
+.academy-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--bg);border:1px solid var(--border-strong);border-radius:var(--r-md);box-shadow:0 8px 24px rgba(0,0,0,.14);display:none;z-index:30;overflow:hidden}
+.academy-pop.show{display:block}
+.academy-pop button{display:flex;width:100%;text-align:left;gap:8px;padding:8px 12px;align-items:baseline}
+.academy-pop button:hover{background:var(--hover)}
+.academy-pop button b{font-weight:600}
+.academy-pop button small{color:var(--subtle);margin-left:auto;font-size:11px}
+.academy-pop .danger{color:var(--err)}
+.academy-pop hr{border:none;border-top:1px solid var(--panel)}
+
+.seg{margin:6px 10px;display:flex;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden}
+.seg button{flex:1;padding:4px 0;color:var(--muted);font-size:11px}
+.seg button.on{background:var(--active);color:var(--accent)}
+.side-sec{padding:2px 10px 6px;color:var(--subtle);font-size:11px;display:flex;align-items:center;gap:6px}
+.side-sec .sp{flex:1}
+.ws{margin:0 6px;display:flex;gap:8px;align-items:center;padding:6px;border-radius:var(--r-sm)}
+.ws:hover{background:var(--hover)}
+.ws .dot{width:8px;height:8px;border-radius:2px;background:var(--accent);flex:none}
+.ws b{font-weight:600}
+.ws small{color:var(--subtle)}
+.grp-h{margin:8px 6px 2px;display:flex;gap:6px;align-items:center;padding:5px 6px;border-radius:var(--r-sm);color:var(--muted)}
+.grp-h:hover{background:var(--hover)}
+.sess{margin:0 6px;display:flex;gap:7px;align-items:center;padding:5px 6px 5px 22px;border-radius:var(--r-sm);color:var(--fg)}
+.sess:hover{background:var(--hover)}
+.sess.on{background:var(--active)}
+.sess .st{flex:none;width:6px;height:6px;border-radius:50%}
+.sess .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sess time{color:var(--faint);font-size:10px}
+.side-foot{margin-top:auto;padding:8px 10px;border-top:1px solid var(--panel);color:var(--subtle);font-size:11px;display:flex;gap:8px}
+
+/* ── 右侧主区 ── */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.tabbar{flex:none;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;gap:2px;padding:6px 10px 0}
+.tab{padding:5px 14px 6px;border:1px solid transparent;border-bottom:none;border-radius:var(--r-sm) var(--r-sm) 0 0;color:var(--muted)}
+.tab.on{color:var(--fg);background:var(--panel);border-color:var(--border);position:relative}
+.tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--panel)}
+.tab .live{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ok);margin-left:5px;vertical-align:1px}
+.views{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
+.view{position:absolute;inset:0;display:none;flex-direction:column}
+.view.on{display:flex}
+
+/* 终端视图(示意) */
+#view-term{background:var(--bg)}
+.stream{flex:1;overflow:auto;padding:16px 22px}
+.msg{max-width:78ch;margin:0 auto 12px}
+.msg .who{color:var(--subtle);font-size:11px;margin-bottom:2px}
+.msg.user .who{color:var(--accent)}
+.msg .body{white-space:pre-wrap}
+
+/* 指南视图 */
+.gtoolbar{flex:none;display:flex;gap:8px;align-items:center;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.gtoolbar .search{position:relative;flex:0 0 280px}
+.gtoolbar input{width:100%;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg);outline:none}
+.gtoolbar input:focus{border-color:var(--accent)}
+.gtoolbar .meta{color:var(--subtle)}
+.gtoolbar .meta b{color:var(--fg)}
+.gtoolbar .sp{flex:1}
+.tgl{padding:4px 10px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg);color:var(--muted)}
+.tgl.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.chips{flex:none;display:flex;gap:6px;padding:8px 16px;overflow-x:auto;border-bottom:1px solid var(--border);background:var(--bg)}
+.chip{flex:none;padding:3px 12px;border:1px solid var(--border);border-radius:999px;color:var(--muted);background:var(--panel)}
+.chip:hover{background:var(--hover)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.gscroll{flex:1;overflow:auto;padding:0 22px 40px;background:var(--panel)}
+.gintro{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 16px;margin:14px 0 4px}
+.gintro h1{font-size:16px}
+.gintro p{color:var(--muted);margin-top:4px;max-width:80ch}
+.gintro .legend{display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;color:var(--muted)}
+.chapter{margin-top:20px;padding-top:10px}
+.chapter>h2{font-size:15px;display:flex;align-items:baseline;gap:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.chapter>h2 .no{color:var(--accent);font-variant-numeric:tabular-nums}
+.chapter>h2 small{font-weight:400;color:var(--muted)}
+.chapter>h2 .go{margin-left:auto;font-weight:400;font-size:11px;color:var(--accent)}
+.cmds{display:grid;grid-template-columns:1fr;gap:8px;margin-top:10px}
+@media(min-width:1280px){.cmds{grid-template-columns:1fr 1fr}}
+.cmd{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
+.cmd:hover{border-color:var(--border-strong)}
+.cmd.hit{outline:2px solid var(--accent);outline-offset:-2px}
+.cmd.flash{animation:flash 1.2s}
+@keyframes flash{0%,60%{background:var(--accent-soft)}100%{background:var(--bg)}}
+.cmd-head{display:flex;align-items:center;gap:8px;padding:8px 10px;width:100%;text-align:left}
+.cmd-head .name{font-family:var(--mono);font-weight:600;color:var(--accent);flex:none}
+.cmd-head .zh{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmd-head .chev{color:var(--faint);transition:transform .12s;flex:none}
+.cmd.open .cmd-head .chev{transform:rotate(90deg)}
+.badge{flex:none;font-size:10px;padding:1px 7px;border-radius:999px;border:1px solid}
+.badge.b-in{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.badge.b-send{color:var(--muted);border-color:var(--border)}
+.cmd-body{display:none;border-top:1px dashed var(--border);padding:10px 12px;background:var(--panel)}
+.cmd.open .cmd-body{display:block}
+.cmd-body .detail{margin-bottom:8px}
+.cmd-body .usage{font-family:var(--mono);font-size:11px;color:var(--warn);margin-bottom:8px}
+.exs{border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg);overflow:hidden;margin-bottom:8px}
+.exs .exh{padding:4px 10px;font-size:11px;color:var(--subtle);border-bottom:1px solid var(--panel);background:var(--panel)}
+.exs .ex{padding:7px 10px;border-bottom:1px solid var(--panel)}
+.exs .ex:last-child{border-bottom:none}
+.exs .esc{color:var(--subtle);font-size:11px;margin-bottom:3px}
+.exs .esc::before{content:"场景";background:var(--panel);border:1px solid var(--border);border-radius:3px;padding:0 4px;margin-right:6px;font-size:10px;color:var(--muted)}
+.exs .ein{font-family:var(--mono);font-size:11.5px}
+.exs .ein::before{content:"❯ ";color:var(--accent)}
+.exs .eout{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:pre-wrap;margin-top:3px;padding-left:14px}
+.exs .eexp{margin-top:5px;padding:5px 8px;background:var(--panel);border-left:2px solid var(--ok);font-size:11.5px}
+.exs .eexp b{color:var(--ok);margin-right:6px;font-weight:600}
+.how{display:flex;gap:6px;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:8px}
+.how .dot{flex:none;width:5px;height:5px;border-radius:50%;background:var(--accent);margin-top:6px}
+.subs{border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg);margin-bottom:8px}
+.subs .srow{display:flex;gap:8px;padding:4px 8px;border-bottom:1px solid var(--panel)}
+.subs .srow:last-child{border-bottom:none}
+.subs .sn{font-family:var(--mono);color:var(--accent);flex:none;min-width:96px}
+.subs .sn i{color:var(--faint);font-style:normal}
+.subs .se{color:var(--muted)}
+.acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn{padding:4px 10px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg)}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.pri:hover{opacity:.92;background:var(--accent)}
+.btn.lnk{border-color:transparent;color:var(--accent);padding:4px 6px}
+.btn.lnk:hover{background:var(--accent-soft)}
+.empty{margin:30px auto;color:var(--muted);display:none}
+
+/* git 视图占位 */
+#view-git{background:var(--bg);align-items:center;justify-content:center;color:var(--subtle)}
+
+/* ── composer + 抽屉 ── */
+.composer-wrap{flex:none;background:var(--bg);border-top:1px solid var(--border);padding:10px 22px 12px;position:relative}
+.composer{max-width:860px;margin:0 auto;position:relative}
+.box{border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg);transition:border-color .12s}
+.box:focus-within{border-color:var(--accent)}
+.box.open{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.box textarea{display:block;width:100%;border:none;outline:none;resize:none;background:transparent;padding:9px 12px 5px}
+.box .cbar{display:flex;align-items:center;gap:8px;padding:5px 10px 7px}
+.box .cbar .tip{color:var(--subtle);font-size:11px}
+.kbd{font-family:var(--mono);font-size:10px;border:1px solid var(--border);border-radius:3px;padding:0 4px;color:var(--muted);background:var(--panel)}
+.send{margin-left:auto;background:var(--accent);color:var(--accent-fg);border-radius:var(--r-sm);padding:4px 14px}
+.send:hover{opacity:.92}
+
+.drawer{position:absolute;left:0;right:0;bottom:calc(100% + 8px);display:none;height:400px;background:var(--bg);border:1px solid var(--border-strong);border-radius:var(--r-lg);box-shadow:0 8px 28px rgba(0,0,0,.13);overflow:hidden;z-index:20}
+.drawer.show{display:flex}
+.dlist{flex:1.1;min-width:0;display:flex;flex-direction:column;border-right:1px solid var(--border)}
+.dlist .lhead{flex:none;display:flex;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border)}
+.dlist .lhead input{flex:1;border:none;outline:none;background:transparent}
+.dlist .lhead .cnt{color:var(--subtle);font-size:11px}
+.dlbody{flex:1;overflow:auto;padding:4px 0}
+.dgrp{padding:5px 10px 3px;color:var(--subtle);font-size:11px}
+.ditem{display:flex;align-items:center;gap:8px;padding:4px 10px;cursor:pointer}
+.ditem .nm{font-family:var(--mono);font-weight:600;color:var(--accent);flex:none;min-width:86px}
+.ditem .ds{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ditem .bdg{flex:none;font-size:10px;padding:0 6px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
+.ditem .bdg.in{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.ditem.sel{background:var(--active)}
+.ditem.sel .ds{color:var(--accent)}
+.dfoot{flex:none;border-top:1px solid var(--border);padding:6px 10px;color:var(--subtle);font-size:11px;display:flex;gap:12px}
+.ddetail{flex:1;min-width:0;padding:12px 14px;overflow:auto}
+.ddetail .hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ddetail .hd .nm{font-family:var(--mono);font-weight:700;font-size:14px;color:var(--accent)}
+.ddetail .zh{margin-top:6px;font-size:12.5px}
+.ddetail .dt{color:var(--muted);margin-top:5px}
+.ddetail .exs{margin-top:10px}
+.ddetail .how{margin:10px 0 0}
+.ddetail .dlinks{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.ddetail .none{color:var(--subtle);text-align:center;margin-top:150px}
+
+/* ── 入门课 overlay ── */
+.overlay{position:fixed;inset:0;background:rgba(59,59,59,.32);display:none;z-index:40;align-items:center;justify-content:center}
+.overlay.show{display:flex}
+.wizard{width:min(920px,94vw);height:min(640px,90vh);background:var(--panel);border:1px solid var(--border-strong);border-radius:var(--r-lg);box-shadow:0 18px 60px rgba(0,0,0,.22);display:flex;flex-direction:column;overflow:hidden}
+.whead{flex:none;display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--border)}
+.whead b{font-size:14px}
+.whead .prog{flex:1;height:4px;background:var(--hover);border-radius:2px;overflow:hidden}
+.whead .prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s}
+.whead .pct{color:var(--muted);font-variant-numeric:tabular-nums}
+.whead .x{color:var(--muted);padding:2px 6px;border-radius:var(--r-sm)}
+.whead .x:hover{background:var(--hover)}
+.wbody{flex:1;display:flex;min-height:0}
+.rail{width:230px;flex:none;background:var(--bg);border-right:1px solid var(--border);overflow:auto;padding:8px}
+.step{display:flex;gap:8px;padding:6px 8px;border-radius:var(--r-sm);cursor:pointer;align-items:flex-start}
+.step:hover{background:var(--hover)}
+.step.on{background:var(--active)}
+.step.on .t{color:var(--accent)}
+.step .no{flex:none;width:16px;height:16px;border:1px solid var(--border-strong);border-radius:50%;font-size:10px;display:flex;align-items:center;justify-content:center;color:var(--muted);margin-top:1px}
+.step.done .no{background:var(--ok);border-color:var(--ok);color:#fff}
+.step .t{flex:1;font-weight:500}
+.step .st{color:var(--subtle);font-size:10px;font-weight:400}
+.lesson{flex:1;min-width:0;display:flex;flex-direction:column;padding:14px 20px;overflow:auto}
+.lesson h2{font-size:16px}
+.lesson .goal{margin-top:4px;color:var(--muted)}
+.lesson .pts{margin:10px 0 0;padding-left:18px;color:var(--fg)}
+.lesson .pts li{margin:3px 0}
+.lesson .pts b{color:var(--accent);font-family:var(--mono);font-weight:600}
+.terminal{margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);font-family:var(--mono);font-size:12px;line-height:1.6;padding:12px 14px;min-height:130px}
+.terminal .tbar{display:flex;gap:5px;margin-bottom:8px}
+.terminal .tbar i{width:9px;height:9px;border-radius:50%;background:var(--border);display:block}
+.terminal .ln{white-space:pre-wrap;word-break:break-all}
+.terminal .in{color:var(--fg)}
+.terminal .in::before{content:"❯ ";color:var(--accent)}
+.terminal .out{color:var(--muted)}
+.terminal .hl{color:var(--accent)}
+.terminal .cursor{display:inline-block;width:7px;height:13px;background:var(--accent);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.lpractice{margin-top:12px;padding:10px 12px;border:1px dashed var(--border-strong);border-radius:var(--r-md);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.lpractice .pt{flex:1;min-width:200px}
+.lpractice .pt b{color:var(--accent)}
+.lpractice .pt p{color:var(--muted);margin-top:2px}
+.wfoot{flex:none;display:flex;gap:8px;align-items:center;padding:10px 16px;background:var(--bg);border-top:1px solid var(--border)}
+.wfoot .note{color:var(--subtle);font-size:11px}
+.wfoot .sp{flex:1}
+/* 结业速查 */
+.cheat{columns:2;column-gap:16px;margin-top:12px}
+.cheat .cg{break-inside:avoid;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg);padding:8px 10px}
+.cheat .cg>b{color:var(--accent)}
+.cheat .ci{display:flex;gap:6px;margin-top:3px}
+.cheat .ci span{font-family:var(--mono);font-size:11px;color:var(--accent)}
+.cheat .ci em{font-style:normal;color:var(--subtle);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+#toast{position:fixed;bottom:110px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--fg);color:var(--bg);padding:7px 16px;border-radius:var(--r-sm);opacity:0;pointer-events:none;transition:all .18s;font-size:12px;z-index:60}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.footnote{margin:26px 0 8px;padding:10px 14px;border:1px dashed var(--border-strong);border-radius:var(--r-md);color:var(--subtle);font-size:11px}
+.footnote b{color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="titlebar">
+  <span class="lights"><i></i><i></i><i></i></span>
+  <div class="crumb">工作区 / <b>tmd-cli</b> / <span id="crumbTab">omp 指南</span></div>
+  <div class="acts"><span>⌘K</span><span>设置</span></div>
+</div>
+
+<div class="body">
+  <aside class="sidebar">
+    <div class="academy">
+      <button class="academy-btn" id="academyBtn">
+        <span class="glyph">学</span>
+        <span class="tt"><b>omp 学堂</b><span id="academySub">13 课入门 + 82 条命令指南</span></span>
+        <span class="pct" id="academyPct">0%</span>
+      </button>
+      <div class="academy-pop" id="academyPop">
+        <button id="popContinue"><b>继续入门</b><small id="popProg">第 1 课 / 13</small></button>
+        <button id="popGuide"><b>完整指南</b><small>82 条命令</small></button>
+        <button id="popCheat"><b>结业速查表</b><small>一屏总览</small></button>
+        <hr>
+        <button id="popReset" class="danger"><b>重置学习进度</b></button>
+      </div>
+    </div>
+
+    <div class="seg"><button>本地</button><button>WSL</button><button>归档</button></div>
+    <div class="side-sec">工作区<span class="sp"></span>+</div>
+    <div class="ws"><span class="dot"></span><b>tmd-cli</b><small>2 会话</small></div>
+    <div class="grp-h">▸ omp <span style="color:var(--faint)">2</span></div>
+    <div class="sess on"><span class="st" style="background:var(--ok)"></span><span class="nm">重构登录模块</span><time>2m</time></div>
+    <div class="sess"><span class="st" style="background:var(--warn)"></span><span class="nm">修支付回调</span><time>1h</time></div>
+    <div class="grp-h">▸ claude <span style="color:var(--faint)">1</span></div>
+    <div class="side-foot"><span>v0.2.2</span><span class="sp" style="flex:1"></span><span>100%</span></div>
+  </aside>
+
+  <div class="main">
+    <div class="tabbar">
+      <button class="tab" data-view="term">终端<span class="live"></span></button>
+      <button class="tab on" data-view="guide">omp 指南</button>
+      <button class="tab" data-view="git">Git</button>
+    </div>
+
+    <div class="views">
+      <!-- 终端 -->
+      <div class="view" id="view-term">
+        <div class="stream">
+          <div class="msg user"><div class="who">你</div><div class="body">帮我把 src/kernel 里的死代码清一遍,先列计划再动手</div></div>
+          <div class="msg"><div class="who">omp</div><div class="body">收到。我先进入 plan 模式梳理清单,再逐文件确认引用后删除…</div></div>
+          <div class="msg" style="color:var(--subtle);font-size:11px">终端以 xterm 原样透传,学堂只在幕布之外提供讲解与快捷操作。</div>
+        </div>
+      </div>
+
+      <!-- 指南 -->
+      <div class="view on" id="view-guide">
+        <div class="gtoolbar">
+          <div class="search"><input id="q" placeholder="搜索命令或功能,如 compact / 额度 / 分支" autocomplete="off"></div>
+          <span class="meta">命中 <b id="hits">82</b> / 82</span>
+          <span class="sp"></span>
+          <button class="tgl on" id="tglLearn">学习模式</button>
+          <button class="tgl" id="tglExpand">全部展开</button>
+        </div>
+        <div class="chips" id="chips"></div>
+        <div class="gscroll" id="gscroll">
+          <div class="gintro">
+            <h1>omp 学堂 · 完整指南</h1>
+            <p>在对话框输入 <b style="font-family:var(--mono)">/</b> 能唤出 omp 的全部命令。这里按「你什么时候需要它」分成 10 章:每条命令先讲「为什么需要它」,再给可跟做的示例——<b>场景</b>(你何时会走到这步)→ <b>操作</b> → <b>回显</b> → <b>预期</b>(会发生什么、意味着什么、下一步干嘛)。蓝徽章 = tmd-cli 已有对应面板,一键直达;点「试一试」直接到终端练习。</p>
+            <div class="legend">
+              <span><span class="badge b-in">已接入</span>tmd-cli 有对应面板</span>
+              <span><span class="badge b-send">插入发送</span>一键插入对话框执行</span>
+              <span>第一次用?左侧「omp 学堂」→ 继续入门,13 课带你走完全部章节</span>
+            </div>
+          </div>
+          <div id="content"></div>
+          <div class="empty" id="empty">没有匹配的命令 — 试试「额度」「分支」「todo」</div>
+          <div class="footnote">
+            <b>设计说明(评审用,非用户内容)。</b>建议新插件 <b>omp-academy</b>(cli-* 同族,activate 注册四处):
+            ① 新挂点 registerSidebarHeaderEntry 画左面板顶部入口(进度态);
+            ② registerTabContent 挂「omp 指南」中央 tab(纯静态目录 + 检索,零 PTY 依赖,不违反幕布铁则);
+            ③ 斜杠抽屉 = composer 既有 cli-sourced suggestions 机制的 omp 静态表增强(数据经 cli-shared 声明,≥2 消费方:抽屉 + 指南);
+            ④ 入门课 overlay 为插件自有 UI,练习经 composer 插入通道与 tab 切换完成,不直接操作 PTY。
+            命令表随 omp 版本探测,失效显示缓存 + 版本提示。
+          </div>
+        </div>
+      </div>
+
+      <!-- git 占位 -->
+      <div class="view" id="view-git"><div>Git 面板(既有功能,示意)</div></div>
+    </div>
+
+    <!-- composer -->
+    <div class="composer-wrap">
+      <div class="composer">
+        <div class="drawer" id="drawer">
+          <div class="dlist">
+            <div class="lhead"><input id="dfilter" placeholder="过滤命令,如 model / 额度 / 分支" autocomplete="off"><span class="cnt" id="dcnt"></span></div>
+            <div class="dlbody" id="dlbody"></div>
+            <div class="dfoot"><span><span class="kbd">↑↓</span> 选择</span><span><span class="kbd">Enter</span> 插入</span><span><span class="kbd">Esc</span> 关闭</span></div>
+          </div>
+          <div class="ddetail" id="ddetail"><div class="none">↑ 在左侧选一条命令看讲解</div></div>
+        </div>
+        <div class="box" id="box">
+          <textarea id="input" rows="2" placeholder="给 omp 发消息… 输入 / 唤出命令抽屉"></textarea>
+          <div class="cbar">
+            <span class="tip">omp · GLM-5.3-Flash</span>
+            <button class="btn lnk" id="drawerBtn">试试 /</button>
+            <button class="send">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 入门课 -->
+<div class="overlay" id="overlay">
+  <div class="wizard">
+    <div class="whead">
+      <b>omp 入门 · 13 课</b>
+      <div class="prog"><i id="wbar"></i></div>
+      <span class="pct" id="wpct"></span>
+      <button class="x" id="wclose">✕</button>
+    </div>
+    <div class="wbody">
+      <aside class="rail" id="rail"></aside>
+      <div class="lesson" id="lesson"></div>
+    </div>
+    <div class="wfoot">
+      <span class="note">进度保存在本机 · 「试一试」关掉课程直接到终端练</span>
+      <span class="sp"></span>
+      <button class="btn lnk" id="replay">重播演示</button>
+      <button class="btn" id="wprev">上一步</button>
+      <button class="btn pri" id="wnext">下一步</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script id="catalog-slot">window.OMP_CATALOG={"total":82,"chapters":[{"id":"lifecycle","title":"开始与会话","desc":"新建、恢复、清理会话;会话就像一个可来回切换的工作台","commands":[{"name":"new","icon":"plus","en":"Start a new session","zh":"开始一个新会话","usage":null,"tmd":"会话列表","how":"侧栏新建会话按钮直达同一动作","subs":[],"detail":"换任务时开全新会话。为什么:上一任务的上下文会残留干扰——agent 记着旧目标、旧文件,新任务容易答非所问;新会话 = 干净的脑子。旧会话完整留在磁盘,随时 /resume 找回,所以开新会话零成本。注意:只是同任务换思路,用 /clear 更合适,别把积累的上下文白白扔掉。","ex":[{"sc":"手头 bug 修完,要开始写新功能了","i":"/new 实现导出 PDF","o":"已开始新会话「实现导出 PDF」(tmd-cli)","e":"旧会话原样保留在磁盘,随时 /resume 回去补漏。agent 上下文已清空,开始前把新任务的背景一次交代清楚。"}]},{"name":"resume","icon":"history","en":"Resume a different session","zh":"恢复到另一个会话","usage":"[session id|@claude|@codex]","tmd":"会话列表","how":"侧栏 omp 分组点历史会话即恢复","subs":[],"detail":"找回历史会话继续干。为什么:omp 的一切(对话、改动、todo)都存在会话里,恢复 = 完整还原「做到哪了」,不用重新交代背景。不带参数列出最近会话;跨引擎会话也能恢复(@claude/@codex)。tmd-cli 侧栏 omp 分组点一下就是它。注意:resume 列表默认只显示当前目录的会话,别处开会话用 /move 或换目录。","ex":[{"sc":"昨天改到一半的会话,今天接着干","i":"/resume","o":"最近会话:\n▸ 修支付回调(2h 前)\n  重构登录模块(昨天)\n↑↓ 选择,Enter 恢复","e":"选中后对话、todo、改动记录完整还原,agent 记得做到哪。恢复后先让它复述一遍当前状态再继续,确认没走偏。"},{"sc":"在别的目录开的会话,列表里找不到","i":"/resume","o":"列表为空或只有本目录会话","e":"resume 按目录过滤——去原目录再 /resume,或用 /move 把会话挪过来。"}]},{"name":"session","icon":"session","en":"Session management commands","zh":"会话管理(info / delete / pin)","usage":null,"tmd":"会话列表","how":"重命名/删除/置顶在侧栏会话右键菜单","subs":[{"name":"info","en":"Show session info and stats","usage":null},{"name":"delete","en":"Delete current session and return to selector","usage":null},{"name":"pin","en":"Pin the current provider to a stored OAuth account","usage":"[account]"}],"detail":"会话的档案入口。为什么:跑久了「这会话花了多少、干了什么」全靠回忆,info 一条命令给统计(消息数/token/费用/时长)。delete 在这里做,pin 也在。注意:delete 不可恢复,只想清上下文请出门左转 /clear。","ex":[{"sc":"感觉这会话跑挺久了,想看看花了多少","i":"/session info","o":"会话 8f3e21 · 42 条消息 · 128K tokens · 约 $0.86 · 时长 1h12m","e":"token 与费用按当前供应商口径估算。花得多且产出慢,考虑 /compact 或 /new 重开;数字正常就继续。"}]},{"name":"pin","icon":"pin","en":"Pin or unpin a session at the top of the resume list","zh":"置顶/取消置顶(resume 列表)","usage":"[session id]","tmd":"插入发送","how":"在对话框输入 /pin 回车,即发送到终端执行","subs":[],"detail":"把会话钉在 resume 列表顶部。为什么:会话多了新会话会把常用的挤下去,每次翻半天;钉住的永远在最上面。注意:再输一次取消;钉的是「在列表中的位置」,不是只读锁定,照常可用。","ex":[{"sc":"有个主会话天天用,老被新会话挤下去","i":"/pin","o":"已置顶:修支付回调","e":"它在 resume 列表永远排最上,不再翻找。不想置顶再输一次 /pin 即取消。"}]},{"name":"rename","icon":"pencil","en":"Rename the current session (omit title to generate)","zh":"重命名当前会话(留空自动起名)","usage":"[title]","tmd":"插入发送","how":"在对话框输入 /rename 回车,即发送到终端执行","subs":[],"detail":"给会话起人能认的名字。为什么:默认会话名是自动摘要或 id,三天后 resume 列表里你自己都不认识;名字是检索会话的唯一人肉索引。不带参数时 agent 读内容自动起名,起得还挺准。注意:随手改名的习惯值回票价,尤其多会话并行时。","ex":[{"sc":"自动起的名字「修复 bug」太泛,认不出是哪个","i":"/rename 修支付回调超时","o":"已重命名:修支付回调超时","e":"resume 列表立刻显示新名字。一周后的你靠这行字找回会话,值得花两秒。"}]},{"name":"move","icon":"folderMove","en":"Move the current session to a different directory","zh":"把当前会话移到别的目录","usage":"[<path>]","tmd":"插入发送","how":"在对话框输入 /move 回车,即发送到终端执行","subs":[],"detail":"把会话文件搬到另一目录。为什么:resume 按目录过滤,在 A 项目开的会话不会出现在 B 项目列表里;挪过去才找得到。注意:会话里记录的文件路径不会跟着改,跨项目引用的绝对路径注意失效。","ex":[{"sc":"在临时目录开的会话,成果归到正式项目","i":"/move ~/code/tmd-cli","o":"会话已移动到 ~/code/tmd-cli","e":"在正式项目目录 /resume 就能找到它。注意会话里引用的绝对路径不受影响,跨目录的相对路径可能失效。"}]},{"name":"delete","icon":"trash","en":"Delete the current session and start a new one","zh":"删除当前会话并新建","usage":null,"tmd":"插入发送","how":"在对话框输入 /delete 回车,即发送到终端执行","subs":[],"detail":"删除当前会话并立刻开新的。为什么:敏感内容(误贴的密钥、客户数据)需要彻底清除时用它;也用于清理废弃会话。注意:不可恢复、没有回收站;只是想轻装上阵用 /clear,想换任务用 /new——这仨别混。","ex":[{"sc":"误把密钥贴进了会话,需要彻底清除","i":"/delete","o":"会话已删除,已开新会话","e":"文件级删除,不可恢复。密钥若已推给供应商,还要去后台吊销 key——删会话只是本地清场。"}]},{"name":"fresh","icon":"restart","en":"Reset provider stream state without changing the local transcript","zh":"重置供应商流状态(不动本地记录)","usage":null,"tmd":"插入发送","how":"在对话框输入 /fresh 回车,即发送到终端执行","subs":[],"detail":"只重置模型连接状态。为什么:流卡死、连续 429/超时、回复断在半截,多半是连接态坏了而不是对话坏了;这时 /clear 或 /new 都是把孩子和洗澡水一起倒掉。注意:不动对话内容;fresh 完还不好使,再考虑重启 /restart。","ex":[{"sc":"回复断在半截,再发就 429,上下文明明没满","i":"/fresh","o":"供应商流状态已重置(对话内容保留)","e":"坏的是连接态不是对话,fresh 后直接重发上一条即可。若依旧失败,等限流窗口过去或 /switch 换供应商。"}]},{"name":"clear","icon":"eraser","en":"Clear the conversation context in place, keeping the session","zh":"原地清空对话上下文,保留会话","usage":null,"tmd":"插入发送","how":"在对话框输入 /clear 回车,即发送到终端执行","subs":[],"detail":"原地清空上下文但保留会话。为什么:同一任务做到一半「前面试错的垃圾信息太多,agent 被带偏了」,需要翻篇但不想丢会话身份与统计;clear 给你干净的上下文 + 连续的历史。注意:被清掉的细节不可恢复,重要结论先让 agent 写进文件或 /handoff。","ex":[{"sc":"同一个需求试错了十轮,上下文全是废稿,agent 被带偏","i":"/clear","o":"上下文已清空,会话与标题保留","e":"干净的脑子 + 保留的会话身份与统计。清前把有效结论让 agent 写进文件或记下来,清完重新交代约束,别指望它还记得。"}]},{"name":"restart","icon":"restart","en":"Restart omp with the same launch flags, resuming this session","zh":"用相同启动参数重启 omp 并恢复本会话","usage":null,"tmd":"插入发送","how":"在对话框输入 /restart 回车,即发送到终端执行","subs":[],"detail":"带参重启并恢复现场。为什么:升级版本、改配置文件后通常要重启才生效,手动退出→重开→找会话三步变成一步,且当前会话原样恢复。注意:跑着的后台任务会被打断,先 /jobs 看一眼再重启。","ex":[{"sc":"刚升级了 omp 版本,设置里改了配置","i":"/restart","o":"omp 正在重启并恢复本会话…","e":"几秒后回到同一会话,新版本与配置已生效。跑着的后台任务被打断,重启后 /jobs 检查残局。"}]},{"name":"exit","icon":null,"en":"Exit the application","zh":"退出应用","usage":null,"tmd":"插入发送","how":"在对话框输入 /exit 回车,即发送到终端执行","subs":[],"detail":"退出 omp。为什么:正常退出会确保会话落盘、子进程收尾;直接关终端窗口在极端情况下可能丢最后一轮。注意:tmd-cli 里关终端 tab 等效;会话自动保存,不用怕。","ex":[{"sc":"今天收工","i":"/exit","o":"会话已保存,再见","e":"所有状态落盘,明天 /resume 无缝接上。tmd-cli 里直接关终端 tab 一样安全。"}]},{"name":"quit","icon":"power","en":"Quit the application","zh":"退出应用","usage":null,"tmd":"插入发送","how":"在对话框输入 /quit 回车,即发送到终端执行","subs":[],"detail":"同 /exit。为什么:肌肉记忆各有所好,两个都留。注意:无差别,选顺手的。","ex":[{"sc":"收工(习惯说 quit)","i":"/quit","o":"同 /exit:会话已保存,再见","e":"无差别,两个命令一个效果。"}]}]},{"id":"model","title":"模型与账号","desc":"换模型、管账号、看用量;先搞清这些,花钱心里有数","commands":[{"name":"model","icon":"model","en":"Switch model for this session","zh":"为本会话切换模型","usage":null,"tmd":"模型配置","how":"composer 上方模型 pill 快速切换","subs":[],"detail":"切换本会话模型。为什么:不同任务配不同脑子——读代码要长上下文、改文案要文笔、跑批要便宜;一根模型打天下又贵又笨。切换立即生效,历史上下文原样带过去。tmd-cli composer 的模型 pill 是同一能力。注意:切模型不改系统提示,个别模型差异大的任务建议配合 /new。","ex":[{"sc":"要写一段对文笔要求高的文案,当前是便宜的快模型","i":"/model","o":"选择模型:\n▸ GLM-4.6 (coding plan)\n  Claude Sonnet 4.5\n  GPT-5.1\nEnter 切换,Esc 取消","e":"选中即生效,下一条消息就换脑子,历史上下文原样带过去。文案写完记得切回默认,别让贵模型跑杂活。"},{"sc":"不确定该选哪个","i":"/model","o":"(选择器列表)","e":"经验:读码/大仓用长上下文款,写作用旗舰款,跑批用便宜款。tmd-cli composer 的模型 pill 是同一件事的图形化,顺手就用它。"}]},{"name":"switch","icon":"swap","en":"Switch model for this session (same as alt+p); accepts fuzzy ids, provider/id, @role, :level","zh":"切换模型(同 Alt+P),支持模糊 id","usage":"[model]","tmd":"模型配置","how":"composer 模型 pill 即可视化管理","subs":[],"detail":"/model 的快捷版。为什么:选择器要点两下,背熟 id 后 switch sonnet 一秒完成;等价 Alt+P。支持模糊匹配,前缀够唯一就行。注意:模糊匹配歧义时会列表确认,不会切错。","ex":[{"sc":"背熟了 id,懒得进选择器","i":"/switch sonnet","o":"已切换:Claude Sonnet 4.5","e":"模糊匹配,前缀唯一即中。切错会在确认列表拦下,不会默默切错。等价快捷键 Alt+P。"}]},{"name":"login","icon":"signIn","en":"Login with OAuth provider","zh":"用 OAuth 登录供应商","usage":"[provider|redirect URL]","tmd":"凭据面板","how":"welcome 引擎卡「凭据」入口,OAuth 同流程","subs":[],"detail":"OAuth 登录供应商。为什么:订阅类(Claude Pro、GLM Coding Plan)走 OAuth 才吃到订阅额度,API key 是另一套计费;登错通道是「有订阅却按量扣费」的常见原因。tmd-cli 凭据面板同一流程。注意:多账号轮换登录会被供应商风控盯上,一个供应商固定一个号。","ex":[{"sc":"新买了 GLM Coding Plan 订阅,想吃到订阅额度","i":"/login","o":"选择供应商:\n▸ Z.ai Coding Plan (OAuth)\n  Anthropic (OAuth)\n浏览器即将打开授权页…","e":"浏览器授权后回到终端即登录成功。走 OAuth 才吃订阅额度——直接贴 API key 会走按量计费,这是「有订阅还扣钱」的头号原因。"}]},{"name":"logout","icon":"signOut","en":"Logout from OAuth provider","zh":"退出 OAuth 登录","usage":"[provider]","tmd":"凭据面板","how":"凭据面板内移除凭据等效","subs":[],"detail":"退出 OAuth。为什么:换号、借出的机器、回收凭据时必须主动退出,光删配置文件可能留残留 token。注意:logout 后该供应商立刻不可用,确保有备用通道(另一个供应商或 key)。","ex":[{"sc":"这台共用机器登过我的号,要走 了","i":"/logout","o":"选择要退出的供应商 → 已退出 Z.ai Coding Plan","e":"token 立即失效,该供应商不可用。确认有别的通道(另一个供应商或 key)再退,别把自己锁外面。"}]},{"name":"setup","icon":"gear","en":"Open provider setup","zh":"打开 provider 配置向导(接 API / 订阅)","usage":null,"tmd":"插入发送","how":"在对话框输入 /setup 回车,即发送到终端执行","subs":[{"name":"providers","en":"Configure sign-in and web search providers","usage":null}],"detail":"provider 配置向导。为什么:首次配置要选供应商、贴 key、配 base URL、测连通,散着配容易漏;向导一条龙并当场验证。注意:已有配置跑 setup 不破坏现值,只改你动过的项。","ex":[{"sc":"第一次用,或换了新 key","i":"/setup","o":"Provider 配置向导:\n1 选择供应商 → 2 粘贴 key → 3 测试连通 ✓","e":"当场验证连通,配置完直接能聊。已有配置不会被覆盖,只改你动过的项。"}]},{"name":"settings","icon":"settings","en":"Open settings menu","zh":"打开设置菜单(模型、主题、行为等)","usage":null,"tmd":"设置面板","how":"tmd-cli 设置里「omp」分区覆盖常用项","subs":[],"detail":"omp 设置菜单。为什么:默认模型、自动压缩阈值、主题、通知这些持久偏好在这;tmd-cli 设置面板覆盖常用项,细项和全量在这里。注意:设置是全局的,本会话临时的开关(如 plan 模式)不在这。","ex":[{"sc":"想把自动压缩阈值调低点,少占上下文","i":"/settings","o":"设置:默认模型 / 压缩阈值 / 主题 / 通知 …","e":"改的是全局持久配置。tmd-cli 设置面板的 omp 分区覆盖常用项,细项来这里。"}]},{"name":"usage","icon":"gauge","en":"Show provider usage and limits","zh":"查看供应商用量与额度限制","usage":null,"tmd":"额度面板","how":"右栏额度面板已同步同一数据源","subs":[{"name":"show","en":"Show provider usage and limits","usage":null},{"name":"reset","en":"Spend a saved provider rate-limit reset","usage":"[provider/credential-id|provider/active]"}],"detail":"看额度与限流。为什么:「怎么突然变笨了」十有八九是限流或配额见底;用量心里有数,跑大批任务前先看一眼余额,避免跑到一半断粮。tmd-cli 额度面板同步同一数据。注意:多供应商时显示当前会话所用供应商的额度,切换后数字会变。","ex":[{"sc":"感觉回复变慢变笨了,先排除限流","i":"/usage","o":"GLM Coding Plan 本月:112.4M / 120M tokens(94%)\n5h 窗口:已用 82%","e":"原因找到了:配额见底被限流。要么等窗口重置、要么 /slow 降优先级、要么切备用供应商。大批任务前先看这,别跑一半断粮。"}]},{"name":"stats","icon":"stats","en":"Launch the local stats dashboard","zh":"启动本地统计 Dashboard","usage":"[--port <port>] [--host <host>]","tmd":"插入发送","how":"在对话框输入 /stats 回车,即发送到终端执行","subs":[],"detail":"本地统计 Dashboard。为什么:usage 看当下,stats 看历史——花费曲线、项目分布、会话趋势,月底对账、优化烧钱习惯靠它。本地数据不出机器。注意:起的是本地 web 服务,用完可关;数据依赖会话文件在默认位置。","ex":[{"sc":"月底了,看看这个月钱花在哪个项目","i":"/stats","o":"统计 Dashboard → http://127.0.0.1:28431\n会话 47 · tokens 210M · 项目分布图 …","e":"本地数据不出机器。发现某项目独占六成花费,考虑给它限速或换便宜模型。"}]},{"name":"fast","icon":"fast","en":"Toggle priority service tier (OpenAI service_tier=priority, Anthropic speed=fast)","zh":"切换 priority 服务档(OpenAI/Anthropic 高优先级通道)","usage":null,"tmd":"插入发送","how":"在对话框输入 /fast 回车,即发送到终端执行","subs":[{"name":"on","en":"Enable fast mode","usage":null},{"name":"off","en":"Disable fast mode","usage":null},{"name":"status","en":"Show fast mode status","usage":null}],"detail":"切 priority 高优通道。为什么:同一模型有快慢通道,高峰期普通通道排队明显;fast 花钱买确定性延迟。赶交付、演示前开它。注意:费率上浮明显(可能数倍),日常挂 fast 纯属烧钱,用完切回。","ex":[{"sc":"下午要给客户演示,响应必须快","i":"/fast","o":"priority 服务档已开启(费率上浮,响应更快)","e":"高峰期也能拿到稳定低延迟。演示完记得 /slow 或切回默认——fast 费率可能是数倍,日常挂着纯烧钱。"}]},{"name":"slow","icon":"fast","en":"Toggle slow mode: flex tier on OpenAI/Google; on Anthropic, continue at lower priority after the Claude session limit","zh":"切换 slow 档:flex/低优先级,省额度换等待","usage":null,"tmd":"插入发送","how":"在对话框输入 /slow 回车,即发送到终端执行","subs":[{"name":"on","en":"Flex tier, or Anthropic lower priority at the session limit (auto)","usage":null},{"name":"off","en":"Standard service; stop Anthropic lower-priority mode","usage":null},{"name":"status","en":"Show slow mode status","usage":null}],"detail":"切 flex/低优先级档。为什么:不急的任务(夜间批量、文档生成)用折扣价换供应商空闲时段调度,成本能省一大截。注意:等待时间不可控,交互式工作别开;配额类订阅看规则,可能不省钱只降优先级。","ex":[{"sc":"今晚要跑一批文档生成,不急","i":"/slow","o":"已切到 flex 档:更省钱,调度等待变长","e":"供应商闲时才调度,成本省一大截。交互工作别用——等 30 秒回一句话会疯。"}]},{"name":"extended-context","icon":"expand","en":"Toggle extended context windows","zh":"切换扩展上下文窗口","usage":null,"tmd":"插入发送","how":"在对话框输入 /extended-context 回车,即发送到终端执行","subs":[{"name":"on","en":"Enable larger context windows","usage":null},{"name":"off","en":"Use default or standard-pricing context windows","usage":null},{"name":"status","en":"Show extended context status","usage":null}],"detail":"请求扩展上下文窗口。为什么:大仓库全局重构、超长文档分析,200K 装不下时唯一解是更大的窗口;避免暴力拆分丢全局视野。注意:扩展部分费率通常更高,先 /context 看真需要多少,别为 30K 的任务开 1M。","ex":[{"sc":"要把整个仓库 300 个文件做全局重构分析","i":"/extended-context","o":"扩展上下文已开启:200K → 1M(费率见供应商)","e":"现在能一次装下全仓。先 /context 确认真装了这么多——只为 30K 的任务开 1M 是纯浪费,费率通常更高。"}]}]},{"id":"modes","title":"模式与自主","desc":"omp 的灵魂:让 agent 先想后做、持续自主、排队不插队","commands":[{"name":"plan","icon":"plan","en":"Toggle plan mode (agent plans before executing)","zh":"切换 Plan 模式:先出计划再动手","usage":"[prompt]","tmd":"插入发送","how":"在对话框输入 /plan 回车,即发送到终端执行","subs":[],"detail":"Plan 模式:先出计划再动手。为什么:agent 直接动手的第一版常常方向就错,返工成本远大于先看计划;plan 强制只读调研,把「做什么、改哪些文件、风险」摊开给你拍板。复杂/不可逆操作(重构、删代码、改架构)前必开。注意:小改动别开,仪式感浪费时间;也可以直接在消息里要求「先说思路再改」轻量达成。","ex":[{"sc":"要做大重构:动 20 个文件,改核心接口","i":"/plan","o":"Plan 模式已开启:下一轮只做调研与计划,确认后再执行","e":"接下来发需求,agent 只读代码出计划(改哪些文件/风险/顺序),不动一行代码。逐条确认或打回,计划定稿再放行——这是返工率最低的工作方式。"},{"sc":"计划执行一半,想回看最初承诺","i":"/plan-review","o":"已重新打开计划评审(上次计划:重构登录模块)","e":"对照原始计划判断:计划本身错了就 /branch 回退改计划;只是执行偏了就把偏差指出来纠正。"}]},{"name":"plan-review","icon":"plan","en":"Re-open the plan review for the latest plan (plan mode only)","zh":"重新打开最近一次计划的评审视图","usage":null,"tmd":"插入发送","how":"在对话框输入 /plan-review 回车,即发送到终端执行","subs":[],"detail":"重看最近一次计划。为什么:执行到一半发现不对劲,需要对照原始计划确认是「计划错了」还是「执行偏了」;也用于给新同事复盘决策。注意:只针对最近一次 plan,更早的翻 /export 记录。","ex":[{"sc":"执行到一半发现和当初说的不一样","i":"/plan-review","o":"已重新打开计划评审","e":"对照计划:计划错→branch 回退;执行偏→指出纠正。别凭记忆吵架,看原始文档。"}]},{"name":"vibe","icon":"wave","en":"Toggle vibe mode (direct persistent fast/good worker sessions; read-only toolset)","zh":"切换 Vibe 模式:常驻快/好档直接干活","usage":"[prompt]","tmd":"插入发送","how":"在对话框输入 /vibe 回车,即发送到终端执行","subs":[],"detail":"Vibe 模式:常驻快档直干。为什么:小改动连发时,每步都确认烦死人;vibe 砍仪式、快/好档直出,保持心流。注意:大改动、生产文件、不熟悉的模块别 vibe——它砍掉的确认正是你翻车前的最后一道闸;配合 /loop 用注意配额。","ex":[{"sc":"连续做十个小改动:改文案、调样式、补注释","i":"/vibe","o":"Vibe 模式开启:快/好档直干,减少确认","e":"每步不再要确认,连发保持心流。涉及生产配置、数据库、不熟悉的模块,先关 vibe——被砍掉的确认是最后一道闸。"}]},{"name":"goal","icon":"goal","en":"Toggle goal mode (persistent autonomous objective for this session)","zh":"切换 Goal 模式:给会话一个持续自主的目标","usage":"[objective]","tmd":"插入发送","how":"在对话框输入 /goal 回车,即发送到终端执行","subs":[{"name":"set","en":"Set or replace the goal","usage":"<objective>"},{"name":"show","en":"Show current goal details","usage":null},{"name":"pause","en":"Pause the current goal","usage":null},{"name":"resume","en":"Resume a paused goal","usage":null},{"name":"drop","en":"Drop the current goal","usage":null},{"name":"budget","en":"Adjust the token budget","usage":"<N|off>"}],"detail":"给会话一个持续自主的目标。为什么:多步任务(修 flaky、清 warning)一句一句指挥太累;goal 让 agent 自转「做→验证→继续」直到达成,你只看结果。目标质量决定一切:写成可判定的完成条件(命令通过、数字达标),别写「弄好一点」。注意:烧 token 大户,睡觉/离开前挂上,配额度上限;偏离就 /pause 拉回。","ex":[{"sc":"仓库有 14 个 flaky 测试,想一次清干净","i":"/goal 把 flaky 测试修到全绿","o":"目标已设定:把 flaky 测试修到全绿\n完成判定:pnpm test 连续 2 次全绿","e":"agent 开始「修→跑→继续」自转,不用你每轮指挥。目标里「连续 2 次全绿」是可判定条件——写成这种才有效;睡觉前挂上,早上收结果。中途偏离 /pause 拉回。"}]},{"name":"guided-goal","icon":"compass","en":"Have the agent interview you in chat, then set up goal mode","zh":"由 agent 对话式采访你,再帮你配置 goal 模式","usage":"[rough objective]","tmd":"插入发送","how":"在对话框输入 /guided-goal 回车,即发送到终端执行","subs":[],"detail":"agent 采访式配 goal。为什么:goal 难写——容易写成愿望而非完成条件;采访(要什么/怎么判定/禁区)逼你把模糊想法变成可执行目标,最后自动配好。注意:采访会花两三轮对话,急事直接手写 goal。","ex":[{"sc":"知道要啥但写不出合格的 goal","i":"/guided-goal","o":"我先问你三个问题:想达成什么?怎么算完成?有什么禁区?","e":"两三轮问答后自动生成合格 goal(含可判定完成条件)。适合第一次用 goal 的人学怎么写——看它怎么问,下次就会自己写了。"}]},{"name":"loop","icon":"loop","en":"Toggle loop mode. While enabled, the next prompt you send re-submits after every yield. Bound it with a count/duration, or gate it with `--until '<cmd>'` / `--while '<cmd>'` — the command's exit status decides whether the next iteration runs. Esc suspends the ongoing loop; /loop again to disable.","zh":"切换 Loop:开启后你发的下一条消息会循环反复提交","usage":"[count|duration] [--while|--until '<cmd>'] [prompt]","tmd":"插入发送","how":"在对话框输入 /loop 回车,即发送到终端执行","subs":[],"detail":"循环提交消息。为什么:「盯着修到测试全绿」这类任务,每轮结束手动喊继续太蠢;loop 按间隔自动重发,人不用守着。注意:务必配终止条件(消息里写清达标即停)和额度上限,否则烧穿配额;关掉就再输 /loop。","ex":[{"sc":"让 agent 盯着 CI,直到测试全绿","i":"/loop 10m","o":"循环已开启:每 10 分钟重新提交上一条消息(/loop 关闭)","e":"上一条消息每 10 分钟自动重发,agent 每轮检查进度。务必在消息里写清「达标即停」,并盯着 /usage——无人值守的循环是头号烧钱方式。"}]},{"name":"queue","icon":"inbox","en":"Queue a message for after the agent yields","zh":"把消息排进队列,等 agent 忙完这轮再发送","usage":"<message>","tmd":"插入发送","how":"在对话框输入 /queue 回车,即发送到终端执行","subs":[],"detail":"排队发消息。为什么:agent 正在跑长任务,直接发消息要么插队打断、要么被吞;queue 把话排上,这轮结束自动送出,不打断节奏。注意:排队消息在发送前可以再改,留意别排了忘发;紧急打断还是直接发。","ex":[{"sc":"agent 正跑长重构,突然想到还要补个单测","i":"/queue 修完顺手给 parse 补个单测","o":"已排队:这轮结束后自动发送","e":"不打断当前节奏,这轮结束自动送出。排队的事会被记住并发送——排之前想清楚,别排了又忘。真紧急直接发,那是打断。"}]},{"name":"advisor","icon":"advisor","en":"Toggle the advisor (a second model that reviews each turn and injects notes)","zh":"切换 advisor:第二个模型逐轮复核并插话","usage":null,"tmd":"插入发送","how":"在对话框输入 /advisor 回车,即发送到终端执行","subs":[{"name":"on","en":"Enable the advisor","usage":null},{"name":"off","en":"Disable the advisor","usage":null},{"name":"status","en":"Show advisor status","usage":null},{"name":"dump","en":"Copy the advisor's transcript to clipboard","usage":"[raw]"},{"name":"configure","en":"Open the advisor configuration editor (TUI)","usage":null}],"detail":"第二模型当顾问。为什么:单模型自说自话容易集体走偏;advisor 逐轮复核主模型输出、可插话纠偏,等于自带 code review。重要项目、复杂架构决策开它。注意:token 消耗接近翻倍,别全天挂;advisor 与主模型最好异构(不同厂)避免同源盲区。","ex":[{"sc":"架构决策拍板前,想要第二意见","i":"/advisor gpt-5","o":"顾问已就位:gpt-5 将逐轮复核我的输出并可插话","e":"此后每轮多一个模型复核主模型结论,异议会摆上台面。最好选异厂模型避免同源盲区;token 翻倍,大决策开、日常关。"}]},{"name":"prewalk","icon":"prewalk","en":"Arm or restart a one-shot model handoff","zh":"布置/重启一次性模型交接(下一轮换模型跑)","usage":null,"tmd":"插入发送","how":"在对话框输入 /prewalk 回车,即发送到终端执行","subs":[{"name":"restart","en":"Return to @default and re-arm the handoff to @smol","usage":null}],"detail":"一次性模型交接。为什么:想借另一模型的长处(比如让 opus 起草、GLM 收尾),又不想整段会话迁移;prewalk 让指定模型预热一轮(读上下文出中间产物)再交回主模型。注意:只管下一轮,不是持久切换;成本按两轮算。","ex":[{"sc":"下一轮是关键设计,想让 opus 先起草","i":"/prewalk opus","o":"下一轮将由 opus 预热,随后交回主模型","e":"只影响下一轮:opus 读上下文产出中间产物,主模型接力。借长处不换会话;成本按两轮算,值不值看任务分量。"}]},{"name":"pause","icon":"pause","en":"Freeze all agents (main, subagents, advisor) until resumed","zh":"冻结全部 agent(主/子/advisor)直到恢复","usage":null,"tmd":"插入发送","how":"在对话框输入 /pause 回车,即发送到终端执行","subs":[],"detail":"冻结全部 agent。为什么:发现 agent 跑偏、想改需求、或突然要接手键盘,需要「立刻全停」而不是逐个杀;pause 一键冻结主/子/顾问。注意:跑到一半的子任务会完成当前步再停;恢复再输一次 /pause,状态保留。","ex":[{"sc":"agent 理解跑偏,再跑下去越错越远","i":"/pause","o":"已冻结全部 agent(再输 /pause 恢复)","e":"主/子/顾问全部急停,损失止步于此。冷静改需求后,再输 /pause 继续;跑一半的子任务会做完当前步再停,去 /jobs 收尾。"}]},{"name":"force","icon":"hammer","en":"Force next turn to use a specific tool","zh":"强制下一轮使用指定工具","usage":"<tool-name> [prompt]","tmd":"插入发送","how":"在对话框输入 /force 回车,即发送到终端执行","subs":[],"detail":"强制下一轮用指定工具。为什么:排查「agent 怎么不用某工具」时,把变量隔离——强制调用看工具本身好不好使,区分是工具问题还是模型选择问题;也用于测试新工具链。注意:纯调试命令,日常用会把 agent 搞得刻舟求剑。","ex":[{"sc":"怀疑 read 工具坏了,agent 老说找不到文件","i":"/force read","o":"下一轮我将强制首先调用 read 工具","e":"变量隔离:强制调用后还失败 = 工具/环境问题;成功 = 模型选择问题。调试完就停用,别拿它当常规手段。"}]}]},{"id":"tasks","title":"任务与后台","desc":"盯进度、派后台、修诊断","commands":[{"name":"todo","icon":"todo","en":"View or modify the agent's todo list","zh":"查看/修改 agent 的 todo 列表","usage":null,"tmd":"插入发送","how":"在对话框输入 /todo 回车,即发送到终端执行","subs":[{"name":"edit","en":"Open todos in $EDITOR (Markdown round-trip)","usage":null},{"name":"copy","en":"Copy todos as Markdown to clipboard","usage":null},{"name":"expand","en":"Show every phase and task in the HUD","usage":null},{"name":"collapse","en":"Restore the bounded HUD preview","usage":null},{"name":"export","en":"Write todos as Markdown to a file (default: TODO.md)","usage":"[<path>]"},{"name":"import","en":"Replace todos from a Markdown file (default: TODO.md)","usage":"[<path>]"},{"name":"append","en":"Append a task; phase fuzzy-matched or auto-created","usage":"[<phase>] <task...>"},{"name":"start","en":"Mark task in_progress (fuzzy-matched)","usage":"<task>"},{"name":"done","en":"Mark task/phase/all completed (fuzzy-matched)","usage":"[<task|phase>]"},{"name":"drop","en":"Mark task/phase/all abandoned (fuzzy-matched)","usage":"[<task|phase>]"},{"name":"rm","en":"Remove task/phase/all (fuzzy-matched)","usage":"[<task|phase>]"}],"detail":"agent 的任务列表。为什么:大任务被拆成步骤后,进度全在 todo 里;盯 todo 比滚屏看输出清楚得多,也方便插手(改优先级、删废任务)。11 个子命令覆盖编辑/导入导出。tmd-cli 未来可在侧栏可视化。注意:todo 是 agent 的工作记忆,你手动改完记得让它重新读取。","ex":[{"sc":"大任务跑起来了,想知道现在干到哪","i":"/todo","o":"● 进行中 修复 parse 竞态(2/5)\n○ 待办 补回归测试\n✓ 完成 定位根因:fs 竞态","e":"这是 agent 的工作计划,比滚屏看输出直观。发现优先级不对可以直接让它调整;全部 ✓ 说明任务收尾了,该验收 diff 了。"}]},{"name":"jobs","icon":"jobs","en":"Show async background jobs status","zh":"查看异步后台任务状态","usage":null,"tmd":"插入发送","how":"在对话框输入 /jobs 回车,即发送到终端执行","subs":[],"detail":"后台任务状态。为什么:子 agent、长命令、扫描全在后台跑,「它在磨蹭还是死了」看 jobs 一目了然;也用于确认没有残留任务就关机走人。注意:失败的子任务会在这里留尸,定期清;","ex":[{"sc":"感觉后台在跑东西,不确定是啥","i":"/jobs","o":"后台任务:2 运行中 · 1 已完成\n▸ tan#1 README 翻译(运行 2m)\n✓ cleanse#2 lint 清理","e":"看清谁在跑、跑了多久。收工前检查这里,别留孤儿任务;失败的子任务会留尸,定期清。"}]},{"name":"tan","icon":"rocket","en":"Run a full background agent on tangential work","zh":"派一个完整后台 agent 去干不相干的事","usage":"<work>","tmd":"插入发送","how":"在对话框输入 /tan 回车,即发送到终端执行","subs":[],"detail":"派后台 agent 干不相干的事。为什么:写文档、查资料这类活放进主会话会稀释上下文、拖慢主线;tan 独立上下文并行干,成果落盘不占你脑子。注意:后台 agent 看不到你们聊到哪,派活要把背景写全;跑完去 jobs 验收。","ex":[{"sc":"主线在改核心逻辑,顺便想把 README 翻译了","i":"/tan 把 README 翻译成英文","o":"已派出后台 agent:README 翻译(jobs 可查进度)","e":"翻译在独立上下文并行跑,不稀释主线注意力。派活把背景写全(译成什么风格、放哪),它看不到你们聊过什么;完成后去 jobs 验收成果文件。"}]},{"name":"cleanse","icon":"stethoscope","en":"Detect and fix project diagnostics with weighted parallel subagents","zh":"加权并行子 agent 检测并修复项目诊断问题","usage":"[request] [--all]","tmd":"插入发送","how":"在对话框输入 /cleanse 回车,即发送到终端执行","subs":[],"detail":"并行子 agent 清诊断。为什么:lint 报 200 条手修到吐;cleanse 加权分派给并行子 agent,按严重度排期修,一次大扫除。发版前、接手老项目时用。注意:改动面大,跑之前确保工作区干净、可回滚(git);修完自己过一遍 diff。","ex":[{"sc":"接手老项目,lint 报 200+ 条","i":"/cleanse","o":"已启动 4 个并行子 agent 扫描诊断…","e":"按严重度加权分派、并行修复,完成后给汇总。改动面大——跑前确保 git 干净可回滚,跑后自己过一遍 diff,机器修的东西要人签字。"}]},{"name":"retry","icon":"redo","en":"Retry the last failed agent turn","zh":"重试上一轮失败的 agent 回合","usage":null,"tmd":"插入发送","how":"在对话框输入 /retry 回车,即发送到终端执行","subs":[],"detail":"重试上一轮。为什么:网络抖动、429 限流、供应商抽风导致回合失败,内容没问题只是传输断了;retry 原样重发,不用重新组织 prompt。注意:失败原因是你 prompt 本身的话,retry 只是再错一遍,先改 prompt。","ex":[{"sc":"上一轮回复到一半报 429 断了","i":"/retry","o":"正在重试上一轮(429 限流已恢复)…","e":"原样重发失败的那轮,prompt 不用重新写。若是内容本身的问题(格式错、逻辑错),retry 只是再错一遍,先改 prompt 再试。"}]}]},{"id":"context","title":"上下文与记忆","desc":"上下文是钱也是智商;这章教你省钱又不失忆","commands":[{"name":"context","icon":"context","en":"Show estimated context usage breakdown","zh":"显示上下文用量估算明细","usage":null,"tmd":"插入发送","how":"在对话框输入 /context 回车,即发送到终端执行","subs":[],"detail":"上下文用量明细。为什么:上下文是钱也是智商——超了报错、接近了变笨;明细告诉你谁在吃额度(通常是工具结果),压缩决策全靠它。建议当仪表盘随手看。注意:数字是估算,与账单口径略有差异。","ex":[{"sc":"回复越来越慢,怀疑上下文快满","i":"/context","o":"上下文 142K / 200K(71%)\n系统提示 8.2K · 工具结果 96.4K · 对话 37.4K","e":"元凶是工具结果占 96K。马上到 80% 警戒线,主动 /compact 或 /shake;越早压失真越小,等到自动压缩是应急式乱压。"}]},{"name":"compact","icon":"compress","en":"Manually compact the session context","zh":"手动压缩会话上下文","usage":null,"tmd":"插入发送","how":"在对话框输入 /compact 回车,即发送到终端执行","subs":[{"name":"soft","en":"Summarize locally with the active model (skip server compaction)","usage":"[focus]"},{"name":"remote","en":"Summarize via OpenAI-compatible server compaction, then fall back to a local summary","usage":"[focus]"},{"name":"snapcompact","en":"Archive history onto dense bitmap images the model reads back (no LLM call)","usage":null}],"detail":"压缩上下文成摘要。为什么:长会话必然爆;compact 把过程细节折叠成结论摘要,agent 记得「做过什么决定」、忘掉「中间吐了几版」。主动压缩比等自动压缩好——在章节边界压,失真最小。注意:压掉的具体输出不可恢复,关键数据先落文件;压缩后 agent 可能短暂「忘事」,重要约束重申一遍。","ex":[{"sc":"上下文 71%,刚完成一个大章节,准备进下一章","i":"/compact","o":"已压缩:142K → 38.6K(保留关键结论与文件清单)","e":"章节边界压最划算:结论保留、废稿丢弃。压完 agent 记得「决定」忘掉「过程」,重要约束(编码规范、禁区)重新强调一遍。"},{"sc":"不确定压缩会不会丢关键信息","i":"/compact","o":"(压缩摘要)","e":"看摘要里有没有你要的结论。被压掉的原始输出不可恢复——所以关键数据先落文件再压,这是铁律。"}]},{"name":"shake","icon":"vibrate","en":"Drop heavy content from context (tool results, large blocks)","zh":"甩掉上下文里的重内容(工具结果、大块)","usage":null,"tmd":"插入发送","how":"在对话框输入 /shake 回车,即发送到终端执行","subs":[{"name":"elide","en":"Strip tool results + large blocks (default)","usage":null},{"name":"images","en":"Strip image blocks","usage":null},{"name":"thinking","en":"Drop all thinking blocks","usage":null}],"detail":"只丢重内容,比 compact 保守。为什么:感觉 agent 变笨但对话脉络很重要,全压缩太激进;shake 专丢老工具输出、大块代码这类可再生的重物,保留对话逻辑。注意:被丢的工具结果如需引用,让 agent 重新读文件;shake 不改善系统性混乱,那是 compact 的活。","ex":[{"sc":"agent 变笨了,但对话推理链很重要不能压","i":"/shake","o":"已丢弃 9 个旧工具结果与大块输出,释放 41.2K","e":"脉络保留、重物扔掉,比 compact 温和。丢的工具结果需要时让 agent 重新读文件即可——文件还在,丢了也不心疼。"}]},{"name":"handoff","icon":"handoff","en":"Summarize the session into a handoff document and compact in place","zh":"把会话总结成交接文档并原地压缩","usage":"[focus instructions]","tmd":"插入发送","how":"在对话框输入 /handoff 回车,即发送到终端执行","subs":[],"detail":"总结成交接文档并压缩。为什么:跨天、换人、换会话时,新会话最缺「做到哪了」的上下文;handoff 把现状写成 HANDOFF.md(做了什么/改了哪些文件/下一步),再原地压缩,接力零成本。注意:生成后扫一眼文档,下一步建议不符预期就手改;文档在项目根,记得别提交进主干。","ex":[{"sc":"今天必须收工,任务明天换个会话继续","i":"/handoff","o":"已生成 HANDOFF.md 并压缩上下文:\n- 已完成:parse 竞态修复\n- 改动文件:src/parse/*.ts 等 6 个\n- 下一步:补回归测试","e":"新会话让 agent 读 HANDOFF.md 即零成本接力。扫一眼「下一步」写得对不对,不对就手改;文件在项目根,别提交进主干。"}]},{"name":"btw","icon":"question","en":"Ask a side question, or browse this session's BTW history","zh":"问个题外话,或浏览本会话的 BTW 历史","usage":"[question]","tmd":"插入发送","how":"在对话框输入 /btw 回车,即发送到终端执行","subs":[],"detail":"题外话通道。为什么:「顺便问下这个函数谁写的」这类问题走主上下文,回答会稀释主线还烧额度;btw 独立小上下文问答,主对话纯净如初。历史保留可回看。注意:btw 里的结论不会自动进入主对话上下文,要采纳得明说。","ex":[{"sc":"改代码途中想问「这函数谁写的」,不想污染主线","i":"/btw 这个 parse 函数最早谁写的","o":"(独立上下文)git log 显示 2025-03 由 … 引入,最初为了 …","e":"答案只出现在 btw 里,主对话上下文一尘不染。要把结论用于主线,得明说「把刚才结论带进来」。"}]},{"name":"memory","icon":"memory","en":"Inspect and operate memory maintenance","zh":"检查并维护记忆","usage":null,"tmd":"插入发送","how":"在对话框输入 /memory 回车,即发送到终端执行","subs":[{"name":"view","en":"Show current memory injection payload","usage":null},{"name":"stats","en":"Show memory backend statistics","usage":null},{"name":"diagnose","en":"Run memory backend diagnostics","usage":null},{"name":"queue","en":"Show pending memory deltas awaiting consolidation","usage":null},{"name":"sync","en":"Run memory consolidation now","usage":null},{"name":"clear","en":"Clear persisted memory data and artifacts","usage":null},{"name":"reset","en":"Alias for clear","usage":null},{"name":"enqueue","en":"Enqueue memory consolidation maintenance","usage":null},{"name":"rebuild","en":"Alias for enqueue","usage":null},{"name":"mm list","en":"List mental models on the active bank","usage":null},{"name":"mm show","en":"Show one mental model (id required)","usage":null},{"name":"mm refresh","en":"Refresh auto-refresh models bank-wide, or one model by id","usage":null},{"name":"mm history","en":"Diff the change history of a mental model","usage":null},{"name":"mm seed","en":"Create any built-in mental models that are missing","usage":null},{"name":"mm delete","en":"Delete a mental model from the bank (id required)","usage":null},{"name":"mm reload","en":"Re-pull the cached <mental_models> block","usage":null}],"detail":"agent 长期记忆维护。为什么:记忆是双刃剑——记对了事半功倍,记错了它永远「记得」你的错误偏好;16 个子命令查看/编辑/清理,定期修剪。注意:删记忆是不可逆的,拿不准先 /memory read 备份到文件。","ex":[{"sc":"agent 老是记错:偏好早改成 pnpm 了它还用 npm","i":"/memory list","o":"记忆 14 条:项目结构 3 · 偏好 4 · 教训 7","e":"定位到错误记忆 → /memory edit 改正。记忆错一对,未来所有会话错一对,定期修剪值回票价;拿不准先 read 备份再删。"}]},{"name":"add-dir","icon":"folderPlus","en":"Add a workspace directory to this session (multi-root)","zh":"给会话添加额外工作目录(多根)","usage":"<path>","tmd":"插入发送","how":"在对话框输入 /add-dir 回车,即发送到终端执行","subs":[],"detail":"添加额外工作目录。为什么:跨仓改动(主仓 + lib 库)、monorepo 子包,agent 默认只认一个根;add-dir 给第二个目录同等读写权,不用切会话。注意:agent 获得对新目录的全部权限,确认目录里没有敏感内容;权限给多了记得 remove-dir 收回。","ex":[{"sc":"主仓改接口,同步要改依赖的 lib 库","i":"/add-dir ~/code/lib-pay","o":"已添加工作目录:~/code/lib-pay(共 2 个根)","e":"agent 现在能同时读写两个仓,跨仓重构不用切会话。确认 lib-pay 里没敏感内容——权限是全量的;用完 remove-dir 收回。"}]},{"name":"remove-dir","icon":"folderMinus","en":"Remove a workspace directory from this session","zh":"移除一个工作目录","usage":"<path>","tmd":"插入发送","how":"在对话框输入 /remove-dir 回车,即发送到终端执行","subs":[],"detail":"移除工作目录。为什么:临时借的目录用完收回,最小权限原则;也让 dirs 列表保持干净。注意:主目录不可移;移除后未完成的跨目录任务会开始报路径错。","ex":[{"sc":"跨仓任务完成,收回多余权限","i":"/remove-dir ~/code/lib-pay","o":"已移除工作目录:~/code/lib-pay","e":"回到单根,agent 碰不到 lib-pay 了。最小权限原则:借了就还,dirs 里只留该在的。"}]},{"name":"dirs","icon":null,"en":"List this session's workspace directories","zh":"列出本会话的工作目录","usage":null,"tmd":"插入发送","how":"在对话框输入 /dirs 回车,即发送到终端执行","subs":[],"detail":"列出工作目录。为什么:多根会话里确认 agent 能碰哪些地方,安全审计第一步;也用于排查「它说找不到文件」是不是目录没加。注意:只读操作,随便看。","ex":[{"sc":"不确定 agent 现在能访问哪些目录","i":"/dirs","o":"1. ~/code/tmd-cli(主)\n2. ~/code/lib-pay","e":"安全自查一步:这之外它都不该碰。发现陌生目录立刻 remove-dir 并排查是谁加的。"}]}]},{"id":"branch","title":"历史与分支","desc":"对话也能开分支:走错路随时回头","commands":[{"name":"branch","icon":"branch","en":"Rewind to a previous message, keeping the old path as a branch","zh":"回退到之前某条消息,旧路径保留为分支","usage":null,"tmd":"插入发送","how":"在对话框输入 /branch 回车,即发送到终端执行","subs":[],"detail":"回退并保留分支。为什么:方案 B 走了五步发现不对,直接回退会丢掉这五步里的有效产出;branch 回退时把旧路径存成分支,换方案 C 随时能回去抄作业。大胆试错的前提是有后悔药。注意:分支多了 /tree 会乱,定期收编或放弃;回退点选在「关键决策前」而不是「最后一条」。","ex":[{"sc":"方案 B(重构解析器)做了五步,越走越不对","i":"/branch 12","o":"已回退到第 12 条消息,旧路径保存为分支 branch-1","e":"五步成果没丢,躺在 branch-1 里;现在从第 12 条试方案 C。回退点选「关键决策前」而非最后一条——决策前的状态才是干净的起点。"},{"sc":"两条分支都试完了,想回去看方案 B 的产出","i":"/tree","o":"main ▸ 12 ▸ 18(方案 C)\n       └ branch-1 ▸ 15(方案 B)","e":"tree 里选中 branch-1 即切回去。收编结论(比如抄几段代码)后把废分支放弃,树要常修剪。"}]},{"name":"fork","icon":"branch","en":"Create a new fork from a previous message","zh":"从之前某条消息分叉出新会话","usage":null,"tmd":"插入发送","how":"在对话框输入 /fork 回车,即发送到终端执行","subs":[],"detail":"从历史分叉新会话。为什么:同一个起点想跑两条完全独立的路线(两套方案并行对比),fork 复制现场各跑各的,互不干扰。注意:fork 是复制不是移动,原会话照旧;两条线都要人管,别fork太多顾不过来。","ex":[{"sc":"一个需求想同时跑两套方案,各自独立推进","i":"/fork 12","o":"已从第 12 条消息分叉新会话:scheme-b","e":"两条线完全独立、并行推进,互不干扰。原会话不受影响;fork 是复制不是移动——别指望一边的改动出现在另一边。"}]},{"name":"tree","icon":"tree","en":"Navigate session tree (switch branches)","zh":"浏览会话树并切换分支","usage":null,"tmd":"插入发送","how":"在对话框输入 /tree 回车,即发送到终端执行","subs":[],"detail":"会话树导航。为什么:branch/fork 玩起来后,线性列表表达不了树状历史;tree 画出全部分支,看清「哪条线在哪、谁包含谁」,切换分支的地图。注意:纯导航,不删不改;收编完的分支建议留个空 commit 标记。","ex":[{"sc":"branch/fork 用多了,记不清哪条线是什么","i":"/tree","o":"main ▸ 12 ▸ 18\n       └ branch-1 ▸ 15\n         └ fork-scheme-b ▸ 3","e":"地图在手:看清结构再切换,避免迷路。废分支定期放弃,树越干净越敢试错。"}]}]},{"id":"share","title":"分享与协作","desc":"导出、分享、多人协作、语音与录屏","commands":[{"name":"export","icon":"export","en":"Export session to HTML file","zh":"把会话导出为 HTML 文件","usage":"[--themes] [path]","tmd":"插入发送","how":"在对话框输入 /export 回车,即发送到终端执行","subs":[],"detail":"导出自包含 HTML。为什么:会话里有大量交接价值(决策过程、代码演进),但 jsonl 发出去没人能读;export 一键成排版好的 HTML,代码高亮齐全,发同事/贴工单/存档。注意:含敏感内容的会话导出前想清楚传播范围;文件在当前目录,别误提交。","ex":[{"sc":"这套重构的决策过程要同步给没参与的人","i":"/export","o":"已导出:omp-session-2026-09-25.html(自包含)","e":"单文件发出去即可读,代码高亮齐全。导出前想清楚内容敏感度——文件会离开你的机器;存档记得别误提交进仓库。"}]},{"name":"share","icon":"share","en":"Share session via an encrypted link (share server or secret gist)","zh":"生成加密链接分享会话(share server 或 secret gist)","usage":null,"tmd":"插入发送","how":"在对话框输入 /share 回车,即发送到终端执行","subs":[],"detail":"加密链接分享。为什么:「你看一眼这个报错」这种场景,导 HTML 太重;share 生成端到端加密只读链接,对方点开即看,不过期不泄露。注意:链接即权限,泄露无法撤回内容本身,敏感会话用短有效期;免费档有过期时间,重要内容 export 备份。","ex":[{"sc":"想让同事远程看一眼当前报错,不想导文件","i":"/share","o":"加密分享链接已复制(只读,7 天有效):\nhttps://share.omp.sh/s/8xk2…","e":"对方点开即读,端到端加密。链接即权限,外泄收不回内容——敏感会话用短有效期或改用 /export 定向发送。"}]},{"name":"trace","icon":"stats","en":"Open this session's trace in the stats dashboard","zh":"在统计 Dashboard 里打开本会话的 trace","usage":null,"tmd":"插入发送","how":"在对话框输入 /trace 回车,即发送到终端执行","subs":[],"detail":"会话 trace 明细。为什么:「这轮为什么这么慢/这么贵」需要看每轮的请求 token、耗时、重试;trace 在本地 Dashboard 展开全过程,性能与成本排查的事实依据。注意:trace 数据不自动上报,纯本地;长会话数据量大,打开稍慢。","ex":[{"sc":"这轮响应特别慢,想知道慢在哪","i":"/trace","o":"已在 Dashboard 打开本会话 trace(18 轮请求明细)","e":"逐轮看 token、耗时、重试分布:慢在供应商还是上下文过大,数据说话。纯本地数据,放心看。"}]},{"name":"dump","icon":"clipboard","en":"Copy session transcript to clipboard (and write LLM request JSON to tmp)","zh":"复制会话记录到剪贴板(并在 /tmp 写 LLM 请求 JSON)","usage":null,"tmd":"插入发送","how":"在对话框输入 /dump 回车,即发送到终端执行","subs":[],"detail":"会话原文导出。为什么:拿会话去别处分析(贴 issue、喂给另一个工具)需要原始数据;dump 复制全文到剪贴板,同时在 /tmp 落完整 LLM 请求 JSON,方便程序化处理。注意:/tmp 的 JSON 含全部对话与代码,机器共享环境用完删。","ex":[{"sc":"要把会话原样交给另一个工具分析","i":"/dump","o":"会话已复制到剪贴板;LLM 请求 JSON:/tmp/omp-dump-8f3e.json","e":"剪贴板是纯文本全文,/tmp 的 JSON 是结构化请求。共享机器用完删 /tmp 文件——里面是完整对话与代码。"}]},{"name":"collab","icon":"broadcast","en":"Share this session live via a relay","zh":"经中继实时共享本会话","usage":"[start|view|list|stop|status] [relayUrl]","tmd":"插入发送","how":"在对话框输入 /collab 回车,即发送到终端执行","subs":[{"name":"view","en":"Share a read-only link (guests can watch, not prompt)","usage":null},{"name":"list","en":"List active local Collab hosts (no links; use `omp collab link`)","usage":null},{"name":"status","en":"Show link + participants","usage":null},{"name":"stop","en":"Stop sharing","usage":null}],"detail":"实时共享会话。为什么:结对/求助时对方看不到你终端;collab 把会话经中继直播出去,对方实时看、可授权操作,异地协作像坐旁边。注意:对方能看到后续一切输入,敏感信息先想;结束记得 /leave,别开着直播下班。","ex":[{"sc":"同事远程求助,想让他实时看到我的会话","i":"/collab start","o":"共享已开启(只读),邀请码:KX2-9F1\n/collab invite 生成更多邀请","e":"对方输入邀请码 /join 即进入直播。开始后你的一切输入他都能看到——密钥之类先想;完事 /leave,别开着直播下班。"}]},{"name":"join","icon":"signIn","en":"Join a shared collab session","zh":"加入一个共享的 collab 会话","usage":"<link>","tmd":"插入发送","how":"在对话框输入 /join 回车,即发送到终端执行","subs":[],"detail":"加入共享会话。为什么:拿到邀请码后一条命令进入对方现场,权限由发起方控制(只读/可写)。注意:可写模式下你的操作会真实作用在对方环境,手别抖;加入先看清楚是哪个项目。","ex":[{"sc":"收到同事的邀请码,要进入他的现场","i":"/join KX2-9F1","o":"已加入共享会话(只读)","e":"实时看到对方会话流动。可写模式下你的操作真实作用于对方环境——先看清权限,手别抖。"}]},{"name":"leave","icon":"signOut","en":"Leave the collab session","zh":"离开当前 collab 会话","usage":null,"tmd":"插入发送","how":"在对话框输入 /leave 回车,即发送到终端执行","subs":[],"detail":"离开共享会话。为什么:协作完断开连接,停止接收对方现场;也避免自己误操作继续生效。注意:离开不影响对方会话本身。","ex":[{"sc":"协作结束","i":"/leave","o":"已离开共享会话","e":"断开连接,对方那边不受影响。确认退出后自己这边的会话照常可用。"}]},{"name":"hub","icon":"agents","en":"Open the live Agent Hub","zh":"打开实时 Agent Hub","usage":null,"tmd":"插入发送","how":"在对话框输入 /hub 回车,即发送到终端执行","subs":[],"detail":"Agent Hub 总览大屏。为什么:多 agent 并行时(主会话 + 子任务 + tan),「现在到底有几个在跑、各自烧多少」需要一屏看清;hub 聚合本机全部运行中 agent。注意:只看不控,要管去 /agents 配置;纯本地视图。","ex":[{"sc":"开了主会话 + 2 个 tan,不知道现在总共在跑啥","i":"/hub","o":"Agent Hub:3 个 agent 运行中\n▸ main 修支付回调 · tan#1 翻译 · tan#2 基准测试","e":"一屏看清并行全貌与各自状态。只看不控——要改配置去 /agents;收工前瞄一眼,确认没有该停的。"}]},{"name":"agents","icon":"agents","en":"Open the agents hub (per-agent model, prewalk, and advisor)","zh":"打开 agents hub(每个子 agent 的模型/prewalk/advisor)","usage":null,"tmd":"插入发送","how":"在对话框输入 /agents 回车,即发送到终端执行","subs":[],"detail":"子 agent 管理台。为什么:子任务全用主模型又贵又慢;agents 给每个子 agent 单独配模型——跑腿用便宜的、拍板用贵的,成本结构优化在这里。也能给子 agent 配 prewalk/advisor。注意:子模型太弱会拖质量,关键路径别省;配置立即生效,跑着的任务不受影响。","ex":[{"sc":"子任务全用主模型,账单有点扛不住","i":"/agents","o":"子 agent 配置:scout → glm-4.6-flash · worker → 主模型","e":"把跑腿型子 agent(搜索、扫描)换成便宜模型,关键路径保留主模型——成本结构当场优化。跑着的任务不受影响,下个子任务生效。"}]},{"name":"live","icon":"voice","en":"Start Codex-backed realtime voice mode","zh":"启动 Codex 实时语音模式","usage":null,"tmd":"插入发送","how":"在对话框输入 /live 回车,即发送到终端执行","subs":[],"detail":"实时语音模式。为什么:走读代码、口头迭代场景,打字不如说话快;live 接通语音,你边说 agent 边干。注意:依赖 Codex 通道与麦克风权限;嘈杂环境识别率下降,重要改动结束后看 diff 确认。","ex":[{"sc":"想带同事口头走读一遍新模块","i":"/live","o":"实时语音已连接,按住空格说话","e":"说就行,agent 边听边操作。结束后照常看 diff 确认——语音迭代快,但改动签字权还在你手上。"}]},{"name":"record","icon":"export","en":"Start or stop recording this screen to a replayable file (omp play)","zh":"录制屏幕为可回放文件(omp play)","usage":null,"tmd":"插入发送","how":"在对话框输入 /record 回车,即发送到终端执行","subs":[],"detail":"录屏为可回放文件。为什么:教学、复现偶现 bug、给同事演示操作路径,文字说不清;record 录下 omp 会话全过程,omp play 原样回放(包括你的输入节奏)。注意:录的内容含终端上一切信息,敏感先清屏;文件别传公开网盘。","ex":[{"sc":"要给新同事演示一套操作流程,文字讲不清","i":"/record","o":"录制中…(/record stop 结束)","e":"全程录成可回放文件,omp play 原样回放(含输入节奏)。录之前清屏,终端上的一切都会进去;文件含工作内容,别传公开网盘。"}]}]},{"id":"git","title":"Git 与安全","desc":"git 界面、worktree、安全扫描、SSH 主机","commands":[{"name":"git","icon":"branch","en":"Open the git UI (split diff viewer, staging, commit composer)","zh":"打开 git UI(分屏 diff、暂存、提交)","usage":"[revision]","tmd":"插入发送","how":"在对话框输入 /git 回车,即发送到终端执行","subs":[],"detail":"会话内 git UI。为什么:改完想看 diff/暂存/提交,切出去开 IDE 心流就断;git 分屏 diff + 暂存 + 提交一体化,在对话流里完成闭环。tmd-cli 的 Git 面板管系统级操作(历史、分支管理),两者互补。注意:提交前照常 diff 确认,agent 改的文件不一定全在暂存区。","ex":[{"sc":"agent 改完了,提交前想亲自过一遍 diff","i":"/git","o":"git UI 已打开:左 diff 右暂存,底部提交框","e":"分屏核对每处改动,可疑的当场问 agent;确认后直接在界面里暂存提交,不切 IDE。agent 改的文件不一定全在暂存区,以界面显示为准。"}]},{"name":"wt","icon":"folderMove","en":"Move this session into a new worktree, changes included","zh":"把本会话搬进新 worktree,连改动一起","usage":"[<branch>]","tmd":"插入发送","how":"在对话框输入 /wt 回车,即发送到终端执行","subs":[],"detail":"搬进新 worktree。为什么:实验性大改动直接在工作区跑,会把未提交状态搅乱;wt 把当前会话连人带改动搬进独立 worktree,与主线物理隔离,搞砸整棵删掉,主线毫发无伤。注意:worktree 占磁盘(完整 checkout);结束记得清理,worktree 里提交的分支要手动合回。","ex":[{"sc":"要试一个激进的缓存方案,不想搅乱当前工作区","i":"/wt","o":"已创建 worktree ../tmd-cli-wt-3,会话与改动已迁入","e":"实验在独立 worktree 里跑,主线工作区毫发无伤。搞砸了整棵删掉;worktree 里的提交要手动合回,结束记得清理目录与分支。"}]},{"name":"security","icon":"shield","en":"Plan, run, inspect, import, and compare OMP-native security scans","zh":"安全扫描:规划、运行、导入与对比 OMP 原生安全扫描","usage":null,"tmd":"插入发送","how":"在对话框输入 /security 回车,即发送到终端执行","subs":[{"name":"plan","en":"Create an immutable security scan plan","usage":null},{"name":"scan","en":"Start a planned or newly planned native scan","usage":null},{"name":"status","en":"Show native scan operation status","usage":null},{"name":"cancel","en":"Cancel a running native scan","usage":null},{"name":"scans","en":"List stored project security scans","usage":null},{"name":"show","en":"Render a scan or security:// resource","usage":null},{"name":"import","en":"Import SARIF or a Codex Security bundle","usage":null},{"name":"export","en":"Export a canonical bundle, SARIF, or report","usage":null},{"name":"validate","en":"Validate one finding with OMP-native tools","usage":null},{"name":"compare","en":"Compare finding lineage across two scans","usage":null},{"name":"disposition","en":"Set a finding disposition with rationale","usage":null}],"detail":"原生安全扫描。为什么:依赖漏洞、硬编码密钥、危险调用,人肉审计靠运气;security 走 plan→scan→status→compare 流程,11 个子命令把安全检查工程化,结果可对比历史。注意:扫描器有误报,高危项人工确认再改;CI 里也建议挂一条。","ex":[{"sc":"发版前例行安全检查","i":"/security scan","o":"扫描完成:依赖 214(2 个已知 CVE)· 代码风险 12 项\n/security status 看详情","e":"高危项人工确认后修,误报拉白名单;compare 子命令对比上次扫描,新引入的风险一目了然。CI 建议同步挂一条。"}]},{"name":"ssh","icon":"host","en":"Manage SSH hosts (add, list, remove)","zh":"管理 SSH 主机(增/列/删)","usage":"<subcommand>","tmd":"插入发送","how":"在对话框输入 /ssh 回车,即发送到终端执行","subs":[{"name":"add","en":"Add an SSH host","usage":"<name> --host <host> [--user <user>] [--port <port>] [--key <keyPath>] [--scope project|user]"},{"name":"list","en":"List all configured SSH hosts","usage":null},{"name":"remove","en":"Remove an SSH host","usage":"<name> [--scope project|user]"},{"name":"help","en":"Show help message","usage":null}],"detail":"管理 omp 的 SSH 主机。为什么:远程执行、远程任务需要主机清单,ssh add/list/remove/test 四件套管理;tmd-cli 的 SSH 面板管连接本身,这里管 omp 会话内可用主机。注意:主机凭据配置要对齐 tmd-cli 侧,两边各存一份;test 先测连通再派远程任务。","ex":[{"sc":"要把一个部署任务派到生产服务器","i":"/ssh list","o":"SSH 主机:2 台\n▸ ecs-prod (root@47.x.x.x)\n  home-nas","e":"确认目标主机在列且 test 通过,再派远程任务。凭据与 tmd-cli SSH 面板各存一份,改密码两边都要改。"}]}]},{"id":"ext","title":"扩展与生态","desc":"插件、技能、MCP;omp 的能力边界由你决定","commands":[{"name":"marketplace","icon":"cart","en":"Manage marketplace plugin sources and installed plugins","zh":"管理市场源与已装插件","usage":null,"tmd":"扩展市场","how":"扩展市场面板管理源与已装清单","subs":[{"name":"add","en":"Add a marketplace source","usage":"<source>"},{"name":"remove","en":"Remove a marketplace source","usage":"<name>"},{"name":"update","en":"Update marketplace catalog(s)","usage":"[name]"},{"name":"list","en":"List configured marketplaces","usage":null},{"name":"discover","en":"Browse available plugins","usage":"[marketplace]"},{"name":"install","en":"Install a plugin (interactive browser if no args)","usage":"[--force] [name@marketplace]"},{"name":"uninstall","en":"Uninstall a plugin (selector if no args)","usage":"[name@marketplace]"},{"name":"installed","en":"List installed marketplace plugins","usage":null},{"name":"upgrade","en":"Upgrade outdated plugins","usage":"[name@marketplace]"},{"name":"help","en":"Show usage guide","usage":null}],"detail":"管理市场源与插件。为什么:官方源之外的插件要加源才能装;marketplace add/remove/list 管源,装卸的具体操作在 tmd-cli 扩展市场面板点两下。注意:第三方源=第三方代码进你的会话,加源前确认信任。","ex":[{"sc":"想装个社区源里的插件","i":"/marketplace add https://…","o":"市场源已添加:community(312 个插件)","e":"之后在 tmd-cli 扩展市场面板浏览装卸。第三方源 = 第三方代码进会话,只加信得过的源;不加的源及时 remove。"}]},{"name":"plugins","icon":"package","en":"View and manage installed plugins","zh":"查看并管理已装插件","usage":null,"tmd":"扩展市场","how":"cli-omp 扩展市场面板已装卸 omp 插件","subs":[{"name":"list","en":"List all installed plugins (npm + marketplace)","usage":null},{"name":"enable","en":"Enable a marketplace plugin","usage":"<name@marketplace>"},{"name":"disable","en":"Disable a marketplace plugin","usage":"<name@marketplace>"}],"detail":"已装插件状态。为什么:排查「某功能怎么没生效」第一步看插件在不在、有没有报错;plugins 列出全部已装与状态。装卸去 tmd-cli 扩展市场面板,图形化更顺手。注意:插件报错可能拖慢启动,长期不用的禁用别硬扛。","ex":[{"sc":"某个功能突然不生效了","i":"/plugins","o":"已装插件:3 个\n▸ git-tools v1.2 · doctor v0.9(报错)· commit-lint v2.0","e":"doctor 标红报错——功能失效根因找到。先 /reload-plugins 试热修,不行就禁用升级;长期不用的插件禁用别硬扛,拖慢启动。"}]},{"name":"reload-plugins","icon":"restart","en":"Reload all plugins (skills, commands, hooks, tools, agents, MCP)","zh":"重载全部插件(skills/commands/hooks/tools/agents/MCP)","usage":null,"tmd":"插入发送","how":"在对话框输入 /reload-plugins 回车,即发送到终端执行","subs":[],"detail":"热重载全部插件。为什么:改了插件/技能/命令配置,重启会话太重;reload 秒级生效,插件开发必备。注意:热重载不保证有状态插件完美恢复,行为异常时重启一次兜底。","ex":[{"sc":"刚改了自己的插件配置,想立即生效","i":"/reload-plugins","o":"已重载:4 skills · 2 commands · 1 hooks · 3 MCP","e":"秒级生效不用重启。若重载后行为诡异(有状态插件没恢复干净),重启一次会话兜底。"}]},{"name":"skills","icon":"skill","en":"Search, install, and update skills from the skills.omp.sh registry","zh":"从 skills.omp.sh 搜索/安装/更新技能","usage":null,"tmd":"插入发送","how":"在对话框输入 /skills 回车,即发送到终端执行","subs":[{"name":"search","en":"Search the skill registry","usage":"<query>"},{"name":"install","en":"Install registry skills","usage":"<@scope/name[@range]>… [--global]"},{"name":"installed","en":"List installed registry skills","usage":null},{"name":"update","en":"Update registry skills within their ranges","usage":"[@scope/name…] [--global]"}],"detail":"技能注册表搜索/安装/更新。为什么:技能 = 预制的提示词工程包(react 性能审查、commit 规范…),装完即用,不用自己从零写 prompt;skills.omp.sh 是官方注册表。注意:看清楚技能内容再装(它会进系统提示);装多了 token 略涨,不用的删。","ex":[{"sc":"想让 agent 按 React 最佳实践审查代码,自己写 prompt 太长","i":"/skills search react","o":"找到 3 个技能:\n▸ react-perf(4.8★) react-review(4.5★) …","e":"看中哪个 /skills install 装上即用——技能是预制提示词工程包。装前看内容(它会进系统提示);评分与更新时间是质量参考。"}]},{"name":"extensions","icon":"extension","en":"Open Extension Control Center dashboard","zh":"打开扩展控制中心 Dashboard","usage":null,"tmd":"插入发送","how":"在对话框输入 /extensions 回车,即发送到终端执行","subs":[],"detail":"扩展控制中心。为什么:插件、技能、MCP、hooks 全算扩展,数量多了启用/禁用/冲突排查需要总控台;extensions 图形化一屏管理。注意:两个扩展抢同一挂点时会在此标冲突,按需取舍。","ex":[{"sc":"装了新插件后某功能行为变了,怀疑冲突","i":"/extensions","o":"扩展控制中心:6 个扩展 · 1 处冲突(highlight vs doctor)","e":"冲突处按需禁用一方,行为恢复。全部扩展的启用/禁用总开关在这,比逐个 /plugins 排查快。"}]},{"name":"mcp","icon":"mcp","en":"Manage MCP servers (add, list, remove, test)","zh":"管理 MCP 服务器(增/列/删/测)","usage":"<subcommand>","tmd":"插入发送","how":"在对话框输入 /mcp 回车,即发送到终端执行","subs":[{"name":"add","en":"Add a new MCP server","usage":"<name> [--scope project|user] [--url <url>] [-- <command...>]"},{"name":"list","en":"List all configured MCP servers","usage":null},{"name":"remove","en":"Remove an MCP server","usage":"<name> [--scope project|user]"},{"name":"test","en":"Test connection to a server","usage":"<name>"},{"name":"reauth","en":"Reauthorize OAuth for a server","usage":"<name>"},{"name":"unauth","en":"Remove OAuth auth from a server","usage":"<name>"},{"name":"enable","en":"Enable an MCP server","usage":"<name>"},{"name":"disable","en":"Disable an MCP server","usage":"<name>"},{"name":"smithery-search","en":"Search Smithery registry and deploy an MCP server","usage":"<keyword> [--scope project|user] [--limit <1-100>] [--semantic]"},{"name":"smithery-login","en":"Login to Smithery and cache API key","usage":null},{"name":"smithery-logout","en":"Remove cached Smithery API key","usage":null},{"name":"reconnect","en":"Reconnect to a specific MCP server","usage":"<name>"},{"name":"reload","en":"Force reload MCP runtime tools","usage":null},{"name":"resources","en":"List available resources from connected servers","usage":null},{"name":"prompts","en":"List available prompts from connected servers","usage":null},{"name":"notifications","en":"Show notification capabilities and subscriptions","usage":null},{"name":"help","en":"Show help message","usage":null}],"detail":"MCP 服务器管理。为什么:MCP 是接外部工具的标准口(数据库、浏览器、内部系统),mcp 的 17 个子命令覆盖 add/list/remove/test/call 全生命周期。注意:add 时给的工具权限就是 agent 能拿到的权限,生产库只给只读账号;test 先验证再启用。","ex":[{"sc":"想让 agent 直接查 Postgres 数据库","i":"/mcp add postgres postgresql://…","o":"MCP postgres 已添加,4 个工具可用","e":"连接串里的权限就是 agent 的权限——生产库只给只读账号。add 完 /mcp test 验证,工具列表可在 /tools 里核对。"}]},{"name":"browser","icon":"globe","en":"Toggle browser eval-prelude headless vs visible mode","zh":"切换浏览器 eval 前奏的无头/可见模式","usage":null,"tmd":"插入发送","how":"在对话框输入 /browser 回车,即发送到终端执行","subs":[{"name":"headless","en":"Switch to headless mode","usage":null},{"name":"visible","en":"Switch to visible mode","usage":null}],"detail":"切浏览器无头/可见。为什么:headless 省资源但你看不到 agent 在网页上干什么;切 visible 现场直播它的点击与填写,调试自动化脚本、演示、不放心它时用。注意:visible 会真弹窗口抢焦点;跑完切回 headless。","ex":[{"sc":"agent 写的自动化脚本一直点错按钮,想看现场","i":"/browser visible","o":"浏览器切到可见模式:agent 操作你看得见","e":"下一次浏览器任务真弹窗口,每一步点击可见——脚本问题当场定位。调试完切回 headless,visible 抢焦点且费资源。"}]},{"name":"computer","icon":"computer","en":"Toggle the native computer-use eval prelude for this session","zh":"切换本会话的 computer-use 评估前奏","usage":null,"tmd":"插入发送","how":"在对话框输入 /computer 回车,即发送到终端执行","subs":[{"name":"on","en":"Enable computer use for this session","usage":null},{"name":"off","en":"Disable computer use for this session","usage":null},{"name":"status","en":"Show computer use status","usage":null}],"detail":"开关 computer-use 前奏。为什么:桌面自动化(操作 GUI 应用、截图点按钮)需要屏幕与键鼠能力,computer 开启后 agent 才有这双手。安全敏感:它能操作你桌面的一切。注意:用完即关;开启期间别离开工位,相当于把键盘借出去。","ex":[{"sc":"要让 agent 操作一个没有 CLI 的桌面应用","i":"/computer","o":"computer-use 前奏已开启(截图 + 键鼠控制)","e":"agent 获得屏幕截图与键鼠能力,可操作桌面 GUI。相当于把键盘借出去——开启期间人在旁边,用完立刻再输一次关闭。"}]},{"name":"skillful","icon":"compass","en":"Toggle listing available skills in the system prompt (session only)","zh":"是否把可用 skills 列入系统提示(仅本会话)","usage":null,"tmd":"插入发送","how":"在对话框输入 /skillful 回车,即发送到终端执行","subs":[{"name":"on","en":"List skills in the prompt for this session","usage":null},{"name":"off","en":"Omit the skills listing for this session","usage":null},{"name":"status","en":"Show skill listing status","usage":null}],"detail":"技能清单是否进系统提示。为什么:技能多了,清单本身占 token 还稀释注意力;skillful off 让本会话不带技能清单,省 token 或排查「它怎么不知道这技能」。注意:关掉后本会话技能不可被主动引用,记得回开。","ex":[{"sc":"技能装了 20 个,系统提示被清单撑大","i":"/skillful off","o":"本会话不再把技能清单放进系统提示(省 token)","e":"立省一笔固定开销,专注当前任务。代价是本会话技能不可被引用——纯干活的会话关,需要技能的会话记得回开。"}]}]},{"id":"misc","title":"界面与杂项","desc":"小工具合集","commands":[{"name":"copy","icon":"copy","en":"Pick text or code from the conversation to copy","zh":"从对话里挑文本或代码复制","usage":null,"tmd":"插入发送","how":"在对话框输入 /copy 回车,即发送到终端执行","subs":[],"detail":"从对话挑内容复制。为什么:长会话里找「刚才那段 SQL」滚屏手选很痛苦;copy 列出全部代码块与文本段,↑↓ 选择直接复制。注意:复制的是对话里出现过的,文件里的内容用编辑器更顺手。","ex":[{"sc":"半小时前那段建表 SQL 还要用,滚屏找不到","i":"/copy","o":"选择要复制的内容:\n▸ 代码块 x3 · 文本段 x7(↑↓ 选择)","e":"列表选中直接进剪贴板,不用翻屏手选。只覆盖对话里出现过的内容;文件里的东西用编辑器更快。"}]},{"name":"open","icon":"globe","en":"Open the last link from the conversation in your browser (or pick one with /copy)","zh":"在浏览器打开对话里最近/选中的链接","usage":null,"tmd":"插入发送","how":"在对话框输入 /open 回车,即发送到终端执行","subs":[],"detail":"打开对话里的链接。为什么:agent 常贴文档链接,复制→开浏览器→粘贴三步;open 一条命令打开最近的(或弹出列表挑)。注意:只识别对话里出现过的 URL;想开别的用系统浏览器。","ex":[{"sc":"agent 贴了个 Tauri 文档链接,想立刻看","i":"/open","o":"已在浏览器打开最近链接:tauri.app/develop/…","e":"最近一条 URL 直接开;多条时弹列表挑。省去复制粘贴三步,看文档不断心流。"}]},{"name":"hotkeys","icon":"keyboard","en":"Show all keyboard shortcuts","zh":"显示全部键盘快捷键","usage":null,"tmd":"插入发送","how":"在对话框输入 /hotkeys 回车,即发送到终端执行","subs":[],"detail":"快捷键总表。为什么:omp 效率上限很大程度在快捷键(Alt+P 换模型、循环跳转、多光标),hotkeys 两页纸列全;每周扫一遍总有新收获。注意:tmd-cli 有自己的快捷键体系(⌘K 等),两套别混;在终端里以 omp 的为准。","ex":[{"sc":"觉得手速到瓶颈了,想挖快捷键","i":"/hotkeys","o":"快捷键总表:Alt+P 换模型 · 循环跳转 · 多光标 …(两页)","e":"挑一两个融入肌肉记忆,一周后再扫。注意 tmd-cli 有自己的快捷键体系(⌘K 等),终端里以 omp 的为准,别混。"}]},{"name":"changelog","icon":"news","en":"Show changelog entries","zh":"查看更新日志","usage":null,"tmd":"插入发送","how":"在对话框输入 /changelog 回车,即发送到终端执行","subs":[{"name":"full","en":"Show complete changelog","usage":null},{"name":"last","en":"Show the last N releases (default 1)","usage":"[N]"}],"detail":"看更新内容。为什么:omp 迭代快,新功能、行为变更都在 changelog;升级后扫一眼,好东西常藏在 minor 版本里。注意:只列版本要点,细节看官方 release notes。","ex":[{"sc":"刚升级完 18.3.1,看有啥新东西","i":"/changelog","o":"v18.3.1:Goal 完成判定更严格;修复 /usage 5h 窗口显示…","e":"新功能常藏在 minor 版本里,扫一眼避免「一直手动干它早自动了」的事。细节看官方 release notes。"}]},{"name":"tools","icon":"tools","en":"Show tools currently visible to the agent","zh":"显示 agent 当前可见的工具","usage":null,"tmd":"插入发送","how":"在对话框输入 /tools 回车,即发送到终端执行","subs":[],"detail":"列出 agent 可见工具。为什么:「它怎么不能读文件」第一排查点:工具在不在、来源是什么(内建/MCP);tools 一眼看清能力边界,配置问题当场暴露。注意:工具在但不用,是模型选择问题,配合 /force 区分。","ex":[{"sc":"agent 说「没有工具能读数据库」,存疑","i":"/tools","o":"可见工具 12 个:read write edit bash … MCP: postgres(4)","e":"postgres 的 4 个工具明明在列——「没有工具」是模型误判。工具在不用是选择问题(/force 区分),工具不在才是配置问题(去 /mcp 查)。"}]},{"name":"debug","icon":"bug","en":"Open debug tools selector","zh":"打开调试工具选择器","usage":null,"tmd":"插入发送","how":"在对话框输入 /debug 回车,即发送到终端执行","subs":[],"detail":"调试工具选择器。为什么:插件异常、连接故障、行为诡异时需要现场:日志级别、状态转储、连接诊断在 debug 里集中提供。注意:debug 级日志量大,排查完调回;转储内容含会话数据,外发前脱敏。","ex":[{"sc":"某插件一启用就异常,要看现场","i":"/debug","o":"调试工具:日志级别 / 状态转储 / 连接诊断(选择)","e":"调高日志级别复现问题,转储看内部状态。排查完把日志调回——debug 级全开会拖慢且刷屏;转储含会话数据,外发前脱敏。"}]},{"name":"omfg","icon":"rule","en":"Forge a TTSR rule from a complaint to stop a recurring behavior","zh":"从一条抱怨锻造成 TTSR 规则,根治反复出现的行为","usage":"<complaint>","tmd":"插入发送","how":"在对话框输入 /omfg 回车,即发送到终端执行","subs":[],"detail":"把抱怨变成规则。为什么:「别再自动 commit」说了三遍它还犯——因为每次都是新会话;omfg 把抱怨锻造成 TTSR 规则写进长期记忆,所有未来会话生效,一次根治。注意:规则要写成明确行为约束,情绪化表述效果差;规则多了同样 /memory 清理。","ex":[{"sc":"它第三次没问我就直接 commit 了","i":"/omfg 提交前必须先给我看 diff 并征得同意","o":"已锻造规则:提交前必须征得确认(写入长期记忆)","e":"规则进长期记忆,未来所有会话生效——一次根治,不用每个会话重申。写成明确行为约束(何时/必须/禁止)比情绪化抱怨有效得多。"}]}]}]};</script>
+<script id="lessons-slot">window.OMP_LESSONS=[
+{"id":"welcome","t":"omp 是什么","sub":"3 分钟","chapter":null,
+ "goal":"搞懂 omp 和 tmd-cli 的关系,以及学堂四件套(入口/入门课/指南/斜杠抽屉)怎么配合。",
+ "points":["omp 跑在 tmd-cli 的终端里:你发消息,它读项目、改文件、跑命令","左上角「omp 学堂」是总入口:这门课、完整指南、速查表都在这","对话框输入 <b>/</b> 随时唤出命令抽屉,学到哪查到哪","这门课 13 课,每课 1-3 分钟,练完即会"],
+ "demo":[["你好","你好!我是 omp,已读入项目 tmd-cli(214 个文件)。输入 / 查看全部命令,或跟着左侧入门课走。"]],
+ "practice":"/rename 我的第一次对话","practiceWhy":"热身:给当前会话起名,resume 列表里立刻能认出它。"},
+{"id":"lifecycle","t":"会话:开始、恢复、翻篇","sub":"约 2 分钟","chapter":"lifecycle",
+ "goal":"会话是你和 agent 的一段连续工作。学完这课你会:开新会话、找回旧会话、轻量翻篇。",
+ "points":["<b>/new</b> 换任务先开新会话,旧的不丢","<b>/resume</b> 找回历史会话;tmd-cli 侧栏 omp 分组点一下等效","<b>/clear</b> 同任务翻篇:<b>/new</b> 是换任务,<b>/clear</b> 是同一任务重新开始","<b>/fresh</b> 连接卡死先试它,别急着清上下文"],
+ "demo":[["/new 修支付回调","已开始新会话「修支付回调」"],["/session info","会话 8f3e21 · 3 条消息 · 2.1K tokens"],["/clear","上下文已清空,会话与标题保留"]],
+ "practice":"/rename 修支付回调","practiceWhy":"给会话起个一眼能认的名字,一周后 /resume 不抓瞎。"},
+{"id":"model","t":"模型与额度:花对每一分钱","sub":"约 2 分钟","chapter":"model",
+ "goal":"会换模型、会看额度。模型决定智商与花费,这两个命令第一天就要会。",
+ "points":["<b>/model</b> 弹选择器切模型,下一条消息立即生效;composer 模型 pill 等效","<b>/switch sonnet</b> 背熟 id 后直接切,最快","<b>/usage</b> 随时看还剩多少额度;tmd-cli 额度面板同步同一数据","<b>/fast</b> /<b>/slow</b> 快慢档:赶工开快档,跑批挂慢档"],
+ "demo":[["/model","▸ GLM-4.6 (coding plan)\n  Claude Sonnet 4.5\nEnter 切换"],["/usage","本月 12.4M / 120M tokens(10%) · 限流正常"]],
+ "practice":"/model","practiceWhy":"打开选择器看一眼你有哪些模型,顺便记住 composer 的模型 pill。"},
+{"id":"plan","t":"先想后做:Plan 模式","sub":"约 2 分钟","chapter":"modes",
+ "goal":"复杂任务先让 agent 出计划,你拍板再动手——返工最少的习惯。",
+ "points":["<b>/plan</b> 开启后 agent 只读调研、产出计划,不写代码","逐条确认计划后再执行,方向错了零损失","<b>/plan-review</b> 执行到一半想回看原始计划","小改动不用开:直接说「先说思路再改」也行"],
+ "demo":[["/plan","Plan 模式已开启:下一轮只做调研与计划"],["(发消息)帮我把死代码清一遍","计划:1. 扫描引用 2. 列清单 3. 逐个确认删除 …"],["/plan-review","已重新打开计划评审"]],
+ "practice":"/plan","practiceWhy":"开着它发下一条任务,亲眼看 agent 先给计划不动手。"},
+{"id":"auto","t":"自主模式:goal / loop / queue","sub":"约 3 分钟","chapter":"modes",
+ "goal":"让 agent 自己转起来:长期目标、循环重试、排队不打断。这是 omp 和「一问一答工具」的分水岭。",
+ "points":["<b>/goal 把 flaky 测试修到全绿</b> 持续自主直到达成,完成条件要可判定","<b>/loop 10m</b> 下一条消息循环提交,「盯到过为止」神器","<b>/queue</b> agent 忙时排队插话,不打断当前工作","<b>/pause</b> 紧急刹车,全冻结;<b>/advisor</b> 请第二个模型复核"],
+ "demo":[["/goal 把 flaky 测试修到全绿","目标已设定 · 完成判定:pnpm test 连续 2 次全绿"],["/queue 修完顺手补个单测","已排队:这轮结束后自动发送"],["/pause","已冻结全部 agent(再输 /pause 恢复)"]],
+ "practice":"/queue","practiceWhy":"趁 agent 忙时排一条消息,体会不打断的工作流。"},
+{"id":"tasks","t":"盯进度:todo 与后台","sub":"约 2 分钟","chapter":"tasks",
+ "goal":"大任务被拆成 todo,耗时活丢后台。学会看这两块,就不用盯屏等了。",
+ "points":["<b>/todo</b> 任务列表面板:进行中/待办/完成,11 个子命令","<b>/jobs</b> 后台任务状态:子 agent、长命令跑完没有","<b>/tan</b> 派后台 agent 干不相干的事,不占本会话上下文","<b>/retry</b> 网络错/限流后重试上一轮,不用重打 prompt"],
+ "demo":[["/todo","● 进行中 修复 flaky 测试(2/5)\n○ 待办 补回归测试\n✓ 完成 定位竞态根因"],["/jobs","后台:tan#1 README 翻译(运行 2m)"]],
+ "practice":"/todo","practiceWhy":"看看当前会话的任务列表长什么样。"},
+{"id":"context","t":"上下文:管住钱也管住智商","sub":"约 3 分钟","chapter":"context",
+ "goal":"上下文越长越贵、越迟钝。会看用量、会压缩、会交接,长任务不翻车。",
+ "points":["<b>/context</b> 看用量明细:工具结果通常占大头","<b>/compact</b> 压缩成摘要;<b>/shake</b> 更保守,只丢重内容","<b>/handoff</b> 总结成交接文档再压缩,跨天接力必备","<b>/btw</b> 题外话走小上下文,不污染主线"],
+ "demo":[["/context","42.1K / 200K(21%)· 工具结果 21.4K 占一半"],["/compact","已压缩:67.3K → 18.9K"],["/handoff","已生成 HANDOFF.md:做了什么/改动文件/下一步"]],
+ "practice":"/context","practiceWhy":"看看你现在的上下文花在哪了。"},
+{"id":"branch","t":"分支:大胆试错,随时回头","sub":"约 2 分钟","chapter":"branch",
+ "goal":"对话可以像 git 一样开分支。有它,试错成本趋近于零。",
+ "points":["<b>/branch 12</b> 回退到第 12 条消息,旧路径存为分支","<b>/fork 8</b> 从第 8 条消息分叉全新会话,两条路线并行","<b>/tree</b> 会话树地图,分支间切换","试错前不用备份:先 branch 再折腾"],
+ "demo":[["/branch 12","已回退到第 12 条消息,旧路径保存为 branch-1"],["/tree","main ▸ 12 ▸ 18\n       └ branch-1 ▸ 15"]],
+ "practice":"/tree","practiceWhy":"打开会话树,看看分支长什么样。"},
+{"id":"share","t":"分享与协作","sub":"约 2 分钟","chapter":"share",
+ "goal":"会话导出、加密分享、实时协作、语音与录屏——让成果出得了门。",
+ "points":["<b>/export</b> 导出自包含 HTML,发同事/贴工单","<b>/share</b> 端到端加密只读链接,「看一眼这个报错」","<b>/collab</b> 实时共享会话,结对/求助;<b>/hub</b> 全部 agent 大屏","<b>/record</b> 录屏回放(omp play),教学与复现"],
+ "demo":[["/export","已导出:omp-session-2026-09-25.html"],["/share","加密链接已复制(只读,7 天)"]],
+ "practice":"/export","practiceWhy":"把当前会话导出一个 HTML,发给朋友看看你的工作流。"},
+{"id":"git","t":"Git 与安全:会话内闭环","sub":"约 2 分钟","chapter":"git",
+ "goal":"git 操作不切出去,安全扫描定期做。tmd-cli 的 Git 面板管系统级操作,会话内用 omp 的。",
+ "points":["<b>/git</b> 分屏 diff + 暂存 + 提交,不离开会话","<b>/wt</b> 实验性大改动搬进新 worktree,搞砸整棵删","<b>/security scan</b> 依赖与代码风险体检","<b>/ssh</b> 管理远程主机,tmd-cli SSH 面板管连接"],
+ "demo":[["/git","git UI 已打开:左 diff 右暂存"],["/security scan","依赖 214 · 代码风险 12 项待查"]],
+ "practice":"/git","practiceWhy":"在会话里直接看一眼当前 diff。"},
+{"id":"ext","t":"扩展:插件、技能、MCP","sub":"约 3 分钟","chapter":"ext",
+ "goal":"omp 的能力边界由你决定。装插件、装技能、接 MCP,三张口都认识一下。",
+ "points":["<b>/plugins</b> 已装插件状态;装卸去 tmd-cli 扩展市场面板点两下","<b>/skills search react</b> 技能注册表:预制的提示词工程包,装完即用","<b>/mcp add</b> 接外部工具(数据库/浏览器/内部系统)","改完配置 <b>/reload-plugins</b> 热重载"],
+ "demo":[["/skills search react","▸ react-perf(4.8★) react-review(4.5★)"],["/mcp list","postgres(4 tools) · playwright(6 tools)"]],
+ "practice":"/plugins","practiceWhy":"看看你现在装了哪些插件(tmd-cli 扩展市场同源)。"},
+{"id":"misc","t":"效率杂项:小命令大顺手","sub":"约 2 分钟","chapter":"misc",
+ "goal":"捡走最容易上手的五个小命令,今天就开始省时间。",
+ "points":["<b>/copy</b> 从对话挑代码块复制,不用滚屏手选","<b>/open</b> 打开对话里最近的链接","<b>/hotkeys</b> 全部快捷键,每周扫一遍总有新收获","<b>/omfg 别再自动 commit</b> 把抱怨变成规则,根治重复烦扰"],
+ "demo":[["/copy","选择要复制的内容:代码块 x3 · 文本段 x7"],["/omfg 别再不问我就自动 commit","已锻造规则:提交前必须征得确认"]],
+ "practice":"/hotkeys","practiceWhy":"过一遍快捷键总表,挑一个明天就开始用。"},
+{"id":"graduation","t":"结业:速查表与下一步","sub":"1 分钟","chapter":null,
+ "goal":"全部 10 章过完。这张速查表覆盖每章最常用命令,完整版在「omp 指南」tab(82 条全量 + 搜索 + 示例)。",
+ "points":[],
+ "cheat":true,
+ "demo":null,"practice":null,"practiceWhy":""}
+];
+</script>
+<script>
+const CAT = window.OMP_CATALOG, LESSONS = window.OMP_LESSONS;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const byName = {};
+CAT.chapters.forEach(ch => ch.commands.forEach(c => { byName[c.name] = { ...c, ch }; }));
+
+/* ── 视图切换 ── */
+function showView(v) {
+  $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === v));
+  $$('.view').forEach(el => el.classList.toggle('on', el.id === 'view-' + v));
+  $('#crumbTab').textContent = ({ term: '终端', guide: 'omp 指南', git: 'Git' })[v];
+}
+$$('.tab').forEach(t => t.onclick = () => showView(t.dataset.view));
+
+/* ── 指南渲染 ── */
+let learnMode = true;
+const chEl = {};
+function renderGuide() {
+  const chips = $('#chips'), content = $('#content');
+  chips.innerHTML = ''; content.innerHTML = '';
+  CAT.chapters.forEach((ch, i) => {
+    const c = document.createElement('button');
+    c.className = 'chip'; c.textContent = `${i + 1} ${ch.title}`;
+    c.onclick = () => chEl[ch.id].scrollIntoView({ block: 'start' });
+    chips.appendChild(c);
+    const sec = document.createElement('section');
+    sec.className = 'chapter'; sec.id = 'ch-' + ch.id;
+    const lesson = LESSONS.find(l => l.chapter === ch.id);
+    sec.innerHTML = `<h2><span class="no">${String(i + 1).padStart(2, '0')}</span>${ch.title}<small>${ch.desc}</small>` +
+      (lesson ? `<button class="go lnk btn" data-lesson="${lesson.id}">去学:第 ${LESSONS.indexOf(lesson) + 1} 课 ›</button>` : '') + `</h2>`;
+    const grid = document.createElement('div'); grid.className = 'cmds';
+    ch.commands.forEach(cmd => grid.appendChild(cmdCard(cmd)));
+    sec.appendChild(grid); content.appendChild(sec);
+    chEl[ch.id] = sec;
+  });
+  content.addEventListener('click', e => {
+    const b = e.target.closest('[data-lesson]');
+    if (b) openWizard(LESSONS.findIndex(l => l.id === b.dataset.lesson));
+  });
+}
+function cmdCard(c) {
+  const d = document.createElement('div');
+  d.className = 'cmd'; d.id = 'cmd-' + c.name;
+  d.dataset.text = (c.name + ' ' + c.zh + ' ' + c.en + ' ' + c.detail).toLowerCase();
+  d.innerHTML = `
+      <button class="cmd-head"><span class="name">/${c.name}</span><span class="zh">${c.zh}</span>
+      <span class="badge ${c.tmd === '插入发送' ? 'b-send' : 'b-in'}" title="${c.tmd}">${c.tmd === '插入发送' ? '插入发送' : '已接入·' + c.tmd}</span><span class="chev">›</span></button>
+    <div class="cmd-body">
+      <div class="detail">${c.detail}</div>
+      ${c.usage ? `<div class="usage">usage: /${c.name} ${c.usage}</div>` : ''}
+      <div class="exs"><div class="exh">示例 · 场景 / 操作 / 回显 / 预期</div>${c.ex.map(x =>
+        `<div class="ex"><div class="esc">${esc(x.sc)}</div><div class="ein">${esc(x.i)}</div><div class="eout">${esc(x.o)}</div><div class="eexp"><b>预期</b>${esc(x.e)}</div></div>`).join('')}</div>
+      <div class="how"><span class="dot"></span><span><b>在 tmd-cli 里:</b>${c.how}</span></div>
+      ${c.subs.length ? subsTable(c.subs) : ''}
+      <div class="acts">
+        ${c.tmd !== '插入发送' ? `<button class="btn pri" data-act="panel" data-c="${c.name}">打开${panelName(c.name)}</button>` : ''}
+        <button class="btn" data-act="try" data-c="${c.name}">试一试</button>
+        <button class="btn" data-act="copy" data-c="${c.name}">复制命令</button>
+      </div>
+    </div>`;
+  d.querySelector('.cmd-head').onclick = () => d.classList.toggle('open');
+  return d;
+}
+function subsTable(subs) {
+  return `<div class="subs">` + subs.map(s =>
+    `<div class="srow"><span class="sn">${s.name}${s.usage ? ` <i>${s.usage}</i>` : ''}</span><span class="se">${s.en}</span></div>`).join('') + `</div>`;
+}
+function panelName(n) {
+  return ({ resume: '会话列表', new: '会话列表', session: '会话列表', usage: '额度面板', login: '凭据面板', logout: '凭据面板',
+    settings: '设置分区', model: '模型配置', switch: '模型配置', plugins: '扩展市场', marketplace: '扩展市场' })[n] || '对应面板';
+}
+function esc(s) { return s.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])); }
+
+/* 指南动作(事件委托) */
+$('#content').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const c = byName[b.dataset.c];
+  if (b.dataset.act === 'copy') toast(`已复制 /${c.name}`);
+  if (b.dataset.act === 'try') tryCommand(c.name, `来自指南:${c.zh}`);
+  if (b.dataset.act === 'panel') toast(`原型演示:打开「${panelName(c.name)}」(复用既有 register* 打开函数)`);
+});
+
+/* 搜索 */
+const q = $('#q');
+q.addEventListener('input', () => {
+  const k = q.value.trim().toLowerCase(); let hits = 0;
+  $$('.cmd').forEach(el => {
+    const ok = !k || el.dataset.text.includes(k);
+    el.style.display = ok ? '' : 'none';
+    el.classList.toggle('hit', !!k && ok);
+    if (ok && k) el.classList.add('open');
+    if (ok) hits++;
+  });
+  Object.values(chEl).forEach(el => {
+    el.style.display = [...el.querySelectorAll('.cmd')].some(c => c.style.display !== 'none') ? '' : 'none';
+  });
+  $('#hits').textContent = hits;
+  $('#empty').style.display = hits ? 'none' : 'block';
+});
+q.addEventListener('keydown', e => { if (e.key === 'Escape') { q.value = ''; q.dispatchEvent(new Event('input')); q.blur(); } });
+$('#tglExpand').onclick = () => {
+  const open = $('#tglExpand').classList.toggle('on');
+  $$('.cmd').forEach(el => el.classList.toggle('open', open));
+  $('#tglExpand').textContent = open ? '全部收起' : '全部展开';
+};
+$('#tglLearn').onclick = () => { learnMode = !learnMode; $('#tglLearn').classList.toggle('on', learnMode); toast(learnMode ? '学习模式:显示讲解与示例' : '速查模式:只显示一句话'); };
+
+/* ── 抽屉 ── */
+const box = $('#box'), drawer = $('#drawer'), input = $('#input'), dfilter = $('#dfilter');
+const dlbody = $('#dlbody'), ddetail = $('#ddetail');
+let flat = [], dsel = 0, openedBy = '';
+function openDrawer(by) {
+  openedBy = by;
+  drawer.classList.add('show'); box.classList.add('open');
+  if (by === 'btn' && !input.value.startsWith('/')) input.value = '/';
+  dfilter.value = ''; applyFilter('');
+  setTimeout(() => dfilter.focus(), 0);
+}
+function closeDrawer() { drawer.classList.remove('show'); box.classList.remove('open'); dfilter.blur(); }
+$('#drawerBtn').onclick = () => drawer.classList.contains('show') ? closeDrawer() : openDrawer('btn');
+input.addEventListener('input', () => {
+  if (input.value.startsWith('/')) { if (!drawer.classList.contains('show')) openDrawer('slash'); applyFilter(input.value.slice(1)); }
+  else if (drawer.classList.contains('show') && openedBy === 'slash') applyFilter('');
+});
+function applyFilter(kw) {
+  kw = kw.trim().toLowerCase(); flat = [];
+  CAT.chapters.forEach(ch => {
+    const hits = ch.commands.filter(c => !kw || c.name.startsWith(kw) || c.name.includes(kw) || (c.zh + c.detail).toLowerCase().includes(kw));
+    if (!hits.length) return;
+    flat.push({ type: 'grp', ch });
+    hits.forEach(c => flat.push({ type: 'cmd', c, ch }));
+  });
+  dsel = flat.findIndex(f => f.type === 'cmd');
+  drawList();
+}
+function drawList() {
+  dlbody.innerHTML = ''; let n = 0;
+  flat.forEach((f, i) => {
+    if (f.type === 'grp') { const g = document.createElement('div'); g.className = 'dgrp'; g.textContent = f.ch.title; dlbody.appendChild(g); return; }
+    const c = f.c, el = document.createElement('div');
+    el.className = 'ditem' + (i === dsel ? ' sel' : '');
+    el.innerHTML = `<span class="nm">/${c.name}</span><span class="ds">${c.zh}</span><span class="bdg ${c.tmd === '插入发送' ? '' : 'in'}">${c.tmd === '插入发送' ? '插入发送' : '已接入'}</span>`;
+    el.onclick = () => { dsel = i; drawList(); insertCmd(c); };
+    el.onmouseenter = () => { if (i !== dsel) { dsel = i; drawList(); } };
+    dlbody.appendChild(el); n++;
+  });
+  $('#dcnt').textContent = n + ' 条';
+  const s = dlbody.querySelector('.ditem.sel'); if (s) s.scrollIntoView({ block: 'nearest' });
+  const f = flat[dsel];
+  drawDrawerDetail(f && f.type === 'cmd' ? f : null);
+}
+function drawDrawerDetail(f) {
+  if (!f) { ddetail.innerHTML = '<div class="none">↑ 在左侧选一条命令看讲解</div>'; return; }
+  const c = f.c, lesson = LESSONS.find(l => l.chapter === f.ch.id);
+  ddetail.innerHTML = `
+    <div class="hd"><span class="nm">/${c.name}</span>
+      <span class="badge ${c.tmd === '插入发送' ? 'b-send' : 'b-in'}">${c.tmd === '插入发送' ? '插入发送' : '已接入'}</span>
+      ${c.usage ? `<span style="font-family:var(--mono);font-size:11px;color:var(--warn)">${c.usage}</span>` : ''}</div>
+    <div class="zh">${c.zh}</div>
+    <div class="dt">${c.detail}</div>
+    <div class="exs"><div class="exh">示例 · 场景 / 操作 / 回显 / 预期</div>${c.ex.slice(0, 1).map(x =>
+      `<div class="ex"><div class="esc">${esc(x.sc)}</div><div class="ein">${esc(x.i)}</div><div class="eout">${esc(x.o)}</div><div class="eexp"><b>预期</b>${esc(x.e)}</div></div>`).join('')}</div>
+    <div class="how"><span class="dot"></span><span><b>在 tmd-cli 里:</b>${c.how}</span></div>
+    <div class="dlinks">
+      <button class="btn" data-dl="guide">完整讲解(指南)</button>
+      ${lesson ? `<button class="btn" data-dl="lesson">入门第 ${LESSONS.indexOf(lesson) + 1} 课</button>` : ''}
+      ${c.tmd !== '插入发送' ? `<button class="btn pri" data-dl="panel">打开${panelName(c.name)}</button>` : ''}
+    </div>`;
+  ddetail.querySelectorAll('[data-dl]').forEach(b => b.onclick = () => {
+    if (b.dataset.dl === 'guide') gotoGuideCard(c.name);
+    if (b.dataset.dl === 'lesson') openWizard(LESSONS.findIndex(l => l.id === lesson.id));
+    if (b.dataset.dl === 'panel') toast(`原型演示:打开「${panelName(c.name)}」`);
+  });
+}
+document.addEventListener('keydown', e => {
+  if (!drawer.classList.contains('show')) return;
+  if (e.key === 'Escape') { closeDrawer(); return; }
+  if (document.activeElement === input && openedBy === 'slash' && !['ArrowDown','ArrowUp','Enter'].includes(e.key)) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    let i = dsel;
+    do { i = (i + (e.key === 'ArrowDown' ? 1 : -1) + flat.length) % flat.length; } while (flat[i].type !== 'cmd');
+    dsel = i; drawList();
+  } else if (e.key === 'Enter' && flat[dsel] && flat[dsel].type === 'cmd') {
+    e.preventDefault(); insertCmd(flat[dsel].c);
+  }
+});
+dfilter.addEventListener('input', () => applyFilter(dfilter.value));
+function insertCmd(c) {
+  input.value = '/' + c.name + ' '; closeDrawer(); input.focus();
+  toast(`已插入 /${c.name} — 回车即发送到终端(原型演示)`);
+}
+/* 跨面导航:试一试 → 终端 + composer + 抽屉 */
+function tryCommand(name, why) {
+  showView('term');
+  input.value = '/' + name + ' ';
+  openDrawer('btn');
+  applyFilter(name);
+  toast((why ? why + ' — ' : '') + '已填入对话框,右侧看讲解,Enter 发送');
+}
+/* 跨面导航:抽屉/别处 → 指南卡片 */
+function gotoGuideCard(name) {
+  closeDrawer(); showView('guide');
+  const el = document.getElementById('cmd-' + name);
+  if (!el) return;
+  el.classList.add('open');
+  el.scrollIntoView({ block: 'center' });
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+}
+
+/* ── 学堂入口 ── */
+const KEY = 'tmd.proto.ompAcademy';
+let state = JSON.parse(localStorage.getItem(KEY) || '{"done":[],"cur":0}');
+const save = () => localStorage.setItem(KEY, JSON.stringify(state));
+function refreshEntry() {
+  const pct = Math.round(state.done.length / LESSONS.length * 100);
+  $('#academyPct').textContent = pct + '%';
+  $('#academySub').textContent = state.done.length >= LESSONS.length
+    ? `已结业 · ${LESSONS.length} / ${LESSONS.length} 课 · 指南随时查`
+    : state.done.length
+      ? `已学 ${state.done.length} / ${LESSONS.length} 课 · 继续:第 ${state.cur + 1} 课`
+      : '13 课入门 + 82 条命令指南';
+  $('#popProg').textContent = `第 ${Math.min(state.cur + 1, LESSONS.length)} 课 / ${LESSONS.length} · 完成 ${state.done.length}`;
+}
+$('#academyBtn').onclick = e => { e.stopPropagation(); $('#academyPop').classList.toggle('show'); };
+document.addEventListener('click', e => { if (!e.target.closest('.academy')) $('#academyPop').classList.remove('show'); });
+$('#popContinue').onclick = () => { $('#academyPop').classList.remove('show'); openWizard(state.cur); };
+$('#popGuide').onclick = () => { $('#academyPop').classList.remove('show'); showView('guide'); };
+$('#popCheat').onclick = () => { $('#academyPop').classList.remove('show'); openWizard(LESSONS.length - 1); };
+$('#popReset').onclick = () => { state = { done: [], cur: 0 }; save(); refreshEntry(); $('#academyPop').classList.remove('show'); toast('学习进度已重置'); };
+
+/* ── 入门课 ── */
+let timers = [];
+const stopPlay = () => { timers.forEach(clearTimeout); timers = []; };
+function openWizard(i) {
+  state.cur = Math.max(0, Math.min(i, LESSONS.length - 1)); save();
+  $('#overlay').classList.add('show'); drawWizard();
+}
+function drawWizard() {
+  const rail = $('#rail'); rail.innerHTML = '';
+  LESSONS.forEach((l, i) => {
+    const d = document.createElement('div');
+    d.className = 'step' + (i === state.cur ? ' on' : '') + (state.done.includes(l.id) ? ' done' : '');
+    d.innerHTML = `<span class="no">${state.done.includes(l.id) ? '✓' : i + 1}</span><span class="t">${l.t}<div class="st">${l.sub}</div></span>`;
+    d.onclick = () => { state.cur = i; save(); drawWizard(); };
+    rail.appendChild(d);
+  });
+  $('#wbar').style.width = Math.round(state.done.length / LESSONS.length * 100) + '%';
+  $('#wpct').textContent = `${state.done.length}/${LESSONS.length}`;
+  refreshEntry();
+  const l = LESSONS[state.cur];
+  const el = $('#lesson');
+  if (l.cheat) { drawCheat(el, l); return; }
+  el.innerHTML = `<h2>${state.cur + 1}. ${l.t}</h2><p class="goal">${l.goal}</p>
+    <ul class="pts">${l.points.map(p => `<li>${p}</li>`).join('')}</ul>
+    <div class="terminal"><div class="tbar"><i></i><i></i><i></i></div><div id="tl"></div></div>
+    ${l.practice ? `<div class="lpractice"><div class="pt"><b>练习:${l.practice}</b><p>${l.practiceWhy}</p></div>
+      <button class="btn pri" id="doTry">试一试</button></div>` : ''}`;
+  $('#wnext').textContent = state.cur === LESSONS.length - 1 ? '完成' : '下一步';
+  if (l.demo) playDemo(l.demo);
+  const t = $('#doTry');
+  if (t) t.onclick = () => {
+    markDone(l);
+    const cmdName = l.practice.split(/\s+/)[0].replace(/^\//, '');
+    $('#overlay').classList.remove('show'); stopPlay(); tryCommand(cmdName, '练习 ' + l.t);
+  };
+}
+function drawCheat(el, l) {
+  el.innerHTML = `<h2>${state.cur + 1}. ${l.t}</h2><p class="goal">${l.goal}</p>
+    <div class="cheat">` + CAT.chapters.map(ch =>
+      `<div class="cg"><b>${ch.title}</b>` + ch.commands.slice(0, 4).map(x =>
+        `<div class="ci"><span>/${x.name}</span><em>${x.zh}</em></div>`).join('') + `</div>`).join('') + `</div>`;
+  $('#wnext').textContent = '完成';
+}
+function playDemo(demo) {
+  stopPlay();
+  const tl = $('#tl'); if (!tl) return;
+  tl.innerHTML = ''; let delay = 200;
+  demo.forEach(([cmd, out]) => {
+    const lin = document.createElement('div'); lin.className = 'ln in';
+    const lout = document.createElement('div'); lout.className = 'ln out';
+    tl.appendChild(lin); tl.appendChild(lout);
+    let i = 0;
+    const type = () => {
+      if (i <= cmd.length) { lin.innerHTML = esc(cmd.slice(0, i)) + '<span class="cursor"></span>'; i++; timers.push(setTimeout(type, 38)); }
+      else { lin.textContent = cmd; out.split('\n').forEach((o, k) => timers.push(setTimeout(() => { lout.innerHTML += hl(o) + '\n'; }, 80 * (k + 1)))); }
+    };
+    timers.push(setTimeout(type, delay));
+    delay += cmd.length * 38 + out.length * 20 + 380;
+  });
+}
+const hl = line => esc(line).replace(/(\/[a-z-]+)/g, '<span class="hl">$1</span>').replace(/(\d[\d.,]*%?)/g, '<span style="color:var(--warn)">$1</span>');
+function markDone(l) { if (!state.done.includes(l.id)) state.done.push(l.id); save(); }
+$('#wclose').onclick = () => { stopPlay(); $('#overlay').classList.remove('show'); };
+$('#wprev').onclick = () => { if (state.cur > 0) { state.cur--; save(); drawWizard(); } };
+$('#wnext').onclick = () => {
+  const l = LESSONS[state.cur]; markDone(l);
+  if (state.cur === LESSONS.length - 1) { stopPlay(); $('#overlay').classList.remove('show'); toast('入门完成 — 完整指南随时在 tab 里'); return; }
+  state.cur++; save(); drawWizard();
+};
+$('#replay').onclick = () => { const l = LESSONS[state.cur]; if (l.demo) drawWizard(); };
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('#overlay').classList.contains('show')) { stopPlay(); $('#overlay').classList.remove('show'); }
+});
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+renderGuide();
+refreshEntry();
+</script>
+</body>
+</html>
