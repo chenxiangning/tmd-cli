@@ -179,8 +179,10 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # ubuntu-24.04 镜像预装全套 Android SDK(ANDROID_HOME 已设、license 已接受);
+      # android-actions/setup-android 反而会在自身 sdkmanager 步撞 license 交互挂掉(v0.2.3 实证)。
+      - name: Accept Android licenses(防御)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
 
       # 版本随 tag 注入(versionCode = 提交数,单调);release 用仓内自签 keystore
       # (keystore/tmd-release.keystore)——零成本侧载分发,签名稳定可覆盖升级。
