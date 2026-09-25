@@ -24,6 +24,7 @@ import { registerTerminalLinkProvider } from "./terminalLinks";
 import { registerLanguageServer } from "./lsp/lspRegistry";
 import { registerMarketPanel } from "./marketPanel";
 import type { SidebarAction } from "./sidebarActions";
+import { registerAcademyCourse } from "./academy";
 import { registerCommand } from "./shortcuts";
 import { registerHomePanel } from "./homePanels";
 import { registerCliConfig } from "./cliConfigRegistry";
@@ -87,6 +88,7 @@ class Host implements PluginContext {
   registerTabContent = registerTabContent;
   registerMarketPanel = registerMarketPanel;
   registerSidebarAction = (action: SidebarAction): void => this.registry.registerSidebarAction(action);
+  registerAcademyCourse = registerAcademyCourse;
   registerFileVisual = registerFileVisual;
   registerEditorExtension = registerEditorExtension;
   registerTerminalLinkProvider = registerTerminalLinkProvider;
@@ -106,17 +108,11 @@ class Host implements PluginContext {
 
   // ---- 查询(外壳/插件消费) ----------------------------------------------
 
-  getCliProfiles(): CliProfile[] {
-    return this.registry.getCliProfiles();
-  }
+  getCliProfiles = (): CliProfile[] => this.registry.getCliProfiles();
 
-  getCliProfile(id: string): CliProfile | undefined {
-    return this.registry.getCliProfile(id);
-  }
+  getCliProfile = (id: string): CliProfile | undefined => this.registry.getCliProfile(id);
 
-  getMount(point: MountPoint): MountContribution[] {
-    return this.registry.getMount(point);
-  }
+  getMount = (point: MountPoint): MountContribution[] => this.registry.getMount(point);
   /** 插件市场数据源(委托 registry)。 */
   listPluginStates(): { plugin: Plugin; enabled: boolean }[] {
     return this.registry.listPluginStates();

@@ -9,6 +9,7 @@ import { ompSessionsDir, readOmpSessionEdits } from "./edits";
 import { ompAcquireResume, startOmpPrewarmManager, stopOmpPrewarmManager } from "./prewarm";
 import { listOmpSuggestions } from "./rpcCommands";
 import { OmpExtensionMarket } from "./market";
+import { OMP_ACADEMY_COURSE } from "./academy/academyCatalog";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 import { PI_TUI_ECHO_MARKS } from "../cli-shared/echoMarks";
 import type { CliSuggestion } from "@kernel/cli";
@@ -40,12 +41,22 @@ const ompSessions = piFamilySessions({
 
 /**
  * omp 命令/技能候选(action 初判见 openspec/changes/composer-command-drawer)。
- * 技能注入后通常要跟任务文本 → 默认 insert;/model 为幕布内 picker → send。
+ * 命令面从学堂课程目录派生(全量 82 条,中文一句话作 description);前 3 条为
+ * 幕布内行为特殊语义:/help /clear 发送原文、/model 是幕布内 picker → send。
+ * 技能注入后通常要跟任务文本 → 默认 insert。
  */
-export const OMP_COMMAND_SUGGESTIONS: CliSuggestion[] = [
+const OMP_PINNED_COMMAND_SUGGESTIONS: CliSuggestion[] = [
   { value: "help", description: "查看可用命令", action: "send", icon: "help" },
   { value: "clear", description: "清屏", action: "send", icon: "clear" },
   { value: "model", description: "查看/切换模型(幕布内 picker)", action: "send", icon: "model" },
+];
+
+export const OMP_COMMAND_SUGGESTIONS: CliSuggestion[] = [
+  ...OMP_PINNED_COMMAND_SUGGESTIONS,
+  ...OMP_ACADEMY_COURSE.chapters
+    .flatMap((ch) => ch.commands)
+    .filter((c) => !OMP_PINNED_COMMAND_SUGGESTIONS.some((s) => s.value === c.name))
+    .map((c) => ({ value: c.name, description: c.zh })),
 ];
 
 export const OMP_SKILL_SUGGESTIONS: CliSuggestion[] = [
@@ -157,6 +168,8 @@ export const cliOmpPlugin: Plugin = {
        * paste 通路,与真实终端粘贴行为一致(契约见 kernel/cliProfile.ts)。 */
       bracketedPaste: true,
     });
+    /* CLI 学堂课程:82 命令目录 + 13 课,消费归 academy 插件(契约见 kernel/academy.ts)。 */
+    ctx.registerAcademyCourse(OMP_ACADEMY_COURSE);
     /* 预热接管管理器:后台常驻一个裸 omp 待命(有近期会话活动才预热,
      * 生命周期/降级护栏见 ./prewarm.ts);deactivate 强杀清场。 */
     startOmpPrewarmManager();

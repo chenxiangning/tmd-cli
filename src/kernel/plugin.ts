@@ -17,6 +17,7 @@ import type { EditorExtensionFactory } from "./editorExtensions";
 import type { TerminalLinkProvider } from "./terminalLinks";
 import type { LanguageServerConfig } from "./lsp/lspRegistry";
 import type { SidebarAction } from "./sidebarActions";
+import type { AcademyCourse } from "./academy";
 import type { CliConfigEntry } from "./cliConfigRegistry";
 import type { RemoteFileSource } from "./fileSources";
 import type { WorkspaceOrigin } from "./workspaceOrigins";
@@ -121,6 +122,8 @@ export interface PluginContext {
   registerMarketPanel(panel: MarketPanelContribution): void;
   /** 注册侧栏快捷动作(图标 + 点击回调,渲染归 app-shell 侧栏)。 */
   registerSidebarAction(action: SidebarAction): void;
+  /** 注册一份 CLI 学堂课程(academy 注册表的 ctx 通道;课程内容全在 cli-* 插件侧)。 */
+  registerAcademyCourse(course: AcademyCourse): void;
   /** 注册文件视觉 provider(fileVisual 注册表的 ctx 通道)。 */
   registerFileVisual(provider: FileVisualProvider): void;
   /** 注册文件代码视图(CodeMirror)扩展工厂(editorExtensions 注册表的 ctx 通道;工厂体内动态 import CM,保住拆包);返回退订。 */

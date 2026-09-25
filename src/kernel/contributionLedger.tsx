@@ -21,6 +21,7 @@ import { removeFileVisual } from "./fileVisual";
 import { removeHomePanel } from "./homePanels";
 import { removeCliConfig } from "./cliConfigRegistry";
 import { removeCommand } from "./shortcuts";
+import { removeAcademyCourse } from "./academy";
 
 /** HostRegistry 拥有的三条撤销通道(经 PluginLifecycle 注入,避免模块环)。 */
 export interface ContributionUndo {
@@ -133,6 +134,10 @@ export function makeAttributedCtx(
     registerSidebarAction(action) {
       ctx.registerSidebarAction(action);
       track(() => undo.removeSidebarActionById(action.id));
+    },
+    registerAcademyCourse(course) {
+      ctx.registerAcademyCourse(course);
+      track(() => removeAcademyCourse(course.cliId));
     },
     registerFileVisual(provider) {
       ctx.registerFileVisual(provider);
