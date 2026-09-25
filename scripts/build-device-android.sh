@@ -23,6 +23,10 @@ cp -R dist "$SHELL_DIR/app/src/main/assets/dist"
 
 echo "[build-android] 2/3 gradle assembleRelease(仓内自签 keystore,与 CI 产物同签名)"
 cd "$SHELL_DIR"
+# 版本随仓注入(对齐 CI 的 tag 注入):versionName=package.json,versionCode=提交数
+APP_VERSION=$(node -p "require('../../package.json').version" 2> /dev/null || echo 0.0.0-dev)
+APP_CODE=$(git rev-list --count HEAD)
+VERSION_ARGS=(-PversionName="$APP_VERSION" -PversionCode="$APP_CODE")
 # SDK 定位:环境变量 > ~/Library/Android/sdk(Android Studio)> brew cask 命令行工具;
 # 都没有则看 local.properties(sdk.dir,gitignore,开发者手配)。
 if [[ -z "${ANDROID_HOME:-}" && ! -f local.properties ]]; then
@@ -33,7 +37,7 @@ if [[ -z "${ANDROID_HOME:-}" && ! -f local.properties ]]; then
   fi
 fi
 if [[ -x ./gradlew ]]; then GRADLE=./gradlew; else GRADLE=gradle; fi  # 缺执行位让 gradle 报错暴露,勿静默回落
-"$GRADLE" assembleRelease --console=plain -q
+"$GRADLE" assembleRelease --console=plain -q "${VERSION_ARGS[@]}"
 
 APK="$PWD/app/build/outputs/apk/release/app-release.apk"
 echo "[build-android] 产物: $APK"
