@@ -15,6 +15,11 @@ function esc(s: string): string {
   return s.replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[m] ?? m);
 }
 
+/** 课点允许的受控标记:转义全量 HTML 后仅放行 <b>(数据侧约定,无其他标签)。 */
+function lessonPointHtml(p: string): string {
+  return esc(p).replace(/&lt;(\/?)b&gt;/g, "<$1b>");
+}
+
 /** 终端打字演示:逐字敲命令 + 回显按行浮现;demo 缺省 = 静态占位。 */
 function TermDemo({ demo }: { demo: NonNullable<AcademyLesson["demo"]> }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -72,7 +77,8 @@ export function LessonPane({ cliId, course, lesson, index, isLast, onPrev, onNex
     const name = cmd.replace(/^\//, "").split(/\s+/)[0];
     markLessonDone(cliId, lesson.id, course.lessons.length);
     composerInsertRef.current?.(`/${name} `);
-    composerWakeRef.current?.("/");
+    /* 同 tryCommand:insert 提交后再唤候选,避免陈旧闭包覆盖插入(reviewer P1)。 */
+    requestAnimationFrame(() => composerWakeRef.current?.("/"));
     onFinish();
   };
   if (lesson.cheat) {
@@ -84,7 +90,9 @@ export function LessonPane({ cliId, course, lesson, index, isLast, onPrev, onNex
       <p className="academy-lesson-goal">{lesson.goal}</p>
       {lesson.points.length > 0 && (
         <ul className="academy-points">
-          {lesson.points.map((p, i) => <li key={i}>{p}</li>)}
+          {lesson.points.map((p, i) => (
+            <li key={i} dangerouslySetInnerHTML={{ __html: lessonPointHtml(p) }} />
+          ))}
         </ul>
       )}
       {lesson.demo && <TermDemo demo={lesson.demo} />}
@@ -142,7 +150,7 @@ function LessonFooter({ index, isLast, onPrev, onNext, onFinish }: {
   return (
     <div className="academy-lesson-foot">
       <span className="academy-lesson-note">{t("「试一试」会把命令填进对话框,关掉课程直接练")}</span>
-      <span className="flex-1" />
+      <span className="academy-spacer" />
       <button type="button" className="academy-btn" onClick={onPrev} disabled={index === 0}>{t("上一步")}</button>
       <button type="button" className="academy-btn is-pri" onClick={isLast ? onFinish : onNext}>
         {isLast ? t("完成") : t("下一步")}

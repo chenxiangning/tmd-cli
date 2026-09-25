@@ -64,18 +64,21 @@ function WizardBody({ cliId, initialIdx }: { cliId: string; initialIdx: number }
       </div>
       <div className="academy-wiz-body">
         <aside className="academy-rail">
-          {lessons.map((l, i) => {
-            const done = progress.done.includes(l.id);
-            return (
-              <button key={l.id} type="button" className={`academy-step${i === idx ? " is-on" : ""}${done ? " is-done" : ""}`} onClick={() => goto(i)}>
-                <span className="academy-step-no">{done ? "✓" : i + 1}</span>
-                <span className="academy-step-t">
-                  {l.title}
-                  <small>{done ? t("已完成") : l.sub}</small>
-                </span>
-              </button>
-            );
-          })}
+          {(() => {
+            const doneSet = new Set(progress.done);
+            return lessons.map((l, i) => {
+              const done = doneSet.has(l.id);
+              return (
+                <button key={l.id} type="button" className={`academy-step${i === idx ? " is-on" : ""}${done ? " is-done" : ""}`} onClick={() => goto(i)}>
+                  <span className="academy-step-no">{done ? "✓" : i + 1}</span>
+                  <span className="academy-step-t">
+                    {l.title}
+                    <small>{done ? t("已完成") : l.sub}</small>
+                  </span>
+                </button>
+              );
+            });
+          })()}
         </aside>
         <LessonPane
           cliId={cliId}

@@ -86,7 +86,7 @@
 .academy-exs { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-base); overflow: hidden; }
 .academy-ex-head { padding: 3px 9px; font-size: 11px; color: var(--tmd-fg-subtle);
-  border-bottom: 1px solid var(--tmd-panel, var(--tmd-bg-panel)); background: var(--tmd-bg-panel); }
+  border-bottom: 1px solid var(--tmd-bg-panel); background: var(--tmd-bg-panel); }
 .academy-ex { padding: 6px 9px; }
 .academy-ex + .academy-ex { border-top: 1px solid var(--tmd-bg-panel); }
 .academy-ex-sc { color: var(--tmd-fg-subtle); font-size: 11px; margin-bottom: 2px; }
@@ -195,7 +195,7 @@
 .academy-lesson-foot { margin-top: auto; display: flex; gap: 8px; align-items: center;
   padding-top: 11px; }
 .academy-lesson-note { color: var(--tmd-fg-subtle); font-size: 11px; }
-.flex-1 { flex: 1; }
+.academy-spacer { flex: 1; }
 
 .academy-cheat { columns: 2; column-gap: 14px; margin-top: 11px; }
 .academy-cheat-card { break-inside: avoid; margin-bottom: 9px;

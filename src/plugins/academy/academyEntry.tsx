@@ -13,18 +13,19 @@ import "./academy.css";
 
 export function AcademyEntry() {
   const courses = useAcademyCourses();
-  const [menuOpen, setMenuOpen] = useState(false);
+  /* 展开的课程 cliId:多课程(多 CLI)时菜单互不共享(阶段 2+3 审查 P2)。 */
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   /* 点外部收菜单(单入口局部弹层,不做全局浮层管理) */
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuFor) return;
     const onDown = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setMenuOpen(false);
+      if (!rootRef.current?.contains(e.target as Node)) setMenuFor(null);
     };
     document.addEventListener("pointerdown", onDown);
     return () => document.removeEventListener("pointerdown", onDown);
-  }, [menuOpen]);
+  }, [menuFor]);
 
   if (courses.length === 0) return null;
   return (
@@ -35,9 +36,9 @@ export function AcademyEntry() {
           cliId={course.cliId}
           title={course.title}
           lessonCount={course.lessons.length}
-          menuOpen={menuOpen}
-          onToggleMenu={() => setMenuOpen(!menuOpen)}
-          onDismiss={() => setMenuOpen(false)}
+          menuOpen={menuFor === course.cliId}
+          onToggleMenu={() => setMenuFor(menuFor === course.cliId ? null : course.cliId)}
+          onDismiss={() => setMenuFor(null)}
         />
       ))}
     </div>

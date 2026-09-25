@@ -13,6 +13,9 @@ export interface CourseProgress {
 
 const KEY = "tmd.academy.progress.v1";
 
+/** 缺省桶常量:useSyncExternalStore 的 getSnapshot 必须引用稳定,现造对象会死循环。 */
+const EMPTY: CourseProgress = { done: [], cur: 0 };
+
 let state: Record<string, CourseProgress> = load();
 const subs = new Set<() => void>();
 
@@ -38,7 +41,7 @@ function persist(): void {
 }
 
 export function courseProgress(cliId: string): CourseProgress {
-  return state[cliId] ?? { done: [], cur: 0 };
+  return state[cliId] ?? EMPTY;
 }
 
 /** 完成标记(幂等):仅首次完成时前移指针(复习/重复打勾不推进)。 */

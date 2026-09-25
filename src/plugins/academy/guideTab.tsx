@@ -12,10 +12,12 @@ import { filterChapters, lessonIndexByChapter } from "./guideSearch";
 import { openWizard } from "./academyStores";
 import "./academy.css";
 
-/** 试一试:命令填入 composer 并唤出 / 候选(挂载期桥,欢迎页等无输入区 = 静默跳过)。 */
+/** 试一试:命令填入 composer 并唤出 / 候选(挂载期桥,欢迎页等无输入区 = 静默跳过)。
+ *  wake 必须推迟到 insert 的 setState 提交之后(rAF):composer 的 setValue 非函数式,
+ *  同帧连调时陈旧闭包会用旧草稿覆盖刚插入的命令(reviewer P1 实证)。 */
 function tryCommand(name: string): void {
   composerInsertRef.current?.(`/${name} `);
-  composerWakeRef.current?.("/");
+  requestAnimationFrame(() => composerWakeRef.current?.("/"));
 }
 
 function CommandCard({ cmd, lessonIdx, onOpenLesson }: {
@@ -44,8 +46,8 @@ function CommandCard({ cmd, lessonIdx, onOpenLesson }: {
           {cmd.usage && <p className="academy-usage">usage: /{cmd.name} {cmd.usage}</p>}
           <div className="academy-exs">
             <div className="academy-ex-head">{t("示例 · 场景 / 操作 / 回显 / 预期")}</div>
-            {cmd.examples.map((ex, i) => (
-              <div key={i} className="academy-ex">
+            {cmd.examples.map((ex) => (
+              <div key={ex.i} className="academy-ex">
                 <div className="academy-ex-sc">{ex.sc}</div>
                 <div className="academy-ex-in">{ex.i}</div>
                 <div className="academy-ex-out">{ex.o}</div>
