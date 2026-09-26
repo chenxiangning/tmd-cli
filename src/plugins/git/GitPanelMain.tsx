@@ -20,6 +20,8 @@ import { RemoteDialogGroup } from "./views/RemoteDialogGroup";
 import { DiffView } from "./views/DiffView";
 import { BranchView } from "./views/BranchView";
 import { HistoryView } from "./views/HistoryView";
+import { WorktreeZone } from "./worktree/WorktreeZone";
+import { requestWorktreeDialog } from "./panelStore";
 
 /** GitPanel 远端编排面 —— useGitPanelRemote 返回值的结构契约(此处只消费渲染所需)。 */
 interface GitPanelRemoteState {
@@ -191,6 +193,11 @@ export function GitPanelMain({
           chipSeq={chipSeq}
           onSelect={onSelect}
         />
+      )}
+
+      {/* 工作树常驻区(方案 B):多树仓才出现;「新建」走 worktree 弹窗(GitToolbar 持有)。 */}
+      {repoCtx.selectedPath && (
+        <WorktreeZone cwd={repoCtx.selectedPath} onCreate={() => requestWorktreeDialog()} />
       )}
 
       <PanelBanners

@@ -19,6 +19,7 @@ import {
 import { RemoteActionRows } from "./GitToolbarRemoteRows";
 import { WorktreeManageDialog } from "./worktree/WorktreeManageDialog";
 import {
+  clearWorktreeDialogRequest,
   setGitLayout,
   setGitView,
   useGitPanelState,
@@ -54,7 +55,7 @@ type MenuKind = "view" | "layout" | "remote";
 const MENU_WIDTH: Record<MenuKind, number> = { view: 200, layout: 160, remote: 200 };
 
 export function GitToolbar({ cwd }: { cwd?: string }) {
-  const { view, layout, aggregate } = useGitPanelState();
+  const { view, layout, aggregate, worktreeDialogRequest } = useGitPanelState();
   const ViewIcon = VIEW_ICON[view];
   const LayoutIcon = LAYOUT_ICON[layout];
   const totals = aggregate.totals;
@@ -62,6 +63,17 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
     null,
   );
   const [worktreesOpen, setWorktreesOpen] = useState(false);
+  const [wtPrefill, setWtPrefill] = useState<{ branch?: string; newBranch?: boolean } | null>(null);
+  /* 工作树区/分支列表「建树」入口:桥请求 → 开弹窗并预填(消费后清除防重放)。 */
+  useEffect(() => {
+    if (!worktreeDialogRequest) return;
+    setWtPrefill({
+      branch: worktreeDialogRequest.branch,
+      newBranch: worktreeDialogRequest.newBranch,
+    });
+    setWorktreesOpen(true);
+    clearWorktreeDialogRequest();
+  }, [worktreeDialogRequest]);
 
   /* 以按钮左缘对齐菜单左缘,视口内夹取(同 wsmenu / panel-overflow 模式)。 */
   const toggleMenu = (kind: MenuKind, e: ReactMouseEvent<HTMLButtonElement>) => {
@@ -142,7 +154,17 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
           <TreeStructure className="h-[0.75rem] w-[0.75rem]" aria-hidden />
         </button>
       )}
-      {cwd && worktreesOpen && <WorktreeManageDialog cwd={cwd} onClose={() => setWorktreesOpen(false)} />}
+      {cwd && worktreesOpen && (
+        <WorktreeManageDialog
+          cwd={cwd}
+          initialBranch={wtPrefill?.branch}
+          initialNewBranch={wtPrefill?.newBranch}
+          onClose={() => {
+            setWorktreesOpen(false);
+            setWtPrefill(null);
+          }}
+        />
+      )}
       {menu?.kind === "view" && (
         <MenuShell position={menu.pos} width={MENU_WIDTH.view} onClose={closeMenu}>
           {(Object.keys(VIEW_LABEL) as GitViewMode[]).map((v) => {

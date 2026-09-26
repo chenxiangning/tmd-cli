@@ -13,15 +13,26 @@ import { t } from "@kernel/i18n";
 import { addWorkspace, getWorkspaces, removeWorkspace } from "@kernel/workspace";
 import { branchForWorktree, dirNameFromBranch, validateDirName, worktreePathFor } from "./dirName";
 
-export function WorktreeManageDialog({ cwd, onClose }: { cwd: string; onClose: () => void }) {
+export function WorktreeManageDialog({
+  cwd,
+  onClose,
+  /** 预填(Git 面板「建树」入口):检出已有分支模式下预选该分支。 */
+  initialBranch,
+  initialNewBranch,
+}: {
+  cwd: string;
+  onClose: () => void;
+  initialBranch?: string;
+  initialNewBranch?: boolean;
+}) {
   const [list, setList] = useState<WorktreeEntry[] | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   /* 新建表单:branch = 新分支名或已有分支名;newBranch 默认开(并行任务最常见)。 */
-  const [newBranch, setNewBranch] = useState(true);
-  const [branch, setBranch] = useState("");
-  const [dirName, setDirName] = useState("");
+  const [newBranch, setNewBranch] = useState(initialNewBranch ?? true);
+  const [branch, setBranch] = useState(initialBranch ?? "");
+  const [dirName, setDirName] = useState(() => (initialBranch ? dirNameFromBranch(initialBranch) : ""));
   const [existingBranches, setExistingBranches] = useState<string[]>([]);
   /* 两段式移除确认:记待确认路径,再点同钮执行。 */
   const [confirmPath, setConfirmPath] = useState<string | null>(null);
