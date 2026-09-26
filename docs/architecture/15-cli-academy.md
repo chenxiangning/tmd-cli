@@ -38,6 +38,13 @@
 - `tabContent.contract.test.ts`:OPENABLE_KINDS 含 `academy.guide`(双向锁定);全量激活 ctx 桩含 `registerAcademyCourse`(no-op,重复 activate 防重复注册)。
 - 目录不变量(cli-omp/academy/academyCatalog.test.ts):章节命令唯一、示例四段齐、lessons 与目录互链、候选派生并集语义(pinned 3 条 action:send 保留)。
 
+
+### 排版铁律(2026-09-26 大仙复审补)
+
+- 学堂字号一律 **rem**(锚 = html 根字号),禁 px 硬编码;三个根容器(`.academy-entry`/`.academy-guide`/`.academy-wizard`)设 `font-size: 0.75rem` 基线,全树继承——`settings.uiFontSize`(外观设置,12-20)一改即随客户端整体缩放。
+- `button`/`input` 必须 `font: inherit`(UA 默认 16px 不继承 body,是「字体比客户端大一号」的根因)。
+- 颜色一律 `--tmd-*` token,浅深主题自动跟随,禁裸色。
+
 ## 二期(未做)
 
 en/ja 词典;composer 抽屉详情卡;openPanel 徽章;claude/codex/pi 课程;课程版本失效提示(sourceVersion vs 探针版本)。
