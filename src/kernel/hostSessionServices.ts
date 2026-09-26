@@ -142,7 +142,8 @@ export function createSessionServices(
             const recent = stripAnsi(page.text.slice(-READOPT_BUSY_TAIL_CHARS)).split(/\r\n|\r|\n/);
             const profile = ctx.getCliProfile(s.profileId);
             const busy = !!profile?.busyMarks?.some((re) => recent.some((l) => re.test(l)));
-            watches.readoptAnchor(s.id, page.text, profile?.echoMarks, busy);
+            /* busyHoldMs 覆盖随重锚落位(见 readoptAnchor 契约注释)。 */
+            watches.readoptAnchor(s.id, page.text, profile?.echoMarks, busy, profile?.busyHoldMs);
           })().catch(() => undefined), /* 补底/重锚是增强:失败保持未恢复(同 I1 零语义),不拖垮接管 */
         );
       }

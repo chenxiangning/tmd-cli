@@ -136,11 +136,15 @@ export class ActivityWatch {
     s.idleArmAt = 0;
   }
 
-  /** readopt 重锚:命中插件声明 echoMarks(磁盘尾回显行,历史证据)或 busy = true(尾帧 busyMarks,hostWatches 判给的现势证据)即恢复 awaiting/answered/active;皆无零语义(同 I1)。 */
-  readoptAnchor(sessionId: string, diskTail: string, marks?: RegExp[], busy = false): void {
+  /** readopt 重锚:命中插件声明 echoMarks(磁盘尾回显行,历史证据)或 busy = true(尾帧 busyMarks,hostWatches 判给的现势证据)即恢复 awaiting/answered/active;皆无零语义(同 I1)。
+   *  busyHoldMs:插件覆盖窗随重锚落位 —— 活帧路径的 setBusyHold 在渲染冻结期无帧可达,
+   *  重锚若仍默认 30s,omp 18.3 冻结窗恰会假结算(b2a7048 要修的场景在重载入口复发)。 */
+  readoptAnchor(sessionId: string, diskTail: string, marks?: RegExp[], busy = false, busyHoldMs?: number): void {
     if (!busy && !marks?.some((re) => re.test(diskTail))) return;
     const now = Date.now(); /* 自证窗盖重载后紧邻静默工具;归属保守按已查看(重载前查看态不可知,防幽灵轮误蓝) */
-    Object.assign(this.state(sessionId), { anchored: true, awaiting: true, answered: true, active: true, lastContentAt: now, lastBusyAt: now, lastOutputViewed: true, idleArmAt: 0 });
+    const st = this.state(sessionId);
+    Object.assign(st, { anchored: true, awaiting: true, answered: true, active: true, lastContentAt: now, lastBusyAt: now, lastOutputViewed: true, idleArmAt: 0 });
+    if (busyHoldMs !== undefined) st.busyHoldMs = busyHoldMs;
     this.ensureWatch();
   }
 

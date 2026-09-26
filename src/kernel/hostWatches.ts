@@ -199,7 +199,7 @@ export class HostWatches {
   }
 
   /** readopt 重锚:磁盘尾 + 双证据(回显历史 + busy 现势)直达活动守望(语义见 ActivityWatch.readoptAnchor)。 */
-  readoptAnchor(sessionId: string, diskTail: string, marks: RegExp[] | undefined, busy: boolean): void { this.activity.readoptAnchor(sessionId, diskTail, marks, busy); }
+  readoptAnchor(sessionId: string, diskTail: string, marks: RegExp[] | undefined, busy: boolean, busyHoldMs?: number): void { this.activity.readoptAnchor(sessionId, diskTail, marks, busy, busyHoldMs); }
 
   /** 完成未读判定(会话列表蓝呼吸灯)。 */
   isUnread(sessionId: string): boolean {
