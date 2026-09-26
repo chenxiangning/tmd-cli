@@ -205,4 +205,5 @@
 | 2026-09-26 | [worktree 关联管理原型 方案 A:侧栏工作区分层树(仓库父节点/worktree 子节点)](design/worktree-nested-sidebar.html) | 已落地(A+B 并做) |
 | 2026-09-26 | [worktree 关联管理原型 方案 B:Git 面板工作树区+分支按归属归组](design/worktree-git-panel-zone.html) | 已落地(A+B 并做) |
 | 2026-09-26 | [worktree 关联管理设计(方案 A 侧栏分层 + B Git 面板分区,并做)](superpowers/specs/2026-09-26-worktree-assoc-management-design.md) | 已落地(1421 桩实证;真机目检待大仙) |
+| 2026-09-27 | [右缘面板 rail 设计(顶栏面板入口迁竖排工具条,activity bar 形态)](superpowers/specs/2026-09-27-right-panel-rail-design.md) | 已落地(实现随本 spec 提交;1421 桩目检通过) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

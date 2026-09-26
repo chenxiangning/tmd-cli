@@ -5,7 +5,6 @@ import { windowClose, windowMinimize, windowToggleMaximize } from "@kernel/ipc";
 import { Mounts } from "@kernel/Mounts";
 import { usePlatformKind } from "@kernel/platform";
 import { toggleHomeSession } from "./shortcutCommands";
-import { TopBarPanelTabs } from "./RightPanelToolbar";
 import { TitlebarBranchLabel, WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 /** macOS 用原生左侧 traffic lights,Windows 自绘右侧按钮组;窗口控制经 kernel/ipc 薄封装。 */
@@ -126,9 +125,8 @@ export function TopBar({
         >
           {rightOpen ? <CaretLineRight size="0.875rem" aria-hidden /> : <CaretLineLeft size="0.875rem" aria-hidden />}
         </button>
-        {/* 工作区选择器(自右栏 subbar 上移):折叠钮之后、面板 tabs 之前,贴 tabs 左缘 */}
+        {/* 工作区选择器(自右栏 subbar 上移):折叠钮之后;面板 tabs 已迁右缘 PanelRail */}
         <WorkspaceSwitcher />
-        <TopBarPanelTabs />
         <Mounts point="header.right" />
       </div>
       <WindowControls />

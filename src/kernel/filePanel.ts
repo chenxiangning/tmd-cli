@@ -6,7 +6,7 @@
  * 由各自插件 activate 时注册:
  *   files 插件 → { id: "files", label: "文件", ... }
  *   git 插件   → { id: "git",   label: "Git", ... }
- * 外壳(AppShell 右栏 / TopBarPanelTabs)只按注册表渲染 —— 新增面板零改外壳。
+ * 外壳(AppShell 右栏 / 右缘 PanelRail)只按注册表渲染 —— 新增面板零改外壳。
  * 钉住清单按面板 id 持久化 localStorage(key tmd.filePanel.pinned.v1),重启原样恢复。
  */
 

@@ -1,9 +1,9 @@
 /**
- * Right panel toolbar —— 复刻 codemoss right-panel-toolbar 视觉。
+ * Right panel rail —— 右缘常驻竖排面板入口(2026-09-26 自顶栏 tab 条迁来,UI 参照 activity bar)。
  *
  * 拆分后:
- * - TopBarPanelTabs: panel tab 按钮 + ⋯ more ─ 由 TopBar 渲染到顶部
- *   titlebar 右侧,与 search/quick-switcher 等其他 action 同一行。
+ * - PanelRail: 窗口右缘竖条(钉住∪激活面板 + 分隔线 + ⋯ more 向左弹出),
+ *   由 AppShell 渲染在内容行最右;点击 = 切面板并自动展开右栏。
  * - RightPanelToolbar: 内部组件,在右侧 aside 底部渲染 FileActionsBar
  *   (新建/刷新/面板动作;工作区选择器 2026-09-14 上移顶栏 WorkspaceSwitcher)。
  */
@@ -22,10 +22,10 @@ import { FileActionsBar } from "./FileActionsBar";
 
 
 /* ──────────────────────────────────────────────────────────
- * TopBar 用 panel tabs 组件 ─ TopBar 直接渲染(header.right 挂点由插件贡献,如 web-access 的远程控制徽标)。
+ * 右缘面板 rail ─ AppShell 渲染在内容行最右(header.right 挂点仍在顶栏,由插件贡献)。
  * tab 列表完全来自 kernel 面板注册表,外壳不认识任何业务面板。
  * ────────────────────────────────────────────────────────── */
-export function TopBarPanelTabs() {
+export function PanelRail({ onActivate }: { onActivate: () => void }) {
   const { mode, pinnedIds, panels } = useFilePanel();
   const [overflowPos, setOverflowPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -39,17 +39,18 @@ export function TopBarPanelTabs() {
       setOverflowPos(null);
       return;
     }
-    // 以按钮右缘对齐菜单右缘,视口内夹取(同 wsmenu 模式)。
+    // ⋯ 在右缘竖条:菜单贴按钮左缘向左弹出,视口内夹取(同 wsmenu 模式)。
     const rect = e.currentTarget.getBoundingClientRect();
     const width = 240;
+    const estHeight = 320; // ponytail: 菜单估高(约 7 行)只用于夹取,真值由内容撑开
     setOverflowPos({
-      x: Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12)),
-      y: rect.bottom + 4,
+      x: Math.max(12, rect.left - width - 4),
+      y: Math.max(12, Math.min(rect.top, window.innerHeight - estHeight - 12)),
     });
   };
   return (
-    <div className="panel-tabs-row">
-      <div className="panel-tabs" role="tablist" aria-label={t("右侧面板")}>
+    <div className="panel-rail">
+      <div className="panel-rail-tabs" role="tablist" aria-orientation="vertical" aria-label={t("右侧面板")}>
         {visiblePanels.map((panel) => {
           const Icon = panel.icon;
           const isActive = panel.id === mode;
@@ -57,9 +58,12 @@ export function TopBarPanelTabs() {
             <button
               key={panel.id}
               type="button"
-              className={`panel-tab${isActive ? " is-active" : ""}`}
+              className={`panel-rail-tab${isActive ? " is-active" : ""}`}
               data-panel-id={panel.id}
-              onClick={() => setFilePanelMode(panel.id)}
+              onClick={() => {
+                setFilePanelMode(panel.id);
+                onActivate();
+              }}
               aria-label={t(panel.label)}
               title={t(panel.label)}
             >
@@ -69,11 +73,15 @@ export function TopBarPanelTabs() {
         })}
       </div>
 
+      {/* 参照图:tab 组下一条分隔线,⋯ 组紧随其后(不钉底) */}
+      <div className="panel-rail-sep" aria-hidden />
+
       <button
         type="button"
-        className="panel-tab panel-tab-overflow"
+        className="panel-rail-tab"
         onClick={toggleOverflow}
         aria-label={t("更多面板")}
+        aria-expanded={overflowPos ? true : undefined}
         title={t("更多面板")}
       >
         <DotsThree aria-hidden />
@@ -94,7 +102,7 @@ export function TopBarPanelTabs() {
 
 /**
  * 更多面板下拉(⋯) —— portal 挂 document.body + fixed 定位(复刻 wsmenu 模式),
- * 跳出 titlebar 层叠上下文,杜绝被文件树压住/背景透明。
+ * 跳出 rail 层叠上下文,杜绝被文件树压住/背景透明;自 rail 向左弹出。
  * 行点击 = 激活该面板(未钉则顺带钉上);复选框点击 = 仅切换钉住状态,菜单不关。
  */
 function PanelOverflowMenu({
@@ -193,7 +201,7 @@ function PanelOverflowMenu({
 
 
 /* ──────────────────────────────────────────────────────────
- * AppShell 右栏 aside 的渲染入口(panel tabs 已挪到 TopBarPanelTabs)。
+ * AppShell 右栏 aside 的渲染入口(面板入口已迁右缘 PanelRail)。
  * ────────────────────────────────────────────────────────── */
 /* memo 兜底:无 props,父级(AppShell 右栏 aside)重渲染时不再连带重渲染。 */
 export const RightPanelToolbar = memo(function RightPanelToolbar() {

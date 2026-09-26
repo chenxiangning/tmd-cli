@@ -22,12 +22,12 @@ html[data-icon-blink~="newchat"] .workspace-action-btn.is-newchat svg {
   animation: icon-decor-breathe 5s ease-in-out infinite;
 }
 
-/* ── titlebar 面板 tab(overflow 菜单为瞬态浮层,只吃颜色不吃闪烁)── */
-html[data-icon-blink~="panel-files"] .panel-tab[data-panel-id="files"] svg,
-html[data-icon-blink~="panel-git"] .panel-tab[data-panel-id="git"] svg,
-html[data-icon-blink~="panel-checkpoints"] .panel-tab[data-panel-id="checkpoints"] svg,
-html[data-icon-blink~="panel-memory"] .panel-tab[data-panel-id="memory"] svg,
-html[data-icon-blink~="panel-marks"] .panel-tab[data-panel-id="marks"] svg {
+/* ── 右缘 rail 面板 tab(overflow 菜单为瞬态浮层,只吃颜色不吃闪烁)── */
+html[data-icon-blink~="panel-files"] .panel-rail-tab[data-panel-id="files"] svg,
+html[data-icon-blink~="panel-git"] .panel-rail-tab[data-panel-id="git"] svg,
+html[data-icon-blink~="panel-checkpoints"] .panel-rail-tab[data-panel-id="checkpoints"] svg,
+html[data-icon-blink~="panel-memory"] .panel-rail-tab[data-panel-id="memory"] svg,
+html[data-icon-blink~="panel-marks"] .panel-rail-tab[data-panel-id="marks"] svg {
   animation: icon-decor-breathe 5s ease-in-out infinite;
 }
 
@@ -47,11 +47,11 @@ html[data-icon-blink~="remote-control"] .remote-control-badge svg {
 /* reduced-motion 只关本呼吸,不碰其它动画(如 is-refreshing 转圈) */
 @media (prefers-reduced-motion: reduce) {
   html[data-icon-blink~="newchat"] .workspace-action-btn.is-newchat svg,
-  html[data-icon-blink~="panel-files"] .panel-tab[data-panel-id="files"] svg,
-  html[data-icon-blink~="panel-git"] .panel-tab[data-panel-id="git"] svg,
-  html[data-icon-blink~="panel-checkpoints"] .panel-tab[data-panel-id="checkpoints"] svg,
-  html[data-icon-blink~="panel-memory"] .panel-tab[data-panel-id="memory"] svg,
-  html[data-icon-blink~="panel-marks"] .panel-tab[data-panel-id="marks"] svg,
+  html[data-icon-blink~="panel-files"] .panel-rail-tab[data-panel-id="files"] svg,
+  html[data-icon-blink~="panel-git"] .panel-rail-tab[data-panel-id="git"] svg,
+  html[data-icon-blink~="panel-checkpoints"] .panel-rail-tab[data-panel-id="checkpoints"] svg,
+  html[data-icon-blink~="panel-memory"] .panel-rail-tab[data-panel-id="memory"] svg,
+  html[data-icon-blink~="panel-marks"] .panel-rail-tab[data-panel-id="marks"] svg,
   html[data-icon-blink~="ssh-panel"] .settings-bar-btn[data-action-id="ssh-panel"],
   html[data-icon-blink~="ssh-panel"] .settings-menu-row[data-action-id="ssh-panel"] .settings-menu-icon,
   html[data-icon-blink~="system-proxy"] .settings-bar-btn[data-action-id="system-proxy"],
