@@ -58,6 +58,7 @@ mod tests_repos_scan;
 mod tests_smart_checkout;
 #[cfg(test)]
 mod tests_write_ops;
+pub(crate) mod worktree_parse;
 
 use git2::Repository;
 use parking_lot::Mutex;
