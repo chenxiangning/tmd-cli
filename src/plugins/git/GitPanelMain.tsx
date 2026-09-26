@@ -11,7 +11,13 @@ import { CircleNotch, Cross } from "@phosphor-icons/react";
 import type { GitLogState } from "./hooks/useGitLog";
 import type { GitBranchesState } from "./hooks/useGitBranches";
 import type { GitRepoContext } from "./repoContext";
-import { setGitRemoteMeta, type FileListLayout, type GitViewMode, type RemoteDialogOp } from "./panelStore";
+import {
+  requestWorktreeDialog,
+  setGitRemoteMeta,
+  type FileListLayout,
+  type GitViewMode,
+  type RemoteDialogOp,
+} from "./panelStore";
 import { GitToolbar } from "./GitToolbar";
 import { gitErrorDisplay } from "./gitError";
 import { SmartSwitchUndoBanner } from "./views/GitPanelBars";
@@ -21,7 +27,6 @@ import { DiffView } from "./views/DiffView";
 import { BranchView } from "./views/BranchView";
 import { HistoryView } from "./views/HistoryView";
 import { WorktreeZone } from "./worktree/WorktreeZone";
-import { requestWorktreeDialog } from "./panelStore";
 
 /** GitPanel 远端编排面 —— useGitPanelRemote 返回值的结构契约(此处只消费渲染所需)。 */
 interface GitPanelRemoteState {

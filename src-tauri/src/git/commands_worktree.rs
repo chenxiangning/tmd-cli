@@ -3,7 +3,7 @@
 //! shell-out `git worktree`:libgit2 的 worktree 支持残缺(锁/prune 语义不全),
 //! CLI 是唯一全功能面;exec_git 的 LC_ALL=C 环境与错误分类原样复用。
 
-use super::commands::run;
+use super::commands::{run, run_mut};
 use super::error::GitError;
 use super::remote_ops::exec_git;
 use super::worktree_parse::{parse_worktree_list, rebase_porcelain_paths, WorktreeEntry};
@@ -12,7 +12,7 @@ use git2::Repository;
 /// 新建分支预检:分支已存在时给可行动指引(git 原生 fatal 经 E_SHELL 难懂;
 /// 2026-09-26 实证:删除 worktree 后重建同名,raw fatal 让人摸不着头脑)。
 fn ensure_branch_free(repo: &Repository, cwd: &str, branch: &str) -> Result<(), GitError> {
-    let exists = exec_git(
+    match exec_git(
         repo,
         cwd,
         &[
@@ -21,14 +21,14 @@ fn ensure_branch_free(repo: &Repository, cwd: &str, branch: &str) -> Result<(), 
             "--quiet".into(),
             format!("refs/heads/{branch}"),
         ],
-    )
-    .is_ok();
-    if exists {
-        Err(GitError::empty(format!(
+    ) {
+        Ok(_) => Err(GitError::empty(format!(
             "分支 {branch} 已存在:可关闭「新建分支」直接检出它,或换一个名字"
-        )))
-    } else {
-        Ok(())
+        ))),
+        /* show-ref 未命中 = 非零退出码(Shell);超时/取消类真故障上抛,
+         * 不折叠成「不存在」放行(2026-09-27 评审)。 */
+        Err(GitError::Shell(_)) => Ok(()),
+        Err(e) => Err(e),
     }
 }
 
@@ -59,11 +59,16 @@ pub async fn git_worktree_add(
     new_branch: bool,
 ) -> Result<(), String> {
     let c = cwd.clone();
-    run(cwd, move |repo| {
+    /* worktree add/remove 改 .git 目录(外部 CLI 写):run_mut 成功后 evict,
+     * 否则缓存句柄的 refdb 陈旧,新分支不随 bumpGitRefresh 出现(评审 P1)。 */
+    run_mut(cwd, move |repo| {
         /* 前导 '-' 会被 git 当选项解析成费解报错(non_empty_branch 同款纪律)。 */
         let branch_t = branch.trim();
         if branch_t.is_empty() || branch_t.starts_with('-') {
             return Err(GitError::empty(format!("非法分支名: {branch_t}")));
+        }
+        if path.is_empty() || path.starts_with('-') {
+            return Err(GitError::empty(format!("非法路径: {path}")));
         }
         if new_branch {
             ensure_branch_free(repo, &c, branch_t)?;
@@ -71,11 +76,11 @@ pub async fn git_worktree_add(
         let mut args = vec!["worktree".to_string(), "add".to_string()];
         if new_branch {
             args.push("-b".into());
-            args.push(branch.clone());
+            args.push(branch_t.to_string());
         }
         args.push(path);
         if !new_branch {
-            args.push(branch);
+            args.push(branch_t.to_string());
         }
         exec_git(repo, &c, &args).map(|_| ())
     })
@@ -86,7 +91,7 @@ pub async fn git_worktree_add(
 #[tauri::command]
 pub async fn git_worktree_remove(cwd: String, path: String, force: bool) -> Result<(), String> {
     let c = cwd.clone();
-    run(cwd, move |repo| {
+    run_mut(cwd, move |repo| {
         let mut args = vec!["worktree".to_string(), "remove".to_string()];
         if force {
             args.push("--force".into());
@@ -101,7 +106,7 @@ pub async fn git_worktree_remove(cwd: String, path: String, force: bool) -> Resu
 #[tauri::command]
 pub async fn git_worktree_prune(cwd: String) -> Result<(), String> {
     let c = cwd.clone();
-    run(cwd, move |repo| {
+    run_mut(cwd, move |repo| {
         exec_git(repo, &c, &["worktree".into(), "prune".into()]).map(|_| ())
     })
     .await

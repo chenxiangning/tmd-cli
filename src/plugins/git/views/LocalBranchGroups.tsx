@@ -18,7 +18,19 @@ export interface LocalGroupHandlers {
   onCreateTree: (branch: string) => void;
 }
 
-function Row({ b, h, trailing }: { b: GitBranchInfo; h: LocalGroupHandlers; trailing?: boolean }) {
+/* deletable=false(检出中的行):分支被主仓或某树检出时 git 必拒删,
+ * 不给必然失败的按钮;free 组(未检出)才有删除(2026-09-27 评审 F6)。 */
+function Row({
+  b,
+  h,
+  trailing,
+  deletable = true,
+}: {
+  b: GitBranchInfo;
+  h: LocalGroupHandlers;
+  trailing?: boolean;
+  deletable?: boolean;
+}) {
   return (
     <div className="flex items-center gap-1">
       <div className="min-w-0 flex-1">
@@ -26,7 +38,7 @@ function Row({ b, h, trailing }: { b: GitBranchInfo; h: LocalGroupHandlers; trai
           branch={b}
           isCurrent={b.name === h.currentName}
           onCheckout={() => h.onCheckout(b)}
-          onDelete={(force) => h.onDelete(b, force)}
+          onDelete={deletable ? (force) => h.onDelete(b, force) : undefined}
           onMenu={(x, y) => h.onMenu(b, x, y)}
         />
       </div>
@@ -61,7 +73,7 @@ export function LocalBranchGroups({
             {t("主仓检出 ({n})", { n: groups.main.length })}
           </div>
           {groups.main.map((b) => (
-            <Row key={b.name} b={b} h={h} />
+            <Row key={b.name} b={b} h={h} deletable={false} />
           ))}
         </>
       )}
@@ -74,7 +86,7 @@ export function LocalBranchGroups({
             {g.current && <span className="text-(--tmd-accent)">{t("当前")}</span>}
           </div>
           {g.branches.map((b) => (
-            <Row key={b.name} b={b} h={h} />
+            <Row key={b.name} b={b} h={h} deletable={false} />
           ))}
         </div>
       ))}

@@ -6,12 +6,12 @@
  * 脏净统计走 git_status 懒加载(每树一次,随卡)。
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowsClockwise, Plus, TerminalWindow, Trash, CircleNotch } from "@phosphor-icons/react";
 import { ipc, type WorktreeEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
-import { useGitPanelState } from "../panelStore";
-import { normalizeRoot, removeWorktreeWithCleanup, spawnTerminalAt, openWorktreeWorkspace } from "./worktreeOps";
+import { bumpGitRefresh, useGitPanelState } from "../panelStore";
+import { listWorktrees, normalizeRoot, removeWorktreeWithCleanup, spawnTerminalAt, openWorktreeWorkspace } from "./worktreeOps";
 
 /** 单树脏净摘要(git_status files 聚合;加载中 = null)。 */
 interface DirtSummary {
@@ -139,6 +139,8 @@ function TreeCard({
           (r.branchDeleted ? t("(分支 {branch} 已删除)", { branch: entry.branch }) : "") +
           (r.branchKept ? t("(分支 {branch} 未合并,已保留)", { branch: entry.branch }) : ""),
       );
+      /* 与弹窗路径同口径:分支三分区/聚合数字随全局刷新重拉(评审 P1)。 */
+      bumpGitRefresh();
       onChanged();
     } catch (e) {
       setNote(e instanceof Error ? e.message : String(e));
@@ -197,14 +199,22 @@ export function WorktreeZone({ cwd, onCreate }: { cwd: string; onCreate: () => v
    * 后 bump,本区同步重拉 —— 两处 UI 共用同一数据真相。 */
   const { refreshNonce } = useGitPanelState();
 
+  /* token 防竞速:切仓/刷新与在途请求交错时,迟到旧响应不得覆盖新结果
+   * (2026-09-27 评审 P1:旧响应会让卡片动作打到上一仓的树)。 */
+  const reqRef = useRef(0);
   const load = useCallback(() => {
-    ipc
-      .gitWorktreeList(cwd)
+    const token = reqRef.current + 1;
+    reqRef.current = token;
+    listWorktrees(cwd)
       .then((list) => {
-        setEntries(list);
-        setError("");
+        if (reqRef.current === token) {
+          setEntries(list);
+          setError("");
+        }
       })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e) => {
+        if (reqRef.current === token) setError(e instanceof Error ? e.message : String(e));
+      });
   }, [cwd]);
   useEffect(() => {
     load();

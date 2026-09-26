@@ -3,7 +3,7 @@
  * 每张卡 root 懒加载 `git worktree list`(主仓恒首条),主仓锚 = entries[0].
  * path(输入前缀已由 Rust 回贴统一);同锚的卡归为一簇 —— 主仓卡在前,
  * worktree 卡平级跟随,整簇由边框归组(2026-09-26 起弃父子缩进)。
- * 模块级缓存(60s TTL):侧栏刷新节律下不重复 git spawn。
+ * 模块级缓存(60s TTL;失败负记录 10s):侧栏刷新节律下不重复 git spawn。
  * 非 git 目录 / 命令失败 = 无簇信息,卡片原样平铺,零打扰。
  *
  * P0 纪律(2026-09-26 卡死事故):roots 引用必须由调用方 useMemo 钉住,
@@ -24,9 +24,12 @@ interface CacheEntry {
   at: number;
   /** root → 该卡归属;未命中 = 非本仓的目录。 */
   members: Map<string, WorktreeClusterMeta>;
+  /** probe 失败(非 git 目录等):短 TTL 负缓存,防每次 store 事件重 spawn git。 */
+  failed?: boolean;
 }
 
 const TTL_MS = 60_000;
+const FAIL_TTL_MS = 10_000;
 const cache = new Map<string, CacheEntry>();
 const inflight = new Map<string, Promise<CacheEntry>>();
 
@@ -39,7 +42,7 @@ function normalizeRoot(p: string): string {
 async function probe(root: string): Promise<CacheEntry> {
   const key = normalizeRoot(root);
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL_MS) return hit;
+  if (hit && Date.now() - hit.at < (hit.failed ? FAIL_TTL_MS : TTL_MS)) return hit;
   const running = inflight.get(key);
   if (running) return running;
   const job = ipc
@@ -58,6 +61,13 @@ async function probe(root: string): Promise<CacheEntry> {
         /* 空列表(异常):root 自成孤簇,不当 worktree 处理。 */
         entry.members.set(key, { mainRoot: key, isMain: true });
       }
+      cache.set(key, entry);
+      return entry;
+    })
+    .catch(() => {
+      /* 非仓/命令失败也落短 TTL 负记录:否则每次切换/重命名工作区
+       * (store emit → roots 新引用 → effect 重跑)都对非仓目录真起 git 进程。 */
+      const entry: CacheEntry = { at: Date.now(), members: new Map(), failed: true };
       cache.set(key, entry);
       return entry;
     })
@@ -114,7 +124,9 @@ export function clusterBuckets<T extends { root: string }>(
       buckets.set(key, bucket);
       order.push(key);
     }
-    if (m?.isMain) bucket.main = it;
+    /* main 槽位先到先得:同 root 重复卡(addWorkspace 零判重)落 children,
+     * 否则后到者覆盖 main、前者两不沾边被静默丢渲染(2026-09-27 评审 P1)。 */
+    if (m?.isMain && !bucket.main) bucket.main = it;
     else bucket.children.push(it);
   }
   return order.map((key) => buckets.get(key)!);

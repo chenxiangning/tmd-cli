@@ -36,4 +36,17 @@ describe("clusterBuckets", () => {
     expect(buckets[0].main).toBeNull();
     expect(buckets[0].children.map((c) => c.id)).toEqual(["a", "b"]);
   });
+
+  it("同 root 重复主仓卡(addWorkspace 零判重):后到者落 children,一张不丢", () => {
+    const buckets = clusterBuckets(
+      [
+        { id: "m1", root: "/repo" },
+        { id: "m2", root: "/repo" },
+      ],
+      meta,
+    );
+    expect(buckets).toHaveLength(1);
+    const cards = [buckets[0].main, ...buckets[0].children].filter(Boolean);
+    expect(cards.map((c) => c!.id)).toEqual(["m1", "m2"]);
+  });
 });

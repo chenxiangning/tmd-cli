@@ -9,8 +9,9 @@ import { createPortal } from "react-dom";
 import { ArrowsClockwise, Plus, Trash } from "@phosphor-icons/react";
 import { ipc, type WorktreeEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
-import { addWorkspace, getWorkspaces, removeWorkspace } from "@kernel/workspace";
+import { addWorkspace } from "@kernel/workspace";
 import { branchForWorktree, dirNameFromBranch, validateDirName, worktreePathFor } from "./dirName";
+import { removeWorktreeWithCleanup } from "./worktreeOps";
 import { bumpGitRefresh } from "../panelStore";
 
 export function WorktreeManageDialog({
@@ -110,24 +111,14 @@ export function WorktreeManageDialog({
     setBusy(`rm:${entry.path}`);
     setError("");
     try {
-      await ipc.gitWorktreeRemove(cwd, entry.path, false);
+      /* 共享编排层(与常驻区同一实现):移除 + 同 root 工作区摘除(归一路径
+       * 比较 + 分支共享判定齐全)。原内联版路径比较未归一,Windows 下摘不掉
+       * 侧栏死卡(2026-09-27 评审)。 */
+      const r = await removeWorktreeWithCleanup(cwd, entry, list ?? []);
       setConfirmPath(null);
-      /* 创建时联动 addWorkspace 的对称面:同 root 的工作区一并摘除,
-       * 侧栏不再残留死目录卡片(不影响该 worktree 下的历史会话记录)。 */
-      const ws = getWorkspaces().find((w) => w.root === entry.path);
-      if (ws) removeWorkspace(ws.id);
-      /* 分支尾巴清理:安全删(-d 语义,未合并被拒)。被其他 worktree 检出的
-       * 分支跳过(动它会弄残那棵树);删不掉的如实说明已保留。 */
-      let branchNote = "";
-      const branchShared = list?.some((e) => e !== entry && e.branch === entry.branch && !e.bare);
-      if (entry.branch && !branchShared) {
-        try {
-          await ipc.gitDeleteBranch(cwd, entry.branch, false);
-          branchNote = t("(分支 {branch} 已删除)", { branch: entry.branch });
-        } catch {
-          branchNote = t("(分支 {branch} 未合并,已保留)", { branch: entry.branch });
-        }
-      }
+      const branchNote =
+        (r.branchDeleted ? t("(分支 {branch} 已删除)", { branch: entry.branch }) : "") +
+        (r.branchKept ? t("(分支 {branch} 未合并,已保留)", { branch: entry.branch }) : "");
       setNotice(t("已移除 {path}", { path: entry.path }) + branchNote);
       bumpGitRefresh();
       refresh();

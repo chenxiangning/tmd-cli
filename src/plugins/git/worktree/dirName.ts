@@ -16,7 +16,9 @@ export function dirNameFromBranch(branch: string): string {
   return cleaned;
 }
 
-/** 目录名校验:返回错误文案;null = 合法。 */
+/** 目录名校验:返回错误文案;null = 合法。
+ *  纪律:返回串即 i18n 词典键(调用方 t(返回串)),改文案必须同步
+ *  locales en/ja 的同键,否则静默回落中文(2026-09-27 评审 F8)。 */
 export function validateDirName(name: string): string | null {
   const n = name.trim();
   if (!n) return "目录名不能为空";
@@ -36,7 +38,9 @@ export function branchForWorktree(name: string): string {
   return `${WORKTREE_BRANCH_PREFIX}${n}`;
 }
 
-/** 由 cwd 与目录名拼 worktree 绝对路径;cwd 为盘根(无父目录)= null(UI 报错)。 */
+/** 由 cwd 与目录名拼 worktree 绝对路径;cwd 为盘根(无父目录)= null(UI 报错)。
+ *  Windows 输出混用分隔符(`C:\repo/wt`)是有意口径:git/OS 均接受,
+ *  比较面全部走 normalizeRoot 归一 —— 勿"顺手修"成反斜杠(测试已钉)。 */
 export function worktreePathFor(cwd: string, name: string): string | null {
   const parent = cwd.replace(/[\\/]+$/, "");
   const at = Math.max(parent.lastIndexOf("/"), parent.lastIndexOf("\\"));

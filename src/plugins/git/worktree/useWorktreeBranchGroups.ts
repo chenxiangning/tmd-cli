@@ -5,21 +5,25 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { ipc, type GitBranchInfo, type WorktreeEntry } from "@kernel/ipc";
+import { type GitBranchInfo, type WorktreeEntry } from "@kernel/ipc";
 import { groupBranchesByWorktree } from "./worktreeBranchGroups";
+import { listWorktrees } from "./worktreeOps";
+import { useGitPanelState } from "../panelStore";
 
 export function useWorktreeBranchGroups(cwd: string, locals: readonly GitBranchInfo[]) {
   const [worktrees, setWorktrees] = useState<WorktreeEntry[] | null>(null);
+  /* 随全局刷新 nonce 重拉:worktree 增删后不重拉会残留已删树的空组头
+   * (弹窗/常驻区移除路径全走 bumpGitRefresh)。 */
+  const { refreshNonce } = useGitPanelState();
   useEffect(() => {
     let alive = true;
-    ipc
-      .gitWorktreeList(cwd)
+    listWorktrees(cwd)
       .then((list) => alive && setWorktrees(list))
       .catch(() => alive && setWorktrees([]));
     return () => {
       alive = false;
     };
-  }, [cwd]);
+  }, [cwd, refreshNonce]);
   const groups = useMemo(
     () => groupBranchesByWorktree(locals, worktrees ?? [], cwd),
     [locals, worktrees, cwd],

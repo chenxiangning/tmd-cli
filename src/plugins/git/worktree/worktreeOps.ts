@@ -14,6 +14,19 @@ export function normalizeRoot(p: string): string {
   return u.length > 1 ? u.replace(/\/+$/, "") : u;
 }
 
+/** 同仓 worktree 列表在途合并:面板常驻区与分支归属数据面几乎同时挂载,
+ *  两次拉取并成一次 git spawn(评审 F3)。不做 TTL 缓存 —— 新鲜度优先,
+ *  只合并同一瞬间的并发请求。 */
+const listInflight = new Map<string, Promise<WorktreeEntry[]>>();
+export function listWorktrees(cwd: string): Promise<WorktreeEntry[]> {
+  const key = normalizeRoot(cwd);
+  const running = listInflight.get(key);
+  if (running) return running;
+  const job = ipc.gitWorktreeList(cwd).finally(() => listInflight.delete(key));
+  listInflight.set(key, job);
+  return job;
+}
+
 /** 移除 worktree 并做对称清理:同 root 的工作区一并摘除;分支尾巴安全删
  *  (-d 语义,未合并被拒则保留)。返回分支尾注(调用方拼进 notice)。
  *  siblings = 同仓 worktree 全列表(判定分支是否被其他树检出)。 */
