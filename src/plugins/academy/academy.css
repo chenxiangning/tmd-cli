@@ -5,27 +5,23 @@
    :where 压特异性为 0——后面的类级 color/font-size 声明必须能赢过本条。 */
 :where(.academy-entry, .academy-guide, .academy-wizard) :is(button, input) { font: inherit; color: inherit; }
 
-/* ── 左栏入口 ─────────────────────────────────────────────── */
-.academy-entry { position: relative; margin: 8px 8px 2px; font-size: 0.75rem; }
+/* ── 左栏入口(单行紧凑条目,同侧栏 caption 密度;hover 才显底) ── */
+.academy-entry { position: relative; margin: 2px 8px 2px; font-size: 0.75rem; }
 .academy-entry-course { position: relative; }
 .academy-entry-btn {
-  width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 9px;
-  border: 1px solid var(--tmd-accent); border-radius: var(--tmd-radius-md);
-  background: var(--tmd-accent-soft); text-align: left; font-size: 0.75rem;
-  transition: background 0.12s;
+  width: 100%; display: flex; align-items: center; gap: 7px; padding: 4px 7px;
+  border-radius: var(--tmd-radius-sm); text-align: left;
+  color: var(--tmd-fg-muted); transition: background 0.12s;
 }
-.academy-entry-btn:hover { background: var(--tmd-bg-active); }
-.academy-entry-glyph {
-  flex: none; width: 26px; height: 26px; border-radius: var(--tmd-radius-sm);
-  background: var(--tmd-accent); color: var(--tmd-accent-fg);
-  display: flex; align-items: center; justify-content: center;
-}
-.academy-entry-tt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.academy-entry-tt b { font-size: 0.78125rem; color: var(--tmd-accent); font-weight: 600; }
-.academy-entry-tt > span { color: var(--tmd-fg-muted); font-size: 0.6875rem; margin-top: 1px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.academy-entry-pct { flex: none; color: var(--tmd-accent); font-weight: 600;
-  font-variant-numeric: tabular-nums; }
+.academy-entry-btn:hover, .academy-entry-btn.is-on { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.academy-entry-glyph { flex: none; color: var(--tmd-accent); }
+.academy-entry-tt { flex: none; font-weight: 500; }
+.academy-entry-bar { flex: 1; min-width: 24px; max-width: 56px; height: 3px;
+  border-radius: 2px; background: var(--tmd-bg-hover); overflow: hidden; }
+.academy-entry-bar i { display: block; height: 100%; background: var(--tmd-accent);
+  border-radius: 2px; transition: width 0.25s; }
+.academy-entry-pct { flex: none; color: var(--tmd-fg-faint);
+  font-size: 0.65625rem; font-variant-numeric: tabular-nums; }
 .academy-guide-toolbar { flex: none; display: flex; gap: 10px; align-items: center;
   flex-wrap: wrap; padding: 9px 14px 7px; background: var(--tmd-bg-panel); }
 .academy-search { flex: 1 1 200px; min-width: 160px; padding: 5px 11px;

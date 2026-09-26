@@ -4,7 +4,7 @@
  * (继续入门 / 完整指南 / 结业速查 / 重置进度)。
  */
 import { useEffect, useRef, useState } from "react";
-import { CaretDown, CaretRight, Student } from "@phosphor-icons/react";
+import { Student } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { useAcademyCourses } from "@kernel/academy";
 import { useCourseProgress, resetProgress } from "./academyProgress";
@@ -54,31 +54,24 @@ function EntryCourse({ cliId, title, lessonCount, menuOpen, onToggleMenu, onDism
   onDismiss: () => void;
 }) {
   const progress = useCourseProgress(cliId);
-  const pct = lessonCount === 0 ? 0 : Math.round((progress.done.length / lessonCount) * 100);
-  const subtitle = progress.done.length >= lessonCount
-    ? t("已结业 · 指南随时查")
-    : progress.done.length > 0
-      ? t("已学 {done} / {total} 课", { done: progress.done.length, total: lessonCount })
-      : t("{total} 课入门 + 命令指南", { total: lessonCount });
+  const done = progress.done.length;
+  const finished = done >= lessonCount;
   const open = (idx: number) => {
     onDismiss();
     openWizard(cliId, idx);
   };
   return (
     <div className="academy-entry-course">
-      <button type="button" className="academy-entry-btn" onClick={onToggleMenu} aria-expanded={menuOpen}>
-        <span className="academy-entry-glyph" aria-hidden><Student size={13} /></span>
-        <span className="academy-entry-tt">
-          <b>{title}</b>
-          <span>{subtitle}</span>
-        </span>
-        <span className="academy-entry-pct">{pct}%</span>
-        {menuOpen ? <CaretDown size={10} aria-hidden /> : <CaretRight size={10} aria-hidden />}
+      <button type="button" className={`academy-entry-btn${menuOpen ? " is-on" : ""}`} onClick={onToggleMenu} aria-expanded={menuOpen}>
+        <Student size={13} className="academy-entry-glyph" aria-hidden />
+        <span className="academy-entry-tt">{title}</span>
+        <span className="academy-entry-bar" aria-hidden><i style={{ width: `${Math.round((done / lessonCount) * 100)}%` }} /></span>
+        <span className="academy-entry-pct">{finished ? t("已结业") : `${Math.round((done / lessonCount) * 100)}%`}</span>
       </button>
       {menuOpen && (
         <div className="academy-entry-menu">
           <button type="button" onClick={() => open(progress.cur)}>
-            <b>{t("继续入门")}</b>
+            <b>{finished ? t("重温入门") : t("继续入门")}</b>
             <small>{t("第 {n} 课 / {total}", { n: Math.min(progress.cur + 1, lessonCount), total: lessonCount })}</small>
           </button>
           <button type="button" onClick={() => { onDismiss(); openGuideTab(cliId, `${title} · 指南`); }}>
