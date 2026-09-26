@@ -16,6 +16,7 @@ mod branch_ops;
 pub mod commands;
 pub mod commands_file;
 pub mod commands_pr;
+pub mod commands_worktree;
 pub(crate) mod commit;
 mod commit_view;
 mod compare_ops;

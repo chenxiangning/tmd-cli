@@ -194,6 +194,7 @@
 - 会话时间线页签:面板「审批线|时间线」segmented 切换;按会话列出轮次批次,120 字内全文直显、超出三行截断点击展开,点击行定位到对话;引擎未声明消息读取能力时展示空态而非误报无记录
 
 ## Git 面板
+- Worktree 编排(工具条 TreeStructure 钮 → 管理弹窗):porcelain 列表(分支/detached/locked/prunable 徽标)、新建(-b 新分支基于 HEAD 或检出已有分支,目录名自动推导可改,创建即 addWorkspace 进侧栏)、移除(行内两段确认,不加 force)、清理悬空(prune);Rust 原语 `git_worktree_{list,add,remove,prune}` shell-out(commands_worktree 自 commands.rs 拆件)
 
 - 单视图三段:差异 / 分支 / 历史,外观对齐 codemoss(契约见 `openspec/changes/archive/2026-09-02-git-right-panel/`)
 - 勾选文件 + 写消息 + 提交一次完成;commit 执行权仅面板按钮,composer `/commit <msg>` 仅预填

@@ -118,6 +118,10 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   gitPrRun: "ipc.git",
   gitSmartCheckout: "ipc.git",
   gitSmartCheckoutUndo: "ipc.git",
+  gitWorktreeList: "ipc.git",
+  gitWorktreeAdd: "ipc.git",
+  gitWorktreeRemove: "ipc.git",
+  gitWorktreePrune: "ipc.git",
 
   /* checkpoints 全域。 */
   checkpointAnchor: "ipc.checkpoints",

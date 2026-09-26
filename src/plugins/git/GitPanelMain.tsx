@@ -182,7 +182,7 @@ export function GitPanelMain({
           : null;
   return (
     <div className="flex h-full flex-col text-xs">
-      <GitToolbar />
+      <GitToolbar cwd={repoCtx.selectedPath ?? undefined} />
       {repoCtx.showRepoBar && (
         <RepoBar
           repos={repos}

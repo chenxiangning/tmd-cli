@@ -17,6 +17,7 @@ import {
   TreeStructure,
 } from "@phosphor-icons/react";
 import { RemoteActionRows } from "./GitToolbarRemoteRows";
+import { WorktreeManageDialog } from "./worktree/WorktreeManageDialog";
 import {
   setGitLayout,
   setGitView,
@@ -52,7 +53,7 @@ type MenuKind = "view" | "layout" | "remote";
 /** 菜单宽(视口夹取用):视图/远端行文案长,布局行短。 */
 const MENU_WIDTH: Record<MenuKind, number> = { view: 200, layout: 160, remote: 200 };
 
-export function GitToolbar() {
+export function GitToolbar({ cwd }: { cwd?: string }) {
   const { view, layout, aggregate } = useGitPanelState();
   const ViewIcon = VIEW_ICON[view];
   const LayoutIcon = LAYOUT_ICON[layout];
@@ -60,6 +61,7 @@ export function GitToolbar() {
   const [menu, setMenu] = useState<{ kind: MenuKind; pos: { x: number; y: number } } | null>(
     null,
   );
+  const [worktreesOpen, setWorktreesOpen] = useState(false);
 
   /* 以按钮左缘对齐菜单左缘,视口内夹取(同 wsmenu / panel-overflow 模式)。 */
   const toggleMenu = (kind: MenuKind, e: ReactMouseEvent<HTMLButtonElement>) => {
@@ -129,6 +131,18 @@ export function GitToolbar() {
       >
         <ArrowsDownUp className="h-[0.75rem] w-[0.75rem]" aria-hidden />
       </button>
+      {cwd && (
+        <button
+          type="button"
+          title={t("Worktree 管理")}
+          aria-label={t("Worktree 管理")}
+          onClick={() => setWorktreesOpen(true)}
+          className="flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover)"
+        >
+          <TreeStructure className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+        </button>
+      )}
+      {cwd && worktreesOpen && <WorktreeManageDialog cwd={cwd} onClose={() => setWorktreesOpen(false)} />}
       {menu?.kind === "view" && (
         <MenuShell position={menu.pos} width={MENU_WIDTH.view} onClose={closeMenu}>
           {(Object.keys(VIEW_LABEL) as GitViewMode[]).map((v) => {
