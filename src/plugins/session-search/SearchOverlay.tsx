@@ -10,13 +10,14 @@ import { host } from "@kernel/host";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { formatRelativeTime } from "@kernel/relativeTime";
-import { closeSessionSearch } from "./overlayStore";
+import { closeSessionSearch, useSessionSearchOpen } from "./overlayStore";
 import { SessionIndexer, searchSessions, type SessionIndex } from "./indexer";
 
 /** 索引推进节奏:每 60ms 一个会话(单会话读取可达数 MB,不让 I/O 连发)。 */
 const STEP_INTERVAL_MS = 60;
 
 export function SessionSearchOverlay() {
+  const open = useSessionSearchOpen();
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState<SessionIndex | null>(null);
   const [indexing, setIndexing] = useState(false);
@@ -28,6 +29,7 @@ export function SessionSearchOverlay() {
     : undefined;
 
   useEffect(() => {
+    if (!open) return;
     inputRef.current?.focus();
     if (!cwd) return;
     setIndexing(true);
@@ -49,11 +51,11 @@ export function SessionSearchOverlay() {
     };
     const timer = setInterval(() => void tick().catch(() => clearInterval(timer)), STEP_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [cwd]);
+  }, [open, cwd]);
 
   const hits = useMemo(() => (index ? searchSessions(index, query) : []), [index, query]);
 
-  if (!cwd) return null;
+  if (!open || !cwd) return null;
 
   const openHit = (profileId: string, cliSessionId: string) => {
     closeSessionSearch();
@@ -66,7 +68,7 @@ export function SessionSearchOverlay() {
           原实现 z-1000 + 遮罩点击关 + 输入行级 Esc——被中层内容压过即「关不掉/浮层泄进页面」。 */}
       <div className="wsmenu-backdrop" role="presentation" onClick={closeSessionSearch} />
       <div
-        className="fixed inset-0 z-[1201] flex items-start justify-center pt-[12vh]"
+        className="fixed inset-0 z-[1201] flex items-start justify-center bg-black/45 pt-[12vh]"
         onKeyDown={(e) => {
           if (e.key === "Escape") closeSessionSearch();
         }}
