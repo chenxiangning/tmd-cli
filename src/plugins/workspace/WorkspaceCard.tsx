@@ -88,7 +88,10 @@ export function WorkspaceCard({
             }}
             onDoubleClick={(e) => e.stopPropagation()}
           >
-            <span className="workspace-collapse-toggle-folder-icon" aria-hidden>
+            <span
+              className={`workspace-collapse-toggle-folder-icon${worktree ? " is-worktree-icon" : ""}`}
+              aria-hidden
+            >
               {worktree ? (
                 <GitFork size="1rem" weight="bold" aria-hidden />
               ) : (

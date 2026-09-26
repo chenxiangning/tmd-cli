@@ -43,7 +43,9 @@ html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"]
 html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
 html[data-icon-blink~="terminal"] .titlebar-action[data-action-id="terminal"],
 html[data-icon-blink~="session-board"] .titlebar-action[data-action-id="session-board"],
-html[data-icon-blink~="remote-control"] .remote-control-badge svg {
+html[data-icon-blink~="remote-control"] .remote-control-badge svg,
+html[data-icon-blink~="worktree"] .ws-worktree-cluster-label,
+html[data-icon-blink~="worktree"] .ws-worktree-cluster .is-worktree-icon svg {
   animation: icon-decor-breathe 5s ease-in-out infinite;
 }
 
@@ -65,7 +67,9 @@ html[data-icon-blink~="remote-control"] .remote-control-badge svg {
   html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
   html[data-icon-blink~="terminal"] .titlebar-action[data-action-id="terminal"],
   html[data-icon-blink~="session-board"] .titlebar-action[data-action-id="session-board"],
-  html[data-icon-blink~="remote-control"] .remote-control-badge svg {
+  html[data-icon-blink~="remote-control"] .remote-control-badge svg,
+  html[data-icon-blink~="worktree"] .ws-worktree-cluster-label,
+  html[data-icon-blink~="worktree"] .ws-worktree-cluster .is-worktree-icon svg {
     animation: none;
   }
 }

@@ -101,6 +101,7 @@ describe("初始状态与默认值", () => {
         "ssh-panel": {}, "system-proxy": {},
         "panel-files": {}, "panel-git": {}, "panel-checkpoints": {}, "panel-memory": {},
         "panel-marks": {}, "wsl-panel": {}, terminal: {}, "session-board": {}, "remote-control": {},
+        worktree: {},
       },
       relayDeployHistory: [],
     });

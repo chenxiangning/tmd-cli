@@ -9,6 +9,7 @@ import {
   ArrowCounterClockwise,
   BookmarkSimple,
   Brain,
+  GitFork,
   CalendarDots,
   CaretDown,
   CaretRight,
@@ -72,6 +73,7 @@ const ICON_DECOR_ITEMS: ReadonlyArray<{
   { id: "panel-checkpoints", label: "审批线面板", icon: SealCheck },
   { id: "panel-memory", label: "Memory 面板", icon: Brain },
   { id: "panel-marks", label: "标记面板", icon: BookmarkSimple },
+  { id: "worktree", label: "Worktree 簇", icon: GitFork },
 ];
 type _ItemsCoverAllKeys = Exclude<IconDecorId, (typeof ICON_DECOR_ITEMS)[number]["id"]> extends never
   ? true

@@ -117,6 +117,11 @@
   background: var(--tmd-bg-base);
   font-size: var(--sidebar-caption-font-size);
   line-height: 1;
-  color: var(--text-faint);
+  color: var(--icon-decor-worktree, var(--text-faint));
   user-select: none;
+}
+
+/* worktree 卡 fork 图标同吃装饰色(图标装饰 worktree 键,2026-09-27);缺省回落继承原色 */
+.ws-worktree-cluster .is-worktree-icon {
+  color: var(--icon-decor-worktree, inherit);
 }
