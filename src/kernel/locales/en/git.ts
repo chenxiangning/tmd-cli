@@ -197,6 +197,35 @@ export const MESSAGES = {
   "添加 / 暂存全部": "Add / stage all",
   "提取...": "Fetch...",
 
+  /* worktree 编排 */
+  "Worktree 管理": "Worktree manager",
+  "清理悬空": "Prune stale",
+  "(bare)": "(bare)",
+  "已锁": "locked",
+  "可清理": "prunable",
+  "(detached)": "(detached)",
+  "确认移除": "Confirm remove",
+  "移除 worktree": "Remove worktree",
+  "无 worktree": "No worktrees",
+  "新建 worktree": "New worktree",
+  "新建分支(基于当前 HEAD);否则检出已有分支":
+    "Create a new branch (from current HEAD); otherwise check out an existing branch",
+  "新分支名,如 feature/parallel-task": "New branch name, e.g. feature/parallel-task",
+  "选择已有分支": "Choose existing branch",
+  "选择已有分支…": "Choose an existing branch…",
+  "目录名(自动推导,可改)": "Directory name (auto-derived, editable)",
+  "目录名": "Directory name",
+  "创建中…": "Creating…",
+  "分支名不能为空": "Branch name is required",
+  "目录名不能为空": "Directory name is required",
+  "目录名不能以点开头": "Directory name must not start with a dot",
+  "目录名含非法字符": "Directory name contains illegal characters",
+  "主仓位于盘根,无法推导 worktree 父目录;请把仓库移到子目录后重试":
+    "Repository sits at the filesystem root; move it into a subdirectory and retry",
+  "已创建并加入工作区:{path}": "Created and added to workspaces: {path}",
+  "已移除 {path}": "Removed {path}",
+  "已清理悬空 worktree 记录": "Pruned stale worktree records",
+
   /* 提交详情 / 工作树差异 */
 
   "个文件": "files",

@@ -71,9 +71,40 @@ pub async fn git_worktree_list(cwd: String) -> Result<Vec<WorktreeEntry>, String
             &c,
             &["worktree".into(), "list".into(), "--porcelain".into()],
         )?;
-        Ok(parse_worktree_list(&out))
+        let mut entries = parse_worktree_list(&out);
+        rebase_porcelain_paths(&mut entries, &c);
+        Ok(entries)
     })
     .await
+}
+
+/// porcelain 输出 canonical 路径(符号链接已解析,如 macOS /tmp→/private/tmp),
+/// 而上层工作区 root 保留用户输入前缀;两侧字符串不等会造成主仓被误判为可
+/// 移除、移除后工作区死条目。主仓条目精确映射回输入 cwd,兄弟 worktree 把
+/// canonical 父目录前缀换回输入父目录前缀(cwd canonicalize 失败/Windows
+/// verbatim 前缀不匹配时保持原样)。
+fn rebase_porcelain_paths(entries: &mut [WorktreeEntry], cwd: &str) {
+    let Ok(canon) = std::path::Path::new(cwd).canonicalize() else {
+        return;
+    };
+    let canon_str = canon.to_string_lossy();
+    let input_parent = std::path::Path::new(cwd)
+        .parent()
+        .map(|p| p.to_string_lossy())
+        .unwrap_or_default();
+    let canon_parent = canon
+        .parent()
+        .map(|p| p.to_string_lossy())
+        .unwrap_or_default();
+    for e in entries.iter_mut() {
+        if e.path == canon_str {
+            e.path = cwd.to_string();
+        } else if let Some(rest) = e.path.strip_prefix(canon_parent.as_ref()) {
+            if rest.starts_with('/') {
+                e.path = format!("{input_parent}{rest}");
+            }
+        }
+    }
 }
 
 /// 新建 worktree:new_branch = true 以 `-b <branch>` 新建分支(默认基于当前 HEAD),
@@ -87,6 +118,13 @@ pub async fn git_worktree_add(
 ) -> Result<(), String> {
     let c = cwd.clone();
     run(cwd, move |repo| {
+        /* 前导 '-' 会被 git 当选项解析成费解报错(non_empty_branch 同款纪律)。 */
+        let branch_t = branch.trim();
+        if branch_t.is_empty() || branch_t.starts_with('-') {
+            return Err(super::error::GitError::empty(format!(
+                "非法分支名: {branch_t}"
+            )));
+        }
         let mut args = vec!["worktree".to_string(), "add".to_string()];
         if new_branch {
             args.push("-b".into());
@@ -128,7 +166,7 @@ pub async fn git_worktree_prune(cwd: String) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_worktree_list;
+    use super::{parse_worktree_list, rebase_porcelain_paths, WorktreeEntry};
 
     const SAMPLE: &str = concat!(
         "worktree /repo/main\n",
@@ -149,6 +187,18 @@ mod tests {
         "bare\n",
     );
 
+    fn entry(path: &str) -> WorktreeEntry {
+        WorktreeEntry {
+            path: path.to_string(),
+            head: String::new(),
+            branch: String::new(),
+            detached: false,
+            bare: false,
+            locked: false,
+            prunable: false,
+        }
+    }
+
     #[test]
     fn porcelain_解析_全字段() {
         let list = parse_worktree_list(SAMPLE);
@@ -167,5 +217,54 @@ mod tests {
     #[test]
     fn 空输出_空列表() {
         assert!(parse_worktree_list("").is_empty());
+    }
+
+    #[test]
+    fn 回贴_前缀边界_整段父目录才命中() {
+        let base = std::env::temp_dir().join("tmd_wt_prefix_probe");
+        let _ = std::fs::remove_dir_all(&base);
+        let main = base.join("b").join("main");
+        std::fs::create_dir_all(&main).unwrap();
+        let canon_parent = main.canonicalize().unwrap().parent().unwrap().to_path_buf();
+        let lookalike = canon_parent.with_file_name("b-repo");
+        let mut entries = [
+            entry(&lookalike.to_string_lossy()), /* /…/b-repo:前缀相似非整段 */
+            entry(&canon_parent.join("wt2").to_string_lossy()),
+        ];
+        rebase_porcelain_paths(&mut entries, &main.to_string_lossy());
+        assert_eq!(entries[0].path, lookalike.to_string_lossy()); // 原样
+        assert_eq!(
+            entries[1].path,
+            base.join("b").join("wt2").to_string_lossy()
+        ); // 回贴输入前缀
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn 回贴_真实符号链接目录() {
+        let base = std::env::temp_dir().join("tmd_wt_rebase_probe");
+        let _ = std::fs::remove_dir_all(&base);
+        let repo = base.join("repo");
+        std::fs::create_dir_all(&repo).unwrap();
+        let link = base.join("link");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&repo, &link).unwrap();
+        #[cfg(not(unix))]
+        {
+            /* Windows symlink 需特权;该平台靠 verbatim 前缀不匹配保持原样。 */
+            let _ = link;
+            return;
+        }
+        let canon_repo = repo.canonicalize().unwrap();
+        let sibling = canon_repo.parent().unwrap().join("wt-x");
+        let mut entries = [
+            entry(&canon_repo.to_string_lossy()),
+            entry(&sibling.to_string_lossy()),
+        ];
+        rebase_porcelain_paths(&mut entries, &link.to_string_lossy());
+        /* 主仓 → 输入(符号链接)路径;兄弟 → 输入父目录前缀。 */
+        assert_eq!(entries[0].path, link.to_string_lossy());
+        assert_eq!(entries[1].path, base.join("wt-x").to_string_lossy());
+        let _ = std::fs::remove_dir_all(&base);
     }
 }

@@ -28,19 +28,34 @@ export function WorktreeManageDialog({ cwd, onClose }: { cwd: string; onClose: (
 
   useEffect(() => {
     let alive = true;
-    void ipc.gitWorktreeList(cwd).then((list) => {
-      if (alive) setList(list);
-    });
-    void ipc.gitBranches(cwd).then((res) => {
-      if (alive) setExistingBranches(res.local.map((b) => b.name));
-    });
+    void ipc.gitWorktreeList(cwd)
+      .then((list) => {
+        if (alive) setList(list);
+      })
+      .catch((e) => {
+        if (alive) fail(e);
+      });
+    void ipc.gitBranches(cwd)
+      .then((res) => {
+        if (alive) setExistingBranches(res.local.map((b) => b.name));
+      })
+      .catch(() => {}); /* 分支列举失败只影响「检出已有分支」,不遮列表 */
     return () => {
       alive = false;
     };
   }, [cwd]);
 
+  /* Esc 关闭:同 GitConfirmDialog 纪律(git 插件弹窗全员有 Esc)。 */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const refresh = (): void => {
-    void ipc.gitWorktreeList(cwd).then(setList);
+    void ipc.gitWorktreeList(cwd).then(setList).catch(fail);
   };
 
   const fail = (e: unknown): void => {
@@ -50,7 +65,7 @@ export function WorktreeManageDialog({ cwd, onClose }: { cwd: string; onClose: (
   const add = async (): Promise<void> => {
     const nameErr = validateDirName(dirName);
     if (nameErr) {
-      setError(nameErr);
+      setError(t(nameErr));
       return;
     }
     if (!branch.trim()) {
@@ -114,7 +129,7 @@ export function WorktreeManageDialog({ cwd, onClose }: { cwd: string; onClose: (
   return createPortal(
     <div
       role="presentation"
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/45"
+      className="fixed inset-0 z-[1201] flex items-start justify-center bg-black/45 pt-[12vh]"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="flex max-h-[80vh] w-[520px] flex-col gap-3 overflow-auto rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-2xl">
@@ -198,6 +213,9 @@ export function WorktreeManageDialog({ cwd, onClose }: { cwd: string; onClose: (
           {newBranch ? (
             <input
               value={branch}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) void add();
+              }}
               onChange={(e) => {
                 setBranch(e.target.value);
                 setDirName(dirNameFromBranch(e.target.value));
