@@ -61,20 +61,24 @@ export function SessionSearchOverlay() {
   };
 
   return createPortal(
-    <div
-      role="presentation"
-      className="fixed inset-0 z-[1000] flex items-start justify-center bg-black/45 pt-[12vh]"
-      onClick={(e) => e.target === e.currentTarget && closeSessionSearch()}
-      data-testid="session-search-backdrop"
-    >
-      <div className="flex max-h-[70vh] w-[560px] flex-col overflow-hidden rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) shadow-2xl">
+    <>
+      {/* 壳对齐 house search 插件:透明点击捕获层(z-1200) + 全屏容器(z-1201,Esc 随焦点容器收)。
+          原实现 z-1000 + 遮罩点击关 + 输入行级 Esc——被中层内容压过即「关不掉/浮层泄进页面」。 */}
+      <div className="wsmenu-backdrop" role="presentation" onClick={closeSessionSearch} />
+      <div
+        className="fixed inset-0 z-[1201] flex items-start justify-center pt-[12vh]"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") closeSessionSearch();
+        }}
+        data-testid="session-search-backdrop"
+      >
+        <div className="flex max-h-[70vh] w-[560px] flex-col overflow-hidden rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) shadow-2xl">
         <div className="flex items-center gap-2 border-b border-(--tmd-border) px-3 py-2.5">
           <MagnifyingGlass size="0.9375rem" className="shrink-0 text-(--tmd-fg-faint)" aria-hidden />
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && closeSessionSearch()}
             placeholder={t("搜索本工作区的会话历史(你输入过的内容)…")}
             aria-label={t("会话历史搜索")}
             className="w-full bg-transparent text-sm text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint)"
@@ -129,8 +133,9 @@ export function SessionSearchOverlay() {
         <div className="border-t border-(--tmd-border) px-3 py-1.5 text-[0.6875rem] text-(--tmd-fg-faint)">
           {t("Enter 打开 {name} 的历史会话 · Esc 关闭", { name: workspaceName ?? "" })}
         </div>
+        </div>
       </div>
-    </div>,
+    </>,
     document.body,
   );
 }
