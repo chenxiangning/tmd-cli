@@ -7,11 +7,11 @@ import { usePlatformKind } from "@kernel/platform";
 import { toggleHomeSession } from "./shortcutCommands";
 import { TitlebarBranchLabel, WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
-/** macOS 用原生左侧 traffic lights,Windows 自绘右侧按钮组;窗口控制经 kernel/ipc 薄封装。 */
+/** Windows 自绘右侧按钮组;macOS 自 frameless 化(直角窗口)后同样自绘,但灯位在左。
+ * 窗口控制经 kernel/ipc 薄封装;浏览器 dev 无 Tauri runtime,ipc 调用必须在平台闸之后。 */
 function WindowControls() {
   const platform = usePlatformKind();
   if (platform !== "windows") return null;
-  /* 浏览器 dev 无 Tauri runtime,ipc 窗口封装会抛错,必须在平台闸之后调用。 */
   return (
     <div className="titlebar-window-controls win-traffic-lights" aria-label={t("窗口控制")}>
       <button aria-label={t("最小化")} title={t("最小化")} className="win-traffic-light" onClick={() => void windowMinimize()}>
@@ -23,6 +23,18 @@ function WindowControls() {
       <button aria-label={t("关闭")} title={t("关闭")} className="win-traffic-light close" onClick={() => void windowClose()}>
         <svg viewBox="0 0 10 10" stroke="currentColor" strokeWidth="1.5" fill="none"><line x1="1" y1="1" x2="9" y2="9" /><line x1="9" y1="1" x2="1" y2="9" /></svg>
       </button>
+    </div>
+  );
+}
+
+/** macOS 自绘红绿灯(frameless 直角窗口后系统灯不再存在):沿用原生视觉,
+ * 占用原 titlebar-leading 70px 槽位,布局零位移。 */
+function MacTrafficLights() {
+  return (
+    <div className="titlebar-leading titlebar-mac-lights" aria-label={t("窗口控制")}>
+      <button type="button" className="mac-light close" aria-label={t("关闭")} title={t("关闭")} onClick={() => void windowClose()} />
+      <button type="button" className="mac-light min" aria-label={t("最小化")} title={t("最小化")} onClick={() => void windowMinimize()} />
+      <button type="button" className="mac-light max" aria-label={t("最大化")} title={t("最大化")} onClick={() => void windowToggleMaximize()} />
     </div>
   );
 }
@@ -64,7 +76,7 @@ export function TopBar({
         data-tauri-drag-region
         style={leftOpen ? { width: "calc(var(--tmd-left-aside-w) + 4px)" } : undefined}
       >
-        {platform === "macos" ? <div className="titlebar-leading" aria-hidden /> : null}
+        {platform === "macos" ? <MacTrafficLights /> : null}
         {/* 插件贡献的左区按钮簇(内置终端等):经 activate(ctx) 挂点登记 */}
         <Mounts point="header.leftCluster" />
         {/* 插件市场(插排页):整页替换下方三栏,再点或页内关闭即回 */}

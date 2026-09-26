@@ -43,6 +43,36 @@
   width: 70px;
   flex: 0 0 70px;
 }
+/* ── macOS 自绘红绿灯(frameless 直角窗口后系统灯不存在;沿用原 70px inset 槽,
+   视觉对齐原生:12px 三色圆点,间距 8px,左缘 12px 起)── */
+.titlebar-mac-lights {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+}
+.titlebar-mac-lights .mac-light {
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  cursor: pointer;
+  transition: filter 120ms ease;
+}
+.titlebar-mac-lights .mac-light:hover {
+  filter: brightness(0.85);
+}
+.titlebar-mac-lights .mac-light.close {
+  background: rgb(255, 95, 87);
+}
+.titlebar-mac-lights .mac-light.min {
+  background: rgb(254, 188, 46);
+}
+.titlebar-mac-lights .mac-light.max {
+  background: rgb(40, 200, 64);
+}
 /* ── 左区:与左侧栏同宽(内联 style 给 width),折叠按钮钉在右缘 ── */
 .titlebar-zone-left {
   display: flex;

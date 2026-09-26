@@ -2,7 +2,7 @@
  * Right panel rail —— 右缘常驻竖排面板入口(2026-09-26 自顶栏 tab 条迁来,UI 参照 activity bar)。
  *
  * 拆分后:
- * - PanelRail: 窗口右缘竖条(钉住∪激活面板 + 分隔线 + ⋯ more 向左弹出),
+ * - PanelRail: 窗口右缘竖条(⋯ 钉顶 + 分隔线 + 钉住∪激活面板,⋯ 向左弹出),
  *   由 AppShell 渲染在内容行最右;点击 = 切面板并自动展开右栏。
  * - RightPanelToolbar: 内部组件,在右侧 aside 底部渲染 FileActionsBar
  *   (新建/刷新/面板动作;工作区选择器 2026-09-14 上移顶栏 WorkspaceSwitcher)。
@@ -50,6 +50,20 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
   };
   return (
     <div className="panel-rail">
+      {/* ⋯ 钉在 rail 顶(右上角固定位置,不随 tab 数浮动);分隔线下接面板 tab 组 */}
+      <button
+        type="button"
+        className="panel-rail-tab"
+        onClick={toggleOverflow}
+        aria-label={t("更多面板")}
+        aria-expanded={overflowPos ? true : undefined}
+        title={t("更多面板")}
+      >
+        <DotsThree aria-hidden />
+      </button>
+
+      <div className="panel-rail-sep" aria-hidden />
+
       <div className="panel-rail-tabs" role="tablist" aria-orientation="vertical" aria-label={t("右侧面板")}>
         {visiblePanels.map((panel) => {
           const Icon = panel.icon;
@@ -72,20 +86,6 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
           );
         })}
       </div>
-
-      {/* 参照图:tab 组下一条分隔线,⋯ 组紧随其后(不钉底) */}
-      <div className="panel-rail-sep" aria-hidden />
-
-      <button
-        type="button"
-        className="panel-rail-tab"
-        onClick={toggleOverflow}
-        aria-label={t("更多面板")}
-        aria-expanded={overflowPos ? true : undefined}
-        title={t("更多面板")}
-      >
-        <DotsThree aria-hidden />
-      </button>
 
       {overflowPos ? (
         <PanelOverflowMenu

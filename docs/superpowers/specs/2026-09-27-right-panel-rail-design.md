@@ -31,3 +31,9 @@
   - ⋯ 菜单向左弹出(右缘 1398.5 ≤ 按钮左缘 1402.5)、整体在视口内、6 行、Esc 关闭;
   - 收起右栏:rail 常驻可见;点 rail「Git」:右栏重开(305px)且 git 面板激活(橙色 active + `data-panel-id` 保留,图标装饰选择器已改指)。
 - 真窗口目检(含 Windows 自绘控制带与 rail 共存)待大仙例行验收。
+
+## 修订(2026-09-27 同日)
+
+1. rail 宽度按用户口径两轮收窄:44px → 34px → 30px(26px 钮 + 两侧各 2px,`--tmd-rail-w: 1.875rem`)。
+2. ⋯ 钉到 rail 顶部(右上角固定位置,不随 tab 数浮动),分隔线移至 ⋯ 与 tab 组之间。
+3. 客户端窗口直角化:圆角来自 macOS 原生标题栏(此前 `TitleBarStyle::Overlay`),公共 API 无法去圆角,故 macOS 切 `decorations(false)` + `shadow(true)`(tao 给 Borderless|Resizable|Miniaturizable,边缘 resize 保留);红绿灯改 React 自绘(TopBar `MacTrafficLights`,沿用 `titlebar-leading` 70px 槽位,三色 12px 圆点对齐原生视觉)。Windows 路径本就 frameless,不变。真窗口验收(直角/resize/拖拽/红绿灯点击)待大仙。

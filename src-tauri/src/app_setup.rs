@@ -93,9 +93,11 @@ pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
 
     #[cfg(target_os = "macos")]
     {
-        window = window
-            .title_bar_style(tauri::TitleBarStyle::Overlay)
-            .hidden_title(true);
+        /* 直角窗口(2026-09-27 用户口径):decorations=false 取消系统标题栏,
+        其强制的系统圆角随之消失(tao 给 Borderless|Resizable|Miniaturizable,
+        边缘 resize 保留);红绿灯由 React 自绘(TopBar MacTrafficLights,
+        沿用 titlebar-leading 70px 槽位),阴影保留防悬浮感丢失。 */
+        window = window.decorations(false).shadow(true);
     }
 
     window.build()?;
