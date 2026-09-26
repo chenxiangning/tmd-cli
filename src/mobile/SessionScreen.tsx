@@ -13,7 +13,7 @@ import { HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { notifyAsk } from "./shared";
 import { shrinkImage, tailAskLine, tailHasAskMarker, uploadTempImage, writeSession } from "./remote";
-import { shellInvoke } from "@kernel/shellBridge";
+import { shellInvoke, shellLog } from "@kernel/shellBridge";
 import { EngineMark } from "./EngineMark";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
 import { KeyToolbar } from "./KeyToolbar";

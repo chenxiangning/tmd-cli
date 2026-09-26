@@ -28,9 +28,9 @@
 
 | 风险 | 对策 |
 |---|---|
-| reload 竞态丢句柄(code=null) | 呈现 code "?",按异常处理(宁扰一次不漏崩溃) |
-| SSH 会话退出 | ssh 走同一 pty://exit 同构通道,详情事件自然覆盖;续聊钮按 cliSessionId 有无决定 |
-| toast 打扰 | 0/130 已过滤;12s TTL;最多叠 3 条(StartFailureToast 同纪律) |
+| reload 竞态丢句柄(code=null) | 呈现 code "?",按异常处理(宁扰一次不漏崩溃);**SSH 收尾载荷为 unit → 恒 null → 静默是有意口径**(SSH 断连已有重连退避/主机芯片/横幅三重提示,不叠 toast) |
+| SSH 会话退出 | ssh 走同一 pty://exit 同构通道但载荷形状不同:detail 恒 null → 过滤闸拦下,静默即设计(见上) |
+| toast 打扰 | 0/130 已过滤;12s TTL;最多叠 3 条(StartFailureToast 同纪律);与 StartFailureToast(late 崩溃)对同会话去重不叠卡 |
 
 ## 验证
 
