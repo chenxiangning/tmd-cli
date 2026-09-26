@@ -107,7 +107,14 @@ export function SessionSearchOverlay() {
             </div>
           ) : hits.length === 0 ? (
             <div className="px-3 py-6 text-center text-xs text-(--tmd-fg-faint)">
-              {indexing ? t("索引还没扫到,稍候…") : t("无匹配会话")}
+              {indexing
+                ? t("索引还没扫到,稍候…")
+                : index && index.total === 0
+                  ? t("此工作区未发现可检索的磁盘会话")
+                  : t("已扫 {scanned}/{total} 个会话,无匹配", {
+                      scanned: index?.scanned ?? 0,
+                      total: index?.total ?? 0,
+                    })}
             </div>
           ) : (
             hits.map((hit) => (
