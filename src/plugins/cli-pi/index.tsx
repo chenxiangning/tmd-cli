@@ -8,6 +8,7 @@ import { PI_TUI_ECHO_MARKS } from "../cli-shared/echoMarks";
 import { listPiSuggestions } from "./rpcCommands";
 import { piConfigEntry } from "./configGui";
 import type { CliSuggestion } from "@kernel/cli";
+import { PI_ACADEMY_COURSE } from "./academy/academyCatalog";
 import type { Plugin } from "@kernel/plugin";
 
 /**
@@ -59,6 +60,8 @@ export const cliPiPlugin: Plugin = {
   meta: { name: "Pi", abbr: "PI", desc: "Pi CLI 引擎:会话扫描、配额、状态", icon: PiGlyph, category: "engine" },
   activate(ctx) {
     ctx.registerCliConfig({ ...piConfigEntry, icon: (size) => <PiGlyph size={size} /> });
+    /* CLI 学堂课程:22 内置命令 + /skill: 调用面,消费归 academy 插件(契约见 kernel/academy.ts)。 */
+    ctx.registerAcademyCourse(PI_ACADEMY_COURSE);
     ctx.registerCliProfile({
       id: "pi",
       fetchQuota: fetchPiQuota,
