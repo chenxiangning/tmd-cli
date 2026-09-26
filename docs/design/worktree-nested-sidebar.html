@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>方案 A:侧栏工作区分层树 — worktree 作子节点</title>
+<style>
+  :root {
+    --bg: #16181d; --panel: #1d2026; --card: #23262d; --card2: #262a32;
+    --border: #2e323b; --fg: #e6e9ee; --fg2: #9aa1ad; --fg3: #6b7280;
+    --accent: #e07856; --ok: #58a668; --warn: #d9a13f; --sel: #2b3039;
+    --chip: rgba(224,120,86,.14); --teal: #5caed6;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--fg); font: 13px/1.5 -apple-system, "PingFang SC", sans-serif; padding: 20px 24px 48px; }
+  h1 { font-size: 15px; margin-bottom: 4px; }
+  .sub { color: var(--fg2); font-size: 12px; margin-bottom: 16px; }
+  .sub b { color: var(--accent); font-weight: 600; }
+  .stage { display: flex; gap: 20px; align-items: flex-start; }
+  /* 模拟客户端侧栏 */
+  .sidebar { width: 300px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 8px; flex: none; }
+  .side-cap { display: flex; align-items: center; gap: 6px; color: var(--fg3); font-size: 11px; padding: 4px 8px 8px; letter-spacing: .04em; }
+  .side-cap .right { margin-left: auto; display: flex; gap: 8px; }
+  .ws-row { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 7px; color: var(--fg); cursor: default; }
+  .ws-row:hover { background: var(--card); }
+  .ws-row.dim { color: var(--fg2); }
+  .ws-glyph { width: 15px; text-align: center; color: var(--fg3); flex: none; }
+  .ws-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .divider { border-top: 1px solid var(--border); margin: 8px 4px; }
+  /* 分层:仓库父节点 */
+  .repo-group { margin: 2px 0 2px; }
+  .repo-head { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 7px; background: var(--sel); }
+  .caret { color: var(--fg3); font-size: 10px; width: 10px; flex: none; }
+  .repo-head .ws-name { font-weight: 600; }
+  .repo-count { color: var(--fg3); font-size: 11px; background: var(--card2); border-radius: 8px; padding: 0 7px; }
+  /* worktree 子节点 */
+  .wt-children { margin: 2px 0 4px 18px; border-left: 1px solid var(--border); padding-left: 6px; }
+  .wt-row { display: flex; align-items: center; gap: 7px; padding: 5px 8px 5px 6px; border-radius: 7px; color: var(--fg2); }
+  .wt-row:hover { background: var(--card); color: var(--fg); }
+  .wt-row.active { background: var(--card2); color: var(--fg); box-shadow: inset 2px 0 0 var(--accent); }
+  .wt-branch { font-family: ui-monospace, Menlo, monospace; font-size: 12px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wt-branch .ns { color: var(--accent); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+  .dot.clean { background: var(--ok); opacity: .55; }
+  .dot.dirty { background: var(--warn); }
+  .ahead { font-size: 10px; color: var(--fg3); font-family: ui-monospace, Menlo, monospace; }
+  .badge { font-size: 10px; color: var(--fg2); background: var(--card2); border-radius: 8px; padding: 0 6px; }
+  .wt-actions { display: none; gap: 4px; }
+  .wt-row:hover .wt-actions { display: flex; }
+  .mini-btn { font-size: 10px; color: var(--fg2); border: 1px solid var(--border); background: transparent; border-radius: 5px; padding: 1px 6px; cursor: pointer; }
+  .mini-btn:hover { color: var(--fg); border-color: var(--fg3); }
+  .mini-btn.danger:hover { color: #e06c60; border-color: #e06c60; }
+  /* 说明卡 */
+  .notes { flex: 1; min-width: 260px; display: flex; flex-direction: column; gap: 12px; }
+  .note { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .note h2 { font-size: 13px; margin-bottom: 8px; color: var(--fg); }
+  .note p, .note li { color: var(--fg2); font-size: 12px; }
+  .note ul { padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+  .note code { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--teal); }
+  .tag { display: inline-block; font-size: 11px; color: var(--accent); background: var(--chip); border-radius: 5px; padding: 1px 8px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+  <h1>方案 A — 侧栏工作区分层树:worktree 是仓库的子节点</h1>
+  <div class="sub">理解:一个仓库的并行工作线不该是平铺的 N 个工作区,而是 <b>父节点(主仓)→ 子节点(各 worktree)</b> 的从属关系;展开即管理,点击即切换。</div>
+  <div class="stage">
+    <div class="sidebar">
+      <div class="side-cap">工作区 <span class="right"><span>本地</span><span>WSL</span><span>归档</span></span></div>
+      <div class="ws-row dim"><span class="ws-glyph">▸</span><span class="ws-name">default</span><span class="badge">Default</span></div>
+      <div class="divider"></div>
+      <div class="repo-group">
+        <div class="repo-head">
+          <span class="caret">▾</span>
+          <span class="ws-glyph">▤</span>
+          <span class="ws-name">springboot-demo</span>
+          <span class="repo-count">3 棵树</span>
+        </div>
+        <div class="wt-children">
+          <div class="wt-row">
+            <span class="wt-branch">2-web-user-crud <span style="color:var(--fg3);font-size:10px">(主仓)</span></span>
+            <span class="dot clean"></span>
+          </div>
+          <div class="wt-row active">
+            <span class="wt-branch"><span class="ns">wt/</span>demo</span>
+            <span class="dot dirty" title="2 个未提交文件"></span>
+            <span class="ahead">+2</span>
+            <span class="badge">● 1 会话</span>
+            <span class="wt-actions"><button class="mini-btn">终端</button><button class="mini-btn danger">移除</button></span>
+          </div>
+          <div class="wt-row">
+            <span class="wt-branch">chenxiangning/yokohama</span>
+            <span class="dot clean"></span>
+            <span class="ahead">↑1↓2</span>
+            <span class="wt-actions"><button class="mini-btn">终端</button><button class="mini-btn danger">移除</button></span>
+          </div>
+        </div>
+      </div>
+      <div class="ws-row dim"><span class="ws-glyph">▸</span><span class="ws-name">tmd-cli</span><span class="badge">2</span></div>
+      <div class="ws-row dim"><span class="ws-glyph">▸</span><span class="ws-name">内容分析</span></div>
+      <div class="ws-row dim"><span class="ws-glyph">▸</span><span class="ws-name">tmd-cli-spec</span></div>
+      <div class="ws-row dim"><span class="ws-glyph">▸</span><span class="ws-name">Downloads</span></div>
+      <div class="ws-row dim"><span class="ws-glyph">▾</span><span class="ws-name">er-qi</span><span class="badge">2</span></div>
+      <div class="ws-row dim"><span class="ws-glyph">▸</span><span class="ws-name">codemoss</span></div>
+      <div class="ws-row dim"><span class="ws-glyph">▸</span><span class="ws-name">demo</span></div>
+    </div>
+    <div class="notes">
+      <div class="note">
+        <span class="tag">交互要点</span>
+        <ul>
+          <li>识别规则:侧栏工作区按「同一仓库」归组 —— 主仓为父,其 worktree(<code>git worktree list</code> 反查)自动挂为子节点,不再各自平铺占行。</li>
+          <li>子节点行 = 分支名(<code>wt/</code> 前缀高亮)+ 脏净点(未提交文件数)+ ahead/behind + 该树下运行中的会话数徽章。</li>
+          <li>点击子节点 = 切换到该 worktree 工作区(会话、Git 面板、文件树整体跟随);hover 浮出「终端 / 移除」。</li>
+          <li>「N 棵树」计数与折叠态让多仓侧栏不膨胀;主仓行恒在顶部,worktree 不会喧宾夺主。</li>
+          <li>归组失效兜底:worktree 被外部删除 → 子节点变灰标「悬空」,一键清理(走 prune)。</li>
+        </ul>
+      </div>
+      <div class="note">
+        <span class="tag">落地面</span>
+        <p>侧栏工作区列表(app-shell 侧栏)加「仓库分组」渲染层;<code>git_worktree_list</code> 已有,补一个 worktree→workspace 反查即可。改动收敛在工作区列表组件与 kernel/workspace 归组逻辑,不动 PTY 与会话生命周期。</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

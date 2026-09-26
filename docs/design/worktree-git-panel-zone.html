@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>方案 B:Git 面板「工作树」区 — 分支按归属分区</title>
+<style>
+  :root {
+    --bg: #16181d; --panel: #1d2026; --card: #23262d; --card2: #262a32;
+    --border: #2e323b; --fg: #e6e9ee; --fg2: #9aa1ad; --fg3: #6b7280;
+    --accent: #e07856; --ok: #58a668; --warn: #d9a13f; --sel: #2b3039;
+    --chip: rgba(224,120,86,.14); --teal: #5caed6;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--fg); font: 13px/1.5 -apple-system, "PingFang SC", sans-serif; padding: 20px 24px 48px; }
+  h1 { font-size: 15px; margin-bottom: 4px; }
+  .sub { color: var(--fg2); font-size: 12px; margin-bottom: 16px; }
+  .sub b { color: var(--accent); font-weight: 600; }
+  .stage { display: flex; gap: 20px; align-items: flex-start; }
+  /* 模拟右栏 Git 面板 */
+  .gitpanel { width: 340px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px; flex: none; }
+  .gp-head { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .gp-title { font-weight: 600; font-size: 12px; letter-spacing: .05em; }
+  .gp-stats { margin-left: auto; color: var(--fg3); font-size: 11px; font-family: ui-monospace, Menlo, monospace; }
+  .gp-stats .minus { color: #e06c60; }
+  /* 工作树区 */
+  .zone-cap { display: flex; align-items: center; gap: 6px; margin: 12px 0 8px; color: var(--fg3); font-size: 11px; letter-spacing: .04em; }
+  .zone-cap .n { background: var(--card2); border-radius: 8px; padding: 0 7px; font-size: 10px; }
+  .zone-cap .add { margin-left: auto; color: var(--accent); border: 1px solid var(--border); border-radius: 6px; padding: 1px 8px; font-size: 11px; cursor: pointer; }
+  .wt-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+  .wt-card:hover { border-color: var(--fg3); }
+  .wt-card.main { border-left: 2px solid var(--teal); }
+  .wt-card.current { border-left: 2px solid var(--accent); background: var(--card2); }
+  .wt-l1 { display: flex; align-items: center; gap: 6px; }
+  .wt-kind { font-size: 10px; color: var(--fg3); border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; flex: none; }
+  .wt-kind.cur { color: var(--accent); border-color: var(--accent); }
+  .wt-path { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--fg2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wt-l2 { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  .wt-branch { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+  .dot.clean { background: var(--ok); opacity: .55; }
+  .dot.dirty { background: var(--warn); }
+  .st { font-size: 10px; color: var(--fg3); font-family: ui-monospace, Menlo, monospace; }
+  .st .plus { color: var(--ok); } .st .minus { color: #e06c60; }
+  .wt-acts { margin-left: auto; display: flex; gap: 4px; }
+  .mini-btn { font-size: 10px; color: var(--fg2); border: 1px solid var(--border); background: transparent; border-radius: 5px; padding: 1px 6px; cursor: pointer; }
+  .mini-btn:hover { color: var(--fg); border-color: var(--fg3); }
+  .mini-btn.danger:hover { color: #e06c60; border-color: #e06c60; }
+  /* 分支列表:按归属分区 */
+  .br-group { margin: 10px 0 4px; }
+  .br-cap { color: var(--fg3); font-size: 11px; margin-bottom: 4px; display: flex; gap: 6px; align-items: center; }
+  .br-cap .link { color: var(--accent); font-family: ui-monospace, Menlo, monospace; }
+  .br-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; color: var(--fg2); font-size: 12px; }
+  .br-row:hover { background: var(--card); color: var(--fg); }
+  .br-row.current { color: var(--fg); background: var(--card2); }
+  .br-row .nm { font-family: ui-monospace, Menlo, monospace; }
+  .br-row .where { margin-left: auto; font-size: 10px; color: var(--teal); }
+  .br-row.indented { margin-left: 16px; }
+  /* 说明卡 */
+  .notes { flex: 1; min-width: 260px; display: flex; flex-direction: column; gap: 12px; }
+  .note { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .note h2 { font-size: 13px; margin-bottom: 8px; }
+  .note ul { padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+  .note p, .note li { color: var(--fg2); font-size: 12px; }
+  .note code { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--teal); }
+  .tag { display: inline-block; font-size: 11px; color: var(--accent); background: var(--chip); border-radius: 5px; padding: 1px 8px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+  <h1>方案 B — Git 面板按区域划分:「工作树」区 + 分支按归属归组</h1>
+  <div class="sub">理解:worktree 管理不该藏在弹窗里,而应是 <b>Git 面板的常驻分区</b>;分支列表也要按「属于哪棵树」重新归组,消除 <b>wt/demo 混在业务分支里</b> 的错乱感。</div>
+  <div class="stage">
+    <div class="gitpanel">
+      <div class="gp-head">
+        <span class="gp-title">SPRINGBOOT-DEMO</span>
+        <span class="gp-stats"><span class="plus">+321</span> <span class="minus">-0</span> <span class="minus">⊙9</span></span>
+      </div>
+
+      <div class="zone-cap">工作树 <span class="n">3</span><span class="add">+ 新建</span></div>
+      <div class="wt-card main">
+        <div class="wt-l1"><span class="wt-kind">主仓</span><span class="wt-path">~/code/AI/springboot-demo</span></div>
+        <div class="wt-l2"><span class="wt-branch">2-web-user-crud</span><span class="dot dirty"></span><span class="st"><span class="plus">+321</span> <span class="minus">-0</span></span><span class="wt-acts"><button class="mini-btn">终端</button></span></div>
+      </div>
+      <div class="wt-card current">
+        <div class="wt-l1"><span class="wt-kind cur">当前</span><span class="wt-path">~/code/AI/demo</span></div>
+        <div class="wt-l2"><span class="wt-branch">wt/demo</span><span class="dot clean"></span><span class="st">干净</span><span class="wt-acts"><button class="mini-btn">终端</button><button class="mini-btn">合并</button><button class="mini-btn danger">移除</button></span></div>
+      </div>
+      <div class="wt-card">
+        <div class="wt-l1"><span class="wt-kind">Conductor</span><span class="wt-path">…/conductor/workspaces/springboot-demo/yokohama</span></div>
+        <div class="wt-l2"><span class="wt-branch">chenxiangning/yokohama</span><span class="dot clean"></span><span class="st">↑1↓2</span><span class="wt-acts"><button class="mini-btn">终端</button><button class="mini-btn danger">移除</button></span></div>
+      </div>
+
+      <div class="zone-cap">分支</div>
+      <div class="br-group">
+        <div class="br-cap">主仓检出</div>
+        <div class="br-row current"><span class="nm">2-web-user-crud</span><span class="where">主仓 · 当前</span></div>
+      </div>
+      <div class="br-group">
+        <div class="br-cap">检出于 <span class="link">~/code/AI/demo</span></div>
+        <div class="br-row"><span class="nm">wt/demo</span><span class="where">当前视图所在树</span></div>
+      </div>
+      <div class="br-group">
+        <div class="br-cap">检出于 <span class="link">…/yokohama</span></div>
+        <div class="br-row"><span class="nm">chenxiangning/yokohama</span></div>
+      </div>
+      <div class="br-group">
+        <div class="br-cap">未检出(可建 worktree)</div>
+        <div class="br-row"><span class="nm">chenxiangning/atlanta</span></div>
+        <div class="br-row"><span class="nm">Aaaa</span></div>
+        <div class="br-row"><span class="nm">ccdemo</span></div>
+        <div class="br-row"><span class="nm">123</span></div>
+        <div class="br-row"><span class="nm">hello</span></div>
+        <div class="br-row"><span class="nm">1-user-login</span></div>
+        <div class="br-row"><span class="nm">main</span></div>
+      </div>
+    </div>
+    <div class="notes">
+      <div class="note">
+        <span class="tag">交互要点</span>
+        <ul>
+          <li>Git 面板顶部新增「工作树」常驻区:主仓 / 当前 / 其他三态卡;每卡 = 路径尾段 + 分支 + 脏净与增删统计 + 动作(终端 / 合并回主仓 / 移除)。现有弹窗降级为「+ 新建」入口。</li>
+          <li>分支列表从「一锅粥」改为按检出归属分区:主仓检出 / 检出于某 worktree / 未检出。每棵树一棵子列表,一眼看清哪根分支长在哪棵树上。</li>
+          <li>「未检出」区的行 hover 出现「建 worktree」快捷动作 —— 分支与 worktree 的创建互达。</li>
+          <li>当前视图所在树高亮;跨树切换 = 点工作树卡(整屏工作区跟随),不必回侧栏。</li>
+        </ul>
+      </div>
+      <div class="note">
+        <span class="tag">落地面</span>
+        <p>Git 面板右栏(GitPanelMain 顶部)插入工作树区;分支列表组件按 <code>worktree list</code> 的 branch 归属重分组。数据面零新增 IPC,全部复用 <code>git_worktree_list</code> 与 <code>git_branches</code>。</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

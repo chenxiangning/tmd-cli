@@ -202,4 +202,7 @@
 | 2026-09-26 | [手机截图注入(压缩/桥 fs_write_temp 镜像/@ 路径注入,零原生壳改动)](../openspec/changes/2026-09-26-mobile-shot-inject/proposal.md) | 已落地(真机目检待大仙;随 mobile 提交) |
 | 2026-09-26 | [签名/公证 CI 管道(macOS secrets 门控注入;Windows 证书采购待拍板)](../openspec/changes/2026-09-26-signing-pipeline/proposal.md) | 部分落地(macOS 管道就绪;启用需大仙配 APPLE_* secrets) |
 | 2026-09-26 | [24 小时提交全量评审(44 提交五维度;3×P1 修复/浮层壳统一/约 60 i18n 键补齐)](review/2026-09-26-24h-commit-review.md) | 已完成(问题当轮修复,门禁全绿) |
+| 2026-09-26 | [worktree 关联管理原型 方案 A:侧栏工作区分层树(仓库父节点/worktree 子节点)](design/worktree-nested-sidebar.html) | 已落地(A+B 并做) |
+| 2026-09-26 | [worktree 关联管理原型 方案 B:Git 面板工作树区+分支按归属归组](design/worktree-git-panel-zone.html) | 已落地(A+B 并做) |
+| 2026-09-26 | [worktree 关联管理设计(方案 A 侧栏分层 + B Git 面板分区,并做)](superpowers/specs/2026-09-26-worktree-assoc-management-design.md) | 已落地(1421 桩实证;真机目检待大仙) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
