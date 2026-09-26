@@ -2,7 +2,8 @@
  * 侧栏工作区的 worktree 归簇(2026-09-26 方案 A,结构层):
  * 每张卡 root 懒加载 `git worktree list`(主仓恒首条),主仓锚 = entries[0].
  * path(输入前缀已由 Rust 回贴统一);同锚的卡归为一簇 —— 主仓卡在前,
- * worktree 卡缩进跟随。模块级缓存(60s TTL):侧栏刷新节律下不重复 git spawn。
+ * worktree 卡平级跟随,整簇由边框归组(2026-09-26 起弃父子缩进)。
+ * 模块级缓存(60s TTL):侧栏刷新节律下不重复 git spawn。
  * 非 git 目录 / 命令失败 = 无簇信息,卡片原样平铺,零打扰。
  *
  * P0 纪律(2026-09-26 卡死事故):roots 引用必须由调用方 useMemo 钉住,
@@ -90,12 +91,19 @@ export function useWorktreeCluster(roots: readonly string[]): Record<string, Wor
   return meta;
 }
 
-/** 簇渲染序:同簇相邻(主仓卡在前,worktree 按原序跟随),簇间保持原相对序。 */
-export function clusterOrder<T extends { root: string }>(
+/** 簇分桶:同 mainRoot 归一桶,主仓卡在 main、worktree 卡按原序在 children,
+ * 簇间保持原相对序;非仓 / 无簇信息 = 自成孤桶(main 为 null)。
+ * 主仓未加入侧栏时桶内只有 children,渲染侧仍整簇套框。 */
+export interface WorktreeBucket<T extends { root: string }> {
+  main: T | null;
+  children: T[];
+}
+
+export function clusterBuckets<T extends { root: string }>(
   items: readonly T[],
   meta: Record<string, WorktreeClusterMeta>,
-): T[] {
-  const buckets = new Map<string, { main: T | null; children: T[] }>();
+): WorktreeBucket<T>[] {
+  const buckets = new Map<string, WorktreeBucket<T>>();
   const order: string[] = [];
   for (const it of items) {
     const m = meta[it.root];
@@ -109,11 +117,5 @@ export function clusterOrder<T extends { root: string }>(
     if (m?.isMain) bucket.main = it;
     else bucket.children.push(it);
   }
-  const out: T[] = [];
-  for (const key of order) {
-    const b = buckets.get(key)!;
-    if (b.main) out.push(b.main);
-    out.push(...b.children);
-  }
-  return out;
+  return order.map((key) => buckets.get(key)!);
 }
