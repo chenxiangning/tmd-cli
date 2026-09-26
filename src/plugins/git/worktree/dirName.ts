@@ -25,6 +25,17 @@ export function validateDirName(name: string): string | null {
   return null;
 }
 
+/** worktree 新建分支统一前缀:tmd 建的并行工作树一眼可辨,不与业务分支撞名。 */
+export const WORKTREE_BRANCH_PREFIX = "wt/";
+
+/** 新建分支命名:裸名加 wt/ 前缀;带 /(用户自己的命名空间,如 feature/x)
+ *  或已带前缀的原样透传。 */
+export function branchForWorktree(name: string): string {
+  const n = name.trim();
+  if (!n || n.includes("/")) return n;
+  return `${WORKTREE_BRANCH_PREFIX}${n}`;
+}
+
 /** 由 cwd 与目录名拼 worktree 绝对路径;cwd 为盘根(无父目录)= null(UI 报错)。 */
 export function worktreePathFor(cwd: string, name: string): string | null {
   const parent = cwd.replace(/[\\/]+$/, "");

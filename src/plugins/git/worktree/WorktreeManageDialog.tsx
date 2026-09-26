@@ -11,7 +11,7 @@ import { ipc } from "@kernel/ipc";
 import type { WorktreeEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { addWorkspace, getWorkspaces, removeWorkspace } from "@kernel/workspace";
-import { dirNameFromBranch, validateDirName, worktreePathFor } from "./dirName";
+import { branchForWorktree, dirNameFromBranch, validateDirName, worktreePathFor } from "./dirName";
 
 export function WorktreeManageDialog({ cwd, onClose }: { cwd: string; onClose: () => void }) {
   const [list, setList] = useState<WorktreeEntry[] | null>(null);
@@ -77,10 +77,12 @@ export function WorktreeManageDialog({ cwd, onClose }: { cwd: string; onClose: (
       setError(t("主仓位于盘根,无法推导 worktree 父目录;请把仓库移到子目录后重试"));
       return;
     }
+    /* 新建分支统一 wt/ 前缀(裸名才加;feature/x 这类自带命名空间原样)。 */
+    const branchName = newBranch ? branchForWorktree(branch) : branch.trim();
     setBusy("add");
     setError("");
     try {
-      await ipc.gitWorktreeAdd(cwd, path, branch.trim(), newBranch);
+      await ipc.gitWorktreeAdd(cwd, path, branchName, newBranch);
       addWorkspace(path);
       setNotice(t("已创建并加入工作区:{path}", { path }));
       refresh();
@@ -101,7 +103,19 @@ export function WorktreeManageDialog({ cwd, onClose }: { cwd: string; onClose: (
        * 侧栏不再残留死目录卡片(不影响该 worktree 下的历史会话记录)。 */
       const ws = getWorkspaces().find((w) => w.root === entry.path);
       if (ws) removeWorkspace(ws.id);
-      setNotice(t("已移除 {path}", { path: entry.path }));
+      /* 分支尾巴清理:安全删(-d 语义,未合并被拒)。被其他 worktree 检出的
+       * 分支跳过(动它会弄残那棵树);删不掉的如实说明已保留。 */
+      let branchNote = "";
+      const branchShared = list?.some((e) => e !== entry && e.branch === entry.branch && !e.bare);
+      if (entry.branch && !branchShared) {
+        try {
+          await ipc.gitDeleteBranch(cwd, entry.branch, false);
+          branchNote = t("(分支 {branch} 已删除)", { branch: entry.branch });
+        } catch {
+          branchNote = t("(分支 {branch} 未合并,已保留)", { branch: entry.branch });
+        }
+      }
+      setNotice(t("已移除 {path}", { path: entry.path }) + branchNote);
       refresh();
     } catch (e) {
       fail(e);

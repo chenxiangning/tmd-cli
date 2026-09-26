@@ -225,6 +225,8 @@ export const MESSAGES = {
   "已创建并加入工作区:{path}": "Created and added to workspaces: {path}",
   "已移除 {path}": "Removed {path}",
   "已清理悬空 worktree 记录": "Pruned stale worktree records",
+  "(分支 {branch} 已删除)": "(branch {branch} deleted)",
+  "(分支 {branch} 未合并,已保留)": "(branch {branch} unmerged, kept)",
 
   /* 提交详情 / 工作树差异 */
 

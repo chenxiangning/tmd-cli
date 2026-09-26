@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dirNameFromBranch, validateDirName, worktreePathFor } from "./dirName";
+import { branchForWorktree, dirNameFromBranch, validateDirName, worktreePathFor } from "./dirName";
 
 describe("dirNameFromBranch", () => {
   it("斜杠与点号转连字符;连续连字符合并", () => {
@@ -34,5 +34,15 @@ describe("worktreePathFor", () => {
 
   it("盘根仓库无父目录:返回 null(UI 报错,不嵌进主仓)", () => {
     expect(worktreePathFor("/repo", "wt")).toBeNull();
+  });
+});
+
+describe("branchForWorktree", () => {
+  it("裸名加 wt/ 前缀;自带命名空间或已带前缀原样", () => {
+    expect(branchForWorktree("Aaaab")).toBe("wt/Aaaab");
+    expect(branchForWorktree("  fix-1 ")).toBe("wt/fix-1");
+    expect(branchForWorktree("feature/x")).toBe("feature/x");
+    expect(branchForWorktree("wt/again")).toBe("wt/again");
+    expect(branchForWorktree("")).toBe("");
   });
 });
