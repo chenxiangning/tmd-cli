@@ -1,9 +1,9 @@
 /**
- * 右栏底部文件操作条 —— 新建文件/文件夹 + 刷新 + 面板专属动作。
+ * 文件操作条(顶栏右区)—— 新建文件/文件夹 + 刷新 + 面板专属动作。
  *
- * 自 WorkspaceSubbar 演变(2026-09-14 UI 微调):工作区选择器上移顶栏
- * (WorkspaceSwitcher),本条沉到右栏底部;新建/刷新按钮转发激活面板注册槽,
- * 外壳不认识业务面板。
+ * 自 WorkspaceSubbar 演变:2026-09-14 工作区选择器上移顶栏(WorkspaceSwitcher),
+ * 本条沉到右栏底部;2026-09-27 再上移顶栏右区(titlebar-actions 右缘,
+ * 右栏展开才挂),新建/刷新按钮转发激活面板注册槽,外壳不认识业务面板。
  */
 
 import { useRef, useState } from "react";
@@ -36,7 +36,7 @@ export function FileActionsBar() {
   };
 
   return (
-    <div className="panel-subbar">
+    <div className="panel-subbar" data-tauri-drag-region>
       <span className="panel-subbar-actions">
         <button
           type="button"

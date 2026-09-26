@@ -4,8 +4,9 @@
  * 拆分后:
  * - PanelRail: 窗口右缘竖条(钉住∪激活面板 + 分隔线 + ⋯ more 向左弹出),
  *   由 AppShell 渲染在内容行最右;点击 = 切面板并自动展开右栏。
- * - RightPanelToolbar: 内部组件,在右侧 aside 底部渲染 FileActionsBar
- *   (新建/刷新/面板动作;工作区选择器 2026-09-14 上移顶栏 WorkspaceSwitcher)。
+ * - RightPanelToolbar: 内部组件,在顶栏右区(titlebar-actions 右缘)渲染
+ *   FileActionsBar(新建/刷新/面板动作;工作区选择器 2026-09-14 上移顶栏,
+ *   操作条 2026-09-27 自右栏底部同步上移)。
  */
 
 import { memo, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
@@ -285,12 +286,12 @@ function PanelOverflowMenu({
 
 
 /* ──────────────────────────────────────────────────────────
- * AppShell 右栏 aside 的渲染入口(面板入口已迁右缘 PanelRail)。
+ * 顶栏右区渲染入口(TopBar titlebar-actions,右栏展开才挂;面板入口已迁右缘 PanelRail)。
  * ────────────────────────────────────────────────────────── */
-/* memo 兜底:无 props,父级(AppShell 右栏 aside)重渲染时不再连带重渲染。 */
+/* memo 兜底:无 props,父级(TopBar 右区)重渲染时不再连带重渲染。 */
 export const RightPanelToolbar = memo(function RightPanelToolbar() {
-  /* 是否显示底部文件操作条由面板注册时自声明(showFileSubbar,缺省 true)——
-     外壳不认识任何业务面板 id。 */
+  /* 是否显示文件操作条由面板注册时自声明(showFileSubbar,缺省 true)——
+     外壳不认识任何业务面板 id;当前仅 files 面板为缺省 true。 */
   const { mode, panels } = useFilePanel();
   const show = panels.find((p) => p.id === mode)?.showFileSubbar !== false;
   if (!show) return null;

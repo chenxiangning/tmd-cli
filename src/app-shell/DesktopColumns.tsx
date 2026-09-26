@@ -10,7 +10,6 @@ import { Mounts } from "@kernel/Mounts";
 import type { FilePanelContribution } from "@kernel/filePanel";
 import { asideDragFactory, useElementWidth } from "./shellHooks";
 import { SidebarSettingsCluster } from "./SidebarSettingsCluster";
-import { RightPanelToolbar } from "./RightPanelToolbar";
 import { EditorCenter } from "./EditorCenter";
 import { MainPanel } from "./MainPanel";
 
@@ -72,8 +71,7 @@ export function DesktopColumns(props: {
                     否则文件树内容无限长高被裁掉,列表永远滚不动。 */}
                 {filePanel ? <filePanel.component /> : null}
               </div>
-              {/* 底部文件操作条(新建/刷新/面板动作;工作区选择器已上移顶栏) */}
-              <RightPanelToolbar />
+              {/* 文件操作条已上移顶栏右区(TopBar titlebar-actions,2026-09-27) */}
             </aside>
           </Panel>
         </>

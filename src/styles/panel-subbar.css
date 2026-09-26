@@ -1,23 +1,24 @@
 /* ──────────────────────────────────────────────────────────
  * Right panel subbar + workspace menu —— 自 right-panel-toolbar.css 拆出(文件规模铁则)。
  *
- * 右栏底部:文件操作条(panel-subbar,新建/刷新/面板动作);
- * 工作区下拉菜单(panel-ws-menu,菜单行是 button)。
+ * 顶栏右区:文件操作条(panel-subbar,新建/刷新/面板动作;2026-09-27 自右栏
+ * 底部上移,空区保留拖拽);工作区下拉菜单(panel-ws-menu,菜单行是 button)。
  * ────────────────────────────────────────────────────────── */
 
-/* ── 底部文件操作条 ── */
+/* ── 文件操作条(顶栏 titlebar-actions 右缘,margin-left:auto 钉右) ── */
 .panel-subbar {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  /* 三栏底栏同高不变量:含上边框总高 28px(border-box 28 = 27 内容 + 1 边框),
-     与左 settings-cluster / 中 file-editor-toolbar 逐像素对齐。 */
-  min-height: 28px;
+  margin-left: auto;
   padding: 2px 4px;
-  border-top: 1px solid var(--tmd-border);
-  background: var(--tmd-bg-base);
-  flex: 0 0 auto;
+}
+
+/* macOS:探入顶栏为 PanelRail 预留的右空条(--tmd-rail-w),icon 贴窗右缘 12px,
+   与下方 rail 图标右缘对齐;Windows 让位自绘控制带,不探入。 */
+.app.macos-desktop .panel-subbar {
+  margin-right: calc(-1 * var(--tmd-rail-w));
 }
 
 .panel-subbar-actions {
@@ -28,11 +29,11 @@
 }
 
 .panel-subbar-action {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: 9px;
   background: transparent;
   color: var(--tmd-fg-muted);
   display: inline-flex;
@@ -52,8 +53,8 @@
 }
 
 .panel-subbar-action svg {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: 0.875rem;
+  height: 0.875rem;
   stroke-width: 1.75;
 }
 
