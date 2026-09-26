@@ -51,7 +51,7 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
 
 ![审批线](docs/images/screenshot-checkpoints.png)
 
-**插件市场(插排)** —— 内置 29 位可视插拔(CLI 引擎 10 / 界面功能 16 / 核心系统 3 焊死),重启生效;本机插件(`~/.tmd-cli/plugins/`)免重启装载、对话即变自动重扫;在线市场入口预留
+**插件市场(插排)** —— 内置 34 位可视插拔(CLI 引擎 10 / 界面功能 24;另有核心系统 3 焊死与本机插件加载器),重启生效;本机插件(`~/.tmd-cli/plugins/`)免重启装载、对话即变自动重扫;在线市场入口预留
 
 ![插件市场](docs/images/screenshot-plugin-market.png)
 
@@ -104,7 +104,7 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
 - **全局快捷键**:内核命令注册表 + 逐作用域分发(global / pty / composer),设置页可视化改键(录制 / 重置 / 冲突检测);macOS 仅 ⌘ 平台分流,Ctrl+M/N/P/W 等按原义透传 PTY 不被劫持。
 - **记忆协调(memory-coordinator)**:接入 Magic Context 外部共享记忆库(`~/.magic-context` SQLite,多 CLI 宿主共享,应用零直写);右栏 Memory 面板(FTS 关键词检索 + 项目规则 / 架构 / 约束 / 配置值分类筛选)+ 状态栏 Memory 胶囊 + 控制台中央 tab,二期自动蒸馏 opt-in。
 - **版本号弹窗与自动更新**：底栏版本号点击弹更新记录(内嵌 CHANGELOG 分页,条目行内 Markdown 渲染),在线检查 GitHub 最新发布,一键自动更新(updater 签名校验,下载安装后提示重启)。
-- **插件市场(插排)**:内置 26 个插件可视插拔(引擎 10 / 功能 13 / 核心 3),重启生效;core 类焊死,引擎/功能可拔;CLI 品牌字形 + 语义彩色图标;本机插件(local-loader)管理 `~/.tmd-cli/plugins/`——对话造插件、免重启装载、版本回退,附「复制插件开发提示词」一键上手。
+- **插件市场(插排)**:内置 34 个插件可视插拔(引擎 10 / 功能 24;核心 3 焊死),重启生效;core 类焊死,引擎/功能可拔;CLI 品牌字形 + 语义彩色图标;本机插件(local-loader)管理 `~/.tmd-cli/plugins/`——对话造插件、免重启装载、版本回退,附「复制插件开发提示词」一键上手。
 - **工作区壁纸(wallpaper)**：流体着色器(WebGL 五运动场,明暗随主题)与本地图库双模式;表面 token 打穿让 chrome 透出壁纸,浮层菜单保实底可读,xterm 幕布透底;拔插件全部下电,kernel 零壁纸语义(契约见 `docs/architecture/11`)。
 - **手机 App(native shell)**：iOS(SwiftUI + WKWebView)与 Android(Kotlin + WebView)原生壳,加载独立的 `src/mobile/` 远程 UI 树(与桌面 app-shell 平行,共享 kernel transport 数据面)。扫码配对后:会话列表(运行中 / 工作区分组 / 本地 / 归档,审批计数胶囊)、实况会话屏(`PTY bytes` 原样透传的迷你 VT 实况 + CLI 磁盘 jsonl 解析的对话分层——用户气泡 / 助手 markdown 正文 / 工具调用折叠组,2s 增量轮询随流生长)、ask 审批卡(允许 / 拒绝 = 同一 `session_write` 通道)、键盘工具条(真实键序列)、横屏、Git 面板、历史只读与「继续对话」(resume 注入,与桌面 openDiskSession 同语义)。iOS WKWebView 自定义 scheme 发不出 ws,连接走原生 URLSession 隧道;断线退避 + 多端点竞速自动重连,回前台强制重拨。
 - **Web 访问与远程通道**：桌面「设置 → Web 访问」承载手机 / 平板的全部入口。三通道:内网直连(`ws://` 局域网)、Cloudflare 隧道、自建服务器中继(桌面经 SSH 一键部署:上传中继服务 + 现场签发 TLS 证书 + systemd 安装 + 健康自检,部署历史随存回填,另有手动部署兜底指引);自建中继走动态 TLS 证书钉住(pin)。安全模型:设备凭证 = 每台独立 token,桌面只存 sha-256,踢除立即断开该设备全部连接;中继只认 key 搬字节,桥内仍走 token / 设备授权。浏览器直接打开带 token 的地址即用,可加主屏幕当 app;连接态是持续状态(顶栏主机芯片 + 断连 banner),不是一扇门。
@@ -187,7 +187,7 @@ pnpm check:file-size      # 单文件 ≤300 行检查（CI 强制）
 
 当前产物默认未签名 / 未公证:macOS 首次打开需在「系统设置 → 隐私与安全性」手动放行。Release 管道已支持 macOS 代码签名 + 公证(配置 `APPLE_*` repo secrets 即自动启用,见 release.yml);Windows 签名待证书采购形态拍板后接线。
 
-手机端 App 暂不随 Release 分发,两种用法:从源码经 `scripts/build-device.sh --install`(iOS,需 Xcode 签名)本地构建安装;或在桌面开启 Web 访问后,手机浏览器直接打开带 token 的地址(可加主屏幕当 app 用)。
+手机端 App 随 Release 附 Android APK(仓内 keystore 自签,侧载可装)与 iOS 未签名包;也可从源码经 `scripts/build-device.sh --install`(iOS,需 Xcode 签名)本地构建,或在桌面开启 Web 访问后手机浏览器直接打开带 token 的地址(可加主屏幕当 app 用)。
 
 ## 文档
 
@@ -221,7 +221,7 @@ pnpm check:file-size      # 单文件 ≤300 行检查（CI 强制）
 
 ## 当前状态
 
-已落地:插件宿主与插件市场(34 个注册插件:CLI 引擎 10 + 界面功能 20 + 核心 3 + 本机插件加载器)、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/dsh/opencode)+ SSH 一等会话(russh 引擎)+ 内置终端(kind=shell)、PTY 全生命周期与会话输出落盘翻页、xterm 幕布、工作区 FLUX 时间轴会话列表(呼吸灯/状态 label/置顶/预算分页/自定分组)、顶栏会话 tab 条与会话 tab 平铺显示、Composer 全量(触发符/拖拽/截图/命令抽屉 v3/消息锚点栏/Quota/bracketed-paste,触发补全以 CLI 为真相源)、智能体/提示词资产库(!! / ## 消费)、CLI 独立配置(图形化编辑各 CLI 配置文件,模型角色路由 / 撞墙回退链)、本机插件(~/.tmd-cli/plugins/ 免重启装载 / 对话造插件 / 版本回退)、Ask 等待确认检测(字节流 + 屏幕态双通道)与双路提示音、右栏 Git 面板全量(差异/分支/历史 Graph 化/提交 diff 中央 tab 双栏并排/远端 fetch/pull/push/三区拖选批量与未跟踪删除)、文件树 + CodeMirror 编辑器 + 文件渲染档案(图片/PDF/表格/docx/结构化)+ Markdown 预览、文件 tab 右键菜单与编辑区最大化、审批线(checkpoints 账本:双归因/回退/应用/反悔/影子对象库)、主题引擎(31 个 VS Code preset)、全局界面字号与界面缩放、网络代理、欢迎页引擎选择器(全动作行 / RESUME / QUOTA / TOKENS)、只读 session 状态栏、全局快捷键与可视化改键、版本号弹窗与自动更新、记忆协调(Memory 面板 FTS 检索 / 胶囊 / 控制台)、Git 分支右键菜单与远端操作对话框、会话 tab 右键菜单、WSL 支持(本机 UNC + 远程 SSH 宿主 M1:连接/会话/历史/状态/只读文件通道)、工作区壁纸(本地图库 + 流体着色器,表面 token 打穿 + xterm 透底)、omp 历史会话预热接管秒开、dsh 会话流式输出、Web 访问与手机 App(设备扫码配对与 token 授权、内网直连 / Cloudflare / 自建中继一键 SSH 部署 + TLS 证书钉住;iOS / Android 原生壳:会话列表 / 实况+transcript 对话分层(markdown / 工具折叠组 / 随流生长)/ 审批卡 / 键盘工具条 / 横屏 / Git 面板 / 历史续聊;浏览器带 token 地址即用)。
+已落地:插件宿主与插件市场(38 个注册插件:CLI 引擎 10 + 界面功能 24 + 核心 3 + 本机插件加载器)、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/dsh/opencode)+ SSH 一等会话(russh 引擎)+ 内置终端(kind=shell)、PTY 全生命周期与会话输出落盘翻页、xterm 幕布、工作区 FLUX 时间轴会话列表(呼吸灯/状态 label/置顶/预算分页/自定分组)、顶栏会话 tab 条与会话 tab 平铺显示、Composer 全量(触发符/拖拽/截图/命令抽屉 v3/消息锚点栏/Quota/bracketed-paste,触发补全以 CLI 为真相源)、智能体/提示词资产库(!! / ## 消费)、CLI 独立配置(图形化编辑各 CLI 配置文件,模型角色路由 / 撞墙回退链)、本机插件(~/.tmd-cli/plugins/ 免重启装载 / 对话造插件 / 版本回退)、Ask 等待确认检测(字节流 + 屏幕态双通道)与双路提示音、右栏 Git 面板全量(差异/分支/历史 Graph 化/提交 diff 中央 tab 双栏并排/远端 fetch/pull/push/三区拖选批量与未跟踪删除)、文件树 + CodeMirror 编辑器 + 文件渲染档案(图片/PDF/表格/docx/结构化)+ Markdown 预览、文件 tab 右键菜单与编辑区最大化、审批线(checkpoints 账本:双归因/回退/应用/反悔/影子对象库)、主题引擎(31 个 VS Code preset)、全局界面字号与界面缩放、网络代理、欢迎页引擎选择器(全动作行 / RESUME / QUOTA / TOKENS)、只读 session 状态栏、全局快捷键与可视化改键、版本号弹窗与自动更新、记忆协调(Memory 面板 FTS 检索 / 胶囊 / 控制台)、Git 分支右键菜单与远端操作对话框、会话 tab 右键菜单、WSL 支持(本机 UNC + 远程 SSH 宿主 M1:连接/会话/历史/状态/只读文件通道)、工作区壁纸(本地图库 + 流体着色器,表面 token 打穿 + xterm 透底)、omp 历史会话预热接管秒开、dsh 会话流式输出、Web 访问与手机 App(设备扫码配对与 token 授权、内网直连 / Cloudflare / 自建中继一键 SSH 部署 + TLS 证书钉住;iOS / Android 原生壳:会话列表 / 实况+transcript 对话分层(markdown / 工具折叠组 / 随流生长)/ 审批卡 / 键盘工具条 / 横屏 / Git 面板 / 历史续聊;浏览器带 token 地址即用)。
 
 进行中:命令抽屉真机验收(余 5 项 `[V]`,openspec/changes/composer-command-drawer)与 CLI 交互式兼容性验证;其余变更契约已全部归档(openspec/changes/archive/)。
 

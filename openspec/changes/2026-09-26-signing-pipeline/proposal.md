@@ -13,7 +13,7 @@ macOS Gatekeeper 放行与 Windows SmartScreen 是增长摩擦。本变更给 re
 |---|---|---|
 | macOS | release.yml 构建步前注入 `APPLE_*` 六 env(secrets 缺失自动跳过),tauri bundler 原生走 codesign + notarytool | 证书/账号采购(Apple Developer $99/年,用户侧决策) |
 | Windows | 决策项写入注释与本文档(OV/EV p12 或 Azure Trusted Signing,经 tauri `signCommand` 接线) | 盲接自签证书(SmartScreen 信誉照样拦,白花钱) |
-| Android/iOS 壳 | 保持如实标注 unsigned(Android debug 签名 APK 直装可用) | 正式签名(需 keystore/账号,同属用户侧采购) |
+| Android/iOS 壳 | Android 已自签(仓内 keystore,侧载级);iOS 壳保持如实标注 unsigned | 门店级正式签名(需账号/采购,同属用户侧) |
 
 ## 大仙侧启用清单(macOS)
 

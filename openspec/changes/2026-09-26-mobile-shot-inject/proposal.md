@@ -28,7 +28,7 @@
 
 | 风险 | 对策 |
 |---|---|
-| JSON 数组载荷量级(压缩后 ~2-8MB 文本) | 压缩先行;内网/中继均可承受;后续如需再上二进制帧 |
+| JSON 数组载荷量级(手机 invoke 帧 ≤3.5MiB 桥守卫,数字数组每字节 ~3.6 字符 → 字节上限 ~900KB) | shrinkImage 逐级降质/缩边重编码压进预算(900KB 闸);超限报「image too large after shrink」 |
 | WebView file input 差异(iOS WKWebView 需原生 privacy 描述) | 壳工程 Info.plist 相机/相簿权限描述待真机验证,缺失时退化为纯相册选图 |
 | CLI 不支持 @ 图片引用的引擎 | 注入的是路径文本,引擎侧行为与桌面附件一致(不新增兼容面) |
 
