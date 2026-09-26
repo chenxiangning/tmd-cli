@@ -25,10 +25,11 @@ export function validateDirName(name: string): string | null {
   return null;
 }
 
-/** 由 cwd 与目录名拼 worktree 绝对路径(双分隔符安全,Windows 反斜杠同治)。 */
-export function worktreePathFor(cwd: string, name: string): string {
+/** 由 cwd 与目录名拼 worktree 绝对路径;cwd 为盘根(无父目录)= null(UI 报错)。 */
+export function worktreePathFor(cwd: string, name: string): string | null {
   const parent = cwd.replace(/[\\/]+$/, "");
   const at = Math.max(parent.lastIndexOf("/"), parent.lastIndexOf("\\"));
-  const dir = at > 0 ? parent.slice(0, at) : parent;
+  if (at <= 0) return null; // 盘根仓库:worktree 会嵌进主仓,拒绝
+  const dir = parent.slice(0, at);
   return `${dir}/${name.trim()}`;
 }

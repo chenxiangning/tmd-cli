@@ -20,6 +20,7 @@ export function RelayDialog({ source, onClose }: { source: RelaySource; onClose:
   );
   const [targetId, setTargetId] = useState<string | null>(targets[0]?.id ?? null);
   const [summary, setSummary] = useState("");
+  const [summaryReady, setSummaryReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -34,10 +35,16 @@ export function RelayDialog({ source, onClose }: { source: RelaySource; onClose:
       : Promise.resolve(null);
     void load
       .then((messages) => {
-        if (alive) setSummary(buildRelaySummary(source, messages ?? []));
+        if (alive) {
+          setSummary(buildRelaySummary(source, messages ?? []));
+          setSummaryReady(true);
+        }
       })
       .catch(() => {
-        if (alive) setSummary(buildRelaySummary(source, []));
+        if (alive) {
+          setSummary(buildRelaySummary(source, []));
+          setSummaryReady(true);
+        }
       });
     return () => {
       alive = false;
@@ -47,12 +54,20 @@ export function RelayDialog({ source, onClose }: { source: RelaySource; onClose:
   }, []);
 
   const relay = async (): Promise<void> => {
-    if (!targetId || !workspace || busy) return;
+    if (!targetId || !workspace || busy || !summaryReady) return;
     setBusy(true);
     setError("");
     try {
       const meta = await host.createSession(targetId, workspace.root, workspace.id);
-      if (summary.trim()) await host.writeSession(meta.id, `${summary.trim()}\n`);
+      if (summary.trim()) {
+        const ok = await host.writeSession(meta.id, `${summary.trim()}\n`);
+        if (!ok) {
+          /* 目标会话秒退/写入失败:提示词凭空消失比失败更糟,留框让用户重试 */
+          setError(t("接力提示词未能送达(目标会话可能已退出),请重试或取消"));
+          setBusy(false);
+          return;
+        }
+      }
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -115,12 +130,12 @@ export function RelayDialog({ source, onClose }: { source: RelaySource; onClose:
           </button>
           <button
             type="button"
-            disabled={!targetId || busy}
+            disabled={!targetId || busy || !summaryReady}
             onClick={() => void relay()}
             className="flex items-center gap-1.5 rounded-md bg-(--tmd-accent) px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
           >
             <PaperPlaneRight size="0.75rem" aria-hidden />
-            {busy ? t("开新会话中…") : t("开新会话并发送")}
+            {busy ? t("开新会话中…") : summaryReady ? t("开新会话并发送") : t("摘要生成中…")}
           </button>
         </div>
       </div>

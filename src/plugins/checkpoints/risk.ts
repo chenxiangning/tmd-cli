@@ -25,8 +25,3 @@ const HIGH_RISK_PATTERNS: readonly RegExp[] = [
 export function classifyRisk(path: string): "high" | "normal" {
   return HIGH_RISK_PATTERNS.some((re) => re.test(path)) ? "high" : "normal";
 }
-
-/** 批内是否存在高危文件(批头汇总徽标用)。 */
-export function batchHasHighRisk(paths: readonly string[]): boolean {
-  return paths.some((p) => classifyRisk(p) === "high");
-}

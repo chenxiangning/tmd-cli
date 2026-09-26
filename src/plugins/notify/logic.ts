@@ -41,13 +41,14 @@ function sessionName(sessionId: string, lookup: SessionLookup): string {
   return meta?.title || meta?.profileId || sessionId;
 }
 
-/** 各通知类别的标题与正文。 */
+/** 各通知类别的标题与正文;displayName 显式覆盖(退出场景会话已不在表)。 */
 export function notifyText(
   kind: NotifyKind,
   sessionId: string,
   lookup: SessionLookup,
+  displayName?: string,
 ): { title: string; body: string } {
-  const name = sessionName(sessionId, lookup);
+  const name = displayName || sessionName(sessionId, lookup);
   if (kind === "ask")
     return { title: t("等待确认"), body: t("「{name}」在等你确认操作", { name }) };
   if (kind === "turnEnd")

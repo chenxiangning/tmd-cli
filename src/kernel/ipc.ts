@@ -1180,7 +1180,8 @@ export function onPtyOutput(sessionId: string, cb: (text: string) => void) {
   return listen<string>(`pty://out/${sessionId}`, (e) => cb(e.payload));
 }
 
-/** 订阅某会话的进程退出。返回退订函数;exitCode 来自 portable-pty(信号中止归一 130)。 */
+/** 订阅某会话的进程退出。返回退订函数;exitCode = portable-pty exit_code
+ *  (信号死亡归一 1;null = 用户 kill 先收尸/SSH unit 载荷等未知形态)。 */
 export function onPtyExit(sessionId: string, cb: (exit: { code: number | null }) => void) {
   return listen<{ code: number | null }>(`pty://exit/${sessionId}`, (e) => cb(e.payload));
 }

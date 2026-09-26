@@ -70,9 +70,14 @@ export class SessionIndexer {
     this.index = { cwd, entries: [], scanned: 0, total: 0 };
   }
 
-  /** 枚举作业(listSessions 并发全量);返回作业总数。 */
+  /** 枚举作业(listSessions 并发全量);返回作业总数。随后剪掉不在本次作业
+   *  集内的缓存项(死会话/换工作区残留,防无界驻留)。 */
   async prime(): Promise<number> {
     this.jobs = await collectJobs(this.cwd);
+    const live = new Set(this.jobs.map((j) => j.session.path));
+    for (const key of cache.keys()) {
+      if (!live.has(key)) cache.delete(key);
+    }
     this.index.total = this.jobs.length;
     return this.jobs.length;
   }
@@ -154,13 +159,13 @@ export function searchSessions(
       snippet: message ? snippet(message, needle) : (entry.title ?? ""),
       inTitle,
     });
-    if (hits.length >= limit) break;
   }
+  /* 先排序后限量:标题命中必须浮出,不能被先到的消息命中挤掉配额 */
   hits.sort((a, b) => {
     if (a.inTitle !== b.inTitle) return a.inTitle ? -1 : 1;
     return b.entry.modifiedAt - a.entry.modifiedAt;
   });
-  return hits;
+  return hits.slice(0, limit);
 }
 
 /** 清空 mtime 缓存(单测隔离用;生产常驻复用)。 */

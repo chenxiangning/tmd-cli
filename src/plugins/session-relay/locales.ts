@@ -15,6 +15,9 @@ const MESSAGES_EN = {
   "取消": "Cancel",
   "开新会话中…": "Starting session…",
   "开新会话并发送": "Start session & send",
+  "摘要生成中…": "Summarizing…",
+  "接力提示词未能送达(目标会话可能已退出),请重试或取消":
+    "Relay prompt was not delivered (target session may have exited). Retry or cancel.",
 } as const;
 
 /** ja 词典 · session-relay 域。 */
@@ -28,6 +31,9 @@ const MESSAGES_JA = {
   "取消": "キャンセル",
   "开新会话中…": "セッション開始中…",
   "开新会话并发送": "セッションを開いて送信",
+  "摘要生成中…": "要約生成中…",
+  "接力提示词未能送达(目标会话可能已退出),请重试或取消":
+    "引き継ぎプロンプトを送信できませんでした(切り替え先セッションが終了した可能性)。再試行またはキャンセルしてください。",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

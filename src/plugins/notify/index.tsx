@@ -13,7 +13,7 @@
 
 import { BellRinging } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
-import { KernelTopics } from "@kernel/events";
+import { KernelTopics, type SessionExitedDetailEvent } from "@kernel/events";
 import { sendOsNotification } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { getSettingsState } from "@kernel/settings";
@@ -44,13 +44,44 @@ export const notifyPlugin: Plugin = {
   },
   activate(ctx) {
     /* 事件侧:三类内核信号,边沿触发,检测零新增。
-       turnSettled 只提醒"未被查看"的结算(查看过的轮次不值得打断)。 */
-    ctx.events.on<string>(KernelTopics.askDetected, (id) => dispatch("ask", id));
-    ctx.events.on<{ sessionId: string; unviewed: boolean }>(
-      KernelTopics.turnSettled,
-      (e) => e.unviewed && dispatch("turnEnd", e.sessionId),
-    );
-    ctx.events.on<string>(KernelTopics.sessionExited, (id) => dispatch("exit", id));
+       turnSettled 只提醒"未被查看"的结算(查看过的轮次不值得打断);
+       退出走 sessionExitedDetail(payload 是移除前快照,名字档位才可达)。 */
+    const waitingNotified = new Set<string>();
+    const offs = [
+      ctx.events.on<string>(KernelTopics.askDetected, (id) => {
+        waitingNotified.add(id);
+        dispatch("ask", id);
+      }),
+      ctx.events.on<{ sessionId: string; unviewed: boolean }>(
+        KernelTopics.turnSettled,
+        (e) => {
+          waitingNotified.delete(e.sessionId);
+          if (e.unviewed) dispatch("turnEnd", e.sessionId);
+        },
+      ),
+      ctx.events.on<SessionExitedDetailEvent>(KernelTopics.sessionExitedDetail, (e) => {
+        const { settings } = getSettingsState();
+        if (!shouldNotify("exit", settings, host.isWindowFocused())) return;
+        const name = e.title || host.getCliProfile(e.profileId)?.name || e.profileId;
+        void sendOsNotification(t("会话退出"), t("「{name}」已退出", { name }));
+      }),
+    ];
+
+    /* 镜像时序补扫:「提问先于失焦」的场景 askDetected 边沿已被聚焦期消费,
+       失焦那一刻扫一遍等待中的会话补发(去重按会话,聚焦恢复即清账)。 */
+    const onBlur = (): void => {
+      const { settings } = getSettingsState();
+      if (!settings.notifyOsAsk || host.isWindowFocused()) return;
+      for (const s of host.getSessions()) {
+        if (!host.isWaitingConfirm?.(s.id) || waitingNotified.has(s.id)) continue;
+        waitingNotified.add(s.id);
+        const { title, body } = notifyText("ask", s.id, host);
+        void sendOsNotification(title, body);
+      }
+    };
+    const onFocus = (): void => waitingNotified.clear();
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
 
     /* 额度侧:轻轮询(首查 30s,此后 10 分钟一次;激活会话供应商),过阈去重后发 OS 通知。 */
     const warned = new Set<string>();
@@ -110,6 +141,9 @@ export const notifyPlugin: Plugin = {
     return () => {
       clearTimeout(first);
       clearInterval(timer);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+      for (const off of offs) off();
     };
   },
 };

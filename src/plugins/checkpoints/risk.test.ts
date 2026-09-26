@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { batchHasHighRisk, classifyRisk } from "./risk";
+import { classifyRisk } from "./risk";
 
 describe("classifyRisk", () => {
   it("凭据/Shell 配置/CI/服务定义 = high", () => {
@@ -20,12 +20,5 @@ describe("classifyRisk", () => {
     expect(classifyRisk("docs/README.md")).toBe("normal");
     expect(classifyRisk("environments/list.ts")).toBe("normal"); // 目录名带 env 不误伤
     expect(classifyRisk("src/service.ts")).toBe("normal");
-  });
-});
-
-describe("batchHasHighRisk", () => {
-  it("批内任一命中即 true", () => {
-    expect(batchHasHighRisk(["src/a.ts", ".env"])).toBe(true);
-    expect(batchHasHighRisk(["src/a.ts", "docs/b.md"])).toBe(false);
   });
 });

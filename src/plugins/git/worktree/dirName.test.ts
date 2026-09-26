@@ -31,4 +31,8 @@ describe("worktreePathFor", () => {
     expect(worktreePathFor("/repo/main/", "wt")).toBe("/repo/wt");
     expect(worktreePathFor("C:\\repo\\main", "wt")).toBe("C:\\repo/wt");
   });
+
+  it("盘根仓库无父目录:返回 null(UI 报错,不嵌进主仓)", () => {
+    expect(worktreePathFor("/repo", "wt")).toBeNull();
+  });
 });

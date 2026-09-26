@@ -1,6 +1,7 @@
 import SwiftUI
 import WebKit
 import AVFoundation
+import PhotosUI
 
 /// tmd-cli 移动壳:原生 WKWebView 容器,数据面全部走 WebSocket 连桌面桥。
 /// 页面经 WKURLSchemeHandler 以 app://tmd/ 为根服务内嵌 dist —— 不能用 file://,
@@ -257,6 +258,7 @@ struct WebView: UIViewRepresentable {
     webview.backgroundColor = .black
     webview.scrollView.bounces = false
     webview.navigationDelegate = context.coordinator
+    webview.uiDelegate = FileUploadBridge.shared /* <input type=file>:不挂 uiDelegate 是静默死钮 */
     QrBridge.shared.webview = webview
     ShellBridge.shared.webview = webview
     webview.load(URLRequest(url: URL(string: "app://tmd/index.html")!))
@@ -286,5 +288,68 @@ final class NavLog: NSObject, WKNavigationDelegate {
   }
   func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
     ShellLog.write("nav didFinish")
+  }
+}
+
+/// <input type=file> 宿主面板:不挂 WKUIDelegate 时 file input 是静默死钮
+/// (2026-09-26 功能查漏 P1-4)。PHPicker 出程选图,不经相册权限(iOS 14+);
+/// 单选即可满足截图注入场景,多选随 parameters.allowsMultipleSelection 放开。
+final class FileUploadBridge: NSObject, WKUIDelegate {
+  static let shared = FileUploadBridge()
+
+  func webView(_ webView: WKWebView,
+               runFileUploadPanelInFrame frame: WKFrameInfo?,
+               parameters: WKFileUploadPanelParameters,
+               completionHandler: @escaping ([URL]?) -> Void) {
+    guard let root = UIApplication.shared.connectedScenes
+      .compactMap({ $0 as? UIWindowScene })
+      .flatMap({ $0.windows })
+      .first(where: { $0.isKeyWindow })?.rootViewController else {
+      completionHandler(nil)
+      return
+    }
+    var config = PHPickerConfiguration()
+    config.filter = .images
+    config.selectionLimit = parameters.allowsMultipleSelection ? 0 : 1
+    let picker = PHPickerViewController(configuration: config)
+    let relay = FilePanelRelay()
+    relay.completion = completionHandler
+    relay.present(root, picker)
+  }
+}
+
+/// PHPicker 结果拷到自有临时位再回传(系统的 representation 文件会被回收)。
+/// completionHandler 必须恰好调用一次:取消/失败/成功三路都经 finish 收口。
+private final class FilePanelRelay: NSObject, PHPickerViewControllerDelegate {
+  var completion: (([URL]?) -> Void)?
+  private var done = false
+
+  func present(_ root: UIViewController, _ picker: PHPickerViewController) {
+    picker.delegate = self
+    root.present(picker, animated: true)
+  }
+
+  func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+    picker.dismiss(animated: true)
+    guard !done else { return }
+    guard let provider = results.first?.itemProvider,
+          provider.hasItemConformingToTypeIdentifier("public.image") else {
+      finish(nil)
+      return
+    }
+    provider.loadFileRepresentation(forTypeIdentifier: "public.image") { [weak self] url, _ in
+      guard let self, let url else { self?.finish(nil); return }
+      let tmp = FileManager.default.temporaryDirectory
+        .appendingPathComponent("tmd-upload-\(Int(Date().timeIntervalSince1970 * 1000)).\(url.pathExtension.isEmpty ? "jpg" : url.pathExtension)")
+      try? FileManager.default.copyItem(at: url, to: tmp)
+      DispatchQueue.main.async { self.finish([tmp]) }
+    }
+  }
+
+  private func finish(_ urls: [URL]?) {
+    guard !done else { return }
+    done = true
+    completion?(urls)
+    completion = nil
   }
 }

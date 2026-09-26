@@ -15,6 +15,8 @@ export const QUOTA_POLL_INTERVAL_MS = 10 * 60_000;
 /**
  * 从窗口列表挑出本次要告警的窗口;命中即记入 seen(跨轮询去重)。
  * 返回命中的窗口对象本身(消费方零二次查找);seen 由调用方持有。
+ * 键含 25% 升级桶:无 resetsAt 的占比型快照(dsh 上下文构成)越过桶界可再报,
+ * 不会「终生一次」然后在最该响的逼近段静默。
  */
 export function pickQuotaWarnings(
   windows: readonly QuotaWindow[],
@@ -24,7 +26,8 @@ export function pickQuotaWarnings(
   const fired: QuotaWindow[] = [];
   for (const w of windows) {
     if (w.displayPercent < usedPercentThreshold) continue;
-    const key = `${w.label}:${w.resetsAt ?? 0}`;
+    const bucket = Math.floor(w.displayPercent / 25);
+    const key = `${w.label}:${w.resetsAt ?? 0}:${bucket}`;
     if (seen.has(key)) continue;
     seen.add(key);
     fired.push(w);

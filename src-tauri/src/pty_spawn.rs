@@ -244,18 +244,16 @@ pub(crate) fn spawn(
             let _ = std::fs::remove_file(path);
         }
         logs.lock().remove(&out_id);
-        /* Rust 侧自清理:移除句柄并回收子进程,不依赖前端 kill 回调 ——
-         * webview reload 会错过 pty://exit,句柄(master fd)否则永久滞留。 */
-        if let Some(mut handle) = out_sessions.lock().remove(&out_id) {
-            let _ = handle.child.kill();
-            let _ = handle.child.wait(); /* 收尸:kill 仅发信号,不 wait 留僵尸 */
-        }
         /* 活会话注册表同步移除:webview reload 错过 exit 事件后,
-         * session_list 不再把死会话当活会话返回 */
+         * session_list 不再把死会话当活会话返回。单一 remove 点:kill 收尸与
+         * 真实退出码采集同处完成(此前两连 remove 把码吞成恒 null,P0 回归)。
+         * session_kill → pty.rs 已先 remove 同一 map,此处拿 None = 用户 kill,
+         * code null → 前端「未知不扰」;自然退出/崩溃则拿到真实码。 */
         let mut code: Option<i32> = None;
         if let Some(mut handle) = out_sessions.lock().remove(&out_id) {
             let _ = handle.child.kill();
-            /* 收尸拿真实退出码(kill 后 wait 的收尸语义不变):信号中止归一 130 */
+            /* 收尸拿真实退出码(kill 后 wait 的收尸语义不变)。
+             * 信号死亡 portable-pty 归一 exit_code=1(信号名在 signal(),另发不采)。 */
             code = handle
                 .child
                 .wait()

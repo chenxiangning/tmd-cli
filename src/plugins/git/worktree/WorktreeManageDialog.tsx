@@ -10,7 +10,7 @@ import { ArrowsClockwise, Plus, Trash } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import type { WorktreeEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
-import { addWorkspace } from "@kernel/workspace";
+import { addWorkspace, getWorkspaces, removeWorkspace } from "@kernel/workspace";
 import { dirNameFromBranch, validateDirName, worktreePathFor } from "./dirName";
 
 export function WorktreeManageDialog({ cwd, onClose }: { cwd: string; onClose: () => void }) {
@@ -57,10 +57,14 @@ export function WorktreeManageDialog({ cwd, onClose }: { cwd: string; onClose: (
       setError(t("分支名不能为空"));
       return;
     }
+    const path = worktreePathFor(cwd, dirName.trim());
+    if (!path) {
+      setError(t("主仓位于盘根,无法推导 worktree 父目录;请把仓库移到子目录后重试"));
+      return;
+    }
     setBusy("add");
     setError("");
     try {
-      const path = worktreePathFor(cwd, dirName.trim());
       await ipc.gitWorktreeAdd(cwd, path, branch.trim(), newBranch);
       addWorkspace(path);
       setNotice(t("已创建并加入工作区:{path}", { path }));
@@ -78,6 +82,10 @@ export function WorktreeManageDialog({ cwd, onClose }: { cwd: string; onClose: (
     try {
       await ipc.gitWorktreeRemove(cwd, entry.path, false);
       setConfirmPath(null);
+      /* 创建时联动 addWorkspace 的对称面:同 root 的工作区一并摘除,
+       * 侧栏不再残留死目录卡片(不影响该 worktree 下的历史会话记录)。 */
+      const ws = getWorkspaces().find((w) => w.root === entry.path);
+      if (ws) removeWorkspace(ws.id);
       setNotice(t("已移除 {path}", { path: entry.path }));
       refresh();
     } catch (e) {
@@ -101,7 +109,7 @@ export function WorktreeManageDialog({ cwd, onClose }: { cwd: string; onClose: (
     }
   };
 
-  const parent = worktreePathFor(cwd, "_").replace(/_$/, "");
+  const parent = cwd.replace(/[\\/]+$/, "").replace(/(.*[\\/]).*/, "$1");
 
   return createPortal(
     <div

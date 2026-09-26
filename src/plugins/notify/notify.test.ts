@@ -67,6 +67,13 @@ describe("pickQuotaWarnings(额度阈值判定)", () => {
     expect(labels(pickQuotaWarnings([W("5小时", 96, 2000)], 10, seen))).toEqual(["5小时"]);
   });
 
+  it("25% 升级桶:无 resetsAt 的占比型快照越桶可再报(修 dsh 终生一次)", () => {
+    const seen = new Set<string>();
+    expect(labels(pickQuotaWarnings([W("上下文", 12, undefined)], 10, seen))).toEqual(["上下文"]);
+    expect(pickQuotaWarnings([W("上下文", 20, undefined)], 10, seen)).toEqual([]); // 同桶不重报
+    expect(labels(pickQuotaWarnings([W("上下文", 38, undefined)], 10, seen))).toEqual(["上下文"]); // 越桶再报
+  });
+
   it("无 resetsAt 的窗口键不含时刻段,同样去重", () => {
     const seen = new Set<string>();
     expect(labels(pickQuotaWarnings([W("5小时", 90)], 10, seen))).toEqual(["5小时"]);

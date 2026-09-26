@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowClockwise, Cross, Warning } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
-import { KernelTopics, type SessionExitedDetailEvent } from "@kernel/events";
+import { KernelTopics, type SessionExitedDetailEvent, type SessionStartFailedEvent } from "@kernel/events";
 
 const NOTICE_TTL_MS = 12_000;
 const NOTICE_MAX = 3;
@@ -79,18 +79,33 @@ export function ExitSessionNotices({
 export function ExitSessionToast() {
   const [notices, setNotices] = useState<readonly Notice[]>([]);
   const seq = useRef(0);
+  /* 与 StartFailureToast 的双卡去重:20s 窗外带崩溃特征的退出会同时发
+   * sessionStartFailed(late) 与本 detail,启动失败卡已覆盖时不重复上卡。 */
+  const startFailedIds = useRef(new Set<string>());
 
   useEffect(() => {
+    const offFailed = host.events.on<SessionStartFailedEvent>(
+      KernelTopics.sessionStartFailed,
+      (e) => {
+        if (e.sessionId) startFailedIds.current.add(e.sessionId);
+      },
+    );
     const off = host.events.on<SessionExitedDetailEvent>(
       KernelTopics.sessionExitedDetail,
       (e) => {
-        /* 0 = 正常收尾,130 = 用户 kill;只有异常退出才打扰 */
-        if (e.exitCode === 0 || e.exitCode === 130) return;
+        /* 0 = 正常收尾,130 = 用户 kill,null = 未知(旧载荷/SSH 同步收尾竞态):
+         * 三者都不打扰;只有确认非零异常才上卡(宁漏勿扰)。
+         * 启动失败卡已覆盖同会话的,不再叠第二张。 */
+        if (e.exitCode == null || e.exitCode === 0 || e.exitCode === 130) return;
+        if (startFailedIds.current.has(e.sessionId)) return;
         const id = ++seq.current;
         setNotices((list) => [...list.slice(-(NOTICE_MAX - 1)), { ...e, id }]);
       },
     );
-    return () => off();
+    return () => {
+      offFailed();
+      off();
+    };
   }, []);
 
   const close = useCallback((id: number) => {

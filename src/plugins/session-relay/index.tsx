@@ -39,7 +39,9 @@ export const sessionRelayPlugin: Plugin = {
       run: () => {
         const sessionId = host.getActiveSessionId();
         const session = sessionId ? host.getSessions().find((s) => s.id === sessionId) : null;
-        if (!sessionId || !session || session.kind === "shell") return;
+        /* 仅本地 CLI 会话可作源:shell 无 CLI 语义;ssh 的磁盘身份在远端,
+           本地读取器读不到历史、新会话也会丢远端 cwd(远端接力二期)。 */
+        if (!sessionId || !session || session.kind !== "cli") return;
         const engineId = session.engine ?? session.profileId;
         const source: RelaySource = {
           profileId: engineId,
