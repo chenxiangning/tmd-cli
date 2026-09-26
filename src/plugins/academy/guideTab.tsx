@@ -134,13 +134,14 @@ export function GuideTab({ tab }: { tab: EditorTab }) {
         ))}
       </div>
       <div className="academy-guide-scroll">
-        {result.chapters.map(({ chapter, commands }, i) => (
+        {result.chapters.map(({ chapter, commands }) => (
           <section key={chapter.id} id={`academy-ch-${chapter.id}`} className="academy-chapter">
-            <h2>
-              <span className="academy-ch-no">{String(i + 1).padStart(2, "0")}</span>
-              {chapter.title}
-              <small>{chapter.desc}</small>
-            </h2>
+            <div className="academy-chapter-head">
+              <span className="academy-ch-no">{String(course.chapters.indexOf(chapter) + 1).padStart(2, "0")}</span>
+              <span className="academy-ch-title">{chapter.title}</span>
+              <span className="academy-ch-count">{commands.length} 条</span>
+              <span className="academy-ch-desc">{chapter.desc}</span>
+            </div>
             <div className="academy-cards">
               {commands.map((cmd) => (
                 <CommandCard
