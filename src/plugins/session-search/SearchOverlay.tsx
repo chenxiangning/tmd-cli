@@ -39,7 +39,13 @@ export function SessionSearchOverlay() {
     const tick = async (): Promise<boolean> => {
       if (!primed) {
         primed = true;
-        return (await indexer.prime()) > 0;
+        const total = await indexer.prime().catch(() => 0);
+        indexer.index.total = total;
+        if (total === 0) {
+          setIndexing(false);
+          clearInterval(timer);
+        }
+        return total > 0;
       }
       const more = await indexer.step();
       setIndex({ ...indexer.index });
@@ -49,7 +55,9 @@ export function SessionSearchOverlay() {
       }
       return more;
     };
-    const timer = setInterval(() => void tick().catch(() => clearInterval(timer)), STEP_INTERVAL_MS);
+    /* 单步失败只跳过该会话(坏行/越权读),不清定时器 —— 否则一步 reject
+     * 永久停摆且 indexing 永不落位,搜索静默变成「永远扫不完」。 */
+    const timer = setInterval(() => void tick().catch(() => {}), STEP_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [open, cwd]);
 
