@@ -185,7 +185,7 @@ pnpm check:file-size      # 单文件 ≤300 行检查（CI 强制）
 | Windows(x86_64) | `tmd-cli_0.2.2_x64-setup.exe`(NSIS)、`tmd-cli_0.2.2_x64_en-US.msi` |
 | Linux(x86_64) | `tmd-cli_0.2.2_amd64.AppImage`、`tmd-cli_0.2.2_amd64.deb`、`tmd-cli-0.2.2-1.x86_64.rpm` |
 
-当前产物未签名 / 未公证:macOS 首次打开需在「系统设置 → 隐私与安全性」手动放行。
+当前产物默认未签名 / 未公证:macOS 首次打开需在「系统设置 → 隐私与安全性」手动放行。Release 管道已支持 macOS 代码签名 + 公证(配置 `APPLE_*` repo secrets 即自动启用,见 release.yml);Windows 签名待证书采购形态拍板后接线。
 
 手机端 App 暂不随 Release 分发,两种用法:从源码经 `scripts/build-device.sh --install`(iOS,需 Xcode 签名)本地构建安装;或在桌面开启 Web 访问后,手机浏览器直接打开带 token 的地址(可加主屏幕当 app 用)。
 
