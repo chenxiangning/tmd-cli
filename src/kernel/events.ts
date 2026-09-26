@@ -34,7 +34,7 @@ export const KernelTopics = {
   /**
    * 退出详情(与 sessionExited 同边沿补发;旧消费方零迁移)。
    * payload: SessionExitedDetailEvent —— exitCode 来自 portable-pty
-   * (0 = 正常,非 0 = 异常,130 = 信号中止/kill)。
+   * (0 = 正常;信号中止归一 1;用户 kill 与 SSH 通道为 null = 未知,静默)。
    */
   sessionExitedDetail: "kernel.sessions.exited.detail",
   /**
