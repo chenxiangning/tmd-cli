@@ -46,4 +46,4 @@
 
 ## 二期(未做)
 
-en/ja 词典;composer 抽屉详情卡;openPanel 徽章;claude/codex/pi 课程;课程版本失效提示(sourceVersion vs 探针版本)。
+en/ja 词典;composer 抽屉详情卡;openPanel 徽章;claude/codex/pi 课程(pi 已接入 0.84.1,54bed23;claude/codex 待);课程版本失效提示(sourceVersion vs 探针版本)。
