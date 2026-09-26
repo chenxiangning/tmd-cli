@@ -7,8 +7,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowsClockwise, Plus, Trash } from "@phosphor-icons/react";
-import { ipc } from "@kernel/ipc";
-import type { WorktreeEntry } from "@kernel/ipc";
+import { ipc, type WorktreeEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { addWorkspace, getWorkspaces, removeWorkspace } from "@kernel/workspace";
 import { branchForWorktree, dirNameFromBranch, validateDirName, worktreePathFor } from "./dirName";
