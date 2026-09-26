@@ -122,7 +122,13 @@ mod tests {
         let dangling = link_dir.join("pi-dangling");
         std::os::unix::fs::symlink(root.join("nope/bin/pi"), &dangling).unwrap();
         assert_eq!(npm_prefix_of(dangling.to_str().unwrap()), None);
-        let _ = std::fs::remove_dir_all(&root);
+
+        /* 环链 a→b→a:16 级跟链上限兜底落 None,不死循环。 */
+        let ring_a = link_dir.join("ring-a");
+        let ring_b = link_dir.join("ring-b");
+        std::os::unix::fs::symlink(&ring_b, &ring_a).unwrap();
+        std::os::unix::fs::symlink(&ring_a, &ring_b).unwrap();
+        assert_eq!(npm_prefix_of(ring_a.to_str().unwrap()), None);
     }
 
     #[test]
