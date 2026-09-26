@@ -62,6 +62,32 @@ export function BehaviorTab() {
       </div>
       <div className="pref-row">
         <div>
+          <div className="pref-title">{t("发送二次确认")}</div>
+          <div className="pref-desc">{t("发送前弹窗确认目标会话与内容预览,防平铺模式发错会话;Enter 确认,Esc 取消。")}</div>
+        </div>
+        <div className="segmented" role="radiogroup" aria-label={t("发送二次确认")}>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={settings.sendConfirmEnabled}
+            className={`segment${settings.sendConfirmEnabled ? " is-active" : ""}`}
+            onClick={() => updateSettings({ sendConfirmEnabled: true })}
+          >
+            {t("开启")}
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!settings.sendConfirmEnabled}
+            className={`segment${!settings.sendConfirmEnabled ? " is-active" : ""}`}
+            onClick={() => updateSettings({ sendConfirmEnabled: false })}
+          >
+            {t("关闭")}
+          </button>
+        </div>
+      </div>
+      <div className="pref-row">
+        <div>
           <div className="pref-title">{t("历史输入补全")}</div>
           <div className="pref-desc">{t("输入时按 Tab 接受历史补全建议;输入框为空时按 ↑↓ 翻阅历史。")}</div>
         </div>

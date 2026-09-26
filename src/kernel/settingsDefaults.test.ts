@@ -29,6 +29,7 @@ describe("DEFAULT_SETTINGS", () => {
     expect(DEFAULT_SETTINGS.sessionHygieneHours).toBe(24);
     expect(DEFAULT_SETTINGS.sessionTabsEnabled).toBe(true);
     expect(DEFAULT_SETTINGS.sendShortcut).toBe("enter");
+    expect(DEFAULT_SETTINGS.sendConfirmEnabled).toBe(true);
     expect(DEFAULT_SETTINGS.sessionHygieneEnabled).toBe(true);
     expect(DEFAULT_SETTINGS.networkProxyEnabled).toBe(false);
     expect(DEFAULT_SETTINGS.workspaceOriginFilter).toBe("local");

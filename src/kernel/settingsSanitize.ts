@@ -176,6 +176,10 @@ export function sanitize(raw: unknown): AppSettings {
     sendShortcut: SEND_SHORTCUTS.includes(obj.sendShortcut as SendShortcut)
       ? (obj.sendShortcut as SendShortcut)
       : DEFAULT_SETTINGS.sendShortcut,
+    sendConfirmEnabled:
+      typeof obj.sendConfirmEnabled === "boolean"
+        ? obj.sendConfirmEnabled
+        : DEFAULT_SETTINGS.sendConfirmEnabled,
     askSoundEnabled:
       typeof obj.askSoundEnabled === "boolean"
         ? obj.askSoundEnabled

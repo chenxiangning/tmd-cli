@@ -49,7 +49,7 @@ describe("初始状态与默认值", () => {
       uiZoom: 1,
       sessionTabsEnabled: true,
       sessionTabsMax: 4,
-      sendShortcut: "enter",
+      sendShortcut: "enter", sendConfirmEnabled: true,
       promptHistoryEnabled: true,
       askSoundEnabled: true,
       askSoundId: "default",

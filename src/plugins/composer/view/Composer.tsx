@@ -1,22 +1,11 @@
 /**
  * Composer 视图 —— textarea + 触发器下拉 + 附件条 + 翻译 → PTY。
  *
- * 行为:
- * - 发送快捷键由 settings.sendShortcut 决定(默认 Enter 发送 / Shift+Enter 换行;⌘/Ctrl+Enter 模式下相反)
- * - 触发符(由当前会话 cli profile 声明)在光标前识别后,弹下拉
- *   - 候选来自:
- *     @ fsListDir(file 触发)
- *     / profile.suggestions.command
- *     $ profile.suggestions.skill
- *   - 候选面板支持 ↑↓/Enter/Tab/Esc 选中,选中替换触发器 + token
- * - 发送时把命中 "$token" → translate("/skill:token")(omp/pi 已声明)
- * - 拖入/粘贴图片 → 写临时文件 → 注册 attachment → textarea 注入 "@path "
- * - 拖拽悬停 composer → accent 内环 + 虚线遮罩(仅外部文件/文件树拖拽;附件重排不弹)
- * - attachment × 删除 → 同步移除 textarea 里对应 "@path " 文本
- * - textarea 里删除 "@path " 文本 → MutationObserver 移除对应 attachment
- *
- * 命令抽屉与触发器下拉拆至 useComposerDrawer.ts / useComposerTriggers.ts
- * (文件规模铁则)。
+ * 行为要点:触发符(@ // $ !! ##)光标前识别弹下拉(↑↓/Enter/Tab/Esc);
+ * 发送快捷键 settings.sendShortcut;发送二次确认见 sendPlan.ts /
+ * SendConfirmDialog.tsx;拖入/粘贴图片写临时文件注入 "@path "(附件 × 同步删文本)。
+ * 各机制拆至 useComposerDrawer / useComposerTriggers / useComposerAttachments /
+ * useComposerSend / usePromptHistory / composerOverlays(文件规模铁则)。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -36,6 +25,8 @@ import { AttachmentStrip } from "./AttachmentStrip";
 import { useAttachDragProps, usePopupAnchor } from "./composerChrome";
 import { AnchorRail } from "./AnchorRail";
 import { useComposerDrawer } from "./useComposerDrawer";
+import { SendConfirmDialog } from "./SendConfirmDialog";
+import { useSendConfirmRequest } from "./sendPlan";
 import { composerSendRef } from "./composerSendRef";
 import { insertAtCursor } from "./useComposerAttachments";
 import { PromptGhostMirror } from "./PromptGhostMirror";
@@ -124,6 +115,9 @@ export function Composer() {
   );
   /* 五段高度最底段(min,仅工具栏条):隐藏输入区(附件条/textarea/锚点栏),工具栏保留 */
   const inputHidden = useComposerStage() === "min";
+  /* 发送二次确认挂起点(spec 2026-09-27-composer-send-confirm):两条发送路径共用一个弹框 */
+  const { req: sendConfirm, requestConfirm: requestSendConfirm, close: closeSendConfirm } =
+    useSendConfirmRequest();
   const { drawerOpen, drawerItems, sendFromDrawer, insertFromDrawer, openFromDrawer } =
     useComposerDrawer({
       profile,
@@ -132,6 +126,8 @@ export function Composer() {
       value,
       setValue,
       setCursor,
+      confirmEnabled: settings.sendConfirmEnabled,
+      requestConfirm: requestSendConfirm,
     });
   const {
     matches,
@@ -177,6 +173,8 @@ export function Composer() {
   const sendCurrent = useComposerSend({
     profile, value, setValue, clearMatches: () => setMatches(null),
     onSendError: setSendError,
+    confirmEnabled: settings.sendConfirmEnabled,
+    requestConfirm: requestSendConfirm,
   });
 
   /* 弹窗悬停锚定 + 拖拽判定(实现见 composerChrome.ts) */
@@ -292,6 +290,8 @@ export function Composer() {
         )}
         {dragOver && <DragOverlay />}
       </div>
+      {/* 发送二次确认:落定先清挂起态再回调(防执行段再挂起被本实例覆盖) */}
+      <SendConfirmDialog req={sendConfirm} onSettled={closeSendConfirm} />
       <PreviewOverlay src={previewSrc} onClose={() => setPreviewSrc(null)} />
     </div>
   );

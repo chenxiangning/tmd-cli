@@ -133,6 +133,8 @@ export interface AppSettings {
   sessionTabsMax: number;
   /** Composer 发送快捷键行为。 */
   sendShortcut: SendShortcut;
+  /** Composer 发送二次确认(发送前弹目标+内容预览,Enter 确认/Esc 取消),默认开。 */
+  sendConfirmEnabled: boolean;
   /** Composer 输入历史(ghost 补全 + 空输入 ↑↓ 召回)开关,默认开。 */
   promptHistoryEnabled: boolean;
   /** Ask/确认面板提示音开关(行为页可调,默认开启)。 */

@@ -14,6 +14,7 @@ import { emitPromptSent, readPromptGate } from "../promptGate";
 import { openSettingsPanel } from "@kernel/settings";
 import { setFilePanelMode } from "@kernel/filePanel";
 import { prepareSendPayload } from "../serialize/serialize";
+import { buildSinglePlan, type SendConfirmRequest } from "./sendPlan";
 import { insertAtCursor } from "./useComposerAttachments";
 import { useDrawerOpen } from "../state/drawerOpen";
 import {
@@ -42,6 +43,8 @@ export function useComposerDrawer({
   value,
   setValue,
   setCursor,
+  confirmEnabled,
+  requestConfirm,
 }: {
   profile: CliProfile | null;
   cwd: string;
@@ -49,6 +52,10 @@ export function useComposerDrawer({
   value: string;
   setValue: React.Dispatch<React.SetStateAction<string>>;
   setCursor: React.Dispatch<React.SetStateAction<number>>;
+  /** 发送二次确认开关(settings.sendConfirmEnabled),渲染期传入。 */
+  confirmEnabled: boolean;
+  /** 确认挂起回调(Composer 注入,弹 SendConfirmDialog)。 */
+  requestConfirm: (req: SendConfirmRequest) => void;
 }) {
   /* ── 命令抽屉(openspec/changes/composer-command-drawer)── */
   const drawerOpen = useDrawerOpen();
@@ -73,12 +80,36 @@ export function useComposerDrawer({
   /* send 与手动发送完全同路径(prepareSendPayload → host.writeSession,translate 生效,零拦截;
      writeSession 同时锚定对话(呼吸灯首写闸) —— 用户首写后的输出才按对话语义结算呼吸灯);
      返回写入的 wire 文本(translate 后)供抽屉 toast 展示;null=写入失败(死会话),
-     空串=无会话/无 profile 静默守卫(spec:不弹"已发送"假反馈) */
+     空串=无会话/无 profile 静默守卫(spec:不弹"已发送"假反馈)或确认被取消。
+     二次确认(spec 2026-09-27):开关开时挂起弹框,Promise 在落定后续联 ——
+     CommandDrawer 的 onSend(...).then 拿到 wire 后照常 toast/flash,Esc=""静默不关抽屉。 */
   async function sendFromDrawer(item: DrawerItem): Promise<string | null> {
     const sid = host.getActiveSessionId();
     if (!sid || !profile) return "";
     const text = drawerWireText(item);
     const wire = prepareSendPayload(profile, text);
+    if (confirmEnabled) {
+      const plan = buildSinglePlan(sid, text);
+      if (!plan) return null;
+      return new Promise<string | null>((resolve) => {
+        requestConfirm({
+          plan,
+          onConfirm: () => {
+            void executeDrawerSend(sid, wire, text).then(resolve);
+          },
+          onCancel: () => resolve(""),
+        });
+      });
+    }
+    return executeDrawerSend(sid, wire, text);
+  }
+
+  /* 执行段:轮次闸写前现读(确认期间 ask 态可能变化,故在确认后重读)。 */
+  async function executeDrawerSend(
+    sid: string,
+    wire: string,
+    text: string,
+  ): Promise<string | null> {
     const gate = readPromptGate(sid); // 轮次闸写前现读:ask 作答/轮中斜杠命令不开轮不广播
     if (!(await host.writeSession(sid, wire))) return null;
     emitPromptSent(gate, sid, text);

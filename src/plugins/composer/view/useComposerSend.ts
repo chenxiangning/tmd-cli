@@ -1,15 +1,20 @@
 /**
  * Composer 发送闭包 hook —— 自 Composer.tsx 拆出(文件规模铁则)。
  *
- * 发送管线:git 预填联动 → translate 变换 → 轮次闸写前现读 → writeSession(等
- * 送达)→ promptSent 广播 → 输入历史记录(2026-09-10)→ 清空输入/附件/下拉。
+ * 发送管线(spec 2026-09-27-composer-send-confirm 起 = 确认/执行两段):
+ * 确认段:校验(空文本/无 profile/无会话)→ 构建计划(目标快照 + 内容)→
+ *   开关开则交 requestConfirm 挂起(弹 SendConfirmDialog),取消即终止;
+ * 执行段:git 预填联动 → translate 变换 → 轮次闸写前**现读**(确认期间 ask 态
+ *   可能变化,故闸读/广播目标解析都在确认后的执行段重跑)→ writeSession(等
+ *   送达)→ promptSent 广播 → 输入历史记录 → 清空输入/附件/下拉。
  * 写入失败(会话死/PTY 断)保草稿并报 onSendError;全目标失败回滚发送变换的
  * 乐观副作用(marks 翻 sent 退 staged)。每次渲染产出新闭包,经 composerSendRef
  * 活读(⌘K 等命令路径同源)。
  *
- * 平铺广播分支(broadcastModeRef 开 + 平铺态 + kept 目标 ≥2):同一题面逐路过
- * 各自 profile 的完整管线喂给全部幕布(含活跃),题面入史恰一次;任一失败保草稿
- * 汇总「N 路中 M 路失败」(不整批重发,防好目标重复);全败才回滚变换。
+ * 平铺广播分支(broadcastModeRef 开 + 平铺态):同一题面逐路走各自 profile 的
+ * 完整管线喂给全部幕布(含活跃),题面入史恰一次;任一失败保草稿汇总
+ * 「N 路中 M 路失败」(不整批重发,防好目标重复);全败才回滚变换。
+ * 目标 ≥2 才广播,缺员自动落回单发(计划期/执行期同判,执行期为准)。
  */
 
 import { host } from "@kernel/host";
@@ -23,6 +28,7 @@ import { clearAttachments } from "../state/attachments";
 import { recordPrompt } from "@kernel/promptHistory";
 import { broadcastModeRef } from "./broadcastMode";
 import { resolveBroadcastTargets } from "./broadcastTargets";
+import { buildBroadcastPlan, buildSinglePlan, type SendConfirmRequest, type SendPlan } from "./sendPlan";
 
 export function useComposerSend({
   profile,
@@ -30,29 +36,37 @@ export function useComposerSend({
   setValue,
   clearMatches,
   onSendError,
+  confirmEnabled,
+  requestConfirm,
 }: {
   profile: CliProfile | null;
   value: string;
   setValue: (v: string) => void;
   clearMatches: () => void;
   onSendError: (msg: string) => void;
+  /** 发送二次确认开关(settings.sendConfirmEnabled),send 时现读。 */
+  confirmEnabled: boolean;
+  /** 确认挂起回调(Composer 注入,弹 SendConfirmDialog)。 */
+  requestConfirm: (req: SendConfirmRequest) => void;
 }): () => void {
-  async function sendCurrent() {
-    if (!value.trim()) return;
-    if (!profile || !host.getActiveSessionId()) return;
-    /* git 联动:`/commit <msg>` → 预填 git 面板提交框。
-     * 契约源头:src/plugins/git/gitEvents.ts(GIT_PREFILL_TOPIC);
-     * 插件间不互相 import,topic 字符串即契约(事件总线惯例)。
-     * 仅预填 —— 文本照常发给 CLI,commit 执行权永在 git 面板按钮。 */
-    const trimmed = value.trim();
+  /* 执行段:plan.content 为准(预览即所得);闸读/目标解析在此现读。 */
+  async function executeSend(plan: SendPlan) {
+    if (!profile) return;
+    const sid = host.getActiveSessionId();
+    if (!sid) return;
+    const trimmed = plan.content;
+    /* git 联动:`/commit <msg>` → 预填 git 面板提交框(契约源头
+     * src/plugins/git/gitEvents.ts GIT_PREFILL_TOPIC;插件间不互 import)。
+     * 仅预填 —— 文本照常发给 CLI,commit 执行权永在 git 面板按钮。
+     * 在执行段触发:取消确认不留预填副作用。 */
     if (trimmed.startsWith("/commit ")) {
       host.events.emit("git://composer-prefill", { message: trimmed.slice(8).trim() });
     }
     /* 平铺广播:开关开 + 平铺态 + 目标 ≥2 才走;逐路完整管线(translate/bracketed
-       差异、发送变换、轮次闸 promptSent 全继承);收尾与单发同款。不满足落回单发。 */
-    if (broadcastModeRef.current && getSessionTile()) {
+       差异、发送变换、轮次闸 promptSent 全继承);收尾与单发同款。缺员落回单发。 */
+    if (plan.kind === "broadcast" && broadcastModeRef.current && getSessionTile()) {
       const targets = resolveBroadcastTargets(
-        getSessionTabs(), host.getActiveSessionId(), host.getSessions(),
+        getSessionTabs(), sid, host.getSessions(),
         (pid) => host.getCliProfile(pid),
       );
       if (targets.length >= 2) {
@@ -60,14 +74,14 @@ export function useComposerSend({
            引用块只进第一路、状态在第二路前已被翻掉。共享同一份变换文本,
            各路差异(bracketed paste 等)仍由 prepareSendPayload 按目标处理。
            变换过闸(单路同款):ask 确认期作答不开新轮,引用块不注入。 */
-        const activeGate = readPromptGate(host.getActiveSessionId()!);
+        const activeGate = readPromptGate(sid);
         const gateOpen = shouldBroadcastPrompt(activeGate, trimmed);
         const shared = gateOpen
           ? composerSendTransforms().reduce(
-              (acc, fn) => fn(acc, host.getActiveSessionId()!),
-              value,
+              (acc, fn) => fn(acc, sid),
+              trimmed,
             )
-          : value;
+          : trimmed;
         const failed: string[] = (
           await Promise.all(
             targets.map(async ({ id, profile: p }): Promise<string | null> => {
@@ -97,15 +111,14 @@ export function useComposerSend({
         return;
       }
     }
-    const sid = host.getActiveSessionId()!;
-    /* 闸读前置 + 变换过闸:ask 确认期作答/轮中斜杠命令不开新轮,发送变换
-       (marks 注入+翻 sent)与之同语义跳过 —— 与 promptSent 锚点闸口径一致。 */
+    /* 单发路径。闸读前置 + 变换过闸:ask 确认期作答/轮中斜杠命令不开新轮,
+       发送变换(marks 注入+翻 sent)与之同语义跳过 —— 与 promptSent 锚点闸口径一致。 */
     const gate = readPromptGate(sid);
     const anchored = shouldBroadcastPrompt(gate, trimmed);
     const transforms = anchored
       ? composerSendTransforms().map((fn) => (text: string) => fn(text, sid))
       : [];
-    const payload = prepareSendPayload(profile, value, transforms);
+    const payload = prepareSendPayload(profile, trimmed, transforms);
     if (!(await host.writeSession(sid, payload))) {
       /* 只回滚本轮真正运行过的变换:闸关/无变换时不动注册面 undo,
          防 marks 的历史翻转名单被无关失败错误回滚(2026-09-20 复查)。 */
@@ -118,6 +131,38 @@ export function useComposerSend({
     setValue("");
     clearAttachments();
     clearMatches();
+  }
+
+  async function sendCurrent() {
+    if (!value.trim()) return;
+    if (!profile || !host.getActiveSessionId()) return;
+    const sid = host.getActiveSessionId()!;
+    const trimmed = value.trim();
+    /* 确认段:计划期目标快照仅供展示;执行段重解析(≥2 才广播,缺员落单发)。 */
+    const plan =
+      broadcastModeRef.current && getSessionTile()
+        ? buildBroadcastPlan(
+            resolveBroadcastTargets(
+              getSessionTabs(), sid, host.getSessions(),
+              (pid) => host.getCliProfile(pid),
+            ).map((t) => t.id),
+            trimmed,
+          )
+        : buildSinglePlan(sid, trimmed);
+    if (!plan) return; // 会话在计划期已消失,同无会话守卫静默
+    if (confirmEnabled) {
+      await new Promise<void>((resolve) => {
+        requestConfirm({
+          plan,
+          onConfirm: () => {
+            void executeSend(plan).finally(resolve);
+          },
+          onCancel: resolve,
+        });
+      });
+      return;
+    }
+    await executeSend(plan);
   }
   return sendCurrent;
 }

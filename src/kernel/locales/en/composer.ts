@@ -90,4 +90,12 @@ export const MESSAGES = {
 
   /* triggers/suggest.ts */
   "文件夹": "Folder",
+  /* SendConfirmDialog + BehaviorTab(spec 2026-09-27-composer-send-confirm) */
+  "确认发送": "Confirm send",
+  "发送目标": "Send target",
+  "将发送到 {n} 块幕布:": "Will broadcast to {n} panes:",
+  "内容": "Content",
+  "发送": "Send",
+  "发送二次确认": "Send confirmation",
+  "发送前弹窗确认目标会话与内容预览,防平铺模式发错会话;Enter 确认,Esc 取消。": "Confirm target session and preview content before sending — guards against mis-sends in tiled mode. Enter confirms, Esc cancels.",
 } as Record<string, string>;

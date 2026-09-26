@@ -28,6 +28,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT,
   sessionTabsEnabled: true,
   sendShortcut: "enter",
+  sendConfirmEnabled: true,
   promptHistoryEnabled: true,
   askSoundEnabled: true,
   notifyOsAsk: true,

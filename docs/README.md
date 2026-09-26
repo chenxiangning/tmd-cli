@@ -207,4 +207,5 @@
 | 2026-09-26 | [worktree 关联管理设计(方案 A 侧栏分层 + B Git 面板分区,并做)](superpowers/specs/2026-09-26-worktree-assoc-management-design.md) | 已落地(1421 桩实证;真机目检待大仙) |
 | 2026-09-27 | [右缘面板 rail 设计(顶栏面板入口迁竖排工具条,activity bar 形态)](superpowers/specs/2026-09-27-right-panel-rail-design.md) | 已落地(实现随本 spec 提交;1421 桩目检通过) |
 | 2026-09-27 | [6 小时提交评审(12 提交 worktree 关联管理;4×P1 修复/重复实现收口/5×2 死键清)](review/2026-09-27-6h-commit-review.md) | 已完成(问题当轮修复,门禁复验绿) |
-变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
+| 2026-09-27 | [Composer 发送二次确认设计(目标+内容预览弹框;全部内容发送覆盖,工具命令豁免)](superpowers/specs/2026-09-27-composer-send-confirm-design.md) | 已确认(实现随本 spec 提交) |
+  变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
