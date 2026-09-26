@@ -22,6 +22,7 @@ import { useFilePanel } from "@kernel/filePanel";
 import { usePlatformKind } from "@kernel/platform";
 import { PluginMarketPage } from "./PluginMarketPage";
 import { StartFailureToast } from "./StartFailureToast";
+import { ExitSessionToast } from "./ExitSessionToast";
 import { SettingsPersistToast } from "./SettingsPersistToast";
 import { useEditorMaximized } from "./editorMaximized";
 import { shellBarToggles, shellLeftEnsureOpen, shellMarketClose, shellMarketToggle } from "./shortcutCommands";
@@ -100,6 +101,7 @@ export function AppShell() {
       {/* 会话启动失败通知:进程秒退静默闪退的兜底呈现(见 kernel/sessionSpawn.ts) */}
       <SettingsPersistToast />
       <StartFailureToast />
+      <ExitSessionToast />
     </div>
   );
 }

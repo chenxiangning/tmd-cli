@@ -32,6 +32,12 @@ export const KernelTopics = {
   /** 某会话 CLI 进程退出。payload: sessionId */
   sessionExited: "kernel.sessions.exited",
   /**
+   * 退出详情(与 sessionExited 同边沿补发;旧消费方零迁移)。
+   * payload: SessionExitedDetailEvent —— exitCode 来自 portable-pty
+   * (0 = 正常,非 0 = 异常,130 = 信号中止/kill)。
+   */
+  sessionExitedDetail: "kernel.sessions.exited.detail",
+  /**
    * 会话启动失败(spawn 即被拒,或进程在启动窗口内秒退)。
    * payload: SessionStartFailedEvent —— 秒退路径幕布缓冲随 tab 消亡,
    * 报错来不及呈现,由 spawn 编排件摘尾部广播(见 kernel/sessionSpawn.ts)。
@@ -69,6 +75,19 @@ export interface TurnSettledEvent {
   sessionId: string;
   unviewed: boolean;
   settledAt: number;
+}
+
+/** 退出详情负载:元数据自移除前的会话表快照;exitCode null = 注册表已失句柄(重载竞态)。 */
+export interface SessionExitedDetailEvent {
+  sessionId: string;
+  profileId: string;
+  cwd: string;
+  workspaceId?: string;
+  cliSessionId?: string;
+  kind?: "cli" | "ssh" | "shell";
+  title?: string;
+  exitCode: number | null;
+  at: number;
 }
 
 /** fileEditDetected 负载:paths = 本批新增命中(去重后,仓库相对、已归一)。 */

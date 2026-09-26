@@ -196,4 +196,5 @@
 | 2026-09-26 | [会话历史检索(工作区用户消息全文;profile 声明面复用/mtime 缓存/增量索引)](../openspec/changes/2026-09-26-session-search/proposal.md) | 已落地(真机目检待大仙;session-search 插件随本提案提交) |
 | 2026-09-26 | [跨引擎一键接力(确定性摘要拼装/预览编辑/新会话首发)](../openspec/changes/2026-09-26-session-relay/proposal.md) | 已落地(真机目检待大仙;session-relay 插件随本提案提交) |
 | 2026-09-26 | [Worktree 编排(git 面板管理弹窗:porcelain 列表/新建/移除/清理悬空,创建即进工作区)](../openspec/changes/2026-09-26-worktree-orchestration/proposal.md) | 已落地(真机目检待大仙;随 git 插件提交) |
+| 2026-09-26 | [会话异常退出通知与一键续聊(退出码打通/详情事件补发/toast 续聊)](../openspec/changes/2026-09-26-exit-toast-resume/proposal.md) | 已落地(真机目检待大仙;ExitSessionToast 随本提案提交) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

@@ -252,10 +252,24 @@ pub(crate) fn spawn(
         }
         /* 活会话注册表同步移除:webview reload 错过 exit 事件后,
          * session_list 不再把死会话当活会话返回 */
+        let mut code: Option<i32> = None;
+        if let Some(mut handle) = out_sessions.lock().remove(&out_id) {
+            let _ = handle.child.kill();
+            /* 收尸拿真实退出码(kill 后 wait 的收尸语义不变):信号中止归一 130 */
+            code = handle
+                .child
+                .wait()
+                .ok()
+                .map(|status| status.exit_code() as i32);
+        }
         if let Some(state) = out_app.try_state::<crate::AppState>() {
             state.sessions.remove(&out_id);
         }
-        let _ = crate::event_sink::emit(&out_app, &format!("pty://exit/{out_id}"), &());
+        let _ = crate::event_sink::emit(
+            &out_app,
+            &format!("pty://exit/{out_id}"),
+            &serde_json::json!({ "code": code }),
+        );
     });
 
     Ok(SpawnedSession { id, pid })

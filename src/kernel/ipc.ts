@@ -1180,9 +1180,9 @@ export function onPtyOutput(sessionId: string, cb: (text: string) => void) {
   return listen<string>(`pty://out/${sessionId}`, (e) => cb(e.payload));
 }
 
-/** 订阅某会话的进程退出。返回退订函数。 */
-export function onPtyExit(sessionId: string, cb: () => void) {
-  return listen(`pty://exit/${sessionId}`, () => cb());
+/** 订阅某会话的进程退出。返回退订函数;exitCode 来自 portable-pty(信号中止归一 130)。 */
+export function onPtyExit(sessionId: string, cb: (exit: { code: number | null }) => void) {
+  return listen<{ code: number | null }>(`pty://exit/${sessionId}`, (e) => cb(e.payload));
 }
 
 /** 桥(web/手机)发起会话的装配请求事件(Rust dispatch_session 广播)。 */

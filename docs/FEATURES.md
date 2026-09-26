@@ -21,6 +21,7 @@
 > 2026-09-25 补校:自建中继「部署历史」落盘(settings.relayDeployHistory,一键部署成功后 Rust 写连接信息+密码,不含私钥内容,明文纪律同 ssh.hosts;历史列表点选整表回填免重输,上限 10 条);外网 tab「使用流程」文案大白话重写;远程控制徽标迁顶栏左区最左 + 点击深链设备 tab;图标装饰 7→12 键。
 
 ## 工作区会话
+- 异常退出通知与一键续聊(ExitSessionToast):PTY 退出码打通(portable-pty → pty://exit 载荷),内核补发 sessionExitedDetail 详情事件;非 0/非 130 异常退出弹右下角 toast(12s TTL),续聊钮 = openDiskSession 原样 resume(shell/无磁盘身份不渲染)
 - 会话历史检索(session-search 插件):命令 `session-search.open` 开居中浮层,按用户输入全文(各 CLI profile 的 readSessionUserMessages,锚点栏同源)与磁盘标题检索当前工作区历史会话;索引增量构建(60ms/会话,mtime 缓存零重读),命中 openDiskSession 一键续聊
 
 - 添加工作区(目录选择器),工作区即会话容器;持久化 `~/.tmd-cli/workspaces.json`(列表 + 激活项,Rust 侧临时文件 + rename 原子写)
