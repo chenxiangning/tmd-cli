@@ -41,11 +41,14 @@ jobs:
             # overwrite native builds" 守卫),残留的 latest.json 会让新构建签名被陈旧
             # 条目挡住 → 应用内更新验签失败(v0.2.3 实证)。先删 latest.json,让本轮
             # 全平台条目重新生成;其余产物由 tauri-action --clobber 原地覆盖,无需处理。
-            ASSET_ID=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" \
-              --jq '.assets[] | select(.name == "latest.json") | .id')
-            if [ -n "$ASSET_ID" ]; then
-              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID"
-              echo "已删除陈旧 latest.json(asset $ASSET_ID)"
+            # gh release delete-asset 走 FetchRelease(draft/published 双态命中);
+            # 旧式按 tag 查 releases/tags 对 draft release 恒 404,会把
+            # 「删 tag 重推(GitHub 自动转回 draft)」场景的清资产步骤打死。
+            if gh release delete-asset "$GITHUB_REF_NAME" latest.json \
+              --repo "$GITHUB_REPOSITORY" -y > /dev/null 2>&1; then
+              echo "已删除陈旧 latest.json"
+            else
+              echo "无 latest.json 或已删,继续"
             fi
           else
             gh release create "$GITHUB_REF_NAME" --draft --title "tmd-cli $GITHUB_REF_NAME" \
@@ -135,18 +138,31 @@ jobs:
         if: matrix.platform == 'macos-latest'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          if [ -z "$APPLE_CERTIFICATE" ]; then
-            echo "未配置 APPLE_CERTIFICATE,跳过签名/公证(产物未签名,与旧构建一致)"
+          # 六件套逐个核对:缺任一即整组跳过并点名(只看证书会漏配半套,
+          # 失败深藏在公证段报难懂错误)。值经 env: 映射进脚本,不走
+          # ${{ }} 内插 —— 防 p12 密码含引号/反引号或 Linux base64 折行
+          # 多行值打碎脚本与 GITHUB_ENV 行。
+          missing=""
+          for k in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                   APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "$(eval "echo \$$k")" ]; then missing="$missing $k"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "未配齐签名/公证凭据(缺:$missing),跳过注入(产物未签名,与旧构建一致)"
             exit 0
           fi
           {
-            echo "APPLE_CERTIFICATE=$APPLE_CERTIFICATE"
-            echo "APPLE_CERTIFICATE_PASSWORD=${{ secrets.APPLE_CERTIFICATE_PASSWORD }}"
-            echo "APPLE_SIGNING_IDENTITY=${{ secrets.APPLE_SIGNING_IDENTITY }}"
-            echo "APPLE_ID=${{ secrets.APPLE_ID }}"
-            echo "APPLE_PASSWORD=${{ secrets.APPLE_PASSWORD }}"
-            echo "APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}"
+            for k in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                     APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+              v=$(eval "echo \$$k")
+              printf '%s<<TMD_EOF\n%s\nTMD_EOF\n' "$k" "$v"
+            done
           } >> "$GITHUB_ENV"
 
       # tauri-apps/tauri-action 是 Tauri 官方 GitHub Action,跨平台 build + 签名 + 公证 + 上传 artifact。
@@ -182,7 +198,7 @@ jobs:
 
   # ---------- 手机 app(Android 壳)----------
   # Kotlin+WebView 薄壳(mobile-app/android-shell),与桌面四 job 并行;产物:
-  # debug 签名 APK(直装可用;正式签名需要上 keystore secret,当前无,如实未签)。
+  # 仓内 keystore 自签的 release APK(app-release.apk,侧载可装可覆盖升级)。
   android:
     name: "Android (universal APK)"
     runs-on: ubuntu-latest
