@@ -1,9 +1,12 @@
 /**
- * 侧栏工作区的 worktree 归簇(2026-09-26 方案 A):
+ * 侧栏工作区的 worktree 归簇(2026-09-26 方案 A,结构层):
  * 每张卡 root 懒加载 `git worktree list`(主仓恒首条),主仓锚 = entries[0].
  * path(输入前缀已由 Rust 回贴统一);同锚的卡归为一簇 —— 主仓卡在前,
  * worktree 卡缩进跟随。模块级缓存(60s TTL):侧栏刷新节律下不重复 git spawn。
  * 非 git 目录 / 命令失败 = 无簇信息,卡片原样平铺,零打扰。
+ *
+ * P0 纪律(2026-09-26 卡死事故):roots 引用必须由调用方 useMemo 钉住,
+ * 本 hook 的 setState 一律先等值兜底(同引用返回 prev),杜绝渲染循环。
  */
 
 import { useEffect, useState } from "react";
@@ -12,14 +15,8 @@ import { ipc } from "@kernel/ipc";
 export interface WorktreeClusterMeta {
   /** 所在仓的主仓根(= 簇键);root 自身是主仓时等于 root。 */
   mainRoot: string;
-  /** 该卡检出分支(worktree list 口径);主仓卡也有。 */
-  branch: string;
   /** 卡 root 是主仓本体(非 worktree 子卡)。 */
   isMain: boolean;
-  /** worktree list 标记 prunable(目录被外部删),卡降灰。 */
-  dangling: boolean;
-  /** 脏净(未提交文件 > 0);null = 未知(status 失败)。 */
-  dirty: boolean | null;
 }
 
 interface CacheEntry {
@@ -51,42 +48,16 @@ async function probe(root: string): Promise<CacheEntry> {
       if (entries.length > 0) {
         const mainRoot = normalizeRoot(entries[0].path);
         for (const e of entries) {
-          const p = normalizeRoot(e.path);
-          entry.members.set(p, {
+          entry.members.set(normalizeRoot(e.path), {
             mainRoot,
-            branch: e.branch,
-            isMain: p === mainRoot,
-            dangling: e.prunable,
-            dirty: null,
+            isMain: normalizeRoot(e.path) === mainRoot,
           });
-        }
-        /* 脏净探针逐树补齐(status 失败 = null,点不渲染):先落缓存再异步填,
-         * 卡片不因 status 慢而延迟出现。 */
-        for (const e of entries) {
-          const p = normalizeRoot(e.path);
-          void ipc
-            .gitStatus(e.path)
-            .then((st) => {
-              const m = entry.members.get(p);
-              if (m) m.dirty = st.files.length > 0;
-            })
-            .catch(() => undefined);
         }
       } else {
         /* 空列表(异常):root 自成孤簇,不当 worktree 处理。 */
-        entry.members.set(key, {
-          mainRoot: key,
-          branch: "",
-          isMain: true,
-          dangling: false,
-          dirty: null,
-        });
+        entry.members.set(key, { mainRoot: key, isMain: true });
       }
       cache.set(key, entry);
-      /* status 异步填后让订阅方重读一次(浅比较即可感知)。 */
-      setTimeout(() => {
-        cache.set(key, { ...entry, at: Date.now() });
-      }, 800);
       return entry;
     })
     .finally(() => inflight.delete(key));
@@ -99,23 +70,14 @@ export function useWorktreeCluster(roots: readonly string[]): Record<string, Wor
   const [meta, setMeta] = useState<Record<string, WorktreeClusterMeta>>({});
   useEffect(() => {
     let alive = true;
-    const timers = new Set<number>();
-    const apply = (root: string, mine: WorktreeClusterMeta) => {
-      if (alive) setMeta((prev) => ({ ...prev, [root]: mine }));
-    };
     void Promise.all(
       roots.map(async (root) => {
         try {
           const entry = await probe(root);
           const mine = entry.members.get(normalizeRoot(root));
           if (!alive || !mine) return;
-          apply(root, mine);
-          /* 脏净探针异步填(~800ms 后):同引用读到补齐值再刷一次。 */
-          const timer = window.setTimeout(() => {
-            timers.delete(timer);
-            if (alive && mine.dirty !== null) apply(root, { ...mine });
-          }, 1000);
-          timers.add(timer);
+          /* 等值兜底:同引用不触发重渲染(渲染循环防线,见文件头 P0 纪律)。 */
+          setMeta((prev) => (prev[root] === mine ? prev : { ...prev, [root]: mine }));
         } catch {
           /* 非仓目录:无簇信息,卡片原样。 */
         }
@@ -123,13 +85,12 @@ export function useWorktreeCluster(roots: readonly string[]): Record<string, Wor
     );
     return () => {
       alive = false;
-      for (const timer of timers) window.clearTimeout(timer);
     };
   }, [roots]);
   return meta;
 }
 
-/** 簇渲染序:同簇相邻(主仓卡在前,worktree 按分支名跟随),簇间保持原相对序。 */
+/** 簇渲染序:同簇相邻(主仓卡在前,worktree 按原序跟随),簇间保持原相对序。 */
 export function clusterOrder<T extends { root: string }>(
   items: readonly T[],
   meta: Record<string, WorktreeClusterMeta>,

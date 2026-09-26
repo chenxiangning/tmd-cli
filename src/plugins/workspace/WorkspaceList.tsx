@@ -41,26 +41,43 @@ export function WorkspaceList({
   onScanDone: (workspaceId: string, profileId: string) => void;
   onShowMenu: (workspace: Workspace, x: number, y: number) => void;
 }) {
-  /* worktree 归簇(方案 A):同仓卡的从属展示数据;非 git 目录无元数据原样。 */
+  /* worktree 归簇(方案 A,结构层):同仓卡排序成簇,worktree 子卡缩进;
+   * 卡片本体零改动(徽章/计数已按主人要求撤除)。roots 引用必须钉住 ——
+   * 传引用不稳的数组会让 effect 每渲染重跑(P0 卡死事故根因)。 */
   const flat = useMemo(
     () => [...grouped.ungrouped, ...grouped.named.flatMap(({ workspaces }) => workspaces)],
     [grouped],
   );
-  const clusterMeta = useWorktreeCluster(flat.map((ws) => ws.root));
-  /** 主仓卡头的「N 棵树」:同簇成员数(主仓自身缺卡时该簇不显示计数)。 */
-  const treeCount = useMemo(() => {
-    const count: Record<string, number> = {};
-    for (const ws of flat) {
-      const m = clusterMeta[ws.root];
-      if (!m) continue;
-      count[m.mainRoot] = (count[m.mainRoot] ?? 0) + 1;
-    }
-    return count;
-  }, [flat, clusterMeta]);
+  const roots = useMemo(() => flat.map((ws) => ws.root), [flat]);
+  const clusterMeta = useWorktreeCluster(roots);
 
   const renderCard = (ws: Workspace) => {
     const m = clusterMeta[ws.root];
-    const card = (
+    if (m && !m.isMain) {
+      return (
+        <div
+          key={`wt:${ws.id}`}
+          className="ws-worktree-indent"
+          style={{ marginLeft: 14, borderLeft: "2px solid var(--tmd-border)", paddingLeft: 6 }}
+        >
+          <WorkspaceCard
+            key={ws.id}
+            workspace={ws}
+            isActive={ws.id === activeId}
+            collapsed={isCollapsed(ws.id)}
+            onToggleCollapsed={() => onToggleCollapsed(ws.id)}
+            renaming={renamingId === ws.id}
+            onRenameEnd={onRenameEnd}
+            refreshTicks={refreshTicks}
+            refreshing={refreshing}
+            onRefreshWorkspace={onRefreshWorkspace}
+            onScanDone={onScanDone}
+            onShowMenu={onShowMenu}
+          />
+        </div>
+      );
+    }
+    return (
       <WorkspaceCard
         key={ws.id}
         workspace={ws}
@@ -74,23 +91,8 @@ export function WorkspaceList({
         onRefreshWorkspace={onRefreshWorkspace}
         onScanDone={onScanDone}
         onShowMenu={onShowMenu}
-        cluster={m}
-        treeCount={m?.isMain ? treeCount[m.mainRoot] : undefined}
       />
     );
-    /* worktree 子卡缩进 + 左树形连线(主仓卡顶格)。 */
-    if (m && !m.isMain) {
-      return (
-        <div
-          key={`wt:${ws.id}`}
-          className="ws-worktree-indent"
-          style={{ marginLeft: 14, borderLeft: "2px solid var(--tmd-border)", paddingLeft: 6 }}
-        >
-          {card}
-        </div>
-      );
-    }
-    return card;
   };
 
   return (
