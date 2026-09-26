@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { ArrowsLeftRight, Minus, Plus } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { copyText } from "@kernel/clipboard";
 import { refreshForwards, useSshSession } from "../state";
 
 export function ForwardSection({ sessionId, connected }: { sessionId: string; connected: boolean }) {
@@ -46,7 +47,7 @@ export function ForwardSection({ sessionId, connected }: { sessionId: string; co
                 type="button"
                 className="ssh-forward-addr"
                 title={t("点击复制本地地址")}
-                onClick={() => void navigator.clipboard.writeText(`${forward.localHost}:${forward.localPort}`)}
+                onClick={() => void copyText(`${forward.localHost}:${forward.localPort}`)}
               >
                 {forward.localHost}:{forward.localPort}
                 <span className="ssh-forward-arrow">→</span>

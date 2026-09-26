@@ -12,6 +12,7 @@ import { webAccessStatus, type WebAccessInfo } from "@kernel/ipc";
 import { isWeb } from "@kernel/transport";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
+import { copyText } from "@kernel/clipboard";
 
 export function WebAccessSection() {
   const [info, setInfo] = useState<WebAccessInfo | null>(null);
@@ -47,7 +48,7 @@ export function WebAccessSection() {
   };
   const copy = async () => {
     if (!info) return;
-    await navigator.clipboard.writeText(info.url);
+    await copyText(info.url);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };

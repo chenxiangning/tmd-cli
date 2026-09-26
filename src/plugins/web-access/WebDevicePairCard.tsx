@@ -21,6 +21,7 @@ import {
 } from "@kernel/ipc";
 import { isWeb } from "@kernel/transport";
 import { t } from "@kernel/i18n";
+import { copyText } from "@kernel/clipboard";
 
 const TTL_WARN_SECS = 60;
 
@@ -100,7 +101,7 @@ export function WebDevicePairCard() {
 
   const copyLink = async () => {
     if (!offer) return;
-    await navigator.clipboard.writeText(offer.url);
+    await copyText(offer.url);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };

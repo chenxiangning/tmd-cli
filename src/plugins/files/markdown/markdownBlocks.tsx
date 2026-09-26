@@ -21,6 +21,7 @@ import { BracketsCurly, Check, Code, Copy, FileCode, FileText, Hash, Gear, Sigma
 import { highlightLine } from "@kernel/syntaxHighlight";
 import { extractLanguageTag } from "./languageTag";
 import { t } from "@kernel/i18n";
+import { copyText } from "@kernel/clipboard";
 
 /* ── 语言 badge(照抄 codemoss codeBlockLanguageIcon 的桶映射) ── */
 
@@ -99,7 +100,7 @@ function CodeBlockCopyButton({ value }: { value: string }) {
   const handleCopy = async (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     try {
-      await navigator.clipboard.writeText(value);
+      await copyText(value);
     } catch {
       return;
     }
