@@ -7,6 +7,7 @@
  */
 
 import { useState } from "react";
+import type { WorktreeClusterMeta } from "./useWorktreeCluster";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { setActiveWorkspace, setWorkspaceAlias, workspaceDisplayName, type Workspace } from "@kernel/workspace";
@@ -17,6 +18,47 @@ import { openWorkspaceFiles, useWorkspaceFileBrowserView } from "@kernel/workspa
 import { CliSessionGroup } from "./SessionList";
 import { SshSessionGroup } from "./SshSessionGroup";
 import { ShellSessionGroup } from "./ShellSessionGroup";
+
+/** worktree 归簇徽章(方案 A):分支 chip + 脏点 + 悬空;主仓卡另见 treeCount。 */
+function ClusterBadges({ cluster }: { cluster: WorktreeClusterMeta }) {
+  if (cluster.dangling) {
+    return (
+      <span
+        className="workspace-origin-badge"
+        style={{ color: "var(--tmd-warn)" }}
+        title={t("worktree 目录已被外部删除,可在 Git 面板清理记录")}
+      >
+        {t("悬空")}
+      </span>
+    );
+  }
+  return (
+    <>
+      {cluster.branch && (
+        <span
+          className="workspace-origin-badge"
+          style={{ fontFamily: "ui-monospace, Menlo, monospace" }}
+          title={t("检出分支(worktree)")}
+        >
+          {cluster.branch}
+        </span>
+      )}
+      {cluster.dirty === true && (
+        <span
+          aria-label="dirty"
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: "var(--tmd-warn)",
+            flexShrink: 0,
+          }}
+          title={t("有未提交变更")}
+        />
+      )}
+    </>
+  );
+}
 
 /** 双态文件夹图标 —— 用 Phosphor 自带 FolderSimple(关闭)/FolderOpen(展开),
  *  bold weight 下圆胖 + 顶部翻开页细节。 */
@@ -41,8 +83,14 @@ export function WorkspaceCard({
   onRefreshWorkspace,
   onScanDone,
   onShowMenu,
+  cluster,
+  treeCount,
 }: {
   workspace: Workspace;
+  /** worktree 归簇元数据(方案 A):同仓从属展示;非 git 目录缺省。 */
+  cluster?: WorktreeClusterMeta;
+  /** 主仓卡头「N 棵树」计数(仅主仓卡有值)。 */
+  treeCount?: number;
   isActive: boolean;
   /** 折叠态由 WorkspaceSection 持有(受控):caption「折叠全部」按钮据此全局切换。 */
   collapsed: boolean;
@@ -137,6 +185,12 @@ export function WorkspaceCard({
                   </span>
                 ) : null;
               })()}
+              {cluster && <ClusterBadges cluster={cluster} />}
+              {typeof treeCount === "number" && treeCount > 1 && (
+                <span className="workspace-origin-badge" title={t("本仓库的 worktree 数")}>
+                  {t("{n} 棵树", { n: treeCount })}
+                </span>
+              )}
             </button>
           )}
           {workspace.id === "default" && !renaming && (
