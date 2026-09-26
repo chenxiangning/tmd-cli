@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowsClockwise, Plus, TerminalWindow, Trash, CircleNotch } from "@phosphor-icons/react";
 import { ipc, type WorktreeEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { useGitPanelState } from "../panelStore";
 import { normalizeRoot, removeWorktreeWithCleanup, spawnTerminalAt, openWorktreeWorkspace } from "./worktreeOps";
 
 /** 单树脏净摘要(git_status files 聚合;加载中 = null)。 */
@@ -192,6 +193,9 @@ function TreeCard({
 export function WorktreeZone({ cwd, onCreate }: { cwd: string; onCreate: () => void }) {
   const [entries, setEntries] = useState<WorktreeEntry[] | null>(null);
   const [error, setError] = useState("");
+  /* panelStore 全量刷新 nonce:worktree 弹窗(移除/清理/新建)等外部变更
+   * 后 bump,本区同步重拉 —— 两处 UI 共用同一数据真相。 */
+  const { refreshNonce } = useGitPanelState();
 
   const load = useCallback(() => {
     ipc
@@ -204,7 +208,7 @@ export function WorktreeZone({ cwd, onCreate }: { cwd: string; onCreate: () => v
   }, [cwd]);
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshNonce]);
 
   /* 单树仓(仅主仓自己)不占版面:分区只在真有多树时出现。 */
   if (error || !entries || entries.length <= 1) return null;

@@ -12,6 +12,7 @@ import type { WorktreeEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { addWorkspace, getWorkspaces, removeWorkspace } from "@kernel/workspace";
 import { branchForWorktree, dirNameFromBranch, validateDirName, worktreePathFor } from "./dirName";
+import { bumpGitRefresh } from "../panelStore";
 
 export function WorktreeManageDialog({
   cwd,
@@ -96,6 +97,8 @@ export function WorktreeManageDialog({
       await ipc.gitWorktreeAdd(cwd, path, branchName, newBranch);
       addWorkspace(path);
       setNotice(t("已创建并加入工作区:{path}", { path }));
+      /* 右栏工作树区/分支列表同步刷新(独立组件,无共享状态)。 */
+      bumpGitRefresh();
       refresh();
     } catch (e) {
       fail(e);
@@ -127,6 +130,7 @@ export function WorktreeManageDialog({
         }
       }
       setNotice(t("已移除 {path}", { path: entry.path }) + branchNote);
+      bumpGitRefresh();
       refresh();
     } catch (e) {
       fail(e);
@@ -141,6 +145,7 @@ export function WorktreeManageDialog({
     try {
       await ipc.gitWorktreePrune(cwd);
       setNotice(t("已清理悬空 worktree 记录"));
+      bumpGitRefresh();
       refresh();
     } catch (e) {
       fail(e);
