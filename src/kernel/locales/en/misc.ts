@@ -280,4 +280,7 @@ export const MESSAGES = {
   "配对于 {date}": "Paired on {date}",
   "设备凭证 = 每台独立 token(桌面只存 sha-256)。踢除立即断开该设备全部连接,其本地凭证作废,需重新扫码配对。授权/踢除仅桌面可操作,手机端只读自己状态。": "Device credentials = a per-device token (desktop stores only sha-256). Kicking immediately drops all of the device's connections and voids its local credential; re-pairing by QR is required. Approve/kick are desktop-only; the phone sees read-only status.",
   "加载中…": "Loading…",
+  /* 审批线危险度分层(checkpoints risk) */
+  "高危": "HIGH RISK",
+  "敏感路径(凭据/Shell 配置/CI/服务),建议细读 diff 再放行": "Sensitive path (credentials/shell config/CI/service). Read the diff carefully before approving.",
 } as Record<string, string>;
