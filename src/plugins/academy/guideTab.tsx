@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { CaretRight, Copy, Flask, BookOpenText } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
+import { copyText } from "@kernel/clipboard";
 import { composerInsertRef, composerWakeRef } from "@kernel/composerExt";
 import { getAcademyCourse, type AcademyCommand } from "@kernel/academy";
 import { filterChapters, lessonIndexByChapter } from "./guideSearch";
@@ -28,7 +29,7 @@ function CommandCard({ cmd, lessonIdx, onOpenLesson }: {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const copy = () => {
-    void navigator.clipboard.writeText(`/${cmd.name}`).then(() => {
+    void copyText(`/${cmd.name}`).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1400);
     });
@@ -47,7 +48,8 @@ function CommandCard({ cmd, lessonIdx, onOpenLesson }: {
           <div className="academy-exs">
             <div className="academy-ex-head">{t("示例 · 场景 / 操作 / 回显 / 预期")}</div>
             {cmd.examples.map((ex) => (
-              <div key={ex.i} className="academy-ex">
+              /* key 掺回显串:同一命令可有多条同输入示例(resume/model/compact 实证) */
+              <div key={`${ex.i}:${ex.o}`} className="academy-ex">
                 <div className="academy-ex-sc">{ex.sc}</div>
                 <div className="academy-ex-in">{ex.i}</div>
                 <div className="academy-ex-out">{ex.o}</div>

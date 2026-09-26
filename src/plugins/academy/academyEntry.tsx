@@ -73,6 +73,8 @@ function EntryCourse({ cliId, title, lessonCount, menuOpen, onToggleMenu, onDism
 }) {
   const progress = useCourseProgress(cliId);
   const done = progress.done.length;
+  /* 课程数据重提后 done 可能残留超集(课数变了);除数护底防 NaN,封顶防 >100%。 */
+  const pct = Math.min(100, Math.round((done / Math.max(lessonCount, 1)) * 100));
   const finished = done >= lessonCount;
   const open = (idx: number) => {
     onDismiss();
@@ -83,8 +85,8 @@ function EntryCourse({ cliId, title, lessonCount, menuOpen, onToggleMenu, onDism
       <button type="button" className={`academy-entry-btn${menuOpen ? " is-on" : ""}`} onClick={onToggleMenu} aria-expanded={menuOpen}>
         <Student size={13} className="academy-entry-glyph" aria-hidden />
         <span className="academy-entry-tt">{title}</span>
-        <span className="academy-entry-bar" aria-hidden><i style={{ width: `${Math.round((done / lessonCount) * 100)}%` }} /></span>
-        <span className="academy-entry-pct">{finished ? t("已结业") : `${Math.round((done / lessonCount) * 100)}%`}</span>
+        <span className="academy-entry-bar" aria-hidden><i style={{ width: `${pct}%` }} /></span>
+        <span className="academy-entry-pct">{finished ? t("已结业") : `${pct}%`}</span>
       </button>
       {menuOpen && (
         <div className="academy-entry-menu">

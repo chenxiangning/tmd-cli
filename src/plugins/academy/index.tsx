@@ -16,6 +16,7 @@ import { AcademyEntry } from "./academyEntry";
 import { AcademyWizard } from "./wizard";
 import { GuideTab } from "./guideTab";
 import "./academy.css";
+import "./locales"; /* 域词典随插件自带:import 即注册 */
 
 export const academyPlugin: Plugin = {
   id: "academy",

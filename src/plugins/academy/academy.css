@@ -226,7 +226,11 @@
   background: var(--tmd-terminal-cursor); vertical-align: -2px;
   animation: academy-blink 1s steps(1) infinite; }
 @keyframes academy-blink { 50% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .academy-cursor { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .academy-cursor { animation: none; }
+  /* 全树 transition 一并关(仓库惯例,见 composer-anchors.css 同款块) */
+  .academy-root, .academy-root * { transition: none !important; }
+}
 
 .academy-practice { margin-top: 12px; padding: 10px 12px;
   border: 1px dashed var(--tmd-accent); border-radius: var(--tmd-radius-md);
