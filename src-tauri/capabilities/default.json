@@ -15,6 +15,7 @@
     "dialog:allow-save",
     "shell:allow-open",
     "updater:default",
-    "process:default"
+    "process:default",
+    "notification:default"
   ]
 }

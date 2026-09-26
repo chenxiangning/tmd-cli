@@ -813,6 +813,11 @@ import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialo
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { check, type Update, type DownloadEvent } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+} from "@tauri-apps/plugin-notification";
 
 /** 窗口最小化(自绘 titlebar 用;macOS 系统红绿灯下不会被调用)。web 态 = 浏览器标签页,无窗口可控 → no-op。 */
 export function windowMinimize(): Promise<void> {
@@ -870,6 +875,25 @@ export function relaunchApp(): Promise<void> {
 /** 重启应用(插件市场"拔插 = 重启生效"的一键入口;浏览器 dev 无 Tauri runtime,调用方需兜底)。 */
 export function appRestart(): Promise<void> {
   return invoke<void>("app_restart");
+}
+
+/* ── 系统通知(tauri-plugin-notification 薄包装)────────
+ * notify 插件的桌面级提醒通道(Ask 等待/轮次结束/会话退出/额度预警)。
+ * web 态(手机浏览器)无 OS 通知 → 恒 false,手机侧走自己的审批卡与轮询面;
+ * macOS 首次发送经系统权限弹窗,拒绝后恒 false 由调用方自行吞掉。 */
+
+/** 发一条系统通知;未授权时静默请求一次授权。返回是否真正发出(web 态/拒绝/异常 = false)。 */
+export async function sendOsNotification(title: string, body: string): Promise<boolean> {
+  if (isWeb) return false;
+  try {
+    let granted = await isPermissionGranted();
+    if (!granted) granted = (await requestPermission()) === "granted";
+    if (!granted) return false;
+    await sendNotification({ title, body });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** 目录选择对话框;返回绝对路径,取消返回 null。web 态无文件系统对话框 → null。 */

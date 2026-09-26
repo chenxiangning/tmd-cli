@@ -232,6 +232,9 @@ class Host implements PluginContext {
     this.notify();
   }
 
+  /** 窗口聚焦态读口(notify 插件"失焦才发"的闸;单一真相,插件不自跟踪)。 */
+  isWindowFocused(): boolean { return this.windowFocused; }
+
   /** 会话最近输出时间戳(无输出为 0)。 */
   getLastActivityAt(sessionId: string): number {
     return this.watches.lastActivityAt(sessionId);

@@ -17,12 +17,7 @@ export type AskSoundId = "default" | "chime" | "bell" | "ding";
 /** Ask 提示音效白名单(清洗与播放共用)。 */
 export const ASK_SOUND_IDS: readonly AskSoundId[] = ["default", "chime", "bell", "ding"];
 
-/**
- * 工作区会话列表显示预算(参考 codemoss 工作区设置,改为预算分配语义):
- * 总数 total 是一个工作区内所有 CLI 分组共享的初始露出条数;
- * perCli 按 CLI 预留配额,不变式 sum(perCli) ≤ total;
- * 未配置的 CLI 均分剩余(见 resolveCliSessionQuota)。
- */
+/** 工作区会话列表显示预算(codemoss 同语义):total = 分组共享的初始露出条数;perCli 按 CLI 预配额,sum(perCli) ≤ total,未配置的均分剩余(见 resolveCliSessionQuota)。 */
 export interface SessionListBudget {
   /** 初始露出的磁盘历史总条数(所有 CLI 分组共享)。 */
   total: number;
@@ -35,14 +30,7 @@ export const SESSION_LIST_TOTAL_DEFAULT = 20;
 export const SESSION_LIST_TOTAL_MIN = 1;
 export const SESSION_LIST_TOTAL_MAX = 100;
 
-/**
- * 解析某 CLI 分组的初始露出条数。
- * 已配置 = 配额原值(可为 0:该组初始不露出历史,仅活会话 + 「更多...」);
- * 未配置 = floor(剩余预算 / 未配置 CLI 数),可整除尽,剩余尾数不补。
- * registeredCliIds 由调用方给(内核不认识 CLI 注册表)。
- * 已分配只计注册集内 key:已卸载 CLI 的残留 perCli 不抬高占用
- * (与 session-budget 的 prunePerCli 同不变式)。
- */
+/** 解析某 CLI 分组的初始露出条数:已配置 = 配额原值(可为 0,该组只露活会话);未配置 = floor(剩余/未配置数)。registeredCliIds 由调用方给(内核不认识 CLI 注册表);已分配只计注册集 key(卸载残留不抬占用,同 session-budget 的 prunePerCli 不变式)。 */
 export function resolveCliSessionQuota(
   budget: SessionListBudget,
   cliId: string,
@@ -103,11 +91,7 @@ export type GitDiffMode = "unified" | "split";
 /** 工作区分组定义(workspace 插件编辑域):数组顺序即侧栏显示顺序。 */
 export interface WorkspaceGroup { id: string; name: string }
 
-/**
- * 打开方式目标(open-with,复刻 mossx OpenAppTarget):用外部应用/命令打开文件。
- * files 插件(文件底部菜单)消费、settings 插件(配置面板)编辑,契约见 kernel/openWith.ts。
- * 启动语义:目标路径恒为最后参数;app 经系统启动器(macOS `open -a`),command 直接 spawn。
- */
+/** 打开方式目标(open-with,复刻 mossx OpenAppTarget):files 消费 / settings 编辑,契约见 kernel/openWith.ts;目标路径恒为最后参数,app 经系统启动器(macOS `open -a`),command 直接 spawn。 */
 export interface OpenWithTarget {
   /** 稳定 id:预设用 preset id,自定义用 `custom-<时间戳>`;默认项指向它。 */
   id: string;
@@ -163,6 +147,12 @@ export interface AppSettings {
   turnEndSoundId: AskSoundId;
   /** 后台提醒:窗口失焦时激活会话完成一轮也视为未查看(标蓝 + 结束音)。 */
   backgroundNotify: boolean;
+  /** 系统通知(桌面 OS 级,notify 插件;失焦才发):Ask 等待 / 轮次结束 / 会话退出(默认关)。 */
+  notifyOsAsk: boolean;
+  notifyOsTurnEnd: boolean;
+  notifyOsSessionExit: boolean;
+  /** 额度预警阈值(窗口已用 %,0 = 关;激活会话供应商轮询,一次/窗口周期)。 */
+  notifyQuotaWarnPercent: number;
     /** 单会话输出环形缓冲上限(字符);切回会话的回放深度由它决定,更早历史走幕布翻页。 */
   sessionOutputBufferLimit: number;
   /** 工作区会话列表显示预算(总数 + 按 CLI 配额)。 */

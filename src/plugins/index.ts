@@ -39,6 +39,7 @@ import { lspPlugin } from "./lsp";
 import { promptEnhancerPlugin } from "./prompt-enhancer";
 import { approvalInboxPlugin } from "./approval-inbox";
 import { academyPlugin } from "./academy";
+import { notifyPlugin } from "./notify";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -75,4 +76,5 @@ export const allPlugins: Plugin[] = [
   promptEnhancerPlugin,
   approvalInboxPlugin,
   academyPlugin,
+  notifyPlugin,
 ];
