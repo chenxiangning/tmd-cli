@@ -128,7 +128,7 @@ export const notifyPlugin: Plugin = {
     ctx.registerSettingsSection({
       id: "notify",
       title: t("系统通知"),
-      description: t("离开窗口时的桌面级提醒(仅在窗口失焦时发送)。"),
+      description: t("离开屏幕也能第一时间知道:桌面通知、应用内提示音与额度预警。"),
       icon: <BellRinging size="0.875rem" aria-hidden />,
       order: 46,
       tabs: [

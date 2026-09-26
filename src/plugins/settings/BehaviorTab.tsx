@@ -1,30 +1,24 @@
 /**
- * 基础设置 / 行为 tab —— 发送快捷键 + 输入历史(补全开关 + 管理区)+ 会话输出缓冲上限
- * + Ask 提示音 + 结束提示音 + 后台提醒。
+ * 基础设置 / 行为 tab —— 发送快捷键 + 输入历史(补全开关 + 管理区)+ 会话输出缓冲上限。
+ * (Ask/结束提示音与后台提醒已迁至「系统通知」插件的设置页,见 plugins/notify/SoundSettingsCard。)
  *
  * segmented 两选项:
  * - Enter 发送(默认,Shift+Enter 换行)
  * - ⌘/Ctrl+Enter 发送(Enter 换行)
  * 输入历史(2026-09-10,参考 codemoss):「历史输入补全」开关写入 settings;
  * 「输入历史」折叠管理区在行为卡片下方(计数/逐条删/清空),组件 PromptHistoryManager。
- * Ask 提示音:CLI 弹确认面板即响;结束提示音:一轮对话结束且未被查看,延迟确认后响。
- * 后台提醒:窗口失焦时激活会话完成也计未读(标蓝 + 结束音)。
  * 写入 kernel/settings store 即时生效,无需保存按钮。
  * 样式全部复用 pref-card/pref-row/segmented 现有类,零新增 CSS。
  */
 
 import {
-  ASK_SOUND_IDS,
   updateSettings,
   useSettingsState,
-  type AskSoundId,
   type SendShortcut,
 } from "@kernel/settings";
-import { playAskSound } from "@kernel/askSound";
 import { PromptHistoryManager } from "./PromptHistoryManager";
 import { HygieneCard } from "./HygieneCard";
 import { t } from "@kernel/i18n";
-import { StyledSelect } from "@kernel/StyledSelect";
 
 const SEND_SHORTCUT_OPTIONS: ReadonlyArray<{
   id: SendShortcut;
@@ -34,16 +28,6 @@ const SEND_SHORTCUT_OPTIONS: ReadonlyArray<{
   { id: "cmdOrCtrlEnter", label: "⌘/Ctrl+Enter 发送" },
 ];
 
-/** 音效显示名(静态字面量表,Record 直查)。 */
-const ASK_SOUND_LABELS: Record<AskSoundId, string> = {
-  default: "默认",
-  chime: "风铃",
-  bell: "铃声",
-  ding: "叮咚",
-};
-
-const ASK_SOUND_OPTIONS: ReadonlyArray<{ id: AskSoundId; label: string }> =
-  ASK_SOUND_IDS.map((id) => ({ id, label: ASK_SOUND_LABELS[id] }));
 /** 数字输入提交:非法输入静默丢弃,合法域由 kernel/settings sanitize 兜底。 */
 const commitBufferLimit = (raw: string) => {
   const n = Number.parseInt(raw, 10);
@@ -123,152 +107,6 @@ export function BehaviorTab() {
           }}
           className="w-32 shrink-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-right text-sm text-(--tmd-fg) outline-none"
         />
-      </div>
-      <div className="pref-row">
-        <div>
-          <div className="pref-title">{t("Ask 提示音")}</div>
-          <div className="pref-desc">
-            {t("CLI 弹出提问/权限确认面板时播放提示音，离开屏幕也能第一时间知道。")}
-          </div>
-        </div>
-        <div className="segmented" role="radiogroup" aria-label={t("Ask 提示音")}>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={settings.askSoundEnabled}
-            className={`segment${settings.askSoundEnabled ? " is-active" : ""}`}
-            onClick={() => updateSettings({ askSoundEnabled: true })}
-          >
-            {t("开启")}
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={!settings.askSoundEnabled}
-            className={`segment${!settings.askSoundEnabled ? " is-active" : ""}`}
-            onClick={() => updateSettings({ askSoundEnabled: false })}
-          >
-            {t("关闭")}
-          </button>
-        </div>
-      </div>
-      {settings.askSoundEnabled ? (
-        <div className="pref-row">
-          <div>
-            <div className="pref-title">{t("提示音")}</div>
-            <div className="pref-desc">{t("选择 Ask 提示音音效，「试听」立即播放。")}</div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <StyledSelect
-              value={settings.askSoundId}
-              ariaLabel={t("提示音音效")}
-              onChange={(v) => updateSettings({ askSoundId: v as AskSoundId })}
-              options={ASK_SOUND_OPTIONS.map(({ id, label }) => ({ value: id, label: t(label) }))}
-            />
-            <button
-              type="button"
-              className="segment is-active"
-              onClick={() => playAskSound(settings.askSoundId)}
-            >
-              {t("试听")}
-            </button>
-          </div>
-        </div>
-      ) : null}
-      <div className="pref-row">
-        <div>
-          <div className="pref-title">{t("提示音音量")}</div>
-          <div className="pref-desc">{t("作用于 Ask 提示音与结束提示音。")}</div>
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.1}
-          value={settings.soundVolume}
-          aria-label={t("提示音音量")}
-          onChange={(e) => updateSettings({ soundVolume: Number(e.target.value) })}
-          className="w-28 shrink-0 accent-(--tmd-accent)"
-        />
-      </div>
-      <div className="pref-row">
-        <div>
-          <div className="pref-title">{t("结束提示音")}</div>
-          <div className="pref-desc">
-            {t("一轮对话结束且未被查看时播放（结算后静默 3 秒确认，中途来新输出不响）。")}
-          </div>
-        </div>
-        <div className="segmented" role="radiogroup" aria-label={t("结束提示音")}>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={settings.turnEndSoundEnabled}
-            className={`segment${settings.turnEndSoundEnabled ? " is-active" : ""}`}
-            onClick={() => updateSettings({ turnEndSoundEnabled: true })}
-          >
-            {t("开启")}
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={!settings.turnEndSoundEnabled}
-            className={`segment${!settings.turnEndSoundEnabled ? " is-active" : ""}`}
-            onClick={() => updateSettings({ turnEndSoundEnabled: false })}
-          >
-            {t("关闭")}
-          </button>
-        </div>
-      </div>
-      {settings.turnEndSoundEnabled ? (
-        <div className="pref-row">
-          <div>
-            <div className="pref-title">{t("结束音效")}</div>
-            <div className="pref-desc">{t("选择轮次结束提示音音效，「试听」立即播放。")}</div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <StyledSelect
-              value={settings.turnEndSoundId}
-              ariaLabel={t("结束音效")}
-              onChange={(v) => updateSettings({ turnEndSoundId: v as AskSoundId })}
-              options={ASK_SOUND_OPTIONS.map(({ id, label }) => ({ value: id, label: t(label) }))}
-            />
-            <button
-              type="button"
-              className="segment is-active"
-              onClick={() => playAskSound(settings.turnEndSoundId)}
-            >
-              {t("试听")}
-            </button>
-          </div>
-        </div>
-      ) : null}
-      <div className="pref-row">
-        <div>
-          <div className="pref-title">{t("后台提醒")}</div>
-          <div className="pref-desc">
-            {t("窗口失焦时，当前会话完成一轮对话也标记未读并播放结束提示音；切回窗口即恢复已读。")}
-          </div>
-        </div>
-        <div className="segmented" role="radiogroup" aria-label={t("后台提醒")}>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={settings.backgroundNotify}
-            className={`segment${settings.backgroundNotify ? " is-active" : ""}`}
-            onClick={() => updateSettings({ backgroundNotify: true })}
-          >
-            {t("开启")}
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={!settings.backgroundNotify}
-            className={`segment${!settings.backgroundNotify ? " is-active" : ""}`}
-            onClick={() => updateSettings({ backgroundNotify: false })}
-          >
-            {t("关闭")}
-          </button>
-        </div>
       </div>
     </div>
       <PromptHistoryManager />

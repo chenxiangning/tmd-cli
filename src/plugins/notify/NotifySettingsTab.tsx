@@ -1,10 +1,14 @@
 /**
- * notify 设置页 ── 三类通知开关 + 额度预警阈值。
- * 开关复刻 BehaviorTab 的 segmented 形态;阈值 = 数字输入(0 = 关)。
+ * notify 设置页 ── 三卡编排:桌面通知(OS 级开关)/ 提示音(应用内音效,
+ * SoundSettingsCard)/ 额度撞墙预警(阈值)。
+ * 每卡 = pref-card + 卡头(pref-row 形态的分组标题 + 一句说明,无右侧控件)
+ * + 设置行;与 BehaviorTab/HygieneCard 同款间距(pref-card margin-top),
+ * 零新增 CSS。纯 UI 编排:读写 kernel/settings store 即时生效。
  */
 
 import { useSettingsState, updateSettings } from "@kernel/settings";
 import { t } from "@kernel/i18n";
+import { SoundSettingsCard, ToggleRow } from "./SoundSettingsCard";
 
 /** 整数钳制提交:空/非法回落默认 10,越界钳到 0-100。 */
 function commitThreshold(raw: string): void {
@@ -13,10 +17,22 @@ function commitThreshold(raw: string): void {
   updateSettings({ notifyQuotaWarnPercent: value });
 }
 
+/** 卡头:分组标题 + 一句说明(占一个 pref-row 的左列,右侧无控件)。 */
+function CardHead(props: { title: string; desc: string }) {
+  return (
+    <div className="pref-row">
+      <div>
+        <div className="pref-title">{props.title}</div>
+        <div className="pref-desc">{props.desc}</div>
+      </div>
+    </div>
+  );
+}
+
 export function NotifySettingsTab() {
   const { settings } = useSettingsState();
 
-  const toggles = [
+  const osToggles = [
     {
       key: "notifyOsAsk" as const,
       title: t("Ask 等待确认"),
@@ -35,58 +51,53 @@ export function NotifySettingsTab() {
   ];
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      {toggles.map((item) => (
-        <div key={item.key} className="pref-row">
-          <div>
-            <div className="pref-title">{item.title}</div>
-            <div className="pref-desc">{item.desc}</div>
-          </div>
-          <div className="segmented" role="radiogroup" aria-label={item.title}>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={settings[item.key]}
-              className={`segment${settings[item.key] ? " is-active" : ""}`}
-              onClick={() => updateSettings({ [item.key]: true })}
-            >
-              {t("开启")}
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={!settings[item.key]}
-              className={`segment${!settings[item.key] ? " is-active" : ""}`}
-              onClick={() => updateSettings({ [item.key]: false })}
-            >
-              {t("关闭")}
-            </button>
-          </div>
-        </div>
-      ))}
-
-      <div className="pref-row">
-        <div>
-          <div className="pref-title">{t("额度撞墙预警")}</div>
-          <div className="pref-desc">
-            {t("激活会话供应商每 10 分钟查一次额度,窗口已用百分比达到阈值即发系统通知(同一窗口周期只提醒一次);0 = 关。")}
-          </div>
-        </div>
-        <input
-          type="number"
-          min={0}
-          max={100}
-          step={5}
-          defaultValue={settings.notifyQuotaWarnPercent}
-          key={settings.notifyQuotaWarnPercent}
-          onBlur={(e) => commitThreshold(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commitThreshold((e.target as HTMLInputElement).value);
-          }}
-          aria-label={t("额度预警阈值百分比")}
-          className="w-20 shrink-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-right text-sm text-(--tmd-fg) outline-none"
+    <>
+      <div className="pref-card" data-testid="settings-os-notify-card">
+        <CardHead
+          title={t("桌面通知")}
+          desc={t("窗口失焦时才发系统级通知;回到窗口即静默,不与界面内的红点/标签重复打扰。")}
         />
+        {osToggles.map((item) => (
+          <ToggleRow
+            key={item.key}
+            title={item.title}
+            desc={item.desc}
+            on={settings[item.key]}
+            onChange={(on) => updateSettings({ [item.key]: on })}
+          />
+        ))}
       </div>
-    </div>
+
+      <SoundSettingsCard />
+
+      <div className="pref-card" data-testid="settings-quota-alert-card">
+        <CardHead
+          title={t("额度撞墙预警")}
+          desc={t("供应商额度逼近上限的提前提醒;仅窗口失焦时发送,聚焦时看额度 chip 即可。")}
+        />
+        <div className="pref-row">
+          <div>
+            <div className="pref-title">{t("预警阈值")}</div>
+            <div className="pref-desc">
+              {t("每 10 分钟查一次激活会话供应商的额度,窗口已用百分比达到阈值即发通知(同一窗口周期只提醒一次);0 = 关。")}
+            </div>
+          </div>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step={5}
+            defaultValue={settings.notifyQuotaWarnPercent}
+            key={settings.notifyQuotaWarnPercent}
+            onBlur={(e) => commitThreshold(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitThreshold((e.target as HTMLInputElement).value);
+            }}
+            aria-label={t("额度预警阈值百分比")}
+            className="w-20 shrink-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-right text-sm text-(--tmd-fg) outline-none"
+          />
+        </div>
+      </div>
+    </>
   );
 }
