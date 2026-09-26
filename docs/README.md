@@ -198,4 +198,5 @@
 | 2026-09-26 | [Worktree 编排(git 面板管理弹窗:porcelain 列表/新建/移除/清理悬空,创建即进工作区)](../openspec/changes/2026-09-26-worktree-orchestration/proposal.md) | 已落地(真机目检待大仙;随 git 插件提交) |
 | 2026-09-26 | [会话异常退出通知与一键续聊(退出码打通/详情事件补发/toast 续聊)](../openspec/changes/2026-09-26-exit-toast-resume/proposal.md) | 已落地(真机目检待大仙;ExitSessionToast 随本提案提交) |
 | 2026-09-26 | [审批批内危险度分层标记(敏感路径红标,治审批疲劳;宁漏勿扰)](../openspec/changes/2026-09-26-approval-risk-tier/proposal.md) | 已落地(真机目检待大仙;classifyRisk 随本提案提交) |
+| 2026-09-26 | [会话粒度用量估算(纯解析层下沉 cli-shared/sessionUsage;检索行徽标)](../openspec/changes/2026-09-26-session-usage/proposal.md) | 已落地(真机目检待大仙;随 session-search 提交) |
 变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

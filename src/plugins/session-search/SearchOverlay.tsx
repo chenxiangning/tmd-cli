@@ -110,6 +110,11 @@ export function SessionSearchOverlay() {
                   <span className="min-w-0 flex-1 truncate text-xs text-(--tmd-fg)">
                     {hit.entry.title || hit.entry.messages[0]?.slice(0, 60) || hit.entry.cliSessionId}
                   </span>
+                  {hit.entry.usage && (
+                    <span className="shrink-0 rounded bg-(--tmd-bg-hover) px-1 text-[0.625rem] text-(--tmd-fg-faint)">
+                      {hit.entry.usage}
+                    </span>
+                  )}
                   <span className="shrink-0 text-[0.6875rem] text-(--tmd-fg-faint)">
                     {formatRelativeTime(hit.entry.modifiedAt)}
                   </span>

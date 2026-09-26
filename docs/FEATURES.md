@@ -22,7 +22,7 @@
 
 ## 工作区会话
 - 异常退出通知与一键续聊(ExitSessionToast):PTY 退出码打通(portable-pty → pty://exit 载荷),内核补发 sessionExitedDetail 详情事件;非 0/非 130 异常退出弹右下角 toast(12s TTL),续聊钮 = openDiskSession 原样 resume(shell/无磁盘身份不渲染)
-- 会话历史检索(session-search 插件):命令 `session-search.open` 开居中浮层,按用户输入全文(各 CLI profile 的 readSessionUserMessages,锚点栏同源)与磁盘标题检索当前工作区历史会话;索引增量构建(60ms/会话,mtime 缓存零重读),命中 openDiskSession 一键续聊
+- 会话历史检索(session-search 插件):命令 `session-search.open` 开居中浮层,按用户输入全文(各 CLI profile 的 readSessionUserMessages,锚点栏同源)与磁盘标题检索当前工作区历史会话;索引增量构建(60ms/会话,mtime 缓存零重读),命中 openDiskSession 一键续聊;命中行带会话用量徽标(纯解析层下沉 cli-shared/sessionUsage,与首页 TOKENS 同源)
 
 - 添加工作区(目录选择器),工作区即会话容器;持久化 `~/.tmd-cli/workspaces.json`(列表 + 激活项,Rust 侧临时文件 + rename 原子写)
 - 默认工作区兜底:列表缺失时自动补建 `~/.tmd-cli/default` 于首位,删除后重启重建

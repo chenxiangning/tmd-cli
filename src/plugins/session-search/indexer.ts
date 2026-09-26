@@ -8,7 +8,13 @@
  */
 
 import { host } from "@kernel/host";
+import { ipc } from "@kernel/ipc";
 import type { CliDiskSession } from "@kernel/cliSessionTypes";
+import {
+  extractUsageFromHead,
+  formatUsage,
+  summarizeUsage,
+} from "../cli-shared/sessionUsage";
 
 /** 单会话索引条目。 */
 export interface SessionIndexEntry {
@@ -19,6 +25,8 @@ export interface SessionIndexEntry {
   modifiedAt: number;
   /** 用户消息全文(按文件顺序)。 */
   messages: string[];
+  /** 用量短文案(`≈ 12.3k tok · $0.04`);无 usage 行型/读取失败 = undefined。 */
+  usage?: string;
 }
 
 /** 索引快照(进度展示 + 检索输入)。 */
@@ -30,8 +38,8 @@ export interface SessionIndex {
   total: number;
 }
 
-/** mtime 缓存:路径 → (mtime, 消息)。模块级,应用运行期内复用。 */
-const cache = new Map<string, { modifiedAt: number; messages: string[] }>();
+/** mtime 缓存:路径 → (mtime, 消息, 用量文案)。模块级,应用运行期内复用。 */
+const cache = new Map<string, { modifiedAt: number; messages: string[]; usage?: string }>();
 
 /** 收集当前工作区下所有支持解析的磁盘会话作业(各 profile 并发列举后按时间归并)。 */
 async function collectJobs(cwd: string): Promise<Array<{ profile: string; session: CliDiskSession }>> {
@@ -78,12 +86,18 @@ export class SessionIndexer {
     if (!reader) return this.next();
     const cached = cache.get(session.path);
     let messages: string[];
+    let usage: string | undefined;
     if (cached && cached.modifiedAt === session.modifiedAt) {
       messages = cached.messages; // 未变更:零读取
+      usage = cached.usage;
     } else {
       const read = await reader(this.cwd, session.id, true).catch(() => null);
       messages = read?.map((m) => m.text) ?? [];
-      cache.set(session.path, { modifiedAt: session.modifiedAt, messages });
+      /* 用量 = 头窗口 256KB(与 welcome TOKENS 同策略:头窗口近似) */
+      const head = await ipc.fsReadHead(session.path, 256 * 1024).catch(() => null);
+      const summary = head ? summarizeUsage(extractUsageFromHead(head, 0)) : null;
+      usage = summary ? formatUsage(summary) : undefined;
+      cache.set(session.path, { modifiedAt: session.modifiedAt, messages, usage });
     }
     this.index.entries.push({
       profileId: profile,
@@ -91,6 +105,7 @@ export class SessionIndexer {
       title: session.title,
       modifiedAt: session.modifiedAt,
       messages,
+      usage,
     });
     return this.next();
   }
