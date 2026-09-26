@@ -120,6 +120,24 @@ async function invokeSafe<T>(cmd: string, args?: Record<string, unknown>): Promi
   }
 }
 
+/** 图像压到长边 ≤1568px 的 JPEG(微信级压缩;控 WS 载荷量级),返回字节。 */
+export async function shrinkImage(file: File, maxEdge = 1568): Promise<Uint8Array> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, "image/jpeg", 0.8));
+  if (!blob) throw new Error("encode failed");
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+/** 截图/拍照 → 桥 fs_write_temp 落盘会话临时文件,返回绝对路径(composer @ 注入用)。 */
+export function uploadTempImage(name: string, bytes: Uint8Array): Promise<string> {
+  return invokeSafe<string>("fs_write_temp", { name, data: Array.from(bytes) });
+}
+
 /** 相对时间(home 行 meta;与桌面侧栏口径一致)。 */
 export function relTime(ts?: number): string {
   if (!ts) return "—";

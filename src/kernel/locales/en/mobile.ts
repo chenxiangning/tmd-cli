@@ -80,4 +80,7 @@ export const MESSAGES = {
   "返回": "Back",
   "远端分支": "Remote branches",
   "键盘工具条": "Keyboard toolbar",
+
+  /* 截图注入(2026-09-26 批次六) */
+  "注入截图": "Attach screenshot",
 } as Record<string, string>;

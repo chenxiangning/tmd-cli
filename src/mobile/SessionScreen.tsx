@@ -12,7 +12,7 @@ import { ConnBanner } from "./ConnChip";
 import { HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { notifyAsk } from "./shared";
-import { tailAskLine, tailHasAskMarker, writeSession } from "./remote";
+import { shrinkImage, tailAskLine, tailHasAskMarker, uploadTempImage, writeSession } from "./remote";
 import { shellInvoke } from "@kernel/shellBridge";
 import { EngineMark } from "./EngineMark";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
@@ -28,6 +28,24 @@ export function SessionScreen(props: { sessionId: string }) {
   const [askQ, setAskQ] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [ckptSheet, setCkptSheet] = useState(false);
+  const [shotBusy, setShotBusy] = useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+
+  /** 拍照/选图 → 压缩 → 桥落盘临时文件 → composer 注入 @路径(桌面附件同语义)。 */
+  const onShot = async (file: File | undefined): Promise<void> => {
+    if (!file || shotBusy) return;
+    setShotBusy(true);
+    try {
+      const bytes = await shrinkImage(file);
+      const path = await uploadTempImage(`shot-${Date.now()}.jpg`, bytes);
+      setDraft((d) => (d.trimEnd() ? `${d.trimEnd()} @${path} ` : `@${path} `));
+    } catch (e) {
+      shellLog(`上传截图失败: ${String((e as Error)?.message ?? e).slice(0, 160)}`);
+    } finally {
+      setShotBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
   const [kbOpen, setKbOpen] = useState(false);
   /* 键盘工具条折叠(pref 持久化); composers 行 ⌨ 切换。 */
   const [kbOn, setKbOn] = useState(() => {
@@ -176,6 +194,22 @@ export function SessionScreen(props: { sessionId: string }) {
       <div className={"composer" + (kbOn && !kbOpen ? " kb-on" : "")}>
         <div className="box">
           <button type="button" className={"kb-toggle" + (kbOn ? " on" : "")} aria-label={t("键盘工具条")} onClick={toggleKb}>⌨</button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={(e) => void onShot(e.target.files?.[0])}
+          />
+          <button
+            type="button"
+            className="kb-toggle"
+            aria-label={t("注入截图")}
+            disabled={shotBusy}
+            onClick={() => fileRef.current?.click()}
+          >
+            {shotBusy ? "…" : "图"}
+          </button>
           <textarea
             rows={1}
             value={draft}

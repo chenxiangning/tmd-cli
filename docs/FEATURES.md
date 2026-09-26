@@ -405,3 +405,6 @@
 - 外壳键位:⌘T 新建会话、⌘, 设置、⌘1-9 切会话(match 型,无此会话穿透)、⌘W 关闭当前 tab(终端 tab 发送 EOF 退出)、⌘B/⌘⌥B 折叠左/右栏、⌘⇧H 回首页⇄回会话
 - 面板与 tab 键位:⌘⇧E/⌘⇧G/⌘⇧M 切右栏面板 1/2/3、Ctrl+Tab / Ctrl+Shift+Tab tab 顺序切换(match 型 (meta|ctrl)+Tab)、⌘⌥F(match ⌃⌘F)编辑区最大化、⌘⇧X 插件市场;插件贡献:⌘K 命令抽屉、⌘J 对话框高度段、⌘S 保存(本地文件/SSH 远端文件双方 when 互斥)
 - 插件激活失败整页报错,不白屏
+
+## 手机 App
+- 截图注入(SessionScreen composer「图」钮):拍照/相册 → 端内压缩(长边 1568/JPEG q0.8)→ 桥 fs_write_temp 镜像落盘临时文件 → composer 注入 `@路径`(桌面附件同语义);零原生壳改动
