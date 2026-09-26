@@ -42,8 +42,7 @@
 ### 排版铁律(2026-09-26 大仙复审补)
 
 - 学堂字号一律 **rem**(锚 = html 根字号),禁 px 硬编码;三个根容器(`.academy-entry`/`.academy-guide`/`.academy-wizard`)设 `font-size: 0.75rem` 基线,全树继承——`settings.uiFontSize`(外观设置,12-20)一改即随客户端整体缩放。
-- `button`/`input` 必须 `font: inherit`(UA 默认 16px 不继承 body,是「字体比客户端大一号」的根因)。
-- 颜色一律 `--tmd-*` token,浅深主题自动跟随,禁裸色。
+- `button`/`input` 必须 `font: inherit; color: inherit`,且**以 `:where(...)` 包裹压零特异性**(UA 默认 16px 不继承 body、`buttontext` 色在深色主题不可见;直接写类选择器会以 (0,1,1) 压死后置类级 color/font-size 声明——特异性倒挂是实测回归)。颜色一律 `--tmd-*` token,浅深主题自动跟随,禁裸色(box-shadow 裸黑为仓库公认例外,open-with/cli-config 先例)。
 
 ## 二期(未做)
 

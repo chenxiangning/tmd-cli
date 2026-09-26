@@ -1,9 +1,9 @@
 /* CLI 学堂样式 —— 全部消费 --tmd-* token(浅深主题自适应),禁止裸色值。
    设计语言对齐真实客户端:12px 密排/细边框/低饱和面板分层;类名 academy- 前缀。 */
 
-/* 控件字体继承:button/input 默认走 UA 16px 不随界面,统一继承宿主(字号全 rem,随 settings.uiFontSize 缩放)。 */
-.academy-entry button, .academy-guide button, .academy-guide input,
-.academy-wizard button, .academy-wizard input { font: inherit; color: inherit; }
+/* 控件字体继承:button/input 默认走 UA 16px 不随界面,统一继承宿主(字号全 rem,随 settings.uiFontSize 缩放)。
+   :where 压特异性为 0——后面的类级 color/font-size 声明必须能赢过本条。 */
+:where(.academy-entry, .academy-guide, .academy-wizard) :is(button, input) { font: inherit; color: inherit; }
 
 /* ── 左栏入口 ─────────────────────────────────────────────── */
 .academy-entry { position: relative; margin: 8px 8px 2px; font-size: 0.75rem; }
