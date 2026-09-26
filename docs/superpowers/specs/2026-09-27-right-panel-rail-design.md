@@ -35,5 +35,5 @@
 ## 修订(2026-09-27 同日)
 
 1. rail 宽度按用户口径两轮收窄:44px → 34px → 30px(26px 钮 + 两侧各 2px,`--tmd-rail-w: 1.875rem`)。
-2. ⋯ 钉到 rail 顶部(右上角固定位置,不随 tab 数浮动),分隔线移至 ⋯ 与 tab 组之间。
-3. 客户端窗口直角化:圆角来自 macOS 原生标题栏(此前 `TitleBarStyle::Overlay`),公共 API 无法去圆角,故 macOS 切 `decorations(false)` + `shadow(true)`(tao 给 Borderless|Resizable|Miniaturizable,边缘 resize 保留);红绿灯改 React 自绘(TopBar `MacTrafficLights`,沿用 `titlebar-leading` 70px 槽位,三色 12px 圆点对齐原生视觉)。Windows 路径本就 frameless,不变。真窗口验收(直角/resize/拖拽/红绿灯点击)待大仙。
+2. ~~⋯ 钉到 rail 顶部~~(已回退:用户口径「多改了」,恢复 tab 组 → 分隔线 → ⋯ 原序)。
+3. ~~客户端窗口直角化(macOS `decorations(false)` + React 自绘红绿灯)~~(已回退:恢复 `TitleBarStyle::Overlay` 原生标题栏与系统圆角;round-trip 见 commit c7a02e9 与其回退提交)。
