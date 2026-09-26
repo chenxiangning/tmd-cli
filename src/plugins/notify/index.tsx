@@ -63,7 +63,8 @@ export const notifyPlugin: Plugin = {
         const { settings } = getSettingsState();
         if (!shouldNotify("exit", settings, host.isWindowFocused())) return;
         const name = e.title || host.getCliProfile(e.profileId)?.name || e.profileId;
-        void sendOsNotification(t("会话退出"), t("「{name}」已退出", { name }));
+        const { title, body } = notifyText("exit", e.sessionId, host, name);
+        void sendOsNotification(title, body);
       }),
     ];
 
@@ -89,6 +90,9 @@ export const notifyPlugin: Plugin = {
       const { settings } = getSettingsState();
       const threshold = settings.notifyQuotaWarnPercent;
       if (threshold <= 0) return;
+      /* 失焦闸与事件类通知同口径(设置分区描述「仅在窗口失焦时发送」;
+         聚焦时 chip 已有红灯,不叠 OS 通知)。 */
+      if (host.isWindowFocused()) return;
       const sessionId = host.getActiveSessionId();
       const session = sessionId ? host.getSessions().find((s) => s.id === sessionId) : null;
       if (!sessionId || !session) return;

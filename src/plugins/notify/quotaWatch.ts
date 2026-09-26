@@ -26,7 +26,10 @@ export function pickQuotaWarnings(
   const fired: QuotaWindow[] = [];
   for (const w of windows) {
     if (w.displayPercent < usedPercentThreshold) continue;
-    const bucket = Math.floor(w.displayPercent / 25);
+    /* 桶升级只对无 resetsAt 的占比型快照(dsh 上下文构成)生效:有重置时刻的
+     * 窗口同一周期只报一次;无重置快照越 25% 桶界可再报,不会「终生一次」
+     * 在最该响的逼近段静默。 */
+    const bucket = w.resetsAt == null ? Math.floor(w.displayPercent / 25) : 0;
     const key = `${w.label}:${w.resetsAt ?? 0}:${bucket}`;
     if (seen.has(key)) continue;
     seen.add(key);
