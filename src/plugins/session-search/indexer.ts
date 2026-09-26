@@ -36,25 +36,30 @@ export interface SessionIndex {
   /** 已处理会话数(含跳过)/ 待处理总数。 */
   scanned: number;
   total: number;
+  /** 列举失败的引擎数(listSessions reject):零作业时区分「真没会话」与「读不到」。 */
+  listFailed: number;
 }
 
 /** mtime 缓存:路径 → (mtime, 消息, 用量文案)。模块级,应用运行期内复用。 */
 const cache = new Map<string, { modifiedAt: number; messages: string[]; usage?: string }>();
 
-/** 收集当前工作区下所有支持解析的磁盘会话作业(各 profile 并发列举后按时间归并)。 */
-async function collectJobs(cwd: string): Promise<Array<{ profile: string; session: CliDiskSession }>> {
+/** 收集当前工作区下所有支持解析的磁盘会话作业(各 profile 并发列举后按时间
+ *  归并)。单引擎列举失败不灭全局,但计数上报(零作业时区分真没会话/读不到)。 */
+async function collectJobs(
+  cwd: string,
+): Promise<{ jobs: Array<{ profile: string; session: CliDiskSession }>; failed: number }> {
   const supported = host.getCliProfiles().filter((p) => p.listSessions && p.readSessionUserMessages);
   const lists = await Promise.all(
-    supported.map(async (profile) => ({
-      profile: profile.id,
-      sessions: await profile.listSessions!(cwd).catch(() => [] as CliDiskSession[]),
-    })),
+    supported.map(async (profile) => {
+      const sessions = await profile.listSessions!(cwd).catch(() => null);
+      return { profile: profile.id, sessions, failed: sessions === null };
+    }),
   );
   const jobs = lists.flatMap(({ profile, sessions }) =>
-    sessions.map((session) => ({ profile, session })),
+    (sessions ?? []).map((session) => ({ profile, session })),
   );
   jobs.sort((a, b) => b.session.modifiedAt - a.session.modifiedAt);
-  return jobs;
+  return { jobs, failed: lists.filter((l) => l.failed).length };
 }
 
 /**
@@ -67,19 +72,21 @@ export class SessionIndexer {
   readonly index: SessionIndex;
 
   constructor(readonly cwd: string) {
-    this.index = { cwd, entries: [], scanned: 0, total: 0 };
+    this.index = { cwd, entries: [], scanned: 0, total: 0, listFailed: 0 };
   }
 
   /** 枚举作业(listSessions 并发全量);返回作业总数。随后剪掉不在本次作业
    *  集内的缓存项(死会话/换工作区残留,防无界驻留)。 */
   async prime(): Promise<number> {
-    this.jobs = await collectJobs(this.cwd);
-    const live = new Set(this.jobs.map((j) => j.session.path));
+    const { jobs, failed } = await collectJobs(this.cwd);
+    this.jobs = jobs;
+    const live = new Set(jobs.map((j) => j.session.path));
     for (const key of cache.keys()) {
       if (!live.has(key)) cache.delete(key);
     }
-    this.index.total = this.jobs.length;
-    return this.jobs.length;
+    this.index.total = jobs.length;
+    this.index.listFailed = failed;
+    return jobs.length;
   }
 
   /** 推进一个会话;返回是否还有剩余。 */

@@ -7,6 +7,7 @@
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { t } from "@kernel/i18n";
+import { getActiveWorkspace } from "@kernel/workspace";
 import { SessionSearchOverlay } from "./SearchOverlay";
 import { openSessionSearch } from "./overlayStore";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
@@ -26,7 +27,11 @@ export const sessionSearchPlugin: Plugin = {
       id: "session-search.open",
       title: t("搜索会话历史…"),
       keybinding: "Cmd+O",
-      run: openSessionSearch,
+      run: () => {
+        /* 无活动工作区不开浮层:overlayStore 置开后无 cwd 会渲染 null,
+         * 形成「隐形卡开」——工作区激活瞬间才弹出。 */
+        if (getActiveWorkspace()) openSessionSearch();
+      },
     });
     ctx.contribute("overlay", { order: 60, component: SessionSearchOverlay });
   },

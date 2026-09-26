@@ -10,6 +10,7 @@ import { host } from "@kernel/host";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { formatRelativeTime } from "@kernel/relativeTime";
+import { deriveWorkspaceName } from "@kernel/pathUtils";
 import { closeSessionSearch, useSessionSearchOpen } from "./overlayStore";
 import { SessionIndexer, searchSessions, type SessionIndex, type SessionSearchHit } from "./indexer";
 
@@ -30,6 +31,7 @@ function startIndexerTicks(
       primed = true;
       const total = await indexer.prime().catch(() => 0);
       indexer.index.total = total;
+      onIndex({ ...indexer.index }); /* 列举失败位(listFailed)随首拍可见 */
       if (total === 0) {
         onSettled();
         stop();
@@ -44,11 +46,27 @@ function startIndexerTicks(
     }
     return more;
   };
-  /* 单步失败只跳过该会话(坏行/越权读),不清定时器 —— 否则一步 reject
-   * 永久停摆且 indexing 永不落位,搜索静默变成「永远扫不完」。 */
+  /* 单步失败只跳过该会话(坏行/越权读),继续推进 —— 否则一步 reject
+   * 永久停摆且 indexing 永不落位,搜索静默变成「永远扫不完」。
+   * 自调度 setTimeout 链:上一拍 await 完才排下一拍,单会话读取(数 MB)
+   * 超 60ms 时不再多拍并发在途。 */
   stop = (() => {
-    const timer = setInterval(() => void tick().catch(() => {}), STEP_INTERVAL_MS);
-    return () => clearInterval(timer);
+    let stopped = false;
+    let timer: number | undefined;
+    const run = async () => {
+      let keepGoing = false;
+      try {
+        keepGoing = await tick();
+      } catch {
+        keepGoing = true; /* 单步失败跳过,不灭循环 */
+      }
+      if (keepGoing && !stopped) timer = window.setTimeout(() => void run(), STEP_INTERVAL_MS);
+    };
+    timer = window.setTimeout(() => void run(), STEP_INTERVAL_MS);
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+    };
   })();
   return stop;
 }
@@ -94,7 +112,7 @@ function HitRow({ hit, onOpen }: { hit: SessionSearchHit; onOpen: (profileId: st
   );
 }
 
-/** 结果区三态:未输入提示 / 无命中(区分索引中/空索引/无匹配)/ 命中列表。 */
+/** 结果区:未输入提示 / 无命中(索引中·空索引·列举失败·无匹配四分流)/ 命中列表。 */
 function ResultBody({ queryEmpty, indexing, index, hits, onOpen }: {
   queryEmpty: boolean;
   indexing: boolean;
@@ -113,7 +131,9 @@ function ResultBody({ queryEmpty, indexing, index, hits, onOpen }: {
     const hint = indexing
       ? t("索引还没扫到,稍候…")
       : index && index.total === 0
-        ? t("此工作区未发现可检索的磁盘会话")
+        ? index.listFailed > 0
+          ? t("会话列举失败:部分引擎的磁盘会话目录读不到")
+          : t("此工作区未发现可检索的磁盘会话")
         : t("已扫 {scanned}/{total} 个会话,无匹配", { scanned: index?.scanned ?? 0, total: index?.total ?? 0 });
     return <div className="px-3 py-6 text-center text-xs text-(--tmd-fg-faint)">{hint}</div>;
   }
@@ -135,7 +155,7 @@ export function SessionSearchOverlay() {
 
   const ws = getActiveWorkspace();
   const cwd = ws?.root;
-  const workspaceName = ws?.alias || ws?.root.split("/").pop();
+  const workspaceName = ws ? (ws.alias || deriveWorkspaceName(ws.root)) : undefined;
 
   useEffect(() => {
     if (!open) return;
@@ -158,13 +178,16 @@ export function SessionSearchOverlay() {
 
   return createPortal(
     <>
-      {/* 壳对齐 house search 插件:透明点击捕获层(z-1200) + 全屏容器(z-1201,Esc 随焦点容器收)。
-          原实现 z-1000 + 遮罩点击关 + 输入行级 Esc——被中层内容压过即「关不掉/浮层泄进页面」。 */}
-      <div className="wsmenu-backdrop" role="presentation" onClick={closeSessionSearch} />
+      {/* 全屏容器(z-1201)统一收 Esc 与遮罩点击(自靶判定):容器自身即覆盖
+          全屏,独立捕获层会被其整体遮蔽成死代码,故不设。 */}
       <div
+        role="presentation"
         className="fixed inset-0 z-[1201] flex items-start justify-center bg-black/45 pt-[12vh]"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) closeSessionSearch();
+        }}
         onKeyDown={(e) => {
-          if (e.key === "Escape") closeSessionSearch();
+          if (e.key === "Escape" && !e.nativeEvent.isComposing) closeSessionSearch();
         }}
         data-testid="session-search-backdrop"
       >
@@ -175,6 +198,11 @@ export function SessionSearchOverlay() {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+              const first = hits[0];
+              if (first) openHit(first.entry.profileId, first.entry.cliSessionId);
+            }}
             placeholder={t("搜索本工作区的会话历史(你输入过的内容)…")}
             aria-label={t("会话历史搜索")}
             className="w-full bg-transparent text-sm text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint)"

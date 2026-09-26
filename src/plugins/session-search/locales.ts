@@ -15,7 +15,11 @@ const MESSAGES_EN = {
   "输入关键词,按标题与你的历史输入检索会话":
     "Type to search sessions by title and your past prompts",
   "索引还没扫到,稍候…": "Index hasn't reached it yet, hold on…",
-  "无匹配会话": "No matching sessions",
+  "会话列举失败:部分引擎的磁盘会话目录读不到":
+    "Failed to list sessions: some engines' session directories are unreadable",
+  "此工作区未发现可检索的磁盘会话": "No indexable sessions found in this workspace",
+  "已扫 {scanned}/{total} 个会话,无匹配":
+    "Scanned {scanned}/{total} sessions, no matches",
   "Enter 打开 {name} 的历史会话 · Esc 关闭": "Enter to open a session in {name} · Esc to close",
 } as const;
 
@@ -30,7 +34,11 @@ const MESSAGES_JA = {
   "输入关键词,按标题与你的历史输入检索会话":
     "キーワードでタイトルと過去の入力からセッションを検索",
   "索引还没扫到,稍候…": "インデックスが未達です,少々お待ち…",
-  "无匹配会话": "一致するセッションなし",
+  "会话列举失败:部分引擎的磁盘会话目录读不到":
+    "セッション列挙失敗:一部エンジンのディスクセッションが読めません",
+  "此工作区未发现可检索的磁盘会话": "このワークスペースに検索可能なセッションがありません",
+  "已扫 {scanned}/{total} 个会话,无匹配":
+    "{scanned}/{total} セッションを走査,一致なし",
   "Enter 打开 {name} 的历史会话 · Esc 关闭": "Enter で {name} の履歴セッションを開く · Esc で閉じる",
 } as const;
 
