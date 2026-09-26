@@ -86,8 +86,21 @@ function commandTargets(head: string, toks: readonly Tok[]): string[] {
   const args = toks.slice(1).map((x) => x.t);
   if (head === "sd") {
     if (args.some((a) => a === "-p" || a.startsWith("--preview"))) return [];
-    const plain = args.filter(pathLike);
-    return plain.length > 2 ? plain.slice(2) : []; /* 前 2 个 = 匹配式与替换式 */
+    /* 按原序定位位置参数:带值旗标(-n/--max-replacements、-f/--flags,sd
+     * v1.1.0 仅这两类)吞一个实参;空串替换式('' = 删除)也是位置参数,
+     * 先过滤会错位吃掉首个真文件。 */
+    const positionals: string[] = [];
+    for (let k = 0; k < args.length; k++) {
+      const a = args[k];
+      if (a === "-n" || a === "-f" || a === "--max-replacements" || a === "--flags") {
+        k++;
+        continue;
+      }
+      if (a.startsWith("--max-replacements=") || a.startsWith("--flags=")) continue;
+      if (a.startsWith("-")) continue;
+      positionals.push(a);
+    }
+    return positionals.length > 2 ? positionals.slice(2).filter(pathLike) : [];
   }
   if (head === "sed") {
     if (args.some((a) => a === "-e" || a === "-f" || a.startsWith("--expression") || a.startsWith("--file")))
@@ -131,6 +144,11 @@ function redirectTargets(toks: readonly Tok[]): string[] {
     else if (/^\d>/.test(t)) target = t.slice(2);
     else if (t.startsWith(">>")) target = t.slice(2);
     else if (t.length > 1 && t.startsWith(">")) target = t.slice(1);
+    else if (t.includes(">")) {
+      /* 词内粘连:echo x>out.log / x>>log / x>|forced.log(bash 词法=词+重定向)。 */
+      const m = />(?:\|)?>?([^>&|]+)$/.exec(t);
+      if (m && m[1]) target = m[1];
+    }
     if (!target || !pathLike(target) || target.startsWith("/dev/")) continue;
     out.push(target);
   }

@@ -13,7 +13,7 @@
  * - bash 工具的命令文本是第三路径来源(2026-09-25 起):assistant 消息里
  *   bash toolCall 命中已知写盘形态(sd/sed -i/perl -i/tee/重定向)时按命令
  *   实参入账 —— 批量替换走 bash,工具结果里没有这些路径(实证 012210c:
- *   13 个 edit 路径入账,15 个 bash 改写文件只进提交不进账本,审批线与
+ *   13 个 edit 路径入账,14 个 bash 改写文件只进提交不进账本,审批线与
  *   git 面板对不上);提取契约见 cli-shared/bashWrites。
  * 事件时刻取条目自身 timestamp(omp 自记,ms 精度),不是观测时刻 —— 消费方的
  * 水位线增量与 Rust record_edit 的迟到守卫(早于锚点 = 上一轮,丢弃)都靠它。

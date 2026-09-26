@@ -31,7 +31,7 @@ const READ_LINE =
 const T0 = Date.parse("2026-09-03T13:45:00.000Z");
 
 /* 2026-09-25 真实条目(012210c 现场):assistant bash toolCall 批量替换。
- * 工具结果通道之外唯一的路径来源 —— 15 个 bash 改写文件曾只进提交不进账本,
+ * 工具结果通道之外唯一的路径来源 —— 14 个 bash 改写文件曾只进提交不进账本,
  * 审批线与 git 面板对不上的实证残源。 */
 const BASH_BULK_LINE =
   `{"type":"message","id":"c51c140f","parentId":"e32f7d5a","timestamp":"2026-09-25T14:36:11.921Z",` +

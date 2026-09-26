@@ -21,6 +21,22 @@ describe("bashWritePaths", () => {
     expect(bashWritePaths("sd -p 'a' 'b' f.ts")).toEqual([]);
   });
 
+  it("sd 带值旗标吞实参,替换串不被误记为路径(2026-09-26 审查)", () => {
+    expect(bashWritePaths(`sd -n 5 'a' 'b' src/x.ts src/y.ts`)).toEqual(["src/x.ts", "src/y.ts"]);
+    expect(bashWritePaths(`sd -f i 'a' 'b' src/x.ts`)).toEqual(["src/x.ts"]);
+    expect(bashWritePaths(`sd --max-replacements 3 'old' 'new' f.ts`)).toEqual(["f.ts"]);
+  });
+
+  it("sd 空串替换式(删除形态)不挤掉首个文件", () => {
+    expect(bashWritePaths(`sd 'old' '' src/a.ts src/b.ts`)).toEqual(["src/a.ts", "src/b.ts"]);
+  });
+
+  it("词内粘连重定向:echo x>out.log 与 x>>log 都入账", () => {
+    expect(bashWritePaths("echo x>out.log")).toEqual(["out.log"]);
+    expect(bashWritePaths("echo x>>out.log")).toEqual(["out.log"]);
+    expect(bashWritePaths("make build>build.log 2>&1")).toEqual(["build.log"]);
+  });
+
   it("perl -pi -e 组合旗标 + 链式 grep/echo 不污染(2026-09-25 真实命令)", () => {
     const cmd =
       "perl -pi -e 's/configWriteSettings/configMergeSettings/g' src/kernel/askSound.test.ts " +

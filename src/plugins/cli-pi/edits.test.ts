@@ -54,6 +54,11 @@ describe("parsePiEditEvents", () => {
     ]);
   });
 
+  it("水位线:bash 批量替换行水位过后不再重放(omp 同构钉)", () => {
+    const since = Date.parse("2026-09-20T19:30:00.001Z");
+    expect(parsePiEditEvents(CTX_SHELL_BULK_LINE, since, CWD)).toEqual([]);
+  });
+
   it("ctx_shell 等非写入工具即使正文形似也不产生事件", () => {
     expect(parsePiEditEvents(SHELL_LINE, 0, CWD)).toEqual([]);
   });
