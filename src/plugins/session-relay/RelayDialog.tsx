@@ -4,12 +4,13 @@
  * 动作:createSession(目标引擎,同 cwd/工作区)→ writeSession(摘要)。
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PaperPlaneRight } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
+import { prepareSendPayload } from "@plugins/composer/serialize/serialize";
 import { relayTargets, buildRelaySummary, type RelaySource } from "./relay";
 
 export function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => void }) {
@@ -22,6 +23,7 @@ export function RelayDialog({ source, onClose }: { source: RelaySource; onClose:
   const [summary, setSummary] = useState("");
   const [summaryReady, setSummaryReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const createdRef = useRef<string | null>(null); /* 重试复用首轮会话 */
   const [error, setError] = useState("");
 
   /* 摘要一次性组装:读源会话用户消息(全量),取最近 N 条确定性拼接。 */
@@ -58,9 +60,19 @@ export function RelayDialog({ source, onClose }: { source: RelaySource; onClose:
     setBusy(true);
     setError("");
     try {
-      const meta = await host.createSession(targetId, workspace.root, workspace.id);
+      /* 重试复用首轮建的会话:每次重试再 createSession 会堆空会话。 */
+      const sessionId =
+        createdRef.current ?? (await host.createSession(targetId, workspace.root, workspace.id)).id;
+      createdRef.current = sessionId;
       if (summary.trim()) {
-        const ok = await host.writeSession(meta.id, `${summary.trim()}\n`);
+        /* 发送契约与 composer 同源:prepareSendPayload 做 trigger 翻译 +
+         * bracketedPaste 包装 + CR 提交(裸 \n 不会被 TUI 当 Enter,整串突发
+         * 还会触发粘贴启发式吞掉提交回车 —— 直写 = 接力首发不成立)。 */
+        const profile = host.getCliProfile(targetId);
+        const payload = profile
+          ? prepareSendPayload(profile, summary.trim())
+          : `${summary.trim()}\r`;
+        const ok = await host.writeSession(sessionId, payload);
         if (!ok) {
           /* 目标会话秒退/写入失败:提示词凭空消失比失败更糟,留框让用户重试 */
           setError(t("接力提示词未能送达(目标会话可能已退出),请重试或取消"));
@@ -78,8 +90,11 @@ export function RelayDialog({ source, onClose }: { source: RelaySource; onClose:
   return createPortal(
     <div
       role="presentation"
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/45"
+      className="fixed inset-0 z-[1201] flex items-start justify-center bg-black/45 pt-[12vh]"
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && !e.nativeEvent.isComposing) onClose();
+      }}
     >
       <div className="flex w-[460px] flex-col gap-3 rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-2xl">
         <div className="text-sm font-medium text-(--tmd-fg)">{t("转到其他引擎接力")}</div>
