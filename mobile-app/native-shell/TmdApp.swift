@@ -292,14 +292,20 @@ final class NavLog: NSObject, WKNavigationDelegate {
 }
 
 /// <input type=file> 宿主面板:不挂 WKUIDelegate 时 file input 是静默死钮
-/// (2026-09-26 功能查漏 P1-4)。PHPicker 出程选图,不经相册权限(iOS 14+);
-/// 单选即可满足截图注入场景,多选随 parameters.allowsMultipleSelection 放开。
+/// (2026-09-26 功能查漏 P1-4)。iOS 的 WKUIDelegate 文件面板面是
+/// runOpenPanelWithParameters(iOS 18.4+;macOS 侧才是 runFileUploadPanelInFrame,
+/// iOS SDK 无该方法/参数类型 —— 2026-09-26 审查修正);18.4 以下设备保持
+/// 默认行为(file input 不响应)。PHPicker 出程选图,不经相册权限(iOS 14+)。
 final class FileUploadBridge: NSObject, WKUIDelegate {
   static let shared = FileUploadBridge()
+  /* PHPicker delegate 为 weak:桥单例持活 relay,防 present 后即被 ARC 释放
+   * 导致 didFinishPicking 永不回调(WebKit 契约要求 completionHandler 恰一次)。 */
+  private var activeRelay: FilePanelRelay?
 
+  @available(iOS 18.4, *)
   func webView(_ webView: WKWebView,
-               runFileUploadPanelInFrame frame: WKFrameInfo?,
-               parameters: WKFileUploadPanelParameters,
+               runOpenPanelWith parameters: WKOpenPanelParameters,
+               initiatedByFrame frame: WKFrameInfo,
                completionHandler: @escaping ([URL]?) -> Void) {
     guard let root = UIApplication.shared.connectedScenes
       .compactMap({ $0 as? UIWindowScene })
@@ -310,10 +316,12 @@ final class FileUploadBridge: NSObject, WKUIDelegate {
     }
     var config = PHPickerConfiguration()
     config.filter = .images
-    config.selectionLimit = parameters.allowsMultipleSelection ? 0 : 1
+    config.selectionLimit = 1 /* 单选即满足截图注入场景 */
     let picker = PHPickerViewController(configuration: config)
     let relay = FilePanelRelay()
     relay.completion = completionHandler
+    relay.onFinish = { [weak self] in self?.activeRelay = nil }
+    activeRelay = relay
     relay.present(root, picker)
   }
 }
@@ -322,6 +330,7 @@ final class FileUploadBridge: NSObject, WKUIDelegate {
 /// completionHandler 必须恰好调用一次:取消/失败/成功三路都经 finish 收口。
 private final class FilePanelRelay: NSObject, PHPickerViewControllerDelegate {
   var completion: (([URL]?) -> Void)?
+  var onFinish: (() -> Void)?
   private var done = false
 
   func present(_ root: UIViewController, _ picker: PHPickerViewController) {
@@ -351,5 +360,7 @@ private final class FilePanelRelay: NSObject, PHPickerViewControllerDelegate {
     done = true
     completion?(urls)
     completion = nil
+    onFinish?()
+    onFinish = nil
   }
 }

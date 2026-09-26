@@ -12,8 +12,8 @@ import { ConnBanner } from "./ConnChip";
 import { HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { notifyAsk } from "./shared";
-import { shrinkImage, tailAskLine, tailHasAskMarker, uploadTempImage, writeSession } from "./remote";
-import { shellInvoke, shellLog } from "@kernel/shellBridge";
+import { shotToDraft, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
+import { shellInvoke } from "@kernel/shellBridge";
 import { EngineMark } from "./EngineMark";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
 import { KeyToolbar } from "./KeyToolbar";
@@ -21,6 +21,11 @@ import { CkptSheet } from "./CkptSheet";
 
 /* 实况 = LiveScreen 迷你 VT 屏模型渲染(见 ./liveText)。 */
 
+/** 截图钮三态文案(独立小函数:嵌套三元留在 React 函数体会推高复杂度闸)。 */
+function shotLabel(busy: boolean, err: boolean): string {
+  if (busy) return "…";
+  return err ? "✕" : "图";
+}
 export function SessionScreen(props: { sessionId: string }) {
   const { sessions, titleOf, go } = useMobile();
   const meta = sessions.find((s) => s.id === props.sessionId);
@@ -29,22 +34,18 @@ export function SessionScreen(props: { sessionId: string }) {
   const [draft, setDraft] = useState("");
   const [ckptSheet, setCkptSheet] = useState(false);
   const [shotBusy, setShotBusy] = useState(false);
+  const [shotErr, setShotErr] = useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
-  /** 拍照/选图 → 压缩 → 桥落盘临时文件 → composer 注入 @路径(桌面附件同语义)。 */
-  const onShot = async (file: File | undefined): Promise<void> => {
-    if (!file || shotBusy) return;
-    setShotBusy(true);
-    try {
-      const bytes = await shrinkImage(file);
-      const path = await uploadTempImage(`shot-${Date.now()}.jpg`, bytes);
-      setDraft((d) => (d.trimEnd() ? `${d.trimEnd()} @${path} ` : `@${path} `));
-    } catch (e) {
-      shellLog(`上传截图失败: ${String((e as Error)?.message ?? e).slice(0, 160)}`);
-    } finally {
-      setShotBusy(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
+  /** 拍照/选图 → 压缩 → 桥落盘临时文件 → composer 注入 @路径(见 shotToDraft)。 */
+  const onShot = (file: File | undefined): void => {
+    void shotToDraft(file, {
+      isBusy: shotBusy,
+      setBusy: setShotBusy,
+      patchDraft: setDraft,
+      flashErr: setShotErr,
+      fileRef,
+    });
   };
   const [kbOpen, setKbOpen] = useState(false);
   /* 键盘工具条折叠(pref 持久化); composers 行 ⌨ 切换。 */
@@ -208,7 +209,7 @@ export function SessionScreen(props: { sessionId: string }) {
             disabled={shotBusy}
             onClick={() => fileRef.current?.click()}
           >
-            {shotBusy ? "…" : "图"}
+            {shotLabel(shotBusy, shotErr)}
           </button>
           <textarea
             rows={1}
