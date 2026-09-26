@@ -98,12 +98,13 @@
 }
 
 /* ===== worktree 簇:同仓主仓 + worktree 卡平级共框 =====
- * 虚线直角细框,label 悬于底边框上(嵌边 fieldset 风格);仅在主仓与 worktree 同组可见时渲染。 */
+ * 上下虚线细框(左右无框),label 嵌于底边框上(fieldset 风格);仅在主仓与 worktree 同组可见时渲染。 */
 .ws-worktree-cluster {
   position: relative;
   margin: 6px 0 8px;
   padding: 2px 0;
-  border: 1px dashed var(--border-subtle);
+  border-top: 1px dashed var(--border-subtle);
+  border-bottom: 1px dashed var(--border-subtle);
 }
 
 .ws-worktree-cluster-label {
