@@ -1,6 +1,6 @@
 /**
  * WSL 插件注册面 —— 全部能力经三注册表 + 中央 tab 贡献:
- * - WslCard(中央 tab kind="wsl";入口在左下角设置菜单 wsl-panel):本机/远程发行版面板;
+ * - WslCard(中央 tab kind="wsl";入口直挂右缘 rail 的 wsl-panel 动作):本机/远程发行版面板;
  * - workspaceOrigins:侧栏过滤/徽章/新建会话 SSH 适配/添加弹层 tab;
  * - fileSources:远程文件树浏览与 wslr:// 文本读取;
  * - ptyAdapters:UNC 工作区的 spawn 包装与内置终端直落发行版。
@@ -29,13 +29,15 @@ export const wslPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx) {
-    /* 中央 tab 容器(kernel/tabs 注册表)+ 设置菜单入口(与 SSH/网络代理同款行,可钉底栏)。 */
+    /* 中央 tab 容器(kernel/tabs 注册表)+ 右缘 rail 直挂入口(2026-09-27 迁自
+       左下角设置菜单;WslCard 本体仍是中央 tab,rail 钮只负责开 tab)。 */
     ctx.registerTabContent({ kind: "wsl", component: WslCard });
     ctx.registerSidebarAction({
       id: "wsl-panel",
       label: "WSL",
       icon: DesktopIcon,
       order: 26,
+      rail: true,
       active: () => getActiveTab()?.kind === "wsl",
       onSelect: () =>
         openTab({ id: "wsl:panel", title: "WSL", path: "", kind: "wsl", payload: null }),

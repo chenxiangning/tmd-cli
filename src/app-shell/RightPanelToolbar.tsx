@@ -17,6 +17,8 @@ import {
   useFilePanel,
   type FilePanelContribution,
 } from "@kernel/filePanel";
+import { useSidebarActions } from "@kernel/sidebarActions";
+import { useEditorTabs } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import { FileActionsBar } from "./FileActionsBar";
 
@@ -28,10 +30,13 @@ import { FileActionsBar } from "./FileActionsBar";
 export function PanelRail({ onActivate }: { onActivate: () => void }) {
   const { mode, pinnedIds, panels } = useFilePanel();
   const [overflowPos, setOverflowPos] = useState<{ x: number; y: number } | null>(null);
+  /* rail 直挂动作(如 WSL):active() 多依赖中央 tab 态,订阅 tabs 保重渲。 */
+  const railActions = useSidebarActions().filter((a) => a.rail);
+  useEditorTabs();
 
   /* 外显 tab = 已钉住 + 当前激活(未钉也临时外显) */
   const visiblePanels = panels.filter(
-    (p) => p.topbarEntry !== false && (pinnedIds.has(p.id) || p.id === mode),
+    (p) => p.railEntry !== false && (pinnedIds.has(p.id) || p.id === mode),
   );
 
   const toggleOverflow = (e: ReactMouseEvent<HTMLButtonElement>) => {
@@ -72,6 +77,29 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
           );
         })}
       </div>
+
+      {/* rail 直挂动作(sidebarActions.rail):面板 tab 组之后、分隔线之前 */}
+      {railActions.map((action) => {
+        const Icon = action.icon;
+        const isActive = action.active?.() ?? false;
+        return (
+          <button
+            key={action.id}
+            type="button"
+            className={`panel-rail-tab${isActive ? " is-active" : ""}`}
+            data-action-id={action.id}
+            aria-label={t(action.label)}
+            aria-pressed={isActive}
+            title={t(action.label)}
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              action.onSelect({ x: r.left - 8, y: r.top });
+            }}
+          >
+            <Icon aria-hidden />
+          </button>
+        );
+      })}
 
       {/* 参照图:tab 组下一条分隔线,⋯ 组紧随其后(不钉底) */}
       <div className="panel-rail-sep" aria-hidden />
@@ -130,9 +158,9 @@ function PanelOverflowMenu({
     <>
       <div className="panel-overflow-backdrop" role="presentation" onClick={onClose} />
       <div className="panel-overflow-menu" style={{ left: position.x, top: position.y }} role="menu">
-        {/* 单趟 flatMap:topbarEntry === false 的面板不进溢出菜单。 */}
+        {/* 单趟 flatMap:railEntry === false 的面板不进溢出菜单。 */}
         {panels.flatMap((panel) => {
-          if (panel.topbarEntry === false) return [];
+          if (panel.railEntry === false) return [];
           const Icon = panel.icon;
           const isActive = panel.id === mode;
           const isChecked = pinnedIds.has(panel.id);

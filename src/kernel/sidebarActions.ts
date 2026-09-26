@@ -32,6 +32,9 @@ export interface SidebarAction {
   active?: () => boolean;
   /** 触发动作;anchor = 触发簇右缘锚点坐标(浮层类动作的定位参考)。 */
   onSelect: (anchor: { x: number; y: number }) => void;
+  /** 直挂右缘 PanelRail(2026-09-27):不进左下设置菜单、不进底栏钉住,
+   *  由 rail 渲染为图标钮(active() 驱动点亮态)。归属插件自声明。 */
+  rail?: boolean;
 }
 
 const state: { actions: readonly SidebarAction[] } = { actions: [] };

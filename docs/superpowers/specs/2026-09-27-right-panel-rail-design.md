@@ -37,3 +37,4 @@
 1. rail 宽度按用户口径两轮收窄:44px → 34px → 30px(26px 钮 + 两侧各 2px,`--tmd-rail-w: 1.875rem`)。
 2. ~~⋯ 钉到 rail 顶部~~(已回退:用户口径「多改了」,恢复 tab 组 → 分隔线 → ⋯ 原序)。
 3. ~~客户端窗口直角化(macOS `decorations(false)` + React 自绘红绿灯)~~(已回退:恢复 `TitleBarStyle::Overlay` 原生标题栏与系统圆角;round-trip 见 commit c7a02e9 与其回退提交)。
+4. SSH/WSL 入口迁右缘 rail(2026-09-27 二轮):SSH 删左下设置簇 sidebarAction,`topbarEntry:false` 作废(字段更名 `railEntry`),面板 tab 直挂 rail;WSL 动作加 `SidebarAction.rail` 直挂标志(开中央 tab 语义不变),设置菜单与底栏钉住过滤 rail 动作;图标装饰 ssh-panel/wsl-panel 选择器改指 rail 钮。
