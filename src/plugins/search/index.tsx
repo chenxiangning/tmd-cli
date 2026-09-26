@@ -46,8 +46,8 @@ export const searchPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx) {
-    /* 统一搜索折叠入口:左栏最顶(order -2,学堂 -1 之上),让三个搜索能力可被发现。 */
-    ctx.contribute("leftSidebar.section", { order: -2, component: SearchHubEntry });
+    /* 统一搜索折叠入口:左栏顶部(order -1,学堂 -2 之下),让三个搜索能力可被发现。 */
+    ctx.contribute("leftSidebar.section", { order: -1, component: SearchHubEntry });
     ctx.contribute("overlay", { order: 50, component: SearchOverlay });
     ctx.registerCommand({
       id: "search.panel",

@@ -1,18 +1,19 @@
 /**
- * 学堂左栏入口 —— leftSidebar.section 挂点(order -1,排在工作区之前)。
+ * 学堂左栏入口 —— leftSidebar.section 挂点(order -2,排在搜索与工作区之前)。
  * 无课程注册 = 渲染 null(如 cli-* 全未启用);有课程:进度徽标 + 菜单
  * (继续入门 / 完整指南 / 结业速查 / 重置进度)。
  */
 import { useEffect, useRef, useState } from "react";
-import { Student } from "@phosphor-icons/react";
+import { CaretDown, CaretRight, Student } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { useAcademyCourses } from "@kernel/academy";
 import { useCourseProgress, resetProgress } from "./academyProgress";
-import { openGuideTab, openWizard } from "./academyStores";
+import { openGuideTab, openWizard, setEntryCollapsed, useEntryCollapsed } from "./academyStores";
 import "./academy.css";
 
 export function AcademyEntry() {
   const courses = useAcademyCourses();
+  const collapsed = useEntryCollapsed();
   /* 展开的课程 cliId:多课程(多 CLI)时菜单互不共享(阶段 2+3 审查 P2)。 */
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -30,17 +31,34 @@ export function AcademyEntry() {
   if (courses.length === 0) return null;
   return (
     <div className="academy-entry" ref={rootRef}>
-      {courses.map((course) => (
-        <EntryCourse
-          key={course.cliId}
-          cliId={course.cliId}
-          title={course.title}
-          lessonCount={course.lessons.length}
-          menuOpen={menuFor === course.cliId}
-          onToggleMenu={() => setMenuFor(menuFor === course.cliId ? null : course.cliId)}
-          onDismiss={() => setMenuFor(null)}
-        />
-      ))}
+      <button
+        type="button"
+        className="academy-entry-head"
+        aria-expanded={!collapsed}
+        title={collapsed ? t("展开学堂") : t("收起学堂")}
+        onClick={() => setEntryCollapsed(!collapsed)}
+      >
+        <Student size="0.6875rem" className="academy-entry-glyph" aria-hidden />
+        <span className="academy-entry-tt">{t("学堂")}</span>
+        <span className="academy-entry-count">{courses.length}</span>
+        {collapsed ? (
+          <CaretRight size="0.75rem" className="academy-entry-caret" aria-hidden />
+        ) : (
+          <CaretDown size="0.75rem" className="academy-entry-caret" aria-hidden />
+        )}
+      </button>
+      {!collapsed &&
+        courses.map((course) => (
+          <EntryCourse
+            key={course.cliId}
+            cliId={course.cliId}
+            title={course.title}
+            lessonCount={course.lessons.length}
+            menuOpen={menuFor === course.cliId}
+            onToggleMenu={() => setMenuFor(menuFor === course.cliId ? null : course.cliId)}
+            onDismiss={() => setMenuFor(null)}
+          />
+        ))}
     </div>
   );
 }

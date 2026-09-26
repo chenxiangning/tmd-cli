@@ -92,3 +92,55 @@ describe("章节-课程互链", () => {
     expect(map.size).toBe(2);
   });
 });
+
+/* ── 入口折叠 store(同 workspace/sectionCollapsed 契约手法:接缝桩顶替
+ * useSyncExternalStore;store 是模块级单例,经 resetModules + 动态 import 取全新实例) ── */
+const seam = vi.hoisted(() => ({
+  subscribe: undefined as undefined | ((fn: () => void) => () => void),
+  getSnapshot: undefined as undefined | (() => unknown),
+}));
+vi.mock("react", () => ({
+  useSyncExternalStore: (subscribe: (fn: () => void) => () => void, getSnapshot: () => unknown) => {
+    seam.subscribe = subscribe;
+    seam.getSnapshot = getSnapshot;
+    return getSnapshot();
+  },
+}));
+vi.mock("@kernel/tabs", () => ({ openTab: vi.fn(), closeTab: vi.fn(), getTabs: () => [] }));
+
+import type * as AcademyStores from "./academyStores";
+
+describe("入口折叠 store", () => {
+  const loadStores = async (preset?: "0" | "1"): Promise<typeof AcademyStores> => {
+    if (preset) store.set("tmd.academy.entryCollapsed", preset);
+    vi.resetModules();
+    seam.subscribe = undefined;
+    seam.getSnapshot = undefined;
+    // 动态 import 例外:被测 store 是模块级单例,必须借 resetModules 取全新实例
+    return import("./academyStores");
+  };
+
+  it("未预置首读展开且模块加载零写盘;预置 1 首读即折叠", async () => {
+    let mod = await loadStores();
+    mod.useEntryCollapsed();
+    expect(seam.getSnapshot?.()).toBe(false);
+    expect(store.has("tmd.academy.entryCollapsed")).toBe(false);
+    mod = await loadStores("1");
+    mod.useEntryCollapsed();
+    expect(seam.getSnapshot?.()).toBe(true);
+  });
+
+  it("set 落盘 1/0 并通知订阅者;同值 set 静默", async () => {
+    const mod = await loadStores();
+    mod.useEntryCollapsed();
+    const seen: unknown[] = [];
+    seam.subscribe!(() => void seen.push(seam.getSnapshot?.()));
+    mod.setEntryCollapsed(true);
+    mod.setEntryCollapsed(true);
+    expect(store.get("tmd.academy.entryCollapsed")).toBe("1");
+    expect(seen).toEqual([true]);
+    mod.setEntryCollapsed(false);
+    expect(store.get("tmd.academy.entryCollapsed")).toBe("0");
+    expect(seen).toEqual([true, false]);
+  });
+});

@@ -11,6 +11,7 @@ import type { Plugin } from "@kernel/plugin";
 import { fetchClaudeQuota } from "./quota";
 import { listClaudeSuggestions } from "./scanSuggestions";
 import { claudeConfigEntry } from "./configGui";
+import { CLAUDE_ACADEMY_COURSE } from "./academy/academyCatalog";
 import { applyClaudeChannel } from "./channelApply";
 import { claudeSessionsDir, listClaudeSessions } from "./sessions";
 import { ProviderChannelsCard } from "@plugins/cli-shared/providerChannels";
@@ -166,6 +167,8 @@ export const cliClaudePlugin: Plugin = {
   },
   activate(ctx) {
     ctx.registerCliConfig({ ...claudeConfigEntry, icon: (size) => <ClaudeGlyph size={size} />, providerPanel: () => <ProviderChannelsCard engineId="claude" applyChannel={applyClaudeChannel} /> });
+    /* CLI 学堂课程:40 条内置斜杠命令(真源 2.1.282 注册表直读),消费归 academy 插件。 */
+    ctx.registerAcademyCourse(CLAUDE_ACADEMY_COURSE);
     /* 命令/技能真相:listSuggestions 磁盘扫描(commands/*.md + SKILL.md +
        插件缓存,项目级优先),静态内置表兜底 —— 不再 activate 时 hydrate。 */
     const profile: CliProfile = {

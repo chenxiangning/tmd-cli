@@ -1,4 +1,6 @@
 import { makeQoderPlugin } from "../cli-shared/qoderPlugin";
+import type { Plugin } from "@kernel/plugin";
+import { QODER_ACADEMY_COURSE } from "./academy/academyCatalog";
 
 /**
  * Qoder CLI(国际版)插件(本机 qodercli 1.1.33 实证,2026-09-02):
@@ -18,7 +20,7 @@ export const QODER_VARIANT = {
   dataDir: ".qoder",
 } as const;
 
-export const cliQoderPlugin = makeQoderPlugin({
+const baseQoderPlugin = makeQoderPlugin({
   id: "cli-qoder",
   meta: { name: "Qoder", abbr: "Q", desc: "Qoder CLI 引擎:磁盘会话、模型状态" },
   docsUrl: "https://docs.qoder.com",
@@ -29,3 +31,12 @@ export const cliQoderPlugin = makeQoderPlugin({
    * `qodercli update` 就地 1.1.56 → 1.1.63。国内版未实证此子命令,不声明。 */
   commandUpdate: { program: QODER_VARIANT.command, args: ["update"] },
 });
+
+export const cliQoderPlugin: Plugin = {
+  ...baseQoderPlugin,
+  activate(ctx) {
+    baseQoderPlugin.activate(ctx);
+    /* 学堂:qoder 真实命令目录(本机 qodercli 1.1.63 提取),对齐 pi 学堂注册方式 */
+    ctx.registerAcademyCourse(QODER_ACADEMY_COURSE);
+  },
+};

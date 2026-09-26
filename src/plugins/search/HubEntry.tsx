@@ -42,14 +42,14 @@ export function SearchHubEntry() {
   };
 
   return (
-    <div ref={rootRef} className="relative shrink-0 px-2 pb-1 text-[0.75rem]">
+    <div ref={rootRef} className="relative shrink-0 pb-1 text-[0.75rem]">
       <button
         type="button"
-        className="flex h-6 w-full items-center gap-1.5 rounded px-1 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+        className="flex h-6 w-full items-center gap-1 rounded px-1.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen((v) => !v)}
       >
-        <MagnifyingGlass size="0.75rem" weight="bold" aria-hidden />
+        <MagnifyingGlass size="0.6875rem" aria-hidden />
         <span className="flex-1 truncate text-left">{t("搜索")}</span>
         {menuOpen ? (
           <CaretDown size="0.625rem" aria-hidden />
@@ -58,7 +58,7 @@ export function SearchHubEntry() {
         )}
       </button>
       {menuOpen && (
-        <div className="absolute top-full left-2 z-[300] mt-0.5 min-w-44 rounded-md border border-(--tmd-border) bg-(--tmd-bg-panel) py-1 shadow-lg">
+        <div className="absolute top-full left-1.5 z-[300] mt-0.5 min-w-44 rounded-md border border-(--tmd-border) bg-(--tmd-bg-panel) py-1 shadow-lg">
           {MENU_ITEMS.map((item) => {
             const cmd = getCommands().find((c) => c.id === item.id);
             return (

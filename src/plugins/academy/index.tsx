@@ -2,7 +2,7 @@
  * CLI 学堂 —— 多 CLI 通用的引导学习插件。
  *
  * 注册点:
- * - leftSidebar.section(order -1):左栏顶部学堂入口(进度 + 课程菜单);
+ * - leftSidebar.section(order -2):左栏顶部学堂入口(进度 + 课程菜单);
  * - overlay(order 45):入门课向导(看板同款「不透明覆盖、下层零回放」);
  * - registerTabContent("academy.guide"):指南中央 tab(payload.cliId 路由课程)。
  *
@@ -28,7 +28,7 @@ export const academyPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx: PluginContext) {
-    ctx.contribute("leftSidebar.section", { order: -1, component: AcademyEntry });
+    ctx.contribute("leftSidebar.section", { order: -2, component: AcademyEntry });
     ctx.contribute("overlay", { order: 45, component: AcademyWizard });
     ctx.registerTabContent({ kind: "academy.guide", component: GuideTab });
   },

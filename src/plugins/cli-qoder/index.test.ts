@@ -23,6 +23,8 @@ describe("cli-qoder 插件契约(国际版)", () => {
       registerCliProfile: (p: CliProfile) => {
         profile = p;
       },
+      /* no-op 而非透传真注册:本文件多次 activate,真注册会在第二次抛重复。 */
+      registerAcademyCourse: () => {},
     } as unknown as PluginContext);
     if (!profile) throw new Error("activate 未注册 profile");
 

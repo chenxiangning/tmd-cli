@@ -5,9 +5,20 @@
    :where 压特异性为 0——后面的类级 color/font-size 声明必须能赢过本条。 */
 :where(.academy-entry, .academy-guide, .academy-wizard) :is(button, input) { font: inherit; color: inherit; }
 
-/* ── 左栏入口(单行紧凑条目,同侧栏 caption 密度;hover 才显底) ── */
-.academy-entry { position: relative; margin: 2px 8px 2px; font-size: 0.75rem; }
+/* ── 左栏入口(单行紧凑条目,同侧栏 caption 密度;hover 才显底。
+   分组头与已置顶/运行区头同几何:图标 0.6875rem、起笔 6px、gap 4px ── */
+.academy-entry { position: relative; margin: 2px 0; font-size: 0.75rem; }
 .academy-entry-course { position: relative; }
+.academy-entry-head {
+  width: 100%; display: flex; align-items: center; gap: 4px; padding: 4px 6px;
+  border-radius: var(--tmd-radius-sm); text-align: left;
+  color: var(--tmd-fg); transition: background 0.12s;
+}
+.academy-entry-head:hover { background: var(--tmd-bg-hover); }
+.academy-entry-head .academy-entry-tt { flex: none; font-weight: 500; }
+.academy-entry-count { color: var(--tmd-fg-faint); font-size: 0.65625rem;
+  font-variant-numeric: tabular-nums; }
+.academy-entry-caret { margin-left: auto; flex: none; color: var(--tmd-fg-faint); }
 .academy-entry-btn {
   width: 100%; display: flex; align-items: center; gap: 7px; padding: 4px 7px;
   border-radius: var(--tmd-radius-sm); text-align: left;

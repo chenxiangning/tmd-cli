@@ -17,6 +17,7 @@ import type { Plugin } from "@kernel/plugin";
 import { listCodexSuggestions } from "./scanSuggestions";
 import { codexConfigEntry } from "./configGui";
 import { applyCodexChannel } from "./channelApply";
+import { CODEX_ACADEMY_COURSE } from "./academy/academyCatalog";
 import { ProviderChannelsCard } from "@plugins/cli-shared/providerChannels";
 import { isJsonlSessionEmpty } from "../cli-shared/sessionEmpty";
 
@@ -182,5 +183,7 @@ export const cliCodexPlugin: Plugin = {
       readSessionUserMessages: readCodexUserMessages,
       readSessionEdits: readCodexSessionEdits,
     });
+    /* 学堂:codex 斜杠命令课程,注册一份目录,学堂 UI 零改动 */
+    ctx.registerAcademyCourse(CODEX_ACADEMY_COURSE);
   },
 };

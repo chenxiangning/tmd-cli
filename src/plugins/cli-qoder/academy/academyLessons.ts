@@ -1,0 +1,18 @@
+/**
+ * Qoder 学堂入门课 —— 8 课覆盖全部 6 章,首课欢迎/末课结业速查。
+ * 内容与 academyCatalog.ts 同源纪律(见其头注);chapter 指向目录章节 id。
+ */
+import type { AcademyCourse } from "@kernel/academy";
+
+type Lesson = AcademyCourse["lessons"][number];
+
+export const QODER_ACADEMY_LESSONS: Lesson[] = [
+  { id: "welcome", title: "qoder 是什么", sub: "1 分钟", goal: "qodercli 是 Qoder 的终端编程 agent:你用自然语言下指令,它读代码、改文件、跑命令。学完这课你会发出第一条指令,并分清两套命令面。", points: ["直接打字描述任务,回车发送——不需要任何命令也能干活", "会话内斜杠 <b>/</b> 开头是命令,管会话、模型、上下文这些「工具箱」本身;终端里 <b>qodercli &lt;子命令&gt;</b> 则管账号、版本和一次性任务", "本学堂 6 章 38 条命令;先混个脸熟,用到了再回来查", "<b>qoder ide</b> 打开的是 Qoder IDE,不在这门课的范围"], demo: [["帮我看看这个仓库的结构", "agent 开始读目录并给出概览(直接对话即可,无需命令)"]], practice: "/rename 我的第一次对话", practiceWhy: "给会话起个一眼能认的名字,一周后 /resume 不抓瞎。" },
+  { id: "sessions", title: "会话:开始、续接与找回", sub: "约 2 分钟", goal: "会话是你和 agent 的连续工作现场。学完这课你会:开新会话、续最近的、找回旧的、导出成果。", chapter: "sessions", points: ["<b>/new</b> 换任务先开新会话,旧的完整留盘", "<b>/continue</b> 秒回当前项目最近一次现场", "<b>/resume</b> 开浏览器挑历史会话;侧栏点一下等效", "<b>/copy 2</b> 复制倒数第二条回复;导出全文用 <b>/export</b>"], demo: [["/new", "新会话已开始"], ["/resume", "打开会话浏览器(按时间列出历史会话)"]], practice: "/continue", practiceWhy: "体验零成本续接:昨天关终端前的现场一条命令回来。" },
+  { id: "context", title: "上下文与记忆:长任务的续航", sub: "约 3 分钟", goal: "上下文是 agent 的工作记忆。学完这课你会:初始化项目说明书、看余量、压缩续命、写持久记忆。", chapter: "context", points: ["<b>/init</b> 让 agent 自己写 AGENTS.md,一次交代项目约定", "<b>/context</b> 看窗口占用,70% 之前主动压最从容", "<b>/compact</b> 压缩有损,关键约束先落盘再压", "<b>/memory add</b> 把纠正过的偏好写进持久记忆,之后会话自动遵守"], demo: [["/context", "显示上下文窗口占用图表"], ["/memory add 本仓库测试一律用 vitest", "已写入持久记忆"]], practice: "/context", practiceWhy: "看看当前会话的占用构成,建立「余量感」。" },
+  { id: "model", title: "模型与体验:智商、花费与手感", sub: "约 2 分钟", goal: "会切模型、会调推理档,顺手把主题和键位调舒服——这是你每天要坐几小时的地方。", chapter: "model", points: ["<b>/model</b> 会话内切模型即时生效;启动可用 -m 指定", "<b>/effort</b> 管思考多深,<b>/fast</b> 管整体快慢:小活 fast,难题高 effort", "<b>/context-window</b> 只在自动探测不准时手动设", "<b>/theme</b> 与 <b>/vim</b> 各调一次就够,别让手感事占用第二天的注意力"], demo: [["/model", "打开模型配置选择"], ["/effort high", "推理强度已调高"]], practice: "/model", practiceWhy: "看看你有哪些模型,想清楚哪类活配哪一档。" },
+  { id: "plan", title: "计划、审查与委派", sub: "约 3 分钟", goal: "先想清楚再动手:计划模式管节奏,review/diff 管质量,btw/subtask 管不碰主线并行。", chapter: "plan", points: ["<b>/plan</b> 大改动先出方案聊定再放行,成本最低的返工是动手前", "<b>/review</b> 机器初筛出可执行清单,<b>/diff</b> 提交前确认改动面", "<b>/btw</b> 旁路插问不污染主线上下文", "<b>/subtask</b> 派带完整上下文的子代理,结果自动回主线"], demo: [["/plan", "计划模式已开启"], ["/diff", "显示未提交的改动"]], practice: "/plan", practiceWhy: "下次改复杂模块前先在计划模式里聊定方案。" },
+  { id: "eco", title: "扩展与技能:能力外挂", sub: "约 2 分钟", goal: "MCP、技能、hooks、agents 是 qoder 的四个外挂面;会看状态、会刷新,装完的东西才算真装上。", chapter: "eco", points: ["<b>/mcp reload</b> 配置改动后重载,list 看接入状态;初次添加走终端 qodercli mcp add", "<b>/skills link</b> 本地技能目录直挂,开发闭环秒级", "<b>/hooks</b> 面板管事件钩子;Claude Code 的钩子可 qodercli hooks migrate 一键迁移", "<b>/commands</b> 装完外挂后刷新命令表,是验收动作"], demo: [["/mcp list", "列出已配置的 MCP 服务器与工具"], ["/commands", "命令表已重载并列出全部可用命令"]], practice: "/mcp list", practiceWhy: "看看你已经挂了哪些外接工具,用起来心里有数。" },
+  { id: "ops", title: "会话外:账号、版本与一次性任务", sub: "约 2 分钟", goal: "这些不在会话里敲,在终端直接跑 qodercli <子命令>:管账号、管版本、干一次性任务。", chapter: "ops", points: ["<b>qodercli login</b> 先登录,wiki 等功能没登录直接拒绝", "<b>qodercli update --check</b> 先查更;回滚用 <b>rollback</b>,tmd-cli 引擎卡的更新按钮调的就是 update", "<b>qodercli usage</b> 看本周期用量,额度心里有数", "<b>qodercli commit</b> AI 生成提交信息并提交;<b>security scan</b> 与 <b>wiki</b> 是提交前/接手项目的两件套"], demo: [["qodercli update --check", "提示可用版本号(或已是最新)"], ["qodercli commit", "生成提交信息并完成 git commit"]], practice: "qodercli usage", practiceWhy: "看看本周期用了多少,体会用量仪表的价值。" },
+  { id: "graduation", title: "结业:速查表与下一步", sub: "1 分钟", goal: "全部章节过完。这张卡是每章最常用命令;完整指南在左栏学堂菜单里随时可查。", points: [], cheat: true },
+];

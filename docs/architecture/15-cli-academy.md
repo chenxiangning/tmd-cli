@@ -1,6 +1,6 @@
 # 15 — CLI 学堂(cli-academy)契约
 
-日期:2026-09-25 · 状态:已落地(阶段 1-3;多 CLI 接入面随 claude/codex/pi 供给扩展)
+日期:2026-09-25 · 状态:已落地(阶段 1-3;2026-09-26 起 9 家 cli-* 全量供给课程:omp/pi/claude/codex/kimi/qoder/grok/opencode/dsh)
 
 ## 定位
 
@@ -27,7 +27,7 @@
 
 ### 消费方(academy 插件)
 
-- 挂点:`leftSidebar.section`(order -1,左栏顶部入口;无课程渲染 null)/`overlay`(order 45,入门课向导)/`registerTabContent("academy.guide")`(指南 tab,payload `{cliId}`,tab id `academy:<cliId>`)。
+- 挂点:`leftSidebar.section`(order -2,排在搜索与工作区之前;分组头「学堂 N」可折叠,折叠态持久化 `tmd.academy.entryCollapsed`,语义同 workspace/sectionCollapsed 先例;无课程渲染 null)/`overlay`(order 45,入门课向导)/`registerTabContent("academy.guide")`(指南 tab,payload `{cliId}`,tab id `academy:<cliId>`)。
 - 进度:localStorage `tmd.academy.progress.v1`,按 cliId 分桶 `{done: lessonId[], cur}`;快照引用稳定(缺省桶 EMPTY 常量,useSyncExternalStore 约束);仅首次完成推进 cur。
 - 练习「试一试」:`composerInsertRef` 插命令 + rAF 后 `composerWakeRef("/")`(同帧连调会被 composer 非函数式 setValue 陈旧闭包覆盖——审查 P1 实证);无 composer 挂载时静默跳过。
 - 课点富文本:数据侧仅允许 `<b>`;渲染 esc 全量后放行 `<b>`(lessonPointHtml)。
@@ -46,4 +46,4 @@
 
 ## 二期(未做)
 
-en/ja 词典;composer 抽屉详情卡;openPanel 徽章;claude/codex/pi 课程(pi 已接入 0.84.1,54bed23;claude/codex 待);课程版本失效提示(sourceVersion vs 探针版本)。
+en/ja 词典;composer 抽屉详情卡;openPanel 徽章;课程版本失效提示(sourceVersion vs 探针版本)。
