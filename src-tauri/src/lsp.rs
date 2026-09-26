@@ -6,7 +6,7 @@
 //! 同 key 幂等 spawn(活着直接 Ok),进程退出自动摘除,重 spawn 即重启。
 //!
 //! 事件(event_sink 双扇出):lsp://message {key,payload} 完整 JSON 文本、
-//! lsp://stderr {key,text} 服务端日志行、lsp://exit {key,code}。
+//! lsp://exit {key,code};stderr 只排空不转发(前端无消费面)。
 //! server 语义级关停(shutdown/exit 通知)是前端的事;lsp_stop 只管杀树
 //! (kill_tree;管道随之 EOF,reader 线程自然收尾)。
 
@@ -37,13 +37,6 @@ static REGISTRY: LazyLock<Mutex<HashMap<String, LspProc>>> =
 struct MessageEvent<'a> {
     key: &'a str,
     payload: &'a str,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct TextEvent<'a> {
-    key: &'a str,
-    text: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -143,22 +136,11 @@ pub(crate) fn spawn_lsp(
         );
     });
 
-    // stderr 线程:服务端日志行透传(调试面;前端默认忽略)。
-    let key_err = key_owned;
-    let app_err = app.clone();
+    // stderr 线程:排空管道,防语言服务器日志撑爆 OS pipe 缓冲卡死进程;
+    // 前端无消费面(onLspStderr 已删),读后丢弃。
     std::thread::spawn(move || {
-        let mut text = String::new();
-        let _ = stderr.read_to_string(&mut text);
-        if !text.is_empty() {
-            event_sink::emit(
-                &app_err,
-                "lsp://stderr",
-                &TextEvent {
-                    key: &key_err,
-                    text,
-                },
-            );
-        }
+        let mut sink = String::new();
+        let _ = stderr.read_to_string(&mut sink);
     });
 
     REGISTRY.lock().insert(
