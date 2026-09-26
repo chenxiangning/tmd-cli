@@ -161,6 +161,17 @@ function ensurePanelPinned(id: string): void {
   if (!state.pinnedIds.has(id)) togglePinned(id);
 }
 
+/** rail 直挂动作(sidebarActions.rail)的钉住登记:与面板同规则 —— persisted
+ *  清单存在即权威(缺 id = 不钉,可经 ⋯ 菜单勾回),清单缺失回落 pinnedByDefault;
+ *  只入 state 不落盘,用户首次勾选才写 tmd.filePanel.pinned.v1。 */
+export function registerRailActionPin(id: string, pinnedByDefault = true): void {
+  const pinned = persistedPinnedIds ? persistedPinnedIds.has(id) : pinnedByDefault;
+  if (pinned && !state.pinnedIds.has(id)) {
+    state.pinnedIds = new Set([...state.pinnedIds, id]);
+    commit();
+  }
+}
+
 export function getFilePanels(): readonly FilePanelContribution[] {
   return state.panels;
 }

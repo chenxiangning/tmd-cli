@@ -9,6 +9,7 @@
 
 import type { ComponentType } from "react";
 import { createSubscribable } from "./subscribable";
+import { registerRailActionPin } from "./filePanel";
 
 /** 动作图标的最小 props 面(兼容 @phosphor-icons-react 图标组件)。 */
 type SidebarActionIcon = ComponentType<{
@@ -49,6 +50,9 @@ export function registerSidebarAction(action: SidebarAction): void {
   state.actions = [...state.actions, action].sort(
     (a, b) => (a.order ?? 0) - (b.order ?? 0),
   );
+  /* rail 直挂动作与右栏面板共用同一份钉住清单:登记即按同规则入钉,
+     ⋯ 菜单可勾选,外显 = 钉住 ∪ 激活(见 PanelRail)。 */
+  if (action.rail) registerRailActionPin(action.id);
   store.commit({ actions: state.actions });
 }
 

@@ -17,7 +17,7 @@ import {
   useFilePanel,
   type FilePanelContribution,
 } from "@kernel/filePanel";
-import { useSidebarActions } from "@kernel/sidebarActions";
+import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { useEditorTabs } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import { FileActionsBar } from "./FileActionsBar";
@@ -33,6 +33,10 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
   /* rail 直挂动作(如 WSL):active() 多依赖中央 tab 态,订阅 tabs 保重渲。 */
   const railActions = useSidebarActions().filter((a) => a.rail);
   useEditorTabs();
+  /* 外显动作 = 钉住 ∪ 激活(与面板 tab 同规则;未钉可经 ⋯ 菜单勾回)。 */
+  const visibleRailActions = railActions.filter(
+    (a) => pinnedIds.has(a.id) || (a.active?.() ?? false),
+  );
 
   /* 外显 tab = 已钉住 + 当前激活(未钉也临时外显) */
   const visiblePanels = panels.filter(
@@ -79,7 +83,7 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
       </div>
 
       {/* rail 直挂动作(sidebarActions.rail):面板 tab 组之后、分隔线之前 */}
-      {railActions.map((action) => {
+      {visibleRailActions.map((action) => {
         const Icon = action.icon;
         const isActive = action.active?.() ?? false;
         return (
@@ -120,6 +124,7 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
           mode={mode}
           pinnedIds={pinnedIds}
           panels={panels}
+          railActions={railActions}
           position={overflowPos}
           onClose={() => setOverflowPos(null)}
         />
@@ -133,16 +138,34 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
  * 跳出 rail 层叠上下文,杜绝被文件树压住/背景透明;自 rail 向左弹出。
  * 行点击 = 激活该面板(未钉则顺带钉上);复选框点击 = 仅切换钉住状态,菜单不关。
  */
+/** ⋯ 菜单行激活按钮的内联样式(面板行与 rail 动作行共用,复刻原 flex 布局)。 */
+const MENU_ITEM_BUTTON_STYLE = {
+  flex: "1 1 auto",
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  minWidth: 0,
+  padding: 0,
+  border: "none",
+  background: "none",
+  font: "inherit",
+  color: "inherit",
+  cursor: "inherit",
+  textAlign: "left",
+} as const;
+
 function PanelOverflowMenu({
   mode,
   pinnedIds,
   panels,
+  railActions,
   position,
   onClose,
 }: {
   mode: string;
   pinnedIds: ReadonlySet<string>;
   panels: readonly FilePanelContribution[];
+  railActions: readonly SidebarAction[];
   position: { x: number; y: number };
   onClose: () => void;
 }) {
@@ -175,20 +198,7 @@ function PanelOverflowMenu({
               <button
                 type="button"
                 role="menuitem"
-                style={{
-                  flex: "1 1 auto",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  minWidth: 0,
-                  padding: 0,
-                  border: "none",
-                  background: "none",
-                  font: "inherit",
-                  color: "inherit",
-                  cursor: "inherit",
-                  textAlign: "left",
-                }}
+                style={MENU_ITEM_BUTTON_STYLE}
                 onClick={() => {
                   setFilePanelMode(panel.id);
                   if (!isChecked) togglePinned(panel.id);
@@ -220,6 +230,52 @@ function PanelOverflowMenu({
               </span>
             </div>,
           ];
+        })}
+        {/* rail 直挂动作行:点击 = 触发动作(不开面板模式),勾选 = 钉/取钉 rail 外显。 */}
+        {railActions.map((action) => {
+          const Icon = action.icon;
+          const isActive = action.active?.() ?? false;
+          const isChecked = pinnedIds.has(action.id);
+          return (
+            <div
+              key={action.id}
+              className={`panel-overflow-item${isActive ? " is-active" : ""}`}
+              data-action-id={action.id}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                style={MENU_ITEM_BUTTON_STYLE}
+                onClick={() => {
+                  action.onSelect({ x: position.x, y: position.y });
+                  onClose();
+                }}
+              >
+                <span className="panel-overflow-item-icon" aria-hidden>
+                  <Icon aria-hidden />
+                </span>
+                <span className="panel-overflow-item-label">{t(action.label)}</span>
+              </button>
+              <span
+                className={`panel-overflow-item-check${isChecked ? " is-checked" : ""}`}
+                role="checkbox"
+                aria-checked={isChecked}
+                tabIndex={0}
+                title={t("钉到工具条")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePinned(action.id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== " " && e.key !== "Enter") return;
+                  e.preventDefault();
+                  togglePinned(action.id);
+                }}
+              >
+                {isChecked ? <Check aria-hidden /> : null}
+              </span>
+            </div>
+          );
         })}
       </div>
     </>,
