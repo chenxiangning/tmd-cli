@@ -4,6 +4,7 @@ use serde_json::json;
 use tauri::{AppHandle, Manager};
 
 use super::{conn, devices, pair, server, state};
+use crate::app_setup::safe_eprintln;
 
 /// 设置里的 Web 访问开关(M1 仅内网;settings.ts 同步增加 webAccessEnabled 字段)。
 fn web_enabled(settings: &serde_json::Value) -> bool {
@@ -42,7 +43,7 @@ pub(crate) async fn web_access_start(
         /* dev 便捷:桥一起即出 offer 到 stderr(含配对码,仅 debug 构建;
         release 不编译,生产零泄漏)。脚本 e2e 从日志取链。 */
         if let Ok((url, _code, _exp)) = pair::mint_offer(&app) {
-            eprintln!("[web-bridge] dev pairing offer: {url}");
+            safe_eprintln(&format!("[web-bridge] dev pairing offer: {url}"));
         }
     }
     Ok(Some(info))

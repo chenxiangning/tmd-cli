@@ -15,6 +15,7 @@
 //! 设置 schema 归前端 kernel/settings.ts(settings.rs 设计决策:Rust 只透传 Value),
 //! 本模块按 camelCase 键取 networkProxyEnabled / networkProxyUrl。
 
+use crate::app_setup::safe_eprintln;
 use std::sync::{LazyLock, Mutex};
 
 const PROXY_ENV_KEYS: [&str; 8] = [
@@ -175,7 +176,7 @@ pub fn apply(config: &ProxyConfig) -> Result<(), String> {
 /// 不能因单个插件域的非法值拒绝整棵设置树的落盘。
 pub fn apply_and_report(settings: &serde_json::Value) {
     if let Err(error) = apply(&ProxyConfig::from_settings(settings)) {
-        eprintln!("[proxy] 应用网络代理失败: {error}");
+        safe_eprintln(&format!("[proxy] 应用网络代理失败: {error}"));
     }
 }
 

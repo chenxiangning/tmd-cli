@@ -6,6 +6,16 @@ use tauri::Manager;
 
 use crate::{now_millis, session, ssh, AppState};
 
+/// 后台任务安全打印:stderr 写失败(断管道/无读者)只忽略不 panic。
+/// eprintln! 在写失败时 panic,agent/桥类长活任务里等于埋雷
+/// (panic 钩子再写 stderr 则二次 panic → abort)。新代码一律用本助手。
+pub(crate) fn safe_eprintln(msg: &str) {
+    use std::io::Write;
+    let mut err = std::io::stderr().lock();
+    let _ = writeln!(err, "{msg}");
+    let _ = err.flush();
+}
+
 /// panic 落盘钩子:消息/位置/线程追加到 `~/.tmd-cli/panic.log`(上限 1MB 截断)。
 ///
 /// 背景(2026-09-03 崩溃归因):wry WKURLSchemeHandler 竞态 panic 发生在 tokio
@@ -31,7 +41,15 @@ pub(crate) fn install_panic_logger() {
             "[{}] thread '{thread_name}' panicked at {location}: {payload}\n",
             now_millis()
         );
-        eprint!("{line}");
+        /* 钩子绝不允许再 panic:stderr 断管道(终端关闭后 app 转后台孤儿)
+         * 时 eprint! 自身会 panic → 双重 panic → abort(2026-09-26 SIGABRT
+         * 实证,栈底 relay_agent eprintln)。一律错误忽略直写。 */
+        {
+            use std::io::Write;
+            let mut err = std::io::stderr().lock();
+            let _ = err.write_all(line.as_bytes());
+            let _ = err.flush();
+        }
         if let Some(parent) = log_path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }

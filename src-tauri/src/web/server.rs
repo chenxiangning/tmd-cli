@@ -18,6 +18,7 @@ use tauri::AppHandle;
 use tokio::sync::{oneshot, watch};
 
 use super::{bind, file, gate, pair, state::WebAccessInfo, ws};
+use crate::app_setup::safe_eprintln;
 
 /// Web 表面 CSP:无 Tauri 注入,桥自发;WS 仅允许同 origin。
 const CSP: &str = "default-src 'self'; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self'; font-src 'self' data:; connect-src 'self' ws: wss:";
@@ -53,7 +54,7 @@ pub(super) async fn serve(
     let _ = std::fs::write(&port_file, port.to_string());
     let url = format!("http://{lan_ip}:{port}/?token={token}");
     /* 不把含 token 的完整 URL 打进 stderr 日志(隐私)。 */
-    eprintln!("[web-bridge] LAN: http://{lan_ip}:{port}/");
+    safe_eprintln(&format!("[web-bridge] LAN: http://{lan_ip}:{port}/"));
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
     let (stop_watch, _) = watch::channel(false);
     let ctx = WebCtx {
