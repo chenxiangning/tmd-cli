@@ -19,6 +19,7 @@
 > 2026-09-19 补校:文件标记插件(marks,行间锚点/跨文件聚合/芯片条 staging 发送/指纹重锚/终端回链)、全文搜索面板与文件名快开(⇧⌘F/⌘P,Rust fs_search 即时扫描)、Markdown 预览 markdown-it 快路径(常规块单遍 HTML 直渲染,富块留 react-markdown)、代码编辑器扩语言至 25 家 + 行内查找 + 定位行、git 面板内工具条(顶栏嵌入段下移,聚合数字三类型化下拉)、会话状态巡航尾读尺寸闸(omp/pi/claude/qoder/codex 五家接闸,重扫读头 mtime 增量缓存)、Web 远程访问桥 M1/M2、会话看板插件;插件计数 27→32(10 engine / 18 feature / 3 core / 1 local,新增 marks/search/web-access/session-board/lsp)。
 
 > 2026-09-25 补校:自建中继「部署历史」落盘(settings.relayDeployHistory,一键部署成功后 Rust 写连接信息+密码,不含私钥内容,明文纪律同 ssh.hosts;历史列表点选整表回填免重输,上限 10 条);外网 tab「使用流程」文案大白话重写;远程控制徽标迁顶栏左区最左 + 点击深链设备 tab;图标装饰 7→12 键。
+> 2026-09-27 全量补校(0.2.x 增量域):CLI 学堂(academy)、统一搜索折叠入口、会话历史检索(session-search)、跨引擎接力(session-relay)、审批收件箱(approval-inbox)、提示词增强(prompt-enhancer)、系统通知(notify)、异常退出 toast、会话卫生清扫、Worktree 关联管理(常驻区/三分区/侧栏归簇)、右缘面板 rail、部署历史含口令回填、手机截图注入;插件计数 32→38(10 engine / 24 feature / 3 core / 1 local)。契约沉淀:`docs/architecture/15`(学堂)、`16`(worktree)、`12`(部署历史与凭据口径)。
 
 ## 工作区会话
 - 异常退出通知与一键续聊(ExitSessionToast):PTY 退出码打通(portable-pty → pty://exit 载荷),内核补发 sessionExitedDetail 详情事件;非 0/非 130 异常退出弹右下角 toast(12s TTL),续聊钮 = openDiskSession 原样 resume(shell/无磁盘身份不渲染)
@@ -27,6 +28,8 @@
 - 添加工作区(目录选择器),工作区即会话容器;持久化 `~/.tmd-cli/workspaces.json`(列表 + 激活项,Rust 侧临时文件 + rename 原子写)
 - 默认工作区兜底:列表缺失时自动补建 `~/.tmd-cli/default` 于首位,删除后重启重建
 - 工作区卡片:双态文件夹图标 + 名称 + Default badge
+- 统一搜索折叠入口(search 插件,leftSidebar.section order -1):左栏顶部单行条目,展开内联列三项 —— 全文搜索 ⇧⌘F / 文件名快开 ⌘P / 会话历史检索 ⌘O;标题与键位随命令注册表实况(经命令分发,插件拔出即无该项),折叠态持久化
+- CLI 学堂入口(academy 插件,leftSidebar.section order -2):侧栏 caption 同款单行条目(小图标 + 课名 + 迷你进度条 + 小字百分比,hover 才显底);点开进指南中央 tab,入门课向导走 overlay;九家 CLI 课程由各 cli-* 插件经 registerAcademyCourse 供给,kernel 零 CLI 语义(契约见 architecture/15)
 - 工作区 hover 动作组:切到主区 / 刷新会话(重扫磁盘历史) / 新建会话菜单
 - 工作区右键菜单与「+」等效;行双击同为折叠 toggle
 - 工作区折叠/展开:单卡 toggle + 全部折叠/展开按钮,折叠态持久化;未设置过折叠态的工作区默认折叠
@@ -85,12 +88,13 @@
 - 会话输出常驻订阅:spawn 起即入内核缓冲,与幕布挂载无关;切换会话重挂载经缓冲整段回放,切回不黑屏不重载
 - 幕布加载进度条全程真实化:有缓冲走分块回放(128K 块解析进度),冷启/回放尽走流式字节计数(0.5s 静默判就绪,12s 兜底防卡死);就绪锁保证遮罩撤下后实时字节不再重提遮罩,回放未竟的实时字节排队保序补写
 - 内置终端会话:宿主机 shell(bash/zsh,默认登录 shell)以第三类一等会话与 CLI 会话并列;中央 tab 图标「终端·{目录简称}」、侧栏💻徽标单列;目录不可访问 / PTY 失败即销毁该 shell 会话项
-- 内置终端入口:会话头部左区「新建 tab」并列「新建终端 tab」(⌥ 快捷变体),不挤占 CLI 列表
+- 内置终端入口:右缘面板 rail 直挂动作(点击聚焦最新 shell 会话,⌥ 点击强制新建),不挤占 CLI 列表
 - 近期会话:欢迎页展示磁盘最近会话,可快速进入
 - 会话管理模式:工作区行动作组「会话管理」开关进入,拖选多选(锚点 key 防重排错选),批量归档 / 批量删除(武装态对齐 danger token);归档容量护栏 200 条
 - 归档视图:侧栏「已归档」反向只看归档项,与默认视图各自独立分页(配额起步、「更多」翻倍);归档 = 应用侧显示语义,不写回 CLI 磁盘;直接列磁盘会话的其余消费方(欢迎页最近会话)不在过滤范围(有意边界);归档会话恢复对话(任何路径的身份绑定)即解除归档,生命周期链重启(待运行 ⇄ 运行中),干净退出再归档
 - 侧栏运行区:「已置顶」与工作区之间自动聚集段,运行中 / 结束未查看的活会话跨工作区汇入,已查看即自动回工作区分组;一个会话同一时刻只在一个区域(成员判定同源 isRunningZoneCandidate);置顶优先级最高不进区,归档全域隐藏;段折叠 localStorage 持久化,纯自动投影无持久态
 - 运行区行内置顶:行内扎点点击即置顶(与工作区行同语义),置顶即离开本区
+- 会话卫生清扫:超期(默认 24h,时窗可配)未活跃会话自动归档 + 空会话(零用户消息,profile.isDiskSessionEmpty 钩子,9 引擎接钩)自动删除,挂磁盘扫描结算点触发、零轮询;keep 覆盖层护手动取消;开关与时窗在设置行为 tab(spec 2026-09-19-session-hygiene-auto-archive-design)
 
 ## Ask 等待确认与提示音
 - 系统通知(notify 插件):窗口失焦时桌面级提醒——Ask 等待 / 轮次结束(仅未查看)/ 会话退出(默认关)/ 额度撞墙预警(激活会话供应商 10 分钟轮询,窗口已用 % 过阈一次/窗口周期,0=关);通道 = tauri-plugin-notification 经 kernel/ipc 薄包装,web 态不发射
@@ -114,7 +118,8 @@
 - 提示音设置兼容:非法值回落默认,旧配置无损加载
 
 ## 对话框(Composer)
-- 跨引擎接力(session-relay 插件):命令 `session-relay.to-engine` 把当前会话最近 10 条用户输入 + 引擎/标题/模型拼成接力提示词,可预览编辑后向目标引擎的新会话(同 cwd/工作区)作为首条消息发出
+- 跨引擎接力(session-relay 插件):命令 `session-relay.to-engine` 把当前会话最近 10 条用户输入 + 引擎/标题/模型拼成接力提示词,可预览编辑后向目标引擎的新会话(同 cwd/工作区)作为首条消息发出;首发走 composer 发送契约,重试复用会话不堆空壳
+- 增强提示词(prompt-enhancer 插件):composer 左下 ✦ 入口,取输入框草稿交一次性 CLI 改写(proc_communicate 通用原语,8 家 argv 组装收口插件侧),并排对照后一键整替草稿
 
 - 富输入 textarea,发送快捷键可配置(Enter 发送/Shift+Enter 换行,或 ⌘/Ctrl+Enter 模式互换)
 - IME 组词期所有按键(Enter/↑↓/Tab/Esc)不拦截,全部交给输入法
@@ -153,6 +158,7 @@
 
 ## 审批线
 - 危险度分层(checkpoints risk):批内文件按路径正则(凭据/Shell 配置/CI/服务定义,保守 14 条)标「高危」红徽标 + tooltip,提示细读 diff;classifyRisk 纯函数宁漏勿扰
+- 审批收件箱(approval-inbox 插件):右栏「审批」页签聚合等待确认的会话(纯消费 kernel/askWatch 状态位,零新增检测),一键直达该会话并自由文本应答;boot 退订随 activate 返回
 
 - 批次定义:一轮对话(相邻两条用户消息之间)的所有 AI 文件改动为一个批次
 - 零变更轮不占时间线:纯阅读轮不产生账本条目;events 净零轮(写了又写回原样)落空 turn 行封口关闭该轮,写入轨迹留 edit 行可审计;批次序号 = 真实轮次,缺号可见
@@ -196,7 +202,10 @@
 - 会话时间线页签:面板「审批线|时间线」segmented 切换;按会话列出轮次批次,120 字内全文直显、超出三行截断点击展开,点击行定位到对话;引擎未声明消息读取能力时展示空态而非误报无记录
 
 ## Git 面板
-- Worktree 编排(工具条 TreeStructure 钮 → 管理弹窗):porcelain 列表(分支/detached/locked/prunable 徽标)、新建(-b 新分支基于 HEAD 或检出已有分支,目录名自动推导可改,创建即 addWorkspace 进侧栏)、移除(行内两段确认,不加 force)、清理悬空(prune);Rust 原语 `git_worktree_{list,add,remove,prune}` shell-out(commands_worktree 自 commands.rs 拆件)
+- Worktree 关联管理(契约见 `docs/architecture/16`):Rust 原语 `git_worktree_{list,add,remove,prune}` shell-out(commands_worktree + worktree_parse 纯函数,porcelain 解析 + 路径回贴输入前缀防 symlink 误判;写命令 run_mut 成功后 evict 缓存句柄);新建分支统一 `wt/` 前缀(裸名才加,自带命名空间原样),目录名自动推导可改,分支已存在预检给可行动指引,创建即 addWorkspace 进侧栏;移除 = 对称清理流(worktreeOps.removeWorktreeWithCleanup 两处 UI 共用:摘同 root 工作区 + 分支尾巴安全删 `-d`,未合并保留并说明,被其他树检出跳过)
+- Git 面板「工作树」常驻区(WorktreeZone,多树仓才出现):三态卡(主仓/当前/悬空)= 路径 + 分支 + 每树脏净徽章(+/- 计数)+ 动作(打开为工作区 / 在此树开终端 / 移除两段确认);弹窗(工具条 TreeStructure 钮)降级为「+ 新建」入口,增删清后 bumpGitRefresh 全区同步重拉
+- 分支列表按检出归属三分区:主仓检出 / 检出于某树(按树子组标注当前)/ 未检出(行尾「建树」预填弹窗检出已有分支);检出中分支不给删除钮(git 必拒);非仓/单树仓回退平铺零 UI 变更;同仓 worktree 列表面板期在途合并只 spawn 一次
+- 侧栏同仓归簇(workspace 插件):懒加载 worktree list 归簇(60s TTL + 失败 10s 负缓存),主仓卡在前 + worktree 卡平级跟随、上下虚线框共组,worktree 卡图标 GitFork;孤 worktree 平铺不框;roots 引用钉住 + setState 等值兜底(渲染循环防线)
 
 - 单视图三段:差异 / 分支 / 历史,外观对齐 codemoss(契约见 `openspec/changes/archive/2026-09-02-git-right-panel/`)
 - 勾选文件 + 写消息 + 提交一次完成;commit 执行权仅面板按钮,composer `/commit <msg>` 仅预填
@@ -236,6 +245,7 @@
 
 ## 文件与编辑器
 
+- 全文搜索面板与文件名快开(search 插件):⇧⌘F 全文(即时扫描 Rust `fs_search`,输入防抖 + 命中分组,点行开编辑 tab 定位行)/ ⌘P 文件快开(全仓模糊);浮层壳统一自靶关闭 + 容器级 Esc + Enter 首开 + 列举失败分流;入口收进侧栏统一搜索折叠菜单
 - 文件树:单层懒展开,目录排前;过滤仅隐藏 .git 目录与 .DS_Store,其余 dotfile 正常展示
 - 文件树右键:新建文件 / 新建文件夹 / 重命名 / 复制路径 / 在访达中显示 / 移入废纸篓;写操作全经 Rust fs_edit(绝对路径,禁 .git 段,写上限 16MB)
 - 树空白区右键:仅新建文件/新建文件夹两项(落树根);文件行上新建落其父目录;菜单 portal + Esc/背板关闭 + 视口夹取
@@ -304,7 +314,7 @@
 
 ## 插件市场(插排)
 
-- 插排 / 清单双视图,32 个注册插件可视化插拔(10 engine + 18 feature + 3 core + 1 local),写 settings.disabledPlugins,重启生效(运行期不热卸载)
+- 插排 / 清单双视图,38 个注册插件可视化插拔(10 engine + 24 feature + 3 core + 1 local;可拔面 = 引擎 10 + 功能 24 + local,核心 3 焊死),写 settings.disabledPlugins,重启生效(运行期不热卸载)
 - core 类焊死不可拔(composer / settings / welcome);engine / feature / local 可拔
 - 插排页双插排:内置插件一块(分类虚线分隔),本机插件(local 类)独立次级插排(品牌区「本机插件 · 免重启装载」)
 - 插件市场经标题栏插头按钮开合(整页替换、会话现场不丢);页头「重启应用」按钮带待生效计数一键重启
@@ -389,11 +399,11 @@
 - 窗口:默认 1440×900、最小 960×600;macOS 悬浮式标题栏,Windows 无系统装饰
 - Windows 自绘窗口控制:顶栏右侧最小化/最大化/关闭按钮组(macOS 用原生红绿灯);顶栏空白区为窗口拖拽区
 - 四栏布局可拖拽调宽,左/右栏折叠态 localStorage 持久化
-- 顶栏三区布局:左区与左栏同宽(macOS 红绿灯占位 + 插件贡献按钮簇 + 插件市场/回到首页按钮)、中区会话/编辑 tab 条靠左、右区与右栏同宽(右栏面板 tab + 插件贡献挂点)
+- 顶栏三区布局:左区与左栏同宽(macOS 红绿灯占位 + 插件贡献按钮簇〔远程控制徽标/内置终端/会话看板〕+ 插件市场/回到首页按钮)、中区会话/编辑 tab 条靠左、右区非面板动作与折叠钮(面板入口 2026-09-27 起不在顶栏)
 - 顶栏左/右缘侧栏折叠按钮:收起/展开左栏与右栏,图标随态切换
 - 文件预览为条件第四栏:有打开的文件 tab 才出现,夹于幕布与右栏之间,宽度可拖
 - 顶栏「回到首页⇄回会话」toggle:会话中记住当前会话回欢迎页,首页中切回原会话(已退出则保持首页原样);市场覆盖层开启时先收市场再切换
-- 右栏面板 tab 可钉住,溢出收进「⋯」菜单(菜单行点击激活并顺带钉住,复选框仅切钉住不收菜单;激活未钉面板临时外显;Esc/背板关闭)
+- 右缘面板 rail(2026-09-27,spec 2026-09-27-right-panel-rail-design;activity bar 形态):面板入口自顶栏右区迁窗口右缘常驻竖排工具条(30px,右栏收起也在),列表 = 钉住 ∪ 激活面板 + 横向分隔线 + ⋯ 溢出菜单(贴按钮左缘向左弹、纵向估高夹取);点击切面板并自动展开右栏(旧顶栏 tab 收起态点击无反馈的缺陷顺带根治);钉住语义与 localStorage `tmd.filePanel.pinned.v1` 零变更(⋯ 菜单行点击激活并顺带钉住,复选框仅切钉);rail 动作并入钉住管理,wsl 入 ⋯ 菜单可勾选
 - 幕布:⌘/Ctrl+F 呼出搜索框(即时命中,Enter 下一个/Shift+Enter 上一个,Esc 或 × 关闭并归还焦点);链接点击走系统浏览器;渲染层为 xterm 内建 DOM(2026-09-10 起弃用 WebGL:WKWebView atlas 长时间运行后静默损坏)
 - 幕布字体按平台:macOS Menlo 系 / Windows Cascadia Mono·Consolas / Linux DejaVu Sans Mono·Liberation Mono,13px,光标闪烁
 - 幕布滚动回放上界 5 万行,更早历史经滚顶「加载更早的输出」按钮翻页(RIS 重置整段重写幕布)

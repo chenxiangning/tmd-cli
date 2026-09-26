@@ -67,7 +67,7 @@
 
 ### 8. i18n 缺键(精确普查)
 
-- 口径:src 下 1589 个去重 t() 字面量键;en 词典 1443 键、缺 382;ja 缺 383。底稿 `openspec/changes/2026-09-20-022-polish/i18n-audit.txt`(每条带 MISS-EN/MISS-JA 标记 + 文件定位)。
+- 口径:src 下 1589 个去重 t() 字面量键;en 词典 1443 键、缺 382;ja 缺 383。底稿 `openspec/changes/archive/2026-09-20-022-polish/i18n-audit.txt`(每条带 MISS-EN/MISS-JA 标记 + 文件定位)。
 - 分布:welcome 63 / wallpaper 57 / wsl 49 / cli-omp 49 / web-access 42 / cli-config 24 / settings 15 / cli-shared 15 / git 12 / files 9 / kernel 8 / workspace 7 / assets 5 / cli-pi 4 / 其余零散。
 - 另:参数化键(t(composed) 形态)不在字面量口径内,git 域参数化文案需人工抽查。
 - `modelsConfig.ts:179-192` validateProviderInput 7 条校验文案 throw 硬编码中文不走 t(),同批处理。

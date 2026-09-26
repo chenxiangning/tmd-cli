@@ -1,6 +1,6 @@
 # M2 轻交互闭环 — mobile app
 
-> 日期:2026-09-22 · 状态:待评审开工
+> 日期:2026-09-22 · 状态:代码已落地(真机验收余 8 项:钥匙串重启免重配 / ask 应答链 / 发送链 / 锁屏通知 / 双端点竞速等,见 tasks.md)
 > 上游:总纲 `docs/superpowers/specs/2026-09-21-mobile-app-master-plan.md`(M1 已收口归档);设计 spec `2026-09-21-mobile-app-design.md`;M1 契约 `docs/architecture/12-web-remote-access.md`
 
 ## 目标

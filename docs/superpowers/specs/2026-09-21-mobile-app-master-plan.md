@@ -25,7 +25,7 @@
 
 | 里程碑 | 范围 | 通道 | 出口条件 | 变更提案 |
 |---|---|---|---|---|
-| **M1 配对底座** | 桌面身份/设备表/配对流/双凭据 gate/dispatch scope/hello caps/桌面配对 UI/壳脚手架 + transport 远程模式 + 配对屏(粘贴先行)/协议脚本;前置修复 relay loopback 断链(P1 存量) | LAN + relay 双通 | tasks.md §12 验证全绿:真机粘贴配对→授权→远程 home 列表→实况;两通道各通;撤销 4001;门禁全绿 | `openspec/changes/2026-09-21-mobile-app-m1-pairing/`(已出) |
+| **M1 配对底座** | 桌面身份/设备表/配对流/双凭据 gate/dispatch scope/hello caps/桌面配对 UI/壳脚手架 + transport 远程模式 + 配对屏(粘贴先行)/协议脚本;前置修复 relay loopback 断链(P1 存量) | LAN + relay 双通 | tasks.md §12 验证全绿:真机粘贴配对→授权→远程 home 列表→实况;两通道各通;撤销 4001;门禁全绿 | `openspec/changes/archive/2026-09-21-mobile-app-m1-pairing/`(已出) |
 | **M2 轻交互闭环** | 移动断点 UI(侧栏折叠/composer 自适应/ask 审批卡/RemoteHostBar 通道切换)/本地通知/相机扫码(若 M1 降级)/凭证 app-data + iOS 钥匙串/徽标设备名 hover/审批线摘要只读 | 双通 + 手动切换 UI | 终态清单 3、4、6 全绿 | M1 收口后另起 |
 | **M3 v1 发布候选** | 真机矩阵(主力 iPhone × iOS 版本)/长会话与大回放 soak/relay 自有 CF 部署文档化/architecture/12 契约定稿/版本发布/Android 壳评估(评估不承诺) | 双通 | 终态清单 1-6 全绿 + 发布物(侧载 ipa + 更新日志) | M2 收口后另起 |
 
@@ -59,5 +59,5 @@ graph LR
 
 ## 变更提案落点
 
-- M1:`openspec/changes/2026-09-21-mobile-app-m1-pairing/`(proposal + tasks 已出,待评审开工)。
+- M1:`openspec/changes/archive/2026-09-21-mobile-app-m1-pairing/`(proposal + tasks 已出,待评审开工)。
 - M2/M3:各起 `openspec/changes/YYYY-MM-DD-mobile-app-mN-*/`,在前一里程碑收口后细化;本总纲随里程碑推进回写状态。

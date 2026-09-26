@@ -291,7 +291,7 @@
 
   <div class="notes">
     <h2>设计要点与边界</h2>
-    <p style="font-size:12px;color:var(--fg-muted);margin-bottom:8px;"><b style="color:var(--fg);">实施注记(2026-09-25)</b>:落地时本页的「同意(y)/拒绝(n)」预设代发键<b style="color:var(--fg);">未实施</b> —— 各 CLI 键位语义不一(1/2/y/a/n/Esc),发错键 = 批错操作,沿用 M2 评审 A2 纪律(mobile 浮标同样只导航不代发);实际应答形态 = 自由文本(原样写入会话)+ 直达。落地记录:openspec/changes/2026-09-25-approval-inbox/。</p>
+    <p style="font-size:12px;color:var(--fg-muted);margin-bottom:8px;"><b style="color:var(--fg);">实施注记(2026-09-25)</b>:落地时本页的「同意(y)/拒绝(n)」预设代发键<b style="color:var(--fg);">未实施</b> —— 各 CLI 键位语义不一(1/2/y/a/n/Esc),发错键 = 批错操作,沿用 M2 评审 A2 纪律(mobile 浮标同样只导航不代发);实际应答形态 = 自由文本(原样写入会话)+ 直达。落地记录:openspec/changes/archive/2026-09-25-approval-inbox/。</p>
     <ul>
       <li><b>零新检测</b>:数据源就是现有 <code>askWatch</code> 的 <code>isWaitingConfirm</code>;私有 askMarks 已按 CLI 声明,收件箱不感知 CLI 私有格式,只消费状态位与页脚摘录(摘录取自检测时已剥 ANSI 的页脚窗,不再二次读屏)。</li>
       <li><b>作答纪律</b>:全部经 <code>host.writeSession</code>,作答即触发既有「写后抑制窗」(<code>ASK_REARM_SUPPRESS_MS</code>),残影重绘不会让卡片复燃。</li>
