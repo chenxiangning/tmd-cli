@@ -113,6 +113,7 @@
 - 提示音设置兼容:非法值回落默认,旧配置无损加载
 
 ## 对话框(Composer)
+- 跨引擎接力(session-relay 插件):命令 `session-relay.to-engine` 把当前会话最近 10 条用户输入 + 引擎/标题/模型拼成接力提示词,可预览编辑后向目标引擎的新会话(同 cwd/工作区)作为首条消息发出
 
 - 富输入 textarea,发送快捷键可配置(Enter 发送/Shift+Enter 换行,或 ⌘/Ctrl+Enter 模式互换)
 - IME 组词期所有按键(Enter/↑↓/Tab/Esc)不拦截,全部交给输入法

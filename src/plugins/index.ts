@@ -41,6 +41,7 @@ import { approvalInboxPlugin } from "./approval-inbox";
 import { academyPlugin } from "./academy";
 import { notifyPlugin } from "./notify";
 import { sessionSearchPlugin } from "./session-search";
+import { sessionRelayPlugin } from "./session-relay";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -79,4 +80,5 @@ export const allPlugins: Plugin[] = [
   academyPlugin,
   notifyPlugin,
   sessionSearchPlugin,
+  sessionRelayPlugin,
 ];

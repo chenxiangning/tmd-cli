@@ -51,7 +51,7 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
 
 ![审批线](docs/images/screenshot-checkpoints.png)
 
-**插件市场(插排)** —— 内置 28 位可视插拔(CLI 引擎 10 / 界面功能 15 / 核心系统 3 焊死),重启生效;本机插件(`~/.tmd-cli/plugins/`)免重启装载、对话即变自动重扫;在线市场入口预留
+**插件市场(插排)** —— 内置 29 位可视插拔(CLI 引擎 10 / 界面功能 16 / 核心系统 3 焊死),重启生效;本机插件(`~/.tmd-cli/plugins/`)免重启装载、对话即变自动重扫;在线市场入口预留
 
 ![插件市场](docs/images/screenshot-plugin-market.png)
 
@@ -92,6 +92,7 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
 - **CLI 独立配置(cli-config)**：图形化编辑各 CLI 本地配置文件(OMP / pi / Claude Code / Codex)——模型角色路由、撞墙自动回退与回退链、全局思考强度、符号风格等;保存即写回原文件,未知字段原样保留,不用记命令、不用手改磁盘文件。
 - **Ask 等待确认与提示音**：内核单点检测 PTY 流中 CLI 阻塞等待确认的界面标记，会话行绿色胶囊标签 + Ask/轮次结束两路提示音，后台失焦也计未读；系统通知（notify 插件）在窗口失焦时把 Ask 等待/轮次结束/会话退出与额度撞墙预警送出窗口（tauri-plugin-notification，仅在失焦时发送，设置页可分类开关）。全部可在设置页配置。
 - **会话历史检索(session-search)**：命令面板发起,按**你输入过的内容**全文检索当前工作区的磁盘历史会话(数据源 = 各 CLI profile 声明的用户消息解析器,与对话锚点栏同源);索引增量后台构建、mtime 缓存,命中即一键续聊。
+- **跨引擎接力(session-relay)**：额度撞墙/卡死/想换引擎时,命令一键把当前会话的「最近用户输入摘要」带到新引擎的新会话(同 cwd/工作区);摘要确定性拼装、可预览可编辑再发,零 AI 调用。
 - **只读状态栏**：模型 / 思考强度等状态由 CLI 插件声明的 `readSessionStatus` 适配器读取各家私有 session JSONL，内核不理解 CLI 私有格式，缺失时显示 `—`。
 - **右栏 Git 面板**：单视图三段(差异 / 分支 / 历史),外观对齐 codemoss;勾选文件 + 写消息 + 提交一次完成,支持 amend 与空提交防线;远端 fetch / pull / push 一键执行;历史视图 Graph 化(泳道拓扑 + ahead/behind「传入/传出」合成行),点击提交/文件开中央 diff tab(双栏并排对位:中央行号槽、红绿同行成对、词级下划线、自动换行开关落盘);commit 执行权仅在面板按钮,composer `/commit <msg>` 仅预填。契约见 `openspec/changes/archive/2026-09-02-git-right-panel/`。
 - **审批线(checkpoints)**:AI 改动按轮成批,右栏「审批线 / 时间线」+ 中央批审阅单;整批/按文件回退、应用、反悔恢复;events 双归因,非 git 工作区同样可用;影子对象库只写 blob,永不触碰用户仓库。
@@ -220,7 +221,7 @@ pnpm check:file-size      # 单文件 ≤300 行检查（CI 强制）
 
 ## 当前状态
 
-已落地:插件宿主与插件市场(33 个注册插件:CLI 引擎 10 + 界面功能 19 + 核心 3 + 本机插件加载器)、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/dsh/opencode)+ SSH 一等会话(russh 引擎)+ 内置终端(kind=shell)、PTY 全生命周期与会话输出落盘翻页、xterm 幕布、工作区 FLUX 时间轴会话列表(呼吸灯/状态 label/置顶/预算分页/自定分组)、顶栏会话 tab 条与会话 tab 平铺显示、Composer 全量(触发符/拖拽/截图/命令抽屉 v3/消息锚点栏/Quota/bracketed-paste,触发补全以 CLI 为真相源)、智能体/提示词资产库(!! / ## 消费)、CLI 独立配置(图形化编辑各 CLI 配置文件,模型角色路由 / 撞墙回退链)、本机插件(~/.tmd-cli/plugins/ 免重启装载 / 对话造插件 / 版本回退)、Ask 等待确认检测(字节流 + 屏幕态双通道)与双路提示音、右栏 Git 面板全量(差异/分支/历史 Graph 化/提交 diff 中央 tab 双栏并排/远端 fetch/pull/push/三区拖选批量与未跟踪删除)、文件树 + CodeMirror 编辑器 + 文件渲染档案(图片/PDF/表格/docx/结构化)+ Markdown 预览、文件 tab 右键菜单与编辑区最大化、审批线(checkpoints 账本:双归因/回退/应用/反悔/影子对象库)、主题引擎(31 个 VS Code preset)、全局界面字号与界面缩放、网络代理、欢迎页引擎选择器(全动作行 / RESUME / QUOTA / TOKENS)、只读 session 状态栏、全局快捷键与可视化改键、版本号弹窗与自动更新、记忆协调(Memory 面板 FTS 检索 / 胶囊 / 控制台)、Git 分支右键菜单与远端操作对话框、会话 tab 右键菜单、WSL 支持(本机 UNC + 远程 SSH 宿主 M1:连接/会话/历史/状态/只读文件通道)、工作区壁纸(本地图库 + 流体着色器,表面 token 打穿 + xterm 透底)、omp 历史会话预热接管秒开、dsh 会话流式输出、Web 访问与手机 App(设备扫码配对与 token 授权、内网直连 / Cloudflare / 自建中继一键 SSH 部署 + TLS 证书钉住;iOS / Android 原生壳:会话列表 / 实况+transcript 对话分层(markdown / 工具折叠组 / 随流生长)/ 审批卡 / 键盘工具条 / 横屏 / Git 面板 / 历史续聊;浏览器带 token 地址即用)。
+已落地:插件宿主与插件市场(34 个注册插件:CLI 引擎 10 + 界面功能 20 + 核心 3 + 本机插件加载器)、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/dsh/opencode)+ SSH 一等会话(russh 引擎)+ 内置终端(kind=shell)、PTY 全生命周期与会话输出落盘翻页、xterm 幕布、工作区 FLUX 时间轴会话列表(呼吸灯/状态 label/置顶/预算分页/自定分组)、顶栏会话 tab 条与会话 tab 平铺显示、Composer 全量(触发符/拖拽/截图/命令抽屉 v3/消息锚点栏/Quota/bracketed-paste,触发补全以 CLI 为真相源)、智能体/提示词资产库(!! / ## 消费)、CLI 独立配置(图形化编辑各 CLI 配置文件,模型角色路由 / 撞墙回退链)、本机插件(~/.tmd-cli/plugins/ 免重启装载 / 对话造插件 / 版本回退)、Ask 等待确认检测(字节流 + 屏幕态双通道)与双路提示音、右栏 Git 面板全量(差异/分支/历史 Graph 化/提交 diff 中央 tab 双栏并排/远端 fetch/pull/push/三区拖选批量与未跟踪删除)、文件树 + CodeMirror 编辑器 + 文件渲染档案(图片/PDF/表格/docx/结构化)+ Markdown 预览、文件 tab 右键菜单与编辑区最大化、审批线(checkpoints 账本:双归因/回退/应用/反悔/影子对象库)、主题引擎(31 个 VS Code preset)、全局界面字号与界面缩放、网络代理、欢迎页引擎选择器(全动作行 / RESUME / QUOTA / TOKENS)、只读 session 状态栏、全局快捷键与可视化改键、版本号弹窗与自动更新、记忆协调(Memory 面板 FTS 检索 / 胶囊 / 控制台)、Git 分支右键菜单与远端操作对话框、会话 tab 右键菜单、WSL 支持(本机 UNC + 远程 SSH 宿主 M1:连接/会话/历史/状态/只读文件通道)、工作区壁纸(本地图库 + 流体着色器,表面 token 打穿 + xterm 透底)、omp 历史会话预热接管秒开、dsh 会话流式输出、Web 访问与手机 App(设备扫码配对与 token 授权、内网直连 / Cloudflare / 自建中继一键 SSH 部署 + TLS 证书钉住;iOS / Android 原生壳:会话列表 / 实况+transcript 对话分层(markdown / 工具折叠组 / 随流生长)/ 审批卡 / 键盘工具条 / 横屏 / Git 面板 / 历史续聊;浏览器带 token 地址即用)。
 
 进行中:命令抽屉真机验收(余 5 项 `[V]`,openspec/changes/composer-command-drawer)与 CLI 交互式兼容性验证;其余变更契约已全部归档(openspec/changes/archive/)。
 
