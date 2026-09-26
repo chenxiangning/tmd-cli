@@ -40,6 +40,7 @@ import { promptEnhancerPlugin } from "./prompt-enhancer";
 import { approvalInboxPlugin } from "./approval-inbox";
 import { academyPlugin } from "./academy";
 import { notifyPlugin } from "./notify";
+import { sessionSearchPlugin } from "./session-search";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -77,4 +78,5 @@ export const allPlugins: Plugin[] = [
   approvalInboxPlugin,
   academyPlugin,
   notifyPlugin,
+  sessionSearchPlugin,
 ];
