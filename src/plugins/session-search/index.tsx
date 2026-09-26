@@ -25,6 +25,7 @@ export const sessionSearchPlugin: Plugin = {
     ctx.registerCommand({
       id: "session-search.open",
       title: t("搜索会话历史…"),
+      keybinding: "Cmd+O",
       run: openSessionSearch,
     });
     ctx.contribute("overlay", { order: 60, component: SessionSearchOverlay });

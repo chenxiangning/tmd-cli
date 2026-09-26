@@ -11,6 +11,7 @@ import type { Plugin } from "@kernel/plugin";
 import { t } from "@kernel/i18n";
 import { SearchPanel } from "./SearchPanel";
 import { QuickOpen } from "./QuickOpen";
+import { SearchHubEntry } from "./HubEntry";
 import { closeSearchOverlay, openSearchOverlay, useSearchOverlay } from "./overlayStore";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
@@ -45,6 +46,8 @@ export const searchPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx) {
+    /* 统一搜索折叠入口:左栏最顶(order -2,学堂 -1 之上),让三个搜索能力可被发现。 */
+    ctx.contribute("leftSidebar.section", { order: -2, component: SearchHubEntry });
     ctx.contribute("overlay", { order: 50, component: SearchOverlay });
     ctx.registerCommand({
       id: "search.panel",
