@@ -1,4 +1,5 @@
 import { GrokGlyph } from "../cli-shared/engineGlyphs";
+import { GROK_ACADEMY_COURSE } from "./academy/academyCatalog";
 import {
   grokUserMessageLine,
   readUserMessagesFromFile,
@@ -102,5 +103,7 @@ export const cliGrokPlugin: Plugin = {
       readDefaultStatus: readGrokDefaultStatus,
     };
     ctx.registerCliProfile(profile);
+    // 注册 grok 学堂课程(kernel AcademyCourse 契约,学堂 UI 零改动)
+    ctx.registerAcademyCourse(GROK_ACADEMY_COURSE);
   },
 };

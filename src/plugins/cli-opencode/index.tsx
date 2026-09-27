@@ -11,6 +11,7 @@ import {
 } from "./db";
 import { opencodeDefaultModel, readOpencodeConfig } from "./config";
 import { listOpencodeSuggestions, OPENCODE_COMMAND_SUGGESTIONS } from "./commands";
+import { OPENCODE_ACADEMY_COURSE } from "./academy/academyCatalog";
 
 /**
  * opencode CLI 插件(anomalyco/opencode,本机 1.18.25 实证,2026-09-05):
@@ -34,6 +35,8 @@ export const cliOpencodePlugin: Plugin = {
     category: "engine",
   },
   activate(ctx) {
+    /* CLI 学堂课程:29 内置斜杠命令(真源 = 二进制注册表,见 academy/academyCatalog.ts 头注)。 */
+    ctx.registerAcademyCourse(OPENCODE_ACADEMY_COURSE);
     ctx.registerCliProfile({
       id: "opencode",
       docsUrl: "https://opencode.ai/docs",

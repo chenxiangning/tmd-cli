@@ -28,6 +28,7 @@ import {
 import { setFilePanelMode } from "@kernel/filePanel";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { copyText } from "@kernel/clipboard";
 import { removeWorkspace, setActiveWorkspace, setWorkspaceAlias, workspaceDisplayName, type Workspace } from "@kernel/workspace";
 
 /** 菜单定位:以点击点为左上,按估算尺寸视口内夹取(同 wsmenu 模式)。 */
@@ -153,7 +154,7 @@ export function WorkspaceRowMenu({
           icon={<Copy size="0.8125rem" />}
           label={t("复制路径")}
           busy={busy}
-          onClick={() => void run(() => navigator.clipboard.writeText(ws.root))}
+          onClick={() => void run(() => copyText(ws.root))}
         />
         <div className="wsmenu-divider" />
         <RowMenuItem

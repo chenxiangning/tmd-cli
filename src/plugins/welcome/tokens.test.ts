@@ -5,14 +5,12 @@
 
 import { describe, expect, it } from "vitest";
 
+import { aggregateUsage, WINDOW_MS, type EngineLabel } from "./tokens";
 import {
-  aggregateUsage,
   extractUsageFromHead,
   parseUsageLine,
-  WINDOW_MS,
-  type EngineLabel,
   type UsageLine,
-} from "./tokens";
+} from "../cli-shared/sessionUsage";
 
 const NOW = Date.parse("2026-09-11T12:00:00Z");
 
@@ -135,7 +133,7 @@ describe("extractUsageFromHead", () => {
         message: { usage: { input: 200, output: 20 } },
       }),
     ].join("\n");
-    const { lines } = extractUsageFromHead(head, NOW - WINDOW_MS);
+    const lines = extractUsageFromHead(head, NOW - WINDOW_MS);
     expect(lines).toHaveLength(2);
   });
 
@@ -150,7 +148,7 @@ describe("extractUsageFromHead", () => {
         },
       });
     const head = [mk("2026-09-10T10:00:00Z", 100), mk("2026-09-10T11:00:00Z", 200), mk("2026-09-10T12:00:00Z", 300)].join("\n");
-    const { lines } = extractUsageFromHead(head, NOW - WINDOW_MS);
+    const lines = extractUsageFromHead(head, NOW - WINDOW_MS);
     expect(lines).toHaveLength(1);
     expect(lines[0].input).toBe(300);
   });
@@ -160,7 +158,7 @@ describe("extractUsageFromHead", () => {
       timestamp: "2026-09-01T00:00:00Z", // 远早于 7 日窗口
       message: { usage: { input: 100, output: 10 } },
     });
-    const { lines } = extractUsageFromHead(head, NOW - WINDOW_MS);
+    const lines = extractUsageFromHead(head, NOW - WINDOW_MS);
     expect(lines).toHaveLength(0);
   });
 
@@ -169,7 +167,7 @@ describe("extractUsageFromHead", () => {
       timestamp: "2026-09-10T14:31:09Z",
       message: { usage: { input: 5, output: 5 } },
     });
-    const { lines } = extractUsageFromHead(head, NOW - WINDOW_MS);
+    const lines = extractUsageFromHead(head, NOW - WINDOW_MS);
     expect(lines).toHaveLength(1);
   });
 });

@@ -156,7 +156,7 @@ describe("readopt 接管", () => {
     expect(vi.mocked(ipc.sessionLogSize)).toHaveBeenCalledWith("s1");
     expect(vi.mocked(ipc.sessionHistoryPage)).toHaveBeenCalledWith("s1", 4096, 262144);
     expect(watches.screenMirror.backfill).toHaveBeenCalledWith("s1", busyTail);
-    expect(watches.readoptAnchor).toHaveBeenCalledWith("s1", busyTail, profile.echoMarks, true);
+    expect(watches.readoptAnchor).toHaveBeenCalledWith("s1", busyTail, profile.echoMarks, true, profile.busyHoldMs);
     expect(ctx.getCliProfile).toHaveBeenCalledWith("omp");
   });
 
@@ -175,7 +175,7 @@ describe("readopt 接管", () => {
     expect(watches.screenMirror.backfill).not.toHaveBeenCalledWith("s0", expect.anything());
     expect(watches.readoptAnchor).not.toHaveBeenCalledWith("s0", expect.anything());
     expect(watches.screenMirror.backfill).toHaveBeenCalledWith("s1", "plain line");
-    expect(watches.readoptAnchor).toHaveBeenCalledWith("s1", "plain line", undefined, false);
+    expect(watches.readoptAnchor).toHaveBeenCalledWith("s1", "plain line", undefined, false, undefined);
   });
 
   it("单会话补底失败被吞,readopt 整体 resolve 且剪枝照常", async () => {

@@ -11,7 +11,13 @@ import { CircleNotch, Cross } from "@phosphor-icons/react";
 import type { GitLogState } from "./hooks/useGitLog";
 import type { GitBranchesState } from "./hooks/useGitBranches";
 import type { GitRepoContext } from "./repoContext";
-import { setGitRemoteMeta, type FileListLayout, type GitViewMode, type RemoteDialogOp } from "./panelStore";
+import {
+  requestWorktreeDialog,
+  setGitRemoteMeta,
+  type FileListLayout,
+  type GitViewMode,
+  type RemoteDialogOp,
+} from "./panelStore";
 import { GitToolbar } from "./GitToolbar";
 import { gitErrorDisplay } from "./gitError";
 import { SmartSwitchUndoBanner } from "./views/GitPanelBars";
@@ -20,6 +26,7 @@ import { RemoteDialogGroup } from "./views/RemoteDialogGroup";
 import { DiffView } from "./views/DiffView";
 import { BranchView } from "./views/BranchView";
 import { HistoryView } from "./views/HistoryView";
+import { WorktreeZone } from "./worktree/WorktreeZone";
 
 /** GitPanel 远端编排面 —— useGitPanelRemote 返回值的结构契约(此处只消费渲染所需)。 */
 interface GitPanelRemoteState {
@@ -182,7 +189,7 @@ export function GitPanelMain({
           : null;
   return (
     <div className="flex h-full flex-col text-xs">
-      <GitToolbar />
+      <GitToolbar cwd={repoCtx.selectedPath ?? undefined} />
       {repoCtx.showRepoBar && (
         <RepoBar
           repos={repos}
@@ -191,6 +198,11 @@ export function GitPanelMain({
           chipSeq={chipSeq}
           onSelect={onSelect}
         />
+      )}
+
+      {/* 工作树常驻区(方案 B):多树仓才出现;「新建」走 worktree 弹窗(GitToolbar 持有)。 */}
+      {repoCtx.selectedPath && (
+        <WorktreeZone cwd={repoCtx.selectedPath} onCreate={() => requestWorktreeDialog()} />
       )}
 
       <PanelBanners

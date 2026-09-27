@@ -6,7 +6,7 @@
  * 由各自插件 activate 时注册:
  *   files 插件 → { id: "files", label: "文件", ... }
  *   git 插件   → { id: "git",   label: "Git", ... }
- * 外壳(AppShell 右栏 / TopBarPanelTabs)只按注册表渲染 —— 新增面板零改外壳。
+ * 外壳(AppShell 右栏 / 右缘 PanelRail)只按注册表渲染 —— 新增面板零改外壳。
  * 钉住清单按面板 id 持久化 localStorage(key tmd.filePanel.pinned.v1),重启原样恢复。
  */
 
@@ -46,10 +46,9 @@ export interface FilePanelContribution {
   /** 一次性补钉(review 裁决:收进注册面,禁插件旁路直连):老用户 persisted 清单
    *  先于面板存在时新 id 落 ⋯ 菜单不可见;仅自动钉一次并留痕,手动取消钉后不复活。 */
   pinOnce?: boolean;
-  /** 是否进顶栏(「⋯ 更多面板」菜单 + tab 条);缺省 true。false = 两处均不列,
-   *  开关入口由插件自管(如 ssh 走左下角设置簇 sidebarAction)——外壳不硬编码
-   *  任何面板 id,入口归属由注册方声明。 */
-  topbarEntry?: boolean;
+  /** 是否进右缘 PanelRail(tab 组 + 「⋯ 更多面板」菜单);缺省 true。false = 两处均不列,
+   *  开关入口由插件自管——外壳不硬编码任何面板 id,入口归属由注册方声明。 */
+  railEntry?: boolean;
   /** 面板专属动作按钮(可选):渲染在右栏底部文件操作条动作区末尾。
    *  状态归插件组件自管(模块级 store),外壳只渲染不认识语义。 */
   actions?: ComponentType;
@@ -160,6 +159,17 @@ function ensurePanelPinned(id: string): void {
     return;
   }
   if (!state.pinnedIds.has(id)) togglePinned(id);
+}
+
+/** rail 直挂动作(sidebarActions.rail)的钉住登记:与面板同规则 —— persisted
+ *  清单存在即权威(缺 id = 不钉,可经 ⋯ 菜单勾回),清单缺失回落 pinnedByDefault;
+ *  只入 state 不落盘,用户首次勾选才写 tmd.filePanel.pinned.v1。 */
+export function registerRailActionPin(id: string, pinnedByDefault = true): void {
+  const pinned = persistedPinnedIds ? persistedPinnedIds.has(id) : pinnedByDefault;
+  if (pinned && !state.pinnedIds.has(id)) {
+    state.pinnedIds = new Set([...state.pinnedIds, id]);
+    commit();
+  }
 }
 
 export function getFilePanels(): readonly FilePanelContribution[] {

@@ -103,7 +103,7 @@ pub async fn web_relay_start(
     let agent = relay_core::agent_url(&url, &key)?;
     let state = app.state::<crate::AppState>();
     // 起桥(确保 127.0.0.1:<port> 存在),relay 只经它服务。
-    // 起桥后必须把 webAccessEnabled 回填为 true —— 否则任何 config_write_settings
+    // 起桥后必须把 webAccessEnabled 回填为 true —— 否则任何 config_merge_settings
     // 都会走 apply_settings(false) 把桥停掉,中继绿灯照亮但转发全失败。
     let bridge = super::web_access::web_access_start(app.clone()).await?;
     let Some(bridge_info) = bridge else {
@@ -151,7 +151,7 @@ pub fn web_relay_stop(app: tauri::AppHandle) -> Result<(), String> {
     let state = app.state::<crate::AppState>();
     stop_relay_after_persist(
         // 停 relay 不回填 webAccessEnabled —— 桥是 LAN 自己的功能,用户可能正开着 LAN 用;
-        // 若回填 false,此后任何 config_write_settings 都会走 apply_settings 把桥杀掉。
+        // 若回填 false,此后任何 config_merge_settings 都会走 apply_settings 把桥杀掉。
         || persist_relay_state(&app, false, None),
         || state.relay.inner.lock().take(),
     )?;

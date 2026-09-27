@@ -15,7 +15,9 @@ concurrency:
   cancel-in-progress: false
 
 # GITHUB_TOKEN 仅授予 contents 写:tauri-action 建 Draft Release / 上传产物所需,
-# 不给更高权限;公证凭据(APPLE_*)不引入。TAURI_SIGNING_* 为 updater 通道的
+# 不给更高权限。公证凭据(APPLE_*)仅当 repo secrets 已配置才注入 macOS 构建步
+# (见「macOS 签名/公证凭据注入」步);未配置 = 未签名未公证,与历史构建一致。
+# TAURI_SIGNING_* 为 updater 通道的
 # minisign 私钥(本地 ~/.tauri/tmd-cli.key,空密码)——注入后 tauri-action 自动
 # 产出 .tar.gz/.sig 签名产物与 latest.json,应用内「自动更新」依赖它;secret
 # 未配置时构建仍成功,只是更新通道无最新产物(前端落错误态,可前往下载兜底)。
@@ -33,9 +35,25 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 || \
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            # 同 tag 重跑会复用旧 release。上游 tauri-action upload-version-json.ts 对
+            # universal darwin 只在 darwin-aarch64/x86_64 键不存在时才写入("Don't
+            # overwrite native builds" 守卫),残留的 latest.json 会让新构建签名被陈旧
+            # 条目挡住 → 应用内更新验签失败(v0.2.3 实证)。先删 latest.json,让本轮
+            # 全平台条目重新生成;其余产物由 tauri-action --clobber 原地覆盖,无需处理。
+            # gh release delete-asset 走 FetchRelease(draft/published 双态命中);
+            # 旧式按 tag 查 releases/tags 对 draft release 恒 404,会把
+            # 「删 tag 重推(GitHub 自动转回 draft)」场景的清资产步骤打死。
+            if gh release delete-asset "$GITHUB_REF_NAME" latest.json \
+              --repo "$GITHUB_REPOSITORY" -y > /dev/null 2>&1; then
+              echo "已删除陈旧 latest.json"
+            else
+              echo "无 latest.json 或已删,继续"
+            fi
+          else
             gh release create "$GITHUB_REF_NAME" --draft --title "tmd-cli $GITHUB_REF_NAME" \
               --notes "Automated build. See commit log for changes." --repo "$GITHUB_REPOSITORY"
+          fi
 
   build:
     needs: prep-release
@@ -106,9 +124,50 @@ jobs:
             pkg-config
 
       # ---------- ⭐ 核心打包 ----------
+      # macOS 代码签名 + 公证凭据注入(批次七 2026-09-26):repo secrets 配齐才生效
+      # (tauri bundler 检测 APPLE_CERTIFICATE 即走 codesign + notarytool;未配 =
+      # 与旧构建完全一致,未签名未公证)。所需 secrets:
+      #   APPLE_CERTIFICATE           base64 的 .p12(Developer ID Application 证书)
+      #   APPLE_CERTIFICATE_PASSWORD  p12 导出密码
+      #   APPLE_SIGNING_IDENTITY      "Developer ID Application: <Team 名>"
+      #   APPLE_ID / APPLE_PASSWORD   Apple ID + App 专用密码(notarytool)
+      #   APPLE_TEAM_ID               Team ID
+      # Windows 签名:需先定证书采购形态(OV/EV p12 或 Azure Trusted Signing),
+      # 决策后经 signCommand 接线;当前如实未签(SmartScreen 提示)。
+      - name: macOS 签名/公证凭据注入(未配 secret 则跳过)
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # 六件套逐个核对:缺任一即整组跳过并点名(只看证书会漏配半套,
+          # 失败深藏在公证段报难懂错误)。值经 env: 映射进脚本,不走表达式内插 ——
+          # 防 p12 密码含引号/反引号或 Linux base64 折行多行值打碎脚本与 GITHUB_ENV 行。
+          # (注释里写字面美元花括号对会被 Actions 表达式引擎当真解析,曾致全流编译挂)
+          missing=""
+          for k in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                   APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "$(eval "echo \$$k")" ]; then missing="$missing $k"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "未配齐签名/公证凭据(缺:$missing),跳过注入(产物未签名,与旧构建一致)"
+            exit 0
+          fi
+          {
+            for k in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                     APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+              v=$(eval "echo \$$k")
+              printf '%s<<TMD_EOF\n%s\nTMD_EOF\n' "$k" "$v"
+            done
+          } >> "$GITHUB_ENV"
+
       # tauri-apps/tauri-action 是 Tauri 官方 GitHub Action,跨平台 build + 签名 + 公证 + 上传 artifact。
-      # 这里完全不传任何 APPLE_* / TAURI_SIGNING_* 凭据
-      #   → 等价于本地的 --skip-sign --skip-notarize,零成本,未签名/未公证,与 release-mac-local.sh 行为一致。
+      # 凭据是否注入由上一步决定:未配 APPLE_* secrets 时行为同旧(未签名未公证)。
+      # updater 通道 TAURI_SIGNING_PRIVATE_KEY 与签名无关,见下方 env 注释。
       # tagName 动态取值:推送 v* tag 时非空 → 自动创建 Draft Release 并挂全部产物;
       # workflow_dispatch 手动触发时为空串 → 只构建;tauri-action 不会上传任何
       # workflow artifact,产物由下一步 upload-artifact 兜底落面板。
@@ -139,7 +198,7 @@ jobs:
 
   # ---------- 手机 app(Android 壳)----------
   # Kotlin+WebView 薄壳(mobile-app/android-shell),与桌面四 job 并行;产物:
-  # debug 签名 APK(直装可用;正式签名需要上 keystore secret,当前无,如实未签)。
+  # 仓内 keystore 自签的 release APK(app-release.apk,侧载可装可覆盖升级)。
   android:
     name: "Android (universal APK)"
     runs-on: ubuntu-latest
@@ -201,7 +260,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for i in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 && break
             sleep 10
           done
@@ -277,7 +336,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for i in $(seq 1 90); do
+          for _ in $(seq 1 90); do
             gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 && break
             sleep 30
           done

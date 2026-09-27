@@ -73,6 +73,25 @@ describe("resolveInstallPlan 探针感知", () => {
     expect(resolveInstallPlan(ompMeta, null)).toEqual(ompMeta.plan);
   });
 
+  it("命中非 npm 原生副本 + 声明 commandUpdate → 命令通道就地自更新(qoder 原生目录)", () => {
+    const qoderMeta = {
+      plan: installPlanOf({ npmPackage: "@qoder-ai/qodercli" }),
+      npmPackage: "@qoder-ai/qodercli",
+      commandUpdate: { program: "qodercli", args: ["update"] },
+    };
+    expect(
+      resolveInstallPlan(qoderMeta, {
+        command: "qodercli",
+        found: true,
+        path: "/Users/x/.local/bin/qodercli",
+        version: "1.1.56",
+        npmPrefix: null,
+      }),
+    ).toEqual({ channel: "command", program: "qodercli", args: ["update"] });
+    /* 未装:自更新通道不接管,安装仍走声明通道(未装机器没有该二进制)。 */
+    expect(resolveInstallPlan(qoderMeta, null)).toEqual(qoderMeta.plan);
+  });
+
   it("声明 script 的引擎不被 npm 覆盖(官方脚本才管得了原生副本)", () => {
     const kimiMeta = {
       plan: installPlanOf({

@@ -9,6 +9,7 @@ import { ompSessionsDir, readOmpSessionEdits } from "./edits";
 import { ompAcquireResume, startOmpPrewarmManager, stopOmpPrewarmManager } from "./prewarm";
 import { listOmpSuggestions } from "./rpcCommands";
 import { OmpExtensionMarket } from "./market";
+import { OMP_ACADEMY_COURSE } from "./academy/academyCatalog";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 import { PI_TUI_ECHO_MARKS } from "../cli-shared/echoMarks";
 import type { CliSuggestion } from "@kernel/cli";
@@ -40,12 +41,22 @@ const ompSessions = piFamilySessions({
 
 /**
  * omp 命令/技能候选(action 初判见 openspec/changes/composer-command-drawer)。
- * 技能注入后通常要跟任务文本 → 默认 insert;/model 为幕布内 picker → send。
+ * 命令面从学堂课程目录派生(全量 82 条,中文一句话作 description);前 3 条为
+ * 幕布内行为特殊语义:/help /clear 发送原文、/model 是幕布内 picker → send。
+ * 技能注入后通常要跟任务文本 → 默认 insert。
  */
-export const OMP_COMMAND_SUGGESTIONS: CliSuggestion[] = [
+const OMP_PINNED_COMMAND_SUGGESTIONS: CliSuggestion[] = [
   { value: "help", description: "查看可用命令", action: "send", icon: "help" },
   { value: "clear", description: "清屏", action: "send", icon: "clear" },
   { value: "model", description: "查看/切换模型(幕布内 picker)", action: "send", icon: "model" },
+];
+
+export const OMP_COMMAND_SUGGESTIONS: CliSuggestion[] = [
+  ...OMP_PINNED_COMMAND_SUGGESTIONS,
+  ...OMP_ACADEMY_COURSE.chapters
+    .flatMap((ch) => ch.commands)
+    .filter((c) => !OMP_PINNED_COMMAND_SUGGESTIONS.some((s) => s.value === c.name))
+    .map((c) => ({ value: c.name, description: c.zh })),
 ];
 
 export const OMP_SKILL_SUGGESTIONS: CliSuggestion[] = [
@@ -131,25 +142,34 @@ export const cliOmpPlugin: Plugin = {
       echoMarks: PI_TUI_ECHO_MARKS,
       /* win ConPTY 的 CPR 应答错位会被 pi-tui 当字符注入(架构 04 契约 7)。 */
       conptyCprMismatch: true,
-      /* 轮次进行中的工作界面标记(实采 v18.1.19 全量日志):⎋ 状态行(工作区
-       * 动作行,19528 行零空闲误现)与 elapsed 计时行(Ns/Nm + 分隔符 >,banner/
-       * 空闲页脚为 … 省略形态零匹配)。全屏 TUI 以光标定位分行,不可用行首锚。
-       * 命中即 CLI 自证在途,activityWatch 刷帧钟持轮 —— 流式间隙不再假结算
-       * (契约见 kernel/cliProfile.ts busyMarks)。 */
-      busyMarks: [/⎋/u, /\d+[sm] >/u],
-      /* 空闲页脚标记(实采 v18.1.18-18.2.4):mc 行「… · idle」与 π 提示行页脚
-       * 「π > ◉ …」。对偶 busyMarks:空闲屏帧不作活动证据,兼作结算证据
-       * (闸 4d 武装-确认,完工换装 ~2s 翻空闲,契约见 kernel/cliProfile.ts
-       * idleMarks)。π 行声明缘由:裸页脚帧(不带 mc 行)2026-09-18 实证会进
-       * 家具分类器,换装 5s 内被 ticker 链继承加冕,空闲自绘帧流续命致「运行时」
-       * 分钟级永挂;跨 ~380 实采日志工作期零共现,banner 共现在锚定前被首写闸拦。 */
-      idleMarks: [/· idle/u, /π >/u],
+      /* 轮次进行中的工作界面标记(实采 v18.1.19 / v18.3.1):⎋ 状态行(工作区
+       * 动作行,零空闲误现)与 braille spinner 页脚行(spinner glyph + elapsed
+       * 计时,如「⠧ 1m > ◉ …」)。elapsed 裸匹配「\d+[sm] >」在 v18.3.1 作废:
+       * 空闲时钟页脚「⏺ 3m > ◉ …」同构命中,完工后的空闲屏每分钟喂一次假自证
+       * (busy 钟永续,结算拖到分钟级;readopt 尾帧亦误判现势),故锚定 braille
+       * glyph 族 —— v18.1/18.2 工作页脚「⠙ 9s · 模型」同族照旧命中。全屏 TUI
+       * 以光标定位分行,不可用行首锚。命中即 CLI 自证在途,activityWatch 刷帧钟
+       * 持轮(契约见 kernel/cliProfile.ts busyMarks)。 */
+      busyMarks: [/⎋/u, /[⠀-⣿] ?\d+[sm]/u],
+      /* v18.3.1 起不再声明 idleMarks:18.3 把 mc 行(「mc: … · idle」,idle 指
+       * context 子系统状态)常驻画进工作屏页脚栈(两日志实采 ~1.1 万帧,仅
+       * ~1% 不在工作页脚屏),π/⏺ 页脚亦跨态出没 —— 「工作期零共现」前提
+       * 死亡,留着即中途假结算(徽标卡「空闲」,实证 2026-09-25)。代价:完工
+       * 收口回落 busyHoldMs 自证钟尾窗(无闸 4d 的 ~2s 快速收口);18.3 空闲屏
+       * 静默(分钟级跳格),旧「空闲页脚 ticker 加冕永挂」无复发面。机制保留
+       * (kernel 闸 4d),待新版出现真正空闲独占字面量再实采挂回。 */
+      /* v18.3.1 exec 期渲染冻结:长静默工具(cargo 编译等)整屏最长 ~60s 无任何
+       * 帧(单轮实测 14 处,均为分钟跳格),默认 30s 自证窗必过期假结算且被 I2
+       * 拦死。busyHoldMs 拉宽到 75s 盖住冻结;完工换装后徽标随之拖 ≤75s 翻空闲。 */
+      busyHoldMs: 75_000,
       /* omp 是 oh-my-pi(pi fork),输入编辑器与 pi/kimi 同源 pi-tui:composer 整串
        * 正文+\r 同帧到达会命中"粘贴爆发"启发式,提交回车被改写成换行 —— win
        * 实测偶发"composer 发了但幕布没提交,须再手按回车"。声明后走 bracketed
        * paste 通路,与真实终端粘贴行为一致(契约见 kernel/cliProfile.ts)。 */
       bracketedPaste: true,
     });
+    /* CLI 学堂课程:82 命令目录 + 13 课,消费归 academy 插件(契约见 kernel/academy.ts)。 */
+    ctx.registerAcademyCourse(OMP_ACADEMY_COURSE);
     /* 预热接管管理器:后台常驻一个裸 omp 待命(有近期会话活动才预热,
      * 生命周期/降级护栏见 ./prewarm.ts);deactivate 强杀清场。 */
     startOmpPrewarmManager();

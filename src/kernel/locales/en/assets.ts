@@ -21,8 +21,6 @@ export const MESSAGES = {
     "Delete agent \"{name}\"? Sessions that selected it will be deselected automatically.",
   "名称必填": "Name is required",
   "名称已存在": "Name already exists",
-  "同作用域下名称已存在(或名称含非法字符)":
-    "Name already exists in this scope (or contains invalid characters)",
   "名称已存在,或写入磁盘失败": "Name already exists, or the disk write failed",
   "删除失败:写入磁盘未成功": "Delete failed: could not write to disk",
   "图标(单个 emoji,可空)": "Icon (single emoji, optional)",

@@ -12,6 +12,7 @@ import { webAccessStatus, type WebAccessInfo } from "@kernel/ipc";
 import { isWeb } from "@kernel/transport";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
+import { copyText } from "@kernel/clipboard";
 
 export function WebAccessSection() {
   const [info, setInfo] = useState<WebAccessInfo | null>(null);
@@ -34,7 +35,7 @@ export function WebAccessSection() {
     void refresh();
   }, [refresh]);
 
-  /* 开关即写设置;后端 config_write_settings 钩子负责起停桥,轮询刷新状态回显。 */
+  /* 开关即写设置;后端 config_merge_settings 钩子负责起停桥,轮询刷新状态回显。 */
   const setEnabled = (on: boolean) => {
     setBusy(true);
     try {
@@ -47,7 +48,7 @@ export function WebAccessSection() {
   };
   const copy = async () => {
     if (!info) return;
-    await navigator.clipboard.writeText(info.url);
+    await copyText(info.url);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };

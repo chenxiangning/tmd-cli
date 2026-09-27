@@ -1,7 +1,6 @@
 /* ──────────────────────────────────────────────────────────
- * Right panel toolbar —— 复刻 codemoss right-panel-toolbar 视觉。
- *
- * 顶栏:panel tab 按钮(TopBarPanelTabs)+ 工作区选择器(WorkspaceSwitcher)。
+ * Right panel rail —— 右缘竖排面板入口 + 工作区选择器视觉(2026-09-26 起
+ * 面板入口自顶栏 tab 条迁来,顶栏右区只留 WorkspaceSwitcher)。
  * 右栏底部操作条与工作区下拉菜单拆至 panel-subbar.css(文件规模铁则)。
  * ────────────────────────────────────────────────────────── */
 
@@ -24,11 +23,6 @@
   cursor: pointer;
   flex: 0 1 auto;
   transition: background 120ms ease, color 120ms ease;
-}
-
-/* 面板 tabs 恒钉右区右缘:工作区选择器靠左一组,余量全落在 tabs 前。 */
-.titlebar-actions .panel-tabs-row {
-  margin-left: auto;
 }
 
 /* 分支 label 改挂中区右缘(2026-09-14 用户口径):auto margin 吸右,贴右区竖线。 */
@@ -92,22 +86,30 @@
   flex: 0 0 auto;
 }
 
-.panel-tabs-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 30px;
+/* ── 右缘面板 rail(常驻竖条;宽度变量供 titlebar 右区公式扣减)── */
+:root {
+  --tmd-rail-w: 1.875rem; /* 30px = 26px 钮 + 两侧各 2px,用户口径:再压缩 */
 }
 
-.panel-tabs {
-  display: inline-flex;
+.panel-rail {
+  width: var(--tmd-rail-w);
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 2px;
-  flex: 1 1 auto;
-  min-width: 0;
+  padding: 0 0 8px; /* 顶部贴零:8→0,用户口径继续上移 */
+  border-left: 1px solid var(--tmd-border);
 }
 
-.panel-tab {
+.panel-rail-tabs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.panel-rail-tab {
   width: 26px;
   height: 26px;
   display: inline-flex;
@@ -123,33 +125,39 @@
   flex: 0 0 auto;
 }
 
-.panel-tab:hover {
+.panel-rail-tab:hover {
   background: var(--tmd-bg-hover);
   color: var(--tmd-fg);
 }
 
-.panel-tab.is-active {
+.panel-rail-tab.is-active {
   color: rgb(255, 140, 60); /* 橙色 ─ 跟用户截图一致 */
 }
 
 /* 图标装饰:per-panel 点亮色(缺省回落写死橙;见 kernel/iconDecor.ts) */
-.panel-tab.is-active[data-panel-id="files"] { color: var(--icon-decor-panel-files, rgb(255, 140, 60)); }
-.panel-tab.is-active[data-panel-id="git"] { color: var(--icon-decor-panel-git, rgb(255, 140, 60)); }
-.panel-tab.is-active[data-panel-id="checkpoints"] { color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60)); }
-.panel-tab.is-active[data-panel-id="memory"] { color: var(--icon-decor-panel-memory, rgb(255, 140, 60)); }
-.panel-tab.is-active[data-panel-id="marks"] { color: var(--icon-decor-panel-marks, rgb(255, 140, 60)); }
+.panel-rail-tab.is-active[data-panel-id="files"] { color: var(--icon-decor-panel-files, rgb(255, 140, 60)); }
+.panel-rail-tab.is-active[data-panel-id="git"] { color: var(--icon-decor-panel-git, rgb(255, 140, 60)); }
+.panel-rail-tab.is-active[data-panel-id="checkpoints"] { color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60)); }
+.panel-rail-tab.is-active[data-panel-id="memory"] { color: var(--icon-decor-panel-memory, rgb(255, 140, 60)); }
+.panel-rail-tab.is-active[data-panel-id="marks"] { color: var(--icon-decor-panel-marks, rgb(255, 140, 60)); }
+/* rail 上的侧栏动作钮(ssh = 面板 tab;wsl/terminal = rail 动作)同吃图标装饰点亮色 */
+.panel-rail-tab.is-active[data-panel-id="ssh"] { color: var(--icon-decor-ssh-panel, rgb(255, 140, 60)); }
+.panel-rail-tab.is-active[data-action-id="wsl-panel"] { color: var(--icon-decor-wsl-panel, rgb(255, 140, 60)); }
+.panel-rail-tab.is-active[data-action-id="terminal"] { color: var(--icon-decor-terminal, rgb(255, 140, 60)); }
 
-
-.panel-tab svg {
+.panel-rail-tab svg {
   width: 1rem;
   height: 1rem;
   stroke-width: 1.75;
 }
 
-/* ⋯ more 按钮 ─ 略不同视觉 */
-.panel-tab-overflow {
-  margin-left: auto;
-  border-radius: 9px;
+/* 分隔线 + ⋯ 组(参照图:紧随 tab 组之后,不钉底) */
+.panel-rail-sep {
+  width: 1.5rem;
+  height: 1px;
+  margin: 6px 0;
+  background: var(--tmd-border);
+  flex: 0 0 auto;
 }
 
 /* ── 下拉面板 ──

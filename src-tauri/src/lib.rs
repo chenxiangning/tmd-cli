@@ -18,6 +18,7 @@ mod lsp_framing;
 mod open_with;
 mod plugins;
 mod probe;
+mod probe_prefix;
 mod proc_run;
 mod proxy;
 mod pty;
@@ -109,13 +110,14 @@ fn config_read_settings() -> serde_json::Value {
 }
 
 #[tauri::command]
-fn config_write_settings(app: AppHandle, data: serde_json::Value) -> Result<(), String> {
-    settings::save_settings(&data).map_err(|e| e.to_string())?;
-    /* 网络代理字段变化即时生效:写盘成功后应用到进程 env,
+fn config_merge_settings(app: AppHandle, patch: serde_json::Value) -> Result<(), String> {
+    let merged = settings::merge_settings(&patch)?;
+    /* 网络代理字段变化即时生效:合并落盘后应用到进程 env,
     之后 spawn 的 PTY 子进程与 reqwest 新请求即走代理(旧会话不受影响)。 */
-    proxy::apply_and_report(&data);
-    /* Web 访问开关跟随设置(web_access::apply_settings 内部异步起停桥)。 */
-    web::web_access::apply_settings(&app, &data);
+    proxy::apply_and_report(&merged);
+    /* Web 访问开关跟随设置(web_access::apply_settings 内部异步起停桥)。
+    以合并后整树为准 —— 陈旧补丁域不参与,桥不会被内存旧值误杀(00d3dc5)。 */
+    web::web_access::apply_settings(&app, &merged);
     Ok(())
 }
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -150,6 +152,9 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         /* 进程面控:relaunch(更新安装后自动重启)等;e710fc8 误删致 relaunch 必败,恢复。 */
         .plugin(tauri_plugin_process::init())
+        // 系统通知:Ask 等待/轮次结束/会话退出的桌面级提醒(notify 插件消费,
+        // 前端经 kernel/ipc 薄包装调用,架构铁律 R3)。
+        .plugin(tauri_plugin_notification::init())
         .manage(AppState {
             pty: PtyRegistry::default(),
             sessions,
@@ -265,6 +270,10 @@ pub fn run() {
             git::commands::git_branch_compare,
             git::commands::git_branch_worktree_files,
             git::commands::git_branch_worktree_patch,
+            git::commands_worktree::git_worktree_list,
+            git::commands_worktree::git_worktree_add,
+            git::commands_worktree::git_worktree_remove,
+            git::commands_worktree::git_worktree_prune,
             git::commands::git_pull_push,
             git::commands::git_remotes,
             git::commands::git_push_preview,
@@ -301,7 +310,7 @@ pub fn run() {
             ssh::commands::ssh_forward_stop,
             ssh::commands::ssh_forward_list,
             ssh::commands::ssh_forward_check_port,
-            config_write_settings,
+            config_merge_settings,
             web::web_access::web_access_start,
             web::web_access::web_access_stop,
             web::relay::web_relay_start,

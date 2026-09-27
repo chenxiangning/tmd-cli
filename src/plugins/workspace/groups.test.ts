@@ -8,7 +8,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const ipcMock = vi.hoisted(() => ({
   configWriteWorkspaces: vi.fn().mockResolvedValue(undefined),
-  configWriteSettings: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));

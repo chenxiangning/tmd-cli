@@ -16,6 +16,7 @@ mod branch_ops;
 pub mod commands;
 pub mod commands_file;
 pub mod commands_pr;
+pub mod commands_worktree;
 pub(crate) mod commit;
 mod commit_view;
 mod compare_ops;
@@ -57,6 +58,7 @@ mod tests_repos_scan;
 mod tests_smart_checkout;
 #[cfg(test)]
 mod tests_write_ops;
+pub(crate) mod worktree_parse;
 
 use git2::Repository;
 use parking_lot::Mutex;

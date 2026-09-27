@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::app_setup::safe_eprintln;
 use futures_util::{SinkExt, StreamExt};
 use parking_lot::Mutex;
 use tokio::net::TcpStream;
@@ -63,7 +64,7 @@ pub(super) async fn run_agent(
         仅 debug 构建,release 零编译)。 */
         #[cfg(debug_assertions)]
         if let Ok((url, _, _)) = super::pair::mint_offer(&app) {
-            eprintln!("[web-bridge] dev pairing offer (relay): {url}");
+            safe_eprintln(&format!("[web-bridge] dev pairing offer (relay): {url}"));
         }
         serve(socket, port, &mut stop).await;
         super::relay::set_connected(&app, generation, false);
@@ -593,7 +594,7 @@ fn spawn_socket(
             Ok((socket, _)) => socket,
             Err(e) => {
                 #[cfg(debug_assertions)]
-                eprintln!("[relay-agent] 本机 WS 拨号失败 id={id}: {e}");
+                safe_eprintln(&format!("[relay-agent] 本机 WS 拨号失败 id={id}: {e}"));
                 let _ = send(
                     &out,
                     &ClientFrame::Error {

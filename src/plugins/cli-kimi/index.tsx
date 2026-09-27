@@ -1,4 +1,5 @@
 import { KimiGlyph } from "../cli-shared/engineGlyphs";
+import { KIMI_ACADEMY_COURSE } from "./academy/academyCatalog";
 import { ipc } from "@kernel/ipc";
 import type {
   CliProfile,
@@ -144,6 +145,8 @@ export const cliKimiPlugin: Plugin = {
       /* 待实采:busyMarks/idleMarks 与 omp 同源 pi-tui(见 cli-pi 同款注记;
        * kimi 版 UI 略异,须独立实采,禁照抄)。 */
     };
+    /* CLI 学堂课程:43 条内置命令全量入册,消费归 academy 插件(契约见 kernel/academy.ts)。 */
+    ctx.registerAcademyCourse(KIMI_ACADEMY_COURSE);
     ctx.registerCliProfile(profile);
   },
 };

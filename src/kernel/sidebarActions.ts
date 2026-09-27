@@ -9,6 +9,7 @@
 
 import type { ComponentType } from "react";
 import { createSubscribable } from "./subscribable";
+import { registerRailActionPin } from "./filePanel";
 
 /** 动作图标的最小 props 面(兼容 @phosphor-icons-react 图标组件)。 */
 type SidebarActionIcon = ComponentType<{
@@ -30,8 +31,12 @@ export interface SidebarAction {
   /** 激活态(开关/面板已开类动作);渲染期求值,缺省 = 恒不激活。
    *  响应性随宿主组件重渲染(设置变更等),不自建订阅。 */
   active?: () => boolean;
-  /** 触发动作;anchor = 触发簇右缘锚点坐标(浮层类动作的定位参考)。 */
-  onSelect: (anchor: { x: number; y: number }) => void;
+  /** 触发动作;anchor = 触发簇右缘锚点坐标(浮层类动作的定位参考);
+   *  mods = 触发修饰键(rail 钮透传,如内置终端 ⌥/⌘/Ctrl 点击强制新建)。 */
+  onSelect: (anchor: { x: number; y: number }, mods?: { altKey: boolean; metaKey: boolean; ctrlKey: boolean }) => void;
+  /** 直挂右缘 PanelRail(2026-09-27):不进左下设置菜单、不进底栏钉住,
+   *  由 rail 渲染为图标钮(active() 驱动点亮态)。归属插件自声明。 */
+  rail?: boolean;
 }
 
 const state: { actions: readonly SidebarAction[] } = { actions: [] };
@@ -46,6 +51,9 @@ export function registerSidebarAction(action: SidebarAction): void {
   state.actions = [...state.actions, action].sort(
     (a, b) => (a.order ?? 0) - (b.order ?? 0),
   );
+  /* rail 直挂动作与右栏面板共用同一份钉住清单:登记即按同规则入钉,
+     ⋯ 菜单可勾选,外显 = 钉住 ∪ 激活(见 PanelRail)。 */
+  if (action.rail) registerRailActionPin(action.id);
   store.commit({ actions: state.actions });
 }
 

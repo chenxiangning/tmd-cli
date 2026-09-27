@@ -1,0 +1,18 @@
+/**
+ * kimi 学堂入门课 —— 8 课覆盖全部 6 章,首课欢迎/末课结业速查。
+ * 内容与 academyCatalog.ts 同源纪律(见其头注);chapter 指向目录章节 id。
+ */
+import type { AcademyCourse } from "@kernel/academy";
+
+type Lesson = AcademyCourse["lessons"][number];
+
+export const KIMI_ACADEMY_LESSONS: Lesson[] = [
+  { id: "welcome", title: "kimi 是什么", sub: "1 分钟", goal: "kimi 是跑在终端里的编程 agent:你用自然语言下指令,它读代码、改文件、跑命令。学完这课你会发出第一条指令。", points: ["直接打字描述任务,回车发送——不需要任何命令也能干活", "斜杠 <b>/</b> 开头的是命令,管理会话、模型、权限这些「工具箱」本身;<b>@</b> 补全文件路径,<b>$</b> 调用技能", "本学堂 6 章 43 条命令;先混个脸熟,用到了再回来查"], demo: [["你好,帮我看看这个仓库的结构", "agent 开始读目录并给出概览(直接对话即可,无需命令)"]], practice: "/title 我的第一次对话", practiceWhy: "给会话起个一眼能认的名字,一周后 /sessions 里不抓瞎。" },
+  { id: "sessions", title: "会话:开始、找回与翻篇", sub: "约 3 分钟", goal: "会话是你和 agent 的连续工作现场。学完这课你会:开新会话、找回旧的、起名、撤回说错的话。", chapter: "sessions", points: ["<b>/new</b> 换任务先翻篇(别名 /clear),旧会话完整留盘", "<b>/sessions</b> 找回历史会话;tmd-cli 侧栏 kimi 分组点一下等效", "<b>/title</b> 起名趁早;<b>/undo</b> 发错的 prompt 整条撤回", "<b>/fork</b> 危险操作前复制一份分叉,本体毫发无损"], demo: [["/new", "当前工作区已开启全新会话"], ["/title 支付回调重构", "会话标题已设置"], ["/compact 保留接口签名", "会话上下文已压缩"]], practice: "/title 我的第一次对话", practiceWhy: "体会命名对未来找回的价值。" },
+  { id: "model", title: "模型、思考与账号", sub: "约 2 分钟", goal: "会切模型、会调思考强度、会配认证。模型决定智商与花费,第二天就要会。", chapter: "model", points: ["<b>/model</b> 弹选择器切模型;切换写回 config.toml,工具栏 pill 只读展示", "<b>/effort</b> 调思考强度:难任务 high,杂活调回省 token", "<b>/secondary-model</b> 给子代理配便宜模型,重活轻活分开计价", "<b>/login</b> / <b>/logout</b> 管认证;共用机器走人前记得退"], demo: [["/model", "弹出模型选择器(Enter 切换)"], ["/effort high", "思考强度已切换为 high"]], practice: "/model", practiceWhy: "打开选择器看看你有哪些模型,记住工具栏的模型 pill。" },
+  { id: "mode", title: "权限、计划与多智能体", sub: "约 3 分钟", goal: "放权程度你来定:从每步先问到全自动;plan 先谋后动,goal/swarm/tower 把活整段托管出去。", chapter: "mode", points: ["<b>/yolo</b> 日常平衡档:例行操作自动跑,风险动作仍先问", "<b>/auto</b> 全自动档:无人值守专用,只对赔得起的任务用", "<b>/plan</b> 只读规划,审完方案再动手;<b>/permission</b> 看全部档位", "<b>/goal 目标</b> 自主推进;<b>/swarm 任务</b> 多代理并行;<b>/btw</b> 顺手一问不打断主线"], demo: [["/yolo", "已切换为 Ask When Needed 模式"], ["/goal 把测试迁移到 vitest,保持全绿", "自主目标已启动"]], practice: "/plan", practiceWhy: "体验只读规划模式,看它不动文件只出方案。" },
+  { id: "context", title: "工作区、MCP 与插件", sub: "约 2 分钟", goal: "把项目喂给 agent:跨仓库挂目录、生成项目说明书、接 MCP 工具与插件。", chapter: "context", points: ["<b>/add-dir 路径</b> 把隔壁仓库挂进工作区;用完记得收", "<b>/init</b> 分析代码库生成 AGENTS.md,新项目第一件事", "<b>/mcp</b> 看外部工具连接状态;<b>/plugins</b> 管理插件", "<b>/reload</b> 改完配置秒级生效,不用重启会话"], demo: [["/init", "正在分析代码库 → 已生成 AGENTS.md"], ["/mcp", "显示 MCP 服务器列表与连接状态"]], practice: "/add-dir list", practiceWhy: "看看当前挂了哪些额外目录,体会跨仓库工作区。" },
+  { id: "config", title: "定制与日常维护", sub: "约 2 分钟", goal: "把 kimi 调成自己的:设置、主题、外部编辑器,以及版本与反馈。", chapter: "config", points: ["<b>/settings</b> 设置总入口(别名 /config)", "<b>/editor vim</b> 配外部编辑器,Ctrl-G 写长 prompt 不受罪", "<b>/experiments</b> 实验特性开关;tower 就在这开", "<b>/help</b> 命令随身说明书;<b>/version</b> 报障先核对版本"], demo: [["/settings", "打开 TUI 设置菜单"], ["/help", "显示全部命令与快捷键列表"]], practice: "/help", practiceWhy: "过一遍命令总表,挑一个明天就开始用的能力。" },
+  { id: "share", title: "状态、用量与成果出口", sub: "约 2 分钟", goal: "看住消耗、带走成果:status/usage 看清家底,copy/export 把成果送出门,web/rc 随身遥控。", chapter: "share", points: ["<b>/usage</b> 看油表:token、上下文窗口、套餐配额;过半就 /compact", "<b>/status</b> 模式、模型、工作区一条命令看全", "<b>/copy</b> 最近一条回复进剪贴板;<b>/export-md</b> 导出可归档的 Markdown", "<b>/web</b> 会话上浏览器;<b>/remote-control</b> 手机遥控当前会话"], demo: [["/usage", "显示 token 用量 · 上下文窗口 · 套餐配额"], ["/copy", "最近一条助手消息已复制到剪贴板"], ["/export-md review.md", "会话已导出为 Markdown 文件"]], practice: "/usage", practiceWhy: "看看当前会话烧了多少 token、窗口占了多少,建立油表意识。" },
+  { id: "graduation", title: "结业:速查表与下一步", sub: "1 分钟", goal: "全部章节过完。这张卡是每章最常用命令;完整指南在左栏学堂菜单里随时可查。", points: [], cheat: true },
+];

@@ -148,9 +148,15 @@ export function dismissFailure(): void {
 
 /** boot 接线(activate 调):askDetected 边沿记时/拉摘录;host.subscribe 兜全部
  *  状态位变化(含不发 topic 的终端侧作答与静默自愈)。 */
-export function bootApprovalInbox(events: PluginEventBus): void {
-  events.on<string>(KernelTopics.askDetected, (sessionId) => noteAskDetected(sessionId));
-  host.subscribe(() => refreshInbox());
+export function bootApprovalInbox(events: PluginEventBus): () => void {
+  const offs = [
+    events.on<string>(KernelTopics.askDetected, (sessionId) => noteAskDetected(sessionId)),
+    host.subscribe(() => refreshInbox()),
+  ];
+  /* revoke/回滚熔断时摘订阅,不留幽灵刷新(notify 同款纪律)。 */
+  return () => {
+    for (const off of offs) off();
+  };
 }
 
 /** 测试专用:清空模块级状态(vitest 复用同一模块实例)。 */

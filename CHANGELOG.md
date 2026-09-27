@@ -4,6 +4,68 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.2.4] - 2026-09-26
+
+### 新增
+
+- 学堂插件:左栏入口 + 指南 tab + 入门课向导 + 进度持久化;课程供给 omp 起家(82 命令 13 课)、pi 接入(22 内置命令 + /skill: 调用面 5 章)、扩至九家 CLI;33 条命令按 omp 18.3.1 源码逐条纠偏防幻觉;排版 px→rem 随界面字号缩放,指南视觉对齐客户端设计语言
+- 会话历史全文检索:工作区作用域增量索引 + mtime 缓存,按用户输入全文检索、命中一键续聊;统一搜索折叠入口落左栏最顶(搜索/文件快开/会话历史三项经命令注册表分发,会话检索绑 ⌘O);命中行带 token 用量估算,解析层下沉 cli-shared 与 TOKENS 同源
+- 跨引擎一键接力:最近输入摘要可编辑后向新引擎会话首发,重试复用会话不再堆空壳,撞墙不停摆
+- 窗口失焦系统通知与额度撞墙预警:Ask/轮次结束/会话退出三开关 + 阈值,通道 tauri-plugin-notification
+- Git worktree 编排:面板工作树常驻区与分支按检出归属三分区,管理弹窗(porcelain 列表/新建/移除/清理悬空),新建统一 wt/ 前缀、移除安全清分支尾巴(未合并保留并说明),创建即进工作区;侧栏同仓工作区归簇分层,worktree 卡缩进带分支徽章/脏净点/悬空态
+- 会话异常退出 toast 与一键续聊:PTY 退出码打通,详情事件补发旧消费方零迁移
+- checkpoints 批内敏感路径高危红标:治审批疲劳,宁漏勿扰
+- 引擎声明 commandUpdate 就地自更新(kernel + welcome),落后态版本列显裸 semver 防箭头截断
+- 手机会话屏截图注入:端内压缩走桥 fs_write_temp 落盘,composer 注 @ 路径
+- 发送二次确认:发送前弹目标卡(幕布位序/标题/工作区·引擎)+ 内容预览,Enter 确认 / Esc 或点遮罩取消;行为页开关默认开,广播多幕布并列展示;开框键自确认竞态以延一宏任务挂监听 + repeat 闸根修,确认期草稿活读比对不吃新输入,模态闸防旧计划悬空
+
+### 变更
+
+- CI release:同 tag 重跑先清旧 latest.json,防陈旧 darwin 签名致更新验签失败;macOS 代码签名与公证凭据门控注入;同 tag 清资产改 delete-asset 防 draft 404
+- academy 左栏入口压成侧栏 caption 同款单行条目,入口折叠并与搜索对齐换位
+- 探针 npm 前缀识别拆 probe_prefix 子模块;三语词典补齐 en/ja 若干批(worktree/退出通知/引擎版本提示/额度通知/academy 域等)
+- 面板入口迁右缘竖排 rail:顶栏面板 tab 条退役,钉住∪激活外显 + ⋯ 溢出菜单;内置终端/SSH/WSL 入口随迁(终端 ⌥/⌘/Ctrl 点击强制新建),文件面板操作条上移顶栏右区;wsl 入 ⋯ 菜单可勾选、rail 动作并入钉住管理;直角窗口自绘红绿灯尝试经评估回退,恢复原生标题栏与 rail 原序;提示音设置自行为页迁入系统通知页(桌面通知/提示音/额度三卡);图标装饰新增 worktree 键(簇标签与 fork 图标可自定色)
+
+### 修复
+
+- 设置写盘改补丁合并制:陈旧内存域不再整树砸盘,根修连接中继竞态
+- omp 18.3 页脚重设计击穿活动 marks 契约,徽标卡空闲不自愈
+- readopt 重锚落位 busyHoldMs 覆盖,冻结期重载不再 30s 窗假结算
+- checkpoints bash 提取:sed/sd 带值旗标不再误报、词内重定向不再漏记,会话 JSONL 写盘命令按实参入账
+- npm 前缀识别逐级跟 symlink,修 pi 经链接遮蔽的更新不同步
+- 侧栏归簇 roots 引用钉住与 setState 等值兜底,修渲染循环卡死
+- relay panic 钩子禁再 panic 修双重 panic abort,后台 eprintln 全迁 safe_eprintln 断管道路径
+- 七处裸剪贴板调用迁移 copyText,收口 WKWebView 拒写面
+- session-search 索引循环健壮化:单步 reject 只跳过该会话不再永久停摆,零作业时正确落位;浮层壳统一自靶关闭与 Esc 闸
+- lsp stderr 改纯排空,删无消费者发射;首页页脚双栏钉死 1:1,quota 长错误行省略号截断不再撑爆轨道
+- worktree 列表路径回贴输入前缀修 symlink 误判,新建分支预检已存在给可行动指引;弹窗增删清后 bump 刷新,右栏工作树区订阅 nonce 同步重拉
+- 手机截图压进桥帧预算防撞 3.5MiB 守卫,iOS 文件面板改 runOpenPanelWith 并持活 relay
+- 通知失焦闸对齐文案,桶键只对无重置快照生效;审批收件箱 boot 退订随 activate 返回;academy reduced-motion 全树覆盖
+
+## [0.2.3] - 2026-09-25
+
+### 新增
+
+- 手机 App(iOS/Android):原生壳扫码配对与设备管理(Rust 配对底座:设备表/双凭据 gate/命令域裁剪/配对码),手机独立 UI 树(home 工作区 + 引擎磁盘历史分页 / 会话屏 transcript 对话 + VT 实况 / 配对屏),桥发起会话(引擎白名单 SpawnSheet),审批线窄屏只读摘要 + 审批浮标 + 等待边沿本地通知,凭证钥匙串化,LAN/中继双通道竞速与手动切换;桌面三栏与窄屏抽屉拆分,手机树动态分离不进桌面运行时
+- 手机 App 内容与视觉:工作区列表照桌面侧栏图样重排(细线图标 + 会话虚线引导线),home 会话行平铺 + 本地/归档分段 + 按引擎子分组分页,git 面板复刻桌面(状态/差异/分支/历史/远端操作),助手正文轻量 markdown,会话对话层通用渲染重皮(工具调用归组折叠 + transcript 轮询增量生长),壳能力桥(Swift notify/钥匙串/软键盘避让/横竖屏切换),会话屏键盘工具条与审批芯片 sheet
+- 外网中继二程:443 真 TLS + 双端证书钉住(绕开运营商全端口 WS 深包检测);Cloudflare/自建服务器双 tab,自建一键 SSH 部署(动态证书钉住);桥端口持久化复用,手机凭证跨桌面重启稳定
+- web-access 部署历史落盘并点选整表回填(随存 SSH 密码/口令,私钥内容不落盘),外网使用流程文案大白话重写
+- 右栏审批收件箱:聚合等待确认会话,直达定位与自由文本应答
+- 远程控制徽标迁入顶栏左区改可点按钮深链设置 Web 访问 tab;图标装饰扩至 12 键
+- 信任面三定夺收口:shell 四件套退闸,fs/relay 面维持并写明理由;配对门改协议 capability 判定
+
+### 变更
+
+- 发布流水线首带移动安装包:安卓 APK 仓内自签 keystore(免费可装可升级,本地与 CI 同签名)+ iOS 未签名包;三端构建脚本审计(Draft 预建消并发竞态、轮询显式失败、版本随 tag 注入)
+- app 与客户端样式/词典分家互斥载入:app 令牌自持亮暗跟系统,桌面不携带手机树
+
+### 修复
+
+- 终端 ⌘C 菜单复制改走 execCommand 优先剪贴板原语,修 WKWebView 写入失败
+- 中继与桥安全收口:请求体上限防远程 OOM、spawn 闸拒路径形命令、背压/帧上限/顶替清场、chmod 校验与 invoke 并发帽;桥事件订阅闸防慢链路手机被 pty 广播灌爆,relay 慢链路背压代杀流 + 手机历史扫描逐区串行削峰
+- 手机多轮评审收口:配对闭环三高危、重拨风暴全局退避闸、桥写入补锚定(手机发起轮次桌面状态机同步)、实况固定视口 VT 模型、transcript pi 系 toolResult 误判、reset 零特异性修顶栏压进灵动岛、活会话行借磁盘真标题并对同会话磁盘行去重等
+- 死代码清理:移动断点死原语、tauri 死树退役、无消费者的 loadTranscript/onLspStderr 删除
+
 ## [0.2.2] - 2026-09-20
 
 ### 修复
@@ -339,6 +401,9 @@
 - SSH 一等会话:远程终端 + SFTP 文件树 + 端口转发
 - 插件市场、设置面板、网络代理
 
+[0.2.4]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.2.4
+[0.2.3]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.2.3
+[0.2.2]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.2.2
 [0.2.1]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.2.1
 [0.2.0]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.2.0
 [0.1.9]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.1.9

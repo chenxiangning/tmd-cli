@@ -15,17 +15,24 @@ interface BroadcastTarget {
   profile: CliProfile;
 }
 
+/** kept 公式唯一源:与 MainPanel 保活集合逐字同构(activeId 不在条内的边缘路径补挂)。
+ *  广播目标解析与确认弹层幕布位序共用,防两处序漂移。 */
+export function keptSessionIds(
+  tabIds: readonly string[],
+  activeId: string | null,
+): string[] {
+  return activeId && !tabIds.includes(activeId) ? [...tabIds, activeId] : [...tabIds];
+}
+
 export function resolveBroadcastTargets(
   tabIds: readonly string[],
   activeId: string | null,
   sessions: readonly SessionMeta[],
   getProfile: (profileId: string) => CliProfile | undefined,
 ): BroadcastTarget[] {
-  /* kept 公式与 MainPanel 保活集合逐字同构(activeId 不在条内的边缘路径补挂) */
-  const kept = activeId && !tabIds.includes(activeId) ? [...tabIds, activeId] : tabIds;
   const byId = new Map(sessions.map((x) => [x.id, x] as const));
   const out: BroadcastTarget[] = [];
-  for (const id of kept) {
+  for (const id of keptSessionIds(tabIds, activeId)) {
     const s = byId.get(id);
     const p = s ? getProfile(s.profileId) : undefined;
     if (p) out.push({ id, profile: p });

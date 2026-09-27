@@ -9,6 +9,7 @@ mod registry;
 pub(crate) use registry::PAIR_TTL_SECS;
 pub(crate) use registry::{now_secs, DeviceRegistry, PairError, PAIR_FAIL_LIMIT, RELAY_FAIL_LIMIT};
 
+use crate::app_setup::safe_eprintln;
 use crate::session::{config_dir, write_json_atomic};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -78,7 +79,10 @@ pub(crate) fn load_devices(dir: &Path) -> Vec<Device> {
             /* 坏文件保留待查(.corrupt),不静默覆没——否则首次写盘即抹掉全部已配对设备。 */
             let corrupt = devices_path(dir).with_extension("json.corrupt");
             let _ = std::fs::rename(devices_path(dir), &corrupt);
-            eprintln!("[web] 设备表损坏,原文件保留至 {}", corrupt.display());
+            safe_eprintln(&format!(
+                "[web] 设备表损坏,原文件保留至 {}",
+                corrupt.display()
+            ));
             Vec::new()
         }
     }

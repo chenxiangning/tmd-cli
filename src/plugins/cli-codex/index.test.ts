@@ -29,6 +29,8 @@ function activateCapturingProfile(): CliProfile {
     registerTabContent: () => {},
     registerCommand: () => {},
     registerCliConfig: () => {},
+    /* no-op 而非透传真注册:本文件多次 activate,真注册会在第二次抛重复。 */
+    registerAcademyCourse: () => {},
   } as unknown as PluginContext);
   const profile = captured[0];
   if (!profile) throw new Error("activate 未注册任何 profile");

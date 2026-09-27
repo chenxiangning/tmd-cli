@@ -5,8 +5,8 @@ import { windowClose, windowMinimize, windowToggleMaximize } from "@kernel/ipc";
 import { Mounts } from "@kernel/Mounts";
 import { usePlatformKind } from "@kernel/platform";
 import { toggleHomeSession } from "./shortcutCommands";
-import { TopBarPanelTabs } from "./RightPanelToolbar";
 import { TitlebarBranchLabel, WorkspaceSwitcher } from "./WorkspaceSwitcher";
+import { RightPanelToolbar } from "./RightPanelToolbar";
 
 /** macOS 用原生左侧 traffic lights,Windows 自绘右侧按钮组;窗口控制经 kernel/ipc 薄封装。 */
 function WindowControls() {
@@ -66,7 +66,7 @@ export function TopBar({
         style={leftOpen ? { width: "calc(var(--tmd-left-aside-w) + 4px)" } : undefined}
       >
         {platform === "macos" ? <div className="titlebar-leading" aria-hidden /> : null}
-        {/* 插件贡献的左区按钮簇(内置终端等):经 activate(ctx) 挂点登记 */}
+        {/* 插件贡献的左区按钮簇(会话看板/远程控制徽标等):经 activate(ctx) 挂点登记 */}
         <Mounts point="header.leftCluster" />
         {/* 插件市场(插排页):整页替换下方三栏,再点或页内关闭即回 */}
         <button
@@ -126,10 +126,12 @@ export function TopBar({
         >
           {rightOpen ? <CaretLineRight size="0.875rem" aria-hidden /> : <CaretLineLeft size="0.875rem" aria-hidden />}
         </button>
-        {/* 工作区选择器(自右栏 subbar 上移):折叠钮之后、面板 tabs 之前,贴 tabs 左缘 */}
+        {/* 工作区选择器(自右栏 subbar 上移):折叠钮之后;面板 tabs 已迁右缘 PanelRail */}
         <WorkspaceSwitcher />
-        <TopBarPanelTabs />
         <Mounts point="header.right" />
+        {/* 文件操作条(新建/刷新/面板动作;自右栏底部上移,2026-09-27):
+            右栏展开才挂,可见性仍由激活面板 showFileSubbar 自声明 */}
+        {rightOpen ? <RightPanelToolbar /> : null}
       </div>
       <WindowControls />
     </header>

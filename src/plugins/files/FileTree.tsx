@@ -127,7 +127,7 @@ function FileTree({ root }: { root: string }) {
 
   return (
     <div className="file-tree-panel">
-      {/* 工作区选择器在顶栏(WorkspaceSwitcher),新建/刷新在右栏底部(FileActionsBar);
+      {/* 工作区选择器与新建/刷新均在顶栏右区(WorkspaceSwitcher / FileActionsBar);
           列表空白区右键 = 根目录新建。 */}
       <div
         className="file-tree-list"

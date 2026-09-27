@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { AcademyCourse } from "@kernel/academy";
 import type { CliProfile } from "@kernel/cli";
 import type { PluginContext } from "@kernel/plugin";
 import { cliDshPlugin, DSH_VARIANT } from "./plugin";
@@ -21,7 +22,11 @@ describe("cli-dsh 插件契约", () => {
 
   it("activate 注册 CliProfile:适配器 spawn + 审批卡标记 + 加固 npm 安装通道", () => {
     let profile: CliProfile | undefined;
+    let course: AcademyCourse | undefined;
     cliDshPlugin.activate({
+      registerAcademyCourse: (c: AcademyCourse) => {
+        course = c;
+      },
       registerCliProfile: (p: CliProfile) => {
         profile = p;
       },
@@ -29,6 +34,8 @@ describe("cli-dsh 插件契约", () => {
       registerHomePanel: () => undefined,
     } as unknown as PluginContext);
     if (!profile) throw new Error("activate 未注册 profile");
+    /* 学堂课程:cliId 对齐 profile id,消费归 academy 插件。 */
+    expect(course?.cliId).toBe("dsh");
 
     expect(profile.id).toBe("dsh");
     expect(profile.command).toBe("dsh");
@@ -60,6 +67,7 @@ describe("cli-dsh 插件契约", () => {
     let panel: unknown;
     let sectionRegistered = false;
     cliDshPlugin.activate({
+      registerAcademyCourse: () => undefined,
       registerCliProfile: () => undefined,
       registerHomePanel: (id: string, component: unknown) => {
         panelId = id;

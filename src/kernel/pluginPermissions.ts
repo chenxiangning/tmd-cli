@@ -118,6 +118,10 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   gitPrRun: "ipc.git",
   gitSmartCheckout: "ipc.git",
   gitSmartCheckoutUndo: "ipc.git",
+  gitWorktreeList: "ipc.git",
+  gitWorktreeAdd: "ipc.git",
+  gitWorktreeRemove: "ipc.git",
+  gitWorktreePrune: "ipc.git",
 
   /* checkpoints 全域。 */
   checkpointAnchor: "ipc.checkpoints",
@@ -164,7 +168,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
 
   /* 内核保留:全局 settings 盘文件 / 环境变量(凭据)/ 本地插件管理面(提权面)。 */
   configReadSettings: null,
-  configWriteSettings: null,
+  configMergeSettings: null,
   quotaEnvValue: null,
   pluginScan: null,
   pluginReadFile: null,

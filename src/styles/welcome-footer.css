@@ -5,7 +5,8 @@
 
 .welcome-footer {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* 固定 1:1(RESUME:QUOTA);minmax(0,…) 钉死轨道,防 quota 长错误行 nowrap 撑爆比例。 */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0;
   border-top: 1px solid var(--tmd-border);
   margin-top: 10px;
@@ -51,7 +52,7 @@
 /* QUOTA 行 */
 .welcome-quota-row {
   display: grid;
-  grid-template-columns: 9rem 1fr auto;
+  grid-template-columns: 9rem minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   padding: 2px 6px;
@@ -61,6 +62,7 @@
 }
 
 .welcome-quota-row .qn { overflow: hidden; text-overflow: ellipsis; }
+.welcome-quota-row .welcome-row-quota { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .welcome-quota-row .qp { text-align: right; }
 .welcome-quota-row .qp.hot { color: var(--tmd-err); }
 .welcome-quota-row .err { color: var(--tmd-err); }

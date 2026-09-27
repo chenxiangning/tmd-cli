@@ -9,6 +9,7 @@ import type { CliInstallPlan } from "@kernel/ipc";
 import type { CliProfile } from "@kernel/cli";
 import type { EngineCredential } from "./credentials";
 import type { EngineProbeState, InstallState } from "./EngineCard";
+import { extractSemver } from "./latestVersion";
 
 /* ── 版本列 ─────────────────────────────────────────────── */
 
@@ -34,12 +35,19 @@ export function RowVersion({
   /* 落后且拿到最新版:→ latest 高亮;latest=null 查询失败:行内占位
      (此前静默不渲染,重试入口只藏于版本菜单)——重试走标题条刷新按钮。 */
   const showNew = outdated && typeof latest === "string";
+  /* 落后态显示抠出的裸 semver:版本列 10.5rem 定宽,"2.1.270 (Claude Code)"
+   * 这类长串会把 "→ latest" 挤出省略号截掉(2026-09-25 实证),原样串留 title。 */
+  const shown = (showNew && extractSemver(version)) || version;
   return (
     <span
       className="welcome-row-ver"
-      title={showNew ? t('最新版本 {version},点"更新"升级', { version: latest }) : undefined}
+      title={
+        showNew
+          ? t('当前 {current},最新 {version},点"更新"升级', { current: version, version: latest })
+          : undefined
+      }
     >
-      {version}
+      {shown}
       {showNew && <span className="new"> →{latest}</span>}
       {latest === null && (
         <span className="mut" title={t("最新版查询失败,点右上刷新按钮重试")}>

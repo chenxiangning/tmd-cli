@@ -111,7 +111,10 @@ export const MESSAGES = {
   // ── 会话启动失败通知 ──
   "{name} 会话启动失败": "{name} session failed to start",
   "{name} 会话异常退出": "{name} exited unexpectedly",
+  "{name} 会话异常退出(code {code})": "{name} exited unexpectedly (code {code})",
+  "关闭退出通知": "Dismiss exit notice",
   "关闭启动失败通知": "Dismiss startup failure notice",
+  "一键续聊(恢复到该会话)": "Resume chat (reopen that session)",
 
   // ── tab 右键菜单 ──
   "重命名": "Rename",

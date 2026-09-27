@@ -141,6 +141,18 @@ export interface GitBranchList {
   remote: GitBranchInfo[];
 }
 
+/** worktree 一条记录(对齐 commands_worktree.rs WorktreeEntry,serde 默认命名)。 */
+export interface WorktreeEntry {
+  path: string;
+  head: string;
+  /** 检出分支短名;detached/bare 为空。 */
+  branch: string;
+  detached: boolean;
+  bare: boolean;
+  locked: boolean;
+  prunable: boolean;
+}
+
 /* ── 远端对话框(请求结构对齐 remote_ops.rs RemoteRequest,serde camelCase)── */
 
 /** Gerrit 推送附加项;reviewers/cc 为逗号分隔用户名。 */

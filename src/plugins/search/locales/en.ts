@@ -1,5 +1,7 @@
 /** en 词典 · search 域(键 = 中文源串;zh 恒等无词典)。 */
 export const MESSAGES_EN = {
+  "展开搜索": "Expand search",
+  "收起搜索": "Collapse search",
   "全文搜索": "Full-text search",
   "文件名快开": "Quick open file",
   "输入关键词,回车搜索": "Type keywords and press Enter to search",

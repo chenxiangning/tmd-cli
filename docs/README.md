@@ -27,8 +27,8 @@
 | 2026-09-01 | [omp CLI 学习笔记(14 课主课 + prompts/ 用户速查)](research/omp-cli-course/README.md) | 已完结 |
 | 2026-09-13 | [omp 打开历史会话性能分析与常驻预热方案研究](research/omp-session-open-performance.md) | 已完成(方案已落地:预热接管,契约见 architecture/10) |
 | 2026-09-03 | [omp 最近版本升级记录(v18.0.7-18.1.6)](research/omp-cli-course/releases.md) | 持续更新 |
-| 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-14 校准:27 插件 / 挂点 14 / WSL / 壁纸 / 自动更新 / 预热秒开;09-19 校准:31 插件) |
-| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-07 校准:删除意图 tombstone/会话删除顺序/归档容量与分页/dsh 删除与空壳契约;**09-10 校准**:dsh 5.2 改以 0.1.2 斜杠方法面 + /api/remote.mux 双流实测契约,补 react-doctor 治理原则 9 表;**09-14 校准**:v0.1.7 对码 —— 命令面 116 / 插件 27 / 挂点 14 / acquireResume 接管流程图 / pull rebase 兜底 / wsl 与本机插件命令行;**09-19 校准**:插件 31,新增 marks/search 插件与编辑器扩展/终端链接两条宿主注册表,契约见 architecture/13) |
+| 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-14 校准:27 插件 / 挂点 14 / WSL / 壁纸 / 自动更新 / 预热秒开;09-19 校准:31 插件;**09-27 校准 v0.2.4**:38 插件 / 挂点 15 / Rust 层 web·lsp·open_with / §8 状态段重写) |
+| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-07/09-10/09-14/09-19 校准史见旧注;**09-27 校准 v0.2.4**:命令面 151 分布 / PLUGINS 图补 0.2.x 十一插件 / 挂点 15 + composer.attachments / 两棵 UI 树动态分流 / worktree 与退出码数据流注记 / 契约见 architecture/16) |
 | 2026-09-01 | [Composer 工具栏设计](superpowers/specs/2026-09-01-composer-toolbar-design.md) | 已确认 |
 | 2026-09-01 | [Composer 富输入框设计原型](design/composer-design.html) | 已落地 |
 | 2026-09-01~02 | [UI 原型:composer 工具栏 / 欢迎页额度 / 设置面板 / 消息锚点栏 / git 文件列表 ×3 / 批审阅面板 / 插排](prototypes/) | 设计定稿配套 |
@@ -151,11 +151,11 @@
 | 2026-09-15 | [双栏 diff GitHub 风视觉打磨](superpowers/specs/2026-09-15-split-diff-github-style-design.md) | 已落地(行号各半内侧缘 + 缺侧空带 + 词级实色块;删中央槽/⤶钩/⬚占位/块框) |
 | 2026-09-15 | [双栏 diff 中缝连接带视觉迭代](superpowers/specs/2026-09-15-split-diff-center-seam-design.md) | 已落地(列序翻转为左内容|旧号|新号|右内容,改动行色带贯通中缝;号格单发丝) |
 | 2026-09-15 | [手机 App 外网访问 tmd-cli 方案调研(服务面/通道/壳三层解耦,有 ECS 与无 ECS 两组通道 + iOS 壳三路线)](research/mobile-remote-access.md) | 调研底稿(方案对比,未拍板) |
-| 2026-09-15 | [codemoss Web/远程访问实现源码级分析(LAN 桥/出站中继/传输抽象/治理面 + tmd-cli 移植映射)](research/codemoss-web-remote.md) | 已完成(配套提案 openspec/changes/2026-09-15-web-remote-access/) |
+| 2026-09-15 | [codemoss Web/远程访问实现源码级分析(LAN 桥/出站中继/传输抽象/治理面 + tmd-cli 移植映射)](research/codemoss-web-remote.md) | 已完成(配套提案 openspec/changes/archive/2026-09-15-web-remote-access/) |
 | 2026-09-16 | [git 双栏 diff 方向探索 ×6(保留基准 V2 双向纹 + N1 明度 / N2 聚光灯 / N3 权重 / N4 折叠焦点 / N5 斑马打断;同一份 diff 差异化对比)](design/git-split-diff-v2-hatch-directional.html) | 设计原型(V2 已保留,N1-N5 见 git-split-diff-n1~n5-*.html,待选) |
 | 2026-09-16 | [会话看板 · 热力月历 + 泳道时间线日视图(热力/周条/节律条 + 小时时轨 × 五态垂直泳道分带对齐 + 未查看治理点 + 卡上重命名;90 天 ~1800 会话密度实测)](design/session-calendar-heat-agenda.html) | 设计原型(定稿候选;六轮目检迭代;前期 A-E/综合版/F~H 探索方案已删) |
 | 2026-09-16 | [会话看板设计 spec(热力月历 + 泳道时间线 + 生命周期五态;插件化落地)](superpowers/specs/2026-09-16-session-board-design.md) | 已落地(session-board 插件,实施纪要见 spec) |
-| 2026-09-17 | [Web 远程访问桥 M1/M2 契约:transport 继承 R3 / event_sink 双扇出 / 命令镜像与信任模型 / 停机语义 / /file 允许制 / LAN 绑定 / 中继链路](architecture/12-web-remote-access.md) | 生效中(改 web 域/transport/event_sink/relay 前必读;含 18 笔整体 review 决策) |
+| 2026-09-17 | [Web 远程访问桥 M1/M2 契约:transport 继承 R3 / event_sink 双扇出 / 命令镜像与信任模型 / 停机语义 / /file 允许制 / LAN 绑定 / 中继链路(09-22~24 M1 配对/M2 轻交互/手机独立树增补;09-25 部署历史含口令与断管道免疫)](architecture/12-web-remote-access.md) | 生效中(改 web 域/transport/event_sink/relay 前必读;含 18 笔整体 review 决策) |
 | 2026-09-17 | [本地 18 笔整体 code review(git 双栏/web 桥/kernel 状态/看板四域;P1×1 + P2×7 全修)](review/2026-09-17-18-commits-global-review.md) | 已完成(修复随本批提交;门禁全绿 react-doctor 100) |
 | 2026-09-18 | [编辑器扩展与终端链接宿主契约](architecture/13-editor-extensions-terminal-links.md) | 生效中(改 marks / CM 扩展注入 / 幕布链接前必读;原 11 号与壁纸撞号,09-19 改 13) |
 | 2026-09-19 | [LSP 语义跳转契约(分层/会话续期与断连自愈/交互手势/peek 面板)](architecture/14-lsp-semantic-nav.md) | 生效中(改 lsp 插件/语义跳转前必读) |
@@ -186,6 +186,29 @@
 | 2026-09-25 | [手机会话通用渲染:codemoss 视觉重皮 + transcript 实时生长](superpowers/specs/2026-09-25-mobile-session-render-design.md) | 已落地并真机验收(6a9ab6c;反馈迭代:c1bc686 toolResult 文本墙修复、f18baec 助手正文 markdown 渲染) |
 | 2026-09-25 | [审批收件箱 + 手机一键放行交互原型(桌面右栏页签 + 手机壳一键作答;消费 askWatch 状态位,作答走 writeSession)](design/approval-inbox.html) | 设计原型 |
 | 2026-09-25 | [跨会话文件冲突雷达原型(编辑入账跨会话 join + 触碰时间轴 + 双侧 mini diff 对照;只预警不拦截)](design/session-conflict-radar.html) | 设计原型 |
-| 2026-09-25 | [审批收件箱设计:桌面右栏聚合等待确认会话,直达 + 自由文本应答(检测零新增;预设代发键否决遵 M2 评审 A2)](../openspec/changes/2026-09-25-approval-inbox/proposal.md) | 已落地(真机目检待大仙;approval-inbox 插件随本提案提交) |
+| 2026-09-25 | [审批收件箱设计:桌面右栏聚合等待确认会话,直达 + 自由文本应答(检测零新增;预设代发键否决遵 M2 评审 A2)](../openspec/changes/archive/2026-09-25-approval-inbox/proposal.md) | 已落地(真机目检待大仙;approval-inbox 插件随本提案提交) |
 | 2026-09-25 | [审批收件箱换角度评审(功能完整性/架构边界/系统兼容;P1 幽灵行 + 7 项全当场修)](review/2026-09-25-approval-inbox-review.md) | 已完成(修复同批提交) |
-变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
+| 2026-09-25 | [omp 学堂一体化学习体系原型(左栏入口 + 13 课入门 + 指南 tab + composer 斜杠抽屉,四面对互打通)](design/omp-learning-system.html) | 已定稿(见同日 spec) |
+| 2026-09-25 | [CLI 学堂(cli-academy)设计:多 CLI 通用引导学习体系(kernel 课程注册面 + cli-* 供数据 + academy feature 插件;omp 首接入 82 命令/13 课)](superpowers/specs/2026-09-25-cli-academy-design.md) | 已落地(dd78bae/d86e1b5/80554fb;阶段 1-3 双轮 review PASS;真窗口已启动,目检清单待大仙) |
+| 2026-09-25 | [15 — CLI 学堂契约:课程注册面/AcademyCourse 结构/供给方与消费方职责/练习桥时序/契约测试](architecture/15-cli-academy.md) | 已落地(随 cli-academy 实施) |
+| 2026-09-26 | [客户端能力盘点:多智能体工作台痛点对照与优化方向(六类痛点 × 能力矩阵;P0 通知闭环/撞墙接力/历史检索,P1 审批纵深/worktree 编排/失败分类/用量纵深;similar-products 状态校正)](research/client-capability-gap-analysis.md) | 已完成(建议清单待拍板) |
+| 2026-09-26 | [系统通知与额度撞墙预警(离开工位盲区收口;失焦闸/额度轻轮询/三开关+阈值)](../openspec/changes/archive/2026-09-26-os-notifications/proposal.md) | 已落地(真机目检待大仙;notify 插件随本提案提交) |
+| 2026-09-26 | [会话历史检索(工作区用户消息全文;profile 声明面复用/mtime 缓存/增量索引)](../openspec/changes/archive/2026-09-26-session-search/proposal.md) | 已落地(真机目检待大仙;session-search 插件随本提案提交) |
+| 2026-09-26 | [跨引擎一键接力(确定性摘要拼装/预览编辑/新会话首发)](../openspec/changes/archive/2026-09-26-session-relay/proposal.md) | 已落地(真机目检待大仙;session-relay 插件随本提案提交) |
+| 2026-09-26 | [Worktree 编排(git 面板管理弹窗:porcelain 列表/新建/移除/清理悬空,创建即进工作区)](../openspec/changes/archive/2026-09-26-worktree-orchestration/proposal.md) | 已落地(真机目检待大仙;随 git 插件提交) |
+| 2026-09-26 | [会话异常退出通知与一键续聊(退出码打通/详情事件补发/toast 续聊)](../openspec/changes/archive/2026-09-26-exit-toast-resume/proposal.md) | 已落地(真机目检待大仙;ExitSessionToast 随本提案提交) |
+| 2026-09-26 | [审批批内危险度分层标记(敏感路径红标,治审批疲劳;宁漏勿扰)](../openspec/changes/archive/2026-09-26-approval-risk-tier/proposal.md) | 已落地(真机目检待大仙;classifyRisk 随本提案提交) |
+| 2026-09-26 | [会话粒度用量估算(纯解析层下沉 cli-shared/sessionUsage;检索行徽标)](../openspec/changes/archive/2026-09-26-session-usage/proposal.md) | 已落地(真机目检待大仙;随 session-search 提交) |
+| 2026-09-26 | [手机截图注入(压缩/桥 fs_write_temp 镜像/@ 路径注入,零原生壳改动)](../openspec/changes/archive/2026-09-26-mobile-shot-inject/proposal.md) | 已落地(真机目检待大仙;随 mobile 提交) |
+| 2026-09-26 | [签名/公证 CI 管道(macOS secrets 门控注入;Windows 证书采购待拍板)](../openspec/changes/2026-09-26-signing-pipeline/proposal.md) | 部分落地(macOS 管道就绪;启用需大仙配 APPLE_* secrets) |
+| 2026-09-26 | [24 小时提交全量评审(44 提交五维度;3×P1 修复/浮层壳统一/约 60 i18n 键补齐)](review/2026-09-26-24h-commit-review.md) | 已完成(问题当轮修复,门禁全绿) |
+| 2026-09-26 | [worktree 关联管理原型 方案 A:侧栏工作区分层树(仓库父节点/worktree 子节点)](design/worktree-nested-sidebar.html) | 已落地(A+B 并做) |
+| 2026-09-26 | [worktree 关联管理原型 方案 B:Git 面板工作树区+分支按归属归组](design/worktree-git-panel-zone.html) | 已落地(A+B 并做) |
+| 2026-09-26 | [worktree 关联管理设计(方案 A 侧栏分层 + B Git 面板分区,并做)](superpowers/specs/2026-09-26-worktree-assoc-management-design.md) | 已落地(1421 桩实证;真机目检待大仙) |
+| 2026-09-27 | [右缘面板 rail 设计(顶栏面板入口迁竖排工具条,activity bar 形态)](superpowers/specs/2026-09-27-right-panel-rail-design.md) | 已落地(实现随本 spec 提交;1421 桩目检通过) |
+| 2026-09-27 | [6 小时提交评审(12 提交 worktree 关联管理;4×P1 修复/重复实现收口/5×2 死键清)](review/2026-09-27-6h-commit-review.md) | 已完成(问题当轮修复,门禁复验绿) |
+| 2026-09-27 | [16 — Worktree 关联管理契约:Rust 写命令 run_mut 纪律/wt/ 前缀与安全清尾/面板常驻区与三分区/侧栏归簇 P0 纪律](architecture/16-worktree-contract.md) | 生效中(改 worktree 链路/归簇前必读) |
+| 2026-09-27 | [文档全量对码 v0.2.4(architecture 01/02/03/06/08/12/14 + FEATURES/README/README_EN 增量域;openspec 九案归档)](review/2026-09-27-docs-full-calibration.md) | 已完成 |
+| 2026-09-27 | [Composer 发送二次确认设计(目标+内容预览弹框;全部内容发送覆盖,工具命令豁免)](superpowers/specs/2026-09-27-composer-send-confirm-design.md) | 已确认(实现随本 spec 提交) |
+| 2026-09-27 | [0.2.4 发布前评审(四维度:兼容性/边界泄露/性能/死代码与文档;1×P1 已修、9 项发布前修复落盘、全闸门绿)](review/2026-09-27-release-0.2.4-review.md) | 已完成 |
+  变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

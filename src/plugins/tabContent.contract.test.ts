@@ -27,6 +27,7 @@ const OPENABLE_KINDS = [
   "ckpt-batch",
   "wsl",
   "memory-console",
+  "academy.guide",
 ] as const;
 
 function activateCollectingKinds(): Set<string> {
@@ -41,6 +42,7 @@ function activateCollectingKinds(): Set<string> {
     registerMarketPanel: () => {},
     registerHomePanel: () => {},
     registerSidebarAction: () => {},
+    registerAcademyCourse: () => {},
     registerRemoteFileSource: () => () => {},
     registerWorkspaceOrigin: () => () => {},
     registerSpecWrapper: () => () => {},

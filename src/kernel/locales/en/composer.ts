@@ -38,17 +38,17 @@ export const MESSAGES = {
 
   /* view/DrawerItemList.tsx + drawerSections.ts (consumed at call sites) */
   "暂无命令或技能": "No commands or skills yet",
-  "⚡ 直接发送到幕布": "⚡ Send to terminal",
+  "⚡ 发送到幕布": "⚡ Send to terminal",
   "↵ 插入输入框": "↵ Insert into input",
   "⇱ 打开面板": "⇱ Open panel",
   "命令": "Commands",
   "技能": "Skills",
   "MCP": "MCP",
   "插件": "Plugins",
-  "⚡ 直接发送": "⚡ Send",
+  "⚡ 发送": "⚡ Send",
   "↵ 插入": "↵ Insert",
   "⇱ 打开": "⇱ Open",
-  "直接发送到幕布": "Send to terminal",
+  "发送到幕布": "Send to terminal",
   "插入输入框继续编辑": "Insert into input to keep editing",
   "打开对应面板": "Open the panel",
 
@@ -90,4 +90,14 @@ export const MESSAGES = {
 
   /* triggers/suggest.ts */
   "文件夹": "Folder",
+  /* SendConfirmDialog + BehaviorTab(spec 2026-09-27-composer-send-confirm) */
+  "确认发送": "Confirm send",
+  "发送目标": "Send target",
+  "将发送到 {n} 块幕布:": "Will broadcast to {n} panes:",
+  "幕布 {n}": "Pane {n}",
+  "当前": "current",
+  "内容": "Content",
+  "Enter 确认 · Esc 取消": "Enter to confirm · Esc to cancel",
+  "发送二次确认": "Send confirmation",
+  "发送前弹窗确认目标会话与内容预览,防平铺模式发错会话;Enter 确认,Esc 取消。": "Confirm target session and preview content before sending — guards against mis-sends in tiled mode. Enter confirms, Esc cancels.",
 } as Record<string, string>;

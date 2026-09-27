@@ -69,7 +69,7 @@ async fn dispatch_inner(app: &AppHandle, cmd: &str, raw: &Value) -> Result<Value
                 Ok(serde_json::json!({ "pinned": now_pinned }))
             })
             .await?;
-            /* 与 config_write_settings 同款纪律:广播回读,桌面置顶区即时更新 */
+            /* 与 config_merge_settings 同款纪律:广播回读,桌面置顶区即时更新 */
             let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));
             Ok(r)
         }

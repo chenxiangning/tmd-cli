@@ -11,6 +11,7 @@ import { DshHostPanel } from "./hostPanel";
 import { loadConnection } from "./dshConnection";
 import { listHostSessions, readHostSessionStatus, readHostDefaultStatus, readHostContextPressure, deleteHostSession, isHostSessionEmpty } from "./dshRpc";
 import { ensureAdapterDeployed } from "./adapterDeploy";
+import { DSH_ACADEMY_COURSE } from "./academy/academyCatalog";
 
 /** 分发渠道常量:二进制名 + npm 包。 */
 export const DSH_VARIANT = {
@@ -30,6 +31,8 @@ export const cliDshPlugin: Plugin = {
     category: "engine",
   },
   activate(ctx) {
+    /* CLI 学堂课程:7 条注册斜杠命令(3 章),消费归 academy 插件(契约见 kernel/academy.ts)。 */
+    ctx.registerAcademyCourse(DSH_ACADEMY_COURSE);
     ctx.registerCliProfile({
       id: DSH_VARIANT.profileId,
       docsUrl: "https://www.npmjs.com/package/@deepseek-ai/dsh",

@@ -22,12 +22,14 @@ import { useFilePanel } from "@kernel/filePanel";
 import { usePlatformKind } from "@kernel/platform";
 import { PluginMarketPage } from "./PluginMarketPage";
 import { StartFailureToast } from "./StartFailureToast";
+import { ExitSessionToast } from "./ExitSessionToast";
 import { SettingsPersistToast } from "./SettingsPersistToast";
 import { useEditorMaximized } from "./editorMaximized";
 import { shellBarToggles, shellLeftEnsureOpen, shellMarketClose, shellMarketToggle } from "./shortcutCommands";
 import { installShortcutDispatcher } from "@kernel/shortcuts";
 import { usePersistedToggle, useScrollbarProbe } from "./shellHooks";
 import { DesktopColumns } from "./DesktopColumns";
+import { PanelRail } from "./RightPanelToolbar";
 import { TopBar } from "./TopBar";
 
 export function AppShell() {
@@ -38,7 +40,7 @@ export function AppShell() {
   const activeFilePanel =
     filePanels.find((p) => p.id === filePanelMode) ?? filePanels[0];
   const [leftOpen, toggleLeft, setLeftOpen] = usePersistedToggle("shell.left", true);
-  const [rightOpen, toggleRight] = usePersistedToggle("shell.right", true);
+  const [rightOpen, toggleRight, setRightOpen] = usePersistedToggle("shell.right", true);
   /* 插件市场页开关:打开时以不透明覆盖层盖住三栏(见下方 JSX 注释),关掉零回放即回。 */
   const [marketOpen, setMarketOpen] = useState(false);
   const toggleMarket = useCallback(() => setMarketOpen((v) => !v), []);
@@ -81,7 +83,7 @@ export function AppShell() {
           tab/分栏尺寸零回放零重排;也不可 display:none 隐藏三栏 —— 顶栏左右区
           宽度实测自侧栏(useElementWidth 写 CSS 变量),隐藏后 RO 上报 0 会把
           顶栏 icon 挤叠。市场页实底背景,盖住下层即可。 */}
-      <div className="relative min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         <DesktopColumns
           leftOpen={leftOpen}
           rightOpen={rightOpen}
@@ -89,6 +91,9 @@ export function AppShell() {
           hasTabs={tabs.length > 0}
           filePanel={activeFilePanel}
         />
+        {/* 右缘面板 rail:常驻竖条(右栏收起也在),点击切面板并展开右栏;
+            插件市场页打开时与三栏一起被覆盖层盖住。 */}
+        <PanelRail onActivate={() => setRightOpen(true)} />
         {marketOpen && (
           <div className="absolute inset-0 z-50">
             <PluginMarketPage onClose={() => setMarketOpen(false)} />
@@ -100,6 +105,7 @@ export function AppShell() {
       {/* 会话启动失败通知:进程秒退静默闪退的兜底呈现(见 kernel/sessionSpawn.ts) */}
       <SettingsPersistToast />
       <StartFailureToast />
+      <ExitSessionToast />
     </div>
   );
 }

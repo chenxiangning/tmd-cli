@@ -2,6 +2,7 @@
 
 use super::relay_core::bytes_to_b64;
 use super::selfhost_assets::{self, SERVER_SOURCE};
+use crate::app_setup::safe_eprintln;
 
 /// 导出部署包:桌面即可直连所需的 mjs/env/证书/私钥/unit/README 一次打全,
 /// 并同步落 settings 动态钉(webRelayCertDer 等)——用户照包部署完点连接即可。
@@ -43,7 +44,7 @@ pub fn relay_selfhost_pack(
         settings["webRelayCertHost"] = serde_json::json!(host);
         settings["webRelayCertDer"] = serde_json::json!(bytes_to_b64(&cert.der));
     }) {
-        eprintln!("[selfhost] 设置落盘失败: {error}");
+        safe_eprintln(&format!("[selfhost] 设置落盘失败: {error}"));
     }
     let _ = crate::event_sink::emit(&app, "settings:changed", &serde_json::json!({})); /* 双面:手机覆盖层也需感知证书钉 */
     Ok(path)

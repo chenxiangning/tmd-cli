@@ -6,11 +6,12 @@
 //! 事件修订计数)→ 封口时 build_events_turn_files 把 edit 行固化成 TurnFile
 //! (前像 = 首击自足副本,后像 = 封口时刻磁盘)。
 //!
-//! 纯事件归因(2026-09-05 泄露回归定约):批内容 = 且仅 = 本会话本轮的
-//! edit 行。事件流按会话天然隔离(每会话一份 JSONL / PTY),从根上消除
-//! 并行会话与外部进程的写入串批;代价是 shell 落盘盲区(AI 用 cp/脚本/
-//! 重定向写仓库文件,无事件)不再并入审批线 —— 窗口推断只能证明「何时被
-//! 写」不能证明「谁写的」,并回来就是泄露回归,隔离优先于覆盖面。
+//! 纯事件归因(2026-09-05 泄露回归定约):批内容 = 且仅 = 本会话本轮的事件行
+//! (edit 工具结果行 + bash 写盘命令行)。事件流按会话天然隔离,从根上消除并行
+//! 会话与外部进程的写入串批;窗口推断只证「何时被写」不证「谁写的」。bash 写盘
+//! (2026-09-25 收编主要残源,实证 012210c):适配器从本会话 JSONL 的 bash
+//! toolCall 按已知写盘命令形态白名单(sd/sed -i/perl -i/tee/重定向,见前端
+//! cli-shared/bashWrites)提取路径入账;cp/mv/构建器等未建模形态继续盲。
 //!
 //! 前像三级解析(首击时,全部拷进 sidecar 自足):
 //! 1. anchor 基线(dirty 快照 / 用户仓库 HEAD 兜底);
@@ -183,8 +184,8 @@ fn latest_turn_after(
 /// events 归因的 open 轮文件集(视图共用):本轮 edit 行 → live 状态符。
 /// 磁盘已无 → D;前像空且未入 HEAD → A;其余 → M(含首击新建后路径被并行
 /// 动作带进 HEAD 的展示重定基:与 git 面板状态符对齐,见 store::head_blob_bytes)。
-/// 纯事件归因:只列 edit 行路径,shell 落盘等无事件写入不入 open 批
-/// (隔离优先,见模块 doc)。
+/// 纯事件归因:只列事件行路径(edit 工具 + bash 写盘命令形态),未建模
+/// 的 shell 落盘不入 open 批(隔离优先,见模块 doc)。
 pub(super) fn edit_open_paths(
     root: &std::path::Path,
     user: Option<&git2::Repository>,
@@ -214,7 +215,7 @@ pub(super) fn edit_open_paths(
 
 /// events 归因封口:本轮 edit 行 → TurnFile(前像 = 首击自足副本,
 /// 后像 = 封口时刻磁盘;净零变更不入批,轨迹留在 edit 行)。
-/// 纯事件归因:shell 落盘等无事件写入不并入批(隔离优先,见模块 doc)。
+/// 纯事件归因:未建模的 shell 落盘不并入批(隔离优先,见模块 doc)。
 pub(super) fn build_events_turn_files(
     sidecar: &git2::Repository,
     root: &std::path::Path,

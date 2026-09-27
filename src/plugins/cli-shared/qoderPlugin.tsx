@@ -28,6 +28,8 @@ interface QoderVariantSpec {
   dataDir: string;
   docsUrl: string;
   npmPackage: string;
+  /** 就地自更新通道(实证 CLI 自带 update 子命令才声明;未装机器走 npm 安装)。 */
+  commandUpdate?: { program: string; args: string[] };
 }
 
 /** 由分发渠道常量构造完整 Qoder 插件;两版插件目录只剩常量声明。 */
@@ -47,6 +49,7 @@ export function makeQoderPlugin(variant: QoderVariantSpec): Plugin {
         id: variant.profileId,
         docsUrl: variant.docsUrl,
         npmPackage: variant.npmPackage,
+        commandUpdate: variant.commandUpdate,
         name: variant.command,
         renderIcon: (size) => <QoderGlyph size={size} />,
         command: variant.command,

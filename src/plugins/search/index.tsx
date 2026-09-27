@@ -11,6 +11,7 @@ import type { Plugin } from "@kernel/plugin";
 import { t } from "@kernel/i18n";
 import { SearchPanel } from "./SearchPanel";
 import { QuickOpen } from "./QuickOpen";
+import { SearchHubEntry } from "./HubEntry";
 import { closeSearchOverlay, openSearchOverlay, useSearchOverlay } from "./overlayStore";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
@@ -20,11 +21,16 @@ function SearchOverlay() {
   if (!kind) return null;
   return createPortal(
     <>
-      <div className="wsmenu-backdrop" role="presentation" onClick={closeSearchOverlay} />
+      {/* 全屏容器统一收 Esc 与遮罩点击(自靶判定):独立捕获层会被容器整体
+          遮蔽成死代码,故不设(2026-09-26 审查修正)。 */}
       <div
+        role="presentation"
         className="fixed inset-0 z-[1201] flex items-start justify-center px-4 pt-[12vh]"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) closeSearchOverlay();
+        }}
         onKeyDown={(e) => {
-          if (e.key === "Escape") closeSearchOverlay();
+          if (e.key === "Escape" && !e.nativeEvent.isComposing) closeSearchOverlay();
         }}
       >
         {kind === "panel" ? <SearchPanel /> : <QuickOpen />}
@@ -45,6 +51,8 @@ export const searchPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx) {
+    /* 统一搜索折叠入口:左栏顶部(order -1,学堂 -2 之下),让三个搜索能力可被发现。 */
+    ctx.contribute("leftSidebar.section", { order: -1, component: SearchHubEntry });
     ctx.contribute("overlay", { order: 50, component: SearchOverlay });
     ctx.registerCommand({
       id: "search.panel",

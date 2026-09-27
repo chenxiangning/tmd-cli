@@ -38,6 +38,7 @@ function fakeCtx(): PluginContext {
     registerTabContent,
     registerMarketPanel,
     registerSidebarAction: () => {},
+    registerAcademyCourse: () => {},
     registerFileVisual: () => {},
     registerEditorExtension: () => () => {},
     registerTerminalLinkProvider: () => () => {},

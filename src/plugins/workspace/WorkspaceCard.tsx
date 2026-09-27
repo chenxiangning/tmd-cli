@@ -1,6 +1,7 @@
 /**
  * 单个工作区卡片(codemoss WorkspaceCard 复刻):行 + 折叠会话树。
- * 工作区行:双态文件夹图标(hover 换 chevrons)+ 名称 + Default badge
+ * 工作区行:双态文件夹图标(hover 换 chevrons;worktree 卡改用 GitFork 图标)
+ *   + 名称 + Default badge
  *   + hover 显形动作组(会话管理/刷新会话/新建会话),右键同「+」。
  * 嵌套交互治理:激活热区(workspace-row-main)与折叠钮/动作组是 DOM 兄弟
  * (全真 button,行容器不再是 role=button 大热区),hover 显形走行级选择器。
@@ -12,7 +13,7 @@ import { t } from "@kernel/i18n";
 import { setActiveWorkspace, setWorkspaceAlias, workspaceDisplayName, type Workspace } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { RenameInput } from "@kernel/RenameInput";
-import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, RocketLaunch, ListChecks, Rows } from "@phosphor-icons/react";
+import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, GitFork, RocketLaunch, ListChecks, Rows } from "@phosphor-icons/react";
 import { openWorkspaceFiles, useWorkspaceFileBrowserView } from "@kernel/workspaceFileBrowser";
 import { CliSessionGroup } from "./SessionList";
 import { SshSessionGroup } from "./SshSessionGroup";
@@ -31,6 +32,7 @@ function FolderIcon({ expanded }: { expanded: boolean }) {
 /** 单个工作区卡片(codemoss WorkspaceCard 复刻):行 + 折叠会话树。 */
 export function WorkspaceCard({
   workspace,
+  worktree,
   isActive,
   collapsed,
   onToggleCollapsed,
@@ -43,6 +45,8 @@ export function WorkspaceCard({
   onShowMenu,
 }: {
   workspace: Workspace;
+  /** worktree 卡:图标用 GitFork(非文件夹);簇边框由父级 WorkspaceList 套。 */
+  worktree: boolean;
   isActive: boolean;
   /** 折叠态由 WorkspaceSection 持有(受控):caption「折叠全部」按钮据此全局切换。 */
   collapsed: boolean;
@@ -84,8 +88,15 @@ export function WorkspaceCard({
             }}
             onDoubleClick={(e) => e.stopPropagation()}
           >
-            <span className="workspace-collapse-toggle-folder-icon" aria-hidden>
-              <FolderIcon expanded={!collapsed} />
+            <span
+              className={`workspace-collapse-toggle-folder-icon${worktree ? " is-worktree-icon" : ""}`}
+              aria-hidden
+            >
+              {worktree ? (
+                <GitFork size="1rem" weight="bold" aria-hidden />
+              ) : (
+                <FolderIcon expanded={!collapsed} />
+              )}
             </span>
             <span className="workspace-collapse-toggle-affordance-icon" aria-hidden>
               {collapsed ? (

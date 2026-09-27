@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const ipcMock = vi.hoisted(() => ({
   configReadSettings: vi.fn(),
-  configWriteSettings: vi.fn(),
+  configMergeSettings: vi.fn(),
 }));
 
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
@@ -22,7 +22,7 @@ let settings: SettingsModule;
 beforeEach(async () => {
   vi.clearAllMocks();
   ipcMock.configReadSettings.mockResolvedValue(null);
-  ipcMock.configWriteSettings.mockResolvedValue(undefined);
+  ipcMock.configMergeSettings.mockResolvedValue(undefined);
   vi.resetModules();
   // 动态 import 例外:被测模块是模块级单例,必须借 resetModules 取全新实例
   settings = await import("./settings");
@@ -49,7 +49,7 @@ describe("初始状态与默认值", () => {
       uiZoom: 1,
       sessionTabsEnabled: true,
       sessionTabsMax: 4,
-      sendShortcut: "enter",
+      sendShortcut: "enter", sendConfirmEnabled: true,
       promptHistoryEnabled: true,
       askSoundEnabled: true,
       askSoundId: "default",
@@ -76,6 +76,10 @@ describe("初始状态与默认值", () => {
       workspaceGroupCollapsedMap: {},
       networkProxyEnabled: false,
       networkProxyUrl: "",
+      notifyOsAsk: true,
+      notifyOsTurnEnd: true,
+      notifyOsSessionExit: false,
+      notifyQuotaWarnPercent: 10,
       memoryDbPath: "",
       memoryEnabled: true,
       memoryCapsuleMode: "manual",
@@ -97,6 +101,7 @@ describe("初始状态与默认值", () => {
         "ssh-panel": {}, "system-proxy": {},
         "panel-files": {}, "panel-git": {}, "panel-checkpoints": {}, "panel-memory": {},
         "panel-marks": {}, "wsl-panel": {}, terminal: {}, "session-board": {}, "remote-control": {},
+        worktree: {},
       },
       relayDeployHistory: [],
     });
@@ -234,18 +239,15 @@ describe("updateSettings 合并与清洗", () => {
     expect(settings.getSettingsState().settings.disabledPlugins).toEqual(["git"]);
   });
 
-  it("持久化收到的是清洗后的完整 settings", async () => {
+  it("持久化收到的是被改域补丁(sanitize 派生的缺省键不随行,加载时自愈)", async () => {
     settings.updateSettings({ theme: "light" });
-    /* persist 现为先拉盘合并再写(双实例丢更新防护),写盘晚一个微任务 */
-    await vi.waitFor(() => expect(ipcMock.configWriteSettings).toHaveBeenCalled());
-    expect(ipcMock.configWriteSettings).toHaveBeenCalledWith(
-      expect.objectContaining({
-        theme: "light",
-        lightThemePresetId: "vscode-light-modern",
-        darkThemePresetId: "vscode-dark-modern",
-        customThemePresetId: "vscode-dark-modern",
-      }),
+    /* persist 先拉盘合并标记域再随补丁上送,写盘晚一个微任务 */
+    await vi.waitFor(() => expect(ipcMock.configMergeSettings).toHaveBeenCalled());
+    expect(ipcMock.configMergeSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ theme: "light" }),
     );
+    const written = ipcMock.configMergeSettings.mock.lastCall![0] as Record<string, unknown>;
+    expect("lightThemePresetId" in written).toBe(false);
   });
 });
 

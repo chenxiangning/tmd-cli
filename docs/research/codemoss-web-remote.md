@@ -1,7 +1,7 @@
 # codemoss Web/远程访问实现源码级分析
 
 > 日期:2026-09-15 · 状态:已完成(源码实读:web.rs 1865 行 / relay.rs 1903 行 / transport.ts / event_sink.rs / deploy/worker/index.js / 治理面 7 组件)
-> 配套提案:`openspec/changes/2026-09-15-web-remote-access/`
+> 配套提案:`openspec/changes/archive/2026-09-15-web-remote-access/`
 
 ## 结论先行
 

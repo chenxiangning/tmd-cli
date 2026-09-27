@@ -36,6 +36,12 @@ interface GitPanelState {
   remoteMeta: GitRemoteMeta | null;
   /** 右键菜单等外部入口请求打开远端对话框;nonce 保证同 op 连发也触发 effect。 */
   remoteDialogRequest: { op: RemoteDialogOp; nonce: number } | null;
+  /** Git 面板「工作树」区/分支列表「建树」入口请求打开 worktree 弹窗(可预填)。 */
+  worktreeDialogRequest: {
+    branch?: string;
+    newBranch?: boolean;
+    nonce: number;
+  } | null;
 }
 
 interface GitRemoteMeta {
@@ -57,6 +63,7 @@ const state: GitPanelState = {
   aggregate: { totals: null, fileCount: 0 },
   remoteMeta: null,
   remoteDialogRequest: null,
+  worktreeDialogRequest: null,
 };
 const listeners = new Set<() => void>();
 let snapshot: GitPanelState = state;
@@ -147,6 +154,22 @@ let remoteDialogNonce = 0;
 export function requestRemoteDialog(op: RemoteDialogOp): void {
   remoteDialogNonce += 1;
   state.remoteDialogRequest = { op, nonce: remoteDialogNonce };
+  emit();
+}
+
+let worktreeDialogNonce = 0;
+
+/** 工作树区「新建」/ 分支列表「建树」入口 → GitToolbar 打开 worktree 弹窗(可预填)。 */
+export function requestWorktreeDialog(prefill?: { branch?: string; newBranch?: boolean }): void {
+  worktreeDialogNonce += 1;
+  state.worktreeDialogRequest = { ...prefill, nonce: worktreeDialogNonce };
+  emit();
+}
+
+/** GitToolbar 消费后清除,防止重复触发。 */
+export function clearWorktreeDialogRequest(): void {
+  if (!state.worktreeDialogRequest) return;
+  state.worktreeDialogRequest = null;
   emit();
 }
 

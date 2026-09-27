@@ -8,7 +8,7 @@ import type { AppSettings } from "./settings";
 
 const ipcMock = vi.hoisted(() => ({
   configReadSettings: vi.fn(),
-  configWriteSettings: vi.fn(),
+  configMergeSettings: vi.fn(),
 }));
 
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
@@ -23,16 +23,16 @@ let settings: {
 beforeEach(async () => {
   vi.clearAllMocks();
   ipcMock.configReadSettings.mockResolvedValue(null);
-  ipcMock.configWriteSettings.mockResolvedValue(undefined);
+  ipcMock.configMergeSettings.mockResolvedValue(undefined);
   vi.resetModules();
   settings = (await import("./settings")) as unknown as typeof settings;
 });
 
 describe("图标装饰设置", () => {
-  it("出厂默认:newchat 呼吸开,其余全默认,12 键齐全", () => {
+  it("出厂默认:newchat 呼吸开,其余全默认,13 键齐全", () => {
     const d = settings.getSettingsState().settings.iconDecor;
     expect(d.newchat).toEqual({ blink: true });
-    expect(Object.keys(d)).toHaveLength(12);
+    expect(Object.keys(d)).toHaveLength(13);
   });
 
   it("合法补丁合并生效:色与闪烁互相独立,其余键不动", () => {

@@ -4,7 +4,7 @@
 
 ## 背景与目标
 
-手机/平板浏览器远程驾驶本机会话。两段交付:M1 = LAN 直连(同一 Wi-Fi);M2 = 外网中继(桌面出站拨 Cloudflare Worker,无端口映射)。调研与提案见 `openspec/changes/2026-09-15-web-remote-access/` 与 `docs/research/mobile-remote-access.md`。
+手机/平板浏览器远程驾驶本机会话。两段交付:M1 = LAN 直连(同一 Wi-Fi);M2 = 外网中继(桌面出站拨 Cloudflare Worker,无端口映射)。调研与提案见 `openspec/changes/archive/2026-09-15-web-remote-access/` 与 `docs/research/mobile-remote-access.md`。
 
 ## 契约
 
@@ -12,7 +12,7 @@
 |---|---|
 |传输层|`src/kernel/transport.ts` 继承 R3(ipc.ts 的全部 `@tauri-apps/*` import 集中于此):webview 态原样透传;浏览器态走 WS(重连退避 1s→10s 封顶、open 20s 超时、pending 释放、hello 版本握手)。前端 ipc 层对运行环境零感知。check-arch-boundary R3 白名单同步。|
 |事件扇出|`src-tauri/src/event_sink.rs`:桌面 webview(emit)+ 桥总线(broadcast,容量 512,慢消费者跳帧不反压桌面)双扇出;pty 泵「emit 失败即退出」契约不变。|
-|命令镜像|`src-tauri/src/web/dispatch.rs` 镜像 invoke_handler 全量命令(新增宿主命令必须同步登记,与 lib.rs 同纪律);面控命令(web_access/relay start-stop、relay_deploy、app_restart、updater 族)排除在镜像外,EXCLUDED 清单有测试。`config_write_settings` 落盘成功后广播 `settings:changed`(与 relay 直写盘同款纪律,防跨面静默回滚)。|
+|命令镜像|`src-tauri/src/web/dispatch.rs` 镜像 invoke_handler 全量命令(新增宿主命令必须同步登记,与 lib.rs 同纪律);面控命令(web_access/relay start-stop、relay_deploy、app_restart、updater 族)排除在镜像外,EXCLUDED 清单有测试。`config_merge_settings` 合并落盘成功后广播 `settings:changed`(与 relay 直写盘同款纪律,防跨面静默回滚)。|
 |信任模型|**token 持有者 = 桌面等权**(dispatch 可达 fs/pty/sqlite/install 全量),风险弹窗如实告知。token 24 字符 CSPRNG,gate.rs 双侧 SipHash 后 u64 定长比较;每次起服务重铸(重启后旧链接 403,需重新扫码)。风险弹窗只承诺真实存在的机制:密钥即凭据/不转发/用完断开/重启重铸 —— 无设备管理面,不虚诺 per-device approval。|
 |停机语义|`watch::Sender<bool>` 广播:accept 循环 + 每连接 reader/writer。**select! 的 else 分支只在全分支 pattern 被禁用时执行**(治不了「stop 早于订阅」);订阅后必须立即 `borrow_and_update()` 吸收已置位,否则 socket 带完整派发权活到自行断连(2026-09-17 review P2 修复)。|
 |/file 范围|$HOME 内;**首段 dot 条目默认拒绝**(凭据/历史/OAuth 全在内),白名单仅 `.tmd-cli/wallpapers`;非 dot 维持放行(工作区预览)。canonicalize + $HOME 前缀校验防 symlink 逃逸;先验大小再读。黑名单枚举追不完新 CLI 凭据落点,允许制一刀切更稳(review P2 改造)。|
@@ -36,7 +36,7 @@
 
 ## 配对底座增补(M1 mobile-app,2026-09-22 落地)
 
-实施提案:`openspec/changes/2026-09-21-mobile-app-m1-pairing/`;壳工程 `mobile-app/`(bundle id `com.tmdcli.mobile`)。
+实施提案:`openspec/changes/archive/2026-09-21-mobile-app-m1-pairing/`;壳工程 `mobile-app/`(bundle id `com.tmdcli.mobile`)。
 
 |面|契约|
 |---|---|
@@ -74,3 +74,18 @@
 |桥写补锚定|桥 `session_write` 直通 Rust PTY,桌面 `writeSession→onUserWrite` 锚定链(ActivityWatch 开轮/EditWatch/Ask 解除)被绕过 → 桌面行状态签全盲。契约:桥写成功广播 `session:remote-write{sessionId}` → 桌面 `noteRemoteWrite` 走同款守望扇出(synthetic=false;桌面自身写走 webview IPC 不过桥,无回声)。|
 |home 顶区|`topZones`(history.ts):已置顶(settings.sessionPins 镜像,pinnedAt 升序)+ 运行中(全部活会话,新在上)两区常驻列表顶;行内 📌 钮切换置顶(无稳定磁盘身份的未绑定新活会话不渲染钮)。|
 |home 平铺+归档分段|工作区组内会话行按时间平铺(引擎子分组头退役);组头下「本地/归档」分段 = 桌面 `settings.sessionArchive` 覆盖层只读镜像(`config_read_settings` 已放行,key `wsId:profileId:cliSessionId` 与 kernel/sessionArchive 同构;活行恒本地)。分页水位按 工作区:分段 独立。|
+
+## 中继部署历史与凭据口径增补(2026-09-25 落地)
+
+|面|契约|
+|---|---|
+|部署历史落盘|`settings.relayDeployHistory`:一键部署成功后由 **Rust** `relay_selfhost_persist::persist_selfhost` 落盘(前端 WebSelfHostCard 对 settings 零写入纪律不破 —— 00d3dc5 整树覆盖竞态教训)。条目 = 连接信息 host/port/username/authType/privateKeyPath **+ password/passphrase 明文**,与 `settings.ssh.hosts` 既有明文存储同纪律(手机 dispatch `config_read_settings` 本就全量可读,不新增暴露面);私钥内容恒不落盘,只存路径。upsert 键 `host:port:username`,新者在前截 10,与前端 `settingsRelayHistory.ts` sanitize 契约一致 —— **改一边必须同步另一边**。|
+|历史 UI|`RelayDeployHistoryList` 点行整表回填免重输(密码/口令带出,私钥内容留空待重贴),× 删条。|
+|断管道免疫|panic 钩子内禁再 panic(直写 stderr 忽略错误);后台线程 eprintln 全迁 `app_setup::safe_eprintln`(2026-09-26 SIGABRT 实证:relay_agent 后台 eprintln 撞断管道 → 钩子二次 panic → abort)。|
+|截图注入|手机 SessionScreen「图」钮:端内压缩(长边 1568 / JPEG q0.8)→ 桥 `fs_write_temp` 镜像落盘 → composer 注 `@路径`,零原生壳改动;载荷压进桥帧预算防撞 3.5MiB 守卫(2026-09-26 评审 P1)。|
+|WKWebView 剪贴板|桌面七处裸剪贴板调用迁 `copyText`(收口 WKWebView 拒写面)。|
+
+## 已知取舍
+
+- 部署历史含口令明文存 settings.json(大仙 2026-09-25 拍板:点历史要整表回填免重输);暴露面不新增(设备读 settings 面早已全量)。
+- `openspec/changes/archive/2026-09-15-web-remote-access/tasks.md` 任务板 0/30 未勾 = 记账欠账(能力实际已落地,M1/M2 均经真机与红队收口);状态以本文与代码为准。

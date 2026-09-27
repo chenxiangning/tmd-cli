@@ -91,7 +91,7 @@ export function DrawerItemList({
 
       {/* 底部图例 */}
       <div className="flex shrink-0 items-center gap-2 border-t border-(--tmd-border) px-2.5 py-1.5 font-mono text-[0.59375rem] whitespace-nowrap text-(--tmd-fg-faint)">
-        <span>{t("⚡ 直接发送到幕布")}</span>
+        <span>{t("⚡ 发送到幕布")}</span>
         <span>{t("↵ 插入输入框")}</span>
         <span>{t("⇱ 打开面板")}</span>
       </div>

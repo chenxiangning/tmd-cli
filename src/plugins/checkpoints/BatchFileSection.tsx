@@ -10,6 +10,7 @@ import { Fragment, useMemo, useState } from "react";
 import { CaretRight, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptBatchFile, CkptPatch } from "@kernel/ipc";
+import { classifyRisk } from "./risk";
 
 /** 分区头徽标簇:已退/内容已变/无前像/AI 写入计数(自 FileSection 拆出降分支)。 */
 function FileSectionBadges({
@@ -141,6 +142,14 @@ function FileSection({
           <span className={`grid h-[15px] w-[15px] flex-none place-items-center rounded text-[0.625rem] font-bold ${chipCls}`}>
             {status}
           </span>
+          {classifyRisk(path) === "high" && (
+            <span
+              className="flex-none rounded bg-(--tmd-diff-removed)/15 px-1 text-[0.625rem] font-bold text-(--tmd-diff-removed)"
+              title={t("敏感路径(凭据/Shell 配置/CI/服务),建议细读 diff 再放行")}
+            >
+              {t("高危")}
+            </span>
+          )}
           <span className="min-w-0 truncate font-mono text-[0.6875rem]">
             <b className="font-medium text-(--tmd-fg)">{name}</b>{" "}
             <span className="text-(--tmd-fg-faint)">{dir}</span>

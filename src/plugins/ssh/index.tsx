@@ -3,8 +3,7 @@
  *
  * 注册面:
  * - overlay:SshOverlay(主机选择器 + host key/KBI/密码提示卡);
- * - filePanel:右栏 SSH 面板(连接卡/端口转发/SFTP 树);
- * - sidebarAction:SSH 面板开关入口(左下角设置簇;topbarEntry:false = 顶栏菜单与 tab 条均不进);
+ * - filePanel:右栏 SSH 面板(连接卡/端口转发/SFTP 树;入口直挂右缘 rail);
  * - editorCenter.tabContent:kind="ssh-file" 远端文件编辑 tab;
  * - 设置 section:主机簿 CRUD + ~/.ssh/config 导入。
  * - shortcuts:ssh.saveRemoteFile(⌘S 保存远端文件,与 files.save 靠 when 互斥)
@@ -18,7 +17,6 @@ import type { Plugin } from "@kernel/plugin";
 import { ipc, type SessionMeta } from "@kernel/ipc";
 import { KernelTopics } from "@kernel/events";
 import { host } from "@kernel/host";
-import { getFilePanelMode, setFilePanelMode } from "@kernel/filePanel";
 import { getActiveTab } from "@kernel/tabs";
 import { SshOverlay } from "./SshOverlay";
 import { SshPanel } from "./panel/SshPanel";
@@ -75,24 +73,15 @@ export const sshPlugin: Plugin = {
       when: () => getActiveTab()?.kind === "ssh-file",
       run: () => saveRequestRef.current?.(),
     });
-    /* 面板开关入口在左下角设置簇(用户裁决 2026-09-06:顶栏「⋯」菜单与 tab 条均不进);
-       onSelect 只切面板模式,不回钉顶栏。 */
+    /* 右栏面板:入口直挂右缘 rail(2026-09-27 迁自左下角设置簇;用户裁决 2026-09-06
+       的「不进顶栏」由 rail 形态自然满足)。缺省钉住 → rail 常显。 */
     ctx.registerFilePanel({
       id: "ssh",
       label: "SSH",
       icon: HardDrive,
       order: 15,
       showFileSubbar: false, // ssh 自带连接/转发/SFTP 摘要段
-      topbarEntry: false,
       component: SshPanel,
-    });
-    ctx.registerSidebarAction({
-      id: "ssh-panel",
-      label: "SSH",
-      icon: HardDrive,
-      order: 25,
-      active: () => getFilePanelMode() === "ssh",
-      onSelect: () => setFilePanelMode("ssh"),
     });
     ctx.registerSettingsSection({
       id: "ssh",

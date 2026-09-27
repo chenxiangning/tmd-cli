@@ -8,7 +8,7 @@
 | 层 | 位置 | 职责 |
 |---|---|---|
 | 插件 | `src/plugins/lsp/` | 引擎发现/安装引导/CM 集成/peek/hover/右键菜单(一切 UI 与引擎语义) |
-| 内核通用原语 | `src-tauri/src/lsp.rs` | `lsp_spawn/lsp_send/lsp_stop` + `lsp://message`、`lsp://exit` 事件;不懂任何引擎 |
+| 内核通用原语 | `src-tauri/src/lsp.rs` | `lsp_spawn/lsp_send/lsp_stop` + `lsp://message`、`lsp://exit` 事件;不懂任何引擎。stderr = 纯排空无事件(2026-09-26 b3d3eff 删无消费者的 `lsp://stderr` 发射) |
 | 组帧 | `src-tauri/src/lsp_framing.rs` | Content-Length 帧提取(自 lsp.rs 拆出,文件规模铁则) |
 | 内核注册表 | `src/kernel/lsp/lspRegistry.ts` | `registerLspEngine` 挂点 + `configForPath` 匹配 + `owningWorkspaceRoot` 归属裁决 |
 

@@ -81,6 +81,7 @@ import type {
   GitRemoteRequest,
   GitRepoScanResult,
   GitTotals,
+  WorktreeEntry,
 } from "./gitContract";
 
 export interface SpawnSpec {
@@ -580,6 +581,13 @@ export const ipc = {
   /** 还原一次「暂存并切换」:reset --hard 清冲突 → 切回 original → 恢复 stash。 */
   gitSmartCheckoutUndo: (cwd: string, original: string) =>
     invoke<void>("git_smart_checkout_undo", { cwd, original }),
+  /** worktree 编排(批次四):列表 porcelain 解析 / 新建(new_branch = `-b` 新分支,否则检出已有)/ 移除 / 清理悬空。 */
+  gitWorktreeList: (cwd: string) => invoke<WorktreeEntry[]>("git_worktree_list", { cwd }),
+  gitWorktreeAdd: (cwd: string, path: string, branch: string, newBranch: boolean) =>
+    invoke<void>("git_worktree_add", { cwd, path, branch, newBranch }),
+  gitWorktreeRemove: (cwd: string, path: string, force: boolean) =>
+    invoke<void>("git_worktree_remove", { cwd, path, force }),
+  gitWorktreePrune: (cwd: string) => invoke<void>("git_worktree_prune", { cwd }),
   /** 递归收集目录下指定后缀文件,按修改时间倒序。目录不存在 = 空表。 */
   fsCollectFiles: (dir: string, suffix: string) =>
     invoke<FileStamp[]>("fs_collect_files", { dir, suffix }),
@@ -615,9 +623,9 @@ export const ipc = {
     invoke<void>("config_write_workspaces", { data }),
   /** 读全局设置(~/.tmd-cli/settings.json);文件不存在/损坏返回 null,前端 sanitize 兜底。 */
   configReadSettings: () => invoke<unknown>("config_read_settings"),
-  /** 整棵写全局设置;schema 归 kernel/settings.ts,Rust 仅透传。 */
-  configWriteSettings: (data: unknown) =>
-    invoke<void>("config_write_settings", { data }),
+  /** 补丁写全局设置:只携带被改顶层域,Rust 锁内合并落盘;schema 归 kernel/settings.ts。 */
+  configMergeSettings: (patch: unknown) =>
+    invoke<void>("config_merge_settings", { patch }),
   /** 通用 HTTP 代理 ─ 各 CLI quota provider 通过此调用供应商 API。 */
   quotaFetch: (spec: QuotaFetchSpec) =>
     invoke<QuotaFetchResponse>("quota_fetch", { spec }),
@@ -813,6 +821,11 @@ import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialo
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { check, type Update, type DownloadEvent } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+} from "@tauri-apps/plugin-notification";
 
 /** 窗口最小化(自绘 titlebar 用;macOS 系统红绿灯下不会被调用)。web 态 = 浏览器标签页,无窗口可控 → no-op。 */
 export function windowMinimize(): Promise<void> {
@@ -870,6 +883,25 @@ export function relaunchApp(): Promise<void> {
 /** 重启应用(插件市场"拔插 = 重启生效"的一键入口;浏览器 dev 无 Tauri runtime,调用方需兜底)。 */
 export function appRestart(): Promise<void> {
   return invoke<void>("app_restart");
+}
+
+/* ── 系统通知(tauri-plugin-notification 薄包装)────────
+ * notify 插件的桌面级提醒通道(Ask 等待/轮次结束/会话退出/额度预警)。
+ * web 态(手机浏览器)无 OS 通知 → 恒 false,手机侧走自己的审批卡与轮询面;
+ * macOS 首次发送经系统权限弹窗,拒绝后恒 false 由调用方自行吞掉。 */
+
+/** 发一条系统通知;未授权时静默请求一次授权。返回是否真正发出(web 态/拒绝/异常 = false)。 */
+export async function sendOsNotification(title: string, body: string): Promise<boolean> {
+  if (isWeb) return false;
+  try {
+    let granted = await isPermissionGranted();
+    if (!granted) granted = (await requestPermission()) === "granted";
+    if (!granted) return false;
+    await sendNotification({ title, body });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** 目录选择对话框;返回绝对路径,取消返回 null。web 态无文件系统对话框 → null。 */
@@ -1148,9 +1180,10 @@ export function onPtyOutput(sessionId: string, cb: (text: string) => void) {
   return listen<string>(`pty://out/${sessionId}`, (e) => cb(e.payload));
 }
 
-/** 订阅某会话的进程退出。返回退订函数。 */
-export function onPtyExit(sessionId: string, cb: () => void) {
-  return listen(`pty://exit/${sessionId}`, () => cb());
+/** 订阅某会话的进程退出。返回退订函数;exitCode = portable-pty exit_code
+ *  (信号死亡归一 1;null = 用户 kill 先收尸/SSH unit 载荷等未知形态)。 */
+export function onPtyExit(sessionId: string, cb: (exit: { code: number | null }) => void) {
+  return listen<{ code: number | null }>(`pty://exit/${sessionId}`, (e) => cb(e.payload));
 }
 
 /** 桥(web/手机)发起会话的装配请求事件(Rust dispatch_session 广播)。 */

@@ -68,11 +68,24 @@ export async function adoptPtySession(
       if (!h.findSession(sessionId)) return;
       h.appendOutput(sessionId, text);
     }),
-    onPtyExit(sessionId, () => {
+    onPtyExit(sessionId, (exit) => {
       /* 秒退守望等钩子须在 removeSession 清缓冲前同步执行 */
       opts.onExit?.(sessionId);
+      const meta = h.findSession(sessionId);
       void h.removeSession(sessionId);
       events.emit(KernelTopics.sessionExited, sessionId);
+      /* 详情补发(新 topic,旧消费方零迁移):元数据快照自移除前的会话表 */
+      events.emit(KernelTopics.sessionExitedDetail, {
+        sessionId,
+        profileId: meta?.profileId ?? opts.profileId,
+        cwd: meta?.cwd ?? "",
+        workspaceId: meta?.workspaceId,
+        cliSessionId: meta?.cliSessionId,
+        kind: meta?.kind,
+        title: meta?.title,
+        exitCode: exit?.code ?? null, // 载荷缺失(旧事件/竞态)按未知处理
+        at: Date.now(),
+      });
     }),
   ]);
   /* removeSession 插进两次订阅 await 之间 → 退订表查不到会漏退订:复查存活,

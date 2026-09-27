@@ -28,7 +28,7 @@ export const SECTION_TAB_ICONS: Record<"all" | DrawerSection, DrawerIconComponen
 /** 动作徽标:软填充色芯片(不用描边,亮色系主题下描边 pill 过于抢眼);
     颜色全部走主题 token,preset 换色自动跟随。 */
 export const MODE_TAG: Record<DrawerItem["action"], { label: string; cls: string; hint: string }> = {
-  send: { label: "⚡ 直接发送", cls: "bg-(--tmd-accent-soft) text-(--tmd-accent)", hint: "直接发送到幕布" },
+  send: { label: "⚡ 发送", cls: "bg-(--tmd-accent-soft) text-(--tmd-accent)", hint: "发送到幕布" },
   insert: { label: "↵ 插入", cls: "bg-(--tmd-bg-hover) text-(--tmd-fg-muted)", hint: "插入输入框继续编辑" },
   open: { label: "⇱ 打开", cls: "bg-(--tmd-diff-inserted)/10 text-(--tmd-diff-inserted)", hint: "打开对应面板" },
 };

@@ -12,7 +12,7 @@ import { ConnBanner } from "./ConnChip";
 import { HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { notifyAsk } from "./shared";
-import { tailAskLine, tailHasAskMarker, writeSession } from "./remote";
+import { shotToDraft, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
 import { shellInvoke } from "@kernel/shellBridge";
 import { EngineMark } from "./EngineMark";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
@@ -21,6 +21,11 @@ import { CkptSheet } from "./CkptSheet";
 
 /* 实况 = LiveScreen 迷你 VT 屏模型渲染(见 ./liveText)。 */
 
+/** 截图钮三态文案(独立小函数:嵌套三元留在 React 函数体会推高复杂度闸)。 */
+function shotLabel(busy: boolean, err: boolean): string {
+  if (busy) return "…";
+  return err ? "✕" : "图";
+}
 export function SessionScreen(props: { sessionId: string }) {
   const { sessions, titleOf, go } = useMobile();
   const meta = sessions.find((s) => s.id === props.sessionId);
@@ -28,6 +33,20 @@ export function SessionScreen(props: { sessionId: string }) {
   const [askQ, setAskQ] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [ckptSheet, setCkptSheet] = useState(false);
+  const [shotBusy, setShotBusy] = useState(false);
+  const [shotErr, setShotErr] = useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+
+  /** 拍照/选图 → 压缩 → 桥落盘临时文件 → composer 注入 @路径(见 shotToDraft)。 */
+  const onShot = (file: File | undefined): void => {
+    void shotToDraft(file, {
+      isBusy: shotBusy,
+      setBusy: setShotBusy,
+      patchDraft: setDraft,
+      flashErr: setShotErr,
+      fileRef,
+    });
+  };
   const [kbOpen, setKbOpen] = useState(false);
   /* 键盘工具条折叠(pref 持久化); composers 行 ⌨ 切换。 */
   const [kbOn, setKbOn] = useState(() => {
@@ -176,6 +195,22 @@ export function SessionScreen(props: { sessionId: string }) {
       <div className={"composer" + (kbOn && !kbOpen ? " kb-on" : "")}>
         <div className="box">
           <button type="button" className={"kb-toggle" + (kbOn ? " on" : "")} aria-label={t("键盘工具条")} onClick={toggleKb}>⌨</button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={(e) => void onShot(e.target.files?.[0])}
+          />
+          <button
+            type="button"
+            className="kb-toggle"
+            aria-label={t("注入截图")}
+            disabled={shotBusy}
+            onClick={() => fileRef.current?.click()}
+          >
+            {shotLabel(shotBusy, shotErr)}
+          </button>
           <textarea
             rows={1}
             value={draft}

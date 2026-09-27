@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ArrowCounterClockwise, Copy, Trash } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { copyText } from "@kernel/clipboard";
 import {
   confirmLocalPlugin,
   isContentTrusted,
@@ -174,7 +175,7 @@ export function LocalPluginsSection() {
 
   const copyPrompt = () => {
     void import("./devPrompt")
-      .then(({ DEV_PROMPT }) => navigator.clipboard.writeText(DEV_PROMPT))
+      .then(({ DEV_PROMPT }) => copyText(DEV_PROMPT))
       .then(() => {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 2000);

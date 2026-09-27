@@ -13,6 +13,7 @@
 @import "./panel-subbar.css";
 @import "./quota.css";
 @import "./workspace-sidebar.css";
+@import "./workspace-row.css";
 @import "./icon-decor.css";
 @import "./workspace-sessions.css";
 @import "./workspace-sessions-extras.css";

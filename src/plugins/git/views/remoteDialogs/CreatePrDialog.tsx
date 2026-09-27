@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
+import { copyText } from "@kernel/clipboard";
 import { GitPullRequest } from "@phosphor-icons/react";
 import {
   ipc,
@@ -157,7 +158,7 @@ export function CreatePrDialog({
             stages={stages}
             result={result}
             onCopy={(url) => {
-              void navigator.clipboard.writeText(url).then(() => {
+              void copyText(url).then(() => {
                 setCopied(true);
                 window.setTimeout(() => setCopied(false), 2000);
               });

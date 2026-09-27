@@ -18,8 +18,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  /* 左 padding 移到 .titlebar-zone-left 内部,保证左区左缘与左侧栏左缘同为 x=0,宽度才能对齐栏边界 */
-  padding: 0 12px 0 0;
+  /* 左 padding 移到 .titlebar-zone-left 内部,保证左区左缘与左侧栏左缘同为 x=0,宽度才能对齐栏边界;
+     右 padding 预留右缘 PanelRail 宽,右区内容仍与右栏(而非 rail)对齐 */
+  padding: 0 calc(12px + var(--tmd-rail-w)) 0 0;
   background: color-mix(in srgb, var(--tmd-bg-sunken) 85%, transparent);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--tmd-border);
@@ -93,11 +94,10 @@
   gap: 2px;
   flex: 0 0 auto;
 }
-/* 右区定宽(与右侧栏对齐)时:右缘 icons 保持右对齐;tabs 恒钉右缘由
-   .titlebar-actions .panel-tabs-row 的 margin-left:auto 承担(选择器/分支 label 靠左一组)。 */
 /* 栏边界线拉上顶栏:右区左缘 1px 竖线,仅右栏展开时出现(同左区,避开 [style] 空属性陷阱)。
-   宽度 = 右栏宽 + 4px 手柄 - 12px 顶栏右 padding,与左区公式对称;控制带是绝对 overlay
-   (复刻 codemoss .titlebar-controls 模式)不入 flex 流,竖线位置与控制带完全解耦。
+   宽度 = 右栏宽 + 4px 手柄 - 12px 顶栏原右 padding(顶栏右 padding 已额外预留 rail 宽,
+   右区右缘随 padding 左移,公式不再重复扣 rail);控制带是绝对 overlay(复刻 codemoss
+   .titlebar-controls 模式)不入 flex 流,竖线位置与控制带完全解耦。
    var 无回退:右栏未挂载/未测量时整式 IACVT 退化 auto,同旧内联 style 缺省语义。 */
 .titlebar-actions.is-expanded {
   align-self: stretch;
@@ -189,8 +189,8 @@
   background: var(--tmd-bg-hover);
   color: var(--tmd-fg);
 }
-/* 图标装饰:左区钮点亮色(内置终端/会话看板;缺省回落常态点亮,见 kernel/iconDecor.ts) */
-.titlebar-action.is-active[data-action-id="terminal"] { color: var(--icon-decor-terminal, var(--tmd-fg)); }
+/* 图标装饰:左区钮点亮色(会话看板;内置终端 2026-09-27 迁右缘 rail,
+   点亮色随迁 right-panel-toolbar.css。缺省回落常态点亮,见 kernel/iconDecor.ts) */
 .titlebar-action.is-active[data-action-id="session-board"] { color: var(--icon-decor-session-board, var(--tmd-fg)); }
 
 .titlebar-action svg {

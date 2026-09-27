@@ -1,8 +1,6 @@
 /** en 词典 · approval-inbox 域(键 = 中文源串;zh 恒等无词典)。 */
 export const MESSAGES_EN = {
   "审批": "Approvals",
-  "审批收件箱 · {n} 个会话在等待 · 应答原样写入会话":
-    "Approval inbox · {n} waiting · replies are written to the session verbatim",
   "没有会话在等待确认": "No sessions waiting for confirmation",
   "等待中": "Waiting",
   "等待 {n} 秒": "Waiting {n}s",

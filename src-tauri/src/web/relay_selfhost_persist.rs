@@ -5,6 +5,7 @@
 
 use super::relay_core::bytes_to_b64;
 use super::selfhost_assets;
+use crate::app_setup::safe_eprintln;
 
 /// 部署请求里落盘的连接信息(密码/口令随历史存;私钥内容不落盘,只存路径)。
 pub struct DeployConn<'a> {
@@ -66,7 +67,7 @@ pub fn persist_selfhost(
             .unwrap_or_default();
         settings["relayDeployHistory"] = serde_json::Value::Array(upsert_history(old, entry));
     }) {
-        eprintln!("[selfhost] 设置落盘失败: {error}");
+        safe_eprintln(&format!("[selfhost] 设置落盘失败: {error}"));
     }
     let _ = crate::event_sink::emit(app, "settings:changed", &serde_json::json!({}));
     /* event_sink:webview+WS 双面(手机覆盖层同步) */

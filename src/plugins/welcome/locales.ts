@@ -15,9 +15,7 @@ const MESSAGES_EN = {
   "刷新首页数据": "Refresh home data",
   "版本获取失败": "version lookup failed",
   "最新版查询失败,点右上刷新按钮重试": "Latest version lookup failed — use the refresh button at top right to retry",
-  "移动游标": "move cursor",
   "启动新会话": "start new session",
-  "展开凭据与额度": "expand credentials & quota",
   /* 引擎卡 */
   "官方文档": "Docs",
   "探针中…": "Probing…",
@@ -25,9 +23,8 @@ const MESSAGES_EN = {
   "未安装": "Not installed",
   "探针失败": "Probe failed",
   "已是最新": "Up to date",
-  "最新版本 {version}": "Latest version {version}",
-  "最新版本 {version},点\"更新\"升级":
-    "Latest version {version} — click \"Update\" to upgrade",
+  "当前 {current},最新 {version},点\"更新\"升级":
+    "Current {current}, latest {version} — click \"Update\" to upgrade",
   "更新": "Update",
   "重装": "Reinstall",
   "新会话": "New session",
@@ -117,9 +114,7 @@ const MESSAGES_JA = {
   "刷新首页数据": "ホームデータを更新",
   "版本获取失败": "バージョン取得に失敗",
   "最新版查询失败,点右上刷新按钮重试": "最新版の取得に失敗しました — 右上の更新ボタンで再試行してください",
-  "移动游标": "カーソル移動",
   "启动新会话": "新規セッション開始",
-  "展开凭据与额度": "認証情報と使用量を展開",
 
   /* 引擎卡 */
   "官方文档": "ドキュメント",
@@ -128,9 +123,8 @@ const MESSAGES_JA = {
   "未安装": "未インストール",
   "探针失败": "プローブ失敗",
   "已是最新": "最新です",
-  "最新版本 {version}": "最新バージョン {version}",
-  "最新版本 {version},点\"更新\"升级":
-    "最新バージョン {version}。「更新」でアップグレード",
+  "当前 {current},最新 {version},点\"更新\"升级":
+    "現在 {current}、最新 {version}。「更新」でアップグレード",
   "更新": "更新",
   "重装": "再インストール",
   "新会话": "新規セッション",

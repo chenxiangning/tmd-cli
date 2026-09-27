@@ -38,6 +38,10 @@ import { searchPlugin } from "./search";
 import { lspPlugin } from "./lsp";
 import { promptEnhancerPlugin } from "./prompt-enhancer";
 import { approvalInboxPlugin } from "./approval-inbox";
+import { academyPlugin } from "./academy";
+import { notifyPlugin } from "./notify";
+import { sessionSearchPlugin } from "./session-search";
+import { sessionRelayPlugin } from "./session-relay";
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -73,4 +77,8 @@ export const allPlugins: Plugin[] = [
   lspPlugin,
   promptEnhancerPlugin,
   approvalInboxPlugin,
+  academyPlugin,
+  notifyPlugin,
+  sessionSearchPlugin,
+  sessionRelayPlugin,
 ];
