@@ -118,3 +118,10 @@
 .sb-act { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border: 1px solid var(--tmd-border); border-radius: 4px; background: var(--tmd-bg-popover); color: var(--tmd-fg-muted); cursor: pointer; }
 .sb-act:hover { color: var(--tmd-fg); border-color: var(--tmd-border-strong); }
 .sb-rename { width: 100%; border: 1px solid var(--tmd-accent); border-radius: 6px; background: var(--tmd-bg-input); color: var(--tmd-fg); font-size: 0.6875rem; padding: 4px 6px; }
+
+/* ── 等待确认置顶分区(spec 2026-09-27):静态注意力位,不重排月历/日格;行复用 .sb-card ── */
+.sb-wait { display: flex; flex-direction: column; gap: 6px; }
+.sb-wait-head { display: inline-flex; align-items: center; gap: 6px; font-size: 0.6875rem; font-weight: 700; color: #e5484d; }
+.sb-wait-head::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #e5484d; animation: sb-pulse 1.6s infinite; }
+.sb-wait-rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
+.sb-wait-dur { margin-left: auto; flex: none; font-size: 0.5625rem; color: #e5484d; font-variant-numeric: tabular-nums; }

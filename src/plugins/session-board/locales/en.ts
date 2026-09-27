@@ -41,4 +41,11 @@ export const MESSAGES_EN = {
   "底点 = 主引擎": "dots = top engines",
   "点击折叠/展开本列(跨日保持)": "Click to collapse/expand this lane (persists across days)",
   "会话看板": "Session board",
+
+  // ── 等待确认置顶分区(spec 2026-09-27;时长串与 approval-inbox 同串同译) ──
+  "等待确认": "Waiting for approval",
+  "等待中": "Waiting",
+  "等待 {n} 秒": "Waiting {n}s",
+  "等待 {n} 分钟": "Waiting {n} min",
+  "等待 {n} 小时": "Waiting {n} h",
 } as Record<string, string>;
