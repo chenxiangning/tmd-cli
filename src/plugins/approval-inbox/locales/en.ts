@@ -7,6 +7,8 @@ export const MESSAGES_EN = {
   "等待 {n} 分钟": "Waiting {n} min",
   "等待 {n} 小时": "Waiting {n} h",
   "直达": "Open",
+  "历史提问(落盘,最近 {n} 条)": "Ask history (persisted, last {n})",
+  "{n} 问": "{n} questions",
   "发送": "Send",
   "应答原样写入会话,回车发送": "Reply is written to the session verbatim; Enter to send",
   "应答发送失败,会话可能已退出": "Reply failed to send; the session may have exited",

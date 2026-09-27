@@ -18,6 +18,7 @@ import {
   gotoAndFocus,
   observeCurrentWaitings,
   useApprovalInbox,
+  useAskHistory,
   type InboxEntry,
 } from "./store";
 import { jumpTabKeys, moveKeys, type AskCard } from "./askCard";
@@ -48,6 +49,7 @@ function resolveTitle(sessionId: string, manualTitles: Record<string, string>): 
 export function ApprovalInboxPanel() {
   useHost(); /* 状态位变化经 store 的 host.subscribe 重算,此处驱动重渲 */
   const { entries, failure } = useApprovalInbox();
+  const { records } = useAskHistory();
   const { settings } = useSettingsState();
   const [, tick] = useState(0);
   useEffect(() => {
@@ -78,7 +80,7 @@ export function ApprovalInboxPanel() {
           {t("应答发送失败,会话可能已退出")} · {t("点击关闭")}
         </button>
       )}
-      {entries.length === 0 ? (
+      {entries.length === 0 && records.length === 0 ? (
         <div className="px-4 pt-10 text-center text-[0.6875rem] leading-relaxed text-(--tmd-fg-faint)">
           {t("没有会话在等待确认")}
         </div>
@@ -87,6 +89,34 @@ export function ApprovalInboxPanel() {
           {entries.map((entry) => (
             <InboxRow key={entry.sessionId} entry={entry} manualTitles={settings.sessionTitles} />
           ))}
+          {records.length > 0 && (
+            <div className="border-t border-(--tmd-border) px-3 py-2">
+              <div className="mb-1 text-[0.5625rem] leading-[1rem] text-(--tmd-fg-faint)">
+                {t("历史提问(落盘,最近 {n} 条)", { n: records.length })}
+              </div>
+              {records.map((r) => (
+                <div key={`${r.sessionId}-${r.ts}`} className="mb-1.5">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="flex-none font-mono text-[0.5625rem] text-(--tmd-fg-faint)">
+                      {new Date(r.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-muted)" title={r.question}>
+                      {r.question}
+                    </span>
+                    {r.multi > 1 && (
+                      <span className="flex-none text-[0.5625rem] text-(--tmd-fg-faint)">
+                        {t("{n} 问", { n: r.multi })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="pl-8 text-[0.5625rem] leading-[1rem] text-(--tmd-fg-faint)">
+                    {r.options.slice(0, 4).join(" / ")}
+                    {r.options.length > 4 ? " …" : ""}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

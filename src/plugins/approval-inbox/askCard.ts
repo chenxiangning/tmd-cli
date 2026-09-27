@@ -45,12 +45,25 @@ const SUMMARY_RE = /^\d+\.\s/;
 /** multi 卡页脚特征:toggle 键提示(select 卡无)。 */
 const MULTI_FOOTER_RE = /\btoggle\b/;
 
+/** 帧标题行:面板每帧重绘以「Ask」/「Ask (Ns)」起头;尾流含多帧时旧帧在前。 */
+const FRAME_TITLE_RE = /^Ask( \(\d+s\))?$/;
+
 export function parseAskCard(text: string): AskCard | null {
-  const lines = text
+  const all = text
     .split(/\r?\n/)
     .map((l) => l.replace(/\s+$/, ""))
     .filter((l) => l.trim().length > 0)
     .map((l) => l.trim());
+  /* 多帧尾流只取最后一帧:光标寻址重绘把旧帧(上一题的选项块)留在尾里,
+     整尾解析会命中旧帧的 question/选项(2026-09-27 真机滞后根因)。 */
+  let frameStart = 0;
+  for (let i = all.length - 1; i >= 0; i--) {
+    if (FRAME_TITLE_RE.test(all[i])) {
+      frameStart = i;
+      break;
+    }
+  }
+  const lines = all.slice(frameStart);
   let tabIndex = -1;
   let multi = 1;
   for (let i = 0; i < lines.length; i++) {

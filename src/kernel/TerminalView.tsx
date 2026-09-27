@@ -141,15 +141,20 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     const offScroll = term.onScroll((y) => setAtTop(y === 0));
     /* Ask 屏幕态采样(askWatch v3):omp 等待期间 spinner 以光标寻址持续重绘,
        面板标记一旦流出字节尾窗永不复现(实测 3h 挂起面板后流 7.4MB)——
-       字节流检测对此原理性无解,但屏幕上标记始终在:读底部 8 行文本喂检测器
-       (非 viewport),用户上翻历史不影响判定。就绪前(回放/流式相位)停采:
-       磁盘回放的墓碑帧不进屏幕通道,Ask 恢复只走 restoreTail(评审 F5)。 */
+       字节流检测对此原理性无解,但屏幕上标记始终在:读视口底部 24 行喂检测器
+       (ask 对话框含 tab 行/选项/页脚约 15-20 行,旧 8 行底窗够不着标记 →
+       静态卡漏报,2026-09-27 真机根因)。
+       贴底闸:用户上翻历史时旧已答对话框会入视野,采样会假置位——非贴底停采
+       (状态冻结不误摘,作答/超时仍由字节流与写路径清位)。
+       就绪前(回放/流式相位)停采:磁盘回放的墓碑帧不进屏幕通道,Ask 恢复
+       只走 restoreTail(评审 F5)。 */
     const askProbe = setInterval(() => {
       if (!streamReadyRef.current) return; /* 就绪前墓碑帧不进屏幕通道 */
       const buf = term.buffer.active;
+      if (buf.baseY + term.rows < buf.length - 2) return; /* 上翻中:停采防旧卡假置位 */
       const bottom = Math.min(buf.length, buf.baseY + term.rows);
       let screenTail = "";
-      for (let row = Math.max(0, bottom - 8); row < bottom; row++) {
+      for (let row = Math.max(buf.baseY, bottom - 24); row < bottom; row++) {
         screenTail += (buf.getLine(row)?.translateToString(true) ?? "") + "\n";
       }
       host.observeAskScreen(sessionId, screenTail);

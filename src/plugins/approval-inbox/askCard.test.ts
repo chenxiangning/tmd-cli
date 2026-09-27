@@ -98,4 +98,28 @@ describe("parseAskCard(omp select 卡结构化)", () => {
     );
     expect(card?.cursor).toBe(1);
   });
+
+  it("多帧尾流:取最后一帧(旧帧选项在前不污染)", () => {
+    const stale = [
+      "Ask",
+      "本会话目标  遗留项  Submit",
+      "本次会话要做什么?",
+      "❯ ○ 继续 v0.2.5 收尾",
+      "  ○ 新任务/新 bug",
+      "← select · n note · ↑/↓ move · ⌘ cancel",
+    ].join("\n");
+    const fresh = [
+      "Ask",
+      "本会话目标  遗留项  Submit",
+      "收尾后优先处理哪个遗留项?",
+      "❯  README 插件计数防漂移",
+      "  ☐ sessionUsage 准入",
+      "  ○ Other (type your own)",
+      "└ toggle · ⇥ next · ↑/↓ move · ⌘ cancel",
+    ].join("\n");
+    const card = parseAskCard(stale + "\n" + fresh);
+    expect(card?.question).toBe("收尾后优先处理哪个遗留项?");
+    expect(card?.kind).toBe("multi");
+    expect(card?.options[0]).toBe("README 插件计数防漂移");
+  });
 });
