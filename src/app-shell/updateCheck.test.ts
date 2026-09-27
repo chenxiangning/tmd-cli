@@ -7,6 +7,7 @@
  *    失败一律 null 静默,绝不抛错。
  */
 
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CHANGELOG_ENTRIES,
@@ -25,6 +26,18 @@ const quotaFetch = vi.hoisted(() =>
 vi.mock("@kernel/ipc", () => ({
   ipc: { quotaFetch: (...args: unknown[]) => quotaFetch(...(args as [])) },
 }));
+
+/* 单一真相:当前发版版本读 package.json,不硬编码钉 CHANGELOG(升版未随更即假红)。 */
+const pkgJson: unknown = JSON.parse(
+  readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+);
+const pkgVersion =
+  typeof pkgJson === "object" &&
+  pkgJson !== null &&
+  "version" in pkgJson &&
+  typeof pkgJson.version === "string"
+    ? pkgJson.version
+    : "";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -240,7 +253,7 @@ describe("CHANGELOG_ENTRIES(打包内嵌管线,更新记录弹窗数据面)", ()
 
   it("内嵌 CHANGELOG 解析出全部版本小节且顺序为最新在前", () => {
     expect(entries.length).toBeGreaterThanOrEqual(9);
-    expect(entries[0]?.version).toBe("0.2.2");
+    /* 全表可解析且严格降序 ⇒ 头条即最新(版本号不硬编码,升版未随更即假红) */
     for (let i = 1; i < entries.length; i++) {
       const prev = extractSemver(entries[i - 1]?.version ?? "");
       const cur = extractSemver(entries[i]?.version ?? "");
@@ -259,9 +272,9 @@ describe("CHANGELOG_ENTRIES(打包内嵌管线,更新记录弹窗数据面)", ()
     }
   });
 
-  it("当前发版版本(0.2.2)在记录中且带日期", () => {
-    const head = entries[0];
-    expect(head?.version).toBe("0.2.2");
-    expect(head?.date).toBe("2026-09-20");
+  it("当前发版版本(package.json)在记录中且带日期", () => {
+    const head = entries.find((e) => e.version === pkgVersion);
+    expect(head, `CHANGELOG 缺 v${pkgVersion} 小节`).toBeTruthy();
+    expect(head?.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
