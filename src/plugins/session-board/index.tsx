@@ -12,7 +12,6 @@ import type { Plugin, PluginContext } from "@kernel/plugin";
 import { BoardOverlay } from "./BoardOverlay";
 import { BoardButton } from "./BoardButton";
 import { archiveExitedSession } from "./boardExit";
-import { noteSessionExited, noteTurnSettled, noteWaitingAsk } from "./waitingSince";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 
 export const sessionBoardPlugin: Plugin = {
@@ -30,9 +29,5 @@ export const sessionBoardPlugin: Plugin = {
     ctx.contribute("header.leftCluster", { component: BoardButton });
     /* 生命周期收口:干净退出的会话自动归档(定义见 boardExit.ts 头注)。 */
     ctx.events.on<string>(KernelTopics.sessionExited, archiveExitedSession);
-    /* 等待时长记账:askDetected 边沿记起算,结算/退出清账(见 waitingSince.ts 头注)。 */
-    ctx.events.on<string>(KernelTopics.askDetected, noteWaitingAsk);
-    ctx.events.on<{ sessionId: string }>(KernelTopics.turnSettled, (e) => noteTurnSettled(e.sessionId));
-    ctx.events.on<string>(KernelTopics.sessionExited, noteSessionExited);
   },
 };

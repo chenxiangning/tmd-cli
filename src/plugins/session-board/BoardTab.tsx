@@ -24,7 +24,6 @@ import {
 } from "./boardData";
 import { CalendarGrid } from "./CalendarGrid";
 import { DayPanel } from "./DayPanel";
-import { WaitingStrip } from "./WaitingStrip";
 import "./session-board.css";
 
 export function BoardTab() {
@@ -40,14 +39,17 @@ export function BoardTab() {
   );
   const [refreshTick, setRefreshTick] = useState(0);
   const sessions = useBoardSessions(targetWs, allMode, refreshTick);
-  const [view, setView] = useState({ y: new Date().getFullYear(), m: new Date().getMonth() });
+  const now = new Date();
+  const [view, setView] = useState({ y: now.getFullYear(), m: now.getMonth() });
   const [selDay, setSelDay] = useState<string | null>(null);
   const [engOff, setEngOff] = useState<ReadonlySet<string>>(new Set());
   const [stOff, setStOff] = useState<ReadonlySet<BoardState>>(new Set());
   /* 轻反馈 toast(本面板局部,PluginMarketPage 同款模式)。 */
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
-  useEffect(() => () => { if (toastTimer.current !== null) window.clearTimeout(toastTimer.current); }, []);
+  useEffect(() => () => {
+    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+  }, []);
   const showToast = (msg: string) => {
     setToast(msg);
     if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
@@ -122,11 +124,15 @@ export function BoardTab() {
     return () => window.removeEventListener("keydown", onKey);
   }, [selDay]);
 
-  if (list.length === 0) return <div className="sb-empty">{t("暂无工作区")}</div>;
+  if (list.length === 0) {
+    return <div className="sb-empty">{t("暂无工作区")}</div>;
+  }
   if (!allMode && selWs && findWorkspaceOrigin(selWs)?.remoteExec) {
     /* 远程来源工作区(WSL/SSH)磁盘在远端:看板当前仅本机磁盘视图,显式空态不静默。 */
     return <div className="sb-empty">{t("远程工作区暂不支持看板(仅本机磁盘)")}</div>;
   }
+
+  const newCount = filtered.filter((s) => s.st === "ended-new").length;
 
   return (
     <div className="sb-root">
@@ -252,8 +258,7 @@ export function BoardTab() {
         </span>
         <span className="sb-toolbar-end">
           <span className="sb-count" title={t("未查看 = 结束未归档且 14 天内有活动")}>
-            {t("{n} 个会话", { n: filtered.length })} ·{" "}
-            {t("{n} 个未查看", { n: filtered.filter((s) => s.st === "ended-new").length })}
+            {t("{n} 个会话", { n: filtered.length })} · {t("{n} 个未查看", { n: newCount })}
           </span>
           <button
             type="button"
@@ -266,9 +271,6 @@ export function BoardTab() {
           </button>
         </span>
       </div>
-
-      {/* 「等待确认」置顶分区:静态注意力位,仅非空时出现(spec 2026-09-27)。 */}
-      <WaitingStrip rows={filtered} onOpen={dayOpen} />
 
       {sessions === null ? (
         /* 工作区切换后的首扫:显式扫描态,不渲染空板 + 0 计数(评审 P3)。 */
