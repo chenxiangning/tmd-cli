@@ -1,6 +1,6 @@
 /**
- * DSH 插件装配 —— cliDshPlugin 定义(从 index.tsx 拆出,only-export-components;
- * index.tsx 只留品牌 glyph 组件)。对接口径见 index.tsx 头注。
+ * DSH 插件装配 —— cliDshPlugin 单文件定义(无 index.tsx;品牌 glyph 复用
+ * cli-shared/engineGlyphs 的 DshGlyph)。
  */
 
 import type { Plugin } from "@kernel/plugin";

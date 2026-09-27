@@ -170,8 +170,10 @@ export function extractKimiTitle(head: string): string | undefined {
   return undefined;
 }
 
-/** id → wire.jsonl 绝对路径缓存:每次列表扫描增量合并(多工作区扫描交错不互踢),
-    锚点栏 2s 轮询零扫描直取。失效残留(会话被删)读文件失败返回 null,无副作用。 */
+/** id → wire.jsonl 绝对路径缓存:每次列表扫描逐条合并(Map.set 幂等,并发扫描
+    无拷贝-整体替换的丢失更新窗);锚点栏 2s 轮询零扫描直取。失效残留(会话被删)
+    读文件失败返回 null,无副作用;并发扫描丢失更新由 kimiWirePath miss 冷启动
+    重扫自愈。 */
 let wirePathById = new Map<string, string>();
 
 /** 新 home 扫描:<桶>/<session_id>/state.json,按 state.cwd 过滤出本工作区会话。 */
@@ -198,11 +200,10 @@ async function listModernKimiSessions(
     }),
   );
   const sessions: CliDiskSession[] = [];
-  const wirePaths = new Map(wirePathById);
   for (const hit of probed) {
     if (!hit) continue;
     if (sessions.length >= KIMI_SCAN_LIMIT) break;
-    wirePaths.set(hit.m.id, `${hit.m.dir}/agents/main/wire.jsonl`);
+    wirePathById.set(hit.m.id, `${hit.m.dir}/agents/main/wire.jsonl`);
     sessions.push({
       id: hit.m.id,
       modifiedAt: hit.modifiedAt,
@@ -214,7 +215,6 @@ async function listModernKimiSessions(
       title: kimiStateTitle(hit.state),
     });
   }
-  wirePathById = wirePaths;
   return sessions;
 }
 
@@ -240,10 +240,9 @@ async function listLegacyKimiSessions(
       .map((entry) => ipc.fsReadHead(entry.path, 8 * 1024).catch(() => "")),
   );
   const sessions: CliDiskSession[] = [];
-  const wirePaths = new Map(wirePathById);
   for (const [i, entry] of matched.entries()) {
     if (sessions.length >= KIMI_SCAN_LIMIT) break;
-    wirePaths.set(entry.id, entry.path);
+    wirePathById.set(entry.id, entry.path);
     const head = heads[i];
     sessions.push({
       id: entry.id,
@@ -254,7 +253,6 @@ async function listLegacyKimiSessions(
       title: head ? extractKimiTitle(head) : undefined,
     });
   }
-  wirePathById = wirePaths;
   return sessions;
 }
 

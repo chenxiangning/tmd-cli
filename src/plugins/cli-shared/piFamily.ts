@@ -111,8 +111,12 @@ function piFamilyRemoteSessions(store: PiFamilyStore) {
   const modelKeys = store.modelKeys ?? ["model"];
   const providerKeys = store.providerKeys ?? [];
   const list = async (exec: RemoteExec, cwd: string): Promise<CliDiskSession[]> => {
+    /* 先 ls -t 截前 50 再 stat+head:限传输必须发生在读取之前,数月老桶
+       (数千 jsonl × 32KB 头)全量过 exec 桥会秒级卡顿(2026-09-28 评审 F2);
+       JS 侧 sort/slice 保留作防御。 */
     const script = `${dirSh(cwd)}
-for f in "$d"/*.jsonl; do
+ls -t "$d"/*.jsonl 2>/dev/null | head -n 50 |
+while IFS= read -r f; do
   [ -e "$f" ] || continue
   printf '%s\t%s\t' "$(basename "$f" .jsonl)" "$(stat -c %Y "$f")"
   head -c 32768 "$f" | base64 -w0

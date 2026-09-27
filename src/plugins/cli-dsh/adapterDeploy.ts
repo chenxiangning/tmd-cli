@@ -51,9 +51,17 @@ const STAMP = `v1-${djb2(Object.values(FILES).join("\n"))}`;
 
 let ensured: Promise<string> | null = null;
 
-/** 幂等落盘,返回适配器入口绝对路径;失败 reject 由 spawn 链路广播。 */
+/** 幂等落盘,返回适配器入口绝对路径;失败 reject 由 spawn 链路广播。
+ *  失败不缓存:瞬时落盘失败(AV 锁/磁盘满)若把 rejected Promise 钉死在
+ *  memo,整个运行期 dsh spawn 全灭(2026-09-28 评审 F1;stamp 幂等保证
+ *  重跑无害,同 configCatalog「失败不缓存」惯例)。 */
 export function ensureAdapterDeployed(): Promise<string> {
-  if (!ensured) ensured = deploy();
+  if (!ensured) {
+    ensured = deploy().catch((e) => {
+      ensured = null;
+      throw e;
+    });
+  }
   return ensured;
 }
 

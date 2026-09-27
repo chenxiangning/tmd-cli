@@ -29,9 +29,19 @@ export function ProxyPopover() {
   const { open, x, y } = useProxyPopoverState();
   const { settings } = useSettingsState();
   const { networkProxyEnabled: enabled, networkProxyUrl: persistedUrl } = settings;
-  /* 打开即重挂载:预填已存地址,无则默认地址。 */
   const [draftUrl, setDraftUrl] = useState(() => persistedUrl || DEFAULT_PROXY_URL);
   const [error, setError] = useState<string | null>(null);
+  /* overlay 挂点常驻渲染,组件只挂载一次 —— 「打开即重挂载」不成立,草稿/错误
+     会跨开合残留(2026-09-28 评审 MC7):open 翻真时重置为已持久值,同时跟随
+     他窗/手机侧的外部修改;open 期间不重置(persistedUrl 变化 = 本浮层刚提交)。 */
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      setDraftUrl(persistedUrl || DEFAULT_PROXY_URL);
+      setError(null);
+    }
+    wasOpenRef.current = open;
+  });
   /* 落位前的实测坐标;null = 尚未量好,先隐身防闪跳。 */
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const popoverRef = useRef<HTMLDialogElement>(null);
