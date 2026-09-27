@@ -14,7 +14,7 @@ import { emitPromptSent, readPromptGate } from "../promptGate";
 import { openSettingsPanel } from "@kernel/settings";
 import { setFilePanelMode } from "@kernel/filePanel";
 import { prepareSendPayload } from "../serialize/serialize";
-import { buildSinglePlan, type SendConfirmRequest } from "./sendPlan";
+import { buildSinglePlan, isConfirmPending, type SendConfirmRequest } from "./sendPlan";
 import { insertAtCursor } from "./useComposerAttachments";
 import { useDrawerOpen } from "../state/drawerOpen";
 import {
@@ -84,6 +84,7 @@ export function useComposerDrawer({
      二次确认(spec 2026-09-27):开关开时挂起弹框,Promise 在落定后续联 ——
      CommandDrawer 的 onSend(...).then 拿到 wire 后照常 toast/flash,Esc=""静默不关抽屉。 */
   async function sendFromDrawer(item: DrawerItem): Promise<string | null> {
+    if (isConfirmPending()) return ""; // 模态闸:确认框在屏时抽屉发送静默
     const sid = host.getActiveSessionId();
     if (!sid || !profile) return "";
     const text = drawerWireText(item);

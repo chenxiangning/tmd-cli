@@ -23,7 +23,7 @@ import { DrawerItemList } from "./DrawerItemList";
 interface CommandDrawerProps {
   open: boolean;
   items: DrawerItem[];
-  /** 直接发送;返回实际写入文本供 toast 展示(translate 后的 wire);null=写入失败。 */
+  /** 发送(二次确认开关开时先弹确认框);返回实际写入文本供 toast 展示(translate 后的 wire);null=写入失败。 */
   onSend: (item: DrawerItem) => Promise<string | null>;
   onInsert: (item: DrawerItem) => void;
   onOpen: (item: DrawerItem) => void;

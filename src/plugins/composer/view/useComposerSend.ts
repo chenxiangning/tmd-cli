@@ -19,7 +19,7 @@
 
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
-import { composerSendTransforms, undoComposerSend } from "@kernel/composerExt";
+import { composerDraftRef, composerSendTransforms, undoComposerSend } from "@kernel/composerExt";
 import type { CliProfile } from "@kernel/cli";
 import { getSessionTabs, getSessionTile } from "@kernel/sessionTabs";
 import { emitPromptSent, readPromptGate, shouldBroadcastPrompt } from "../promptGate";
@@ -28,7 +28,7 @@ import { clearAttachments } from "../state/attachments";
 import { recordPrompt } from "@kernel/promptHistory";
 import { broadcastModeRef } from "./broadcastMode";
 import { resolveBroadcastTargets } from "./broadcastTargets";
-import { buildBroadcastPlan, buildSinglePlan, type SendConfirmRequest, type SendPlan } from "./sendPlan";
+import { buildBroadcastPlan, buildSinglePlan, isConfirmPending, type SendConfirmRequest, type SendPlan } from "./sendPlan";
 
 export function useComposerSend({
   profile,
@@ -105,7 +105,7 @@ export function useComposerSend({
           return;
         }
         recordPrompt(trimmed);
-        setValue("");
+        clearInputIfUnchanged(plan);
         clearAttachments();
         clearMatches();
         return;
@@ -128,12 +128,20 @@ export function useComposerSend({
     }
     emitPromptSent(gate, sid, trimmed);
     recordPrompt(trimmed);
-    setValue("");
+    clearInputIfUnchanged(plan);
     clearAttachments();
     clearMatches();
   }
 
+  /* 确认期间输入框被续写则保留新草稿:弹层模态但输入框仍可聚焦,无条件清空会
+     吃掉确认期间的新输入(2026-09-27 桩目检实证)。composerDraftRef 活读当前
+     全文(executeSend 闭包捕获的是挂起期渲染的 value,已过期)。 */
+  function clearInputIfUnchanged(plan: SendPlan): void {
+    if (((composerDraftRef.current?.() ?? "").trim()) === plan.content) setValue("");
+  }
+
   async function sendCurrent() {
+    if (isConfirmPending()) return; // 模态闸:确认框在屏时发送键静默(防旧计划被顶替)
     if (!value.trim()) return;
     if (!profile || !host.getActiveSessionId()) return;
     const sid = host.getActiveSessionId()!;
