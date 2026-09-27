@@ -288,7 +288,7 @@ export function HomeScreen() {
           onClose={() => setSpawn(false)}
           onSpawned={(sessionId) => {
             setSpawn(false);
-            go({ view: "session", sessionId });
+            go({ view: "session", sessionId, spawnedAt: Date.now() });
           }}
         />
       )}

@@ -167,7 +167,11 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
         ) : route.view === "git" ? (
           <GitScreen onBack={() => setRoute({ view: "home" })} />
         ) : route.view === "session" ? (
-          <SessionScreen key={route.sessionId ?? ""} sessionId={route.sessionId ?? ""} />
+          <SessionScreen
+            key={route.sessionId ?? ""}
+            sessionId={route.sessionId ?? ""}
+            spawnedAt={route.spawnedAt}
+          />
         ) : null}
       </div>
     </MobileAppCtx.Provider>

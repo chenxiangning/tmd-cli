@@ -16,6 +16,10 @@
 
 - 依赖升级批:npm 18 项、cargo 8 项 minor/patch、dirs 6→7、setup-java 4→6、vitest 4→5(大版本全套用例零改动通过);russh 0.63 试过不合入——MSRV 1.85 超本仓 rust-version 1.80 且 Handler::check_server_key 签名破坏性变更,推 0.2.6 配真连验证
 
+### 修复
+
+- 手机选图在 iOS 18.4 前无法弹面板(WKUIDelegate 文件面板是 18.4+ 面,file input 低版本静默死钮):改为 ShellBridge 直连 PHPicker(iOS 14+),且 native 统一转 JPEG(≤2048px)——相册 HEIC 照片此前在 WKWebView 解不出,同样发不出
+
 ### 测试
 
 - 双端点竞速矩阵单测补位(M2 7.4 代码半边):DialPolicy 状态机(单败不切/连二败轮换/退避曲线封顶/arm 清态/单端点不轮换/候选收缩取模)+ 桥层 FakeWS 接线(LAN→relay 换端点短等 250ms 拨通)

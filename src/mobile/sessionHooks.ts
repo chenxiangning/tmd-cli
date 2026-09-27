@@ -17,6 +17,7 @@ export function useLiveTurns(
   profileId: string | undefined,
   cwd: string | undefined,
   sessionKey: string,
+  sinceMs?: number,
 ): TranscriptTurn[] | null {
   const [turns, setTurns] = useState<TranscriptTurn[] | null>(null);
   useEffect(() => {
@@ -32,7 +33,7 @@ export function useLiveTurns(
     const tick = async () => {
       if (!alive) return;
       if (!document.hidden) {
-        if (!path) path = await resolveTranscriptPath(profileId, cwd);
+        if (!path) path = await resolveTranscriptPath(profileId, cwd, sinceMs);
         if (path) {
           const next = await pollTranscript(path, size);
           if (!alive) return;
@@ -49,7 +50,7 @@ export function useLiveTurns(
       alive = false;
       clearTimeout(timer);
     };
-  }, [profileId, cwd, sessionKey]);
+  }, [profileId, cwd, sessionKey, sinceMs]);
   return turns;
 }
 

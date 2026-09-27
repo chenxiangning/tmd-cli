@@ -38,6 +38,10 @@ export const REQUIRED_CAPABILITY = "app-device";
 export interface MobileRoute {
   view: "home" | "session" | "history" | "git";
   sessionId?: string;
+  /** view = session 且经 SpawnSheet 新建:spawn 水位(ms)。transcript 定位只收
+   *  此后有写的 jsonl —— 新会话懒落盘窗口内不命中同 cwd 旧会话(历史泄露修复);
+   *  home 列表点入既有会话不带 = 不过滤。 */
+  spawnedAt?: number;
   /** view = history:磁盘会话定位信息(cwd/workspaceId/cliSessionId 齐备时可续聊)。 */
   history?: {
     profileId: string;
