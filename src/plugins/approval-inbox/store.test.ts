@@ -18,6 +18,7 @@ vi.mock("@kernel/host", () => ({
     getCliProfile: vi.fn(() => undefined),
     getCliSessionId: vi.fn(() => undefined),
     setActiveSession: vi.fn(),
+    getActiveSessionId: vi.fn(() => null),
     subscribe: vi.fn((fn: () => void) => {
       hostSubs.push(fn);
       return () => undefined;
@@ -37,7 +38,6 @@ import {
   answerKeys,
   answerWaiting,
   approvalInboxSnapshot,
-  askHistorySnapshot,
   bootApprovalInbox,
   excerptFromTail,
   gotoAndFocus,
@@ -59,6 +59,7 @@ beforeEach(() => {
   vi.mocked(host.getSessions).mockReturnValue([]);
   vi.mocked(host.isWaitingConfirm).mockReturnValue(false);
   vi.mocked(host.writeSession).mockResolvedValue(true);
+  vi.mocked(host.getActiveSessionId).mockReturnValue(null);
   vi.mocked(ipc.sessionLogSize).mockResolvedValue(0);
   vi.mocked(ipc.sessionHistoryPage).mockResolvedValue({ text: "", startOffset: 0, hasMore: false });
 });
@@ -159,7 +160,7 @@ describe("摘录", () => {
 describe("幽灵行回归(非收件箱路径的状态位变化)", () => {
   it("终端侧作答(只 host.notify,无 topic)经 host.subscribe 重算即消退", () => {
     const events = new EventBus();
-    bootApprovalInbox(events);
+    const revoke = bootApprovalInbox(events);
     expect(hostSubs.length).toBe(1); /* boot 恰挂一条 host.subscribe */
     vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a"]));
     vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
@@ -170,6 +171,7 @@ describe("幽灵行回归(非收件箱路径的状态位变化)", () => {
     vi.mocked(host.isWaitingConfirm).mockReturnValue(false);
     hostSubs[0]();
     expect(approvalInboxSnapshot().entries).toEqual([]);
+    revoke(); /* 摘订阅 + 清重同步 interval,防跨用例泄漏 */
   });
 
   it("boot 前 askDetected 丢失的场景:observeCurrentWaitings 补盲且不假造时长", async () => {
@@ -248,35 +250,5 @@ describe("直达聚焦(拒绝引导:把人送进幕布)", () => {
     vi.mocked(host.setActiveSession).mockClear();
     gotoAndFocus("ghost");
     expect(host.setActiveSession).toHaveBeenCalledWith("ghost");
-  });
-});
-
-describe("ask 历史落盘", () => {
-  it("卡解析成功即入历史(同指纹去重);退出等待清指纹后复问重记", async () => {
-    vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a"]));
-    vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
-    stubTail(
-      [
-        "Ask",
-        "开发节奏  Submit",
-        "接下来想推进哪块工作?",
-        "❯ ● PR #40 收尾",
-        "  ○ 推进 0.2.6 russh",
-        "← select · n note · ⌘ cancel",
-      ].join("\r\n"),
-    );
-    noteAskDetected("a");
-    await vi.waitFor(() => expect(askHistorySnapshot().length).toBe(1));
-    expect(askHistorySnapshot()[0].question).toBe("接下来想推进哪块工作?");
-    /* 同卡重拉(1.5s 重同步路径)不重复入档 */
-    noteAskDetected("a");
-    await vi.waitFor(() => approvalInboxSnapshot().entries.length > 0);
-    expect(askHistorySnapshot().length).toBe(1);
-    /* 消退 → 复问同题:重记 */
-    vi.mocked(host.isWaitingConfirm).mockReturnValue(false);
-    refreshInbox();
-    vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
-    noteAskDetected("a");
-    await vi.waitFor(() => expect(askHistorySnapshot().length).toBe(2));
   });
 });

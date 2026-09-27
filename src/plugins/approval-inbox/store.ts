@@ -97,6 +97,9 @@ function loadHistory(): AskRecord[] {
 }
 
 function pushHistory(sessionId: string, card: AskCard): void {
+  /* 会话绑定:只记**当前正在查看**的会话的提问——后台会话的问答不入档,
+     历史区也按激活会话过滤渲染,跨会话内容不互泄(2026-09-27 用户要求)。 */
+  if (host.getActiveSessionId() !== sessionId) return;
   const fp = card.question + "\u0001" + card.options.join("\u0001");
   if (lastFp.get(sessionId) === fp) return;
   lastFp.set(sessionId, fp);

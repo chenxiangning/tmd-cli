@@ -50,6 +50,8 @@ export function ApprovalInboxPanel() {
   useHost(); /* 状态位变化经 store 的 host.subscribe 重算,此处驱动重渲 */
   const { entries, failure } = useApprovalInbox();
   const { records } = useAskHistory();
+  /* 会话绑定:历史只显当前激活会话的提问,跨会话内容不互泄。 */
+  const myRecords = records.filter((r) => r.sessionId === host.getActiveSessionId());
   const { settings } = useSettingsState();
   const [, tick] = useState(0);
   useEffect(() => {
@@ -80,7 +82,7 @@ export function ApprovalInboxPanel() {
           {t("应答发送失败,会话可能已退出")} · {t("点击关闭")}
         </button>
       )}
-      {entries.length === 0 && records.length === 0 ? (
+      {entries.length === 0 && myRecords.length === 0 ? (
         <div className="px-4 pt-10 text-center text-[0.6875rem] leading-relaxed text-(--tmd-fg-faint)">
           {t("没有会话在等待确认")}
         </div>
@@ -89,12 +91,12 @@ export function ApprovalInboxPanel() {
           {entries.map((entry) => (
             <InboxRow key={entry.sessionId} entry={entry} manualTitles={settings.sessionTitles} />
           ))}
-          {records.length > 0 && (
+          {myRecords.length > 0 && (
             <div className="border-t border-(--tmd-border) px-3 py-2">
               <div className="mb-1 text-[0.5625rem] leading-[1rem] text-(--tmd-fg-faint)">
-                {t("历史提问(落盘,最近 {n} 条)", { n: records.length })}
+                {t("历史提问(落盘,最近 {n} 条)", { n: myRecords.length })}
               </div>
-              {records.map((r) => (
+              {myRecords.map((r) => (
                 <div key={`${r.sessionId}-${r.ts}`} className="mb-1.5">
                   <div className="flex items-baseline gap-1.5">
                     <span className="flex-none font-mono text-[0.5625rem] text-(--tmd-fg-faint)">
