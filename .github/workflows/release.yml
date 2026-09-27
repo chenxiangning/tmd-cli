@@ -145,9 +145,9 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           # 六件套逐个核对:缺任一即整组跳过并点名(只看证书会漏配半套,
-          # 失败深藏在公证段报难懂错误)。值经 env: 映射进脚本,不走
-          # ${{ }} 内插 —— 防 p12 密码含引号/反引号或 Linux base64 折行
-          # 多行值打碎脚本与 GITHUB_ENV 行。
+          # 失败深藏在公证段报难懂错误)。值经 env: 映射进脚本,不走表达式内插 ——
+          # 防 p12 密码含引号/反引号或 Linux base64 折行多行值打碎脚本与 GITHUB_ENV 行。
+          # (注释里写字面美元花括号对会被 Actions 表达式引擎当真解析,曾致全流编译挂)
           missing=""
           for k in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
                    APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
@@ -260,7 +260,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for i in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 && break
             sleep 10
           done
@@ -336,7 +336,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for i in $(seq 1 90); do
+          for _ in $(seq 1 90); do
             gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 && break
             sleep 30
           done
