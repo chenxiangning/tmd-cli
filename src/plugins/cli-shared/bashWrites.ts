@@ -11,6 +11,8 @@
  *
  * 纪律:宁可漏报不可误报 —— cp/mv/构建器写盘等未建模形态继续盲;残留误报
  * 代价低(封口净零变更短路,不虚增批),漏报代价高(账本与 git 永久对不上)。
+ *
+ * 消费先例:cli-omp/edits.ts + cli-pi/edits.ts(≥2 cli-*,准入达标)。
  */
 
 import type { CliSessionEdit } from "@kernel/cli";

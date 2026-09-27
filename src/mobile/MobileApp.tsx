@@ -15,6 +15,7 @@ import { GitScreen } from "./GitScreen";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
 import { listSessions, listWorkspaces, overlayState, sessionPinToggle } from "./remote";
 import { activeRemoteEndpoint, isRemoteConnected, isRemotePaused, listen, onRemoteConnection } from "@kernel/transport";
+import { baseName } from "@kernel/pathUtils";
 
 export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   const [sessions, setSessions] = React.useState<RemoteSession[]>([]);
@@ -123,7 +124,7 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       /* 桌面命名覆盖层 key = profileId:cliSessionId(桥 resume 直填/绑定镜像后可解析);
          未绑定活会话(新起 CLI 未落盘)= 兜底形态 */
       (s.cliSessionId ? titles[`${s.profileId}:${s.cliSessionId}`] : undefined) ??
-      `${glyphOf2(s.profileId).text} · ${s.cwd.split("/").filter(Boolean).pop() ?? s.cwd}`,
+      `${glyphOf2(s.profileId).text} · ${baseName(s.cwd) || s.cwd}`,
     [titles],
   );
 

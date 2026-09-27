@@ -14,6 +14,7 @@
 import type { ComponentType } from "react";
 import type { Plugin } from "@kernel/plugin";
 import { getSettingsState } from "@kernel/settings";
+import "./locales"; /* 域词典随插件自带:import 即注册 */
 import { ProxyPopover } from "./ProxyPopover";
 import { openProxyPopover } from "./proxyPopoverStore";
 

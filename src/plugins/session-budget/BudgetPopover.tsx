@@ -24,6 +24,7 @@ import {
   useSettingsState,
 } from "@kernel/settings";
 import { Cross } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
 import { commitQuota, commitTotal, prunePerCli } from "./budgetCommit";
 
 const INPUT_CLASS =
@@ -103,20 +104,26 @@ export function BudgetPopover({
         data-testid="session-list-budget-card"
       >
         <div className="wsbudget-head">
-          <span className="wsbudget-title">会话列表显示预算</span>
-          <button className="wsbudget-close" title="关闭" onClick={onClose}>
+          <span className="wsbudget-title">{t("会话列表显示预算")}</span>
+          <button className="wsbudget-close" title={t("关闭")} onClick={onClose}>
             <Cross size="0.875rem" aria-hidden />
           </button>
         </div>
 
         <div className="pref-row">
           <div>
-            <div className="pref-title">显示总数</div>
+            <div className="pref-title">{t("显示总数")}</div>
             <div className="pref-desc">
-              一个工作区内所有 CLI 分组共享的初始露出条数（
-              {SESSION_LIST_TOTAL_MIN}–{SESSION_LIST_TOTAL_MAX}，默认 20）。
-              已分配 {allocated} 条，剩余 {total - allocated} 条由未配置的 CLI
-              均分。「更多...」仍可按需翻倍加载。
+              {t(
+                "一个工作区内所有 CLI 分组共享的初始露出条数({min}–{max},默认 {def})。已分配 {allocated} 条,剩余 {remaining} 条由未配置的 CLI 均分。「更多...」仍可按需翻倍加载。",
+                {
+                  min: SESSION_LIST_TOTAL_MIN,
+                  max: SESSION_LIST_TOTAL_MAX,
+                  def: 20,
+                  allocated,
+                  remaining: total - allocated,
+                },
+              )}
             </div>
           </div>
           <input
@@ -125,7 +132,7 @@ export function BudgetPopover({
             min={SESSION_LIST_TOTAL_MIN}
             max={SESSION_LIST_TOTAL_MAX}
             defaultValue={total}
-            aria-label="显示总数"
+            aria-label={t("显示总数")}
             className={INPUT_CLASS}
             {...wireCommit(applyTotal)}
           />
@@ -146,8 +153,7 @@ export function BudgetPopover({
                   {profile.name}
                 </div>
                 <div className="pref-desc">
-                  固定预留的条数；留空 = 均分剩余（当前约 {share} 条），0 =
-                  初始不露出历史。
+                  {t("固定预留的条数;留空 = 均分剩余(当前约 {share} 条),0 = 初始不露出历史。", { share })}
                 </div>
               </div>
               <input
@@ -157,7 +163,7 @@ export function BudgetPopover({
                 max={total}
                 placeholder={String(share)}
                 defaultValue={explicit ?? ""}
-                aria-label={`${profile.name} 配额`}
+                aria-label={t("{name} 配额", { name: profile.name })}
                 className={INPUT_CLASS}
                 {...wireCommit((input) => applyQuota(profile.id, input))}
               />

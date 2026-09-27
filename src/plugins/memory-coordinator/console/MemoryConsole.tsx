@@ -16,7 +16,6 @@ import { type MemoryItem } from "../protocol";
 import { memoryPool, resolveProjectIdentity } from "../pool";
 import { EngineConfigCard } from "./EngineConfigCard";
 import { readEngineConfigFile, writeEngineConfigFile, type EngineConfig } from "./engineConfigModel";
-import { engineConfigPath } from "../paths";
 import { InstallCard } from "./InstallCard";
 import {
   DistillSettingsCard,
@@ -100,9 +99,8 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
     let cancelled = false;
     (async () => {
       try {
-        const p = await engineConfigPath();
-        await ipc.fsReadFile(p);
-        if (!cancelled) patch({ configHint: null });
+        const { config } = await readEngineConfigFile();
+        if (!cancelled) patch({ engine: config, configHint: null });
       } catch (e) {
         if (!cancelled) patch({ configHint: t("引擎配置读取失败: {err}", { err: String(e).slice(0, 120) }) });
       }

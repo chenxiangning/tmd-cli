@@ -6,6 +6,7 @@
 import { host } from "@kernel/host";
 import type { SessionMeta } from "@kernel/ipc";
 import { getSessionBaseline } from "@kernel/sessionTabs";
+import { baseName } from "@kernel/pathUtils";
 import { sessionArchiveKey, type SessionArchiveEntry } from "@kernel/sessionArchive";
 import { isSessionDeleted, sessionDeletedKey } from "@kernel/sessionDeleted";
 import { sessionTitleKey } from "@kernel/sessionTitles";
@@ -149,7 +150,7 @@ export function mergeLive(
         ? workspaceDisplayName(own)
         : diskEntry
           ? workspaceDisplayName(diskEntry.ws)
-          : (meta.cwd.split("/").filter(Boolean).pop() ?? "—"),
+          : baseName(meta.cwd) || "—",
       wsRoot: own?.root ?? diskEntry?.ws.root ?? meta.cwd,
       title: resolveTitle(
         profile.id,

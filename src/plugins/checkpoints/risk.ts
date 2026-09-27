@@ -21,7 +21,9 @@ const HIGH_RISK_PATTERNS: readonly RegExp[] = [
   /(^|\/)crontab$/,
 ];
 
-/** 路径(仓库相对)→ 危险度。high = 建议细读 diff 再放行。 */
+/** 路径(仓库相对)→ 危险度。high = 建议细读 diff 再放行。
+ *  匹配前反斜杠归一为正斜杠:Windows 形态(.ssh\id_rsa)同样命中,红标不因平台失效。 */
 export function classifyRisk(path: string): "high" | "normal" {
-  return HIGH_RISK_PATTERNS.some((re) => re.test(path)) ? "high" : "normal";
+  const p = path.replace(/\\/g, "/");
+  return HIGH_RISK_PATTERNS.some((re) => re.test(p)) ? "high" : "normal";
 }

@@ -76,12 +76,17 @@ export function WriteCard({
   const effectiveTarget = distillTarget ?? ompSessions[0]?.id ?? null;
 
   const writeManual = async () => {
-    const out = await rememberFacts([{ category: "CONSTRAINTS", content: newContent.trim() }], root, {
-      model: settings.memoryDistillModel || undefined,
-    });
-    setNewContent("");
-    setDistillState(out.ok ? t("已写入") : t("失败: {detail}", { detail: out.detail }));
-    onWritten();
+    try {
+      const out = await rememberFacts([{ category: "CONSTRAINTS", content: newContent.trim() }], root, {
+        model: settings.memoryDistillModel || undefined,
+      });
+      setNewContent("");
+      setDistillState(out.ok ? t("已写入") : t("失败: {detail}", { detail: out.detail }));
+      onWritten();
+    } catch (e) {
+      /* 引擎进程失败(如 omp 不可达)不走 out.ok 路径,这里兜住未处理 rejection。 */
+      setDistillState(t("失败: {detail}", { detail: String(e).slice(0, 120) }));
+    }
   };
 
   if (!visible) return null;

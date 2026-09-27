@@ -12,6 +12,7 @@ import {
   SESSION_LIST_TOTAL_MIN,
   type SessionListBudget,
 } from "@kernel/settings";
+import { t } from "@kernel/i18n";
 
 /** 提交结果:ok 携带写入值;拒绝携带行内提示。 */
 type BudgetCommitResult =
@@ -48,13 +49,16 @@ export function commitTotal(
   ) {
     return {
       ok: false,
-      hint: `总数须为 ${SESSION_LIST_TOTAL_MIN}–${SESSION_LIST_TOTAL_MAX} 的整数。`,
+      hint: t("总数须为 {min}–{max} 的整数。", {
+        min: SESSION_LIST_TOTAL_MIN,
+        max: SESSION_LIST_TOTAL_MAX,
+      }),
     };
   }
   if (n < allocated) {
     return {
       ok: false,
-      hint: `总数不能小于已分配配额之和(${allocated}),请先下调分类配额。`,
+      hint: t("总数不能小于已分配配额之和({n}),请先下调分类配额。", { n: allocated }),
     };
   }
   return { ok: true, value: { total: n, perCli } };
@@ -78,7 +82,7 @@ export function commitQuota(
   if (!Number.isInteger(n) || n < 0 || othersTotal + n > budget.total) {
     return {
       ok: false,
-      hint: `配额须为 0–${budget.total - othersTotal} 的整数(分类之和不超过总数)。`,
+      hint: t("配额须为 0–{max} 的整数(分类之和不超过总数)。", { max: budget.total - othersTotal }),
     };
   }
   next[cliId] = n;

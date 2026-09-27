@@ -9,6 +9,9 @@
  *
  * 非用户语义一律跳过:tool_result 行、XML 包装(<command-…/<system-reminder…)、
  * AGENTS.md 指令包装(diskSessions 标题归一同规则)。
+ *
+ * 消费先例:cli-claude / cli-codex / cli-grok / cli-kimi 直引,omp/pi 经 piFamily
+ * 中转(≥2 cli-*,准入达标)。
  */
 
 import { ipc } from "@kernel/ipc";

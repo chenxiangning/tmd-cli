@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { Gauge, TreeStructure } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
+import "./locales"; /* 域词典随插件自带:import 即注册 */
 import { BudgetPopover } from "./BudgetPopover";
 
 /** 弹窗定位:以锚点为左上,按估算尺寸在视口内夹取(同 clampMenuPosition 思路)。 */

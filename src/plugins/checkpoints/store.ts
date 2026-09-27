@@ -26,8 +26,10 @@ interface CwdCkptState {
 const EMPTY: CwdCkptState = { batches: [], loading: false, error: null, notARepo: false };
 /** key = `${cwd}|${sessionId}` */
 const byKey = new Map<string, CwdCkptState>();
-/** cwd → batchId → patches(懒加载缓存) */
+/** cwd → batchId → patches(懒加载缓存;受 DIFF_CACHE_PER_CWD 上限 + refresh 差集清理约束) */
 const diffCache = new Map<string, Map<string, CkptPatch[]>>();
+/** 每 cwd 缓存的批 diff 上限(Map 插入序 = 访问序,超限摘最老) */
+const DIFF_CACHE_PER_CWD = 24;
 
 const listeners = new Set<() => void>();
 let version = 0;
@@ -68,6 +70,7 @@ export function refreshBatches(
     .checkpointList(cwd, sessionId, tmdSessionId)
     .then((batches) => {
       byKey.set(key, { batches, loading: false, error: null, notARepo: false });
+      pruneDiffCache(cwd, batches);
       emit();
     })
     .catch((e: unknown) => {
@@ -220,6 +223,15 @@ function invalidateDiff(cwd: string, batchId: string): void {
   diffCache.get(cwd)?.delete(batchId);
 }
 
+/** 批清单刷新即权威:按最新批 id 集合摘除 diffCache 已消失的批
+ *  (后端 pruneRetention 清账后,前端缓存同步收缩,不再只增不减)。 */
+function pruneDiffCache(cwd: string, batches: CkptBatch[]): void {
+  const per = diffCache.get(cwd);
+  if (!per) return;
+  const alive = new Set(batches.map((b) => b.id));
+  for (const id of [...per.keys()]) if (!alive.has(id)) per.delete(id);
+}
+
 export function getCachedDiff(cwd: string, batchId: string): CkptPatch[] | undefined {
   return diffCache.get(cwd)?.get(batchId);
 }
@@ -230,13 +242,26 @@ export function refreshOpenDiff(cwd: string, batchId: string): void {
   loadDiff(cwd, batchId);
 }
 
-/** 批 diff 懒加载:命中缓存同步返回;否则发起 IPC(结果进缓存并 emit)。 */
+/** 批 diff 懒加载:命中缓存同步返回(挪插入序尾 = 访问序);否则发起 IPC(结果进缓存并 emit)。 */
 export function loadDiff(cwd: string, batchId: string): CkptPatch[] | null {
   const hit = getCachedDiff(cwd, batchId);
-  if (hit) return hit;
+  if (hit) {
+    const per = diffCache.get(cwd);
+    if (per) {
+      per.delete(batchId);
+      per.set(batchId, hit);
+    }
+    return hit;
+  }
   const per = diffCache.get(cwd) ?? new Map<string, CkptPatch[]>();
   per.set(batchId, []); // 占位防重
   diffCache.set(cwd, per);
+  /* 每 cwd LRU 上限:超限摘插入序最老(本批占位键最新,不会被摘) */
+  while (per.size > DIFF_CACHE_PER_CWD) {
+    const oldest = per.keys().next().value;
+    if (oldest === undefined || oldest === batchId) break;
+    per.delete(oldest);
+  }
   ipc
     .checkpointBatchDiff(cwd, batchId)
     .then((patches) => {

@@ -16,6 +16,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Cross } from "@phosphor-icons/react";
 import { updateSettings, useSettingsState } from "@kernel/settings";
+import { t } from "@kernel/i18n";
 import { normalizeProxyUrl, proxyTransitionError, DEFAULT_PROXY_URL } from "./proxyCommit";
 import { closeProxyPopover, useProxyPopoverState } from "./proxyPopoverStore";
 
@@ -88,12 +89,12 @@ export function ProxyPopover() {
         open
         className="pxy-popover m-0 p-0"
         style={pos ? { left: pos.left, top: pos.top } : { visibility: "hidden" }}
-        aria-label="网络代理"
+        aria-label={t("网络代理")}
         data-testid="network-proxy-popover"
       >
         <div className="pxy-head">
-          <span className="pxy-title">网络代理</span>
-          <button className="pxy-close" title="关闭" onClick={closeProxyPopover}>
+          <span className="pxy-title">{t("网络代理")}</span>
+          <button className="pxy-close" title={t("关闭")} onClick={closeProxyPopover}>
             <Cross size="0.875rem" aria-hidden />
           </button>
         </div>
@@ -101,14 +102,14 @@ export function ProxyPopover() {
         <div className="pxy-body">
           <div className="pxy-row">
             <div>
-              <div className="pxy-label">启用网络代理</div>
-              <div className="pxy-desc">客户端联网与新建 CLI 会话走该代理</div>
+              <div className="pxy-label">{t("启用网络代理")}</div>
+              <div className="pxy-desc">{t("客户端联网与新建 CLI 会话走该代理")}</div>
             </div>
             <button
               type="button"
               role="switch"
               aria-checked={enabled}
-              aria-label="启用网络代理"
+              aria-label={t("启用网络代理")}
               className={`pxy-switch${enabled ? " is-on" : ""}`}
               onClick={() => commit(!enabled, draftUrl)}
             >
@@ -117,14 +118,14 @@ export function ProxyPopover() {
           </div>
 
           <label className="pxy-field" htmlFor="pxy-proxy-url">
-            <span className="pxy-label">代理地址</span>
+            <span className="pxy-label">{t("代理地址")}</span>
             <input
               id="pxy-proxy-url"
               value={draftUrl}
               spellCheck={false}
               autoCapitalize="off"
               autoCorrect="off"
-              aria-label="代理地址"
+              aria-label={t("代理地址")}
               placeholder={DEFAULT_PROXY_URL}
               onChange={(e) => {
                 setDraftUrl(e.target.value);
@@ -144,7 +145,7 @@ export function ProxyPopover() {
           </label>
 
           <p className="pxy-hint">
-            支持 http(s) / socks5 / socks5h。开关即时生效;已在跑的旧会话需手动重启后走代理。
+            {t("支持 http(s) / socks5 / socks5h。开关即时生效;已在跑的旧会话需手动重启后走代理。")}
           </p>
         </div>
       </dialog>
