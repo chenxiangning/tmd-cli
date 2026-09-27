@@ -13,7 +13,7 @@ import { composerPendingCount } from "@kernel/composerExt";
 import { emitPromptSent, readPromptGate } from "../promptGate";
 import { openSettingsPanel } from "@kernel/settings";
 import { setFilePanelMode } from "@kernel/filePanel";
-import { prepareSendPayload } from "../serialize/serialize";
+import { prepareSendPayload } from "@kernel/profileSend";
 import { buildSinglePlan, isConfirmPending, type SendConfirmRequest } from "./sendPlan";
 import { insertAtCursor } from "./useComposerAttachments";
 import { useDrawerOpen } from "../state/drawerOpen";

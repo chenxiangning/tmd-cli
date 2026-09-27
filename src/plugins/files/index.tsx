@@ -23,7 +23,7 @@ import { saveRequestRef } from "./editor/useFileDocument";
 import { collectRevealTargets } from "./treeHandles";
 import { fileDetailActions, blameToggleRef } from "./fileDetailActions";
 import { getActiveWorkspace } from "@kernel/workspace";
-import { openFileHistoryTab } from "@plugins/git/fileHistoryTab";
+import { fileHistoryOpenRef } from "@kernel/fileHistoryBridge";
 import { ActiveWorkspaceFileTree } from "./FileTree";
 import { setFileMarkBus } from "./markBridge";
 import { getActiveTreeHandles } from "./treeHandles";
@@ -100,7 +100,7 @@ export const filesPlugin: Plugin = {
         const ws = getActiveWorkspace();
         const base = ws ? ws.root.replace(/[\\/]+$/, "") : "";
         const rel = base && a.path.startsWith(`${base}/`) ? a.path.slice(base.length + 1) : "";
-        if (rel) openFileHistoryTab({ cwd: base, path: rel });
+        if (rel) fileHistoryOpenRef.current?.({ cwd: base, path: rel });
       },
     });
     ctx.registerCommand({

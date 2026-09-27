@@ -5,7 +5,7 @@ import { CaretDown, CaretUp, Sidebar } from "@phosphor-icons/react";
 import { QuotaChip } from "./QuotaChip";
 import { toggleDrawer, useDrawerOpen } from "../state/drawerOpen";
 import { isRemoteEngineSession, useActiveProfile, useActiveSession } from "../state/useActiveProfile";
-import { prepareSendPayload } from "../serialize/serialize";
+import { prepareSendPayload } from "@kernel/profileSend";
 
 /** 模型位:模型名 + seeded 徽标,点击发 /model(复杂度拆件)。
  *  远程引擎会话:本机配置种子不可信(那是本机 CLI 的模型,不是远端会话的),

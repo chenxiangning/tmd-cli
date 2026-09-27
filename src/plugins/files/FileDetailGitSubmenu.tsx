@@ -16,7 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
-import { openFileHistoryTab } from "@plugins/git/fileHistoryTab";
+import { fileHistoryOpenRef } from "@kernel/fileHistoryBridge";
 import { item, type Pick } from "./wsmenuItem";
 
 const GIT_OPS = {
@@ -70,8 +70,10 @@ export function FileDetailGitSubmenu({
             pick(() => run("discard"));
           }, { danger: armed })}
           <div className="wsmenu-divider" />
-          {item(t("显示文件历史"), <ClockCounterClockwise size="0.8125rem" />, () =>
-            pick(() => openFileHistoryTab({ cwd, path: rel })), { kbd: "⌥⇧H" })}
+          {/* 桥不在 = git 插件未启用,不出菜单项(同 relayBridge null 闸协议)。 */}
+          {fileHistoryOpenRef.current &&
+            item(t("显示文件历史"), <ClockCounterClockwise size="0.8125rem" />, () =>
+              pick(() => fileHistoryOpenRef.current?.({ cwd, path: rel })), { kbd: "⌥⇧H" })}
           {onToggleBlame &&
             item(
               blameActive ? t("隐藏 Git Blame") : t("显示 Git Blame"),

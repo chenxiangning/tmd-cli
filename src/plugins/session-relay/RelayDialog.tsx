@@ -11,7 +11,7 @@ import { PaperPlaneRight } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { getActiveWorkspace, getWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
-import { prepareSendPayload } from "@plugins/composer/serialize/serialize";
+import { prepareSendPayload } from "@kernel/profileSend";
 import { relayTargets, buildRelaySummary, type RelaySource } from "./relay";
 import { clearRelaySource, useRelaySource } from "./relayStore";
 

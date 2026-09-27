@@ -1,14 +1,16 @@
 /**
- * 草稿 → 协议文本 → 写入 PTY 的翻译管线。
+ * profile 发送管线原语 —— 草稿 → 协议文本 → 写入 PTY 的翻译管线。
+ *
+ * 只依赖 kernel 契约(CliProfile 的 triggers/translate/bracketedPaste + composerExt
+ * 发送变换),零插件私有知识;composer 与 session-relay(接力摘要写入)跨件消费,
+ * 跨插件契约进 kernel 的惯例。
  *
  * 约定:
  * - trigger 触发后保留触发符 + 后面的 token,profile.translate(token) 把它转成对应 CLI 的语法
  * - 例如 omp 的 $触发: 文本里出现 "<think>" → translate → "/skill:think"
- *
- * Step 3 只做组装,不接 trigger 翻译(Step 4 再做)。
  */
 
-import type { CliProfile } from "@kernel/cli";
+import type { CliProfile } from "./cli";
 
 /**
  * 在 text 里找出现在光标位置之上(整段都算)"最靠近光标"的 trigger token。

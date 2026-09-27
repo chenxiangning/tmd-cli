@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CliProfile, CliTriggerSpec } from "@kernel/cli";
 
-import { findActiveTrigger, prepareSendPayload, translatePrompt } from "./serialize";
+import { findActiveTrigger, prepareSendPayload, translatePrompt } from "./profileSend";
 
 const DOLLAR: CliTriggerSpec = {
   char: "$",

@@ -23,7 +23,7 @@ import { composerDraftRef, composerSendTransforms, undoComposerSend } from "@ker
 import type { CliProfile } from "@kernel/cli";
 import { getSessionTabs, getSessionTile } from "@kernel/sessionTabs";
 import { emitPromptSent, readPromptGate, shouldBroadcastPrompt } from "../promptGate";
-import { prepareSendPayload } from "../serialize/serialize";
+import { prepareSendPayload } from "@kernel/profileSend";
 import { clearAttachments } from "../state/attachments";
 import { recordPrompt } from "@kernel/promptHistory";
 import { broadcastModeRef } from "./broadcastMode";

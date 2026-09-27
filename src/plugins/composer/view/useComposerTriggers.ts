@@ -12,7 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CliProfile } from "@kernel/cli";
 import { composerTriggerSources } from "@kernel/composerExt";
 import { host } from "@kernel/host";
-import { findActiveTrigger } from "../serialize/serialize";
+import { findActiveTrigger } from "@kernel/profileSend";
 import type { SuggestionMatch } from "../triggers/suggest";
 import { lookupSuggestions } from "../triggers/suggest";
 
