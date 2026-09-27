@@ -317,6 +317,10 @@ enum Keychain {
 final class FilePanelRelay: NSObject, PHPickerViewControllerDelegate {
   var onDone: ((Data?) -> Void)?
   private var done = false
+  /* loadFileRepresentation 的回调不持有 provider:results 出了本函数作用域即被
+     ARC 回收,回调永不执行 → JS promise 永挂(真机现象「选完图没任何反应」)。
+     必须由 self 持到回调落地再放。 */
+  private var pendingProvider: NSItemProvider?
 
   func present(_ root: UIViewController, _ picker: PHPickerViewController) {
     picker.delegate = self
@@ -325,17 +329,27 @@ final class FilePanelRelay: NSObject, PHPickerViewControllerDelegate {
 
   func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
     picker.dismiss(animated: true)
+    ShellLog.write("pick: dismissed, \(results.count) result(s)")
     guard !done else { return }
     guard let provider = results.first?.itemProvider,
           provider.hasItemConformingToTypeIdentifier("public.image") else {
+      ShellLog.write("pick: no image provider")
       finish(nil)
       return
     }
-    provider.loadFileRepresentation(forTypeIdentifier: "public.image") { [weak self] url, _ in
-      guard let self, let url else { self?.finish(nil); return }
+    pendingProvider = provider
+    provider.loadFileRepresentation(forTypeIdentifier: "public.image") { [weak self] url, err in
+      guard let self else { return }
+      self.pendingProvider = nil
+      guard let url else {
+        ShellLog.write("pick: no file rep \(err.map(String.init(describing:)) ?? "")")
+        self.finish(nil)
+        return
+      }
       let data = Self.jpegData(from: url)
-      /* loadFileRepresentation 回调在后台线程;present/dismiss 与 UI 无关但
-         onDone 里 reply→evaluateJavaScript 是主线程专用,统一回主线程。 */
+      ShellLog.write("pick: jpeg \(data?.count ?? 0)B from \(url.lastPathComponent)")
+      /* loadFileRepresentation 回调在后台线程;onDone 里 reply→evaluateJavaScript
+         是主线程专用,统一回主线程。 */
       DispatchQueue.main.async { self.finish(data) }
     }
   }
