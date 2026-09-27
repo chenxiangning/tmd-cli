@@ -54,6 +54,15 @@ fn 白名单fs_git命令必有桥臂() {
     }
 }
 
+/// fs_write_temp 窄豁免(截图注入:手机发图落桌面临时目录唯一写面)。
+#[test]
+fn fs域_截图注入写令放行_其余fs写仍拒() {
+    assert!(app_allowed("fs_write_temp"), "截图注入通道应放行");
+    for no in ["fs_write", "fs_mkdir", "fs_delete", "fs_collect_files2"] {
+        assert!(!app_allowed(no), "{no} 应拒绝");
+    }
+}
+
 #[test]
 fn spawn_命令收敛_引擎白名单() {
     let ok = |cmd: &str| serde_json::json!({ "profileId": "omp", "spec": { "command": cmd, "cwd": "/tmp" }, "workspaceId": null });
