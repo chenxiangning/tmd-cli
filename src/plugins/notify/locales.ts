@@ -37,8 +37,6 @@ const MESSAGES_EN = {
   "每 10 分钟查一次激活会话供应商的额度,窗口已用百分比达到阈值即发通知(同一窗口周期只提醒一次);0 = 关。":
     "Poll the active session's provider every 10 minutes and notify once per window cycle when usage crosses the threshold; 0 = off.",
   "额度预警阈值百分比": "Quota alert threshold percent",
-  "{n} 个会话在等你确认": "{n} sessions waiting for your approval",
-  "关闭待办卡": "Dismiss card",
   "开启": "On",
   "关闭": "Off",
 } as const;
@@ -76,8 +74,6 @@ const MESSAGES_JA = {
   "每 10 分钟查一次激活会话供应商的额度,窗口已用百分比达到阈值即发通知(同一窗口周期只提醒一次);0 = 关。":
     "アクティブセッションのプロバイダーを 10 分ごとに確認し、使用率がしきい値を超えたら通知(同一ウィンドウ周期に 1 度);0 = オフ。",
   "额度预警阈值百分比": "残高警告しきい値(%)",
-  "{n} 个会话在等你确认": "{n} 件のセッションが承認を待っています",
-  "关闭待办卡": "カードを閉じる",
   "开启": "オン",
   "关闭": "オフ",
 } as const;

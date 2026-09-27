@@ -21,8 +21,6 @@ import { getQuotaProvider } from "@kernel/quota";
 import type { Plugin } from "@kernel/plugin";
 import { NotifySettingsTab } from "./NotifySettingsTab";
 import { notifyText, shouldNotify, type NotifyKind } from "./logic";
-import { addReturnRow, openOnFocusReturn, resolveReturnRow } from "./returnCardStore";
-import { ReturnCardOverlay } from "./returnCard";
 import { QUOTA_POLL_FIRST_MS, QUOTA_POLL_INTERVAL_MS, pickQuotaWarnings } from "./quotaWatch";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
@@ -45,30 +43,23 @@ export const notifyPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx) {
-    /* 回窗待办卡:overlay 挂点常驻订阅,空快照渲染 null(spec 2026-09-27)。 */
-    ctx.contribute("overlay", { order: 55, component: ReturnCardOverlay });
-
     /* 事件侧:三类内核信号,边沿触发,检测零新增。
        turnSettled 只提醒"未被查看"的结算(查看过的轮次不值得打断);
        退出走 sessionExitedDetail(payload 是移除前快照,名字档位才可达)。 */
     const waitingNotified = new Set<string>();
-    let wasBlurred = false; /* 失焦沿记录:回窗卡只在真实「离开过」后开(首启不弹) */
     const offs = [
       ctx.events.on<string>(KernelTopics.askDetected, (id) => {
         waitingNotified.add(id);
         dispatch("ask", id);
-        addReturnRow(id); /* 卡片未开时 no-op;开着则聚焦期新 ask 入卡 */
       }),
       ctx.events.on<{ sessionId: string; unviewed: boolean }>(
         KernelTopics.turnSettled,
         (e) => {
           waitingNotified.delete(e.sessionId);
-          resolveReturnRow(e.sessionId);
           if (e.unviewed) dispatch("turnEnd", e.sessionId);
         },
       ),
       ctx.events.on<SessionExitedDetailEvent>(KernelTopics.sessionExitedDetail, (e) => {
-        resolveReturnRow(e.sessionId);
         const { settings } = getSettingsState();
         if (!shouldNotify("exit", settings, host.isWindowFocused())) return;
         const name = e.title || host.getCliProfile(e.profileId)?.name || e.profileId;
@@ -80,7 +71,6 @@ export const notifyPlugin: Plugin = {
     /* 镜像时序补扫:「提问先于失焦」的场景 askDetected 边沿已被聚焦期消费,
        失焦那一刻扫一遍等待中的会话补发(去重按会话,聚焦恢复即清账)。 */
     const onBlur = (): void => {
-      wasBlurred = true;
       const { settings } = getSettingsState();
       if (!settings.notifyOsAsk || host.isWindowFocused()) return;
       for (const s of host.getSessions()) {
@@ -90,14 +80,7 @@ export const notifyPlugin: Plugin = {
         void sendOsNotification(title, body);
       }
     };
-    /* 回窗 = 待办卡触发沿:只有真实「离开过」才开卡(首启 focus 不弹);
-       卡内容现查 isWaitingConfirm,空集不开(无待办不打扰)。 */
-    const onFocus = (): void => {
-      waitingNotified.clear();
-      if (!wasBlurred) return;
-      wasBlurred = false;
-      openOnFocusReturn();
-    };
+    const onFocus = (): void => waitingNotified.clear();
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
 
