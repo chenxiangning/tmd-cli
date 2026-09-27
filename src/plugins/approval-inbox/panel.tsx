@@ -12,6 +12,7 @@ import { useSettingsState } from "@kernel/settings";
 import { getSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, shortId } from "@kernel/sessionTitles";
 import {
+  answerKeys,
   answerWaiting,
   dismissFailure,
   gotoAndFocus,
@@ -19,7 +20,7 @@ import {
   useApprovalInbox,
   type InboxEntry,
 } from "./store";
-import type { AskCard } from "./askCard";
+import { jumpTabKeys, moveKeys, type AskCard } from "./askCard";
 
 /** 等待时长文案;since 未知(面板后见)只显示「等待中」。 */
 function formatWait(since: number | null): string {
@@ -133,7 +134,7 @@ function InboxRow({ entry, manualTitles }: { entry: InboxEntry; manualTitles: Re
         </button>
       </div>
       {entry.card ? (
-        <CardBlock card={entry.card} onSend={(t) => void sendText(t)} />
+        <CardBlock card={entry.card} sessionId={entry.sessionId} />
       ) : (
         entry.excerpt && (
           <pre
@@ -171,43 +172,90 @@ function InboxRow({ entry, manualTitles }: { entry: InboxEntry; manualTitles: Re
   );
 }
 
-/** omp select 卡块:问题正文 + 选项列。单问/总结态:选项可点(发数字/回车);
- *  多问:CLI 焦点在幕布侧,面板代发数字会答错题 —— 选项只读展示 + 直达。 */
-function CardBlock({ card, onSend }: { card: AskCard; onSend: (text: string) => void }) {
-  const multi = card.multi > 1;
+/** omp ask 卡操作面板。
+ * - multi 卡(页脚 toggle):空格 toggle 当前光标项、↑/↓ 移动、⇥ 跳题、⇥×k+回车提交
+ *   —— 全部映射成可点按钮(键序列裸发不带回车);面板跟踪光标与当前题,帧刷新后同步。
+ * - select 卡(数字直选):单题数字可点(裸键);多题卡 tab 行只读展示(逐题识别),
+ *   后续题不可代答 —— select 卡跳题机制无页脚证据,不猜(答错题 > 少代答)。
+ * 用户在幕布手动移动过光标/切题会与面板态漂移:按钮 title 已注明以幕布为准。 */
+function CardBlock({ card, sessionId }: { card: AskCard; sessionId: string }) {
+  const multi = card.kind === "multi";
+  const questionCount = card.tabs.length > 0 ? card.tabs.length - 1 : 1;
+  const send = (keys: string) => void answerKeys(sessionId, keys);
+
+  /* 光标恒用解析帧值(1-2 拍内随尾流刷新回真);本地乐观态会与帧值打架(react-doctor 同判)。 */
+  const toggleOption = (i: number) => send(moveKeys(card.cursor, i) + " ");
+  const jumpTo = (target: number) => send(jumpTabKeys(0, target, card.tabs.length));
+  const submit = () => send(jumpTabKeys(0, card.tabs.length - 1, card.tabs.length) + "\r");
+
   return (
     <div className="mt-1">
       <div className="flex items-center gap-1.5">
         <span title={card.question} className="min-w-0 truncate text-[0.6875rem] leading-[1.125rem] text-(--tmd-fg)">
           {card.question}
         </span>
-        {multi && (
+        {questionCount > 1 && (
           <span className="flex-none rounded bg-(--tmd-bg-subtle) px-1 text-[0.5625rem] leading-[1rem] text-(--tmd-warn)">
-            {t("{n} 个问题", { n: card.multi })}
+            {t("{n} 个问题", { n: questionCount })}
           </span>
         )}
       </div>
+      {multi && card.tabs.length > 0 && (
+        <div className="mt-1 flex items-center gap-1">
+          {card.tabs.map((name, i) => {
+            const isSubmit = i === card.tabs.length - 1;
+            const active = isSubmit ? false : i === 0;
+            return (
+              <button
+                key={name}
+                type="button"
+                title={
+                  isSubmit
+                    ? t("提交全部答案(⇥ 到 Submit + 回车)")
+                    : t("切到「{name}」(⇥ 跳题)", { name })
+                }
+                onClick={() => (isSubmit ? submit() : jumpTo(i))}
+                className={`rounded px-1 py-0.5 text-[0.5625rem] leading-[1rem] ${
+                  active
+                    ? "bg-(--tmd-accent) text-(--tmd-bg)"
+                    : "bg-(--tmd-bg-subtle) text-(--tmd-fg-muted) hover:text-(--tmd-accent)"
+                }`}
+              >
+                {isSubmit ? `⏎ ${name}` : name}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="mt-1 flex flex-col items-stretch gap-0.5">
-        {card.options.map((opt, i) => {
-          const key = multi ? null : String(i + 1);
-          return (
-            <button
-              key={opt}
-              type="button"
-              disabled={key === null}
-              title={key === null ? t("多问卡:焦点在 CLI 侧,直达幕布逐题作答") : t("发送 {key} 选择", { key })}
-              onClick={() => onSend(key ?? "")}
-              className="flex items-center gap-1.5 rounded border border-(--tmd-border) px-1.5 py-0.5 text-left text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-muted) hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50 disabled:hover:border-(--tmd-border) disabled:hover:text-(--tmd-fg-muted)"
-            >
-              {key !== null && (
-                <kbd className="flex-none rounded bg-(--tmd-bg-subtle) px-1 font-mono text-[0.5625rem] text-(--tmd-fg)">
-                  {key}
-                </kbd>
-              )}
-              <span className="min-w-0 truncate">{opt}</span>
-            </button>
-          );
-        })}
+        {card.options.map((opt, i) => (
+          <button
+            key={opt}
+            type="button"
+            disabled={!multi && questionCount > 1 && i === card.options.length - 1 && opt.startsWith("Other")}
+            title={
+              multi
+                ? t("toggle 勾选该项(↑/↓ 移动由面板代发);若在幕布手动动过光标,以幕布为准")
+                : questionCount > 1
+                  ? t("多问 select 卡:后续题请在幕布作答")
+                  : t("发送 {key} 选择", { key: i + 1 })
+            }
+            onClick={() => (multi ? toggleOption(i) : send(String(i + 1)))}
+            className="flex items-center gap-1.5 rounded border border-(--tmd-border) px-1.5 py-0.5 text-left text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-muted) hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50 disabled:hover:border-(--tmd-border) disabled:hover:text-(--tmd-fg-muted)"
+          >
+            {multi && card.cursor === i && (
+              <span aria-hidden className="font-mono text-[0.5625rem] text-(--tmd-accent)">
+                ❯
+              </span>
+            )}
+            {!multi && questionCount === 1 && (
+              <kbd className="flex-none rounded bg-(--tmd-bg-subtle) px-1 font-mono text-[0.5625rem] text-(--tmd-fg)">
+                {i + 1}
+              </kbd>
+            )}
+            <span className="min-w-0 truncate">{opt}</span>
+          </button>
+        ))}
       </div>
     </div>
   );

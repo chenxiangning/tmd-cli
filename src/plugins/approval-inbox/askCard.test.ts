@@ -58,4 +58,44 @@ describe("parseAskCard(omp select 卡结构化)", () => {
     expect(parseAskCard("building…\nmc: 19.4K (2%)\n idle")).toBeNull();
     expect(parseAskCard("Do you want to proceed? [y/n] ")).toBeNull();
   });
+
+  it("multi 卡:kind=multi,光标项与 tab 序(含 Submit)全解析", () => {
+    const card = parseAskCard(
+      [
+        "Ask",
+        "今日方向  待拍板  Submit",
+        "#259 三个待拍板项,今天定哪些?(可多选)",
+        "❯ ☐ spawn shell 放行",
+        "  ☐ relay token 裁剪",
+        "  ☐ 全拍",
+        "  ○ Other (type your own)",
+        "└ toggle · ⇥ next · ↑/↓ move · ⌘ cancel",
+      ].join("\n"),
+    );
+    expect(card?.kind).toBe("multi");
+    expect(card?.cursor).toBe(0);
+    expect(card?.tabs).toEqual(["今日方向", "待拍板", "Submit"]);
+    expect(card?.tabActive).toBe(0);
+  });
+
+  it("select 双问卡:kind=select,tabs 含 Submit,tabActive=0", () => {
+    const card = parseAskCard(TWO_Q);
+    expect(card?.kind).toBe("select");
+    expect(card?.tabs).toEqual(["开发节奏", "会话体验", "Submit"]);
+    expect(card?.cursor).toBe(0);
+  });
+
+  it("光标不在首项:▶ 行位置即 cursor", () => {
+    const card = parseAskCard(
+      [
+        "Ask",
+        "开发节奏  Submit",
+        "接下来想推进哪块工作?",
+        "  ● PR #40 收尾",
+        "❯ ○ 推进 0.2.6 russh",
+        "← select · n note · ⌘ cancel",
+      ].join("\n"),
+    );
+    expect(card?.cursor).toBe(1);
+  });
 });

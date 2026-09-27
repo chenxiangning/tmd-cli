@@ -14,8 +14,12 @@ export const MESSAGES_EN = {
     "Approval inbox · {n} waiting · excerpts are hints; the session panel is authoritative",
   "摘录以会话面板为准": "Excerpt hint — the session panel is authoritative",
   "{n} 个问题": "{n} questions",
-  "多问卡:焦点在 CLI 侧,直达幕布逐题作答":
-    "Multi-question card — focus lives in the CLI; open the terminal to answer each",
+  "切到「{name}」(⇥ 跳题)": "Switch to \"{name}\" (Tab to jump)",
+  "提交全部答案(⇥ 到 Submit + 回车)": "Submit all answers (Tab to Submit + Enter)",
+  "toggle 勾选该项(↑/↓ 移动由面板代发);若在幕布手动动过光标,以幕布为准":
+    "Toggle this item (arrow moves are sent by the panel); if you moved the cursor in the terminal, the terminal is authoritative",
+  "多问 select 卡:后续题请在幕布作答":
+    "Multi-question select card — answer the remaining questions in the terminal",
   "发送 {key} 选择": "Press {key} to select",
   "允许/拒绝请按该 CLI 自己的键位:「直达」进幕布操作;这里只代发文本":
     "Allow/deny uses this CLI's own keys: hit \"Open\" to act in the terminal; replies here only send text",

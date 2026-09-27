@@ -34,6 +34,7 @@ vi.mock("@kernel/ipc", () => ({
 import { host } from "@kernel/host";
 import { ipc, type SessionMeta } from "@kernel/ipc";
 import {
+  answerKeys,
   answerWaiting,
   approvalInboxSnapshot,
   bootApprovalInbox,
@@ -195,6 +196,14 @@ describe("应答", () => {
 
     vi.mocked(host.writeSession).mockResolvedValue(false);
     await expect(answerWaiting("a", "n")).resolves.toBe(false);
+  });
+
+  it("answerKeys 裸键代发:原样写入不追加换行(multi 卡 toggle/移动序列依赖)", async () => {
+    vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a"]));
+    vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
+    noteAskDetected("a");
+    await expect(answerKeys("a", "\x1b[B ")).resolves.toBe(true);
+    expect(host.writeSession).toHaveBeenCalledWith("a", "\x1b[B ");
   });
 
   it("写失败落 failure 提示位(行已消退,横幅兜底);成功作答清位", async () => {

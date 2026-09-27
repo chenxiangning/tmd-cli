@@ -138,7 +138,17 @@ export function observeCurrentWaitings(): void {
  *  无论送达与否 ask 位都已被清除(host 侧写入前同步清位),行会即时消退;
  *  写失败时落 failure 提示位(panel 横幅渲染),成功作答清位。 */
 export function answerWaiting(sessionId: string, text: string): Promise<boolean> {
-  return host.writeSession(sessionId, text + "\n").then(
+  return writeAsAnswer(sessionId, text + "\n");
+}
+
+/** 卡键位代发:原样写入不追加换行(选项数字/移动序列/toggle 空格/跳题 ⇥/提交回车由调用方拼好)。
+ *  与自由文本应答同纪律:写入即清 ask 位 + 记写后闸(host 侧)。 */
+export function answerKeys(sessionId: string, keys: string): Promise<boolean> {
+  return writeAsAnswer(sessionId, keys);
+}
+
+function writeAsAnswer(sessionId: string, payload: string): Promise<boolean> {
+  return host.writeSession(sessionId, payload).then(
     (ok) => {
       store.commit({ entries: store.snapshot.entries, failure: ok ? null : sessionId });
       refreshInbox();
