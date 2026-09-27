@@ -82,12 +82,13 @@ function IndexingChip({ index }: { index: SessionIndex | null }) {
 }
 
 /** 单条命中行:标题回退链(标题/首条消息/短 id)+ usage 徽标 + 相对时间。 */
-function HitRow({ hit, onOpen }: { hit: SessionSearchHit; onOpen: (profileId: string, cliSessionId: string) => void }) {
+function HitRow({ hit, onOpen, selected }: { hit: SessionSearchHit; onOpen: (profileId: string, cliSessionId: string) => void; selected: boolean }) {
   return (
     <button
       type="button"
+      data-sel={selected || undefined}
       onClick={() => onOpen(hit.entry.profileId, hit.entry.cliSessionId)}
-      className="block w-full border-b border-(--tmd-border)/60 px-3 py-2 text-left hover:bg-(--tmd-bg-hover)"
+      className={`block w-full border-b border-(--tmd-border)/60 px-3 py-2 text-left ${selected ? "bg-(--tmd-bg-hover)" : "hover:bg-(--tmd-bg-hover)"}`}
     >
       <div className="flex items-center gap-2">
         <span className="shrink-0 text-[0.6875rem] font-medium text-(--tmd-accent)">
@@ -112,12 +113,14 @@ function HitRow({ hit, onOpen }: { hit: SessionSearchHit; onOpen: (profileId: st
   );
 }
 
-/** 结果区:未输入提示 / 无命中(索引中·空索引·列举失败·无匹配四分流)/ 命中列表。 */
-function ResultBody({ queryEmpty, indexing, index, hits, onOpen }: {
+/** 结果区:未输入提示 / 无命中(索引中·空索引·列举失败·无匹配四分流)/ 命中列表。
+ *  导出为测试缝(ExitSessionNotices 先例):钉选中呈现契约,键盘面走桩目检。 */
+export function ResultBody({ queryEmpty, indexing, index, hits, active, onOpen }: {
   queryEmpty: boolean;
   indexing: boolean;
   index: SessionIndex | null;
   hits: SessionSearchHit[];
+  active: number;
   onOpen: (profileId: string, cliSessionId: string) => void;
 }) {
   if (queryEmpty) {
@@ -139,8 +142,8 @@ function ResultBody({ queryEmpty, indexing, index, hits, onOpen }: {
   }
   return (
     <>
-      {hits.map((hit) => (
-        <HitRow key={`${hit.entry.profileId}:${hit.entry.cliSessionId}`} hit={hit} onOpen={onOpen} />
+      {hits.map((hit, i) => (
+        <HitRow key={`${hit.entry.profileId}:${hit.entry.cliSessionId}`} hit={hit} onOpen={onOpen} selected={i === active} />
       ))}
     </>
   );
@@ -151,6 +154,8 @@ export function SessionSearchOverlay() {
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState<SessionIndex | null>(null);
   const [indexing, setIndexing] = useState(false);
+  const [active, setActive] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const ws = getActiveWorkspace();
@@ -168,6 +173,13 @@ export function SessionSearchOverlay() {
   }, [open, cwd]);
 
   const hits = useMemo(() => (index ? searchSessions(index, query) : []), [index, query]);
+  /* 越界收口(命中集随索引推进变化);选中行滚入视野(QuickOpen 惯例)。 */
+  const sel = Math.min(active, Math.max(hits.length - 1, 0));
+  useEffect(() => {
+    listRef.current
+      ?.querySelector('[data-sel="true"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [sel]);
 
   if (!open || !cwd) return null;
 
@@ -197,11 +209,23 @@ export function SessionSearchOverlay() {
           <input
             ref={inputRef}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActive(0); /* 输入变 = 结果变,选中回顶(索引推进不清位:越界由 sel 收口兜) */
+            }}
             onKeyDown={(e) => {
-              if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
-              const first = hits[0];
-              if (first) openHit(first.entry.profileId, first.entry.cliSessionId);
+              /* IME 组合期按键(含 Enter 选词)不动作,同 QuickOpen enterAction 契约。 */
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActive(Math.min(sel + 1, hits.length - 1));
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActive(Math.max(sel - 1, 0));
+              } else if (e.key === "Enter") {
+                const hit = hits[sel];
+                if (hit) openHit(hit.entry.profileId, hit.entry.cliSessionId);
+              }
             }}
             placeholder={t("搜索本工作区的会话历史(你输入过的内容)…")}
             aria-label={t("会话历史搜索")}
@@ -209,17 +233,18 @@ export function SessionSearchOverlay() {
           />
           {indexing && <IndexingChip index={index} />}
         </div>
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div ref={listRef} className="min-h-0 flex-1 overflow-auto">
           <ResultBody
             queryEmpty={query.trim() === ""}
             indexing={indexing}
             index={index}
             hits={hits}
+            active={sel}
             onOpen={openHit}
           />
         </div>
         <div className="border-t border-(--tmd-border) px-3 py-1.5 text-[0.6875rem] text-(--tmd-fg-faint)">
-          {t("Enter 打开 {name} 的历史会话 · Esc 关闭", { name: workspaceName ?? "" })}
+          {t("↑↓ 选择 · Enter 打开 {name} 的历史会话 · Esc 关闭", { name: workspaceName ?? "" })}
         </div>
         </div>
       </div>

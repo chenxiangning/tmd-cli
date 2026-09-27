@@ -20,7 +20,8 @@ const MESSAGES_EN = {
   "此工作区未发现可检索的磁盘会话": "No indexable sessions found in this workspace",
   "已扫 {scanned}/{total} 个会话,无匹配":
     "Scanned {scanned}/{total} sessions, no matches",
-  "Enter 打开 {name} 的历史会话 · Esc 关闭": "Enter to open a session in {name} · Esc to close",
+  "↑↓ 选择 · Enter 打开 {name} 的历史会话 · Esc 关闭":
+    "↑↓ to select · Enter to open a session in {name} · Esc to close",
 } as const;
 
 /** ja 词典 · session-search 域。 */
@@ -39,7 +40,8 @@ const MESSAGES_JA = {
   "此工作区未发现可检索的磁盘会话": "このワークスペースに検索可能なセッションがありません",
   "已扫 {scanned}/{total} 个会话,无匹配":
     "{scanned}/{total} セッションを走査,一致なし",
-  "Enter 打开 {name} 的历史会话 · Esc 关闭": "Enter で {name} の履歴セッションを開く · Esc で閉じる",
+  "↑↓ 选择 · Enter 打开 {name} 的历史会话 · Esc 关闭":
+    "↑↓ で選択 · Enter で {name} の履歴セッションを開く · Esc で閉じる",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });
