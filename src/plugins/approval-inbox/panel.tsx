@@ -1,8 +1,8 @@
 /**
  * 审批收件箱面板 —— 右栏「审批」页签。
  * 行 = 等待确认会话:引擎图标 + 标题(与 tab 条同源解析链)+ 等待时长 + 面板页脚摘录;
- * 动作 = 直达(host.setActiveSession,经 activeSessionChanged→trackOpen 兼顾重开被摘
- * 的 tab)与自由文本应答(原样 writeSession,回车发送)。预设「同意/拒绝」代发键
+ * 动作 = 直达并聚焦幕布(gotoAndFocus:切激活 + xterm 聚焦,拒绝/按键在幕布内完成)
+ * 与自由文本应答(原样 writeSession,回车发送)。预设「同意/拒绝」代发键
  * 不做:各 CLI 键位语义不一,发错键=批错操作(M2 评审 A2 拍板,桌面同律)。
  */
 import { useEffect, useState } from "react";
@@ -14,10 +14,12 @@ import { sessionTitleKey, shortId } from "@kernel/sessionTitles";
 import {
   answerWaiting,
   dismissFailure,
+  gotoAndFocus,
   observeCurrentWaitings,
   useApprovalInbox,
   type InboxEntry,
 } from "./store";
+import type { AskCard } from "./askCard";
 
 /** 等待时长文案;since 未知(面板后见)只显示「等待中」。 */
 function formatWait(since: number | null): string {
@@ -61,6 +63,11 @@ export function ApprovalInboxPanel() {
       >
         {t("审批收件箱 · {n} 个会话在等待 · 摘录以会话面板为准", { n: entries.length })}
       </div>
+      {entries.length > 0 && (
+        <div className="flex-none border-b border-(--tmd-border) px-3 py-1 text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-faint)">
+          {t("允许/拒绝请按该 CLI 自己的键位:「直达」进幕布操作;这里只代发文本")}
+        </div>
+      )}
       {failure && (
         <button
           type="button"
@@ -91,15 +98,20 @@ function InboxRow({ entry, manualTitles }: { entry: InboxEntry; manualTitles: Re
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false); /* 在途闸:防连按回车重复写 PTY */
 
-  const send = async () => {
-    const text = draft.trim();
-    if (!text || sending) return;
+  /** 直发应答文本(选项键位/总结态回车/草稿原文共用);空串 = 仅回车。 */
+  const sendText = async (text: string): Promise<void> => {
+    if (sending) return;
     setSending(true);
     try {
       if (await answerWaiting(entry.sessionId, text)) setDraft("");
     } finally {
       setSending(false);
     }
+  };
+
+  const send = () => {
+    const text = draft.trim();
+    if (text) void sendText(text);
   };
 
   return (
@@ -115,19 +127,23 @@ function InboxRow({ entry, manualTitles }: { entry: InboxEntry; manualTitles: Re
         <button
           type="button"
           className="flex-none rounded border border-(--tmd-border) px-1.5 text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-muted) hover:border-(--tmd-accent) hover:text-(--tmd-accent)"
-          onClick={() => host.setActiveSession(entry.sessionId)}
+          onClick={() => gotoAndFocus(entry.sessionId)}
         >
           {t("直达")}
         </button>
       </div>
-      {entry.excerpt && (
-        <pre
-          title={entry.excerpt}
-          aria-label={t("摘录以会话面板为准")}
-          className="mt-1 max-h-[3.375rem] overflow-hidden font-mono text-[0.625rem] leading-[1.125rem] whitespace-pre-wrap text-(--tmd-fg-muted)"
-        >
-          {entry.excerpt}
-        </pre>
+      {entry.card ? (
+        <CardBlock card={entry.card} onSend={(t) => void sendText(t)} />
+      ) : (
+        entry.excerpt && (
+          <pre
+            title={entry.excerpt}
+            aria-label={t("摘录以会话面板为准")}
+            className="mt-1 max-h-[3.375rem] overflow-hidden font-mono text-[0.625rem] leading-[1.125rem] whitespace-pre-wrap text-(--tmd-fg-muted)"
+          >
+            {entry.excerpt}
+          </pre>
+        )
       )}
       <div className="mt-1.5 flex items-center gap-1.5">
         <input
@@ -150,6 +166,48 @@ function InboxRow({ entry, manualTitles }: { entry: InboxEntry; manualTitles: Re
         >
           {t("发送")}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/** omp select 卡块:问题正文 + 选项列。单问/总结态:选项可点(发数字/回车);
+ *  多问:CLI 焦点在幕布侧,面板代发数字会答错题 —— 选项只读展示 + 直达。 */
+function CardBlock({ card, onSend }: { card: AskCard; onSend: (text: string) => void }) {
+  const multi = card.multi > 1;
+  return (
+    <div className="mt-1">
+      <div className="flex items-center gap-1.5">
+        <span title={card.question} className="min-w-0 truncate text-[0.6875rem] leading-[1.125rem] text-(--tmd-fg)">
+          {card.question}
+        </span>
+        {multi && (
+          <span className="flex-none rounded bg-(--tmd-bg-subtle) px-1 text-[0.5625rem] leading-[1rem] text-(--tmd-warn)">
+            {t("{n} 个问题", { n: card.multi })}
+          </span>
+        )}
+      </div>
+      <div className="mt-1 flex flex-col items-stretch gap-0.5">
+        {card.options.map((opt, i) => {
+          const key = multi ? null : String(i + 1);
+          return (
+            <button
+              key={opt}
+              type="button"
+              disabled={key === null}
+              title={key === null ? t("多问卡:焦点在 CLI 侧,直达幕布逐题作答") : t("发送 {key} 选择", { key })}
+              onClick={() => onSend(key ?? "")}
+              className="flex items-center gap-1.5 rounded border border-(--tmd-border) px-1.5 py-0.5 text-left text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-muted) hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50 disabled:hover:border-(--tmd-border) disabled:hover:text-(--tmd-fg-muted)"
+            >
+              {key !== null && (
+                <kbd className="flex-none rounded bg-(--tmd-bg-subtle) px-1 font-mono text-[0.5625rem] text-(--tmd-fg)">
+                  {key}
+                </kbd>
+              )}
+              <span className="min-w-0 truncate">{opt}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

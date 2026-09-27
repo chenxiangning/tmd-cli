@@ -1,5 +1,8 @@
 import Foundation
+import ImageIO
+import PhotosUI
 import Security
+import UIKit
 import UserNotifications
 import WebKit
 
@@ -61,10 +64,48 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         do { try await scene.requestGeometryUpdate(.iOS(interfaceOrientations: mask)); self.reply(id: id, ok: true, payload: nil) }
         catch { self.reply(id: id, ok: false, payload: "\(error)") }
       }
+    case "pickImage":
+      /* 选图直连(见 pickImage):iOS 18.4 前的 WKUIDelegate 文件面板缺失,
+         <input type=file> 低版本是静默死钮 —— 按钮不再走 input。 */
+      pickImage(id: id)
     default:
       reply(id: id, ok: false, payload: "unknown method \(method)")
     }
   }
+  /// 选图:present PHPicker(iOS 14+,不经相册权限;complete 恰一次收口)。
+  /// 原图统一在 native 转 JPEG(≤2048px)再回 base64 —— 相册照片是 HEIC,
+  /// WKWebView 的 createImageBitmap 解不出来,这也是「选了图发不出」的一半根因。
+  private var activePick: FilePanelRelay?
+
+  private func pickImage(id: Int) {
+    guard let root = UIApplication.shared.connectedScenes
+      .compactMap({ $0 as? UIWindowScene })
+      .flatMap({ $0.windows })
+      .first(where: { $0.isKeyWindow })?.rootViewController else {
+      reply(id: id, ok: false, payload: "no key window"); return
+    }
+    var config = PHPickerConfiguration()
+    config.filter = .images
+    config.selectionLimit = 1 /* 单选即满足截图注入场景 */
+    let picker = PHPickerViewController(configuration: config)
+    let relay = FilePanelRelay()
+    relay.onDone = { [weak self] data, reason in
+      self?.activePick = nil
+      if let data {
+        let b64 = data.base64EncodedString()
+        ShellLog.write("pick: reply b64 \(b64.count) chars")
+        self?.reply(id: id, ok: true, payload: ["b64": b64])
+      } else if reason == "cancelled" {
+        ShellLog.write("pick: user cancelled")
+        self?.reply(id: id, ok: true, payload: ["cancelled": true])
+      } else {
+        self?.reply(id: id, ok: false, payload: reason ?? "选图失败")
+      }
+    }
+    activePick = relay /* 持活:防 present 后即被 ARC 释放,回调永挂 */
+    relay.present(root, picker)
+  }
+
   /// 壳原生 POST(自签中继场景:WKWebView fetch 无法信任自签证书,
   /// /pair 下沉到这里,走 PinnedTLS 证书锁定)。应答 {status, body}。
   private func httpPost(id: Int, args: [String: Any]) {
@@ -273,5 +314,80 @@ enum Keychain {
     /* 状态进 shell.log:静默失败(ACL/锁定态)会让前端凭证"删不掉"无从排查 */
     let status = SecItemDelete(base as CFDictionary)
     ShellLog.write("keychain delete status=\(status)")
+  }
+}
+
+/// PHPicker 结果 relay:原图拷临时位 → 统一转 JPEG → Data 恰一次回传
+/// (取消/失败/解不出都经 finish(nil) 收口,completionHandler 恰一次是 WebKit 契约)。
+final class FilePanelRelay: NSObject, PHPickerViewControllerDelegate {
+  /* data=nil 且 reason=nil = 用户取消;reason 非空 = 失败(JS 上屏,不再静默)。 */
+  var onDone: ((Data?, String?) -> Void)?
+  private var done = false
+  /* loadFileRepresentation 的回调不持有 provider:results 出了本函数作用域即被
+     ARC 回收,回调永不执行 → JS promise 永挂(真机现象「选完图没任何反应」)。
+     必须由 self 持到回调落地再放。 */
+  private var pendingProvider: NSItemProvider?
+
+  func present(_ root: UIViewController, _ picker: PHPickerViewController) {
+    picker.delegate = self
+    root.present(picker, animated: true)
+  }
+
+  func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+    picker.dismiss(animated: true)
+    ShellLog.write("pick: dismissed, \(results.count) result(s)")
+    guard !done else { return }
+    guard let provider = results.first?.itemProvider,
+          provider.hasItemConformingToTypeIdentifier("public.image") else {
+      let why: String? = results.isEmpty ? nil : "相册未返回图片项"
+      finish(nil, reason: why, cancelled: results.isEmpty)
+      return
+    }
+    pendingProvider = provider
+    provider.loadFileRepresentation(forTypeIdentifier: "public.image") { [weak self] url, err in
+      guard let self else { return }
+      self.pendingProvider = nil
+      guard let url else {
+        let why = "读取图片数据失败: \(err.map(String.init(describing:)) ?? "无文件回调")"
+        ShellLog.write("pick: \(why)")
+        self.finish(nil, reason: why)
+        return
+      }
+      guard let data = Self.jpegData(from: url), !data.isEmpty else {
+        ShellLog.write("pick: 图片解码失败 from \(url.lastPathComponent)")
+        self.finish(nil, reason: "图片解码失败(HEIC/格式?)")
+        return
+      }
+      ShellLog.write("pick: jpeg \(data.count)B from \(url.lastPathComponent)")
+      /* loadFileRepresentation 回调在后台线程;onDone 里 reply→evaluateJavaScript
+         是主线程专用,统一回主线程。 */
+      DispatchQueue.main.async { self.finish(data, reason: nil) }
+    }
+  }
+
+  private func finish(_ data: Data?, reason: String? = nil, cancelled: Bool = false) {
+    guard !done else { return }
+    done = true
+    onDone?(data, cancelled ? "cancelled" : reason)
+    onDone = nil
+  }
+
+  /// 解码 + 限边转 JPEG(2048px 上限:JS 侧 shrinkImage 1568 再压一道,双闸省内存)。
+  private static func jpegData(from url: URL) -> Data? {
+    guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+    let opts: [CFString: Any] = [
+      kCGImageSourceCreateThumbnailFromImageAlways: true,
+      kCGImageSourceThumbnailMaxPixelSize: 2048,
+    ]
+    guard let img = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary) else {
+      return nil
+    }
+    let out = NSMutableData()
+    guard let dst = CGImageDestinationCreateWithData(out, "public.jpeg" as CFString, 1, nil) else {
+      return nil
+    }
+    let props: [CFString: Any] = [kCGImageDestinationLossyCompressionQuality: 0.9]
+    CGImageDestinationAddImage(dst, img, props as CFDictionary)
+    return CGImageDestinationFinalize(dst) ? out as Data : nil
   }
 }

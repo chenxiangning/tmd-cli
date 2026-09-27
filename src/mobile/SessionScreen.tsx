@@ -26,7 +26,7 @@ function shotLabel(busy: boolean, err: boolean): string {
   if (busy) return "…";
   return err ? "✕" : "图";
 }
-export function SessionScreen(props: { sessionId: string }) {
+export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) {
   const { sessions, titleOf, go } = useMobile();
   const meta = sessions.find((s) => s.id === props.sessionId);
   const [ask, setAsk] = useState(false);
@@ -35,16 +35,14 @@ export function SessionScreen(props: { sessionId: string }) {
   const [ckptSheet, setCkptSheet] = useState(false);
   const [shotBusy, setShotBusy] = useState(false);
   const [shotErr, setShotErr] = useState(false);
-  const fileRef = React.useRef<HTMLInputElement>(null);
 
-  /** 拍照/选图 → 压缩 → 桥落盘临时文件 → composer 注入 @路径(见 shotToDraft)。 */
-  const onShot = (file: File | undefined): void => {
-    void shotToDraft(file, {
+  /** 选图(native PHPicker 直连)→ 压缩 → 桥落盘临时文件 → composer 注入 @路径。 */
+  const onShot = (): void => {
+    void shotToDraft({
       isBusy: shotBusy,
       setBusy: setShotBusy,
       patchDraft: setDraft,
       flashErr: setShotErr,
-      fileRef,
     });
   };
   const [kbOpen, setKbOpen] = useState(false);
@@ -70,7 +68,7 @@ export function SessionScreen(props: { sessionId: string }) {
 
   /* transcript(spec 2026-09-25-mobile-session-render):jsonl 定位 + 2s 增量生长;
    * 失败/非契约引擎回落 null → PTY 尾流实况。 */
-  const turns = useLiveTurns(meta?.profileId, meta?.cwd, props.sessionId);
+  const turns = useLiveTurns(meta?.profileId, meta?.cwd, props.sessionId, props.spawnedAt);
   /* 实况块:有对话时默认折叠(终端原始流在窄屏不可读),点开看;无对话=全屏实况。 */
   const [liveOpen, setLiveOpen] = useState(false);
   const liveShown = turns ? liveOpen : true;
@@ -195,19 +193,12 @@ export function SessionScreen(props: { sessionId: string }) {
       <div className={"composer" + (kbOn && !kbOpen ? " kb-on" : "")}>
         <div className="box">
           <button type="button" className={"kb-toggle" + (kbOn ? " on" : "")} aria-label={t("键盘工具条")} onClick={toggleKb}>⌨</button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={(e) => void onShot(e.target.files?.[0])}
-          />
           <button
             type="button"
             className="kb-toggle"
             aria-label={t("注入截图")}
             disabled={shotBusy}
-            onClick={() => fileRef.current?.click()}
+            onClick={onShot}
           >
             {shotLabel(shotBusy, shotErr)}
           </button>

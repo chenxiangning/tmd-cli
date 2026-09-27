@@ -214,7 +214,8 @@ mod tests {
 
     #[test]
     fn captures_stdout_and_exit_code() {
-        let r = run(&spec("echo", &["tmd-proc-run-ok"], 5_000)).unwrap();
+        // 30s 上限同 close_stdin 先例:高载 CI runner 上 exec+echo 可能超 5s,环境慢不是超时。
+        let r = run(&spec("echo", &["tmd-proc-run-ok"], 30_000)).unwrap();
         assert_eq!(r.code, Some(0));
         assert!(!r.timed_out);
         assert!(r.stdout.contains("tmd-proc-run-ok"));
@@ -223,7 +224,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn stdin_is_fed_and_read() {
-        let mut s = spec("cat", &[], 5_000);
+        let mut s = spec("cat", &[], 30_000); // 同 close_stdin 先例,防高载 runner 环境慢误判
         s.stdin = Some("tmd-stdin-payload\n".into());
         let r = run(&s).unwrap();
         assert!(r.stdout.contains("tmd-stdin-payload"));

@@ -1,19 +1,29 @@
 /**
  * 接力对话框 ── 目标引擎单选 + 摘要预览(可编辑)+ 确认开新会话。
- * 数据:当前激活会话 → 源信息与用户消息(经 profile 声明的读取器);
- * 动作:createSession(目标引擎,同 cwd/工作区)→ writeSession(摘要)。
+ * 数据:RelaySource(活会话命令构造 / 退出卡快照构造)→ 用户消息经 profile
+ * 声明的读取器读磁盘(会话已退出也读得到);
+ * 动作:createSession(目标引擎,源落位工作区,缺省激活)→ writeSession(摘要)。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PaperPlaneRight } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
-import { getActiveWorkspace } from "@kernel/workspace";
+import { getActiveWorkspace, getWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { prepareSendPayload } from "@plugins/composer/serialize/serialize";
 import { relayTargets, buildRelaySummary, type RelaySource } from "./relay";
+import { clearRelaySource, useRelaySource } from "./relayStore";
 
-export function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => void }) {
+/* 源经 store 订阅(开框面统一 = setRelaySource):命令(活会话)与
+   退出卡(已故会话)共享同一对话框;无源即卸载。 */
+export function RelayLayer() {
+  const source = useRelaySource();
+  if (!source) return null;
+  return <RelayDialog source={source} onClose={clearRelaySource} />;
+}
+
+function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => void }) {
   const workspace = getActiveWorkspace();
   const targets = useMemo(
     () => relayTargets(host.getCliProfiles(), source.profileId),
@@ -33,7 +43,7 @@ export function RelayDialog({ source, onClose }: { source: RelaySource; onClose:
       ? host.getCliProfile(source.profileId)?.readSessionUserMessages
       : undefined;
     const load = reader && source.cliSessionId && source.cliSessionId !== "unknown"
-      ? reader(workspace?.root ?? "", source.cliSessionId, true)
+      ? reader(source.cwd ?? workspace?.root ?? "", source.cliSessionId, true)
       : Promise.resolve(null);
     void load
       .then((messages) => {
@@ -60,9 +70,14 @@ export function RelayDialog({ source, onClose }: { source: RelaySource; onClose:
     setBusy(true);
     setError("");
     try {
+      /* 目标落位:退出卡来源带源会话归属(快照),命令来源缺省走激活工作区。 */
+      const ws = source.workspaceId
+        ? getWorkspaces().find((w) => w.id === source.workspaceId) ?? workspace
+        : workspace;
+      if (!ws) throw new Error(t("没有可用工作区"));
       /* 重试复用首轮建的会话:每次重试再 createSession 会堆空会话。 */
       const sessionId =
-        createdRef.current ?? (await host.createSession(targetId, workspace.root, workspace.id)).id;
+        createdRef.current ?? (await host.createSession(targetId, ws.root, ws.id)).id;
       createdRef.current = sessionId;
       if (summary.trim()) {
         /* 发送契约与 composer 同源:prepareSendPayload 做 trigger 翻译 +

@@ -17,23 +17,29 @@ import { piSessionsDir } from "@plugins/cli-pi/edits";
 const TAIL_BYTES = 256 * 1024;
 const MAX_TURNS = 40;
 
-async function newestFile(dir: string): Promise<string | null> {
+async function newestFile(dir: string, sinceMs?: number): Promise<string | null> {
   try {
     const stamps = await invoke<{ path: string; modifiedAt: number }[]>("fs_collect_files", {
       dir,
       suffix: ".jsonl",
     });
-    if (!stamps.length) return null;
-    return stamps.sort((a, b) => b.modifiedAt - a.modifiedAt)[0].path;
+    /* spawnedAt 水位:新会话 jsonl 懒落盘,窗口内目录里最新的是上一个会话 ——
+     * 不过滤 = 手机新会话屏初始就渲染旧会话历史(泄露)。低于水位一律当没命中,
+     * 由调用方既有重试循环等真文件落地。 */
+    const pool = sinceMs === undefined ? stamps : stamps.filter((s) => s.modifiedAt >= sinceMs);
+    if (!pool.length) return null;
+    return pool.sort((a, b) => b.modifiedAt - a.modifiedAt)[0].path;
   } catch {
     return null;
   }
 }
 
-/** 定位会话 jsonl:插件适配器直接给出 cwd 对应会话目录(确定性 slug,无目录名反匹配)。 */
+/** 定位会话 jsonl:插件适配器直接给出 cwd 对应会话目录(确定性 slug,无目录名反匹配)。
+ *  sinceMs(spawn 水位,可省):只收该时刻之后有写的文件。 */
 export async function resolveTranscriptPath(
   profileId: string,
   cwd: string,
+  sinceMs?: number,
 ): Promise<string | null> {
   const p = profileId.toLowerCase();
   const dir =
@@ -45,7 +51,7 @@ export async function resolveTranscriptPath(
           ? await ompSessionsDir(cwd)
           : null; /* qoder/kimi/grok/codex:磁盘布局非 cwd-slug 模型,不在手机 transcript 契约,回落实况 */
   if (!dir) return null;
-  return newestFile(dir);
+  return newestFile(dir, sinceMs);
 }
 
 /** 按会话文件路径拉 transcript(home 历史行;路径来自磁盘扫描,免再定位)。 */

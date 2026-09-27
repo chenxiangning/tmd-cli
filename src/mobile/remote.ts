@@ -5,7 +5,7 @@
  * 可用命令全部在 AppDevice 白名单内(web/conn.rs app_allowed)。
  */
 
-import { shellLog } from "@kernel/shellBridge";
+import { shellInvoke, shellLog } from "@kernel/shellBridge";
 import { invoke, listen } from "@kernel/transport";
 
 export interface RemoteSession {
@@ -124,15 +124,38 @@ async function invokeSafe<T>(cmd: string, args?: Record<string, unknown>): Promi
  *  每字节 ~3.6 字符 → 字节上限留余量取 900KB(1568/q0.8 的噪点照片可超 1MB)。 */
 const UPLOAD_BYTE_BUDGET = 900_000;
 
+/** base64 → JPEG Blob(native pickImage 回传还原;独立纯函数供单测)。 */
+export function blobFromB64(b64: string): Blob {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: "image/jpeg" });
+}
+
+/** 选图结果分流:cancelled → null(用户取消);缺 b64 → throw(原因上屏);
+ *  有 b64 → JPEG Blob。 */
+export function pickResultToBlob(r: { b64?: string; cancelled?: boolean }): Blob | null {
+  if (r.cancelled) return null;
+  if (!r.b64) throw new Error(`pickImage 回传无图片数据: ${JSON.stringify(r).slice(0, 80)}`);
+  return blobFromB64(r.b64);
+}
+
+/** 选图:native PHPicker 直连(ShellBridge "pickImage"),不经 <input type=file>
+ *  —— WKUIDelegate 文件面板是 iOS 18.4+ 面,低版本 input 是静默死钮(真机实测)。
+ *  取消 → null;失败 → throw(由 shotToDraft flashErr 上屏)。 */
+export async function pickShotImage(): Promise<Blob | null> {
+  return pickResultToBlob(await shellInvoke<{ b64: string; cancelled?: boolean }>("pickImage"));
+}
+
 /** 图像压到长边 ≤maxEdge 的 JPEG(微信级),且压进桥帧预算(超预算逐级
  *  降质量/缩边重编码,防拍照路径确定性撞 3.5MiB 守卫)。 */
-export async function shrinkImage(file: File, maxEdge = 1568): Promise<Uint8Array> {
+export async function shrinkImage(blob: Blob, maxEdge = 1568): Promise<Uint8Array> {
   let bitmap: ImageBitmap;
   try {
     /* from-image:按 EXIF 方向转正(竖拍);旧引擎不认该选项则裸开。 */
-    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
   } catch {
-    bitmap = await createImageBitmap(file);
+    bitmap = await createImageBitmap(blob);
   }
   const encode = async (edge: number, quality: number): Promise<Uint8Array> => {
     const scale = Math.min(1, edge / Math.max(bitmap.width, bitmap.height));
@@ -161,22 +184,24 @@ export function uploadTempImage(name: string, bytes: Uint8Array): Promise<string
   return invokeSafe<string>("fs_write_temp", { name, data: Array.from(bytes) });
 }
 
-/** 拍照/选图 → 压缩(压进桥帧预算)→ fs_write_temp 落盘 → 草稿注 @路径
- * (桌面附件同语义)。失败走 shell.log 且按钮 3s 变 ✕(手机屏上唯一可见反馈)。 */
+/** 选图(pickImage 直连;file 参数 = 测试注入)→ 压缩(压进桥帧预算)→
+ *  fs_write_temp 落盘 → 草稿注 @路径(桌面附件同语义)。取消/失败走 shell.log
+ *  且按钮 3s 变 ✕(手机屏上唯一可见反馈)。 */
 export async function shotToDraft(
-  file: File | undefined,
   o: {
     isBusy: boolean;
     setBusy: (v: boolean) => void;
     patchDraft: (fn: (d: string) => string) => void;
     flashErr: (v: boolean) => void;
-    fileRef: { current: HTMLInputElement | null };
   },
+  file?: Blob,
 ): Promise<void> {
-  if (!file || o.isBusy) return;
+  if (o.isBusy) return;
   o.setBusy(true);
   try {
-    const bytes = await shrinkImage(file);
+    const blob = file ?? (await pickShotImage());
+    if (!blob) return; /* 用户取消:静默 */
+    const bytes = await shrinkImage(blob);
     const path = await uploadTempImage(`shot-${Date.now()}.jpg`, bytes);
     o.patchDraft((d) => (d.trimEnd() ? `${d.trimEnd()} @${path} ` : `@${path} `));
   } catch (e) {
@@ -185,7 +210,6 @@ export async function shotToDraft(
     window.setTimeout(() => o.flashErr(false), 3000);
   } finally {
     o.setBusy(false);
-    if (o.fileRef.current) o.fileRef.current.value = "";
   }
 }
 

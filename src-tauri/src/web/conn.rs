@@ -81,8 +81,10 @@ pub(crate) fn app_allowed(cmd: &str) -> bool {
                 | "pin_toggle"
         );
     }
-    // fs 域:只读面(表在模块级 FS_READ)。
-    if FS_READ.contains(&cmd) {
+    // fs 域:只读面(表在模块级 FS_READ)+ fs_write_temp 窄豁免 —— 截图注入
+    // 唯一写面:手机选图落桌面系统 temp/tmd-cli 专属目录,不触用户数据
+    // (2026-09-27 实证:其余环全通,恰在此被域闸拒 → 手机选图静默失败)。
+    if FS_READ.contains(&cmd) || cmd == "fs_write_temp" {
         return true;
     }
     // git 域:只读面;写操作拒绝。

@@ -43,4 +43,13 @@ describe("resolveTranscriptPath 确定性 slug", () => {
     expect(await resolveTranscriptPath("qoder", CWD)).toBeNull();
     expect(await resolveTranscriptPath("kimi", CWD)).toBeNull();
   });
+  it("spawnedAt 水位:全部 stamp 早于水位 → null(新会话懒落盘期不命中同 cwd 旧会话,历史泄露修复)", async () => {
+    expect(await resolveTranscriptPath("pi", CWD, 3)).toBeNull();
+    expect(await resolveTranscriptPath("claude", CWD, 99)).toBeNull();
+  });
+  it("水位内仍取最新(mtime ≥ sinceMs)", async () => {
+    expect(await resolveTranscriptPath("pi", CWD, 2)).toBe(
+      "/home/u/.pi/agent/sessions/--Users-x-code-tmd-cli--/s1.jsonl",
+    );
+  });
 });

@@ -18,6 +18,7 @@ const MESSAGES_EN = {
   "摘要生成中…": "Summarizing…",
   "接力提示词未能送达(目标会话可能已退出),请重试或取消":
     "Relay prompt was not delivered (target session may have exited). Retry or cancel.",
+  "没有可用工作区": "No available workspace",
 } as const;
 
 /** ja 词典 · session-relay 域。 */
@@ -34,6 +35,7 @@ const MESSAGES_JA = {
   "摘要生成中…": "要約生成中…",
   "接力提示词未能送达(目标会话可能已退出),请重试或取消":
     "引き継ぎプロンプトを送信できませんでした(切り替え先セッションが終了した可能性)。再試行またはキャンセルしてください。",
+  "没有可用工作区": "利用可能なワークスペースがありません",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });
