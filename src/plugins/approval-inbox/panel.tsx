@@ -172,21 +172,21 @@ function InboxRow({ entry, manualTitles }: { entry: InboxEntry; manualTitles: Re
   );
 }
 
-/** omp ask 卡操作面板。
- * - multi 卡(页脚 toggle):空格 toggle 当前光标项、↑/↓ 移动、⇥ 跳题、⇥×k+回车提交
- *   —— 全部映射成可点按钮(键序列裸发不带回车);面板跟踪光标与当前题,帧刷新后同步。
- * - select 卡(数字直选):单题数字可点(裸键);多题卡 tab 行只读展示(逐题识别),
- *   后续题不可代答 —— select 卡跳题机制无页脚证据,不猜(答错题 > 少代答)。
- * 用户在幕布手动移动过光标/切题会与面板态漂移:按钮 title 已注明以幕布为准。 */
+/** omp ask 卡操作面板。键位语义取自 pi-tui overlays/ask-dialog.ts 源码(权威,非页脚推断):
+ * - select 题(单选):Enter = 选当前光标项并自动跳下一题(多问)/即选即提交(单问);无数字直选。
+ * - multi 题(多选):空格 = toggle 光标项;Enter = 确认当前选择跳下一题。
+ * - ⇥ 全程可切 tab;Submit tab 上 Enter = 提交。
+ * 面板代发:选项点击 = ↑/↓ 移到该项 + Enter(select)/空格(multi);题 pill = ⇥×k;
+ * Submit pill = ⇥×k + 回车。光标基准用解析帧值(1-2 拍刷新回真),连点快于帧刷新
+ * 或在幕布手动动过光标会漂移 —— title 已注明以幕布为准。 */
 function CardBlock({ card, sessionId }: { card: AskCard; sessionId: string }) {
   const multi = card.kind === "multi";
   const questionCount = card.tabs.length > 0 ? card.tabs.length - 1 : 1;
   const send = (keys: string) => void answerKeys(sessionId, keys);
 
-  /* 光标恒用解析帧值(1-2 拍内随尾流刷新回真);本地乐观态会与帧值打架(react-doctor 同判)。 */
-  const toggleOption = (i: number) => send(moveKeys(card.cursor, i) + " ");
+  const pickOption = (i: number) => send(moveKeys(card.cursor, i) + (multi ? " " : "\n"));
   const jumpTo = (target: number) => send(jumpTabKeys(0, target, card.tabs.length));
-  const submit = () => send(jumpTabKeys(0, card.tabs.length - 1, card.tabs.length) + "\r");
+  const submit = () => send(jumpTabKeys(0, card.tabs.length - 1, card.tabs.length) + "\n");
 
   return (
     <div className="mt-1">
@@ -200,11 +200,10 @@ function CardBlock({ card, sessionId }: { card: AskCard; sessionId: string }) {
           </span>
         )}
       </div>
-      {multi && card.tabs.length > 0 && (
+      {card.tabs.length > 0 && (
         <div className="mt-1 flex items-center gap-1">
           {card.tabs.map((name, i) => {
             const isSubmit = i === card.tabs.length - 1;
-            const active = isSubmit ? false : i === 0;
             return (
               <button
                 key={name}
@@ -215,11 +214,7 @@ function CardBlock({ card, sessionId }: { card: AskCard; sessionId: string }) {
                     : t("切到「{name}」(⇥ 跳题)", { name })
                 }
                 onClick={() => (isSubmit ? submit() : jumpTo(i))}
-                className={`rounded px-1 py-0.5 text-[0.5625rem] leading-[1rem] ${
-                  active
-                    ? "bg-(--tmd-accent) text-(--tmd-bg)"
-                    : "bg-(--tmd-bg-subtle) text-(--tmd-fg-muted) hover:text-(--tmd-accent)"
-                }`}
+                className="rounded bg-(--tmd-bg-subtle) px-1 py-0.5 text-[0.5625rem] leading-[1rem] text-(--tmd-fg-muted) hover:text-(--tmd-accent)"
               >
                 {isSubmit ? `⏎ ${name}` : name}
               </button>
@@ -232,26 +227,16 @@ function CardBlock({ card, sessionId }: { card: AskCard; sessionId: string }) {
           <button
             key={opt}
             type="button"
-            disabled={!multi && questionCount > 1 && i === card.options.length - 1 && opt.startsWith("Other")}
-            title={
-              multi
-                ? t("toggle 勾选该项(↑/↓ 移动由面板代发);若在幕布手动动过光标,以幕布为准")
-                : questionCount > 1
-                  ? t("多问 select 卡:后续题请在幕布作答")
-                  : t("发送 {key} 选择", { key: i + 1 })
-            }
-            onClick={() => (multi ? toggleOption(i) : send(String(i + 1)))}
-            className="flex items-center gap-1.5 rounded border border-(--tmd-border) px-1.5 py-0.5 text-left text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-muted) hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50 disabled:hover:border-(--tmd-border) disabled:hover:text-(--tmd-fg-muted)"
+            title={t("选择该项并推进(↑/↓ + {key});若在幕布手动动过光标,以幕布为准", {
+              key: multi ? t("空格勾选") : "⏎",
+            })}
+            onClick={() => pickOption(i)}
+            className="flex items-center gap-1.5 rounded border border-(--tmd-border) px-1.5 py-0.5 text-left text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-muted) hover:border-(--tmd-accent) hover:text-(--tmd-accent)"
           >
             {multi && card.cursor === i && (
               <span aria-hidden className="font-mono text-[0.5625rem] text-(--tmd-accent)">
                 ❯
               </span>
-            )}
-            {!multi && questionCount === 1 && (
-              <kbd className="flex-none rounded bg-(--tmd-bg-subtle) px-1 font-mono text-[0.5625rem] text-(--tmd-fg)">
-                {i + 1}
-              </kbd>
             )}
             <span className="min-w-0 truncate">{opt}</span>
           </button>

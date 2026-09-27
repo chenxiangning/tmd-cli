@@ -16,11 +16,9 @@ export const MESSAGES_EN = {
   "{n} 个问题": "{n} questions",
   "切到「{name}」(⇥ 跳题)": "Switch to \"{name}\" (Tab to jump)",
   "提交全部答案(⇥ 到 Submit + 回车)": "Submit all answers (Tab to Submit + Enter)",
-  "toggle 勾选该项(↑/↓ 移动由面板代发);若在幕布手动动过光标,以幕布为准":
-    "Toggle this item (arrow moves are sent by the panel); if you moved the cursor in the terminal, the terminal is authoritative",
-  "多问 select 卡:后续题请在幕布作答":
-    "Multi-question select card — answer the remaining questions in the terminal",
-  "发送 {key} 选择": "Press {key} to select",
+  "选择该项并推进(↑/↓ + {key});若在幕布手动动过光标,以幕布为准":
+    "Pick this option and advance (arrows + {key}); if you moved the cursor in the terminal, the terminal is authoritative",
+  "空格勾选": "Space to toggle",
   "允许/拒绝请按该 CLI 自己的键位:「直达」进幕布操作;这里只代发文本":
     "Allow/deny uses this CLI's own keys: hit \"Open\" to act in the terminal; replies here only send text",
   "点击关闭": "Click to dismiss",
