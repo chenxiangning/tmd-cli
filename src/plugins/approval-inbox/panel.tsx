@@ -1,8 +1,8 @@
 /**
  * 审批收件箱面板 —— 右栏「审批」页签。
  * 行 = 等待确认会话:引擎图标 + 标题(与 tab 条同源解析链)+ 等待时长 + 面板页脚摘录;
- * 动作 = 直达(host.setActiveSession,经 activeSessionChanged→trackOpen 兼顾重开被摘
- * 的 tab)与自由文本应答(原样 writeSession,回车发送)。预设「同意/拒绝」代发键
+ * 动作 = 直达并聚焦幕布(gotoAndFocus:切激活 + xterm 聚焦,拒绝/按键在幕布内完成)
+ * 与自由文本应答(原样 writeSession,回车发送)。预设「同意/拒绝」代发键
  * 不做:各 CLI 键位语义不一,发错键=批错操作(M2 评审 A2 拍板,桌面同律)。
  */
 import { useEffect, useState } from "react";
@@ -14,6 +14,7 @@ import { sessionTitleKey, shortId } from "@kernel/sessionTitles";
 import {
   answerWaiting,
   dismissFailure,
+  gotoAndFocus,
   observeCurrentWaitings,
   useApprovalInbox,
   type InboxEntry,
@@ -61,6 +62,11 @@ export function ApprovalInboxPanel() {
       >
         {t("审批收件箱 · {n} 个会话在等待 · 摘录以会话面板为准", { n: entries.length })}
       </div>
+      {entries.length > 0 && (
+        <div className="flex-none border-b border-(--tmd-border) px-3 py-1 text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-faint)">
+          {t("允许/拒绝请按该 CLI 自己的键位:「直达」进幕布操作;这里只代发文本")}
+        </div>
+      )}
       {failure && (
         <button
           type="button"
@@ -115,7 +121,7 @@ function InboxRow({ entry, manualTitles }: { entry: InboxEntry; manualTitles: Re
         <button
           type="button"
           className="flex-none rounded border border-(--tmd-border) px-1.5 text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-muted) hover:border-(--tmd-accent) hover:text-(--tmd-accent)"
-          onClick={() => host.setActiveSession(entry.sessionId)}
+          onClick={() => gotoAndFocus(entry.sessionId)}
         >
           {t("直达")}
         </button>

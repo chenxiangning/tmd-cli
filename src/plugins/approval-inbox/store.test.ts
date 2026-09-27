@@ -17,6 +17,7 @@ vi.mock("@kernel/host", () => ({
     writeSession: vi.fn(async () => true),
     getCliProfile: vi.fn(() => undefined),
     getCliSessionId: vi.fn(() => undefined),
+    setActiveSession: vi.fn(),
     subscribe: vi.fn((fn: () => void) => {
       hostSubs.push(fn);
       return () => undefined;
@@ -37,11 +38,13 @@ import {
   approvalInboxSnapshot,
   bootApprovalInbox,
   excerptFromTail,
+  gotoAndFocus,
   noteAskDetected,
   observeCurrentWaitings,
   refreshInbox,
   resetApprovalInboxForTest,
 } from "./store";
+import { registerTerminalHandle, unregisterTerminalHandle } from "@kernel/terminalHandles";
 
 /** 会话表 fixture(store 只消费 id/profileId)。 */
 function sessionsFixture(waiting: string[]): SessionMeta[] {
@@ -208,5 +211,32 @@ describe("应答", () => {
     vi.mocked(host.writeSession).mockResolvedValue(true);
     await answerWaiting("b", "y");
     expect(approvalInboxSnapshot().failure).toBeNull();
+  });
+});
+
+describe("直达聚焦(拒绝引导:把人送进幕布)", () => {
+  /** 最小窄接口替身:只 focus 有断言意义,其余成员占位。 */
+  function fakeHandle(focus: () => void) {
+    return {
+      lineText: () => "", bufferLength: () => 0, viewportTop: () => 0, rows: () => 24,
+      scrollToLine: () => undefined, focus, onScroll: () => () => undefined,
+      hasMoreHistory: () => false, loadEarlier: async () => undefined,
+    } as Parameters<typeof registerTerminalHandle>[1];
+  }
+
+  it("gotoAndFocus:切激活会话并聚焦在册幕布(composer 焦点移交同款)", async () => {
+    const focus = vi.fn();
+    const handle = fakeHandle(focus);
+    registerTerminalHandle("a", handle);
+    gotoAndFocus("a");
+    expect(host.setActiveSession).toHaveBeenCalledWith("a");
+    expect(focus).toHaveBeenCalledTimes(1);
+    unregisterTerminalHandle("a", handle);
+  });
+
+  it("幕布未挂载(handle 缺席):仍切激活,静默不抛", () => {
+    vi.mocked(host.setActiveSession).mockClear();
+    gotoAndFocus("ghost");
+    expect(host.setActiveSession).toHaveBeenCalledWith("ghost");
   });
 });

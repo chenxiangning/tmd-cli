@@ -19,6 +19,7 @@ import { createSubscribable } from "@kernel/subscribable";
 import { host } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import { stripAnsi } from "@kernel/askWatch";
+import { getTerminalHandle } from "@kernel/terminalHandles";
 import { KernelTopics } from "@kernel/events";
 import type { PluginEventBus } from "@kernel/plugin";
 
@@ -144,6 +145,15 @@ export function answerWaiting(sessionId: string, text: string): Promise<boolean>
 export function dismissFailure(): void {
   if (store.snapshot.failure === null) return;
   store.commit({ entries: store.snapshot.entries, failure: null });
+}
+
+/** 直达并聚焦幕布:切激活会话(经 activeSessionChanged→trackOpen 重开被摘
+ *  tab)+ 聚焦已挂载幕布(composer 空输入 ↑↓ 焦点移交同款)。幕布未挂载 =
+ *  仍切激活静默(TerminalView 挂载后自带输入焦点)。拒绝引导落点:各 CLI
+ *  拒绝键不同,收件箱不代发(M2 评审 A2),把人送进幕布自己按。 */
+export function gotoAndFocus(sessionId: string): void {
+  host.setActiveSession(sessionId);
+  getTerminalHandle(sessionId)?.focus();
 }
 
 /** boot 接线(activate 调):askDetected 边沿记时/拉摘录;host.subscribe 兜全部
