@@ -22,14 +22,17 @@ import { stripAnsi } from "@kernel/askWatch";
 import { getTerminalHandle } from "@kernel/terminalHandles";
 import { KernelTopics } from "@kernel/events";
 import type { PluginEventBus } from "@kernel/plugin";
+import { parseAskCard, type AskCard } from "./askCard";
 
-/** 单条等待行。excerpt = 面板页脚提示(可空:后台会话日志未落盘等)。 */
+/** 单条等待行。excerpt = 面板页脚提示(可空:后台会话日志未落盘等);
+ *  card = omp select 卡结构化解析(问题正文+选项;非 omp 卡为 null)。 */
 export interface InboxEntry {
   sessionId: string;
   profileId: string;
   /** 等待开始时刻(本运行内经 askDetected 边沿观测);null = 面板后见,时长未知。 */
   since: number | null;
   excerpt: string | null;
+  card: AskCard | null;
 }
 
 interface InboxState {
@@ -53,6 +56,7 @@ export function approvalInboxSnapshot(): InboxState {
 /** since 首见表 + 摘录缓存(会话 id → 时刻 / 摘录文本)。 */
 const sinceAt = new Map<string, number>();
 const excerpts = new Map<string, string>();
+const cards = new Map<string, AskCard | null>();
 
 /** 日志尾 → 面板页脚提示:剥 ANSI,取末 3 个非空行,每行截 120 字符。
  *  纯函数;Ask 面板整帧重绘时尾部即页脚内容,提示足够定位「在问什么」。 */
@@ -72,6 +76,7 @@ export function refreshInbox(): void {
   const alive = new Set(waiting.map((s) => s.id));
   for (const id of [...sinceAt.keys()]) if (!alive.has(id)) sinceAt.delete(id);
   for (const id of [...excerpts.keys()]) if (!alive.has(id)) excerpts.delete(id);
+  for (const id of [...cards.keys()]) if (!alive.has(id)) cards.delete(id);
   const failure = store.snapshot.failure;
   const nextFailure = failure && alive.has(failure) ? failure : null;
   const entries = waiting.map((s) => ({
@@ -79,27 +84,33 @@ export function refreshInbox(): void {
     profileId: s.profileId,
     since: sinceAt.get(s.id) ?? null,
     excerpt: excerpts.get(s.id) ?? null,
+    card: cards.get(s.id) ?? null,
   }));
   entries.sort((a, b) => (a.since ?? Infinity) - (b.since ?? Infinity));
   const prev = store.snapshot.entries;
   const same =
     nextFailure === failure &&
     prev.length === entries.length &&
-    prev.every((e, i) => e.sessionId === entries[i].sessionId && e.since === entries[i].since && e.excerpt === entries[i].excerpt);
+    prev.every(
+      (e, i) =>
+        e.sessionId === entries[i].sessionId && e.since === entries[i].since && e.excerpt === entries[i].excerpt && e.card === entries[i].card,
+    );
   if (same) return;
   store.commit({ entries, failure: nextFailure });
 }
 
-/** 拉日志尾更新摘录(askDetected 边沿 / 面板首开;失败静默,提示可缺)。 */
+/** 拉日志尾更新摘录与 ask 卡(askDetected 边沿 / 面板首开;失败静默,提示可缺)。 */
 async function pullExcerpt(sessionId: string): Promise<void> {
   if (excerpts.has(sessionId)) return;
   try {
     const end = await ipc.sessionLogSize(sessionId);
     if (!end) return; /* 无日志(懒落盘 / 新会话)= 无提示,不报错 */
     const page = await ipc.sessionHistoryPage(sessionId, end, 2048);
-    const text = page.text ? excerptFromTail(page.text) : "";
+    const stripped = page.text ? stripAnsi(page.text) : "";
+    const text = stripped ? excerptFromTail(stripped) : "";
     if (!text) return;
     excerpts.set(sessionId, text);
+    cards.set(sessionId, parseAskCard(stripped));
     refreshInbox();
   } catch {
     /* 摘录是增强,失败静默 */

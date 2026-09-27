@@ -13,6 +13,10 @@ export const MESSAGES_EN = {
   "审批收件箱 · {n} 个会话在等待 · 摘录以会话面板为准":
     "Approval inbox · {n} waiting · excerpts are hints; the session panel is authoritative",
   "摘录以会话面板为准": "Excerpt hint — the session panel is authoritative",
+  "{n} 个问题": "{n} questions",
+  "多问卡:焦点在 CLI 侧,直达幕布逐题作答":
+    "Multi-question card — focus lives in the CLI; open the terminal to answer each",
+  "发送 {key} 选择": "Press {key} to select",
   "允许/拒绝请按该 CLI 自己的键位:「直达」进幕布操作;这里只代发文本":
     "Allow/deny uses this CLI's own keys: hit \"Open\" to act in the terminal; replies here only send text",
   "点击关闭": "Click to dismiss",
