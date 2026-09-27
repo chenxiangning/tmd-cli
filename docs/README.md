@@ -211,4 +211,5 @@
 | 2026-09-27 | [文档全量对码 v0.2.4(architecture 01/02/03/06/08/12/14 + FEATURES/README/README_EN 增量域;openspec 九案归档)](review/2026-09-27-docs-full-calibration.md) | 已完成 |
 | 2026-09-27 | [Composer 发送二次确认设计(目标+内容预览弹框;全部内容发送覆盖,工具命令豁免)](superpowers/specs/2026-09-27-composer-send-confirm-design.md) | 已确认(实现随本 spec 提交) |
 | 2026-09-27 | [0.2.4 发布前评审(四维度:兼容性/边界泄露/性能/死代码与文档;1×P1 已修、9 项发布前修复落盘、全闸门绿)](review/2026-09-27-release-0.2.4-review.md) | 已完成 |
+| 2026-09-27 | [0.2.5 细化规划:验收与摩擦清零(键盘导航/拒绝引导/退出接力/依赖批;M2 真机 8 项与签名待用户)](brainstorm/2026-09-27-tmd-0.2.5-planning.md) | 已确认 |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
