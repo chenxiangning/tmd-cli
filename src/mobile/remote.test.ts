@@ -1,14 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { blobFromB64, tailAskLine } from "./remote";
+import { pickResultToBlob, tailAskLine } from "./remote";
 
-describe("blobFromB64(native pickImage 回传还原)", () => {
-  it("base64 → JPEG Blob,字节保真", async () => {
-    const raw = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
-    let bin = "";
-    for (const b of raw) bin += String.fromCharCode(b);
-    const blob = blobFromB64(btoa(bin));
-    expect(blob.type).toBe("image/jpeg");
-    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(raw);
+describe("pickResultToBlob(native pickImage 结果分流)", () => {
+  const raw = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+  let bin = "";
+  for (const b of raw) bin += String.fromCharCode(b);
+
+  it("用户取消(cancelled)→ null,不当失败", () => {
+    expect(pickResultToBlob({ cancelled: true })).toBeNull();
+  });
+
+  it("失败无 b64 → throw 带原因(供 flashErr 上屏,不再静默)", () => {
+    expect(() => pickResultToBlob({})).toThrow("pickImage 回传无图片数据");
+    expect(() => pickResultToBlob({ b64: "" })).toThrow();
+  });
+
+  it("有 b64 → JPEG Blob", () => {
+    const blob = pickResultToBlob({ b64: btoa(bin) });
+    expect(blob?.type).toBe("image/jpeg");
   });
 });
 

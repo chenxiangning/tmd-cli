@@ -89,12 +89,17 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     config.selectionLimit = 1 /* 单选即满足截图注入场景 */
     let picker = PHPickerViewController(configuration: config)
     let relay = FilePanelRelay()
-    relay.onDone = { [weak self] data in
+    relay.onDone = { [weak self] data, reason in
       self?.activePick = nil
       if let data {
-        self?.reply(id: id, ok: true, payload: ["b64": data.base64EncodedString()])
+        let b64 = data.base64EncodedString()
+        ShellLog.write("pick: reply b64 \(b64.count) chars")
+        self?.reply(id: id, ok: true, payload: ["b64": b64])
+      } else if reason == "cancelled" {
+        ShellLog.write("pick: user cancelled")
+        self?.reply(id: id, ok: true, payload: ["cancelled": true])
       } else {
-        self?.reply(id: id, ok: false, payload: "pick cancelled or undecodable")
+        self?.reply(id: id, ok: false, payload: reason ?? "选图失败")
       }
     }
     activePick = relay /* 持活:防 present 后即被 ARC 释放,回调永挂 */
@@ -315,7 +320,8 @@ enum Keychain {
 /// PHPicker 结果 relay:原图拷临时位 → 统一转 JPEG → Data 恰一次回传
 /// (取消/失败/解不出都经 finish(nil) 收口,completionHandler 恰一次是 WebKit 契约)。
 final class FilePanelRelay: NSObject, PHPickerViewControllerDelegate {
-  var onDone: ((Data?) -> Void)?
+  /* data=nil 且 reason=nil = 用户取消;reason 非空 = 失败(JS 上屏,不再静默)。 */
+  var onDone: ((Data?, String?) -> Void)?
   private var done = false
   /* loadFileRepresentation 的回调不持有 provider:results 出了本函数作用域即被
      ARC 回收,回调永不执行 → JS promise 永挂(真机现象「选完图没任何反应」)。
@@ -333,8 +339,8 @@ final class FilePanelRelay: NSObject, PHPickerViewControllerDelegate {
     guard !done else { return }
     guard let provider = results.first?.itemProvider,
           provider.hasItemConformingToTypeIdentifier("public.image") else {
-      ShellLog.write("pick: no image provider")
-      finish(nil)
+      let why: String? = results.isEmpty ? nil : "相册未返回图片项"
+      finish(nil, reason: why, cancelled: results.isEmpty)
       return
     }
     pendingProvider = provider
@@ -342,22 +348,27 @@ final class FilePanelRelay: NSObject, PHPickerViewControllerDelegate {
       guard let self else { return }
       self.pendingProvider = nil
       guard let url else {
-        ShellLog.write("pick: no file rep \(err.map(String.init(describing:)) ?? "")")
-        self.finish(nil)
+        let why = "读取图片数据失败: \(err.map(String.init(describing:)) ?? "无文件回调")"
+        ShellLog.write("pick: \(why)")
+        self.finish(nil, reason: why)
         return
       }
-      let data = Self.jpegData(from: url)
-      ShellLog.write("pick: jpeg \(data?.count ?? 0)B from \(url.lastPathComponent)")
+      guard let data = Self.jpegData(from: url), !data.isEmpty else {
+        ShellLog.write("pick: 图片解码失败 from \(url.lastPathComponent)")
+        self.finish(nil, reason: "图片解码失败(HEIC/格式?)")
+        return
+      }
+      ShellLog.write("pick: jpeg \(data.count)B from \(url.lastPathComponent)")
       /* loadFileRepresentation 回调在后台线程;onDone 里 reply→evaluateJavaScript
          是主线程专用,统一回主线程。 */
-      DispatchQueue.main.async { self.finish(data) }
+      DispatchQueue.main.async { self.finish(data, reason: nil) }
     }
   }
 
-  private func finish(_ data: Data?) {
+  private func finish(_ data: Data?, reason: String? = nil, cancelled: Bool = false) {
     guard !done else { return }
     done = true
-    onDone?(data)
+    onDone?(data, cancelled ? "cancelled" : reason)
     onDone = nil
   }
 

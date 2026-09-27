@@ -132,16 +132,19 @@ export function blobFromB64(b64: string): Blob {
   return new Blob([bytes], { type: "image/jpeg" });
 }
 
+/** 选图结果分流:cancelled → null(用户取消);缺 b64 → throw(原因上屏);
+ *  有 b64 → JPEG Blob。 */
+export function pickResultToBlob(r: { b64?: string; cancelled?: boolean }): Blob | null {
+  if (r.cancelled) return null;
+  if (!r.b64) throw new Error(`pickImage 回传无图片数据: ${JSON.stringify(r).slice(0, 80)}`);
+  return blobFromB64(r.b64);
+}
+
 /** 选图:native PHPicker 直连(ShellBridge "pickImage"),不经 <input type=file>
  *  —— WKUIDelegate 文件面板是 iOS 18.4+ 面,低版本 input 是静默死钮(真机实测)。
- *  取消/失败/非 shell 环境 → null。 */
+ *  取消 → null;失败 → throw(由 shotToDraft flashErr 上屏)。 */
 export async function pickShotImage(): Promise<Blob | null> {
-  try {
-    const r = await shellInvoke<{ b64: string }>("pickImage");
-    return blobFromB64(r.b64);
-  } catch {
-    return null;
-  }
+  return pickResultToBlob(await shellInvoke<{ b64: string; cancelled?: boolean }>("pickImage"));
 }
 
 /** 图像压到长边 ≤maxEdge 的 JPEG(微信级),且压进桥帧预算(超预算逐级
