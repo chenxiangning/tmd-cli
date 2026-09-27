@@ -59,14 +59,17 @@ function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }
           type="button"
           className="sft-resume"
           onClick={() => {
-            relayOpenRef.current!({
-              profileId: n.profileId,
-              engineName: name,
-              cliSessionId: n.cliSessionId,
-              title: n.title,
-              cwd: n.cwd || undefined,
-              workspaceId: n.workspaceId,
-            });
+            /* 非空断言禁:12s TTL 内插件可能被停用(cleanup 置 null);取局部,没了静默。 */
+            const open = relayOpenRef.current;
+            if (open)
+              open({
+                profileId: n.profileId,
+                engineName: name,
+                cliSessionId: n.cliSessionId,
+                title: n.title,
+                cwd: n.cwd || undefined,
+                workspaceId: n.workspaceId,
+              });
             onClose(n.id);
           }}
         >
