@@ -7,7 +7,6 @@
 import type { CliProfile } from "@kernel/cliProfile";
 import type { CliUserMessage } from "@kernel/cliSessionTypes";
 
-/** 摘要携带的最近 prompt 条数。 */
 export const SUMMARY_PROMPT_LIMIT = 10;
 
 /** 接力源信息(当前会话侧)。 */
@@ -17,6 +16,10 @@ export interface RelaySource {
   cliSessionId?: string;
   title?: string;
   model?: string | null;
+  /** 源会话工作目录(读取器定位磁盘会话用;退出卡来源 = 快照 cwd)。 */
+  cwd?: string;
+  /** 源会话工作区 id(新会话落位;缺席 = 用当时激活工作区,活会话命令路径同值)。 */
+  workspaceId?: string;
 }
 
 /** 目标引擎候选:除当前外的全部 CLI profile(新会话用它 spawn)。 */

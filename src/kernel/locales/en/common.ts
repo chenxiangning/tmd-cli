@@ -115,6 +115,7 @@ export const MESSAGES = {
   "关闭退出通知": "Dismiss exit notice",
   "关闭启动失败通知": "Dismiss startup failure notice",
   "一键续聊(恢复到该会话)": "Resume chat (reopen that session)",
+  "转其他引擎接力": "Relay to another engine",
 
   // ── tab 右键菜单 ──
   "重命名": "Rename",

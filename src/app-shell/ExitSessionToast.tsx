@@ -1,14 +1,16 @@
 /**
  * 会话异常退出通知 —— 右下角 toast 栈(复用 StartFailureToast 卡样式与栈纪律)。
  * 订阅 kernel sessionExitedDetail:非零退出码(崩溃/异常中止)才上卡,
- * 「续聊」= openDiskSession 按源会话元数据原样 resume;0/130(kill)不扰。
+ * 「续聊」= openDiskSession 按源会话元数据原样 resume;「接力」经 relayBridge
+ * 开跨引擎对话框(摘要读磁盘,会话已逝读得到;插件停用桥 null 即无钮);0/130 不扰。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowClockwise, Cross, Warning } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowSquareOut, Cross, Warning } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { KernelTopics, type SessionExitedDetailEvent, type SessionStartFailedEvent } from "@kernel/events";
+import { relayOpenRef } from "@kernel/relayBridge";
 
 const NOTICE_TTL_MS = 12_000;
 const NOTICE_MAX = 3;
@@ -21,6 +23,8 @@ function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }
   }, [n.id, onClose]);
   const name = (n.profileId && host.getCliProfile(n.profileId)?.name) ?? n.profileId ?? "CLI";
   const canResume = n.kind !== "shell" && n.cliSessionId != null;
+  /* 接力源限本地 CLI:ssh 磁盘身份在远端,本地读取器无源(远端接力二期)。 */
+  const canRelay = n.kind === "cli" && n.cliSessionId != null && relayOpenRef.current != null;
   return (
     <div className="sft-card">
       <div className="sft-head">
@@ -48,6 +52,26 @@ function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }
         >
           <ArrowClockwise size="0.75rem" aria-hidden />
           {t("一键续聊(恢复到该会话)")}
+        </button>
+      )}
+      {canRelay && (
+        <button
+          type="button"
+          className="sft-resume"
+          onClick={() => {
+            relayOpenRef.current!({
+              profileId: n.profileId,
+              engineName: name,
+              cliSessionId: n.cliSessionId,
+              title: n.title,
+              cwd: n.cwd || undefined,
+              workspaceId: n.workspaceId,
+            });
+            onClose(n.id);
+          }}
+        >
+          <ArrowSquareOut size="0.75rem" aria-hidden />
+          {t("转其他引擎接力")}
         </button>
       )}
     </div>
