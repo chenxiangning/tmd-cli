@@ -59,8 +59,55 @@ cli-shared 头注(2 项):`bashWrites.ts`、`userMessages.ts` 补消费先例声�
 - **性能先例核对**:轮询全有 cleanup(SshPanel 15s / RemoteControlBadge 10s / approval-inbox 1.5s+1s);缓存有界(fileCache 32MB LRU、diskSessions FIFO 8192+mtime、welcome SWR 5min TTL、marks 墓碑);omp prewarm 计时器全清 + epoch 守卫 + 2MB 缓冲上限。
 - **已知残留(接受)**:files `WorkspaceFileBrowser.tsx` base.split 兜底(有 workspaceDisplayName 遮蔽,纯外观);UNC 路径落盘形态未实证(04 契约既有边界);build 警告 INEFFECTIVE_DYNAMIC_IMPORT(FileCodeEditor 被 cli-config 静态 import 使 files/ssh 动态分块失效,改静态需另一轮目检,暂挂)。
 
-## 验证
+## 第二轮(2026-09-28 同日,正确性 / 竞态 / 生命周期角度)
 
-- `pnpm typecheck` / `pnpm test`(371 文件 3011 用例)/ `pnpm check:arch-boundary` / `pnpm check:file-size` / `pnpm build` 全绿;`npx react-doctor -y` 100/100。
-- 跨插件 import 穷尽解析脚本复跑:仅剩 `plugins/index.ts` 注册表引用。
-- 桩目检(1421 dev + `__TAURI_INTERNALS__` 注入):Memory 控制台引擎配置卡渲染、sidekick 开关点击状态翻转(configHint 无错误)。
+大仙要求换角度重审且更谨慎:五路深读(会话发送链 / git-checkpoints-files 数据流 / memory 基建 / cli 引擎并发 / src-tauri Rust),纪律 = 整文件通读 + 完整调用链证据 + CONFIRMED/SUSPECTED 分级 + 对第一轮修复逐 hunk 回归判定。第一轮全部修复回归判定 SAFE;但 diffCache 差集清理抓出**第一轮我方修复自身的回归**(见下)。
+
+### CONFIRMED 已修(12 项)
+
+发送链(composer / session-relay):
+- **F1(P1)**:`executeSend` 执行段重读活跃指针 —— 确认弹层展示目标 A,弹层在屏期间 Ctrl+Tab 切幕布/计划会话退出改活跃指针后,内容写进 B 且用旧闭包 profile 翻译。修:`SendTarget` 增 `id`,单发执行绑定计划目标、profile 按目标现取;广播维持「执行期重解析」既有设计。
+- **F2(P2)**:settle 先清挂起态再回调执行,writeSession 在途窗内第三记 Enter 可重复弹确认、把同一题面写两遍。修:执行窗并入模态闸(`setSendExecuting`,`isConfirmPending = confirmPending || executing`,卸载复位同步)。
+- **F3(P2)**:抽屉发送挂起确认框时按 Esc,CommandDrawer 的 document 监听把抽屉一并关掉,违背「Esc=''静默不关抽屉」契约。修:确认挂起/执行中抽屉 Esc 让位。
+- **F4(P2)**:relay `createdRef` 不随目标引擎失效 —— 首轮失败后换引擎重试,摘要写进旧引擎会话(或对死会话永久失败)。修:`targetId` 变更即失效复用。
+- **F5(P2)**:接力首发不广播 promptSent → 新会话首轮在 checkpoint 账本无锚点(首批变更并入下一轮或整轮不可见)、tab 首条标题保底缺失。修:`promptGate` 下沉 kernel(composer 三路 + relay 四路消费,避免再造跨件直连),relay 写前读闸、成功后广播。
+
+checkpoints:
+- **回归(我方第一轮修复引入,P1)**:diffCache 按 cwd 键控但批清单按会话拉取 —— 同工作区切会话后,他会话已封口批的审阅单被差集清理摘缓存且不再重拉,永久卡「生成批 diff…」。修:diffCache 与 byKey 同键(`${cwd}|${sessionId}`),prune 只作用同会话;四个动作函数补 sessionId 参数。
+- **CKPT-3(P2)**:磁盘事件 4s 轮询在 activate 顶层注册且不入账 —— 熔断摘除后轮询继续不可见写账本。修:interval 句柄入 activate 返回的 cleanup。
+- **CKPT-2(P2)**:审阅单「通过」无 catch(时间线侧同动作有 notice)→ unhandled rejection 且零反馈;「回退」静默 catch 同病。修:就地错误横幅。
+- **F-CKPT-001(P1,数据丢失,Rust)**:undo_revert 单槽 guard_id 被最后一次部分回退覆盖,反悔时对不在最后 guard 内的已退路径按「不可恢复」**整删用户文件**(既有测试只断言 state、未查文件,把 bug 钉成契约)。修:`guard_ids` 追加链(serde default 兼容旧 states),反悔按路径取最近覆盖者;孤儿路径保留记账不动盘;测试补文件内容断言。
+- **F-CKPT-002(P2,Rust)**:账本追加 = 条目与换行两次 write_all(杀进程缝隙产生粘行)+ read_to_string 全有或全无(中文撕裂字节毒化整本账)。修:单缓冲单次写;按字节切行逐行 UTF-8 容错。
+- **F-CKPT-003(P2,Rust)**:seal_stale_foreign 注释称「单条失败不阻断」而 `?` 上抛炸掉整次 anchor_turn。修:单条失败记日志继续。
+
+Rust 其余:
+- **F-PTY-001(P2)**:`PtyRegistry::kill` 持全局注册表锁跨 `child.wait()` —— 慢死子进程冻结全部会话写/resize/spawn/退出清理。修:锁域收窄到注册表摘除(同 emitter 清理纪律)。
+- **F-WEB-002(P1,Windows 全量失效)**:`/file read_scoped_file` 单侧 canonicalize,verbatim `\\?\` 前缀与非 verbatim home 比较恒 false → fail-closed 全 404。修:home 同基准 canonicalize(fs_remove 双侧先例)。
+- **F-GIT-001(P2,Windows)**:`rebase_porcelain_paths` 的 verbatim 形态与 porcelain 正斜杠盘符形态永不匹配,函数在 Windows 恒 no-op → worktree 匹配/高亮错乱。修:`normalize_windows_shape` 归一比较(去 verbatim 前缀 + 斜杠归一 + 小写;非 Windows 形态恒等),纯函数单测。
+- 引擎侧:**F1(P1)** dsh `ensureAdapterDeployed` 记忆化 rejected Promise —— 一次瞬时落盘失败运行期全灭 → 失败清 memo 可重试;**F4(P1)** omp `spawnPrewarm` 不查 `started` —— 停用瞬间在途 acquire 的 catch 重新排队,停用态仍拉起 ~800MB 预热进程 → 补 started 闸;**F5** QuotaChip 抓取无请求序守卫,被取代请求提前复位 loading/fetchedAt → seq 守卫;**F6** kimi `wirePathById` 拷贝-整体替换跨 await 丢更新(注释断言相反)→ 逐条 set 直写并修正注释;**F2** piFamily 远程列目录全量 32KB 头传输后才截 50 → shell 侧 `ls -t | head -n 50` 先截后传;**F7** dsh plugin.tsx 头注描述不存在的 index.tsx → 纠偏。
+
+memory 基建:
+- **MC1/P2**:「沉淀所选会话」异步链无 catch(spawn 失败 = 状态永久「提炼中…」)→ 补 catch。
+- **MC2/P2**:`writeManual` 检查结果前清空输入(ok=false 丢用户原文)→ 成功才清。
+- **MC3/MC4/P2**:MemoryConsole 与右栏面板 `reload` 均无完成守卫也无 catch —— 工作区切换竞态把旧工作区数据盖进新视图、recall 被锁 reject 成 unhandled rejection。修:epoch 守卫 + try/catch 保留上次数据。
+- **MC5/P2**:session-search 索引器把「读取失败」按成功缓存(瞬态锁文件 → 该会话正文永久为空)→ 失败不写缓存。
+- **MC6/P2**:InstallCard 对 opencode 检测/安装只硬编码 `opencode.jsonc`,与 paths.ts 四候选及预检三面分裂(检测假阴性 + 可能另立平行配置)→ 检测走 `isOpencodeMagicContextInstalled`、落点走新增 `resolveOpencodeConfigPath()`(候选首个存在者);孤化的 `detectOpencodeInstalled` 删除。
+- **MC7/P2**:ProxyPopover 注释断言「打开即重挂载」与事实相反(overlay 常驻渲染),草稿/错误跨开合残留且不跟随外部修改 → open 翻真重置。
+- **MC9/P2**:`resolveProjectIdentity` 负缓存永不失效(先以非 git 态看过,之后 git init 也永久「未纳入」)→ null 缓存 60s TTL。
+- **MC10/P2**:DistillSettingsCard 模型列表 effect 无失效守卫(慢引擎迟到列表与当前引擎错配)→ cancelled 守卫。
+
+### 记录不动(3 项)
+
+- **F-WEB-001(P1)**:设备域 `config_read_settings` 剥密钥只剥顶层键,`relayDeployHistory[].password` 与 `ssh.hosts[].password` 明文出桥到手机 —— 这是 2026-09-25 拍板契约(43d847a:部署历史随存明文、手机 dispatch 本就全量可读),**维持现状**;conn.rs 剥键注释与 relay_selfhost_persist 头注的表述矛盾留待文档对码。
+- **MC8(SUSPECTED)**:settings `load()`(settings:changed 回读)与在途 persist 链交错可能回退未落盘编辑 —— 需按评审给出的单测实验证实后再动。
+- **F-FS-001(SUSPECTED)**:Rust `collect_files` 无遍历上限 —— 现无现实触发路径(消费方后缀恒 .jsonl),留观察。
+
+### 第二轮验证
+
+`pnpm typecheck` / `pnpm test`(371 文件 3011 用例)/ arch / file-size / build / react-doctor 100;`cargo test` 311(含 F-CKPT-001 回归锚点:反悔后两文件断言批后像内容)、clippy -D warnings、fmt --check 全绿。
+
+## 验证(第一轮)
+
+`pnpm typecheck` / `pnpm test`(371 文件 3011 用例)/ `pnpm check:arch-boundary` / `pnpm check:file-size` / `pnpm build` 全绿;`npx react-doctor -y` 100/100。
+跨插件 import 穷尽解析脚本复跑:仅剩 `plugins/index.ts` 注册表引用。
+桩目检(1421 dev + `__TAURI_INTERNALS__` 注入):Memory 控制台引擎配置卡渲染、sidekick 开关点击状态翻转(configHint 无错误)。
