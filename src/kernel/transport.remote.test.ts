@@ -243,5 +243,50 @@ describe("transport 远程模式(壳已配对)", () => {
     ws2.recv(JSON.stringify({ type: "hello", version: "0.2.2", capabilities: [] }));
     await expect(probe).resolves.toEqual([]); // 新桌面缺 app-device → gate 能弹 block
   });
+
+  it("双端点竞速矩阵(桥层接线):单败不切 LAN,连二败换 relay 并短等 250ms", async () => {
+    transport.configureRemoteEndpoint({
+      wsUrl: "ws://192.168.1.5:61234",
+      urls: ["ws://192.168.1.5:61234", "wss://relay.example"],
+      deviceId: "dev1",
+      token: "tk",
+    });
+    const p = transport.invoke<string>("session_list");
+    const ws1 = lastWS();
+    expect(ws1.url).toContain("192.168.1.5");
+    /* 首败(蜂窝下 LAN 黑洞):退避 1s 重拨仍走 LAN(抖动不误切) */
+    ws1.onclose?.({ code: 1006 });
+    await expect(p).rejects.toThrow("web bridge disconnected");
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(lastWS().url).toContain("192.168.1.5");
+    /* 连二败:轮换到 relay,清闸短等 250ms */
+    lastWS().onclose?.({ code: 1006 });
+    await vi.advanceTimersByTimeAsync(250);
+    const ws3 = lastWS();
+    expect(ws3.url).toContain("relay.example");
+    /* relay 拨通:invoke 正常往返(dialed 复位) */
+    ws3.open();
+    await vi.advanceTimersByTimeAsync(0);
+    const p2 = transport.invoke<string>("session_list");
+    await vi.advanceTimersByTimeAsync(0); /* 冲微任务:send/登记 pending 后才有帧可回 */
+    /* nextId 跨 invoke 不复位(首拒已耗 id 1),按实帧回包 */
+    const frame = JSON.parse(ws3.sent[ws3.sent.length - 1]);
+    ws3.recv(JSON.stringify({ type: "response", id: frame.id, ok: true, payload: ["x"] }));
+    await expect(p2).resolves.toEqual(["x"]);
+  });
+
+  it("单端点旧凭证(无 urls):连败也不换候选,只走退避翻倍曲线", async () => {
+    const p = transport.invoke<string>("session_list");
+    lastWS().onclose?.({ code: 1006 });
+    await expect(p).rejects.toThrow("web bridge disconnected");
+    await vi.advanceTimersByTimeAsync(1000);
+    const ws2 = lastWS();
+    expect(ws2.url).toContain("192.168.1.5");
+    ws2.onclose?.({ code: 1006 });
+    await vi.advanceTimersByTimeAsync(1000); // 第二拍退避=2s,1s 时刻不应重拨
+    expect(FakeWS.made.length).toBe(2);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(FakeWS.made.length).toBe(3);
+  });
 });
 
