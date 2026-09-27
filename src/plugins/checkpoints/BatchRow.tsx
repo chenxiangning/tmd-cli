@@ -127,11 +127,11 @@ export function BatchRow({
   // 批 diff 懒加载(含 open 批,时间线 ± 与审阅单共用同一缓存);
   // open 批新像 = live 工作区,轮内改动定时跟进,封口后停
   useEffect(() => {
-    loadDiff(cwd, b.id);
+    loadDiff(cwd, sessionId, b.id);
     if (!b.open) return;
-    const timer = window.setInterval(() => refreshOpenDiff(cwd, b.id), POLL_MS);
+    const timer = window.setInterval(() => refreshOpenDiff(cwd, sessionId, b.id), POLL_MS);
     return () => window.clearInterval(timer);
-  }, [cwd, b.id, b.open]);
+  }, [cwd, sessionId, b.id, b.open]);
 
   return (
     <div className="relative mb-1.5">

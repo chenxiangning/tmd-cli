@@ -48,8 +48,8 @@ export function useCheckpointActions(
   }
 
   function doRevert(batchId: string, paths?: string[]) {
-    return run(async (c) => {
-      const out = await revertBatch(c, batchId, paths);
+    return run(async (c, s) => {
+      const out = await revertBatch(c, s, batchId, paths);
       const n = out.restored.length + out.deleted.length;
       const skipped = skippedNote(out.skipped);
       return skipped
@@ -59,8 +59,8 @@ export function useCheckpointActions(
   }
 
   function doApply(batchId: string) {
-    return run(async (c) => {
-      const out = await applyBatch(c, batchId);
+    return run(async (c, s) => {
+      const out = await applyBatch(c, s, batchId);
       const n = out.restored.length;
       const skipped = skippedNote(out.skipped);
       return n > 0
@@ -74,8 +74,8 @@ export function useCheckpointActions(
   }
 
   function doUndo(batchId: string) {
-    return run(async (c) => {
-      const out = await undoRevertBatch(c, batchId);
+    return run(async (c, s) => {
+      const out = await undoRevertBatch(c, s, batchId);
       return t("已从恢复点恢复 {n} 个文件,批次回到待审", { n: out.restored.length });
     });
   }

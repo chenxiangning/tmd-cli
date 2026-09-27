@@ -109,7 +109,7 @@ export function BatchHeadButton({
 }) {
   const st = batchState(b);
   const meta = STATE_META[st];
-  const stats = batchStats(getCachedDiff(cwd, b.id));
+  const stats = batchStats(getCachedDiff(cwd, sessionId, b.id));
   return (
     <button
       type="button"

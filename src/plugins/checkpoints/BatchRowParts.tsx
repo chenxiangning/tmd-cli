@@ -113,7 +113,7 @@ export function FileRow({
   const segs = f.path.split("/");
   const name = segs.pop() ?? f.path;
   const dir = segs.length ? segs.join("/") + "/" : "";
-  const patches = getCachedDiff(cwd, b.id);
+  const patches = getCachedDiff(cwd, sessionId, b.id);
   const mine = patches?.find((p) => p.path === f.path);
   return (
     <div className="group flex h-[25px] items-center gap-1.5 rounded px-1.5 hover:bg-(--tmd-bg-hover)">
