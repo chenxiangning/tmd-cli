@@ -67,10 +67,14 @@ function useActiveQuota(): {
   const [loading, setLoading] = useState(false);
   const [fetchedAt, setFetchedAt] = useState<number | null>(null);
   const [tick, setTick] = useState(0);
+  /* 请求序守卫:被取代的抓取(快速 ⟳ 连点/换模型)不得在 finally 里提前复位
+     loading/fetchedAt(2026-09-28 评审 F5)。 */
+  const fetchSeqRef = useRef(0);
 
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
   useEffect(() => {
+    const seq = ++fetchSeqRef.current;
     if (!profileId) {
       setEntry(null);
       return;
@@ -106,6 +110,7 @@ function useActiveQuota(): {
         ),
       )
       .finally(() => {
+        if (seq !== fetchSeqRef.current) return;
         setFetchedAt(Date.now());
         setLoading(false);
       });

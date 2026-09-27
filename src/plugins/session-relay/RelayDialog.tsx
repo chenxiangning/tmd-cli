@@ -12,6 +12,7 @@ import { host } from "@kernel/host";
 import { getActiveWorkspace, getWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { prepareSendPayload } from "@kernel/profileSend";
+import { emitPromptSent, readPromptGate } from "@kernel/promptGate";
 import { relayTargets, buildRelaySummary, type RelaySource } from "./relay";
 import { clearRelaySource, useRelaySource } from "./relayStore";
 
@@ -34,6 +35,11 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
   const [summaryReady, setSummaryReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const createdRef = useRef<string | null>(null); /* 重试复用首轮会话 */
+  /* 换目标引擎即失效复用(2026-09-28 评审 F4):createdRef 绑定创建时的 targetId,
+     复用到新引擎会把摘要写进旧引擎会话(或对死会话永远失败)。同引擎重试不受影响。 */
+  useEffect(() => {
+    createdRef.current = null;
+  }, [targetId]);
   const [error, setError] = useState("");
 
   /* 摘要一次性组装:读源会话用户消息(全量),取最近 N 条确定性拼接。 */
@@ -87,6 +93,10 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
         const payload = profile
           ? prepareSendPayload(profile, summary.trim())
           : `${summary.trim()}\r`;
+        /* 轮次闸写前现读:接力首发 = 新会话空闲态,应恒广播 —— 不发则 checkpoint
+           无锚点(首轮变更并入下一轮/整轮不可见)、tab 首条标题保底缺失
+           (2026-09-28 评审 F5,与 composer 三条写路径同契约)。 */
+        const gate = readPromptGate(sessionId);
         const ok = await host.writeSession(sessionId, payload);
         if (!ok) {
           /* 目标会话秒退/写入失败:提示词凭空消失比失败更糟,留框让用户重试 */
@@ -94,6 +104,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
           setBusy(false);
           return;
         }
+        emitPromptSent(gate, sessionId, summary.trim());
       }
       onClose();
     } catch (e) {

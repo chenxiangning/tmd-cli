@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Cross } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { isDrawerOpen, setDrawerOpen } from "../state/drawerOpen";
+import { isConfirmPending } from "./sendPlan";
 import type { DrawerItem, DrawerSection } from "../drawerItems";
 import { SECTION_META, SECTION_ORDER, SECTION_TAB_ICONS } from "./drawerSections";
 import { DrawerItemList } from "./DrawerItemList";
@@ -65,11 +66,14 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
   }, [open]);
 
   /* Esc 关闭(抽屉自身监听;⌘K 开合在 Composer,关着也要能开)。
-     不做点外自动关闭:失焦误关烦人,显式关闭走 开关按钮 / ⌘K / Esc / rail × */
+     不做点外自动关闭:失焦误关烦人,显式关闭走 开关按钮 / ⌘K / Esc / rail ×。
+     确认挂起中让位(2026-09-28 评审 F3):同一 Esc 会先到 document(本监听)
+     再到 window(确认弹层),先关抽屉就违背「Esc=''静默不关抽屉」契约。 */
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (isConfirmPending()) return;
         e.preventDefault();
         setDrawerOpen(false);
       }
