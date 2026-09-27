@@ -7,6 +7,7 @@
 import type { CliProfile } from "@kernel/cliProfile";
 import type { CliUserMessage } from "@kernel/cliSessionTypes";
 
+/** 摘要携带的最近 prompt 条数。 */
 export const SUMMARY_PROMPT_LIMIT = 10;
 
 /** 接力源信息(当前会话侧)。 */
