@@ -10,6 +10,8 @@
 import { host } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import type { CliDiskSession } from "@kernel/cliSessionTypes";
+/* cli-shared 联合消费声明:用量行型知识与 welcome/tokens 共持(session-search +
+   feature 联合消费,准入见 cli-shared/sessionUsage.ts 头注与 AGENTS.md §1)。 */
 import {
   extractUsageFromHead,
   formatUsage,

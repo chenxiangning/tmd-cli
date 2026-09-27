@@ -13,7 +13,7 @@ import { t } from "@kernel/i18n";
 import { bumpGitRefresh, useGitPanelState } from "../panelStore";
 import { listWorktrees, normalizeRoot, removeWorktreeWithCleanup, spawnTerminalAt, openWorktreeWorkspace } from "./worktreeOps";
 
-/** 单树脏净摘要(git_status files 聚合;加载中 = null)。 */
+/** 单树脏净摘要(git_status files 聚合;加载中 = null;dirty < 0 = 读失败显 —)。 */
 interface DirtSummary {
   dirty: number;
   plus: number;
@@ -32,12 +32,13 @@ function DirtBadge({ cwd }: { cwd: string }) {
         const minus = st.files.filter((f) => f.status.includes("D")).length;
         setS({ dirty: st.files.length, plus, minus });
       })
-      .catch(() => alive && setS({ dirty: 0, plus: 0, minus: 0 }));
+      .catch(() => alive && setS({ dirty: -1, plus: 0, minus: 0 }));
     return () => {
       alive = false;
     };
   }, [cwd]);
   if (!s) return <CircleNotch size="0.625rem" className="animate-spin text-(--tmd-fg-faint)" aria-hidden />;
+  if (s.dirty < 0) return <span className="text-[0.625rem] text-(--tmd-fg-faint)">—</span>;
   if (s.dirty === 0) return <span className="text-[0.625rem] text-(--tmd-fg-faint)">{t("干净")}</span>;
   return (
     <span className="font-mono text-[0.625rem] text-(--tmd-warn)">

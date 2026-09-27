@@ -5,14 +5,12 @@
 
 import { describe, expect, it } from "vitest";
 
+import { aggregateUsage, WINDOW_MS, type EngineLabel } from "./tokens";
 import {
-  aggregateUsage,
   extractUsageFromHead,
   parseUsageLine,
-  WINDOW_MS,
-  type EngineLabel,
   type UsageLine,
-} from "./tokens";
+} from "../cli-shared/sessionUsage";
 
 const NOW = Date.parse("2026-09-11T12:00:00Z");
 

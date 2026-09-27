@@ -92,6 +92,10 @@ pub async fn git_worktree_add(
 pub async fn git_worktree_remove(cwd: String, path: String, force: bool) -> Result<(), String> {
     let c = cwd.clone();
     run_mut(cwd, move |repo| {
+        /* 前导 '-' 会被 git 当选项解析;与 git_worktree_add 同款闸。 */
+        if path.is_empty() || path.starts_with('-') {
+            return Err(GitError::empty(format!("非法路径: {path}")));
+        }
         let mut args = vec!["worktree".to_string(), "remove".to_string()];
         if force {
             args.push("--force".into());

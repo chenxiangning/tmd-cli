@@ -11,9 +11,6 @@ import {
   type UsageLine,
 } from "../cli-shared/sessionUsage";
 
-/** 纯行型解析面转发(既有消费方/测试导入路径不变)。 */
-export { extractUsageFromHead, parseUsageLine } from "../cli-shared/sessionUsage";
-export type { UsageLine } from "../cli-shared/sessionUsage";
 
 /** 头窗口字节数(与 diskSessions 的深窗一致)。 */
 const HEAD_BYTES = 256 * 1024;

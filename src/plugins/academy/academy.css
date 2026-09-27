@@ -228,8 +228,12 @@
 @keyframes academy-blink { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .academy-cursor { animation: none; }
-  /* 全树 transition 一并关(仓库惯例,见 composer-anchors.css 同款块) */
-  .academy-root, .academy-root * { transition: none !important; }
+  /* 全树 transition 一并关(仓库惯例,见 composer-anchors.css 同款块);
+     根类 = entry/guide/wizard-page 三处实根(无 .academy-root) */
+  .academy-entry, .academy-guide, .academy-wizard-page,
+  .academy-entry *, .academy-guide *, .academy-wizard-page * {
+    transition: none !important;
+  }
 }
 
 .academy-practice { margin-top: 12px; padding: 10px 12px;

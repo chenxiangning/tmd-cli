@@ -119,6 +119,7 @@ export const MESSAGES = {
   "逐图标自定义颜色与呼吸闪烁;有开关两态的图标仅作用于点亮色。":
     "Per-icon color and breathing glow; for icons with on/off states only the lit color is themed.",
   "SSH 入口": "SSH entry",
+  "Worktree 簇": "Worktree cluster",
   "WSL 入口": "WSL entry",
   "远程控制": "Remote control",
   "标记面板": "Marks panel",

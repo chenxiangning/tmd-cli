@@ -46,11 +46,12 @@ export interface SendConfirmRequest {
   onCancel: () => void;
 }
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /** 挂起期模态闸:确认框在屏时两条发送路径静默 no-op —— 否则弹框期间的第二记
- *  发送键一边被弹框 window 监听接住确认旧计划,一边又经发送路径挂新起
- *  (旧 Promise 永不落定、弹框实例被顶替,2026-09-27 桩目检实证)。 */
+ *  发送键一边被弹框窗口监听接住确认旧计划,一边又经发送路径挂新起请求。
+ *  复位只在 useSendConfirmRequest 生命周期内:卸载(活跃会话退出→composer 整棵卸载)
+ *  不走 close(),标志若不复位,重挂载后两条发送路径永久静默(2026-09-27 评审实证)。 */
 let confirmPending = false;
 export function isConfirmPending(): boolean {
   return confirmPending;
@@ -66,6 +67,9 @@ export function useSendConfirmRequest(): {
   const requestConfirm = useCallback((r: SendConfirmRequest) => {
     confirmPending = true;
     setReq(r);
+  }, []);
+  useEffect(() => () => {
+    confirmPending = false; /* 卸载复位:见模块标志注释 */
   }, []);
   const close = useCallback(() => {
     confirmPending = false;

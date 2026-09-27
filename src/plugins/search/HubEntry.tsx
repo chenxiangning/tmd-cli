@@ -8,7 +8,8 @@
 
 import { useState } from "react";
 import { CaretDown, CaretRight, MagnifyingGlass } from "@phosphor-icons/react";
-import { formatKeybinding, getCommands } from "@kernel/shortcuts";
+import { formatKeybinding, getCommands, useCommands } from "@kernel/shortcuts";
+import { getEffectiveKeybinding } from "@kernel/shortcutOverrides";
 import { t } from "@kernel/i18n";
 
 const MENU_ITEMS = [
@@ -22,6 +23,8 @@ const COLLAPSED_KEY = "tmd.search.entryCollapsed";
 export function SearchHubEntry() {
   /* 折叠持久化:单消费者组件,useState 惰性首读即可,不值得上 store。 */
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
+  /* 订阅注册表(含改键版本):键帽与标题随 overrides 即时跟随,与设置清单同源。 */
+  const commands = useCommands();
   const toggle = (): void => {
     const next = !collapsed;
     localStorage.setItem(COLLAPSED_KEY, next ? "0" : "1");
@@ -50,7 +53,8 @@ export function SearchHubEntry() {
       </button>
       {!collapsed &&
         MENU_ITEMS.map((item) => {
-          const cmd = getCommands().find((c) => c.id === item.id);
+          const cmd = commands.find((c) => c.id === item.id);
+          const kb = cmd ? getEffectiveKeybinding(cmd.id) : undefined;
           return (
             <button
               key={item.id}
@@ -59,9 +63,9 @@ export function SearchHubEntry() {
               onClick={() => run(item.id)}
             >
               <span className="flex-1 truncate">{cmd?.title ?? t(item.fallback)}</span>
-              {cmd?.keybinding && (
+              {kb && (
                 <span className="shrink-0 text-[0.6875rem] text-(--tmd-fg-faint)">
-                  {formatKeybinding(cmd.keybinding)}
+                  {formatKeybinding(kb)}
                 </span>
               )}
             </button>
