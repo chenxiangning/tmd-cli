@@ -7,7 +7,7 @@
  * 各功能区卡片拆至 MemoryConsoleCards.tsx(文件规模铁则)。
  */
 
-import { useCallback, useEffect, useReducer } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import type { EditorTab } from "@kernel/tabs";
 import { ipc } from "@kernel/ipc";
 import { useWorkspaces } from "@kernel/workspace";
@@ -64,30 +64,42 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
   const [st, dispatch] = useReducer(consoleReducer, initialConsoleState);
   const patch = useCallback((p: Partial<ConsoleState>) => dispatch({ type: "patch", patch: p }), []);
 
+  const reloadEpoch = useRef(0);
   const reload = useCallback(async () => {
+    const mine = ++reloadEpoch.current;
     if (!root) return;
-    const id = await resolveProjectIdentity(root);
-    patch({ identity: id });
-    if (!id) return;
-    const pool = await memoryPool.status();
-    patch({ ready: pool.ready, poolReason: pool.reason ?? null });
-    if (!pool.ready) return;
-    const dbPath = pool.dbPath ?? "";
-    const items = await memoryPool.recall(id, undefined, 200);
-    const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
-    const week = items.filter((m) => m.createdAt >= weekAgo).length;
-    const byHarness = new Map<string, number>();
-    for (const m of items) {
-      const k = m.harness || "pi";
-      byHarness.set(k, (byHarness.get(k) ?? 0) + 1);
-    }
-    patch({ recent: items.slice(0, 12), counts: { total: pool.count, week, byHarness: [...byHarness.entries()] } });
     try {
-      const rows = await ipc.sqliteQuery(dbPath, "SELECT max(finished_at) FROM dream_runs", []);
-      const ts = Number(rows[0]?.[0] ?? 0);
-      patch({ lastDream: ts > 0 ? new Date(ts).toLocaleString("zh-CN") : null });
-    } catch {
-      patch({ lastDream: null });
+      const id = await resolveProjectIdentity(root);
+      if (mine !== reloadEpoch.current) return; /* 工作区已切:过期结果丢弃(评审 MC3) */
+      patch({ identity: id });
+      if (!id) return;
+      const pool = await memoryPool.status();
+      if (mine !== reloadEpoch.current) return;
+      patch({ ready: pool.ready, poolReason: pool.reason ?? null });
+      if (!pool.ready) return;
+      const dbPath = pool.dbPath ?? "";
+      const items = await memoryPool.recall(id, undefined, 200);
+      if (mine !== reloadEpoch.current) return;
+      const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+      const week = items.filter((m) => m.createdAt >= weekAgo).length;
+      const byHarness = new Map<string, number>();
+      for (const m of items) {
+        const k = m.harness || "pi";
+        byHarness.set(k, (byHarness.get(k) ?? 0) + 1);
+      }
+      patch({ recent: items.slice(0, 12), counts: { total: pool.count, week, byHarness: [...byHarness.entries()] } });
+      try {
+        const rows = await ipc.sqliteQuery(dbPath, "SELECT max(finished_at) FROM dream_runs", []);
+        if (mine !== reloadEpoch.current) return;
+        const ts = Number(rows[0]?.[0] ?? 0);
+        patch({ lastDream: ts > 0 ? new Date(ts).toLocaleString("zh-CN") : null });
+      } catch {
+        if (mine === reloadEpoch.current) patch({ lastDream: null });
+      }
+    } catch (e) {
+      /* recall/status 被并发写入锁住等瞬时失败:保留上次数据(同 refreshBatches
+         失败语义),只吞掉未处理 rejection */
+      console.warn("[memory-console] reload 失败", e);
     }
   }, [root, patch]);
 

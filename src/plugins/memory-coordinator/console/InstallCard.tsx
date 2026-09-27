@@ -12,13 +12,12 @@ import { updateSettings, useSettingsState } from "@kernel/settings";
 import {
   detectNode,
   detectOmpPluginInstalled,
-  detectOpencodeInstalled,
   detectPiInstalled,
   type NodeEnv,
 } from "../install/detect";
 import { t } from "@kernel/i18n";
 import { InstallOrchestrator } from "../install/setup";
-import { pluginDistDir, userHome } from "../paths";
+import { isOpencodeMagicContextInstalled, pluginDistDir, resolveOpencodeConfigPath, userHome } from "../paths";
 
 type HarnessTarget = "omp" | "pi" | "opencode";
 
@@ -55,14 +54,13 @@ async function runInstallFlow(opts: {
     await orch.installIntoPi(line);
     markPi((await detectPiInstalled(`${home}/.pi/agent`)) === true);
   } else {
-    line("$ opencode.jsonc: plugin[] += @cortexkit/opencode-magic-context");
-    const ocCfg = `${home}/.config/opencode/opencode.jsonc`;
+    /* 落点按候选解析(首个已存在的配置文件),与检测/预检同面 ——
+       真实配置在 opencode.json 等候选时不另立平行配置(2026-09-28 评审 MC6) */
+    line("$ opencode 配置: plugin[] += @cortexkit/opencode-magic-context");
+    const ocCfg = (await resolveOpencodeConfigPath()) ?? `${home}/.config/opencode/opencode.jsonc`;
     const r = await orch.installIntoOpencode(ocCfg, ipc.fsReadFile, ipc.fsWriteFile, line);
     if (!r.ok) line("✗ " + r.message);
-    else {
-      const text = await ipc.fsReadFile(ocCfg).catch(() => "");
-      markOc(detectOpencodeInstalled(text));
-    }
+    else markOc(await isOpencodeMagicContextInstalled());
   }
   line("$ node mc-bootstrap.mjs <magic-context-dist>");
   let mig = await orch.runBootstrap(await pluginDistDir(), line);
@@ -187,8 +185,7 @@ export function InstallCard({ onInstalled }: { onInstalled: () => Promise<void> 
       setOmpInstalled(await detectOmpPluginInstalled());
       const home = await userHome();
       setPiInstalled((await detectPiInstalled(`${home}/.pi/agent`)) === true);
-      const ocCfg = await ipc.fsReadFile(`${home}/.config/opencode/opencode.jsonc`).catch(() => "");
-      setOcInstalled(detectOpencodeInstalled(ocCfg));
+      setOcInstalled(await isOpencodeMagicContextInstalled());
     })();
   }, []);
 

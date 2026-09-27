@@ -3,7 +3,7 @@
  * 自 MemoryPanel.tsx 拆出(文件规模铁则 + no-high-complexity-react-function)。
  */
 
-import { useCallback, useReducer } from "react";
+import { useCallback, useReducer, useRef } from "react";
 import type { MemoryItem } from "../protocol";
 import { archiveMemory } from "../phase2/write";
 import { memoryPool, resolveProjectIdentity } from "../pool";
@@ -74,23 +74,34 @@ export function useMemoryPanelState(root: string) {
     [root, patch],
   );
 
+  const reloadEpoch = useRef(0);
   const reload = useCallback(async () => {
     if (!root) return;
-    const id = await resolveProjectIdentity(root);
-    patch({ identity: id });
-    if (!id) {
-      patch({ ready: false, poolReason: null });
-      return;
-    }
-    const pool = await memoryPool.status();
-    patch({ ready: pool.ready, poolReason: pool.reason ?? null, count: pool.count, dbPath: pool.dbPath });
-    if (!pool.ready) return;
-    patch({ loading: true });
+    const mine = ++reloadEpoch.current;
     try {
-      const list = await memoryPool.recall(id, undefined, 200);
-      patch({ items: list });
-    } finally {
-      patch({ loading: false });
+      const id = await resolveProjectIdentity(root);
+      if (mine !== reloadEpoch.current) return; /* 工作区已切:过期结果丢弃(评审 MC4) */
+      patch({ identity: id });
+      if (!id) {
+        patch({ ready: false, poolReason: null });
+        return;
+      }
+      const pool = await memoryPool.status();
+      if (mine !== reloadEpoch.current) return;
+      patch({ ready: pool.ready, poolReason: pool.reason ?? null, count: pool.count, dbPath: pool.dbPath });
+      if (!pool.ready) return;
+      patch({ loading: true });
+      try {
+        const list = await memoryPool.recall(id, undefined, 200);
+        if (mine !== reloadEpoch.current) return;
+        patch({ items: list });
+      } finally {
+        if (mine === reloadEpoch.current) patch({ loading: false });
+      }
+    } catch (e) {
+      /* recall 遇 db 锁等瞬时失败:保留上次列表,吞掉未处理 rejection(评审 MC4) */
+      console.warn("[memory-panel] reload 失败", e);
+      if (mine === reloadEpoch.current) patch({ loading: false });
     }
   }, [root, patch]);
 

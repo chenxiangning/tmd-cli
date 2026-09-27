@@ -111,7 +111,10 @@ async function status(): Promise<MemoryPoolStatus> {
 
 export const memoryPool: MemoryPool = { recall, status };
 
-const identityCache = new Map<string, string | null>();
+const identityCache = new Map<string, { id: string | null; at: number }>();
+/** 负缓存 TTL:null(非 git 工作区/git 瞬时失败)只信 60s —— 之后 git init/恢复
+ *  应重解析而非永久「项目未纳入」(2026-09-28 评审 MC9)。 */
+const IDENTITY_NULL_TTL_MS = 60_000;
 
 /** proc_communicate 跑 git rev-list,返回 stdout 文本。 */
 async function gitRevListRootCommits(workspaceRoot: string): Promise<string> {
@@ -127,7 +130,9 @@ async function gitRevListRootCommits(workspaceRoot: string): Promise<string> {
 /** 解析 workspace root 的上游项目身份;非 git 工作区返回 null(胶囊显示未纳入)。 */
 export async function resolveProjectIdentity(workspaceRoot: string): Promise<string | null> {
   const cached = identityCache.get(workspaceRoot);
-  if (cached !== undefined) return cached;
+  if (cached && (cached.id !== null || Date.now() - cached.at < IDENTITY_NULL_TTL_MS)) {
+    return cached.id;
+  }
   let identity: string | null = null;
   try {
     const out = await gitRevListRootCommits(workspaceRoot);
@@ -140,6 +145,6 @@ export async function resolveProjectIdentity(workspaceRoot: string): Promise<str
   } catch {
     identity = null;
   }
-  identityCache.set(workspaceRoot, identity);
+  identityCache.set(workspaceRoot, { id: identity, at: Date.now() });
   return identity;
 }

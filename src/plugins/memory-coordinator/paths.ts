@@ -46,6 +46,17 @@ const OPENCODE_CONFIG_CANDIDATES = [
   "~/.config/opencode/oh-my-opencode.jsonc",
 ];
 
+/** opencode 配置落点:候选中首个存在的文件(检测/安装/预检三面共用同一解析,
+ *  防止真实配置在别的候选文件时另立平行配置);全缺失 = null,调用方新建默认。 */
+export async function resolveOpencodeConfigPath(): Promise<string | null> {
+  const home = await userHome();
+  for (const c of OPENCODE_CONFIG_CANDIDATES) {
+    const p = `${home}${c.slice(1)}`;
+    if (await ipc.fsReadFile(p).then(() => true, () => false)) return p;
+  }
+  return null;
+}
+
 /**
  * 解析 subagent-entry.js 绝对路径(d 路 v2)。
  *

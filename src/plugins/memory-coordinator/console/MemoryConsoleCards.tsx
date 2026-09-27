@@ -80,7 +80,8 @@ export function WriteCard({
       const out = await rememberFacts([{ category: "CONSTRAINTS", content: newContent.trim() }], root, {
         model: settings.memoryDistillModel || undefined,
       });
-      setNewContent("");
+      /* 成功才清空:ok=false 是最需要保留原文改后重试的场景(评审 MC2) */
+      if (out.ok) setNewContent("");
       setDistillState(out.ok ? t("已写入") : t("失败: {detail}", { detail: out.detail }));
       onWritten();
     } catch (e) {
@@ -160,6 +161,9 @@ export function WriteCard({
                 });
                 setDistillState(out.ok ? t("提炼完成") : t("失败: {detail}", { detail: out.detail }));
                 onWritten();
+              } catch (e) {
+                /* spawn 失败不走 out.ok:不接住则文案永久停在「提炼中…」(评审 MC1) */
+                setDistillState(t("失败: {detail}", { detail: String(e).slice(0, 120) }));
               } finally {
                 setDistillRunning(false);
               }
@@ -188,11 +192,22 @@ export function DistillSettingsCard() {
   const [distillModelsLoading, setDistillModelsLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     setDistillModelsLoading(true);
-    void listModels(distillEngine).then((m) => {
-      setDistillModels(m);
-      setDistillModelsLoading(false);
-    });
+    void listModels(distillEngine)
+      .then((m) => {
+        /* 慢引擎迟到列表丢弃:引擎已切走后落地会把下拉错配到旧引擎
+           (2026-09-28 评审 MC10) */
+        if (cancelled) return;
+        setDistillModels(m);
+        setDistillModelsLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setDistillModelsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [distillEngine]);
 
   return (
