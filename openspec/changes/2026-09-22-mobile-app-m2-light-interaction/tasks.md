@@ -46,7 +46,7 @@
 - [x] 7.1 凭证结构扩 `{lan, relay?}` 双端点(配对应答带双 URL;旧凭证单端点兼容)(MobileCreds.urls + pairWithOffer 存全端点)
 - [x] 7.2 连接序:LAN 3s 超时 → relay;成功记当前路径(connectAttempt 按序竞速(8s/端点))
 - [x] 7.3 RemoteHostBar 点开 = 通道菜单(自动/LAN/relay 手动钉选)(RemoteHostBar 通道菜单(自动/钉选))
-- [ ] 7.4 协议脚本 + 桩:双端点竞速矩阵单测;真机蜂窝飞行模式切 relay
+- [x] 7.4(代码半边)协议脚本双端点序(web-bridge-client.mjs lan/relay 两向)+ 竞速矩阵单测:DialPolicy 状态机 6 例 + 桥层 FakeWS 接线 2 例(transportDial.test.ts / transport.remote.test.ts);真机蜂窝切 relay 归验收
 
 ## 8. 韧性验收
 

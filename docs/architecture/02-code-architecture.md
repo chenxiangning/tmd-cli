@@ -190,7 +190,7 @@ sequenceDiagram
 
     CLI->>PT: 进程退出 / read 返回 0
     PT->>EVT: emit "pty://exit/{sessionId}"(载荷带退出码:portable-pty WaitStatus ——<br/>0=正常 / 信号死亡归一 1 / 用户 kill 与 SSH 通道 = null)
-    EVT->>H: removeSession + emit KernelTopics.sessionExited<br/>+ sessionExitedDetail(退出码+元数据快照,旧消费方零迁移)<br/>null/0/130 外才上 ExitSessionToast(12s,续聊=openDiskSession resume,宁漏勿扰)
+    EVT->>H: removeSession + emit KernelTopics.sessionExited<br/>+ sessionExitedDetail(退出码+元数据快照,旧消费方零迁移)<br/>null/0/130 外才上 ExitSessionToast(12s,续聊=openDiskSession resume,<br/>v0.2.5 起 cli+有磁盘身份另给「转其他引擎接力」=kernel/relayBridge 开框桥<br/>送快照源进 session-relay 对话框,插件停用桥 null 即无钮,宁漏勿扰)
 ```
 
 ## 4. 输入链路：键盘 / Composer → PTY
@@ -646,4 +646,4 @@ sessionExited → checkpoint_seal(兜底,最后一轮落账)
 - 挂点准入纪律:只声明外壳真的渲染的位点(footer.*/leftRail/rightRail 死插座已于 2026-09-05 审查删除);`overlay` 由 settings / network-proxy / ssh / wallpaper / search / session-board / lsp / academy / session-relay / session-search / checkpoints(窄屏摘要)贡献。
 - CLI 凭据盘点未覆盖 kimi/qoder/qoder-cn（`welcome/credentials.ts` 分支仅 omp/pi/codex/claude/grok/opencode）。
 - Codex 的 session 状态解析采用容错字段匹配，完整 `turn_context` schema 仍需随 CLI 版本验证。
-- `composer` 命令抽屉(openspec composer-command-drawer)代码已实装,余 5 项 `[V]` 真机验收在途;mobile M2 代码已落地、真机验收余 8 项(钥匙串重启免重配 / ask 应答链 / 发送链 / 锁屏通知 / 双端点竞速等,task 板在案)。
+- `composer` 命令抽屉已归档(openspec archive/2026-09-02-composer-command-drawer,v0.1.2 起在产);mobile M2 代码已落地、真机验收余 8 项(钥匙串重启免重配 / ask 应答链 / 发送链 / 锁屏通知 / 双端点竞速等,task 板在案;7.4 代码半边竞速矩阵单测已随 v0.2.5 补位)。

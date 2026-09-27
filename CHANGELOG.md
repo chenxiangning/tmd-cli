@@ -4,6 +4,22 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.2.5] - 2026-09-27
+
+### 新增
+
+- 会话检索浮层键盘导航:↑↓ 移动选中(选中行高亮并滚入视野)、Enter 打开选中项(此前只能开首条)、输入即回顶;页脚文案改诚实「↑↓ 选择 · Enter 打开 · Esc 关闭」
+- 审批收件箱拒绝引导:「直达」升级为直达并聚焦幕布(切激活 + xterm 聚焦,幕布未挂载静默);等待期面板常驻一行引导——允许/拒绝按该 CLI 自己的键位,收件箱只代发文本(不代发键,M2 评审 A2 边界变为用户可见)
+- 异常退出卡接跨引擎接力:退出 toast 在「一键续聊」旁加「转其他引擎接力」,经 kernel 开框桥(relayBridge)送快照源进对话框;摘要走磁盘读取器,会话已退出仍读得到;新会话落位优先源会话工作区;接力插件停用即无钮(随贡献回滚)
+
+### 变更
+
+- 依赖升级批:npm 18 项、cargo 8 项 minor/patch、dirs 6→7、setup-java 4→6、vitest 4→5(大版本全套 2986 用例零改动通过);russh 0.63 试过不合入——MSRV 1.85 超本仓 rust-version 1.80 且 Handler::check_server_key 签名破坏性变更,推 0.2.6 配真连验证
+
+### 测试
+
+- 双端点竞速矩阵单测补位(M2 7.4 代码半边):DialPolicy 状态机(单败不切/连二败轮换/退避曲线封顶/arm 清态/单端点不轮换/候选收缩取模)+ 桥层 FakeWS 接线(LAN→relay 换端点短等 250ms 拨通)
+
 ## [0.2.4] - 2026-09-26
 
 ### 新增
@@ -401,6 +417,7 @@
 - SSH 一等会话:远程终端 + SFTP 文件树 + 端口转发
 - 插件市场、设置面板、网络代理
 
+[0.2.5]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.2.5
 [0.2.4]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.2.4
 [0.2.3]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.2.3
 [0.2.2]: https://github.com/chenxiangning/tmd-cli/releases/tag/v0.2.2
