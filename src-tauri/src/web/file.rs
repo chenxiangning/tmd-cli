@@ -43,6 +43,10 @@ pub(super) async fn file_handler(
 /// 逃逸。较 assetProtocol 的 `**/*` 收窄,属 trust-boundary。
 fn read_scoped_file(path: &Path) -> Option<(Vec<u8>, &'static str)> {
     let home = crate::session::home_dir();
+    /* home 同基准 canonicalize:Windows canonicalize 产 \\?\ verbatim 前缀,
+    与非 verbatim home 逐组件比较恒 false(/file 在 Windows 全 404,
+    2026-09-28 评审 F-WEB-002);fs_remove.rs 双侧 canonicalize 同款先例 */
+    let home = home.canonicalize().unwrap_or(home);
     let canonical = path.canonicalize().ok()?;
     if !canonical.starts_with(&home) || !canonical.is_file() {
         return None;

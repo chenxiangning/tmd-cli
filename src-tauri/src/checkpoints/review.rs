@@ -2,7 +2,7 @@
 //! approve(纯标记,不动文件/不碰 git)与 undo_revert(以 guard 条目写回回退前状态)。
 
 use super::restore::{RestoreOutcome, SkipEntry};
-use super::{load_ledger, load_states, open_sidecar, save_states, CkptError};
+use super::{load_ledger, load_states, open_sidecar, save_states, CkptError, LedgerEntry};
 use std::fs;
 /// 通过标记 —— 纯标记动作,不动任何文件、不触碰 git。 approved 批仍可回退
 /// (标记弱于安全动作);其后若文件被提交/失配,展示层自动升级为 done。
@@ -40,20 +40,31 @@ pub fn undo_revert(cwd: &str, batch_id: &str) -> Result<RestoreOutcome, CkptErro
         .get(batch_id)
         .cloned()
         .ok_or_else(|| CkptError::Empty("批次无审核态".into()))?;
-    let guard_id = entry
-        .guard_id
-        .clone()
-        .ok_or_else(|| CkptError::Empty("该批没有守卫快照,无法反悔".into()))?;
     if entry.state != "reverted" {
         return Err(CkptError::Empty("批次不在已退状态".into()));
     }
-    let guard = load_ledger(cwd)
-        .into_iter()
-        .find(|e| e.kind == "guard" && e.id == guard_id)
-        .ok_or_else(|| CkptError::Store(format!("守卫条目丢失: {guard_id}")))?;
+    if entry.guard_id.is_none() && entry.guard_ids.is_empty() {
+        return Err(CkptError::Empty("该批没有守卫快照,无法反悔".into()));
+    }
 
     let sidecar = open_sidecar(cwd)?;
     let root = std::path::PathBuf::from(cwd);
+
+    // 守卫链解析:单文件回退各自持精准快照(guard_ids 追加序),反悔按路径取
+    // 「最近覆盖它的 guard」;旧账本仅单 guard_id 时退化为原单槽行为。
+    // 曾按「最后一个 guard 不覆盖即删盘上文件」处理 —— 那是用户既有内容,
+    // 误删即数据丢失(2026-09-28 评审 F-CKPT-001)。
+    let mut guard_ids = entry.guard_ids.clone();
+    if guard_ids.is_empty() {
+        if let Some(g) = &entry.guard_id {
+            guard_ids.push(g.clone());
+        }
+    }
+    let ledger = load_ledger(cwd);
+    let guards: Vec<&LedgerEntry> = guard_ids
+        .iter()
+        .filter_map(|id| ledger.iter().find(|e| e.kind == "guard" && e.id == *id))
+        .collect();
 
     // 守卫内容就是"回退前一刻"的工作区;只还原回退动作实际碰过的路径
     // (reverted_paths),守卫里其他 dirty 文件保持原样
@@ -61,14 +72,25 @@ pub fn undo_revert(cwd: &str, batch_id: &str) -> Result<RestoreOutcome, CkptErro
     let mut restored = Vec::new();
     let mut deleted = Vec::new();
     let mut skipped = Vec::new();
+    let mut remaining: Vec<String> = Vec::new();
     for path in &reverted_paths {
+        // 最近覆盖该路径的 guard(链尾向前);守卫链里谁都不覆盖 = guard 条目
+        // 已被清理的孤儿路径,保留记账不动盘
+        let covering = guards
+            .iter()
+            .rev()
+            .find(|g| g.files.iter().any(|f| f.path == *path))
+            .and_then(|g| g.files.iter().find(|f| f.path == *path));
+        let Some(f) = covering else {
+            remaining.push(path.clone());
+            continue;
+        };
         let full = root.join(path);
-        let bytes = match guard.files.iter().find(|f| f.path == *path) {
-            Some(f) if f.skip.is_none() && !f.oid.is_empty() => {
-                let oid = git2::Oid::from_str(&f.oid)?;
-                Some(sidecar.find_blob(oid)?.content().to_vec())
-            }
-            _ => None,
+        let bytes = if f.skip.is_none() && !f.oid.is_empty() {
+            let oid = git2::Oid::from_str(&f.oid)?;
+            Some(sidecar.find_blob(oid)?.content().to_vec())
+        } else {
+            None
         };
         match bytes {
             Some(data) => {
@@ -93,10 +115,17 @@ pub fn undo_revert(cwd: &str, batch_id: &str) -> Result<RestoreOutcome, CkptErro
     }
 
     let mut entry = states.batches.get(batch_id).cloned().unwrap_or_default();
-    entry.state = "pending".into();
-    entry.reason = None;
-    entry.reverted_paths.clear();
-    entry.guard_id = None;
+    if remaining.is_empty() {
+        entry.state = "pending".into();
+        entry.reason = None;
+        entry.reverted_paths.clear();
+        entry.guard_id = None;
+        entry.guard_ids.clear();
+    } else {
+        // 部分反悔:孤儿路径维持已退态,守卫链保留供下次反悔
+        entry.state = "reverted".into();
+        entry.reverted_paths = remaining;
+    }
     states.batches.insert(batch_id.to_string(), entry);
     save_states(cwd, &states)?;
 

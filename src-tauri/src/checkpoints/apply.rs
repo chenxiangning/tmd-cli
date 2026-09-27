@@ -193,6 +193,7 @@ pub fn apply_batch(
         entry.state = "pending".into();
         entry.reason = None;
     }
+    entry.guard_ids.push(guard.id.clone());
     entry.guard_id = Some(guard.id.clone());
     states.batches.insert(batch_id.to_string(), entry.clone());
     save_states(cwd, &states)?;

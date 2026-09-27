@@ -247,6 +247,7 @@ pub fn restore_batch(
     let mut entry = states.batches.get(batch_id).cloned().unwrap_or_default();
     entry.reverted_paths.extend(restored.iter().cloned());
     entry.reverted_paths.extend(deleted.iter().cloned());
+    entry.guard_ids.push(guard.id.clone());
     entry.guard_id = Some(guard.id.clone());
     let processed = turn.turn_files.iter().all(|tf| {
         entry.reverted_paths.contains(&tf.path) || skipped.iter().any(|s| s.path == tf.path)

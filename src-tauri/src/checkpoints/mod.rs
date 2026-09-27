@@ -179,6 +179,11 @@ pub struct BatchState {
     pub reason: Option<String>,
     #[serde(default)]
     pub guard_id: Option<String>,
+    /// 守卫链(追加序):单文件回退各自持精准快照,反悔按路径取最近覆盖它的
+    /// guard —— 单槽 guard_id 被最后一次覆盖,多次部分回退后反悔会丢更早路径
+    /// (2026-09-28 评审 F-CKPT-001)。guard_id 镜像最后一次,旧读者兼容。
+    #[serde(default)]
+    pub guard_ids: Vec<String>,
     #[serde(default)]
     pub reverted_paths: Vec<String>,
 }

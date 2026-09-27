@@ -58,23 +58,44 @@ pub(crate) fn parse_worktree_list(stdout: &str) -> Vec<WorktreeEntry> {
     out
 }
 
+/// Windows 形态归一(比较用):去 \\?\ verbatim 前缀、反斜杠转正斜杠、整串小写。
+/// 仅作比较键,不回写用户可见路径;NTFS/APFS 大小写不敏感,盘符与目录段都可能
+/// 大小写漂移。非 Windows 形态(含 POSIX 反斜杠文件名)原样返回 —— 恒等保序。
+pub(crate) fn normalize_windows_shape(p: &str) -> String {
+    let bytes = p.as_bytes();
+    let verbatim = p.starts_with(r"\\?\");
+    let drive = bytes.len() >= 2 && bytes[1] == b':' && (bytes[0] as char).is_ascii_alphabetic();
+    if !verbatim && !drive {
+        return p.to_string();
+    }
+    let p = p.strip_prefix(r"\\?\").unwrap_or(p);
+    p.replace('\\', "/").to_ascii_lowercase()
+}
+
 pub(crate) fn rebase_porcelain_paths(entries: &mut [WorktreeEntry], cwd: &str) {
+    /* 比较前两侧归一,回贴保持调用方 cwd 原形态。Windows:canonicalize 产
+    \\?\C:\…(verbatim 反斜杠),git porcelain 产 C:/…(正斜杠盘符)——
+    Prefix(VerbatimDisk) ≠ Prefix(Disk) 且分隔符不同,逐组件比较永不匹配,
+    本函数在 Windows 曾恒为 no-op(2026-09-28 评审 F-GIT-001)。 */
     let Ok(canon) = std::path::Path::new(cwd).canonicalize() else {
         return;
     };
-    let canon_str = canon.to_string_lossy();
+    let canon_str = normalize_windows_shape(&canon.to_string_lossy());
     let input_parent = std::path::Path::new(cwd)
         .parent()
         .map(|p| p.to_string_lossy())
         .unwrap_or_default();
-    let canon_parent = canon
-        .parent()
-        .map(|p| p.to_string_lossy())
-        .unwrap_or_default();
+    let canon_parent = normalize_windows_shape(
+        &canon
+            .parent()
+            .map(|p| p.to_string_lossy())
+            .unwrap_or_default(),
+    );
     for e in entries.iter_mut() {
-        if e.path == canon_str {
+        let path_norm = normalize_windows_shape(&e.path);
+        if path_norm == canon_str {
             e.path = cwd.to_string();
-        } else if let Some(rest) = e.path.strip_prefix(canon_parent.as_ref()) {
+        } else if let Some(rest) = path_norm.strip_prefix(&canon_parent) {
             if rest.starts_with('/') {
                 e.path = format!("{input_parent}{rest}");
             }
@@ -115,6 +136,25 @@ mod tests {
             locked: false,
             prunable: false,
         }
+    }
+
+    #[test]
+    fn windows_形态归一_verbatim_与_porcelain_盘符互认() {
+        // 纯函数语义测试(POSIX 主机亦可跑):canonicalize 侧 verbatim 反斜杠、
+        // porcelain 侧正斜杠盘符,归一后互认;POSIX 路径(含反斜杠文件名)不动。
+        assert_eq!(
+            super::normalize_windows_shape(r"\\?\C:\Users\x\repo"),
+            "c:/users/x/repo"
+        );
+        assert_eq!(
+            super::normalize_windows_shape("C:/Users/x/repo"),
+            "c:/users/x/repo"
+        );
+        assert_eq!(super::normalize_windows_shape("/repo/main"), "/repo/main");
+        assert_eq!(
+            super::normalize_windows_shape(r"/repo/back\slash"),
+            "/repo/back\\slash"
+        );
     }
 
     #[test]
