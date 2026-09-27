@@ -39,3 +39,4 @@
 3. ~~客户端窗口直角化(macOS `decorations(false)` + React 自绘红绿灯)~~(已回退:恢复 `TitleBarStyle::Overlay` 原生标题栏与系统圆角;round-trip 见 commit c7a02e9 与其回退提交)。
 4. SSH/WSL 入口迁右缘 rail(2026-09-27 二轮):SSH 删左下设置簇 sidebarAction,`topbarEntry:false` 作废(字段更名 `railEntry`),面板 tab 直挂 rail;WSL 动作加 `SidebarAction.rail` 直挂标志(开中央 tab 语义不变),设置菜单与底栏钉住过滤 rail 动作;图标装饰 ssh-panel/wsl-panel 选择器改指 rail 钮。
 5. rail 动作并入钉住管理(2026-09-27 三轮,补二轮丟失的 WSL 设置面):`registerRailActionPin` 按面板同规则登记钉住(persisted 清单权威/缺清单回落缺省钉),rail 外显 = 钉住∪激活;⋯ 溢出菜单追加 rail 动作行(点击触发动作、勾选钉/取钉),两处菜单行内联样式抽 `MENU_ITEM_BUTTON_STYLE` 共用。
+6. 内置终端入口迁右缘 rail(2026-09-27 四轮):terminal 插件弃 `header.leftCluster` 按钮(TerminalButton.tsx 删),改 `registerSidebarAction({ rail: true })` 直挂(点击聚焦最新/⌥⌘Ctrl 强制新建,`SidebarAction.onSelect` 增可选 `mods` 参数由 rail 钮透传 alt/meta/ctrl;PanelRail 增 `useHost()` 订阅驱动 active 点亮态);图标装饰 terminal 键闪烁选择器与点亮色随迁 rail 钮,白名单 id 不变。

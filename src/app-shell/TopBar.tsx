@@ -66,7 +66,7 @@ export function TopBar({
         style={leftOpen ? { width: "calc(var(--tmd-left-aside-w) + 4px)" } : undefined}
       >
         {platform === "macos" ? <div className="titlebar-leading" aria-hidden /> : null}
-        {/* 插件贡献的左区按钮簇(内置终端等):经 activate(ctx) 挂点登记 */}
+        {/* 插件贡献的左区按钮簇(会话看板/远程控制徽标等):经 activate(ctx) 挂点登记 */}
         <Mounts point="header.leftCluster" />
         {/* 插件市场(插排页):整页替换下方三栏,再点或页内关闭即回 */}
         <button

@@ -31,7 +31,8 @@ html[data-icon-blink~="panel-marks"] .panel-rail-tab[data-panel-id="marks"] svg 
   animation: icon-decor-breathe 5s ease-in-out infinite;
 }
 
-/* ── 侧栏动作:右缘 rail 钮(ssh = 面板 tab 走 data-panel-id;wsl = rail 动作走 data-action-id)
+/* ── 侧栏动作:右缘 rail 钮(ssh = 面板 tab 走 data-panel-id;
+   wsl/terminal = rail 动作走 data-action-id)
    + 底栏钉住钮/设置菜单行(仅未迁 rail 的动作,如 system-proxy)── */
 html[data-icon-blink~="ssh-panel"] .panel-rail-tab[data-panel-id="ssh"],
 html[data-icon-blink~="ssh-panel"] .settings-bar-btn[data-action-id="ssh-panel"],
@@ -41,7 +42,7 @@ html[data-icon-blink~="system-proxy"] .settings-menu-row[data-action-id="system-
 html[data-icon-blink~="wsl-panel"] .panel-rail-tab[data-action-id="wsl-panel"],
 html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"],
 html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
-html[data-icon-blink~="terminal"] .titlebar-action[data-action-id="terminal"],
+html[data-icon-blink~="terminal"] .panel-rail-tab[data-action-id="terminal"],
 html[data-icon-blink~="session-board"] .titlebar-action[data-action-id="session-board"],
 html[data-icon-blink~="remote-control"] .remote-control-badge svg,
 html[data-icon-blink~="worktree"] .ws-worktree-cluster-label,

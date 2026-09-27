@@ -19,6 +19,7 @@ import {
   type FilePanelContribution,
 } from "@kernel/filePanel";
 import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
+import { useHost } from "@kernel/host";
 import { useEditorTabs } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import { FileActionsBar } from "./FileActionsBar";
@@ -31,9 +32,9 @@ import { FileActionsBar } from "./FileActionsBar";
 export function PanelRail({ onActivate }: { onActivate: () => void }) {
   const { mode, pinnedIds, panels } = useFilePanel();
   const [overflowPos, setOverflowPos] = useState<{ x: number; y: number } | null>(null);
-  /* rail 直挂动作(如 WSL):active() 多依赖中央 tab 态,订阅 tabs 保重渲。 */
   const railActions = useSidebarActions().filter((a) => a.rail);
-  useEditorTabs();
+  useEditorTabs(); /* rail 直挂动作 active() 靠中央 tab 态(WSL),订阅保重渲 */
+  useHost(); /* 同上,内置终端 active() 靠活跃会话态,订阅保重渲 */
   /* 外显动作 = 钉住 ∪ 激活(与面板 tab 同规则;未钉可经 ⋯ 菜单勾回)。 */
   const visibleRailActions = railActions.filter(
     (a) => pinnedIds.has(a.id) || (a.active?.() ?? false),
@@ -98,7 +99,7 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
             title={t(action.label)}
             onClick={(e) => {
               const r = e.currentTarget.getBoundingClientRect();
-              action.onSelect({ x: r.left - 8, y: r.top });
+              action.onSelect({ x: r.left - 8, y: r.top }, { altKey: e.altKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey });
             }}
           >
             <Icon aria-hidden />
@@ -154,6 +155,30 @@ const MENU_ITEM_BUTTON_STYLE = {
   cursor: "inherit",
   textAlign: "left",
 } as const;
+
+/** 钉选复选框(面板行与 rail 动作行共用):点击/键盘勾选 = 仅切换钉住,菜单不关。 */
+function PinCheck({ id, checked }: { id: string; checked: boolean }) {
+  return (
+    <span
+      className={`panel-overflow-item-check${checked ? " is-checked" : ""}`}
+      role="checkbox"
+      aria-checked={checked}
+      tabIndex={0}
+      title={t("钉到工具条")}
+      onClick={(e) => {
+        e.stopPropagation();
+        togglePinned(id);
+      }}
+      onKeyDown={(e) => {
+        if (e.key !== " " && e.key !== "Enter") return;
+        e.preventDefault();
+        togglePinned(id);
+      }}
+    >
+      {checked ? <Check aria-hidden /> : null}
+    </span>
+  );
+}
 
 function PanelOverflowMenu({
   mode,
@@ -211,24 +236,7 @@ function PanelOverflowMenu({
                 </span>
                 <span className="panel-overflow-item-label">{t(panel.label)}</span>
               </button>
-              <span
-                className={`panel-overflow-item-check${isChecked ? " is-checked" : ""}`}
-                role="checkbox"
-                aria-checked={isChecked}
-                tabIndex={0}
-                title={t("钉到工具条")}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  togglePinned(panel.id);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key !== " " && e.key !== "Enter") return;
-                  e.preventDefault();
-                  togglePinned(panel.id);
-                }}
-              >
-                {isChecked ? <Check aria-hidden /> : null}
-              </span>
+              <PinCheck id={panel.id} checked={isChecked} />
             </div>,
           ];
         })}
@@ -257,24 +265,7 @@ function PanelOverflowMenu({
                 </span>
                 <span className="panel-overflow-item-label">{t(action.label)}</span>
               </button>
-              <span
-                className={`panel-overflow-item-check${isChecked ? " is-checked" : ""}`}
-                role="checkbox"
-                aria-checked={isChecked}
-                tabIndex={0}
-                title={t("钉到工具条")}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  togglePinned(action.id);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key !== " " && e.key !== "Enter") return;
-                  e.preventDefault();
-                  togglePinned(action.id);
-                }}
-              >
-                {isChecked ? <Check aria-hidden /> : null}
-              </span>
+              <PinCheck id={action.id} checked={isChecked} />
             </div>
           );
         })}

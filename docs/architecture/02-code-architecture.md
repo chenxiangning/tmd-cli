@@ -58,7 +58,7 @@ flowchart TB
             P_CKPT["checkpoints<br/>审批线:右栏时间线 + 中央批审阅单<br/>账本/diff/还原在 Rust checkpoints/"]
             P_NP["network-proxy<br/>网络代理浮层(overlay)<br/>生效率 Rust proxy.rs env 注入"]
             P_SSH["ssh<br/>SSH 一等会话:overlay 主机选择 + 右栏面板(SFTP 树/端口转发)<br/>+ newSessionMenu 入口 + 远端文件 tab(kind=ssh-file)+ 设置 section"]
-            P_TERM["terminal<br/>内置终端:右缘 rail 直挂动作<br/>点击聚焦最新 shell 会话/⌥新建"]
+            P_TERM["terminal<br/>内置终端:右缘 rail 直挂动作<br/>点击聚焦最新 shell 会话/⌥⌘Ctrl 新建"]
             P_OPE["cli-opencode<br/>profile: opencode<br/>SQLite 单库会话存储(sqlite 代读/代删)"]
             P_DSH["cli-dsh<br/>profile: dsh<br/>会话即 host(PTY 适配器)+ homePanel 连接引导"]
             P_MEM["memory-coordinator<br/>Memory 面板 + 状态栏胶囊 + 控制台 tab<br/>Magic Context 共享库(应用零直写)"]

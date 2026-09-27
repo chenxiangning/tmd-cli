@@ -68,7 +68,7 @@ Session = CLI profile + PTY + cwd + CLI native session id
 SSH 会话是第二类一等会话：同一 `Session` 形状但无 CLI profile，Rust 侧按 kind 路由（russh 引擎），输出走同一 `pty://out/{id}` 事件，幕布 / tab 条 / 输出缓冲 / 翻页全链路零分叉；无 composer，不参与 Ask 检测、审批线与只读状态栏。
 连接失败不会静默消亡:错误文本原样进幕布,会话保留在 failed 态(右栏面板同步状态卡),由用户「断开」收尾;终态事件同时撤下未应答的 host key/KBI/密码提示卡。
 
-内置终端是第三类一等会话(kind="shell"):本地默认 shell(macOS zsh / Linux bash / Windows cmd),同样无 CLI profile,经 `SpawnSpec.kind/title` 透传登记(`kernel/shellSessions.ts` 装配,SSH 同构);terminal 插件只贡献右缘 rail 直挂入口(点击聚焦最新/⌥新建),会话生命周期归 kernel,拔插件不孤儿化会话。
+内置终端是第三类一等会话(kind="shell"):本地默认 shell(macOS zsh / Linux bash / Windows cmd),同样无 CLI profile,经 `SpawnSpec.kind/title` 透传登记(`kernel/shellSessions.ts` 装配,SSH 同构);terminal 插件只贡献右缘 rail 直挂入口(点击聚焦最新/⌥⌘Ctrl 新建),会话生命周期归 kernel,拔插件不孤儿化会话。
 WSL 不是第四类会话:本机发行版 = UNC 工作区 + `wsl.exe` spawn 包装,远程宿主 = SSH 通道内 `wsl.exe`,引擎/传输语义不变;契约见 `09-wsl-contract.md`。
 
 Composer 的只读状态通过 CLI profile 的 `readSessionStatus` 适配器读取各 CLI 自己的 session JSONL。内核只编排状态刷新，不理解 OMP、Pi、Codex 的文件格式；状态缺失时显示 `—`，不猜测默认值。

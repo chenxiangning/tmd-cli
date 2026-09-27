@@ -140,9 +140,10 @@
 .panel-rail-tab.is-active[data-panel-id="checkpoints"] { color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60)); }
 .panel-rail-tab.is-active[data-panel-id="memory"] { color: var(--icon-decor-panel-memory, rgb(255, 140, 60)); }
 .panel-rail-tab.is-active[data-panel-id="marks"] { color: var(--icon-decor-panel-marks, rgb(255, 140, 60)); }
-/* rail 上的侧栏动作钮(ssh = 面板 tab;wsl = rail 动作)同吃图标装饰点亮色 */
+/* rail 上的侧栏动作钮(ssh = 面板 tab;wsl/terminal = rail 动作)同吃图标装饰点亮色 */
 .panel-rail-tab.is-active[data-panel-id="ssh"] { color: var(--icon-decor-ssh-panel, rgb(255, 140, 60)); }
 .panel-rail-tab.is-active[data-action-id="wsl-panel"] { color: var(--icon-decor-wsl-panel, rgb(255, 140, 60)); }
+.panel-rail-tab.is-active[data-action-id="terminal"] { color: var(--icon-decor-terminal, rgb(255, 140, 60)); }
 
 .panel-rail-tab svg {
   width: 1rem;

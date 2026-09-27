@@ -72,8 +72,9 @@ export function sanitizeSessionTabsMax(raw: unknown): number {
 
 /** ── 图标装饰(icon decor)域 ── 13 个界面图标的独立颜色/呼吸闪烁;CSS 变量约定见 kernel/iconDecor.ts */
 
-/** 可装饰图标 id 白名单:面板键 = filePanel 注册 id 加 panel- 前缀,动作键 = sidebarActions id,
- *  顶栏钮键 = header.leftCluster 消费方自定 id(remote-control/terminal/session-board),
+/** 可装饰图标 id 白名单:面板键 = filePanel 注册 id 加 panel- 前缀,
+ *  动作键 = sidebarActions id(含 rail 直挂:ssh-panel/wsl-panel/terminal),
+ *  顶栏钮键 = header.leftCluster 消费方自定 id(remote-control/session-board),
  *  结构键 = worktree(侧栏 worktree 簇标签 + fork 图标着色)。 */
 export const ICON_DECOR_IDS = [
   "newchat",
