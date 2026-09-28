@@ -70,10 +70,10 @@ export function sanitizeSessionTabsMax(raw: unknown): number {
     : SESSION_TABS_LIMIT_DEFAULT;
 }
 
-/** ── 图标装饰(icon decor)域 ── 13 个界面图标的独立颜色/呼吸闪烁;CSS 变量约定见 kernel/iconDecor.ts */
+/** ── 图标装饰(icon decor)域 ── 17 个界面图标的独立颜色/呼吸闪烁;CSS 变量约定见 kernel/iconDecor.ts */
 
 /** 可装饰图标 id 白名单:面板键 = filePanel 注册 id 加 panel- 前缀,
- *  动作键 = sidebarActions id(rail 直挂只剩 wsl-panel/terminal;
+ *  动作键 = sidebarActions id(rail 直挂只剩 wsl-panel/terminal/intent-canvas;
  *  ssh 已迁面板键,键名保留防存量装饰丢失),
  *  顶栏钮键 = header.leftCluster 消费方自定 id(remote-control/session-board),
  *  结构键 = worktree(侧栏 worktree 簇标签 + fork 图标着色)。 */
@@ -86,8 +86,12 @@ export const ICON_DECOR_IDS = [
   "panel-checkpoints",
   "panel-memory",
   "panel-marks",
+  "panel-approval-inbox",
+  "panel-skill-hub",
+  "panel-mcp-hub",
   "wsl-panel",
   "terminal",
+  "intent-canvas",
   "session-board",
   "remote-control",
   "worktree",
@@ -110,8 +114,12 @@ export const DEFAULT_ICON_DECOR: Record<IconDecorId, IconDecorItem> = {
   "panel-checkpoints": {},
   "panel-memory": {},
   "panel-marks": {},
+  "panel-approval-inbox": {},
+  "panel-skill-hub": {},
+  "panel-mcp-hub": {},
   "wsl-panel": {},
   terminal: {},
+  "intent-canvas": {},
   "session-board": {},
   "remote-control": {},
   worktree: {},

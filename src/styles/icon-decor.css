@@ -27,7 +27,10 @@ html[data-icon-blink~="panel-files"] .panel-rail-tab[data-panel-id="files"] svg,
 html[data-icon-blink~="panel-git"] .panel-rail-tab[data-panel-id="git"] svg,
 html[data-icon-blink~="panel-checkpoints"] .panel-rail-tab[data-panel-id="checkpoints"] svg,
 html[data-icon-blink~="panel-memory"] .panel-rail-tab[data-panel-id="memory"] svg,
-html[data-icon-blink~="panel-marks"] .panel-rail-tab[data-panel-id="marks"] svg {
+html[data-icon-blink~="panel-marks"] .panel-rail-tab[data-panel-id="marks"] svg,
+html[data-icon-blink~="panel-approval-inbox"] .panel-rail-tab[data-panel-id="approval-inbox"] svg,
+html[data-icon-blink~="panel-skill-hub"] .panel-rail-tab[data-panel-id="skill-hub"] svg,
+html[data-icon-blink~="panel-mcp-hub"] .panel-rail-tab[data-panel-id="mcp-hub"] svg {
   animation: icon-decor-breathe 5s ease-in-out infinite;
 }
 
@@ -41,6 +44,7 @@ html[data-icon-blink~="wsl-panel"] .panel-rail-tab[data-action-id="wsl-panel"],
 html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"],
 html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
 html[data-icon-blink~="terminal"] .panel-rail-tab[data-action-id="terminal"],
+html[data-icon-blink~="intent-canvas"] .panel-rail-tab[data-action-id="intent-canvas"],
 html[data-icon-blink~="session-board"] .titlebar-action[data-action-id="session-board"],
 html[data-icon-blink~="remote-control"] .remote-control-badge svg,
 html[data-icon-blink~="worktree"] .ws-worktree-cluster-label,
@@ -56,6 +60,9 @@ html[data-icon-blink~="worktree"] .ws-worktree-cluster .is-worktree-icon svg {
   html[data-icon-blink~="panel-checkpoints"] .panel-rail-tab[data-panel-id="checkpoints"] svg,
   html[data-icon-blink~="panel-memory"] .panel-rail-tab[data-panel-id="memory"] svg,
   html[data-icon-blink~="panel-marks"] .panel-rail-tab[data-panel-id="marks"] svg,
+  html[data-icon-blink~="panel-approval-inbox"] .panel-rail-tab[data-panel-id="approval-inbox"] svg,
+  html[data-icon-blink~="panel-skill-hub"] .panel-rail-tab[data-panel-id="skill-hub"] svg,
+  html[data-icon-blink~="panel-mcp-hub"] .panel-rail-tab[data-panel-id="mcp-hub"] svg,
   html[data-icon-blink~="ssh-panel"] .panel-rail-tab[data-panel-id="ssh"],
   html[data-icon-blink~="system-proxy"] .settings-bar-btn[data-action-id="system-proxy"],
   html[data-icon-blink~="system-proxy"] .settings-menu-row[data-action-id="system-proxy"] .settings-menu-icon,
@@ -63,6 +70,7 @@ html[data-icon-blink~="worktree"] .ws-worktree-cluster .is-worktree-icon svg {
   html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"],
   html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
   html[data-icon-blink~="terminal"] .panel-rail-tab[data-action-id="terminal"],
+  html[data-icon-blink~="intent-canvas"] .panel-rail-tab[data-action-id="intent-canvas"],
   html[data-icon-blink~="session-board"] .titlebar-action[data-action-id="session-board"],
   html[data-icon-blink~="remote-control"] .remote-control-badge svg,
   html[data-icon-blink~="worktree"] .ws-worktree-cluster-label,

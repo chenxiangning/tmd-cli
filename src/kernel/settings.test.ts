@@ -100,8 +100,8 @@ describe("初始状态与默认值", () => {
         newchat: { blink: true },
         "ssh-panel": {}, "system-proxy": {},
         "panel-files": {}, "panel-git": {}, "panel-checkpoints": {}, "panel-memory": {},
-        "panel-marks": {}, "wsl-panel": {}, terminal: {}, "session-board": {}, "remote-control": {},
-        worktree: {},
+        "panel-marks": {}, "panel-approval-inbox": {}, "panel-skill-hub": {}, "panel-mcp-hub": {},
+        "wsl-panel": {}, terminal: {}, "intent-canvas": {}, "session-board": {}, "remote-control": {}, worktree: {},
       },
       relayDeployHistory: [],
     });

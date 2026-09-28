@@ -127,6 +127,10 @@ export const MESSAGES = {
   "文件面板": "ファイルパネル",
   "审批线面板": "チェックポイントパネル",
   "Memory 面板": "Memory パネル",
+  "审批收件箱面板": "承認受信箱パネル",
+  "Skills 面板": "Skills パネル",
+  "MCP 面板": "MCP パネル",
+  "意图画布入口": "意図キャンバス入口",
   "颜色": "色",
   "闪烁": "呼吸",
   // 插件注册表 meta(name/desc 原串;消费点 = PluginMarketList 卡片与命令抽屉,t(plugin.meta.*))

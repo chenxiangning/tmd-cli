@@ -127,6 +127,10 @@ export const MESSAGES = {
   "文件面板": "Files panel",
   "审批线面板": "Checkpoints panel",
   "Memory 面板": "Memory panel",
+  "审批收件箱面板": "Inbox panel",
+  "Skills 面板": "Skills panel",
+  "MCP 面板": "MCP panel",
+  "意图画布入口": "Intent canvas entry",
   "颜色": "Color",
   "闪烁": "Breathing",
 

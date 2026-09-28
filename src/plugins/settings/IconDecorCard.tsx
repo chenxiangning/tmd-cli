@@ -1,5 +1,5 @@
 /**
- * 基础设置 / 外观 tab 的图标装饰卡 —— 12 个界面图标的独立颜色与呼吸闪烁(可折叠)。
+ * 基础设置 / 外观 tab 的图标装饰卡 —— 17 个界面图标的独立颜色与呼吸闪烁(可折叠,两列)。
  * 键清单是 UI 知识(键 = kernel/iconDecor.ts 的 CSS 变量约定 id);全部写 kernel/settings
  * store 即时生效,应用由 kernel/iconDecor.ts 同步到 <html>,预览图标即时反映自定义色。
  */
@@ -7,8 +7,10 @@
 import { useState, type ComponentType } from "react";
 import {
   ArrowCounterClockwise,
+  BellRinging,
   BookmarkSimple,
   Brain,
+  Compass,
   GitFork,
   CalendarDots,
   CaretDown,
@@ -18,6 +20,8 @@ import {
   GitBranch,
   HardDrive,
   MonitorPlay,
+  PlugsConnected,
+  PuzzlePiece,
   RocketLaunch,
   SealCheck,
   TerminalWindow,
@@ -66,6 +70,7 @@ const ICON_DECOR_ITEMS: ReadonlyArray<{
   { id: "system-proxy", label: "网络代理", icon: LadderIcon },
   { id: "wsl-panel", label: "WSL 入口", icon: Desktop },
   { id: "terminal", label: "内置终端", icon: TerminalWindow },
+  { id: "intent-canvas", label: "意图画布入口", icon: Compass },
   { id: "session-board", label: "会话看板", icon: CalendarDots },
   { id: "remote-control", label: "远程控制", icon: MonitorPlay },
   { id: "panel-files", label: "文件面板", icon: Folder },
@@ -73,6 +78,9 @@ const ICON_DECOR_ITEMS: ReadonlyArray<{
   { id: "panel-checkpoints", label: "审批线面板", icon: SealCheck },
   { id: "panel-memory", label: "Memory 面板", icon: Brain },
   { id: "panel-marks", label: "标记面板", icon: BookmarkSimple },
+  { id: "panel-approval-inbox", label: "审批收件箱面板", icon: BellRinging },
+  { id: "panel-skill-hub", label: "Skills 面板", icon: PuzzlePiece },
+  { id: "panel-mcp-hub", label: "MCP 面板", icon: PlugsConnected },
   { id: "worktree", label: "Worktree 簇", icon: GitFork },
 ];
 type _ItemsCoverAllKeys = Exclude<IconDecorId, (typeof ICON_DECOR_ITEMS)[number]["id"]> extends never
@@ -116,7 +124,8 @@ export function IconDecorCard() {
           <div className="pref-desc">
             {t("逐图标自定义颜色与呼吸闪烁;有开关两态的图标仅作用于点亮色。")}
           </div>
-          {ICON_DECOR_ITEMS.map(({ id, label, icon: Icon }) => {
+          <div className="icon-decor-grid">
+            {ICON_DECOR_ITEMS.map(({ id, label, icon: Icon }) => {
             const item = settings.iconDecor[id];
             const isDefault =
               !item.color &&
@@ -177,7 +186,8 @@ export function IconDecorCard() {
                 </div>
               </div>
             );
-          })}
+            })}
+          </div>
         </>
       )}
     </div>
