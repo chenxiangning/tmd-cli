@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { CaretDownIcon, CaretRightIcon, PencilSimpleIcon, PlayIcon, SparkleIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, CaretRightIcon, PencilSimpleIcon, PlayIcon, MagicWandIcon } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { DialogShell } from "@kernel/DialogShell";
 import { StyledSelect } from "@kernel/StyledSelect";
@@ -132,7 +132,7 @@ export function EnhanceDialog({
   return (
     <DialogShell
       title={t("增强提示词")}
-      icon={<SparkleIcon size="0.875rem" className="text-(--tmd-accent)" weight="fill" />}
+      icon={<MagicWandIcon size="0.875rem" className="text-(--tmd-accent)" weight="fill" />}
       width={880}
       locked={running}
       onClose={onClose}

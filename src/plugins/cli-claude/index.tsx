@@ -1,6 +1,5 @@
 import { ClaudeGlyph } from "../cli-shared/engineGlyphs";
 import { ipc } from "@kernel/ipc";
-import { t } from "@kernel/i18n";
 import {
   claudeUserMessageLine,
   readUserMessagesFromFile,
@@ -119,7 +118,9 @@ export function extractClaudeMcpServers(json: string, cwd: string): CliSuggestio
   }
   return Array.from(byName, ([name, source]) => ({
     value: name,
-    description: `MCP · ${t(source)}`,
+    /* description 存中文源串:fetch 期有 60s 缓存,渲染期由 DrawerItemList t() 包裹
+       (整串键见 locales cli 域),避免切语言后缓存残留旧语言(评审 P2-1)。 */
+    description: `MCP · ${source}`,
     action: "send" as const,
     icon: "server",
     token: "/mcp ",

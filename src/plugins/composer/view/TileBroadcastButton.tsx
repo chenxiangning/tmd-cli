@@ -50,7 +50,7 @@ export function TileBroadcastButton() {
         <BroadcastIcon size="0.875rem" />
       </button>
       {toast && (
-        <div className="composer-broadcast-toast" role="status">
+        <div className="composer-rail-toast" role="status">
           {t("广播已开启:发送将进入平铺全部幕布")}
         </div>
       )}

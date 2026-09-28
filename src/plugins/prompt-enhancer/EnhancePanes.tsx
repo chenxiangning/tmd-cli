@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useRef } from "react";
-import { SparkleIcon } from "@phosphor-icons/react";
+import { MagicWandIcon } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import type { EnhanceOutcome } from "./enhanceEngines";
 
@@ -64,7 +64,7 @@ export function EnhancedPane({
   return (
     <div className="flex min-w-0 flex-col">
       <div className="flex items-center gap-1 text-xs text-(--tmd-fg-muted)">
-        <SparkleIcon size="0.75rem" className="text-(--tmd-accent)" />
+        <MagicWandIcon size="0.75rem" className="text-(--tmd-accent)" />
         {t("增强后的提示词")}
         <span className="ml-auto">{paneStatus(running, fail, enhanced, fromCache)}</span>
         {showBadge && (

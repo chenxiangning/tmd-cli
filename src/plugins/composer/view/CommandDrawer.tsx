@@ -5,8 +5,9 @@
  * - 分区切换改左缘竖排图标 rail(按实际数据渲染,文案进 title/aria-label;
  *   rail 顶部挂关闭、底部挂计数)
  * - 三种点击:⚡ send = 直接写入幕布 / ↵ insert = 插入输入框 / ⇱ open = 打开插件面板
- * - 打开时重置为「全部」;不点外自动关闭(显式关闭:开关按钮/⌘K/Esc/rail ×),
- *   ↑↓ + Enter 键盘导航(仅可见条目,焦点驻留抽屉容器 —— 搜索框已移除)
+ * - 打开落位:有意图落意图分区,无意图落「全部」(两阶段终拍校验);不点外自动关闭
+ *   (显式关闭:开关按钮/⌘K/Esc/rail ×),↑↓ + Enter 键盘导航(仅可见条目,
+ *   焦点驻留抽屉容器 —— 搜索框已移除)
  *
  * 执行机制不在本组件:点击经 onSend/onInsert/onOpen 回调交回 Composer
  * (send 走 prepareSendPayload → host.writeSession,与手动发送同路径)。
@@ -15,9 +16,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Cross } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { isDrawerOpen, setDrawerOpen } from "../state/drawerOpen";
+import {
+  applyDrawerSection,
+  isDrawerOpen,
+  setDrawerOpen,
+  useDrawerResolved,
+  useDrawerSection,
+} from "../state/drawerOpen";
 import { isConfirmPending } from "./sendPlan";
 import type { DrawerItem, DrawerSection } from "../drawerItems";
+import { nextDrawerTab } from "./drawerLanding";
 import { SECTION_META, SECTION_ORDER, SECTION_TAB_ICONS } from "./drawerSections";
 import { DrawerItemList } from "./DrawerItemList";
 
@@ -56,10 +64,31 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
     [items, tab],
   );
 
-  /* 打开即重置(先重置再渲染 —— demo 阶段修过的状态残留教训),焦点驻留抽屉容器 */
+  /* 分区落位裁决(spec 2026-09-28 P0-1:两阶段数据可判后才定夺,开帧先落意图
+     分区,终拍无条目回落「全部」;P2-4:profile 切换 tab 归一)。
+     landedOnce = 开帧只落位一次;tab 变化镜像回 store(轨图标 active/toggle 判定)。 */
+  const want = useDrawerSection();
+  const resolved = useDrawerResolved();
+  const landedOnce = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      landedOnce.current = false;
+      return;
+    }
+    const fresh = !landedOnce.current;
+    landedOnce.current = true;
+    const next = nextDrawerTab({ tab, want, resolved, sections, fresh });
+    if (next !== null && next !== tab) {
+      setTab(next);
+      setActiveIndex(-1);
+    }
+    /* 落位即镜像(意图消费完/终拍回落都会改 tab;null = 已收敛不动) */
+    if (next !== null) applyDrawerSection(next);
+  }, [open, want, resolved, sections, tab]);
+
+  /* 打开即重置选中 + 焦点驻留抽屉容器(仅开帧一次,不随裁决落位重抢输入框焦点) */
   useEffect(() => {
     if (!open) return;
-    setTab("all");
     setActiveIndex(-1);
     const t = setTimeout(() => asideRef.current?.focus(), 120);
     return () => clearTimeout(t);
@@ -215,7 +244,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
               aria-selected={tab === key}
               aria-label={label}
               title={label}
-              onClick={() => { setTab(key); setActiveIndex(-1); }}
+              onClick={() => { setTab(key); setActiveIndex(-1); applyDrawerSection(key); }}
               className={`grid h-7 w-full cursor-pointer place-items-center rounded-md transition-colors ${
                 tab === key
                   ? "bg-(--tmd-accent-soft) text-(--tmd-accent)"

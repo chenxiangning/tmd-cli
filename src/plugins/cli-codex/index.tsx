@@ -1,6 +1,5 @@
 import { CodexGlyph } from "../cli-shared/engineGlyphs";
 import { ipc } from "@kernel/ipc";
-import { t } from "@kernel/i18n";
 import {
   codexUserMessageLine,
   findJsonlSessionFile,
@@ -15,6 +14,7 @@ import { fetchCodexQuota } from "./quota";
 import type { CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { listCodexSuggestions } from "./scanSuggestions";
+import { extractTomlMcpServers } from "../cli-shared/mcpFormat";
 import { codexConfigEntry } from "./configGui";
 import { applyCodexChannel } from "./channelApply";
 import { CODEX_ACADEMY_COURSE } from "./academy/academyCatalog";
@@ -94,29 +94,14 @@ export const CODEX_COMMAND_SUGGESTIONS: CliSuggestion[] = [
 
 /**
  * MCP 配置真相 = ~/.codex/config.toml 的 [mcp_servers.<name>] 段(本机实证)。
- * 点击语义:insert "$<name>"(codex 原生 $ mention)。TOML 不引解析库:
- * 轻量按行提取段头即可,name + command 够抽屉展示。
+ * 点击语义:insert "$<name>"(codex 原生 $ mention)。段头提取走
+ * cli-shared/mcpFormat(与 cli-grok 共享,codex 多展示 command 键故保留本地合成)。
  * 纯函数可测;解析失败由调用方兜底为空。
  */
 export function extractCodexMcpServers(toml: string): CliSuggestion[] {
-  const found: { name: string; command?: string }[] = [];
-  let current: { name: string; command?: string } | null = null;
-  for (const rawLine of toml.split("\n")) {
-    const line = rawLine.trim();
-    const header = line.match(/^\[mcp_servers\.([^.\]]+)\]$/);
-    if (header) {
-      if (current) found.push(current);
-      current = { name: header[1] };
-      continue;
-    }
-    if (!current) continue;
-    const cmd = line.match(/^command\s*=\s*"([^"]*)"/);
-    if (cmd) current.command = cmd[1];
-  }
-  if (current) found.push(current);
-  return found.map((s) => ({
+  return extractTomlMcpServers(toml).map((s) => ({
     value: s.name,
-    description: s.command ? `MCP · ${s.command}` : t("MCP 服务器"),
+    description: s.command ? `MCP · ${s.command}` : "MCP 服务器",
     action: "insert" as const,
     icon: "server",
     token: `$${s.name} `,

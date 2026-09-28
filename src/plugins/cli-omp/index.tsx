@@ -8,6 +8,7 @@ import { fetchOmpQuota } from "./quota";
 import { ompSessionsDir, readOmpSessionEdits } from "./edits";
 import { ompAcquireResume, startOmpPrewarmManager, stopOmpPrewarmManager } from "./prewarm";
 import { listOmpSuggestions } from "./rpcCommands";
+import { listOmpMcpServers } from "./mcpServers";
 import { OmpExtensionMarket } from "./market";
 import { OMP_ACADEMY_COURSE } from "./academy/academyCatalog";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
@@ -127,6 +128,9 @@ export const cliOmpPlugin: Plugin = {
       },
       /* 命令/技能真相:RPC 副车 get_available_commands(含扩展注册命令与子命令),静态表兜底 */
       listSuggestions: listOmpSuggestions,
+      /* MCP 真相 = ~/.omp/agent/mcp.json + 项目 .omp/mcp.json(双候选名);
+         点击 send "/mcp"(academy 实证 omp TUI 管理面板,17 子命令)。 */
+      listMcpServers: listOmpMcpServers,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       /* 打开历史会话的预热接管(个性化能力;机制与降级护栏见 ./prewarm.ts):
        * 命中预热进程注入 /resume 热切换(0.24-1.2s),失配回落默认冷路径。 */

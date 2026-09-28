@@ -16,7 +16,7 @@ import { setFilePanelMode } from "@kernel/filePanel";
 import { prepareSendPayload } from "@kernel/profileSend";
 import { buildSinglePlan, isConfirmPending, setSendExecuting, type SendConfirmRequest } from "./sendPlan";
 import { insertAtCursor } from "./useComposerAttachments";
-import { useDrawerOpen } from "../state/drawerOpen";
+import { setDrawerResolved, useDrawerOpen } from "../state/drawerOpen";
 import {
   resolveProfileDrawerItems,
   resolvePluginDrawerItems,
@@ -62,18 +62,25 @@ export function useComposerDrawer({
   const [drawerItems, setDrawerItems] = useState<DrawerItem[]>([]);
   useEffect(() => {
     if (!drawerOpen) return;
+    /* 落位裁决信号:本拍从「未解析」起步,动态到达置 resolved(裁决见 drawerLanding) */
+    setDrawerResolved(false);
     if (!profile) {
       /* 会话消失(profile → null)时清掉上一个 CLI 的残留条目,只留插件区 */
       setDrawerItems(resolvePluginDrawerItems());
+      setDrawerResolved(true);
       return;
     }
     /* 两阶段渲染:先静态(零 IO,omp/pi RPC 冷启动 5-6s 期间抽屉不空白),
        动态发现到达后整体替换(profile → null 分支同款只留插件区) */
     setDrawerItems([...staticProfileDrawerItems(profile), ...resolvePluginDrawerItems()]);
     let cancelled = false;
-    void resolveProfileDrawerItems(profile, cwd).then((items) => {
-      if (!cancelled) setDrawerItems([...items, ...resolvePluginDrawerItems()]);
-    });
+    void resolveProfileDrawerItems(profile, cwd)
+      .catch(() => null) /* 整体失败 = 只留静态,同样算解析落定 */
+      .then((items) => {
+        if (cancelled) return;
+        if (items) setDrawerItems([...items, ...resolvePluginDrawerItems()]);
+        setDrawerResolved(true);
+      });
     return () => { cancelled = true; };
   }, [drawerOpen, profile, cwd]);
 

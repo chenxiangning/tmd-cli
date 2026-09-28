@@ -13,6 +13,7 @@ import { fetchGrokQuota } from "./quota";
 import type { CliProfile, CliSuggestion } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { listGrokSuggestions } from "./inspectSkills";
+import { listGrokMcpServers } from "./mcpServers";
 import {
   grokSessionsDir,
   listGrokSessions,
@@ -91,6 +92,9 @@ export const cliGrokPlugin: Plugin = {
       /* 命令/技能真相:grok inspect --json 枚举全层技能(用户/项目/兼容/插件);
          命令不可枚举 → listSuggestions 只供 skill,command 走静态表 */
       listSuggestions: listGrokSuggestions,
+      /* MCP 真相 = ~/.grok/config.toml 的 [mcp_servers.*] 段(TOML 提取走
+         cli-shared/mcpFormat,与 codex 共享);点击 send "/mcps"(academy 实证,复数)。 */
+      listMcpServers: listGrokMcpServers,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listGrokSessions,
       /* 会话卫生判空:path = 会话目录,真实对话在 chat_history.jsonl

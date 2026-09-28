@@ -9,6 +9,7 @@ import type {
 import type { Plugin } from "@kernel/plugin";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 import { PI_TUI_ECHO_MARKS } from "../cli-shared/echoMarks";
+import { listKimiMcpServers } from "./mcpServers";
 import { listKimiSuggestions } from "./scanSuggestions";
 import {
   listKimiSessions,
@@ -126,6 +127,9 @@ export const cliKimiPlugin: Plugin = {
       /* 技能真相:扫 ~/.kimi-code/skills + 项目 .kimi-code/skills + ~/.agents/skills
          (目录式与平铺 .md 双形态);kimi 无独立命令概念,命令走静态表 */
       listSuggestions: listKimiSuggestions,
+      /* MCP 真相 = ~/.kimi-code/mcp.json + 项目 .kimi-code/mcp.json(dist 实证三层读源,
+         旧居 ~/.kimi 无服务器存储不扫);点击 send "/mcp"(状态面板命令,dist 实证)。 */
+      listMcpServers: listKimiMcpServers,
       resumeArgs: (sessionId) => ["--session", sessionId],
       bracketedPaste: true,
       listSessions: listKimiSessions,
