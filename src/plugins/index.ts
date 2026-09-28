@@ -33,6 +33,7 @@ import { localLoaderPlugin } from "./local-loader";
 import { wslPlugin } from "./wsl";
 import { wallpaperPlugin } from "./wallpaper";
 import { sessionBoardPlugin } from "./session-board";
+import { intentCanvasPlugin } from "./intent-canvas";
 import { webAccessPlugin } from "./web-access";
 import { searchPlugin } from "./search";
 import { lspPlugin } from "./lsp";
@@ -71,6 +72,7 @@ export const allPlugins: Plugin[] = [
   wslPlugin,
   wallpaperPlugin,
   sessionBoardPlugin,
+  intentCanvasPlugin,
   marksPlugin,
   webAccessPlugin,
   searchPlugin,

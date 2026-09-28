@@ -28,6 +28,7 @@ const OPENABLE_KINDS = [
   "wsl",
   "memory-console",
   "academy.guide",
+  "intent-canvas",
 ] as const;
 
 function activateCollectingKinds(): Set<string> {

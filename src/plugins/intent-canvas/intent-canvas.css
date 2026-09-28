@@ -1,0 +1,188 @@
+/**
+ * 意图画布样式 —— 全量重写为 tmd-cli 词汇(--tmd-* 变量,浅色优先,mossx 1410 行
+ * 深色系 css 不复用)。类名保持移植组件的语义钩子;尺寸随全局字号(rem)。
+ * 视觉基准:右栏面板/设置卡片同族(细边框卡片 + 弱化前缀文字 + accent 主按钮)。
+ */
+/* ---------- 布局壳 ---------- */
+.intent-canvas-manager { position: relative; display: flex; flex-direction: column; gap: 0.75rem; height: 100%; overflow-y: auto; padding: 1rem 1.25rem 2.5rem; background: var(--tmd-bg-base); }
+.intent-canvas-manager.is-empty { align-items: center; justify-content: center; }
+/* ---------- 管理页头 ---------- */
+.intent-canvas-manager-hero { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+.intent-canvas-manager-identity { display: flex; flex-direction: column; gap: 0.125rem; margin-right: auto; }
+.intent-canvas-manager-identity h2 { font-size: 1rem; font-weight: 600; color: var(--tmd-fg); }
+.intent-canvas-manager-identity p { font-size: 0.6875rem; color: var(--tmd-fg-muted); }
+.intent-canvas-search { display: flex; align-items: center; gap: 0.375rem; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-input); padding: 0.3125rem 0.625rem; color: var(--tmd-fg-muted); }
+.intent-canvas-search svg { width: 0.8125rem; height: 0.8125rem; flex: none; }
+.intent-canvas-search input { width: 15rem; border: 0; outline: 0; background: transparent; font-size: 0.75rem; color: var(--tmd-fg); }
+.intent-canvas-search input::placeholder { color: var(--tmd-fg-faint); }
+.intent-canvas-manager-actions { display: flex; align-items: center; gap: 0.375rem; }
+/* ---------- 通用按钮(卡片/工具条同族) ---------- */
+.intent-canvas-manager-actions button,
+.intent-canvas-editor-actions button,
+.intent-canvas-bulk-actions button,
+.intent-canvas-empty-state button,
+.intent-canvas-era-select { display: inline-flex; align-items: center; gap: 0.3125rem; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-panel); padding: 0.3125rem 0.625rem; font-size: 0.75rem; color: var(--tmd-fg); cursor: pointer; transition: background 120ms ease, border-color 120ms ease; }
+.intent-canvas-manager-actions button:hover:not(:disabled),
+.intent-canvas-editor-actions button:hover:not(:disabled),
+.intent-canvas-bulk-actions button:hover:not(:disabled),
+.intent-canvas-empty-state button:hover:not(:disabled),
+.intent-canvas-era-select:hover { background: var(--tmd-bg-hover); }
+.intent-canvas-manager-actions button:disabled,
+.intent-canvas-editor-actions button:disabled,
+.intent-canvas-bulk-actions button:disabled { opacity: 0.45; cursor: default; }
+.intent-canvas-manager-actions button svg,
+.intent-canvas-editor-actions button svg,
+.intent-canvas-bulk-actions button svg,
+.intent-canvas-empty-state button svg,
+.intent-canvas-icon-button svg,
+.intent-canvas-card-actions button svg,
+.intent-canvas-source-refresh svg { width: 0.8125rem; height: 0.8125rem; }
+.intent-canvas-manager-actions button.is-primary,
+.intent-canvas-editor-actions button.is-primary,
+.intent-canvas-empty-state button.is-primary { border-color: transparent; background: var(--tmd-accent); color: var(--tmd-accent-fg); }
+.intent-canvas-manager-actions button.is-primary:hover:not(:disabled),
+.intent-canvas-editor-actions button.is-primary:hover:not(:disabled),
+.intent-canvas-empty-state button.is-primary:hover:not(:disabled) { background: var(--tmd-accent); filter: brightness(1.06); }
+.intent-canvas-manager-actions button.is-icon { padding: 0.3125rem; }
+.intent-canvas-ai-draw-toggle.is-active { border-color: var(--tmd-accent); background: var(--tmd-accent-soft); color: var(--tmd-accent); }
+.intent-canvas-bulk-actions button.is-danger,
+.intent-canvas-card-actions button.is-danger,
+.intent-canvas-confirm-actions button.is-danger { border-color: var(--tmd-err); color: var(--tmd-err); }
+/* ---------- 提示条 ---------- */
+.intent-canvas-warning,
+.intent-canvas-error,
+.intent-canvas-ai-draw-notice { display: flex; align-items: center; gap: 0.375rem; border-radius: var(--tmd-radius-md); border: 1px solid var(--tmd-border); padding: 0.375rem 0.625rem; font-size: 0.6875rem; }
+.intent-canvas-warning,
+.intent-canvas-ai-draw-notice { border-color: var(--tmd-ok); color: var(--tmd-ok); background: color-mix(in srgb, var(--tmd-ok) 8%, transparent); }
+.intent-canvas-error { border-color: var(--tmd-err); color: var(--tmd-err); background: color-mix(in srgb, var(--tmd-err) 8%, transparent); }
+/* ---------- era 分组列表 ---------- */
+.intent-canvas-eras { display: flex; flex-direction: column; gap: 1.25rem; }
+.intent-canvas-era { display: grid; grid-template-columns: 9rem 1fr; gap: 0.875rem; align-items: start; }
+.intent-canvas-era-rail { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.25rem 0.75rem 0.25rem 0; border-right: 1px solid var(--tmd-border); position: sticky; top: 0; }
+.intent-canvas-era-rail h3 { font-size: 0.8125rem; font-weight: 600; color: var(--tmd-fg); }
+.intent-canvas-era-agg { font-size: 0.6875rem; color: var(--tmd-fg-muted); }
+.intent-canvas-era-cleanup { font-size: 0.6875rem; color: var(--tmd-warn, var(--tmd-accent)); }
+.intent-canvas-era-select { align-self: flex-start; padding: 0.1875rem 0.5rem; font-size: 0.6875rem; }
+.intent-canvas-era-deck { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 0.625rem; }
+/* ---------- 画布卡片 ---------- */
+.intent-canvas-home-card { position: relative; display: flex; flex-direction: column; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-lg); background: var(--tmd-bg-panel); transition: border-color 120ms ease, box-shadow 120ms ease; }
+.intent-canvas-home-card:hover { border-color: var(--tmd-border-strong); }
+.intent-canvas-home-card.is-selected { border-color: var(--tmd-accent); box-shadow: 0 0 0 1px var(--tmd-accent); }
+.intent-canvas-home-card-open { display: flex; flex-direction: column; gap: 0; border: 0; padding: 0; background: transparent; cursor: pointer; text-align: left; }
+.intent-canvas-thumb { display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: var(--tmd-radius-lg) var(--tmd-radius-lg) 0 0; height: 6.25rem; background: var(--tmd-bg-sunken); color: var(--tmd-fg-faint); }
+.intent-canvas-thumb-svg,
+.intent-canvas-thumb-placeholder { width: 100%; height: 100%; }
+.intent-canvas-home-card-body { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.5rem 0.625rem 0; }
+.intent-canvas-home-card-body h3 { display: flex; align-items: center; gap: 0.375rem; font-size: 0.8125rem; font-weight: 600; color: var(--tmd-fg); }
+.intent-canvas-home-card-body h3 span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intent-canvas-stale-tag { flex: none; border-radius: 999px; border: 1px solid var(--tmd-warn, var(--tmd-accent)); padding: 0 0.375rem; font-size: 0.625rem; font-weight: 400; color: var(--tmd-warn, var(--tmd-accent)); }
+.intent-canvas-home-card-body p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 0.6875rem; color: var(--tmd-fg-muted); }
+.intent-canvas-home-card-foot { display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.625rem 0.5rem; font-size: 0.625rem; color: var(--tmd-fg-faint); }
+.intent-canvas-mode-badge { flex: none; border-radius: 999px; background: var(--tmd-bg-active); padding: 0.0625rem 0.4375rem; font-size: 0.625rem; color: var(--tmd-fg-muted); }
+.intent-canvas-mode-badge.is-architect { color: var(--tmd-accent); background: var(--tmd-accent-soft); }
+.intent-canvas-stat-inline { display: inline-flex; gap: 0.1875rem; }
+.intent-canvas-stat-inline b { font-weight: 500; color: var(--tmd-fg-muted); }
+.intent-canvas-foot-spacer { flex: 1; }
+.intent-canvas-home-card-selection { position: absolute; top: 0.4375rem; right: 2.1rem; }
+.intent-canvas-home-card-selection input { accent-color: var(--tmd-accent); }
+.intent-canvas-card-actions { position: absolute; top: 0.4375rem; right: 0.4375rem; display: flex; gap: 0.25rem; }
+.intent-canvas-card-actions button { display: inline-flex; border: 0; border-radius: var(--tmd-radius-sm); background: color-mix(in srgb, var(--tmd-bg-base) 78%, transparent); padding: 0.25rem; color: var(--tmd-fg-muted); cursor: pointer; }
+.intent-canvas-card-actions button:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.intent-canvas-card-actions button svg { width: 0.75rem; height: 0.75rem; }
+/* ---------- 批量条 / 确认气泡 ---------- */
+.intent-canvas-bulk-toolbar { position: relative; display: flex; align-items: center; gap: 0.625rem; border: 1px solid var(--tmd-accent); border-radius: var(--tmd-radius-md); background: var(--tmd-accent-soft); padding: 0.375rem 0.625rem; font-size: 0.6875rem; color: var(--tmd-fg); }
+.intent-canvas-bulk-actions { display: flex; align-items: center; gap: 0.375rem; margin-left: auto; }
+.intent-canvas-action-popover-shell { position: absolute; z-index: 30; top: calc(100% + 0.375rem); right: 0.5rem; min-width: 16rem; }
+.intent-canvas-confirm-bubble { display: flex; flex-direction: column; gap: 0.25rem; border: 1px solid var(--tmd-border-strong); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-popover); box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--tmd-fg) 14%, transparent); padding: 0.625rem 0.75rem; }
+.intent-canvas-confirm-bubble strong { font-size: 0.75rem; color: var(--tmd-fg); }
+.intent-canvas-confirm-bubble p { font-size: 0.6875rem; color: var(--tmd-fg); }
+.intent-canvas-confirm-bubble small { font-size: 0.625rem; color: var(--tmd-fg-muted); }
+.intent-canvas-confirm-actions { display: flex; justify-content: flex-end; gap: 0.375rem; margin-top: 0.25rem; }
+.intent-canvas-confirm-actions button { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-panel); padding: 0.1875rem 0.5625rem; font-size: 0.6875rem; color: var(--tmd-fg); cursor: pointer; }
+.intent-canvas-confirm-actions button:hover:not(:disabled) { background: var(--tmd-bg-hover); }
+/* ---------- 空态 / 加载 ---------- */
+.intent-canvas-empty-state,
+.intent-canvas-loading { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 2.5rem 1rem; color: var(--tmd-fg-muted); }
+.intent-canvas-empty-state svg { width: 1.75rem; height: 1.75rem; color: var(--tmd-fg-faint); }
+.intent-canvas-empty-state h2,
+.intent-canvas-empty-state h3 { font-size: 0.9375rem; font-weight: 600; color: var(--tmd-fg); }
+.intent-canvas-empty-state p { max-width: 26rem; text-align: center; font-size: 0.75rem; }
+.intent-canvas-manager .is-spinning,
+.intent-canvas-editor .is-spinning { animation: intent-canvas-spin 900ms linear infinite; }
+@keyframes intent-canvas-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+/* ---------- 编辑器 ---------- */
+.intent-canvas-editor { position: relative; display: flex; flex-direction: column; height: 100%; background: var(--tmd-bg-base); }
+.intent-canvas-editor-topbar { display: flex; align-items: center; gap: 0.75rem; border-bottom: 1px solid var(--tmd-border); padding: 0.4375rem 0.75rem; }
+.intent-canvas-editor-titlebar { display: flex; align-items: center; gap: 0.625rem; min-width: 0; margin-right: auto; }
+.intent-canvas-icon-button { display: inline-flex; align-items: center; gap: 0.3125rem; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-panel); padding: 0.3125rem 0.625rem; font-size: 0.75rem; color: var(--tmd-fg); cursor: pointer; }
+.intent-canvas-icon-button:hover { background: var(--tmd-bg-hover); }
+.intent-canvas-editor-title-meta h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; font-weight: 600; color: var(--tmd-fg); }
+.intent-canvas-source-link { display: inline-flex; align-items: center; gap: 0.3125rem; border: 0; background: transparent; font-size: 0.6875rem; color: var(--tmd-accent); cursor: pointer; }
+.intent-canvas-editor-actions { display: flex; align-items: center; gap: 0.375rem; }
+.intent-canvas-save-state { font-size: 0.6875rem; color: var(--tmd-fg-faint); }
+.intent-canvas-save-state.is-dirty { color: var(--tmd-accent); }
+.intent-canvas-editor-body { display: grid; grid-template-columns: minmax(0, 15.5rem) minmax(0, 1fr) minmax(0, 15.5rem); grid-template-rows: minmax(0, 1fr); flex: 1; min-height: 0; }
+.intent-canvas-editor-body.is-left-collapsed { grid-template-columns: minmax(0, 2rem) minmax(0, 1fr) minmax(0, 15.5rem); }
+.intent-canvas-editor-body.is-right-collapsed { grid-template-columns: minmax(0, 15.5rem) minmax(0, 1fr) minmax(0, 2rem); }
+.intent-canvas-editor-body.is-left-collapsed.is-right-collapsed { grid-template-columns: minmax(0, 2rem) minmax(0, 1fr) minmax(0, 2rem); }
+/* ---------- 编辑器双栏 ---------- */
+.intent-canvas-rail { display: flex; flex-direction: column; gap: 0.625rem; width: 15.5rem; min-width: 0; overflow-y: auto; overflow-x: hidden; padding: 0.625rem; background: var(--tmd-bg-panel); }
+.intent-canvas-rail.is-right { border-left: 1px solid var(--tmd-border); }
+.intent-canvas-rail.is-left { border-right: 1px solid var(--tmd-border); }
+.intent-canvas-rail.is-collapsed { width: 2rem; align-items: center; }
+.intent-canvas-rail.is-left.is-collapsed,
+.intent-canvas-rail.is-right.is-collapsed { width: 2rem; }
+.intent-canvas-rail-header { display: flex; align-items: center; justify-content: space-between; gap: 0.375rem; }
+.intent-canvas-rail.is-collapsed .intent-canvas-rail-header { flex-direction: column; }
+.intent-canvas-rail-header > span { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.02em; color: var(--tmd-fg-muted); }
+.intent-canvas-rail.is-collapsed .intent-canvas-rail-header > span { writing-mode: vertical-rl; }
+.intent-canvas-rail-toggle { display: inline-flex; align-items: center; gap: 0.25rem; border: 0; background: transparent; padding: 0.1875rem; border-radius: var(--tmd-radius-sm); font-size: 0.625rem; color: var(--tmd-fg-faint); cursor: pointer; }
+.intent-canvas-rail-toggle:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.intent-canvas-rail-toggle svg { width: 0.75rem; height: 0.75rem; }
+.intent-canvas-rail-toggle svg.is-flipped { transform: rotate(180deg); }
+.intent-canvas-card { display: flex; flex-direction: column; gap: 0.375rem; min-width: 0; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 0.625rem 0.6875rem; }
+.intent-canvas-card.is-accent { border-color: color-mix(in srgb, var(--tmd-accent) 38%, var(--tmd-border)); }
+.intent-canvas-card h3 { font-size: 0.75rem; font-weight: 600; color: var(--tmd-fg); }
+.intent-canvas-card > p { font-size: 0.6875rem; color: var(--tmd-fg-muted); }
+.intent-canvas-card label { display: flex; flex-direction: column; gap: 0.1875rem; }
+.intent-canvas-card label > span { font-size: 0.6875rem; color: var(--tmd-fg-muted); }
+.intent-canvas-card input,
+.intent-canvas-card textarea { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-input); padding: 0.3125rem 0.5rem; font-size: 0.75rem; color: var(--tmd-fg); outline: 0; resize: vertical; }
+.intent-canvas-card input:focus,
+.intent-canvas-card textarea:focus { border-color: var(--tmd-accent); }
+.intent-canvas-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.375rem; margin: 0; }
+.intent-canvas-metrics > div { display: flex; flex-direction: column; border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-sunken); padding: 0.3125rem 0.5rem; }
+.intent-canvas-metrics dt { font-size: 0.625rem; color: var(--tmd-fg-muted); }
+.intent-canvas-metrics dd { margin: 0; font-size: 0.875rem; font-weight: 600; color: var(--tmd-fg); }
+.intent-canvas-metrics > div.is-warning dd { color: var(--tmd-warn, var(--tmd-accent)); }
+/* ---------- 来源追溯 ---------- */
+.intent-canvas-source-list { display: flex; flex-direction: column; gap: 0.25rem; }
+.intent-canvas-source-list > strong { font-size: 0.6875rem; color: var(--tmd-fg-muted); }
+.intent-canvas-source-action { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 0.375rem; align-items: center; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-panel); padding: 0.3125rem 0.5rem; text-align: left; cursor: pointer; }
+.intent-canvas-source-action:hover:not(:disabled) { background: var(--tmd-bg-hover); }
+.intent-canvas-source-action:disabled { opacity: 0.5; cursor: default; }
+.intent-canvas-source-action svg { grid-row: span 2; width: 0.75rem; height: 0.75rem; color: var(--tmd-fg-faint); }
+.intent-canvas-source-action span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.6875rem; color: var(--tmd-fg); }
+.intent-canvas-source-action small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.625rem; color: var(--tmd-fg-faint); }
+.intent-canvas-source-action.is-unresolved { border-style: dashed; opacity: 0.7; }
+.intent-canvas-source-notice { display: flex; align-items: center; gap: 0.3125rem; border: 0; background: transparent; padding: 0; font-size: 0.6875rem; color: var(--tmd-fg-muted); text-align: left; }
+.intent-canvas-source-notice svg { width: 0.75rem; height: 0.75rem; flex: none; }
+.intent-canvas-source-notice.is-warning { color: var(--tmd-warn, var(--tmd-accent)); }
+.intent-canvas-source-link-notice { color: var(--tmd-accent); cursor: pointer; }
+.intent-canvas-source-refresh { display: inline-flex; align-items: center; gap: 0.3125rem; align-self: flex-start; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-panel); padding: 0.25rem 0.5rem; font-size: 0.6875rem; color: var(--tmd-fg); cursor: pointer; }
+.intent-canvas-source-refresh:disabled { opacity: 0.5; cursor: default; }
+.intent-canvas-card pre { overflow: auto; max-width: 100%; max-height: 12rem; border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-sunken); padding: 0.4375rem 0.5rem; font-family: var(--tmd-font-mono); font-size: 0.625rem; line-height: 1.5; color: var(--tmd-fg-muted); }
+/* ---------- 中央画布(凹陷画框:tmd 三栏间的嵌入工作面) ---------- */
+.intent-canvas-excalidraw-shell { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 0.5rem 0.625rem; background: var(--tmd-bg-sunken); }
+.intent-canvas-excalidraw-shell .excalidraw { --ui-font: var(--tmd-font-ui); flex: 1; min-height: 0; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); overflow: hidden; background: var(--tmd-bg-base); }
+.intent-canvas-excalidraw-shell .excalidraw .App-menu_top, .intent-canvas-excalidraw-shell .excalidraw .layer-ui__wrapper__top-right { opacity: 0.82; }
+.intent-canvas-editor-statusbar { display: flex; align-items: center; gap: 0.875rem; border-top: 1px solid var(--tmd-border); padding: 0.25rem 0.75rem; font-size: 0.625rem; color: var(--tmd-fg-faint); }
+/* 返回管理确认浮层(dirty 守卫) */
+.intent-canvas-editor-confirm-overlay { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--tmd-bg-base) 55%, transparent); }
+.intent-canvas-editor-confirm-overlay .intent-canvas-confirm-bubble { min-width: 16rem; }
+/* composer 附件芯片内的迷你缩略图 */
+.intent-canvas-chip-preview { display: block; border-radius: 0.375rem; }
+.intent-canvas-chip-preview-bg { fill: var(--tmd-bg-sunken); stroke: var(--tmd-border); }
+.intent-canvas-chip-preview-shape rect,
+.intent-canvas-chip-preview-shape line,
+.intent-canvas-chip-preview-shape ellipse { fill: color-mix(in srgb, var(--tmd-accent) 26%, transparent); stroke: var(--tmd-accent); stroke-width: 6; }

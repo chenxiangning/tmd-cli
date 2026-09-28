@@ -213,4 +213,8 @@
 | 2026-09-27 | [0.2.4 发布前评审(四维度:兼容性/边界泄露/性能/死代码与文档;1×P1 已修、9 项发布前修复落盘、全闸门绿)](review/2026-09-27-release-0.2.4-review.md) | 已完成 |
 | 2026-09-27 | [0.2.5 细化规划:验收与摩擦清零(键盘导航/拒绝引导/退出接力/依赖批已落地;M2 真机 8 项与签名待用户)](brainstorm/2026-09-27-tmd-0.2.5-planning.md) | 已实施 |
 | 2026-09-28 | [插件模块全量评审(两轮:①38 插件边界/兼容/性能/死代码;②正确性/竞态/Rust——发送确认目标漂移、反悔误删用户文件、账本原子写、dsh 部署重试、预热停用闸等 20+ 项已修,3 项记录不动)](review/2026-09-28-plugin-full-review.md) | 已完成 |
+| 2026-09-28 | [意图画布插件设计(mossx 移植 + AI 作画 inbox 通道;Excalidraw 依赖/中央 tab/sidecar 存储/三重开关入口)](superpowers/specs/2026-09-28-intent-canvas-plugin-design.md) | 已实现(三轮评审修复完毕,门禁全绿,1421 桩目检过;待大仙真机验收) |
+| 2026-09-28 | [Skill 与 MCP 集成架构调研(三者关系/十家事实矩阵/委托 CLI vs 独立管理取舍;选定委托+方言写代理)](research/skill-mcp-integration-architecture.md) | 已完成(方案待拍板) |
+| 2026-09-28 | [Composer 底栏技能/MCP 唤醒双图标(输入轨直开抽屉分区;omp/kimi/grok/qoder MCP 发现补齐;管理写面否决)](superpowers/specs/2026-09-28-composer-skill-mcp-rail-design.md) | 已定稿(同日双视角评审裁决修订为 v2,待实施) |
+| 2026-09-28 | [技能/MCP 唤醒双图标设计评审与裁决(交互+契约双视角;2×P0/10×P1/7×P2 全裁决;落盘八条自有设计准则;调研文档四处事实更正)](review/2026-09-28-composer-skill-mcp-rail-review.md) | 已完成 |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
