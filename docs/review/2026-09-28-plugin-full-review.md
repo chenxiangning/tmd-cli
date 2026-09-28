@@ -1,7 +1,7 @@
 # 2026-09-28 插件模块全量评审(边界 / 兼容性 / 性能 / 死代码)
 
 日期:2026-09-28
-状态:已完成(全部修复随本记录提交,全闸门绿)
+状态:已完成(三轮;全部修复随本记录提交)
 
 ## 背景与目标
 
@@ -105,6 +105,53 @@ memory 基建:
 ### 第二轮验证
 
 `pnpm typecheck` / `pnpm test`(371 文件 3011 用例)/ arch / file-size / build / react-doctor 100;`cargo test` 311(含 F-CKPT-001 回归锚点:反悔后两文件断言批后像内容)、clippy -D warnings、fmt --check 全绿。
+
+## 第三轮(2026-09-28,0.2.5 发布收口:待发布增量复核)
+
+范围 `a15f288..HEAD`(收件箱批 5 提交 + 前两轮修复 9 提交,85 文件 +1382/-414,Rust 10 文件);四路并行深读(Rust / 发送链 / checkpoints+收件箱 / 引擎+memory+边界迁移),维度 = 兼容 / 边界 / 性能,并对前两轮全部修复 hunk 逐个回归判定。
+
+### 回归判定
+
+前两轮 hunk 全 SAFE,一处例外:**QuotaChip seq 守卫(引擎侧 F5)判 FIXED-REGRESSION** —— finally 加 seq 闸后,`!profileId` / `!provider` 早退分支失去旧「被取代请求 stale-finally 兜底复位」,切到无 provider 会话后 loading 永卡 true、「更新于」残留上一供应商时刻。修复:早退分支补 `setLoading(false)` + `setFetchedAt(null)`(当次序最新,直接复位安全)。
+
+### CONFIRMED 已修(19 项,按分片)
+
+发送链 / relay:
+- **RELAY-MIDFLIGHT-SWITCH(P2)**:createSession 在途期间目标引擎钮可点,createdRef 赋值晚于 F4 失效 effect,顺序击穿 —— 摘要写进旧引擎会话而 UI 高亮新引擎。修:busy 期禁用目标钮。
+- **RELAY-DEADREF-RETRY-LOOP(P2)**:写失败不清 createdRef,同引擎重试恒复用死会话,错误文案建议的「重试」不可达。修:`!ok` 且会话不在会话表即清引用。
+- **SEND-BCAST-DEGRADE-ACTIVE-DRIFT(P2)**:广播计划退化单发(缺员/开关关)仍取当时活跃指针,F1 漂移场景在降级路径存活。修:优先计划快照内首个仍存活目标,快照全灭按会话已断开报错保草稿。
+- **RELAY-TRANSLATE-PREVIEW-DRIFT(P3)**:接力摘要 = 机器搬运的历史 prompt 原文,translatePrompt 盲译 `$token`→`/skill:` 令首发变技能调用且预览不可见。修:relay 侧 triggers 清空跳过翻译,保留 bracketedPaste/CR 传输包装(预览即所发)。
+- **RELAY-NO-WORKSPACE-SILENT(P3)**:无激活工作区点发送静默 no-op → 守卫放行,落入既有 throw 出「没有可用工作区」。
+- **RELAY-ESC-NO-FOCUS(P3)**:开框无编程聚焦,焦点落 body 后遮罩 onKeyDown 收不到 Esc。修:effect 聚焦 textarea(SendConfirmDialog 同款)。
+- **events.ts promptSent 注释**:「emit 归 composer」已被 F5 推翻 → 纠偏为「常量与轮次闸归 kernel,四写路径同权消费」。
+
+checkpoints:
+- **CKPT-R1(P2,Rust,数据丢失同族)**:undo 把 guard `skip=Some`(符号链接/超限/读失败,守卫无内容)当「守卫时刻不存在」→ `fs::remove_file` 整删盘上用户文件。修:None 分支收窄为 `!existed && skip.is_none()` 才删;skip 路径与孤儿路径同款保守跳过 + 维持已退态。补符号链接回归测试(断言盘上文件内容,`tests/undo.rs`)。
+- **CKPT-R2(P3,Rust)**:seal_stale_foreign 对 build_turn_entry Err 零日志静默丢封口 → match 补日志(与 append 失败对称)。
+- **R3-CKPT-01(P3)**:sealed 批 diff 拉取失败静默删缓存,审阅单永久卡「生成批 diff…」无错误无重试(open 批有 6s 自愈,sealed 无入口)→ 显式错误态 + 重试钮(refreshOpenDiff)。
+- **R3-CKPT-02(P3)**:diffCache 占位 `[]` 与真实空 diff 同形,在途撞任意 emit 闪「+0 −0/本批无差异」假态 → in-flight Set 防重,resolve 前恒 undefined。
+- **R3-CKPT-03(P3)**:byKey 外层键只增不清(会话退出后整份批清单常驻)→ `CKPT_KEY_LIMIT=32` 近似 LRU(dropKey 连带清 diff 缓存/在途/错误态)。
+- **R3-CKPT-04(P3)**:上轮 P1(diffCache 双键)零回归护栏 → 补 store 级 4 用例(prune 只作用同键 / 在途防重不落占位 / 失败可见可重试 / 键上限)+ risk 反斜杠·盘符用例。
+
+approval-inbox:
+- **R3-AB-01(P2)**:自由文本应答失败的 failure 横幅被 refreshInbox 的 alive 启发式同拍自清(host 写前已同步清 ask 位,失败会话必不在等待表)—— 生产路径恒不可见;且他会话写成功顺手清掉别家失败位。修:failure 只随本会话补答成功或 dismiss 清除;测试改生产时序(写前清位)钉存活。
+- **R3-AB-02(P2)**:multi 卡跳题/提交键序按「CLI 恒在 tab0」绝对计数,select Enter 自动跳题后 Submit 回绕到已答题再误代发 Enter(覆盖已答)。修:CardBlock 面板侧 tab 位跟踪(handler 内 ref,跨 ask 由父级 key 重挂载归零),抽 `askCardPanel.tsx`(行数铁则)。
+- **R3-AB-03(P3)**:tab 行按单词 `split(/\s+/)` 推导题数,标题含单空格即裂词虚增 multi/pills/跳题 total → 按 ≥2 空格切分(真机夹具实证的分隔形态),补用例。
+
+引擎侧 / git / 边界:
+- **GIT-R1(P3,Rust)**:normalize_windows_shape 不认 UNC,verbatim-UNC(canonicalize 产 `\\?\UNC\srv\share`)与 porcelain `//srv/share` 永不匹配,UNC 仓 rebase 仍 no-op → `UNC/` 改写 `//` 互认,补单测(纯函数,POSIX 可跑)。
+- **PTY-R1(P3,Rust)**:kill Err 经 `?` 提前返回跳过收尸 wait(Windows 对已自然退出未收尸进程常报错),句柄无主滞留 → 降级日志 + 仍 wait。
+- **GIT-1(P3)**:useGitStatus 值等守卫只装成功路径,非 git 工作区稳态 5s 轮询每拍整面板重渲 → 错误分支同闸。
+- **I18N-1(P3)**:session-budget 工作区标题行入口按钮 title 裸中文漏 `t()` → 补(词典已有键)。
+- **DOC-1(P3)**:fileHistoryTab readPayload 头注宣称 kernel/tabs 路由方消费(不存在;实际消费方 = git 自身视图组件)→ 纠偏。
+
+### 记录不动
+
+无新增(GIT-R1 / PTY-R1 / R3-AB-03 三条 SUSPECTED 已按机械修法就地收口;存量留观项沿用第二轮口径:MC8、F-FS-001)。
+
+### 第三轮验证
+
+本批改动面:`pnpm test` 371 文件 3017 用例全绿;`cargo test` 312(+反悔守卫快照回归)/ clippy -D warnings / fmt 全绿;arch-boundary / file-size(本批文件全部 ≤300,store.ts 拆 diffCache.ts、panel.tsx 抽 askCardPanel.tsx、restore.rs 拆 undo.rs)/ vite build 通过;react-doctor 本批文件 0 违规。仓库全仓闸门(typecheck / file-size / react-doctor 100)暂被并行在途的 intent-canvas 未注册插件(89 类型错误、4 文件超行、react-doctor 违规)阻塞,与本批无关,待其落地后复跑。
 
 ## 验证(第一轮)
 
