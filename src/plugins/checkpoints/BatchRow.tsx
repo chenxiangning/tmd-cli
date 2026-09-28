@@ -12,7 +12,7 @@ import { useEffect } from "react";
 import { Check, ArrowCounterClockwise, ArrowUUpLeft, Lightning } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import type { CkptBatch } from "@kernel/ipc";
-import { loadDiff, refreshOpenDiff } from "./store";
+import { loadDiff, refreshOpenDiff } from "./diffCache";
 import { batchState, type BatchStateKey } from "./batchStateMeta";
 import { BatchHeadButton } from "./BatchRowHead";
 import { ConfirmCard, FileRow, type ConfirmTarget } from "./BatchRowParts";

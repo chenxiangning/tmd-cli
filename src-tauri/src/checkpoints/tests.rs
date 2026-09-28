@@ -27,6 +27,7 @@ mod parallel;
 mod restore;
 mod retention;
 mod session;
+mod undo;
 
 fn io_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();

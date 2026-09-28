@@ -100,7 +100,8 @@ pub fn undo_revert(cwd: &str, batch_id: &str) -> Result<RestoreOutcome, CkptErro
                 crate::session::write_atomic(&full, &data)?;
                 restored.push(path.clone());
             }
-            None => {
+            None if !f.existed && f.skip.is_none() => {
+                // 守卫明确记录「回退前不存在」:反悔 = 删掉回退动作产生的文件
                 if full.symlink_metadata().is_ok() {
                     fs::remove_file(&full)?;
                     deleted.push(path.clone());
@@ -110,6 +111,16 @@ pub fn undo_revert(cwd: &str, batch_id: &str) -> Result<RestoreOutcome, CkptErro
                         reason: "已不存在".into(),
                     });
                 }
+            }
+            None => {
+                // 守卫没能快照内容(符号链接/超限/读取失败,skip=Some):盘上
+                // 文件是用户既有内容,删除 = 误删 —— 与孤儿路径同一保守语义,
+                // 记账不动盘、维持已退态(2026-09-28 三轮评审 CKPT-R1)
+                skipped.push(SkipEntry {
+                    path: path.clone(),
+                    reason: "守卫快照不可用(符号链接/超限/读取失败),无法反悔".into(),
+                });
+                remaining.push(path.clone());
             }
         }
     }

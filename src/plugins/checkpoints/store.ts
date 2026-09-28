@@ -13,7 +13,8 @@
  */
 
 import { useSyncExternalStore } from "react";
-import { ipc, type CkptAnchorMeta, type CkptBatch, type CkptPatch } from "@kernel/ipc";
+import { ipc, type CkptAnchorMeta, type CkptBatch } from "@kernel/ipc";
+import { dropKey, invalidateDiff, pruneDiffCache } from "./diffCache";
 
 interface CwdCkptState {
   batches: CkptBatch[];
@@ -26,23 +27,35 @@ interface CwdCkptState {
 const EMPTY: CwdCkptState = { batches: [], loading: false, error: null, notARepo: false };
 /** key = `${cwd}|${sessionId}` */
 const byKey = new Map<string, CwdCkptState>();
-/** `${cwd}|${sessionId}` → batchId → patches(懒加载;与 byKey 同键 —— 批清单按会话拉取,cwd 键控会让跨会话差集清理误摘他在看的批)。LRU 上限 + refresh 差集。 */
-const diffCache = new Map<string, Map<string, CkptPatch[]>>();
-const DIFF_CACHE_PER_CWD = 24;
+/** byKey 外层键上限:每键一份批清单(≤100 批含文件列表),会话退出后无写路径,
+    不设限 = 长会话多次 resume + 多工作区无界常驻(2026-09-28 三轮 R3-CKPT-03)。 */
+const CKPT_KEY_LIMIT = 32;
 
 const listeners = new Set<() => void>();
 let version = 0;
-function emit() {
+export function emit() {
   version += 1;
   listeners.forEach((fn) => fn());
 }
 
-function stateKey(cwd: string, sessionId: string): string {
+export function stateKey(cwd: string, sessionId: string): string {
   return `${cwd}|${sessionId}`;
 }
 
+/** 写键 + 近似 LRU:重插挪尾(Map 插入序),超限摘最老键并连带清其 diff 态。 */
+function putKey(key: string, state: CwdCkptState): void {
+  byKey.delete(key);
+  byKey.set(key, state);
+  while (byKey.size > CKPT_KEY_LIMIT) {
+    const oldest = byKey.keys().next().value;
+    if (oldest === undefined || oldest === key) break;
+    byKey.delete(oldest);
+    dropKey(oldest);
+  }
+}
+
 function setKey(key: string, patch: Partial<CwdCkptState>): void {
-  byKey.set(key, { ...EMPTY, ...byKey.get(key), ...patch });
+  putKey(key, { ...EMPTY, ...byKey.get(key), ...patch });
   emit();
 }
 
@@ -68,13 +81,13 @@ export function refreshBatches(
   return ipc
     .checkpointList(cwd, sessionId, tmdSessionId)
     .then((batches) => {
-      byKey.set(key, { batches, loading: false, error: null, notARepo: false });
+      putKey(key, { batches, loading: false, error: null, notARepo: false });
       pruneDiffCache(key, batches);
       emit();
     })
     .catch((e: unknown) => {
       const msg = String(e);
-      byKey.set(key, {
+      putKey(key, {
         batches: byKey.get(key)?.batches ?? [],
         loading: false,
         error: msg,
@@ -222,58 +235,6 @@ export async function undoRevertBatch(
   const out = await ipc.checkpointUndoRevert(cwd, batchId);
   invalidateDiff(cwd, sessionId, batchId);
   return out;
-}
-
-function invalidateDiff(cwd: string, sessionId: string, batchId: string): void {
-  diffCache.get(stateKey(cwd, sessionId))?.delete(batchId);
-}
-
-function pruneDiffCache(key: string, batches: CkptBatch[]): void {
-  const per = diffCache.get(key);
-  if (!per) return;
-  const alive = new Set(batches.map((b) => b.id));
-  for (const id of [...per.keys()]) if (!alive.has(id)) per.delete(id);
-}
-
-export function getCachedDiff(cwd: string, sessionId: string, batchId: string): CkptPatch[] | undefined {
-  return diffCache.get(stateKey(cwd, sessionId))?.get(batchId);
-}
-
-export function refreshOpenDiff(cwd: string, sessionId: string, batchId: string): void {
-  diffCache.get(stateKey(cwd, sessionId))?.delete(batchId);
-  loadDiff(cwd, sessionId, batchId);
-}
-
-export function loadDiff(cwd: string, sessionId: string, batchId: string): CkptPatch[] | null {
-  const key = stateKey(cwd, sessionId);
-  const hit = getCachedDiff(cwd, sessionId, batchId);
-  if (hit) {
-    const per = diffCache.get(key);
-    if (per) {
-      per.delete(batchId);
-      per.set(batchId, hit);
-    }
-    return hit;
-  }
-  const per = diffCache.get(key) ?? new Map<string, CkptPatch[]>();
-  per.set(batchId, []); // 占位防重
-  diffCache.set(key, per);
-  /* LRU 上限:超限摘插入序最老(本批占位键最新,不会被摘) */
-  while (per.size > DIFF_CACHE_PER_CWD) {
-    const oldest = per.keys().next().value;
-    if (oldest === undefined || oldest === batchId) break;
-    per.delete(oldest);
-  }
-  ipc
-    .checkpointBatchDiff(cwd, batchId)
-    .then((patches) => {
-      per.set(batchId, patches);
-      emit();
-    })
-    .catch(() => {
-      per.delete(batchId); // 失败允许重试
-    });
-  return null;
 }
 
 // ---- React 绑定 -----------------------------------------------------------

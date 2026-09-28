@@ -108,6 +108,7 @@ export const MESSAGES = {
   "确认回退{target}? 恢复点自动留存。": "Revert {target}? A restore point is kept automatically.",
   "整批({n} 文件)": "whole batch ({n} files)",
   "生成批 diff…": "Generating batch diff…",
+  "批 diff 拉取失败:{msg}": "Failed to load batch diff: {msg}",
   "用户消息": "User message",
   "思考": "Thinking",
   "耗时 {duration}": "Took {duration}",

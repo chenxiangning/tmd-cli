@@ -9,7 +9,7 @@
 import { ArrowCounterClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptBatchFile } from "@kernel/ipc";
-import { getCachedDiff } from "./store";
+import { getCachedDiff } from "./diffCache";
 import { openBatchTab } from "./batchTab";
 
 /** 内联确认卡目标:mode 区分回退(默认,兼容既有 paths 子集语义)与应用。 */

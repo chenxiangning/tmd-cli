@@ -16,7 +16,8 @@ import { CircleNotch } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import type { CkptBatch } from "@kernel/ipc";
-import { approveBatch, getCachedDiff, loadDiff, refreshBatches, refreshOpenDiff, revertBatch, useCkptVersion, useCkptBatches } from "./store";
+import { approveBatch, refreshBatches, revertBatch, useCkptVersion, useCkptBatches } from "./store";
+import { getCachedDiff, getCachedDiffError, loadDiff, refreshOpenDiff } from "./diffCache";
 import { readBatchPayload } from "./batchTab";
 import { extractPromptImages } from "./promptImagesExtract";
 import { Center, FileSections } from "./BatchFileSection";
@@ -94,6 +95,7 @@ function SheetBody({
 }) {
   useCkptVersion();
   const patches = getCachedDiff(cwd, sessionId, batch.id) ?? null;
+  const diffError = getCachedDiffError(cwd, sessionId, batch.id);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [confirmPath, setConfirmPath] = useState<"all" | string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -181,7 +183,20 @@ function SheetBody({
 
       {/* 审阅单 */}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-        {!patches ? (
+        {!patches && diffError ? (
+          <div className="flex flex-col items-center gap-2 pt-10">
+            <div role="alert" className="text-xs text-(--tmd-danger, #e5484d)">
+              {t("批 diff 拉取失败:{msg}", { msg: diffError })}
+            </div>
+            <button
+              type="button"
+              onClick={() => refreshOpenDiff(cwd, sessionId, batch.id)}
+              className="rounded border border-(--tmd-border) px-2 py-1 text-xs text-(--tmd-fg-muted) hover:border-(--tmd-accent) hover:text-(--tmd-accent)"
+            >
+              {t("重试")}
+            </button>
+          </div>
+        ) : !patches ? (
           <div className="flex items-center justify-center gap-2 pt-10 text-(--tmd-fg-faint)">
             <CircleNotch size="0.8125rem" className="animate-spin" aria-hidden /> {t("生成批 diff…")}
           </div>

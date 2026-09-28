@@ -21,4 +21,11 @@ describe("classifyRisk", () => {
     expect(classifyRisk("environments/list.ts")).toBe("normal"); // 目录名带 env 不误伤
     expect(classifyRisk("src/service.ts")).toBe("normal");
   });
+
+  it("反斜杠/盘符形态与正斜杠同判(匹配前归一,三轮 R3-CKPT-04)", () => {
+    expect(classifyRisk(".ssh\\config")).toBe("high");
+    expect(classifyRisk("keys\\id_ed25519")).toBe("high");
+    expect(classifyRisk("C:\\repo\\.env")).toBe("high");
+    expect(classifyRisk("C:\\repo\\src\\main.rs")).toBe("normal");
+  });
 });

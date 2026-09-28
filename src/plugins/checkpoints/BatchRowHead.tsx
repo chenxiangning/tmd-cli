@@ -7,7 +7,7 @@
 import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
 import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptPatch } from "@kernel/ipc";
-import { getCachedDiff } from "./store";
+import { getCachedDiff } from "./diffCache";
 import { openBatchTab } from "./batchTab";
 import { STATE_META, batchState, type BatchStateKey, type BatchStateMeta } from "./batchStateMeta";
 
