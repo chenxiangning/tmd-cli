@@ -4,7 +4,7 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
-## [0.2.5] - 2026-09-27
+## [0.2.5] - 2026-09-29
 
 ### 新增
 
@@ -13,19 +13,34 @@
 - 审批收件箱 omp ask 卡结构化操作:右栏解析 select/multi 问卷卡(问题正文+选项+题目 tab),选项点击代发真实键序(select=移动+回车直选推进、multi=移动+空格勾选,键位语义取自 pi-tui ask-dialog 源码),题目 pill 代发 ⇥ 跳题,Submit pill 一键提交;多问卡在面板内逐题闭环,不再只显示尾流摘录
 - 审批收件箱 ask 卡三缺陷修复(真机报):① 解析只取尾流最后一帧(光标寻址重绘把旧帧选项留在尾里,整尾解析命中旧题);② 日志尾拉取窗 2KB→64KB(整帧数 KB,旧窗把选项块切在窗外)+ 等待期 1.5s 重同步(卡态随 tab/光标演进不再滞后)+ 屏幕采样窗 8 行→24 行带贴底闸(静态卡标记在屏中部,旧窗够不着漏报);③ ask 历史落盘(localStorage 50 条环):行消退/重启后右栏仍可回看问过什么(问题+选项+时刻,指纹去重;**会话绑定**:只记当前正在查看的会话,历史区按激活会话过滤,跨会话不互泄)
 - 异常退出卡接跨引擎接力:退出 toast 在「一键续聊」旁加「转其他引擎接力」,经 kernel 开框桥(relayBridge)送快照源进对话框;摘要走磁盘读取器,会话已退出仍读得到;新会话落位优先源会话工作区;接力插件停用即无钮(随贡献回滚)
+- 意图画布插件:Excalidraw 白板(mossx 移植)——管理页时间分组/搜索/缩略图/批量删除,编辑器双栏(左元数据与结构化关联、右 AI Context 指标与来源追溯),画布可压缩成结构化 JSON 上下文附加到会话发送;新能力「对话中 AI 直接作画」:composer 左下会话级作画标识默认零注入,AI 产物经收件箱通道导入画布,作画标签绑定形状与分层布局提示词、箭头端点吸附节点边缘消穿越重叠,作画通知可点击跳转;配色收敛主题安全调色板,入口 ⌘⌥I
+- skill-hub 插件:十家 CLI 技能扫描与统一安装记录闭环——ClawHub 商店/本地导入/商店安装统一写 installed-skills.json,已装视图带来源徽标与落位摘要,本地导入支持搜索过滤(技能名/描述/引擎标签);本地导入落公约位 ~/.agents/skills 并按引擎 symlink(.claude/skills 等);composer `$` 级联 = 安装记录∩当前 CLI profile 可用
+- mcp-hub 插件:六家 CLI 的 MCP 服务器配置管理(写回走各 CLI 自己的配置文件并预写 .bak-tmd 备份),三源商店(官方注册表/ClawHub/导入桥),mcp_probe 探活;引擎导航收口右栏面板可点行
+- 会话查看器插件:omp/pi/claude/codex/kimi/dsh 六族转录解析零 PTY 只读查看;会话行齿轮环形动作入口(查看/置顶/复制 ID/重命名,磁盘/活/置顶/运行四类行统一);思考链短语随组折叠降噪,纯问答轮还原全尺寸正文
+- composer 输入轨新增技能/MCP 直达双图标,补齐 omp/kimi/grok/qoder 四家 MCP 发现
+- 右缘 rail 与「更多」菜单激活面板可联动打开中央 tab(hub 双插件接入);rail 面板 icon 可逆开合折叠右栏,切换清残留中央 tab
+- 界面功能插排细分为六子组(会话审批/文件工作区/引擎远程/网络Web/智能提示词/桌面辅助)并改横带布局铺满行宽,消竖列留白
+- 设置图标装饰纳入审批收件箱/Skills/MCP/意图画布四键并改两列铺排
+- SSH 主机编辑弹窗密码与私钥口令框加眼睛明文切换
 
 ### 变更
 
 - 依赖升级批:npm 18 项、cargo 8 项 minor/patch、dirs 6→7、setup-java 4→6、vitest 4→5(大版本全套用例零改动通过);russh 0.63 试过不合入——MSRV 1.85 超本仓 rust-version 1.80 且 Handler::check_server_key 签名破坏性变更,推 0.2.6 配真连验证
+- 内部治理:checkpoints 精准手术擦除拆出 surgical 模块、文件历史与接力发送两处跨插件直连迁 kernel、promptSent 轮次闸归 kernel(零行为变化)
 
 ### 修复
 
 - 手机选图在 iOS 18.4 前无法弹面板(WKUIDelegate 文件面板是 18.4+ 面,file input 低版本静默死钮):改为 ShellBridge 直连 PHPicker(iOS 14+),且 native 统一转 JPEG(≤2048px)——相册 HEIC 照片此前在 WKWebView 解不出,同样发不出
 - dsh 引擎适配 0.1.7-rc.2 线格式换代:commands/execute 参数 images→submittedAttachments(斜杠命令此前全部被网关拒)、模式菜单端点 agentPreset.list→agentPresets/list(此前拉取模式列表失败);其余契约(launch token→cookie、typert 网关信封、remote.mux 双流、事件词表、审批/问答 waterfall)对 0.1.7-rc.2 真机逐项验证兼容
+- 发布收口三轮评审(插件模块全量/Rust 二轮/Windows 专项)19+ 项:checkpoints 反悔守卫按路径取快照防误删用户文件、diff 缓存按会话键控防跨会话误清在看的批、账本原子追加与 kill 锁域收窄防全局冻结、memory 沉淀 reject 兜底与写链建目录、kimi 扫描先截后读、git 轮询值等守卫消非 git 工作区空转重渲、worktree UNC 归一与回贴随形、退出码 NTSTATUS 归一、代写指令改走 stdin、高危红标大小写不敏感等
+- 会话与发送线收口:广播退化单发绑定计划快照内首个存活目标消活跃指针漂移、session-relay busy 期禁换引擎防在途击穿复用、写失败清死会话引用使重试可达、approval-inbox 写失败横幅不被重算自清且他路成功不清别家、multi 卡跳题按面板 tab 位跟踪防回绕误提交、QuotaChip 请求序守卫、退出卡接力钮消除裸非空断言
+- 引擎侧二轮收口:dsh 适配器部署失败可重试、omp 预热停用闸、kimi 路径缓存直写、piFamily 远程列目录先截后传、代理浮层开合重置草稿
+- 手机选图链路收尾:选图 provider 被 ARC 提前回收致回调永挂(持活修复)、失败不再静默当取消并写诊断日志、app 设备允许域放行 fs_write_temp 打通截图注入最后一环
 
 ### 测试
 
 - 双端点竞速矩阵单测补位(M2 7.4 代码半边):DialPolicy 状态机(单败不切/连二败轮换/退避曲线封顶/arm 清态/单端点不轮换/候选收缩取模)+ 桥层 FakeWS 接线(LAN→relay 换端点短等 250ms 拨通)
+- proc_run 测试超时上限 5s 放宽到 30s,消高载 CI 环境慢误判假红
 
 ## [0.2.4] - 2026-09-26
 
