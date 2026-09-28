@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { Gauge, TreeStructure } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
+import { t } from "@kernel/i18n";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 import { BudgetPopover } from "./BudgetPopover";
 
@@ -29,7 +30,7 @@ function CaptionBudgetButton() {
     <>
       <button
         className="ws-caption-btn"
-        title="会话列表显示预算"
+        title={t("会话列表显示预算")}
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           setPos(
