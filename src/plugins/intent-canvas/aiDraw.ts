@@ -104,14 +104,102 @@ export function parseAiDrawFile(raw: string): AiDrawFile {
   };
 }
 
-/** AI shapes → 种子图形(label 绑定到形状,同 sceneGraph 投影管线:
- *  容器 boundElementIds + 文本 containerId,拖动/删除形状时文本跟随)。 */
+type SnapNode = { id: string; x: number; y: number; width: number; height: number };
+
+/** 点到节点中心的距离最近者(阈值内),用于箭头端点吸附。 */
+function nearestNode(nodes: SnapNode[], px: number, py: number, maxDist: number): SnapNode | null {
+  let best: SnapNode | null = null;
+  let bestDist = maxDist;
+  for (const node of nodes) {
+    const dist = Math.hypot(px - (node.x + node.width / 2), py - (node.y + node.height / 2));
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = node;
+    }
+  }
+  return best;
+}
+
+/** 节点中心朝目标方向的边框交点 —— 箭头端点贴边,不插进节点内部。 */
+function borderPoint(node: SnapNode, towardsX: number, towardsY: number): { x: number; y: number } {
+  const cx = node.x + node.width / 2;
+  const cy = node.y + node.height / 2;
+  const dx = towardsX - cx;
+  const dy = towardsY - cy;
+  if (dx === 0 && dy === 0) {
+    return { x: cx, y: node.y + node.height };
+  }
+  const tx = dx !== 0 ? node.width / 2 / Math.abs(dx) : Infinity;
+  const ty = dy !== 0 ? node.height / 2 / Math.abs(dy) : Infinity;
+  const t = Math.min(tx, ty);
+  return { x: cx + dx * t, y: cy + dy * t };
+}
+
+/** AI shapes → 种子图形。label 绑定进形状/箭头(sceneGraph 同款);箭头端点
+ * 吸附最近节点并建立绑定 —— AI 只给大概方向,客户端裁到边缘交点,
+ * 消「线插进节点/穿过节点」;绑定后拖动节点箭头跟随。 */
 export function projectAiDrawShapes(shapes: AiDrawShape[]): SeedShape[] {
+  const nodes: SnapNode[] = shapes
+    .map((shape, index) => (
+      shape.type !== "text" && shape.type !== "arrow"
+        ? { id: `intent-ai-draw-${index}`, x: shape.x, y: shape.y, width: shape.width, height: shape.height }
+        : null
+    ))
+    .filter((node): node is SnapNode => node !== null);
+  /* 吸附容差:节点对角线 1.6 倍左右,够纠 AI 的粗糙坐标又不误吸远处节点。 */
+  const snapDist = Math.max(240, ...nodes.map((n) => Math.hypot(n.width, n.height) * 1.6));
   const out: SeedShape[] = [];
   shapes.forEach((shape, index) => {
-    const shapeId = shape.type === "arrow" ? undefined : `intent-ai-draw-${index}`;
+    if (shape.type === "arrow") {
+      const arrowId = `intent-ai-draw-arrow-${index}`;
+      const labelId = `intent-ai-draw-text-${index}`;
+      const source = nearestNode(nodes, shape.x, shape.y, snapDist);
+      const target = nearestNode(nodes, shape.x + shape.width, shape.y + shape.height, snapDist);
+      let x = shape.x;
+      let y = shape.y;
+      let width = shape.width;
+      let height = shape.height;
+      if (source && target && source.id !== target.id) {
+        const sourceCenter = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
+        const targetCenter = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
+        const start = borderPoint(source, targetCenter.x, targetCenter.y);
+        const end = borderPoint(target, sourceCenter.x, sourceCenter.y);
+        x = start.x;
+        y = start.y;
+        width = end.x - start.x;
+        height = end.y - start.y;
+      }
+      out.push({
+        type: "arrow",
+        id: arrowId,
+        x,
+        y,
+        width,
+        height,
+        strokeColor: shape.stroke ?? "#64748b",
+        startBindingId: source?.id ?? null,
+        endBindingId: source && target && source.id !== target.id ? target.id : null,
+        boundElementIds: shape.label ? [labelId] : undefined,
+      });
+      if (shape.label) {
+        out.push({
+          type: "text",
+          id: labelId,
+          x: x + width / 2 - 90,
+          y: y + height / 2 - 11,
+          width: 180,
+          height: 22,
+          text: shape.label,
+          fontSize: 12,
+          strokeColor: shape.stroke ?? "#64748b",
+          containerId: arrowId,
+        });
+      }
+      return;
+    }
+    const shapeId = `intent-ai-draw-${index}`;
     if (shape.type === "text" || shape.label) {
-      const fontSize = shape.fontSize ?? (shape.type === "text" ? 20 : 20);
+      const fontSize = shape.fontSize ?? 20;
       out.push({
         type: "text",
         id: shape.type === "text" ? shapeId : `intent-ai-draw-text-${index}`,
@@ -135,8 +223,7 @@ export function projectAiDrawShapes(shapes: AiDrawShape[]): SeedShape[] {
         strokeColor: shape.stroke ?? "#334155",
         backgroundColor: shape.fill ?? "transparent",
         id: shapeId,
-        boundElementIds:
-          shapeId && shape.label ? [`intent-ai-draw-text-${index}`] : undefined,
+        boundElementIds: shape.label ? [`intent-ai-draw-text-${index}`] : undefined,
       });
     }
   });
