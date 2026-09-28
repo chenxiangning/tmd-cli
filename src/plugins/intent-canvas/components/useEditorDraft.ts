@@ -42,6 +42,7 @@ export function useEditorDraft({
   );
   const sceneRef = useRef(document.scene);
 
+  // eslint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- 打开新画布时重置草稿字段属有意重置,key 已随文档切换重建
   useEffect(() => {
     setTitle(document.title);
     setSummary(document.summary);

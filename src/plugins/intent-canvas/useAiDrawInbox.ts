@@ -18,8 +18,14 @@ export function useAiDrawInbox(
 ): string | null {
   const [lastError, setLastError] = useState<string | null>(null);
   const onImportedRef = useRef(onImported);
-  onImportedRef.current = onImported;
 
+  useEffect(() => {
+    onImportedRef.current = onImported;
+  }, [onImported]);
+
+  /* eslint-disable react-doctor/no-set-state-after-await-in-effect --
+     tick 内 setLastError 均有 cancelled 旗标闸(组件卸载/工作区切换后不再写),
+     乱序竞态已被闸死。 */
   useEffect(() => {
     if (!activeWorkspace || !enabled) {
       return;

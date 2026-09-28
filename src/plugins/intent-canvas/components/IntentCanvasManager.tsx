@@ -215,7 +215,7 @@ export function IntentCanvasManager({
     } finally {
       setConfirmingCanvasActionId(null);
     }
-  }, [actionPrompt, activeWorkspace, docs, refreshIndex, selection]);
+  }, [actionPrompt, activeWorkspace, docs, refreshIndex]);
 
   const handleAttachToThread = useCallback(
     (document: IntentCanvasDocument) => {

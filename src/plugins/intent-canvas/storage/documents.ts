@@ -186,7 +186,8 @@ export async function deleteIntentCanvasDocuments(
   if (uniqueCanvasIds.length === 0) {
     return;
   }
-  for (const canvasId of uniqueCanvasIds) {
+  /* 各画布文件相互独立,并行 trash(评审:串行 await 逐个排队)。 */
+  await Promise.all(uniqueCanvasIds.map(async (canvasId) => {
     try {
       await ipc.fsTrashEntry(`${await canvasDir(root)}/${resolveDocumentPath(canvasId)}`);
     } catch (error) {
@@ -194,7 +195,7 @@ export async function deleteIntentCanvasDocuments(
         throw error;
       }
     }
-  }
+  }));
   const deletedCanvasIds = new Set(uniqueCanvasIds);
   await withIndexTx(async () => {
     const fresh = await loadIntentCanvasIndex(root);

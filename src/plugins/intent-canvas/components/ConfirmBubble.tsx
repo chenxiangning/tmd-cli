@@ -27,6 +27,7 @@ export function ConfirmBubble({
   onConfirm,
 }: ConfirmBubbleProps) {
   return (
+    // eslint-disable-next-line react-doctor/prefer-html-dialog -- 自定义受控弹层,样式/定位经调优;原生 dialog showModal 改焦点行为,mossx 移植不动
     <div
       className="intent-canvas-confirm-bubble"
       role="dialog"

@@ -65,7 +65,8 @@
 .intent-canvas-era-agg { font-size: 0.6875rem; color: var(--tmd-fg-muted); }
 .intent-canvas-era-cleanup { font-size: 0.6875rem; color: var(--tmd-warn, var(--tmd-accent)); }
 .intent-canvas-era-select { align-self: flex-start; padding: 0.1875rem 0.5rem; font-size: 0.6875rem; }
-.intent-canvas-era-deck { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 0.625rem; }
+.intent-canvas-era-deck { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 0.625rem; list-style: none; margin: 0; padding: 0; }
+.intent-canvas-era-item { display: block; }
 /* ---------- 画布卡片 ---------- */
 .intent-canvas-home-card { position: relative; display: flex; flex-direction: column; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-lg); background: var(--tmd-bg-panel); transition: border-color 120ms ease, box-shadow 120ms ease; }
 .intent-canvas-home-card:hover { border-color: var(--tmd-border-strong); }

@@ -67,7 +67,40 @@ export function EditorRightRail(props: EditorRightRailProps) {
               </div>
             </dl>
           </section>
-          {traceability.importedGraphCount > 0 || traceability.codeSelectionBacklinks.length > 0 ? (
+          <SourceTraceCard
+            traceability={traceability}
+            sourceState={sourceState}
+            onOpenBacklink={props.onOpenBacklink}
+            onOpenSourceFile={props.onOpenSourceFile}
+          />
+          <section className="intent-canvas-card">
+            <h3>{t("Context Preview")}</h3>
+            <pre>{props.transmissionContextJson}</pre>
+          </section>
+          {props.errorText ? (
+            <p className="intent-canvas-error" role="alert">{props.errorText}</p>
+          ) : null}
+        </>
+      ) : null}
+    </aside>
+  );
+}
+
+/** 右栏折叠箭头方向与左栏镜像(mossx is-flipped 语义)。 */
+function ArrowLeftShared({ collapsed }: { collapsed: boolean }) {
+  return <ArrowLeft aria-hidden className={collapsed ? undefined : "is-flipped"} />;
+}
+
+/** 来源追溯卡:tmd-cli 无 project-map 扫描器,常态为空;导入图存在时展示
+ *  健康/过期/失联指标与三类回链列表。从 EditorRightRail 拆出(复杂度闸)。 */
+function SourceTraceCard(props: {
+  traceability: EditorRightRailProps["traceability"];
+  sourceState: EditorRightRailProps["sourceState"];
+  onOpenBacklink: EditorRightRailProps["onOpenBacklink"];
+  onOpenSourceFile?: EditorRightRailProps["onOpenSourceFile"];
+}) {
+  const { traceability, sourceState } = props;
+  return (
             <section className="intent-canvas-card intent-canvas-source-trace-card">
               <h3>{t("来源追溯")}</h3>
               <p>{t("导入的代码关系图会保留 source anchor、evidence ref 和刷新状态;这些信息与手动画布内容分离。")}</p>
@@ -188,22 +221,6 @@ export function EditorRightRail(props: EditorRightRailProps) {
                   ))}
                 </div>
               ) : null}
-            </section>
-          ) : null}
-          <section className="intent-canvas-card">
-            <h3>{t("Context Preview")}</h3>
-            <pre>{props.transmissionContextJson}</pre>
-          </section>
-          {props.errorText ? (
-            <p className="intent-canvas-error" role="alert">{props.errorText}</p>
-          ) : null}
-        </>
-      ) : null}
-    </aside>
+    </section>
   );
-}
-
-/** 右栏折叠箭头方向与左栏镜像(mossx is-flipped 语义)。 */
-function ArrowLeftShared({ collapsed }: { collapsed: boolean }) {
-  return <ArrowLeft aria-hidden className={collapsed ? undefined : "is-flipped"} />;
 }

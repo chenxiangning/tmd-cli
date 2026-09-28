@@ -111,7 +111,6 @@ export const MESSAGES_JA = {
   "取消": "キャンセル",
   "AI 画布": "AI キャンバス",
   "2. 文件格式:{\"kind\":\"intent-canvas-ai-draw\",\"version\":1,\"mode\":\"append\"|\"new\",\"canvasId\":\"可选\",\"title\":\"可选\",\"summary\":\"一句话意图\",\"shapes\":[…]}。": "2. フォーマット: {\"kind\":\"intent-canvas-ai-draw\",\"version\":1,\"mode\":\"append\"|\"new\",\"canvasId\":\"任意\",\"title\":\"任意\",\"summary\":\"一言の意図\",\"shapes\":[…]}。",
-  "3. shapes 每项:{\"type\":\"rectangle\"|\"ellipse\"|\"diamond\"|\"text\"|\"arrow\",\"x\":0,\"y\":0,\"width\":260,\"height\":92,\"label\":\"节点文字\",\"fontSize\":22,\"stroke\":\"#334155\",\"fill\":\"#eff6ff\"};箭头(type:\"arrow\")用 width/height 表达终点相对偏移。": "3. 各 shape: {\"type\":\"rectangle\"|\"ellipse\"|\"diamond\"|\"text\"|\"arrow\",\"x\":0,\"y\":0,\"width\":260,\"height\":92,\"label\":\"ノード文字\",\"fontSize\":22,\"stroke\":\"#334155\",\"fill\":\"#eff6ff\"}。矢印(type:\"arrow\")は width/height で終点オフセットを表現。",
   "5. {target}": "5. {target}",
   "6. 只写这一个文件,不要改画布存储里的其他文件;写完文件即完成作画,客户端会自动把它画到画布上。": "6. 書くのはこの 1 ファイルのみ。他のキャンバス保存ファイルは触らない。書き終えたら作画完了 — クライアントが自動でキャンバスへ反映します。",
   "shapes 为空或缺失,至少需要一个图形。": "shapes が空または欠落。最低 1 個の図形が必要です。",
@@ -144,5 +143,5 @@ export const MESSAGES_JA = {
   "AI 作画已上画布:": "AI 作図がキャンバスへ反映:",
   "4. 布局自上而下分层:第一层在最上方,同层节点横向排(列距约 340),下一层整体下移(层距约 160);箭头从上层节点连向下层节点;先画主干再画分支,控制在 20 个图形以内,每个形状的 label 写清节点标题。": "4. レイアウトは上から下へ層構造:第1層を最上部に、同層ノードは横並び(列間隔約340)、次層は下に(層間隔約160);矢印は上層ノードから下層ノードへ;幹を先に描き枝を後に;図形は20個以内、各形状の label にノードタイトルを明記。",
   "1. 写一个 JSON 文件到:{path}(文件名必须是 ai-draw- 开头、.json 结尾;全文不超过 512KB)。": "1. {path} に JSON ファイルを1つ書く(ファイル名は ai-draw- 開始・.json 終了;全体で 512KB 以内)。",
-  "3. shapes 每项:{\"type\":\"rectangle\"|\"ellipse\"|\"diamond\"|\"text\"|\"arrow\",\"x\":0,\"y\":0,\"width\":260,\"height\":92,\"label\":\"节点标题(每个节点形状必填)\",\"fontSize\":20,\"stroke\":\"#334155\",\"fill\":\"#eff6ff\"};箭头(type:\"arrow\")的 x/y 填源节点中心附近,width/height 填到目标节点中心的偏移(不必精确,客户端会自动吸附到节点边缘)。": "3. 各 shape: {\"type\":\"rectangle\"|\"ellipse\"|\"diamond\"|\"text\"|\"arrow\",\"x\":0,\"y\":0,\"width\":260,\"height\":92,\"label\":\"ノードタイトル(全ノード形状で必須)\",\"fontSize\":20,\"stroke\":\"#334155\",\"fill\":\"#eff6ff\"};矢印(type:\"arrow\")は x/y をソースノード中心付近、width/height をターゲット中心へのオフセットに(クライアントがノード縁に吸着)。",
+  "3. shapes 每项:{\"type\":\"rectangle\"|\"ellipse\"|\"diamond\"|\"text\"|\"arrow\",\"x\":0,\"y\":0,\"width\":260,\"height\":92,\"label\":\"节点标题(每个节点形状必填)\",\"fontSize\":20,};颜色由客户端统一配色(勿传 stroke/fill,传了也会被忽略);箭头(type:\"arrow\")用 width/height 表达终点相对偏移。": "3. 各 shape: {\"type\":\"rectangle\"|\"ellipse\"|\"diamond\"|\"text\"|\"arrow\",\"x\":0,\"y\":0,\"width\":260,\"height\":92,\"label\":\"ノードタイトル(全ノード形状で必須)\",\"fontSize\":20};色はクライアント統一(stroke/fill は無視);矢印(type:\"arrow\")は width/height を終点オフセットに。",
 } as Record<string, string>;

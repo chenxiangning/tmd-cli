@@ -23,11 +23,13 @@ export function useCanvasSelection(input: {
   const [isBulkDeletePromptOpen, setIsBulkDeletePromptOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
+  // eslint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- 切工作区清选择属有意重置,非派生 state
   useEffect(() => {
     setSelectedCanvasIds(new Set<string>());
     setIsBulkDeletePromptOpen(false);
   }, [activeWorkspace?.root]);
 
+  // eslint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- entries 变化时剔除已消失画布的选中项(收敛语义),非派生 state
   useEffect(() => {
     setSelectedCanvasIds((current) => {
       const availableCanvasIds = new Set(entries.map((entry) => entry.id));
@@ -123,7 +125,7 @@ export function useCanvasSelection(input: {
     } finally {
       setIsBulkDeleting(false);
     }
-  }, [activeWorkspace, onDeletedActive, refreshIndex, selectedEntries]);
+  }, [activeWorkspace, onDeletedActive, onError, refreshIndex, selectedEntries]);
 
   return {
     selectedCanvasIds,

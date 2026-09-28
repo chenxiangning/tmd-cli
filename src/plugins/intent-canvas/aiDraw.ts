@@ -176,7 +176,9 @@ export function projectAiDrawShapes(shapes: AiDrawShape[]): SeedShape[] {
         y,
         width,
         height,
-        strokeColor: shape.stroke ?? "#64748b",
+        /* AI 自由发色在暗色主题/浅底上易看不清:统一主题安全调色板(与手绘
+           sceneGraph 蓝系同款),忽略 AI 的 stroke 字段。 */
+        strokeColor: "#64748b",
         startBindingId: source?.id ?? null,
         endBindingId: source && target && source.id !== target.id ? target.id : null,
         boundElementIds: shape.label ? [labelId] : undefined,
@@ -191,7 +193,7 @@ export function projectAiDrawShapes(shapes: AiDrawShape[]): SeedShape[] {
           height: 22,
           text: shape.label,
           fontSize: 12,
-          strokeColor: shape.stroke ?? "#64748b",
+          strokeColor: "#475569",
           containerId: arrowId,
         });
       }
@@ -209,7 +211,7 @@ export function projectAiDrawShapes(shapes: AiDrawShape[]): SeedShape[] {
         height: Math.round(fontSize * 1.25),
         text: shape.label ?? "",
         fontSize,
-        strokeColor: shape.stroke ?? (shape.type === "text" ? "#334155" : "#1d4ed8"),
+        strokeColor: shape.type === "text" ? "#334155" : "#1d4ed8",
         containerId: shape.type === "text" ? null : shapeId,
       });
     }
@@ -220,8 +222,8 @@ export function projectAiDrawShapes(shapes: AiDrawShape[]): SeedShape[] {
         y: shape.y,
         width: shape.width,
         height: shape.height,
-        strokeColor: shape.stroke ?? "#334155",
-        backgroundColor: shape.fill ?? "transparent",
+        strokeColor: "#2563eb",
+        backgroundColor: "#eff6ff",
         id: shapeId,
         boundElementIds: shape.label ? [`intent-ai-draw-text-${index}`] : undefined,
       });

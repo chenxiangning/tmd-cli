@@ -16,6 +16,7 @@ export function useAnchorHealth(
   const [anchorHealthByCanvasId, setAnchorHealthByCanvasId] = useState<Record<string, CanvasAnchorHealth>>({});
   const anchorHealthCacheRef = useRef<Map<string, CanvasAnchorHealth>>(new Map());
 
+  // eslint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- 切工作区清缓存属有意重置,非派生 state
   useEffect(() => {
     anchorHealthCacheRef.current.clear();
     setAnchorHealthByCanvasId({});
@@ -45,6 +46,7 @@ export function useAnchorHealth(
     let cancelled = false;
     const root = activeWorkspace.root;
     const queue = [...pending];
+    // eslint-disable-next-line react-doctor/async-await-in-loop -- 并发 worker 池(4 路 shift 队列),非串行循环
     const workers = Array.from({ length: Math.min(4, queue.length) }, async () => {
       for (;;) {
         const entry = queue.shift();
