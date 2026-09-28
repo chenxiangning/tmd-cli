@@ -6,6 +6,7 @@ export const MESSAGES_EN = {
     "Cross-engine MCP config management: edits write directly to each CLI's config, with 3-source store and import bridge",
 
   "MCP · {n} 台引擎 · {m} 个服务器": "MCP · {n} engines · {m} servers",
+  "点击管理该引擎": "Click to manage this engine",
   "读取失败": "Read failed",
   "尚未创建": "Not created yet",
   "正在扫描…": "Scanning…",

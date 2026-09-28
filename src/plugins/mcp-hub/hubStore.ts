@@ -41,9 +41,16 @@ export interface McpEngineState {
 interface HubState {
   engines: McpEngineState[];
   loading: boolean;
+  /** 右栏/中央共享的选中引擎(null = 缺省取首台)。 */
+  selectedProfileId: string | null;
 }
 
-const store = createSubscribable<HubState>({ engines: [], loading: false });
+const store = createSubscribable<HubState>({ engines: [], loading: false, selectedProfileId: null });
+
+/** 右栏点引擎 = 选中并打开管理 tab;中央 tab 读同一选中态(跨组件记忆)。 */
+export function selectEngine(profileId: string): void {
+  store.commit({ ...store.snapshot, selectedProfileId: profileId });
+}
 
 export function useHubState(): HubState {
   return store.useStore();
@@ -76,10 +83,10 @@ async function readTriState(path: string): Promise<TriRead> {
 
 /** 全量刷新:重解析全部已声明引擎(TOML 家 config 缺失 = 不列)。 */
 export async function refreshHub(): Promise<void> {
-  store.commit({ ...store.snapshot, loading: true });
+  store.commit({ ...store.snapshot, engines: [], loading: true });
   const home = await ipc.configHomeDir().catch(() => null);
   if (!home) {
-    store.commit({ engines: [], loading: false });
+    store.commit({ ...store.snapshot, engines: [], loading: false });
     return;
   }
   const shortHome = home.endsWith("/") ? home.slice(0, -1) : home;
@@ -127,7 +134,7 @@ export async function refreshHub(): Promise<void> {
       });
     }
   }
-  store.commit({ engines, loading: false });
+  store.commit({ ...store.snapshot, engines, loading: false });
 }
 
 /** 应用一次文本变换并写回(备份 → 变换 → 落盘 → 刷新)。 */

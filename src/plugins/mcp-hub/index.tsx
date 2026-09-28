@@ -16,7 +16,7 @@ import { PlugsConnected } from "@phosphor-icons/react";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { McpHubPanel } from "./McpHubPanel";
 import { McpHubTab } from "./McpHubTab";
-import { MCP_HUB_TAB_KIND } from "./hubTab";
+import { MCP_HUB_TAB_KIND, openMcpHubTab } from "./hubTab";
 import { refreshHub } from "./hubStore";
 import "./locales"; /* 域词典随插件自带:import 即注册(en/ja,勿删) */
 import "./mcp-hub.css";
@@ -40,6 +40,7 @@ export const mcpHubPlugin: Plugin = {
       showFileSubbar: false, /* 概览自带摘要行(MCP · 引擎数 · server 数) */
       order: 4, /* 紧随 cli-config(3):配置管理语义相邻 */
       refresh: () => refreshHub(),
+      openCenterTab: openMcpHubTab,
     });
     /* 中央管理 tab:kind "mcphub" 路由(kernel/tabs 注册表)。 */
     ctx.registerTabContent({ kind: MCP_HUB_TAB_KIND, component: McpHubTab });

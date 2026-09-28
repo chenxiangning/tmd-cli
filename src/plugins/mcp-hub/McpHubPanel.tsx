@@ -6,11 +6,11 @@
 import { useEffect } from "react";
 import { PlugsConnected, ArrowSquareIn } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { useHubState, refreshHub } from "./hubStore";
+import { useHubState, refreshHub, selectEngine } from "./hubStore";
 import { openMcpHubTab } from "./hubTab";
 
 export function McpHubPanel() {
-  const { engines, loading } = useHubState();
+  const { engines, loading, selectedProfileId } = useHubState();
   /* 面板激活即拉一次(中央 tab 与面板共用 store,已在则即时显示)。 */
   useEffect(() => {
     if (engines.length === 0 && !loading) void refreshHub();
@@ -29,9 +29,20 @@ export function McpHubPanel() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {engines.map((engine) => (
-          <div
+          <button
             key={engine.profileId}
-            className="flex items-center justify-between px-3 py-1.5 text-[0.6875rem] leading-[1.125rem]"
+            type="button"
+            aria-pressed={engine.profileId === selectedProfileId}
+            title={t("点击管理该引擎")}
+            className={`relative flex w-full items-center justify-between px-3 py-1.5 text-left text-[0.6875rem] leading-[1.125rem] transition-colors ${
+              engine.profileId === selectedProfileId
+                ? "bg-(--tmd-bg-hover) font-medium text-(--tmd-fg) after:absolute after:inset-y-1 after:left-0 after:w-0.5 after:rounded-full after:bg-(--tmd-accent)"
+                : "hover:bg-(--tmd-bg-hover)"
+            }`}
+            onClick={() => {
+              selectEngine(engine.profileId);
+              openMcpHubTab();
+            }}
           >
             <span className="min-w-0 truncate text-(--tmd-fg)">{engine.name}</span>
             <span
@@ -43,7 +54,7 @@ export function McpHubPanel() {
             >
               {engine.entries === null ? t("读取失败") : engine.exists ? Object.keys(engine.entries).length : t("尚未创建")}
             </span>
-          </div>
+          </button>
         ))}
         {engines.length === 0 && (
           <div className="px-4 pt-8 text-center text-[0.6875rem] leading-relaxed text-(--tmd-fg-faint)">

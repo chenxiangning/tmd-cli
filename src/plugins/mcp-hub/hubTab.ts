@@ -14,7 +14,7 @@ export function openMcpHubTab(): void {
   openTab({
     id: MCP_HUB_TAB_ID,
     kind: MCP_HUB_TAB_KIND,
-    title: "MCP",
+    title: "Mcp-hub",
     path: "",
     payload: {},
   });
