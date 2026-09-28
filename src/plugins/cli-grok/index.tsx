@@ -10,7 +10,12 @@ import {
 } from "./configStatus";
 import { readGrokSessionEdits } from "./edits";
 import { fetchGrokQuota } from "./quota";
-import type { CliProfile, CliSuggestion } from "@kernel/cli";
+import type {
+  CliDiskSession,
+  CliProfile,
+  CliSessionTranscript,
+  CliSuggestion,
+} from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { listGrokSuggestions } from "./inspectSkills";
 import { listGrokMcpServers } from "./mcpServers";
@@ -20,6 +25,12 @@ import {
   readGrokSessionIdentity,
   readGrokSessionStatus,
 } from "./sessions";
+import { grokTranscriptLine } from "./grokTranscript";
+import {
+  pairToolResults,
+  parseTranscriptBlocks,
+  readTranscriptText,
+} from "../cli-shared/sessionTranscript";
 
 /**
  * grok / 命令候选(官方 README 斜杠命令表;action 初判见
@@ -43,6 +54,18 @@ async function readGrokUserMessages(cwd: string, cliSessionId: string, full: boo
     full,
     grokUserMessageLine,
   );
+}
+
+/** 会话完整转录:grok 行型解析(工具行未实证,文本/思考照常)。 */
+async function readGrokTranscript(
+  session: CliDiskSession,
+): Promise<CliSessionTranscript | null> {
+  const file = await readTranscriptText(`${session.path}/chat_history.jsonl`);
+  if (!file) return null;
+  return {
+    blocks: pairToolResults(parseTranscriptBlocks(file.text, grokTranscriptLine)),
+    truncated: file.truncated,
+  };
 }
 
 
@@ -106,6 +129,7 @@ export const cliGrokPlugin: Plugin = {
       readSessionStatus: readGrokSessionStatus,
       readSessionFileIdentity: readGrokSessionIdentity,
       readSessionUserMessages: readGrokUserMessages,
+      readSessionTranscript: readGrokTranscript,
       readSessionEdits: readGrokSessionEdits,
       readDefaultStatus: readGrokDefaultStatus,
     };

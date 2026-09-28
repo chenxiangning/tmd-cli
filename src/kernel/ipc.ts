@@ -417,6 +417,8 @@ export const ipc = {
   readLocalImageDataUrl: (path: string) =>
     invoke<string>("read_local_image_data_url", { path }),
   readBinaryFileBase64: (path: string) => invoke<string>("read_binary_file_base64", { path }),
+  /** 通用二进制读 base64(数据域,无预览白名单;Rust 32MB 闸)。 */
+  fsReadBytesBase64: (path: string) => invoke<string>("fs_read_bytes_base64", { path }),
   /* ── git(右栏面板;cwd 由调用方从活跃 workspace 取)── */
   gitStatus: (cwd: string) => invoke<GitDiffStatus>("git_status", { cwd }),
   /** 多仓发现:root 下 BFS 找 .git(深度上限 maxDepth,前端默认 2);

@@ -15,6 +15,7 @@ mod hash;
 mod installer;
 mod lsp;
 mod lsp_framing;
+mod mcp_probe;
 mod open_with;
 mod plugins;
 mod probe;
@@ -27,11 +28,10 @@ mod quota;
 mod resolve;
 mod session;
 mod session_commands;
-mod skill_pkg;
-mod mcp_probe;
 mod session_disk_log;
 mod session_log;
 mod settings;
+mod skill_pkg;
 mod sqlite;
 mod ssh;
 mod web;
@@ -219,20 +219,21 @@ pub fn run() {
             fs_edit::fs_create_file,
             fs_edit::fs_create_dir,
             fs_edit::fs_rename_entry,
-            fs_edit::fs_copy_tree,
-            skill_pkg::net_download,
-            skill_pkg::skill_extract,
-            skill_pkg::skill_symlink,
-            mcp_probe::mcp_probe,
             fs_edit::fs_trash_entry,
             fs_edit::fs_reveal_in_file_manager,
             fs_edit::fs_copy_file,
+            fs_edit::fs_copy_tree,
             open_with::fs_open_with,
             open_with::fs_probe_open_app,
             open_with::fs_open_app_icon,
             md5_hex,
             commands_fs::read_local_image_data_url,
             commands_fs::read_binary_file_base64,
+            commands_fs::fs_read_bytes_base64,
+            skill_pkg::net_download,
+            skill_pkg::skill_extract,
+            skill_pkg::skill_symlink,
+            mcp_probe::mcp_probe,
             git::commands::git_status,
             git::commands::git_repos_scan,
             git::commands::git_ignored_prefixes,

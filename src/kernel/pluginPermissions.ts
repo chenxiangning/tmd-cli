@@ -58,6 +58,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   fsCollectFiles: "ipc.fs.read",
   readLocalImageDataUrl: "ipc.fs.read",
   readBinaryFileBase64: "ipc.fs.read",
+  fsReadBytesBase64: "ipc.fs.read",
 
   /* 文件系统写/管理。 */
   fsWriteTemp: "ipc.fs.write",

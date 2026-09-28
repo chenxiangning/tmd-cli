@@ -10,6 +10,14 @@ export type {
   CliDiskSession,
   CliSessionEdit,
   CliSessionStatus,
+  CliSessionTranscript,
+  CliTranscriptBlock,
+  CliTranscriptRole,
+  CliTranscriptToolMeta,
+  CliToolPreview,
+  CliToolPreviewKind,
+  CliToolPreviewLine,
+  CliToolPreviewLineKind,
   CliUserMessage,
   RemoteExec,
   SessionFileIdentity,
@@ -40,7 +48,6 @@ export interface CliTriggerSpec {
  * file 触发符靠 fsListDir 实时拿,不从此声明。
  */
 export type SuggestionAction = "send" | "insert";
-
 export interface CliSuggestion {
   /** 触发符后的部分(不含 char)。例 "$"触发时:"think";"/"触发时:"help"。 */
   value: string;

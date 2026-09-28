@@ -12,6 +12,7 @@ import {
   readQoderDefaultStatus,
   readQoderSessionIdentity,
   readQoderSessionStatus,
+  readQoderTranscript,
   readQoderUserMessages,
 } from "./qoderSessionModel";
 import { isJsonlSessionEmpty } from "./sessionEmpty";
@@ -85,6 +86,7 @@ export function makeQoderPlugin(variant: QoderVariantSpec): Plugin {
         readSessionFileIdentity: readQoderSessionIdentity,
         readSessionUserMessages: (cwd, cliSessionId, full) =>
           readQoderUserMessages(variant.dataDir, cwd, cliSessionId, full),
+        readSessionTranscript: readQoderTranscript,
         readDefaultStatus: () => readQoderDefaultStatus(variant.dataDir),
       });
     },

@@ -12,6 +12,19 @@ import {
 import { opencodeDefaultModel, readOpencodeConfig } from "./config";
 import { listOpencodeSuggestions, OPENCODE_COMMAND_SUGGESTIONS } from "./commands";
 import { OPENCODE_ACADEMY_COURSE } from "./academy/academyCatalog";
+import { readOpencodeTranscript } from "./opencodeTranscript";
+import type { CliDiskSession, CliSessionTranscript } from "@kernel/cli";
+
+/** 会话完整转录:合成路径 <db>#<sessionId> 拆包查库(身份自证同款)。 */
+async function readOpencodeSessionTranscript(
+  session: CliDiskSession,
+): Promise<CliSessionTranscript | null> {
+  const hash = session.path.lastIndexOf("#");
+  if (hash < 0) return null;
+  const db = session.path.slice(0, hash);
+  const blocks = await readOpencodeTranscript(db, session.path.slice(hash + 1));
+  return blocks ? { blocks } : null;
+}
 
 /**
  * opencode CLI 插件(anomalyco/opencode,本机 1.18.25 实证,2026-09-05):
@@ -59,6 +72,7 @@ export const cliOpencodePlugin: Plugin = {
       readSessionStatus: readOpencodeSessionStatus,
       readSessionFileIdentity: readOpencodeSessionIdentity,
       readSessionUserMessages: readOpencodeUserMessages,
+      readSessionTranscript: readOpencodeSessionTranscript,
       readSessionEdits: readOpencodeSessionEdits,
       readDefaultStatus: async (cwd) => {
         const config = await readOpencodeConfig(cwd).catch(() => null);

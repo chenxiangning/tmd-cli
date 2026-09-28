@@ -67,3 +67,66 @@ export interface CliSessionEdit {
   /** 写入发生时刻 ms epoch(取自 CLI 自记的时间戳,非观测时刻)。 */
   ts: number;
 }
+
+/* ── 会话转录(readSessionTranscript 的数据单元;渲染形态参考 monocode
+   Block 模型裁剪:只保留磁盘 JSONL/SQLite 可还原的字段,零 live 态) ── */
+
+/** 转录块角色(monocode BlockRole 裁剪:磁盘可还原的五类)。 */
+export type CliTranscriptRole =
+  | "user"
+  | "assistant"
+  | "reasoning"
+  | "tool"
+  | "system";
+
+/** 工具卡预览分类(monocode ToolPreviewKind 同款四类)。 */
+export type CliToolPreviewKind = "read" | "write" | "shell" | "search";
+
+export type CliToolPreviewLineKind = "add" | "del" | "context";
+
+/** 工具卡里的一行 diff/输出预览。 */
+export interface CliToolPreviewLine {
+  number?: number;
+  kind: CliToolPreviewLineKind;
+  text: string;
+}
+
+/** 工具卡预览:按 kind 取 path/lines/query/output 相关字段。 */
+export interface CliToolPreview {
+  kind: CliToolPreviewKind;
+  title?: string;
+  path?: string;
+  startLine?: number;
+  additions?: number;
+  deletions?: number;
+  query?: string;
+  lines?: CliToolPreviewLine[];
+  output?: string;
+}
+
+/** tool 块的调用元数据(调用与结果由解析器合并为单块)。 */
+export interface CliTranscriptToolMeta {
+  callId?: string;
+  title?: string;
+  kind?: string;
+  status?: string;
+  detail?: string;
+  preview?: CliToolPreview;
+}
+
+/** 转录块:一个角色化内容单元(user 原文 / assistant 正文 / 思考 / 工具卡)。 */
+export interface CliTranscriptBlock {
+  id: string;
+  role: CliTranscriptRole;
+  text: string;
+  /** 块发生时刻 ms epoch(取自 CLI 自记时间戳;缺省查看器不显示时间)。 */
+  startedAt?: number;
+  tool?: CliTranscriptToolMeta;
+}
+
+/** 会话完整转录(只读快照;活会话由查看器手动刷新重读)。 */
+export interface CliSessionTranscript {
+  blocks: CliTranscriptBlock[];
+  /** 超出读取预算(32MB)被截断 = true,查看器展示提示。 */
+  truncated?: boolean;
+}

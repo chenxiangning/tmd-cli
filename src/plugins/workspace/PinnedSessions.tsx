@@ -40,7 +40,9 @@ import {
   titleRetryDelay,
 } from "./utils";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
-import { PinToggle, SessionStatusLabel } from "./SessionRows";
+import { ThreadRowActions } from "./RowActions";
+import { sessionViewOpener } from "@kernel/sessionViewTabs";
+import { SessionStatusLabel } from "./SessionRows";
 import { PinIcon } from "@kernel/PinIcon";
 import { pinnedSection } from "./sectionCollapsed";
 
@@ -74,6 +76,13 @@ export function PinnedSessionsSection() {
   );
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
   const collapsed = pinnedSection.use();
+  /** 重命名装配(行内环与右键菜单共用)。 */
+  const renameOf = (row: PinnedRow) =>
+    setRenaming({
+      profileId: row.profile.id,
+      cliSessionId: row.cliSessionId,
+      current: settings.sessionTitles[sessionTitleKey(row.profile.id, row.cliSessionId)] ?? "",
+    });
 
   const profiles = host.getCliProfiles();
   const rows: PinnedRow[] = listSessionPins(settings.sessionPins, {
@@ -254,7 +263,15 @@ export function PinnedSessionsSection() {
                   <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
                 </span>
               </button>
-              <PinToggle on onToggle={() => unpinSession(row.key)} />
+              <ThreadRowActions
+                pinned
+                onTogglePin={() => unpinSession(row.key)}
+                onOpenView={sessionViewOpener(row.profile, row.cliSessionId, titleOf(row), { cwd: live?.cwd ?? row.workspace.root })}
+                onCopyId={() => {
+                  void navigator.clipboard?.writeText(row.cliSessionId).catch(() => undefined);
+                }}
+                onRename={() => renameOf(row)}
+              />
             </span>
           );
         })}
@@ -269,16 +286,7 @@ export function PinnedSessionsSection() {
               ?.writeText(menu.row.cliSessionId)
               .catch(() => undefined);
           }}
-          onRename={() =>
-            setRenaming({
-              profileId: menu.row.profile.id,
-              cliSessionId: menu.row.cliSessionId,
-              current:
-                settings.sessionTitles[
-                  sessionTitleKey(menu.row.profile.id, menu.row.cliSessionId)
-                ] ?? "",
-            })
-          }
+          onRename={() => renameOf(menu.row)}
           onPinScope={(scope) =>
             toggleSessionPin(menu.row.key, scope, titleOf(menu.row))
           }

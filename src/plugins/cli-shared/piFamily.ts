@@ -15,6 +15,7 @@ import type {
   CliDiskSession,
   CliSessionEdit,
   CliSessionStatus,
+  CliSessionTranscript,
   CliUserMessage,
   SessionFileIdentity,
 } from "@kernel/cli";
@@ -29,6 +30,12 @@ import {
 } from "./userMessages";
 import { readEditsTail } from "./sessionEdits";
 import { isJsonlSessionEmpty } from "./sessionEmpty";
+import {
+  pairToolResults,
+  parseTranscriptBlocks,
+  readTranscriptText,
+} from "./sessionTranscript";
+import { piTranscriptLine } from "./piTranscript";
 
 /** 一家 pi 族 CLI 的会话存储声明。 */
 export interface PiFamilyStore {
@@ -84,6 +91,20 @@ export function piFamilySessions(store: PiFamilyStore) {
       const path = await findJsonlSessionFile(dir, cliSessionId);
       if (!path) return null;
       return readUserMessagesFromFile(path, full, ompPiUserMessageLine);
+    },
+    /** 会话完整转录(查看器数据源;远程形态 path 为发行版内路径,本地读
+     *  失败按 null 降级为查看器错误占位,v1 不做远程转录)。 */
+    async readSessionTranscript(
+      session: CliDiskSession,
+    ): Promise<CliSessionTranscript | null> {
+      const file = await readTranscriptText(session.path);
+      if (!file) return null;
+      return {
+        blocks: pairToolResults(
+          parseTranscriptBlocks(file.text, piTranscriptLine),
+        ),
+        truncated: file.truncated,
+      };
     },
     /** 会话卫生判空:path 即 jsonl 文件,共享标记子串判定(保守口径见 sessionEmpty.ts)。 */
     isDiskSessionEmpty: (session: CliDiskSession) => isJsonlSessionEmpty(session.path),

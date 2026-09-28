@@ -11,7 +11,8 @@ import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { host } from "@kernel/host";
-import { PinIcon } from "@kernel/PinIcon";
+import { isSessionViewAvailable, openSessionViewTab } from "@kernel/sessionViewTabs";
+import { ThreadRowActions } from "./RowActions";
 import { resolveSessionStatus, type SessionStatus } from "./utils";
 
 /* 共享 1Hz ticker:N 个状态件共用一个 interval(替代每件一表),0 订阅时停表。 */
@@ -136,6 +137,9 @@ export function DiskSessionRow({
   onContextMenu,
   onRenameCommit,
   onTogglePin,
+  onCopyId,
+  onRename,
+  onDelete,
 }: {
   profile: CliProfile;
   session: CliDiskSession;
@@ -150,6 +154,11 @@ export function DiskSessionRow({
   onRenameCommit: (value: string | null) => void;
   /** 点击扎点开关:未扎 → 置顶到全局;已扎 → 取消置顶(磁盘会话必已落盘)。 */
   onTogglePin: () => void;
+  /** 环形动作组扩展位:复制 Session ID / 重命名(缺省不出环位)。 */
+  onCopyId?: () => void;
+  onRename?: () => void;
+  /** 删除(环形组内两步确认;缺省不出环位)。 */
+  onDelete?: () => void;
 }) {
   if (renaming) {
     return (
@@ -183,47 +192,27 @@ export function DiskSessionRow({
           <span className="thread-time">{formatRelativeTime(session.modifiedAt)}</span>
         </span>
       </button>
-      {/* 置顶钮与行按钮 DOM 分离(嵌套交互治理):hover 显形改吃宿主 hover。 */}
-      <PinToggle on={pinned} onToggle={onTogglePin} />
+      {/* 行内动作组(嵌套交互治理:组与行按钮 DOM 分离):齿轮入口,
+          点击弹出环形 icon 组(查看/置顶/复制 ID/重命名/删除)。 */}
+      <ThreadRowActions
+        pinned={pinned}
+        onCopyId={onCopyId}
+        onRename={onRename}
+        onDelete={onDelete}
+        onTogglePin={onTogglePin}
+        onOpenView={
+          isSessionViewAvailable() && profile.readSessionTranscript
+            ? () =>
+                openSessionViewTab({
+                  profileId: profile.id,
+                  cliSessionId: session.id,
+                  title,
+                  modifiedAt: session.modifiedAt,
+                  path: session.path,
+                })
+            : undefined
+        }
+      />
     </span>
   );
 }
-
-/**
- * 行内扎点开关 —— hover 显形 / 已扎常亮;真 button 承载(与行按钮为兄弟,
- * 不再嵌套在行激活热区内;hover/焦点显形经 .thread-row-host 前缀选择器)。
- */
-export function PinToggle({
-  on,
-  disabled,
-  onToggle,
-}: {
-  on: boolean;
-  /** 会话尚未落盘时不可扎(覆盖层以 CLI 身份为 key)。 */
-  disabled?: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={`thread-pin-btn${on ? " is-on" : ""}`}
-      aria-pressed={on}
-      aria-label={on ? t("取消置顶") : t("置顶到全局")}
-      title={
-        disabled
-          ? t("会话尚未落盘,暂不可置顶")
-          : on
-            ? t("取消置顶")
-            : t("置顶到全局(右键可置顶到工作区内)")
-      }
-      disabled={disabled}
-      onClick={(e) => {
-        e.stopPropagation();
-        onToggle();
-      }}
-    >
-      <PinIcon size="0.75rem" className="thread-pin-icon" />
-    </button>
-  );
-}
-

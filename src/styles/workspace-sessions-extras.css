@@ -64,48 +64,133 @@
   color: var(--text-strong);
 }
 
-/* ===== 行内扎点开关(hover 显形,已扎常亮;点击即扎/取消) ===== */
-.thread-pin-btn {
+/* ===== 行内动作组(齿轮入口 + 环形弹出组) =====
+   齿轮在原置点位(hover 显形/已扎 accent 常亮);点击展开左半环操作组。
+   PinnedSessions 仍用独立 .thread-pin-btn(置顶块行)。 */
+.thread-actions {
   position: absolute;
   right: 4px;
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
+  z-index: 6;
+}
+
+.thread-row-host:hover .thread-actions,
+.thread-row-host:focus-within .thread-actions {
+  opacity: 1;
+}
+
+.thread-row-host:hover .thread-gear-btn,
+.thread-row-host:focus-within .thread-gear-btn,
+.thread-actions.is-pinned .thread-gear-btn,
+.thread-actions.open .thread-gear-btn {
+  opacity: 1;
+}
+
+/* 齿轮钮(组收起期 hover 显形;展开后常亮并转动收起向) */
+.thread-gear-btn {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border: none;
   background: transparent;
   padding: 0;
-  border-radius: 4px;
+  border-radius: 50%;
   color: var(--text-faint);
-  opacity: 0;
   cursor: pointer;
+  opacity: 0;
   transition:
     opacity 0.12s ease,
+    transform 0.2s ease,
     background-color 0.12s ease,
     color 0.12s ease;
 }
 
-.thread-row-host:hover .thread-pin-btn,
-.thread-row-host:focus-within .thread-pin-btn,
-.thread-pin-btn.is-on {
+.thread-actions.is-pinned .thread-gear-btn { color: var(--text-muted); }
+.thread-gear-btn:hover { background: var(--surface-hover); color: var(--text-strong); }
+.thread-actions.open .thread-gear-btn {
   opacity: 1;
-}
-
-.thread-pin-btn:hover {
-  background: var(--surface-hover);
+  background: var(--surface, var(--bg-elevated, #fff));
+  box-shadow: 0 0 0 1px var(--border, rgba(0, 0, 0, 0.1));
   color: var(--text-strong);
+  transform: rotate(90deg);
 }
 
-.thread-pin-btn.is-on {
+/* 环形操作组(portal + fixed:环心=齿轮屏幕坐标,右半环展开朝编辑区)。
+   定位走 transform + --dx/--dy px 变量(JS 注入,含 14px 居中补偿),
+   left/top 恒 0 —— 动画从环心(translate 0)飞到环位,不吃父级 overflow。 */
+.sv-radial {
+  position: fixed;
+  width: 0;
+  height: 0;
+  z-index: 1200;
+}
+
+.sv-radial-item {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  background: var(--surface, var(--bg-elevated, #fff));
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
   color: var(--text-muted);
+  cursor: pointer;
+  transform: translate(var(--dx), var(--dy));
+  animation: sv-radial-pop 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
 }
 
-/* 已扎:实心 pin,与未扎的轮廓态一眼可辨(lucide Pin 为 stroke 型,fill 即实体) */
-.thread-pin-btn.is-on .thread-pin-icon {
-  fill: currentColor;
+@keyframes sv-radial-pop {
+  from {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.3);
+  }
+}
+
+.sv-radial-item:hover {
+  color: var(--text-strong);
+  border-color: var(--text-faint);
+  transform: translate(var(--dx), var(--dy)) scale(1.12);
+}
+
+.sv-radial-item.is-danger { color: #cf222e; }
+.sv-radial-item.is-danger:hover { border-color: #cf222e; }
+.sv-radial-item.is-armed {
+  background: #cf222e;
+  border-color: #cf222e;
+  color: #fff;
+}
+
+/* 透明背板(点外关闭,wsmenu-backdrop 同层语义) */
+.sv-radial-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1199;
+}
+
+/* 独立置顶钮(PinnedSessions 置顶块行,无动作组):保留原 absolute 定位与
+   hover 显形门(组内按钮不吃这两条)。 */
+.thread-row-host > .thread-pin-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+}
+
+.thread-row-host:hover > .thread-pin-btn,
+.thread-row-host:focus-within > .thread-pin-btn,
+.thread-row-host > .thread-pin-btn.is-on {
+  opacity: 1;
 }
 
 .thread-pin-icon {

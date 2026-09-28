@@ -133,7 +133,7 @@ export const cliOmpPlugin: Plugin = {
       listMcpServers: listOmpMcpServers,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       /* 打开历史会话的预热接管(个性化能力;机制与降级护栏见 ./prewarm.ts):
-       * 命中预热进程注入 /resume 热切换(0.24-1.2s),失配回落默认冷路径。 */
+         命中预热进程注入 /resume 热切换(0.24-1.2s),失配回落默认冷路径。 */
       acquireResume: ompAcquireResume,
       /* MCP 管理面:全局读写目标 = ~/.omp/agent/mcp.json,缺则隐藏名 .mcp.json
          (读层同序);mcp-hub 经 cli-shared/mcpWrite 读写,候选序 = 优先级序。 */

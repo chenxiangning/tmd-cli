@@ -5,9 +5,21 @@ import {
   readUserMessagesFromFile,
 } from "../cli-shared/userMessages";
 import { parseClaudeFamilySessionHead } from "../cli-shared/sessionIdentity";
-import type { CliProfile, CliSessionStatus, CliSuggestion } from "@kernel/cli";
+import type {
+  CliDiskSession,
+  CliProfile,
+  CliSessionStatus,
+  CliSessionTranscript,
+  CliSuggestion,
+} from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { fetchClaudeQuota } from "./quota";
+import { claudeTranscriptLine } from "../cli-shared/claudeTranscript";
+import {
+  pairToolResults,
+  parseTranscriptBlocks,
+  readTranscriptText,
+} from "../cli-shared/sessionTranscript";
 import { listClaudeSuggestions } from "./scanSuggestions";
 import { claudeConfigEntry } from "./configGui";
 import { CLAUDE_ACADEMY_COURSE } from "./academy/academyCatalog";
@@ -67,6 +79,20 @@ async function readClaudeUserMessages(cwd: string, cliSessionId: string, full: b
   const dir = await claudeSessionsDir(cwd);
   if (!dir) return null;
   return readUserMessagesFromFile(`${dir}/${cliSessionId}.jsonl`, full, claudeUserMessageLine);
+}
+
+/** 会话完整转录:claude 行型解析(claudeTranscript 骨架,claude 变体)。 */
+async function readClaudeTranscript(
+  session: CliDiskSession,
+): Promise<CliSessionTranscript | null> {
+  const file = await readTranscriptText(session.path);
+  if (!file) return null;
+  return {
+    blocks: pairToolResults(
+      parseTranscriptBlocks(file.text, claudeTranscriptLine("claude")),
+    ),
+    truncated: file.truncated,
+  };
 }
 
 /** 身份自证:行内 sessionId/cwd 字段(claude 家族格式,与 qoder 共享解析)。 */
@@ -211,6 +237,7 @@ export const cliClaudePlugin: Plugin = {
       readSessionStatus: readClaudeSessionStatus,
       readSessionFileIdentity: readClaudeSessionIdentity,
       readSessionUserMessages: readClaudeUserMessages,
+      readSessionTranscript: readClaudeTranscript,
       editMarks: CLAUDE_EDIT_MARKS,
     };
     ctx.registerCliProfile(profile);

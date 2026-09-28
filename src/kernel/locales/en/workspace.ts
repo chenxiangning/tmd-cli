@@ -61,6 +61,7 @@ export const MESSAGES = {
   "重命名": "Rename",
   "置顶到工作区内": "Pin to workspace",
   "删除会话": "Delete session",
+  "再点一次确认删除": "Click again to confirm delete",
   "确认删除?": "Confirm delete?",
 
   // ── SessionMenu (新建会话下拉) ──

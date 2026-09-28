@@ -9,12 +9,8 @@ import type { SpawnSpec } from "./ipc";
 import type { CliPrerequisite } from "./cliPrerequisite";
 import type { TriggerKind, CliTriggerSpec, CliSuggestion } from "./cli";
 import type {
-  CliDiskSession,
-  CliSessionEdit,
-  CliSessionStatus,
-  CliUserMessage,
-  RemoteExec,
-  SessionFileIdentity,
+  CliDiskSession, CliSessionEdit, CliSessionStatus, CliSessionTranscript,
+  CliUserMessage, RemoteExec, SessionFileIdentity,
 } from "./cliSessionTypes";
 
 export interface CliProfile {
@@ -148,6 +144,9 @@ export interface CliProfile {
     cliSessionId: string,
     full: boolean,
   ) => Promise<CliUserMessage[] | null>;
+  /** 会话完整转录(查看器数据源,只读;32MB 预算超限置 truncated)。
+   *  块模型参考 monocode 裁剪,详见 cliSessionTypes.ts 头注。缺省 = 不支持转录查看。 */
+  readSessionTranscript?: (session: CliDiskSession) => Promise<CliSessionTranscript | null>;
   /**
    * 读取该 CLI 的默认模型与思考强度(配置层,非会话层)。
    * 用途:全新会话创建即赋值 —— 磁盘会话文件要等首条消息才落盘(实证 omp),

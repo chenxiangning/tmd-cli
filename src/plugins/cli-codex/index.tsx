@@ -11,7 +11,17 @@ import { pathsEqual } from "@kernel/pathUtils";
 import { getPlatformKind } from "@kernel/platform";
 import { readCodexSessionEdits } from "./edits";
 import { fetchCodexQuota } from "./quota";
-import type { CliSuggestion } from "@kernel/cli";
+import type {
+  CliDiskSession,
+  CliSessionTranscript,
+  CliSuggestion,
+} from "@kernel/cli";
+import { codexTranscriptLine } from "./codexTranscript";
+import {
+  pairToolResults,
+  parseTranscriptBlocks,
+  readTranscriptText,
+} from "../cli-shared/sessionTranscript";
 import type { Plugin } from "@kernel/plugin";
 import { listCodexSuggestions } from "./scanSuggestions";
 import { extractTomlMcpServers } from "../cli-shared/mcpFormat";
@@ -73,6 +83,18 @@ async function readCodexUserMessages(cwd: string, cliSessionId: string, full: bo
   const meta = head ? extractMeta(head) : null;
   if (!meta || !pathsEqual(meta.cwd, cwd, CASE_INSENSITIVE_FS)) return null;
   return readUserMessagesFromFile(path, full, codexUserMessageLine);
+}
+
+/** 会话完整转录:codex response_item 行型解析(codexTranscript)。 */
+async function readCodexTranscript(
+  session: CliDiskSession,
+): Promise<CliSessionTranscript | null> {
+  const file = await readTranscriptText(session.path);
+  if (!file) return null;
+  return {
+    blocks: pairToolResults(parseTranscriptBlocks(file.text, codexTranscriptLine)),
+    truncated: file.truncated,
+  };
 }
 
 /**
@@ -169,6 +191,7 @@ export const cliCodexPlugin: Plugin = {
       readSessionStatus: readCodexSessionStatus,
       readSessionFileIdentity: readCodexSessionIdentity,
       readSessionUserMessages: readCodexUserMessages,
+      readSessionTranscript: readCodexTranscript,
       readSessionEdits: readCodexSessionEdits,
     });
     /* 学堂:codex 斜杠命令课程,注册一份目录,学堂 UI 零改动 */

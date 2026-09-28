@@ -45,6 +45,7 @@ import { sessionSearchPlugin } from "./session-search";
 import { sessionRelayPlugin } from "./session-relay";
 import { skillHubPlugin } from "./skill-hub";
 import { mcpHubPlugin } from "./mcp-hub";
+import { sessionViewerPlugin } from "./session-viewer";
 
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
@@ -88,4 +89,5 @@ export const allPlugins: Plugin[] = [
   sessionRelayPlugin,
   skillHubPlugin,
   mcpHubPlugin,
+  sessionViewerPlugin,
 ];

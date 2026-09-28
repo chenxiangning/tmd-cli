@@ -48,7 +48,7 @@ export function messageText(content: unknown): string | undefined {
 }
 
 /** 包装消息判定:XML 包装与 AGENTS.md 指令注入都不是用户真实输入。 */
-function isWrapperText(text: string): boolean {
+export function isWrapperText(text: string): boolean {
   const t = text.trimStart();
   return t.startsWith("<") || t.startsWith("# AGENTS.md instructions");
 }
@@ -122,7 +122,7 @@ export const codexUserMessageLine: UserMessageLineParser = (event) => {
 };
 
 /** FNV-1a 32 位文本 hash —— 非加密用途的稳定去重键。 */
-function fnv1a32(text: string): string {
+export function fnv1a32(text: string): string {
   let hash = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
     hash ^= text.charCodeAt(i);
@@ -132,7 +132,7 @@ function fnv1a32(text: string): string {
 }
 
 /** content 块内 <user_query>…</user_query> 真实输入提取;无包裹 = 非用户语义。 */
-function grokUserQueryText(content: unknown): string | undefined {
+export function grokUserQueryText(content: unknown): string | undefined {
   if (!Array.isArray(content)) return undefined;
   const parts: string[] = [];
   for (const part of content) {

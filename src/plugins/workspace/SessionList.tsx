@@ -166,6 +166,9 @@ export function CliSessionGroup({
         }}
         onRenameCommit={commitRename}
         onTogglePin={() => togglePin(s.id)}
+        onCopyId={() => copyText(s.id)}
+        onRename={() => startRename(s.id, titleOverrides[sessionTitleKey(profile.id, s.id)] ?? "")}
+        onDelete={() => void deleteDisk(s)}
       />
     ));
 
@@ -212,6 +215,7 @@ export function CliSessionGroup({
                   sessionPinKey(workspace.id, profile.id, cliSessionId) in pins
                 }
                 canPin={cliSessionId !== undefined}
+                cliSessionId={cliSessionId}
                 waiting={host.isWaitingConfirm(s.id)}
                 renaming={
                   renaming && cliSessionId === renaming.cliSessionId
@@ -226,6 +230,15 @@ export function CliSessionGroup({
                   if (cliSessionId !== undefined) togglePin(cliSessionId);
                 }}
                 onRenameCommit={commitRename}
+                onCopyId={() => copyText(cliSessionId ?? s.id)}
+                onRename={() => {
+                  if (!cliSessionId) return;
+                  startRename(
+                    cliSessionId,
+                    titleOverrides[sessionTitleKey(profile.id, cliSessionId)] ?? "",
+                  );
+                }}
+                onDelete={() => void deleteLive(s)}
               />
             );
           })}

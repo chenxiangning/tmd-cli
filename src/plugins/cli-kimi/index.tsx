@@ -17,6 +17,29 @@ import {
   readKimiUserMessages,
 } from "./kimiSessions";
 import { isKimiSessionEmpty } from "./kimiEmpty";
+import { kimiTranscriptLine } from "./kimiTranscript";
+import {
+  pairToolResults,
+  parseTranscriptBlocks,
+  readTranscriptText,
+} from "../cli-shared/sessionTranscript";
+import type { CliDiskSession, CliSessionTranscript } from "@kernel/cli";
+
+/** 会话完整转录:wire 双候选位(新布局 agents/main/wire.jsonl,老 home 直挂),
+ *  顺序探测先成者用(kimiEmpty 同款)。 */
+async function readKimiTranscript(
+  session: CliDiskSession,
+): Promise<CliSessionTranscript | null> {
+  for (const wire of [`${session.path}/agents/main/wire.jsonl`, `${session.path}/wire.jsonl`]) {
+    const file = await readTranscriptText(wire);
+    if (!file) continue;
+    return {
+      blocks: pairToolResults(parseTranscriptBlocks(file.text, kimiTranscriptLine)),
+      truncated: file.truncated,
+    };
+  }
+  return null;
+}
 
 /**
  * config.toml → 默认模型/思考强度(纯函数,可测)。
@@ -144,6 +167,7 @@ export const cliKimiPlugin: Plugin = {
       readSessionFileIdentity: readKimiSessionIdentity,
       readDefaultStatus: readKimiConfigStatus,
       readSessionUserMessages: readKimiUserMessages,
+      readSessionTranscript: readKimiTranscript,
       /* Ask 卡片标记(pi-tui 系共享字面量,见 cli-shared/askMarks.ts)。 */
       askMarks: PI_TUI_ASK_MARKS,
       /* 用户消息回显标记(pi-tui 系共享字面量,见 cli-shared/echoMarks.ts)。 */

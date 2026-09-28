@@ -11,7 +11,9 @@ import { t } from "@kernel/i18n";
 import type { SessionMeta } from "@kernel/ipc";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
-import { PinToggle, ActivityDot, SessionStatusLabel } from "./SessionRows";
+import { ActivityDot, SessionStatusLabel } from "./SessionRows";
+import { ThreadRowActions } from "./RowActions";
+import { isSessionViewAvailable, openSessionViewTab } from "@kernel/sessionViewTabs";
 
 /** 右键菜单目标:活会话(PTY 态)或磁盘会话(文件态)。 */
 export type MenuTarget =
@@ -26,11 +28,15 @@ export function LiveSessionRow({
   title,
   pinned,
   canPin,
+  cliSessionId,
   waiting,
   renaming,
   onContextMenu,
   onTogglePin,
   onRenameCommit,
+  onCopyId,
+  onRename,
+  onDelete,
 }: {
   session: SessionMeta;
   /** 行首供应商图标(renderIcon 0.75rem,扁平化后替代分组段头的引擎识别)。 */
@@ -40,12 +46,18 @@ export function LiveSessionRow({
   pinned: boolean;
   /** 已绑定磁盘身份才可扎(覆盖层以 CLI 身份为 key)。 */
   canPin: boolean;
+  /** 实时绑定表身份(host.getCliSessionId;快照字段回写有时差,不能直读)。 */
+  cliSessionId: string | undefined;
   /** 正等待用户确认(Ask 标记命中):meta 区亮「等待确认」标签,作答即消。 */
   waiting: boolean;
   renaming: RenameTarget | null;
   onContextMenu: (e: React.MouseEvent) => void;
   onTogglePin: () => void;
   onRenameCommit: (value: string | null) => void;
+  /** 环形动作组扩展位(缺省不出环位)。 */
+  onCopyId?: () => void;
+  onRename?: () => void;
+  onDelete?: () => void;
 }) {
   if (renaming) {
     return (
@@ -80,7 +92,25 @@ export function LiveSessionRow({
           {waiting ? <span className="thread-ask-badge">{t("等待确认")}</span> : null}
         </span>
       </button>
-      <PinToggle on={pinned} disabled={!canPin} onToggle={onTogglePin} />
+      <ThreadRowActions
+        pinned={pinned}
+        disabled={!canPin}
+        onCopyId={onCopyId}
+        onRename={canPin ? onRename : undefined}
+        onDelete={onDelete}
+        onTogglePin={onTogglePin}
+        onOpenView={
+          cliSessionId && profile.readSessionTranscript && isSessionViewAvailable()
+            ? () =>
+                openSessionViewTab({
+                  profileId: profile.id,
+                  cliSessionId,
+                  title,
+                  cwd: session.cwd,
+                })
+            : undefined
+        }
+      />
     </span>
   );
 }

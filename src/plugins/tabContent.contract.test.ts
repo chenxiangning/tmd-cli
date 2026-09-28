@@ -31,6 +31,7 @@ const OPENABLE_KINDS = [
   "intent-canvas",
   "skill-hub",
   "mcphub",
+  "session-view",
 ] as const;
 
 function activateCollectingKinds(): Set<string> {

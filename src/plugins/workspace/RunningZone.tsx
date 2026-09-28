@@ -30,16 +30,11 @@ import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/wor
 import { Pulse, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { SessionContextMenu } from "./SessionContextMenu";
-import { PinToggle, SessionStatusLabel } from "./SessionRows";
-import {
-  compareLiveSessions,
-  isRunningZoneCandidate,
-  orShortId,
-  TITLE_RESOLVE_MAX_ATTEMPTS,
-  titleRetryDelay,
-} from "./utils";
+import { SessionStatusLabel } from "./SessionRows";
+import { ThreadRowActions } from "./RowActions";
+import { sessionViewOpener } from "@kernel/sessionViewTabs";
+import { compareLiveSessions, isRunningZoneCandidate, orShortId, TITLE_RESOLVE_MAX_ATTEMPTS, titleRetryDelay } from "./utils";
 import { runningSection } from "./sectionCollapsed";
-
 interface RunningRow {
   session: SessionMeta;
   cliSessionId?: string;
@@ -167,6 +162,16 @@ export function RunningZoneSection() {
     else pinSession(key, "global", realTitleOf(row));
   };
 
+  /** 重命名装配(行内环与右键菜单共用;未绑定磁盘身份 = no-op)。 */
+  const renameOf = (row: RunningRow) => {
+    if (row.cliSessionId === undefined) return;
+    setRenaming({
+      profileId: row.profile.id,
+      cliSessionId: row.cliSessionId,
+      current: settings.sessionTitles[sessionTitleKey(row.profile.id, row.cliSessionId)] ?? "",
+    });
+  };
+
   const openRow = (row: RunningRow) => {
     noteSessionTabTitle(row.session.id, titleOf(row));
     host.setActiveSession(row.session.id);
@@ -239,10 +244,15 @@ export function RunningZoneSection() {
                   <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
                 </span>
               </button>
-              <PinToggle
-                on={false}
+              <ThreadRowActions
+                pinned={false}
                 disabled={row.cliSessionId === undefined}
-                onToggle={() => togglePin(row)}
+                onTogglePin={() => togglePin(row)}
+                onOpenView={sessionViewOpener(row.profile, row.cliSessionId, titleOf(row), { cwd: row.session.cwd ?? row.workspace.root })}
+                onCopyId={() => {
+                  void navigator.clipboard?.writeText(row.cliSessionId ?? row.session.id).catch(() => undefined);
+                }}
+                onRename={() => renameOf(row)}
               />
             </span>
           );
@@ -268,17 +278,7 @@ export function RunningZoneSection() {
               ?.writeText(menu.row.cliSessionId ?? menu.row.session.id)
               .catch(() => undefined);
           }}
-          onRename={() => {
-            if (menu.row.cliSessionId === undefined) return;
-            setRenaming({
-              profileId: menu.row.profile.id,
-              cliSessionId: menu.row.cliSessionId,
-              current:
-                settings.sessionTitles[
-                  sessionTitleKey(menu.row.profile.id, menu.row.cliSessionId)
-                ] ?? "",
-            });
-          }}
+          onRename={() => renameOf(menu.row)}
           onPinScope={(scope) => {
             if (menu.row.cliSessionId === undefined) return;
             toggleSessionPin(
