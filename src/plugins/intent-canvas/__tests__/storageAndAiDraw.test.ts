@@ -209,8 +209,10 @@ describe("ai draw inbox protocol", () => {
   it("poll 导入 new 指令 → 新画布入库;源文件消费删除", async () => {
     const inbox = `${await (await import("../storage/paths")).aiInboxDir(ROOT)}`;
     fileByPath.set(`${inbox}/ai-draw-1.json`, JSON.stringify(validFile));
-    const titles = await pollAiDrawInbox(ROOT);
-    expect(titles).toEqual(["架构草图"]);
+    const imported = await pollAiDrawInbox(ROOT);
+    expect(imported).toHaveLength(1);
+    expect(imported[0].title).toBe("架构草图");
+    expect(imported[0].id).toMatch(/^canvas-/);
     expect(fileByPath.has(`${inbox}/ai-draw-1.json`)).toBe(false);
     const index = await loadIntentCanvasIndex(ROOT);
     expect(index.value.map((e) => e.title)).toContain("架构草图");
@@ -227,8 +229,10 @@ describe("ai draw inbox protocol", () => {
       `${inbox}/ai-draw-2.json`,
       JSON.stringify({ ...validFile, mode: "append", canvasId: saved.id, title: undefined }),
     );
-    const titles = await pollAiDrawInbox(ROOT);
-    expect(titles).toEqual(["主画布"]);
+    const imported = await pollAiDrawInbox(ROOT);
+    expect(imported).toHaveLength(1);
+    expect(imported[0].title).toBe("主画布");
+    expect(imported[0].id).toBe(saved.id);
     const loaded = await loadIntentCanvasDocument(ROOT, saved.id);
     expect(loaded.scene.elements.length).toBeGreaterThan(0);
   });
@@ -237,15 +241,18 @@ describe("ai draw inbox protocol", () => {
     const inbox = `${await (await import("../storage/paths")).aiInboxDir(ROOT)}`;
     fileByPath.set(`${inbox}/ai-draw-bad.json`, "{not json");
     fileByPath.set(`${inbox}/ai-draw-good.json`, JSON.stringify(validFile));
-    const titles = await pollAiDrawInbox(ROOT);
-    expect(titles).toEqual(["架构草图"]);
+    const imported = await pollAiDrawInbox(ROOT);
+    expect(imported).toHaveLength(1);
+    expect(imported[0].title).toBe("架构草图");
+    expect(imported[0].id).toMatch(/^canvas-/);
     const failedDir = `${inbox}/failed`;
     expect([...fileByPath.keys()].some((p) => p.startsWith(failedDir))).toBe(true);
   });
 
   it("importAiDrawFile 单文件直导", async () => {
     const result = await importAiDrawFile(ROOT, parseAiDrawFile(JSON.stringify(validFile)));
-    expect(result).toEqual({ ok: true, canvasTitle: "架构草图" });
+    expect(result).toMatchObject({ ok: true, canvasTitle: "架构草图" });
+    expect(result.canvasId).toMatch(/^canvas-/);
   });
 
   it("重复导入同一画布不产生重复元素 id(ai-draw 前缀进 repair 去重白名单)", async () => {

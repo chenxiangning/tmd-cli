@@ -54,7 +54,7 @@ export function IntentCanvasManager({
   const [entries, setEntries] = useState<IntentCanvasIndexEntry[]>(EMPTY_CANVAS_ENTRIES);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [aiDrawNotice, setAiDrawNotice] = useState<string | null>(null);
+  const [aiDrawNotice, setAiDrawNotice] = useState<{ id: string; title: string }[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [actionPrompt, setActionPrompt] = useState<IntentCanvasActionPrompt | null>(null);
   const [confirmingCanvasActionId, setConfirmingCanvasActionId] = useState<string | null>(null);
@@ -159,9 +159,9 @@ export function IntentCanvasManager({
     },
   });
 
-  const aiDrawImportError = useAiDrawInbox(activeWorkspace, (titles) => {
+  const aiDrawImportError = useAiDrawInbox(activeWorkspace, (imported) => {
     void refreshIndex();
-    setAiDrawNotice(t("AI 作画已上画布:{titles}", { titles: titles.join("、") }));
+    setAiDrawNotice(imported);
   });
 
   /* 编辑器当前文档桥 + 打开态兜底:批量删除/切工作区后编辑器不残留已删文档。 */

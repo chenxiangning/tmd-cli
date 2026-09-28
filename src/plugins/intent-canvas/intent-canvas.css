@@ -52,6 +52,8 @@
 .intent-canvas-warning,
 .intent-canvas-error,
 .intent-canvas-ai-draw-notice { display: flex; align-items: center; gap: 0.375rem; border-radius: var(--tmd-radius-md); border: 1px solid var(--tmd-border); padding: 0.375rem 0.625rem; font-size: 0.6875rem; }
+.intent-canvas-ai-draw-notice-link { border: 0; border-radius: 999px; background: color-mix(in srgb, var(--tmd-ok) 14%, transparent); padding: 0.0625rem 0.5rem; font-size: inherit; color: var(--tmd-ok); cursor: pointer; }
+.intent-canvas-ai-draw-notice-link:hover { background: color-mix(in srgb, var(--tmd-ok) 24%, transparent); }
 .intent-canvas-warning,
 .intent-canvas-ai-draw-notice { border-color: var(--tmd-ok); color: var(--tmd-ok); background: color-mix(in srgb, var(--tmd-ok) 8%, transparent); }
 .intent-canvas-error { border-color: var(--tmd-err); color: var(--tmd-err); background: color-mix(in srgb, var(--tmd-err) 8%, transparent); }

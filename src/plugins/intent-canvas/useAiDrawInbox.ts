@@ -13,7 +13,7 @@ export const AI_DRAW_POLL_MS = 2000;
 
 export function useAiDrawInbox(
   activeWorkspace: Workspace | null,
-  onImported: (titles: string[]) => void,
+  onImported: (imported: { id: string; title: string }[]) => void,
 ): string | null {
   const [lastError, setLastError] = useState<string | null>(null);
   const onImportedRef = useRef(onImported);
@@ -40,13 +40,13 @@ export function useAiDrawInbox(
       }
       running = true;
       try {
-        const titles = await pollAiDrawInbox(root, {
+        const imported = await pollAiDrawInbox(root, {
           id: activeWorkspace.id,
           name: activeWorkspace.name,
         });
-        if (!cancelled && titles.length > 0) {
+        if (!cancelled && imported.length > 0) {
           setLastError(null);
-          onImportedRef.current(titles);
+          onImportedRef.current(imported);
         }
       } catch (error) {
         if (!cancelled) {

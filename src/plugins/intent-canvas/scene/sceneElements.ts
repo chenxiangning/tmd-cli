@@ -34,7 +34,9 @@ export const GENERATED_ELEMENT_ID_PREFIXES = [
   "intent-ai-draw-",
 ];
 export function inferBoundElementType(id: string): "text" | "arrow" {
-  return id.startsWith("intent-node-text-") || id.startsWith("intent-edge-label-")
+  return id.startsWith("intent-node-text-") ||
+    id.startsWith("intent-edge-label-") ||
+    id.startsWith("intent-ai-draw-text-")
     ? "text"
     : "arrow";
 }

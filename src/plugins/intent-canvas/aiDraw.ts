@@ -40,7 +40,7 @@ export type AiDrawFile = {
   shapes: AiDrawShape[];
 };
 
-export type AiDrawImportResult = { ok: true; canvasTitle: string };
+export type AiDrawImportResult = { ok: true; canvasId: string; canvasTitle: string };
 
 function num(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -104,14 +104,17 @@ export function parseAiDrawFile(raw: string): AiDrawFile {
   };
 }
 
-/** AI shapes → 种子图形(带 label 的形状自动补绑定文本,同种子投影管线)。 */
+/** AI shapes → 种子图形(label 绑定到形状,同 sceneGraph 投影管线:
+ *  容器 boundElementIds + 文本 containerId,拖动/删除形状时文本跟随)。 */
 export function projectAiDrawShapes(shapes: AiDrawShape[]): SeedShape[] {
   const out: SeedShape[] = [];
   shapes.forEach((shape, index) => {
+    const shapeId = shape.type === "arrow" ? undefined : `intent-ai-draw-${index}`;
     if (shape.type === "text" || shape.label) {
-      const fontSize = shape.fontSize ?? (shape.type === "text" ? 20 : 16);
+      const fontSize = shape.fontSize ?? (shape.type === "text" ? 20 : 20);
       out.push({
         type: "text",
+        id: shape.type === "text" ? shapeId : `intent-ai-draw-text-${index}`,
         x: shape.x + (shape.type === "text" ? 0 : 10),
         y: shape.type === "text" ? shape.y : shape.y + Math.max(8, Math.round(shape.height / 2) - fontSize),
         width: Math.max(40, shape.width - 20),
@@ -119,6 +122,7 @@ export function projectAiDrawShapes(shapes: AiDrawShape[]): SeedShape[] {
         text: shape.label ?? "",
         fontSize,
         strokeColor: shape.stroke ?? (shape.type === "text" ? "#334155" : "#1d4ed8"),
+        containerId: shape.type === "text" ? null : shapeId,
       });
     }
     if (shape.type !== "text") {
@@ -130,7 +134,9 @@ export function projectAiDrawShapes(shapes: AiDrawShape[]): SeedShape[] {
         height: shape.height,
         strokeColor: shape.stroke ?? "#334155",
         backgroundColor: shape.fill ?? "transparent",
-        id: shape.type === "arrow" ? undefined : `intent-ai-draw-${index}`,
+        id: shapeId,
+        boundElementIds:
+          shapeId && shape.label ? [`intent-ai-draw-text-${index}`] : undefined,
       });
     }
   });

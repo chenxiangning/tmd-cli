@@ -2,6 +2,7 @@ import { t } from "@kernel/i18n";
 import { ArrowClockwise, CircleNotch, FileText, GitBranch, ListChecks, MagnifyingGlass, Palette, Plus, Square, Trash } from "@phosphor-icons/react";
 
 import { cn } from "../../utils/cn";
+import { openIntentCanvasBacklink } from "../../activeDocumentBridge";
 import { ConfirmBubble } from "../ConfirmBubble";
 import type { IntentCanvasIndexEntry } from "../../types";
 import type { CanvasEra } from "../../utils/eraGrouping";
@@ -20,7 +21,7 @@ export type IntentCanvasHomeProps = {
   now: Date;
   warnings: string[];
   errorMessage: string | null;
-  aiDrawNotice: string | null;
+  aiDrawNotice: { id: string; title: string }[] | null;
   aiDrawError: string | null;
   aiDrawEnabled: boolean;
   onToggleAiDraw: () => void;
@@ -168,8 +169,21 @@ export function IntentCanvasHome(props: IntentCanvasHomeProps) {
       ))}
       {props.aiDrawError ? (
         <p className="intent-canvas-error" role="alert">{props.aiDrawError}</p>
-      ) : props.aiDrawNotice ? (
-        <p className="intent-canvas-ai-draw-notice" role="status">{props.aiDrawNotice}</p>
+      ) : props.aiDrawNotice && props.aiDrawNotice.length > 0 ? (
+        <p className="intent-canvas-ai-draw-notice" role="status">
+          {t("AI 作画已上画布:")}
+          {props.aiDrawNotice.map((canvas) => (
+            <button
+              key={canvas.id}
+              type="button"
+              className="intent-canvas-ai-draw-notice-link"
+              onClick={() => openIntentCanvasBacklink(canvas.id)}
+              title={t("打开画布「{title}」", { title: canvas.title })}
+            >
+              {canvas.title}
+            </button>
+          ))}
+        </p>
       ) : null}
       {errorMessage ? <p className="intent-canvas-error" role="alert">{errorMessage}</p> : null}
       {selectedCount > 0 ? (

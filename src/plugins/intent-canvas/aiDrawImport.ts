@@ -64,7 +64,7 @@ export async function importAiDrawFile(
   if (!target) {
     const document = createIntentCanvasDocumentForAiDraw(file, appendedScene, workspace);
     const saved = await saveIntentCanvasDocument(root, document);
-    return { ok: true, canvasTitle: saved.title };
+    return { ok: true, canvasId: saved.id, canvasTitle: saved.title };
   }
   const nextScene = appendIntentCanvasScene(target.scene, appendedScene);
   const nextSummary = appendIntentCanvasSummary(target.summary, file.summary ?? "");
@@ -75,7 +75,7 @@ export async function importAiDrawFile(
     aiContext: buildIntentCanvasAiContext(nextScene, nextSummary),
   };
   const saved = await saveIntentCanvasDocument(root, nextDocument);
-  return { ok: true, canvasTitle: saved.title };
+  return { ok: true, canvasId: saved.id, canvasTitle: saved.title };
 }
 
 function createIntentCanvasDocumentForAiDraw(
@@ -113,7 +113,7 @@ let pollInFlight = false;
 export async function pollAiDrawInbox(
   root: string,
   workspace: { id: string; name: string | null } = { id: root, name: null },
-): Promise<string[]> {
+): Promise<{ id: string; title: string }[]> {
   /* 模块级重入闸(双保险;hook 侧亦有 running 旗标)。 */
   if (pollInFlight) {
     return [];
@@ -129,13 +129,13 @@ export async function pollAiDrawInbox(
 async function pollAiDrawInboxInner(
   root: string,
   workspace: { id: string; name: string | null },
-): Promise<string[]> {
+): Promise<{ id: string; title: string }[]> {
   const inbox = await aiInboxDir(root);
   /* 幂等建目录:prompt 让 AI 往 inbox 写文件,目录必须由客户端兜底创建,
      否则依赖各 CLI 写文件工具的父目录行为,首次作画可能 ENOENT。 */
   await ipc.fsCreateDir(inbox).catch(() => undefined);
   const entries = await ipc.fsListDir(inbox).catch(() => []);
-  const importedTitles: string[] = [];
+  const importedCanvases: { id: string; title: string }[] = [];
   for (const entry of entries) {
     if (entry.isDir || !AI_DRAW_FILE_RE.test(entry.name)) {
       continue;
@@ -145,7 +145,7 @@ async function pollAiDrawInboxInner(
       const file = parseAiDrawFile(raw);
       const result = await importAiDrawFile(root, file, workspace);
       /* importAiDrawFile 失败路径一律抛错走 catch;ok 结果直接入账。 */
-      importedTitles.push(result.canvasTitle);
+      importedCanvases.push({ id: result.canvasId, title: result.canvasTitle });
       await ipc.fsTrashEntry(entry.path).catch(async () => {
         /* 源文件消费失败会导致下轮重复导入:降级移 failed 止损。 */
         await moveToFailed(inbox, entry.path, "trash failed after import");
@@ -154,7 +154,7 @@ async function pollAiDrawInboxInner(
       await moveToFailed(inbox, entry.path, error instanceof Error ? error.message : String(error));
     }
   }
-  return importedTitles;
+  return importedCanvases;
 }
 
 async function moveToFailed(inbox: string, filePath: string, error: string): Promise<void> {
