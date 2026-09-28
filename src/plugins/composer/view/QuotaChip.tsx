@@ -77,6 +77,8 @@ function useActiveQuota(): {
     const seq = ++fetchSeqRef.current;
     if (!profileId) {
       setEntry(null);
+      setFetchedAt(null);
+      setLoading(false);
       return;
     }
     const provider = getQuotaProvider(profileId);
@@ -85,6 +87,11 @@ function useActiveQuota(): {
         model,
         snapshot: { ...emptyQuotaSnapshot(profileId), error: t("暂不支持额度查询") },
       });
+      /* 早退分支是刚 ++ 过的当次最新序,直接复位即可;被取代的旧 fetch
+         由下方 seq 闸拦下,不会回写。不复位 = 切到无 provider 会话后
+         loading 永卡 true、「更新于」残留上一供应商时刻(2026-09-28 三轮)。 */
+      setFetchedAt(null);
+      setLoading(false);
       return;
     }
     setEntry((prev) =>

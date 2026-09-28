@@ -114,9 +114,19 @@ export function useComposerSend({
       }
       /* 单发:绑定计划期目标 id(确认弹层承诺即所写,不跟随活跃指针漂移 ——
          确认窗内 Ctrl+Tab 切幕布/计划会话退出都会改活跃指针,2026-09-28 评审 F1);
+         广播退化单发(缺员/开关关)同语义:优先落计划快照内首个仍存活目标,
+         快照全灭 = 会话已断开语义,报错保草稿(2026-09-28 三轮评审)。
          profile 按目标现取,消旧闭包 profile 错配。目标消失 = 会话已断开语义。 */
-      const sid = plan.kind === "single" ? plan.targets[0]?.id : host.getActiveSessionId();
-      if (!sid) return;
+      const sid =
+        plan.kind === "single"
+          ? plan.targets[0]?.id
+          : plan.targets.find((t) => host.getSessions().some((s) => s.id === t.id))?.id;
+      if (!sid) {
+        if (plan.kind === "broadcast") {
+          onSendError(t("发送失败:会话已断开,内容已保留"));
+        }
+        return;
+      }
       const meta = host.getSessions().find((s) => s.id === sid);
       if (!meta) {
         onSendError(t("发送失败:会话已断开,内容已保留"));
