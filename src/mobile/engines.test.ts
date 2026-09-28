@@ -22,19 +22,25 @@ const PLUGINS: Record<string, () => Promise<Plugin>> = {
 
 describe("手机引擎表与桌面插件 profile 对齐", () => {
   for (const e of ENGINES) {
-    it(`${e.id}: command 与 resumeArgs 一致`, async () => {
-      const plugin = await PLUGINS[e.id]();
-      let profile: CliProfile | undefined;
-      /* activate 会登记多个注册面(cliConfig/marketPanel…),Proxy 全吞,只捕获 profile。 */
-      const ctx = new Proxy(
-        { registerCliProfile: (p: CliProfile) => (profile = p) },
-        { get: (t, k) => (k in t ? t[k as keyof typeof t] : () => {}) },
-      );
-      plugin.activate(ctx as never);
-      if (!profile) throw new Error(`${e.id} activate 未注册 profile`);
-      expect(profile.id, "profile id").toBe(e.id);
-      expect(profile.command, "启动命令").toBe(e.cmd);
-      expect(profile.resumeArgs?.("S1"), "续聊参数").toEqual(e.resume("S1"));
-    });
+    it(
+      `${e.id}: command 与 resumeArgs 一致`,
+      async () => {
+        const plugin = await PLUGINS[e.id]();
+        let profile: CliProfile | undefined;
+        /* activate 会登记多个注册面(cliConfig/marketPanel…),Proxy 全吞,只捕获 profile。 */
+        const ctx = new Proxy(
+          { registerCliProfile: (p: CliProfile) => (profile = p) },
+          { get: (t, k) => (k in t ? t[k as keyof typeof t] : () => {}) },
+        );
+        plugin.activate(ctx as never);
+        if (!profile) throw new Error(`${e.id} activate 未注册 profile`);
+        expect(profile.id, "profile id").toBe(e.id);
+        expect(profile.command, "启动命令").toBe(e.cmd);
+        expect(profile.resumeArgs?.("S1"), "续聊参数").toEqual(e.resume("S1"));
+      },
+      /* 首个用例吃动态 import 冷变换(omp 插件 + academy 目录体量最大),
+      本机可超 vitest 默认 5s —— 测的是 profile 形状不是速度(2026-09-28 实证) */
+      30_000,
+    );
   }
 });

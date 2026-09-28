@@ -22,7 +22,7 @@ const fsWriteFile = vi.hoisted(() => vi.fn());
 const configHomeDir = vi.hoisted(() => vi.fn(async () => "/home/u"));
 
 vi.mock("@kernel/ipc", () => ({
-  ipc: { procCommunicate, fsReadFile, fsWriteFile, configHomeDir },
+  ipc: { procCommunicate, fsReadFile, fsWriteFile, fsCreateDir: vi.fn(async () => undefined), configHomeDir },
 }));
 
 import {

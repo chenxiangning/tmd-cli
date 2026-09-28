@@ -158,3 +158,31 @@ approval-inbox:
 `pnpm typecheck` / `pnpm test`(371 文件 3011 用例)/ `pnpm check:arch-boundary` / `pnpm check:file-size` / `pnpm build` 全绿;`npx react-doctor -y` 100/100。
 跨插件 import 穷尽解析脚本复跑:仅剩 `plugins/index.ts` 注册表引用。
 桩目检(1421 dev + `__TAURI_INTERNALS__` 注入):Memory 控制台引擎配置卡渲染、sidekick 开关点击状态翻转(configHint 无错误)。
+
+## 第三轮(2026-09-28 同日,Windows 专项审计与修复)
+
+大仙令换角度重审 Windows 不兼容与隐藏 bug:五路并行深读(Rust 核心 / checkpoints 前端+bashWrites / 会话扫描 / memory 引擎面 / kernel+会话基建)+ 本机实证(worktree porcelain 引号、omp/pi/opencode stdin 语义、~/.config 现场壳),全部结论对 HEAD 逐行核实。修复后另派两路对抗复审(全 diff hunk 级攻击 + 代写/反悔双链端到端),再收 5 项。
+
+### CONFIRMED 已修(9 项)
+
+- **退出码(P1)**:Windows Ctrl+C 未处理退出 = NTSTATUS 0xC000013A,`exit_code() as i32` 变负大数穿透 ExitSessionToast 0/130 白名单误弹异常卡 → 收割点归一 130(pty_spawn.rs normalize_exit_code),06 契约档同步。
+- **代写指令(P1)**:memory 代写整条指令单 argv,引擎解析为 .cmd shim 时 proc_run 被 resolve_command 包 `cmd /c`——cmd 展开百分号变量(双引号内也展开)且把 std 转义的 \" 当引号翻转,引号失衡后 & | < > 活化;distillSessionTail 把会话用户消息原文拼进指令。修:proc_run 补 stdin+closeStdin 兼用(close=true 时 stdin 曾被 null 吞),write.ts 指令全部改走 stdin(argv 只留固定旗标);omp -p / pi / opencode run 读管道 stdin 取 prompt 三家本机实测成立。bashWrites 反斜杠丢弃经实测**撤销**:omp 在 win 的 shell 工具走 bash→bash.exe→git bash 解析,POSIX 转义语义下保守丢弃正确。
+- **checkpoint 半改盘(P1)**:restore/undo_revert 执行循环 '?' 在 guard 落账后、states 合成前上抛,Windows 句柄占用/只读属性即触发前缀已写盘而 reverted_paths 零记账 → 单路径失败记 skipped 显式列出、批次保持 pending 可整批重试;反悔对守卫快照转 skip(超大/符号链接)的路径不再整删恢复出的旧内容;部分反悔 Outcome state 与批次态对齐(原硬编码 pending)。
+- **memory 写链(P1)**:~/.config/cortexkit 写链缺父目录创建(本机实证目录不存在),引擎配置卡保存 / opencode 安装落盘必 ENOENT → ensureParentDir 逐级建(adapterDeploy 先例);失败文案如实区分「已回滚原文」/「新文件未写入」(en/ja 词典同步)。
+- **memory 读侧(P2)**:bootstrap 打印的 storageDir 未回存 settings(代码注释自认未实现),XDG 环境迁移写 A 处面板读 B 处 → 回存 settings.memoryDbPath,池/诊断读侧优先消费;opencode 全候选缺失 fallback 按官方布局写 opencode.json(原 .jsonc 上游是否加载未证)。
+- **高危红标(P2)**:risk.ts 大小写敏感,NTFS 上 .ENV/ID_RSA 漏判 → 归一小写匹配 + 大写回归用例。
+- **worktree 回贴(P2,F-GIT-001 残留)**:反斜杠 cwd 拼归一斜杠产出混合形态,自带测试「回贴_前缀边界」本机实证挂 → 分隔符随输入盘符形态。
+- **apply 半改盘(P1,对抗复审 ChainVerify F-1)**:apply_batch 与 restore 同型但漏修 —— guard 落账后执行循环 `?` 上抛,孤儿 guard 的批前像经反悔不可达,「应用失败」的批可被一次反悔静默整体应用 → 执行循环同款单路径容错,失败路径不入 restored、批保持已退态可重试。
+- **反悔 toast 失真(P2,双路合流)**:doUndo 恒报「回到待审」且丢弃 skipped,与后端部分反悔保持已退态矛盾 → 按 out.state 分支 + 拼 skippedNote,补 en/ja 词典四键。
+- **契约注释失真(P2,双路合流)**:ipc.ts closeStdin 注释仍是「null 启动」旧语义(正是本次修掉的「数据被吞」误读源)→ 对齐「写完即关送 EOF」;proc_run「请求体 ≤ 几百字节」注释如实化(会话尾段 ~6KB,正确性依赖消费方读 stdin,三家 print 模式启动路径必读已从本机安装源核实);补 stdin+closeStdin 的 Windows 变体测试(cmd /c more)。
+
+### 记录不动 / 另行处理
+
+- cargo 五挂(tests_pull×3/tests_clean/diff_patch)两次 stash 对照实证为**本机存量**(模块两日窗口未触碰),表现为本机 git 版本/配置差异(rebase 回退成 merge),另开一轮查。
+- mobile/engines.test.ts omp 冷导入超 vitest 默认 5s(omp 插件+academy 体量),补显式 30s 超时——测 profile 形状非速度。
+- clippy 两处 win 构建拦路(worktree_parse 测试尾 return 后不可达、devices/mod.rs 非 unix 未用参数)顺手修;proc_run.rs 超 300 行,测试循 conn_tests 先例拆 proc_run_tests.rs。
+- SUSPECTED 挂账:prewarm 杀树押注 ConPTY teardown(仓库他处用 taskkill /T 自证直杀不足);/mnt/c/ 形态路径漏审批线;ws_dir=md5(原始 cwd) 无形态归一(现 spawn cwd 单源无触发路径,归一会孤儿化既有账本,改键需迁移设计);外部绝对路径大小写双键重复行;Windows 通知点击不回窗(无 toast activation)。
+
+### 验证(第三轮)
+
+`cargo test`(301 过;5 挂=上述存量)/ `cargo clippy --all-targets -D warnings` / `cargo fmt --check` 绿;`pnpm typecheck` / `pnpm test`(371 文件 3012 用例)/ arch / file-size / build / react-doctor 100/100 全绿。 omp/pi/opencode stdin 取 prompt 为本机真机实测;~/.config/cortexkit 不存在为本机 ls 实证。

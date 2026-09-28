@@ -55,9 +55,11 @@ async function runInstallFlow(opts: {
     markPi((await detectPiInstalled(`${home}/.pi/agent`)) === true);
   } else {
     /* 落点按候选解析(首个已存在的配置文件),与检测/预检同面 ——
-       真实配置在 opencode.json 等候选时不另立平行配置(2026-09-28 评审 MC6) */
+       真实配置在 opencode.json 等候选时不另立平行配置(2026-09-28 评审 MC6)。
+       全缺失时按官方布局新建 opencode.json(候选序一致;.jsonc 上游是否加载
+       未证实,写进去 = 注册进死文件且检测自洽假阳性,2026-09-28 评审) */
     line("$ opencode 配置: plugin[] += @cortexkit/opencode-magic-context");
-    const ocCfg = (await resolveOpencodeConfigPath()) ?? `${home}/.config/opencode/opencode.jsonc`;
+    const ocCfg = (await resolveOpencodeConfigPath()) ?? `${home}/.config/opencode/opencode.json`;
     const r = await orch.installIntoOpencode(ocCfg, ipc.fsReadFile, ipc.fsWriteFile, line);
     if (!r.ok) line("✗ " + r.message);
     else markOc(await isOpencodeMagicContextInstalled());

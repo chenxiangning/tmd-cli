@@ -9,6 +9,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { getSettingsState } from "@kernel/settings";
 import { memoryDbPath } from "./paths";
 import {
   CATEGORY_ORDER,
@@ -20,9 +21,12 @@ import {
 } from "./protocol";
 
 async function resolvedDbPath(): Promise<string> {
-  // 上游默认解析(paths 统一实取 home)。settings.memoryDbPath 回存(bootstrap
-  // 成功后)尚未实现,接 settings 前保持单一事实源,免双路径漂移。
-  return memoryDbPath();
+  /* bootstrap 成功已回存实际落点(settings.memoryDbPath,setup.runBootstrap);
+     未回存(未安装/上游未提供)时按上游默认解析推断,单一事实源不漂移。
+     已知权衡:回存为 bootstrap 当刻快照,事后 XDG_DATA_HOME 等环境变化
+     不会自动跟随 —— 重跑一次安装迁移即刷新(2026-09-28 评审挂账)。 */
+  const { settings } = getSettingsState();
+  return settings.memoryDbPath || memoryDbPath();
 }
 
 function rowsToItems(rows: unknown[][]): MemoryItem[] {

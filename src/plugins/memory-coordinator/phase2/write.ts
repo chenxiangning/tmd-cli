@@ -53,10 +53,15 @@ const OMP_TIMEOUT_MS = 120_000;
 /**
  * 拼出 omp/pi 子代理启动参数(模拟 main agent 启动 subagent 的形态)。
  * 导出供 write.test.ts 断言;viaOmp 内部不再内联拼装。
+ *
+ * 指令文本不经 argv:Windows 下引擎常解析为 .cmd shim,proc_run 经
+ * resolve_command 包成 `cmd /c`,cmd 会展开 %VAR%(双引号内也展开)且把
+ * std 转义的 `\"` 当引号翻转,引号失衡后 & | < > 活化 —— 会话文本进指令
+ * 即损坏甚至被当命令执行(2026-09-28 评审)。omp/pi 的 -p 与 opencode run
+ * 均从管道 stdin 取 prompt(2026-09-28 本机实测),指令统一走 spec.stdin。
  */
 export function buildSubagentArgs(opts: {
   model?: string;
-  instruction: string;
   subagentEntry: string;
 }): string[] {
   const args: string[] = [
@@ -68,7 +73,7 @@ export function buildSubagentArgs(opts: {
     "--no-session",
   ];
   if (opts.model) args.push("--model", opts.model);
-  args.push("-p", opts.instruction);
+  args.push("-p");
   return args;
 }
 
@@ -91,8 +96,9 @@ async function viaOmp(instruction: string, cwd: string, opts?: DistillOptions): 
     }
     const result = await ipc.procCommunicate({
       command: "opencode",
-      args: opts?.model ? ["run", "-m", opts.model, instruction] : ["run", instruction],
+      args: opts?.model ? ["run", "-m", opts.model] : ["run"],
       cwd,
+      stdin: instruction,
       closeStdin: true,
       timeoutMs: OMP_TIMEOUT_MS,
     });
@@ -109,8 +115,9 @@ async function viaOmp(instruction: string, cwd: string, opts?: DistillOptions): 
   }
   const result = await ipc.procCommunicate({
     command: engine,
-    args: buildSubagentArgs({ model: opts?.model, instruction, subagentEntry }),
+    args: buildSubagentArgs({ model: opts?.model, subagentEntry }),
     cwd,
+    stdin: instruction,
     closeStdin: true,
     timeoutMs: OMP_TIMEOUT_MS,
   });

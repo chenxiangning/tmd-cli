@@ -139,6 +139,36 @@
 .ssh-form-row select {
   width: 100%;
 }
+/* 密码/口令框明文切换:眼睛钮叠在输入框右缘。 */
+.ssh-form .ssh-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ssh-secret {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.ssh-secret input {
+  width: 100%;
+  padding-right: 28px;
+}
+.ssh-secret-eye {
+  position: absolute;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border: none;
+  background: none;
+  color: var(--tmd-fg-faint);
+  cursor: pointer;
+}
+.ssh-secret-eye:hover {
+  color: var(--tmd-fg);
+}
 .ssh-modal-actions {
   display: flex;
   justify-content: flex-end;

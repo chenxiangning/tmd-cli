@@ -16,7 +16,7 @@ omp 历史会话在此之上有预热接管加速路径(`profile.acquireResume` 
 - **Ask 磁盘恢复**:墓碑帧尾部带「按 y / Enter 确认」标记 → 就绪时 `restoreDiskTail` 恢复等待徽章(自带 8s 写后闸,回放窗内作答不翻旧账);`restoreTail` 无闸,仅 bootAskRestore/内存回放观察用。
 - **红线**:磁盘回放字节**永不进 appendOutput** 守望主链路(误开轮/误未读/误升级/误文件变更);回放渲染是纯 xterm 写,零引擎适配,新增 CLI 引擎改动面不变(插件目录 + allPlugins 一行)。
 - 进程数 = 用户实际点开的会话数,零预付;关 tab 不杀会话(后台任务保护)、退出 `kill_all` 清场(自动激活遗产,保留)。
-- **异常退出契约(2026-09-26 补)**:`pty://exit` 载荷带退出码(portable-pty `WaitStatus`)。语义:`0` = 正常收尾;`130` = SIGINT 中止(幕布 Ctrl+C / 用户 kill 习惯路径);信号死亡 portable-pty 归一 `1`(信号名在 `signal()`,另发不采);UI 会话「停止」走 `session_kill` 与 SSH 通道收尾 = `null`(注册表已先 remove,视为用户主动,不打扰)。内核与 `sessionExited`(payload 裸 sessionId,旧消费方零迁移)同边沿补发 `sessionExitedDetail`(元数据快照 + exitCode + kind)。消费闸「宁漏勿扰」:`null / 0 / 130` 不上卡(ExitSessionToast 12s,续聊钮 = `openDiskSession` 原样 resume,shell/无磁盘身份不渲染);启动失败卡已覆盖的同会话不叠第二张;notify 插件失焦时走系统通知(退出档默认关)。
+- **异常退出契约(2026-09-26 补)**:`pty://exit` 载荷带退出码(portable-pty `WaitStatus`)。语义:`0` = 正常收尾;`130` = SIGINT 中止(幕布 Ctrl+C / 用户 kill 习惯路径);信号死亡 portable-pty 归一 `1`(信号名在 `signal()`,另发不采);Windows Ctrl+C 未处理退出 = NTSTATUS `0xC000013A`,收割点归一为 `130`(原样 `as i32` 为负大数,穿透 `0/130` 白名单误弹异常卡,2026-09-28 评审);UI 会话「停止」走 `session_kill` 与 SSH 通道收尾 = `null`(注册表已先 remove,视为用户主动,不打扰)。内核与 `sessionExited`(payload 裸 sessionId,旧消费方零迁移)同边沿补发 `sessionExitedDetail`(元数据快照 + exitCode + kind)。消费闸「宁漏勿扰」:`null / 0 / 130` 不上卡(ExitSessionToast 12s,续聊钮 = `openDiskSession` 原样 resume,shell/无磁盘身份不渲染);启动失败卡已覆盖的同会话不叠第二张;notify 插件失焦时走系统通知(退出档默认关)。
 
 ## 关键文件
 

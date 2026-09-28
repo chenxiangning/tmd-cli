@@ -67,6 +67,10 @@ fn set_owner_only(path: &Path) {
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
     }
+    #[cfg(not(unix))]
+    {
+        let _ = path; /* Windows 无 POSIX 权限位等价物(ACL 面未做) */
+    }
 }
 
 pub(crate) fn load_devices(dir: &Path) -> Vec<Device> {

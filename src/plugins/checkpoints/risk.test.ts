@@ -28,4 +28,13 @@ describe("classifyRisk", () => {
     expect(classifyRisk("C:\\repo\\.env")).toBe("high");
     expect(classifyRisk("C:\\repo\\src\\main.rs")).toBe("normal");
   });
+
+  it("大小写变体同样命中(NTFS/APFS 大小写不敏感,红标不因书写漏判)", () => {
+    expect(classifyRisk(".ENV")).toBe("high");
+    expect(classifyRisk("config/.Env.Local")).toBe("high");
+    expect(classifyRisk("KEYS/ID_RSA")).toBe("high");
+    expect(classifyRisk("deploy/SERVER.KEY")).toBe("high");
+    expect(classifyRisk("DOCKERFILE")).toBe("high");
+    expect(classifyRisk(".GITHUB/workflows/ci.yml")).toBe("high");
+  });
 });
