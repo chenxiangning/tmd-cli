@@ -91,9 +91,10 @@ export function AppShell() {
           hasTabs={tabs.length > 0}
           filePanel={activeFilePanel}
         />
-        {/* 右缘面板 rail:常驻竖条(右栏收起也在),点击切面板并展开右栏;
+        {/* 右缘面板 rail:常驻竖条(右栏收起也在),点击切面板并展开右栏,
+            再点已激活面板 = 折叠右栏(hub 类顺带关中央 tab);
             插件市场页打开时与三栏一起被覆盖层盖住。 */}
-        <PanelRail onActivate={() => setRightOpen(true)} />
+        <PanelRail rightOpen={rightOpen} setRightOpen={setRightOpen} />
         {marketOpen && (
           <div className="absolute inset-0 z-50">
             <PluginMarketPage onClose={() => setMarketOpen(false)} />

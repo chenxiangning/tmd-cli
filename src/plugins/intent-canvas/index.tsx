@@ -74,6 +74,7 @@ export const intentCanvasPlugin: Plugin = {
       defaultPinned: true,
       /* rail 直挂:进侧栏钉住清单,⋯ 管理面板可勾选显隐(与内置终端/WSL 同款)。 */
       rail: true,
+      opensCenterTab: true,
       onSelect: () => openIntentCanvasTab(),
     });
     ctx.registerCommand({

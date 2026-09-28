@@ -12,24 +12,26 @@
 import { memo, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { Check, DotsThree } from "@phosphor-icons/react";
-import {
-  setFilePanelMode,
-  togglePinned,
-  useFilePanel,
-  type FilePanelContribution,
-} from "@kernel/filePanel";
+import { togglePinned, useFilePanel, type FilePanelContribution } from "@kernel/filePanel";
 import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { useHost } from "@kernel/host";
 import { useEditorTabs } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import { FileActionsBar } from "./FileActionsBar";
+import { activateRailPanel } from "./railPanelActivate";
 
 
 /* ──────────────────────────────────────────────────────────
  * 右缘面板 rail ─ AppShell 渲染在内容行最右(header.right 挂点仍在顶栏,由插件贡献)。
  * tab 列表完全来自 kernel 面板注册表,外壳不认识任何业务面板。
  * ────────────────────────────────────────────────────────── */
-export function PanelRail({ onActivate }: { onActivate: () => void }) {
+export function PanelRail({
+  rightOpen,
+  setRightOpen,
+}: {
+  rightOpen: boolean;
+  setRightOpen: (open: boolean) => void;
+}) {
   const { mode, pinnedIds, panels } = useFilePanel();
   const [overflowPos, setOverflowPos] = useState<{ x: number; y: number } | null>(null);
   const railActions = useSidebarActions().filter((a) => a.rail);
@@ -71,11 +73,9 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
               type="button"
               className={`panel-rail-tab${isActive ? " is-active" : ""}`}
               data-panel-id={panel.id}
-              onClick={() => {
-                setFilePanelMode(panel.id);
-                panel.openCenterTab?.();
-                onActivate();
-              }}
+              onClick={() =>
+                activateRailPanel(panel, { panels, mode, rightOpen, setRightOpen })
+              }
               aria-label={t(panel.label)}
               title={t(panel.label)}
             >
@@ -101,6 +101,7 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
             onClick={(e) => {
               const r = e.currentTarget.getBoundingClientRect();
               action.onSelect({ x: r.left - 8, y: r.top }, { altKey: e.altKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey });
+              if (action.opensCenterTab) setRightOpen(false);
             }}
           >
             <Icon aria-hidden />
@@ -129,6 +130,8 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
           panels={panels}
           railActions={railActions}
           position={overflowPos}
+          rightOpen={rightOpen}
+          setRightOpen={setRightOpen}
           onClose={() => setOverflowPos(null)}
         />
       ) : null}
@@ -187,6 +190,8 @@ function PanelOverflowMenu({
   panels,
   railActions,
   position,
+  rightOpen,
+  setRightOpen,
   onClose,
 }: {
   mode: string;
@@ -194,6 +199,8 @@ function PanelOverflowMenu({
   panels: readonly FilePanelContribution[];
   railActions: readonly SidebarAction[];
   position: { x: number; y: number };
+  rightOpen: boolean;
+  setRightOpen: (open: boolean) => void;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -227,8 +234,7 @@ function PanelOverflowMenu({
                 role="menuitem"
                 style={MENU_ITEM_BUTTON_STYLE}
                 onClick={() => {
-                  setFilePanelMode(panel.id);
-                  panel.openCenterTab?.();
+                  activateRailPanel(panel, { panels, mode, rightOpen, setRightOpen });
                   if (!isChecked) togglePinned(panel.id);
                   onClose();
                 }}
@@ -259,6 +265,7 @@ function PanelOverflowMenu({
                 style={MENU_ITEM_BUTTON_STYLE}
                 onClick={() => {
                   action.onSelect({ x: position.x, y: position.y });
+                  if (action.opensCenterTab) setRightOpen(false);
                   onClose();
                 }}
               >

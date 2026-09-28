@@ -38,6 +38,7 @@ export const wslPlugin: Plugin = {
       icon: DesktopIcon,
       order: 26,
       rail: true,
+      opensCenterTab: true,
       active: () => getActiveTab()?.kind === "wsl",
       onSelect: () =>
         openTab({ id: "wsl:panel", title: "WSL", path: "", kind: "wsl", payload: null }),

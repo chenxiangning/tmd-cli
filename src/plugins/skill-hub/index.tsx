@@ -34,7 +34,7 @@ export const skillHubPlugin: Plugin = {
       component: SkillHubPanel,
       showFileSubbar: false,
       order: 45,
-      openCenterTab: openSkillHubTab,
+      centerTab: { id: SKILL_HUB_TAB_KIND, open: openSkillHubTab },
     });
     ctx.registerTabContent({
       kind: SKILL_HUB_TAB_KIND,
