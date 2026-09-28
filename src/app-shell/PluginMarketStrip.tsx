@@ -1,16 +1,29 @@
 // 插件市场插排视图(插座单元 + 合并大插排),自 PluginMarketPage.tsx 按「纯结构拆分、行为不变」拆出
 import type { ComponentType } from "react";
+import type { ReactNode } from "react";
 import { Lock } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { getMarketPanel } from "@kernel/marketPanel";
 import type { Plugin, PluginCategory } from "@kernel/plugin";
-import { CATEGORY_LABEL } from "./pluginMarketCategories";
+import { CATEGORY_LABEL, FEATURE_SUBGROUP, FEATURE_SUBGROUP_LABEL, FEATURE_SUBGROUP_ORDER } from "./pluginMarketCategories";
 
 /** 插排品牌区文案;缺省 = tmd-cli 主插排。 */
 export interface StripBrand {
   name: string;
   role: string;
   master: string;
+}
+
+/** feature 细分子块:宽度钉在 min(n,10) 条 96px 轨道上,flex 流式拼排补缝。 */
+function SubcatBlock({ label, children }: { label: string; children: ReactNode }) {
+  const items = Array.isArray(children) ? children : [children];
+  const cols = Math.min(items.length, 10);
+  return (
+    <div className="pm-subcat-block" style={{ width: cols * 96 + (cols - 1) * 8 }}>
+      {label ? <div className="pm-subcat-label">{label}</div> : null}
+      <div className="pm-cat-outlets">{children}</div>
+    </div>
+  );
 }
 
 /** 合并大插排:品牌区 + 各分类分区(虚线分隔 + 区内小标签)。 */
@@ -31,6 +44,31 @@ export function MergedStrip({
   count?: number;
 }) {
   const b = brand ?? { name: "tmd-cli", role: t("客户端 · 插排本体"), master: t("总电源常开") };
+  const renderOutlet = ({ plugin, on, dirty }: Row) => (
+    <Outlet
+      key={plugin.id}
+      id={plugin.id}
+      name={plugin.meta.name}
+      abbr={plugin.meta.abbr}
+      icon={plugin.meta.icon}
+      iconColor={plugin.meta.iconColor}
+      core={plugin.meta.category === "core"}
+      on={on}
+      dirty={dirty}
+      onToggle={onToggle}
+      onOpenMarket={onOpenMarket}
+    />
+  );
+  /* 未登记细分的新 feature 插件:落无标签尾块,宁缺标签不猜归类。 */
+  const renderTail = (rows: Row[]) => {
+    const tail = rows.filter((r) => !FEATURE_SUBGROUP[r.plugin.id]);
+    if (!tail.length) return null;
+    return (
+      <SubcatBlock label="">
+        {tail.map(renderOutlet)}
+      </SubcatBlock>
+    );
+  };
   return (
     <div className="pm-strip-scene">
       <div className="pm-strip">
@@ -48,23 +86,22 @@ export function MergedStrip({
               <div className="pm-cat-label">
                 {t("{label} · {n} 位", { label: t(CATEGORY_LABEL[g.category]), n: count ?? g.rows.length })}
               </div>
-              <div className="pm-cat-outlets">
-                {g.rows.map(({ plugin, on, dirty }) => (
-                  <Outlet
-                    key={plugin.id}
-                    id={plugin.id}
-                    name={plugin.meta.name}
-                    abbr={plugin.meta.abbr}
-                    icon={plugin.meta.icon}
-                    iconColor={plugin.meta.iconColor}
-                    core={plugin.meta.category === "core"}
-                    on={on}
-                    dirty={dirty}
-                    onToggle={onToggle}
-                    onOpenMarket={onOpenMarket}
-                  />
-                ))}
-              </div>
+              {g.category === "feature" ? (
+                <div className="pm-subcat-flow">
+                  {FEATURE_SUBGROUP_ORDER.map((sg) => {
+                    const sub = g.rows.filter((r) => FEATURE_SUBGROUP[r.plugin.id] === sg);
+                    if (!sub.length) return null;
+                    return (
+                      <SubcatBlock key={sg} label={t("{label} · {n} 位", { label: t(FEATURE_SUBGROUP_LABEL[sg]), n: sub.length })}>
+                        {sub.map(renderOutlet)}
+                      </SubcatBlock>
+                    );
+                  })}
+                  {renderTail(g.rows)}
+                </div>
+              ) : (
+                <div className="pm-cat-outlets">{g.rows.map(renderOutlet)}</div>
+              )}
             </div>
           ))}
         </div>

@@ -89,6 +89,30 @@
   margin-top: 44px; /* ≥ 拔出态上浮 34px,防跨带叠插头 */
 }
 
+/* feature 细分子块流式拼排:块宽 = min(n,10) 条轨道,行内 space-between 补缝;
+   行距 44px ≥ 拔出态上浮 34px - 标签 18px,插头不叠上一行。 */
+.pm-subcat-flow {
+  margin-top: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  column-gap: 24px;
+  row-gap: 44px;
+}
+
+.pm-subcat-block {
+  flex: 0 0 auto;
+}
+
+.pm-subcat-label {
+  height: 18px;
+  padding-left: 4px;
+  margin-bottom: 2px;
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-subtle);
+  white-space: nowrap;
+}
+
 .pm-cat-label {
   height: 18px;
   padding-left: 4px;
