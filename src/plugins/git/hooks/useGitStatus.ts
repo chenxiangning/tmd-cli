@@ -54,12 +54,17 @@ export function useGitStatus(cwd: string | null): GitStatusState {
       },
       (e: unknown) => {
         if (myToken !== tokenRef.current) return;
-        setState({
-          data: null,
-          loading: false,
-          error: gitErrorMessage(e),
-          notARepo: isNotARepo(e),
-        });
+        const error = gitErrorMessage(e);
+        const notARepo = isNotARepo(e);
+        /* 值等守卫同成功路径:非 git 工作区稳态下 5s 轮询不再空转整面板重渲 */
+        setState((prev) =>
+          prev.data === null &&
+          prev.loading === false &&
+          prev.error === error &&
+          prev.notARepo === notARepo
+            ? prev
+            : { data: null, loading: false, error, notARepo },
+        );
       },
     );
   }, [cwd]);
