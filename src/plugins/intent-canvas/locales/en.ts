@@ -105,7 +105,7 @@ export const MESSAGES_EN = {
   "AI 作画:开(发送消息自动附带画图指令,AI 画完自动上画布)": "AI drawing on: prompts carry drawing instructions; finished drawings land on the canvas automatically.",
   "AI 作画已上画布:{titles}": "AI drawing added to canvas: {titles}",
   "对话中 AI 作画": "In-conversation AI drawing",
-  "开启后,发送的消息会自动附带画图指令;AI 按指令把绘图文件写进收件箱,画布自动上稿。": "When on, prompts automatically carry drawing instructions; the AI writes drawing files to the inbox and the canvas renders them.",
+  "开启后,发送的消息会自动附带画图指令;AI 按指令把绘图文件写进收件箱,画布自动上稿。": "Master switch. Sessions start clean: turn on the canvas icon at the bottom-left of the composer for this session, then messages carry drawing instructions the AI writes into the inbox and the canvas picks up.",
   "AI 作画收件箱(当前工作区)": "AI drawing inbox (current workspace)",
   "文件名 ai-draw-*.json;导入成功后自动移除,失败文件在 inbox/failed/ 留证。": "Files are named ai-draw-*.json; removed after import, failures kept in inbox/failed/.",
   "(先选择工作区)": "(select a workspace first)",
@@ -145,4 +145,8 @@ export const MESSAGES_EN = {
   "放弃未保存的修改?": "Discard unsaved changes?",
   "画布有未保存的编辑,返回管理将丢弃这些修改。": "The canvas has unsaved edits; going back to the manager will discard them.",
   "丢弃并返回": "Discard and go back",
+  "本会话 AI 作画:开": "AI drawing for this session: ON",
+  "本会话 AI 作画:关": "AI drawing for this session: OFF",
+  "本会话 AI 作画:开(发送时附带作画指令,点击关闭)": "AI drawing for this session: ON (messages carry drawing instructions; click to turn off)",
+  "本会话 AI 作画:关(点击开启,本会话发送将让 AI 画进意图画布)": "AI drawing for this session: OFF (click to enable; messages will ask the AI to draw into the Intent Canvas)",
 } as Record<string, string>;

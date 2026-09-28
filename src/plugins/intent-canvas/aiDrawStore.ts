@@ -51,3 +51,30 @@ export function subscribeAiDraw(fn: () => void): () => void {
 export function useAiDrawEnabled(): boolean {
   return useSyncExternalStore(subscribeAiDraw, () => snapshot.enabled);
 }
+
+
+/* ---------- 会话级作图标识 ----------
+ * composer 左下画布图标切换:开 = 本会话发送时注入 AI 作画指令段。
+ * 内存态(会话结束自然失效),不入 localStorage;总闸 aiDrawPref().enabled 仍优先。 */
+
+let drawModeBySession: Record<string, true> = {};
+
+export function isSessionDrawMode(sessionId: string | null | undefined): boolean {
+  return !!sessionId && drawModeBySession[sessionId] === true;
+}
+
+/** 切换该会话的作图标识。 */
+export function toggleSessionDrawMode(sessionId: string, next: boolean): void {
+  const bySession = { ...drawModeBySession };
+  if (next) {
+    bySession[sessionId] = true;
+  } else {
+    delete bySession[sessionId];
+  }
+  drawModeBySession = bySession;
+  listeners.forEach((fn) => fn());
+}
+
+export function useSessionDrawMode(sessionId: string | null): boolean {
+  return useSyncExternalStore(subscribeAiDraw, () => isSessionDrawMode(sessionId));
+}

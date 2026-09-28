@@ -22,8 +22,10 @@ vi.mock("@kernel/host", () => ({
 vi.mock("@kernel/workspace", () => ({
   getActiveWorkspace: () => ({ id: "ws1", name: "demo", root: "/tmp/ws-demo", createdAt: 1 }),
 }));
+let drawMode = false;
 vi.mock("../aiDrawStore", () => ({
   aiDrawPref: () => ({ enabled: aiEnabled }),
+  isSessionDrawMode: () => drawMode,
 }));
 vi.mock("../activeDocumentBridge", () => ({
   activeDocumentRef: { current: null },
@@ -67,18 +69,26 @@ const doc = {
 } as unknown as IntentCanvasDocument;
 
 describe("intentCanvasSendTransform", () => {
-  it("inbox 路径未缓存时(未开过画布)不注入作画指令", () => {
+  it("会话标识开但 inbox 路径未缓存时(未开过画布)不注入作画指令", () => {
     registerIntentCanvasSendTransform();
     expect(capturedTransform!("你好", "session-a")).toBe("你好");
   });
 
-  it("开关开启且缓存命中时注入作画指令段(含 inbox 路径)", () => {
+  it("开关开启+会话作图标识开+缓存命中时注入作画指令段(含 inbox 路径)", () => {
+    drawMode = true;
     registerIntentCanvasSendTransform();
     cacheAiDrawInboxPath("/tmp/ws-demo", "/home/t/.tmd-cli/intent-canvas/abc/inbox");
     const out = capturedTransform!("你好", "session-a");
     expect(out).toContain("你好");
     expect(out).toContain("【意图画布 AI 作画】");
     expect(out).toContain("/home/t/.tmd-cli/intent-canvas/abc/inbox");
+  });
+
+  it("总闸开但会话作图标识关(默认)时不注入", () => {
+    drawMode = false;
+    registerIntentCanvasSendTransform();
+    cacheAiDrawInboxPath("/tmp/ws-demo", "/home/t/.tmd-cli/intent-canvas/abc/inbox");
+    expect(capturedTransform!("你好", "session-a")).toBe("你好");
   });
 
   it("开关关闭时不注入", async () => {

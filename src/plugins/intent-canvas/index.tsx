@@ -21,6 +21,7 @@ import type { EditorTab } from "@kernel/tabs";
 import type { IntentCanvasOpenRequest } from "./types";
 import { IntentCanvasManager } from "./components/IntentCanvasManager";
 import { CanvasComposerChips } from "./components/CanvasComposerChips";
+import { ComposerDrawToggle } from "./components/ComposerDrawToggle";
 import { IntentCanvasSettingsTab } from "./components/IntentCanvasSettingsTab";
 import { registerIntentCanvasSendTransform } from "./sendTransform";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
@@ -80,6 +81,8 @@ export const intentCanvasPlugin: Plugin = {
       run: openIntentCanvasTab,
     });
     ctx.contribute("composer.attachments", { component: CanvasComposerChips });
+    /* composer 左下作图标识:会话级 AI 作画开关(assets 唤醒图标同区,排其后)。 */
+    ctx.contribute("composer.inputRail", { order: 2, component: ComposerDrawToggle });
     ctx.registerSettingsSection({
       id: "intent-canvas",
       title: t("意图画布"),

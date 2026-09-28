@@ -13,7 +13,7 @@ import { getActiveWorkspace } from "@kernel/workspace";
 import type { IntentCanvasDocument } from "./types";
 import { formatIntentCanvasThreadContext } from "./utils/contextFormat";
 import { consumeAttachments, restoreAttachments } from "./store";
-import { aiDrawPref } from "./aiDrawStore";
+import { aiDrawPref, isSessionDrawMode } from "./aiDrawStore";
 import { aiDrawInboxPathSync, buildAiDrawInstruction } from "./aiDrawPrompt";
 import { activeDocumentRef } from "./activeDocumentBridge";
 
@@ -42,8 +42,9 @@ export const intentCanvasSendTransform: ComposerSendTransform = (text, sessionId
     }
   }
 
-  /* AI 作画:开关开 + inbox 路径已缓存,追加指令段。 */
-  if (aiDrawPref().enabled) {
+  /* AI 作画:全局总闸 + 本会话作图标识(composer 左下画布图标)+ inbox
+     路径已缓存,三者齐备才追加指令段 —— 无标识的普通发送零注入。 */
+  if (aiDrawPref().enabled && isSessionDrawMode(effectiveSessionId)) {
     const inboxPath = aiDrawInboxPathSync(root);
     if (inboxPath) {
       next = `${next}\n\n${buildAiDrawInstruction(inboxPath, activeDocumentRef.current)}`;

@@ -37,7 +37,7 @@ export function IntentCanvasSettingsTab() {
         <span className="flex flex-col">
           <span className="text-[0.8125rem] text-(--tmd-fg)">{t("对话中 AI 作画")}</span>
           <span className="text-[0.6875rem] text-(--tmd-fg-muted)">
-            {t("开启后,发送的消息会自动附带画图指令;AI 按指令把绘图文件写进收件箱,画布自动上稿。")}
+            {t("总闸。默认每会话不注入:在对话框左下画布图标点开本会话作图标识后,发送才附带画图指令,AI 把绘图文件写进收件箱,画布自动上稿。")}
           </span>
         </span>
         <StyledSelect
