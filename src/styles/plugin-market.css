@@ -76,10 +76,17 @@
   flex: 0 0 auto;
 }
 
+.pm-cat-flow {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .pm-cat-group + .pm-cat-group {
-  border-left: 1px dashed var(--tmd-border);
-  padding-left: 12px;
-  margin-left: 4px;
+  border-top: 1px dashed var(--tmd-border);
+  padding-top: 14px;
+  margin-top: 44px; /* ≥ 拔出态上浮 34px,防跨带叠插头 */
 }
 
 .pm-cat-label {
@@ -92,7 +99,8 @@
 
 .pm-cat-outlets {
   display: grid;
-  grid-template-columns: repeat(3, 96px); /* 每排固定 3 个插座,多余起下一排 */
+  grid-template-columns: repeat(auto-fill, 96px); /* 按容器宽自动排满每行,窄窗自动减列 */
+  justify-content: space-between; /* 行内撑开填满带宽 */
   gap: 42px 8px; /* 行距给拔出态上浮(-34px)让位,避免叠到上一排 */
 }
 

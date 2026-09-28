@@ -42,30 +42,32 @@ export function MergedStrip({
             <span className="pm-master-label">{b.master}</span>
           </div>
         </div>
-        {groups.map((g) => (
-          <div className="pm-cat-group" key={g.category}>
-            <div className="pm-cat-label">
-              {t("{label} · {n} 位", { label: t(CATEGORY_LABEL[g.category]), n: count ?? g.rows.length })}
+        <div className="pm-cat-flow">
+          {groups.map((g) => (
+            <div className="pm-cat-group" key={g.category}>
+              <div className="pm-cat-label">
+                {t("{label} · {n} 位", { label: t(CATEGORY_LABEL[g.category]), n: count ?? g.rows.length })}
+              </div>
+              <div className="pm-cat-outlets">
+                {g.rows.map(({ plugin, on, dirty }) => (
+                  <Outlet
+                    key={plugin.id}
+                    id={plugin.id}
+                    name={plugin.meta.name}
+                    abbr={plugin.meta.abbr}
+                    icon={plugin.meta.icon}
+                    iconColor={plugin.meta.iconColor}
+                    core={plugin.meta.category === "core"}
+                    on={on}
+                    dirty={dirty}
+                    onToggle={onToggle}
+                    onOpenMarket={onOpenMarket}
+                  />
+                ))}
+              </div>
             </div>
-            <div className="pm-cat-outlets">
-              {g.rows.map(({ plugin, on, dirty }) => (
-                <Outlet
-                  key={plugin.id}
-                  id={plugin.id}
-                  name={plugin.meta.name}
-                  abbr={plugin.meta.abbr}
-                  icon={plugin.meta.icon}
-                  iconColor={plugin.meta.iconColor}
-                  core={plugin.meta.category === "core"}
-                  on={on}
-                  dirty={dirty}
-                  onToggle={onToggle}
-                  onOpenMarket={onOpenMarket}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
