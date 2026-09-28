@@ -56,7 +56,8 @@ export const KernelTopics = {
   fileEditDetected: "kernel.sessions.fileEdit.detected",
   /**
    * 一条用户 prompt 已写入 PTY。payload: { sessionId, text }
-   * 常量归内核,emit 归 composer —— 发送语义是 composer 的知识
+   * 常量与轮次闸归内核(kernel/promptGate),composer 三条写路径与
+   * session-relay 接力首发同权消费 —— 发送语义不再归属单一插件
    * (幕布击键同样走 writeSession,不能当 prompt)。消费方:checkpoints 插件打锚点快照。
    * 仅「开启新对话轮次」的发送才广播:kernel/promptGate 轮次闸把守,
    * ask 作答与轮中控制命令(如 /model 切模型)不开轮、不广播。
