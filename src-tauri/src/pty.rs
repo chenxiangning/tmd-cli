@@ -134,7 +134,12 @@ impl PtyRegistry {
                 .remove(id)
                 .ok_or_else(|| format!("会话 {id} 不存在"))?
         };
-        handle.child.kill().map_err(|e| format!("kill 失败: {e}"))?;
+        if let Err(e) = handle.child.kill() {
+            /* kill 报错不跳过收尸:Windows 对已自然退出未收尸的进程常报
+            ACCESS_DENIED,? 提前返回会让句柄无主滞留到 App 退出
+            (条目已摘除,kill_all 也够不着 —— 2026-09-28 三轮评审 PTY-R1) */
+            eprintln!("[pty] kill 失败(继续收尸): {e}");
+        }
         let _ = handle.child.wait(); /* 收尸:kill 仅发信号,不 wait 留僵尸直到 App 退出 */
         Ok(())
     }

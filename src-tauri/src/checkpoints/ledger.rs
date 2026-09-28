@@ -158,9 +158,10 @@ fn seal_stale_foreign(
     let mut sealed = 0;
     for a in &stale {
         // 单条失败不阻断记账主流程(如某外会话工作区已被删除):
-        // append 的 ? 上抛会炸掉整次 anchor_turn(2026-09-28 评审 F-CKPT-003)
-        if let Ok(Some(t)) = build_turn_entry(cwd, a, entries) {
-            match append_ledger(cwd, &t) {
+        // append 的 ? 上抛会炸掉整次 anchor_turn(2026-09-28 评审 F-CKPT-003)。
+        // 构建失败同样要留观测,零日志静默丢封口 = 数据悄悄不落账(三轮 CKPT-R2)
+        match build_turn_entry(cwd, a, entries) {
+            Ok(Some(t)) => match append_ledger(cwd, &t) {
                 Ok(()) => {
                     entries.push(t);
                     sealed += 1;
@@ -168,6 +169,10 @@ fn seal_stale_foreign(
                 Err(e) => {
                     eprintln!("[checkpoints] 封陈旧锚点落账失败(跳过): {e}");
                 }
+            },
+            Ok(None) => {}
+            Err(e) => {
+                eprintln!("[checkpoints] 封陈旧锚点构建失败(跳过): {e}");
             }
         }
     }

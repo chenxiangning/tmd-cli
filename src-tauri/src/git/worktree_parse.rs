@@ -59,17 +59,25 @@ pub(crate) fn parse_worktree_list(stdout: &str) -> Vec<WorktreeEntry> {
 }
 
 /// Windows 形态归一(比较用):去 \\?\ verbatim 前缀、反斜杠转正斜杠、整串小写。
+/// verbatim-UNC(canonicalize 产 \\?\UNC\srv\share)改写为 //srv/share,与
+/// git porcelain 的 // 形态互认(2026-09-28 三轮评审 GIT-R1)。
 /// 仅作比较键,不回写用户可见路径;NTFS/APFS 大小写不敏感,盘符与目录段都可能
 /// 大小写漂移。非 Windows 形态(含 POSIX 反斜杠文件名)原样返回 —— 恒等保序。
 pub(crate) fn normalize_windows_shape(p: &str) -> String {
     let bytes = p.as_bytes();
     let verbatim = p.starts_with(r"\\?\");
+    let unc = p.starts_with(r"\\") || p.starts_with("//");
     let drive = bytes.len() >= 2 && bytes[1] == b':' && (bytes[0] as char).is_ascii_alphabetic();
-    if !verbatim && !drive {
+    if !verbatim && !drive && !unc {
         return p.to_string();
     }
-    let p = p.strip_prefix(r"\\?\").unwrap_or(p);
-    p.replace('\\', "/").to_ascii_lowercase()
+    let stripped = p.strip_prefix(r"\\?\").unwrap_or(p);
+    let slashed = stripped.replace('\\', "/");
+    let joined = match slashed.strip_prefix("UNC/") {
+        Some(rest) => format!("//{rest}"),
+        None => slashed,
+    };
+    joined.to_ascii_lowercase()
 }
 
 pub(crate) fn rebase_porcelain_paths(entries: &mut [WorktreeEntry], cwd: &str) {
@@ -149,6 +157,20 @@ mod tests {
         assert_eq!(
             super::normalize_windows_shape("C:/Users/x/repo"),
             "c:/users/x/repo"
+        );
+        // verbatim-UNC(canonicalize 产)与 porcelain // 形态互认(三轮 GIT-R1);
+        // 非 verbatim 字面 UNC 同落 // 形态
+        assert_eq!(
+            super::normalize_windows_shape(r"\\?\UNC\srv\share\repo"),
+            "//srv/share/repo"
+        );
+        assert_eq!(
+            super::normalize_windows_shape(r"\\srv\share\repo"),
+            "//srv/share/repo"
+        );
+        assert_eq!(
+            super::normalize_windows_shape("//srv/share/repo"),
+            "//srv/share/repo"
         );
         assert_eq!(super::normalize_windows_shape("/repo/main"), "/repo/main");
         assert_eq!(
