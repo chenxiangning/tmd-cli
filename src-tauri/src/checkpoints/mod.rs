@@ -5,7 +5,6 @@
 //! 驱动,经 commands 层落账。与 git 模块平级但语义不同:git = 用户仓库操作
 //! (有 commit 安全不变量),checkpoints = 独立 sidecar 存储域,**永不触碰
 //! 用户仓库的 index/refs**。
-//!
 //! 存储布局:`{config_dir}/checkpoints/{md5(cwd)}/`
 //!   objects.git   —— sidecar 裸仓库,只写 blob 对象(内容寻址去重),永不建 commit/ref
 //!   ledger.jsonl  —— 账本(追加写;同一 id 多行时以最后一行为准 = turn 封口的修订)
@@ -31,6 +30,7 @@ mod prune;
 mod restore;
 mod review;
 mod store;
+mod surgical;
 mod turn_entry;
 mod view;
 
