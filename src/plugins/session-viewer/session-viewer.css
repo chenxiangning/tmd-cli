@@ -30,7 +30,7 @@
 .sv-phase-body { display: flex; flex-direction: column; gap: 2px; padding: 2px 0 4px 14px; }
 .sv-caret { transition: transform 0.12s ease; color: color-mix(in srgb, var(--tmd-fg) 45%, transparent); }
 .sv-caret.is-open { transform: rotate(90deg); }
-.sv-phase-note { font-size: 0.75rem; color: color-mix(in srgb, var(--tmd-fg) 55%, transparent); padding: 2px 0; }
+.sv-phase-note { font-size: 0.75rem; color: color-mix(in srgb, var(--tmd-fg) 55%, transparent); padding: 2px 0; white-space: pre-wrap; }
 
 /* ── 思考行(monocode ActivityThinkingRow:Minus + 单行摘要) ── */
 .sv-think { display: flex; flex-direction: column; }

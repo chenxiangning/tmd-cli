@@ -2,8 +2,11 @@
  * 转录渲染 —— monocode AgentTranscript 形态:
  * - user 卡(左缘强调)+ assistant 全尺寸 markdown(组标题兼正文);
  * - 一轮工作 = 折叠组(PhaseFold):折叠头单行(chevron + 摘要 + 步数),
- *   默认收起;展开后组内为逐行 step(思考行 = Minus + 单行摘要,点击展开
- *   淡色 markdown;工具行 = 动词 + mono 目标,点击展开 preview);
+ *   默认收起;思考链短语(短 assistant 散文)同样入组随组折叠,大段 md
+ *   结论以 headline 全尺寸常显,纯问答轮(无工具/思考)整轮还原全尺寸;
+ *   展开后组内为逐行 step(思考行 = Minus + 单行摘要,点击展开淡色
+ *   markdown;工具行 = 动词 + mono 目标,点击展开 preview;助手短语 =
+ *   全文 note 行);
  * - agent-reasoning 正文 48% 透明(monocode 同款阅读层级)。
  */
 
@@ -206,7 +209,7 @@ function PhaseFold({
             }
             return (
               <div key={step.id} className="sv-phase-note">
-                {proseSummary(step.text) || step.text.slice(0, 80)}
+                {step.text}
               </div>
             );
           })}
