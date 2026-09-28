@@ -5,7 +5,7 @@
  */
 
 import { useState } from "react";
-import { HardDrive } from "@phosphor-icons/react";
+import { Eye, EyeClosed, HardDrive } from "@phosphor-icons/react";
 import type { SshHostConfig } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 
@@ -84,10 +84,12 @@ export function HostModal({
             </select>
           </label>
           {draft.authType === "password" ? (
-            <label>
-            {t("密码")}{!isNew && draft.password ? t("(留空保留)") : ""}
-              <input type="password" value={draft.password} onChange={(e) => set({ password: e.target.value })} />
-            </label>
+            <SecretField
+              label={`${t("密码")}${!isNew && draft.password ? t("(留空保留)") : ""}`}
+              id="ssh-host-password"
+              value={draft.password}
+              onChange={(password) => set({ password })}
+            />
           ) : null}
           {draft.authType === "privateKey" ? (
             <>
@@ -109,14 +111,12 @@ export function HostModal({
                     onChange={(e) => set({ privateKeyPath: e.target.value })}
                   />
                 </label>
-                <label>
-                  {t("私钥口令")}
-                  <input
-                    type="password"
-                    value={draft.privateKeyPassphrase}
-                    onChange={(e) => set({ privateKeyPassphrase: e.target.value })}
-                  />
-                </label>
+                <SecretField
+                  label={t("私钥口令")}
+                  id="ssh-host-passphrase"
+                  value={draft.privateKeyPassphrase}
+                  onChange={(privateKeyPassphrase) => set({ privateKeyPassphrase })}
+                />
               </div>
             </>
           ) : null}
@@ -157,6 +157,45 @@ export function HostModal({
             {t("保存")}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** 密码/口令输入:默认掩码,眼睛切明文。label 经 htmlFor 只关联输入框一个
+ *  原生控件,眼睛钮在 label 外(react-doctor html-label-has-single-control)。 */
+function SecretField({
+  label,
+  id,
+  value,
+  onChange,
+}: {
+  label: string;
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="ssh-field">
+      <label htmlFor={id}>{label}</label>
+      <div className="ssh-secret">
+        <input
+          id={id}
+          type={show ? "text" : "password"}
+          value={value}
+          autoComplete="off"
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <button
+          type="button"
+          className="ssh-secret-eye"
+          aria-label={show ? t("隐藏") : t("显示")}
+          title={show ? t("隐藏") : t("显示")}
+          onClick={() => setShow(!show)}
+        >
+          {show ? <Eye size={13} /> : <EyeClosed size={13} />}
+        </button>
       </div>
     </div>
   );
