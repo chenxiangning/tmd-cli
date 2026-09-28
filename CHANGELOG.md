@@ -21,6 +21,7 @@
 ### 修复
 
 - 手机选图在 iOS 18.4 前无法弹面板(WKUIDelegate 文件面板是 18.4+ 面,file input 低版本静默死钮):改为 ShellBridge 直连 PHPicker(iOS 14+),且 native 统一转 JPEG(≤2048px)——相册 HEIC 照片此前在 WKWebView 解不出,同样发不出
+- dsh 引擎适配 0.1.7-rc.2 线格式换代:commands/execute 参数 images→submittedAttachments(斜杠命令此前全部被网关拒)、模式菜单端点 agentPreset.list→agentPresets/list(此前拉取模式列表失败);其余契约(launch token→cookie、typert 网关信封、remote.mux 双流、事件词表、审批/问答 waterfall)对 0.1.7-rc.2 真机逐项验证兼容
 
 ### 测试
 

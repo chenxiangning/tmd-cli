@@ -101,8 +101,9 @@ async function doModels(ctx) {
 }
 
 async function doCommand(ctx, line) {
+  /* 0.1.7 起参数换代:images → submittedAttachments(空附件即空数组)。 */
   const r = await rpcCall(ctx.ORIGIN, "commands/execute", {
-    agentId: ctx.dshSessionId, line, images: [],
+    agentId: ctx.dshSessionId, line, submittedAttachments: [],
   });
   if (!r.ok) print.error(`命令失败: ${errMsg(r.error)}`);
   else {

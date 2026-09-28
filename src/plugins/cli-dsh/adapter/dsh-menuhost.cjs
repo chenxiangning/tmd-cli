@@ -121,7 +121,7 @@ function createMenuHost(deps) {
   }
 
   async function openMode() {
-    const r = await rpcCall(ORIGIN, "agentPreset.list", {});
+    const r = await rpcCall(ORIGIN, "agentPresets/list", {});
     if (!r.ok) { print.error("拉取模式列表失败"); return; }
     const items = (r.value?.presets || [])
       .filter((p) => p && !p.broken)
