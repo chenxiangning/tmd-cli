@@ -70,7 +70,9 @@ export function parseAskCard(text: string): AskCard | null {
     const m = TABS_RE.exec(lines[i]);
     if (m && m[1].trim() !== "") {
       tabIndex = i;
-      multi = m[1].trim().split(/\s+/).filter((w) => w !== "Ask").length;
+      /* tab 行按 ≥2 空格切分(omp 渲染分隔,真机夹具实证):问题标题可含
+         单个空格,按单词切会虚增题数、pills 裂词(2026-09-28 三轮 R3-AB-03)。 */
+      multi = m[1].trim().split(/ {2,}/).filter((w) => w !== "Ask").length;
       break;
     }
   }
@@ -116,7 +118,7 @@ export function parseAskCard(text: string): AskCard | null {
   let tabs: string[] = [];
   if (tabIndex >= 0) {
     const m = TABS_RE.exec(lines[tabIndex])!;
-    tabs = m[1].trim().split(/\s+/).filter((w) => w !== "Ask");
+    tabs = m[1].trim().split(/ {2,}/).filter((w) => w !== "Ask");
     tabs.push("Submit");
   }
   /* 光标项:指针行在选项块内的序;无显式指针 = 首项(omp 默认停首)。 */

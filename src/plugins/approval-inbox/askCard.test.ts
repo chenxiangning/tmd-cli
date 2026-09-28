@@ -85,6 +85,14 @@ describe("parseAskCard(omp select 卡结构化)", () => {
     expect(card?.cursor).toBe(0);
   });
 
+  it("tab 行按 ≥2 空格切分:标题含单空格不裂词(三轮 R3-AB-03)", () => {
+    const card = parseAskCard(
+      ["Ask", "Deploy prod?  Roll back now?  Submit", "选一个发布策略?", "● blue-green", "○ canary"].join("\n"),
+    );
+    expect(card?.multi).toBe(2);
+    expect(card?.tabs).toEqual(["Deploy prod?", "Roll back now?", "Submit"]);
+  });
+
   it("光标不在首项:▶ 行位置即 cursor", () => {
     const card = parseAskCard(
       [

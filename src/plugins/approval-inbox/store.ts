@@ -144,7 +144,11 @@ export function refreshInbox(): void {
   /* 退出等待即清指纹:同一问题复问(新一轮 ask)要重新入历史。 */
   for (const id of [...lastFp.keys()]) if (!alive.has(id)) lastFp.delete(id);
   const failure = store.snapshot.failure;
-  const nextFailure = failure && alive.has(failure) ? failure : null;
+  /* 失败位不随 alive 消退:写入失败前 host 侧已同步清 ask 位(等待行必消退),
+     alive 检查会让横幅在同一拍 refresh 里被自清,生产路径恒不可见
+     (2026-09-28 三轮评审 R3-AB-01)。清位出口 = 该会话后续作答成功
+     (writeAsAnswer ok)或用户 dismissFailure。 */
+  const nextFailure = failure;
   const entries = waiting.map((s) => ({
     sessionId: s.id,
     profileId: s.profileId,
@@ -221,7 +225,11 @@ export function answerKeys(sessionId: string, keys: string): Promise<boolean> {
 function writeAsAnswer(sessionId: string, payload: string, synthetic: boolean): Promise<boolean> {
   return host.writeSession(sessionId, payload, synthetic).then(
     (ok) => {
-      store.commit({ entries: store.snapshot.entries, failure: ok ? null : sessionId });
+      /* 成功只清本会话的失败位 —— 别会话的失败横幅不得被顺手清掉
+         (2026-09-28 三轮评审 R3-AB-01);失败 = 最新失败进横幅(单槽)。 */
+      const prev = store.snapshot.failure;
+      const failure = ok ? (prev === sessionId ? null : prev) : sessionId;
+      store.commit({ entries: store.snapshot.entries, failure });
       refreshInbox();
       return ok;
     },

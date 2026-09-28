@@ -40,6 +40,7 @@ import {
   approvalInboxSnapshot,
   bootApprovalInbox,
   excerptFromTail,
+  dismissFailure,
   gotoAndFocus,
   noteAskDetected,
   observeCurrentWaitings,
@@ -209,19 +210,35 @@ describe("应答", () => {
     expect(host.writeSession).toHaveBeenCalledWith("a", "\x1b[B ", true);
   });
 
-  it("写失败落 failure 提示位(行已消退,横幅兜底);成功作答清位", async () => {
+  it("写失败落 failure 提示位且不被重算自清;他会话成功不清别家,补答成功才清", async () => {
     vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a", "b"]));
-    vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
+    /* 生产时序:host.writeSession 写前同步清 ask 位(host.ts 写入口)——
+       失败后该会话立即退出等待表,refreshInbox 不得把横幅一并清掉
+       (2026-09-28 三轮评审 R3-AB-01,原 alive 启发式使横幅恒不可见)。 */
+    let aWaiting = true;
+    vi.mocked(host.isWaitingConfirm).mockImplementation(
+      (id) => (id === "a" ? aWaiting : true) as boolean,
+    );
     noteAskDetected("a");
     noteAskDetected("b");
 
     vi.mocked(host.writeSession).mockResolvedValue(false);
     await answerWaiting("a", "retry");
+    aWaiting = false; // 写前清位:失败会话已退出等待表
     expect(approvalInboxSnapshot().failure).toBe("a");
 
-    /* a 已不在等待表时重算清位;成功作答 b 同样清位 */
+    /* 失败后任意次重算(6s 轮询/边沿等),横幅仍存活 */
+    refreshInbox();
+    refreshInbox();
+    expect(approvalInboxSnapshot().failure).toBe("a");
+
+    /* 他会话成功作答不清别家失败位 */
     vi.mocked(host.writeSession).mockResolvedValue(true);
     await answerWaiting("b", "y");
+    expect(approvalInboxSnapshot().failure).toBe("a");
+
+    /* 用户 dismiss 兜底 */
+    dismissFailure();
     expect(approvalInboxSnapshot().failure).toBeNull();
   });
 });
