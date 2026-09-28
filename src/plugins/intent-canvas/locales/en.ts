@@ -144,4 +144,6 @@ export const MESSAGES_EN = {
   "4. 布局自上而下分层:第一层在最上方,同层节点横向排(列距约 340),下一层整体下移(层距约 160);箭头从上层节点连向下层节点;先画主干再画分支,控制在 20 个图形以内,每个形状的 label 写清节点标题。": "4. Layout top-down by layers: layer 1 on top, nodes of the same layer side by side (column gap ~340), next layer shifted down (row gap ~160); arrows connect upper nodes to lower nodes; draw the trunk first, then branches; keep within 20 shapes; give every shape a clear label.",
   "1. 写一个 JSON 文件到:{path}(文件名必须是 ai-draw- 开头、.json 结尾;全文不超过 512KB)。": "1. Write one JSON file to: {path} (name must start with ai-draw- and end with .json; keep the whole file under 512KB).",
   "3. shapes 每项:{\"type\":\"rectangle\"|\"ellipse\"|\"diamond\"|\"text\"|\"arrow\",\"x\":0,\"y\":0,\"width\":260,\"height\":92,\"label\":\"节点标题(每个节点形状必填)\",\"fontSize\":20,};颜色由客户端统一配色(勿传 stroke/fill,传了也会被忽略);箭头(type:\"arrow\")用 width/height 表达终点相对偏移。": "3. Each shape: {\"type\":\"rectangle\"|\"ellipse\"|\"diamond\"|\"text\"|\"arrow\",\"x\":0,\"y\":0,\"width\":260,\"height\":92,\"label\":\"node title (required on every node shape)\",\"fontSize\":20}; colors are applied by the client (do not pass stroke/fill — ignored); arrows (type:\"arrow\") use width/height as the endpoint offset.",
+  "作画已开启:下一条发送将附带作画指令": "AI draw on: your next send will include the draw instruction",
+  "作画已关闭": "AI draw off",
 } as Record<string, string>;
