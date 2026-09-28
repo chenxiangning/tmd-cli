@@ -161,6 +161,9 @@ export const cliCodexPlugin: Plugin = {
       listMcpServers: () => listCodexMcpServers(),
       resumeArgs: (sessionId) => ["resume", sessionId],
       listSessions: listCodexSessions,
+      /* MCP 管理面:全局读写目标 = ~/.codex/config.toml(TOML 行级段写,
+         mcp-hub 经 cli-shared/mcpWrite;config 缺失 = 引擎隐藏不代造)。 */
+      mcpGlobalConfig: { candidates: ["/.codex/config.toml"], format: "toml" },
       /* 会话卫生判空:path 即 rollout jsonl,共享标记子串判定(sessionEmpty.ts) */
       isDiskSessionEmpty: (session) => isJsonlSessionEmpty(session.path),
       readSessionStatus: readCodexSessionStatus,

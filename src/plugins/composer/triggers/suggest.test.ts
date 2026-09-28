@@ -21,6 +21,8 @@ import { t } from "@kernel/i18n";
 
 const ipcMock = vi.hoisted(() => ({
   fsWalkFiles: vi.fn<(root: string, cap: number) => Promise<string[]>>(),
+  configHomeDir: vi.fn<() => Promise<string>>().mockResolvedValue("/home/tester"),
+  fsListDir: vi.fn<(dir: string) => Promise<never[]>>().mockResolvedValue([]),
 }));
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
 
@@ -34,6 +36,8 @@ let fileIndex: FileIndexModule;
 beforeEach(async () => {
   vi.resetModules();
   ipcMock.fsWalkFiles.mockReset();
+  ipcMock.configHomeDir.mockResolvedValue("/home/tester");
+  ipcMock.fsListDir.mockResolvedValue([]);
   vi.spyOn(console, "warn").mockImplementation(() => {});
   /* 模块级单例(fileIndex 索引缓存)必须借 resetModules 取全新实例 */
   suggest = await import("./suggest");

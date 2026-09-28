@@ -402,6 +402,8 @@ export const ipc = {
     invoke<void>("fs_reveal_in_file_manager", { path }),
   /** 复制文件(资源入库通道,如壁纸受管副本);新建语义,目标已存在报错,256MB 上限。 */
   fsCopyFile: (src: string, dst: string) => invoke<void>("fs_copy_file", { src, dst }),
+  /** 递归复制目录树(composer 通用技能落位);新建语义,目标已存在报错,32MB 总量闸,跳过 .DS_Store。 */
+  fsCopyTree: (src: string, dst: string) => invoke<void>("fs_copy_tree", { src, dst }),
   /* ── 打开方式(open-with;契约 kernel/openWith.ts,Rust open_with.rs)── */
   /** 用配置的外部应用/命令打开文件;finder 复用 reveal 定位;目标路径恒为最后参数。 */
   fsOpenWith: (path: string, target: OpenWithTarget) =>
@@ -605,6 +607,20 @@ export const ipc = {
   /** 物理删除文件或目录(会话列表"删除会话"用);kimi 会话是目录,统一走此命令。
    *  路径不存在视为成功(幂等)。 */
   fsRemovePath: (path: string) => invoke<void>("fs_remove_path", { path }),
+
+  /* ── skill 包原语(skill-hub 插件消费;对齐 src-tauri/src/skill_pkg.rs)── */
+  /** 下载 URL 到 dest_dir 下临时文件(文件名 = URL 哈希 + .tmp),60s 超时,
+   *  跟随重定向。zip 二进制不走 quotaFetch(body 通道是 JSON 文本)。 */
+  netDownload: (url: string, destDir: string) =>
+    invoke<{ path: string; bytes: number }>("net_download", { url, destDir }),
+  /** zip 解压到 dest_dir(不存在即建)。安全闸:条目名 zip-slip/绝对路径/
+   *  反斜杠、symlink entry、解压总大小 10MB 全拒绝。strip_top = 剥离单顶层
+   *  目录(GitHub 式包形状;ClawHub 平铺包不剥)。返回解出文件数。 */
+  skillExtract: (archive: string, destDir: string, stripTop: boolean) =>
+    invoke<{ entries: number }>("skill_extract", { archive, destDir, stripTop }),
+  /** 建目录符号链接(公约位安装的 claude 补链);Windows 无特权原样报错。 */
+  skillSymlink: (target: string, link: string) =>
+    invoke<void>("skill_symlink", { target, link }),
   configHomeDir: () => {
     /* 主目录每进程恒定:扫描/配额/GUI 共 47 处每动作重复取,once 缓存全量受益;
        拒绝不缓存(复位重试),失败语义与直连一致。 */
@@ -642,6 +658,9 @@ export const ipc = {
   /** 读取非空环境变量;用于 pi auth.json 的 $ENV_VAR 凭据引用。 */
   quotaEnvValue: (name: string) =>
     invoke<string | null>("quota_env_value", { name }),
+  /** 一次性 MCP stdio 探活(spawn → initialize → tools/list → kill;15s 超时;
+   *  错误附 stderr 尾行)。消费方 mcp-hub 插件;协议知识在 src-tauri/mcp_probe.rs。 */
+  mcpProbe: (spec: McpProbeSpec) => invoke<McpProbeResult>("mcp_probe", { spec }),
   /** 探针 CLI 是否在本机 PATH 中可解析(以及 `--version` 输出)。 */
   cliProbe: (command: string) =>
     invoke<CliProbeResult>("cli_probe", { command }),
@@ -1166,6 +1185,23 @@ export interface CliProbeResult {
   version: string | null;
   /** 命中副本位于 npm 全局布局内时的所属 prefix;非 npm 副本 = null。 */
   npmPrefix: string | null;
+}
+
+/** mcp_probe 入参(一次性 stdio 探活;消费方 mcp-hub 插件)。 */
+export interface McpProbeSpec {
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  timeoutMs: number;
+}
+
+/** 后端 `mcp_probe` 返回结构(对齐 src-tauri/src/mcp_probe.rs;ok=false 时 error 必带)。 */
+export interface McpProbeResult {
+  ok: boolean;
+  serverName?: string;
+  serverVersion?: string;
+  toolsCount?: number;
+  error?: string;
 }
 
 /** 订阅某引擎的安装事件流。返回退订函数。 */

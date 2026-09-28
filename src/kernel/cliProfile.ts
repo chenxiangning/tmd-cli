@@ -52,6 +52,9 @@ export interface CliProfile {
    * 点击语义由每项的 action/token 声明(codex "$name" insert / claude "/mcp" send)。
    */
   listMcpServers?: (cwd: string) => Promise<CliSuggestion[] | null>;
+  /** MCP 管理面声明(全局配置文件,mcp-hub 消费):候选路径(相对 home,前存在者优先 = 读写目标)与
+   * 格式;原语在 cli-shared/mcpWrite,声明只携带居所知识(listMcpServers 先例)。JSON 全缺 = 首存即建,TOML 全缺 = 引擎隐藏。 */
+  mcpGlobalConfig?: { candidates: string[]; format: "json" | "toml" };
   /** 恢复 CLI 自身会话的参数模板;缺省 = 不支持恢复。 */
   resumeArgs?: (cliSessionId: string) => string[];
   /**

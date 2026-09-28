@@ -129,27 +129,11 @@ export function Composer() {
       confirmEnabled: settings.sendConfirmEnabled,
       requestConfirm: requestSendConfirm,
     });
-  const {
-    matches,
-    activeRange,
-    pickIndex,
-    setPickIndex,
-    setMatches,
-    applyPick,
-    wakeTrigger,
-    dismiss,
-  } = useComposerTriggers({
-    profile,
-    value,
-    cursor,
-    cwd,
-    textareaRef: ref,
-    setValue,
-    setCursor,
-  });
+  const { matches, activeRange, pickIndex, setPickIndex, setMatches, applyPick, wakeTrigger, dismiss } =
+    useComposerTriggers({ profile, value, cursor, cwd, textareaRef: ref, setValue, setCursor,
+      });
 
-  /* composer.send 命令桥:每次渲染同步最新发送闭包(latest-ref),卸载断开。
-     ⌘K 开合已收编为 composer.toggleDrawer 命令(注册见插件入口);发送路径零改动 */
+  /* composer.send 命令桥:渲染期同步最新闭包,卸载断开;⌘K 已收编为 composer.toggleDrawer */
   useEffect(() => {
     composerSendRef.current = () => sendCurrent();
     composerWakeRef.current = wakeTrigger;
@@ -159,8 +143,7 @@ export function Composer() {
     };
   });
 
-  /* 输入历史(2026-09-10):ghost 补全 + 空输入 ↑↓ 召回,开关在设置/行为。
-     IME 组合期禁 ghost(传 "");召回落文本走 setValue+光标复位 */
+  /* 输入历史:ghost 补全 + 空输入 ↑↓ 召回;IME 组合期禁 ghost,召回走 setValue+光标复位 */
   const [imeComposing, setImeComposing] = useState(false);
   const mirrorRef = useRef<HTMLDivElement>(null);
   const completion = usePromptCompletion(imeComposing ? "" : value, settings.promptHistoryEnabled);

@@ -1,0 +1,96 @@
+/**
+ * 本地导入视图(v2 闭环)── 十家 CLI 目录发现层作导入源:按引擎分组列出,
+ * 每条「导入」进弹窗选落位(引擎多选 / 公约位 + claude symlink)→ fsCopyTree
+ * 复制落位 + 写安装记录 → 已安装视图可见、composer 可级联。
+ * 已是安装记录同名的源标「已导入」灰置(重新导入走删除后再导)。
+ */
+
+import { useEffect, useMemo, useState } from "react";
+import { DownloadSimple } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
+import { useSkillRegistry } from "@plugins/cli-shared/skillRegistry";
+import { ENGINE_LABELS, type HubSkill } from "@plugins/cli-shared/skillSources";
+import { ensureSkillScanLoaded, refreshSkillScan, useSkillScan } from "./skillStore";
+import { ImportDialog } from "./ImportDialog";
+
+export function ImportView() {
+  const { groups, loading, error } = useSkillScan();
+  const { records } = useSkillRegistry();
+  const [importing, setImporting] = useState<HubSkill | null>(null);
+  const importedNames = useMemo(() => new Set(records.map((r) => r.name)), [records]);
+  useEffect(() => {
+    void ensureSkillScanLoaded();
+  }, []);
+
+
+  if (loading && groups.length === 0) {
+    return <div className="py-4 text-center text-xs text-(--tmd-fg-faint)">{t("正在扫描本机 CLI 目录…")}</div>;
+  }
+  if (error) {
+    return <div className="py-4 text-center text-xs text-(--tmd-err)">{t("扫描失败")}:{error}</div>;
+  }
+  if (groups.length === 0) {
+    return <div className="py-4 text-center text-xs text-(--tmd-fg-faint)">{t("本机未发现任何 CLI 技能目录")}</div>;
+  }
+  return (
+    <div className="min-h-0 flex-1 overflow-auto px-3 py-2" data-skill-import>
+      {groups.map((g) => (
+        <section key={g.engine} className="mb-5" data-skill-group={g.engine}>
+          <div className="mb-2 flex items-center gap-2 border-b border-(--tmd-border) pb-1.5 text-xs text-(--tmd-fg-muted)">
+            <span className="font-medium">{t(ENGINE_LABELS[g.engine] ?? g.engine)}</span>
+            <span className="rounded-full bg-(--tmd-accent-soft) px-1.5 py-px text-[10px] tabular-nums text-(--tmd-fg)">
+              {g.skills.length}
+            </span>
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-2">
+            {g.skills.map((s) => (
+              <ImportSourceCard key={s.dir} skill={s} imported={importedNames.has(s.name)} onImport={() => setImporting(s)} />
+            ))}
+          </div>
+        </section>
+      ))}
+      {importing && (
+        <ImportDialog
+          skill={importing}
+          onClose={() => setImporting(null)}
+          onImported={() => void refreshSkillScan()}
+        />
+      )}
+    </div>
+  );
+}
+
+function ImportSourceCard({ skill, imported, onImport }: { skill: HubSkill; imported: boolean; onImport: () => void }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-base) p-2.5">
+      <div className="min-w-0 truncate text-xs font-medium" title={skill.name}>
+        {skill.name}
+      </div>
+      {skill.description ? (
+        <div className="line-clamp-2 text-[11px] leading-snug text-(--tmd-fg-muted)">{skill.description}</div>
+      ) : (
+        <div className="text-[11px] leading-snug text-(--tmd-fg-faint)">{t("无描述")}</div>
+      )}
+      <div className="mt-auto flex items-center justify-end pt-1">
+        {imported ? (
+          <span className="cursor-default text-[11px] text-(--tmd-fg-faint)" title={t("已在安装记录中;重新导入请先在「已安装」删除")}>
+            {t("已导入")}
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={onImport}
+            disabled={skill.flat}
+            title={skill.flat ? t("平铺形(单文件)技能暂不支持跨目录导入") : undefined}
+            className="flex items-center gap-1 rounded border border-(--tmd-border) px-2 py-0.5 text-[11px] hover:bg-(--tmd-bg-hover) disabled:opacity-40"
+            data-skill-import-btn={skill.name}
+          >
+            <DownloadSimple size={11} aria-hidden="true" />
+            {t("导入")}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+

@@ -16,6 +16,11 @@ import { t } from "@kernel/i18n";
 import { openSettingsPanel } from "@kernel/settings";
 import type { CommandContribution } from "@kernel/shortcuts";
 import type { CliProfile, CliSuggestion, SuggestionAction } from "@kernel/cli";
+import {
+  installedSkillSuggestions,
+  loadSkillRegistry,
+  skillRegistrySnapshot,
+} from "@plugins/cli-shared/skillRegistry";
 
 /** 抽屉分区;plugin 区数据来自内核注册表,与 CLI profile 无关。 */
 export type DrawerSection = "command" | "skill" | "mcp" | "plugin";
@@ -197,12 +202,17 @@ export async function resolveProfileDrawerItems(
   const kinds = (["command", "skill"] as const).filter((kind) =>
     profile.triggers.some((t) => t.kind === kind),
   );
-  const fetched = await Promise.all(kinds.map((kind) => fetchKind(profile, kind, cwd)));
-  const items = kinds.flatMap((kind, i) =>
-    toItems(mergeSuggestions(profile.suggestions?.[kind] ?? [], fetched[i] ?? []), kind, (s) =>
+  /* 安装记录候选与 provider 并行(v2 闭环:composer 级联 = 已装 ∩ 当前 CLI 可用) */
+  const [fetched, installed] = await Promise.all([
+    Promise.all(kinds.map((kind) => fetchKind(profile, kind, cwd))),
+    kinds.includes("skill") ? installedSkillsForProfile(profile) : Promise.resolve([] as CliSuggestion[]),
+  ]);
+  const items = kinds.flatMap((kind, i) => {
+    const dynamic = kind === "skill" ? mergeSuggestions(fetched[i] ?? [], installed) : (fetched[i] ?? []);
+    return toItems(mergeSuggestions(profile.suggestions?.[kind] ?? [], dynamic), kind, (s) =>
       staticToken(kind, s),
-    ),
-  );
+    );
+  });
   if (profile.listMcpServers) {
     const servers = await fetchKind(profile, "mcp", cwd);
     items.push(...toItems(servers, "mcp", (s) => `$${s.value} `));
@@ -226,4 +236,16 @@ export function resolvePluginDrawerItems(): DrawerItem[] {
     })),
     getFilePanels().map((p) => ({ id: p.id, icon: p.icon })),
   );
+}
+
+/* ---------- 通用技能候选(v2 闭环:安装记录;spec 2026-09-28-composer-universal-skills) ---------- */
+
+/**
+ * 当前 profile 的已装技能候选:loadSkillRegistry(幂等,首次后走内存快照)+
+ * installedSkillSuggestions(记录 ∩ 当前 CLI 可用:自家目录/公约位 readsShared/
+ * claude symlink 落位)。安装/导入/删除由 skill-hub 调 loadSkillRegistry(true) 失效。
+ */
+export async function installedSkillsForProfile(profile: CliProfile): Promise<CliSuggestion[]> {
+  await loadSkillRegistry();
+  return installedSkillSuggestions(profile.id, skillRegistrySnapshot().records);
 }

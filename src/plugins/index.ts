@@ -43,6 +43,9 @@ import { academyPlugin } from "./academy";
 import { notifyPlugin } from "./notify";
 import { sessionSearchPlugin } from "./session-search";
 import { sessionRelayPlugin } from "./session-relay";
+import { skillHubPlugin } from "./skill-hub";
+import { mcpHubPlugin } from "./mcp-hub";
+
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -83,4 +86,6 @@ export const allPlugins: Plugin[] = [
   notifyPlugin,
   sessionSearchPlugin,
   sessionRelayPlugin,
+  skillHubPlugin,
+  mcpHubPlugin,
 ];

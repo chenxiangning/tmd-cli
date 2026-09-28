@@ -218,4 +218,7 @@
 | 2026-09-28 | [Composer 底栏技能/MCP 唤醒双图标(输入轨直开抽屉分区;omp/kimi/grok/qoder MCP 发现补齐;管理写面否决)](superpowers/specs/2026-09-28-composer-skill-mcp-rail-design.md) | 已实现(两批次评审修复完毕,门禁全绿,1421 桩目检过;待大仙真机验收) |
 | 2026-09-28 | [技能/MCP 唤醒双图标设计评审与裁决(交互+契约双视角;2×P0/10×P1/7×P2 全裁决;落盘八条自有设计准则;调研文档四处事实更正)](review/2026-09-28-composer-skill-mcp-rail-review.md) | 已完成 |
 | 2026-09-28 | [技能/MCP 唤醒双图标实施批次评审(批次 A 发现层 OK/5×P2 修;批次 B 1×P1 图标点击被吞+3×P2 修;桩目检全路径复验)](review/2026-09-28-skill-mcp-rail-implementation-review.md) | 已完成 |
+| 2026-09-28 | [Skill Hub 插件提案(跨引擎 skill 目录管理 + ClawHub 市场;十家扫描复用 cli-shared/skillDirs + 公约位 ~/.agents/skills 落位 + symlink 勾选;右栏入口中央 tab)](../openspec/changes/2026-09-28-skill-hub-plugin/proposal.md) | 已实现(门禁自辖范围全绿 + 1421 桩目检过;真机 tauri:dev 复验留大仙;执行注记见 proposal 头部) |
+| 2026-09-28 | [MCP Hub 插件提案(六家配置写回管理 + 三源商店 + 导入桥 + 一次性连通测试;mcpWrite 方言写引擎 + .bak-tmd 备份 + CliProfile 声明式写适配器;右栏入口中央 tab)](../openspec/changes/2026-09-28-mcp-hub-plugin/proposal.md) | 已实现(自辖范围门禁全绿;Glama 源线上 401 需 API key 走单源空态;真机 tauri:dev 复验留大仙;执行注记见 proposal 头部) |
+| 2026-09-28 | [通用技能关联设计 v2(管理端安装记录闭环:已装 0 起步 + 本地导入落位 + composer 级联=已装∩当前 CLI 可用;PTY 不动)](superpowers/specs/2026-09-28-composer-universal-skills-design.md) | 已实现(门禁绿 + 1421 桩闭环目检过;真机复验留大仙) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

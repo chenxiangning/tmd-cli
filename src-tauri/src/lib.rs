@@ -27,6 +27,8 @@ mod quota;
 mod resolve;
 mod session;
 mod session_commands;
+mod skill_pkg;
+mod mcp_probe;
 mod session_disk_log;
 mod session_log;
 mod settings;
@@ -217,6 +219,11 @@ pub fn run() {
             fs_edit::fs_create_file,
             fs_edit::fs_create_dir,
             fs_edit::fs_rename_entry,
+            fs_edit::fs_copy_tree,
+            skill_pkg::net_download,
+            skill_pkg::skill_extract,
+            skill_pkg::skill_symlink,
+            mcp_probe::mcp_probe,
             fs_edit::fs_trash_entry,
             fs_edit::fs_reveal_in_file_manager,
             fs_edit::fs_copy_file,

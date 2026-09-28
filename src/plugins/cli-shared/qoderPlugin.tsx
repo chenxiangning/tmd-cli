@@ -72,6 +72,12 @@ export function makeQoderPlugin(variant: QoderVariantSpec): Plugin {
         listMcpServers: () => listQoderMcpServers(variant.dataDir),
         resumeArgs: (sessionId) => ["--resume", sessionId],
         listSessions: (cwd) => listQoderSessions(variant.dataDir, cwd),
+        /* MCP 管理面:全局读写目标 = <dataDir>/shared_client/mcp.json(与
+           listMcpServers 同源;双分发版经本工厂一次覆盖)。 */
+        mcpGlobalConfig: {
+          candidates: [`/${variant.dataDir}/shared_client/mcp.json`],
+          format: "json",
+        },
         /* 会话卫生判空:path 即 <uuid>.jsonl,共享标记子串判定(sessionEmpty.ts) */
         isDiskSessionEmpty: (session) => isJsonlSessionEmpty(session.path),
         readSessionStatus: (cwd, cliSessionId) =>

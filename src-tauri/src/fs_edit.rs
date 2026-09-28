@@ -116,6 +116,57 @@ pub fn copy_file(src: &str, dst: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// 目录树复制总量上限:技能目录(SKILL.md + scripts/references)量级远低于此;
+/// 拦截误传的 node_modules/数据集级目录。
+const MAX_TREE_BYTES: u64 = 32 * 1024 * 1024;
+
+/// 递归复制目录树(composer 通用技能落位公约位用)。新建语义:目标已存在即
+/// 报错,绝不静默覆写;父目录须已存在;总量超 MAX_TREE_BYTES 拒绝;symlink
+/// 按链接本身复制(技能目录无链接语义依赖,克隆链接目标反而会双写)。
+pub fn copy_tree(src: &str, dst: &str) -> Result<(), String> {
+    validate_target(src)?;
+    validate_target(dst)?;
+    let from = Path::new(src);
+    if !from.is_dir() {
+        return Err("源路径不是目录".to_string());
+    }
+    let to = Path::new(dst);
+    if to.exists() {
+        return Err("同名文件或文件夹已存在".to_string());
+    }
+    let mut total: u64 = 0;
+    copy_dir(from, to, &mut total)?;
+    Ok(())
+}
+
+fn copy_dir(from: &Path, to: &Path, total: &mut u64) -> Result<(), String> {
+    fs::create_dir_all(to).map_err(|e| format!("创建目录失败: {e}"))?;
+    for entry in fs::read_dir(from).map_err(|e| format!("读取目录失败: {e}"))? {
+        let entry = entry.map_err(|e| format!("读取目录项失败: {e}"))?;
+        let path = entry.path();
+        let name = entry.file_name();
+        if name == ".DS_Store" {
+            continue; // macOS 噪声不入副本
+        }
+        if path.is_dir() {
+            copy_dir(&path, &to.join(&name), total)?;
+        } else {
+            let meta = entry
+                .metadata()
+                .map_err(|e| format!("读取文件信息失败: {e}"))?;
+            *total = total.saturating_add(meta.len());
+            if *total > MAX_TREE_BYTES {
+                return Err(format!(
+                    "目录总量超过 {}MB,拒绝复制",
+                    MAX_TREE_BYTES / 1024 / 1024
+                ));
+            }
+            fs::copy(&path, to.join(&name)).map_err(|e| format!("复制文件失败: {e}"))?;
+        }
+    }
+    Ok(())
+}
+
 /// 重命名(同目录内改名)。返回新绝对路径;目标已存在时报错(不静默覆盖)。
 pub fn rename_entry(path: &str, new_name: &str) -> Result<String, String> {
     validate_target(path)?;
@@ -218,6 +269,11 @@ pub(crate) async fn fs_reveal_in_file_manager(path: String) -> Result<(), String
 #[tauri::command]
 pub(crate) async fn fs_copy_file(src: String, dst: String) -> Result<(), String> {
     crate::commands_fs::spawn_fs(move || copy_file(&src, &dst)).await
+}
+
+#[tauri::command]
+pub(crate) async fn fs_copy_tree(src: String, dst: String) -> Result<(), String> {
+    crate::commands_fs::spawn_fs(move || copy_tree(&src, &dst)).await
 }
 
 #[cfg(test)]

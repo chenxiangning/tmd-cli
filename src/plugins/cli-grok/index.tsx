@@ -97,6 +97,9 @@ export const cliGrokPlugin: Plugin = {
       listMcpServers: listGrokMcpServers,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listGrokSessions,
+      /* MCP 管理面:全局读写目标 = ~/.grok/config.toml(TOML 行级段写,
+         mcp-hub 经 cli-shared/mcpWrite;config 缺失 = 引擎隐藏不代造)。 */
+      mcpGlobalConfig: { candidates: ["/.grok/config.toml"], format: "toml" },
       /* 会话卫生判空:path = 会话目录,真实对话在 chat_history.jsonl
          (读不到 = 判不了,共享 helper 契约返回 false 不删)。 */
       isDiskSessionEmpty: (session) => isJsonlSessionEmpty(`${session.path}/chat_history.jsonl`),

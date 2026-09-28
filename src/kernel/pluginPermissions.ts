@@ -69,6 +69,10 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   fsRemovePath: "ipc.fs.write",
   fsRevealInFileManager: "ipc.fs.write",
   fsCopyFile: "ipc.fs.write",
+  fsCopyTree: "ipc.fs.write",
+  /* skill 包原语(skill-hub):解压落位与补链都是文件写。 */
+  skillExtract: "ipc.fs.write",
+  skillSymlink: "ipc.fs.write",
   /* 打开方式:启动外部应用/命令归 exec;探测与图标提取是只读。 */
   fsOpenWith: "ipc.exec",
   fsProbeOpenApp: "ipc.fs.read",
@@ -138,6 +142,10 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
 
   /* 网络(quota_fetch = 任意 URL 的通用 HTTP 代理)。 */
   quotaFetch: "ipc.net",
+  /* skill 包下载(任意 URL 出网,同 quotaFetch 归 net)。 */
+  netDownload: "ipc.net",
+  /* 一次性 MCP stdio 探活(spawn + 握手;任意命令执行面,同 cli_probe 归 exec)。 */
+  mcpProbe: "ipc.exec",
 
   /* sqlite 只读/写原语。 */
   sqliteQuery: "ipc.sql",

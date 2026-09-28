@@ -132,6 +132,9 @@ export const cliKimiPlugin: Plugin = {
       listMcpServers: listKimiMcpServers,
       resumeArgs: (sessionId) => ["--session", sessionId],
       bracketedPaste: true,
+      /* MCP 管理面:全局读写目标 = ~/.kimi-code/mcp.json(mcp-hub 经
+         cli-shared/mcpWrite 读写;项目级 overlay 后置)。 */
+      mcpGlobalConfig: { candidates: ["/.kimi-code/mcp.json"], format: "json" },
       listSessions: listKimiSessions,
       /* 会话卫生判空:path = 会话目录,wire 双候选位(新布局 agents/main/wire.jsonl,
          老 home 目录直挂 wire.jsonl,见 kimiEmpty.ts)。wire 缺失 = 判不了不删。 */

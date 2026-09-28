@@ -29,6 +29,8 @@ const OPENABLE_KINDS = [
   "memory-console",
   "academy.guide",
   "intent-canvas",
+  "skill-hub",
+  "mcphub",
 ] as const;
 
 function activateCollectingKinds(): Set<string> {

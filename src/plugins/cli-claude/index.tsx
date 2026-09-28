@@ -203,6 +203,9 @@ export const cliClaudePlugin: Plugin = {
       listMcpServers: listClaudeMcpServers,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listClaudeSessions,
+      /* MCP 管理面:全局读写目标 = ~/.claude.json 顶层 mcpServers(全量
+         parse/stringify,未知键保留;projects.<cwd> 嵌套后置)。 */
+      mcpGlobalConfig: { candidates: ["/.claude.json"], format: "json" },
       /* 会话卫生判空:path 即 <uuid>.jsonl,共享标记子串判定(sessionEmpty.ts) */
       isDiskSessionEmpty: (session) => isJsonlSessionEmpty(session.path),
       readSessionStatus: readClaudeSessionStatus,

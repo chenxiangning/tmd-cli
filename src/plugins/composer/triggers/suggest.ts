@@ -16,7 +16,7 @@ import type { CliProfile, CliSuggestion, CliTriggerSpec, TriggerKind } from "@ke
 import type { ComposerTriggerSource } from "@kernel/composerExt";
 import { t } from "@kernel/i18n";
 import { fuzzyFileMatch, projectFileIndex } from "./fileIndex";
-import { mergeSuggestions } from "../drawerItems";
+import { mergeSuggestions, installedSkillsForProfile } from "../drawerItems";
 
 /** 下拉候选上限:与 CLI 原生补全面板量级一致,太多反而不可扫读。 */
 const MAX_CANDIDATES = 20;
@@ -86,19 +86,27 @@ function extMatches(
     }));
 }
 
-/** 静态表 × listSuggestions 合并;provider 失败 = 纯静态(合并层只增不顶替)。 */
+/** 静态表 × listSuggestions 合并;provider 失败 = 纯静态(合并层只增不顶替)。
+ *  skill 叠加通用聚合(十家目录跨 CLI,2026-09-28 通用技能关联 spec)。 */
 async function declaredPlusDynamic(
   profile: CliProfile,
   kind: "command" | "skill",
   cwd: string,
 ): Promise<CliSuggestion[]> {
   const declared = profile.suggestions?.[kind] ?? [];
-  if (!profile.listSuggestions) return declared;
+  if (!profile.listSuggestions) {
+    return kind === "skill" && profile.triggers.some((t) => t.kind === "skill")
+      ? mergeSuggestions(declared, await installedSkillsForProfile(profile))
+      : declared;
+  }
   const dynamic = await profile.listSuggestions(kind, cwd).catch((e) => {
     console.warn("[suggest] listSuggestions 抛错:", profile.id, kind, e);
     return null;
   });
-  return dynamic ? mergeSuggestions(declared, dynamic) : declared;
+  const base = dynamic ? mergeSuggestions(declared, dynamic) : declared;
+  return kind === "skill"
+    ? mergeSuggestions(base, await installedSkillsForProfile(profile))
+    : base;
 }
 
 /** 前缀过滤(大小写不敏感);空 needle = 全量(截到上限)。 */
