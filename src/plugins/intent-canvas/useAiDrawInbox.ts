@@ -14,13 +14,14 @@ export const AI_DRAW_POLL_MS = 2000;
 export function useAiDrawInbox(
   activeWorkspace: Workspace | null,
   onImported: (imported: { id: string; title: string }[]) => void,
+  enabled = true,
 ): string | null {
   const [lastError, setLastError] = useState<string | null>(null);
   const onImportedRef = useRef(onImported);
   onImportedRef.current = onImported;
 
   useEffect(() => {
-    if (!activeWorkspace) {
+    if (!activeWorkspace || !enabled) {
       return;
     }
     const root = activeWorkspace.root;
@@ -62,7 +63,7 @@ export function useAiDrawInbox(
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [activeWorkspace]);
+  }, [activeWorkspace, enabled]);
 
   return lastError;
 }

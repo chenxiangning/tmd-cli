@@ -39,7 +39,7 @@ export async function loadIntentCanvasIndex(
     const parsed = JSON.parse(raw) as unknown;
     const indexFile = normalizeIndexFile(parsed);
     return {
-      value: indexFile.canvases.slice().sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
+      value: indexFile.canvases.slice().sort((left, right) => (left.updatedAt < right.updatedAt ? 1 : -1)),
       warnings: [],
     };
   } catch (error) {
@@ -70,7 +70,7 @@ export async function loadIntentCanvasDocument(
 async function writeIndex(root: string, entries: IntentCanvasIndexEntry[]): Promise<void> {
   const indexFile: IntentCanvasIndexFile = {
     version: 1,
-    canvases: entries.slice().sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
+    canvases: entries.slice().sort((left, right) => (left.updatedAt < right.updatedAt ? 1 : -1)),
   };
   await ipc.fsWriteFile(`${await canvasDir(root)}/${INTENT_CANVAS_INDEX_PATH}`, JSON.stringify(indexFile, null, 2));
 }
@@ -140,7 +140,10 @@ export async function saveIntentCanvasDocument(
   }
   await ensureCanvasDir(root);
   const documentPath = `${await canvasDir(root)}/${resolveDocumentPath(nextDocument.id)}`;
-  await assertNotStaleOverwrite(nextDocument, documentPath);
+  /* 比较基线必须是调用方内存里的 document(加载/上次保存时刻),不能用
+     已盖 now 的 nextDocument —— 否则只有「保存瞬间并发写盘」才触发,真实的
+     「AI 导入发生在 load 与 save 之间」永不命中(评审 P1 残余缺口)。 */
+  await assertNotStaleOverwrite(document, documentPath);
   await ipc.fsWriteFile(documentPath, json);
   const thumbnailSvg = await buildIntentCanvasThumbnailSvg(nextDocument.scene);
   const nextEntry: IntentCanvasIndexEntry = {
@@ -154,8 +157,12 @@ export async function saveIntentCanvasDocument(
          路径。中止索引写(文档已落盘),下次成功读取后保存自愈。 */
       throw new Error(t("画布索引读取失败,已中止本次索引更新:{warning}", { warning: indexResult.warnings[0] ?? "" }));
     }
+    /* 缩略图是尽力而为的派生缓存:本次导出失败(超预算/chunk 未就绪)时
+       继承旧条目,大画布不至于永久回退占位图。 */
+    const previous = indexResult.value.find((entry) => entry.id === nextDocument.id);
+    const entryWithThumb = nextEntry.thumbnailSvg ?? (previous?.thumbnailSvg ?? undefined);
     const nextEntries = [
-      nextEntry,
+      entryWithThumb ? { ...nextEntry, thumbnailSvg: entryWithThumb } : nextEntry,
       ...indexResult.value.filter((entry) => entry.id !== nextDocument.id),
     ];
     await writeIndex(root, nextEntries);

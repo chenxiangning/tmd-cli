@@ -6,6 +6,7 @@
  * 关(默认) = 普通发送,零注入。全局总闸(设置页)关闭时整个按钮不渲染。
  */
 
+import { useEffect } from "react";
 import { t } from "@kernel/i18n";
 import { host, useHost } from "@kernel/host";
 import { Compass } from "@phosphor-icons/react";
@@ -24,6 +25,15 @@ export function ComposerDrawToggle() {
   if (!globalEnabled || !sessionId) {
     return null;
   }
+
+  /* 工作区切换时图标仍亮但缓存按 root 键控会 miss:跟随激活 root 补预热,
+     保证「亮 = 下一条必注入」的表态可信(评审 P2)。 */
+  const root = getActiveWorkspace()?.root;
+  useEffect(() => {
+    if (active && root) {
+      void aiDrawInboxPath(root).then((inbox) => cacheAiDrawInboxPath(root, inbox));
+    }
+  }, [active, root]);
 
   const toggle = () => {
     const next = !active;

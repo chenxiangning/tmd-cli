@@ -17,6 +17,8 @@ type UseEditorDraftInput = {
   activeThreadId: string | null;
   onSave: (document: IntentCanvasDocument) => Promise<IntentCanvasDocument>;
   onAttachToThread?: (document: IntentCanvasDocument) => Promise<void> | void;
+  /** 右栏展开态才驱动 transmissionContextJson 重算(性能闸,默认开供测试)。 */
+  contextPreviewActive?: boolean;
 };
 
 export function useEditorDraft({
@@ -24,6 +26,7 @@ export function useEditorDraft({
   activeThreadId,
   onSave,
   onAttachToThread,
+  contextPreviewActive = true,
 }: UseEditorDraftInput) {
   const [title, setTitle] = useState(document.title);
   const [summary, setSummary] = useState(document.summary);
@@ -213,8 +216,10 @@ export function useEditorDraft({
       2,
     ),
     // 场景编辑经 sceneVersion 通知(见 handleSceneChange);其余键 = buildDraftDocument 依赖。
+    // 右栏折叠时冻结计算(产物无人消费,大画布每变更帧的 stringify 与
+    // Excalidraw 渲染抢主线程 —— 评审 P1)。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [buildDraftDocument, sceneVersion],
+    [buildDraftDocument, contextPreviewActive ? sceneVersion : -1],
   );
 
   return {

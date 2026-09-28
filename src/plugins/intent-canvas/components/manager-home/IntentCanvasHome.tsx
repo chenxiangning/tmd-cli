@@ -1,5 +1,5 @@
 import { t } from "@kernel/i18n";
-import { ArrowClockwise, CircleNotch, FileText, GitBranch, ListChecks, MagnifyingGlass, Palette, Plus, Square, Trash } from "@phosphor-icons/react";
+import { ArrowClockwise, CircleNotch, FileText, ListChecks, MagnifyingGlass, Palette, Plus, Square, Trash } from "@phosphor-icons/react";
 
 import { cn } from "../../utils/cn";
 import { openIntentCanvasBacklink } from "../../activeDocumentBridge";
@@ -37,7 +37,6 @@ export type IntentCanvasHomeProps = {
   onSearchQueryChange: (value: string) => void;
   onToggleSelectAll: () => void;
   onRefresh: () => void;
-  onOpenProjectMap?: () => void;
   onCreateCanvas: () => void;
   onToggleCanvasSelection: (canvasId: string) => void;
   onSelectEra: (era: CanvasEra) => void;
@@ -132,17 +131,6 @@ export function IntentCanvasHome(props: IntentCanvasHomeProps) {
           >
             <ArrowClockwise aria-hidden className={status === "loading" ? "is-spinning" : undefined} />
           </button>
-          {props.onOpenProjectMap ? (
-            <button
-              type="button"
-              className="is-icon"
-              onClick={props.onOpenProjectMap}
-              aria-label={t("项目知识地图")}
-              title={t("项目知识地图")}
-            >
-              <GitBranch aria-hidden />
-            </button>
-          ) : null}
           <button
             type="button"
             className={cn("is-icon intent-canvas-ai-draw-toggle", props.aiDrawEnabled && "is-active")}
@@ -206,7 +194,6 @@ export function IntentCanvasHome(props: IntentCanvasHomeProps) {
           {isBulkDeletePromptOpen ? (
             <div className="intent-canvas-action-popover-shell is-bulk">
               <ConfirmBubble
-                threadName={t("已选择 {count} 个画布", { count: selectedCount })}
                 title={t("批量删除")}
                 message={t("删除已选 {count} 个画布?文件会被移到废纸篓。", { count: selectedCount })}
                 hint={t("此操作不会删除会话消息,只批量移除意图画布存储里的画布文件。")}

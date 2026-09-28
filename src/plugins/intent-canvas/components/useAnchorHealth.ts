@@ -30,7 +30,8 @@ export function useAnchorHealth(
     const seeded: Record<string, CanvasAnchorHealth> = {};
     const pending: IntentCanvasIndexEntry[] = [];
     staleEraEntries.forEach((entry) => {
-      const cached = cache.get(entry.id);
+      /* 键含 updatedAt:画布更新(锚点修好)后旧 broken 不再命中(评审 P2)。 */
+      const cached = cache.get(`${entry.id}:${entry.updatedAt}`);
       if (cached) {
         seeded[entry.id] = cached;
       } else {
@@ -53,7 +54,7 @@ export function useAnchorHealth(
         try {
           const canvasDocument = await loadIntentCanvasDocument(root, entry.id);
           const health: CanvasAnchorHealth = documentHasBrokenAnchors(canvasDocument) ? "broken" : "ok";
-          cache.set(entry.id, health);
+          cache.set(`${entry.id}:${entry.updatedAt}`, health);
           if (!cancelled) {
             setAnchorHealthByCanvasId((current) => ({ ...current, [entry.id]: health }));
           }

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { t } from "@kernel/i18n";
 import { Copy, Link, Trash } from "@phosphor-icons/react";
 
@@ -70,7 +71,7 @@ function PlaceholderThumbnail() {
   );
 }
 
-export function IntentCanvasHomeCard({
+function IntentCanvasHomeCardBase({
   entry,
   isSelected,
   isStaleEra,
@@ -176,7 +177,6 @@ export function IntentCanvasHomeCard({
       {isActionPromptOpen && actionPrompt ? (
         <div className="intent-canvas-action-popover-shell">
           <ConfirmBubble
-            threadName={entry.title}
             title={t(ACTION_TEXT[actionPrompt.action].label)}
             message={t(ACTION_TEXT[actionPrompt.action].confirm, { title: entry.title })}
             hint={t(ACTION_TEXT[actionPrompt.action].hint)}
@@ -190,3 +190,6 @@ export function IntentCanvasHomeCard({
     </article>
   );
 }
+
+/* memo:搜索每击键/选择变化不重跑全列表卡片与 8KB 缩略图 percent-encode(评审 P2)。 */
+export const IntentCanvasHomeCard = memo(IntentCanvasHomeCardBase);

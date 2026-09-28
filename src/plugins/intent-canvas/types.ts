@@ -37,7 +37,6 @@ export type {
   CanvasSemanticGraph,
   CanvasAiAnnotation,
   IntentCanvasContextCount,
-  IntentCanvasContextSendAttachment,
 } from "./semantic";
 
 export type IntentCanvasWorkspaceRef = {

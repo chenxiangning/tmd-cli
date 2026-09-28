@@ -37,7 +37,7 @@ export function buildAiDrawInstruction(
   return [
     "---",
     t("【意图画布 AI 作画】请在完成本任务的同时,把你要表达的结构/流程/模块关系画成一张图:"),
-    t("1. 写一个 JSON 文件到:{path}(文件名必须是 ai-draw- 开头、.json 结尾)。", { path: inboxPath }),
+    t("1. 写一个 JSON 文件到:{path}(文件名必须是 ai-draw- 开头、.json 结尾;全文不超过 512KB)。", { path: inboxPath }),
     t("2. 文件格式:{\"kind\":\"intent-canvas-ai-draw\",\"version\":1,\"mode\":\"append\"|\"new\",\"canvasId\":\"可选\",\"title\":\"可选\",\"summary\":\"一句话意图\",\"shapes\":[…]}。"),
     t("3. shapes 每项:{\"type\":\"rectangle\"|\"ellipse\"|\"diamond\"|\"text\"|\"arrow\",\"x\":0,\"y\":0,\"width\":260,\"height\":92,\"label\":\"节点标题(每个节点形状必填)\",\"fontSize\":20,\"stroke\":\"#334155\",\"fill\":\"#eff6ff\"};箭头(type:\"arrow\")用 width/height 表达终点相对偏移。"),
     t("4. 布局自上而下分层:第一层在最上方,同层节点横向排(列距约 340),下一层整体下移(层距约 160);箭头从上层节点连向下层节点;先画主干再画分支,控制在 20 个图形以内,每个形状的 label 写清节点标题。"),

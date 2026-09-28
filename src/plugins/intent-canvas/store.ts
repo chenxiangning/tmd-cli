@@ -63,5 +63,23 @@ export function restoreAttachments(sessionId: string, documents: IntentCanvasDoc
   if (documents.length === 0) {
     return;
   }
-  emit({ pending: { ...state.pending, [sessionId]: documents } });
+  /* 合并非整桶替换:发送失败 undo 前用户可能重新暂存了新画布,旧快照只补回
+     已消失的条目,不覆盖窗口期的新暂存(评审 P2)。 */
+  const currentIds = new Set((state.pending[sessionId] ?? []).map((d) => d.id));
+  const restored = documents.filter((d) => !currentIds.has(d.id));
+  if (restored.length === 0) {
+    return;
+  }
+  emit({ pending: { ...state.pending, [sessionId]: [...restored, ...(state.pending[sessionId] ?? [])] } });
+}
+
+/** 会话退出清理:pending 桶与作图标识随会话生命周期释放(插件 activate 挂
+ *  kernel.sessions.exited;评审 P2 内存单调增长)。 */
+export function purgeSessionState(sessionId: string): void {
+  if (!(sessionId in state.pending)) {
+    return;
+  }
+  const pending = { ...state.pending };
+  delete pending[sessionId];
+  emit({ pending });
 }

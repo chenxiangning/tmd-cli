@@ -26,7 +26,6 @@ export type IntentCanvasEditorProps = {
   onBack: () => void;
   onSave: (document: IntentCanvasDocument) => Promise<IntentCanvasDocument>;
   onAttachToThread?: (document: IntentCanvasDocument) => Promise<void> | void;
-  onOpenProjectMap?: () => void;
   onOpenSourceFile?: IntentCanvasOpenSourceFile;
   managerErrorMessage?: string | null;
 }
@@ -97,10 +96,11 @@ function useCanvasTheme(): "light" | "dark" {
 }
 
 /** excalidraw 内建 UI 语言:跟随 tmd-cli 界面语言设置。 */
-function excalidrawLangCode(): "zh-CN" | "en" {
+function excalidrawLangCode(): "zh-CN" | "ja-JP" | "en" {
   try {
-    /* mossx 口径:非中文一律 en(excalidraw 无 ja 语言包)。 */
-    return getSettingsState().settings.language === "zh" ? "zh-CN" : "en";
+    /* excalidraw 0.18 自带全量语言 chunk(含 ja-JP),不再回落 en。 */
+    const language = getSettingsState().settings.language;
+    return language === "zh" ? "zh-CN" : language === "ja" ? "ja-JP" : "en";
   } catch {
     return "zh-CN";
   }

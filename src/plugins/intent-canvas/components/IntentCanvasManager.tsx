@@ -159,10 +159,14 @@ export function IntentCanvasManager({
     },
   });
 
-  const aiDrawImportError = useAiDrawInbox(activeWorkspace, (imported) => {
-    void refreshIndex();
-    setAiDrawNotice(imported);
-  });
+  const aiDrawImportError = useAiDrawInbox(
+    activeWorkspace,
+    (imported) => {
+      void refreshIndex();
+      setAiDrawNotice(imported);
+    },
+    aiDrawEnabled, /* 总闸关 = AI 不再写 inbox,轮询停扫(评审 P2)。 */
+  );
 
   /* 编辑器当前文档桥 + 打开态兜底:批量删除/切工作区后编辑器不残留已删文档。 */
   useEffect(() => {

@@ -6,7 +6,6 @@
 import { t } from "@kernel/i18n";
 
 export type ConfirmBubbleProps = {
-  threadName?: string;
   title?: string;
   message: string;
   hint?: string;

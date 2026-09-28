@@ -113,10 +113,11 @@ describe("intent canvas sidecar storage", () => {
       request: { requestId: 1, mode: "architect", title: "并发画布" },
     });
     await saveIntentCanvasDocument(ROOT, document);
-    /* 模拟编辑器打开期间 AI 导入落盘(盘上 updatedAt 更新)。 */
+    /* 模拟编辑器打开期间 AI 导入落盘:盘上 updatedAt = 保存后几分钟(真实时间戳,
+       非 2099 伪造 —— 修复前的实现拿保存时刻 now 比较永触发不了,该测试曾形同虚设)。 */
     const path = [...fileByPath.keys()].find((p) => p.includes(document.id))!;
     const onDisk = JSON.parse(fileByPath.get(path)!);
-    onDisk.updatedAt = "2099-01-01T00:00:00.000Z";
+    onDisk.updatedAt = new Date(Date.now() + 5 * 60_000).toISOString();
     fileByPath.set(path, JSON.stringify(onDisk));
     await expect(saveIntentCanvasDocument(ROOT, document)).rejects.toThrow("重新打开");
   });

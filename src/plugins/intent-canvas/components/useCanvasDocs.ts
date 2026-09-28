@@ -3,7 +3,7 @@
  * 存储 = sidecar(按工作区 root);文档展示名 = tmd 工作区 {id, name}。
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import type { Workspace } from "@kernel/workspace";
 import type { IntentCanvasDocument, IntentCanvasOpenRequest } from "../types";
@@ -31,9 +31,11 @@ export function useCanvasDocs({
   const [isSaving, setIsSaving] = useState(false);
   const handledOpenRequestIdsRef = useRef<Set<number>>(new Set());
 
-  const workspaceRef = activeWorkspace
-    ? { id: activeWorkspace.id, name: activeWorkspace.name ?? null }
-    : null;
+  /* useMemo 固化:防每渲染新对象击穿下游 effect 依赖(评审 P2)。 */
+  const workspaceRef = useMemo(
+    () => (activeWorkspace ? { id: activeWorkspace.id, name: activeWorkspace.name ?? null } : null),
+    [activeWorkspace?.id, activeWorkspace?.name],
+  );
 
   const saveDocument = useCallback(
     async (documentToSave: IntentCanvasDocument) => {

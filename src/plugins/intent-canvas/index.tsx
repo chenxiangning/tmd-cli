@@ -24,6 +24,9 @@ import { CanvasComposerChips } from "./components/CanvasComposerChips";
 import { ComposerDrawToggle } from "./components/ComposerDrawToggle";
 import { IntentCanvasSettingsTab } from "./components/IntentCanvasSettingsTab";
 import { registerIntentCanvasSendTransform } from "./sendTransform";
+import { purgeSessionState } from "./store";
+import { toggleSessionDrawMode } from "./aiDrawStore";
+import { KernelTopics } from "@kernel/events";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 import "./intent-canvas.css";
 
@@ -98,6 +101,11 @@ export const intentCanvasPlugin: Plugin = {
           component: IntentCanvasSettingsTab,
         },
       ],
+    });
+    /* 会话退出:释放 pending 附件桶与作图标识(评审 P2 内存单调增长)。 */
+    ctx.events.on<string>(KernelTopics.sessionExited, (sessionId) => {
+      purgeSessionState(sessionId);
+      toggleSessionDrawMode(sessionId, false);
     });
     /* 发送变换反注册钩交生命周期账本(熔断/重激活不留双份注入)。 */
     return registerIntentCanvasSendTransform();

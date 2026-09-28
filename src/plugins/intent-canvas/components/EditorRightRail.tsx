@@ -3,7 +3,7 @@
  * Context Preview。渲染结构移植自 mossx IntentCanvasEditor 右 aside。
  */
 
-import { ArrowClockwise, ArrowLeft, CircleNotch, FileMagnifyingGlass, FileText, GitBranch, Warning } from "@phosphor-icons/react";
+import { ArrowLeft, CircleNotch, FileMagnifyingGlass, FileText, Warning } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { cn } from "../utils/cn";
 import type {
@@ -28,7 +28,6 @@ export type EditorRightRailProps = {
     backlink: IntentCanvasSourceBacklink | IntentCanvasEvidenceBacklink,
   ) => void;
   onOpenSourceFile?: (path: string, location?: IntentCanvasSourceLocation) => void;
-  onOpenProjectMap?: () => void;
 };
 
 export function EditorRightRail(props: EditorRightRailProps) {
@@ -103,18 +102,6 @@ export function EditorRightRail(props: EditorRightRailProps) {
                   <Warning aria-hidden />
                   {t("当前没有可用的关系快照;画布内容会继续保留并可编辑。")}
                 </p>
-              ) : null}
-              {sourceState.status === "ready" && sourceState.value.scan ? (
-                <button
-                  type="button"
-                  className="intent-canvas-source-notice intent-canvas-source-link-notice"
-                  onClick={props.onOpenProjectMap}
-                  disabled={!props.onOpenProjectMap}
-                  title={t("返回项目知识地图,用当前可解析的关系图重新导入。")}
-                >
-                  <GitBranch aria-hidden />
-                  {t("最新关系扫描:{scanRunId}", { scanRunId: sourceState.value.scan.scanRunId })}
-                </button>
               ) : null}
               {traceability.staleGraphCount > 0 ? (
                 <p className="intent-canvas-source-notice is-warning">
@@ -200,18 +187,6 @@ export function EditorRightRail(props: EditorRightRailProps) {
                     </button>
                   ))}
                 </div>
-              ) : null}
-              {props.onOpenProjectMap ? (
-                <button
-                  type="button"
-                  className="intent-canvas-source-refresh"
-                  onClick={props.onOpenProjectMap}
-                  disabled={traceability.refreshableGraphCount === 0}
-                  title={t("返回项目知识地图,用当前可解析的关系图重新导入。")}
-                >
-                  <ArrowClockwise aria-hidden />
-                  {t("回知识地图重新投影")}
-                </button>
               ) : null}
             </section>
           ) : null}

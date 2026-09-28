@@ -54,8 +54,8 @@ const SHAPE_TYPES = new Set(["rectangle", "ellipse", "diamond", "text", "arrow"]
 
 /** 防御式归一:任何字段不合法即整文件拒绝(AI 输出不信任)。 */
 export function parseAiDrawFile(raw: string): AiDrawFile {
-  if (raw.length > 1024 * 1024) {
-    throw new Error(t("指令文件超过 1MB 上限。"));
+  if (raw.length > 512 * 1024) {
+    throw new Error(t("指令文件超过 512KB 上限。"));
   }
   const parsed = JSON.parse(raw) as unknown;
   if (!isRecord(parsed) || parsed.kind !== "intent-canvas-ai-draw" || parsed.version !== 1) {

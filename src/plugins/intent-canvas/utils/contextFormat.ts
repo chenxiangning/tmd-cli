@@ -1,38 +1,14 @@
 /**
  * 意图画布 · 发送格式化(自 context.ts 拆出,守行数铁则)。
- * buildIntentCanvasContextAttachment:JSON 信封;formatIntentCanvasThreadContext:
  * 中文审计头 + markdown + 内嵌压缩 JSON payload(mossx 同构,marker 与
  * messageContext 解析端配对,两边同步改)。
  */
 
-import type { IntentCanvasContextSendAttachment } from "../semantic";
 import type { IntentCanvasDocument } from "../types";
 import { buildIntentCanvasTransmissionContext } from "./context";
 import { countVisualElements, hasDisplayEllipsis } from "./contextDigest";
 
-export function buildIntentCanvasContextAttachment(
-  document: IntentCanvasDocument,
-  workspaceName: string | null | undefined,
-): IntentCanvasContextSendAttachment {
-  const transmissionContext = buildIntentCanvasTransmissionContext(document, workspaceName);
-  const rawPayload = JSON.stringify(transmissionContext);
-  const completeness = transmissionContext.completeness;
-  return {
-    kind: "intent_canvas_context",
-    attachmentId: `intent-canvas-${document.id}-${document.updatedAt}`,
-    canvasId: document.id,
-    title: document.title,
-    mode: document.mode,
-    compressionMode: completeness.compressionMode,
-    truncated: completeness.truncated,
-    payloadCharacters: rawPayload.length,
-    rawPayload,
-    semanticNodes: completeness.semanticNodes,
-    semanticEdges: completeness.semanticEdges,
-    evidence: completeness.evidence,
-    visualTextBlocks: completeness.visualTextBlocks,
-  };
-}
+
 
 function listOrNone(items: string[]): string[] {
   return items.length > 0 ? items.map((item) => `- ${item}`) : ["- none"];

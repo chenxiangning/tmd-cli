@@ -18,7 +18,11 @@ import {
   loadIntentCanvasDocument,
   saveIntentCanvasDocument,
 } from "./storage/documents";
-import { aiInboxDir, canvasDir, isMissingFileError } from "./storage/paths";
+import { aiInboxDir, isMissingFileError } from "./storage/paths";
+
+/* 留证后 trash 仍失败的文件(杀软/同步盘锁):跳过集合防 2s 轮询无限重复导入
+   同一文件(评审 P2)。webview 生命周期内有效,重开 tab 自然重试一次。 */
+const untrashableFiles = new Set<string>();
 import { AI_DRAW_FILE_RE, parseAiDrawFile, projectAiDrawShapes, type AiDrawFile, type AiDrawImportResult } from "./aiDraw";
 
 async function resolveTargetDocument(
@@ -38,6 +42,11 @@ async function resolveTargetDocument(
   }
   if (file.title) {
     const index = await loadIntentCanvasIndex(root);
+    if (index.warnings.length > 0) {
+      /* 索引读失败时空快照不可当「无同名画布」:静默新建会与盘上现存画布重名
+         分裂。抛错进 failed/ 留证,索引修好后自动可重导(评审 P2)。 */
+      throw new Error(`index unreadable: ${index.warnings[0] ?? ""}`);
+    }
     const hit = index.value.find(
       (entry) => entry.title.trim() === file.title!.trim(),
     );
@@ -137,7 +146,7 @@ async function pollAiDrawInboxInner(
   const entries = await ipc.fsListDir(inbox).catch(() => []);
   const importedCanvases: { id: string; title: string }[] = [];
   for (const entry of entries) {
-    if (entry.isDir || !AI_DRAW_FILE_RE.test(entry.name)) {
+    if (entry.isDir || !AI_DRAW_FILE_RE.test(entry.name) || untrashableFiles.has(entry.path)) {
       continue;
     }
     try {
@@ -148,26 +157,28 @@ async function pollAiDrawInboxInner(
       importedCanvases.push({ id: result.canvasId, title: result.canvasTitle });
       await ipc.fsTrashEntry(entry.path).catch(async () => {
         /* 源文件消费失败会导致下轮重复导入:降级移 failed 止损。 */
-        await moveToFailed(inbox, entry.path, "trash failed after import");
+        await moveToFailed(inbox, entry.path, entry.name, "trash failed after import");
       });
     } catch (error) {
-      await moveToFailed(inbox, entry.path, error instanceof Error ? error.message : String(error));
+      await moveToFailed(inbox, entry.path, entry.name, error instanceof Error ? error.message : String(error));
     }
   }
   return importedCanvases;
 }
 
-async function moveToFailed(inbox: string, filePath: string, error: string): Promise<void> {
+async function moveToFailed(inbox: string, filePath: string, fileName: string, error: string): Promise<void> {
   try {
     const failedDir = `${inbox}/failed`;
     await ipc.fsCreateDir(failedDir).catch(() => undefined);
     const raw = await ipc.fsReadFile(filePath).catch(() => "");
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
     await ipc.fsWriteFile(
-      `${failedDir}/${stamp}-${filePath.split("/").pop() ?? "ai-draw.json"}.err`,
+      `${failedDir}/${stamp}-${fileName}.err`,
       `${raw}\n\n/* 导入失败:${error} */\n`,
     );
-    await ipc.fsTrashEntry(filePath).catch(() => undefined);
+    await ipc.fsTrashEntry(filePath).catch(() => {
+      untrashableFiles.add(filePath);
+    });
   } catch {
     /* 留证失败静默:主流程已把该文件跳过。 */
   }
@@ -178,4 +189,4 @@ export async function aiDrawInboxPath(root: string): Promise<string> {
   return aiInboxDir(root);
 }
 
-export { canvasDir };
+

@@ -31,8 +31,6 @@ const LazyExcalidraw = lazy(async () => {
   return { default: module.Excalidraw };
 });
 
-export { normalizeError } from "./EditorShared";
-export type { IntentCanvasOpenSourceFile } from "./EditorShared";
 
 export function IntentCanvasEditor({
   document,
@@ -41,7 +39,6 @@ export function IntentCanvasEditor({
   onBack,
   onSave,
   onAttachToThread,
-  onOpenProjectMap,
   onOpenSourceFile,
   managerErrorMessage = null,
 }: IntentCanvasEditorProps) {
@@ -89,9 +86,6 @@ export function IntentCanvasEditor({
   );
 
   const langCode = excalidrawLangCode();
-  const hasProjectMapImportSource =
-    document.links.projectMapNodeIds.length > 0 ||
-    document.semanticGraphs.some((graph) => graph.sourceSnapshot?.kind === "project-map-relations");
 
   // tmd-cli 无 project-map 扫描器:导入源运行态恒 null(不判定 stale/unresolved,
   // 来源追溯仅呈现 path 级回链)。AI 产出的 semanticGraphs 数据面与 UI 管线保留。
@@ -123,11 +117,6 @@ export function IntentCanvasEditor({
             <h2>{title.trim() || t("未命名意图画布")}</h2>
           </div>
         </div>
-        {onOpenProjectMap && hasProjectMapImportSource ? (
-          <button type="button" className="intent-canvas-source-link" onClick={onOpenProjectMap}>
-            {t("返回项目知识地图")}
-          </button>
-        ) : null}
         <div className="intent-canvas-editor-actions">
           <span className={cn("intent-canvas-save-state", isDirty && "is-dirty")}>
             {isSaving ? t("保存中...") : isDirty ? t("未保存") : t("已保存")}
@@ -212,7 +201,6 @@ export function IntentCanvasEditor({
           errorText={saveError ?? managerErrorMessage}
           onOpenBacklink={handleOpenBacklink}
           onOpenSourceFile={onOpenSourceFile}
-          onOpenProjectMap={onOpenProjectMap}
         />
       </div>
 
