@@ -13,7 +13,7 @@ import { PuzzlePiece } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { SkillHubPanel } from "./SkillHubPanel";
 import { SkillHubTab } from "./SkillHubTab";
-import { SKILL_HUB_TAB_KIND } from "./hubTab";
+import { openSkillHubTab, SKILL_HUB_TAB_KIND } from "./hubTab";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 
 export const skillHubPlugin: Plugin = {
@@ -34,6 +34,7 @@ export const skillHubPlugin: Plugin = {
       component: SkillHubPanel,
       showFileSubbar: false,
       order: 45,
+      openCenterTab: openSkillHubTab,
     });
     ctx.registerTabContent({
       kind: SKILL_HUB_TAB_KIND,

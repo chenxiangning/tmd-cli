@@ -73,6 +73,7 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
               data-panel-id={panel.id}
               onClick={() => {
                 setFilePanelMode(panel.id);
+                panel.openCenterTab?.();
                 onActivate();
               }}
               aria-label={t(panel.label)}
@@ -227,6 +228,7 @@ function PanelOverflowMenu({
                 style={MENU_ITEM_BUTTON_STYLE}
                 onClick={() => {
                   setFilePanelMode(panel.id);
+                  panel.openCenterTab?.();
                   if (!isChecked) togglePinned(panel.id);
                   onClose();
                 }}
