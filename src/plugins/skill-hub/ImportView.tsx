@@ -17,11 +17,29 @@ export function ImportView() {
   const { groups, loading, error } = useSkillScan();
   const { records } = useSkillRegistry();
   const [importing, setImporting] = useState<HubSkill | null>(null);
+  const [query, setQuery] = useState("");
   const importedNames = useMemo(() => new Set(records.map((r) => r.name)), [records]);
   useEffect(() => {
     void ensureSkillScanLoaded();
   }, []);
 
+  /* 过滤:技能名/描述命中保留;引擎标签(如 claude)命中保留整组;空组隐藏。 */
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return groups;
+    return groups
+      .map((g) => ({
+        ...g,
+        skills: t(ENGINE_LABELS[g.engine] ?? g.engine).toLowerCase().includes(needle)
+          ? g.skills
+          : g.skills.filter(
+              (s) =>
+                s.name.toLowerCase().includes(needle) ||
+                s.description.toLowerCase().includes(needle),
+            ),
+      }))
+      .filter((g) => g.skills.length > 0);
+  }, [groups, query]);
 
   if (loading && groups.length === 0) {
     return <div className="py-4 text-center text-xs text-(--tmd-fg-faint)">{t("正在扫描本机 CLI 目录…")}</div>;
@@ -33,29 +51,44 @@ export function ImportView() {
     return <div className="py-4 text-center text-xs text-(--tmd-fg-faint)">{t("本机未发现任何 CLI 技能目录")}</div>;
   }
   return (
-    <div className="min-h-0 flex-1 overflow-auto px-3 py-2" data-skill-import>
-      {groups.map((g) => (
-        <section key={g.engine} className="mb-5" data-skill-group={g.engine}>
-          <div className="mb-2 flex items-center gap-2 border-b border-(--tmd-border) pb-1.5 text-xs text-(--tmd-fg-muted)">
-            <span className="font-medium">{t(ENGINE_LABELS[g.engine] ?? g.engine)}</span>
-            <span className="rounded-full bg-(--tmd-accent-soft) px-1.5 py-px text-[10px] tabular-nums text-(--tmd-fg)">
-              {g.skills.length}
-            </span>
-          </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-2">
-            {g.skills.map((s) => (
-              <ImportSourceCard key={s.dir} skill={s} imported={importedNames.has(s.name)} onImport={() => setImporting(s)} />
-            ))}
-          </div>
-        </section>
-      ))}
-      {importing && (
-        <ImportDialog
-          skill={importing}
-          onClose={() => setImporting(null)}
-          onImported={() => void refreshSkillScan()}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center gap-2 border-b border-(--tmd-border) px-3 py-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t("搜索本机技能…")}
+          className="w-56 rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-xs outline-none focus:border-(--tmd-accent)"
+          data-import-search
         />
-      )}
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto px-3 py-2" data-skill-import>
+        {visible.length === 0 ? (
+          <div className="py-4 text-center text-xs text-(--tmd-fg-faint)">{t("无匹配技能")}</div>
+        ) : (
+          visible.map((g) => (
+            <section key={g.engine} className="mb-5" data-skill-group={g.engine}>
+              <div className="mb-2 flex items-center gap-2 border-b border-(--tmd-border) pb-1.5 text-xs text-(--tmd-fg-muted)">
+                <span className="font-medium">{t(ENGINE_LABELS[g.engine] ?? g.engine)}</span>
+                <span className="rounded-full bg-(--tmd-accent-soft) px-1.5 py-px text-[10px] tabular-nums text-(--tmd-fg)">
+                  {g.skills.length}
+                </span>
+              </div>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-2">
+                {g.skills.map((s) => (
+                  <ImportSourceCard key={s.dir} skill={s} imported={importedNames.has(s.name)} onImport={() => setImporting(s)} />
+                ))}
+              </div>
+            </section>
+          ))
+        )}
+        {importing && (
+          <ImportDialog
+            skill={importing}
+            onClose={() => setImporting(null)}
+            onImported={() => void refreshSkillScan()}
+          />
+        )}
+      </div>
     </div>
   );
 }

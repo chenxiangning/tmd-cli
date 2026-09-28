@@ -70,6 +70,7 @@ export const MESSAGES_EN = {
   "本地导入": "Local import",
   "已安装 {n} 个技能": "{n} skills installed",
   "搜索已安装技能…": "Search installed skills…",
+  "搜索本机技能…": "Search local skills…",
   "去本地导入": "Go to local import",
   "落位": "Placed at",
   "公约位": "shared dir",
