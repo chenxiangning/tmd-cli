@@ -97,6 +97,19 @@ pub(crate) fn rebase_porcelain_paths(entries: &mut [WorktreeEntry], cwd: &str) {
             e.path = cwd.to_string();
         } else if let Some(rest) = path_norm.strip_prefix(&canon_parent) {
             if rest.starts_with('/') {
+                /* 回贴保持调用方 cwd 原形态:反斜杠盘符输入连分隔符随形
+                (此前恒拼归一斜杠,Windows 产出 `…\b/wt2` 混合形态,
+                2026-09-28 本机实证挂「回贴_前缀边界」测试)。仅盘符形态
+                翻转,POSIX 反斜杠文件名不受影响。 */
+                let win_input = {
+                    let b = input_parent.as_bytes();
+                    b.len() >= 2 && b[1] == b':' && (b[0] as char).is_ascii_alphabetic()
+                };
+                let rest = if win_input {
+                    rest.replace('/', "\\")
+                } else {
+                    rest.to_string()
+                };
                 e.path = format!("{input_parent}{rest}");
             }
         }
@@ -204,25 +217,24 @@ mod tests {
         let _ = std::fs::remove_dir_all(&base);
         let repo = base.join("repo");
         std::fs::create_dir_all(&repo).unwrap();
-        let link = base.join("link");
+        /* Windows symlink 需特权;该平台靠 verbatim 前缀不匹配保持原样。
+        断言体收进 cfg(unix) 块 —— 尾部 return 后跟语句在非 unix 构建是
+        unreachable code,clippy -D warnings 挂(2026-09-28 本机实证)。 */
         #[cfg(unix)]
-        std::os::unix::fs::symlink(&repo, &link).unwrap();
-        #[cfg(not(unix))]
         {
-            /* Windows symlink 需特权;该平台靠 verbatim 前缀不匹配保持原样。 */
-            let _ = link;
-            return;
+            let link = base.join("link");
+            std::os::unix::fs::symlink(&repo, &link).unwrap();
+            let canon_repo = repo.canonicalize().unwrap();
+            let sibling = canon_repo.parent().unwrap().join("wt-x");
+            let mut entries = [
+                entry(&canon_repo.to_string_lossy()),
+                entry(&sibling.to_string_lossy()),
+            ];
+            rebase_porcelain_paths(&mut entries, &link.to_string_lossy());
+            /* 主仓 → 输入(符号链接)路径;兄弟 → 输入父目录前缀。 */
+            assert_eq!(entries[0].path, link.to_string_lossy());
+            assert_eq!(entries[1].path, base.join("wt-x").to_string_lossy());
         }
-        let canon_repo = repo.canonicalize().unwrap();
-        let sibling = canon_repo.parent().unwrap().join("wt-x");
-        let mut entries = [
-            entry(&canon_repo.to_string_lossy()),
-            entry(&sibling.to_string_lossy()),
-        ];
-        rebase_porcelain_paths(&mut entries, &link.to_string_lossy());
-        /* 主仓 → 输入(符号链接)路径;兄弟 → 输入父目录前缀。 */
-        assert_eq!(entries[0].path, link.to_string_lossy());
-        assert_eq!(entries[1].path, base.join("wt-x").to_string_lossy());
         let _ = std::fs::remove_dir_all(&base);
     }
 }

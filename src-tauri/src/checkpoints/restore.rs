@@ -218,21 +218,45 @@ pub fn restore_batch(
 
     let mut restored = Vec::new();
     let mut deleted = Vec::new();
+    /* 单路径 IO 失败(Windows:目标被无 FILE_SHARE_DELETE 句柄占用 / 只读属性)
+    只跳过该路径并显式列出,不中断整批 —— 此前 `?` 上抛发生在 guard 已落账、states
+    未合成之前,磁盘半改而审批线零记账(2026-09-28 评审)。write_atomic 原子,
+    失败路径留在盘上原样,批次保持 pending 可整批重试。 */
+    let mut io_failed = false;
     for (path, op) in &plan {
         match op {
             PlanOp::Write(bytes) => {
                 let full = root.join(path);
-                if let Some(parent) = full.parent() {
-                    fs::create_dir_all(parent)?;
+                let write = (|| -> std::io::Result<()> {
+                    if let Some(parent) = full.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    crate::session::write_atomic(&full, bytes)
+                })();
+                match write {
+                    Ok(()) => restored.push(path.clone()),
+                    Err(e) => {
+                        io_failed = true;
+                        skipped.push(SkipEntry {
+                            path: path.clone(),
+                            reason: format!("写入失败(可整批重试): {e}"),
+                        });
+                    }
                 }
-                crate::session::write_atomic(&full, bytes)?;
-                restored.push(path.clone());
             }
             PlanOp::Delete => {
                 let full = root.join(path);
                 if full.symlink_metadata().is_ok() {
-                    fs::remove_file(&full)?;
-                    deleted.push(path.clone());
+                    match fs::remove_file(&full) {
+                        Ok(()) => deleted.push(path.clone()),
+                        Err(e) => {
+                            io_failed = true;
+                            skipped.push(SkipEntry {
+                                path: path.clone(),
+                                reason: format!("删除失败(可整批重试): {e}"),
+                            });
+                        }
+                    }
                 } else {
                     skipped.push(SkipEntry {
                         path: path.clone(),
@@ -252,7 +276,7 @@ pub fn restore_batch(
     let processed = turn.turn_files.iter().all(|tf| {
         entry.reverted_paths.contains(&tf.path) || skipped.iter().any(|s| s.path == tf.path)
     });
-    entry.state = if processed {
+    entry.state = if processed && !io_failed {
         "reverted".into()
     } else {
         "pending".into()

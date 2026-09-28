@@ -56,28 +56,27 @@ function lastCall() {
     command: string;
     args: string[];
     cwd: string;
+    stdin?: string;
     closeStdin?: boolean;
     timeoutMs: number;
   };
 }
 
 describe("buildSubagentArgs(omp/pi d 路 v2)", () => {
-  it("必含 --extension + subagentEntry + --magic-context-dreamer-actions + --tools ctx_memory + --no-session + -p instruction", () => {
+  it("必含 --extension + subagentEntry + --magic-context-dreamer-actions + --tools ctx_memory + --no-session,以 -p 收尾", () => {
     const args = buildSubagentArgs({
-      instruction: "调 ctx_memory write",
       subagentEntry: SUBAGENT,
     });
     expect(args[args.indexOf("--extension") + 1]).toBe(SUBAGENT);
     expect(args).toContain("--magic-context-dreamer-actions");
     expect(args[args.indexOf("--tools") + 1]).toBe("ctx_memory");
     expect(args).toContain("--no-session");
-    expect(args[args.indexOf("-p") + 1]).toBe("调 ctx_memory write");
+    expect(args[args.length - 1]).toBe("-p");
   });
 
   it("传 model 时插在 -p 之前", () => {
     const args = buildSubagentArgs({
       model: "kimi-code/k3",
-      instruction: "调工具",
       subagentEntry: SUBAGENT,
     });
     const modelIdx = args.indexOf("--model");
@@ -87,14 +86,14 @@ describe("buildSubagentArgs(omp/pi d 路 v2)", () => {
   });
 
   it("无 model 时不出现 --model", () => {
-    const args = buildSubagentArgs({ instruction: "x", subagentEntry: SUBAGENT });
+    const args = buildSubagentArgs({ subagentEntry: SUBAGENT });
     expect(args).not.toContain("--model");
   });
 });
 
 describe("viaOmp 实际调用形态", () => {
-  it("rememberFacts 走 omp 时 args 包含 subagent 扩展参数", async () => {
-    await rememberFacts([{ category: "CONSTRAINTS", content: "测试" }], "/cwd");
+  it("rememberFacts 走 omp 时 args 含 subagent 扩展参数,指令走 stdin 不进 argv", async () => {
+    await rememberFacts([{ category: "CONSTRAINTS", content: '含"引号"&百分号%PATH%的原文' }], "/cwd");
     const call = lastCall();
     expect(call.command).toBe("omp");
     expect(call.args).toContain(SUBAGENT);
@@ -103,6 +102,10 @@ describe("viaOmp 实际调用形态", () => {
     expect(call.cwd).toBe("/cwd");
     expect(call.timeoutMs).toBe(120_000);
     expect(call.closeStdin).toBe(true);
+    /* cmd /c 会展开 %VAR%、翻转 \" 引号态 —— 指令原文绝不入 argv(2026-09-28 评审);
+       sanitize 引号替换是模型面卫生,内容整体走 stdin */
+    expect(call.stdin).toContain("含'引号'&百分号%PATH%的原文");
+    expect(call.args.join("\u0000")).not.toContain("百分号");
   });
 
   it("engine=pi 走 pi 子进程,同样带 subagent 参数", async () => {
@@ -120,7 +123,8 @@ describe("viaOmp 实际调用形态", () => {
     expect(call.closeStdin).toBe(true);
     expect(call.command).toBe("opencode");
     expect(call.args[0]).toBe("run");
-    expect(call.args).not.toContain("--magic-context-dreamer-actions");
+    expect(call.stdin).toContain("y");
+    expect(call.args).not.toContain("y");
   });
 
   it("engine=opencode 且插件未装时预检早退(missing-plugin)", async () => {

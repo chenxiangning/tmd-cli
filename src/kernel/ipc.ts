@@ -257,7 +257,8 @@ interface ProcRunSpec {
   env?: Record<string, string>;
   /** 启动后一次性写入 stdin;写入后管道保持打开,直到收割(kill/退出)。 */
   stdin?: string;
-  /** stdin 以 null 启动(立即 EOF)。一次性 CLI(omp -p 等)检测到管道 stdin 会等 EOF 挂死;RPC 副车勿开。 */
+  /** 写完 stdin(可为空)立即关管道送 EOF。一次性 CLI(omp/pi/opencode 的
+   * -p/run)等 EOF 才返回;RPC 副车(需持开 stdin 收响应)勿开。 */
   closeStdin?: boolean;
   /** stdout 出现该子串即提前收割(响应已到达,不等满超时)。 */
   exitOnStdout?: string;

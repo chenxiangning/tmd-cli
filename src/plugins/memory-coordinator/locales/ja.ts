@@ -165,6 +165,7 @@ export const MESSAGES_JA = {
   "✓ pi 插件注册成功": "✓ pi プラグイン登録成功",
   "✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context)": "✓ opencode 設定を更新(プラグイン登録 + ネイティブ compaction を Magic Context に委譲)",
   "opencode 配置更新失败(已回滚原文): {err}": "opencode 設定の更新に失敗(元に戻しました): {err}",
+  "opencode 配置更新失败(新文件未写入): {err}": "opencode 設定の更新に失敗(新規ファイル未書き込み): {err}",
   "✗ 迁移被锁:仍有 omp/pi 进程持有共享库": "✗ 移行がロック中:omp/pi プロセスがまだ共有ライブラリを保持しています",
   "bootstrap 无输出": "bootstrap の出力なし",
   "node / npx 可用": "node / npx 利用可能",

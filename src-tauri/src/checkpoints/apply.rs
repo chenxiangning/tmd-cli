@@ -175,14 +175,26 @@ pub fn apply_batch(
     append_ledger(cwd, &guard)?;
 
     let mut restored = Vec::new();
+    /* 单路径 IO 失败只跳过并显式列出,不中断整批 —— 与 restore.rs 同款:guard 已
+    落账、states 未合成时 `?` 上抛 = 磁盘半改而 reverted_paths 零记账,孤儿 guard
+    的批前像经反悔不可达(2026-09-28 评审 ChainVerify F-1)。write_atomic 原子,
+    失败路径留在盘上原样且不入 restored(reverted_paths 保留),批保持已退态可重试。 */
     for (path, op) in &plan {
         if let PlanOp::Write(bytes) = op {
             let full = root.join(path);
-            if let Some(parent) = full.parent() {
-                fs::create_dir_all(parent)?;
+            let write = (|| -> std::io::Result<()> {
+                if let Some(parent) = full.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                crate::session::write_atomic(&full, bytes)
+            })();
+            match write {
+                Ok(()) => restored.push(path.clone()),
+                Err(e) => skipped.push(SkipEntry {
+                    path: path.clone(),
+                    reason: format!("写入失败(可整批重试): {e}"),
+                }),
             }
-            crate::session::write_atomic(&full, bytes)?;
-            restored.push(path.clone());
         }
     }
 

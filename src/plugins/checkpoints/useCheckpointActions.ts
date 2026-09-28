@@ -76,7 +76,18 @@ export function useCheckpointActions(
   function doUndo(batchId: string) {
     return run(async (c, s) => {
       const out = await undoRevertBatch(c, s, batchId);
-      return t("已从恢复点恢复 {n} 个文件,批次回到待审", { n: out.restored.length });
+      const n = out.restored.length;
+      const skipped = skippedNote(out.skipped);
+      /* 部分反悔(守卫快照 skip / 单路径 IO 失败)后端保持已退态可重试,
+      文案随 out.state 分支,不再恒报「回到待审」(2026-09-28 评审) */
+      if (out.state === "reverted") {
+        return skipped
+          ? t("部分恢复 {n} 个文件;跳过:{skipped} —— 其余仍处已退,可再反悔", { n, skipped })
+          : t("部分恢复 {n} 个文件,其余仍处已退,可再反悔", { n });
+      }
+      return skipped
+        ? t("已从恢复点恢复 {n} 个文件;跳过:{skipped}", { n, skipped })
+        : t("已从恢复点恢复 {n} 个文件,批次回到待审", { n });
     });
   }
 
