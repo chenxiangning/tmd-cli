@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   uiFontSize: UI_FONT_SIZE_DEFAULT,
   uiZoom: UI_ZOOM_DEFAULT,
   iconDecor: DEFAULT_ICON_DECOR,
+  iconSet: "classic",
   sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT,
   sessionTabsEnabled: true,
   sendShortcut: "enter",

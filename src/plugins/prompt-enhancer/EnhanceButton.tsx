@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MagicWandIcon } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import { t } from "@kernel/i18n";
 import { composerDraftRef } from "@kernel/composerExt";
 import { useWorkspaces } from "@kernel/workspace";
@@ -45,7 +46,7 @@ export function EnhanceButton() {
         onClick={click}
         className="relative flex h-[22px] w-[22px] items-center justify-center rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-0 text-(--tmd-fg-faint) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent)"
       >
-        <MagicWandIcon size="0.875rem" data-action-id="enhance" />
+        <DecorIcon id="enhance" Fallback={MagicWandIcon} size="0.875rem" data-action-id="enhance" />
       </button>
       {toast && (
         <div className="composer-rail-toast" role="status">

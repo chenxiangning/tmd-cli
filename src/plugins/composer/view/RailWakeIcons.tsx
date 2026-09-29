@@ -11,6 +11,7 @@
  */
 
 import { HardDrive, Sparkle } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import { t } from "@kernel/i18n";
 import { declaredSections } from "../drawerItems";
 import {
@@ -78,7 +79,7 @@ function RailBtn({
       aria-expanded={open}
       onClick={onClick}
     >
-      <Icon size="0.875rem" data-action-id={decorId} />
+      <DecorIcon id={decorId} Fallback={Icon} size="0.875rem" data-action-id={decorId} />
     </button>
   );
 }

@@ -15,6 +15,7 @@ import { Check, DotsThree } from "@phosphor-icons/react";
 import { togglePinned, useFilePanel, type FilePanelContribution } from "@kernel/filePanel";
 import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { useHost } from "@kernel/host";
+import { DecorIcon } from "@kernel/iconSet";
 import { useEditorTabs } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import { FileActionsBar } from "./FileActionsBar";
@@ -69,8 +70,7 @@ export function PanelRail({
           const isActive = panel.id === mode;
           return (
             <button
-              key={panel.id}
-              type="button"
+              key={panel.id} type="button"
               className={`panel-rail-tab${isActive ? " is-active" : ""}`}
               data-panel-id={panel.id}
               onClick={() =>
@@ -79,7 +79,7 @@ export function PanelRail({
               aria-label={t(panel.label)}
               title={t(panel.label)}
             >
-              <Icon aria-hidden />
+              <DecorIcon id={panel.id === "ssh" ? "ssh-panel" : `panel-${panel.id}`} Fallback={Icon} aria-hidden />
             </button>
           );
         })}
@@ -104,7 +104,7 @@ export function PanelRail({
               if (action.opensCenterTab) setRightOpen(false);
             }}
           >
-            <Icon aria-hidden />
+            <DecorIcon id={action.id} Fallback={Icon} aria-hidden />
           </button>
         );
       })}
@@ -240,7 +240,7 @@ function PanelOverflowMenu({
                 }}
               >
                 <span className="panel-overflow-item-icon" aria-hidden>
-                  <Icon aria-hidden />
+                  <DecorIcon id={panel.id === "ssh" ? "ssh-panel" : `panel-${panel.id}`} Fallback={Icon} aria-hidden />
                 </span>
                 <span className="panel-overflow-item-label">{t(panel.label)}</span>
               </button>
@@ -270,7 +270,7 @@ function PanelOverflowMenu({
                 }}
               >
                 <span className="panel-overflow-item-icon" aria-hidden>
-                  <Icon aria-hidden />
+                  <DecorIcon id={action.id} Fallback={Icon} aria-hidden />
                 </span>
                 <span className="panel-overflow-item-label">{t(action.label)}</span>
               </button>

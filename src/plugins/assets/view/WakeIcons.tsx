@@ -5,6 +5,7 @@
  */
 
 import { Quotes, Robot } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import { composerWakeRef } from "@kernel/composerExt";
 import { t } from "@kernel/i18n";
 
@@ -18,7 +19,7 @@ export function WakeIcons() {
         aria-label={t("智能体(##)")}
         onClick={() => composerWakeRef.current?.("##")}
       >
-        <Robot size="0.875rem" data-action-id="wake-agent" />
+        <DecorIcon id="wake-agent" Fallback={Robot} size="0.875rem" data-action-id="wake-agent" />
       </button>
       <button
         type="button"
@@ -27,7 +28,7 @@ export function WakeIcons() {
         aria-label={t("提示词(!!)")}
         onClick={() => composerWakeRef.current?.("!!")}
       >
-        <Quotes size="0.875rem" data-action-id="wake-prompt" />
+        <DecorIcon id="wake-prompt" Fallback={Quotes} size="0.875rem" data-action-id="wake-prompt" />
       </button>
     </>
   );

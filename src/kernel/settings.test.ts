@@ -99,6 +99,7 @@ describe("初始状态与默认值", () => {
       git: { view: "diff", layout: "flat", diffMode: "unified", diffWrap: true },
       /* iconDecor 用出厂默认表展开:全键齐全由 settingsIconDecor.test 钉,此处不逐键展开(300 行铁则) */
       iconDecor: { ...DEFAULT_ICON_DECOR },
+      iconSet: "classic",
       relayDeployHistory: [],
     });
     expect(s.loaded).toBe(false);

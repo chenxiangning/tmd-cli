@@ -14,6 +14,7 @@ import { setActiveWorkspace, setWorkspaceAlias, workspaceDisplayName, type Works
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { RenameInput } from "@kernel/RenameInput";
 import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, GitFork, RocketLaunch, ListChecks, Rows } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import { openWorkspaceFiles, useWorkspaceFileBrowserView } from "@kernel/workspaceFileBrowser";
 import { CliSessionGroup } from "./SessionList";
 import { SshSessionGroup } from "./SshSessionGroup";
@@ -93,7 +94,7 @@ export function WorkspaceCard({
               aria-hidden
             >
               {worktree ? (
-                <GitFork size="1rem" weight="bold" aria-hidden />
+                <DecorIcon id="worktree" Fallback={GitFork} size="1rem" weight="bold" aria-hidden />
               ) : (
                 <FolderIcon expanded={!collapsed} />
               )}
@@ -169,7 +170,7 @@ export function WorkspaceCard({
                 openWorkspaceFiles(workspace.id);
               }}
             >
-              <Rows size="0.9375rem" aria-hidden data-action-id="ws-files" />
+              <DecorIcon id="ws-files" Fallback={Rows} size="0.9375rem" aria-hidden data-action-id="ws-files" />
             </button>
           )}
           <button
@@ -182,7 +183,7 @@ export function WorkspaceCard({
               setManage((v) => !v);
             }}
           >
-            <ListChecks size="0.9375rem" aria-hidden data-action-id="ws-manage" />
+            <DecorIcon id="ws-manage" Fallback={ListChecks} size="0.9375rem" aria-hidden data-action-id="ws-manage" />
           </button>
           <button
             type="button"
@@ -193,7 +194,7 @@ export function WorkspaceCard({
               onRefreshWorkspace(workspace.id);
             }}
           >
-            <ArrowClockwise size="1rem" aria-hidden data-action-id="ws-refresh" />
+            <DecorIcon id="ws-refresh" Fallback={ArrowClockwise} size="1rem" aria-hidden data-action-id="ws-refresh" />
           </button>
           <button
             type="button"
@@ -204,7 +205,7 @@ export function WorkspaceCard({
               onShowMenu(workspace, e.clientX, e.clientY);
             }}
           >
-            <RocketLaunch size="0.9375rem" weight="duotone" aria-hidden />
+            <DecorIcon id="newchat" Fallback={RocketLaunch} size="0.9375rem" aria-hidden />
           </button>
         </div>
       </div>

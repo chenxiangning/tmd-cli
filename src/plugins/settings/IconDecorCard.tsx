@@ -1,7 +1,9 @@
 /**
- * 基础设置 / 外观 tab 的图标装饰卡 —— 34 个界面图标的独立颜色与呼吸闪烁(可折叠,两列)。
+ * 基础设置 / 外观 tab 的图标装饰卡 —— 顶部「图标组合」三套切换(应用层
+ * kernel/iconSet.tsx)+ 34 个界面图标的独立颜色与呼吸闪烁(可折叠,两列)。
  * 键清单是 UI 知识(键 = kernel/iconDecor.ts 的 CSS 变量约定 id);全部写 kernel/settings
- * store 即时生效,应用由 kernel/iconDecor.ts 同步到 <html>,预览图标即时反映自定义色。
+ * store 即时生效,颜色由 kernel/iconDecor.ts 同步 <html>,预览走 DecorIcon
+ * 即时反映组合与自定义色。
  */
 
 import { useState, type ComponentType } from "react";
@@ -46,7 +48,9 @@ import {
   useSettingsState,
   type IconDecorId,
   type IconDecorItem,
+  type IconSetId,
 } from "@kernel/settings";
+import { DecorIcon } from "@kernel/iconSet";
 import { t } from "@kernel/i18n";
 
 /** system-proxy 的梯子图标是 network-proxy 插件内联 SVG,插件间不互 import,此处自绘同形。 */
@@ -123,6 +127,15 @@ export const _itemsCoverAllKeys: _ItemsCoverAllKeys = true;
 /** 取色器空值占位(无自定义色时的中性灰)。 */
 const COLOR_PLACEHOLDER = "#808080";
 
+/** 组合清单(UI 知识):id = kernel settings 白名单,label 三语词典键。 */
+const ICON_SETS = [
+  { id: "classic", label: "组合1 现状" },
+  { id: "solid", label: "组合2 实心" },
+  { id: "metaphor", label: "组合3 换隐喻" },
+  { id: "lucide", label: "组合4 细线" },
+  { id: "lucide-alt", label: "组合5 细线变体" },
+] as const satisfies ReadonlyArray<{ id: IconSetId; label: string }>;
+
 export function IconDecorCard() {
   const { settings } = useSettingsState();
   const [collapsed, setCollapsed] = useState(false);
@@ -155,6 +168,25 @@ export function IconDecorCard() {
           <div className="pref-desc">
             {t("逐图标自定义颜色与呼吸闪烁;面板/侧栏两态图标仅作用于点亮色,其余整图标着色。")}
           </div>
+          <div className="pref-row icon-decor-row">
+            <div className="icon-decor-id">
+              <span className="pref-title">{t("图标组合")}</span>
+            </div>
+            <div className="segmented" role="radiogroup" aria-label={t("图标组合")}>
+              {ICON_SETS.map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.iconSet === id}
+                  className={`segment${settings.iconSet === id ? " is-active" : ""}`}
+                  onClick={() => updateSettings({ iconSet: id })}
+                >
+                  {t(label)}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="icon-decor-grid">
             {ICON_DECOR_ITEMS.map(({ id, label, icon: Icon }) => {
             const item = settings.iconDecor[id];
@@ -168,7 +200,7 @@ export function IconDecorCard() {
                     className="icon-decor-preview"
                     style={item.color ? { color: item.color } : undefined}
                   >
-                    <Icon size="0.875rem" />
+                    <DecorIcon id={id} Fallback={Icon} size="0.875rem" />
                   </span>
                   <span className="pref-title">{t(label)}</span>
                 </div>

@@ -5,7 +5,7 @@
  */
 
 import type { SshHostConfig } from "./sshTypes";
-import type { IconDecorId, IconDecorItem, UiLanguage } from "./settingsAppearance";
+import type { IconDecorId, IconDecorItem, IconSetId, UiLanguage } from "./settingsAppearance";
 import type { RelayDeployHistoryEntry } from "./settingsRelayHistory";
 import type { ThemePresetId } from "./themePresets";
 
@@ -127,6 +127,8 @@ export interface AppSettings {
   uiZoom: number;
   /** 图标装饰:17 个界面图标的独立颜色/呼吸闪烁(外观页可调;应用层 kernel/iconDecor.ts)。 */
   iconDecor: Record<IconDecorId, IconDecorItem>;
+  /** 图标组合:装饰位三套字形/线重组合(外观页可调;应用层 kernel/iconSet.tsx)。 */
+  iconSet: IconSetId;
   /** 顶栏中央会话标题 tab 条开关(外观页可调,默认开启;见 kernel/sessionTabs.ts)。 */
   sessionTabsEnabled: boolean;
   /** 会话标题 tab 条容量(1-10,默认 4;外观页可调,缩容即时修剪)。 */

@@ -184,6 +184,8 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   pluginArchive: null,
   pluginRollback: null,
   pluginDelete: null,
+  /* PTY 尺寸查询:内核 hostWatches(AskScreenMirror 默认栅格)自用。 */
+  sessionSize: null,
 };
 
 /* settings 模块键位分组(穷尽性测试把关;settingsTypes/settingsAppearance 的
@@ -270,6 +272,7 @@ export const SETTINGS_PURE_KEYS = [
   "sanitizeUiZoom",
   "sanitizeSessionTabsMax",
   "sanitizeIconDecor",
+  "sanitizeIconSet",
   "sanitizeRelayDeployHistory",
   "onSettingsPersistFailed",
 ] as const;

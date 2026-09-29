@@ -101,9 +101,9 @@
 - Ask 等待确认检测:内核单点检测 PTY 输出中 CLI 阻塞等待确认的界面标记(跨分片 / 夹杂 ANSI 均可命中)
 - Ask 标记来源:内核硬编码正则(omp Ask 面板 / 通用选择页脚 / y-n 提问 / claude 权限句式),非 CLI profile 声明
 - Ask 页脚窗口:标记只认剥 ANSI 后的末 5 行,原始尾巴按 1024 字符跨分片拼接;标记滚出页脚(正文/历史帧残留)不触发
-- Ask 检测候选确认:首击仅立候选不亮不响,双路升级 —— 标记复现且距首击 ≥1.2s(常驻重绘面板),或 1Hz 守望见候选期满且页脚字面量仍守尾巴(omp Ask 面板画完即静默的静态面板);16KB 内无复现撤销候选
-- 屏幕态通道:omp 等待期 spinner 以光标寻址持续重绘,静态面板标记会流出页脚窗口 —— 幕布采样到面板标记连续在场即置位等待,标记消失即自愈;字节流与屏幕态并集判定、互认边沿,作答后残影靠抑制窗
-- 后台会话屏幕镜像:tab 未打开的后台会话无人采样幕布,而整帧重绘面板的标记埋在帧中部(字节通道结构性漏检,真实日志回放实证)—— headless xterm 镜像同流喂字节 + 1Hz 采底部 8 行补盲;webview 重载后 readopt 读磁盘日志尾回放补底,重载前已挂起的面板无须等重绘即可见
+- Ask 检测候选确认:首击仅立候选不亮不响,双路升级 —— 标记复现且距首击 ≥1.2s(常驻重绘面板),或 250ms 守望见候选期满且页脚字面量仍守尾巴(omp Ask 面板画完即静默的静态面板);16KB 内无复现撤销候选
+- 屏幕态通道:omp 等待期 spinner 以光标寻址持续重绘,静态面板标记会流出页脚窗口 —— 幕布贴底采整个视口、后台镜像全屏采样(同口径),面板标记连续在场即置位等待,标记消失即自愈;字节流与屏幕态并集判定、互认边沿,作答后残影靠抑制窗
+- 后台会话屏幕镜像:tab 未打开的后台会话无人采样幕布,而整帧重绘面板的标记埋在帧中部(字节通道结构性漏检,真实日志回放实证)—— headless xterm 镜像同流喂字节,栅格对齐真实 PTY(120×32 默认 + session_size 拉取 + resizeSession 中继)+ 250ms 全屏采样补盲(高面板标记实测距屏底 14-38 行,固定小窗与错栅格零命中且假缺席会误摘字节态,v3.2);webview 重载后 readopt 读磁盘日志尾回放补底,重载前已挂起的面板无须等重绘即可见
 - 等待确认标签:会话列表行(含全局置顶区活会话)显示绿色胶囊,用户作答立即清除,会话消亡一并清理
 - 作答复燃抑制:写入后 8s 内已答面板残影重绘不亮标不响铃;输出静默 2s 且页脚已无面板标记即自愈摘除残签;终端协议回传同样清候选/标签并起算 8s 抑制窗(真面板持续重绘可再升级,自愈兜底)
 - 重绘去重:同一未答提问反复出现不重复广播事件
@@ -293,6 +293,7 @@
 - 终端字体:平台默认栈 + 常见等宽字体下拉(Menlo/Monaco/SF Mono/Cascadia/Consolas/DejaVu/JetBrains Mono/Fira Code 等,按平台过滤),document.fonts.check 探测未安装项置灰,支持自定义 CSS family 串
 - 终端 ANSI 16 色:主题 token 派生兜底(浅/深各一套,默认采用 VS Code 官方终端配色,浅色表 bright 系不亮于 base 修复浅底看不清);每套浅色 preset 显式声明 16 槽(色相取自各主题官方终端色板,对比度不足保 H/S 降 L 至 WCAG ≥3:1),深色 preset 走兜底
 - 图标装饰:34 个界面图标独立取色 + 呼吸闪烁开关,设置卡两列铺排,即时写 CSS 变量与 data-icon-blink。原 17 键(新建会话 / SSH 入口 / 网络代理 / WSL 入口 / 内置终端 / 意图画布入口 / 会话看板 / 远程控制 / files-git-checkpoints-memory-marks-approval-inbox-skill-hub-mcp-hub 八面板 / Worktree 簇)颜色仍在各自样式表原地消费(两态仅点亮色);2026-09-29 扩编 17 键走统一 `data-action-id`(图标 svg 属性,缺省 currentColor 整图标着色):工作区行三钮(查看文件 Rows / 会话管理 ListChecks / 刷新会话 ArrowClockwise)、顶栏四钮(插件市场 Plug / 回到首页 Tray / 折叠左右栏 CaretLine)、composer 工具条三钮(展开/收起对话框 / 命令与技能抽屉)、输入轨七钮(智能体 Robot / 提示词 Quotes / AI 作画 Compass / 平铺广播 Broadcast / 提示词增强 Wand / 技能 Sparkle / MCP HardDrive);历史 8 键残留由 sanitize 白名单静默剔除;远程控制徽标 2026-09-25 从右栏工具区迁入顶栏左区最左(裸 icon,缺省 --tmd-warn),点击深链设置「Web 访问/设备」tab
+- 图标组合:装饰卡顶部五段切换 `settings.iconSet`(classic 现状圆胖 / solid 同字形 fill / metaphor 逐键换 Phosphor 字形 / lucide、lucide-alt 两套 Lucide 细线,4↔5 切换经 morphicons 弹簧变形全表同时过渡,跨族跳变);kernel `iconSetTables.ts` 三表 + `DecorIcon` 组件(渲染位 `<DecorIcon id Fallback>` 接管,未知动态 id 自动现状),fold 双键方向性 affordance 不换字形;颜色/闪烁与组合正交
 - 行为 tab:发送快捷键模式(Enter 发送 ↔ ⌘/Ctrl+Enter 发送互换)、Ask 提示音开关与音效、结束提示音、后台提醒、会话输出缓冲上限(5 万–1000 万字符,默认 50 万)
 - 设置持久化 `~/.tmd-cli/settings.json`,前端 sanitize 归一,非法值回落默认,Rust 侧原子写
 - 侧栏齿轮菜单项可钉到底栏(localStorage 持久化,上限 4,默认钉 Git Graph + 网络代理);每行右侧 pin 复选框:16px 圆角方块、选中出对号(Check 图标),钉满置灰不可再钉(menuitemcheckbox 语义,类名 settings-menu-pin 定义于 settings-cluster.css)

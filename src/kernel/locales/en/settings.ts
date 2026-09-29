@@ -116,6 +116,12 @@ export const MESSAGES = {
 
   // IconDecorCard
   "图标装饰": "Icon decorations",
+  "图标组合": "Icon set",
+  "组合1 现状": "Set 1 · Current",
+  "组合2 实心": "Set 2 · Solid",
+  "组合3 换隐喻": "Set 3 · Remapped",
+  "组合4 细线": "Set 4 · Lucide",
+  "组合5 细线变体": "Set 5 · Lucide alt",
   "逐图标自定义颜色与呼吸闪烁;面板/侧栏两态图标仅作用于点亮色,其余整图标着色。":
     "Per-icon color and breathing glow; two-state panel/sidebar icons theme the lit color only, others the whole icon.",
   "折叠左栏": "Fold left bar",

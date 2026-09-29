@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { MonitorPlay } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import "./web-access.css";
 import { remoteControlActive, onWebRemoteControl } from "@kernel/ipc";
 import { openSettingsPanel } from "@kernel/settings";
@@ -54,7 +55,7 @@ export function RemoteControlBadge() {
       title={t("有浏览器客户端正通过 Web 访问控制本机")}
       onClick={() => openSettingsPanel({ section: "web-access", tab: "devices" })}
     >
-      <MonitorPlay size="0.875rem" aria-hidden />
+      <DecorIcon id="remote-control" Fallback={MonitorPlay} size="0.875rem" aria-hidden />
     </button>
   );
 }

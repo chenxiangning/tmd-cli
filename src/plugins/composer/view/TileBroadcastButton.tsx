@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BroadcastIcon } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import { useSessionTabs } from "@kernel/sessionTabs";
 import { t } from "@kernel/i18n";
 import { broadcastModeRef } from "./broadcastMode";
@@ -47,7 +48,7 @@ export function TileBroadcastButton() {
         aria-pressed={on}
         onClick={toggle}
       >
-        <BroadcastIcon size="0.875rem" data-action-id="broadcast" />
+        <DecorIcon id="broadcast" Fallback={BroadcastIcon} size="0.875rem" data-action-id="broadcast" />
       </button>
       {toast && (
         <div className="composer-rail-toast" role="status">

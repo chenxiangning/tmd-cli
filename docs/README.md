@@ -222,4 +222,7 @@
 | 2026-09-28 | [MCP Hub 插件提案(六家配置写回管理 + 三源商店 + 导入桥 + 一次性连通测试;mcpWrite 方言写引擎 + .bak-tmd 备份 + CliProfile 声明式写适配器;右栏入口中央 tab)](../openspec/changes/2026-09-28-mcp-hub-plugin/proposal.md) | 已实现(自辖范围门禁全绿;Glama 源线上 401 需 API key 走单源空态;真机 tauri:dev 复验留大仙;执行注记见 proposal 头部) |
 | 2026-09-28 | [会话查看器设计(会话列表 view icon → 只读转录中央 tab;六族 JSONL→Block 解析器 + monocode 渲染形态参考;零 PTY)](superpowers/specs/2026-09-28-session-viewer-design.md) | 已实现(门禁全绿;1421 桩目检过;真机 tauri:dev 复验留大仙) |
 | 2026-09-28 | [通用技能关联设计 v2(管理端安装记录闭环:已装 0 起步 + 本地导入落位 + composer 级联=已装∩当前 CLI 可用;PTY 不动)](superpowers/specs/2026-09-28-composer-universal-skills-design.md) | 已实现(门禁绿 + 1421 桩闭环目检过;真机复验留大仙) |
+| 2026-09-29 | [图标组合切换候选对照(17 键 × 现状/实心/双色/换隐喻;选 2 列定组合2/3)](design/icon-set-candidates.html) | 已定稿(组合2=实心、组合3=换隐喻) |
+| 2026-09-29 | [图标组合切换设计:5 套可切换界面图标(现状/实心/换隐喻/Lucide 双套 + morphicons 弹簧变形;DecorIcon fallback 接管 13 渲染位)](superpowers/specs/2026-09-29-icon-set-switching-design.md) | 已实现(门禁绿 + 1421 桩目检过;真机复验留大仙) |
+| 2026-09-29 | [后台「等待确认」不可见/前台迟滞/改窗口即消失:镜像几何失真评审与 v3.2 修复(栅格对齐真实 PTY + 全屏采样 + 250ms 节拍)](review/2026-09-29-ask-badge-geometry-reliability-review.md) | 已完成(真实日志回放实证;真机目检留大仙) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

@@ -185,5 +185,19 @@ export function sanitizeIconDecor(raw: unknown): Record<IconDecorId, IconDecorIt
     }
     out[id] = entry;
   }
+
   return out;
+}
+/** ── 图标组合(icon set)域 ── 装饰位字形/线重的组合;应用层 kernel/iconSet.tsx */
+
+/** 组合白名单:classic(组合1 现状)/ solid(组合2 实心)/ metaphor(组合3 换隐喻)/
+ * lucide(组合4 细线)/ lucide-alt(组合5 细线变体;4↔5 切换经 morphicons 弹簧变形)。 */
+export const ICON_SET_IDS = ["classic", "solid", "metaphor", "lucide", "lucide-alt"] as const;
+export type IconSetId = (typeof ICON_SET_IDS)[number];
+
+/** 图标组合清洗:白名单外一律回落 classic(存量用户零迁移)。 */
+export function sanitizeIconSet(raw: unknown): IconSetId {
+  return typeof raw === "string" && (ICON_SET_IDS as readonly string[]).includes(raw)
+    ? (raw as IconSetId)
+    : "classic";
 }
