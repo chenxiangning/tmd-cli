@@ -88,6 +88,13 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
     }
   }, [state]);
 
+
+  /* 分批切片记忆化:blocks 引用稳定 → TranscriptView 内 items 与块级 memo
+     在无关重渲染(滚动探测/加载态翻转)时命中,不全量重建。 */
+  const shown = useMemo(
+    () => (state.phase === "ok" ? state.transcript.blocks.slice(0, visible) : []),
+    [state, visible],
+  );
   return (
     <div className="sv-root">
       <header className="sv-header">
@@ -118,7 +125,7 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
           ) : (
             <div className="sv-blocks">
               <TranscriptView
-                blocks={state.transcript.blocks.slice(0, visible)}
+                blocks={shown}
                 Markdown={MarkdownBody}
               />
               {visible < state.transcript.blocks.length ? (

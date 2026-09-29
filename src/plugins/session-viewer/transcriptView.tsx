@@ -10,7 +10,7 @@
  * - agent-reasoning 正文 48% 透明(monocode 同款阅读层级)。
  */
 
-import { Fragment, useState, type ComponentType, type ReactNode } from "react";
+import { Fragment, memo, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import type { CliTranscriptBlock, CliTranscriptImage } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 import { CaretRightIcon, MinusIcon, BookOpenIcon, PencilSimpleIcon, TerminalIcon, BrainIcon } from "@phosphor-icons/react";
@@ -132,7 +132,7 @@ function ToolRow({
 }
 
 /** 工作折叠组(monocode WorkFoldLine + ActivityPhases):默认收起。 */
-function PhaseFold({
+const PhaseFold = memo(function PhaseFold({
   phase,
   Markdown,
 }: {
@@ -141,6 +141,14 @@ function PhaseFold({
 }) {
   const [open, setOpen] = useState(false);
   const steps = phase.steps;
+  /* 同文撞号防线:step.id 是内容哈希语义(grok 同文连发撞号),重复序号
+     后缀唯一化(UserImages 同款;4 处 key 依赖同一锁步计数)。 */
+  const seenIds = new Map<string, number>();
+  const stepKey = (id: string): string => {
+    const n = (seenIds.get(id) ?? 0) + 1;
+    seenIds.set(id, n);
+    return n > 1 ? `${id}#${n}` : id;
+  };
   return (
     <div className={`sv-phase${open ? " open" : ""}`}>
       <button
@@ -163,21 +171,22 @@ function PhaseFold({
       {open ? (
         <div className="sv-phase-body">
           {steps.map((step) => {
+            const key = stepKey(step.id);
             if (step.role === "reasoning") {
-              return <ThinkingRow key={step.id} block={step} Markdown={Markdown} />;
+              return <ThinkingRow key={key} block={step} Markdown={Markdown} />;
             }
             if (step.role === "tool") {
-              return <ToolRow key={step.id} block={step} Markdown={Markdown} />;
+              return <ToolRow key={key} block={step} Markdown={Markdown} />;
             }
             if (step.role === "system") {
               return (
-                <div key={step.id} className="sv-system">
+                <div key={key} className="sv-system">
                   {step.text}
                 </div>
               );
             }
             return (
-              <div key={step.id} className="sv-phase-note">
+              <div key={key} className="sv-phase-note">
                 {step.text}
               </div>
             );
@@ -186,7 +195,7 @@ function PhaseFold({
       ) : null}
     </div>
   );
-}
+});
 
 /** 用户消息内嵌图片行(base64 data URI;点击缩略/整幅切换)。 */
 function UserImages({ images }: { images: CliTranscriptImage[] }) {
@@ -210,7 +219,10 @@ function UserImages({ images }: { images: CliTranscriptImage[] }) {
 }
 
 /** 单块渲染入口(viewerTab 消费):按分组模型分发。 */
-export function TranscriptBlockView({
+/* memo:分批触底追加时 block 引用不变即跳过(react-markdown v10 零内部
+ * 缓存,重挂载即全量重跑 remark/rehype;Markdown prop 为 viewerTab 模块级
+ * lazy 常量,引用恒稳)。 */
+export const TranscriptBlockView = memo(function TranscriptBlockView({
   block,
   Markdown,
 }: {
@@ -241,7 +253,7 @@ export function TranscriptBlockView({
       <Markdown>{capped(block.text)}</Markdown>
     </div>
   );
-}
+});
 
 /** 整卷渲染(user/assistant 全尺寸正文与工作折叠组混排)。 */
 export function TranscriptView({
@@ -251,18 +263,26 @@ export function TranscriptView({
   blocks: CliTranscriptBlock[];
   Markdown: MarkdownRenderer;
 }) {
-  const items = buildTranscriptPhases(blocks);
+  const items = useMemo(() => buildTranscriptPhases(blocks), [blocks]);
+  /* 撞号防线同 PhaseFold:块/组 id 是内容哈希语义(grok 同文连发撞号),
+     重复序号后缀唯一化;items 前缀稳定,键跨批次追加恒定。 */
+  const seenIds = new Map<string, number>();
+  const itemKey = (id: string): string => {
+    const n = (seenIds.get(id) ?? 0) + 1;
+    seenIds.set(id, n);
+    return n > 1 ? `${id}#${n}` : id;
+  };
   return (
     <>
       {items.map((item) =>
         item.kind === "user" ? (
           <TranscriptBlockView
-            key={item.block.id}
+            key={itemKey(item.block.id)}
             block={item.block}
             Markdown={Markdown}
           />
         ) : (
-          <Fragment key={item.phase.id}>
+          <Fragment key={itemKey(item.phase.id)}>
             {/* headline 正文全尺寸渲染(fold 外);折叠组只装工作过程。 */}
             {item.phase.headline ? (
               <TranscriptBlockView
