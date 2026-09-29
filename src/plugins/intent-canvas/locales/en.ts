@@ -126,6 +126,7 @@ export const MESSAGES_EN = {
   "「{title}」副本": "{title} (copy)",
   "画布已在其他入口更新(AI 作画导入),请返回列表重新打开后再保存,否则会覆盖新内容。": "This canvas was updated elsewhere (AI drawing import). Reopen it from the list before saving, otherwise the new content will be overwritten.",
   "画布内容超过存储读取上限(496KB),已拒绝保存,否则该画布将无法再次打开。请删除画布中的大图后重试。": "Canvas content exceeds the 496 KB storage read limit; saving was rejected because the canvas could no longer be opened. Remove large images from the canvas and try again.",
+  "画布索引超过存储读取上限(496KB),已拒绝写入,请删除部分画布后重试。": "Canvas index exceeds the 496 KB storage read limit; writing was rejected. Delete some canvases and try again.",
   "画布索引读取失败,已中止本次索引更新:{warning}": "Canvas index read failed; index update aborted to protect the list: {warning}",
   "画布索引读取失败,已中止删除索引更新:{warning}": "Canvas index read failed; delete index update aborted: {warning}",
   "放弃未保存的修改?": "Discard unsaved changes?",

@@ -23,6 +23,11 @@ import { aiInboxDir, isMissingFileError } from "./storage/paths";
 /* 留证后 trash 仍失败的文件(杀软/同步盘锁):跳过集合防 2s 轮询无限重复导入
    同一文件(评审 P2)。webview 生命周期内有效,重开 tab 自然重试一次。 */
 const untrashableFiles = new Set<string>();
+
+/* 半截文件防线:CLI 非原子写,2s 轮询可能读到写了一半的文件;解析失败先
+   留原文件重试,连续 AI_DRAW_FAIL_ROUNDS 轮仍失败才留证移 failed(不轻弃原文)。 */
+const AI_DRAW_FAIL_ROUNDS = 3;
+const parseFailedRounds = new Map<string, number>();
 import { AI_DRAW_FILE_RE, parseAiDrawFile, projectAiDrawShapes, type AiDrawFile, type AiDrawImportResult } from "./aiDraw";
 
 async function resolveTargetDocument(
@@ -154,12 +159,20 @@ async function pollAiDrawInboxInner(
       const file = parseAiDrawFile(raw);
       const result = await importAiDrawFile(root, file, workspace);
       /* importAiDrawFile 失败路径一律抛错走 catch;ok 结果直接入账。 */
+      parseFailedRounds.delete(entry.path);
       importedCanvases.push({ id: result.canvasId, title: result.canvasTitle });
       await ipc.fsTrashEntry(entry.path).catch(async () => {
         /* 源文件消费失败会导致下轮重复导入:降级移 failed 止损。 */
         await moveToFailed(inbox, entry.path, entry.name, "trash failed after import");
       });
     } catch (error) {
+      /* 可能仍在写入:计数留原文件下轮重读;满阈值才判坏留证移 failed。 */
+      const fails = (parseFailedRounds.get(entry.path) ?? 0) + 1;
+      if (fails < AI_DRAW_FAIL_ROUNDS) {
+        parseFailedRounds.set(entry.path, fails);
+        continue;
+      }
+      parseFailedRounds.delete(entry.path);
       await moveToFailed(inbox, entry.path, entry.name, error instanceof Error ? error.message : String(error));
     }
   }
