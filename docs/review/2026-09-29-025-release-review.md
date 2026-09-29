@@ -16,9 +16,9 @@
 - 位置:`src/plugins/skill-hub/clawhubNormalize.ts:72-73`(slug 仅判非空);`install.ts:101`(`dest = ${target.dir}/${resolved.slug}`);`install.ts:123-125`(skillSymlink 两端同拼);`src-tauri/src/skill_pkg.rs extract_zip`(dest_dir 完全信任,条目名有 `..` 闸但 dest 本身无分量校验)。
 - 触发:ClawHub API(或恶意发布者数据)返回 slug 形如 `../../.ssh` → 解压逃出 `~/.claude/skills` 覆写任意用户可写文件(`fs::File::create` 静默覆写)。
 - 修法(一行治根):`normalizeClawHubCard` 对 slug 加单段白名单 `/^[A-Za-z0-9][A-Za-z0-9._-]*$/` 且不含 `..`,不合法丢卡(既有「slug 缺失=丢弃」分支承接),补一条恶意 slug 单测;纵深可再加后端 dest 分量拒 `..`。
-- **已修(2026-09-29,commit 待记)**:`clawhubNormalize.ts` 收口处白名单落地(首字符字母数字,余 `[A-Za-z0-9._-]`;`.`/`..` 被首字符规则一并排除),恶意 slug 单测 9 形态锚定;后端 dest 分量纵深闸未加(收口已覆盖全部三条入口:列表/搜索/详情)。
+- **已修(2026-09-29,bd92d1f5)**:`clawhubNormalize.ts` 收口处白名单落地(首字符字母数字,余 `[A-Za-z0-9._-]`;`.`/`..` 被首字符规则一并排除),恶意 slug 单测 9 形态锚定;后端 dest 分量纵深闸未加(收口已覆盖全部三条入口:列表/搜索/详情)。
 
-## P2(排入 0.2.6)—— **2026-09-29 已全数修复**(1-9 逐项落地,门禁全绿:3250 测试 / typecheck / arch / file-size / cargo test+clippy+fmt / doctor 100 / build;按域分四笔提交)
+## P2(排入 0.2.6)—— **2026-09-29 已全数修复**(0f35ee55 / 661cf358 / 7bea31ac / 1cc7e743 四笔按域 + 26ad52e3 回写;自审复查补双通道短路与 quota SSE 收窄两处 = 22e9ce12。门禁全绿:3251 测试 / typecheck / arch / file-size / cargo test+clippy+fmt / doctor 100 / build)
 
 ### 终端域
 
