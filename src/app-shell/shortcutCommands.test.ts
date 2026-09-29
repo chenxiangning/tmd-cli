@@ -19,7 +19,7 @@ vi.mock("@kernel/filePanel", () => filePanel);
 
 const hostMock = vi.hoisted(() => ({
   activeId: null as string | null,
-  sessions: [] as Array<{ id: string }>,
+  sessions: [] as Array<{ id: string; kind?: string }>,
   getActiveSessionId: () => hostMock.activeId,
   getSessions: () => hostMock.sessions,
   setActiveSession: vi.fn((id: string | null) => { hostMock.activeId = id; }),
@@ -134,8 +134,7 @@ describe("ref 桥类命令", () => {
     expect(left).not.toHaveBeenCalled();
     mod.shellBarToggles.left = left;
     mod.shellBarToggles.right = right;
-    cmd("shell.toggleLeftBar").run();
-    cmd("shell.toggleRightBar").run();
+    cmd("shell.toggleLeftBar").run(); cmd("shell.toggleRightBar").run();
     expect(left).toHaveBeenCalledTimes(1);
     expect(right).toHaveBeenCalledTimes(1);
   });
@@ -151,10 +150,9 @@ describe("ref 桥类命令", () => {
 
   it("goHome 先收市场层再切换,market 挂点缺失不阻断切换", () => {
     hostMock.activeId = "s1";
-    const close = vi.fn();
-    mod.shellMarketClose.current = close;
+    mod.shellMarketClose.current = vi.fn();
     cmd("shell.goHome").run();
-    expect(close).toHaveBeenCalledTimes(1);
+    expect(mod.shellMarketClose.current).toHaveBeenCalledTimes(1);
     expect(hostMock.activeId).toBeNull();
   });
 
@@ -171,18 +169,25 @@ describe("ref 桥类命令", () => {
     cmd("shell.goHome").run();
     expect(hostMock.setActiveSession).toHaveBeenLastCalledWith("s1");
   });
+  it("goHome 终端不进 toggle 记忆:终端中回首页,再点回落 CLI 会话而非开出终端", () => {
+    hostMock.activeId = "c1";
+    hostMock.sessions = [{ id: "c1" }, { id: "t1", kind: "shell" }];
+    cmd("shell.goHome").run(); // CLI 会话中回首页:记 c1
+    hostMock.activeId = "t1"; // 转去终端
+    cmd("shell.goHome").run(); expect(hostMock.activeId).toBeNull(); // 不记终端
+    cmd("shell.goHome").run();
+    expect(hostMock.setActiveSession).toHaveBeenLastCalledWith("c1");
+  });
   it("closeTab:无激活 tab 时 when 拦下,有则关闭当前 tab", () => {
     expect(cmd("shell.closeTab").when!()).toBe(false);
-    tabsMock.list = [{ id: "t1" }];
-    tabsMock.activeId = "t1";
+    tabsMock.list = [{ id: "t1" }]; tabsMock.activeId = "t1";
     expect(cmd("shell.closeTab").when!()).toBe(true);
     cmd("shell.closeTab").run();
     expect(tabsMock.closeTab).toHaveBeenCalledWith("t1");
   });
 
   it("⌘W:编辑器聚焦期路由 editor.expandSelection,失焦期落回 shell.closeTab", () => {
-    tabsMock.list = [{ id: "t1" }];
-    tabsMock.activeId = "t1";
+    tabsMock.list = [{ id: "t1" }]; tabsMock.activeId = "t1";
     cmEditorMock.view = { marked: true, hasFocus: true };
     registry.setEditorFocusProbe(() => Boolean(cmEditorMock.view?.hasFocus));
     const hit = registry.resolveCommand(keyEvent("w"));
@@ -202,15 +207,13 @@ describe("shell.focusSessionN", () => {
     expect(m(keyEvent("1"))).toBe(true);
     expect(m(keyEvent("9"))).toBe(false); // 越过会话数
     expect(m(keyEvent("3"))).toBe(false);
-    expect(m(keyEvent("1", { shiftKey: true }))).toBe(false);
-    expect(m(keyEvent("1", { altKey: true }))).toBe(false);
+    expect(m(keyEvent("1", { shiftKey: true }))).toBe(false); expect(m(keyEvent("1", { altKey: true }))).toBe(false);
     expect(m(keyEvent("a"))).toBe(false);
     expect(m(keyEvent("1", { metaKey: false, ctrlKey: false }))).toBe(false);
   });
 
   it("run 激活 match 命中的第 N 个会话;从未 match 过时直调按序号 0 守卫", () => {
-    hostMock.sessions = [{ id: "s1" }];
-    const c = cmd("shell.focusSessionN");
+    hostMock.sessions = [{ id: "s1" }]; const c = cmd("shell.focusSessionN");
     c.run(); // focusSessionN 尚为 0,守卫按无会话处理,不误切
     expect(hostMock.setActiveSession).not.toHaveBeenCalled();
     hostMock.sessions = [{ id: "s1" }, { id: "s2" }];
@@ -234,8 +237,7 @@ describe("focusPanel1..3", () => {
 
 describe("tab 顺序切换(next/prev)", () => {
   it("match 语义:(meta||ctrl)+Tab,Shift 区分方向,Alt 排除", () => {
-    const next = cmd("shell.nextTab").match!;
-    const prev = cmd("shell.prevTab").match!;
+    const next = cmd("shell.nextTab").match!, prev = cmd("shell.prevTab").match!;
     expect(next(keyEvent("Tab"))).toBe(true);
     expect(next(keyEvent("Tab", { metaKey: false, ctrlKey: true }))).toBe(true);
     expect(next(keyEvent("Tab", { shiftKey: true }))).toBe(false);
@@ -264,8 +266,7 @@ describe("tab 顺序切换(next/prev)", () => {
 
 describe("shell.toggleEditorMaximized", () => {
   it("match = ⌃⌘F 双修饰键大小写不敏感;无 tab 拦下,有 tab run 转发最大化", () => {
-    const c = cmd("shell.toggleEditorMaximized");
-    const m = c.match!;
+    const c = cmd("shell.toggleEditorMaximized"), m = c.match!;
     expect(m(keyEvent("f", { metaKey: true, ctrlKey: true }))).toBe(true);
     expect(m(keyEvent("F", { metaKey: true, ctrlKey: true }))).toBe(true);
     expect(m(keyEvent("f", { metaKey: true, ctrlKey: false }))).toBe(false);
