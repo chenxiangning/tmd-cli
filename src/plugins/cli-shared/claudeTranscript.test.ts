@@ -31,6 +31,42 @@ describe("claudeTranscriptLine", () => {
     ).toEqual([]);
   });
 
+  it("user 图片 part 并入首个文本块;tool_result 信封不挂图;纯图片也成块", () => {
+    const img = { type: "image", source: { type: "base64", media_type: "image/png", data: "aGk=" } };
+    const blocks = claude({
+      type: "user",
+      uuid: "u1i",
+      timestamp: "2026-09-29T09:29:00.000Z",
+      message: { role: "user", content: [{ type: "text", text: "看截图" }, img] },
+    });
+    expect(blocks).toEqual([
+      {
+        id: "u1i#0",
+        role: "user",
+        text: "看截图",
+        startedAt: Date.parse("2026-09-29T09:29:00.000Z"),
+        images: [{ data: "aGk=", mimeType: "image/png" }],
+      },
+    ]);
+    /* tool_result 信封(user 角色工具回包)不产出用户图片块。 */
+    expect(
+      claude({
+        type: "user",
+        uuid: "u2i",
+        message: { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "ok" }, img] },
+      }),
+    ).toEqual([
+      { id: "u2i#r0", role: "tool", text: "ok", tool: { callId: "t1" } },
+    ]);
+    expect(
+      claude({
+        type: "user",
+        uuid: "u3i",
+        message: { role: "user", content: [img] },
+      }),
+    ).toEqual([{ id: "u3i", role: "user", text: "", images: [{ data: "aGk=", mimeType: "image/png" }] }]);
+  });
+
   it("assistant 行 parts 各自成块:text/thinking/tool_use(shell 预览)", () => {
     const blocks = claude({
       type: "assistant",

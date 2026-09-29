@@ -12,6 +12,7 @@ export type {
   CliSessionStatus,
   CliSessionTranscript,
   CliTranscriptBlock,
+  CliTranscriptImage,
   CliTranscriptRole,
   CliTranscriptToolMeta,
   CliToolPreview,

@@ -11,24 +11,10 @@
  */
 
 import { Fragment, useState, type ComponentType, type ReactNode } from "react";
-import type { CliTranscriptBlock } from "@kernel/cli";
+import type { CliTranscriptBlock, CliTranscriptImage } from "@kernel/cli";
 import { t } from "@kernel/i18n";
-import {
-  CaretRightIcon,
-  MinusIcon,
-  BookOpenIcon,
-  PencilSimpleIcon,
-  TerminalIcon,
-  BrainIcon,
-} from "@phosphor-icons/react";
-import {
-  buildTranscriptPhases,
-  phaseTitle,
-  proseSummary,
-  toolRowLabel,
-  type PhaseKind,
-  type TranscriptPhase,
-} from "./transcriptPhases";
+import { CaretRightIcon, MinusIcon, BookOpenIcon, PencilSimpleIcon, TerminalIcon, BrainIcon } from "@phosphor-icons/react";
+import { buildTranscriptPhases, phaseTitle, proseSummary, toolRowLabel, type PhaseKind, type TranscriptPhase } from "./transcriptPhases";
 
 /** md 渲染组件协议(lazy 拆包,viewerTab 注入)。 */
 export type MarkdownRenderer = ComponentType<{ children: string }>;
@@ -53,12 +39,7 @@ function Timestamp({ ms }: { ms?: number }) {
   if (!ms) return null;
   return (
     <span className="sv-ts">
-      {new Date(ms).toLocaleString(undefined, {
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      })}
+      {new Date(ms).toLocaleString(undefined, { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
     </span>
   );
 }
@@ -71,13 +52,7 @@ const PHASE_ICON: Record<PhaseKind, ReactNode> = {
 };
 
 /** 思考行(monocode ActivityThinkingRow):Minus + 单行摘要,点击展开淡色 md。 */
-function ThinkingRow({
-  block,
-  Markdown,
-}: {
-  block: CliTranscriptBlock;
-  Markdown: MarkdownRenderer;
-}) {
+function ThinkingRow({ block, Markdown }: { block: CliTranscriptBlock; Markdown: MarkdownRenderer }) {
   const [open, setOpen] = useState(false);
   const summary = proseSummary(block.text) || t("思考");
   return (
@@ -101,13 +76,7 @@ function ThinkingRow({
 }
 
 /** 工具展开体:路径/命令/diff 行/输出。 */
-function ToolPreviewBody({
-  block,
-  Markdown,
-}: {
-  block: CliTranscriptBlock;
-  Markdown: MarkdownRenderer;
-}) {
+function ToolPreviewBody({ block, Markdown }: { block: CliTranscriptBlock; Markdown: MarkdownRenderer }) {
   const preview = block.tool?.preview;
   return (
     <div className="sv-tool-body">
@@ -219,6 +188,27 @@ function PhaseFold({
   );
 }
 
+/** 用户消息内嵌图片行(base64 data URI;点击缩略/整幅切换)。 */
+function UserImages({ images }: { images: CliTranscriptImage[] }) {
+  const [zoom, setZoom] = useState(false);
+  /* key = 内容指纹 + 重复序号(同图多贴也唯一;不用数组下标)。 */
+  const seen = new Map<string, number>();
+  return (
+    <div className={`sv-user-imgs${zoom ? " zoom" : ""}`}>
+      {images.map((img) => {
+        const base = `${img.mimeType}:${img.data.length}`;
+        const n = seen.get(base) ?? 0;
+        seen.set(base, n + 1);
+        return (
+          <button key={n ? `${base}#${n}` : base} type="button" className="sv-user-img-btn" aria-label={t("切换图片大小")} onClick={() => setZoom(!zoom)}>
+            <img className="sv-user-img" src={`data:${img.mimeType};base64,${img.data}`} alt="" />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /** 单块渲染入口(viewerTab 消费):按分组模型分发。 */
 export function TranscriptBlockView({
   block,
@@ -237,7 +227,8 @@ export function TranscriptBlockView({
           <span className="sv-role-label">{t("你")}</span>
           <Timestamp ms={block.startedAt} />
         </div>
-        <Markdown>{capped(block.text)}</Markdown>
+        {block.text ? <Markdown>{capped(block.text)}</Markdown> : null}
+        {block.images?.length ? <UserImages images={block.images} /> : null}
       </div>
     );
   }

@@ -4,13 +4,15 @@
  *
  * 行型实证(2026-09-28 本机 ~/.pi/agent/sessions 采样):
  * - {type:"message",id,timestamp,message:{role:"user",content:[text]}} → 用户块;
+ *   content 可含 {type:"image",data,mimeType} 图片 part(2026-09-29 实证)→
+ *   并入用户块 images(纯图片无文本也成块);
  * - {type:"message",…,message:{role:"assistant",content:[{type:"thinking",thinking}|
  *   {type:"toolCall",id,name,arguments}|{type:"text",text}]}} → 各 part 独立成块;
  * - {type:"message",…,message:{role:"toolResult",toolCallId,toolName,
  *   content:[{type:"text",text}]}} → 工具结果块(pairToolResults 配对并入)。
  */
 
-import type { CliTranscriptBlock, CliToolPreview } from "@kernel/cli";
+import type { CliTranscriptBlock, CliTranscriptImage, CliToolPreview } from "@kernel/cli";
 import type { TranscriptLineParser } from "./sessionTranscript";
 import { diffLinesFromStrings, toolPreviewKindOf } from "./sessionTranscript";
 import { isWrapperText, messageText } from "./userMessages";
@@ -53,6 +55,21 @@ function piToolPreview(
   return preview;
 }
 
+/** pi 族 user content 的图片 part({type:"image",data,mimeType},本机实证 2026-09-29)。 */
+function piUserImages(content: unknown): CliTranscriptImage[] {
+  if (!Array.isArray(content)) return [];
+  const images: CliTranscriptImage[] = [];
+  for (const part of content) {
+    if (!part || typeof part !== "object") continue;
+    const p = part as Record<string, unknown>;
+    if (p.type !== "image") continue;
+    const data = stringField(p, "data");
+    const mimeType = stringField(p, "mimeType");
+    if (data && mimeType) images.push({ data, mimeType });
+  }
+  return images;
+}
+
 /** pi 家族行解析器(纯函数,可测)。 */
 export const piTranscriptLine: TranscriptLineParser = (event) => {
   const blocks: CliTranscriptBlock[] = [];
@@ -66,9 +83,16 @@ export const piTranscriptLine: TranscriptLineParser = (event) => {
   const startedAt = startedAtOf(event);
   if (role === "user") {
     const text = messageText(m.content);
-    if (text && !isWrapperText(text)) {
-      blocks.push({ id, role: "user", text, startedAt });
-    }
+    const images = piUserImages(m.content);
+    const visible = text && !isWrapperText(text) ? text : undefined;
+    if (!visible && images.length === 0) return blocks;
+    blocks.push({
+      id,
+      role: "user",
+      text: visible ?? "",
+      startedAt,
+      images: images.length > 0 ? images : undefined,
+    });
     return blocks;
   }
   if (role === "assistant") {

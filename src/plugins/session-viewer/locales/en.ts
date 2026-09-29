@@ -1,6 +1,7 @@
 /** session-viewer 英文词典。 */
 export const MESSAGES_EN: Record<string, string> = {
   刷新: "Refresh",
+  "切换图片大小": "Toggle image size",
   "会话过大,已截断": "Session too large, truncated",
   "读取中…": "Loading…",
   "{n} 步": "{n} steps",

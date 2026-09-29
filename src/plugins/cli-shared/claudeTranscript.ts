@@ -5,14 +5,16 @@
  * 行型实证(2026-09-28 本机 ~/.claude/projects 与 ~/.qoder/projects 采样):
  * - user 行 {type:"user",uuid,timestamp,isSidechain?,message:{role:"user",
  *   content:string|parts}}:parts 为 text(用户正文)与 tool_result
- *   {tool_use_id,content:string|parts}(工具结果);sidechain 跳过;
- *   qoder 变体仅认 origin.kind="human"(qoderUserMessageLine 同款判别)。
+ *   {tool_use_id,content:string|parts}}(工具结果);sidechain 跳过;
+ *   qoder 变体仅认 origin.kind="human"(qoderUserMessageLine 同款判别);
+ *   user parts 可含 {type:"image",source:{type:"base64",media_type,data}}
+ *   (Anthropic 标准形态)→ 并入本消息首个用户块 images,tool_result 信封不挂图。
  * - assistant 行 {type:"assistant",uuid,timestamp,message:{role:"assistant",
  *   content:[{type:"text",text}|{type:"thinking",thinking}|
  *   {type:"tool_use",id,name,input}]}}:每个 part 独立成块。
  */
 
-import type { CliTranscriptBlock, CliToolPreview } from "@kernel/cli";
+import type { CliTranscriptBlock, CliTranscriptImage, CliToolPreview } from "@kernel/cli";
 import type { TranscriptLineParser } from "./sessionTranscript";
 import { diffLinesFromStrings, toolPreviewKindOf } from "./sessionTranscript";
 import { isWrapperText, messageText } from "./userMessages";
@@ -127,6 +129,28 @@ export function claudeTranscriptLine(
         return blocks;
       }
       if (!Array.isArray(content)) return blocks;
+      /* 图片 part(Anthropic 标准 base64 source 形态):并入本消息首个用户块;
+       * 纯图片无文本也成块,但 tool_result 信封(工具回包)不算用户输入,跳过。 */
+      const images: CliTranscriptImage[] = [];
+      let hasToolResult = false;
+      for (const part of content) {
+        if (!part || typeof part !== "object") continue;
+        const p = part as Record<string, unknown>;
+        const type = stringField(p, "type");
+        if (type === "image") {
+          const source =
+            p.source && typeof p.source === "object"
+              ? (p.source as Record<string, unknown>)
+              : undefined;
+          const data = source ? stringField(source, "data") : undefined;
+          const mediaType = source ? stringField(source, "media_type") : undefined;
+          if (data && mediaType) images.push({ data, mimeType: mediaType });
+        } else if (type === "tool_result") {
+          hasToolResult = true;
+        }
+      }
+      const attach = images.length > 0 && !hasToolResult;
+      let pushedUser = false;
       content.forEach((part, index) => {
         if (!part || typeof part !== "object") return;
         const p = part as Record<string, unknown>;
@@ -134,7 +158,14 @@ export function claudeTranscriptLine(
         if (type === "text") {
           const text = stringField(p, "text");
           if (text?.trim() && !isWrapperText(text)) {
-            blocks.push({ id: `${uuid}#${index}`, role: "user", text, startedAt });
+            blocks.push({
+              id: `${uuid}#${index}`,
+              role: "user",
+              text,
+              startedAt,
+              images: attach && !pushedUser ? images : undefined,
+            });
+            pushedUser = true;
           }
         } else if (type === "tool_result") {
           const callId = stringField(p, "tool_use_id");
@@ -156,6 +187,9 @@ export function claudeTranscriptLine(
           }
         }
       });
+      if (attach && !pushedUser) {
+        blocks.push({ id: uuid, role: "user", text: "", startedAt, images });
+      }
     }
     return blocks;
   };

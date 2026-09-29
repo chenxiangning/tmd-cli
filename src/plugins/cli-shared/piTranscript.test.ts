@@ -27,6 +27,39 @@ describe("piTranscriptLine", () => {
     ).toEqual([]);
   });
 
+  it("user content 图片 part → images 并入;纯图片无文本也成块", () => {
+    const blocks = piTranscriptLine({
+      type: "message",
+      id: "m1i",
+      timestamp: "2026-09-29T09:29:00.000Z",
+      message: {
+        role: "user",
+        content: [
+          { type: "text", text: "看这张截图" },
+          { type: "image", data: "aGk=", mimeType: "image/png" },
+        ],
+      },
+    });
+    expect(blocks).toEqual([
+      {
+        id: "m1i",
+        role: "user",
+        text: "看这张截图",
+        startedAt: Date.parse("2026-09-29T09:29:00.000Z"),
+        images: [{ data: "aGk=", mimeType: "image/png" }],
+      },
+    ]);
+    expect(
+      piTranscriptLine({
+        type: "message",
+        id: "m2i",
+        message: { role: "user", content: [{ type: "image", data: "aGk=", mimeType: "image/jpeg" }] },
+      }),
+    ).toEqual([
+      { id: "m2i", role: "user", text: "", images: [{ data: "aGk=", mimeType: "image/jpeg" }] },
+    ]);
+  });
+
   it("assistant parts:thinking → reasoning;toolCall → tool 块(shell 预览);text → assistant", () => {
     const blocks = piTranscriptLine({
       type: "message",

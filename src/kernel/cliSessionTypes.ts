@@ -114,11 +114,20 @@ export interface CliTranscriptToolMeta {
   preview?: CliToolPreview;
 }
 
+/** 用户消息里的内嵌图片(base64 载荷,磁盘 part 原样;渲染 data: URI)。 */
+export interface CliTranscriptImage {
+  mimeType: string;
+  /** base64,不含 data: 前缀。 */
+  data: string;
+}
+
 /** 转录块:一个角色化内容单元(user 原文 / assistant 正文 / 思考 / 工具卡)。 */
 export interface CliTranscriptBlock {
   id: string;
   role: CliTranscriptRole;
   text: string;
+  /** user 块内嵌图片(仅 user;解析器实证的家族才产出)。 */
+  images?: CliTranscriptImage[];
   /** 块发生时刻 ms epoch(取自 CLI 自记时间戳;缺省查看器不显示时间)。 */
   startedAt?: number;
   tool?: CliTranscriptToolMeta;

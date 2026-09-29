@@ -20,6 +20,13 @@
 .sv-role-label { font-size: 0.625rem; font-weight: 600; color: var(--tmd-fg-faint); letter-spacing: 0.04em; }
 .sv-ts { font-size: 0.625rem; color: var(--tmd-fg-faint); }
 
+/* ── 用户消息内嵌图片(缩略行,点击整幅) ── */
+.sv-user-imgs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.sv-user-img-btn { display: inline-block; background: none; border: none; padding: 0; cursor: zoom-in; line-height: 0; }
+.sv-user-img { max-width: 320px; max-height: 240px; border-radius: 6px; border: 1px solid var(--tmd-border); object-fit: contain; }
+.sv-user-imgs.zoom .sv-user-img-btn { cursor: zoom-out; }
+.sv-user-imgs.zoom .sv-user-img { max-width: 100%; max-height: none; }
+
 /* ── 工作折叠组(monocode WorkFoldLine:单行摘要 + hover 加深) ── */
 .sv-phase { display: flex; flex-direction: column; }
 .sv-phase-head { display: flex; align-items: center; gap: 6px; width: 100%; padding: 3px 0; background: none; border: none; color: var(--tmd-fg-faint); cursor: pointer; text-align: left; }
