@@ -25,7 +25,6 @@ fn emit_info(app: &AppHandle) {
     crate::event_sink::emit(app, "web://access", &json!({ "info": null }));
 }
 
-#[tauri::command]
 pub(crate) async fn web_access_start(
     app: AppHandle,
 ) -> Result<Option<state::WebAccessInfo>, String> {
@@ -49,7 +48,6 @@ pub(crate) async fn web_access_start(
     Ok(Some(info))
 }
 
-#[tauri::command]
 pub(crate) async fn web_access_stop(app: AppHandle) -> Result<(), String> {
     let state = web_state(&app);
     let web = &state.inner().web;

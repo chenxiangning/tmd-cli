@@ -242,18 +242,3 @@ export type IntentCanvasContextCount = {
   omitted: number;
 };
 
-export type IntentCanvasContextSendAttachment = {
-  kind: "intent_canvas_context";
-  attachmentId: string;
-  canvasId: string;
-  title: string;
-  mode: string;
-  compressionMode: string;
-  truncated: boolean;
-  payloadCharacters: number;
-  rawPayload: string;
-  semanticNodes: IntentCanvasContextCount;
-  semanticEdges: IntentCanvasContextCount;
-  evidence: IntentCanvasContextCount;
-  visualTextBlocks: IntentCanvasContextCount;
-};

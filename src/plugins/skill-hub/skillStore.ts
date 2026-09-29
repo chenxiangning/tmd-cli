@@ -8,7 +8,7 @@
 import { ipc } from "@kernel/ipc";
 import { createSubscribable } from "@kernel/subscribable";
 import { loadSkillRegistry } from "@plugins/cli-shared/skillRegistry";
-import { scanAllSkillSources, type HubSkill, type SkillEngineGroup } from "./skillScan";
+import { scanAllSkillSources, type SkillEngineGroup } from "./skillScan";
 
 export interface SkillScanState {
   groups: readonly SkillEngineGroup[];
@@ -62,7 +62,3 @@ export function useSkillScan(): SkillScanState {
   return store.useStore();
 }
 
-/** 全量已装 skill 扁平视图(商店「已装」徽标匹配用)。 */
-export function allInstalledSkills(): readonly HubSkill[] {
-  return store.snapshot.groups.flatMap((g) => g.skills);
-}
