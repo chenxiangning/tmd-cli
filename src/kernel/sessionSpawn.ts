@@ -31,10 +31,10 @@ export class SessionSpawnService {
   ) {}
 
   /** 新建 CLI 会话:由 profile 拼 SpawnSpec(spawn 前快照磁盘会话供身份探测)。 */
-  async create(profileId: string, cwd: string, workspaceId?: string): Promise<SessionMeta> {
+  async create(profileId: string, cwd: string, workspaceId?: string, opts?: { activate?: boolean; model?: string }): Promise<SessionMeta> {
     const profile = this.h.getCliProfile(profileId);
     if (!profile) throw new Error(`未知 CLI profile: ${profileId}`);
-    return this.guarded(profileId, () => this.spawnNew(profileId, profile, cwd, workspaceId));
+    return this.guarded(profileId, () => this.spawnNew(profileId, profile, cwd, workspaceId, opts));
   }
 
   /**
@@ -87,10 +87,11 @@ export class SessionSpawnService {
     profile: CliProfile,
     cwd: string,
     workspaceId?: string,
+    opts?: { activate?: boolean; model?: string },
   ): Promise<SessionMeta> {
     let spec: SpawnSpec = {
       command: profile.command,
-      args: profile.args,
+      args: opts?.model && profile.modelArg ? [...profile.args, profile.modelArg, opts.model] : profile.args,
       cwd,
       env: profile.env,
     };
@@ -114,7 +115,7 @@ export class SessionSpawnService {
     if (profile.listSessions) {
       this.h.identityTrack(spawned.id, profileId, cwd, before, spawnedAt);
     }
-    return this.adoptSpawned(spawned.id, profileId, undefined);
+    return this.adoptSpawned(spawned.id, profileId, undefined, opts?.activate);
   }
 
   /**

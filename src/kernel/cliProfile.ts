@@ -249,6 +249,8 @@ export interface CliProfile {
    * (就绪态 + 启动/恢复窗),不得按家族推测。
    */
   bracketedPaste?: boolean;
+  /** spawn 期模型旗标:声明后 createSession(opts.model) 把 `--model <id>` 追加到进程参数,模型启动即生效,不走 TUI 输入(启动窗时序不可靠)。仅在 CLI 实证支持时声明(omp/pi/kimi = --model);未声明 = 引擎不支持 spawn 期选模,opts.model 被忽略。 */
+  modelArg?: string;
   /**
    * spawn 前动态改写 SpawnSpec:插件在运行时注入连接参数/路径等动态值。
    * 例 dsh 适配器需要 DSH host:port(来自 localStorage),无法在 profile 声明期固定。
@@ -283,11 +285,8 @@ export interface CliProfile {
   /** 就地自更新通道(仅更新):探针命中非 npm 管理的原生副本(CLI 自管
    * 版本化目录,如 `qodercli update`)才声明;未装机器仍走声明通道安装。 */
   commandUpdate?: { program: string; args: string[] };
-  /**
-   * 引擎卡「版本」菜单开关:welcome 行动作簇出「版本」按钮,弹层列最新 10 个
-   * 稳定版 + 用户收藏,点选即钉版安装(command 通道 args 内包名替换为 pkg@version)。
-   * 仅当 commandInstall 与 npmPackage 同声明时生效;缺省 = 不出版本按钮。
-   */
+  /** 引擎卡「版本」菜单开关:welcome 行动作簇出「版本」按钮,弹层列最新 10 个稳定版 + 用户收藏,点选即钉版安装(command 通道 args 内包名替换为 pkg@version)。
+   * 仅当 commandInstall 与 npmPackage 同声明时生效;缺省 = 不出版本按钮。 */
   versionMenu?: boolean;
   /**
    * 前置依赖声明:安装/更新本 CLI 前必须就位的运行时(如 omp 依赖 bun)。

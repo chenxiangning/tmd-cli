@@ -230,6 +230,7 @@ pub fn run() {
             commands_fs::read_local_image_data_url,
             commands_fs::read_binary_file_base64,
             commands_fs::fs_read_bytes_base64,
+            commands_fs::fs_write_bytes_base64,
             skill_pkg::net_download,
             skill_pkg::skill_extract,
             skill_pkg::skill_symlink,

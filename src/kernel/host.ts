@@ -165,8 +165,9 @@ class Host implements PluginContext {
     profileId: string,
     cwd: string,
     workspaceId?: string,
+    opts?: { activate?: boolean; model?: string }, /* activate:false = 后台拉起;model 走 --model 进程参数(profile.modelArg 声明制) */
   ): Promise<SessionMeta> {
-    return this.sessionServices.spawn.create(profileId, cwd, workspaceId);
+    return this.sessionServices.spawn.create(profileId, cwd, workspaceId, opts);
   }
   /** 按任意 spec spawn 并完整装配(见 SessionSpawnService.raw);activate:false = 后台拉起
    *  (不抢中央区/tab,如 dsh 自动启动 host)。 */

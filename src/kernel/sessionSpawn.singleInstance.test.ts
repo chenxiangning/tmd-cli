@@ -16,13 +16,15 @@ import type { CliProfile } from "./cli";
 let spawnCount = 0;
 let gate: Promise<void> | null = null;
 const spawned: SessionMeta[] = [];
+const spawnSpecs: { args?: string[] }[] = [];
 /** 预置活会话表(去重命中用例用)。 */
 let listed: SessionMeta[] = [];
 
 vi.mock("./ipc", () => ({
   ipc: {
-    sessionSpawn: vi.fn(async (profileId: string, spec: { cwd: string }) => {
+    sessionSpawn: vi.fn(async (profileId: string, spec: { cwd: string; args?: string[] }) => {
       spawnCount += 1;
+      spawnSpecs.push(spec);
       if (gate) await gate;
       const id = `pty-${spawnCount}`;
       spawned.push({ id, profileId, cwd: spec.cwd } as SessionMeta);
@@ -85,6 +87,7 @@ beforeEach(() => {
   spawnCount = 0;
   gate = null;
   spawned.length = 0;
+  spawnSpecs.length = 0;
   listed = [];
 });
 
@@ -154,5 +157,31 @@ describe("singleInstance raw 与 create 共闸", () => {
     expect(meta.id).toBe("pty-live");
     expect(h.setActiveSession).toHaveBeenCalledWith("pty-live");
     expect(spawnCount).toBe(0);
+  });
+});
+
+describe("create opts.model spawn 期选模", () => {
+  const modelProfile = {
+    id: "test-model-cli",
+    name: "test",
+    command: "true",
+    args: ["--flag"],
+    triggers: [],
+    modelArg: "--model",
+  } as unknown as CliProfile;
+
+  it("modelArg 声明制:旗标与模型 id 追加在 profile.args 之后", async () => {
+    const { svc } = mkService(modelProfile);
+    await svc.create("test-model-cli", "/proj", undefined, { model: "prov/glm" });
+    expect(spawnSpecs[0]?.args).toEqual(["--flag", "--model", "prov/glm"]);
+  });
+
+  it("未声明 modelArg 或未传 model:参数原样不追加", async () => {
+    const a = mkService(plainProfile).svc;
+    await a.create("test-plain-cli", "/proj", undefined, { model: "prov/glm" });
+    const b = mkService(modelProfile).svc;
+    await b.create("test-model-cli", "/proj");
+    expect(spawnSpecs[0]?.args).toEqual([]);
+    expect(spawnSpecs[1]?.args).toEqual(["--flag"]);
   });
 });

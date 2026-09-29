@@ -177,6 +177,7 @@ export const cliOmpPlugin: Plugin = {
        * 实测偶发"composer 发了但幕布没提交,须再手按回车"。声明后走 bracketed
        * paste 通路,与真实终端粘贴行为一致(契约见 kernel/cliProfile.ts)。 */
       bracketedPaste: true,
+      modelArg: "--model",
     });
     /* CLI 学堂课程:82 命令目录 + 13 课,消费归 academy 插件(契约见 kernel/academy.ts)。 */
     ctx.registerAcademyCourse(OMP_ACADEMY_COURSE);

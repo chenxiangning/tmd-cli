@@ -155,6 +155,7 @@ export const cliKimiPlugin: Plugin = {
       listMcpServers: listKimiMcpServers,
       resumeArgs: (sessionId) => ["--session", sessionId],
       bracketedPaste: true,
+      modelArg: "--model",
       /* MCP 管理面:全局读写目标 = ~/.kimi-code/mcp.json(mcp-hub 经
          cli-shared/mcpWrite 读写;项目级 overlay 后置)。 */
       mcpGlobalConfig: { candidates: ["/.kimi-code/mcp.json"], format: "json" },
