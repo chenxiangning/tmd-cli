@@ -1,16 +1,18 @@
-/** prompt 构造测试(md 契约钉死:结构/半角/增量规则/会话清单)。 */
+/** prompt 构造测试(md 契约钉死:结构/半角/增量规则/摘录来源/会话清单)。 */
 import { describe, expect, it } from "vitest";
 import { buildGenPrompt } from "./promptGen";
 import type { DaySessionRow } from "./daySessions";
 
-const row = (iso: string, profileId = "omp", title = "mermaid 渲染"): DaySessionRow => ({
+const row = (iso: string, profileId = "omp", title = "mermaid 渲染", id?: string): DaySessionRow => ({
   profileId,
   title,
+  id,
   startedAt: new Date(iso).getTime(),
   modifiedAt: new Date(iso).getTime(),
   live: false,
   wsName: "demo",
 });
+const handoff = { path: "/dj/digest/2026-09-29.md", coveredIds: ["s1"] };
 
 describe("buildGenPrompt", () => {
   it("全新生成:路径/结构/半角纪律/会话清单在位", () => {
@@ -21,8 +23,46 @@ describe("buildGenPrompt", () => {
     expect(p).toContain("文件尚不存在:全新生成");
     expect(p).toContain("[omp] mermaid 渲染(demo)");
     expect(p).toContain("只写这一个文件");
-    expect(p).toContain("立即降级:仅凭上面清单成文");
+    expect(p).toContain("立即降级:仅凭清单成文");
     expect(p).toContain("只回复一行:已写入");
+  });
+
+  it("四点式契约:问题/过程/关键片段/踩坑与规避逐项在位", () => {
+    const p = buildGenPrompt(2026, 9, 29, [row("2026-09-29T09:30:00", "omp", "mermaid 渲染", "s1")], false, "/dj/a.md", undefined, handoff);
+    expect(p).toContain("解决了什么问题");
+    expect(p).toContain("解决过程");
+    expect(p).toContain("关键片段");
+    expect(p).toContain("踩坑与规避");
+    expect(p).toContain("下次避免:");
+    expect(p).toContain("> 引用摘录原文");
+    expect(p).toContain("禁止编造");
+  });
+
+  it("有摘录:摘录文件为事实来源 + 行级按收录实标 + 专属降级条款", () => {
+    const p = buildGenPrompt(
+      2026,
+      9,
+      29,
+      [row("2026-09-29T09:30:00", "omp", "mermaid 渲染", "s1"), row("2026-09-29T10:00:00", "grok", "无适配器行", "s2")],
+      false,
+      "/dj/a.md",
+      undefined,
+      handoff,
+    );
+    expect(p).toContain("先完整读入会话内容摘录");
+    expect(p).toContain("/dj/digest/2026-09-29.md");
+    expect(p).toContain("摘录文件读取失败才降级");
+    /* 行级标注按 coveredIds 实标:s1 收录 → (有摘录);s2(grok 无转录适配器)→ (无摘录)。 */
+    expect(p).toContain("[omp] mermaid 渲染(demo)(有摘录)");
+    expect(p).toContain("[grok] 无适配器行(demo)(无摘录)");
+  });
+
+  it("无摘录:清单降级 + 行无摘录标注", () => {
+    const p = buildGenPrompt(2026, 9, 29, [row("2026-09-29T09:30:00")], false, "/dj/a.md");
+    expect(p).not.toContain("先完整读入会话内容摘录");
+    expect(p).not.toContain("(有摘录)");
+    expect(p).not.toContain("(无摘录)");
+    expect(p).toContain("立即降级:仅凭清单成文");
   });
 
   it("增量:既有节不重写 + 半角并入留痕指令", () => {

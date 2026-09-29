@@ -14,12 +14,16 @@ import { dayKey } from "./journalFiles";
 export interface DaySessionRow {
   profileId: string;
   title: string;
+  /** 会话身份:磁盘 = 该家族会话 id,活 = app 会话 id;摘录收录标注按它对齐。 */
+  id?: string;
   /** 会话开始时刻(ms epoch;磁盘缺 createdAt 回落 modifiedAt)。 */
   startedAt: number;
   /** 最近活动时刻(ms epoch;时长展示用)。 */
   modifiedAt: number;
   live: boolean;
   wsName: string;
+  /** 磁盘形态(活会话去重命中时也挂载):转录适配器的取数凭证,摘录层消费。 */
+  disk?: CliDiskSession;
 }
 
 /** 纯聚合:行 → 日索引(Map key = YYYY-MM-DD,行内按开始时刻升序)。 */
@@ -50,11 +54,13 @@ export function diskRow(
 ): DaySessionRow {
   return {
     profileId,
+    id: disk.id,
     title: disk.title || disk.id.slice(0, 8),
     startedAt: disk.createdAt ?? disk.modifiedAt,
     modifiedAt: disk.modifiedAt,
     live: false,
     wsName: ws.name,
+    disk,
   };
 }
 
@@ -64,6 +70,7 @@ export function liveRow(meta: SessionMeta, wsName: string): DaySessionRow | null
   const started = meta.createdAt ?? Date.now();
   return {
     profileId: meta.engine || meta.profileId,
+    id: meta.id,
     title: meta.title || meta.id,
     startedAt: started,
     modifiedAt: started,
@@ -85,6 +92,8 @@ export async function collectSessionRows(workspaces?: Workspace[]): Promise<DayS
       .filter((k): k is string => k !== null),
   );
   const out: DaySessionRow[] = [];
+  /* 活会话已落盘(omp 首条消息即落盘):按绑定身份去重,活形态优先,disk 凭证挂到活行。 */
+  const liveDisk = new Map<string, CliDiskSession>();
   await Promise.all(
     target.flatMap((ws) =>
       profiles.map((p) =>
@@ -92,9 +101,10 @@ export async function collectSessionRows(workspaces?: Workspace[]): Promise<DayS
           .listSessions!(ws.root)
           .catch(() => [] as CliDiskSession[])
           .then((list) => {
-            /* 活会话已落盘(omp 首条消息即落盘):按绑定身份去重,活形态优先。 */
             for (const disk of list) {
-              if (!liveKeys.has(`${ws.id}:${p.id}:${disk.id}`)) out.push(diskRow(ws, p.id, disk));
+              const key = `${ws.id}:${p.id}:${disk.id}`;
+              if (liveKeys.has(key)) liveDisk.set(key, disk);
+              else out.push(diskRow(ws, p.id, disk));
             }
           }),
       ),
@@ -105,7 +115,15 @@ export async function collectSessionRows(workspaces?: Workspace[]): Promise<DayS
   for (const m of host.getSessions()) {
     if (m.workspaceId && !liveById.has(m.workspaceId)) continue;
     const row = liveRow(m, m.workspaceId ? (liveById.get(m.workspaceId) ?? "") : "");
-    if (row) out.push(row);
+    if (!row) continue;
+    const key = m.cliSessionId ? `${m.workspaceId ?? ""}:${m.engine || m.profileId}:${m.cliSessionId}` : null;
+    const disk = key ? liveDisk.get(key) : undefined;
+    if (disk) {
+      row.disk = disk;
+      /* 活行 modifiedAt 停在 spawn 时刻会误判「已归纳」:以磁盘最近写入为准取大。 */
+      row.modifiedAt = Math.max(row.modifiedAt, disk.modifiedAt);
+    }
+    out.push(row);
   }
   return out;
 }

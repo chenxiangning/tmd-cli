@@ -12,17 +12,19 @@ import { prepareSendPayload } from "@kernel/profileSend";
 import { getWorkspaces } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import type { PluginEventBus } from "@kernel/plugin";
-import { dailyPaths, dayKey, readText } from "./journalFiles";
+import { dailyPaths, dayKey, ensureParentDir, readText, writeText } from "./journalFiles";
 import { addBead, dayMetaOf, getJournalState, reloadDay, setDayResult } from "./journalStore";
 import { collectSessionRows, type DaySessionRow } from "./daySessions";
-import { buildGenPrompt } from "./promptGen";
+import { buildDayDigest } from "./sessionDigest";
+import { buildGenPrompt, GEN_TASK_MARK, type DigestHandoff } from "./promptGen";
 import { finishTask, noteTask, setTaskRunner, startTaskRun, type GenTask } from "./taskQueue";
 import { ARTICLE_TAB_KIND } from "./journalTabs";
 import { hmNow } from "./timeUtil";
 
-/** 结算超时:prompt 送达后无 settle 判失败的兜底。降级条款下正常成文是短链,
- *  探索型长跑不再是设计路径;失败任务尽早离开运行区,不堵串行队列。 */
-const SETTLE_TIMEOUT_MS = 10 * 60_000;
+/** 结算超时:prompt 送达后无 settle 判失败的兜底。摘录路径成文仍是短链(读一份
+ *  摘录 + 写一篇 md),但四点式契约的文章体量与摘录读入都比旧清单路径长,放宽到 15 分;
+ *  失败任务尽早离开运行区,不堵串行队列。 */
+const SETTLE_TIMEOUT_MS = 15 * 60_000;
 
 /** 定时等待(spawn 后等 TUI 就绪窗)。 */
 function sleep(ms: number): Promise<void> {
@@ -135,11 +137,30 @@ async function runGeneration(task: GenTask): Promise<void> {
   const existing = await readText(paths.article(y, m, d));
   const rows = (await collectSessionRows()).filter((r: DaySessionRow) => {
     const ts = new Date(r.startedAt);
-    return dayKey(ts.getFullYear(), ts.getMonth() + 1, ts.getDate()) === task.dayKey;
+    if (dayKey(ts.getFullYear(), ts.getMonth() + 1, ts.getDate()) !== task.dayKey) return false;
+    /* 自指防混入:剔除插件自己 spawn 的历次生成会话(标题即 prompt 头;
+       摘录层另有首条用户消息同标记的兜底,见 sessionDigest)。 */
+    return !r.title.includes(GEN_TASK_MARK) && !(r.disk?.title ?? "").includes(GEN_TASK_MARK);
   });
+  rows.sort((a, b) => a.startedAt - b.startedAt);
   /* 归纳水位 = 清单抓取时刻(非落盘时刻):生成期间继续活动的会话保持待归纳。 */
   const rowsAt = Date.now();
-  const prompt = buildGenPrompt(y, m, d, rows, !!existing, paths.article(y, m, d), dayMetaOf(task.dayKey).summarizedAt);
+  /* 摘录先行:tmd 侧经声明的转录适配器提取当日会话内容落盘,生成会话凭它成文
+     (2026-09-30 重构:旧路径只给标题清单,agent 探测 7 家原始格式普遍放弃 → 文章单薄)。
+     摘录构建/落盘失败不拦生成:无摘录路径走 prompt 内置的清单降级。 */
+  let digest: DigestHandoff | undefined;
+  try {
+    const built = await buildDayDigest(rows);
+    if (built.md) {
+      const p = paths.digest(y, m, d);
+      await ensureParentDir(p);
+      await writeText(p, built.md);
+      digest = { path: p, coveredIds: built.coveredIds };
+    }
+  } catch {
+    digest = undefined;
+  }
+  const prompt = buildGenPrompt(y, m, d, rows, !!existing, paths.article(y, m, d), dayMetaOf(task.dayKey).summarizedAt, digest);
   /* 后台拉起(不抢中央区;用户经任务面板/文章 tab「打开会话」聚焦干涉)。
      模型走 spawn 参数(--model,profile.modelArg 声明制):进程起点即生效,
      不走 TUI /model 输入 —— 启动窗时序会吞行(真机实证两次)。 */

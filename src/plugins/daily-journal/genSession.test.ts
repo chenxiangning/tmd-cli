@@ -6,7 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { host } from "@kernel/host";
 import { enqueueTask, getGenTasks } from "./taskQueue";
 import { bootGenSession } from "./genSession";
-import { readText } from "./journalFiles";
+import { ensureParentDir, readText, writeText } from "./journalFiles";
+import { collectSessionRows, type DaySessionRow } from "./daySessions";
+import { buildGenPrompt } from "./promptGen";
 import { reloadDay, setDayResult } from "./journalStore";
 
 vi.mock("@kernel/host", () => ({
@@ -30,9 +32,14 @@ vi.mock("@kernel/workspace", () => ({
 }));
 vi.mock("@kernel/workspaceOrigins", () => ({ findWorkspaceOrigin: vi.fn(() => null) }));
 vi.mock("./journalFiles", () => ({
-  dailyPaths: vi.fn(async () => ({ article: (y: number, m: number, d: number) => `/fake/${y}-${m}-${d}.md` })),
+  dailyPaths: vi.fn(async () => ({
+    article: (y: number, m: number, d: number) => `/fake/${y}-${m}-${d}.md`,
+    digest: (y: number, m: number, d: number) => `/fake/digest-${y}-${m}-${d}.md`,
+  })),
   dayKey: (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
   readText: vi.fn(async () => ""),
+  ensureParentDir: vi.fn(async () => undefined),
+  writeText: vi.fn(async () => undefined),
 }));
 vi.mock("./journalStore", () => ({
   addBead: vi.fn(),
@@ -42,7 +49,10 @@ vi.mock("./journalStore", () => ({
   setDayResult: vi.fn(),
 }));
 vi.mock("./daySessions", () => ({ collectSessionRows: vi.fn(async () => []) }));
-vi.mock("./promptGen", () => ({ buildGenPrompt: vi.fn(() => "P") }));
+vi.mock("./promptGen", async (importOriginal) => ({
+  ...(await importOriginal()),
+  buildGenPrompt: vi.fn(() => "P"),
+}));
 vi.mock("./journalTabs", () => ({ ARTICLE_TAB_KIND: "dj-article" }));
 
 interface Bus {
@@ -90,6 +100,61 @@ afterEach(() => {
 });
 
 describe("genSession 结算", () => {
+
+  it("摘录在位:转录块 → digest 落盘 + prompt 携带摘录路径", async () => {
+    vi.mocked(host.getCliProfiles).mockReturnValue([
+      {
+        id: "omp",
+        readSessionTranscript: vi.fn(async () => ({
+          blocks: [
+            { id: "b1", role: "user", text: "工作区选择器点不开,报 TypeError" },
+            { id: "b2", role: "reasoning", text: "内部思考不入摘录" },
+            { id: "b3", role: "tool", text: "", tool: { title: "pnpm test", status: "error", detail: "3 failed" } },
+            { id: "b4", role: "assistant", text: "定位到 isExpanded 未初始化,已修复" },
+          ],
+        })),
+      },
+    ] as never);
+    const row: DaySessionRow = {
+      profileId: "omp",
+      id: "s1",
+      title: "修复工作区选择器",
+      startedAt: new Date("2026-09-12T10:00:00").getTime(),
+      modifiedAt: new Date("2026-09-12T10:30:00").getTime(),
+      live: false,
+      wsName: "demo",
+      disk: { id: "s1", path: "/fake/s1.jsonl", modifiedAt: 0 },
+    };
+    vi.mocked(collectSessionRows).mockResolvedValue([row]);
+    const key = "2026-09-12";
+    await startRun(key);
+    expect(writeText).toHaveBeenCalledWith(
+      "/fake/digest-2026-9-12.md",
+      expect.stringContaining("### 10:00 [omp] 修复工作区选择器(demo)"),
+    );
+    const digest = vi.mocked(writeText).mock.calls.find((c) => c[0] === "/fake/digest-2026-9-12.md")?.[1] as string;
+    expect(digest).toContain("用户:工作区选择器点不开");
+    expect(digest).toContain("报错:pnpm test — 3 failed");
+    expect(digest).toContain("助手:定位到 isExpanded 未初始化");
+    expect(digest).not.toContain("内部思考");
+    expect(ensureParentDir).toHaveBeenCalledWith("/fake/digest-2026-9-12.md");
+    expect(buildGenPrompt).toHaveBeenCalledWith(
+      2026,
+      9,
+      12,
+      expect.anything(),
+      false,
+      "/fake/2026-9-12.md",
+      undefined,
+      { path: "/fake/digest-2026-9-12.md", coveredIds: ["s1"] },
+    );
+    /* 收口任务(终态释放单并发队列,不饿死后续用例)。 */
+    readTextMock.mockResolvedValue("# 文章");
+    reloadDayMock.mockResolvedValue({ title: "t", lede: "", secs: [], open: [] });
+    await vi.advanceTimersByTimeAsync(15_000 + 8_000);
+    expect(taskOf(key)?.st).toBe("done");
+    vi.mocked(collectSessionRows).mockResolvedValue([]);
+  });
   it("轮询捕获落盘 → 8s 容忍后成功结算并停轮", async () => {
     const key = "2026-09-16";
     await startRun(key);
@@ -109,12 +174,12 @@ describe("genSession 结算", () => {
     expect( readTextMock.mock.calls.length).toBe(calls);
   });
 
-  it("无文章到超时 → 失败落账(文案与 10min 实值一致)", async () => {
+  it("无文章到超时 → 失败落账(文案与 15min 实值一致)", async () => {
     const key = "2026-09-15";
     await startRun(key);
-    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    await vi.advanceTimersByTimeAsync(15 * 60_000);
     expect(taskOf(key)?.st).toBe("err");
-    expect(taskOf(key)?.text).toContain("10 分钟");
+    expect(taskOf(key)?.text).toContain("15 分钟");
     expect(setDayResultMock).toHaveBeenCalledWith(key, expect.objectContaining({ lastError: expect.stringContaining("超时") }));
   });
 
@@ -138,4 +203,5 @@ describe("genSession 结算", () => {
     await vi.advanceTimersByTimeAsync(9_000);
     expect(writeSessionMock).toHaveBeenCalledWith("pty-1", "\r", true);
   });
+
 });
