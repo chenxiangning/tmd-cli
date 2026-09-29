@@ -20,9 +20,9 @@ fn close_stdin_gives_immediate_eof() {
     // close_stdin 无数据 = 管道建立后立即关闭送 EOF(等价旧 null 语义),
     // cat 自然退出(code 0)而非挂到超时。
     // 对齐一次性 CLI(omp -p 等)读管道 stdin 等 EOF 的真实行为。
-    // 上限 30s 只防回归挂死:高载 CI runner 上 exec+退出可能超 5s,
-    // 收紧上限会把环境慢误判成超时强杀(code=None)——2026-09-21 实证。
-    let mut s = spec("cat", &[], 30_000);
+    // 上限 120s 只防回归挂死:高载 CI runner 上 exec+退出实测可拖过 5s 与
+    // 30s(2026-09-21/27 实证),收紧上限会把环境慢误判成超时强杀(code=None)。
+    let mut s = spec("cat", &[], 120_000);
     s.close_stdin = true;
     let r = run(&s).unwrap();
     assert_eq!(r.code, Some(0));
@@ -31,17 +31,20 @@ fn close_stdin_gives_immediate_eof() {
 
 #[test]
 fn captures_stdout_and_exit_code() {
-    // 30s 上限同 close_stdin 先例:高载 CI runner 上 exec+echo 可能超 5s,环境慢不是超时。
-    let r = run(&spec("echo", &["tmd-proc-run-ok"], 30_000)).unwrap();
-    assert_eq!(r.code, Some(0));
+    // 120s 天花板:高载 CI runner 实测 exec→EOF 可拖过 5s(2026-09-27)与 30s
+    // (2026-09-27 main 合并点,code=None 即 deadline 强杀),环境慢不是超时;
+    // 先断 timed_out,让红日志直说「超时」而非误导性的退出码。
+    let r = run(&spec("echo", &["tmd-proc-run-ok"], 120_000)).unwrap();
     assert!(!r.timed_out);
+    assert_eq!(r.code, Some(0));
     assert!(r.stdout.contains("tmd-proc-run-ok"));
 }
 
 #[cfg(unix)]
 #[test]
 fn stdin_is_fed_and_read() {
-    let mut s = spec("cat", &[], 30_000); // 同 close_stdin 先例,防高载 runner 环境慢误判
+    let mut s = spec("cat", &[], 30_000); // stdin 保持打开设计:cat 等 EOF 到 deadline 收割,
+                                          // 此上限是收割时延参数(吃满属预期),非环境容差——勿与 captures 的 120s 混淆
     s.stdin = Some("tmd-stdin-payload\n".into());
     let r = run(&s).unwrap();
     assert!(r.stdout.contains("tmd-stdin-payload"));
