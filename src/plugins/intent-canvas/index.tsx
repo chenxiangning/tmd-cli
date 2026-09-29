@@ -14,6 +14,7 @@
  * 存储:sidecar ~/.tmd-cli/intent-canvas/<dirKey(root)>/(marks 先例,用户项目零污染)。
  */
 import { Compass } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { openTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
@@ -65,7 +66,11 @@ export const intentCanvasPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx: PluginContext) {
-    ctx.registerTabContent({ kind: "intent-canvas", component: IntentCanvasTab });
+    ctx.registerTabContent({
+      kind: "intent-canvas",
+      component: IntentCanvasTab,
+      icon: (p) => <DecorIcon id="intent-canvas" Fallback={Compass} {...p} />,
+    });
     ctx.registerSidebarAction({
       id: "intent-canvas",
       label: t("意图画布"),

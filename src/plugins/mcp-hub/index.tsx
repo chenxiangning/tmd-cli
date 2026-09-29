@@ -17,6 +17,7 @@ import type { Plugin, PluginContext } from "@kernel/plugin";
 import { McpHubPanel } from "./McpHubPanel";
 import { McpHubTab } from "./McpHubTab";
 import { MCP_HUB_TAB_ID, MCP_HUB_TAB_KIND, openMcpHubTab } from "./hubTab";
+import { DecorIcon } from "@kernel/iconSet";
 import { refreshHub } from "./hubStore";
 import "./locales"; /* 域词典随插件自带:import 即注册(en/ja,勿删) */
 import "./mcp-hub.css";
@@ -43,6 +44,10 @@ export const mcpHubPlugin: Plugin = {
       centerTab: { id: MCP_HUB_TAB_ID, open: openMcpHubTab },
     });
     /* 中央管理 tab:kind "mcphub" 路由(kernel/tabs 注册表)。 */
-    ctx.registerTabContent({ kind: MCP_HUB_TAB_KIND, component: McpHubTab });
+    ctx.registerTabContent({
+      kind: MCP_HUB_TAB_KIND,
+      component: McpHubTab,
+      icon: (p) => <DecorIcon id="panel-mcp-hub" Fallback={PlugsConnected} {...p} />,
+    });
   },
 };

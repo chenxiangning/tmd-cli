@@ -51,3 +51,7 @@ iconDecor 提供 34 键独立取色 + 呼吸闪烁,但图标字形本体由各�
 - 单测 11 例全绿:`settingsIconSet.test.ts`(默认 classic/合法透传/非法回落/磁盘读取无字段回落);`iconSet.test.tsx`(classic Fallback 原样 + newchat duotone、solid fill、metaphor 换字形 + bold、全表覆盖 fold 例外、lucide/lucide-alt 双表逐键不同 + 未知 id 回落、lucide 24 网格渲染)。
 - 门禁:typecheck / vitest(自辖文件全绿;askWatch 系失败与 askWatchCore 301 行属并行会话在途)/ arch-boundary / file-size(自辖文件)/ build / react-doctor 100。
 - 1421 桩目检(Tauri IPC 桩 + DOM 驱动):三段 Phosphor 组合切换 rail/market/newchat 字形逐档变化、组合1 还原基线;五段 segmented 渲染;组合4 = Lucide stroke 渲染(viewBox 24);组合4→5 切换 mid 采样 ≠ 终态 = morph 弹簧过渡真实发生;截图留证。
+
+## 修订(2026-09-29 二轮:中央 tab 图标)
+
+大仙真机反馈:skill-hub/mcp-hub 等点开的中央 tab 显示默认文件徽标、不随组合切换。根因:`EditorTab` 无 icon 概念,tab 条一律按文件名解析类型徽标,非文件 kind 全部回落默认形。修:`registerTabContent` 增可选 `icon`(kernel/tabs 注册表),tab 条优先渲染注册图标、无注册回落文件徽标(file/ssh-file 的正确语义);装饰键位插件(skill-hub→panel-skill-hub / mcp-hub→panel-mcp-hub / 意图画布→intent-canvas / memory 控制台→panel-memory / WSL→wsl-panel)经 DecorIcon 包装随组合切换;tab 专属语义 kind(git commit/diff/file-history、批审阅单、学堂、会话查看器)用 Phosphor 语义图标(GitCommit/GitDiff/ClockCounterClockwise/ClipboardText/GraduationCap/Scroll),不进装饰白名单(避免 34 键膨胀,组合不跟随)。非文件 tab 标签改显 title(此前露 path 兜底串,如 "skill-hub")。契约测试钉「非文件 kind 必带 icon」。桩目检:skill-hub tab 图标三组合跟随(classic PuzzlePiece / metaphor GraduationCap / lucide 24 网格)且组合1 还原;tab 标签 "Skills";rail 10 键 svg 全覆盖。

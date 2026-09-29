@@ -7,7 +7,7 @@
  * 设计:docs/superpowers/specs/2026-09-28-session-viewer-design.md
  */
 import type { Plugin, PluginContext } from "@kernel/plugin";
-import { EyeIcon } from "@phosphor-icons/react";
+import { EyeIcon, Scroll } from "@phosphor-icons/react";
 import { SESSION_VIEW_TAB_KIND } from "@kernel/sessionViewTabs";
 import { SessionViewerTab } from "./viewerTab";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
@@ -23,6 +23,6 @@ export const sessionViewerPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx: PluginContext) {
-    ctx.registerTabContent({ kind: SESSION_VIEW_TAB_KIND, component: SessionViewerTab });
+    ctx.registerTabContent({ kind: SESSION_VIEW_TAB_KIND, component: SessionViewerTab, icon: Scroll });
   },
 };

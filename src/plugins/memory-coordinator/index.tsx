@@ -10,6 +10,7 @@
  */
 
 import { Brain } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 import type { Plugin } from "@kernel/plugin";
 import { MemoryPanel } from "./panel/MemoryPanel";
@@ -42,6 +43,7 @@ export const memoryCoordinatorPlugin: Plugin = {
     ctx.registerTabContent({
       kind: "memory-console",
       component: MemoryConsole,
+      icon: (p) => <DecorIcon id="panel-memory" Fallback={Brain} {...p} />,
     });
     ctx.contribute("composer.statusBar", {
       order: 20,

@@ -11,7 +11,7 @@
  *   sessionExited → 兜底封口,最后一轮落账
  */
 
-import { SealCheck } from "@phosphor-icons/react";
+import { ClipboardText, SealCheck } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import {
   KernelTopics,
@@ -46,7 +46,7 @@ export const checkpointsPlugin: Plugin = {
       order: 10,
     });
     /* 中央批审阅单 tab:kind="ckpt-batch" 路由(kernel/tabs 注册表)。 */
-    ctx.registerTabContent({ kind: BATCH_TAB_KIND, component: BatchSheetTabContent });
+    ctx.registerTabContent({ kind: BATCH_TAB_KIND, component: BatchSheetTabContent, icon: ClipboardText });
 
     /** 会话身份解析:统一走 identity.ts 仲裁(cli 身份被多活会话争持时,
      *  先创建者保留、后到者回退 tmd id —— 防绑定竞态把两个会话并进同一条账)。 */

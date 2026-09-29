@@ -9,6 +9,7 @@
 ### 新增
 
 - 图标装饰扩编 17→34 键:工作区行三钮(查看文件/会话管理/刷新会话)、顶栏四钮(插件市场/回到首页/折叠左右栏)、composer 工具条三钮(展开/收起对话框/命令与技能)与输入轨七钮(智能体/提示词/AI 作画/平铺广播/提示词增强/技能/MCP)纳入独立取色与呼吸闪烁;新键统一 `data-action-id` 图标钩子(缺省 currentColor 整图标着色),设置卡副标题同步两种着色语义
+- 中央 tab 图标:registerTabContent 增可选 icon(顶栏 tab 徽标),skill-hub/mcp-hub/意图画布/memory 控制台/WSL tab 图标经 DecorIcon 跟随图标组合,git 三 diff tab/批审阅单/学堂/会话查看器补语义图标(GitCommit/GitDiff/ClockCounterClockwise/ClipboardText/GraduationCap/Scroll),非文件 tab 标题改显 title(此前露 path 兜底串);契约测试钉「非文件 kind 必带 icon」防回落默认文件徽标
 - 图标组合切换:图标装饰卡新增五段切换——组合1 现状(圆胖 bold)/ 组合2 实心(同字形 fill)/ 组合3 换隐喻(逐键换 Phosphor 字形)/ 组合4 Lucide 细线 / 组合5 Lucide 细线变体;组合4↔5 切换经 morphicons 弹簧变形全表图标同时过渡演出(Phosphor↔Lucide 跨族切换跳变);34 键白名单渲染位全部接管(rail/设置菜单/顶栏/工作区行/composer 工具条与输入轨/设置卡预览),fold 双键为方向性 affordance 不换字形;每键自定义色与呼吸闪烁对五套组合全部正交生效;新增依赖 morphicons(MIT)+ lucide 数据包(ISC)
 - 会话检索浮层键盘导航:↑↓ 移动选中(选中行高亮并滚入视野)、Enter 打开选中项(此前只能开首条)、输入即回顶;页脚文案改诚实「↑↓ 选择 · Enter 打开 · Esc 关闭」
 - 审批收件箱拒绝引导:「直达」升级为直达并聚焦幕布(切激活 + xterm 聚焦,幕布未挂载静默);等待期面板常驻一行引导——允许/拒绝按该 CLI 自己的键位,收件箱只代发文本(不代发键,M2 评审 A2 边界变为用户可见)

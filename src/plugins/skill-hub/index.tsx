@@ -14,6 +14,7 @@ import type { Plugin } from "@kernel/plugin";
 import { SkillHubPanel } from "./SkillHubPanel";
 import { SkillHubTab } from "./SkillHubTab";
 import { openSkillHubTab, SKILL_HUB_TAB_KIND } from "./hubTab";
+import { DecorIcon } from "@kernel/iconSet";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 
 export const skillHubPlugin: Plugin = {
@@ -39,6 +40,7 @@ export const skillHubPlugin: Plugin = {
     ctx.registerTabContent({
       kind: SKILL_HUB_TAB_KIND,
       component: SkillHubTab,
+      icon: (p) => <DecorIcon id="panel-skill-hub" Fallback={PuzzlePiece} {...p} />,
     });
   },
 };
