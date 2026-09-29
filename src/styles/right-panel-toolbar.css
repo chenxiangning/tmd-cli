@@ -90,7 +90,6 @@
 :root {
   --tmd-rail-w: 1.875rem; /* 30px = 26px 钮 + 两侧各 2px,用户口径:再压缩 */
 }
-
 .panel-rail {
   width: var(--tmd-rail-w);
   flex: 0 0 auto;
@@ -101,14 +100,28 @@
   padding: 0 0 8px; /* 顶部贴零:8→0,用户口径继续上移 */
   border-left: 1px solid var(--tmd-border);
 }
-
-/* rail 分组分隔线(2026-09-29 归组):.panel-rail-sep 原样复用;
-   底簇前的弹性空隙把 railBottom 声明项与 ⋯ 一起推到 rail 底部。 */
-.panel-rail-spacer {
-  flex: 1 1 auto;
+/* 底簇前弹性空隙(2026-09-29 归组):railBottom 项与 ⋯ 推底;塌零时签名仍可见(流内项) */
+.panel-rail-spacer { flex: 1 1 auto; min-height: 0; }
+/* 签名(纯装饰,aria-hidden):银色手写 tmd-cli 字母立正竖排,rail 流内项恒贴底簇上方;mac 走 Snell Roundhand */
+.panel-rail-mark {
+  flex: 0 0 auto;
+  margin-bottom: 8px; /* 与底簇留一点呼吸(rail gap 2px 之外) */
+  width: 26px;
+  text-align: center;
+  writing-mode: vertical-rl;
+  text-orientation: upright; /* 字母逐个立正,不卧倒 */
+  line-height: 26px; letter-spacing: 7px;
+  font-family: "Snell Roundhand", "Bradley Hand", cursive;
+  font-size: 14px; font-style: normal; color: #c6cbd2;
+  text-shadow: 0 0 8px rgba(198, 203, 210, 0.55), 0 0 2px rgba(198, 203, 210, 0.85);
+  pointer-events: none; user-select: none;
 }
-
-/* 这里只补 ⋯ 溢出菜单里的组间分隔线(与 rail 同口径)。 */
+/* 浅色主题:银灰在浅底不可见,换暗金 */
+:root[data-theme="light"] .panel-rail-mark {
+  color: #8a6d2f;
+  text-shadow: 0 0 8px rgba(138, 109, 47, 0.4), 0 0 2px rgba(138, 109, 47, 0.7);
+}
+/* ⋯ 溢出菜单里的组间分隔线(与 rail 同口径)。 */
 .panel-overflow-sep {
   border: 0;
   height: 1px;

@@ -121,14 +121,13 @@ export function PanelRail({
   return (
     <div className="panel-rail" role="toolbar" aria-orientation="vertical" aria-label={t("右侧面板")}>
       {topEntries.map((e, i) => renderEntry(e, topEntries[i - 1]))}
-      {/* 弹性空隙:顶簇贴顶,railBottom 底簇与 ⋯ 管理钮贴底 */}
       <div className="panel-rail-spacer" aria-hidden />
+      <i className="panel-rail-mark">tmd-cli</i> {/* 签名:rail 流内项,钉在底簇正上方(不依赖 spacer 定位) */}
       {bottomEntries.map((e, i) => renderEntry(e, bottomEntries[i - 1]))}
       <button type="button" className="panel-rail-tab" onClick={toggleOverflow}
         aria-label={t("更多面板")} aria-expanded={overflowPos ? true : undefined} title={t("更多面板")}>
         <DotsThree aria-hidden />
       </button>
-
       {overflowPos ? (
         <PanelOverflowMenu
           mode={mode}
