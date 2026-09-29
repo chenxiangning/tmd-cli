@@ -30,11 +30,13 @@
 - composer 触发器候选支持子串任意位置匹配,前缀命中排前
 - skill-hub 已装与导入视图接回详情抽屉,并新增编辑深链中央文件 tab
 - SSH 主机编辑弹窗密码与私钥口令框加眼睛明文切换
+- 会话查看器转录 md 正文补 mermaid 栅栏渲染与 katex 数学渲染(行内/块级定界与 math 栅栏,复用 files 预览管线组件)
 
 ### 变更
 
 - 依赖升级批:npm 18 项、cargo 8 项 minor/patch、dirs 6→7、setup-java 4→6、vitest 4→5(大版本全套用例零改动通过);russh 0.63 试过不合入——MSRV 1.85 超本仓 rust-version 1.80 且 Handler::check_server_key 签名破坏性变更,推 0.2.6 配真连验证
 - 内部治理:checkpoints 精准手术擦除拆出 surgical 模块、文件历史与接力发送两处跨插件直连迁 kernel、promptSent 轮次闸归 kernel(零行为变化)
+- 安装包体瘦身:katex 单版本、excalidraw 语言裁剪、图标量化、手机壳 mobile-only dist、APK 开 R8、macOS 改分架构 dmg——universal 39.3MB 对半砍,单架构下载 26.6→约 14MB、更新流量减半;universal 客户端按 CPU 架构命中 latest.json 对应键
 
 ### 修复
 
@@ -46,11 +48,18 @@
 - 手机选图链路收尾:选图 provider 被 ARC 提前回收致回调永挂(持活修复)、失败不再静默当取消并写诊断日志、app 设备允许域放行 fs_write_temp 打通截图注入最后一环
 - ask 镜像栅格对齐真实 PTY 与前后台全屏同口径采样,根治失焦漏检与改窗误摘
 - 回到首页 toggle 不再记忆终端会话,再点不凭空开出终端
+- dev 冷启动首开文件白屏/黑屏且文件树入口消失两轮根治:CodeMirror 全语言与 @uiw 钉入启动期预构建并归一 lezer 依赖图(消长会话跨 lock 变化的半截缓存撕裂);全部文件视图 lazy import 加 504 竞态指数退避重试护栏并空闲预取编辑器 chunk——React lazy 会把 dev 依赖优化期 504 永久缓存成白屏,重试链等优化完成即自愈,生产零影响
+- skill-hub:ClawHub slug 收口白名单,挡注册表污染的安装目录逃逸与 URL 注入
+- Ask 等待徽章双通道两修:屏幕态摘除补缺席防抖(消 4Hz 采样撞清屏帧的闪摘再复燃)、双通道并置摘除去短路残留(屏幕态与字节标记并置不再漏摘再挂窗)
+- mcp-hub:首存即建父目录、商店拉取竞态序号守卫、quota 流式应答读体超时误报修复(SSE 探活不再 15s 假红;空闲窗与 2MB 上限仅对 text/event-stream 生效,普通 JSON 端点保持整读)
+- 意图画布:作画 inbox 半截文件三轮重试防线与索引 496KB 体积闸超限剥缩略图
+- 会话查看器:dsh 解压 32MB 字节预算截尾、同文撞号 key 去重与分批渲染 memo 稳定链
 
 ### 测试
 
 - 双端点竞速矩阵单测补位(M2 7.4 代码半边):DialPolicy 状态机(单败不切/连二败轮换/退避曲线封顶/arm 清态/单端点不轮换/候选收缩取模)+ 桥层 FakeWS 接线(LAN→relay 换端点短等 250ms 拨通)
 - proc_run 测试超时天花板 120s 并先断 timed_out(消 CI runner 进程饥荒假红),stdin 用例注释澄清上限语义勿混淆
+- 文件视图 lazy 504 竞态护栏单测:假钟指数退避(两拒后成)、成功 memo 单飞、终败 rejection 不缓存重开新链
 
 ## [0.2.4] - 2026-09-26
 
