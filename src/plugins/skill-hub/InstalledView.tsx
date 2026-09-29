@@ -5,7 +5,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { Trash } from "@phosphor-icons/react";
+import { Eye, Trash } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import {
@@ -15,6 +15,8 @@ import {
 } from "@plugins/cli-shared/skillRegistry";
 import { refreshSkillScan } from "./skillStore";
 import { SHARED_SKILLS_REL } from "@plugins/cli-shared/skillSources";
+import { SkillPreviewDrawer } from "./SkillPreviewDrawer";
+import { resolveSkillMetaFile, type HubSkill } from "./skillScan";
 
 function matches(rec: InstalledSkillRecord, q: string): boolean {
   if (!q) return true;
@@ -40,17 +42,44 @@ async function deleteInstalled(rec: InstalledSkillRecord): Promise<string | null
   return null;
 }
 
+/** 详情定位:targets 依序找第一个有元数据文件的落位(多落位是同一份拷贝,
+ * 无一命中回落首个落位目录,抽屉自会显示「无元数据文件」提示)。 */
+async function recordPreviewSkill(rec: InstalledSkillRecord): Promise<HubSkill> {
+  const home = await ipc.configHomeDir().catch(() => "");
+  const base = {
+    name: rec.name,
+    description: rec.description ?? "",
+    flat: false,
+    badge: "user" as const,
+    engine: "shared",
+  };
+  /* eslint-disable react-doctor/async-await-in-loop -- 逐落位探测元数据,个位数次,
+     catch 兜底在 resolveSkillMetaFile 内;并行探测无收益。 */
+  for (const rel of rec.targets) {
+    const skill: HubSkill = { ...base, dir: `${home}/${rel}/${rec.name}`, metaFile: null };
+    const meta = await resolveSkillMetaFile(skill);
+    if (meta) return { ...skill, metaFile: meta };
+  }
+  /* eslint-enable react-doctor/async-await-in-loop */
+  return { ...base, dir: `${home}/${rec.targets[0] ?? ""}/${rec.name}`, metaFile: null };
+}
+
 export function InstalledView({ onGotoImport }: { onGotoImport?: () => void }) {
   const { records, loaded } = useSkillRegistry();
   const [query, setQuery] = useState("");
   const [pendingDelete, setPendingDelete] = useState<InstalledSkillRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<HubSkill | null>(null);
 
   const visible = useMemo(
     () => records.filter((r) => matches(r, query)),
     [records, query],
   );
+
+  const openPreview = (rec: InstalledSkillRecord): void => {
+    void recordPreviewSkill(rec).then(setPreview);
+  };
 
   const confirmDelete = async (): Promise<void> => {
     if (!pendingDelete) return;
@@ -131,6 +160,15 @@ export function InstalledView({ onGotoImport }: { onGotoImport?: () => void }) {
                   <div className="flex items-center justify-end gap-1">
                     <button
                       type="button"
+                      onClick={() => openPreview(rec)}
+                      className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
+                      data-skill-detail={rec.name}
+                    >
+                      <Eye size={12} aria-hidden="true" />
+                      {t("详情")}
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setPendingDelete(rec)}
                       className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-err)"
                       data-skill-delete={rec.name}
@@ -155,6 +193,7 @@ export function InstalledView({ onGotoImport }: { onGotoImport?: () => void }) {
           onConfirm={() => void confirmDelete()}
         />
       )}
+      {preview && <SkillPreviewDrawer skill={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }

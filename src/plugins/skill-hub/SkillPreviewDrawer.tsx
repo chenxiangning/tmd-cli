@@ -1,13 +1,14 @@
 /**
  * 预览抽屉 ── skill 元数据文件懒读展示。整文件头 200KB 上限,超出截断标记;
- * 无元数据(裸目录)显示目录名提示。公约位/共享卡删除影响面提示在
- * InstalledView 确认弹窗,这里只读。
+ * 无元数据(裸目录)显示目录名提示。编辑 = 深链中央文件 tab(全功能编辑器,
+ * ⌘S 保存);公约位/共享卡删除影响面提示在 InstalledView 确认弹窗,这里只读。
  */
 
 import { useEffect, useState } from "react";
-import { X } from "@phosphor-icons/react";
+import { PencilSimple, X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
+import { openFileInTab } from "@kernel/fileTabs";
 import { resolveSkillMetaFile, type HubSkill } from "./skillScan";
 
 const PREVIEW_CAP_BYTES = 200 * 1024;
@@ -22,19 +23,23 @@ export function SkillPreviewDrawer({
   const [text, setText] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [missing, setMissing] = useState(false);
+  const [metaFile, setMetaFile] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     setText(null);
     setTruncated(false);
     setMissing(false);
+    setMetaFile(null);
     void (async () => {
-      const metaFile = await resolveSkillMetaFile(skill);
-      if (!metaFile) {
-        if (alive) setMissing(true);
+      const file = await resolveSkillMetaFile(skill);
+      if (!alive) return;
+      setMetaFile(file);
+      if (!file) {
+        setMissing(true);
         return;
       }
-      const head = await ipc.fsReadHead(metaFile, PREVIEW_CAP_BYTES).catch(() => "");
+      const head = await ipc.fsReadHead(file, PREVIEW_CAP_BYTES).catch(() => "");
       if (!alive) return;
       if (!head) {
         setMissing(true);
@@ -56,6 +61,18 @@ export function SkillPreviewDrawer({
     >
       <div className="flex items-center gap-2 border-b border-(--tmd-border) px-3 py-2">
         <div className="min-w-0 flex-1 truncate text-xs font-medium">{skill.name}</div>
+        {metaFile && (
+          <button
+            type="button"
+            onClick={() => openFileInTab(metaFile)}
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
+            title={metaFile}
+            data-skill-edit={skill.name}
+          >
+            <PencilSimple size={12} aria-hidden="true" />
+            {t("编辑")}
+          </button>
+        )}
         <button
           type="button"
           onClick={onClose}

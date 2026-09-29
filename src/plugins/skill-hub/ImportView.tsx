@@ -6,18 +6,20 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { DownloadSimple } from "@phosphor-icons/react";
+import { DownloadSimple, Eye } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { useSkillRegistry } from "@plugins/cli-shared/skillRegistry";
 import { ENGINE_LABELS, type HubSkill } from "@plugins/cli-shared/skillSources";
 import { ensureSkillScanLoaded, refreshSkillScan, useSkillScan } from "./skillStore";
 import { ImportDialog } from "./ImportDialog";
+import { SkillPreviewDrawer } from "./SkillPreviewDrawer";
 
 export function ImportView() {
   const { groups, loading, error } = useSkillScan();
   const { records } = useSkillRegistry();
   const [importing, setImporting] = useState<HubSkill | null>(null);
   const [query, setQuery] = useState("");
+  const [preview, setPreview] = useState<HubSkill | null>(null);
   const importedNames = useMemo(() => new Set(records.map((r) => r.name)), [records]);
   useEffect(() => {
     void ensureSkillScanLoaded();
@@ -51,7 +53,7 @@ export function ImportView() {
     return <div className="py-4 text-center text-xs text-(--tmd-fg-faint)">{t("本机未发现任何 CLI 技能目录")}</div>;
   }
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-2 border-b border-(--tmd-border) px-3 py-2">
         <input
           value={query}
@@ -75,7 +77,7 @@ export function ImportView() {
               </div>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-2">
                 {g.skills.map((s) => (
-                  <ImportSourceCard key={s.dir} skill={s} imported={importedNames.has(s.name)} onImport={() => setImporting(s)} />
+                  <ImportSourceCard key={s.dir} skill={s} imported={importedNames.has(s.name)} onImport={() => setImporting(s)} onPreview={() => setPreview(s)} />
                 ))}
               </div>
             </section>
@@ -89,11 +91,12 @@ export function ImportView() {
           />
         )}
       </div>
+      {preview && <SkillPreviewDrawer skill={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }
 
-function ImportSourceCard({ skill, imported, onImport }: { skill: HubSkill; imported: boolean; onImport: () => void }) {
+function ImportSourceCard({ skill, imported, onImport, onPreview }: { skill: HubSkill; imported: boolean; onImport: () => void; onPreview: () => void }) {
   return (
     <div className="flex flex-col gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-base) p-2.5">
       <div className="min-w-0 truncate text-xs font-medium" title={skill.name}>
@@ -104,7 +107,17 @@ function ImportSourceCard({ skill, imported, onImport }: { skill: HubSkill; impo
       ) : (
         <div className="text-[11px] leading-snug text-(--tmd-fg-faint)">{t("无描述")}</div>
       )}
-      <div className="mt-auto flex items-center justify-end pt-1">
+      <div className="text-[10px] text-(--tmd-fg-faint) truncate" title={skill.dir}>{skill.dir}</div>
+      <div className="mt-auto flex items-center justify-end gap-1 pt-1">
+        <button
+          type="button"
+          onClick={onPreview}
+          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
+          data-skill-detail={skill.name}
+        >
+          <Eye size={12} aria-hidden="true" />
+          {t("详情")}
+        </button>
         {imported ? (
           <span className="cursor-default text-[11px] text-(--tmd-fg-faint)" title={t("已在安装记录中;重新导入请先在「已安装」删除")}>
             {t("已导入")}
