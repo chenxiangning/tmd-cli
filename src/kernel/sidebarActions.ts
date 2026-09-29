@@ -37,6 +37,11 @@ export interface SidebarAction {
   /** 直挂右缘 PanelRail(2026-09-27):不进左下设置菜单、不进底栏钉住,
    *  由 rail 渲染为图标钮(active() 驱动点亮态)。归属插件自声明。 */
   rail?: boolean;
+  /** rail 分组(与 registerFilePanel.railGroup 同契约):与面板统一排序后,
+   *  相邻两组之间画分隔线;缺省 = 不分组。 */
+  railGroup?: string;
+  /** 钉到 rail 底部簇(与 ⋯ 管理钮同挂 flex 空隙之后):排序/分组语义不变。 */
+  railBottom?: boolean;
   /** 动作内容在中央区(打开中央 tab 类):rail/菜单触发后折叠右栏让位中央内容。
    *  终端等幕布/浮层类动作不声明,保持原样。 */
   opensCenterTab?: boolean;

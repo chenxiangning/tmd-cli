@@ -39,8 +39,13 @@ export interface FilePanelContribution {
    * 自带摘要行的面板(git 聚合行 / checkpoints 审批线摘要 / ssh 连接段)声明 false ——
    * 外壳不认识任何业务面板,可见性由面板自己声明,不硬编码 id。 */
   showFileSubbar?: boolean;
-  /** tab 排序,小的在前;缺省 0。 */
+  /** tab 排序,小的在前;缺省 0。面板与 rail 动作共用地带(按此并序渲染)。 */
   order?: number;
+  /** rail 分组(2026-09-29 归组):同组相邻渲染,相邻两组之间画分隔线;
+   *  壳只比较相邻组值是否相等,不认识任何组语义;缺省 = 不分组(无分隔线)。 */
+  railGroup?: string;
+  /** 钉到 rail 底部簇(与 ⋯ 管理钮同挂 flex 空隙之后):排序/分组语义不变,归属插件自声明。 */
+  railBottom?: boolean;
   /** 注册即钉到 toolbar;缺省 true。 */
   pinnedByDefault?: boolean;
   /** 一次性补钉(review 裁决:收进注册面,禁插件旁路直连):老用户 persisted 清单

@@ -52,8 +52,9 @@ export const terminalPlugin: Plugin = {
       id: "terminal",
       label: "内置终端",
       icon: TerminalWindow,
-      order: 27,
+      order: 23, /* 机器组末席(SSH/WSL/终端) */
       rail: true,
+      railGroup: "machine",
       active: () =>
         host.getSessions().find((s) => s.id === host.getActiveSessionId())?.kind === "shell",
       onSelect: (_anchor, mods) =>

@@ -34,7 +34,9 @@ export const skillHubPlugin: Plugin = {
       icon: PuzzlePiece,
       component: SkillHubPanel,
       showFileSubbar: false,
-      order: 45,
+      order: 32, /* 能力生态组次席(memory/skills/mcp 钉 rail 底簇,与 ⋯ 呼应) */
+      railGroup: "ecosystem",
+      railBottom: true,
       centerTab: { id: SKILL_HUB_TAB_KIND, open: openSkillHubTab },
     });
     ctx.registerTabContent({

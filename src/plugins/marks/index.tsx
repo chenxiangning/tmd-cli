@@ -96,6 +96,8 @@ export const marksPlugin: Plugin = {
       icon: BookmarkSimple,
       component: MarksPanel,
       showFileSubbar: false,
+      order: 11, /* 会话组首席(session:标记/审批线/审批/画布) */
+      railGroup: "session",
       pinnedByDefault: true,
       /* 老用户 persisted 钉住清单里没有 marks → 落 ⋯ 溢出菜单不可见:一次性补钉(注册面选项) */
       pinOnce: true,

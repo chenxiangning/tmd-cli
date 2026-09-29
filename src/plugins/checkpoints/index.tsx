@@ -43,7 +43,8 @@ export const checkpointsPlugin: Plugin = {
       icon: SealCheck,
       component: CheckpointsPanel,
       showFileSubbar: false, // 审批线自带摘要行(审批线 · 批次规模 · 待审计数)
-      order: 10,
+      order: 12,
+      railGroup: "session", /* 会话组:标记/审批线/审批/画布相邻 */
     });
     /* 中央批审阅单 tab:kind="ckpt-batch" 路由(kernel/tabs 注册表)。 */
     ctx.registerTabContent({ kind: BATCH_TAB_KIND, component: BatchSheetTabContent, icon: ClipboardText });

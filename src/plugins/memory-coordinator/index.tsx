@@ -38,7 +38,9 @@ export const memoryCoordinatorPlugin: Plugin = {
       icon: Brain,
       component: MemoryPanel,
       showFileSubbar: false,
-      order: 40,
+      order: 31, /* 能力生态组首席(memory/skills/mcp 钉 rail 底簇,与 ⋯ 呼应) */
+      railGroup: "ecosystem",
+      railBottom: true,
     });
     ctx.registerTabContent({
       kind: "memory-console",

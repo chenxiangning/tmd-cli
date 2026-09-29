@@ -61,6 +61,9 @@ export const filesPlugin: Plugin = {
       newFile: () => getActiveTreeHandles()?.newFile(),
       newFolder: () => getActiveTreeHandles()?.newFolder(),
       actions: GitDecorateToggle,
+      /* rail 归组:工作区组(files/git 首组,位置不变;组间画分隔线) */
+      order: 0,
+      railGroup: "workspace",
     });
     /* 左栏工作区「查看文件」浏览器实现(kernel workspaceFileBrowser 契约);
        拔出本插件 = 入口按钮消失、已开视图自动关闭,右栏文件树零感知。 */

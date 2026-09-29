@@ -79,7 +79,8 @@ export const sshPlugin: Plugin = {
       id: "ssh",
       label: "SSH",
       icon: HardDrive,
-      order: 15,
+      order: 21, /* 机器组首席(SSH/WSL/终端) */
+      railGroup: "machine",
       showFileSubbar: false, // ssh 自带连接/转发/SFTP 摘要段
       component: SshPanel,
     });

@@ -102,11 +102,19 @@
   border-left: 1px solid var(--tmd-border);
 }
 
-.panel-rail-tabs {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
+/* rail 分组分隔线(2026-09-29 归组):.panel-rail-sep 原样复用;
+   底簇前的弹性空隙把 railBottom 声明项与 ⋯ 一起推到 rail 底部。 */
+.panel-rail-spacer {
+  flex: 1 1 auto;
+}
+
+/* 这里只补 ⋯ 溢出菜单里的组间分隔线(与 rail 同口径)。 */
+.panel-overflow-sep {
+  border: 0;
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--tmd-border);
+  flex: 0 0 auto;
 }
 
 .panel-rail-tab {

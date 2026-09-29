@@ -37,8 +37,9 @@ export const wslPlugin: Plugin = {
       id: "wsl-panel",
       label: "WSL",
       icon: DesktopIcon,
-      order: 26,
+      order: 22, /* 机器组(SSH/WSL/终端) */
       rail: true,
+      railGroup: "machine",
       opensCenterTab: true,
       active: () => getActiveTab()?.kind === "wsl",
       onSelect: () =>
